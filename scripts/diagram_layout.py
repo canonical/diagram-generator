@@ -467,7 +467,7 @@ def _layout_panel(
             mr = mw.row
             mx = x + col_xs[mc]
             my = y + row_ys[mr]
-            fg.append(MatrixTile(mx, my, mw.label))
+            fg.append(MatrixTile(mx, my, mw.label, component_id=mw.id or None))
             child_bounds.append(_Bounds(mx, my, MATRIX_SIZE, MATRIX_SIZE, mw))
 
         content_y = y + row_ys[-1] + row_heights[-1] + row_gap

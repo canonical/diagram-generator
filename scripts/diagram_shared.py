@@ -10,6 +10,7 @@ ICON_DIR = ROOT / "assets" / "icons"
 OUTPUT_DIR = ROOT / "diagrams" / "2.output"
 SVG_DIR = OUTPUT_DIR / "svg"
 DRAWIO_DIR = OUTPUT_DIR / "draw.io"
+LEGACY_OUTPUT_ROOT_SVGS = {"icon-box-48px-prototype.svg"}
 
 BLACK = "#000000"
 WHITE = "#FFFFFF"
@@ -61,6 +62,23 @@ LINE_HEIGHTS_BY_SIZE = {
     84: 92,
     96: 104,
 }
+
+def cleanup_legacy_output_root_svgs() -> list[pathlib.Path]:
+    """Remove stale root-level SVGs when a canonical svg/ copy exists.
+
+    The canonical output lane is diagrams/2.output/svg/. Older sessions left some
+    deliverables and prototypes directly under diagrams/2.output/, which confuses
+    humans and tooling that expects a single SVG location.
+    """
+    removed: list[pathlib.Path] = []
+    if not OUTPUT_DIR.exists():
+        return removed
+
+    for path in sorted(OUTPUT_DIR.glob("*.svg")):
+        if path.name in LEGACY_OUTPUT_ROOT_SVGS or (SVG_DIR / path.name).exists():
+            path.unlink()
+            removed.append(path)
+    return removed
 SORTED_LINE_HEIGHT_SIZES = tuple(sorted(LINE_HEIGHTS_BY_SIZE))
 
 ASCENT_RATIO = 0.94
@@ -85,13 +103,13 @@ ARROW_HEAD_HALF_WIDTH = 2.9053
 #   ARROW_CLEARANCE:      minimum visible shaft on the approach to the target
 #                         (box edge → arrowhead base).  Must be ≥ head length.
 #   MIN_ARROW_SEGMENT:    minimum last-segment length (clearance + head),
-#                         snapped to 4px grid.
+#                         snapped to the 8px baseline.
 #   ARROW_EXIT_CLEARANCE: minimum first segment leaving the source box
 #                         (no arrowhead, just enough to see the shaft depart).
 #   ARROW_GAP:            minimum gap between rows/columns where arrows route.
 #                         = MIN_ARROW_SEGMENT + ARROW_EXIT_CLEARANCE.
 ARROW_CLEARANCE = 8
-MIN_ARROW_SEGMENT = 16          # ARROW_CLEARANCE + ceil(ARROW_HEAD_LENGTH) on 4px grid
+MIN_ARROW_SEGMENT = 16          # ARROW_CLEARANCE + ceil(ARROW_HEAD_LENGTH) on the 8px baseline
 ARROW_EXIT_CLEARANCE = 8
 ARROW_GAP = 24                  # MIN_ARROW_SEGMENT + ARROW_EXIT_CLEARANCE
 
@@ -231,7 +249,7 @@ def tight_box_height(
 ) -> int:
     """Compute box height from content using the inside-out model.
 
-    Text-only:  INSET + (line_count * line_step) + INSET  →  snapped to 4px.
+    Text-only:  INSET + (line_count * line_step) + INSET  →  snapped to the 8px baseline.
     With icon:  max(text_height, INSET + ICON_SIZE + INSET).
     """
     if not lines:

@@ -21,7 +21,7 @@ Provide a cold-start-safe workflow and a consistent on-brand SVG system for rede
 3. For new diagrams, build from the sample block system: literal geometry, live text, natural-size local icons, and no hidden SVG reuse constructs.
 4. Reuse exact style snippets: `diagrams/0.reference/onbrand-svg-starter.svg` is now the copy source for the canonical block proportions, inset rhythm, and literal orange arrow geometry.
 5. Editable SVG over screenshots or embedded raster exports.
-6. The imported dense application and documentation mapping from `canonical-spacing-spec` remains the reference tier, but `inference-snaps-dense` is now piloting a diagram tier with `16px` body copy and `20px` line height to keep live text proportionate to the standard `48px` icon treatment.
+6. The imported dense application and documentation mapping from `canonical-spacing-spec` remains the reference tier, and the current diagram tier now uses `18px` body copy with `24px` line height to keep live text proportionate to the standard `48px` icon treatment inside the `192px` block system.
 7. Orange is reserved for arrows and arrowheads; boxes do not get orange fills.
 8. Geometry stays tight and reference-scaled; do not casually upscale diagrams.
 9. Use local icons only, and omit the icon entirely when no suitable icon exists in `assets/icons/`.
@@ -68,14 +68,16 @@ SVG element audit (v1 vs v2, April 2026). Use `python scripts/_compare_3way.py` 
 | attention-qkv | OK | 30→50 | 55=55 | Matrix tiles + fan-out arrows now rendering. v2 has more orange segments due to individual Z-bend arrows vs v1 shared trunks; visual coverage is equivalent. Frameless panels, correct box heights, white text on black boxes. |
 | gpu-waiting-scheduler | OK | 4=4 | 6=6 | Fixed: added explicit waypoints to match v1 orthogonal path. |
 | inference-snaps | OK | 8→12 | 17=17 | Content-width alignment verified. |
-| logic-data-vram | OK | 8→9 | 27=27 | Fixed: added missing "GPU" annotation labels under both sub-panels. |
-| memory-wall | OK | 12=12 | 11=11 | All elements match. Dashed separator present. |
+| logic-data-vram | OK | 8=8 | 27=27 | Content and text parity verified. The v2 output still uses extra structural rects for nested panel framing, but the audited visual result is accepted. |
+| memory-wall | OK | 12→16 | 11=11 | Content and text parity hold; v2 uses extra explicit orange segments and primitives around the jagged wall treatment. |
 | request-to-hardware-stack | OK | 10=10 | 27=27 | All elements match. |
 | rise-of-inference-economy | OK | 8=8 | 19=19 | All elements match. |
 
 **Resolved:** MatrixWidget support added to `_layout_panel()`. All matrix tiles now render inside frameless panels with proper grid placement and bounds registration for arrow resolution.
 
-**Arrow clearance enforced:** `validate_arrows()` runs in `build_v2.py` and checks every arrow segment. All diagrams pass except logic-data-vram (1 minor first-segment violation on the frag→packed horizontal arrow — 4px exit segment due to sub-panel height mismatch). Arrow clearance tokens (`ARROW_GAP`, `MIN_ARROW_SEGMENT`, `ARROW_EXIT_CLEARANCE`) documented in DIAGRAM.md and skills.
+**Resolved:** draw.io attachment audit is clean across the generated batch. Matrix widgets now keep `component_id` through panel layout, draw.io edges are emitted after connectable cells register, and the legacy memory-wall separator now exports as a line shape instead of an unattached edge.
+
+**Arrow clearance enforced:** `validate_arrows()` runs in `build_v2.py` and checks every arrow segment. The current audited diagrams pass the build-time arrow-clearance checks. Arrow clearance tokens (`ARROW_GAP`, `MIN_ARROW_SEGMENT`, `ARROW_EXIT_CLEARANCE`) are documented in `DIAGRAM.md` and the workflow skills.
 
 ### Declarative diagram model (Roadmap Stage 6a – highest priority)
 
@@ -185,7 +187,7 @@ These items are now unblocked by the completed refactor:
 - [x] **Gutter value changes don't activate save button.** Fixed — grid overrides persist via override JSON and mark dirty on change.
 - [x] **Baseline grid overlay turns pink.** Fixed — composition and baseline modes are now mutually exclusive. Baseline shows a clean 8px grid without the column/row band fills.
 - [x] **Save flakiness.** Fixed — relayout clears stale position overrides, load sequence re-baselines dirty state after initial relayout, save errors logged to console.
-- [ ] `[S]` **Distribute and align.** Select multiple boxes, click distribute, spaces them at equal gutters with a configurable gutter input value.
+- [x] `[S]` **Distribute and align.** Multi-select inspector now supports distribute and align actions with a configurable gutter value, 8px snap, override persistence, and undo/redo-safe behavior. Browser-validated via Playwright.
 - [x] **Gutter standardization.** All gaps, margins, and arrow clearance tokens standardized to 24px (was 32). `GRID_GUTTER=24`, `OUTER_MARGIN=24`, `ARROW_GAP=24`, `MIN_ARROW_SEGMENT=16`. Compact nested panel gaps remain 8px. Baseline unit changed from 4px to 8px — all tokens are multiples of 8.
 
 ### Completed interactive preview items
@@ -219,8 +221,10 @@ These items are now unblocked by the completed refactor:
 - [x] Add a style-sync tool that can batch-rewrite tokenized properties such as `spacingTop`, text spacing, connector styles, dash patterns, and related draw.io style fields across existing diagrams.
 - [x] Pilot the scripted review-copy workflow on `diagrams/2.output/draw.io/memory-wall-onbrand-edited-in-drawio.drawio` and one file under `diagrams/2.output/draw.io/manually-edited/`, including a documented revert procedure.
 - [x] 3-way compare pages (Before / Agent / Refined): extend `scripts/build_compare_pages.py` so each compare page shows the source input, the agent-generated SVG, and the manually refined raster from `diagrams/2.output/draw.io/manually-edited/raster/` side by side, with a graceful "no manual edit yet" panel when the refined asset is missing.
-- [ ] `[X]` Re-audit the refreshed starter-block batch in Illustrator: `diagrams/2.output/svg/memory-wall-onbrand.svg`, `diagrams/2.output/svg/request-to-hardware-stack-onbrand.svg`, `diagrams/2.output/svg/inference-snaps-onbrand.svg`, `diagrams/2.output/svg/attention-qkv-onbrand.svg`, `diagrams/2.output/svg/logic-data-vram-onbrand.svg`, `diagrams/2.output/svg/rise-of-inference-economy-onbrand.svg`, and `diagrams/2.output/svg/gpu-waiting-scheduler-onbrand.svg`.
-- [ ] `[X]` Import-test the current `diagrams/2.output/draw.io/*-onbrand.drawio` batch in draw.io and note any renderer mismatches versus the SVG canonicals.
+- [x] `[X]` Run structural draw.io batch audit and fix generated attachment defects. Generated draw.io XML now parses cleanly across the batch with `adaptiveColors="none"` and attached `source`/`target` ids on generated edges.
+- [x] `[X]` Run Illustrator-safety sanitizer dry-run across the refreshed starter-block SVG batch. All checked generated SVGs passed `svg_illustrator_sanitize.py` dry-run validation.
+- [ ] `[S]` Manual draw.io desktop smoke test for the current `diagrams/2.output/draw.io/*-onbrand.drawio` batch and the tracked `assets/drawio/diagram-generator-primitives.mxlibrary` when draw.io or diagrams.net is available locally.
+- [ ] `[S]` Manual Illustrator desktop smoke test for the refreshed starter-block SVG batch when Illustrator is available locally.
 - [ ] `[S]` Keep refining `DIAGRAM.md` as more diagram types appear.
 - [ ] `[S]` Re-audit the generator helpers whenever the user adjusts the starter block so the output set does not drift back into mixed inset or line-height rules.
 - [ ] `[H]` Make the repo PM-shareable by tracking a curated exemplar pack of at least `3` to `5` real before/after pairs plus their compare assets.

@@ -4,6 +4,18 @@ Completed work belongs here so `TODO.md` stays lean.
 
 ## Short-term
 
+### 2026-05-07 – Preview distribute/align + output validation sweep
+
+- Added multi-select distribute and align controls to the interactive preview inspector with configurable gutter spacing, 8px snapping, override persistence, and undo/redo-safe updates.
+- Browser-validated the preview feature with Playwright against the live preview; equal-gutter distribute hits the requested spacing within normal 1px browser bounding-box rounding tolerance.
+- Preserved matrix widget `component_id` through panel layout, delayed draw.io edge emission until all connectable cells register, and fixed the legacy `memory-wall-onbrand.drawio` separator export by emitting it as a non-edge line shape.
+- Updated `attention-qkv` so the declarative heading text matches the v1 baseline (`QK^T`), clearing the last `_audit_v2.py` text drift for the audited canonical diagrams.
+- Added build-time cleanup for stale root-level `diagrams/2.output/*.svg` artifacts so `diagrams/2.output/svg/` remains the single canonical SVG output lane; this also removed the orphaned `icon-box-48px-prototype.svg` copy from the output folder.
+- Synced the diagram workflow skills back to the current spec tokens: `18px` body text, `8px` baseline, `24px` structural gutters, `24px` arrow gaps, and `40px` one-line text-only boxes.
+- Rebuilt the v2 batch and the stable batch. Generated draw.io XML now parses cleanly across 23 files with `adaptiveColors="none"` and no missing `source` / `target` edge attachments.
+- Ran `svg_illustrator_sanitize.py` dry-run checks across 31 generated SVG outputs; all passed.
+- Reran `_audit_v2.py`; the audited canonical diagrams now report OK.
+
 ### 2026-05-01 – Content-width alignment engine for vertical layouts
 
 - Two-pass VERTICAL layout now separates content width from outer width so standalone boxes, spanning boxes, and panel children all share the same right edge.

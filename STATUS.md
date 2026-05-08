@@ -45,6 +45,7 @@ There are now **two diagram generation pipelines**. On a cold start, ask the use
 - `python scripts/_compare_3way.py` — Playwright 3-way comparison: input sketch → v1 → v2
 - `python scripts/_audit_v2.py` — SVG element count audit (orange elements, texts, rects, icons)
 - `python scripts/_compare_all.py` — v1 vs v2 side-by-side comparisons
+- `python scripts/svg_illustrator_sanitize.py` — Illustrator-safety sanitizer for deliverable SVGs
 
 ### v2 defect summary (April–May 2026)
 
@@ -57,6 +58,16 @@ There are now **two diagram generation pipelines**. On a cold start, ask the use
 | memory-wall | OK |
 | request-to-hardware-stack | OK – content-width alignment verified |
 | rise-of-inference-economy | OK |
+
+### Output validation checkpoint (May 2026)
+
+- Generated draw.io XML is structurally clean across the current batch: all audited files parse, keep `adaptiveColors="none"`, and every generated edge now carries both `source` and `target` ids.
+- v2 draw.io exports now preserve semantic edge attachments for matrix widgets, terminal bars, jagged memory-wall panels, and other connectable component cells.
+- The legacy `memory-wall-onbrand.drawio` separator is now emitted as a line shape instead of an unattached decorative edge.
+- Build entrypoints now treat `diagrams/2.output/svg/` as the only canonical SVG lane and prune stale legacy duplicates left directly under `diagrams/2.output/`.
+- `svg_illustrator_sanitize.py` dry-run checks passed across 31 generated SVG outputs.
+- `_audit_v2.py` now reports the audited canonical diagrams as OK, including `attention-qkv` after the heading text was realigned to the v1 baseline.
+- Native draw.io desktop import/export and Illustrator desktop smoke tests were not run in this environment.
 
 ### Layout engine (May 2026)
 
@@ -87,14 +98,14 @@ The project has evolved from a batch diagram generator into a **constrained inte
 - Command pattern for granular undo/redo (deferred; snapshot approach works)
 - Bug 6: horizontal layout with `cols=1` misclassified as "vertical" in `_bounds_to_component_info` (no current diagrams affected)
 
-**Browser-verified (May 2026):** snap guides, layout metadata in inspector, icon re-anchor on resize, parent→child grid propagation. All audit bugs fixed (commits `51535bf`, `dec8160`).
+**Browser-verified (May 2026):** snap guides, layout metadata in inspector, icon re-anchor on resize, parent→child grid propagation, and multi-select distribute/align in the preview inspector. All audit bugs fixed (commits `51535bf`, `dec8160`).
 
 - **The repo now uses the centralized root workflow.** `STATUS.md`, `TODO.md`, `ROADMAP.md`, `HISTORY.md`, `INBOX.md`, `AGENT-INBOX.md`, and `docs/specs.md` are the canonical workflow files.
 - **A design.md-inspired diagram language spec now exists.** `DIAGRAM.md` holds the canonical tokens, prose rules, output constraints, and redraw workflow for diagram work instead of keeping that material in `TODO.md`.
 - **Optional workflow skills now have a clear home.** `.github/skills/` is the repo location for on-demand workflow skills such as redraw, build-and-validate, and protected draw.io review procedures.
 - **Draw.io is the primary editable output target.** `scripts/build_outputs.py` generates draw.io first into `diagrams/2.output/draw.io/`, then regenerates the matching SVG batch in `diagrams/2.output/svg/`.
 - **Both renderers now share one primitive layer.** `scripts/diagram_shared.py` carries the shared tokens, icon loading, text metrics, terminal chrome helpers, and matrix helpers used by both renderers.
-- **The current output batch is already rebuilt on the refreshed starter-block system.** `memory-wall-onbrand.svg`, `request-to-hardware-stack-onbrand.svg`, `inference-snaps-onbrand.svg`, `attention-qkv-onbrand.svg`, `logic-data-vram-onbrand.svg`, `rise-of-inference-economy-onbrand.svg`, and `gpu-waiting-scheduler-onbrand.svg` all live under `diagrams/2.output/svg/`, with matching editable draw.io exports under `diagrams/2.output/draw.io/`.
+- **The current output batch is already rebuilt on the refreshed starter-block system.** `memory-wall-onbrand.svg`, `request-to-hardware-stack-onbrand.svg`, `inference-snaps-onbrand.svg`, `attention-qkv-onbrand.svg`, `logic-data-vram-onbrand.svg`, `rise-of-inference-economy-onbrand.svg`, and `gpu-waiting-scheduler-onbrand.svg` all live under `diagrams/2.output/svg/`, with matching editable draw.io exports under `diagrams/2.output/draw.io/`. Legacy root-level `diagrams/2.output/*.svg` copies are stale and are now pruned by the build entrypoints.
 - **A workflow explainer diagram now documents the intake lane.** `diagram-intake-workflow-onbrand.svg` and `diagram-intake-workflow-onbrand.drawio` show the current ChatGPT input, the open PM intake-question lane, the repo workflow, compare mode, the manual draw.io polish step, and final SVG output; the review lane also includes `diagrams/1.input/diagram-intake-workflow-rough.svg` and `diagrams/3.compare/html/diagram-intake-workflow.html`.
 - **A second workflow explainer now documents the spec-led lane.** `diagram-language-workflow-onbrand.svg` and `diagram-language-workflow-onbrand.drawio` show rough sources, local references, `DIAGRAM.md`, the new workflow skills, the generators, the compare and review lane, and clean outputs ready for design-language token ingestion; the review lane also includes `diagrams/1.input/diagram-language-workflow-rough.svg` and `diagrams/3.compare/html/diagram-language-workflow.html`.
 - **A forked comparison variant remains useful for comparison.** `inference-snaps-dense-onbrand.svg` and `inference-snaps-dense-onbrand.drawio` reuse the same source as `inference-snaps`, widen the side-by-side tiles, switch the major inter-column and inter-row gaps to the `24px` application gutter, and derive row placement from actual box heights while using the same canonical `18px` / `24px` body copy as the rest of the current batch.
@@ -109,15 +120,14 @@ The project has evolved from a batch diagram generator into a **constrained inte
 - **Body text is now 18px/24px.** `diagram_shared.py` and `DIAGRAM.md` are updated. All outputs rebuilt at the new size.
 - **Bars auto-size from content.** Layout engine computes minimum bar height from `INSET + text_height + INSET` so text has balanced top/bottom padding; the model's `height` field is now a floor, not a fixed value.
 - **Baseline grid validator is live.** `validate_grid(result)` in `diagram_layout.py` checks all Rect, Icon, TextBlock, Arrow, and Canvas coordinates against the `8px` grid. Bar segment `width_px` values must be multiples of `8`.
-- **Review remains the main open lane.** The remaining work is Illustrator and draw.io import validation, plus finishing the propagation of the newly imported typography, spacing, and grid tokens into draw.io style sync and any remaining renderer defaults.
+- **Manual app validation remains the main open lane.** Structural draw.io XML audits and Illustrator-safety sanitizer checks now pass, but native draw.io and Illustrator desktop smoke tests still need a workstation that has those tools installed. The remaining implementation lane is finishing the propagation of the newly imported typography, spacing, and grid tokens into draw.io style sync and any remaining renderer defaults.
 
 ## Current execution plan
 
-- Content-width alignment engine is complete and committed — all vertical diagrams have flush right edges.
-- Next: distribute-and-align feature for the interactive preview (multi-select → equal spacing).
+- Content-width alignment and preview distribute-and-align are complete and validated.
+- Generated draw.io outputs are structurally clean; the next validation step is a manual desktop smoke test in draw.io or diagrams.net when that tooling is available.
+- Generated SVG outputs passed the Illustrator-safety sanitizer; the next validation step is a manual Illustrator desktop smoke test when that tooling is available.
 - Ingest remaining typography, spacing, and grid specs from the broader design language into `DIAGRAM.md`, then map them into `scripts/diagram_shared.py` and draw.io style sync.
-- Import-test the current draw.io batch and the tracked `assets/drawio/diagram-generator-primitives.mxlibrary` in draw.io.
-- Re-audit the refreshed starter-block SVG batch in Illustrator.
 - Keep refining `DIAGRAM.md` as more diagram types appear.
 
 ## Draw.io evolution plan
@@ -183,7 +193,7 @@ The project has evolved from a batch diagram generator into a **constrained inte
 - Final SVGs should reference `font-family: 'Ubuntu Sans', sans-serif` by family name only rather than shipping a file-path `@font-face` dependency.
 - Use icons from `assets/icons/` only; if no suitable icon exists, omit the icon rather than sourcing a new one implicitly.
 - For new work, keep the `192px` / `64px` / `8px` / `48x48` block system and the imported dense spacing baseline, but treat `18px` / `24px` as the current body text size.
-- Prefer hierarchy by weight before hierarchy by size; move from `14px` regular to `14px` strong and small-caps, then `18px/24px`, then `24px/32px` only when the smaller ladder is not enough.
+- Prefer hierarchy by weight before hierarchy by size; move from `18px` regular to `18px` strong and small-caps, then `24px/32px` only when the smaller ladder is not enough.
 - Orange is reserved for connectors and arrowheads only; boxes stay white or `#F3F3F3`, with at most one black emphasis box when clearly justified.
 - Orange connectors should run edge-to-edge, midpoint-to-midpoint, behind the destination box, using literal line-plus-triangle geometry.
 - `diagrams/2.output/svg/memory-wall-onbrand.svg` is the canonical implementation checkpoint for palette, icon placement, side-icon clusters, and overall scale.

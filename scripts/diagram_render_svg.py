@@ -391,8 +391,8 @@ def render_svg(result: LayoutResult, *, show_grid: bool = False,
                show_layout_grid: bool = False) -> str:
     """Render a LayoutResult to a complete SVG string.
 
-    When *show_grid* is True, a faint 4px baseline grid overlay is drawn
-    on top of the diagram (red lines at 8px rhythm, cyan at 4px steps).
+    When *show_grid* is True, a faint 8px baseline grid overlay is drawn
+    on top of the diagram.
     When *show_layout_grid* is True, the Müller-Brockmann layout grid
     (column/row boundaries, gap regions, dimension labels) is drawn.
     """

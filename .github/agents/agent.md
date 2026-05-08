@@ -68,7 +68,7 @@ This determines which files to edit, which build script to run, and which compar
 - Prefer scoped commits that separate diagram or output-structure work, icon or style-rule work, and workflow or documentation work.
 - Do not invent a new visual language when an existing local reference or completed exemplar already establishes the answer.
 - Use local assets first: `assets/icons/`, `assets/UbuntuSans[wdth,wght].ttf`, `diagrams/0.reference/_BRND-3284.drawio.svg`, `diagrams/0.reference/onbrand-reference.png`, completed SVG outputs under `diagrams/2.output/svg/`, and completed draw.io outputs under `diagrams/2.output/draw.io/`.
-- Keep the current dense `14px` body, `18px/24px`, and `24px/32px` ladder as the default for new work; treat the older compact `9px` system as legacy-only unless maintaining already-finished outputs.
+- Keep the current dense `18px/24px` body tier and `24px/32px` title step as the default for new work; treat `14px` and the older compact `9px` systems as secondary or legacy-only unless maintaining already-finished outputs.
 - If a reusable starter or helper pattern emerges after multiple diagrams, document it in the canonical docs rather than relying on chat history.
 
 ## Resume focus

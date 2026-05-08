@@ -7,6 +7,7 @@ import build_compare_pages
 import export_drawio_library
 import export_drawio_batch
 import generate_remaining_diagrams
+from diagram_shared import cleanup_legacy_output_root_svgs
 
 
 # Pairs of (generated SVG, manual reference raster) for visual validation.
@@ -61,6 +62,10 @@ def main() -> None:
     export_drawio_library.main()
     export_drawio_batch.main()
     generate_remaining_diagrams.main()
+    removed = cleanup_legacy_output_root_svgs()
+    if removed:
+        names = ", ".join(path.name for path in removed)
+        print(f"  Removed stale root SVGs: {names}")
     build_compare_pages.main()
 
     # Visual validation (Playwright + pixel diff)

@@ -17,7 +17,7 @@ from diagram_layout import layout, validate_arrows, validate_grid
 from diagram_loader import load_diagram
 from diagram_render_svg import write_svg
 from diagram_render_drawio import write_drawio
-from diagram_shared import SVG_DIR, DRAWIO_DIR
+from diagram_shared import SVG_DIR, DRAWIO_DIR, cleanup_legacy_output_root_svgs
 
 
 # (slug, module_name, variable_name)
@@ -95,9 +95,14 @@ def main() -> None:
         else:
             print(f"  {slug}: SVG + draw.io")
 
+    removed = cleanup_legacy_output_root_svgs()
+    if removed:
+        names = ", ".join(path.name for path in removed)
+        print(f"  Removed stale root SVGs: {names}")
+
     if total_arrow_violations:
         print(f"\n  ⚠ {total_arrow_violations} total arrow clearance violation(s)")
-        print(f"    Increase row_gap/col_gap to ARROW_GAP (32) where arrows route.")
+        print(f"    Increase row_gap/col_gap to ARROW_GAP (24) where arrows route.")
 
 
 if __name__ == "__main__":
