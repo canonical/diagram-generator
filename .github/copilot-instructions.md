@@ -200,7 +200,7 @@ Several references below point to locally generated outputs under `diagrams/2.ou
 - Final deliverable SVGs must be Illustrator-safe: no `<symbol>`, no `<use>`, no external `<image href="...">`, and no marker refs such as `marker-start="url(#...)"`.
 - Use icons from the local `assets/icons/` directory only unless the user explicitly asks for a new source.
 - If no suitable local icon exists for a box, omit the icon rather than inventing or sourcing one.
-- Treat `diagrams/0.reference/_BRND-3284.drawio.svg` as the scale/layout reference and `diagrams/0.reference/onbrand-reference.png` as the broader brand-language reference.
+- Treat `diagrams/0.reference/_BRND-3284.drawio.svg` as the scale/layout reference, and use `diagrams/0.reference/sample.svg`, `diagrams/0.reference/sample.png`, `diagrams/0.reference/onbrand-svg-starter.svg`, and `diagrams/2.output/svg/memory-wall-onbrand.svg` as the broader brand-language reference set.
 - Treat `diagrams/0.reference/sample.svg` and `diagrams/0.reference/sample.png` as the current canonical single-box building block for box width, live-text proportion, arrow treatment, and overall proportion.
 - Treat `diagrams/0.reference/onbrand-svg-starter.svg` as the reusable copy source for the canonical block proportions, inset rhythm, and literal orange arrow geometry.
 - Run `scripts/svg_illustrator_sanitize.py --write <svg>` before finalizing a deliverable so Illustrator sees inline geometry rather than internal SVG references.
@@ -253,7 +253,7 @@ Several references below point to locally generated outputs under `diagrams/2.ou
 There is no repo-wide automated test suite yet. First checks for diagram work are:
 
 1. Inspect `STATUS.md`.
-2. Compare the current target SVG against `diagrams/2.output/svg/memory-wall-onbrand.svg`, `diagrams/0.reference/_BRND-3284.drawio.svg`, `diagrams/0.reference/onbrand-reference.png`, and the local icon set in `assets/icons/`.
+2. Compare the current target SVG against `diagrams/2.output/svg/memory-wall-onbrand.svg`, `diagrams/0.reference/_BRND-3284.drawio.svg`, the starter-block references under `diagrams/0.reference/`, and the local icon set in `assets/icons/`.
 3. Validate edited SVGs for syntax errors.
 
 The key rule: every piece of status information should live in exactly one place.

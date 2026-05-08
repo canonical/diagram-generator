@@ -26,7 +26,6 @@ Rows marked ⚠ reference assets excluded by `.gitignore`. Run the build or obta
 | Reusable style copy source | `diagrams/0.reference/onbrand-svg-starter.svg` | Canonical inset rhythm, box proportions, and literal arrow geometry |
 | Tracked draw.io library | `assets/drawio/diagram-generator-primitives.mxlibrary` | Repo-owned reusable library for canonical draw.io primitives |
 | Secondary layout reference ⚠ | `diagrams/0.reference/_BRND-3284.drawio.svg` | Connector and broader layout reference |
-| Broader brand-language reference ⚠ | `diagrams/0.reference/onbrand-reference.png` | Higher-level visual direction reference |
 | Current canonical implementation ⚠ | `diagrams/2.output/svg/memory-wall-onbrand.svg` | Palette, icon placement, side-icon cluster, and scale checkpoint |
 
 ## External tool references
