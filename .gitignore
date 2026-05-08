@@ -5,7 +5,11 @@ diagram-generator.code-workspace
 
 # Ignore input and output diagrams
 diagrams/1.input/
+diagrams/1. input/
 diagrams/2.output/
+
+# Ignore local draw.io scratch copies outside the canonical output lane
+draw.io/
 
 # Ignore comparison pages (contain company diagram screenshots)
 diagrams/3.compare/

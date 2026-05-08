@@ -26,4 +26,4 @@ argument-hint: "Describe the upstream spec source and which token families are c
 - Do not update renderer constants first and backfill the spec later.
 - Keep imported values explicit; avoid burying new design-language rules in chat-only rationale.
 - Prefer one source-to-token mapping over per-diagram overrides.
-- Unless the user explicitly asks for another tier, keep the repo aligned to the current dense application and documentation mapping: `14px` body text, `4px` baseline unit, `20/24/32px` baseline-snapped line heights, and `24px` application gutters.
+- Unless the user explicitly asks for another tier, keep the repo aligned to the current dense application and documentation mapping: `18px` body text, `8px` baseline unit, `20/24/32px` baseline-snapped line heights, and `24px` application gutters.

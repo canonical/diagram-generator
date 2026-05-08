@@ -1,6 +1,6 @@
 <mxfile host="app.diagrams.net" agent="diagram-generator" version="29.3.7">
   <diagram name="Page-1" id="diagram-intake-workflow">
-    <mxGraphModel grid="1" gridSize="4" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="840" pageHeight="720" background="light-dark(#ffffff, #ffffff)" adaptiveColors="none" math="0" shadow="0">
+    <mxGraphModel grid="1" gridSize="8" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="840" pageHeight="720" background="light-dark(#ffffff, #ffffff)" adaptiveColors="none" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />

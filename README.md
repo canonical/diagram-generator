@@ -11,14 +11,18 @@ python -m venv .venv
 .venv/Scripts/activate  # Windows
 # source .venv/bin/activate  # macOS/Linux
 
-# 2. Build all diagrams (SVG + draw.io)
-cd scripts
-python build_v2.py
+# 2. Build the stable shareable batch (SVG + draw.io)
+python scripts/build_outputs.py --no-visual
 
-# 3. View outputs
+# 3. Build the declarative v2 batch
+python scripts/build_v2.py
+
+# 4. View outputs
 # SVGs land in diagrams/2.output/svg/
 # draw.io files land in diagrams/2.output/draw.io/
 ```
+
+If you only want the currently active declarative pipeline, you can skip the stable build and run `python scripts/build_v2.py` from the repo root.
 
 ### Creating your own diagram
 
@@ -54,16 +58,69 @@ Three generic examples ship with the repo for reference:
 | [`example_platform_architecture.py`](scripts/diagrams/example_platform_architecture.py) | Grid with nested panels, multi-column span |
 | [`example_data_processing.py`](scripts/diagrams/example_data_processing.py) | Panels with allocation bars, separators, annotations |
 
-### Interactive preview (in development)
+### Interactive autolayout demo
 
-A hot-reload preview server is available for visual drafting. It is still an active editor surface rather than a finished product, but the current build already supports the core authoring loop.
+The interactive autolayout demo is the hot-reload preview server. It is still an active editor surface rather than a polished end-user app, but it is the current way to exercise live relayout, gutter controls, distribute/align, and override persistence.
 
 ```bash
 python scripts/preview_server.py              # all diagrams, port 8100
 python scripts/preview_server.py --slug memory-wall --grid  # single diagram with grid overlay
 ```
 
-Features: component tree sidebar, click-to-select inspector, drag-and-resize with 8px snap, waypoint editing, grid overlay controls, undo/redo snapshots, and override persistence to JSON. Overrides are a drafting aid – the agent reads them and applies fixes to the Python definition.
+Then open one of these URLs in your browser:
+
+- `http://127.0.0.1:8100/` for the diagram index
+- `http://127.0.0.1:8100/view/memory-wall` for a direct single-diagram demo
+
+Suggested demo flow:
+
+1. Start `python scripts/preview_server.py --slug memory-wall --grid`
+2. Open `http://127.0.0.1:8100/view/memory-wall`
+3. Resize a parent panel or change gutter controls to watch autolayout recompute child placement
+4. Multi-select a few boxes to try distribute/align actions in the inspector
+
+Features: component tree sidebar, click-to-select inspector, drag-and-resize with 8px snap, parent/child autolayout relayout, waypoint editing, grid overlay controls, undo/redo snapshots, and override persistence to JSON. Overrides are a drafting aid – the agent reads them and applies fixes to the Python definition.
+
+#### Agent prompt: open the interactive autolayout demo
+
+Paste this into an agent if you want it to launch the live demo end-to-end instead of just describing the steps:
+
+```text
+Open this repo and launch the interactive autolayout demo for the tracked example `example-platform-architecture`.
+
+Work from the repo root. Do not stop at instructions; actually run the setup and open the demo.
+
+1. Start the preview server in an integrated terminal with:
+    python scripts/preview_server.py --slug example-platform-architecture --grid
+2. Keep that terminal running.
+3. Open the demo in a browser at:
+    http://127.0.0.1:8100/view/example-platform-architecture
+4. If you need a Windows command to open the browser yourself, use:
+    Start-Process "http://127.0.0.1:8100/view/example-platform-architecture"
+5. Wait until the page is visibly loaded, then tell me the interactive demo is ready.
+6. If the first attempt fails because the port is busy or the server needs a restart, recover and retry rather than stopping early.
+```
+
+#### Agent prompt: open the older pre-autolayout demo
+
+This is the older batch-output flow from before the interactive editor: build the diagram and open the generated SVG directly.
+
+```text
+Open this repo and launch the older pre-autolayout static demo for the tracked example `example-platform-architecture`.
+
+Work from the repo root. Do not stop at instructions; actually run the build and open the output.
+
+1. Build the declarative batch with:
+    python scripts/build_v2.py
+2. Open the generated SVG output:
+    diagrams/2.output/svg/example-platform-architecture-onbrand-v2.svg
+3. On Windows, if you need an explicit open command, use:
+    Start-Process (Resolve-Path "diagrams/2.output/svg/example-platform-architecture-onbrand-v2.svg")
+4. If available, also open the matching draw.io file for comparison:
+    diagrams/2.output/draw.io/example-platform-architecture-onbrand-v2.drawio
+5. Tell me when the static pre-autolayout output is visible.
+6. If the build fails because of a small local issue, fix it if straightforward and retry once before stopping.
+```
 
 ### Available icons
 

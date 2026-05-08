@@ -156,7 +156,7 @@ attention_qkv = Diagram(
         # ── (0,1) Match panel – frameless ──
         Panel(
             id="match",
-            heading=_heading('The match (QK\u1d40): the "relevance check"'),
+            heading=_heading('The match (QK^T): the "relevance check"'),
             cols=4,
             col_width=192,
             col_gap=8,

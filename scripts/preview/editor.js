@@ -43,6 +43,7 @@ Object.defineProperty(window, "selectionDepth", {
 
 let isDirty = false;
 const HANDLE_SIZE = 8;
+let multiActionGap = window.__DG_CONFIG.col_gap || 24;
 
 // ---- BoxStyle presets (mirrors diagram_model.py BoxStyle enum) ----
 const BOX_STYLES = {
@@ -575,7 +576,7 @@ function performUndo() {
   // Update UI
   applyWaypointOverrides();
   applyAllOverrides();
-  if (selectedIds.size === 1) updateInspector([...selectedIds][0]);
+  renderSelectionInspector();
   updateOverrideSummary();
   refreshTreeColors();
   
@@ -600,7 +601,7 @@ function performRedo() {
   // Update UI
   applyWaypointOverrides();
   applyAllOverrides();
-  if (selectedIds.size === 1) updateInspector([...selectedIds][0]);
+  renderSelectionInspector();
   updateOverrideSummary();
   refreshTreeColors();
   
@@ -667,6 +668,268 @@ function getDescendantIds(cid) {
 
 function getEffectiveDelta(cid) {
   return model.getEffectiveDelta(cid);
+}
+
+function snapToGrid(value) {
+  return Math.round(value / 8) * 8;
+}
+
+function renderEmptyInspector() {
+  document.getElementById("inspector").innerHTML =
+    '<div style="color:#555">Click a component to inspect it.</div>';
+}
+
+function getPrimarySelectedId(preferredCid) {
+  if (preferredCid && selectedIds.has(preferredCid)) return preferredCid;
+  return [...selectedIds].pop() || null;
+}
+
+function renderSelectionInspector(preferredCid) {
+  const primary = getPrimarySelectedId(preferredCid);
+  if (!primary) {
+    renderEmptyInspector();
+    return;
+  }
+  if (selectedIds.size === 1) {
+    updateInspector(primary);
+  } else {
+    renderMultiSelectionInspector();
+  }
+}
+
+function getSelectionActionItems() {
+  const items = [];
+  let hasUnsupported = false;
+
+  selectedIds.forEach((id) => {
+    const node = model.get(id);
+    if (!node || node.type === "arrow" || node.type === "separator") {
+      hasUnsupported = true;
+      return;
+    }
+    const own = getOwnDelta(id);
+    const eff = getEffectiveDelta(id);
+    items.push({
+      id,
+      node,
+      parentId: node.parent ? node.parent.id : "",
+      own,
+      eff,
+      x: node.data.x + eff.dx,
+      y: node.data.y + eff.dy,
+      width: node.data.width + own.dw,
+      height: node.data.height + own.dh,
+    });
+  });
+
+  const parentIds = new Set(items.map(item => item.parentId));
+  return {
+    items,
+    hasUnsupported,
+    sameParent: parentIds.size <= 1,
+    parentId: parentIds.size === 1 ? [...parentIds][0] : null,
+  };
+}
+
+function inferSelectionGap(info) {
+  if (!info.sameParent || info.items.length < 2) {
+    return snapToGrid(window.__DG_CONFIG.col_gap || 24);
+  }
+
+  if (info.parentId) {
+    const parent = model.get(info.parentId);
+    if (parent) {
+      if (parent.layout === "vertical") {
+        return snapToGrid(parent.layoutRowGap || parent.layoutGap || 24);
+      }
+      if (parent.layout === "horizontal") {
+        return snapToGrid(parent.layoutColGap || parent.layoutGap || 24);
+      }
+    }
+  }
+
+  const byX = [...info.items].sort((a, b) => (a.x - b.x) || (a.y - b.y));
+  const byY = [...info.items].sort((a, b) => (a.y - b.y) || (a.x - b.x));
+  const xGaps = [];
+  const yGaps = [];
+  for (let i = 1; i < byX.length; i++) {
+    xGaps.push(byX[i].x - (byX[i - 1].x + byX[i - 1].width));
+    yGaps.push(byY[i].y - (byY[i - 1].y + byY[i - 1].height));
+  }
+  const nonNegativeX = xGaps.filter(gap => gap >= 0);
+  const nonNegativeY = yGaps.filter(gap => gap >= 0);
+  const candidate = nonNegativeX.length >= nonNegativeY.length ? nonNegativeX[0] : nonNegativeY[0];
+  return snapToGrid(candidate != null ? candidate : (window.__DG_CONFIG.col_gap || 24));
+}
+
+function setMultiActionGap(value) {
+  const parsed = parseInt(value, 10);
+  multiActionGap = snapToGrid(Math.max(0, Number.isFinite(parsed) ? parsed : 0));
+  const input = document.getElementById("multi-action-gap");
+  if (input) input.value = multiActionGap;
+}
+
+function clampSelectionTarget(item, targetX, targetY) {
+  let nextX = snapToGrid(targetX);
+  let nextY = snapToGrid(targetY);
+
+  if (!item.parentId) {
+    return { x: nextX, y: nextY };
+  }
+
+  const parent = model.get(item.parentId);
+  if (!parent) {
+    return { x: nextX, y: nextY };
+  }
+
+  const parentEff = getEffectiveDelta(parent.id);
+  const parentOwn = getOwnDelta(parent.id);
+  const minX = parent.data.x + parentEff.dx + INSET;
+  const minY = parent.data.y + parentEff.dy + INSET;
+  const maxX = minX + parent.data.width + parentOwn.dw - 2 * INSET - item.width;
+  const maxY = minY + parent.data.height + parentOwn.dh - 2 * INSET - item.height;
+
+  nextX = snapToGrid(Math.min(Math.max(nextX, minX), maxX));
+  nextY = snapToGrid(Math.min(Math.max(nextY, minY), maxY));
+  return { x: nextX, y: nextY };
+}
+
+function applySelectionTargets(targets) {
+  if (Object.keys(targets).length === 0) return;
+  recordSnapshot();
+  for (const [id, target] of Object.entries(targets)) {
+    const node = model.get(id);
+    if (!node) continue;
+    const own = getOwnDelta(id);
+    const eff = getEffectiveDelta(id);
+    const ancestorDx = eff.dx - own.dx;
+    const ancestorDy = eff.dy - own.dy;
+    const dx = snapToGrid(target.x - node.data.x - ancestorDx);
+    const dy = snapToGrid(target.y - node.data.y - ancestorDy);
+    setOverride(id, { dx, dy });
+  }
+  applyAllOverrides();
+  reapplySelection();
+  renderSelectionInspector();
+  updateOverrideSummary();
+  refreshTreeColors();
+  runConstraints();
+}
+
+function distributeSelection(axis) {
+  const info = getSelectionActionItems();
+  if (info.items.length < 2) return;
+  if (!info.sameParent) {
+    alert("Distribute works on sibling components under one parent.");
+    return;
+  }
+  if (info.hasUnsupported) {
+    alert("Distribute currently supports boxes, panels, terminals, and other non-arrow components only.");
+    return;
+  }
+
+  const gap = snapToGrid(Math.max(0, multiActionGap));
+  multiActionGap = gap;
+  const items = [...info.items].sort((a, b) =>
+    axis === "x" ? ((a.x - b.x) || (a.y - b.y)) : ((a.y - b.y) || (a.x - b.x))
+  );
+
+  const targets = {};
+  let cursor = axis === "x" ? items[0].x : items[0].y;
+  for (const item of items) {
+    const target = clampSelectionTarget(
+      item,
+      axis === "x" ? cursor : item.x,
+      axis === "y" ? cursor : item.y,
+    );
+    targets[item.id] = target;
+    cursor = axis === "x" ? (target.x + item.width + gap) : (target.y + item.height + gap);
+  }
+  applySelectionTargets(targets);
+}
+
+function alignSelection(mode) {
+  const info = getSelectionActionItems();
+  if (info.items.length < 2) return;
+  if (info.hasUnsupported) {
+    alert("Align currently supports boxes, panels, terminals, and other non-arrow components only.");
+    return;
+  }
+
+  const left = Math.min(...info.items.map(item => item.x));
+  const top = Math.min(...info.items.map(item => item.y));
+  const right = Math.max(...info.items.map(item => item.x + item.width));
+  const bottom = Math.max(...info.items.map(item => item.y + item.height));
+  const centerX = (left + right) / 2;
+  const centerY = (top + bottom) / 2;
+  const targets = {};
+
+  info.items.forEach((item) => {
+    let targetX = item.x;
+    let targetY = item.y;
+    if (mode === "left") targetX = left;
+    if (mode === "center") targetX = centerX - (item.width / 2);
+    if (mode === "right") targetX = right - item.width;
+    if (mode === "top") targetY = top;
+    if (mode === "middle") targetY = centerY - (item.height / 2);
+    if (mode === "bottom") targetY = bottom - item.height;
+    targets[item.id] = clampSelectionTarget(item, targetX, targetY);
+  });
+
+  applySelectionTargets(targets);
+}
+
+function renderMultiSelectionInspector() {
+  const info = getSelectionActionItems();
+  if (info.items.length < 2) {
+    renderEmptyInspector();
+    return;
+  }
+
+  multiActionGap = inferSelectionGap(info);
+
+  let html = '<div class="field"><span class="label">Selection</span><br>' +
+    '<span class="value">' + selectedIds.size + ' components</span></div>';
+  html += '<div class="hint">Shift+click adds to the selection. Drag still moves the group together.</div>';
+
+  if (!info.sameParent) {
+    html += '<div class="field" style="margin-top:8px"><span class="label">Actions</span><br>' +
+      '<div class="hint">Distribute is limited to sibling components under the same parent. Align still works across the current selection.</div>' +
+      '<div class="multi-action-grid">' +
+      '<button type="button" onclick="alignSelection(\'left\')">Align left</button>' +
+      '<button type="button" onclick="alignSelection(\'center\')">Align center</button>' +
+      '<button type="button" onclick="alignSelection(\'right\')">Align right</button>' +
+      '<button type="button" onclick="alignSelection(\'top\')">Align top</button>' +
+      '<button type="button" onclick="alignSelection(\'middle\')">Align middle</button>' +
+      '<button type="button" onclick="alignSelection(\'bottom\')">Align bottom</button>' +
+      '</div></div>';
+    document.getElementById("inspector").innerHTML = html;
+    return;
+  }
+
+  html += '<div class="field" style="margin-top:8px"><span class="label">Distribute</span>' +
+    '<div class="multi-action-row">' +
+    '<span class="value">Gap</span>' +
+    '<input type="number" id="multi-action-gap" min="0" step="8" value="' + multiActionGap + '" oninput="setMultiActionGap(this.value)">' +
+    '<span class="unit">px</span>' +
+    '</div>' +
+    '<div class="multi-action-grid">' +
+    '<button type="button" onclick="distributeSelection(\'x\')">Distribute H</button>' +
+    '<button type="button" onclick="distributeSelection(\'y\')">Distribute V</button>' +
+    '<button type="button" onclick="alignSelection(\'left\')">Align left</button>' +
+    '<button type="button" onclick="alignSelection(\'center\')">Align center</button>' +
+    '<button type="button" onclick="alignSelection(\'right\')">Align right</button>' +
+    '<button type="button" onclick="alignSelection(\'top\')">Align top</button>' +
+    '<button type="button" onclick="alignSelection(\'middle\')">Align middle</button>' +
+    '<button type="button" onclick="alignSelection(\'bottom\')">Align bottom</button>' +
+    '</div></div>';
+
+  if (info.hasUnsupported) {
+    html += '<div class="field"><div class="hint">Arrow and separator selections are ignored by these actions.</div></div>';
+  }
+
+  html += '<div style="margin-top:8px;font-size:10px;color:#555">All actions snap to the 8px baseline and remain undoable.</div>';
+  document.getElementById("inspector").innerHTML = html;
 }
 
 function applyAllOverrides() {
@@ -2107,8 +2370,7 @@ function deselectAll() {
   }
   removeResizeHandles();
   document.querySelectorAll(".tree-item").forEach(el => el.classList.remove("selected"));
-  document.getElementById("inspector").innerHTML =
-    '<div style="color:#555">Click a component to inspect it.</div>';
+  renderEmptyInspector();
 }
 
 function selectComponent(cid, additive) {
@@ -2133,15 +2395,7 @@ function selectComponent(cid, additive) {
     el.classList.toggle("selected", selectedIds.has(el.textContent));
   });
   showResizeHandles(cid);
-  if (selectedIds.size === 1) {
-    updateInspector(cid);
-  } else if (selectedIds.size > 1) {
-    document.getElementById("inspector").innerHTML =
-      '<div style="color:#555">' + selectedIds.size + ' components selected. Drag to move all.</div>';
-  } else {
-    document.getElementById("inspector").innerHTML =
-      '<div style="color:#555">Click a component to inspect it.</div>';
-  }
+  renderSelectionInspector(cid);
 }
 
 function reapplySelection() {
@@ -2157,6 +2411,7 @@ function reapplySelection() {
   });
   const primary = [...selectedIds].pop();
   if (primary) showResizeHandles(primary);
+  renderSelectionInspector(primary);
 }
 
 function clearSelection() {
@@ -2166,8 +2421,7 @@ function clearSelection() {
   if (svg) svg.querySelectorAll(".dg-selected").forEach(el => el.classList.remove("dg-selected"));
   removeResizeHandles();
   document.querySelectorAll(".tree-item.selected").forEach(el => el.classList.remove("selected"));
-  document.getElementById("inspector").innerHTML =
-    '<div style="color:#555">Click a component to inspect it.</div>';
+  renderEmptyInspector();
 }
 
 function updateInspector(cid) {
@@ -2349,7 +2603,7 @@ document.getElementById("btn-clear-all").addEventListener("click", () => {
   overrides = {};
   setDirty(true);
   applyAllOverrides();
-  if (selectedIds.size === 1) updateInspector([...selectedIds][0]);
+  renderSelectionInspector();
 });
 
 // Keyboard shortcuts: Ctrl+S to save, Ctrl+Z to undo, Ctrl+Shift+Z/Ctrl+Y to redo, arrows to nudge
@@ -2402,7 +2656,7 @@ document.addEventListener("keydown", (e) => {
     applyAllOverrides();
     const primary = [...selectedIds].pop();
     if (primary) showResizeHandles(primary);
-    if (selectedIds.size === 1) updateInspector([...selectedIds][0]);
+    renderSelectionInspector(primary);
   }
 });
 

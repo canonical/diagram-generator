@@ -24,6 +24,16 @@ body { font-family: 'Ubuntu Sans', system-ui, sans-serif; background: #1a1a1a;
                     background: #2a2a2a; color: #e0e0e0; border-radius: 3px; cursor: pointer; }
 .inspector button:hover { background: #3a3a3a; }
 .inspector button.danger { border-color: #c66; color: #c66; }
+.inspector .hint { color: #777; font-size: 11px; line-height: 1.4; }
+.multi-action-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+                     gap: 4px; margin-top: 6px; }
+.multi-action-row { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+.multi-action-row input[type=number] { width: 64px; padding: 2px 4px; font-size: 12px;
+                                       font-family: 'Ubuntu Mono', monospace;
+                                       background: #2a2a2a; color: #e0e0e0; border: 1px solid #555;
+                                       border-radius: 3px; text-align: right; }
+.multi-action-row input[type=number]:focus { border-color: #6cc; outline: none; }
+.multi-action-row .unit { font-size: 10px; color: #555; }
 .tree { font-size: 12px; }
 .tree-item { padding: 2px 0; cursor: pointer; border-left: 2px solid transparent;
              padding-left: 8px; font-family: 'Ubuntu Mono', monospace; }

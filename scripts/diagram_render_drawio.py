@@ -44,6 +44,7 @@ from export_drawio_batch import (
     add_circle_marker,
     add_image,
     add_label,
+    add_matrix,
     add_plain_rect,
     edge_style,
     icon_uri,
@@ -92,6 +93,14 @@ def _entry_exit(direction: str) -> dict[str, float]:
     return {}
 
 
+def _component_ref(ref: str) -> str:
+    """Return the component portion of an anchor ref like ``id.side``."""
+    if not ref:
+        return ""
+    parts = ref.split(".")
+    return ".".join(parts[:-1]) if len(parts) > 1 else ref
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -132,6 +141,7 @@ def render_drawio(
 
     # Map rect index → draw.io cell id for parent lookups
     rect_ids: dict[int, str] = {}
+    component_cell_ids: dict[str, str] = {}
 
     # Sort rects by area descending so panels come before boxes
     rects_sorted = sorted(rects, key=lambda r: r[1].width * r[1].height, reverse=True)
@@ -228,10 +238,12 @@ def render_drawio(
                 stroke=rect.stroke,
                 dashed=rect.dashed,
                 parent=parent_id,
-                connectable=False,
+                connectable=bool(rect.component_id),
             )
 
         rect_ids[idx] = cell_id
+        if rect.component_id:
+            component_cell_ids.setdefault(rect.component_id, cell_id)
 
     # Emit unclaimed text blocks as free labels
     for ti, t in enumerate(all_texts):
@@ -292,16 +304,6 @@ def render_drawio(
             parent=parent_id,
         )
 
-    # Emit arrows
-    for arrow in arrows:
-        anchors = _entry_exit(arrow.direction)
-        builder.add_edge(
-            style=edge_style(arrow.color, **anchors),
-            source_point=arrow.start,
-            target_point=arrow.end,
-            waypoints=arrow.waypoints if arrow.waypoints else None,
-        )
-
     # Emit circle markers (legend)
     for marker in markers:
         add_circle_marker(
@@ -313,13 +315,16 @@ def render_drawio(
 
     # Emit jagged rects (memory wall)
     for j in jagged:
-        add_image(
+        cell_id = add_image(
             builder,
             x=j.x, y=j.y,
             width=j.width, height=j.height,
             image_uri=memory_panel_uri(),
+            connectable=bool(j.component_id),
             style_tokens=("memory-wall",),
         )
+        if j.component_id:
+            component_cell_ids.setdefault(j.component_id, cell_id)
 
     # Emit dashed separator lines
     dashed_lines = [p for p in all_prims if isinstance(p, DashedLinePrimitive)]
@@ -342,8 +347,11 @@ def render_drawio(
             x=term.x, y=term.y,
             width=term.width, height=term.height,
             fill=GREY,
+            connectable=bool(term.component_id),
             style_tokens=("terminal-bar",),
         )
+        if term.component_id:
+            component_cell_ids.setdefault(term.component_id, term_id)
         add_label(
             builder,
             x=INSET, y=20,
@@ -355,13 +363,28 @@ def render_drawio(
 
     # Emit matrix tiles
     for mt in matrices:
-        add_label(
+        matrix_id = add_matrix(
             builder,
             x=mt.x, y=mt.y,
-            width=48, height=48,
-            lines=[make_line(mt.label, size="12", weight="700")],
-            align="center",
-            vertical_align="middle",
+            label=mt.label,
+            connectable=bool(mt.component_id),
+        )
+        if mt.component_id:
+            component_cell_ids.setdefault(mt.component_id, matrix_id)
+
+    # Emit arrows after all component cells are registered so source/target
+    # IDs are available for boxes, panels, terminals, matrices, and jagged nodes.
+    for arrow in arrows:
+        anchors = _entry_exit(arrow.direction)
+        source_id = component_cell_ids.get(_component_ref(arrow.source_ref))
+        target_id = component_cell_ids.get(_component_ref(arrow.target_ref))
+        builder.add_edge(
+            style=edge_style(arrow.color, **anchors),
+            source=source_id,
+            target=target_id,
+            source_point=arrow.start,
+            target_point=arrow.end,
+            waypoints=arrow.waypoints if arrow.waypoints else None,
         )
 
     return builder

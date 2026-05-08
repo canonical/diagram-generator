@@ -310,6 +310,20 @@ def image_style(image_uri: str) -> str:
     )
 
 
+def line_style(color: str, *, dashed: bool = False) -> str:
+    parts = [
+        "shape=line",
+        "html=1",
+        f"strokeColor={color}",
+        "strokeWidth=1",
+        "fillColor=none",
+        "rounded=0",
+    ]
+    if dashed:
+        parts.extend(["dashed=1", "dashPattern=8 8"])
+    return ";".join(parts) + ";"
+
+
 def edge_style(
     color: str,
     *,
@@ -672,10 +686,14 @@ def export_memory_wall() -> None:
         source_point=(192, 176),
         target_point=(192, 200),
     )
-    builder.add_edge(
-        style=edge_style(svg.BLACK, dashed=True, end_arrow=False, orthogonal=False),
-        source_point=(96, 188),
-        target_point=(288, 188),
+    builder.add_vertex(
+        x=96,
+        y=188,
+        width=192,
+        height=1,
+        style=line_style(svg.BLACK, dashed=True),
+        connectable=False,
+        metadata=dg_tokens.CellMetadata(role="separator", style_tokens=("separator-dashed",)),
     )
     note = add_label(
         builder,

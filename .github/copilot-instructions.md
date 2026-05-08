@@ -210,12 +210,12 @@ Several references below point to locally generated outputs under `diagrams/2.ou
 - Do not use orange-filled boxes. Orange is reserved for arrows and arrowheads.
 - For new work, the canonical block is `192px` wide and at least `64px` tall with top-left-aligned live text and a natural-size local `48x48` icon embedded with `8px` padding on all sides.
 - **No centred layouts.** Text is always top-left, icon is always top-right. Do not centre text horizontally, do not centre icons, do not place icons above text. The `StackedBlock` component was removed for violating this rule — do not reintroduce centred icon arrangements under any name.
-- Use `14px` regular text with `20px` line height for the main block copy unless the user explicitly asks for another scale.
-- Prefer hierarchy by weight before hierarchy by size: move from `14px` regular to `14px` semi-bold, then `14px` small-caps with `0.05em` tracking before introducing another size; when a larger size is truly needed use `18px/24px`, then `24px/32px`.
+- Use `18px` regular text with `24px` line height for the main block copy unless the user explicitly asks for another scale.
+- Prefer hierarchy by weight before hierarchy by size: move from `18px` regular to `18px` semi-bold, then `18px` small-caps with `0.05em` tracking before introducing another size; when a larger size is truly needed use `24px/32px`.
 - Keep text top-left aligned whether the label is one line or multiple lines; use an `8px` inset on both X and Y, and do not vertically center single-line labels just because there is extra box height.
 - That `8px` top inset is from the visible top of the text, not the raw SVG baseline; place live text by ascent so the ascenders sit `8px` below the box top.
-- Treat `14px` as the new dense default for current work; treat the older compact `9px` system as legacy-only unless maintaining already-finished outputs.
-- If a semantic tile feels crowded, first try line breaks, `14px` weight contrast, small-caps, wider boxes, or icon omission before changing size.
+- Treat `18px/24px` as the current dense default for main box copy; treat `14px` and the older compact `9px` system as secondary or legacy tiers unless maintaining already-finished outputs.
+- If a semantic tile feels crowded, first try line breaks, `18px` weight contrast, small-caps, wider boxes, or icon omission before changing size.
 - The older `144px` / `128px` / `9px` system should now be treated as legacy-maintenance guidance for previously completed compact diagrams, not the default for new redraws.
 - Right-side in-box icons should be embedded directly from `assets/icons/` at their natural `48x48` size rather than visually thinned down through scaling.
 - Align those icons by their artboard to the top-right corner with an `8px` inset rather than centering them vertically.
@@ -234,7 +234,7 @@ Several references below point to locally generated outputs under `diagrams/2.ou
 - Prefer straight or orthogonal connectors with `90` degree turns, and reroute them to avoid crossings.
 - When a legend is necessary, build it as an evenly spaced marker-and-label row, typically along the bottom of the relevant panel and aligned to the panel's left box edge.
 - Explanatory notes should default to plain helper text rather than extra bordered note boxes unless the note itself is a semantic node.
-- Explanatory notes should stay at the body size and shift only in color: `14px`, regular, `#666666`.
+- Explanatory notes should stay at the body size and shift only in color: `18px`, regular, `#666666`.
 - Before finalizing a diagram, run an explicit icon-coverage pass across every major node and repeated semantic tile; do not stop after placing only one or two obvious icons if the local library has reasonable additional matches.
 - Transfer all source text from the sketch, including small labels; missing icons are acceptable when the local library has no good match, but dropped text is not.
 - Preserve a grid feel in grouped layouts by aligning enclosing widths and stacked boxes rather than centering unrelated widths arbitrarily.
