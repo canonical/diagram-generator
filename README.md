@@ -2,6 +2,42 @@
 
 An LLM-based diagramming workflow that turns rough sketches and brand/layout rules into on-brand SVG and draw.io diagrams.
 
+## Start Here
+
+If you are new to the repo and using an agent, make the pipeline choice explicit before doing anything else:
+
+- **Pipeline 2**: declarative + autolayout. This is the cutting-edge path for new work and the interactive editor, but it is still slightly unstable.
+- **Pipeline 1**: imperative stable implementation. This is the safer path when you want the established canonical batch.
+
+Fastest way to see the project working:
+
+- Interactive polish pass: run `python scripts/preview_server.py --slug diagram-intake-workflow --grid`, then open `http://127.0.0.1:8100/view/diagram-intake-workflow`
+- Static comparison with inputs: open [`diagrams/3.compare/html/diagram-intake-workflow.html`](diagrams/3.compare/html/diagram-intake-workflow.html)
+
+### Agent prompt: demo the project
+
+Paste this into an agent on a fresh clone:
+
+```text
+Open this repo and demo the current workflow end-to-end.
+
+1. Work from the repo root.
+2. Explain the pipeline choice briefly, then proceed with Pipeline 2 unless I explicitly ask for Pipeline 1:
+    - Pipeline 2 = declarative + autolayout, cutting edge, slightly unstable.
+    - Pipeline 1 = stable initial implementation.
+3. Refresh the live demo assets if needed:
+    - python scripts/build_v2.py
+    - python scripts/build_compare_pages.py
+4. Start the interactive preview server for `diagram-intake-workflow` with the grid overlay:
+    - python scripts/preview_server.py --slug diagram-intake-workflow --grid
+5. Open both demo surfaces, preferring a VS Code webview or Simple Browser if your environment supports it; otherwise open them in the default browser:
+    - http://127.0.0.1:8100/view/diagram-intake-workflow
+    - diagrams/3.compare/html/diagram-intake-workflow.html
+6. Tell me when both the interactive preview and the static compare page are visible.
+```
+
+Detailed single-surface prompts are in the interactive demo section below.
+
 ## Quick start for new users
 
 ```bash
@@ -86,40 +122,38 @@ Features: component tree sidebar, click-to-select inspector, drag-and-resize wit
 Paste this into an agent if you want it to launch the live demo end-to-end instead of just describing the steps:
 
 ```text
-Open this repo and launch the interactive autolayout demo for the tracked example `example-platform-architecture`.
+Open this repo and launch the interactive autolayout demo for `diagram-intake-workflow`.
 
 Work from the repo root. Do not stop at instructions; actually run the setup and open the demo.
 
 1. Start the preview server in an integrated terminal with:
-    python scripts/preview_server.py --slug example-platform-architecture --grid
+    python scripts/preview_server.py --slug diagram-intake-workflow --grid
 2. Keep that terminal running.
-3. Open the demo in a browser at:
-    http://127.0.0.1:8100/view/example-platform-architecture
+3. Prefer opening the demo in a VS Code webview or Simple Browser if your environment supports it. Otherwise open it in the default browser at:
+    http://127.0.0.1:8100/view/diagram-intake-workflow
 4. If you need a Windows command to open the browser yourself, use:
-    Start-Process "http://127.0.0.1:8100/view/example-platform-architecture"
+    Start-Process "http://127.0.0.1:8100/view/diagram-intake-workflow"
 5. Wait until the page is visibly loaded, then tell me the interactive demo is ready.
 6. If the first attempt fails because the port is busy or the server needs a restart, recover and retry rather than stopping early.
 ```
 
-#### Agent prompt: open the older pre-autolayout demo
+#### Agent prompt: open the static compare demo
 
-This is the older batch-output flow from before the interactive editor: build the diagram and open the generated SVG directly.
+This is the fastest static review surface: the compare HTML shows the input, the agent-generated output, and the manual-refinement slot side by side.
 
 ```text
-Open this repo and launch the older pre-autolayout static demo for the tracked example `example-platform-architecture`.
+Open this repo and launch the static compare demo for `diagram-intake-workflow`.
 
-Work from the repo root. Do not stop at instructions; actually run the build and open the output.
+Work from the repo root. Do not stop at instructions; actually refresh the compare page and open it.
 
-1. Build the declarative batch with:
-    python scripts/build_v2.py
-2. Open the generated SVG output:
-    diagrams/2.output/svg/example-platform-architecture-onbrand-v2.svg
+1. Refresh the compare pages with:
+    python scripts/build_compare_pages.py
+2. Prefer opening the compare page in a VS Code webview or Simple Browser if your environment supports it. Otherwise open this file in the default browser:
+    diagrams/3.compare/html/diagram-intake-workflow.html
 3. On Windows, if you need an explicit open command, use:
-    Start-Process (Resolve-Path "diagrams/2.output/svg/example-platform-architecture-onbrand-v2.svg")
-4. If available, also open the matching draw.io file for comparison:
-    diagrams/2.output/draw.io/example-platform-architecture-onbrand-v2.drawio
-5. Tell me when the static pre-autolayout output is visible.
-6. If the build fails because of a small local issue, fix it if straightforward and retry once before stopping.
+    Start-Process (Resolve-Path "diagrams/3.compare/html/diagram-intake-workflow.html")
+4. Tell me when the static compare page is visible.
+5. If the compare page looks stale, rebuild the declarative outputs first with `python scripts/build_v2.py`, then rerun `python scripts/build_compare_pages.py`.
 ```
 
 ### Available icons
