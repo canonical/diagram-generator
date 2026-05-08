@@ -574,6 +574,8 @@ For draw.io:
 - Image-backed cells are allowed for icons and genuinely special non-text ornaments only.
 - Direct connectors should use attached edges with `source` and `target` ids plus explicit `entry` and `exit` anchors.
 - Exports should force light rendering with `adaptiveColors="none"` and explicit fill and font colors.
+- Repo-wide draw.io style changes should flow through `scripts/drawio_style_presets.py` and `scripts/drawio_style_sync.py` against generator-tagged cells, not through manual paste-style passes or library-only edits.
+- The tracked draw.io library is a reuse aid for new insertions; it does not retroactively update shapes that already exist in diagrams.
 
 ## Workflow application
 
@@ -583,10 +585,11 @@ Apply the system in this order:
 2. Inspect the source sketch plus the local reference assets before making layout decisions.
 3. Check `assets/icons/` early so icon intent is planned rather than added opportunistically at the end.
 4. Build the draw.io and SVG outputs from the shared primitives and canonical geometry.
-5. Audit typography, icon coverage, and source-text completeness before calling the diagram done.
-6. Sanitize changed deliverable SVGs with `scripts/svg_illustrator_sanitize.py --write <svg>`.
-7. Rebuild compare pages when a new diagram or review lane changes.
-8. Record generalized rule changes here rather than expanding `TODO.md` with permanent style prose.
+5. When a repo-wide draw.io style token changes, apply the matching preset through `scripts/drawio_style_sync.py` instead of restyling existing `.drawio` files by hand.
+6. Audit typography, icon coverage, and source-text completeness before calling the diagram done.
+7. Sanitize changed deliverable SVGs with `scripts/svg_illustrator_sanitize.py --write <svg>`.
+8. Rebuild compare pages when a new diagram or review lane changes.
+9. Record generalized rule changes here rather than expanding `TODO.md` with permanent style prose.
 
 ## Do's and don'ts
 
