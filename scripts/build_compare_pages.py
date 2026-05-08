@@ -7,13 +7,25 @@ import urllib.parse
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 DIAGRAMS_DIR = ROOT / "diagrams"
-BEFORE_DIR = DIAGRAMS_DIR / "1.input"
+BEFORE_DIRS = [
+  DIAGRAMS_DIR / "1.input",
+  DIAGRAMS_DIR / "1. input",
+]
 AFTER_DIR = DIAGRAMS_DIR / "2.output" / "svg"
 REFINED_DIR = DIAGRAMS_DIR / "2.output" / "draw.io" / "manually-edited" / "raster"
 REFINED_EXTS = (".jpg", ".jpeg", ".png", ".svg", ".webp")
 COMPARE_DIR = DIAGRAMS_DIR / "3.compare"
 HTML_DIR = COMPARE_DIR / "html"
 JPG_DIR = COMPARE_DIR / "jpg"
+
+
+def find_before(relative_path: str) -> pathlib.Path:
+  """Return the first matching source asset from the canonical or legacy input lane."""
+  for before_dir in BEFORE_DIRS:
+    candidate = before_dir / relative_path
+    if candidate.exists():
+      return candidate
+  return BEFORE_DIRS[0] / relative_path
 
 
 def find_refined(slug: str) -> pathlib.Path:
@@ -133,13 +145,16 @@ def build_panel(label: str, asset_path: pathlib.Path, asset_url: str, missing_te
 
 def build_page(pair: dict[str, str]) -> str:
     html_path = HTML_DIR / f"{pair['slug']}.html"
-    before_path = BEFORE_DIR / pair["before"]
+    before_path = find_before(pair["before"])
     after_path = AFTER_DIR / pair["after"]
     refined_path = find_refined(pair["slug"])
     before_url = rel_url(html_path, before_path)
     after_url = rel_url(html_path, after_path)
     refined_url = rel_url(html_path, refined_path)
-    before_text = f"Expected: diagrams/1.input/{pair['before']}"
+    before_text = (
+        f"Expected: diagrams/1.input/{pair['before']} "
+        f"or diagrams/1. input/{pair['before']}"
+    )
     after_text = f"Expected: diagrams/2.output/svg/{pair['after']}"
     refined_text = (
         "Drop a manually refined raster into "
