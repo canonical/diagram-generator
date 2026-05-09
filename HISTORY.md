@@ -4,6 +4,32 @@ Completed work belongs here so `TODO.md` stays lean.
 
 ## Short-term
 
+### 2026-05-08 – Docs drift audit fixes
+
+- Reframed `README.md` and `STATUS.md` so Pipeline 1 is described as the original maintained v1 batch and Pipeline 2 as the current active surface, matching where the declarative model, validators, preview editor, and Baseline Foundry integration now live.
+- Removed the stale `all 9 diagrams` phrasing from the active docs and replaced it with neutral current-corpus wording so the repo description no longer depends on an outdated count.
+- Added explicit notes that the protected draw.io review lane is infrastructure-ready but may be empty in a fresh tree, and surfaced the repo's strongest credibility hooks more prominently: `DIAGRAM.md` `sourceSpecs`, generated draw.io provenance metadata, and the Baseline Foundry preview wiring.
+
+### 2026-05-08 – Preview undo specialization for move and resize
+
+- Added an override-patch undo command path in `scripts/preview/editor.js` so the hottest interactions, move and resize, no longer serialize the full editor state on every committed action.
+- Kept the full-state undo path as the default for grid edits, text edits, style changes, waypoint edits, clear actions, and other lower-frequency commands, so the specialization stays narrow and reversible.
+- Browser-validated the new path against the live preview: move and resize now record `override-patch` commands and still undo/redo correctly.
+
+### 2026-05-08 – Helper token audit: shared geometry cleanup
+
+- Normalized terminal-bar geometry through shared tokens so the stable SVG helper, the stable draw.io helper, and the declarative draw.io renderer all use the same bar height, dot positions, and text box offsets.
+- Replaced hardcoded request-cluster icon offsets with `ICON_SIZE + COMPACT_GAP` in the active SVG and draw.io helpers so cluster spacing now follows the shared icon tokens instead of duplicated literals.
+- Normalized draw.io icon-image sizing and the reusable jagged memory-panel helper through shared tokens, including aligning the stable memory-panel height with the canonical `BLOCK_WIDTH` / `BOX_MIN_HEIGHT` block system.
+- Switched the stable and declarative SVG jagged helpers from duplicated `8/4` literals to `BASELINE_UNIT`-derived geometry so the zig-zag treatment follows the shared baseline token without changing output.
+- Validated the helper cleanup with non-mutating in-memory render checks instead of rebuilding the tracked output batch.
+
+### 2026-05-08 – Baseline Foundry preview shell integration
+
+- Updated the interactive preview shell to use Baseline Foundry application, panel, and control primitives instead of the previous bespoke sidebar/stage shell.
+- Taught `scripts/preview_server.py` to serve the sibling `baseline-foundry` app-tier CSS and Ubuntu Sans font assets under `/preview/`, including rewritten font URLs so the preview works over HTTP without manual asset copying.
+- Kept `scripts/preview/editor.css` as the editor-specific override and fallback layer, so SVG selection affordances and preview-only widgets still behave correctly while the shell itself follows BF.
+
 ### 2026-05-08 – Draw.io preset sync and onboarding path
 
 - Added `scripts/drawio_style_presets.py` so the canonical draw.io field maps for labels, panels, images, separators, and connectors now live in one shared module instead of being duplicated across exporter strings and ad hoc sync commands.

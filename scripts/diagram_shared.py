@@ -75,7 +75,7 @@ def cleanup_legacy_output_root_svgs() -> list[pathlib.Path]:
         return removed
 
     for path in sorted(OUTPUT_DIR.glob("*.svg")):
-        if path.name in LEGACY_OUTPUT_ROOT_SVGS or (SVG_DIR / path.name).exists():
+        if path.name in LEGACY_OUTPUT_ROOT_SVGS:
             path.unlink()
             removed.append(path)
     return removed
@@ -87,6 +87,19 @@ DESCENT_RATIO = 0.26
 TERMINAL_FONT_FAMILY = "Ubuntu Sans Mono, Ubuntu Mono, monospace"
 TERMINAL_CHROME_HEIGHT = 20
 TERMINAL_DOT_RADIUS = 4
+TERMINAL_BAR_HEIGHT = BOX_MIN_HEIGHT
+TERMINAL_DOT_CENTERS = tuple(
+    TERMINAL_CHROME_HEIGHT + i * (TERMINAL_DOT_RADIUS * 4)
+    for i in range(3)
+)
+
+
+def terminal_text_top() -> int:
+    return TERMINAL_CHROME_HEIGHT + INSET
+
+
+def terminal_text_box_height(total_height: float = TERMINAL_BAR_HEIGHT) -> float:
+    return max(0.0, total_height - terminal_text_top() - INSET)
 
 MATRIX_SIZE = 48
 MATRIX_HEADER_HEIGHT = 20
@@ -150,8 +163,9 @@ def make_line(
     fill: str = BLACK,
     small_caps: bool = False,
     line_step: int | None = None,
+    font_family: str | None = None,
 ) -> dict[str, object]:
-    return {
+    d: dict[str, object] = {
         "content": content,
         "size": size,
         "weight": weight,
@@ -159,6 +173,9 @@ def make_line(
         "small_caps": small_caps,
         "line_step": line_step or default_line_step(size),
     }
+    if font_family:
+        d["font_family"] = font_family
+    return d
 
 
 def make_diagram_line(

@@ -6,6 +6,7 @@ from diagram_shared import (
     ARROW_HEAD_HALF_WIDTH,
     ARROW_HEAD_LENGTH,
     ASCENT_RATIO,
+    BASELINE_UNIT,
     BLACK,
     BLOCK_WIDTH,
     BODY_LINE_STEP,
@@ -27,7 +28,9 @@ from diagram_shared import (
     ORANGE,
     OUTER_MARGIN,
     SVG_DIR,
+    TERMINAL_BAR_HEIGHT,
     TERMINAL_CHROME_HEIGHT,
+    TERMINAL_DOT_CENTERS,
     TERMINAL_DOT_RADIUS,
     TERMINAL_FONT_FAMILY,
     TITLE_SIZE,
@@ -42,6 +45,7 @@ from diagram_shared import (
     panel_grid,
     round_up_to_grid,
     size_to_px,
+    terminal_text_top,
     tight_box_height,
 )
 
@@ -143,8 +147,8 @@ def polyline_arrow(points: list[tuple[float, float]], color: str = ORANGE) -> st
 
 
 def jagged_box(x: float, y: float, width: float, height: float, fill: str = GREY) -> str:
-    step = 8
-    half = 4
+    step = BASELINE_UNIT
+    half = step / 2
     points: list[tuple[float, float]] = []
     for index in range(int(width // step) + 1):
         px = x + index * step
@@ -296,23 +300,24 @@ def command_bar(
     *,
     text_size: str = BODY_SIZE,
 ) -> str:
-    parts = [rect(x, y, width, 64, fill=GREY)]
+    parts = [rect(x, y, width, TERMINAL_BAR_HEIGHT, fill=GREY)]
     parts.append(line(x, y + TERMINAL_CHROME_HEIGHT, x + width, y + TERMINAL_CHROME_HEIGHT))
-    for center_x in (20, 36, 52):
+    for center_x in TERMINAL_DOT_CENTERS:
         parts.append(circle(center_x + x, y + TERMINAL_CHROME_HEIGHT / 2, TERMINAL_DOT_RADIUS, fill=WHITE))
     parts.append(
-        f'  <text x="{fmt(x + INSET)}" y="{fmt(line_top_to_baseline(y + TERMINAL_CHROME_HEIGHT + INSET, text_size))}" '
+        f'  <text x="{fmt(x + INSET)}" y="{fmt(line_top_to_baseline(y + terminal_text_top(), text_size))}" '
         f'font-family="{TERMINAL_FONT_FAMILY}" font-size="{text_size}" font-weight="400" fill="{BLACK}">{html.escape(text_value)}</text>'
     )
     return "\n".join(parts)
 
 
 def request_cluster(x: float, y: float) -> str:
+    step = ICON_SIZE + COMPACT_GAP
     return "\n".join(
         [
             icon_group(x, y, "Document.svg"),
-            icon_group(x + 56, y, "Photography.svg"),
-            icon_group(x + 112, y, "Globe.svg"),
+            icon_group(x + step, y, "Photography.svg"),
+            icon_group(x + (step * 2), y, "Globe.svg"),
         ]
     )
 

@@ -34,7 +34,7 @@ import sys
 import threading
 import time
 from dataclasses import asdict
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SCRIPTS = ROOT / "scripts"
@@ -82,6 +82,16 @@ def _list_diagrams() -> list[str]:
         slug = f.stem.replace("-onbrand-v2", "")
         slugs.append(slug)
     return slugs
+
+
+# Slug/filename safety: only allow alphanumeric, hyphens, underscores, and dots.
+import re as _re
+_SAFE_SLUG_RE = _re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
+
+
+def _is_safe_slug(slug: str) -> bool:
+    """Reject slugs that could traverse paths or inject into filenames."""
+    return bool(slug and _SAFE_SLUG_RE.match(slug) and ".." not in slug)
 
 
 def _rebuild(grid: bool = False) -> bool:
@@ -225,7 +235,43 @@ def _watch_loop(grid: bool = False, interval: float = 0.5):
 # ---------------------------------------------------------------------------
 
 PREVIEW_DIR = pathlib.Path(__file__).resolve().parent / "preview"
+BF_ROOT = ROOT.parent / "baseline-foundry"
+BF_APP_CSS = BF_ROOT / "dist" / "tiers" / "app" / "styles.css"
+BF_FONT_DIR = BF_ROOT / "assets" / "fonts"
 _viewer_template: str | None = None
+
+# Reference-image directories (rough input sketches)
+_INPUT_DIRS = [
+    ROOT / "diagrams" / "1. input",
+    ROOT / "diagrams" / "1.input",
+]
+
+# Slug → input sketch mapping (mirrors build_compare_pages.py PAIRS)
+_REFERENCE_MAP: dict[str, str] = {
+    "memory-wall": "redo-this-image-onbrand.png",
+    "rise-of-inference-economy": "image.png",
+    "attention-qkv": "image 3.png",
+    "logic-data-vram": "image 4.png",
+    "gpu-waiting-scheduler": "image 5.png",
+    "request-to-hardware-stack": "image 6.png",
+    "inference-snaps": "image 7.png",
+}
+
+
+def _find_reference_image(slug: str) -> pathlib.Path | None:
+    """Find the rough input sketch for a diagram slug."""
+    filename = _REFERENCE_MAP.get(slug)
+    if not filename:
+        return None
+    for d in _INPUT_DIRS:
+        p = d / filename
+        if p.exists():
+            return p
+    return None
+
+
+def _has_bf_preview_assets() -> bool:
+    return BF_APP_CSS.exists() and BF_FONT_DIR.exists()
 
 
 def _get_viewer_template() -> str:
@@ -241,6 +287,7 @@ def _build_viewer_html(slug: str, all_slugs: list[str], grid: bool) -> str:
         for s in all_slugs
     )
     from diagram_shared import ARROW_HEAD_LENGTH, ARROW_HEAD_HALF_WIDTH, ICON_SIZE, GRID_GUTTER, INSET
+    has_ref = _find_reference_image(slug) is not None
     config_script = (
         f"window.__DG_CONFIG = {{"
         f'"slug":"{slug}",'
@@ -249,11 +296,16 @@ def _build_viewer_html(slug: str, all_slugs: list[str], grid: bool) -> str:
         f'"head_len":{ARROW_HEAD_LENGTH},'
         f'"head_half":{ARROW_HEAD_HALF_WIDTH},'
         f'"icon_size":{ICON_SIZE},'
-        f'"col_gap":{GRID_GUTTER}'
+        f'"col_gap":{GRID_GUTTER},'
+        f'"has_reference":{str(has_ref).lower()}'
         f"}};"
     )
     html = _get_viewer_template()
     html = html.replace("%TITLE%", f"{slug} – diagram preview")
+    html = html.replace(
+        "%BF_STYLES%",
+        '<link rel="stylesheet" href="/preview/bf-app.css">' if _has_bf_preview_assets() else "",
+    )
     html = html.replace("%NAV_LINKS%", nav_links)
     html = html.replace("%CONFIG_SCRIPT%", config_script)
     return html
@@ -297,6 +349,10 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
             self._serve_index()
         elif path == "/events":
             self._serve_sse()
+        elif path == "/preview/bf-app.css":
+            self._serve_bf_app_css()
+        elif path.startswith("/preview/bf-fonts/"):
+            self._serve_bf_font(path[len("/preview/bf-fonts/"):])
         elif path.startswith("/preview/"):
             self._serve_static(path[9:])
         elif path.startswith("/svg/"):
@@ -309,6 +365,8 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
             self._serve_grid(path[10:])
         elif path.startswith("/api/overrides/"):
             self._serve_overrides_get(path[15:])
+        elif path.startswith("/reference/"):
+            self._serve_reference_image(path[11:])
         else:
             self.send_error(404)
 
@@ -338,7 +396,34 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
         ct = CONTENT_TYPES.get(ext, "application/octet-stream")
         self._respond(200, ct, static_path.read_bytes())
 
+    def _serve_bf_app_css(self):
+        if not _has_bf_preview_assets():
+            self.send_error(404)
+            return
+        css_text = BF_APP_CSS.read_text(encoding="utf-8")
+        css_text = css_text.replace("../../../assets/fonts/", "/preview/bf-fonts/")
+        self._respond(200, "text/css", css_text.encode("utf-8"))
+
+    def _serve_bf_font(self, filename: str):
+        if not _has_bf_preview_assets():
+            self.send_error(404)
+            return
+        safe_name = pathlib.PurePosixPath(unquote(filename)).name
+        font_path = BF_FONT_DIR / safe_name
+        if not font_path.exists():
+            self.send_error(404)
+            return
+        content_types = {
+            ".ttf": "font/ttf",
+            ".woff": "font/woff",
+            ".woff2": "font/woff2",
+        }
+        self._respond(200, content_types.get(font_path.suffix.lower(), "application/octet-stream"), font_path.read_bytes())
+
     def _serve_viewer(self, slug: str):
+        if not _is_safe_slug(slug):
+            self.send_error(400, "Invalid slug")
+            return
         slugs = _list_diagrams()
         if slug not in slugs:
             self.send_error(404, f"Unknown diagram: {slug}")
@@ -346,18 +431,41 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
         html = _build_viewer_html(slug, slugs, self.grid)
         self._respond(200, "text/html", html.encode())
 
+    def _serve_reference_image(self, slug: str):
+        if not _is_safe_slug(slug):
+            self.send_error(400, "Invalid slug")
+            return
+        ref_path = _find_reference_image(slug)
+        if not ref_path or not ref_path.exists():
+            self.send_error(404, "No reference image")
+            return
+        ct_map = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+                  ".svg": "image/svg+xml", ".webp": "image/webp"}
+        ct = ct_map.get(ref_path.suffix.lower(), "application/octet-stream")
+        self._respond(200, ct, ref_path.read_bytes())
+
     def _serve_svg(self, filename: str):
-        svg_path = OUTPUT_SVG / filename
+        safe_name = pathlib.PurePosixPath(filename).name  # strip traversal
+        if not _is_safe_slug(safe_name):
+            self.send_error(400, "Invalid filename")
+            return
+        svg_path = OUTPUT_SVG / safe_name
         if not svg_path.exists():
             self.send_error(404)
             return
         self._respond(200, "image/svg+xml", svg_path.read_bytes())
 
     def _serve_tree(self, slug: str):
+        if not _is_safe_slug(slug):
+            self.send_error(400, "Invalid slug")
+            return
         tree = _get_component_tree(slug)
         self._respond(200, "application/json", json.dumps(tree, indent=2).encode())
 
     def _serve_grid(self, slug: str):
+        if not _is_safe_slug(slug):
+            self.send_error(400, "Invalid slug")
+            return
         info = _get_grid_info(slug)
         if info is None:
             self._respond(200, "application/json", b"null")
@@ -365,6 +473,9 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
             self._respond(200, "application/json", json.dumps(info, indent=2).encode())
 
     def _serve_overrides_get(self, slug: str):
+        if not _is_safe_slug(slug):
+            self.send_error(400, "Invalid slug")
+            return
         data = _load_overrides(slug)
         current_hash = _definition_hash(slug)
         saved_hash = data.get("definition_hash", "")
@@ -378,6 +489,9 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
         self._respond(200, "application/json", json.dumps(response, indent=2).encode())
 
     def _serve_overrides_post(self, slug: str):
+        if not _is_safe_slug(slug):
+            self.send_error(400, "Invalid slug")
+            return
         content_length = int(self.headers.get("Content-Length", 0))
         body = self.rfile.read(content_length)
         try:
@@ -391,6 +505,9 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
         self._respond(200, "application/json", b'{"ok":true}')
 
     def _serve_relayout(self, slug: str):
+        if not _is_safe_slug(slug):
+            self.send_error(400, "Invalid slug")
+            return
         content_length = int(self.headers.get("Content-Length", 0))
         body = self.rfile.read(content_length)
         try:

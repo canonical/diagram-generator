@@ -17,9 +17,11 @@ from playwright.sync_api import sync_playwright
 
 # ── File mapping: slug → (input_sketch, v1_svg, v2_svg) ──
 
-INPUT_DIR = Path("../diagrams/1.input")
-SVG_DIR = Path("../diagrams/2.output/svg")
-OUT_DIR = Path("../diagrams/3.compare/visual-diff")
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+
+INPUT_DIR = _REPO_ROOT / "diagrams" / "1.input"
+SVG_DIR = _REPO_ROOT / "diagrams" / "2.output" / "svg"
+OUT_DIR = _REPO_ROOT / "diagrams" / "3.compare" / "visual-diff"
 
 DIAGRAMS = [
     {

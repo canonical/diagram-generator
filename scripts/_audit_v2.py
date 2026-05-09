@@ -2,7 +2,8 @@
 import re
 from pathlib import Path
 
-SVG_DIR = Path("../diagrams/2.output/svg")
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+SVG_DIR = _REPO_ROOT / "diagrams" / "2.output" / "svg"
 
 SLUGS = [
     "attention-qkv",

@@ -30,6 +30,7 @@ from diagram_shared import (
     ICON_SIZE,
     INSET,
     ORANGE,
+    TERMINAL_FONT_FAMILY,
     WHITE,
     box_text_width,
     fmt,
@@ -37,6 +38,8 @@ from diagram_shared import (
     make_line,
     size_to_px,
     stack_required_height,
+    terminal_text_box_height,
+    terminal_text_top,
 )
 from export_drawio_batch import (
     DrawioBuilder,
@@ -354,11 +357,14 @@ def render_drawio(
             component_cell_ids.setdefault(term.component_id, term_id)
         add_label(
             builder,
-            x=INSET, y=20,
+            x=INSET,
+            y=terminal_text_top(),
             width=term.width - INSET * 2,
+            height=terminal_text_box_height(term.height),
             lines=[make_line(term.command)],
             parent=term_id,
-            font_family=term.font_family or "Ubuntu Sans Mono",
+            font_family=term.font_family or TERMINAL_FONT_FAMILY,
+            style_tokens=("label-terminal",),
         )
 
     # Emit matrix tiles

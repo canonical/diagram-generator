@@ -245,6 +245,42 @@ function _createUndoCommand(label, beforeState, afterState) {
   return { label, before: beforeState, after: afterState };
 }
 
+function _createOverridePatchCommand(label, beforeEntries, afterEntries) {
+  return { label, kind: "override-patch", beforeEntries, afterEntries };
+}
+
+function _captureOverrideEntries(ids) {
+  const snapshot = {};
+  const orderedIds = [...new Set(ids || [])].sort();
+  for (const cid of orderedIds) {
+    const entry = overrides[cid];
+    snapshot[cid] = entry ? _cloneState(entry) : null;
+  }
+  return snapshot;
+}
+
+function _restoreOverrideEntries(entries) {
+  for (const [cid, entry] of Object.entries(entries || {})) {
+    if (entry && Object.keys(entry).length > 0) {
+      overrides[cid] = _cloneState(entry);
+      model.cleanOverride(cid);
+      if (overrides[cid] && Object.keys(overrides[cid]).length === 0) {
+        delete overrides[cid];
+      }
+    } else {
+      delete overrides[cid];
+    }
+  }
+}
+
+function _pushUndoCommand(command) {
+  undoStack.push(command);
+  if (undoStack.length > MAX_UNDO_STACK_SIZE) undoStack.shift();
+  redoStack = [];
+  updateUndoRedoButtons();
+  return true;
+}
+
 function beginUndoableAction(label) {
   return { label, before: _serializeDirtyState() };
 }
@@ -253,11 +289,12 @@ function commitUndoableAction(action) {
   if (!action) return false;
   const after = _serializeDirtyState();
   if (action.before === after) return false;
-  undoStack.push(_createUndoCommand(action.label, action.before, after));
-  if (undoStack.length > MAX_UNDO_STACK_SIZE) undoStack.shift();
-  redoStack = [];
-  updateUndoRedoButtons();
-  return true;
+  return _pushUndoCommand(_createUndoCommand(action.label, action.before, after));
+}
+
+function commitOverridePatchAction(label, beforeEntries, afterEntries) {
+  if (JSON.stringify(beforeEntries) === JSON.stringify(afterEntries)) return false;
+  return _pushUndoCommand(_createOverridePatchCommand(label, beforeEntries, afterEntries));
 }
 
 function runUndoableAction(label, mutate) {
@@ -302,6 +339,33 @@ async function _restoreEditorState(serializedState) {
 
   const currentStateStr = _serializeDirtyState();
   setDirty(currentStateStr !== lastSavedState);
+}
+
+async function _restoreOverridePatch(entries) {
+  if (relayoutTimer) {
+    clearTimeout(relayoutTimer);
+    relayoutTimer = null;
+  }
+  pendingGridAction = null;
+  _restoreOverrideEntries(entries);
+  applyWaypointOverrides();
+  applyAllOverrides();
+  reapplySelection();
+  renderSelectionInspector();
+  updateOverrideSummary();
+  refreshTreeColors();
+  runConstraints();
+
+  const currentStateStr = _serializeDirtyState();
+  setDirty(currentStateStr !== lastSavedState);
+}
+
+async function _applyUndoCommand(command, direction) {
+  if (command && command.kind === "override-patch") {
+    await _restoreOverridePatch(direction === "undo" ? command.beforeEntries : command.afterEntries);
+    return;
+  }
+  await _restoreEditorState(direction === "undo" ? command.before : command.after);
 }
 
 async function loadSVG() {
@@ -583,9 +647,21 @@ async function requestRelayout(colGap, rowGap, margin) {
     // Replace SVG in stage
     document.getElementById("stage").innerHTML = data.svg;
     // Update component tree — positions changed, so clear stale position overrides
-    // but preserve grid_overrides (they are the source of the relayout).
+    // but preserve grid_overrides (they are the source of the relayout)
+    // and non-position overrides (waypoints, text, style).
     const savedGridOverrides = Object.assign({}, model.gridOverrides);
-    model.overrides = {};
+    const cleaned = {};
+    for (const [cid, ov] of Object.entries(model.overrides)) {
+      const kept = {};
+      // Preserve non-position fields (waypoints, text, style, etc.)
+      for (const [k, v] of Object.entries(ov)) {
+        if (k !== "dx" && k !== "dy" && k !== "dw" && k !== "dh") {
+          kept[k] = v;
+        }
+      }
+      if (Object.keys(kept).length > 0) cleaned[cid] = kept;
+    }
+    model.overrides = cleaned;
     model.gridOverrides = savedGridOverrides;
     if (data.tree) componentTree = data.tree;
     // Update grid info from the actual layout result
@@ -655,7 +731,7 @@ async function performUndo() {
   
   const command = undoStack.pop();
   redoStack.push(command);
-  await _restoreEditorState(command.before);
+  await _applyUndoCommand(command, "undo");
   
   updateUndoRedoButtons();
 }
@@ -665,7 +741,7 @@ async function performRedo() {
   
   const command = redoStack.pop();
   undoStack.push(command);
-  await _restoreEditorState(command.after);
+  await _applyUndoCommand(command, "redo");
   
   updateUndoRedoButtons();
 }
@@ -734,7 +810,7 @@ function snapToGrid(value) {
 
 function renderEmptyInspector() {
   document.getElementById("inspector").innerHTML =
-    '<div style="color:#555">Click a component to inspect it.</div>';
+    '<p class="dg-empty-message bf-form-help">Click a component to inspect it.</p>';
 }
 
 function getPrimarySelectedId(preferredCid) {
@@ -955,12 +1031,12 @@ function renderMultiSelectionInspector() {
     html += '<div class="field" style="margin-top:8px"><span class="label">Actions</span><br>' +
       '<div class="hint">Distribute is limited to sibling components under the same parent. Align still works across the current selection.</div>' +
       '<div class="multi-action-grid">' +
-      '<button type="button" onclick="alignSelection(\'left\')">Align left</button>' +
-      '<button type="button" onclick="alignSelection(\'center\')">Align center</button>' +
-      '<button type="button" onclick="alignSelection(\'right\')">Align right</button>' +
-      '<button type="button" onclick="alignSelection(\'top\')">Align top</button>' +
-      '<button type="button" onclick="alignSelection(\'middle\')">Align middle</button>' +
-      '<button type="button" onclick="alignSelection(\'bottom\')">Align bottom</button>' +
+      '<button class="bf-button is-base" type="button" onclick="alignSelection(\'left\')">Align left</button>' +
+      '<button class="bf-button is-base" type="button" onclick="alignSelection(\'center\')">Align center</button>' +
+      '<button class="bf-button is-base" type="button" onclick="alignSelection(\'right\')">Align right</button>' +
+      '<button class="bf-button is-base" type="button" onclick="alignSelection(\'top\')">Align top</button>' +
+      '<button class="bf-button is-base" type="button" onclick="alignSelection(\'middle\')">Align middle</button>' +
+      '<button class="bf-button is-base" type="button" onclick="alignSelection(\'bottom\')">Align bottom</button>' +
       '</div></div>';
     document.getElementById("inspector").innerHTML = html;
     return;
@@ -969,25 +1045,25 @@ function renderMultiSelectionInspector() {
   html += '<div class="field" style="margin-top:8px"><span class="label">Distribute</span>' +
     '<div class="multi-action-row">' +
     '<span class="value">Gap</span>' +
-    '<input type="number" id="multi-action-gap" min="0" step="8" value="' + multiActionGap + '" oninput="setMultiActionGap(this.value)">' +
+    '<input class="bf-input" type="number" id="multi-action-gap" min="0" step="8" value="' + multiActionGap + '" oninput="setMultiActionGap(this.value)">' +
     '<span class="unit">px</span>' +
     '</div>' +
     '<div class="multi-action-grid">' +
-    '<button type="button" onclick="distributeSelection(\'x\')">Distribute H</button>' +
-    '<button type="button" onclick="distributeSelection(\'y\')">Distribute V</button>' +
-    '<button type="button" onclick="alignSelection(\'left\')">Align left</button>' +
-    '<button type="button" onclick="alignSelection(\'center\')">Align center</button>' +
-    '<button type="button" onclick="alignSelection(\'right\')">Align right</button>' +
-    '<button type="button" onclick="alignSelection(\'top\')">Align top</button>' +
-    '<button type="button" onclick="alignSelection(\'middle\')">Align middle</button>' +
-    '<button type="button" onclick="alignSelection(\'bottom\')">Align bottom</button>' +
+    '<button class="bf-button" type="button" onclick="distributeSelection(\'x\')">Distribute H</button>' +
+    '<button class="bf-button" type="button" onclick="distributeSelection(\'y\')">Distribute V</button>' +
+    '<button class="bf-button is-base" type="button" onclick="alignSelection(\'left\')">Align left</button>' +
+    '<button class="bf-button is-base" type="button" onclick="alignSelection(\'center\')">Align center</button>' +
+    '<button class="bf-button is-base" type="button" onclick="alignSelection(\'right\')">Align right</button>' +
+    '<button class="bf-button is-base" type="button" onclick="alignSelection(\'top\')">Align top</button>' +
+    '<button class="bf-button is-base" type="button" onclick="alignSelection(\'middle\')">Align middle</button>' +
+    '<button class="bf-button is-base" type="button" onclick="alignSelection(\'bottom\')">Align bottom</button>' +
     '</div></div>';
 
   if (info.hasUnsupported) {
     html += '<div class="field"><div class="hint">Arrow and separator selections are ignored by these actions.</div></div>';
   }
 
-  html += '<div style="margin-top:8px;font-size:10px;color:#555">All actions snap to the 8px baseline and remain undoable.</div>';
+  html += '<p class="dg-selection-note">All actions snap to the 8px baseline and remain undoable.</p>';
   document.getElementById("inspector").innerHTML = html;
 }
 
@@ -1205,46 +1281,67 @@ function applyAllOverrides() {
 
         if (visLines.length === 0) return;
 
-        // First visible line starts from source, last visible line ends at target
-        // Shift first line's start by srcShift, last line's end by tgtShift
-        // For intermediate waypoints, interpolate or shift by srcShift
-        const first = visLines[0];
-        const last = visLines[visLines.length - 1];
+        // Read original coords for all visible segments
+        const origCoords = visLines.map(ln => ({
+          x1: parseFloat(ln.getAttribute("data-orig-x1")),
+          y1: parseFloat(ln.getAttribute("data-orig-y1")),
+          x2: parseFloat(ln.getAttribute("data-orig-x2")),
+          y2: parseFloat(ln.getAttribute("data-orig-y2")),
+        }));
 
-        // Shift source end (first line start)
-        const fx1 = parseFloat(first.getAttribute("x1")) + srcShift.dx;
-        const fy1 = parseFloat(first.getAttribute("y1")) + srcShift.dy;
-        first.setAttribute("x1", fx1);
-        first.setAttribute("y1", fy1);
+        // Determine segment orientation: true = horizontal, false = vertical
+        function isHorizontal(c) { return Math.abs(c.y2 - c.y1) <= Math.abs(c.x2 - c.x1); }
 
-        // Shift target end (last line end)
-        const lx2 = parseFloat(last.getAttribute("x2")) + tgtShift.dx;
-        const ly2 = parseFloat(last.getAttribute("y2")) + tgtShift.dy;
-        last.setAttribute("x2", lx2);
-        last.setAttribute("y2", ly2);
+        if (visLines.length === 1) {
+          // Single segment: shift start by srcShift, end by tgtShift
+          visLines[0].setAttribute("x1", origCoords[0].x1 + srcShift.dx);
+          visLines[0].setAttribute("y1", origCoords[0].y1 + srcShift.dy);
+          visLines[0].setAttribute("x2", origCoords[0].x2 + tgtShift.dx);
+          visLines[0].setAttribute("y2", origCoords[0].y2 + tgtShift.dy);
+        } else {
+          // Multi-segment orthogonal arrows: axis-aware waypoint adjustment.
+          // Endpoints shift fully with their respective box. Waypoints shift
+          // only on the axis perpendicular to their source-side segment,
+          // preserving orthogonality.
 
-        // For multi-segment arrows, adjust waypoints (shared endpoints between segments)
-        if (visLines.length > 1) {
-          // Shift intermediate connections: line end/next line start
-          // Linearly interpolate between source and target shifts for waypoints
-          for (let i = 0; i < visLines.length; i++) {
-            const t = visLines.length > 1 ? i / (visLines.length - 1) : 0;
-            const nt = visLines.length > 1 ? (i + 1) / (visLines.length - 1) : 1;
-            const wdx = srcShift.dx + t * (tgtShift.dx - srcShift.dx);
-            const wdy = srcShift.dy + t * (tgtShift.dy - srcShift.dy);
-            const wdx2 = srcShift.dx + nt * (tgtShift.dx - srcShift.dx);
-            const wdy2 = srcShift.dy + nt * (tgtShift.dy - srcShift.dy);
+          // Start with all coords at original
+          const coords = origCoords.map(c => ({ ...c }));
+          const n = coords.length;
 
-            if (i > 0) {
-              // Adjust start of this segment (= waypoint)
-              visLines[i].setAttribute("x1", parseFloat(visLines[i].getAttribute("data-orig-x1") || visLines[i].getAttribute("x1")) + wdx);
-              visLines[i].setAttribute("y1", parseFloat(visLines[i].getAttribute("data-orig-y1") || visLines[i].getAttribute("y1")) + wdy);
-            }
-            if (i < visLines.length - 1) {
-              // Adjust end of this segment (= waypoint)
-              visLines[i].setAttribute("x2", parseFloat(visLines[i].getAttribute("data-orig-x2") || visLines[i].getAttribute("x2")) + wdx2);
-              visLines[i].setAttribute("y2", parseFloat(visLines[i].getAttribute("data-orig-y2") || visLines[i].getAttribute("y2")) + wdy2);
-            }
+          // 1. Shift first endpoint by srcShift
+          coords[0].x1 += srcShift.dx;
+          coords[0].y1 += srcShift.dy;
+
+          // 2. Shift last endpoint by tgtShift
+          coords[n - 1].x2 += tgtShift.dx;
+          coords[n - 1].y2 += tgtShift.dy;
+
+          // 3. Adjust first waypoint (end of seg0 / start of seg1)
+          //    by the perpendicular component of srcShift
+          if (isHorizontal(origCoords[0])) {
+            coords[0].y2 += srcShift.dy;
+          } else {
+            coords[0].x2 += srcShift.dx;
+          }
+          coords[1].x1 = coords[0].x2;
+          coords[1].y1 = coords[0].y2;
+
+          // 4. Adjust last waypoint (end of seg[n-2] / start of seg[n-1])
+          //    by the perpendicular component of tgtShift
+          if (isHorizontal(origCoords[n - 1])) {
+            coords[n - 1].y1 += tgtShift.dy;
+          } else {
+            coords[n - 1].x1 += tgtShift.dx;
+          }
+          coords[n - 2].x2 = coords[n - 1].x1;
+          coords[n - 2].y2 = coords[n - 1].y1;
+
+          // Apply computed coords
+          for (let i = 0; i < n; i++) {
+            visLines[i].setAttribute("x1", coords[i].x1);
+            visLines[i].setAttribute("y1", coords[i].y1);
+            visLines[i].setAttribute("x2", coords[i].x2);
+            visLines[i].setAttribute("y2", coords[i].y2);
           }
         }
 
@@ -1450,7 +1547,8 @@ function onSvgMouseDown(e) {
     origDeltas[id] = { dx: own.dx, dy: own.dy };
   }
   mgr.startDrag({ cid: finalCid, cids: dragCids, startX: e.clientX, startY: e.clientY,
-                   origDeltas, hasMoved: false, snapshotRecorded: false,
+                   origDeltas, hasMoved: false,
+                   overrideSnapshotBefore: _captureOverrideEntries(dragCids),
                    snapTargets: dragCids.length === 1 ? collectSnapTargets(finalCid) : null });
   document.addEventListener("mousemove", onDragMove);
   document.addEventListener("mouseup", onDragUp);
@@ -1464,11 +1562,6 @@ function onDragMove(e) {
   const dy = e.clientY - s.startY;
   if (Math.abs(dx) > 2 || Math.abs(dy) > 2) s.hasMoved = true;
   if (!s.hasMoved) return;
-  // Record pre-drag snapshot on first actual move
-  if (!s.snapshotRecorded) {
-    s.undoAction = beginUndoableAction(s.cids.length > 1 ? "Move selection" : "Move component");
-    s.snapshotRecorded = true;
-  }
   for (const id of s.cids) {
     const orig = s.origDeltas[id];
     let newDx = Math.round((orig.dx + dx) / 8) * 8;
@@ -1516,12 +1609,17 @@ function onDragUp() {
   const s = mgr.state;
   if (s && s.hasMoved) {
     for (const id of s.cids) cleanOverride(id);
+    const afterOverrides = _captureOverrideEntries(s.cids);
     if (s.cids.length === 1) {
       selectComponent(s.cid);
     } else {
       reapplySelection();
     }
-    commitUndoableAction(s.undoAction);
+    commitOverridePatchAction(
+      s.cids.length > 1 ? "Move selection" : "Move component",
+      s.overrideSnapshotBefore,
+      afterOverrides,
+    );
   } else if (s) {
     selectComponent(s.cid);
   }
@@ -2248,12 +2346,14 @@ function startResize(e) {
       for (const sib of siblings) captureSubtree(sib.id);
     }
   }
+  const touchedIds = Object.keys(origOverrides);
   mgr.startResize({
     cid, axis,
     startX: e.clientX, startY: e.clientY,
     origDx: own.dx, origDy: own.dy,
     origDw: own.dw, origDh: own.dh,
     origOverrides,
+    overrideSnapshotBefore: _captureOverrideEntries(touchedIds),
     hasMoved: false, snapshotRecorded: false,
   });
   document.addEventListener("mousemove", onResizeMove);
@@ -2294,9 +2394,7 @@ function onResizeMove(e) {
   const dy = e.clientY - s.startY;
   if (Math.abs(dx) > 2 || Math.abs(dy) > 2) s.hasMoved = true;
   if (!s.hasMoved) return;
-  // Record pre-resize snapshot on first actual move
   if (!s.snapshotRecorded) {
-    s.undoAction = beginUndoableAction("Resize component");
     const svg = document.querySelector("#stage svg");
     if (svg) svg.querySelectorAll(".dg-handle").forEach(h => h.style.display = "none");
     s.snapshotRecorded = true;
@@ -2373,8 +2471,9 @@ function onResizeUp() {
         cleanOverride(childId);
       }
     }
+    const afterOverrides = _captureOverrideEntries(Object.keys(s.origOverrides));
     selectComponent(s.cid);
-    commitUndoableAction(s.undoAction);
+    commitOverridePatchAction("Resize component", s.overrideSnapshotBefore, afterOverrides);
   } else {
     // No move happened: re-show handles that were hidden
     if (svg) svg.querySelectorAll(".dg-handle").forEach(h => h.style.display = "");
@@ -2536,14 +2635,14 @@ function updateInspector(cid) {
       (hasWpOverride ? ' (overridden)' : '') + '</span></div>';
   }
   if (hasOverride) {
-    html += '<button class="danger" onclick="clearOverride(\''+cid+'\')">Clear override</button>';
+    html += '<button class="bf-button is-base danger" onclick="clearOverride(\''+cid+'\')">Clear override</button>';
   }
   // Style picker for box-type components
   const ctype = getComponentType(cid).toLowerCase();
   if (ctype === "box" || ctype === "panel" || ctype === "terminal") {
     const currentStyle = (overrides[cid] && overrides[cid].style) || "";
     html += '<div class="field" style="margin-top:6px"><span class="label">Style</span><br>';
-    html += '<select class="style-picker" onchange="applyStyleOverride(\'' + cid + '\', this.value)">';
+    html += '<select class="style-picker bf-input" onchange="applyStyleOverride(\'' + cid + '\', this.value)">';
     html += '<option value=""' + (currentStyle === "" ? ' selected' : '') + '>— original —</option>';
     for (const [key, preset] of Object.entries(BOX_STYLES)) {
       html += '<option value="' + key + '"' + (currentStyle === key ? ' selected' : '') + '>' +
@@ -2561,13 +2660,20 @@ function updateInspector(cid) {
     }
     html += '</div>';
   }
-  html += '<div style="margin-top:8px;font-size:10px;color:#555">Drag to move &#xb7; handles to resize (8px grid) &#xb7; W to toggle grid overlay.</div>';
+  html += '<p class="dg-inspector-note">Drag to move &#xb7; handles to resize (8px grid) &#xb7; W to toggle grid overlay.</p>';
   document.getElementById("inspector").innerHTML = html;
 }
 
 // ---- Override persistence ----
 
 async function saveOverrides() {
+  // Block save when error-severity constraint violations exist
+  const summary = constraints.summarise(lastViolations);
+  if (summary.errors > 0) {
+    console.warn("Save blocked: " + summary.errors + " error-severity constraint violation(s)");
+    alert("Cannot save: " + summary.errors + " constraint error(s) must be resolved first.");
+    return;
+  }
   try {
     const resp = await fetch("/api/overrides/" + SLUG, {
       method: "POST",
@@ -2643,7 +2749,8 @@ document.getElementById("btn-export").addEventListener("click", () => {
 function setDirty(dirty) {
   isDirty = dirty;
   const saveBtn = document.getElementById("btn-save");
-  saveBtn.disabled = !dirty;
+  const hasErrors = constraints.summarise(lastViolations).errors > 0;
+  saveBtn.disabled = !dirty || hasErrors;
   if (dirty) {
     saveBtn.classList.add("dirty");
     runConstraints();
@@ -2746,6 +2853,9 @@ function runConstraints() {
 function updateConstraintUI() {
   const summary = constraints.summarise(lastViolations);
   const el = document.getElementById("constraint-status");
+  // Keep save button in sync with error state
+  const saveBtn = document.getElementById("btn-save");
+  if (saveBtn) saveBtn.disabled = !isDirty || summary.errors > 0;
   if (!el) return;
   if (summary.total === 0) {
     el.textContent = "No violations";
@@ -2784,3 +2894,24 @@ function connectSSE() {
 
 loadSVG();
 connectSSE();
+
+// ---- Reference panel (before/after) ----
+(function initReference() {
+  if (!window.__DG_CONFIG.has_reference) return;
+  const section = document.getElementById("reference-section");
+  const bar = document.getElementById("reference-bar");
+  const img = document.getElementById("reference-img");
+  const btnShow = document.getElementById("btn-show-ref");
+  const btnToggle = document.getElementById("btn-toggle-ref");
+  if (!section || !bar || !img || !btnShow || !btnToggle) return;
+  section.style.display = "";
+  img.src = "/reference/" + SLUG;
+  btnShow.addEventListener("click", () => {
+    bar.style.display = bar.style.display === "none" ? "" : "none";
+    btnShow.textContent = bar.style.display === "none" ? "Show rough sketch" : "Hide rough sketch";
+  });
+  btnToggle.addEventListener("click", () => {
+    bar.style.display = "none";
+    btnShow.textContent = "Show rough sketch";
+  });
+})();
