@@ -59,6 +59,43 @@ Provide a cold-start-safe workflow and a consistent on-brand SVG system for rede
 
 ## Active TODO
 
+### Lightning talk demo prep — deadline May 13
+
+- [x] `[H]` **Reference panel in editor.** Added toggleable reference-image panel to the preview editor. Shows the rough input sketch (from `diagrams/1. input/`) above the generated SVG for before/after comparison. Server route `/reference/<slug>`, config flag `has_reference`, sidebar toggle button.
+- [x] `[H]` **Fix arrow multi-segment glitch.** Replaced linear interpolation with axis-aware orthogonal waypoint adjustment in `applyAllOverrides()`. Multi-segment arrows now preserve right angles when source/target boxes are moved.
+- [x] `[S]` **Fix Unicode encoding crash on Windows.** Replaced `⚠` emoji with `[!]` in `build_v2.py` print statements for cp1252 terminal compatibility.
+- [x] `[S]` **YAML quick-start in README.** Added YAML auto-discovery example to the "Creating your own diagram" section.
+- [ ] `[S]` **Generate slide 4 — before/after composite.** Side-by-side image: rough sketch + `memory-wall-onbrand-v2.svg`. High-res for ~1000-person audience.
+- [ ] `[S]` **Generate slide 5 — grid overlay.** `memory-wall-onbrand-v2-grid.svg` already exists. Verify it's presentation-quality.
+- [ ] `[L]` **Empty AGENT-INBOX.** Triaged lightning-talk items into this section.
+
+### 2026-05-08 full audit follow-ups
+
+- [x] `[H]` Fix preview relayout override loss and constraint-save mismatch. Relayout now preserves non-position overrides (waypoints, text, style) and clears only dx/dy/dw/dh. Save is gated on `constraints.summarise(lastViolations).errors === 0`.
+- [x] `[H]` Harden preview-server request surfaces. Added `_is_safe_slug()` validator and wired it into `/svg/*`, `/api/overrides/*`, `/api/tree/*`, `/api/grid/*`, `/api/relayout/*`, and `/view/*`. SVG handler also uses `PurePosixPath.name` like `_serve_static`.
+- [x] `[H]` Make Pipeline 2 validation authoritative. `validate_grid()` now runs on every diagram in `build_v2.py`. Grid violations are warn-only for now (51 pre-existing); arrow violations fail the build with non-zero exit.
+- [ ] `[M]` Resolve Python/YAML definition drift. `build_v2.py` currently loads colliding slugs from both Python and YAML examples, while the preview server hashes, watches, and imports Python-only definitions. Either dedupe / namespace YAML examples or teach the preview surfaces to understand non-Python definitions consistently.
+- [ ] `[M]` Align interactive relayout with build-time layout rules. Preview relayout currently propagates diagram-level gaps into nested panels more aggressively than the build path, and drag clamping still uses raw `INSET` instead of the richer `pad` / `headingHeight` metadata already present in the component model.
+- [ ] `[S]` Fix upstream spec-provenance drift. `DIAGRAM.md` and related docs still point at `canonical-spacing-spec`, while the documented sibling repo is `canonical-specs`; normalize the paths and claims so the advertised spec -> token -> tool chain is actually resolvable on a cold start.
+- [ ] `[S]` Triage the secondary audit findings after the high-severity fixes land: stale-v2 comparison risk in `build_outputs.py`, preview text-width mismatch vs renderer text width, dead helper layout code, and stale architectural line-count notes in `STATUS.md`.
+
+### 2026-05-09 Opus 4.6 audit – novel findings
+
+These are new issues found by the Opus 4.6 pass that were not in the earlier GPT-5.4 audit.
+
+- [x] `[H]` **`font_family` silently dropped.** Fixed: added `font_family` kwarg to `make_line()` in `diagram_shared.py` and pass-through in `_line_to_dict()`.
+- [ ] `[H]` **`GridSpec` is dead code.** `Panel.grid` and `Diagram.grid` are declared, and `Panel` has `effective_*` properties, but the layout engine reads raw `panel.cols`, `panel.col_gap`, etc. directly — never the `effective_*` path. Any diagram using `Panel(grid=GridSpec(...))` silently uses field defaults. Fix: use `effective_*` in `_layout_panel` and add matching properties to `Diagram`.
+- [x] `[H]` **Panel silently drops non-grid child types.** Fixed: `_layout_panel` now emits a `warnings.warn()` when an unsupported child type is encountered.
+- [ ] `[M]` **Diagonal arrows produce invisible arrowheads.** `_polyline_arrow` in `diagram_render_svg.py`: the `else` branch (non-orthogonal last segment) sets `head = [(tx, ty)]` — a single-point polygon. Currently mitigated by the orthogonal auto-router, but any explicit diagonal waypoint will have no arrowhead. Fix: compute proper diagonal arrowhead geometry from the unit vector.
+- [x] `[M]` **`cleanup_legacy_output_root_svgs` over-deletes.** Fixed: removed the name-collision condition; only files in `LEGACY_OUTPUT_ROOT_SVGS` are deleted.
+- [x] `[M]` **`_bounds_to_component_info` truthiness bug.** Fixed: replaced `or` truthiness chains with explicit `is not None` checks.
+- [x] `[M]` **Validation tools use CWD-relative paths.** Fixed: `_compare_3way.py` and `_audit_v2.py` now derive repo root from `Path(__file__).resolve().parents[1]`.
+- [ ] `[S]` **draw.io renderer uses spatial containment for parenting.** `_find_children` in `diagram_render_drawio.py` uses bounding-box overlap instead of `component_id`, which can mis-parent elements at shared edges. Fix: match by `component_id`.
+- [ ] `[S]` **`_uniform_row_height` ignores Annotations/Helpers.** Rows containing only annotations get `BOX_MIN_HEIGHT` regardless of content. The post-hoc helper expansion partially compensates but runs after uniform equalization.
+- [ ] `[L]` **Preview port-kill on Windows.** `preview_server.py` runs `Stop-Process -Force` on any PID holding the port, even if it's an unrelated service. Fix: log the target PID or require `--force`.
+- [ ] `[L]` **`_relayout` gap comparison uses reloaded module.** After `importlib.reload(mod)`, `orig_col_gap` reads from the new module state, not the pre-reload snapshot. Fix: capture originals before reload.
+- [x] `[L]` **`seq_helpers` dead code.** Removed.
+
 ### v2 declarative pipeline – defect registry
 
 SVG element audit (v1 vs v2, April 2026). Use `python scripts/_compare_3way.py` for visual comparison and `python scripts/_audit_v2.py` for element counts.
@@ -101,7 +138,7 @@ Replace the current per-diagram imperative functions with a declarative tree mod
 - [x] **Step 3 – SVG renderer.** Add `render_svg(layout_result) → str` in `scripts/diagram_render_svg.py`. Consumes layout geometry, emits SVG. Replaces per-diagram `build_*()` functions.
 - [x] **Step 4 – draw.io renderer.** Add `render_drawio(layout_result) → str` in `scripts/diagram_render_drawio.py`. Consumes same layout geometry, emits draw.io XML.
 - [x] **Step 5 – convert logic-data-vram.** Rewrite `logic-data-vram` as a declarative tree using the new model. Validated – output matches the manually-edited reference with uniform row heights, nested panels, and proper arrows.
-- [x] **Step 6 – convert remaining diagrams.** All 9 diagrams converted to declarative definitions under `scripts/diagrams/`. Müller-Brockmann explicit grid placement (col/row/col_span/row_span) replaced the need for free-form absolute positioning. `inference-snaps-dense` remains as a variant of `inference-snaps` in the imperative generator.
+- [x] **Step 6 – convert remaining diagrams.** The current shipped declarative corpus is converted under `scripts/diagrams/`. Müller-Brockmann explicit grid placement (col/row/col_span/row_span) replaced the need for free-form absolute positioning. `inference-snaps-dense` remains as a variant of `inference-snaps` in the imperative generator.
 - [x] **Step 6b – component library refactor.** Unified component types: `Border` enum replaces `borderless`/`frameless`/`dashed` booleans; `Annotation` replaces `Helper` and borderless `Box` for annotations; `JaggedPanel` replaces `MemoryWall`; `IconCluster` replaces `IconComponent`/`RequestCluster`; `GridSpec` consolidates grid parameters. All 9 diagram definitions migrated to new types. Deprecated types kept for backward compatibility.
 - [x] **Step 7 – Playwright visual validation.** Add a post-build headless browser check that renders each SVG and flags text overflow, misalignment, and box-height inconsistencies.
 
@@ -141,7 +178,7 @@ These gaps were discovered in the logic-data-vram audit and are now handled by t
 - [x] GRID col_span: panels can span multiple columns in a GRID arrangement.
 - [x] Bar auto-fill: last segment without explicit width fills to the remaining panel width.
 - [x] Bar auto-height: bars auto-size from content (INSET + text_height + INSET), never shorter than needed for balanced padding.
-- [x] Baseline grid validator: `validate_grid(result)` checks all layout coordinates land on the 8px grid; bar segment `width_px` values must be multiples of 8.
+- [x] Baseline grid validator wiring: `validate_grid(result)` now runs in `build_v2.py` on every diagram. Grid violations are warn-only (51 pre-existing); arrow violations fail the build.
 
 ### Previous grid engine items (partially done, superseded by declarative model)
 
@@ -183,11 +220,11 @@ These items are now unblocked by the completed refactor:
 - [x] **Baseline alignment guide.** Done — snap guides show during single-component drag. Collects peer edges/centers, snaps within 6px threshold, renders dashed orange guide lines, cleans up on drop.
 - [x] **Full interaction manager adoption.** Done — all 4 state variables (`dragState`, `resizeState`, `wpDragState`, `textEditState`) replaced with `mgr.startXxx()`/`mgr.endInteraction()` and `mgr.state` access.
 - [x] `[H]` **Command pattern for undo/redo.** Replaced the anonymous JSON snapshot stack with explicit per-action command records for move, resize, grid edits, text edits, style changes, waypoint edits, clear actions, and keyboard nudges. Undo/redo now restores full editor state, including grid overrides.
-- [ ] `[M]` **Specialize high-volume undo commands where worth it.** The current command records still store before/after editor state. If history size or restore cost becomes a problem, promote the hottest actions to bespoke do/undo handlers.
+- [x] `[M]` **Specialize high-volume undo commands where worth it.** Move and resize now use override-patch commands instead of full editor-state snapshots; keep the remaining actions on the full-state path unless a real history-size or restore-cost hotspot appears.
 - [x] **Ctrl+Z does not undo typed text in inline editor.** Fixed — text edits now store override, record undo snapshot, and restore via `applyAllOverrides`.
 - [x] **Gutter value changes don't activate save button.** Fixed — grid overrides persist via override JSON and mark dirty on change.
 - [x] **Baseline grid overlay turns pink.** Fixed — composition and baseline modes are now mutually exclusive. Baseline shows a clean 8px grid without the column/row band fills.
-- [x] **Save flakiness.** Fixed — relayout clears stale position overrides, load sequence re-baselines dirty state after initial relayout, save errors logged to console.
+- [x] **Save / relayout follow-up.** Fixed: relayout now preserves non-position overrides (waypoints, etc.) and clears only dx/dy/dw/dh. Save is blocked when constraint errors exist.
 - [x] `[S]` **Distribute and align.** Multi-select inspector now supports distribute and align actions with a configurable gutter value, 8px snap, override persistence, and undo/redo-safe behavior. Browser-validated via Playwright.
 - [x] **Gutter standardization.** All gaps, margins, and arrow clearance tokens standardized to 24px (was 32). `GRID_GUTTER=24`, `OUTER_MARGIN=24`, `ARROW_GAP=24`, `MIN_ARROW_SEGMENT=16`. Compact nested panel gaps remain 8px. Baseline unit changed from 4px to 8px — all tokens are multiples of 8.
 
@@ -213,7 +250,7 @@ These items are now unblocked by the completed refactor:
 - [x] Gutter change re-fits children (relayout clears stale overrides)
 - [x] Undo/redo snapshots now include grid overrides, so gutter and outer-margin edits can be reverted along with component override changes.
 - [x] Undo/redo now records explicit per-action commands instead of pushing anonymous stack snapshots.
-- [ ] `[M]` Swap the preview/editor UI from bespoke local CSS over to Baseline Foundry once the workspace integration target is ready.
+- [x] `[M]` Swap the preview/editor UI from bespoke local CSS over to Baseline Foundry once the workspace integration target is ready. The preview server now serves the sibling Baseline Foundry app-tier CSS and Ubuntu Sans font under `/preview/`, and the viewer shell uses BF application/panel/control primitives while keeping local CSS as the editor-specific override layer.
 
 ### Previously active
 
@@ -230,7 +267,7 @@ These items are now unblocked by the completed refactor:
 - [ ] `[S]` Manual draw.io desktop smoke test for the current `diagrams/2.output/draw.io/*-onbrand.drawio` batch and the tracked `assets/drawio/diagram-generator-primitives.mxlibrary` when draw.io or diagrams.net is available locally.
 - [ ] `[S]` Manual Illustrator desktop smoke test for the refreshed starter-block SVG batch when Illustrator is available locally.
 - [ ] `[S]` Keep refining `DIAGRAM.md` as more diagram types appear.
-- [ ] `[S]` Re-audit the generator helpers whenever the user adjusts the starter block so the output set does not drift back into mixed inset or line-height rules.
+- [ ] `[S]` Re-audit the generator helpers whenever the user adjusts the starter block so the output set does not drift back into mixed inset or line-height rules. Terminal-bar geometry, request-cluster spacing, draw.io icon-image sizing, memory-panel geometry, and SVG jagged-step sizing are now normalized through shared tokens; keep the next passes scoped to reusable helpers rather than one-off diagram coordinates.
 - [x] `[S]` Curate a PM-onboarding exemplar path over the tracked internal corpus so a cold-start agent or PM knows which `3` to `5` before/after/compare sets to inspect first. The shortlist now lives in `README.md` under `Recommended exemplar path`.
 - [x] New component: stacked icon+text block (icon above label, both grid-aligned) to avoid keyline breaks from side-by-side icon placement pushing text out of alignment.
 - [x] Reconcile `README.md`, `STATUS.md`, `docs/specs.md`, and `.github/copilot-instructions.md` with the actually tracked corpus so cold-start instructions do not point at ignored files.

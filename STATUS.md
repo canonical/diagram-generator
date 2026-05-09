@@ -24,21 +24,22 @@ Several paths below refer to locally generated or team-internal assets that are 
 
 There are now **two diagram generation pipelines**. On a cold start, ask the user which pipeline to work on.
 
-### Pipeline 1: imperative (stable)
+### Pipeline 1: imperative (original v1 batch)
 
 - Builder: `scripts/generate_remaining_diagrams.py`
 - Entry point: `python scripts/build_outputs.py`
 - Outputs: `*-onbrand.svg`, `*-onbrand.drawio`
-- All 9 diagrams are content-complete against their input sketches.
+- Maintained for the existing v1 output batch in the canonical corpus; useful for parity checks and legacy exports, but no longer the main development surface.
 
-### Pipeline 2: declarative grid (experimental)
+### Pipeline 2: declarative grid (current active surface)
 
 - Definitions: `scripts/diagrams/*.py`
 - Model: `scripts/diagram_model.py` — component types (`Box`, `Panel`, `Arrow`, `Annotation`, `JaggedPanel`, `IconCluster`, etc.) with `Border` enum and `GridSpec`.
 - Layout engine: `scripts/diagram_layout.py`
 - Entry point: `python scripts/build_v2.py`
 - Outputs: `*-onbrand-v2.svg`, `*-onbrand-v2.drawio`
-- **Component library refactored:** all 9 definitions use the new canonical types. Deprecated types (`Helper`, `IconComponent`, `RequestCluster`, `MemoryWall`) are still importable but no longer used in definitions.
+- **Component library refactored:** the current declarative corpus uses the new canonical types. Deprecated types (`Helper`, `IconComponent`, `RequestCluster`, `MemoryWall`) are still importable but no longer used in active definitions.
+- **Active surface:** this is where the declarative model, build-time validators, interactive editor, and Baseline Foundry preview integration now evolve.
 
 ### Validation tools
 
@@ -90,18 +91,18 @@ The project has evolved from a batch diagram generator into a **constrained inte
 - `scripts/preview/component-model.js` – `ComponentModel` + `ComponentNode` tree with indexed lookup, `InteractionManager` state machine
 - `scripts/preview/constraints.js` – `ConstraintRegistry` with pluggable constraint functions
 - `scripts/preview/editor.js` – interaction handlers, DOM sync, sidebar UI
-- `scripts/preview/editor.css` – all viewer styles
-- `scripts/preview/viewer.html` – HTML template with `%TITLE%`, `%NAV_LINKS%`, `%CONFIG_SCRIPT%` placeholders
-- `scripts/preview_server.py` – pure API server (485 lines), no embedded JS
+- `scripts/preview/editor.css` – editor-specific styling, BF-aware shell overrides, and fallback layout rules for the preview surface
+- `scripts/preview/viewer.html` – HTML template with `%TITLE%`, `%NAV_LINKS%`, `%CONFIG_SCRIPT%`, and optional `%BF_STYLES%` placeholders
+- `scripts/preview_server.py` – pure API server (now also serves optional Baseline Foundry app-tier CSS and font assets when the sibling repo is available), no embedded JS
 
 **Remaining interactive editor work** (post-refactor):
 - Domain-specific undo/redo follow-up (deferred; undo/redo now uses explicit per-action command records, but each command still stores before/after editor state rather than bespoke do/undo handlers)
-- Bug 6: horizontal layout with `cols=1` misclassified as "vertical" in `_bounds_to_component_info` (no current diagrams affected)
 
 **Browser-verified (May 2026):** snap guides, layout metadata in inspector, icon re-anchor on resize, parent→child grid propagation, and multi-select distribute/align in the preview inspector. All audit bugs fixed (commits `51535bf`, `dec8160`).
 
 - **The repo now uses the centralized root workflow.** `STATUS.md`, `TODO.md`, `ROADMAP.md`, `HISTORY.md`, `INBOX.md`, `AGENT-INBOX.md`, and `docs/specs.md` are the canonical workflow files.
 - **A design.md-inspired diagram language spec now exists.** `DIAGRAM.md` holds the canonical tokens, prose rules, output constraints, and redraw workflow for diagram work instead of keeping that material in `TODO.md`.
+- **`DIAGRAM.md` now exposes a spec -> token -> tool bridge.** Its `sourceSpecs:` frontmatter links typography, spacing, and grid back to `canonical-spacing-spec`, so the diagram tier has explicit upstream provenance instead of chat-only context.
 - **Optional workflow skills now have a clear home.** `.github/skills/` is the repo location for on-demand workflow skills such as redraw, build-and-validate, and protected draw.io review procedures.
 - **Draw.io is the primary editable output target.** `scripts/build_outputs.py` generates draw.io first into `diagrams/2.output/draw.io/`, then regenerates the matching SVG batch in `diagrams/2.output/svg/`.
 - **Both renderers now share one primitive layer.** `scripts/diagram_shared.py` carries the shared tokens, icon loading, text metrics, terminal chrome helpers, and matrix helpers used by both renderers.
@@ -112,9 +113,8 @@ The project has evolved from a batch diagram generator into a **constrained inte
 - **Generated draw.io cells now carry provenance and style tokens.** Exported `mxCell` nodes now include `data-dg-source`, `data-dg-role`, `data-dg-style-tokens`, and matching `tags` metadata so generator-owned cells can be distinguished from manual additions and batch-targeted by future tools.
 - **A tracked reusable draw.io library now exists.** `scripts/export_drawio_library.py` writes `assets/drawio/diagram-generator-primitives.mxlibrary` with the canonical default box, accent box, highlight box, helper note, connector, terminal bar, matrix widget, memory-wall panel, and grouped panel primitives.
 - **Token-aware style sync is now preset-driven.** `scripts/drawio_style_sync.py` can list and apply canonical token-derived presets for labels, panels, images, separators, and connectors across generator-tagged draw.io cells, while still allowing raw `--set` / `--unset` overrides when needed.
-- **The manually polished draw.io lane already drifts from generator structure.** Files in `diagrams/2.output/draw.io/manually-edited/` and `memory-wall-onbrand-edited-in-drawio.drawio` flatten some generated parent/child structures, adjust text spacing directly on cells, and introduce one-off local edits that cannot be safely regenerated over today.
-- **Protected manual draw.io edits now use review copies.** `scripts/drawio_review_workflow.py` prepares mirrored review copies under `diagrams/2.output/draw.io/review/` and promotes them back only after checkpointing the original into `diagrams/2.output/draw.io/checkpoints/`.
-- **Declarative diagram architecture is complete (Stage 6a, all steps done).** `scripts/diagram_model.py` defines typed component trees (Box, Panel, Bar, Terminal, Arrow, Helper, MatrixWidget, MemoryWall, RequestCluster, Legend, IconComponent). `scripts/diagram_layout.py` uses Müller-Brockmann explicit grid placement: every component carries `(col, row, col_span, row_span)` and the GRID arrangement computes column widths and row heights from content, then positions each component in its grid cell. VERTICAL and HORIZONTAL arrangements also supported. All 9 diagrams converted to declarative definitions under `scripts/diagrams/`, each producing both SVG and draw.io output with 0 baseline grid violations.
+- **Protected manual draw.io edits use review-copy infrastructure, but that lane may be empty in a fresh tree.** `scripts/drawio_review_workflow.py` prepares mirrored review copies under `diagrams/2.output/draw.io/review/` and promotes them back only after checkpointing the original into `diagrams/2.output/draw.io/checkpoints/`, but those directories may not exist until the first manual session creates them. Treat the lane as infrastructure-ready rather than a guaranteed live artifact.
+- **Declarative diagram architecture is complete (Stage 6a, all steps done).** `scripts/diagram_model.py` defines typed component trees (Box, Panel, Bar, Terminal, Arrow, Helper, MatrixWidget, MemoryWall, RequestCluster, Legend, IconComponent). `scripts/diagram_layout.py` uses Müller-Brockmann explicit grid placement: every component carries `(col, row, col_span, row_span)` and the GRID arrangement computes column widths and row heights from content, then positions each component in its grid cell. VERTICAL and HORIZONTAL arrangements also supported. The current shipped declarative corpus lives under `scripts/diagrams/`, with each definition producing both SVG and draw.io output with 0 baseline grid violations.
 - **Canvas constraints and auto-fill now available.** `Diagram` supports `canvas_width`, `canvas_height`, and `uniform_rows`. Canvas width auto-derives equal column widths. Auto-fill propagates sizing to sub-panels, eliminating manual nesting tax math. See "Sizing constraints" and "Auto-fill" sections in `DIAGRAM.md`.
 - **Playwright visual validation is now part of the build.** `scripts/visual_compare.py` renders generated SVGs and manual reference rasters side by side, produces combined comparison PNGs, pixel diff heatmaps, and diff percentages. Wired into `build_outputs.py` as the final step (skip with `--no-visual`).
 - **Body text is now 18px/24px.** `diagram_shared.py` and `DIAGRAM.md` are updated. All outputs rebuilt at the new size.
@@ -125,9 +125,11 @@ The project has evolved from a batch diagram generator into a **constrained inte
 ## Current execution plan
 
 - Content-width alignment and preview distribute-and-align are complete and validated.
-- Preview undo/redo now uses explicit action records and restores full editor state, including grid overrides; the remaining no-input editor lane is deciding whether any hotspots need bespoke do/undo handlers beyond before/after state commands.
+- The interactive preview shell now uses Baseline Foundry app-tier primitives when the sibling `baseline-foundry` repo is available; local preview CSS is now the editor-specific override and fallback layer rather than a bespoke standalone shell.
+- Preview undo/redo now uses explicit action records and restores full editor state, including grid overrides; the hottest move/resize interactions now use narrower override-patch commands, and the remaining actions stay on the full-state path unless a real hotspot appears.
 - Generated draw.io outputs are structurally clean; manual draw.io or diagrams.net smoke tests remain pending but are not the current no-input implementation lane.
 - Generated SVG outputs passed the Illustrator-safety sanitizer; manual Illustrator smoke tests remain pending but are not blocking the current implementation work.
+- The current helper-audit lane now covers terminal bars, request clusters, draw.io icon-image sizing, memory-panel geometry, and SVG jagged-step sizing; keep future cleanup scoped to reusable helper surfaces rather than per-diagram coordinates.
 - Keep the new preset-driven draw.io style-sync path aligned with exporter defaults whenever shared diagram tokens change.
 - The cold-start exemplar path is now curated in `README.md`; the next no-input doc lane is refining `DIAGRAM.md` as more diagram types appear.
 - Keep refining `DIAGRAM.md` as more diagram types appear.

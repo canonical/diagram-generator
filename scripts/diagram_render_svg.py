@@ -146,7 +146,7 @@ def _polyline_arrow(points, color=ORANGE) -> str:
 
 
 def _jagged_box(x, y, w, h, fill=GREY) -> str:
-    step, half = 8, 4
+    step, half = BASELINE_UNIT, BASELINE_UNIT / 2
     pts: list[tuple[float, float]] = []
     for i in range(int(w // step) + 1):
         px = min(x + i * step, x + w)

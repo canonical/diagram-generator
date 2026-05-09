@@ -248,6 +248,7 @@ def _line_to_dict(line: Line) -> dict:
         fill=line.fill,
         small_caps=line.small_caps,
         line_step=line.line_step,
+        font_family=line.font_family,
     )
 
 
@@ -342,16 +343,26 @@ def _layout_panel(
     pad = 0 if panel_border == Border.NONE else INSET
 
     # Separate children by type
+    _PANEL_CHILD_TYPES = (Box, Bar, Helper, Annotation, Terminal, Panel, MatrixWidget)
     boxes = [c for c in panel.children if isinstance(c, Box)]
     bars = [c for c in panel.children if isinstance(c, Bar)]
     all_helpers = [c for c in panel.children if isinstance(c, (Helper, Annotation))]
     terminals = [c for c in panel.children if isinstance(c, Terminal)]
     sub_panels = [c for c in panel.children if isinstance(c, Panel)]
     matrices = [c for c in panel.children if isinstance(c, MatrixWidget)]
+    # Warn about child types that _layout_panel does not handle
+    for c in panel.children:
+        if not isinstance(c, _PANEL_CHILD_TYPES):
+            import warnings
+            cid = getattr(c, "id", "") or type(c).__name__
+            warnings.warn(
+                f"Panel child '{cid}' has type {type(c).__name__} which is "
+                f"not supported inside a Panel and will be silently dropped",
+                stacklevel=2,
+            )
 
-    # Helpers with col/row go into the grid; others are sequential
+    # Helpers with col/row go into the grid; others are unsupported
     grid_helpers = [h for h in all_helpers if hasattr(h, "col") and hasattr(h, "row")]
-    seq_helpers = [h for h in all_helpers if h not in grid_helpers]
 
     # All grid-placed items for dimension computation
     grid_items = boxes + grid_helpers + matrices
@@ -1311,14 +1322,17 @@ def _bounds_to_component_info(bounds: "_Bounds") -> ComponentInfo | None:
         if heading:
             heading_lines = _lines_to_dicts([heading])
             hh = tight_box_height(heading_lines)
-            row_gap_val = float(getattr(comp, "effective_row_gap", None)
-                                or getattr(comp, "row_gap", None) or 0)
+            _erg = getattr(comp, "effective_row_gap", None)
+            _rg = getattr(comp, "row_gap", None)
+            row_gap_val = float(_erg if _erg is not None else (_rg if _rg is not None else 0))
             comp_heading_height = float(hh + row_gap_val)
         # Extract col_gap and row_gap
-        cg = float(getattr(comp, "effective_col_gap", None)
-                    or getattr(comp, "col_gap", None) or 0)
-        rg = float(getattr(comp, "effective_row_gap", None)
-                    or getattr(comp, "row_gap", None) or 0)
+        _ecg = getattr(comp, "effective_col_gap", None)
+        _cg = getattr(comp, "col_gap", None)
+        cg = float(_ecg if _ecg is not None else (_cg if _cg is not None else 0))
+        _erg2 = getattr(comp, "effective_row_gap", None)
+        _rg2 = getattr(comp, "row_gap", None)
+        rg = float(_erg2 if _erg2 is not None else (_rg2 if _rg2 is not None else 0))
         layout_col_gap = cg
         layout_row_gap = rg
         if hasattr(comp, "cols"):

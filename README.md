@@ -6,8 +6,8 @@ An LLM-based diagramming workflow that turns rough sketches and brand/layout rul
 
 If you are new to the repo and using an agent, make the pipeline choice explicit before doing anything else:
 
-- **Pipeline 2**: declarative + autolayout. This is the cutting-edge path for new work and the interactive editor, but it is still slightly unstable.
-- **Pipeline 1**: imperative stable implementation. This is the safer path when you want the established canonical batch.
+- **Pipeline 2**: declarative + autolayout. This is the current active surface for new work, validators, and the interactive editor.
+- **Pipeline 1**: the original imperative batch. Keep it for the existing v1 outputs and parity checks, but it is no longer the main development surface.
 
 Fastest way to see the project working:
 
@@ -33,8 +33,8 @@ Open this repo and demo the current workflow end-to-end.
 
 1. Work from the repo root.
 2. Explain the pipeline choice briefly, then proceed with Pipeline 2 unless I explicitly ask for Pipeline 1:
-    - Pipeline 2 = declarative + autolayout, cutting edge, slightly unstable.
-    - Pipeline 1 = stable initial implementation.
+    - Pipeline 2 = declarative + autolayout, the current active surface.
+    - Pipeline 1 = the original imperative v1 batch, kept for parity checks and legacy exports.
 3. Refresh the live demo assets if needed:
     - python scripts/build_v2.py
     - python scripts/build_compare_pages.py
@@ -57,10 +57,10 @@ python -m venv .venv
 .venv/Scripts/activate  # Windows
 # source .venv/bin/activate  # macOS/Linux
 
-# 2. Build the stable shareable batch (SVG + draw.io)
+# 2. Build the original v1 batch (SVG + draw.io)
 python scripts/build_outputs.py --no-visual
 
-# 3. Build the declarative v2 batch
+# 3. Build the current active declarative v2 batch
 python scripts/build_v2.py
 
 # 4. View outputs
@@ -94,6 +94,35 @@ my_diagram = Diagram(
 
 Then register it in `scripts/build_v2.py` by adding a tuple to `_REGISTRY` and rebuild. See [`scripts/diagrams/example_deployment_pipeline.py`](scripts/diagrams/example_deployment_pipeline.py) for a complete starter example.
 
+**Or use YAML (no registration needed):** drop a `.yaml` file in `scripts/diagrams/yaml/` and it is auto-discovered on the next build. Example:
+
+```yaml
+title: My diagram
+cols: 1
+col_width: 192
+row_height: 64
+col_gap: 24
+row_gap: 24
+outer_margin: 24
+components:
+  - type: box
+    id: step1
+    label: ["First step"]
+    icon: Document.svg
+    col: 0
+    row: 0
+  - type: box
+    id: step2
+    label: ["Second step"]
+    fill: grey
+    icon: Package.svg
+    col: 0
+    row: 1
+  - type: arrow
+    source: step1.bottom
+    target: step2.top
+```
+
 ### Example diagrams (tracked)
 
 Three generic examples ship with the repo for reference:
@@ -107,6 +136,8 @@ Three generic examples ship with the repo for reference:
 ### Interactive autolayout demo
 
 The interactive autolayout demo is the hot-reload preview server. It is still an active editor surface rather than a polished end-user app, but it is the current way to exercise live relayout, gutter controls, distribute/align, and override persistence.
+
+If the sibling `baseline-foundry` repo is present beside this repo, the preview server now auto-serves its app-tier stylesheet and Ubuntu Sans font so the editor shell uses Baseline Foundry primitives without extra setup.
 
 ```bash
 python scripts/preview_server.py              # all diagrams, port 8100
@@ -254,8 +285,8 @@ Output:
 
 Build order:
 
-- **Pipeline 1 (stable):** run [`build_outputs.py`](scripts/build_outputs.py) for the canonical batch build
-- **Pipeline 2 (experimental):** run [`build_v2.py`](scripts/build_v2.py) for the declarative grid outputs
+- **Pipeline 1 (original v1 batch):** run [`build_outputs.py`](scripts/build_outputs.py) for the maintained imperative outputs
+- **Pipeline 2 (current active surface):** run [`build_v2.py`](scripts/build_v2.py) for the declarative grid outputs, validators, and editor-facing workflow
 - Compare with [`_compare_3way.py`](scripts/_compare_3way.py) to validate v2 against v1 and input sketches
 
 ## Canonical references
@@ -270,6 +301,12 @@ Build order:
 ## Current design system
 
 The canonical diagram-language contract now lives in [`DIAGRAM.md`](DIAGRAM.md). It holds the current tokens, layout rules, output constraints, and redraw workflow in one place so `TODO.md` can stay focused on active work.
+
+Three implementation details are worth noticing on a cold start:
+
+- `DIAGRAM.md` includes `sourceSpecs:` frontmatter that links typography, spacing, and grid back to `canonical-spacing-spec`, so the repo has an explicit spec -> token -> tool chain rather than a chat-only style memory.
+- Generated draw.io `mxCell` nodes carry `data-dg-source`, `data-dg-role`, and `data-dg-style-tokens`, which makes provenance, batch rewrites, and re-runs auditable instead of opaque.
+- The preview server auto-serves the sibling `baseline-foundry` app-tier CSS and Ubuntu Sans font when that repo is present, so the interactive editor can dogfood the broader frontend system without copying assets into this repo.
 
 ## Draw.io export rules
 
@@ -292,6 +329,8 @@ python scripts/drawio_style_sync.py diagrams/2.output/draw.io/memory-wall-onbran
 ```
 
 Combine `--token`, `--role`, `--preset`, `--set`, and `--unset` as needed. Presets give you the canonical baseline; explicit `--set` or `--unset` flags can still override individual draw.io fields for one-off migrations.
+
+The protected manual-edit lane is infrastructure-ready, but not always populated. `scripts/drawio_review_workflow.py` can create `diagrams/2.output/draw.io/manually-edited/`, `review/`, and `checkpoints/` on demand; in a fresh tree those directories may be absent until someone actually prepares or promotes a review copy.
 
 ## Workflow map
 
@@ -353,18 +392,18 @@ Educational notes:
 
 There are two diagram generation pipelines. Both coexist and write to separate output files.
 
-### Pipeline 1: imperative (stable)
+### Pipeline 1: imperative (original v1 batch)
 
-The proven, production-ready pipeline. Each diagram is an imperative Python function that places every box, arrow, icon, and label with explicit coordinates.
+The original coordinate-authored pipeline. Each diagram is an imperative Python function that places every box, arrow, icon, and label with explicit coordinates.
 
 | | |
 |---|---|
 | **Builder** | `scripts/generate_remaining_diagrams.py` |
 | **Entry point** | `python scripts/build_outputs.py` |
 | **Outputs** | `*-onbrand.svg`, `*-onbrand.drawio` |
-| **Maturity** | Stable. All 9 diagrams are content-complete against their input sketches. |
+| **Maturity** | Maintained for the existing v1 output batch in the canonical corpus. Useful for parity checks and legacy exports, but no longer the main development surface. |
 
-### Pipeline 2: declarative grid (experimental)
+### Pipeline 2: declarative grid (current active surface)
 
 A newer declarative system where diagrams are defined as data (model → layout → SVG/draw.io). Uses a grid-based layout engine with auto-routing arrows.
 
@@ -374,7 +413,7 @@ A newer declarative system where diagrams are defined as data (model → layout 
 | **Layout engine** | `scripts/diagram_layout.py` + `scripts/diagram_model.py` |
 | **Entry point** | `python scripts/build_v2.py` |
 | **Outputs** | `*-onbrand-v2.svg`, `*-onbrand-v2.drawio` |
-| **Maturity** | Experimental but much closer to parity. All 9 diagrams are converted, and the currently audited batch is green; the open work is PM-shareable authoring, selective undo optimization where it proves necessary, and further workflow hardening rather than basic rendering gaps. |
+| **Maturity** | Current active surface. The audited canonical corpus is green, and the remaining work is in authoring UX, selective workflow hardening, and docs rather than core rendering parity. |
 
 ### 3-way visual comparison
 
@@ -382,6 +421,6 @@ Use `python scripts/_compare_3way.py` to generate Playwright screenshots compari
 
 ### Which pipeline to use
 
-- For production outputs, use Pipeline 1.
-- For development of the declarative system, use Pipeline 2 and always validate against the v1 output and input sketch using the 3-way comparison tool.
+- For existing v1 exports or parity checks, use Pipeline 1.
+- For new work, validators, interactive editing, and Baseline Foundry-backed preview work, use Pipeline 2 and validate against the v1 output and input sketch using the 3-way comparison tool.
 - On a cold start, the agent should ask the user which pipeline to work on.

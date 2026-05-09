@@ -1,47 +1,280 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: 'Ubuntu Sans', system-ui, sans-serif; background: #1a1a1a;
-       color: #e0e0e0; display: flex; height: 100vh; overflow: hidden; }
-.sidebar { width: 300px; min-width: 300px; background: #222; border-right: 1px solid #333;
-           overflow-y: auto; padding: 16px; font-size: 13px;
-           display: flex; flex-direction: column; gap: 12px; }
-.sidebar h2 { font-size: 12px; font-weight: 600; color: #777;
-              text-transform: uppercase; letter-spacing: 0.08em; margin: 0; }
-.nav-back { color: #6cc; text-decoration: none; font-size: 13px; }
-.nav-strip { display: flex; flex-wrap: wrap; gap: 4px; }
-.nav-strip a { color: #6cc; text-decoration: none; font-size: 11px; padding: 3px 6px;
-               border-radius: 3px; background: #2a2a2a; }
+
+body.dg-preview {
+       background: #1a1a1a;
+       color: #e0e0e0;
+       margin: 0;
+       min-height: 100vh;
+       overflow: hidden;
+}
+
+.dg-preview-app {
+       --bf-application-aside-width: 20rem;
+       display: grid;
+       grid-template-areas: "main aside";
+       grid-template-columns: minmax(0, 1fr) minmax(20rem, 20rem);
+       min-height: 100vh;
+}
+
+.dg-preview-main,
+.dg-preview-aside {
+       min-block-size: 0;
+       min-inline-size: 0;
+}
+
+.dg-preview-main {
+       overflow: auto;
+}
+
+.dg-preview-aside {
+       background: #222;
+       border-inline-start: 1px solid #333;
+       overflow: auto;
+}
+
+.sidebar {
+       color: inherit;
+       display: flex;
+       flex-direction: column;
+       font-size: 13px;
+       gap: 0;
+       min-block-size: 100%;
+}
+
+.dg-sidebar-header {
+       display: grid;
+       gap: 12px;
+}
+
+.dg-sidebar-content {
+       align-content: start;
+       display: grid;
+       gap: 16px;
+}
+
+.dg-sidebar-section {
+       display: grid;
+       gap: 8px;
+       min-inline-size: 0;
+}
+
+.dg-section-heading {
+       color: #777;
+       font-size: 12px;
+       font-weight: 600;
+       letter-spacing: 0.08em;
+       margin: 0;
+       text-transform: uppercase;
+}
+
+.nav-back {
+       color: #6cc;
+       font-size: 13px;
+       text-decoration: none;
+}
+
+.nav-strip {
+       display: flex;
+       flex-wrap: wrap;
+       gap: 4px;
+}
+
+.nav-strip a {
+       background: #2a2a2a;
+       border-radius: 3px;
+       color: #6cc;
+       font-size: 11px;
+       padding: 3px 6px;
+       text-decoration: none;
+}
+
 .nav-strip a:hover { background: #3a3a3a; }
 .nav-strip a.active { background: #E95420; color: #fff; }
-.build-status { padding: 6px 8px; border-radius: 4px; font-size: 11px; }
+
+.build-status {
+       border-radius: 4px;
+       font-size: 11px;
+       padding: 6px 8px;
+}
+
 .build-ok { background: #1a3a1a; color: #6c6; }
 .build-err { background: #3a1a1a; color: #c66; }
-.inspector { font-size: 12px; }
-.inspector .field { margin-bottom: 6px; }
-.inspector .label { color: #666; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; }
-.inspector .value { color: #e0e0e0; font-family: 'Ubuntu Mono', monospace; font-size: 12px; }
+
+.inspector {
+       display: grid;
+       font-size: 12px;
+       gap: 8px;
+}
+
+.inspector .field {
+       display: grid;
+       gap: 2px;
+}
+
+.inspector .label {
+       color: #666;
+       font-size: 10px;
+       letter-spacing: 0.06em;
+       text-transform: uppercase;
+}
+
+.inspector .value {
+       color: inherit;
+       font-family: 'Ubuntu Mono', monospace;
+       font-size: 12px;
+}
+
 .inspector .override { color: #E95420; }
-.inspector button { font-size: 11px; padding: 3px 8px; border: 1px solid #555;
-                    background: #2a2a2a; color: #e0e0e0; border-radius: 3px; cursor: pointer; }
-.inspector button:hover { background: #3a3a3a; }
-.inspector button.danger { border-color: #c66; color: #c66; }
-.inspector .hint { color: #777; font-size: 11px; line-height: 1.4; }
-.multi-action-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
-                     gap: 4px; margin-top: 6px; }
-.multi-action-row { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
-.multi-action-row input[type=number] { width: 64px; padding: 2px 4px; font-size: 12px;
-                                       font-family: 'Ubuntu Mono', monospace;
-                                       background: #2a2a2a; color: #e0e0e0; border: 1px solid #555;
-                                       border-radius: 3px; text-align: right; }
-.multi-action-row input[type=number]:focus { border-color: #6cc; outline: none; }
-.multi-action-row .unit { font-size: 10px; color: #555; }
-.tree { font-size: 12px; }
-.tree-item { padding: 2px 0; cursor: pointer; border-left: 2px solid transparent;
-             padding-left: 8px; font-family: 'Ubuntu Mono', monospace; }
-.tree-item:hover { border-left-color: #555; }
-.tree-item.selected { border-left-color: #F6B73C; color: #F6B73C; }
-.stage { flex: 1; overflow: auto; display: flex; align-items: flex-start;
-         justify-content: center; padding: 32px; }
-.stage svg { background: #fff; cursor: crosshair; }
+
+.inspector .hint,
+.dg-empty-message,
+.dg-selection-note,
+.dg-inspector-note,
+.dg-override-summary {
+       color: #777;
+       font-size: 11px;
+       line-height: 1.4;
+       margin: 0;
+}
+
+.multi-action-grid {
+       display: grid;
+       gap: 6px;
+       grid-template-columns: repeat(2, minmax(0, 1fr));
+       margin-top: 6px;
+}
+
+.multi-action-row {
+       align-items: center;
+       display: grid;
+       gap: 6px;
+       grid-template-columns: auto minmax(0, 1fr) auto;
+       margin-top: 8px;
+}
+
+.multi-action-row .value,
+.multi-action-row .unit {
+       color: #666;
+       font-family: 'Ubuntu Sans', system-ui, sans-serif;
+       font-size: 11px;
+}
+
+.tree {
+       display: grid;
+       font-size: 12px;
+       gap: 2px;
+}
+
+.tree-item {
+       border-inline-start: 2px solid transparent;
+       cursor: pointer;
+       font-family: 'Ubuntu Mono', monospace;
+       padding: 4px 0 4px 8px;
+}
+
+.tree-item:hover { border-inline-start-color: #555; }
+.tree-item.selected { border-inline-start-color: #F6B73C; color: #F6B73C; }
+
+.grid-controls {
+       display: grid;
+       gap: 8px;
+}
+
+.dg-grid-field {
+       display: grid;
+       gap: 4px;
+       margin-bottom: 0;
+}
+
+.dg-grid-control {
+       align-items: center;
+       display: grid;
+       gap: 6px;
+       grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.dg-grid-unit {
+       color: #666;
+       font-size: 11px;
+       white-space: nowrap;
+}
+
+.dg-number-input,
+.multi-action-row input[type=number] {
+       font-family: 'Ubuntu Mono', monospace;
+       text-align: right;
+}
+
+.dg-button-row {
+       display: flex;
+       flex-wrap: wrap;
+       gap: 8px;
+}
+
+.dg-stage-shell {
+       min-block-size: 100%;
+}
+
+.stage {
+       align-items: flex-start;
+       display: flex;
+       justify-content: center;
+       min-block-size: 100%;
+       min-inline-size: 0;
+       overflow: auto;
+       padding: 32px;
+       width: 100%;
+}
+
+/* --- Reference panel (before/after) --- */
+.dg-reference-bar {
+       background: #1e1e1e;
+       border-block-end: 1px solid #333;
+       display: grid;
+       gap: 0;
+}
+.dg-reference-header {
+       align-items: center;
+       display: flex;
+       gap: 8px;
+       justify-content: space-between;
+       padding: 8px 16px;
+}
+.dg-reference-label {
+       color: #888;
+       font-size: 12px;
+       font-weight: 600;
+       letter-spacing: 0.04em;
+       text-transform: uppercase;
+}
+.dg-reference-toggle {
+       background: none;
+       border: none;
+       color: #666;
+       cursor: pointer;
+       font-size: 14px;
+       padding: 2px 6px;
+}
+.dg-reference-toggle:hover { color: #ccc; }
+.dg-reference-img-wrap {
+       max-height: 240px;
+       overflow: auto;
+       padding: 0 16px 12px;
+}
+.dg-reference-img {
+       border: 1px solid #333;
+       border-radius: 4px;
+       display: block;
+       max-width: 100%;
+       object-fit: contain;
+}
+
+.stage svg {
+       background: #fff;
+       box-shadow: 0 24px 72px rgba(0, 0, 0, 0.32);
+       cursor: crosshair;
+}
+
 .stage svg [data-component-id] { cursor: pointer; }
 .stage svg [data-component-id] > text,
 .stage svg [data-component-id] > image,
@@ -54,6 +287,7 @@ body { font-family: 'Ubuntu Sans', system-ui, sans-serif; background: #1a1a1a;
 .stage svg g.dg-hover > line { filter: drop-shadow(0 0 1px #6cc); }
 .stage svg g.dg-hover > .dg-icon { filter: drop-shadow(0 0 1px #6cc); }
 .stage svg .dg-icon > * { pointer-events: none; }
+
 .dg-handle { fill: #F6B73C; stroke: #fff; stroke-width: 1; cursor: pointer; pointer-events: all; }
 .dg-handle.dg-handle-tl { cursor: nw-resize; }
 .dg-handle.dg-handle-t { cursor: ns-resize; }
@@ -65,33 +299,70 @@ body { font-family: 'Ubuntu Sans', system-ui, sans-serif; background: #1a1a1a;
 .dg-handle.dg-handle-l { cursor: ew-resize; }
 .dg-wp-handle { fill: #F6B73C; stroke: #fff; stroke-width: 1.5; cursor: move; pointer-events: all; }
 .dg-wp-handle:hover { fill: #e0a030; stroke: #fff; stroke-width: 2; }
-.dg-text-editor { position: fixed; z-index: 10000; background: #fff; border: 2px solid #F6B73C;
-  font-family: 'Ubuntu Sans', sans-serif; padding: 4px; resize: none; overflow: hidden;
-  outline: none; box-sizing: border-box; line-height: 1.43; white-space: pre-wrap; }
-.btn { font-size: 11px; padding: 3px 8px; border: 1px solid #555;
-       background: #2a2a2a; color: #e0e0e0; border-radius: 3px; cursor: pointer; }
-.btn:hover { background: #3a3a3a; }
-.btn:disabled { opacity: 0.4; cursor: not-allowed; }
-.btn:disabled:hover { background: #2a2a2a; }
-.btn-save.dirty { background: #E95420; border-color: #E95420; color: #fff; }
-.btn-save.dirty:hover { background: #d44a1a; }
-.guide-badge { position: fixed; top: 8px; right: 8px; padding: 4px 10px;
-               font-size: 11px; font-family: 'Ubuntu Mono', monospace;
-               border-radius: 3px; pointer-events: none; z-index: 9999;
-               display: none; }
+
+.dg-text-editor {
+       background: #fff;
+       border: 2px solid #F6B73C;
+       box-sizing: border-box;
+       font-family: 'Ubuntu Sans', sans-serif;
+       line-height: 1.43;
+       outline: none;
+       overflow: hidden;
+       padding: 4px;
+       position: fixed;
+       resize: none;
+       white-space: pre-wrap;
+       z-index: 10000;
+}
+
+:where(.dg-preview button, .dg-preview input, .dg-preview select, .dg-preview textarea) {
+       font: inherit;
+}
+
+:where(.dg-preview .bf-input, .dg-preview .style-picker, .dg-preview input[type=number], .dg-preview select) {
+       background: #2a2a2a;
+       border: 1px solid #555;
+       border-radius: 3px;
+       color: #e0e0e0;
+}
+
+:where(.dg-preview .bf-input, .dg-preview .style-picker, .dg-preview input[type=number], .dg-preview select):focus {
+       border-color: #6cc;
+       outline: none;
+}
+
+.style-picker {
+       cursor: pointer;
+       width: 100%;
+}
+
+.danger {
+       border-color: #c66;
+       color: #c66;
+}
+
+.btn-save.dirty,
+.btn-save.bf-button.dirty {
+       background: #E95420;
+       border-color: #E95420;
+       color: #fff;
+}
+
+.btn-save.dirty:hover,
+.btn-save.bf-button.dirty:hover { background: #d44a1a; }
+
+.guide-badge {
+       border-radius: 3px;
+       display: none;
+       font-family: 'Ubuntu Mono', monospace;
+       font-size: 11px;
+       padding: 4px 10px;
+       pointer-events: none;
+       position: fixed;
+       right: 8px;
+       top: 8px;
+       z-index: 9999;
+}
+
 .guide-badge.composition { display: block; background: rgba(100,160,255,0.25); color: #9cf; }
 .guide-badge.baseline { display: block; background: rgba(100,255,160,0.25); color: #9f9; }
-.grid-controls { font-size: 12px; }
-.grid-controls .grid-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
-.grid-controls .grid-label { color: #666; font-size: 10px; text-transform: uppercase;
-                             letter-spacing: 0.06em; min-width: 60px; }
-.grid-controls input[type=number] { width: 52px; padding: 2px 4px; font-size: 12px;
-                                    font-family: 'Ubuntu Mono', monospace;
-                                    background: #2a2a2a; color: #e0e0e0; border: 1px solid #555;
-                                    border-radius: 3px; text-align: right; }
-.grid-controls input[type=number]:focus { border-color: #6cc; outline: none; }
-.grid-controls .unit { font-size: 10px; color: #555; }
-.style-picker { width: 100%; padding: 3px 4px; font-size: 11px; font-family: 'Ubuntu Sans', sans-serif;
-                background: #2a2a2a; color: #e0e0e0; border: 1px solid #555;
-                border-radius: 3px; cursor: pointer; }
-.style-picker:focus { border-color: #6cc; outline: none; }

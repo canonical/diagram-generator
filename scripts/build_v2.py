@@ -71,6 +71,7 @@ def main() -> None:
     SVG_DIR.mkdir(parents=True, exist_ok=True)
     DRAWIO_DIR.mkdir(parents=True, exist_ok=True)
     total_arrow_violations = 0
+    total_grid_violations = 0
     diagrams = _load_diagrams()
     for slug, diagram in diagrams:
         result = layout(diagram)
@@ -88,12 +89,22 @@ def main() -> None:
         arrow_violations = validate_arrows(result)
         if arrow_violations:
             total_arrow_violations += len(arrow_violations)
-            print(f"  {slug}: SVG + draw.io  ⚠ {len(arrow_violations)} arrow violation(s)")
+            print(f"  {slug}: SVG + draw.io  [!] {len(arrow_violations)} arrow violation(s)")
             for v in arrow_violations:
                 print(f"    {v.segment}: {v.length:.1f}px < {v.minimum:.0f}px  "
                       f"({v.start[0]:.0f},{v.start[1]:.0f})→({v.end[0]:.0f},{v.end[1]:.0f})")
         else:
             print(f"  {slug}: SVG + draw.io")
+
+        # Baseline grid alignment check
+        grid_violations = validate_grid(result)
+        if grid_violations:
+            total_grid_violations += len(grid_violations)
+            print(f"    [!] {len(grid_violations)} grid violation(s)")
+            for gv in grid_violations[:10]:
+                print(f"      {gv.primitive_type}.{gv.field} = {gv.value} (nearest grid: {gv.nearest})")
+            if len(grid_violations) > 10:
+                print(f"      ... and {len(grid_violations) - 10} more")
 
     removed = cleanup_legacy_output_root_svgs()
     if removed:
@@ -101,8 +112,14 @@ def main() -> None:
         print(f"  Removed stale root SVGs: {names}")
 
     if total_arrow_violations:
-        print(f"\n  ⚠ {total_arrow_violations} total arrow clearance violation(s)")
+        print(f"\n  [!] {total_arrow_violations} total arrow clearance violation(s)")
         print(f"    Increase row_gap/col_gap to ARROW_GAP (24) where arrows route.")
+
+    if total_grid_violations:
+        print(f"\n  [!] {total_grid_violations} total baseline-grid violation(s) (warning only)")
+
+    if total_arrow_violations:
+        sys.exit(1)
 
 
 if __name__ == "__main__":

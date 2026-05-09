@@ -92,16 +92,19 @@ def svg_wrapper(width: float, height: float, parts: list[str], *, background: st
 
 
 def icon_uri(name: str, fill: str = svg.BLACK) -> str:
-    return inline_svg_data_uri(svg_wrapper(48, 48, [svg.load_icon(name, fill)]))
+    return inline_svg_data_uri(
+        svg_wrapper(svg.ICON_SIZE, svg.ICON_SIZE, [svg.load_icon(name, fill)])
+    )
 
 
 def memory_panel_uri() -> str:
-    width = 192
-    step = 8
-    top_base = 8
+    width = svg.BLOCK_WIDTH
+    height = svg.BOX_MIN_HEIGHT
+    step = svg.BASELINE_UNIT
+    top_base = svg.INSET
     top_peak = 0
-    bottom_base = 72
-    bottom_peak = 80
+    bottom_base = height - svg.INSET
+    bottom_peak = height
 
     points: list[tuple[int, int]] = [(0, top_base)]
     use_peak = True
@@ -122,8 +125,8 @@ def memory_panel_uri() -> str:
     )
     return inline_svg_data_uri(
         f"""
-        <svg xmlns="http://www.w3.org/2000/svg" width="192" height="80" viewBox="0 0 192 80">
-          <path d="{path_d}" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+                <svg xmlns="http://www.w3.org/2000/svg" width="{svg.fmt(width)}" height="{svg.fmt(height)}" viewBox="0 0 {svg.fmt(width)} {svg.fmt(height)}">
+                    <path d="{path_d}" fill="{svg.GREY}" stroke="{svg.BLACK}" stroke-width="1" stroke-miterlimit="10" />
         </svg>
         """
     )
@@ -365,7 +368,11 @@ def add_image(
     connectable: bool = False,
     style_tokens: tuple[str, ...] | None = None,
 ) -> str:
-    resolved_tokens = style_tokens or (("icon-image",) if abs(width - 48) < 1e-6 and abs(height - 48) < 1e-6 else ("image-generic",))
+    resolved_tokens = style_tokens or (
+        ("icon-image",)
+        if abs(width - svg.ICON_SIZE) < 1e-6 and abs(height - svg.ICON_SIZE) < 1e-6
+        else ("image-generic",)
+    )
     return builder.add_vertex(
         x=x,
         y=y,
@@ -558,8 +565,17 @@ def add_matrix(builder: DrawioBuilder, *, x: float, y: float, label: str, connec
 
 
 def add_request_cluster(builder: DrawioBuilder, *, x: float, y: float) -> None:
-    for offset, name in ((0, "Document.svg"), (56, "Photography.svg"), (112, "Globe.svg")):
-        add_image(builder, x=x + offset, y=y, width=48, height=48, image_uri=icon_uri(name), style_tokens=("request-cluster-icon",))
+    step = svg.ICON_SIZE + svg.COMPACT_GAP
+    for offset, name in ((0, "Document.svg"), (step, "Photography.svg"), (step * 2, "Globe.svg")):
+        add_image(
+            builder,
+            x=x + offset,
+            y=y,
+            width=svg.ICON_SIZE,
+            height=svg.ICON_SIZE,
+            image_uri=icon_uri(name),
+            style_tokens=("request-cluster-icon",),
+        )
 
 
 def add_command_bar(
@@ -575,7 +591,7 @@ def add_command_bar(
         x=x,
         y=y,
         width=width,
-        height=64,
+        height=svg.TERMINAL_BAR_HEIGHT,
         style=rect_style(svg.GREY),
         connectable=True,
         metadata=dg_tokens.CellMetadata(role="terminal-bar", style_tokens=("terminal-bar",)),
@@ -591,7 +607,7 @@ def add_command_bar(
         parent=bar,
         style_tokens=("terminal-separator",),
     )
-    for cx in (20, 36, 52):
+    for cx in svg.TERMINAL_DOT_CENTERS:
         builder.add_vertex(
             x=cx - svg.TERMINAL_DOT_RADIUS,
             y=(svg.TERMINAL_CHROME_HEIGHT / 2) - svg.TERMINAL_DOT_RADIUS,
@@ -602,13 +618,13 @@ def add_command_bar(
             connectable=False,
             metadata=dg_tokens.CellMetadata(role="marker", style_tokens=("terminal-dot",)),
         )
-    text_y = svg.TERMINAL_CHROME_HEIGHT + svg.INSET
+    text_y = svg.terminal_text_top()
     add_label(
         builder,
         x=svg.INSET,
         y=text_y,
         width=width - (svg.INSET * 2),
-        height=64 - text_y - svg.INSET,
+        height=svg.terminal_text_box_height(svg.TERMINAL_BAR_HEIGHT),
         lines=lines or [svg.make_line(text_value)],
         parent=bar,
         font_family=svg.TERMINAL_FONT_FAMILY,
@@ -729,9 +745,26 @@ def export_memory_wall() -> None:
         target_point=(192, 464),
     )
 
-    memory_panel = add_image(builder, x=96, y=552, width=192, height=80, image_uri=memory_panel_uri(), connectable=True, style_tokens=("memory-panel",))
+    memory_panel = add_image(
+        builder,
+        x=96,
+        y=552,
+        width=svg.BLOCK_WIDTH,
+        height=svg.BOX_MIN_HEIGHT,
+        image_uri=memory_panel_uri(),
+        connectable=True,
+        style_tokens=("memory-panel",),
+    )
     add_label(builder, x=8, y=8, width=120, height=24, lines=[svg.make_line("Memory wall")], parent=memory_panel, style_tokens=("label-box",))
-    add_image(builder, x=136, y=8, width=48, height=48, image_uri=icon_uri("Memory.svg"), parent=memory_panel)
+    add_image(
+        builder,
+        x=svg.BLOCK_WIDTH - svg.INSET - svg.ICON_SIZE,
+        y=svg.INSET,
+        width=svg.ICON_SIZE,
+        height=svg.ICON_SIZE,
+        image_uri=icon_uri("Memory.svg"),
+        parent=memory_panel,
+    )
     builder.add_edge(
         style=edge_style(svg.ORANGE, exit_x=0.5, exit_y=1, entry_x=0.5, entry_y=0),
         source=silicon,

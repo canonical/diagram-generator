@@ -3,40 +3,96 @@
 <head>
 <meta charset="utf-8">
 <title>%TITLE%</title>
+%BF_STYLES%
 <link rel="stylesheet" href="/preview/editor.css">
 </head>
-<body>
-<div class="sidebar">
-  <a class="nav-back" href="/">&#x2190; all diagrams</a>
-  <div class="nav-strip">%NAV_LINKS%</div>
-  <div class="build-status build-ok" id="build-status">Watching for changes&#x2026;</div>
-  <h2>Inspector</h2>
-  <div class="inspector" id="inspector">
-    <div style="color:#555">Click a component to inspect it.</div>
-  </div>
-  <h2>Components</h2>
-  <div class="tree" id="tree"></div>
-  <h2>Grid</h2>
-  <div class="grid-controls" id="grid-controls">
-    <div class="grid-row"><span class="grid-label">Columns</span><input type="number" id="grid-cols" min="1" max="20" value="1"><span class="unit">cols</span></div>
-    <div class="grid-row"><span class="grid-label">Rows</span><input type="number" id="grid-rows" min="1" max="40" value="1"><span class="unit">rows</span></div>
-    <div class="grid-row"><span class="grid-label">Col gutter</span><input type="number" id="grid-col-gap" min="0" max="128" step="8" value="24"><span class="unit">px</span></div>
-    <div class="grid-row"><span class="grid-label">Row gutter</span><input type="number" id="grid-row-gap" min="0" max="128" step="8" value="24"><span class="unit">px</span></div>
-    <div class="grid-row"><span class="grid-label">Margin</span><input type="number" id="grid-margin" min="0" max="128" step="8" value="24"><span class="unit">px</span></div>
-  </div>
-  <h2>Overrides</h2>
-  <div id="override-summary" style="font-size:11px;color:#666">No overrides.</div>
-  <div style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap">
-    <button class="btn btn-save" id="btn-save" disabled>Save</button>
-    <button class="btn" id="btn-undo" disabled>Undo</button>
-    <button class="btn" id="btn-redo" disabled>Redo</button>
-    <button class="btn" id="btn-clear-all">Clear all</button>
-    <button class="btn" id="btn-export">Export</button>
-  </div>
-  <h2>Constraints</h2>
-  <div class="build-status build-ok" id="constraint-status">No violations</div>
+<body class="bf-theme bf-tier-app is-dark dg-preview">
+<div class="bf-application dg-preview-app">
+  <main class="bf-main dg-preview-main">
+    <div class="bf-stage-shell is-tight dg-stage-shell">
+      <div class="dg-reference-bar" id="reference-bar" style="display:none">
+        <div class="dg-reference-header">
+          <span class="dg-reference-label">Reference (rough sketch)</span>
+          <button class="dg-reference-toggle" id="btn-toggle-ref" title="Toggle reference">&#x2715;</button>
+        </div>
+        <div class="dg-reference-img-wrap">
+          <img class="dg-reference-img" id="reference-img" alt="Rough input sketch">
+        </div>
+      </div>
+      <div class="stage" id="stage"></div>
+    </div>
+  </main>
+  <aside class="bf-aside is-pinned is-medium dg-preview-aside">
+    <section class="sidebar bf-panel is-fill dg-sidebar-panel">
+      <div class="bf-panel-header is-sticky dg-sidebar-header">
+        <a class="nav-back" href="/">&#x2190; all diagrams</a>
+        <div class="nav-strip">%NAV_LINKS%</div>
+        <div class="build-status build-ok" id="build-status">Watching for changes&#x2026;</div>
+      </div>
+      <div class="bf-panel-content dg-sidebar-content">
+        <section class="dg-sidebar-section">
+          <h2 class="dg-section-heading bf-h5">Inspector</h2>
+          <div class="inspector" id="inspector">
+            <p class="dg-empty-message bf-form-help">Click a component to inspect it.</p>
+          </div>
+        </section>
+
+        <section class="dg-sidebar-section">
+          <h2 class="dg-section-heading bf-h5">Components</h2>
+          <div class="tree" id="tree"></div>
+        </section>
+
+        <section class="dg-sidebar-section">
+          <h2 class="dg-section-heading bf-h5">Grid</h2>
+          <div class="grid-controls" id="grid-controls">
+            <label class="bf-field dg-grid-field" for="grid-cols">
+              <span class="bf-form-label">Columns</span>
+              <span class="bf-control dg-grid-control"><input class="bf-input dg-number-input" type="number" id="grid-cols" min="1" max="20" value="1"><span class="dg-grid-unit">cols</span></span>
+            </label>
+            <label class="bf-field dg-grid-field" for="grid-rows">
+              <span class="bf-form-label">Rows</span>
+              <span class="bf-control dg-grid-control"><input class="bf-input dg-number-input" type="number" id="grid-rows" min="1" max="40" value="1"><span class="dg-grid-unit">rows</span></span>
+            </label>
+            <label class="bf-field dg-grid-field" for="grid-col-gap">
+              <span class="bf-form-label">Col gutter</span>
+              <span class="bf-control dg-grid-control"><input class="bf-input dg-number-input" type="number" id="grid-col-gap" min="0" max="128" step="8" value="24"><span class="dg-grid-unit">px</span></span>
+            </label>
+            <label class="bf-field dg-grid-field" for="grid-row-gap">
+              <span class="bf-form-label">Row gutter</span>
+              <span class="bf-control dg-grid-control"><input class="bf-input dg-number-input" type="number" id="grid-row-gap" min="0" max="128" step="8" value="24"><span class="dg-grid-unit">px</span></span>
+            </label>
+            <label class="bf-field dg-grid-field" for="grid-margin">
+              <span class="bf-form-label">Margin</span>
+              <span class="bf-control dg-grid-control"><input class="bf-input dg-number-input" type="number" id="grid-margin" min="0" max="128" step="8" value="24"><span class="dg-grid-unit">px</span></span>
+            </label>
+          </div>
+        </section>
+
+        <section class="dg-sidebar-section">
+          <h2 class="dg-section-heading bf-h5">Overrides</h2>
+          <p class="bf-form-help dg-override-summary" id="override-summary">No overrides.</p>
+          <div class="bf-cluster dg-button-row">
+            <button class="btn bf-button" id="btn-save" disabled>Save</button>
+            <button class="btn bf-button is-base" id="btn-undo" disabled>Undo</button>
+            <button class="btn bf-button is-base" id="btn-redo" disabled>Redo</button>
+            <button class="btn bf-button is-base" id="btn-clear-all">Clear all</button>
+            <button class="btn bf-button is-base" id="btn-export">Export</button>
+          </div>
+        </section>
+
+        <section class="dg-sidebar-section">
+          <h2 class="dg-section-heading bf-h5">Constraints</h2>
+          <div class="build-status build-ok" id="constraint-status">No violations</div>
+        </section>
+
+        <section class="dg-sidebar-section" id="reference-section" style="display:none">
+          <h2 class="dg-section-heading bf-h5">Reference</h2>
+          <button class="btn bf-button is-base" id="btn-show-ref">Show rough sketch</button>
+        </section>
+      </div>
+    </section>
+  </aside>
 </div>
-<div class="stage" id="stage"></div>
 <div class="guide-badge" id="guide-badge"></div>
 <script>%CONFIG_SCRIPT%</script>
 <script src="/preview/component-model.js"></script>
