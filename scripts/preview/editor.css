@@ -16,12 +16,15 @@ body.dg-preview {
 
 .dg-preview-main {
        grid-area: main;
+       min-block-size: 0;
+       overflow: auto;
 }
 
 .dg-preview-aside {
        grid-area: aside;
        min-block-size: 0;
        min-inline-size: 0;
+       overflow-y: auto;
 }
 
 /* --- Left component navigation --- */
