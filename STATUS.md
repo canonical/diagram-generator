@@ -68,6 +68,9 @@ There are now **two diagram generation pipelines**. On a cold start, ask the use
 - Build entrypoints now treat `diagrams/2.output/svg/` as the only canonical SVG lane and prune stale legacy duplicates left directly under `diagrams/2.output/`.
 - `svg_illustrator_sanitize.py` dry-run checks passed across 31 generated SVG outputs.
 - `_audit_v2.py` now reports the audited canonical diagrams as OK, including `attention-qkv` after the heading text was realigned to the v1 baseline.
+- **Arrow crossing validation** added to the build: `validate_arrow_crossings()` checks every arrow segment against all component boxes (excluding source, target, and shared ancestor panels). Build fails on any crossing.
+- **Arrow obstacle avoidance** rewritten for full-width panels: vertical arrows now route around panels that span the entire diagram width.
+- All 13 diagrams pass build-time validation: zero crossings, zero clearance violations.
 - Native draw.io desktop import/export and Illustrator desktop smoke tests were not run in this environment.
 
 ### Layout engine (May 2026)
@@ -90,10 +93,10 @@ The project has evolved from a batch diagram generator into a **constrained inte
 **Current frontend architecture:**
 - `scripts/preview/component-model.js` – `ComponentModel` + `ComponentNode` tree with indexed lookup, `InteractionManager` state machine
 - `scripts/preview/constraints.js` – `ConstraintRegistry` with pluggable constraint functions
-- `scripts/preview/editor.js` – interaction handlers, DOM sync, sidebar UI
-- `scripts/preview/editor.css` – editor-specific styling, BF-aware shell overrides, and fallback layout rules for the preview surface
-- `scripts/preview/viewer.html` – HTML template with `%TITLE%`, `%NAV_LINKS%`, `%CONFIG_SCRIPT%`, and optional `%BF_STYLES%` placeholders
-- `scripts/preview_server.py` – pure API server (now also serves optional Baseline Foundry app-tier CSS and font assets when the sibling repo is available), no embedded JS
+- `scripts/preview/editor.js` – interaction handlers, DOM sync, sidebar UI, 2-state grid overlay toggle
+- `scripts/preview/editor.css` – editor-specific styling, 3-column layout (left sidenav, main stage, right aside), BF-aware shell overrides, overflow scrolling on all panels
+- `scripts/preview/viewer.html` – HTML template with `%TITLE%`, `%NAV_LINKS%`, `%CONFIG_SCRIPT%`, and optional `%BF_STYLES%` placeholders; left nav uses BF side-navigation for component tree
+- `scripts/preview_server.py` – pure API server (now also serves optional Baseline Foundry app-tier CSS and font assets when the sibling repo is available), watches HTML/CSS/JS for hot-reload, no embedded JS
 
 **Remaining interactive editor work** (post-refactor):
 - Domain-specific undo/redo follow-up (deferred; undo/redo now uses explicit per-action command records, but each command still stores before/after editor state rather than bespoke do/undo handlers)

@@ -62,8 +62,8 @@ Provide a cold-start-safe workflow and a consistent on-brand SVG system for rede
 ### Editor UX — from inbox triage 2026-05-09
 
 - [x] `[S]` **Consolidate input folders.** Merged `diagrams/1. input/` into `diagrams/1.input/`; updated all references.
-- [ ] `[S]` **Sidebar scroll.** Right aside and left component nav are clipped without scroll-y. Both side panels need `overflow-y: auto` so all controls remain reachable.
-- [ ] `[S]` **Main stage scrollable.** The centre stage area clips tall diagrams. Add vertical scrolling so the full artboard is reachable.
+- [x] `[S]` **Sidebar scroll.** Added `overflow-y: auto` to right aside and left component nav.
+- [x] `[S]` **Main stage scrollable.** Added `overflow: auto` and `min-block-size: 0` to the main stage area.
 - [ ] `[H]` **Resizable / auto-fit artboard.** Resizing a box can push content off-canvas. Either make the SVG artboard resizable in the editor, or auto-size the canvas from children + declared margin so it grows to fit content.
 
 ### Lightning talk demo prep — deadline May 13
@@ -74,7 +74,16 @@ Provide a cold-start-safe workflow and a consistent on-brand SVG system for rede
 - [x] `[S]` **YAML quick-start in README.** Added YAML auto-discovery example to the "Creating your own diagram" section.
 - [ ] `[S]` **Generate slide 4 — before/after composite.** Side-by-side image: rough sketch + `memory-wall-onbrand-v2.svg`. High-res for ~1000-person audience.
 - [ ] `[S]` **Generate slide 5 — grid overlay.** `memory-wall-onbrand-v2-grid.svg` already exists. Verify it's presentation-quality.
-- [ ] `[L]` **Empty AGENT-INBOX.** Triaged lightning-talk items into this section.
+- [x] `[L]` **Empty AGENT-INBOX.** Triaged lightning-talk items into this section.
+
+### 2026-05-09 arrow quality and CI
+
+- [x] `[H]` **Fix arrow obstacle avoidance.** Rewrote `_route_around_obstacles()` for vertical arrows crossing full-width panels. Fixed rounding direction (`math.floor`/`math.ceil`) so detour Y-coordinates snap away from obstacle boundaries instead of into them.
+- [x] `[H]` **Arrow crossing CI validation.** Added `validate_arrow_crossings()` to `diagram_layout.py` and wired into `build_v2.py`. Checks every arrow segment against all component Rects, excluding source/target and shared ancestor panels. Build fails on any crossing.
+- [x] `[S]` **GPU-waiting-scheduler arrow cleanup.** Removed stale hardcoded waypoints, increased gaps to 24px.
+- [x] `[S]` **Example-data-processing row_gap.** Increased from 24→40 to give detour arrows enough clearance for MIN_ARROW_SEGMENT.
+- [x] `[S]` **3-column editor layout.** Left sidenav for component tree, 2-state grid toggle (off/all), preview server watches HTML/CSS/JS.
+- [x] `[S]` **Input folder consolidation.** Merged `diagrams/1. input/` into `diagrams/1.input/`; updated all references and rebuilt compare pages.
 
 ### 2026-05-08 full audit follow-ups
 
@@ -121,7 +130,7 @@ SVG element audit (v1 vs v2, April 2026). Use `python scripts/_compare_3way.py` 
 
 **Resolved:** draw.io attachment audit is clean across the generated batch. Matrix widgets now keep `component_id` through panel layout, draw.io edges are emitted after connectable cells register, and the legacy memory-wall separator now exports as a line shape instead of an unattached edge.
 
-**Arrow clearance enforced:** `validate_arrows()` runs in `build_v2.py` and checks every arrow segment. The current audited diagrams pass the build-time arrow-clearance checks. Arrow clearance tokens (`ARROW_GAP`, `MIN_ARROW_SEGMENT`, `ARROW_EXIT_CLEARANCE`) are documented in `DIAGRAM.md` and the workflow skills.
+**Arrow clearance and crossing enforced:** `validate_arrows()` and `validate_arrow_crossings()` run in `build_v2.py` and check every arrow segment. Clearance violations (segment too short) and crossing violations (arrow passes through non-source/target box) both fail the build. Shared ancestor panels are excluded from crossing checks so arrows between siblings inside a panel don't false-positive. Arrow clearance tokens (`ARROW_GAP`, `MIN_ARROW_SEGMENT`, `ARROW_EXIT_CLEARANCE`) are documented in `DIAGRAM.md` and the workflow skills.
 
 ### Declarative diagram model (Roadmap Stage 6a – highest priority)
 
