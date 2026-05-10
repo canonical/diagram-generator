@@ -4,6 +4,28 @@ Completed work belongs here so `TODO.md` stays lean.
 
 ## Short-term
 
+### 2026-05-09 – Editor UX restructure
+
+- Restructured the preview editor to a 3-column layout: left component-tree sidenav using BF side-navigation, main stage, right inspector aside.
+- Simplified grid overlay to a 2-state toggle (off / all) instead of 3-state.
+- Added `overflow-y: auto` to both side panels and `overflow: auto` to the main stage so tall diagrams and long inspector lists are scrollable.
+- Preview server now watches HTML/CSS/JS files for hot-reload and invalidates the viewer template cache on change.
+
+### 2026-05-09 – Arrow obstacle avoidance and CI validation
+
+- Fixed `_route_around_obstacles()` in `diagram_layout.py` for vertical arrows crossing full-width panels. The rounding direction for detour Y-coordinates now uses `math.floor`/`math.ceil` to snap away from obstacle boundaries instead of `round` which could snap into them.
+- Added `ArrowCrossing` dataclass and `validate_arrow_crossings()` to `diagram_layout.py`. Checks every arrow segment against all component Rects, excluding source/target boxes and shared ancestor panels (so arrows between siblings inside a panel don't false-positive).
+- Wired crossing validation into `build_v2.py` alongside existing clearance validation. Build fails on any crossing or clearance violation.
+- Removed stale hardcoded waypoints from `gpu_waiting_scheduler.py` and increased gaps to 24px.
+- Increased `example_data_processing.py` `row_gap` from 24→40 to give detour arrows enough clearance.
+- All 13 diagrams pass clean: zero crossings, zero clearance violations.
+
+### 2026-05-09 – Input folder consolidation
+
+- Merged `diagrams/1. input/` (with space) into `diagrams/1.input/` (canonical path).
+- Updated `build_compare_pages.py`, `preview_server.py`, and `TODO.md` to remove the dual-folder fallback.
+- Rebuilt all 12 compare HTML pages with corrected single-path references.
+
 ### 2026-05-08 – Docs drift audit fixes
 
 - Reframed `README.md` and `STATUS.md` so Pipeline 1 is described as the original maintained v1 batch and Pipeline 2 as the current active surface, matching where the declarative model, validators, preview editor, and Baseline Foundry integration now live.
