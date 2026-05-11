@@ -45,6 +45,14 @@ let isDirty = false;
 const HANDLE_SIZE = 8;
 let multiActionGap = window.__DG_CONFIG.col_gap || 24;
 
+function getThemeToken(name, fallback) {
+  const value = window.getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return value || fallback;
+}
+
+const UI_AUTHORING_ACCENT = getThemeToken("--bf-authoring-accent", "#F6B73C");
+const UI_AUTHORING_ACCENT_LINE = getThemeToken("--bf-authoring-accent-line", "rgba(246, 183, 60, 0.9)");
+
 // ---- BoxStyle presets (mirrors diagram_model.py BoxStyle enum) ----
 const BOX_STYLES = {
   default:   { fill: "#FFFFFF", text: "#000000", icon: "#000000", label: "Default (white)" },
@@ -60,7 +68,7 @@ let baseGridInfo = null;
 
 // ---- Alignment snap guides ----
 const SNAP_THRESHOLD = 6; // px — distance to snap to an edge
-const GUIDE_COLOR = "#E95420";
+const GUIDE_COLOR = UI_AUTHORING_ACCENT_LINE;
 const GUIDE_OPACITY = "0.5";
 
 /**
@@ -1399,7 +1407,7 @@ function buildTreeUI() {
       item.className = "tree-item";
       item.style.paddingLeft = (8 + depth * 12) + "px";
       item.textContent = node.id;
-      if (overrides[node.id]) item.style.color = "#E95420";
+      if (overrides[node.id]) item.style.color = UI_AUTHORING_ACCENT;
       item.onclick = (e) => { e.stopPropagation(); selectComponent(node.id, e.shiftKey); };
       container.appendChild(item);
       if (node.children && node.children.length > 0) {
@@ -2746,7 +2754,7 @@ function updateOverrideSummary() {
 
 function refreshTreeColors() {
   document.querySelectorAll(".tree-item").forEach(el => {
-    el.style.color = overrides[el.textContent] ? "#E95420" : "";
+    el.style.color = overrides[el.textContent] ? UI_AUTHORING_ACCENT : "";
   });
 }
 

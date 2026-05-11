@@ -513,8 +513,8 @@ html.u-baseline-grid::after {
   --bf-body-letter-spacing: normal;
   --bf-body-text-transform: none;
   --bf-body-line-height: 1.25rem;
-  --bf-body-space-after: 1rem;
-  --bf-body-margin-bottom: 0.5rem;
+  --bf-body-space-after: 0rem;
+  --bf-body-margin-bottom: -0.5rem;
   --bf-body-nudge-start: 0rem;
   --bf-body-nudge-end: 0rem;
   --bf-h1-font-family: "Ubuntu Sans", "Segoe UI", system-ui, sans-serif;
@@ -525,8 +525,8 @@ html.u-baseline-grid::after {
   --bf-h1-letter-spacing: -0.03em;
   --bf-h1-text-transform: none;
   --bf-h1-line-height: 2rem;
-  --bf-h1-space-after: 1rem;
-  --bf-h1-margin-bottom: 0.5rem;
+  --bf-h1-space-after: 0rem;
+  --bf-h1-margin-bottom: -0.5rem;
   --bf-h1-nudge-start: 0rem;
   --bf-h1-nudge-end: 0rem;
   --bf-h2-font-family: "Ubuntu Sans", "Segoe UI", system-ui, sans-serif;
@@ -537,8 +537,8 @@ html.u-baseline-grid::after {
   --bf-h2-letter-spacing: -0.025em;
   --bf-h2-text-transform: none;
   --bf-h2-line-height: 2rem;
-  --bf-h2-space-after: 1rem;
-  --bf-h2-margin-bottom: 0.5rem;
+  --bf-h2-space-after: 0rem;
+  --bf-h2-margin-bottom: -0.5rem;
   --bf-h2-nudge-start: 0rem;
   --bf-h2-nudge-end: 0rem;
   --bf-h3-font-family: "Ubuntu Sans", "Segoe UI", system-ui, sans-serif;
@@ -549,8 +549,8 @@ html.u-baseline-grid::after {
   --bf-h3-letter-spacing: -0.02em;
   --bf-h3-text-transform: none;
   --bf-h3-line-height: 1.5rem;
-  --bf-h3-space-after: 1rem;
-  --bf-h3-margin-bottom: 0.5rem;
+  --bf-h3-space-after: 0rem;
+  --bf-h3-margin-bottom: -0.5rem;
   --bf-h3-nudge-start: 0rem;
   --bf-h3-nudge-end: 0rem;
   --bf-h4-font-family: "Ubuntu Sans", "Segoe UI", system-ui, sans-serif;
@@ -561,8 +561,8 @@ html.u-baseline-grid::after {
   --bf-h4-letter-spacing: -0.015em;
   --bf-h4-text-transform: none;
   --bf-h4-line-height: 1.5rem;
-  --bf-h4-space-after: 1rem;
-  --bf-h4-margin-bottom: 0.5rem;
+  --bf-h4-space-after: 0rem;
+  --bf-h4-margin-bottom: -0.5rem;
   --bf-h4-nudge-start: 0rem;
   --bf-h4-nudge-end: 0rem;
   --bf-h5-font-family: "Ubuntu Sans", "Segoe UI", system-ui, sans-serif;
@@ -573,8 +573,8 @@ html.u-baseline-grid::after {
   --bf-h5-letter-spacing: normal;
   --bf-h5-text-transform: none;
   --bf-h5-line-height: 1.25rem;
-  --bf-h5-space-after: 1rem;
-  --bf-h5-margin-bottom: 0.5rem;
+  --bf-h5-space-after: 0rem;
+  --bf-h5-margin-bottom: -0.5rem;
   --bf-h5-nudge-start: 0rem;
   --bf-h5-nudge-end: 0rem;
   --bf-h6-font-family: "Ubuntu Sans", "Segoe UI", system-ui, sans-serif;
@@ -585,8 +585,8 @@ html.u-baseline-grid::after {
   --bf-h6-letter-spacing: normal;
   --bf-h6-text-transform: none;
   --bf-h6-line-height: 1.25rem;
-  --bf-h6-space-after: 1rem;
-  --bf-h6-margin-bottom: 0.5rem;
+  --bf-h6-space-after: 0rem;
+  --bf-h6-margin-bottom: -0.5rem;
   --bf-h6-nudge-start: 0rem;
   --bf-h6-nudge-end: 0rem;
  }
@@ -772,6 +772,11 @@ html.u-baseline-grid::after {
   padding-inline: max(var(--bf-page-margin), var(--bf-content-padding-inline));
 }
 
+:where(.bf-theme) :where(.bf-page.is-fill) {
+  min-block-size: 100vh;
+  padding-block-end: var(--bf-section-space);
+}
+
 :where(.bf-theme) :where(.bf-section) {
   margin-block-end: var(--bf-section-space);
 }
@@ -790,6 +795,33 @@ html.u-baseline-grid::after {
 
 :where(.bf-theme) :where(.bf-fixed-width, .bf-measure) {
   inline-size: min(100%, var(--bf-measure));
+}
+
+:where(.bf-theme) :where(.bf-inline-size) {
+  --bf-inline-size: 18rem;
+  flex: 0 1 var(--bf-inline-size);
+  inline-size: min(100%, var(--bf-inline-size));
+  min-inline-size: min(100%, var(--bf-inline-size));
+}
+
+:where(.bf-theme) :where(.bf-inline-size.is-compact) {
+  --bf-inline-size: 12rem;
+}
+
+:where(.bf-theme) :where(.bf-inline-size.is-regular) {
+  --bf-inline-size: 18rem;
+}
+
+:where(.bf-theme) :where(.bf-inline-size.is-medium) {
+  --bf-inline-size: 20rem;
+}
+
+:where(.bf-theme) :where(.bf-inline-size.is-wide) {
+  --bf-inline-size: 24rem;
+}
+
+:where(.bf-theme) :where(.bf-inline-size.is-x-wide) {
+  --bf-inline-size: 28rem;
 }
 
 :where(.bf-theme) :where(.bf-stage-shell) {
@@ -812,49 +844,14 @@ html.u-baseline-grid::after {
   --bf-stage-shell-gap: var(--bf-space-4);
 }
 
-:where(.bf-theme) :where(.bf-stage-shell > *) {
-  margin-bottom: 0;
-  min-inline-size: 0;
-  padding-block: 0;
-}
-
 :where(.bf-theme) :where(.bf-stack) {
   --bf-stack-space: 0px;
   display: grid;
   gap: var(--bf-stack-space);
 }
 
-:where(.bf-theme) :where(.bf-stack) > * {
-  margin-bottom: 0;
-  padding-block: 0;
-}
-
 :where(.bf-theme) :where(.bf-stack.is-flush) {
   --bf-stack-space: 0px;
-}
-
-:where(.bf-theme) :where(.bf-stack.is-extra-dense) {
-  --bf-stack-space: var(--bf-space-half);
-}
-
-:where(.bf-theme) :where(.bf-stack.is-dense) {
-  --bf-stack-space: var(--bf-space-1);
-}
-
-:where(.bf-theme) :where(.bf-stack.is-loose) {
-  --bf-stack-space: var(--bf-space-2);
-}
-
-:where(.bf-theme) :where(.bf-stack.is-section-shallow) {
-  --bf-stack-space: var(--bf-section-space-shallow);
-}
-
-:where(.bf-theme) :where(.bf-stack.is-section) {
-  --bf-stack-space: var(--bf-section-space);
-}
-
-:where(.bf-theme) :where(.bf-stack.is-section-deep) {
-  --bf-stack-space: var(--bf-section-space-deep);
 }
 
 :where(.bf-theme) :where(.bf-cluster) {
@@ -864,17 +861,8 @@ html.u-baseline-grid::after {
   gap: var(--bf-space-2);
 }
 
-:where(.bf-theme) :where(.bf-cluster) > * {
-  margin-bottom: 0;
-  padding-block: 0;
-}
-
 :where(.bf-theme) :where(.bf-prose) {
   inline-size: min(100%, var(--bf-measure));
-}
-
-:where(.bf-theme) :where(.bf-prose > :last-child) {
-  margin-bottom: 0;
 }
 
 :where(.bf-theme) :where(p),
@@ -1077,7 +1065,10 @@ html.u-baseline-grid::after {
   block-size: 1px;
   border: 0;
   inline-size: 100%;
-  margin: 0 0 calc(var(--bf-space-3) - 1px);
+  /* Rules are visual dividers, not spacers. The negative margin */
+  /* cancels the 1px block-size so the next element keeps its own */
+  /* role-owned padding-block-start without an extra gap. */
+  margin: 0 0 -1px;
 }
 
 :where(.bf-theme) :where(.bf-token-row) {
@@ -1092,6 +1083,10 @@ html.u-baseline-grid::after {
   padding-top: 0;
 }
 
+:where(.bf-theme) :where(.bf-prose > :last-child) {
+  margin-bottom: 0;
+}
+
 :where(.bf-theme) {
   --bf-border-width: 1px;
   --bf-radius: 0rem;
@@ -1100,7 +1095,7 @@ html.u-baseline-grid::after {
   --bf-control-box-size: calc(var(--bf-body-line-height) + (var(--bf-control-block-padding) * 2));
   --bf-control-box-size-compact: calc(var(--bf-body-line-height) + (var(--bf-control-block-padding-compact) * 2));
   /* Action surfaces keep comfortable command targets; field surfaces can tighten independently. */
-  --bf-control-inline-padding: 0.75rem;
+  --bf-control-inline-padding: 0.5rem;
   --bf-control-inline-padding-action: 0.5rem;
   --bf-control-inline-padding-field: 0.25rem;
   --bf-control-visual-size: 0.75rem;
@@ -1110,15 +1105,17 @@ html.u-baseline-grid::after {
   --bf-slider-track-size: calc(var(--bf-baseline) * 0.25);
   --bf-slider-row-block-size: max(var(--bf-control-box-size-compact), calc(var(--bf-body-nudge-start, 0.245rem) + var(--bf-body-line-height, 1rem) + var(--bf-body-nudge-end)));
   --bf-slider-track-offset: calc(var(--bf-body-nudge-start, 0.245rem) + ((var(--bf-body-line-height, 1rem) - var(--bf-slider-track-size)) / 2));
-  --bf-table-row-block-size: calc(var(--bf-baseline) * 4);
   --bf-table-row-border-size: var(--bf-border-width);
   --bf-table-row-padding: var(--bf-body-nudge-start, 0.245rem);
+  --bf-table-row-content-size: calc(var(--bf-body-line-height, 1rem) + (var(--bf-table-row-padding) * 2) + var(--bf-table-row-border-size));
+  --bf-table-row-block-size: calc(var(--bf-table-row-content-size) + mod(calc(var(--bf-baseline) - mod(var(--bf-table-row-content-size), var(--bf-baseline))), var(--bf-baseline)));
   --bf-table-row-line-height: calc(var(--bf-table-row-block-size) - (var(--bf-table-row-padding) * 2) - var(--bf-table-row-border-size));
   --bf-switch-row-block-size: calc(var(--bf-body-nudge-start, 0.245rem) + var(--bf-body-line-height, 1rem) + var(--bf-body-nudge-end));
   --bf-switch-track-offset: calc(var(--bf-body-nudge-start, 0.245rem) + ((var(--bf-body-line-height, 1rem) - var(--bf-control-visual-size)) / 2));
   --bf-tick-row-block-size: max(var(--bf-control-box-size-compact), calc(var(--bf-body-nudge-start, 0.245rem) + var(--bf-body-line-height, 1rem) + var(--bf-body-nudge-end)));
   --bf-tick-box-offset: calc(var(--bf-body-nudge-start, 0.245rem) + ((var(--bf-body-line-height, 1rem) - var(--bf-control-visual-size)) / 2));
   --bf-tick-label-offset: calc(var(--bf-control-visual-size) + var(--bf-control-inline-padding-field));
+  --bf-radio-dot-size: calc(var(--bf-control-visual-size) * 0.375);
   --bf-panel-padding-inline: 1rem;
   --bf-panel-padding-block: 1rem;
   --bf-accordion-indent: 0.75rem;
@@ -1134,15 +1131,25 @@ html.u-baseline-grid::after {
   --bf-app-navigation-width: 15rem;
   --bf-app-navigation-width-collapsed: 3rem;
   --bf-navigation-bar-min-block-size: calc(var(--bf-baseline) * 6);
-  --bf-application-resize-handle-active: rgba(246, 183, 60, 0.95);
-  --bf-application-resize-handle-focus-ring: rgba(246, 183, 60, 0.55);
+  --bf-authoring-accent: #f6b73c;
+  --bf-authoring-accent-hover: #e0a030;
+  --bf-authoring-accent-line: rgba(246, 183, 60, 0.9);
+  --bf-authoring-accent-strong: rgba(246, 183, 60, 0.95);
+  --bf-authoring-accent-outline: rgba(246, 183, 60, 0.4);
+  --bf-authoring-accent-outline-strong: rgba(246, 183, 60, 0.8);
+  --bf-authoring-accent-shadow: rgba(246, 183, 60, 0.22);
+  --bf-authoring-accent-focus-ring: rgba(246, 183, 60, 0.55);
+  --bf-application-resize-handle-active: var(--bf-authoring-accent-strong);
+  --bf-application-resize-handle-focus-ring: var(--bf-authoring-accent-focus-ring);
   --bf-top-navigation-link-padding-inline: var(--bf-control-inline-padding-action);
+  --bf-top-navigation-end-slot-inline-size: calc(1rem + var(--bf-control-inline-padding-field));
+  --bf-top-navigation-search-toggle-inline-size: calc(1rem + (var(--bf-control-inline-padding-field) * 2));
   --bf-top-navigation-link-padding-block: max(var(--bf-body-nudge-start), calc(var(--bf-baseline) * 1.5));
   --bf-top-navigation-search-max-inline-size: 20rem;
   --bf-top-navigation-logo-tag-inline-size: 1.375rem;
   --bf-top-navigation-logo-tag-block-size: 2.375rem;
   --bf-top-navigation-logo-icon-size: 1rem;
-  --bf-icon-size-default: calc(var(--bf-baseline) * 4);
+  --bf-icon-size-default: var(--bf-leading-icon-size);
   --bf-icon-size-medium: calc(var(--bf-baseline) * 5);
   --bf-icon-size-large: calc(var(--bf-baseline) * 8);
   --bf-icon-size-x-large: calc(var(--bf-baseline) * 9);
@@ -1611,6 +1618,7 @@ html.u-baseline-grid::after {
 
 :where(.bf-theme) :where(.bf-checkbox-label, .bf-radio-label)::before,
 :where(.bf-theme) :where(.bf-checkbox-label, .bf-radio-label)::after {
+  box-sizing: border-box;
   content: "";
   position: absolute;
 }
@@ -1645,11 +1653,11 @@ html.u-baseline-grid::after {
 
 :where(.bf-theme) :where(.bf-radio-label)::after {
   background: var(--bf-color-background-default);
-  block-size: calc(var(--bf-control-visual-size) * 0.45);
+  block-size: var(--bf-radio-dot-size);
   border-radius: 50%;
-  inline-size: calc(var(--bf-control-visual-size) * 0.45);
-  inset-inline-start: calc(var(--bf-control-visual-size) * 0.275);
-  inset-block-start: calc(var(--bf-tick-box-offset) + (var(--bf-control-visual-size) * 0.275));
+  inline-size: var(--bf-radio-dot-size);
+  inset-inline-start: calc((var(--bf-control-visual-size) - var(--bf-radio-dot-size)) * 0.5);
+  inset-block-start: calc(var(--bf-tick-box-offset) + ((var(--bf-control-visual-size) - var(--bf-radio-dot-size)) * 0.5));
   opacity: 0;
 }
 
@@ -1713,6 +1721,7 @@ html.u-baseline-grid::after {
 :where(.bf-theme) :where(.bf-switch-slider)::before {
   background: var(--bf-color-background-default);
   block-size: var(--bf-control-visual-size);
+  box-sizing: border-box;
   border: var(--bf-border-width) solid var(--bf-color-border-high-contrast);
   border-radius: 50%;
   content: "";
@@ -1982,6 +1991,102 @@ html.u-baseline-grid::after {
   outline-offset: 2px;
 }
 
+/* ------------------------------------------------------------------ */
+/* Button — semantic positive modifier (Vanilla parity).               */
+/* Vanilla uses themed positive tokens for default/hover/active        */
+/* backgrounds plus a white text colour on a coloured surface.         */
+/* ------------------------------------------------------------------ */
+
+:where(.bf-theme) :where(.bf-button.is-positive) {
+  background-color: var(--bf-color-button-positive-default);
+  border-color: var(--bf-color-button-positive-default);
+  color: var(--bf-color-button-positive-text);
+}
+
+:where(.bf-theme) :where(.bf-button.is-positive:hover) {
+  background-color: var(--bf-color-button-positive-hover);
+  border-color: var(--bf-color-button-positive-hover);
+  color: var(--bf-color-button-positive-text);
+}
+
+:where(.bf-theme) :where(.bf-button.is-positive:is(:active, [aria-pressed='true'])) {
+  background-color: var(--bf-color-button-positive-active);
+  border-color: var(--bf-color-button-positive-active);
+  color: var(--bf-color-button-positive-text);
+}
+
+/* ------------------------------------------------------------------ */
+/* Button — semantic negative modifier (Vanilla parity).               */
+/* Vanilla uses themed negative tokens for default/hover/active        */
+/* backgrounds plus a white text colour on a coloured surface.         */
+/* ------------------------------------------------------------------ */
+
+:where(.bf-theme) :where(.bf-button.is-negative) {
+  background-color: var(--bf-color-button-negative-default);
+  border-color: var(--bf-color-button-negative-default);
+  color: var(--bf-color-button-negative-text);
+}
+
+:where(.bf-theme) :where(.bf-button.is-negative:hover) {
+  background-color: var(--bf-color-button-negative-hover);
+  border-color: var(--bf-color-button-negative-hover);
+  color: var(--bf-color-button-negative-text);
+}
+
+:where(.bf-theme) :where(.bf-button.is-negative:is(:active, [aria-pressed='true'])) {
+  background-color: var(--bf-color-button-negative-active);
+  border-color: var(--bf-color-button-negative-active);
+  color: var(--bf-color-button-negative-text);
+}
+
+/* ------------------------------------------------------------------ */
+/* Button — link-style modifier (Vanilla parity).                      */
+/* BF starts from the shared button control contract, so the modifier  */
+/* has to strip control chrome and padding back down to inline-link    */
+/* behavior while reusing the shared link tokens.                      */
+/* ------------------------------------------------------------------ */
+
+:where(.bf-theme) :where(.bf-button.is-link) {
+  background-color: transparent;
+  border: 0;
+  border-radius: 0;
+  color: var(--bf-color-link-default);
+  margin-bottom: 0;
+  padding-block: 0;
+  padding-inline: 0;
+}
+
+:where(.bf-theme) :where(.bf-button.is-link:hover) {
+  background-color: transparent;
+  color: var(--bf-color-link-default);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.075em;
+}
+
+:where(.bf-theme) :where(.bf-button.is-link:focus-visible) {
+  outline-offset: 0;
+}
+
+/* ------------------------------------------------------------------ */
+/* Button — icon-spacing modifier (Vanilla parity).                    */
+/* Vanilla treats icon buttons as the base control plus child-icon     */
+/* spacing tweaks. BF already has a themed bf-icon primitive, so the   */
+/* modifier only needs to adjust child margins around that primitive.  */
+/* ------------------------------------------------------------------ */
+
+:where(.bf-theme) :where(.bf-button.is-icon) > :where(.bf-icon) {
+  margin-inline: var(--bf-space-1);
+}
+
+:where(.bf-theme) :where(.bf-button.is-icon) > :where(.bf-icon:first-child) {
+  margin-inline-start: calc(var(--bf-space-1) * -1);
+}
+
+:where(.bf-theme) :where(.bf-button.is-icon) > :where(.bf-icon:last-child) {
+  margin-inline-end: calc(var(--bf-space-1) * -1);
+}
+
 :where(.bf-theme) :where(.bf-actions) {
   align-items: center;
   display: flex;
@@ -2003,6 +2108,103 @@ html.u-baseline-grid::after {
 :where(.bf-theme) :where(.bf-actions.is-nowrap) > * {
   flex: 0 0 auto;
 }
+
+
+/* ------------------------------------------------------------------ */
+/* CTA block (Vanilla parity).                                         */
+/* Inline-row of call-to-action items (typically a heading and one or  */
+/* more buttons or links). Element-owned spacing: borderless by        */
+/* default, .is-bordered adds a top divider rule and small padding.    */
+/* (Vanilla ships the same modifier as has-border; renamed for the BF  */
+/* is-* convention.)                                                    */
+/* ------------------------------------------------------------------ */
+/* ------------------------------------------------------------------ */
+
+:where(.bf-theme) :where(.bf-cta-block) {
+  align-items: baseline;
+  column-gap: var(--bf-space-2);
+  display: flex;
+  flex-wrap: wrap;
+  margin-block-end: var(--bf-section-space-shallow);
+  row-gap: var(--bf-space-1);
+}
+
+:where(.bf-theme) :where(.bf-cta-block.is-bordered) {
+  border-block-start: var(--bf-border-width) solid var(--bf-color-border-low-contrast);
+  padding-block-start: calc(var(--bf-space-1) - var(--bf-border-width));
+}
+
+/* ------------------------------------------------------------------ */
+/* Figure (Vanilla parity).                                            */
+/* Native <figure> wrapper for an image, video, or other media plus    */
+/* an italic caption. Element-owned bottom spacing matches Vanilla’s   */
+/* base figure margin; the caption owns its own top space so the       */
+/* image sits flush against the next baseline above its caption.       */
+/* ------------------------------------------------------------------ */
+
+:where(.bf-theme) :where(.bf-figure) {
+  display: block;
+  inline-size: 100%;
+  margin: 0 0 var(--bf-section-space-shallow);
+}
+
+:where(.bf-theme) :where(.bf-figure) > :where(img, picture, video, canvas) {
+  block-size: auto;
+  display: block;
+  inline-size: 100%;
+  max-inline-size: 100%;
+}
+
+:where(.bf-theme) :where(.bf-figure-caption) {
+  color: var(--bf-color-text-default);
+  display: block;
+  font-style: italic;
+  inline-size: 100%;
+  margin-block: var(--bf-space-1) 0;
+}
+
+/* ------------------------------------------------------------------ */
+/* Aspect — generic aspect-ratio slot.                                 */
+/* Reserves a fixed-ratio box so embedded media (img/picture/video/    */
+/* canvas/iframe) load without layout shift. Composes inside bf-figure */
+/* when a constrained captioned image is needed.                       */
+/* ------------------------------------------------------------------ */
+
+:where(.bf-theme) :where(.bf-aspect) {
+  aspect-ratio: 16 / 9;
+  display: block;
+  inline-size: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+:where(.bf-theme) :where(.bf-aspect.is-16-9) {
+  aspect-ratio: 16 / 9;
+}
+
+:where(.bf-theme) :where(.bf-aspect.is-3-2) {
+  aspect-ratio: 3 / 2;
+}
+
+:where(.bf-theme) :where(.bf-aspect.is-2-3) {
+  aspect-ratio: 2 / 3;
+}
+
+:where(.bf-theme) :where(.bf-aspect.is-cinematic) {
+  aspect-ratio: 12 / 5;
+}
+
+:where(.bf-theme) :where(.bf-aspect.is-square) {
+  aspect-ratio: 1 / 1;
+}
+
+:where(.bf-theme) :where(.bf-aspect) > :where(img, picture, video, canvas, iframe) {
+  block-size: 100%;
+  display: block;
+  inline-size: 100%;
+  object-fit: cover;
+}
+
 
 :where(.bf-theme) :where(.bf-panel) {
   background: var(--bf-color-background-default);
@@ -2114,6 +2316,7 @@ html.u-baseline-grid::after {
   margin-bottom: 0;
 }
 
+
 :where(.bf-theme) :where(.bf-card, .bf-card.is-highlighted, .bf-card.is-overlay, .bf-card.is-muted) {
   --bf-card-background: var(--bf-color-background-default);
   --bf-card-border: var(--bf-color-border-default);
@@ -2143,6 +2346,61 @@ html.u-baseline-grid::after {
 
 :where(.bf-theme) :where(.bf-card.is-muted) {
   --bf-card-background: color-mix(in srgb, var(--bf-color-background-default) 88%, black 12%);
+}
+
+:where(.bf-theme) :where(a.bf-card, a.bf-card.is-highlighted, a.bf-card.is-overlay, a.bf-card.is-muted) {
+  color: inherit;
+  cursor: pointer;
+  text-decoration: none;
+  transition: border-color 140ms ease, background-color 140ms ease, transform 140ms ease;
+}
+
+:where(.bf-theme) :where(a.bf-card:hover, a.bf-card.is-highlighted:hover, a.bf-card.is-overlay:hover, a.bf-card.is-muted:hover) {
+  border-color: var(--bf-color-focus);
+  transform: translateY(-1px);
+}
+
+:where(.bf-theme) :where(a.bf-card:focus:not(:focus-visible), a.bf-card.is-highlighted:focus:not(:focus-visible), a.bf-card.is-overlay:focus:not(:focus-visible), a.bf-card.is-muted:focus:not(:focus-visible)) {
+  outline: none;
+}
+
+:where(.bf-theme) :where(a.bf-card:focus-visible, a.bf-card.is-highlighted:focus-visible, a.bf-card.is-overlay:focus-visible, a.bf-card.is-muted:focus-visible) {
+  outline: 2px solid var(--bf-color-focus);
+  outline-offset: -2px;
+}
+
+:where(.bf-theme) :where(.bf-card.is-preview) {
+  align-content: start;
+  min-inline-size: 0;
+}
+
+:where(.bf-theme) :where(.bf-card-preview) {
+  aspect-ratio: 3 / 2;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--bf-color-background-default) 78%, var(--bf-color-background-alt) 22%), var(--bf-color-background-alt)),
+    var(--bf-color-background-alt);
+  border: var(--bf-border-width) solid var(--bf-color-border-low-contrast);
+  display: grid;
+  min-inline-size: 0;
+  overflow: hidden;
+  place-items: center;
+  position: relative;
+}
+
+:where(.bf-theme) :where(.bf-card-preview.is-missing)::after {
+  color: var(--bf-color-text-inactive);
+  content: "Capture missing";
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+:where(.bf-theme) :where(.bf-card-preview-image) {
+  block-size: 100%;
+  display: block;
+  inline-size: 100%;
+  object-fit: contain;
+  object-position: center;
 }
 
 :where(.bf-theme) :where(.bf-card-image) {
@@ -2250,6 +2508,7 @@ html.u-baseline-grid::after {
 :where(.bf-theme) :where(.bf-option-card-meta.is-quiet) {
   color: var(--bf-color-text-inactive);
 }
+
 
 :where(.bf-theme) :where(.bf-tabs) {
   display: grid;
@@ -2583,6 +2842,7 @@ html.u-baseline-grid::after {
   color: var(--bf-color-text-default);
 }
 
+
 :where(.bf-theme) :where(.bf-icon) {
   --bf-icon-image: none;
   --bf-icon-size: var(--bf-icon-size-default);
@@ -2889,6 +3149,7 @@ html.u-baseline-grid::after {
   background: color-mix(in srgb, var(--bf-color-background-hover) 68%, transparent);
 }
 
+
 :where(.bf-theme) :where(.bf-chip, .bf-chip.is-positive, .bf-chip.is-caution, .bf-chip.is-negative, .bf-chip.is-information) {
   --bf-ui-chip-border: var(--bf-color-border-neutral);
   --bf-ui-chip-border-hover: var(--bf-color-border-neutral);
@@ -3075,6 +3336,7 @@ html.u-baseline-grid::after {
   --bf-ui-status-color: var(--bf-color-button-negative-text);
 }
 
+
 :where(.bf-theme) :where(.bf-chip-dismiss, .bf-search-box-reset, .bf-search-and-filter-clear) {
   appearance: none;
   background: transparent;
@@ -3112,6 +3374,7 @@ html.u-baseline-grid::after {
 :where(.bf-theme) :where(.bf-chip-dismiss, .bf-search-box-reset, .bf-search-and-filter-clear)::after {
   transform: translate(-50%, -50%) rotate(-45deg);
 }
+
 
 :where(.bf-theme) :where(.bf-search-box) {
   --bf-search-box-action-inline-size: calc(1rem + (var(--bf-control-inline-padding-field) * 2));
@@ -3212,6 +3475,8 @@ html.u-baseline-grid::after {
 }
 
 :where(.bf-theme) :where(.bf-search-and-filter-box) {
+  --bf-search-and-filter-action-inline-size: calc(1rem + (var(--bf-control-inline-padding-field) * 2));
+  --bf-search-and-filter-trailing-inline-size: calc(var(--bf-search-and-filter-action-inline-size) * 2);
   display: inline-flex;
   flex: 1 1 12rem;
   max-inline-size: 100%;
@@ -3221,7 +3486,7 @@ html.u-baseline-grid::after {
 
 :where(.bf-theme) :where(.bf-search-and-filter-input) {
   margin-bottom: 0;
-  padding-inline-end: calc(var(--bf-baseline) * 4.5);
+  padding-inline-end: var(--bf-search-and-filter-trailing-inline-size);
 }
 
 :where(.bf-theme) :where(.bf-search-and-filter-search-button) {
@@ -3231,7 +3496,7 @@ html.u-baseline-grid::after {
   border: 0;
   color: var(--bf-color-text-default);
   cursor: pointer;
-  inline-size: calc(var(--bf-baseline) * 2);
+  inline-size: var(--bf-search-and-filter-action-inline-size);
   inset-inline-end: 0;
   margin: 0;
   padding: 0;
@@ -3270,8 +3535,8 @@ html.u-baseline-grid::after {
 
 :where(.bf-theme) :where(.bf-search-and-filter-clear) {
   block-size: var(--bf-control-box-size);
-  inline-size: calc(var(--bf-baseline) * 2);
-  inset-inline-end: calc(var(--bf-baseline) * 2);
+  inline-size: var(--bf-search-and-filter-action-inline-size);
+  inset-inline-end: var(--bf-search-and-filter-action-inline-size);
   position: absolute;
   top: 0;
 }
@@ -3385,6 +3650,7 @@ html.u-baseline-grid::after {
   right: 0;
 }
 
+
 :where(.bf-theme) :where(.bf-list-tree) {
   list-style: none;
   margin: 0;
@@ -3489,6 +3755,7 @@ html.u-baseline-grid::after {
 :where(.bf-theme) :where(.bf-list-tree-toggle[aria-expanded='true'])::before {
   transform: rotate(0deg);
 }
+
 
 :where(.bf-theme) :where(.bf-side-navigation, .bf-side-navigation.is-icons, .bf-side-navigation.is-accordion, .bf-side-navigation.is-raw-html) {
   color: var(--bf-color-text-inactive);
@@ -3665,10 +3932,6 @@ html.u-baseline-grid::after {
 :where(.bf-theme) :where(.bf-side-navigation-heading, .bf-side-navigation-heading.is-linked),
 :where(.bf-theme) :where(.bf-side-navigation-list) > :where(.bf-side-navigation-item, .bf-side-navigation-item.is-title) > :where(.bf-side-navigation-link, .bf-side-navigation-text, .bf-side-navigation-accordion-button) {
   padding-inline-start: var(--bf-panel-padding-inline);
-}
-
-:where(.bf-theme) :where(.bf-navigation) :where(.bf-side-navigation-list) > :where(.bf-side-navigation-item, .bf-side-navigation-item.is-title) > :where(.bf-side-navigation-link, .bf-side-navigation-text, .bf-side-navigation-accordion-button) {
-  padding-inline-start: 0;
 }
 
 :where(.bf-theme) :where(.bf-side-navigation-item, .bf-side-navigation-item.is-title)
@@ -3898,11 +4161,11 @@ html.u-baseline-grid::after {
 
 :where(.bf-theme) :where(.bf-top-navigation-search-toggle) {
   justify-content: center;
-  min-inline-size: calc(var(--bf-baseline) * 5);
+  min-inline-size: var(--bf-top-navigation-search-toggle-inline-size);
 }
 
 :where(.bf-theme) :where(.bf-top-navigation-dropdown-toggle) {
-  padding-inline-end: calc(var(--bf-top-navigation-link-padding-inline) + (var(--bf-baseline) * 3));
+  padding-inline-end: calc(var(--bf-top-navigation-link-padding-inline) + var(--bf-top-navigation-end-slot-inline-size));
 }
 
 :where(.bf-theme) :where(.bf-top-navigation-dropdown-toggle)::after {
@@ -4724,17 +4987,6 @@ html.u-baseline-grid::after {
   resize: both;
 }
 
-:where(.bf-theme) :where(.bf-modal[data-shell-modal]) {
-  block-size: min(100dvh - (var(--bf-baseline) * 4), 40rem);
-  inline-size: min(100vw - (var(--bf-baseline) * 4), 42rem);
-  max-block-size: calc(100dvh - (var(--bf-baseline) * 4));
-  max-inline-size: calc(100vw - (var(--bf-baseline) * 4));
-  min-block-size: min(100dvh - (var(--bf-baseline) * 4), 24rem);
-  min-inline-size: min(100vw - (var(--bf-baseline) * 4), 32rem);
-  overflow: hidden;
-  resize: both;
-}
-
 :where(.bf-theme) :where(.bf-modal)::backdrop {
   background: var(--bf-color-background-overlay);
 }
@@ -4747,14 +4999,6 @@ html.u-baseline-grid::after {
 }
 
 :where(.bf-theme) :where(.bf-modal.is-workflow > .bf-modal-dialog) {
-  block-size: 100%;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  inline-size: 100%;
-  min-block-size: 0;
-  overflow: hidden;
-}
-
-:where(.bf-theme) :where(.bf-modal[data-shell-modal] > .bf-modal-dialog) {
   block-size: 100%;
   grid-template-rows: auto minmax(0, 1fr) auto;
   inline-size: 100%;
@@ -4785,17 +5029,7 @@ html.u-baseline-grid::after {
   background: var(--bf-color-background-default);
 }
 
-:where(.bf-theme) :where(.bf-modal[data-shell-modal] .bf-modal-header, .bf-modal[data-shell-modal] .bf-modal-footer) {
-  background: var(--bf-color-background-default);
-}
-
 :where(.bf-theme) :where(.bf-modal.is-workflow) :where(.bf-modal-body) {
-  min-block-size: 0;
-  overflow: auto;
-  overscroll-behavior: contain;
-}
-
-:where(.bf-theme) :where(.bf-modal[data-shell-modal] .bf-modal-body) {
   min-block-size: 0;
   overflow: auto;
   overscroll-behavior: contain;
@@ -5029,19 +5263,6 @@ html.u-baseline-grid::after {
   grid-template-rows: min-content minmax(0, 1fr) min-content;
 }
 
-:where(.bf-theme) :where(.bf-application.is-top-navigation-shell) {
-  grid-template-areas:
-    "navigation-bar"
-    "main";
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: min-content minmax(0, 1fr);
-}
-
-:where(.bf-theme) :where(.bf-application.is-top-navigation-shell > .bf-top-navigation) {
-  grid-area: navigation-bar;
-  min-inline-size: 0;
-}
-
 :where(.bf-theme) :where(.bf-navigation-bar) {
   background: var(--bf-color-background-alt);
   border-bottom: var(--bf-border-width) solid var(--bf-color-border-low-contrast);
@@ -5131,14 +5352,6 @@ html.u-baseline-grid::after {
   grid-template-areas: "main aside";
   grid-template-columns: minmax(0, 1fr) minmax(0, var(--bf-application-aside-width));
   grid-template-rows: minmax(0, 1fr);
-}
-
-:where(.bf-theme) :where(.bf-application.is-top-navigation-shell):has(> .bf-aside.is-pinned:not(.is-collapsed)) {
-  grid-template-areas:
-    "navigation-bar navigation-bar"
-    "main aside";
-  grid-template-columns: minmax(0, 1fr) minmax(0, var(--bf-application-aside-width));
-  grid-template-rows: min-content minmax(0, 1fr);
 }
 
 :where(.bf-theme) :where(.bf-main) {
@@ -5245,7 +5458,7 @@ html.u-baseline-grid::after {
   display: none;
 }
 
-:where(.bf-theme) :where(.bf-application-aside-resize-handle, .bf-application-navigation-resize-handle) {
+:where(.bf-theme) :where(.bf-application-aside-resize-handle) {
   background: transparent;
   border: 0;
   cursor: ew-resize;
@@ -5261,24 +5474,13 @@ html.u-baseline-grid::after {
   z-index: 3;
 }
 
-:where(.bf-theme) :where(.bf-application-navigation-resize-handle) {
-  inset-inline-end: calc(var(--bf-baseline) * -3);
-  inset-inline-start: auto;
-}
-
 :where(.bf-theme) :where(.bf-application:has(> .bf-aside.is-pinned:not(.is-collapsed)))
   :where(.bf-aside.is-pinned:not(.is-collapsed))
   > :where(.bf-application-aside-resize-handle) {
   display: block;
 }
 
-:where(.bf-theme) :where(.bf-application:has(> .bf-navigation:not(.is-collapsed)))
-  :where(.bf-navigation:not(.is-collapsed))
-  > :where(.bf-application-navigation-resize-handle) {
-  display: block;
-}
-
-:where(.bf-theme) :where(.bf-application-aside-resize-handle, .bf-application-navigation-resize-handle)::after {
+:where(.bf-theme) :where(.bf-application-aside-resize-handle)::after {
   background: var(--bf-color-border-default);
   border-radius: 999px;
   content: "";
@@ -5290,16 +5492,15 @@ html.u-baseline-grid::after {
   width: 2px;
 }
 
-:where(.bf-theme) :where(.bf-application-aside-resize-handle, .bf-application-navigation-resize-handle):hover::after,
-:where(.bf-theme) :where(.bf-application-aside-resize-handle, .bf-application-navigation-resize-handle):focus-visible::after,
-:where(.bf-theme) :where(.bf-application.is-resizing-aside) :where(.bf-application-aside-resize-handle)::after,
-:where(.bf-theme) :where(.bf-application.is-resizing-navigation) :where(.bf-application-navigation-resize-handle)::after {
+:where(.bf-theme) :where(.bf-application-aside-resize-handle):hover::after,
+:where(.bf-theme) :where(.bf-application-aside-resize-handle):focus-visible::after,
+:where(.bf-theme) :where(.bf-application.is-resizing-aside) :where(.bf-application-aside-resize-handle)::after {
   background: var(--bf-application-resize-handle-active);
 }
 
-:where(.bf-theme) :where(.bf-application-aside-resize-handle, .bf-application-navigation-resize-handle):focus-visible {
-  box-shadow: inset 0 0 0 2px var(--bf-application-resize-handle-focus-ring);
-  outline: none;
+:where(.bf-theme) :where(.bf-application-aside-resize-handle):focus-visible {
+  outline: 2px solid var(--bf-application-resize-handle-focus-ring);
+  outline-offset: -2px;
 }
 
 @media (min-width: 64.75rem) {
@@ -5348,10 +5549,199 @@ html.u-baseline-grid::after {
   }
 }
 
+/* ------------------------------------------------------------------ */
+/* Tiered list                                                         */
+/* Editorial pattern (Vanilla parity): paired list of titles +         */
+/* descriptions under a top-level title + description, with optional   */
+/* CTA. Vanilla uses media queries at tablet/desktop; Baseline Foundry */
+/* uses container queries on the pattern itself so the layout reacts   */
+/* to its own width (panels, drawers, narrow main areas) instead of    */
+/* the viewport. Element-owned spacing keeps baseline alignment.       */
+/* ------------------------------------------------------------------ */
+
+:where(.bf-theme) :where(.bf-tiered-list) {
+  container-type: inline-size;
+  display: block;
+}
+
+:where(.bf-theme) :where(.bf-tiered-list-header),
+:where(.bf-theme) :where(.bf-tiered-list-item),
+:where(.bf-theme) :where(.bf-tiered-list-cta) {
+  column-gap: var(--bf-grid-gap-inline);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+:where(.bf-theme) :where(ol.bf-tiered-list-items, ul.bf-tiered-list-items) {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+:where(.bf-theme) :where(.bf-tiered-list-header) > :where(.bf-rule),
+:where(.bf-theme) :where(.bf-tiered-list-item) > :where(.bf-rule),
+:where(.bf-theme) :where(.bf-tiered-list-cta) > :where(.bf-rule) {
+  grid-column: 1 / -1;
+}
+
+/* ------------------------------------------------------------------ */
+/* Medium container (≥ 38.75rem): items use BF’s 8-column grid with a  */
+/* hanging indent. Vanilla: title col 3 / span 2, description col 5 / */
+/* span 4. The rule above each item starts at col 3 to match.         */
+/* ------------------------------------------------------------------ */
+@container (width >= 38.75rem) {
+  :where(.bf-theme) :where(.bf-tiered-list:not(.is-list-full-width)) :where(.bf-tiered-list-item),
+  :where(.bf-theme) :where(.bf-tiered-list:not(.is-list-full-width)) :where(.bf-tiered-list-cta) {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+  }
+
+  :where(.bf-theme) :where(.bf-tiered-list:not(.is-list-full-width)) :where(.bf-tiered-list-item) > :where(.bf-rule),
+  :where(.bf-theme) :where(.bf-tiered-list:not(.is-list-full-width)) :where(.bf-tiered-list-cta) > :where(.bf-rule) {
+    grid-column: 3 / span 6;
+  }
+
+  :where(.bf-theme) :where(.bf-tiered-list:not(.is-list-full-width)) :where(.bf-tiered-list-item-title) {
+    grid-column: 3 / span 2;
+  }
+
+  :where(.bf-theme) :where(.bf-tiered-list:not(.is-list-full-width)) :where(.bf-tiered-list-item-description),
+  :where(.bf-theme) :where(.bf-tiered-list:not(.is-list-full-width)) :where(.bf-tiered-list-cta-block) {
+    grid-column: 5 / span 4;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Header split (≥ 64.75rem): unchanged 50/50 title/description.       */
+/* ------------------------------------------------------------------ */
+@container (width >= 64.75rem) {
+  :where(.bf-theme) :where(.bf-tiered-list:not(.is-description-full-width)) :where(.bf-tiered-list-header) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Equal-height row (Vanilla parity).                                  */
+/* Cross-column row alignment via CSS subgrid: each column is a 4-row  */
+/* subgrid so items at the same vertical position across columns share */
+/* the same baseline (e.g. icon row, title row, description row,       */
+/* trailing list row). Vanilla uses media queries; BF uses container   */
+/* queries on the row itself so the layout reacts to its own width.    */
+/* Optional cross-column dividers via .is-divider-1 / -2 / -3 mirror   */
+/* Vanilla’s has-divider-N modifiers (renamed for the BF is-* rule).   */
+/* ------------------------------------------------------------------ */
+:where(.bf-theme) :where(.bf-equal-height-row) {
+  container-type: inline-size;
+  display: grid;
+  gap: var(--bf-grid-gap-block) var(--bf-grid-gap-inline);
+  grid-template-columns: minmax(0, 1fr);
+  margin-block-end: var(--bf-section-space-shallow);
+  position: relative;
+}
+
+:where(.bf-theme) :where(.bf-equal-height-row-col) {
+  border-block-start: var(--bf-border-width) solid var(--bf-color-border-low-contrast);
+  display: grid;
+  grid-row: span 4;
+  grid-template-rows: subgrid;
+  margin-block-end: var(--bf-space-1);
+  position: relative;
+}
+
+:where(.bf-theme) :where(.bf-equal-height-row-col.is-borderless) {
+  border-block-start: 0;
+}
+
+@container (width >= 38.75rem) {
+  :where(.bf-theme) :where(.bf-equal-height-row) {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+  }
+
+  :where(.bf-theme) :where(.bf-equal-height-row-col) {
+    grid-column: span 8;
+    grid-template-columns: subgrid;
+  }
+
+  :where(.bf-theme) :where(.bf-equal-height-row-col) > :where(.bf-equal-height-row-item) {
+    grid-column: span 4;
+  }
+
+  :where(.bf-theme) :where(.bf-equal-height-row-col) > :where(.bf-equal-height-row-item):first-child {
+    grid-row: span 100;
+  }
+
+  :where(.bf-theme) :where(.bf-equal-height-row.is-wrap) :where(.bf-equal-height-row-col) {
+    grid-column: span 4;
+    grid-template-columns: none;
+  }
+
+  :where(.bf-theme) :where(.bf-equal-height-row.is-wrap) :where(.bf-equal-height-row-col) > :where(.bf-equal-height-row-item) {
+    grid-column: auto;
+  }
+
+  :where(.bf-theme) :where(.bf-equal-height-row.is-wrap) :where(.bf-equal-height-row-col) > :where(.bf-equal-height-row-item):first-child {
+    grid-row: auto;
+  }
+}
+
+@container (width >= 64.75rem) {
+  :where(.bf-theme) :where(.bf-equal-height-row-col) {
+    border-block-start: 0;
+    grid-column: span 2;
+    margin-block-end: 0;
+  }
+}
+
+/* Cross-column dividers — Vanilla pattern uses a single ::before for   */
+/* divider-1 and a single ::after for divider-2; the third divider     */
+/* falls back onto whichever pseudo is still available.                */
+:where(.bf-theme) :where(.bf-equal-height-row.is-divider-1)::before,
+:where(.bf-theme) :where(.bf-equal-height-row.is-divider-2)::after,
+:where(.bf-theme) :where(.bf-equal-height-row.is-divider-3:not(.is-divider-1))::before,
+:where(.bf-theme) :where(.bf-equal-height-row.is-divider-3:not(.is-divider-2))::after {
+  background-color: var(--bf-color-border-low-contrast);
+  block-size: 1px;
+  content: "";
+  display: none;
+  grid-column: 1 / -1;
+  inset-inline: 0;
+  margin: auto;
+  position: absolute;
+}
+
+@container (width >= 64.75rem) {
+  :where(.bf-theme) :where(.bf-equal-height-row.is-divider-1)::before,
+  :where(.bf-theme) :where(.bf-equal-height-row.is-divider-2)::after,
+  :where(.bf-theme) :where(.bf-equal-height-row.is-divider-3:not(.is-divider-1))::before,
+  :where(.bf-theme) :where(.bf-equal-height-row.is-divider-3:not(.is-divider-2))::after {
+    display: block;
+  }
+}
+
+:where(.bf-theme) :where(.bf-equal-height-row.is-divider-1)::before {
+  grid-row: 2;
+}
+
+:where(.bf-theme) :where(.bf-equal-height-row.is-divider-2)::after {
+  grid-row: 3;
+}
+
+:where(.bf-theme) :where(.bf-equal-height-row.is-divider-3:not(.is-divider-1))::before,
+:where(.bf-theme) :where(.bf-equal-height-row.is-divider-3:not(.is-divider-2))::after,
+:where(.bf-theme) :where(.bf-equal-height-row.is-divider-3:not(.is-divider-1):not(.is-divider-2))::before {
+  grid-row: 4;
+}
+
+:where(.bf-theme) :where(.bf-equal-height-row.is-divider-3:not(.is-divider-1):not(.is-divider-2))::after {
+  display: none;
+}
+
+
 
 /* ------------------------------------------------------------------ */
 /* Gutter and margin escalation — viewport-based, all tiers            */
-/* Grid spec v0.3 §2.3: gutters set by global viewport breakpoint      */
+/* Grid spec v0.3 §2.3: gutters set by global viewport breakpoint.     */
+/* Baseline Foundry models the spec's 460px x-small row as part of the */
+/* default <620px bracket because the values do not change at 460px.   */
 /* ------------------------------------------------------------------ */
 
 :where(.bf-theme) {
@@ -5418,6 +5808,10 @@ html.u-baseline-grid::after {
   padding-inline: 0;
 }
 
+:where(.bf-theme) :where(.bf-grid) :where(.bf-fixed-width) {
+  padding-inline: 0;
+}
+
 /* ------------------------------------------------------------------ */
 /* Grid base — 4 columns, all tiers                                    */
 /* ------------------------------------------------------------------ */
@@ -5425,8 +5819,22 @@ html.u-baseline-grid::after {
 :where(.bf-theme) :where(.bf-grid) {
   --bf-grid-columns: 4;
   display: grid;
+  /* bf-grid keeps row-gap at 0; the block token stays available for */
+  /* two-dimensional layouts and other container-owned spacing cases. */
   gap: 0 var(--bf-grid-gap-inline);
   grid-template-columns: repeat(var(--bf-grid-columns), minmax(0, 1fr));
+}
+
+:where(.bf-theme) :where(ul.bf-grid, ol.bf-grid) {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+:where(.bf-theme) :where(.bf-grid.is-guide) > * {
+  background: color-mix(in srgb, var(--bf-color-accent) 18%, var(--bf-color-background-default));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bf-color-accent) 50%, var(--bf-color-rule));
+  min-block-size: calc(var(--bf-baseline) * 4);
 }
 
 :where(.bf-theme) :where(.bf-grid) > * {
@@ -5495,5 +5903,128 @@ html.u-baseline-grid::after {
   :where(.bf-theme) :where(.bf-grid) > :where(.bf-span-4) { grid-column: auto / span 4; }
   :where(.bf-theme) :where(.bf-grid) > :where(.bf-span-8) { grid-column: auto / span 8; }
   :where(.bf-theme) :where(.bf-grid) > :where(.bf-span-16) { grid-column: auto / span 16; }
+}
+
+/* Canonical app-tier preset: light application chrome, Ubuntu Sans, and app-surface control overrides. */
+:where(.bf-theme.bf-tier-app) {
+  --bf-app-demo-page-bg: var(--vf-color-background-alt, #f7f7f7);
+  --bf-radius: 0;
+  color-scheme: light;
+}
+
+:where(.bf-theme.bf-tier-app) :where(.bf-form-label, .bf-form-help, .bf-button, .bf-button.is-base, .bf-status-label, .bf-chip, .bf-checkbox-label, .bf-radio-label, .bf-tabs-link, .bf-accordion-tab, .bf-validation-message) {
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 1.25rem;
+}
+
+:where(.bf-theme.bf-tier-app) :where(.bf-input, .bf-button, .bf-button.is-base) {
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 1.25rem;
+}
+
+:where(.bf-theme.bf-tier-app) :where(.bf-application) {
+  background: var(--bf-app-demo-page-bg);
+}
+
+:where(.bf-theme.bf-tier-app) :where(.bf-navigation-drawer),
+:where(.bf-theme.bf-tier-app) :where(.bf-navigation:not(.is-collapsed)) > :where(.bf-navigation-drawer),
+:where(.bf-theme.bf-tier-app) :where(.bf-aside.is-overlay, .bf-aside.is-drawer) {
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.12), 0 0 3px rgba(0, 0, 0, 0.12);
+}
+
+:where(.bf-theme.bf-tier-app) :where(.bf-panel-header) {
+  align-items: center;
+  gap: calc(var(--bf-baseline) * 1.5);
+  padding-block-end: calc(var(--bf-panel-padding-block) * 0.75);
+  padding-block-start: calc(var(--bf-panel-padding-block) * 0.75);
+}
+
+:where(.bf-theme.bf-tier-app) :where(.bf-panel-controls) {
+  gap: calc(var(--bf-baseline) * 1.5);
+}
+
+:where(.bf-theme.bf-tier-app) :where(.bf-navigation-bar, .bf-navigation-drawer, .bf-aside) :where(.bf-panel-title) {
+  font-family: inherit;
+  font-size: 1rem;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 1.5rem;
+}
+
+:where(.bf-theme.bf-tier-app) :where(.bf-side-navigation-link.is-active, .bf-side-navigation-link[aria-current='page'], .bf-side-navigation-link[aria-current='true']) {
+  background: transparent;
+  box-shadow: inset 3px 0 0 var(--vf-color-link-default, #0066cc);
+}
+
+:where(.bf-theme.bf-tier-app) :where(.bf-navigation-bar),
+:where(.bf-theme.bf-tier-app) :where(.bf-navigation-drawer),
+:where(.bf-theme.bf-tier-app) :where(.bf-aside),
+:where(.bf-theme.bf-tier-app) :where(.bf-panel) {
+  background: var(--vf-color-background-default, #ffffff);
+}
+
+:where(.bf-theme.bf-tier-app) :where(.bf-section),
+:where(.bf-theme.bf-tier-app) :where(.bf-section.is-shallow),
+:where(.bf-theme.bf-tier-app) :where(.bf-section.is-deep) {
+  margin-block-end: 0;
+}
+
+:where(.bf-theme.bf-tier-app) :where(.bf-stage-shell > *) {
+  margin-bottom: 0;
+  min-inline-size: 0;
+  padding-block: 0;
+}
+
+:where(.bf-theme.bf-tier-app) :where(.bf-stack) > * {
+  margin-bottom: 0;
+  padding-block: 0;
+}
+
+:where(.bf-theme.bf-tier-app) :where(.bf-cluster) > * {
+  margin-bottom: 0;
+  padding-block: 0;
+}
+
+:where(.bf-theme.bf-tier-app) :where(.bf-prose > *) {
+  margin-bottom: 0;
+  padding-block: 0;
+}
+
+:where(.bf-theme.bf-tier-app) :where(.bf-stack) {
+  --bf-stack-space: var(--bf-space-2);
+}
+
+:where(.bf-theme.bf-tier-app) :where(.bf-stack.is-flush) {
+  --bf-stack-space: 0px;
+}
+
+:where(.bf-theme.bf-tier-app) :where(.bf-stack.is-extra-dense) {
+  --bf-stack-space: var(--bf-space-half);
+}
+
+:where(.bf-theme.bf-tier-app) :where(.bf-stack.is-dense) {
+  --bf-stack-space: var(--bf-space-1);
+}
+
+:where(.bf-theme.bf-tier-app) :where(.bf-stack.is-loose) {
+  --bf-stack-space: var(--bf-space-3);
+}
+
+:where(.bf-theme.bf-tier-app) :where(.bf-stack.is-section-shallow) {
+  --bf-stack-space: var(--bf-section-space-shallow);
+}
+
+:where(.bf-theme.bf-tier-app) :where(.bf-stack.is-section) {
+  --bf-stack-space: var(--bf-section-space);
+}
+
+:where(.bf-theme.bf-tier-app) :where(.bf-stack.is-section-deep) {
+  --bf-stack-space: var(--bf-section-space-deep);
 }
 

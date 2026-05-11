@@ -240,10 +240,10 @@ def _watch_loop(grid: bool = False, interval: float = 0.5):
 
 PREVIEW_DIR = pathlib.Path(__file__).resolve().parent / "preview"
 BF_SIBLING_ROOT = ROOT.parent / "baseline-foundry"
-BF_SIBLING_PANEL_CSS = BF_SIBLING_ROOT / "dist" / "presets" / "panel" / "styles.css"
+BF_SIBLING_OS_CSS = BF_SIBLING_ROOT / "dist" / "tiers" / "os" / "styles.css"
 BF_SIBLING_FONT_DIR = BF_SIBLING_ROOT / "assets" / "fonts"
 BF_VENDOR_ROOT = ROOT / "assets" / "baseline-foundry"
-BF_VENDOR_PANEL_CSS = BF_VENDOR_ROOT / "panel" / "styles.css"
+BF_VENDOR_OS_CSS = BF_VENDOR_ROOT / "os" / "styles.css"
 BF_VENDOR_FONT_DIR = BF_VENDOR_ROOT / "fonts"
 _viewer_template: str | None = None
 
@@ -277,11 +277,11 @@ def _find_reference_image(slug: str) -> pathlib.Path | None:
 
 
 def _resolve_bf_preview_assets() -> tuple[pathlib.Path, pathlib.Path] | None:
-    if BF_SIBLING_PANEL_CSS.exists() and BF_SIBLING_FONT_DIR.exists():
-        return BF_SIBLING_PANEL_CSS, BF_SIBLING_FONT_DIR
+    if BF_SIBLING_OS_CSS.exists() and BF_SIBLING_FONT_DIR.exists():
+        return BF_SIBLING_OS_CSS, BF_SIBLING_FONT_DIR
 
-    if BF_VENDOR_PANEL_CSS.exists() and BF_VENDOR_FONT_DIR.exists():
-        return BF_VENDOR_PANEL_CSS, BF_VENDOR_FONT_DIR
+    if BF_VENDOR_OS_CSS.exists() and BF_VENDOR_FONT_DIR.exists():
+        return BF_VENDOR_OS_CSS, BF_VENDOR_FONT_DIR
 
     return None
 
@@ -320,7 +320,7 @@ def _build_viewer_html(slug: str, all_slugs: list[str], grid: bool) -> str:
     html = html.replace("%TITLE%", f"{slug} – diagram preview")
     html = html.replace(
         "%BF_STYLES%",
-        '<link rel="stylesheet" href="/preview/bf-panel.css">' if _has_bf_preview_assets() else "",
+        '<link rel="stylesheet" href="/preview/bf-os.css">' if _has_bf_preview_assets() else "",
     )
     html = html.replace("%NAV_OPTIONS%", nav_options)
     html = html.replace("%NAV_LINKS%", nav_options)
@@ -366,8 +366,8 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
             self._serve_index()
         elif path == "/events":
             self._serve_sse()
-        elif path == "/preview/bf-panel.css":
-            self._serve_bf_panel_css()
+        elif path == "/preview/bf-os.css":
+            self._serve_bf_os_css()
         elif path.startswith("/preview/bf-fonts/"):
             self._serve_bf_font(path[len("/preview/bf-fonts/"):])
         elif path.startswith("/preview/"):
@@ -413,7 +413,7 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
         ct = CONTENT_TYPES.get(ext, "application/octet-stream")
         self._respond(200, ct, static_path.read_bytes())
 
-    def _serve_bf_panel_css(self):
+    def _serve_bf_os_css(self):
         assets = _resolve_bf_preview_assets()
         if assets is None:
             self.send_error(404)

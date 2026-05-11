@@ -96,9 +96,9 @@ The project has evolved from a batch diagram generator into a **constrained inte
 - `scripts/preview/editor.js` – interaction handlers, DOM sync, sidebar UI, 2-state grid overlay toggle
 - `scripts/preview/editor.css` – editor-specific styling, 3-column layout (left sidenav, main stage, right aside), BF-aware shell overrides, overflow scrolling on all panels
 - `scripts/preview/viewer.html` – HTML template with `%TITLE%`, `%NAV_LINKS%`, `%CONFIG_SCRIPT%`, and optional `%BF_STYLES%` placeholders; left nav uses BF side-navigation for component tree
-- `scripts/preview_server.py` – pure API server (now also serves optional Baseline Foundry app-tier CSS and font assets when the sibling repo is available), watches HTML/CSS/JS for hot-reload, no embedded JS
+- `scripts/preview_server.py` – pure API server (now also serves optional Baseline Foundry `os` tier CSS and font assets when the sibling repo is available, with vendored fallback under `assets/baseline-foundry/`), watches HTML/CSS/JS for hot-reload, no embedded JS
 
-**Cold-start / portability status:** the preview now prefers a sibling `baseline-foundry` checkout but also ships a vendored panel-CSS and Ubuntu Sans snapshot under `assets/baseline-foundry/`, so fresh clones do not depend on the private repo. The editor shell is back on the BF `navigation + main + aside` contract with local left/right resize bindings; the remaining editor work is undo/redo specialization rather than shell portability.
+**Cold-start / portability status:** the preview now prefers a sibling `baseline-foundry` checkout but also ships a vendored BF `os` tier stylesheet and Ubuntu Sans snapshot under `assets/baseline-foundry/`, so fresh clones do not depend on the private repo. The editor shell is back on the BF `navigation + main + aside` contract with local left/right resize bindings; the left navigation resize affordance is now owned locally in `scripts/preview/editor.css` because BF `os` no longer ships that selector. The remaining editor work is undo/redo specialization rather than shell portability.
 
 **Remaining interactive editor work** (post-refactor):
 - Domain-specific undo/redo follow-up (deferred; undo/redo now uses explicit per-action command records, but each command still stores before/after editor state rather than bespoke do/undo handlers)
@@ -130,7 +130,7 @@ The project has evolved from a batch diagram generator into a **constrained inte
 ## Current execution plan
 
 - Content-width alignment and preview distribute-and-align are complete and validated.
-- The interactive preview shell now uses Baseline Foundry app-tier primitives when the sibling `baseline-foundry` repo is available; local preview CSS is now the editor-specific override and fallback layer rather than a bespoke standalone shell.
+- The interactive preview shell now uses Baseline Foundry `os` tier assets when the sibling `baseline-foundry` repo is available; local preview CSS is now the editor-specific override and compatibility layer rather than a bespoke standalone shell, including the left-nav resize-handle shim and BF authoring-accent token usage for editor-only chrome.
 - Preview undo/redo now uses explicit action records and restores full editor state, including grid overrides; the hottest move/resize interactions now use narrower override-patch commands, and the remaining actions stay on the full-state path unless a real hotspot appears.
 - Generated draw.io outputs are structurally clean; manual draw.io or diagrams.net smoke tests remain pending but are not the current no-input implementation lane.
 - Generated SVG outputs passed the Illustrator-safety sanitizer; manual Illustrator smoke tests remain pending but are not blocking the current implementation work.
