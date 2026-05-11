@@ -4,6 +4,12 @@ Completed work belongs here so `TODO.md` stays lean.
 
 ## Short-term
 
+### 2026-05-11 – Windows BF preview smoke pass
+
+- Verified the BF-backed preview shell on Windows against the running local server: `/` loaded the diagram index, `/view/example-data-processing` loaded the editor shell, and the desktop layout stayed in the intended single-row `navigation + main + aside` arrangement.
+- Confirmed the live editor path still exposes resize handles on Windows by selecting `ingest` in the component tree and checking that the stage renders the full `dg-handle` set alongside the left and right BF resize affordances.
+- Validation: browser checks on `http://127.0.0.1:8100/` and `http://127.0.0.1:8100/view/example-data-processing`, including computed layout geometry and live handle visibility.
+
 ### 2026-05-11 – BF tabs compare mode in preview
 
 - Replaced the preview's hand-made reference toggle with the real Baseline Foundry tabs strip so the main editor area now switches between `Input`, `Output`, and `Both` using BF tab chrome instead of custom button styling.
