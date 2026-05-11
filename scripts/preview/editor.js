@@ -3329,23 +3329,42 @@ initDiagramPicker();
 loadSVG();
 connectSSE();
 
-// ---- Reference panel (before/after) ----
-(function initReference() {
-  if (!window.__DG_CONFIG.has_reference) return;
-  const section = document.getElementById("reference-section");
-  const bar = document.getElementById("reference-bar");
+// ---- Input/output/both preview modes ----
+(function initPreviewModes() {
+  const hasReference = Boolean(window.__DG_CONFIG.has_reference);
+  const stageShell = document.getElementById("stage-shell");
+  const stageLayout = document.getElementById("stage-layout");
+  const viewControls = document.getElementById("view-controls");
+  const inputPane = document.getElementById("input-pane");
+  const outputPane = document.getElementById("output-pane");
   const img = document.getElementById("reference-img");
-  const btnShow = document.getElementById("btn-show-ref");
-  const btnToggle = document.getElementById("btn-toggle-ref");
-  if (!section || !bar || !img || !btnShow || !btnToggle) return;
-  section.style.display = "";
+  const tabs = Array.from(document.querySelectorAll(".dg-view-tab"));
+  if (!stageShell || !stageLayout || !viewControls || !inputPane || !outputPane || !img || tabs.length === 0) return;
+
+  const setViewMode = (mode) => {
+    const nextMode = hasReference && ["input", "output", "both"].includes(mode) ? mode : "output";
+    stageShell.dataset.viewMode = nextMode;
+    stageLayout.style.gridTemplateColumns = nextMode === "both"
+      ? "minmax(0, 1fr) minmax(0, 1fr)"
+      : "minmax(0, 1fr)";
+    tabs.forEach((tab) => {
+      const isActive = tab.dataset.viewMode === nextMode;
+      tab.setAttribute("aria-selected", String(isActive));
+      tab.tabIndex = isActive ? 0 : -1;
+    });
+  };
+
+  if (!hasReference) {
+    viewControls.hidden = true;
+    inputPane.style.display = "none";
+    setViewMode("output");
+    return;
+  }
+
+  viewControls.hidden = false;
   img.src = "/reference/" + SLUG;
-  btnShow.addEventListener("click", () => {
-    bar.style.display = bar.style.display === "none" ? "" : "none";
-    btnShow.textContent = bar.style.display === "none" ? "Show rough sketch" : "Hide rough sketch";
+  tabs.forEach((tab) => {
+    tab.addEventListener("click", () => setViewMode(tab.dataset.viewMode || "output"));
   });
-  btnToggle.addEventListener("click", () => {
-    bar.style.display = "none";
-    btnShow.textContent = "Show rough sketch";
-  });
+  setViewMode("both");
 })();

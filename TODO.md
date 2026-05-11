@@ -273,7 +273,7 @@ These items are now unblocked by the completed refactor:
 - [x] Gutter change re-fits children (relayout clears stale overrides)
 - [x] Undo/redo snapshots now include grid overrides, so gutter and outer-margin edits can be reverted along with component override changes.
 - [x] Undo/redo now records explicit per-action commands instead of pushing anonymous stack snapshots.
-- [x] `[M]` Swap the preview/editor UI from bespoke local CSS over to Baseline Foundry once the workspace integration target is ready. The preview server now serves the sibling Baseline Foundry `os` tier CSS and Ubuntu Sans font under `/preview/`, falls back to the vendored `assets/baseline-foundry/` snapshot on cold starts, and the viewer shell keeps local CSS only for editor-specific overrides plus the left navigation resize-handle compatibility shim.
+- [x] `[M]` Swap the preview/editor UI from bespoke local CSS over to Baseline Foundry once the workspace integration target is ready. The preview server now serves the vendored Baseline Foundry `os` tier CSS and Ubuntu Sans font under `/preview/`, and the viewer shell keeps local CSS only for editor-specific overrides plus the left navigation resize-handle compatibility shim.
 
 ### Previously active
 

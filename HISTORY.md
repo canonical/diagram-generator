@@ -4,6 +4,18 @@ Completed work belongs here so `TODO.md` stays lean.
 
 ## Short-term
 
+### 2026-05-11 – BF tabs compare mode in preview
+
+- Replaced the preview's hand-made reference toggle with the real Baseline Foundry tabs strip so the main editor area now switches between `Input`, `Output`, and `Both` using BF tab chrome instead of custom button styling.
+- Changed the reference view from a collapsible strip into pane-based main-area modes, with `Both` rendering the rough input sketch and generated SVG side by side in the center pane.
+- Validation: browser-checked `/view/memory-wall`, confirmed BF tab markup is present, and verified the `Both` mode computes two grid columns with input and output panes on the same row.
+
+### 2026-05-11 – Vendored BF preview runtime
+
+- Removed the preview server's sibling-first Baseline Foundry asset resolution so the editor now always serves the repo-owned BF `os` tier stylesheet and Ubuntu Sans snapshot from `assets/baseline-foundry/`.
+- Kept `scripts/sync_baseline_foundry_assets.py` as the explicit refresh path when a sibling `baseline-foundry` checkout is available, rather than letting runtime behavior vary by machine.
+- Validation: preview smoke on `/view/memory-wall` plus direct `/preview/bf-os.css` and `/preview/bf-fonts/UbuntuSans[wdth,wght].ttf` route checks using the vendored snapshot only.
+
 ### 2026-05-11 – Preview shell compatibility pass
 
 - Forced the BF-backed desktop preview shell back to a single-row `navigation + main + aside` grid in `scripts/preview/editor.css` so upstream BF application layout changes cannot reintroduce the broken extra top row.

@@ -239,9 +239,6 @@ def _watch_loop(grid: bool = False, interval: float = 0.5):
 # ---------------------------------------------------------------------------
 
 PREVIEW_DIR = pathlib.Path(__file__).resolve().parent / "preview"
-BF_SIBLING_ROOT = ROOT.parent / "baseline-foundry"
-BF_SIBLING_OS_CSS = BF_SIBLING_ROOT / "dist" / "tiers" / "os" / "styles.css"
-BF_SIBLING_FONT_DIR = BF_SIBLING_ROOT / "assets" / "fonts"
 BF_VENDOR_ROOT = ROOT / "assets" / "baseline-foundry"
 BF_VENDOR_OS_CSS = BF_VENDOR_ROOT / "os" / "styles.css"
 BF_VENDOR_FONT_DIR = BF_VENDOR_ROOT / "fonts"
@@ -277,9 +274,6 @@ def _find_reference_image(slug: str) -> pathlib.Path | None:
 
 
 def _resolve_bf_preview_assets() -> tuple[pathlib.Path, pathlib.Path] | None:
-    if BF_SIBLING_OS_CSS.exists() and BF_SIBLING_FONT_DIR.exists():
-        return BF_SIBLING_OS_CSS, BF_SIBLING_FONT_DIR
-
     if BF_VENDOR_OS_CSS.exists() and BF_VENDOR_FONT_DIR.exists():
         return BF_VENDOR_OS_CSS, BF_VENDOR_FONT_DIR
 
