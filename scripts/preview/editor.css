@@ -112,7 +112,42 @@ body.dg-preview {
 }
 
 .dg-preview-app .dg-component-navigation > .bf-application-navigation-resize-handle {
+       background: transparent;
+       border: 0;
+       cursor: ew-resize;
        display: none;
+       inset-block: 0;
+       inset-inline-end: calc(var(--bf-baseline) * -3);
+       outline: none;
+       position: absolute;
+       touch-action: none;
+       user-select: none;
+       -webkit-user-select: none;
+       width: calc(var(--bf-baseline) * 6);
+       z-index: 3;
+}
+
+.dg-preview-app .dg-component-navigation > .bf-application-navigation-resize-handle::after {
+       background: var(--bf-color-border-default);
+       border-radius: 999px;
+       content: "";
+       inset-block: var(--bf-panel-padding-block);
+       inset-inline-start: calc(50% - 1px);
+       opacity: 0.95;
+       position: absolute;
+       transition: background-color 120ms ease, opacity 120ms ease;
+       width: 2px;
+}
+
+.dg-preview-app .dg-component-navigation > .bf-application-navigation-resize-handle:hover::after,
+.dg-preview-app .dg-component-navigation > .bf-application-navigation-resize-handle:focus-visible::after,
+.dg-preview-app.is-resizing-navigation .dg-component-navigation > .bf-application-navigation-resize-handle::after {
+       background: var(--bf-application-resize-handle-active);
+}
+
+.dg-preview-app .dg-component-navigation > .bf-application-navigation-resize-handle:focus-visible {
+       box-shadow: inset 0 0 0 2px var(--bf-application-resize-handle-focus-ring);
+       outline: none;
 }
 
 @media (min-width: 48rem) {
@@ -235,7 +270,7 @@ body.dg-preview {
        font-size: 12px;
 }
 
-.inspector .override { color: #E95420; }
+.inspector .override { color: var(--bf-authoring-accent); }
 
 .inspector .hint,
 .dg-empty-message,
@@ -482,13 +517,16 @@ body.dg-preview {
 
 .btn-save.dirty,
 .btn-save.bf-button.dirty {
-       background: #E95420;
-       border-color: #E95420;
-       color: #fff;
+       background: var(--bf-authoring-accent);
+       border-color: var(--bf-authoring-accent);
+       color: var(--bf-color-text-strong, #111);
 }
 
 .btn-save.dirty:hover,
-.btn-save.bf-button.dirty:hover { background: #d44a1a; }
+.btn-save.bf-button.dirty:hover {
+       background: var(--bf-authoring-accent-hover);
+       border-color: var(--bf-authoring-accent-hover);
+}
 
 .guide-badge {
        border-radius: 3px;

@@ -8,28 +8,20 @@ The agent should triage anything durable from this file into `TODO.md`, `ROADMAP
 
 ---
 
-## BF main cleanup follow-up
+## 2026-05-11 – DG BF `os` resync status
 
-This repo is not a simple revert case.
-
-- Relevant commits:
-	- `679599b` — substantive vendored-BF fallback, preview-shell refactor, and inspector restore
-	- `cc5b539` — docs-only portability handoff note
-- Classification: mixed BF portability work plus real preview/editor fixes.
-- Do not do a blanket revert of `679599b`.
-	- That commit contains real behavior the repo still needs.
-- Preserve these outcomes when fixing the BF integration:
-	- public clones still work without access to private `baseline-foundry`
-	- sibling-preferred plus vendored fallback asset model remains in place
-	- preview shell remains usable with left nav, main stage, and right aside
-	- inspector remains present and working
-	- preview/editor state remains compatible with the Python 3.9 environment
-- Rework on top of current behavior rather than reverting:
-	- update the vendored BF fallback assets to match corrected BF `main`
-	- replace any old `panel`-shaped dependency with the proper `os`/`app` contract while preserving the old validated density and shell feel
-	- keep the portability path intact for users who do not have the private BF repo
-- Sanity checks after the resync:
-	- preview still launches without sibling BF present
-	- dropdown, inspector, shell resize, and scrolling still work
-	- search/input/action padding matches the BF split-token contract
-	- gold authoring accents still match the old validated chrome
+- The preview-server sibling path and vendored fallback now target BF `dist/tiers/os/styles.css`; `assets/baseline-foundry/` was refreshed locally and now carries `os/styles.css` plus Ubuntu Sans.
+- The served preview route is now `/preview/bf-os.css`.
+- DG keeps one local shell-specific compatibility shim: `.bf-application-navigation-resize-handle` now lives in `scripts/preview/editor.css` because current BF `os` no longer ships that selector.
+- DG editor-only chrome now uses BF authoring-accent tokens for override markers, snap guides, and dirty-save state. Actual diagram arrow rendering remains `#E95420`.
+- Validated locally:
+  - `python3 -m py_compile scripts/preview_server.py scripts/sync_baseline_foundry_assets.py`
+  - vendored sync succeeds
+  - preview smoke on `/view/memory-wall`
+  - `/preview/bf-os.css` serves
+  - vendored fallback resolution works when sibling BF paths are unavailable
+  - `/Users/l/.nvm/versions/node/v24.11.1/bin/node --check scripts/preview/editor.js`
+- Remaining follow-up is manual/browser-level, not structural:
+  - verify dropdown, inspector, shell resize, and scrolling by eye in the preview
+  - verify dense search/input/action spacing still feels right under BF `os`
+  - then move to BLO and A4 from their reverted checkpoints

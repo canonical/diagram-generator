@@ -4,6 +4,14 @@ Completed work belongs here so `TODO.md` stays lean.
 
 ## Short-term
 
+### 2026-05-11 – Baseline Foundry `os` fallback resync
+
+- Switched the preview-server sibling and vendored fallback path from the old BF `panel` preset to the corrected BF `os` tier stylesheet, and refreshed `assets/baseline-foundry/` from the local sibling repo.
+- Renamed the preview shell stylesheet route from `/preview/bf-panel.css` to `/preview/bf-os.css` so the served HTML matches the new contract directly.
+- Added a local compatibility layer for `.bf-application-navigation-resize-handle` in `scripts/preview/editor.css` because the current BF `os` stylesheet no longer ships the left navigation resize-handle selector, while DG still needs that affordance.
+- Moved DG editor-only override markers, snap guides, and dirty-save chrome onto BF authoring-accent tokens so the preview shell matches the shared gold authoring contract while leaving actual diagram arrow rendering on `#E95420`.
+- Smoke-tested the preview shell by serving `/view/memory-wall`, confirming the new `/preview/bf-os.css` reference, and verifying that both the BF stylesheet route and the local resize-handle selector resolve.
+
 ### 2026-05-09 – Editor UX restructure
 
 - Restructured the preview editor to a 3-column layout: left component-tree sidenav using BF side-navigation, main stage, right inspector aside.
@@ -49,7 +57,7 @@ Completed work belongs here so `TODO.md` stays lean.
 ### 2026-05-08 – Baseline Foundry preview shell integration
 
 - Updated the interactive preview shell to use Baseline Foundry application, panel, and control primitives instead of the previous bespoke sidebar/stage shell.
-- Taught `scripts/preview_server.py` to serve the sibling `baseline-foundry` app-tier CSS and Ubuntu Sans font assets under `/preview/`, including rewritten font URLs so the preview works over HTTP without manual asset copying.
+- Taught `scripts/preview_server.py` to serve the sibling `baseline-foundry` CSS and Ubuntu Sans font assets under `/preview/`, including rewritten font URLs so the preview works over HTTP without manual asset copying.
 - Kept `scripts/preview/editor.css` as the editor-specific override and fallback layer, so SVG selection affordances and preview-only widgets still behave correctly while the shell itself follows BF.
 
 ### 2026-05-08 – Draw.io preset sync and onboarding path
