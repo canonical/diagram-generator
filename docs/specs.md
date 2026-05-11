@@ -44,7 +44,7 @@ Rows marked ⚠ reference assets excluded by `.gitignore`. Run the build or obta
 | Repo | Relationship | Notes |
 |------|--------------|-------|
 | `repo-workflow-boilerplate` | Workflow upstream | Centralized workflow template for the root file layout, inbox split, source precedence, and cold-start rules |
-| `baseline-foundry` | Read-only reference | Allowed workflow or style reference only when the user explicitly asks to mirror conventions |
+| `baseline-foundry` | Read-only reference and refresh source | Upstream BF contract reference; a sibling checkout is only needed when refreshing the vendored preview-shell snapshot under `assets/baseline-foundry/` |
 | `canonical-spacing-spec` | Read-only design language source | Upstream source for the imported spacing, grid, and dense type-scale rules now mirrored into `DIAGRAM.md` and shared renderer tokens |
 | `design.md` | Read-only format reference | Used as a structure reference for the plain-text `DIAGRAM.md` spec and future design-language token ingestion |
 

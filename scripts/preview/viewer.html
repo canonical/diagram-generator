@@ -23,17 +23,32 @@
     <div class="bf-application-navigation-resize-handle" role="separator" tabindex="0" aria-controls="dg-component-navigation" aria-label="Resize components panel" aria-orientation="vertical"></div>
   </nav>
   <main class="bf-main dg-preview-main">
-    <div class="dg-stage-shell">
-      <div class="dg-reference-bar" id="reference-bar" style="display:none">
-        <div class="dg-reference-header">
-          <span class="dg-reference-label">Reference (rough sketch)</span>
-          <button class="dg-reference-toggle" id="btn-toggle-ref" title="Toggle reference">&#x2715;</button>
-        </div>
-        <div class="dg-reference-img-wrap">
-          <img class="dg-reference-img" id="reference-img" alt="Rough input sketch">
+    <div class="dg-stage-shell" id="stage-shell" data-view-mode="output">
+      <div class="dg-view-controls" id="view-controls" hidden>
+        <div class="bf-tabs dg-view-tabs">
+          <ul class="bf-tabs-list" role="tablist" aria-label="Diagram preview mode">
+            <li class="bf-tabs-item"><button class="bf-tabs-link dg-view-tab" id="view-tab-input" type="button" data-view-mode="input" role="tab" aria-selected="false" aria-controls="input-pane" tabindex="-1">Input</button></li>
+            <li class="bf-tabs-item"><button class="bf-tabs-link dg-view-tab" id="view-tab-output" type="button" data-view-mode="output" role="tab" aria-selected="true" aria-controls="output-pane" tabindex="0">Output</button></li>
+            <li class="bf-tabs-item"><button class="bf-tabs-link dg-view-tab" id="view-tab-both" type="button" data-view-mode="both" role="tab" aria-selected="false" aria-controls="stage-layout" tabindex="-1">Both</button></li>
+          </ul>
         </div>
       </div>
-      <div class="stage" id="stage"></div>
+      <div class="dg-stage-layout" id="stage-layout">
+        <section class="dg-preview-pane dg-input-pane" id="input-pane" aria-label="Input sketch">
+          <div class="dg-preview-pane-header">
+            <span class="dg-preview-pane-label">Input</span>
+          </div>
+          <div class="dg-reference-img-wrap">
+            <img class="dg-reference-img" id="reference-img" alt="Rough input sketch">
+          </div>
+        </section>
+        <section class="dg-preview-pane dg-output-pane" id="output-pane" aria-label="Generated output">
+          <div class="dg-preview-pane-header">
+            <span class="dg-preview-pane-label">Output</span>
+          </div>
+          <div class="stage" id="stage"></div>
+        </section>
+      </div>
     </div>
   </main>
   <aside class="bf-aside is-pinned is-medium dg-preview-aside" id="dg-preview-aside">
@@ -97,11 +112,6 @@
         <section class="dg-sidebar-section">
           <h2 class="dg-section-heading bf-h5">Constraints</h2>
           <div class="build-status build-ok" id="constraint-status">No violations</div>
-        </section>
-
-        <section class="dg-sidebar-section" id="reference-section" style="display:none">
-          <h2 class="dg-section-heading bf-h5">Reference</h2>
-          <button class="btn bf-button is-base" id="btn-show-ref">Show rough sketch</button>
         </section>
       </div>
     </section>
