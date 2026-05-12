@@ -805,10 +805,7 @@ def _render_component(
         # Only constrain if the cell is larger than BLOCK_WIDTH (i.e. the
         # cell has been explicitly sized); otherwise let content drive width.
         panel_pad = 0 if comp.effective_border == Border.NONE else INSET  # FILL keeps pad
-        if parent_col_width is not None:
-            # Outset mode: children inherit the parent grid's column width.
-            auto_cw = parent_col_width
-        elif w > 0 and int(w) > BLOCK_WIDTH:
+        if w > 0 and int(w) > BLOCK_WIDTH:
             content_w = int(w - 2 * panel_pad)
             n_internal_cols = comp.cols if comp.cols and comp.cols > 0 else 1
             internal_gap = parent_col_gap if parent_col_gap is not None else (comp.col_gap if comp.col_gap is not None else COMPACT_GAP)
