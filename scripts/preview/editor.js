@@ -774,6 +774,8 @@ function getOwnDelta(cid) {
 
 function findComponentAtDepth(x, y, targetDepth) {
   function walk(nodes, depth) {
+    let bestId = null;
+    let bestDist = Infinity;
     for (const node of nodes) {
       const eff = getEffectiveDelta(node.id);
       const own = getOwnDelta(node.id);
@@ -782,14 +784,23 @@ function findComponentAtDepth(x, y, targetDepth) {
       const nw = node.width + own.dw;
       const nh = node.height + own.dh;
       if (x >= nx && x <= nx + nw && y >= ny && y <= ny + nh) {
-        if (depth === targetDepth) return node.id;
-        if (node.children && node.children.length > 0 && depth < targetDepth) {
+        if (depth === targetDepth) {
+          // When overrides cause overlapping bounds, pick the child
+          // whose center is closest to the click point.
+          const cx = nx + nw / 2;
+          const cy = ny + nh / 2;
+          const dist = (x - cx) * (x - cx) + (y - cy) * (y - cy);
+          if (dist < bestDist) {
+            bestDist = dist;
+            bestId = node.id;
+          }
+        } else if (node.children && node.children.length > 0 && depth < targetDepth) {
           const child = walk(node.children, depth + 1);
           if (child) return child;
         }
       }
     }
-    return null;
+    return bestId;
   }
   const roots = model._roots.map(n => n.data);
   return walk(roots, 0);
