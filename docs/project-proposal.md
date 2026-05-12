@@ -61,6 +61,30 @@ The prototype is functional and internally validated:
 | draw.io reusable component library | ✅ Auto-generated from corpus |
 | 3-way visual comparison tooling | ✅ Automated |
 | Design language spec integration | ✅ Mapped to canonical spacing/typography specs |
+| Dual-format output from single definition (SVG + draw.io) | ✅ Proves tokens work across formats |
+| Element-count auditing across corpus | ✅ Automated |
+
+### Design-language harness potential
+
+The system already consumes canonical spec tokens and enforces them at the model level, validates baseline grid compliance at build time, and produces dual-format output from a single definition — proving the design language works end-to-end. This makes it close to functioning as a **validation harness for the Canonical design language**, not just a diagram tool.
+
+What's already in place:
+
+- Token consumption and brand enforcement at the model level
+- Build-time validators (grid alignment, arrow crossings, clearance)
+- Dual-format rendering from a single definition (proves tokens transfer across output targets)
+- 3-way visual comparison tooling
+- Element-count auditing
+
+What's missing to complete the harness:
+
+- **Automated visual regression** — snapshot-compare after token changes to catch regressions across the whole corpus
+- **Token change → rebuild → diff pipeline** — change a spec value, rebuild all diagrams, see exactly what moved
+- **Spec compliance scoring** — a report that says "these 47 diagrams are 100% compliant, these 3 have overrides"
+- **Cross-format consistency check** — automated comparison that SVG and draw.io outputs from the same definition are structurally equivalent
+- **Upstream spec watch** — when the canonical spacing/typography spec changes, flag which diagrams are affected before rebuilding
+
+This angle is a strong stakeholder argument: the investment in the diagram system also creates a live validation surface for the design language itself. Every diagram in the corpus becomes a regression test for the spec tokens.
 
 ## Scope
 
@@ -129,8 +153,9 @@ This is an area where stakeholder input is especially valuable: which tools are 
 - [ ] Package the CLI build as a simple `pip install` or single-script entry point
 - [ ] Write a 2-page quickstart guide with the 3 most common diagram patterns
 - [ ] Fix the remaining prototype defects (GridSpec dead code, diagonal arrowhead, spatial containment parenting)
+- [ ] Add automated visual regression: snapshot SVG outputs, diff on rebuild, flag regressions
 
-**Exit criteria:** 10 real diagrams produced, quickstart guide written, build runs clean on a fresh clone.
+**Exit criteria:** 10 real diagrams produced, quickstart guide written, build runs clean on a fresh clone, visual regression baseline established.
 
 ### Phase 1 — Pilot with tech authors (1 cycle)
 
@@ -142,8 +167,10 @@ This is an area where stakeholder input is especially valuable: which tools are 
 - [ ] Collect structured feedback: time-to-output, style satisfaction, missing diagram types, missing icons
 - [ ] Expand the icon library based on pilot needs (disciplined: additions go through style review)
 - [ ] Add YAML/JSON diagram definitions so authors can define diagrams without writing Python
+- [ ] Spec compliance report: per-diagram compliance score, list of overrides, percentage of corpus at 100%
+- [ ] Cross-format consistency check: automated structural comparison between SVG and draw.io outputs from the same definition
 
-**Exit criteria:** 3+ authors self-serving diagrams, feedback collected, icon library covers pilot needs.
+**Exit criteria:** 3+ authors self-serving diagrams, feedback collected, icon library covers pilot needs, compliance report running.
 
 ### Phase 2 — Expand to field engineering (1 cycle)
 
@@ -166,6 +193,8 @@ This is an area where stakeholder input is especially valuable: which tools are 
 - [ ] Diagram definitions in YAML/JSON with a web form or wizard for non-technical users
 - [ ] Integration with docs build pipeline (auto-generate diagrams from definitions in docs repos)
 - [ ] Style token sync: when the brand system changes, batch-update all tracked diagrams
+- [ ] Token change → rebuild → diff pipeline: change a spec value, rebuild all diagrams, see exactly what moved
+- [ ] Upstream spec watch: when canonical spacing/typography specs change, flag affected diagrams before rebuilding
 - [ ] Mermaid-to-diagram parser for authors who already think in Mermaid
 - [ ] Sketch-to-diagram AI intake: upload a rough sketch, get a draft diagram definition
 
