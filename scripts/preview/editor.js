@@ -3321,6 +3321,20 @@ function initDiagramPicker() {
     }
   });
 
+  const prevBtn = document.getElementById("diagram-prev");
+  const nextBtn = document.getElementById("diagram-next");
+
+  function stepPicker(delta) {
+    if (picker.options.length === 0) return;
+    const idx = picker.selectedIndex + delta;
+    if (idx < 0 || idx >= picker.options.length) return;
+    picker.selectedIndex = idx;
+    picker.dispatchEvent(new Event("change"));
+  }
+
+  if (prevBtn) prevBtn.addEventListener("click", () => stepPicker(-1));
+  if (nextBtn) nextBtn.addEventListener("click", () => stepPicker(1));
+
   void populateDiagramOptions();
 }
 

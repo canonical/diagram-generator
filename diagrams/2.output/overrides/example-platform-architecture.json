@@ -1,0 +1,30 @@
+{
+  "definition_hash": "488e456824659573",
+  "overrides": {
+    "frontend": {
+      "dw": 224
+    },
+    "_auto_frontend_1": {
+      "dw": 112
+    },
+    "_auto_frontend_2": {
+      "dx": 112,
+      "dw": 112
+    },
+    "services": {
+      "dw": 216
+    },
+    "_auto_services_3": {
+      "dw": 72
+    },
+    "_auto_services_4": {
+      "dx": 72,
+      "dw": 72
+    },
+    "_auto_services_5": {
+      "dx": 152,
+      "dw": 72
+    }
+  },
+  "format_version": 1
+}

@@ -348,7 +348,7 @@ def _layout_panel(
     col_gap = panel.col_gap if panel.col_gap is not None else default_col_gap
     row_gap = panel.row_gap if panel.row_gap is not None else default_row_gap
     panel_border = panel.effective_border
-    pad = 0 if panel_border == Border.NONE else INSET
+    pad = 0 if panel_border == Border.NONE else INSET  # FILL keeps INSET
 
     # Separate children by type
     _PANEL_CHILD_TYPES = (Box, Bar, Helper, Annotation, Terminal, Panel, MatrixWidget)
@@ -388,6 +388,9 @@ def _layout_panel(
     if panel.heading:
         heading_lines = _lines_to_dicts([panel.heading])
         heading_h = tight_box_height(heading_lines)
+        # Always reserve icon-height clearance so panels with and without
+        # icons produce the same heading height and children align.
+        heading_h = max(heading_h, ICON_SIZE + INSET)
 
     # Uniform row heights – compute from boxes, then expand for helper rows
     row_heights = _uniform_row_height(boxes, cols, rows) if rows > 0 else []
@@ -447,7 +450,7 @@ def _layout_panel(
             bx_w = bx.width or span_w
             bx_h = bx.height or span_h
             bx_fill = bx.fill.value
-            bx_stroke = "none" if bx.effective_border == Border.NONE else "#000000"
+            bx_stroke = "none" if bx.effective_border in (Border.NONE, Border.FILL) else "#000000"
             bx_cid = bx.id or None
 
             fg.append(Rect(bx_x, bx_y, bx_w, bx_h, fill=bx_fill, stroke=bx_stroke,
@@ -528,7 +531,7 @@ def _layout_panel(
             if sp.col_width is not None:
                 sp_default_cw = sp.col_width
             else:
-                sp_pad = 0 if sp.effective_border == Border.NONE else INSET
+                sp_pad = 0 if sp.effective_border == Border.NONE else INSET  # FILL keeps INSET
                 sp_content = sp_outer_w - 2 * sp_pad
                 sp_n_cols = sp.cols if sp.cols and sp.cols > 0 else 1
                 sp_inner_gap = sp.col_gap if sp.col_gap is not None else col_gap
@@ -644,7 +647,9 @@ def _layout_panel(
 
     # Panel frame (emitted last so we know final size, but insert at front for z-order)
     if panel_border != Border.NONE:
+        stroke = "none" if panel_border == Border.FILL else "#000000"
         frame = Rect(x, y, panel_w, panel_h, fill=panel.fill.value,
+                     stroke=stroke,
                      dashed=(panel_border == Border.DASHED),
                      component_id=panel.id)
         fg.insert(0, frame)
@@ -675,7 +680,7 @@ def _layout_box(
     has_icon = bx.icon is not None
     h = bx.height or tight_box_height(_lines_to_dicts(bx.label), has_icon=has_icon)
     fill = bx.fill.value
-    stroke = "none" if bx.effective_border == Border.NONE else "#000000"
+    stroke = "none" if bx.effective_border in (Border.NONE, Border.FILL) else "#000000"
     cid = bx.id or None
     prims: list[Primitive] = []
     prims.append(Rect(x, y, w, h, fill=fill, stroke=stroke, component_id=cid))
@@ -786,7 +791,7 @@ def _render_component(
         # For multi-column panels, divide content among N columns + gaps.
         # Only constrain if the cell is larger than BLOCK_WIDTH (i.e. the
         # cell has been explicitly sized); otherwise let content drive width.
-        panel_pad = 0 if comp.effective_border == Border.NONE else INSET
+        panel_pad = 0 if comp.effective_border == Border.NONE else INSET  # FILL keeps pad
         if w > 0 and int(w) > BLOCK_WIDTH:
             content_w = int(w - 2 * panel_pad)
             n_internal_cols = comp.cols if comp.cols and comp.cols > 0 else 1
@@ -817,7 +822,7 @@ def _render_component(
         has_icon = comp.icon is not None
         bh = comp.height or tight_box_height(_lines_to_dicts(comp.label), has_icon=has_icon)
         fill = comp.fill.value
-        stroke = "none" if comp.effective_border == Border.NONE else "#000000"
+        stroke = "none" if comp.effective_border in (Border.NONE, Border.FILL) else "#000000"
         cid = comp.id or None
         fg.append(Rect(x, y, bw, bh, fill=fill, stroke=stroke, component_id=cid))
         fg.append(TextBlock(x + INSET, y + INSET,
@@ -1381,7 +1386,7 @@ def _bounds_to_component_info(bounds: "_Bounds") -> ComponentInfo | None:
         # Compute padding from border
         border = getattr(comp, "effective_border", None)
         if border is not None:
-            comp_pad = 0.0 if border == Border.NONE else float(INSET)
+            comp_pad = 0.0 if border == Border.NONE else float(INSET)  # FILL keeps pad
         # Compute heading height
         heading = getattr(comp, "heading", None)
         if heading:
@@ -1608,7 +1613,7 @@ def layout(diagram: Diagram) -> LayoutResult:
             # width.  Treat them the same way: strip 2*INSET so that the
             # content-width resolution uses the inner corridor.
             has_padded_sibling = any(
-                isinstance(c, Panel) and c.effective_border != Border.NONE
+                isinstance(c, Panel) and c.effective_border not in (Border.NONE,)
                 for c in components if not isinstance(c, Arrow)
             )
             content_widths: list[int] = []
@@ -1644,7 +1649,7 @@ def layout(diagram: Diagram) -> LayoutResult:
             else:
                 # Panels: wrap content width with their own padding
                 if isinstance(comp, Panel):
-                    panel_pad = 0 if comp.effective_border == Border.NONE else INSET
+                    panel_pad = 0 if comp.effective_border == Border.NONE else INSET  # FILL keeps pad
                     render_w = content_w_resolved + 2 * panel_pad
                     render_x = x
                 elif isinstance(comp, Arrow):

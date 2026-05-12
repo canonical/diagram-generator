@@ -77,6 +77,8 @@ Do not rewrite higher-priority docs to match lower-priority implementation drift
 2. Read `AGENT-INBOX.md` and triage durable facts into `TODO.md`, `ROADMAP.md`, `STATUS.md`, `HISTORY.md`, or `docs/specs.md`.
 3. Empty both files back to their header templates.
 
+If an INBOX item includes bug screenshots or image attachments, follow this fixed order: inspect the referenced images first, implement the fix, present the fix for user confirmation, and only then delete the referenced images.
+
 ### What goes where
 
 | Information | Goes in |
@@ -228,6 +230,7 @@ Several references below point to locally generated outputs under `diagrams/2.ou
 - Embed arrowheads directly as paths in the document rather than through reusable SVG symbols or markers.
 - Orange connectors should resolve from box edge to box edge; do not aim them into loose helper text.
 - Anchor direct connectors from the midpoint of the source side to the midpoint of the destination side so the geometry stays organized in both SVG and draw.io.
+- When multiple source boxes feed a single destination, merge the individual shafts into a shared trunk that arrives at the destination at a 90-degree angle. Only the trunk carries the arrowhead. See "Fan-in merge" in `DIAGRAM.md`.
 - Keep box gaps, arrow spans, and pad padding consistent inside a diagram; a grey substrate or dashed grouping frame still needs `8px` padding beyond the boxes it contains.
 - Wrappers (dashed grouping frames, frameless containers) must match the outer width of peer standalone boxes in the same column. Derive child column widths from the wrapper's outer width minus `2 × INSET`, never the other way around. See "Nesting and alignment rules" in `DIAGRAM.md`.
 - Keep arrowheads large enough to read at export scale, with enough visible shaft before the head that the connector does not collapse into a stub. The last segment of every arrow must be ≥ `MIN_ARROW_SEGMENT` (`16px`) and the first segment ≥ `ARROW_EXIT_CLEARANCE` (`8px`). Any `row_gap` or `col_gap` through which arrows route must be ≥ `ARROW_GAP` (`24px`). See "Arrow clearance" in `DIAGRAM.md`.
