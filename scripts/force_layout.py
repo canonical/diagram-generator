@@ -28,6 +28,8 @@ import math
 from dataclasses import dataclass, field
 from typing import Any, Callable, Optional
 
+from quadtree import Quadtree, QuadLeaf
+
 # ---------------------------------------------------------------------------
 # diagram_model import (deferred to integration section at bottom)
 # ---------------------------------------------------------------------------
@@ -141,11 +143,11 @@ class ForceCenter:
 
 
 class ForceManyBody:
-    """Charge (many-body) force — naive O(n²) all-pairs version.
+    """Charge (many-body) force — Barnes-Hut quadtree approximation.
 
-    Ported from d3-force/src/manyBody.js with the Barnes-Hut quadtree
-    removed.  For diagram-scale graphs (<100 nodes) the naive approach
-    is sufficient and avoids the quadtree dependency.
+    Ported from d3-force/src/manyBody.js.  Builds a quadtree each tick
+    and uses the Barnes-Hut theta criterion to approximate distant
+    charge clusters as single points.
     """
 
     def __init__(self) -> None:
@@ -155,6 +157,7 @@ class ForceManyBody:
         self._strengths: list[float] = []
         self._distance_min2 = 1.0
         self._distance_max2 = float("inf")
+        self._theta2 = 0.81  # 0.9²
         self._nodes: list[ForceNode] = []
         self._random: Callable[[], float] = lcg()
 
@@ -172,35 +175,118 @@ class ForceManyBody:
     def __call__(self, alpha: float) -> None:
         nodes = self._nodes
         n = len(nodes)
+        if n == 0:
+            return
         strengths = self._strengths
         random = self._random
         dmin2 = self._distance_min2
         dmax2 = self._distance_max2
+        theta2 = self._theta2
 
+        # Build quadtree from current positions
+        tree = Quadtree(data=nodes)
+
+        # Accumulate charge per quad node via visit_after.
+        # Store (value, cx, cy) keyed by id(quad_node).
+        acc: dict[int, tuple[float, float, float]] = {}
+
+        def accumulate(quad: Any, *_: Any) -> None:
+            strength_sum = 0.0
+            weight = 0.0
+            cx = 0.0
+            cy = 0.0
+
+            if isinstance(quad, list):
+                # Internal node: aggregate from children
+                for ci in range(4):
+                    child = quad[ci]
+                    if child is not None:
+                        cid = id(child)
+                        if cid in acc:
+                            cv, cqx, cqy = acc[cid]
+                            c = abs(cv)
+                            if c:
+                                strength_sum += cv
+                                weight += c
+                                cx += c * cqx
+                                cy += c * cqy
+                if weight:
+                    cx /= weight
+                    cy /= weight
+            else:
+                # Leaf node: centre of charge = data position
+                cx = quad.data.x
+                cy = quad.data.y
+                leaf: Optional[QuadLeaf] = quad
+                while leaf is not None:
+                    strength_sum += strengths[leaf.data.index]
+                    leaf = leaf.next
+
+            acc[id(quad)] = (strength_sum, cx, cy)
+
+        tree.visit_after(accumulate)
+
+        # For each node, traverse the tree with Barnes-Hut
         for i in range(n):
             node = nodes[i]
-            for j in range(n):
-                if i == j:
-                    continue
-                other = nodes[j]
-                dx = other.x - node.x
-                dy = other.y - node.y
+
+            def apply(
+                quad: Any, x0: float, y0: float, x1: float, y1: float,
+                _node: ForceNode = node,
+            ) -> bool:
+                qid = id(quad)
+                if qid not in acc:
+                    return True
+                qv, qcx, qcy = acc[qid]
+                if not qv:
+                    return True
+
+                dx = qcx - _node.x
+                dy = qcy - _node.y
+                w = x1 - x0
                 l = dx * dx + dy * dy
 
-                if l >= dmax2:
-                    continue
+                # Barnes-Hut: use approximation if quad is small enough
+                if w * w / theta2 < l:
+                    if l < dmax2:
+                        if dx == 0:
+                            dx = jiggle(random)
+                            l += dx * dx
+                        if dy == 0:
+                            dy = jiggle(random)
+                            l += dy * dy
+                        if l < dmin2:
+                            l = math.sqrt(dmin2 * l)
+                        _node.vx += dx * qv * alpha / l
+                        _node.vy += dy * qv * alpha / l
+                    return True  # skip children
 
-                if dx == 0:
-                    dx = jiggle(random)
-                    l += dx * dx
-                if dy == 0:
-                    dy = jiggle(random)
-                    l += dy * dy
-                if l < dmin2:
-                    l = math.sqrt(dmin2 * l)
+                # Not approximable — recurse into children for internal nodes
+                if isinstance(quad, list) or l >= dmax2:
+                    return False
 
-                node.vx += dx * strengths[j] * alpha / l
-                node.vy += dy * strengths[j] * alpha / l
+                # Leaf node within range — apply individual forces
+                leaf_node: Optional[QuadLeaf] = quad
+                if leaf_node.data is not _node or leaf_node.next is not None:
+                    if dx == 0:
+                        dx = jiggle(random)
+                        l += dx * dx
+                    if dy == 0:
+                        dy = jiggle(random)
+                        l += dy * dy
+                    if l < dmin2:
+                        l = math.sqrt(dmin2 * l)
+
+                while leaf_node is not None:
+                    if leaf_node.data is not _node:
+                        w2 = strengths[leaf_node.data.index] * alpha / l
+                        _node.vx += dx * w2
+                        _node.vy += dy * w2
+                    leaf_node = leaf_node.next
+
+                return False
+
+            tree.visit(apply)
 
     # -- Chainable setters --
 
@@ -221,16 +307,18 @@ class ForceManyBody:
         self._distance_max2 = val * val
         return self
 
+    def theta(self, val: float) -> ForceManyBody:
+        self._theta2 = val * val
+        return self
+
 
 class ForceCollideRect:
-    """Rectangle collision force — O(n²) adaptation of d3-force/src/collide.js.
+    """Rectangle collision force — quadtree-accelerated.
 
-    The original D3 force uses circles and a quadtree.  This version
-    uses axis-aligned rectangles (each node has ``width`` and ``height``)
-    and a naive all-pairs check.
-
-    Collision resolution pushes overlapping rectangles apart along the
-    axis of least overlap, distributing displacement proportionally.
+    Adapted from d3-force/src/collide.js.  Uses axis-aligned rectangles
+    (each node has ``width`` and ``height``) instead of circles.  A
+    quadtree prunes quadrants whose bounding boxes cannot overlap the
+    current node.
     """
 
     def __init__(self, padding: float = 0.0) -> None:
@@ -247,49 +335,104 @@ class ForceCollideRect:
     def __call__(self, alpha: float) -> None:
         nodes = self._nodes
         n = len(nodes)
+        if n == 0:
+            return
         strength = self._strength
         padding = self._padding
         random = self._random
 
         for _ in range(self._iterations):
+            # Build quadtree from projected positions
+            tree = Quadtree(
+                x=lambda d: d.x + d.vx,
+                y=lambda d: d.y + d.vy,
+                data=nodes,
+            )
+
+            # Accumulate max half-extents per quad via visit_after
+            hw_map: dict[int, float] = {}
+            hh_map: dict[int, float] = {}
+
+            def prepare(quad: Any, *_: Any) -> None:
+                if not isinstance(quad, list):
+                    # Leaf: half-extents of this datum
+                    hw_map[id(quad)] = quad.data.width / 2 + padding
+                    hh_map[id(quad)] = quad.data.height / 2 + padding
+                else:
+                    # Internal: max of children
+                    max_hw = 0.0
+                    max_hh = 0.0
+                    for ci in range(4):
+                        child = quad[ci]
+                        if child is not None:
+                            cid = id(child)
+                            chw = hw_map.get(cid, 0.0)
+                            chh = hh_map.get(cid, 0.0)
+                            if chw > max_hw:
+                                max_hw = chw
+                            if chh > max_hh:
+                                max_hh = chh
+                    hw_map[id(quad)] = max_hw
+                    hh_map[id(quad)] = max_hh
+
+            tree.visit_after(prepare)
+
             for i in range(n):
                 ni = nodes[i]
-                # Half-extents including padding
                 hw_i = ni.width / 2 + padding
                 hh_i = ni.height / 2 + padding
                 xi = ni.x + ni.vx
                 yi = ni.y + ni.vy
 
-                for j in range(i + 1, n):
-                    nj = nodes[j]
-                    hw_j = nj.width / 2 + padding
-                    hh_j = nj.height / 2 + padding
-                    xj = nj.x + nj.vx
-                    yj = nj.y + nj.vy
+                def apply(
+                    quad: Any, x0: float, y0: float, x1: float, y1: float,
+                    _ni: ForceNode = ni, _hw_i: float = hw_i,
+                    _hh_i: float = hh_i, _xi: float = xi, _yi: float = yi,
+                ) -> bool:
+                    qid = id(quad)
 
-                    dx = xi - xj
-                    dy = yi - yj
+                    if not isinstance(quad, list):
+                        # Leaf — check each coincident datum
+                        leaf: Optional[QuadLeaf] = quad
+                        while leaf is not None:
+                            data = leaf.data
+                            if data.index > _ni.index:
+                                hw_j = data.width / 2 + padding
+                                hh_j = data.height / 2 + padding
+                                dx = _xi - data.x - data.vx
+                                dy = _yi - data.y - data.vy
+                                overlap_x = (_hw_i + hw_j) - abs(dx)
+                                overlap_y = (_hh_i + hh_j) - abs(dy)
 
-                    # Overlap extents along each axis
-                    overlap_x = (hw_i + hw_j) - abs(dx)
-                    overlap_y = (hh_i + hh_j) - abs(dy)
+                                if overlap_x > 0 and overlap_y > 0:
+                                    if overlap_x < overlap_y:
+                                        if dx == 0:
+                                            dx = jiggle(random)
+                                        sign = 1.0 if dx > 0 else -1.0
+                                        push = overlap_x * strength * 0.5 * sign
+                                        _ni.vx += push
+                                        data.vx -= push
+                                    else:
+                                        if dy == 0:
+                                            dy = jiggle(random)
+                                        sign = 1.0 if dy > 0 else -1.0
+                                        push = overlap_y * strength * 0.5 * sign
+                                        _ni.vy += push
+                                        data.vy -= push
+                            leaf = leaf.next
+                        return True
 
-                    if overlap_x > 0 and overlap_y > 0:
-                        # Resolve along the axis of least penetration
-                        if overlap_x < overlap_y:
-                            if dx == 0:
-                                dx = jiggle(random)
-                            sign = 1.0 if dx > 0 else -1.0
-                            push = overlap_x * strength * 0.5 * sign
-                            ni.vx += push
-                            nj.vx -= push
-                        else:
-                            if dy == 0:
-                                dy = jiggle(random)
-                            sign = 1.0 if dy > 0 else -1.0
-                            push = overlap_y * strength * 0.5 * sign
-                            ni.vy += push
-                            nj.vy -= push
+                    # Internal — prune if bounding boxes can't overlap
+                    max_hw = hw_map.get(qid, 0.0)
+                    max_hh = hh_map.get(qid, 0.0)
+                    r_hw = _hw_i + max_hw
+                    r_hh = _hh_i + max_hh
+                    if (x0 > _xi + r_hw or x1 < _xi - r_hw or
+                            y0 > _yi + r_hh or y1 < _yi - r_hh):
+                        return True  # skip children
+                    return False  # recurse
+
+                tree.visit(apply)
 
     # -- Chainable setters --
 
