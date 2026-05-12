@@ -157,6 +157,7 @@ html.u-baseline-grid::after {
   --bf-h6-margin-bottom: 0.5rem;
   --bf-h6-nudge-start: 0.245rem;
   --bf-h6-nudge-end: 0.005rem;
+  --bf-font-size-small: var(--bf-body-font-size, 0.75rem);
  }
 
 :where(.bf-theme.bf-tier-os) {
@@ -265,6 +266,7 @@ html.u-baseline-grid::after {
   --bf-h6-margin-bottom: 0.5rem;
   --bf-h6-nudge-start: 0.245rem;
   --bf-h6-nudge-end: 0.005rem;
+  --bf-font-size-small: var(--bf-body-font-size, 0.75rem);
  }
 
 :where(.bf-theme.bf-tier-editorial) {
@@ -373,6 +375,7 @@ html.u-baseline-grid::after {
   --bf-h6-margin-bottom: 0.5rem;
   --bf-h6-nudge-start: 0.41rem;
   --bf-h6-nudge-end: 0.09rem;
+  --bf-font-size-small: var(--bf-body-font-size, 1rem);
  }
 
 :where(.bf-theme.bf-tier-documentation) {
@@ -481,6 +484,7 @@ html.u-baseline-grid::after {
   --bf-h6-margin-bottom: 0rem;
   --bf-h6-nudge-start: 0.11056rem;
   --bf-h6-nudge-end: 0.13944rem;
+  --bf-font-size-small: var(--bf-body-font-size, 0.875rem);
  }
 
 :where(.bf-theme.bf-tier-app) {
@@ -589,6 +593,7 @@ html.u-baseline-grid::after {
   --bf-h6-margin-bottom: -0.5rem;
   --bf-h6-nudge-start: 0rem;
   --bf-h6-nudge-end: 0rem;
+  --bf-font-size-small: var(--bf-body-font-size, 0.875rem);
  }
 
 
@@ -642,6 +647,10 @@ html.u-baseline-grid::after {
   --bf-color-surface: var(--vf-color-background-alt, #f7f7f7);
   --bf-color-text: var(--vf-color-text-default, #000000);
   --bf-color-muted: var(--vf-color-text-muted, rgba(0, 0, 0, 0.6));
+  --bf-color-positive: var(--vf-color-border-positive, #0e8420);
+  --bf-color-positive-background: var(--vf-color-background-positive-default, hsl(129deg 90% 39% / 10%));
+  --bf-color-negative: var(--vf-color-border-negative, #c7162b);
+  --bf-color-negative-background: var(--vf-color-background-negative-default, hsl(354deg 100% 39% / 10%));
   --bf-color-rule: var(--vf-color-border-low-contrast, rgba(0, 0, 0, 0.1));
   --bf-color-link: var(--vf-color-link-default, #0066cc);
   --bf-color-link-visited: var(--vf-color-link-visited, #7d42b8);
@@ -707,6 +716,10 @@ html.u-baseline-grid::after {
   --bf-color-surface: var(--vf-color-background-alt, #202020);
   --bf-color-text: var(--vf-color-text-default, #ffffff);
   --bf-color-muted: var(--vf-color-text-muted, rgba(255, 255, 255, 0.6));
+  --bf-color-positive: var(--vf-color-border-positive, #62a36c);
+  --bf-color-positive-background: var(--vf-color-background-positive-default, hsl(129deg 90% 39% / 20%));
+  --bf-color-negative: var(--vf-color-border-negative, #d17b85);
+  --bf-color-negative-background: var(--vf-color-background-negative-default, hsl(353deg 100% 70% / 20%));
   --bf-color-rule: var(--vf-color-border-low-contrast, rgba(255, 255, 255, 0.1));
   --bf-color-link: var(--vf-color-link-default, #6699cc);
   --bf-color-link-visited: var(--vf-color-link-visited, #a679d2);
@@ -1098,6 +1111,8 @@ html.u-baseline-grid::after {
   --bf-control-inline-padding: 0.5rem;
   --bf-control-inline-padding-action: 0.5rem;
   --bf-control-inline-padding-field: 0.25rem;
+  --bf-disclosure-gap: 1rem;
+  --bf-disclosure-icon-inline-size: 1rem;
   --bf-control-visual-size: 0.75rem;
   --bf-input-block-padding: var(--bf-body-nudge-start, 0.245rem);
   --bf-button-block-padding: var(--bf-body-nudge-start, 0.245rem);
@@ -2916,6 +2931,7 @@ html.u-baseline-grid::after {
   --bf-icon-image: var(--bf-ui-icon-success-grey);
 }
 
+
 :where(.bf-theme) :where(.bf-list) {
   list-style: none;
   margin: 0;
@@ -3924,6 +3940,10 @@ html.u-baseline-grid::after {
   text-decoration: none;
 }
 
+:where(.bf-theme) :where(.bf-side-navigation-accordion-button) {
+  gap: var(--bf-disclosure-gap);
+}
+
 :where(.bf-theme) :where(.bf-side-navigation-item.is-title) > :where(.bf-side-navigation-link, .bf-side-navigation-text) {
   color: var(--bf-color-text-default);
   font-weight: 600;
@@ -4435,11 +4455,11 @@ html.u-baseline-grid::after {
   background-image: var(--bf-ui-icon-chevron-down);
   background-position: center;
   background-repeat: no-repeat;
-  background-size: 1rem 1rem;
-  block-size: 1rem;
+  background-size: var(--bf-disclosure-icon-inline-size) var(--bf-disclosure-icon-inline-size);
+  block-size: var(--bf-disclosure-icon-inline-size);
   content: "";
-  flex: 0 0 1rem;
-  inline-size: 1rem;
+  flex: 0 0 var(--bf-disclosure-icon-inline-size);
+  inline-size: var(--bf-disclosure-icon-inline-size);
   transition: transform 120ms ease;
 }
 
@@ -4904,6 +4924,7 @@ html.u-baseline-grid::after {
   color: var(--bf-color-text-default);
   cursor: pointer;
   display: flex;
+  gap: var(--bf-disclosure-gap);
   inline-size: 100%;
   justify-content: flex-start;
   min-block-size: var(--bf-control-box-size);
@@ -4925,13 +4946,12 @@ html.u-baseline-grid::after {
   background-image: var(--bf-ui-icon-chevron-down);
   background-position: center;
   background-repeat: no-repeat;
-  background-size: 1rem 1rem;
-  block-size: 1rem;
+  background-size: var(--bf-disclosure-icon-inline-size) var(--bf-disclosure-icon-inline-size);
+  block-size: var(--bf-disclosure-icon-inline-size);
   content: "";
   display: inline-block;
   flex: none;
-  inline-size: 1rem;
-  margin-inline-end: var(--bf-control-inline-padding-action);
+  inline-size: var(--bf-disclosure-icon-inline-size);
   transition: transform 120ms ease;
 }
 
