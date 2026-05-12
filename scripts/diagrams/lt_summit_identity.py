@@ -132,7 +132,7 @@ lt_summit_identity = Diagram(
         # ── Row 2: "4. Export" panel ──
         Panel(
             id="export_panel",
-            cols=3,
+            cols=2,
             col_gap=8,
             row_gap=8,
             fill=Fill.GREY,
@@ -153,13 +153,6 @@ lt_summit_identity = Diagram(
                     style=BoxStyle.HIGHLIGHT,
                     icon="Video.svg",
                     col=1, row=0,
-                ),
-                Box(
-                    id="output_drawio",
-                    label=[_body("Draw.io native")],
-                    style=BoxStyle.HIGHLIGHT,
-                    icon="Design.svg",
-                    col=2, row=0,
                 ),
             ],
         ),

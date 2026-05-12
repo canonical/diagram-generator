@@ -132,8 +132,7 @@ lt_a4_generator = Diagram(
         # ── Row 2: "4. Export" panel ──
         Panel(
             id="export_panel",
-            cols=2,
-            col_gap=8,
+            cols=1,
             row_gap=8,
             fill=Fill.GREY,
             border=Border.FILL,
@@ -146,13 +145,6 @@ lt_a4_generator = Diagram(
                     style=BoxStyle.HIGHLIGHT,
                     icon="Document.svg",
                     col=0, row=0,
-                ),
-                Box(
-                    id="output_drawio",
-                    label=[_body("Draw.io native")],
-                    style=BoxStyle.HIGHLIGHT,
-                    icon="Design.svg",
-                    col=1, row=0,
                 ),
             ],
         ),

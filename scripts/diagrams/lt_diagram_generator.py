@@ -153,7 +153,7 @@ lt_diagram_generator = Diagram(
                 ),
                 Box(
                     id="output_drawio",
-                    label=[_body("Draw.io native")],
+                    label=[_body("Draw.io native format")],
                     style=BoxStyle.HIGHLIGHT,
                     icon="Design.svg",
                     col=1, row=0,
