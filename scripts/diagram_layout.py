@@ -344,9 +344,9 @@ def _layout_panel(
     min_height: int = 0,
 ) -> tuple[_Bounds, list[Primitive], list[Primitive]]:
     """Lay out a panel and its children.  Returns bounds + primitives."""
-    col_width = panel.col_width or default_col_width
-    col_gap = panel.col_gap if panel.col_gap is not None else default_col_gap
-    row_gap = panel.row_gap if panel.row_gap is not None else default_row_gap
+    col_width = panel.effective_col_width or default_col_width
+    col_gap = panel.effective_col_gap if panel.effective_col_gap is not None else default_col_gap
+    row_gap = panel.effective_row_gap if panel.effective_row_gap is not None else default_row_gap
     panel_border = panel.effective_border
     pad = 0 if panel_border == Border.NONE else INSET  # FILL keeps INSET
 
@@ -376,9 +376,9 @@ def _layout_panel(
     grid_items = boxes + grid_helpers + matrices
 
     # Determine grid dimensions
-    cols = panel.cols
-    if panel.rows is not None:
-        rows = panel.rows
+    cols = panel.effective_cols
+    if panel.effective_rows is not None:
+        rows = panel.effective_rows
     else:
         rows = max((gi.row for gi in grid_items), default=0) + 1 if grid_items else 0
 
@@ -1466,8 +1466,8 @@ def layout(diagram: Diagram) -> LayoutResult:
     _ensure_ids(diagram.components)
 
     outer = diagram.outer_margin if diagram.outer_margin is not None else OUTER_MARGIN
-    col_gap = diagram.col_gap if diagram.col_gap is not None else GRID_GUTTER
-    row_gap = diagram.row_gap if diagram.row_gap is not None else GRID_GUTTER
+    col_gap = diagram.effective_col_gap if diagram.effective_col_gap is not None else GRID_GUTTER
+    row_gap = diagram.effective_row_gap if diagram.effective_row_gap is not None else GRID_GUTTER
 
     fg: list[Primitive] = []
     bg: list[Primitive] = []
@@ -1491,7 +1491,7 @@ def layout(diagram: Diagram) -> LayoutResult:
             rs = getattr(comp, "row_span", 1) or 1
             max_col = max(max_col, c + cs)
             max_row = max(max_row, r + rs)
-        n_cols = max(max_col, diagram.cols)
+        n_cols = max(max_col, diagram.effective_cols)
         n_rows = max_row
 
         # Derive default column width:
@@ -1502,7 +1502,7 @@ def layout(diagram: Diagram) -> LayoutResult:
             content_w = diagram.canvas_width - 2 * outer - (n_cols - 1) * col_gap
             default_cw = round_up_to_grid(content_w // n_cols)
         else:
-            default_cw = diagram.col_width or BLOCK_WIDTH
+            default_cw = diagram.effective_col_width or BLOCK_WIDTH
         default_rh = diagram.row_height or BOX_MIN_HEIGHT
 
         # 2. Compute natural sizes and build per-cell size requirements

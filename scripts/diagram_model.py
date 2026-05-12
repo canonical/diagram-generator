@@ -455,3 +455,19 @@ class Diagram:
     canvas_width: int | None = None    # fixed output width in px; derives col_width
     canvas_height: int | None = None   # optional fixed output height in px
     uniform_rows: bool = False         # all rows use tallest row's height
+
+    @property
+    def effective_cols(self) -> int:
+        return self.grid.cols if self.grid else self.cols
+
+    @property
+    def effective_col_width(self) -> int | None:
+        return self.grid.col_width if self.grid else self.col_width
+
+    @property
+    def effective_col_gap(self) -> int | None:
+        return self.grid.col_gap if self.grid else self.col_gap
+
+    @property
+    def effective_row_gap(self) -> int | None:
+        return self.grid.row_gap if self.grid else self.row_gap
