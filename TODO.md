@@ -61,13 +61,13 @@ Provide a cold-start-safe workflow and a consistent on-brand SVG system for rede
 
 ### Editor UX
 
-- [ ] `[H]` **Resizable / auto-fit artboard.** Resizing a box can push content off-canvas. Either make the SVG artboard resizable in the editor, or auto-size the canvas from children + declared margin so it grows to fit content.
+- [x] `[H]` **Resizable / auto-fit artboard.** ~~Resizing a box can push content off-canvas.~~ `autoFitArtboard()` now expands the SVG viewBox after move/resize when content overflows.
 
 ### Code quality — from audits
 
-- [ ] `[H]` **`GridSpec` is dead code.** `Panel.grid` and `Diagram.grid` are declared, and `Panel` has `effective_*` properties, but the layout engine reads raw `panel.cols`, `panel.col_gap`, etc. directly — never the `effective_*` path. Any diagram using `Panel(grid=GridSpec(...))` silently uses field defaults. Fix: use `effective_*` in `_layout_panel` and add matching properties to `Diagram`.
-- [ ] `[M]` **Diagonal arrows produce invisible arrowheads.** `_polyline_arrow` in `diagram_render_svg.py`: the `else` branch (non-orthogonal last segment) sets `head = [(tx, ty)]` — a single-point polygon. Currently mitigated by the orthogonal auto-router, but any explicit diagonal waypoint will have no arrowhead. Fix: compute proper diagonal arrowhead geometry from the unit vector.
-- [ ] `[M]` Resolve Python/YAML definition drift. `build_v2.py` currently loads colliding slugs from both Python and YAML examples, while the preview server hashes, watches, and imports Python-only definitions. Either dedupe / namespace YAML examples or teach the preview surfaces to understand non-Python definitions consistently.
+- [x] `[H]` **`GridSpec` is dead code.** ~~Layout engine reads raw `panel.cols` etc. instead of `effective_*`.~~ Fixed: both `Panel` and `Diagram` now route through `effective_*` properties that respect `GridSpec`.
+- [x] `[M]` **Diagonal arrows produce invisible arrowheads.** Fixed: `_polyline_arrow` now computes proper triangular geometry from the unit vector.
+- [x] `[M]` ~~Resolve Python/YAML definition drift.~~ Preview server now falls back to YAML loader; build deduplicates colliding slugs; file watcher covers YAML/JSON.
 - [ ] `[M]` Align interactive relayout with build-time layout rules. Preview relayout currently propagates diagram-level gaps into nested panels more aggressively than the build path, and drag clamping still uses raw `INSET` instead of the richer `pad` / `headingHeight` metadata already present in the component model.
 - [ ] `[S]` **draw.io renderer uses spatial containment for parenting.** `_find_children` in `diagram_render_drawio.py` uses bounding-box overlap instead of `component_id`, which can mis-parent elements at shared edges. Fix: match by `component_id`.
 - [ ] `[S]` **`_uniform_row_height` ignores Annotations/Helpers.** Rows containing only annotations get `BOX_MIN_HEIGHT` regardless of content. The post-hoc helper expansion partially compensates but runs after uniform equalization.
