@@ -135,8 +135,14 @@ def _polyline_arrow(points, color=ORANGE) -> str:
         bp = (tx - d * ARROW_HEAD_LENGTH, ty)
         head = [(bp[0], ty - ARROW_HEAD_HALF_WIDTH), (tx, ty), (bp[0], ty + ARROW_HEAD_HALF_WIDTH)]
     else:
-        bp = (tx, ty)
-        head = [(tx, ty)]
+        import math
+        length = math.hypot(dx, dy)
+        ux, uy = dx / length, dy / length
+        # Base point (where shaft ends, arrowhead starts)
+        bp = (tx - ux * ARROW_HEAD_LENGTH, ty - uy * ARROW_HEAD_LENGTH)
+        # Perpendicular vector for arrowhead width
+        nx, ny = -uy * ARROW_HEAD_HALF_WIDTH, ux * ARROW_HEAD_HALF_WIDTH
+        head = [(bp[0] + nx, bp[1] + ny), (tx, ty), (bp[0] - nx, bp[1] - ny)]
     shaft[-1] = bp
     parts = []
     for i in range(len(shaft) - 1):
