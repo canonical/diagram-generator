@@ -78,6 +78,7 @@ class Border(Enum):
     SOLID = auto()
     NONE = auto()
     DASHED = auto()
+    FILL = auto()       # filled background with padding, no visible stroke
 
 
 class ArrowDirection(Enum):

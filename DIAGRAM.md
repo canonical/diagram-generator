@@ -169,6 +169,7 @@ components:
   border-modes:
     solid: "1px #000000"
     dashed: "1px #000000 dashed"
+    fill: "no stroke, filled background with INSET padding"
     none: no visible border
     notes: Applies to Box and Panel via `border` field. Replaces legacy `borderless`, `frameless`, `dashed` booleans.
 ---
@@ -492,6 +493,18 @@ Connectors are part of the language, not decoration.
 - Prefer straight or orthogonal routing.
 - Draw connectors behind the boxes they terminate into so the destination edge remains visually continuous.
 - Do not terminate arrows into floating helper text. When an annotation needs an arrow connection, use a borderless `Box` (`borderless=True`) instead of a `Helper` so the box participates in grid sizing and provides proper edge anchors.
+
+### Fan-in merge
+
+When multiple source boxes feed into a single destination box, the individual arrow shafts must merge into a shared trunk before reaching the target:
+
+1. Each source arrow exits its box orthogonally and routes to a common **merge point** on the trunk axis.
+2. From the merge point a single trunk segment extends to the destination box, arriving at a **90-degree angle** to the destination edge.
+3. The trunk carries the arrowhead; the individual feeder shafts do not have their own arrowheads.
+4. Place the merge point far enough from the destination that the trunk segment satisfies `MIN_ARROW_SEGMENT` (`16px`).
+5. Keep feeder shafts orthogonal — use right-angle bends to reach the trunk axis, not diagonal runs.
+
+This pattern reduces visual clutter and makes the flow direction unambiguous. It mirrors the draw.io `blockThin` multi-source merge behavior.
 
 ### Arrow clearance
 

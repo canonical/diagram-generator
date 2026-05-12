@@ -36,6 +36,10 @@ _REGISTRY: list[tuple[str, str, str]] = [
     ("example-platform-architecture-onbrand", "diagrams.example_platform_architecture", "example_platform_architecture"),
     ("example-data-processing-onbrand", "diagrams.example_data_processing", "example_data_processing"),
     ("example-stacked-blocks-onbrand", "diagrams.example_stacked_blocks", "example_stacked_blocks"),
+    ("lightning-talk-engine-onbrand", "diagrams.lightning_talk_engine", "lightning_talk_engine"),
+    ("lt-diagram-generator-onbrand", "diagrams.lt_diagram_generator", "lt_diagram_generator"),
+    ("lt-a4-generator-onbrand", "diagrams.lt_a4_generator", "lt_a4_generator"),
+    ("lt-summit-identity-onbrand", "diagrams.lt_summit_identity", "lt_summit_identity"),
 ]
 
 

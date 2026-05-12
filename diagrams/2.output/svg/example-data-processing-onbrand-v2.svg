@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="456" height="616" viewBox="0 0 456 616" xml:space="preserve">
-  <rect width="456" height="616" fill="#FFFFFF" />
+<svg xmlns="http://www.w3.org/2000/svg" width="456" height="632" viewBox="0 0 456 632" xml:space="preserve">
+  <rect width="456" height="632" fill="#FFFFFF" />
   <g data-component-id="ingest">
   <rect x="24" y="24" width="192" height="64" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
   <text font-family="Ubuntu Sans">
@@ -62,30 +62,30 @@
   <line class="dg-separator" x1="24" y1="236.0" x2="432" y2="236.0" fill="none" stroke="#000000" stroke-width="1" stroke-miterlimit="10" stroke-dasharray="12 8" />
   </g>
   <g data-component-id="storage">
-  <rect x="24" y="336" width="408" height="152" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" stroke-dasharray="8 8" />
+  <rect x="24" y="336" width="408" height="168" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" stroke-dasharray="8 8" />
   <text font-family="Ubuntu Sans">
     <tspan x="32" y="360.92" font-size="18" font-weight="700" fill="#000000">Storage tiers</tspan>
   </text>
   </g>
-  <rect x="32" y="392" width="128" height="40" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <rect x="32" y="408" width="128" height="40" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
   <text font-family="Ubuntu Sans">
-    <tspan x="40" y="416.92" font-size="18" font-weight="400" fill="#000000">Hot</tspan>
+    <tspan x="40" y="432.92" font-size="18" font-weight="400" fill="#000000">Hot</tspan>
   </text>
-  <rect x="160" y="392" width="264" height="40" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <rect x="160" y="408" width="264" height="40" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
   <text font-family="Ubuntu Sans">
-    <tspan x="168" y="416.92" font-size="18" font-weight="400" fill="#000000">Archive</tspan>
+    <tspan x="168" y="432.92" font-size="18" font-weight="400" fill="#000000">Archive</tspan>
   </text>
-  <rect x="32" y="440" width="96" height="40" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <rect x="32" y="456" width="96" height="40" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
   <text font-family="Ubuntu Sans">
-    <tspan x="40" y="464.92" font-size="18" font-weight="400" fill="#000000">SSD</tspan>
+    <tspan x="40" y="480.92" font-size="18" font-weight="400" fill="#000000">SSD</tspan>
   </text>
-  <rect x="128" y="440" width="96" height="40" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <rect x="128" y="456" width="96" height="40" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
   <text font-family="Ubuntu Sans">
-    <tspan x="136" y="464.92" font-size="18" font-weight="400" fill="#000000">HDD</tspan>
+    <tspan x="136" y="480.92" font-size="18" font-weight="400" fill="#000000">HDD</tspan>
   </text>
-  <rect x="224" y="440" width="200" height="40" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <rect x="224" y="456" width="200" height="40" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
   <text font-family="Ubuntu Sans">
-    <tspan x="232" y="464.92" font-size="18" font-weight="400" fill="#000000">Object</tspan>
+    <tspan x="232" y="480.92" font-size="18" font-weight="400" fill="#000000">Object</tspan>
   </text>
   <g data-component-id="storage">
   <g class="dg-icon" transform="translate(376 344)">
@@ -102,12 +102,12 @@
   </g>
   </g>
   <g data-component-id="warehouse">
-  <rect x="24" y="528" width="192" height="64" fill="#000000" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <rect x="24" y="544" width="192" height="64" fill="#000000" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
   <text font-family="Ubuntu Sans">
-    <tspan x="32" y="552.92" font-size="18" font-weight="400" fill="#FFFFFF">Data</tspan>
-    <tspan x="32" y="576.92" font-size="18" font-weight="400" fill="#FFFFFF">warehouse</tspan>
+    <tspan x="32" y="568.92" font-size="18" font-weight="400" fill="#FFFFFF">Data</tspan>
+    <tspan x="32" y="592.92" font-size="18" font-weight="400" fill="#FFFFFF">warehouse</tspan>
   </text>
-  <g class="dg-icon" transform="translate(160 536)">
+  <g class="dg-icon" transform="translate(160 552)">
 <path fill-rule="evenodd" clip-rule="evenodd" d="M35.9878 11.6991C36.3041 11.8759 36.5 12.2098 36.5 12.5721V25.3693C36.5 25.7316 36.3041 26.0655 35.9878 26.2423L24 32.9414L12.0122 26.2423C11.6959 26.0655 11.5 25.7316 11.5 25.3693V12.5721C11.5 12.2098 11.6959 11.8759 12.0122 11.6991L23.5122 5.27261C23.8153 5.1032 24.1847 5.1032 24.4878 5.27261L35.9878 11.6991ZM12.5 25.3682L23.5 31.5146V19.3613L12.5 13.166V25.3682ZM24.5 19.3613V31.5146L35.5 25.3682V13.167L24.5 19.3613ZM12.9922 12.2969L24 18.4941L35.0068 12.2969L24 6.14551L12.9922 12.2969Z" fill="#FFFFFF" />
 
 <path d="M20.0322 40C20.0118 40.1638 20 40.3306 20 40.5C20 40.6694 20.0118 40.8362 20.0322 41H9V40H20.0322Z" fill="#FFFFFF" />
@@ -121,12 +121,12 @@
   </g>
   </g>
   <g data-component-id="dashboard">
-  <rect x="240" y="528" width="192" height="64" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <rect x="240" y="544" width="192" height="64" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
   <text font-family="Ubuntu Sans">
-    <tspan x="248" y="552.92" font-size="18" font-weight="400" fill="#000000">Analytics</tspan>
-    <tspan x="248" y="576.92" font-size="18" font-weight="400" fill="#000000">dashboard</tspan>
+    <tspan x="248" y="568.92" font-size="18" font-weight="400" fill="#000000">Analytics</tspan>
+    <tspan x="248" y="592.92" font-size="18" font-weight="400" fill="#000000">dashboard</tspan>
   </text>
-  <g class="dg-icon" transform="translate(376 536)">
+  <g class="dg-icon" transform="translate(376 552)">
 <path d="M7.5 40.5H42V41.5H6.5V6H7.5V40.5Z" fill="#000000" />
 
 <path d="M12.5 37H11.5V20H12.5V37Z" fill="#000000" />
@@ -160,17 +160,17 @@
   <g data-component-id="_auto_4">
   <line x1="120" y1="192" x2="120" y2="200" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
   <line x1="120" y1="200" x2="0" y2="200" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
-  <line x1="0" y1="200" x2="0" y2="512" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
-  <line x1="0" y1="512" x2="120" y2="512" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
-  <line x1="120" y1="512" x2="120" y2="517.1592" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
-  <polygon points="117.0947,517.1592 120,528 122.9053,517.1592" fill="#E95420" />
+  <line x1="0" y1="200" x2="0" y2="528" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
+  <line x1="0" y1="528" x2="120" y2="528" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
+  <line x1="120" y1="528" x2="120" y2="533.1592" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
+  <polygon points="117.0947,533.1592 120,544 122.9053,533.1592" fill="#E95420" />
   </g>
   <g data-component-id="_auto_5">
   <line x1="336" y1="192" x2="336" y2="200" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
   <line x1="336" y1="200" x2="456" y2="200" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
-  <line x1="456" y1="200" x2="456" y2="512" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
-  <line x1="456" y1="512" x2="336" y2="512" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
-  <line x1="336" y1="512" x2="336" y2="517.1592" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
-  <polygon points="333.0947,517.1592 336,528 338.9053,517.1592" fill="#E95420" />
+  <line x1="456" y1="200" x2="456" y2="528" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
+  <line x1="456" y1="528" x2="336" y2="528" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
+  <line x1="336" y1="528" x2="336" y2="533.1592" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
+  <polygon points="333.0947,533.1592 336,544 338.9053,533.1592" fill="#E95420" />
   </g>
 </svg>

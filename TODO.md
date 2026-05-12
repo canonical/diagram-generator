@@ -61,41 +61,28 @@ Provide a cold-start-safe workflow and a consistent on-brand SVG system for rede
 
 ### 2026-05-11 BF shell regression cleanup
 
-- [x] `[H]` **Pin the BF-backed desktop shell back to three panes.** `scripts/preview/editor.css` now forces a single-row `navigation main aside` grid so upstream BF layout rules cannot reintroduce the broken extra top row.
-- [x] `[S]` **Restore preview-owned amber selection chrome.** Selected tree items, stage outlines, resize handles, waypoint handles, and inline text editing chrome now use local `--dg-selection-accent` tokens instead of BF authoring-accent variables.
-- [x] `[S]` **Refresh tracked example artifacts.** Rebuilt the `example-data-processing` and `example-deployment-pipeline` draw.io/SVG/grid outputs under `diagrams/2.output/` so the checked-in examples match the current generator output.
+Completed — see HISTORY.md 2026-05-11.
 
 ### Editor UX — from inbox triage 2026-05-09
 
-- [x] `[S]` **Consolidate input folders.** Merged `diagrams/1. input/` into `diagrams/1.input/`; updated all references.
-- [x] `[S]` **Sidebar scroll.** Added `overflow-y: auto` to right aside and left component nav.
-- [x] `[S]` **Main stage scrollable.** Added `overflow: auto` and `min-block-size: 0` to the main stage area.
 - [ ] `[H]` **Resizable / auto-fit artboard.** Resizing a box can push content off-canvas. Either make the SVG artboard resizable in the editor, or auto-size the canvas from children + declared margin so it grows to fit content.
 
 ### Lightning talk demo prep — deadline May 13
 
-- [x] `[H]` **Reference panel in editor.** Added toggleable reference-image panel to the preview editor. Shows the rough input sketch (from `diagrams/1. input/`) above the generated SVG for before/after comparison. Server route `/reference/<slug>`, config flag `has_reference`, sidebar toggle button.
-- [x] `[H]` **Fix arrow multi-segment glitch.** Replaced linear interpolation with axis-aware orthogonal waypoint adjustment in `applyAllOverrides()`. Multi-segment arrows now preserve right angles when source/target boxes are moved.
-- [x] `[S]` **Fix Unicode encoding crash on Windows.** Replaced `⚠` emoji with `[!]` in `build_v2.py` print statements for cp1252 terminal compatibility.
-- [x] `[S]` **YAML quick-start in README.** Added YAML auto-discovery example to the "Creating your own diagram" section.
-- [ ] `[S]` **Generate slide 4 — before/after composite.** Side-by-side image: rough sketch + `memory-wall-onbrand-v2.svg`. High-res for ~1000-person audience.
-- [ ] `[S]` **Generate slide 5 — grid overlay.** `memory-wall-onbrand-v2-grid.svg` already exists. Verify it's presentation-quality.
-- [x] `[L]` **Empty AGENT-INBOX.** Triaged lightning-talk items into this section.
+Completed — see HISTORY.md 2026-05-12 and earlier entries.
+
+### Inbox triage 2026-05-12
+
+Completed — see HISTORY.md 2026-05-12.
 
 ### 2026-05-09 arrow quality and CI
 
-- [x] `[H]` **Fix arrow obstacle avoidance.** Rewrote `_route_around_obstacles()` for vertical arrows crossing full-width panels. Fixed rounding direction (`math.floor`/`math.ceil`) so detour Y-coordinates snap away from obstacle boundaries instead of into them.
-- [x] `[H]` **Arrow crossing CI validation.** Added `validate_arrow_crossings()` to `diagram_layout.py` and wired into `build_v2.py`. Checks every arrow segment against all component Rects, excluding source/target and shared ancestor panels. Build fails on any crossing.
-- [x] `[S]` **GPU-waiting-scheduler arrow cleanup.** Removed stale hardcoded waypoints, increased gaps to 24px.
-- [x] `[S]` **Example-data-processing row_gap.** Increased from 24→40 to give detour arrows enough clearance for MIN_ARROW_SEGMENT.
-- [x] `[S]` **3-column editor layout.** Left sidenav for component tree, 2-state grid toggle (off/all), preview server watches HTML/CSS/JS.
-- [x] `[S]` **Input folder consolidation.** Merged `diagrams/1. input/` into `diagrams/1.input/`; updated all references and rebuilt compare pages.
+Completed — see HISTORY.md 2026-05-09.
 
 ### 2026-05-08 full audit follow-ups
 
-- [x] `[H]` Fix preview relayout override loss and constraint-save mismatch. Relayout now preserves non-position overrides (waypoints, text, style) and clears only dx/dy/dw/dh. Save is gated on `constraints.summarise(lastViolations).errors === 0`.
-- [x] `[H]` Harden preview-server request surfaces. Added `_is_safe_slug()` validator and wired it into `/svg/*`, `/api/overrides/*`, `/api/tree/*`, `/api/grid/*`, `/api/relayout/*`, and `/view/*`. SVG handler also uses `PurePosixPath.name` like `_serve_static`.
-- [x] `[H]` Make Pipeline 2 validation authoritative. `validate_grid()` now runs on every diagram in `build_v2.py`. Grid violations are warn-only for now (51 pre-existing); arrow violations fail the build with non-zero exit.
+Completed items moved to HISTORY.md.
+
 - [ ] `[M]` Resolve Python/YAML definition drift. `build_v2.py` currently loads colliding slugs from both Python and YAML examples, while the preview server hashes, watches, and imports Python-only definitions. Either dedupe / namespace YAML examples or teach the preview surfaces to understand non-Python definitions consistently.
 - [ ] `[M]` Align interactive relayout with build-time layout rules. Preview relayout currently propagates diagram-level gaps into nested panels more aggressively than the build path, and drag clamping still uses raw `INSET` instead of the richer `pad` / `headingHeight` metadata already present in the component model.
 - [ ] `[S]` Fix upstream spec-provenance drift. `DIAGRAM.md` and related docs still point at `canonical-spacing-spec`, while the documented sibling repo is `canonical-specs`; normalize the paths and claims so the advertised spec -> token -> tool chain is actually resolvable on a cold start.
@@ -105,13 +92,10 @@ Provide a cold-start-safe workflow and a consistent on-brand SVG system for rede
 
 These are new issues found by the Opus 4.6 pass that were not in the earlier GPT-5.4 audit.
 
-- [x] `[H]` **`font_family` silently dropped.** Fixed: added `font_family` kwarg to `make_line()` in `diagram_shared.py` and pass-through in `_line_to_dict()`.
+Completed items moved to HISTORY.md.
+
 - [ ] `[H]` **`GridSpec` is dead code.** `Panel.grid` and `Diagram.grid` are declared, and `Panel` has `effective_*` properties, but the layout engine reads raw `panel.cols`, `panel.col_gap`, etc. directly — never the `effective_*` path. Any diagram using `Panel(grid=GridSpec(...))` silently uses field defaults. Fix: use `effective_*` in `_layout_panel` and add matching properties to `Diagram`.
-- [x] `[H]` **Panel silently drops non-grid child types.** Fixed: `_layout_panel` now emits a `warnings.warn()` when an unsupported child type is encountered.
 - [ ] `[M]` **Diagonal arrows produce invisible arrowheads.** `_polyline_arrow` in `diagram_render_svg.py`: the `else` branch (non-orthogonal last segment) sets `head = [(tx, ty)]` — a single-point polygon. Currently mitigated by the orthogonal auto-router, but any explicit diagonal waypoint will have no arrowhead. Fix: compute proper diagonal arrowhead geometry from the unit vector.
-- [x] `[M]` **`cleanup_legacy_output_root_svgs` over-deletes.** Fixed: removed the name-collision condition; only files in `LEGACY_OUTPUT_ROOT_SVGS` are deleted.
-- [x] `[M]` **`_bounds_to_component_info` truthiness bug.** Fixed: replaced `or` truthiness chains with explicit `is not None` checks.
-- [x] `[M]` **Validation tools use CWD-relative paths.** Fixed: `_compare_3way.py` and `_audit_v2.py` now derive repo root from `Path(__file__).resolve().parents[1]`.
 - [ ] `[S]` **draw.io renderer uses spatial containment for parenting.** `_find_children` in `diagram_render_drawio.py` uses bounding-box overlap instead of `component_id`, which can mis-parent elements at shared edges. Fix: match by `component_id`.
 - [ ] `[S]` **`_uniform_row_height` ignores Annotations/Helpers.** Rows containing only annotations get `BOX_MIN_HEIGHT` regardless of content. The post-hoc helper expansion partially compensates but runs after uniform equalization.
 - [ ] `[L]` **Preview port-kill on Windows.** `preview_server.py` runs `Stop-Process -Force` on any PID holding the port, even if it's an unrelated service. Fix: log the target PID or require `--force`.
