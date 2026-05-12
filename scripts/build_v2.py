@@ -56,6 +56,7 @@ def _load_diagrams() -> list[tuple[str, object]]:
 
     # YAML/JSON definitions from scripts/diagrams/yaml/
     yaml_dir = pathlib.Path(__file__).parent / "diagrams" / "yaml"
+    seen_slugs = {s for s, _ in diagrams}
     if yaml_dir.is_dir():
         for p in sorted(yaml_dir.iterdir()):
             if p.suffix in (".yaml", ".yml", ".json"):
@@ -63,6 +64,9 @@ def _load_diagrams() -> list[tuple[str, object]]:
                 # Append -onbrand only if the stem doesn't already have it
                 if not slug.endswith("-onbrand"):
                     slug += "-onbrand"
+                if slug in seen_slugs:
+                    print(f"  {slug}: skipped (collides with Python definition)")
+                    continue
                 try:
                     diagrams.append((slug, load_diagram(p)))
                 except Exception as exc:

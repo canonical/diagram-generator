@@ -44,6 +44,7 @@ DEFINITIONS_DIR = SCRIPTS / "diagrams"
 
 WATCH_PATHS = [
     DEFINITIONS_DIR,
+    DEFINITIONS_DIR / "yaml",
     SCRIPTS / "diagram_layout.py",
     SCRIPTS / "diagram_model.py",
     SCRIPTS / "diagram_render_svg.py",
@@ -88,7 +89,7 @@ def _collect_mtimes() -> dict[str, float]:
         if p.is_file():
             mtimes[str(p)] = p.stat().st_mtime
         elif p.is_dir():
-            for ext in ("*.py", "*.html", "*.css", "*.js"):
+            for ext in ("*.py", "*.yaml", "*.yml", "*.json", "*.html", "*.css", "*.js"):
                 for f in p.rglob(ext):
                     mtimes[str(f)] = f.stat().st_mtime
     return mtimes
@@ -99,6 +100,12 @@ def _definition_hash(slug: str) -> str:
     py_path = DEFINITIONS_DIR / py_name
     if py_path.exists():
         return hashlib.sha256(py_path.read_bytes()).hexdigest()[:16]
+    # Check YAML/JSON definitions
+    yaml_dir = DEFINITIONS_DIR / "yaml"
+    for ext in (".yaml", ".yml", ".json"):
+        candidate = yaml_dir / (slug + ext)
+        if candidate.exists():
+            return hashlib.sha256(candidate.read_bytes()).hexdigest()[:16]
     return ""
 
 
@@ -151,9 +158,23 @@ def _get_layout_result(slug: str):
             sys.path.insert(0, str(SCRIPTS))
         import importlib
         mod_name = slug.replace("-", "_")
-        mod = importlib.import_module(f"diagrams.{mod_name}")
-        importlib.reload(mod)
-        diagram_obj = getattr(mod, mod_name)
+        try:
+            mod = importlib.import_module(f"diagrams.{mod_name}")
+            importlib.reload(mod)
+            diagram_obj = getattr(mod, mod_name)
+        except (ModuleNotFoundError, AttributeError):
+            # Fall back to YAML definition
+            from diagram_loader import load_diagram
+            yaml_dir = SCRIPTS / "diagrams" / "yaml"
+            yaml_path = None
+            for ext in (".yaml", ".yml", ".json"):
+                candidate = yaml_dir / (slug + ext)
+                if candidate.exists():
+                    yaml_path = candidate
+                    break
+            if yaml_path is None:
+                return None
+            diagram_obj = load_diagram(yaml_path)
         import diagram_layout
         result = diagram_layout.layout(diagram_obj)
         _layout_cache[slug] = result
@@ -183,22 +204,31 @@ def _relayout(slug: str, grid_overrides: dict) -> dict | None:
             sys.path.insert(0, str(SCRIPTS))
         import importlib, copy
         mod_name = slug.replace("-", "_")
-        mod = importlib.import_module(f"diagrams.{mod_name}")
-        importlib.reload(mod)
-        diagram_obj = copy.deepcopy(getattr(mod, mod_name))
+        try:
+            mod = importlib.import_module(f"diagrams.{mod_name}")
+            importlib.reload(mod)
+            diagram_obj = copy.deepcopy(getattr(mod, mod_name))
+            orig_col_gap = getattr(mod, mod_name).col_gap
+            orig_row_gap = getattr(mod, mod_name).row_gap
+        except (ModuleNotFoundError, AttributeError):
+            from diagram_loader import load_diagram
+            yaml_dir = SCRIPTS / "diagrams" / "yaml"
+            yaml_path = None
+            for ext in (".yaml", ".yml", ".json"):
+                candidate = yaml_dir / (slug + ext)
+                if candidate.exists():
+                    yaml_path = candidate
+                    break
+            if yaml_path is None:
+                return None
+            diagram_obj = copy.deepcopy(load_diagram(yaml_path))
+            orig_col_gap = diagram_obj.col_gap
+            orig_row_gap = diagram_obj.row_gap
+
         # Patch grid params
         for key in ("cols", "col_gap", "row_gap", "outer_margin"):
             if key in grid_overrides:
                 setattr(diagram_obj, key, grid_overrides[key])
-
-        # Propagate gap overrides into nested panels.  Patch panels whose
-        # gap matches the diagram's original default (i.e. they were set to
-        # the same value as the diagram level) as well as panels with None.
-        # Panels with intentionally different gaps (e.g. COMPACT_GAP inside
-        # dense sub-panels) keep their values.
-        from diagram_model import Panel as _Panel
-        orig_col_gap = getattr(mod, mod_name).col_gap
-        orig_row_gap = getattr(mod, mod_name).row_gap
 
         def _patch_panel_gaps(children):
             for comp in children:
