@@ -937,9 +937,15 @@ def _collect_obstacles(
     *exclude_ids* (source/target of the arrow being routed) are skipped
     so the arrow can actually reach them.
     """
+    def _is_arrow_obstacle(component: Any) -> bool:
+        # Separators are guideline primitives, not blocking boxes.
+        return not isinstance(component, Separator)
+
     obstacles: list[tuple[float, float, float, float]] = []
     for cid, b in bounds_map.items():
         if cid in exclude_ids:
+            continue
+        if not _is_arrow_obstacle(b.component):
             continue
         obstacles.append((
             b.x - pad,
@@ -1921,6 +1927,18 @@ def validate_arrow_crossings(result: LayoutResult) -> list[ArrowCrossing]:
     for root in result.component_tree:
         _walk(root, [])
 
+    # Collect component types from the tree so separator-like primitives can
+    # be treated differently from box obstacles.
+    component_types: dict[str, str] = {}
+
+    def _collect_types(node: ComponentInfo) -> None:
+        component_types[node.id] = node.type
+        for child in node.children:
+            _collect_types(child)
+
+    for root in result.component_tree:
+        _collect_types(root)
+
     # Collect all component boxes (Rect with a component_id)
     boxes: dict[str, tuple[float, float, float, float]] = {}
     for p in all_prims:
@@ -1946,6 +1964,8 @@ def validate_arrow_crossings(result: LayoutResult) -> list[ArrowCrossing]:
 
         for cid, box in boxes.items():
             if cid in exclude:
+                continue
+            if component_types.get(cid) == "Separator":
                 continue
             for i in range(len(pts) - 1):
                 if _seg_hits_obstacle(
