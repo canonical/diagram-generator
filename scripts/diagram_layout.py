@@ -342,6 +342,7 @@ def _layout_panel(
     default_row_gap: int,
     bounds_map: dict[str, "_Bounds"] | None = None,
     min_height: int = 0,
+    min_width: int = 0,
 ) -> tuple[_Bounds, list[Primitive], list[Primitive]]:
     """Lay out a panel and its children.  Returns bounds + primitives."""
     col_width = panel.effective_col_width or default_col_width
@@ -636,6 +637,10 @@ def _layout_panel(
     if min_height > 0:
         panel_h = max(panel_h, min_height)
 
+    # Enforce minimum width (from parent grid cell in outset mode)
+    if min_width > 0:
+        panel_w = max(panel_w, min_width)
+
     # Heading icon (needs panel_w)
     if panel.icon:
         fg.append(Icon(
@@ -717,6 +722,9 @@ def _natural_size(
     comp,
     default_width: int,
     bounds_map: dict[str, _Bounds],
+    *,
+    parent_col_gap: int | None = None,
+    parent_row_gap: int | None = None,
 ) -> tuple[float, float]:
     """Return (width, height) a component needs, without rendering it."""
     if isinstance(comp, Box):
@@ -725,12 +733,13 @@ def _natural_size(
         h = comp.height or tight_box_height(_lines_to_dicts(comp.label), has_icon=has_icon)
         return (w, h)
     elif isinstance(comp, Panel):
-        # Need to actually lay out the panel to know its size
+        # Need to actually lay out the panel to know its size.
+        # Use parent grid gaps so the estimate matches actual rendering.
         b, _, _ = _layout_panel(
             comp, 0, 0,
-            default_col_width=BLOCK_WIDTH,
-            default_col_gap=COMPACT_GAP,
-            default_row_gap=COMPACT_GAP,
+            default_col_width=default_width,
+            default_col_gap=parent_col_gap or COMPACT_GAP,
+            default_row_gap=parent_row_gap or COMPACT_GAP,
             bounds_map={},
         )
         return (b.width, b.height)
@@ -777,6 +786,10 @@ def _render_component(
     default_width: int,
     bounds_map: dict[str, _Bounds],
     min_height: int = 0,
+    *,
+    parent_col_gap: int | None = None,
+    parent_row_gap: int | None = None,
+    parent_col_width: int | None = None,
 ) -> tuple[_Bounds, list, list]:
     """Render *comp* at (x, y) with cell size (w, h).
 
@@ -792,10 +805,13 @@ def _render_component(
         # Only constrain if the cell is larger than BLOCK_WIDTH (i.e. the
         # cell has been explicitly sized); otherwise let content drive width.
         panel_pad = 0 if comp.effective_border == Border.NONE else INSET  # FILL keeps pad
-        if w > 0 and int(w) > BLOCK_WIDTH:
+        if parent_col_width is not None:
+            # Outset mode: children inherit the parent grid's column width.
+            auto_cw = parent_col_width
+        elif w > 0 and int(w) > BLOCK_WIDTH:
             content_w = int(w - 2 * panel_pad)
             n_internal_cols = comp.cols if comp.cols and comp.cols > 0 else 1
-            internal_gap = comp.col_gap if comp.col_gap is not None else COMPACT_GAP
+            internal_gap = parent_col_gap if parent_col_gap is not None else (comp.col_gap if comp.col_gap is not None else COMPACT_GAP)
             auto_cw = (content_w - (n_internal_cols - 1) * internal_gap) // n_internal_cols
             auto_cw = round_up_to_grid(auto_cw)
         else:
@@ -803,10 +819,11 @@ def _render_component(
         bounds, comp_fg, comp_bg = _layout_panel(
             comp, x, y,
             default_col_width=auto_cw,
-            default_col_gap=COMPACT_GAP,
-            default_row_gap=COMPACT_GAP,
+            default_col_gap=parent_col_gap or COMPACT_GAP,
+            default_row_gap=parent_row_gap or COMPACT_GAP,
             bounds_map=bounds_map,
             min_height=min_height,
+            min_width=int(w) if parent_col_width is not None else 0,
         )
         fg.extend(comp_fg)
         bg.extend(comp_bg)
@@ -1511,7 +1528,8 @@ def layout(diagram: Diagram) -> LayoutResult:
 
         sizes: list[tuple[float, float]] = []
         for comp in components:
-            nw, nh = _natural_size(comp, default_cw, bounds_map)
+            nw, nh = _natural_size(comp, default_cw, bounds_map,
+                                   parent_col_gap=col_gap, parent_row_gap=row_gap)
             sizes.append((nw, nh))
             c = getattr(comp, "col", 0)
             r = getattr(comp, "row", 0)
@@ -1562,11 +1580,27 @@ def layout(diagram: Diagram) -> LayoutResult:
             cell_w = sum(col_widths[c:c + cs]) + (cs - 1) * col_gap
             cell_h = sum(row_heights[r:r + rs]) + (rs - 1) * row_gap
 
+            # Outset: panels shift left by pad and grow wider so their
+            # children land on the same column rhythm as standalone boxes.
+            pcg: int | None = None
+            prg: int | None = None
+            pcw: int | None = None
+            if isinstance(comp, Panel) and cs >= 1:
+                panel_pad = 0 if comp.effective_border == Border.NONE else INSET
+                x -= panel_pad
+                cell_w += 2 * panel_pad
+                pcg = col_gap
+                prg = row_gap
+                pcw = col_widths[c]
+
             bounds, comp_fg, comp_bg = _render_component(
                 comp, x, y, cell_w, cell_h,
                 default_width=int(cell_w),
                 bounds_map=bounds_map,
                 min_height=int(cell_h),
+                parent_col_gap=pcg,
+                parent_row_gap=prg,
+                parent_col_width=pcw,
             )
             fg.extend(comp_fg)
             bg.extend(comp_bg)

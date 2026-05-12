@@ -45,10 +45,8 @@ example_platform_architecture = Diagram(
         Panel(
             id="frontend",
             cols=2,
-            col_width=192,
-            col_gap=8,
-            row_gap=8,
-            border=Border.DASHED,
+            border=Border.FILL,
+            fill=Fill.GREY,
             heading=_heading("User-facing services"),
             col=0, row=0, col_span=3,
             children=[
@@ -68,10 +66,8 @@ example_platform_architecture = Diagram(
         Panel(
             id="services",
             cols=3,
-            col_width=126,
-            col_gap=8,
-            row_gap=8,
-            border=Border.DASHED,
+            border=Border.FILL,
+            fill=Fill.GREY,
             heading=_heading("Backend services"),
             col=0, row=2, col_span=3,
             children=[

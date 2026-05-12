@@ -104,18 +104,18 @@
   </g>
   </g>
   <g data-component-id="engine">
-  <rect x="240" y="112" width="632" height="240" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <rect x="232" y="112" width="640" height="240" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
   <text font-family="Ubuntu Sans">
-    <tspan x="248" y="136.92" font-size="18" font-weight="700" fill="#000000">Design-language engine</tspan>
+    <tspan x="240" y="136.92" font-size="18" font-weight="700" fill="#000000">Design-language engine</tspan>
   </text>
   </g>
   <g data-component-id="eng_dg">
-  <rect x="248" y="184" width="200" height="64" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <rect x="240" y="184" width="192" height="64" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
   <text font-family="Ubuntu Sans">
-    <tspan x="256" y="208.92" font-size="18" font-weight="400" fill="#000000">Diagram</tspan>
-    <tspan x="256" y="232.92" font-size="18" font-weight="400" fill="#000000">generator</tspan>
+    <tspan x="248" y="208.92" font-size="18" font-weight="400" fill="#000000">Diagram</tspan>
+    <tspan x="248" y="232.92" font-size="18" font-weight="400" fill="#000000">generator</tspan>
   </text>
-  <g class="dg-icon" transform="translate(392 192)">
+  <g class="dg-icon" transform="translate(376 192)">
 <path fill-rule="evenodd" clip-rule="evenodd" d="M26.8809 3C27.0318 3 27.1766 3.06217 27.2803 3.17188L36.8496 13.2949C36.9459 13.3968 36.9999 13.5317 37 13.6719V34.5H36V14.4805H27.1172C26.5381 14.4802 26.0685 14.0107 26.0684 13.4316V4H10V41H19.4873L21.2305 42H9.54883C9.28354 41.9999 9.06185 41.8117 9.01074 41.5615L9 41.4512V3.54883C9.0001 3.24576 9.24576 3.0001 9.54883 3H26.8809ZM27.0684 13.4316C27.0685 13.4584 27.0904 13.4802 27.1172 13.4805H35.6494L27.0684 4.40234V13.4316Z" fill="#000000" />
 
 <path fill-rule="evenodd" clip-rule="evenodd" d="M18.8992 38.9336C18.5644 38.7414 18.5644 38.2586 18.8992 38.0664L22.3846 36.0664C22.4603 36.023 22.5463 36 22.6336 36L37.9998 36C39.1044 36 39.9998 36.8954 39.9998 38V39C39.9998 40.1046 39.1044 41 37.9998 41L22.6336 41C22.5464 41 22.4603 40.977 22.3846 40.9336L18.8992 38.9336ZM36.9998 40H37.9998C38.5521 40 38.9998 39.5523 38.9998 39V38C38.9998 37.4477 38.5521 37 37.9998 37H36.9998V40ZM35.9998 40V37L22.9998 37L22.9998 40L35.9998 40ZM21.9998 39.5605L21.9998 37.4395L20.1522 38.5L21.9998 39.5605Z" fill="#000000" />
@@ -133,12 +133,12 @@
   </g>
   </g>
   <g data-component-id="eng_a4">
-  <rect x="456" y="184" width="200" height="64" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <rect x="440" y="184" width="192" height="64" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
   <text font-family="Ubuntu Sans">
-    <tspan x="464" y="208.92" font-size="18" font-weight="400" fill="#000000">A4</tspan>
-    <tspan x="464" y="232.92" font-size="18" font-weight="400" fill="#000000">generator</tspan>
+    <tspan x="448" y="208.92" font-size="18" font-weight="400" fill="#000000">A4</tspan>
+    <tspan x="448" y="232.92" font-size="18" font-weight="400" fill="#000000">generator</tspan>
   </text>
-  <g class="dg-icon" transform="translate(600 192)">
+  <g class="dg-icon" transform="translate(576 192)">
 <path d="M37.0498 28.6875L37.376 29.6797L37.377 29.6836C37.4998 30.0609 37.7539 30.3765 38.0869 30.5723C38.4195 30.7676 38.8102 30.8314 39.1846 30.7539L40.1992 30.5449L40.9111 30.3984L41.2705 31.0303L42.3691 32.9629L42.7207 33.5811L42.252 34.1162L41.5654 34.8994L41.5645 34.8984C41.3077 35.1925 41.165 35.5752 41.165 35.9727C41.1651 36.3696 41.3082 36.751 41.5645 37.0449L42.252 37.8291L42.7207 38.3643L42.3691 38.9824L41.2705 40.915L40.9111 41.5469L40.1992 41.3994L39.1855 41.1914L39.1846 41.1904C38.8102 41.113 38.4196 41.1776 38.0869 41.373C37.7538 41.5689 37.4997 41.8843 37.377 42.2617L37.374 42.2695L37.0479 43.2451L36.8193 43.9277H33.166L32.9463 43.2246L32.6416 42.2441L32.5889 42.1055C32.4535 41.7898 32.2229 41.5268 31.9316 41.3555C31.5989 41.1599 31.2075 41.0963 30.833 41.1738L29.8193 41.3828L29.1133 41.5283L28.752 40.9053L27.6357 38.9814L27.2754 38.3604L27.749 37.8203L28.4355 37.0371L28.4375 37.0342C28.6975 36.7394 28.8437 36.3553 28.8438 35.9551C28.8438 35.5548 28.6975 35.1708 28.4375 34.876L28.4355 34.873L27.749 34.0898L27.2783 33.5527L27.6338 32.9326L28.7324 31.0176L29.0928 30.3896L29.8018 30.5361L30.8154 30.7451C31.1898 30.8225 31.5815 30.7588 31.9141 30.5635C32.247 30.3677 32.5012 30.0521 32.624 29.6748L32.626 29.6689L32.9521 28.6855L33.1797 28H36.8232L37.0498 28.6875ZM33.5752 29.9834L33.4912 30.207C33.2728 30.7164 32.8983 31.144 32.4209 31.4248L32.2119 31.5352C31.7147 31.7687 31.1542 31.8366 30.6133 31.7246L29.5996 31.5156L28.501 33.4307L29.1875 34.2139C29.6098 34.6926 29.8438 35.3128 29.8438 35.9551L29.833 36.1943C29.7826 36.7498 29.557 37.2774 29.1875 37.6963L28.501 38.4795L29.6172 40.4033L30.6299 40.1943C31.2479 40.0663 31.8917 40.1726 32.4375 40.4932C32.9834 40.8141 33.3952 41.3279 33.5928 41.9355L33.9014 42.9277H36.0996L36.4258 41.9521C36.6234 41.3447 37.0343 40.8316 37.5801 40.5107C38.126 40.19 38.7695 40.0839 39.3877 40.2119L40.4014 40.4209L41.5 38.4883L40.8135 37.7051C40.4482 37.2873 40.2257 36.7628 40.1758 36.2109L40.165 35.9727C40.165 35.3344 40.3959 34.7179 40.8135 34.2402L41.5 33.457L40.4014 31.5244L39.3877 31.7334C38.7695 31.8614 38.1259 31.7543 37.5801 31.4336C37.1026 31.1529 36.7282 30.7252 36.5098 30.2158L36.4258 29.9922L36.0996 29H33.9014L33.5752 29.9834ZM35.001 33.4639C36.3814 33.4642 37.501 34.5834 37.501 35.9639C37.5008 37.3442 36.3813 38.4635 35.001 38.4639C33.6203 38.4639 32.5011 37.3445 32.501 35.9639C32.501 34.5832 33.6203 33.4639 35.001 33.4639ZM35.001 34.4639C34.1725 34.4639 33.501 35.1354 33.501 35.9639C33.5011 36.7922 34.1726 37.4639 35.001 37.4639C35.829 37.4635 36.5008 36.792 36.501 35.9639C36.501 35.1357 35.8291 34.4642 35.001 34.4639Z" fill="#000000" />
 
 <path d="M26.8809 3C27.0318 3 27.1766 3.06217 27.2803 3.17188L36.8496 13.2949C36.9459 13.3968 36.9999 13.5317 37 13.6719V26H36V14.3828H27.1172C26.538 14.3826 26.0684 13.9122 26.0684 13.333V4H10V41H26.4951L27.0225 41.9072L27.0215 41.9082L27.0752 42H9.54883C9.28354 41.9999 9.06185 41.8117 9.01074 41.5615L9 41.4512V3.54883C9.0001 3.24576 9.24576 3.0001 9.54883 3H26.8809ZM23.8232 29.9316H15.5879V28.9316H23.8232V29.9316ZM30.4111 24.9902H15.5879V23.9902H30.4111V24.9902ZM30.4111 20.0488H15.5879V19.0488H30.4111V20.0488ZM27.0684 13.333C27.0684 13.3599 27.0903 13.3826 27.1172 13.3828H35.5566L27.0684 4.40234V13.333Z" fill="#000000" />
@@ -146,12 +146,12 @@
   </g>
   </g>
   <g data-component-id="eng_blo">
-  <rect x="664" y="184" width="200" height="64" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <rect x="640" y="184" width="192" height="64" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
   <text font-family="Ubuntu Sans">
-    <tspan x="672" y="208.92" font-size="18" font-weight="400" fill="#000000">Brand layout</tspan>
-    <tspan x="672" y="232.92" font-size="18" font-weight="400" fill="#000000">ops</tspan>
+    <tspan x="648" y="208.92" font-size="18" font-weight="400" fill="#000000">Brand layout</tspan>
+    <tspan x="648" y="232.92" font-size="18" font-weight="400" fill="#000000">ops</tspan>
   </text>
-  <g class="dg-icon" transform="translate(808 192)">
+  <g class="dg-icon" transform="translate(776 192)">
 <path d="M39.5 26.5557C39.4999 32.5189 34.9609 37.4213 29.1494 37.998L30.7979 39.6465L30.0908 40.3535L27.293 37.5557L30.0908 34.7578L30.7979 35.4648L29.2881 36.9736C34.4792 36.3384 38.4999 31.9184 38.5 26.5557H39.5Z" fill="#000000" />
 
 <path d="M20.707 10.4443L17.9092 13.2422L17.2021 12.5352L18.7109 11.0254C13.5203 11.661 9.50006 16.0819 9.5 21.4443H8.5C8.50006 15.4814 13.0385 10.5781 18.8496 10.001L17.2021 8.35352L17.9092 7.64648L20.707 10.4443Z" fill="#000000" />
@@ -229,42 +229,38 @@
   <line x1="336" y1="88" x2="336" y2="8" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
   <line x1="336" y1="8" x2="432" y2="8" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
   <line x1="432" y1="8" x2="432" y2="104" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
-  <line x1="432" y1="104" x2="556" y2="104" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
-  <line x1="556" y1="104" x2="556" y2="101.1592" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
-  <polygon points="553.0947,101.1592 556,112 558.9053,101.1592" fill="#E95420" />
+  <line x1="432" y1="104" x2="552" y2="104" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
+  <line x1="552" y1="104" x2="552" y2="101.1592" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
+  <polygon points="549.0947,101.1592 552,112 554.9053,101.1592" fill="#E95420" />
   </g>
   <g data-component-id="_auto_2">
-  <line x1="552" y1="88" x2="552" y2="96" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
-  <line x1="552" y1="96" x2="556" y2="96" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
-  <line x1="556" y1="96" x2="556" y2="101.1592" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
-  <polygon points="553.0947,101.1592 556,112 558.9053,101.1592" fill="#E95420" />
+  <line x1="552" y1="88" x2="552" y2="101.1592" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
+  <polygon points="549.0947,101.1592 552,112 554.9053,101.1592" fill="#E95420" />
   </g>
   <g data-component-id="_auto_3">
   <line x1="768" y1="88" x2="768" y2="8" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
   <line x1="768" y1="8" x2="672" y2="8" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
   <line x1="672" y1="8" x2="672" y2="104" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
-  <line x1="672" y1="104" x2="556" y2="104" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
-  <line x1="556" y1="104" x2="556" y2="101.1592" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
-  <polygon points="553.0947,101.1592 556,112 558.9053,101.1592" fill="#E95420" />
+  <line x1="672" y1="104" x2="552" y2="104" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
+  <line x1="552" y1="104" x2="552" y2="101.1592" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
+  <polygon points="549.0947,101.1592 552,112 554.9053,101.1592" fill="#E95420" />
   </g>
   <g data-component-id="_auto_4">
-  <line x1="216" y1="144" x2="240" y2="144" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
-  <line x1="240" y1="144" x2="240" y2="221.1592" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
-  <polygon points="237.0947,221.1592 240,232 242.9053,221.1592" fill="#E95420" />
+  <line x1="216" y1="144" x2="232" y2="144" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
+  <line x1="232" y1="144" x2="232" y2="221.1592" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
+  <polygon points="229.0947,221.1592 232,232 234.9053,221.1592" fill="#E95420" />
   </g>
   <g data-component-id="_auto_5">
-  <line x1="216" y1="232" x2="229.1592" y2="232" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
-  <polygon points="229.1592,229.0947 240,232 229.1592,234.9053" fill="#E95420" />
+  <line x1="216" y1="232" x2="221.1592" y2="232" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
+  <polygon points="221.1592,229.0947 232,232 221.1592,234.9053" fill="#E95420" />
   </g>
   <g data-component-id="_auto_6">
-  <line x1="216" y1="320" x2="240" y2="320" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
-  <line x1="240" y1="320" x2="240" y2="242.8408" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
-  <polygon points="237.0947,242.8408 240,232 242.9053,242.8408" fill="#E95420" />
+  <line x1="216" y1="320" x2="232" y2="320" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
+  <line x1="232" y1="320" x2="232" y2="242.8408" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
+  <polygon points="229.0947,242.8408 232,232 234.9053,242.8408" fill="#E95420" />
   </g>
   <g data-component-id="_auto_7">
-  <line x1="556" y1="352" x2="556" y2="360" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
-  <line x1="556" y1="360" x2="552" y2="360" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
-  <line x1="552" y1="360" x2="552" y2="365.1592" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
+  <line x1="552" y1="352" x2="552" y2="365.1592" fill="none" stroke="#E95420" stroke-width="1" stroke-miterlimit="10" />
   <polygon points="549.0947,365.1592 552,376 554.9053,365.1592" fill="#E95420" />
   </g>
   <g data-component-id="_auto_8">
