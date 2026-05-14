@@ -1,4 +1,4 @@
-# TODO
+*# TODO
 
 ## Purpose
 
@@ -74,9 +74,63 @@ Provide a cold-start-safe workflow and a consistent on-brand SVG system for rede
 - [x] `[S]` Normalize active spec-provenance paths to `canonical-specs`. `DIAGRAM.md`, `README.md`, `STATUS.md`, `TODO.md`, and `docs/specs.md` now point at a sibling repo that actually exists in this workspace.
 - [ ] `[S]` Triage the secondary audit findings: stale-v2 comparison risk in `build_outputs.py`, preview text-width mismatch vs renderer text width, dead helper layout code, stale architectural line-count notes in `STATUS.md`.
 - [ ] `[S]` Triage the current `build_v2.py` corpus blockers separately from the 2026-05-13 autolayout slice: clearance violations on `example-platform-architecture`, `lightning-talk-engine`, `lt-diagram-generator`, `lt-a4-generator`, and `lt-summit-identity`, plus warning-only baseline-grid drift on several older diagrams.
-- [ ] `[S]` Decide how force-preview exports feed back into the main declarative pipeline. The current `force-stakeholders` route is a BF-backed live prototype that exports snapped JSON/SVG snapshots, but it does not yet round-trip into `scripts/diagrams/*.py` or the standard `build_v2.py` lanes.
-- [ ] `[S]` Add live force-preview tuning controls for connector length / springiness in the shared inspector instead of leaving link-distance and related force-render parameters JSON-only.
-- [ ] `[S]` Decide how far force-preview interaction should collapse into the main editor path after the current parity slice: drag-to-pin, save, export, picker navigation, text editing, and box resizing should not drift into two competing implementations.
+### Force ↔ grid editor unification
+
+Goal: the force and grid editors share one editor shell; swapping the layout engine should not duplicate interaction code. The audit below lists every grid-editor capability and its force-editor status. Items are ordered by user-facing impact.
+
+**Architecture prerequisite**
+
+- [ ] `[H]` **Single editor shell with swappable engine.** Refactor so `editor.js` and `force.js` share one interaction layer (select, drag, resize, text-edit, style, undo, keyboard, inspector, constraints). The layout back-end (grid relayout vs force tick) plugs in behind a common `LayoutEngine` interface. No duplicated DOM wiring.
+
+**Stage interaction parity**
+
+- [ ] `[H]` **Resize handles.** Force nodes need the same 8-handle resize affordance as grid components. Resize should update node `width`/`height` in the force session and restart the solver.
+- [ ] `[S]` **Text editing.** Double-click a force node to edit its label in-place, same as the grid editor's `tspan` editing path.
+- [ ] `[S]` **Multi-select.** Shift+click to select multiple force nodes; enable distribute/align controls on the multi-selection.
+- [ ] `[S]` **Hover highlighting.** Show visual hover class on force nodes.
+- [ ] `[L]` **Snap guides.** Show alignment snap guides during force-node drag (peer edge/center, 6px threshold).
+
+**Inspector parity**
+
+- [ ] `[S]` **Dirty flag and save-button state.** Track whether force session state differs from last save; disable Save when clean.
+- [ ] `[S]` **Constraint enforcement.** Run the same fill/stroke/highlight-limit/containment checks on force nodes and display violations in the sidebar.
+- [ ] `[L]` **Override highlight in tree.** Accent-color tree items that have overrides, matching the grid editor's convention.
+
+**Persistence and undo**
+
+- [ ] `[H]` **Undo/redo for force.** Add an undo stack (max 50 commands) covering move/pin, style change, text edit, and resize, using the same command-record pattern as the grid editor.
+- [ ] `[S]` **Stale-definition detection.** Warn if the force spec JSON changes on disk while a session is live.
+
+**Connectors and arrows**
+
+- [ ] `[S]` **Arrow waypoint editing.** Allow dragging force-link control points (curve handles) interactively, with double-click to add/remove, matching the grid editor's waypoint path.
+- [ ] `[S]` **Arrow endpoint attachment.** Force links should follow node moves via side-aware offset instead of recalculating from scratch.
+
+**Keyboard shortcuts**
+
+- [ ] `[L]` **Grid overlay toggle (W).** Decide whether force preview needs a baseline-grid overlay or if that concept doesn't apply.
+- [ ] `[L]` **Keyboard nudge.** Arrow-key nudge (8px default, 24px with Shift) for pinned force nodes.
+- [ ] `[L]` **Double-click depth cycling.** Decide whether force nodes need a depth-drill concept (probably N/A for flat graphs).
+
+**Visual scale consistency**
+
+- [ ] `[S]` **Consistent stroke/outline weight.** Force preview currently renders at a larger apparent scale, making outlines look thinner relative to text. Normalize the SVG viewBox / coordinate system so 1px strokes match the grid editor's visual weight.
+
+**Export round-trip**
+
+- [ ] `[S]` **Force → declarative pipeline.** Decide how force-preview exports feed back into `scripts/diagrams/*.py` or `build_v2.py`. Currently exports snapped JSON/SVG but does not round-trip.
+
+### Force-specific UI controls
+
+These controls only make sense for the force engine and don't need grid-editor parity.
+
+- [ ] `[S]` **Link distance slider.** Expose `link_distance` (currently JSON-only) as a live inspector control; restart solver on change.
+- [ ] `[S]` **Link strength slider.** Expose `link_strength` as a live inspector control.
+- [ ] `[S]` **Charge strength slider.** Expose `charge_strength` as a live inspector control.
+- [ ] `[S]` **Collision padding slider.** Expose `collision_padding` as a live inspector control.
+- [ ] `[S]` **Velocity decay slider.** Expose `velocity_decay` as a live inspector control.
+- [ ] `[S]` **Curve handle factor.** Expose the Bézier `handle_factor` (or `curve_offset`) as a live inspector control so the user can tune connector curvature interactively.
+- [ ] `[L]` **Alpha min / alpha decay.** Expose convergence thresholds if users need to tune settle behavior.
 - [ ] `[L]` **Preview port-kill on Windows.** `preview_server.py` runs `Stop-Process -Force` on any PID holding the port, even if it's an unrelated service. Fix: log the target PID or require `--force`.
 - [ ] `[L]` **`_relayout` gap comparison uses reloaded module.** After `importlib.reload(mod)`, `orig_col_gap` reads from the new module state, not the pre-reload snapshot. Fix: capture originals before reload.
 
