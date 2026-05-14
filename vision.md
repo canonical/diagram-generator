@@ -22,8 +22,8 @@ A **diagram system** — not a single tool. Five layers:
 | # | Layer | Description | Status |
 |---|-------|-------------|--------|
 | 1 | **Visual grammar** | Tokens, shapes, colors, spacing rules that constrain variation | **Exists** (`DIAGRAM.md`) |
-| 2 | **Conceptual layer** | Semantic mapping: "what does a flowchart / architecture / relationship diagram look like in this system?" | **MISSING** — undefined |
-| 3 | **Compositor** | Rules for nesting, grouping, overlap, strong/weak relationships, allowed/disallowed connections | **MISSING** — current failures: overlapping shapes, ambiguous containment |
+| 2 | **Conceptual layer** | Mapping of semantic concepts to visual language: how to represent multiple belonging (overlap, nesting), weighted relationships (strong vs. weak group membership), allowed vs. disallowed connections per conceptual block, and error/warning semantics for invalid connections. Reference: Houdini node graphs (typed inputs, visual feedback for mismatched connections). | **MISSING** — undefined |
+| 3 | **Compositor** | Rules for nesting, grouping, overlap, strong/weak relationships, allowed/disallowed connections. Overlap is a required feature (Venn-diagram-style multiple belonging), not a failure. The compositor must represent elements that strongly belong in one group and weakly in another. | **MISSING** |
 | 4 | **Authoring pipeline** | Input → process → on-brand output, with controlled variation | **Partial** — v1/v2 build scripts exist but developer-operated, no self-service |
 | 5 | **Enablement** | Guidelines, examples, domain templates, complexity mitigation | **MISSING** |
 
@@ -64,11 +64,11 @@ Mermaid is the documentation standard. It's too limited for complex diagrams.
 
 ### Hard requirement
 
-Output must be patchable — editable text or structured data. This rules out any pipeline that only produces raster.
+Output must support **persistent overrides across regeneration**. The key constraint is not "editable text vs. raster" — rasters can be regenerated. The real requirement is that when content updates trigger regeneration, manual overrides (position tweaks, label edits, styling exceptions) are preserved. It should not feel like regeneration with a random seed where every rebuild creates unexpected diffs.
 
-### **[BLOCKER]** Toolchain decision blocks architecture
+### **[NEEDS EVALUATION]** Toolchain role is unclear
 
-The D2 vs. Mermaid-extension vs. custom-plugin decision is not made. Everything downstream — pipeline architecture, Sphinx integration, authoring UX — depends on this. **This needs a timeboxed evaluation before other work can be confidently scoped.**
+The framing of "D2 vs. Mermaid vs. custom plugin" as a blocking either/or decision may be premature. The audit will reveal what role each tool actually plays — they could be inputs (authoring languages), export targets (output formats), or foundations to build on. The evaluation should determine what each tool *is* for this system, not just pick one.
 
 ### **[GAP]** Missing: evaluation criteria
 
@@ -101,13 +101,21 @@ Meeting mentioned "complexity bucketing" but didn't define tiers.
 No rules for:
 - Nesting (boxes inside boxes)
 - Grouping (dashed frames, substrates)
-- Overlap representation
-- Strong vs. weak relationships
-- Allowed vs. disallowed connections
+- **Overlap as a first-class feature** — Venn-diagram-style multiple belonging, not a bug to be prevented
+- Strong vs. weak membership (an element strongly belonging to one group, weakly to another)
+- Allowed vs. disallowed connections per conceptual block type
+- Visual semantics for invalid or unexpected connections (e.g., dotted instead of solid when a connection is technically possible but semantically wrong — analogous to plugging a vec2 into a vec3 input in Houdini)
+- Error/warning visual feedback on connections
 
 ### Relationship types (missing)
 
-Hartmut raised a Venn-diagram reference for representing multiple belonging and overlap. No formal model exists.
+Hartmut raised a Venn-diagram reference. The model needs to handle:
+- Multiple belonging with weights (not just containment)
+- Visual distinction between strong and weak group membership
+- Connection validity rules per block type
+- Visual degradation for unexpected connections (color shift, dash pattern) rather than hard prevention
+
+Reference benchmark: **Houdini node graphs** — typed inputs/outputs, visual feedback for mismatched connections, connection rules defined per node type.
 
 ### **[GAP]** No relationship taxonomy
 
