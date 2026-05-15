@@ -100,7 +100,7 @@ The system already consumes canonical spec tokens and enforces them at the model
 
 ### Stage 15 — Cross-team adoption
 
-Productionise for Canonical-wide use. See `docs/project-proposal.md` for the full phased rollout plan:
+Productionise for Canonical-wide use through phased validation, pilot adoption, and self-serve rollout:
 
 - Phase 0: validate and package for first adopters
 - Phase 1: pilot with tech authors (YAML/JSON definitions, draw.io library)
