@@ -40,6 +40,9 @@ from urllib.parse import unquote, urlparse
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SCRIPTS = ROOT / "scripts"
 OUTPUT_SVG = ROOT / "diagrams" / "2.output" / "svg"
+V3_OUTPUT = ROOT / "diagrams" / "3.v3-output"
+V3_SVG = V3_OUTPUT / "svg"
+V3_DRAWIO = V3_OUTPUT / "draw.io"
 OVERRIDES_DIR = ROOT / "diagrams" / "2.output" / "overrides"
 DEFINITIONS_DIR = SCRIPTS / "diagrams"
 
@@ -116,6 +119,16 @@ def _list_diagrams() -> list[str]:
     slugs = []
     for f in sorted(OUTPUT_SVG.glob("*-onbrand-v2.svg")):
         slug = f.stem.replace("-onbrand-v2", "")
+        slugs.append(slug)
+    return slugs
+
+
+def _list_v3_diagrams() -> list[str]:
+    if not V3_SVG.exists():
+        return []
+    slugs = []
+    for f in sorted(V3_SVG.glob("*-onbrand-v3.svg")):
+        slug = f.stem.replace("-onbrand-v3", "")
         slugs.append(slug)
     return slugs
 
@@ -244,8 +257,9 @@ def _relayout(slug: str, grid_overrides: dict) -> dict | None:
                 setattr(diagram_obj, key, grid_overrides[key])
 
         def _patch_panel_gaps(children):
+            from diagram_model import Panel as _PanelType
             for comp in children:
-                if isinstance(comp, _Panel):
+                if isinstance(comp, _PanelType):
                     if "col_gap" in grid_overrides:
                         if comp.col_gap is None or comp.col_gap == orig_col_gap:
                             comp.col_gap = grid_overrides["col_gap"]
@@ -529,6 +543,73 @@ INDEX_HTML = """<!DOCTYPE html>
         <div class="nav">%DIAGRAM_LINKS%</div>
     </section>
     %FORCE_SECTION%
+    %V3_SECTION%
+</div>
+</body>
+</html>"""
+
+V3_INDEX_HTML = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>v3 Frame engine output</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Ubuntu Sans', system-ui, sans-serif; background: #1a1a1a; color: #e0e0e0; }
+  .page { padding: 16px 24px 32px; }
+  h1 { font-size: 16px; font-weight: 600; }
+  h2 { font-size: 13px; font-weight: 600; color: #aaa; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .back { color: #6cc; text-decoration: none; font-size: 13px; margin-bottom: 12px; display: inline-block; }
+  .nav { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .nav a { color: #6cc; text-decoration: none; padding: 6px 12px; border-radius: 4px;
+           background: #2a2a2a; font-size: 14px; }
+  .nav a:hover { background: #3a3a3a; }
+</style>
+</head>
+<body>
+<div class="page">
+    <a class="back" href="/">&larr; Back to index</a>
+    <h1>v3 Frame engine output</h1>
+    <section>
+        <h2>SVG</h2>
+        <div class="nav">%SVG_LINKS%</div>
+    </section>
+    <section style="margin-top:20px">
+        <h2>Draw.io</h2>
+        <div class="nav">%DRAWIO_LINKS%</div>
+    </section>
+</div>
+</body>
+</html>"""
+
+V3_VIEWER_HTML = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>%SLUG% (v3)</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Ubuntu Sans', system-ui, sans-serif; background: #f5f5f5; }
+  .toolbar { display: flex; align-items: center; gap: 12px; padding: 8px 16px;
+             background: #1a1a1a; color: #e0e0e0; font-size: 13px; }
+  .toolbar a { color: #6cc; text-decoration: none; }
+  .toolbar .title { font-weight: 600; }
+  .toolbar .nav-links { display: flex; gap: 6px; margin-left: auto; }
+  .toolbar .nav-links a { padding: 4px 8px; border-radius: 3px; background: #2a2a2a; }
+  .toolbar .nav-links a:hover { background: #3a3a3a; }
+  .canvas { display: flex; justify-content: center; padding: 24px; }
+  .canvas img { max-width: 100%%; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+</style>
+</head>
+<body>
+<div class="toolbar">
+    <a href="/v3">&larr; v3 index</a>
+    <span class="title">%SLUG%</span>
+    <span style="color:#888">(v3 frame engine)</span>
+    <div class="nav-links">%NAV_LINKS%</div>
+</div>
+<div class="canvas">
+    <img src="/v3/svg/%SLUG%-onbrand-v3.svg" alt="%SLUG%">
 </div>
 </body>
 </html>"""
@@ -604,6 +685,12 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
             self._serve_overrides_get(path[15:])
         elif path.startswith("/reference/"):
             self._serve_reference_image(path[11:])
+        elif path == "/v3":
+            self._serve_v3_index()
+        elif path.startswith("/v3/view/"):
+            self._serve_v3_viewer(path[9:])
+        elif path.startswith("/v3/svg/"):
+            self._serve_v3_svg(path[8:])
         else:
             self.send_error(404)
 
@@ -637,8 +724,18 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
                 f'<div class="nav">{force_links}</div>'
                 '</section>'
             )
+        v3_slugs = _list_v3_diagrams()
+        v3_section = ""
+        if v3_slugs:
+            v3_section = (
+                '<section class="section">'
+                '<h2>v3 Frame engine</h2>'
+                '<div class="nav"><a href="/v3">Browse v3 output (' + str(len(v3_slugs)) + ' diagrams)</a></div>'
+                '</section>'
+            )
         html = INDEX_HTML.replace("%DIAGRAM_LINKS%", diagram_links)
         html = html.replace("%FORCE_SECTION%", force_section)
+        html = html.replace("%V3_SECTION%", v3_section)
         self._respond(200, "text/html", html.encode())
 
     def _serve_force_index(self):
@@ -648,6 +745,48 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
             return
         links = "\n  ".join(f'<a href="/force/view/{s}">{s}</a>' for s in slugs)
         self._respond(200, "text/html", FORCE_INDEX_HTML.replace("%LINKS%", links).encode())
+
+    def _serve_v3_index(self):
+        slugs = _list_v3_diagrams()
+        if not slugs:
+            self.send_error(404, "No v3 outputs found. Run: python build_v2.py --engine v3")
+            return
+        svg_links = "\n  ".join(f'<a href="/v3/view/{s}">{s}</a>' for s in slugs)
+        drawio_files = sorted(V3_DRAWIO.glob("*-v3.drawio")) if V3_DRAWIO.exists() else []
+        drawio_links = "\n  ".join(
+            f'<a href="/v3/svg/{f.name}" download>{f.stem.replace("-onbrand-v3", "")}</a>'
+            for f in drawio_files
+        )
+        html = V3_INDEX_HTML.replace("%SVG_LINKS%", svg_links)
+        html = html.replace("%DRAWIO_LINKS%", drawio_links or "<span style='color:#888'>none</span>")
+        self._respond(200, "text/html", html.encode())
+
+    def _serve_v3_viewer(self, slug: str):
+        if not _is_safe_slug(slug):
+            self.send_error(400, "Invalid slug")
+            return
+        slugs = _list_v3_diagrams()
+        if slug not in slugs:
+            self.send_error(404, f"Unknown v3 diagram: {slug}")
+            return
+        nav_links = "\n".join(f'<a href="/v3/view/{s}">{s}</a>' for s in slugs)
+        html = V3_VIEWER_HTML.replace("%SLUG%", slug).replace("%NAV_LINKS%", nav_links)
+        self._respond(200, "text/html", html.encode())
+
+    def _serve_v3_svg(self, filename: str):
+        safe_name = pathlib.PurePosixPath(filename).name
+        if not _is_safe_slug(safe_name):
+            self.send_error(400, "Invalid filename")
+            return
+        # Serve from SVG or draw.io subfolder
+        svg_path = V3_SVG / safe_name
+        drawio_path = V3_DRAWIO / safe_name
+        if svg_path.exists():
+            self._respond(200, "image/svg+xml", svg_path.read_bytes())
+        elif drawio_path.exists():
+            self._respond(200, "application/xml", drawio_path.read_bytes())
+        else:
+            self.send_error(404)
 
     def _serve_static(self, filename: str):
         """Serve static files from scripts/preview/ (editor.css, editor.js)."""
