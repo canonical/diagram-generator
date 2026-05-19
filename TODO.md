@@ -212,13 +212,17 @@ Competitive review (Opus + GPT-5.4) found 2 bugs and 6 test gaps. All fixed.
 
 #### Milestone 9: Editor integration — autolayout in the official UI
 
-The autolayout engine needs to be accessible from the main diagram editor, not just the standalone demo. This requires depth navigation (drill-in/drill-out) so users can select and configure nested frames.
+The autolayout engine is now accessible from the main diagram editor. Controls in the inspector + live relayout.
 
-- [ ] `[H]` **Autolayout controls in editor inspector.** Wire the v3 layout properties (direction, gap, padding, sizing, alignment) into the existing editor inspector panel. Use Baseline Foundry components for all UI — do not create local styles unless BF lacks them.
-- [ ] `[H]` **Depth navigation: double-click / Ctrl+click to drill into a container.** Clicking a container selects it; double-click or Ctrl+click enters it, showing its children as the selectable layer. Visual breadcrumb or depth indicator.
+- [x] `[H]` **Autolayout controls in editor inspector.** `buildAutolayoutPanel()` renders direction, gap, padding, sizing controls using BF `.bf-input` classes. Shown for container components only.
+- [x] `[S]` **Relayout on property change.** `setFrameProp()` → debounced `requestV3Relayout()` → `POST /api/relayout-v3/{slug}` → server patches frame properties and re-runs `layout_frame_diagram()` → SVG replaced in DOM. Browser-verified: direction change updates diagram in real time.
+- [x] `[S]` **Alignment triggers live relayout.** `setFrameAlign()` now calls `requestV3Relayout()` instead of deferring to build.
+
+**Remaining (Milestone 9b):**
+- [ ] `[H]` **Depth navigation: double-click / Ctrl+click to drill into a container.** The editor already has `selectionDepth` and `findComponentAtDepth()` — double-click increments depth. Wire to autolayout inspector so nested frame properties are editable.
 - [ ] `[H]` **Shift+Enter to go up in selection.** When inside a nested container, Shift+Enter (or Escape) moves selection back up to the parent frame.
-- [ ] `[S]` **Relayout on property change.** Changing any autolayout property in the inspector triggers a server-side relayout and SVG refresh, same pattern as the demo's `/api/layout` endpoint.
-- [ ] `[S]` **Nested selection highlighting.** Show different selection chrome for the current depth level vs parent containers (e.g. dimmed parent outline, bright child selection).
+- [ ] `[S]` **Nested selection highlighting.** Show different selection chrome for the current depth level vs parent containers.
+- [ ] `[H]` **Non-destructive FILL-in-HUG invariant.** Save/restore `child_sizing` before each layout pass so relayout is idempotent. Reviewer-identified production-blocking bug for editor use.
 
 **QA checkpoint:** Browser-verify each feature individually. Double-click drills in, Shift+Enter drills out, property changes trigger relayout.
 
