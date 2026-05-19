@@ -1,0 +1,26 @@
+engine: v3
+title: "Mixed sizing — HUG + FILL + FIXED"
+root:
+  id: page
+  direction: vertical
+  gap: 24
+  padding: 24
+  sizing: fixed
+  width: 480
+  height: 480
+  border: none
+  children:
+    - id: hug_box
+      label: [HUG — shrinks to content]
+      icon: Cloud.svg
+    - id: fill_box
+      label: [FILL — takes remaining space]
+      sizing: fill
+      fill: grey
+    - id: fixed_box
+      label: [FIXED — exactly 120px tall]
+      sizing: fixed
+      width: 432
+      height: 120
+      fill: grey
+      border: dashed

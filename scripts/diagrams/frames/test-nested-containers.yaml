@@ -1,0 +1,31 @@
+engine: v3
+title: "Nested containers — V → H"
+root:
+  id: page
+  direction: vertical
+  gap: 24
+  padding: 24
+  border: none
+  children:
+    - id: top_box
+      label: [Top-level box]
+      icon: Cloud.svg
+    - id: row
+      direction: horizontal
+      gap: 8
+      padding: 8
+      border: dashed
+      fill: grey
+      heading: Horizontal group
+      children:
+        - id: child_1
+          label: [Child 1]
+          icon: Server.svg
+        - id: child_2
+          label: [Child 2]
+          icon: Container.svg
+        - id: child_3
+          label: [Child 3]
+          icon: Storage node.svg
+    - id: bottom_box
+      label: [Bottom box]

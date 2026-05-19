@@ -16,6 +16,7 @@ from frame_model import Frame, FrameDiagram, Direction, Sizing, Align
 from diagram_model import Arrow, Line, Fill, Border
 from diagram_layout import (
     ArrowPrimitive,
+    ComponentInfo,
     Icon,
     LayoutResult,
     Rect,
@@ -488,9 +489,60 @@ def layout_frame_diagram(diagram: FrameDiagram) -> LayoutResult:
     arrow_prims = _route_arrows(diagram.arrows, bounds_map)
     fg.extend(arrow_prims)
 
+    # Build component tree for editor interactivity
+    component_tree = _build_component_tree(root)
+
     return LayoutResult(
         width=int(root._placed_w),
         height=int(root._placed_h),
         foreground=fg,
         background=bg,
+        component_tree=component_tree,
     )
+
+
+def _build_component_tree(root: Frame) -> list[ComponentInfo]:
+    """Build ComponentInfo tree from placed Frame tree for editor support."""
+
+    def _frame_to_ci(frame: Frame) -> ComponentInfo | None:
+        cid = frame.id
+        if not cid or cid.startswith("__"):
+            return None
+        children_ci = []
+        if not frame.is_leaf:
+            for child in frame.children:
+                ci = _frame_to_ci(child)
+                if ci:
+                    children_ci.append(ci)
+        layout = ""
+        layout_gap = 0
+        if not frame.is_leaf:
+            layout = "vertical" if frame.direction == Direction.VERTICAL else "horizontal"
+            layout_gap = frame.gap
+        pad = frame.padding if frame.border != Border.NONE else 0
+        return ComponentInfo(
+            id=cid,
+            type="panel" if not frame.is_leaf else "box",
+            x=frame._placed_x,
+            y=frame._placed_y,
+            width=frame._placed_w,
+            height=frame._placed_h,
+            children=children_ci,
+            layout=layout,
+            layout_gap=layout_gap,
+            layout_col_gap=layout_gap,
+            layout_row_gap=layout_gap,
+            pad=pad,
+        )
+
+    # Root frame wraps the diagram; emit its children as top-level nodes
+    if root.id and not root.id.startswith("__"):
+        ci = _frame_to_ci(root)
+        return [ci] if ci else []
+    # If root is anonymous, emit its children
+    result = []
+    for child in root.children:
+        ci = _frame_to_ci(child)
+        if ci:
+            result.append(ci)
+    return result

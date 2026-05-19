@@ -45,6 +45,7 @@ V3_SVG = V3_OUTPUT / "svg"
 V3_DRAWIO = V3_OUTPUT / "draw.io"
 OVERRIDES_DIR = ROOT / "diagrams" / "2.output" / "overrides"
 DEFINITIONS_DIR = SCRIPTS / "diagrams"
+FRAMES_DIR = SCRIPTS / "diagrams" / "frames"
 
 WATCH_PATHS = [
     DEFINITIONS_DIR,
@@ -124,12 +125,17 @@ def _list_diagrams() -> list[str]:
 
 
 def _list_v3_diagrams() -> list[str]:
-    if not V3_SVG.exists():
-        return []
     slugs = []
-    for f in sorted(V3_SVG.glob("*-onbrand-v3.svg")):
-        slug = f.stem.replace("-onbrand-v3", "")
-        slugs.append(slug)
+    if V3_SVG.exists():
+        for f in sorted(V3_SVG.glob("*-onbrand-v3.svg")):
+            slug = f.stem.replace("-onbrand-v3", "")
+            slugs.append(slug)
+    # Also discover native frame YAML definitions
+    if FRAMES_DIR.exists():
+        for f in sorted(FRAMES_DIR.glob("*.yaml")):
+            slug = f.stem
+            if slug not in slugs:
+                slugs.append(slug)
     return slugs
 
 
@@ -139,8 +145,16 @@ _SAFE_SLUG_RE = _re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 
 
 def _is_safe_slug(slug: str) -> bool:
-    """Reject slugs that could traverse paths or inject into filenames."""
-    return bool(slug and _SAFE_SLUG_RE.match(slug) and ".." not in slug)
+    """Reject slugs that could traverse paths or inject into filenames.
+
+    Allows the ``v3:`` engine prefix — strips it before checking the
+    actual slug component.
+    """
+    if not slug:
+        return False
+    # Strip the v3: engine prefix before validating
+    check = slug[3:] if slug.startswith("v3:") else slug
+    return bool(check and _SAFE_SLUG_RE.match(check) and ".." not in check)
 
 
 def _rebuild(grid: bool = False) -> bool:
@@ -169,12 +183,33 @@ def _rebuild(grid: bool = False) -> bool:
 
 
 def _get_layout_result(slug: str, engine: str = "v2"):
+    # Auto-detect engine from slug prefix
+    if slug.startswith("v3:"):
+        engine = "v3"
+        slug = slug[3:]
+    # Auto-detect frame YAML when engine wasn't explicitly set to v3
+    if engine != "v3":
+        frame_yaml = FRAMES_DIR / (slug + ".yaml")
+        if frame_yaml.exists():
+            engine = "v3"
     cache_key = f"{slug}:{engine}"
     if cache_key in _layout_cache:
         return _layout_cache[cache_key]
     try:
         if str(SCRIPTS) not in sys.path:
             sys.path.insert(0, str(SCRIPTS))
+
+        # Check for native frame YAML first (v3-only, no conversion)
+        if engine == "v3":
+            frame_yaml = FRAMES_DIR / (slug + ".yaml")
+            if frame_yaml.exists():
+                from frame_loader import load_frame_yaml
+                from layout_v3 import layout_frame_diagram
+                frame_diagram = load_frame_yaml(frame_yaml)
+                result = layout_frame_diagram(frame_diagram)
+                _layout_cache[cache_key] = result
+                return result
+
         import importlib
         mod_name = slug.replace("-", "_")
         try:
@@ -206,8 +241,8 @@ def _get_layout_result(slug: str, engine: str = "v2"):
         _layout_cache[cache_key] = result
         return result
     except Exception:
+        import traceback; traceback.print_exc()
         return None
-
 
 def _get_component_tree(slug: str) -> list[dict]:
     result = _get_layout_result(slug)
@@ -304,32 +339,39 @@ def _relayout_v3(slug: str, frame_overrides: dict) -> dict | None:
             return None
 
         # Re-load the frame diagram from the original source
-        from diagram_loader import load_diagram
-        from frame_adapter import diagram_to_frame
         from frame_model import Direction, Sizing, Align
 
-        yaml_dir = SCRIPTS / "diagrams" / "yaml"
-        yaml_path = None
-        for ext in (".yaml", ".yml", ".json"):
-            candidate = yaml_dir / (slug + ext)
-            if candidate.exists():
-                yaml_path = candidate
-                break
-
-        if yaml_path is None:
-            # Try Python module
-            import importlib
-            mod_name = slug.replace("-", "_")
-            try:
-                mod = importlib.import_module(f"diagrams.{mod_name}")
-                importlib.reload(mod)
-                diagram_obj = copy.deepcopy(getattr(mod, mod_name))
-            except (ModuleNotFoundError, AttributeError):
-                return None
+        # Try native frame YAML first
+        frame_yaml = FRAMES_DIR / (slug + ".yaml")
+        if frame_yaml.exists():
+            from frame_loader import load_frame_yaml
+            frame_diagram = load_frame_yaml(frame_yaml)
         else:
-            diagram_obj = copy.deepcopy(load_diagram(yaml_path))
+            from diagram_loader import load_diagram
+            from frame_adapter import diagram_to_frame
 
-        frame_diagram = diagram_to_frame(diagram_obj)
+            yaml_dir = SCRIPTS / "diagrams" / "yaml"
+            yaml_path = None
+            for ext in (".yaml", ".yml", ".json"):
+                candidate = yaml_dir / (slug + ext)
+                if candidate.exists():
+                    yaml_path = candidate
+                    break
+
+            if yaml_path is None:
+                # Try Python module
+                import importlib
+                mod_name = slug.replace("-", "_")
+                try:
+                    mod = importlib.import_module(f"diagrams.{mod_name}")
+                    importlib.reload(mod)
+                    diagram_obj = copy.deepcopy(getattr(mod, mod_name))
+                except (ModuleNotFoundError, AttributeError):
+                    return None
+            else:
+                diagram_obj = copy.deepcopy(load_diagram(yaml_path))
+
+            frame_diagram = diagram_to_frame(diagram_obj)
 
         # Apply frame overrides
         target_id = frame_overrides.get("frame_id", "root")
@@ -987,17 +1029,59 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
 
     def _serve_svg(self, filename: str):
         safe_name = pathlib.PurePosixPath(filename).name  # strip traversal
+
+        # Handle v3-prefixed filenames: "v3:<slug>-onbrand-v3.svg"
+        if safe_name.startswith("v3:"):
+            slug = safe_name[3:]  # strip "v3:"
+            # Remove "-onbrand-v3.svg" suffix to get the bare slug
+            for suffix in ("-onbrand-v3.svg", "-onbrand-v3-grid.svg"):
+                if slug.endswith(suffix):
+                    slug = slug[:-len(suffix)]
+                    break
+            if not _is_safe_slug(slug):
+                self.send_error(400, "Invalid slug")
+                return
+            # Try pre-built SVG file first
+            prebuilt = V3_SVG / f"{slug}-onbrand-v3.svg"
+            if prebuilt.exists():
+                self._respond(200, "image/svg+xml", prebuilt.read_bytes())
+                return
+            # Generate on-the-fly from layout engine
+            result = _get_layout_result(slug, engine="v3")
+            if result is None:
+                self.send_error(404, f"Cannot layout v3 diagram: {slug}")
+                return
+            import diagram_render_svg
+            svg_str = diagram_render_svg.render_svg(result)
+            self._respond(200, "image/svg+xml", svg_str.encode("utf-8"))
+            return
+
         if not _is_safe_slug(safe_name):
             self.send_error(400, "Invalid filename")
             return
-        # Try v2 output first, then v3
+        # Try v2 output first, then v3 pre-built
         svg_path = OUTPUT_SVG / safe_name
         if not svg_path.exists():
             svg_path = V3_SVG / safe_name
-        if not svg_path.exists():
-            self.send_error(404)
+        if svg_path.exists():
+            self._respond(200, "image/svg+xml", svg_path.read_bytes())
             return
-        self._respond(200, "image/svg+xml", svg_path.read_bytes())
+        # No pre-built file — try on-the-fly v3 rendering
+        slug = safe_name
+        engine = None
+        for suffix in ("-onbrand-v3.svg", "-onbrand-v3-grid.svg"):
+            if slug.endswith(suffix):
+                slug = slug[:-len(suffix)]
+                engine = "v3"
+                break
+        if engine == "v3":
+            result = _get_layout_result(slug, engine="v3")
+            if result is not None:
+                import diagram_render_svg
+                svg_str = diagram_render_svg.render_svg(result)
+                self._respond(200, "image/svg+xml", svg_str.encode("utf-8"))
+                return
+        self.send_error(404)
 
     def _serve_tree(self, slug: str):
         if not _is_safe_slug(slug):

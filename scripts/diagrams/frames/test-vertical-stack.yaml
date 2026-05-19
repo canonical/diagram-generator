@@ -1,0 +1,18 @@
+engine: v3
+title: "Vertical stack — 3 boxes"
+root:
+  id: page
+  direction: vertical
+  gap: 24
+  padding: 24
+  border: none
+  children:
+    - id: box_a
+      label: [Box A]
+      icon: Cloud.svg
+    - id: box_b
+      label: [Box B]
+      icon: Server.svg
+    - id: box_c
+      label: [Box C]
+      icon: Storage node.svg

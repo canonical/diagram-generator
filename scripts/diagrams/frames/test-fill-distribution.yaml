@@ -1,0 +1,23 @@
+engine: v3
+title: "Fill distribution — HUG + 2 FILL"
+root:
+  id: page
+  direction: vertical
+  gap: 24
+  padding: 24
+  sizing: fixed
+  width: 480
+  height: 480
+  border: none
+  children:
+    - id: header
+      label: [Header — HUG]
+      icon: Cloud.svg
+    - id: fill_a
+      label: [Fill A]
+      sizing: fill
+      fill: grey
+    - id: fill_b
+      label: [Fill B]
+      sizing: fill
+      fill: grey

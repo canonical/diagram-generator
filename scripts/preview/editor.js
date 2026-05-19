@@ -1930,9 +1930,15 @@ function showResizeHandles(cid) {
   // Remove old handles
   svg.querySelectorAll(".dg-handle").forEach(h => h.remove());
   const groups = svg.querySelectorAll('[data-component-id="' + cid + '"]');
-  if (groups.length === 0) return;
+  if (groups.length === 0) {
+    // Fallback: use tree data for borderless containers
+    const treeNode = model.get(cid);
+    if (!treeNode || !treeNode.data) return;
+    var minX = treeNode.data.x, minY = treeNode.data.y;
+    var maxX = treeNode.data.x + treeNode.data.width, maxY = treeNode.data.y + treeNode.data.height;
+  } else {
   // Compute union bbox accounting for CSS transforms (overrides + reflow shifts)
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   groups.forEach(g => {
     const bbox = g.getBBox();
     // Parse actual CSS transform which includes override dx/dy + reflow cascade
@@ -1944,6 +1950,7 @@ function showResizeHandles(cid) {
     maxX = Math.max(maxX, bbox.x + bbox.width + tdx);
     maxY = Math.max(maxY, bbox.y + bbox.height + tdy);
   });
+  }
   const hs = HANDLE_SIZE;
   const ns = "http://www.w3.org/2000/svg";
   function mkHandle(cx, cy, cls, axis) {
@@ -3042,6 +3049,14 @@ function updateInspector(cid) {
     minX = Math.min(minX, bbox.x + tdx); minY = Math.min(minY, bbox.y + tdy);
     maxX = Math.max(maxX, bbox.x + bbox.width + tdx); maxY = Math.max(maxY, bbox.y + bbox.height + tdy);
   });
+  // Fallback to component-tree data when no SVG elements found (e.g. borderless containers)
+  if (!isFinite(minX)) {
+    const treeNode = model.get(cid);
+    if (treeNode && treeNode.data) {
+      minX = treeNode.data.x; minY = treeNode.data.y;
+      maxX = treeNode.data.x + treeNode.data.width; maxY = treeNode.data.y + treeNode.data.height;
+    }
+  }
   const own = getOwnDelta(cid);
   const eff = getEffectiveDelta(cid);
   const hasMoveOverride = own.dx !== 0 || own.dy !== 0;
