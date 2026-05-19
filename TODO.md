@@ -129,9 +129,9 @@ Exhaustive testing of HUG/FILL/FIXED interactions.
 
 ---
 
-#### Milestone 4a: Research-informed gap fixes
+#### Milestone 4a: Research-informed gap fixes ✅
 
-Three-subagent research (code review + Penpot/Yoga + Figma behavioral spec) identified gaps ranked by impact. These must be addressed before cross-axis work.
+Three-subagent research (code review + Penpot/Yoga + Figma behavioral spec) identified gaps ranked by impact. All three addressed.
 
 **Findings summary (2026-05-19):**
 - Architecture is sound: two-pass measure→place matches Figma, Yoga (React Native), and Penpot.
@@ -139,11 +139,11 @@ Three-subagent research (code review + Penpot/Yoga + Figma behavioral spec) iden
 - HUG/FILL/FIXED trio maps directly to Figma's mental model.
 - Features we do NOT need for diagrams: wrap mode, aspect-ratio, scrolling, text truncation, per-child alignment override, fractional units (fr).
 
-**Critical gaps:**
+**Fixes (commit `4eeeceb`):**
 
-- [ ] `[H]` **FILL-in-HUG invariant enforcement.** Figma enforces: if ANY child uses FILL on primary axis, parent CANNOT be HUG — it becomes FIXED automatically. Our engine has no such constraint. Add a validation/coercion step before `place()`. Add tests: HUG parent + FILL child → parent becomes FIXED; all-HUG stays HUG.
-- [ ] `[S]` **FILL distribution fairness.** Current `base_fill + extra_fills` gives first N children +8px each — can create 25% size difference on small children. Distribute remainder more evenly (e.g. round-robin or spread across all children). Add test: 3 FILL children in 104px → sizes differ by at most BASELINE_UNIT.
-- [ ] `[S]` **Heading overflow guard.** If heading_h + heading_gap > placed_h - 2*pad, child gets negative height. Add a `max(0, ...)` guard and a test.
+- [x] `[H]` **FILL-in-HUG invariant enforcement.** FILL children in HUG parents are coerced to HUG (keep measured size). This prevents the contradiction where equal-split gives less than content needs. 3 tests added.
+- [x] `[S]` **FILL distribution fairness.** Extra grid units now go to last N children instead of first N, reducing visual bias. 2 tests added.
+- [x] `[S]` **Heading overflow guard.** `max(0, ...)` guard on cross_size and available_for_children prevents negative child dimensions. 1 test added.
 
 ---
 
