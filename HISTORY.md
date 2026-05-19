@@ -4,6 +4,15 @@ Completed work belongs here so `TODO.md` stays lean.
 
 ## Short-term
 
+### 2026-05-19 – Editor UX fixes
+
+- Fixed literal `\n` in text editing (textarea join/split used escaped `\\n` instead of real newlines).
+- Fixed arrow keys moving box during text edit (keydown handler lacked `TEXT_EDITING` mode guard).
+- Fixed textarea line-height mismatch (CSS had `1.43` vs SVG `1.333`).
+- Added text reflow on box resize: `reflowTextInGroup()` wraps tspans at word boundaries against available width; box height auto-expands (snapped to 8px grid) to fit wrapped text.
+- Added grid-row vertical cascade: all components in rows below an expanded box shift down uniformly; arrows track the shifts via updated `sideShift`.
+- Fixed click selection hitting wrong box: `findComponentAtDepth` used model data from the Python layout engine which diverges from SVG rect positions; now reads actual SVG DOM `<rect>` attributes + CSS transforms. Same fix applied to `showResizeHandles`, `updateInspector`, and `autoFitArtboard`.
+
 ### 2026-05-13 – BF-backed force preview prototype
 
 - Added `scripts/force_preview.py` plus the tracked `scripts/diagrams/force/force-stakeholders.json` example so the repo now has a small force-layout state wrapper around the Python solver and a source-backed example reconstructed from `diagrams/1.input/force/IMG_3229.jpg`.

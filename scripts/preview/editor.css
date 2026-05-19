@@ -533,7 +533,7 @@ body.dg-preview {
        border: 2px solid var(--dg-selection-accent);
        box-sizing: border-box;
        font-family: 'Ubuntu Sans', sans-serif;
-       line-height: 1.43;
+       line-height: 1.333;
        outline: none;
        overflow: hidden;
        padding: 4px;

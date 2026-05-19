@@ -153,7 +153,7 @@ Tracked examples ship with the repo for reference:
 
 The interactive autolayout demo is the hot-reload preview server. It is still an active editor surface rather than a polished end-user app, but it is the current way to exercise live relayout, gutter controls, distribute/align, and override persistence.
 
-The preview server serves the repo-owned vendored BF `os` tier stylesheet and Ubuntu Sans snapshot under `assets/baseline-foundry/`, so fresh clones get the same preview shell without depending on the private repo at runtime. Refresh that vendored snapshot with `python scripts/sync_baseline_foundry_assets.py` when you want to roll a newer Foundry release into this repo from a sibling checkout.
+The preview server serves the repo-owned vendored BF `os` tier stylesheet and Ubuntu Sans snapshot under `assets/baseline-foundry/`, so fresh clones get the same preview shell without depending on a sibling checkout at runtime. Refresh that vendored snapshot with `python scripts/sync_baseline_foundry_assets.py` when you want to roll a newer Foundry release into this repo from a sibling checkout.
 
 ```bash
 python scripts/preview_server.py              # all diagrams, port 8100
@@ -292,7 +292,7 @@ Update the comparison pages so reviewers can see before/after:
 
 ### Input/output structure
 
-**Note:** This repo is currently set up for private internal sharing, so the input, output, compare, reference, and working draw.io diagram lanes are included in git. Only generic local development artifacts such as `__pycache__/`, `*.pyc`, workspace files, and `_tail.txt` stay ignored.
+**Note:** This repo keeps the input, output, compare, reference, and working draw.io diagram lanes in git so the full workflow stays reproducible. Only generic local development artifacts such as `__pycache__/`, `*.pyc`, workspace files, and `_tail.txt` stay ignored.
 
 Input:
 
@@ -328,7 +328,7 @@ Three implementation details are worth noticing on a cold start:
 
 - `DIAGRAM.md` includes `sourceSpecs:` frontmatter that links typography, spacing, and grid back to `canonical-specs`, so the repo has an explicit spec -> token -> tool chain rather than a chat-only style memory.
 - Generated draw.io `mxCell` nodes carry `data-dg-source`, `data-dg-role`, and `data-dg-style-tokens`, which makes provenance, batch rewrites, and re-runs auditable instead of opaque.
-- The preview server serves the vendored BF `os` tier stylesheet and Ubuntu Sans snapshot under `assets/baseline-foundry/`, so public clones do not depend on the private repo at runtime. A sibling `baseline-foundry` checkout is only needed when refreshing that snapshot via the sync script.
+- The preview server serves the vendored BF `os` tier stylesheet and Ubuntu Sans snapshot under `assets/baseline-foundry/`, so public clones do not depend on a sibling checkout at runtime. A sibling `baseline-foundry` checkout is only needed when refreshing that snapshot via the sync script.
 
 ## Draw.io export rules
 

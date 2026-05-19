@@ -44,6 +44,12 @@ def find_refined(slug: str) -> pathlib.Path:
 
 PAIRS = [
     {
+        "slug": "android-graphics-stack",
+        "title": "Android Graphics Stack",
+        "before": "android/android-graphics-stack.png",
+        "after": "android-graphics-stack-onbrand.svg",
+    },
+    {
         "slug": "memory-wall",
         "title": "Memory wall",
         "before": "redo-this-image-onbrand.png",

@@ -22,6 +22,7 @@ from diagram_shared import SVG_DIR, DRAWIO_DIR, cleanup_legacy_output_root_svgs
 
 # (slug, module_name, variable_name)
 _REGISTRY: list[tuple[str, str, str]] = [
+    ("android-graphics-stack-onbrand", "diagrams.android_graphics_stack", "android_graphics_stack"),
     ("attention-qkv-onbrand", "diagrams.attention_qkv", "attention_qkv"),
     ("aws-hld-onbrand", "diagrams.aws_hld", "aws_hld"),
     ("gpu-waiting-scheduler-onbrand", "diagrams.gpu_waiting_scheduler", "gpu_waiting_scheduler"),

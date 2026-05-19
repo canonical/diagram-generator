@@ -62,6 +62,12 @@ Provide a cold-start-safe workflow and a consistent on-brand SVG system for rede
 ### Editor UX
 
 - [x] `[H]` **Resizable / auto-fit artboard.** ~~Resizing a box can push content off-canvas.~~ `autoFitArtboard()` now expands the SVG viewBox after move/resize when content overflows.
+- [x] `[S]` **Text editing: literal `\n` instead of line breaks.** Textarea was joining/splitting on escaped `\\n` instead of real newlines, making the editor show `\n` characters and rendering all lines on one visual line. Fixed: use actual `\n` in join/split.
+- [x] `[S]` **Arrow keys move box during text edit.** Document-level keydown handler did not guard against `TEXT_EDITING` mode; arrow keys nudged the selected box instead of navigating within the textarea. Fixed: added mode check + `stopPropagation` on all textarea keydown events.
+- [x] `[S]` **Text editor line-height mismatch.** Textarea CSS had `line-height: 1.43` while SVG text uses 18px/24px = 1.333. Fixed: updated CSS to `1.333`.
+- [x] `[H]` **Text reflow on box resize.** ~~Resizing a box changes the rect but text positions are static SVG coordinates.~~ Text now reflows on width change: `reflowTextInGroup()` measures each tspan against available width and wraps at word boundaries. Box height auto-expands (snapped to 8px grid) to fit wrapped text, and all subsequent grid rows shift down uniformly so nothing overlaps. Arrow endpoints track the reflow-induced shifts via the updated `sideShift` function.
+- [x] `[S]` **Annotation autolayout.** ~~Right-column annotation text is laid out at fixed coordinates by the Python engine.~~ Root-level components now participate in grid relayout via `model.diagramGrid`. Resizing a box shifts same-row annotations automatically.
+- [x] `[H]` **Click selection misses or selects wrong box.** `findComponentAtDepth` used model data from the Python layout engine for hit testing, but model coordinates diverge from the actual SVG rect positions (different widths, cumulative Y drift). Fixed: hit testing, resize handles, inspector position, and artboard fitting all now read from the SVG DOM + CSS transforms instead of stale model data.
 
 ### Code quality — from audits
 

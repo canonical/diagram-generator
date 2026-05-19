@@ -68,8 +68,14 @@ class ComponentModel {
     this._index = new Map(); // id → ComponentNode
     this.overrides = {};     // id → { dx?, dy?, dw?, dh?, waypoints?, text? }
     this.gridOverrides = {}; // { col_gap?, row_gap?, outer_margin? }
+    this.diagramGrid = null; // { col_gap, row_gap, outer_margin, ... } — diagram-level grid
     this.definitionHash = "";
     this.isStale = false;
+  }
+
+  /** Store diagram-level grid info so root nodes participate in relayout. */
+  setDiagramGrid(info) {
+    this.diagramGrid = info || null;
   }
 
   /** Replace tree from server JSON array. */
@@ -374,14 +380,28 @@ class ComponentModel {
    * but shift siblings that come after the resized child so gutters
    * stay exactly at layoutGap.
    *
+   * Works for both nested children (node has a parent with layout) and
+   * root-level nodes (when diagramGrid supplies the grid context).
+   *
    * Returns { siblingId: { dx?, dy?, dw?, dh? } } deltas to apply.
    */
   relayoutSiblingsAfterChildResize(childId, childDw, childDh) {
     const node = this.get(childId);
-    if (!node || !node.parent) return {};
-    const parent = node.parent;
-    const layout = parent.layout || "";
-    const layoutChildren = this.getLayoutChildren(parent.id);
+    if (!node) return {};
+
+    // Determine layout context: either from parent or from diagram grid
+    let layout, layoutChildren;
+    if (node.parent) {
+      const parent = node.parent;
+      layout = parent.layout || "";
+      layoutChildren = this.getLayoutChildren(parent.id);
+    } else if (this.diagramGrid) {
+      layout = "grid";
+      layoutChildren = this._roots
+        .filter(n => n.type !== "arrow" && n.type !== "separator");
+    } else {
+      return {};
+    }
     if (layoutChildren.length <= 1) return {};
 
     const result = {};

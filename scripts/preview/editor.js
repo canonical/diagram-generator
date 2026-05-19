@@ -392,6 +392,8 @@ async function loadSVG() {
   document.getElementById("stage").innerHTML = await resp.text();
   await loadTree();
   await loadGridInfo();
+  // Wire diagram-level grid into the model so root nodes get sibling relayout
+  if (gridInfo) model.setDiagramGrid(gridInfo);
   populateGridControls();
   await loadOverrides();
   // Apply saved grid overrides (gutter/margin changes) before rendering
@@ -689,6 +691,7 @@ async function requestRelayout(cols, colGap, rowGap, margin) {
     // Update grid info from the actual layout result
     if (data.grid_info) {
       gridInfo = data.grid_info;
+      model.setDiagramGrid(gridInfo);
       populateGridControls();
     }
     // Re-apply interaction on the new SVG (no position overrides to apply)
@@ -782,16 +785,38 @@ function getOwnDelta(cid) {
 }
 
 function findComponentAtDepth(x, y, targetDepth) {
+  const svg = document.querySelector("#stage svg");
+  if (!svg) return null;
+
   function walk(nodes, depth) {
     let bestId = null;
     let bestDist = Infinity;
     for (const node of nodes) {
-      const eff = getEffectiveDelta(node.id);
-      const own = getOwnDelta(node.id);
-      const nx = node.x + eff.dx;
-      const ny = node.y + eff.dy;
-      const nw = node.width + own.dw;
-      const nh = node.height + own.dh;
+      // Use actual SVG DOM geometry instead of model data, which can diverge
+      // from the rendered positions. Fall back to model data for arrows or
+      // components without a rect.
+      let nx, ny, nw, nh;
+      const g = svg.querySelector('[data-component-id="' + node.id + '"]');
+      const rect = g ? g.querySelector("rect:first-of-type") : null;
+      if (rect) {
+        nx = parseFloat(rect.getAttribute("x"));
+        ny = parseFloat(rect.getAttribute("y"));
+        nw = parseFloat(rect.getAttribute("width"));
+        nh = parseFloat(rect.getAttribute("height"));
+      } else {
+        const eff = getEffectiveDelta(node.id);
+        const own = getOwnDelta(node.id);
+        nx = node.x + eff.dx;
+        ny = node.y + eff.dy;
+        nw = node.width + own.dw;
+        nh = node.height + own.dh;
+      }
+      // Account for CSS transforms (override dx/dy + reflow cascade shifts)
+      if (g) {
+        const t = g.style.transform || "";
+        const m = t.match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/);
+        if (m) { nx += parseFloat(m[1]); ny += parseFloat(m[2]); }
+      }
       if (x >= nx && x <= nx + nw && y >= ny && y <= ny + nh) {
         if (depth === targetDepth) {
           // When overrides cause overlapping bounds, pick the child
@@ -1157,6 +1182,126 @@ function applyAllOverrides() {
     }
   });
 
+  // Lazily created canvas context for text measurement
+  let _measureCtx = null;
+  function getMeasureCtx() {
+    if (!_measureCtx) {
+      _measureCtx = document.createElement("canvas").getContext("2d");
+    }
+    return _measureCtx;
+  }
+
+  /**
+   * Reflow text inside a component group to fit the current box width.
+   * Wraps long tspans at word boundaries and auto-expands the rect height
+   * to accommodate the wrapped text.
+   */
+  function reflowTextInGroup(g, dw) {
+    const rect = g.querySelector("rect:first-of-type");
+    if (!rect) return 0;
+    const textEl = g.querySelector("text");
+    if (!textEl) return 0;
+
+    const origW = parseFloat(rect.getAttribute("data-orig-width") || rect.getAttribute("width"));
+    const newW = origW + dw;
+    const INSET = window.__DG_CONFIG.inset || 8;
+    const hasIcon = !!g.querySelector(".dg-icon");
+    const iconW = hasIcon ? (window.__DG_CONFIG.icon_size || 48) : 0;
+    const iconGap = hasIcon ? INSET : 0;
+    const availW = newW - 2 * INSET - (iconW > 0 ? iconW + iconGap : 0);
+    if (availW <= 0) return 0;
+
+    const tspans = textEl.querySelectorAll("tspan");
+    if (tspans.length === 0) return;
+
+    // Compute line step from existing tspans
+    const firstY = parseFloat(tspans[0].getAttribute("y"));
+    const lineStep = tspans.length >= 2
+      ? parseFloat(tspans[1].getAttribute("y")) - firstY
+      : 24;
+
+    const ctx = getMeasureCtx();
+    const ns = "http://www.w3.org/2000/svg";
+    const specs = []; // { content, fontSize, fontWeight, fill, x, scAttr, ffAttr }
+
+    for (const ts of tspans) {
+      const fontSize = ts.getAttribute("font-size") || "14";
+      const fontWeight = ts.getAttribute("font-weight") || "400";
+      const fill = ts.getAttribute("fill") || "#000";
+      const x = ts.getAttribute("x");
+      const content = ts.textContent;
+      // Preserve font-variant and font-family
+      const scAttr = ts.getAttribute("font-variant-caps") || "";
+      const lsAttr = ts.getAttribute("letter-spacing") || "";
+      const ffAttr = ts.getAttribute("font-family") || "";
+
+      ctx.font = fontWeight + " " + fontSize + "px 'Ubuntu Sans', sans-serif";
+      const textW = ctx.measureText(content).width;
+
+      if (textW <= availW) {
+        specs.push({ content, fontSize, fontWeight, fill, x, scAttr, lsAttr, ffAttr });
+      } else {
+        // Word-wrap at word boundaries
+        const words = content.split(/(\s+)/); // preserve whitespace
+        let line = "";
+        for (const word of words) {
+          const test = line + word;
+          if (ctx.measureText(test.trim()).width > availW && line.trim()) {
+            specs.push({ content: line.trim(), fontSize, fontWeight, fill, x, scAttr, lsAttr, ffAttr });
+            line = word.trimStart();
+          } else {
+            line = test;
+          }
+        }
+        if (line.trim()) {
+          specs.push({ content: line.trim(), fontSize, fontWeight, fill, x, scAttr, lsAttr, ffAttr });
+        }
+      }
+    }
+
+    // Rebuild tspans if wrapping changed the line count
+    if (specs.length !== tspans.length) {
+      textEl.innerHTML = "";
+      let y = firstY;
+      for (const spec of specs) {
+        const ts = document.createElementNS(ns, "tspan");
+        ts.setAttribute("x", spec.x);
+        ts.setAttribute("y", y.toFixed(2));
+        ts.setAttribute("font-size", spec.fontSize);
+        ts.setAttribute("font-weight", spec.fontWeight);
+        ts.setAttribute("fill", spec.fill);
+        if (spec.scAttr) ts.setAttribute("font-variant-caps", spec.scAttr);
+        if (spec.lsAttr) ts.setAttribute("letter-spacing", spec.lsAttr);
+        if (spec.ffAttr) ts.setAttribute("font-family", spec.ffAttr);
+        ts.textContent = spec.content;
+        textEl.appendChild(ts);
+        y += lineStep;
+      }
+    }
+
+    // Always auto-expand box height to fit text (even if tspan count didn't change,
+    // since a prior applyToComponent pass may have reset the rect height)
+    const origH = parseFloat(rect.getAttribute("data-orig-height") || rect.getAttribute("height"));
+    const lastTspan = textEl.querySelector("tspan:last-of-type");
+    if (lastTspan) {
+      const lastY = parseFloat(lastTspan.getAttribute("y"));
+      const lastFontSize = parseFloat(lastTspan.getAttribute("font-size") || "18");
+      const textBottom = lastY + lastFontSize * 0.25; // baseline + descender
+      const rectY = parseFloat(rect.getAttribute("y") || "0");
+      const minHeight = textBottom - rectY + INSET;
+      const currentH = parseFloat(rect.getAttribute("height"));
+      if (minHeight > currentH) {
+        const newH = Math.ceil(minHeight / 8) * 8;
+        rect.setAttribute("height", newH);
+        return newH - origH; // height expansion delta
+      }
+    }
+    return 0; // no expansion
+  }
+
+  // Collect reflow-induced height expansions for post-pass vertical shift
+  const reflowDhByComponent = {};
+
   function applyToComponent(cid) {
     const eff = getEffectiveDelta(cid);
     svg.querySelectorAll('[data-component-id="' + cid + '"]').forEach(g => {
@@ -1237,6 +1382,12 @@ function applyAllOverrides() {
           icon.style.filter = preset.icon === "#FFFFFF" ? "invert(1)" : "";
         });
       }
+
+      // Reflow text when box width has changed
+      if (eff.dw !== 0) {
+        const reflowDh = reflowTextInGroup(g, eff.dw);
+        if (reflowDh > 0) reflowDhByComponent[cid] = reflowDh;
+      }
     });
   }
   // Apply to tree components
@@ -1249,6 +1400,42 @@ function applyAllOverrides() {
   visit(componentTree);
   // Also handle overrides outside tree
   for (const cid of Object.keys(overrides)) applyToComponent(cid);
+
+  // -----------------------------------------------------------------------
+  // Reflow post-pass: when text reflow made a box taller, shift all
+  // components in subsequent grid rows downward so nothing overlaps.
+  // The shift is computed per-row (max reflow dh across all columns in
+  // that row) and applied cumulatively to every component below.
+  // -----------------------------------------------------------------------
+  const cumulativeReflowDy = {}; // cid → total dy from reflow of boxes above
+  if (Object.keys(reflowDhByComponent).length > 0 && model.diagramGrid) {
+    const rootNodes = model._roots.filter(n => n.type !== "arrow" && n.type !== "separator");
+    // Compute the max reflow dh per row (across all columns)
+    const maxReflowDhByRow = {};
+    for (const [cid, dh] of Object.entries(reflowDhByComponent)) {
+      const node = model.get(cid);
+      if (!node) continue;
+      const row = node.gridRow || 0;
+      maxReflowDhByRow[row] = Math.max(maxReflowDhByRow[row] || 0, dh);
+    }
+    // For each component, sum reflow dh from all rows above it
+    const affectedRows = Object.keys(maxReflowDhByRow).map(Number).sort((a, b) => a - b);
+    for (const n of rootNodes) {
+      const row = n.gridRow || 0;
+      let dy = 0;
+      for (const affectedRow of affectedRows) {
+        if (affectedRow < row) dy += maxReflowDhByRow[affectedRow];
+      }
+      if (dy > 0) cumulativeReflowDy[n.id] = dy;
+    }
+    // Re-apply transforms for shifted components
+    for (const [cid, dy] of Object.entries(cumulativeReflowDy)) {
+      const eff = getEffectiveDelta(cid);
+      svg.querySelectorAll('[data-component-id="' + cid + '"]').forEach(g => {
+        g.style.transform = "translate(" + eff.dx + "px, " + (eff.dy + dy) + "px)";
+      });
+    }
+  }
 
   // Arrow attachment: adjust arrow positions based on source/target box overrides
   for (const node of componentTree) {
@@ -1263,20 +1450,24 @@ function applyAllOverrides() {
     const tgtEff = tgtCid ? getEffectiveDelta(tgtCid) : { dx: 0, dy: 0, dw: 0, dh: 0 };
 
     // Side-aware endpoint shift: midpoint of the side shifts with dx/dy + half of dw/dh
-    function sideShift(eff, side) {
-      let sdx = eff.dx, sdy = eff.dy;
-      if (side === "bottom") sdy += eff.dh;
+    // Also accounts for reflow-induced height expansion and cumulative vertical shift
+    function sideShift(eff, side, cid) {
+      const reflowDh = reflowDhByComponent[cid] || 0;
+      const totalDh = eff.dh + reflowDh;
+      const reflowDy = cumulativeReflowDy[cid] || 0;
+      let sdx = eff.dx, sdy = eff.dy + reflowDy;
+      if (side === "bottom") sdy += totalDh;
       if (side === "top") {} // top edge doesn't move on dh
       if (side === "right") sdx += eff.dw;
       if (side === "left") {} // left edge doesn't move on dw
       // Side midpoint shifts by half the perpendicular size delta
       if (side === "top" || side === "bottom") sdx += eff.dw / 2;
-      if (side === "left" || side === "right") sdy += eff.dh / 2;
+      if (side === "left" || side === "right") sdy += totalDh / 2;
       return { dx: sdx, dy: sdy };
     }
 
-    const srcShift = sideShift(srcEff, srcSide);
-    const tgtShift = sideShift(tgtEff, tgtSide);
+    const srcShift = sideShift(srcEff, srcSide, srcCid);
+    const tgtShift = sideShift(tgtEff, tgtSide, tgtCid);
 
     // If both shifts are the same, just CSS-translate the whole arrow group
     if (srcShift.dx === tgtShift.dx && srcShift.dy === tgtShift.dy) {
@@ -1432,17 +1623,19 @@ function autoFitArtboard() {
   function visit(nodes) {
     for (const node of nodes) {
       if (node.type === "arrow") { if (node.children) visit(node.children); continue; }
-      const m = model.get(node.id);
-      if (!m || !m.data || m.data.x == null) { if (node.children) visit(node.children); continue; }
-      const eff = getEffectiveDelta(node.id);
-      const x = m.data.x + eff.dx;
-      const y = m.data.y + eff.dy;
-      const w = m.data.width + eff.dw;
-      const h = m.data.height + eff.dh;
+      // Use actual SVG DOM geometry + CSS transform
+      const g = svg.querySelector('[data-component-id="' + node.id + '"]');
+      if (!g) { if (node.children) visit(node.children); continue; }
+      const bbox = g.getBBox();
+      let tdx = 0, tdy = 0;
+      const tm = (g.style.transform || "").match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/);
+      if (tm) { tdx = parseFloat(tm[1]); tdy = parseFloat(tm[2]); }
+      const x = bbox.x + tdx;
+      const y = bbox.y + tdy;
       if (x < minX) minX = x;
       if (y < minY) minY = y;
-      if (x + w > maxX) maxX = x + w;
-      if (y + h > maxY) maxY = y + h;
+      if (x + bbox.width > maxX) maxX = x + bbox.width;
+      if (y + bbox.height > maxY) maxY = y + bbox.height;
       if (node.children) visit(node.children);
     }
   }
@@ -1737,22 +1930,18 @@ function showResizeHandles(cid) {
   svg.querySelectorAll(".dg-handle").forEach(h => h.remove());
   const groups = svg.querySelectorAll('[data-component-id="' + cid + '"]');
   if (groups.length === 0) return;
-  // Compute union bbox accounting for transform
+  // Compute union bbox accounting for CSS transforms (overrides + reflow shifts)
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   groups.forEach(g => {
     const bbox = g.getBBox();
-    const ctm = g.getCTM();
-    const svgCtm = svg.getCTM();
-    // getBBox is in local coords; transform to SVG root coords
-    const pt = svg.createSVGPoint();
-    pt.x = bbox.x; pt.y = bbox.y;
-    const tl = pt.matrixTransform(g.getScreenCTM().inverse().multiply(g.getScreenCTM()));
-    // Simpler: use the effective delta
-    const eff = getEffectiveDelta(cid);
-    minX = Math.min(minX, bbox.x + eff.dx);
-    minY = Math.min(minY, bbox.y + eff.dy);
-    maxX = Math.max(maxX, bbox.x + bbox.width + eff.dx);
-    maxY = Math.max(maxY, bbox.y + bbox.height + eff.dy);
+    // Parse actual CSS transform which includes override dx/dy + reflow cascade
+    let tdx = 0, tdy = 0;
+    const tm = (g.style.transform || "").match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/);
+    if (tm) { tdx = parseFloat(tm[1]); tdy = parseFloat(tm[2]); }
+    minX = Math.min(minX, bbox.x + tdx);
+    minY = Math.min(minY, bbox.y + tdy);
+    maxX = Math.max(maxX, bbox.x + bbox.width + tdx);
+    maxY = Math.max(maxY, bbox.y + bbox.height + tdy);
   });
   const hs = HANDLE_SIZE;
   const ns = "http://www.w3.org/2000/svg";
@@ -2316,7 +2505,7 @@ function startTextEdit(cid, e) {
   // Create textarea overlay
   const ta = document.createElement("textarea");
   ta.className = "dg-text-editor";
-  ta.value = lines.join("\\n");
+  ta.value = lines.join("\n");
   ta.style.left = textBBox.left + "px";
   ta.style.top = textBBox.top + "px";
   ta.style.width = editorW + "px";
@@ -2342,7 +2531,9 @@ function startTextEdit(cid, e) {
       ev.preventDefault();
       commitTextEdit();
     }
-    // Regular Enter inserts a line break (default textarea behavior)
+    // Stop all key events from bubbling to the document handler
+    // (prevents arrow keys from nudging the box while editing text)
+    ev.stopPropagation();
   });
   ta.addEventListener("blur", () => {
     // Small delay to avoid race with Escape
@@ -2355,10 +2546,10 @@ function startTextEdit(cid, e) {
 function commitTextEdit() {
   if (!mgr.isMode(InteractionMode.TEXT_EDITING)) return;
   const { cid, textEl, ta, originalLines, styles } = mgr.state;
-  const newLines = ta.value.split("\\n");
+  const newLines = ta.value.split("\n");
 
   // Check if text actually changed
-  const changed = newLines.join("\\n") !== originalLines.join("\\n");
+  const changed = newLines.join("\n") !== originalLines.join("\n");
 
   if (changed) {
     runUndoableAction("Edit text", () => {
@@ -2440,6 +2631,10 @@ function startResize(e) {
     if (node.parent) {
       const po = getOwnDelta(node.parent.id);
       origOverrides[node.parent.id] = { dx: po.dx, dy: po.dy, dw: po.dw, dh: po.dh };
+      const siblings = model.getSiblings(cid);
+      for (const sib of siblings) captureSubtree(sib.id);
+    } else if (model.diagramGrid) {
+      // Root node: capture all root siblings for diagram-level grid relayout
       const siblings = model.getSiblings(cid);
       for (const sib of siblings) captureSubtree(sib.id);
     }
@@ -2529,9 +2724,14 @@ function onResizeMove(e) {
   // Parent resize: children keep their size and position.
   // Only child resize propagates to siblings (below).
 
-  // Child resize → shift siblings to maintain gutters
+  // Child resize → shift siblings to maintain gutters.
+  // Works for both nested children and root-level nodes (via diagramGrid).
   const resizedNode = model.get(s.cid);
-  if (resizedNode && resizedNode.parent && resizedNode.parent.layout) {
+  const hasLayoutContext = resizedNode && (
+    (resizedNode.parent && resizedNode.parent.layout) ||
+    (!resizedNode.parent && model.diagramGrid)
+  );
+  if (hasLayoutContext) {
     const deltaDw = newDw - s.origDw;
     const deltaDh = newDh - s.origDh;
     const siblingAdj = model.relayoutSiblingsAfterChildResize(s.cid, deltaDw, deltaDh);
@@ -2693,8 +2893,12 @@ function updateInspector(cid) {
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   groups.forEach(g => {
     const bbox = g.getBBox();
-    minX = Math.min(minX, bbox.x); minY = Math.min(minY, bbox.y);
-    maxX = Math.max(maxX, bbox.x + bbox.width); maxY = Math.max(maxY, bbox.y + bbox.height);
+    // Account for CSS transforms (overrides + reflow cascade)
+    let tdx = 0, tdy = 0;
+    const tm = (g.style.transform || "").match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/);
+    if (tm) { tdx = parseFloat(tm[1]); tdy = parseFloat(tm[2]); }
+    minX = Math.min(minX, bbox.x + tdx); minY = Math.min(minY, bbox.y + tdy);
+    maxX = Math.max(maxX, bbox.x + bbox.width + tdx); maxY = Math.max(maxY, bbox.y + bbox.height + tdy);
   });
   const own = getOwnDelta(cid);
   const eff = getEffectiveDelta(cid);
@@ -2840,7 +3044,7 @@ document.getElementById("btn-export").addEventListener("click", () => {
     if (d.waypoints) parts.push("waypoints: " + d.waypoints.length);
     lines.push("# " + cid + ": " + parts.join(", "));
   }
-  navigator.clipboard.writeText(lines.join("\\n")).then(() => alert("Copied to clipboard."));
+  navigator.clipboard.writeText(lines.join("\n")).then(() => alert("Copied to clipboard."));
 });
 
 function setDirty(dirty) {
@@ -2905,7 +3109,8 @@ document.addEventListener("keydown", (e) => {
     }
   } else if ((e.key === "w" || e.key === "W") && !e.ctrlKey && !e.metaKey && !e.altKey) {
     cycleGuideMode();
-  } else if (selectedIds.size > 0 && !e.ctrlKey && !e.metaKey && !e.altKey &&
+  } else if (selectedIds.size > 0 && !mgr.isMode(InteractionMode.TEXT_EDITING) &&
+             !e.ctrlKey && !e.metaKey && !e.altKey &&
              ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
     e.preventDefault();
     const step = e.shiftKey ? 24 : 8;
