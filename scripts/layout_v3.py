@@ -68,7 +68,10 @@ def _leaf_natural_size(frame: Frame) -> tuple[float, float]:
     if frame.label:
         h = tight_box_height(_lines_to_dicts(frame.label), has_icon=has_icon)
     else:
-        h = BOX_MIN_HEIGHT
+        h = BOX_MIN_HEIGHT if frame.height is None else frame.height
+    # Explicit height overrides computed height if larger
+    if frame.height is not None:
+        h = max(h, frame.height)
     w = frame.width or BLOCK_WIDTH
     return (w, h)
 
@@ -92,7 +95,7 @@ def measure(frame: Frame) -> None:
     for child in frame.children:
         measure(child)
 
-    pad = frame.padding if frame.border != Border.NONE else 0
+    pad = frame.padding
     heading_h = _heading_height(frame.heading)
     heading_gap = frame.gap if heading_h > 0 else 0
     n = len(frame.children)
@@ -161,7 +164,7 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
         return
 
     # Distribute space to children
-    pad = frame.padding if frame.border != Border.NONE else 0
+    pad = frame.padding
     heading_h = _heading_height(frame.heading)
     heading_gap = frame.gap if heading_h > 0 else 0
     n = len(frame.children)
@@ -174,29 +177,26 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
         available_for_children = frame._placed_h - 2 * pad - heading_h - heading_gap - total_gap
         cross_size = frame._placed_w - 2 * pad
 
-    # Separate HUG and FILL children
-    hug_total = 0
+    # Every child gets at least its measured size.
+    # FILL children share any remaining space beyond the total measured.
+    all_measured = 0
     fill_count = 0
     for child in frame.children:
+        if frame.direction == Direction.HORIZONTAL:
+            all_measured += child._measured_w
+        else:
+            all_measured += child._measured_h
         if child.child_sizing == Sizing.FILL:
             fill_count += 1
-        else:
-            if frame.direction == Direction.HORIZONTAL:
-                hug_total += child._measured_w
-            else:
-                hug_total += child._measured_h
 
-    # Compute fill size
-    remaining = available_for_children - hug_total
-    fill_size = round_up_to_grid(remaining // fill_count) if fill_count > 0 else 0
+    # Extra space beyond what's needed for all measured sizes.
+    # Round fill_extra DOWN to the nearest grid unit so rounding
+    # never causes the total to exceed available_for_children.
+    extra = max(0, available_for_children - all_measured)
+    fill_extra = (extra // fill_count // BASELINE_UNIT) * BASELINE_UNIT if fill_count > 0 else 0
 
     # Compute total content extent for alignment
-    if frame.direction == Direction.HORIZONTAL:
-        content_main = hug_total + fill_count * fill_size + total_gap
-        content_cross = max((c._measured_h for c in frame.children), default=0)
-    else:
-        content_main = hug_total + fill_count * fill_size + total_gap
-        content_cross = max((c._measured_w for c in frame.children), default=0)
+    content_main = all_measured + fill_count * fill_extra + total_gap
 
     # Apply main-axis alignment offset
     inner_w = frame._placed_w - 2 * pad
@@ -207,14 +207,15 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
     else:
         main_offset = _align_offset(frame.align, inner_h, content_main, "y")
 
-    # Place children sequentially
+    # Place children sequentially.
     # Cross-axis always stretches to fill (like Figma default).
-    # Main-axis uses HUG/FILL sizing.
+    # Main-axis: every child gets at least its measured size;
+    # FILL children additionally get an equal share of remaining space.
     if frame.direction == Direction.HORIZONTAL:
         cursor_x = x + pad + main_offset
         for child in frame.children:
             if child.child_sizing == Sizing.FILL:
-                child_w = fill_size
+                child_w = child._measured_w + fill_extra
             else:
                 child_w = child._measured_w
             child_h = cross_size  # cross-axis: always stretch
@@ -224,7 +225,7 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
         cursor_y = y + pad + heading_h + heading_gap + main_offset
         for child in frame.children:
             if child.child_sizing == Sizing.FILL:
-                child_h = fill_size
+                child_h = child._measured_h + fill_extra
             else:
                 child_h = child._measured_h
             child_w = cross_size  # cross-axis: always stretch
