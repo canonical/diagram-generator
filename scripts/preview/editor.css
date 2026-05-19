@@ -343,6 +343,26 @@ body.dg-preview {
        margin-top: 2px;
 }
 
+/* Auto-layout controls section */
+.dg-autolayout-section {
+       margin-top: 8px;
+       padding-top: 8px;
+       border-top: 1px solid var(--bf-color-border, #333);
+}
+.dg-autolayout-section .field {
+       display: grid;
+       grid-template-columns: 80px 1fr;
+       align-items: center;
+       gap: 4px;
+       margin-top: 4px;
+}
+.dg-autolayout-section select.bf-input,
+.dg-autolayout-section input.bf-input {
+       font-size: 11px;
+       padding: 2px 4px;
+       min-height: 24px;
+}
+
 .multi-action-grid {
        display: grid;
        gap: 6px;

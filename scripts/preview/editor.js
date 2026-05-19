@@ -2921,11 +2921,108 @@ function setFrameAlign(cid, align) {
   overrides[cid].align = align;
   setDirty(true);
   renderSelectionInspector(cid);
-  // v3 relayout via frame engine is not yet wired; the override will take
-  // effect on the next full rebuild (build_v2.py --engine v3).
+  // Trigger v3 relayout so alignment change takes effect immediately
+  clearTimeout(_v3RelayoutTimer);
+  _v3RelayoutTimer = setTimeout(() => requestV3Relayout(cid), 300);
 }
 // Expose to onclick handlers
 window.setFrameAlign = setFrameAlign;
+
+// ---- Auto-layout controls (v3) ----
+
+function buildAutolayoutPanel(cid, node) {
+  // Only show for containers (nodes with children or layout info)
+  const isContainer = node && (node.layout || (node.children && node.children.length > 0));
+  if (!isContainer) return '';
+
+  // Read current values from overrides or node defaults
+  const ovr = overrides[cid] || {};
+  const direction = ovr.direction || (node.layout === 'horizontal' ? 'HORIZONTAL' : 'VERTICAL');
+  const gap = ovr.gap !== undefined ? ovr.gap : (node.layoutGap || 24);
+  const padding = ovr.padding !== undefined ? ovr.padding : 8;
+  const sizing = ovr.sizing || 'HUG';
+
+  let html = '<div class="dg-autolayout-section">';
+  html += '<span class="label" style="margin-bottom:4px;display:block">Auto-layout</span>';
+
+  // Direction
+  html += '<div class="field"><span class="label">Direction</span>';
+  html += '<select class="bf-input" onchange="setFrameProp(\'' + cid + '\',\'direction\',this.value)">';
+  html += '<option value="VERTICAL"' + (direction === 'VERTICAL' ? ' selected' : '') + '>Vertical</option>';
+  html += '<option value="HORIZONTAL"' + (direction === 'HORIZONTAL' ? ' selected' : '') + '>Horizontal</option>';
+  html += '</select></div>';
+
+  // Gap
+  html += '<div class="field"><span class="label">Gap</span>';
+  html += '<input class="bf-input" type="number" min="0" step="8" value="' + gap + '"';
+  html += ' onchange="setFrameProp(\'' + cid + '\',\'gap\',parseInt(this.value))"';
+  html += ' style="width:60px"></div>';
+
+  // Padding
+  html += '<div class="field"><span class="label">Padding</span>';
+  html += '<input class="bf-input" type="number" min="0" step="8" value="' + padding + '"';
+  html += ' onchange="setFrameProp(\'' + cid + '\',\'padding\',parseInt(this.value))"';
+  html += ' style="width:60px"></div>';
+
+  // Sizing
+  html += '<div class="field"><span class="label">Sizing</span>';
+  html += '<select class="bf-input" onchange="setFrameProp(\'' + cid + '\',\'sizing\',this.value)">';
+  html += '<option value="HUG"' + (sizing === 'HUG' ? ' selected' : '') + '>Hug contents</option>';
+  html += '<option value="FILL"' + (sizing === 'FILL' ? ' selected' : '') + '>Fill container</option>';
+  html += '<option value="FIXED"' + (sizing === 'FIXED' ? ' selected' : '') + '>Fixed</option>';
+  html += '</select></div>';
+
+  html += '</div>';
+  return html;
+}
+
+let _v3RelayoutTimer = null;
+function setFrameProp(cid, prop, value) {
+  if (!overrides[cid]) overrides[cid] = {};
+  overrides[cid][prop] = value;
+  setDirty(true);
+
+  // Debounce relayout — 300ms after last change
+  clearTimeout(_v3RelayoutTimer);
+  _v3RelayoutTimer = setTimeout(() => requestV3Relayout(cid), 300);
+
+  // Update inspector immediately for responsive feel
+  renderSelectionInspector(cid);
+}
+
+async function requestV3Relayout(cid) {
+  const slug = SLUG.replace('v3:', '');
+  const ovr = overrides[cid] || {};
+  const payload = { frame_id: cid };
+  for (const key of ['direction', 'gap', 'padding', 'sizing', 'align', 'width', 'height']) {
+    if (ovr[key] !== undefined) payload[key] = ovr[key];
+  }
+  try {
+    const resp = await fetch('/api/relayout-v3/' + slug, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!resp.ok) {
+      console.error('v3 relayout failed:', resp.status);
+      return;
+    }
+    const data = await resp.json();
+    if (data.svg) {
+      const stage = document.getElementById('stage');
+      if (stage) {
+        stage.innerHTML = data.svg;
+        applyAllOverrides();
+        reapplySelection();
+      }
+    }
+  } catch (e) {
+    console.error('v3 relayout error:', e);
+  }
+}
+
+// Expose to inline handlers
+window.setFrameProp = setFrameProp;
 
 function updateInspector(cid) {
   const inspector = getInspectorElement();
@@ -2970,6 +3067,8 @@ function updateInspector(cid) {
   if (ENGINE === "v3") {
     const currentAlign = (overrides[cid] && overrides[cid].align) || "TOP_LEFT";
     html += buildAlignWidget(cid, currentAlign);
+    // Auto-layout controls (v3 only)
+    html += buildAutolayoutPanel(cid, inspNode);
   }
   if (hasMoveOverride) {
     html += '<div class="field"><span class="label">Position override</span><br>' +

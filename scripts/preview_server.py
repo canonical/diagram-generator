@@ -282,6 +282,108 @@ def _relayout(slug: str, grid_overrides: dict) -> dict | None:
         return None
 
 
+def _relayout_v3(slug: str, frame_overrides: dict) -> dict | None:
+    """Re-run v3 frame layout with patched frame properties.
+
+    frame_overrides can contain:
+      - frame_id: str — which frame to modify (or "root" for the root)
+      - direction: "VERTICAL" | "HORIZONTAL"
+      - gap: int
+      - padding: int
+      - sizing: "HUG" | "FILL" | "FIXED"
+      - align: "TOP_LEFT" | "CENTER" | etc.
+      - width: int (for FIXED sizing)
+      - height: int (for FIXED sizing)
+    """
+    try:
+        if str(SCRIPTS) not in sys.path:
+            sys.path.insert(0, str(SCRIPTS))
+        import copy
+        result = _get_layout_result(slug)
+        if result is None:
+            return None
+
+        # Re-load the frame diagram from the original source
+        from diagram_loader import load_diagram
+        from frame_adapter import diagram_to_frame
+        from frame_model import Direction, Sizing, Align
+
+        yaml_dir = SCRIPTS / "diagrams" / "yaml"
+        yaml_path = None
+        for ext in (".yaml", ".yml", ".json"):
+            candidate = yaml_dir / (slug + ext)
+            if candidate.exists():
+                yaml_path = candidate
+                break
+
+        if yaml_path is None:
+            # Try Python module
+            import importlib
+            mod_name = slug.replace("-", "_")
+            try:
+                mod = importlib.import_module(f"diagrams.{mod_name}")
+                importlib.reload(mod)
+                diagram_obj = copy.deepcopy(getattr(mod, mod_name))
+            except (ModuleNotFoundError, AttributeError):
+                return None
+        else:
+            diagram_obj = copy.deepcopy(load_diagram(yaml_path))
+
+        frame_diagram = diagram_to_frame(diagram_obj)
+
+        # Apply frame overrides
+        target_id = frame_overrides.get("frame_id", "root")
+
+        def _find_frame(frame, fid):
+            if frame.id == fid:
+                return frame
+            for child in frame.children:
+                found = _find_frame(child, fid)
+                if found:
+                    return found
+            return None
+
+        target = _find_frame(frame_diagram.root, target_id) if target_id != "root" else frame_diagram.root
+        if target is None:
+            target = frame_diagram.root
+
+        direction_map = {"VERTICAL": Direction.VERTICAL, "HORIZONTAL": Direction.HORIZONTAL}
+        sizing_map = {"HUG": Sizing.HUG, "FILL": Sizing.FILL, "FIXED": Sizing.FIXED}
+        align_map = {a.name: a for a in Align}
+
+        if "direction" in frame_overrides and frame_overrides["direction"] in direction_map:
+            target.direction = direction_map[frame_overrides["direction"]]
+        if "gap" in frame_overrides and frame_overrides["gap"] is not None:
+            target.gap = int(frame_overrides["gap"])
+        if "padding" in frame_overrides and frame_overrides["padding"] is not None:
+            target.padding = int(frame_overrides["padding"])
+        if "sizing" in frame_overrides and frame_overrides["sizing"] in sizing_map:
+            target.sizing = sizing_map[frame_overrides["sizing"]]
+        if "align" in frame_overrides and frame_overrides["align"] in align_map:
+            target.align = align_map[frame_overrides["align"]]
+        if "width" in frame_overrides and frame_overrides["width"] is not None:
+            target.width = int(frame_overrides["width"])
+        if "height" in frame_overrides and frame_overrides["height"] is not None:
+            target.height = int(frame_overrides["height"])
+
+        # Re-layout
+        from layout_v3 import layout_frame_diagram
+        layout_result = layout_frame_diagram(frame_diagram)
+
+        import diagram_render_svg
+        svg_str = diagram_render_svg.render_svg(layout_result)
+
+        # Clear layout cache for this slug so subsequent requests see fresh data
+        cache_key = f"v3:{slug}"
+        if cache_key in _layout_cache:
+            del _layout_cache[cache_key]
+
+        return {"svg": svg_str}
+    except Exception:
+        import traceback; traceback.print_exc()
+        return None
+
+
 def _load_overrides(slug: str) -> dict:
     path = OVERRIDES_DIR / f"{slug}.json"
     if path.exists():
@@ -711,6 +813,8 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
             self._serve_overrides_post(path[15:])
         elif path.startswith("/api/relayout/"):
             self._serve_relayout(path[14:])
+        elif path.startswith("/api/relayout-v3/"):
+            self._serve_relayout_v3(path[17:])
         elif path.startswith("/api/force-reset/"):
             self._serve_force_reset(path[17:])
         elif path.startswith("/api/force-save/"):
@@ -962,6 +1066,23 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
         result = _relayout(slug, grid_overrides)
         if result is None:
             self.send_error(500, "Relayout failed")
+            return
+        self._respond(200, "application/json", json.dumps(result).encode())
+
+    def _serve_relayout_v3(self, slug: str):
+        if not _is_safe_slug(slug):
+            self.send_error(400, "Invalid slug")
+            return
+        content_length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(content_length)
+        try:
+            params = json.loads(body)
+        except json.JSONDecodeError:
+            self.send_error(400, "Invalid JSON")
+            return
+        result = _relayout_v3(slug, params)
+        if result is None:
+            self.send_error(500, "v3 relayout failed")
             return
         self._respond(200, "application/json", json.dumps(result).encode())
 

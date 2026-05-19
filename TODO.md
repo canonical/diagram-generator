@@ -147,15 +147,20 @@ Three-subagent research (code review + Penpot/Yoga + Figma behavioral spec) iden
 
 ---
 
-#### Milestone 5: Cross-axis alignment fix
+#### Milestone 5: Cross-axis alignment fix ✅
 
-Currently `place()` hardcodes cross-axis to "always stretch". Fix it so `Align` controls both axes.
+`_is_cross_stretch()` determines stretch vs position. TOP_*/LEFT_* stretch (backward compat), CENTER/END keep measured size + offset. Competitive review (Opus 4.6 + GPT-5.4) found the vertical `cross_size` negative guard bug — fixed. 10 tests added covering FILL+cross-center, heading+cross, nested container, vertical compat, overflow.
 
-- [ ] `[H]` **Implement cross-axis alignment in `place()`**: when align is CENTER or END on the cross-axis, children keep their measured cross-axis size and get offset instead of stretching
-- [ ] `[S]` **Add cross-axis alignment tests** (4 tests): CENTER keeps measured size, RIGHT offsets to end, TOP_LEFT preserves stretch (backward compatible), no overflow with any alignment
-- [ ] `[S]` **Verify backward compatibility**: run original 8 tests + all new tests. All pass.
+**Fixes (commit `477e511`):**
 
-**QA checkpoint:** Run full suite. Present output to user. Cross-axis alignment works. TOP_LEFT behavior unchanged (backward compatible). No overflow with any alignment combination.
+- [x] `[H]` **Cross-axis alignment in `place()`**: `_is_cross_stretch()` + per-child offset when not stretching
+- [x] `[S]` **10 cross-axis tests**: 5 core + 5 reviewer-identified gaps (FILL+cross, heading, nested, vertical compat, overflow)
+- [x] `[S]` **Backward compatibility**: 70/70 tests pass (62 comprehensive + 8 original)
+- [x] `[S]` **Bug fix**: vertical `cross_size` clamped with `max(0, ...)` to prevent negative child dimensions
+
+**Reviewer findings deferred to Milestone 9:**
+- Destructive `_enforce_fill_hug_invariant()` mutation breaks interactive relayout — needs save/restore for editor
+- Alignment conflated with stretch (no way to have TOP_LEFT + non-stretch) — acceptable for diagram use case, document as known limitation
 
 ---
 
@@ -181,17 +186,27 @@ Currently `place()` hardcodes cross-axis to "always stretch". Fix it so `Align` 
 
 ---
 
-#### Milestone 8: Nested autolayout stress testing
+#### Milestone 8: Nested autolayout stress testing ✅
 
-The engine must be robust for production use by the TA team. Text overflow and deeply nested layouts are the highest-risk areas. Test with real multi-level nesting and text that exceeds box bounds.
+Competitive review (Opus + GPT-5.4) found 2 bugs and 6 test gaps. All fixed.
 
-- [ ] `[H]` **2-level nesting tests** (4 tests): V→V, V→H, H→V, H→H with text content that naturally overflows single-line bounds. Verify text wrapping triggers box height expansion and parent recalculates.
-- [ ] `[H]` **3-level nesting tests** (3 tests): V→H→V, H→V→H, V→V→V with mixed HUG/FILL at each level. Verify no overflow at any level, all positions grid-snapped.
-- [ ] `[S]` **Text overflow resilience** (3 tests): long single-line text in FIXED-width box, multi-line text exceeding box height, text in FILL child that shrinks below measured — verify graceful handling (expand or clip, no negative dimensions).
-- [ ] `[S]` **Container-too-small behavior** (2 tests): FIXED container smaller than children's total measured size — document and test whether children overflow or clamp.
-- [ ] `[S]` **Demo extension**: add nesting controls to `demo_autolayout.py` — ability to make a child itself a container with its own children, so nested layouts can be tested interactively.
+**Bug fixes (commit `b353c53`):**
 
-**QA checkpoint:** All nesting tests pass. Demo shows correct 2-level and 3-level nesting in browser.
+- [x] `[H]` **FIXED container measured as HUG.** `measure()` now honors `sizing=FIXED` for containers, using explicit width/height instead of content-derived size. This prevents HUG parents from under-allocating FIXED children.
+- [x] `[S]` **Horizontal `available_for_children` negative guard.** Clamped with `max(0, ...)` to match vertical path — prevents negative cursor start in tight horizontal layouts.
+
+**Tests (15 new, 85 total):**
+
+- [x] `[H]` **2-level nesting** (4 tests): V→V, V→H, H→V, H→H — all pass containment check
+- [x] `[H]` **3-level nesting** (5 tests): V→H→V, H→V→H, V→V→V+FILL, FILL cascade 3-level, FIXED-in-HUG parent
+- [x] `[S]` **Text overflow resilience** (4 tests): wide/tall/many children in tight containers, FILL shrink below measured
+- [x] `[S]` **Container-too-small** (2 tests): overflow behavior, zero-FILL remainder
+- [ ] `[S]` **Demo extension** — deferred to Milestone 9 (editor integration supersedes standalone demo)
+
+**Reviewer findings deferred to Milestone 9:**
+- Destructive `_enforce_fill_hug_invariant()` mutation — save/restore needed for relayout
+- Grid-snap on alignment offsets (cross-axis CENTER) — known gap
+- `child_sizing` conflates main/cross-axis FILL — acceptable for diagram use case
 
 ---
 
