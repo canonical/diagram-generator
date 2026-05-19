@@ -83,8 +83,21 @@ def _load_diagrams() -> list[tuple[str, object]]:
 def main() -> None:
     emit_grid = "--grid" in sys.argv
     use_v3 = "--engine" in sys.argv and "v3" in sys.argv
-    SVG_DIR.mkdir(parents=True, exist_ok=True)
-    DRAWIO_DIR.mkdir(parents=True, exist_ok=True)
+
+    if use_v3:
+        v3_output = pathlib.Path(__file__).resolve().parents[1] / "diagrams" / "3.v3-output"
+        v3_svg = v3_output / "svg"
+        v3_drawio = v3_output / "draw.io"
+        v3_svg.mkdir(parents=True, exist_ok=True)
+        v3_drawio.mkdir(parents=True, exist_ok=True)
+        out_svg = v3_svg
+        out_drawio = v3_drawio
+    else:
+        out_svg = SVG_DIR
+        out_drawio = DRAWIO_DIR
+
+    out_svg.mkdir(parents=True, exist_ok=True)
+    out_drawio.mkdir(parents=True, exist_ok=True)
     total_arrow_violations = 0
     total_arrow_crossings = 0
     total_grid_violations = 0
@@ -96,8 +109,8 @@ def main() -> None:
         else:
             result = layout(diagram)
         suffix = "-v3" if use_v3 else "-v2"
-        svg_path = SVG_DIR / f"{slug}{suffix}.svg"
-        drawio_path = DRAWIO_DIR / f"{slug}{suffix}.drawio"
+        svg_path = out_svg / f"{slug}{suffix}.svg"
+        drawio_path = out_drawio / f"{slug}{suffix}.drawio"
         write_svg(svg_path, result)
         write_drawio(drawio_path, result, name=diagram.title)
 
