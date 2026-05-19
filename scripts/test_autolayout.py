@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from frame_model import Frame, FrameDiagram, Direction, Sizing, Align
 from diagram_model import Line, Fill, Border
-from layout_v3 import measure, place, _align_offset
+from layout_v3 import measure, place, _align_offset, _enforce_fill_hug_invariant
 from diagram_shared import BASELINE_UNIT
 
 
@@ -56,15 +56,17 @@ def _container(
 
 
 def _layout(root: Frame) -> Frame:
-    """Measure + place a frame tree, return root."""
+    """Measure + enforce invariants + place a frame tree, return root."""
     measure(root)
+    _enforce_fill_hug_invariant(root)
     place(root, 0, 0, root._measured_w, root._measured_h)
     return root
 
 
 def _layout_fixed(root: Frame, w: int, h: int) -> Frame:
-    """Measure + place into a fixed-size area."""
+    """Measure + enforce invariants + place into a fixed-size area."""
     measure(root)
+    _enforce_fill_hug_invariant(root)
     place(root, 0, 0, w, h)
     return root
 
@@ -879,6 +881,149 @@ class TestInvariants:
 
 
 # ═══════════════════════════════════════════════════════════════════
+# Part 5: FILL-in-HUG invariant
+# ═══════════════════════════════════════════════════════════════════
+
+class TestFillInHugInvariant:
+    """Figma rule: FILL children in HUG parents keep measured size."""
+
+    def test_fill_children_coerced_to_hug_in_hug_parent(self):
+        """FILL children in a HUG parent should act like HUG (keep measured)."""
+        a = _box("a", w=192, h=64)
+        a.child_sizing = Sizing.FILL
+        b = _box("b", w=192, h=80)
+        b.child_sizing = Sizing.FILL
+        root = _container("root", Direction.VERTICAL, [a, b], gap=8, padding=8)
+        # root.sizing defaults to HUG
+        _layout(root)
+
+        # After invariant, children should keep measured sizes
+        assert a._placed_h == round_up(64), \
+            f"FILL child in HUG parent should keep measured h=64, got {a._placed_h}"
+        assert b._placed_h == round_up(80), \
+            f"FILL child in HUG parent should keep measured h=80, got {b._placed_h}"
+
+    def test_fill_children_expand_in_fixed_parent(self):
+        """FILL children in a FIXED parent should divide space equally."""
+        a = _box("a", w=192, h=40)
+        a.child_sizing = Sizing.FILL
+        b = _box("b", w=192, h=40)
+        b.child_sizing = Sizing.FILL
+        root = _container("root", Direction.VERTICAL, [a, b], gap=8, padding=8)
+        root.sizing = Sizing.FIXED
+        root.height = 400
+        root.width = 200
+        _layout_fixed(root, 200, 400)
+
+        # In FIXED parent, FILL children should get roughly equal shares.
+        # available = 400 - 16 - 8 = 376.  Per child: 376/2 = 188.
+        # Grid-rounded: base_fill = 184, leftover = 8, extra_fills = 1.
+        # First child: 184, last child: 192.
+        total_placed = a._placed_h + b._placed_h
+        available = 400 - 16 - 8  # padding * 2 + gap
+        assert total_placed <= available + 0.5, \
+            f"FILL children total {total_placed} exceeds available {available}"
+        diff = abs(a._placed_h - b._placed_h)
+        assert diff <= BASELINE_UNIT, \
+            f"FILL children differ by {diff}px (max {BASELINE_UNIT}): a={a._placed_h}, b={b._placed_h}"
+
+    def test_nested_fill_in_hug_no_overflow(self):
+        """Panel with content + siblings all FILL in HUG column: panel keeps measured size."""
+        inner_a = _box("inner_a", h=64)
+        inner_b = _box("inner_b", h=40)
+        panel = _container("panel", Direction.VERTICAL, [inner_a, inner_b],
+                           gap=8, padding=8)
+        ann = _box("ann", w=240, h=40)
+        ann.child_sizing = Sizing.FILL
+        panel.child_sizing = Sizing.FILL
+
+        column = _container("col", Direction.VERTICAL, [ann, panel],
+                            gap=24, padding=0, border=Border.NONE)
+        _layout(column)
+
+        # Panel should keep its measured size (HUG invariant)
+        assert panel._placed_h >= panel._measured_h - 0.5, \
+            f"Panel should keep measured h={panel._measured_h}, got {panel._placed_h}"
+        # No overflow
+        errors = _children_within_parent(column)
+        assert not errors, f"Children overflow:\n" + "\n".join(errors)
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Part 6: Heading overflow guard
+# ═══════════════════════════════════════════════════════════════════
+
+class TestHeadingOverflow:
+    """Guard against negative child sizes from oversized headings."""
+
+    def test_heading_does_not_cause_negative_child_height(self):
+        """Container smaller than heading should not give children negative height."""
+        child = _box("child", w=100, h=40)
+        root = _container("root", Direction.VERTICAL, [child],
+                          gap=8, padding=8)
+        # Force a very small container
+        root.sizing = Sizing.FIXED
+        root.width = 120
+        root.height = 40  # way too small for heading + child + padding
+        root.heading = Line("Heading")
+        _layout(root)
+
+        # Child dimensions should never be negative
+        assert child._placed_h >= 0, \
+            f"Child got negative height: {child._placed_h}"
+        assert child._placed_w >= 0, \
+            f"Child got negative width: {child._placed_w}"
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Part 7: FILL distribution fairness
+# ═══════════════════════════════════════════════════════════════════
+
+class TestFillDistributionFairness:
+    """FILL distribution should be as fair as possible within grid constraints."""
+
+    def test_three_fill_max_diff_is_one_baseline_unit(self):
+        """3 FILL children: sizes should differ by at most BASELINE_UNIT."""
+        a = _box("a", w=192, h=40)
+        a.child_sizing = Sizing.FILL
+        b = _box("b", w=192, h=40)
+        b.child_sizing = Sizing.FILL
+        c = _box("c", w=192, h=40)
+        c.child_sizing = Sizing.FILL
+        root = _container("root", Direction.VERTICAL, [a, b, c],
+                          gap=0, padding=0, border=Border.NONE)
+        root.sizing = Sizing.FIXED
+        root.height = 104  # not evenly divisible by 3
+        root.width = 200
+        _layout(root)
+
+        sizes = [a._placed_h, b._placed_h, c._placed_h]
+        diff = max(sizes) - min(sizes)
+        assert diff <= BASELINE_UNIT, \
+            f"FILL children differ by {diff}px (max {BASELINE_UNIT}): {sizes}"
+
+    def test_extra_goes_to_last_children(self):
+        """Extra grid units from FILL rounding go to last children, not first."""
+        a = _box("a", w=192, h=40)
+        a.child_sizing = Sizing.FILL
+        b = _box("b", w=192, h=40)
+        b.child_sizing = Sizing.FILL
+        root = _container("root", Direction.VERTICAL, [a, b],
+                          gap=0, padding=0, border=Border.NONE)
+        root.sizing = Sizing.FIXED
+        # 104 / 2 = 52, floor to grid = 48, leftover = 104 - 96 = 8
+        # Extra 8 should go to LAST child
+        root.height = 104
+        root.width = 200
+        _layout(root)
+
+        if a._placed_h != b._placed_h:
+            # If unequal, last child should be the larger one
+            assert b._placed_h >= a._placed_h, \
+                f"Extra should go to last child: a={a._placed_h}, b={b._placed_h}"
+
+
+# ═══════════════════════════════════════════════════════════════════
 # Helpers
 # ═══════════════════════════════════════════════════════════════════
 
@@ -907,6 +1052,9 @@ if __name__ == "__main__":
         TestFixedSizing,
         TestSizingEdgeCases,
         TestInvariants,
+        TestFillInHugInvariant,
+        TestHeadingOverflow,
+        TestFillDistributionFairness,
     ]
 
     passed = 0

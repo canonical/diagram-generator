@@ -144,6 +144,30 @@ def _align_offset(align: Align, available: float, content: float, axis: str) -> 
 # Pass 2: Place (top-down)
 # ---------------------------------------------------------------------------
 
+def _enforce_fill_hug_invariant(frame: Frame) -> None:
+    """Figma rule: if any child uses FILL on the primary axis, the parent
+    cannot be HUG.  When the parent is HUG, FILL children are coerced to
+    HUG because the container already sized to fit its content — there is
+    no extra space for FILL to expand into.
+
+    This prevents the contradiction where a HUG parent measures to
+    sum(children) but then FILL distribution gives each child an equal
+    share that may be smaller than their measured size.
+
+    Recurse through the tree bottom-up.
+    """
+    for child in frame.children:
+        _enforce_fill_hug_invariant(child)
+
+    if frame.sizing != Sizing.HUG or frame.is_leaf:
+        return
+
+    # In a HUG parent, FILL children keep measured size (act like HUG)
+    for child in frame.children:
+        if child.child_sizing == Sizing.FILL:
+            child.child_sizing = Sizing.HUG
+
+
 def place(frame: Frame, x: float, y: float, available_w: float, available_h: float) -> None:
     """Assign position and final size to frame and all descendants.
 
@@ -177,9 +201,9 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
 
     if frame.direction == Direction.HORIZONTAL:
         available_for_children = frame._placed_w - 2 * pad - total_gap
-        cross_size = frame._placed_h - 2 * pad - heading_h - heading_gap
+        cross_size = max(0, frame._placed_h - 2 * pad - heading_h - heading_gap)
     else:
-        available_for_children = frame._placed_h - 2 * pad - heading_h - heading_gap - total_gap
+        available_for_children = max(0, frame._placed_h - 2 * pad - heading_h - heading_gap - total_gap)
         cross_size = frame._placed_w - 2 * pad
 
     # FILL children share the available space equally (after HUG children
@@ -196,21 +220,23 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
 
     if fill_count > 0:
         remaining = max(0, available_for_children - hug_total)
-        # Base size per FILL child, rounded DOWN to grid.
-        base_fill = (remaining // fill_count // BASELINE_UNIT) * BASELINE_UNIT
-        # Leftover grid units that would otherwise become slack.
-        # Distribute one extra BASELINE_UNIT to the first N children
-        # so the total exactly equals `remaining` (zero alignment slack).
-        leftover = remaining - base_fill * fill_count
+        # Round total remaining DOWN to grid, then divide equally.
+        grid_remaining = (remaining // BASELINE_UNIT) * BASELINE_UNIT
+        base_fill = (grid_remaining // fill_count // BASELINE_UNIT) * BASELINE_UNIT
+        # Leftover grid units after equal division — distribute one
+        # BASELINE_UNIT to the *last* N children so the visual weight
+        # stays toward the end rather than biasing the first children.
+        leftover = grid_remaining - base_fill * fill_count
         extra_fills = int(leftover // BASELINE_UNIT)
     else:
         base_fill = 0
         extra_fills = 0
 
-    # When FILL children are present they consume exactly `remaining`,
-    # so content_main == inner and alignment slack is zero.
+    # When FILL children are present they consume exactly `grid_remaining`,
+    # so content_main == inner and alignment slack is zero (modulo sub-grid
+    # remainder which is at most fill_count * BASELINE_UNIT - 1 pixels).
     if fill_count > 0:
-        content_main = hug_total + remaining + total_gap
+        content_main = hug_total + grid_remaining + total_gap
     else:
         content_main = hug_total + total_gap
 
@@ -225,13 +251,14 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
 
     # Place children sequentially.
     # Cross-axis always stretches to fill (like Figma default).
-    # FILL children get base_fill; the first extra_fills of them get +BASELINE_UNIT.
+    # FILL children get base_fill; the last extra_fills of them get +BASELINE_UNIT.
     if frame.direction == Direction.HORIZONTAL:
         cursor_x = x + pad + main_offset
         fill_idx = 0
         for child in frame.children:
             if child.child_sizing == Sizing.FILL:
-                child_w = base_fill + (BASELINE_UNIT if fill_idx < extra_fills else 0)
+                # Give extra to the LAST extra_fills children (index >= fill_count - extra_fills)
+                child_w = base_fill + (BASELINE_UNIT if fill_idx >= fill_count - extra_fills else 0)
                 fill_idx += 1
             else:
                 child_w = child._measured_w
@@ -243,7 +270,7 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
         fill_idx = 0
         for child in frame.children:
             if child.child_sizing == Sizing.FILL:
-                child_h = base_fill + (BASELINE_UNIT if fill_idx < extra_fills else 0)
+                child_h = base_fill + (BASELINE_UNIT if fill_idx >= fill_count - extra_fills else 0)
                 fill_idx += 1
             else:
                 child_h = child._measured_h
@@ -397,6 +424,9 @@ def layout_frame_diagram(diagram: FrameDiagram) -> LayoutResult:
 
     # Pass 1: measure
     measure(root)
+
+    # Enforce Figma invariant: HUG parent + FILL child → parent becomes FIXED
+    _enforce_fill_hug_invariant(root)
 
     # Root gets its measured size (or fixed if set)
     root_w = root.width or root._measured_w

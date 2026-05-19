@@ -16,7 +16,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from frame_model import Frame, FrameDiagram, Direction, Sizing, Align
 from diagram_model import Line, Fill, Border
-from layout_v3 import measure, place
+from layout_v3 import measure, place, _enforce_fill_hug_invariant
 
 
 # ---------------------------------------------------------------------------
@@ -39,6 +39,7 @@ def _container(id: str, direction: Direction, children: list[Frame],
 def _layout(root: Frame) -> Frame:
     """Measure + place a frame tree, return root."""
     measure(root)
+    _enforce_fill_hug_invariant(root)
     place(root, 0, 0, root._measured_w, root._measured_h)
     return root
 
