@@ -1213,6 +1213,367 @@ class TestFillDistributionFairness:
 
 
 # ═══════════════════════════════════════════════════════════════════
+# PART 8: NESTED AUTOLAYOUT STRESS TESTING
+# ═══════════════════════════════════════════════════════════════════
+
+class TestTwoLevelNesting:
+    """2-level nesting: V→V, V→H, H→V, H→H with real content."""
+
+    def test_v_v_nesting(self):
+        """V→V: outer vertical with inner vertical children.
+
+        Each inner container has 2 leaf boxes. All positions grid-snapped,
+        no overflow.
+        """
+        inner1 = _container("inner1", Direction.VERTICAL,
+                            [_box("a", h=64), _box("b", h=64)],
+                            gap=8, padding=8)
+        inner2 = _container("inner2", Direction.VERTICAL,
+                            [_box("c", h=64), _box("d", h=64)],
+                            gap=8, padding=8)
+        outer = _container("outer", Direction.VERTICAL, [inner1, inner2],
+                           gap=24, padding=8)
+        _layout(outer)
+
+        # All positions on grid
+        for f in [outer, inner1, inner2]:
+            assert _on_grid(f._placed_x) and _on_grid(f._placed_y), \
+                f"{f.id} off grid: ({f._placed_x}, {f._placed_y})"
+            assert _on_grid(f._placed_w) and _on_grid(f._placed_h), \
+                f"{f.id} size off grid: ({f._placed_w}, {f._placed_h})"
+        # No overflow
+        assert not _children_within_parent(outer), \
+            f"Outer overflow: {_children_within_parent(outer)}"
+        assert not _children_within_parent(inner1), \
+            f"Inner1 overflow: {_children_within_parent(inner1)}"
+        assert not _children_within_parent(inner2), \
+            f"Inner2 overflow: {_children_within_parent(inner2)}"
+
+    def test_v_h_nesting(self):
+        """V→H: outer vertical, inner containers horizontal.
+
+        Inner containers lay out children side by side.
+        """
+        row1 = _container("row1", Direction.HORIZONTAL,
+                          [_box("a", w=80, h=64), _box("b", w=80, h=64)],
+                          gap=8, padding=8)
+        row2 = _container("row2", Direction.HORIZONTAL,
+                          [_box("c", w=80, h=64), _box("d", w=80, h=64)],
+                          gap=8, padding=8)
+        outer = _container("outer", Direction.VERTICAL, [row1, row2],
+                           gap=24, padding=8)
+        _layout(outer)
+
+        assert not _children_within_parent(outer)
+        assert not _children_within_parent(row1)
+        assert not _children_within_parent(row2)
+        # Rows should be stacked vertically
+        assert row2._placed_y > row1._placed_y + row1._placed_h - 1
+
+    def test_h_v_nesting(self):
+        """H→V: outer horizontal, inner containers vertical."""
+        col1 = _container("col1", Direction.VERTICAL,
+                          [_box("a", h=40), _box("b", h=40)],
+                          gap=8, padding=8)
+        col2 = _container("col2", Direction.VERTICAL,
+                          [_box("c", h=40), _box("d", h=40)],
+                          gap=8, padding=8)
+        outer = _container("outer", Direction.HORIZONTAL, [col1, col2],
+                           gap=24, padding=8)
+        _layout(outer)
+
+        assert not _children_within_parent(outer)
+        assert not _children_within_parent(col1)
+        assert not _children_within_parent(col2)
+        # Columns should be side by side
+        assert col2._placed_x > col1._placed_x + col1._placed_w - 1
+
+    def test_h_h_nesting(self):
+        """H→H: outer horizontal, inner containers also horizontal."""
+        inner1 = _container("inner1", Direction.HORIZONTAL,
+                            [_box("a", w=60, h=40), _box("b", w=60, h=40)],
+                            gap=8, padding=8)
+        inner2 = _container("inner2", Direction.HORIZONTAL,
+                            [_box("c", w=60, h=40), _box("d", w=60, h=40)],
+                            gap=8, padding=8)
+        outer = _container("outer", Direction.HORIZONTAL, [inner1, inner2],
+                           gap=24, padding=8)
+        _layout(outer)
+
+        assert not _children_within_parent(outer)
+        assert not _children_within_parent(inner1)
+        assert not _children_within_parent(inner2)
+
+
+class TestThreeLevelNesting:
+    """3-level nesting with mixed directions and sizing."""
+
+    def test_v_h_v_hierarchy(self):
+        """V→H→V: page → row → column with mixed HUG/FILL.
+
+        Outer=HUG, row=HUG, columns=HUG. All children should fit.
+        """
+        col1 = _container("col1", Direction.VERTICAL,
+                          [_box("a", h=40), _box("b", h=40)],
+                          gap=8, padding=4)
+        col2 = _container("col2", Direction.VERTICAL,
+                          [_box("c", h=40), _box("d", h=40), _box("e", h=40)],
+                          gap=8, padding=4)
+        row = _container("row", Direction.HORIZONTAL, [col1, col2],
+                         gap=16, padding=4)
+        page = _container("page", Direction.VERTICAL, [row],
+                          gap=0, padding=8)
+        _layout(page)
+
+        # No overflow at any level
+        for parent in [page, row, col1, col2]:
+            errors = _children_within_parent(parent)
+            assert not errors, f"{parent.id}: {errors}"
+        # All positions on grid
+        for f in [page, row, col1, col2]:
+            assert _on_grid(f._placed_w) and _on_grid(f._placed_h), \
+                f"{f.id} size off grid"
+
+    def test_h_v_h_hierarchy(self):
+        """H→V→H: sidebar layout pattern.
+
+        Outer horizontal holds a narrow sidebar and a wide main area,
+        each vertical, each containing horizontal child rows.
+        """
+        sidebar_items = _container("si", Direction.HORIZONTAL,
+                                   [_box("s1", w=40, h=32), _box("s2", w=40, h=32)],
+                                   gap=4, padding=4)
+        sidebar = _container("sidebar", Direction.VERTICAL,
+                             [sidebar_items, _box("s3", w=80, h=40)],
+                             gap=8, padding=4)
+        main_row = _container("mr", Direction.HORIZONTAL,
+                              [_box("m1", w=80, h=40), _box("m2", w=80, h=40)],
+                              gap=8, padding=4)
+        main = _container("main", Direction.VERTICAL,
+                          [main_row, _box("m3", h=64)],
+                          gap=8, padding=4)
+        outer = _container("outer", Direction.HORIZONTAL, [sidebar, main],
+                           gap=16, padding=8)
+        _layout(outer)
+
+        for parent in [outer, sidebar, main, sidebar_items, main_row]:
+            errors = _children_within_parent(parent)
+            assert not errors, f"{parent.id}: {errors}"
+
+    def test_v_v_v_with_mixed_sizing(self):
+        """V→V→V: 3-level vertical nesting with FILL at level 2.
+
+        Level 1 (page): FIXED size. Level 2: FILL children split space.
+        Level 3: HUG children inside FILL parents.
+        """
+        deep1 = _container("deep1", Direction.VERTICAL,
+                           [_box("a", w=120, h=32), _box("b", w=120, h=32)],
+                           gap=4, padding=4)
+        deep2 = _container("deep2", Direction.VERTICAL,
+                           [_box("c", w=120, h=32)],
+                           gap=0, padding=4)
+        mid1 = _container("mid1", Direction.VERTICAL, [deep1],
+                          gap=0, padding=4)
+        mid1.child_sizing = Sizing.FILL
+        mid2 = _container("mid2", Direction.VERTICAL, [deep2],
+                          gap=0, padding=4)
+        mid2.child_sizing = Sizing.FILL
+        page = _container("page", Direction.VERTICAL, [mid1, mid2],
+                          gap=8, padding=8)
+        page.sizing = Sizing.FIXED
+        page.height = 400
+        page.width = 200
+        _layout_fixed(page, 200, 400)
+
+        # FILL children should expand
+        assert mid1._placed_h > mid1._measured_h, \
+            f"mid1 should expand: {mid1._placed_h} <= {mid1._measured_h}"
+        assert mid2._placed_h > mid2._measured_h, \
+            f"mid2 should expand: {mid2._placed_h} <= {mid2._measured_h}"
+        # FILL split should be fair
+        assert abs(mid1._placed_h - mid2._placed_h) <= BASELINE_UNIT, \
+            f"FILL split unfair: mid1={mid1._placed_h}, mid2={mid2._placed_h}"
+        # No overflow at any level
+        for parent in [page, mid1, mid2, deep1, deep2]:
+            errors = _children_within_parent(parent)
+            assert not errors, f"{parent.id}: {errors}"
+        # Sizes on grid
+        for f in [page, mid1, mid2]:
+            assert _on_grid(f._placed_h), f"{f.id} height off grid"
+
+    def test_fill_cascade_three_levels(self):
+        """FIXED root → FILL child → FILL grandchild.
+
+        FILL should cascade: grandchild expands through its FILL parent.
+        """
+        leaf = _box("leaf", w=100, h=32)
+        leaf.child_sizing = Sizing.FILL
+        mid = _container("mid", Direction.VERTICAL, [leaf],
+                         gap=0, padding=4)
+        mid.child_sizing = Sizing.FILL
+        root = _container("root", Direction.VERTICAL, [mid],
+                          gap=0, padding=8)
+        root.sizing = Sizing.FIXED
+        root.height = 400
+        root.width = 200
+        _layout_fixed(root, 200, 400)
+
+        # Both mid and leaf should have expanded
+        assert mid._placed_h > mid._measured_h, \
+            f"mid should expand: {mid._placed_h} <= {mid._measured_h}"
+        assert leaf._placed_h > 32, \
+            f"leaf should expand through FILL cascade: {leaf._placed_h}"
+        # No overflow
+        assert not _children_within_parent(root)
+        assert not _children_within_parent(mid)
+
+    def test_fixed_container_in_hug_parent(self):
+        """FIXED inner container inside HUG parent.
+
+        Parent should measure to at least the FIXED child's explicit size.
+        """
+        inner = _container("inner", Direction.VERTICAL,
+                           [_box("a", w=80, h=40)],
+                           gap=0, padding=4)
+        inner.sizing = Sizing.FIXED
+        inner.width = 200
+        inner.height = 160
+        outer = _container("outer", Direction.VERTICAL, [inner],
+                           gap=0, padding=8)
+        _layout(outer)
+
+        # Parent should have reserved enough space for the FIXED child
+        assert outer._placed_w >= 200 + 16, \
+            f"Outer too narrow: {outer._placed_w}, inner needs 200+padding"
+        assert outer._placed_h >= 160 + 16, \
+            f"Outer too short: {outer._placed_h}, inner needs 160+padding"
+        # Inner should be at its fixed size
+        assert inner._placed_w == round_up(200), \
+            f"Inner w={inner._placed_w}, expected {round_up(200)}"
+        assert inner._placed_h == round_up(160), \
+            f"Inner h={inner._placed_h}, expected {round_up(160)}"
+
+
+class TestTextOverflowResilience:
+    """Text overflow and edge cases that stress the layout engine."""
+
+    def test_wide_content_in_narrow_fixed_container(self):
+        """A wide child in a narrow FIXED container: child keeps its size.
+
+        This tests the engine doesn't produce negative dimensions.
+        """
+        wide_child = _box("wide", w=400, h=64)
+        narrow = _container("narrow", Direction.VERTICAL, [wide_child],
+                            gap=0, padding=8)
+        narrow.sizing = Sizing.FIXED
+        narrow.width = 100
+        narrow.height = 100
+        _layout_fixed(narrow, 100, 100)
+
+        # Child keeps measured width (overflow is allowed)
+        assert wide_child._placed_w >= 400, \
+            f"Wide child should keep width: {wide_child._placed_w}"
+        assert wide_child._placed_h > 0, "Height must be positive"
+
+    def test_tall_content_in_short_fixed_container(self):
+        """Tall children in short FIXED container: no negative dimensions."""
+        tall = _box("tall", w=100, h=300)
+        short = _container("short", Direction.VERTICAL, [tall],
+                           gap=0, padding=8)
+        short.sizing = Sizing.FIXED
+        short.width = 200
+        short.height = 80  # way too short
+        _layout_fixed(short, 200, 80)
+
+        assert tall._placed_h >= 300, "Tall child should keep height"
+        assert tall._placed_w > 0, "Width must be positive"
+        assert tall._placed_y >= 0, "Y must not be negative"
+
+    def test_many_children_in_small_container(self):
+        """10 children in a container too small for them all.
+
+        No negative dimensions, positions must be monotonically increasing.
+        """
+        children = [_box(f"c{i}", w=80, h=40) for i in range(10)]
+        small = _container("small", Direction.VERTICAL, children,
+                           gap=8, padding=8)
+        small.sizing = Sizing.FIXED
+        small.width = 200
+        small.height = 100  # needs ~488px for 10 children
+        _layout_fixed(small, 200, 100)
+
+        for child in children:
+            assert child._placed_w > 0, f"{child.id} width <= 0"
+            assert child._placed_h > 0, f"{child.id} height <= 0"
+            assert child._placed_x >= 0, f"{child.id} x < 0"
+            assert child._placed_y >= 0, f"{child.id} y < 0"
+        # Children must be in increasing y order (no stacking on top)
+        for i in range(len(children) - 1):
+            assert children[i + 1]._placed_y > children[i]._placed_y, \
+                f"c{i+1} y not after c{i}: {children[i+1]._placed_y} <= {children[i]._placed_y}"
+
+    def test_fill_child_shrinks_below_measured(self):
+        """FILL child in tiny container: accepts small size gracefully."""
+        child = _box("fill_child", w=192, h=200)
+        child.child_sizing = Sizing.FILL
+        tiny = _container("tiny", Direction.VERTICAL, [child],
+                          gap=0, padding=8)
+        tiny.sizing = Sizing.FIXED
+        tiny.width = 200
+        tiny.height = 40
+        _layout_fixed(tiny, 200, 40)
+
+        # FILL child accepts whatever parent gives, even if < measured
+        assert child._placed_h >= 0, "FILL child height must not be negative"
+        assert child._placed_w > 0, "FILL child width must be positive"
+
+
+class TestContainerTooSmall:
+    """Behavior when FIXED container is smaller than children need."""
+
+    def test_fixed_smaller_than_children_total(self):
+        """FIXED container smaller than sum of children.
+
+        Children overflow but dimensions stay positive.
+        """
+        a = _box("a", w=100, h=80)
+        b = _box("b", w=100, h=80)
+        c = _box("c", w=100, h=80)
+        root = _container("root", Direction.VERTICAL, [a, b, c],
+                          gap=8, padding=8)
+        root.sizing = Sizing.FIXED
+        root.width = 150
+        root.height = 100  # needs 80*3 + 8*2 + 16 = 272
+        _layout_fixed(root, 150, 100)
+
+        # Children overflow but all have positive dimensions
+        for child in [a, b, c]:
+            assert child._placed_w > 0, f"{child.id} width <= 0"
+            assert child._placed_h > 0, f"{child.id} height <= 0"
+        # Children are sequentially placed (not on top of each other)
+        assert b._placed_y > a._placed_y
+        assert c._placed_y > b._placed_y
+
+    def test_zero_available_for_fill(self):
+        """HUG sibling consumes all space, FILL child gets 0 or near-0.
+
+        FILL child should get at least 0, never negative.
+        """
+        big = _box("big", w=100, h=200)
+        fill_child = _box("fill", w=100, h=40)
+        fill_child.child_sizing = Sizing.FILL
+        root = _container("root", Direction.VERTICAL, [big, fill_child],
+                          gap=8, padding=8)
+        root.sizing = Sizing.FIXED
+        root.height = 224  # big=200 + gap=8 + pad=16 = exactly 224, zero left
+        root.width = 200
+        _layout_fixed(root, 200, 224)
+
+        assert fill_child._placed_h >= 0, \
+            f"FILL child height negative: {fill_child._placed_h}"
+
+
+# ═══════════════════════════════════════════════════════════════════
 # Helpers
 # ═══════════════════════════════════════════════════════════════════
 
@@ -1245,6 +1606,10 @@ if __name__ == "__main__":
         TestFillInHugInvariant,
         TestHeadingOverflow,
         TestFillDistributionFairness,
+        TestTwoLevelNesting,
+        TestThreeLevelNesting,
+        TestTextOverflowResilience,
+        TestContainerTooSmall,
     ]
 
     passed = 0

@@ -108,8 +108,17 @@ def measure(frame: Frame) -> None:
         content_w = max(c._measured_w for c in frame.children) if frame.children else 0
         content_h = sum(c._measured_h for c in frame.children) + total_gap
 
-    frame._measured_w = round_up_to_grid(content_w + 2 * pad)
-    frame._measured_h = round_up_to_grid(content_h + 2 * pad + heading_h + heading_gap)
+    content_based_w = round_up_to_grid(content_w + 2 * pad)
+    content_based_h = round_up_to_grid(content_h + 2 * pad + heading_h + heading_gap)
+
+    # FIXED containers use their explicit size (may be larger or smaller
+    # than content).  HUG/FILL containers use the content-derived size.
+    if frame.sizing == Sizing.FIXED:
+        frame._measured_w = round_up_to_grid(frame.width) if frame.width else content_based_w
+        frame._measured_h = round_up_to_grid(frame.height) if frame.height else content_based_h
+    else:
+        frame._measured_w = content_based_w
+        frame._measured_h = content_based_h
 
 
 # ---------------------------------------------------------------------------
@@ -218,7 +227,7 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
     total_gap = frame.gap * max(0, n - 1)
 
     if frame.direction == Direction.HORIZONTAL:
-        available_for_children = frame._placed_w - 2 * pad - total_gap
+        available_for_children = max(0, frame._placed_w - 2 * pad - total_gap)
         cross_size = max(0, frame._placed_h - 2 * pad - heading_h - heading_gap)
     else:
         available_for_children = max(0, frame._placed_h - 2 * pad - heading_h - heading_gap - total_gap)
