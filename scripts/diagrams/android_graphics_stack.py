@@ -30,7 +30,7 @@ def _helper(text: str) -> Line:
 
 
 android_graphics_stack = Diagram(
-    title="Android Graphics Stack",
+    title="Android graphics stack",
     arrangement=Diagram.Arrangement.GRID,
     cols=2,
     col_width=480,
@@ -63,7 +63,7 @@ android_graphics_stack = Diagram(
         Box(
             id="runtime",
             label=[
-                _heading("Android Graphics Runtime"),
+                _heading("Android graphics runtime"),
                 _body("• EGL"),
                 _body("• Vulkan loader"),
                 _body("• Buffer management abstractions"),
@@ -86,7 +86,7 @@ android_graphics_stack = Diagram(
         Box(
             id="composition",
             label=[
-                _heading("System Composition and Display Policy"),
+                _heading("System composition and display policy"),
                 _body("• SurfaceFlinger"),
                 _body("• HWComposer (capability & policy)"),
             ],
@@ -107,7 +107,7 @@ android_graphics_stack = Diagram(
         Box(
             id="kernel_gfx",
             label=[
-                _heading("Kernel Graphics & Display Subsystems"),
+                _heading("Kernel graphics & display subsystems"),
                 _body("• DRM / KMS"),
                 _body("• GPU drivers"),
                 _body("• Memory & synchronization primitives"),

@@ -73,6 +73,9 @@ Without step 2, the preview editor shows "No reference sketch for this diagram" 
 | lt-diagram-generator | OK – lightning talk pipeline diagram |
 | lt-a4-generator | OK – lightning talk pipeline diagram |
 | lt-summit-identity | OK – lightning talk pipeline diagram |
+| android-custom-to-cloud | OK |
+| android-security-comparison | OK |
+| android-container-vs-vm | OK |
 
 ### Output validation checkpoint (May 2026)
 

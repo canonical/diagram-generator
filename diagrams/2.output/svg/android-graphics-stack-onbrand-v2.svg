@@ -25,7 +25,7 @@
   <g data-component-id="runtime">
   <rect x="24" y="136" width="480" height="112" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
   <text font-family="Ubuntu Sans">
-    <tspan x="32" y="160.92" font-size="18" font-weight="700" fill="#000000">Android Graphics Runtime</tspan>
+    <tspan x="32" y="160.92" font-size="18" font-weight="700" fill="#000000">Android graphics runtime</tspan>
     <tspan x="32" y="184.92" font-size="18" font-weight="400" fill="#000000">• EGL</tspan>
     <tspan x="32" y="208.92" font-size="18" font-weight="400" fill="#000000">• Vulkan loader</tspan>
     <tspan x="32" y="232.92" font-size="18" font-weight="400" fill="#000000">• Buffer management abstractions</tspan>
@@ -51,7 +51,7 @@
   <g data-component-id="composition">
   <rect x="24" y="272" width="480" height="88" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
   <text font-family="Ubuntu Sans">
-    <tspan x="32" y="296.92" font-size="18" font-weight="700" fill="#000000">System Composition and Display Policy</tspan>
+    <tspan x="32" y="296.92" font-size="18" font-weight="700" fill="#000000">System composition and display policy</tspan>
     <tspan x="32" y="320.92" font-size="18" font-weight="400" fill="#000000">• SurfaceFlinger</tspan>
     <tspan x="32" y="344.92" font-size="18" font-weight="400" fill="#000000">• HWComposer (capability &amp; policy)</tspan>
   </text>
@@ -75,7 +75,7 @@
   <g data-component-id="kernel_gfx">
   <rect x="24" y="384" width="480" height="112" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
   <text font-family="Ubuntu Sans">
-    <tspan x="32" y="408.92" font-size="18" font-weight="700" fill="#000000">Kernel Graphics &amp; Display Subsystems</tspan>
+    <tspan x="32" y="408.92" font-size="18" font-weight="700" fill="#000000">Kernel graphics &amp; display subsystems</tspan>
     <tspan x="32" y="432.92" font-size="18" font-weight="400" fill="#000000">• DRM / KMS</tspan>
     <tspan x="32" y="456.92" font-size="18" font-weight="400" fill="#000000">• GPU drivers</tspan>
     <tspan x="32" y="480.92" font-size="18" font-weight="400" fill="#000000">• Memory &amp; synchronization primitives</tspan>

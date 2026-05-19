@@ -216,6 +216,15 @@ The hierarchy ladder, from highest to lowest visual weight at any given size:
 
 Bold at the same font size is a hierarchical level above regular. Do not make every box label bold — that flattens the hierarchy and makes real headings invisible. Only panel headings and frame titles use bold; individual box labels use regular weight.
 
+### Casing
+
+All diagram text uses **sentence case**: capitalize the first word and proper nouns only. Do not use Title Case for headings, labels, or annotations.
+
+- ✅ "Android graphics runtime", "Host-side tools", "System composition and display policy"
+- ❌ "Android Graphics Runtime", "Host-Side Tools", "System Composition And Display Policy"
+
+Exceptions: product names ("Anbox Cloud", "SurfaceFlinger"), acronyms ("GPU", "API", "SELinux"), and text that the source explicitly styles differently. When in doubt, use sentence case.
+
 ### Scale
 
 - Body copy: `18px` Ubuntu Sans regular with `24px` line height (modular-scale step up from editorial-tier `16px`, sized to fill `192px` boxes alongside `48px` icons).

@@ -15,7 +15,7 @@
   <g data-component-id="lxd_container">
   <rect x="16" y="88" width="272" height="432" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
   <text font-family="Ubuntu Sans">
-    <tspan x="24" y="112.92" font-size="18" font-weight="700" fill="#000000">LXD Container</tspan>
+    <tspan x="24" y="112.92" font-size="18" font-weight="700" fill="#000000">LXD container</tspan>
   </text>
   </g>
   <g data-component-id="lxd_headline">
@@ -27,7 +27,7 @@
   <g data-component-id="lxd_system">
   <rect x="24" y="232" width="256" height="64" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
   <text font-family="Ubuntu Sans">
-    <tspan x="32" y="256.92" font-size="18" font-weight="400" fill="#000000">Android System</tspan>
+    <tspan x="32" y="256.92" font-size="18" font-weight="400" fill="#000000">Android system</tspan>
   </text>
   </g>
   <g data-component-id="vm">
@@ -48,13 +48,13 @@
   <g data-component-id="vm_system">
   <rect x="304" y="280" width="256" height="112" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
   <text font-family="Ubuntu Sans">
-    <tspan x="312" y="304.92" font-size="18" font-weight="400" fill="#000000">Android System</tspan>
+    <tspan x="312" y="304.92" font-size="18" font-weight="400" fill="#000000">Android system</tspan>
   </text>
   </g>
   <g data-component-id="vm_kernel">
   <rect x="304" y="400" width="256" height="112" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
   <text font-family="Ubuntu Sans">
-    <tspan x="312" y="424.92" font-size="18" font-weight="400" fill="#000000">Android Kernel</tspan>
+    <tspan x="312" y="424.92" font-size="18" font-weight="400" fill="#000000">Android kernel</tspan>
   </text>
   </g>
   <g data-component-id="note_left">
@@ -69,13 +69,13 @@
   <g data-component-id="host_container">
   <rect x="24" y="576" width="256" height="40" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
   <text font-family="Ubuntu Sans">
-    <tspan x="32" y="600.92" font-size="18" font-weight="400" fill="#000000">Host Kernel (AppArmor)</tspan>
+    <tspan x="32" y="600.92" font-size="18" font-weight="400" fill="#000000">Host kernel (AppArmor)</tspan>
   </text>
   </g>
   <g data-component-id="host_vm">
   <rect x="304" y="576" width="256" height="40" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
   <text font-family="Ubuntu Sans">
-    <tspan x="312" y="600.92" font-size="18" font-weight="400" fill="#000000">Host Kernel (AppArmor)</tspan>
+    <tspan x="312" y="600.92" font-size="18" font-weight="400" fill="#000000">Host kernel (AppArmor)</tspan>
   </text>
   </g>
   <g data-component-id="_auto_4">

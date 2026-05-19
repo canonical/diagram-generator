@@ -32,7 +32,7 @@ def _helper(text: str) -> Line:
 
 
 android_security_comparison = Diagram(
-    title="Android Security Comparison",
+    title="Android security comparison",
     arrangement=Diagram.Arrangement.GRID,
     cols=3,
     col_width=240,
@@ -53,7 +53,7 @@ android_security_comparison = Diagram(
         # ── Row 1: Containers / VMs ──
         Panel(
             id="lxd_container",
-            heading=_heading("LXD Container"),
+            heading=_heading("LXD container"),
             fill=Fill.WHITE,
             cols=1,
             row_gap=8,
@@ -67,7 +67,7 @@ android_security_comparison = Diagram(
                 ),
                 Box(
                     id="lxd_system",
-                    label=[_body("Android System")],
+                    label=[_body("Android system")],
                     fill=Fill.GREY,
                     col=0, row=1,
                 ),
@@ -94,13 +94,13 @@ android_security_comparison = Diagram(
                 ),
                 Box(
                     id="vm_system",
-                    label=[_body("Android System")],
+                    label=[_body("Android system")],
                     fill=Fill.WHITE,
                     col=0, row=1,
                 ),
                 Box(
                     id="vm_kernel",
-                    label=[_body("Android Kernel")],
+                    label=[_body("Android kernel")],
                     fill=Fill.WHITE,
                     col=0, row=2,
                 ),
@@ -120,13 +120,13 @@ android_security_comparison = Diagram(
         # ── Row 3: Host kernel layer ──
         Box(
             id="host_container",
-            label=[_body("Host Kernel (AppArmor)")],
+            label=[_body("Host kernel (AppArmor)")],
             fill=Fill.GREY,
             col=0, row=3,
         ),
         Box(
             id="host_vm",
-            label=[_body("Host Kernel (AppArmor)")],
+            label=[_body("Host kernel (AppArmor)")],
             fill=Fill.GREY,
             col=1, row=3,
         ),

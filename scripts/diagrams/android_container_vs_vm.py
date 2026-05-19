@@ -33,7 +33,7 @@ def _helper(text: str) -> Line:
 
 
 android_container_vs_vm = Diagram(
-    title="Android Container vs VM Architecture",
+    title="Android container vs VM architecture",
     arrangement=Diagram.Arrangement.GRID,
     cols=3,
     col_width=240,
@@ -54,7 +54,7 @@ android_container_vs_vm = Diagram(
         # ── Row 1: Anbox Instances ──
         Panel(
             id="anbox_container",
-            heading=_heading("Anbox Instance"),
+            heading=_heading("Anbox instance"),
             fill=Fill.WHITE,
             cols=1,
             row_gap=8,
@@ -63,7 +63,7 @@ android_container_vs_vm = Diagram(
                 Box(
                     id="container_system",
                     label=[
-                        _body("Android System"),
+                        _body("Android system"),
                         _body("(App/Framework/API)"),
                     ],
                     fill=Fill.GREY,
@@ -71,7 +71,7 @@ android_container_vs_vm = Diagram(
                 ),
                 Box(
                     id="container_runtime",
-                    label=[_body("Android Runtime")],
+                    label=[_body("Android runtime")],
                     fill=Fill.GREY,
                     col=0, row=1,
                 ),
@@ -79,7 +79,7 @@ android_container_vs_vm = Diagram(
         ),
         Panel(
             id="anbox_vm",
-            heading=_heading("Anbox Instance"),
+            heading=_heading("Anbox instance"),
             fill=Fill.GREY,
             cols=1,
             row_gap=8,
@@ -88,7 +88,7 @@ android_container_vs_vm = Diagram(
                 Box(
                     id="vm_system",
                     label=[
-                        _body("Android System"),
+                        _body("Android system"),
                         _body("(App/Framework/API)"),
                     ],
                     fill=Fill.WHITE,
@@ -96,13 +96,13 @@ android_container_vs_vm = Diagram(
                 ),
                 Box(
                     id="vm_runtime",
-                    label=[_body("Android Runtime")],
+                    label=[_body("Android runtime")],
                     fill=Fill.WHITE,
                     col=0, row=1,
                 ),
                 Box(
                     id="vm_kernel",
-                    label=[_body("Android Kernel")],
+                    label=[_body("Android kernel")],
                     fill=Fill.WHITE,
                     col=0, row=2,
                 ),
@@ -122,7 +122,7 @@ android_container_vs_vm = Diagram(
         # ── Row 3: Host OS & Hardware ──
         Panel(
             id="host_container",
-            heading=_heading("Host OS & Hardware"),
+            heading=_heading("Host OS & hardware"),
             fill=Fill.WHITE,
             cols=1,
             row_gap=8,
@@ -131,7 +131,7 @@ android_container_vs_vm = Diagram(
                 Box(
                     id="host_container_kernel",
                     label=[
-                        _body("Host Linux Kernel"),
+                        _body("Host Linux kernel"),
                         _body("(shared kernel)"),
                     ],
                     fill=Fill.GREY,
@@ -147,7 +147,7 @@ android_container_vs_vm = Diagram(
         ),
         Panel(
             id="host_vm",
-            heading=_heading("Host OS & Hardware"),
+            heading=_heading("Host OS & hardware"),
             fill=Fill.WHITE,
             cols=1,
             row_gap=8,
@@ -155,7 +155,7 @@ android_container_vs_vm = Diagram(
             children=[
                 Box(
                     id="host_vm_kernel",
-                    label=[_body("Host Linux Kernel")],
+                    label=[_body("Host Linux kernel")],
                     fill=Fill.GREY,
                     col=0, row=0,
                 ),

@@ -4,6 +4,14 @@ Completed work belongs here so `TODO.md` stays lean.
 
 ## Short-term
 
+### 2026-05-19 – Android diagram batch + sentence case rule
+
+- Created 4 android diagram definitions: `android-graphics-stack`, `android-custom-to-cloud`, `android-security-comparison`, `android-container-vs-vm`.
+- Registered all 4 in `build_v2.py` registry, `preview_server.py` reference map, and `build_compare_pages.py` pairs.
+- Added "Adding a new diagram (checklist)" section to `STATUS.md` documenting the 3 required registration steps.
+- Added sentence case casing rule to `DIAGRAM.md` (new "Casing" section) and redraw skill guardrails.
+- Converted all android diagram text from Title Case to sentence case.
+
 ### 2026-05-19 – Editor UX fixes
 
 - Fixed literal `\n` in text editing (textarea join/split used escaped `\\n` instead of real newlines).
@@ -12,6 +20,8 @@ Completed work belongs here so `TODO.md` stays lean.
 - Added text reflow on box resize: `reflowTextInGroup()` wraps tspans at word boundaries against available width; box height auto-expands (snapped to 8px grid) to fit wrapped text.
 - Added grid-row vertical cascade: all components in rows below an expanded box shift down uniformly; arrows track the shifts via updated `sideShift`.
 - Fixed click selection hitting wrong box: `findComponentAtDepth` used model data from the Python layout engine which diverges from SVG rect positions; now reads actual SVG DOM `<rect>` attributes + CSS transforms. Same fix applied to `showResizeHandles`, `updateInspector`, and `autoFitArtboard`.
+- Completed code quality items: `GridSpec` dead code fix, diagonal arrowhead fix, Python/YAML definition drift fix, spec-provenance path normalization.
+- Resizable/auto-fit artboard, annotation autolayout.
 
 ### 2026-05-13 – BF-backed force preview prototype
 

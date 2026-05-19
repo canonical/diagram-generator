@@ -61,25 +61,19 @@ Provide a cold-start-safe workflow and a consistent on-brand SVG system for rede
 
 ### Editor UX
 
-- [x] `[H]` **Resizable / auto-fit artboard.** ~~Resizing a box can push content off-canvas.~~ `autoFitArtboard()` now expands the SVG viewBox after move/resize when content overflows.
-- [x] `[S]` **Text editing: literal `\n` instead of line breaks.** Textarea was joining/splitting on escaped `\\n` instead of real newlines, making the editor show `\n` characters and rendering all lines on one visual line. Fixed: use actual `\n` in join/split.
-- [x] `[S]` **Arrow keys move box during text edit.** Document-level keydown handler did not guard against `TEXT_EDITING` mode; arrow keys nudged the selected box instead of navigating within the textarea. Fixed: added mode check + `stopPropagation` on all textarea keydown events.
-- [x] `[S]` **Text editor line-height mismatch.** Textarea CSS had `line-height: 1.43` while SVG text uses 18px/24px = 1.333. Fixed: updated CSS to `1.333`.
-- [x] `[H]` **Text reflow on box resize.** ~~Resizing a box changes the rect but text positions are static SVG coordinates.~~ Text now reflows on width change: `reflowTextInGroup()` measures each tspan against available width and wraps at word boundaries. Box height auto-expands (snapped to 8px grid) to fit wrapped text, and all subsequent grid rows shift down uniformly so nothing overlaps. Arrow endpoints track the reflow-induced shifts via the updated `sideShift` function.
-- [x] `[S]` **Annotation autolayout.** ~~Right-column annotation text is laid out at fixed coordinates by the Python engine.~~ Root-level components now participate in grid relayout via `model.diagramGrid`. Resizing a box shifts same-row annotations automatically.
-- [x] `[H]` **Click selection misses or selects wrong box.** `findComponentAtDepth` used model data from the Python layout engine for hit testing, but model coordinates diverge from the actual SVG rect positions (different widths, cumulative Y drift). Fixed: hit testing, resize handles, inspector position, and artboard fitting all now read from the SVG DOM + CSS transforms instead of stale model data.
+- [ ] `[S]` **Domain-specific undo/redo.** Undo/redo now uses explicit per-action command records, but each command still stores before/after editor state rather than bespoke do/undo handlers.
 
-### Code quality — from audits
+### Export
 
-- [x] `[H]` **`GridSpec` is dead code.** ~~Layout engine reads raw `panel.cols` etc. instead of `effective_*`.~~ Fixed: both `Panel` and `Diagram` now route through `effective_*` properties that respect `GridSpec`.
-- [x] `[M]` **Diagonal arrows produce invisible arrowheads.** Fixed: `_polyline_arrow` now computes proper triangular geometry from the unit vector.
-- [x] `[M]` ~~Resolve Python/YAML definition drift.~~ Preview server now falls back to YAML loader; build deduplicates colliding slugs; file watcher covers YAML/JSON.
+- [ ] `[S]` **PNG export at 1x, 2x, 3x.** Add a Playwright-based PNG exporter that renders generated SVGs at 1x, 2x, and 3x scale (e.g. `scripts/export_png.py --scale 1,2,3`). Wire into the preview Export button as an option alongside the existing override JSON export.
+
+### Code quality — open
 - [ ] `[H]` Unify the parent-scoped equal-split/outdent math across `scripts/diagram_layout.py` and `scripts/preview/component-model.js`. Preview now consumes declared slots/spans and measured gutters, but the equal-split/outdent math itself is still duplicated between Python and JS.
 - [ ] `[S]` **draw.io renderer uses spatial containment for parenting.** `_find_children` in `diagram_render_drawio.py` uses bounding-box overlap instead of `component_id`, which can mis-parent elements at shared edges. Fix: match by `component_id`.
 - [ ] `[S]` **`_uniform_row_height` ignores Annotations/Helpers.** Rows containing only annotations get `BOX_MIN_HEIGHT` regardless of content. The post-hoc helper expansion partially compensates but runs after uniform equalization.
-- [x] `[S]` Normalize active spec-provenance paths to `canonical-specs`. `DIAGRAM.md`, `README.md`, `STATUS.md`, `TODO.md`, and `docs/specs.md` now point at a sibling repo that actually exists in this workspace.
 - [ ] `[S]` Triage the secondary audit findings: stale-v2 comparison risk in `build_outputs.py`, preview text-width mismatch vs renderer text width, dead helper layout code, stale architectural line-count notes in `STATUS.md`.
 - [ ] `[S]` Triage the current `build_v2.py` corpus blockers separately from the 2026-05-13 autolayout slice: clearance violations on `example-platform-architecture`, `lightning-talk-engine`, `lt-diagram-generator`, `lt-a4-generator`, and `lt-summit-identity`, plus warning-only baseline-grid drift on several older diagrams.
+
 ### Force ↔ grid editor unification
 
 Goal: the force and grid editors share one editor shell; swapping the layout engine should not duplicate interaction code. The audit below lists every grid-editor capability and its force-editor status. Items are ordered by user-facing impact.
