@@ -4,6 +4,38 @@ Completed work belongs here so `TODO.md` stays lean.
 
 ## Short-term
 
+### 2026-05-19 – v3 autolayout test suite + FILL distribution fix (branch frame-layout-engine)
+
+- Built comprehensive test suite (`test_autolayout.py`): 47 tests across 11 test classes covering directional layout (V/H/mixed), 9-point alignment grid, HUG/FILL/FIXED sizing model, edge cases, and invariants. All pass.
+- Built interactive standalone demo (`demo_autolayout.py`): HTTP server on port 8200 with direction, alignment (3×3 grid), child count, per-child HUG/FILL toggles, gap/padding/container-size sliders. Returns SVG with 8px grid dots and depth-colored fills.
+- Fixed 4 FILL distribution bugs: (a) FILL children now get equal share of remaining space (not measured-based), (b) FILL frames accept parent-assigned size even below measured (allows shrinking), (c) parent labels hidden on non-leaf frames, (d) zero-slack distribution via `base_fill + extra_fills` pattern eliminates rounding gap.
+- All fixes browser-verified with interactive demo screenshots: zero gap edge-to-edge, alignment has zero effect when all FILL, mixed HUG/FILL keeps parent padding constant.
+- Ran 3-subagent research (code review + Penpot/Yoga + Figma behavioral spec): confirmed two-pass architecture matches industry standard. Identified 3 actionable gaps: FILL-in-HUG invariant, FILL distribution fairness, cross-axis alignment. Triaged into TODO Milestone 4a.
+
+### 2026-05-19 – v3 frame layout engine fixes (commit 9d49ed1, branch frame-layout-engine)
+
+- Fixed three autolayout overflow bugs in `layout_v3.py`: separators now respect explicit `frame.height` instead of defaulting to `BOX_MIN_HEIGHT`; padding always applied on borderless frames (fixes root `outer_margin` being ignored); FILL distribution uses measured-first approach where every child gets at least its measured size.
+- Added `test_layout_v3.py` with 8 unit tests covering vertical containment, FILL sharing, mixed HUG+FILL, unequal FILL sizes, explicit height, borderless padding, nested containers, and cross-axis stretch. All pass.
+- Verified all 21 v3 diagrams have zero overflow via full `build_v2.py --engine v3` run.
+
+### 2026-05-19 – v3 arrow attachment fix (commit d62a99c, branch frame-layout-engine)
+
+- Fixed arrow attachment in v3 output: arrows now connect to correct box edges using `bounds_map` lookup.
+- Fixed arrow centering on source/target box sides.
+- Added initial 9-point alignment widget to the inspector (later replaced — see uncommitted work below).
+
+### 2026-05-19 – Uncommitted v3 editor work (NOT browser-verified)
+
+The following changes exist in the working tree but were NOT verified in a browser. They may or may not work:
+
+- Replaced 3×3 dot grid alignment widget with 2 dropdown menus (vertical + horizontal) in `editor.js`
+- Removed the `ENGINE === "v3"` gate so alignment dropdowns appear for all engines
+- Added `/api/relayout-v3/<slug>` endpoint in `preview_server.py` with `_relayout_v3()` function that accepts per-frame alignment overrides
+- Added `requestFrameRelayout()` in `editor.js` that calls the v3 relayout API on dropdown change
+- Updated `editor.css` to replace the 3×3 grid styles with dropdown styles
+
+**Warning:** The preview server crashed repeatedly during this session (6 instances, all exit code 1). None of the uncommitted features were verified in a browser. The next agent must verify each feature individually before building on top of them.
+
 ### 2026-05-19 – Android diagram batch + sentence case rule
 
 - Created 4 android diagram definitions: `android-graphics-stack`, `android-custom-to-cloud`, `android-security-comparison`, `android-container-vs-vm`.

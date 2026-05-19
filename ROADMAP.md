@@ -50,6 +50,11 @@ Lightweight build-time checks added: arrow crossing validation, arrow clearance 
 
 The preview server provides hot-reload, click-to-select, drag-to-move, resize, undo/redo, and override persistence. Extending toward a Figma-like editing experience layered over the declarative diagram model.
 
+**v3 frame layout engine (branch `frame-layout-engine`, active):**
+The v2 grid-based layout is being replaced with a Figma-like nested frame system where every level is an autolayout frame with direction, gap, padding, sizing (HUG/FILL/FIXED), and 9-point alignment. The layout engine (`layout_v3.py`) runs two passes: measure (bottom-up) → place (top-down).
+
+A test-first redesign is in progress (see `TODO.md` → "v3 auto-layout engine — test-first redesign"). The approach: comprehensive unit tests for directional layout, 9-point alignment, and sizing model — all verified before wiring UI. Previous attempts to develop features directly against diagrams resulted in unverified code and server instability.
+
 **Implemented:**
 - Component selection, move, resize with per-component override persistence
 - Undo/redo with explicit per-action command records

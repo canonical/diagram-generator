@@ -59,6 +59,154 @@ Provide a cold-start-safe workflow and a consistent on-brand SVG system for rede
 
 ## Active TODO
 
+### v3 auto-layout engine — test-first redesign (branch `frame-layout-engine`)
+
+The v3 frame engine has the right Figma-like model (`Direction`, `Sizing`, `Align`) but was developed directly against real diagrams. The previous session stacked features without browser verification (alignment dropdowns, relayout API, editor CSS), resulting in 6 server crashes and zero confirmed features. That code is now stashed (`git stash list` → "unverified-v3-ui-work").
+
+This plan rebuilds the engine's test coverage from scratch, fixes the cross-axis alignment gap, and only then re-integrates the UI work.
+
+**Rules:**
+1. One milestone at a time. Do not start the next until the current one passes QA.
+2. QA = user reviews test output and confirms direction before proceeding.
+3. No feature is "done" without a passing test and (where applicable) browser verification.
+4. No patch-on-patch. If something is wrong, fix the root cause.
+
+**Key files:**
+- `scripts/frame_model.py` — `Frame`, `Direction`, `Sizing`, `Align`
+- `scripts/layout_v3.py` — `measure()`, `place()`, `_align_offset()`
+- `scripts/test_autolayout.py` — comprehensive test suite (this plan)
+- `scripts/test_layout_v3.py` — original 8 tests (kept for regression)
+- `scripts/frame_adapter.py` — v2 → v3 diagram adapter
+- `scripts/diagram_shared.py` — tokens (`BASELINE_UNIT=8`, `BLOCK_WIDTH=192`, etc.)
+
+---
+
+#### Milestone 1: Stabilize ✅
+
+- [x] Stash unverified UI code (alignment dropdowns, relayout API, editor CSS)
+- [x] Verify original 8 tests pass (`python scripts/test_layout_v3.py`)
+- [x] Verify preview server starts without crashing
+- [x] Verify v3 page renders at `/view/v3:android-container-vs-vm`
+
+**QA:** Server stable, tests green, v3 diagram visible in browser. ✅
+
+---
+
+#### Milestone 2: Directional layout tests ✅
+
+Test the `measure()` → `place()` pipeline across both directions and nesting.
+
+- [x] `[S]` **Vertical direction** (5 tests): single child positioning, gap spacing, heading reservation, nested containers, zero-gap edge case
+- [x] `[S]` **Horizontal direction** (4 tests): single child, three side-by-side, cross-axis stretch, FILL width distribution
+- [x] `[S]` **Mixed directions** (3 tests): V→H nesting, H→V nesting, three-level V→H→V hierarchy
+
+**QA:** All 12 tests pass. ✅
+
+---
+
+#### Milestone 3: 9-point alignment grid tests ✅
+
+Test that `Align` enum values correctly position content on both axes.
+
+- [x] `[S]` **`_align_offset()` unit tests** (8 tests): x-axis LEFT/CENTER/RIGHT, y-axis TOP/CENTER/BOTTOM, no-slack case, content-larger-than-available case
+- [x] `[S]` **Main-axis alignment integration** (7 tests): TOP_LEFT default, BOTTOM_LEFT push-down, CENTER centering, horizontal CENTER/RIGHT, FILL ignores alignment, multiple children centered
+- [x] `[S]` **Grid-snap under alignment** (2 tests): all positions stay on 8px grid after alignment offset
+
+**QA:** All alignment tests pass. ✅
+
+---
+
+#### Milestone 4: Sizing model tests ✅
+
+Exhaustive testing of HUG/FILL/FIXED interactions.
+
+- [x] `[S]` **HUG** (2 tests): container shrinks to content, nested HUG
+- [x] `[S]` **FILL** (5 tests): equal shares, unequal measured sizes, HUG+FILL siblings, FILL accepts parent-assigned size (can shrink below measured), rounds down to grid
+- [x] `[S]` **FIXED** (3 tests): explicit container size, explicit leaf size, FILL children in FIXED container
+- [x] `[S]` **Edge cases** (4 tests): empty container, single FILL child, all HUG in FIXED, grid-snap invariant
+
+**QA:** All sizing tests pass. Zero-slack FILL distribution verified in browser (gap=0, padding=0 → edge-to-edge). ✅
+
+---
+
+#### Milestone 4a: Research-informed gap fixes
+
+Three-subagent research (code review + Penpot/Yoga + Figma behavioral spec) identified gaps ranked by impact. These must be addressed before cross-axis work.
+
+**Findings summary (2026-05-19):**
+- Architecture is sound: two-pass measure→place matches Figma, Yoga (React Native), and Penpot.
+- 8px grid snapping is tighter than Figma's pixel snap — a feature, not a limitation.
+- HUG/FILL/FIXED trio maps directly to Figma's mental model.
+- Features we do NOT need for diagrams: wrap mode, aspect-ratio, scrolling, text truncation, per-child alignment override, fractional units (fr).
+
+**Critical gaps:**
+
+- [ ] `[H]` **FILL-in-HUG invariant enforcement.** Figma enforces: if ANY child uses FILL on primary axis, parent CANNOT be HUG — it becomes FIXED automatically. Our engine has no such constraint. Add a validation/coercion step before `place()`. Add tests: HUG parent + FILL child → parent becomes FIXED; all-HUG stays HUG.
+- [ ] `[S]` **FILL distribution fairness.** Current `base_fill + extra_fills` gives first N children +8px each — can create 25% size difference on small children. Distribute remainder more evenly (e.g. round-robin or spread across all children). Add test: 3 FILL children in 104px → sizes differ by at most BASELINE_UNIT.
+- [ ] `[S]` **Heading overflow guard.** If heading_h + heading_gap > placed_h - 2*pad, child gets negative height. Add a `max(0, ...)` guard and a test.
+
+---
+
+#### Milestone 5: Cross-axis alignment fix
+
+Currently `place()` hardcodes cross-axis to "always stretch". Fix it so `Align` controls both axes.
+
+- [ ] `[H]` **Implement cross-axis alignment in `place()`**: when align is CENTER or END on the cross-axis, children keep their measured cross-axis size and get offset instead of stretching
+- [ ] `[S]` **Add cross-axis alignment tests** (4 tests): CENTER keeps measured size, RIGHT offsets to end, TOP_LEFT preserves stretch (backward compatible), no overflow with any alignment
+- [ ] `[S]` **Verify backward compatibility**: run original 8 tests + all new tests. All pass.
+
+**QA checkpoint:** Run full suite. Present output to user. Cross-axis alignment works. TOP_LEFT behavior unchanged (backward compatible). No overflow with any alignment combination.
+
+---
+
+#### Milestone 6: Integration with real diagrams
+
+- [ ] `[S]` **Golden-value assertions** for 3 representative diagrams: `android-container-vs-vm`, `example-arrow-label-separator`, `example-platform-architecture`
+- [ ] `[S]` **Build verification**: `python scripts/build_v2.py --engine v3` completes for all diagrams
+- [ ] `[S]` **Browser verification**: start server, visually inspect each of the 3 test diagrams at `/view/v3:<slug>`. One at a time. Screenshot each.
+
+**QA checkpoint:** Present screenshots to user. Diagrams look correct. Golden values recorded.
+
+---
+
+#### Milestone 7: Recover stashed UI work
+
+- [ ] `[S]` **Unstash** alignment dropdowns + relayout API (`git stash pop`)
+- [ ] `[S]` **Diagnose and fix server crashes** from the stashed code
+- [ ] `[S]` **Browser-verify alignment dropdowns** render in inspector
+- [ ] `[S]` **Browser-verify relayout API** updates SVG on dropdown change
+- [ ] `[S]` **Add API test** for `/api/relayout-v3/<slug>`
+
+**QA checkpoint:** Present browser screenshots to user. Dropdowns visible. Changing alignment visually updates the diagram.
+
+---
+
+#### Milestone 8: Nested autolayout stress testing
+
+The engine must be robust for production use by the TA team. Text overflow and deeply nested layouts are the highest-risk areas. Test with real multi-level nesting and text that exceeds box bounds.
+
+- [ ] `[H]` **2-level nesting tests** (4 tests): V→V, V→H, H→V, H→H with text content that naturally overflows single-line bounds. Verify text wrapping triggers box height expansion and parent recalculates.
+- [ ] `[H]` **3-level nesting tests** (3 tests): V→H→V, H→V→H, V→V→V with mixed HUG/FILL at each level. Verify no overflow at any level, all positions grid-snapped.
+- [ ] `[S]` **Text overflow resilience** (3 tests): long single-line text in FIXED-width box, multi-line text exceeding box height, text in FILL child that shrinks below measured — verify graceful handling (expand or clip, no negative dimensions).
+- [ ] `[S]` **Container-too-small behavior** (2 tests): FIXED container smaller than children's total measured size — document and test whether children overflow or clamp.
+- [ ] `[S]` **Demo extension**: add nesting controls to `demo_autolayout.py` — ability to make a child itself a container with its own children, so nested layouts can be tested interactively.
+
+**QA checkpoint:** All nesting tests pass. Demo shows correct 2-level and 3-level nesting in browser.
+
+---
+
+#### Milestone 9: Editor integration — autolayout in the official UI
+
+The autolayout engine needs to be accessible from the main diagram editor, not just the standalone demo. This requires depth navigation (drill-in/drill-out) so users can select and configure nested frames.
+
+- [ ] `[H]` **Autolayout controls in editor inspector.** Wire the v3 layout properties (direction, gap, padding, sizing, alignment) into the existing editor inspector panel. Use Baseline Foundry components for all UI — do not create local styles unless BF lacks them.
+- [ ] `[H]` **Depth navigation: double-click / Ctrl+click to drill into a container.** Clicking a container selects it; double-click or Ctrl+click enters it, showing its children as the selectable layer. Visual breadcrumb or depth indicator.
+- [ ] `[H]` **Shift+Enter to go up in selection.** When inside a nested container, Shift+Enter (or Escape) moves selection back up to the parent frame.
+- [ ] `[S]` **Relayout on property change.** Changing any autolayout property in the inspector triggers a server-side relayout and SVG refresh, same pattern as the demo's `/api/layout` endpoint.
+- [ ] `[S]` **Nested selection highlighting.** Show different selection chrome for the current depth level vs parent containers (e.g. dimmed parent outline, bright child selection).
+
+**QA checkpoint:** Browser-verify each feature individually. Double-click drills in, Shift+Enter drills out, property changes trigger relayout.
+
 ### Editor UX
 
 - [ ] `[S]` **Domain-specific undo/redo.** Undo/redo now uses explicit per-action command records, but each command still stores before/after editor state rather than bespoke do/undo handlers.

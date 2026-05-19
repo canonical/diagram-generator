@@ -62,6 +62,10 @@ Detailed single-surface prompts are in the interactive demo section below.
 
 ## Quick start for new users
 
+### UI development rule
+
+All editor and preview UI must use [Baseline Foundry](../baseline-foundry/) components and styles. Do not create local CSS styles unless Baseline Foundry lacks the needed primitive. The agent should familiarise itself with the BF component library before building new UI.
+
 ```bash
 # 1. Clone and set up
 git clone <repo-url> && cd diagram-generator

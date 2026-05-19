@@ -153,6 +153,11 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
     if frame.sizing == Sizing.FIXED and frame.width and frame.height:
         frame._placed_w = round_up_to_grid(frame.width)
         frame._placed_h = round_up_to_grid(frame.height)
+    elif frame.child_sizing == Sizing.FILL:
+        # FILL frames accept whatever size the parent assigns,
+        # even if smaller than measured (allows shrinking).
+        frame._placed_w = round_up_to_grid(available_w)
+        frame._placed_h = round_up_to_grid(available_h)
     else:
         frame._placed_w = round_up_to_grid(max(frame._measured_w, available_w))
         frame._placed_h = round_up_to_grid(max(frame._measured_h, available_h))
@@ -177,26 +182,37 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
         available_for_children = frame._placed_h - 2 * pad - heading_h - heading_gap - total_gap
         cross_size = frame._placed_w - 2 * pad
 
-    # Every child gets at least its measured size.
-    # FILL children share any remaining space beyond the total measured.
-    all_measured = 0
+    # FILL children share the available space equally (after HUG children
+    # take their measured sizes).  This matches Figma behaviour: all FILL
+    # siblings end up the same main-axis size regardless of content.
+    hug_total = 0
     fill_count = 0
     for child in frame.children:
-        if frame.direction == Direction.HORIZONTAL:
-            all_measured += child._measured_w
-        else:
-            all_measured += child._measured_h
+        main_size = child._measured_w if frame.direction == Direction.HORIZONTAL else child._measured_h
         if child.child_sizing == Sizing.FILL:
             fill_count += 1
+        else:
+            hug_total += main_size
 
-    # Extra space beyond what's needed for all measured sizes.
-    # Round fill_extra DOWN to the nearest grid unit so rounding
-    # never causes the total to exceed available_for_children.
-    extra = max(0, available_for_children - all_measured)
-    fill_extra = (extra // fill_count // BASELINE_UNIT) * BASELINE_UNIT if fill_count > 0 else 0
+    if fill_count > 0:
+        remaining = max(0, available_for_children - hug_total)
+        # Base size per FILL child, rounded DOWN to grid.
+        base_fill = (remaining // fill_count // BASELINE_UNIT) * BASELINE_UNIT
+        # Leftover grid units that would otherwise become slack.
+        # Distribute one extra BASELINE_UNIT to the first N children
+        # so the total exactly equals `remaining` (zero alignment slack).
+        leftover = remaining - base_fill * fill_count
+        extra_fills = int(leftover // BASELINE_UNIT)
+    else:
+        base_fill = 0
+        extra_fills = 0
 
-    # Compute total content extent for alignment
-    content_main = all_measured + fill_count * fill_extra + total_gap
+    # When FILL children are present they consume exactly `remaining`,
+    # so content_main == inner and alignment slack is zero.
+    if fill_count > 0:
+        content_main = hug_total + remaining + total_gap
+    else:
+        content_main = hug_total + total_gap
 
     # Apply main-axis alignment offset
     inner_w = frame._placed_w - 2 * pad
@@ -209,13 +225,14 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
 
     # Place children sequentially.
     # Cross-axis always stretches to fill (like Figma default).
-    # Main-axis: every child gets at least its measured size;
-    # FILL children additionally get an equal share of remaining space.
+    # FILL children get base_fill; the first extra_fills of them get +BASELINE_UNIT.
     if frame.direction == Direction.HORIZONTAL:
         cursor_x = x + pad + main_offset
+        fill_idx = 0
         for child in frame.children:
             if child.child_sizing == Sizing.FILL:
-                child_w = child._measured_w + fill_extra
+                child_w = base_fill + (BASELINE_UNIT if fill_idx < extra_fills else 0)
+                fill_idx += 1
             else:
                 child_w = child._measured_w
             child_h = cross_size  # cross-axis: always stretch
@@ -223,9 +240,11 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
             cursor_x += child._placed_w + frame.gap
     else:  # VERTICAL
         cursor_y = y + pad + heading_h + heading_gap + main_offset
+        fill_idx = 0
         for child in frame.children:
             if child.child_sizing == Sizing.FILL:
-                child_h = child._measured_h + fill_extra
+                child_h = base_fill + (BASELINE_UNIT if fill_idx < extra_fills else 0)
+                fill_idx += 1
             else:
                 child_h = child._measured_h
             child_w = cross_size  # cross-axis: always stretch

@@ -129,6 +129,47 @@ The project has evolved from a batch diagram generator into a **constrained inte
 
 **Browser-verified (May 2026):** snap guides, layout metadata in inspector, icon re-anchor on resize, parent→child grid propagation, and multi-select distribute/align in the preview inspector. All audit bugs fixed (commits `51535bf`, `dec8160`).
 
+### Pipeline 3: v3 frame layout engine (branch `frame-layout-engine`, active)
+
+**Vision:** Replace the grid-based v2 layout with a Figma-like nested frame system. Every level — canvas, panels, columns, boxes — is an autolayout frame with direction, gap, padding, sizing (HUG/FILL/FIXED), and 9-point alignment. The layout engine runs two passes: measure (bottom-up) → place (top-down).
+
+**Current state (2026-05-19):**
+
+The engine core is stable and tested. 47 comprehensive tests pass across directions, alignment, sizing, and edge cases. An interactive standalone demo runs at port 8200. The previous session's unverified UI work is stashed. Three-subagent research confirmed the architecture matches industry standard (Figma, Yoga, Penpot).
+
+**What works (tested, browser-verified):**
+- Two-pass measure→place engine produces correct layout for all 21 diagrams (zero overflow)
+- 47 unit tests + 8 original tests = 55 total, all passing
+- Interactive demo at port 8200: direction, alignment (3×3 grid), per-child HUG/FILL toggles, gap/padding/container-size sliders
+- Zero-slack FILL distribution: `base_fill + extra_fills` eliminates rounding gaps
+- FILL children accept parent-assigned size (can shrink below measured)
+- Alignment has zero effect when all children FILL (correct Figma behavior)
+- Mixed HUG/FILL keeps parent padding constant
+
+**Research-informed gaps (Milestone 4a in TODO):**
+1. FILL-in-HUG invariant: Figma enforces "FILL child → parent becomes FIXED". We don't yet.
+2. FILL distribution fairness: first N children get +8px each — can create 25% asymmetry.
+3. Heading overflow: no guard against negative child height.
+
+**What is stashed (recoverable via `git stash pop`):**
+- Alignment dropdowns in inspector (never browser-verified)
+- `/api/relayout-v3/<slug>` endpoint (never browser-verified)
+- Editor CSS changes (never browser-verified)
+- Stash label: "unverified-v3-ui-work: alignment dropdowns, relayout API, editor CSS"
+
+**Known gap:** Cross-axis alignment is hardcoded to "always stretch" — the `Align` enum has 9 values but only main-axis positioning uses them. Milestone 5 in TODO.
+
+**Next priorities:** Fill the 3 research-identified gaps (Milestone 4a), implement cross-axis alignment (Milestone 5), then stress-test with nested layouts (Milestone 8) and wire into the official editor UI (Milestone 9).
+
+**Files:**
+- `scripts/frame_model.py` — `Frame`, `FrameDiagram`, `Align`, `Sizing`, `Direction` enums
+- `scripts/frame_adapter.py` — converts v2 `Diagram` → `FrameDiagram`
+- `scripts/layout_v3.py` — two-pass engine: `measure()` → `place()` → `_render_frame()` → `LayoutResult`
+- `scripts/test_layout_v3.py` — original 8 unit tests
+- `scripts/test_autolayout.py` — comprehensive test suite (directions, alignment, sizing)
+
+**Execution plan:** See `TODO.md` → "v3 auto-layout engine — test-first redesign". Nine milestones with QA checkpoints. Milestones 1–4 complete. Milestone 4a (research-informed gap fixes) is next.
+
 - **The repo now uses the centralized root workflow.** `STATUS.md`, `TODO.md`, `ROADMAP.md`, `HISTORY.md`, `INBOX.md`, `AGENT-INBOX.md`, and `docs/specs.md` are the canonical workflow files.
 - **A design.md-inspired diagram language spec now exists.** `DIAGRAM.md` holds the canonical tokens, prose rules, output constraints, and redraw workflow for diagram work instead of keeping that material in `TODO.md`.
 - **`DIAGRAM.md` now exposes a spec -> token -> tool bridge.** Its `sourceSpecs:` frontmatter links typography, spacing, and grid back to `canonical-specs`, so the diagram tier has explicit upstream provenance instead of chat-only context.
