@@ -23,6 +23,9 @@ from diagram_shared import SVG_DIR, DRAWIO_DIR, cleanup_legacy_output_root_svgs
 # (slug, module_name, variable_name)
 _REGISTRY: list[tuple[str, str, str]] = [
     ("android-graphics-stack-onbrand", "diagrams.android_graphics_stack", "android_graphics_stack"),
+    ("android-custom-to-cloud-onbrand", "diagrams.android_custom_to_cloud", "android_custom_to_cloud"),
+    ("android-security-comparison-onbrand", "diagrams.android_security_comparison", "android_security_comparison"),
+    ("android-container-vs-vm-onbrand", "diagrams.android_container_vs_vm", "android_container_vs_vm"),
     ("attention-qkv-onbrand", "diagrams.attention_qkv", "attention_qkv"),
     ("aws-hld-onbrand", "diagrams.aws_hld", "aws_hld"),
     ("gpu-waiting-scheduler-onbrand", "diagrams.gpu_waiting_scheduler", "gpu_waiting_scheduler"),
