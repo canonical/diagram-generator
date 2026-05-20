@@ -415,12 +415,17 @@ def _relayout_v3(slug: str, frame_overrides: dict) -> dict | None:
         import diagram_render_svg
         svg_str = diagram_render_svg.render_svg(layout_result)
 
+        # Build updated component tree for the editor
+        tree_data = []
+        if layout_result.component_tree:
+            tree_data = [asdict(ci) for ci in layout_result.component_tree]
+
         # Clear layout cache for this slug so subsequent requests see fresh data
         cache_key = f"v3:{slug}"
         if cache_key in _layout_cache:
             del _layout_cache[cache_key]
 
-        return {"svg": svg_str}
+        return {"svg": svg_str, "tree": tree_data}
     except Exception:
         import traceback; traceback.print_exc()
         return None

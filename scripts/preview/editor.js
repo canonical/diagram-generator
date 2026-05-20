@@ -3019,6 +3019,12 @@ async function requestV3Relayout(cid) {
       const stage = document.getElementById('stage');
       if (stage) {
         stage.innerHTML = data.svg;
+        // Reload component tree from relayout response
+        if (data.tree) {
+          model.loadTree(data.tree);
+          buildTreeUI();
+        }
+        bindInteraction();
         applyAllOverrides();
         reapplySelection();
       }
