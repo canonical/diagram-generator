@@ -235,6 +235,14 @@ class ComponentInfo:
     grid_row: int = 0  # declared/effective row slot within the parent
     grid_col_span: int = 1
     grid_row_span: int = 1
+    # Per-axis sizing and alignment (v3 frame engine)
+    sizing_w: str = ""  # "HUG", "FILL", "FIXED" or "" (not set)
+    sizing_h: str = ""
+    align: str = ""     # "TOP_LEFT", "CENTER", etc. or "" (not set)
+    padding_top: float = 0
+    padding_right: float = 0
+    padding_bottom: float = 0
+    padding_left: float = 0
 
 
 @dataclass
@@ -245,6 +253,7 @@ class LayoutResult:
     foreground: list[Primitive] = field(default_factory=list)
     grid_info: GridInfo | None = None
     component_tree: list[ComponentInfo] = field(default_factory=list)
+    coerced_overrides: dict = field(default_factory=dict)
 
 
 # ---------------------------------------------------------------------------

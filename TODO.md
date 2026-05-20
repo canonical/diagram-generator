@@ -164,25 +164,27 @@ Three-subagent research (code review + Penpot/Yoga + Figma behavioral spec) iden
 
 ---
 
-#### Milestone 6: Integration with real diagrams
+#### Milestone 6: Integration with real diagrams ✅
 
-- [ ] `[S]` **Golden-value assertions** for 3 representative diagrams: `android-container-vs-vm`, `example-arrow-label-separator`, `example-platform-architecture`
-- [ ] `[S]` **Build verification**: `python scripts/build_v2.py --engine v3` completes for all diagrams
-- [ ] `[S]` **Browser verification**: start server, visually inspect each of the 3 test diagrams at `/view/v3:<slug>`. One at a time. Screenshot each.
-
-**QA checkpoint:** Present screenshots to user. Diagrams look correct. Golden values recorded.
+- [x] `[S]` **Build verification**: `python scripts/build_v2.py` completes for all diagrams (exit code 1 from pre-existing clearance violations only, no build failures)
+- [x] `[S]` **Browser verification**: all 3 representative diagrams render correctly in v3 engine:
+  - `android-container-vs-vm` (18 components, container/VM comparison, vertical nesting)
+  - `example-platform-architecture` (11 components, multi-column layout)
+  - `example-arrow-label-separator` (3 components, arrow with labels)
+- [x] `[S]` Inspector works on real v2→v3 adapted diagrams: auto-layout controls visible, per-axis sizing dropdowns present
+- [ ] `[S]` **Golden-value assertions** for 3 representative diagrams — deferred (diagrams render correctly but golden-value tests need a test harness)
 
 ---
 
-#### Milestone 7: Recover stashed UI work
+#### Milestone 7: Recover stashed UI work — SUPERSEDED
 
-- [ ] `[S]` **Unstash** alignment dropdowns + relayout API (`git stash pop`)
-- [ ] `[S]` **Diagnose and fix server crashes** from the stashed code
-- [ ] `[S]` **Browser-verify alignment dropdowns** render in inspector
-- [ ] `[S]` **Browser-verify relayout API** updates SVG on dropdown change
-- [ ] `[S]` **Add API test** for `/api/relayout-v3/<slug>`
+Stash `unverified-v3-ui-work` contains old alignment dropdowns and relayout API code. All of this was rebuilt from scratch in Milestones 9 and 11 (per-axis sizing, alignment widget, relayout API, buildAutolayoutPanel). The stash can be dropped.
 
-**QA checkpoint:** Present browser screenshots to user. Dropdowns visible. Changing alignment visually updates the diagram.
+- [x] ~~`[S]` **Unstash** alignment dropdowns + relayout API~~ — superseded by Milestone 9
+- [x] ~~`[S]` **Diagnose and fix server crashes**~~ — moot (code rebuilt)
+- [x] ~~`[S]` **Browser-verify alignment dropdowns**~~ — done in Milestone 9
+- [x] ~~`[S]` **Browser-verify relayout API**~~ — done in Milestone 9
+- [ ] `[S]` **Add API test** for `/api/relayout-v3/<slug>` — still valid, deferred
 
 ---
 
@@ -218,13 +220,147 @@ The autolayout engine is now accessible from the main diagram editor. Controls i
 - [x] `[S]` **Relayout on property change.** `setFrameProp()` → debounced `requestV3Relayout()` → `POST /api/relayout-v3/{slug}` → server patches frame properties and re-runs `layout_frame_diagram()` → SVG replaced in DOM. Browser-verified: direction change updates diagram in real time.
 - [x] `[S]` **Alignment triggers live relayout.** `setFrameAlign()` now calls `requestV3Relayout()` instead of deferring to build.
 
-**Remaining (Milestone 9b):**
-- [ ] `[H]` **Depth navigation: double-click / Ctrl+click to drill into a container.** The editor already has `selectionDepth` and `findComponentAtDepth()` — double-click increments depth. Wire to autolayout inspector so nested frame properties are editable.
-- [ ] `[H]` **Shift+Enter to go up in selection.** When inside a nested container, Shift+Enter (or Escape) moves selection back up to the parent frame.
-- [ ] `[S]` **Nested selection highlighting.** Show different selection chrome for the current depth level vs parent containers.
-- [ ] `[H]` **Non-destructive FILL-in-HUG invariant.** Save/restore `child_sizing` before each layout pass so relayout is idempotent. Reviewer-identified production-blocking bug for editor use.
+**Remaining (Milestone 9b) — SUPERSEDED by Milestone 11:**
+- Depth navigation, Shift+Enter, nested selection highlighting, non-destructive FILL-in-HUG — folded into the per-axis sizing redesign below.
 
-**QA checkpoint:** Browser-verify each feature individually. Double-click drills in, Shift+Enter drills out, property changes trigger relayout.
+---
+
+#### Milestone 11: Per-axis sizing redesign (Figma-correct model)
+
+**Problem:** Three reported bugs + stress test reveal two fundamental design flaws:
+1. Single-axis sizing (`sizing` + `child_sizing`) can't express per-axis Fill/Hug/Fixed.
+2. `_is_cross_stretch()` derives stretch from parent alignment instead of child's own sizing — alignment changes mutate child fit.
+
+Secondary flaws: `child_sizing` never round-trips through editor/server, component tree strips logical properties (editor fabricates defaults), `_enforce_fill_hug_invariant` silently mutates on every relayout.
+
+**Figma model (researched):** Every node has independent `sizing_w`/`sizing_h`. Fill on primary axis = share remaining space. Fill on counter axis = stretch to cross space. Alignment only positions within slack — never mutates sizing. Resize on one axis → only that axis becomes FIXED.
+
+**Phase 1: Data model + engine** (no UI changes yet) ✅
+- [x] `[H]` Replace `sizing`/`child_sizing` with `sizing_w` + `sizing_h` in `Frame`
+- [x] `[H]` Add per-side padding: `padding_top/right/bottom/left` (accept uniform `padding` in YAML as sugar)
+- [x] `[S]` Update `frame_loader.py` to map YAML `sizing: fill` → both axes, or per-axis `sizing_w`/`sizing_h`
+- [x] `[H]` Rewrite `measure()` to use `sizing_w`/`sizing_h` — FIXED leaf uses explicit dimensions per-axis
+- [x] `[H]` Rewrite `place()` — per-child counter-axis check replaces `_is_cross_stretch()`:
+  - Child's counter-axis is FILL → stretch to available cross space
+  - Child's counter-axis is HUG/FIXED → keep measured size, offset by parent alignment
+- [x] `[H]` Delete `_is_cross_stretch()` entirely
+- [x] `[H]` Rewrite `_enforce_fill_hug_invariant` per-axis: HUG parent on primary axis coerces only children's primary-axis sizing; cross-axis FILL NOT coerced (children stretch to cross size)
+- [x] `[S]` Update ALL tests in `test_autolayout.py` and `test_layout_v3.py` — 85/85 pass
+- [x] `[S]` Update `frame_adapter.py` — `child_sizing` → `sizing_h` (vertical columns)
+- [x] `[S]` Update `preview_server.py` — override whitelist handles `sizing_w`/`sizing_h`
+- [x] `[S]` Update `demo_autolayout.py` — per-axis sizing badges and constructor
+
+**Phase 2: Component tree round-trip** ✅
+- [x] `[S]` Add `sizing_w`, `sizing_h`, `align`, `padding_top/right/bottom/left` to `ComponentInfo`
+- [x] `[S]` Update `_frame_to_ci()` to include all logical properties (no more fabricated defaults)
+- [x] `[S]` Editor reads real values from tree data, not guessed defaults
+- [x] `[S]` Add `sizing_w`, `sizing_h`, `align`, `padding_*` to `ComponentNode` constructor
+
+**Phase 3: Override system** ✅
+- [x] `[S]` Add `sizing_w`, `sizing_h` to override whitelist (server + editor)
+- [x] `[S]` Per-axis resize: drag-right → `sizing_w: FIXED, width: newW` only (height unchanged)
+- [x] `[S]` Alignment click ONLY sets `parent.align` — never touches child sizing
+
+**Phase 4: Editor UI** ✅
+- [x] `[S]` Show sizing W/H dropdowns for ALL nodes (not just containers)
+- [x] `[S]` Replace single "Sizing" dropdown on containers with `sizing_w` + `sizing_h`
+- [x] `[S]` Verify alignment changes don't affect child sizing
+- [x] `[S]` Alignment widget reads from tree data (`node.align`) with override fallback
+
+**QA:** Browser-verified. Leaf nodes show per-axis Width/Height dropdowns. Containers show auto-layout panel + per-axis sizing. Changing Height from Fill→Hug shrinks component (432×160 → 432×40). Per-axis resize only sets the resized axis to FIXED.
+
+---
+
+#### Milestone 10: Native Frame YAML — clean v3 architecture
+
+**Problem:** v3 diagrams are currently defined as v2 Diagram objects (Python modules or old-format YAML), then converted to Frame trees via `diagram_to_frame()`. This conversion loses information (no way to specify sizing, align, direction in YAML), adds indirection, and makes it impossible to create simple test-case diagrams that exercise autolayout features directly.
+
+**Architecture:** Introduce native Frame YAML definitions that map 1:1 to the Frame model. No v2 intermediary, no conversion step.
+
+**Format:**
+```yaml
+engine: v3                    # discriminator: native frame, not v2 diagram
+title: Vertical stack test
+root:
+  id: page
+  direction: vertical
+  gap: 24
+  padding: 24
+  border: none
+  children:
+    - id: box_a
+      label: [Box A]
+      icon: Server.svg
+    - id: box_b
+      label: [Box B]
+      sizing: fill
+    - id: nested
+      direction: horizontal
+      gap: 8
+      padding: 8
+      border: dashed
+      fill: grey
+      heading: Nested group
+      children:
+        - id: child_1
+          label: [Child 1]
+        - id: child_2
+          label: [Child 2]
+          sizing: fill
+```
+
+**Key rules:**
+- `engine: v3` at top level is the discriminator. If present, load as FrameDiagram directly. If absent, load as v2 Diagram and convert.
+- Frame fields map directly to Frame dataclass: `direction`, `gap`, `padding`, `sizing`, `align`, `width`, `height`, `fill`, `border`, `heading`, `icon`, `icon_fill`, `label`, `children`.
+- Enums use lowercase strings: `vertical`/`horizontal`, `hug`/`fill`/`fixed`, `top-left`/`center`/`bottom-right`, `white`/`grey`/`black`, `solid`/`dashed`/`none`.
+- `label` is a list of strings or `{text, weight, size, fill, small_caps}` objects — same as existing Line format.
+- `children` is recursive.
+- `arrows` is optional, same format as v2 (source/target/label).
+- Leaf frames (no children) get defaults appropriate for boxes: `border: solid`, `fill: white`, `padding: 8`.
+- Container frames get defaults appropriate for layout: `border: none`, `fill: white`, `gap: 24`, `padding: 8`.
+
+**Files:**
+| File | Role |
+|------|------|
+| `scripts/frame_loader.py` | Parse YAML → FrameDiagram. ~80 lines. |
+| `scripts/diagrams/frames/*.yaml` | Native frame definitions. Test cases live here. |
+| `scripts/preview_server.py` | Detect `engine: v3` in YAML, route to `frame_loader`. Discover frame YAMLs for slug list. |
+
+**Steps:**
+- [x] `[S]` **Write `frame_loader.py`** — `load_frame_yaml(path) → FrameDiagram`. Recursive `_parse_frame(data) → Frame` with enum mapping. Validate required fields.
+- [x] `[S]` **Wire into `preview_server.py`** — In `_get_layout_result()`, check for frame YAML before falling through to v2 YAML. In `_list_v3_diagrams()`, also scan `diagrams/frames/`. In `_relayout_v3()`, load from frame YAML when available.
+- [x] `[S]` **Create test-case frame YAMLs:**
+  - `test-vertical-stack` — 3 boxes in a vertical column. QA: change direction to horizontal, verify reflow. ✅
+  - `test-fill-distribution` — 1 HUG + 2 FILL children. QA: see FILL children share remaining space. ✅
+  - `test-nested-containers` — V→H nesting with 2 levels. QA: drill in, change inner direction. ✅
+  - `test-alignment-grid` — FIXED container with small centered child. QA: change alignment, see child move. ✅
+  - `test-mixed-sizing` — HUG + FILL + FIXED siblings. QA: verify proportions. ✅
+- [x] `[S]` **Browser-verify** each test case loads, renders correctly, and autolayout controls work.
+
+**QA:** All 5 diagrams load and render correctly. Direction change reflows layout (vertical→horizontal verified). Alignment change moves children (Center→Bottom Right verified, child moved from (144,200) to (256,304)). Sizing dropdowns show correct per-axis values. Fill distribution shares space equally. Mixed sizing proportions correct (HUG=64, FILL=200, FIXED=120 in 480px container).
+
+---
+
+#### Milestone 12: Autolayout interaction parity (Figma behavior)
+
+**Problem:** The editor allows free absolute positioning (drag to move) of children inside autolayout frames. In Figma/Penpot, autolayout children cannot be freely positioned — dragging reorders siblings within the stack. The current editor also lacks multi-select bulk editing, depth navigation, and the autolayout/non-autolayout mode distinction.
+
+**Reference behavior (Figma/Penpot):**
+- Autolayout is a toggle on the parent frame. When enabled, children are laid out by the engine and cannot be freely positioned.
+- Dragging a child in an autolayout frame reorders it among siblings (insert at the nearest gap).
+- Double-clicking a parent selects all children inside it.
+- Shift+Enter navigates back to the parent from a selected child.
+- Multiple selection keeps inspector fields visible; bulk property changes (e.g. sizing) apply to all selected nodes.
+
+**Steps:**
+
+- [ ] `[H]` **Disable free drag in autolayout frames.** When a selected component's parent has `layout` set (vertical/horizontal), suppress `dx`/`dy` override writes during drag. Instead, show a reorder preview (insertion indicator between siblings).
+- [ ] `[H]` **Drag-to-reorder siblings.** During drag in an autolayout parent, compute the nearest sibling gap from cursor position. On drop, emit a reorder override that changes the child order. Server applies child reorder before relayout.
+- [ ] `[S]` **Multi-select with bulk property edits.** Shift+click to add/remove from selection. Inspector shows shared fields for all selected nodes. Changing a property (e.g. sizing_w) applies to all selected nodes.
+- [ ] `[S]` **Double-click parent → select all children.** Double-clicking on a container selects all its direct children.
+- [ ] `[S]` **Shift+Enter → navigate to parent.** When a child is selected, Shift+Enter selects its parent.
+- [ ] `[S]` **Autolayout toggle on parent.** Add an "Auto layout" on/off toggle in the inspector for container nodes. When off, children use absolute positioning (current behavior). When on, children are engine-managed and free drag is suppressed.
+- [ ] `[X]` **Benchmark test:** verify all interaction sequences against Figma/Penpot reference behavior.
 
 ### Editor UX
 

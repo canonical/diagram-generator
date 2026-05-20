@@ -131,35 +131,35 @@ The project has evolved from a batch diagram generator into a **constrained inte
 
 ### Pipeline 3: v3 frame layout engine (branch `frame-layout-engine`, active)
 
-**Vision:** Replace the grid-based v2 layout with a Figma-like nested frame system. Every level — canvas, panels, columns, boxes — is an autolayout frame with direction, gap, padding, sizing (HUG/FILL/FIXED), and 9-point alignment. The layout engine runs two passes: measure (bottom-up) → place (top-down).
+**Vision:** Replace the grid-based v2 layout with a Figma-like nested frame system. Every level — canvas, panels, columns, boxes — is an autolayout frame with direction, gap, padding, per-axis sizing (HUG/FILL/FIXED), and 9-point alignment. The layout engine runs two passes: measure (bottom-up) → place (top-down).
 
-**Current state (2026-05-19):**
+**Current state (2026-05-20):**
 
-The engine core is stable and tested. 47 comprehensive tests pass across directions, alignment, sizing, and edge cases. An interactive standalone demo runs at port 8200. The previous session's unverified UI work is stashed. Three-subagent research confirmed the architecture matches industry standard (Figma, Yoga, Penpot).
+The engine core is stable with 104 comprehensive tests passing (96 autolayout + 8 integration). The per-axis sizing redesign (Milestone 11) is complete: every node has independent `sizing_w`/`sizing_h`, cross-axis stretch is determined by the child's own counter-axis sizing (FILL → stretch, HUG/FIXED → keep measured), and `_is_cross_stretch()` has been deleted. The FILL-in-HUG invariant now uses the Figma-correct parent coercion model: a HUG parent with FILL children is coerced to FIXED (freezing at measured size) instead of coercing children to HUG. Coercion persistence is implemented end-to-end: the engine returns coerced frame IDs, the server includes them in the relayout response, and the editor persists them as overrides so the frozen size survives subsequent padding/gap changes. Native Frame YAML definitions are working and all 5 test-case diagrams are browser-verified. Real v2→v3 adapted diagrams render correctly in the editor with full auto-layout controls.
 
 **What works (tested, browser-verified):**
-- Two-pass measure→place engine produces correct layout for all 21 diagrams (zero overflow)
-- 47 unit tests + 8 original tests = 55 total, all passing
-- Interactive demo at port 8200: direction, alignment (3×3 grid), per-child HUG/FILL toggles, gap/padding/container-size sliders
-- Zero-slack FILL distribution: `base_fill + extra_fills` eliminates rounding gaps
-- FILL children accept parent-assigned size (can shrink below measured)
-- Alignment has zero effect when all children FILL (correct Figma behavior)
-- Mixed HUG/FILL keeps parent padding constant
+- Two-pass measure→place engine with per-axis sizing model (Figma-correct)
+- 104 unit tests: 96 comprehensive + 8 original, all passing
+- Per-axis sizing: `sizing_w`/`sizing_h` on every node, per-side padding (`padding_top/right/bottom/left`)
+- Cross-axis behavior: child's counter-axis FILL → stretch to cross space; HUG/FIXED → keep measured size + alignment offset
+- FILL-in-HUG invariant: HUG parent with FILL children on primary axis → parent coerced to FIXED (Figma model); cross-axis FILL preserved
+- Coercion persistence: engine returns `coerced_overrides`, editor persists them so frozen size survives padding/gap changes
+- FIXED-switch size capture: switching to FIXED captures current dimensions; switching away clears them
+- 9-point alignment moves children within slack; alignment never mutates sizing
+- Per-axis resize in editor: drag-right → only `sizing_w: FIXED` (height unchanged)
+- Native Frame YAML definitions (`scripts/diagrams/frames/*.yaml`) with `engine: v3` discriminator
+- Auto-layout inspector panel for ALL nodes (containers + leaves), per-axis Width/Height dropdowns
+- Alignment widget reads from tree data with override fallback
+- Direction/gap/padding/alignment changes trigger live relayout via `/api/relayout-v3/<slug>`
+- All 5 test-case frame YAMLs verified: vertical-stack, fill-distribution, nested-containers, alignment-grid, mixed-sizing
+- All 3 representative real diagrams render in v3: `android-container-vs-vm`, `example-platform-architecture`, `example-arrow-label-separator`
+- `build_v2.py` completes for all diagrams (pre-existing clearance violations only)
 
-**Research-informed gaps (Milestone 4a in TODO):**
-1. FILL-in-HUG invariant: Figma enforces "FILL child → parent becomes FIXED". We don't yet.
-2. FILL distribution fairness: first N children get +8px each — can create 25% asymmetry.
-3. Heading overflow: no guard against negative child height.
+**Stash:** `unverified-v3-ui-work` contains old UI code fully superseded by Milestones 9+11. Can be dropped.
 
-**What is stashed (recoverable via `git stash pop`):**
-- Alignment dropdowns in inspector (never browser-verified)
-- `/api/relayout-v3/<slug>` endpoint (never browser-verified)
-- Editor CSS changes (never browser-verified)
-- Stash label: "unverified-v3-ui-work: alignment dropdowns, relayout API, editor CSS"
+**Remaining work:** See TODO.md — autolayout interaction parity (disable free drag, drag-to-reorder, multi-select, depth navigation), golden-value test harness, API test for relayout endpoint, domain-specific undo/redo, PNG export.
 
-**Known gap:** Cross-axis alignment is hardcoded to "always stretch" — the `Align` enum has 9 values but only main-axis positioning uses them. Milestone 5 in TODO.
-
-**Next priorities:** Fill the 3 research-identified gaps (Milestone 4a), implement cross-axis alignment (Milestone 5), then stress-test with nested layouts (Milestone 8) and wire into the official editor UI (Milestone 9).
+**Next priorities:** Autolayout interaction parity (Milestone 12): disable absolute positioning in autolayout frames, implement drag-to-reorder siblings, multi-select with bulk property edits, depth navigation (double-click to select children, Shift+Enter to go back).
 
 **Files:**
 - `scripts/frame_model.py` — `Frame`, `FrameDiagram`, `Align`, `Sizing`, `Direction` enums

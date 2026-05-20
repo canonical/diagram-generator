@@ -2851,11 +2851,18 @@ function onResizeUp() {
         const own = getOwnDelta(s.cid);
         const newW = Math.max(8, baseW + own.dw);
         const newH = Math.max(8, baseH + own.dh);
-        // Store as frame overrides
         if (!overrides[s.cid]) overrides[s.cid] = {};
-        overrides[s.cid].width = newW;
-        overrides[s.cid].height = newH;
-        overrides[s.cid].sizing = "FIXED";
+        // Per-axis resize: only the axis that changed becomes FIXED
+        const resizedW = own.dw !== 0;
+        const resizedH = own.dh !== 0;
+        if (resizedW) {
+          overrides[s.cid].width = newW;
+          overrides[s.cid].sizing_w = "FIXED";
+        }
+        if (resizedH) {
+          overrides[s.cid].height = newH;
+          overrides[s.cid].sizing_h = "FIXED";
+        }
         // Clear visual delta — the relayout will reposition everything
         setOverride(s.cid, { dx: 0, dy: 0, dw: 0, dh: 0 });
         // Clear sibling deltas too
@@ -3020,45 +3027,65 @@ window.setFrameAlign = setFrameAlign;
 // ---- Auto-layout controls (v3) ----
 
 function buildAutolayoutPanel(cid, node) {
-  // Only show for containers (nodes with children or layout info)
-  const isContainer = node && (node.layout || (node.children && node.children.length > 0));
-  if (!isContainer) return '';
+  // Show for any node that has layout data from the v3 engine
+  if (!node) return '';
+  const isContainer = node.layout || (node.children && node.children.length > 0);
 
-  // Read current values from overrides or node defaults
+  // Read current values from overrides first, then from tree data
   const ovr = overrides[cid] || {};
-  const direction = ovr.direction || (node.layout === 'horizontal' ? 'HORIZONTAL' : 'VERTICAL');
-  const gap = ovr.gap !== undefined ? ovr.gap : (node.layoutGap || 24);
-  const padding = ovr.padding !== undefined ? ovr.padding : 8;
-  const sizing = ovr.sizing || 'HUG';
+  const sizingW = ovr.sizing_w || node.sizing_w || 'HUG';
+  const sizingH = ovr.sizing_h || node.sizing_h || 'HUG';
 
   let html = '<div class="dg-autolayout-section">';
-  html += '<span class="label" style="margin-bottom:4px;display:block">Auto-layout</span>';
 
-  // Direction
-  html += '<div class="field"><span class="label">Direction</span>';
-  html += '<select class="bf-input" onchange="setFrameProp(\'' + cid + '\',\'direction\',this.value)">';
-  html += '<option value="VERTICAL"' + (direction === 'VERTICAL' ? ' selected' : '') + '>Vertical</option>';
-  html += '<option value="HORIZONTAL"' + (direction === 'HORIZONTAL' ? ' selected' : '') + '>Horizontal</option>';
+  if (isContainer) {
+    const direction = ovr.direction || (node.layout === 'horizontal' ? 'HORIZONTAL' : 'VERTICAL');
+    const gap = ovr.gap !== undefined ? ovr.gap : (node.layoutGap || 24);
+    const padding = ovr.padding !== undefined ? ovr.padding : (node.padding_top !== undefined ? node.padding_top : 8);
+
+    html += '<span class="label" style="margin-bottom:4px;display:block">Auto-layout</span>';
+
+    // Direction
+    html += '<div class="field"><span class="label">Direction</span>';
+    html += '<select class="bf-input" onchange="setFrameProp(\'' + cid + '\',\'direction\',this.value)">';
+    html += '<option value="VERTICAL"' + (direction === 'VERTICAL' ? ' selected' : '') + '>Vertical</option>';
+    html += '<option value="HORIZONTAL"' + (direction === 'HORIZONTAL' ? ' selected' : '') + '>Horizontal</option>';
+    html += '</select></div>';
+
+    // Gap
+    html += '<div class="field"><span class="label">Gap</span>';
+    html += '<input class="bf-input" type="number" min="0" step="8" value="' + gap + '"';
+    html += ' onchange="setFrameProp(\'' + cid + '\',\'gap\',parseInt(this.value))"';
+    html += ' style="width:60px"></div>';
+
+    // Padding
+    const pt = node.padding_top || 0, pr = node.padding_right || 0;
+    const pb = node.padding_bottom || 0, pl = node.padding_left || 0;
+    const isUniformPad = (pt === pr && pr === pb && pb === pl);
+    html += '<div class="field"><span class="label">Padding</span>';
+    html += '<input class="bf-input" type="number" min="0" step="8" value="' + padding + '"';
+    html += ' onchange="setFrameProp(\'' + cid + '\',\'padding\',parseInt(this.value))"';
+    html += ' style="width:60px"></div>';
+    if (!isUniformPad && ovr.padding === undefined) {
+      html += '<div class="hint" style="color:#c90;font-size:11px">Non-uniform padding (' + pt + '/' + pr + '/' + pb + '/' + pl + '). Editing sets all sides.</div>';
+    }
+  } else {
+    html += '<span class="label" style="margin-bottom:4px;display:block">Sizing</span>';
+  }
+
+  // Per-axis sizing (shown for all nodes)
+  html += '<div class="field"><span class="label">Width</span>';
+  html += '<select class="bf-input" onchange="setFrameProp(\'' + cid + '\',\'sizing_w\',this.value)">';
+  html += '<option value="HUG"' + (sizingW === 'HUG' ? ' selected' : '') + '>Hug</option>';
+  html += '<option value="FILL"' + (sizingW === 'FILL' ? ' selected' : '') + '>Fill</option>';
+  html += '<option value="FIXED"' + (sizingW === 'FIXED' ? ' selected' : '') + '>Fixed</option>';
   html += '</select></div>';
 
-  // Gap
-  html += '<div class="field"><span class="label">Gap</span>';
-  html += '<input class="bf-input" type="number" min="0" step="8" value="' + gap + '"';
-  html += ' onchange="setFrameProp(\'' + cid + '\',\'gap\',parseInt(this.value))"';
-  html += ' style="width:60px"></div>';
-
-  // Padding
-  html += '<div class="field"><span class="label">Padding</span>';
-  html += '<input class="bf-input" type="number" min="0" step="8" value="' + padding + '"';
-  html += ' onchange="setFrameProp(\'' + cid + '\',\'padding\',parseInt(this.value))"';
-  html += ' style="width:60px"></div>';
-
-  // Sizing
-  html += '<div class="field"><span class="label">Sizing</span>';
-  html += '<select class="bf-input" onchange="setFrameProp(\'' + cid + '\',\'sizing\',this.value)">';
-  html += '<option value="HUG"' + (sizing === 'HUG' ? ' selected' : '') + '>Hug contents</option>';
-  html += '<option value="FILL"' + (sizing === 'FILL' ? ' selected' : '') + '>Fill container</option>';
-  html += '<option value="FIXED"' + (sizing === 'FIXED' ? ' selected' : '') + '>Fixed</option>';
+  html += '<div class="field"><span class="label">Height</span>';
+  html += '<select class="bf-input" onchange="setFrameProp(\'' + cid + '\',\'sizing_h\',this.value)">';
+  html += '<option value="HUG"' + (sizingH === 'HUG' ? ' selected' : '') + '>Hug</option>';
+  html += '<option value="FILL"' + (sizingH === 'FILL' ? ' selected' : '') + '>Fill</option>';
+  html += '<option value="FIXED"' + (sizingH === 'FIXED' ? ' selected' : '') + '>Fixed</option>';
   html += '</select></div>';
 
   html += '</div>';
@@ -3068,7 +3095,39 @@ function buildAutolayoutPanel(cid, node) {
 let _v3RelayoutTimer = null;
 function setFrameProp(cid, prop, value) {
   if (!overrides[cid]) overrides[cid] = {};
+
+  // Clamp numeric frame properties to sane ranges
+  if (prop === 'gap' || prop === 'padding') {
+    value = Math.max(0, Number.isFinite(value) ? value : 0);
+  }
+
   overrides[cid][prop] = value;
+
+  // User explicitly set this property — remove it from coercion tracking
+  _coercedKeys.delete(cid + ':' + prop);
+
+  // Figma behavior: switching to FIXED captures the current placed size
+  // so the frame remembers its dimensions instead of falling back to measured.
+  if ((prop === 'sizing_w' || prop === 'sizing_h') && value === 'FIXED') {
+    const node = model.get(cid);
+    if (node) {
+      if (prop === 'sizing_w' && overrides[cid].width === undefined) {
+        overrides[cid].width = Math.round(node.data.width);
+      }
+      if (prop === 'sizing_h' && overrides[cid].height === undefined) {
+        overrides[cid].height = Math.round(node.data.height);
+      }
+    }
+  }
+  // Switching away from FIXED: clear the captured explicit size so the
+  // frame reverts to content-driven (HUG) or parent-driven (FILL) sizing.
+  if (prop === 'sizing_w' && value !== 'FIXED') {
+    delete overrides[cid].width;
+  }
+  if (prop === 'sizing_h' && value !== 'FIXED') {
+    delete overrides[cid].height;
+  }
+
   setDirty(true);
 
   // Debounce relayout — 300ms after last change
@@ -3079,11 +3138,15 @@ function setFrameProp(cid, prop, value) {
   renderSelectionInspector(cid);
 }
 
+// Track which override keys were set by engine coercion (not user action).
+// Format: Set of "fid:key" strings, e.g. "root:sizing_h"
+const _coercedKeys = new Set();
+
 async function requestV3Relayout(triggerCid) {
   const slug = SLUG.replace('v3:', '');
   // Send ALL accumulated frame overrides so the server can apply them together
   const allFrameOverrides = {};
-  const FRAME_KEYS = ['direction', 'gap', 'padding', 'sizing', 'align', 'width', 'height'];
+  const FRAME_KEYS = ['direction', 'gap', 'padding', 'sizing', 'sizing_w', 'sizing_h', 'align', 'width', 'height'];
   for (const [fid, ovr] of Object.entries(overrides)) {
     const entry = {};
     for (const key of FRAME_KEYS) {
@@ -3111,6 +3174,49 @@ async function requestV3Relayout(triggerCid) {
         if (data.tree) {
           model.loadTree(data.tree);
           buildTreeUI();
+        }
+        // Clear stale position/size deltas — the full relayout recomputed
+        // every position, so manual nudges from the old layout are invalid.
+        for (const [cid, ovr] of Object.entries(overrides)) {
+          delete ovr.dx; delete ovr.dy; delete ovr.dw; delete ovr.dh;
+          if (Object.keys(ovr).length === 0) delete overrides[cid];
+        }
+        // Merge engine-coerced overrides: when the engine coerces a HUG
+        // parent to FIXED (because children are FILL), persist the coerced
+        // sizing + dimensions so subsequent relayouts preserve the frozen
+        // size instead of re-measuring at the new content size.
+        //
+        // We do NOT auto-clear stale coerced keys. Once a parent is coerced
+        // to FIXED, it stays FIXED until the user explicitly changes it back
+        // via the dropdown (which calls setFrameProp and clears _coercedKeys).
+        // This matches Figma: coercion is a one-way lock.
+        const newCoerced = data.coerced_overrides || {};
+        for (const [fid, coerced] of Object.entries(newCoerced)) {
+          if (!overrides[fid]) overrides[fid] = {};
+          for (const [key, val] of Object.entries(coerced)) {
+            const ck = fid + ':' + key;
+            // Only persist if user hasn't explicitly set this property
+            // (unless it was a previous coercion)
+            if (overrides[fid][key] === undefined || _coercedKeys.has(ck)) {
+              overrides[fid][key] = val;
+              _coercedKeys.add(ck);
+            }
+          }
+        }
+        // Reconcile sizing overrides with engine coercion: if the user
+        // requested HUG but the engine coerced to FIXED (because children
+        // are FILL), update the override so the inspector shows reality.
+        for (const [fid, ovr] of Object.entries(overrides)) {
+          const node = model.get(fid);
+          if (!node) continue;
+          if (ovr.sizing_w === 'HUG' && node.sizing_w === 'FIXED') {
+            ovr.sizing_w = 'FIXED';
+            ovr.width = Math.round(node.data.width);
+          }
+          if (ovr.sizing_h === 'HUG' && node.sizing_h === 'FIXED') {
+            ovr.sizing_h = 'FIXED';
+            ovr.height = Math.round(node.data.height);
+          }
         }
         bindInteraction();
         applyAllOverrides();
@@ -3174,9 +3280,9 @@ function updateInspector(cid) {
   }
   // 9-point alignment widget (v3 only)
   if (ENGINE === "v3") {
-    const currentAlign = (overrides[cid] && overrides[cid].align) || "TOP_LEFT";
+    const currentAlign = (overrides[cid] && overrides[cid].align) || (inspNode && inspNode.align) || "TOP_LEFT";
     html += buildAlignWidget(cid, currentAlign);
-    // Auto-layout controls (v3 only)
+    // Auto-layout controls (v3 only — shown for all nodes)
     html += buildAutolayoutPanel(cid, inspNode);
   }
   if (hasMoveOverride) {
@@ -3328,6 +3434,7 @@ document.getElementById("btn-clear-all").addEventListener("click", () => {
   if (!confirm("Clear all overrides for " + SLUG + "?")) return;
   runUndoableAction("Clear all overrides", () => {
     overrides = {};
+    _coercedKeys.clear();
     setDirty(true);
   });
   applyAllOverrides();

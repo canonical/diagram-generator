@@ -25,6 +25,13 @@ class ComponentNode {
     this.gridRow = data.grid_row || 0;
     this.gridColSpan = data.grid_col_span || 1;
     this.gridRowSpan = data.grid_row_span || 1;
+    this.sizing_w = data.sizing_w || "";
+    this.sizing_h = data.sizing_h || "";
+    this.align = data.align || "";
+    this.padding_top = data.padding_top || 0;
+    this.padding_right = data.padding_right || 0;
+    this.padding_bottom = data.padding_bottom || 0;
+    this.padding_left = data.padding_left || 0;
     if (data.children) {
       for (const child of data.children) {
         this.children.push(new ComponentNode(child, this));

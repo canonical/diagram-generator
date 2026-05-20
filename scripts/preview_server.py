@@ -403,11 +403,21 @@ def _relayout_v3(slug: str, params: dict) -> dict | None:
             if "direction" in ovr and ovr["direction"] in direction_map:
                 target.direction = direction_map[ovr["direction"]]
             if "gap" in ovr and ovr["gap"] is not None:
-                target.gap = int(ovr["gap"])
+                target.gap = max(0, int(ovr["gap"]))
             if "padding" in ovr and ovr["padding"] is not None:
-                target.padding = int(ovr["padding"])
+                target.padding = max(0, int(ovr["padding"]))
+                target.padding_top = target.padding
+                target.padding_right = target.padding
+                target.padding_bottom = target.padding
+                target.padding_left = target.padding
             if "sizing" in ovr and ovr["sizing"] in sizing_map:
-                target.sizing = sizing_map[ovr["sizing"]]
+                # Legacy uniform sizing → both axes
+                target.sizing_w = sizing_map[ovr["sizing"]]
+                target.sizing_h = sizing_map[ovr["sizing"]]
+            if "sizing_w" in ovr and ovr["sizing_w"] in sizing_map:
+                target.sizing_w = sizing_map[ovr["sizing_w"]]
+            if "sizing_h" in ovr and ovr["sizing_h"] in sizing_map:
+                target.sizing_h = sizing_map[ovr["sizing_h"]]
             if "align" in ovr and ovr["align"] in align_map:
                 target.align = align_map[ovr["align"]]
             if "width" in ovr and ovr["width"] is not None:
@@ -432,7 +442,13 @@ def _relayout_v3(slug: str, params: dict) -> dict | None:
         if cache_key in _layout_cache:
             del _layout_cache[cache_key]
 
-        return {"svg": svg_str, "tree": tree_data}
+        response = {"svg": svg_str, "tree": tree_data}
+
+        # Return any engine-coerced overrides so the editor can persist them
+        if layout_result.coerced_overrides:
+            response["coerced_overrides"] = layout_result.coerced_overrides
+
+        return response
     except Exception:
         import traceback; traceback.print_exc()
         return None

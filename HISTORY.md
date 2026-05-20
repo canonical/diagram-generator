@@ -4,6 +4,21 @@ Completed work belongs here so `TODO.md` stays lean.
 
 ## Short-term
 
+### 2026-05-20 – Parent coercion model + coercion persistence (branch frame-layout-engine)
+
+- Redesigned FILL-in-HUG invariant: parent is now coerced HUG→FIXED (freezing at measured size) instead of coercing children FILL→HUG. Children stay FILL and divide the frozen space equally. Cross-axis FILL is not coerced. Matches Figma behavior.
+- Fixed HUG sizing latent bug: `place()` was using `max(measured, available)` for HUG; now always uses measured only.
+- Added coercion persistence: `_enforce_fill_hug_invariant()` returns a `coerced` dict of frame IDs and their frozen dimensions. Server includes `coerced_overrides` in the relayout response. Editor merges them into overrides with `_coercedKeys` tracking so the frozen size survives subsequent padding/gap changes.
+- Added FIXED-switch size capture in `setFrameProp()`: switching to FIXED captures current placed width/height; switching away clears captured size.
+- Added inspector coercion reconciliation: if user sets HUG but engine coerces to FIXED, the override is updated to reflect the effective state.
+- Fixed `width=0` truthiness bug: 4 locations in `layout_v3.py` used truthiness checks (`frame.width:`) that silently ignored `width=0`; changed to `frame.width is not None:`.
+- Fixed root width/height fallback: `root_w = root.width or root._measured_w` → `root.width if root.width is not None else root._measured_w`.
+- Added `coerced_overrides` field to `LayoutResult` dataclass.
+- Added `TestParentCoercion` class with 19 tests: per-axis coercion, cross-axis preservation, 3-level cascades, coerced_overrides return value, nested coercion reporting.
+- Added `test_fixed_width_zero_honored` for the truthiness fix.
+- Total test count: 96 autolayout + 8 integration = 104 tests, all passing.
+- Browser-verified full round-trip: FILL → coerce → padding change → gap change → child revert → parent revert. Height stays locked at 288 through property changes, reverts correctly when user explicitly sets HUG.
+
 ### 2026-05-19 – v3 autolayout test suite + FILL distribution fix (branch frame-layout-engine)
 
 - Built comprehensive test suite (`test_autolayout.py`): 47 tests across 11 test classes covering directional layout (V/H/mixed), 9-point alignment grid, HUG/FILL/FIXED sizing model, edge cases, and invariants. All pass.

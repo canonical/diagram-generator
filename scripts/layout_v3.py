@@ -85,9 +85,19 @@ def measure(frame: Frame) -> None:
     """Compute natural size of frame and all descendants.
 
     Sets frame._measured_w and frame._measured_h.
+
+    Per-axis sizing:
+      - FIXED: use explicit width/height
+      - HUG: shrink to content
+      - FILL: measured at content size (parent will assign final size in place())
     """
     if frame.is_leaf:
         w, h = _leaf_natural_size(frame)
+        # FIXED leaf: honor explicit dimensions per-axis
+        if frame.sizing_w == Sizing.FIXED and frame.width is not None:
+            w = frame.width
+        if frame.sizing_h == Sizing.FIXED and frame.height is not None:
+            h = frame.height
         frame._measured_w = round_up_to_grid(w)
         frame._measured_h = round_up_to_grid(h)
         return
@@ -96,7 +106,8 @@ def measure(frame: Frame) -> None:
     for child in frame.children:
         measure(child)
 
-    pad = frame.padding
+    pad_h = frame.padding_left + frame.padding_right
+    pad_v = frame.padding_top + frame.padding_bottom
     heading_h = _heading_height(frame.heading)
     heading_gap = frame.gap if heading_h > 0 else 0
     n = len(frame.children)
@@ -109,16 +120,18 @@ def measure(frame: Frame) -> None:
         content_w = max(c._measured_w for c in frame.children) if frame.children else 0
         content_h = sum(c._measured_h for c in frame.children) + total_gap
 
-    content_based_w = round_up_to_grid(content_w + 2 * pad)
-    content_based_h = round_up_to_grid(content_h + 2 * pad + heading_h + heading_gap)
+    content_based_w = round_up_to_grid(content_w + pad_h)
+    content_based_h = round_up_to_grid(content_h + pad_v + heading_h + heading_gap)
 
-    # FIXED containers use their explicit size (may be larger or smaller
-    # than content).  HUG/FILL containers use the content-derived size.
-    if frame.sizing == Sizing.FIXED:
-        frame._measured_w = round_up_to_grid(frame.width) if frame.width else content_based_w
-        frame._measured_h = round_up_to_grid(frame.height) if frame.height else content_based_h
+    # Per-axis sizing for containers
+    if frame.sizing_w == Sizing.FIXED:
+        frame._measured_w = round_up_to_grid(frame.width) if frame.width is not None else content_based_w
     else:
         frame._measured_w = content_based_w
+
+    if frame.sizing_h == Sizing.FIXED:
+        frame._measured_h = round_up_to_grid(frame.height) if frame.height is not None else content_based_h
+    else:
         frame._measured_h = content_based_h
 
 
@@ -151,68 +164,95 @@ def _align_offset(align: Align, available: float, content: float, axis: str) -> 
 
 
 # ---------------------------------------------------------------------------
-# Cross-axis alignment
-# ---------------------------------------------------------------------------
-
-def _is_cross_stretch(align: Align, direction: Direction) -> bool:
-    """Whether cross-axis children should stretch to fill.
-
-    Stretch (default Figma behavior) is active when the alignment is at
-    the 'start' edge of the cross axis:
-      - HORIZONTAL layout → stretch when TOP_*
-      - VERTICAL layout   → stretch when *_LEFT
-    """
-    if direction == Direction.HORIZONTAL:
-        return align in (Align.TOP_LEFT, Align.TOP_CENTER, Align.TOP_RIGHT)
-    else:
-        return align in (Align.TOP_LEFT, Align.CENTER_LEFT, Align.BOTTOM_LEFT)
-
-
-# ---------------------------------------------------------------------------
 # Pass 2: Place (top-down)
 # ---------------------------------------------------------------------------
 
-def _enforce_fill_hug_invariant(frame: Frame) -> None:
-    """Figma rule: if any child uses FILL on the primary axis, the parent
-    cannot be HUG.  When the parent is HUG, FILL children are coerced to
-    HUG because the container already sized to fit its content — there is
-    no extra space for FILL to expand into.
+def _enforce_fill_hug_invariant(frame: Frame, coerced: dict | None = None) -> dict:
+    """Figma rule (per-axis): if a HUG parent has ANY child that is FILL on
+    the primary layout axis, the *parent* is coerced to FIXED on that axis,
+    freezing at its measured size.  Children remain FILL and will divide the
+    frozen space equally during place().
 
-    This prevents the contradiction where a HUG parent measures to
-    sum(children) but then FILL distribution gives each child an equal
-    share that may be smaller than their measured size.
+    Cross-axis FILL is NOT coerced: even when the parent is HUG on the
+    cross axis, the cross size equals the tallest child's measured extent,
+    and shorter FILL children should stretch to match.
 
-    Recurse through the tree bottom-up.
+    Recurse through the tree bottom-up so inner containers are resolved
+    before their parents.
+
+    Returns a dict of coerced frame IDs → {sizing_w, sizing_h, width, height}
+    so the caller can persist the coercion.
     """
-    for child in frame.children:
-        _enforce_fill_hug_invariant(child)
+    if coerced is None:
+        coerced = {}
 
-    if frame.sizing != Sizing.HUG or frame.is_leaf:
-        return
-
-    # In a HUG parent, FILL children keep measured size (act like HUG)
     for child in frame.children:
-        if child.child_sizing == Sizing.FILL:
-            child.child_sizing = Sizing.HUG
+        _enforce_fill_hug_invariant(child, coerced)
+
+    if frame.is_leaf:
+        return coerced
+
+    if frame.direction == Direction.HORIZONTAL:
+        # Primary axis is W — freeze parent HUG→FIXED if any child is FILL
+        if frame.sizing_w == Sizing.HUG:
+            if any(c.sizing_w == Sizing.FILL for c in frame.children):
+                frame.sizing_w = Sizing.FIXED
+                frame.width = frame._measured_w
+                if frame.id:
+                    coerced.setdefault(frame.id, {})
+                    coerced[frame.id]["sizing_w"] = "FIXED"
+                    coerced[frame.id]["width"] = int(frame._measured_w)
+        # Cross axis (H): do NOT coerce — FILL children stretch to cross size
+    else:  # VERTICAL
+        # Primary axis is H — freeze parent HUG→FIXED if any child is FILL
+        if frame.sizing_h == Sizing.HUG:
+            if any(c.sizing_h == Sizing.FILL for c in frame.children):
+                frame.sizing_h = Sizing.FIXED
+                frame.height = frame._measured_h
+                if frame.id:
+                    coerced.setdefault(frame.id, {})
+                    coerced[frame.id]["sizing_h"] = "FIXED"
+                    coerced[frame.id]["height"] = int(frame._measured_h)
+        # Cross axis (W): do NOT coerce — FILL children stretch to cross size
+
+    return coerced
+
+
+def _child_primary_sizing(child: Frame, direction: Direction) -> Sizing:
+    """Get the child's sizing on the parent's primary axis."""
+    return child.sizing_w if direction == Direction.HORIZONTAL else child.sizing_h
+
+
+def _child_counter_sizing(child: Frame, direction: Direction) -> Sizing:
+    """Get the child's sizing on the parent's counter (cross) axis."""
+    return child.sizing_h if direction == Direction.HORIZONTAL else child.sizing_w
 
 
 def place(frame: Frame, x: float, y: float, available_w: float, available_h: float) -> None:
     """Assign position and final size to frame and all descendants.
 
     Sets frame._placed_x, _placed_y, _placed_w, _placed_h.
+
+    Per-axis sizing determines final size:
+      - FILL: accept whatever the parent assigns (available_w/h)
+      - FIXED: use explicit width/height
+      - HUG: use measured (content) size
     """
-    # Determine this frame's final size
-    if frame.sizing == Sizing.FIXED and frame.width and frame.height:
-        frame._placed_w = round_up_to_grid(frame.width)
-        frame._placed_h = round_up_to_grid(frame.height)
-    elif frame.child_sizing == Sizing.FILL:
-        # FILL frames accept whatever size the parent assigns,
-        # even if smaller than measured (allows shrinking).
+    # Determine this frame's final size per-axis
+    # Width
+    if frame.sizing_w == Sizing.FILL:
         frame._placed_w = round_up_to_grid(available_w)
+    elif frame.sizing_w == Sizing.FIXED and frame.width is not None:
+        frame._placed_w = round_up_to_grid(frame.width)
+    else:  # HUG, or FIXED without explicit width
+        frame._placed_w = round_up_to_grid(frame._measured_w)
+    # Height
+    if frame.sizing_h == Sizing.FILL:
         frame._placed_h = round_up_to_grid(available_h)
-    else:
-        frame._placed_w = round_up_to_grid(max(frame._measured_w, available_w))
-        frame._placed_h = round_up_to_grid(max(frame._measured_h, available_h))
+    elif frame.sizing_h == Sizing.FIXED and frame.height:
+        frame._placed_h = round_up_to_grid(frame.height)
+    else:  # HUG, or FIXED without explicit height
+        frame._placed_h = round_up_to_grid(frame._measured_h)
 
     frame._placed_x = x
     frame._placed_y = y
@@ -221,56 +261,52 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
         return
 
     # Distribute space to children
-    pad = frame.padding
+    pad_l = frame.padding_left
+    pad_r = frame.padding_right
+    pad_t = frame.padding_top
+    pad_b = frame.padding_bottom
     heading_h = _heading_height(frame.heading)
     heading_gap = frame.gap if heading_h > 0 else 0
     n = len(frame.children)
     total_gap = frame.gap * max(0, n - 1)
 
     if frame.direction == Direction.HORIZONTAL:
-        available_for_children = max(0, frame._placed_w - 2 * pad - total_gap)
-        cross_size = max(0, frame._placed_h - 2 * pad - heading_h - heading_gap)
+        available_for_children = max(0, frame._placed_w - pad_l - pad_r - total_gap)
+        cross_size = max(0, frame._placed_h - pad_t - pad_b - heading_h - heading_gap)
     else:
-        available_for_children = max(0, frame._placed_h - 2 * pad - heading_h - heading_gap - total_gap)
-        cross_size = max(0, frame._placed_w - 2 * pad)
+        available_for_children = max(0, frame._placed_h - pad_t - pad_b - heading_h - heading_gap - total_gap)
+        cross_size = max(0, frame._placed_w - pad_l - pad_r)
 
-    # FILL children share the available space equally (after HUG children
-    # take their measured sizes).  This matches Figma behaviour: all FILL
-    # siblings end up the same main-axis size regardless of content.
+    # Primary-axis FILL distribution: children whose primary-axis sizing
+    # is FILL share remaining space equally after HUG/FIXED children.
     hug_total = 0
     fill_count = 0
     for child in frame.children:
-        main_size = child._measured_w if frame.direction == Direction.HORIZONTAL else child._measured_h
-        if child.child_sizing == Sizing.FILL:
+        primary_sizing = _child_primary_sizing(child, frame.direction)
+        if primary_sizing == Sizing.FILL:
             fill_count += 1
         else:
+            main_size = child._measured_w if frame.direction == Direction.HORIZONTAL else child._measured_h
             hug_total += main_size
 
     if fill_count > 0:
         remaining = max(0, available_for_children - hug_total)
-        # Round total remaining DOWN to grid, then divide equally.
         grid_remaining = (remaining // BASELINE_UNIT) * BASELINE_UNIT
         base_fill = (grid_remaining // fill_count // BASELINE_UNIT) * BASELINE_UNIT
-        # Leftover grid units after equal division — distribute one
-        # BASELINE_UNIT to the *last* N children so the visual weight
-        # stays toward the end rather than biasing the first children.
         leftover = grid_remaining - base_fill * fill_count
         extra_fills = int(leftover // BASELINE_UNIT)
     else:
         base_fill = 0
         extra_fills = 0
 
-    # When FILL children are present they consume exactly `grid_remaining`,
-    # so content_main == inner and alignment slack is zero (modulo sub-grid
-    # remainder which is at most fill_count * BASELINE_UNIT - 1 pixels).
     if fill_count > 0:
-        content_main = hug_total + grid_remaining + total_gap
+        content_main = hug_total + (base_fill * fill_count + leftover if fill_count else 0) + total_gap
     else:
         content_main = hug_total + total_gap
 
-    # Apply main-axis alignment offset
-    inner_w = frame._placed_w - 2 * pad
-    inner_h = frame._placed_h - 2 * pad - heading_h - heading_gap
+    # Main-axis alignment offset
+    inner_w = frame._placed_w - pad_l - pad_r
+    inner_h = frame._placed_h - pad_t - pad_b - heading_h - heading_gap
 
     if frame.direction == Direction.HORIZONTAL:
         main_offset = _align_offset(frame.align, inner_w, content_main, "x")
@@ -278,47 +314,52 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
         main_offset = _align_offset(frame.align, inner_h, content_main, "y")
 
     # Place children sequentially.
-    # Cross-axis: stretch when alignment is at the start edge (TOP for
-    # horizontal, LEFT for vertical).  CENTER/END on the cross-axis keep
-    # the child's measured size and apply an offset — matching Figma.
-    # FILL children get base_fill; the last extra_fills of them get +BASELINE_UNIT.
-    stretch_cross = _is_cross_stretch(frame.align, frame.direction)
+    # Cross-axis: FILL children stretch to fill; HUG/FIXED children keep
+    # their measured size and are positioned by parent alignment offset.
+    # This is the Figma-correct model: alignment never changes sizing.
 
     if frame.direction == Direction.HORIZONTAL:
-        cursor_x = x + pad + main_offset
+        cursor_x = x + pad_l + main_offset
         fill_idx = 0
         for child in frame.children:
-            if child.child_sizing == Sizing.FILL:
-                # Give extra to the LAST extra_fills children (index >= fill_count - extra_fills)
+            primary_sizing = _child_primary_sizing(child, frame.direction)
+            counter_sizing = _child_counter_sizing(child, frame.direction)
+            # Primary (W) size
+            if primary_sizing == Sizing.FILL:
                 child_w = base_fill + (BASELINE_UNIT if fill_idx >= fill_count - extra_fills else 0)
                 fill_idx += 1
             else:
                 child_w = child._measured_w
-            if stretch_cross:
+            # Counter (H) size — per-child, based on child's own sizing_h
+            if counter_sizing == Sizing.FILL:
                 child_h = cross_size
-                child_y = y + pad + heading_h + heading_gap
+                child_y = y + pad_t + heading_h + heading_gap
             else:
                 child_h = child._measured_h
                 cross_offset = _align_offset(frame.align, cross_size, child._measured_h, "y")
-                child_y = y + pad + heading_h + heading_gap + cross_offset
+                child_y = y + pad_t + heading_h + heading_gap + cross_offset
             place(child, cursor_x, child_y, child_w, child_h)
             cursor_x += child._placed_w + frame.gap
     else:  # VERTICAL
-        cursor_y = y + pad + heading_h + heading_gap + main_offset
+        cursor_y = y + pad_t + heading_h + heading_gap + main_offset
         fill_idx = 0
         for child in frame.children:
-            if child.child_sizing == Sizing.FILL:
+            primary_sizing = _child_primary_sizing(child, frame.direction)
+            counter_sizing = _child_counter_sizing(child, frame.direction)
+            # Primary (H) size
+            if primary_sizing == Sizing.FILL:
                 child_h = base_fill + (BASELINE_UNIT if fill_idx >= fill_count - extra_fills else 0)
                 fill_idx += 1
             else:
                 child_h = child._measured_h
-            if stretch_cross:
+            # Counter (W) size — per-child, based on child's own sizing_w
+            if counter_sizing == Sizing.FILL:
                 child_w = cross_size
-                child_x = x + pad
+                child_x = x + pad_l
             else:
                 child_w = child._measured_w
                 cross_offset = _align_offset(frame.align, cross_size, child._measured_w, "x")
-                child_x = x + pad + cross_offset
+                child_x = x + pad_l + cross_offset
             place(child, child_x, cursor_y, child_w, child_h)
             cursor_y += child._placed_h + frame.gap
 
@@ -346,9 +387,14 @@ def _render_frame(frame: Frame, fg: list, bg: list, bounds_map: dict) -> None:
                        dashed=(frame.border == Border.DASHED), component_id=cid))
 
     # Heading
-    pad = frame.padding if frame.border != Border.NONE else 0
+    pad_l = frame.padding_left
+    pad_t = frame.padding_top
+    pad_r = frame.padding_right
+    effective_pad_l = pad_l if frame.border != Border.NONE else 0
+    effective_pad_t = pad_t if frame.border != Border.NONE else 0
+    effective_pad_r = pad_r if frame.border != Border.NONE else 0
     if frame.heading:
-        fg.append(TextBlock(x + pad, y + pad, _lines_to_dicts([frame.heading]),
+        fg.append(TextBlock(x + effective_pad_l, y + effective_pad_t, _lines_to_dicts([frame.heading]),
                             component_id=cid))
 
     # Heading icon
@@ -356,7 +402,7 @@ def _render_frame(frame: Frame, fg: list, bg: list, bounds_map: dict) -> None:
         icon_f = frame.icon_fill or "#000000"
         if frame.fill == Fill.BLACK and icon_f == "#000000":
             icon_f = "#FFFFFF"
-        fg.append(Icon(x + w - pad - ICON_SIZE, y + pad, frame.icon,
+        fg.append(Icon(x + w - effective_pad_r - ICON_SIZE, y + effective_pad_t, frame.icon,
                        fill=icon_f, component_id=cid))
 
     if frame.is_leaf:
@@ -367,12 +413,12 @@ def _render_frame(frame: Frame, fg: list, bg: list, bounds_map: dict) -> None:
             # Override fill on lines for highlight boxes
             if frame.fill == Fill.BLACK:
                 lines = [{**ln, "fill": text_fill} for ln in lines]
-            fg.append(TextBlock(x + pad, y + pad, lines, component_id=cid))
+            fg.append(TextBlock(x + effective_pad_l, y + effective_pad_t, lines, component_id=cid))
         if frame.icon:
             icon_fill = frame.icon_fill or "#000000"
             if frame.fill == Fill.BLACK and icon_fill == "#000000":
                 icon_fill = "#FFFFFF"
-            fg.append(Icon(x + w - pad - ICON_SIZE, y + pad, frame.icon,
+            fg.append(Icon(x + w - effective_pad_r - ICON_SIZE, y + effective_pad_t, frame.icon,
                            fill=icon_fill, component_id=cid))
     else:
         # Container: render children recursively
@@ -469,12 +515,12 @@ def layout_frame_diagram(diagram: FrameDiagram) -> LayoutResult:
     # Pass 1: measure
     measure(root)
 
-    # Enforce Figma invariant: HUG parent + FILL child → parent becomes FIXED
-    _enforce_fill_hug_invariant(root)
+    # Figma invariant: HUG parent + FILL child on primary axis → parent freezes to FIXED
+    coerced = _enforce_fill_hug_invariant(root)
 
     # Root gets its measured size (or fixed if set)
-    root_w = root.width or root._measured_w
-    root_h = root.height or root._measured_h
+    root_w = root.width if root.width is not None else root._measured_w
+    root_h = root.height if root.height is not None else root._measured_h
 
     # Pass 2: place
     place(root, 0, 0, root_w, root_h)
@@ -498,6 +544,7 @@ def layout_frame_diagram(diagram: FrameDiagram) -> LayoutResult:
         foreground=fg,
         background=bg,
         component_tree=component_tree,
+        coerced_overrides=coerced,
     )
 
 
@@ -519,7 +566,7 @@ def _build_component_tree(root: Frame) -> list[ComponentInfo]:
         if not frame.is_leaf:
             layout = "vertical" if frame.direction == Direction.VERTICAL else "horizontal"
             layout_gap = frame.gap
-        pad = frame.padding if frame.border != Border.NONE else 0
+        pad = frame.padding_top if frame.border != Border.NONE else 0
         return ComponentInfo(
             id=cid,
             type="panel" if not frame.is_leaf else "box",
@@ -533,6 +580,13 @@ def _build_component_tree(root: Frame) -> list[ComponentInfo]:
             layout_col_gap=layout_gap,
             layout_row_gap=layout_gap,
             pad=pad,
+            sizing_w=frame.sizing_w.name,
+            sizing_h=frame.sizing_h.name,
+            align=frame.align.name,
+            padding_top=frame.padding_top,
+            padding_right=frame.padding_right,
+            padding_bottom=frame.padding_bottom,
+            padding_left=frame.padding_left,
         )
 
     # Root frame wraps the diagram; emit its children as top-level nodes

@@ -46,7 +46,18 @@ def _parse_line(raw) -> Line:
 
 
 def _parse_frame(data: dict) -> Frame:
-    """Recursively parse a Frame dict from YAML."""
+    """Recursively parse a Frame dict from YAML.
+
+    Sizing accepts three forms:
+      sizing: fill           → sets both sizing_w and sizing_h
+      sizing_w: fill         → sets width-axis only
+      sizing_h: hug          → sets height-axis only
+    Per-axis keys override the uniform ``sizing`` key.
+
+    Padding accepts two forms:
+      padding: 8             → sets all four sides
+      padding_top/right/bottom/left: N  → per-side overrides
+    """
     children_data = data.get("children", [])
     children = [_parse_frame(c) for c in children_data]
     is_container = len(children) > 0
@@ -65,13 +76,29 @@ def _parse_frame(data: dict) -> Frame:
     default_border = Border.NONE if is_container else Border.SOLID
     default_gap = 24 if is_container else 0
 
+    # Per-axis sizing: uniform `sizing` as base, then per-axis overrides
+    uniform_sizing = _SIZING.get(data.get("sizing", "hug"), Sizing.HUG)
+    sizing_w = _SIZING.get(data.get("sizing_w"), None) or uniform_sizing
+    sizing_h = _SIZING.get(data.get("sizing_h"), None) or uniform_sizing
+
+    # Padding: uniform `padding` as constructor arg, then per-side overrides
+    uniform_padding = int(data.get("padding", 8))
+    pad_t = int(data["padding_top"]) if "padding_top" in data else None
+    pad_r = int(data["padding_right"]) if "padding_right" in data else None
+    pad_b = int(data["padding_bottom"]) if "padding_bottom" in data else None
+    pad_l = int(data["padding_left"]) if "padding_left" in data else None
+
     return Frame(
         id=data.get("id", ""),
         direction=_DIRECTION.get(data.get("direction", "vertical"), Direction.VERTICAL),
         gap=int(data.get("gap", default_gap)),
-        padding=int(data.get("padding", 8)),
-        sizing=_SIZING.get(data.get("sizing", "hug"), Sizing.HUG),
-        child_sizing=_SIZING.get(data.get("child_sizing", "hug"), Sizing.HUG),
+        padding=uniform_padding,
+        padding_top=pad_t,
+        padding_right=pad_r,
+        padding_bottom=pad_b,
+        padding_left=pad_l,
+        sizing_w=sizing_w,
+        sizing_h=sizing_h,
         align=_ALIGN.get(data.get("align", "top-left"), Align.TOP_LEFT),
         width=int(data["width"]) if "width" in data else None,
         height=int(data["height"]) if "height" in data else None,

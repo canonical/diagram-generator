@@ -75,10 +75,11 @@ def _render_frame_svg(frame: Frame, parts: list, show_labels: bool, depth: int):
                      f'font-size="14" font-weight="400">{_esc(label)}</text>')
 
         # Show sizing badge
-        sizing_label = frame.child_sizing.name
+        # Show sizing badge (use primary axis based on parent direction context)
+        sizing_label = f'{frame.sizing_w.name}/{frame.sizing_h.name}'
         badge_x = x + w - frame.padding - 4
         badge_y = y + frame.padding + 12
-        badge_color = '#E95420' if frame.child_sizing == Sizing.FILL else '#666'
+        badge_color = '#E95420' if frame.sizing_w == Sizing.FILL or frame.sizing_h == Sizing.FILL else '#666'
         parts.append(f'<text x="{badge_x}" y="{badge_y}" fill="{badge_color}" '
                      f'font-size="10" text-anchor="end" font-weight="600">'
                      f'{sizing_label}</text>')
@@ -126,7 +127,8 @@ def compute_layout(params: dict) -> str:
             fill=fills[i],
             border=Border.SOLID,
             padding=8,
-            child_sizing=sizings[i],
+            sizing_w=sizings[i] if direction == Direction.HORIZONTAL else Sizing.HUG,
+            sizing_h=sizings[i] if direction == Direction.VERTICAL else Sizing.HUG,
         )
         children.append(child)
 
@@ -139,7 +141,8 @@ def compute_layout(params: dict) -> str:
         border=Border.DASHED,
         fill=Fill.WHITE,
         children=children,
-        sizing=Sizing.FIXED,
+        sizing_w=Sizing.FIXED,
+        sizing_h=Sizing.FIXED,
         width=container_w,
         height=container_h,
     )

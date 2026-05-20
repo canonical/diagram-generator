@@ -190,7 +190,7 @@ def _grid_to_columns(components: list, diagram: Diagram) -> list[Frame]:
             if frame:
                 # Children fill the column height so cross-column
                 # arrow attachment points align at matching edges.
-                frame.child_sizing = Sizing.FILL
+                frame.sizing_h = Sizing.FILL
                 col_children.append(frame)
 
         if col_children:

@@ -96,14 +96,15 @@ def test_vertical_stack_no_overflow():
 def test_fill_children_share_space():
     """Two FILL children in a 400px-tall container should each get ~half."""
     child_a = _box("a", h=40)
-    child_a.child_sizing = Sizing.FILL
+    child_a.sizing_h = Sizing.FILL  # primary axis for vertical parent
     child_b = _box("b", h=40)
-    child_b.child_sizing = Sizing.FILL
+    child_b.sizing_h = Sizing.FILL
 
     root = _container("root", Direction.VERTICAL, [child_a, child_b],
                        gap=8, padding=8)
     root.height = 400
-    root.sizing = Sizing.FIXED
+    root.sizing_w = Sizing.FIXED
+    root.sizing_h = Sizing.FIXED
     _layout(root)
 
     errors = _children_within_parent(root)
@@ -120,14 +121,15 @@ def test_fill_children_share_space():
 def test_mixed_hug_fill():
     """One HUG child + one FILL child: FILL gets the remaining space."""
     child_a = _box("a_hug", h=100)
-    child_a.child_sizing = Sizing.HUG
+    # child_a stays HUG (default)
     child_b = _box("b_fill", h=40)
-    child_b.child_sizing = Sizing.FILL
+    child_b.sizing_h = Sizing.FILL  # primary axis for vertical parent
 
     root = _container("root", Direction.VERTICAL, [child_a, child_b],
                        gap=8, padding=8)
     root.height = 400
-    root.sizing = Sizing.FIXED
+    root.sizing_w = Sizing.FIXED
+    root.sizing_h = Sizing.FIXED
     _layout(root)
 
     errors = _children_within_parent(root)
@@ -150,13 +152,13 @@ def test_fill_unequal_measured_no_overflow():
     causing total > container.
     """
     child_a = _box("a_small", h=40)
-    child_a.child_sizing = Sizing.FILL
+    child_a.sizing_h = Sizing.FILL
     child_b = _box("b_big", h=192)
-    child_b.child_sizing = Sizing.FILL
+    child_b.sizing_h = Sizing.FILL
     child_c = _box("c_small", h=40)
-    child_c.child_sizing = Sizing.FILL
+    child_c.sizing_h = Sizing.FILL
     child_d = _box("d_big", h=192)
-    child_d.child_sizing = Sizing.FILL
+    child_d.sizing_h = Sizing.FILL
 
     root = _container("root", Direction.VERTICAL,
                        [child_a, child_b, child_c, child_d],
@@ -218,7 +220,12 @@ def test_padding_on_borderless_frame():
 # ---------------------------------------------------------------------------
 
 def test_nested_containers_no_overflow():
-    """Panel inside a column inside root — nothing overflows."""
+    """Panel inside a column inside root — nothing overflows.
+
+    Annotation and separator are FILL (stretch to fill),
+    panel is HUG (keeps its measured size).  This is the correct
+    Figma workflow: only mark children as FILL if they should grow.
+    """
     inner_a = _box("inner_a", h=64)
     inner_b = _box("inner_b", h=40)
     panel = _container("panel", Direction.VERTICAL, [inner_a, inner_b],
@@ -229,9 +236,9 @@ def test_nested_containers_no_overflow():
     sep = Frame(id="sep", border=Border.NONE, fill=Fill.WHITE,
                 label=[], width=240, height=1, padding=0)
 
-    # Mark all as FILL (like the grid adapter does)
-    for f in [annotation, panel, sep]:
-        f.child_sizing = Sizing.FILL
+    # Only annotation and sep are FILL; panel keeps HUG to preserve content
+    annotation.sizing_h = Sizing.FILL
+    sep.sizing_h = Sizing.FILL
 
     column = _container("col", Direction.VERTICAL,
                          [annotation, panel, sep],
@@ -250,15 +257,20 @@ def test_nested_containers_no_overflow():
 # ---------------------------------------------------------------------------
 
 def test_cross_axis_stretch():
-    """In a horizontal layout, children stretch to the tallest child's height."""
+    """In a horizontal layout, children with counter-axis FILL stretch to
+    the cross-axis size (tallest child's height).  Default HUG keeps
+    measured height.
+    """
     child_a = _box("short", h=40)
+    child_a.sizing_h = Sizing.FILL  # counter-axis FILL → stretch
     child_b = _box("tall", h=120)
+    child_b.sizing_h = Sizing.FILL  # counter-axis FILL → stretch
 
     root = _container("root", Direction.HORIZONTAL, [child_a, child_b],
                        gap=8, padding=8)
     _layout(root)
 
-    # Both children should have the same height (cross-axis stretch)
+    # Both children should have the same height (cross-axis stretch via FILL)
     assert child_a._placed_h == child_b._placed_h, \
         f"Cross-axis mismatch: short={child_a._placed_h}, tall={child_b._placed_h}"
     print(f"  PASS: cross-axis stretch, both h={child_a._placed_h}")

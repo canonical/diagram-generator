@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from frame_model import Frame, FrameDiagram, Direction, Sizing, Align
 from diagram_model import Line, Fill, Border
-from layout_v3 import measure, place, _align_offset, _enforce_fill_hug_invariant, _is_cross_stretch
+from layout_v3 import measure, place, _align_offset, _enforce_fill_hug_invariant
 from diagram_shared import BASELINE_UNIT
 
 
@@ -216,9 +216,11 @@ class TestHorizontalDirection:
         assert not _children_within_parent(root)
 
     def test_cross_axis_stretch(self):
-        """Children of different heights stretch to the tallest."""
+        """Children with counter-axis FILL stretch to cross size."""
         short = _box("short", w=80, h=40)
+        short.sizing_h = Sizing.FILL  # counter-axis FILL → stretch
         tall = _box("tall", w=80, h=120)
+        tall.sizing_h = Sizing.FILL
         root = _container("root", Direction.HORIZONTAL, [short, tall],
                           gap=8, padding=8)
         _layout(root)
@@ -229,14 +231,15 @@ class TestHorizontalDirection:
     def test_fill_width_distribution(self):
         """FILL children in horizontal layout share remaining width."""
         a = _box("a", w=80, h=40)
-        a.child_sizing = Sizing.FILL
+        a.sizing_w = Sizing.FILL
         b = _box("b", w=80, h=40)
-        b.child_sizing = Sizing.FILL
+        b.sizing_w = Sizing.FILL
 
         root = _container("root", Direction.HORIZONTAL, [a, b],
                           gap=8, padding=8)
         root.width = 400
-        root.sizing = Sizing.FIXED
+        root.sizing_w = Sizing.FIXED
+        root.sizing_h = Sizing.FIXED
         root.height = 80
         _layout_fixed(root, 400, 80)
 
@@ -382,7 +385,8 @@ class TestMainAxisAlignment:
         root = _container("root", Direction.VERTICAL, [child],
                           gap=0, padding=8, align=Align.TOP_LEFT)
         root.height = 200
-        root.sizing = Sizing.FIXED
+        root.sizing_w = Sizing.FIXED
+        root.sizing_h = Sizing.FIXED
         _layout_fixed(root, root.width or 200, 200)
 
         # Child at top
@@ -394,7 +398,8 @@ class TestMainAxisAlignment:
         root = _container("root", Direction.VERTICAL, [child],
                           gap=0, padding=8, align=Align.BOTTOM_LEFT)
         root.height = 200
-        root.sizing = Sizing.FIXED
+        root.sizing_w = Sizing.FIXED
+        root.sizing_h = Sizing.FIXED
         _layout_fixed(root, root.width or 200, 200)
 
         # Child pushed down: y = pad + (inner_h - content_h)
@@ -410,7 +415,8 @@ class TestMainAxisAlignment:
         root = _container("root", Direction.VERTICAL, [child],
                           gap=0, padding=8, align=Align.CENTER)
         root.height = 200
-        root.sizing = Sizing.FIXED
+        root.sizing_w = Sizing.FIXED
+        root.sizing_h = Sizing.FIXED
         _layout_fixed(root, root.width or 200, 200)
 
         inner_h = 200 - 16
@@ -426,7 +432,8 @@ class TestMainAxisAlignment:
                           gap=0, padding=8, align=Align.CENTER_LEFT)
         root.width = 300
         root.height = 80
-        root.sizing = Sizing.FIXED
+        root.sizing_w = Sizing.FIXED
+        root.sizing_h = Sizing.FIXED
         _layout_fixed(root, 300, 80)
 
         # Main axis is X for horizontal; CENTER_LEFT → x-offset = 0 (LEFT)
@@ -439,7 +446,8 @@ class TestMainAxisAlignment:
                           gap=0, padding=8, align=Align.TOP_CENTER)
         root.width = 300
         root.height = 80
-        root.sizing = Sizing.FIXED
+        root.sizing_w = Sizing.FIXED
+        root.sizing_h = Sizing.FIXED
         _layout_fixed(root, 300, 80)
 
         inner_w = 300 - 16  # 284
@@ -456,7 +464,8 @@ class TestMainAxisAlignment:
                           gap=0, padding=8, align=Align.TOP_RIGHT)
         root.width = 300
         root.height = 80
-        root.sizing = Sizing.FIXED
+        root.sizing_w = Sizing.FIXED
+        root.sizing_h = Sizing.FIXED
         _layout_fixed(root, 300, 80)
 
         inner_w = 300 - 16
@@ -469,9 +478,9 @@ class TestMainAxisAlignment:
     def test_fill_ignores_main_alignment(self):
         """FILL children consume all space → main-axis alignment has no effect."""
         a = _box("a", w=80, h=40)
-        a.child_sizing = Sizing.FILL
+        a.sizing_h = Sizing.FILL  # primary axis for vertical parent
         b = _box("b", w=80, h=40)
-        b.child_sizing = Sizing.FILL
+        b.sizing_h = Sizing.FILL
 
         # With BOTTOM_RIGHT: main axis offset should be 0 or near-zero
         # because fill children consume (almost) all available space.
@@ -479,7 +488,8 @@ class TestMainAxisAlignment:
         root = _container("root", Direction.VERTICAL, [a, b],
                           gap=8, padding=8, align=Align.BOTTOM_RIGHT)
         root.height = 400
-        root.sizing = Sizing.FIXED
+        root.sizing_w = Sizing.FIXED
+        root.sizing_h = Sizing.FIXED
         _layout_fixed(root, root.width or 200, 400)
 
         # fill_extra is rounded DOWN to BASELINE_UNIT, so there may be
@@ -500,7 +510,8 @@ class TestMainAxisAlignment:
         root = _container("root", Direction.VERTICAL, [a, b, c],
                           gap=8, padding=8, align=Align.CENTER)
         root.height = 400
-        root.sizing = Sizing.FIXED
+        root.sizing_w = Sizing.FIXED
+        root.sizing_h = Sizing.FIXED
         _layout_fixed(root, root.width or 200, 400)
 
         inner_h = 400 - 16
@@ -527,7 +538,8 @@ class TestCrossAxisAlignment:
         root = _container("root", Direction.HORIZONTAL, [child],
                           gap=0, padding=8, align=Align.CENTER_LEFT)
         root.height = 64 + 64 + 16  # cross_size = 128 after padding
-        root.sizing = Sizing.FIXED
+        root.sizing_w = Sizing.FIXED
+        root.sizing_h = Sizing.FIXED
         _layout_fixed(root, root.width or 200, root.height)
 
         # Child should keep measured height
@@ -548,7 +560,8 @@ class TestCrossAxisAlignment:
         root = _container("root", Direction.VERTICAL, [child],
                           gap=0, padding=8, align=Align.TOP_RIGHT)
         root.width = 96 + 96 + 16  # cross_size = 192 after padding
-        root.sizing = Sizing.FIXED
+        root.sizing_w = Sizing.FIXED
+        root.sizing_h = Sizing.FIXED
         _layout_fixed(root, root.width, root.height or 200)
 
         # Child keeps measured width
@@ -560,13 +573,15 @@ class TestCrossAxisAlignment:
         assert abs(child._placed_x - expected_x) <= 1, \
             f"x={child._placed_x}, expected ~{expected_x}"
 
-    def test_top_left_still_stretches(self):
-        """TOP_LEFT (default): cross-axis children stretch — backward compatible."""
+    def test_top_left_fill_stretches(self):
+        """TOP_LEFT + counter-axis FILL: child stretches to cross-axis size."""
         child = _box("a", w=80, h=64)
+        child.sizing_h = Sizing.FILL  # counter-axis FILL → stretch
         root = _container("root", Direction.HORIZONTAL, [child],
                           gap=0, padding=8, align=Align.TOP_LEFT)
         root.height = 200
-        root.sizing = Sizing.FIXED
+        root.sizing_w = Sizing.FIXED
+        root.sizing_h = Sizing.FIXED
         _layout_fixed(root, root.width or 200, 200)
 
         cross_size = 200 - 16  # 184
@@ -582,7 +597,8 @@ class TestCrossAxisAlignment:
         root = _container("root", Direction.VERTICAL, [child],
                           gap=0, padding=8, align=Align.CENTER)
         root.width = 224  # cross_size = 224 - 16 = 208
-        root.sizing = Sizing.FIXED
+        root.sizing_w = Sizing.FIXED
+        root.sizing_h = Sizing.FIXED
         _layout_fixed(root, 224, root.height or 200)
 
         assert child._placed_w == 96, \
@@ -602,7 +618,8 @@ class TestCrossAxisAlignment:
         root = _container("root", Direction.HORIZONTAL, [child],
                           gap=0, padding=8, align=Align.CENTER_LEFT)
         root.height = 100  # cross_size = 84, less than child's 200
-        root.sizing = Sizing.FIXED
+        root.sizing_w = Sizing.FIXED
+        root.sizing_h = Sizing.FIXED
         _layout_fixed(root, root.width or 300, 100)
 
         # Child should keep measured height, no negative offset
@@ -619,12 +636,13 @@ class TestCrossAxisAlignment:
         Child should expand on main-axis (FILL) and keep measured cross-axis.
         """
         child = _box("a", w=80, h=64)
-        child.child_sizing = Sizing.FILL
+        child.sizing_w = Sizing.FILL
         root = _container("root", Direction.HORIZONTAL, [child],
                           gap=0, padding=8, align=Align.CENTER_LEFT)
         root.width = 300
         root.height = 200  # cross_size = 184
-        root.sizing = Sizing.FIXED
+        root.sizing_w = Sizing.FIXED
+        root.sizing_h = Sizing.FIXED
         _layout_fixed(root, 300, 200)
 
         # Main-axis: FILL should expand
@@ -649,7 +667,8 @@ class TestCrossAxisAlignment:
                           gap=24, padding=8, align=Align.CENTER_LEFT,
                           heading=Line("Header"))
         root.height = 300
-        root.sizing = Sizing.FIXED
+        root.sizing_w = Sizing.FIXED
+        root.sizing_h = Sizing.FIXED
         _layout_fixed(root, root.width or 300, 300)
 
         # Child should be below heading, centered in remaining cross-space
@@ -661,13 +680,15 @@ class TestCrossAxisAlignment:
         # No negative dimensions
         assert child._placed_w > 0 and child._placed_h > 0
 
-    def test_vertical_top_left_still_stretches(self):
-        """TOP_LEFT in VERTICAL: cross-axis (X) children stretch — backward compatible."""
+    def test_vertical_top_left_fill_stretches(self):
+        """TOP_LEFT in VERTICAL + counter-axis FILL: child stretches on X."""
         child = _box("a", w=80, h=64)
+        child.sizing_w = Sizing.FILL  # counter-axis FILL in vertical → stretch W
         root = _container("root", Direction.VERTICAL, [child],
                           gap=0, padding=8, align=Align.TOP_LEFT)
         root.width = 300
-        root.sizing = Sizing.FIXED
+        root.sizing_w = Sizing.FIXED
+        root.sizing_h = Sizing.FIXED
         _layout_fixed(root, 300, root.height or 200)
 
         cross_size = 300 - 16  # 284
@@ -688,7 +709,8 @@ class TestCrossAxisAlignment:
         outer = _container("outer", Direction.VERTICAL, [inner],
                            gap=0, padding=8, align=Align.CENTER)
         outer.width = 300
-        outer.sizing = Sizing.FIXED
+        outer.sizing_w = Sizing.FIXED
+        outer.sizing_h = Sizing.FIXED
         _layout_fixed(outer, 300, outer.height or 200)
 
         # Inner should keep measured width, centered on cross-axis
@@ -721,7 +743,8 @@ class TestAlignmentGridSnap:
         root = _container("root", Direction.VERTICAL, [a, b],
                           gap=24, padding=8, align=Align.TOP_LEFT)
         root.height = 304  # on grid
-        root.sizing = Sizing.FIXED
+        root.sizing_w = Sizing.FIXED
+        root.sizing_h = Sizing.FIXED
         _layout_fixed(root, root.width or 200, 304)
 
         for frame in [root, a, b]:
@@ -744,7 +767,8 @@ class TestAlignmentGridSnap:
         root = _container("root", Direction.VERTICAL, [a],
                           gap=0, padding=8, align=Align.CENTER)
         root.height = 300
-        root.sizing = Sizing.FIXED
+        root.sizing_w = Sizing.FIXED
+        root.sizing_h = Sizing.FIXED
         _layout_fixed(root, root.width or 200, 300)
 
         # Alignment offset = (inner_h - content_h) / 2 which may be fractional
@@ -796,14 +820,15 @@ class TestFillSizing:
     def test_two_equal_fill(self):
         """Two FILL children in fixed container get equal shares."""
         a = _box("a", w=100, h=40)
-        a.child_sizing = Sizing.FILL
+        a.sizing_h = Sizing.FILL
         b = _box("b", w=100, h=40)
-        b.child_sizing = Sizing.FILL
+        b.sizing_h = Sizing.FILL
 
         root = _container("root", Direction.VERTICAL, [a, b],
                           gap=8, padding=8)
         root.height = 400
-        root.sizing = Sizing.FIXED
+        root.sizing_w = Sizing.FIXED
+        root.sizing_h = Sizing.FIXED
         _layout_fixed(root, root.width or 200, 400)
 
         assert abs(a._placed_h - b._placed_h) <= BASELINE_UNIT
@@ -812,16 +837,17 @@ class TestFillSizing:
     def test_three_unequal_measured(self):
         """Three FILL with different measured sizes → all get equal share."""
         a = _box("a", w=100, h=40)
-        a.child_sizing = Sizing.FILL
+        a.sizing_h = Sizing.FILL
         b = _box("b", w=100, h=80)
-        b.child_sizing = Sizing.FILL
+        b.sizing_h = Sizing.FILL
         c = _box("c", w=100, h=120)
-        c.child_sizing = Sizing.FILL
+        c.sizing_h = Sizing.FILL
 
         root = _container("root", Direction.VERTICAL, [a, b, c],
                           gap=8, padding=8)
         root.height = 500
-        root.sizing = Sizing.FIXED
+        root.sizing_w = Sizing.FIXED
+        root.sizing_h = Sizing.FIXED
         _layout_fixed(root, root.width or 200, 500)
 
         # Figma model: FILL children share available space equally,
@@ -835,17 +861,18 @@ class TestFillSizing:
     def test_fill_with_hug_siblings(self):
         """1 HUG + 2 FILL: HUG takes measured, FILL splits remainder."""
         hug = _box("hug", w=100, h=60)
-        hug.child_sizing = Sizing.HUG
+        hug.sizing_h = Sizing.HUG
 
         fill_a = _box("fill_a", w=100, h=40)
-        fill_a.child_sizing = Sizing.FILL
+        fill_a.sizing_h = Sizing.FILL
         fill_b = _box("fill_b", w=100, h=40)
-        fill_b.child_sizing = Sizing.FILL
+        fill_b.sizing_h = Sizing.FILL
 
         root = _container("root", Direction.VERTICAL, [hug, fill_a, fill_b],
                           gap=8, padding=8)
         root.height = 400
-        root.sizing = Sizing.FIXED
+        root.sizing_w = Sizing.FIXED
+        root.sizing_h = Sizing.FIXED
         _layout_fixed(root, root.width or 200, 400)
 
         # HUG child keeps its measured height
@@ -858,7 +885,7 @@ class TestFillSizing:
     def test_fill_in_hug_container_keeps_measured(self):
         """FILL child in HUG container keeps measured size (container fits)."""
         big = _box("big", w=100, h=200)
-        big.child_sizing = Sizing.FILL
+        big.sizing_h = Sizing.FILL
 
         root = _container("root", Direction.VERTICAL, [big],
                           gap=0, padding=8)
@@ -872,14 +899,15 @@ class TestFillSizing:
     def test_fill_rounds_down_to_grid(self):
         """FILL sizes are grid-aligned and never overflow the parent."""
         a = _box("a", w=100, h=40)
-        a.child_sizing = Sizing.FILL
+        a.sizing_h = Sizing.FILL
         b = _box("b", w=100, h=40)
-        b.child_sizing = Sizing.FILL
+        b.sizing_h = Sizing.FILL
 
         root = _container("root", Direction.VERTICAL, [a, b],
                           gap=8, padding=8)
         root.height = 304  # on 8px grid (304/8=38)
-        root.sizing = Sizing.FIXED
+        root.sizing_w = Sizing.FIXED
+        root.sizing_h = Sizing.FIXED
         _layout_fixed(root, root.width or 200, 304)
 
         total_children = a._placed_h + b._placed_h + 8  # + gap
@@ -903,7 +931,8 @@ class TestFixedSizing:
                           gap=0, padding=8)
         root.width = 300
         root.height = 200
-        root.sizing = Sizing.FIXED
+        root.sizing_w = Sizing.FIXED
+        root.sizing_h = Sizing.FIXED
         _layout_fixed(root, 300, 200)
 
         assert root._placed_w == round_up(300), f"w={root._placed_w}"
@@ -920,15 +949,16 @@ class TestFixedSizing:
     def test_fixed_container_children_fill(self):
         """FILL children inside FIXED container fill the declared space."""
         a = _box("a", w=100, h=40)
-        a.child_sizing = Sizing.FILL
+        a.sizing_h = Sizing.FILL
         b = _box("b", w=100, h=40)
-        b.child_sizing = Sizing.FILL
+        b.sizing_h = Sizing.FILL
 
         root = _container("root", Direction.VERTICAL, [a, b],
                           gap=8, padding=8)
         root.width = 250
         root.height = 400
-        root.sizing = Sizing.FIXED
+        root.sizing_w = Sizing.FIXED
+        root.sizing_h = Sizing.FIXED
         _layout_fixed(root, 250, 400)
 
         total = a._placed_h + b._placed_h + 8
@@ -942,6 +972,17 @@ class TestFixedSizing:
 # ── 3D: Edge cases ──
 
 class TestSizingEdgeCases:
+
+    def test_fixed_width_zero_honored(self):
+        """FIXED with width=0 should produce a 0-width frame, not fallback to measured."""
+        leaf = Frame(id="zero", border=Border.NONE, fill=Fill.WHITE,
+                     label=[], width=0, height=0, padding=0)
+        leaf.sizing_w = Sizing.FIXED
+        leaf.sizing_h = Sizing.FIXED
+        measure(leaf)
+        place(leaf, 0, 0, 0, 0)
+        assert leaf._placed_w == 0, f"Expected 0, got {leaf._placed_w}"
+        assert leaf._placed_h == 0, f"Expected 0, got {leaf._placed_h}"
 
     def test_empty_container(self):
         """Container with 0 children is treated as a leaf by the engine.
@@ -961,12 +1002,13 @@ class TestSizingEdgeCases:
     def test_single_fill_child_gets_all_space(self):
         """One FILL child gets all remaining space."""
         a = _box("a", w=100, h=40)
-        a.child_sizing = Sizing.FILL
+        a.sizing_h = Sizing.FILL
 
         root = _container("root", Direction.VERTICAL, [a],
                           gap=0, padding=8)
         root.height = 400
-        root.sizing = Sizing.FIXED
+        root.sizing_w = Sizing.FIXED
+        root.sizing_h = Sizing.FIXED
         _layout_fixed(root, root.width or 200, 400)
 
         expected_h = 400 - 16  # all available minus padding
@@ -983,7 +1025,8 @@ class TestSizingEdgeCases:
         root = _container("root", Direction.VERTICAL, [a, b],
                           gap=8, padding=8, align=Align.TOP_LEFT)
         root.height = 400
-        root.sizing = Sizing.FIXED
+        root.sizing_w = Sizing.FIXED
+        root.sizing_h = Sizing.FIXED
         _layout_fixed(root, root.width or 200, 400)
 
         # Children keep their measured sizes
@@ -1074,32 +1117,36 @@ class TestInvariants:
 # ═══════════════════════════════════════════════════════════════════
 
 class TestFillInHugInvariant:
-    """Figma rule: FILL children in HUG parents keep measured size."""
+    """Figma rule: HUG parent + FILL children → parent freezes to FIXED,
+    children stay FILL and divide space equally."""
 
-    def test_fill_children_coerced_to_hug_in_hug_parent(self):
-        """FILL children in a HUG parent should act like HUG (keep measured)."""
+    def test_fill_children_get_equal_shares_in_hug_parent(self):
+        """FILL children in a HUG parent: parent freezes, children split equally."""
         a = _box("a", w=192, h=64)
-        a.child_sizing = Sizing.FILL
+        a.sizing_h = Sizing.FILL
         b = _box("b", w=192, h=80)
-        b.child_sizing = Sizing.FILL
+        b.sizing_h = Sizing.FILL
         root = _container("root", Direction.VERTICAL, [a, b], gap=8, padding=8)
-        # root.sizing defaults to HUG
+        # root.sizing_h defaults to HUG
         _layout(root)
 
-        # After invariant, children should keep measured sizes
-        assert a._placed_h == round_up(64), \
-            f"FILL child in HUG parent should keep measured h=64, got {a._placed_h}"
-        assert b._placed_h == round_up(80), \
-            f"FILL child in HUG parent should keep measured h=80, got {b._placed_h}"
+        # Parent freezes at measured size. Children divide space equally.
+        # measured_h = (64 + 80 + 8) + 16 = 168
+        # available_for_children = 168 - 16 - 8 = 144
+        # each FILL child = 144 / 2 = 72
+        diff = abs(a._placed_h - b._placed_h)
+        assert diff <= BASELINE_UNIT, \
+            f"FILL children should get equal shares, got a={a._placed_h}, b={b._placed_h}"
 
     def test_fill_children_expand_in_fixed_parent(self):
         """FILL children in a FIXED parent should divide space equally."""
         a = _box("a", w=192, h=40)
-        a.child_sizing = Sizing.FILL
+        a.sizing_h = Sizing.FILL
         b = _box("b", w=192, h=40)
-        b.child_sizing = Sizing.FILL
+        b.sizing_h = Sizing.FILL
         root = _container("root", Direction.VERTICAL, [a, b], gap=8, padding=8)
-        root.sizing = Sizing.FIXED
+        root.sizing_w = Sizing.FIXED
+        root.sizing_h = Sizing.FIXED
         root.height = 400
         root.width = 200
         _layout_fixed(root, 200, 400)
@@ -1116,26 +1163,29 @@ class TestFillInHugInvariant:
         assert diff <= BASELINE_UNIT, \
             f"FILL children differ by {diff}px (max {BASELINE_UNIT}): a={a._placed_h}, b={b._placed_h}"
 
-    def test_nested_fill_in_hug_no_overflow(self):
-        """Panel with content + siblings all FILL in HUG column: panel keeps measured size."""
+    def test_nested_fill_in_hug_parent_freezes(self):
+        """Panel with content + siblings all FILL in HUG column:
+        parent freezes to FIXED, children split equally."""
         inner_a = _box("inner_a", h=64)
         inner_b = _box("inner_b", h=40)
         panel = _container("panel", Direction.VERTICAL, [inner_a, inner_b],
                            gap=8, padding=8)
         ann = _box("ann", w=240, h=40)
-        ann.child_sizing = Sizing.FILL
-        panel.child_sizing = Sizing.FILL
+        ann.sizing_h = Sizing.FILL
+        panel.sizing_h = Sizing.FILL
 
         column = _container("col", Direction.VERTICAL, [ann, panel],
                             gap=24, padding=0, border=Border.NONE)
         _layout(column)
 
-        # Panel should keep its measured size (HUG invariant)
-        assert panel._placed_h >= panel._measured_h - 0.5, \
-            f"Panel should keep measured h={panel._measured_h}, got {panel._placed_h}"
-        # No overflow
-        errors = _children_within_parent(column)
-        assert not errors, f"Children overflow:\n" + "\n".join(errors)
+        # Parent freezes at measured size, FILL children split equally
+        diff = abs(ann._placed_h - panel._placed_h)
+        assert diff <= BASELINE_UNIT, \
+            f"FILL split should be equal: ann={ann._placed_h}, panel={panel._placed_h}"
+        # Total should fit within the frozen parent
+        total = ann._placed_h + panel._placed_h + 24  # + gap
+        assert total <= column._placed_h + 0.5, \
+            f"Children total {total} exceeds parent {column._placed_h}"
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -1151,7 +1201,8 @@ class TestHeadingOverflow:
         root = _container("root", Direction.VERTICAL, [child],
                           gap=8, padding=8)
         # Force a very small container
-        root.sizing = Sizing.FIXED
+        root.sizing_w = Sizing.FIXED
+        root.sizing_h = Sizing.FIXED
         root.width = 120
         root.height = 40  # way too small for heading + child + padding
         root.heading = Line("Heading")
@@ -1174,14 +1225,15 @@ class TestFillDistributionFairness:
     def test_three_fill_max_diff_is_one_baseline_unit(self):
         """3 FILL children: sizes should differ by at most BASELINE_UNIT."""
         a = _box("a", w=192, h=40)
-        a.child_sizing = Sizing.FILL
+        a.sizing_h = Sizing.FILL
         b = _box("b", w=192, h=40)
-        b.child_sizing = Sizing.FILL
+        b.sizing_h = Sizing.FILL
         c = _box("c", w=192, h=40)
-        c.child_sizing = Sizing.FILL
+        c.sizing_h = Sizing.FILL
         root = _container("root", Direction.VERTICAL, [a, b, c],
                           gap=0, padding=0, border=Border.NONE)
-        root.sizing = Sizing.FIXED
+        root.sizing_w = Sizing.FIXED
+        root.sizing_h = Sizing.FIXED
         root.height = 104  # not evenly divisible by 3
         root.width = 200
         _layout(root)
@@ -1194,12 +1246,13 @@ class TestFillDistributionFairness:
     def test_extra_goes_to_last_children(self):
         """Extra grid units from FILL rounding go to last children, not first."""
         a = _box("a", w=192, h=40)
-        a.child_sizing = Sizing.FILL
+        a.sizing_h = Sizing.FILL
         b = _box("b", w=192, h=40)
-        b.child_sizing = Sizing.FILL
+        b.sizing_h = Sizing.FILL
         root = _container("root", Direction.VERTICAL, [a, b],
                           gap=0, padding=0, border=Border.NONE)
-        root.sizing = Sizing.FIXED
+        root.sizing_w = Sizing.FIXED
+        root.sizing_h = Sizing.FIXED
         # 104 / 2 = 52, floor to grid = 48, leftover = 104 - 96 = 8
         # Extra 8 should go to LAST child
         root.height = 104
@@ -1374,13 +1427,14 @@ class TestThreeLevelNesting:
                            gap=0, padding=4)
         mid1 = _container("mid1", Direction.VERTICAL, [deep1],
                           gap=0, padding=4)
-        mid1.child_sizing = Sizing.FILL
+        mid1.sizing_h = Sizing.FILL
         mid2 = _container("mid2", Direction.VERTICAL, [deep2],
                           gap=0, padding=4)
-        mid2.child_sizing = Sizing.FILL
+        mid2.sizing_h = Sizing.FILL
         page = _container("page", Direction.VERTICAL, [mid1, mid2],
                           gap=8, padding=8)
-        page.sizing = Sizing.FIXED
+        page.sizing_w = Sizing.FIXED
+        page.sizing_h = Sizing.FIXED
         page.height = 400
         page.width = 200
         _layout_fixed(page, 200, 400)
@@ -1407,13 +1461,14 @@ class TestThreeLevelNesting:
         FILL should cascade: grandchild expands through its FILL parent.
         """
         leaf = _box("leaf", w=100, h=32)
-        leaf.child_sizing = Sizing.FILL
+        leaf.sizing_h = Sizing.FILL
         mid = _container("mid", Direction.VERTICAL, [leaf],
                          gap=0, padding=4)
-        mid.child_sizing = Sizing.FILL
+        mid.sizing_h = Sizing.FILL
         root = _container("root", Direction.VERTICAL, [mid],
                           gap=0, padding=8)
-        root.sizing = Sizing.FIXED
+        root.sizing_w = Sizing.FIXED
+        root.sizing_h = Sizing.FIXED
         root.height = 400
         root.width = 200
         _layout_fixed(root, 200, 400)
@@ -1435,7 +1490,8 @@ class TestThreeLevelNesting:
         inner = _container("inner", Direction.VERTICAL,
                            [_box("a", w=80, h=40)],
                            gap=0, padding=4)
-        inner.sizing = Sizing.FIXED
+        inner.sizing_w = Sizing.FIXED
+        inner.sizing_h = Sizing.FIXED
         inner.width = 200
         inner.height = 160
         outer = _container("outer", Direction.VERTICAL, [inner],
@@ -1465,7 +1521,8 @@ class TestTextOverflowResilience:
         wide_child = _box("wide", w=400, h=64)
         narrow = _container("narrow", Direction.VERTICAL, [wide_child],
                             gap=0, padding=8)
-        narrow.sizing = Sizing.FIXED
+        narrow.sizing_w = Sizing.FIXED
+        narrow.sizing_h = Sizing.FIXED
         narrow.width = 100
         narrow.height = 100
         _layout_fixed(narrow, 100, 100)
@@ -1480,7 +1537,8 @@ class TestTextOverflowResilience:
         tall = _box("tall", w=100, h=300)
         short = _container("short", Direction.VERTICAL, [tall],
                            gap=0, padding=8)
-        short.sizing = Sizing.FIXED
+        short.sizing_w = Sizing.FIXED
+        short.sizing_h = Sizing.FIXED
         short.width = 200
         short.height = 80  # way too short
         _layout_fixed(short, 200, 80)
@@ -1497,7 +1555,8 @@ class TestTextOverflowResilience:
         children = [_box(f"c{i}", w=80, h=40) for i in range(10)]
         small = _container("small", Direction.VERTICAL, children,
                            gap=8, padding=8)
-        small.sizing = Sizing.FIXED
+        small.sizing_w = Sizing.FIXED
+        small.sizing_h = Sizing.FIXED
         small.width = 200
         small.height = 100  # needs ~488px for 10 children
         _layout_fixed(small, 200, 100)
@@ -1515,10 +1574,11 @@ class TestTextOverflowResilience:
     def test_fill_child_shrinks_below_measured(self):
         """FILL child in tiny container: accepts small size gracefully."""
         child = _box("fill_child", w=192, h=200)
-        child.child_sizing = Sizing.FILL
+        child.sizing_h = Sizing.FILL
         tiny = _container("tiny", Direction.VERTICAL, [child],
                           gap=0, padding=8)
-        tiny.sizing = Sizing.FIXED
+        tiny.sizing_w = Sizing.FIXED
+        tiny.sizing_h = Sizing.FIXED
         tiny.width = 200
         tiny.height = 40
         _layout_fixed(tiny, 200, 40)
@@ -1541,7 +1601,8 @@ class TestContainerTooSmall:
         c = _box("c", w=100, h=80)
         root = _container("root", Direction.VERTICAL, [a, b, c],
                           gap=8, padding=8)
-        root.sizing = Sizing.FIXED
+        root.sizing_w = Sizing.FIXED
+        root.sizing_h = Sizing.FIXED
         root.width = 150
         root.height = 100  # needs 80*3 + 8*2 + 16 = 272
         _layout_fixed(root, 150, 100)
@@ -1561,16 +1622,378 @@ class TestContainerTooSmall:
         """
         big = _box("big", w=100, h=200)
         fill_child = _box("fill", w=100, h=40)
-        fill_child.child_sizing = Sizing.FILL
+        fill_child.sizing_h = Sizing.FILL
         root = _container("root", Direction.VERTICAL, [big, fill_child],
                           gap=8, padding=8)
-        root.sizing = Sizing.FIXED
+        root.sizing_w = Sizing.FIXED
+        root.sizing_h = Sizing.FIXED
         root.height = 224  # big=200 + gap=8 + pad=16 = exactly 224, zero left
         root.width = 200
         _layout_fixed(root, 200, 224)
 
         assert fill_child._placed_h >= 0, \
             f"FILL child height negative: {fill_child._placed_h}"
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Part 11: Figma parent-coercion correctness
+# ═══════════════════════════════════════════════════════════════════
+
+class TestParentCoercion:
+    """Verify Figma-correct parent coercion: HUG→FIXED when children are FILL."""
+
+    def test_parent_becomes_fixed_on_primary_axis(self):
+        """HUG parent with FILL child: parent.sizing becomes FIXED."""
+        a = _box("a", w=100, h=64)
+        a.sizing_h = Sizing.FILL
+        root = _container("root", Direction.VERTICAL, [a], gap=0, padding=8)
+        measure(root)
+        _enforce_fill_hug_invariant(root)
+        assert root.sizing_h == Sizing.FIXED, \
+            f"Parent should be FIXED, got {root.sizing_h}"
+        assert root.height == root._measured_h, \
+            f"Parent height should freeze at measured={root._measured_h}, got {root.height}"
+
+    def test_parent_stays_hug_on_cross_axis(self):
+        """HUG parent with FILL child: cross-axis sizing stays HUG."""
+        a = _box("a", w=100, h=64)
+        a.sizing_h = Sizing.FILL
+        root = _container("root", Direction.VERTICAL, [a], gap=0, padding=8)
+        measure(root)
+        _enforce_fill_hug_invariant(root)
+        # Cross-axis (W) should stay HUG
+        assert root.sizing_w == Sizing.HUG, \
+            f"Cross-axis should stay HUG, got {root.sizing_w}"
+
+    def test_unequal_fill_children_split_equally(self):
+        """FILL children with different measured sizes get equal shares."""
+        small = _box("small", w=100, h=40)
+        small.sizing_h = Sizing.FILL
+        large = _box("large", w=100, h=120)
+        large.sizing_h = Sizing.FILL
+        root = _container("root", Direction.VERTICAL, [small, large],
+                          gap=8, padding=8)
+        _layout(root)
+
+        # Both should get roughly equal shares
+        diff = abs(small._placed_h - large._placed_h)
+        assert diff <= BASELINE_UNIT, \
+            f"FILL children should split equally: small={small._placed_h}, large={large._placed_h}"
+        # Total should fit
+        total = small._placed_h + large._placed_h + 8
+        assert total <= root._placed_h - 16 + 0.5
+
+    def test_mixed_fill_and_hug_in_frozen_parent(self):
+        """1 HUG + 1 FILL in HUG parent: parent freezes, FILL gets remainder."""
+        hug = _box("hug", w=100, h=64)
+        fill = _box("fill", w=100, h=40)
+        fill.sizing_h = Sizing.FILL
+        root = _container("root", Direction.VERTICAL, [hug, fill],
+                          gap=8, padding=8)
+        _layout(root)
+
+        # Parent should have frozen to FIXED
+        assert root.sizing_h == Sizing.FIXED
+        # HUG child keeps measured size
+        assert hug._placed_h == hug._measured_h
+        # FILL child gets the remainder
+        expected_avail = root._placed_h - 16 - 8  # padding + gap
+        fill_expected = expected_avail - hug._placed_h
+        assert abs(fill._placed_h - fill_expected) <= BASELINE_UNIT, \
+            f"FILL should get remainder={fill_expected}, got {fill._placed_h}"
+
+    def test_cross_axis_fill_in_hug_parent_stretches(self):
+        """Cross-axis FILL in HUG parent: child stretches to tallest sibling."""
+        short = _box("short", w=80, h=40)
+        short.sizing_h = Sizing.FILL  # cross-axis FILL in H parent
+        tall = _box("tall", w=80, h=120)
+        root = _container("root", Direction.HORIZONTAL, [short, tall],
+                          gap=8, padding=8)
+        _layout(root)
+
+        # short should stretch to match tall's height on the cross axis
+        assert short._placed_h == tall._placed_h, \
+            f"Cross-axis FILL should stretch: short={short._placed_h}, tall={tall._placed_h}"
+
+    def test_cross_axis_fill_hug_parent_no_coercion(self):
+        """Cross-axis FILL: parent stays HUG on cross axis, child stretches."""
+        a = _box("a", w=80, h=40)
+        a.sizing_h = Sizing.FILL  # H in horizontal parent = cross axis
+        b = _box("b", w=80, h=80)
+        root = _container("root", Direction.HORIZONTAL, [a, b],
+                          gap=8, padding=8)
+        measure(root)
+        _enforce_fill_hug_invariant(root)
+        # Cross-axis (H) should stay HUG — not coerced
+        assert root.sizing_h == Sizing.HUG, \
+            f"Cross-axis sizing should stay HUG, got {root.sizing_h}"
+
+    # ── 3-level nesting ──
+
+    def test_three_level_fill_cascades_through_frozen_parents(self):
+        """FIXED → FILL → FILL: grandchild fills through frozen intermediate.
+
+        Level 1: FIXED root (400px tall)
+        Level 2: FILL mid (expands to fill root)
+        Level 3: FILL leaf (expands to fill mid)
+        """
+        leaf = _box("leaf", w=100, h=32)
+        leaf.sizing_h = Sizing.FILL
+        mid = _container("mid", Direction.VERTICAL, [leaf], gap=0, padding=4)
+        mid.sizing_h = Sizing.FILL
+        root = _container("root", Direction.VERTICAL, [mid], gap=0, padding=8)
+        root.sizing_w = Sizing.FIXED
+        root.sizing_h = Sizing.FIXED
+        root.width = 200
+        root.height = 400
+        _layout_fixed(root, 200, 400)
+
+        # Both mid and leaf should have expanded
+        assert mid._placed_h > mid._measured_h
+        assert leaf._placed_h > 32
+        # leaf should fill almost all of mid's interior
+        mid_inner = mid._placed_h - 8  # padding_top + padding_bottom
+        assert abs(leaf._placed_h - mid_inner) <= BASELINE_UNIT
+
+    def test_three_level_hug_chain_freezes_at_bottom(self):
+        """HUG → HUG → HUG(children FILL): only the innermost parent freezes.
+
+        Level 1: page (HUG)
+        Level 2: section (HUG)
+        Level 3: row with FILL children
+        """
+        a = _box("a", w=80, h=40)
+        a.sizing_w = Sizing.FILL
+        b = _box("b", w=80, h=40)
+        b.sizing_w = Sizing.FILL
+        row = _container("row", Direction.HORIZONTAL, [a, b], gap=8, padding=4)
+        section = _container("section", Direction.VERTICAL, [row], gap=0, padding=4)
+        page = _container("page", Direction.VERTICAL, [section], gap=0, padding=8)
+        measure(page)
+        _enforce_fill_hug_invariant(page)
+
+        # Only row should be frozen (it has FILL children on primary W axis)
+        assert row.sizing_w == Sizing.FIXED, "Row should freeze to FIXED"
+        # Section and page should stay HUG (no FILL children on their primary axis)
+        assert section.sizing_h == Sizing.HUG, "Section should stay HUG"
+        assert page.sizing_h == Sizing.HUG, "Page should stay HUG"
+        # Layout should work without overflow
+        _layout(page)
+        for parent in [page, section, row]:
+            errors = _children_within_parent(parent)
+            assert not errors, f"{parent.id}: {errors}"
+
+    def test_three_level_mixed_v_h_v_fill(self):
+        """V(FIXED) → H(FILL) → V(FILL) with leaves.
+
+        Root is FIXED, horizontal row fills vertically, vertical columns
+        fill horizontally.
+        """
+        col1_a = _box("c1a", w=80, h=40)
+        col1_b = _box("c1b", w=80, h=40)
+        col1 = _container("col1", Direction.VERTICAL, [col1_a, col1_b],
+                          gap=4, padding=4)
+        col1.sizing_w = Sizing.FILL  # cross-axis FILL in H parent → stretch
+
+        col2_a = _box("c2a", w=80, h=60)
+        col2 = _container("col2", Direction.VERTICAL, [col2_a],
+                          gap=0, padding=4)
+        col2.sizing_w = Sizing.FILL
+
+        row = _container("row", Direction.HORIZONTAL, [col1, col2],
+                         gap=8, padding=4)
+        row.sizing_h = Sizing.FILL  # primary-axis FILL in V parent
+
+        footer = _box("footer", w=200, h=32)
+        root = _container("root", Direction.VERTICAL, [row, footer],
+                          gap=8, padding=8)
+        root.sizing_w = Sizing.FIXED
+        root.sizing_h = Sizing.FIXED
+        root.width = 400
+        root.height = 300
+        _layout_fixed(root, 400, 300)
+
+        # Row should have expanded (FILL in FIXED parent)
+        assert row._placed_h > row._measured_h, \
+            f"Row should expand: {row._placed_h} <= {row._measured_h}"
+        # Columns should have equal widths (cross-axis FILL)
+        assert abs(col1._placed_w - col2._placed_w) <= BASELINE_UNIT, \
+            f"Columns should be equal width: col1={col1._placed_w}, col2={col2._placed_w}"
+        # No overflow
+        for parent in [root, row, col1, col2]:
+            errors = _children_within_parent(parent)
+            assert not errors, f"{parent.id}: {errors}"
+
+    def test_three_level_all_hug_no_fill(self):
+        """V → H → V all HUG: no coercion needed, everything fits content."""
+        leaf = _box("leaf", w=60, h=30)
+        inner = _container("inner", Direction.VERTICAL, [leaf], gap=0, padding=4)
+        mid = _container("mid", Direction.HORIZONTAL, [inner], gap=0, padding=4)
+        outer = _container("outer", Direction.VERTICAL, [mid], gap=0, padding=8)
+        _layout(outer)
+
+        # Everything should be at measured size (no expansion)
+        assert inner._placed_w == inner._measured_w
+        assert inner._placed_h == inner._measured_h
+        # No overflow
+        for parent in [outer, mid, inner]:
+            errors = _children_within_parent(parent)
+            assert not errors, f"{parent.id}: {errors}"
+
+    def test_three_level_deep_fill_in_hug_chain(self):
+        """HUG → HUG → children(FILL): deepest parent freezes, others stay HUG.
+
+        Grandchildren are FILL, so the innermost container freezes.
+        The middle and outer containers have no FILL children themselves
+        (their child is the frozen inner), so they stay HUG.
+        """
+        ga = _box("ga", w=100, h=48)
+        ga.sizing_h = Sizing.FILL
+        gb = _box("gb", w=100, h=80)
+        gb.sizing_h = Sizing.FILL
+        inner = _container("inner", Direction.VERTICAL, [ga, gb], gap=8, padding=4)
+        mid = _container("mid", Direction.VERTICAL, [inner], gap=0, padding=4)
+        outer = _container("outer", Direction.VERTICAL, [mid], gap=0, padding=8)
+        _layout(outer)
+
+        # inner should be frozen (FILL children on primary axis)
+        assert inner.sizing_h == Sizing.FIXED
+        # mid and outer should stay HUG
+        assert mid.sizing_h == Sizing.HUG
+        assert outer.sizing_h == Sizing.HUG
+        # FILL grandchildren should split equally
+        diff = abs(ga._placed_h - gb._placed_h)
+        assert diff <= BASELINE_UNIT, \
+            f"FILL grandchildren should split equally: ga={ga._placed_h}, gb={gb._placed_h}"
+        # No overflow
+        for parent in [outer, mid, inner]:
+            errors = _children_within_parent(parent)
+            assert not errors, f"{parent.id}: {errors}"
+
+    def test_per_axis_mixed_sizing(self):
+        """Width=FILL, Height=HUG on the same node in a FIXED parent."""
+        child = _box("child", w=80, h=40)
+        child.sizing_w = Sizing.FILL
+        child.sizing_h = Sizing.HUG
+        root = _container("root", Direction.HORIZONTAL, [child], gap=0, padding=8)
+        root.sizing_w = Sizing.FIXED
+        root.sizing_h = Sizing.FIXED
+        root.width = 400
+        root.height = 300
+        _layout_fixed(root, 400, 300)
+
+        # Width should expand (FILL on primary axis of H parent)
+        assert child._placed_w > child._measured_w, \
+            f"Width should expand: {child._placed_w} <= {child._measured_w}"
+        # Height should stay at measured (HUG on cross axis)
+        assert child._placed_h == child._measured_h, \
+            f"Height should stay measured: {child._placed_h} != {child._measured_h}"
+
+    def test_per_axis_mixed_sizing_triggers_coercion(self):
+        """Width=FILL in HUG horizontal parent: parent freezes W, keeps H as HUG."""
+        child = _box("child", w=80, h=40)
+        child.sizing_w = Sizing.FILL
+        child.sizing_h = Sizing.HUG
+        root = _container("root", Direction.HORIZONTAL, [child], gap=0, padding=8)
+        measure(root)
+        _enforce_fill_hug_invariant(root)
+
+        assert root.sizing_w == Sizing.FIXED, \
+            f"Primary axis should freeze: got {root.sizing_w}"
+        assert root.sizing_h == Sizing.HUG, \
+            f"Cross axis should stay HUG: got {root.sizing_h}"
+
+    def test_both_axes_fill_in_hug_horizontal_parent(self):
+        """Children FILL on both W and H in HUG horizontal parent.
+
+        Primary (W) triggers coercion; cross (H) stays HUG + stretches.
+        """
+        a = _box("a", w=80, h=40)
+        b = _box("b", w=80, h=120)
+        for child in (a, b):
+            child.sizing_w = Sizing.FILL
+            child.sizing_h = Sizing.FILL
+        root = _container("root", Direction.HORIZONTAL, [a, b], gap=8, padding=8)
+        measure(root)
+        _enforce_fill_hug_invariant(root)
+
+        assert root.sizing_w == Sizing.FIXED, "Primary W should freeze"
+        assert root.sizing_h == Sizing.HUG, "Cross H should stay HUG"
+
+        _layout(root)
+        # Cross-axis FILL: both stretch to same height
+        assert a._placed_h == b._placed_h, \
+            f"Cross-axis FILL should stretch equally: a={a._placed_h}, b={b._placed_h}"
+        # Primary FILL: equal width share
+        diff = abs(a._placed_w - b._placed_w)
+        assert diff <= BASELINE_UNIT, \
+            f"Primary FILL should split equally: a={a._placed_w}, b={b._placed_w}"
+
+    def test_double_freeze_hug_parent_with_fill_and_hug_children(self):
+        """HUG parent with FILL child + HUG child that has FILL grandchildren.
+
+        Both the inner HUG container and the outer HUG container should freeze.
+        """
+        ga = _box("ga", w=80, h=40)
+        ga.sizing_h = Sizing.FILL
+        gb = _box("gb", w=80, h=60)
+        gb.sizing_h = Sizing.FILL
+        inner_hug = _container("inner_hug", Direction.VERTICAL, [ga, gb],
+                               gap=8, padding=4)
+
+        fill_sibling = _box("fill_sib", w=80, h=40)
+        fill_sibling.sizing_h = Sizing.FILL
+
+        outer = _container("outer", Direction.VERTICAL, [fill_sibling, inner_hug],
+                           gap=8, padding=8)
+        measure(outer)
+        _enforce_fill_hug_invariant(outer)
+
+        # Both HUG containers should freeze
+        assert inner_hug.sizing_h == Sizing.FIXED, "Inner HUG should freeze"
+        assert outer.sizing_h == Sizing.FIXED, "Outer HUG should freeze"
+
+        # Layout should work
+        place(outer, 0, 0, outer._measured_w, outer._measured_h)
+        for parent in [outer, inner_hug]:
+            errors = _children_within_parent(parent)
+            assert not errors, f"{parent.id}: {errors}"
+
+    def test_coerced_overrides_returned(self):
+        """_enforce_fill_hug_invariant returns a dict of coerced frame IDs."""
+        child = _box("child", w=80, h=40)
+        child.sizing_h = Sizing.FILL
+        root = _container("root", Direction.VERTICAL, [child], gap=0, padding=8)
+        measure(root)
+        coerced = _enforce_fill_hug_invariant(root)
+
+        assert "root" in coerced, f"Expected 'root' in coerced, got {coerced}"
+        assert coerced["root"]["sizing_h"] == "FIXED"
+        assert coerced["root"]["height"] == int(root._measured_h)
+        assert "sizing_w" not in coerced["root"], "Cross-axis should not be coerced"
+
+    def test_coerced_overrides_empty_when_no_fill(self):
+        """No coercion when children are all HUG."""
+        child = _box("child", w=80, h=40)
+        root = _container("root", Direction.VERTICAL, [child], gap=0, padding=8)
+        measure(root)
+        coerced = _enforce_fill_hug_invariant(root)
+        assert len(coerced) == 0, f"Expected empty, got {coerced}"
+
+    def test_coerced_overrides_nested(self):
+        """Nested coercion returns both inner and outer frame IDs."""
+        inner_child = _box("ic", w=60, h=30)
+        inner_child.sizing_h = Sizing.FILL
+        inner = _container("inner", Direction.VERTICAL, [inner_child], gap=0, padding=4)
+
+        outer_fill = _box("of", w=60, h=30)
+        outer_fill.sizing_h = Sizing.FILL
+        outer = _container("outer", Direction.VERTICAL, [outer_fill, inner], gap=8, padding=8)
+        measure(outer)
+        coerced = _enforce_fill_hug_invariant(outer)
+
+        assert "inner" in coerced, f"inner should be coerced: {coerced}"
+        assert "outer" in coerced, f"outer should be coerced: {coerced}"
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -1610,6 +2033,7 @@ if __name__ == "__main__":
         TestThreeLevelNesting,
         TestTextOverflowResilience,
         TestContainerTooSmall,
+        TestParentCoercion,
     ]
 
     passed = 0
