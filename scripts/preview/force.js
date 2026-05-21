@@ -305,6 +305,95 @@ async function updateForceNode(nodeId, patch) {
   return snapshot;
 }
 
+/**
+ * Collect snap targets for a force node being dragged.
+ * Uses shared collectPeerSnapTargets() from editor-base.js.
+ * Force nodes are center-positioned, so rects use x - w/2, y - h/2.
+ */
+function collectForceSnapTargets(dragNodeId) {
+  if (!currentSnapshot) return { xs: [], ys: [] };
+  const peers = currentSnapshot.nodes
+    .filter(n => n.id !== dragNodeId)
+    .map(n => ({
+      x: n.x - n.width / 2,
+      y: n.y - n.height / 2,
+      width: n.width,
+      height: n.height,
+    }));
+  return collectPeerSnapTargets(peers);
+}
+
+/**
+ * Snap a force node's center position to peer edges within SHARED_SNAP_THRESHOLD.
+ * Returns adjusted { x, y } and guide lines array.
+ */
+function snapForcePosition(nodeId, cx, cy, w, h, targets) {
+  const left = cx - w / 2;
+  const top = cy - h / 2;
+  const right = cx + w / 2;
+  const bottom = cy + h / 2;
+
+  let bestAdjX = 0;
+  let bestAdjY = 0;
+  let bestDistX = SHARED_SNAP_THRESHOLD + 1;
+  let bestDistY = SHARED_SNAP_THRESHOLD + 1;
+
+  // Check left, right, center against x targets
+  for (const tx of targets.xs) {
+    for (const edge of [left, right, cx]) {
+      const dist = Math.abs(edge - tx);
+      if (dist < bestDistX) {
+        bestDistX = dist;
+        bestAdjX = tx - edge;
+      }
+    }
+  }
+  // Check top, bottom, center against y targets
+  for (const ty of targets.ys) {
+    for (const edge of [top, bottom, cy]) {
+      const dist = Math.abs(edge - ty);
+      if (dist < bestDistY) {
+        bestDistY = dist;
+        bestAdjY = ty - edge;
+      }
+    }
+  }
+
+  const snappedX = cx + (bestDistX <= SHARED_SNAP_THRESHOLD ? bestAdjX : 0);
+  const snappedY = cy + (bestDistY <= SHARED_SNAP_THRESHOLD ? bestAdjY : 0);
+
+  // Build guide lines
+  const lines = [];
+  if (bestDistX <= SHARED_SNAP_THRESHOLD) {
+    const snapLeft = snappedX - w / 2;
+    const snapRight = snappedX + w / 2;
+    const svgEl = getStageSvg();
+    const svgH = svgEl ? parseFloat(svgEl.getAttribute("height") || "0") : 0;
+    for (const tx of targets.xs) {
+      for (const edge of [snapLeft, snapRight, snappedX]) {
+        if (Math.abs(edge - tx) < 2) {
+          lines.push({ x1: tx, y1: 0, x2: tx, y2: svgH });
+        }
+      }
+    }
+  }
+  if (bestDistY <= SHARED_SNAP_THRESHOLD) {
+    const snapTop = snappedY - h / 2;
+    const snapBottom = snappedY + h / 2;
+    const svgEl = getStageSvg();
+    const svgW = svgEl ? parseFloat(svgEl.getAttribute("width") || "0") : 0;
+    for (const ty of targets.ys) {
+      for (const edge of [snapTop, snapBottom, snappedY]) {
+        if (Math.abs(edge - ty) < 2) {
+          lines.push({ x1: 0, y1: ty, x2: svgW, y2: ty });
+        }
+      }
+    }
+  }
+
+  return { x: snappedX, y: snappedY, lines };
+}
+
 function startDragPreview(candidate) {
   if (!currentSnapshot) {
     return;
@@ -324,6 +413,7 @@ function startDragPreview(candidate) {
     nodeId: candidate.nodeId,
     offsetX: candidate.nodeX - candidate.startSvgX,
     offsetY: candidate.nodeY - candidate.startSvgY,
+    snapTargets: collectForceSnapTargets(candidate.nodeId),
   };
   dragCandidate = null;
   selectedId = candidate.nodeId;
@@ -343,8 +433,23 @@ function updateDragPreview(event) {
   if (!node) {
     return;
   }
-  const position = clampNodePosition(currentSnapshot, node, point.x + dragState.offsetX, point.y + dragState.offsetY);
-  render(previewDraggedSnapshot(currentSnapshot, dragState.nodeId, position.x, position.y));
+  const clamped = clampNodePosition(currentSnapshot, node, point.x + dragState.offsetX, point.y + dragState.offsetY);
+
+  // Snap to peer edges
+  const snap = snapForcePosition(
+    dragState.nodeId, clamped.x, clamped.y,
+    node.width, node.height, dragState.snapTargets
+  );
+
+  render(previewDraggedSnapshot(currentSnapshot, dragState.nodeId, snap.x, snap.y));
+
+  // Render guide lines after render() rebuilds the SVG
+  if (snap.lines.length > 0) {
+    renderGuideLines(snap.lines);
+  } else {
+    clearGuideLines();
+  }
+
   setStatus("Dragging…", "ok");
 }
 
@@ -356,6 +461,7 @@ async function finishDrag(event) {
   const activeDrag = dragState;
   dragState = null;
   suppressStageClick = true;
+  clearGuideLines();
 
   const node = currentSnapshot.nodes.find((candidateNode) => candidateNode.id === activeDrag.nodeId);
   if (!node) {
@@ -366,9 +472,13 @@ async function finishDrag(event) {
   let finalY = node.y;
   const point = pointerToStagePoint(event);
   if (point) {
-    const position = clampNodePosition(currentSnapshot, node, point.x + activeDrag.offsetX, point.y + activeDrag.offsetY);
-    finalX = position.x;
-    finalY = position.y;
+    const clamped = clampNodePosition(currentSnapshot, node, point.x + activeDrag.offsetX, point.y + activeDrag.offsetY);
+    const snap = snapForcePosition(
+      activeDrag.nodeId, clamped.x, clamped.y,
+      node.width, node.height, activeDrag.snapTargets
+    );
+    finalX = snap.x;
+    finalY = snap.y;
   }
 
   try {
