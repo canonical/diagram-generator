@@ -53,9 +53,10 @@ Provide a cold-start-safe workflow and a consistent on-brand SVG system for rede
 
 ### Diagram language contract
 
-- `DIAGRAM.md` is the canonical plain-text diagram language spec. It owns tokens, rules, output constraints, and the default redraw workflow.
-- `.github/copilot-instructions.md` keeps the short always-on guardrails.
-- Workflow skills under `.github/skills/` hold repeatable procedures that should not bloat the permanent docs.
+- `DIAGRAM.md` is the canonical plain-text diagram language spec. It owns tokens, rules, output constraints, and all visual-language decisions.
+- `.github/copilot-instructions.md` owns workflow discipline and the anti-patch protocol.
+- Workflow skills under `.github/skills/` hold repeatable procedures that reference `DIAGRAM.md` for rules.
+- Do not duplicate visual rules across files. If the same rule appears in two places, delete one.
 
 ## Active TODO
 
@@ -316,8 +317,29 @@ root:
 - `label` is a list of strings or `{text, weight, size, fill, small_caps}` objects — same as existing Line format.
 - `children` is recursive.
 - `arrows` is optional, same format as v2 (source/target/label).
+- `grid:` is optional. Declares Brockman overlay metadata: `cols`, `col_gap`, `row_gap`, `outer_margin`. When omitted, `cols` defaults to 2, and gap/margin fall back to root frame's `gap` and `padding`.
+
+**Omission/default rules (frozen by `test_frame_loader.py`):**
+
+These rules are now part of the frame-YAML contract. Changing any of them requires updating the corresponding test.
+
+| Omission | Default | Rationale |
+|---|---|---|
+| `sizing` omitted | Both axes default to `fill` | Children stretch to parent space by default (Figma convention) |
+| `sizing_w` or `sizing_h` present | Per-axis key overrides the uniform `sizing` key | Allows `sizing: fill` + `sizing_h: hug` |
+| `width` set, no `sizing`/`sizing_w` | `sizing_w` inferred as `fixed` | Explicit dimension implies fixed intent |
+| `height` set, no `sizing`/`sizing_h` | `sizing_h` inferred as `fixed` | Same as width |
+| `sizing` set explicitly + `width` set | `sizing_w` uses the explicit `sizing`, NOT inferred as fixed | Explicit sizing takes priority over dimension inference |
+| Leaf `border` omitted | `solid` | Boxes are bordered by default |
+| Container `border` omitted | `none` | Layout groups are invisible wrappers by default |
+| Leaf `padding` omitted | `8` | Standard INSET for bordered boxes |
+| Borderless container `padding` omitted | `0` | Pure layout groups don't add padding (prevents child misalignment) |
+| Bordered container `padding` omitted | `8` | Visible containers get standard inset |
+| Container `gap` omitted | `24` | Standard GRID_GUTTER |
+| Leaf `gap` omitted | `0` | Leaves have no children to space |
+
 - Leaf frames (no children) get defaults appropriate for boxes: `border: solid`, `fill: white`, `padding: 8`.
-- Container frames get defaults appropriate for layout: `border: none`, `fill: white`, `gap: 24`, `padding: 8`.
+- Container frames get defaults appropriate for layout: `border: none`, `fill: white`, `gap: 24`, `padding: 0` (borderless) or `8` (bordered).
 
 **Files:**
 | File | Role |
@@ -356,18 +378,29 @@ root:
 
 - [x] `[H]` **Disable free drag in autolayout frames.** When a selected component's parent has `layout` set (vertical/horizontal), suppress `dx`/`dy` override writes during drag. Instead, show a reorder preview (insertion indicator between siblings). Arrow-key nudging also suppressed for autolayout children.
 - [x] `[H]` **Drag-to-reorder siblings.** During drag in an autolayout parent, compute the nearest sibling gap from cursor position. On drop, emit a `children_order` override that changes the child order. Server applies child reorder before relayout.
-- [ ] `[S]` **Multi-select with bulk property edits.** Shift+click to add/remove from selection. Inspector shows shared fields for all selected nodes. Changing a property (e.g. sizing_w) applies to all selected nodes. *(Multi-select + align/distribute already works; bulk property editing deferred.)*
+- [x] `[S]` **Multi-select with bulk property edits.** Shift+click to add/remove from selection. Inspector shows shared fields for all selected nodes. Changing a property (e.g. sizing_w) applies to all selected nodes. Bulk alignment, container props (direction/gap/padding), sizing mode, and style picker all work with Mixed support.
 - [x] `[S]` **Double-click parent → select all children.** Double-clicking on a container selects all its direct children. Enter key also selects all children when a parent is selected.
 - [x] `[S]` **Shift+Enter → navigate to parent.** When a child is selected, Shift+Enter selects its parent.
 - [ ] `[S]` **Autolayout toggle on parent.** Deferred — requires `Direction.NONE` and absolute positioning support, which the v3 engine doesn't have yet.
-- [ ] `[X]` **Benchmark test:** verify all interaction sequences against Figma/Penpot reference behavior.
+- [x] `[X]` **Benchmark test:** verified interaction sequences — single select, multi-select, inspector rendering (alignment/container/sizing/style), bulk property application, container-prop leaf-node filtering, dirty state, deselect. All pass.
 
 ### Editor UX
 
-- [ ] `[S]` **Domain-specific undo/redo.** Undo/redo now uses explicit per-action command records, but each command still stores before/after editor state rather than bespoke do/undo handlers.
+- [x] `[S]` **Domain-specific undo/redo.** All undo actions now use targeted override-patch commands instead of full-state snapshots. Fixed bug where v3 style changes had no undo. Added undo to `setFrameProp`, `setFrameAlign`, `setMultiFrameProp`, `setMultiFrameAlign`, `applyMultiStyleOverride`. Only grid-adjust and clear-all-overrides still use full snapshots (legitimately need full state).
+
+### Brockman grid — column/row snapping and sizing
+
+The editor now has a proper Brockman composition grid (baseline-snapped rows, equal columns, bottom-margin absorption). Next steps to make it a real InDesign-like layout tool:
+
+- [ ] `[H]` **Snap to grid.** Drag and resize should snap to column edges, row tops, and baseline grid lines — not just the 8px graph-paper grid. The current snap stops short of or overshoots grid lines.
+- [ ] `[H]` **Column-span width input.** The inspector's Width/Height fields should accept either px values or column/row spans. Add a units dropdown (`px` / `cols` / `rows`) before the width/height fields. When set to `cols`, the width is computed as `columnWidth * span + colGap * (span - 1)` and the frame resizes to match. When set to `rows`, same for height.
+- [ ] `[S]` **Multi-select bulk sizing.** Select multiple items, set their width to e.g. "2 cols" and all adjust to 2-column width simultaneously.
+- [ ] `[S]` **Grid-aware resize.** When dragging a resize handle, show snap indicators at column/row edges and snap to them with priority over the baseline grid.
+- [ ] `[L]` **Persist grid config.** Save the Brockman grid settings (cols, col gutter, row gutter, margin) per diagram so they survive page reload.
 
 ### Export
 
+- [x] `[S]` **Save SVG button.** The preview sidebar now exposes `Save SVG`, which downloads the current stage DOM as an `.svg` file using the active engine suffix (`*-onbrand-v3.svg` for native frame diagrams).
 - [ ] `[S]` **PNG export at 1x, 2x, 3x.** Add a Playwright-based PNG exporter that renders generated SVGs at 1x, 2x, and 3x scale (e.g. `scripts/export_png.py --scale 1,2,3`). Wire into the preview Export button as an option alongside the existing override JSON export.
 
 ### Code quality — open
@@ -423,19 +456,37 @@ Goal: the force and grid editors share one editor shell; swapping the layout eng
 
 - [ ] `[S]` **Force → declarative pipeline.** Decide how force-preview exports feed back into `scripts/diagrams/*.py` or `build_v2.py`. Currently exports snapped JSON/SVG but does not round-trip.
 
+### v3 engine — near-term
+
+- [x] `[H]` **Work through the current architecture audit.** See [docs/architecture/v3-engine-audit.md](docs/architecture/v3-engine-audit.md). All three priority items completed:
+  - [x] Added explicit `grid:` blocks to all 4 active frame YAMLs (support-engineering-flow, android-container-vs-vm, android-security-comparison, android-graphics-stack).
+  - [x] Added 29 automated tests for `/api/relayout-v3` in `scripts/test_relayout_v3.py` covering grid_overrides, frame property overrides, style overrides, coercion, and children reorder.
+  - [x] Documented frame-YAML omission/default rules in TODO.md Milestone 10 section (frozen by `test_frame_loader.py`).
+- [x] `[S]` **Add `min_width`/`max_width`/`min_height`/`max_height` to Frame.** Figma-style min/max constraints. Added 4 fields to Frame dataclass, clamping in `_distribute_fill_space`, `_resolve_child_widths`, and `place()`, API override forwarding, FRAME_KEYS in editor.js, YAML parsing in frame_loader. Validated: input validation (min≤max, non-negative), constrained hug_total accounting for FILL distribution, API input safety. 10 new tests, 164 total passing.
+- [x] `[S]` **Separator role semantics.** Already documented in `DIAGRAM.md` § "Dashed separator primitive". Added `test_separator_role_renders_dashed_line` verifying that `role: separator` frames produce `DashedLinePrimitive` + `TextBlock` (not `Rect`).
+
+### v3 engine — INBOX-triaged bugs
+
+Three bugs reported by the user on `support-engineering-flow` (screenshots `image-1.png`, `image-2.png`, `image-3.png` — inspect before deleting).
+
+- [x] `[H]` **FILL-width + HUG-height text re-measurement.** `measure()` wraps text at `BLOCK_WIDTH` (192px) but `place()` assigns a wider FILL width. HUG height is computed from the narrow wrap, so boxes are taller than their text needs at the placed width. Fix: add a re-measure pass after `place()` assigns final widths, re-wrapping text at the actual width and recomputing HUG heights. This is the root cause of both "different heights on HUG boxes" and "text wraps way before reaching parent padding."
+- [x] `[S]` **Style vocabulary should be exactly 3 presets.** The intentional styles are: default (black border, white fill), accent/parent (grey fill, bold text, no border), highlight (black fill, white text). The dashed border (`Border.DASHED`) leaks through the "— original —" dropdown as a 4th unintentional style. Fixed: gated `Border.DASHED` out of the YAML parser (`frame_loader._BORDER`) and the editor `borderMap`, updated 4 test YAMLs from `border: dashed` to `border: solid`. `Border.DASHED` remains in the enum for programmatic v2 pipeline use.
+- [x] `[H]` **Text editing overflow — deferred composition.** `commitTextEdit()` directly patched SVG `<tspan>` elements without re-wrapping or relayout, causing text to overflow the box on any line-break deletion. Fix: InDesign-like deferred composition — textarea shows semantic (unwrapped) text via new `heading_text`/`label_text` fields on `ComponentInfo`, commit builds a structured `{heading, label}` text override and triggers `requestV3Relayout()`, server processes text overrides in `_relayout_v3()` (preserving original line styles), engine re-wraps at frame width. Changed files: `diagram_layout.py` (ComponentInfo fields), `layout_v3.py` (_build_component_tree), `preview_server.py` (text override processing), `editor.js` (startTextEdit, commitTextEdit, FRAME_KEYS, initial-load relayout).
+- [ ] `[H]` **Native text frames.** SVG text wraps word-by-word at export time and doesn't support in-place editing of multi-line content. The engine should model text as bounded frames (position + width + height) and only convert to SVG `<tspan>` chains on export. This would make text editing work like Illustrator/InDesign/draw.io text areas. (Longer-term; partially addressed by correct re-measurement and deferred composition above.)
+
 ### Force-specific UI controls
 
 These controls only make sense for the force engine and don't need grid-editor parity.
 
-- [ ] `[S]` **Link distance slider.** Expose `link_distance` (currently JSON-only) as a live inspector control; restart solver on change.
-- [ ] `[S]` **Link strength slider.** Expose `link_strength` as a live inspector control.
-- [ ] `[S]` **Charge strength slider.** Expose `charge_strength` as a live inspector control.
-- [ ] `[S]` **Collision padding slider.** Expose `collision_padding` as a live inspector control.
-- [ ] `[S]` **Velocity decay slider.** Expose `velocity_decay` as a live inspector control.
-- [ ] `[S]` **Curve handle factor.** Expose the Bézier `handle_factor` (or `curve_offset`) as a live inspector control so the user can tune connector curvature interactively.
-- [ ] `[L]` **Alpha min / alpha decay.** Expose convergence thresholds if users need to tune settle behavior.
-- [ ] `[L]` **Preview port-kill on Windows.** `preview_server.py` runs `Stop-Process -Force` on any PID holding the port, even if it's an unrelated service. Fix: log the target PID or require `--force`.
-- [ ] `[L]` **`_relayout` gap comparison uses reloaded module.** After `importlib.reload(mod)`, `orig_col_gap` reads from the new module state, not the pre-reload snapshot. Fix: capture originals before reload.
+- [x] `[S]` **Link distance slider.** Expose `link_distance` (currently JSON-only) as a live inspector control; restart solver on change.
+- [x] `[S]` **Link strength slider.** Expose `link_strength` as a live inspector control.
+- [x] `[S]` **Charge strength slider.** Expose `charge_strength` as a live inspector control.
+- [x] `[S]` **Collision padding slider.** Expose `collision_padding` as a live inspector control.
+- [x] `[S]` **Velocity decay slider.** Expose `velocity_decay` as a live inspector control.
+- [x] `[S]` **Curve handle factor.** Expose the Bézier `handle_factor` (or `curve_offset`) as a live inspector control so the user can tune connector curvature interactively.
+- [x] `[L]` **Alpha min / alpha decay.** Expose convergence thresholds if users need to tune settle behavior.
+- [x] `[L]` **Preview port-kill on Windows.** `preview_server.py` runs `Stop-Process -Force` on any PID holding the port, even if it's an unrelated service. Fix: log the target PID or require `--force`.
+- [x] `[L]` **`_relayout` gap comparison uses reloaded module.** After `importlib.reload(mod)`, `orig_col_gap` reads from the new module state, not the pre-reload snapshot. Fix: capture originals before reload.
 
 ### Ongoing maintenance
 

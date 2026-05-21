@@ -4,6 +4,82 @@ Completed work belongs here so `TODO.md` stays lean.
 
 ## Short-term
 
+### 2026-05-22 – Force engine UI sliders
+
+- Added "Simulation" section to force-viewer sidebar with 8 live parameter controls: link_distance, link_strength, charge_strength, collision_padding, velocity_decay, alpha_min, alpha_decay, curve_handle_ratio.
+- Backend: `_get_simulation_params()` and `update_simulation_params()` in `force_preview.py`, `POST /api/force-params/{slug}` endpoint in `preview_server.py`.
+- Render overrides: `render_overrides` dict on `ForcePreviewState` for client-side render config (curve_handle_ratio).
+- Fixed `_get_simulation_params` bug: `ForceLinkForce._distance_fn` and `_strength_fn` need 3 args, not 2.
+- Fixed preview port-kill on Windows: now logs target PID, skips own PID, kills per-PID instead of blanket `ForEach-Object`.
+- Fixed `_relayout` gap comparison bug: capture `orig_col_gap`/`orig_row_gap` before `importlib.reload()`, not after.
+
+### 2026-05-22 – Separator role test coverage
+
+- Added `test_separator_role_renders_dashed_line` verifying that `role: separator` frames render as `DashedLinePrimitive` + `TextBlock` rather than `Rect`.
+
+### 2026-05-22 – Min/max size constraints (branch frame-layout-engine)
+
+- **Frame model.** Added `min_width`, `max_width`, `min_height`, `max_height` optional int fields to `Frame` dataclass with validation (non-negative, min ≤ max).
+- **Layout engine.** `_clamp_to_constraints()` utility; `_distribute_fill_space()` extended with per-child min/max lists; `place()` clamps `_placed_w`/`_placed_h` after sizing; `_resolve_child_widths()` clamps per-child widths. HUG/FIXED children with min constraints correctly reduce FILL distribution space.
+- **YAML parsing.** `frame_loader.py` reads the 4 new fields from frame YAML.
+- **API.** `preview_server.py` forwards min/max overrides with input validation (non-negative, type-safe).
+- **Editor.** `FRAME_KEYS` in `editor.js` updated to include the 4 new keys.
+- **Tests.** 10 new tests covering: min_width on FILL, max_width on FILL, min on HUG, max on FIXED, min/max heights, YAML parsing, constraint inversion rejection, negative rejection, HUG+min_width FILL distribution accounting. 164 total passing.
+- **Review.** Adversarial code review caught: hug_total accounting bug (fixed), missing validation (added), API input safety (hardened).
+
+### 2026-05-22 – Multi-select bulk property editing (branch frame-layout-engine)
+
+- **Bulk property inspector.** Extended `renderMultiSelectionInspector()` with bulk editing controls for alignment (9-point grid), container props (direction/gap/padding), sizing mode (Hug/Fill/Fixed), and style picker — all with "Mixed" support when values differ across selected items.
+- **Helper functions.** `_getMultiSizingValues()`, `_getMultiContainerValues()`, `_getMultiAlignValues()`, `_getMultiStyleValues()` read shared values across selection.
+- **Action functions.** `setMultiFrameAlign()`, `applyMultiStyleOverride()`, `setMultiFrameProp()` apply changes to all selected items with a single debounced relayout.
+- **Review fixes.** Added `node.data` null-safety in FIXED-capture path, empty-ids guard before relayout dispatch.
+
+### 2026-05-22 – Domain-specific undo/redo (branch frame-layout-engine)
+
+- **Override-patch undo.** Converted 12 undo actions from full-state snapshots to targeted override-patch commands: `applySelectionTargets`, `onWpDragUp`, `addWaypoint`, `removeWaypoint`, `applyStyleOverride`, `applyV3Style`, edit text, `clearOverride`, nudge, `setFrameProp`, `setFrameAlign`, plus all multi-select actions.
+- **v3 style undo bug fix.** `applyV3Style` previously had no undo support; now uses patch-based undo.
+- **Timer cleanup.** `_restoreOverridePatch` now clears `_v3RelayoutTimer` to prevent stale relayout after undo.
+
+### 2026-05-22 – Live text reflow during resize (branch frame-layout-engine)
+
+- **Bidirectional text reflow.** Fixed `reflowTextInGroup()` in editor.js to handle both narrowing AND widening. Previously the function only split tspans that were too wide; it never joined tspans that could be merged when the box grew. Root cause: each existing tspan already fit at the new (wider) available width, so the split-only logic kept them unchanged.
+- **Join-then-wrap approach.** Added a Phase 1 that merges consecutive same-style tspans (same font-size, font-weight, fill, letter-spacing, font-variant-caps, font-family) back into single text strings, then Phase 2 re-wraps each merged string at the new available width. This mirrors the Python engine's approach of starting from semantic text and wrapping fresh.
+- **Content-aware rebuild trigger.** Changed the tspan rebuild condition from count-only (`specs.length !== tspans.length`) to content-aware (also checks if any tspan text differs), so wrapping changes are applied even when the line count stays the same.
+- Empty separator tspans and heading/body style boundaries are preserved correctly — the join phase only merges non-empty consecutive same-style tspans.
+- Verified: widening (10→6 tspans), narrowing (10→14 tspans), neutral (10→10), restore (10→10 exact match). Height auto-expansion works correctly in all directions.
+- 154 Python tests pass (no regressions).
+
+### 2026-05-22 – Text editing deferred composition (branch frame-layout-engine)
+
+- **Text editing overflow fix.** `commitTextEdit()` was directly patching SVG `<tspan>` elements without triggering re-wrapping or relayout, causing text to overflow the box when deleting line breaks. Root cause: the old flow bypassed the engine entirely.
+- **Deferred composition (InDesign model).** Rewrote the text editing flow as semantic-in, engine-out:
+  - Added `heading_text`/`label_text` fields to `ComponentInfo` (diagram_layout.py) carrying semantic (unwrapped) text from Frame to client.
+  - Updated `_frame_to_ci()` (layout_v3.py) to populate semantic text fields.
+  - `startTextEdit()` now shows unwrapped semantic text in the textarea instead of visual tspan content.
+  - `commitTextEdit()` builds a structured `{heading, label}` text override and triggers `requestV3Relayout()` instead of patching tspans.
+  - Added `'text'` to `FRAME_KEYS` in the relayout request so text overrides reach the server.
+  - Server `_relayout_v3()` processes text overrides, preserving original line styles (weight, size, fill).
+  - Added initial-load relayout trigger for saved text overrides.
+- Browser-verified: deleting line breaks re-wraps text within box, no overflow, box resizes correctly.
+
+### 2026-05-22 – Border.DASHED gating + font metrics (branch frame-layout-engine)
+
+- **Border.DASHED gated out of YAML.** Removed `"dashed"` from `frame_loader._BORDER` map and editor.js `borderMap` so the v3 YAML pipeline can't produce dashed borders. `Border.DASHED` remains in the Python enum for programmatic v2 pipeline / draw.io export use. Updated 4 test YAMLs from `border: dashed` to `border: solid`. Style dropdown now shows exactly 3 presets.
+- **box-styles.js border properties.** Added explicit `border` property to all 3 presets (default→"solid", accent→"none", highlight→"solid") so `applyV3Style` sets the correct border when applying styles.
+- **Font metrics via fonttools.** Replaced character-width estimation with real `hmtx` table lookups via `measure_text_width()` in `diagram_shared.py`. Updated `estimate_line_width()` and `wrap_text_lines()` to use real font metrics.
+- **FILL-width + HUG-height re-measurement.** Added `_distribute_fill_space()` shared helper and `_refresh_coerced_heights()` for stale coerced parent heights. Refactored `_resolve_child_widths()` and `place()` to use the shared helper.
+- **11 new tests.** `_distribute_fill_space` (3), font metrics (3), `wrap_text_lines` (2), re-measure (3). Total: 154 tests passing.
+- Deleted bug screenshots (image-1.png, image-2.png, image-3.png) after both INBOX bugs verified fixed.
+
+### 2026-05-21 – v3 Brockman contract + SVG export (branch frame-layout-engine)
+
+- Added a dedicated `Save SVG` button to the preview sidebar. It downloads the current stage DOM as `*-onbrand-v3.svg` for native frame diagrams instead of forcing the user through the old clipboard-only export path.
+- Moved Brockman grid ownership into the v3 engine contract: `FrameDiagram` now carries grid settings, `layout_v3.py` returns authoritative `grid_info`, and `/api/relayout-v3/<slug>` now round-trips `grid_overrides` + `grid_info`.
+- Updated the preview to consume server-owned v3 grid metadata instead of reconstructing Brockman grid state locally in the common path.
+- Unified wrapped text measurement with rendering through shared helpers in `diagram_shared.py`, and added a regression test for mixed heading/body line-step measurement.
+- Added `scripts/test_frame_loader.py` to freeze the native frame-YAML omission semantics, width/height → FIXED inference, padding defaults, and `grid:` parsing.
+- Validation: focused v3 test suite now passes at 114 tests; browser-verified separate `col_gap` / `row_gap` persistence and working `Save SVG` download for `v3:support-engineering-flow`.
+
 ### 2026-05-20 – INBOX bug fixes (branch frame-layout-engine)
 
 - Fixed text editing stuck: `onSvgMouseDown` now calls `commitTextEdit()` before handling new interaction, so clicking elsewhere properly exits text editing mode.

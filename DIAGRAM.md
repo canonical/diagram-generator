@@ -202,6 +202,25 @@ The palette is intentionally narrow.
 
 When in doubt, reduce color usage rather than expanding it.
 
+### Allowed box styles
+
+The system has exactly four box treatments. Do not invent new combinations.
+
+| Style | Border | Fill | Text | Use for |
+|-------|--------|------|------|---------|
+| Outlined box | solid 1px black | white | black | Default content boxes |
+| Grey box | none | `#F3F3F3` | black | Grouped containers, substrate panels |
+| Annotation | none | none (transparent) | black | Standalone text labels, notes beside boxes, arrow labels |
+| Highlight box | solid 1px black | black | white | At most one per diagram for emphasis |
+
+The **annotation** style is the default for all text that sits outside a bordered box: row notes, explanatory labels, and arrow labels. Annotation frames have the same INSET padding as bordered boxes, plus 1px to compensate for the absent border, so text baselines in annotations align exactly with text baselines in adjacent bordered boxes. In YAML, set `border: none` on a frame to get annotation style.
+
+Do not combine dashed borders with grey fills. Dashed borders are a legacy pattern retained only for explicit debugging or intake annotations, never for grouped layouts.
+
+### Box height invariant
+
+All bordered leaf boxes enforce a minimum height of `INSET + ICON_SIZE + INSET` (64px), regardless of whether the box actually contains an icon. This ensures consistent vertical rhythm when boxes with and without icons sit in the same row or column. The 64px floor also guarantees that arrow gaps and row heights remain predictable across the diagram.
+
 ## Typography
 
 Typography is live text first. The diagram system inherits the editorial tier's paired-heading model from the upstream type spec, where **weight at the same font size creates a distinct hierarchical level**.
@@ -329,8 +348,6 @@ group_outer_width    = (child_count × child_col_width)
 
 If a parent row changes from 2 children to 3 or 5, the child widths should be recomputed from the same parent content span and the same gutter token. The visual alignment comes from consistent splitting and consistent outdents, not from forcing every row onto a single global column count.
 
-Current implementation note: the engine now supports parent-scoped equal splitting, but the implementation is still mixed between the Python renderer and the preview relayout path. The main fragility is inconsistent inheritance of resolved gutters and outdents, not the existence of wrapper-based equal splitting itself.
-
 ### Group styling invariant
 
 The default grouped-panel style is the repo's borderless grey group treatment:
@@ -342,12 +359,6 @@ The default grouped-panel style is the repo's borderless grey group treatment:
 - normal child boxes inside the group
 
 Use this in definitions as `Panel(fill=Fill.GREY, border=Border.FILL)` or the YAML equivalent.
-
-Where the style lives:
-
-- `scripts/diagram_model.py`: `Border.FILL` is the semantic switch for a filled, no-stroke group wrapper.
-- `scripts/diagram_layout.py`: `_layout_panel()` and `_render_component()` convert `Border.FILL` into a padded grey wrapper with `stroke="none"`.
-- `scripts/diagram_render_svg.py` and `scripts/diagram_render_drawio.py`: render the resulting no-stroke filled rects.
 
 `Border.DASHED` is not the default grouped style. Use it only when a dashed frame is explicitly requested for debugging or for a legacy diagram whose semantics genuinely require a dashed frame. Do not treat old dashed examples as the preferred nested-group pattern.
 
@@ -403,6 +414,15 @@ Before patching the arrow route, inspect:
 
 The preferred fix is almost always to correct the layout geometry or anchor selection. Do not add arbitrary routing offsets first.
 
+### Arrow side inference
+
+Arrows in v3 frame YAML support auto-side inference. When an arrow reference omits the explicit side (e.g., `source: apps` instead of `source: apps.bottom`), the router infers the best source and target sides from the relative positions of the two boxes:
+
+- Primarily vertical relationship → `bottom` → `top`
+- Primarily horizontal relationship → `right` → `left`
+
+This means arrows automatically adapt when the layout direction changes (vertical ↔ horizontal) without needing to rewrite arrow definitions. Prefer side-less references for arrows that follow the layout flow. Use explicit sides only when the arrow must exit from a specific edge regardless of layout direction.
+
 ### Arrow label primitive
 
 Arrow labels are not grid cells.
@@ -411,11 +431,6 @@ Arrow labels are not grid cells.
 - Arrow labels are free-positioned primitives offset from the routed arrow by `GRID_GUTTER` unless `label_gap` overrides it.
 - The label should avoid overlaps with boxes, panels, and other blocking geometry.
 - When the existing route leaves no room for the label, reroute the arrow to create room instead of shoving the text into the nearest grid slot.
-
-Current implementation status:
-
-- `scripts/diagram_model.py` exposes `Arrow.label` and `Arrow.label_gap`.
-- `scripts/diagram_layout.py` places an `ArrowLabelPrimitive` off the routed segment and can add a small fallback detour when the current path has nowhere clean to place the text.
 - Arrow labels are intentionally exempt from baseline-grid validation because they are geometry-aware annotations, not grid-snapped box content.
 
 Use arrow labels for connector copy such as flow names or edge semantics. Do not fake them with helper rows or by burning an entire grid field next to an arrow.
@@ -427,11 +442,6 @@ Use `Separator` for a thin dashed divider that should not consume a full box-hei
 - `Separator` is a lightweight dashed line primitive, not a content box.
 - Its row should size to the separator itself rather than defaulting to `BOX_MIN_HEIGHT`.
 - It should not be treated as a blocking box for arrow-label placement.
-
-Current implementation status:
-
-- Top-level grid rows now size from actual content first, so separator-only rows stay thin.
-- The SVG and draw.io renderers both emit dashed separator geometry without requiring a fake bordered box.
 
 ### Verification workflow
 
@@ -490,67 +500,7 @@ Any layout rewrite or grouped-layout fix should be checked against at least thes
 - arrows from grouped children to items outside the group
 - different horizontal and vertical gutter settings
 
-### Current implementation status
-
-What currently works:
-
-- top-level declarative grid placement is stable and baseline-snapped
-- the preview server and compare pages are usable review surfaces
-- renderer/exporter integration for SVG and draw.io remains intact
-- recent Python changes restored borderless grey grouped panels for `example-platform-architecture`
-- separator-only rows now stay thin instead of inflating to default box height
-- arrow labels now exist as free-positioned connector annotations rather than grid-snapped text hacks
-- component-tree metadata now captures measured child gutters, so preview relayout preserves inherited horizontal gaps better
-
-What was recently fixed:
-
-- `scripts/diagram_layout.py` now outsets top-level panels against the parent grid cell instead of leaving the wrapper flush on the same bounds as standalone boxes
-- `scripts/diagrams/example_platform_architecture.py` was moved from dashed wrappers to the grey `Border.FILL` group style
-- top-level grid rows now derive height from actual content, which fixes separator-only rows
-- `Arrow.label` / `Arrow.label_gap` plus `ArrowLabelPrimitive` now provide an initial non-grid arrow-label path with overlap-aware placement
-- component-tree layout metadata now measures rendered child gaps so preview relayout keeps inherited `24px` gutters instead of defaulting grouped rows to `0px`
-
-What remains fragile:
-
-- `scripts/preview/component-model.js` still reconstructs layouts from current child geometry rather than a fully shared declarative parent-split model, so nested interactive relayout can still drift from the Python renderer
-- parent-scoped equal splitting, consistent outdents, and declared spans still need a cleaner single-source implementation across build and preview
-- some legacy diagrams and library surfaces still expose dashed-group patterns that should not be copied into new grouped layouts
-
-Relevant code:
-
-- `scripts/diagram_model.py`
-- `scripts/diagram_layout.py`
-- `scripts/preview/component-model.js`
-- `scripts/preview/editor.js`
-- `scripts/diagrams/example_platform_architecture.py`
-
-How to run the main checks:
-
-- preview: `python scripts/preview_server.py --slug example-platform-architecture --grid`
-- build: `python scripts/build_v2.py`
-- audit: `python scripts/_audit_v2.py`
-- Playwright screenshot review: use the preview server or compare page in the browser and capture screenshots there
-
-### Cold-start instructions for future agents
-
-Read this file before changing layout code.
-
-- Do not assume dashed group boxes are correct.
-- Use parent-scoped equal splitting with consistent gutters and wrapper outdents for nested groups.
-- Preserve the configured gutter tokens.
-- Verify with Playwright screenshots.
-- Treat arrow doglegs as layout smells.
-- Treat arrow labels as free-positioned primitives, not grid cells.
-- Avoid arbitrary offsets.
-- Document any new invariant discovered during debugging.
-
-Recommended read order for a cold start on layout work:
-
-1. `DIAGRAM.md` — this section plus the arrow-clearance and equal-height sections below.
-2. `README.md` — preview and validation commands.
-3. `.github/skills/diagram-redraw/SKILL.md` — the operational redraw checklist.
-
-**For a text box (no icon):**
+### Box height formulas
 
 ```
 box_height = INSET + (line_count × line_step) + INSET

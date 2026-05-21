@@ -1,18 +1,12 @@
 # Status
 
-## Before you start generating diagrams
+## Before you start
 
-**Read the playbook first.** Do not skip this step:
+**Read the playbook first.** Do not skip:
 
-1. Read `DIAGRAM.md`
-2. Review "Non-negotiable diagram rules" in `.github/copilot-instructions.md`
-
-Critical rules:
-
-- **Fills:** white, `#F3F3F3` grey, or one black emphasis box — no other colors
-- **Orange `#E95420`:** arrows only — never boxes
-- **Icons:** use `assets/icons/` only — do not source new ones
-- **After adding diagrams:** update `scripts/build_compare_pages.py` PAIRS list, then run `python scripts/build_compare_pages.py`
+1. `.github/copilot-instructions.md` — workflow discipline and anti-patch protocol
+2. `DIAGRAM.md` — the canonical diagram-language contract (colors, typography, layout, components)
+3. Ask the cold-start pipeline question (see `.github/agents/agent.md`)
 
 ## What this repo is
 
@@ -133,24 +127,29 @@ The project has evolved from a batch diagram generator into a **constrained inte
 
 **Vision:** Replace the grid-based v2 layout with a Figma-like nested frame system. Every level — canvas, panels, columns, boxes — is an autolayout frame with direction, gap, padding, per-axis sizing (HUG/FILL/FIXED), and 9-point alignment. The layout engine runs two passes: measure (bottom-up) → place (top-down).
 
-**Current state (2026-05-20):**
+**Current state (2026-05-22):**
 
-The engine core is stable with 104 comprehensive tests passing (96 autolayout + 8 integration). The per-axis sizing redesign (Milestone 11) is complete: every node has independent `sizing_w`/`sizing_h`, cross-axis stretch is determined by the child's own counter-axis sizing (FILL → stretch, HUG/FIXED → keep measured), and `_is_cross_stretch()` has been deleted. The FILL-in-HUG invariant now uses the Figma-correct parent coercion model: a HUG parent with FILL children is coerced to FIXED (freezing at measured size) instead of coercing children to HUG. Coercion persistence is implemented end-to-end: the engine returns coerced frame IDs, the server includes them in the relayout response, and the editor persists them as overrides so the frozen size survives subsequent padding/gap changes. Native Frame YAML definitions are working and all 5 test-case diagrams are browser-verified. Real v2→v3 adapted diagrams render correctly in the editor with full auto-layout controls.
+The engine core is stable with 154 focused tests passing. The per-axis sizing redesign (Milestone 11) is complete: every node has independent `sizing_w`/`sizing_h`, cross-axis stretch is determined by the child's own counter-axis sizing (FILL → stretch, HUG/FIXED → keep measured), and `_is_cross_stretch()` has been deleted. The FILL-in-HUG invariant now uses the Figma-correct parent coercion model: a HUG parent with FILL children is coerced to FIXED (freezing at measured size) instead of coercing children to HUG. Coercion persistence is implemented end-to-end: the engine returns coerced frame IDs, the server includes them in the relayout response, and the editor persists them as overrides so the frozen size survives subsequent padding/gap changes. Native Frame YAML definitions are working and all 5 test-case diagrams are browser-verified. Real v2→v3 adapted diagrams render correctly in the editor with full auto-layout controls. Brockman grid metadata is now engine-owned through `grid_info` instead of being reconstructed in the preview, the preview sidebar now exposes a direct `Save SVG` action for the current stage, and `scripts/test_frame_loader.py` now freezes the current native frame-YAML omission semantics instead of leaving them as undocumented parser behavior.
+
+Recent fixes (2026-05-22): font metrics now use real `hmtx` table lookups via `fonttools` instead of character-width estimation. `_distribute_fill_space()` shared helper eliminates code duplication between `_resolve_child_widths()` and `place()`. `_refresh_coerced_heights()` fixes stale coerced parent heights after FILL-width re-measurement. `Border.DASHED` gated out of YAML and editor so only the 3 intentional style presets are accessible; `box-styles.js` now includes explicit `border` properties. Text editing uses InDesign-like deferred composition — semantic text in, engine re-wrap out. Bidirectional text reflow during resize — `reflowTextInGroup()` now joins then re-wraps tspans so both widening and narrowing update text wrapping live.
 
 **What works (tested, browser-verified):**
 - Two-pass measure→place engine with per-axis sizing model (Figma-correct)
-- 104 unit tests: 96 comprehensive + 8 original, all passing
+- 154 focused tests, all passing
 - Per-axis sizing: `sizing_w`/`sizing_h` on every node, per-side padding (`padding_top/right/bottom/left`)
 - Cross-axis behavior: child's counter-axis FILL → stretch to cross space; HUG/FIXED → keep measured size + alignment offset
 - FILL-in-HUG invariant: HUG parent with FILL children on primary axis → parent coerced to FIXED (Figma model); cross-axis FILL preserved
 - Coercion persistence: engine returns `coerced_overrides`, editor persists them so frozen size survives padding/gap changes
 - FIXED-switch size capture: switching to FIXED captures current dimensions; switching away clears them
 - 9-point alignment moves children within slack; alignment never mutates sizing
+- Brockman grid relayout contract: `/api/relayout-v3/<slug>` accepts `grid_overrides` and returns authoritative `grid_info`
+- Frame-loader defaults frozen in tests: omitted sizing, width/height → FIXED inference, padding defaults, and `grid:` parsing
 - Per-axis resize in editor: drag-right → only `sizing_w: FIXED` (height unchanged)
 - Native Frame YAML definitions (`scripts/diagrams/frames/*.yaml`) with `engine: v3` discriminator
 - Auto-layout inspector panel for ALL nodes (containers + leaves), per-axis Width/Height dropdowns
 - Alignment widget reads from tree data with override fallback
 - Direction/gap/padding/alignment changes trigger live relayout via `/api/relayout-v3/<slug>`
+- Preview export: `Save SVG` downloads the current stage as an SVG file from the sidebar
 - All 5 test-case frame YAMLs verified: vertical-stack, fill-distribution, nested-containers, alignment-grid, mixed-sizing
 - All 3 representative real diagrams render in v3: `android-container-vs-vm`, `example-platform-architecture`, `example-arrow-label-separator`
 - `build_v2.py` completes for all diagrams (pre-existing clearance violations only)

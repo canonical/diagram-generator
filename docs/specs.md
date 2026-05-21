@@ -18,15 +18,30 @@ Rows marked ⚠ reference assets excluded by `.gitignore`. Run the build or obta
 | Source | Path | Role |
 |--------|------|------|
 | Workflow rules | `.github/copilot-instructions.md` | Canonical workflow and diagram-rule source for this repo |
-| Diagram language spec | `DIAGRAM.md` | Canonical diagram tokens, prose rules, and output constraints |
+| Diagram language spec | `DIAGRAM.md` | Canonical diagram tokens, prose rules, and output constraints (Layer 3 — Style) |
 | Current state | `STATUS.md` | Cold-start orientation and resume guidance |
-| Product direction | `ROADMAP.md` | Long-term direction when no separate external product spec exists |
+| Product direction | `ROADMAP.md` | Long-term direction and architecture blueprint |
+| Architecture blueprint | `ROADMAP.md` → "Architecture blueprint" | Non-negotiable layered architecture (Layers 0–6) governing all stages |
 | Starter block reference | `diagrams/0.reference/sample.svg` | Canonical single-block geometry and arrow treatment |
 | Visual preview of starter block | `diagrams/0.reference/sample.png` | Clearer `3x` raster preview of the same canonical block |
 | Reusable style copy source | `diagrams/0.reference/onbrand-svg-starter.svg` | Canonical inset rhythm, box proportions, and literal arrow geometry |
 | Tracked draw.io library | `assets/drawio/diagram-generator-primitives.mxlibrary` | Repo-owned reusable library for canonical draw.io primitives |
 | Secondary layout reference ⚠ | `diagrams/0.reference/_BRND-3284.drawio.svg` | Connector and broader layout reference |
 | Current canonical implementation ⚠ | `diagrams/2.output/svg/memory-wall-onbrand.svg` | Palette, icon placement, side-icon cluster, and scale checkpoint |
+
+## Design compass — canonical specs (living documents)
+
+These three specs are the upstream mathematical foundation for the diagram system's typography, spacing, and grid rules. They currently describe three tiers (applications, documentation, editorial). Diagrams will become a **4th tier** described by each spec — a dense, constrained visual domain with its own scale selections, spacing conventions, and grid presets derived from the same foundations.
+
+The specs are living documents maintained in the sibling `canonical-specs` repo. Changes to them may affect DIAGRAM.md tokens and renderer behavior. Treat them as the design compass for any typography, spacing, or grid decision in this system.
+
+| Spec | Path | Governs |
+|------|------|---------|
+| Type scale | `../canonical-specs/specs/type scale/draft.md` | Modular scale formula, per-tier heading hierarchies, weight pairing, line height selection, baseline grid alignment. Diagram tier will select its own subset of the scale. |
+| Spacing | `../canonical-specs/specs/spacing/draft.md` | Vertical spacing architecture (element-owned vs container-owned), baseline grid and nudge tokens, intra-component padding. Diagram tier will define its own spacing mode and density. |
+| Grid | `../canonical-specs/specs/grid/draft.md` | Column counts, gutter widths, outer margins, bisection rule, nested grid alignment. Diagram tier will define its own grid presets (column counts, baseline unit enforcement). |
+
+**How they flow into this repo:** DIAGRAM.md imports tokens from these specs and adapts them for diagram use (e.g., selecting 18px body from the modular scale, 8px baseline unit from the spacing architecture, 24px gutter from the grid spec). When the upstream specs change, DIAGRAM.md and `diagram_shared.py` must be reviewed and updated to stay aligned.
 
 ## External tool references
 
@@ -45,13 +60,14 @@ Rows marked ⚠ reference assets excluded by `.gitignore`. Run the build or obta
 |------|--------------|-------|
 | `repo-workflow-boilerplate` | Workflow upstream | Centralized workflow template for the root file layout, inbox split, source precedence, and cold-start rules |
 | `baseline-foundry` | Read-only reference and refresh source | Upstream BF contract reference; a sibling checkout is only needed when refreshing the vendored preview-shell snapshot under `assets/baseline-foundry/` |
-| `canonical-specs` | Read-only design language source | Upstream source for the imported spacing, grid, and dense type-scale rules now mirrored into `DIAGRAM.md` and shared renderer tokens |
-| `design.md` | Read-only format reference | Used as a structure reference for the plain-text `DIAGRAM.md` spec and future design-language token ingestion |
+| `canonical-specs` | Design compass (living upstream) | Upstream source for the type scale, spacing, and grid specs that govern DIAGRAM.md tokens. Diagrams will become a 4th tier in these specs. See "Design compass" section above. |
+| `diagram-generator-planning` | Product vision and architecture | Vision document, standalone-tool proposal, architectural benchmarks (D2, ELK, Penrose, Structurizr, etc.), and the spike plan that informs the architecture blueprint in ROADMAP.md |
+| `design.md` | Read-only format reference | Used as a structure reference for the plain-text `DIAGRAM.md` spec; Google's DESIGN.md format inspired our token+prose approach |
 
 ## Notes
 
 - Local reference assets in this repo are the primary source of truth for diagram visuals.
-- `DIAGRAM.md` is the bridge point for imported typography, spacing, and grid specs from the broader design language into this repo's renderers, currently via `../canonical-specs/specs/type scale/draft.md`, `../canonical-specs/specs/spacing/draft.md`, and `../canonical-specs/specs/grid/draft.md`.
+- `DIAGRAM.md` is the Layer 3 (Style) authority, importing tokens from the canonical type scale, spacing, and grid specs. See "Design compass" section for paths and the 4th-tier direction.
 - draw.io libraries improve reuse for future insertions but do not live-update shapes already placed in diagrams; repo-wide style changes still require a batch XML update strategy.
 - `scripts/export_drawio_library.py` regenerates the tracked draw.io library, `scripts/drawio_style_presets.py` defines the canonical shared draw.io style-field presets, and `scripts/drawio_style_sync.py` is the batch rewrite path for applying those presets or other token-targeted draw.io style changes.
 - Sibling repos can inform workflow or style, but they do not outrank an explicitly referenced local sketch or reference asset.

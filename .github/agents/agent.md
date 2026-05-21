@@ -44,15 +44,17 @@ Before starting diagram work, ask the user:
 > Which pipeline should we work on this session?
 >
 > 1. **Pipeline 1 (stable)** – imperative builders in `generate_remaining_diagrams.py`, builds via `build_outputs.py`, outputs `*-onbrand.svg/drawio`
-> 2. **Pipeline 2 (experimental)** – declarative grid definitions in `scripts/diagrams/*.py`, builds via `build_v2.py`, outputs `*-onbrand-v2.svg/drawio`
+> 2. **Pipeline 2 (declarative grid)** – declarative grid definitions in `scripts/diagrams/*.py`, builds via `build_v2.py`, outputs `*-onbrand-v2.svg/drawio`
+> 3. **Pipeline 3 (v3 frame engine)** – declarative YAML frames in `scripts/diagrams/frames/*.yaml`, Figma-like autolayout engine in `scripts/layout_v3.py`, preview at `http://127.0.0.1:8100/view/v3:<slug>`
 
-This determines which files to edit, which build script to run, and which comparison mode matters. Do not assume one or the other.
+This determines which files to edit, which build/test commands to run, and which validation mode matters. Do not assume one or the other.
 
 ## Canonical discipline
 
-- Treat `.github/copilot-instructions.md` as the source of truth for workflow rules and diagram invariants.
-- Treat `DIAGRAM.md` as the source of truth for diagram-language tokens, layout rules, and output constraints.
-- Keep `.github/agents/agent.md` focused on resume guidance only.
+- Read and follow the **anti-patch protocol** in `.github/copilot-instructions.md` before coding anything. Classify every request first.
+- Treat `DIAGRAM.md` as the source of truth for visual rules — colors, typography, layout, components, arrows.
+- Treat `.github/copilot-instructions.md` as the source of truth for workflow discipline and the anti-patch protocol.
+- Never duplicate visual rules from `DIAGRAM.md` into other files.
 - Keep status in the canonical workflow files: `STATUS.md`, `TODO.md`, `ROADMAP.md`, `HISTORY.md`, `INBOX.md`, `AGENT-INBOX.md`, and `docs/specs.md`.
 - Drain `INBOX.md` and `AGENT-INBOX.md` at session start.
 - Update `STATUS.md` when the current state changes.
