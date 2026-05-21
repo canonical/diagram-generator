@@ -8,6 +8,8 @@ const DEFAULT_CURVE_HANDLE_RATIO = 0.35;
 const DEFAULT_CURVE_HANDLE_MIN = 24;
 const DEFAULT_CURVE_HANDLE_MAX = 72;
 const DRAG_THRESHOLD = 4;
+const HANDLE_SIZE = 8;
+const MIN_NODE_SIZE = 48;  // minimum width/height during resize
 const BOX_STYLES = window.__DG_BOX_STYLES || {
   default: { fill: "#FFFFFF", text: "#000000", icon: "#000000", label: "Default (white)" },
   accent: { fill: "#F3F3F3", text: "#000000", icon: "#000000", label: "Accent (grey)" },
@@ -30,6 +32,7 @@ let inFlight = false;
 let selectedId = null;
 let dragCandidate = null;
 let dragState = null;
+let resizeState = null;
 let suppressStageClick = false;
 const EMPTY_SELECTION_HTML = '<p class="dg-empty-message bf-form-help">Select or drag a node from the stage or the left rail. Dragging drops it into a pinned manual-polish position.</p>';
 
@@ -75,6 +78,210 @@ function previewDraggedSnapshot(snapshot, nodeId, x, y) {
     ...snapshot,
     nodes: snapshot.nodes.map((node) => (node.id === nodeId ? { ...node, x, y, fx: x, fy: y } : node)),
   };
+}
+
+function previewResizedSnapshot(snapshot, nodeId, x, y, width, height) {
+  return {
+    ...snapshot,
+    nodes: snapshot.nodes.map((node) =>
+      node.id === nodeId ? { ...node, x, y, fx: x, fy: y, width, height } : node
+    ),
+  };
+}
+
+// ---- Resize handles ----
+
+function showForceResizeHandles(nodeId) {
+  const svg = getStageSvg();
+  if (!svg || !currentSnapshot) return;
+  clearForceResizeHandles();
+
+  const node = currentSnapshot.nodes.find((n) => n.id === nodeId);
+  if (!node) return;
+
+  const hs = HANDLE_SIZE;
+  const left = node.x - node.width / 2;
+  const top = node.y - node.height / 2;
+  const right = left + node.width;
+  const bottom = top + node.height;
+  const midX = (left + right) / 2;
+  const midY = (top + bottom) / 2;
+
+  const positions = [
+    { cx: left, cy: top, dir: "tl", cursor: "nwse-resize" },
+    { cx: midX, cy: top, dir: "t", cursor: "ns-resize" },
+    { cx: right, cy: top, dir: "tr", cursor: "nesw-resize" },
+    { cx: right, cy: midY, dir: "r", cursor: "ew-resize" },
+    { cx: right, cy: bottom, dir: "br", cursor: "nwse-resize" },
+    { cx: midX, cy: bottom, dir: "b", cursor: "ns-resize" },
+    { cx: left, cy: bottom, dir: "bl", cursor: "nesw-resize" },
+    { cx: left, cy: midY, dir: "l", cursor: "ew-resize" },
+  ];
+
+  for (const { cx, cy, dir, cursor } of positions) {
+    const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    rect.setAttribute("x", String(cx - hs / 2));
+    rect.setAttribute("y", String(cy - hs / 2));
+    rect.setAttribute("width", String(hs));
+    rect.setAttribute("height", String(hs));
+    rect.setAttribute("fill", "#0066cc");
+    rect.setAttribute("stroke", "#ffffff");
+    rect.setAttribute("stroke-width", "1");
+    rect.classList.add("dg-force-handle");
+    rect.dataset.resizeNode = nodeId;
+    rect.dataset.resizeDir = dir;
+    rect.style.cursor = cursor;
+    svg.appendChild(rect);
+  }
+}
+
+function clearForceResizeHandles() {
+  const svg = getStageSvg();
+  if (!svg) return;
+  for (const handle of svg.querySelectorAll(".dg-force-handle")) {
+    handle.remove();
+  }
+}
+
+function startForceResize(event, handleEl) {
+  if (!currentSnapshot) return;
+
+  const nodeId = handleEl.dataset.resizeNode;
+  const dir = handleEl.dataset.resizeDir;
+  const node = currentSnapshot.nodes.find((n) => n.id === nodeId);
+  if (!node) return;
+
+  if (running) {
+    running = false;
+    updateRunButton();
+  }
+
+  const point = pointerToStagePoint(event);
+  if (!point) return;
+
+  resizeState = {
+    nodeId,
+    dir,
+    startSvgX: point.x,
+    startSvgY: point.y,
+    origX: node.x,
+    origY: node.y,
+    origW: node.width,
+    origH: node.height,
+  };
+  selectedId = nodeId;
+  event.preventDefault();
+  event.stopPropagation();
+}
+
+function updateForceResize(event) {
+  if (!resizeState || !currentSnapshot) return;
+
+  const point = pointerToStagePoint(event);
+  if (!point) return;
+
+  const dx = point.x - resizeState.startSvgX;
+  const dy = point.y - resizeState.startSvgY;
+  const dir = resizeState.dir;
+
+  let newW = resizeState.origW;
+  let newH = resizeState.origH;
+  let newX = resizeState.origX;
+  let newY = resizeState.origY;
+
+  // Horizontal component
+  if (dir.includes("r")) {
+    newW = Math.max(MIN_NODE_SIZE, resizeState.origW + dx);
+  } else if (dir.includes("l")) {
+    newW = Math.max(MIN_NODE_SIZE, resizeState.origW - dx);
+  }
+
+  // Vertical component
+  if (dir.includes("b")) {
+    newH = Math.max(MIN_NODE_SIZE, resizeState.origH + dy);
+  } else if (dir === "t" || dir === "tl" || dir === "tr") {
+    newH = Math.max(MIN_NODE_SIZE, resizeState.origH - dy);
+  }
+
+  // Snap dimensions to grid
+  newW = Math.round(newW / BASELINE_STEP) * BASELINE_STEP;
+  newH = Math.round(newH / BASELINE_STEP) * BASELINE_STEP;
+  newW = Math.max(MIN_NODE_SIZE, newW);
+  newH = Math.max(MIN_NODE_SIZE, newH);
+
+  // Adjust center position based on which edge moved
+  const dw = newW - resizeState.origW;
+  const dh = newH - resizeState.origH;
+
+  if (dir.includes("r") && !dir.includes("l")) {
+    newX = resizeState.origX + dw / 2;
+  } else if (dir.includes("l") && !dir.includes("r")) {
+    newX = resizeState.origX - dw / 2;
+  }
+
+  if (dir.includes("b") && !dir.includes("t")) {
+    newY = resizeState.origY + dh / 2;
+  } else if (dir.includes("t") && !dir.includes("b")) {
+    newY = resizeState.origY - dh / 2;
+  }
+
+  render(previewResizedSnapshot(currentSnapshot, resizeState.nodeId, newX, newY, newW, newH));
+  showForceResizeHandles(resizeState.nodeId);
+  setStatus(`Resizing ${newW}×${newH}`, "ok");
+}
+
+async function finishForceResize(event) {
+  if (!resizeState || !currentSnapshot) return;
+
+  const activeResize = resizeState;
+  resizeState = null;
+  suppressStageClick = true;
+
+  const point = pointerToStagePoint(event);
+  if (!point) return;
+
+  const dx = point.x - activeResize.startSvgX;
+  const dy = point.y - activeResize.startSvgY;
+  const dir = activeResize.dir;
+
+  let newW = activeResize.origW;
+  let newH = activeResize.origH;
+
+  if (dir.includes("r")) newW = activeResize.origW + dx;
+  else if (dir.includes("l")) newW = activeResize.origW - dx;
+
+  if (dir.includes("b")) newH = activeResize.origH + dy;
+  else if (dir === "t" || dir === "tl" || dir === "tr") newH = activeResize.origH - dy;
+
+  newW = Math.round(newW / BASELINE_STEP) * BASELINE_STEP;
+  newH = Math.round(newH / BASELINE_STEP) * BASELINE_STEP;
+  newW = Math.max(MIN_NODE_SIZE, newW);
+  newH = Math.max(MIN_NODE_SIZE, newH);
+
+  const dw = newW - activeResize.origW;
+  const dh = newH - activeResize.origH;
+  let newX = activeResize.origX;
+  let newY = activeResize.origY;
+
+  if (dir.includes("r") && !dir.includes("l")) newX += dw / 2;
+  else if (dir.includes("l") && !dir.includes("r")) newX -= dw / 2;
+
+  if (dir.includes("b") && !dir.includes("t")) newY += dh / 2;
+  else if (dir.includes("t") && !dir.includes("b")) newY -= dh / 2;
+
+  try {
+    await updateForceNode(activeResize.nodeId, {
+      x: newX,
+      y: newY,
+      width: newW,
+      height: newH,
+      pinned: true,
+    });
+    setStatus(`Resized to ${newW}×${newH}`, "ok");
+    startRunning();
+  } catch (error) {
+    setStatus(error.message || "Resize failed", "error");
+  }
 }
 
 function nodeLabelLines(node) {
@@ -500,6 +707,11 @@ function render(snapshot) {
   updateSimulationParams(snapshot);
   ensureReferenceImage();
 
+  // Show resize handles on the selected node (unless dragging)
+  if (selectedId && !dragState && !resizeState) {
+    showForceResizeHandles(selectedId);
+  }
+
   if (dragState) {
     setStatus("Dragging…", "ok");
   } else if (snapshot.simulation.settled) {
@@ -655,6 +867,14 @@ byId("stage").addEventListener("mousedown", (event) => {
   if (event.button !== 0 || !currentSnapshot) {
     return;
   }
+
+  // Check for resize handle first
+  const handleEl = event.target.closest(".dg-force-handle");
+  if (handleEl) {
+    startForceResize(event, handleEl);
+    return;
+  }
+
   const nodeElement = event.target.closest("[data-component-id]");
   if (!nodeElement) {
     return;
@@ -681,6 +901,13 @@ byId("stage").addEventListener("mousedown", (event) => {
 });
 
 document.addEventListener("mousemove", (event) => {
+  // Resize takes priority
+  if (resizeState) {
+    event.preventDefault();
+    updateForceResize(event);
+    return;
+  }
+
   if (dragCandidate && !dragState) {
     const moved = Math.hypot(event.clientX - dragCandidate.startClientX, event.clientY - dragCandidate.startClientY);
     if (moved >= DRAG_THRESHOLD) {
@@ -697,6 +924,11 @@ document.addEventListener("mousemove", (event) => {
 });
 
 document.addEventListener("mouseup", async (event) => {
+  if (resizeState) {
+    event.preventDefault();
+    await finishForceResize(event);
+    return;
+  }
   if (dragState) {
     event.preventDefault();
     await finishDrag(event);

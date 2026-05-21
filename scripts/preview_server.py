@@ -1464,11 +1464,24 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
             self.send_error(400, "Invalid node position")
             return
 
+        try:
+            w = None if "width" not in params or params.get("width") is None else float(params.get("width"))
+            h = None if "height" not in params or params.get("height") is None else float(params.get("height"))
+        except (TypeError, ValueError):
+            self.send_error(400, "Invalid node dimensions")
+            return
+
         if x is not None and not math.isfinite(x):
             self.send_error(400, "Invalid x position")
             return
         if y is not None and not math.isfinite(y):
             self.send_error(400, "Invalid y position")
+            return
+        if w is not None and (not math.isfinite(w) or w <= 0):
+            self.send_error(400, "Invalid width")
+            return
+        if h is not None and (not math.isfinite(h) or h <= 0):
+            self.send_error(400, "Invalid height")
             return
 
         try:
@@ -1481,6 +1494,8 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
                 pinned=(bool(params["pinned"]) if "pinned" in params else None),
                 x=x,
                 y=y,
+                width=w,
+                height=h,
                 style=(params["style"] if "style" in params else force_preview.STYLE_UNSET),
             )
         except KeyError:

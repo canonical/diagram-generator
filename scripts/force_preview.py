@@ -169,6 +169,8 @@ def _apply_force_node_update(
     pinned: bool | None = None,
     x: float | None = None,
     y: float | None = None,
+    width: float | None = None,
+    height: float | None = None,
     style: object = STYLE_UNSET,
     reheat: bool = True,
 ) -> None:
@@ -178,6 +180,14 @@ def _apply_force_node_update(
 
     node = state.simulation.nodes[index]
     node_changed = False
+
+    if width is not None:
+        node.width = max(16.0, float(width))
+        node_changed = True
+
+    if height is not None:
+        node.height = max(16.0, float(height))
+        node_changed = True
 
     if x is not None:
         node.x = float(x)
@@ -224,6 +234,8 @@ def apply_force_overrides(state: ForcePreviewState, data: dict[str, Any]) -> Non
             pinned=(bool(payload["pinned"]) if "pinned" in payload else None),
             x=(float(payload["x"]) if "x" in payload and payload["x"] is not None else None),
             y=(float(payload["y"]) if "y" in payload and payload["y"] is not None else None),
+            width=(float(payload["width"]) if "width" in payload and payload["width"] is not None else None),
+            height=(float(payload["height"]) if "height" in payload and payload["height"] is not None else None),
             style=(payload["style"] if "style" in payload else STYLE_UNSET),
             reheat=False,
         )
@@ -258,6 +270,14 @@ def serialize_force_overrides(state: ForcePreviewState) -> dict[str, Any]:
         style_override = state.node_style_overrides.get(node_id)
         if style_override is not None:
             payload["style"] = style_override
+
+        # Persist width/height if they differ from the spec
+        spec_w = float(node_spec.get("width", 192))
+        spec_h = float(node_spec.get("height", 64))
+        if abs(node.width - spec_w) > 1e-6:
+            payload["width"] = node.width
+        if abs(node.height - spec_h) > 1e-6:
+            payload["height"] = node.height
 
         if payload:
             node_payloads[node_id] = payload
@@ -530,8 +550,11 @@ def update_force_node(
     pinned: bool | None = None,
     x: float | None = None,
     y: float | None = None,
+    width: float | None = None,
+    height: float | None = None,
     style: object = STYLE_UNSET,
 ) -> dict[str, Any]:
-    _apply_force_node_update(state, node_id, pinned=pinned, x=x, y=y, style=style, reheat=True)
+    _apply_force_node_update(state, node_id, pinned=pinned, x=x, y=y,
+                             width=width, height=height, style=style, reheat=True)
 
     return get_force_snapshot(state)
