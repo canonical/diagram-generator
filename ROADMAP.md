@@ -192,6 +192,10 @@ Survey which layout algorithms competitive tools use, evaluate fitness for brand
 - **Build font metrics service:** text measurement required for auto-sizing in any engine
 - **Guardrail each engine:** define which diagram types each engine handles, what brand constraints it must enforce, and what fallback applies when it produces unacceptable output
 - **Unified engine interface:** all engines produce LayoutResult; the system selects engine based on diagram type and layout strategy hint from the View layer
+- **Per-box weight in force layout.** Some boxes should be able to pull their linked elements closer. Expose a per-node `weight` parameter that biases link distance/strength.
+- **Force layout comparison.** Document how our D3-inspired force layout compares to graphviz fdp/sfdp and ELK force implementations (simplicity vs capability). Decide whether to port improvements.
+- **DSL evaluation.** Evaluate whether to adopt an existing FOSS DSL (Mermaid, Graphviz DOT, D2) or extend one. Requirements: portability, not architecture-limited, extensible for brand/layout-specific needs. Any adopted DSL would still need brand/style extensions.
+- **ELK layout porting.** Catalogue which ELK layouts are worth porting. Identify the best FOSS Sugiyama implementation to port faithfully (ELK Layered, Dagre, or another).
 
 ### Stage 17 — Self-service app (Surfaces)
 

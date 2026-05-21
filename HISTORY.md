@@ -4,6 +4,24 @@ Completed work belongs here so `TODO.md` stays lean.
 
 ## Short-term
 
+### 2026-05-22 – v3 autolayout engine milestones 1–12 complete (branch frame-layout-engine)
+
+Full test-first redesign of the v3 frame layout engine, from scratch test coverage through Figma-correct per-axis sizing and interaction parity. 165 tests passing at completion.
+
+- **M1 Stabilize:** Stashed unverified UI, confirmed server + 8 original tests stable.
+- **M2 Directional layout:** 12 tests for V/H/mixed measure→place pipeline.
+- **M3 Alignment grid:** 17 tests for 9-point `_align_offset()` + grid-snap.
+- **M4 Sizing model:** 14 tests for HUG/FILL/FIXED interactions and edge cases.
+- **M4a Research fixes:** FILL-in-HUG invariant, distribution fairness, heading overflow guard. Informed by 3-subagent Figma/Yoga/Penpot research.
+- **M5 Cross-axis alignment:** `_is_cross_stretch()`, 10 tests, backward-compat verified (70/70).
+- **M6 Real diagram integration:** Build verification, browser verification on 3 representative diagrams.
+- **M7 Stashed UI — superseded:** Old alignment/relayout code rebuilt from scratch in M9/M11.
+- **M8 Nested stress testing:** Competitive review found 2 bugs + 6 gaps, all fixed. 15 new tests.
+- **M9 Editor integration:** `buildAutolayoutPanel`, live relayout API, alignment triggers relayout.
+- **M10 Native Frame YAML:** `frame_loader.py`, `engine: v3` discriminator, 5 test-case YAMLs, omission/default rules frozen by tests.
+- **M11 Per-axis sizing redesign:** `sizing_w`/`sizing_h`, per-side padding, deleted `_is_cross_stretch()`, per-axis resize, component tree round-trip. 4-phase rollout.
+- **M12 Interaction parity:** Drag-to-reorder, multi-select bulk editing, Shift+Enter parent nav, Enter select-all-children, autolayout drag suppression.
+
 ### 2026-05-22 – Unified editor shell (branch frame-layout-engine)
 
 - **editor-base.js**: Shared utility module with `byId`, `escapeHtml`, `fetchJson`, `downloadFile`, `getThemeToken`, `setViewMode`, `initViewTabs`, `initDiagramPicker`, `bindShellResize`, `getStageSvg`, `pointerToSvgPoint`, `setStatus`, `initPreviewShell`. Both grid and force editors load this before their mode-specific script.

@@ -114,115 +114,52 @@ The project has evolved from a batch diagram generator into a **constrained inte
 
 **Cold-start / portability status:** the preview ships a vendored BF `os` tier stylesheet and Ubuntu Sans snapshot under `assets/baseline-foundry/`, so fresh clones do not depend on a sibling checkout at runtime and do not vary based on one. The editor shell is back on the BF `navigation + main + aside` contract with local left/right resize bindings; the left navigation resize affordance is now owned locally in `scripts/preview/editor.css` because BF `os` no longer ships that selector. The desktop shell is also pinned locally to a single-row `navigation + main + aside` grid so upstream BF layout rules cannot reintroduce the broken extra top row, and the editor keeps DG-owned amber selection handles instead of depending on BF authoring-accent variables. The remaining editor work is undo/redo specialization rather than shell portability.
 
-**Windows smoke pass complete (2026-05-11).** The BF-backed preview shell now has a post-reboot Windows check: the local server index and `/view/example-data-processing` editor page both load correctly, the desktop shell still resolves to a left-navigation / main-stage / right-inspector single-row layout, and the live stage still exposes the full resize-handle set after selecting a component.
+**Windows smoke pass complete (2026-05-11).** Moved to HISTORY; the BF-backed preview shell has been verified on Windows.
 
 **Preview compare mode status:** when a diagram has a tracked rough sketch under `diagrams/1.input/`, the main editor area now exposes BF tabs for `Input`, `Output`, and `Both`; `Both` is a real 2-up center-pane layout rather than the older one-above-the-other reference strip.
 
 **Remaining interactive editor work** (post-refactor):
-- Undo/redo is now domain-specific: 12 targeted override-patch actions (completed 2026-05-22). Only grid-adjust and clear-all-overrides still use full snapshots.
-
-**Editor UX fixes (2026-05-19):** Text editing no longer inserts literal `\n`, arrow keys no longer move the box during text edit, textarea line-height matches SVG. Text reflow on box resize with auto-height expansion and full grid-row cascade (boxes, annotations, and arrows in rows below all shift down uniformly). Click selection now reads actual SVG DOM geometry instead of stale model data, fixing wrong-box selection when Python layout coordinates diverge from rendered positions.
-
-**Browser-verified (May 2026):** snap guides, layout metadata in inspector, icon re-anchor on resize, parent→child grid propagation, and multi-select distribute/align in the preview inspector. All audit bugs fixed (commits `51535bf`, `dec8160`).
+- Undo/redo is domain-specific: 12 targeted override-patch actions (completed 2026-05-22). Only grid-adjust and clear-all-overrides still use full snapshots.
 
 ### Pipeline 3: v3 frame layout engine (branch `frame-layout-engine`, active)
 
-**Vision:** Replace the grid-based v2 layout with a Figma-like nested frame system. Every level — canvas, panels, columns, boxes — is an autolayout frame with direction, gap, padding, per-axis sizing (HUG/FILL/FIXED), and 9-point alignment. The layout engine runs two passes: measure (bottom-up) → place (top-down).
+**Vision:** Figma-like nested frame system with direction, gap, padding, per-axis sizing (HUG/FILL/FIXED), and 9-point alignment. Two-pass engine: measure (bottom-up) → place (top-down).
 
-**Current state (2026-05-22):**
+**Current state (2026-05-22):** Milestones 1–12 complete. **165 tests** passing. Engine core stable with Figma-correct per-axis sizing (`sizing_w`/`sizing_h`), parent coercion model (HUG→FIXED for FILL children), coercion persistence, native Frame YAML definitions, baseline-snapped Brockman grid, unified editor shell (grid + force share `viewer-unified.html` + `editor-base.js`), drag-to-reorder, multi-select bulk editing, column-span/row-span inspector input, domain-specific undo/redo, InDesign-like deferred text composition, bidirectional text reflow, font metrics via `fonttools`, and min/max size constraints. 5 test-case frame YAMLs + 3 real v2→v3 diagrams browser-verified.
 
-The engine core is stable with **165 focused tests** passing (verified 2026-05-22). The per-axis sizing redesign (Milestone 11) is complete: every node has independent `sizing_w`/`sizing_h`, cross-axis stretch is determined by the child's own counter-axis sizing (FILL → stretch, HUG/FIXED → keep measured), and `_is_cross_stretch()` has been deleted. The FILL-in-HUG invariant now uses the Figma-correct parent coercion model: a HUG parent with FILL children is coerced to FIXED (freezing at measured size) instead of coercing children to HUG. Coercion persistence is implemented end-to-end: the engine returns coerced frame IDs, the server includes them in the relayout response, and the editor persists them as overrides so the frozen size survives subsequent padding/gap changes. Native Frame YAML definitions are working and all 5 test-case diagrams are browser-verified. Real v2→v3 adapted diagrams render correctly in the editor with full auto-layout controls. Brockman grid metadata is now engine-owned through `grid_info`, column widths are baseline-snapped to 8px multiples (leftover absorbed into resolved right margin), and the inspector offers column-span/row-span width/height input with unit dropdown when sizing mode is FIXED.
+**Stash:** `unverified-v3-ui-work` — old UI code superseded by M9/M11. Can be dropped.
 
-The grid and force editors now share a single unified HTML template (`viewer-unified.html`) and a shared utility module (`editor-base.js`). Mode-specific sections are controlled by `data-dg-mode="grid"|"force"` with CSS visibility rules. Force.js has been deduped to reference the shared base functions instead of maintaining its own copies of `byId`, `escapeHtml`, `fetchJson`, `setStatus`, `setViewMode`, `getStageSvg`, and `pointerToStagePoint`.
+**Open work:** See `TODO.md` — snap to grid [H], swappable engine interface [H], force alignment guides [S], grid-aware resize [S], simplify force inspector [S], golden-value tests, API test, PNG export.
 
-Recent fixes (2026-05-22): font metrics now use real `hmtx` table lookups via `fonttools` instead of character-width estimation. `_distribute_fill_space()` shared helper eliminates code duplication between `_resolve_child_widths()` and `place()`. `_refresh_coerced_heights()` fixes stale coerced parent heights after FILL-width re-measurement. `Border.DASHED` gated out of YAML and editor so only the 3 intentional style presets are accessible; `box-styles.js` now includes explicit `border` properties. Text editing uses InDesign-like deferred composition — semantic text in, engine re-wrap out. Bidirectional text reflow during resize — `reflowTextInGroup()` now joins then re-wraps tspans so both widening and narrowing update text wrapping live.
+**Key files:**
+- `scripts/frame_model.py` — `Frame`, `FrameDiagram`, `Align`, `Sizing`, `Direction`
+- `scripts/frame_loader.py` — YAML parser, omission/default rules frozen by `test_frame_loader.py`
+- `scripts/layout_v3.py` — `measure()` → `place()` → `_render_frame()` → `LayoutResult`
+- `scripts/test_autolayout.py` — comprehensive test suite
+- `scripts/test_layout_v3.py` — original integration tests
+- `scripts/test_relayout_v3.py` — API endpoint tests
+- `scripts/diagrams/frames/*.yaml` — native frame definitions
 
-**What works (tested, browser-verified):**
-- Two-pass measure→place engine with per-axis sizing model (Figma-correct)
-- 165 focused tests, all passing
-- Per-axis sizing: `sizing_w`/`sizing_h` on every node, per-side padding (`padding_top/right/bottom/left`)
-- Cross-axis behavior: child's counter-axis FILL → stretch to cross space; HUG/FIXED → keep measured size + alignment offset
-- FILL-in-HUG invariant: HUG parent with FILL children on primary axis → parent coerced to FIXED (Figma model); cross-axis FILL preserved
-- Coercion persistence: engine returns `coerced_overrides`, editor persists them so frozen size survives padding/gap changes
-- FIXED-switch size capture: switching to FIXED captures current dimensions; switching away clears them
-- 9-point alignment moves children within slack; alignment never mutates sizing
-- Brockman grid relayout contract: `/api/relayout-v3/<slug>` accepts `grid_overrides` and returns authoritative `grid_info`
-- Frame-loader defaults frozen in tests: omitted sizing, width/height → FIXED inference, padding defaults, and `grid:` parsing
-- Per-axis resize in editor: drag-right → only `sizing_w: FIXED` (height unchanged)
-- Native Frame YAML definitions (`scripts/diagrams/frames/*.yaml`) with `engine: v3` discriminator
-- Auto-layout inspector panel for ALL nodes (containers + leaves), per-axis Width/Height dropdowns
-- Alignment widget reads from tree data with override fallback
-- Direction/gap/padding/alignment changes trigger live relayout via `/api/relayout-v3/<slug>`
-- Preview export: `Save SVG` downloads the current stage as an SVG file from the sidebar
-- All 5 test-case frame YAMLs verified: vertical-stack, fill-distribution, nested-containers, alignment-grid, mixed-sizing
-- All 3 representative real diagrams render in v3: `android-container-vs-vm`, `example-platform-architecture`, `example-arrow-label-separator`
-- `build_v2.py` completes for all diagrams (pre-existing clearance violations only)
-- Autolayout interaction parity (Milestone 12): free drag suppressed for autolayout children, drag-to-reorder with orange insertion indicator, Shift+Enter navigates to parent, Enter/double-click selects all children, arrow-key nudge suppressed for autolayout children, `children_order` override persists through server relayout
+### Repo infrastructure
 
-**Stash:** `unverified-v3-ui-work` contains old UI code fully superseded by Milestones 9+11. Can be dropped.
+- Centralized root workflow: `STATUS.md`, `TODO.md`, `ROADMAP.md`, `HISTORY.md`, `INBOX.md`, `AGENT-INBOX.md`, `docs/specs.md`.
+- `DIAGRAM.md` is the canonical diagram language spec with `sourceSpecs:` frontmatter linking to `canonical-specs`.
+- `.github/skills/` holds repeatable workflow procedures (redraw, build-validate, draw.io review).
+- Declarative diagram architecture complete (Stage 6a): typed component trees in `scripts/diagram_model.py`, Müller-Brockmann grid placement in `scripts/diagram_layout.py`.
+- Both SVG and draw.io renderers share `scripts/diagram_shared.py` primitives.
+- Generated draw.io cells carry provenance metadata (`data-dg-source`, `data-dg-role`, `data-dg-style-tokens`).
+- Tracked draw.io library: `assets/drawio/diagram-generator-primitives.mxlibrary`.
+- Token-aware draw.io style sync: `scripts/drawio_style_sync.py`.
+- Protected manual draw.io workflow: `scripts/drawio_review_workflow.py`.
+- Baseline grid validator, arrow crossing validator, and Illustrator-safety sanitizer are live.
+- Body text: 18px/24px. Bars auto-size from content. Canvas constraints and auto-fill available.
+- Playwright visual validation wired into `build_outputs.py` (skip with `--no-visual`).
+- Native draw.io and Illustrator desktop smoke tests remain pending (need workstation with those tools).
 
-**Remaining work:** See TODO.md — remaining Milestone 12 items (multi-select bulk property editing, Figma benchmark), golden-value test harness, API test for relayout endpoint, domain-specific undo/redo, PNG export.
+### Known build issues
 
-**Next priorities:** Multi-select bulk property editing (Milestone 12), then golden-value assertions and API test harness.
-
-**Files:**
-- `scripts/frame_model.py` — `Frame`, `FrameDiagram`, `Align`, `Sizing`, `Direction` enums
-- `scripts/frame_adapter.py` — converts v2 `Diagram` → `FrameDiagram`
-- `scripts/layout_v3.py` — two-pass engine: `measure()` → `place()` → `_render_frame()` → `LayoutResult`
-- `scripts/test_layout_v3.py` — original 8 unit tests
-- `scripts/test_autolayout.py` — comprehensive test suite (directions, alignment, sizing)
-
-**Execution plan:** See `TODO.md` → "v3 auto-layout engine — test-first redesign". Milestones 1–12 complete. Open work: grid-snap, grid-aware resize, persist grid config, force↔grid unification, PNG export, and code quality items.
-
-- **The repo now uses the centralized root workflow.** `STATUS.md`, `TODO.md`, `ROADMAP.md`, `HISTORY.md`, `INBOX.md`, `AGENT-INBOX.md`, and `docs/specs.md` are the canonical workflow files.
-- **A design.md-inspired diagram language spec now exists.** `DIAGRAM.md` holds the canonical tokens, prose rules, output constraints, and redraw workflow for diagram work instead of keeping that material in `TODO.md`.
-- **`DIAGRAM.md` now exposes a spec -> token -> tool bridge.** Its `sourceSpecs:` frontmatter links typography, spacing, and grid back to `canonical-specs`, so the diagram tier has explicit upstream provenance instead of chat-only context.
-- **Optional workflow skills now have a clear home.** `.github/skills/` is the repo location for on-demand workflow skills such as redraw, build-and-validate, and protected draw.io review procedures.
-- **Draw.io is the primary editable output target.** `scripts/build_outputs.py` generates draw.io first into `diagrams/2.output/draw.io/`, then regenerates the matching SVG batch in `diagrams/2.output/svg/`.
-- **Both renderers now share one primitive layer.** `scripts/diagram_shared.py` carries the shared tokens, icon loading, text metrics, terminal chrome helpers, and matrix helpers used by both renderers.
-- **The current output batch is already rebuilt on the refreshed starter-block system.** `memory-wall-onbrand.svg`, `request-to-hardware-stack-onbrand.svg`, `inference-snaps-onbrand.svg`, `attention-qkv-onbrand.svg`, `logic-data-vram-onbrand.svg`, `rise-of-inference-economy-onbrand.svg`, and `gpu-waiting-scheduler-onbrand.svg` all live under `diagrams/2.output/svg/`, with matching editable draw.io exports under `diagrams/2.output/draw.io/`. Legacy root-level `diagrams/2.output/*.svg` copies are stale and are now pruned by the build entrypoints.
-- **A workflow explainer diagram now documents the intake lane.** `diagram-intake-workflow-onbrand.svg` and `diagram-intake-workflow-onbrand.drawio` show the current ChatGPT input, the open PM intake-question lane, the repo workflow, compare mode, the manual draw.io polish step, and final SVG output; the review lane also includes `diagrams/1.input/diagram-intake-workflow-rough.svg` and `diagrams/3.compare/html/diagram-intake-workflow.html`.
-- **A second workflow explainer now documents the spec-led lane.** `diagram-language-workflow-onbrand.svg` and `diagram-language-workflow-onbrand.drawio` show rough sources, local references, `DIAGRAM.md`, the new workflow skills, the generators, the compare and review lane, and clean outputs ready for design-language token ingestion; the review lane also includes `diagrams/1.input/diagram-language-workflow-rough.svg` and `diagrams/3.compare/html/diagram-language-workflow.html`.
-- **A forked comparison variant remains useful for comparison.** `inference-snaps-dense-onbrand.svg` and `inference-snaps-dense-onbrand.drawio` reuse the same source as `inference-snaps`, widen the side-by-side tiles, switch the major inter-column and inter-row gaps to the `24px` application gutter, and derive row placement from actual box heights while using the same canonical `18px` / `24px` body copy as the rest of the current batch.
-- **Generated draw.io cells now carry provenance and style tokens.** Exported `mxCell` nodes now include `data-dg-source`, `data-dg-role`, `data-dg-style-tokens`, and matching `tags` metadata so generator-owned cells can be distinguished from manual additions and batch-targeted by future tools.
-- **A tracked reusable draw.io library now exists.** `scripts/export_drawio_library.py` writes `assets/drawio/diagram-generator-primitives.mxlibrary` with the canonical default box, accent box, highlight box, helper note, connector, terminal bar, matrix widget, memory-wall panel, and grouped panel primitives.
-- **Token-aware style sync is now preset-driven.** `scripts/drawio_style_sync.py` can list and apply canonical token-derived presets for labels, panels, images, separators, and connectors across generator-tagged draw.io cells, while still allowing raw `--set` / `--unset` overrides when needed.
-- **Protected manual draw.io edits use review-copy infrastructure, but that lane may be empty in a fresh tree.** `scripts/drawio_review_workflow.py` prepares mirrored review copies under `diagrams/2.output/draw.io/review/` and promotes them back only after checkpointing the original into `diagrams/2.output/draw.io/checkpoints/`, but those directories may not exist until the first manual session creates them. Treat the lane as infrastructure-ready rather than a guaranteed live artifact.
-- **Declarative diagram architecture is complete (Stage 6a, all steps done).** `scripts/diagram_model.py` defines typed component trees (Box, Panel, Bar, Terminal, Arrow, Helper, MatrixWidget, MemoryWall, RequestCluster, Legend, IconComponent). `scripts/diagram_layout.py` uses Müller-Brockmann explicit grid placement: every component carries `(col, row, col_span, row_span)` and the GRID arrangement computes column widths and row heights from content, then positions each component in its grid cell. VERTICAL and HORIZONTAL arrangements also supported. The current shipped declarative corpus lives under `scripts/diagrams/`, produces both SVG and draw.io output, and still carries warning-only baseline-grid drift on several older diagrams.
-- **Canvas constraints and auto-fill now available.** `Diagram` supports `canvas_width`, `canvas_height`, and `uniform_rows`. Canvas width auto-derives equal column widths. Auto-fill propagates sizing to sub-panels, eliminating manual nesting tax math. See "Sizing constraints" and "Auto-fill" sections in `DIAGRAM.md`.
-- **Playwright visual validation is now part of the build.** `scripts/visual_compare.py` renders generated SVGs and manual reference rasters side by side, produces combined comparison PNGs, pixel diff heatmaps, and diff percentages. Wired into `build_outputs.py` as the final step (skip with `--no-visual`).
-- **Body text is now 18px/24px.** `diagram_shared.py` and `DIAGRAM.md` are updated. All outputs rebuilt at the new size.
-- **Bars auto-size from content.** Layout engine computes minimum bar height from `INSET + text_height + INSET` so text has balanced top/bottom padding; the model's `height` field is now a floor, not a fixed value.
-- **Baseline grid validator is live.** `validate_grid(result)` in `diagram_layout.py` checks all Rect, Icon, TextBlock, Arrow, and Canvas coordinates against the `8px` grid. Bar segment `width_px` values must be multiples of `8`.
-- **Manual app validation remains the main open lane.** Structural draw.io XML audits and Illustrator-safety sanitizer checks now pass, but native draw.io and Illustrator desktop smoke tests still need a workstation that has those tools installed. The token-propagation work is now wired through the preset-driven draw.io style-sync path.
-
-## Machine-switch checkpoint (2026-05-13)
-
-- Done: the autolayout docs now describe grouped layouts as parent-scoped equal splits plus consistent gutters and wrapper outdents.
-- Done: arrow labels and thin separators are first-class primitives in the declarative pipeline, with a committed regression fixture at `scripts/diagrams/yaml/example-arrow-label-separator.json` and a tracked compare page.
-- Done: preview relayout now consumes server-declared child slots/spans and measured gutters instead of rediscovering grouped layout from child geometry.
-- Remaining: equal-split/outdent math is still duplicated between `scripts/diagram_layout.py` and `scripts/preview/component-model.js`.
-- Remaining: `python scripts/build_v2.py` still exits nonzero on known clearance blockers in `example-platform-architecture`, `lightning-talk-engine`, `lt-diagram-generator`, `lt-a4-generator`, and `lt-summit-identity`, with warning-only grid drift on several older diagrams.
-- Remaining: native draw.io / diagrams.net and Illustrator smoke tests still need a workstation with those apps installed.
-
-## Current execution plan
-
-- Content-width alignment and preview distribute-and-align are complete and validated.
-- The interactive preview shell now uses the vendored Baseline Foundry `os` tier assets tracked in this repo; local preview CSS is the editor-specific override and compatibility layer rather than a bespoke standalone shell, including the left-nav resize-handle shim, the forced desktop three-pane layout pin, DG-owned amber selection tokens for editor chrome, and the BF-tabbed `Input` / `Output` / `Both` compare strip in the main pane.
-- Preview undo/redo now uses explicit action records and restores full editor state, including grid overrides; the hottest move/resize interactions now use narrower override-patch commands, and the remaining actions stay on the full-state path unless a real hotspot appears.
-- The force-layout prototype now reuses the same BF-backed preview shell and `editor.css` compatibility layer as the main editor; do not add a separate force-only stylesheet.
-- Force-preview node style and pin edits now live in the server-held force session, the right-hand inspector now reuses the main editor's semantic `BoxStyle` presets (`default`, `accent`, `highlight`) through `scripts/preview/box-styles.js`, and reset/browser refresh now restart the solver around the current pinned session state instead of discarding unsaved pins.
-- Force-preview nodes are now clamped to the canvas during load, tick, export, and manual updates; dragging a node on the stage drops it into a pinned manual-polish position; and the new `Save` action persists dragged/pinned placements plus style overrides across reset/reload.
-- The shared preview picker now includes both normal diagram previews and `force-*` demos, so force examples are reachable from the default `/view/...` editor surface instead of hiding behind a separate list.
-- Generated draw.io outputs are structurally clean; manual draw.io or diagrams.net smoke tests remain pending but are not the current no-input implementation lane.
-- The tracked force corpus now includes `scripts/diagrams/force/force-stakeholders.json`, `scripts/diagrams/force/force-juju-landing-pages.json`, and `scripts/diagrams/force/force-support-case-lifecycle.json`, all reconstructed from `diagrams/1.input/force/` using allowed diagram styles only (white boxes, one black emphasis box, orange connectors, top-left live text).
-- The tracked `example-data-processing` and `example-deployment-pipeline` draw.io/SVG/grid artifacts were refreshed so the checked-in examples match the current exporter output, and the follow-up Windows preview-shell smoke pass is now complete.
-- Generated SVG outputs passed the Illustrator-safety sanitizer; manual Illustrator smoke tests remain pending but are not blocking the current implementation work.
-- The current helper-audit lane now covers terminal bars, request clusters, draw.io icon-image sizing, memory-panel geometry, and SVG jagged-step sizing; keep future cleanup scoped to reusable helper surfaces rather than per-diagram coordinates.
-- Keep the new preset-driven draw.io style-sync path aligned with exporter defaults whenever shared diagram tokens change.
-- The cold-start exemplar path is now curated in `README.md`; the next no-input doc lane is refining `DIAGRAM.md` as more diagram types appear.
-- Keep `example-arrow-label-separator` as the smallest tracked regression surface for thin separators + free-positioned arrow labels.
-- Keep refining `DIAGRAM.md` as more diagram types appear.
+- `build_v2.py` exits nonzero on pre-existing arrow-clearance violations in `example-platform-architecture`, `lightning-talk-engine`, `lt-diagram-generator`, `lt-a4-generator`, `lt-summit-identity`. Warning-only baseline-grid drift on several older diagrams.
+- Equal-split/outdent math still duplicated between `scripts/diagram_layout.py` and `scripts/preview/component-model.js`.
 
 ## Draw.io evolution plan
 

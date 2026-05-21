@@ -33,11 +33,14 @@ The grid and force editors share a unified shell: `scripts/preview/viewer-unifie
 
 If you are cold-starting the repo and want the fastest route through the tracked corpus, inspect these in order:
 
-1. [`diagrams/3.compare/html/diagram-intake-workflow.html`](diagrams/3.compare/html/diagram-intake-workflow.html) — the workflow explainer and the main interactive demo slug.
-2. [`diagrams/3.compare/html/memory-wall.html`](diagrams/3.compare/html/memory-wall.html) plus [`diagrams/2.output/svg/memory-wall-onbrand.svg`](diagrams/2.output/svg/memory-wall-onbrand.svg) — the current canonical style exemplar.
-3. [`diagrams/3.compare/html/logic-data-vram.html`](diagrams/3.compare/html/logic-data-vram.html) — dense grouped panels, bars, and nested framing.
-4. [`diagrams/3.compare/html/attention-qkv.html`](diagrams/3.compare/html/attention-qkv.html) — matrix widget coverage and more complex connector routing.
-5. [`diagrams/3.compare/html/request-to-hardware-stack.html`](diagrams/3.compare/html/request-to-hardware-stack.html) — the current clean vertical-stack explainer pattern.
+1. **v3 Frame YAML diagrams** — start the preview server (`python scripts/preview_server.py`) and open:
+   - `http://127.0.0.1:8100/view/v3:support-engineering-flow` — the primary v3 demo with nested autolayout
+   - `http://127.0.0.1:8100/view/v3:android-container-vs-vm` — container/VM comparison with vertical nesting
+   - `http://127.0.0.1:8100/force/view/force-juju-landing-pages` — force-directed layout demo
+2. [`diagrams/2.output/svg/memory-wall-onbrand.svg`](diagrams/2.output/svg/memory-wall-onbrand.svg) — the current canonical v2 style exemplar.
+3. [`diagrams/3.compare/html/diagram-intake-workflow.html`](diagrams/3.compare/html/diagram-intake-workflow.html) — the workflow explainer and 3-way compare demo.
+4. [`diagrams/3.compare/html/logic-data-vram.html`](diagrams/3.compare/html/logic-data-vram.html) — dense grouped panels, bars, and nested framing.
+5. [`diagrams/3.compare/html/attention-qkv.html`](diagrams/3.compare/html/attention-qkv.html) — matrix widget coverage and complex connector routing.
 
 ### Agent prompt: demo the project
 
@@ -47,18 +50,15 @@ Paste this into an agent on a fresh clone:
 Open this repo and demo the current workflow end-to-end.
 
 1. Work from the repo root.
-2. Explain the pipeline choice briefly, then proceed with Pipeline 2 unless I explicitly ask for Pipeline 1:
-    - Pipeline 2 = declarative + autolayout, the current active surface.
-    - Pipeline 1 = the original imperative v1 batch, kept for parity checks and legacy exports.
-3. Refresh the live demo assets if needed:
-    - python scripts/build_v2.py
-    - python scripts/build_compare_pages.py
-4. Start the interactive preview server for `diagram-intake-workflow` with the grid overlay:
-    - python scripts/preview_server.py --slug diagram-intake-workflow --grid
-5. Open both demo surfaces, preferring a VS Code webview or Simple Browser if your environment supports it; otherwise open them in the default browser:
-    - http://127.0.0.1:8100/view/diagram-intake-workflow
-    - diagrams/3.compare/html/diagram-intake-workflow.html
-6. Tell me when both the interactive preview and the static compare page are visible.
+2. The active surface is Pipeline 3 (v3 frame layout engine, branch frame-layout-engine).
+   Pipeline 2 is maintained for the existing v2 batch. Pipeline 1 is legacy only.
+3. Start the interactive preview server:
+    - python scripts/preview_server.py
+4. Open these demo surfaces (prefer VS Code webview or Simple Browser; otherwise default browser):
+    - http://127.0.0.1:8100/view/v3:support-engineering-flow  (v3 frame editor)
+    - http://127.0.0.1:8100/force/view/force-juju-landing-pages  (force editor)
+    - http://127.0.0.1:8100/view/memory-wall  (v2 canonical exemplar)
+5. Tell me when the interactive preview is visible.
 ```
 
 Detailed single-surface prompts are in the interactive demo section below.
@@ -91,7 +91,34 @@ If you only want the currently active declarative pipeline, you can skip the sta
 
 ### Creating your own diagram
 
-Create a new file in `scripts/diagrams/`, for example `scripts/diagrams/my_diagram.py`:
+**Native Frame YAML (preferred, Pipeline 3):** Drop a `.yaml` file in `scripts/diagrams/frames/` and it is auto-discovered by the preview server. No registration needed.
+
+```yaml
+engine: v3
+title: My diagram
+root:
+  id: page
+  direction: vertical
+  gap: 24
+  padding: 24
+  border: none
+  children:
+    - id: step1
+      label: [First step]
+      icon: Document.svg
+    - id: step2
+      label: [Second step]
+      fill: grey
+      icon: Package.svg
+      sizing: fill
+arrows:
+  - source: step1.bottom
+    target: step2.top
+```
+
+Start the preview server (`python scripts/preview_server.py`) and open `http://127.0.0.1:8100/view/v3:my-diagram`. See `scripts/diagrams/frames/test-vertical-stack.yaml` for a minimal working example.
+
+**v2 Python definition (Pipeline 2):** Create a file in `scripts/diagrams/`, for example `scripts/diagrams/my_diagram.py`:
 
 ```python
 from diagram_model import Arrow, Box, Diagram, Fill, Line
@@ -113,7 +140,7 @@ my_diagram = Diagram(
 
 Then register it in `scripts/build_v2.py` by adding a tuple to `_REGISTRY` and rebuild. See [`scripts/diagrams/example_deployment_pipeline.py`](scripts/diagrams/example_deployment_pipeline.py) for a complete starter example.
 
-**Or use YAML (no registration needed):** drop a `.yaml` file in `scripts/diagrams/yaml/` and it is auto-discovered on the next build. Example:
+**v2 YAML (no registration needed):** drop a `.yaml` file in `scripts/diagrams/yaml/` and it is auto-discovered on the next build. Example:
 
 ```yaml
 title: My diagram
