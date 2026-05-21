@@ -22,7 +22,7 @@ from frame_model import Align, Direction, Frame, FrameDiagram, Sizing
 _DIRECTION = {"vertical": Direction.VERTICAL, "horizontal": Direction.HORIZONTAL}
 _SIZING = {"hug": Sizing.HUG, "fill": Sizing.FILL, "fixed": Sizing.FIXED}
 _FILL = {"white": Fill.WHITE, "grey": Fill.GREY, "black": Fill.BLACK}
-_BORDER = {"solid": Border.SOLID, "dashed": Border.DASHED, "none": Border.NONE}
+_BORDER = {"solid": Border.SOLID, "none": Border.NONE}  # DASHED gated out of YAML; use programmatically only
 _ALIGN = {
     "top-left": Align.TOP_LEFT, "top-center": Align.TOP_CENTER, "top-right": Align.TOP_RIGHT,
     "center-left": Align.CENTER_LEFT, "center": Align.CENTER, "center-right": Align.CENTER_RIGHT,
@@ -35,13 +35,17 @@ def _parse_line(raw) -> Line:
     if isinstance(raw, str):
         return Line(raw)
     if isinstance(raw, dict):
-        return Line(
-            raw.get("text", ""),
-            weight=raw.get("weight"),
-            size=raw.get("size"),
-            fill=raw.get("fill"),
-            small_caps=raw.get("small_caps", False),
-        )
+        # Only pass keys that are actually present so Line defaults apply
+        kw = {}
+        if "weight" in raw:
+            kw["weight"] = raw["weight"]
+        if "size" in raw:
+            kw["size"] = raw["size"]
+        if "fill" in raw:
+            kw["fill"] = raw["fill"]
+        if "small_caps" in raw:
+            kw["small_caps"] = raw["small_caps"]
+        return Line(raw.get("text", ""), **kw)
     return Line(str(raw))
 
 
@@ -77,12 +81,23 @@ def _parse_frame(data: dict) -> Frame:
     default_gap = 24 if is_container else 0
 
     # Per-axis sizing: uniform `sizing` as base, then per-axis overrides
-    uniform_sizing = _SIZING.get(data.get("sizing", "hug"), Sizing.HUG)
+    # Default is FILL so children stretch to their parent's available space
+    uniform_sizing = _SIZING.get(data.get("sizing", "fill"), Sizing.FILL)
     sizing_w = _SIZING.get(data.get("sizing_w"), None) or uniform_sizing
     sizing_h = _SIZING.get(data.get("sizing_h"), None) or uniform_sizing
 
-    # Padding: uniform `padding` as constructor arg, then per-side overrides
-    uniform_padding = int(data.get("padding", 8))
+    # Infer FIXED sizing when an explicit dimension is set but no sizing override
+    if "width" in data and "sizing_w" not in data and "sizing" not in data:
+        sizing_w = Sizing.FIXED
+    if "height" in data and "sizing_h" not in data and "sizing" not in data:
+        sizing_h = Sizing.FIXED
+
+    # Padding: default is 8 for bordered nodes, 0 for borderless containers.
+    # Borderless wrappers are pure layout groups — padding would misalign
+    # their children relative to siblings at the same nesting level.
+    border = _BORDER.get(data.get("border", ""), default_border)
+    default_padding = 0 if (is_container and border == Border.NONE) else 8
+    uniform_padding = int(data.get("padding", default_padding))
     pad_t = int(data["padding_top"]) if "padding_top" in data else None
     pad_r = int(data["padding_right"]) if "padding_right" in data else None
     pad_b = int(data["padding_bottom"]) if "padding_bottom" in data else None
@@ -102,12 +117,17 @@ def _parse_frame(data: dict) -> Frame:
         align=_ALIGN.get(data.get("align", "top-left"), Align.TOP_LEFT),
         width=int(data["width"]) if "width" in data else None,
         height=int(data["height"]) if "height" in data else None,
+        min_width=int(data["min_width"]) if "min_width" in data else None,
+        max_width=int(data["max_width"]) if "max_width" in data else None,
+        min_height=int(data["min_height"]) if "min_height" in data else None,
+        max_height=int(data["max_height"]) if "max_height" in data else None,
         fill=_FILL.get(data.get("fill", "white"), Fill.WHITE),
-        border=_BORDER.get(data.get("border", ""), default_border),
+        border=border,
         heading=heading,
         icon=data.get("icon"),
         icon_fill=data.get("icon_fill"),
         label=label,
+        role=data.get("role", ""),
         children=children,
     )
 
@@ -136,11 +156,16 @@ def load_frame_yaml(path: str | pathlib.Path) -> FrameDiagram:
     root = _parse_frame(root_data)
 
     arrows = [_parse_arrow(a) for a in data.get("arrows", [])]
+    grid = data.get("grid", {}) if isinstance(data.get("grid", {}), dict) else {}
 
     return FrameDiagram(
         title=data.get("title", ""),
         root=root,
         arrows=arrows,
+        grid_cols=int(grid.get("cols", 2)),
+        grid_col_gap=int(grid["col_gap"]) if "col_gap" in grid else None,
+        grid_row_gap=int(grid["row_gap"]) if "row_gap" in grid else None,
+        grid_outer_margin=int(grid["outer_margin"]) if "outer_margin" in grid else None,
     )
 
 

@@ -56,19 +56,22 @@ const UI_AUTHORING_ACCENT_LINE = getThemeToken("--bf-authoring-accent-line", "rg
 
 // ---- BoxStyle presets (mirrors diagram_model.py BoxStyle enum) ----
 const BOX_STYLES = window.__DG_BOX_STYLES || {
-  default: { fill: "#FFFFFF", text: "#000000", icon: "#000000", label: "Default (white)" },
-  accent: { fill: "#F3F3F3", text: "#000000", icon: "#000000", label: "Accent (grey)" },
-  highlight: { fill: "#000000", text: "#FFFFFF", icon: "#FFFFFF", label: "Highlight (black)" },
+  default: { fill: "#FFFFFF", text: "#000000", icon: "#000000", border: "solid", label: "Default" },
+  parent:  { fill: "#F3F3F3", text: "#000000", icon: "#000000", border: "none",  label: "Parent" },
+  highlight: { fill: "#000000", text: "#FFFFFF", icon: "#FFFFFF", border: "solid", label: "Highlight" },
 };
 const renderBoxStyleOptions = window.__DG_boxStyleOptionsHtml || function renderBoxStyleOptions(selectedValue, options = {}) {
   const current = selectedValue == null ? "" : String(selectedValue);
-  const originalLabel = options.originalLabel || "— original —";
-  let html = `<option value=""${current === "" ? " selected" : ""}>${originalLabel}</option>`;
+  const resetLabel = options.originalLabel || "— as defined —";
+  let html = `<option value=""${current === "" ? " selected" : ""}>${resetLabel}</option>`;
   for (const [key, preset] of Object.entries(BOX_STYLES)) {
     html += `<option value="${key}"${current === key ? " selected" : ""}>${preset.label}</option>`;
   }
   return html;
 };
+
+// ---- Brockman grid constants ----
+const BASELINE_STEP = 8;  // px — smallest vertical rhythm unit
 
 // ---- Guide mode (W key) ----
 const GUIDE_MODES = ["off", "all"];
@@ -244,6 +247,7 @@ function _captureEditorState() {
 
 function _normaliseGridOverrides(gridOverrides) {
   const next = {};
+  if (gridOverrides && Number.isFinite(gridOverrides.cols)) next.cols = gridOverrides.cols;
   if (gridOverrides && Number.isFinite(gridOverrides.col_gap)) next.col_gap = gridOverrides.col_gap;
   if (gridOverrides && Number.isFinite(gridOverrides.row_gap)) next.row_gap = gridOverrides.row_gap;
   if (gridOverrides && Number.isFinite(gridOverrides.outer_margin)) next.outer_margin = gridOverrides.outer_margin;
@@ -253,10 +257,18 @@ function _normaliseGridOverrides(gridOverrides) {
 function _gridRequestValues(gridOverrides) {
   const fallback = baseGridInfo || gridInfo || {};
   return {
+    cols: gridOverrides.cols ?? ((fallback.col_xs || []).length || 1),
     colGap: gridOverrides.col_gap ?? fallback.col_gap ?? window.__DG_CONFIG.col_gap ?? 24,
     rowGap: gridOverrides.row_gap ?? fallback.row_gap ?? window.__DG_CONFIG.row_gap ?? 24,
     outerMargin: gridOverrides.outer_margin ?? fallback.outer_margin ?? 24,
   };
+}
+
+function _getV3RootGap(gridRequest, rootNode) {
+  const layout = String((rootNode && rootNode.layout) || "").toLowerCase();
+  if (layout === "vertical") return gridRequest.rowGap;
+  if (layout === "horizontal") return gridRequest.colGap;
+  return Math.max(gridRequest.colGap, gridRequest.rowGap);
 }
 
 function _createUndoCommand(label, beforeState, afterState) {
@@ -341,8 +353,18 @@ async function _restoreEditorState(serializedState) {
 
   model.gridOverrides = _cloneState(nextGridOverrides);
   if (gridChanged) {
-    const request = _gridRequestValues(nextGridOverrides);
-    await requestRelayout(request.colGap, request.rowGap, request.outerMargin);
+    if (ENGINE === "v3") {
+      const request = _gridRequestValues(nextGridOverrides);
+      const rootId = (model.roots[0] || {}).id || "root";
+      const rootNode = model.roots[0] || null;
+      if (!overrides[rootId]) overrides[rootId] = {};
+      overrides[rootId].gap = _getV3RootGap(request, rootNode);
+      overrides[rootId].padding = request.outerMargin;
+      await requestV3Relayout(rootId);
+    } else {
+      const request = _gridRequestValues(nextGridOverrides);
+      await requestRelayout(request.cols, request.colGap, request.rowGap, request.outerMargin);
+    }
   }
 
   overrides = nextOverrides;
@@ -364,6 +386,7 @@ async function _restoreOverridePatch(entries) {
     clearTimeout(relayoutTimer);
     relayoutTimer = null;
   }
+  clearTimeout(_v3RelayoutTimer);
   pendingGridAction = null;
   _restoreOverrideEntries(entries);
   applyWaypointOverrides();
@@ -398,9 +421,25 @@ async function loadSVG() {
   populateGridControls();
   await loadOverrides();
   // Apply saved grid overrides (gutter/margin changes) before rendering
-  if (model.gridOverrides && Object.keys(model.gridOverrides).length > 0) {
+  const hasGridOverrides = model.gridOverrides && Object.keys(model.gridOverrides).length > 0;
+  // Check if any frame overrides need a relayout (text, sizing, etc.)
+  const hasFrameOverrides = ENGINE === "v3" && Object.values(overrides).some(ovr => ovr.text || ovr.direction || ovr.sizing_w || ovr.sizing_h || ovr.fill || ovr.border);
+  if (hasGridOverrides) {
     const go = model.gridOverrides;
-    await requestRelayout(go.col_gap, go.row_gap, go.outer_margin);
+    if (ENGINE === "v3") {
+      const rootNode = model.roots[0] || null;
+      const rootId = (model.roots[0] || {}).id || "root";
+      if (!overrides[rootId]) overrides[rootId] = {};
+      overrides[rootId].gap = _getV3RootGap(_gridRequestValues(go), rootNode);
+      overrides[rootId].padding = go.outer_margin ?? 0;
+      await requestV3Relayout(rootId);
+    } else {
+      await requestRelayout(go.cols || 1, go.col_gap, go.row_gap, go.outer_margin);
+    }
+  } else if (hasFrameOverrides) {
+    // Text or frame overrides without grid overrides — still need relayout
+    const rootId = (model.roots[0] || {}).id || "root";
+    await requestV3Relayout(rootId);
   }
   applyWaypointOverrides();
   applyAllOverrides();
@@ -429,8 +468,20 @@ async function loadGridInfo() {
     if (resp.ok) {
       gridInfo = await resp.json();
       baseGridInfo = _cloneState(gridInfo);
+      model.setDiagramGrid(gridInfo);
     }
   } catch (e) { /* ignore */ }
+  // Fallback only if the server has not produced authoritative v3 grid info.
+  if (!gridInfo && ENGINE === "v3") {
+    const rootNode = model.roots[0] || null;
+    const gap = rootNode ? (rootNode.data.layout_gap ?? 24) : 24;
+    const pad = rootNode ? (rootNode.data.padding_top ?? 24) : 24;
+    const svg = document.querySelector("#stage svg");
+    const svgW = svg ? (svg.viewBox.baseVal.width || parseFloat(svg.getAttribute("width") || 840)) : 840;
+    const svgH = svg ? (svg.viewBox.baseVal.height || parseFloat(svg.getAttribute("height") || 840)) : 840;
+    gridInfo = _computeBrockmanGrid(svgW, svgH, 2, gap, gap, pad);
+    baseGridInfo = _cloneState(gridInfo);
+  }
 }
 
 function cycleGuideMode() {
@@ -536,36 +587,32 @@ function renderGridOverlay() {
     }
   }
 
-  // -- Baseline grid (8px lines) --
+  // -- Baseline grid (BASELINE_STEP lines) --
   if (guideMode === "all") {
-    const baselineStep = 8;
-    // Content area boundary
-    const boundary = document.createElementNS(ns, "rect");
-    boundary.setAttribute("x", margin);
-    boundary.setAttribute("y", margin);
-    boundary.setAttribute("width", svgW - 2 * margin);
-    boundary.setAttribute("height", svgH - 2 * margin);
-    boundary.setAttribute("fill", "none");
-    boundary.setAttribute("stroke", "rgba(255,255,255,0.12)");
-    boundary.setAttribute("stroke-dasharray", "6 4");
-    boundary.setAttribute("stroke-width", "1");
-    g.appendChild(boundary);
-    // Horizontal 4px baseline grid
+    // Horizontal baseline grid
     const baselineColor = "rgba(255,100,100,0.08)";
-    for (let y = margin; y <= svgH - margin; y += baselineStep) {
+    for (let y = margin; y <= svgH - margin; y += BASELINE_STEP) {
       const bl = document.createElementNS(ns, "line");
       bl.setAttribute("x1", margin); bl.setAttribute("y1", y);
       bl.setAttribute("x2", svgW - margin); bl.setAttribute("y2", y);
       bl.setAttribute("stroke", baselineColor); bl.setAttribute("stroke-width", "0.5");
       g.appendChild(bl);
     }
-    // Vertical 4px baseline grid
-    for (let x = margin; x <= svgW - margin; x += baselineStep) {
+    // Vertical baseline grid
+    for (let x = margin; x <= svgW - margin; x += BASELINE_STEP) {
       const vl = document.createElementNS(ns, "line");
       vl.setAttribute("x1", x); vl.setAttribute("y1", margin);
       vl.setAttribute("x2", x); vl.setAttribute("y2", svgH - margin);
       vl.setAttribute("stroke", baselineColor); vl.setAttribute("stroke-width", "0.25");
       g.appendChild(vl);
+    }
+    // -- Bottom margin absorption zone --
+    // When row heights are baseline-snapped, the bottom margin absorbs
+    // the leftover slack.  Highlight it so the user can see the resolved
+    // bottom margin differs from the top/side margins.
+    const resolvedBottom = gridInfo.resolved_bottom_margin ?? gridInfo._resolved_bottom_margin;
+    if (resolvedBottom != null && resolvedBottom > margin + 1) {
+      addRect(g, ns, 0, svgH - resolvedBottom, svgW, resolvedBottom, "rgba(235,180,65,0.10)");
     }
   }
 
@@ -583,11 +630,11 @@ function addRect(parent, ns, x, y, w, h, fill) {
 
 function populateGridControls() {
   if (!gridInfo) return;
-  // Always update rows (read-only, derived from layout)
+  // Rows are always derived (read-only)
   document.getElementById("grid-rows").value = (gridInfo.row_ys || []).length;
   // Only update editable fields if there are no pending user overrides
   if (!model.gridOverrides || Object.keys(model.gridOverrides).length === 0) {
-    document.getElementById("grid-cols").value = (gridInfo.col_xs || []).length;
+    document.getElementById("grid-cols").value = (gridInfo.col_xs || []).length || 1;
     document.getElementById("grid-col-gap").value = gridInfo.col_gap || 0;
     document.getElementById("grid-row-gap").value = gridInfo.row_gap || 0;
     document.getElementById("grid-margin").value = gridInfo.outer_margin || 0;
@@ -611,11 +658,26 @@ function onGridControlChange() {
   model.gridOverrides = { cols: cols, col_gap: colGap, row_gap: rowGap, outer_margin: margin };
   setDirty(true);
 
+  // Capture root ID before the debounce window so a concurrent tree
+  // reload can't change it mid-flight.
+  const rootNode = ENGINE === "v3" ? (model.roots[0] || null) : null;
+  const rootId = rootNode ? (rootNode.id || "root") : null;
+
   // Debounce the relayout call so rapid typing doesn't flood the server
   if (relayoutTimer) clearTimeout(relayoutTimer);
   relayoutTimer = setTimeout(async () => {
     try {
-      await requestRelayout(cols, colGap, rowGap, margin);
+      if (ENGINE === "v3") {
+        // In v3, the root frame has a single primary-axis gap.
+        // Preserve both gutter inputs for the Brockman overlay, but drive
+        // the actual relayout from the root layout axis.
+        if (!overrides[rootId]) overrides[rootId] = {};
+        overrides[rootId].gap = _getV3RootGap({ cols, colGap, rowGap, outerMargin: margin }, rootNode);
+        overrides[rootId].padding = margin;
+        await requestV3Relayout(rootId);
+      } else {
+        await requestRelayout(cols, colGap, rowGap, margin);
+      }
     } finally {
       commitUndoableAction(pendingGridAction);
       pendingGridAction = null;
@@ -626,9 +688,65 @@ function onGridControlChange() {
   updateGridOverlayFromInputs();
 }
 
+// ---- Brockman grid resolver ----
+// Mirrors the a4-generator rigorous solver: row heights are whole multiples
+// of BASELINE_STEP, the bottom margin absorbs leftover slack, and column
+// widths are derived from the content area after subtracting gutters.
+function _computeBrockmanGrid(svgW, svgH, cols, colGap, rowGap, margin) {
+  const contentW = svgW - 2 * margin;
+  const contentH = svgH - 2 * margin;
+
+  // ---- Columns ----
+  const colW = cols > 1
+    ? (contentW - (cols - 1) * colGap) / cols
+    : contentW;
+  const colXs = [];
+  const colWidths = [];
+  for (let c = 0; c < cols; c++) {
+    colXs.push(margin + c * (colW + colGap));
+    colWidths.push(colW);
+  }
+
+  // ---- Rows (baseline-snapped, bottom margin absorbs slack) ----
+  // Clamp row gutter to a baseline multiple
+  const rowGapSnapped = Math.floor(rowGap / BASELINE_STEP) * BASELINE_STEP;
+  // Available height for a single row stack pass: determine how many rows
+  // fit with baseline-quantised heights.
+  const availH = contentH - rowGapSnapped; // space if 1 row (no inter-row gutters)
+  // Row height = largest baseline multiple that fits
+  // We solve for N rows: rowH * N + rowGapSnapped * (N-1) <= contentH
+  // → rowH <= (contentH - rowGapSnapped * (N-1)) / N, snapped down to BASELINE_STEP
+  // Start with N that yields a row height between 1× and ~200× baseline step
+  let rowCount = 1;
+  let rowH = Math.floor(contentH / BASELINE_STEP) * BASELINE_STEP;
+  if (rowH > 0) {
+    // Target a reasonable row height (aim for ~80-160px rows)
+    const targetRowH = Math.max(BASELINE_STEP * 10, 80); // ~80px minimum
+    rowCount = Math.max(1, Math.floor((contentH + rowGapSnapped) / (targetRowH + rowGapSnapped)));
+    const maxRowH = Math.floor((contentH - rowGapSnapped * Math.max(0, rowCount - 1)) / (rowCount * BASELINE_STEP)) * BASELINE_STEP;
+    rowH = Math.max(BASELINE_STEP, maxRowH);
+  }
+
+  const rowYs = [];
+  const rowHeights = [];
+  for (let r = 0; r < rowCount; r++) {
+    rowYs.push(margin + r * (rowH + rowGapSnapped));
+    rowHeights.push(rowH);
+  }
+
+  return {
+    col_xs: colXs, col_widths: colWidths,
+    row_ys: rowYs, row_heights: rowHeights,
+    col_gap: colGap, row_gap: rowGapSnapped,
+    outer_margin: margin,
+    // Brockman-specific: resolved bottom margin (absorbs slack)
+    _resolved_bottom_margin: svgH - margin - (rowCount > 0 ? rowYs[rowCount - 1] + rowH : 0),
+    _baseline_step: BASELINE_STEP,
+  };
+}
+
 function updateGridOverlayFromInputs() {
   const cols = Math.max(1, parseInt(document.getElementById("grid-cols").value) || 1);
-  const rows = Math.max(1, parseInt(document.getElementById("grid-rows").value) || 1);
   const colGap = Math.max(0, parseInt(document.getElementById("grid-col-gap").value) || 0);
   const rowGap = Math.max(0, parseInt(document.getElementById("grid-row-gap").value) || 0);
   const margin = Math.max(0, parseInt(document.getElementById("grid-margin").value) || 0);
@@ -639,24 +757,9 @@ function updateGridOverlayFromInputs() {
   const svgW = vb.width || parseFloat(svg.getAttribute("width") || svg.clientWidth);
   const svgH = vb.height || parseFloat(svg.getAttribute("height") || svg.clientHeight);
 
-  const contentW = svgW - 2 * margin;
-  const contentH = svgH - 2 * margin;
-  const colW = cols > 1 ? Math.floor((contentW - (cols - 1) * colGap) / cols) : contentW;
-  const rowH = rows > 1 ? Math.floor((contentH - (rows - 1) * rowGap) / rows) : contentH;
-
-  const newColXs = [];
-  for (let c = 0; c < cols; c++) newColXs.push(margin + c * (colW + colGap));
-  const newColWidths = Array(cols).fill(colW);
-
-  const newRowYs = [];
-  for (let r = 0; r < rows; r++) newRowYs.push(margin + r * (rowH + rowGap));
-  const newRowHeights = Array(rows).fill(rowH);
-
-  gridInfo = {
-    col_xs: newColXs, col_widths: newColWidths,
-    row_ys: newRowYs, row_heights: newRowHeights,
-    col_gap: colGap, row_gap: rowGap, outer_margin: margin,
-  };
+  gridInfo = _computeBrockmanGrid(svgW, svgH, cols, colGap, rowGap, margin);
+  // Update derived rows display
+  document.getElementById("grid-rows").value = (gridInfo.row_ys || []).length;
   renderGridOverlay();
 }
 
@@ -1035,7 +1138,8 @@ function clampSelectionTarget(item, targetX, targetY) {
 
 function applySelectionTargets(targets) {
   if (Object.keys(targets).length === 0) return;
-  const action = beginUndoableAction("Reposition selection");
+  const ids = Object.keys(targets);
+  const beforeEntries = _captureOverrideEntries(ids);
   for (const [id, target] of Object.entries(targets)) {
     const node = model.get(id);
     if (!node) continue;
@@ -1053,7 +1157,7 @@ function applySelectionTargets(targets) {
   updateOverrideSummary();
   refreshTreeColors();
   runConstraints();
-  commitUndoableAction(action);
+  commitOverridePatchAction("Reposition selection", beforeEntries, _captureOverrideEntries(ids));
 }
 
 function distributeSelection(axis) {
@@ -1172,9 +1276,339 @@ function renderMultiSelectionInspector() {
     html += '<div class="field"><div class="hint">Arrow and separator selections are ignored by these actions.</div></div>';
   }
 
+  // ── Bulk sizing controls (v3 only, homogeneous selection) ──
+  if (ENGINE === "v3" && info.items.length >= 2) {
+    // ── Alignment widget (v3) ──
+    const alignInfo = _getMultiAlignValues(info.items);
+    if (alignInfo) {
+      html += '<div class="field"><span class="label">Alignment</span>';
+      html += '<div class="dg-align-field">';
+      html += '<div class="dg-align-grid">';
+      for (const pt of ALIGN_POINTS) {
+        const active = !alignInfo.mixed && pt === alignInfo.align ? " active" : "";
+        html += '<button class="' + active + '" title="' + ALIGN_LABELS[pt] +
+          '" onclick="setMultiFrameAlign(\'' + pt + '\')">' +
+          '</button>';
+      }
+      html += '</div>';
+      html += '<span class="value">' + (alignInfo.mixed ? 'Mixed' : ALIGN_LABELS[alignInfo.align]) + '</span>';
+      html += '</div></div>';
+    }
+
+    // ── Container properties (direction, gap, padding) ──
+    const containerInfo = _getMultiContainerValues(info.items);
+    if (containerInfo) {
+      html += '<div class="dg-autolayout-section" style="margin-top:8px">';
+      html += '<span class="label" style="margin-bottom:4px;display:block">Auto-layout (' + containerInfo.containerCount + ' containers)</span>';
+
+      // Direction
+      html += '<div class="field"><span class="label">Direction</span>';
+      html += '<select class="bf-input" onchange="setMultiFrameProp(\'direction\',this.value)">';
+      if (containerInfo.dirMixed) html += '<option value="" selected>Mixed</option>';
+      html += '<option value="VERTICAL"' + (containerInfo.direction === 'VERTICAL' ? ' selected' : '') + '>Vertical</option>';
+      html += '<option value="HORIZONTAL"' + (containerInfo.direction === 'HORIZONTAL' ? ' selected' : '') + '>Horizontal</option>';
+      html += '</select></div>';
+
+      // Gap
+      html += '<div class="field"><span class="label">Gap</span>';
+      html += '<input class="bf-input" type="number" min="0" step="8" value="' + (containerInfo.gapMixed ? '' : containerInfo.gap) + '"';
+      html += ' placeholder="' + (containerInfo.gapMixed ? 'Mixed' : '') + '"';
+      html += ' onchange="setMultiFrameProp(\'gap\',parseInt(this.value))"';
+      html += ' style="width:60px"></div>';
+
+      // Padding
+      html += '<div class="field"><span class="label">Padding</span>';
+      html += '<input class="bf-input" type="number" min="0" step="8" value="' + (containerInfo.padMixed ? '' : containerInfo.padding) + '"';
+      html += ' placeholder="' + (containerInfo.padMixed ? 'Mixed' : '') + '"';
+      html += ' onchange="setMultiFrameProp(\'padding\',parseInt(this.value))"';
+      html += ' style="width:60px"></div>';
+
+      html += '</div>';
+    }
+
+    // ── Sizing ──
+    const sizingInfo = _getMultiSizingValues(info.items);
+    if (sizingInfo) {
+      html += '<div class="dg-autolayout-section" style="margin-top:8px">';
+      html += '<span class="label" style="margin-bottom:4px;display:block">Sizing</span>';
+
+      // Width sizing
+      html += '<div class="field"><span class="label">Width</span>';
+      html += '<select class="bf-input" onchange="setMultiFrameProp(\'sizing_w\',this.value)">';
+      if (sizingInfo.wMixed) html += '<option value="" selected>Mixed</option>';
+      html += '<option value="HUG"' + (sizingInfo.sizingW === 'HUG' ? ' selected' : '') + '>Hug</option>';
+      html += '<option value="FILL"' + (sizingInfo.sizingW === 'FILL' ? ' selected' : '') + '>Fill</option>';
+      html += '<option value="FIXED"' + (sizingInfo.sizingW === 'FIXED' ? ' selected' : '') + '>Fixed</option>';
+      html += '</select></div>';
+
+      // Height sizing
+      html += '<div class="field"><span class="label">Height</span>';
+      html += '<select class="bf-input" onchange="setMultiFrameProp(\'sizing_h\',this.value)">';
+      if (sizingInfo.hMixed) html += '<option value="" selected>Mixed</option>';
+      html += '<option value="HUG"' + (sizingInfo.sizingH === 'HUG' ? ' selected' : '') + '>Hug</option>';
+      html += '<option value="FILL"' + (sizingInfo.sizingH === 'FILL' ? ' selected' : '') + '>Fill</option>';
+      html += '<option value="FIXED"' + (sizingInfo.sizingH === 'FIXED' ? ' selected' : '') + '>Fixed</option>';
+      html += '</select></div>';
+
+      html += '</div>';
+    }
+
+    // ── Bulk style picker ──
+    const styleInfo = _getMultiStyleValues(info.items);
+    if (styleInfo) {
+      html += '<div class="field" style="margin-top:6px"><span class="label">Style (' + styleInfo.count + ' boxes)</span><br>';
+      html += '<select class="style-picker bf-input" onchange="applyMultiStyleOverride(this.value)">';
+      if (styleInfo.mixed) html += '<option value="__mixed__" selected>Mixed</option>';
+      html += renderBoxStyleOptions(styleInfo.mixed ? '__nomatch__' : styleInfo.style, { originalLabel: '— original —' });
+      html += '</select></div>';
+    }
+  }
+
   html += '<p class="dg-selection-note">All actions snap to the 8px baseline and remain undoable.</p>';
   inspector.innerHTML = html;
 }
+
+/**
+ * Read the common sizing_w / sizing_h across all selected items.
+ * Returns null if none of the items are v3 frame nodes.
+ */
+function _getMultiSizingValues(items) {
+  let firstW = null, firstH = null;
+  let wMixed = false, hMixed = false;
+  let hasAny = false;
+
+  for (const item of items) {
+    const node = item.node;
+    if (!node) continue;
+    const ovr = overrides[item.id] || {};
+    const sw = ovr.sizing_w || node.sizing_w || null;
+    const sh = ovr.sizing_h || node.sizing_h || null;
+    if (!sw && !sh) continue; // not a v3 frame node
+    hasAny = true;
+    if (firstW === null) firstW = sw || 'HUG';
+    else if (firstW !== (sw || 'HUG')) wMixed = true;
+    if (firstH === null) firstH = sh || 'HUG';
+    else if (firstH !== (sh || 'HUG')) hMixed = true;
+  }
+
+  if (!hasAny) return null;
+  return {
+    sizingW: wMixed ? '' : (firstW || 'HUG'),
+    sizingH: hMixed ? '' : (firstH || 'HUG'),
+    wMixed,
+    hMixed,
+  };
+}
+
+/**
+ * Read shared container properties (direction, gap, padding) across selected items.
+ * Returns null if no containers in selection.
+ */
+function _getMultiContainerValues(items) {
+  let firstDir = null, firstGap = null, firstPad = null;
+  let dirMixed = false, gapMixed = false, padMixed = false;
+  let containerCount = 0;
+
+  for (const item of items) {
+    const node = item.node;
+    if (!node) continue;
+    const isContainer = node.layout || (node.children && node.children.length > 0);
+    if (!isContainer) continue;
+    containerCount++;
+    const ovr = overrides[item.id] || {};
+    const dir = ovr.direction || (node.layout === 'horizontal' ? 'HORIZONTAL' : 'VERTICAL');
+    const gap = ovr.gap !== undefined ? ovr.gap : (node.layoutGap || 24);
+    const pad = ovr.padding !== undefined ? ovr.padding : (node.padding_top !== undefined ? node.padding_top : 8);
+    if (firstDir === null) firstDir = dir; else if (firstDir !== dir) dirMixed = true;
+    if (firstGap === null) firstGap = gap; else if (firstGap !== gap) gapMixed = true;
+    if (firstPad === null) firstPad = pad; else if (firstPad !== pad) padMixed = true;
+  }
+
+  if (containerCount === 0) return null;
+  return {
+    containerCount,
+    direction: dirMixed ? '' : firstDir,
+    gap: gapMixed ? '' : firstGap,
+    padding: padMixed ? '' : firstPad,
+    dirMixed, gapMixed, padMixed,
+  };
+}
+
+/**
+ * Read shared alignment across selected items.
+ * Returns null if no v3 frame nodes, or {align, mixed}.
+ */
+function _getMultiAlignValues(items) {
+  let first = null, mixed = false, hasAny = false;
+  for (const item of items) {
+    const node = item.node;
+    if (!node) continue;
+    if (!node.sizing_w && !node.sizing_h && !node.align) continue;
+    hasAny = true;
+    const ovr = overrides[item.id] || {};
+    const align = ovr.align || node.align || 'TOP_LEFT';
+    if (first === null) first = align; else if (first !== align) mixed = true;
+  }
+  if (!hasAny) return null;
+  return { align: mixed ? '' : first, mixed };
+}
+
+/**
+ * Read shared style across selected box/panel/terminal items.
+ * Returns null if no styleable items, or {style, mixed, count}.
+ */
+function _getMultiStyleValues(items) {
+  let first = null, mixed = false, count = 0;
+  for (const item of items) {
+    const ctype = getComponentType(item.id).toLowerCase();
+    if (ctype !== 'box' && ctype !== 'panel' && ctype !== 'terminal') continue;
+    count++;
+    const ovr = overrides[item.id] || {};
+    const style = ovr.style || '';
+    if (first === null) first = style; else if (first !== style) mixed = true;
+  }
+  if (count === 0) return null;
+  return { style: mixed ? '__mixed__' : first, mixed, count };
+}
+
+/**
+ * Apply alignment to ALL selected items, then trigger a single relayout.
+ */
+function setMultiFrameAlign(align) {
+  const ids = [...selectedIds];
+  const maiBefore = _captureOverrideEntries(ids);
+  for (const cid of ids) {
+    const node = model.get(cid);
+    if (!node) continue;
+    if (node.type === 'arrow' || node.type === 'separator') continue;
+    if (!overrides[cid]) overrides[cid] = {};
+    overrides[cid].align = align;
+  }
+  setDirty(true);
+  commitOverridePatchAction("Change alignment (multi)", maiBefore, _captureOverrideEntries(ids));
+  if (ids.length > 0) {
+    clearTimeout(_v3RelayoutTimer);
+    _v3RelayoutTimer = setTimeout(() => requestV3Relayout(ids[0]), 300);
+  }
+  renderMultiSelectionInspector();
+}
+window.setMultiFrameAlign = setMultiFrameAlign;
+
+/**
+ * Apply style override to ALL selected box/panel/terminal items.
+ */
+function applyMultiStyleOverride(styleName) {
+  const preset = BOX_STYLES[styleName];
+  const ids = [...selectedIds];
+  const msoBefore = _captureOverrideEntries(ids);
+  for (const cid of ids) {
+    const ctype = getComponentType(cid).toLowerCase();
+    if (ctype !== 'box' && ctype !== 'panel' && ctype !== 'terminal') continue;
+    if (ENGINE === "v3") {
+      if (!preset) {
+        if (overrides[cid]) {
+          delete overrides[cid].fill;
+          delete overrides[cid].border;
+          delete overrides[cid].style;
+          model.cleanOverride(cid);
+        }
+      } else {
+        if (!overrides[cid]) overrides[cid] = {};
+        const fillMap = { "#FFFFFF": "WHITE", "#F3F3F3": "GREY", "#000000": "BLACK" };
+        const borderMap = { "solid": "SOLID", "none": "NONE" };
+        overrides[cid].fill = fillMap[preset.fill] || "WHITE";
+        overrides[cid].border = borderMap[preset.border] || "SOLID";
+        overrides[cid].style = styleName;
+      }
+    } else {
+      if (preset) {
+        if (!overrides[cid]) overrides[cid] = {};
+        overrides[cid].style = styleName;
+      } else {
+        if (overrides[cid]) {
+          delete overrides[cid].style;
+          model.cleanOverride(cid);
+        }
+      }
+    }
+  }
+  setDirty(true);
+  commitOverridePatchAction("Change style (multi)", msoBefore, _captureOverrideEntries(ids));
+  if (ENGINE === "v3") {
+    clearTimeout(_v3RelayoutTimer);
+    _v3RelayoutTimer = setTimeout(() => requestV3Relayout(ids[0]), 300);
+  }
+  renderMultiSelectionInspector();
+  applyAllOverrides();
+  reapplySelection();
+  runConstraints();
+}
+window.applyMultiStyleOverride = applyMultiStyleOverride;
+
+/**
+ * Apply a frame property to ALL selected items, then trigger a single relayout.
+ */
+function setMultiFrameProp(prop, value) {
+  if (value === '' || value === null || value === undefined) return; // ignore "Mixed" placeholder
+  if (typeof value === 'number' && !Number.isFinite(value)) return; // ignore NaN from empty input
+
+  // For container-only props, only apply to containers
+  const containerProps = new Set(['direction', 'gap', 'padding']);
+  const isContainerProp = containerProps.has(prop);
+
+  // Clamp numeric frame properties
+  if (prop === 'gap' || prop === 'padding') {
+    value = Math.max(0, Number.isFinite(value) ? value : 0);
+  }
+
+  const ids = [...selectedIds];
+  const mfpBefore = _captureOverrideEntries(ids);
+  for (const cid of ids) {
+    const node = model.get(cid);
+    if (!node) continue;
+    // Skip non-frame nodes (arrows, separators)
+    if (node.type === "arrow" || node.type === "separator") continue;
+    // Container-only props skip leaf nodes
+    if (isContainerProp) {
+      const isContainer = node.layout || (node.children && node.children.length > 0);
+      if (!isContainer) continue;
+    }
+
+    if (!overrides[cid]) overrides[cid] = {};
+    overrides[cid][prop] = value;
+    _coercedKeys.delete(cid + ':' + prop);
+
+    // FIXED captures current placed size (guard node.data for un-laid-out nodes)
+    if ((prop === 'sizing_w' || prop === 'sizing_h') && value === 'FIXED' && node.data) {
+      if (prop === 'sizing_w' && overrides[cid].width === undefined) {
+        overrides[cid].width = Math.round(node.data.width);
+      }
+      if (prop === 'sizing_h' && overrides[cid].height === undefined) {
+        overrides[cid].height = Math.round(node.data.height);
+      }
+    }
+    // Switching away from FIXED clears the captured size
+    if (prop === 'sizing_w' && value !== 'FIXED') {
+      delete overrides[cid].width;
+    }
+    if (prop === 'sizing_h' && value !== 'FIXED') {
+      delete overrides[cid].height;
+    }
+  }
+
+  setDirty(true);
+  commitOverridePatchAction("Change " + prop + " (multi)", mfpBefore, _captureOverrideEntries(ids));
+
+  // Single debounced relayout for the batch (guard empty selection)
+  if (ids.length > 0) {
+    clearTimeout(_v3RelayoutTimer);
+    _v3RelayoutTimer = setTimeout(() => requestV3Relayout(ids[0]), 300);
+  }
+
+  // Refresh inspector
+  renderMultiSelectionInspector();
+}
+window.setMultiFrameProp = setMultiFrameProp;
 
 function applyAllOverrides() {
   const svg = document.querySelector("#stage svg");
@@ -1263,45 +1697,72 @@ function applyAllOverrides() {
 
     const ctx = getMeasureCtx();
     const ns = "http://www.w3.org/2000/svg";
-    const specs = []; // { content, fontSize, fontWeight, fill, x, scAttr, ffAttr }
 
+    // --- Phase 1: Join consecutive same-style tspans into runs ---
+    // Without this, widening a box can't merge lines that were previously
+    // wrapped at a narrower width (each narrow tspan still fits, so the
+    // split-only logic below would keep them as-is).
+    const runs = []; // { text, fontSize, fontWeight, fill, x, scAttr, lsAttr, ffAttr }
     for (const ts of tspans) {
       const fontSize = ts.getAttribute("font-size") || "14";
       const fontWeight = ts.getAttribute("font-weight") || "400";
       const fill = ts.getAttribute("fill") || "#000";
       const x = ts.getAttribute("x");
       const content = ts.textContent;
-      // Preserve font-variant and font-family
       const scAttr = ts.getAttribute("font-variant-caps") || "";
       const lsAttr = ts.getAttribute("letter-spacing") || "";
       const ffAttr = ts.getAttribute("font-family") || "";
 
-      ctx.font = fontWeight + " " + fontSize + "px 'Ubuntu Sans', sans-serif";
-      const textW = ctx.measureText(content).width;
+      const prev = runs.length > 0 ? runs[runs.length - 1] : null;
+      const sameStyle = prev
+        && prev.fontSize === fontSize
+        && prev.fontWeight === fontWeight
+        && prev.fill === fill
+        && prev.scAttr === scAttr
+        && prev.lsAttr === lsAttr
+        && prev.ffAttr === ffAttr;
 
-      if (textW <= availW) {
-        specs.push({ content, fontSize, fontWeight, fill, x, scAttr, lsAttr, ffAttr });
+      if (sameStyle && prev.text !== "" && content !== "") {
+        // Merge into the previous run (space-join wrapped fragments)
+        prev.text += " " + content;
+      } else {
+        runs.push({ text: content, fontSize, fontWeight, fill, x, scAttr, lsAttr, ffAttr });
+      }
+    }
+
+    // --- Phase 2: Re-wrap each run at the new available width ---
+    const specs = [];
+    for (const run of runs) {
+      ctx.font = run.fontWeight + " " + run.fontSize + "px 'Ubuntu Sans', sans-serif";
+
+      if (!run.text || ctx.measureText(run.text).width <= availW) {
+        specs.push({ content: run.text, fontSize: run.fontSize, fontWeight: run.fontWeight,
+          fill: run.fill, x: run.x, scAttr: run.scAttr, lsAttr: run.lsAttr, ffAttr: run.ffAttr });
       } else {
         // Word-wrap at word boundaries
-        const words = content.split(/(\s+)/); // preserve whitespace
+        const words = run.text.split(/(\s+)/);
         let line = "";
         for (const word of words) {
           const test = line + word;
           if (ctx.measureText(test.trim()).width > availW && line.trim()) {
-            specs.push({ content: line.trim(), fontSize, fontWeight, fill, x, scAttr, lsAttr, ffAttr });
+            specs.push({ content: line.trim(), fontSize: run.fontSize, fontWeight: run.fontWeight,
+              fill: run.fill, x: run.x, scAttr: run.scAttr, lsAttr: run.lsAttr, ffAttr: run.ffAttr });
             line = word.trimStart();
           } else {
             line = test;
           }
         }
         if (line.trim()) {
-          specs.push({ content: line.trim(), fontSize, fontWeight, fill, x, scAttr, lsAttr, ffAttr });
+          specs.push({ content: line.trim(), fontSize: run.fontSize, fontWeight: run.fontWeight,
+            fill: run.fill, x: run.x, scAttr: run.scAttr, lsAttr: run.lsAttr, ffAttr: run.ffAttr });
         }
       }
     }
 
-    // Rebuild tspans if wrapping changed the line count
-    if (specs.length !== tspans.length) {
+    // Rebuild tspans if wrapping changed the line count or content
+    const contentChanged = specs.length !== tspans.length
+      || specs.some((s, i) => s.content !== tspans[i].textContent);
+    if (contentChanged) {
       textEl.innerHTML = "";
       let y = firstY;
       for (const spec of specs) {
@@ -2393,10 +2854,11 @@ function onWpDragUp(e) {
   const s = mgr.state;
   if (s && s.hasMoved) {
     // Prune collinear waypoints (dragged onto a straight line between neighbours)
-    const action = beginUndoableAction("Move waypoint");
+    const wpIds = [s.cid];
+    const wpBefore = _captureOverrideEntries(wpIds);
     pruneCollinearWaypoints(s.cid);
     setWaypointOverride(s.cid);
-    commitUndoableAction(action);
+    commitOverridePatchAction("Move waypoint", wpBefore, _captureOverrideEntries(wpIds));
   }
   mgr.endInteraction();
 }
@@ -2445,7 +2907,8 @@ function pruneCollinearWaypoints(cid) {
 function addWaypoint(cid, segIdx, x, y) {
   const node = getArrowNode(cid);
   if (!node) return;
-  const action = beginUndoableAction("Add waypoint");
+  const addWpIds = [cid];
+  const addWpBefore = _captureOverrideEntries(addWpIds);
   if (!node.waypoints) node.waypoints = [];
   const snapX = Math.round(x / 8) * 8;
   const snapY = Math.round(y / 8) * 8;
@@ -2453,18 +2916,19 @@ function addWaypoint(cid, segIdx, x, y) {
   rebuildArrowSVG(cid);
   showArrowWaypointHandles(cid);
   setWaypointOverride(cid);
-  commitUndoableAction(action);
+  commitOverridePatchAction("Add waypoint", addWpBefore, _captureOverrideEntries(addWpIds));
 }
 
 function removeWaypoint(cid, idx) {
   const node = getArrowNode(cid);
   if (!node || !node.waypoints || node.waypoints.length <= 1) return;
-  const action = beginUndoableAction("Remove waypoint");
+  const rmWpIds = [cid];
+  const rmWpBefore = _captureOverrideEntries(rmWpIds);
   node.waypoints.splice(idx, 1);
   rebuildArrowSVG(cid);
   showArrowWaypointHandles(cid);
   setWaypointOverride(cid);
-  commitUndoableAction(action);
+  commitOverridePatchAction("Remove waypoint", rmWpBefore, _captureOverrideEntries(rmWpIds));
 }
 
 function getArrowPoints(cid) {
@@ -2726,15 +3190,28 @@ function startTextEdit(cid, e) {
   });
   if (!textEl) return;
 
-  // Get the text element's bounding box in screen coordinates
-  const tspans = textEl.querySelectorAll("tspan");
-  if (tspans.length === 0) return;
+  // Get semantic text from the component tree (unwrapped, pre-wrapping content)
+  const node = model.get(cid);
+  const headingText = (node && node.data.heading_text) || "";
+  const labelText = (node && node.data.label_text) || [];
+  const hasHeading = !!headingText;
 
-  // Collect existing text content (one line per tspan)
-  const lines = [];
+  // Build semantic lines for the textarea (heading first, then label entries)
+  const semanticLines = [];
+  if (hasHeading) semanticLines.push(headingText);
+  for (const lt of labelText) semanticLines.push(lt);
+
+  // If no semantic text available, fall back to tspan content
+  if (semanticLines.length === 0) {
+    const tspans = textEl.querySelectorAll("tspan");
+    if (tspans.length === 0) return;
+    tspans.forEach(ts => semanticLines.push(ts.textContent));
+  }
+
+  // Read styles from the first tspan for visual appearance
+  const tspans = textEl.querySelectorAll("tspan");
   const styles = [];
   tspans.forEach(ts => {
-    lines.push(ts.textContent);
     styles.push({
       fontSize: ts.getAttribute("font-size") || "14",
       fontWeight: ts.getAttribute("font-weight") || "400",
@@ -2763,10 +3240,11 @@ function startTextEdit(cid, e) {
   const insetPx = 16 * svgScale;
   const editorW = Math.max(containerRect.width - insetPx - iconGutter, 60);
 
-  // Create textarea overlay
+  // Create textarea overlay — shows semantic (unwrapped) text so the user
+  // edits the raw text flow and the engine handles visual line breaking.
   const ta = document.createElement("textarea");
   ta.className = "dg-text-editor";
-  ta.value = lines.join("\n");
+  ta.value = semanticLines.join("\n");
   ta.style.left = (textBBox.left - 4) + "px";
   ta.style.top = (textBBox.top - 4) + "px";
   ta.style.width = editorW + "px";
@@ -2783,7 +3261,7 @@ function startTextEdit(cid, e) {
   // Hide the original text while editing
   textEl.style.opacity = "0";
 
-  mgr.startTextEdit({ cid, textEl, ta, originalLines: lines, styles });
+  mgr.startTextEdit({ cid, textEl, ta, originalLines: semanticLines, styles, hasHeading });
 
   ta.addEventListener("keydown", (ev) => {
     if (ev.key === "Escape") {
@@ -2807,62 +3285,40 @@ function startTextEdit(cid, e) {
 
 function commitTextEdit() {
   if (!mgr.isMode(InteractionMode.TEXT_EDITING)) return;
-  const { cid, textEl, ta, originalLines, styles } = mgr.state;
+  const { cid, textEl, ta, originalLines, hasHeading } = mgr.state;
   const newLines = ta.value.split("\n");
 
   // Check if text actually changed
   const changed = newLines.join("\n") !== originalLines.join("\n");
 
   if (changed) {
-    runUndoableAction("Edit text", () => {
-      setOverride(cid, { text: newLines });
-    });
-  }
-
-  // Update the tspan content
-  const tspans = textEl.querySelectorAll("tspan");
-  const minLen = Math.min(newLines.length, tspans.length);
-
-  // Update existing tspans
-  for (let i = 0; i < minLen; i++) {
-    tspans[i].textContent = newLines[i];
-  }
-
-  // If more lines than tspans, add new tspans
-  if (newLines.length > tspans.length) {
-    const lastTs = tspans[tspans.length - 1];
-    const x = lastTs.getAttribute("x");
-    const lastY = parseFloat(lastTs.getAttribute("y"));
-    const lineStep = tspans.length >= 2
-      ? parseFloat(tspans[1].getAttribute("y")) - parseFloat(tspans[0].getAttribute("y"))
-      : 20;
-    const ns = "http://www.w3.org/2000/svg";
-    for (let i = tspans.length; i < newLines.length; i++) {
-      const ts = document.createElementNS(ns, "tspan");
-      ts.setAttribute("x", x);
-      ts.setAttribute("y", lastY + lineStep * (i - tspans.length + 1));
-      ts.setAttribute("font-size", lastTs.getAttribute("font-size") || "14");
-      ts.setAttribute("font-weight", lastTs.getAttribute("font-weight") || "400");
-      ts.setAttribute("fill", lastTs.getAttribute("fill") || "#000");
-      ts.textContent = newLines[i];
-      textEl.appendChild(ts);
+    // Build structured text override: split into heading + label
+    const textOverride = {};
+    if (hasHeading) {
+      textOverride.heading = newLines[0] || "";
+      textOverride.label = newLines.slice(1);
+    } else {
+      textOverride.heading = "";
+      textOverride.label = newLines;
     }
+    const editIds = [cid];
+    const editBefore = _captureOverrideEntries(editIds);
+    setOverride(cid, { text: textOverride });
+    commitOverridePatchAction("Edit text", editBefore, _captureOverrideEntries(editIds));
   }
 
-  // If fewer lines, remove extra tspans
-  if (newLines.length < tspans.length) {
-    for (let i = tspans.length - 1; i >= newLines.length; i--) {
-      tspans[i].remove();
-    }
-  }
-
-  // Show the text again
+  // Remove the textarea and show text element (will be replaced by relayout)
+  ta.remove();
   textEl.style.opacity = "";
 
-  // Remove the textarea
-  ta.remove();
-
   mgr.endInteraction();
+
+  // Trigger server relayout to re-wrap text at the correct frame width
+  // and resize the box if needed (HUG height).
+  if (changed) {
+    clearTimeout(_v3RelayoutTimer);
+    _v3RelayoutTimer = setTimeout(() => requestV3Relayout(cid), 100);
+  }
 }
 
 function cancelTextEdit() {
@@ -3094,22 +3550,63 @@ function cleanOverride(cid) {
 }
 
 function applyStyleOverride(cid, styleName) {
-  runUndoableAction("Change style", () => {
-    if (styleName && BOX_STYLES[styleName]) {
-      setOverride(cid, { style: styleName });
-    } else {
-      const ovr = overrides[cid];
-      if (ovr) {
-        delete ovr.style;
-        model.cleanOverride(cid);
-      }
-      setDirty(true);
+  if (ENGINE === "v3") {
+    applyV3Style(cid, styleName);
+    return;
+  }
+  const styleIds = [cid];
+  const styleBefore = _captureOverrideEntries(styleIds);
+  if (styleName && BOX_STYLES[styleName]) {
+    setOverride(cid, { style: styleName });
+  } else {
+    const ovr = overrides[cid];
+    if (ovr) {
+      delete ovr.style;
+      model.cleanOverride(cid);
     }
-  });
+    setDirty(true);
+  }
+  commitOverridePatchAction("Change style", styleBefore, _captureOverrideEntries(styleIds));
+}
+
+/**
+ * v3 style override: sets fill + border as frame properties and triggers relayout.
+ */
+function applyV3Style(cid, styleName) {
+  const v3StyleIds = [cid];
+  const v3StyleBefore = _captureOverrideEntries(v3StyleIds);
+  const preset = BOX_STYLES[styleName];
+  if (!preset) {
+    // Reset to definition — clear fill and border overrides
+    if (overrides[cid]) {
+      delete overrides[cid].fill;
+      delete overrides[cid].border;
+      delete overrides[cid].style;
+      model.cleanOverride(cid);
+    }
+    setDirty(true);
+    clearTimeout(_v3RelayoutTimer);
+    _v3RelayoutTimer = setTimeout(() => requestV3Relayout(cid), 300);
+    renderSelectionInspector(cid);
+    commitOverridePatchAction("Change style", v3StyleBefore, _captureOverrideEntries(v3StyleIds));
+    return;
+  }
+  if (!overrides[cid]) overrides[cid] = {};
+  // Map preset fill to frame fill enum value
+  const fillMap = { "#FFFFFF": "WHITE", "#F3F3F3": "GREY", "#000000": "BLACK" };
+  const borderMap = { "solid": "SOLID", "none": "NONE" };  // DASHED gated out of style picker
+  overrides[cid].fill = fillMap[preset.fill] || "WHITE";
+  overrides[cid].border = borderMap[preset.border] || "SOLID";
+  overrides[cid].style = styleName;
+  setDirty(true);
+  clearTimeout(_v3RelayoutTimer);
+  _v3RelayoutTimer = setTimeout(() => requestV3Relayout(cid), 300);
+  renderSelectionInspector(cid);
   applyAllOverrides();
   reapplySelection();
   runConstraints();
   updateInspector(cid);
+  commitOverridePatchAction("Change style", v3StyleBefore, _captureOverrideEntries(v3StyleIds));
 }
 
 // ---- Selection & Inspector ----
@@ -3207,9 +3704,12 @@ function buildAlignWidget(cid, currentAlign) {
   return html;
 }
 function setFrameAlign(cid, align) {
+  const faIds = [cid];
+  const faBefore = _captureOverrideEntries(faIds);
   if (!overrides[cid]) overrides[cid] = {};
   overrides[cid].align = align;
   setDirty(true);
+  commitOverridePatchAction("Change alignment", faBefore, _captureOverrideEntries(faIds));
   renderSelectionInspector(cid);
   // Trigger v3 relayout so alignment change takes effect immediately
   clearTimeout(_v3RelayoutTimer);
@@ -3288,6 +3788,8 @@ function buildAutolayoutPanel(cid, node) {
 
 let _v3RelayoutTimer = null;
 function setFrameProp(cid, prop, value) {
+  const fpIds = [cid];
+  const fpBefore = _captureOverrideEntries(fpIds);
   if (!overrides[cid]) overrides[cid] = {};
 
   // Clamp numeric frame properties to sane ranges
@@ -3304,7 +3806,7 @@ function setFrameProp(cid, prop, value) {
   // so the frame remembers its dimensions instead of falling back to measured.
   if ((prop === 'sizing_w' || prop === 'sizing_h') && value === 'FIXED') {
     const node = model.get(cid);
-    if (node) {
+    if (node && node.data) {
       if (prop === 'sizing_w' && overrides[cid].width === undefined) {
         overrides[cid].width = Math.round(node.data.width);
       }
@@ -3323,6 +3825,7 @@ function setFrameProp(cid, prop, value) {
   }
 
   setDirty(true);
+  commitOverridePatchAction("Change " + prop, fpBefore, _captureOverrideEntries(fpIds));
 
   // Debounce relayout — 300ms after last change
   clearTimeout(_v3RelayoutTimer);
@@ -3340,7 +3843,7 @@ async function requestV3Relayout(triggerCid) {
   const slug = SLUG.replace('v3:', '');
   // Send ALL accumulated frame overrides so the server can apply them together
   const allFrameOverrides = {};
-  const FRAME_KEYS = ['direction', 'gap', 'padding', 'sizing', 'sizing_w', 'sizing_h', 'align', 'width', 'height', 'children_order'];
+  const FRAME_KEYS = ['direction', 'gap', 'padding', 'sizing', 'sizing_w', 'sizing_h', 'align', 'width', 'height', 'min_width', 'max_width', 'min_height', 'max_height', 'children_order', 'fill', 'border', 'text'];
   for (const [fid, ovr] of Object.entries(overrides)) {
     const entry = {};
     for (const key of FRAME_KEYS) {
@@ -3349,6 +3852,10 @@ async function requestV3Relayout(triggerCid) {
     if (Object.keys(entry).length > 0) allFrameOverrides[fid] = entry;
   }
   const payload = { frame_overrides: allFrameOverrides };
+  const gridOverrides = _normaliseGridOverrides(model.gridOverrides || {});
+  if (Object.keys(gridOverrides).length > 0) {
+    payload.grid_overrides = gridOverrides;
+  }
   try {
     const resp = await fetch('/api/relayout-v3/' + slug, {
       method: 'POST',
@@ -3415,6 +3922,27 @@ async function requestV3Relayout(triggerCid) {
         bindInteraction();
         applyAllOverrides();
         reapplySelection();
+        if (data.grid_info) {
+          gridInfo = data.grid_info;
+          baseGridInfo = _cloneState(data.grid_info);
+          model.setDiagramGrid(gridInfo);
+          const request = _gridRequestValues(model.gridOverrides || {});
+          const hasSavedCols = Number.isFinite((model.gridOverrides || {}).cols);
+          const hasSavedColGap = Number.isFinite((model.gridOverrides || {}).col_gap);
+          const hasSavedRowGap = Number.isFinite((model.gridOverrides || {}).row_gap);
+          const hasSavedMargin = Number.isFinite((model.gridOverrides || {}).outer_margin);
+          const nextCols = hasSavedCols ? request.cols : ((gridInfo.col_xs || []).length || 1);
+          const nextColGap = hasSavedColGap ? request.colGap : (gridInfo.col_gap ?? 0);
+          const nextRowGap = hasSavedRowGap ? request.rowGap : (gridInfo.row_gap ?? 0);
+          const nextMargin = hasSavedMargin ? request.outerMargin : (gridInfo.outer_margin ?? 0);
+
+          document.getElementById("grid-cols").value = nextCols;
+          document.getElementById("grid-col-gap").value = nextColGap;
+          document.getElementById("grid-row-gap").value = nextRowGap;
+          document.getElementById("grid-margin").value = nextMargin;
+          populateGridControls();
+          renderGridOverlay();
+        }
       }
     }
   } catch (e) {
@@ -3560,7 +4088,8 @@ async function saveOverrides() {
 }
 
 function clearOverride(cid) {
-  const action = beginUndoableAction("Clear override");
+  const clearIds = [cid];
+  const clearBefore = _captureOverrideEntries(clearIds);
   const hadWaypoints = overrides[cid] && overrides[cid].waypoints;
   model.clearOverride(cid);
   setDirty(true);
@@ -3575,7 +4104,7 @@ function clearOverride(cid) {
     applyAllOverrides();
     if (selectedIds.has(cid)) updateInspector(cid);
   }
-  commitUndoableAction(action);
+  commitOverridePatchAction("Clear override", clearBefore, _captureOverrideEntries(clearIds));
 }
 
 function updateOverrideSummary() {
@@ -3595,6 +4124,43 @@ function refreshTreeColors() {
   });
 }
 
+function _downloadTextFile(filename, content, mimeType) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function _currentSvgFilename() {
+  const baseSlug = SLUG.replace(/^v3:/, "");
+  if (ENGINE === "v3") return baseSlug + "-onbrand-v3.svg";
+  const suffix = GRID ? `-${ENGINE}-grid.svg` : `-${ENGINE}.svg`;
+  return baseSlug + "-onbrand" + suffix;
+}
+
+function saveCurrentSvg() {
+  const svg = document.querySelector("#stage svg");
+  if (!svg) {
+    alert("No SVG is loaded.");
+    return;
+  }
+  const clone = svg.cloneNode(true);
+  if (!clone.getAttribute("xmlns")) {
+    clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  }
+  if (!clone.getAttribute("xmlns:xlink")) {
+    clone.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
+  }
+  const serialized = new XMLSerializer().serializeToString(clone);
+  const prolog = serialized.startsWith("<?xml") ? "" : '<?xml version="1.0" encoding="UTF-8"?>\n';
+  _downloadTextFile(_currentSvgFilename(), prolog + serialized + "\n", "image/svg+xml;charset=utf-8");
+}
+
 document.getElementById("btn-export").addEventListener("click", () => {
   const entries = Object.entries(overrides).filter(([,d]) =>
     (d.dx||0) !== 0 || (d.dy||0) !== 0 || (d.dw||0) !== 0 || (d.dh||0) !== 0 || d.waypoints);
@@ -3609,6 +4175,8 @@ document.getElementById("btn-export").addEventListener("click", () => {
   }
   navigator.clipboard.writeText(lines.join("\n")).then(() => alert("Copied to clipboard."));
 });
+
+document.getElementById("btn-save-svg").addEventListener("click", saveCurrentSvg);
 
 function setDirty(dirty) {
   isDirty = dirty;
@@ -3642,6 +4210,14 @@ document.getElementById("btn-clear-all").addEventListener("click", () => {
 
 // Keyboard shortcuts: Ctrl+S to save, Ctrl+Z to undo, Ctrl+Shift+Z/Ctrl+Y to redo, arrows to nudge
 document.addEventListener("keydown", (e) => {
+  // Alt+1 / Alt+2: toggle left / right sidebars
+  if (e.altKey && (e.key === "1" || e.key === "2") && !e.ctrlKey && !e.metaKey) {
+    e.preventDefault();
+    const app = document.querySelector(".dg-preview-app");
+    if (!app) return;
+    app.classList.toggle(e.key === "1" ? "is-nav-hidden" : "is-aside-hidden");
+    return;
+  }
   if (e.ctrlKey && e.key === "s") {
     e.preventDefault();
     if (isDirty) {
@@ -3703,17 +4279,18 @@ document.addEventListener("keydown", (e) => {
     if (anyAutolayout) return;
     e.preventDefault();
     const step = e.shiftKey ? 24 : 8;
-    runUndoableAction("Nudge selection", () => {
-      selectedIds.forEach(id => {
-        const own = getOwnDelta(id);
-        let dx = own.dx, dy = own.dy;
-        if (e.key === "ArrowUp") dy -= step;
-        else if (e.key === "ArrowDown") dy += step;
-        else if (e.key === "ArrowLeft") dx -= step;
-        else if (e.key === "ArrowRight") dx += step;
-        setOverride(id, { dx, dy });
-      });
+    const nudgeIds = [...selectedIds];
+    const nudgeBefore = _captureOverrideEntries(nudgeIds);
+    selectedIds.forEach(id => {
+      const own = getOwnDelta(id);
+      let dx = own.dx, dy = own.dy;
+      if (e.key === "ArrowUp") dy -= step;
+      else if (e.key === "ArrowDown") dy += step;
+      else if (e.key === "ArrowLeft") dx -= step;
+      else if (e.key === "ArrowRight") dx += step;
+      setOverride(id, { dx, dy });
     });
+    commitOverridePatchAction("Nudge selection", nudgeBefore, _captureOverrideEntries(nudgeIds));
     applyAllOverrides();
     const primary = [...selectedIds].pop();
     if (primary) showResizeHandles(primary);
@@ -4263,14 +4840,51 @@ connectSSE();
 
   if (splitToggle) {
     splitToggle.addEventListener("click", () => {
-      const current = stageShell.dataset.splitDirection || "horizontal";
-      setSplitDirection(current === "horizontal" ? "vertical" : "horizontal");
+      const current = stageShell.dataset.splitDirection || "vertical";
+      const next = current === "horizontal" ? "vertical" : "horizontal";
+      setSplitDirection(next);
+      try { localStorage.setItem("diagram-generator:split-direction", next); } catch {}
     });
-    setSplitDirection("horizontal");
+    const savedSplit = (() => { try { return localStorage.getItem("diagram-generator:split-direction"); } catch { return null; } })();
+    setSplitDirection(savedSplit || "vertical");
   }
 
   tabs.forEach((tab) => {
-    tab.addEventListener("click", () => setViewModeWithToggle(tab.dataset.viewMode || "output"));
+    tab.addEventListener("click", () => {
+      const mode = tab.dataset.viewMode || "output";
+      setViewModeWithToggle(mode);
+      try { localStorage.setItem("diagram-generator:view-mode", mode); } catch {}
+    });
   });
-  setViewModeWithToggle(hasReference ? "both" : "output");
+  const savedMode = (() => { try { return localStorage.getItem("diagram-generator:view-mode"); } catch { return null; } })();
+  setViewModeWithToggle(savedMode || "output");
+})();
+
+// ---- Left sidebar tabs (Browse / Layers) ----
+(function initNavTabs() {
+  const tabs = Array.from(document.querySelectorAll(".dg-nav-tab"));
+  const panes = Array.from(document.querySelectorAll(".dg-nav-pane"));
+  if (tabs.length === 0 || panes.length === 0) return;
+
+  function activateTab(tab) {
+    tabs.forEach(t => {
+      const active = t === tab;
+      t.classList.toggle("is-active", active);
+      t.setAttribute("aria-selected", String(active));
+      t.setAttribute("tabindex", active ? "0" : "-1");
+    });
+    panes.forEach(p => {
+      const show = p.id === tab.getAttribute("aria-controls");
+      p.classList.toggle("is-active", show);
+      p.hidden = !show;
+    });
+  }
+
+  tabs.forEach(tab => tab.addEventListener("click", () => activateTab(tab)));
+
+  // Browse links navigate via normal <a> clicks — scroll active into view
+  const activeLink = document.querySelector(".dg-browse-link.is-active");
+  if (activeLink) {
+    requestAnimationFrame(() => activeLink.scrollIntoView({ block: "nearest" }));
+  }
 })();

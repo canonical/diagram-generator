@@ -92,6 +92,10 @@ class Frame:
     sizing_h: Sizing = Sizing.HUG   # how this node sizes on Y
     width: int | None = None    # explicit width (when sizing_w=FIXED)
     height: int | None = None   # explicit height (when sizing_h=FIXED)
+    min_width: int | None = None
+    max_width: int | None = None
+    min_height: int | None = None
+    max_height: int | None = None
 
     # ── Per-side padding (default: inherit from ``padding``) ──
     padding_top: int | None = None
@@ -108,6 +112,7 @@ class Frame:
 
     # ── Content (leaf) ──
     label: list[Line] = field(default_factory=list)
+    role: str = ""               # e.g. "separator" for dashed line rendering
 
     # ── Children (container) ──
     children: list[Frame] = field(default_factory=list)
@@ -130,6 +135,19 @@ class Frame:
             self.padding_bottom = self.padding
         if self.padding_left is None:
             self.padding_left = self.padding
+        # Validate min/max constraints
+        for attr in ("min_width", "max_width", "min_height", "max_height"):
+            v = getattr(self, attr)
+            if v is not None and v < 0:
+                raise ValueError(f"{attr} cannot be negative, got {v}")
+        if (self.min_width is not None and self.max_width is not None
+                and self.min_width > self.max_width):
+            raise ValueError(
+                f"min_width ({self.min_width}) > max_width ({self.max_width})")
+        if (self.min_height is not None and self.max_height is not None
+                and self.min_height > self.max_height):
+            raise ValueError(
+                f"min_height ({self.min_height}) > max_height ({self.max_height})")
 
     @property
     def is_leaf(self) -> bool:
@@ -150,3 +168,7 @@ class FrameDiagram:
     title: str = ""
     root: Frame = field(default_factory=Frame)
     arrows: list = field(default_factory=list)  # list of Arrow from diagram_model
+    grid_cols: int = 2
+    grid_col_gap: int | None = None
+    grid_row_gap: int | None = None
+    grid_outer_margin: int | None = None
