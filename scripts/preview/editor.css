@@ -108,12 +108,6 @@ body.dg-preview {
 }
 
 /* Nav tabs (Browse / Layers) */
-.dg-nav-tabs-header {
-       padding-block: 0;
-}
-.dg-nav-tabs .bf-tabs-list {
-       gap: 0;
-}
 .dg-nav-pane {
        display: none;
        flex: 1 1 auto;
@@ -533,16 +527,6 @@ body.dg-preview {
 
 .dg-view-tabs {
        min-inline-size: 0;
-}
-
-.dg-view-controls :where(.bf-tabs-list) {
-       margin-block-start: 0;
-       margin-block-end: 0;
-}
-
-.dg-view-controls :where(.bf-tabs-link) {
-       margin-block-end: 0;
-       min-inline-size: 5.5rem;
 }
 
 .dg-stage-layout {
