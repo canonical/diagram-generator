@@ -614,6 +614,12 @@ function renderGridOverlay() {
     if (resolvedBottom != null && resolvedBottom > margin + 1) {
       addRect(g, ns, 0, svgH - resolvedBottom, svgW, resolvedBottom, "rgba(235,180,65,0.10)");
     }
+
+    // Same for column widths: right margin absorbs leftover after baseline-snapping.
+    const resolvedRight = gridInfo.resolved_right_margin ?? gridInfo._resolved_right_margin;
+    if (resolvedRight != null && resolvedRight > margin + 1) {
+      addRect(g, ns, svgW - resolvedRight, 0, resolvedRight, svgH, "rgba(235,180,65,0.10)");
+    }
   }
 
   // Insert overlay just before the closing of the SVG so it sits on top
@@ -697,9 +703,12 @@ function _computeBrockmanGrid(svgW, svgH, cols, colGap, rowGap, margin) {
   const contentH = svgH - 2 * margin;
 
   // ---- Columns ----
-  const colW = cols > 1
+  const colWRaw = cols > 1
     ? (contentW - (cols - 1) * colGap) / cols
     : contentW;
+  const colW = colWRaw >= BASELINE_STEP
+    ? Math.floor(colWRaw / BASELINE_STEP) * BASELINE_STEP
+    : Math.max(BASELINE_STEP, Math.round(colWRaw));
   const colXs = [];
   const colWidths = [];
   for (let c = 0; c < cols; c++) {
@@ -739,8 +748,9 @@ function _computeBrockmanGrid(svgW, svgH, cols, colGap, rowGap, margin) {
     row_ys: rowYs, row_heights: rowHeights,
     col_gap: colGap, row_gap: rowGapSnapped,
     outer_margin: margin,
-    // Brockman-specific: resolved bottom margin (absorbs slack)
+    // Brockman-specific: resolved margins (absorb slack)
     _resolved_bottom_margin: svgH - margin - (rowCount > 0 ? rowYs[rowCount - 1] + rowH : 0),
+    _resolved_right_margin: svgW - margin - (cols > 0 ? colXs[cols - 1] + colW : 0),
     _baseline_step: BASELINE_STEP,
   };
 }

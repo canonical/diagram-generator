@@ -392,9 +392,9 @@ These rules are now part of the frame-YAML contract. Changing any of them requir
 
 The editor now has a proper Brockman composition grid (baseline-snapped rows, equal columns, bottom-margin absorption). Next steps to make it a real InDesign-like layout tool:
 
-- [ ] `[H]` **Snap to grid.** Drag and resize should snap to column edges, row tops, and baseline grid lines — not just the 8px graph-paper grid. The current snap stops short of or overshoots grid lines.
-- [ ] `[H]` **Column-span width input.** The inspector's Width/Height fields should accept either px values or column/row spans. Add a units dropdown (`px` / `cols` / `rows`) before the width/height fields. When set to `cols`, the width is computed as `columnWidth * span + colGap * (span - 1)` and the frame resizes to match. When set to `rows`, same for height.
-- [ ] `[S]` **Multi-select bulk sizing.** Select multiple items, set their width to e.g. "2 cols" and all adjust to 2-column width simultaneously.
+- [x] `[S]` **Baseline-snap column widths.** Column widths are currently raw `contentW / cols` — not snapped to `BASELINE_STEP`. Snap column widths down to 8px multiples; absorb leftover into a resolved right margin (matching the row→bottom pattern). Update both `_computeBrockmanGrid()` in editor.js and `_build_grid_info()` in layout_v3.py. Prerequisite for column-span input and grid-aware snapping.
+- [ ] `[H]` **Snap to grid.** Drag and resize should snap to column edges, row tops, and baseline grid lines — not just the 8px graph-paper grid. The current snap stops short of or overshoots grid lines. Depends on baseline-snapped columns.
+- [ ] `[H]` **Column-span width input.** Add a units dropdown (`px` / `cols` / `rows`) next to the sizing mode in the inspector. When unit = `cols`, width = `colW * span + colGap * (span - 1)`. When unit = `rows`, height = `rowH * span + rowGap * (span - 1)`. Apply to both single-select and multi-select inspectors. `gridInfo` is already globally accessible. Depends on baseline-snapped columns.
 - [ ] `[S]` **Grid-aware resize.** When dragging a resize handle, show snap indicators at column/row edges and snap to them with priority over the baseline grid.
 - [ ] `[L]` **Persist grid config.** Save the Brockman grid settings (cols, col gutter, row gutter, margin) per diagram so they survive page reload.
 

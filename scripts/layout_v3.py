@@ -220,9 +220,11 @@ def _build_grid_info(diagram: FrameDiagram, root: Frame) -> GridInfo:
     content_w = max(0, svg_w - 2 * outer_margin)
     content_h = max(0, svg_h - 2 * outer_margin)
 
-    col_w = ((content_w - (cols - 1) * col_gap) / cols) if cols > 1 else content_w
+    col_w_raw = ((content_w - (cols - 1) * col_gap) / cols) if cols > 1 else content_w
+    col_w = int((col_w_raw // BASELINE_UNIT) * BASELINE_UNIT) if col_w_raw >= BASELINE_UNIT else max(BASELINE_UNIT, int(col_w_raw))
     col_xs = [outer_margin + c * (col_w + col_gap) for c in range(cols)]
     col_widths = [col_w for _ in range(cols)]
+    resolved_right_margin = svg_w - outer_margin - (col_xs[-1] + col_w) if col_xs else outer_margin
 
     row_gap_snapped = int((max(0, row_gap) // BASELINE_UNIT) * BASELINE_UNIT)
     row_count = 1
@@ -251,6 +253,7 @@ def _build_grid_info(diagram: FrameDiagram, root: Frame) -> GridInfo:
         row_gap=row_gap_snapped,
         outer_margin=outer_margin,
         resolved_bottom_margin=int(max(0, round(resolved_bottom_margin))),
+        resolved_right_margin=int(max(0, round(resolved_right_margin))),
         baseline_step=BASELINE_UNIT,
     )
 

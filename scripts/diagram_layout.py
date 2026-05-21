@@ -209,6 +209,7 @@ class GridInfo:
     row_gap: int
     outer_margin: int
     resolved_bottom_margin: int | None = None
+    resolved_right_margin: int | None = None
     baseline_step: int | None = None
 
 
