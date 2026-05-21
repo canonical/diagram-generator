@@ -1,0 +1,117 @@
+engine: v3
+title: "Android graphics stack"
+grid:
+  cols: 2
+  col_gap: 24
+  row_gap: 32
+  outer_margin: 24
+arrows:
+  - source: apps
+    target: runtime
+  - source: runtime
+    target: composition
+  - source: composition
+    target: kernel_gfx
+  - source: kernel_gfx
+    target: display
+root:
+  id: page
+  direction: vertical
+  gap: 32
+  padding: 24
+  border: none
+  children:
+    # Row 0: Applications
+    - id: row_apps
+      direction: horizontal
+      gap: 24
+      border: none
+      children:
+        - id: apps
+          label:
+            - {text: Applications, weight: "700"}
+            - "• OpenGL / Vulkan"
+            - "• UI toolkits"
+          fill: grey
+          icon: Mobile.svg
+          width: 288
+        - id: note_apps
+          label: [Applications render into GPU-backed buffers]
+          border: none
+          sizing_w: hug
+
+    # Row 1: Android Graphics Runtime
+    - id: row_runtime
+      direction: horizontal
+      gap: 24
+      border: none
+      children:
+        - id: runtime
+          label:
+            - {text: Android graphics runtime, weight: "700"}
+            - "• EGL"
+            - "• Vulkan loader"
+            - "• Buffer management abstractions"
+          fill: white
+          icon: Gateway.svg
+          width: 288
+        - id: note_runtime
+          label:
+            - EGL connects rendering APIs
+            - to the native buffer system
+          border: none
+          sizing_w: hug
+
+    # Row 2: System Composition and Display Policy
+    - id: row_composition
+      direction: horizontal
+      gap: 24
+      border: none
+      children:
+        - id: composition
+          label:
+            - {text: "System composition and display policy", weight: "700"}
+            - "• SurfaceFlinger"
+            - "• HWComposer (capability & policy)"
+          fill: grey
+          icon: Composable.svg
+          width: 288
+        - id: note_composition
+          label: [SurfaceFlinger composes buffers into a frame]
+          border: none
+          sizing_w: hug
+
+    # Row 3: Kernel Graphics & Display Subsystems
+    - id: row_kernel
+      direction: horizontal
+      gap: 24
+      border: none
+      children:
+        - id: kernel_gfx
+          label:
+            - {text: "Kernel graphics & display subsystems", weight: "700"}
+            - "• DRM / KMS"
+            - "• GPU drivers"
+            - "• Memory & synchronization primitives"
+          fill: white
+          icon: kernel.svg
+          width: 288
+        - id: note_kernel
+          label:
+            - HWComposer and kernel graphics subsystems
+            - interact with the GPU and display hardware
+          border: none
+          sizing_w: hug
+
+    # Row 4: Display output
+    - id: row_display
+      direction: horizontal
+      gap: 24
+      border: none
+      children:
+        - id: display
+          label:
+            - {text: Display output, weight: "700"}
+          fill: grey
+          icon: Desktop monitor.svg
+          width: 288

@@ -13,6 +13,7 @@ root:
     - id: header
       label: [Header — HUG]
       icon: Cloud.svg
+      sizing: hug
     - id: fill_a
       label: [Fill A]
       sizing: fill

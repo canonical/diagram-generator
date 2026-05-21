@@ -13,6 +13,7 @@ root:
     - id: hug_box
       label: [HUG — shrinks to content]
       icon: Cloud.svg
+      sizing: hug
     - id: fill_box
       label: [FILL — takes remaining space]
       sizing: fill
@@ -23,4 +24,4 @@ root:
       width: 432
       height: 120
       fill: grey
-      border: dashed
+      border: solid

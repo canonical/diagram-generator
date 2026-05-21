@@ -18,11 +18,12 @@ root:
       width: 432
       height: 352
       align: center
-      border: dashed
+      border: solid
       fill: grey
       heading: Alignment test
       children:
         - id: small_box
           label: [Small box — change alignment]
+          sizing: fixed
           width: 192
           height: 64

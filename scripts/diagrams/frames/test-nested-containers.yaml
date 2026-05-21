@@ -14,7 +14,7 @@ root:
       direction: horizontal
       gap: 8
       padding: 8
-      border: dashed
+      border: solid
       fill: grey
       heading: Horizontal group
       children:
