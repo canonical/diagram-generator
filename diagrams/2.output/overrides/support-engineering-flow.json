@@ -1,0 +1,10 @@
+{
+  "definition_hash": "",
+  "overrides": {},
+  "format_version": 1,
+  "grid_overrides": {
+    "col_gap": 48,
+    "row_gap": 48,
+    "outer_margin": 24
+  }
+}

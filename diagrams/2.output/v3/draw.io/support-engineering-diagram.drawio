@@ -1,0 +1,46 @@
+<mxfile host="app.diagrams.net" agent="diagram-generator">
+  <diagram name="Android container vs VM architecture" id="declarative">
+    <mxGraphModel dx="2040" dy="1123" grid="0" gridSize="8" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="816" pageHeight="576" background="light-dark(#ffffff, #ffffff)" math="0" shadow="0" adaptiveColors="none">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="BRu9WUJl3DfNQQp679wE-24" edge="1" parent="1" source="4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=blockThin;endFill=1;strokeColor=#E95420;" target="BRu9WUJl3DfNQQp679wE-23" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="4" data-dg-role="box" data-dg-source="diagram-generator" data-dg-style-tokens="box-default" parent="1" style="rounded=0;whiteSpace=wrap;html=1;shadow=0;fillColor=#F3F3F3;strokeColor=none;strokeWidth=1;fontFamily=Ubuntu Sans;fontSize=18;container=0;align=left;spacing=0;spacingLeft=8;verticalAlign=top;spacingBottom=8;spacingRight=24;" tags="dg-generated dg-role-box dg-token-box-default" value="&lt;div&gt;&lt;b&gt;The problem&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;b&gt;&lt;br&gt;&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;Databases have crawled to a halt.&amp;nbsp;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;Services are&lt;/span&gt;&lt;div&gt;unusably slow.&lt;/div&gt;" vertex="1">
+          <mxGeometry height="280" width="232" as="geometry" />
+        </mxCell>
+        <mxCell id="BRu9WUJl3DfNQQp679wE-23" data-dg-role="box" data-dg-source="diagram-generator" data-dg-style-tokens="box-default" parent="1" style="rounded=0;whiteSpace=wrap;html=1;shadow=0;fillColor=#F3F3F3;strokeColor=none;strokeWidth=1;fontFamily=Ubuntu Sans;fontSize=18;container=0;align=left;spacing=0;spacingLeft=8;verticalAlign=top;spacingBottom=8;spacingRight=24;" tags="dg-generated dg-role-box dg-token-box-default" value="&lt;div&gt;&lt;b&gt;The initial investigation&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;Customer believes getent to be the issue.&amp;nbsp;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;They open a support ticket.&lt;/div&gt;" vertex="1">
+          <mxGeometry height="280" width="232" x="264" as="geometry" />
+        </mxCell>
+        <mxCell id="BRu9WUJl3DfNQQp679wE-25" data-dg-role="box" data-dg-source="diagram-generator" data-dg-style-tokens="box-default" parent="1" style="rounded=0;whiteSpace=wrap;html=1;shadow=0;fillColor=#F3F3F3;strokeColor=none;strokeWidth=1;fontFamily=Ubuntu Sans;fontSize=18;container=0;align=left;spacing=0;spacingLeft=8;verticalAlign=top;spacingBottom=8;spacingRight=24;" tags="dg-generated dg-role-box dg-token-box-default" value="&lt;div&gt;&lt;b&gt;Support Engineering analysis&lt;/b&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;The issue isn&#39;t a quick package fix.&lt;br&gt;&lt;br&gt;Canonical Support engineers dive deep into the source code." vertex="1">
+          <mxGeometry height="280" width="232" x="528" as="geometry" />
+        </mxCell>
+        <mxCell id="BRu9WUJl3DfNQQp679wE-26" edge="1" parent="1" source="BRu9WUJl3DfNQQp679wE-23" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=blockThin;endFill=1;strokeColor=#E95420;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" target="BRu9WUJl3DfNQQp679wE-25" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="368" y="152" as="sourcePoint" />
+            <mxPoint x="400" y="152" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="BRu9WUJl3DfNQQp679wE-27" data-dg-role="box" data-dg-source="diagram-generator" data-dg-style-tokens="box-default" parent="1" style="rounded=0;whiteSpace=wrap;html=1;shadow=0;fillColor=#F3F3F3;strokeColor=none;strokeWidth=1;fontFamily=Ubuntu Sans;fontSize=18;container=0;align=left;spacing=0;spacingLeft=8;verticalAlign=top;spacingBottom=8;spacingRight=24;" tags="dg-generated dg-role-box dg-token-box-default" value="&lt;div&gt;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;&lt;b&gt;The fix.&lt;/b&gt;&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;br&gt;Canonical Support engineers fix the code in a 12-year-old repo, upstreaming the fix for all. They patch the issue, reducing nearly 49,000 disk reads to a single, fast alternative." vertex="1">
+          <mxGeometry height="280" width="232" x="792" as="geometry" />
+        </mxCell>
+        <mxCell id="BRu9WUJl3DfNQQp679wE-29" edge="1" parent="1" source="BRu9WUJl3DfNQQp679wE-25" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=blockThin;endFill=1;strokeColor=#E95420;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.011;entryY=0.503;entryDx=0;entryDy=0;entryPerimeter=0;" target="BRu9WUJl3DfNQQp679wE-27" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="760" y="144" as="sourcePoint" />
+            <mxPoint x="776" y="128" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="BRu9WUJl3DfNQQp679wE-30" data-dg-role="box" data-dg-source="diagram-generator" data-dg-style-tokens="box-default" parent="1" style="rounded=0;whiteSpace=wrap;html=1;shadow=0;fillColor=#F3F3F3;strokeColor=none;strokeWidth=1;fontFamily=Ubuntu Sans;fontSize=18;container=0;align=left;spacing=0;spacingLeft=8;verticalAlign=top;spacingBottom=8;spacingRight=24;" tags="dg-generated dg-role-box dg-token-box-default" value="&lt;div&gt;&lt;b&gt;The result&lt;/b&gt;&lt;/div&gt;&lt;br&gt;The databases are all online and back to their desired speed." vertex="1">
+          <mxGeometry height="280" width="232" x="1056" as="geometry" />
+        </mxCell>
+        <mxCell id="BRu9WUJl3DfNQQp679wE-32" edge="1" parent="1" source="BRu9WUJl3DfNQQp679wE-27" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=blockThin;endFill=1;strokeColor=#E95420;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" target="BRu9WUJl3DfNQQp679wE-30" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1032" y="152" as="sourcePoint" />
+            <mxPoint x="1040" y="152" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
