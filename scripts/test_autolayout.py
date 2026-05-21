@@ -2074,6 +2074,54 @@ def round_up(v: float) -> int:
 
 
 # ═══════════════════════════════════════════════════════════════════
+# Shared grid formula tests (cross-language contract)
+# ═══════════════════════════════════════════════════════════════════
+
+class TestSharedGridFormulas:
+    """Verify equal_split_cell and span_size from diagram_shared.
+
+    These formulas are mirrored in editor-base.js.  Any change to the
+    Python or JS version must keep these tests green.
+    """
+
+    def test_equal_split_divides_evenly(self):
+        from diagram_shared import equal_split_cell
+        assert equal_split_cell(192, 1) == 192
+        assert equal_split_cell(192, 2) == 96
+        assert equal_split_cell(192, 3) == 64
+
+    def test_equal_split_rounds_to_nearest_step(self):
+        from diagram_shared import equal_split_cell
+        # 200 / 3 = 66.67 → 66.67/8 = 8.33 → round(8.33)=8 → 8*8=64
+        assert equal_split_cell(200, 3) == 64
+        # 100 / 3 = 33.33 → 33.33/8 = 4.17 → round(4.17)=4 → 4*8=32
+        assert equal_split_cell(100, 3) == 32
+        # 208 / 3 = 69.33 → 69.33/8 = 8.67 → round(8.67)=9 → 9*8=72
+        assert equal_split_cell(208, 3) == 72
+
+    def test_equal_split_zero_count(self):
+        from diagram_shared import equal_split_cell
+        assert equal_split_cell(192, 0) == 0
+
+    def test_span_size_single(self):
+        from diagram_shared import span_size
+        assert span_size(192, 1, 24) == 192
+
+    def test_span_size_multi(self):
+        from diagram_shared import span_size
+        assert span_size(192, 2, 24) == 408  # 2*192 + 1*24
+        assert span_size(192, 3, 24) == 624  # 3*192 + 2*24
+
+    def test_span_size_zero_span(self):
+        from diagram_shared import span_size
+        assert span_size(192, 0, 24) == 0
+
+    def test_span_size_zero_gap(self):
+        from diagram_shared import span_size
+        assert span_size(100, 3, 0) == 300
+
+
+# ═══════════════════════════════════════════════════════════════════
 # Standalone runner (works without pytest too)
 # ═══════════════════════════════════════════════════════════════════
 
@@ -2102,6 +2150,7 @@ if __name__ == "__main__":
         TestTextOverflowResilience,
         TestContainerTooSmall,
         TestParentCoercion,
+        TestSharedGridFormulas,
     ]
 
     passed = 0

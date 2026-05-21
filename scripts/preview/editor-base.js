@@ -315,6 +315,30 @@ function clearGuideLines() {
   if (svg) svg.querySelectorAll(".dg-snap-guide").forEach(el => el.remove());
 }
 
+// ---- Shared equal-split grid formulas ----
+// These mirror diagram_shared.py: equal_split_cell / span_size.
+// Any change here MUST be mirrored in the Python counterpart.
+
+const BASELINE_STEP = 8;
+
+/**
+ * Compute snapped cell size when dividing `available` space equally
+ * among `count` children.  Rounds to nearest BASELINE_STEP.
+ */
+function equalSplitCell(available, count) {
+  if (count <= 0) return 0;
+  return Math.round(available / count / BASELINE_STEP) * BASELINE_STEP;
+}
+
+/**
+ * Compute total size of `span` consecutive cells with `gap` gutters.
+ * spanSize(cellW, 3, gap) = 3*cellW + 2*gap.
+ */
+function spanSize(cellSize, span, gap) {
+  if (span <= 0) return 0;
+  return span * cellSize + (span - 1) * gap;
+}
+
 // Expose shared API on window for inline handlers
 window.byId = byId;
 window.escapeHtml = escapeHtml;
@@ -333,3 +357,5 @@ window.collectGridSnapTargets = collectGridSnapTargets;
 window.collectPeerSnapTargets = collectPeerSnapTargets;
 window.renderGuideLines = renderGuideLines;
 window.clearGuideLines = clearGuideLines;
+window.equalSplitCell = equalSplitCell;
+window.spanSize = spanSize;

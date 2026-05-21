@@ -306,6 +306,30 @@ def round_up_to_grid(value: float, step: int = BASELINE_UNIT) -> int:
     return int(math.ceil(value / step) * step)
 
 
+# ── Shared equal-split grid formulas ──────────────────────────────
+#
+# These functions define the canonical grid-cell sizing contract.
+# The same formulas are mirrored in editor-base.js for client-side
+# interactive relayout.  Any change here MUST be mirrored there.
+
+
+def equal_split_cell(available: float, count: int, step: int = BASELINE_UNIT) -> int:
+    """Compute the snapped cell size when dividing *available* space equally
+    among *count* children.  Result is rounded to the nearest *step* multiple
+    (matching the JS ``Math.round(available / count / step) * step``)."""
+    if count <= 0:
+        return 0
+    return int(round(available / count / step) * step)
+
+
+def span_size(cell_size: int, span: int, gap: int) -> int:
+    """Compute the total size of *span* consecutive cells with *gap* gutters
+    between them.  ``span_size(cellW, 3, gap)`` = ``3*cellW + 2*gap``."""
+    if span <= 0:
+        return 0
+    return span * cell_size + (span - 1) * gap
+
+
 def line_top_to_baseline(top_y: float, size: str | int | float) -> float:
     return top_y + size_to_px(size) * ASCENT_RATIO
 

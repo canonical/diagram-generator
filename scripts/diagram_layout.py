@@ -61,6 +61,8 @@ from diagram_shared import (
     TERMINAL_CHROME_HEIGHT,
     make_line as _make_line,
     round_up_to_grid,
+    equal_split_cell,
+    span_size,
     size_to_px,
     tight_box_height,
 )
@@ -480,7 +482,7 @@ def _layout_panel(
             bx_y = y + row_ys[bx.row]
             cs = getattr(bx, "col_span", 1) or 1
             rs = getattr(bx, "row_span", 1) or 1
-            span_w = cs * col_width + (cs - 1) * col_gap if cs > 1 else col_width
+            span_w = span_size(col_width, cs, col_gap)
             span_h = sum(row_heights[bx.row:bx.row + rs]) + (rs - 1) * row_gap if rs > 1 else row_heights[bx.row]
             bx_w = bx.width or span_w
             bx_h = bx.height or span_h
@@ -554,6 +556,11 @@ def _layout_panel(
 
         # Auto-fill: derive sub-panel content width from the parent's
         # available content span when the sub-panel has no explicit col_width.
+        # NOTE: uses round_up_to_grid (ceil) — the v2 pipeline rounds UP
+        # while the v3 interactive preview uses round-to-nearest via
+        # equal_split_cell().  This is intentional: the authoritative
+        # layout rounds up so content never overflows, and the interactive
+        # preview rounds to nearest for visual symmetry.
         n_subs = len(sub_panels)
         parent_content_w = cols * col_width + (cols - 1) * col_gap
         sp_outer_w = (parent_content_w - (n_subs - 1) * col_gap) / n_subs

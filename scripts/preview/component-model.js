@@ -297,7 +297,7 @@ class ComponentModel {
       // Vertical: all children get full width, height distributed equally
       const n = layoutChildren.length;
       const availH = contentH - (n - 1) * rowGap;
-      const childH = Math.round(availH / n / 8) * 8;
+      const childH = equalSplitCell(availH, n);
 
       let cy = contentY0;
       for (const child of layoutChildren) {
@@ -317,7 +317,7 @@ class ComponentModel {
       // Horizontal: width distributed equally, height unchanged (cross-axis)
       const n = layoutChildren.length;
       const availW = contentW - (n - 1) * colGap;
-      const childW = Math.round(availW / n / 8) * 8;
+      const childW = equalSplitCell(availW, n);
 
       let cx = contentX0;
       for (const child of layoutChildren) {
@@ -345,8 +345,8 @@ class ComponentModel {
 
       const availW = contentW - (numCols - 1) * colGap;
       const availH = contentH - (numRows - 1) * rowGap;
-      const cellW = Math.round(availW / numCols / 8) * 8;
-      const cellH = Math.round(availH / numRows / 8) * 8;
+      const cellW = equalSplitCell(availW, numCols);
+      const cellH = equalSplitCell(availH, numRows);
 
       // Build column X positions and row Y positions
       const newColXs = [];
@@ -364,8 +364,8 @@ class ComponentModel {
         const colSpan = Math.max(1, Math.min(numCols - ci, child.gridColSpan || 1));
         const rowSpan = Math.max(1, Math.min(numRows - ri, child.gridRowSpan || 1));
 
-        const spanW = colSpan * cellW + (colSpan - 1) * colGap;
-        const spanH = rowSpan * cellH + (rowSpan - 1) * rowGap;
+        const spanW = spanSize(cellW, colSpan, colGap);
+        const spanH = spanSize(cellH, rowSpan, rowGap);
 
         const dx = newColXs[ci] - child.data.x;
         const dy = newRowYs[ri] - child.data.y;

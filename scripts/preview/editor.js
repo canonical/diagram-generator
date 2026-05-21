@@ -71,7 +71,7 @@ const renderBoxStyleOptions = window.__DG_boxStyleOptionsHtml || function render
 };
 
 // ---- Brockman grid constants ----
-const BASELINE_STEP = 8;  // px — smallest vertical rhythm unit
+// BASELINE_STEP is defined in editor-base.js (shared constant)
 
 // ---- Guide mode (W key) ----
 const GUIDE_MODES = ["off", "all"];
