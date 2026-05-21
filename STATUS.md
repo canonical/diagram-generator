@@ -16,7 +16,7 @@
 
 Several paths below refer to locally generated or team-internal assets that are gitignored. Run the build to create them.
 
-There are now **two diagram generation pipelines**. On a cold start, ask the user which pipeline to work on.
+There are now **three diagram generation pipelines**. Pipeline 3 (v3 frame engine) is the active development surface. On a cold start, ask the user which pipeline to work on if unclear.
 
 ### Pipeline 1: imperative (original v1 batch)
 
@@ -119,7 +119,7 @@ The project has evolved from a batch diagram generator into a **constrained inte
 **Preview compare mode status:** when a diagram has a tracked rough sketch under `diagrams/1.input/`, the main editor area now exposes BF tabs for `Input`, `Output`, and `Both`; `Both` is a real 2-up center-pane layout rather than the older one-above-the-other reference strip.
 
 **Remaining interactive editor work** (post-refactor):
-- Domain-specific undo/redo follow-up (deferred; undo/redo now uses explicit per-action command records, but each command still stores before/after editor state rather than bespoke do/undo handlers)
+- Undo/redo is now domain-specific: 12 targeted override-patch actions (completed 2026-05-22). Only grid-adjust and clear-all-overrides still use full snapshots.
 
 **Editor UX fixes (2026-05-19):** Text editing no longer inserts literal `\n`, arrow keys no longer move the box during text edit, textarea line-height matches SVG. Text reflow on box resize with auto-height expansion and full grid-row cascade (boxes, annotations, and arrows in rows below all shift down uniformly). Click selection now reads actual SVG DOM geometry instead of stale model data, fixing wrong-box selection when Python layout coordinates diverge from rendered positions.
 
@@ -131,7 +131,7 @@ The project has evolved from a batch diagram generator into a **constrained inte
 
 **Current state (2026-05-22):**
 
-The engine core is stable with 165 focused tests passing. The per-axis sizing redesign (Milestone 11) is complete: every node has independent `sizing_w`/`sizing_h`, cross-axis stretch is determined by the child's own counter-axis sizing (FILL → stretch, HUG/FIXED → keep measured), and `_is_cross_stretch()` has been deleted. The FILL-in-HUG invariant now uses the Figma-correct parent coercion model: a HUG parent with FILL children is coerced to FIXED (freezing at measured size) instead of coercing children to HUG. Coercion persistence is implemented end-to-end: the engine returns coerced frame IDs, the server includes them in the relayout response, and the editor persists them as overrides so the frozen size survives subsequent padding/gap changes. Native Frame YAML definitions are working and all 5 test-case diagrams are browser-verified. Real v2→v3 adapted diagrams render correctly in the editor with full auto-layout controls. Brockman grid metadata is now engine-owned through `grid_info`, column widths are baseline-snapped to 8px multiples (leftover absorbed into resolved right margin), and the inspector offers column-span/row-span width/height input with unit dropdown when sizing mode is FIXED.
+The engine core is stable with **165 focused tests** passing (verified 2026-05-22). The per-axis sizing redesign (Milestone 11) is complete: every node has independent `sizing_w`/`sizing_h`, cross-axis stretch is determined by the child's own counter-axis sizing (FILL → stretch, HUG/FIXED → keep measured), and `_is_cross_stretch()` has been deleted. The FILL-in-HUG invariant now uses the Figma-correct parent coercion model: a HUG parent with FILL children is coerced to FIXED (freezing at measured size) instead of coercing children to HUG. Coercion persistence is implemented end-to-end: the engine returns coerced frame IDs, the server includes them in the relayout response, and the editor persists them as overrides so the frozen size survives subsequent padding/gap changes. Native Frame YAML definitions are working and all 5 test-case diagrams are browser-verified. Real v2→v3 adapted diagrams render correctly in the editor with full auto-layout controls. Brockman grid metadata is now engine-owned through `grid_info`, column widths are baseline-snapped to 8px multiples (leftover absorbed into resolved right margin), and the inspector offers column-span/row-span width/height input with unit dropdown when sizing mode is FIXED.
 
 The grid and force editors now share a single unified HTML template (`viewer-unified.html`) and a shared utility module (`editor-base.js`). Mode-specific sections are controlled by `data-dg-mode="grid"|"force"` with CSS visibility rules. Force.js has been deduped to reference the shared base functions instead of maintaining its own copies of `byId`, `escapeHtml`, `fetchJson`, `setStatus`, `setViewMode`, `getStageSvg`, and `pointerToStagePoint`.
 
@@ -139,7 +139,7 @@ Recent fixes (2026-05-22): font metrics now use real `hmtx` table lookups via `f
 
 **What works (tested, browser-verified):**
 - Two-pass measure→place engine with per-axis sizing model (Figma-correct)
-- 154 focused tests, all passing
+- 165 focused tests, all passing
 - Per-axis sizing: `sizing_w`/`sizing_h` on every node, per-side padding (`padding_top/right/bottom/left`)
 - Cross-axis behavior: child's counter-axis FILL → stretch to cross space; HUG/FIXED → keep measured size + alignment offset
 - FILL-in-HUG invariant: HUG parent with FILL children on primary axis → parent coerced to FIXED (Figma model); cross-axis FILL preserved
@@ -172,7 +172,7 @@ Recent fixes (2026-05-22): font metrics now use real `hmtx` table lookups via `f
 - `scripts/test_layout_v3.py` — original 8 unit tests
 - `scripts/test_autolayout.py` — comprehensive test suite (directions, alignment, sizing)
 
-**Execution plan:** See `TODO.md` → "v3 auto-layout engine — test-first redesign". Nine milestones with QA checkpoints. Milestones 1–4 complete. Milestone 4a (research-informed gap fixes) is next.
+**Execution plan:** See `TODO.md` → "v3 auto-layout engine — test-first redesign". Milestones 1–12 complete. Open work: grid-snap, grid-aware resize, persist grid config, force↔grid unification, PNG export, and code quality items.
 
 - **The repo now uses the centralized root workflow.** `STATUS.md`, `TODO.md`, `ROADMAP.md`, `HISTORY.md`, `INBOX.md`, `AGENT-INBOX.md`, and `docs/specs.md` are the canonical workflow files.
 - **A design.md-inspired diagram language spec now exists.** `DIAGRAM.md` holds the canonical tokens, prose rules, output constraints, and redraw workflow for diagram work instead of keeping that material in `TODO.md`.

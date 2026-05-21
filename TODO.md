@@ -60,6 +60,12 @@ Provide a cold-start-safe workflow and a consistent on-brand SVG system for rede
 
 ## Active TODO
 
+### Doc freshness (post-session audit, 2026-05-22)
+
+- [ ] `[L]` **README.md** — opening section updated to reflect Pipeline 3 as active. Still needs: update the "Agent prompt: demo the project" block, the "Recommended exemplar path" to include v3 Frame YAML diagrams, and the "Creating your own diagram" section to show native Frame YAML as the primary path.
+- [ ] `[L]` **STATUS.md** — key sections patched (pipeline count, test count, undo status, execution plan). Still needs: remove or condense the "Uncommitted v3 editor work" section (all committed now), move the "Windows smoke pass" note to HISTORY, condense the long Pipeline 3 bullet lists into a shorter current-state summary.
+- [ ] `[L]` **TODO.md** — archive completed milestones 1–12 to HISTORY or a collapsed section so open work is visible without scrolling past 300 lines of completed items.
+
 ### v3 auto-layout engine — test-first redesign (branch `frame-layout-engine`)
 
 The v3 frame engine has the right Figma-like model (`Direction`, `Sizing`, `Align`) but was developed directly against real diagrams. The previous session stacked features without browser verification (alignment dropdowns, relayout API, editor CSS), resulting in 6 server crashes and zero confirmed features. That code is now stashed (`git stash list` → "unverified-v3-ui-work").

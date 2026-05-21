@@ -6,25 +6,28 @@ An LLM-based diagramming workflow that turns rough sketches and brand/layout rul
 
 If you are new to the repo and using an agent, make the pipeline choice explicit before doing anything else:
 
-- **Pipeline 2**: declarative + autolayout. This is the current active surface for new work, validators, and the interactive editor.
-- **Pipeline 1**: the original imperative batch. Keep it for the existing v1 outputs and parity checks, but it is no longer the main development surface.
+- **Pipeline 3 (active)**: v3 frame layout engine on branch `frame-layout-engine`. Figma-like nested autolayout with per-axis sizing, 9-point alignment, native Frame YAML definitions, and a unified interactive editor shell shared between grid and force modes. 165 tests passing, 5 native frame diagrams + 3 real v2→v3 adapted diagrams browser-verified.
+- **Pipeline 2**: declarative grid. Still maintained for the existing v2 output batch and backward compatibility, but no longer the main development surface.
+- **Pipeline 1**: the original imperative batch. Kept for parity checks and legacy exports only.
 
 Fastest way to see the project working:
 
-- Interactive polish pass: run `python scripts/preview_server.py --slug diagram-intake-workflow --grid`, then open `http://127.0.0.1:8100/view/diagram-intake-workflow`
-- Static comparison with inputs: open [`diagrams/3.compare/html/diagram-intake-workflow.html`](diagrams/3.compare/html/diagram-intake-workflow.html)
+- **v3 frame engine:** `python scripts/preview_server.py` → open `http://127.0.0.1:8100/view/v3:support-engineering-flow`
+- **Force preview:** same server → `http://127.0.0.1:8100/force/view/force-juju-landing-pages`
+- **v2 comparison:** open [`diagrams/3.compare/html/diagram-intake-workflow.html`](diagrams/3.compare/html/diagram-intake-workflow.html)
 
 ### Cold-start path for layout work
 
-If you are changing the autolayout engine, grouped panels, or arrow routing, read these in order before editing code:
+If you are changing the autolayout engine, read these in order before editing code:
 
-1. [`DIAGRAM.md`](DIAGRAM.md) — especially the nested group alignment model, known failure modes, verification workflow, and cold-start instructions.
-2. [`.github/skills/diagram-redraw/SKILL.md`](.github/skills/diagram-redraw/SKILL.md) — the operational redraw and verification checklist.
-3. This README's interactive preview section — for the concrete preview, build, and review commands.
+1. [`DIAGRAM.md`](DIAGRAM.md) — the canonical diagram-language contract (tokens, rules, output constraints).
+2. [`TODO.md`](TODO.md) — the active execution queue with milestone status and open work.
+3. [`STATUS.md`](STATUS.md) — cold-start orientation, architecture, key files.
+4. [`.github/copilot-instructions.md`](.github/copilot-instructions.md) — workflow discipline and anti-patch protocol.
 
-Current layout warning: the preview relayout engine now consumes server-declared slots, spans, and measured gutters instead of reconstructing grouped layout from child geometry, but the parent-split/outdent math still lives in both Python and JS. Equal splitting of parent width is valid, but build and preview can still diverge if the duplicated split/outdent math drifts. Verify grouped-layout changes with Playwright screenshots instead of trusting the first visual pass.
+The v3 frame engine lives on branch `frame-layout-engine`. Key files: `scripts/frame_model.py` (Frame dataclass), `scripts/frame_loader.py` (YAML parser), `scripts/layout_v3.py` (measure→place engine), `scripts/diagrams/frames/*.yaml` (native frame definitions).
 
-Machine-switch checkpoint: the 2026-05-13 slice landed the parent-scoped layout-doc clarification, free arrow labels, thin separators, preview slot metadata, and the committed `example-arrow-label-separator` regression fixture. Remaining work is the duplicated Python/JS parent-split math plus the known `build_v2.py` blockers on `example-platform-architecture`, `lightning-talk-engine`, `lt-diagram-generator`, `lt-a4-generator`, and `lt-summit-identity`.
+The grid and force editors share a unified shell: `scripts/preview/viewer-unified.html` (single HTML template, `data-dg-mode="grid"|"force"`), `scripts/preview/editor-base.js` (shared utilities), with mode-specific code in `scripts/preview/editor.js` and `scripts/preview/force.js`.
 
 ### Recommended exemplar path
 
