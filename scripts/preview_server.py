@@ -139,6 +139,13 @@ def _list_v3_diagrams() -> list[str]:
     return slugs
 
 
+def _list_autolayout_diagrams() -> list[str]:
+    """Return slugs that have a native frame YAML (v3 autolayout)."""
+    if not FRAMES_DIR.exists():
+        return []
+    return sorted(f.stem for f in FRAMES_DIR.glob("*.yaml"))
+
+
 # Slug/filename safety: only allow alphanumeric, hyphens, underscores, and dots.
 import re as _re
 _SAFE_SLUG_RE = _re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
@@ -159,6 +166,9 @@ def _is_safe_slug(slug: str) -> bool:
 
 def _rebuild(grid: bool = False) -> bool:
     global _last_rebuild_error, _layout_cache, _viewer_template, _force_template, _force_sessions
+    # Always clear v3 layout cache on file changes so live-rendered
+    # diagrams pick up edits even if the v2 batch build fails.
+    _layout_cache.clear()
     cmd = [sys.executable, str(SCRIPTS / "build_v2.py")]
     if grid:
         cmd.append("--grid")
@@ -267,10 +277,10 @@ def _relayout(slug: str, grid_overrides: dict) -> dict | None:
         mod_name = slug.replace("-", "_")
         try:
             mod = importlib.import_module(f"diagrams.{mod_name}")
-            importlib.reload(mod)
-            diagram_obj = copy.deepcopy(getattr(mod, mod_name))
             orig_col_gap = getattr(mod, mod_name).col_gap
             orig_row_gap = getattr(mod, mod_name).row_gap
+            importlib.reload(mod)
+            diagram_obj = copy.deepcopy(getattr(mod, mod_name))
         except (ModuleNotFoundError, AttributeError):
             from diagram_loader import load_diagram
             yaml_dir = SCRIPTS / "diagrams" / "yaml"
@@ -323,6 +333,7 @@ def _relayout_v3(slug: str, params: dict) -> dict | None:
     params can contain:
       - frame_overrides: dict of frame_id → {direction, gap, padding, sizing,
         align, width, height} (multi-frame format, preferred)
+            - grid_overrides: dict with {cols, col_gap, row_gap, outer_margin}
 
     Legacy single-frame format (frame_id + flat props) is also accepted
     for backwards compatibility.
@@ -337,6 +348,7 @@ def _relayout_v3(slug: str, params: dict) -> dict | None:
 
         # Re-load the frame diagram from the original source
         from frame_model import Direction, Sizing, Align
+        from diagram_model import Fill, Border
 
         # Try native frame YAML first
         frame_yaml = FRAMES_DIR / (slug + ".yaml")
@@ -378,6 +390,7 @@ def _relayout_v3(slug: str, params: dict) -> dict | None:
             target_id = params.get("frame_id", "root")
             legacy_ovr = {k: v for k, v in params.items() if k != "frame_id"}
             all_overrides = {target_id: legacy_ovr} if legacy_ovr else {}
+        grid_overrides = params.get("grid_overrides", {}) if isinstance(params.get("grid_overrides", {}), dict) else {}
 
         def _find_frame(frame, fid):
             if frame.id == fid:
@@ -424,6 +437,25 @@ def _relayout_v3(slug: str, params: dict) -> dict | None:
                 target.width = int(ovr["width"])
             if "height" in ovr and ovr["height"] is not None:
                 target.height = int(ovr["height"])
+            # Min/max constraints
+            for key in ("min_width", "max_width", "min_height", "max_height"):
+                if key in ovr:
+                    if ovr[key] is None:
+                        setattr(target, key, None)
+                    else:
+                        try:
+                            val = int(ovr[key])
+                            if val >= 0:
+                                setattr(target, key, val)
+                        except (ValueError, TypeError):
+                            pass  # ignore invalid input
+            # Style properties (fill, border)
+            fill_map = {"WHITE": Fill.WHITE, "GREY": Fill.GREY, "BLACK": Fill.BLACK}
+            border_map = {"SOLID": Border.SOLID, "DASHED": Border.DASHED, "NONE": Border.NONE}
+            if "fill" in ovr and ovr["fill"] in fill_map:
+                target.fill = fill_map[ovr["fill"]]
+            if "border" in ovr and ovr["border"] in border_map:
+                target.border = border_map[ovr["border"]]
             if "children_order" in ovr and isinstance(ovr["children_order"], list):
                 new_order = ovr["children_order"]
                 # Reorder children to match requested order
@@ -432,6 +464,47 @@ def _relayout_v3(slug: str, params: dict) -> dict | None:
                 # Append any children not in the new order list (safety)
                 remaining = [c for c in target.children if c.id not in {cid for cid in new_order}]
                 target.children = reordered + remaining
+            # Text content overrides (heading + label)
+            if "text" in ovr and isinstance(ovr["text"], dict):
+                from diagram_model import Line
+                text_ovr = ovr["text"]
+                if "heading" in text_ovr:
+                    h_content = text_ovr["heading"]
+                    if h_content and target.heading:
+                        # Preserve existing heading style (weight, size, fill)
+                        target.heading = Line(h_content,
+                            weight=target.heading.weight,
+                            size=target.heading.size,
+                            fill=target.heading.fill,
+                            small_caps=target.heading.small_caps,
+                            font_family=target.heading.font_family)
+                    elif h_content and not target.heading:
+                        target.heading = Line(h_content, weight="700")
+                    elif not h_content:
+                        target.heading = None
+                if "label" in text_ovr and isinstance(text_ovr["label"], list):
+                    new_label = []
+                    for i, text_content in enumerate(text_ovr["label"]):
+                        if i < len(target.label):
+                            # Preserve style from original label line
+                            orig = target.label[i]
+                            new_label.append(Line(text_content,
+                                weight=orig.weight, size=orig.size,
+                                fill=orig.fill, small_caps=orig.small_caps,
+                                font_family=orig.font_family))
+                        else:
+                            # New line — use default body style
+                            new_label.append(Line(text_content))
+                    target.label = new_label
+
+        if "cols" in grid_overrides and grid_overrides["cols"] is not None:
+            frame_diagram.grid_cols = max(1, int(grid_overrides["cols"]))
+        if "col_gap" in grid_overrides and grid_overrides["col_gap"] is not None:
+            frame_diagram.grid_col_gap = max(0, int(grid_overrides["col_gap"]))
+        if "row_gap" in grid_overrides and grid_overrides["row_gap"] is not None:
+            frame_diagram.grid_row_gap = max(0, int(grid_overrides["row_gap"]))
+        if "outer_margin" in grid_overrides and grid_overrides["outer_margin"] is not None:
+            frame_diagram.grid_outer_margin = max(0, int(grid_overrides["outer_margin"]))
 
         # Re-layout
         from layout_v3 import layout_frame_diagram
@@ -451,6 +524,8 @@ def _relayout_v3(slug: str, params: dict) -> dict | None:
             del _layout_cache[cache_key]
 
         response = {"svg": svg_str, "tree": tree_data}
+        if layout_result.grid_info:
+            response["grid_info"] = asdict(layout_result.grid_info)
 
         # Return any engine-coerced overrides so the editor can persist them
         if layout_result.coerced_overrides:
@@ -542,6 +617,13 @@ def _list_force_examples() -> list[str]:
 def _build_preview_nav_options(current_path: str) -> str:
     sections: list[str] = []
 
+    autolayout_options = "".join(
+        f'<option value="/view/v3:{slug}"{" selected" if current_path == f"/view/v3:{slug}" else ""}>{slug}</option>'
+        for slug in _list_autolayout_diagrams()
+    )
+    if autolayout_options:
+        sections.append(f'<optgroup label="Autolayout">{autolayout_options}</optgroup>')
+
     diagram_options = "".join(
         f'<option value="/view/{slug}"{" selected" if current_path == f"/view/{slug}" else ""}>{slug}</option>'
         for slug in _list_diagrams()
@@ -549,9 +631,10 @@ def _build_preview_nav_options(current_path: str) -> str:
     if diagram_options:
         sections.append(f'<optgroup label="Diagrams">{diagram_options}</optgroup>')
 
+    v3_only = [s for s in _list_v3_diagrams() if s not in set(_list_autolayout_diagrams())]
     v3_options = "".join(
         f'<option value="/view/v3:{slug}"{" selected" if current_path == f"/view/v3:{slug}" else ""}>{slug}</option>'
-        for slug in _list_v3_diagrams()
+        for slug in v3_only
     )
     if v3_options:
         sections.append(f'<optgroup label="v3 Frame engine">{v3_options}</optgroup>')
@@ -564,6 +647,45 @@ def _build_preview_nav_options(current_path: str) -> str:
         sections.append(f'<optgroup label="Force demos">{force_options}</optgroup>')
 
     return "".join(sections)
+
+
+def _build_browse_nav(current_path: str) -> str:
+    """Build the left-sidebar browse panel HTML (grouped link lists)."""
+    groups: list[str] = []
+
+    autolayout = _list_autolayout_diagrams()
+    if autolayout:
+        items = "".join(
+            f'<li><a class="dg-browse-link{" is-active" if current_path == f"/view/v3:{s}" else ""}" href="/view/v3:{s}">{s}</a></li>'
+            for s in autolayout
+        )
+        groups.append(f'<div class="dg-browse-group"><h3 class="dg-browse-heading">Autolayout</h3><ul class="dg-browse-list">{items}</ul></div>')
+
+    diagrams = _list_diagrams()
+    if diagrams:
+        items = "".join(
+            f'<li><a class="dg-browse-link{" is-active" if current_path == f"/view/{s}" else ""}" href="/view/{s}">{s}</a></li>'
+            for s in diagrams
+        )
+        groups.append(f'<div class="dg-browse-group"><h3 class="dg-browse-heading">Diagrams</h3><ul class="dg-browse-list">{items}</ul></div>')
+
+    v3_only = [s for s in _list_v3_diagrams() if s not in set(autolayout)]
+    if v3_only:
+        items = "".join(
+            f'<li><a class="dg-browse-link{" is-active" if current_path == f"/view/v3:{s}" else ""}" href="/view/v3:{s}">{s}</a></li>'
+            for s in v3_only
+        )
+        groups.append(f'<div class="dg-browse-group"><h3 class="dg-browse-heading">v3 Frame engine</h3><ul class="dg-browse-list">{items}</ul></div>')
+
+    force = _list_force_examples()
+    if force:
+        items = "".join(
+            f'<li><a class="dg-browse-link{" is-active" if current_path == f"/force/view/{s}" else ""}" href="/force/view/{s}">{s}</a></li>'
+            for s in force
+        )
+        groups.append(f'<div class="dg-browse-group"><h3 class="dg-browse-heading">Force demos</h3><ul class="dg-browse-list">{items}</ul></div>')
+
+    return "".join(groups)
 
 
 def _get_force_state(slug: str, *, reset: bool = False):
@@ -653,7 +775,9 @@ def _get_force_template() -> str:
 
 
 def _build_viewer_html(slug: str, all_slugs: list[str], grid: bool) -> str:
-    nav_options = _build_preview_nav_options(f"/view/{slug}")
+    view_path = f"/view/{slug}"
+    nav_options = _build_preview_nav_options(view_path)
+    browse_nav = _build_browse_nav(view_path)
     from diagram_shared import ARROW_HEAD_LENGTH, ARROW_HEAD_HALF_WIDTH, ICON_SIZE, GRID_GUTTER, INSET
     is_v3 = slug.startswith("v3:")
     real_slug = slug[3:] if is_v3 else slug
@@ -680,6 +804,7 @@ def _build_viewer_html(slug: str, all_slugs: list[str], grid: bool) -> str:
     )
     html = html.replace("%NAV_OPTIONS%", nav_options)
     html = html.replace("%NAV_LINKS%", nav_options)
+    html = html.replace("%BROWSE_NAV%", browse_nav)
     html = html.replace("%CONFIG_SCRIPT%", config_script)
     return html
 
@@ -729,6 +854,7 @@ INDEX_HTML = """<!DOCTYPE html>
 <body>
 <div class="page">
     <h1>Preview index</h1>
+    %AUTOLAYOUT_SECTION%
     <section class="section">
         <h2>Diagrams</h2>
         <div class="nav">%DIAGRAM_LINKS%</div>
@@ -901,6 +1027,8 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
             self._serve_force_node_update(path[16:])
         elif path.startswith("/api/force-tick/"):
             self._serve_force_tick(path[16:])
+        elif path.startswith("/api/force-params/"):
+            self._serve_force_params(path[18:])
         else:
             self.send_error(404)
 
@@ -917,6 +1045,16 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
                 f'<div class="nav">{force_links}</div>'
                 '</section>'
             )
+        autolayout_slugs = _list_autolayout_diagrams()
+        autolayout_section = ""
+        if autolayout_slugs:
+            autolayout_links = "\n  ".join(f'<a href="/view/v3:{s}">{s}</a>' for s in autolayout_slugs)
+            autolayout_section = (
+                '<section class="section">'
+                '<h2>Autolayout</h2>'
+                f'<div class="nav">{autolayout_links}</div>'
+                '</section>'
+            )
         v3_slugs = _list_v3_diagrams()
         v3_section = ""
         if v3_slugs:
@@ -927,6 +1065,7 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
                 '</section>'
             )
         html = INDEX_HTML.replace("%DIAGRAM_LINKS%", diagram_links)
+        html = html.replace("%AUTOLAYOUT_SECTION%", autolayout_section)
         html = html.replace("%FORCE_SECTION%", force_section)
         html = html.replace("%V3_SECTION%", v3_section)
         self._respond(200, "text/html", html.encode())
@@ -1077,11 +1216,13 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
             if not _is_safe_slug(slug):
                 self.send_error(400, "Invalid slug")
                 return
-            # Try pre-built SVG file first
-            prebuilt = V3_SVG / f"{slug}-onbrand-v3.svg"
-            if prebuilt.exists():
-                self._respond(200, "image/svg+xml", prebuilt.read_bytes())
-                return
+            # Prefer live rendering when a frame YAML exists (avoids stale pre-built files)
+            frame_yaml = FRAMES_DIR / (slug + ".yaml")
+            if not frame_yaml.exists():
+                prebuilt = V3_SVG / f"{slug}-onbrand-v3.svg"
+                if prebuilt.exists():
+                    self._respond(200, "image/svg+xml", prebuilt.read_bytes())
+                    return
             # Generate on-the-fly from layout engine
             result = _get_layout_result(slug, engine="v3")
             if result is None:
@@ -1095,6 +1236,27 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
         if not _is_safe_slug(safe_name):
             self.send_error(400, "Invalid filename")
             return
+
+        # Extract slug + engine from filename suffix
+        slug = safe_name
+        engine = None
+        for suffix in ("-onbrand-v3.svg", "-onbrand-v3-grid.svg"):
+            if slug.endswith(suffix):
+                slug = slug[:-len(suffix)]
+                engine = "v3"
+                break
+
+        # For v3 frame YAML diagrams, always prefer live rendering
+        if engine == "v3":
+            frame_yaml = FRAMES_DIR / (slug + ".yaml")
+            if frame_yaml.exists():
+                result = _get_layout_result(slug, engine="v3")
+                if result is not None:
+                    import diagram_render_svg
+                    svg_str = diagram_render_svg.render_svg(result)
+                    self._respond(200, "image/svg+xml", svg_str.encode("utf-8"))
+                    return
+
         # Try v2 output first, then v3 pre-built
         svg_path = OUTPUT_SVG / safe_name
         if not svg_path.exists():
@@ -1103,13 +1265,6 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
             self._respond(200, "image/svg+xml", svg_path.read_bytes())
             return
         # No pre-built file — try on-the-fly v3 rendering
-        slug = safe_name
-        engine = None
-        for suffix in ("-onbrand-v3.svg", "-onbrand-v3-grid.svg"):
-            if slug.endswith(suffix):
-                slug = slug[:-len(suffix)]
-                engine = "v3"
-                break
         if engine == "v3":
             result = _get_layout_result(slug, engine="v3")
             if result is not None:
@@ -1339,6 +1494,34 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
 
         self._respond(200, "application/json", b'{"ok":true}')
 
+    def _serve_force_params(self, slug: str):
+        if not _is_safe_slug(slug):
+            self.send_error(400, "Invalid slug")
+            return
+        if slug not in _list_force_examples():
+            self.send_error(404, f"Unknown force example: {slug}")
+            return
+
+        content_length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(content_length) if content_length else b"{}"
+        try:
+            params = json.loads(body)
+        except json.JSONDecodeError:
+            self.send_error(400, "Invalid JSON")
+            return
+
+        try:
+            import force_preview
+            state = _get_force_state(slug)
+            result = force_preview.update_simulation_params(state, params)
+        except Exception:
+            import traceback
+            traceback.print_exc()
+            self.send_error(500, "Force params update failed")
+            return
+
+        self._respond(200, "application/json", json.dumps(result).encode())
+
     def _serve_force_export(self, slug: str):
         if not _is_safe_slug(slug):
             self.send_error(400, "Invalid slug")
@@ -1401,10 +1584,21 @@ def main():
             out = subprocess.check_output(
                 ["powershell", "-NoProfile", "-Command",
                  f"Get-NetTCPConnection -LocalPort {args.port} -ErrorAction SilentlyContinue"
-                 f" | ForEach-Object {{ Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }}"],
+                 f" | Select-Object -ExpandProperty OwningProcess -Unique"],
                 stderr=subprocess.DEVNULL,
-            )
-        except subprocess.CalledProcessError:
+                text=True,
+            ).strip()
+            if out:
+                for pid_str in out.splitlines():
+                    pid = int(pid_str.strip())
+                    if pid > 0 and pid != os.getpid():
+                        print(f"  [preview] killing PID {pid} holding port {args.port}")
+                        subprocess.run(
+                            ["powershell", "-NoProfile", "-Command",
+                             f"Stop-Process -Id {pid} -Force -ErrorAction SilentlyContinue"],
+                            stderr=subprocess.DEVNULL,
+                        )
+        except (subprocess.CalledProcessError, ValueError):
             pass
 
     PreviewHandler.grid = args.grid
