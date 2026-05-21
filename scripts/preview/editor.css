@@ -784,3 +784,7 @@ body.dg-preview {
 
 .guide-badge.composition { display: block; background: rgba(100,160,255,0.25); color: #9cf; }
 .guide-badge.baseline { display: block; background: rgba(100,255,160,0.25); color: #9f9; }
+
+/* ── Mode visibility ── */
+[data-dg-mode="grid"] .dg-force-only { display: none !important; }
+[data-dg-mode="force"] .dg-grid-only { display: none !important; }

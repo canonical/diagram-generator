@@ -165,7 +165,7 @@ def _is_safe_slug(slug: str) -> bool:
 
 
 def _rebuild(grid: bool = False) -> bool:
-    global _last_rebuild_error, _layout_cache, _viewer_template, _force_template, _force_sessions
+    global _last_rebuild_error, _layout_cache, _viewer_template, _force_template, _unified_template, _force_sessions
     # Always clear v3 layout cache on file changes so live-rendered
     # diagrams pick up edits even if the v2 batch build fails.
     _layout_cache.clear()
@@ -184,6 +184,7 @@ def _rebuild(grid: bool = False) -> bool:
             _force_sessions.clear()
             _viewer_template = None  # reload template on next request
             _force_template = None
+            _unified_template = None
             return True
         _last_rebuild_error = result.stderr or result.stdout
         return False
@@ -554,7 +555,7 @@ def _save_overrides(slug: str, data: dict) -> None:
 
 
 def _watch_loop(grid: bool = False, interval: float = 0.5):
-    global _rebuild_generation, _viewer_template, _force_template
+    global _rebuild_generation, _viewer_template, _force_template, _unified_template
     prev_mtimes = _collect_mtimes()
     while True:
         time.sleep(interval)
@@ -564,6 +565,7 @@ def _watch_loop(grid: bool = False, interval: float = 0.5):
             # Invalidate cached viewer template so HTML/CSS/JS changes are picked up
             _viewer_template = None
             _force_template = None
+            _unified_template = None
             with _rebuild_lock:
                 ok = _rebuild(grid=grid)
                 _rebuild_generation += 1
@@ -581,6 +583,7 @@ BF_VENDOR_OS_CSS = BF_VENDOR_ROOT / "os" / "styles.css"
 BF_VENDOR_FONT_DIR = BF_VENDOR_ROOT / "fonts"
 _viewer_template: str | None = None
 _force_template: str | None = None
+_unified_template: str | None = None
 
 # Reference-image directories (rough input sketches)
 _INPUT_DIRS = [
@@ -774,6 +777,13 @@ def _get_force_template() -> str:
     return _force_template
 
 
+def _get_unified_template() -> str:
+    global _unified_template
+    if _unified_template is None:
+        _unified_template = (PREVIEW_DIR / "viewer-unified.html").read_text(encoding="utf-8")
+    return _unified_template
+
+
 def _build_viewer_html(slug: str, all_slugs: list[str], grid: bool) -> str:
     view_path = f"/view/{slug}"
     nav_options = _build_preview_nav_options(view_path)
@@ -796,15 +806,22 @@ def _build_viewer_html(slug: str, all_slugs: list[str], grid: bool) -> str:
         f'"has_reference":{str(has_ref).lower()}'
         f"}};"
     )
-    html = _get_viewer_template()
+    html = _get_unified_template()
     html = html.replace("%TITLE%", f"{slug} – diagram preview")
     html = html.replace(
         "%BF_STYLES%",
         '<link rel="stylesheet" href="/preview/bf-os.css">' if _has_bf_preview_assets() else "",
     )
+    html = html.replace("%MODE%", "grid")
     html = html.replace("%NAV_OPTIONS%", nav_options)
-    html = html.replace("%NAV_LINKS%", nav_options)
     html = html.replace("%BROWSE_NAV%", browse_nav)
+    html = html.replace("%INSPECTOR_EMPTY%", "Click a component to inspect it.")
+    html = html.replace(
+        "%MODE_SCRIPTS%",
+        '<script src="/preview/component-model.js"></script>\n'
+        '<script src="/preview/constraints.js"></script>\n'
+        '<script src="/preview/editor.js"></script>',
+    )
     html = html.replace("%CONFIG_SCRIPT%", config_script)
     return html
 
@@ -822,13 +839,20 @@ def _build_force_viewer_html(slug: str, all_slugs: list[str]) -> str:
         f'"head_half":{ARROW_HEAD_HALF_WIDTH}'
         f'}};'
     )
-    html = _get_force_template()
+    html = _get_unified_template()
     html = html.replace("%TITLE%", f"{slug} – force preview")
     html = html.replace(
         "%BF_STYLES%",
         '<link rel="stylesheet" href="/preview/bf-os.css">' if _has_bf_preview_assets() else "",
     )
-    html = html.replace("%FORCE_OPTIONS%", nav_options)
+    html = html.replace("%MODE%", "force")
+    html = html.replace("%NAV_OPTIONS%", nav_options)
+    html = html.replace("%BROWSE_NAV%", "")
+    html = html.replace("%INSPECTOR_EMPTY%", "Click a node to select it.")
+    html = html.replace(
+        "%MODE_SCRIPTS%",
+        '<script src="/preview/force.js"></script>',
+    )
     html = html.replace("%CONFIG_SCRIPT%", config_script)
     return html
 

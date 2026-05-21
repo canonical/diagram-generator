@@ -33,36 +33,12 @@ let dragState = null;
 let suppressStageClick = false;
 const EMPTY_SELECTION_HTML = '<p class="dg-empty-message bf-form-help">Select or drag a node from the stage or the left rail. Dragging drops it into a pinned manual-polish position.</p>';
 
-function byId(id) {
-  return document.getElementById(id);
-}
+// Utilities come from editor-base.js (byId, escapeHtml, fetchJson, setStatus,
+// getStageSvg, pointerToSvgPoint, setViewMode).  Keep thin local wrappers
+// where the old force API differs from the base.
 
-function escapeHtml(value) {
-  return String(value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/\"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
-async function fetchJson(url, options = undefined) {
-  const response = await fetch(url, options);
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(text || `Request failed: ${response.status}`);
-  }
-  return response.json();
-}
-
-function setStatus(message, kind = "ok") {
-  const status = byId("force-status");
-  status.textContent = message;
-  status.className = `build-status ${kind === "error" ? "build-err" : "build-ok"}`;
-}
-
-function updateRunButton() {
-  byId("btn-play").textContent = running ? "Pause" : "Run";
+function pointerToStagePoint(event) {
+  return pointerToSvgPoint(event);
 }
 
 function currentTicksPerFrame() {
@@ -73,39 +49,14 @@ function currentTicksPerFrame() {
   return currentSnapshot?.simulation?.ticks_per_frame || 4;
 }
 
-function setViewMode(mode) {
-  const shell = byId("stage-shell");
-  shell.dataset.viewMode = mode;
+// setViewMode, getStageSvg come from editor-base.js
 
-  const tabs = Array.from(document.querySelectorAll(".dg-view-tab"));
-  for (const tab of tabs) {
-    const active = tab.dataset.viewMode === mode;
-    tab.setAttribute("aria-selected", active ? "true" : "false");
-    tab.tabIndex = active ? 0 : -1;
-  }
+function updateRunButton() {
+  byId("btn-play").textContent = running ? "Pause" : "Run";
 }
 
 function isNodePinned(node) {
   return node.fx != null || node.fy != null;
-}
-
-function getStageSvg() {
-  return byId("stage")?.querySelector("svg") || null;
-}
-
-function pointerToStagePoint(event) {
-  const svg = getStageSvg();
-  if (!svg) {
-    return null;
-  }
-  const ctm = svg.getScreenCTM();
-  if (!ctm) {
-    return null;
-  }
-  const point = svg.createSVGPoint();
-  point.x = event.clientX;
-  point.y = event.clientY;
-  return point.matrixTransform(ctm.inverse());
 }
 
 function clampNodePosition(snapshot, node, x, y) {
@@ -274,7 +225,7 @@ function buildSvg(snapshot) {
 }
 
 function renderTree(snapshot) {
-  const tree = byId("tree");
+  const tree = byId("tree-force");
   tree.innerHTML = snapshot.nodes
     .map((node) => {
       const selected = node.id === selectedId ? " selected" : "";
@@ -284,7 +235,7 @@ function renderTree(snapshot) {
 }
 
 function renderSelection(snapshot) {
-  const panel = byId("force-selection");
+  const panel = byId("inspector");
   if (!selectedId) {
     panel.innerHTML = EMPTY_SELECTION_HTML;
     return;
@@ -579,7 +530,7 @@ function toggleRun() {
   startRunning();
 }
 
-byId("force-picker").addEventListener("change", (event) => {
+byId("diagram-picker").addEventListener("change", (event) => {
   const nextUrl = event.target.value;
   if (!nextUrl || nextUrl === window.location.pathname) {
     return;
@@ -587,29 +538,9 @@ byId("force-picker").addEventListener("change", (event) => {
   window.location.assign(nextUrl);
 });
 
-function stepPicker(delta) {
-  const picker = byId("force-picker");
-  if (!(picker instanceof HTMLSelectElement) || picker.options.length === 0) {
-    return;
-  }
-  const nextIndex = picker.selectedIndex + delta;
-  if (nextIndex < 0 || nextIndex >= picker.options.length) {
-    return;
-  }
-  picker.selectedIndex = nextIndex;
-  picker.dispatchEvent(new Event("change"));
-}
+// Prev/next buttons are wired by initPreviewShell() from editor-base.js
 
-const prevBtn = byId("diagram-prev");
-const nextBtn = byId("diagram-next");
-if (prevBtn) {
-  prevBtn.addEventListener("click", () => stepPicker(-1));
-}
-if (nextBtn) {
-  nextBtn.addEventListener("click", () => stepPicker(1));
-}
-
-byId("tree").addEventListener("click", (event) => {
+byId("tree-force").addEventListener("click", (event) => {
   const item = event.target.closest("[data-node-id]");
   if (!item || !currentSnapshot) {
     return;
@@ -685,7 +616,7 @@ document.addEventListener("mouseup", async (event) => {
   dragCandidate = null;
 });
 
-byId("force-selection").addEventListener("change", async (event) => {
+byId("inspector").addEventListener("change", async (event) => {
   const select = event.target.closest("[data-force-style-select]");
   if (!select) {
     return;
@@ -698,7 +629,7 @@ byId("force-selection").addEventListener("change", async (event) => {
   }
 });
 
-byId("force-selection").addEventListener("click", async (event) => {
+byId("inspector").addEventListener("click", async (event) => {
   const button = event.target.closest("[data-force-pin-toggle]");
   if (!button || !currentSnapshot) {
     return;
@@ -717,9 +648,8 @@ byId("force-selection").addEventListener("click", async (event) => {
   }
 });
 
-for (const tab of document.querySelectorAll(".dg-view-tab")) {
-  tab.addEventListener("click", () => setViewMode(tab.dataset.viewMode || "output"));
-}
+// Shell init: sidebar resize, view tabs, prev/next — from editor-base.js
+initPreviewShell();
 
 byId("btn-play").addEventListener("click", toggleRun);
 byId("btn-step").addEventListener("click", async () => {

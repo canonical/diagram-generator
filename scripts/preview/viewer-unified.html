@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>%TITLE%</title>
+%BF_STYLES%
+<link rel="stylesheet" href="/preview/editor.css">
+</head>
+<body class="bf-theme bf-tier-os is-dark dg-preview">
+<div class="bf-application dg-preview-app" data-dg-shell="true" data-dg-mode="%MODE%">
+  <nav class="bf-navigation is-pinned dg-component-navigation" id="dg-component-navigation" aria-label="Components">
+    <div class="bf-navigation-overlay" aria-hidden="true"></div>
+    <div class="bf-navigation-drawer">
+      <section class="bf-panel is-fill dg-component-panel">
+        <!-- Grid mode: Browse/Layers tabs -->
+        <div class="bf-panel-header is-sticky dg-nav-tabs-header dg-grid-only">
+          <div class="bf-tabs dg-nav-tabs">
+            <ul class="bf-tabs-list" role="tablist" aria-label="Left sidebar view">
+              <li class="bf-tabs-item"><button class="bf-tabs-link dg-nav-tab is-active" id="nav-tab-browse" type="button" role="tab" aria-selected="true" aria-controls="nav-pane-browse" tabindex="0">Browse</button></li>
+              <li class="bf-tabs-item"><button class="bf-tabs-link dg-nav-tab" id="nav-tab-layers" type="button" role="tab" aria-selected="false" aria-controls="nav-pane-layers" tabindex="-1">Layers</button></li>
+            </ul>
+          </div>
+        </div>
+        <!-- Force mode: simple Nodes heading -->
+        <div class="bf-panel-header is-sticky dg-force-only">
+          <h2 class="dg-section-heading bf-h5">Nodes</h2>
+        </div>
+        <div class="bf-panel-content dg-component-panel-content">
+          <!-- Grid mode: Browse pane -->
+          <div class="dg-nav-pane is-active dg-grid-only" id="nav-pane-browse" role="tabpanel" aria-labelledby="nav-tab-browse">
+            %BROWSE_NAV%
+          </div>
+          <!-- Grid mode: Layers pane / Force mode: flat tree -->
+          <div class="dg-nav-pane dg-grid-only" id="nav-pane-layers" role="tabpanel" aria-labelledby="nav-tab-layers" hidden>
+            <div class="tree dg-component-tree" id="tree"></div>
+          </div>
+          <div class="tree dg-component-tree dg-force-only" id="tree-force"></div>
+        </div>
+      </section>
+    </div>
+    <div class="bf-application-navigation-resize-handle" role="separator" tabindex="0" aria-controls="dg-component-navigation" aria-label="Resize components panel" aria-orientation="vertical"></div>
+  </nav>
+
+  <main class="bf-main dg-preview-main">
+    <div class="dg-stage-shell" id="stage-shell" data-view-mode="output">
+      <div class="dg-view-controls" id="view-controls">
+        <div class="bf-tabs dg-view-tabs">
+          <ul class="bf-tabs-list" role="tablist" aria-label="Preview mode">
+            <li class="bf-tabs-item"><button class="bf-tabs-link dg-view-tab" id="view-tab-input" type="button" data-view-mode="input" role="tab" aria-selected="false" aria-controls="input-pane" tabindex="-1">Input</button></li>
+            <li class="bf-tabs-item"><button class="bf-tabs-link dg-view-tab" id="view-tab-output" type="button" data-view-mode="output" role="tab" aria-selected="true" aria-controls="output-pane" tabindex="0">Output</button></li>
+            <li class="bf-tabs-item"><button class="bf-tabs-link dg-view-tab" id="view-tab-both" type="button" data-view-mode="both" role="tab" aria-selected="false" aria-controls="stage-layout" tabindex="-1">Both</button></li>
+          </ul>
+        </div>
+        <button class="bf-button is-base is-icon dg-split-toggle dg-grid-only" id="split-toggle" type="button" aria-label="Toggle horizontal/vertical split" title="Toggle horizontal/vertical split" style="display:none">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" class="dg-split-icon dg-split-icon--horizontal"><rect x="1" y="2" width="6" height="12" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/><rect x="9" y="2" width="6" height="12" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" class="dg-split-icon dg-split-icon--vertical"><rect x="2" y="1" width="12" height="6" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/><rect x="2" y="9" width="12" height="6" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>
+        </button>
+      </div>
+      <div class="dg-stage-layout" id="stage-layout">
+        <section class="dg-preview-pane dg-input-pane" id="input-pane" aria-label="Input sketch">
+          <div class="dg-preview-pane-header">
+            <span class="dg-preview-pane-label">Input</span>
+          </div>
+          <div class="dg-reference-img-wrap" id="reference-img-wrap">
+            <img class="dg-reference-img" id="reference-img" alt="Source sketch">
+          </div>
+        </section>
+        <section class="dg-preview-pane dg-output-pane" id="output-pane" aria-label="Generated output">
+          <div class="dg-preview-pane-header">
+            <span class="dg-preview-pane-label">Output</span>
+          </div>
+          <div class="stage" id="stage"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <aside class="bf-aside is-pinned is-medium dg-preview-aside" id="dg-preview-aside">
+    <div class="bf-application-aside-resize-handle" role="separator" tabindex="0" aria-controls="dg-preview-aside" aria-label="Resize inspector panel" aria-orientation="vertical"></div>
+    <section class="sidebar bf-panel is-fill dg-sidebar-panel">
+      <div class="bf-panel-header is-sticky dg-sidebar-header">
+        <a class="nav-back" href="/">&#x2190; all previews</a>
+        <label class="bf-field dg-diagram-picker-field" for="diagram-picker">
+          <span class="bf-form-label">Preview</span>
+          <span class="bf-control dg-picker-row">
+            <select class="bf-input dg-diagram-picker" id="diagram-picker" aria-label="Select preview">%NAV_OPTIONS%</select>
+            <span class="dg-picker-nav">
+              <button class="bf-button is-base is-icon" id="diagram-prev" aria-label="Previous diagram" title="Previous diagram"><span class="bf-icon is-chevron-left" aria-hidden="true"></span></button>
+              <button class="bf-button is-base is-icon" id="diagram-next" aria-label="Next diagram" title="Next diagram"><span class="bf-icon is-chevron-right" aria-hidden="true"></span></button>
+            </span>
+          </span>
+        </label>
+        <div class="build-status build-ok" id="build-status">Ready</div>
+      </div>
+      <div class="bf-panel-content dg-sidebar-content">
+
+        <!-- ── Force mode: Solver ── -->
+        <section class="dg-sidebar-section dg-force-only">
+          <h2 class="dg-section-heading bf-h5">Solver</h2>
+          <div class="grid-controls">
+            <label class="bf-field dg-grid-field is-full-span" for="ticks-per-frame">
+              <span class="bf-form-label">Ticks per frame</span>
+              <span class="bf-control dg-grid-control"><input class="bf-input dg-number-input" id="ticks-per-frame" type="number" min="1" max="32" step="1" value="4"><span class="dg-grid-unit">ticks</span></span>
+            </label>
+          </div>
+          <div class="bf-cluster dg-button-row">
+            <button class="btn bf-button" id="btn-play" type="button">Run</button>
+            <button class="btn bf-button is-base" id="btn-step" type="button">Step</button>
+            <button class="btn bf-button is-base" id="btn-reset" type="button">Reset</button>
+            <button class="btn bf-button is-base" id="btn-force-save" type="button">Save</button>
+            <button class="btn bf-button is-base" id="btn-export-json" type="button">Export JSON</button>
+            <button class="btn bf-button is-base" id="btn-export-svg" type="button">Export SVG</button>
+          </div>
+          <p class="bf-form-help dg-override-summary" id="force-summary">The preview resets to tick 0 on load, advances the Python solver in batched ticks, and exports snapped coordinates.</p>
+        </section>
+
+        <!-- ── Shared: Inspector / Selection ── -->
+        <section class="dg-sidebar-section">
+          <h2 class="dg-section-heading bf-h5 dg-force-only">Selection</h2>
+          <div class="inspector" id="inspector">
+            <p class="dg-empty-message bf-form-help">%INSPECTOR_EMPTY%</p>
+          </div>
+        </section>
+
+        <!-- ── Grid mode: Grid controls ── -->
+        <section class="dg-sidebar-section dg-grid-only">
+          <h2 class="dg-section-heading bf-h5">Grid</h2>
+          <div class="grid-controls" id="grid-controls">
+            <label class="bf-field dg-grid-field" for="grid-cols">
+              <span class="bf-form-label">Columns</span>
+              <span class="bf-control dg-grid-control"><input class="bf-input dg-number-input" type="number" id="grid-cols" min="1" max="20" value="1"><span class="dg-grid-unit">cols</span></span>
+            </label>
+            <label class="bf-field dg-grid-field" for="grid-rows">
+              <span class="bf-form-label">Rows</span>
+              <span class="bf-control dg-grid-control"><input class="bf-input dg-number-input" type="number" id="grid-rows" min="1" max="40" value="1" readonly><span class="dg-grid-unit">rows</span></span>
+            </label>
+            <label class="bf-field dg-grid-field" for="grid-col-gap">
+              <span class="bf-form-label">Col gutter</span>
+              <span class="bf-control dg-grid-control"><input class="bf-input dg-number-input" type="number" id="grid-col-gap" min="0" max="128" step="8" value="24"><span class="dg-grid-unit">px</span></span>
+            </label>
+            <label class="bf-field dg-grid-field" for="grid-row-gap">
+              <span class="bf-form-label">Row gutter</span>
+              <span class="bf-control dg-grid-control"><input class="bf-input dg-number-input" type="number" id="grid-row-gap" min="0" max="128" step="8" value="24"><span class="dg-grid-unit">px</span></span>
+            </label>
+            <label class="bf-field dg-grid-field is-full-span" for="grid-margin">
+              <span class="bf-form-label">Margin</span>
+              <span class="bf-control dg-grid-control"><input class="bf-input dg-number-input" type="number" id="grid-margin" min="0" max="128" step="8" value="24"><span class="dg-grid-unit">px</span></span>
+            </label>
+          </div>
+        </section>
+
+        <!-- ── Grid mode: Overrides ── -->
+        <section class="dg-sidebar-section dg-grid-only">
+          <h2 class="dg-section-heading bf-h5">Overrides</h2>
+          <p class="bf-form-help dg-override-summary" id="override-summary">No overrides.</p>
+          <div class="bf-cluster dg-button-row">
+            <button class="btn bf-button" id="btn-save" disabled>Save</button>
+            <button class="btn bf-button is-base" id="btn-save-svg">Save SVG</button>
+            <button class="btn bf-button is-base" id="btn-undo" disabled>Undo</button>
+            <button class="btn bf-button is-base" id="btn-redo" disabled>Redo</button>
+            <button class="btn bf-button is-base" id="btn-clear-all">Clear all</button>
+            <button class="btn bf-button is-base" id="btn-export">Copy overrides</button>
+          </div>
+        </section>
+
+        <!-- ── Grid mode: Constraints ── -->
+        <section class="dg-sidebar-section dg-grid-only">
+          <h2 class="dg-section-heading bf-h5">Constraints</h2>
+          <div class="build-status build-ok" id="constraint-status">No violations</div>
+        </section>
+
+        <!-- ── Force mode: Simulation params ── -->
+        <section class="dg-sidebar-section dg-force-only">
+          <h2 class="dg-section-heading bf-h5">Simulation</h2>
+          <div class="inspector" id="force-params">
+            <div class="field">
+              <label class="label" for="param-link-distance">Link distance</label>
+              <input class="bf-input" type="number" id="param-link-distance" min="10" max="500" step="10" data-force-param="link_distance">
+            </div>
+            <div class="field">
+              <label class="label" for="param-link-strength">Link strength</label>
+              <input class="bf-input" type="number" id="param-link-strength" min="0" max="2" step="0.05" data-force-param="link_strength">
+            </div>
+            <div class="field">
+              <label class="label" for="param-charge-strength">Charge strength</label>
+              <input class="bf-input" type="number" id="param-charge-strength" min="-1000" max="0" step="10" data-force-param="charge_strength">
+            </div>
+            <div class="field">
+              <label class="label" for="param-collision-padding">Collision padding</label>
+              <input class="bf-input" type="number" id="param-collision-padding" min="0" max="100" step="2" data-force-param="collision_padding">
+            </div>
+            <div class="field">
+              <label class="label" for="param-velocity-decay">Velocity decay</label>
+              <input class="bf-input" type="number" id="param-velocity-decay" min="0" max="1" step="0.05" data-force-param="velocity_decay">
+            </div>
+            <div class="field">
+              <label class="label" for="param-alpha-min">Alpha min</label>
+              <input class="bf-input" type="number" id="param-alpha-min" min="0" max="0.1" step="0.001" data-force-param="alpha_min">
+            </div>
+            <div class="field">
+              <label class="label" for="param-alpha-decay">Alpha decay</label>
+              <input class="bf-input" type="number" id="param-alpha-decay" min="0" max="0.1" step="0.001" data-force-param="alpha_decay">
+            </div>
+            <div class="field">
+              <label class="label" for="param-curve-handle-ratio">Curve handle ratio</label>
+              <input class="bf-input" type="number" id="param-curve-handle-ratio" min="0" max="1" step="0.05" data-force-param="curve_handle_ratio" data-param-source="render">
+            </div>
+          </div>
+        </section>
+
+        <!-- ── Force mode: Guidance ── -->
+        <section class="dg-sidebar-section dg-force-only">
+          <h2 class="dg-section-heading bf-h5">Guidance</h2>
+          <p class="bf-form-help dg-override-summary">This force preview must still obey the repo's diagram language: white or grey boxes, at most one black emphasis box, orange connectors only, and top-left aligned live text.</p>
+          <p class="bf-form-help dg-override-summary">To pin a node, select it and click Pin here in the Selection panel. Reset and browser refresh restart the solver around the current pinned session state; Save persists that state across server restarts.</p>
+        </section>
+      </div>
+    </section>
+  </aside>
+</div>
+<div class="guide-badge dg-grid-only" id="guide-badge"></div>
+<script>%CONFIG_SCRIPT%</script>
+<script src="/preview/box-styles.js"></script>
+<script src="/preview/editor-base.js"></script>
+%MODE_SCRIPTS%
+</body>
+</html>
