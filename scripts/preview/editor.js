@@ -694,6 +694,46 @@ function onGridControlChange() {
   updateGridOverlayFromInputs();
 }
 
+// ---- Column/row span ↔ pixel conversion ----
+
+/** Convert a column span count to pixel width. */
+function colSpanToPx(span) {
+  if (!gridInfo || !gridInfo.col_widths || !gridInfo.col_widths.length) return null;
+  const colW = gridInfo.col_widths[0];
+  const gap = gridInfo.col_gap || 0;
+  return colW * span + gap * (span - 1);
+}
+
+/** Convert a row span count to pixel height. */
+function rowSpanToPx(span) {
+  if (!gridInfo || !gridInfo.row_heights || !gridInfo.row_heights.length) return null;
+  const rowH = gridInfo.row_heights[0];
+  const gap = gridInfo.row_gap || 0;
+  return rowH * span + gap * (span - 1);
+}
+
+/** Convert a pixel width to the nearest column span (may be fractional). */
+function pxToColSpan(px) {
+  if (!gridInfo || !gridInfo.col_widths || !gridInfo.col_widths.length) return null;
+  const colW = gridInfo.col_widths[0];
+  const gap = gridInfo.col_gap || 0;
+  if (colW + gap <= 0) return null;
+  return (px + gap) / (colW + gap);
+}
+
+/** Convert a pixel height to the nearest row span (may be fractional). */
+function pxToRowSpan(px) {
+  if (!gridInfo || !gridInfo.row_heights || !gridInfo.row_heights.length) return null;
+  const rowH = gridInfo.row_heights[0];
+  const gap = gridInfo.row_gap || 0;
+  if (rowH + gap <= 0) return null;
+  return (px + gap) / (rowH + gap);
+}
+
+// Track inspector width/height unit preference: 'px', 'cols', 'rows'
+let _inspectorWidthUnit = 'px';
+let _inspectorHeightUnit = 'px';
+
 // ---- Brockman grid resolver ----
 // Mirrors the a4-generator rigorous solver: row heights are whole multiples
 // of BASELINE_STEP, the bottom margin absorbs leftover slack, and column
@@ -1349,7 +1389,19 @@ function renderMultiSelectionInspector() {
       html += '<option value="HUG"' + (sizingInfo.sizingW === 'HUG' ? ' selected' : '') + '>Hug</option>';
       html += '<option value="FILL"' + (sizingInfo.sizingW === 'FILL' ? ' selected' : '') + '>Fill</option>';
       html += '<option value="FIXED"' + (sizingInfo.sizingW === 'FIXED' ? ' selected' : '') + '>Fixed</option>';
-      html += '</select></div>';
+      html += '</select>';
+      if (sizingInfo.sizingW === 'FIXED' && !sizingInfo.wMixed) {
+        const stepW = _inspectorWidthUnit === 'cols' ? 1 : BASELINE_STEP;
+        html += '<input class="bf-input" type="number" min="0" step="' + stepW + '" value=""';
+        html += ' placeholder="' + (_inspectorWidthUnit === 'cols' ? 'cols' : 'px') + '"';
+        html += ' onchange="setMultiFrameSize(\'width\',parseFloat(this.value))"';
+        html += ' style="width:60px;margin-left:4px">';
+        html += '<select class="bf-input" style="width:50px;margin-left:2px" onchange="setWidthUnit(this.value)">';
+        html += '<option value="px"' + (_inspectorWidthUnit === 'px' ? ' selected' : '') + '>px</option>';
+        html += '<option value="cols"' + (_inspectorWidthUnit === 'cols' ? ' selected' : '') + '>cols</option>';
+        html += '</select>';
+      }
+      html += '</div>';
 
       // Height sizing
       html += '<div class="field"><span class="label">Height</span>';
@@ -1358,7 +1410,19 @@ function renderMultiSelectionInspector() {
       html += '<option value="HUG"' + (sizingInfo.sizingH === 'HUG' ? ' selected' : '') + '>Hug</option>';
       html += '<option value="FILL"' + (sizingInfo.sizingH === 'FILL' ? ' selected' : '') + '>Fill</option>';
       html += '<option value="FIXED"' + (sizingInfo.sizingH === 'FIXED' ? ' selected' : '') + '>Fixed</option>';
-      html += '</select></div>';
+      html += '</select>';
+      if (sizingInfo.sizingH === 'FIXED' && !sizingInfo.hMixed) {
+        const stepH = _inspectorHeightUnit === 'rows' ? 1 : BASELINE_STEP;
+        html += '<input class="bf-input" type="number" min="0" step="' + stepH + '" value=""';
+        html += ' placeholder="' + (_inspectorHeightUnit === 'rows' ? 'rows' : 'px') + '"';
+        html += ' onchange="setMultiFrameSize(\'height\',parseFloat(this.value))"';
+        html += ' style="width:60px;margin-left:4px">';
+        html += '<select class="bf-input" style="width:50px;margin-left:2px" onchange="setHeightUnit(this.value)">';
+        html += '<option value="px"' + (_inspectorHeightUnit === 'px' ? ' selected' : '') + '>px</option>';
+        html += '<option value="rows"' + (_inspectorHeightUnit === 'rows' ? ' selected' : '') + '>rows</option>';
+        html += '</select>';
+      }
+      html += '</div>';
 
       html += '</div>';
     }
@@ -1619,6 +1683,44 @@ function setMultiFrameProp(prop, value) {
   renderMultiSelectionInspector();
 }
 window.setMultiFrameProp = setMultiFrameProp;
+
+/**
+ * Set an explicit width or height for all selected items, converting from
+ * the current inspector unit (px, cols, rows) to pixels.
+ */
+function setMultiFrameSize(dimension, value) {
+  if (!Number.isFinite(value) || value <= 0) return;
+  let px;
+  if (dimension === 'width' && _inspectorWidthUnit === 'cols') {
+    px = colSpanToPx(value);
+  } else if (dimension === 'height' && _inspectorHeightUnit === 'rows') {
+    px = rowSpanToPx(value);
+  } else {
+    px = Math.round(value / BASELINE_STEP) * BASELINE_STEP;
+  }
+  if (px == null || isNaN(px) || px <= 0) return;
+  px = Math.round(px);
+
+  const sizingProp = dimension === 'width' ? 'sizing_w' : 'sizing_h';
+  const ids = [...selectedIds];
+  const msBefore = _captureOverrideEntries(ids);
+  for (const cid of ids) {
+    const node = model.get(cid);
+    if (!node) continue;
+    if (node.type === 'arrow' || node.type === 'separator') continue;
+    if (!overrides[cid]) overrides[cid] = {};
+    overrides[cid][sizingProp] = 'FIXED';
+    overrides[cid][dimension] = px;
+  }
+  setDirty(true);
+  commitOverridePatchAction("Set " + dimension + " (multi)", msBefore, _captureOverrideEntries(ids));
+  if (ids.length > 0) {
+    clearTimeout(_v3RelayoutTimer);
+    _v3RelayoutTimer = setTimeout(() => requestV3Relayout(ids[0]), 300);
+  }
+  renderMultiSelectionInspector();
+}
+window.setMultiFrameSize = setMultiFrameSize;
 
 function applyAllOverrides() {
   const svg = document.querySelector("#stage svg");
@@ -3783,14 +3885,42 @@ function buildAutolayoutPanel(cid, node) {
   html += '<option value="HUG"' + (sizingW === 'HUG' ? ' selected' : '') + '>Hug</option>';
   html += '<option value="FILL"' + (sizingW === 'FILL' ? ' selected' : '') + '>Fill</option>';
   html += '<option value="FIXED"' + (sizingW === 'FIXED' ? ' selected' : '') + '>Fixed</option>';
-  html += '</select></div>';
+  html += '</select>';
+  // Numeric width + unit selector (shown when FIXED)
+  if (sizingW === 'FIXED') {
+    const rawW = ovr.width !== undefined ? ovr.width : (node.data ? node.data.width : 0);
+    const displayW = _inspectorWidthUnit === 'cols' ? Math.round(pxToColSpan(rawW) * 100) / 100 : Math.round(rawW);
+    const stepW = _inspectorWidthUnit === 'cols' ? 1 : BASELINE_STEP;
+    html += '<input class="bf-input" type="number" min="0" step="' + stepW + '" value="' + displayW + '"';
+    html += ' onchange="setFrameSize(\'' + cid + '\',\'width\',parseFloat(this.value))"';
+    html += ' style="width:60px;margin-left:4px">';
+    html += '<select class="bf-input" style="width:50px;margin-left:2px" onchange="setWidthUnit(this.value,\'' + cid + '\')">';
+    html += '<option value="px"' + (_inspectorWidthUnit === 'px' ? ' selected' : '') + '>px</option>';
+    html += '<option value="cols"' + (_inspectorWidthUnit === 'cols' ? ' selected' : '') + '>cols</option>';
+    html += '</select>';
+  }
+  html += '</div>';
 
   html += '<div class="field"><span class="label">Height</span>';
   html += '<select class="bf-input" onchange="setFrameProp(\'' + cid + '\',\'sizing_h\',this.value)">';
   html += '<option value="HUG"' + (sizingH === 'HUG' ? ' selected' : '') + '>Hug</option>';
   html += '<option value="FILL"' + (sizingH === 'FILL' ? ' selected' : '') + '>Fill</option>';
   html += '<option value="FIXED"' + (sizingH === 'FIXED' ? ' selected' : '') + '>Fixed</option>';
-  html += '</select></div>';
+  html += '</select>';
+  // Numeric height + unit selector (shown when FIXED)
+  if (sizingH === 'FIXED') {
+    const rawH = ovr.height !== undefined ? ovr.height : (node.data ? node.data.height : 0);
+    const displayH = _inspectorHeightUnit === 'rows' ? Math.round(pxToRowSpan(rawH) * 100) / 100 : Math.round(rawH);
+    const stepH = _inspectorHeightUnit === 'rows' ? 1 : BASELINE_STEP;
+    html += '<input class="bf-input" type="number" min="0" step="' + stepH + '" value="' + displayH + '"';
+    html += ' onchange="setFrameSize(\'' + cid + '\',\'height\',parseFloat(this.value))"';
+    html += ' style="width:60px;margin-left:4px">';
+    html += '<select class="bf-input" style="width:50px;margin-left:2px" onchange="setHeightUnit(this.value,\'' + cid + '\')">';
+    html += '<option value="px"' + (_inspectorHeightUnit === 'px' ? ' selected' : '') + '>px</option>';
+    html += '<option value="rows"' + (_inspectorHeightUnit === 'rows' ? ' selected' : '') + '>rows</option>';
+    html += '</select>';
+  }
+  html += '</div>';
 
   html += '</div>';
   return html;
@@ -3962,6 +4092,44 @@ async function requestV3Relayout(triggerCid) {
 
 // Expose to inline handlers
 window.setFrameProp = setFrameProp;
+
+/**
+ * Set an explicit width or height value, converting from the current
+ * inspector unit (px, cols, rows) to pixels.
+ */
+function setFrameSize(cid, dimension, value) {
+  let px;
+  if (dimension === 'width' && _inspectorWidthUnit === 'cols') {
+    px = colSpanToPx(value);
+  } else if (dimension === 'height' && _inspectorHeightUnit === 'rows') {
+    px = rowSpanToPx(value);
+  } else {
+    px = Math.round(value / BASELINE_STEP) * BASELINE_STEP;
+  }
+  if (px == null || isNaN(px) || px <= 0) return;
+  px = Math.round(px);
+  const sizingProp = dimension === 'width' ? 'sizing_w' : 'sizing_h';
+  if (!overrides[cid]) overrides[cid] = {};
+  overrides[cid][sizingProp] = 'FIXED';
+  overrides[cid][dimension] = px;
+  setDirty(true);
+  clearTimeout(_v3RelayoutTimer);
+  _v3RelayoutTimer = setTimeout(() => requestV3Relayout(cid), 300);
+  renderSelectionInspector(cid);
+}
+window.setFrameSize = setFrameSize;
+
+function setWidthUnit(unit, cid) {
+  _inspectorWidthUnit = unit;
+  if (cid) renderSelectionInspector(cid);
+}
+window.setWidthUnit = setWidthUnit;
+
+function setHeightUnit(unit, cid) {
+  _inspectorHeightUnit = unit;
+  if (cid) renderSelectionInspector(cid);
+}
+window.setHeightUnit = setHeightUnit;
 
 function updateInspector(cid) {
   const inspector = getInspectorElement();
