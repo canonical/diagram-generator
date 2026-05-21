@@ -36,6 +36,81 @@ let resizeState = null;
 let suppressStageClick = false;
 const EMPTY_SELECTION_HTML = '<p class="dg-empty-message bf-form-help">Select or drag a node from the stage or the left rail. Dragging drops it into a pinned manual-polish position.</p>';
 
+// ---- Undo/Redo stack ----
+const MAX_FORCE_UNDO = 50;
+let forceUndoStack = [];
+let forceRedoStack = [];
+
+function captureNodeState(nodeId) {
+  if (!currentSnapshot) return null;
+  const node = currentSnapshot.nodes.find(n => n.id === nodeId);
+  if (!node) return null;
+  return {
+    nodeId,
+    x: node.x,
+    y: node.y,
+    fx: node.fx,
+    fy: node.fy,
+    width: node.width,
+    height: node.height,
+    style: node.style_override != null ? node.style_override : null,
+    pinned: node.fx != null,
+  };
+}
+
+function pushForceUndo(label, before, after) {
+  if (!before || !after) return;
+  forceUndoStack.push({ label, before, after });
+  if (forceUndoStack.length > MAX_FORCE_UNDO) forceUndoStack.shift();
+  forceRedoStack = [];
+  updateForceUndoButtons();
+}
+
+function updateForceUndoButtons() {
+  const undoBtn = document.getElementById("btn-force-undo");
+  const redoBtn = document.getElementById("btn-force-redo");
+  if (undoBtn) undoBtn.disabled = forceUndoStack.length === 0;
+  if (redoBtn) redoBtn.disabled = forceRedoStack.length === 0;
+}
+
+async function applyNodeState(state) {
+  const patch = {
+    x: state.x,
+    y: state.y,
+    pinned: state.pinned,
+  };
+  if (state.width != null) patch.width = state.width;
+  if (state.height != null) patch.height = state.height;
+  if (state.style !== undefined) patch.style = state.style;
+  await updateForceNode(state.nodeId, patch);
+}
+
+async function performForceUndo() {
+  if (forceUndoStack.length === 0) return;
+  const command = forceUndoStack.pop();
+  forceRedoStack.push(command);
+  try {
+    await applyNodeState(command.before);
+    setStatus(`Undo: ${command.label}`, "ok");
+  } catch (err) {
+    setStatus(err.message || "Undo failed", "error");
+  }
+  updateForceUndoButtons();
+}
+
+async function performForceRedo() {
+  if (forceRedoStack.length === 0) return;
+  const command = forceRedoStack.pop();
+  forceUndoStack.push(command);
+  try {
+    await applyNodeState(command.after);
+    setStatus(`Redo: ${command.label}`, "ok");
+  } catch (err) {
+    setStatus(err.message || "Redo failed", "error");
+  }
+  updateForceUndoButtons();
+}
+
 // Utilities come from editor-base.js (byId, escapeHtml, fetchJson, setStatus,
 // getStageSvg, pointerToSvgPoint, setViewMode).  Keep thin local wrappers
 // where the old force API differs from the base.
@@ -168,6 +243,7 @@ function startForceResize(event, handleEl) {
     origY: node.y,
     origW: node.width,
     origH: node.height,
+    undoBefore: captureNodeState(nodeId),
   };
   selectedId = nodeId;
   event.preventDefault();
@@ -277,6 +353,7 @@ async function finishForceResize(event) {
       height: newH,
       pinned: true,
     });
+    pushForceUndo("Resize", activeResize.undoBefore, captureNodeState(activeResize.nodeId));
     setStatus(`Resized to ${newW}×${newH}`, "ok");
     startRunning();
   } catch (error) {
@@ -600,6 +677,7 @@ function startDragPreview(candidate) {
     offsetX: candidate.nodeX - candidate.startSvgX,
     offsetY: candidate.nodeY - candidate.startSvgY,
     snapTargets: collectForceSnapTargets(candidate.nodeId),
+    undoBefore: captureNodeState(candidate.nodeId),
   };
   dragCandidate = null;
   selectedId = candidate.nodeId;
@@ -669,6 +747,8 @@ async function finishDrag(event) {
 
   try {
     await updateForceNode(activeDrag.nodeId, { x: finalX, y: finalY, pinned: true });
+    const afterState = captureNodeState(activeDrag.nodeId);
+    pushForceUndo("Move", activeDrag.undoBefore, afterState);
     setStatus("Dropped and pinned", "ok");
     startRunning();
   } catch (error) {
@@ -942,8 +1022,11 @@ byId("inspector").addEventListener("change", async (event) => {
   if (!select) {
     return;
   }
+  const styleNodeId = select.getAttribute("data-force-style-select");
+  const beforeStyle = captureNodeState(styleNodeId);
   try {
-    await updateForceNode(select.getAttribute("data-force-style-select"), { style: select.value || null });
+    await updateForceNode(styleNodeId, { style: select.value || null });
+    pushForceUndo("Style", beforeStyle, captureNodeState(styleNodeId));
     setStatus(select.value ? "Style updated" : "Style reset", "ok");
   } catch (error) {
     setStatus(error.message || "Style update failed", "error");
@@ -961,8 +1044,10 @@ byId("inspector").addEventListener("click", async (event) => {
     return;
   }
   const nextPinned = !isNodePinned(node);
+  const beforePin = captureNodeState(nodeId);
   try {
     await updateForceNode(nodeId, { pinned: nextPinned });
+    pushForceUndo(nextPinned ? "Pin" : "Unpin", beforePin, captureNodeState(nodeId));
     setStatus(nextPinned ? "Pinned" : "Unpinned", "ok");
   } catch (error) {
     setStatus(error.message || "Pin update failed", "error");
@@ -988,16 +1073,35 @@ byId("btn-reset").addEventListener("click", async () => {
   updateRunButton();
   try {
     await loadSnapshot(true);
+    forceUndoStack = [];
+    forceRedoStack = [];
+    updateForceUndoButtons();
     startRunning();
   } catch (error) {
     setStatus(error.message || "Reset failed", "error");
   }
 });
-byId("btn-save").addEventListener("click", async () => {
+byId("btn-force-save").addEventListener("click", async () => {
   try {
     await saveForceOverrides();
   } catch (error) {
     setStatus(error.message || "Save failed", "error");
+  }
+});
+byId("btn-force-undo").addEventListener("click", performForceUndo);
+byId("btn-force-redo").addEventListener("click", performForceRedo);
+document.addEventListener("keydown", (event) => {
+  if ((event.ctrlKey || event.metaKey) && event.key === "z" && !event.shiftKey) {
+    event.preventDefault();
+    performForceUndo();
+  }
+  if ((event.ctrlKey || event.metaKey) && event.key === "z" && event.shiftKey) {
+    event.preventDefault();
+    performForceRedo();
+  }
+  if ((event.ctrlKey || event.metaKey) && event.key === "y") {
+    event.preventDefault();
+    performForceRedo();
   }
 });
 byId("btn-export-json").addEventListener("click", async () => {
