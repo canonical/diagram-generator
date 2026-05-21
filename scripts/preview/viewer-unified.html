@@ -12,36 +12,24 @@
     <div class="bf-navigation-overlay" aria-hidden="true"></div>
     <div class="bf-navigation-drawer">
       <section class="bf-panel is-fill dg-component-panel">
-        <!-- Grid mode: Browse/Layers tabs -->
-        <div class="bf-panel-header is-sticky dg-nav-tabs-header dg-grid-only">
+        <!-- Left nav tabs: shared Browse + mode-specific second tab -->
+        <div class="bf-panel-header is-sticky dg-nav-tabs-header">
           <div class="bf-tabs dg-nav-tabs">
             <ul class="bf-tabs-list" role="tablist" aria-label="Left sidebar view">
               <li class="bf-tabs-item"><button class="bf-tabs-link dg-nav-tab is-active" id="nav-tab-browse" type="button" role="tab" aria-selected="true" aria-controls="nav-pane-browse" tabindex="0">Browse</button></li>
-              <li class="bf-tabs-item"><button class="bf-tabs-link dg-nav-tab" id="nav-tab-layers" type="button" role="tab" aria-selected="false" aria-controls="nav-pane-layers" tabindex="-1">Layers</button></li>
-            </ul>
-          </div>
-        </div>
-        <!-- Force mode: Browse/Nodes tabs -->
-        <div class="bf-panel-header is-sticky dg-nav-tabs-header dg-force-only">
-          <div class="bf-tabs dg-nav-tabs">
-            <ul class="bf-tabs-list" role="tablist" aria-label="Left sidebar view">
-              <li class="bf-tabs-item"><button class="bf-tabs-link dg-nav-tab is-active" id="nav-tab-browse-force" type="button" role="tab" aria-selected="true" aria-controls="nav-pane-browse-force" tabindex="0">Browse</button></li>
-              <li class="bf-tabs-item"><button class="bf-tabs-link dg-nav-tab" id="nav-tab-nodes" type="button" role="tab" aria-selected="false" aria-controls="nav-pane-nodes" tabindex="-1">Nodes</button></li>
+              <li class="bf-tabs-item dg-grid-only"><button class="bf-tabs-link dg-nav-tab" id="nav-tab-layers" type="button" role="tab" aria-selected="false" aria-controls="nav-pane-layers" tabindex="-1">Layers</button></li>
+              <li class="bf-tabs-item dg-force-only"><button class="bf-tabs-link dg-nav-tab" id="nav-tab-nodes" type="button" role="tab" aria-selected="false" aria-controls="nav-pane-nodes" tabindex="-1">Nodes</button></li>
             </ul>
           </div>
         </div>
         <div class="bf-panel-content dg-component-panel-content">
-          <!-- Grid mode: Browse pane -->
-          <div class="dg-nav-pane is-active dg-grid-only" id="nav-pane-browse" role="tabpanel" aria-labelledby="nav-tab-browse">
+          <!-- Shared Browse pane (both modes) -->
+          <div class="dg-nav-pane is-active" id="nav-pane-browse" role="tabpanel" aria-labelledby="nav-tab-browse">
             %BROWSE_NAV%
           </div>
           <!-- Grid mode: Layers pane -->
           <div class="dg-nav-pane dg-grid-only" id="nav-pane-layers" role="tabpanel" aria-labelledby="nav-tab-layers" hidden>
             <div class="tree dg-component-tree" id="tree"></div>
-          </div>
-          <!-- Force mode: Browse pane -->
-          <div class="dg-nav-pane is-active dg-force-only" id="nav-pane-browse-force" role="tabpanel" aria-labelledby="nav-tab-browse-force">
-            %BROWSE_NAV%
           </div>
           <!-- Force mode: Nodes pane -->
           <div class="dg-nav-pane dg-force-only" id="nav-pane-nodes" role="tabpanel" aria-labelledby="nav-tab-nodes" hidden>
