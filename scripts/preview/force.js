@@ -254,26 +254,6 @@ function renderSelection(snapshot) {
       <div class="value">${escapeHtml(node.id)}</div>
     </div>
     <div class="field">
-      <div class="label">Label</div>
-      <div class="value">${escapeHtml(nodeLabelLines(node).join(" / "))}</div>
-    </div>
-    <div class="field">
-      <div class="label">Position</div>
-      <div class="value">${Math.round(node.x)}, ${Math.round(node.y)}</div>
-    </div>
-    <div class="field">
-      <div class="label">Size</div>
-      <div class="value">${Math.round(node.width)} × ${Math.round(node.height)}</div>
-    </div>
-    <div class="field">
-      <div class="label">Pinned</div>
-      <div class="value">${isNodePinned(node) ? "yes" : "no"}</div>
-    </div>
-    <div class="field">
-      <div class="label">Effective style</div>
-      <div class="value">${escapeHtml(node.style ? boxStyleLabel(node.style) : "Original")}</div>
-    </div>
-    <div class="field">
       <span class="label">Style</span>
       <select class="style-picker bf-input" data-force-style-select="${escapeHtml(node.id)}">
         ${boxStyleOptionsHtml(node.style_override || "", {
@@ -286,7 +266,6 @@ function renderSelection(snapshot) {
       <div class="bf-cluster dg-button-row">
         <button class="btn bf-button is-base" type="button" data-force-pin-toggle="${escapeHtml(node.id)}">${isNodePinned(node) ? "Unpin" : "Pin here"}</button>
       </div>
-      <p class="bf-form-help dg-override-summary">Drag this node on the stage to place it manually and leave it pinned where you drop it.</p>
     </div>`;
 }
 
