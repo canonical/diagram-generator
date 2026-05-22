@@ -8,8 +8,8 @@ const DEFAULT_CURVE_HANDLE_RATIO = 0.35;
 const DEFAULT_CURVE_HANDLE_MIN = 24;
 const DEFAULT_CURVE_HANDLE_MAX = 72;
 const DRAG_THRESHOLD = 4;
-const HANDLE_SIZE = 8;
-const MIN_NODE_SIZE = 48;  // minimum width/height during resize
+// HANDLE_SIZE and MIN_NODE_SIZE now shared via editor-base.js
+// (SHARED_HANDLE_SIZE, SHARED_MIN_NODE_SIZE)
 const BOX_STYLES = window.__DG_BOX_STYLES || {
   default: { fill: "#FFFFFF", text: "#000000", icon: "#000000", label: "Default (white)" },
   accent: { fill: "#F3F3F3", text: "#000000", icon: "#000000", label: "Accent (grey)" },
@@ -36,10 +36,7 @@ let resizeState = null;
 let suppressStageClick = false;
 const EMPTY_SELECTION_HTML = '<p class="dg-empty-message bf-form-help">Select or drag a node from the stage or the left rail. Dragging drops it into a pinned manual-polish position.</p>';
 
-// ---- Undo/Redo stack ----
-const MAX_FORCE_UNDO = 50;
-let forceUndoStack = [];
-let forceRedoStack = [];
+// ---- Undo/Redo via shared UndoRedoManager ----
 
 function captureNodeState(nodeId) {
   if (!currentSnapshot) return null;
@@ -58,21 +55,6 @@ function captureNodeState(nodeId) {
   };
 }
 
-function pushForceUndo(label, before, after) {
-  if (!before || !after) return;
-  forceUndoStack.push({ label, before, after });
-  if (forceUndoStack.length > MAX_FORCE_UNDO) forceUndoStack.shift();
-  forceRedoStack = [];
-  updateForceUndoButtons();
-}
-
-function updateForceUndoButtons() {
-  const undoBtn = document.getElementById("btn-force-undo");
-  const redoBtn = document.getElementById("btn-force-redo");
-  if (undoBtn) undoBtn.disabled = forceUndoStack.length === 0;
-  if (redoBtn) redoBtn.disabled = forceRedoStack.length === 0;
-}
-
 async function applyNodeState(state) {
   const patch = {
     x: state.x,
@@ -85,30 +67,33 @@ async function applyNodeState(state) {
   await updateForceNode(state.nodeId, patch);
 }
 
+const forceUndoManager = new UndoRedoManager({
+  maxSize: 50,
+  undoBtnId: "btn-force-undo",
+  redoBtnId: "btn-force-redo",
+  onRestore: async (state, direction) => {
+    try {
+      await applyNodeState(state);
+    } catch (err) {
+      setStatus(err.message || `${direction} failed`, "error");
+      throw err;
+    }
+  },
+});
+
+function pushForceUndo(label, before, after) {
+  if (!before || !after) return;
+  forceUndoManager.push(label, before, after);
+}
+
 async function performForceUndo() {
-  if (forceUndoStack.length === 0) return;
-  const command = forceUndoStack.pop();
-  forceRedoStack.push(command);
-  try {
-    await applyNodeState(command.before);
-    setStatus(`Undo: ${command.label}`, "ok");
-  } catch (err) {
-    setStatus(err.message || "Undo failed", "error");
-  }
-  updateForceUndoButtons();
+  const label = await forceUndoManager.undo();
+  if (label) setStatus(`Undo: ${label}`, "ok");
 }
 
 async function performForceRedo() {
-  if (forceRedoStack.length === 0) return;
-  const command = forceRedoStack.pop();
-  forceUndoStack.push(command);
-  try {
-    await applyNodeState(command.after);
-    setStatus(`Redo: ${command.label}`, "ok");
-  } catch (err) {
-    setStatus(err.message || "Redo failed", "error");
-  }
-  updateForceUndoButtons();
+  const label = await forceUndoManager.redo();
+  if (label) setStatus(`Redo: ${label}`, "ok");
 }
 
 // Utilities come from editor-base.js (byId, escapeHtml, fetchJson, setStatus,
@@ -174,48 +159,20 @@ function showForceResizeHandles(nodeId) {
   const node = currentSnapshot.nodes.find((n) => n.id === nodeId);
   if (!node) return;
 
-  const hs = HANDLE_SIZE;
   const left = node.x - node.width / 2;
   const top = node.y - node.height / 2;
   const right = left + node.width;
   const bottom = top + node.height;
-  const midX = (left + right) / 2;
-  const midY = (top + bottom) / 2;
 
-  const positions = [
-    { cx: left, cy: top, dir: "tl", cursor: "nwse-resize" },
-    { cx: midX, cy: top, dir: "t", cursor: "ns-resize" },
-    { cx: right, cy: top, dir: "tr", cursor: "nesw-resize" },
-    { cx: right, cy: midY, dir: "r", cursor: "ew-resize" },
-    { cx: right, cy: bottom, dir: "br", cursor: "nwse-resize" },
-    { cx: midX, cy: bottom, dir: "b", cursor: "ns-resize" },
-    { cx: left, cy: bottom, dir: "bl", cursor: "nesw-resize" },
-    { cx: left, cy: midY, dir: "l", cursor: "ew-resize" },
-  ];
-
-  for (const { cx, cy, dir, cursor } of positions) {
-    const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-    rect.setAttribute("x", String(cx - hs / 2));
-    rect.setAttribute("y", String(cy - hs / 2));
-    rect.setAttribute("width", String(hs));
-    rect.setAttribute("height", String(hs));
-    rect.setAttribute("fill", "#0066cc");
-    rect.setAttribute("stroke", "#ffffff");
-    rect.setAttribute("stroke-width", "1");
-    rect.classList.add("dg-force-handle");
-    rect.dataset.resizeNode = nodeId;
-    rect.dataset.resizeDir = dir;
-    rect.style.cursor = cursor;
-    svg.appendChild(rect);
-  }
+  renderResizeHandles(svg, left, top, right, bottom, nodeId, {
+    handleClass: "dg-force-handle",
+    nodeAttr: "data-resize-node",
+    dirAttr: "data-resize-dir",
+  });
 }
 
 function clearForceResizeHandles() {
-  const svg = getStageSvg();
-  if (!svg) return;
-  for (const handle of svg.querySelectorAll(".dg-force-handle")) {
-    handle.remove();
-  }
+  clearHandlesByClass("dg-force-handle");
 }
 
 function startForceResize(event, handleEl) {
@@ -267,23 +224,23 @@ function updateForceResize(event) {
 
   // Horizontal component
   if (dir.includes("r")) {
-    newW = Math.max(MIN_NODE_SIZE, resizeState.origW + dx);
+    newW = Math.max(SHARED_MIN_NODE_SIZE, resizeState.origW + dx);
   } else if (dir.includes("l")) {
-    newW = Math.max(MIN_NODE_SIZE, resizeState.origW - dx);
+    newW = Math.max(SHARED_MIN_NODE_SIZE, resizeState.origW - dx);
   }
 
   // Vertical component
   if (dir.includes("b")) {
-    newH = Math.max(MIN_NODE_SIZE, resizeState.origH + dy);
+    newH = Math.max(SHARED_MIN_NODE_SIZE, resizeState.origH + dy);
   } else if (dir === "t" || dir === "tl" || dir === "tr") {
-    newH = Math.max(MIN_NODE_SIZE, resizeState.origH - dy);
+    newH = Math.max(SHARED_MIN_NODE_SIZE, resizeState.origH - dy);
   }
 
   // Snap dimensions to grid
   newW = Math.round(newW / BASELINE_STEP) * BASELINE_STEP;
   newH = Math.round(newH / BASELINE_STEP) * BASELINE_STEP;
-  newW = Math.max(MIN_NODE_SIZE, newW);
-  newH = Math.max(MIN_NODE_SIZE, newH);
+  newW = Math.max(SHARED_MIN_NODE_SIZE, newW);
+  newH = Math.max(SHARED_MIN_NODE_SIZE, newH);
 
   // Adjust center position based on which edge moved
   const dw = newW - resizeState.origW;
@@ -331,8 +288,8 @@ async function finishForceResize(event) {
 
   newW = Math.round(newW / BASELINE_STEP) * BASELINE_STEP;
   newH = Math.round(newH / BASELINE_STEP) * BASELINE_STEP;
-  newW = Math.max(MIN_NODE_SIZE, newW);
-  newH = Math.max(MIN_NODE_SIZE, newH);
+  newW = Math.max(SHARED_MIN_NODE_SIZE, newW);
+  newH = Math.max(SHARED_MIN_NODE_SIZE, newH);
 
   const dw = newW - activeResize.origW;
   const dh = newH - activeResize.origH;
@@ -1073,9 +1030,7 @@ byId("btn-reset").addEventListener("click", async () => {
   updateRunButton();
   try {
     await loadSnapshot(true);
-    forceUndoStack = [];
-    forceRedoStack = [];
-    updateForceUndoButtons();
+    forceUndoManager.clear();
     startRunning();
   } catch (error) {
     setStatus(error.message || "Reset failed", "error");

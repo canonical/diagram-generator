@@ -43,7 +43,7 @@ Object.defineProperty(window, "selectionDepth", {
 });
 
 let isDirty = false;
-const HANDLE_SIZE = 8;
+// HANDLE_SIZE now shared via SHARED_HANDLE_SIZE in editor-base.js
 let multiActionGap = window.__DG_CONFIG.col_gap || 24;
 
 function getThemeToken(name, fallback) {
@@ -2740,7 +2740,7 @@ function showResizeHandles(cid) {
   const svg = document.querySelector("#stage svg");
   if (!svg) return;
   // Remove old handles
-  svg.querySelectorAll(".dg-handle").forEach(h => h.remove());
+  clearHandlesByClass("dg-handle");
   const groups = svg.querySelectorAll('[data-component-id="' + cid + '"]');
   if (groups.length === 0) {
     // Fallback: use tree data for borderless containers
@@ -2763,48 +2763,42 @@ function showResizeHandles(cid) {
     maxY = Math.max(maxY, bbox.y + bbox.height + tdy);
   });
   }
-  const hs = HANDLE_SIZE;
-  const ns = "http://www.w3.org/2000/svg";
-  function mkHandle(cx, cy, cls, axis) {
-    const r = document.createElementNS(ns, "rect");
-    r.setAttribute("x", cx - hs / 2);
-    r.setAttribute("y", cy - hs / 2);
-    r.setAttribute("width", hs);
-    r.setAttribute("height", hs);
-    r.setAttribute("class", "dg-handle " + cls);
-    r.setAttribute("data-resize-cid", cid);
-    r.setAttribute("data-resize-axis", axis);
-    svg.appendChild(r);
-  }
   const ctype = getComponentType(cid);
   const isHLine = ctype === "Separator";
   const isArrow = ctype === "arrow";
   if (isHLine) {
     // Horizontal line: left and right edge handles only
-    mkHandle(minX, (minY + maxY) / 2, "dg-handle-l", "l");
-    mkHandle(maxX, (minY + maxY) / 2, "dg-handle-r", "r");
+    const hs = SHARED_HANDLE_SIZE;
+    const ns = "http://www.w3.org/2000/svg";
+    function mkEdgeHandle(cx, cy, cls, axis) {
+      const r = document.createElementNS(ns, "rect");
+      r.setAttribute("x", cx - hs / 2);
+      r.setAttribute("y", cy - hs / 2);
+      r.setAttribute("width", hs);
+      r.setAttribute("height", hs);
+      r.setAttribute("class", "dg-handle " + cls);
+      r.setAttribute("data-resize-cid", cid);
+      r.setAttribute("data-resize-axis", axis);
+      svg.appendChild(r);
+    }
+    mkEdgeHandle(minX, (minY + maxY) / 2, "dg-handle-l", "l");
+    mkEdgeHandle(maxX, (minY + maxY) / 2, "dg-handle-r", "r");
   } else if (isArrow) {
     // Arrow: show draggable waypoint handles (circles at each bend)
     showArrowWaypointHandles(cid);
   } else {
-    // 2D component: all 8 handles
-    mkHandle(minX, minY, "dg-handle-tl", "tl");
-    mkHandle((minX + maxX) / 2, minY, "dg-handle-t", "t");
-    mkHandle(maxX, minY, "dg-handle-tr", "tr");
-    mkHandle(maxX, (minY + maxY) / 2, "dg-handle-r", "r");
-    mkHandle(maxX, maxY, "dg-handle-br", "br");
-    mkHandle((minX + maxX) / 2, maxY, "dg-handle-b", "b");
-    mkHandle(minX, maxY, "dg-handle-bl", "bl");
-    mkHandle(minX, (minY + maxY) / 2, "dg-handle-l", "l");
+    // 2D component: all 8 handles via shared renderer
+    renderResizeHandles(svg, minX, minY, maxX, maxY, cid, {
+      handleClass: "dg-handle",
+      nodeAttr: "data-resize-cid",
+      dirAttr: "data-resize-axis",
+    });
   }
 }
 
 function removeResizeHandles() {
-  const svg = document.querySelector("#stage svg");
-  if (svg) {
-    svg.querySelectorAll(".dg-handle").forEach(h => h.remove());
-    svg.querySelectorAll(".dg-wp-handle").forEach(h => h.remove());
-  }
+  clearHandlesByClass("dg-handle");
+  clearHandlesByClass("dg-wp-handle");
 }
 
 // ---- Arrow waypoint handles ----

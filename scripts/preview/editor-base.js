@@ -339,6 +339,79 @@ function spanSize(cellSize, span, gap) {
   return span * cellSize + (span - 1) * gap;
 }
 
+// ---- Shared resize constants ----
+const SHARED_HANDLE_SIZE = 8;
+const SHARED_MIN_NODE_SIZE = 48;
+
+/**
+ * Render 8 resize handles (corners + midpoints) around a bounding box.
+ * @param {SVGSVGElement} svg — The SVG container to append handles to.
+ * @param {number} left   — Left edge x.
+ * @param {number} top    — Top edge y.
+ * @param {number} right  — Right edge x.
+ * @param {number} bottom — Bottom edge y.
+ * @param {string} nodeId — Component/node ID for data attributes.
+ * @param {Object} [opts]
+ * @param {string} [opts.handleClass="dg-handle"]    — CSS class for each handle.
+ * @param {string} [opts.nodeAttr="data-resize-cid"]  — Data attribute for node ID.
+ * @param {string} [opts.dirAttr="data-resize-axis"]  — Data attribute for direction.
+ */
+function renderResizeHandles(svg, left, top, right, bottom, nodeId, opts) {
+  const handleClass = (opts && opts.handleClass) || "dg-handle";
+  const nodeAttr = (opts && opts.nodeAttr) || "data-resize-cid";
+  const dirAttr = (opts && opts.dirAttr) || "data-resize-axis";
+  const hs = SHARED_HANDLE_SIZE;
+  const midX = (left + right) / 2;
+  const midY = (top + bottom) / 2;
+  const ns = "http://www.w3.org/2000/svg";
+
+  const cursors = {
+    tl: "nwse-resize", t: "ns-resize", tr: "nesw-resize",
+    r: "ew-resize", br: "nwse-resize", b: "ns-resize",
+    bl: "nesw-resize", l: "ew-resize",
+  };
+
+  const positions = [
+    { cx: left, cy: top, dir: "tl" },
+    { cx: midX, cy: top, dir: "t" },
+    { cx: right, cy: top, dir: "tr" },
+    { cx: right, cy: midY, dir: "r" },
+    { cx: right, cy: bottom, dir: "br" },
+    { cx: midX, cy: bottom, dir: "b" },
+    { cx: left, cy: bottom, dir: "bl" },
+    { cx: left, cy: midY, dir: "l" },
+  ];
+
+  for (const { cx, cy, dir } of positions) {
+    const rect = document.createElementNS(ns, "rect");
+    rect.setAttribute("x", String(cx - hs / 2));
+    rect.setAttribute("y", String(cy - hs / 2));
+    rect.setAttribute("width", String(hs));
+    rect.setAttribute("height", String(hs));
+    rect.setAttribute("class", `${handleClass} ${handleClass}-${dir}`);
+    rect.setAttribute(nodeAttr, nodeId);
+    rect.setAttribute(dirAttr, dir);
+    rect.style.cursor = cursors[dir];
+    // Default style — callers can override via CSS
+    rect.setAttribute("fill", "#0066cc");
+    rect.setAttribute("stroke", "#ffffff");
+    rect.setAttribute("stroke-width", "1");
+    svg.appendChild(rect);
+  }
+}
+
+/**
+ * Remove all elements matching a class from the stage SVG.
+ * @param {string} className — CSS class to remove.
+ */
+function clearHandlesByClass(className) {
+  const svg = getStageSvg();
+  if (!svg) return;
+  for (const el of svg.querySelectorAll(`.${className}`)) {
+    el.remove();
+  }
+}
+
 // Expose shared API on window for inline handlers
 window.byId = byId;
 window.escapeHtml = escapeHtml;
@@ -359,3 +432,7 @@ window.renderGuideLines = renderGuideLines;
 window.clearGuideLines = clearGuideLines;
 window.equalSplitCell = equalSplitCell;
 window.spanSize = spanSize;
+window.SHARED_HANDLE_SIZE = SHARED_HANDLE_SIZE;
+window.SHARED_MIN_NODE_SIZE = SHARED_MIN_NODE_SIZE;
+window.renderResizeHandles = renderResizeHandles;
+window.clearHandlesByClass = clearHandlesByClass;
