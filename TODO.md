@@ -133,7 +133,7 @@ Goal: the force and grid editors share one editor shell; swapping the layout eng
 **Architecture prerequisite**
 
 - [x] `[H]` **Unified editor shell.** Created `editor-base.js` (shared utilities: `byId`, `escapeHtml`, `fetchJson`, `setStatus`, `getStageSvg`, `pointerToSvgPoint`, `setViewMode`, `initPreviewShell`) and `viewer-unified.html` (single HTML template with `data-dg-mode="grid"|"force"`, CSS mode visibility via `.dg-grid-only`/`.dg-force-only`). Both grid and force editors now use the same shell, sidebar header, picker, and view tabs. Force.js deduped to use shared base functions. Server serves unified template for both modes.
-- [ ] `[H]` **Swappable engine interface.** Refactor so `editor.js` and `force.js` share one interaction layer (select, drag, resize, text-edit, style, undo, keyboard, inspector, constraints). The layout back-end (grid relayout vs force tick) plugs in behind a common `LayoutEngine` interface. No duplicated DOM wiring. *(Phase 1 — abstract `EngineAdapter` class and shared snap primitives — landed in `engine-interface.js` and `editor-base.js`. Full unification is Phase 2+.)*
+- [ ] `[H]` **Swappable engine interface.** Refactor so `editor.js` and `force.js` share one interaction layer (select, drag, resize, text-edit, style, undo, keyboard, inspector, constraints). The layout back-end (grid relayout vs force tick) plugs in behind a common `LayoutEngine` interface. No duplicated DOM wiring. *(Phase 1 — abstract `EngineAdapter` class and shared snap primitives. Phase 2a — shared `UndoRedoManager`, resize handle rendering, shared constants. Phase 2b — shared `snapRectToTargets` snap algorithm. Phase 3+ — drag/resize state machines, concrete adapter subclasses.)*
 
 **Stage interaction parity**
 

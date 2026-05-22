@@ -4,6 +4,11 @@ Completed work belongs here so `TODO.md` stays lean.
 
 ## Short-term
 
+### 2026-05-22 – Swappable engine interface Phase 2a + 2b (branch frame-layout-engine)
+
+- **Phase 2a: Shared UndoRedoManager and resize handles.** Extracted shared `UndoRedoManager` class into `undo-manager.js` (configurable button IDs, max stack size, async restore callback). Extracted shared resize handle rendering (`renderResizeHandles()`, `clearHandlesByClass()`) and shared constants (`SHARED_HANDLE_SIZE=8`, `SHARED_MIN_NODE_SIZE=48`) into `editor-base.js`. Refactored `force.js` to use `UndoRedoManager` and shared resize handles. Refactored `editor.js` 8-handle resize to use shared `renderResizeHandles`. Removed dead `HANDLE_SIZE`/`MIN_NODE_SIZE` local constants from both editors. Updated `viewer-unified.html` script load order.
+- **Phase 2b: Shared snap algorithm.** Extracted shared `snapRectToTargets()` into `editor-base.js` — dual-axis snap with guide line generation. Refactored `force.js` `snapForcePosition()` and `editor.js` `findSnaps()` to delegate. Fixed guide line accuracy: editor.js now regenerates guide lines at the 8px-rounded final position. Removed unused `SNAP_THRESHOLD` alias.
+
 ### 2026-05-22 – Equal-split unification + force resize + force undo/redo (branch frame-layout-engine)
 
 - **Equal-split unification.** Extracted `equal_split_cell()` and `span_size()` into `diagram_shared.py` (Python) and `editor-base.js` (JS). Wired `component-model.js` (4 inline formulas replaced) and `diagram_layout.py` (`span_w` via `span_size()`). v2 `sp_outer_w` intentionally keeps ceil rounding (documented). Fixed `BASELINE_STEP` redeclaration error (now owned by `editor-base.js` only). 7 cross-language contract tests added.

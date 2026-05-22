@@ -11,10 +11,12 @@
  * only exposes the points where shared code needs to call back.
  *
  * ── Implementation status ──────────────────────────────────────────
- * Phase 1 (current): interface definition + shared snap primitives.
- * Phase 2 (planned): shared selection manager + inspector renderer.
- * Phase 3 (planned): shared drag/resize handlers delegating to engine.
- * Phase 4 (planned): shared undo/redo command stack.
+ * Phase 1 (done):  Interface definition + shared snap primitives.
+ * Phase 2a (done): Shared UndoRedoManager, resize handle rendering,
+ *                  shared constants (SHARED_HANDLE_SIZE, SHARED_MIN_NODE_SIZE).
+ * Phase 2b (done): Shared snapRectToTargets snap algorithm.
+ * Phase 3 (planned): Shared drag/resize state machines delegating to engine.
+ * Phase 4 (planned): Concrete GridEngine / ForceEngine adapter subclasses.
  * ───────────────────────────────────────────────────────────────────
  */
 
