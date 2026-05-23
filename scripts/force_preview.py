@@ -39,6 +39,7 @@ class ForcePreviewState:
     node_label_overrides: dict[str, list[str]] = field(default_factory=dict)
     tick_count: int = 0
     render_overrides: dict[str, float] = field(default_factory=dict)
+    saved_definition_hash: str = ""
 
 
 def list_force_examples() -> list[str]:
@@ -308,6 +309,7 @@ def save_force_overrides(state: ForcePreviewState) -> None:
     FORCE_OVERRIDES_DIR.mkdir(parents=True, exist_ok=True)
     path = FORCE_OVERRIDES_DIR / f"{state.slug}.json"
     path.write_text(json.dumps(serialize_force_overrides(state), indent=2) + "\n", encoding="utf-8")
+    state.saved_definition_hash = _force_definition_hash(state.slug)
 
 
 def _get_simulation_params(state: ForcePreviewState) -> dict[str, Any]:
@@ -452,7 +454,9 @@ def create_force_state(slug: str) -> ForcePreviewState:
         node_base_styles=node_base_styles,
     )
     _clamp_state_nodes(state)
-    apply_force_overrides(state, load_force_overrides(slug))
+    overrides = load_force_overrides(slug)
+    state.saved_definition_hash = overrides.get("definition_hash", "")
+    apply_force_overrides(state, overrides)
     _clamp_state_nodes(state)
     return state
 
@@ -536,6 +540,10 @@ def get_force_snapshot(state: ForcePreviewState, *, snap: bool = False) -> dict[
         },
         "nodes": node_payloads,
         "links": link_payloads,
+        "definition_stale": (
+            state.saved_definition_hash != ""
+            and state.saved_definition_hash != _force_definition_hash(state.slug)
+        ),
     }
 
 

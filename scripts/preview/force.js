@@ -711,6 +711,12 @@ function render(snapshot) {
   } else {
     setStatus("Paused", "ok");
   }
+
+  // Stale-definition warning
+  const staleEl = document.getElementById("stale-definition-warning");
+  if (staleEl) {
+    staleEl.style.display = snapshot.definition_stale ? "block" : "none";
+  }
 }
 
 async function loadSnapshot(reset = true) {
