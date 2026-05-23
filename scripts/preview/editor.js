@@ -2810,33 +2810,204 @@ function getComponentType(cid) {
   return model.getType(cid) || "Box";
 }
 
-function showResizeHandles(cid) {
-  const svg = document.querySelector("#stage svg");
-  if (!svg) return;
-  // Remove old handles
-  clearHandlesByClass("dg-handle");
+function _getRenderedComponentBounds(cid, svg) {
   const groups = svg.querySelectorAll('[data-component-id="' + cid + '"]');
   if (groups.length === 0) {
-    // Fallback: use tree data for borderless containers
     const treeNode = model.get(cid);
-    if (!treeNode || !treeNode.data) return;
-    var minX = treeNode.data.x, minY = treeNode.data.y;
-    var maxX = treeNode.data.x + treeNode.data.width, maxY = treeNode.data.y + treeNode.data.height;
-  } else {
-  // Compute union bbox accounting for CSS transforms (overrides + reflow shifts)
-  var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  groups.forEach(g => {
+    if (!treeNode || !treeNode.data) return null;
+    const eff = getEffectiveDelta(cid);
+    const left = treeNode.data.x + eff.dx;
+    const top = treeNode.data.y + eff.dy;
+    const width = treeNode.data.width + eff.dw;
+    const height = treeNode.data.height + eff.dh;
+    return { left, top, right: left + width, bottom: top + height, width, height };
+  }
+
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+
+  groups.forEach((g) => {
     const bbox = g.getBBox();
-    // Parse actual CSS transform which includes override dx/dy + reflow cascade
-    let tdx = 0, tdy = 0;
+    let tdx = 0;
+    let tdy = 0;
     const tm = (g.style.transform || "").match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/);
-    if (tm) { tdx = parseFloat(tm[1]); tdy = parseFloat(tm[2]); }
+    if (tm) {
+      tdx = parseFloat(tm[1]);
+      tdy = parseFloat(tm[2]);
+    }
     minX = Math.min(minX, bbox.x + tdx);
     minY = Math.min(minY, bbox.y + tdy);
     maxX = Math.max(maxX, bbox.x + bbox.width + tdx);
     maxY = Math.max(maxY, bbox.y + bbox.height + tdy);
   });
+
+  return {
+    left: minX,
+    top: minY,
+    right: maxX,
+    bottom: maxY,
+    width: maxX - minX,
+    height: maxY - minY,
+  };
+}
+
+function _getMultiResizeSelection(svg, idsOverride) {
+  const ids = [...new Set(idsOverride || [...selectedIds])];
+  if (ids.length <= 1) return null;
+
+  const selectedSet = new Set(ids);
+  const members = [];
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  let minWidth = 0;
+  let minHeight = 0;
+
+  for (const id of ids) {
+    const node = model.get(id);
+    if (!node) return null;
+    const type = String(node.type || "").toLowerCase();
+    if (type === "arrow" || type === "separator" || _isAutolayoutChild(id)) {
+      return null;
+    }
+    if (getAncestors(id).some((ancestorId) => selectedSet.has(ancestorId))) {
+      return null;
+    }
+
+    const bounds = _getRenderedComponentBounds(id, svg);
+    if (!bounds || bounds.width <= 0 || bounds.height <= 0) {
+      return null;
+    }
+
+    const own = getOwnDelta(id);
+    const eff = getEffectiveDelta(id);
+    members.push({
+      id,
+      node,
+      bounds,
+      ancestorDx: eff.dx - own.dx,
+      ancestorDy: eff.dy - own.dy,
+    });
+    minX = Math.min(minX, bounds.left);
+    minY = Math.min(minY, bounds.top);
+    maxX = Math.max(maxX, bounds.right);
+    maxY = Math.max(maxY, bounds.bottom);
   }
+
+  const width = maxX - minX;
+  const height = maxY - minY;
+  if (width <= 0 || height <= 0) return null;
+
+  for (const member of members) {
+    minWidth = Math.max(minWidth, width * (SHARED_MIN_NODE_SIZE / member.bounds.width));
+    minHeight = Math.max(minHeight, height * (SHARED_MIN_NODE_SIZE / member.bounds.height));
+  }
+
+  return {
+    ids,
+    members,
+    primaryId: getPrimarySelectedId(ids[ids.length - 1]) || ids[ids.length - 1],
+    bounds: {
+      left: minX,
+      top: minY,
+      right: maxX,
+      bottom: maxY,
+      width,
+      height,
+    },
+    minWidth: Math.min(width, minWidth || SHARED_MIN_NODE_SIZE),
+    minHeight: Math.min(height, minHeight || SHARED_MIN_NODE_SIZE),
+  };
+}
+
+function _resizeBoundsFromHandle(bounds, axis, dx, dy, gridTargets, svgW, svgH, minWidth, minHeight) {
+  let left = bounds.left;
+  let top = bounds.top;
+  let right = bounds.right;
+  let bottom = bounds.bottom;
+  const resizeLines = [];
+
+  if (axis === "l" || axis === "tl" || axis === "bl") {
+    const rawLeft = bounds.left + Math.round(dx / 8) * 8;
+    const snapL = _snapEdgeToGrid(rawLeft, gridTargets.xs);
+    const nextLeft = Math.min(snapL.snapped ? snapL.value : rawLeft, bounds.right - minWidth);
+    if (snapL.snapped && nextLeft === snapL.value) {
+      resizeLines.push({ x1: snapL.target, y1: 0, x2: snapL.target, y2: svgH });
+    }
+    left = nextLeft;
+  } else if (axis === "r" || axis === "tr" || axis === "br") {
+    const rawRight = bounds.right + Math.round(dx / 8) * 8;
+    const snapR = _snapEdgeToGrid(rawRight, gridTargets.xs);
+    const nextRight = Math.max(snapR.snapped ? snapR.value : rawRight, bounds.left + minWidth);
+    if (snapR.snapped && nextRight === snapR.value) {
+      resizeLines.push({ x1: snapR.target, y1: 0, x2: snapR.target, y2: svgH });
+    }
+    right = nextRight;
+  }
+
+  if (axis === "t" || axis === "tl" || axis === "tr") {
+    const rawTop = bounds.top + Math.round(dy / 8) * 8;
+    const snapT = _snapEdgeToGrid(rawTop, gridTargets.ys);
+    const nextTop = Math.min(snapT.snapped ? snapT.value : rawTop, bounds.bottom - minHeight);
+    if (snapT.snapped && nextTop === snapT.value) {
+      resizeLines.push({ x1: 0, y1: snapT.target, x2: svgW, y2: snapT.target });
+    }
+    top = nextTop;
+  } else if (axis === "b" || axis === "bl" || axis === "br") {
+    const rawBottom = bounds.bottom + Math.round(dy / 8) * 8;
+    const snapB = _snapEdgeToGrid(rawBottom, gridTargets.ys);
+    const nextBottom = Math.max(snapB.snapped ? snapB.value : rawBottom, bounds.top + minHeight);
+    if (snapB.snapped && nextBottom === snapB.value) {
+      resizeLines.push({ x1: 0, y1: snapB.target, x2: svgW, y2: snapB.target });
+    }
+    bottom = nextBottom;
+  }
+
+  return {
+    left,
+    top,
+    right,
+    bottom,
+    width: right - left,
+    height: bottom - top,
+    resizeLines,
+  };
+}
+
+function showResizeHandles(cid) {
+  const svg = document.querySelector("#stage svg");
+  if (!svg) return;
+  // Remove old handles
+  clearHandlesByClass("dg-handle");
+
+  const multiSelection = _getMultiResizeSelection(svg);
+  if (selectedIds.size > 1) {
+    if (!multiSelection) return;
+    renderResizeHandles(
+      svg,
+      multiSelection.bounds.left,
+      multiSelection.bounds.top,
+      multiSelection.bounds.right,
+      multiSelection.bounds.bottom,
+      "multi",
+      {
+        handleClass: "dg-handle",
+        nodeAttr: "data-resize-selection",
+        dirAttr: "data-resize-axis",
+      },
+    );
+    return;
+  }
+
+  const bounds = _getRenderedComponentBounds(cid, svg);
+  if (!bounds) return;
+  const minX = bounds.left;
+  const minY = bounds.top;
+  const maxX = bounds.right;
+  const maxY = bounds.bottom;
   const ctype = getComponentType(cid);
   const isHLine = ctype === "Separator";
   const isArrow = ctype === "arrow";
@@ -3502,9 +3673,9 @@ function cancelTextEdit() {
 
 function startResize(e) {
   const handle = e.target;
+  const selectionToken = handle.getAttribute("data-resize-selection");
   const cid = handle.getAttribute("data-resize-cid");
   const axis = handle.getAttribute("data-resize-axis");
-  const own = getOwnDelta(cid);
   // Capture original overrides for ALL nodes that may be affected
   const origOverrides = {};
   function captureSubtree(nodeId) {
@@ -3514,6 +3685,38 @@ function startResize(e) {
     origOverrides[nodeId] = { dx: o.dx, dy: o.dy, dw: o.dw, dh: o.dh };
     for (const child of n.children) captureSubtree(child.id);
   }
+
+  if (selectionToken === "multi") {
+    const svg = document.querySelector("#stage svg");
+    const selection = svg ? _getMultiResizeSelection(svg) : null;
+    if (!selection) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    for (const member of selection.members) {
+      captureSubtree(member.id);
+    }
+    const touchedIds = Object.keys(origOverrides);
+    mgr.startResize({
+      cid: selection.primaryId,
+      axis,
+      startX: e.clientX,
+      startY: e.clientY,
+      origOverrides,
+      overrideSnapshotBefore: _captureOverrideEntries(touchedIds),
+      hasMoved: false,
+      snapshotRecorded: false,
+      selection,
+    });
+    document.addEventListener("mousemove", onResizeMove);
+    document.addEventListener("mouseup", onResizeUp);
+    e.preventDefault();
+    e.stopPropagation();
+    return;
+  }
+
+  const own = getOwnDelta(cid);
   const node = model.get(cid);
   if (node) {
     captureSubtree(cid);
@@ -3601,6 +3804,59 @@ function onResizeMove(e) {
   const svgEl = document.querySelector("#stage svg");
   const svgW = svgEl ? parseFloat(svgEl.getAttribute("width") || "0") : 0;
   const svgH = svgEl ? parseFloat(svgEl.getAttribute("height") || "0") : 0;
+
+  if (s.selection) {
+    const nextBounds = _resizeBoundsFromHandle(
+      s.selection.bounds,
+      axis,
+      dx,
+      dy,
+      gridTargets,
+      svgW,
+      svgH,
+      s.selection.minWidth,
+      s.selection.minHeight,
+    );
+
+    if (nextBounds.resizeLines.length > 0) {
+      renderGuideLines(nextBounds.resizeLines, GUIDE_COLOR, GUIDE_OPACITY);
+    } else {
+      clearGuideLines();
+    }
+
+    if (!s.propagatedIds) s.propagatedIds = new Set();
+    if (s.propagatedIds.size > 0) {
+      for (const pid of s.propagatedIds) {
+        const orig = s.origOverrides[pid] || { dx: 0, dy: 0, dw: 0, dh: 0 };
+        setOverride(pid, { dx: orig.dx, dy: orig.dy, dw: orig.dw, dh: orig.dh });
+      }
+      s.propagatedIds.clear();
+    }
+
+    const scaleX = s.selection.bounds.width === 0 ? 1 : nextBounds.width / s.selection.bounds.width;
+    const scaleY = s.selection.bounds.height === 0 ? 1 : nextBounds.height / s.selection.bounds.height;
+
+    for (const member of s.selection.members) {
+      const memberLeft = nextBounds.left + (member.bounds.left - s.selection.bounds.left) * scaleX;
+      const memberTop = nextBounds.top + (member.bounds.top - s.selection.bounds.top) * scaleY;
+      const memberRight = nextBounds.left + (member.bounds.right - s.selection.bounds.left) * scaleX;
+      const memberBottom = nextBounds.top + (member.bounds.bottom - s.selection.bounds.top) * scaleY;
+      const newDx = memberLeft - member.node.data.x - member.ancestorDx;
+      const newDy = memberTop - member.node.data.y - member.ancestorDy;
+      const newDw = (memberRight - memberLeft) - member.node.data.width;
+      const newDh = (memberBottom - memberTop) - member.node.data.height;
+
+      setOverride(member.id, { dx: newDx, dy: newDy, dw: newDw, dh: newDh });
+
+      if (member.node.layout && member.node.children.length > 0) {
+        _applyRelayoutRecursive(member.id, newDx, newDy, newDw, newDh, s.origOverrides, s.propagatedIds);
+      }
+    }
+
+    applyAllOverrides();
+    renderSelectionInspector(s.cid);
+    return;
+  }
 
   // Handle horizontal resizing
   if (axis === "l" || axis === "tl" || axis === "bl") {
@@ -3705,6 +3961,46 @@ function onResizeMove(e) {
   if (selectedIds.has(s.cid)) updateInspector(s.cid);
 }
 
+function _persistResizeToV3(resizeIds, propagatedIds, triggerCid) {
+  if (ENGINE !== "v3") return;
+
+  let changed = false;
+  for (const cid of resizeIds) {
+    const node = model.get(cid);
+    if (!node) continue;
+    const baseW = node.data.width;
+    const baseH = node.data.height;
+    const own = getOwnDelta(cid);
+    const newW = Math.max(8, baseW + own.dw);
+    const newH = Math.max(8, baseH + own.dh);
+    const resizedW = own.dw !== 0;
+    const resizedH = own.dh !== 0;
+
+    if (!resizedW && !resizedH) continue;
+    if (!overrides[cid]) overrides[cid] = {};
+    if (resizedW) {
+      overrides[cid].width = newW;
+      overrides[cid].sizing_w = "FIXED";
+    }
+    if (resizedH) {
+      overrides[cid].height = newH;
+      overrides[cid].sizing_h = "FIXED";
+    }
+    setOverride(cid, { dx: 0, dy: 0, dw: 0, dh: 0 });
+    changed = true;
+  }
+
+  if (propagatedIds) {
+    for (const pid of propagatedIds) {
+      setOverride(pid, { dx: 0, dy: 0, dw: 0, dh: 0 });
+    }
+  }
+
+  if (changed || (propagatedIds && propagatedIds.size > 0)) {
+    requestV3Relayout(triggerCid);
+  }
+}
+
 function onResizeUp() {
   document.removeEventListener("mousemove", onResizeMove);
   document.removeEventListener("mouseup", onResizeUp);
@@ -3714,7 +4010,10 @@ function onResizeUp() {
   if (svg) svg.querySelectorAll(".dg-hover").forEach(el => el.classList.remove("dg-hover"));
   const s = mgr.state;
   if (s && s.hasMoved) {
-    cleanOverride(s.cid);
+    const resizedIds = s.selection ? s.selection.ids : [s.cid];
+    for (const cid of resizedIds) {
+      cleanOverride(cid);
+    }
     // Clean propagated child/parent overrides (only zero-valued fields)
     if (s.propagatedIds) {
       for (const childId of s.propagatedIds) {
@@ -3722,41 +4021,17 @@ function onResizeUp() {
       }
     }
     const afterOverrides = _captureOverrideEntries(Object.keys(s.origOverrides));
-    selectComponent(s.cid);
-    commitOverridePatchAction("Resize component", s.overrideSnapshotBefore, afterOverrides);
-
-    // V3: convert resize delta into frame width/height override → relayout
-    if (ENGINE === "v3") {
-      const node = model.get(s.cid);
-      if (node) {
-        const baseW = node.data.width;
-        const baseH = node.data.height;
-        const own = getOwnDelta(s.cid);
-        const newW = Math.max(8, baseW + own.dw);
-        const newH = Math.max(8, baseH + own.dh);
-        if (!overrides[s.cid]) overrides[s.cid] = {};
-        // Per-axis resize: only the axis that changed becomes FIXED
-        const resizedW = own.dw !== 0;
-        const resizedH = own.dh !== 0;
-        if (resizedW) {
-          overrides[s.cid].width = newW;
-          overrides[s.cid].sizing_w = "FIXED";
-        }
-        if (resizedH) {
-          overrides[s.cid].height = newH;
-          overrides[s.cid].sizing_h = "FIXED";
-        }
-        // Clear visual delta — the relayout will reposition everything
-        setOverride(s.cid, { dx: 0, dy: 0, dw: 0, dh: 0 });
-        // Clear sibling deltas too
-        if (s.propagatedIds) {
-          for (const pid of s.propagatedIds) {
-            setOverride(pid, { dx: 0, dy: 0, dw: 0, dh: 0 });
-          }
-        }
-        requestV3Relayout(s.cid);
-      }
+    if (s.selection) {
+      reapplySelection();
+    } else {
+      selectComponent(s.cid);
     }
+    commitOverridePatchAction(
+      s.selection ? "Resize selection" : "Resize component",
+      s.overrideSnapshotBefore,
+      afterOverrides,
+    );
+    _persistResizeToV3(resizedIds, s.propagatedIds, s.cid);
   } else {
     // No move happened: re-show handles that were hidden
     if (svg) svg.querySelectorAll(".dg-handle").forEach(h => h.style.display = "");
