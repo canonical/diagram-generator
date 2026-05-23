@@ -36,6 +36,7 @@ class ForcePreviewState:
     node_index_by_id: dict[str, int]
     node_base_styles: dict[str, str | None]
     node_style_overrides: dict[str, str] = field(default_factory=dict)
+    node_label_overrides: dict[str, list[str]] = field(default_factory=dict)
     tick_count: int = 0
     render_overrides: dict[str, float] = field(default_factory=dict)
 
@@ -172,6 +173,7 @@ def _apply_force_node_update(
     width: float | None = None,
     height: float | None = None,
     style: object = STYLE_UNSET,
+    label: object = STYLE_UNSET,
     reheat: bool = True,
 ) -> None:
     index = state.node_index_by_id.get(node_id)
@@ -221,6 +223,14 @@ def _apply_force_node_update(
                 raise ValueError(f"Unknown style: {style}")
             state.node_style_overrides[node_id] = style_name
 
+    if label is not STYLE_UNSET:
+        if label is None or label == []:
+            state.node_label_overrides.pop(node_id, None)
+        elif isinstance(label, list) and all(isinstance(ln, str) for ln in label):
+            state.node_label_overrides[node_id] = label
+        else:
+            raise ValueError("label must be a list of strings or null")
+
     _clamp_state_nodes(state)
     if node_changed and reheat:
         restart_force_animation(state)
@@ -237,6 +247,7 @@ def apply_force_overrides(state: ForcePreviewState, data: dict[str, Any]) -> Non
             width=(float(payload["width"]) if "width" in payload and payload["width"] is not None else None),
             height=(float(payload["height"]) if "height" in payload and payload["height"] is not None else None),
             style=(payload["style"] if "style" in payload else STYLE_UNSET),
+            label=(payload["label"] if "label" in payload else STYLE_UNSET),
             reheat=False,
         )
 
@@ -278,6 +289,10 @@ def serialize_force_overrides(state: ForcePreviewState) -> dict[str, Any]:
             payload["width"] = node.width
         if abs(node.height - spec_h) > 1e-6:
             payload["height"] = node.height
+
+        label_override = state.node_label_overrides.get(node_id)
+        if label_override is not None:
+            payload["label"] = label_override
 
         if payload:
             node_payloads[node_id] = payload
@@ -469,7 +484,7 @@ def get_force_snapshot(state: ForcePreviewState, *, snap: bool = False) -> dict[
         node_payloads.append(
             {
                 "id": node.component_id,
-                "label": node_spec.get("label", [node.component_id]),
+                "label": state.node_label_overrides.get(node.component_id, node_spec.get("label", [node.component_id])),
                 "x": x,
                 "y": y,
                 "width": node.width,
@@ -553,8 +568,9 @@ def update_force_node(
     width: float | None = None,
     height: float | None = None,
     style: object = STYLE_UNSET,
+    label: object = STYLE_UNSET,
 ) -> dict[str, Any]:
     _apply_force_node_update(state, node_id, pinned=pinned, x=x, y=y,
-                             width=width, height=height, style=style, reheat=True)
+                             width=width, height=height, style=style, label=label, reheat=True)
 
     return get_force_snapshot(state)

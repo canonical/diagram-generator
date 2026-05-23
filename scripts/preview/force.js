@@ -857,6 +857,86 @@ byId("stage").addEventListener("mouseout", (event) => {
   if (g) g.classList.remove("dg-hover");
 });
 
+// Double-click inline text editing
+let activeTextEdit = null;
+byId("stage").addEventListener("dblclick", (event) => {
+  if (activeTextEdit) return;
+  const g = event.target.closest("[data-component-id]");
+  if (!g || !currentSnapshot) return;
+  const nodeId = g.getAttribute("data-component-id");
+  const nodeData = currentSnapshot.nodes.find(n => n.id === nodeId);
+  if (!nodeData) return;
+  startForceTextEdit(nodeData, g);
+});
+
+function startForceTextEdit(nodeData, gEl) {
+  const rect = gEl.querySelector("rect");
+  if (!rect) return;
+  const svg = gEl.closest("svg");
+  const svgRect = svg.getBoundingClientRect();
+  const x = parseFloat(rect.getAttribute("x"));
+  const y = parseFloat(rect.getAttribute("y"));
+  const w = parseFloat(rect.getAttribute("width"));
+  const h = parseFloat(rect.getAttribute("height"));
+
+  const labels = Array.isArray(nodeData.label) ? nodeData.label : [nodeData.label || nodeData.id];
+  const text = labels.map(ln => typeof ln === "string" ? ln : ln?.text || "").join("\n");
+
+  const ta = document.createElement("textarea");
+  ta.className = "dg-force-text-edit";
+  ta.value = text;
+  ta.style.position = "absolute";
+  ta.style.left = `${svgRect.left + x + 4}px`;
+  ta.style.top = `${svgRect.top + y + 4}px`;
+  ta.style.width = `${w - 8}px`;
+  ta.style.height = `${h - 8}px`;
+  ta.style.fontFamily = "Ubuntu Sans, sans-serif";
+  ta.style.fontSize = "18px";
+  ta.style.lineHeight = "1.4";
+  ta.style.border = "2px solid var(--dg-selection-accent, #e95420)";
+  ta.style.borderRadius = "2px";
+  ta.style.padding = "4px";
+  ta.style.background = "rgba(255,255,255,0.95)";
+  ta.style.color = "#000";
+  ta.style.resize = "none";
+  ta.style.zIndex = "1000";
+  ta.style.outline = "none";
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+
+  activeTextEdit = { nodeId: nodeData.id, ta, originalText: text };
+
+  function commit() {
+    if (!activeTextEdit) return;
+    const newText = ta.value;
+    ta.remove();
+    const oldText = activeTextEdit.originalText;
+    const nodeId = activeTextEdit.nodeId;
+    activeTextEdit = null;
+    if (newText === oldText) return;
+    const newLabel = newText.split("\n").filter((_, i, arr) => i < arr.length - 1 || arr[i] !== "");
+    if (newLabel.length === 0) newLabel.push(nodeId);
+    const beforeSnapshot = currentSnapshot;
+    pushForceUndo("Edit label", beforeSnapshot, null);
+    updateForceNode(nodeId, { label: newLabel }).then(snap => {
+      forceUndoManager._stack[forceUndoManager._stack.length - 1].after = snap;
+    });
+  }
+
+  ta.addEventListener("blur", commit);
+  ta.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      ta.value = activeTextEdit.originalText;
+      ta.blur();
+    } else if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      ta.blur();
+    }
+    e.stopPropagation();
+  });
+}
+
 byId("stage").addEventListener("mousedown", (event) => {
   if (event.button !== 0 || !currentSnapshot) {
     return;

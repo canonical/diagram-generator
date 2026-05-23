@@ -1421,6 +1421,19 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
             self.send_error(400, "Invalid height")
             return
 
+        # Validate label if provided
+        _LABEL_UNSET = object()
+        label_val = _LABEL_UNSET
+        if "label" in params:
+            raw_label = params["label"]
+            if raw_label is None or raw_label == []:
+                label_val = None
+            elif isinstance(raw_label, list) and all(isinstance(ln, str) for ln in raw_label) and len(raw_label) <= 20:
+                label_val = raw_label
+            else:
+                self.send_error(400, "Invalid label: must be a list of strings (max 20)")
+                return
+
         try:
             import force_preview
 
@@ -1434,6 +1447,7 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
                 width=w,
                 height=h,
                 style=(params["style"] if "style" in params else force_preview.STYLE_UNSET),
+                label=(label_val if label_val is not _LABEL_UNSET else force_preview.STYLE_UNSET),
             )
         except KeyError:
             self.send_error(404, f"Unknown force node: {node_id}")
