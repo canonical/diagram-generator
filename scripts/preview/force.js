@@ -471,7 +471,9 @@ function renderTree(snapshot) {
   tree.innerHTML = snapshot.nodes
     .map((node) => {
       const selected = node.id === selectedId ? " selected" : "";
-      return `<div class="tree-item${selected}" data-node-id="${escapeHtml(node.id)}">${escapeHtml(node.id)}</div>`;
+      const hasOverride = isNodePinned(node) || node.style_override != null;
+      const overridden = hasOverride ? " overridden" : "";
+      return `<div class="tree-item${selected}${overridden}" data-node-id="${escapeHtml(node.id)}">${escapeHtml(node.id)}</div>`;
     })
     .join("");
 }
@@ -1002,6 +1004,23 @@ document.addEventListener("keydown", (event) => {
   if ((event.ctrlKey || event.metaKey) && event.key === "y") {
     event.preventDefault();
     performForceRedo();
+  }
+  // Arrow-key nudge for selected pinned node (8px default, 24px with Shift)
+  if (selectedId && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) {
+    if (event.target.tagName === "INPUT" || event.target.tagName === "TEXTAREA") return;
+    const node = currentSnapshot && currentSnapshot.nodes.find(n => n.id === selectedId);
+    if (!node || !isNodePinned(node)) return;
+    event.preventDefault();
+    const step = event.shiftKey ? 24 : 8;
+    let dx = 0, dy = 0;
+    if (event.key === "ArrowUp") dy = -step;
+    if (event.key === "ArrowDown") dy = step;
+    if (event.key === "ArrowLeft") dx = -step;
+    if (event.key === "ArrowRight") dx = step;
+    const beforeNudge = captureNodeState(selectedId);
+    updateForceNode(selectedId, { x: node.x + dx, y: node.y + dy, pinned: true }).then(() => {
+      pushForceUndo("Nudge", beforeNudge, captureNodeState(selectedId));
+    });
   }
 });
 byId("btn-export-json").addEventListener("click", async () => {

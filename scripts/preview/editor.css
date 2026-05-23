@@ -467,6 +467,8 @@ body.dg-preview {
 
 .tree-item:hover { border-inline-start-color: #555; }
 .tree-item.selected { border-inline-start-color: var(--dg-selection-accent); color: var(--dg-selection-accent); }
+.tree-item.overridden { font-style: italic; color: var(--bf-color-accent, #e95420); }
+.tree-item.overridden.selected { color: var(--dg-selection-accent); }
 
 .grid-controls {
        display: grid;
