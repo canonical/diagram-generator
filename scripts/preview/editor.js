@@ -3549,23 +3549,24 @@ function startResize(e) {
  * Recursively apply relayoutChildren down the tree.
  * For each child that is itself a layout parent, relayout its children too.
  */
-function _applyRelayoutRecursive(parentId, parentDw, parentDh, origOverrides, propagatedIds) {
-  const childDeltas = model.relayoutChildren(parentId, parentDw, parentDh);
+function _applyRelayoutRecursive(parentId, parentDx, parentDy, parentDw, parentDh, origOverrides, propagatedIds) {
+  const childDeltas = model.relayoutChildren(parentId, parentDx, parentDy, parentDw, parentDh, origOverrides);
   for (const [childId, delta] of Object.entries(childDeltas)) {
-    const orig = origOverrides[childId] || { dx: 0, dy: 0, dw: 0, dh: 0 };
     setOverride(childId, {
-      dx: orig.dx + delta.dx,
-      dy: orig.dy + delta.dy,
-      dw: orig.dw + delta.dw,
-      dh: orig.dh + delta.dh,
+      dx: delta.dx,
+      dy: delta.dy,
+      dw: delta.dw,
+      dh: delta.dh,
     });
     propagatedIds.add(childId);
     // Recurse: if this child has layout children, relayout them too
     const childNode = model.get(childId);
     if (childNode && childNode.layout && childNode.children.length > 0) {
-      const childEffDw = orig.dw + delta.dw;
-      const childEffDh = orig.dh + delta.dh;
-      _applyRelayoutRecursive(childId, childEffDw, childEffDh, origOverrides, propagatedIds);
+      const childEffDx = delta.dx;
+      const childEffDy = delta.dy;
+      const childEffDw = delta.dw;
+      const childEffDh = delta.dh;
+      _applyRelayoutRecursive(childId, childEffDx, childEffDy, childEffDw, childEffDh, origOverrides, propagatedIds);
     }
   }
 }
@@ -3663,20 +3664,31 @@ function onResizeMove(e) {
   // --- Auto-layout engine ---
   if (!s.propagatedIds) s.propagatedIds = new Set();
 
-  // Parent resize: children keep their size and position.
-  // Only child resize propagates to siblings (below).
+  if (s.propagatedIds.size > 0) {
+    for (const pid of s.propagatedIds) {
+      const orig = s.origOverrides[pid] || { dx: 0, dy: 0, dw: 0, dh: 0 };
+      setOverride(pid, { dx: orig.dx, dy: orig.dy, dw: orig.dw, dh: orig.dh });
+    }
+    s.propagatedIds.clear();
+  }
+
+  // Parent resize: relayout descendant children live so the preview keeps
+  // matching the solver's sizing intent during the drag.
+  const resizedNode = model.get(s.cid);
+  if (resizedNode && resizedNode.layout && resizedNode.children.length > 0) {
+    _applyRelayoutRecursive(s.cid, newDx, newDy, newDw, newDh, s.origOverrides, s.propagatedIds);
+  }
 
   // Child resize → shift siblings to maintain gutters.
   // Works for both nested children and root-level nodes (via diagramGrid).
-  const resizedNode = model.get(s.cid);
   const hasLayoutContext = resizedNode && (
     (resizedNode.parent && resizedNode.parent.layout) ||
     (!resizedNode.parent && model.diagramGrid)
   );
   if (hasLayoutContext) {
-    const deltaDw = newDw - s.origDw;
-    const deltaDh = newDh - s.origDh;
-    const siblingAdj = model.relayoutSiblingsAfterChildResize(s.cid, deltaDw, deltaDh);
+    const rightEdgeDelta = (newDx + newDw) - (s.origDx + s.origDw);
+    const bottomEdgeDelta = (newDy + newDh) - (s.origDy + s.origDh);
+    const siblingAdj = model.relayoutSiblingsAfterChildResize(s.cid, rightEdgeDelta, bottomEdgeDelta);
     for (const [adjId, delta] of Object.entries(siblingAdj)) {
       const origAdj = s.origOverrides[adjId] || { dx: 0, dy: 0, dw: 0, dh: 0 };
       const patch = {};

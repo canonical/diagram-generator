@@ -253,22 +253,23 @@ class ComponentModel {
   }
 
   /**
-   * Gutter-preserving auto-layout: recompute child positions and sizes
-   * so they fill the parent's content area with fixed gutters.
+   * Recompute child positions and sizes after a parent resize.
    *
-   * Given the parent's effective bounds (base + overrides), this function:
-   * 1. Computes the content area (parent size - 2×pad - heading)
-   * 2. Distributes available space among children with fixed gutters
-   * 3. Returns overrides { childId: { dx, dy, dw, dh } } to apply
+   * The preview model mirrors the solver's intent closely enough to keep
+   * drag-resize interactions trustworthy before the server relayout lands:
+   * - fixed/HUG children keep their current effective size on the primary axis
+   * - explicit FILL children split remaining space continuously
+   * - gutters stay fixed at the parent's declared layout gaps
    *
-   * The gutter between children is ALWAYS node.layoutGap — never proportional.
-   *
-   * @param {string} parentId — the parent whose children to relayout
-   * @param {number} parentDw — the parent's dw override (0 = unchanged)
-   * @param {number} parentDh — the parent's dh override (0 = unchanged)
+   * @param {string} parentId
+   * @param {number} parentDx
+   * @param {number} parentDy
+   * @param {number} parentDw
+   * @param {number} parentDh
+   * @param {{ [id: string]: { dx?: number, dy?: number, dw?: number, dh?: number } }} [baseOverrides]
    * @returns {{ [childId: string]: { dx?: number, dy?: number, dw?: number, dh?: number } }}
    */
-  relayoutChildren(parentId, parentDw, parentDh) {
+  relayoutChildren(parentId, parentDx, parentDy, parentDw, parentDh, baseOverrides) {
     const node = this.get(parentId);
     if (!node || node.children.length === 0) return {};
     const layoutChildren = this.getLayoutChildren(parentId);
@@ -279,57 +280,110 @@ class ComponentModel {
 
     const colGap = node.layoutColGap;
     const rowGap = node.layoutRowGap;
-    const pad = node.pad;
+    const padLeft = node.padding_left || node.pad;
+    const padRight = node.padding_right || node.pad;
+    const padTop = node.padding_top || node.pad;
+    const padBottom = node.padding_bottom || node.pad;
     const headingH = node.headingHeight;
     const result = {};
+
+    const parentBase = (baseOverrides && baseOverrides[parentId]) || this.getOwnDelta(parentId);
+    const baseParentX = node.data.x + (parentBase.dx || 0);
+    const baseParentY = node.data.y + (parentBase.dy || 0);
+    const parentX = node.data.x + parentDx;
+    const parentY = node.data.y + parentDy;
 
     // Parent's effective content area
     const parentW = node.data.width + parentDw;
     const parentH = node.data.height + parentDh;
-    const contentW = parentW - 2 * pad;
-    const contentH = parentH - 2 * pad - headingH;
+    const contentW = parentW - padLeft - padRight;
+    const contentH = parentH - padTop - padBottom - headingH;
 
     // Content area origin relative to parent's original position
-    const contentX0 = node.data.x + pad;
-    const contentY0 = node.data.y + pad + headingH;
+    const contentX0 = parentX + padLeft;
+    const contentY0 = parentY + padTop + headingH;
+
+    const childBase = (child) => {
+      return (baseOverrides && baseOverrides[child.id]) || this.getOwnDelta(child.id);
+    };
+
+    function effectiveRect(child) {
+      const base = childBase(child);
+      return {
+        x: child.data.x + (base.dx || 0),
+        y: child.data.y + (base.dy || 0),
+        w: child.data.width + (base.dw || 0),
+        h: child.data.height + (base.dh || 0),
+      };
+    }
 
     if (layout === "vertical") {
-      // Vertical: all children get full width, height distributed equally
-      const n = layoutChildren.length;
-      const availH = contentH - (n - 1) * rowGap;
-      const childH = equalSplitCell(availH, n);
+      const availH = contentH - (layoutChildren.length - 1) * rowGap;
+      let fixedH = 0;
+      const fillChildren = [];
+
+      for (const child of layoutChildren) {
+        const rect = effectiveRect(child);
+        if (child.sizing_h === "FILL") {
+          fillChildren.push(child);
+        } else {
+          fixedH += rect.h;
+        }
+      }
+
+      const fillH = fillChildren.length > 0 ? Math.max(0, availH - fixedH) / fillChildren.length : 0;
+      const parentShiftX = parentX - baseParentX;
 
       let cy = contentY0;
       for (const child of layoutChildren) {
-        const dx = contentX0 - child.data.x;
+        const rect = effectiveRect(child);
+        const targetW = child.sizing_w === "FILL" ? contentW : rect.w;
+        const targetH = child.sizing_h === "FILL" ? fillH : rect.h;
+        const targetX = child.sizing_w === "FILL" ? contentX0 : rect.x + parentShiftX;
+        const dx = targetX - child.data.x;
         const dy = cy - child.data.y;
-        const dw = contentW - child.data.width;
-        const dh = childH - child.data.height;
+        const dw = targetW - child.data.width;
+        const dh = targetH - child.data.height;
         result[child.id] = {
-          dx: Math.round(dx / 8) * 8,
-          dy: Math.round(dy / 8) * 8,
-          dw: Math.round(dw / 8) * 8,
-          dh: Math.round(dh / 8) * 8,
+          dx,
+          dy,
+          dw,
+          dh,
         };
-        cy += childH + rowGap;
+        cy += targetH + rowGap;
       }
     } else if (layout === "horizontal") {
-      // Horizontal: width distributed equally, height unchanged (cross-axis)
-      const n = layoutChildren.length;
-      const availW = contentW - (n - 1) * colGap;
-      const childW = equalSplitCell(availW, n);
+      const availW = contentW - (layoutChildren.length - 1) * colGap;
+      let fixedW = 0;
+      const fillChildren = [];
+
+      for (const child of layoutChildren) {
+        const rect = effectiveRect(child);
+        if (child.sizing_w === "FILL") {
+          fillChildren.push(child);
+        } else {
+          fixedW += rect.w;
+        }
+      }
+
+      const fillW = fillChildren.length > 0 ? Math.max(0, availW - fixedW) / fillChildren.length : 0;
+      const parentShiftY = parentY - baseParentY;
 
       let cx = contentX0;
       for (const child of layoutChildren) {
+        const rect = effectiveRect(child);
+        const targetW = child.sizing_w === "FILL" ? fillW : rect.w;
+        const targetH = child.sizing_h === "FILL" ? contentH : rect.h;
+        const targetY = child.sizing_h === "FILL" ? contentY0 : rect.y + parentShiftY;
         const dx = cx - child.data.x;
-        const dw = childW - child.data.width;
+        const dw = targetW - child.data.width;
         result[child.id] = {
-          dx: Math.round(dx / 8) * 8,
-          dy: 0,
-          dw: Math.round(dw / 8) * 8,
-          dh: 0,
+          dx,
+          dy: targetY - child.data.y,
+          dw,
+          dh: targetH - child.data.height,
         };
-        cx += childW + colGap;
+        cx += targetW + colGap;
       }
     } else if (layout === "grid") {
       // Grid: use the server-declared slot model instead of inferring
@@ -392,7 +446,7 @@ class ComponentModel {
    *
    * Returns { siblingId: { dx?, dy?, dw?, dh? } } deltas to apply.
    */
-  relayoutSiblingsAfterChildResize(childId, childDw, childDh) {
+  relayoutSiblingsAfterChildResize(childId, childRightDelta, childBottomDelta) {
     const node = this.get(childId);
     if (!node) return {};
 
@@ -414,17 +468,17 @@ class ComponentModel {
     const result = {};
     const childIdx = layoutChildren.indexOf(node);
 
-    if (layout === "vertical" && childDh !== 0) {
-      // Shift all siblings below the resized child by childDh
+    if (layout === "vertical" && childBottomDelta !== 0) {
+      // Shift all siblings below the resized child by the bottom-edge delta.
       for (let i = childIdx + 1; i < layoutChildren.length; i++) {
         const sib = layoutChildren[i];
-        result[sib.id] = { dy: childDh };
+        result[sib.id] = { dy: childBottomDelta };
       }
-    } else if (layout === "horizontal" && childDw !== 0) {
-      // Shift all siblings to the right of the resized child by childDw
+    } else if (layout === "horizontal" && childRightDelta !== 0) {
+      // Shift all siblings to the right of the resized child by the right-edge delta.
       for (let i = childIdx + 1; i < layoutChildren.length; i++) {
         const sib = layoutChildren[i];
-        result[sib.id] = { dx: childDw };
+        result[sib.id] = { dx: childRightDelta };
       }
     } else if (layout === "grid") {
       // Grid: shift same-row siblings after resized child horizontally,
@@ -438,12 +492,12 @@ class ComponentModel {
         const sibRowIdx = sib.gridRow || 0;
         const patch = {};
         // Same row, later column → shift right
-        if (sibRowIdx === childRowIdx && sibColIdx > childColIdx && childDw !== 0) {
-          patch.dx = childDw;
+        if (sibRowIdx === childRowIdx && sibColIdx > childColIdx && childRightDelta !== 0) {
+          patch.dx = childRightDelta;
         }
         // Same column, later row → shift down
-        if (sibColIdx === childColIdx && sibRowIdx > childRowIdx && childDh !== 0) {
-          patch.dy = childDh;
+        if (sibColIdx === childColIdx && sibRowIdx > childRowIdx && childBottomDelta !== 0) {
+          patch.dy = childBottomDelta;
         }
         if (Object.keys(patch).length > 0) {
           result[sib.id] = patch;
