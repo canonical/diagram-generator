@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from frame_model import Frame, FrameDiagram, Direction, Sizing, Align
 from diagram_model import Line, Fill, Border
-from layout_v3 import measure, place, _align_offset, _enforce_fill_hug_invariant, layout_frame_diagram
+from layout_v3 import measure, place, _align_offset, _enforce_fill_hug_invariant, layout_frame_diagram, _remeasure_with_width_constraints
 from diagram_shared import BASELINE_UNIT
 
 
@@ -1122,7 +1122,7 @@ class TestFillInHugInvariant:
 
     def test_fill_children_get_equal_shares_in_hug_parent(self):
         """FILL children in a HUG parent: parent freezes, children
-        equalize when same size, clamp at measured when not."""
+        get equal shares of available space."""
         a = _box("a", w=192, h=64)
         a.sizing_h = Sizing.FILL
         b = _box("b", w=192, h=80)
@@ -1131,13 +1131,12 @@ class TestFillInHugInvariant:
         # root.sizing_h defaults to HUG
         _layout(root)
 
-        # Parent freezes at measured size.  Iterative clamping:
-        # available = 64+80 = 144.  share=72.  b(80>72) clamped at 80.
-        # remaining=64.  a gets 64.
-        assert a._placed_h >= a._measured_h, \
-            f"a should be >= measured: {a._placed_h} < {a._measured_h}"
-        assert b._placed_h >= b._measured_h, \
-            f"b should be >= measured: {b._placed_h} < {b._measured_h}"
+        # Parent freezes at measured size.  Measure inflates to max*count:
+        # content_h = max(64,80)*2 + 8(gap) = 168.  With padding: 184.
+        # Place: available = 184 - 16 - 8 = 160.  Equal share = 80 each.
+        diff = abs(a._placed_h - b._placed_h)
+        assert diff <= BASELINE_UNIT, \
+            f"FILL children should be equal (±{BASELINE_UNIT}): a={a._placed_h}, b={b._placed_h}"
 
     def test_fill_children_expand_in_fixed_parent(self):
         """FILL children in a FIXED parent should divide space equally."""
@@ -1166,7 +1165,7 @@ class TestFillInHugInvariant:
 
     def test_nested_fill_in_hug_parent_freezes(self):
         """Panel with content + siblings all FILL in HUG column:
-        parent freezes to FIXED, children keep content minimum."""
+        parent freezes to FIXED, children get equal shares."""
         inner_a = _box("inner_a", h=64)
         inner_b = _box("inner_b", h=40)
         panel = _container("panel", Direction.VERTICAL, [inner_a, inner_b],
@@ -1179,12 +1178,9 @@ class TestFillInHugInvariant:
                             gap=24, padding=0, border=Border.NONE)
         _layout(column)
 
-        # Parent freezes at measured size.  Available == sum of measured,
-        # so extra == 0.  Each FILL child keeps its measured size.
-        assert ann._placed_h >= ann._measured_h, \
-            f"ann should keep measured: {ann._placed_h} < {ann._measured_h}"
-        assert panel._placed_h >= panel._measured_h, \
-            f"panel should keep measured: {panel._placed_h} < {panel._measured_h}"
+        # Children should have positive sizes and fit within the parent
+        assert ann._placed_h > 0, f"ann height must be positive"
+        assert panel._placed_h > 0, f"panel height must be positive"
         # Total should fit within the frozen parent
         total = ann._placed_h + panel._placed_h + 24  # + gap
         assert total <= column._placed_h + 0.5, \
@@ -1651,6 +1647,98 @@ class TestTextOverflowResilience:
         assert child._placed_h >= 0, "FILL child height must not be negative"
         assert child._placed_w > 0, "FILL child width must be positive"
 
+    def test_fill_children_preserve_padding(self):
+        """FILL children must not overflow into parent padding.
+
+        Regression test for the bug where _distribute_fill_space() treated
+        measured content size as a hard floor, causing FILL children to eat
+        the parent's padding when their measured sizes exceeded available space.
+        """
+        a = _box("a", w=192, h=64)
+        a.sizing_h = Sizing.FILL
+        b = _box("b", w=192, h=64)
+        b.sizing_h = Sizing.FILL
+        parent = _container("parent", Direction.VERTICAL, [a, b],
+                            gap=8, padding=8)
+        parent.sizing_w = Sizing.FIXED
+        parent.sizing_h = Sizing.FIXED
+        parent.width = 208
+        # Parent height smaller than children need:
+        # children want 64+64+8(gap) = 136, plus padding 16 = 152
+        # Give only 120 — children MUST shrink to respect padding.
+        parent.height = 120
+        _layout_fixed(parent, 208, 120)
+
+        parent_bottom = parent._placed_y + parent._placed_h
+        last_child_bottom = b._placed_y + b._placed_h
+        # Bottom padding must be preserved
+        assert last_child_bottom <= parent_bottom - parent.padding_bottom, \
+            (f"Last child bottom ({last_child_bottom}) must be >= {parent.padding_bottom}px "
+             f"above parent bottom ({parent_bottom}). "
+             f"Padding eaten: {last_child_bottom - parent_bottom + parent.padding_bottom}px")
+
+        # Both children should have equal height (FILL = equal share)
+        diff = abs(a._placed_h - b._placed_h)
+        assert diff <= BASELINE_UNIT, \
+            f"FILL children should be equal: a={a._placed_h}, b={b._placed_h}"
+
+    def test_fill_children_preserve_padding_with_heading(self):
+        """Padding preserved even when heading consumes space.
+
+        The android-container-vs-vm bug: heading + padding + FILL children
+        in a frozen HUG parent — children must not eat the bottom padding.
+        """
+        a = _box("a", w=192, h=64)
+        a.sizing_h = Sizing.FILL
+        b = _box("b", w=192, h=64)
+        b.sizing_h = Sizing.FILL
+        parent = _container("parent", Direction.VERTICAL, [a, b],
+                            gap=8, padding=8)
+        parent.heading = Line(content="Section Heading", size=16)
+        _layout(parent)
+
+        parent_bottom = parent._placed_y + parent._placed_h
+        last_child_bottom = b._placed_y + b._placed_h
+        # Bottom padding must be preserved
+        assert last_child_bottom <= parent_bottom - parent.padding_bottom, \
+            (f"Last child bottom ({last_child_bottom}) must be >= {parent.padding_bottom}px "
+             f"above parent bottom ({parent_bottom})")
+
+    def test_heading_height_consistent_at_narrow_width(self):
+        """Heading that wraps at narrow width must not cause child overflow.
+
+        The bug: measure() computes heading height without max_width,
+        but place() recomputes with max_width from the placed width.
+        If heading wraps differently, children get wrong available space.
+        The remeasure pass fixes this by caching heading height at the
+        resolved width.
+        """
+        child = _box("leaf", w=100, h=32)
+        parent = _container("parent", Direction.VERTICAL, [child],
+                            gap=8, padding=8)
+        parent.border = Border.SOLID
+        parent.heading = Line(
+            content="This is a very long heading that will definitely "
+                    "wrap at narrow widths because it is many characters wide",
+            size=16,
+        )
+        parent.sizing_w = Sizing.FIXED
+        parent.sizing_h = Sizing.HUG
+        parent.width = 120
+        # Use full pipeline: measure → coerce → remeasure → place
+        measure(parent)
+        coerced = _enforce_fill_hug_invariant(parent)
+        _remeasure_with_width_constraints(parent, 120,
+                                          coerced_ids=set(coerced.keys()))
+        place(parent, 0, 0, 120, parent._measured_h)
+
+        child_bottom = child._placed_y + child._placed_h
+        parent_bottom = parent._placed_y + parent._placed_h - parent.padding_bottom
+        assert child_bottom <= parent_bottom, \
+            (f"Child bottom ({child_bottom}) overflows parent inner edge "
+             f"({parent_bottom}). Heading height likely inconsistent "
+             f"between measure and place.")
+
 
 class TestContainerTooSmall:
     """Behavior when FIXED container is smaller than children need."""
@@ -1731,7 +1819,7 @@ class TestParentCoercion:
 
     def test_unequal_fill_children_get_equal_shares(self):
         """FILL children with different measured sizes get equal shares
-        when parent is FIXED with room, or content-minimum in frozen HUG."""
+        in frozen HUG parent.  Measured size is not a floor."""
         small = _box("small", w=100, h=40)
         small.sizing_h = Sizing.FILL
         large = _box("large", w=100, h=120)
@@ -1740,12 +1828,12 @@ class TestParentCoercion:
                           gap=8, padding=8)
         _layout(root)
 
-        # In frozen HUG: iterative clamping gives large its measured size
-        # and small gets the remainder.  Neither should be below measured.
-        assert small._placed_h >= small._measured_h, \
-            f"small should be >= measured: {small._placed_h} < {small._measured_h}"
-        assert large._placed_h >= large._measured_h, \
-            f"large should be >= measured: {large._placed_h} < {large._measured_h}"
+        # In frozen HUG: measure inflates to max(40,120)*2 + 8 = 248.
+        # With padding: round_up(248+16) = 264.
+        # Place: available = 264-16-8 = 240.  Equal share = 120 each.
+        diff = abs(small._placed_h - large._placed_h)
+        assert diff <= BASELINE_UNIT, \
+            f"FILL children should be equal (±{BASELINE_UNIT}): small={small._placed_h}, large={large._placed_h}"
         # Total should fit
         total = small._placed_h + large._placed_h + 8
         assert total <= root._placed_h - 16 + 0.5

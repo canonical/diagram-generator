@@ -296,11 +296,18 @@ def test_distribute_fill_space_equal():
 
 
 def test_distribute_fill_space_clamped():
-    """A child larger than the equal share gets clamped at its measured size."""
+    """FILL children get equal shares — measured size is NOT a floor.
+    With min constraint, children clamp at their minimum instead."""
+    # Without constraints: equal split regardless of measured size
     sizes = _distribute_fill_space(100, [60, 0])
-    assert sizes[0] == 60, f"First child should be clamped at 60, got {sizes[0]}"
-    assert sizes[1] > 0
-    print(f"  PASS: clamped fill distribution: {sizes}")
+    assert sizes[0] == sizes[1], f"Should be equal: {sizes[0]} != {sizes[1]}"
+    assert sum(sizes) <= 100
+    # With min constraint: child clamped at min, remainder to the other
+    sizes2 = _distribute_fill_space(100, [60, 0], fill_mins=[56, None])
+    assert sizes2[0] >= 56, f"Min-constrained child should be >= 56, got {sizes2[0]}"
+    assert sizes2[1] > 0
+    assert sum(sizes2) <= 100
+    print(f"  PASS: fill distribution (equal={sizes}, min-constrained={sizes2})")
 
 
 def test_distribute_fill_space_empty():

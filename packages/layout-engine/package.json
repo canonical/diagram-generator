@@ -1,0 +1,19 @@
+{
+  "name": "@diagram-generator/layout-engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "build:browser": "esbuild src/index.ts --bundle --format=iife --global-name=LayoutEngine --outfile=dist/layout-engine.iife.js --target=es2022",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.0",
+    "typescript": "^5.8.0",
+    "vitest": "^3.2.0"
+  }
+}

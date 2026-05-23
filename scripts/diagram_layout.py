@@ -344,9 +344,13 @@ def _min_bar_height(bar: Bar) -> int:
     return max(bar.height, max_content_h) if max_content_h else bar.height
 
 
-def _uniform_row_height(items: list[Box], cols: int, rows: int) -> list[int]:
-    """Compute per-row heights: tallest box in each row wins."""
-    grid: dict[int, list[Box]] = {}
+def _uniform_row_height(items: list, cols: int, rows: int) -> list[int]:
+    """Compute per-row heights: tallest item in each row wins.
+
+    Accepts Box, Helper, Annotation, and MatrixWidget instances — any item
+    with a `row` attribute participates in equalization.
+    """
+    grid: dict[int, list] = {}
     for item in items:
         grid.setdefault(item.row, []).append(item)
 
@@ -355,12 +359,20 @@ def _uniform_row_height(items: list[Box], cols: int, rows: int) -> list[int]:
         row_items = grid.get(r, [])
         max_h = 0
         for b in row_items:
-            if b.height:
-                max_h = max(max_h, b.height)
-            else:
-                has_icon = b.icon is not None
-                h = tight_box_height(_lines_to_dicts(b.label), has_icon=has_icon)
-                max_h = max(max_h, h)
+            if isinstance(b, Box):
+                if b.height:
+                    max_h = max(max_h, b.height)
+                else:
+                    has_icon = b.icon is not None
+                    h = tight_box_height(_lines_to_dicts(b.label), has_icon=has_icon)
+                    max_h = max(max_h, h)
+            elif isinstance(b, (Helper, Annotation)):
+                lines = _lines_to_dicts(b.lines)
+                n = len(lines)
+                ls = int(lines[0]["line_step"]) if lines else BODY_LINE_STEP
+                max_h = max(max_h, n * ls)
+            elif isinstance(b, MatrixWidget):
+                max_h = max(max_h, MATRIX_SIZE)
         heights.append(max(max_h, BOX_MIN_HEIGHT))
     return heights
 
@@ -429,20 +441,16 @@ def _layout_panel(
         # icons produce the same heading height and children align.
         heading_h = max(heading_h, ICON_SIZE + INSET)
 
-    # Uniform row heights – compute from boxes, then expand for helper rows
-    row_heights = _uniform_row_height(boxes, cols, rows) if rows > 0 else []
-    # Expand row_heights to cover helper-only rows
+    # Uniform row heights – compute from all grid-placed items (boxes,
+    # helpers, annotations, matrices) so annotation-only rows participate
+    # in equalization rather than getting a default BOX_MIN_HEIGHT.
+    row_heights = _uniform_row_height(grid_items, cols, rows) if rows > 0 else []
+    # Expand row_heights to cover rows beyond grid_items
     while len(row_heights) < rows:
         row_heights.append(BODY_LINE_STEP)
-    # Grow helper rows to fit helper content
-    for h in grid_helpers:
-        hr = h.row
-        if hr < len(row_heights):
-            lines = _lines_to_dicts(h.lines)
-            n = len(lines)
-            ls = int(lines[0]["line_step"]) if lines else BODY_LINE_STEP
-            needed = n * ls
-            row_heights[hr] = max(row_heights[hr], needed)
+    if panel.uniform_height and row_heights:
+        max_h = max(row_heights)
+        row_heights = [max_h] * len(row_heights)
     if panel.uniform_height and row_heights:
         max_h = max(row_heights)
         row_heights = [max_h] * len(row_heights)
@@ -742,17 +750,6 @@ def _layout_box(
 # Helper layout
 # ---------------------------------------------------------------------------
 
-def _layout_helper(
-    helper: Helper,
-    x: float,
-    y: float,
-) -> tuple[_Bounds, list[Primitive]]:
-    lines = _lines_to_dicts(helper.lines)
-    n = len(lines)
-    line_step = int(lines[0]["line_step"]) if lines else BODY_LINE_STEP
-    h = n * line_step
-    prims = [TextBlock(x, y, lines)]
-    return _Bounds(x, y, 400, h, helper), prims
 
 
 # ---------------------------------------------------------------------------

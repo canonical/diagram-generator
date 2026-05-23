@@ -2,4 +2,8 @@ __pycache__/
 *.pyc
 _tail.txt
 diagram-generator.code-workspace
+tmp/
+diagrams/2.output/png/
+node_modules/
+packages/*/dist/
 

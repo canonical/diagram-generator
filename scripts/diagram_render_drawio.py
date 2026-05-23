@@ -66,23 +66,6 @@ import drawio_style_tokens as dg_tokens
 # Primitive → draw.io mapping
 # ---------------------------------------------------------------------------
 
-def _find_children(
-    prims: list[Primitive],
-    parent: Rect,
-) -> tuple[list[TextBlock], list[Icon]]:
-    """Find TextBlocks and Icons visually inside *parent*."""
-    texts: list[TextBlock] = []
-    icons: list[Icon] = []
-    px, py, pw, ph = parent.x, parent.y, parent.width, parent.height
-    for p in prims:
-        if isinstance(p, TextBlock):
-            if px <= p.x <= px + pw and py <= p.y <= py + ph:
-                texts.append(p)
-        elif isinstance(p, Icon):
-            if px <= p.x <= px + pw and py <= p.y <= py + ph:
-                icons.append(p)
-    return texts, icons
-
 
 def _entry_exit(direction: str) -> dict[str, float]:
     """Return exit/entry anchor kwargs for an edge_style call."""
@@ -182,20 +165,35 @@ def render_drawio(
             rx = rect.x
             ry = rect.y
 
-        # Find text and icon children inside this rect
+        # Find text and icon children belonging to this rect
         texts, icons = [], []
-        for ti, t in enumerate(all_texts):
-            if ti in claimed_texts:
-                continue
-            if (rect.x <= t.x <= rect.x + rect.width
-                    and rect.y <= t.y <= rect.y + rect.height):
-                texts.append((ti, t))
-        for ii, ic in enumerate(all_icons):
-            if ii in claimed_icons:
-                continue
-            if (rect.x <= ic.x <= rect.x + rect.width
-                    and rect.y <= ic.y <= rect.y + rect.height):
-                icons.append((ii, ic))
+        cid = rect.component_id
+        if cid:
+            # Semantic match: same component_id
+            for ti, t in enumerate(all_texts):
+                if ti in claimed_texts:
+                    continue
+                if t.component_id == cid:
+                    texts.append((ti, t))
+            for ii, ic in enumerate(all_icons):
+                if ii in claimed_icons:
+                    continue
+                if ic.component_id == cid:
+                    icons.append((ii, ic))
+        else:
+            # Fallback: spatial containment for legacy primitives
+            for ti, t in enumerate(all_texts):
+                if ti in claimed_texts:
+                    continue
+                if (rect.x <= t.x <= rect.x + rect.width
+                        and rect.y <= t.y <= rect.y + rect.height):
+                    texts.append((ti, t))
+            for ii, ic in enumerate(all_icons):
+                if ii in claimed_icons:
+                    continue
+                if (rect.x <= ic.x <= rect.x + rect.width
+                        and rect.y <= ic.y <= rect.y + rect.height):
+                    icons.append((ii, ic))
 
         # Determine if this is a "box" (has text directly touching its inset)
         # vs a "panel frame" (larger container)

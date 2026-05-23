@@ -180,6 +180,19 @@ Introduce the Structurizr-inspired abstraction layer:
 - Add type validation and connection validity checking to the diagram model
 - Prototype view definitions (subset selection, detail level, layout strategy)
 
+### Stage 15.5 — Client-side layout engine (interactive editing)
+
+Port the v3 Frame layout engine (~800 lines) from Python to TypeScript for client-side interactive editing. The Python server stays for batch builds, exports, and persistence. Motivation: the HTTP round-trip architecture causes 35–200ms latency per interaction frame, creates race conditions on concurrent relayouts, and forces complex cross-process coercion state sync. See `diagram-generator-planning/docs/performance-analysis-and-recommendations.md`.
+
+- Port `frame_model.py` → TypeScript frame model
+- Port `layout_v3.py` measure/coerce/place → TypeScript layout engine (pure functions, no DOM)
+- Replace `requestV3Relayout()` HTTP POST with synchronous local layout call
+- Use browser `Canvas.measureText()` or SVG `getBBox()` for text measurement (interactive); keep fontTools for batch
+- Shared test fixtures (YAML → expected positions) run against both Python and TS implementations in CI
+- Server becomes: YAML loading, override persistence (save/load), SVG/draw.io export, batch builds
+- **Expected impact:** 60fps interactive editing, race conditions eliminated, coercion lifecycle simplified, undo becomes local state manipulation
+- **What stays:** Figma-like sizing model, frame tree data model, YAML authoring, SVG rendering, 8px grid baseline, override persistence, ELK plan (complementary)
+
 ### Stage 16 — Layout algorithm survey and integration (Layer 4)
 
 Survey which layout algorithms competitive tools use, evaluate fitness for brand-constrained output, and port/integrate those that pass:
@@ -244,6 +257,8 @@ Overlap, Venn membership, and weak/strong containment as a separate constraint l
 - Connection validity rules per block type
 
 ## Long-term direction
+
+- Unit tests for draw.io renderer (`diagram_render_drawio.py`): golden-file tests for parent/child nesting, component_id matching, spatial fallback, arrow routing. Low priority — integration coverage via `build_v2.py` is sufficient for now.
 
 - The layered architecture (see blueprint above) is non-negotiable. All new work must map to a specific layer and not cross layer boundaries.
 - Keep the repo minimal and task-focused.

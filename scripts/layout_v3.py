@@ -57,13 +57,19 @@ def _distribute_fill_space(
     fill_mins: list[float | None] | None = None,
     fill_maxes: list[float | None] | None = None,
 ) -> list[float]:
-    """Distribute available space among FILL children using iterative clamping.
+    """Distribute available space among FILL children.
+
+    FILL means "accept whatever space the parent gives me."  The algorithm:
 
     1. Try equal split among all FILL children.
-    2. If any FILL child's measured size > equal share, clamp it at
-       measured and redistribute remaining space among unclamped children.
+    2. If any child has a min constraint (or max constraint) that prevents
+       the equal share, clamp it and redistribute among the rest.
     3. Repeat until stable.
-    4. Apply min/max constraints after distribution.
+
+    The measured content size is NOT a floor — FILL children shrink below
+    their content when the parent is too small.  Only explicit min_width /
+    min_height constraints act as a floor (defaulting to 0).  This matches
+    Figma's model: content overflows the child, not the parent's padding.
 
     Returns a list of final sizes (one per FILL child), grid-aligned.
     This is the single source of truth for FILL distribution, used by
@@ -75,13 +81,36 @@ def _distribute_fill_space(
     sizes = [0.0] * n
     remaining = max(0, available)
     unclamped = list(range(n))
+
+    # Resolve effective min/max for each child
+    eff_mins = [0.0] * n
+    eff_maxes = [float('inf')] * n
+    if fill_mins:
+        for i in range(min(n, len(fill_mins))):
+            if fill_mins[i] is not None:
+                eff_mins[i] = fill_mins[i]
+    if fill_maxes:
+        for i in range(min(n, len(fill_maxes))):
+            if fill_maxes[i] is not None:
+                eff_maxes[i] = fill_maxes[i]
+
+    # Iterative clamping: clamp children at min or max when the equal
+    # share violates their constraints, then redistribute.
     while unclamped:
         share = remaining / len(unclamped) if unclamped else 0
         clamped_any = False
         for idx in list(unclamped):
-            if fill_measured[idx] > share:
-                sizes[idx] = fill_measured[idx]
-                remaining -= fill_measured[idx]
+            if share < eff_mins[idx]:
+                # Child needs more than its share — give it the minimum
+                sizes[idx] = round_up_to_grid(eff_mins[idx])
+                remaining -= sizes[idx]
+                unclamped.remove(idx)
+                clamped_any = True
+                break
+            if share > eff_maxes[idx]:
+                # Child can't take its full share — cap at maximum
+                sizes[idx] = (eff_maxes[idx] // BASELINE_UNIT) * BASELINE_UNIT
+                remaining -= sizes[idx]
                 unclamped.remove(idx)
                 clamped_any = True
                 break
@@ -93,15 +122,6 @@ def _distribute_fill_space(
             for j, idx in enumerate(unclamped):
                 sizes[idx] = base + (BASELINE_UNIT if j >= n_unc - leftover_units else 0)
             break
-    # Apply min/max constraints after distribution
-    if fill_mins or fill_maxes:
-        for i in range(len(sizes)):
-            mn = (fill_mins[i] if fill_mins and i < len(fill_mins) else None)
-            mx = (fill_maxes[i] if fill_maxes and i < len(fill_maxes) else None)
-            if mn is not None and sizes[i] < mn:
-                sizes[i] = round_up_to_grid(mn)
-            if mx is not None and sizes[i] > mx:
-                sizes[i] = (mx // BASELINE_UNIT) * BASELINE_UNIT
     return sizes
 
 
@@ -135,6 +155,21 @@ def _heading_height(heading: Line | None, max_width: float | None = None) -> int
     h = stepped_lines_height(lines, top_pad=INSET, bottom_pad=INSET, min_height=0)
     # Always reserve icon-height clearance so panels with/without icons align
     return max(h, ICON_SIZE + INSET)
+
+
+def _heading_text_max_w(frame: Frame) -> float | None:
+    """Compute the text max_width for heading wrapping from the frame's width.
+
+    Prefers _placed_w (set during place()), then _resolved_w (set during
+    constrained remeasure pass). Returns None if neither is available.
+    """
+    rw = getattr(frame, '_placed_w', None) or getattr(frame, '_resolved_w', None)
+    if rw is None:
+        return None
+    pad_l = frame.padding_left if frame.border != Border.NONE else 0
+    pad_r = frame.padding_right if frame.border != Border.NONE else 0
+    icon_col = (ICON_SIZE + INSET) if frame.icon else 0
+    return rw - pad_l - pad_r - icon_col
 
 
 def _estimate_text_width(lines: list[Line]) -> float:
@@ -494,7 +529,8 @@ def _resolve_child_widths(frame: Frame, frame_w: float) -> list[float]:
         return widths
 
 
-def _remeasure_with_width_constraints(root: Frame, root_w: float) -> None:
+def _remeasure_with_width_constraints(root: Frame, root_w: float,
+                                       coerced_ids: set | None = None) -> None:
     """Constrained re-measurement pass (runs between coercion and place).
 
     After measure() and _enforce_fill_hug_invariant(), all container widths
@@ -510,7 +546,7 @@ def _remeasure_with_width_constraints(root: Frame, root_w: float) -> None:
     """
     _propagate_width_and_remeasure(root, root_w)
     _propagate_height_changes(root)
-    _refresh_coerced_heights(root)
+    _refresh_coerced_heights(root, coerced_ids or set())
 
 
 def _propagate_width_and_remeasure(frame: Frame, resolved_w: float) -> None:
@@ -536,6 +572,7 @@ def _propagate_width_and_remeasure(frame: Frame, resolved_w: float) -> None:
         return
 
     # Container: resolve child widths and recurse
+    frame._resolved_w = resolved_w
     child_widths = _resolve_child_widths(frame, resolved_w)
     for child, cw in zip(frame.children, child_widths):
         _propagate_width_and_remeasure(child, cw)
@@ -557,7 +594,7 @@ def _propagate_height_changes(frame: Frame) -> None:
         return
 
     pad_v = frame.padding_top + frame.padding_bottom
-    heading_h = _heading_height(frame.heading)
+    heading_h = _heading_height(frame.heading, max_width=_heading_text_max_w(frame))
     heading_gap = frame.gap if heading_h > 0 else 0
     n = len(frame.children)
     total_gap = frame.gap * max(0, n - 1)
@@ -578,7 +615,7 @@ def _propagate_height_changes(frame: Frame) -> None:
     frame._measured_h = new_h
 
 
-def _refresh_coerced_heights(frame: Frame) -> None:
+def _refresh_coerced_heights(frame: Frame, coerced_ids: set) -> None:
     """Update coerced parents whose frozen heights may be stale after remeasure.
 
     _enforce_fill_hug_invariant() freezes HUG parents to FIXED by copying
@@ -586,28 +623,24 @@ def _refresh_coerced_heights(frame: Frame) -> None:
     constrained re-measurement pass, those frozen values may be wrong.
     Re-derive the correct height from children and update both
     frame.height and frame._measured_h.
+
+    Only frames whose IDs are in coerced_ids are refreshed.  Frames that
+    were originally FIXED (user-set height) are preserved.
     """
     if frame.is_leaf:
         return
     for child in frame.children:
-        _refresh_coerced_heights(child)
+        _refresh_coerced_heights(child, coerced_ids)
 
-    # Only refresh containers that were coerced to FIXED on their primary axis
-    # (i.e., originally HUG but now FIXED with explicit height/width)
-    needs_refresh = False
-    if frame.direction == Direction.VERTICAL and frame.sizing_h == Sizing.FIXED:
-        if any(c.sizing_h == Sizing.FILL for c in frame.children):
-            needs_refresh = True
-    elif frame.direction == Direction.HORIZONTAL and frame.sizing_w == Sizing.FIXED:
-        if any(c.sizing_w == Sizing.FILL for c in frame.children):
-            needs_refresh = True
-
-    if not needs_refresh:
+    # Only refresh containers that were actually coerced by
+    # _enforce_fill_hug_invariant (originally HUG, now FIXED).
+    # Skip containers that were originally FIXED (user-set height/width).
+    if not frame.id or frame.id not in coerced_ids:
         return
 
     # Recompute height using the same logic as measure() / _propagate_height_changes()
     pad_v = frame.padding_top + frame.padding_bottom
-    heading_h = _heading_height(frame.heading)
+    heading_h = _heading_height(frame.heading, max_width=_heading_text_max_w(frame))
     heading_gap = frame.gap if heading_h > 0 else 0
     n = len(frame.children)
     total_gap = frame.gap * max(0, n - 1)
@@ -678,11 +711,14 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
     pad_r = frame.padding_right
     pad_t = frame.padding_top
     pad_b = frame.padding_bottom
-    # Recompute heading height with placed width to account for text wrapping
-    effective_pad_l = pad_l if frame.border != Border.NONE else 0
-    effective_pad_r = pad_r if frame.border != Border.NONE else 0
-    icon_col = (ICON_SIZE + INSET) if frame.icon else 0
-    text_max_w = frame._placed_w - effective_pad_l - effective_pad_r - icon_col
+    # Heading height with placed width to account for text wrapping
+    text_max_w = _heading_text_max_w(frame)
+    if text_max_w is None:
+        # Fallback for place() when _resolved_w wasn't set (shouldn't happen)
+        effective_pad_l = pad_l if frame.border != Border.NONE else 0
+        effective_pad_r = pad_r if frame.border != Border.NONE else 0
+        icon_col = (ICON_SIZE + INSET) if frame.icon else 0
+        text_max_w = frame._placed_w - effective_pad_l - effective_pad_r - icon_col
     heading_h = _heading_height(frame.heading, max_width=text_max_w)
     heading_gap = frame.gap if heading_h > 0 else 0
     n = len(frame.children)
@@ -1006,7 +1042,7 @@ def layout_frame_diagram(diagram: FrameDiagram) -> LayoutResult:
     # Pass 1.5: constrained re-measurement — re-wrap text at resolved
     # widths so HUG heights reflect actual placed widths, not the default
     # BLOCK_WIDTH used during initial measurement.
-    _remeasure_with_width_constraints(root, root_w)
+    _remeasure_with_width_constraints(root, root_w, coerced_ids=set(coerced.keys()))
 
     root_h = root.height if root.height is not None else root._measured_h
 

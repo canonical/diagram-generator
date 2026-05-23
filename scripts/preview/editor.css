@@ -412,6 +412,23 @@ body.dg-preview {
        padding: 2px 4px;
        min-height: 24px;
 }
+.dg-autolayout-section select.bf-input.dg-coerced {
+       color: #c90;
+       font-style: italic;
+}
+.dg-constraint-row {
+       margin-top: 2px;
+       font-size: 11px;
+}
+.dg-constraint-row .label {
+       font-size: 10px;
+       opacity: 0.7;
+}
+.dg-constraint-row input.bf-input {
+       font-size: 10px;
+       padding: 1px 3px;
+       min-height: 20px;
+}
 
 .multi-action-grid {
        display: grid;

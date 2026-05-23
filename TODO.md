@@ -60,6 +60,164 @@ Provide a cold-start-safe workflow and a consistent on-brand SVG system for rede
 
 ## Active TODO
 
+### Client-side layout engine — TypeScript port (PRIORITY 0)
+
+**Why now:** Week 0 of a 6-month project. The layout algorithm is correct (174 tests, FILL distribution fix landed). The remaining autolayout bugs are caused by the Python server round-trip, not the algorithm. Fixing them in the current architecture means writing throwaway code. Porting first means every subsequent feature lands in the right architecture.
+
+**What to port:** ~800 lines of pure functions from Python → TypeScript.
+
+| Python source | TypeScript target | Notes |
+|---|---|---|
+| `frame_model.py` (~200 lines) | `packages/layout-engine/src/frame-model.ts` | Frame, Direction, Sizing, Align, Border enums + Frame tree |
+| `layout_v3.py` measure/coerce/place (~600 lines) | `packages/layout-engine/src/layout.ts` | Pure functions, no DOM. `_distribute_fill_space`, `_enforce_fill_hug_invariant`, `measure`, `place` |
+| `diagram_shared.py` tokens | `packages/layout-engine/src/tokens.ts` | `BASELINE_UNIT`, `BLOCK_WIDTH`, `BODY_LINE_STEP`, etc. |
+| Text measurement (fontTools) | Browser `Canvas.measureText()` | Accept browser as truth for interactive; fontTools for batch |
+
+**What stays in Python:** YAML loading, SVG rendering, draw.io export, batch builds, override file I/O.
+
+**What changes in editor.js:** Replace `requestV3Relayout()` HTTP POST → local `import { layout } from './layout.ts'` call. Server becomes save/load/export only.
+
+**Port plan:**
+
+- [x] `[H]` **M1: Frame model in TypeScript.** Port `Frame`, `Direction`, `Sizing`, `Align`, `Border` to TypeScript. Include `enforceFillHugInvariant` (coercion logic). 21 unit tests passing (construction, validation, coercion). Package: `packages/layout-engine/`.
+- [x] `[H]` **M2: Layout algorithm in TypeScript.** Port `measure()`, `distributeFillSpace()`, `place()`, `alignOffset()`, `headingHeight()`, constrained re-measurement pass. Text measurement via adapter interface (`TextMeasureAdapter`). Design tokens in `tokens.ts`. 46 new tests (24 layout + 22 tokens). Package: `packages/layout-engine/src/layout.ts`, `tokens.ts`, `text-measure.ts`.
+- [x] `[S]` **M3: Real text measurement adapter.** Canvas text adapter (`canvas-text-adapter.ts`) with Ubuntu Sans Variable. 6 tests. IIFE browser bundle (33KB).
+- [x] `[S]` **M4: Wire into editor.** Layout bridge (`layout-bridge.js`) replaces server round-trip with local layout. Server serializes Frame tree JSON via `/api/frame-tree/<slug>`. Editor falls back to server path on failure. Browser-verified on two diagrams.
+- [x] `[S]` **M5: Shared test fixtures.** 6 parity fixtures (vertical-stack, fill-distribution, mixed-sizing, nested-containers, deep-nesting, alignment-grid) with JSON input + expected coordinates. Python test (`test_parity.py`, 6 tests + 33 subtests) and TS test (`parity.test.ts`, 39 tests) verify both engines produce identical coordinates using mock text adapter (text.length × fontSize × 0.6). Discovered `_refresh_coerced_heights` bug: overwrites explicitly-set FIXED heights on roots with FILL children — same behavior in both engines, noted for post-parity fix.
+- [x] `[S]` **M6: Server API cleanup.** Removed `/api/relayout-v3/<slug>` endpoint, `_relayout_v3()` function, `_serve_relayout_v3()` handler, and `test_relayout_v3.py`. Removed server fallback from `requestV3Relayout()` in `editor.js` — now client-side-only via `performLocalRelayout()`. Server keeps: load diagram, save overrides, export SVG/draw.io, batch build, frame-tree JSON API. Browser-verified: 0 console errors, grid column/gap changes work via client-side layout.
+
+**Anti-patch rule for the port:** This is a **faithful port**, not a redesign. The TS layout engine must produce identical coordinates to the Python engine for the same input. Do not add features, change the algorithm, or "improve" the model during the port. Feature work resumes after M5 confirms parity.
+
+**Architecture audit peer review (2026-05-22):** An Opus 4.6 audit (`diagram-generator-planning/docs/architecture-audit-2026-05.md`) proposed 4 prerequisites before the TS port. Peer review found **none of them actually gate the port**:
+
+| Audit proposal | Verdict | Why |
+|---|---|---|
+| Move rendering decisions into layout pass | **Not needed** — `layout_v3.py` already owns all layout for v3 Frame YAML. Text is pre-wrapped, grid positions pre-computed, arrow routing resolved. Renderers are already pure markup emitters. |
+| SVG renderer snapshot tests | **Nice-to-have** — the TS port doesn't touch renderers (they stay in Python). Add when refactoring renderers, not before porting layout. |
+| Deprecate v2 before porting | **Parallel track** — we're porting `layout_v3.py` only. v2 stays in Python. Deprecation is cleanup, not a gate. |
+| Split `diagram_shared.py` | **During port** — the TS port only needs tokens and text measurement interface. Split as modules are ported, not upfront. |
+
+**Valid findings to address (non-blocking, parallel or post-port):**
+
+- [ ] `[S]` **v2→v3 migration audit.** Audited: 10 v3 Frame YAML diagrams, ~24 v2 diagrams (Python modules + YAML). 19+ can migrate immediately (Boxes, Panels, Arrows only). 3 diagrams are blocked: `attention_qkv` (MatrixWidget, Legend), `logic_data_vram` (Bar/BarSegment), `inference_snaps` (Terminal). These need new v3 Frame primitives (BarFrame, MatrixFrame, TerminalFrame) before they can migrate. Move to ROADMAP when ready to add specialized primitives.
+- [ ] `[L]` **SVG renderer snapshot tests.** Add golden-file tests for SVG renderer output before any future renderer refactoring. Not needed for the TS port.
+- [ ] `[S]` **`diagram_shared.py` cleanup during port.** As tokens/text-metrics are ported to TS, split the Python module into `design_tokens.py`, `text_metrics.py`, `grid_helpers.py` for cleaner correspondence.
+- [ ] `[S]` **`preview_server.py` decomposition (post-port).** After M4 (layout client-side), extract file watcher, layout cache, override manager, and SSE broadcaster into focused modules. Server role shrinks to static files + save/export API.
+- [x] `[S]` **`_refresh_coerced_heights` bug (post-parity).** Fixed: threaded `coerced_ids` set from `_enforce_fill_hug_invariant()` through `_remeasure_with_width_constraints()` → `_refresh_coerced_heights()`. Now only frames that were actually coerced from HUG→FIXED get refreshed; explicitly-set FIXED heights are preserved. Fixed in both Python (`layout_v3.py`) and TS (`layout.ts`). Parity fixtures updated — test-fill-distribution root now correctly keeps height=480.
+- [ ] `[L]` **Security hardening before Stage 17.** Add schema validation for incoming JSON (`setattr` on Frame objects, override loading). Add CSRF when server becomes network-accessible. Not urgent while server is local-only.
+- [ ] `[S]` **`EditorState` container (during M4).** When wiring client-side layout, introduce structured state container with pure update functions and event emitter. Replace 40+ globals and overlapping override representations. Natural time to fix — relayout flow changes fundamentally.
+
+### Autolayout architecture — Figma-grade sizing model (PRIORITY 1)
+
+**Execution order (revised 2026-05-22):** The layout algorithm is correct (174 tests, FILL distribution fix landed). The remaining bugs (race conditions, stale coercion, undo lifecycle) are caused by the Python server round-trip architecture, not the algorithm. At week 0 of a 6-month project, fixing these in the current architecture means writing throwaway request-sequencing and cross-process state-sync code that gets deleted when the TS port lands. **Pivot: port layout engine to TypeScript first (ROADMAP Stage 15.5), then tackle coercion visibility and remaining UI work in the new architecture.** See `diagram-generator-planning/docs/performance-analysis-and-recommendations.md` for the full analysis.
+
+**Sequence:**
+1. ✅ Fix FILL distribution contract (done — algorithm-correct regardless of where layout runs)
+2. ✅ Port layout engine to TypeScript (Stage 15.5 — M1–M6 complete, 112 TS tests + 151 Python tests)
+3. Wire coercion visibility into inspector (post-port — trivial with synchronous layout)
+4. Constraint UI, edge cases, advanced parity (Tiers 2–4 — build in the new architecture)
+
+**Anti-patch classification:** Every item in this section is a **contract change** (new primitive behavior in the engine) or a **bug** (existing contract violated). None are one-offs or patches. After the TS port, the ownership map shifts: `layout.ts` owns spatial truth (replacing `layout_v3.py` for interactive editing). `layout_v3.py` stays for batch builds. `editor.js` remains UI-only — it must not invent layout facts.
+
+**Non-negotiable invariant:** When any child is set to FILL on a parent's primary axis, that parent MUST switch to FIXED on that axis. This is Figma's rule, and it is the foundation of a working autolayout. The engine already computes this correctly via `_enforce_fill_hug_invariant()` — but the UI doesn't show it, and the coerced state isn't persisted.
+
+**Research basis:** Parallel research of Figma, Penpot, and CSS Flexbox sizing models (2026-05-22). All three agree on the core constraint: a content-sized (Hug) container cannot contain space-filling (Fill) children on its primary axis — the parent must freeze at a definite size first.
+
+| System | HUG parent + FILL child on primary axis | Behavior |
+|---|---|---|
+| **Figma** | Parent auto-converts to FIXED; visible in inspector | Non-negotiable, automatic |
+| **Penpot** | Allowed; resolves to min-content; no warning | Permissive, mathematically sound |
+| **CSS Flex** | Indefinite container + `flex-grow` → items get `0` growth | Children get content size only |
+| **Our engine** | Engine coerces correctly; **UI doesn't show it; not persisted** | Half-implemented |
+
+#### Tier 1 — Make coercion visible and persistent `[H]`
+
+This is the critical gap. The engine does the right thing; the UI lies about it.
+
+**Deferred to post-TS-port (round-trip artifacts):**
+
+The following blockers are caused by the server round-trip architecture. Instead of adding request-sequencing and cross-process state-sync complexity that would be deleted after the TS port, we defer them. They resolve naturally when layout runs client-side.
+
+**Resolved by TS port (round-trip artifacts no longer exist):**
+
+- [x] ~~`[H]` **Stale coerced overrides not cleaned up.**~~ Resolved — client-side layout means coercion state is local.
+- [x] ~~`[H]` **Race condition — old relayout responses overwrite newer user actions.**~~ Resolved — synchronous client-side layout has no races.
+- [x] ~~`[H]` **Undo doesn't preserve coercion reversibility.**~~ Resolved — local state manipulation, no cross-process tracking needed.
+
+**Still relevant (fix during or after TS port):**
+
+- [x] `[H]` **Stale coerced overrides in persisted JSON.** Cleaned: `android-container-vs-vm.json` contained 3 redundant `sizing_w: FILL` overrides matching the YAML base default. Removed them. All other override files contain intentional user adjustments (dx/dy/dh/grid config). Runtime stale-cleanup for coerced overrides already handled by the `_coercedKeys` cleanup in the relayout path (values AND keys deleted when coercion clears). Future: consider a general "prune redundant overrides on save" mechanism if the problem recurs.
+- [x] `[H]` **Wire coerced_overrides into the inspector.** Done: "Fixed (auto)" with gold italic styling appears when engine coerces HUG→FIXED. Key mapping fix: TS engine returns camelCase (`sizingH`), overrides use snake_case (`sizing_h`). Stale coerced keys AND override values cleaned up after each relayout (re-run layout on cleanup so model is never stale). Key map extracted to `_COERCED_KEY_MAP` lookup table. Multi-select support included.
+- [x] `[S]` **Immediate feedback on child→FILL.** Works: changing a child to FILL immediately triggers parent coercion visibility via debounced relayout (300ms). Browser-verified.
+- [x] `[S]` **Test coverage for coercion lifecycle.** 7 TS tests added: single FILL→revert, partial FILL removal, override value correctness, horizontal axis lifecycle, nested independent coercion/revert, cross-axis non-coercion, mixed FILL/HUG distribution. All 119 tests pass.
+
+#### Tier 2 — Constraint UI `[S]`
+
+The engine already supports `min_width`/`max_width`/`min_height`/`max_height` (10 tests passing). The inspector has no fields for them.
+
+- [x] `[S]` **Min/max constraint fields in single-select inspector.** Added input fields for min_width, max_width, min_height, max_height below the sizing dropdowns. Visible when sizing is FILL or FIXED, hidden for HUG. Empty value clears the constraint. Model data extended in layout-bridge.js to expose frame min/max values. Browser-verified: constraints affect layout (min_height=120 on a FILL child increased it from 64→160).
+- [x] `[S]` **Min/max in multi-select inspector.** Added constraint rows to multi-select inspector, visible when common sizing is FILL or FIXED. Empty value clears constraints for all selected items. Browser-verified: setting min_height=80 on 2 selected items applies to both.
+- [x] `[S]` **Constraint violation feedback.** Auto-adjusts opposite bound when min > max (Figma-style): setting min above max raises max to match; setting max below min lowers min to match. Browser-verified: max_width=100, then min_width=200 → max auto-raised to 200; then max_width=50 → min auto-lowered to 50. Works in both single-select and multi-select.
+
+#### Tier 3 — Edge case robustness `[S]`
+
+- [x] `[S]` **Nested coercion cascade test.** Covered by "nested coercion: inner and outer both coerce and revert independently" in layout.test.ts.
+- [x] `[S]` **Cross-axis FILL behavior audit.** Covered by "cross-axis FILL does not coerce parent" test — FILL-width children in VERTICAL container don't coerce parent's width. 
+- [x] `[S]` **Coercion undo.** Covered by "coerces HUG parent when child becomes FILL, reverts when child set back to HUG" test + browser-verified "Immediate feedback on child→FILL" scenario.
+- [x] `[S]` **Hug parent with mixed FILL/HUG children.** Covered by "mixed FILL/HUG children" test — HUG children take natural size, FILL children split remainder equally (±4px for grid snapping).
+
+#### Tier 4 — Advanced Figma parity `[H]`
+
+These are longer-term. Do not start until Tiers 1–3 are solid.
+
+- [ ] `[H]` **Space-between / space-around / space-evenly.** Justify modes for distributing extra space. Figma supports these; our engine doesn't.
+- [ ] `[H]` **Absolute positioning within autolayout.** Figma's "Ignore auto layout" flag. Lets a child opt out of the flow and position freely within the parent.
+- [ ] `[S]` **Wrap mode for horizontal flows.** When horizontal children exceed parent width, wrap to the next row.
+- [ ] `[S]` **Proportional FILL weights.** CSS `flex-grow: 2` gives twice the space. Figma doesn't expose this, but it's natural for technical diagrams. Consider adding `fill_weight` to the frame model.
+- [ ] `[L]` **Percentage sizing.** Figma supports %; Penpot doesn't. Evaluate whether this adds value for diagram use cases.
+
+#### Padding & border architecture (complements sizing model above) `[H]`
+
+**Anti-patch classification:** The FILL distribution fix is a **contract change** — it changes the fundamental behavior of `_distribute_fill_space()` in `layout_v3.py` (the layer that owns "measure + place — spatial truth"). Do NOT fix this by adding special-case padding adjustments in `editor.js`, `preview_server.py`, or the SVG renderer. The fix must land in `layout_v3.py` and be verified by running ALL diagrams through the engine, not just the triggering one.
+
+**The visible symptom:** Children flush against parent borders (0px clearance at bottom or right edge) even when `padding: 8` is set. The user sees the parent's border touching the child's border.
+
+**Root cause found (2026-05-22):** `_distribute_fill_space()` never shrinks FILL children below their measured content size (line 83: `if fill_measured[idx] > share: sizes[idx] = fill_measured[idx]`). When multiple FILL children's measured sizes sum to MORE than the available space (parent_size − padding − heading − gaps), the children overflow and eat the padding.
+
+**Example:** `host_container` in `android-container-vs-vm`:
+- Parent height: 216px, padding_top=8, padding_bottom=8, heading=64px, heading_gap=8, child_gap=8
+- Available for children: 216 − 8 − 8 − 64 − 8 − 8 = 120px
+- Two FILL children, each measured at 64px → sum=128 > 120
+- Clamping prevents shrink: both get 64px → total 128px → bottom padding consumed
+
+**How Figma/CSS handle this:**
+- **Figma:** FILL children divide available space equally regardless of content. Content overflows the child if too large, not the parent's padding.
+- **CSS Flex:** `flex-shrink: 1` (default) allows items to shrink below their basis. Items shrink proportionally.
+- **Penpot:** FILL children start at min_size and grow into available space.
+
+**Our model's flaw:** The iterative clamping algorithm treats measured content size as a hard floor. This is wrong for FILL — FILL means "I accept whatever space the parent gives me." Only HUG/FIXED children should have a content-based floor.
+
+**Research findings — the box model:**
+
+| System | Available space formula | Border in layout? |
+|---|---|---|
+| **Figma** (border-box) | `available = parent_w − stroke − padding_l − padding_r` | Yes (inside stroke reduces content space) |
+| **Penpot** | `available = parent_w − padding_l − padding_r` | No (strokes are purely visual) |
+| **CSS border-box** | `available = parent_w − border_l − border_r − padding_l − padding_r` | Yes |
+| **Our engine** | `available = parent_w − padding_l − padding_r` | **No — border thickness not accounted for** |
+
+**Items:**
+
+- [x] `[H]` **BLOCKER: Fix FILL distribution to shrink below measured size.** File: `scripts/layout_v3.py`, function `_distribute_fill_space()` (line ~83). FILL children now divide available space equally regardless of measured content size. Min/max constraints are the only floor/ceiling. Verified: 174 tests pass, all 10 frame YAML diagrams pass, browser-confirmed padding preserved on `android-container-vs-vm`.
+- [x] `[S]` **Test: padding preserved with FILL children.** Added `test_fill_children_preserve_padding` and `test_fill_children_preserve_padding_with_heading` in `test_autolayout.py`.
+- [x] `[H]` **Per-side padding UI in inspector.** Added 4-field padding input (T/R/B/L) with a link toggle button (🔗/🔓) for uniform/per-side mode. Single-select: togglePaddingLink() switches between uniform `padding` override and per-side `padding_top/right/bottom/left` overrides. Multi-select: toggleMultiPaddingLink() applies to all selected containers. Layout bridge handles per-side padding overrides (applied after uniform, so they win). setFrameProp/setMultiFrameProp clear conflicting overrides when switching modes. Browser-verified: link/unlink toggle, per-side value editing, re-linking uses top value.
+- [ ] `[S]` **Border thickness in layout math.** Currently border is purely visual (1px, not subtracted from available space). Evaluate whether to adopt Figma's model: inside stroke reduces content space by `stroke_width` per side. This would change `available = parent_w - pad_l - pad_r - 2*stroke_w`. Low priority since our borders are 1px, but architecturally correct for future border-weight support.
+- [x] `[S]` **Heading height consistency.** Fixed: heading height is now computed with width-constrained text wrapping at all stages (remeasure, propagate height changes, refresh coerced heights, place). Added `_heading_text_max_w()` helper that uses `_placed_w` (if available) or `_resolved_w`. Both Python and TS engines fixed in parallel. Test added to both.
+- [x] `[S]` **Test: padding preserved with FILL children.** Covered by the two new tests above.
+- [x] `[L]` **Padding defaults audit.** Verified: bordered nodes get `padding=8` (inset from border), borderless containers get `padding=0` (pure layout groups). Rationale documented in `frame_loader.py`. No borderless containers with headings exist in current diagrams — default 0 is correct. No change needed.
+
+---
+
 ### Doc freshness (post-session audit, 2026-05-22)
 
 - [x] `[L]` **README.md** — updated agent prompt, exemplar path, and "Creating your own diagram" to show native Frame YAML as the primary path.
@@ -95,8 +253,8 @@ All 12 milestones completed. 165 tests passing. See `HISTORY.md` for dated entri
 **Summary:** Stabilize (M1) → directional layout tests (M2) → 9-point alignment (M3) → sizing model (M4) → research-informed fixes (M4a) → cross-axis alignment (M5) → real diagram integration (M6) → stashed UI superseded (M7) → nested stress testing (M8) → editor integration (M9) → native Frame YAML (M10) → per-axis sizing redesign (M11) → interaction parity (M12).
 
 **Deferred items carried forward:**
-- [ ] `[S]` **Golden-value assertions** for representative diagrams (from M6)
-- [ ] `[S]` **API test** for `/api/relayout-v3/<slug>` (from M7)
+- [x] `[S]` **Golden-value assertions** for representative diagrams (from M6) — superseded by M5 parity fixture system (6 fixtures, 39 TS + 39 Python assertions). Real diagrams use different text measurement backends (fontTools vs Canvas.measureText), so exact coordinate matching isn't feasible cross-engine. Within each engine, parity fixtures catch algorithm regressions. Additional per-diagram invariant tests (no child overflow, bounds containment) would add value but are lower priority than feature work.
+- [x] ~~`[S]` **API test** for `/api/relayout-v3/<slug>` (from M7)~~ — N/A, endpoint removed in M6.
 - [ ] `[S]` **Autolayout toggle on parent** — requires `Direction.NONE` and absolute positioning (from M12)
 
 ### Editor UX
@@ -112,19 +270,19 @@ The editor now has a proper Brockman composition grid (baseline-snapped rows, eq
 - [x] `[S]` **Force-mode alignment guides.** Force diagrams need the same alignment guides (column edges, row tops, baseline grid) as grid diagrams. Also consider a grid-field visualisation so key nodes can be placed at exact grid intersections while the rest self-organise.
 - [x] `[H]` **Column-span width input.** Add a units dropdown (`px` / `cols` / `rows`) next to the sizing mode in the inspector. When unit = `cols`, width = `colW * span + colGap * (span - 1)`. When unit = `rows`, height = `rowH * span + rowGap * (span - 1)`. Apply to both single-select and multi-select inspectors. `gridInfo` is already globally accessible. Depends on baseline-snapped columns.
 - [x] `[S]` **Grid-aware resize.** When dragging a resize handle, show snap indicators at column/row edges and snap to them with priority over the baseline grid.
-- [ ] `[L]` **Persist grid config.** Save the Brockman grid settings (cols, col gutter, row gutter, margin) per diagram so they survive page reload.
+- [x] `[L]` **Persist grid config.** Already implemented: grid overrides (cols, col_gap, row_gap, outer_margin) are saved in the override JSON via `toOverridePayload()` and restored via `loadOverrides()`. Grid UI inputs populate from loaded values.
 
 ### Export
 
 - [x] `[S]` **Save SVG button.** The preview sidebar now exposes `Save SVG`, which downloads the current stage DOM as an `.svg` file using the active engine suffix (`*-onbrand-v3.svg` for native frame diagrams).
-- [ ] `[S]` **PNG export at 1x, 2x, 3x.** Add a Playwright-based PNG exporter that renders generated SVGs at 1x, 2x, and 3x scale (e.g. `scripts/export_png.py --scale 1,2,3`). Wire into the preview Export button as an option alongside the existing override JSON export.
+- [x] `[S]` **PNG export at 1x, 2x, 3x.** Added `scripts/export_png.py` — Playwright-based PNG exporter using `device_scale_factor` for crisp rendering at each scale. Supports `--all`, `--scale 1,2,3`, `--output-dir`. Per-scale browser contexts, proper resource cleanup, validated error handling. Preview Export button integration deferred (separate UI task).
 
 ### Code quality — open
 - [x] `[H]` Unify the parent-scoped equal-split/outdent math across `scripts/diagram_layout.py` and `scripts/preview/component-model.js`. Extracted `equal_split_cell()` and `span_size()` into `diagram_shared.py` and `editor-base.js`. Wired both `component-model.js` and `diagram_layout.py` to use shared versions. v2 pipeline sp_outer_w keeps intentional ceil rounding (documented). 7 cross-language contract tests added.
-- [ ] `[S]` **draw.io renderer uses spatial containment for parenting.** `_find_children` in `diagram_render_drawio.py` uses bounding-box overlap instead of `component_id`, which can mis-parent elements at shared edges. Fix: match by `component_id`.
-- [ ] `[S]` **`_uniform_row_height` ignores Annotations/Helpers.** Rows containing only annotations get `BOX_MIN_HEIGHT` regardless of content. The post-hoc helper expansion partially compensates but runs after uniform equalization.
-- [ ] `[S]` Triage the secondary audit findings: stale-v2 comparison risk in `build_outputs.py`, preview text-width mismatch vs renderer text width, dead helper layout code, stale architectural line-count notes in `STATUS.md`.
-- [ ] `[S]` Triage the current `build_v2.py` corpus blockers separately from the 2026-05-13 autolayout slice: clearance violations on `example-platform-architecture`, `lightning-talk-engine`, `lt-diagram-generator`, `lt-a4-generator`, and `lt-summit-identity`, plus warning-only baseline-grid drift on several older diagrams.
+- [x] `[S]` **draw.io renderer uses semantic parenting.** `_find_children` in `diagram_render_drawio.py` now matches TextBlocks and Icons by `component_id` instead of bounding-box overlap. Falls back to spatial containment only for legacy primitives without `component_id`. Verified: `build_v2.py` runs clean on all diagrams (only pre-existing clearance violations).
+- [x] `[S]` **`_uniform_row_height` ignores Annotations/Helpers.** Fixed: function now accepts all grid-placed items (Box, Helper, Annotation, MatrixWidget) with per-type height computation. Removed redundant post-hoc helper expansion loop. Annotation docstring contract ("participates in row-height equalization") now implemented.
+- [x] `[S]` Triage the secondary audit findings: ~~stale-v2 comparison risk in `build_outputs.py`~~ (tracking note, not actionable — reference rasters are intentionally frozen), ~~preview text-width mismatch vs renderer text width~~ (known limitation: Python fontTools vs browser Canvas.measureText; resolves when TS port completes), ~~dead helper layout code~~ (removed `_layout_helper` — was never called), ~~stale architectural line-count notes in `STATUS.md`~~ (fixed: 485→~1380).
+- [ ] `[L]` Triage the current `build_v2.py` corpus blockers separately from the 2026-05-13 autolayout slice: clearance violations on `example-platform-architecture`, `lightning-talk-engine`, `lt-diagram-generator`, `lt-a4-generator`, and `lt-summit-identity` (fix: increase row_gap/col_gap to ARROW_GAP where arrows route), plus 59 warning-only baseline-grid violations across several older diagrams (cosmetic, not blocking).
 
 ### Force ↔ grid editor unification
 
@@ -145,7 +303,7 @@ Goal: the force and grid editors share one editor shell; swapping the layout eng
 
 **Inspector parity**
 
-- [ ] `[S]` **Dirty flag and save-button state.** Track whether force session state differs from last save; disable Save when clean.
+- [x] `[S]` **Dirty flag and save-button state.** Added `_savedIndex`, `markSaved()`, `isDirty()`, and `saveBtnId` to `UndoRedoManager`. Force editor Save button now disabled when clean. Handles: branch divergence (undo+new push invalidates saved point), maxSize overflow, reset. Initial button state set on construction.
 - [ ] `[S]` **Constraint enforcement.** Run the same fill/stroke/highlight-limit/containment checks on force nodes and display violations in the sidebar.
 - [ ] `[L]` **Override highlight in tree.** Accent-color tree items that have overrides, matching the grid editor's convention.
 

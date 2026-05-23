@@ -269,6 +269,104 @@ def _get_grid_info(slug: str) -> dict | None:
     return None
 
 
+def _load_frame_diagram(slug: str):
+    """Load the raw FrameDiagram for a v3 slug (before layout)."""
+    try:
+        if str(SCRIPTS) not in sys.path:
+            sys.path.insert(0, str(SCRIPTS))
+        import copy
+
+        frame_yaml = FRAMES_DIR / (slug + ".yaml")
+        if frame_yaml.exists():
+            from frame_loader import load_frame_yaml
+            return copy.deepcopy(load_frame_yaml(frame_yaml))
+
+        from diagram_loader import load_diagram
+        from frame_adapter import diagram_to_frame
+        yaml_dir = SCRIPTS / "diagrams" / "yaml"
+        for ext in (".yaml", ".yml", ".json"):
+            candidate = yaml_dir / (slug + ext)
+            if candidate.exists():
+                return diagram_to_frame(copy.deepcopy(load_diagram(candidate)))
+
+        import importlib
+        mod_name = slug.replace("-", "_")
+        mod = importlib.import_module(f"diagrams.{mod_name}")
+        importlib.reload(mod)
+        diagram_obj = copy.deepcopy(getattr(mod, mod_name))
+        return diagram_to_frame(diagram_obj)
+    except Exception:
+        import traceback; traceback.print_exc()
+        return None
+
+
+def _serialize_line(line) -> dict:
+    """Serialize a Line dataclass to a JSON-safe dict."""
+    return {
+        "content": line.content,
+        "size": line.size,
+        "weight": line.weight,
+        "fill": line.fill,
+        "smallCaps": getattr(line, "small_caps", False),
+        "lineStep": getattr(line, "line_step", None),
+        "fontFamily": getattr(line, "font_family", None),
+    }
+
+
+def _serialize_arrow(arrow) -> dict:
+    """Serialize an Arrow dataclass to a JSON-safe dict."""
+    return {
+        "source": arrow.source,
+        "target": arrow.target,
+        "id": getattr(arrow, "id", None),
+        "color": getattr(arrow, "color", "#E95420"),
+    }
+
+
+def _serialize_frame(frame) -> dict:
+    """Recursively serialize a Frame to a JSON-safe dict for the TS layout engine."""
+    return {
+        "id": frame.id,
+        "direction": frame.direction.name,
+        "gap": frame.gap,
+        "padding": frame.padding,
+        "paddingTop": frame.padding_top,
+        "paddingRight": frame.padding_right,
+        "paddingBottom": frame.padding_bottom,
+        "paddingLeft": frame.padding_left,
+        "align": frame.align.name,
+        "sizingW": frame.sizing_w.name,
+        "sizingH": frame.sizing_h.name,
+        "width": frame.width,
+        "height": frame.height,
+        "minWidth": frame.min_width,
+        "maxWidth": frame.max_width,
+        "minHeight": frame.min_height,
+        "maxHeight": frame.max_height,
+        "fill": frame.fill.value,
+        "border": frame.border.name,
+        "heading": _serialize_line(frame.heading) if frame.heading else None,
+        "icon": frame.icon,
+        "iconFill": frame.icon_fill,
+        "label": [_serialize_line(ln) for ln in frame.label],
+        "role": frame.role,
+        "children": [_serialize_frame(child) for child in frame.children],
+    }
+
+
+def _serialize_frame_diagram(diagram) -> dict:
+    """Serialize a FrameDiagram for the TS layout engine."""
+    return {
+        "title": diagram.title,
+        "root": _serialize_frame(diagram.root),
+        "arrows": [_serialize_arrow(a) for a in diagram.arrows],
+        "gridCols": diagram.grid_cols,
+        "gridColGap": diagram.grid_col_gap,
+        "gridRowGap": diagram.grid_row_gap,
+        "gridOuterMargin": diagram.grid_outer_margin,
+    }
+
+
 def _relayout(slug: str, grid_overrides: dict) -> dict | None:
     """Re-run layout with patched grid params and return SVG + metadata."""
     try:
@@ -324,216 +422,6 @@ def _relayout(slug: str, grid_overrides: dict) -> dict | None:
         gi = asdict(result.grid_info) if result.grid_info else None
         return {"svg": svg_str, "tree": tree, "grid_info": gi}
     except Exception as e:
-        import traceback; traceback.print_exc()
-        return None
-
-
-def _relayout_v3(slug: str, params: dict) -> dict | None:
-    """Re-run v3 frame layout with patched frame properties.
-
-    params can contain:
-      - frame_overrides: dict of frame_id → {direction, gap, padding, sizing,
-        align, width, height} (multi-frame format, preferred)
-            - grid_overrides: dict with {cols, col_gap, row_gap, outer_margin}
-
-    Legacy single-frame format (frame_id + flat props) is also accepted
-    for backwards compatibility.
-    """
-    try:
-        if str(SCRIPTS) not in sys.path:
-            sys.path.insert(0, str(SCRIPTS))
-        import copy
-        result = _get_layout_result(slug)
-        if result is None:
-            return None
-
-        # Re-load the frame diagram from the original source
-        from frame_model import Direction, Sizing, Align
-        from diagram_model import Fill, Border
-
-        # Try native frame YAML first
-        frame_yaml = FRAMES_DIR / (slug + ".yaml")
-        if frame_yaml.exists():
-            from frame_loader import load_frame_yaml
-            frame_diagram = load_frame_yaml(frame_yaml)
-        else:
-            from diagram_loader import load_diagram
-            from frame_adapter import diagram_to_frame
-
-            yaml_dir = SCRIPTS / "diagrams" / "yaml"
-            yaml_path = None
-            for ext in (".yaml", ".yml", ".json"):
-                candidate = yaml_dir / (slug + ext)
-                if candidate.exists():
-                    yaml_path = candidate
-                    break
-
-            if yaml_path is None:
-                # Try Python module
-                import importlib
-                mod_name = slug.replace("-", "_")
-                try:
-                    mod = importlib.import_module(f"diagrams.{mod_name}")
-                    importlib.reload(mod)
-                    diagram_obj = copy.deepcopy(getattr(mod, mod_name))
-                except (ModuleNotFoundError, AttributeError):
-                    return None
-            else:
-                diagram_obj = copy.deepcopy(load_diagram(yaml_path))
-
-            frame_diagram = diagram_to_frame(diagram_obj)
-
-        # Build overrides map: { frame_id: { prop: value } }
-        if "frame_overrides" in params:
-            all_overrides = params["frame_overrides"]
-        else:
-            # Legacy single-frame format
-            target_id = params.get("frame_id", "root")
-            legacy_ovr = {k: v for k, v in params.items() if k != "frame_id"}
-            all_overrides = {target_id: legacy_ovr} if legacy_ovr else {}
-        grid_overrides = params.get("grid_overrides", {}) if isinstance(params.get("grid_overrides", {}), dict) else {}
-
-        def _find_frame(frame, fid):
-            if frame.id == fid:
-                return frame
-            for child in frame.children:
-                found = _find_frame(child, fid)
-                if found:
-                    return found
-            return None
-
-        direction_map = {"VERTICAL": Direction.VERTICAL, "HORIZONTAL": Direction.HORIZONTAL}
-        sizing_map = {"HUG": Sizing.HUG, "FILL": Sizing.FILL, "FIXED": Sizing.FIXED}
-        align_map = {a.name: a for a in Align}
-
-        for fid, ovr in all_overrides.items():
-            if fid == "root":
-                target = frame_diagram.root
-            else:
-                target = _find_frame(frame_diagram.root, fid)
-            if target is None:
-                continue
-
-            if "direction" in ovr and ovr["direction"] in direction_map:
-                target.direction = direction_map[ovr["direction"]]
-            if "gap" in ovr and ovr["gap"] is not None:
-                target.gap = max(0, int(ovr["gap"]))
-            if "padding" in ovr and ovr["padding"] is not None:
-                target.padding = max(0, int(ovr["padding"]))
-                target.padding_top = target.padding
-                target.padding_right = target.padding
-                target.padding_bottom = target.padding
-                target.padding_left = target.padding
-            if "sizing" in ovr and ovr["sizing"] in sizing_map:
-                # Legacy uniform sizing → both axes
-                target.sizing_w = sizing_map[ovr["sizing"]]
-                target.sizing_h = sizing_map[ovr["sizing"]]
-            if "sizing_w" in ovr and ovr["sizing_w"] in sizing_map:
-                target.sizing_w = sizing_map[ovr["sizing_w"]]
-            if "sizing_h" in ovr and ovr["sizing_h"] in sizing_map:
-                target.sizing_h = sizing_map[ovr["sizing_h"]]
-            if "align" in ovr and ovr["align"] in align_map:
-                target.align = align_map[ovr["align"]]
-            if "width" in ovr and ovr["width"] is not None:
-                target.width = int(ovr["width"])
-            if "height" in ovr and ovr["height"] is not None:
-                target.height = int(ovr["height"])
-            # Min/max constraints
-            for key in ("min_width", "max_width", "min_height", "max_height"):
-                if key in ovr:
-                    if ovr[key] is None:
-                        setattr(target, key, None)
-                    else:
-                        try:
-                            val = int(ovr[key])
-                            if val >= 0:
-                                setattr(target, key, val)
-                        except (ValueError, TypeError):
-                            pass  # ignore invalid input
-            # Style properties (fill, border)
-            fill_map = {"WHITE": Fill.WHITE, "GREY": Fill.GREY, "BLACK": Fill.BLACK}
-            border_map = {"SOLID": Border.SOLID, "DASHED": Border.DASHED, "NONE": Border.NONE}
-            if "fill" in ovr and ovr["fill"] in fill_map:
-                target.fill = fill_map[ovr["fill"]]
-            if "border" in ovr and ovr["border"] in border_map:
-                target.border = border_map[ovr["border"]]
-            if "children_order" in ovr and isinstance(ovr["children_order"], list):
-                new_order = ovr["children_order"]
-                # Reorder children to match requested order
-                child_map = {c.id: c for c in target.children}
-                reordered = [child_map[cid] for cid in new_order if cid in child_map]
-                # Append any children not in the new order list (safety)
-                remaining = [c for c in target.children if c.id not in {cid for cid in new_order}]
-                target.children = reordered + remaining
-            # Text content overrides (heading + label)
-            if "text" in ovr and isinstance(ovr["text"], dict):
-                from diagram_model import Line
-                text_ovr = ovr["text"]
-                if "heading" in text_ovr:
-                    h_content = text_ovr["heading"]
-                    if h_content and target.heading:
-                        # Preserve existing heading style (weight, size, fill)
-                        target.heading = Line(h_content,
-                            weight=target.heading.weight,
-                            size=target.heading.size,
-                            fill=target.heading.fill,
-                            small_caps=target.heading.small_caps,
-                            font_family=target.heading.font_family)
-                    elif h_content and not target.heading:
-                        target.heading = Line(h_content, weight="700")
-                    elif not h_content:
-                        target.heading = None
-                if "label" in text_ovr and isinstance(text_ovr["label"], list):
-                    new_label = []
-                    for i, text_content in enumerate(text_ovr["label"]):
-                        if i < len(target.label):
-                            # Preserve style from original label line
-                            orig = target.label[i]
-                            new_label.append(Line(text_content,
-                                weight=orig.weight, size=orig.size,
-                                fill=orig.fill, small_caps=orig.small_caps,
-                                font_family=orig.font_family))
-                        else:
-                            # New line — use default body style
-                            new_label.append(Line(text_content))
-                    target.label = new_label
-
-        if "cols" in grid_overrides and grid_overrides["cols"] is not None:
-            frame_diagram.grid_cols = max(1, int(grid_overrides["cols"]))
-        if "col_gap" in grid_overrides and grid_overrides["col_gap"] is not None:
-            frame_diagram.grid_col_gap = max(0, int(grid_overrides["col_gap"]))
-        if "row_gap" in grid_overrides and grid_overrides["row_gap"] is not None:
-            frame_diagram.grid_row_gap = max(0, int(grid_overrides["row_gap"]))
-        if "outer_margin" in grid_overrides and grid_overrides["outer_margin"] is not None:
-            frame_diagram.grid_outer_margin = max(0, int(grid_overrides["outer_margin"]))
-
-        # Re-layout
-        from layout_v3 import layout_frame_diagram
-        layout_result = layout_frame_diagram(frame_diagram)
-
-        import diagram_render_svg
-        svg_str = diagram_render_svg.render_svg(layout_result)
-
-        # Build updated component tree for the editor
-        tree_data = []
-        if layout_result.component_tree:
-            tree_data = [asdict(ci) for ci in layout_result.component_tree]
-
-        # Clear layout cache for this slug so subsequent requests see fresh data
-        cache_key = f"v3:{slug}"
-        if cache_key in _layout_cache:
-            del _layout_cache[cache_key]
-
-        response = {"svg": svg_str, "tree": tree_data}
-        if layout_result.grid_info:
-            response["grid_info"] = asdict(layout_result.grid_info)
-
-        # Return any engine-coerced overrides so the editor can persist them
-        if layout_result.coerced_overrides:
-            response["coerced_overrides"] = layout_result.coerced_overrides
-
-        return response
-    except Exception:
         import traceback; traceback.print_exc()
         return None
 
@@ -818,6 +706,8 @@ def _build_viewer_html(slug: str, all_slugs: list[str], grid: bool) -> str:
     html = html.replace("%INSPECTOR_EMPTY%", "Click a component to inspect it.")
     html = html.replace(
         "%MODE_SCRIPTS%",
+        '<script src="/preview/layout-engine.js"></script>\n'
+        '<script src="/preview/layout-bridge.js"></script>\n'
         '<script src="/preview/component-model.js"></script>\n'
         '<script src="/preview/constraints.js"></script>\n'
         '<script src="/preview/editor.js"></script>',
@@ -1008,6 +898,8 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
             self._serve_bf_os_css()
         elif path.startswith("/preview/bf-fonts/"):
             self._serve_bf_font(path[len("/preview/bf-fonts/"):])
+        elif path == "/preview/layout-engine.js":
+            self._serve_layout_engine_bundle()
         elif path.startswith("/preview/"):
             self._serve_static(path[9:])
         elif path.startswith("/svg/"):
@@ -1022,6 +914,8 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
             self._serve_force_get(path[11:])
         elif path.startswith("/api/tree/"):
             self._serve_tree(path[10:])
+        elif path.startswith("/api/frame-tree/"):
+            self._serve_frame_tree(path[16:])
         elif path.startswith("/api/grid/"):
             self._serve_grid(path[10:])
         elif path.startswith("/api/overrides/"):
@@ -1043,8 +937,6 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
             self._serve_overrides_post(path[15:])
         elif path.startswith("/api/relayout/"):
             self._serve_relayout(path[14:])
-        elif path.startswith("/api/relayout-v3/"):
-            self._serve_relayout_v3(path[17:])
         elif path.startswith("/api/force-reset/"):
             self._serve_force_reset(path[17:])
         elif path.startswith("/api/force-save/"):
@@ -1307,6 +1199,26 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
         tree = _get_component_tree(slug)
         self._respond(200, "application/json", json.dumps(tree, indent=2).encode())
 
+    def _serve_frame_tree(self, slug: str):
+        """Serve the raw Frame tree JSON for client-side layout."""
+        if not _is_safe_slug(slug):
+            self.send_error(400, "Invalid slug")
+            return
+        diagram = _load_frame_diagram(slug)
+        if diagram is None:
+            self.send_error(404, "Frame diagram not found")
+            return
+        data = _serialize_frame_diagram(diagram)
+        self._respond(200, "application/json", json.dumps(data).encode())
+
+    def _serve_layout_engine_bundle(self):
+        """Serve the TS layout engine IIFE bundle."""
+        bundle_path = ROOT / "packages" / "layout-engine" / "dist" / "layout-engine.iife.js"
+        if not bundle_path.exists():
+            self.send_error(404, "Layout engine bundle not built")
+            return
+        self._respond(200, "application/javascript", bundle_path.read_bytes())
+
     def _serve_grid(self, slug: str):
         if not _is_safe_slug(slug):
             self.send_error(400, "Invalid slug")
@@ -1367,23 +1279,6 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
         result = _relayout(slug, grid_overrides)
         if result is None:
             self.send_error(500, "Relayout failed")
-            return
-        self._respond(200, "application/json", json.dumps(result).encode())
-
-    def _serve_relayout_v3(self, slug: str):
-        if not _is_safe_slug(slug):
-            self.send_error(400, "Invalid slug")
-            return
-        content_length = int(self.headers.get("Content-Length", 0))
-        body = self.rfile.read(content_length)
-        try:
-            params = json.loads(body)
-        except json.JSONDecodeError:
-            self.send_error(400, "Invalid JSON")
-            return
-        result = _relayout_v3(slug, params)
-        if result is None:
-            self.send_error(500, "v3 relayout failed")
             return
         self._respond(200, "application/json", json.dumps(result).encode())
 

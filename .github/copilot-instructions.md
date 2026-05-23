@@ -192,7 +192,7 @@ If an INBOX item includes bug screenshots or image attachments: inspect the imag
 The focused validation command is:
 
 ```bash
-python -m pytest test_frame_loader.py test_autolayout.py test_layout_v3.py test_relayout_v3.py -q
+python -m pytest test_frame_loader.py test_autolayout.py test_layout_v3.py test_parity.py -q
 ```
 
 After any layout, render, or preview change, browser-verify the affected diagram at `http://127.0.0.1:8100/view/v3:<slug>`.

@@ -352,6 +352,10 @@ async function loadSVG() {
   document.getElementById("stage").innerHTML = await resp.text();
   await loadTree();
   await loadGridInfo();
+  // Initialize client-side layout bridge for v3 diagrams
+  if (ENGINE === "v3" && typeof initLayoutBridge === "function") {
+    await initLayoutBridge(SLUG);
+  }
   // Wire diagram-level grid into the model so root nodes get sibling relayout
   if (gridInfo) model.setDiagramGrid(gridInfo);
   populateGridControls();
@@ -1237,26 +1241,24 @@ function renderMultiSelectionInspector() {
       '<button class="bf-button is-base" type="button" onclick="alignSelection(\'middle\')">Align middle</button>' +
       '<button class="bf-button is-base" type="button" onclick="alignSelection(\'bottom\')">Align bottom</button>' +
       '</div></div>';
-    inspector.innerHTML = html;
-    return;
+  } else {
+    html += '<div class="field" style="margin-top:8px"><span class="label">Distribute</span>' +
+      '<div class="multi-action-row">' +
+      '<span class="value">Gap</span>' +
+      '<input class="bf-input" type="number" id="multi-action-gap" min="0" step="8" value="' + multiActionGap + '" oninput="setMultiActionGap(this.value)">' +
+      '<span class="unit">px</span>' +
+      '</div>' +
+      '<div class="multi-action-grid">' +
+      '<button class="bf-button" type="button" onclick="distributeSelection(\'x\')">Distribute H</button>' +
+      '<button class="bf-button" type="button" onclick="distributeSelection(\'y\')">Distribute V</button>' +
+      '<button class="bf-button is-base" type="button" onclick="alignSelection(\'left\')">Align left</button>' +
+      '<button class="bf-button is-base" type="button" onclick="alignSelection(\'center\')">Align center</button>' +
+      '<button class="bf-button is-base" type="button" onclick="alignSelection(\'right\')">Align right</button>' +
+      '<button class="bf-button is-base" type="button" onclick="alignSelection(\'top\')">Align top</button>' +
+      '<button class="bf-button is-base" type="button" onclick="alignSelection(\'middle\')">Align middle</button>' +
+      '<button class="bf-button is-base" type="button" onclick="alignSelection(\'bottom\')">Align bottom</button>' +
+      '</div></div>';
   }
-
-  html += '<div class="field" style="margin-top:8px"><span class="label">Distribute</span>' +
-    '<div class="multi-action-row">' +
-    '<span class="value">Gap</span>' +
-    '<input class="bf-input" type="number" id="multi-action-gap" min="0" step="8" value="' + multiActionGap + '" oninput="setMultiActionGap(this.value)">' +
-    '<span class="unit">px</span>' +
-    '</div>' +
-    '<div class="multi-action-grid">' +
-    '<button class="bf-button" type="button" onclick="distributeSelection(\'x\')">Distribute H</button>' +
-    '<button class="bf-button" type="button" onclick="distributeSelection(\'y\')">Distribute V</button>' +
-    '<button class="bf-button is-base" type="button" onclick="alignSelection(\'left\')">Align left</button>' +
-    '<button class="bf-button is-base" type="button" onclick="alignSelection(\'center\')">Align center</button>' +
-    '<button class="bf-button is-base" type="button" onclick="alignSelection(\'right\')">Align right</button>' +
-    '<button class="bf-button is-base" type="button" onclick="alignSelection(\'top\')">Align top</button>' +
-    '<button class="bf-button is-base" type="button" onclick="alignSelection(\'middle\')">Align middle</button>' +
-    '<button class="bf-button is-base" type="button" onclick="alignSelection(\'bottom\')">Align bottom</button>' +
-    '</div></div>';
 
   if (info.hasUnsupported) {
     html += '<div class="field"><div class="hint">Arrow and separator selections are ignored by these actions.</div></div>';
@@ -1302,12 +1304,36 @@ function renderMultiSelectionInspector() {
       html += ' onchange="setMultiFrameProp(\'gap\',parseInt(this.value))"';
       html += ' style="width:60px"></div>';
 
-      // Padding
-      html += '<div class="field"><span class="label">Padding</span>';
-      html += '<input class="bf-input" type="number" min="0" step="8" value="' + (containerInfo.padMixed ? '' : containerInfo.padding) + '"';
-      html += ' placeholder="' + (containerInfo.padMixed ? 'Mixed' : '') + '"';
-      html += ' onchange="setMultiFrameProp(\'padding\',parseInt(this.value))"';
-      html += ' style="width:60px"></div>';
+      // Padding — per-side with link toggle
+      const isLinkedMulti = containerInfo.allUniform;
+      html += '<div class="field" style="align-items:flex-start"><span class="label">Padding</span>';
+      html += '<div style="display:flex;flex-direction:column;gap:4px">';
+      html += '<button class="bf-input" style="width:28px;height:24px;padding:0;cursor:pointer;font-size:13px" title="' + (isLinkedMulti ? 'Unlink sides' : 'Link all sides') + '"';
+      html += ' onclick="toggleMultiPaddingLink(' + !isLinkedMulti + ')">';
+      html += isLinkedMulti ? '🔗' : '🔓';
+      html += '</button>';
+      if (isLinkedMulti) {
+        html += '<input class="bf-input" type="number" min="0" step="8" value="' + (containerInfo.padMixed ? '' : containerInfo.padding) + '"';
+        html += ' placeholder="' + (containerInfo.padMixed ? 'Mixed' : '') + '"';
+        html += ' onchange="setMultiFrameProp(\'padding\',parseInt(this.value))"';
+        html += ' style="width:60px">';
+      } else {
+        html += '<div style="display:grid;grid-template-columns:auto 48px;gap:2px 4px;font-size:11px">';
+        html += '<span style="color:#888">T</span><input class="bf-input" type="number" min="0" step="8" value="' + (containerInfo.ptMixed ? '' : containerInfo.pt) + '"';
+        html += ' placeholder="' + (containerInfo.ptMixed ? 'Mixed' : '') + '"';
+        html += ' onchange="setMultiFrameProp(\'padding_top\',parseInt(this.value))" style="width:48px">';
+        html += '<span style="color:#888">R</span><input class="bf-input" type="number" min="0" step="8" value="' + (containerInfo.prMixed ? '' : containerInfo.pr) + '"';
+        html += ' placeholder="' + (containerInfo.prMixed ? 'Mixed' : '') + '"';
+        html += ' onchange="setMultiFrameProp(\'padding_right\',parseInt(this.value))" style="width:48px">';
+        html += '<span style="color:#888">B</span><input class="bf-input" type="number" min="0" step="8" value="' + (containerInfo.pbMixed ? '' : containerInfo.pb) + '"';
+        html += ' placeholder="' + (containerInfo.pbMixed ? 'Mixed' : '') + '"';
+        html += ' onchange="setMultiFrameProp(\'padding_bottom\',parseInt(this.value))" style="width:48px">';
+        html += '<span style="color:#888">L</span><input class="bf-input" type="number" min="0" step="8" value="' + (containerInfo.plMixed ? '' : containerInfo.pl) + '"';
+        html += ' placeholder="' + (containerInfo.plMixed ? 'Mixed' : '') + '"';
+        html += ' onchange="setMultiFrameProp(\'padding_left\',parseInt(this.value))" style="width:48px">';
+        html += '</div>';
+      }
+      html += '</div></div>';
 
       html += '</div>';
     }
@@ -1320,11 +1346,11 @@ function renderMultiSelectionInspector() {
 
       // Width sizing
       html += '<div class="field"><span class="label">Width</span>';
-      html += '<select class="bf-input" onchange="setMultiFrameProp(\'sizing_w\',this.value)">';
+      html += '<select class="bf-input' + (sizingInfo.wCoerced ? ' dg-coerced' : '') + '" onchange="setMultiFrameProp(\'sizing_w\',this.value)">';
       if (sizingInfo.wMixed) html += '<option value="" selected>Mixed</option>';
       html += '<option value="HUG"' + (sizingInfo.sizingW === 'HUG' ? ' selected' : '') + '>Hug</option>';
       html += '<option value="FILL"' + (sizingInfo.sizingW === 'FILL' ? ' selected' : '') + '>Fill</option>';
-      html += '<option value="FIXED"' + (sizingInfo.sizingW === 'FIXED' ? ' selected' : '') + '>Fixed</option>';
+      html += '<option value="FIXED"' + (sizingInfo.sizingW === 'FIXED' ? ' selected' : '') + '>' + (sizingInfo.wCoerced ? 'Fixed (auto)' : 'Fixed') + '</option>';
       html += '</select>';
       if (sizingInfo.sizingW === 'FIXED' && !sizingInfo.wMixed) {
         const stepW = _inspectorWidthUnit === 'cols' ? 1 : BASELINE_STEP;
@@ -1339,13 +1365,28 @@ function renderMultiSelectionInspector() {
       }
       html += '</div>';
 
+      // Min/max width constraints (shown when common sizing is FILL or FIXED)
+      if (sizingInfo.sizingW === 'FILL' || sizingInfo.sizingW === 'FIXED') {
+        html += '<div class="field dg-constraint-row"><span class="label">Min W</span>';
+        html += '<input class="bf-input" type="number" min="0" step="' + BASELINE_STEP + '" value=""';
+        html += ' placeholder="—"';
+        html += ' onchange="setMultiFrameProp(\'min_width\',this.value)"';
+        html += ' style="width:52px">';
+        html += '<span class="label" style="margin-left:4px">Max</span>';
+        html += '<input class="bf-input" type="number" min="0" step="' + BASELINE_STEP + '" value=""';
+        html += ' placeholder="—"';
+        html += ' onchange="setMultiFrameProp(\'max_width\',this.value)"';
+        html += ' style="width:52px">';
+        html += '</div>';
+      }
+
       // Height sizing
       html += '<div class="field"><span class="label">Height</span>';
-      html += '<select class="bf-input" onchange="setMultiFrameProp(\'sizing_h\',this.value)">';
+      html += '<select class="bf-input' + (sizingInfo.hCoerced ? ' dg-coerced' : '') + '" onchange="setMultiFrameProp(\'sizing_h\',this.value)">';
       if (sizingInfo.hMixed) html += '<option value="" selected>Mixed</option>';
       html += '<option value="HUG"' + (sizingInfo.sizingH === 'HUG' ? ' selected' : '') + '>Hug</option>';
       html += '<option value="FILL"' + (sizingInfo.sizingH === 'FILL' ? ' selected' : '') + '>Fill</option>';
-      html += '<option value="FIXED"' + (sizingInfo.sizingH === 'FIXED' ? ' selected' : '') + '>Fixed</option>';
+      html += '<option value="FIXED"' + (sizingInfo.sizingH === 'FIXED' ? ' selected' : '') + '>' + (sizingInfo.hCoerced ? 'Fixed (auto)' : 'Fixed') + '</option>';
       html += '</select>';
       if (sizingInfo.sizingH === 'FIXED' && !sizingInfo.hMixed) {
         const stepH = _inspectorHeightUnit === 'rows' ? 1 : BASELINE_STEP;
@@ -1359,6 +1400,21 @@ function renderMultiSelectionInspector() {
         html += '</select>';
       }
       html += '</div>';
+
+      // Min/max height constraints (shown when common sizing is FILL or FIXED)
+      if (sizingInfo.sizingH === 'FILL' || sizingInfo.sizingH === 'FIXED') {
+        html += '<div class="field dg-constraint-row"><span class="label">Min H</span>';
+        html += '<input class="bf-input" type="number" min="0" step="' + BASELINE_STEP + '" value=""';
+        html += ' placeholder="—"';
+        html += ' onchange="setMultiFrameProp(\'min_height\',this.value)"';
+        html += ' style="width:52px">';
+        html += '<span class="label" style="margin-left:4px">Max</span>';
+        html += '<input class="bf-input" type="number" min="0" step="' + BASELINE_STEP + '" value=""';
+        html += ' placeholder="—"';
+        html += ' onchange="setMultiFrameProp(\'max_height\',this.value)"';
+        html += ' style="width:52px">';
+        html += '</div>';
+      }
 
       html += '</div>';
     }
@@ -1386,6 +1442,8 @@ function _getMultiSizingValues(items) {
   let firstW = null, firstH = null;
   let wMixed = false, hMixed = false;
   let hasAny = false;
+  let allWCoerced = true, allHCoerced = true;
+  let anyW = false, anyH = false;
 
   for (const item of items) {
     const node = item.node;
@@ -1399,6 +1457,8 @@ function _getMultiSizingValues(items) {
     else if (firstW !== (sw || 'HUG')) wMixed = true;
     if (firstH === null) firstH = sh || 'HUG';
     else if (firstH !== (sh || 'HUG')) hMixed = true;
+    if (sw) { anyW = true; if (!_coercedKeys.has(item.id + ':sizing_w')) allWCoerced = false; }
+    if (sh) { anyH = true; if (!_coercedKeys.has(item.id + ':sizing_h')) allHCoerced = false; }
   }
 
   if (!hasAny) return null;
@@ -1407,6 +1467,8 @@ function _getMultiSizingValues(items) {
     sizingH: hMixed ? '' : (firstH || 'HUG'),
     wMixed,
     hMixed,
+    wCoerced: anyW && allWCoerced,
+    hCoerced: anyH && allHCoerced,
   };
 }
 
@@ -1418,6 +1480,9 @@ function _getMultiContainerValues(items) {
   let firstDir = null, firstGap = null, firstPad = null;
   let dirMixed = false, gapMixed = false, padMixed = false;
   let containerCount = 0;
+  let allUniform = true;
+  let firstPT = null, firstPR = null, firstPB = null, firstPL = null;
+  let ptMixed = false, prMixed = false, pbMixed = false, plMixed = false;
 
   for (const item of items) {
     const node = item.node;
@@ -1432,6 +1497,19 @@ function _getMultiContainerValues(items) {
     if (firstDir === null) firstDir = dir; else if (firstDir !== dir) dirMixed = true;
     if (firstGap === null) firstGap = gap; else if (firstGap !== gap) gapMixed = true;
     if (firstPad === null) firstPad = pad; else if (firstPad !== pad) padMixed = true;
+
+    // Resolve effective per-side values
+    const pt = ovr.padding_top != null ? ovr.padding_top : (ovr.padding != null ? ovr.padding : (node.padding_top || 0));
+    const pr = ovr.padding_right != null ? ovr.padding_right : (ovr.padding != null ? ovr.padding : (node.padding_right || 0));
+    const pb = ovr.padding_bottom != null ? ovr.padding_bottom : (ovr.padding != null ? ovr.padding : (node.padding_bottom || 0));
+    const pl = ovr.padding_left != null ? ovr.padding_left : (ovr.padding != null ? ovr.padding : (node.padding_left || 0));
+    if (pt !== pr || pr !== pb || pb !== pl) allUniform = false;
+    // Explicit per-side overrides force unlinked mode even if values are equal
+    if (ovr.padding_top != null || ovr.padding_right != null || ovr.padding_bottom != null || ovr.padding_left != null) allUniform = false;
+    if (firstPT === null) firstPT = pt; else if (firstPT !== pt) ptMixed = true;
+    if (firstPR === null) firstPR = pr; else if (firstPR !== pr) prMixed = true;
+    if (firstPB === null) firstPB = pb; else if (firstPB !== pb) pbMixed = true;
+    if (firstPL === null) firstPL = pl; else if (firstPL !== pl) plMixed = true;
   }
 
   if (containerCount === 0) return null;
@@ -1441,6 +1519,10 @@ function _getMultiContainerValues(items) {
     gap: gapMixed ? '' : firstGap,
     padding: padMixed ? '' : firstPad,
     dirMixed, gapMixed, padMixed,
+    allUniform,
+    pt: ptMixed ? '' : (firstPT ?? 0), pr: prMixed ? '' : (firstPR ?? 0),
+    pb: pbMixed ? '' : (firstPB ?? 0), pl: plMixed ? '' : (firstPL ?? 0),
+    ptMixed, prMixed, pbMixed, plMixed,
   };
 }
 
@@ -1559,16 +1641,38 @@ window.applyMultiStyleOverride = applyMultiStyleOverride;
  * Apply a frame property to ALL selected items, then trigger a single relayout.
  */
 function setMultiFrameProp(prop, value) {
-  if (value === '' || value === null || value === undefined) return; // ignore "Mixed" placeholder
+  const isConstraintProp = prop === 'min_width' || prop === 'max_width' || prop === 'min_height' || prop === 'max_height';
+  if (!isConstraintProp && (value === '' || value === null || value === undefined)) return; // ignore "Mixed" placeholder
   if (typeof value === 'number' && !Number.isFinite(value)) return; // ignore NaN from empty input
 
   // For container-only props, only apply to containers
-  const containerProps = new Set(['direction', 'gap', 'padding']);
+  const containerProps = new Set(['direction', 'gap', 'padding', 'padding_top', 'padding_right', 'padding_bottom', 'padding_left']);
   const isContainerProp = containerProps.has(prop);
 
   // Clamp numeric frame properties
-  if (prop === 'gap' || prop === 'padding') {
+  if (prop === 'gap' || prop === 'padding' || prop === 'padding_top' || prop === 'padding_right' || prop === 'padding_bottom' || prop === 'padding_left') {
     value = Math.max(0, Number.isFinite(value) ? value : 0);
+  }
+  // Constraint props: empty clears, otherwise clamp to non-negative
+  if (isConstraintProp) {
+    if (value === '' || value == null) {
+      // Clear constraint for all selected items
+      const ids = [...selectedIds];
+      const mfpBefore = _captureOverrideEntries(ids);
+      for (const cid of ids) {
+        if (overrides[cid]) {
+          delete overrides[cid][prop];
+          if (Object.keys(overrides[cid]).length === 0) delete overrides[cid];
+        }
+      }
+      setDirty(true);
+      commitOverridePatchAction("Clear " + prop + " (multi)", mfpBefore, _captureOverrideEntries(ids));
+      renderSelectionInspector();
+      clearTimeout(_v3RelayoutTimer);
+      _v3RelayoutTimer = setTimeout(() => requestV3Relayout(ids[0]), 300);
+      return;
+    }
+    value = Math.max(0, Number.isFinite(Number(value)) ? Number(value) : 0);
   }
 
   const ids = [...selectedIds];
@@ -1585,6 +1689,32 @@ function setMultiFrameProp(prop, value) {
     }
 
     if (!overrides[cid]) overrides[cid] = {};
+    // When setting uniform padding, clear per-side overrides
+    if (prop === 'padding') {
+      delete overrides[cid].padding_top;
+      delete overrides[cid].padding_right;
+      delete overrides[cid].padding_bottom;
+      delete overrides[cid].padding_left;
+    }
+    // When setting a per-side padding, clear the uniform override
+    if (prop === 'padding_top' || prop === 'padding_right' || prop === 'padding_bottom' || prop === 'padding_left') {
+      delete overrides[cid].padding;
+    }
+    // Auto-adjust opposite bound to prevent min > max
+    if (isConstraintProp) {
+      if (prop === 'min_width' && overrides[cid].max_width !== undefined && value > overrides[cid].max_width) {
+        overrides[cid].max_width = value;
+      }
+      if (prop === 'max_width' && overrides[cid].min_width !== undefined && value < overrides[cid].min_width) {
+        overrides[cid].min_width = value;
+      }
+      if (prop === 'min_height' && overrides[cid].max_height !== undefined && value > overrides[cid].max_height) {
+        overrides[cid].max_height = value;
+      }
+      if (prop === 'max_height' && overrides[cid].min_height !== undefined && value < overrides[cid].min_height) {
+        overrides[cid].min_height = value;
+      }
+    }
     overrides[cid][prop] = value;
     _coercedKeys.delete(cid + ':' + prop);
 
@@ -3812,6 +3942,77 @@ function setFrameAlign(cid, align) {
 // Expose to onclick handlers
 window.setFrameAlign = setFrameAlign;
 
+/**
+ * Toggle between uniform and per-side padding in the inspector.
+ * @param {string} cid - Component ID
+ * @param {boolean} link - true = link all sides (uniform), false = unlink (per-side)
+ */
+function togglePaddingLink(cid, link) {
+  if (!overrides[cid]) overrides[cid] = {};
+  const ovr = overrides[cid];
+  const node = model.get(cid);
+  const nodeData = node ? node.data : {};
+  if (link) {
+    // Unlink → Link: take the top value as the uniform value
+    const topVal = ovr.padding_top != null ? ovr.padding_top : (ovr.padding != null ? ovr.padding : (nodeData.padding_top || 0));
+    ovr.padding = topVal;
+    delete ovr.padding_top;
+    delete ovr.padding_right;
+    delete ovr.padding_bottom;
+    delete ovr.padding_left;
+  } else {
+    // Link → Unlink: expand uniform to 4 sides
+    const uniform = ovr.padding != null ? ovr.padding : (nodeData.padding_top || 0);
+    ovr.padding_top = uniform;
+    ovr.padding_right = uniform;
+    ovr.padding_bottom = uniform;
+    ovr.padding_left = uniform;
+    delete ovr.padding;
+  }
+  setDirty(true);
+  renderSelectionInspector(cid);
+  clearTimeout(_v3RelayoutTimer);
+  _v3RelayoutTimer = setTimeout(() => requestV3Relayout(cid), 300);
+}
+window.togglePaddingLink = togglePaddingLink;
+
+/**
+ * Toggle between uniform and per-side padding for all selected containers.
+ * @param {boolean} link - true = link all sides, false = unlink
+ */
+function toggleMultiPaddingLink(link) {
+  const ids = [...selectedIds];
+  for (const cid of ids) {
+    const node = model.get(cid);
+    if (!node) continue;
+    const isContainer = node.layout || (node.children && node.children.length > 0);
+    if (!isContainer) continue;
+    if (!overrides[cid]) overrides[cid] = {};
+    const ovr = overrides[cid];
+    const nodeData = node.data || {};
+    if (link) {
+      const topVal = ovr.padding_top != null ? ovr.padding_top : (ovr.padding != null ? ovr.padding : (nodeData.padding_top || 0));
+      ovr.padding = topVal;
+      delete ovr.padding_top;
+      delete ovr.padding_right;
+      delete ovr.padding_bottom;
+      delete ovr.padding_left;
+    } else {
+      const uniform = ovr.padding != null ? ovr.padding : (nodeData.padding_top || 0);
+      ovr.padding_top = uniform;
+      ovr.padding_right = uniform;
+      ovr.padding_bottom = uniform;
+      ovr.padding_left = uniform;
+      delete ovr.padding;
+    }
+  }
+  setDirty(true);
+  renderSelectionInspector();
+  clearTimeout(_v3RelayoutTimer);
+  _v3RelayoutTimer = setTimeout(() => requestV3Relayout(ids[0]), 300);
+}
+window.toggleMultiPaddingLink = toggleMultiPaddingLink;
+
 // ---- Auto-layout controls (v3) ----
 
 function buildAutolayoutPanel(cid, node) {
@@ -3829,7 +4030,6 @@ function buildAutolayoutPanel(cid, node) {
   if (isContainer) {
     const direction = ovr.direction || (node.layout === 'horizontal' ? 'HORIZONTAL' : 'VERTICAL');
     const gap = ovr.gap !== undefined ? ovr.gap : (node.layoutGap || 24);
-    const padding = ovr.padding !== undefined ? ovr.padding : (node.padding_top !== undefined ? node.padding_top : 8);
 
     html += '<span class="label" style="margin-bottom:4px;display:block">Auto-layout</span>';
 
@@ -3846,27 +4046,54 @@ function buildAutolayoutPanel(cid, node) {
     html += ' onchange="setFrameProp(\'' + cid + '\',\'gap\',parseInt(this.value))"';
     html += ' style="width:60px"></div>';
 
-    // Padding
-    const pt = node.padding_top || 0, pr = node.padding_right || 0;
-    const pb = node.padding_bottom || 0, pl = node.padding_left || 0;
-    const isUniformPad = (pt === pr && pr === pb && pb === pl);
-    html += '<div class="field"><span class="label">Padding</span>';
-    html += '<input class="bf-input" type="number" min="0" step="8" value="' + padding + '"';
-    html += ' onchange="setFrameProp(\'' + cid + '\',\'padding\',parseInt(this.value))"';
-    html += ' style="width:60px"></div>';
-    if (!isUniformPad && ovr.padding === undefined) {
-      html += '<div class="hint" style="color:#c90;font-size:11px">Non-uniform padding (' + pt + '/' + pr + '/' + pb + '/' + pl + '). Editing sets all sides.</div>';
+    // Padding — per-side with link toggle
+    // Resolve effective per-side values: per-side override > uniform override > tree data > 0
+    const effPT = ovr.padding_top != null ? ovr.padding_top : (ovr.padding != null ? ovr.padding : (node.padding_top || 0));
+    const effPR = ovr.padding_right != null ? ovr.padding_right : (ovr.padding != null ? ovr.padding : (node.padding_right || 0));
+    const effPB = ovr.padding_bottom != null ? ovr.padding_bottom : (ovr.padding != null ? ovr.padding : (node.padding_bottom || 0));
+    const effPL = ovr.padding_left != null ? ovr.padding_left : (ovr.padding != null ? ovr.padding : (node.padding_left || 0));
+    // Linked = all values equal AND no explicit per-side overrides
+    const hasPerSideOvr = ovr.padding_top != null || ovr.padding_right != null || ovr.padding_bottom != null || ovr.padding_left != null;
+    const isLinked = !hasPerSideOvr && (effPT === effPR && effPR === effPB && effPB === effPL);
+    html += '<div class="field" style="align-items:flex-start"><span class="label">Padding</span>';
+    html += '<div style="display:flex;flex-direction:column;gap:4px">';
+    // Link toggle button
+    html += '<button class="bf-input" style="width:28px;height:24px;padding:0;cursor:pointer;font-size:13px" title="' + (isLinked ? 'Unlink sides' : 'Link all sides') + '"';
+    html += ' onclick="togglePaddingLink(\'' + cid + '\',' + !isLinked + ')">';
+    html += isLinked ? '🔗' : '🔓';
+    html += '</button>';
+    if (isLinked) {
+      // Uniform mode: single input
+      html += '<input class="bf-input" type="number" min="0" step="8" value="' + effPT + '"';
+      html += ' onchange="setFrameProp(\'' + cid + '\',\'padding\',parseInt(this.value))"';
+      html += ' style="width:60px" title="All sides">';
+    } else {
+      // Per-side mode: 4 inputs in a compact grid (T/R/B/L)
+      html += '<div style="display:grid;grid-template-columns:auto 48px;gap:2px 4px;font-size:11px">';
+      html += '<span style="color:#888">T</span><input class="bf-input" type="number" min="0" step="8" value="' + effPT + '"';
+      html += ' onchange="setFrameProp(\'' + cid + '\',\'padding_top\',parseInt(this.value))" style="width:48px">';
+      html += '<span style="color:#888">R</span><input class="bf-input" type="number" min="0" step="8" value="' + effPR + '"';
+      html += ' onchange="setFrameProp(\'' + cid + '\',\'padding_right\',parseInt(this.value))" style="width:48px">';
+      html += '<span style="color:#888">B</span><input class="bf-input" type="number" min="0" step="8" value="' + effPB + '"';
+      html += ' onchange="setFrameProp(\'' + cid + '\',\'padding_bottom\',parseInt(this.value))" style="width:48px">';
+      html += '<span style="color:#888">L</span><input class="bf-input" type="number" min="0" step="8" value="' + effPL + '"';
+      html += ' onchange="setFrameProp(\'' + cid + '\',\'padding_left\',parseInt(this.value))" style="width:48px">';
+      html += '</div>';
     }
+    html += '</div></div>';
   } else {
     html += '<span class="label" style="margin-bottom:4px;display:block">Sizing</span>';
   }
 
   // Per-axis sizing (shown for all nodes)
+  const wCoerced = _coercedKeys.has(cid + ':sizing_w');
+  const hCoerced = _coercedKeys.has(cid + ':sizing_h');
+
   html += '<div class="field"><span class="label">Width</span>';
-  html += '<select class="bf-input" onchange="setFrameProp(\'' + cid + '\',\'sizing_w\',this.value)">';
+  html += '<select class="bf-input' + (wCoerced ? ' dg-coerced' : '') + '" onchange="setFrameProp(\'' + cid + '\',\'sizing_w\',this.value)">';
   html += '<option value="HUG"' + (sizingW === 'HUG' ? ' selected' : '') + '>Hug</option>';
   html += '<option value="FILL"' + (sizingW === 'FILL' ? ' selected' : '') + '>Fill</option>';
-  html += '<option value="FIXED"' + (sizingW === 'FIXED' ? ' selected' : '') + '>Fixed</option>';
+  html += '<option value="FIXED"' + (sizingW === 'FIXED' ? ' selected' : '') + '>' + (wCoerced ? 'Fixed (auto)' : 'Fixed') + '</option>';
   html += '</select>';
   // Numeric width + unit selector (shown when FIXED)
   if (sizingW === 'FIXED') {
@@ -3882,12 +4109,28 @@ function buildAutolayoutPanel(cid, node) {
     html += '</select>';
   }
   html += '</div>';
+  // Min/max width constraints (shown when FILL or FIXED)
+  if (sizingW === 'FILL' || sizingW === 'FIXED') {
+    const curMinW = ovr.min_width !== undefined ? ovr.min_width : (node.min_width !== undefined ? node.min_width : '');
+    const curMaxW = ovr.max_width !== undefined ? ovr.max_width : (node.max_width !== undefined ? node.max_width : '');
+    html += '<div class="field dg-constraint-row"><span class="label">Min W</span>';
+    html += '<input class="bf-input" type="number" min="0" step="' + BASELINE_STEP + '" value="' + curMinW + '"';
+    html += ' placeholder="—"';
+    html += ' onchange="setFrameProp(\'' + cid + '\',\'min_width\',this.value)"';
+    html += ' style="width:52px">';
+    html += '<span class="label" style="margin-left:4px">Max</span>';
+    html += '<input class="bf-input" type="number" min="0" step="' + BASELINE_STEP + '" value="' + curMaxW + '"';
+    html += ' placeholder="—"';
+    html += ' onchange="setFrameProp(\'' + cid + '\',\'max_width\',this.value)"';
+    html += ' style="width:52px">';
+    html += '</div>';
+  }
 
   html += '<div class="field"><span class="label">Height</span>';
-  html += '<select class="bf-input" onchange="setFrameProp(\'' + cid + '\',\'sizing_h\',this.value)">';
+  html += '<select class="bf-input' + (hCoerced ? ' dg-coerced' : '') + '" onchange="setFrameProp(\'' + cid + '\',\'sizing_h\',this.value)">';
   html += '<option value="HUG"' + (sizingH === 'HUG' ? ' selected' : '') + '>Hug</option>';
   html += '<option value="FILL"' + (sizingH === 'FILL' ? ' selected' : '') + '>Fill</option>';
-  html += '<option value="FIXED"' + (sizingH === 'FIXED' ? ' selected' : '') + '>Fixed</option>';
+  html += '<option value="FIXED"' + (sizingH === 'FIXED' ? ' selected' : '') + '>' + (hCoerced ? 'Fixed (auto)' : 'Fixed') + '</option>';
   html += '</select>';
   // Numeric height + unit selector (shown when FIXED)
   if (sizingH === 'FIXED') {
@@ -3903,6 +4146,22 @@ function buildAutolayoutPanel(cid, node) {
     html += '</select>';
   }
   html += '</div>';
+  // Min/max height constraints (shown when FILL or FIXED)
+  if (sizingH === 'FILL' || sizingH === 'FIXED') {
+    const curMinH = ovr.min_height !== undefined ? ovr.min_height : (node.min_height !== undefined ? node.min_height : '');
+    const curMaxH = ovr.max_height !== undefined ? ovr.max_height : (node.max_height !== undefined ? node.max_height : '');
+    html += '<div class="field dg-constraint-row"><span class="label">Min H</span>';
+    html += '<input class="bf-input" type="number" min="0" step="' + BASELINE_STEP + '" value="' + curMinH + '"';
+    html += ' placeholder="—"';
+    html += ' onchange="setFrameProp(\'' + cid + '\',\'min_height\',this.value)"';
+    html += ' style="width:52px">';
+    html += '<span class="label" style="margin-left:4px">Max</span>';
+    html += '<input class="bf-input" type="number" min="0" step="' + BASELINE_STEP + '" value="' + curMaxH + '"';
+    html += ' placeholder="—"';
+    html += ' onchange="setFrameProp(\'' + cid + '\',\'max_height\',this.value)"';
+    html += ' style="width:52px">';
+    html += '</div>';
+  }
 
   html += '</div>';
   return html;
@@ -3915,8 +4174,44 @@ function setFrameProp(cid, prop, value) {
   if (!overrides[cid]) overrides[cid] = {};
 
   // Clamp numeric frame properties to sane ranges
-  if (prop === 'gap' || prop === 'padding') {
+  if (prop === 'gap' || prop === 'padding' || prop === 'padding_top' || prop === 'padding_right' || prop === 'padding_bottom' || prop === 'padding_left') {
     value = Math.max(0, Number.isFinite(value) ? value : 0);
+  }
+  // When setting uniform padding, clear per-side overrides
+  if (prop === 'padding') {
+    delete overrides[cid].padding_top;
+    delete overrides[cid].padding_right;
+    delete overrides[cid].padding_bottom;
+    delete overrides[cid].padding_left;
+  }
+  // When setting a per-side padding, clear the uniform override
+  if (prop === 'padding_top' || prop === 'padding_right' || prop === 'padding_bottom' || prop === 'padding_left') {
+    delete overrides[cid].padding;
+  }
+  if (prop === 'min_width' || prop === 'max_width' || prop === 'min_height' || prop === 'max_height') {
+    if (value === '' || value == null) {
+      delete overrides[cid][prop];
+      _coercedKeys.delete(cid + ':' + prop);
+      setDirty(true);
+      renderSelectionInspector(cid);
+      clearTimeout(_v3RelayoutTimer);
+      _v3RelayoutTimer = setTimeout(() => requestV3Relayout(cid), 300);
+      return;
+    }
+    value = Math.max(0, Number.isFinite(Number(value)) ? Number(value) : 0);
+    // Auto-adjust opposite bound to prevent min > max
+    if (prop === 'min_width' && overrides[cid].max_width !== undefined && value > overrides[cid].max_width) {
+      overrides[cid].max_width = value;
+    }
+    if (prop === 'max_width' && overrides[cid].min_width !== undefined && value < overrides[cid].min_width) {
+      overrides[cid].min_width = value;
+    }
+    if (prop === 'min_height' && overrides[cid].max_height !== undefined && value > overrides[cid].max_height) {
+      overrides[cid].max_height = value;
+    }
+    if (prop === 'max_height' && overrides[cid].min_height !== undefined && value < overrides[cid].min_height) {
+      overrides[cid].min_height = value;
+    }
   }
 
   overrides[cid][prop] = value;
@@ -3962,114 +4257,96 @@ function setFrameProp(cid, prop, value) {
 const _coercedKeys = new Set();
 
 async function requestV3Relayout(triggerCid) {
-  const slug = SLUG.replace('v3:', '');
-  // Send ALL accumulated frame overrides so the server can apply them together
-  const allFrameOverrides = {};
-  const FRAME_KEYS = ['direction', 'gap', 'padding', 'sizing', 'sizing_w', 'sizing_h', 'align', 'width', 'height', 'min_width', 'max_width', 'min_height', 'max_height', 'children_order', 'fill', 'border', 'text'];
-  for (const [fid, ovr] of Object.entries(overrides)) {
-    const entry = {};
-    for (const key of FRAME_KEYS) {
-      if (ovr[key] !== undefined) entry[key] = ovr[key];
-    }
-    if (Object.keys(entry).length > 0) allFrameOverrides[fid] = entry;
+  // --- Client-side layout (no server round-trip) ---
+  if (typeof performLocalRelayout !== "function") {
+    console.error("v3 relayout: performLocalRelayout not available");
+    return;
   }
-  const payload = { frame_overrides: allFrameOverrides };
-  const gridOverrides = _normaliseGridOverrides(model.gridOverrides || {});
-  if (Object.keys(gridOverrides).length > 0) {
-    payload.grid_overrides = gridOverrides;
+  const gridOvr = _normaliseGridOverrides(model.gridOverrides || {});
+  let localResult = performLocalRelayout(model, overrides, gridOvr);
+  if (!localResult) {
+    console.error("v3 relayout: local layout failed (performLocalRelayout returned null)");
+    return;
   }
-  try {
-    const resp = await fetch('/api/relayout-v3/' + slug, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    if (!resp.ok) {
-      console.error('v3 relayout failed:', resp.status);
-      return;
-    }
-    const data = await resp.json();
-    if (data.svg) {
-      const stage = document.getElementById('stage');
-      if (stage) {
-        stage.innerHTML = data.svg;
-        // Reload component tree from relayout response
-        if (data.tree) {
-          model.loadTree(data.tree);
-          buildTreeUI();
-        }
-        // Clear stale position/size deltas — the full relayout recomputed
-        // every position, so manual nudges from the old layout are invalid.
-        for (const [cid, ovr] of Object.entries(overrides)) {
-          delete ovr.dx; delete ovr.dy; delete ovr.dw; delete ovr.dh;
-          if (Object.keys(ovr).length === 0) delete overrides[cid];
-        }
-        // Merge engine-coerced overrides: when the engine coerces a HUG
-        // parent to FIXED (because children are FILL), persist the coerced
-        // sizing + dimensions so subsequent relayouts preserve the frozen
-        // size instead of re-measuring at the new content size.
-        //
-        // We do NOT auto-clear stale coerced keys. Once a parent is coerced
-        // to FIXED, it stays FIXED until the user explicitly changes it back
-        // via the dropdown (which calls setFrameProp and clears _coercedKeys).
-        // This matches Figma: coercion is a one-way lock.
-        const newCoerced = data.coerced_overrides || {};
-        for (const [fid, coerced] of Object.entries(newCoerced)) {
-          if (!overrides[fid]) overrides[fid] = {};
-          for (const [key, val] of Object.entries(coerced)) {
-            const ck = fid + ':' + key;
-            // Only persist if user hasn't explicitly set this property
-            // (unless it was a previous coercion)
-            if (overrides[fid][key] === undefined || _coercedKeys.has(ck)) {
-              overrides[fid][key] = val;
-              _coercedKeys.add(ck);
-            }
-          }
-        }
-        // Reconcile sizing overrides with engine coercion: if the user
-        // requested HUG but the engine coerced to FIXED (because children
-        // are FILL), update the override so the inspector shows reality.
-        for (const [fid, ovr] of Object.entries(overrides)) {
-          const node = model.get(fid);
-          if (!node) continue;
-          if (ovr.sizing_w === 'HUG' && node.sizing_w === 'FIXED') {
-            ovr.sizing_w = 'FIXED';
-            ovr.width = Math.round(node.data.width);
-          }
-          if (ovr.sizing_h === 'HUG' && node.sizing_h === 'FIXED') {
-            ovr.sizing_h = 'FIXED';
-            ovr.height = Math.round(node.data.height);
-          }
-        }
-        bindInteraction();
-        applyAllOverrides();
-        reapplySelection();
-        if (data.grid_info) {
-          gridInfo = data.grid_info;
-          baseGridInfo = _cloneState(data.grid_info);
-          model.setDiagramGrid(gridInfo);
-          const request = _gridRequestValues(model.gridOverrides || {});
-          const hasSavedCols = Number.isFinite((model.gridOverrides || {}).cols);
-          const hasSavedColGap = Number.isFinite((model.gridOverrides || {}).col_gap);
-          const hasSavedRowGap = Number.isFinite((model.gridOverrides || {}).row_gap);
-          const hasSavedMargin = Number.isFinite((model.gridOverrides || {}).outer_margin);
-          const nextCols = hasSavedCols ? request.cols : ((gridInfo.col_xs || []).length || 1);
-          const nextColGap = hasSavedColGap ? request.colGap : (gridInfo.col_gap ?? 0);
-          const nextRowGap = hasSavedRowGap ? request.rowGap : (gridInfo.row_gap ?? 0);
-          const nextMargin = hasSavedMargin ? request.outerMargin : (gridInfo.outer_margin ?? 0);
+  // Clear stale position/size deltas
+  for (const [cid, ovr] of Object.entries(overrides)) {
+    delete ovr.dx; delete ovr.dy; delete ovr.dw; delete ovr.dh;
+    if (Object.keys(ovr).length === 0) delete overrides[cid];
+  }
+  // Merge coerced overrides locally
+  {
+    // SYNC: keys must match CoercedOverride in frame-model.ts
+    const _COERCED_KEY_MAP = { sizingW: 'sizing_w', sizingH: 'sizing_h' };
 
-          document.getElementById("grid-cols").value = nextCols;
-          document.getElementById("grid-col-gap").value = nextColGap;
-          document.getElementById("grid-row-gap").value = nextRowGap;
-          document.getElementById("grid-margin").value = nextMargin;
-          populateGridControls();
-          renderGridOverlay();
+    // Build set of currently-coerced keys from engine output
+    const newCoercedKeys = new Set();
+    if (localResult.coerced) {
+
+      for (const [fid, coerced] of localResult.coerced.entries()) {
+        if (!overrides[fid]) overrides[fid] = {};
+        for (const [rawKey, val] of Object.entries(coerced)) {
+          // Engine returns camelCase (sizingW, sizingH); overrides use snake_case (sizing_w, sizing_h)
+          const key = _COERCED_KEY_MAP[rawKey] || rawKey;
+          const ck = fid + ':' + key;
+          // Sizing properties: engine coercion is authoritative (HUG + FILL child = FIXED).
+          // Dimension properties: only apply if not already user-set.
+          const isSizingKey = (key === 'sizing_w' || key === 'sizing_h');
+          if (isSizingKey || overrides[fid][key] === undefined || _coercedKeys.has(ck)) {
+            overrides[fid][key] = val;
+            newCoercedKeys.add(ck);
+          }
         }
       }
     }
-  } catch (e) {
-    console.error('v3 relayout error:', e);
+    // Remove stale coerced keys and their override values when engine no longer reports coercion.
+    // Without this, a parent that was once auto-coerced to FIXED stays FIXED in overrides
+    // even after the FILL child is removed — the indicator disappears but the value persists.
+    let staleCleaned = false;
+    for (const ck of _coercedKeys) {
+      if (!newCoercedKeys.has(ck)) {
+        _coercedKeys.delete(ck);
+        const sepIdx = ck.indexOf(':');
+        const fid = ck.substring(0, sepIdx);
+        const key = ck.substring(sepIdx + 1);
+        if (overrides[fid]) {
+          delete overrides[fid][key];
+          if (Object.keys(overrides[fid]).length === 0) delete overrides[fid];
+        }
+        staleCleaned = true;
+      }
+    }
+    // Add new coerced keys
+    for (const ck of newCoercedKeys) _coercedKeys.add(ck);
+
+    // If stale coercion overrides were cleaned, the frame tree was built with
+    // now-deleted values. Re-run layout so the model reflects the clean state.
+    if (staleCleaned) {
+      const cleanGridOvr = _normaliseGridOverrides(model.gridOverrides || {});
+      localResult = performLocalRelayout(model, overrides, cleanGridOvr);
+    }
   }
+  // Reconcile sizing with coercion
+  for (const [fid, ovr] of Object.entries(overrides)) {
+    const node = model.get(fid);
+    if (!node) continue;
+    if (ovr.sizing_w === 'HUG' && node.sizing_w === 'FIXED') {
+      ovr.sizing_w = 'FIXED';
+      ovr.width = Math.round(node.data.width);
+    }
+    if (ovr.sizing_h === 'HUG' && node.sizing_h === 'FIXED') {
+      ovr.sizing_h = 'FIXED';
+      ovr.height = Math.round(node.data.height);
+    }
+  }
+  buildTreeUI();
+  bindInteraction();
+  applyAllOverrides();
+  reapplySelection();
+  renderGridOverlay();
+  renderSelectionInspector(triggerCid);
+  updateOverrideSummary();
+  refreshTreeColors();
+  runConstraints();
 }
 
 // Expose to inline handlers

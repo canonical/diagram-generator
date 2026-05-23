@@ -71,6 +71,7 @@ const forceUndoManager = new UndoRedoManager({
   maxSize: 50,
   undoBtnId: "btn-force-undo",
   redoBtnId: "btn-force-redo",
+  saveBtnId: "btn-force-save",
   onRestore: async (state, direction) => {
     try {
       await applyNodeState(state);
@@ -756,6 +757,7 @@ async function saveForceOverrides() {
     headers: { "Content-Type": "application/json" },
     body: "{}",
   });
+  forceUndoManager.markSaved();
   setStatus("Saved", "ok");
 }
 

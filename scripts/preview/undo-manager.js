@@ -29,10 +29,13 @@ class UndoRedoManager {
     this._maxSize = opts.maxSize || 50;
     this._undoBtnId = opts.undoBtnId || null;
     this._redoBtnId = opts.redoBtnId || null;
+    this._saveBtnId = opts.saveBtnId || null;
     this._onRestore = opts.onRestore;
     this._onStackChange = opts.onStackChange || null;
     this._undoStack = [];
     this._redoStack = [];
+    this._savedIndex = 0; // undo stack length at last save
+    this._updateButtons();
   }
 
   get undoCount() { return this._undoStack.length; }
@@ -42,8 +45,18 @@ class UndoRedoManager {
 
   /** Push a new undoable command. Clears the redo stack. */
   push(label, before, after) {
+    // If the saved point was ahead of us (in the redo branch being discarded),
+    // it's now unreachable — mark permanently dirty.
+    if (this._redoStack.length > 0 && this._savedIndex > this._undoStack.length) {
+      this._savedIndex = -1;
+    }
     this._undoStack.push({ label, before, after });
-    if (this._undoStack.length > this._maxSize) this._undoStack.shift();
+    if (this._undoStack.length > this._maxSize) {
+      this._undoStack.shift();
+      // If the saved point was in the dropped portion, it's unreachable
+      if (this._savedIndex > 0) this._savedIndex--;
+      else this._savedIndex = -1; // permanently dirty
+    }
     this._redoStack = [];
     this._updateButtons();
     if (this._onStackChange) this._onStackChange();
@@ -75,11 +88,23 @@ class UndoRedoManager {
   clear() {
     this._undoStack = [];
     this._redoStack = [];
+    this._savedIndex = 0;
     this._updateButtons();
     if (this._onStackChange) this._onStackChange();
   }
 
-  /** Update disabled state of undo/redo buttons. */
+  /** Mark the current state as "saved" — isDirty() returns false until the stack moves. */
+  markSaved() {
+    this._savedIndex = this._undoStack.length;
+    this._updateButtons();
+  }
+
+  /** True when the current stack position differs from the last-saved position. */
+  isDirty() {
+    return this._undoStack.length !== this._savedIndex;
+  }
+
+  /** Update disabled state of undo/redo/save buttons. */
   _updateButtons() {
     if (this._undoBtnId) {
       const btn = document.getElementById(this._undoBtnId);
@@ -88,6 +113,10 @@ class UndoRedoManager {
     if (this._redoBtnId) {
       const btn = document.getElementById(this._redoBtnId);
       if (btn) btn.disabled = !this.canRedo();
+    }
+    if (this._saveBtnId) {
+      const btn = document.getElementById(this._saveBtnId);
+      if (btn) btn.disabled = !this.isDirty();
     }
   }
 }
