@@ -29,7 +29,7 @@ const boxStyleOptionsHtml = window.__DG_boxStyleOptionsHtml || function boxStyle
 let currentSnapshot = null;
 let running = false;
 let inFlight = false;
-let selectedId = null;
+let selectedIds = new Set();
 let dragCandidate = null;
 let dragState = null;
 let resizeState = null;
@@ -203,7 +203,7 @@ function startForceResize(event, handleEl) {
     origH: node.height,
     undoBefore: captureNodeState(nodeId),
   };
-  selectedId = nodeId;
+  selectedIds = new Set([nodeId]);
   event.preventDefault();
   event.stopPropagation();
 }
@@ -457,7 +457,7 @@ function buildSvg(snapshot) {
   const height = snapshot.canvas.height;
   const nodesById = new Map(snapshot.nodes.map((node) => [node.id, node]));
   const links = snapshot.links.map((link) => buildLinkMarkup(link, nodesById)).join("");
-  const nodes = snapshot.nodes.map((node) => buildNodeMarkup(node, node.id === selectedId)).join("");
+  const nodes = snapshot.nodes.map((node) => buildNodeMarkup(node, selectedIds.has(node.id))).join("");
   return `
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" aria-label="${escapeHtml(snapshot.title)}">
       <rect width="100%" height="100%" fill="#FFFFFF"></rect>
@@ -470,7 +470,7 @@ function renderTree(snapshot) {
   const tree = byId("tree-force");
   tree.innerHTML = snapshot.nodes
     .map((node) => {
-      const selected = node.id === selectedId ? " selected" : "";
+      const selected = selectedIds.has(node.id) ? " selected" : "";
       const hasOverride = isNodePinned(node) || node.style_override != null;
       const overridden = hasOverride ? " overridden" : "";
       return `<div class="tree-item${selected}${overridden}" data-node-id="${escapeHtml(node.id)}">${escapeHtml(node.id)}</div>`;
@@ -480,14 +480,20 @@ function renderTree(snapshot) {
 
 function renderSelection(snapshot) {
   const panel = byId("inspector");
-  if (!selectedId) {
+  if (selectedIds.size === 0) {
     panel.innerHTML = EMPTY_SELECTION_HTML;
     return;
   }
 
-  const node = snapshot.nodes.find((candidate) => candidate.id === selectedId);
+  if (selectedIds.size > 1) {
+    panel.innerHTML = `<div class="field"><div class="label">${selectedIds.size} nodes selected</div></div>`;
+    return;
+  }
+
+  const singleId = [...selectedIds][0];
+  const node = snapshot.nodes.find((candidate) => candidate.id === singleId);
   if (!node) {
-    selectedId = null;
+    selectedIds.clear();
     panel.innerHTML = EMPTY_SELECTION_HTML;
     return;
   }
@@ -583,7 +589,7 @@ function startDragPreview(candidate) {
     undoBefore: captureNodeState(candidate.nodeId),
   };
   dragCandidate = null;
-  selectedId = candidate.nodeId;
+  selectedIds = new Set([candidate.nodeId]);
   render(previewDraggedSnapshot(currentSnapshot, candidate.nodeId, node.x, node.y));
   setStatus("Dragging…", "ok");
 }
@@ -680,8 +686,9 @@ function render(snapshot) {
   if (snapshot.simulation.tick_count === 0) {
     byId("ticks-per-frame").value = String(snapshot.simulation.ticks_per_frame);
   }
-  if (selectedId && !snapshot.nodes.some((node) => node.id === selectedId)) {
-    selectedId = null;
+  // Remove stale selections
+  for (const id of [...selectedIds]) {
+    if (!snapshot.nodes.some((node) => node.id === id)) selectedIds.delete(id);
   }
   byId("stage").innerHTML = buildSvg(snapshot);
   renderTree(snapshot);
@@ -690,9 +697,9 @@ function render(snapshot) {
   updateSimulationParams(snapshot);
   ensureReferenceImage();
 
-  // Show resize handles on the selected node (unless dragging)
-  if (selectedId && !dragState && !resizeState) {
-    showForceResizeHandles(selectedId);
+  // Show resize handles on the single selected node (unless dragging)
+  if (selectedIds.size === 1 && !dragState && !resizeState) {
+    showForceResizeHandles([...selectedIds][0]);
   }
 
   if (dragState) {
@@ -830,7 +837,13 @@ byId("tree-force").addEventListener("click", (event) => {
   if (!item || !currentSnapshot) {
     return;
   }
-  selectedId = item.getAttribute("data-node-id");
+  const nodeId = item.getAttribute("data-node-id");
+  if (event.shiftKey || event.ctrlKey || event.metaKey) {
+    if (selectedIds.has(nodeId)) selectedIds.delete(nodeId);
+    else selectedIds.add(nodeId);
+  } else {
+    selectedIds = new Set([nodeId]);
+  }
   render(currentSnapshot);
 });
 
@@ -843,7 +856,17 @@ byId("stage").addEventListener("click", (event) => {
   if (!currentSnapshot) {
     return;
   }
-  selectedId = node ? node.getAttribute("data-component-id") : null;
+  if (node) {
+    const nodeId = node.getAttribute("data-component-id");
+    if (event.shiftKey || event.ctrlKey || event.metaKey) {
+      if (selectedIds.has(nodeId)) selectedIds.delete(nodeId);
+      else selectedIds.add(nodeId);
+    } else {
+      selectedIds = new Set([nodeId]);
+    }
+  } else {
+    selectedIds = new Set();
+  }
   render(currentSnapshot);
 });
 
@@ -1095,11 +1118,11 @@ document.addEventListener("keydown", (event) => {
     event.preventDefault();
     performForceRedo();
   }
-  // Arrow-key nudge for selected pinned node (8px default, 24px with Shift)
-  if (selectedId && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) {
+  // Arrow-key nudge for selected pinned nodes (8px default, 24px with Shift)
+  if (selectedIds.size > 0 && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) {
     if (event.target.tagName === "INPUT" || event.target.tagName === "TEXTAREA") return;
-    const node = currentSnapshot && currentSnapshot.nodes.find(n => n.id === selectedId);
-    if (!node || !isNodePinned(node)) return;
+    const pinnedNodes = currentSnapshot ? currentSnapshot.nodes.filter(n => selectedIds.has(n.id) && isNodePinned(n)) : [];
+    if (pinnedNodes.length === 0) return;
     event.preventDefault();
     const step = event.shiftKey ? 24 : 8;
     let dx = 0, dy = 0;
@@ -1107,9 +1130,10 @@ document.addEventListener("keydown", (event) => {
     if (event.key === "ArrowDown") dy = step;
     if (event.key === "ArrowLeft") dx = -step;
     if (event.key === "ArrowRight") dx = step;
-    const beforeNudge = captureNodeState(selectedId);
-    updateForceNode(selectedId, { x: node.x + dx, y: node.y + dy, pinned: true }).then(() => {
-      pushForceUndo("Nudge", beforeNudge, captureNodeState(selectedId));
+    const firstId = pinnedNodes[0].id;
+    const beforeNudge = captureNodeState(firstId);
+    Promise.all(pinnedNodes.map(n => updateForceNode(n.id, { x: n.x + dx, y: n.y + dy, pinned: true }))).then(() => {
+      pushForceUndo("Nudge", beforeNudge, captureNodeState(firstId));
     });
   }
 });
