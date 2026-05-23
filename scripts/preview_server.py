@@ -1250,12 +1250,51 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
             self.send_error(400, "Invalid slug")
             return
         content_length = int(self.headers.get("Content-Length", 0))
+        if content_length > 1_000_000:  # 1MB limit
+            self.send_error(413, "Payload too large")
+            return
         body = self.rfile.read(content_length)
         try:
             data = json.loads(body)
         except json.JSONDecodeError:
             self.send_error(400, "Invalid JSON")
             return
+        if not isinstance(data, dict):
+            self.send_error(400, "Expected JSON object")
+            return
+        # Validate overrides structure
+        if "overrides" in data and not isinstance(data.get("overrides"), dict):
+            self.send_error(400, "overrides must be an object")
+            return
+        overrides = data.get("overrides", {})
+        for comp_id, props in overrides.items():
+            if not isinstance(comp_id, str) or not _is_safe_slug(comp_id):
+                self.send_error(400, f"Invalid component ID: {comp_id}")
+                return
+            if not isinstance(props, dict):
+                self.send_error(400, f"Override for {comp_id} must be an object")
+                return
+            for key, val in props.items():
+                if not isinstance(key, str):
+                    self.send_error(400, f"Override key must be string")
+                    return
+                if val is not None and not isinstance(val, (int, float, str)):
+                    self.send_error(400, f"Override value for {comp_id}.{key} has invalid type")
+                    return
+        # Validate grid_overrides if present
+        if "grid_overrides" in data:
+            grid_ov = data["grid_overrides"]
+            if not isinstance(grid_ov, dict):
+                self.send_error(400, "grid_overrides must be an object")
+                return
+            allowed_grid_keys = {"cols", "col_gap", "row_gap", "outer_margin"}
+            for key, val in grid_ov.items():
+                if key not in allowed_grid_keys:
+                    self.send_error(400, f"Unknown grid_overrides key: {key}")
+                    return
+                if not isinstance(val, (int, float)):
+                    self.send_error(400, f"grid_overrides.{key} must be numeric")
+                    return
         data["definition_hash"] = _definition_hash(slug)
         data["format_version"] = 1
         _save_overrides(slug, data)
@@ -1266,6 +1305,9 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
             self.send_error(400, "Invalid slug")
             return
         content_length = int(self.headers.get("Content-Length", 0))
+        if content_length > 1_000_000:
+            self.send_error(413, "Payload too large")
+            return
         body = self.rfile.read(content_length)
         try:
             params = json.loads(body)
