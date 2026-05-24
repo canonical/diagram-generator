@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from frame_model import Frame, FrameDiagram, Direction, Sizing, Align
+from frame_model import Frame, FrameDiagram, Direction, Sizing, Align, Justify
 from diagram_model import Arrow, Line, Fill, Border
 from diagram_layout import (
     ArrowPrimitive,
@@ -724,7 +724,12 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
     heading_h = _heading_height(frame.heading, max_width=text_max_w)
     heading_gap = frame.gap if heading_h > 0 else 0
     n = len(frame.children)
-    total_gap = frame.gap * max(0, n - 1)
+
+    # For justify modes other than PACKED, gap is replaced by computed
+    # spacing — all inner space is available for children + distribution.
+    use_justify = frame.justify != Justify.PACKED and n > 0
+    effective_gap = 0 if use_justify else frame.gap
+    total_gap = effective_gap * max(0, n - 1)
 
     if frame.direction == Direction.HORIZONTAL:
         available_for_children = max(0, frame._placed_w - pad_l - pad_r - total_gap)
@@ -771,14 +776,34 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
     total_fill_placed = sum(fill_sizes)
     content_main = hug_total + total_fill_placed + total_gap
 
-    # Main-axis alignment offset
+    # Compute main-axis positioning: offset before first child and gap
+    # between children.  For PACKED, use alignment + fixed gap.
+    # For justify modes, use computed spacing from remaining space.
     inner_w = frame._placed_w - pad_l - pad_r
     inner_h = frame._placed_h - pad_t - pad_b - heading_h - heading_gap
+    inner_main = inner_w if frame.direction == Direction.HORIZONTAL else inner_h
 
-    if frame.direction == Direction.HORIZONTAL:
-        main_offset = _align_offset(frame.align, inner_w, content_main, "x")
+    if not use_justify:
+        # PACKED: alignment positions the content group, fixed gap between children
+        if frame.direction == Direction.HORIZONTAL:
+            main_offset = _align_offset(frame.align, inner_w, content_main, "x")
+        else:
+            main_offset = _align_offset(frame.align, inner_h, content_main, "y")
+        child_gap = frame.gap
     else:
-        main_offset = _align_offset(frame.align, inner_h, content_main, "y")
+        remaining = max(0, inner_main - content_main)
+        if frame.justify == Justify.SPACE_BETWEEN:
+            main_offset = 0
+            child_gap = remaining / (n - 1) if n > 1 else 0
+        elif frame.justify == Justify.SPACE_AROUND:
+            child_gap = remaining / n if n > 0 else 0
+            main_offset = child_gap / 2
+        elif frame.justify == Justify.SPACE_EVENLY:
+            child_gap = remaining / (n + 1)
+            main_offset = child_gap
+        else:
+            main_offset = 0
+            child_gap = frame.gap
 
     # Place children sequentially.
     # Cross-axis: FILL children stretch to fill; HUG/FIXED children keep
@@ -806,7 +831,7 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
                 cross_offset = _align_offset(frame.align, cross_size, child._measured_h, "y")
                 child_y = y + pad_t + heading_h + heading_gap + cross_offset
             place(child, cursor_x, child_y, child_w, child_h)
-            cursor_x += child._placed_w + frame.gap
+            cursor_x += child._placed_w + child_gap
     else:  # VERTICAL
         cursor_y = y + pad_t + heading_h + heading_gap + main_offset
         fill_idx = 0
@@ -828,7 +853,7 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
                 cross_offset = _align_offset(frame.align, cross_size, child._measured_w, "x")
                 child_x = x + pad_l + cross_offset
             place(child, child_x, cursor_y, child_w, child_h)
-            cursor_y += child._placed_h + frame.gap
+            cursor_y += child._placed_h + child_gap
 
 
 # ---------------------------------------------------------------------------
@@ -856,8 +881,12 @@ def _render_frame(frame: Frame, fg: list, bg: list, bounds_map: dict) -> None:
                                 component_id=cid, max_width=w - 2 * INSET))
         return
 
-    # Frame rect
-    if frame.border != Border.NONE:
+    # Frame rect – every frame emits a Rect so the browser always has a
+    # bounding box for hit-testing, selection chrome, and keyboard navigation.
+    if frame.border == Border.NONE:
+        fg.append(Rect(x, y, w, h, fill="transparent", stroke="none",
+                       dashed=False, component_id=cid))
+    else:
         stroke = "none" if frame.border == Border.FILL else "#000000"
         fg.append(Rect(x, y, w, h, fill=frame.fill.value, stroke=stroke,
                        dashed=(frame.border == Border.DASHED), component_id=cid))

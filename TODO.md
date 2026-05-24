@@ -170,7 +170,7 @@ The engine already supports `min_width`/`max_width`/`min_height`/`max_height` (1
 
 These are longer-term. Do not start until Tiers 1–3 are solid.
 
-- [ ] `[H]` **Space-between / space-around / space-evenly.** Justify modes for distributing extra space. Figma supports these; our engine doesn't.
+- [x] `[H]` **Space-between / space-around / space-evenly.** Justify modes for distributing extra space. Added `Justify` enum (PACKED, SPACE_BETWEEN, SPACE_AROUND, SPACE_EVENLY) to both TS and Python frame models. `place()` uses computed spacing instead of fixed gap when justify is not PACKED. YAML parser accepts `justify: space-between|space-around|space-evenly|packed`. 12 TS tests + 12 Python tests. All 130 TS + 167 Python tests pass.
 - [ ] `[H]` **Absolute positioning within autolayout.** Figma's "Ignore auto layout" flag. Lets a child opt out of the flow and position freely within the parent.
 - [ ] `[S]` **Wrap mode for horizontal flows.** When horizontal children exceed parent width, wrap to the next row.
 - [ ] `[S]` **Proportional FILL weights.** CSS `flex-grow: 2` gives twice the space. Figma doesn't expose this, but it's natural for technical diagrams. Consider adding `fill_weight` to the frame model.

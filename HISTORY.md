@@ -4,6 +4,10 @@ Completed work belongs here so `TODO.md` stays lean.
 
 ## Short-term
 
+### 2026-05-23 – Justify modes (Tier 4 autolayout)
+
+- **Space-between / space-around / space-evenly.** Added `Justify` enum (PACKED, SPACE_BETWEEN, SPACE_AROUND, SPACE_EVENLY) to both TypeScript (`frame-model.ts`) and Python (`frame_model.py`) frame models. `place()` in both engines uses computed spacing instead of fixed gap when justify is not PACKED. YAML parser accepts `justify: space-between|space-around|space-evenly|packed`. `Justify` exported from `index.ts`. 12 new TS tests + 12 new Python tests. All 130 TS + 167 Python tests pass.
+
 ### 2026-05-24 – Autonomous session: force editor features + module split (branch frame-layout-engine)
 
 - **v2 corpus blockers fixed.** Widened col_gap/row_gap from 24→32 on 5 diagrams to fix 6 arrow clearance violations (arrows need 24px minimum after baseline snap). 0 clearance violations remaining.

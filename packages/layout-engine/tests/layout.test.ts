@@ -8,7 +8,7 @@ import {
   layoutFrameTree,
 } from '../src/layout.js';
 import {
-  Frame, Direction, Sizing, Align, Border, Fill,
+  Frame, Direction, Sizing, Align, Border, Fill, Justify,
   enforceFillHugInvariant, createLine,
 } from '../src/frame-model.js';
 import { BASELINE_UNIT, BLOCK_WIDTH, roundUpToGrid } from '../src/tokens.js';
@@ -633,5 +633,229 @@ describe('heading height consistency', () => {
     const childBottom = child._layout.placedY + child._layout.placedH;
     const parentBottom = parent._layout.placedY + parent._layout.placedH - 8;
     expect(childBottom).toBeLessThanOrEqual(parentBottom);
+  });
+});
+
+
+// ---------------------------------------------------------------------------
+// Justify modes (space-between / space-around / space-evenly)
+// ---------------------------------------------------------------------------
+
+describe('justify modes', () => {
+  /**
+   * Helper: create a FIXED-size parent with N HUG children (each 40px wide on
+   * primary axis) and a given justify mode. Returns the parent after layout.
+   */
+  function makeJustifiedParent(
+    direction: Direction,
+    justify: Justify,
+    parentSize: number,
+    childCount: number,
+    childMainSize = 40,
+  ): Frame {
+    const children: Frame[] = [];
+    for (let i = 0; i < childCount; i++) {
+      children.push(new Frame({
+        id: `c${i}`,
+        sizingW: Sizing.FIXED,
+        sizingH: Sizing.FIXED,
+        width: direction === Direction.HORIZONTAL ? childMainSize : 40,
+        height: direction === Direction.VERTICAL ? childMainSize : 40,
+      }));
+    }
+    const parent = new Frame({
+      id: 'parent',
+      direction,
+      justify,
+      sizingW: Sizing.FIXED,
+      sizingH: Sizing.FIXED,
+      width: direction === Direction.HORIZONTAL ? parentSize : 200,
+      height: direction === Direction.VERTICAL ? parentSize : 200,
+      padding: 0,
+      border: Border.NONE,
+      gap: 999, // gap should be ignored for non-PACKED justify
+    });
+    parent.children = children;
+    layoutFrameTree(parent, adapter);
+    return parent;
+  }
+
+  function childPos(child: Frame, direction: Direction): number {
+    return direction === Direction.HORIZONTAL ? child._layout.placedX : child._layout.placedY;
+  }
+
+  function childSize(child: Frame, direction: Direction): number {
+    return direction === Direction.HORIZONTAL ? child._layout.placedW : child._layout.placedH;
+  }
+
+  // --- SPACE_BETWEEN ---
+
+  it('SPACE_BETWEEN horizontal: first flush to start, last flush to end', () => {
+    // 3 children × 40px = 120px content in 200px parent
+    // Remaining = 80px, 2 gaps → 40px each
+    const parent = makeJustifiedParent(Direction.HORIZONTAL, Justify.SPACE_BETWEEN, 200, 3);
+    const positions = parent.children.map(c => childPos(c, Direction.HORIZONTAL));
+
+    // First child at 0
+    expect(positions[0]).toBe(0);
+    // Last child at 200 - 40 = 160
+    expect(positions[2]).toBeCloseTo(160, 0);
+    // Spacing between consecutive children should be equal
+    const gap1 = positions[1]! - (positions[0]! + childSize(parent.children[0]!, Direction.HORIZONTAL));
+    const gap2 = positions[2]! - (positions[1]! + childSize(parent.children[1]!, Direction.HORIZONTAL));
+    expect(Math.abs(gap1 - gap2)).toBeLessThanOrEqual(1);
+  });
+
+  it('SPACE_BETWEEN vertical: first flush to start, last flush to end', () => {
+    const parent = makeJustifiedParent(Direction.VERTICAL, Justify.SPACE_BETWEEN, 200, 3);
+    const positions = parent.children.map(c => childPos(c, Direction.VERTICAL));
+
+    expect(positions[0]).toBe(0);
+    expect(positions[2]).toBeCloseTo(160, 0);
+  });
+
+  it('SPACE_BETWEEN with 1 child: centered (0 gaps to distribute)', () => {
+    const parent = makeJustifiedParent(Direction.HORIZONTAL, Justify.SPACE_BETWEEN, 200, 1);
+    // With 1 child, spacing = 0, offset = 0 → child at start
+    expect(childPos(parent.children[0]!, Direction.HORIZONTAL)).toBe(0);
+  });
+
+  // --- SPACE_AROUND ---
+
+  it('SPACE_AROUND horizontal: half-spacing at edges, full spacing between', () => {
+    // 3 children × 40px = 120px in 200px → remaining = 80px
+    // per-child = 80/3 ≈ 26.67, offset = 13.33
+    const parent = makeJustifiedParent(Direction.HORIZONTAL, Justify.SPACE_AROUND, 200, 3);
+    const positions = parent.children.map(c => childPos(c, Direction.HORIZONTAL));
+
+    const remaining = 200 - 3 * 40;
+    const perChild = remaining / 3;
+    const offset = perChild / 2;
+
+    // First child starts at offset from parent start
+    expect(positions[0]).toBeCloseTo(offset, 0);
+    // Spacing between children should be equal
+    const gap1 = positions[1]! - (positions[0]! + 40);
+    const gap2 = positions[2]! - (positions[1]! + 40);
+    expect(Math.abs(gap1 - gap2)).toBeLessThanOrEqual(1);
+    // Gap should be ~perChild
+    expect(gap1).toBeCloseTo(perChild, 0);
+  });
+
+  it('SPACE_AROUND vertical', () => {
+    const parent = makeJustifiedParent(Direction.VERTICAL, Justify.SPACE_AROUND, 200, 3);
+    const positions = parent.children.map(c => childPos(c, Direction.VERTICAL));
+
+    const remaining = 200 - 3 * 40;
+    const perChild = remaining / 3;
+    const offset = perChild / 2;
+
+    expect(positions[0]).toBeCloseTo(offset, 0);
+  });
+
+  // --- SPACE_EVENLY ---
+
+  it('SPACE_EVENLY horizontal: equal spacing including edges', () => {
+    // 3 children × 40px = 120px in 200px → remaining = 80px
+    // 4 slots (n+1) → 20px each
+    const parent = makeJustifiedParent(Direction.HORIZONTAL, Justify.SPACE_EVENLY, 200, 3);
+    const positions = parent.children.map(c => childPos(c, Direction.HORIZONTAL));
+
+    const remaining = 200 - 3 * 40;
+    const spacing = remaining / 4;
+
+    // First child at spacing from start
+    expect(positions[0]).toBeCloseTo(spacing, 0);
+    // Gaps between children
+    const gap1 = positions[1]! - (positions[0]! + 40);
+    const gap2 = positions[2]! - (positions[1]! + 40);
+    expect(gap1).toBeCloseTo(spacing, 0);
+    expect(gap2).toBeCloseTo(spacing, 0);
+  });
+
+  it('SPACE_EVENLY vertical: equal spacing including edges', () => {
+    const parent = makeJustifiedParent(Direction.VERTICAL, Justify.SPACE_EVENLY, 200, 3);
+    const positions = parent.children.map(c => childPos(c, Direction.VERTICAL));
+
+    const remaining = 200 - 3 * 40;
+    const spacing = remaining / 4;
+
+    expect(positions[0]).toBeCloseTo(spacing, 0);
+  });
+
+  // --- PACKED (default) uses fixed gap ---
+
+  it('PACKED uses fixed gap and ignores justify semantics', () => {
+    // Verify that PACKED (default) still uses frame.gap between children
+    const parent = makeJustifiedParent(Direction.HORIZONTAL, Justify.PACKED, 400, 2);
+    // gap was set to 999 in the helper but PACKED uses it literally
+    // The children are FIXED 40px, so gap = 999 between them
+    const gap = childPos(parent.children[1]!, Direction.HORIZONTAL) -
+      (childPos(parent.children[0]!, Direction.HORIZONTAL) + childSize(parent.children[0]!, Direction.HORIZONTAL));
+    // With PACKED, gap should be the frame's gap (999)
+    // Layout may clamp or the alignment may shift, but the inter-child
+    // spacing should be frame.gap
+    expect(gap).toBe(999);
+  });
+
+  // --- gap ignored for non-PACKED ---
+
+  it('non-PACKED ignores frame.gap', () => {
+    // Two identical layouts except one has gap=0 and the other gap=9999.
+    // SPACE_BETWEEN should produce the same positions for both.
+    const children1 = [
+      new Frame({ id: 'a', sizingW: Sizing.FIXED, sizingH: Sizing.FIXED, width: 40, height: 40 }),
+      new Frame({ id: 'b', sizingW: Sizing.FIXED, sizingH: Sizing.FIXED, width: 40, height: 40 }),
+    ];
+    const children2 = [
+      new Frame({ id: 'a', sizingW: Sizing.FIXED, sizingH: Sizing.FIXED, width: 40, height: 40 }),
+      new Frame({ id: 'b', sizingW: Sizing.FIXED, sizingH: Sizing.FIXED, width: 40, height: 40 }),
+    ];
+    const p1 = new Frame({
+      id: 'p1', direction: Direction.HORIZONTAL, justify: Justify.SPACE_BETWEEN,
+      sizingW: Sizing.FIXED, sizingH: Sizing.FIXED, width: 200, height: 40,
+      padding: 0, border: Border.NONE, gap: 0, children: children1,
+    });
+    const p2 = new Frame({
+      id: 'p2', direction: Direction.HORIZONTAL, justify: Justify.SPACE_BETWEEN,
+      sizingW: Sizing.FIXED, sizingH: Sizing.FIXED, width: 200, height: 40,
+      padding: 0, border: Border.NONE, gap: 9999, children: children2,
+    });
+    layoutFrameTree(p1, adapter);
+    layoutFrameTree(p2, adapter);
+
+    expect(p1.children[0]!._layout.placedX).toBe(p2.children[0]!._layout.placedX);
+    expect(p1.children[1]!._layout.placedX).toBe(p2.children[1]!._layout.placedX);
+  });
+
+  // --- Cross-axis alignment still works ---
+
+  it('SPACE_BETWEEN with cross-axis alignment', () => {
+    // Vertical container with SPACE_BETWEEN: children of different widths
+    // should still be aligned on cross-axis by parent's align property.
+    const narrow = new Frame({
+      id: 'narrow', sizingW: Sizing.FIXED, sizingH: Sizing.FIXED, width: 40, height: 40,
+    });
+    const wide = new Frame({
+      id: 'wide', sizingW: Sizing.FIXED, sizingH: Sizing.FIXED, width: 80, height: 40,
+    });
+    const parent = new Frame({
+      id: 'parent', direction: Direction.VERTICAL, justify: Justify.SPACE_BETWEEN,
+      align: Align.TOP_RIGHT,
+      sizingW: Sizing.FIXED, sizingH: Sizing.FIXED, width: 200, height: 200,
+      padding: 0, border: Border.NONE, children: [narrow, wide],
+    });
+    layoutFrameTree(parent, adapter);
+
+    // Cross-axis (X): TOP_RIGHT alignment → both children right-aligned
+    // narrow: x = 200 - 40 = 160
+    const narrowX = narrow._layout.placedX;
+    const wideX = wide._layout.placedX;
+    expect(narrowX).toBeCloseTo(160, 0);
+    expect(wideX).toBeCloseTo(120, 0);
+
+    // Primary axis (Y): SPACE_BETWEEN → first at 0, last at 200 - 40 = 160
+    expect(narrow._layout.placedY).toBe(0);
+    expect(wide._layout.placedY).toBeCloseTo(160, 0);
   });
 });

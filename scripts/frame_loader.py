@@ -15,7 +15,7 @@ import pathlib
 import yaml
 
 from diagram_model import Arrow, Border, Fill, Line
-from frame_model import Align, Direction, Frame, FrameDiagram, Sizing
+from frame_model import Align, Direction, Frame, FrameDiagram, Justify, Sizing
 
 # ── Enum maps (lowercase YAML strings → Python enums) ──────────────
 
@@ -27,6 +27,10 @@ _ALIGN = {
     "top-left": Align.TOP_LEFT, "top-center": Align.TOP_CENTER, "top-right": Align.TOP_RIGHT,
     "center-left": Align.CENTER_LEFT, "center": Align.CENTER, "center-right": Align.CENTER_RIGHT,
     "bottom-left": Align.BOTTOM_LEFT, "bottom-center": Align.BOTTOM_CENTER, "bottom-right": Align.BOTTOM_RIGHT,
+}
+_JUSTIFY = {
+    "packed": Justify.PACKED, "space-between": Justify.SPACE_BETWEEN,
+    "space-around": Justify.SPACE_AROUND, "space-evenly": Justify.SPACE_EVENLY,
 }
 
 
@@ -128,6 +132,7 @@ def _parse_frame(data: dict, *, is_root: bool = False) -> Frame:
         sizing_w=sizing_w,
         sizing_h=sizing_h,
         align=_ALIGN.get(data.get("align", "top-left"), Align.TOP_LEFT),
+        justify=_JUSTIFY.get(data.get("justify", "packed"), Justify.PACKED),
         width=int(data["width"]) if "width" in data else None,
         height=int(data["height"]) if "height" in data else None,
         min_width=int(data["min_width"]) if "min_width" in data else None,

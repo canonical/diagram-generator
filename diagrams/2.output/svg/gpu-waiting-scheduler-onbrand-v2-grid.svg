@@ -107,10 +107,10 @@
     <line x1="24" y1="280" x2="576" y2="280" stroke="#0066CC" stroke-width="0.75" />
     <line x1="24" y1="344" x2="576" y2="344" stroke="#0066CC" stroke-width="0.75" />
     <text x="580" y="315.0" font-size="9" fill="#0066CC" font-family="Ubuntu Sans, sans-serif">64px</text>
-    <rect x="24" y="368" width="552" height="48" fill="#3399FF" opacity="0.08" />
+    <rect x="24" y="368" width="552" height="40" fill="#3399FF" opacity="0.08" />
     <line x1="24" y1="368" x2="576" y2="368" stroke="#0066CC" stroke-width="0.75" />
-    <line x1="24" y1="416" x2="576" y2="416" stroke="#0066CC" stroke-width="0.75" />
-    <text x="580" y="395.0" font-size="9" fill="#0066CC" font-family="Ubuntu Sans, sans-serif">48px</text>
+    <line x1="24" y1="408" x2="576" y2="408" stroke="#0066CC" stroke-width="0.75" />
+    <text x="580" y="391.0" font-size="9" fill="#0066CC" font-family="Ubuntu Sans, sans-serif">40px</text>
     <rect x="24" y="112" width="552" height="24" fill="#9933FF" opacity="0.06" />
     <text x="580" y="127.0" font-size="7" fill="#9933FF" font-family="Ubuntu Sans, sans-serif">24</text>
     <rect x="24" y="184" width="552" height="24" fill="#9933FF" opacity="0.06" />

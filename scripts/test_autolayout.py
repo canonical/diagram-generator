@@ -17,7 +17,7 @@ import math
 
 sys.path.insert(0, os.path.dirname(__file__))
 
-from frame_model import Frame, FrameDiagram, Direction, Sizing, Align
+from frame_model import Frame, FrameDiagram, Direction, Sizing, Align, Justify
 from diagram_model import Line, Fill, Border
 from layout_v3 import measure, place, _align_offset, _enforce_fill_hug_invariant, layout_frame_diagram, _remeasure_with_width_constraints
 from diagram_shared import BASELINE_UNIT
@@ -2205,6 +2205,151 @@ class TestSharedGridFormulas:
     def test_span_size_zero_gap(self):
         from diagram_shared import span_size
         assert span_size(100, 3, 0) == 300
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Justify modes (space-between / space-around / space-evenly)
+# ═══════════════════════════════════════════════════════════════════
+
+class TestJustifyModes:
+    """Tests for primary-axis distribution modes."""
+
+    def _justified_parent(
+        self, direction: Direction, justify, parent_size: int,
+        child_count: int, child_main: int = 40,
+    ) -> Frame:
+        """Fixed-size parent with N fixed-size children and a justify mode."""
+        children = []
+        for i in range(child_count):
+            children.append(Frame(
+                id=f"c{i}",
+                sizing_w=Sizing.FIXED, sizing_h=Sizing.FIXED,
+                width=child_main if direction == Direction.HORIZONTAL else 40,
+                height=child_main if direction == Direction.VERTICAL else 40,
+            ))
+        parent = Frame(
+            id="parent", direction=direction, justify=justify,
+            sizing_w=Sizing.FIXED, sizing_h=Sizing.FIXED,
+            width=parent_size if direction == Direction.HORIZONTAL else 200,
+            height=parent_size if direction == Direction.VERTICAL else 200,
+            padding=0, border=Border.NONE,
+            gap=999,  # should be ignored for non-PACKED
+            children=children,
+        )
+        _layout_fixed(parent,
+                       parent_size if direction == Direction.HORIZONTAL else 200,
+                       parent_size if direction == Direction.VERTICAL else 200)
+        return parent
+
+    def _pos(self, child: Frame, direction: Direction) -> float:
+        return child._placed_x if direction == Direction.HORIZONTAL else child._placed_y
+
+    def _sz(self, child: Frame, direction: Direction) -> float:
+        return child._placed_w if direction == Direction.HORIZONTAL else child._placed_h
+
+    # --- SPACE_BETWEEN ---
+
+    def test_space_between_horizontal(self):
+        parent = self._justified_parent(Direction.HORIZONTAL, Justify.SPACE_BETWEEN, 200, 3)
+        positions = [self._pos(c, Direction.HORIZONTAL) for c in parent.children]
+        assert positions[0] == 0
+        assert abs(positions[2] - 160) <= 1
+
+    def test_space_between_vertical(self):
+        parent = self._justified_parent(Direction.VERTICAL, Justify.SPACE_BETWEEN, 200, 3)
+        positions = [self._pos(c, Direction.VERTICAL) for c in parent.children]
+        assert positions[0] == 0
+        assert abs(positions[2] - 160) <= 1
+
+    def test_space_between_single_child(self):
+        parent = self._justified_parent(Direction.HORIZONTAL, Justify.SPACE_BETWEEN, 200, 1)
+        assert self._pos(parent.children[0], Direction.HORIZONTAL) == 0
+
+    def test_space_between_equal_gaps(self):
+        parent = self._justified_parent(Direction.HORIZONTAL, Justify.SPACE_BETWEEN, 200, 3)
+        c = parent.children
+        gap1 = self._pos(c[1], Direction.HORIZONTAL) - (self._pos(c[0], Direction.HORIZONTAL) + self._sz(c[0], Direction.HORIZONTAL))
+        gap2 = self._pos(c[2], Direction.HORIZONTAL) - (self._pos(c[1], Direction.HORIZONTAL) + self._sz(c[1], Direction.HORIZONTAL))
+        assert abs(gap1 - gap2) <= 1
+
+    # --- SPACE_AROUND ---
+
+    def test_space_around_horizontal(self):
+        parent = self._justified_parent(Direction.HORIZONTAL, Justify.SPACE_AROUND, 200, 3)
+        remaining = 200 - 3 * 40
+        per_child = remaining / 3
+        offset = per_child / 2
+        pos0 = self._pos(parent.children[0], Direction.HORIZONTAL)
+        assert abs(pos0 - offset) <= 1
+
+    def test_space_around_vertical(self):
+        parent = self._justified_parent(Direction.VERTICAL, Justify.SPACE_AROUND, 200, 3)
+        remaining = 200 - 3 * 40
+        per_child = remaining / 3
+        offset = per_child / 2
+        pos0 = self._pos(parent.children[0], Direction.VERTICAL)
+        assert abs(pos0 - offset) <= 1
+
+    def test_space_around_equal_spacing(self):
+        parent = self._justified_parent(Direction.HORIZONTAL, Justify.SPACE_AROUND, 200, 3)
+        c = parent.children
+        remaining = 200 - 3 * 40
+        per_child = remaining / 3
+        gap1 = self._pos(c[1], Direction.HORIZONTAL) - (self._pos(c[0], Direction.HORIZONTAL) + 40)
+        assert abs(gap1 - per_child) <= 1
+
+    # --- SPACE_EVENLY ---
+
+    def test_space_evenly_horizontal(self):
+        parent = self._justified_parent(Direction.HORIZONTAL, Justify.SPACE_EVENLY, 200, 3)
+        remaining = 200 - 3 * 40
+        spacing = remaining / 4
+        pos0 = self._pos(parent.children[0], Direction.HORIZONTAL)
+        assert abs(pos0 - spacing) <= 1
+
+    def test_space_evenly_vertical(self):
+        parent = self._justified_parent(Direction.VERTICAL, Justify.SPACE_EVENLY, 200, 3)
+        remaining = 200 - 3 * 40
+        spacing = remaining / 4
+        pos0 = self._pos(parent.children[0], Direction.VERTICAL)
+        assert abs(pos0 - spacing) <= 1
+
+    def test_space_evenly_equal_gaps(self):
+        parent = self._justified_parent(Direction.HORIZONTAL, Justify.SPACE_EVENLY, 200, 3)
+        c = parent.children
+        remaining = 200 - 3 * 40
+        spacing = remaining / 4
+        gap1 = self._pos(c[1], Direction.HORIZONTAL) - (self._pos(c[0], Direction.HORIZONTAL) + 40)
+        gap2 = self._pos(c[2], Direction.HORIZONTAL) - (self._pos(c[1], Direction.HORIZONTAL) + 40)
+        assert abs(gap1 - spacing) <= 1
+        assert abs(gap2 - spacing) <= 1
+
+    # --- PACKED default still works ---
+
+    def test_packed_uses_fixed_gap(self):
+        parent = self._justified_parent(Direction.HORIZONTAL, Justify.PACKED, 400, 2)
+        c = parent.children
+        gap = self._pos(c[1], Direction.HORIZONTAL) - (self._pos(c[0], Direction.HORIZONTAL) + self._sz(c[0], Direction.HORIZONTAL))
+        assert gap == 999
+
+    # --- gap ignored for non-PACKED ---
+
+    def test_non_packed_ignores_gap(self):
+        """Two identical layouts with gap=0 and gap=9999 produce same positions."""
+        c1 = [Frame(id="a", sizing_w=Sizing.FIXED, sizing_h=Sizing.FIXED, width=40, height=40),
+              Frame(id="b", sizing_w=Sizing.FIXED, sizing_h=Sizing.FIXED, width=40, height=40)]
+        c2 = [Frame(id="a", sizing_w=Sizing.FIXED, sizing_h=Sizing.FIXED, width=40, height=40),
+              Frame(id="b", sizing_w=Sizing.FIXED, sizing_h=Sizing.FIXED, width=40, height=40)]
+        p1 = Frame(id="p1", direction=Direction.HORIZONTAL, justify=Justify.SPACE_BETWEEN,
+                    sizing_w=Sizing.FIXED, sizing_h=Sizing.FIXED, width=200, height=40,
+                    padding=0, border=Border.NONE, gap=0, children=c1)
+        p2 = Frame(id="p2", direction=Direction.HORIZONTAL, justify=Justify.SPACE_BETWEEN,
+                    sizing_w=Sizing.FIXED, sizing_h=Sizing.FIXED, width=200, height=40,
+                    padding=0, border=Border.NONE, gap=9999, children=c2)
+        _layout_fixed(p1, 200, 40)
+        _layout_fixed(p2, 200, 40)
+        assert p1.children[0]._placed_x == p2.children[0]._placed_x
+        assert p1.children[1]._placed_x == p2.children[1]._placed_x
 
 
 # ═══════════════════════════════════════════════════════════════════

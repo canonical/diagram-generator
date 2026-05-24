@@ -1850,7 +1850,7 @@ function applyAllOverrides() {
    * to accommodate the wrapped text.
    */
   function reflowTextInGroup(g, dw) {
-    const rect = g.querySelector("rect:first-of-type");
+    const rect = g.querySelector(":scope > rect:first-of-type");
     if (!rect) return 0;
     const textEl = g.querySelector("text");
     if (!textEl) return 0;
@@ -1989,7 +1989,7 @@ function applyAllOverrides() {
         g.style.transform = "translate(" + eff.dx + "px, " + eff.dy + "px)";
       }
       if (eff.dw !== 0 || eff.dh !== 0) {
-        const rect = g.querySelector("rect:first-of-type");
+        const rect = g.querySelector(":scope > rect:first-of-type");
         if (rect) {
           const origW = parseFloat(rect.getAttribute("data-orig-width") || rect.getAttribute("width"));
           const origH = parseFloat(rect.getAttribute("data-orig-height") || rect.getAttribute("height"));
@@ -2055,7 +2055,7 @@ function applyAllOverrides() {
       // Apply style overrides (BoxStyle swap)
       if (ovr && ovr.style && BOX_STYLES[ovr.style]) {
         const preset = BOX_STYLES[ovr.style];
-        const rect = g.querySelector("rect:first-of-type");
+        const rect = g.querySelector(":scope > rect:first-of-type");
         if (rect) rect.setAttribute("fill", preset.fill);
         g.querySelectorAll("text tspan").forEach(ts => ts.setAttribute("fill", preset.text));
         g.querySelectorAll(".dg-icon").forEach(icon => {
@@ -2372,7 +2372,7 @@ function bindInteraction() {
   // Add invisible wider hit-area lines for arrow and separator components
   const ns = "http://www.w3.org/2000/svg";
   svg.querySelectorAll("[data-component-id]").forEach(g => {
-    const hasRect = g.querySelector("rect");
+    const hasRect = g.querySelector(":scope > rect");
     const lines = g.querySelectorAll("line");
     const icons = g.querySelectorAll(".dg-icon");
     if (lines.length > 0 && !hasRect) {
@@ -3015,6 +3015,14 @@ function showResizeHandles(cid) {
     // Horizontal line: left and right edge handles only
     const hs = SHARED_HANDLE_SIZE;
     const ns = "http://www.w3.org/2000/svg";
+    const outline = document.createElementNS(ns, "line");
+    outline.setAttribute("x1", String(minX));
+    outline.setAttribute("y1", String((minY + maxY) / 2));
+    outline.setAttribute("x2", String(maxX));
+    outline.setAttribute("y2", String((minY + maxY) / 2));
+    outline.setAttribute("class", "dg-handle-outline");
+    outline.setAttribute("pointer-events", "none");
+    svg.appendChild(outline);
     function mkEdgeHandle(cx, cy, cls, axis) {
       const r = document.createElementNS(ns, "rect");
       r.setAttribute("x", cx - hs / 2);
@@ -3568,7 +3576,7 @@ function startTextEdit(cid, e) {
   let containerRect = textBBox;
   let hasIcon = false;
   groups.forEach(g => {
-    const rect = g.querySelector("rect");
+    const rect = g.querySelector(":scope > rect");
     if (rect) containerRect = rect.getBoundingClientRect();
     if (g.querySelector(".dg-icon")) hasIcon = true;
   });

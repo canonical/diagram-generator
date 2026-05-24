@@ -193,6 +193,26 @@ Port the v3 Frame layout engine (~800 lines) from Python to TypeScript for clien
 - **Expected impact:** 60fps interactive editing, race conditions eliminated, coercion lifecycle simplified, undo becomes local state manipulation
 - **What stays:** Figma-like sizing model, frame tree data model, YAML authoring, SVG rendering, 8px grid baseline, override persistence, ELK plan (complementary)
 
+### Design-foundry port checkpoint (periodic review)
+
+The layout engine in `packages/layout-engine/` is the single autolayout codebase in the workspace. It will eventually relocate to `design-foundry/packages/operator-autolayout/` as `@design-foundry/operator-autolayout`. Review this checkpoint when either trigger fires.
+
+**Trigger (a) – engine stability:** TS port complete (M1–M6 done). Tier 4 features shipping (justify modes landed). Engine is stable. ✅ MET.
+
+**Trigger (b) – design-foundry readiness:** the operator-kernel contract (`OperatorDefinition` + `evaluateGraph`) already exists and works. What's missing is a **consumer** inside design-foundry that needs autolayout frames — the overlay-preview app doesn't use them yet. ❌ NOT MET.
+
+**Actual port work (small when both triggers fire):**
+
+| Step | Effort | Notes |
+|---|---|---|
+| Workspace `file:` dep or copy (5 files, zero deps) | Tiny | Or pnpm `workspace:*` if K8 is done |
+| Thin adapter: `Frame._layout` → DF coordinates | ~50 lines | |
+| `FrameNode` in `@design-foundry/document-schema` | Small | Extend `NodeKind` union |
+| `operator-autolayout` wrapper | Small | Wrap `layoutFrameTree()` as `OperatorDefinition` |
+| `TextMeasureAdapter` bridge | ~10 lines | Wire DF's text measurer to layout engine interface |
+
+**Decision:** do NOT port until a concrete design-foundry surface needs autolayout frames. No double work — design-foundry will not build a parallel implementation.
+
 ### Stage 16 — Layout algorithm survey and integration (Layer 4)
 
 Survey which layout algorithms competitive tools use, evaluate fitness for brand-constrained output, and port/integrate those that pass:

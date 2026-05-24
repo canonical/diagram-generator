@@ -1,6 +1,28 @@
 # Workspace Instructions
 
+## DESIGN-FOUNDRY PIVOT — read this first
+
+The workspace is mid-pivot (2026-05-23). A peer repo at `../design-foundry/` (formerly `brand-layout-ops`) is being built as the Houdini-in-spirit kernel monorepo for procedural graphic design. One decision affects this repo permanently:
+
+- **The TypeScript autolayout in `packages/layout-engine/`** (HUG/FILL/FIXED, 9-point align, two-pass measure/place, parity-tested vs Python) will eventually port into `design-foundry` as `@design-foundry/operator-autolayout` with parity tests preserved. It is the single source of autolayout code in the workspace and stays here until the port.
+
+**This repo stays a sibling.** No merger with `canonical-spacing-spec` or any other repo is planned. `canonical-spacing-spec` is and remains a sibling spec repo that feeds multiple consumers; this repo is and remains an independent tool/repo.
+
+**Rules for ongoing work in this repo:**
+
+- Continue refactoring, bug-fixing, and shipping features here. This repo is in active production use; do NOT block on the pivot.
+- Do NOT migrate code to `design-foundry` yet. The target kernel (graph runtime, operator interface, render IR) does not exist there yet. Migrating now means designing against a phantom.
+- **No-double-work guarantee:** design-foundry will not build a parallel autolayout. When the port happens, the code in `packages/layout-engine/` physically relocates into `design-foundry/packages/operator-autolayout/` and is wrapped in a thin adapter. Until then, autolayout work happens in exactly one place: here.
+- Do NOT introduce new persisted format identifiers that embed the package name or repo name. If a new file extension or `kind` discriminator is needed, use a short stable acronym (e.g. `dg`) decoupled from package naming so future renames are cheap. Example: `*.dg.json` and `"kind": "dg.diagram"`, never `*.diagram-generator.json`.
+- Keep public function signatures of `packages/layout-engine/` stable when you can. They are the de-facto interface for the eventual operator port. Breaking changes are allowed, just record them in `HISTORY.md` so the eventual porting agent knows what shifted.
+- Cross-repo structural decisions (anything affecting how this repo relates to design-foundry, canonical-spacing-spec, or a4-generator) belong in `AGENT-INBOX.md` for the user to review, not in this file. The current cross-repo plan of record is `../design-foundry/PIVOT.md`.
+
+Everything below this section is the existing workflow contract for this repo; it is unchanged by the pivot.
+
+---
+
 ## Documentation structure
+
 
 | File | Role | Who writes |
 |------|------|-----------|

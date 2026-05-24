@@ -9,7 +9,7 @@
  * coordinates to the Python engine for the same input.
  */
 
-import { Frame, Direction, Sizing, Align, Border, type Line, enforceFillHugInvariant } from './frame-model.js';
+import { Frame, Direction, Sizing, Align, Border, Justify, type Line, enforceFillHugInvariant } from './frame-model.js';
 import {
   BASELINE_UNIT, BLOCK_WIDTH, BOX_MIN_HEIGHT, INSET, ICON_SIZE,
   BODY_LINE_STEP, BODY_SIZE,
@@ -530,7 +530,12 @@ export function place(
   const hh = headingHeight(frame.heading, adapter, textMaxW);
   const hGap = hh > 0 ? frame.gap : 0;
   const n = frame.children.length;
-  const totalGap = frame.gap * Math.max(0, n - 1);
+
+  // For justify modes other than PACKED, gap is replaced by computed
+  // spacing — all inner space is available for children + distribution.
+  const useJustify = frame.justify !== Justify.PACKED && n > 0;
+  const effectiveGap = useJustify ? 0 : frame.gap;
+  const totalGap = effectiveGap * Math.max(0, n - 1);
 
   let availableForChildren: number;
   let crossSize: number;
@@ -576,13 +581,42 @@ export function place(
   const totalFillPlaced = fillSizes.reduce((s, v) => s + v, 0);
   const contentMain = hugTotal + totalFillPlaced + totalGap;
 
-  // Main-axis alignment offset
+  // Compute main-axis positioning: offset before first child and gap between children.
+  // For PACKED mode, use alignment + fixed gap.
+  // For justify modes, use computed spacing derived from remaining space.
   const innerW = frame._layout.placedW - padL - padR;
   const innerH = frame._layout.placedH - padT - frame.paddingBottom - hh - hGap;
+  const innerMain = frame.direction === Direction.HORIZONTAL ? innerW : innerH;
 
-  const mainOffset = frame.direction === Direction.HORIZONTAL
-    ? alignOffset(frame.align, innerW, contentMain, 'x')
-    : alignOffset(frame.align, innerH, contentMain, 'y');
+  let mainOffset: number;
+  let childGap: number;
+
+  if (!useJustify) {
+    // PACKED: alignment positions the content group, fixed gap between children
+    mainOffset = frame.direction === Direction.HORIZONTAL
+      ? alignOffset(frame.align, innerW, contentMain, 'x')
+      : alignOffset(frame.align, innerH, contentMain, 'y');
+    childGap = frame.gap;
+  } else {
+    const remaining = Math.max(0, innerMain - contentMain);
+    switch (frame.justify) {
+      case Justify.SPACE_BETWEEN:
+        mainOffset = 0;
+        childGap = n > 1 ? remaining / (n - 1) : 0;
+        break;
+      case Justify.SPACE_AROUND:
+        childGap = n > 0 ? remaining / n : 0;
+        mainOffset = childGap / 2;
+        break;
+      case Justify.SPACE_EVENLY:
+        childGap = remaining / (n + 1);
+        mainOffset = childGap;
+        break;
+      default:
+        mainOffset = 0;
+        childGap = frame.gap;
+    }
+  }
 
   // Place children sequentially
   let fillIdx = 0;
@@ -609,7 +643,7 @@ export function place(
       }
 
       place(child, cursorX, childY, childW, childH, adapter);
-      cursorX += child._layout.placedW + frame.gap;
+      cursorX += child._layout.placedW + childGap;
     }
   } else {
     let cursorY = y + padT + hh + hGap + mainOffset;
@@ -633,7 +667,7 @@ export function place(
       }
 
       place(child, childX, cursorY, childW, childH, adapter);
-      cursorY += child._layout.placedH + frame.gap;
+      cursorY += child._layout.placedH + childGap;
     }
   }
 }

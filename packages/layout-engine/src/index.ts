@@ -6,6 +6,7 @@ export {
   Direction,
   Sizing,
   Align,
+  Justify,
   type Arrow,
   createArrow,
   type LayoutState,

@@ -707,6 +707,13 @@ body.dg-preview {
 .stage svg .dg-icon > * { pointer-events: none; }
 
 .dg-handle { fill: var(--dg-selection-accent); stroke: #fff; stroke-width: 1; cursor: pointer; pointer-events: all; }
+.dg-handle-outline {
+       fill: none;
+       stroke: var(--dg-selection-accent);
+       stroke-width: 1.5;
+       vector-effect: non-scaling-stroke;
+       pointer-events: none;
+}
 .dg-handle.dg-handle-tl { cursor: nw-resize; }
 .dg-handle.dg-handle-t { cursor: ns-resize; }
 .dg-handle.dg-handle-tr { cursor: ne-resize; }

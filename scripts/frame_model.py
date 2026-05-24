@@ -50,6 +50,19 @@ class Align(Enum):
     BOTTOM_RIGHT = auto()
 
 
+class Justify(Enum):
+    """Primary-axis distribution mode (Figma justify / CSS justify-content).
+
+    PACKED (default): children placed with fixed ``gap``, group positioned
+    by ``align``.  SPACE_BETWEEN / SPACE_AROUND / SPACE_EVENLY replace
+    ``gap`` with computed spacing derived from remaining space.
+    """
+    PACKED = auto()
+    SPACE_BETWEEN = auto()
+    SPACE_AROUND = auto()
+    SPACE_EVENLY = auto()
+
+
 # ---------------------------------------------------------------------------
 # Frame node
 # ---------------------------------------------------------------------------
@@ -86,6 +99,7 @@ class Frame:
     gap: int = 24               # px between rendered child edges
     padding: int = 8            # uniform padding (all sides); per-side overrides below
     align: Align = Align.TOP_LEFT  # content alignment (Figma 9-point)
+    justify: Justify = Justify.PACKED  # primary-axis distribution mode
 
     # ── Per-axis sizing ──
     sizing_w: Sizing = Sizing.HUG   # how this node sizes on X

@@ -70,6 +70,28 @@ export enum Sizing {
 }
 
 /**
+ * Primary-axis distribution mode (Figma justify / CSS justify-content).
+ *
+ * PACKED (default): children are placed sequentially with `gap` between
+ * them, then the group is positioned by `align`.
+ *
+ * SPACE_BETWEEN: first child flush to start, last flush to end,
+ * remaining space divided equally between children. `gap` is ignored.
+ *
+ * SPACE_AROUND: equal space around each child (half-space at edges).
+ * `gap` is ignored.
+ *
+ * SPACE_EVENLY: equal space between children AND at start/end.
+ * `gap` is ignored.
+ */
+export enum Justify {
+  PACKED = 'PACKED',
+  SPACE_BETWEEN = 'SPACE_BETWEEN',
+  SPACE_AROUND = 'SPACE_AROUND',
+  SPACE_EVENLY = 'SPACE_EVENLY',
+}
+
+/**
  * Content alignment within a frame (Figma 9-point model).
  * Combines main-axis and cross-axis positions.
  */
@@ -141,6 +163,7 @@ export interface FrameInit {
   gap?: number;
   padding?: number;
   align?: Align;
+  justify?: Justify;
 
   // Per-axis sizing
   sizingW?: Sizing;
@@ -196,6 +219,7 @@ export class Frame {
   gap: number;
   padding: number;
   align: Align;
+  justify: Justify;
 
   // Per-axis sizing
   sizingW: Sizing;
@@ -237,6 +261,7 @@ export class Frame {
     this.gap = init?.gap ?? 24;
     this.padding = init?.padding ?? 8;
     this.align = init?.align ?? Align.TOP_LEFT;
+    this.justify = init?.justify ?? Justify.PACKED;
 
     this.sizingW = init?.sizingW ?? Sizing.HUG;
     this.sizingH = init?.sizingH ?? Sizing.HUG;

@@ -447,6 +447,16 @@ function renderResizeHandles(svg, left, top, right, bottom, nodeId, opts) {
   const midY = (top + bottom) / 2;
   const ns = "http://www.w3.org/2000/svg";
 
+  const outline = document.createElementNS(ns, "rect");
+  outline.setAttribute("x", String(left));
+  outline.setAttribute("y", String(top));
+  outline.setAttribute("width", String(Math.max(0, right - left)));
+  outline.setAttribute("height", String(Math.max(0, bottom - top)));
+  outline.setAttribute("class", `${handleClass}-outline`);
+  outline.setAttribute("fill", "none");
+  outline.setAttribute("pointer-events", "none");
+  svg.appendChild(outline);
+
   const cursors = {
     tl: "nwse-resize", t: "ns-resize", tr: "nesw-resize",
     r: "ew-resize", br: "nwse-resize", b: "ns-resize",
@@ -489,7 +499,7 @@ function renderResizeHandles(svg, left, top, right, bottom, nodeId, opts) {
 function clearHandlesByClass(className) {
   const svg = getStageSvg();
   if (!svg) return;
-  for (const el of svg.querySelectorAll(`.${className}`)) {
+  for (const el of svg.querySelectorAll(`.${className}, .${className}-outline`)) {
     el.remove();
   }
 }
