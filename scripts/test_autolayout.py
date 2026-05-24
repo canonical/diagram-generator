@@ -402,8 +402,8 @@ class TestMainAxisAlignment:
         root.sizing_h = Sizing.FIXED
         _layout_fixed(root, root.width or 200, 200)
 
-        # Child pushed down: y = pad + (inner_h - content_h)
-        inner_h = 200 - 16  # 184
+        # Child pushed down: bordered containers lose 2px of usable inner span.
+        inner_h = 200 - 16 - 2
         content_h = child._placed_h
         expected_y = 8 + (inner_h - content_h)
         assert child._placed_y == expected_y, \
@@ -554,7 +554,7 @@ class TestCrossAxisAlignment:
     def test_vertical_top_right_cross_right(self):
         """TOP_RIGHT in vertical: cross-axis (X) pushes children right.
 
-        Child measured_w=96, cross_size=192 → child keeps 96, offset=96.
+        Child measured_w=96, bordered cross_size=190 → child keeps 96.
         """
         child = _box("a", w=96, h=64)
         root = _container("root", Direction.VERTICAL, [child],
@@ -568,7 +568,7 @@ class TestCrossAxisAlignment:
         assert child._placed_w == 96, \
             f"Child should keep measured width 96, got {child._placed_w}"
         # Child should be right-aligned
-        cross_size = root._placed_w - 16
+        cross_size = root._placed_w - 16 - 2
         expected_x = 8 + (cross_size - 96)
         assert abs(child._placed_x - expected_x) <= 1, \
             f"x={child._placed_x}, expected ~{expected_x}"
@@ -584,10 +584,10 @@ class TestCrossAxisAlignment:
         root.sizing_h = Sizing.FIXED
         _layout_fixed(root, root.width or 200, 200)
 
-        cross_size = 200 - 16  # 184
+        cross_size = root._placed_h - 16 - 2
         # Child should stretch to fill cross-axis
-        assert child._placed_h == round_up(cross_size), \
-            f"Child should stretch to {round_up(cross_size)}, got {child._placed_h}"
+        assert child._placed_h == cross_size, \
+            f"Child should stretch to {cross_size}, got {child._placed_h}"
         assert child._placed_y == 8, \
             f"Child should start at pad=8, got {child._placed_y}"
 
@@ -691,10 +691,10 @@ class TestCrossAxisAlignment:
         root.sizing_h = Sizing.FIXED
         _layout_fixed(root, 300, root.height or 200)
 
-        cross_size = 300 - 16  # 284
+        cross_size = root._placed_w - 16 - 2
         # Child should stretch to fill cross-axis
-        assert child._placed_w == round_up(cross_size), \
-            f"Child should stretch to {round_up(cross_size)}, got {child._placed_w}"
+        assert child._placed_w == cross_size, \
+            f"Child should stretch to {cross_size}, got {child._placed_w}"
         assert child._placed_x == 8, \
             f"Child should start at pad=8, got {child._placed_x}"
 
@@ -892,9 +892,10 @@ class TestFillSizing:
         # Don't force a smaller container — let HUG size it
         _layout(root)
 
-        # HUG container sizes to fit, so FILL child gets exactly its measured size
-        assert big._placed_h == big._measured_h, \
-            f"FILL h={big._placed_h}, measured={big._measured_h}"
+        # The bordered parent keeps the same outer size but loses 2px of usable
+        # inner height to the stroke, so a lone FILL child is 2px shorter.
+        assert big._placed_h == big._measured_h - 2, \
+            f"FILL h={big._placed_h}, expected {big._measured_h - 2}"
 
     def test_fill_rounds_down_to_grid(self):
         """FILL sizes are grid-aligned and never overflow the parent."""
@@ -1318,6 +1319,45 @@ class TestV3GridInfo:
         assert result.grid_info.row_gap == 24
         assert result.grid_info.outer_margin == 40
 
+    def test_root_width_expands_to_keep_fill_columns_grid_aligned(self):
+        children = [_box(f"step_{index}") for index in range(5)]
+        for child in children:
+            child.sizing_w = Sizing.FILL
+            child.sizing_h = Sizing.FILL
+
+        root = _container(
+            "page",
+            Direction.HORIZONTAL,
+            children,
+            gap=24,
+            padding=24,
+            border=Border.NONE,
+        )
+        root.width = 1440
+        root.height = 280
+        root.sizing_w = Sizing.FIXED
+        root.sizing_h = Sizing.FIXED
+
+        diagram = FrameDiagram(
+            root=root,
+            grid_cols=5,
+            grid_col_gap=24,
+            grid_row_gap=48,
+            grid_outer_margin=24,
+        )
+
+        result = layout_frame_diagram(diagram)
+
+        assert result.grid_info is not None
+        expected_col_width = 264
+        assert root.width == 1440
+        assert result.width == 1464
+        for index, child in enumerate(root.children):
+            assert math.isclose(child._placed_w, expected_col_width, abs_tol=1e-6)
+            assert result.grid_info.col_widths[index] == expected_col_width
+            assert math.isclose(result.grid_info.col_xs[index], 24 + index * (expected_col_width + 24), abs_tol=1e-6)
+        assert result.grid_info.resolved_right_margin == 24
+
 
 # ═══════════════════════════════════════════════════════════════════
 # PART 8: NESTED AUTOLAYOUT STRESS TESTING
@@ -1738,6 +1778,42 @@ class TestTextOverflowResilience:
              f"between measure and place.")
 
 
+def test_bordered_container_reduces_fill_child_inner_space():
+    """SOLID borders consume 1px per side from the inner content box.
+
+    A bordered container should keep the same padding origin but give FILL
+    children 2px less cross-axis space than an otherwise identical
+    borderless container.
+    """
+    none_child = _box("none-child", w=64, h=64)
+    none_child.sizing_w = Sizing.FILL
+    none_parent = _container(
+        "none-parent", Direction.VERTICAL, [none_child],
+        gap=0, padding=8, border=Border.NONE,
+    )
+    none_parent.sizing_w = Sizing.FIXED
+    none_parent.sizing_h = Sizing.FIXED
+    none_parent.width = 200
+    none_parent.height = 120
+    _layout_fixed(none_parent, 200, 120)
+
+    solid_child = _box("solid-child", w=64, h=64)
+    solid_child.sizing_w = Sizing.FILL
+    solid_parent = _container(
+        "solid-parent", Direction.VERTICAL, [solid_child],
+        gap=0, padding=8, border=Border.SOLID,
+    )
+    solid_parent.sizing_w = Sizing.FIXED
+    solid_parent.sizing_h = Sizing.FIXED
+    solid_parent.width = 200
+    solid_parent.height = 120
+    _layout_fixed(solid_parent, 200, 120)
+
+    assert none_child._placed_x == 8
+    assert none_child._placed_w == 184
+    assert solid_child._placed_x == 8
+    assert solid_child._placed_w == 182
+
 class TestContainerTooSmall:
     """Behavior when FIXED container is smaller than children need."""
 
@@ -1864,9 +1940,11 @@ class TestParentCoercion:
                           gap=8, padding=8)
         _layout(root)
 
-        # short should stretch to match tall's height on the cross axis
-        assert short._placed_h == tall._placed_h, \
-            f"Cross-axis FILL should stretch: short={short._placed_h}, tall={tall._placed_h}"
+        # The bordered parent loses 2px of usable cross-axis height.
+        expected_h = root._placed_h - 16 - 2
+        assert short._placed_h == expected_h, \
+            f"Cross-axis FILL should stretch to {expected_h}, got {short._placed_h}"
+        assert tall._placed_h == tall._measured_h
 
     def test_cross_axis_fill_hug_parent_no_coercion(self):
         """Cross-axis FILL: parent stays HUG on cross axis, child stretches."""
@@ -2014,11 +2092,13 @@ class TestParentCoercion:
         # mid and outer should stay HUG
         assert mid.sizing_h == Sizing.HUG
         assert outer.sizing_h == Sizing.HUG
-        # FILL grandchildren keep content minimum (no extra in frozen parent)
+        # The frozen bordered parent loses 2px of usable inner height, so the
+        # equalized FILL grandchildren may each land 1px below the larger
+        # measured child while still respecting the parent's content box.
         assert ga._placed_h >= ga._measured_h, \
             f"ga should keep measured: {ga._placed_h} < {ga._measured_h}"
-        assert gb._placed_h >= gb._measured_h, \
-            f"gb should keep measured: {gb._placed_h} < {gb._measured_h}"
+        assert gb._placed_h >= gb._measured_h - 1, \
+            f"gb should stay within 1px of measured: {gb._placed_h} < {gb._measured_h - 1}"
         # No overflow
         for parent in [outer, mid, inner]:
             errors = _children_within_parent(parent)

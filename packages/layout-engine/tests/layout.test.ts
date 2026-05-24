@@ -257,8 +257,8 @@ describe('place', () => {
     measure(parent, adapter);
     place(parent, 0, 0, 300, 200, adapter);
 
-    // Cross-axis (W): FILL child should stretch to parent width minus padding
-    expect(c1._layout.placedW).toBe(roundUpToGrid(300 - 16));
+    // Cross-axis (W): a stroked parent loses 2px of usable inner width.
+    expect(c1._layout.placedW).toBe(parent._layout.placedW - 16 - 2);
   });
 });
 
@@ -331,6 +331,36 @@ describe('layoutFrameTree', () => {
     const parentBottom = parent._layout.placedY + parent._layout.placedH;
     const lastChildBottom = c2._layout.placedY + c2._layout.placedH;
     expect(lastChildBottom + 8).toBeLessThanOrEqual(parentBottom);
+  });
+
+  it('expands root width to the next snapped fill-column width', () => {
+    const children = Array.from({ length: 5 }, (_, index) => new Frame({
+      id: `step-${index}`,
+      sizingW: Sizing.FILL,
+      sizingH: Sizing.FILL,
+      border: Border.NONE,
+    }));
+    const root = new Frame({
+      id: 'page',
+      direction: Direction.HORIZONTAL,
+      sizingW: Sizing.FIXED,
+      sizingH: Sizing.FIXED,
+      width: 1440,
+      height: 280,
+      gap: 24,
+      padding: 24,
+      border: Border.NONE,
+      children,
+    });
+
+    const result = layoutFrameTree(root, adapter);
+
+    expect(root.width).toBe(1440);
+    expect(result.width).toBe(1464);
+    for (const [index, child] of children.entries()) {
+      expect(child._layout.placedW).toBe(264);
+      expect(child._layout.placedX).toBe(24 + index * (264 + 24));
+    }
   });
 
   it('nested containers produce consistent coordinates', () => {
@@ -633,6 +663,58 @@ describe('heading height consistency', () => {
     const childBottom = child._layout.placedY + child._layout.placedH;
     const parentBottom = parent._layout.placedY + parent._layout.placedH - 8;
     expect(childBottom).toBeLessThanOrEqual(parentBottom);
+  });
+});
+
+
+describe('border thickness in layout math', () => {
+  it('SOLID borders reduce cross-axis space for FILL children by 2px', () => {
+    const noneChild = new Frame({
+      id: 'none-child',
+      sizingW: Sizing.FILL,
+      sizingH: Sizing.FIXED,
+      width: 64,
+      height: 64,
+      label: [createLine('child')],
+    });
+    const noneParent = new Frame({
+      id: 'none-parent',
+      direction: Direction.VERTICAL,
+      sizingW: Sizing.FIXED,
+      sizingH: Sizing.FIXED,
+      width: 200,
+      height: 120,
+      padding: 8,
+      border: Border.NONE,
+      children: [noneChild],
+    });
+    layoutFrameTree(noneParent, adapter, 200, 120);
+
+    const solidChild = new Frame({
+      id: 'solid-child',
+      sizingW: Sizing.FILL,
+      sizingH: Sizing.FIXED,
+      width: 64,
+      height: 64,
+      label: [createLine('child')],
+    });
+    const solidParent = new Frame({
+      id: 'solid-parent',
+      direction: Direction.VERTICAL,
+      sizingW: Sizing.FIXED,
+      sizingH: Sizing.FIXED,
+      width: 200,
+      height: 120,
+      padding: 8,
+      border: Border.SOLID,
+      children: [solidChild],
+    });
+    layoutFrameTree(solidParent, adapter, 200, 120);
+
+    expect(noneChild._layout.placedX).toBe(8);
+    expect(noneChild._layout.placedW).toBe(184);
+    expect(solidChild._layout.placedX).toBe(8);
+    expect(solidChild._layout.placedW).toBe(182);
   });
 });
 

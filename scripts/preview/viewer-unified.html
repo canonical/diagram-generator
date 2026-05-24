@@ -126,15 +126,15 @@
 
         <!-- ── Grid mode: Grid controls ── -->
         <section class="dg-sidebar-section dg-grid-only">
-          <h2 class="dg-section-heading bf-h5">Grid</h2>
+          <h2 class="dg-section-heading bf-h5">Layout grid</h2>
           <div class="grid-controls" id="grid-controls">
             <label class="bf-field dg-grid-field" for="grid-cols">
               <span class="bf-form-label">Columns</span>
-              <span class="bf-control dg-grid-control"><input class="bf-input dg-number-input" type="number" id="grid-cols" min="1" max="20" value="1"><span class="dg-grid-unit">cols</span></span>
+              <span class="bf-control dg-grid-control"><input class="bf-input dg-number-input" type="number" id="grid-cols" min="1" max="20" value="1"></span>
             </label>
             <label class="bf-field dg-grid-field" for="grid-rows">
               <span class="bf-form-label">Rows</span>
-              <span class="bf-control dg-grid-control"><input class="bf-input dg-number-input" type="number" id="grid-rows" min="1" max="40" value="1" readonly><span class="dg-grid-unit">rows</span></span>
+              <span class="bf-control dg-grid-control"><input class="bf-input dg-number-input" type="number" id="grid-rows" min="1" max="40" value="1"></span>
             </label>
             <label class="bf-field dg-grid-field" for="grid-col-gap">
               <span class="bf-form-label">Col gutter</span>
@@ -144,9 +144,36 @@
               <span class="bf-form-label">Row gutter</span>
               <span class="bf-control dg-grid-control"><input class="bf-input dg-number-input" type="number" id="grid-row-gap" min="0" max="128" step="8" value="24"><span class="dg-grid-unit">px</span></span>
             </label>
-            <label class="bf-field dg-grid-field is-full-span" for="grid-margin">
-              <span class="bf-form-label">Margin</span>
-              <span class="bf-control dg-grid-control"><input class="bf-input dg-number-input" type="number" id="grid-margin" min="0" max="128" step="8" value="24"><span class="dg-grid-unit">px</span></span>
+          </div>
+          <h3 class="dg-section-subheading bf-h6" style="margin-top:0.75rem">Margins</h3>
+          <div class="grid-controls" id="grid-margin-controls">
+            <label class="bf-field dg-grid-field" for="grid-margin-top">
+              <span class="bf-form-label">Top</span>
+              <span class="bf-control dg-grid-control"><input class="bf-input dg-number-input" type="number" id="grid-margin-top" min="0" max="256" step="8" value="24"><span class="dg-grid-unit">px</span></span>
+            </label>
+            <label class="bf-field dg-grid-field" for="grid-margin-right">
+              <span class="bf-form-label">Right</span>
+              <span class="bf-control dg-grid-control"><input class="bf-input dg-number-input" type="number" id="grid-margin-right" min="0" max="256" step="8" value="24"><span class="dg-grid-unit">px</span></span>
+            </label>
+            <label class="bf-field dg-grid-field" for="grid-margin-bottom">
+              <span class="bf-form-label">Bottom</span>
+              <span class="bf-control dg-grid-control"><input class="bf-input dg-number-input" type="number" id="grid-margin-bottom" min="0" max="256" step="8" value="24"><span class="dg-grid-unit">px</span></span>
+            </label>
+            <label class="bf-field dg-grid-field" for="grid-margin-left">
+              <span class="bf-form-label">Left</span>
+              <span class="bf-control dg-grid-control"><input class="bf-input dg-number-input" type="number" id="grid-margin-left" min="0" max="256" step="8" value="24"><span class="dg-grid-unit">px</span></span>
+            </label>
+          </div>
+          <div class="dg-grid-toggles" style="margin-top:0.5rem; display:flex; flex-direction:column; gap:0.25rem">
+            <label class="bf-switch">
+              <input class="bf-switch-input" type="checkbox" id="grid-link-root" checked>
+              <span class="bf-switch-slider"></span>
+              <span class="bf-switch-label">Link to root frame</span>
+            </label>
+            <label class="bf-switch">
+              <input class="bf-switch-input" type="checkbox" id="grid-slack" checked>
+              <span class="bf-switch-slider"></span>
+              <span class="bf-switch-label">Absorb slack to bottom margin</span>
             </label>
           </div>
         </section>

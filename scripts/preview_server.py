@@ -886,6 +886,17 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
         pass
 
+    def handle_one_request(self):
+        try:
+            super().handle_one_request()
+        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+            self.close_connection = True
+        except OSError as exc:
+            if getattr(exc, "winerror", None) in (10053, 10054):
+                self.close_connection = True
+                return
+            raise
+
     def do_GET(self):
         path = urlparse(self.path).path.rstrip("/") or "/"
         if path == "/":

@@ -4,6 +4,115 @@ Completed work belongs here so `TODO.md` stays lean.
 
 ## Short-term
 
+### 2026-05-24 – InDesign/Figma-style layout grid with per-side margins
+
+- **Feature classification: UI and grid resolver upgrade.** Replaced the old `_computeBrockmanGrid()` single-margin grid solver with `_resolveGrid()`, a JS port of design-foundry's `resolveGridCore()` algorithm. The grid now supports independent per-side margins, user-settable row count, and configurable slack absorption.
+- **Changes.** `editor.js`: replaced `_computeBrockmanGrid()` with `_resolveGrid()` (per-side margins, baseline-snapped row heights, bottom-margin slack absorption). Updated `populateGridControls()`, `onGridControlChange()`, `updateGridOverlayFromInputs()`, `refreshV3GridInfoFromLayout()`, `_normaliseGridOverrides()`, and `renderGridOverlay()` to use per-side margins instead of uniform `outer_margin`. `viewer-unified.html`: replaced old grid controls (cols, rows-readonly, col gutter, row gutter, page gap-readonly) with full layout grid panel — editable cols/rows, per-side margins (T/R/B/L), col/row gutters, "Link to root frame" toggle, and "Absorb slack to bottom margin" toggle. `layout-bridge.js`: `_applyLinkedRootGridSpacing()` now uses per-side margins and is conditional on the link toggle.
+- **Three-layer architecture documented.** Grid resolver (visual overlay) → autolayout engine (frame placement) → optional link toggle (syncs grid margins to root frame padding). See `docs/architecture/layout-grid.md`.
+- **Design-foundry compatibility.** `_resolveGrid()` follows the same algorithm as `resolveGridCore()` in `design-foundry/packages/layout-grid/src/grid-core.ts`. Both handle baseline-snapped row heights and bottom-margin slack absorption. The grid is diagram-generator-specific UI; the autolayout engine ports independently.
+- **Validation.** 170 Python + 33 parity + 133 TS tests pass. Browser-verified: grid overlay renders with per-side margins, col gutter typing works (8px tested), top margin change to 48px propagates correctly through link-to-root to frame padding.
+
+### 2026-05-25 – grid toggles migrated from bare checkboxes to BF switches
+
+- **Contract change: UI component.** The "Link to root frame" and "Absorb slack to bottom margin" toggles in the layout grid sidebar were bare `<input type="checkbox">` elements with local BF field markup (`bf-field`, `bf-control`, `bf-form-label`). They rendered with default browser checkbox styling instead of the BF visual language.
+- **Fix.** Replaced both with the BF `bf-switch` component (`bf-switch-input` + `bf-switch-slider` + `bf-switch-label`). No local CSS added — the vendored BF `os/styles.css` owns all switch track, knob, and checked-state styling. The toggles container was changed from a `grid-controls` 2-column grid to a simple flex column.
+- **JS wiring unchanged.** The underlying `<input type="checkbox">` keeps the same `id` attributes and fires `change` events with `.checked`, so `onGridControlChange()` and `populateGridControls()` required no changes.
+- **Validation.** Browser-verified: proper BF toggle track appearance, on/off visual states (blue vs grey), and correct `onGridControlChange` firing on toggle.
+
+- **Bug classification: preview-shell input regression. In the unified preview sidebar, the linked page-gap field had regressed from readonly to fake-editable, and the gutter number inputs no longer behaved like replaceable numeric fields when clicked and typed into.
+- **Root cause.** `viewer-unified.html` dropped the old readonly contract that still existed in `viewer.html`, and the grid number inputs were relying on the browser's default caret placement inside existing values. In practice that meant typing into `24` inserted digits into the existing number instead of replacing it.
+- **Fix.** Restored the linked page-gap field to readonly in the unified viewer and added a grid-input focus helper in `editor.js` so editable grid number fields select their full value on focus before typing.
+- **Regression coverage.** Extended `scripts/test_preview_support_engineering_flow.py` with a browser-level test on `android-container-vs-vm` that clicks the real row-gap input, types `32`, and asserts the field now reads `32` while the page-gap mirror stays readonly.
+- **Validation.** `./.venv/Scripts/python.exe -m pytest scripts/test_preview_support_engineering_flow.py -q` passes with 3 tests.
+
+### 2026-05-24 – snapped fill columns now expand root width and keep preview guides aligned
+
+- **Bug classification: owner-layer layout and preview-sync defect.** `support-engineering-flow` showed the real mismatch the user called out: the live boxes and the guide overlay were using different width systems. The layout engines were still honoring the authored `1440` root width for equal fill columns, while the grid overlay snapped guide bands independently and drifted off the actual box widths during preview edits.
+- **Root cause.** With five horizontal fill children and a `1440` root, equal distribution produced fractional `259.2px` columns. Snapping only the guide metadata to `256px` created visible drift, and after live grid edits the preview shell could also keep overlay widths from the old SVG size for one relayout cycle.
+- **Fix.** Both layout engines now treat the authored root width as a minimum for horizontal `PACKED` roots with fill children and expand the actual placed/page width to the next 8px-compatible fill-column width (`1440 -> 1464` at the base `24px` gutter, `1472` at a live `32px` gutter). The preview shell also recomputes `gridInfo` from the current post-relayout SVG size before redrawing guide bands, so the overlay stays in sync during live gutter changes.
+- **Regression coverage.** Added focused Python and TypeScript layout tests for the width-expansion contract, and extended `scripts/test_preview_support_engineering_flow.py` so guide mode must show box widths and guide-band widths moving together before, during, and after a live gutter edit.
+- **Validation.** `./.venv/Scripts/python.exe -m pytest scripts/test_autolayout.py -q`, `Push-Location packages/layout-engine; npm test -- tests/layout.test.ts; Pop-Location`, `./.venv/Scripts/python.exe -m pytest scripts/test_preview_support_engineering_flow.py -q`, plus browser verification on `http://127.0.0.1:8101/view/v3:support-engineering-flow` showing `1464 / 264` at gutter `24`, `1472 / 256` at gutter `32`, and aligned guide bands in both states.
+
+### 2026-05-24 – linked page gap and column gutter in the v3 preview
+
+- **Contract cleanup: v3 grid authoring.** The preview still treated the horizontal page gap and column gutter as separate persisted inputs (`grid.outer_margin` vs `grid.col_gap`) even though the v3 relayout path already had to mirror those values back onto the root frame to keep layout and guides aligned.
+- **Root cause.** The split lived in the preview authoring contract: `editor.js` persisted separate grid values and also wrote duplicate root `gap` / `padding` overrides, while `support-engineering-flow` still carried the older `48 / 24` source mismatch in its base YAML.
+- **Fix.** `layout-bridge.js` now owns the v3 linkage rule during relayout, `editor.js` treats the page-gap control as a read-only mirror of `col gutter`, stale root page-spacing overrides are pruned whenever grid overrides are authoritative, `support-engineering-flow.yaml` now uses the linked `24 / 24` horizontal spacing contract, and the saved override JSON was cleaned down to the grid-only source.
+- **Regression coverage.** Extended `scripts/test_preview_support_engineering_flow.py` so it changes `grid-col-gap` live, asserts the mirrored page-gap control, verifies actual page-edge and inter-column spacing stay equal, and confirms no duplicate `page.gap` / `page.padding` overrides survive the edit.
+- **Validation.** `./.venv/Scripts/python.exe -m pytest scripts/test_preview_support_engineering_flow.py -q` passes with 2 tests.
+
+### 2026-05-24 – bordered containers now reduce usable inner span by 2px
+
+- **Contract change: layout box model.** Bordered containers were still treating their 1px stroke as purely visual, so child placement, cross-axis stretch, and heading wrap width all used `parent_size - padding` even on stroked frames.
+- **Fix.** Both engines now apply a narrowed inside-stroke rule for `SOLID` / `DASHED` containers: keep the declared padding origin, but subtract 2px of stroke space from the container's usable inner span when resolving child widths/heights, alignment slack, and heading wrap width. Outer measured size and borderless / fill-only semantics stay unchanged.
+- **Regression coverage.** Added focused Python and TypeScript layout tests for a bordered parent with a cross-axis `FILL` child, updated broader layout expectations where the new contract intentionally changes bordered-frame alignment/stretch results, and refreshed the shared parity fixture JSON for the affected nested/container fixtures.
+- **Validation.** `./.venv/Scripts/python.exe -m pytest scripts/test_autolayout.py scripts/test_layout_v3.py -q`, `./.venv/Scripts/python.exe -m pytest scripts/test_parity.py -q`, `npm test -- tests/layout.test.ts`, and `npm test -- tests/parity.test.ts` all pass.
+
+### 2026-05-24 – clarified v3 BoxStyle ownership
+
+- **Cleanup classification: architecture ownership fix.** The v3 preview still had split ownership for BoxStyle presets: the style picker wrote semantic frame overrides, but `applyAllOverrides()` in `scripts/preview/editor.js` also repainted v3-managed DOM directly after relayout.
+- **Root cause.** FrameBox visual state already lives in the frame-tree render path, but the preview shell was still patching preset fills, text colors, and icon inversion onto rebuilt v3 groups. That duplicated ownership and hid a missing semantic in the render layer: `border: NONE` was treated as transparent before `fill: BLACK` / `fill: GREY`, so highlight and fill-only parent styles depended on the editor-side repaint to look correct.
+- **Fix.** v3 style changes now relayout immediately, `applyAllOverrides()` skips DOM-side BoxStyle repaint for v3-managed groups, and the owning render logic in both `scripts/preview/layout-bridge.js` and `scripts/layout_v3.py` now treats `WHITE + NONE` as annotation-transparent, `GREY + NONE` as fill-only parent, and `BLACK + NONE` as highlight.
+- **Regression coverage.** Reused `scripts/test_preview_support_engineering_flow.py`, which already exercises `applyV3Style('highlight')` and reset on a live v3 diagram. The suite now validates the single-owner path rather than the old editor-side repaint workaround.
+- **Validation.** `python -m pytest scripts/test_preview_support_engineering_flow.py -q` passes with 2 tests after removing the duplicate v3 DOM repaint path.
+
+### 2026-05-24 – v3 click selection was expanding the SVG artboard
+
+- **Bug classification: preview-layer regression.** The reported "padding added on click" symptom was a canvas-size mutation in the preview shell, not a layout-engine change. Ordinary click selection was growing the SVG artboard and creating a white outer band around the diagram.
+- **Root cause.** `scripts/preview/editor.js` called `autoFitArtboard()` unconditionally at the end of drag and resize interactions, even when `hasMoved` was false and the user had only clicked to select. Once selection handles were rendered, `autoFitArtboard()` measured the selected SVG groups plus a 24px breathing margin and rewrote the SVG from the original canvas size to an expanded `viewBox` / `width` / `height`.
+- **Fix.** `autoFitArtboard()` now runs only after real move or resize interactions. Normal top-level and root-page selection affordances remain enabled: `.dg-selected`, the yellow border, and resize handles still appear, but click-only selection no longer changes the SVG canvas size.
+- **Regression coverage.** Updated `scripts/test_preview_support_engineering_flow.py` so child-box click and root-page click in both `v3:support-engineering-flow` and `v3:android-graphics-stack` must preserve the original SVG `width`, `height`, and `viewBox` while still rendering normal selection handles and the root `.dg-selected` class where expected.
+- **Validation.** Browser-measured on live `v3:support-engineering-flow`: child click keeps the SVG at `1440 × 280` with `viewBox="0 0 1440 280"` while showing child selection handles; blank root-margin click keeps the same SVG size while showing the yellow page highlight and handles. `python -m pytest scripts/test_preview_support_engineering_flow.py -q` passes with 2 tests.
+
+### 2026-05-24 – v3 click selection still stopping at structural row wrappers
+
+- **Bug classification: preview-layer regression.** The earlier root-page click fix was too shallow for nested autolayout wrappers. On `v3:android-graphics-stack`, clicking the visible `apps` box could still select invisible structural wrapper `row_apps`, making the row/page selection outline look like extra padding had been added.
+- **Root cause.** `findComponentAtDepth()` in `scripts/preview/editor.js` only preferred the root's immediate child at depth 0. For diagrams whose immediate child is a layout-only row wrapper, hit-testing stopped there instead of descending into that row's contained leaf box.
+- **Fix.** Root-level hit-testing now keeps the immediate child as the grouping boundary but prefers a containing descendant inside that child subtree before returning the structural wrapper. This preserves blank-page clicks selecting `page` while letting clicks on visible leaf boxes select the leaf.
+- **Regression coverage.** Added an `android-graphics-stack` browser regression to `scripts/test_preview_support_engineering_flow.py` that asserts `apps` selects `apps`, blank row gap selects `page`, and the page rect geometry remains unchanged across those clicks.
+- **Validation.** Browser-verified on the live preview server and in headless Playwright: clicking `apps` now selects `apps`; clicking blank row/page gap selects `page`; `page` rect stays `552 × 760` before and after. `python -m pytest scripts/test_preview_support_engineering_flow.py -q` passes with 2 tests.
+
+### 2026-05-24 – Preview server benign disconnect noise on Windows
+
+- **Bug classification: preview-server robustness bug.** The preview server stayed functional, but abrupt local client disconnects could dump `ConnectionAbortedError [WinError 10053]` tracebacks into the terminal and obscure real rebuild failures.
+- **Root cause.** `scripts/preview_server.py` already swallowed broken pipes while writing SSE and normal responses, but it still used the stock `BaseHTTPRequestHandler.handle_one_request()` path. On Windows, some browser / Playwright teardown patterns abort the socket while the handler is still inside the request loop, before the request reaches `do_GET()`, so the exception escaped to `socketserver` thread logging.
+- **Fix.** `PreviewHandler.handle_one_request()` now wraps the parent implementation and treats `BrokenPipeError`, `ConnectionResetError`, `ConnectionAbortedError`, and Windows `OSError` disconnects (`winerror` 10053/10054) as benign connection teardown. The handler marks the connection closed and still re-raises unrelated errors.
+- **Validation.** Restarted the patched server on port `8100`, exercised it with deliberately aborted raw HTTP connections, reloaded the live `v3:support-engineering-flow` page, reran `python -m pytest scripts/test_preview_support_engineering_flow.py -q`, and confirmed the server terminal stayed free of disconnect tracebacks.
+
+### 2026-05-24 – v3 root click shadowing + preview ownership cleanup
+
+- **Bug classification: preview-layer regression.** The apparent "padding increase" on click was a selection bug in the preview shell, not a layout mutation in the v3 engine.
+- **Root cause.** Top-level hit-testing in `scripts/preview/editor.js` let the root `page` bounds shadow child boxes, so clicking inside a child could still resolve to the root container. The full-page selection outline then made the page look visually larger even though the underlying frame geometry had not changed.
+- **Fix.** `findComponentAtDepth()` / `findDeepestComponent()` now prefer immediate child hits when the click lands inside a rendered child while still allowing genuine blank root space to select `page`. `applyAllOverrides()` also stops resetting or spatially mutating v3-managed frame groups, leaving position / size / text ownership with `layout-bridge.js` after relayout.
+- **Regression coverage.** Added `scripts/test_preview_support_engineering_flow.py`, a focused Playwright pytest that boots `preview_server.py` on a free port and exercises the real `v3:support-engineering-flow` page. The test now covers child-vs-page selection, geometry stability under clicks, the padding/direction round-trip, a stale `data-orig-inner` probe against `applyAllOverrides()`, arrow shaft/head alignment after relayout, and highlight/reset style changes on a v3 FrameBox.
+- **Validation.** Browser-reverified child click → `step_analysis` and blank-root click → `page` with unchanged geometry, then ran `python -m pytest scripts/test_preview_support_engineering_flow.py -q` successfully.
+
+### 2026-05-24 – v3 arrow relayout regression in preview bridge
+
+- **Bug classification: preview-layer regression.** The router and canonical SVG renderer were correct; the break lived in the v3 preview bridge after client-side relayout.
+- **Root cause.** `patchArrowsSvg()` in `scripts/preview/layout-bridge.js` updated the first `N` `<line>` elements in each arrow group, but live preview groups already contain transparent hit-area lines from the interaction layer. That meant relayout patched invisible hit geometry while leaving the visible orange shaft stale. The same function also rebuilt the arrowhead from `tgtSide` metadata instead of the actual last segment vector, which could leave the head flipped or detached after size-driven relayout.
+- **Fix.** The bridge now rebuilds arrowheads from the actual last segment vector, shortens the final visible shaft to the arrowhead base, updates only visible arrow segments, and mirrors the corrected coordinates back onto any existing hit-area lines.
+- **Validation.** Browser-verified on `v3:support-engineering-flow` after a forced local relayout: source/right midpoint and target/left midpoint both matched numerically, and the final shaft endpoint matched the arrowhead base exactly.
+
+### 2026-05-24 – v3 FrameBox text overflow after parent padding / direction toggles
+
+- **Bug classification: preview-layer regression.** The layout engine and FrameBox bridge already owned the correct text wrapping and box height; the break came from a second text-layout pass in `scripts/preview/editor.js`.
+- **Root cause.** `applyAllOverrides()` still treated all SVG text as generic mutable DOM, restoring `data-orig-inner`, reflowing text, and applying direct text mutations even for v3 FrameBox groups that had just been rebuilt from the relaid-out frame tree. That left a stale-text-state hazard: an old narrow-layout snapshot could be restored on top of a newer horizontal relayout and make content appear to overflow even though the engine result was valid.
+- **Fix.** `applyAllOverrides()` now skips stale text restore, generic text reflow, and direct text mutation for v3-managed frame groups. v3 text layout stays owned by `layout-bridge.js` / the relaid-out Frame tree instead of competing with legacy editor-side text logic.
+- **Validation.** Browser-verified on `v3:support-engineering-flow` using the user sequence (padding up/down, direction vertical/horizontal) with no overflow. Added a discriminating stale-state probe by injecting an old padding-48 text snapshot into `data-orig-inner`; after the fix, `applyAllOverrides()` no longer restored that stale snapshot over the fresh horizontal FrameBox layout.
+
+### 2026-05-24 – Borderless-frame rect invariant + unified FrameBox primitive
+
+- **Borderless frames still emit a rect primitive.** v3 `border: none` frames now render a transparent rect with `stroke="none"` instead of omitting the rect entirely. This keeps hit-testing, selection, and keyboard navigation stable for annotation-style frames. Preview-shell selectors were tightened to `:scope > rect` so nested child rects do not get mistaken for the selected component's own bounds.
+- **Unified `FrameBox` primitive.** Added `FrameBox` to `diagram_layout.py` and rewired `layout_v3.py` so `_render_frame()` emits one primitive per frame instead of conditionally assembling separate `Rect` / `TextBlock` / `Icon` primitives. `diagram_render_svg.py` now renders `FrameBox` as a self-contained rect + text + optional icon group. Focused validation passes: `scripts/test_layout_v3.py` and `scripts/test_svg_renderer.py`.
+- **Preview relayout now recomposes `FrameBox` DOM.** Fixed the v3 local-layout regression where switching a frame to width `FILL` could shrink the box but leave stale wrapped text/icon layout in the DOM, causing clipping. `layout-bridge.js` now rebuilds each relaid-out FrameBox group's rect, text tspans, and icon anchor from the updated frame tree, and refreshes the stored original text markup so `applyAllOverrides()` no longer restores stale tspans after relayout. Browser-verified on `android-container-vs-vm` (`hdr_container`: HUG → FILL reflows to a single line with no clipping).
+
+### 2026-05-24 – Semantic four-style FrameBox contract + annotation width default
+
+- **Borderless leaf width default decoupled from styling.** `frame_loader.py` no longer makes borderless leaf frames hug their text just because they are borderless. Omitted width now defaults to `FILL` for both leaves and containers; annotation-style notes that should hug must set `sizing_w: hug` explicitly.
+- **Four-style contract enforced at the owning layer.** `_render_frame()` in `layout_v3.py` now derives FrameBox visuals semantically: annotations are no fill/no stroke, child boxes are stroke-only, parent boxes are grey fill/no stroke, and highlights are black fill with white text. Added focused test coverage in `test_layout_v3.py`.
+- **Preview presets aligned with the engine.** `layout-bridge.js`, `box-styles.js`, and `editor.js` now use the same four-style semantics and preset names (`default`, `parent`, `annotation`, `highlight`) so local relayout, direct style overrides, and the initial server render agree. Browser-verified on `android-container-vs-vm`: `hdr_container` and `hdr_vm` now serve and render at `208×40`, matching their parent column width.
+
 ### 2026-05-23 – Justify modes (Tier 4 autolayout)
 
 - **Space-between / space-around / space-evenly.** Added `Justify` enum (PACKED, SPACE_BETWEEN, SPACE_AROUND, SPACE_EVENLY) to both TypeScript (`frame-model.ts`) and Python (`frame_model.py`) frame models. `place()` in both engines uses computed spacing instead of fixed gap when justify is not PACKED. YAML parser accepts `justify: space-between|space-around|space-evenly|packed`. `Justify` exported from `index.ts`. 12 new TS tests + 12 new Python tests. All 130 TS + 167 Python tests pass.

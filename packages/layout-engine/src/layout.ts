@@ -14,6 +14,7 @@ import {
   BASELINE_UNIT, BLOCK_WIDTH, BOX_MIN_HEIGHT, INSET, ICON_SIZE,
   BODY_LINE_STEP, BODY_SIZE,
   roundUpToGrid, sizeToPx, steppedLinesHeight, clampToConstraints,
+  setActiveGridStep, getActiveGridStep,
 } from './tokens.js';
 import {
   type TextMeasureAdapter, type LineSpec,
@@ -38,6 +39,14 @@ function headingHeight(heading: Line | undefined, adapter: TextMeasureAdapter, m
   return Math.max(h, ICON_SIZE + INSET);
 }
 
+function strokeInsetPerSide(frame: Frame): number {
+  return frame.border === Border.SOLID || frame.border === Border.DASHED ? 1 : 0;
+}
+
+function strokeSpaceTotal(frame: Frame): number {
+  return strokeInsetPerSide(frame) * 2;
+}
+
 /** Compute the heading text max_width from a frame's width for text wrapping.
  *  Prefers placedW (set during place), then resolvedW (set during remeasure).
  */
@@ -46,8 +55,47 @@ function headingTextMaxW(frame: Frame): number | undefined {
   if (rw == null || rw === 0) return undefined;
   const padL = frame.border !== Border.NONE ? frame.paddingLeft : 0;
   const padR = frame.border !== Border.NONE ? frame.paddingRight : 0;
+  const strokeSpace = strokeSpaceTotal(frame);
   const iconCol = frame.icon ? (ICON_SIZE + INSET) : 0;
-  return rw - padL - padR - iconCol;
+  return rw - padL - padR - strokeSpace - iconCol;
+}
+
+function expandRootWidthForSnappedFillColumns(root: Frame, requestedW: number): number {
+  // When grid step is 1 (no snapping), skip expansion — pure Figma-style layout.
+  const step = getActiveGridStep();
+  if (step <= 1) return requestedW;
+  if (requestedW <= 0 || root.isLeaf || root.direction !== Direction.HORIZONTAL) return requestedW;
+  if (root.justify !== Justify.PACKED) return requestedW;
+
+  const fillChildren = root.children.filter(
+    (child) => childPrimarySizing(child, root.direction) === Sizing.FILL,
+  );
+  if (fillChildren.length === 0) return requestedW;
+
+  const padL = root.paddingLeft;
+  const padR = root.paddingRight;
+  const strokeSpace = strokeSpaceTotal(root);
+  const totalGap = root.gap * Math.max(0, root.children.length - 1);
+
+  let nonFillTotal = 0;
+  for (const child of root.children) {
+    if (childPrimarySizing(child, root.direction) === Sizing.FILL) continue;
+    const childW = child.sizingW === Sizing.FIXED && child.width != null
+      ? roundUpToGrid(child.width)
+      : roundUpToGrid(child._layout.measuredW);
+    nonFillTotal += clampToConstraints(childW, child.minWidth, child.maxWidth);
+  }
+
+  const availableForFill = Math.max(0, requestedW - padL - padR - strokeSpace - totalGap - nonFillTotal);
+  let snappedShare = fillChildren.length > 0 ? roundUpToGrid(availableForFill / fillChildren.length) : 0;
+  const minFillShare = fillChildren.reduce((maxWidth, child) => {
+    const childMin = child.minWidth != null ? roundUpToGrid(child.minWidth) : 0;
+    return Math.max(maxWidth, childMin);
+  }, 0);
+  snappedShare = Math.max(snappedShare, minFillShare);
+
+  const compatibleW = padL + padR + strokeSpace + totalGap + nonFillTotal + fillChildren.length * snappedShare;
+  return Math.max(requestedW, compatibleW);
 }
 
 function estimateTextWidth(lines: readonly Line[], adapter: TextMeasureAdapter): number {
@@ -188,7 +236,8 @@ export function distributeFillSpace(
         break;
       }
       if (share > effMaxes[idx]!) {
-        sizes[idx] = Math.floor(effMaxes[idx]! / BASELINE_UNIT) * BASELINE_UNIT;
+        const step = getActiveGridStep();
+        sizes[idx] = Math.floor(effMaxes[idx]! / step) * step;
         remaining -= sizes[idx]!;
         unclamped.splice(j, 1);
         clampedAny = true;
@@ -314,11 +363,12 @@ function resolveChildWidths(frame: Frame, frameW: number, adapter: TextMeasureAd
 
   const padL = frame.paddingLeft;
   const padR = frame.paddingRight;
+  const strokeSpace = strokeSpaceTotal(frame);
   const n = frame.children.length;
   const totalGap = frame.gap * Math.max(0, n - 1);
 
   if (frame.direction === Direction.HORIZONTAL) {
-    const available = Math.max(0, frameW - padL - padR - totalGap);
+    const available = Math.max(0, frameW - padL - padR - strokeSpace - totalGap);
     let hugTotal = 0;
     const fillMeasured: number[] = [];
     const fillMins: (number | undefined)[] = [];
@@ -355,7 +405,7 @@ function resolveChildWidths(frame: Frame, frameW: number, adapter: TextMeasureAd
     return widths;
   } else {
     // Vertical: cross-axis is W
-    const crossW = Math.max(0, frameW - padL - padR);
+    const crossW = Math.max(0, frameW - padL - padR - strokeSpace);
     const widths: number[] = [];
     for (const child of frame.children) {
       let w: number;
@@ -517,15 +567,17 @@ export function place(
   const padL = frame.paddingLeft;
   const padR = frame.paddingRight;
   const padT = frame.paddingTop;
+  const padB = frame.paddingBottom;
+  const strokeSpace = strokeSpaceTotal(frame);
 
   // Heading height with placed width to account for text wrapping
   let textMaxW = headingTextMaxW(frame);
   if (textMaxW == null) {
     // Fallback when resolvedW wasn't set
-    const effectivePadL = frame.border !== Border.NONE ? padL : 0;
-    const effectivePadR = frame.border !== Border.NONE ? padR : 0;
+    const effectivePadL = frame.border !== Border.NONE ? frame.paddingLeft : 0;
+    const effectivePadR = frame.border !== Border.NONE ? frame.paddingRight : 0;
     const iconCol = frame.icon ? (ICON_SIZE + INSET) : 0;
-    textMaxW = frame._layout.placedW - effectivePadL - effectivePadR - iconCol;
+    textMaxW = frame._layout.placedW - effectivePadL - effectivePadR - strokeSpace - iconCol;
   }
   const hh = headingHeight(frame.heading, adapter, textMaxW);
   const hGap = hh > 0 ? frame.gap : 0;
@@ -541,11 +593,11 @@ export function place(
   let crossSize: number;
 
   if (frame.direction === Direction.HORIZONTAL) {
-    availableForChildren = Math.max(0, frame._layout.placedW - padL - padR - totalGap);
-    crossSize = Math.max(0, frame._layout.placedH - padT - frame.paddingBottom - hh - hGap);
+    availableForChildren = Math.max(0, frame._layout.placedW - padL - padR - strokeSpace - totalGap);
+    crossSize = Math.max(0, frame._layout.placedH - padT - padB - strokeSpace - hh - hGap);
   } else {
-    availableForChildren = Math.max(0, frame._layout.placedH - padT - frame.paddingBottom - hh - hGap - totalGap);
-    crossSize = Math.max(0, frame._layout.placedW - padL - padR);
+    availableForChildren = Math.max(0, frame._layout.placedH - padT - padB - strokeSpace - hh - hGap - totalGap);
+    crossSize = Math.max(0, frame._layout.placedW - padL - padR - strokeSpace);
   }
 
   // Primary-axis FILL distribution
@@ -584,8 +636,8 @@ export function place(
   // Compute main-axis positioning: offset before first child and gap between children.
   // For PACKED mode, use alignment + fixed gap.
   // For justify modes, use computed spacing derived from remaining space.
-  const innerW = frame._layout.placedW - padL - padR;
-  const innerH = frame._layout.placedH - padT - frame.paddingBottom - hh - hGap;
+  const innerW = frame._layout.placedW - padL - padR - strokeSpace;
+  const innerH = frame._layout.placedH - padT - padB - strokeSpace - hh - hGap;
   const innerMain = frame.direction === Direction.HORIZONTAL ? innerW : innerH;
 
   let mainOffset: number;
@@ -683,6 +735,16 @@ export interface LayoutOutput {
   coerced: Map<string, import('./frame-model.js').CoercedOverride>;
 }
 
+/** Options for the layout pipeline. */
+export interface LayoutOptions {
+  /**
+   * Grid snap step in pixels.
+   * When set to 1, all snapping is disabled — pure Figma-style autolayout.
+   * Defaults to BASELINE_UNIT (8) for backward compatibility.
+   */
+  gridStep?: number;
+}
+
 /**
  * Run the full layout pipeline: measure → coerce → remeasure → place.
  *
@@ -690,6 +752,22 @@ export interface LayoutOutput {
  * for the same input (given the same text measurement adapter).
  */
 export function layoutFrameTree(
+  root: Frame,
+  adapter: TextMeasureAdapter,
+  options?: LayoutOptions,
+): LayoutOutput {
+  // Scope the active grid step for this layout pass.
+  const prevStep = getActiveGridStep();
+  const step = options?.gridStep ?? BASELINE_UNIT;
+  setActiveGridStep(step);
+  try {
+    return _layoutFrameTreeInner(root, adapter);
+  } finally {
+    setActiveGridStep(prevStep);
+  }
+}
+
+function _layoutFrameTreeInner(
   root: Frame,
   adapter: TextMeasureAdapter,
 ): LayoutOutput {
@@ -700,7 +778,12 @@ export function layoutFrameTree(
   const coerced = enforceFillHugInvariant(root);
 
   // Root gets its measured size (or fixed if set)
-  const rootW = root.width ?? root._layout.measuredW;
+  const requestedRootW = root.width ?? root._layout.measuredW;
+  const rootW = expandRootWidthForSnappedFillColumns(root, requestedRootW);
+  const originalRootWidth = root.width;
+  if (originalRootWidth != null && rootW !== originalRootWidth) {
+    root.width = rootW;
+  }
 
   // Pass 1.5: constrained re-measurement
   remeasureWithWidthConstraints(root, rootW, adapter, new Set(coerced.keys()));
@@ -709,6 +792,10 @@ export function layoutFrameTree(
 
   // Pass 2: place
   place(root, 0, 0, rootW, rootH, adapter);
+
+  if (originalRootWidth != null && root.width !== originalRootWidth) {
+    root.width = originalRootWidth;
+  }
 
   return {
     width: Math.round(root._layout.placedW),

@@ -160,6 +160,16 @@ def _heading_height(heading: Line | None, max_width: float | None = None) -> int
     return max(h, ICON_SIZE + INSET)
 
 
+def _stroke_inset_per_side(frame: Frame) -> int:
+    """Return the inside-stroke inset applied on each side of stroked frames."""
+    return 1 if frame.border in (Border.SOLID, Border.DASHED) else 0
+
+
+def _stroke_space_total(frame: Frame) -> int:
+    """Return the total inner span consumed by a visible border."""
+    return _stroke_inset_per_side(frame) * 2
+
+
 def _heading_text_max_w(frame: Frame) -> float | None:
     """Compute the text max_width for heading wrapping from the frame's width.
 
@@ -171,8 +181,9 @@ def _heading_text_max_w(frame: Frame) -> float | None:
         return None
     pad_l = frame.padding_left if frame.border != Border.NONE else 0
     pad_r = frame.padding_right if frame.border != Border.NONE else 0
+    stroke_space = _stroke_space_total(frame)
     icon_col = (ICON_SIZE + INSET) if frame.icon else 0
-    return rw - pad_l - pad_r - icon_col
+    return rw - pad_l - pad_r - stroke_space - icon_col
 
 
 def _estimate_text_width(lines: list[Line]) -> float:
@@ -262,7 +273,7 @@ def _build_grid_info(diagram: FrameDiagram, root: Frame) -> GridInfo:
     col_w = int((col_w_raw // BASELINE_UNIT) * BASELINE_UNIT) if col_w_raw >= BASELINE_UNIT else max(BASELINE_UNIT, int(col_w_raw))
     col_xs = [outer_margin + c * (col_w + col_gap) for c in range(cols)]
     col_widths = [col_w for _ in range(cols)]
-    resolved_right_margin = svg_w - outer_margin - (col_xs[-1] + col_w) if col_xs else outer_margin
+    resolved_right_margin = svg_w - (col_xs[-1] + col_w) if col_xs else outer_margin
 
     row_gap_snapped = int((max(0, row_gap) // BASELINE_UNIT) * BASELINE_UNIT)
     row_count = 1
@@ -277,7 +288,7 @@ def _build_grid_info(diagram: FrameDiagram, root: Frame) -> GridInfo:
     row_ys = [outer_margin + r * (row_h + row_gap_snapped) for r in range(row_count)]
     row_heights = [row_h for _ in range(row_count)]
     resolved_bottom_margin = (
-        svg_h - outer_margin - (row_ys[-1] + row_h)
+        svg_h - (row_ys[-1] + row_h)
         if row_ys
         else svg_h - outer_margin
     )
@@ -294,6 +305,49 @@ def _build_grid_info(diagram: FrameDiagram, root: Frame) -> GridInfo:
         resolved_right_margin=int(max(0, round(resolved_right_margin))),
         baseline_step=BASELINE_UNIT,
     )
+
+
+def _expand_root_width_for_snapped_fill_columns(root: Frame, requested_w: float) -> float:
+    """Treat the requested root width as a minimum when fill columns would be fractional."""
+    if requested_w <= 0 or root.is_leaf or root.direction != Direction.HORIZONTAL:
+        return requested_w
+    if root.justify != Justify.PACKED:
+        return requested_w
+
+    fill_children = [
+        child for child in root.children
+        if _child_primary_sizing(child, root.direction) == Sizing.FILL
+    ]
+    if not fill_children:
+        return requested_w
+
+    pad_l = root.padding_left
+    pad_r = root.padding_right
+    stroke_space = _stroke_space_total(root)
+    total_gap = root.gap * max(0, len(root.children) - 1)
+
+    non_fill_total = 0.0
+    for child in root.children:
+        if _child_primary_sizing(child, root.direction) == Sizing.FILL:
+            continue
+        child_w = (
+            round_up_to_grid(child.width)
+            if child.sizing_w == Sizing.FIXED and child.width is not None
+            else round_up_to_grid(child._measured_w)
+        )
+        non_fill_total += _clamp_to_constraints(child_w, child.min_width, child.max_width)
+
+    fill_count = len(fill_children)
+    available_for_fill = max(0.0, requested_w - pad_l - pad_r - stroke_space - total_gap - non_fill_total)
+    snapped_share = round_up_to_grid(available_for_fill / fill_count) if fill_count > 0 else 0
+    min_fill_share = max(
+        (round_up_to_grid(child.min_width) if child.min_width is not None else 0)
+        for child in fill_children
+    )
+    snapped_share = max(snapped_share, min_fill_share)
+
+    compatible_w = pad_l + pad_r + stroke_space + total_gap + non_fill_total + fill_count * snapped_share
+    return max(requested_w, compatible_w)
 
 
 # ---------------------------------------------------------------------------
@@ -478,11 +532,12 @@ def _resolve_child_widths(frame: Frame, frame_w: float) -> list[float]:
 
     pad_l = frame.padding_left
     pad_r = frame.padding_right
+    stroke_space = _stroke_space_total(frame)
     n = len(frame.children)
     total_gap = frame.gap * max(0, n - 1)
 
     if frame.direction == Direction.HORIZONTAL:
-        available = max(0, frame_w - pad_l - pad_r - total_gap)
+        available = max(0, frame_w - pad_l - pad_r - stroke_space - total_gap)
         hug_total = 0
         fill_indices = []
         fill_measured = []
@@ -518,7 +573,7 @@ def _resolve_child_widths(frame: Frame, frame_w: float) -> list[float]:
         return widths
     else:
         # Vertical: cross-axis is W — all children get the same cross width
-        cross_w = max(0, frame_w - pad_l - pad_r)
+        cross_w = max(0, frame_w - pad_l - pad_r - stroke_space)
         widths = []
         for child in frame.children:
             if child.sizing_w == Sizing.FILL:
@@ -714,14 +769,15 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
     pad_r = frame.padding_right
     pad_t = frame.padding_top
     pad_b = frame.padding_bottom
+    stroke_space = _stroke_space_total(frame)
     # Heading height with placed width to account for text wrapping
     text_max_w = _heading_text_max_w(frame)
     if text_max_w is None:
         # Fallback for place() when _resolved_w wasn't set (shouldn't happen)
-        effective_pad_l = pad_l if frame.border != Border.NONE else 0
-        effective_pad_r = pad_r if frame.border != Border.NONE else 0
+        effective_pad_l = frame.padding_left if frame.border != Border.NONE else 0
+        effective_pad_r = frame.padding_right if frame.border != Border.NONE else 0
         icon_col = (ICON_SIZE + INSET) if frame.icon else 0
-        text_max_w = frame._placed_w - effective_pad_l - effective_pad_r - icon_col
+        text_max_w = frame._placed_w - effective_pad_l - effective_pad_r - stroke_space - icon_col
     heading_h = _heading_height(frame.heading, max_width=text_max_w)
     heading_gap = frame.gap if heading_h > 0 else 0
     n = len(frame.children)
@@ -733,11 +789,11 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
     total_gap = effective_gap * max(0, n - 1)
 
     if frame.direction == Direction.HORIZONTAL:
-        available_for_children = max(0, frame._placed_w - pad_l - pad_r - total_gap)
-        cross_size = max(0, frame._placed_h - pad_t - pad_b - heading_h - heading_gap)
+        available_for_children = max(0, frame._placed_w - pad_l - pad_r - stroke_space - total_gap)
+        cross_size = max(0, frame._placed_h - pad_t - pad_b - stroke_space - heading_h - heading_gap)
     else:
-        available_for_children = max(0, frame._placed_h - pad_t - pad_b - heading_h - heading_gap - total_gap)
-        cross_size = max(0, frame._placed_w - pad_l - pad_r)
+        available_for_children = max(0, frame._placed_h - pad_t - pad_b - stroke_space - heading_h - heading_gap - total_gap)
+        cross_size = max(0, frame._placed_w - pad_l - pad_r - stroke_space)
 
     # Primary-axis FILL distribution using iterative clamping:
     # 1. Try equal split among all FILL children.
@@ -780,8 +836,8 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
     # Compute main-axis positioning: offset before first child and gap
     # between children.  For PACKED, use alignment + fixed gap.
     # For justify modes, use computed spacing from remaining space.
-    inner_w = frame._placed_w - pad_l - pad_r
-    inner_h = frame._placed_h - pad_t - pad_b - heading_h - heading_gap
+    inner_w = frame._placed_w - pad_l - pad_r - stroke_space
+    inner_h = frame._placed_h - pad_t - pad_b - stroke_space - heading_h - heading_gap
     inner_main = inner_w if frame.direction == Direction.HORIZONTAL else inner_h
 
     if not use_justify:
@@ -883,14 +939,20 @@ def _render_frame(frame: Frame, fg: list, bg: list, bounds_map: dict) -> None:
         return
 
     # ── Resolve style fields ──
-    if frame.border == Border.NONE:
-        box_fill = "transparent"
+    if frame.fill == Fill.BLACK:
+        box_fill = Fill.BLACK.value
         box_stroke = "none"
     elif frame.border == Border.FILL:
         box_fill = frame.fill.value
         box_stroke = "none"
+    elif frame.border == Border.NONE:
+        box_fill = frame.fill.value if frame.fill != Fill.WHITE else "transparent"
+        box_stroke = "none"
+    elif frame.is_container and frame.border != Border.DASHED:
+        box_fill = Fill.GREY.value
+        box_stroke = "none"
     else:
-        box_fill = frame.fill.value
+        box_fill = "transparent"
         box_stroke = "#000000"
 
     # Effective padding: border=NONE frames compensate for the missing 1px
@@ -1073,7 +1135,11 @@ def layout_frame_diagram(diagram: FrameDiagram) -> LayoutResult:
     coerced = _enforce_fill_hug_invariant(root)
 
     # Root gets its measured size (or fixed if set)
-    root_w = root.width if root.width is not None else root._measured_w
+    requested_root_w = root.width if root.width is not None else root._measured_w
+    root_w = _expand_root_width_for_snapped_fill_columns(root, requested_root_w)
+    original_root_width = root.width
+    if original_root_width is not None and root_w != original_root_width:
+        root.width = root_w
 
     # Pass 1.5: constrained re-measurement — re-wrap text at resolved
     # widths so HUG heights reflect actual placed widths, not the default
@@ -1084,6 +1150,9 @@ def layout_frame_diagram(diagram: FrameDiagram) -> LayoutResult:
 
     # Pass 2: place
     place(root, 0, 0, root_w, root_h)
+
+    if original_root_width is not None and root.width != original_root_width:
+        root.width = original_root_width
 
     # Render frame tree to primitives
     fg: list = []

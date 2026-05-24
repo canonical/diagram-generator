@@ -8,6 +8,24 @@
 /** Grid snap unit in pixels. Intrinsic and authored sizes use this step; explicit FILL allocation may remain continuous. */
 export const BASELINE_UNIT = 8;
 
+/**
+ * Active grid step for the current layout pass.
+ * Set by layoutFrameTree() for the duration of a layout run.
+ * Defaults to BASELINE_UNIT for backward compatibility.
+ */
+let _activeGridStep = BASELINE_UNIT;
+
+/** Set the active grid step for the current layout pass. */
+export function setActiveGridStep(step: number): void {
+  if (step <= 0) throw new Error('Grid step must be greater than zero.');
+  _activeGridStep = step;
+}
+
+/** Get the active grid step. */
+export function getActiveGridStep(): number {
+  return _activeGridStep;
+}
+
 /** Standard component (box) width in pixels. */
 export const BLOCK_WIDTH = 192;
 
@@ -71,7 +89,7 @@ export function defaultLineStep(size: number): number {
 }
 
 /** Snap a value UP to the nearest grid-step multiple. */
-export function roundUpToGrid(value: number, step = BASELINE_UNIT): number {
+export function roundUpToGrid(value: number, step = _activeGridStep): number {
   if (step <= 0) throw new Error('Grid step must be greater than zero.');
   return Math.ceil(value / step) * step;
 }
@@ -117,7 +135,7 @@ export function clampToConstraints(
     value = roundUpToGrid(minVal);
   }
   if (maxVal !== undefined && value > maxVal) {
-    value = Math.floor(maxVal / BASELINE_UNIT) * BASELINE_UNIT;
+    value = Math.floor(maxVal / _activeGridStep) * _activeGridStep;
   }
   return value;
 }

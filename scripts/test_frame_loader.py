@@ -104,7 +104,7 @@ root:
     assert child.sizing_h == Sizing.HUG
 
 
-def test_borderless_leaf_text_defaults_to_hug_on_both_axes(tmp_path):
+def test_borderless_leaf_text_defaults_to_fill_width_hug_height(tmp_path):
     diagram = _load(
         tmp_path,
         """
@@ -120,7 +120,7 @@ root:
     )
 
     note = diagram.root.children[0]
-    assert note.sizing_w == Sizing.HUG
+    assert note.sizing_w == Sizing.FILL
     assert note.sizing_h == Sizing.HUG
 
 

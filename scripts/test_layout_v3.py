@@ -21,7 +21,7 @@ from layout_v3 import (
     layout_frame_diagram, _distribute_fill_space,
     _remeasure_with_width_constraints,
 )
-from diagram_layout import DashedLinePrimitive, TextBlock
+from diagram_layout import DashedLinePrimitive, FrameBox, TextBlock
 from diagram_shared import measure_text_width, estimate_line_width, wrap_text_lines
 
 
@@ -665,6 +665,41 @@ def test_separator_role_renders_dashed_line():
     dl = dashed_lines[0]
     assert dl.x2 > dl.x1, f"Dashed line should have positive width: {dl.x1} → {dl.x2}"
     print(f"  PASS: separator role renders dashed line at y={dl.y1}, width={dl.x2-dl.x1}")
+
+
+def test_frame_box_style_contract():
+    """v3 FrameBox visuals follow the four-style contract."""
+    annotation = Frame(id="ann", border=Border.NONE, label=[Line("Annotation")])
+    child = Frame(id="child", border=Border.SOLID, label=[Line("Child")])
+    highlight = Frame(id="hi", border=Border.SOLID, fill=Fill.BLACK,
+                      label=[Line("Highlight")])
+    parent = Frame(
+        id="parent",
+        direction=Direction.VERTICAL,
+        gap=8,
+        padding=8,
+        border=Border.SOLID,
+        heading=Line("Parent", weight="700"),
+        children=[child, highlight],
+    )
+    root = Frame(id="root", direction=Direction.VERTICAL, gap=8, padding=8,
+                 border=Border.NONE, children=[annotation, parent])
+
+    result = layout_frame_diagram(FrameDiagram(root=root))
+    boxes = {
+        p.component_id: p for p in result.foreground
+        if isinstance(p, FrameBox) and p.component_id in {"ann", "child", "hi", "parent"}
+    }
+
+    assert boxes["ann"].fill == "transparent"
+    assert boxes["ann"].stroke == "none"
+    assert boxes["parent"].fill == Fill.GREY.value
+    assert boxes["parent"].stroke == "none"
+    assert boxes["child"].fill == "transparent"
+    assert boxes["child"].stroke == "#000000"
+    assert boxes["hi"].fill == Fill.BLACK.value
+    assert boxes["hi"].stroke == "none"
+    assert boxes["hi"].label_lines[0]["fill"] == "#FFFFFF"
 
 
 # ---------------------------------------------------------------------------

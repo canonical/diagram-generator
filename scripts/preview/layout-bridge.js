@@ -68,6 +68,54 @@ const _SIZING_MAP = { HUG: "HUG", FILL: "FILL", FIXED: "FIXED" };
 const _FILL_MAP = { WHITE: "#FFFFFF", GREY: "#F3F3F3", BLACK: "#000000" };
 const _BORDER_MAP = { SOLID: "SOLID", DASHED: "DASHED", NONE: "NONE" };
 
+function _linkedPageGap(diagram) {
+  return Math.max(
+    0,
+    parseInt(
+      diagram.gridColGap
+      ?? diagram.gridOuterMargin
+      ?? diagram.root.paddingLeft
+      ?? diagram.root.padding
+      ?? diagram.root.gap
+      ?? 24,
+      10,
+    ),
+  );
+}
+
+function _linkedRowGap(diagram) {
+  const rootDirection = String(diagram.root.direction || "VERTICAL").toUpperCase();
+  const fallback = rootDirection === "VERTICAL"
+    ? (diagram.root.gap ?? 24)
+    : _linkedPageGap(diagram);
+  return Math.max(0, parseInt(diagram.gridRowGap ?? fallback, 10));
+}
+
+function _applyLinkedRootGridSpacing(diagram) {
+  const pageGap = _linkedPageGap(diagram);
+  const rowGap = _linkedRowGap(diagram);
+  const rootDirection = String(diagram.root.direction || "VERTICAL").toUpperCase();
+
+  diagram.gridColGap = pageGap;
+  diagram.gridOuterMargin = pageGap;
+  diagram.gridRowGap = rowGap;
+
+  diagram.root.gap = rootDirection === "VERTICAL" ? rowGap : pageGap;
+
+  // Use per-side margins from grid overrides when available,
+  // otherwise fall back to uniform pageGap
+  const mTop = diagram._gridMarginTop ?? pageGap;
+  const mRight = diagram._gridMarginRight ?? pageGap;
+  const mBottom = diagram._gridMarginBottom ?? pageGap;
+  const mLeft = diagram._gridMarginLeft ?? pageGap;
+
+  diagram.root.padding = mTop; // legacy uniform fallback
+  diagram.root.paddingTop = mTop;
+  diagram.root.paddingRight = mRight;
+  diagram.root.paddingBottom = mBottom;
+  diagram.root.paddingLeft = mLeft;
+}
+
 function _findFrame(frame, fid) {
   if (frame.id === fid) return frame;
   for (const child of frame.children) {
@@ -203,11 +251,181 @@ function applyOverridesToFrameTree(diagram, allOverrides, gridOverrides) {
   if (gridOverrides.outer_margin != null) {
     diagram.gridOuterMargin = Math.max(0, parseInt(gridOverrides.outer_margin, 10));
   }
+  // Per-side margins (stored on diagram for _applyLinkedRootGridSpacing)
+  if (gridOverrides.margin_top != null) diagram._gridMarginTop = Math.max(0, parseInt(gridOverrides.margin_top, 10));
+  if (gridOverrides.margin_right != null) diagram._gridMarginRight = Math.max(0, parseInt(gridOverrides.margin_right, 10));
+  if (gridOverrides.margin_bottom != null) diagram._gridMarginBottom = Math.max(0, parseInt(gridOverrides.margin_bottom, 10));
+  if (gridOverrides.margin_left != null) diagram._gridMarginLeft = Math.max(0, parseInt(gridOverrides.margin_left, 10));
+
+  // Only sync grid → root frame when the "link to root" toggle is on
+  const linkToRoot = gridOverrides.link_to_root !== false;
+  if (linkToRoot) {
+    _applyLinkedRootGridSpacing(diagram);
+  }
 }
 
 // ---------------------------------------------------------------------------
 // SVG DOM patching — update SVG elements in-place from layout results
 // ---------------------------------------------------------------------------
+
+const SVG_NS = "http://www.w3.org/2000/svg";
+const _ASCENT_RATIO = 0.94;
+
+function _fmtSvgNumber(value) {
+  return String(Math.round(value * 100) / 100);
+}
+
+function collectFramesById(frame, out) {
+  if (!out) out = {};
+  if (frame.id && !frame.id.startsWith("__")) {
+    out[frame.id] = frame;
+  }
+  for (const child of frame.children) {
+    collectFramesById(child, out);
+  }
+  return out;
+}
+
+function _lineTopToBaseline(top, size) {
+  return top + LayoutEngine.sizeToPx(size) * _ASCENT_RATIO;
+}
+
+function _frameBoxRenderState(frame) {
+  let fill = "transparent";
+  let stroke = "#000000";
+  if (frame.fill === LayoutEngine.Fill.BLACK) {
+    fill = LayoutEngine.Fill.BLACK;
+    stroke = "none";
+  } else if (frame.border === "FILL") {
+    fill = frame.fill;
+    stroke = "none";
+  } else if (frame.border === "NONE") {
+    fill = frame.fill !== LayoutEngine.Fill.WHITE ? frame.fill : "transparent";
+    stroke = "none";
+  } else if (frame.children.length > 0 && frame.border !== "DASHED") {
+    fill = LayoutEngine.Fill.GREY;
+    stroke = "none";
+  }
+
+  let padTop = frame.paddingTop;
+  let padRight = frame.paddingRight;
+  const padBottom = frame.paddingBottom;
+  let padLeft = frame.paddingLeft;
+  if (frame.border === "NONE") {
+    padTop += 1;
+    padRight += 1;
+    padLeft += 1;
+  }
+
+  const iconCol = frame.icon ? (LayoutEngine.ICON_SIZE + LayoutEngine.INSET) : 0;
+  const textMaxWidth = frame._layout.placedW - padLeft - padRight - iconCol;
+  const iconFill = frame.fill === LayoutEngine.Fill.BLACK && !frame.iconFill
+    ? "#FFFFFF"
+    : (frame.iconFill || "#000000");
+
+  let specs = [];
+  if (frame.children.length === 0) {
+    if (frame.heading) specs.push(LayoutEngine.lineToSpec(frame.heading));
+    if (frame.label.length > 0) specs.push(...LayoutEngine.linesToSpecs(frame.label));
+    if (frame.fill === LayoutEngine.Fill.BLACK) {
+      specs = specs.map(spec => ({ ...spec, fill: "#FFFFFF" }));
+    }
+  } else if (frame.heading) {
+    specs = LayoutEngine.linesToSpecs([frame.heading]);
+  }
+  if (specs.length > 0 && textMaxWidth > 0) {
+    specs = LayoutEngine.wrapTextLines(specs, textMaxWidth, _textAdapter);
+  }
+
+  return {
+    fill,
+    stroke,
+    dashed: frame.border === "DASHED",
+    padTop,
+    padRight,
+    padBottom,
+    padLeft,
+    textMaxWidth,
+    specs,
+    iconFill,
+  };
+}
+
+function _buildFrameTextElement(frame, renderState) {
+  if (!renderState.specs.length) return null;
+
+  const textEl = document.createElementNS(SVG_NS, "text");
+  textEl.setAttribute("font-family", "Ubuntu Sans");
+
+  let top = frame._layout.placedY + renderState.padTop;
+  const x = frame._layout.placedX + renderState.padLeft;
+  for (const spec of renderState.specs) {
+    const size = spec.size ?? LayoutEngine.BODY_SIZE;
+    const weight = spec.weight ?? "400";
+    const fill = spec.fill ?? "#000000";
+    const lineStep = LayoutEngine.sizeToPx(spec.lineStep ?? LayoutEngine.BODY_LINE_STEP);
+
+    const tspan = document.createElementNS(SVG_NS, "tspan");
+    tspan.setAttribute("x", _fmtSvgNumber(x));
+    tspan.setAttribute("y", _fmtSvgNumber(_lineTopToBaseline(top, size)));
+    tspan.setAttribute("font-size", String(size));
+    tspan.setAttribute("font-weight", String(weight));
+    tspan.setAttribute("fill", fill);
+    if (spec.smallCaps) {
+      tspan.setAttribute("font-variant-caps", "all-small-caps");
+      tspan.setAttribute("letter-spacing", "0.05em");
+    }
+    if (spec.fontFamily) {
+      tspan.setAttribute("font-family", spec.fontFamily);
+    }
+    tspan.textContent = spec.content;
+    textEl.appendChild(tspan);
+    top += lineStep;
+  }
+
+  textEl.setAttribute("data-orig-inner", textEl.innerHTML);
+  return textEl;
+}
+
+function patchFrameGroup(g, frame) {
+  const renderState = _frameBoxRenderState(frame);
+  const existingIcon = g.querySelector(":scope > .dg-icon");
+
+  g.removeAttribute("transform");
+  g.style.transform = "";
+
+  const rect = document.createElementNS(SVG_NS, "rect");
+  rect.setAttribute("x", _fmtSvgNumber(frame._layout.placedX));
+  rect.setAttribute("y", _fmtSvgNumber(frame._layout.placedY));
+  rect.setAttribute("width", _fmtSvgNumber(frame._layout.placedW));
+  rect.setAttribute("height", _fmtSvgNumber(frame._layout.placedH));
+  rect.setAttribute("fill", renderState.fill);
+  rect.setAttribute("stroke", renderState.stroke);
+  rect.setAttribute("stroke-width", "1");
+  rect.setAttribute("stroke-miterlimit", "10");
+  rect.setAttribute("data-orig-width", _fmtSvgNumber(frame._layout.placedW));
+  rect.setAttribute("data-orig-height", _fmtSvgNumber(frame._layout.placedH));
+  if (renderState.dashed) {
+    rect.setAttribute("stroke-dasharray", "8 8");
+  }
+
+  const children = [rect];
+  const textEl = _buildFrameTextElement(frame, renderState);
+  if (textEl) {
+    children.push(textEl);
+  }
+
+  if (frame.icon && existingIcon) {
+    const iconX = frame._layout.placedX + frame._layout.placedW - renderState.padRight - LayoutEngine.ICON_SIZE;
+    const iconY = frame._layout.placedY + renderState.padTop;
+    existingIcon.setAttribute("transform", `translate(${_fmtSvgNumber(iconX)} ${_fmtSvgNumber(iconY)})`);
+    existingIcon.setAttribute("data-orig-tx", _fmtSvgNumber(iconX));
+    existingIcon.setAttribute("data-orig-ty", _fmtSvgNumber(iconY));
+    children.push(existingIcon);
+  }
+
+  g.replaceChildren(...children);
+}
 
 /**
  * Collect { id → { x, y, w, h } } from a placed Frame tree.
@@ -231,10 +449,10 @@ function collectPlacedBounds(frame, out) {
 
 /**
  * Patch SVG DOM elements to reflect new layout positions/sizes.
- * Uses the delta between old and new bounds to translate groups,
- * and directly updates rect dimensions for size changes.
+ * FrameBox groups are rebuilt from the relaid-out frame tree so text,
+ * icon anchoring, and rect geometry stay in sync.
  */
-function patchSvgFromLayout(svgEl, oldBounds, newBounds) {
+function patchSvgFromLayout(svgEl, oldBounds, newBounds, framesById) {
   if (!svgEl) return;
   const groups = svgEl.querySelectorAll("[data-component-id]");
 
@@ -248,6 +466,12 @@ function patchSvgFromLayout(svgEl, oldBounds, newBounds) {
     const dy = newB.y - oldB.y;
     const dw = newB.w - oldB.w;
     const dh = newB.h - oldB.h;
+
+    const frame = framesById ? framesById[cid] : null;
+    if (frame && frame.role !== "separator") {
+      patchFrameGroup(g, frame);
+      continue;
+    }
 
     // Position: translate the group
     if (Math.abs(dx) > 0.1 || Math.abs(dy) > 0.1) {
@@ -441,40 +665,60 @@ function patchArrowsSvg(svgEl, routedArrows) {
       `[data-component-id="${CSS.escape(arrow.componentId)}"]`
     );
     if (!g) continue;
-    // Update line elements
-    const lines = g.querySelectorAll("line");
-    if (lines.length > 0 && arrow.waypoints.length > 0) {
-      // Build segment list: start → wp[0] → wp[1] → ... → end
-      const points = [arrow.start, ...arrow.waypoints, arrow.end];
+    // Update visible arrow segments only. Interactive hit-area lines may
+    // already exist in the group from a previous bindInteraction() pass.
+    const allLines = Array.from(g.querySelectorAll("line"));
+    const lines = allLines.filter((line) => line.getAttribute("stroke") !== "transparent");
+    const hitLines = allLines.filter((line) => line.getAttribute("stroke") === "transparent");
+    const points = [arrow.start, ...arrow.waypoints, arrow.end];
+    if (lines.length > 0 && points.length >= 2) {
+      let basePoint = null;
+      const [tx, ty] = points[points.length - 1];
+      const [px, py] = points[points.length - 2];
+      const dx = tx - px;
+      const dy = ty - py;
+      const length = Math.hypot(dx, dy);
+      if (length > 0) {
+        const HL = window.__DG_CONFIG.head_len || 12;
+        basePoint = [tx - (dx / length) * HL, ty - (dy / length) * HL];
+      }
+
       for (let i = 0; i < lines.length && i < points.length - 1; i++) {
         lines[i].setAttribute("x1", points[i][0].toFixed(1));
         lines[i].setAttribute("y1", points[i][1].toFixed(1));
-        lines[i].setAttribute("x2", points[i + 1][0].toFixed(1));
-        lines[i].setAttribute("y2", points[i + 1][1].toFixed(1));
+        const isLastSegment = i === points.length - 2;
+        const endPoint = isLastSegment && basePoint ? basePoint : points[i + 1];
+        lines[i].setAttribute("x2", endPoint[0].toFixed(1));
+        lines[i].setAttribute("y2", endPoint[1].toFixed(1));
+      }
+
+      for (let i = 0; i < hitLines.length && i < lines.length; i++) {
+        hitLines[i].setAttribute("x1", lines[i].getAttribute("x1"));
+        hitLines[i].setAttribute("y1", lines[i].getAttribute("y1"));
+        hitLines[i].setAttribute("x2", lines[i].getAttribute("x2"));
+        hitLines[i].setAttribute("y2", lines[i].getAttribute("y2"));
       }
     }
     // Update arrowhead polygon
     const polygon = g.querySelector("polygon");
-    if (polygon) {
-      const [ex, ey] = arrow.end;
-      const HL = window.__DG_CONFIG.head_len || 12;
-      const HH = window.__DG_CONFIG.head_half || 6;
-      let pts;
-      switch (arrow.direction) {
-        case "top":
-          pts = `${ex},${ey} ${ex - HH},${ey + HL} ${ex + HH},${ey + HL}`;
-          break;
-        case "bottom":
-          pts = `${ex},${ey} ${ex - HH},${ey - HL} ${ex + HH},${ey - HL}`;
-          break;
-        case "left":
-          pts = `${ex},${ey} ${ex + HL},${ey - HH} ${ex + HL},${ey + HH}`;
-          break;
-        case "right":
-          pts = `${ex},${ey} ${ex - HL},${ey - HH} ${ex - HL},${ey + HH}`;
-          break;
+    if (polygon && points.length >= 2) {
+      const [tx, ty] = points[points.length - 1];
+      const [px, py] = points[points.length - 2];
+      const dx = tx - px;
+      const dy = ty - py;
+      const length = Math.hypot(dx, dy);
+      if (length > 0) {
+        const HL = window.__DG_CONFIG.head_len || 12;
+        const HH = window.__DG_CONFIG.head_half || 6;
+        const ux = dx / length;
+        const uy = dy / length;
+        const bx = tx - ux * HL;
+        const by = ty - uy * HL;
+        const nx = -uy * HH;
+        const ny = ux * HH;
+        const pts = `${(bx + nx).toFixed(1)},${(by + ny).toFixed(1)} ${tx.toFixed(1)},${ty.toFixed(1)} ${(bx - nx).toFixed(1)},${(by - ny).toFixed(1)}`;
+        polygon.setAttribute("points", pts);
       }
-      if (pts) polygon.setAttribute("points", pts);
     }
   }
 }
@@ -564,10 +808,11 @@ function performLocalRelayout(model, overrides, gridOverrides) {
 
     // Collect new bounds
     const newBounds = collectPlacedBounds(diagram.root, {});
+    const framesById = collectFramesById(diagram.root, {});
 
     // Patch SVG DOM
     const svgEl = document.querySelector("#stage svg");
-    patchSvgFromLayout(svgEl, oldBounds, newBounds);
+    patchSvgFromLayout(svgEl, oldBounds, newBounds, framesById);
 
     // Route and patch arrows
     if (diagram.arrows && diagram.arrows.length > 0) {

@@ -32,6 +32,8 @@ export {
   sizeToPx,
   steppedLinesHeight,
   clampToConstraints,
+  setActiveGridStep,
+  getActiveGridStep,
 } from './tokens.js';
 
 export {
@@ -57,4 +59,5 @@ export {
   place,
   layoutFrameTree,
   type LayoutOutput,
+  type LayoutOptions,
 } from './layout.js';

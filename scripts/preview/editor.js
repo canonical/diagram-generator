@@ -56,22 +56,38 @@ const UI_AUTHORING_ACCENT_LINE = getThemeToken("--bf-authoring-accent-line", "rg
 
 // ---- BoxStyle presets (mirrors diagram_model.py BoxStyle enum) ----
 const BOX_STYLES = window.__DG_BOX_STYLES || {
-  default: { fill: "#FFFFFF", text: "#000000", icon: "#000000", border: "solid", label: "Default" },
+  default: { fill: "transparent", text: "#000000", icon: "#000000", border: "solid", label: "Child" },
   parent:  { fill: "#F3F3F3", text: "#000000", icon: "#000000", border: "none",  label: "Parent" },
-  highlight: { fill: "#000000", text: "#FFFFFF", icon: "#FFFFFF", border: "solid", label: "Highlight" },
+  accent: { fill: "#F3F3F3", text: "#000000", icon: "#000000", border: "none", label: "Parent" },
+  annotation: { fill: "transparent", text: "#000000", icon: "#000000", border: "none", label: "Annotation" },
+  highlight: { fill: "#000000", text: "#FFFFFF", icon: "#FFFFFF", border: "none", label: "Highlight" },
 };
 const renderBoxStyleOptions = window.__DG_boxStyleOptionsHtml || function renderBoxStyleOptions(selectedValue, options = {}) {
   const current = selectedValue == null ? "" : String(selectedValue);
   const resetLabel = options.originalLabel || "— as defined —";
   let html = `<option value=""${current === "" ? " selected" : ""}>${resetLabel}</option>`;
   for (const [key, preset] of Object.entries(BOX_STYLES)) {
+    if (key === "accent") continue;
     html += `<option value="${key}"${current === key ? " selected" : ""}>${preset.label}</option>`;
   }
   return html;
 };
 
-// ---- Brockman grid constants ----
+// ---- Grid constants ----
 // BASELINE_STEP is defined in editor-base.js (shared constant)
+// Default grid settings for newly loaded diagrams
+const GRID_DEFAULTS = {
+  cols: 2,
+  rows: 1,           // auto-calculated unless user overrides
+  col_gap: 24,
+  row_gap: 24,
+  margin_top: 24,
+  margin_right: 24,
+  margin_bottom: 24,
+  margin_left: 24,
+  link_to_root: true,
+  slack_absorption: true,
+};
 
 // ---- Guide mode (W key) ----
 const GUIDE_MODES = ["off", "all"];
@@ -184,27 +200,59 @@ function _captureEditorState() {
 function _normaliseGridOverrides(gridOverrides) {
   const next = {};
   if (gridOverrides && Number.isFinite(gridOverrides.cols)) next.cols = gridOverrides.cols;
+  if (gridOverrides && Number.isFinite(gridOverrides.rows)) next.rows = gridOverrides.rows;
   if (gridOverrides && Number.isFinite(gridOverrides.col_gap)) next.col_gap = gridOverrides.col_gap;
   if (gridOverrides && Number.isFinite(gridOverrides.row_gap)) next.row_gap = gridOverrides.row_gap;
-  if (gridOverrides && Number.isFinite(gridOverrides.outer_margin)) next.outer_margin = gridOverrides.outer_margin;
+  // Per-side margins
+  if (gridOverrides && Number.isFinite(gridOverrides.margin_top)) next.margin_top = gridOverrides.margin_top;
+  if (gridOverrides && Number.isFinite(gridOverrides.margin_right)) next.margin_right = gridOverrides.margin_right;
+  if (gridOverrides && Number.isFinite(gridOverrides.margin_bottom)) next.margin_bottom = gridOverrides.margin_bottom;
+  if (gridOverrides && Number.isFinite(gridOverrides.margin_left)) next.margin_left = gridOverrides.margin_left;
+  // Legacy outer_margin compat (derived from margin_top or col_gap)
+  if (Number.isFinite(next.margin_top)) {
+    next.outer_margin = next.margin_top;
+  } else if (Number.isFinite(next.col_gap)) {
+    next.outer_margin = next.col_gap;
+  }
+  // Toggles
+  if (gridOverrides && typeof gridOverrides.link_to_root === "boolean") next.link_to_root = gridOverrides.link_to_root;
+  if (gridOverrides && typeof gridOverrides.slack_absorption === "boolean") next.slack_absorption = gridOverrides.slack_absorption;
   return next;
 }
 
 function _gridRequestValues(gridOverrides) {
   const fallback = baseGridInfo || gridInfo || {};
+  const linkedColGap = gridOverrides.col_gap
+    ?? gridOverrides.outer_margin
+    ?? fallback.col_gap
+    ?? fallback.outer_margin
+    ?? window.__DG_CONFIG.col_gap
+    ?? 24;
   return {
     cols: gridOverrides.cols ?? ((fallback.col_xs || []).length || 1),
-    colGap: gridOverrides.col_gap ?? fallback.col_gap ?? window.__DG_CONFIG.col_gap ?? 24,
+    colGap: linkedColGap,
     rowGap: gridOverrides.row_gap ?? fallback.row_gap ?? window.__DG_CONFIG.row_gap ?? 24,
-    outerMargin: gridOverrides.outer_margin ?? fallback.outer_margin ?? 24,
+    outerMargin: linkedColGap,
   };
 }
 
-function _getV3RootGap(gridRequest, rootNode) {
-  const layout = String((rootNode && rootNode.layout) || "").toLowerCase();
-  if (layout === "vertical") return gridRequest.rowGap;
-  if (layout === "horizontal") return gridRequest.colGap;
-  return Math.max(gridRequest.colGap, gridRequest.rowGap);
+function _pruneLinkedRootGridOverrides() {
+  if (ENGINE !== "v3") return;
+  if (!model.gridOverrides || Object.keys(model.gridOverrides).length === 0) return;
+  const rootId = (model.roots[0] || {}).id || "root";
+  const rootOverrides = overrides[rootId];
+  if (!rootOverrides) return;
+
+  delete rootOverrides.gap;
+  delete rootOverrides.padding;
+  delete rootOverrides.padding_top;
+  delete rootOverrides.padding_right;
+  delete rootOverrides.padding_bottom;
+  delete rootOverrides.padding_left;
+
+  if (Object.keys(rootOverrides).length === 0) {
+    delete overrides[rootId];
+  }
 }
 
 function _createUndoCommand(label, beforeState, afterState) {
@@ -288,14 +336,12 @@ async function _restoreEditorState(serializedState) {
   const gridChanged = JSON.stringify(currentGridOverrides) !== JSON.stringify(nextGridOverrides);
 
   model.gridOverrides = _cloneState(nextGridOverrides);
+  if (nextGridOverrides.link_to_root !== false) {
+    _pruneLinkedRootGridOverrides();
+  }
   if (gridChanged) {
     if (ENGINE === "v3") {
-      const request = _gridRequestValues(nextGridOverrides);
       const rootId = (model.roots[0] || {}).id || "root";
-      const rootNode = model.roots[0] || null;
-      if (!overrides[rootId]) overrides[rootId] = {};
-      overrides[rootId].gap = _getV3RootGap(request, rootNode);
-      overrides[rootId].padding = request.outerMargin;
       await requestV3Relayout(rootId);
     } else {
       const request = _gridRequestValues(nextGridOverrides);
@@ -367,11 +413,8 @@ async function loadSVG() {
   if (hasGridOverrides) {
     const go = model.gridOverrides;
     if (ENGINE === "v3") {
-      const rootNode = model.roots[0] || null;
+      if (go.link_to_root !== false) _pruneLinkedRootGridOverrides();
       const rootId = (model.roots[0] || {}).id || "root";
-      if (!overrides[rootId]) overrides[rootId] = {};
-      overrides[rootId].gap = _getV3RootGap(_gridRequestValues(go), rootNode);
-      overrides[rootId].padding = go.outer_margin ?? 0;
       await requestV3Relayout(rootId);
     } else {
       await requestRelayout(go.cols || 1, go.col_gap, go.row_gap, go.outer_margin);
@@ -419,7 +462,11 @@ async function loadGridInfo() {
     const svg = document.querySelector("#stage svg");
     const svgW = svg ? (svg.viewBox.baseVal.width || parseFloat(svg.getAttribute("width") || 840)) : 840;
     const svgH = svg ? (svg.viewBox.baseVal.height || parseFloat(svg.getAttribute("height") || 840)) : 840;
-    gridInfo = _computeBrockmanGrid(svgW, svgH, 2, gap, gap, pad);
+    gridInfo = _resolveGrid({
+      canvasWidth: svgW, canvasHeight: svgH,
+      columnCount: 2, columnGutter: gap, rowGutter: gap,
+      marginTop: pad, marginRight: pad, marginBottom: pad, marginLeft: pad,
+    });
     baseGridInfo = _cloneState(gridInfo);
   }
 }
@@ -460,24 +507,35 @@ function renderGridOverlay() {
   const rowHeights = gridInfo.row_heights || [];
   const colGap = gridInfo.col_gap || 0;
   const rowGap = gridInfo.row_gap || 0;
-  const margin = gridInfo.outer_margin || 0;
+  // Per-side margins (fall back to legacy outer_margin for old gridInfo shapes)
+  const legacyMargin = gridInfo.outer_margin || 0;
+  const mTop = gridInfo.margin_top ?? legacyMargin;
+  const mRight = gridInfo.margin_right ?? legacyMargin;
+  const mBottom = gridInfo.margin_bottom ?? legacyMargin;
+  const mLeft = gridInfo.margin_left ?? legacyMargin;
 
   if (guideMode === "all") {
     // -- Margin overlays --
     const marginColor = "rgba(235,180,65,0.06)";
-    if (margin > 0) {
-      addRect(g, ns, 0, 0, svgW, margin, marginColor);
-      addRect(g, ns, 0, svgH - margin, svgW, margin, marginColor);
-      addRect(g, ns, 0, margin, margin, svgH - 2 * margin, marginColor);
-      addRect(g, ns, svgW - margin, margin, margin, svgH - 2 * margin, marginColor);
-    }
+    // Top
+    if (mTop > 0) addRect(g, ns, 0, 0, svgW, mTop, marginColor);
+    // Bottom (requested, before slack)
+    if (mBottom > 0) addRect(g, ns, 0, svgH - mBottom, svgW, mBottom, marginColor);
+    // Left
+    if (mLeft > 0) addRect(g, ns, 0, mTop, mLeft, svgH - mTop - mBottom, marginColor);
+    // Right
+    if (mRight > 0) addRect(g, ns, svgW - mRight, mTop, mRight, svgH - mTop - mBottom, marginColor);
 
     // -- Content area dashed boundary --
+    const contentX = mLeft;
+    const contentY = mTop;
+    const contentW = Math.max(0, svgW - mLeft - mRight);
+    const contentH = Math.max(0, svgH - mTop - mBottom);
     const boundary = document.createElementNS(ns, "rect");
-    boundary.setAttribute("x", margin);
-    boundary.setAttribute("y", margin);
-    boundary.setAttribute("width", svgW - 2 * margin);
-    boundary.setAttribute("height", svgH - 2 * margin);
+    boundary.setAttribute("x", contentX);
+    boundary.setAttribute("y", contentY);
+    boundary.setAttribute("width", contentW);
+    boundary.setAttribute("height", contentH);
     boundary.setAttribute("fill", "none");
     boundary.setAttribute("stroke", "rgba(255,255,255,0.18)");
     boundary.setAttribute("stroke-dasharray", "6 4");
@@ -490,19 +548,19 @@ function renderGridOverlay() {
     for (let c = 0; c < colXs.length; c++) {
       const cx = colXs[c];
       const cw = c < colWidths.length ? colWidths[c] : colWidths[colWidths.length - 1];
-      addRect(g, ns, cx, margin, cw, svgH - 2 * margin, colFill);
+      addRect(g, ns, cx, mTop, cw, svgH - mTop - mBottom, colFill);
       const kl = document.createElementNS(ns, "line");
-      kl.setAttribute("x1", cx); kl.setAttribute("y1", margin);
-      kl.setAttribute("x2", cx); kl.setAttribute("y2", svgH - margin);
+      kl.setAttribute("x1", cx); kl.setAttribute("y1", mTop);
+      kl.setAttribute("x2", cx); kl.setAttribute("y2", svgH - mBottom);
       kl.setAttribute("stroke", keylineColor); kl.setAttribute("stroke-width", "0.5");
       g.appendChild(kl);
       const kr = document.createElementNS(ns, "line");
-      kr.setAttribute("x1", cx + cw); kr.setAttribute("y1", margin);
-      kr.setAttribute("x2", cx + cw); kr.setAttribute("y2", svgH - margin);
+      kr.setAttribute("x1", cx + cw); kr.setAttribute("y1", mTop);
+      kr.setAttribute("x2", cx + cw); kr.setAttribute("y2", svgH - mBottom);
       kr.setAttribute("stroke", keylineColor); kr.setAttribute("stroke-width", "0.5");
       g.appendChild(kr);
       if (c < colXs.length - 1 && colGap > 0) {
-        addRect(g, ns, cx + cw, margin, colGap, svgH - 2 * margin, "rgba(255,100,100,0.06)");
+        addRect(g, ns, cx + cw, mTop, colGap, svgH - mTop - mBottom, "rgba(255,100,100,0.06)");
       }
     }
 
@@ -512,17 +570,17 @@ function renderGridOverlay() {
       const ry = rowYs[r];
       const rh = r < rowHeights.length ? rowHeights[r] : rowHeights[rowHeights.length - 1];
       const rl = document.createElementNS(ns, "line");
-      rl.setAttribute("x1", margin); rl.setAttribute("y1", ry);
-      rl.setAttribute("x2", svgW - margin); rl.setAttribute("y2", ry);
+      rl.setAttribute("x1", mLeft); rl.setAttribute("y1", ry);
+      rl.setAttribute("x2", svgW - mRight); rl.setAttribute("y2", ry);
       rl.setAttribute("stroke", rowLine); rl.setAttribute("stroke-width", "0.5");
       g.appendChild(rl);
       const rb = document.createElementNS(ns, "line");
-      rb.setAttribute("x1", margin); rb.setAttribute("y1", ry + rh);
-      rb.setAttribute("x2", svgW - margin); rb.setAttribute("y2", ry + rh);
+      rb.setAttribute("x1", mLeft); rb.setAttribute("y1", ry + rh);
+      rb.setAttribute("x2", svgW - mRight); rb.setAttribute("y2", ry + rh);
       rb.setAttribute("stroke", rowLine); rb.setAttribute("stroke-width", "0.5");
       g.appendChild(rb);
       if (r < rowYs.length - 1 && rowGap > 0) {
-        addRect(g, ns, margin, ry + rh, svgW - 2 * margin, rowGap, "rgba(255,100,100,0.06)");
+        addRect(g, ns, mLeft, ry + rh, svgW - mLeft - mRight, rowGap, "rgba(255,100,100,0.06)");
       }
     }
   }
@@ -531,33 +589,33 @@ function renderGridOverlay() {
   if (guideMode === "all") {
     // Horizontal baseline grid
     const baselineColor = "rgba(255,100,100,0.08)";
-    for (let y = margin; y <= svgH - margin; y += BASELINE_STEP) {
+    for (let y = mTop; y <= svgH - mBottom; y += BASELINE_STEP) {
       const bl = document.createElementNS(ns, "line");
-      bl.setAttribute("x1", margin); bl.setAttribute("y1", y);
-      bl.setAttribute("x2", svgW - margin); bl.setAttribute("y2", y);
+      bl.setAttribute("x1", mLeft); bl.setAttribute("y1", y);
+      bl.setAttribute("x2", svgW - mRight); bl.setAttribute("y2", y);
       bl.setAttribute("stroke", baselineColor); bl.setAttribute("stroke-width", "0.5");
       g.appendChild(bl);
     }
     // Vertical baseline grid
-    for (let x = margin; x <= svgW - margin; x += BASELINE_STEP) {
+    for (let x = mLeft; x <= svgW - mRight; x += BASELINE_STEP) {
       const vl = document.createElementNS(ns, "line");
-      vl.setAttribute("x1", x); vl.setAttribute("y1", margin);
-      vl.setAttribute("x2", x); vl.setAttribute("y2", svgH - margin);
+      vl.setAttribute("x1", x); vl.setAttribute("y1", mTop);
+      vl.setAttribute("x2", x); vl.setAttribute("y2", svgH - mBottom);
       vl.setAttribute("stroke", baselineColor); vl.setAttribute("stroke-width", "0.25");
       g.appendChild(vl);
     }
     // -- Bottom margin absorption zone --
     // When row heights are baseline-snapped, the bottom margin absorbs
     // the leftover slack.  Highlight it so the user can see the resolved
-    // bottom margin differs from the top/side margins.
+    // bottom margin differs from the requested bottom margin.
     const resolvedBottom = gridInfo.resolved_bottom_margin ?? gridInfo._resolved_bottom_margin;
-    if (resolvedBottom != null && resolvedBottom > margin + 1) {
+    if (resolvedBottom != null && resolvedBottom > mBottom + 1) {
       addRect(g, ns, 0, svgH - resolvedBottom, svgW, resolvedBottom, "rgba(235,180,65,0.10)");
     }
 
     // Same for column widths: right margin absorbs leftover after baseline-snapping.
     const resolvedRight = gridInfo.resolved_right_margin ?? gridInfo._resolved_right_margin;
-    if (resolvedRight != null && resolvedRight > margin + 1) {
+    if (resolvedRight != null && resolvedRight > mRight + 1) {
       addRect(g, ns, svgW - resolvedRight, 0, resolvedRight, svgH, "rgba(235,180,65,0.10)");
     }
   }
@@ -576,15 +634,38 @@ function addRect(parent, ns, x, y, w, h, fill) {
 
 function populateGridControls() {
   if (!gridInfo) return;
-  // Rows are always derived (read-only)
-  document.getElementById("grid-rows").value = (gridInfo.row_ys || []).length;
-  // Only update editable fields if there are no pending user overrides
-  if (!model.gridOverrides || Object.keys(model.gridOverrides).length === 0) {
-    document.getElementById("grid-cols").value = (gridInfo.col_xs || []).length || 1;
-    document.getElementById("grid-col-gap").value = gridInfo.col_gap || 0;
-    document.getElementById("grid-row-gap").value = gridInfo.row_gap || 0;
-    document.getElementById("grid-margin").value = gridInfo.outer_margin || 0;
-  }
+
+  // Don't overwrite editable inputs while the user is actively typing.
+  const gridInputIds = [
+    "grid-cols", "grid-rows", "grid-col-gap", "grid-row-gap",
+    "grid-margin-top", "grid-margin-right", "grid-margin-bottom", "grid-margin-left",
+  ];
+  const activeEl = document.activeElement;
+  const userIsTyping = activeEl && gridInputIds.includes(activeEl.id);
+  if (userIsTyping) return;
+
+  const go = model.gridOverrides || {};
+
+  // Columns and rows
+  document.getElementById("grid-cols").value = (go.cols ?? gridInfo._cols ?? (gridInfo.col_xs || []).length) || 1;
+  document.getElementById("grid-rows").value = (go.rows ?? gridInfo._rows ?? (gridInfo.row_ys || []).length) || 1;
+
+  // Gutters
+  document.getElementById("grid-col-gap").value = go.col_gap ?? gridInfo.col_gap ?? 0;
+  document.getElementById("grid-row-gap").value = go.row_gap ?? gridInfo.row_gap ?? 0;
+
+  // Per-side margins
+  const fallbackMargin = gridInfo.outer_margin ?? gridInfo.col_gap ?? 24;
+  document.getElementById("grid-margin-top").value = go.margin_top ?? gridInfo.margin_top ?? fallbackMargin;
+  document.getElementById("grid-margin-right").value = go.margin_right ?? gridInfo.margin_right ?? fallbackMargin;
+  document.getElementById("grid-margin-bottom").value = go.margin_bottom ?? gridInfo.margin_bottom ?? fallbackMargin;
+  document.getElementById("grid-margin-left").value = go.margin_left ?? gridInfo.margin_left ?? fallbackMargin;
+
+  // Toggles
+  const linkEl = document.getElementById("grid-link-root");
+  if (linkEl) linkEl.checked = go.link_to_root ?? true;
+  const slackEl = document.getElementById("grid-slack");
+  if (slackEl) slackEl.checked = go.slack_absorption ?? true;
 }
 
 let relayoutTimer = null;
@@ -592,34 +673,45 @@ let relayoutTimer = null;
 function onGridControlChange() {
   if (!gridInfo) return;
   const cols = Math.max(1, parseInt(document.getElementById("grid-cols").value) || 1);
+  const rows = Math.max(0, parseInt(document.getElementById("grid-rows").value) || 0);
   const colGap = Math.max(0, parseInt(document.getElementById("grid-col-gap").value) || 0);
   const rowGap = Math.max(0, parseInt(document.getElementById("grid-row-gap").value) || 0);
-  const margin = Math.max(0, parseInt(document.getElementById("grid-margin").value) || 0);
+  const mTop = Math.max(0, parseInt(document.getElementById("grid-margin-top").value) || 0);
+  const mRight = Math.max(0, parseInt(document.getElementById("grid-margin-right").value) || 0);
+  const mBottom = Math.max(0, parseInt(document.getElementById("grid-margin-bottom").value) || 0);
+  const mLeft = Math.max(0, parseInt(document.getElementById("grid-margin-left").value) || 0);
+  const linkEl = document.getElementById("grid-link-root");
+  const linkToRoot = linkEl ? linkEl.checked : true;
+  const slackEl = document.getElementById("grid-slack");
+  const slackAbsorption = slackEl ? slackEl.checked : true;
 
   if (!pendingGridAction) {
     pendingGridAction = beginUndoableAction("Adjust grid");
   }
 
   // Track grid overrides for persistence
-  model.gridOverrides = { cols: cols, col_gap: colGap, row_gap: rowGap, outer_margin: margin };
+  model.gridOverrides = {
+    cols, rows, col_gap: colGap, row_gap: rowGap,
+    margin_top: mTop, margin_right: mRight,
+    margin_bottom: mBottom, margin_left: mLeft,
+    outer_margin: mTop, // legacy compat
+    link_to_root: linkToRoot,
+    slack_absorption: slackAbsorption,
+  };
+  if (linkToRoot) {
+    _pruneLinkedRootGridOverrides();
+  }
   setDirty(true);
 
   // Capture root ID before the debounce window so a concurrent tree
   // reload can't change it mid-flight.
-  const rootNode = ENGINE === "v3" ? (model.roots[0] || null) : null;
-  const rootId = rootNode ? (rootNode.id || "root") : null;
+  const rootId = ENGINE === "v3" ? ((model.roots[0] || {}).id || "root") : null;
 
   // Debounce the relayout call so rapid typing doesn't flood the server
   if (relayoutTimer) clearTimeout(relayoutTimer);
   relayoutTimer = setTimeout(async () => {
     try {
       if (ENGINE === "v3") {
-        // In v3, the root frame has a single primary-axis gap.
-        // Preserve both gutter inputs for the Brockman overlay, but drive
-        // the actual relayout from the root layout axis.
-        if (!overrides[rootId]) overrides[rootId] = {};
-        overrides[rootId].gap = _getV3RootGap({ cols, colGap, rowGap, outerMargin: margin }, rootNode);
-        overrides[rootId].padding = margin;
         await requestV3Relayout(rootId);
       } else {
         await requestRelayout(cols, colGap, rowGap, margin);
@@ -674,72 +766,141 @@ function pxToRowSpan(px) {
 let _inspectorWidthUnit = 'px';
 let _inspectorHeightUnit = 'px';
 
-// ---- Brockman grid resolver ----
-// Mirrors the a4-generator rigorous solver: row heights are whole multiples
-// of BASELINE_STEP, the bottom margin absorbs leftover slack, and column
-// widths are derived from the content area after subtracting gutters.
-function _computeBrockmanGrid(svgW, svgH, cols, colGap, rowGap, margin) {
-  const contentW = svgW - 2 * margin;
-  const contentH = svgH - 2 * margin;
+// ---- Layout grid resolver (port of design-foundry resolveGridCore) ----
+// Unit-agnostic grid math. Handles per-side margins, baseline-snapped row
+// heights, and bottom-margin slack absorption. Column widths are derived from
+// the content area after subtracting gutters. Row count is a user input
+// (unlike the old Brockman solver which auto-calculated it).
+//
+// Returns the same gridInfo shape the rest of editor.js expects, extended
+// with per-side margin fields.
+function _resolveGrid(params) {
+  const {
+    canvasWidth,
+    canvasHeight,
+    baselineStep = BASELINE_STEP,
+    marginTop = 24,
+    marginRight = 24,
+    marginBottom = 24,
+    marginLeft = 24,
+    columnCount = 2,
+    columnGutter = 24,
+    rowCount: requestedRowCount = 0,
+    rowGutter: requestedRowGutter = 24,
+    slackAbsorption = true,
+  } = params;
+
+  const step = Math.max(1, baselineStep);
+  const snap = (v) => Math.max(0, Math.round(v / step)) * step;
+
+  const mTop = snap(marginTop);
+  const mRight = snap(marginRight);
+  const mLeft = snap(marginLeft);
+  const requestedMBottom = snap(marginBottom);
+  const minMBottom = slackAbsorption
+    ? Math.max(requestedMBottom, mTop)
+    : requestedMBottom;
+
+  const cols = Math.max(1, Math.round(columnCount));
+  const colGutter = snap(columnGutter);
+
+  // Content area
+  const contentW = Math.max(0, canvasWidth - mLeft - mRight);
+  const contentH_available = Math.max(0, canvasHeight - mTop - minMBottom);
 
   // ---- Columns ----
   const colWRaw = cols > 1
-    ? (contentW - (cols - 1) * colGap) / cols
+    ? (contentW - (cols - 1) * colGutter) / cols
     : contentW;
-  const colW = colWRaw >= BASELINE_STEP
-    ? Math.floor(colWRaw / BASELINE_STEP) * BASELINE_STEP
-    : Math.max(BASELINE_STEP, Math.round(colWRaw));
+  const colW = colWRaw >= step
+    ? Math.floor(colWRaw / step) * step
+    : Math.max(step, Math.round(colWRaw));
+
   const colXs = [];
   const colWidths = [];
   for (let c = 0; c < cols; c++) {
-    colXs.push(margin + c * (colW + colGap));
+    colXs.push(mLeft + c * (colW + colGutter));
     colWidths.push(colW);
   }
 
   // ---- Rows (baseline-snapped, bottom margin absorbs slack) ----
-  // Clamp row gutter to a baseline multiple
-  const rowGapSnapped = Math.floor(rowGap / BASELINE_STEP) * BASELINE_STEP;
-  // Available height for a single row stack pass: determine how many rows
-  // fit with baseline-quantised heights.
-  const availH = contentH - rowGapSnapped; // space if 1 row (no inter-row gutters)
-  // Row height = largest baseline multiple that fits
-  // We solve for N rows: rowH * N + rowGapSnapped * (N-1) <= contentH
-  // → rowH <= (contentH - rowGapSnapped * (N-1)) / N, snapped down to BASELINE_STEP
-  // Start with N that yields a row height between 1× and ~200× baseline step
-  let rowCount = 1;
-  let rowH = Math.floor(contentH / BASELINE_STEP) * BASELINE_STEP;
-  if (rowH > 0) {
-    // Target a reasonable row height (aim for ~80-160px rows)
-    const targetRowH = Math.max(BASELINE_STEP * 10, 80); // ~80px minimum
-    rowCount = Math.max(1, Math.floor((contentH + rowGapSnapped) / (targetRowH + rowGapSnapped)));
-    const maxRowH = Math.floor((contentH - rowGapSnapped * Math.max(0, rowCount - 1)) / (rowCount * BASELINE_STEP)) * BASELINE_STEP;
-    rowH = Math.max(BASELINE_STEP, maxRowH);
+  let rows = requestedRowCount;
+  const rGapSnapped = snap(requestedRowGutter);
+
+  // Auto-calculate row count if not user-specified (rows <= 0)
+  if (rows <= 0) {
+    const targetRowH = Math.max(step * 10, 80);
+    rows = Math.max(1, Math.floor((contentH_available + rGapSnapped) / (targetRowH + rGapSnapped)));
   }
+
+  const rowGapCount = Math.max(0, rows - 1);
+
+  // Clamp row gutter if slack absorption is on
+  let rowGutter;
+  if (rowGapCount === 0) {
+    rowGutter = 0;
+  } else if (slackAbsorption) {
+    const maxRowGutter = Math.floor(contentH_available / (rowGapCount * step)) * step;
+    rowGutter = Math.min(rGapSnapped, Math.max(0, maxRowGutter));
+  } else {
+    rowGutter = rGapSnapped;
+  }
+
+  const totalRowGutter = rowGutter * rowGapCount;
+  const maxRowHSpace = contentH_available - totalRowGutter;
+  const rowH = Math.max(0, Math.floor(Math.max(0, maxRowHSpace) / (rows * step)) * step);
+
+  // Resolved bottom margin (absorbs slack)
+  const resolvedMBottom = slackAbsorption
+    ? Math.max(minMBottom, canvasHeight - mTop - rowH * rows - totalRowGutter)
+    : Math.max(0, canvasHeight - mTop - rowH * rows - totalRowGutter);
+
+  // Resolved right margin (absorbs column width snapping slack)
+  const usedWidth = cols > 0 ? colXs[cols - 1] + colW : mLeft;
+  const resolvedMRight = canvasWidth - usedWidth;
 
   const rowYs = [];
   const rowHeights = [];
-  for (let r = 0; r < rowCount; r++) {
-    rowYs.push(margin + r * (rowH + rowGapSnapped));
+  for (let r = 0; r < rows; r++) {
+    rowYs.push(mTop + r * (rowH + rowGutter));
     rowHeights.push(rowH);
   }
 
   return {
-    col_xs: colXs, col_widths: colWidths,
-    row_ys: rowYs, row_heights: rowHeights,
-    col_gap: colGap, row_gap: rowGapSnapped,
-    outer_margin: margin,
-    // Brockman-specific: resolved margins (absorb slack)
-    _resolved_bottom_margin: svgH - margin - (rowCount > 0 ? rowYs[rowCount - 1] + rowH : 0),
-    _resolved_right_margin: svgW - margin - (cols > 0 ? colXs[cols - 1] + colW : 0),
-    _baseline_step: BASELINE_STEP,
+    col_xs: colXs,
+    col_widths: colWidths,
+    row_ys: rowYs,
+    row_heights: rowHeights,
+    col_gap: colGutter,
+    row_gap: rowGutter,
+    // Per-side margins (requested values for UI display)
+    margin_top: mTop,
+    margin_right: mRight,
+    margin_bottom: requestedMBottom,
+    margin_left: mLeft,
+    // Legacy compat (backward compat with older code paths)
+    outer_margin: mTop,
+    // Resolved margins (after slack absorption / col snapping)
+    _resolved_bottom_margin: resolvedMBottom,
+    _resolved_right_margin: resolvedMRight,
+    _baseline_step: step,
+    // Explicit counts for UI
+    _cols: cols,
+    _rows: rows,
   };
 }
 
 function updateGridOverlayFromInputs() {
   const cols = Math.max(1, parseInt(document.getElementById("grid-cols").value) || 1);
+  const rows = Math.max(0, parseInt(document.getElementById("grid-rows").value) || 0);
   const colGap = Math.max(0, parseInt(document.getElementById("grid-col-gap").value) || 0);
   const rowGap = Math.max(0, parseInt(document.getElementById("grid-row-gap").value) || 0);
-  const margin = Math.max(0, parseInt(document.getElementById("grid-margin").value) || 0);
+  const mTop = Math.max(0, parseInt(document.getElementById("grid-margin-top").value) || 0);
+  const mRight = Math.max(0, parseInt(document.getElementById("grid-margin-right").value) || 0);
+  const mBottom = Math.max(0, parseInt(document.getElementById("grid-margin-bottom").value) || 0);
+  const mLeft = Math.max(0, parseInt(document.getElementById("grid-margin-left").value) || 0);
+  const slackEl = document.getElementById("grid-slack");
+  const slack = slackEl ? slackEl.checked : true;
 
   const svg = document.querySelector("#stage svg");
   if (!svg) return;
@@ -747,10 +908,45 @@ function updateGridOverlayFromInputs() {
   const svgW = vb.width || parseFloat(svg.getAttribute("width") || svg.clientWidth);
   const svgH = vb.height || parseFloat(svg.getAttribute("height") || svg.clientHeight);
 
-  gridInfo = _computeBrockmanGrid(svgW, svgH, cols, colGap, rowGap, margin);
+  gridInfo = _resolveGrid({
+    canvasWidth: svgW, canvasHeight: svgH,
+    columnCount: cols, columnGutter: colGap,
+    rowCount: rows, rowGutter: rowGap,
+    marginTop: mTop, marginRight: mRight,
+    marginBottom: mBottom, marginLeft: mLeft,
+    slackAbsorption: slack,
+  });
   // Update derived rows display
-  document.getElementById("grid-rows").value = (gridInfo.row_ys || []).length;
+  document.getElementById("grid-rows").value = gridInfo._rows;
   renderGridOverlay();
+}
+
+function refreshV3GridInfoFromLayout() {
+  const svg = document.querySelector("#stage svg");
+  if (!svg) return;
+  const go = model.gridOverrides || {};
+  const fallback = baseGridInfo || gridInfo || {};
+  const vb = svg.viewBox.baseVal;
+  const svgW = vb.width || parseFloat(svg.getAttribute("width") || svg.clientWidth);
+  const svgH = vb.height || parseFloat(svg.getAttribute("height") || svg.clientHeight);
+
+  const margin = go.outer_margin ?? go.col_gap ?? fallback.outer_margin ?? fallback.col_gap ?? 24;
+  gridInfo = _resolveGrid({
+    canvasWidth: svgW, canvasHeight: svgH,
+    columnCount: go.cols ?? fallback._cols ?? ((fallback.col_xs || []).length || 1),
+    columnGutter: go.col_gap ?? fallback.col_gap ?? 24,
+    rowCount: go.rows ?? fallback._rows ?? 0,
+    rowGutter: go.row_gap ?? fallback.row_gap ?? 24,
+    marginTop: go.margin_top ?? fallback.margin_top ?? margin,
+    marginRight: go.margin_right ?? fallback.margin_right ?? margin,
+    marginBottom: go.margin_bottom ?? fallback.margin_bottom ?? margin,
+    marginLeft: go.margin_left ?? fallback.margin_left ?? margin,
+    slackAbsorption: go.slack_absorption ?? fallback._slack_absorption ?? true,
+  });
+  gridInfo._link_to_root = go.link_to_root ?? true;
+  gridInfo._slack_absorption = go.slack_absorption ?? true;
+  model.setDiagramGrid(gridInfo);
+  populateGridControls();
 }
 
 async function requestRelayout(cols, colGap, rowGap, margin) {
@@ -799,9 +995,45 @@ async function requestRelayout(cols, colGap, rowGap, margin) {
   } catch (e) { /* ignore relayout errors */ }
 }
 
+function bindGridNumberInputSelection(input) {
+  if (!input || input.readOnly) return;
+  let selectPending = false;
+  input.addEventListener("focus", () => {
+    selectPending = true;
+    setTimeout(() => {
+      if (selectPending && document.activeElement === input) {
+        input.select();
+      }
+      selectPending = false;
+    }, 0);
+  });
+  input.addEventListener("keydown", () => {
+    if (selectPending) {
+      input.select();
+      selectPending = false;
+    }
+  });
+  input.addEventListener("mouseup", (event) => {
+    if (selectPending) {
+      event.preventDefault();
+    }
+  });
+  input.addEventListener("blur", () => {
+    selectPending = false;
+  });
+}
+
 // Bind grid control events
-["grid-cols", "grid-rows", "grid-col-gap", "grid-row-gap", "grid-margin"].forEach(id => {
+["grid-cols", "grid-rows", "grid-col-gap", "grid-row-gap",
+ "grid-margin-top", "grid-margin-right", "grid-margin-bottom", "grid-margin-left"].forEach(id => {
   document.getElementById(id).addEventListener("input", onGridControlChange);
+});
+["grid-link-root", "grid-slack"].forEach(id => {
+  document.getElementById(id).addEventListener("change", onGridControlChange);
+});
+["grid-cols", "grid-rows", "grid-col-gap", "grid-row-gap",
+ "grid-margin-top", "grid-margin-right", "grid-margin-bottom", "grid-margin-left"].forEach(id => {
+  bindGridNumberInputSelection(document.getElementById(id));
 });
 
 async function loadOverrides() {
@@ -882,6 +1114,93 @@ function findComponentAtDepth(x, y, targetDepth) {
   const svg = document.querySelector("#stage svg");
   if (!svg) return null;
 
+  function getNodeBounds(node) {
+    let nx, ny, nw, nh;
+    const g = svg.querySelector('[data-component-id="' + node.id + '"]');
+    const rect = g ? g.querySelector(":scope > rect:first-of-type") : null;
+    if (rect) {
+      nx = parseFloat(rect.getAttribute("x"));
+      ny = parseFloat(rect.getAttribute("y"));
+      nw = parseFloat(rect.getAttribute("width"));
+      nh = parseFloat(rect.getAttribute("height"));
+    } else {
+      const eff = getEffectiveDelta(node.id);
+      const own = getOwnDelta(node.id);
+      nx = node.x + eff.dx;
+      ny = node.y + eff.dy;
+      nw = node.width + own.dw;
+      nh = node.height + own.dh;
+    }
+    if (g) {
+      const t = g.style.transform || "";
+      const m = t.match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/);
+      if (m) { nx += parseFloat(m[1]); ny += parseFloat(m[2]); }
+    }
+    return { g, rect, nx, ny, nw, nh };
+  }
+
+  function findRenderedDescendant(nodes) {
+    let bestId = null;
+    let bestDist = Infinity;
+    for (const node of nodes) {
+      const { rect, nx, ny, nw, nh } = getNodeBounds(node);
+      if (!(x >= nx && x <= nx + nw && y >= ny && y <= ny + nh)) continue;
+      if (rect) {
+        const cx = nx + nw / 2;
+        const cy = ny + nh / 2;
+        const dist = (x - cx) * (x - cx) + (y - cy) * (y - cy);
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestId = node.id;
+        }
+        continue;
+      }
+      if (node.children && node.children.length > 0) {
+        const child = findRenderedDescendant(node.children);
+        if (child) return child;
+      }
+    }
+    return bestId;
+  }
+
+  function findContainingImmediateChild(nodes) {
+    let bestNode = null;
+    let bestDist = Infinity;
+    for (const node of nodes) {
+      const { nx, ny, nw, nh } = getNodeBounds(node);
+      if (!(x >= nx && x <= nx + nw && y >= ny && y <= ny + nh)) continue;
+      const cx = nx + nw / 2;
+      const cy = ny + nh / 2;
+      const dist = (x - cx) * (x - cx) + (y - cy) * (y - cy);
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestNode = node;
+      }
+    }
+    return bestNode;
+  }
+
+  function findContainingDescendant(nodes) {
+    let bestNode = null;
+    let bestDist = Infinity;
+    for (const node of nodes) {
+      const { nx, ny, nw, nh } = getNodeBounds(node);
+      if (!(x >= nx && x <= nx + nw && y >= ny && y <= ny + nh)) continue;
+      if (node.children && node.children.length > 0) {
+        const nested = findContainingDescendant(node.children);
+        if (nested) return nested;
+      }
+      const cx = nx + nw / 2;
+      const cy = ny + nh / 2;
+      const dist = (x - cx) * (x - cx) + (y - cy) * (y - cy);
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestNode = node;
+      }
+    }
+    return bestNode;
+  }
+
   function walk(nodes, depth) {
     let bestId = null;
     let bestDist = Infinity;
@@ -889,30 +1208,23 @@ function findComponentAtDepth(x, y, targetDepth) {
       // Use actual SVG DOM geometry instead of model data, which can diverge
       // from the rendered positions. Fall back to model data for arrows or
       // components without a rect.
-      let nx, ny, nw, nh;
-      const g = svg.querySelector('[data-component-id="' + node.id + '"]');
-      const rect = g ? g.querySelector("rect:first-of-type") : null;
-      if (rect) {
-        nx = parseFloat(rect.getAttribute("x"));
-        ny = parseFloat(rect.getAttribute("y"));
-        nw = parseFloat(rect.getAttribute("width"));
-        nh = parseFloat(rect.getAttribute("height"));
-      } else {
-        const eff = getEffectiveDelta(node.id);
-        const own = getOwnDelta(node.id);
-        nx = node.x + eff.dx;
-        ny = node.y + eff.dy;
-        nw = node.width + own.dw;
-        nh = node.height + own.dh;
-      }
-      // Account for CSS transforms (override dx/dy + reflow cascade shifts)
-      if (g) {
-        const t = g.style.transform || "";
-        const m = t.match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/);
-        if (m) { nx += parseFloat(m[1]); ny += parseFloat(m[2]); }
-      }
+      const { rect, nx, ny, nw, nh } = getNodeBounds(node);
       if (x >= nx && x <= nx + nw && y >= ny && y <= ny + nh) {
         if (depth === targetDepth) {
+          if (depth === 0 && node.children && node.children.length > 0) {
+            const directChild = findContainingImmediateChild(node.children);
+            if (directChild) {
+              if (directChild.children && directChild.children.length > 0) {
+                const descendant = findContainingDescendant(directChild.children);
+                if (descendant) return descendant.id;
+              }
+              return directChild.id;
+            }
+          }
+          if (!rect && node.children && node.children.length > 0) {
+            const renderedChild = findRenderedDescendant(node.children);
+            if (renderedChild) return renderedChild;
+          }
           // When overrides cause overlapping bounds, pick the child
           // whose center is closest to the click point.
           const cx = nx + nw / 2;
@@ -946,7 +1258,7 @@ function findDeepestComponent(x, y) {
     for (const node of nodes) {
       let nx, ny, nw, nh;
       const g = svg.querySelector('[data-component-id="' + node.id + '"]');
-      const rect = g ? g.querySelector("rect:first-of-type") : null;
+      const rect = g ? g.querySelector(":scope > rect:first-of-type") : null;
       if (rect) {
         nx = parseFloat(rect.getAttribute("x"));
         ny = parseFloat(rect.getAttribute("y"));
@@ -1606,7 +1918,7 @@ function applyMultiStyleOverride(styleName) {
         }
       } else {
         if (!overrides[cid]) overrides[cid] = {};
-        const fillMap = { "#FFFFFF": "WHITE", "#F3F3F3": "GREY", "#000000": "BLACK" };
+        const fillMap = { "transparent": "WHITE", "#FFFFFF": "WHITE", "#F3F3F3": "GREY", "#000000": "BLACK" };
         const borderMap = { "solid": "SOLID", "none": "NONE" };
         overrides[cid].fill = fillMap[preset.fill] || "WHITE";
         overrides[cid].border = borderMap[preset.border] || "SOLID";
@@ -1626,14 +1938,16 @@ function applyMultiStyleOverride(styleName) {
   }
   setDirty(true);
   commitOverridePatchAction("Change style (multi)", msoBefore, _captureOverrideEntries(ids));
-  if (ENGINE === "v3") {
+  if (ENGINE === "v3" && ids.length > 0) {
     clearTimeout(_v3RelayoutTimer);
-    _v3RelayoutTimer = setTimeout(() => requestV3Relayout(ids[0]), 300);
+    requestV3Relayout(ids[0]);
   }
   renderMultiSelectionInspector();
-  applyAllOverrides();
-  reapplySelection();
-  runConstraints();
+  if (ENGINE !== "v3") {
+    applyAllOverrides();
+    reapplySelection();
+    runConstraints();
+  }
 }
 window.applyMultiStyleOverride = applyMultiStyleOverride;
 
@@ -1791,15 +2105,30 @@ window.setMultiFrameSize = setMultiFrameSize;
 function applyAllOverrides() {
   const svg = document.querySelector("#stage svg");
   if (!svg) return;
+
+  function isV3FrameManaged(target) {
+    if (ENGINE !== "v3") return false;
+    const group = target && target.closest ? target.closest("[data-component-id]") : null;
+    if (!group) return false;
+    const cid = group.getAttribute("data-component-id");
+    const node = cid ? model.get(cid) : null;
+    return !!node && node.type !== "arrow" && node.type !== "separator";
+  }
+
   // Reset transforms
-  svg.querySelectorAll("[data-component-id]").forEach(g => { g.style.transform = ""; });
+  svg.querySelectorAll("[data-component-id]").forEach(g => {
+    if (isV3FrameManaged(g)) return;
+    g.style.transform = "";
+  });
   // Restore original rect sizes
   svg.querySelectorAll("rect[data-orig-width]").forEach(r => {
+    if (isV3FrameManaged(r)) return;
     r.setAttribute("width", r.getAttribute("data-orig-width"));
     r.setAttribute("height", r.getAttribute("data-orig-height"));
   });
   // Restore original icon transforms
   svg.querySelectorAll(".dg-icon[data-orig-tx]").forEach(icon => {
+    if (isV3FrameManaged(icon)) return;
     icon.setAttribute("transform", "translate(" + icon.getAttribute("data-orig-tx") + " " + icon.getAttribute("data-orig-ty") + ")");
   });
   // Restore original arrow line coords
@@ -1814,6 +2143,7 @@ function applyAllOverrides() {
   });
   // Save original sizes on first pass
   svg.querySelectorAll("[data-component-id] > rect:first-of-type").forEach(r => {
+    if (isV3FrameManaged(r)) return;
     if (!r.hasAttribute("data-orig-width")) {
       r.setAttribute("data-orig-width", r.getAttribute("width") || "0");
       r.setAttribute("data-orig-height", r.getAttribute("height") || "0");
@@ -1822,12 +2152,17 @@ function applyAllOverrides() {
   });
   // Restore original rect fills (style overrides may have changed them)
   svg.querySelectorAll("rect[data-orig-fill]").forEach(r => {
+    if (isV3FrameManaged(r)) return;
     r.setAttribute("fill", r.getAttribute("data-orig-fill"));
   });
   // Reset icon filters (style overrides may have set invert(1))
-  svg.querySelectorAll(".dg-icon").forEach(icon => { icon.style.filter = ""; });
+  svg.querySelectorAll(".dg-icon").forEach(icon => {
+    if (isV3FrameManaged(icon)) return;
+    icon.style.filter = "";
+  });
   // Save original tspan text on first pass, restore on subsequent passes
   svg.querySelectorAll("[data-component-id] text").forEach(textEl => {
+    if (isV3FrameManaged(textEl)) return;
     if (!textEl.hasAttribute("data-orig-inner")) {
       textEl.setAttribute("data-orig-inner", textEl.innerHTML);
     } else {
@@ -1850,6 +2185,7 @@ function applyAllOverrides() {
    * to accommodate the wrapped text.
    */
   function reflowTextInGroup(g, dw) {
+    if (isV3FrameManaged(g)) return 0;
     const rect = g.querySelector(":scope > rect:first-of-type");
     if (!rect) return 0;
     const textEl = g.querySelector("text");
@@ -1985,37 +2321,40 @@ function applyAllOverrides() {
   function applyToComponent(cid) {
     const eff = getEffectiveDelta(cid);
     svg.querySelectorAll('[data-component-id="' + cid + '"]').forEach(g => {
-      if (eff.dx !== 0 || eff.dy !== 0) {
-        g.style.transform = "translate(" + eff.dx + "px, " + eff.dy + "px)";
-      }
-      if (eff.dw !== 0 || eff.dh !== 0) {
-        const rect = g.querySelector(":scope > rect:first-of-type");
-        if (rect) {
-          const origW = parseFloat(rect.getAttribute("data-orig-width") || rect.getAttribute("width"));
-          const origH = parseFloat(rect.getAttribute("data-orig-height") || rect.getAttribute("height"));
-          rect.setAttribute("width", Math.max(32, origW + eff.dw));
-          rect.setAttribute("height", Math.max(32, origH + eff.dh));
+      const v3Managed = isV3FrameManaged(g);
+      if (!v3Managed) {
+        if (eff.dx !== 0 || eff.dy !== 0) {
+          g.style.transform = "translate(" + eff.dx + "px, " + eff.dy + "px)";
         }
-        // Re-anchor top-right icons when width changes
-        if (eff.dw !== 0) {
-          g.querySelectorAll(".dg-icon").forEach(icon => {
-            if (!icon.hasAttribute("data-orig-tx")) {
-              const m = (icon.getAttribute("transform") || "").match(/translate\(([\d.e+-]+)[, ]\s*([\d.e+-]+)\)/);
-              if (m) {
-                icon.setAttribute("data-orig-tx", m[1]);
-                icon.setAttribute("data-orig-ty", m[2]);
+        if (eff.dw !== 0 || eff.dh !== 0) {
+          const rect = g.querySelector(":scope > rect:first-of-type");
+          if (rect) {
+            const origW = parseFloat(rect.getAttribute("data-orig-width") || rect.getAttribute("width"));
+            const origH = parseFloat(rect.getAttribute("data-orig-height") || rect.getAttribute("height"));
+            rect.setAttribute("width", Math.max(32, origW + eff.dw));
+            rect.setAttribute("height", Math.max(32, origH + eff.dh));
+          }
+          // Re-anchor top-right icons when width changes
+          if (eff.dw !== 0) {
+            g.querySelectorAll(".dg-icon").forEach(icon => {
+              if (!icon.hasAttribute("data-orig-tx")) {
+                const m = (icon.getAttribute("transform") || "").match(/translate\(([\d.e+-]+)[, ]\s*([\d.e+-]+)\)/);
+                if (m) {
+                  icon.setAttribute("data-orig-tx", m[1]);
+                  icon.setAttribute("data-orig-ty", m[2]);
+                }
               }
-            }
-            const otx = parseFloat(icon.getAttribute("data-orig-tx") || "0");
-            const oty = parseFloat(icon.getAttribute("data-orig-ty") || "0");
-            const ownDw = getOwnDelta(cid).dw;
-            icon.setAttribute("transform", "translate(" + (otx + ownDw) + " " + oty + ")");
-          });
+              const otx = parseFloat(icon.getAttribute("data-orig-tx") || "0");
+              const oty = parseFloat(icon.getAttribute("data-orig-ty") || "0");
+              const ownDw = getOwnDelta(cid).dw;
+              icon.setAttribute("transform", "translate(" + (otx + ownDw) + " " + oty + ")");
+            });
+          }
         }
       }
       // Apply text overrides
       const ovr = overrides[cid];
-      if (ovr && ovr.text) {
+      if (ovr && ovr.text && !v3Managed) {
         const textEl = g.querySelector("text");
         if (textEl) {
           const tspans = textEl.querySelectorAll("tspan");
@@ -2053,7 +2392,7 @@ function applyAllOverrides() {
         }
       }
       // Apply style overrides (BoxStyle swap)
-      if (ovr && ovr.style && BOX_STYLES[ovr.style]) {
+      if (ovr && ovr.style && BOX_STYLES[ovr.style] && !v3Managed) {
         const preset = BOX_STYLES[ovr.style];
         const rect = g.querySelector(":scope > rect:first-of-type");
         if (rect) rect.setAttribute("fill", preset.fill);
@@ -2064,7 +2403,7 @@ function applyAllOverrides() {
       }
 
       // Reflow text when box width has changed
-      if (eff.dw !== 0) {
+      if (!v3Managed && eff.dw !== 0) {
         const reflowDh = reflowTextInGroup(g, eff.dw);
         if (reflowDh > 0) reflowDhByComponent[cid] = reflowDh;
       }
@@ -2801,7 +3140,7 @@ function onDragUp() {
     selectComponent(s.cid);
   }
   mgr.endInteraction();
-  autoFitArtboard();
+  if (s && s.hasMoved) autoFitArtboard();
 }
 
 // ---- Resize ----
@@ -4045,7 +4384,7 @@ function onResizeUp() {
     if (svg) svg.querySelectorAll(".dg-handle").forEach(h => h.style.display = "");
   }
   mgr.endInteraction();
-  autoFitArtboard();
+  if (s && s.hasMoved) autoFitArtboard();
 }
 
 // ---- Override helpers ----
@@ -4105,26 +4444,22 @@ function applyV3Style(cid, styleName) {
     }
     setDirty(true);
     clearTimeout(_v3RelayoutTimer);
-    _v3RelayoutTimer = setTimeout(() => requestV3Relayout(cid), 300);
+    requestV3Relayout(cid);
     renderSelectionInspector(cid);
     commitOverridePatchAction("Change style", v3StyleBefore, _captureOverrideEntries(v3StyleIds));
     return;
   }
   if (!overrides[cid]) overrides[cid] = {};
   // Map preset fill to frame fill enum value
-  const fillMap = { "#FFFFFF": "WHITE", "#F3F3F3": "GREY", "#000000": "BLACK" };
+  const fillMap = { "transparent": "WHITE", "#FFFFFF": "WHITE", "#F3F3F3": "GREY", "#000000": "BLACK" };
   const borderMap = { "solid": "SOLID", "none": "NONE" };  // DASHED gated out of style picker
   overrides[cid].fill = fillMap[preset.fill] || "WHITE";
   overrides[cid].border = borderMap[preset.border] || "SOLID";
   overrides[cid].style = styleName;
   setDirty(true);
   clearTimeout(_v3RelayoutTimer);
-  _v3RelayoutTimer = setTimeout(() => requestV3Relayout(cid), 300);
+  requestV3Relayout(cid);
   renderSelectionInspector(cid);
-  applyAllOverrides();
-  reapplySelection();
-  runConstraints();
-  updateInspector(cid);
   commitOverridePatchAction("Change style", v3StyleBefore, _captureOverrideEntries(v3StyleIds));
 }
 
@@ -4637,6 +4972,7 @@ async function requestV3Relayout(triggerCid) {
   bindInteraction();
   applyAllOverrides();
   reapplySelection();
+  refreshV3GridInfoFromLayout();
   renderGridOverlay();
   renderSelectionInspector(triggerCid);
   updateOverrideSummary();
@@ -4799,6 +5135,7 @@ async function saveOverrides() {
     return;
   }
   try {
+    if ((model.gridOverrides || {}).link_to_root !== false) _pruneLinkedRootGridOverrides();
     const resp = await fetch("/api/overrides/" + SLUG, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

@@ -87,9 +87,10 @@ def _parse_frame(data: dict, *, is_root: bool = False) -> Frame:
 
     # Per-axis sizing: uniform `sizing` as base, then per-axis overrides.
     # Root stays FILL/FILL. Otherwise omitted sizing defaults to HUG height
-    # so boxes and containers size to content vertically. Width defaults are:
-    #   - container or bordered leaf: FILL
-    #   - borderless leaf text: HUG
+    # so boxes and containers size to content vertically. Width defaults are
+    # independent of visual style: leaves and containers both default to FILL
+    # on the X axis. Borderless annotations that should hug their text must
+    # opt into ``sizing_w: hug`` explicitly.
     if "sizing" in data:
         uniform_sizing = _SIZING.get(data.get("sizing", "fill"), Sizing.FILL)
         sizing_w = _SIZING.get(data.get("sizing_w"), None) or uniform_sizing
@@ -99,7 +100,7 @@ def _parse_frame(data: dict, *, is_root: bool = False) -> Frame:
             default_sizing_w = Sizing.FILL
             default_sizing_h = Sizing.FILL
         else:
-            default_sizing_w = Sizing.FILL if (is_container or border != Border.NONE) else Sizing.HUG
+            default_sizing_w = Sizing.FILL
             default_sizing_h = Sizing.HUG
         sizing_w = _SIZING.get(data.get("sizing_w"), None) or default_sizing_w
         sizing_h = _SIZING.get(data.get("sizing_h"), None) or default_sizing_h

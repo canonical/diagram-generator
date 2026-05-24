@@ -115,7 +115,7 @@ components:
     growthStep: 8px
     paddingX: 8px
     paddingY: 8px
-    fill: "{colors.surface-default}"
+    fill: transparent
     stroke: "{colors.ink}"
     strokeWidth: 1px
   box-accent:
@@ -125,14 +125,14 @@ components:
     paddingX: 8px
     paddingY: 8px
     fill: "{colors.surface-accent}"
-    stroke: "{colors.ink}"
-    strokeWidth: 1px
+    stroke: none
   box-emphasis:
     width: 192px
     minHeight: 64px
     growthStep: 8px
     fill: "{colors.emphasis-surface}"
     textColor: "{colors.emphasis-text}"
+    stroke: none
   icon-default:
     size: 48px
     placement: top-right
@@ -157,7 +157,7 @@ components:
     edgeTreatment: jagged-top-bottom
     notes: Replaces legacy `memory-wall-panel`. Alias `MemoryWall` kept for backward compatibility.
   annotation:
-    fill: "{colors.surface-default}"
+    fill: transparent
     border: none
     paddingX: 8px
     paddingY: 8px
@@ -208,10 +208,10 @@ The system has exactly four box treatments. Do not invent new combinations.
 
 | Style | Border | Fill | Text | Use for |
 |-------|--------|------|------|---------|
-| Outlined box | solid 1px black | white | black | Default content boxes |
+| Outlined box | solid 1px black | transparent | black | Default child boxes |
 | Grey box | none | `#F3F3F3` | black | Grouped containers, substrate panels |
 | Annotation | none | none (transparent) | black | Standalone text labels, notes beside boxes, arrow labels |
-| Highlight box | solid 1px black | black | white | At most one per diagram for emphasis |
+| Highlight box | none | black | white | At most one per diagram for emphasis |
 
 The **annotation** style is the default for all text that sits outside a bordered box: row notes, explanatory labels, and arrow labels. Annotation frames have the same INSET padding as bordered boxes, plus 1px to compensate for the absent border, so text baselines in annotations align exactly with text baselines in adjacent bordered boxes. In YAML, set `border: none` on a frame to get annotation style.
 

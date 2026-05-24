@@ -60,6 +60,13 @@ Provide a cold-start-safe workflow and a consistent on-brand SVG system for rede
 
 ## Active TODO
 
+### Preview bridge follow-up
+
+- [x] `[S]` **Clarify v3 BoxStyle ownership.** Done. For v3, BoxStyle is now frame-tree / render-owned: the style picker writes semantic `fill` / `border` overrides, `layout-bridge.js` / `layout_v3.py` resolve those into FrameBox fill-only vs stroke-only vs highlight semantics, and `applyAllOverrides()` no longer repaints v3-managed style DOM directly. Style changes relayout immediately instead of relying on the old editor-side repaint path.
+- [x] `[S]` **Link page gap to column gutter in v3 preview authoring.** Done. v3 grid authoring now treats the horizontal page gap and column gutter as one linked value: `editor.js` mirrors `grid-margin` from `grid-col-gap`, `layout-bridge.js` derives root page padding / primary-axis gap from the linked grid value during relayout, and stale root `gap` / `padding` copies are pruned so grid overrides remain the single persisted source.
+- [x] `[S]` **Keep snapped fill columns aligned by expanding root width and refreshing preview grid metadata after relayout.** Done. Horizontal `PACKED` roots with fill children now treat the authored width as a minimum: both layout engines expand the actual root width to the next 8px-compatible fill-column span, while `editor.js` recomputes `gridInfo` from the post-relayout SVG size so live guide bands stay aligned after gutter edits instead of keeping stale pre-relayout overlay widths.
+- [x] `[S]` **Make grid gutter typing replace cleanly and keep linked page-gap readonly in the unified viewer.** Done. The unified preview shell now restores the linked `grid-margin` field to readonly and selects editable grid number inputs on focus so typing `32` replaces `24` instead of being inserted into the existing value; a focused Playwright regression now types into the real row-gap control on `android-container-vs-vm` and verifies the value change plus readonly page-gap mirror.
+
 ### Client-side layout engine — TypeScript port (COMPLETE)
 
 **Why now:** Week 0 of a 6-month project. The layout algorithm is correct (174 tests, FILL distribution fix landed). The remaining autolayout bugs are caused by the Python server round-trip, not the algorithm. Fixing them in the current architecture means writing throwaway code. Porting first means every subsequent feature lands in the right architecture.
@@ -204,14 +211,14 @@ These are longer-term. Do not start until Tiers 1–3 are solid.
 | **Figma** (border-box) | `available = parent_w − stroke − padding_l − padding_r` | Yes (inside stroke reduces content space) |
 | **Penpot** | `available = parent_w − padding_l − padding_r` | No (strokes are purely visual) |
 | **CSS border-box** | `available = parent_w − border_l − border_r − padding_l − padding_r` | Yes |
-| **Our engine** | `available = parent_w − padding_l − padding_r` | **No — border thickness not accounted for** |
+| **Our engine** | `available = parent_w − padding_l − padding_r − stroke_space` | **Yes — stroked containers now lose 2px of usable inner span** |
 
 **Items:**
 
 - [x] `[H]` **BLOCKER: Fix FILL distribution to shrink below measured size.** File: `scripts/layout_v3.py`, function `_distribute_fill_space()` (line ~83). FILL children now divide available space equally regardless of measured content size. Min/max constraints are the only floor/ceiling. Verified: 174 tests pass, all 10 frame YAML diagrams pass, browser-confirmed padding preserved on `android-container-vs-vm`.
 - [x] `[S]` **Test: padding preserved with FILL children.** Added `test_fill_children_preserve_padding` and `test_fill_children_preserve_padding_with_heading` in `test_autolayout.py`.
 - [x] `[H]` **Per-side padding UI in inspector.** Added 4-field padding input (T/R/B/L) with a link toggle button (🔗/🔓) for uniform/per-side mode. Single-select: togglePaddingLink() switches between uniform `padding` override and per-side `padding_top/right/bottom/left` overrides. Multi-select: toggleMultiPaddingLink() applies to all selected containers. Layout bridge handles per-side padding overrides (applied after uniform, so they win). setFrameProp/setMultiFrameProp clear conflicting overrides when switching modes. Browser-verified: link/unlink toggle, per-side value editing, re-linking uses top value.
-- [ ] `[S]` **Border thickness in layout math.** Currently border is purely visual (1px, not subtracted from available space). Evaluate whether to adopt Figma's model: inside stroke reduces content space by `stroke_width` per side. This would change `available = parent_w - pad_l - pad_r - 2*stroke_w`. Low priority since our borders are 1px, but architecturally correct for future border-weight support.
+- [x] `[S]` **Border thickness in layout math.** Adopted the narrowed inside-stroke contract for stroked containers in both Python and TypeScript: `SOLID` / `DASHED` frames keep the same padding origin but lose 2px of usable inner span for child layout and heading wrapping. Updated focused layout tests plus the shared parity fixture expectations.
 - [x] `[S]` **Heading height consistency.** Fixed: heading height is now computed with width-constrained text wrapping at all stages (remeasure, propagate height changes, refresh coerced heights, place). Added `_heading_text_max_w()` helper that uses `_placed_w` (if available) or `_resolved_w`. Both Python and TS engines fixed in parallel. Test added to both.
 - [x] `[S]` **Test: padding preserved with FILL children.** Covered by the two new tests above.
 - [x] `[L]` **Padding defaults audit.** Verified: bordered nodes get `padding=8` (inset from border), borderless containers get `padding=0` (pure layout groups). Rationale documented in `frame_loader.py`. No borderless containers with headings exist in current diagrams — default 0 is correct. No change needed.
