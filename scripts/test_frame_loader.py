@@ -36,8 +36,10 @@ root:
 """,
     )
 
-    assert diagram.root.sizing_w == Sizing.FILL
-    assert diagram.root.sizing_h == Sizing.FILL
+    # Root defaults to HUG/HUG — no parent to FILL into
+    assert diagram.root.sizing_w == Sizing.HUG
+    assert diagram.root.sizing_h == Sizing.HUG
+    # Non-root children default to FILL width, HUG height
     child = diagram.root.children[0]
     assert child.sizing_w == Sizing.FILL
     assert child.sizing_h == Sizing.HUG

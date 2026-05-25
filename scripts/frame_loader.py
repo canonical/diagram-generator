@@ -86,19 +86,19 @@ def _parse_frame(data: dict, *, is_root: bool = False) -> Frame:
     border = _BORDER.get(data.get("border", ""), default_border)
 
     # Per-axis sizing: uniform `sizing` as base, then per-axis overrides.
-    # Root stays FILL/FILL. Otherwise omitted sizing defaults to HUG height
-    # so boxes and containers size to content vertically. Width defaults are
-    # independent of visual style: leaves and containers both default to FILL
-    # on the X axis. Borderless annotations that should hug their text must
-    # opt into ``sizing_w: hug`` explicitly.
+    # Root defaults to HUG/HUG — there is no parent to FILL into. Use
+    # explicit ``sizing: fixed`` with a ``width`` for fixed-canvas layouts.
+    # Non-root children default to FILL width (stretch to parent) and HUG
+    # height (wrap content). Borderless annotations that should hug their
+    # text must opt into ``sizing_w: hug`` explicitly.
     if "sizing" in data:
         uniform_sizing = _SIZING.get(data.get("sizing", "fill"), Sizing.FILL)
         sizing_w = _SIZING.get(data.get("sizing_w"), None) or uniform_sizing
         sizing_h = _SIZING.get(data.get("sizing_h"), None) or uniform_sizing
     else:
         if is_root:
-            default_sizing_w = Sizing.FILL
-            default_sizing_h = Sizing.FILL
+            default_sizing_w = Sizing.HUG
+            default_sizing_h = Sizing.HUG
         else:
             default_sizing_w = Sizing.FILL
             default_sizing_h = Sizing.HUG
