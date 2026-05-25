@@ -2433,6 +2433,86 @@ class TestJustifyModes:
 
 
 # ═══════════════════════════════════════════════════════════════════
+# Absolute positioning
+# ═══════════════════════════════════════════════════════════════════
+
+class TestAbsolutePositioning:
+    """Absolute children (position_type="ABSOLUTE") are excluded from
+    normal flow: they don't contribute to HUG sizing, don't participate
+    in FILL distribution, and are placed at explicit x/y offsets relative
+    to the parent's content area."""
+
+    def test_absolute_excluded_from_flow_and_hug(self):
+        """Absolute child is ignored for parent HUG sizing and flow cursor."""
+        auto1 = Frame(id="auto1", sizing_w=Sizing.FIXED, sizing_h=Sizing.FIXED,
+                       width=96, height=48, border=Border.NONE, padding=0)
+        auto2 = Frame(id="auto2", sizing_w=Sizing.FIXED, sizing_h=Sizing.FIXED,
+                       width=96, height=48, border=Border.NONE, padding=0)
+        abs_child = Frame(id="abs1", sizing_w=Sizing.FIXED, sizing_h=Sizing.FIXED,
+                          width=200, height=200, position_type="ABSOLUTE",
+                          x=16, y=16, border=Border.NONE, padding=0)
+        parent = _container("p", Direction.VERTICAL, [auto1, abs_child, auto2],
+                            gap=8, padding=0, border=Border.NONE)
+        _layout(parent)
+
+        # Parent HUG height = sum of auto children + gap (ignores absolute)
+        expected_h = 48 + 8 + 48  # auto1 + gap + auto2 = 104
+        assert parent._placed_h == expected_h
+
+        # Auto children placed sequentially (no gap slot for abs child)
+        assert auto1._placed_y == 0
+        assert auto2._placed_y == 56  # 48 + 8 gap
+
+        # Absolute child placed at explicit x/y offset from content area
+        assert abs_child._placed_x == 16
+        assert abs_child._placed_y == 16
+
+    def test_absolute_fill_stretches_to_content_area(self):
+        """Absolute FILL child stretches to parent content area."""
+        abs_child = Frame(id="abs1",
+                          sizing_w=Sizing.FILL, sizing_h=Sizing.FILL,
+                          position_type="ABSOLUTE", x=8, y=8,
+                          border=Border.NONE, padding=0)
+        parent = _container("p", Direction.VERTICAL, [abs_child],
+                            gap=0, padding=24, border=Border.NONE)
+        parent.sizing_w = Sizing.FIXED
+        parent.width = 304
+        parent.sizing_h = Sizing.FIXED
+        parent.height = 208
+        _layout(parent)
+
+        content_w = 304 - 24 - 24  # 256
+        content_h = 208 - 24 - 24  # 160
+        assert abs_child._placed_w == content_w
+        assert abs_child._placed_h == content_h
+        assert abs_child._placed_x == 24 + 8  # pad_l + x
+        assert abs_child._placed_y == 24 + 8  # pad_t + y
+
+    def test_absolute_does_not_affect_fill_distribution(self):
+        """Absolute child doesn't steal FILL space from auto siblings."""
+        fill1 = Frame(id="f1", sizing_w=Sizing.FILL, sizing_h=Sizing.FIXED,
+                       height=48, border=Border.NONE, padding=0)
+        fill2 = Frame(id="f2", sizing_w=Sizing.FILL, sizing_h=Sizing.FIXED,
+                       height=48, border=Border.NONE, padding=0)
+        abs_child = Frame(id="abs1", sizing_w=Sizing.FIXED, sizing_h=Sizing.FIXED,
+                          width=200, height=200, position_type="ABSOLUTE",
+                          border=Border.NONE, padding=0)
+        parent = _container("p", Direction.HORIZONTAL, [fill1, abs_child, fill2],
+                            gap=8, padding=0, border=Border.NONE)
+        parent.sizing_w = Sizing.FIXED
+        parent.width = 304
+        _layout(parent)
+
+        # Two auto FILL children split 304 - 8 gap = 296 / 2 = 148 each
+        assert fill1._placed_w == 148
+        assert fill2._placed_w == 148
+
+    def test_default_position_type_is_auto(self):
+        f = Frame(id="t")
+        assert f.position_type == "AUTO"
+
+
+# ═══════════════════════════════════════════════════════════════════
 # Standalone runner (works without pytest too)
 # ═══════════════════════════════════════════════════════════════════
 

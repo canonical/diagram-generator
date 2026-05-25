@@ -117,6 +117,11 @@ class Frame:
     padding_bottom: int | None = None
     padding_left: int | None = None
 
+    # ── Position within parent ──
+    position_type: str = "AUTO"  # "AUTO" or "ABSOLUTE"
+    x: int = 0                   # explicit X offset (when position_type="ABSOLUTE")
+    y: int = 0                   # explicit Y offset (when position_type="ABSOLUTE")
+
     # ── Appearance ──
     fill: Fill = Fill.WHITE
     border: Border = Border.SOLID

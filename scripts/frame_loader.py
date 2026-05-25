@@ -148,6 +148,9 @@ def _parse_frame(data: dict, *, is_root: bool = False) -> Frame:
         label=label,
         role=data.get("role", ""),
         children=children,
+        position_type=data.get("position", "AUTO").upper(),
+        x=int(data["x"]) if "x" in data else 0,
+        y=int(data["y"]) if "y" in data else 0,
     )
 
 

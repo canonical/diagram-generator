@@ -39,6 +39,9 @@ function deserializeFrame(json) {
     label: (json.label || []).map(ln => LayoutEngine.createLine(ln.content, ln)),
     role: json.role || "",
     children,
+    positionType: json.positionType || "AUTO",
+    x: json.x ?? 0,
+    y: json.y ?? 0,
   });
 }
 
@@ -190,6 +193,18 @@ function applyOverridesToFrameTree(diagram, allOverrides, gridOverrides) {
     }
     if (ovr.border && _BORDER_MAP[ovr.border]) {
       target.border = ovr.border;
+    }
+    if (ovr.position) {
+      const pos = ovr.position.toUpperCase();
+      if (pos === "ABSOLUTE" || pos === "AUTO") {
+        target.positionType = pos;
+      }
+    }
+    if (ovr.x != null) {
+      target.x = parseInt(ovr.x, 10);
+    }
+    if (ovr.y != null) {
+      target.y = parseInt(ovr.y, 10);
     }
     if (ovr.children_order && Array.isArray(ovr.children_order)) {
       const childMap = new Map(target.children.map(c => [c.id, c]));
@@ -407,6 +422,12 @@ function patchFrameGroup(g, frame) {
   rect.setAttribute("data-orig-height", _fmtSvgNumber(frame._layout.placedH));
   if (renderState.dashed) {
     rect.setAttribute("stroke-dasharray", "8 8");
+  }
+  // Structural transparent rects (no text, no stroke) are pure containers —
+  // keep them click-transparent so child components remain selectable.
+  if (renderState.fill === "transparent" && renderState.stroke === "none"
+      && !renderState.specs.length) {
+    rect.setAttribute("pointer-events", "none");
   }
 
   const children = [rect];
@@ -776,6 +797,7 @@ function performLocalRelayout(model, overrides, gridOverrides) {
       "direction", "gap", "padding", "sizing", "sizing_w", "sizing_h",
       "align", "width", "height", "min_width", "max_width", "min_height",
       "max_height", "children_order", "fill", "border", "text",
+      "position", "x", "y",
     ];
     const allFrameOverrides = {};
     for (const [fid, ovr] of Object.entries(overrides)) {

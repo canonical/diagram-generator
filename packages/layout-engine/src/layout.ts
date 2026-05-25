@@ -293,16 +293,19 @@ export function measure(frame: Frame, adapter: TextMeasureAdapter, isRoot = fals
     return;
   }
 
-  // Measure children first
+  // Measure children first (all children, including absolute-positioned)
   for (const child of frame.children) {
     measure(child, adapter);
   }
+
+  // Only auto (in-flow) children contribute to parent's content size
+  const autoChildren = frame.children.filter(c => c.positionType !== 'ABSOLUTE');
 
   const padH = frame.paddingLeft + frame.paddingRight;
   const padV = frame.paddingTop + frame.paddingBottom;
   const hh = headingHeight(frame.heading, adapter);
   const hGap = hh > 0 ? frame.gap : 0;
-  const n = frame.children.length;
+  const n = autoChildren.length;
   const totalGap = frame.gap * Math.max(0, n - 1);
 
   let contentW: number;
@@ -311,32 +314,32 @@ export function measure(frame: Frame, adapter: TextMeasureAdapter, isRoot = fals
   if (frame.direction === Direction.HORIZONTAL) {
     // Primary axis (W)
     if (!isRoot) {
-      const fillW = frame.children.filter(c => c.sizingW === Sizing.FILL).map(c => c._layout.measuredW);
-      const nonFillW = frame.children.filter(c => c.sizingW !== Sizing.FILL).reduce((s, c) => s + c._layout.measuredW, 0);
+      const fillW = autoChildren.filter(c => c.sizingW === Sizing.FILL).map(c => c._layout.measuredW);
+      const nonFillW = autoChildren.filter(c => c.sizingW !== Sizing.FILL).reduce((s, c) => s + c._layout.measuredW, 0);
       if (fillW.length > 0) {
         contentW = Math.max(...fillW) * fillW.length + nonFillW + totalGap;
       } else {
-        contentW = frame.children.reduce((s, c) => s + c._layout.measuredW, 0) + totalGap;
+        contentW = autoChildren.reduce((s, c) => s + c._layout.measuredW, 0) + totalGap;
       }
     } else {
-      contentW = frame.children.reduce((s, c) => s + c._layout.measuredW, 0) + totalGap;
+      contentW = autoChildren.reduce((s, c) => s + c._layout.measuredW, 0) + totalGap;
     }
     // Cross axis (H): max
-    contentH = frame.children.length > 0 ? Math.max(...frame.children.map(c => c._layout.measuredH)) : 0;
+    contentH = autoChildren.length > 0 ? Math.max(...autoChildren.map(c => c._layout.measuredH)) : 0;
   } else {
     // Cross axis (W): max
-    contentW = frame.children.length > 0 ? Math.max(...frame.children.map(c => c._layout.measuredW)) : 0;
+    contentW = autoChildren.length > 0 ? Math.max(...autoChildren.map(c => c._layout.measuredW)) : 0;
     // Primary axis (H)
     if (!isRoot) {
-      const fillH = frame.children.filter(c => c.sizingH === Sizing.FILL).map(c => c._layout.measuredH);
-      const nonFillH = frame.children.filter(c => c.sizingH !== Sizing.FILL).reduce((s, c) => s + c._layout.measuredH, 0);
+      const fillH = autoChildren.filter(c => c.sizingH === Sizing.FILL).map(c => c._layout.measuredH);
+      const nonFillH = autoChildren.filter(c => c.sizingH !== Sizing.FILL).reduce((s, c) => s + c._layout.measuredH, 0);
       if (fillH.length > 0) {
         contentH = Math.max(...fillH) * fillH.length + nonFillH + totalGap;
       } else {
-        contentH = frame.children.reduce((s, c) => s + c._layout.measuredH, 0) + totalGap;
+        contentH = autoChildren.reduce((s, c) => s + c._layout.measuredH, 0) + totalGap;
       }
     } else {
-      contentH = frame.children.reduce((s, c) => s + c._layout.measuredH, 0) + totalGap;
+      contentH = autoChildren.reduce((s, c) => s + c._layout.measuredH, 0) + totalGap;
     }
   }
 
@@ -364,8 +367,27 @@ function resolveChildWidths(frame: Frame, frameW: number, adapter: TextMeasureAd
   const padL = frame.paddingLeft;
   const padR = frame.paddingRight;
   const strokeSpace = strokeSpaceTotal(frame);
-  const n = frame.children.length;
+  const autoChildren = frame.children.filter(c => c.positionType !== 'ABSOLUTE');
+  const n = autoChildren.length;
   const totalGap = frame.gap * Math.max(0, n - 1);
+
+  // Pre-compute absolute children's widths (they don't participate in flow)
+  const absWidthMap = new Map<Frame, number>();
+  for (const child of frame.children) {
+    if (child.positionType === 'ABSOLUTE') {
+      let w: number;
+      const contentW = Math.max(0, frameW - padL - padR - strokeSpace);
+      if (child.sizingW === Sizing.FILL) {
+        w = roundUpToGrid(contentW);
+      } else if (child.sizingW === Sizing.FIXED && child.width != null) {
+        w = roundUpToGrid(child.width);
+      } else {
+        w = roundUpToGrid(child._layout.measuredW);
+      }
+      w = clampToConstraints(w, child.minWidth, child.maxWidth);
+      absWidthMap.set(child, w);
+    }
+  }
 
   if (frame.direction === Direction.HORIZONTAL) {
     const available = Math.max(0, frameW - padL - padR - strokeSpace - totalGap);
@@ -374,7 +396,7 @@ function resolveChildWidths(frame: Frame, frameW: number, adapter: TextMeasureAd
     const fillMins: (number | undefined)[] = [];
     const fillMaxes: (number | undefined)[] = [];
 
-    for (const child of frame.children) {
+    for (const child of autoChildren) {
       if (child.sizingW === Sizing.FILL) {
         fillMeasured.push(child._layout.measuredW);
         fillMins.push(child.minWidth);
@@ -391,6 +413,10 @@ function resolveChildWidths(frame: Frame, frameW: number, adapter: TextMeasureAd
     const widths: number[] = [];
     let fillIdx = 0;
     for (const child of frame.children) {
+      if (child.positionType === 'ABSOLUTE') {
+        widths.push(absWidthMap.get(child)!);
+        continue;
+      }
       let w: number;
       if (child.sizingW === Sizing.FILL) {
         w = roundUpToGrid(fillSizes[fillIdx++]!);
@@ -408,6 +434,10 @@ function resolveChildWidths(frame: Frame, frameW: number, adapter: TextMeasureAd
     const crossW = Math.max(0, frameW - padL - padR - strokeSpace);
     const widths: number[] = [];
     for (const child of frame.children) {
+      if (child.positionType === 'ABSOLUTE') {
+        widths.push(absWidthMap.get(child)!);
+        continue;
+      }
       let w: number;
       if (child.sizingW === Sizing.FILL) {
         w = roundUpToGrid(crossW);
@@ -450,22 +480,23 @@ function propagateHeightChanges(frame: Frame, adapter: TextMeasureAdapter): void
   }
   if (frame.sizingH !== Sizing.HUG) return;
 
+  const autoChildren = frame.children.filter(c => c.positionType !== 'ABSOLUTE');
   const padV = frame.paddingTop + frame.paddingBottom;
   const hh = headingHeight(frame.heading, adapter, headingTextMaxW(frame));
   const hGap = hh > 0 ? frame.gap : 0;
-  const n = frame.children.length;
+  const n = autoChildren.length;
   const totalGap = frame.gap * Math.max(0, n - 1);
 
   let contentH: number;
   if (frame.direction === Direction.HORIZONTAL) {
-    contentH = frame.children.length > 0 ? Math.max(...frame.children.map(c => c._layout.measuredH)) : 0;
+    contentH = autoChildren.length > 0 ? Math.max(...autoChildren.map(c => c._layout.measuredH)) : 0;
   } else {
-    const fillH = frame.children.filter(c => c.sizingH === Sizing.FILL).map(c => c._layout.measuredH);
-    const nonFillH = frame.children.filter(c => c.sizingH !== Sizing.FILL).reduce((s, c) => s + c._layout.measuredH, 0);
+    const fillH = autoChildren.filter(c => c.sizingH === Sizing.FILL).map(c => c._layout.measuredH);
+    const nonFillH = autoChildren.filter(c => c.sizingH !== Sizing.FILL).reduce((s, c) => s + c._layout.measuredH, 0);
     if (fillH.length > 0) {
       contentH = Math.max(...fillH) * fillH.length + nonFillH + totalGap;
     } else {
-      contentH = frame.children.reduce((s, c) => s + c._layout.measuredH, 0) + totalGap;
+      contentH = autoChildren.reduce((s, c) => s + c._layout.measuredH, 0) + totalGap;
     }
   }
 
@@ -483,25 +514,26 @@ function refreshCoercedHeights(frame: Frame, adapter: TextMeasureAdapter, coerce
   // Skip containers that were originally FIXED (user-set height/width).
   if (!frame.id || !coercedIds.has(frame.id)) return;
 
+  const autoChildren = frame.children.filter(c => c.positionType !== 'ABSOLUTE');
   const padV = frame.paddingTop + frame.paddingBottom;
   const hh = headingHeight(frame.heading, adapter, headingTextMaxW(frame));
   const hGap = hh > 0 ? frame.gap : 0;
-  const n = frame.children.length;
+  const n = autoChildren.length;
   const totalGap = frame.gap * Math.max(0, n - 1);
 
   if (frame.direction === Direction.HORIZONTAL) {
-    const contentH = frame.children.length > 0 ? Math.max(...frame.children.map(c => c._layout.measuredH)) : 0;
+    const contentH = autoChildren.length > 0 ? Math.max(...autoChildren.map(c => c._layout.measuredH)) : 0;
     const newH = roundUpToGrid(contentH + padV + hh + hGap);
     frame._layout.measuredH = newH;
     frame.height = newH;
   } else {
-    const fillH = frame.children.filter(c => c.sizingH === Sizing.FILL).map(c => c._layout.measuredH);
-    const nonFillH = frame.children.filter(c => c.sizingH !== Sizing.FILL).reduce((s, c) => s + c._layout.measuredH, 0);
+    const fillH = autoChildren.filter(c => c.sizingH === Sizing.FILL).map(c => c._layout.measuredH);
+    const nonFillH = autoChildren.filter(c => c.sizingH !== Sizing.FILL).reduce((s, c) => s + c._layout.measuredH, 0);
     let contentH: number;
     if (fillH.length > 0) {
       contentH = Math.max(...fillH) * fillH.length + nonFillH + totalGap;
     } else {
-      contentH = frame.children.reduce((s, c) => s + c._layout.measuredH, 0) + totalGap;
+      contentH = autoChildren.reduce((s, c) => s + c._layout.measuredH, 0) + totalGap;
     }
     const newH = roundUpToGrid(contentH + padV + hh + hGap);
     frame._layout.measuredH = newH;
@@ -581,7 +613,8 @@ export function place(
   }
   const hh = headingHeight(frame.heading, adapter, textMaxW);
   const hGap = hh > 0 ? frame.gap : 0;
-  const n = frame.children.length;
+  const autoChildren = frame.children.filter(c => c.positionType !== 'ABSOLUTE');
+  const n = autoChildren.length;
 
   // For justify modes other than PACKED, gap is replaced by computed
   // spacing — all inner space is available for children + distribution.
@@ -606,7 +639,7 @@ export function place(
   const fillMins: (number | undefined)[] = [];
   const fillMaxes: (number | undefined)[] = [];
 
-  for (const child of frame.children) {
+  for (const child of autoChildren) {
     const pSizing = childPrimarySizing(child, frame.direction);
     if (pSizing === Sizing.FILL) {
       const m = frame.direction === Direction.HORIZONTAL ? child._layout.measuredW : child._layout.measuredH;
@@ -670,12 +703,12 @@ export function place(
     }
   }
 
-  // Place children sequentially
+  // Place auto children sequentially
   let fillIdx = 0;
 
   if (frame.direction === Direction.HORIZONTAL) {
     let cursorX = x + padL + mainOffset;
-    for (const child of frame.children) {
+    for (const child of autoChildren) {
       const pSizing = childPrimarySizing(child, frame.direction);
       const cSizing = childCounterSizing(child, frame.direction);
 
@@ -699,7 +732,7 @@ export function place(
     }
   } else {
     let cursorY = y + padT + hh + hGap + mainOffset;
-    for (const child of frame.children) {
+    for (const child of autoChildren) {
       const pSizing = childPrimarySizing(child, frame.direction);
       const cSizing = childCounterSizing(child, frame.direction);
 
@@ -721,6 +754,18 @@ export function place(
       place(child, childX, cursorY, childW, childH, adapter);
       cursorY += child._layout.placedH + childGap;
     }
+  }
+
+  // Place absolute children at their explicit x/y offsets relative to parent content area
+  const contentX = x + padL;
+  const contentY = y + padT;
+  const contentW = Math.max(0, frame._layout.placedW - padL - padR - strokeSpace);
+  const contentH = Math.max(0, frame._layout.placedH - padT - padB - strokeSpace);
+  for (const child of frame.children) {
+    if (child.positionType !== 'ABSOLUTE') continue;
+    const absW = child.sizingW === Sizing.FILL ? contentW : (child.sizingW === Sizing.FIXED && child.width != null ? roundUpToGrid(child.width) : child._layout.measuredW);
+    const absH = child.sizingH === Sizing.FILL ? contentH : (child.sizingH === Sizing.FIXED && child.height != null ? roundUpToGrid(child.height) : child._layout.measuredH);
+    place(child, contentX + child.x, contentY + child.y, absW, absH, adapter);
   }
 }
 

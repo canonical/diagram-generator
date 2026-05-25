@@ -749,5 +749,106 @@
         }
       }
     }
+  },
+  {
+    "name": "test-absolute-positioning",
+    "description": "Absolute child excluded from flow, placed at explicit offset",
+    "root": {
+      "id": "page",
+      "padding": 24,
+      "gap": 8,
+      "sizingW": "FIXED",
+      "sizingH": "FIXED",
+      "width": 304,
+      "height": 256,
+      "fill": "#FFFFFF",
+      "border": "NONE",
+      "children": [
+        {
+          "id": "auto1",
+          "gap": 0,
+          "sizingW": "FIXED",
+          "sizingH": "FIXED",
+          "width": 96,
+          "height": 48,
+          "fill": "#FFFFFF",
+          "border": "NONE",
+          "label": [
+            {
+              "content": "Auto 1",
+              "size": "18",
+              "weight": "400"
+            }
+          ]
+        },
+        {
+          "id": "abs1",
+          "gap": 0,
+          "sizingW": "FIXED",
+          "sizingH": "FIXED",
+          "width": 80,
+          "height": 80,
+          "positionType": "ABSOLUTE",
+          "x": 16,
+          "y": 16,
+          "fill": "#FFFFFF",
+          "border": "NONE",
+          "label": [
+            {
+              "content": "Absolute",
+              "size": "18",
+              "weight": "400"
+            }
+          ]
+        },
+        {
+          "id": "auto2",
+          "gap": 0,
+          "sizingW": "FIXED",
+          "sizingH": "FIXED",
+          "width": 96,
+          "height": 48,
+          "fill": "#FFFFFF",
+          "border": "NONE",
+          "label": [
+            {
+              "content": "Auto 2",
+              "size": "18",
+              "weight": "400"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "width": 304,
+      "height": 256,
+      "bounds": {
+        "page": {
+          "x": 0,
+          "y": 0,
+          "w": 304,
+          "h": 256
+        },
+        "auto1": {
+          "x": 24,
+          "y": 24,
+          "w": 96,
+          "h": 48
+        },
+        "abs1": {
+          "x": 40,
+          "y": 40,
+          "w": 80,
+          "h": 80
+        },
+        "auto2": {
+          "x": 24,
+          "y": 80,
+          "w": 96,
+          "h": 48
+        }
+      }
+    }
   }
 ]

@@ -81,6 +81,9 @@ def _build_frame(data: dict) -> Frame:
         label=label,
         role=data.get("role", ""),
         children=children,
+        position_type=data.get("positionType", "AUTO"),
+        x=data.get("x", 0),
+        y=data.get("y", 0),
     )
 
 

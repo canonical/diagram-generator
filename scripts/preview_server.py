@@ -351,6 +351,9 @@ def _serialize_frame(frame) -> dict:
         "label": [_serialize_line(ln) for ln in frame.label],
         "role": frame.role,
         "children": [_serialize_frame(child) for child in frame.children],
+        "positionType": frame.position_type,
+        "x": frame.x,
+        "y": frame.y,
     }
 
 

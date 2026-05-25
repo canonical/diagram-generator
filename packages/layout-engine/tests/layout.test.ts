@@ -941,3 +941,86 @@ describe('justify modes', () => {
     expect(wide._layout.placedY).toBeCloseTo(160, 0);
   });
 });
+
+// ---------------------------------------------------------------------------
+// absolute positioning (Figma "Ignore auto layout")
+// ---------------------------------------------------------------------------
+
+describe('absolute positioning', () => {
+  it('absolute child is excluded from parent flow and HUG sizing', () => {
+    // Parent is HUG. Two auto children (each 40×40) + one absolute child (80×80).
+    // The absolute child should NOT contribute to parent measured size.
+    const auto1 = new Frame({ id: 'a1', sizingW: Sizing.FIXED, sizingH: Sizing.FIXED, width: 40, height: 40 });
+    const auto2 = new Frame({ id: 'a2', sizingW: Sizing.FIXED, sizingH: Sizing.FIXED, width: 40, height: 40 });
+    const abs = new Frame({ id: 'abs', positionType: 'ABSOLUTE', sizingW: Sizing.FIXED, sizingH: Sizing.FIXED, width: 80, height: 80, x: 10, y: 10 });
+    const parent = new Frame({
+      id: 'parent', direction: Direction.VERTICAL,
+      sizingW: Sizing.HUG, sizingH: Sizing.HUG,
+      padding: 0, border: Border.NONE, gap: 0,
+      children: [auto1, abs, auto2],
+    });
+    layoutFrameTree(parent, adapter);
+
+    // Parent hugs only auto children: 40 + 40 = 80 high, 40 wide
+    expect(parent._layout.placedW).toBe(40);
+    expect(parent._layout.placedH).toBe(80);
+
+    // Auto children are placed sequentially as if abs child doesn't exist
+    expect(auto1._layout.placedY).toBe(0);
+    expect(auto2._layout.placedY).toBe(40);
+
+    // Absolute child placed at its explicit x/y offset from parent origin
+    expect(abs._layout.placedX).toBe(10);
+    expect(abs._layout.placedY).toBe(10);
+    expect(abs._layout.placedW).toBe(80);
+    expect(abs._layout.placedH).toBe(80);
+  });
+
+  it('absolute child with FILL sizing stretches to parent content area', () => {
+    const abs = new Frame({ id: 'abs', positionType: 'ABSOLUTE', sizingW: Sizing.FILL, sizingH: Sizing.FILL, x: 0, y: 0 });
+    abs.label = [createLine('text')];
+    const auto = new Frame({ id: 'auto', sizingW: Sizing.FIXED, sizingH: Sizing.FIXED, width: 100, height: 100 });
+    const parent = new Frame({
+      id: 'parent', direction: Direction.VERTICAL,
+      sizingW: Sizing.FIXED, sizingH: Sizing.FIXED,
+      width: 200, height: 200,
+      padding: 8, border: Border.NONE,
+      children: [auto, abs],
+    });
+    layoutFrameTree(parent, adapter);
+
+    // FILL absolute child stretches to parent's content area (200 - 8 - 8 = 184)
+    expect(abs._layout.placedW).toBe(184);
+    expect(abs._layout.placedH).toBe(184);
+    expect(abs._layout.placedX).toBe(8); // parent origin + padL + x
+    expect(abs._layout.placedY).toBe(8); // parent origin + padT + y
+  });
+
+  it('absolute child does not affect FILL distribution among auto siblings', () => {
+    const fill1 = new Frame({ id: 'f1', sizingW: Sizing.FIXED, sizingH: Sizing.FILL, width: 40 });
+    fill1.label = [createLine('a')];
+    const fill2 = new Frame({ id: 'f2', sizingW: Sizing.FIXED, sizingH: Sizing.FILL, width: 40 });
+    fill2.label = [createLine('b')];
+    const abs = new Frame({ id: 'abs', positionType: 'ABSOLUTE', sizingW: Sizing.FIXED, sizingH: Sizing.FIXED, width: 200, height: 200, x: 0, y: 0 });
+    const parent = new Frame({
+      id: 'parent', direction: Direction.VERTICAL,
+      sizingW: Sizing.FIXED, sizingH: Sizing.FIXED,
+      width: 200, height: 200,
+      padding: 0, border: Border.NONE, gap: 0,
+      children: [fill1, abs, fill2],
+    });
+    layoutFrameTree(parent, adapter);
+
+    // Two FILL children split 200px equally, absolute child has no effect
+    expect(fill1._layout.placedH).toBe(100);
+    expect(fill2._layout.placedH).toBe(100);
+    // Absolute child keeps its explicit dimensions
+    expect(abs._layout.placedW).toBe(200);
+    expect(abs._layout.placedH).toBe(200);
+  });
+
+  it('default positionType is AUTO', () => {
+    const f = new Frame({ id: 'test' });
+    expect(f.positionType).toBe('AUTO');
+  });
+});

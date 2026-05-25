@@ -92,6 +92,14 @@ export enum Justify {
 }
 
 /**
+ * Position type within parent auto-layout.
+ * AUTO (default): child participates in flow layout.
+ * ABSOLUTE: child is excluded from flow and placed at explicit x/y
+ * offsets relative to the parent's content area (Figma's "Ignore auto layout").
+ */
+export type PositionType = 'AUTO' | 'ABSOLUTE';
+
+/**
  * Content alignment within a frame (Figma 9-point model).
  * Combines main-axis and cross-axis positions.
  */
@@ -181,6 +189,11 @@ export interface FrameInit {
   paddingBottom?: number;
   paddingLeft?: number;
 
+  // Position within parent
+  positionType?: PositionType;
+  x?: number;
+  y?: number;
+
   // Appearance
   fill?: Fill;
   border?: Border;
@@ -237,6 +250,11 @@ export class Frame {
   paddingBottom: number;
   paddingLeft: number;
 
+  // Position within parent
+  positionType: PositionType;
+  x: number;
+  y: number;
+
   // Appearance
   fill: Fill;
   border: Border;
@@ -277,6 +295,10 @@ export class Frame {
     this.paddingRight = init?.paddingRight ?? this.padding;
     this.paddingBottom = init?.paddingBottom ?? this.padding;
     this.paddingLeft = init?.paddingLeft ?? this.padding;
+
+    this.positionType = init?.positionType ?? 'AUTO';
+    this.x = init?.x ?? 0;
+    this.y = init?.y ?? 0;
 
     this.fill = init?.fill ?? Fill.WHITE;
     this.border = init?.border ?? Border.SOLID;

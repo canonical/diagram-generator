@@ -409,7 +409,7 @@ async function loadSVG() {
   // Apply saved grid overrides (gutter/margin changes) before rendering
   const hasGridOverrides = model.gridOverrides && Object.keys(model.gridOverrides).length > 0;
   // Check if any frame overrides need a relayout (text, sizing, etc.)
-  const hasFrameOverrides = ENGINE === "v3" && Object.values(overrides).some(ovr => ovr.text || ovr.direction || ovr.sizing_w || ovr.sizing_h || ovr.fill || ovr.border);
+  const hasFrameOverrides = ENGINE === "v3" && Object.values(overrides).some(ovr => ovr.text || ovr.direction || ovr.sizing_w || ovr.sizing_h || ovr.fill || ovr.border || ovr.position);
   if (hasGridOverrides) {
     const go = model.gridOverrides;
     if (ENGINE === "v3") {
@@ -2667,11 +2667,14 @@ function autoFitArtboard() {
   const curX = vb.x || 0;
   const curY = vb.y || 0;
 
-  // Required canvas extents
-  const needX = Math.min(curX, minX - PADDING);
-  const needY = Math.min(curY, minY - PADDING);
-  const needRight = Math.max(curX + curW, maxX + PADDING);
-  const needBottom = Math.max(curY + curH, maxY + PADDING);
+  // Only expand when content actually extends past the current viewBox edges.
+  // Breathing room is added only in the direction of overflow.
+  let needX = curX, needY = curY;
+  let needRight = curX + curW, needBottom = curY + curH;
+  if (minX < curX) needX = minX - PADDING;
+  if (minY < curY) needY = minY - PADDING;
+  if (maxX > curX + curW) needRight = maxX + PADDING;
+  if (maxY > curY + curH) needBottom = maxY + PADDING;
   const needW = needRight - needX;
   const needH = needBottom - needY;
 
@@ -3140,7 +3143,10 @@ function onDragUp() {
     selectComponent(s.cid);
   }
   mgr.endInteraction();
-  if (s && s.hasMoved) autoFitArtboard();
+  // Only auto-fit for free-position drags; autolayout drags are
+  // repositioned by the engine relayout, so expanding the viewBox
+  // here would create stale padding that never shrinks back.
+  if (s && s.hasMoved && !s.autolayout) autoFitArtboard();
 }
 
 // ---- Resize ----
@@ -4791,6 +4797,31 @@ function buildAutolayoutPanel(cid, node) {
     html += ' onchange="setFrameProp(\'' + cid + '\',\'max_height\',this.value)"';
     html += ' style="width:52px">';
     html += '</div>';
+  }
+
+  // Position type (absolute vs auto) — shown for non-root nodes
+  if (node.parent) {
+    const posType = ovr.position || 'AUTO';
+    const isAbsolute = posType.toUpperCase() === 'ABSOLUTE';
+    html += '<div class="field"><span class="label">Position</span>';
+    html += '<select class="bf-input" onchange="setFrameProp(\'' + cid + '\',\'position\',this.value)">';
+    html += '<option value="AUTO"' + (!isAbsolute ? ' selected' : '') + '>Auto</option>';
+    html += '<option value="ABSOLUTE"' + (isAbsolute ? ' selected' : '') + '>Absolute</option>';
+    html += '</select></div>';
+    if (isAbsolute) {
+      const xVal = ovr.x !== undefined ? ovr.x : 0;
+      const yVal = ovr.y !== undefined ? ovr.y : 0;
+      html += '<div class="field"><span class="label">Offset</span>';
+      html += '<span style="color:#888;font-size:11px">X</span>';
+      html += '<input class="bf-input" type="number" step="' + BASELINE_STEP + '" value="' + xVal + '"';
+      html += ' onchange="setFrameProp(\'' + cid + '\',\'x\',parseInt(this.value))"';
+      html += ' style="width:52px">';
+      html += '<span style="color:#888;font-size:11px;margin-left:4px">Y</span>';
+      html += '<input class="bf-input" type="number" step="' + BASELINE_STEP + '" value="' + yVal + '"';
+      html += ' onchange="setFrameProp(\'' + cid + '\',\'y\',parseInt(this.value))"';
+      html += ' style="width:52px">';
+      html += '</div>';
+    }
   }
 
   html += '</div>';

@@ -129,6 +129,9 @@ function buildFrame(json: Record<string, unknown>): Frame {
     label,
     role: (json.role as string) ?? '',
     children,
+    positionType: (json.positionType as 'AUTO' | 'ABSOLUTE') ?? 'AUTO',
+    x: (json.x as number) ?? 0,
+    y: (json.y as number) ?? 0,
   });
 }
 

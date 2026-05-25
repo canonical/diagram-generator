@@ -12,6 +12,7 @@ export {
   type LayoutState,
   type FrameInit,
   Frame,
+  type PositionType,
   type FrameDiagramInit,
   FrameDiagram,
   type CoercedOverride,

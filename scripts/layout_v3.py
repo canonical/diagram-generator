@@ -384,39 +384,42 @@ def measure(frame: Frame, *, _is_root: bool = False) -> None:
     for child in frame.children:
         measure(child)
 
+    # Only auto (in-flow) children contribute to parent's content size
+    auto_children = [c for c in frame.children if c.position_type != "ABSOLUTE"]
+
     pad_h = frame.padding_left + frame.padding_right
     pad_v = frame.padding_top + frame.padding_bottom
     heading_h = _heading_height(frame.heading)
     heading_gap = frame.gap if heading_h > 0 else 0
-    n = len(frame.children)
+    n = len(auto_children)
     total_gap = frame.gap * max(0, n - 1)
 
     if frame.direction == Direction.HORIZONTAL:
         # Primary axis (W): inflate for FILL equalization in non-root
         if not _is_root:
-            fill_w = [c._measured_w for c in frame.children if c.sizing_w == Sizing.FILL]
-            non_fill_w = sum(c._measured_w for c in frame.children if c.sizing_w != Sizing.FILL)
+            fill_w = [c._measured_w for c in auto_children if c.sizing_w == Sizing.FILL]
+            non_fill_w = sum(c._measured_w for c in auto_children if c.sizing_w != Sizing.FILL)
             if fill_w:
                 content_w = max(fill_w) * len(fill_w) + non_fill_w + total_gap
             else:
-                content_w = sum(c._measured_w for c in frame.children) + total_gap
+                content_w = sum(c._measured_w for c in auto_children) + total_gap
         else:
-            content_w = sum(c._measured_w for c in frame.children) + total_gap
+            content_w = sum(c._measured_w for c in auto_children) + total_gap
         # Cross axis (H): always use max
-        content_h = max(c._measured_h for c in frame.children) if frame.children else 0
+        content_h = max(c._measured_h for c in auto_children) if auto_children else 0
     else:  # VERTICAL
         # Cross axis (W): always use max
-        content_w = max(c._measured_w for c in frame.children) if frame.children else 0
+        content_w = max(c._measured_w for c in auto_children) if auto_children else 0
         # Primary axis (H): inflate for FILL equalization in non-root
         if not _is_root:
-            fill_h = [c._measured_h for c in frame.children if c.sizing_h == Sizing.FILL]
-            non_fill_h = sum(c._measured_h for c in frame.children if c.sizing_h != Sizing.FILL)
+            fill_h = [c._measured_h for c in auto_children if c.sizing_h == Sizing.FILL]
+            non_fill_h = sum(c._measured_h for c in auto_children if c.sizing_h != Sizing.FILL)
             if fill_h:
                 content_h = max(fill_h) * len(fill_h) + non_fill_h + total_gap
             else:
-                content_h = sum(c._measured_h for c in frame.children) + total_gap
+                content_h = sum(c._measured_h for c in auto_children) + total_gap
         else:
-            content_h = sum(c._measured_h for c in frame.children) + total_gap
+            content_h = sum(c._measured_h for c in auto_children) + total_gap
 
     content_based_w = round_up_to_grid(content_w + pad_h)
     content_based_h = round_up_to_grid(content_h + pad_v + heading_h + heading_gap)
@@ -490,10 +493,12 @@ def _enforce_fill_hug_invariant(frame: Frame, coerced: dict | None = None) -> di
     if frame.is_leaf:
         return coerced
 
+    auto_children = [c for c in frame.children if c.position_type != "ABSOLUTE"]
+
     if frame.direction == Direction.HORIZONTAL:
-        # Primary axis is W — freeze parent HUG→FIXED if any child is FILL
+        # Primary axis is W — freeze parent HUG→FIXED if any auto child is FILL
         if frame.sizing_w == Sizing.HUG:
-            if any(c.sizing_w == Sizing.FILL for c in frame.children):
+            if any(c.sizing_w == Sizing.FILL for c in auto_children):
                 frame.sizing_w = Sizing.FIXED
                 frame.width = frame._measured_w
                 if frame.id:
@@ -502,9 +507,9 @@ def _enforce_fill_hug_invariant(frame: Frame, coerced: dict | None = None) -> di
                     coerced[frame.id]["width"] = int(frame._measured_w)
         # Cross axis (H): do NOT coerce — FILL children stretch to cross size
     else:  # VERTICAL
-        # Primary axis is H — freeze parent HUG→FIXED if any child is FILL
+        # Primary axis is H — freeze parent HUG→FIXED if any auto child is FILL
         if frame.sizing_h == Sizing.HUG:
-            if any(c.sizing_h == Sizing.FILL for c in frame.children):
+            if any(c.sizing_h == Sizing.FILL for c in auto_children):
                 frame.sizing_h = Sizing.FIXED
                 frame.height = frame._measured_h
                 if frame.id:
@@ -533,8 +538,22 @@ def _resolve_child_widths(frame: Frame, frame_w: float) -> list[float]:
     pad_l = frame.padding_left
     pad_r = frame.padding_right
     stroke_space = _stroke_space_total(frame)
-    n = len(frame.children)
+    auto_children = [c for c in frame.children if c.position_type != "ABSOLUTE"]
+    n = len(auto_children)
     total_gap = frame.gap * max(0, n - 1)
+
+    # Pre-compute absolute children's widths (they don't participate in flow)
+    content_w_for_abs = max(0, frame_w - pad_l - pad_r - stroke_space)
+    abs_width_map = {}
+    for child in frame.children:
+        if child.position_type == "ABSOLUTE":
+            if child.sizing_w == Sizing.FILL:
+                w = round_up_to_grid(content_w_for_abs)
+            elif child.sizing_w == Sizing.FIXED and child.width is not None:
+                w = round_up_to_grid(child.width)
+            else:
+                w = round_up_to_grid(child._measured_w)
+            abs_width_map[id(child)] = _clamp_to_constraints(w, child.min_width, child.max_width)
 
     if frame.direction == Direction.HORIZONTAL:
         available = max(0, frame_w - pad_l - pad_r - stroke_space - total_gap)
@@ -543,7 +562,7 @@ def _resolve_child_widths(frame: Frame, frame_w: float) -> list[float]:
         fill_measured = []
         fill_mins = []
         fill_maxes = []
-        for i, child in enumerate(frame.children):
+        for i, child in enumerate(auto_children):
             if child.sizing_w == Sizing.FILL:
                 fill_indices.append(i)
                 fill_measured.append(child._measured_w)
@@ -561,6 +580,9 @@ def _resolve_child_widths(frame: Frame, frame_w: float) -> list[float]:
         widths = []
         fill_idx = 0
         for child in frame.children:
+            if child.position_type == "ABSOLUTE":
+                widths.append(abs_width_map[id(child)])
+                continue
             if child.sizing_w == Sizing.FILL:
                 w = round_up_to_grid(fill_sizes[fill_idx])
                 fill_idx += 1
@@ -576,6 +598,9 @@ def _resolve_child_widths(frame: Frame, frame_w: float) -> list[float]:
         cross_w = max(0, frame_w - pad_l - pad_r - stroke_space)
         widths = []
         for child in frame.children:
+            if child.position_type == "ABSOLUTE":
+                widths.append(abs_width_map[id(child)])
+                continue
             if child.sizing_w == Sizing.FILL:
                 w = round_up_to_grid(cross_w)
             elif child.sizing_w == Sizing.FIXED and child.width is not None:
@@ -651,23 +676,24 @@ def _propagate_height_changes(frame: Frame) -> None:
     if frame.sizing_h != Sizing.HUG:
         return
 
+    auto_children = [c for c in frame.children if c.position_type != "ABSOLUTE"]
     pad_v = frame.padding_top + frame.padding_bottom
     heading_h = _heading_height(frame.heading, max_width=_heading_text_max_w(frame))
     heading_gap = frame.gap if heading_h > 0 else 0
-    n = len(frame.children)
+    n = len(auto_children)
     total_gap = frame.gap * max(0, n - 1)
 
     if frame.direction == Direction.HORIZONTAL:
         # Cross axis (H): max of children
-        content_h = max(c._measured_h for c in frame.children) if frame.children else 0
+        content_h = max(c._measured_h for c in auto_children) if auto_children else 0
     else:
         # Primary axis (H): sum (or inflate for FILL equalization)
-        fill_h = [c._measured_h for c in frame.children if c.sizing_h == Sizing.FILL]
-        non_fill_h = sum(c._measured_h for c in frame.children if c.sizing_h != Sizing.FILL)
+        fill_h = [c._measured_h for c in auto_children if c.sizing_h == Sizing.FILL]
+        non_fill_h = sum(c._measured_h for c in auto_children if c.sizing_h != Sizing.FILL)
         if fill_h:
             content_h = max(fill_h) * len(fill_h) + non_fill_h + total_gap
         else:
-            content_h = sum(c._measured_h for c in frame.children) + total_gap
+            content_h = sum(c._measured_h for c in auto_children) + total_gap
 
     new_h = round_up_to_grid(content_h + pad_v + heading_h + heading_gap)
     frame._measured_h = new_h
@@ -697,24 +723,25 @@ def _refresh_coerced_heights(frame: Frame, coerced_ids: set) -> None:
         return
 
     # Recompute height using the same logic as measure() / _propagate_height_changes()
+    auto_children = [c for c in frame.children if c.position_type != "ABSOLUTE"]
     pad_v = frame.padding_top + frame.padding_bottom
     heading_h = _heading_height(frame.heading, max_width=_heading_text_max_w(frame))
     heading_gap = frame.gap if heading_h > 0 else 0
-    n = len(frame.children)
+    n = len(auto_children)
     total_gap = frame.gap * max(0, n - 1)
 
     if frame.direction == Direction.HORIZONTAL:
-        content_h = max(c._measured_h for c in frame.children) if frame.children else 0
+        content_h = max(c._measured_h for c in auto_children) if auto_children else 0
         new_h = round_up_to_grid(content_h + pad_v + heading_h + heading_gap)
         frame._measured_h = new_h
         frame.height = new_h
     else:
-        fill_h = [c._measured_h for c in frame.children if c.sizing_h == Sizing.FILL]
-        non_fill_h = sum(c._measured_h for c in frame.children if c.sizing_h != Sizing.FILL)
+        fill_h = [c._measured_h for c in auto_children if c.sizing_h == Sizing.FILL]
+        non_fill_h = sum(c._measured_h for c in auto_children if c.sizing_h != Sizing.FILL)
         if fill_h:
             content_h = max(fill_h) * len(fill_h) + non_fill_h + total_gap
         else:
-            content_h = sum(c._measured_h for c in frame.children) + total_gap
+            content_h = sum(c._measured_h for c in auto_children) + total_gap
         new_h = round_up_to_grid(content_h + pad_v + heading_h + heading_gap)
         frame._measured_h = new_h
         frame.height = new_h
@@ -780,7 +807,8 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
         text_max_w = frame._placed_w - effective_pad_l - effective_pad_r - stroke_space - icon_col
     heading_h = _heading_height(frame.heading, max_width=text_max_w)
     heading_gap = frame.gap if heading_h > 0 else 0
-    n = len(frame.children)
+    auto_children = [c for c in frame.children if c.position_type != "ABSOLUTE"]
+    n = len(auto_children)
 
     # For justify modes other than PACKED, gap is replaced by computed
     # spacing — all inner space is available for children + distribution.
@@ -807,7 +835,7 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
     fill_measured = []
     fill_mins = []
     fill_maxes = []
-    for i, child in enumerate(frame.children):
+    for i, child in enumerate(auto_children):
         primary_sizing = _child_primary_sizing(child, frame.direction)
         if primary_sizing == Sizing.FILL:
             fill_indices.append(i)
@@ -870,7 +898,7 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
     if frame.direction == Direction.HORIZONTAL:
         cursor_x = x + pad_l + main_offset
         fill_idx = 0
-        for child in frame.children:
+        for child in auto_children:
             primary_sizing = _child_primary_sizing(child, frame.direction)
             counter_sizing = _child_counter_sizing(child, frame.direction)
             # Primary (W) size
@@ -892,7 +920,7 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
     else:  # VERTICAL
         cursor_y = y + pad_t + heading_h + heading_gap + main_offset
         fill_idx = 0
-        for child in frame.children:
+        for child in auto_children:
             primary_sizing = _child_primary_sizing(child, frame.direction)
             counter_sizing = _child_counter_sizing(child, frame.direction)
             # Primary (H) size
@@ -911,6 +939,22 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
                 child_x = x + pad_l + cross_offset
             place(child, child_x, cursor_y, child_w, child_h)
             cursor_y += child._placed_h + child_gap
+
+    # Place absolute children at their explicit x/y offsets relative to parent content area
+    content_x = x + pad_l
+    content_y = y + pad_t
+    abs_content_w = max(0, frame._placed_w - pad_l - pad_r - stroke_space)
+    abs_content_h = max(0, frame._placed_h - pad_t - pad_b - stroke_space)
+    for child in frame.children:
+        if child.position_type != "ABSOLUTE":
+            continue
+        abs_w = abs_content_w if child.sizing_w == Sizing.FILL else (
+            round_up_to_grid(child.width) if child.sizing_w == Sizing.FIXED and child.width is not None
+            else child._measured_w)
+        abs_h = abs_content_h if child.sizing_h == Sizing.FILL else (
+            round_up_to_grid(child.height) if child.sizing_h == Sizing.FIXED and child.height is not None
+            else child._measured_h)
+        place(child, content_x + child.x, content_y + child.y, abs_w, abs_h)
 
 
 # ---------------------------------------------------------------------------

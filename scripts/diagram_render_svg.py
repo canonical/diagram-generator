@@ -224,9 +224,20 @@ def _request_cluster(x, y) -> str:
 def _frame_box(prim: FrameBox) -> str:
     """Render a FrameBox as rect + text + optional icon."""
     parts: list[str] = []
-    # Background rect (always present for hit-testing)
-    parts.append(_rect(prim.x, prim.y, prim.width, prim.height,
-                       fill=prim.fill, stroke=prim.stroke, dashed=prim.dashed))
+    # Background rect (always present for hit-testing).
+    # Invisible rects (transparent fill, no stroke, no text) are purely
+    # structural containers — set pointer-events:none so clicks pass
+    # through to visible children or the SVG background.
+    is_structural = (prim.fill == "transparent" and prim.stroke == "none"
+                     and not prim.heading_lines and not prim.label_lines)
+    extra = ' pointer-events="none"' if is_structural else ""
+    dash = ' stroke-dasharray="8 8"' if prim.dashed else ""
+    parts.append(
+        f'  <rect x="{fmt(prim.x)}" y="{fmt(prim.y)}"'
+        f' width="{fmt(prim.width)}" height="{fmt(prim.height)}"'
+        f' fill="{prim.fill}" stroke="{prim.stroke}"'
+        f' stroke-width="1" stroke-miterlimit="10"{dash}{extra} />'
+    )
     # Text: heading lines then label lines
     all_lines = list(prim.heading_lines) + list(prim.label_lines)
     if all_lines:
