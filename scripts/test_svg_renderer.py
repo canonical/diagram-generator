@@ -158,3 +158,37 @@ def pytest_addoption(parser):
         default=False,
         help="Update SVG golden files instead of comparing.",
     )
+
+
+# ─── Metadata rendering tests ───────────────────────────────────────
+
+def test_svg_includes_metadata_namespace_when_meta_provided():
+    diagram = _two_box_vertical()
+    result = layout(diagram)
+    svg = render_svg(result, meta={"diagram_type": "system_architecture"})
+    assert 'xmlns:dg="https://canonical.com/ns/diagrams#"' in svg
+    assert "<metadata>" in svg
+    assert "<dg:diagram_type>system_architecture</dg:diagram_type>" in svg
+
+
+def test_svg_omits_metadata_when_meta_is_none():
+    diagram = _two_box_vertical()
+    result = layout(diagram)
+    svg = render_svg(result)
+    assert "xmlns:dg" not in svg
+    assert "<metadata>" not in svg
+
+
+def test_svg_metadata_values_are_xml_escaped():
+    diagram = _two_box_vertical()
+    result = layout(diagram)
+    svg = render_svg(result, meta={"diagram_type": "test<>&"})
+    assert "<dg:diagram_type>test&lt;&gt;&amp;</dg:diagram_type>" in svg
+
+
+def test_svg_metadata_skips_none_values():
+    diagram = _two_box_vertical()
+    result = layout(diagram)
+    svg = render_svg(result, meta={"diagram_type": "layered_stack", "layout_engine": None})
+    assert "<dg:diagram_type>layered_stack</dg:diagram_type>" in svg
+    assert "layout_engine" not in svg

@@ -59,12 +59,20 @@ from diagram_shared import (
 # SVG element emitters (thin wrappers)
 # ---------------------------------------------------------------------------
 
-def _svg_open(width: int, height: int) -> list[str]:
-    return [
-        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
+def _svg_open(width: int, height: int, *, meta: dict | None = None) -> list[str]:
+    ns_dg = ' xmlns:dg="https://canonical.com/ns/diagrams#"' if meta else ''
+    lines = [
+        f'<svg xmlns="http://www.w3.org/2000/svg"{ns_dg} width="{width}" height="{height}" '
         f'viewBox="0 0 {width} {height}" xml:space="preserve">',
-        f'  <rect width="{width}" height="{height}" fill="{WHITE}" />',
     ]
+    if meta:
+        lines.append('  <metadata>')
+        for key, value in meta.items():
+            if value is not None:
+                lines.append(f'    <dg:{key}>{html_mod.escape(str(value))}</dg:{key}>')
+        lines.append('  </metadata>')
+    lines.append(f'  <rect width="{width}" height="{height}" fill="{WHITE}" />')
+    return lines
 
 
 def _rect(x, y, w, h, *, fill=WHITE, stroke=BLACK, dashed=False) -> str:
@@ -439,15 +447,18 @@ def _emit_primitives(prims: list, parts: list[str]) -> None:
 
 
 def render_svg(result: LayoutResult, *, show_grid: bool = False,
-               show_layout_grid: bool = False) -> str:
+               show_layout_grid: bool = False,
+               meta: dict | None = None) -> str:
     """Render a LayoutResult to a complete SVG string.
 
     When *show_grid* is True, a faint 8px baseline grid overlay is drawn
     on top of the diagram.
     When *show_layout_grid* is True, the Müller-Brockmann layout grid
     (column/row boundaries, gap regions, dimension labels) is drawn.
+    When *meta* is provided, a ``<metadata>`` block with ``dg:`` prefixed
+    elements is embedded in the SVG for downstream taxonomy consumers.
     """
-    parts = _svg_open(result.width, result.height)
+    parts = _svg_open(result.width, result.height, meta=meta)
     _emit_primitives(result.background, parts)
     _emit_primitives(result.foreground, parts)
     if show_layout_grid and result.grid_info:
@@ -466,8 +477,10 @@ def write_svg(
     *,
     show_grid: bool = False,
     show_layout_grid: bool = False,
+    meta: dict | None = None,
 ) -> None:
     """Render and write an SVG file."""
     path.write_text(render_svg(result, show_grid=show_grid,
-                               show_layout_grid=show_layout_grid),
+                               show_layout_grid=show_layout_grid,
+                               meta=meta),
                     encoding="utf-8")

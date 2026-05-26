@@ -212,3 +212,88 @@ root:
     assert diagram.grid_col_gap == 32
     assert diagram.grid_row_gap == 24
     assert diagram.grid_outer_margin == 40
+
+
+def test_meta_block_parses_into_ontology_fields(tmp_path):
+    diagram = _load(
+        tmp_path,
+        """
+engine: v3
+meta:
+  diagram_type: system_architecture
+  abstraction_level: container
+  layout_engine: elk-force
+  presentation_form: swimlane
+root:
+  id: root
+  children:
+    - id: child
+      label:
+        - Hello
+""",
+    )
+
+    assert diagram.diagram_type == "system_architecture"
+    assert diagram.abstraction_level == "container"
+    assert diagram.layout_engine == "elk-force"
+    assert diagram.presentation_form == "swimlane"
+
+
+def test_meta_block_defaults_to_none_when_absent(tmp_path):
+    diagram = _load(
+        tmp_path,
+        """
+engine: v3
+root:
+  id: root
+  children:
+    - id: child
+      label:
+        - Hello
+""",
+    )
+
+    assert diagram.diagram_type is None
+    assert diagram.abstraction_level is None
+    assert diagram.layout_engine is None
+    assert diagram.presentation_form is None
+
+
+def test_partial_meta_block_leaves_missing_fields_none(tmp_path):
+    diagram = _load(
+        tmp_path,
+        """
+engine: v3
+meta:
+  diagram_type: layered_stack
+root:
+  id: root
+  children:
+    - id: child
+      label:
+        - Hello
+""",
+    )
+
+    assert diagram.diagram_type == "layered_stack"
+    assert diagram.abstraction_level is None
+    assert diagram.layout_engine is None
+    assert diagram.presentation_form is None
+
+
+def test_svg_meta_filters_none_values():
+    from frame_model import FrameDiagram
+
+    d = FrameDiagram(
+        diagram_type="system_architecture",
+        layout_engine="elk-force",
+    )
+    meta = d.svg_meta()
+    assert meta == {"diagram_type": "system_architecture", "layout_engine": "elk-force"}
+
+
+def test_svg_meta_returns_none_when_all_fields_empty():
+    from frame_model import FrameDiagram
+
+    d = FrameDiagram()
+    assert d.svg_meta() is None

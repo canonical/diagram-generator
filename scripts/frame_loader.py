@@ -224,6 +224,9 @@ def load_frame_yaml(path: str | pathlib.Path) -> FrameDiagram:
     arrows = [_parse_arrow(a) for a in data.get("arrows", [])]
     grid = data.get("grid", {}) if isinstance(data.get("grid", {}), dict) else {}
 
+    # Ontology metadata (optional)
+    meta = data.get("meta", {}) if isinstance(data.get("meta"), dict) else {}
+
     return FrameDiagram(
         title=data.get("title", ""),
         root=root,
@@ -232,6 +235,10 @@ def load_frame_yaml(path: str | pathlib.Path) -> FrameDiagram:
         grid_col_gap=int(grid["col_gap"]) if "col_gap" in grid else None,
         grid_row_gap=int(grid["row_gap"]) if "row_gap" in grid else None,
         grid_outer_margin=int(grid["outer_margin"]) if "outer_margin" in grid else None,
+        diagram_type=meta.get("diagram_type"),
+        abstraction_level=meta.get("abstraction_level"),
+        layout_engine=meta.get("layout_engine"),
+        presentation_form=meta.get("presentation_form"),
     )
 
 

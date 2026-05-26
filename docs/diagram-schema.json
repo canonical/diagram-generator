@@ -7,6 +7,42 @@
   "required": ["components"],
   "properties": {
     "title": { "type": "string", "description": "Diagram title (metadata, not rendered unless a title box exists)." },
+    "meta": {
+      "type": "object",
+      "description": "Optional ontology metadata aligned with the dg: namespace.",
+      "properties": {
+        "diagram_type": {
+          "type": "string",
+          "description": "Canonical family slug from the diagram ontology.",
+          "enum": [
+            "system_architecture",
+            "infrastructure_and_network_topology",
+            "layered_stack",
+            "interaction_and_sequence",
+            "process_and_workflow",
+            "data_flow_and_integration",
+            "state_and_lifecycle",
+            "data_model_and_relationships"
+          ]
+        },
+        "abstraction_level": {
+          "type": "string",
+          "description": "C4-inspired abstraction level.",
+          "enum": ["context", "container", "component", "code"]
+        },
+        "layout_engine": {
+          "type": "string",
+          "description": "Preferred layout engine hint.",
+          "enum": ["elk-layered", "elk-force", "vertical-stack", "sequence", "state-machine", "grid-matrix"]
+        },
+        "presentation_form": {
+          "type": "string",
+          "description": "Cross-cutting visual form tag.",
+          "enum": ["matrix", "swimlane", "tree"]
+        }
+      },
+      "additionalProperties": false
+    },
     "arrangement": {
       "type": "string",
       "enum": ["vertical", "horizontal", "grid"],

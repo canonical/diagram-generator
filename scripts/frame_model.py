@@ -193,3 +193,21 @@ class FrameDiagram:
     grid_col_gap: int | None = None
     grid_row_gap: int | None = None
     grid_outer_margin: int | None = None
+
+    # Ontology metadata — optional taxonomy fields aligned with
+    # diagram-generator-planning's diagram_ontology_schema_seed.py.
+    # These use the dg: namespace URIs but are stored as plain strings.
+    diagram_type: str | None = None        # e.g. "system_architecture"
+    abstraction_level: str | None = None   # e.g. "container"
+    layout_engine: str | None = None       # e.g. "elk-force"
+    presentation_form: str | None = None   # e.g. "swimlane"
+
+    def svg_meta(self) -> dict | None:
+        """Return non-None ontology fields as a dict for SVG metadata emission."""
+        m = {k: v for k, v in {
+            "diagram_type": self.diagram_type,
+            "abstraction_level": self.abstraction_level,
+            "layout_engine": self.layout_engine,
+            "presentation_form": self.presentation_form,
+        }.items() if v is not None}
+        return m or None
