@@ -372,6 +372,40 @@ def test_estimate_line_width_uses_font_metrics():
     print(f"  PASS: estimate_line_width proportional: {w_narrow:.1f} vs {w_wide:.1f}")
 
 
+def test_measure_text_width_bold_wider():
+    """Bold text (weight 700) should measure wider than regular (weight 400)."""
+    text = "Container"
+    w400 = measure_text_width(text, 18, 400)
+    w700 = measure_text_width(text, 18, 700)
+    assert w700 > w400, f"Bold ({w700:.1f}) should be wider than regular ({w400:.1f})"
+    print(f"  PASS: bold vs regular: 400={w400:.1f}, 700={w700:.1f} (ratio={w700/w400:.3f})")
+
+
+def test_estimate_line_width_respects_weight():
+    """estimate_line_width should return wider value for bold weight."""
+    spec_regular = {"content": "Container", "size": 18, "weight": "400"}
+    spec_bold = {"content": "Container", "size": 18, "weight": "700"}
+    w_regular = estimate_line_width(spec_regular)
+    w_bold = estimate_line_width(spec_bold)
+    assert w_bold > w_regular, \
+        f"Bold ({w_bold:.1f}) should be wider than regular ({w_regular:.1f})"
+    print(f"  PASS: estimate_line_width bold={w_bold:.1f} > regular={w_regular:.1f}")
+
+
+def test_wrap_text_lines_bold_wraps_earlier():
+    """Bold text should wrap at an earlier word boundary than regular text."""
+    long_text = "Android container versus virtual machine comparison"
+    spec_regular = [{"content": long_text, "size": 18, "weight": "400"}]
+    spec_bold = [{"content": long_text, "size": 18, "weight": "700"}]
+    wrapped_regular = wrap_text_lines(spec_regular, 200)
+    wrapped_bold = wrap_text_lines(spec_bold, 200)
+    # Bold text is wider per character, so it should wrap into at least as many
+    # (often more) lines at the same max_width
+    assert len(wrapped_bold) >= len(wrapped_regular), \
+        f"Bold should wrap ≥ regular lines: bold={len(wrapped_bold)}, regular={len(wrapped_regular)}"
+    print(f"  PASS: bold wraps into {len(wrapped_bold)} lines, regular into {len(wrapped_regular)}")
+
+
 # ---------------------------------------------------------------------------
 # Test: wrap_text_lines with font metrics
 # ---------------------------------------------------------------------------
@@ -643,7 +677,7 @@ def test_hug_child_min_width_accounts_in_fill_distribution():
 
 
 def test_separator_role_renders_dashed_line():
-    """Frame with role='separator' should produce DashedLinePrimitive, not a Rect."""
+    """Frame with role='separator' should produce DashedLinePrimitive + FrameBox."""
     sep = Frame(id="sep", role="separator", height=1, sizing_w=Sizing.FILL,
                 sizing_h=Sizing.FIXED, label=[Line("Kernel boundary")])
     child_a = _box("a", w=192, h=64)
@@ -652,15 +686,18 @@ def test_separator_role_renders_dashed_line():
                        gap=8, padding=8)
     result = layout_frame_diagram(FrameDiagram(root=root))
     fg = result.foreground
-    # Should have a DashedLinePrimitive for the separator
+    # Should have a DashedLinePrimitive for the separator visual
     dashed_lines = [p for p in fg if isinstance(p, DashedLinePrimitive)]
     assert len(dashed_lines) >= 1, \
         f"Expected DashedLinePrimitive for separator, got {[type(p).__name__ for p in fg]}"
-    # Should also have a TextBlock for the label
-    text_blocks = [p for p in fg if isinstance(p, TextBlock) and
+    # Should also have a FrameBox for hit-testing and label text
+    frame_boxes = [p for p in fg if isinstance(p, FrameBox) and
                    getattr(p, 'component_id', None) == 'sep']
-    assert len(text_blocks) >= 1, \
-        f"Expected TextBlock for separator label"
+    assert len(frame_boxes) >= 1, \
+        f"Expected FrameBox for separator (provides hit-testing rect and label)"
+    # The FrameBox should carry the label text
+    fb = frame_boxes[0]
+    assert len(fb.label_lines) >= 1, "FrameBox should carry separator label lines"
     # The dashed line should span the separator width
     dl = dashed_lines[0]
     assert dl.x2 > dl.x1, f"Dashed line should have positive width: {dl.x1} → {dl.x2}"
@@ -722,6 +759,9 @@ if __name__ == "__main__":
         test_measure_text_width_proportional,
         test_measure_text_width_known_string,
         test_estimate_line_width_uses_font_metrics,
+        test_measure_text_width_bold_wider,
+        test_estimate_line_width_respects_weight,
+        test_wrap_text_lines_bold_wraps_earlier,
         test_wrap_text_lines_fits,
         test_wrap_text_lines_wraps,
         test_remeasure_reduces_height,

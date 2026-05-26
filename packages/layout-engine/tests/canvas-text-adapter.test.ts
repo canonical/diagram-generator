@@ -81,4 +81,20 @@ describe('CanvasTextAdapter', () => {
     adapter.measureTextWidth('a', 18);
     expect(ctx.font).toBe("400 18px 'Ubuntu Sans', sans-serif");
   });
+
+  it('uses per-call weight when provided', () => {
+    const ctx = createMockCtx(50);
+    const adapter = new CanvasTextAdapter({ ctx, weight: 400 });
+
+    adapter.measureTextWidth('bold text', 18, 700);
+    expect(ctx.font).toBe("700 18px 'Ubuntu Sans', sans-serif");
+  });
+
+  it('falls back to construction weight when per-call weight is omitted', () => {
+    const ctx = createMockCtx(50);
+    const adapter = new CanvasTextAdapter({ ctx, weight: 600 });
+
+    adapter.measureTextWidth('semi-bold', 18);
+    expect(ctx.font).toBe("600 18px 'Ubuntu Sans', sans-serif");
+  });
 });

@@ -1,0 +1,93 @@
+engine: v3
+title: "Diagram language workflow"
+grid:
+  cols: 1
+  col_gap: 24
+  row_gap: 24
+  outer_margin: 24
+arrows:
+  - source: inputs
+    target: redraw
+  - source: redraw
+    target: generators
+  - source: generators
+    target: validate
+  - source: validate
+    target: review
+  - source: review
+    target: drawio
+  - source: drawio
+    target: outputs
+root:
+  id: page
+  direction: vertical
+  gap: 24
+  padding: 24
+  border: none
+  children:
+    # Dashed input frame with three source boxes
+    - id: inputs
+      direction: horizontal
+      gap: 8
+      padding: 8
+      border: solid
+      heading: "Inputs and canonical context"
+      children:
+        - id: src_rough
+          label: [Rough source, diagram]
+          icon: Document.svg
+        - id: src_refs
+          label: [Local refs, "+ outputs"]
+          icon: Document with Magnifying glass.svg
+          fill: grey
+        - id: src_spec
+          label:
+            - {text: DIAGRAM.md, weight: "700", fill: "#FFFFFF"}
+            - {text: canonical spec, fill: "#FFFFFF"}
+          icon: Book with Magnifying glass.svg
+          icon_fill: "#FFFFFF"
+          fill: black
+
+    - id: redraw
+      label:
+        - {text: Diagram redraw, weight: "700", fill: "#FFFFFF"}
+        - {text: skill, fill: "#FFFFFF"}
+      icon: Wrench 1.svg
+      icon_fill: "#FFFFFF"
+      fill: black
+
+    - id: generators
+      label:
+        - {text: Repo generators, weight: "700"}
+        - {text: "shared tokens + library", fill: "#666666"}
+      icon: Screen with code.svg
+
+    - id: validate
+      label:
+        - {text: Build + validate, weight: "700", fill: "#FFFFFF"}
+        - {text: skill, fill: "#FFFFFF"}
+      icon: Rosette with check.svg
+      icon_fill: "#FFFFFF"
+      fill: black
+
+    - id: review
+      label:
+        - {text: Compare + review lane, weight: "700"}
+        - {text: "before / agent / refined", fill: "#666666"}
+      icon: Document with Magnifying glass.svg
+      fill: grey
+
+    - id: drawio
+      label:
+        - {text: Protected draw.io, weight: "700", fill: "#FFFFFF"}
+        - {text: review skill, fill: "#FFFFFF"}
+      icon: Design.svg
+      icon_fill: "#FFFFFF"
+      fill: black
+
+    - id: outputs
+      label:
+        - {text: Editable draw.io +, weight: "700"}
+        - SVG outputs
+        - {text: "ready for token ingest", fill: "#666666"}
+      icon: Storage image.svg

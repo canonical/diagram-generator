@@ -100,10 +100,12 @@ class Frame:
     padding: int = 8            # uniform padding (all sides); per-side overrides below
     align: Align = Align.TOP_LEFT  # content alignment (Figma 9-point)
     justify: Justify = Justify.PACKED  # primary-axis distribution mode
+    wrap: bool = False          # wrap children to next row (HORIZONTAL only)
 
     # ── Per-axis sizing ──
     sizing_w: Sizing = Sizing.HUG   # how this node sizes on X
     sizing_h: Sizing = Sizing.HUG   # how this node sizes on Y
+    fill_weight: float = 1          # proportional weight when sizing is FILL (like flex-grow)
     width: int | None = None    # explicit width (when sizing_w=FIXED)
     height: int | None = None   # explicit height (when sizing_h=FIXED)
     min_width: int | None = None

@@ -172,10 +172,12 @@ export interface FrameInit {
   padding?: number;
   align?: Align;
   justify?: Justify;
+  wrap?: boolean;
 
   // Per-axis sizing
   sizingW?: Sizing;
   sizingH?: Sizing;
+  fillWeight?: number;
   width?: number;
   height?: number;
   minWidth?: number;
@@ -233,10 +235,12 @@ export class Frame {
   padding: number;
   align: Align;
   justify: Justify;
+  wrap: boolean;
 
   // Per-axis sizing
   sizingW: Sizing;
   sizingH: Sizing;
+  fillWeight: number;
   width: number | undefined;
   height: number | undefined;
   minWidth: number | undefined;
@@ -280,9 +284,11 @@ export class Frame {
     this.padding = init?.padding ?? 8;
     this.align = init?.align ?? Align.TOP_LEFT;
     this.justify = init?.justify ?? Justify.PACKED;
+    this.wrap = init?.wrap ?? false;
 
     this.sizingW = init?.sizingW ?? Sizing.HUG;
     this.sizingH = init?.sizingH ?? Sizing.HUG;
+    this.fillWeight = init?.fillWeight ?? 1;
     this.width = init?.width;
     this.height = init?.height;
     this.minWidth = init?.minWidth;

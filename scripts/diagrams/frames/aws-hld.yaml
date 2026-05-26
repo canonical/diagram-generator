@@ -1,0 +1,293 @@
+engine: v3
+title: "AWS high level design"
+grid:
+  cols: 5
+  col_gap: 24
+  row_gap: 24
+  outer_margin: 24
+arrows:
+  - source: modernisation
+    target: tgw
+  - source: core
+    target: tgw
+  - source: security
+    target: tgw
+  - source: shared_svc
+    target: tgw
+  - source: tgw
+    target: ca
+  - source: tgw
+    target: customer_gw
+  - source: tgw
+    target: vpc_accounts
+  - source: vpc_prod
+    target: ou_maatdb
+  - source: vpc_preprod
+    target: ou_nomis
+  - source: vpc_test
+    target: ou_oasys
+  - source: vpc_dev
+    target: ou_ccr
+root:
+  id: page
+  direction: vertical
+  gap: 24
+  padding: 24
+  border: none
+  children:
+    # Row 0: title
+    - id: title
+      label:
+        - {text: AWS Organisations, weight: "700"}
+        - High Level Design
+      icon: Cloud.svg
+
+    # Row 1: service account panels
+    - id: row1
+      direction: horizontal
+      gap: 24
+      border: none
+      children:
+        - id: modernisation
+          direction: vertical
+          gap: 8
+          padding: 8
+          border: solid
+          fill: grey
+          heading: "Modernisation"
+          icon: Cloud.svg
+          children:
+            - id: mod_lz
+              label: [LZ]
+
+        - id: core
+          direction: horizontal
+          gap: 24
+          padding: 8
+          border: solid
+          fill_weight: 2
+          heading: "Core"
+          icon: Cloud.svg
+          children:
+            - id: logging
+              direction: vertical
+              gap: 8
+              padding: 8
+              border: solid
+              fill: grey
+              heading: "Logging"
+              icon: Document.svg
+              children:
+                - id: log_subnets
+                  label: ["Subnets: public,", "non-live, live-data"]
+                - id: log_tgw
+                  label: [TGW]
+            - id: network_svc
+              direction: vertical
+              gap: 8
+              padding: 8
+              border: solid
+              fill: grey
+              heading: "Network Services"
+              icon: Networking.svg
+              children:
+                - id: ns_vpc
+                  label: [VPC]
+                  icon: Network.svg
+                - id: ns_nat
+                  label: [NAT gateway]
+                  icon: Gateway.svg
+
+        - id: security
+          direction: vertical
+          gap: 8
+          padding: 8
+          border: solid
+          fill: grey
+          heading: "Security"
+          icon: Security.svg
+          children:
+            - id: sec_subnets
+              label: ["Subnets: public,", "non-live, live-data"]
+            - id: sec_tgw
+              label: [TGW]
+
+        - id: shared_svc
+          direction: vertical
+          gap: 8
+          padding: 8
+          border: solid
+          fill: grey
+          heading: "Shared-services"
+          icon: Cloud support.svg
+          children:
+            - id: ss_subnets
+              label: ["Subnets: public,", "non-live, live-data"]
+            - id: ss_tgw
+              label: [TGW]
+
+    # Row 2: Transit Gateway hub area
+    - id: row2
+      direction: horizontal
+      gap: 24
+      border: none
+      children:
+        - id: vpn_note
+          label:
+            - {text: "VPN attachments are", fill: "#666666"}
+            - {text: "associated with", fill: "#666666"}
+            - {text: "external route table", fill: "#666666"}
+          border: none
+          sizing_w: hug
+        - id: ca
+          label: [Certificate, Authority]
+          icon: Key.svg
+        - id: tgw
+          label: [Transit Gateway, "live/non-live RT"]
+          icon: Gateway.svg
+        - id: vpc_attach_note
+          label:
+            - {text: "vpc attachment", fill: "#666666"}
+          border: none
+          sizing_w: hug
+        - id: customer_gw
+          label: [Customer, Gateway]
+          icon: Gateway.svg
+
+    # Row 3: VPC accounts (dashed wrapper)
+    - id: vpc_accounts
+      direction: horizontal
+      gap: 24
+      padding: 8
+      border: solid
+      heading: "VPC_Accounts"
+      icon: Document management.svg
+      children:
+        - id: vpc_prod
+          direction: vertical
+          gap: 8
+          padding: 8
+          border: solid
+          fill: grey
+          heading: "core-vpc-production"
+          children:
+            - id: vpc_prod_bu
+              label: [VPC per, business unit]
+            - id: vpc_prod_igw
+              label: [IGW]
+              icon: Globe.svg
+        - id: vpc_preprod
+          direction: vertical
+          gap: 8
+          padding: 8
+          border: solid
+          fill: grey
+          heading: "core-vpc-preprod"
+          children:
+            - id: vpc_preprod_bu
+              label: [VPC per, business unit]
+        - id: vpc_test
+          direction: vertical
+          gap: 8
+          padding: 8
+          border: solid
+          fill: grey
+          heading: "core-vpc-test"
+          children:
+            - id: vpc_test_bu
+              label: [VPC per, business unit]
+        - id: vpc_dev
+          direction: vertical
+          gap: 8
+          padding: 8
+          border: solid
+          fill: grey
+          heading: "core-vpc-dev"
+          children:
+            - id: vpc_dev_bu
+              label: [VPC per, business unit]
+        - id: vpc_sandbox
+          direction: vertical
+          gap: 8
+          padding: 8
+          border: solid
+          fill: grey
+          heading: "core-vpc-sandbox"
+          children:
+            - id: vpc_sandbox_bu
+              label: [VPC per, business unit]
+
+    # Row 4: organisational units
+    - id: ous_wrapper
+      direction: horizontal
+      gap: 24
+      border: none
+      children:
+        - id: ou_maatdb
+          direction: vertical
+          gap: 8
+          padding: 8
+          border: solid
+          heading: "OU: MaatDB"
+          icon: Document management.svg
+          children:
+            - id: ou_m_prod
+              label: [production]
+              fill: grey
+            - id: ou_m_dev
+              label: [development]
+              fill: grey
+        - id: ou_nomis
+          direction: vertical
+          gap: 8
+          padding: 8
+          border: solid
+          heading: "OU: Nomis"
+          icon: Document management.svg
+          children:
+            - id: ou_n_prod
+              label: [production]
+              fill: grey
+            - id: ou_n_preprod
+              label: [preproduction]
+              fill: grey
+            - id: ou_n_test
+              label: [test]
+              fill: grey
+        - id: ou_oasys
+          direction: vertical
+          gap: 8
+          padding: 8
+          border: solid
+          heading: "OU: Oasys"
+          icon: Document management.svg
+          children:
+            - id: ou_o_prod
+              label: [production]
+              fill: grey
+            - id: ou_o_test
+              label: [test]
+              fill: grey
+        - id: ou_ccr
+          direction: vertical
+          gap: 8
+          padding: 8
+          border: solid
+          heading: "OU: CCR"
+          icon: Document management.svg
+          children:
+            - id: ou_c_prod
+              label: [production]
+              fill: grey
+            - id: ou_c_dev
+              label: [development]
+              fill: grey
+
+    # Row 5: Key
+    - id: key_note
+      label:
+        - {text: "Key: Transit Gateway · AWS account · Route Table ·", fill: "#666666"}
+        - {text: "OU · VPN · Private Link · Route 53 ·", fill: "#666666"}
+        - {text: "Systems Manager · Subnet · NAT · Certificate Authority", fill: "#666666"}
+      border: none
+      sizing_h: hug

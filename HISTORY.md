@@ -4,6 +4,61 @@ Completed work belongs here so `TODO.md` stays lean.
 
 ## Short-term
 
+### 2026-05-26 – Component model Phase 2: heading as child
+
+- **Heading is now a synthetic child Frame**, not a magic field. In `frame_loader.py`, when a container has `heading:` + `children:`, the loader injects a synthetic `__heading` child (role="heading", sizing_w=FILL, sizing_h=HUG, min_height=56, border=NONE, padding=8) with the heading text as its label. The parent Frame gets `heading=None`.
+- **Horizontal containers** get an additional `__body` wrapper that preserves the original horizontal direction, gap, align, and justify, while the parent becomes VERTICAL (heading on top, body below).
+- **Bug found and fixed:** The initial implementation placed the Phase 2 code after a `return` statement — dead code that never executed. Fixed by changing `return Frame(...)` to `frame = Frame(...)` with `return frame` at the end.
+- **min_height enforcement in measure:** `_leaf_natural_size()` doesn't check `min_height` for borderless nodes. Added `_clamp_to_constraints()` calls in both the initial measure pass and the constrained re-measurement pass (`_propagate_width_and_remeasure`), so heading children correctly reserve 56px (ICON_SIZE + INSET) during parent content sizing.
+- **body sizing_h:** Changed from FILL to HUG so the body expands to fit its children during measure, allowing HUG parents to compute correct content height.
+- **Visual verification:** Browser-verified on test-nested-containers, aws-hld, and android-container-vs-vm. All heading text renders correctly, layouts are clean, no visual regressions.
+- **Tests:** All 191 Python tests + 44 subtests pass.
+- **Old heading code:** `_heading_height()`, `_heading_text_max_w()`, and heading references in `_leaf_all_lines()` are now dead code (frame.heading is always None). Cleanup deferred to Phase 2b.
+
+### 2026-05-26 – Bold text width estimation fix
+
+- **Weight-aware text measurement implemented** in both Python and TypeScript engines. `measure_text_width()` now uses fontTools `getGlyphSet(location={"wght": weight})` for per-weight glyph advances from the variable font (`UbuntuSans[wdth,wght].ttf`). Added `_glyph_sets` cache, `_get_glyph_set(weight)` helper, and `weight: int = 400` parameter to `measure_text_width()`, `estimate_line_width()`, and `wrap_text_lines()` in both `text_metrics.py` and `diagram_shared.py`.
+- **TypeScript parity:** Added `weight?: number` to `TextMeasureAdapter.measureTextWidth()` interface, updated `estimateLineWidth()` and `wrapTextLines()` with weight extraction, updated `CanvasTextAdapter` to accept per-call weight override, updated `MockTextAdapter` signature.
+- **Arrow label width fix:** `_estimate_label_width()` in `diagram_layout.py` was still using hardcoded width factors. Updated to call `measure_text_width()` with proper weight.
+- **Tests:** Added 3 Python tests (bold wider, estimate respects weight, bold wraps earlier) and 2 TypeScript tests (per-call weight, fallback to construction weight). All 191 Python / 168 TypeScript tests pass.
+- **Adversarial review:** Subagent review caught arrow label bug (fixed), verified all call sites updated, cache safety acceptable, type coercion risks documented.
+
+### 2026-05-26 – Grid overlay width bug fix
+
+- **Root cause:** `_build_grid_info()` snapped each column width down to `BASELINE_UNIT` (8px), accumulating rounding loss across columns. The `resolved_right_margin` absorbed the slack (e.g., 40px instead of expected 24px for some diagrams).
+- **Fix:** Last column now absorbs the rounding remainder so `resolved_right_margin` always equals `outer_margin`. Added `max(col_w, ...)` guard for pathological cases.
+- **Verified:** All 20+ frame YAMLs now show `resolved_right_margin == outer_margin`.
+- **Adversarial review:** Subagent confirmed fix is correct, identified that `colSpanToPx()` in editor.js assumes uniform column widths (low severity for drag-snapping on last column), row heights have same snapping pattern (acceptable since rows are less visually prominent).
+
+### 2026-05-26 – TODO.md bulk archive of completed sections
+
+Archived 11 fully-completed sections from TODO.md to reduce clutter: Autolayout architecture (Tiers 1–4 + padding & border), Doc freshness audit, v3 auto-layout engine test-first redesign (Milestones 1–12), Editor UX (domain-specific undo), Brockman grid (snap/column-span/grid-aware resize), Export (Save SVG + PNG), v3 engine near-term (architecture audit + min/max + separator), v3 engine INBOX-triaged bugs (4 bugs), Force-specific UI controls (8 sliders + inspector simplification), Autolayout heuristics playbook, Figma/Penpot model re-audit. Detailed entries for all this work already exist in HISTORY.md under their original session dates. Also stripped completed items from Code quality section (kept 1 open item). Triaged INBOX note about duplicate v3 sections — addressed by this cleanup.
+
+### 2026-05-25 – Component model Phase 1: type-agnostic selection
+
+- **Completed Stage 10a Phase 1: separators now fully participate in layout, selection, and inspection.** Removed the separator early return from `_render_frame()` – separator now emits DashedLinePrimitive (visual) + FrameBox (hit-testing rect + label text). Removed 10 `!== "separator"` exclusion guards from editor.js. Removed separator exclusion from `patchFrameGroup` in layout-bridge.js. Changed style picker from type whitelist to type blacklist (everything except arrows). Updated test expectations. 188 tests pass, browser-verified on both separator diagrams with zero console errors.
+- **Component model audit document created** at `docs/architecture/component-model-audit.md` – 61 type-branching points classified (16 capability exclusions, 3 missing abstractions, 26 legitimate structural, 16 correct dispatch), 4-phase remediation plan.
+- **ROADMAP restructured.** Stage 10 marked done. New Stage 10a (component model unification, priority) with phases 1–3. Stage 10b (arrow routing) separated as independent milestone. Stage 13 (brand constraints) paused pending 10a.
+
+### 2026-05-25 – v2→v3 migration (14 diagrams)
+
+- **Migrated 14 v2 Python diagram definitions to native v3 Frame YAML.** Total frame YAML files: 24 (14 new + 10 existing). All load and layout successfully through `frame_loader.py` + `layout_v3.py`.
+- **New frames:** `android-custom-to-cloud`, `aws-hld`, `diagram-intake-workflow`, `diagram-language-workflow`, `example-deployment-pipeline`, `example-platform-architecture`, `example-stacked-blocks`, `gpu-waiting-scheduler`, `lightning-talk-engine`, `lt-a4-generator`, `lt-diagram-generator`, `lt-summit-identity`, `request-to-hardware-stack`, `rise-of-inference-economy`.
+- **Translation patterns:** Grid-based col/row positioning → nested autolayout containers. Panels → containers with `heading` + `border: solid`. BoxStyle.HIGHLIGHT → `fill: black` + white text/icon. Annotations → borderless frames with `sizing_w: hug`. IconCluster → icon-only borderless frames. T-shaped layouts (lt_* diagrams) use borderless spacer frames + `fill_weight` for column alignment.
+- **Remaining blocked (5):** `attention_qkv` (MatrixWidget/Legend), `logic_data_vram` (Bar/BarSegment), `inference_snaps` (Terminal), `example_data_processing` (Bar/BarSegment), `memory_wall` (JaggedPanel).
+
+### 2026-05-25 – proportional FILL weights
+
+- **Feature classification: contract change (new layout primitive).** `fillWeight` / `fill_weight` property (default 1) enables CSS `flex-grow`-style proportional distribution among FILL children. Weight 2 gets twice the space of weight 1. Default weight 1 preserves existing equal-split behavior.
+- **Changes.** Frame model: `fillWeight` in TS `frame-model.ts`, `fill_weight` in Python `frame_model.py`. Layout engines: `distributeFillSpace()` (TS) and `_distribute_fill_space()` (Python) accept `fillWeights` / `fill_weights` parameter, use weighted proportional shares with iterative min/max clamping. Callers in `place()` and `resolveChildWidths()` / `_resolve_child_widths()` collect and pass weights. YAML: `frame_loader.py` parses `fill_weight:` field. Serialization: `preview_server.py` includes `fillWeight`. Bridge: `layout-bridge.js` deserializes `fillWeight`, handles overrides, exports to component tree. Inspector: Weight input field visible when sizing is FILL. `ComponentInfo.fill_weight` field added. Parity test builders read `fillWeight` from fixture JSON.
+- **Validation.** 13 new TS tests + 5 new Python tests + 1 parity fixture. 166 TS + 188 Python tests pass (354 total).
+
+### 2026-05-25 – wrap mode for horizontal flows
+
+- **Feature classification: contract change (new layout primitive).** Horizontal containers with `wrap: true` and FIXED width now break children into rows when they exceed available width. Greedy row-breaking via `breakIntoRows()` (TS) / `_break_into_rows()` (Python).
+- **Changes.** Frame model: `wrap` boolean in both `frame-model.ts` and `frame_model.py`. Layout engines: wrap-aware `measure()`, `place()`, `propagateHeightChanges()`, `refreshCoercedHeights()` in TS; wrap-aware `measure()`, `place()`, `_propagate_height_changes()`, `_refresh_coerced_heights()` in Python. YAML: `frame_loader.py` parses `wrap:` field. Serialization: `preview_server.py` includes `wrap` in frame JSON. Bridge: `layout-bridge.js` deserializes `wrap` and handles overrides. Inspector: wrap checkbox for horizontal containers in `editor.js`. `ComponentInfo.wrap` field added.
+- **Validation.** 12 new tests (6 TS + 6 Python), parity fixture added. 153 TS + 182 Python tests pass.
+
 ### 2026-05-24 – InDesign/Figma-style layout grid with per-side margins
 
 - **Feature classification: UI and grid resolver upgrade.** Replaced the old `_computeBrockmanGrid()` single-margin grid solver with `_resolveGrid()`, a JS port of design-foundry's `resolveGridCore()` algorithm. The grid now supports independent per-side margins, user-settable row count, and configurable slack absorption.

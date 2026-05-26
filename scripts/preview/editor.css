@@ -767,16 +767,24 @@ body.dg-preview {
 }
 
 .btn-save.dirty,
-.btn-save.bf-button.dirty {
+.btn-save.bf-button.dirty,
+#btn-save.dirty {
        background: var(--bf-authoring-accent);
        border-color: var(--bf-authoring-accent);
        color: var(--bf-color-text-strong, #111);
 }
 
 .btn-save.dirty:hover,
-.btn-save.bf-button.dirty:hover {
+.btn-save.bf-button.dirty:hover,
+#btn-save.dirty:hover {
        background: var(--bf-authoring-accent-hover);
        border-color: var(--bf-authoring-accent-hover);
+}
+
+#btn-save:disabled {
+       opacity: 0.4;
+       cursor: default;
+       pointer-events: none;
 }
 
 .guide-badge {

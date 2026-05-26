@@ -32,6 +32,7 @@ _cmap: dict[int, str] | None = None
 _hmtx: object | None = None
 _units_per_em: int = 1000
 _SPACE_ADVANCE: float = 0.25  # fallback fraction of em for unknown glyphs
+_glyph_sets: dict[int, object] = {}  # weight → glyph set cache
 
 
 def _ensure_font_loaded() -> None:
@@ -44,14 +45,33 @@ def _ensure_font_loaded() -> None:
     _units_per_em = _font["head"].unitsPerEm
 
 
-def measure_text_width(text: str, font_size: float) -> float:
+def _get_glyph_set(weight: int) -> object:
+    """Return a cached glyph set for the given font weight."""
+    if weight not in _glyph_sets:
+        _ensure_font_loaded()
+        _glyph_sets[weight] = _font.getGlyphSet(location={"wght": weight})
+    return _glyph_sets[weight]
+
+
+def measure_text_width(text: str, font_size: float, weight: int = 400) -> float:
     """Measure text width using actual font glyph advance widths.
 
-    Uses the hmtx table from the loaded Ubuntu Sans Variable font.
-    This is the single source of truth for text width measurement
-    in the build-time pipeline.
+    Uses the variable font's glyph set at the specified weight for accurate
+    measurement of both regular and bold text.  This is the single source of
+    truth for text width measurement in the build-time pipeline.
     """
     _ensure_font_loaded()
+    if weight != 400:
+        gs = _get_glyph_set(weight)
+        total_units = 0.0
+        for ch in text:
+            glyph_name = _cmap.get(ord(ch))
+            if glyph_name and glyph_name in gs:
+                total_units += gs[glyph_name].width
+            else:
+                total_units += _units_per_em * _SPACE_ADVANCE
+        return total_units * font_size / _units_per_em
+    # Fast path for weight 400: use the hmtx table directly
     total_units = 0
     for ch in text:
         glyph_name = _cmap.get(ord(ch))
@@ -88,7 +108,8 @@ def estimate_line_width(spec: dict[str, object]) -> float:
     """Estimate the rendered width of a single line spec."""
     text = str(spec["content"])
     size = size_to_px(spec.get("size", BODY_SIZE))
-    width = measure_text_width(text, size)
+    weight = int(spec.get("weight", 400))
+    width = measure_text_width(text, size, weight)
     if bool(spec.get("small_caps", False)):
         width *= 1.05
     return width
@@ -108,13 +129,14 @@ def wrap_text_lines(lines: list[dict[str, object]], max_width: float) -> list[di
             continue
 
         size = size_to_px(spec.get("size", BODY_SIZE))
+        weight = int(spec.get("weight", 400))
         small_caps = bool(spec.get("small_caps", False))
 
         words = text.split()
         current = ""
         for word in words:
             test = (current + " " + word) if current else word
-            test_w = measure_text_width(test, size)
+            test_w = measure_text_width(test, size, weight)
             if small_caps:
                 test_w *= 1.05
             if test_w <= max_width or not current:

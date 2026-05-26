@@ -114,31 +114,48 @@ Selectively patch generator-owned portions of polished diagrams with rollback su
 
 Lightweight build-time checks added: arrow crossing validation, arrow clearance enforcement, baseline grid validation. Illustrator-safety sanitizer available.
 
-### Stage 10 — Interactive preview and visual editing (active)
+### Stage 10 — Interactive preview and visual editing (done)
 
-The preview server provides hot-reload, click-to-select, drag-to-move, resize, undo/redo, and override persistence. Extending toward a Figma-like editing experience layered over the declarative diagram model.
+The preview server provides hot-reload, click-to-select, drag-to-move, resize, and override persistence. The editor shell is functional and browser-verified.
 
-**v3 frame layout engine (branch `frame-layout-engine`, active):**
-The v2 grid-based layout is being replaced with a Figma-like nested frame system where every level is an autolayout frame with direction, gap, padding, sizing (HUG/FILL/FIXED), and 9-point alignment. The layout engine (`layout_v3.py`) runs two passes: measure (bottom-up) → place (top-down).
+**v3 frame layout engine:**
+The v2 grid-based layout has been replaced with a Figma-like nested frame system where every level is an autolayout frame with direction, gap, padding, sizing (HUG/FILL/FIXED), and 9-point alignment. The layout engine (`layout_v3.py`) runs two passes: measure (bottom-up) → place (top-down). A TypeScript port (`packages/layout-engine/`) runs client-side for interactive editing. 354 tests passing across both implementations.
 
-A test-first redesign is in progress (see `TODO.md` → "v3 auto-layout engine — test-first redesign"). The approach: comprehensive unit tests for directional layout, 9-point alignment, and sizing model — all verified before wiring UI. Previous attempts to develop features directly against diagrams resulted in unverified code and server instability.
+### Stage 10a — Component model unification (active, PRIORITY)
 
-**Implemented:**
-- Component selection, move, resize with per-component override persistence
-- Undo/redo with explicit per-action command records
-- 8-direction resize handles with parent-bounds clamping
-- Arrow and annotation selection and repositioning
-- Arrow attachment: endpoints track source/target box movement and resize
-- Grid overlay toggle (composition grid + baseline grid, mutually exclusive)
-- Editable grid controls with live relayout
-- Interactive waypoint editing: drag, add, remove, collinear auto-pruning
-- Inline text editing with text-icon gutter enforcement
-- Auto-layout: parent resize relayouts children; child resize redistributes to siblings
-- Distribute and align actions with multi-select
-- Snap guides during drag
-- Component swap (style picker in inspector)
-- Client-side brand constraint enforcement
-- Baseline Foundry-backed shell with DG compatibility layer
+**Audit finding (2026-05-25):** The original Figma/Penpot research covered layout math (sizing, distribution, coercion) but not the component model – whether all node types participate uniformly in the system. Result: 16 capability-exclusion branches and 3 missing abstractions. See `docs/architecture/component-model-audit.md`.
+
+**Principle:** Every Frame participates equally in layout, selection, and inspection regardless of its `role`. Adding a new component type requires a role value, natural-size defaults, and a render dispatch case – zero changes to selection, inspector, drag, override, or serialisation.
+
+**Phase 1 – Type-agnostic layout and selection:**
+- Remove 13 `!== "separator"` exclusion guards from editor.js
+- Remove separator early return from `_render_frame()` – render dispatch after standard bounds
+- Remove layout-bridge.js separator exclusion from SVG patching
+- Add role-based natural-size defaults to `_leaf_natural_size()`
+- Remove style picker type whitelist
+
+**Phase 2 – Heading as a child, not a field:**
+- Convert `heading` from a magic Frame field to an auto-generated first child with `role: "heading"`
+- Remove `_heading_height()` from `measure()` – heading participates in normal autolayout
+- Migration of all 24 frame YAMLs
+
+**Phase 3 – Box interior as component layout:**
+- Icon and text become internal layout children, not coordinate-positioned
+- Icon: FIXED width, right-aligned. Text: FILL, wraps at resolved width
+- Eliminates the bold-text-overflow bug class
+
+### Stage 10b — Arrow routing (separate milestone)
+
+**Problem:** The arrow router is a naive midpoint algorithm (~80 lines) with zero obstacle avoidance. This is an algorithm problem, not a structural/model problem – arrows as a parallel data structure are defensible for our use case (edges routed after node placement).
+
+**Research plan (R1–R5):**
+- R1: Study draw.io's `mxEdgeStyle.OrthConnector`
+- R2: Study ELK's orthogonal edge router and compound graph handling
+- R3: Survey dagre, Graphviz, reactflow, JointJS, visibility-graph approaches
+- R4: Design doc selecting the best algorithm family
+- R5: Implement MVP obstacle-aware router in both Python and TypeScript
+
+This is independent of Stage 10a and can proceed in parallel once the component model is stabilised.
 
 ### Stage 11 — Viewer extraction ✅
 
@@ -148,18 +165,13 @@ JS/CSS/HTML extracted from Python f-string template into static files. Preview s
 
 `ComponentModel` with indexed tree and `InteractionManager` state machine replace scattered interaction state variables. Parent-child constraint propagation, auto-layout, nested selection, and clean interaction modes all working.
 
-### Stage 13 — Brand constraint enforcement (active)
+### Stage 13 — Brand constraint enforcement (paused)
 
-`ConstraintRegistry` with 6 built-in brand constraints running client-side. The editor enforces brand rules at the model level — only approved fills, arrow styles, icon sources, and typography are available.
+`ConstraintRegistry` with 6 built-in brand constraints running client-side. The editor enforces brand rules at the model level. Paused until Stage 10a stabilises the component model – constraint enforcement should be type-agnostic, not hardwired to specific node types.
 
 **Remaining:**
-- Nested grid controls: set panel grid dimensions interactively
-- Auto-fill children: add/remove boxes and have the grid re-flow
-- Property panel for editing fill, border style, text on selected component
-- Component swap from shape library (like Figma component swap)
-- Create new components from the UI (add box, add panel, add arrow)
-- Export edited layout back to Python definition or YAML/JSON format
-- Keep shrinking the preview/editor compatibility layer as Baseline Foundry stabilizes
+- Resume after Stage 10a Phase 1 lands
+- Constraint enforcement should work uniformly for any component type
 
 ### Stage 14 — Design-language harness
 

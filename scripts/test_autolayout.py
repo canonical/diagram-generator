@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from frame_model import Frame, FrameDiagram, Direction, Sizing, Align, Justify
 from diagram_model import Line, Fill, Border
-from layout_v3 import measure, place, _align_offset, _enforce_fill_hug_invariant, layout_frame_diagram, _remeasure_with_width_constraints
+from layout_v3 import measure, place, _align_offset, _enforce_fill_hug_invariant, layout_frame_diagram, _remeasure_with_width_constraints, _distribute_fill_space
 from diagram_shared import BASELINE_UNIT
 
 
@@ -2513,6 +2513,159 @@ class TestAbsolutePositioning:
 
 
 # ═══════════════════════════════════════════════════════════════════
+# Fill weight tests
+# ═══════════════════════════════════════════════════════════════════
+
+class TestFillWeight:
+    """Proportional FILL weights — like CSS flex-grow."""
+
+    def test_weighted_2_1_horizontal(self):
+        """Weight 2:1 gives double space to heavier child."""
+        c1 = Frame(id="c1", sizing_w=Sizing.FILL, fill_weight=2,
+                   label=[Line("a")], padding=0, border=Border.NONE)
+        c2 = Frame(id="c2", sizing_w=Sizing.FILL, fill_weight=1,
+                   label=[Line("b")], padding=0, border=Border.NONE)
+        parent = Frame(id="p", direction=Direction.HORIZONTAL,
+                       sizing_w=Sizing.FIXED, sizing_h=Sizing.HUG,
+                       width=240, padding=0, border=Border.NONE, gap=0,
+                       children=[c1, c2])
+        _layout(parent)
+        assert c1._placed_w == 160
+        assert c2._placed_w == 80
+
+    def test_weighted_2_1_vertical(self):
+        """Weight 2:1 in vertical direction."""
+        c1 = Frame(id="c1", sizing_h=Sizing.FILL, fill_weight=2,
+                   label=[Line("a")], padding=0, border=Border.NONE)
+        c2 = Frame(id="c2", sizing_h=Sizing.FILL, fill_weight=1,
+                   label=[Line("b")], padding=0, border=Border.NONE)
+        parent = Frame(id="p", direction=Direction.VERTICAL,
+                       sizing_w=Sizing.FIXED, sizing_h=Sizing.FIXED,
+                       width=100, height=240, padding=0, border=Border.NONE, gap=0,
+                       children=[c1, c2])
+        _layout(parent)
+        assert c1._placed_h == 160
+        assert c2._placed_h == 80
+
+    def test_default_weight_preserves_equal_split(self):
+        """Default weight=1 gives equal space (backward compatible)."""
+        c1 = Frame(id="c1", sizing_w=Sizing.FILL,
+                   label=[Line("a")], padding=0, border=Border.NONE)
+        c2 = Frame(id="c2", sizing_w=Sizing.FILL,
+                   label=[Line("b")], padding=0, border=Border.NONE)
+        parent = Frame(id="p", direction=Direction.HORIZONTAL,
+                       sizing_w=Sizing.FIXED, sizing_h=Sizing.HUG,
+                       width=200, padding=0, border=Border.NONE, gap=0,
+                       children=[c1, c2])
+        _layout(parent)
+        assert c1._placed_w == 100
+        assert c2._placed_w == 100
+
+    def test_distribute_fill_space_weighted(self):
+        """Unit test: _distribute_fill_space with weights 1:2:3."""
+        sizes = _distribute_fill_space(120, [0, 0, 0],
+                                       fill_weights=[1, 2, 3])
+        assert abs(sizes[0] - 20) < 1
+        assert abs(sizes[1] - 40) < 1
+        assert abs(sizes[2] - 60) < 1
+
+    def test_distribute_fill_space_weight_zero(self):
+        """Weight 0 gives zero space."""
+        sizes = _distribute_fill_space(120, [0, 0],
+                                       fill_weights=[0, 1])
+        assert abs(sizes[0]) < 1
+        assert abs(sizes[1] - 120) < 1
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Wrap mode tests
+# ═══════════════════════════════════════════════════════════════════
+
+class TestWrapMode:
+    """Wrap mode for horizontal flows — children break into rows."""
+
+    def _leaf(self, id, w, h):
+        """FIXED-size leaf with no padding/border for predictable dimensions."""
+        return Frame(id=id, sizing_w=Sizing.FIXED, sizing_h=Sizing.FIXED,
+                     width=w, height=h, label=[Line("x")],
+                     padding_top=0, padding_right=0, padding_bottom=0, padding_left=0,
+                     border=Border.NONE)
+
+    def test_basic_two_row_wrap(self):
+        c1 = self._leaf("c1", 80, 40)
+        c2 = self._leaf("c2", 80, 40)
+        c3 = self._leaf("c3", 80, 40)
+        parent = Frame(id="p", direction=Direction.HORIZONTAL, wrap=True,
+                       sizing_w=Sizing.FIXED, sizing_h=Sizing.HUG, width=200,
+                       padding_top=0, padding_right=0, padding_bottom=0, padding_left=0,
+                       border=Border.NONE, gap=8, children=[c1, c2, c3])
+        _layout(parent)
+
+        assert c1._placed_x == 0
+        assert c2._placed_x == 88
+        assert c1._placed_y == c2._placed_y
+        assert c3._placed_x == 0
+        assert c3._placed_y == 48
+        assert parent._placed_h == 88
+
+    def test_single_row_no_wrap_needed(self):
+        c1 = self._leaf("c1", 40, 32)
+        c2 = self._leaf("c2", 40, 32)
+        parent = Frame(id="p", direction=Direction.HORIZONTAL, wrap=True,
+                       sizing_w=Sizing.FIXED, sizing_h=Sizing.HUG, width=200,
+                       padding_top=0, padding_right=0, padding_bottom=0, padding_left=0,
+                       border=Border.NONE, gap=8, children=[c1, c2])
+        _layout(parent)
+
+        assert c1._placed_y == c2._placed_y
+        assert c2._placed_x == 48
+
+    def test_oversized_child_gets_own_row(self):
+        wide = self._leaf("wide", 300, 40)
+        small = self._leaf("small", 40, 40)
+        parent = Frame(id="p", direction=Direction.HORIZONTAL, wrap=True,
+                       sizing_w=Sizing.FIXED, sizing_h=Sizing.HUG, width=200,
+                       padding_top=0, padding_right=0, padding_bottom=0, padding_left=0,
+                       border=Border.NONE, gap=8, children=[wide, small])
+        _layout(parent)
+
+        assert wide._placed_x == 0
+        assert small._placed_x == 0
+        assert small._placed_y > wide._placed_y
+
+    def test_cross_axis_alignment_within_row(self):
+        tall = self._leaf("tall", 40, 80)
+        short = self._leaf("short", 40, 40)
+        parent = Frame(id="p", direction=Direction.HORIZONTAL, wrap=True,
+                       sizing_w=Sizing.FIXED, sizing_h=Sizing.HUG, width=200,
+                       padding_top=0, padding_right=0, padding_bottom=0, padding_left=0,
+                       border=Border.NONE, gap=8, align=Align.CENTER,
+                       children=[tall, short])
+        _layout(parent)
+
+        assert tall._placed_y == 0
+        assert short._placed_y == 20
+
+    def test_wrap_with_padding(self):
+        c1 = self._leaf("c1", 80, 40)
+        c2 = self._leaf("c2", 80, 40)
+        c3 = self._leaf("c3", 80, 40)
+        parent = Frame(id="p", direction=Direction.HORIZONTAL, wrap=True,
+                       sizing_w=Sizing.FIXED, sizing_h=Sizing.HUG, width=200,
+                       padding_top=16, padding_right=16, padding_bottom=16, padding_left=16,
+                       border=Border.NONE, gap=8, children=[c1, c2, c3])
+        _layout(parent)
+
+        assert c1._placed_y == c2._placed_y
+        assert c3._placed_y > c1._placed_y
+        assert c1._placed_x == 16
+
+    def test_wrap_defaults_to_false(self):
+        f = Frame(id="t")
+        assert f.wrap is False
+
+
+# ═══════════════════════════════════════════════════════════════════
 # Standalone runner (works without pytest too)
 # ═══════════════════════════════════════════════════════════════════
 
@@ -2542,6 +2695,7 @@ if __name__ == "__main__":
         TestContainerTooSmall,
         TestParentCoercion,
         TestSharedGridFormulas,
+        TestWrapMode,
     ]
 
     passed = 0

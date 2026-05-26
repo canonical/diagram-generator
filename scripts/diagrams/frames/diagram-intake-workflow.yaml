@@ -1,0 +1,65 @@
+engine: v3
+title: "Diagram intake workflow"
+grid:
+  cols: 1
+  col_gap: 24
+  row_gap: 24
+  outer_margin: 24
+arrows:
+  - source: sources
+    target: workflow
+  - source: workflow
+    target: compare
+  - source: compare
+    target: polish
+  - source: polish
+    target: final
+root:
+  id: page
+  direction: vertical
+  gap: 24
+  padding: 24
+  border: none
+  children:
+    # Dashed input frame with two source boxes
+    - id: sources
+      direction: horizontal
+      gap: 8
+      padding: 8
+      border: solid
+      heading: "Rough initial diagram sources"
+      children:
+        - id: src_chatgpt
+          label: [ChatGPT-generated, diagrams]
+          icon: AI.svg
+        - id: src_other
+          label: ["? Additional rough", source formats, from PMs]
+          fill: grey
+
+    - id: workflow
+      label:
+        - {text: Agentic workflow, weight: "700"}
+        - in this repo
+        - {text: "playbook + generators", fill: "#666666"}
+      icon: Screen with code.svg
+
+    - id: compare
+      label:
+        - {text: Compare mode, weight: "700"}
+        - {text: "HTML before / agent / refined", fill: "#666666"}
+      icon: Document with Magnifying glass.svg
+      fill: grey
+
+    - id: polish
+      label:
+        - {text: Designer polish, weight: "700"}
+        - {text: "manual pass in generated draw.io", fill: "#666666"}
+      icon: Design.svg
+
+    - id: final
+      label:
+        - {text: Final SVGs, weight: "700", fill: "#FFFFFF"}
+        - {text: on-brand deliverables, fill: "#FFFFFF"}
+      icon: Storage image.svg
+      icon_fill: "#FFFFFF"
+      fill: black

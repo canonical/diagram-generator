@@ -111,8 +111,8 @@ function collectSnapTargets(dragCid) {
   if (!node) return { xs: [], ys: [] };
   // Collect from siblings (same parent) or all top-level nodes
   const peers = node.parent
-    ? node.parent.children.filter(n => n.id !== dragCid && n.type !== "arrow" && n.type !== "separator")
-    : model._roots.filter(n => n.id !== dragCid && n.type !== "arrow" && n.type !== "separator");
+    ? node.parent.children.filter(n => n.id !== dragCid && n.type !== "arrow")
+    : model._roots.filter(n => n.id !== dragCid && n.type !== "arrow");
 
   // Build peer rects for the shared helper
   const peerRects = peers.map(peer => {
@@ -1347,7 +1347,7 @@ function getSelectionActionItems() {
 
   selectedIds.forEach((id) => {
     const node = model.get(id);
-    if (!node || node.type === "arrow" || node.type === "separator") {
+    if (!node || node.type === "arrow") {
       hasUnsupported = true;
       return;
     }
@@ -1542,6 +1542,23 @@ function renderMultiSelectionInspector() {
     '<span class="value">' + selectedIds.size + ' components</span></div>';
   html += '<div class="hint">Shift+click adds to the selection. Drag still moves the group together.</div>';
 
+  // Parent spacing — shown when all selected items share the same autolayout parent
+  if (info.sameParent && info.parentId) {
+    const parentNode = model.get(info.parentId);
+    if (parentNode && (parentNode.layout === 'vertical' || parentNode.layout === 'horizontal')) {
+      const pOvr = overrides[info.parentId] || {};
+      const parentGap = pOvr.gap !== undefined ? pOvr.gap : (parentNode.layoutGap || 24);
+      html += '<div class="dg-autolayout-section" style="margin-top:8px">';
+      html += '<span class="label" style="margin-bottom:4px;display:block">Parent spacing</span>';
+      html += '<div class="field"><span class="label">Gap</span>';
+      html += '<input class="bf-input" type="number" min="0" step="8" value="' + parentGap + '"';
+      html += ' onchange="setFrameProp(\'' + info.parentId + '\',\'gap\',parseInt(this.value))"';
+      html += ' style="width:60px">';
+      html += '<span class="unit" style="margin-left:4px;color:#888;font-size:11px">px</span></div>';
+      html += '</div>';
+    }
+  }
+
   if (!info.sameParent) {
     html += '<div class="field" style="margin-top:8px"><span class="label">Actions</span><br>' +
       '<div class="hint">Distribute is limited to sibling components under the same parent. Align still works across the current selection.</div>' +
@@ -1573,7 +1590,7 @@ function renderMultiSelectionInspector() {
   }
 
   if (info.hasUnsupported) {
-    html += '<div class="field"><div class="hint">Arrow and separator selections are ignored by these actions.</div></div>';
+    html += '<div class="field"><div class="hint">Arrow selections are ignored by these actions.</div></div>';
   }
 
   // ── Bulk sizing controls (v3 only, homogeneous selection) ──
@@ -1608,6 +1625,13 @@ function renderMultiSelectionInspector() {
       html += '<option value="VERTICAL"' + (containerInfo.direction === 'VERTICAL' ? ' selected' : '') + '>Vertical</option>';
       html += '<option value="HORIZONTAL"' + (containerInfo.direction === 'HORIZONTAL' ? ' selected' : '') + '>Horizontal</option>';
       html += '</select></div>';
+
+      // Wrap (horizontal only)
+      if (containerInfo.direction === 'HORIZONTAL') {
+        html += '<div class="field"><span class="label">Wrap</span>';
+        html += '<input type="checkbox"' + (containerInfo.wrap ? ' checked' : '') + ' onchange="setMultiFrameProp(\'wrap\',this.checked)">';
+        html += '</div>';
+      }
 
       // Gap
       html += '<div class="field"><span class="label">Gap</span>';
@@ -1688,6 +1712,15 @@ function renderMultiSelectionInspector() {
         html += '<input class="bf-input" type="number" min="0" step="' + BASELINE_STEP + '" value=""';
         html += ' placeholder="—"';
         html += ' onchange="setMultiFrameProp(\'max_width\',this.value)"';
+        html += ' style="width:52px">';
+        html += '</div>';
+      }
+      // Fill weight (shown when width sizing is FILL)
+      if (sizingInfo.sizingW === 'FILL') {
+        html += '<div class="field"><span class="label">Weight</span>';
+        html += '<input class="bf-input" type="number" min="0" step="0.5" value=""';
+        html += ' placeholder="—"';
+        html += ' onchange="setMultiFrameProp(\'fill_weight\',parseFloat(this.value))"';
         html += ' style="width:52px">';
         html += '</div>';
       }
@@ -1793,6 +1826,7 @@ function _getMultiContainerValues(items) {
   let dirMixed = false, gapMixed = false, padMixed = false;
   let containerCount = 0;
   let allUniform = true;
+  let firstWrap = false;
   let firstPT = null, firstPR = null, firstPB = null, firstPL = null;
   let ptMixed = false, prMixed = false, pbMixed = false, plMixed = false;
 
@@ -1809,6 +1843,10 @@ function _getMultiContainerValues(items) {
     if (firstDir === null) firstDir = dir; else if (firstDir !== dir) dirMixed = true;
     if (firstGap === null) firstGap = gap; else if (firstGap !== gap) gapMixed = true;
     if (firstPad === null) firstPad = pad; else if (firstPad !== pad) padMixed = true;
+
+    // Wrap state
+    const wrapVal = ovr.wrap != null ? ovr.wrap : (node.wrap || false);
+    if (containerCount === 1) firstWrap = wrapVal;
 
     // Resolve effective per-side values
     const pt = ovr.padding_top != null ? ovr.padding_top : (ovr.padding != null ? ovr.padding : (node.padding_top || 0));
@@ -1832,6 +1870,7 @@ function _getMultiContainerValues(items) {
     padding: padMixed ? '' : firstPad,
     dirMixed, gapMixed, padMixed,
     allUniform,
+    wrap: firstWrap,
     pt: ptMixed ? '' : (firstPT ?? 0), pr: prMixed ? '' : (firstPR ?? 0),
     pb: pbMixed ? '' : (firstPB ?? 0), pl: plMixed ? '' : (firstPL ?? 0),
     ptMixed, prMixed, pbMixed, plMixed,
@@ -1865,7 +1904,7 @@ function _getMultiStyleValues(items) {
   let first = null, mixed = false, count = 0;
   for (const item of items) {
     const ctype = getComponentType(item.id).toLowerCase();
-    if (ctype !== 'box' && ctype !== 'panel' && ctype !== 'terminal') continue;
+    if (ctype === 'arrow') continue;
     count++;
     const ovr = overrides[item.id] || {};
     const style = ovr.style || '';
@@ -1884,7 +1923,7 @@ function setMultiFrameAlign(align) {
   for (const cid of ids) {
     const node = model.get(cid);
     if (!node) continue;
-    if (node.type === 'arrow' || node.type === 'separator') continue;
+    if (node.type === 'arrow') continue;
     if (!overrides[cid]) overrides[cid] = {};
     overrides[cid].align = align;
   }
@@ -1994,8 +2033,8 @@ function setMultiFrameProp(prop, value) {
   for (const cid of ids) {
     const node = model.get(cid);
     if (!node) continue;
-    // Skip non-frame nodes (arrows, separators)
-    if (node.type === "arrow" || node.type === "separator") continue;
+    // Skip non-frame nodes (arrows)
+    if (node.type === "arrow") continue;
     // Container-only props skip leaf nodes
     if (isContainerProp) {
       const isContainer = node.layout || (node.children && node.children.length > 0);
@@ -2087,7 +2126,7 @@ function setMultiFrameSize(dimension, value) {
   for (const cid of ids) {
     const node = model.get(cid);
     if (!node) continue;
-    if (node.type === 'arrow' || node.type === 'separator') continue;
+    if (node.type === 'arrow') continue;
     if (!overrides[cid]) overrides[cid] = {};
     overrides[cid][sizingProp] = 'FIXED';
     overrides[cid][dimension] = px;
@@ -2112,7 +2151,7 @@ function applyAllOverrides() {
     if (!group) return false;
     const cid = group.getAttribute("data-component-id");
     const node = cid ? model.get(cid) : null;
-    return !!node && node.type !== "arrow" && node.type !== "separator";
+    return !!node && node.type !== "arrow";
   }
 
   // Reset transforms
@@ -2428,7 +2467,7 @@ function applyAllOverrides() {
   // -----------------------------------------------------------------------
   const cumulativeReflowDy = {}; // cid → total dy from reflow of boxes above
   if (Object.keys(reflowDhByComponent).length > 0 && model.diagramGrid) {
-    const rootNodes = model._roots.filter(n => n.type !== "arrow" && n.type !== "separator");
+    const rootNodes = model._roots.filter(n => n.type !== "arrow");
     // Compute the max reflow dh per row (across all columns)
     const maxReflowDhByRow = {};
     for (const [cid, dh] of Object.entries(reflowDhByComponent)) {
@@ -3215,7 +3254,7 @@ function _getMultiResizeSelection(svg, idsOverride) {
     const node = model.get(id);
     if (!node) return null;
     const type = String(node.type || "").toLowerCase();
-    if (type === "arrow" || type === "separator" || _isAutolayoutChild(id)) {
+    if (type === "arrow" || _isAutolayoutChild(id)) {
       return null;
     }
     if (getAncestors(id).some((ancestorId) => selectedSet.has(ancestorId))) {
@@ -4825,6 +4864,15 @@ function buildAutolayoutPanel(cid, node) {
     html += ' style="width:52px">';
     html += '</div>';
   }
+  // Fill weight (shown when width sizing is FILL)
+  if (sizingW === 'FILL') {
+    const curFW = ovr.fill_weight !== undefined ? ovr.fill_weight : (node.fill_weight !== undefined ? node.fill_weight : 1);
+    html += '<div class="field"><span class="label">Weight</span>';
+    html += '<input class="bf-input" type="number" min="0" step="0.5" value="' + curFW + '"';
+    html += ' onchange="setFrameProp(\'' + cid + '\',\'fill_weight\',parseFloat(this.value))"';
+    html += ' style="width:52px">';
+    html += '</div>';
+  }
 
   html += '<div class="field"><span class="label">Height</span>';
   html += '<select class="bf-input' + (hCoerced ? ' dg-coerced' : '') + '" onchange="setFrameProp(\'' + cid + '\',\'sizing_h\',this.value)">';
@@ -5191,14 +5239,31 @@ function updateInspector(cid) {
   if (hasOverride) {
     html += '<button class="bf-button is-base danger" onclick="clearOverride(\''+cid+'\')">Clear override</button>';
   }
-  // Style picker for box-type components
+  // Style picker (available for all non-arrow components)
   const ctype = getComponentType(cid).toLowerCase();
-  if (ctype === "box" || ctype === "panel" || ctype === "terminal") {
+  if (ctype !== "arrow") {
     const currentStyle = (overrides[cid] && overrides[cid].style) || "";
     html += '<div class="field" style="margin-top:6px"><span class="label">Style</span><br>';
     html += '<select class="style-picker bf-input" onchange="applyStyleOverride(\'' + cid + '\', this.value)">';
     html += renderBoxStyleOptions(currentStyle, { originalLabel: '— original —' });
     html += '</select></div>';
+  }
+  // Parent gap — shown when this node is a child of an autolayout container
+  const isAutoChild = _isAutolayoutChild(cid);
+  if (isAutoChild) {
+    const parentNode = model.getParent(cid);
+    if (parentNode) {
+      const pOvr = overrides[parentNode.id] || {};
+      const parentGap = pOvr.gap !== undefined ? pOvr.gap : (parentNode.layoutGap || 24);
+      html += '<div class="dg-autolayout-section" style="margin-top:8px">';
+      html += '<span class="label" style="margin-bottom:4px;display:block">Parent spacing</span>';
+      html += '<div class="field"><span class="label">Gap</span>';
+      html += '<input class="bf-input" type="number" min="0" step="8" value="' + parentGap + '"';
+      html += ' onchange="setFrameProp(\'' + parentNode.id + '\',\'gap\',parseInt(this.value))"';
+      html += ' style="width:60px">';
+      html += '<span class="unit" style="margin-left:4px;color:#888;font-size:11px">px</span></div>';
+      html += '</div>';
+    }
   }
   // Show constraint violations for this component
   const cv = getViolationsForComponent(cid);
@@ -5210,7 +5275,6 @@ function updateInspector(cid) {
     }
     html += '</div>';
   }
-  const isAutoChild = _isAutolayoutChild(cid);
   if (isAutoChild) {
     html += '<p class="dg-inspector-note">Drag to reorder &#xb7; Shift+Enter to select parent &#xb7; W to toggle grid overlay.</p>';
   } else {
@@ -5423,13 +5487,17 @@ document.addEventListener("keydown", (e) => {
       selectComponent(parent.id);
     }
   } else if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey &&
-             selectedIds.size === 1 && !mgr.isMode(InteractionMode.TEXT_EDITING)) {
-    // Enter: select all children of the selected frame
+             selectedIds.size > 0 && !mgr.isMode(InteractionMode.TEXT_EDITING)) {
+    // Enter: select all children of selected containers (recursive descent)
     e.preventDefault();
-    const primary = [...selectedIds][0];
-    const node = model.get(primary);
-    if (node && node.children && node.children.length > 0) {
-      const childIds = node.children.map(n => n.data.id);
+    const childIds = [];
+    for (const id of selectedIds) {
+      const node = model.get(id);
+      if (node && node.children && node.children.length > 0) {
+        node.children.forEach(n => childIds.push(n.data.id));
+      }
+    }
+    if (childIds.length > 0) {
       selectedIds.clear();
       childIds.forEach(id => selectedIds.add(id));
       selectionDepth = getAncestors(childIds[0]).length;

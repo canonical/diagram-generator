@@ -16,6 +16,7 @@ import yaml
 
 from diagram_model import Arrow, Border, Fill, Line
 from frame_model import Align, Direction, Frame, FrameDiagram, Justify, Sizing
+from diagram_shared import ICON_SIZE, INSET
 
 # ── Enum maps (lowercase YAML strings → Python enums) ──────────────
 
@@ -75,10 +76,10 @@ def _parse_frame(data: dict, *, is_root: bool = False) -> Frame:
     label = [_parse_line(l) for l in label_raw]
 
     # Heading: string or dict → Line
-    heading = None
+    heading_line = None
     if "heading" in data:
         h = data["heading"]
-        heading = Line(h, weight="700") if isinstance(h, str) else _parse_line(h)
+        heading_line = Line(h, weight="700") if isinstance(h, str) else _parse_line(h)
 
     # Sensible defaults differ for leaf vs container
     default_border = Border.NONE if is_container else Border.SOLID
@@ -121,7 +122,7 @@ def _parse_frame(data: dict, *, is_root: bool = False) -> Frame:
     pad_b = int(data["padding_bottom"]) if "padding_bottom" in data else None
     pad_l = int(data["padding_left"]) if "padding_left" in data else None
 
-    return Frame(
+    frame = Frame(
         id=data.get("id", ""),
         direction=_DIRECTION.get(data.get("direction", "vertical"), Direction.VERTICAL),
         gap=int(data.get("gap", default_gap)),
@@ -132,8 +133,10 @@ def _parse_frame(data: dict, *, is_root: bool = False) -> Frame:
         padding_left=pad_l,
         sizing_w=sizing_w,
         sizing_h=sizing_h,
+        fill_weight=float(data.get("fill_weight", 1)),
         align=_ALIGN.get(data.get("align", "top-left"), Align.TOP_LEFT),
         justify=_JUSTIFY.get(data.get("justify", "packed"), Justify.PACKED),
+        wrap=bool(data.get("wrap", False)),
         width=int(data["width"]) if "width" in data else None,
         height=int(data["height"]) if "height" in data else None,
         min_width=int(data["min_width"]) if "min_width" in data else None,
@@ -142,8 +145,8 @@ def _parse_frame(data: dict, *, is_root: bool = False) -> Frame:
         max_height=int(data["max_height"]) if "max_height" in data else None,
         fill=_FILL.get(data.get("fill", "white"), Fill.WHITE),
         border=border,
-        heading=heading,
-        icon=data.get("icon"),
+        heading=None,
+        icon=data.get("icon") if not heading_line else None,
         icon_fill=data.get("icon_fill"),
         label=label,
         role=data.get("role", ""),
@@ -152,6 +155,47 @@ def _parse_frame(data: dict, *, is_root: bool = False) -> Frame:
         x=int(data["x"]) if "x" in data else 0,
         y=int(data["y"]) if "y" in data else 0,
     )
+
+    # ── Phase 2: Heading as child ──
+    # Convert `heading:` from a magic field to a synthetic first child with
+    # role="heading".  For horizontal containers the existing children are
+    # wrapped in a ``__body`` sub-frame so the heading spans the full width.
+    if heading_line and frame.is_container:
+        heading_child = Frame(
+            id=f"{frame.id}__heading" if frame.id else "__heading",
+            role="heading",
+            sizing_w=Sizing.FILL,
+            sizing_h=Sizing.HUG,
+            min_height=ICON_SIZE + INSET,
+            border=Border.NONE,
+            padding=INSET,
+            label=[heading_line],
+            icon=data.get("icon"),
+            icon_fill=data.get("icon_fill"),
+        )
+        if frame.direction == Direction.HORIZONTAL:
+            # Wrap original children in a body sub-frame that preserves the
+            # horizontal direction, gap, align, and justify of the original.
+            body = Frame(
+                id=f"{frame.id}__body" if frame.id else "__body",
+                direction=Direction.HORIZONTAL,
+                gap=frame.gap,
+                align=frame.align,
+                justify=frame.justify,
+                sizing_w=Sizing.FILL,
+                sizing_h=Sizing.HUG,
+                border=Border.NONE,
+                padding=0,
+                children=list(frame.children),
+            )
+            frame.children = [heading_child, body]
+            frame.direction = Direction.VERTICAL
+        else:
+            frame.children = [heading_child] + list(frame.children)
+        # Icon moved to heading child; clear from parent
+        frame.icon = None
+
+    return frame
 
 
 def _parse_arrow(data: dict) -> Arrow:

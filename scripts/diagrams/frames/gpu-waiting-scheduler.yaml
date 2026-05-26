@@ -1,0 +1,92 @@
+engine: v3
+title: "GPU waiting scheduler"
+grid:
+  cols: 4
+  col_gap: 24
+  row_gap: 24
+  outer_margin: 24
+arrows:
+  - source: gpu
+    target: scheduler
+root:
+  id: page
+  direction: vertical
+  gap: 24
+  padding: 24
+  border: none
+  children:
+    # Row 0: scheduler box (right, spanning 3 cols)
+    - id: row0
+      direction: horizontal
+      gap: 24
+      border: none
+      children:
+        - id: spacer0
+          border: none
+          label: []
+          sizing_h: hug
+        - id: scheduler
+          label:
+            - {text: Scheduler, weight: "700"}
+            - AI inference
+            - request
+          icon: Desktop monitor.svg
+          fill_weight: 3
+
+    # Row 1: document icon + annotation
+    - id: row1
+      direction: horizontal
+      gap: 24
+      border: none
+      children:
+        - id: spacer1
+          border: none
+          label: []
+          sizing_h: hug
+        - id: doc_icon
+          icon: Document.svg
+          label: []
+          border: none
+          sizing_w: hug
+        - id: queued
+          label:
+            - {text: Queued request, fill: "#666666"}
+          border: none
+          sizing_w: hug
+
+    # Row 2: gauge icon (left)
+    - id: row2
+      direction: horizontal
+      gap: 24
+      border: none
+      children:
+        - id: gauge_icon
+          icon: Gauge.svg
+          label: []
+          border: none
+          sizing_w: hug
+
+    # Row 3: GPU box (left)
+    - id: row3
+      direction: horizontal
+      gap: 24
+      border: none
+      children:
+        - id: gpu
+          label:
+            - {text: GPU, weight: "700"}
+          icon: CPU.svg
+          fill: grey
+          sizing_w: hug
+
+    # Row 4: waiting annotation (left)
+    - id: row4
+      direction: horizontal
+      gap: 24
+      border: none
+      children:
+        - id: waiting
+          label:
+            - {text: "Waiting...", weight: "700"}
+          border: none
+          sizing_w: hug

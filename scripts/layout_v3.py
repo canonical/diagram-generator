@@ -57,14 +57,15 @@ def _distribute_fill_space(
     available: float, fill_measured: list[float],
     fill_mins: list[float | None] | None = None,
     fill_maxes: list[float | None] | None = None,
+    fill_weights: list[float] | None = None,
 ) -> list[float]:
     """Distribute available space among FILL children.
 
     FILL means "accept whatever space the parent gives me."  The algorithm:
 
-    1. Try equal split among all FILL children.
+    1. Split proportionally by weight (default weight = 1 = equal split).
     2. If any child has a min constraint (or max constraint) that prevents
-       the equal share, clamp it and redistribute among the rest.
+       its proportional share, clamp it and redistribute among the rest.
     3. Repeat until stable.
 
     The measured content size is NOT a floor — FILL children shrink below
@@ -87,9 +88,10 @@ def _distribute_fill_space(
     remaining = max(0, available)
     unclamped = list(range(n))
 
-    # Resolve effective min/max for each child
+    # Resolve effective min/max and weights for each child
     eff_mins = [0.0] * n
     eff_maxes = [float('inf')] * n
+    weights = [1.0] * n
     if fill_mins:
         for i in range(min(n, len(fill_mins))):
             if fill_mins[i] is not None:
@@ -98,13 +100,17 @@ def _distribute_fill_space(
         for i in range(min(n, len(fill_maxes))):
             if fill_maxes[i] is not None:
                 eff_maxes[i] = fill_maxes[i]
+    if fill_weights:
+        for i in range(min(n, len(fill_weights))):
+            weights[i] = max(0, fill_weights[i])
 
-    # Iterative clamping: clamp children at min or max when the equal
+    # Iterative clamping: clamp children at min or max when the proportional
     # share violates their constraints, then redistribute.
     while unclamped:
-        share = remaining / len(unclamped) if unclamped else 0
+        total_weight = sum(weights[i] for i in unclamped)
         clamped_any = False
         for idx in list(unclamped):
+            share = (remaining * weights[idx] / total_weight) if total_weight > 0 else (remaining / len(unclamped))
             if share < eff_mins[idx]:
                 # Child needs more than its share — give it the minimum
                 sizes[idx] = round_up_to_grid(eff_mins[idx])
@@ -120,10 +126,9 @@ def _distribute_fill_space(
                 clamped_any = True
                 break
         if not clamped_any:
-            n_unc = len(unclamped)
-            share = remaining / n_unc if n_unc else 0
+            tw = sum(weights[i] for i in unclamped)
             for idx in unclamped:
-                sizes[idx] = share
+                sizes[idx] = (remaining * weights[idx] / tw) if tw > 0 else (remaining / len(unclamped))
             break
     return sizes
 
@@ -272,8 +277,10 @@ def _build_grid_info(diagram: FrameDiagram, root: Frame) -> GridInfo:
     col_w_raw = ((content_w - (cols - 1) * col_gap) / cols) if cols > 1 else content_w
     col_w = int((col_w_raw // BASELINE_UNIT) * BASELINE_UNIT) if col_w_raw >= BASELINE_UNIT else max(BASELINE_UNIT, int(col_w_raw))
     col_xs = [outer_margin + c * (col_w + col_gap) for c in range(cols)]
-    col_widths = [col_w for _ in range(cols)]
-    resolved_right_margin = svg_w - (col_xs[-1] + col_w) if col_xs else outer_margin
+    # Give the last column any remaining pixels so columns span the full content area
+    last_col_w = max(col_w, content_w - (cols - 1) * (col_w + col_gap)) if cols > 1 else content_w
+    col_widths = [col_w for _ in range(cols - 1)] + [last_col_w] if cols > 1 else [content_w]
+    resolved_right_margin = svg_w - (col_xs[-1] + col_widths[-1]) if col_xs else outer_margin
 
     row_gap_snapped = int((max(0, row_gap) // BASELINE_UNIT) * BASELINE_UNIT)
     row_count = 1
@@ -376,6 +383,8 @@ def measure(frame: Frame, *, _is_root: bool = False) -> None:
             w = frame.width
         if frame.sizing_h == Sizing.FIXED and frame.height is not None:
             h = frame.height
+        w = _clamp_to_constraints(w, frame.min_width, frame.max_width)
+        h = _clamp_to_constraints(h, frame.min_height, frame.max_height)
         frame._measured_w = round_up_to_grid(w)
         frame._measured_h = round_up_to_grid(h)
         return
@@ -394,7 +403,14 @@ def measure(frame: Frame, *, _is_root: bool = False) -> None:
     n = len(auto_children)
     total_gap = frame.gap * max(0, n - 1)
 
-    if frame.direction == Direction.HORIZONTAL:
+    if (frame.direction == Direction.HORIZONTAL and frame.wrap
+            and frame.sizing_w == Sizing.FIXED and frame.width is not None):
+        # Wrap mode with known width: break children into rows.
+        avail_w = max(0, round_up_to_grid(frame.width) - pad_h - _stroke_space_total(frame))
+        rows = _break_into_rows(auto_children, avail_w, frame.gap)
+        content_w = avail_w
+        content_h = sum(r["height"] for r in rows) + frame.gap * max(0, len(rows) - 1)
+    elif frame.direction == Direction.HORIZONTAL:
         # Primary axis (W): inflate for FILL equalization in non-root
         if not _is_root:
             fill_w = [c._measured_w for c in auto_children if c.sizing_w == Sizing.FILL]
@@ -434,6 +450,50 @@ def measure(frame: Frame, *, _is_root: bool = False) -> None:
         frame._measured_h = round_up_to_grid(frame.height) if frame.height is not None else content_based_h
     else:
         frame._measured_h = content_based_h
+
+
+# ---------------------------------------------------------------------------
+# Wrap helper: break children into rows by available width
+# ---------------------------------------------------------------------------
+
+def _break_into_rows(children, avail_w, gap):
+    """Break children into rows that fit within *avail_w*.
+
+    Each child's ``_measured_w`` is used for row-breaking decisions.
+    A single child that exceeds *avail_w* gets its own row (never split).
+    Returns a list of dicts with keys ``children``, ``width``, ``height``.
+    """
+    if not children:
+        return []
+
+    rows = []
+    current_row = []
+    current_row_w = 0
+
+    for child in children:
+        child_w = child._measured_w
+        would_be_w = child_w if not current_row else current_row_w + gap + child_w
+
+        if current_row and would_be_w > avail_w:
+            rows.append({
+                "children": current_row,
+                "width": current_row_w,
+                "height": max(c._measured_h for c in current_row),
+            })
+            current_row = [child]
+            current_row_w = child_w
+        else:
+            current_row.append(child)
+            current_row_w = would_be_w
+
+    if current_row:
+        rows.append({
+            "children": current_row,
+            "width": current_row_w,
+            "height": max(c._measured_h for c in current_row),
+        })
+
+    return rows
 
 
 # ---------------------------------------------------------------------------
@@ -562,19 +622,21 @@ def _resolve_child_widths(frame: Frame, frame_w: float) -> list[float]:
         fill_measured = []
         fill_mins = []
         fill_maxes = []
+        fill_weights = []
         for i, child in enumerate(auto_children):
             if child.sizing_w == Sizing.FILL:
                 fill_indices.append(i)
                 fill_measured.append(child._measured_w)
                 fill_mins.append(child.min_width)
                 fill_maxes.append(child.max_width)
+                fill_weights.append(child.fill_weight)
             else:
                 # Use constrained size for space accounting
                 w = child._measured_w
                 w = _clamp_to_constraints(w, child.min_width, child.max_width)
                 hug_total += w
 
-        fill_sizes = _distribute_fill_space(available - hug_total, fill_measured, fill_mins, fill_maxes)
+        fill_sizes = _distribute_fill_space(available - hug_total, fill_measured, fill_mins, fill_maxes, fill_weights)
 
         # Build per-child width list
         widths = []
@@ -649,6 +711,7 @@ def _propagate_width_and_remeasure(frame: Frame, resolved_w: float) -> None:
             return
         # Re-measure at the resolved width
         _, new_h = _leaf_natural_size(frame, constrained_w=resolved_w)
+        new_h = _clamp_to_constraints(new_h, frame.min_height, frame.max_height)
         new_h = round_up_to_grid(new_h)
         if new_h != frame._measured_h:
             frame._measured_h = new_h
@@ -683,7 +746,13 @@ def _propagate_height_changes(frame: Frame) -> None:
     n = len(auto_children)
     total_gap = frame.gap * max(0, n - 1)
 
-    if frame.direction == Direction.HORIZONTAL:
+    if (frame.direction == Direction.HORIZONTAL and frame.wrap
+            and frame.sizing_w == Sizing.FIXED and frame.width is not None):
+        avail_w = max(0, round_up_to_grid(frame.width) - frame.padding_left
+                       - frame.padding_right - _stroke_space_total(frame))
+        rows = _break_into_rows(auto_children, avail_w, frame.gap)
+        content_h = sum(r["height"] for r in rows) + frame.gap * max(0, len(rows) - 1)
+    elif frame.direction == Direction.HORIZONTAL:
         # Cross axis (H): max of children
         content_h = max(c._measured_h for c in auto_children) if auto_children else 0
     else:
@@ -730,7 +799,16 @@ def _refresh_coerced_heights(frame: Frame, coerced_ids: set) -> None:
     n = len(auto_children)
     total_gap = frame.gap * max(0, n - 1)
 
-    if frame.direction == Direction.HORIZONTAL:
+    if (frame.direction == Direction.HORIZONTAL and frame.wrap
+            and frame.sizing_w == Sizing.FIXED and frame.width is not None):
+        avail_w = max(0, round_up_to_grid(frame.width) - frame.padding_left
+                       - frame.padding_right - _stroke_space_total(frame))
+        rows = _break_into_rows(auto_children, avail_w, frame.gap)
+        content_h = sum(r["height"] for r in rows) + frame.gap * max(0, len(rows) - 1)
+        new_h = round_up_to_grid(content_h + pad_v + heading_h + heading_gap)
+        frame._measured_h = new_h
+        frame.height = new_h
+    elif frame.direction == Direction.HORIZONTAL:
         content_h = max(c._measured_h for c in auto_children) if auto_children else 0
         new_h = round_up_to_grid(content_h + pad_v + heading_h + heading_gap)
         frame._measured_h = new_h
@@ -835,12 +913,14 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
     fill_measured = []
     fill_mins = []
     fill_maxes = []
+    fill_weights = []
     for i, child in enumerate(auto_children):
         primary_sizing = _child_primary_sizing(child, frame.direction)
         if primary_sizing == Sizing.FILL:
             fill_indices.append(i)
             m = child._measured_w if frame.direction == Direction.HORIZONTAL else child._measured_h
             fill_measured.append(m)
+            fill_weights.append(child.fill_weight)
             if frame.direction == Direction.HORIZONTAL:
                 fill_mins.append(child.min_width)
                 fill_maxes.append(child.max_width)
@@ -856,7 +936,7 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
                 main_size = _clamp_to_constraints(main_size, child.min_height, child.max_height)
             hug_total += main_size
 
-    fill_sizes = _distribute_fill_space(available_for_children - hug_total, fill_measured, fill_mins, fill_maxes)
+    fill_sizes = _distribute_fill_space(available_for_children - hug_total, fill_measured, fill_mins, fill_maxes, fill_weights)
 
     total_fill_placed = sum(fill_sizes)
     content_main = hug_total + total_fill_placed + total_gap
@@ -895,7 +975,29 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
     # their measured size and are positioned by parent alignment offset.
     # This is the Figma-correct model: alignment never changes sizing.
 
-    if frame.direction == Direction.HORIZONTAL:
+    if frame.wrap and frame.direction == Direction.HORIZONTAL:
+        # Wrap mode: break children into rows, place each row
+        inner_w = frame._placed_w - pad_l - pad_r - stroke_space
+        rows = _break_into_rows(auto_children, inner_w, frame.gap)
+        cursor_y = y + pad_t + heading_h + heading_gap
+
+        for row in rows:
+            cursor_x = x + pad_l
+            for child in row["children"]:
+                child_w = child._measured_w
+
+                if child.sizing_h == Sizing.FILL:
+                    child_h = row["height"]
+                    child_y = cursor_y
+                else:
+                    child_h = child._measured_h
+                    cross_offset = _align_offset(frame.align, row["height"], child._measured_h, "y")
+                    child_y = cursor_y + cross_offset
+
+                place(child, cursor_x, child_y, child_w, child_h)
+                cursor_x += child._placed_w + frame.gap
+            cursor_y += row["height"] + frame.gap
+    elif frame.direction == Direction.HORIZONTAL:
         cursor_x = x + pad_l + main_offset
         fill_idx = 0
         for child in auto_children:
@@ -973,14 +1075,10 @@ def _render_frame(frame: Frame, fg: list, bg: list, bounds_map: dict) -> None:
     if cid and not cid.startswith("__"):
         bounds_map[cid] = (x, y, w, h)
 
-    # Separator role: dashed line at top (acts as the "border"),
-    # text below with same INSET as bordered boxes for visual consistency.
+    # Separator role: emit a visual dashed line at the top of bounds.
+    # The FrameBox below provides the hit-testing rect and label text.
     if frame.role == "separator":
         fg.append(DashedLinePrimitive(x, y, x + w, y, component_id=cid))
-        if frame.label:
-            fg.append(TextBlock(x + INSET, y + INSET, _lines_to_dicts(frame.label),
-                                component_id=cid, max_width=w - 2 * INSET))
-        return
 
     # ── Resolve style fields ──
     if frame.fill == Fill.BLACK:
@@ -1257,7 +1355,9 @@ def _build_component_tree(root: Frame) -> list[ComponentInfo]:
             pad=pad,
             sizing_w=frame.sizing_w.name,
             sizing_h=frame.sizing_h.name,
+            fill_weight=frame.fill_weight,
             align=frame.align.name,
+            wrap=frame.wrap,
             padding_top=frame.padding_top,
             padding_right=frame.padding_right,
             padding_bottom=frame.padding_bottom,

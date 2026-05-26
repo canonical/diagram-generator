@@ -23,8 +23,10 @@ function deserializeFrame(json) {
     paddingBottom: json.paddingBottom,
     paddingLeft: json.paddingLeft,
     align: json.align || "TOP_LEFT",
+    wrap: json.wrap ?? false,
     sizingW: json.sizingW || "HUG",
     sizingH: json.sizingH || "HUG",
+    fillWeight: json.fillWeight ?? 1,
     width: json.width ?? undefined,
     height: json.height ?? undefined,
     minWidth: json.minWidth ?? undefined,
@@ -169,6 +171,12 @@ function applyOverridesToFrameTree(diagram, allOverrides, gridOverrides) {
     }
     if (ovr.align) {
       target.align = ovr.align;
+    }
+    if (ovr.wrap != null) {
+      target.wrap = !!ovr.wrap;
+    }
+    if (ovr.fill_weight != null) {
+      target.fillWeight = parseFloat(ovr.fill_weight);
     }
     if (ovr.width != null) {
       target.width = parseInt(ovr.width, 10);
@@ -409,6 +417,24 @@ function patchFrameGroup(g, frame) {
   g.removeAttribute("transform");
   g.style.transform = "";
 
+  const children = [];
+
+  // Separator role: emit a visible dashed line at the top of the bounds
+  if (frame.role === "separator") {
+    const line = document.createElementNS(SVG_NS, "line");
+    line.setAttribute("class", "dg-separator");
+    line.setAttribute("x1", _fmtSvgNumber(frame._layout.placedX));
+    line.setAttribute("y1", _fmtSvgNumber(frame._layout.placedY));
+    line.setAttribute("x2", _fmtSvgNumber(frame._layout.placedX + frame._layout.placedW));
+    line.setAttribute("y2", _fmtSvgNumber(frame._layout.placedY));
+    line.setAttribute("fill", "none");
+    line.setAttribute("stroke", "#000000");
+    line.setAttribute("stroke-width", "1");
+    line.setAttribute("stroke-miterlimit", "10");
+    line.setAttribute("stroke-dasharray", "8 8");
+    children.push(line);
+  }
+
   const rect = document.createElementNS(SVG_NS, "rect");
   rect.setAttribute("x", _fmtSvgNumber(frame._layout.placedX));
   rect.setAttribute("y", _fmtSvgNumber(frame._layout.placedY));
@@ -430,7 +456,7 @@ function patchFrameGroup(g, frame) {
     rect.setAttribute("pointer-events", "none");
   }
 
-  const children = [rect];
+  children.push(rect);
   const textEl = _buildFrameTextElement(frame, renderState);
   if (textEl) {
     children.push(textEl);
@@ -489,7 +515,7 @@ function patchSvgFromLayout(svgEl, oldBounds, newBounds, framesById) {
     const dh = newB.h - oldB.h;
 
     const frame = framesById ? framesById[cid] : null;
-    if (frame && frame.role !== "separator") {
+    if (frame) {
       patchFrameGroup(g, frame);
       continue;
     }
@@ -558,6 +584,7 @@ function updateComponentModelFromLayout(model, frame) {
       pad: f.border !== "NONE" ? f.paddingTop : 0,
       sizing_w: f.sizingW,
       sizing_h: f.sizingH,
+      fill_weight: f.fillWeight,
       min_width: f.minWidth,
       max_width: f.maxWidth,
       min_height: f.minHeight,
@@ -800,7 +827,7 @@ function performLocalRelayout(model, overrides, gridOverrides, opts) {
     // Build override map (same format as requestV3Relayout sends)
     const FRAME_KEYS = [
       "direction", "gap", "padding", "sizing", "sizing_w", "sizing_h",
-      "align", "width", "height", "min_width", "max_width", "min_height",
+      "fill_weight", "align", "wrap", "width", "height", "min_width", "max_width", "min_height",
       "max_height", "children_order", "fill", "border", "text",
       "position", "x", "y",
     ];

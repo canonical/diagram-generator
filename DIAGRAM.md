@@ -317,7 +317,187 @@ The Diagram model supports optional sizing constraints that make output dimensio
 
 **When to use `uniform_rows`:** when rows should form a regular grid of equal-height modules, regardless of content. Note that content must still fit — uniform rows enlarge smaller rows but never shrink larger ones.
 
-### Project purpose
+### Autolayout heuristics
+
+When building a v3 Frame YAML diagram, the choice of sizing, alignment, and gap values determines whether the output looks composed or accidental. These heuristics are a starting point – revise them as more diagram types appear.
+
+#### Sizing: when to use FILL vs HUG vs FIXED
+
+**FILL** (the non-root default) makes siblings share space equally, or by weight. Use it when:
+
+- Top-level children should look like uniform cards in a horizontal flow. Equal widths align arrows between columns, produce balanced negative space, and create a card-like rhythm. Example: `support-engineering-flow` (5 equal-width steps, all with explicit `sizing_w: fill`).
+- Children in a row represent parallel options, comparisons, or equivalent tiers. Example: `android-container-vs-vm` (container column vs VM column), `aws-hld` row1 (4 service account panels).
+- Leaf children inside a bordered panel should usually keep the default (FILL width), so they stretch to fill the panel and stack uniformly. This is how most panels in the corpus work.
+- A specific child should be wider than its siblings – use `fill_weight: 2` (or 3) to give it proportional extra space. Example: `core` in `aws-hld` row1 uses `fill_weight: 2` because it holds two sub-panels.
+
+**HUG** lets a box shrink to exactly its content. Use it when:
+
+- A box with explicit `sizing_h: hug` should collapse to its content height instead of stretching vertically. Common for separators, borderless headings, spacers, and key/legend rows.
+- Width-hug is rare. Prefer FILL width so siblings share columns consistently. The only current width-hug use is `note_top` in `android-container-vs-vm`, which should migrate to FILL.
+
+**FIXED** pins a dimension to an explicit value. Use it when:
+
+- The root page needs a specific canvas width (e.g., `support-engineering-flow` uses a fixed root width).
+- Two parallel columns must share an exact width for visual symmetry. Express widths in grid-column spans rather than raw pixels – e.g., a 2-column span in an 8-column grid, not a magic number. See the grid formula: `col_width = (canvas_width − 2 × outer-margin − (cols − 1) × grid-gutter) / cols`.
+- A box must not grow beyond a known boundary.
+
+Note: setting `width` or `height` without an explicit `sizing_w`/`sizing_h` implicitly promotes that axis to FIXED (via `frame_loader.py`).
+
+**Default rule:** if you don't set sizing, the engine defaults to FILL width and HUG height for non-root nodes. Root defaults to HUG/HUG – this means a root with no explicit size wraps its content. In practice, most diagrams set an explicit root width, which promotes to FIXED. This matches Figma's model: Figma artboards start FIXED, and auto-convert to FIXED whenever FILL children appear. Our engine does the same coercion via `_enforce_fill_hug_invariant()`.
+
+#### Gap: dense stacks vs default stacks
+
+The engine uses two gap scales, mapped to the spacing tokens in the frontmatter. The deciding factor is what the container holds.
+
+**Dense stack (gap = `compact-gap`, padding = `inset`):** a panel whose children are leaf boxes. The tight `1 × baseline-unit` gap keeps items visually bound as a single group. Example: `lxd_container` in `android-container-vs-vm`, `logging` in `aws-hld`.
+
+**Default stack (gap = `grid-gutter`, padding = `inset`–`outer-margin`):** a panel whose children are sub-panels, horizontal rows, or peer units. The `3 × baseline-unit` gap gives each child room to read as an independent element. Example: `core` in `aws-hld` (contains two sub-panels), `host_tools` in `android-custom-to-cloud` (contains independent tool boxes).
+
+**Borderless wrappers (gap = `grid-gutter` to `4 × baseline-unit`, no padding):** invisible layout containers that group siblings into rows or columns. Example: `top_zone` in `android-container-vs-vm`.
+
+**Root gap:** `grid-gutter` (`3 × baseline-unit`) is the baseline. Use `4 × baseline-unit` for wider or sparser diagrams – `android-graphics-stack` and `lightning-talk-engine` use this. Root gap and padding do not need to match.
+
+**Common mistake:** mixing gap scales at the same nesting level. If sibling panels use different gaps for the same kind of children, the visual rhythm breaks.
+
+#### Alignment: TOP_LEFT inside, matched structure across
+
+- **Inside containers:** children should align `TOP_LEFT` (the default). This keeps content stacked from the top-left corner, which is the natural reading position. Don't centre-align children inside a panel unless the content is a single icon or symmetric widget.
+- **Across comparison columns:** when two or more containers sit side by side and represent parallel structures (e.g., container vs VM), align their internal structure by using the same sizing mode and gap on both, so that corresponding rows line up visually.
+
+#### Root page conventions
+
+- **Root `border: none`** always. The root is a layout container, not a visible box.
+- **Root `padding` = `outer-margin`** (`3 × baseline-unit`) consistently.
+- **Root `direction`:** horizontal for side-by-side columns or comparison layouts, vertical for top-to-bottom flows or layered architectures.
+- **Root `gap`:** `grid-gutter` (`3 × baseline-unit`) for standard diagrams, `4 × baseline-unit` for wider or sparser ones. Does not need to match padding.
+
+#### Borderless wrappers
+
+When a layout needs to group children in a perpendicular direction, use a borderless wrapper. These can be horizontal (rows) or vertical (columns).
+
+**Horizontal wrapper row** – groups items side by side inside a vertical parent:
+
+```yaml
+- id: row_services
+  direction: horizontal
+  gap: 24
+  border: none
+  children:
+    - id: svc_a
+      ...
+    - id: svc_b
+      ...
+```
+
+**Vertical wrapper column** – stacks a borderless heading above a bordered panel in a horizontal parent. Common in comparison diagrams:
+
+```yaml
+- id: col_container
+  direction: vertical
+  gap: 8
+  border: none
+  children:
+    - id: hdr_container
+      label: Containers
+      sizing_h: hug
+    - id: panel
+      border: solid
+      ...
+```
+
+Borderless wrappers are invisible – they only group children directionally. Don't give them padding or fill. The loader defaults borderless containers to zero padding.
+
+#### Headed panels
+
+Panels with a heading (grey-filled, bordered, with a bold title) are the primary grouping mechanism:
+
+```yaml
+- id: network_svc
+  direction: vertical
+  gap: 8
+  padding: 8
+  border: solid
+  fill: grey
+  heading:
+    content: Network Services
+    style: bold
+  children:
+    - id: vpc
+      ...
+```
+
+- `fill: grey` + `border: solid` + `heading` = a visible grouped panel.
+- Internal gap = `compact-gap` for dense leaf stacks, `grid-gutter` for default stacks with sub-containers.
+- Padding = `inset` for dense panels; up to `outer-margin` for structural panels with multiple sub-groups.
+
+#### Spacers and height-hug elements
+
+Spacers create asymmetric indentation in horizontal rows (e.g., indenting input/output rows in generator diagrams). The corpus pattern is a minimal label with `sizing_h: hug` only – width stays at the default FILL so the spacer takes up proportional space alongside `fill_weight` siblings.
+
+Height-hug is also the standard for:
+- Separator rows (`role: separator`, `sizing_h: hug`)
+- Standalone headings outside panels
+- Key/legend rows at the bottom of a diagram
+
+#### Annotation columns and note lanes
+
+Several diagrams place a text note beside content columns to explain what a row or zone represents. Annotations should use default FILL width (not HUG) so they participate in the same column grid as their siblings. Use `border: none` for annotation style.
+
+Examples: `note_top` / `note_bottom` in `android-container-vs-vm`, annotation labels in `android-graphics-stack`, `key_note` in `aws-hld`.
+
+When every row has an annotation column at the same position, use a consistent width expressed as a grid-column span (e.g., 2 columns in an 8-column grid) so annotations align vertically across rows. Avoid hard-coding raw pixel widths – derive them from the grid formula.
+
+#### Fill and emphasis patterns
+
+**White-on-grey nesting:** leaf boxes inside a grey-filled panel render as white (outlined) boxes on a grey background. This is the default – no special fill is needed on the children. The contrast makes the panel's grouping role visually clear.
+
+**Black emphasis boxes:** use `fill: black` (white text) to highlight at most one element per diagram – typically a final output, key result, or focal node. Example: `example-deployment-pipeline` production step, `diagram-language-workflow` output steps.
+
+#### Pattern recipes
+
+**Vertical linear flow** (pipeline, process steps):
+- Root: vertical, gap = `grid-gutter`, padding = `outer-margin`, border none
+- Children: leaf boxes with icons, connected by arrows
+- Example: `example-deployment-pipeline`, `diagram-intake-workflow`
+
+**Horizontal linear flow** (sequential process chain):
+- Root: horizontal, gap = `grid-gutter`, padding = `outer-margin`, border none, fixed width
+- Children: all `sizing_w: fill` for equal card widths, connected by arrows
+- Example: `support-engineering-flow` (fixed root width, 5 fill children)
+
+**Layered architecture** (stack of horizontal rows):
+- Root: vertical, gap = `grid-gutter` to `4 × baseline-unit`, padding = `outer-margin`, border none
+- Children: borderless horizontal wrappers (rows), each containing leaf boxes or panels
+- Arrow flow: top to bottom between rows
+- Example: `android-graphics-stack` (root gap = `4 × baseline-unit`, annotation columns at a fixed column span)
+
+**Multi-zone comparison** (column pairs with separator):
+- Root: vertical, gap = `grid-gutter`, padding = `outer-margin`, border none
+- Children: horizontal zones (top, separator, bottom), each zone containing columns
+- Columns are borderless vertical wrappers stacking a heading over a bordered panel
+- Column widths: fixed column span for symmetry (`android-security-comparison`) or default FILL (`android-container-vs-vm`)
+- Example: `android-container-vs-vm`, `android-security-comparison`
+
+**Stacked layer chain** (vertical stack of headed panels):
+- Root: vertical, gap = `grid-gutter`, padding = `outer-margin`, border none
+- Children: headed panels (grey-filled, bordered) connected by arrows
+- Panels may contain internal horizontal rows or mini-grids
+- Example: `request-to-hardware-stack` (6 headed panels, some with nested sub-rows)
+
+**Enterprise architecture** (hierarchical panels in rows):
+- Root: vertical, gap = `grid-gutter`, padding = `outer-margin`, border none
+- Children: borderless horizontal wrapper rows of headed panels
+- Panels contain sub-panels or leaf boxes
+- Use `fill_weight` for asymmetric panels, headed panels for logical grouping
+- Example: `aws-hld`
+
+**Generator/tool diagram** (input → engine → output):
+- Root: vertical, gap = `grid-gutter` to `4 × baseline-unit`, padding = `outer-margin`, border none
+- Children: 3 rows (input, processing, output), each a horizontal wrapper
+- Use height-hug spacers (default fill-width) alongside `fill_weight` siblings to create asymmetric indentation
+- Example: `lt-diagram-generator`, `lt-a4-generator`, `lt-summit-identity`
+
+
 
 This repo owns a diagram generator with grid-based layout, nested groups, boxes, gutters, and connector arrows.
 
@@ -350,17 +530,11 @@ If a parent row changes from 2 children to 3 or 5, the child widths should be re
 
 ### Group styling invariant
 
-The default grouped-panel style is the repo's borderless grey group treatment:
+The default grouped-panel style in v3 frame diagrams is a **bordered headed panel**: grey background, solid 1 px border, bold heading text, and tight internal gap. See [Autolayout heuristics → Headed panels](#headed-panels) for the YAML pattern.
 
-- grey background
-- no dashed border
-- no heavy visible stroke
-- readable title and text
-- normal child boxes inside the group
+For v2 pipeline diagrams, the legacy style was a borderless grey panel (`Panel(fill=Fill.GREY, border=Border.FILL)`). In v3, borderless containers are used only as invisible layout wrappers, not as visible group panels.
 
-Use this in definitions as `Panel(fill=Fill.GREY, border=Border.FILL)` or the YAML equivalent.
-
-`Border.DASHED` is not the default grouped style. Use it only when a dashed frame is explicitly requested for debugging or for a legacy diagram whose semantics genuinely require a dashed frame. Do not treat old dashed examples as the preferred nested-group pattern.
+`Border.DASHED` is not the default grouped style. Use it only when a dashed frame is explicitly requested for debugging or for a legacy diagram whose semantics genuinely require a dashed frame.
 
 ### Gutters and grid rules
 
@@ -369,7 +543,7 @@ These values matter because grouped layouts fail when they are eyeballed instead
 Token values:
 
 - `baseline-unit` = `8px`
-- horizontal structural gutter token = `grid-gutter` = `24px`
+- horizontal structural gutter token = `grid-gutter` = `24px` (or `4 × baseline-unit` for wider/sparser diagrams – see [autolayout heuristics](#gap-dense-stacks-vs-default-stacks))
 - vertical structural gutter token = `grid-gutter` = `24px` unless a diagram explicitly sets another `row_gap`
 - outer margin token = `24px`
 - compact internal gap token = `8px`, only for tightly packed non-structural content

@@ -32,8 +32,8 @@ export interface LineSpec {
 // ---------------------------------------------------------------------------
 
 export interface TextMeasureAdapter {
-  /** Measure pixel width of text at a given font size. */
-  measureTextWidth(text: string, fontSize: number): number;
+  /** Measure pixel width of text at a given font size and weight. */
+  measureTextWidth(text: string, fontSize: number, weight?: number): number;
 }
 
 // ---------------------------------------------------------------------------
@@ -44,7 +44,8 @@ export interface TextMeasureAdapter {
 export function estimateLineWidth(spec: LineSpec, adapter: TextMeasureAdapter): number {
   const text = spec.content;
   const size = sizeToPx(spec.size ?? BODY_SIZE);
-  let width = adapter.measureTextWidth(text, size);
+  const weight = Number(spec.weight ?? 400);
+  let width = adapter.measureTextWidth(text, size, weight);
   if (spec.smallCaps) width *= 1.05;
   return width;
 }
@@ -68,13 +69,14 @@ export function wrapTextLines(
     }
 
     const size = sizeToPx(spec.size ?? BODY_SIZE);
+    const weight = Number(spec.weight ?? 400);
     const smallCaps = spec.smallCaps ?? false;
     const words = spec.content.split(/\s+/);
     let current = '';
 
     for (const word of words) {
       const test = current ? current + ' ' + word : word;
-      let testW = adapter.measureTextWidth(test, size);
+      let testW = adapter.measureTextWidth(test, size, weight);
       if (smallCaps) testW *= 1.05;
       if (testW <= maxWidth || !current) {
         current = test;
@@ -126,7 +128,7 @@ export function linesToSpecs(lines: readonly Line[]): LineSpec[] {
 export class MockTextAdapter implements TextMeasureAdapter {
   constructor(private readonly factor = 0.6) {}
 
-  measureTextWidth(text: string, fontSize: number): number {
+  measureTextWidth(text: string, fontSize: number, _weight?: number): number {
     return text.length * fontSize * this.factor;
   }
 }

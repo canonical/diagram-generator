@@ -60,6 +60,7 @@ from diagram_shared import (
     ROW_GAP,
     TERMINAL_CHROME_HEIGHT,
     make_line as _make_line,
+    measure_text_width,
     round_up_to_grid,
     equal_split_cell,
     span_size,
@@ -284,7 +285,9 @@ class ComponentInfo:
     # Per-axis sizing and alignment (v3 frame engine)
     sizing_w: str = ""  # "HUG", "FILL", "FIXED" or "" (not set)
     sizing_h: str = ""
+    fill_weight: float = 1  # proportional weight for FILL sizing
     align: str = ""     # "TOP_LEFT", "CENTER", etc. or "" (not set)
+    wrap: bool = False  # horizontal wrap mode
     padding_top: float = 0
     padding_right: float = 0
     padding_bottom: float = 0
@@ -1309,10 +1312,9 @@ def _estimate_label_width(lines: list[dict]) -> float:
     max_width = 0.0
     for spec in lines:
         text = str(spec["content"])
-        size_px = size_to_px(spec["size"])
-        weight = str(spec.get("weight", "400"))
-        width_factor = 0.62 if weight in {"600", "700"} else 0.58
-        width = len(text) * size_px * width_factor
+        size = size_to_px(spec.get("size", BODY_SIZE))
+        weight = int(spec.get("weight", 400))
+        width = measure_text_width(text, size, weight)
         if spec.get("small_caps"):
             width *= 1.05
         max_width = max(max_width, width)

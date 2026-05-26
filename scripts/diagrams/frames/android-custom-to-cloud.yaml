@@ -1,0 +1,68 @@
+engine: v3
+title: "Custom Android to Anbox Cloud"
+grid:
+  cols: 4
+  col_gap: 32
+  row_gap: 24
+  outer_margin: 24
+arrows:
+  - source: custom_files
+    target: host_tools
+  - source: host_tools
+    target: anbox_cloud
+  - source: anbox_cloud
+    target: virt_instance
+root:
+  id: page
+  direction: horizontal
+  gap: 32
+  padding: 24
+  border: none
+  children:
+    # Col 0: Custom Android files
+    - id: custom_files
+      direction: vertical
+      gap: 8
+      padding: 8
+      border: solid
+      heading: "Custom Android files"
+      children:
+        - id: partitions
+          label:
+            - {text: Partitions, weight: "700"}
+          fill: grey
+        - id: system_image
+          label: [Android system image]
+        - id: kernel
+          label: [Kernel]
+          fill: grey
+
+    # Col 1: Host-side tools
+    - id: host_tools
+      direction: vertical
+      gap: 24
+      padding: 8
+      border: solid
+      heading: "Host-side tools"
+      children:
+        - id: cvd
+          label: [cvd]
+        - id: launchers
+          label: [Launchers]
+
+    # Col 2: Anbox Cloud
+    - id: anbox_cloud
+      label:
+        - {text: Anbox Cloud, weight: "700"}
+        - "- Consumes system images"
+        - "- Consumes host-side tools"
+      icon: Cloud.svg
+
+    # Col 3: Virtualized Android instance
+    - id: virt_instance
+      label:
+        - {text: Virtualized Android instance, weight: "700"}
+        - "- Unmodified"
+        - "  Cuttlefish-based Android"
+        - "- No rebuild required"
+      icon: Virtual machine.svg

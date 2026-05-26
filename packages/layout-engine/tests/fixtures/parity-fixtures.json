@@ -850,5 +850,160 @@
         }
       }
     }
+  },
+  {
+    "name": "test-wrap-horizontal",
+    "description": "Horizontal wrap \u2014 3 children break into 2 rows",
+    "root": {
+      "id": "wrap_parent",
+      "direction": "HORIZONTAL",
+      "wrap": true,
+      "gap": 8,
+      "padding": 0,
+      "sizingW": "FIXED",
+      "sizingH": "HUG",
+      "width": 200,
+      "fill": "#FFFFFF",
+      "border": "NONE",
+      "children": [
+        {
+          "id": "w1",
+          "gap": 0,
+          "padding": 0,
+          "sizingW": "FIXED",
+          "sizingH": "FIXED",
+          "width": 80,
+          "height": 40,
+          "fill": "#FFFFFF",
+          "border": "NONE",
+          "label": [{ "content": "A", "size": "18", "weight": "400" }]
+        },
+        {
+          "id": "w2",
+          "gap": 0,
+          "padding": 0,
+          "sizingW": "FIXED",
+          "sizingH": "FIXED",
+          "width": 80,
+          "height": 40,
+          "fill": "#FFFFFF",
+          "border": "NONE",
+          "label": [{ "content": "B", "size": "18", "weight": "400" }]
+        },
+        {
+          "id": "w3",
+          "gap": 0,
+          "padding": 0,
+          "sizingW": "FIXED",
+          "sizingH": "FIXED",
+          "width": 80,
+          "height": 40,
+          "fill": "#FFFFFF",
+          "border": "NONE",
+          "label": [{ "content": "C", "size": "18", "weight": "400" }]
+        }
+      ]
+    },
+    "expected": {
+      "width": 200,
+      "height": 88,
+      "bounds": {
+        "wrap_parent": {
+          "x": 0,
+          "y": 0,
+          "w": 200,
+          "h": 88
+        },
+        "w1": {
+          "x": 0,
+          "y": 0,
+          "w": 80,
+          "h": 40
+        },
+        "w2": {
+          "x": 88,
+          "y": 0,
+          "w": 80,
+          "h": 40
+        },
+        "w3": {
+          "x": 0,
+          "y": 48,
+          "w": 80,
+          "h": 40
+        }
+      }
+    }
+  },
+  {
+    "name": "test-fill-weights",
+    "description": "Horizontal parent with 2:1 FILL weight split",
+    "root": {
+      "id": "parent",
+      "padding": 0,
+      "direction": "HORIZONTAL",
+      "sizingW": "FIXED",
+      "sizingH": "HUG",
+      "width": 240,
+      "fill": "#FFFFFF",
+      "border": "NONE",
+      "gap": 0,
+      "children": [
+        {
+          "id": "heavy",
+          "sizingW": "FILL",
+          "fillWeight": 2,
+          "fill": "#E6F0FF",
+          "border": "NONE",
+          "padding": 0,
+          "label": [
+            {
+              "content": "Heavy",
+              "size": "14",
+              "weight": "400"
+            }
+          ]
+        },
+        {
+          "id": "light",
+          "sizingW": "FILL",
+          "fillWeight": 1,
+          "fill": "#FFF0E6",
+          "border": "NONE",
+          "padding": 0,
+          "label": [
+            {
+              "content": "Light",
+              "size": "14",
+              "weight": "400"
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "width": 240,
+      "height": 40,
+      "bounds": {
+        "parent": {
+          "x": 0,
+          "y": 0,
+          "w": 240,
+          "h": 40
+        },
+        "heavy": {
+          "x": 0,
+          "y": 0,
+          "w": 160,
+          "h": 40
+        },
+        "light": {
+          "x": 160,
+          "y": 0,
+          "w": 80,
+          "h": 40
+        }
+      }
+    }
   }
 ]

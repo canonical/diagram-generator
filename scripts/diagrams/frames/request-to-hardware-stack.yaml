@@ -1,0 +1,168 @@
+engine: v3
+title: "Request to hardware stack"
+grid:
+  cols: 1
+  col_gap: 24
+  row_gap: 24
+  outer_margin: 24
+arrows:
+  - source: user
+    target: orch
+  - source: orch
+    target: runtime
+  - source: runtime
+    target: kernel
+  - source: kernel
+    target: driver
+  - source: driver
+    target: hardware
+root:
+  id: page
+  direction: vertical
+  gap: 24
+  padding: 24
+  border: none
+  children:
+    - id: user
+      label: [User request]
+      icon: Cloud.svg
+
+    # Orchestration layer
+    - id: orch
+      direction: horizontal
+      gap: 8
+      padding: 8
+      border: solid
+      fill: grey
+      heading: "Orchestration layer"
+      icon: Snap.svg
+      children:
+        - id: orch_col
+          direction: vertical
+          gap: 8
+          border: none
+          children:
+            - id: orch_row0
+              direction: horizontal
+              gap: 8
+              border: none
+              children:
+                - id: orch_ollama
+                  label: [Ollama]
+                - id: orch_lemonade
+                  label: [Lemonade, Server]
+            - id: orch_vllm
+              label: [vLLM]
+
+    # Model runtime
+    - id: runtime
+      direction: vertical
+      gap: 8
+      padding: 8
+      border: solid
+      heading: "Model runtime"
+      icon: AI.svg
+      children:
+        - id: rt_row0
+          direction: horizontal
+          gap: 8
+          border: none
+          children:
+            - id: rt_llama
+              label: [llama.cpp]
+              fill: grey
+            - id: rt_openvino
+              label: [OpenVINO]
+              fill: grey
+        - id: rt_row1
+          direction: horizontal
+          gap: 8
+          border: none
+          children:
+            - id: rt_vllm
+              label: [vLLM]
+              fill: grey
+            - id: rt_tensorrt
+              label: [TensorRT-, LLM]
+              fill: grey
+        - id: rt_onnx
+          label: [ONNX Runtime]
+          fill: grey
+
+    # Compute kernel
+    - id: kernel
+      direction: vertical
+      gap: 8
+      padding: 8
+      border: solid
+      fill: grey
+      heading: "Compute kernel"
+      icon: kernel.svg
+      children:
+        - id: k_row0
+          direction: horizontal
+          gap: 8
+          border: none
+          children:
+            - id: k_cuda
+              label: [CUDA]
+            - id: k_rocm
+              label: [ROCm]
+        - id: k_row1
+          direction: horizontal
+          gap: 8
+          border: none
+          children:
+            - id: k_metal
+              label: [Metal]
+            - id: k_onednn
+              label: [oneDNN]
+
+    # Driver
+    - id: driver
+      direction: horizontal
+      gap: 8
+      padding: 8
+      border: solid
+      heading: "Driver"
+      icon: Wrench 1.svg
+      children:
+        - id: drv_cuda
+          label: [CUDA]
+          fill: grey
+        - id: drv_rocm
+          label: [ROCm]
+          fill: grey
+
+    # Hardware
+    - id: hardware
+      direction: vertical
+      gap: 8
+      padding: 8
+      border: solid
+      fill: grey
+      heading: "Hardware"
+      icon: Chip 1.svg
+      children:
+        - id: hw_row0
+          direction: horizontal
+          gap: 8
+          border: none
+          children:
+            - id: hw_cpu
+              label: [CPU]
+              icon: CPU.svg
+            - id: hw_gpu
+              label: [GPU]
+              icon: RAM.svg
+        - id: hw_row1
+          direction: horizontal
+          gap: 8
+          border: none
+          children:
+            - id: hw_npu
+              label: [NPU]
+              icon: Chip 2.svg
+            - id: hw_ram
+              label: [RAM &, VRAM]
+              icon: Memory.svg

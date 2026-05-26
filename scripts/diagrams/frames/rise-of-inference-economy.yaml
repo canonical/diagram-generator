@@ -1,0 +1,135 @@
+engine: v3
+title: "Rise of the inference economy"
+grid:
+  cols: 2
+  col_gap: 24
+  row_gap: 24
+  outer_margin: 24
+arrows:
+  - source: training_hdr
+    target: training_detail
+  - source: inference_hdr
+    target: inference_detail
+  - source: training_detail
+    target: inference_detail
+  - source: compute
+    target: summary1
+  - source: revenue
+    target: summary1
+  - source: summary1
+    target: summary2
+root:
+  id: page
+  direction: vertical
+  gap: 24
+  padding: 24
+  border: none
+  children:
+    # Row 0: full-width title
+    - id: title
+      label:
+        - {text: "The rise of the inference economy", weight: "700"}
+      icon: Cloud.svg
+
+    # Row 1: Training vs Inference headers
+    - id: row1
+      direction: horizontal
+      gap: 24
+      border: none
+      children:
+        - id: training_hdr
+          label:
+            - {text: Training, weight: "700"}
+          fill: grey
+          icon: AI.svg
+        - id: inference_hdr
+          label:
+            - {text: Inference, weight: "700", fill: "#FFFFFF"}
+          fill: black
+          icon: CPU.svg
+          icon_fill: "#FFFFFF"
+
+    # Row 2: detail boxes
+    - id: row2
+      direction: horizontal
+      gap: 24
+      border: none
+      children:
+        - id: training_detail
+          label: ["Costly & episodic", High investment]
+          icon: Finance.svg
+        - id: inference_detail
+          label: ["Constant & demand-driven", Ongoing expense]
+          icon: Server.svg
+
+    # Row 3: sub-panels
+    - id: row3
+      direction: horizontal
+      gap: 24
+      border: none
+      children:
+        - id: compute
+          direction: vertical
+          gap: 8
+          padding: 8
+          border: solid
+          fill: grey
+          heading: "Always-on compute"
+          icon: Globe.svg
+          children:
+            - id: compute_row0
+              direction: horizontal
+              gap: 8
+              border: none
+              children:
+                - id: c_dc
+                  label: [Data centers]
+                  icon: Server.svg
+                - id: c_edge
+                  label: [Edge devices]
+                  icon: Mobile.svg
+            - id: c_local
+              label: [Local AI]
+              icon: AI.svg
+
+        - id: revenue
+          direction: vertical
+          gap: 8
+          padding: 8
+          border: solid
+          fill: grey
+          heading: "Revenue impact"
+          icon: Financial data.svg
+          children:
+            - id: rev_row0
+              direction: horizontal
+              gap: 8
+              border: none
+              children:
+                - id: r_latency
+                  label: [Latency down]
+                  icon: Gauge.svg
+                - id: r_tokens
+                  label: [Tokens/sec up]
+                  icon: Scale up.svg
+            - id: rev_row1
+              direction: horizontal
+              gap: 8
+              border: none
+              children:
+                - id: r_efficiency
+                  label: [Efficiency up]
+                  icon: Line chart with check.svg
+                - id: r_optimization
+                  label: [Optimization, "& scale"]
+                  icon: Line chart with commerce.svg
+
+    # Row 4: summary boxes
+    - id: summary1
+      label:
+        - {text: "From training focused to inference focused", weight: "700"}
+      fill: grey
+
+    - id: summary2
+      label:
+        - {text: "Performance & cost efficiency", weight: "700"}

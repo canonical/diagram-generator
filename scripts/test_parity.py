@@ -21,7 +21,7 @@ from frame_model import (
 from layout_v3 import layout_frame_diagram
 
 
-def _mock_measure(text: str, font_size: float) -> float:
+def _mock_measure(text: str, font_size: float, weight: int = 400) -> float:
     """Match TS MockTextAdapter: text.length * fontSize * 0.6"""
     return len(text) * font_size * 0.6
 
@@ -66,7 +66,9 @@ def _build_frame(data: dict) -> Frame:
         padding_left=data.get("paddingLeft"),
         sizing_w=_SIZING.get(data.get("sizingW", "HUG"), Sizing.HUG),
         sizing_h=_SIZING.get(data.get("sizingH", "HUG"), Sizing.HUG),
+        fill_weight=data.get("fillWeight", 1),
         align=_ALIGN.get(data.get("align", "TOP_LEFT"), Align.TOP_LEFT),
+        wrap=data.get("wrap", False),
         width=data.get("width"),
         height=data.get("height"),
         min_width=data.get("minWidth"),

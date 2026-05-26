@@ -44,8 +44,9 @@ export class CanvasTextAdapter implements TextMeasureAdapter {
     }
   }
 
-  measureTextWidth(text: string, fontSize: number): number {
-    this.ctx.font = `${this.weight} ${fontSize}px ${this.fontFamily}`;
+  measureTextWidth(text: string, fontSize: number, weight?: number): number {
+    const w = weight ?? this.weight;
+    this.ctx.font = `${w} ${fontSize}px ${this.fontFamily}`;
     return this.ctx.measureText(text).width;
   }
 

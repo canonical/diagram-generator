@@ -1,0 +1,87 @@
+engine: v3
+title: "Platform architecture"
+grid:
+  cols: 3
+  col_gap: 32
+  row_gap: 24
+  outer_margin: 24
+arrows:
+  - source: frontend
+    target: gateway
+  - source: gateway
+    target: services
+  - source: services
+    target: database
+  - source: services
+    target: cache
+  - source: services
+    target: queue
+root:
+  id: page
+  direction: vertical
+  gap: 24
+  padding: 24
+  border: none
+  children:
+    # Row 0: User-facing services panel
+    - id: frontend
+      direction: horizontal
+      gap: 8
+      padding: 8
+      border: solid
+      fill: grey
+      heading: "User-facing services"
+      children:
+        - id: fe_web
+          label: [Web, application]
+          icon: Laptop with window.svg
+        - id: fe_mobile
+          label: [Mobile, client]
+          icon: Mobile.svg
+
+    # Row 1: API gateway
+    - id: gateway
+      label: [API, gateway]
+      fill: grey
+      icon: Gateway.svg
+
+    # Row 2: Backend services panel
+    - id: services
+      direction: horizontal
+      gap: 8
+      padding: 8
+      border: solid
+      fill: grey
+      heading: "Backend services"
+      children:
+        - id: svc_auth
+          label: [Auth, service]
+          icon: Lock.svg
+          fill: grey
+        - id: svc_order
+          label: [Order, service]
+          icon: Document.svg
+          fill: grey
+        - id: svc_notify
+          label: [Notification, service]
+          icon: Letter.svg
+          fill: grey
+
+    # Row 3: Data layer
+    - id: row3
+      direction: horizontal
+      gap: 32
+      border: none
+      children:
+        - id: database
+          label: [Primary, database]
+          fill: grey
+          icon: Storage node.svg
+        - id: cache
+          label: [Cache, layer]
+          fill: grey
+          icon: Memory.svg
+        - id: queue
+          label: [Message, queue]
+          fill: grey
+          icon: Operations.svg

@@ -199,6 +199,7 @@ export function distributeFillSpace(
   fillMeasured: readonly number[],
   fillMins?: readonly (number | undefined)[],
   fillMaxes?: readonly (number | undefined)[],
+  fillWeights?: readonly number[],
 ): number[] {
   const n = fillMeasured.length;
   if (n === 0) return [];
@@ -210,6 +211,7 @@ export function distributeFillSpace(
   // Effective min/max
   const effMins = new Array<number>(n).fill(0);
   const effMaxes = new Array<number>(n).fill(Infinity);
+  const weights = new Array<number>(n).fill(1);
   if (fillMins) {
     for (let i = 0; i < Math.min(n, fillMins.length); i++) {
       if (fillMins[i] != null) effMins[i] = fillMins[i]!;
@@ -220,14 +222,20 @@ export function distributeFillSpace(
       if (fillMaxes[i] != null) effMaxes[i] = fillMaxes[i]!;
     }
   }
+  if (fillWeights) {
+    for (let i = 0; i < Math.min(n, fillWeights.length); i++) {
+      weights[i] = Math.max(0, fillWeights[i]!);
+    }
+  }
 
   // Iterative clamping
   while (unclamped.length > 0) {
-    const share = remaining / unclamped.length;
+    const totalWeight = unclamped.reduce((s, i) => s + weights[i]!, 0);
     let clampedAny = false;
 
     for (let j = 0; j < unclamped.length; j++) {
       const idx = unclamped[j]!;
+      const share = totalWeight > 0 ? remaining * (weights[idx]! / totalWeight) : remaining / unclamped.length;
       if (share < effMins[idx]!) {
         sizes[idx] = roundUpToGrid(effMins[idx]!);
         remaining -= sizes[idx]!;
@@ -246,10 +254,10 @@ export function distributeFillSpace(
     }
 
     if (!clampedAny) {
-      const nUnc = unclamped.length;
+      const tw = unclamped.reduce((s, i) => s + weights[i]!, 0);
       for (let j = 0; j < unclamped.length; j++) {
         const idx = unclamped[j]!;
-        sizes[idx] = remaining / nUnc;
+        sizes[idx] = tw > 0 ? remaining * (weights[idx]! / tw) : remaining / unclamped.length;
       }
       break;
     }
@@ -258,6 +266,59 @@ export function distributeFillSpace(
   return sizes;
 }
 
+
+// ---------------------------------------------------------------------------
+// Wrap helper: break children into rows by available width
+// ---------------------------------------------------------------------------
+
+interface WrapRow {
+  children: Frame[];
+  width: number;   // total width of children + gaps in this row
+  height: number;  // tallest child in this row
+}
+
+/**
+ * Break a list of auto-layout children into rows that fit within `availW`.
+ * Each child's measured width is used for row-breaking decisions.
+ * A single child that exceeds `availW` gets its own row (never split).
+ */
+function breakIntoRows(children: Frame[], availW: number, gap: number): WrapRow[] {
+  if (children.length === 0) return [];
+
+  const rows: WrapRow[] = [];
+  let currentRow: Frame[] = [];
+  let currentRowW = 0;
+
+  for (const child of children) {
+    const childW = child._layout.measuredW;
+    const wouldBeW = currentRow.length === 0 ? childW : currentRowW + gap + childW;
+
+    if (currentRow.length > 0 && wouldBeW > availW) {
+      // Start a new row
+      rows.push({
+        children: currentRow,
+        width: currentRowW,
+        height: Math.max(...currentRow.map(c => c._layout.measuredH)),
+      });
+      currentRow = [child];
+      currentRowW = childW;
+    } else {
+      currentRow.push(child);
+      currentRowW = wouldBeW;
+    }
+  }
+
+  // Push the last row
+  if (currentRow.length > 0) {
+    rows.push({
+      children: currentRow,
+      width: currentRowW,
+      height: Math.max(...currentRow.map(c => c._layout.measuredH)),
+    });
+  }
+
+  return rows;
+}
 
 // ---------------------------------------------------------------------------
 // Alignment helper
@@ -311,7 +372,14 @@ export function measure(frame: Frame, adapter: TextMeasureAdapter, isRoot = fals
   let contentW: number;
   let contentH: number;
 
-  if (frame.direction === Direction.HORIZONTAL) {
+  if (frame.direction === Direction.HORIZONTAL && frame.wrap && frame.sizingW === Sizing.FIXED && frame.width != null) {
+    // Wrap mode with known width: break children into rows.
+    // FILL children are treated as their measured width for row-breaking.
+    const availW = Math.max(0, roundUpToGrid(frame.width) - padH - strokeSpaceTotal(frame));
+    const rows = breakIntoRows(autoChildren, availW, frame.gap);
+    contentW = availW;
+    contentH = rows.reduce((s, row) => s + row.height, 0) + frame.gap * Math.max(0, rows.length - 1);
+  } else if (frame.direction === Direction.HORIZONTAL) {
     // Primary axis (W)
     if (!isRoot) {
       const fillW = autoChildren.filter(c => c.sizingW === Sizing.FILL).map(c => c._layout.measuredW);
@@ -395,12 +463,14 @@ function resolveChildWidths(frame: Frame, frameW: number, adapter: TextMeasureAd
     const fillMeasured: number[] = [];
     const fillMins: (number | undefined)[] = [];
     const fillMaxes: (number | undefined)[] = [];
+    const fillWeights: number[] = [];
 
     for (const child of autoChildren) {
       if (child.sizingW === Sizing.FILL) {
         fillMeasured.push(child._layout.measuredW);
         fillMins.push(child.minWidth);
         fillMaxes.push(child.maxWidth);
+        fillWeights.push(child.fillWeight);
       } else {
         let w = child._layout.measuredW;
         w = clampToConstraints(w, child.minWidth, child.maxWidth);
@@ -408,7 +478,7 @@ function resolveChildWidths(frame: Frame, frameW: number, adapter: TextMeasureAd
       }
     }
 
-    const fillSizes = distributeFillSpace(available - hugTotal, fillMeasured, fillMins, fillMaxes);
+    const fillSizes = distributeFillSpace(available - hugTotal, fillMeasured, fillMins, fillMaxes, fillWeights);
 
     const widths: number[] = [];
     let fillIdx = 0;
@@ -488,7 +558,11 @@ function propagateHeightChanges(frame: Frame, adapter: TextMeasureAdapter): void
   const totalGap = frame.gap * Math.max(0, n - 1);
 
   let contentH: number;
-  if (frame.direction === Direction.HORIZONTAL) {
+  if (frame.direction === Direction.HORIZONTAL && frame.wrap && frame.sizingW === Sizing.FIXED && frame.width != null) {
+    const availW = Math.max(0, roundUpToGrid(frame.width) - frame.paddingLeft - frame.paddingRight - strokeSpaceTotal(frame));
+    const rows = breakIntoRows(autoChildren, availW, frame.gap);
+    contentH = rows.reduce((s, row) => s + row.height, 0) + frame.gap * Math.max(0, rows.length - 1);
+  } else if (frame.direction === Direction.HORIZONTAL) {
     contentH = autoChildren.length > 0 ? Math.max(...autoChildren.map(c => c._layout.measuredH)) : 0;
   } else {
     const fillH = autoChildren.filter(c => c.sizingH === Sizing.FILL).map(c => c._layout.measuredH);
@@ -521,7 +595,14 @@ function refreshCoercedHeights(frame: Frame, adapter: TextMeasureAdapter, coerce
   const n = autoChildren.length;
   const totalGap = frame.gap * Math.max(0, n - 1);
 
-  if (frame.direction === Direction.HORIZONTAL) {
+  if (frame.direction === Direction.HORIZONTAL && frame.wrap && frame.sizingW === Sizing.FIXED && frame.width != null) {
+    const availW = Math.max(0, roundUpToGrid(frame.width) - frame.paddingLeft - frame.paddingRight - strokeSpaceTotal(frame));
+    const rows = breakIntoRows(autoChildren, availW, frame.gap);
+    const contentH = rows.reduce((s, row) => s + row.height, 0) + frame.gap * Math.max(0, rows.length - 1);
+    const newH = roundUpToGrid(contentH + padV + hh + hGap);
+    frame._layout.measuredH = newH;
+    frame.height = newH;
+  } else if (frame.direction === Direction.HORIZONTAL) {
     const contentH = autoChildren.length > 0 ? Math.max(...autoChildren.map(c => c._layout.measuredH)) : 0;
     const newH = roundUpToGrid(contentH + padV + hh + hGap);
     frame._layout.measuredH = newH;
@@ -638,12 +719,14 @@ export function place(
   const fillMeasured: number[] = [];
   const fillMins: (number | undefined)[] = [];
   const fillMaxes: (number | undefined)[] = [];
+  const fillWeights: number[] = [];
 
   for (const child of autoChildren) {
     const pSizing = childPrimarySizing(child, frame.direction);
     if (pSizing === Sizing.FILL) {
       const m = frame.direction === Direction.HORIZONTAL ? child._layout.measuredW : child._layout.measuredH;
       fillMeasured.push(m);
+      fillWeights.push(child.fillWeight);
       if (frame.direction === Direction.HORIZONTAL) {
         fillMins.push(child.minWidth);
         fillMaxes.push(child.maxWidth);
@@ -662,7 +745,7 @@ export function place(
     }
   }
 
-  const fillSizes = distributeFillSpace(availableForChildren - hugTotal, fillMeasured, fillMins, fillMaxes);
+  const fillSizes = distributeFillSpace(availableForChildren - hugTotal, fillMeasured, fillMins, fillMaxes, fillWeights);
   const totalFillPlaced = fillSizes.reduce((s, v) => s + v, 0);
   const contentMain = hugTotal + totalFillPlaced + totalGap;
 
@@ -706,7 +789,38 @@ export function place(
   // Place auto children sequentially
   let fillIdx = 0;
 
-  if (frame.direction === Direction.HORIZONTAL) {
+  if (frame.wrap && frame.direction === Direction.HORIZONTAL) {
+    // Wrap mode: break children into rows, place each row
+    const innerW = frame._layout.placedW - padL - padR - strokeSpace;
+    const rows = breakIntoRows(autoChildren, innerW, frame.gap);
+    let cursorY = y + padT + hh + hGap;
+
+    for (const row of rows) {
+      // Place children in this row horizontally
+      let cursorX = x + padL;
+      for (const child of row.children) {
+        // Width: use measured (FILL children get their measured width in wrap mode —
+        // FILL across the full row would require per-row FILL distribution which we skip for now)
+        const childW = child._layout.measuredW;
+
+        // Height: FILL children stretch to row height
+        let childH: number;
+        let childY: number;
+        if (child.sizingH === Sizing.FILL) {
+          childH = row.height;
+          childY = cursorY;
+        } else {
+          childH = child._layout.measuredH;
+          const crossOffset = alignOffset(frame.align, row.height, child._layout.measuredH, 'y');
+          childY = cursorY + crossOffset;
+        }
+
+        place(child, cursorX, childY, childW, childH, adapter);
+        cursorX += child._layout.placedW + frame.gap;
+      }
+      cursorY += row.height + frame.gap;
+    }
+  } else if (frame.direction === Direction.HORIZONTAL) {
     let cursorX = x + padL + mainOffset;
     for (const child of autoChildren) {
       const pSizing = childPrimarySizing(child, frame.direction);
