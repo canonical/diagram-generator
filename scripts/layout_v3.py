@@ -133,6 +133,55 @@ def _distribute_fill_space(
     return sizes
 
 
+def _snap_fills_to_grid_columns(
+    fill_sizes: list[float],
+    fill_weights: list[float],
+    col_w: float,
+    col_gap: float,
+    total_cols: int,
+) -> list[float]:
+    """Snap FILL sizes to grid column spans based on weights.
+
+    Each FILL child is assigned an integer number of columns proportional
+    to its fill_weight.  The width is then ``n * col_w + (n-1) * col_gap``.
+
+    Column assignment uses largest-remainder allocation so the total always
+    equals ``total_cols`` when the fill children own all columns.
+    """
+    n = len(fill_sizes)
+    if n == 0 or col_w <= 0 or total_cols <= 0:
+        return fill_sizes
+
+    total_weight = sum(fill_weights)
+    if total_weight <= 0:
+        return fill_sizes
+
+    # Allocate columns proportionally with largest-remainder rounding
+    raw_cols = [(w / total_weight) * total_cols for w in fill_weights]
+    floor_cols = [int(c) for c in raw_cols]
+    remainders = [(raw_cols[i] - floor_cols[i], i) for i in range(n)]
+    # Ensure at least 1 column per child
+    for i in range(n):
+        if floor_cols[i] < 1:
+            floor_cols[i] = 1
+    allocated = sum(floor_cols)
+    # Distribute remaining columns by largest remainder
+    remainders.sort(key=lambda r: r[0], reverse=True)
+    for _, idx in remainders:
+        if allocated >= total_cols:
+            break
+        floor_cols[idx] += 1
+        allocated += 1
+
+    # Convert column counts to pixel widths
+    result = []
+    for i in range(n):
+        nc = floor_cols[i]
+        w = nc * col_w + max(0, nc - 1) * col_gap
+        result.append(w)
+    return result
+
+
 def _lines_to_dicts(lines: list[Line]) -> list[dict]:
     """Convert Line objects to the dict format renderers expect."""
     result = []
@@ -793,7 +842,8 @@ def _child_counter_sizing(child: Frame, direction: Direction) -> Sizing:
     return child.sizing_h if direction == Direction.HORIZONTAL else child.sizing_w
 
 
-def place(frame: Frame, x: float, y: float, available_w: float, available_h: float) -> None:
+def place(frame: Frame, x: float, y: float, available_w: float, available_h: float,
+          *, grid_snap: tuple[float, float, int] | None = None) -> None:
     """Assign position and final size to frame and all descendants.
 
     Sets frame._placed_x, _placed_y, _placed_w, _placed_h.
@@ -802,6 +852,11 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
       - FILL: accept whatever the parent assigns (available_w/h)
       - FIXED: use explicit width/height
       - HUG: use measured (content) size
+
+    ``grid_snap``: optional ``(col_w, col_gap, total_cols)`` tuple.  When
+    provided, horizontal FILL children with ``fill_weight`` have their widths
+    snapped to integer grid-column spans.  Passed down to child ``place()``
+    calls so nested containers also benefit.
     """
     # Determine this frame's final size per-axis
     # Width
@@ -886,6 +941,17 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
 
     fill_sizes = _distribute_fill_space(available_for_children - hug_total, fill_measured, fill_mins, fill_maxes, fill_weights)
 
+    # Grid-column snapping: when grid info is available and we're distributing
+    # horizontally, snap FILL widths to integer column spans.
+    if grid_snap and frame.direction == Direction.HORIZONTAL and fill_sizes:
+        col_w, col_gap_g, total_cols = grid_snap
+        # Only snap when fill_weights are explicitly set (not all default 1)
+        has_explicit_weights = any(w != 1.0 for w in fill_weights)
+        if has_explicit_weights or len(fill_sizes) > 1:
+            fill_sizes = _snap_fills_to_grid_columns(
+                fill_sizes, fill_weights, col_w, col_gap_g, total_cols,
+            )
+
     total_fill_placed = sum(fill_sizes)
     content_main = hug_total + total_fill_placed + total_gap
 
@@ -942,7 +1008,7 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
                     cross_offset = _align_offset(frame.align, row["height"], child._measured_h, "y")
                     child_y = cursor_y + cross_offset
 
-                place(child, cursor_x, child_y, child_w, child_h)
+                place(child, cursor_x, child_y, child_w, child_h, grid_snap=grid_snap)
                 cursor_x += child._placed_w + frame.gap
             cursor_y += row["height"] + frame.gap
     elif frame.direction == Direction.HORIZONTAL:
@@ -965,7 +1031,7 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
                 child_h = child._measured_h
                 cross_offset = _align_offset(frame.align, cross_size, child._measured_h, "y")
                 child_y = y + pad_t + cross_offset
-            place(child, cursor_x, child_y, child_w, child_h)
+            place(child, cursor_x, child_y, child_w, child_h, grid_snap=grid_snap)
             cursor_x += child._placed_w + child_gap
     else:  # VERTICAL
         cursor_y = y + pad_t + main_offset
@@ -987,7 +1053,7 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
                 child_w = child._measured_w
                 cross_offset = _align_offset(frame.align, cross_size, child._measured_w, "x")
                 child_x = x + pad_l + cross_offset
-            place(child, child_x, cursor_y, child_w, child_h)
+            place(child, child_x, cursor_y, child_w, child_h, grid_snap=grid_snap)
             cursor_y += child._placed_h + child_gap
 
     # Place absolute children at their explicit x/y offsets relative to parent content area
@@ -1004,7 +1070,7 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
         abs_h = abs_content_h if child.sizing_h == Sizing.FILL else (
             round_up_to_grid(child.height) if child.sizing_h == Sizing.FIXED and child.height is not None
             else child._measured_h)
-        place(child, content_x + child.x, content_y + child.y, abs_w, abs_h)
+        place(child, content_x + child.x, content_y + child.y, abs_w, abs_h, grid_snap=grid_snap)
 
 
 # ---------------------------------------------------------------------------
@@ -1385,8 +1451,26 @@ def layout_frame_diagram(diagram: FrameDiagram) -> LayoutResult:
 
     root_h = root.height if root.height is not None else root._measured_h
 
+    # Compute grid-snap info for fill_weight column alignment.
+    # Only activate when grid was explicitly configured (grid_col_gap is set,
+    # which is the signal that the YAML had a grid: section).
+    grid_snap = None
+    grid_cols = int(diagram.grid_cols or 0)
+    if grid_cols > 1 and diagram.grid_col_gap is not None:
+        outer_margin = int(
+            diagram.grid_outer_margin
+            if diagram.grid_outer_margin is not None
+            else (root.padding_top or root.padding or 0)
+        )
+        col_gap_g = int(diagram.grid_col_gap)
+        content_w = max(0, root_w - 2 * outer_margin)
+        col_w_raw = (content_w - (grid_cols - 1) * col_gap_g) / grid_cols
+        col_w = int((col_w_raw // BASELINE_UNIT) * BASELINE_UNIT)
+        if col_w > 0:
+            grid_snap = (float(col_w), float(col_gap_g), grid_cols)
+
     # Pass 2: place
-    place(root, 0, 0, root_w, root_h)
+    place(root, 0, 0, root_w, root_h, grid_snap=grid_snap)
 
     if original_root_width is not None and root.width != original_root_width:
         root.width = original_root_width

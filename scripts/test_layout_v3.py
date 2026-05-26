@@ -22,6 +22,7 @@ from layout_v3 import (
     _remeasure_with_width_constraints,
     _astar_orthogonal, _simplify_path, _inflated_rect, _infer_sides,
     _Pt, _segment_crosses_obstacle, ARROW_CLEARANCE,
+    _snap_fills_to_grid_columns,
 )
 from diagram_layout import DashedLinePrimitive, FrameBox, TextBlock
 from diagram_shared import measure_text_width, estimate_line_width, wrap_text_lines
@@ -810,6 +811,40 @@ def test_simplify_removes_collinear():
     print("  PASS: simplify removes collinear")
 
 
+# ---------------------------------------------------------------------------
+# Grid-column snapping tests
+# ---------------------------------------------------------------------------
+
+def test_grid_snap_equal_weights():
+    """Equal weights snap to equal column counts."""
+    fills = [200.0, 200.0]
+    weights = [1.0, 1.0]
+    snapped = _snap_fills_to_grid_columns(fills, weights, 100.0, 20.0, 4)
+    # 4 cols, 2 children → 2 cols each → 2*100 + 1*20 = 220
+    assert snapped == [220.0, 220.0], f"Expected [220, 220], got {snapped}"
+    print("  PASS: grid snap equal weights")
+
+
+def test_grid_snap_weighted():
+    """Weighted fills snap to proportional column counts."""
+    fills = [300.0, 100.0]
+    weights = [3.0, 1.0]
+    snapped = _snap_fills_to_grid_columns(fills, weights, 100.0, 20.0, 4)
+    # w=3 → 3 cols → 3*100 + 2*20 = 340
+    # w=1 → 1 col  → 1*100 = 100
+    assert snapped == [340.0, 100.0], f"Expected [340, 100], got {snapped}"
+    print("  PASS: grid snap weighted")
+
+
+def test_grid_snap_no_cols():
+    """Zero cols returns original sizes."""
+    fills = [200.0, 200.0]
+    weights = [1.0, 1.0]
+    snapped = _snap_fills_to_grid_columns(fills, weights, 100.0, 20.0, 0)
+    assert snapped == fills, "Should return original when total_cols=0"
+    print("  PASS: grid snap no cols")
+
+
 if __name__ == "__main__":
     tests = [
         test_vertical_stack_no_overflow,
@@ -851,6 +886,9 @@ if __name__ == "__main__":
         test_astar_direct_path,
         test_astar_avoids_obstacle,
         test_simplify_removes_collinear,
+        test_grid_snap_equal_weights,
+        test_grid_snap_weighted,
+        test_grid_snap_no_cols,
     ]
 
     passed = 0
