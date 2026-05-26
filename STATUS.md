@@ -18,7 +18,7 @@ Several paths below refer to locally generated or team-internal assets that are 
 
 There are now **three diagram generation pipelines**. Pipeline 3 (v3 frame engine) is the active development surface. On a cold start, ask the user which pipeline to work on if unclear.
 
-**Active focus (2026-05-26):** Component model unification (Roadmap Stage 10a). Phase 1 (type-agnostic selection) complete. Phase 2 (heading-as-child) implemented — loader transforms headings into synthetic `__heading` child Frames, horizontal containers get `__body` wrapper. Old heading functions are dead code, cleanup in Phase 2b. Bold text width estimation fixed. Grid overlay width bug fixed.
+**Active focus (2026-05-27):** Component model unification (Roadmap Stage 10a). Phase 1 (type-agnostic selection) complete. Phase 2 (heading-as-child) implemented. Phase 2b (dead heading code cleanup + TS port) complete — all heading special-casing removed from both Python and TS engines, `clampToConstraints` added to TS leaf measure for min_height parity. 191 Python + 175 TS tests pass.
 
 ### Pipeline 1: imperative (original v1 batch)
 

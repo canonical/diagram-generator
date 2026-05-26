@@ -4,6 +4,15 @@ Completed work belongs here so `TODO.md` stays lean.
 
 ## Short-term
 
+### 2026-05-27 – Component model Phase 2b: dead heading code cleanup + TS port
+
+- **Removed all dead heading code** from both Python (`layout_v3.py`) and TypeScript (`layout.ts`): `headingHeight()`, `headingTextMaxW()`, heading references in `leafAllSpecs()`/`_leaf_all_lines()`, and all `heading_h`/`heading_gap` calculations from `measure()`, `propagateHeightChanges()`, `refreshCoercedHeights()`, `place()`/`_place_children()`, and `_render_frame()`.
+- **Ported heading-as-child transformation to TypeScript** parity tests: `buildFrame()` in both `test_parity.py` and `parity.test.ts` now applies the same heading-as-child transformation as `frame_loader.py` (synthetic `__heading` child + `__body` wrapper for horizontal parents).
+- **Added `clampToConstraints` to TS leaf measure** — parity fix: the TS `measure()` function was missing constraint clamping for leaf nodes (Python had it). This matters because heading children have `min_height=56`. Also added clamping to `propagateWidthAndRemeasure` leaf path.
+- **Regenerated parity-fixtures.json** with updated expected values reflecting the heading-as-child tree shape.
+- **Updated tests:** `test_with_heading` → `test_with_heading_child` (heading as child pattern), `test_heading_does_not_cause_negative_child_height` → heading child overflow test, `test_leaf_mixed_line_steps_use_each_line_step` updated for label-only lines. TS `heading height consistency` test updated to heading-as-child pattern.
+- **All 191 Python tests + 175 TS tests pass.** Commit `0d45f6f`.
+
 ### 2026-05-26 – Component model Phase 2: heading as child
 
 - **Heading is now a synthetic child Frame**, not a magic field. In `frame_loader.py`, when a container has `heading:` + `children:`, the loader injects a synthetic `__heading` child (role="heading", sizing_w=FILL, sizing_h=HUG, min_height=56, border=NONE, padding=8) with the heading text as its label. The parent Frame gets `heading=None`.

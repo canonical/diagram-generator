@@ -116,7 +116,7 @@ Goal: the force and grid editors share one editor shell; swapping the layout eng
 Phase 1 (type-agnostic selection) complete — see HISTORY.md 2026-05-25.
 
 - [x] `[H]` **Phase 2 – Heading as a child, not a field.** Convert `heading` from a magic Frame field to an auto-generated first child with `role: "heading"`. ~~Remove `_heading_height()` from `measure()`. Breaking YAML schema change – needs migration of all 24 frame YAMLs.~~ DONE 2026-05-26 — Loader transformation injects synthetic `__heading` child (and `__body` wrapper for horizontal parents). `min_height` constraints applied during both measure passes. All 191 Python tests pass. Browser-verified on test-nested-containers, aws-hld, android-container-vs-vm. Old heading functions (`_heading_height`, `_heading_text_max_w`, `_leaf_all_lines`) are now dead code (frame.heading is always None) — cleanup deferred to Phase 2b.
-- [ ] `[S]` **Phase 2b – Dead heading code cleanup.** Remove `_heading_height()`, `_heading_text_max_w()`, heading references from `_leaf_all_lines()`, and all `heading_h`/`heading_gap` calculations from measure/propagate/place/render in `layout_v3.py`. Port Phase 2 loader changes to TypeScript. Update parity test fixtures.
+- [x] `[S]` **Phase 2b – Dead heading code cleanup.** DONE 2026-05-27 — Removed `_heading_height()`, `_heading_text_max_w()`, heading references from `_leaf_all_lines()`, and all `heading_h`/`heading_gap` calculations from measure/propagate/place/render in both Python and TS engines. Added `clampToConstraints` to TS leaf measure for min_height parity. Updated all tests and parity fixtures. 191 Python + 175 TS tests pass.
 
 **Phase 2 implementation plan (written 2026-05-26):**
 
