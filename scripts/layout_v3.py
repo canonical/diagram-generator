@@ -1417,6 +1417,19 @@ def _route_arrows(arrows: list[Arrow], bounds_map: dict) -> list[ArrowPrimitive]
         path = _astar_orthogonal(start, end, arrow_obstacles, src_side, tgt_side)
         path = _simplify_path(path)
 
+        # Exit/entry stub: when an L-shaped path has its horizontal (or
+        # vertical) leg flush against the source or target edge, push that
+        # leg to the midpoint of the gap so the connector doesn't run
+        # alongside the box border ("wedge" artifact).
+        if len(path) == 3:
+            s, corner, e = path
+            if src_side in ("bottom", "top") and corner.y == s.y and corner.x != s.x:
+                mid_y = (s.y + e.y) / 2
+                path = [s, _Pt(s.x, mid_y), _Pt(e.x, mid_y), e]
+            elif src_side in ("left", "right") and corner.x == s.x and corner.y != s.y:
+                mid_x = (s.x + e.x) / 2
+                path = [s, _Pt(mid_x, s.y), _Pt(mid_x, e.y), e]
+
         # Extract waypoints (everything between start and end)
         waypoints = [(p.x, p.y) for p in path[1:-1]] if len(path) > 2 else []
 
