@@ -13,11 +13,12 @@ import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  Frame, Direction, Sizing, Align, Border, Fill,
+  Frame, Direction, Sizing, Align, Border, Fill, Justify,
   createLine,
 } from '../src/frame-model.js';
 import { layoutFrameTree } from '../src/layout.js';
 import { MockTextAdapter } from '../src/text-measure.js';
+import { ICON_SIZE, INSET } from '../src/tokens.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -103,7 +104,7 @@ function buildFrame(json: Record<string, unknown>): Frame {
     createLine(ln.content, { size: ln.size, weight: ln.weight }),
   );
 
-  return new Frame({
+  const frame = new Frame({
     id: json.id as string,
     direction: DIRECTION_MAP[json.direction as string] ?? Direction.VERTICAL,
     gap: (json.gap as number) ?? 24,
@@ -125,8 +126,8 @@ function buildFrame(json: Record<string, unknown>): Frame {
     maxHeight: json.maxHeight as number | undefined,
     fill: FILL_MAP[json.fill as string] ?? Fill.WHITE,
     border: BORDER_MAP[json.border as string] ?? Border.SOLID,
-    heading,
-    icon: json.icon as string | undefined,
+    heading: undefined,
+    icon: heading ? undefined : json.icon as string | undefined,
     iconFill: json.iconFill as string | undefined,
     label,
     role: (json.role as string) ?? '',
@@ -135,6 +136,44 @@ function buildFrame(json: Record<string, unknown>): Frame {
     x: (json.x as number) ?? 0,
     y: (json.y as number) ?? 0,
   });
+
+  // Heading-as-child transformation (mirrors frame_loader.py Phase 2)
+  if (heading && frame.isContainer) {
+    const headingChild = new Frame({
+      id: frame.id ? `${frame.id}__heading` : '__heading',
+      direction: Direction.VERTICAL,
+      sizingW: Sizing.FILL,
+      sizingH: Sizing.HUG,
+      minHeight: ICON_SIZE + INSET,
+      border: Border.NONE,
+      padding: INSET,
+      label: [heading],
+      icon: json.icon as string | undefined,
+      iconFill: json.iconFill as string | undefined,
+      role: 'heading',
+    });
+    if (DIRECTION_MAP[json.direction as string] === Direction.HORIZONTAL) {
+      const body = new Frame({
+        id: frame.id ? `${frame.id}__body` : '__body',
+        direction: Direction.HORIZONTAL,
+        gap: frame.gap,
+        align: frame.align,
+        justify: frame.justify,
+        sizingW: Sizing.FILL,
+        sizingH: Sizing.HUG,
+        border: Border.NONE,
+        padding: 0,
+        children: [...frame.children],
+      });
+      frame.children = [headingChild, body];
+      frame.direction = Direction.VERTICAL;
+    } else {
+      frame.children = [headingChild, ...frame.children];
+    }
+    frame.icon = undefined;
+  }
+
+  return frame;
 }
 
 // ---------------------------------------------------------------------------

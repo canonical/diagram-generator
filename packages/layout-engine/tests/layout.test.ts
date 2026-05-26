@@ -668,18 +668,27 @@ describe('coercion lifecycle', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Heading height consistency
+// Heading-as-child layout consistency
 // ---------------------------------------------------------------------------
 
-describe('heading height consistency', () => {
-  it('heading wraps at narrow width and children get correct available space', () => {
-    // A container with a long heading placed at a narrow width.
+describe('heading-as-child layout consistency', () => {
+  it('heading child wraps at narrow width and siblings get correct available space', () => {
+    // A container with a heading child placed at a narrow width.
     // The heading text is long enough to wrap at the placed width but
-    // not at the unconstrained measure width. If heading height is
-    // inconsistent between measure and place, children will overflow.
-    const longHeading = createLine(
-      'This is a very long heading that will definitely wrap at narrow widths because it is many characters wide',
-    );
+    // not at the unconstrained measure width.
+    const headingChild = new Frame({
+      id: 'parent__heading',
+      direction: Direction.VERTICAL,
+      sizingW: Sizing.FILL,
+      sizingH: Sizing.HUG,
+      minHeight: 56,
+      border: Border.NONE,
+      padding: 8,
+      label: [createLine(
+        'This is a very long heading that will definitely wrap at narrow widths because it is many characters wide',
+      )],
+      role: 'heading',
+    });
     const child = new Frame({
       id: 'leaf',
       sizingH: Sizing.HUG,
@@ -690,8 +699,7 @@ describe('heading height consistency', () => {
       direction: Direction.VERTICAL,
       padding: 8,
       border: Border.SOLID,
-      heading: longHeading,
-      children: [child],
+      children: [headingChild, child],
     });
 
     // Layout at a narrow available width to force heading wrapping

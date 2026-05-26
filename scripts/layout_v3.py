@@ -149,22 +149,6 @@ def _lines_to_dicts(lines: list[Line]) -> list[dict]:
     return result
 
 
-def _heading_height(heading: Line | None, max_width: float | None = None) -> int:
-    """Height reserved for a heading, including icon clearance.
-
-    When *max_width* is provided, estimate how many lines the heading will
-    wrap to at that width and reserve enough vertical space.
-    """
-    if not heading:
-        return 0
-    lines = _lines_to_dicts([heading])
-    if max_width and max_width > 0:
-        lines = wrap_text_lines(lines, max_width)
-    h = stepped_lines_height(lines, top_pad=INSET, bottom_pad=INSET, min_height=0)
-    # Always reserve icon-height clearance so panels with/without icons align
-    return max(h, ICON_SIZE + INSET)
-
-
 def _stroke_inset_per_side(frame: Frame) -> int:
     """Return the inside-stroke inset applied on each side of stroked frames."""
     return 1 if frame.border in (Border.SOLID, Border.DASHED) else 0
@@ -173,22 +157,6 @@ def _stroke_inset_per_side(frame: Frame) -> int:
 def _stroke_space_total(frame: Frame) -> int:
     """Return the total inner span consumed by a visible border."""
     return _stroke_inset_per_side(frame) * 2
-
-
-def _heading_text_max_w(frame: Frame) -> float | None:
-    """Compute the text max_width for heading wrapping from the frame's width.
-
-    Prefers _placed_w (set during place()), then _resolved_w (set during
-    constrained remeasure pass). Returns None if neither is available.
-    """
-    rw = getattr(frame, '_placed_w', None) or getattr(frame, '_resolved_w', None)
-    if rw is None:
-        return None
-    pad_l = frame.padding_left if frame.border != Border.NONE else 0
-    pad_r = frame.padding_right if frame.border != Border.NONE else 0
-    stroke_space = _stroke_space_total(frame)
-    icon_col = (ICON_SIZE + INSET) if frame.icon else 0
-    return rw - pad_l - pad_r - stroke_space - icon_col
 
 
 def _estimate_text_width(lines: list[Line]) -> float:
@@ -200,13 +168,10 @@ def _estimate_text_width(lines: list[Line]) -> float:
 
 
 def _leaf_all_lines(frame: Frame) -> list[dict]:
-    """Combine heading + label into a single line list for a leaf node."""
-    result = []
-    if frame.heading:
-        result.extend(_lines_to_dicts([frame.heading]))
+    """Convert a leaf node's label lines to dicts for measurement/rendering."""
     if frame.label:
-        result.extend(_lines_to_dicts(frame.label))
-    return result
+        return _lines_to_dicts(frame.label)
+    return []
 
 
 def _leaf_natural_size(frame: Frame, constrained_w: float | None = None) -> tuple[float, float]:
@@ -245,8 +210,7 @@ def _leaf_natural_size(frame: Frame, constrained_w: float | None = None) -> tupl
     if frame.width is not None:
         w = frame.width
     elif all_lines:
-        text_lines = ([frame.heading] if frame.heading else []) + list(frame.label)
-        text_w = _estimate_text_width(text_lines)
+        text_w = _estimate_text_width(list(frame.label))
         # Cap at wrap width: if text wraps, the box width is determined by the
         # wrap boundary, not the raw unwrapped text width.
         text_w = min(text_w, text_max_w)
@@ -398,8 +362,6 @@ def measure(frame: Frame, *, _is_root: bool = False) -> None:
 
     pad_h = frame.padding_left + frame.padding_right
     pad_v = frame.padding_top + frame.padding_bottom
-    heading_h = _heading_height(frame.heading)
-    heading_gap = frame.gap if heading_h > 0 else 0
     n = len(auto_children)
     total_gap = frame.gap * max(0, n - 1)
 
@@ -438,7 +400,7 @@ def measure(frame: Frame, *, _is_root: bool = False) -> None:
             content_h = sum(c._measured_h for c in auto_children) + total_gap
 
     content_based_w = round_up_to_grid(content_w + pad_h)
-    content_based_h = round_up_to_grid(content_h + pad_v + heading_h + heading_gap)
+    content_based_h = round_up_to_grid(content_h + pad_v)
 
     # Per-axis sizing for containers
     if frame.sizing_w == Sizing.FIXED:
@@ -741,8 +703,6 @@ def _propagate_height_changes(frame: Frame) -> None:
 
     auto_children = [c for c in frame.children if c.position_type != "ABSOLUTE"]
     pad_v = frame.padding_top + frame.padding_bottom
-    heading_h = _heading_height(frame.heading, max_width=_heading_text_max_w(frame))
-    heading_gap = frame.gap if heading_h > 0 else 0
     n = len(auto_children)
     total_gap = frame.gap * max(0, n - 1)
 
@@ -764,7 +724,7 @@ def _propagate_height_changes(frame: Frame) -> None:
         else:
             content_h = sum(c._measured_h for c in auto_children) + total_gap
 
-    new_h = round_up_to_grid(content_h + pad_v + heading_h + heading_gap)
+    new_h = round_up_to_grid(content_h + pad_v)
     frame._measured_h = new_h
 
 
@@ -794,8 +754,6 @@ def _refresh_coerced_heights(frame: Frame, coerced_ids: set) -> None:
     # Recompute height using the same logic as measure() / _propagate_height_changes()
     auto_children = [c for c in frame.children if c.position_type != "ABSOLUTE"]
     pad_v = frame.padding_top + frame.padding_bottom
-    heading_h = _heading_height(frame.heading, max_width=_heading_text_max_w(frame))
-    heading_gap = frame.gap if heading_h > 0 else 0
     n = len(auto_children)
     total_gap = frame.gap * max(0, n - 1)
 
@@ -805,12 +763,12 @@ def _refresh_coerced_heights(frame: Frame, coerced_ids: set) -> None:
                        - frame.padding_right - _stroke_space_total(frame))
         rows = _break_into_rows(auto_children, avail_w, frame.gap)
         content_h = sum(r["height"] for r in rows) + frame.gap * max(0, len(rows) - 1)
-        new_h = round_up_to_grid(content_h + pad_v + heading_h + heading_gap)
+        new_h = round_up_to_grid(content_h + pad_v)
         frame._measured_h = new_h
         frame.height = new_h
     elif frame.direction == Direction.HORIZONTAL:
         content_h = max(c._measured_h for c in auto_children) if auto_children else 0
-        new_h = round_up_to_grid(content_h + pad_v + heading_h + heading_gap)
+        new_h = round_up_to_grid(content_h + pad_v)
         frame._measured_h = new_h
         frame.height = new_h
     else:
@@ -820,7 +778,7 @@ def _refresh_coerced_heights(frame: Frame, coerced_ids: set) -> None:
             content_h = max(fill_h) * len(fill_h) + non_fill_h + total_gap
         else:
             content_h = sum(c._measured_h for c in auto_children) + total_gap
-        new_h = round_up_to_grid(content_h + pad_v + heading_h + heading_gap)
+        new_h = round_up_to_grid(content_h + pad_v)
         frame._measured_h = new_h
         frame.height = new_h
 
@@ -875,16 +833,6 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
     pad_t = frame.padding_top
     pad_b = frame.padding_bottom
     stroke_space = _stroke_space_total(frame)
-    # Heading height with placed width to account for text wrapping
-    text_max_w = _heading_text_max_w(frame)
-    if text_max_w is None:
-        # Fallback for place() when _resolved_w wasn't set (shouldn't happen)
-        effective_pad_l = frame.padding_left if frame.border != Border.NONE else 0
-        effective_pad_r = frame.padding_right if frame.border != Border.NONE else 0
-        icon_col = (ICON_SIZE + INSET) if frame.icon else 0
-        text_max_w = frame._placed_w - effective_pad_l - effective_pad_r - stroke_space - icon_col
-    heading_h = _heading_height(frame.heading, max_width=text_max_w)
-    heading_gap = frame.gap if heading_h > 0 else 0
     auto_children = [c for c in frame.children if c.position_type != "ABSOLUTE"]
     n = len(auto_children)
 
@@ -896,9 +844,9 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
 
     if frame.direction == Direction.HORIZONTAL:
         available_for_children = max(0, frame._placed_w - pad_l - pad_r - stroke_space - total_gap)
-        cross_size = max(0, frame._placed_h - pad_t - pad_b - stroke_space - heading_h - heading_gap)
+        cross_size = max(0, frame._placed_h - pad_t - pad_b - stroke_space)
     else:
-        available_for_children = max(0, frame._placed_h - pad_t - pad_b - stroke_space - heading_h - heading_gap - total_gap)
+        available_for_children = max(0, frame._placed_h - pad_t - pad_b - stroke_space - total_gap)
         cross_size = max(0, frame._placed_w - pad_l - pad_r - stroke_space)
 
     # Primary-axis FILL distribution using iterative clamping:
@@ -945,7 +893,7 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
     # between children.  For PACKED, use alignment + fixed gap.
     # For justify modes, use computed spacing from remaining space.
     inner_w = frame._placed_w - pad_l - pad_r - stroke_space
-    inner_h = frame._placed_h - pad_t - pad_b - stroke_space - heading_h - heading_gap
+    inner_h = frame._placed_h - pad_t - pad_b - stroke_space
     inner_main = inner_w if frame.direction == Direction.HORIZONTAL else inner_h
 
     if not use_justify:
@@ -979,7 +927,7 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
         # Wrap mode: break children into rows, place each row
         inner_w = frame._placed_w - pad_l - pad_r - stroke_space
         rows = _break_into_rows(auto_children, inner_w, frame.gap)
-        cursor_y = y + pad_t + heading_h + heading_gap
+        cursor_y = y + pad_t
 
         for row in rows:
             cursor_x = x + pad_l
@@ -1012,15 +960,15 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
             # Counter (H) size — per-child, based on child's own sizing_h
             if counter_sizing == Sizing.FILL:
                 child_h = cross_size
-                child_y = y + pad_t + heading_h + heading_gap
+                child_y = y + pad_t
             else:
                 child_h = child._measured_h
                 cross_offset = _align_offset(frame.align, cross_size, child._measured_h, "y")
-                child_y = y + pad_t + heading_h + heading_gap + cross_offset
+                child_y = y + pad_t + cross_offset
             place(child, cursor_x, child_y, child_w, child_h)
             cursor_x += child._placed_w + child_gap
     else:  # VERTICAL
-        cursor_y = y + pad_t + heading_h + heading_gap + main_offset
+        cursor_y = y + pad_t + main_offset
         fill_idx = 0
         for child in auto_children:
             primary_sizing = _child_primary_sizing(child, frame.direction)
@@ -1125,11 +1073,8 @@ def _render_frame(frame: Frame, fg: list, bg: list, bounds_map: dict) -> None:
             if frame.fill == Fill.BLACK:
                 all_lines = [{**ln, "fill": "#FFFFFF"} for ln in all_lines]
             label_lines = all_lines
-    else:
-        if frame.heading:
-            heading_lines = _lines_to_dicts([frame.heading])
-        # Container icon only (leaf icon goes via label_lines path)
-        # — icon_name is already set above
+    # Container icon only (leaf icon goes via label_lines path)
+    # — icon_name is already set above
 
     fg.append(FrameBox(
         x=x, y=y, width=w, height=h,
@@ -1362,7 +1307,7 @@ def _build_component_tree(root: Frame) -> list[ComponentInfo]:
             padding_right=frame.padding_right,
             padding_bottom=frame.padding_bottom,
             padding_left=frame.padding_left,
-            heading_text=frame.heading.content if frame.heading else "",
+            heading_text="",
             label_text=[line.content for line in frame.label],
         )
 

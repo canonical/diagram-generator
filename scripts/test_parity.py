@@ -15,8 +15,9 @@ import unittest
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
 import diagram_shared
+from diagram_shared import ICON_SIZE, INSET
 from frame_model import (
-    Align, Border, Direction, Fill, Frame, Line, Sizing,
+    Align, Border, Direction, Fill, Frame, Justify, Line, Sizing,
 )
 from layout_v3 import layout_frame_diagram
 
@@ -55,7 +56,7 @@ def _build_frame(data: dict) -> Frame:
     for ln in data.get("label", []):
         label.append(Line(ln["content"], weight=ln.get("weight", "400"), size=ln.get("size", "18")))
 
-    return Frame(
+    frame = Frame(
         id=data.get("id", ""),
         direction=_DIRECTION.get(data.get("direction", "VERTICAL"), Direction.VERTICAL),
         gap=data.get("gap", 24),
@@ -77,8 +78,8 @@ def _build_frame(data: dict) -> Frame:
         max_height=data.get("maxHeight"),
         fill=_FILL.get(data.get("fill", "#FFFFFF"), Fill.WHITE),
         border=_BORDER.get(data.get("border", "SOLID"), Border.SOLID),
-        heading=heading,
-        icon=data.get("icon"),
+        heading=None,
+        icon=data.get("icon") if not heading else None,
         icon_fill=data.get("iconFill"),
         label=label,
         role=data.get("role", ""),
@@ -87,6 +88,35 @@ def _build_frame(data: dict) -> Frame:
         x=data.get("x", 0),
         y=data.get("y", 0),
     )
+
+    # Heading-as-child transformation (mirrors frame_loader.py Phase 2)
+    if heading and frame.is_container:
+        heading_child = Frame(
+            id=f"{frame.id}__heading" if frame.id else "__heading",
+            role="heading",
+            sizing_w=Sizing.FILL, sizing_h=Sizing.HUG,
+            min_height=ICON_SIZE + INSET,
+            border=Border.NONE, padding=INSET,
+            label=[heading],
+            icon=data.get("icon"),
+            icon_fill=data.get("iconFill"),
+        )
+        if frame.direction == Direction.HORIZONTAL:
+            body = Frame(
+                id=f"{frame.id}__body" if frame.id else "__body",
+                direction=Direction.HORIZONTAL,
+                gap=frame.gap, align=frame.align, justify=frame.justify,
+                sizing_w=Sizing.FILL, sizing_h=Sizing.HUG,
+                border=Border.NONE, padding=0,
+                children=list(frame.children),
+            )
+            frame.children = [heading_child, body]
+            frame.direction = Direction.VERTICAL
+        else:
+            frame.children = [heading_child] + list(frame.children)
+        frame.icon = None
+
+    return frame
 
 
 def _collect_bounds(frame: Frame, out: dict | None = None) -> dict:

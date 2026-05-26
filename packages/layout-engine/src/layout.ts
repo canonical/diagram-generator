@@ -26,38 +26,12 @@ import {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function headingHeight(heading: Line | undefined, adapter: TextMeasureAdapter, maxWidth?: number): number {
-  if (!heading) return 0;
-  let specs = linesToSpecs([heading]);
-  if (maxWidth && maxWidth > 0) {
-    specs = wrapTextLines(specs, maxWidth, adapter);
-  }
-  const h = steppedLinesHeight(
-    specs.map(s => ({ lineStep: s.lineStep != null ? sizeToPx(s.lineStep) : undefined, size: s.size })),
-    { topPad: INSET, bottomPad: INSET, minHeight: 0 },
-  );
-  return Math.max(h, ICON_SIZE + INSET);
-}
-
 function strokeInsetPerSide(frame: Frame): number {
   return frame.border === Border.SOLID || frame.border === Border.DASHED ? 1 : 0;
 }
 
 function strokeSpaceTotal(frame: Frame): number {
   return strokeInsetPerSide(frame) * 2;
-}
-
-/** Compute the heading text max_width from a frame's width for text wrapping.
- *  Prefers placedW (set during place), then resolvedW (set during remeasure).
- */
-function headingTextMaxW(frame: Frame): number | undefined {
-  const rw = frame._layout.placedW || frame._layout.resolvedW;
-  if (rw == null || rw === 0) return undefined;
-  const padL = frame.border !== Border.NONE ? frame.paddingLeft : 0;
-  const padR = frame.border !== Border.NONE ? frame.paddingRight : 0;
-  const strokeSpace = strokeSpaceTotal(frame);
-  const iconCol = frame.icon ? (ICON_SIZE + INSET) : 0;
-  return rw - padL - padR - strokeSpace - iconCol;
 }
 
 function expandRootWidthForSnappedFillColumns(root: Frame, requestedW: number): number {
@@ -107,10 +81,7 @@ function estimateTextWidth(lines: readonly Line[], adapter: TextMeasureAdapter):
 }
 
 function leafAllSpecs(frame: Frame): LineSpec[] {
-  const result: LineSpec[] = [];
-  if (frame.heading) result.push(...linesToSpecs([frame.heading]));
-  if (frame.label.length > 0) result.push(...linesToSpecs(frame.label));
-  return result;
+  return linesToSpecs(frame.label);
 }
 
 function leafNaturalSize(
@@ -160,7 +131,7 @@ function leafNaturalSize(
   if (frame.width != null) {
     w = frame.width;
   } else if (allSpecs.length > 0) {
-    const textLines = [...(frame.heading ? [frame.heading] : []), ...frame.label];
+    const textLines = [...frame.label];
     let textW = estimateTextWidth(textLines, adapter);
     textW = Math.min(textW, textMaxW);
     const iconCol = hasIcon ? (ICON_SIZE + INSET) : 0;
@@ -349,6 +320,8 @@ export function measure(frame: Frame, adapter: TextMeasureAdapter, isRoot = fals
     let finalH = h;
     if (frame.sizingW === Sizing.FIXED && frame.width != null) finalW = frame.width;
     if (frame.sizingH === Sizing.FIXED && frame.height != null) finalH = frame.height;
+    finalW = clampToConstraints(finalW, frame.minWidth, frame.maxWidth);
+    finalH = clampToConstraints(finalH, frame.minHeight, frame.maxHeight);
     frame._layout.measuredW = roundUpToGrid(finalW);
     frame._layout.measuredH = roundUpToGrid(finalH);
     return;
@@ -364,8 +337,6 @@ export function measure(frame: Frame, adapter: TextMeasureAdapter, isRoot = fals
 
   const padH = frame.paddingLeft + frame.paddingRight;
   const padV = frame.paddingTop + frame.paddingBottom;
-  const hh = headingHeight(frame.heading, adapter);
-  const hGap = hh > 0 ? frame.gap : 0;
   const n = autoChildren.length;
   const totalGap = frame.gap * Math.max(0, n - 1);
 
@@ -412,7 +383,7 @@ export function measure(frame: Frame, adapter: TextMeasureAdapter, isRoot = fals
   }
 
   const contentBasedW = roundUpToGrid(contentW + padH);
-  const contentBasedH = roundUpToGrid(contentH + padV + hh + hGap);
+  const contentBasedH = roundUpToGrid(contentH + padV);
 
   // Per-axis sizing for containers
   frame._layout.measuredW = (frame.sizingW === Sizing.FIXED && frame.width != null)
@@ -529,7 +500,8 @@ function propagateWidthAndRemeasure(frame: Frame, resolvedW: number, adapter: Te
     const allSpecs = leafAllSpecs(frame);
     if (allSpecs.length === 0) return;
     const [, newH] = leafNaturalSize(frame, adapter, resolvedW);
-    const snappedH = roundUpToGrid(newH);
+    const clampedH = clampToConstraints(newH, frame.minHeight, frame.maxHeight);
+    const snappedH = roundUpToGrid(clampedH);
     if (snappedH !== frame._layout.measuredH) {
       frame._layout.measuredH = snappedH;
     }
@@ -552,8 +524,6 @@ function propagateHeightChanges(frame: Frame, adapter: TextMeasureAdapter): void
 
   const autoChildren = frame.children.filter(c => c.positionType !== 'ABSOLUTE');
   const padV = frame.paddingTop + frame.paddingBottom;
-  const hh = headingHeight(frame.heading, adapter, headingTextMaxW(frame));
-  const hGap = hh > 0 ? frame.gap : 0;
   const n = autoChildren.length;
   const totalGap = frame.gap * Math.max(0, n - 1);
 
@@ -574,7 +544,7 @@ function propagateHeightChanges(frame: Frame, adapter: TextMeasureAdapter): void
     }
   }
 
-  frame._layout.measuredH = roundUpToGrid(contentH + padV + hh + hGap);
+  frame._layout.measuredH = roundUpToGrid(contentH + padV);
 }
 
 function refreshCoercedHeights(frame: Frame, adapter: TextMeasureAdapter, coercedIds: Set<string>): void {
@@ -590,8 +560,6 @@ function refreshCoercedHeights(frame: Frame, adapter: TextMeasureAdapter, coerce
 
   const autoChildren = frame.children.filter(c => c.positionType !== 'ABSOLUTE');
   const padV = frame.paddingTop + frame.paddingBottom;
-  const hh = headingHeight(frame.heading, adapter, headingTextMaxW(frame));
-  const hGap = hh > 0 ? frame.gap : 0;
   const n = autoChildren.length;
   const totalGap = frame.gap * Math.max(0, n - 1);
 
@@ -599,12 +567,12 @@ function refreshCoercedHeights(frame: Frame, adapter: TextMeasureAdapter, coerce
     const availW = Math.max(0, roundUpToGrid(frame.width) - frame.paddingLeft - frame.paddingRight - strokeSpaceTotal(frame));
     const rows = breakIntoRows(autoChildren, availW, frame.gap);
     const contentH = rows.reduce((s, row) => s + row.height, 0) + frame.gap * Math.max(0, rows.length - 1);
-    const newH = roundUpToGrid(contentH + padV + hh + hGap);
+    const newH = roundUpToGrid(contentH + padV);
     frame._layout.measuredH = newH;
     frame.height = newH;
   } else if (frame.direction === Direction.HORIZONTAL) {
     const contentH = autoChildren.length > 0 ? Math.max(...autoChildren.map(c => c._layout.measuredH)) : 0;
-    const newH = roundUpToGrid(contentH + padV + hh + hGap);
+    const newH = roundUpToGrid(contentH + padV);
     frame._layout.measuredH = newH;
     frame.height = newH;
   } else {
@@ -616,7 +584,7 @@ function refreshCoercedHeights(frame: Frame, adapter: TextMeasureAdapter, coerce
     } else {
       contentH = autoChildren.reduce((s, c) => s + c._layout.measuredH, 0) + totalGap;
     }
-    const newH = roundUpToGrid(contentH + padV + hh + hGap);
+    const newH = roundUpToGrid(contentH + padV);
     frame._layout.measuredH = newH;
     frame.height = newH;
   }
@@ -683,17 +651,7 @@ export function place(
   const padB = frame.paddingBottom;
   const strokeSpace = strokeSpaceTotal(frame);
 
-  // Heading height with placed width to account for text wrapping
-  let textMaxW = headingTextMaxW(frame);
-  if (textMaxW == null) {
-    // Fallback when resolvedW wasn't set
-    const effectivePadL = frame.border !== Border.NONE ? frame.paddingLeft : 0;
-    const effectivePadR = frame.border !== Border.NONE ? frame.paddingRight : 0;
-    const iconCol = frame.icon ? (ICON_SIZE + INSET) : 0;
-    textMaxW = frame._layout.placedW - effectivePadL - effectivePadR - strokeSpace - iconCol;
-  }
-  const hh = headingHeight(frame.heading, adapter, textMaxW);
-  const hGap = hh > 0 ? frame.gap : 0;
+  // Children layout
   const autoChildren = frame.children.filter(c => c.positionType !== 'ABSOLUTE');
   const n = autoChildren.length;
 
@@ -708,9 +666,9 @@ export function place(
 
   if (frame.direction === Direction.HORIZONTAL) {
     availableForChildren = Math.max(0, frame._layout.placedW - padL - padR - strokeSpace - totalGap);
-    crossSize = Math.max(0, frame._layout.placedH - padT - padB - strokeSpace - hh - hGap);
+    crossSize = Math.max(0, frame._layout.placedH - padT - padB - strokeSpace);
   } else {
-    availableForChildren = Math.max(0, frame._layout.placedH - padT - padB - strokeSpace - hh - hGap - totalGap);
+    availableForChildren = Math.max(0, frame._layout.placedH - padT - padB - strokeSpace - totalGap);
     crossSize = Math.max(0, frame._layout.placedW - padL - padR - strokeSpace);
   }
 
@@ -753,7 +711,7 @@ export function place(
   // For PACKED mode, use alignment + fixed gap.
   // For justify modes, use computed spacing derived from remaining space.
   const innerW = frame._layout.placedW - padL - padR - strokeSpace;
-  const innerH = frame._layout.placedH - padT - padB - strokeSpace - hh - hGap;
+  const innerH = frame._layout.placedH - padT - padB - strokeSpace;
   const innerMain = frame.direction === Direction.HORIZONTAL ? innerW : innerH;
 
   let mainOffset: number;
@@ -793,7 +751,7 @@ export function place(
     // Wrap mode: break children into rows, place each row
     const innerW = frame._layout.placedW - padL - padR - strokeSpace;
     const rows = breakIntoRows(autoChildren, innerW, frame.gap);
-    let cursorY = y + padT + hh + hGap;
+    let cursorY = y + padT;
 
     for (const row of rows) {
       // Place children in this row horizontally
@@ -834,18 +792,18 @@ export function place(
       let childY: number;
       if (cSizing === Sizing.FILL) {
         childH = crossSize;
-        childY = y + padT + hh + hGap;
+        childY = y + padT;
       } else {
         childH = child._layout.measuredH;
         const crossOffset = alignOffset(frame.align, crossSize, child._layout.measuredH, 'y');
-        childY = y + padT + hh + hGap + crossOffset;
+        childY = y + padT + crossOffset;
       }
 
       place(child, cursorX, childY, childW, childH, adapter);
       cursorX += child._layout.placedW + childGap;
     }
   } else {
-    let cursorY = y + padT + hh + hGap + mainOffset;
+    let cursorY = y + padT + mainOffset;
     for (const child of autoChildren) {
       const pSizing = childPrimarySizing(child, frame.direction);
       const cSizing = childCounterSizing(child, frame.direction);

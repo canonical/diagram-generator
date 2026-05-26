@@ -144,17 +144,22 @@ class TestVerticalDirection:
         assert gap_bc == 24, f"gap b→c = {gap_bc}, expected 24"
         assert not _children_within_parent(root)
 
-    def test_with_heading(self):
-        """Container with heading reserves space before first child."""
+    def test_with_heading_child(self):
+        """Container with a heading child (role='heading') reserves space before siblings."""
+        heading_child = Frame(
+            id="root__heading", role="heading",
+            sizing_w=Sizing.FILL, sizing_h=Sizing.HUG,
+            min_height=56, border=Border.NONE, padding=8,
+            label=[Line("Section heading", weight="700")],
+        )
         child = _box("a", w=100, h=50)
-        root = _container("root", Direction.VERTICAL, [child],
-                          gap=24, padding=8,
-                          heading=Line("Section heading"))
+        root = _container("root", Direction.VERTICAL, [heading_child, child],
+                          gap=24, padding=8)
         _layout(root)
 
-        # Child should start below heading + heading_gap
-        assert child._placed_y > 8, \
-            f"Child y={child._placed_y}, should be after heading"
+        # Child 'a' should start below the heading child
+        assert child._placed_y > heading_child._placed_y + heading_child._placed_h, \
+            f"Child y={child._placed_y}, should be after heading bottom {heading_child._placed_y + heading_child._placed_h}"
         assert not _children_within_parent(root)
 
     def test_nested_two_levels(self):
@@ -1195,17 +1200,22 @@ class TestFillInHugInvariant:
 class TestHeadingOverflow:
     """Guard against negative child sizes from oversized headings."""
 
-    def test_heading_does_not_cause_negative_child_height(self):
-        """Container smaller than heading should not give children negative height."""
+    def test_heading_child_does_not_cause_negative_sibling_height(self):
+        """Container smaller than heading child should not give siblings negative height."""
+        heading_child = Frame(
+            id="root__heading", role="heading",
+            sizing_w=Sizing.FILL, sizing_h=Sizing.HUG,
+            min_height=56, border=Border.NONE, padding=8,
+            label=[Line("Heading", weight="700")],
+        )
         child = _box("child", w=100, h=40)
-        root = _container("root", Direction.VERTICAL, [child],
+        root = _container("root", Direction.VERTICAL, [heading_child, child],
                           gap=8, padding=8)
         # Force a very small container
         root.sizing_w = Sizing.FIXED
         root.sizing_h = Sizing.FIXED
         root.width = 120
         root.height = 40  # way too small for heading + child + padding
-        root.heading = Line("Heading")
         _layout(root)
 
         # Child dimensions should never be negative
@@ -1218,12 +1228,18 @@ class TestHeadingOverflow:
         """Leaf height should sum wrapped line steps, not reuse the first line's step."""
         leaf = Frame(
             id="leaf",
-            heading=Line("Heading", weight="700", line_step=24),
-            label=[Line("Body", size="24", line_step=32)],
+            label=[
+                Line("Heading", weight="700", line_step=24),
+                Line("Body", size="24", line_step=32),
+            ],
         )
 
         measure(leaf)
 
+        # Two lines: 24 (heading step) + 32 (body step) + INSET top/bottom = 8+24+32+8 = 72
+        # But since heading is no longer a separate field, both are label lines.
+        # stepped_lines_height with top_pad=8, bottom_pad=8: 8 + 24 + 32 + 8 = 72
+        # Then max(72, ICON_SIZE+INSET=64) = 72
         assert leaf._measured_h == 72, f"Expected 72px, got {leaf._measured_h}"
 
 
