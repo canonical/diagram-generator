@@ -946,15 +946,24 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
     # Only snap when the container's own gap matches the grid col_gap — nested
     # containers with different gaps (e.g. services__body with gap=8 inside a
     # grid with col_gap=32) should use normal fill distribution, not grid snap.
+    # When snap IS applied, stop propagating grid_snap to children: they occupy
+    # a subset of the root grid and would get wrong column allocations.
+    snapped_here = False
     if grid_snap and frame.direction == Direction.HORIZONTAL and fill_sizes:
         col_w, col_gap_g, total_cols = grid_snap
         gap_matches_grid = (frame.gap == col_gap_g)
-        if gap_matches_grid:
+        # Only snap when ALL auto children are FILL — mixed HUG+FILL rows
+        # can't map cleanly to grid columns because HUG siblings eat space
+        # that isn't accounted for in the column allocation.
+        all_fill = (len(fill_sizes) == len(auto_children))
+        if gap_matches_grid and all_fill:
             has_explicit_weights = any(w != 1.0 for w in fill_weights)
             if has_explicit_weights or len(fill_sizes) > 1:
                 fill_sizes = _snap_fills_to_grid_columns(
                     fill_sizes, fill_weights, col_w, col_gap_g, total_cols,
                 )
+                snapped_here = True
+    child_grid_snap = None if snapped_here else grid_snap
 
     total_fill_placed = sum(fill_sizes)
     content_main = hug_total + total_fill_placed + total_gap
@@ -1012,7 +1021,7 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
                     cross_offset = _align_offset(frame.align, row["height"], child._measured_h, "y")
                     child_y = cursor_y + cross_offset
 
-                place(child, cursor_x, child_y, child_w, child_h, grid_snap=grid_snap)
+                place(child, cursor_x, child_y, child_w, child_h, grid_snap=child_grid_snap)
                 cursor_x += child._placed_w + frame.gap
             cursor_y += row["height"] + frame.gap
     elif frame.direction == Direction.HORIZONTAL:
@@ -1035,7 +1044,7 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
                 child_h = child._measured_h
                 cross_offset = _align_offset(frame.align, cross_size, child._measured_h, "y")
                 child_y = y + pad_t + cross_offset
-            place(child, cursor_x, child_y, child_w, child_h, grid_snap=grid_snap)
+            place(child, cursor_x, child_y, child_w, child_h, grid_snap=child_grid_snap)
             cursor_x += child._placed_w + child_gap
     else:  # VERTICAL
         cursor_y = y + pad_t + main_offset
@@ -1057,7 +1066,7 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
                 child_w = child._measured_w
                 cross_offset = _align_offset(frame.align, cross_size, child._measured_w, "x")
                 child_x = x + pad_l + cross_offset
-            place(child, child_x, cursor_y, child_w, child_h, grid_snap=grid_snap)
+            place(child, child_x, cursor_y, child_w, child_h, grid_snap=child_grid_snap)
             cursor_y += child._placed_h + child_gap
 
     # Place absolute children at their explicit x/y offsets relative to parent content area
@@ -1074,7 +1083,7 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
         abs_h = abs_content_h if child.sizing_h == Sizing.FILL else (
             round_up_to_grid(child.height) if child.sizing_h == Sizing.FIXED and child.height is not None
             else child._measured_h)
-        place(child, content_x + child.x, content_y + child.y, abs_w, abs_h, grid_snap=grid_snap)
+        place(child, content_x + child.x, content_y + child.y, abs_w, abs_h, grid_snap=child_grid_snap)
 
 
 # ---------------------------------------------------------------------------
