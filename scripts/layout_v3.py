@@ -1332,21 +1332,47 @@ def _infer_sides(
     sx: float, sy: float, sw: float, sh: float,
     tx: float, ty: float, tw: float, th: float,
 ) -> tuple[str, str]:
-    """Infer the best source and target sides from relative box positions."""
-    dx = (tx + tw / 2) - (sx + sw / 2)
-    dy = (ty + th / 2) - (sy + sh / 2)
-    if abs(dy) >= abs(dx):
-        # Primarily vertical relationship
-        if dy >= 0:
+    """Infer the best source and target sides from relative box positions.
+
+    Uses edge-gap separation rather than center-to-center distance so that
+    wide containers connecting to narrow boxes below still pick bottom/top
+    instead of left/right.
+    """
+    # Edge gaps: positive = clear separation on that axis
+    gap_below = ty - (sy + sh)       # target below source
+    gap_above = sy - (ty + th)       # target above source
+    gap_right = tx - (sx + sw)       # target right of source
+    gap_left  = sx - (tx + tw)       # target left of source
+
+    v_gap = max(gap_below, gap_above)   # best vertical separation
+    h_gap = max(gap_right, gap_left)    # best horizontal separation
+
+    if v_gap > 0 and h_gap <= 0:
+        # Clear vertical separation, horizontal overlap → connect vertically
+        if gap_below >= gap_above:
             return "bottom", "top"
         else:
             return "top", "bottom"
-    else:
-        # Primarily horizontal relationship
-        if dx >= 0:
+    elif h_gap > 0 and v_gap <= 0:
+        # Clear horizontal separation, vertical overlap → connect horizontally
+        if gap_right >= gap_left:
             return "right", "left"
         else:
             return "left", "right"
+    else:
+        # Both separated or both overlapping → fall back to center-to-center
+        dx = (tx + tw / 2) - (sx + sw / 2)
+        dy = (ty + th / 2) - (sy + sh / 2)
+        if abs(dy) >= abs(dx):
+            if dy >= 0:
+                return "bottom", "top"
+            else:
+                return "top", "bottom"
+        else:
+            if dx >= 0:
+                return "right", "left"
+            else:
+                return "left", "right"
 
 
 def _route_arrows(arrows: list[Arrow], bounds_map: dict) -> list[ArrowPrimitive]:
