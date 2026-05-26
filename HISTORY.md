@@ -4,6 +4,15 @@ Completed work belongs here so `TODO.md` stays lean.
 
 ## Short-term
 
+### 2026-05-27 – Obstacle-aware arrow router + grid-column snapping
+
+- **Obstacle-aware A* arrow router** replaces the naive midpoint router (~80 lines → ~200 lines). Builds sparse grid from inflated box edges, runs A* with bend penalty, simplifies collinear waypoints. Source/target boxes excluded from obstacle set per arrow. 12px clearance margin. 6 unit tests. All 16 diagrams with arrows route successfully. Commit `70830e4`.
+- **fill_weight grid-column snapping**: when a diagram has explicit `grid.cols` + `grid.col_gap`, FILL children with fill_weights now snap to integer column spans using largest-remainder allocation. Example: `fill_weight:2` in a 3-column grid → 2 columns width. 3 unit tests. Browser-verified on example-stacked-blocks and aws-hld. Commit `06e86d3`.
+- **Arrow routing research** (R1/R2): draw.io OrthConnector is pattern-based with no obstacle avoidance. ELK Layered is gold-standard but owns the full layout pipeline. Neither suitable for extraction — implemented custom A* router instead.
+- **Undo history audit**: confirmed already implemented (50-level stack, Ctrl+Z/Y, full state serialization).
+- **dw/dh override audit**: no stale entries found — all overrides are position-only.
+- **200 Python tests + 51 subtests pass. 175 TS tests pass.**
+
 ### 2026-05-27 – Component model Phase 2b: dead heading code cleanup + TS port
 
 - **Removed all dead heading code** from both Python (`layout_v3.py`) and TypeScript (`layout.ts`): `headingHeight()`, `headingTextMaxW()`, heading references in `leafAllSpecs()`/`_leaf_all_lines()`, and all `heading_h`/`heading_gap` calculations from `measure()`, `propagateHeightChanges()`, `refreshCoercedHeights()`, `place()`/`_place_children()`, and `_render_frame()`.

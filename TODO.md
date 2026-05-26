@@ -68,6 +68,14 @@ TS port milestones M1–M6 done. See HISTORY.md for detailed entries. Remaining 
 - [ ] `[L]` **Security hardening before Stage 17.** Add schema validation for incoming JSON (`setattr` on Frame objects, override loading). Add CSRF when server becomes network-accessible. Not urgent while server is local-only.
 - [ ] `[S]` **`EditorState` container.** Introduce structured state container with pure update functions and event emitter. Replace 40+ globals and overlapping override representations.
 
+### Python/TS parity gap — tracked
+
+Two recent Python features have no TS equivalent yet:
+- **Obstacle-aware arrow router** (A* on sparse grid, ~200 lines). TS engine has no arrow routing at all.
+- **Grid-column snapping** (`_snap_fills_to_grid_columns`, `place()` grid_snap parameter). TS `place()` doesn't accept grid_snap.
+
+Both features operate correctly in the Python-rendered preview. TS parity is needed only if/when the TS engine runs client-side layout (currently only used for parity tests). Port when the TS engine gains production routing.
+
 ### Code quality — open
 
 - [ ] `[L]` Triage the current `build_v2.py` corpus blockers separately from the 2026-05-13 autolayout slice: clearance violations on `example-platform-architecture`, `lightning-talk-engine`, `lt-diagram-generator`, `lt-a4-generator`, and `lt-summit-identity` (fix: increase row_gap/col_gap to ARROW_GAP where arrows route), plus 59 warning-only baseline-grid violations across several older diagrams (cosmetic, not blocking).
@@ -97,7 +105,7 @@ Goal: the force and grid editors share one editor shell; swapping the layout eng
 
 ### fill_weight vs grid-column alignment
 
-- [ ] `[M]` **fill_weight panels don't snap to grid columns.** `_distribute_fill_space()` distributes space proportionally by weight but does not map results to the overlay grid's column boundaries. A `fill_weight: 2` panel in a 5-column grid gets 2/5 of the available width as a continuous value, which may not align to `2 × col_w + col_gap`. The grid overlay and the fill distribution are computed independently – the overlay is metadata for visual reference, not a layout constraint. To fix: after proportional distribution in a horizontal parent, snap each FILL child's width to the nearest column-span boundary (`n × col_w + (n-1) × col_gap`) when the parent is a direct child of the root and the diagram has `grid.cols` set.
+- [x] `[M]` **~~fill_weight panels snap to grid columns.~~** DONE 2026-05-27 — When a diagram has explicit `grid.cols` + `grid.col_gap`, FILL children with fill_weights snap to integer column spans using largest-remainder allocation. 3 unit tests. Browser-verified on example-stacked-blocks and aws-hld.
 
 ### Interactive element creation
 
@@ -153,9 +161,9 @@ This is an algorithm problem (obstacle avoidance, port assignment), not a struct
 
 - [x] `[H]` **R1: Study draw.io's orthogonal router** — DONE 2026-05-26. See findings below.
 - [x] `[H]` **R2: Study ELK** — DONE 2026-05-26. See findings below.
-- [ ] `[M]` **R3: Survey other approaches** (dagre, Graphviz, reactflow, JointJS, visibility graph)
-- [ ] `[M]` **R4: Write design doc** (algorithm selection, nesting, integration, performance)
-- [ ] `[H]` **R5: Implement MVP obstacle-aware router** (clearance enforcement, no box overlap, edge spacing)
+- [ ] `[M]` **R3: Survey other approaches** (dagre, Graphviz, reactflow, JointJS, visibility graph) — lower priority now that R5 MVP is done
+- [ ] `[M]` **R4: Write design doc** (algorithm selection, nesting, integration, performance) — lower priority now that R5 MVP is done
+- [x] `[H]` **R5: Implement MVP obstacle-aware router** — DONE 2026-05-26. A*-based on sparse orthogonal grid. 12px clearance, bend penalty, path simplification. 6 unit tests. All 16 arrow diagrams route successfully.
 
 **R1 findings (draw.io `mxEdgeStyle.OrthConnector`):**
 - ~500 lines. Pattern-based router using precomputed `routePatterns` lookup table indexed by source/target direction and quadrant.
@@ -175,14 +183,7 @@ This is an algorithm problem (obstacle avoidance, port assignment), not a struct
 - **elkjs:** WebAssembly/JS port exists, ~400KB. Could use it for edge routing only, but API assumes it owns the whole layout.
 - **Takeaway:** ELK's edge routing phase is the gold standard for layered diagrams, but extracting just the routing from ELK is impractical. Better to implement a simpler obstacle-aware router inspired by ELK's channel-based approach.
 
-**Current router baseline:** ~80 lines, naive midpoint routing. `_infer_sides()` picks exit/entry by center-to-center angle. `_orthogonal_waypoints()` routes through a single midpoint — no obstacle awareness, no clearance. Works for simple cases; breaks when arrows cross boxes.
-
-**Recommended approach for R5:** Implement a visibility-graph or grid-based A* router:
-1. Build obstacle set from `bounds_map` (all box rectangles, inflated by clearance margin)
-2. For each arrow, find orthogonal path from source port to target port avoiding obstacles
-3. Use greedy channel routing: prefer horizontal/vertical channels between box rows/columns
-4. Snap waypoints to baseline grid
-5. ~200–300 lines estimated
+**Current router:** A*-based obstacle-aware orthogonal router (~200 lines). Builds sparse grid from inflated box edges, runs A* with bend penalty, simplifies collinear points. Source/target boxes excluded from obstacle set per arrow. 12px clearance margin. Replaces the naive midpoint router.
 
 ### Legacy size overrides (dw/dh)
 
