@@ -68,6 +68,19 @@ TS port milestones M1–M6 done. See HISTORY.md for detailed entries. Remaining 
 - [ ] `[L]` **Security hardening before Stage 17.** Add schema validation for incoming JSON (`setattr` on Frame objects, override loading). Add CSRF when server becomes network-accessible. Not urgent while server is local-only.
 - [ ] `[S]` **`EditorState` container.** Introduce structured state container with pure update functions and event emitter. Replace 40+ globals and overlapping override representations.
 
+### Arrow routing redesign — port-based connection system
+
+Full plan: `docs/architecture/arrow-routing-redesign.md`
+
+The current A* router has structural issues: no port model, wrong obstacle handling for nested arrows, L-only wedge fix, no crossing minimization. The redesign adds:
+
+- **Phase 1** `[M]` Port model + `/` path syntax for nested references (e.g. `core/logging.bottom`)
+- **Phase 2** `[S]` Multi-factor side inference replacing binary edge-gap heuristic
+- **Phase 3** `[M]` Per-arrow obstacle set with ancestor exclusion for nested routing
+- **Phase 4** `[S]` Grid channel midpoints + generalized wedge rule + direction-aware bend penalties
+- **Phase 5** `[S]` Pre-compute arrow geometry in layout pass (fix renderer layer violation)
+- **Phase 6** `[L]` Crossing minimization (stretch goal)
+
 ### Python/TS parity gap — tracked
 
 Two recent Python features have no TS equivalent yet:
