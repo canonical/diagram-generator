@@ -1085,9 +1085,10 @@ def _render_frame(frame: Frame, fg: list, bg: list, bounds_map: dict) -> None:
     h = frame._placed_h
     cid = frame.id or None
 
-    # Store bounds for arrow routing (skip internal IDs)
+    # Store bounds for arrow routing (skip internal IDs).
+    # Tag leaf vs container so the router can filter obstacles.
     if cid and not cid.startswith("__"):
-        bounds_map[cid] = (x, y, w, h)
+        bounds_map[cid] = (x, y, w, h, frame.is_leaf)
 
     # Separator role: emit a visual dashed line at the top of bounds.
     # The FrameBox below provides the hit-testing rect and label text.
@@ -1310,7 +1311,7 @@ def _astar_orthogonal(
                 counter += 1
 
     # No path found — fall back to direct L-shape
-    return [_Pt(end.x, start.y), end]
+    return [start, _Pt(end.x, start.y), end]
 
 
 def _simplify_path(path: list[_Pt]) -> list[_Pt]:
@@ -1350,10 +1351,14 @@ def _infer_sides(
 
 def _route_arrows(arrows: list[Arrow], bounds_map: dict) -> list[ArrowPrimitive]:
     """Route arrows using obstacle-aware orthogonal A* router."""
-    # Build obstacle list from all boxes (inflated for clearance)
-    obstacles = []
-    for bid, (bx, by, bw, bh) in bounds_map.items():
-        obstacles.append(_inflated_rect(bx, by, bw, bh, ARROW_CLEARANCE))
+    # Build obstacle list from LEAF boxes only.  Container bounds cover
+    # their entire child area and would block all routing.  Arrows need
+    # to route through gaps between leaf children inside containers.
+    leaf_obstacles: dict[str, tuple[float, float, float, float]] = {}
+    for bid, entry in bounds_map.items():
+        bx, by, bw, bh, is_leaf = entry
+        if is_leaf:
+            leaf_obstacles[bid] = _inflated_rect(bx, by, bw, bh, ARROW_CLEARANCE)
 
     result = []
     for arrow in arrows:
@@ -1361,8 +1366,8 @@ def _route_arrows(arrows: list[Arrow], bounds_map: dict) -> list[ArrowPrimitive]
         tgt_id, tgt_side = _parse_ref(arrow.target)
         if src_id not in bounds_map or tgt_id not in bounds_map:
             continue
-        sx, sy, sw, sh = bounds_map[src_id]
-        tx, ty, tw, th = bounds_map[tgt_id]
+        sx, sy, sw, sh = bounds_map[src_id][:4]
+        tx, ty, tw, th = bounds_map[tgt_id][:4]
         # Auto-infer sides when not explicitly specified
         if src_side is None or tgt_side is None:
             inferred_src, inferred_tgt = _infer_sides(sx, sy, sw, sh, tx, ty, tw, th)
@@ -1373,10 +1378,11 @@ def _route_arrows(arrows: list[Arrow], bounds_map: dict) -> list[ArrowPrimitive]
         start = _Pt(*_edge_point(sx, sy, sw, sh, src_side))
         end = _Pt(*_edge_point(tx, ty, tw, th, tgt_side))
 
-        # Exclude source and target boxes from obstacle set for this arrow
-        src_obs = _inflated_rect(sx, sy, sw, sh, ARROW_CLEARANCE)
-        tgt_obs = _inflated_rect(tx, ty, tw, th, ARROW_CLEARANCE)
-        arrow_obstacles = [o for o in obstacles if o != src_obs and o != tgt_obs]
+        # Exclude source and target from obstacle set for this arrow
+        arrow_obstacles = [
+            obs for bid, obs in leaf_obstacles.items()
+            if bid != src_id and bid != tgt_id
+        ]
 
         path = _astar_orthogonal(start, end, arrow_obstacles, src_side, tgt_side)
         path = _simplify_path(path)
@@ -1478,7 +1484,7 @@ def layout_frame_diagram(diagram: FrameDiagram) -> LayoutResult:
     # Render frame tree to primitives
     fg: list = []
     bg: list = []
-    bounds_map: dict[str, tuple[float, float, float, float]] = {}
+    bounds_map: dict[str, tuple[float, float, float, float, bool]] = {}
     _render_frame(root, fg, bg, bounds_map)
 
     # Route arrows
