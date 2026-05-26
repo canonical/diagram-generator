@@ -105,7 +105,7 @@ Goal: the force and grid editors share one editor shell; swapping the layout eng
 
 ### Undo history
 
-- [ ] `[M]` **Ctrl+Z undo/redo (20 levels).** The editor currently has no undo support. Need a state-history stack that captures frame-tree + overrides snapshots after each user action. 20 levels within a single diagram session. Ctrl+Z / Ctrl+Y keybindings. Must integrate with the existing override-save path.
+- [x] `[M]` **~~Ctrl+Z undo/redo (20 levels).~~** Already implemented — 50-level stack with Ctrl+Z/Ctrl+Y keybindings, full state serialization (overrides + grid overrides), override-patch commands, and UI buttons.
 
 ### Component model – uniform treatment of all node types (PRIORITY – Roadmap Stage 10a)
 
@@ -118,24 +118,6 @@ Phase 1 (type-agnostic selection) complete — see HISTORY.md 2026-05-25.
 - [x] `[H]` **Phase 2 – Heading as a child, not a field.** Convert `heading` from a magic Frame field to an auto-generated first child with `role: "heading"`. ~~Remove `_heading_height()` from `measure()`. Breaking YAML schema change – needs migration of all 24 frame YAMLs.~~ DONE 2026-05-26 — Loader transformation injects synthetic `__heading` child (and `__body` wrapper for horizontal parents). `min_height` constraints applied during both measure passes. All 191 Python tests pass. Browser-verified on test-nested-containers, aws-hld, android-container-vs-vm. Old heading functions (`_heading_height`, `_heading_text_max_w`, `_leaf_all_lines`) are now dead code (frame.heading is always None) — cleanup deferred to Phase 2b.
 - [x] `[S]` **Phase 2b – Dead heading code cleanup.** DONE 2026-05-27 — Removed `_heading_height()`, `_heading_text_max_w()`, heading references from `_leaf_all_lines()`, and all `heading_h`/`heading_gap` calculations from measure/propagate/place/render in both Python and TS engines. Added `clampToConstraints` to TS leaf measure for min_height parity. Updated all tests and parity fixtures. 191 Python + 175 TS tests pass.
 
-**Phase 2 implementation plan (written 2026-05-26):**
-
-17 frame YAMLs have 54 `heading:` occurrences. Current heading is a `Line` field on Frame that gets special-cased in `_heading_height()`, `_heading_text_max_w()`, `_leaf_all_lines()`, `_place_children()`, and the render pipeline.
-
-**Key design decision: horizontal containers with headings.** Heading must span full width above children regardless of parent direction. For horizontal containers, the loader must auto-wrap the children: `{direction: vertical, children: [heading_child, {direction: horizontal, children: [original_children]}]}`. This changes the tree shape — component IDs, override JSON paths, and the component tree are affected. Alternatively, heading can remain as a "virtual first child" in the layout engine without changing the tree. The cleaner approach (true child) is more disruptive but eliminates the entire class of heading special-casing.
-
-**Steps:**
-1. Add `role: str = ""` field to Python `Frame` (frame_model.py) and TS `Frame` (frame-model.ts)
-2. In `frame_loader.py`, when parsing a frame with `heading:` + `children:`, inject a synthetic first child `Frame(id=f"{parent_id}__heading", role="heading", label=[heading_line], sizing_w=FILL, sizing_h=HUG, border=NONE, padding=INSET)`. For horizontal parents, wrap existing children in a synthetic `{id}__content` sub-frame with the original direction.
-3. Remove `_heading_height()`, `_heading_text_max_w()`, `_leaf_all_lines()` from `layout_v3.py`. Heading now participates in normal measure/place as a child.
-4. Preserve the icon-alignment guarantee: heading child gets `min_height: ICON_SIZE + INSET`.
-5. Update `_render_frame()` in `layout_v3.py` — heading child renders like any text-only leaf.
-6. Port loader changes to TS frame model constructor (or parse-time).
-7. Update parity tests — tree shape changes mean fixture expectations change.
-8. Migrate all 17 YAML files to the new explicit child format (optional — loader backward compat handles old format).
-9. Adversarial review.
-
-**Risk:** Override JSON files reference component IDs. Auto-generated `__heading` and `__content` IDs change the path. Need an override-migration pass or accept override reset.
 - [ ] `[M]` **Phase 3 – Box interior as component layout.** Icon and text become internal layout children, not coordinate-positioned. Eliminates the bold-text-overflow bug class.
 
 ### Box icon/text layout (PRIORITY)
@@ -169,17 +151,44 @@ This matches the user's intent: icon is fixed width and height, text fills the r
 
 This is an algorithm problem (obstacle avoidance, port assignment), not a structural/model problem. Independent of the component model work in Stage 10a. Full research plan and implementation details are in `ROADMAP.md` → Stage 10b.
 
-- [ ] `[H]` **R1: Study draw.io's orthogonal router** (`mxEdgeStyle.OrthConnector`, obstacle avoidance, port assignment, nested containers)
-- [ ] `[H]` **R2: Study ELK** (layered algorithm, edge routing phase, compound graphs, port constraints)
+- [x] `[H]` **R1: Study draw.io's orthogonal router** — DONE 2026-05-26. See findings below.
+- [x] `[H]` **R2: Study ELK** — DONE 2026-05-26. See findings below.
 - [ ] `[M]` **R3: Survey other approaches** (dagre, Graphviz, reactflow, JointJS, visibility graph)
 - [ ] `[M]` **R4: Write design doc** (algorithm selection, nesting, integration, performance)
 - [ ] `[H]` **R5: Implement MVP obstacle-aware router** (clearance enforcement, no box overlap, edge spacing)
+
+**R1 findings (draw.io `mxEdgeStyle.OrthConnector`):**
+- ~500 lines. Pattern-based router using precomputed `routePatterns` lookup table indexed by source/target direction and quadrant.
+- Side inference: determines exit/entry directions from port constraints and relative positioning (quadrant-based).
+- Jetty/buffer: configurable `orthBuffer` (default 10px) creates clearance around terminals.
+- Falls back to `SegmentConnector` (simpler segment-following router) when source/target are too close or have user-defined control points.
+- **No general obstacle avoidance.** The algorithm only considers the source and target terminals — intermediate boxes are ignored. draw.io relies on user-placed waypoints for manual obstacle routing.
+- **Port constraints:** supports directional masks (NSEW) per terminal. Good model for our `component_id.side` syntax.
+- **Takeaway:** The pattern-based approach is clever for pairwise routing but insufficient for our needs (nested containers, many arrows). We need obstacle-aware routing.
+
+**R2 findings (ELK Layered):**
+- Full Sugiyama-style layered layout with 5 phases: cycle breaking → layering → crossing minimization → node placement → edge routing.
+- **Compound graph support:** native handling of nested containers with cross-hierarchy edges — directly relevant to our Frame tree.
+- **Orthogonal edge routing:** separate phase after node placement. Uses channel routing between layers with edge spacing.
+- **Port constraints:** rich model (FREE, FIXED_SIDE, FIXED_ORDER, FIXED_POS) — maps well to our side-hint syntax.
+- **Overkill for our use case:** ELK wants to own node placement. We already have a layout engine. We only need the edge routing phase, not the full Sugiyama pipeline.
+- **elkjs:** WebAssembly/JS port exists, ~400KB. Could use it for edge routing only, but API assumes it owns the whole layout.
+- **Takeaway:** ELK's edge routing phase is the gold standard for layered diagrams, but extracting just the routing from ELK is impractical. Better to implement a simpler obstacle-aware router inspired by ELK's channel-based approach.
+
+**Current router baseline:** ~80 lines, naive midpoint routing. `_infer_sides()` picks exit/entry by center-to-center angle. `_orthogonal_waypoints()` routes through a single midpoint — no obstacle awareness, no clearance. Works for simple cases; breaks when arrows cross boxes.
+
+**Recommended approach for R5:** Implement a visibility-graph or grid-based A* router:
+1. Build obstacle set from `bounds_map` (all box rectangles, inflated by clearance margin)
+2. For each arrow, find orthogonal path from source port to target port avoiding obstacles
+3. Use greedy channel routing: prefer horizontal/vertical channels between box rows/columns
+4. Snap waypoints to baseline grid
+5. ~200–300 lines estimated
 
 ### Legacy size overrides (dw/dh)
 
 **What `dw`/`dh` are:** delta-width and delta-height — pixel adjustments stored in override JSON files. When a user drag-resizes a box in the editor, the override records the difference from the engine-computed size. `dw=4` means "4 pixels wider than the layout engine computed." These are applied at render time: `effective_width = engine_width + dw`.
 
-- [ ] `[S]` **Audit and clear stale dw/dh overrides.** In v3 autolayout, the engine owns sizing — manual size deltas fight the layout. Check all override files in `diagrams/2.output/overrides/` for `dw`/`dh` entries and evaluate whether they're intentional or legacy artifacts that should be cleared.
+- [x] `[S]` **~~Audit and clear stale dw/dh overrides.~~** DONE 2026-05-26 — Audited all override JSON files. No dw/dh entries found; all overrides are position-only (dx/dy) or style overrides.
 
 ### v2 declarative pipeline — defect registry
 
