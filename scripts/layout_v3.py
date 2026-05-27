@@ -1385,8 +1385,43 @@ def _infer_sides(
             return "right", "left"
         else:
             return "left", "right"
+    elif v_gap > 0 and h_gap > 0:
+        # Both axes separated → pick the axis with the SMALLER edge gap
+        # (shortest connection distance), unless the gap is tiny relative
+        # to the box dimensions — which signals structural adjacency (e.g.
+        # column gap) rather than an intentional routing direction.
+        #
+        # Threshold: if one gap is < 5% of the smaller box dimension on
+        # that axis, treat it as structural and prefer the other axis.
+        min_h_dim = min(sw, tw)   # smallest width of the two boxes
+        min_v_dim = min(sh, th)   # smallest height of the two boxes
+        v_structural = (v_gap < 0.05 * min_v_dim) if min_v_dim > 0 else False
+        h_structural = (h_gap < 0.05 * min_h_dim) if min_h_dim > 0 else False
+
+        if v_structural and not h_structural:
+            # Vertical gap is structural → prefer horizontal
+            if gap_right >= gap_left:
+                return "right", "left"
+            else:
+                return "left", "right"
+        elif h_structural and not v_structural:
+            # Horizontal gap is structural → prefer vertical
+            if gap_below >= gap_above:
+                return "bottom", "top"
+            else:
+                return "top", "bottom"
+        elif v_gap <= h_gap:
+            if gap_below >= gap_above:
+                return "bottom", "top"
+            else:
+                return "top", "bottom"
+        else:
+            if gap_right >= gap_left:
+                return "right", "left"
+            else:
+                return "left", "right"
     else:
-        # Both separated or both overlapping → fall back to center-to-center
+        # Both overlapping → fall back to center-to-center
         dx = (tx + tw / 2) - (sx + sw / 2)
         dy = (ty + th / 2) - (sy + sh / 2)
         if abs(dy) >= abs(dx):
