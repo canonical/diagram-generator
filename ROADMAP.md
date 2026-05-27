@@ -194,7 +194,7 @@ Introduce the Structurizr-inspired abstraction layer:
 
 ### Stage 15.5 — Client-side layout engine (interactive editing)
 
-Port the v3 Frame layout engine (~800 lines) from Python to TypeScript for client-side interactive editing. The Python server stays for batch builds, exports, and persistence. Motivation: the HTTP round-trip architecture causes 35–200ms latency per interaction frame, creates race conditions on concurrent relayouts, and forces complex cross-process coercion state sync. See `diagram-generator-planning/docs/performance-analysis-and-recommendations.md`.
+Port the v3 Frame layout engine (~800 lines) from Python to TypeScript for client-side interactive editing. The Python server stays for batch builds, exports, and persistence. Motivation: the HTTP round-trip architecture causes 35–200ms latency per interaction frame, creates race conditions on concurrent relayouts, and forces complex cross-process coercion state sync.
 
 - Port `frame_model.py` → TypeScript frame model
 - Port `layout_v3.py` measure/coerce/place → TypeScript layout engine (pure functions, no DOM)
