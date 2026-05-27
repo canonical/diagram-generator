@@ -1506,6 +1506,134 @@ def _fix_edge_hugging(path: list[_Pt], src_side: str, tgt_side: str,
     return path
 
 
+MIN_ARROW_STUB = 2 * BASELINE_UNIT   # 16px: arrowhead (~11px) + visible shaft (~5px)
+
+
+def _enforce_min_stub(path: list[_Pt], src_side: str, tgt_side: str) -> list[_Pt]:
+    """Ensure exit and entry stubs are at least MIN_ARROW_STUB long.
+
+    For Z-shaped paths (4 points with exit+horizontal+entry), adjust the
+    connector position so both stubs get at least MIN_ARROW_STUB, clamped
+    by the available gap.  For longer paths, only adjust the last or first
+    segment where there is room without disturbing the rest of the path.
+    """
+    if len(path) < 3:
+        return path  # straight line — no bend to adjust
+    path = list(path)
+    ms = MIN_ARROW_STUB
+
+    # --- Z-path special case: 4 points, both stubs on the same axis ---
+    if len(path) == 4:
+        p0, p1, p2, p3 = path
+        if src_side in ("top", "bottom") and tgt_side in ("top", "bottom"):
+            # Both stubs are vertical; connector is horizontal
+            total = abs(p3.y - p0.y)
+            exit_stub = abs(p1.y - p0.y)
+            entry_stub = abs(p3.y - p2.y)
+            if exit_stub < ms or entry_stub < ms:
+                sign = 1 if p3.y > p0.y else -1
+                if total >= 2 * ms:
+                    # Room for both — give ms to each
+                    con_y = p0.y + sign * ms
+                    path[1] = _Pt(p1.x, con_y)
+                    path[2] = _Pt(p2.x, con_y)
+                elif total >= ms:
+                    # Room for entry stub only — prioritize arrowhead side
+                    con_y = p3.y - sign * ms
+                    path[1] = _Pt(p1.x, con_y)
+                    path[2] = _Pt(p2.x, con_y)
+                # else: gap too small for any meaningful stub — leave as-is
+            return path
+        elif src_side in ("left", "right") and tgt_side in ("left", "right"):
+            total = abs(p3.x - p0.x)
+            exit_stub = abs(p1.x - p0.x)
+            entry_stub = abs(p3.x - p2.x)
+            if exit_stub < ms or entry_stub < ms:
+                sign = 1 if p3.x > p0.x else -1
+                if total >= 2 * ms:
+                    con_x = p0.x + sign * ms
+                    path[1] = _Pt(con_x, p1.y)
+                    path[2] = _Pt(con_x, p2.y)
+                elif total >= ms:
+                    con_x = p3.x - sign * ms
+                    path[1] = _Pt(con_x, p1.y)
+                    path[2] = _Pt(con_x, p2.y)
+            return path
+
+    # --- General case: adjust last segment (entry stub) ---
+    p_end, p_prev = path[-1], path[-2]
+    if tgt_side in ("top", "bottom"):
+        seg = abs(p_end.y - p_prev.y)
+        if 0 < seg < ms and p_end.x == p_prev.x:
+            sign = 1 if p_end.y > p_prev.y else -1
+            new_y = p_end.y - sign * ms
+            will_move_connector = len(path) >= 3 and path[-3].y == p_prev.y
+            check_idx = -4 if will_move_connector and len(path) > 3 else -3
+            if abs(check_idx) <= len(path):
+                limit = path[check_idx].y
+                safe = (sign > 0 and new_y >= limit) or (sign < 0 and new_y <= limit)
+            else:
+                safe = True
+            if safe:
+                path[-2] = _Pt(p_prev.x, new_y)
+                if will_move_connector:
+                    path[-3] = _Pt(path[-3].x, new_y)
+    elif tgt_side in ("left", "right"):
+        seg = abs(p_end.x - p_prev.x)
+        if 0 < seg < ms and p_end.y == p_prev.y:
+            sign = 1 if p_end.x > p_prev.x else -1
+            new_x = p_end.x - sign * ms
+            will_move_connector = len(path) >= 3 and path[-3].x == p_prev.x
+            check_idx = -4 if will_move_connector and len(path) > 3 else -3
+            if abs(check_idx) <= len(path):
+                limit = path[check_idx].x
+                safe = (sign > 0 and new_x >= limit) or (sign < 0 and new_x <= limit)
+            else:
+                safe = True
+            if safe:
+                path[-2] = _Pt(new_x, p_prev.y)
+                if will_move_connector:
+                    path[-3] = _Pt(new_x, path[-3].y)
+
+    # --- General case: adjust first segment (exit stub) ---
+    p_start, p_next = path[0], path[1]
+    if src_side in ("top", "bottom"):
+        seg = abs(p_next.y - p_start.y)
+        if 0 < seg < ms and p_start.x == p_next.x:
+            sign = 1 if p_next.y > p_start.y else -1
+            new_y = p_start.y + sign * ms
+            will_move_connector = len(path) >= 3 and path[2].y == p_next.y
+            # Safety: check against the point AFTER the connector
+            check_idx = 3 if will_move_connector and len(path) > 3 else 2
+            if check_idx < len(path):
+                limit = path[check_idx].y
+                safe = (sign > 0 and new_y <= limit) or (sign < 0 and new_y >= limit)
+            else:
+                safe = True
+            if safe:
+                path[1] = _Pt(p_next.x, new_y)
+                if will_move_connector:
+                    path[2] = _Pt(path[2].x, new_y)
+    elif src_side in ("left", "right"):
+        seg = abs(p_next.x - p_start.x)
+        if 0 < seg < ms and p_start.y == p_next.y:
+            sign = 1 if p_next.x > p_start.x else -1
+            new_x = p_start.x + sign * ms
+            will_move_connector = len(path) >= 3 and path[2].x == p_next.x
+            check_idx = 3 if will_move_connector and len(path) > 3 else 2
+            if check_idx < len(path):
+                limit = path[check_idx].x
+                safe = (sign > 0 and new_x <= limit) or (sign < 0 and new_x >= limit)
+            else:
+                safe = True
+            if safe:
+                path[1] = _Pt(new_x, p_next.y)
+                if will_move_connector:
+                    path[2] = _Pt(new_x, path[2].y)
+
+    return path
+
+
 def _route_arrows(arrows: list[Arrow], bounds_map: dict) -> list[ArrowPrimitive]:
     """Route arrows using obstacle-aware orthogonal A* router.
 
@@ -1562,6 +1690,10 @@ def _route_arrows(arrows: list[Arrow], bounds_map: dict) -> list[ArrowPrimitive]
             sx, sy, sw, sh, tx, ty, tw, th,
         )
         path = _simplify_path(path)  # clean up any collinear points added
+
+        # Ensure minimum stub length for visible shaft before arrowhead
+        path = _enforce_min_stub(path, src_side, tgt_side)
+        path = _simplify_path(path)
 
         # Extract waypoints (everything between start and end)
         waypoints = [(p.x, p.y) for p in path[1:-1]] if len(path) > 2 else []
