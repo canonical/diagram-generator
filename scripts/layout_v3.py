@@ -1090,7 +1090,8 @@ def place(frame: Frame, x: float, y: float, available_w: float, available_h: flo
 # Render: convert placed Frame tree to primitives
 # ---------------------------------------------------------------------------
 
-def _render_frame(frame: Frame, fg: list, bg: list, bounds_map: dict) -> None:
+def _render_frame(frame: Frame, fg: list, bg: list, bounds_map: dict,
+                  *, _parent_id: str | None = None) -> None:
     """Emit rendering primitives for a placed Frame."""
     x = frame._placed_x
     y = frame._placed_y
@@ -1099,9 +1100,9 @@ def _render_frame(frame: Frame, fg: list, bg: list, bounds_map: dict) -> None:
     cid = frame.id or None
 
     # Store bounds for arrow routing (skip internal IDs).
-    # Tag leaf vs container so the router can filter obstacles.
+    # Format: (x, y, w, h, is_leaf, parent_id)
     if cid and not cid.startswith("__"):
-        bounds_map[cid] = (x, y, w, h, frame.is_leaf)
+        bounds_map[cid] = (x, y, w, h, frame.is_leaf, _parent_id)
 
     # Separator role: emit a visual dashed line at the top of bounds.
     # The FrameBox below provides the hit-testing rect and label text.
@@ -1171,9 +1172,10 @@ def _render_frame(frame: Frame, fg: list, bg: list, bounds_map: dict) -> None:
     ))
 
     # Container: render children recursively
+    effective_parent = cid if (cid and not cid.startswith("__")) else _parent_id
     if frame.is_container:
         for child in frame.children:
-            _render_frame(child, fg, bg, bounds_map)
+            _render_frame(child, fg, bg, bounds_map, _parent_id=effective_parent)
 
 
 # ---------------------------------------------------------------------------
@@ -1234,12 +1236,23 @@ def _build_routing_grid(
     start: _Pt, end: _Pt,
     obstacles: list[tuple[float, float, float, float]],
 ) -> tuple[list[float], list[float]]:
-    """Build sorted lists of candidate X and Y coordinates for routing grid."""
+    """Build sorted lists of candidate X and Y coordinates for routing grid.
+
+    Adds channel midpoints between adjacent grid lines so the router has
+    more options for routing through gaps between obstacles.
+    """
     xs: set[float] = {start.x, end.x}
     ys: set[float] = {start.y, end.y}
     for x0, y0, x1, y1 in obstacles:
         xs.update([x0, x1])
         ys.update([y0, y1])
+    # Add channel midpoints between adjacent coordinates
+    sorted_xs = sorted(xs)
+    sorted_ys = sorted(ys)
+    for i in range(len(sorted_xs) - 1):
+        xs.add((sorted_xs[i] + sorted_xs[i + 1]) / 2)
+    for i in range(len(sorted_ys) - 1):
+        ys.add((sorted_ys[i] + sorted_ys[i + 1]) / 2)
     return sorted(xs), sorted(ys)
 
 
@@ -1388,21 +1401,98 @@ def _infer_sides(
                 return "left", "right"
 
 
+def _ancestors_of(frame_id: str, bounds_map: dict) -> set[str]:
+    """Return the set of all ancestor IDs for a frame (parent, grandparent, …)."""
+    ancestors: set[str] = set()
+    cur = frame_id
+    while True:
+        entry = bounds_map.get(cur)
+        if entry is None:
+            break
+        parent_id = entry[5]  # 6th element is parent_id
+        if parent_id is None:
+            break
+        ancestors.add(parent_id)
+        cur = parent_id
+    return ancestors
+
+
+def _fix_edge_hugging(path: list[_Pt], src_side: str, tgt_side: str,
+                      sx: float, sy: float, sw: float, sh: float,
+                      tx: float, ty: float, tw: float, th: float,
+                      ) -> list[_Pt]:
+    """Push segments that hug source/target edges to the gap midpoint.
+
+    Generalised wedge rule: applies to any path length, not just 3-point
+    L-shapes.  Checks the first segment (exit from source) and the last
+    segment (entry to target) and fixes them if they run parallel to the
+    box edge they just left or are about to enter.
+    """
+    if len(path) < 3:
+        return path
+
+    path = list(path)  # make mutable copy
+
+    # --- Fix exit stub (first bend) ---
+    s, p1 = path[0], path[1]
+    if src_side in ("bottom", "top"):
+        # Source exits vertically; first segment should be vertical.
+        # If p1 has the same Y as s (horizontal immediately), it's hugging.
+        if p1.y == s.y and p1.x != s.x and len(path) >= 3:
+            # Push to midpoint between source edge and next Y
+            next_y = path[2].y if len(path) > 2 else path[-1].y
+            mid_y = (s.y + next_y) / 2
+            path[1] = _Pt(p1.x, mid_y)
+            path.insert(1, _Pt(s.x, mid_y))
+    elif src_side in ("left", "right"):
+        # Source exits horizontally; first segment should be horizontal.
+        if p1.x == s.x and p1.y != s.y and len(path) >= 3:
+            next_x = path[2].x if len(path) > 2 else path[-1].x
+            mid_x = (s.x + next_x) / 2
+            path[1] = _Pt(mid_x, p1.y)
+            path.insert(1, _Pt(mid_x, s.y))
+
+    # --- Fix entry stub (last bend) ---
+    e, pm1 = path[-1], path[-2]
+    if tgt_side in ("bottom", "top"):
+        # Target enters vertically; last segment should be vertical.
+        if pm1.y == e.y and pm1.x != e.x:
+            prev_y = path[-3].y if len(path) > 2 else path[0].y
+            mid_y = (e.y + prev_y) / 2
+            path[-2] = _Pt(pm1.x, mid_y)
+            path.insert(-1, _Pt(e.x, mid_y))
+    elif tgt_side in ("left", "right"):
+        if pm1.x == e.x and pm1.y != e.y:
+            prev_x = path[-3].x if len(path) > 2 else path[0].x
+            mid_x = (e.x + prev_x) / 2
+            path[-2] = _Pt(mid_x, pm1.y)
+            path.insert(-1, _Pt(mid_x, e.y))
+
+    return path
+
+
 def _route_arrows(arrows: list[Arrow], bounds_map: dict) -> list[ArrowPrimitive]:
-    """Route arrows using obstacle-aware orthogonal A* router."""
+    """Route arrows using obstacle-aware orthogonal A* router.
+
+    Improvements over the original:
+    - Per-arrow obstacle sets that exclude ancestors of source/target
+      (allows arrows to route through parent container boundaries).
+    - Channel midpoints in the routing grid for better path options.
+    - Generalised wedge rule for all path lengths.
+    """
     # Build obstacle list from LEAF boxes only.  Container bounds cover
     # their entire child area and would block all routing.  Arrows need
     # to route through gaps between leaf children inside containers.
     leaf_obstacles: dict[str, tuple[float, float, float, float]] = {}
     for bid, entry in bounds_map.items():
-        bx, by, bw, bh, is_leaf = entry
+        bx, by, bw, bh, is_leaf = entry[:5]
         if is_leaf:
             leaf_obstacles[bid] = _inflated_rect(bx, by, bw, bh, ARROW_CLEARANCE)
 
     result = []
     for arrow in arrows:
-        src_id, src_side = _parse_ref(arrow.source)
-        tgt_id, tgt_side = _parse_ref(arrow.target)
+        src_id, src_side = _parse_ref(arrow.source, bounds_map)
+        tgt_id, tgt_side = _parse_ref(arrow.target, bounds_map)
         if src_id not in bounds_map or tgt_id not in bounds_map:
             continue
         sx, sy, sw, sh = bounds_map[src_id][:4]
@@ -1417,27 +1507,26 @@ def _route_arrows(arrows: list[Arrow], bounds_map: dict) -> list[ArrowPrimitive]
         start = _Pt(*_edge_point(sx, sy, sw, sh, src_side))
         end = _Pt(*_edge_point(tx, ty, tw, th, tgt_side))
 
-        # Exclude source and target from obstacle set for this arrow
+        # Per-arrow obstacle set: exclude source, target, and all their
+        # ancestors.  Ancestor exclusion lets arrows from a nested child
+        # route through parent container boundaries.
+        excluded = {src_id, tgt_id}
+        excluded |= _ancestors_of(src_id, bounds_map)
+        excluded |= _ancestors_of(tgt_id, bounds_map)
         arrow_obstacles = [
             obs for bid, obs in leaf_obstacles.items()
-            if bid != src_id and bid != tgt_id
+            if bid not in excluded
         ]
 
         path = _astar_orthogonal(start, end, arrow_obstacles, src_side, tgt_side)
         path = _simplify_path(path)
 
-        # Exit/entry stub: when an L-shaped path has its horizontal (or
-        # vertical) leg flush against the source or target edge, push that
-        # leg to the midpoint of the gap so the connector doesn't run
-        # alongside the box border ("wedge" artifact).
-        if len(path) == 3:
-            s, corner, e = path
-            if src_side in ("bottom", "top") and corner.y == s.y and corner.x != s.x:
-                mid_y = (s.y + e.y) / 2
-                path = [s, _Pt(s.x, mid_y), _Pt(e.x, mid_y), e]
-            elif src_side in ("left", "right") and corner.x == s.x and corner.y != s.y:
-                mid_x = (s.x + e.x) / 2
-                path = [s, _Pt(mid_x, s.y), _Pt(mid_x, e.y), e]
+        # Generalised wedge rule: push edge-hugging segments to gap midpoints
+        path = _fix_edge_hugging(
+            path, src_side, tgt_side,
+            sx, sy, sw, sh, tx, ty, tw, th,
+        )
+        path = _simplify_path(path)  # clean up any collinear points added
 
         # Extract waypoints (everything between start and end)
         waypoints = [(p.x, p.y) for p in path[1:-1]] if len(path) > 2 else []
@@ -1455,17 +1544,30 @@ def _route_arrows(arrows: list[Arrow], bounds_map: dict) -> list[ArrowPrimitive]
     return result
 
 
-def _parse_ref(ref: str) -> tuple[str, str | None]:
-    """Parse 'component_id.side' into (id, side).
+def _parse_ref(ref: str, bounds_map: dict | None = None) -> tuple[str, str | None]:
+    """Parse arrow endpoint reference into (frame_id, side).
 
-    If no explicit side is given, returns None so the router can
-    infer the best side from relative box positions.
+    Supported syntaxes:
+      "box_id"                → ("box_id", None)   auto-infer side
+      "box_id.bottom"         → ("box_id", "bottom")
+      "parent/child"          → ("child", None)    hierarchy path
+      "parent/child.right"    → ("child", "right")
+
+    The '/' separator is a hierarchy hint for readability; the router
+    resolves to the last path segment since bounds_map keys are flat IDs.
+    If the full path isn't found but the last segment is, use that.
     """
+    side: str | None = None
+    # Strip explicit side suffix first
     if "." in ref:
         parts = ref.rsplit(".", 1)
         if parts[1] in ("top", "bottom", "left", "right"):
-            return parts[0], parts[1]
-    return ref, None
+            ref = parts[0]
+            side = parts[1]
+    # Handle hierarchy path: use the last segment as the frame ID
+    if "/" in ref:
+        ref = ref.rsplit("/", 1)[1]
+    return ref, side
 
 
 def _edge_point(x: float, y: float, w: float, h: float, side: str) -> tuple[float, float]:
