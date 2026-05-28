@@ -233,13 +233,16 @@ def _parse_frame(data: dict, *, is_root: bool = False) -> Frame:
         )
         if frame.direction == Direction.HORIZONTAL:
             # Wrap original children in a body sub-frame that preserves the
-            # horizontal direction, gap, align, and justify of the original.
+            # horizontal direction, gap, align, justify, wrap, and
+            # fill_weight of the original.
             body = Frame(
                 id=f"{frame.id}__body" if frame.id else "__body",
                 direction=Direction.HORIZONTAL,
                 gap=frame.gap,
                 align=frame.align,
                 justify=frame.justify,
+                wrap=frame.wrap,
+                fill_weight=frame.fill_weight,
                 sizing_w=Sizing.FILL,
                 sizing_h=Sizing.HUG,
                 border=Border.NONE,
@@ -258,6 +261,9 @@ def _parse_frame(data: dict, *, is_root: bool = False) -> Frame:
                 direction=Direction.VERTICAL,
                 gap=frame.gap,
                 align=frame.align,
+                justify=frame.justify,
+                wrap=frame.wrap,
+                fill_weight=frame.fill_weight,
                 sizing_w=Sizing.FILL,
                 sizing_h=Sizing.HUG,
                 border=Border.NONE,

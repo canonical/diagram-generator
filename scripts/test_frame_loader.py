@@ -12,7 +12,7 @@ import sys
 sys.path.insert(0, os.path.dirname(__file__))
 
 from frame_loader import load_frame_yaml
-from frame_model import Sizing
+from frame_model import Direction, Justify, Sizing
 from diagram_model import Border, Fill
 from diagram_model import Border
 
@@ -600,6 +600,83 @@ root:
     assert heading.resolved_stroke == "none"
     assert body.resolved_fill == "transparent"
     assert body.resolved_stroke == "none"
+
+
+# ── __body field inheritance ────────────────────────────────────────
+
+
+def test_body_inherits_wrap_from_parent(tmp_path):
+    """__body must copy wrap from its parent container."""
+    diagram = _load(tmp_path, """
+engine: v3
+root:
+  id: root
+  children:
+    - id: panel
+      heading: "Panel"
+      direction: horizontal
+      wrap: true
+      children:
+        - id: a
+          label: [A]
+        - id: b
+          label: [B]
+""")
+    panel = diagram.root.children[0]
+    body = panel.children[1]
+    assert "body" in body.id
+    assert body.wrap is True
+
+
+def test_body_inherits_fill_weight_from_parent(tmp_path):
+    """__body must copy fill_weight from its parent container."""
+    diagram = _load(tmp_path, """
+engine: v3
+root:
+  id: root
+  direction: horizontal
+  children:
+    - id: wide
+      heading: "Wide"
+      fill_weight: 3
+      sizing_w: fill
+      children:
+        - id: a
+          label: [A]
+    - id: narrow
+      heading: "Narrow"
+      fill_weight: 1
+      sizing_w: fill
+      children:
+        - id: b
+          label: [B]
+""")
+    wide = diagram.root.children[0]
+    body = wide.children[1]
+    assert "body" in body.id
+    assert body.fill_weight == 3
+
+
+def test_body_inherits_justify_in_vertical_parent(tmp_path):
+    """__body must copy justify from a vertical parent container."""
+    diagram = _load(tmp_path, """
+engine: v3
+root:
+  id: root
+  children:
+    - id: panel
+      heading: "Panel"
+      justify: space-between
+      children:
+        - id: a
+          label: [A]
+        - id: b
+          label: [B]
+""")
+    panel = diagram.root.children[0]
+    body = panel.children[1]
+    assert "body" in body.id
+    assert body.justify == Justify.SPACE_BETWEEN
 
 
 # ── Column span ─────────────────────────────────────────────────────
