@@ -2,9 +2,6 @@ engine: v3
 title: "Diagram intake workflow"
 grid:
   cols: 1
-  col_gap: 24
-  row_gap: 24
-  outer_margin: 24
 arrows:
   - source: sources
     target: workflow
@@ -17,14 +14,12 @@ arrows:
 root:
   id: page
   direction: vertical
-  gap: 24
   padding: 24
   border: none
   children:
     # Dashed input frame with two source boxes
     - id: sources
       direction: horizontal
-      gap: 8
       padding: 8
       border: solid
       heading: "Rough initial diagram sources"
@@ -34,7 +29,6 @@ root:
           icon: AI.svg
         - id: src_other
           label: ["? Additional rough", source formats, from PMs]
-          fill: grey
 
     - id: workflow
       label:
@@ -48,7 +42,6 @@ root:
         - {text: Compare mode, weight: "700"}
         - {text: "HTML before / agent / refined", fill: "#666666"}
       icon: Document with Magnifying glass.svg
-      fill: grey
 
     - id: polish
       label:
@@ -58,8 +51,7 @@ root:
 
     - id: final
       label:
-        - {text: Final SVGs, weight: "700", fill: "#FFFFFF"}
-        - {text: on-brand deliverables, fill: "#FFFFFF"}
+        - {text: Final SVGs, weight: "700"}
+        - on-brand deliverables
+      variant: highlight
       icon: Storage image.svg
-      icon_fill: "#FFFFFF"
-      fill: black

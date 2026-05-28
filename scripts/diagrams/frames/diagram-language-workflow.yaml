@@ -2,9 +2,6 @@ engine: v3
 title: "Diagram language workflow"
 grid:
   cols: 1
-  col_gap: 24
-  row_gap: 24
-  outer_margin: 24
 arrows:
   - source: inputs
     target: redraw
@@ -21,14 +18,12 @@ arrows:
 root:
   id: page
   direction: vertical
-  gap: 24
   padding: 24
   border: none
   children:
     # Dashed input frame with three source boxes
     - id: inputs
       direction: horizontal
-      gap: 8
       padding: 8
       border: solid
       heading: "Inputs and canonical context"
@@ -39,22 +34,19 @@ root:
         - id: src_refs
           label: [Local refs, "+ outputs"]
           icon: Document with Magnifying glass.svg
-          fill: grey
         - id: src_spec
           label:
-            - {text: DIAGRAM.md, weight: "700", fill: "#FFFFFF"}
-            - {text: canonical spec, fill: "#FFFFFF"}
+            - {text: DIAGRAM.md, weight: "700"}
+            - canonical spec
+          variant: highlight
           icon: Book with Magnifying glass.svg
-          icon_fill: "#FFFFFF"
-          fill: black
 
     - id: redraw
       label:
-        - {text: Diagram redraw, weight: "700", fill: "#FFFFFF"}
-        - {text: skill, fill: "#FFFFFF"}
+        - {text: Diagram redraw, weight: "700"}
+        - skill
+      variant: highlight
       icon: Wrench 1.svg
-      icon_fill: "#FFFFFF"
-      fill: black
 
     - id: generators
       label:
@@ -64,26 +56,23 @@ root:
 
     - id: validate
       label:
-        - {text: Build + validate, weight: "700", fill: "#FFFFFF"}
-        - {text: skill, fill: "#FFFFFF"}
+        - {text: Build + validate, weight: "700"}
+        - skill
+      variant: highlight
       icon: Rosette with check.svg
-      icon_fill: "#FFFFFF"
-      fill: black
 
     - id: review
       label:
         - {text: Compare + review lane, weight: "700"}
         - {text: "before / agent / refined", fill: "#666666"}
       icon: Document with Magnifying glass.svg
-      fill: grey
 
     - id: drawio
       label:
-        - {text: Protected draw.io, weight: "700", fill: "#FFFFFF"}
-        - {text: review skill, fill: "#FFFFFF"}
+        - {text: Protected draw.io, weight: "700"}
+        - review skill
+      variant: highlight
       icon: Design.svg
-      icon_fill: "#FFFFFF"
-      fill: black
 
     - id: outputs
       label:

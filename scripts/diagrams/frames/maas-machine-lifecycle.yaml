@@ -16,14 +16,12 @@ arrows:
 root:
   id: page
   direction: vertical
-  gap: 24
   padding: 24
   align: top-center
   children:
     # ── New ──
     - id: new_row
       direction: horizontal
-      gap: 16
       sizing_w: hug
       children:
         - id: new_box
@@ -41,12 +39,10 @@ root:
     # ── Commissioning ──
     - id: commissioning_row
       direction: horizontal
-      gap: 16
       sizing_w: hug
       children:
         - id: commissioning_box
           direction: horizontal
-          gap: 8
           sizing_w: hug
           children:
             - id: comm_ram
@@ -77,7 +73,6 @@ root:
     # ── Ready ──
     - id: ready_row
       direction: horizontal
-      gap: 16
       sizing_w: hug
       children:
         - id: ready_box
@@ -95,7 +90,6 @@ root:
     # ── Allocated ──
     - id: allocated_row
       direction: horizontal
-      gap: 16
       sizing_w: hug
       children:
         - id: allocated_box
@@ -115,7 +109,6 @@ root:
     # ── Deploying ──
     - id: deploying_row
       direction: horizontal
-      gap: 16
       sizing_w: hug
       children:
         - id: deploying_box
@@ -136,7 +129,6 @@ root:
     # ── Releasing ──
     - id: releasing_row
       direction: horizontal
-      gap: 16
       sizing_w: hug
       children:
         - id: releasing_box

@@ -3,8 +3,6 @@ title: "Diagram generator"
 grid:
   cols: 3
   col_gap: 32
-  row_gap: 24
-  outer_margin: 24
 arrows:
   - source: input_panel
     target: engine
@@ -15,13 +13,11 @@ arrows:
 root:
   id: page
   direction: vertical
-  gap: 24
   padding: 24
   children:
     # Row 0: input panel (right side)
     - id: row0
       direction: horizontal
-      gap: 32
       children:
         - id: spacer0
           variant: annotation
@@ -29,7 +25,6 @@ root:
           sizing_h: hug
         - id: input_panel
           direction: horizontal
-          gap: 8
           fill_weight: 2
           heading: "2. Input"
           children:
@@ -43,10 +38,8 @@ root:
     # Row 1: guidelines (left) + engine (right)
     - id: row1
       direction: horizontal
-      gap: 32
       children:
         - id: guidelines
-          gap: 8
           heading: "1. Guidelines"
           children:
             - id: typo
@@ -59,7 +52,6 @@ root:
               label: [Layout]
               icon: Document.svg
         - id: engine
-          gap: 8
           fill_weight: 2
           heading: "3. Engine"
           children:
@@ -76,7 +68,6 @@ root:
     # Row 2: export panel (right side)
     - id: row2
       direction: horizontal
-      gap: 32
       children:
         - id: spacer2
           variant: annotation
@@ -84,7 +75,6 @@ root:
           sizing_h: hug
         - id: export_panel
           direction: horizontal
-          gap: 8
           fill_weight: 2
           heading: "4. Export"
           children:

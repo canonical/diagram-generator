@@ -11,14 +11,12 @@ arrows:
 root:
   id: page
   direction: vertical
-  gap: 24
   padding: 24
   align: top-center
   children:
     # Top row: CLI + UI
     - id: top_row
       direction: horizontal
-      gap: 24
       sizing_w: hug
       children:
         - id: cli
@@ -43,7 +41,6 @@ root:
       children:
         - id: os_row
           direction: horizontal
-          gap: 8
           sizing_w: hug
           children:
             - id: centos
@@ -69,7 +66,6 @@ root:
       children:
         - id: hw_row1
           direction: horizontal
-          gap: 8
           sizing_w: hug
           children:
             - id: hpe
@@ -89,7 +85,6 @@ root:
               width: 112
         - id: hw_row2
           direction: horizontal
-          gap: 8
           sizing_w: hug
           children:
             - id: huawei

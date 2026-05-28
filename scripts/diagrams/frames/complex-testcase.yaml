@@ -8,9 +8,6 @@ title: "Complex Testcase"
 # NO "Build spike" — that is in complex-routing-usecase
 grid:
   cols: 3
-  col_gap: 24
-  row_gap: 24
-  outer_margin: 24
 arrows:
   - source: define
     target: implement
@@ -19,7 +16,6 @@ arrows:
 root:
   id: page
   direction: horizontal
-  gap: 24
   padding: 24
   children:
     - id: planning

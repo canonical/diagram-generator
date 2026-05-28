@@ -2,9 +2,6 @@ engine: v3
 title: "Request to hardware stack"
 grid:
   cols: 1
-  col_gap: 24
-  row_gap: 24
-  outer_margin: 24
 arrows:
   - source: user
     target: orch
@@ -19,7 +16,6 @@ arrows:
 root:
   id: page
   direction: vertical
-  gap: 24
   padding: 24
   border: none
   children:
@@ -30,21 +26,17 @@ root:
     # Orchestration layer
     - id: orch
       direction: horizontal
-      gap: 8
       padding: 8
       border: solid
-      fill: grey
       heading: "Orchestration layer"
       icon: Snap.svg
       children:
         - id: orch_col
           direction: vertical
-          gap: 8
           border: none
           children:
             - id: orch_row0
               direction: horizontal
-              gap: 8
               border: none
               children:
                 - id: orch_ollama
@@ -57,7 +49,6 @@ root:
     # Model runtime
     - id: runtime
       direction: vertical
-      gap: 8
       padding: 8
       border: solid
       heading: "Model runtime"
@@ -65,43 +56,33 @@ root:
       children:
         - id: rt_row0
           direction: horizontal
-          gap: 8
           border: none
           children:
             - id: rt_llama
               label: [llama.cpp]
-              fill: grey
             - id: rt_openvino
               label: [OpenVINO]
-              fill: grey
         - id: rt_row1
           direction: horizontal
-          gap: 8
           border: none
           children:
             - id: rt_vllm
               label: [vLLM]
-              fill: grey
             - id: rt_tensorrt
               label: [TensorRT-, LLM]
-              fill: grey
         - id: rt_onnx
           label: [ONNX Runtime]
-          fill: grey
 
     # Compute kernel
     - id: kernel
       direction: vertical
-      gap: 8
       padding: 8
       border: solid
-      fill: grey
       heading: "Compute kernel"
       icon: kernel.svg
       children:
         - id: k_row0
           direction: horizontal
-          gap: 8
           border: none
           children:
             - id: k_cuda
@@ -110,7 +91,6 @@ root:
               label: [ROCm]
         - id: k_row1
           direction: horizontal
-          gap: 8
           border: none
           children:
             - id: k_metal
@@ -121,7 +101,6 @@ root:
     # Driver
     - id: driver
       direction: horizontal
-      gap: 8
       padding: 8
       border: solid
       heading: "Driver"
@@ -129,24 +108,19 @@ root:
       children:
         - id: drv_cuda
           label: [CUDA]
-          fill: grey
         - id: drv_rocm
           label: [ROCm]
-          fill: grey
 
     # Hardware
     - id: hardware
       direction: vertical
-      gap: 8
       padding: 8
       border: solid
-      fill: grey
       heading: "Hardware"
       icon: Chip 1.svg
       children:
         - id: hw_row0
           direction: horizontal
-          gap: 8
           border: none
           children:
             - id: hw_cpu
@@ -157,7 +131,6 @@ root:
               icon: RAM.svg
         - id: hw_row1
           direction: horizontal
-          gap: 8
           border: none
           children:
             - id: hw_npu

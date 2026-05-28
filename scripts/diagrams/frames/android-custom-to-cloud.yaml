@@ -3,8 +3,6 @@ title: "Custom Android to Anbox Cloud"
 grid:
   cols: 4
   col_gap: 32
-  row_gap: 24
-  outer_margin: 24
 arrows:
   - source: custom_files
     target: host_tools
@@ -30,12 +28,10 @@ root:
         - id: partitions
           label:
             - {text: Partitions, weight: "700"}
-          fill: grey
         - id: system_image
           label: [Android system image]
         - id: kernel
           label: [Kernel]
-          fill: grey
 
     # Col 1: Host-side tools
     - id: host_tools

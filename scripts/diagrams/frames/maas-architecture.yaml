@@ -12,7 +12,6 @@ arrows:
 root:
   id: page
   direction: vertical
-  gap: 24
   padding: 24
   align: top-center
   children:
@@ -31,7 +30,6 @@ root:
     # Region controller cluster
     - id: region_cluster
       direction: horizontal
-      gap: 8
       sizing_w: hug
       children:
         - id: region_server
@@ -57,13 +55,11 @@ root:
     # Rack controllers — two columns
     - id: rack_row
       direction: horizontal
-      gap: 48
       sizing_w: hug
       children:
         # Left rack
         - id: rack_left_col
           direction: vertical
-          gap: 16
           sizing_w: hug
           align: top-center
           children:
@@ -72,7 +68,6 @@ root:
               sizing_w: hug
             - id: rack_left_cluster
               direction: horizontal
-              gap: 8
               sizing_w: hug
               children:
                 - id: rack_left_server
@@ -96,7 +91,6 @@ root:
                 - {text: "Managed machines", weight: "700"}
             - id: rack_left_machines
               direction: horizontal
-              gap: 8
               sizing_w: hug
               children:
                 - id: rlm1
@@ -115,7 +109,6 @@ root:
         # Right rack
         - id: rack_right_col
           direction: vertical
-          gap: 16
           sizing_w: hug
           align: top-center
           children:
@@ -124,7 +117,6 @@ root:
               sizing_w: hug
             - id: rack_right_cluster
               direction: horizontal
-              gap: 8
               sizing_w: hug
               children:
                 - id: rack_right_server
@@ -148,7 +140,6 @@ root:
                 - {text: "Managed machines", weight: "700"}
             - id: rack_right_machines
               direction: horizontal
-              gap: 8
               sizing_w: hug
               children:
                 - id: rrm1

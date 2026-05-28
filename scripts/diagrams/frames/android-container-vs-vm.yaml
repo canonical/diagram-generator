@@ -2,71 +2,43 @@ engine: v3
 title: "Container vs VM — Android architecture comparison"
 grid:
   cols: 3
-  col_gap: 24
-  row_gap: 24
-  outer_margin: 24
 root:
   id: page
   direction: vertical
-  gap: 24
   padding: 24
   border: none
   children:
     # Top zone — headers + content in aligned columns
     - id: top_zone
       direction: horizontal
-      gap: 24
-      border: none
       children:
         - id: col_container_top
           direction: vertical
-          gap: 8
-          border: none
+          heading: Containerized Android
           children:
-            - id: hdr_container
-              label: [Containerized Android]
-              border: none
-              sizing_h: hug
             - id: anbox_container
               direction: vertical
-              gap: 8
-              padding: 8
-              border: solid
               heading: Anbox Instance
               children:
                 - id: android_sys_c
                   label: [Android System, (App/Framework/API)]
-                  fill: grey
                 - id: android_rt_c
                   label: [Android Runtime]
-                  fill: grey
 
         - id: col_vm_top
           direction: vertical
-          gap: 8
-          border: none
+          heading: Virtualized Android
           children:
-            - id: hdr_vm
-              label: [Virtualized Android]
-              border: none
-              sizing_h: hug
             - id: anbox_vm
               direction: vertical
-              gap: 8
-              padding: 8
-              border: solid
-              fill: grey
               heading: Anbox Instance
               children:
                 - id: android_sys_v
                   label: [Android System, (App/Framework/API)]
-                  fill: white
                 - id: android_rt_v
                   label: [Android Runtime]
-                  fill: white
                 - id: android_kernel
                   label: [Android Kernel]
-                  fill: white
 
         - id: note_top
           label: [Android owns, everything above]
@@ -83,36 +55,24 @@ root:
     # Bottom zone — below kernel boundary
     - id: bottom_zone
       direction: horizontal
-      gap: 24
-      border: none
       children:
         - id: host_container
           direction: vertical
-          gap: 8
-          padding: 8
-          border: solid
           heading: "Host OS & Hardware (Kernel, GPU, drivers)"
           children:
             - id: host_kernel_c
               label: [Host Linux Kernel, (shared kernel)]
-              fill: grey
             - id: host_hw_c
               label: [Host hardware]
-              fill: grey
 
         - id: host_vm
           direction: vertical
-          gap: 8
-          padding: 8
-          border: solid
           heading: "Host OS & Hardware (Kernel, GPU, drivers)"
           children:
             - id: host_kernel_v
               label: [Host Linux Kernel]
-              fill: grey
             - id: host_hw_v
               label: [Host hardware]
-              fill: grey
 
         - id: note_bottom
           label: [Android has no, control below]

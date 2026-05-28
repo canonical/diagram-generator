@@ -2,9 +2,7 @@ engine: v3
 title: "Android graphics stack"
 grid:
   cols: 2
-  col_gap: 24
   row_gap: 32
-  outer_margin: 24
 arrows:
   - source: apps
     target: runtime
@@ -32,7 +30,6 @@ root:
             - {text: Applications, weight: "700"}
             - "• OpenGL / Vulkan"
             - "• UI toolkits"
-          fill: grey
           icon: Mobile.svg
           width: 288
         - id: note_apps
@@ -52,7 +49,6 @@ root:
             - "• EGL"
             - "• Vulkan loader"
             - "• Buffer management abstractions"
-          fill: white
           icon: Gateway.svg
           width: 288
         - id: note_runtime
@@ -73,7 +69,6 @@ root:
             - {text: "System composition and display policy", weight: "700"}
             - "• SurfaceFlinger"
             - "• HWComposer (capability & policy)"
-          fill: grey
           icon: Composable.svg
           width: 288
         - id: note_composition
@@ -93,7 +88,6 @@ root:
             - "• DRM / KMS"
             - "• GPU drivers"
             - "• Memory & synchronization primitives"
-          fill: white
           icon: kernel.svg
           width: 288
         - id: note_kernel
@@ -112,6 +106,5 @@ root:
         - id: display
           label:
             - {text: Display output, weight: "700"}
-          fill: grey
           icon: Desktop monitor.svg
           width: 288

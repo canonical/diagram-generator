@@ -3,7 +3,6 @@ title: "Vertical stack — 3 boxes"
 root:
   id: page
   direction: vertical
-  gap: 24
   padding: 24
   border: none
   children:

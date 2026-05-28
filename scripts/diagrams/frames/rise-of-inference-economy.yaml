@@ -2,9 +2,6 @@ engine: v3
 title: "Rise of the inference economy"
 grid:
   cols: 2
-  col_gap: 24
-  row_gap: 24
-  outer_margin: 24
 arrows:
   - source: training_hdr
     target: training_detail
@@ -21,7 +18,6 @@ arrows:
 root:
   id: page
   direction: vertical
-  gap: 24
   padding: 24
   border: none
   children:
@@ -34,25 +30,21 @@ root:
     # Row 1: Training vs Inference headers
     - id: row1
       direction: horizontal
-      gap: 24
       border: none
       children:
         - id: training_hdr
           label:
             - {text: Training, weight: "700"}
-          fill: grey
           icon: AI.svg
         - id: inference_hdr
           label:
-            - {text: Inference, weight: "700", fill: "#FFFFFF"}
-          fill: black
+            - {text: Inference, weight: "700"}
+          variant: highlight
           icon: CPU.svg
-          icon_fill: "#FFFFFF"
 
     # Row 2: detail boxes
     - id: row2
       direction: horizontal
-      gap: 24
       border: none
       children:
         - id: training_detail
@@ -65,21 +57,17 @@ root:
     # Row 3: sub-panels
     - id: row3
       direction: horizontal
-      gap: 24
       border: none
       children:
         - id: compute
           direction: vertical
-          gap: 8
           padding: 8
           border: solid
-          fill: grey
           heading: "Always-on compute"
           icon: Globe.svg
           children:
             - id: compute_row0
               direction: horizontal
-              gap: 8
               border: none
               children:
                 - id: c_dc
@@ -94,16 +82,13 @@ root:
 
         - id: revenue
           direction: vertical
-          gap: 8
           padding: 8
           border: solid
-          fill: grey
           heading: "Revenue impact"
           icon: Financial data.svg
           children:
             - id: rev_row0
               direction: horizontal
-              gap: 8
               border: none
               children:
                 - id: r_latency
@@ -114,7 +99,6 @@ root:
                   icon: Scale up.svg
             - id: rev_row1
               direction: horizontal
-              gap: 8
               border: none
               children:
                 - id: r_efficiency
@@ -128,7 +112,6 @@ root:
     - id: summary1
       label:
         - {text: "From training focused to inference focused", weight: "700"}
-      fill: grey
 
     - id: summary2
       label:

@@ -3,7 +3,6 @@ title: "Deep nesting — page → panel → columns → boxes"
 root:
   id: page
   direction: vertical
-  gap: 24
   padding: 24
   border: none
   children:
@@ -13,15 +12,12 @@ root:
 
     - id: main_panel
       direction: horizontal
-      gap: 24
       padding: 8
       border: solid
-      fill: grey
       heading: Infrastructure
       children:
         - id: col_left
           direction: vertical
-          gap: 8
           padding: 8
           border: solid
           heading: Compute
@@ -37,7 +33,6 @@ root:
 
         - id: col_right
           direction: vertical
-          gap: 8
           padding: 8
           border: solid
           heading: Storage
@@ -51,4 +46,3 @@ root:
 
     - id: footer
       label: [Networking layer]
-      fill: grey

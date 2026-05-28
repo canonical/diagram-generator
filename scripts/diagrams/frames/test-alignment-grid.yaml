@@ -3,7 +3,6 @@ title: "Alignment grid — centered child"
 root:
   id: page
   direction: vertical
-  gap: 24
   padding: 24
   sizing: fixed
   width: 480
@@ -12,14 +11,12 @@ root:
   children:
     - id: container
       direction: vertical
-      gap: 8
       padding: 8
       sizing: fixed
       width: 432
       height: 352
       align: center
       border: solid
-      fill: grey
       heading: Alignment test
       children:
         - id: small_box

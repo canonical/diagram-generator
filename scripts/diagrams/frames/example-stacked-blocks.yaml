@@ -2,9 +2,6 @@ engine: v3
 title: "Infrastructure overview"
 grid:
   cols: 3
-  col_gap: 24
-  row_gap: 24
-  outer_margin: 24
 arrows:
   - source: cloud
     target: services
@@ -19,14 +16,12 @@ arrows:
 root:
   id: page
   direction: vertical
-  gap: 24
   padding: 24
   border: none
   children:
     # Row 0: three standard boxes
     - id: row0
       direction: horizontal
-      gap: 24
       children:
         - id: cloud
           label: [Cloud]
@@ -41,33 +36,26 @@ root:
     # Row 1: dashed wrapper panel spanning all 3 columns
     - id: services
       direction: horizontal
-      gap: 24
       border: solid
       heading: "Managed services"
       children:
         - id: svc_db
           label: [Database]
           icon: Storage node.svg
-          fill: grey
         - id: svc_storage
           label: [Storage]
           icon: Storage object.svg
-          fill: grey
         - id: svc_network
           label: [Network]
           icon: Network.svg
-          fill: grey
 
     # Row 2: standard boxes
     - id: row2
       direction: horizontal
-      gap: 24
       children:
         - id: lockman
           label: [Lock, manager]
           icon: Lock.svg
         - id: monitor
           label: [Monitoring, dashboard]
-          fill: grey
           icon: Memory.svg
-          fill_weight: 2

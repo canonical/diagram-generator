@@ -2,9 +2,7 @@ engine: v3
 title: "Design-language engine"
 grid:
   cols: 4
-  col_gap: 24
   row_gap: 32
-  outer_margin: 24
 arrows:
   - source: input_dg
     target: engine
@@ -66,15 +64,12 @@ root:
           children:
             - id: spec_typo
               label: [Typography, spec]
-              fill: grey
               icon: Documents.svg
             - id: spec_spacing
               label: [Spacing, spec]
-              fill: grey
               icon: Documents.svg
             - id: spec_grid
               label: [Grid, spec]
-              fill: grey
               icon: Documents.svg
         - id: engine
           direction: horizontal
@@ -86,15 +81,12 @@ root:
           children:
             - id: eng_dg
               label: [Diagram, generator]
-              fill: grey
               icon: Blueprint.svg
             - id: eng_a4
               label: [A4, generator]
-              fill: grey
               icon: Document management.svg
             - id: eng_blo
               label: [Brand layout, ops]
-              fill: grey
               icon: Composable.svg
 
     # Row 4: editor (right side)
@@ -110,7 +102,6 @@ root:
         - id: editor
           label: [Constrained, editor]
           icon: Laptop with code.svg
-          fill_weight: 3
 
     # Row 5: output files (right side)
     - id: row5
@@ -124,13 +115,10 @@ root:
           sizing_h: hug
         - id: out_svg
           label: [SVG]
-          fill: grey
           icon: Design.svg
         - id: out_pdf
           label: [PDF]
-          fill: grey
           icon: Document.svg
         - id: out_mp4
           label: [MP4 / PNG]
-          fill: grey
           icon: Video.svg

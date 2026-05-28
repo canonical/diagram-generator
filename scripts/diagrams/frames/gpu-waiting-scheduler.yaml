@@ -2,23 +2,18 @@ engine: v3
 title: "GPU waiting scheduler"
 grid:
   cols: 4
-  col_gap: 24
-  row_gap: 24
-  outer_margin: 24
 arrows:
   - source: gpu
     target: scheduler
 root:
   id: page
   direction: vertical
-  gap: 24
   padding: 24
   border: none
   children:
     # Row 0: scheduler box (right, spanning 3 cols)
     - id: row0
       direction: horizontal
-      gap: 24
       border: none
       children:
         - id: spacer0
@@ -36,7 +31,6 @@ root:
     # Row 1: document icon + annotation
     - id: row1
       direction: horizontal
-      gap: 24
       border: none
       children:
         - id: spacer1
@@ -57,7 +51,6 @@ root:
     # Row 2: gauge icon (left)
     - id: row2
       direction: horizontal
-      gap: 24
       border: none
       children:
         - id: gauge_icon
@@ -69,20 +62,17 @@ root:
     # Row 3: GPU box (left)
     - id: row3
       direction: horizontal
-      gap: 24
       border: none
       children:
         - id: gpu
           label:
             - {text: GPU, weight: "700"}
           icon: CPU.svg
-          fill: grey
           sizing_w: hug
 
     # Row 4: waiting annotation (left)
     - id: row4
       direction: horizontal
-      gap: 24
       border: none
       children:
         - id: waiting
