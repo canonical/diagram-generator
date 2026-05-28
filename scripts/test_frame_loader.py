@@ -421,6 +421,187 @@ root:
     assert a.fill == Fill.GREY
 
 
+# ── Style resolution (level system) ────────────────────────────────
+
+
+def test_panel_with_heading_and_leaves_resolves_level2(tmp_path):
+    """Container with heading + leaf children gets panel style: grey fill."""
+    diagram = _load(tmp_path, """
+engine: v3
+root:
+  id: root
+  children:
+    - id: panel
+      heading: "Panel"
+      children:
+        - id: leaf
+          label: [Child]
+""")
+    panel = diagram.root.children[0]
+    assert panel.resolved_fill == "#F3F3F3"
+    assert panel.resolved_stroke == "#F3F3F3"
+
+
+def test_standalone_leaf_resolves_level1_box(tmp_path):
+    """Standalone leaf gets box style: transparent fill, black stroke."""
+    diagram = _load(tmp_path, """
+engine: v3
+root:
+  id: root
+  children:
+    - id: standalone
+      label: [Hello]
+""")
+    leaf = diagram.root.children[0]
+    assert leaf.resolved_fill == "transparent"
+    assert leaf.resolved_stroke == "#000000"
+
+
+def test_leaf_inside_panel_resolves_level1_box(tmp_path):
+    """Leaf inside a panel gets box style (outlined)."""
+    diagram = _load(tmp_path, """
+engine: v3
+root:
+  id: root
+  children:
+    - id: panel
+      heading: "Panel"
+      children:
+        - id: leaf
+          label: [Hello]
+""")
+    # panel has __heading and __body children; leaf is inside __body
+    body = panel = diagram.root.children[0]
+    for c in panel.children:
+        if "__body" in (c.id or ""):
+            body = c
+            break
+    leaf = body.children[0]
+    assert leaf.resolved_fill == "transparent"
+    assert leaf.resolved_stroke == "#000000"
+
+
+def test_highlight_variant_resolves_black(tmp_path):
+    """Highlight variant produces black fill, black stroke."""
+    diagram = _load(tmp_path, """
+engine: v3
+root:
+  id: root
+  children:
+    - id: hl
+      variant: highlight
+      label: [Hello]
+""")
+    hl = diagram.root.children[0]
+    assert hl.resolved_fill == "#000000"
+    assert hl.resolved_stroke == "#000000"
+
+
+def test_annotation_variant_resolves_transparent(tmp_path):
+    """Annotation variant produces transparent fill and stroke."""
+    diagram = _load(tmp_path, """
+engine: v3
+root:
+  id: root
+  children:
+    - id: ann
+      variant: annotation
+      label: [Hello]
+""")
+    ann = diagram.root.children[0]
+    assert ann.resolved_fill == "transparent"
+    assert ann.resolved_stroke == "none"
+
+
+def test_panel_parent_resolves_level3_with_small_caps(tmp_path):
+    """Container with heading + panel descendant gets outlined + small-caps heading."""
+    diagram = _load(tmp_path, """
+engine: v3
+root:
+  id: root
+  children:
+    - id: section
+      heading: "Section"
+      children:
+        - id: inner_panel
+          heading: "Panel"
+          children:
+            - id: deep
+              label: [Hello]
+""")
+    section = diagram.root.children[0]
+    # Level 3: outlined (transparent fill, black stroke)
+    assert section.resolved_fill == "transparent"
+    assert section.resolved_stroke == "#000000"
+    # Heading gets small caps
+    heading = section.children[0]
+    assert heading.role == "heading"
+    assert heading.label[0].small_caps is True
+
+    # Inner panel is still level 2 (grey)
+    body = section.children[1]  # __body
+    inner = body.children[0]
+    assert inner.resolved_fill == "#F3F3F3"
+
+
+def test_headingless_container_resolves_level0_transparent(tmp_path):
+    """Container without heading is a layout wrapper — transparent."""
+    diagram = _load(tmp_path, """
+engine: v3
+root:
+  id: root
+  children:
+    - id: wrapper
+      direction: horizontal
+      children:
+        - id: a
+          label: [A]
+        - id: b
+          label: [B]
+""")
+    wrapper = diagram.root.children[0]
+    assert wrapper.resolved_fill == "transparent"
+    assert wrapper.resolved_stroke == "none"
+
+
+def test_root_frame_resolves_transparent(tmp_path):
+    """Root frame is always transparent/none."""
+    diagram = _load(tmp_path, """
+engine: v3
+root:
+  id: root
+  children:
+    - id: leaf
+      label: [Hello]
+""")
+    assert diagram.root.resolved_fill == "transparent"
+    assert diagram.root.resolved_stroke == "none"
+
+
+def test_layout_wrappers_resolve_transparent(tmp_path):
+    """Synthetic __heading and __body wrappers are transparent."""
+    diagram = _load(tmp_path, """
+engine: v3
+root:
+  id: root
+  children:
+    - id: panel
+      heading: "Panel"
+      children:
+        - id: leaf
+          label: [Hello]
+""")
+    panel = diagram.root.children[0]
+    heading = panel.children[0]
+    body = panel.children[1]
+    assert "heading" in heading.id
+    assert "body" in body.id
+    assert heading.resolved_fill == "transparent"
+    assert heading.resolved_stroke == "none"
+    assert body.resolved_fill == "transparent"
+    assert body.resolved_stroke == "none"
+
+
 # ── Column span ─────────────────────────────────────────────────────
 
 

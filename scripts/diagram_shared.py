@@ -5,7 +5,7 @@ import math
 import pathlib
 import xml.etree.ElementTree as ET
 
-from fontTools.ttLib import TTFont
+import uharfbuzz as hb
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 ICON_DIR = ROOT / "assets" / "icons"
@@ -15,63 +15,57 @@ DRAWIO_DIR = OUTPUT_DIR / "draw.io"
 LEGACY_OUTPUT_ROOT_SVGS = {"icon-box-48px-prototype.svg"}
 
 # ---------------------------------------------------------------------------
-# Font metrics (single load at module init)
+# Font metrics — HarfBuzz shaping (single load at module init)
 # ---------------------------------------------------------------------------
 
 _FONT_PATH = ROOT / "assets" / "UbuntuSans[wdth,wght].ttf"
-_font: TTFont | None = None
-_cmap: dict[int, str] | None = None
-_hmtx: object | None = None
-_units_per_em: int = 1000
-_SPACE_ADVANCE: float = 0.25  # fallback fraction of em for unknown glyphs
-_glyph_sets: dict[int, object] = {}  # weight → glyph set cache
+_hb_blob: hb.Blob | None = None
+_hb_face: hb.Face | None = None
+_hb_fonts: dict[int, hb.Font] = {}  # weight → shaped font cache
+_upem: int = 1000
 
 
-def _ensure_font_loaded() -> None:
-    global _font, _cmap, _hmtx, _units_per_em
-    if _font is not None:
+def _ensure_hb_loaded() -> None:
+    global _hb_blob, _hb_face, _upem
+    if _hb_blob is not None:
         return
-    _font = TTFont(str(_FONT_PATH))
-    _cmap = _font.getBestCmap()
-    _hmtx = _font["hmtx"]
-    _units_per_em = _font["head"].unitsPerEm
+    _hb_blob = hb.Blob.from_file_path(str(_FONT_PATH))
+    _hb_face = hb.Face(_hb_blob)
+    _upem = _hb_face.upem
 
 
-def _get_glyph_set(weight: int) -> object:
-    """Return a cached glyph set for the given font weight."""
-    if weight not in _glyph_sets:
-        _ensure_font_loaded()
-        _glyph_sets[weight] = _font.getGlyphSet(location={"wght": weight})
-    return _glyph_sets[weight]
+def _get_hb_font(weight: int) -> hb.Font:
+    """Return a cached HarfBuzz font at the given weight."""
+    if weight not in _hb_fonts:
+        _ensure_hb_loaded()
+        font = hb.Font(_hb_face)
+        font.set_variations({"wght": weight, "wdth": 100})
+        _hb_fonts[weight] = font
+    return _hb_fonts[weight]
 
 
-def measure_text_width(text: str, font_size: float, weight: int = 400) -> float:
-    """Measure text width using actual font glyph advance widths.
+def measure_text_width(
+    text: str,
+    font_size: float,
+    weight: int = 400,
+    *,
+    features: dict[str, bool] | None = None,
+) -> float:
+    """Measure text width using HarfBuzz shaping.
 
-    Uses the variable font's glyph set at the specified weight for accurate
-    measurement of both regular and bold text.
+    Applies OpenType features (kerning, ligatures, and optionally
+    small-caps via ``features={"smcp": True, "c2sc": True}``).
     """
-    _ensure_font_loaded()
-    if weight != 400:
-        gs = _get_glyph_set(weight)
-        total_units = 0.0
-        for ch in text:
-            glyph_name = _cmap.get(ord(ch))
-            if glyph_name and glyph_name in gs:
-                total_units += gs[glyph_name].width
-            else:
-                total_units += _units_per_em * _SPACE_ADVANCE
-        return total_units * font_size / _units_per_em
-    # Fast path for weight 400: use the hmtx table directly
-    total_units = 0
-    for ch in text:
-        glyph_name = _cmap.get(ord(ch))
-        if glyph_name and glyph_name in _hmtx.metrics:
-            advance, _ = _hmtx.metrics[glyph_name]
-            total_units += advance
-        else:
-            total_units += int(_units_per_em * _SPACE_ADVANCE)
-    return total_units * font_size / _units_per_em
+    if not text:
+        return 0.0
+    _ensure_hb_loaded()
+    font = _get_hb_font(weight)
+    buf = hb.Buffer()
+    buf.add_str(text)
+    buf.guess_segment_properties()
+    hb.shape(font, buf, features)
+    total_advance = sum(pos.x_advance for pos in buf.glyph_positions)
+    return total_advance * font_size / _upem
 
 BLACK = "#000000"
 WHITE = "#FFFFFF"
@@ -259,14 +253,12 @@ def estimate_line_width(spec: dict[str, object]) -> float:
     text = str(spec["content"])
     size = size_to_px(spec.get("size", BODY_SIZE))
     weight = int(spec.get("weight", 400))
-    width = measure_text_width(text, size, weight)
-    if bool(spec.get("small_caps", False)):
-        width *= 1.05
-    return width
+    features = {"smcp": True, "c2sc": True} if bool(spec.get("small_caps", False)) else None
+    return measure_text_width(text, size, weight, features=features)
 
 
 def wrap_text_lines(lines: list[dict[str, object]], max_width: float) -> list[dict[str, object]]:
-    """Wrap text lines at word boundaries using real font metrics."""
+    """Wrap text lines at word boundaries using HarfBuzz-shaped metrics."""
     if max_width <= 0:
         return [dict(spec) for spec in lines]
 
@@ -280,15 +272,13 @@ def wrap_text_lines(lines: list[dict[str, object]], max_width: float) -> list[di
 
         size = size_to_px(spec.get("size", BODY_SIZE))
         weight = int(spec.get("weight", 400))
-        small_caps = bool(spec.get("small_caps", False))
+        features = {"smcp": True, "c2sc": True} if bool(spec.get("small_caps", False)) else None
 
         words = text.split()
         current = ""
         for word in words:
             test = (current + " " + word) if current else word
-            test_w = measure_text_width(test, size, weight)
-            if small_caps:
-                test_w *= 1.05
+            test_w = measure_text_width(test, size, weight, features=features)
             if test_w <= max_width or not current:
                 current = test
             else:

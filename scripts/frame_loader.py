@@ -16,14 +16,14 @@ import yaml
 
 from diagram_model import Arrow, Border, Fill, Line
 from frame_model import Align, Direction, Frame, FrameDiagram, Justify, Overlay, Sizing
-from diagram_shared import ICON_SIZE, INSET
+from diagram_shared import BLACK, GREY, GRID_GUTTER, ICON_SIZE, INSET
 
 # ── Enum maps (lowercase YAML strings → Python enums) ──────────────
 
 _DIRECTION = {"vertical": Direction.VERTICAL, "horizontal": Direction.HORIZONTAL}
 _SIZING = {"hug": Sizing.HUG, "fill": Sizing.FILL, "fixed": Sizing.FIXED}
 _FILL = {"white": Fill.WHITE, "grey": Fill.GREY, "black": Fill.BLACK}
-_BORDER = {"solid": Border.SOLID, "none": Border.NONE, "dashed": Border.DASHED, "fill": Border.FILL}
+_BORDER = {"solid": Border.SOLID, "none": Border.NONE, "dashed": Border.DASHED, "dotted": Border.DASHED, "fill": Border.FILL}
 _ALIGN = {
     "top-left": Align.TOP_LEFT, "top-center": Align.TOP_CENTER, "top-right": Align.TOP_RIGHT,
     "center-left": Align.CENTER_LEFT, "center": Align.CENTER, "center-right": Align.CENTER_RIGHT,
@@ -131,8 +131,12 @@ def _parse_frame(data: dict, *, is_root: bool = False) -> Frame:
 
     # Sensible defaults differ for leaf vs container
     default_border = Border.NONE if is_container else Border.SOLID
-    default_gap = 24 if is_container else 0
+    # Gap: panels (bordered or headed) use tight INSET spacing;
+    # layout wrappers (borderless, headingless) use GRID_GUTTER.
+    has_heading = "heading" in data
     border = _BORDER.get(data.get("border", ""), default_border)
+    is_panel = (border != Border.NONE) or has_heading
+    default_gap = INSET if (is_container and is_panel) else GRID_GUTTER if is_container else 0
 
     # Per-axis sizing: uniform `sizing` as base, then per-axis overrides.
     # Root defaults to HUG/HUG — there is no parent to FILL into. Use
@@ -160,10 +164,9 @@ def _parse_frame(data: dict, *, is_root: bool = False) -> Frame:
     if "height" in data and "sizing_h" not in data and "sizing" not in data:
         sizing_h = Sizing.FIXED
 
-    # Padding: default is 8 for bordered nodes and containers with headings,
+    # Padding: default is INSET for bordered nodes and containers with headings,
     # 0 for borderless containers without headings (pure layout wrappers).
-    has_heading = "heading" in data
-    default_padding = 0 if (is_container and border == Border.NONE and not has_heading) else 8
+    default_padding = 0 if (is_container and not is_panel) else INSET
     uniform_padding = int(data.get("padding", default_padding))
     pad_t = int(data["padding_top"]) if "padding_top" in data else None
     pad_r = int(data["padding_right"]) if "padding_right" in data else None
@@ -199,6 +202,7 @@ def _parse_frame(data: dict, *, is_root: bool = False) -> Frame:
         icon_fill=data.get("icon_fill"),
         label=label,
         role=data.get("role", ""),
+        level=int(data["level"]) if "level" in data else None,
         children=children,
         position_type=data.get("position", "AUTO").upper(),
         x=int(data["x"]) if "x" in data else 0,
@@ -219,10 +223,10 @@ def _parse_frame(data: dict, *, is_root: bool = False) -> Frame:
             role="heading",
             sizing_w=Sizing.FILL,
             sizing_h=Sizing.HUG,
-            min_height=ICON_SIZE + INSET,
+            min_height=ICON_SIZE,
             border=Border.NONE,
             fill=heading_fill,
-            padding=INSET,
+            padding=0,
             label=[heading_line],
             icon=data.get("icon"),
             icon_fill=heading_icon_fill,
@@ -315,6 +319,128 @@ def _validate_meta(meta: dict, source: str) -> None:
             )
 
 
+# ── Style resolution ────────────────────────────────────────────────
+#
+# resolve_styles() walks the Frame tree after parsing and sets
+# resolved_fill and resolved_stroke based on the level system:
+#
+#   Level 1 (box):   transparent fill, #000000 stroke  (default for depth 2+)
+#   Level 2 (panel): #F3F3F3 fill, #F3F3F3 stroke      (default for depth 1)
+#
+# Variants override the level-derived style:
+#   annotation: transparent fill, transparent stroke
+#   highlight:  #000000 fill, #000000 stroke
+#
+# Layout wrappers (__heading, __body) stay transparent / no stroke.
+
+
+def _has_panel_descendant(frame: Frame) -> bool:
+    """Check if any descendant (through level-0 wrappers) is a panel (level >= 2)."""
+    for child in frame.children:
+        if child.level is not None and child.level >= 2:
+            return True
+        # Look through level-0 containers (synthetic wrappers + headingless containers)
+        if child.level == 0 and child.is_container:
+            if _has_panel_descendant(child):
+                return True
+    return False
+
+
+def _classify_levels(root: Frame, *, _depth: int = 0) -> None:
+    """Bottom-up walk: classify children first, then derive own level.
+
+    Level assignment uses heading presence + children structure, not depth:
+      Level 0: root, separator, synthetic wrapper, headingless container
+      Level 1: leaf (no children)
+      Level 2: panel — container with heading + no panel descendants
+      Level 3: panel parent — container with heading + panel descendants
+
+    Explicit ``level:`` in YAML is honoured as-is.
+    """
+    # Recurse first so children are classified before we inspect them
+    for child in root.children:
+        _classify_levels(child, _depth=_depth + 1)
+
+    # Explicit override — honour as-is
+    if root.level is not None:
+        return
+
+    is_wrapper = "__" in (root.id or "")
+    has_heading = (
+        any(c.role == "heading" for c in root.children)
+        or root.heading is not None
+    )
+
+    if _depth == 0 or is_wrapper or root.role == "separator":
+        root.level = 0
+    elif not root.is_container:
+        root.level = 1
+    elif not has_heading:
+        # Container without heading — layout-only wrapper, transparent
+        root.level = 0
+    elif _has_panel_descendant(root):
+        # Container with heading + panel descendants = section / panel parent
+        root.level = 3
+    else:
+        # Container with heading + leaf-only descendants = panel
+        root.level = 2
+
+
+def resolve_styles(root: Frame, *, _depth: int = 0) -> None:
+    """Walk the tree and set resolved_fill / resolved_stroke on every frame.
+
+    Must be called AFTER ``_classify_levels()`` so every frame has a level.
+    """
+    level = root.level if root.level is not None else 0
+    is_wrapper = "__" in (root.id or "")
+
+    if is_wrapper:
+        # Synthetic __heading / __body: transparent, except heading inside
+        # a highlight container keeps its black fill for contrast.
+        if root.fill == Fill.BLACK:
+            root.resolved_fill = BLACK
+            root.resolved_stroke = BLACK
+        else:
+            root.resolved_fill = "transparent"
+            root.resolved_stroke = "none"
+    elif root.fill == Fill.BLACK and level != 0:
+        # Highlight variant (fill set to BLACK by variant overlay or explicit)
+        root.resolved_fill = BLACK
+        root.resolved_stroke = BLACK
+    elif level == 3:
+        # Panel parent: outlined, small-caps bold heading
+        root.resolved_fill = "transparent"
+        root.resolved_stroke = BLACK
+        for child in root.children:
+            if child.role == "heading" and child.label:
+                ln = child.label[0]
+                child.label[0] = Line(
+                    ln.content, weight=ln.weight, fill=ln.fill,
+                    small_caps=True, line_step=ln.line_step,
+                    font_family=ln.font_family,
+                )
+    elif level == 2:
+        # Panel: grey fill, fill-matched stroke
+        root.resolved_fill = GREY
+        root.resolved_stroke = GREY
+    elif level == 1:
+        if root.border == Border.NONE and not root.is_container:
+            # Annotation: borderless leaf — no fill, no stroke
+            root.resolved_fill = "transparent"
+            root.resolved_stroke = "none"
+        else:
+            # Box: outlined
+            root.resolved_fill = "transparent"
+            root.resolved_stroke = BLACK
+    else:
+        # Level 0: root, separator, headingless container — invisible
+        root.resolved_fill = "transparent"
+        root.resolved_stroke = "none"
+
+    for child in root.children:
+        resolve_styles(child, _depth=_depth + 1)
+
+
 def load_frame_yaml(path: str | pathlib.Path) -> FrameDiagram:
     """Load a native Frame YAML file into a FrameDiagram.
 
@@ -328,6 +454,10 @@ def load_frame_yaml(path: str | pathlib.Path) -> FrameDiagram:
 
     root_data = data.get("root", {})
     root = _parse_frame(root_data, is_root=True)
+
+    # Classify levels bottom-up, then resolve visual styles
+    _classify_levels(root)
+    resolve_styles(root)
 
     arrows = [_parse_arrow(a) for a in data.get("arrows", [])]
     overlays = [_parse_overlay(o) for o in data.get("overlays", [])]
@@ -343,9 +473,9 @@ def load_frame_yaml(path: str | pathlib.Path) -> FrameDiagram:
         arrows=arrows,
         overlays=overlays,
         grid_cols=int(grid.get("cols", 2)),
-        grid_col_gap=int(grid["col_gap"]) if "col_gap" in grid else None,
-        grid_row_gap=int(grid["row_gap"]) if "row_gap" in grid else None,
-        grid_outer_margin=int(grid["outer_margin"]) if "outer_margin" in grid else None,
+        grid_col_gap=int(grid.get("col_gap", GRID_GUTTER)) if grid else None,
+        grid_row_gap=int(grid.get("row_gap", GRID_GUTTER)) if grid else None,
+        grid_outer_margin=int(grid.get("outer_margin", GRID_GUTTER)) if grid else None,
         diagram_type=meta.get("diagram_type"),
         abstraction_level=meta.get("abstraction_level"),
         layout_engine=meta.get("layout_engine"),

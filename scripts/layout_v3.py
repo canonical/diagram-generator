@@ -13,6 +13,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from frame_model import Frame, FrameDiagram, Direction, Overlay, Sizing, Align, Justify
+from frame_loader import _classify_levels, resolve_styles
 from diagram_model import Arrow, Line, Fill, Border
 from diagram_layout import (
     ArrowPrimitive,
@@ -1132,42 +1133,22 @@ def _render_frame(frame: Frame, fg: list, bg: list, bounds_map: dict,
         fg.append(DashedLinePrimitive(x, y, x + w, y, component_id=cid))
 
     # ── Resolve style fields ──
-    # The four allowed box styles from DIAGRAM.md:
-    #   1. Outlined box  — solid 1px black, transparent fill (default leaf)
-    #   2. Grey box       — no border, grey fill (parent/container)
-    #   3. Annotation     — no border, transparent fill (borderless leaf)
-    #   4. Highlight box  — no border, black fill, white text
-    # Synthetic layout wrappers (__body, __heading) stay transparent.
-    _is_layout_wrapper = (frame.id or "").startswith("__")
-    if frame.fill == Fill.BLACK:
-        box_fill = Fill.BLACK.value
-        box_stroke = "none"
+    # Pre-resolved by frame_loader.resolve_styles() into resolved_fill / resolved_stroke.
+    # Falls back to legacy Border.FILL handling for v2 compat.
+    if frame.resolved_fill is not None:
+        box_fill = frame.resolved_fill
+        box_stroke = frame.resolved_stroke or "none"
     elif frame.border == Border.FILL:
         box_fill = frame.fill.value
         box_stroke = "none"
-    elif frame.border == Border.NONE and frame.is_container and not _is_layout_wrapper:
-        # Parent/container boxes: grey fill, no stroke (Grey box style)
-        box_fill = Fill.GREY.value if frame.fill == Fill.WHITE else frame.fill.value
-        box_stroke = "none"
-    elif frame.border == Border.NONE:
-        # Leaf annotation or layout wrapper: transparent
-        box_fill = frame.fill.value if frame.fill != Fill.WHITE else "transparent"
-        box_stroke = "none"
     else:
-        # Bordered box (SOLID or DASHED): transparent fill, black stroke
         box_fill = "transparent"
         box_stroke = "#000000"
 
-    # Effective padding: border=NONE frames compensate for the missing 1px
-    # border stroke so text baselines align with bordered siblings.
     pad_l = frame.padding_left
     pad_t = frame.padding_top
     pad_r = frame.padding_right
     pad_b = frame.padding_bottom
-    if frame.border == Border.NONE:
-        pad_l += 1
-        pad_t += 1
-        pad_r += 1
 
     icon_col = (ICON_SIZE + INSET) if frame.icon else 0
     text_max_w = w - pad_l - pad_r - icon_col
@@ -1859,6 +1840,12 @@ def _render_overlays(
 def layout_frame_diagram(diagram: FrameDiagram) -> LayoutResult:
     """Full layout pipeline: measure → place → render → return LayoutResult."""
     root = diagram.root
+
+    # Ensure styles are resolved (idempotent: safe to call even if
+    # load_frame_yaml already resolved them).
+    if root.resolved_fill is None:
+        _classify_levels(root)
+        resolve_styles(root)
 
     # Pass 1: measure (root uses sum-based sizing to avoid canvas inflation)
     measure(root, _is_root=True)

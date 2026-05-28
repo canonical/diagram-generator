@@ -125,7 +125,7 @@ def _text_block(x, y, lines, max_width=None) -> str:
         weight = str(spec["weight"])
         fill = str(spec["fill"])
         sc = bool(spec.get("small_caps", False))
-        sc_attr = ' font-variant-caps="all-small-caps" letter-spacing="0.05em"' if sc else ""
+        sc_attr = ' style="font-variant-caps: all-small-caps"' if sc else ""
         ff = spec.get("font_family")
         ff_attr = f' font-family="{ff}"' if ff else ""
         parts.append(

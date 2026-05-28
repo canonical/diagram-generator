@@ -131,6 +131,11 @@ class Frame:
     heading: Line | None = None
     icon: str | None = None
     icon_fill: str | None = None
+    level: int | None = None     # prominence level override (1=box, 2=panel, 3+=future)
+
+    # ── Resolved style (set by resolve_styles(), not by YAML) ──
+    resolved_fill: str | None = field(default=None, repr=False)    # hex colour
+    resolved_stroke: str | None = field(default=None, repr=False)  # hex colour or "none"/"transparent"
 
     # ── Content (leaf) ──
     label: list[Line] = field(default_factory=list)

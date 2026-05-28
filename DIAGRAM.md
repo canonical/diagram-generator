@@ -204,16 +204,20 @@ When in doubt, reduce color usage rather than expanding it.
 
 ### Allowed box styles
 
-The system has exactly four box treatments. Do not invent new combinations.
+The system has exactly four box treatments. Do not invent new combinations. Every box gets a universal 1px stroke; the stroke colour matches the fill to keep it invisible where borders aren't wanted.
 
-| Style | Border | Fill | Text | Use for |
-|-------|--------|------|------|---------|
-| Outlined box | solid 1px black | transparent | black | Default child boxes |
-| Grey box | none | `#F3F3F3` | black | Grouped containers, substrate panels |
-| Annotation | none | none (transparent) | black | Standalone text labels, notes beside boxes, arrow labels |
-| Highlight box | none | black | white | At most one per diagram for emphasis |
+| Style | Border | Fill | Stroke | Text | Use for |
+|-------|--------|------|--------|------|---------|
+| Outlined box | solid 1px black | transparent | `#000000` | black | Default child boxes |
+| Grey box | solid 1px `#F3F3F3` | `#F3F3F3` | `#F3F3F3` | black | Grouped containers, substrate panels |
+| Annotation | none | transparent | none | black | Standalone text labels, notes beside boxes, arrow labels |
+| Highlight box | solid 1px black | `#000000` | `#000000` | white | At most one per diagram for emphasis |
 
-The **annotation** style is the default for all text that sits outside a bordered box: row notes, explanatory labels, and arrow labels. Annotation frames have the same INSET padding as bordered boxes, plus 1px to compensate for the absent border, so text baselines in annotations align exactly with text baselines in adjacent bordered boxes. In YAML, set `border: none` on a frame to get annotation style.
+Style resolution is centralised in `resolve_styles()` (called by `load_frame_yaml()` and `layout_frame_diagram()`). The YAML author controls style through `level:` (1=box, 2=panel) and `variant:` (annotation, highlight) – never through `fill:` or `stroke:` directly.
+
+The **annotation** style is the default for all text that sits outside a bordered box: row notes, explanatory labels, and arrow labels. In YAML, set `variant: annotation` or `border: none` on a leaf frame to get annotation style.
+
+**Panels are not nestable.** A grey panel inside another grey panel produces grey-on-grey with no visible boundary – the indent is inexplicable without a border. `resolve_styles()` enforces this: if the parent is already a panel, a child that would resolve to level 2 is clamped to level 1 (outlined box). If you need a nested grouping inside a panel, use an outlined box with a heading.
 
 Do not combine dashed borders with grey fills. Dashed borders are a legacy pattern retained only for explicit debugging or intake annotations, never for grouped layouts.
 

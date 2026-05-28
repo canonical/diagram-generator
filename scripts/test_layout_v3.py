@@ -734,11 +734,11 @@ def test_frame_box_style_contract():
     assert boxes["ann"].fill == "transparent"
     assert boxes["ann"].stroke == "none"
     assert boxes["parent"].fill == Fill.GREY.value
-    assert boxes["parent"].stroke == "none"
+    assert boxes["parent"].stroke == Fill.GREY.value  # universal 1px stroke, fill-matched
     assert boxes["child"].fill == "transparent"
     assert boxes["child"].stroke == "#000000"
     assert boxes["hi"].fill == Fill.BLACK.value
-    assert boxes["hi"].stroke == "none"
+    assert boxes["hi"].stroke == Fill.BLACK.value  # universal 1px stroke, fill-matched
     assert boxes["hi"].label_lines[0]["fill"] == "#FFFFFF"
 
 

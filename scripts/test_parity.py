@@ -22,7 +22,7 @@ from frame_model import (
 from layout_v3 import layout_frame_diagram
 
 
-def _mock_measure(text: str, font_size: float, weight: int = 400) -> float:
+def _mock_measure(text: str, font_size: float, weight: int = 400, *, features: dict | None = None) -> float:
     """Match TS MockTextAdapter: text.length * fontSize * 0.6"""
     return len(text) * font_size * 0.6
 
