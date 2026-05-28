@@ -1,10 +1,10 @@
-# Implementation Plan: Box style contract – two-tier model
+# Implementation Plan: Box style contract – three-tier level system
 
 **Branch**: `feat/001-box-style-contract` | **Date**: 2026-05-28 | **Spec**: [spec.md](spec.md)
 
 ## Summary
 
-Formalise the two-tier box visual model (outlined leaf / grey container) by consolidating style resolution into a single path in `frame_loader.py`, removing duplicate styling decisions from the renderer, and ensuring all four allowed box styles map correctly from Frame properties to SVG output.
+Formalise the three-tier level system (L1 box / L2 panel / L3 section) by consolidating style resolution into `frame_loader.py`, removing duplicate styling decisions from the renderer, deriving gap and padding from semantic role, and migrating text measurement to HarfBuzz. All four allowed box styles map correctly from Frame properties to SVG output.
 
 ## Technical Context
 

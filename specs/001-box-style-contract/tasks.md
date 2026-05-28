@@ -1,4 +1,4 @@
-# Tasks: Box style contract – two-tier model
+# Tasks: Box style contract – three-tier level system
 
 **Branch**: `feat/001-box-style-contract` | **Plan**: [plan.md](plan.md) | **Spec**: [spec.md](spec.md)
 
@@ -39,11 +39,37 @@
 
 ## Phase 5: Documentation
 
-- [x] T015 Update DIAGRAM.md if any wording needs to change to match the resolved implementation (likely minimal – the four styles table is already correct).
-- [x] T016 Commit with message `engine: consolidate box style resolution into two-tier contract`.
+- [x] T015 Update DIAGRAM.md to document level system, semantic YAML principle, and allowed box styles.
+- [x] T016 Commit engine changes and YAML cleanup.
+
+## Phase 6: Three-tier level system (evolved from two-tier)
+
+- [x] T017 Implement `_classify_levels()` bottom-up walk: L0 (root/wrapper/separator/headingless), L1 (leaf), L2 (heading + no panel descendants), L3 (heading + panel descendants).
+- [x] T018 Update `resolve_styles()` to map levels to visual treatments: L2→grey fill, L3→outlined + small-caps bold heading.
+- [x] T019 Add `variant: highlight` and `variant: annotation` overlay system in `_apply_variant()`.
+- [x] T020 Update DIAGRAM.md with level table, semantic YAML principle, and non-rectangular shapes ban.
+
+## Phase 7: HarfBuzz text measurement
+
+- [x] T021 Replace fontTools glyph-advance-sum with uharfbuzz shaping in `diagram_shared.py`.
+- [x] T022 Support OpenType features (`smcp`, `c2sc`) via `features` kwarg on `measure_text_width()`.
+- [x] T023 Update SVG rendering to use `font-variant-caps: all-small-caps` on `<tspan>` (remove letter-spacing hack).
+- [x] T024 Update `test_parity.py` mock to accept `features` kwarg.
+
+## Phase 8: Semantic spacing defaults
+
+- [x] T025 Change `frame_loader.py` gap defaults: panels→`INSET`(8), wrappers→`GRID_GUTTER`(24).
+- [x] T026 Change grid defaults: `col_gap`/`row_gap`/`outer_margin` default to `GRID_GUTTER` when `grid:` section exists.
+- [x] T027 Strip redundant `fill: grey/white` from all 31 frame YAMLs, convert `fill: black` + `icon_fill` to `variant: highlight`.
+- [x] T028 Strip redundant `gap: 8`, `gap: 24`, `padding: 8`, and grid defaults from all YAMLs (140+ lines removed, zero visual changes).
+- [x] T029 Visual regression: all 31 diagrams build, 226 tests pass, browser-verified key diagrams.
+
+## Phase 9: Spec-kit artifact sync
+
+- [x] T030 Update spec.md, plan.md, tasks.md to reflect three-tier system, HarfBuzz, and semantic spacing.
 
 ## Notes
 
 - Tasks marked `[P]` can be parallelised with adjacent tasks.
-- T004–T006 are the core implementation. Everything else is test infrastructure or verification.
+- T004–T006 are the core implementation. T017–T028 evolved during implementation as the two-tier model proved insufficient.
 - If any existing YAML breaks because it relied on the renderer's ad-hoc style coercion, fix the YAML (configuration change), not the engine.

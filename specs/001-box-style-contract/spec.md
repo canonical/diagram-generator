@@ -1,12 +1,12 @@
-# Feature Specification: Box style contract – two-tier model
+# Feature Specification: Box style contract – three-tier level system
 
 **Feature Branch**: `feat/001-box-style-contract`
 
 **Created**: 2026-05-28
 
-**Status**: Draft
+**Status**: Complete
 
-**Input**: Stabilise the inconsistent box styling across all diagrams by formalising a two-tier visual model in DIAGRAM.md, frame_loader.py, and the v3 renderer.
+**Input**: Stabilise the inconsistent box styling across all diagrams by formalising a three-tier level system in DIAGRAM.md, frame_loader.py, and the v3 renderer. Evolved from the original two-tier model to add Level 3 (container with panel descendants, small-caps bold heading) and semantic spacing defaults.
 
 ## User Scenarios & Testing
 
@@ -133,18 +133,20 @@ Both containers and leaf boxes can have icons. Icons always sit in the top-right
 
 Levels are a prominence ladder – higher number means more visual weight. The engine computes a default level from nesting depth; `level:` in YAML overrides it.
 
-| Level | Name | Visual treatment | Default depth |
-|-------|------|-----------------|---------------|
-| 1 | Box | 1px black border, transparent fill, regular text | depth 2+ |
-| 2 | Panel | Grey fill, fill-matched stroke, bold heading | depth 1 |
-| 3+ | *(future)* | Heavier treatments (small caps bold, darker fill, accent bar, etc.) | — |
+| Level | Name | Visual treatment | Default assignment |
+|-------|------|-----------------|-------------------|
+| 0 | Wrapper | Transparent, no chrome | Root, borderless headingless containers, separators |
+| 1 | Box | 1px black border, transparent fill, regular text | Leaf nodes |
+| 2 | Panel | Grey fill, fill-matched stroke, bold heading | Container with heading, no panel descendants |
+| 3 | Section | 1px black border, transparent fill, small-caps bold heading | Container with heading and panel descendants |
 
-The depth→level default mapping:
+The level classification is bottom-up, based on structural role rather than depth:
 
 ```
-depth 0 → root (invisible, no level)
-depth 1 → level 2 (panel)
-depth 2+ → level 1 (box)
+leaf (no children)                        → Level 1 (box)
+container + heading + no panel descendants → Level 2 (panel, grey fill)
+container + heading + panel descendants    → Level 3 (section, outlined, small-caps bold)
+root / wrapper / headingless / separator   → Level 0 (transparent)
 ```
 
 Annotation and highlight are **variants**, not levels. They're orthogonal modes on a separate axis:
@@ -208,3 +210,23 @@ The engine would collect zone members post-layout, compute their bounding box, a
 Zones and network-boundary panels share the same visual treatment (dotted border, no fill, label). A contrived test case combining both should be created when Stage 15 begins.
 
 This is out of scope for feature 001 but the architecture must not preclude it.
+
+## Semantic spacing defaults (implemented)
+
+Gap and padding are now derived from semantic role, not declared per-node:
+
+| Node role | Default gap | Default padding |
+|-----------|------------|----------------|
+| Panel (bordered or headed container) | `INSET` (8) | `INSET` (8) |
+| Layout wrapper (borderless, headingless) | `GRID_GUTTER` (24) | 0 |
+| Leaf | 0 | `INSET` (8) |
+
+Grid fields (`col_gap`, `row_gap`, `outer_margin`) default to `GRID_GUTTER` (24) when a `grid:` section exists but the value is omitted. This means most grid blocks need only `cols: N`.
+
+Root `padding: 24` (page margin) remains explicit since root is a borderless container and would default to 0.
+
+Explicit overrides (`gap: 32`, `gap: 16`, `col_gap: 32`) are still supported for intentional deviations.
+
+## Text measurement (implemented)
+
+Text measurement uses uharfbuzz (HarfBuzz shaping) for accurate glyph-advance-sum. This replaced the previous fontTools approach which couldn't handle OpenType features like small caps. SVG small caps use `font-variant-caps: all-small-caps` on `<tspan>` elements.
