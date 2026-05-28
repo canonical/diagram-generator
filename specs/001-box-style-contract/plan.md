@@ -1,0 +1,90 @@
+# Implementation Plan: Box style contract – two-tier model
+
+**Branch**: `feat/001-box-style-contract` | **Date**: 2026-05-28 | **Spec**: [spec.md](spec.md)
+
+## Summary
+
+Formalise the two-tier box visual model (outlined leaf / grey container) by consolidating style resolution into a single path in `frame_loader.py`, removing duplicate styling decisions from the renderer, and ensuring all four allowed box styles map correctly from Frame properties to SVG output.
+
+## Technical Context
+
+**Language/Version**: Python 3.11
+
+**Primary Dependencies**: None beyond stdlib + existing engine modules
+
+**Testing**: pytest (`test_frame_loader.py`, `test_layout_v3.py`, `test_parity.py`)
+
+**Target Platform**: SVG output + HTML preview server
+
+**Constraints**: All 20+ existing diagrams must render without regression. request-to-hardware-stack is the visual reference.
+
+## Constitution Check
+
+| Article | Status | Notes |
+|---------|--------|-------|
+| I. Anti-patch protocol | ✅ Pass | This is a contract change, properly classified |
+| II. Layer ownership | ✅ Pass | Style resolution moves entirely into frame_loader.py (the owning layer for defaults) |
+| III. DIAGRAM.md is the visual contract | ✅ Pass | Implementation aligns with the four allowed box styles already defined in DIAGRAM.md |
+| IV. Test before ship | ✅ Planned | Full diagram render regression test after each change |
+| V. Sensible defaults | ✅ Core goal | This feature exists to make defaults correct |
+
+## Project Structure
+
+### Documentation (this feature)
+
+```text
+specs/001-box-style-contract/
+├── spec.md              # Feature specification
+├── plan.md              # This file
+└── tasks.md             # Executable task list
+```
+
+### Source Code (affected files)
+
+```text
+scripts/
+├── frame_loader.py      # Style resolution consolidation (PRIMARY)
+├── frame_model.py       # Frame dataclass – may need resolved_fill/resolved_border fields
+├── layout_v3.py         # _render_frame() – remove style decisions, read resolved fields
+├── diagram_shared.py    # Tokens (INSET, colours) – verify, no changes expected
+├── test_frame_loader.py # New tests for style resolution
+└── test_layout_v3.py    # New tests for rendering correct styles
+```
+
+## Architecture
+
+### Current state (problems)
+
+1. **Style resolution is split across two layers.** `frame_loader.py` sets some defaults (leaf→SOLID border, container→NONE border). But `_render_frame()` in `layout_v3.py` re-derives fill colours at render time based on `is_container`, `border`, and `fill` – duplicating and sometimes contradicting the loader's intent.
+
+2. **Grey fill is inconsistent.** Some containers get grey from the renderer's `is_container + border==NONE → GREY` logic. But containers with explicit `border: solid` (like headed panels in request-to-hardware-stack) don't trigger this path, so their fill depends on what the YAML author wrote. Leaf boxes inside grey containers sometimes have `fill: grey` manually to look right.
+
+3. **Heading text position is not enforced.** The heading is synthesised as a `__heading` child frame, but its text position depends on the child's layout – which can end up centred or offset depending on alignment defaults.
+
+### Target state
+
+1. **Single style resolver in frame_loader.py.** After loading, every Frame has fully resolved `fill`, `border`, and text-weight fields. The renderer reads these directly – zero style logic in `_render_frame()`.
+
+2. **Four styles map to clear conditions:**
+
+| Style | Condition | Resolved fill | Resolved border | Text weight |
+|-------|-----------|---------------|-----------------|-------------|
+| Outlined box | Leaf, no variant, border≠none | transparent | SOLID | 400 (regular) |
+| Grey box | Container, or leaf with explicit `fill: grey` | `#F3F3F3` | NONE | 700 for heading, 400 for label |
+| Annotation | Leaf with `border: none`, no fill override | transparent | NONE | 400 |
+| Highlight | Any frame with `variant: highlight` | `#000000` | NONE | preserved, text forced white |
+
+3. **Heading is always top-left.** The `__heading` synthetic child uses top-left alignment, padding from INSET token.
+
+### Complexity Tracking
+
+No constitution violations. This is a straightforward consolidation of existing scattered logic into one path.
+
+## Key Validation Scenarios
+
+1. **Minimal container + leaf YAML** – no explicit styling → correct defaults
+2. **request-to-hardware-stack** – visual parity with current output (the reference)
+3. **lt-diagram-generator** – highlight variant still works
+4. **support-engineering-flow** – cards with text hierarchy render correctly
+5. **android-security-comparison** – text is top-left, not centred
+6. **Full regression** – all diagrams in `scripts/diagrams/frames/` render without error
