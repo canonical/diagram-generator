@@ -173,11 +173,21 @@ JS/CSS/HTML extracted from Python f-string template into static files. Preview s
 
 Formalise the two-tier visual model (panel at depth 1, box at depth 2+). Visual treatment is computed from nesting depth, not declared as a type. Universal 1px stroke rule eliminates the `+1px` padding compensation hack. Style resolution consolidated into a single pass in `frame_loader.py`. See `specs/001-box-style-contract/`.
 
-### Stage 15 — Cross-cutting zones
+### Stage 15 — Cross-cutting zones and network boundaries
 
-A `zone` concept for grouping frames across the nesting hierarchy – e.g. team boundaries, responsibility areas, swim-lane overlays. Zones are declared semantically (`type: zone`), not with raw visual properties. The engine resolves zone members post-layout and renders a dashed border overlay. Zones are orthogonal to the depth-based tier system and do not affect tree nesting.
+Two structural mechanisms, one visual treatment (dotted border, no fill, label):
+
+- **Network boundary**: a tree container with `border: dotted` that cleanly wraps its children (e.g. "DMZ" around three servers). Works today once `Border.DOTTED` exists.
+- **Zone**: a post-layout overlay for groupings that span across panels (e.g. "Dev team" spanning nodes in two different subtrees). Requires a new `zones:` block with member IDs and bounding-box computation.
+
+Both render identically because the user's intent is the same – "these things belong together." The only difference is whether the grouping fits the nesting tree.
+
+A contrived test case combining both mechanisms should be created when this stage begins, to validate visual consistency.
 
 **Remaining:**
+- `Border.DOTTED` rename lands in Stage 10a (feature 001)
+- Zone overlay post-layout rendering
+- Contrived test YAML with both boundaries and zones
 - Resume after Stage 10a Phase 1 lands
 - Constraint enforcement should work uniformly for any component type
 

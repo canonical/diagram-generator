@@ -108,7 +108,7 @@ Both containers and leaf boxes can have icons. Icons always sit in the top-right
 
 - **Frame**: The recursive tree node. Has `fill`, `border`, `icon`, `label`, `heading`, `children`, `variant`, `padding_*`.
 - **Fill**: Enum – `white`, `grey`, `black`.
-- **Border**: Enum – `solid`, `none`, `dashed`, `fill`.
+- **Border**: Enum – `solid`, `none`, `dotted`, `fill`.
 - **Variant**: String overlay – `highlight`, `annotation`. Applied after defaults, before rendering.
 
 ## Success Criteria
@@ -138,26 +138,58 @@ Visual tiers are computed from nesting depth, not declared as types. There are n
 | 1 | Panel | Grey fill, bold heading, fill-matched stroke |
 | 2+ | Box | Outlined, regular text |
 
-"Panel" and "box" are documentation vocabulary only – they do not appear in the YAML schema. The engine computes depth and resolves the style.
+"Panel" and "box" are documentation vocabulary only – they do not appear in the YAML schema. The engine computes depth and resolves the default style.
 
-When explicit override is needed (e.g. a depth-2 frame that should look like a panel), the existing `fill: grey` and `heading:` fields serve as semantic signals. No `role:` or `type:` field is needed for the primary hierarchy.
+### Depth overrides
+
+Depth sets the default visual tier, but semantic fields override it. No new `depth:` field is needed – the existing fields already serve as override signals:
+
+- A depth-2 frame with `fill: grey` → renders as a panel (grey fill, fill-matched stroke) instead of an outlined box
+- A depth-1 frame with `fill: white` + `border: solid` → renders as an outlined box instead of a grey panel
+- A depth-1 frame with no children but `heading:` → still gets panel treatment (it is not downgraded)
+
+The rule: depth resolves first, then explicit semantic fields win. No `role:` or `type:` field is needed for the primary hierarchy.
 
 ## Semantic YAML principle
 
 Frame YAML is a semantic document, not a stylesheet. Authors declare structure and intent, never raw visual values. The allowed semantic fields are:
 
 - `fill: white | grey | black` – semantic fill names, not hex colours
-- `border: solid | none | dashed | fill` – semantic border modes
+- `border: solid | none | dotted | fill` – semantic border modes
 - `variant: highlight | annotation` – semantic overlays
 - `heading:`, `label:`, `icon:` – content
 
 The style resolver maps these to the visual treatments defined in DIAGRAM.md (hex colours, stroke widths, etc.). Any YAML must be re-renderable under a different visual theme without editing the YAML.
 
-## Future work: zones (cross-cutting grouping)
+## Non-rectangular shapes (banned)
 
-Some diagrams require a second dimension of grouping orthogonal to the nesting tree – e.g. a "Dev team" boundary that spans across multiple panels. This cannot be modelled as tree nesting.
+All boxes are rectangles. No ellipses, diamonds, cylinders, cloud shapes, or stick figures. Semantic differentiation comes from icons, not shape.
 
-The planned approach is a `zone` concept:
+Rationale:
+
+- Rectangles allow uniform top-left text placement. Non-rectangular shapes force awkward centering or clipping.
+- One shape means one layout algorithm, one padding model, one stroke model.
+- Icons are explicit and readable. A rectangle with a database icon is clearer than a cylinder.
+- The reviewed corpus (229 diagrams) contains zero cases where a non-rectangular shape was required for legibility.
+
+If a diagram needs to communicate "this is a database" or "this is a cloud service", use the `icon:` field on a standard rectangular box.
+
+## Future work: zones and boundaries
+
+Some diagrams require a grouping that is orthogonal to the nesting tree – e.g. a "Dev team" boundary that spans nodes in two different panels, or a "DMZ" network boundary. These are visually identical (dotted border, no fill, label) but structurally different.
+
+### Network boundaries vs zones
+
+| | Network boundary | Zone |
+|---|---|---|
+| Structure | Tree container – cleanly wraps its children | Post-layout overlay – members span across panels |
+| YAML | A normal frame with `border: dotted` | `zones:` block with member IDs |
+| Example | "DMZ" wrapping three servers | "Dev team" spanning nodes in two different panels |
+| Visual | Dotted border, no fill, label | Dotted border, no fill, label |
+
+One visual treatment, two structural mechanisms. A network boundary fits the tree (it has children). A zone does not (its members live in different subtrees). Both render the same way because the user's intent is the same: "these things belong together."
+
+### Zone concept
 
 ```yaml
 zones:
@@ -166,6 +198,6 @@ zones:
     members: [define_pipeline, measure_perf]
 ```
 
-The engine would collect zone members post-layout, compute their bounding box, and render a dashed border overlay. Visual treatment comes from the semantic type name (`zone`), not from raw style properties in the YAML.
+The engine would collect zone members post-layout, compute their bounding box, and render a dotted border overlay. Visual treatment comes from the semantic type name (`zone`), not from raw style properties in the YAML.
 
-This is out of scope for feature 001 but the architecture must not preclude it.
+This is out of scope for feature 001 but the architecture must not preclude it. A contrived test case combining both network boundaries (tree containers with `border: dotted`) and zones (cross-cutting overlays) should be created when Stage 15 begins, to validate that the visual treatment is consistent across both mechanisms.

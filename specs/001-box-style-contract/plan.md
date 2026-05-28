@@ -76,6 +76,8 @@ Every visible box has a 1px stroke. The stroke colour matches the fill for boxes
 | Outlined box | Leaf, no variant, border≠none | transparent | `#000000` | 400 (regular) |
 | Grey box | Container, or leaf with explicit `fill: grey` | `#F3F3F3` | `#F3F3F3` | 700 for heading, 400 for label |
 | Annotation | Leaf with `border: none`, no fill override | transparent | `transparent` | 400 |
+
+Note: `border: dotted` (renamed from legacy `dashed`) is reserved for network boundaries (tree containers) and future zone overlays. It is not one of the four primary box styles – it is a structural grouping mechanism.
 | Highlight | Any frame with `variant: highlight` | `#000000` | `#000000` | preserved, text forced white |
 
 Separators and all box types share the same outer footprint because every rect includes the 1px stroke geometry.
