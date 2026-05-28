@@ -169,6 +169,14 @@ JS/CSS/HTML extracted from Python f-string template into static files. Preview s
 
 `ConstraintRegistry` with 6 built-in brand constraints running client-side. The editor enforces brand rules at the model level. Paused until Stage 10a stabilises the component model – constraint enforcement should be type-agnostic, not hardwired to specific node types.
 
+### Stage 14 — Box style contract and depth-based tiers
+
+Formalise the two-tier visual model (panel at depth 1, box at depth 2+). Visual treatment is computed from nesting depth, not declared as a type. Universal 1px stroke rule eliminates the `+1px` padding compensation hack. Style resolution consolidated into a single pass in `frame_loader.py`. See `specs/001-box-style-contract/`.
+
+### Stage 15 — Cross-cutting zones
+
+A `zone` concept for grouping frames across the nesting hierarchy – e.g. team boundaries, responsibility areas, swim-lane overlays. Zones are declared semantically (`type: zone`), not with raw visual properties. The engine resolves zone members post-layout and renders a dashed border overlay. Zones are orthogonal to the depth-based tier system and do not affect tree nesting.
+
 **Remaining:**
 - Resume after Stage 10a Phase 1 lands
 - Constraint enforcement should work uniformly for any component type

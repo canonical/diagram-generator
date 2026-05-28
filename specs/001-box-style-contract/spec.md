@@ -127,3 +127,45 @@ Both containers and leaf boxes can have icons. Icons always sit in the top-right
 - The highlight variant is limited to at most one per diagram by convention, but the engine does not enforce this limit.
 - Arrow styling and routing are out of scope for this feature (covered by feature 003).
 - Existing diagram YAMLs may need configuration updates (covered by feature 004) after this contract is implemented.
+
+## Naming convention
+
+Visual tiers are computed from nesting depth, not declared as types. There are no "parent", "child", or "level-N" keywords in the schema.
+
+| Depth | Conversational name | Visual treatment |
+|-------|--------------------|-----------------|
+| 0 | Root frame | Invisible layout container |
+| 1 | Panel | Grey fill, bold heading, fill-matched stroke |
+| 2+ | Box | Outlined, regular text |
+
+"Panel" and "box" are documentation vocabulary only – they do not appear in the YAML schema. The engine computes depth and resolves the style.
+
+When explicit override is needed (e.g. a depth-2 frame that should look like a panel), the existing `fill: grey` and `heading:` fields serve as semantic signals. No `role:` or `type:` field is needed for the primary hierarchy.
+
+## Semantic YAML principle
+
+Frame YAML is a semantic document, not a stylesheet. Authors declare structure and intent, never raw visual values. The allowed semantic fields are:
+
+- `fill: white | grey | black` – semantic fill names, not hex colours
+- `border: solid | none | dashed | fill` – semantic border modes
+- `variant: highlight | annotation` – semantic overlays
+- `heading:`, `label:`, `icon:` – content
+
+The style resolver maps these to the visual treatments defined in DIAGRAM.md (hex colours, stroke widths, etc.). Any YAML must be re-renderable under a different visual theme without editing the YAML.
+
+## Future work: zones (cross-cutting grouping)
+
+Some diagrams require a second dimension of grouping orthogonal to the nesting tree – e.g. a "Dev team" boundary that spans across multiple panels. This cannot be modelled as tree nesting.
+
+The planned approach is a `zone` concept:
+
+```yaml
+zones:
+  dev-team:
+    type: zone
+    members: [define_pipeline, measure_perf]
+```
+
+The engine would collect zone members post-layout, compute their bounding box, and render a dashed border overlay. Visual treatment comes from the semantic type name (`zone`), not from raw style properties in the YAML.
+
+This is out of scope for feature 001 but the architecture must not preclude it.

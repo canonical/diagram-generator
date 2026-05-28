@@ -23,6 +23,9 @@ Keep public function signatures of packages/layout-engine/ stable. Breaking chan
 ### VII. No format lock-in
 Do not introduce persisted format identifiers that embed the package or repo name. Use short stable acronyms (e.g. `dg`) decoupled from naming so future renames are cheap.
 
+### VIII. Semantic YAML, no visual properties
+Frame YAML is a semantic document, not a stylesheet. Authors declare structure and intent (`fill: grey`, `variant: highlight`, `type: zone`), never raw visual values (no hex colours, no dash patterns, no stroke widths). The style resolver maps semantic names to visual treatments defined in DIAGRAM.md. Any YAML must be re-renderable years later under a different visual theme without editing the YAML.
+
 ## Technology Stack
 
 - **Language**: Python 3.11+ (engine, loader, renderer, tests)
@@ -43,4 +46,4 @@ Do not introduce persisted format identifiers that embed the package or repo nam
 
 The constitution supersedes implementation convenience. DIAGRAM.md supersedes the constitution for visual rules. Source sketches and reference assets supersede DIAGRAM.md. Amendments require documentation in HISTORY.md.
 
-**Version**: 1.0.0 | **Ratified**: 2026-05-28
+**Version**: 1.1.0 | **Ratified**: 2026-05-28 | **Last Amended**: 2026-05-28
