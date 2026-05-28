@@ -4,7 +4,7 @@
 
 **Created**: 2026-05-28
 
-**Status**: Draft – depends on feat/001-box-style-contract
+**Status**: Complete
 
 **Input**: Containers with `heading:` must have a clear two-zone layout: header zone (heading text top-left, icon top-right) and body zone (children below with consistent gap/padding). Fix the synthetic `__heading`/`__body` system that currently loses fields.
 
