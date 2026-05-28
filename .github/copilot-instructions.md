@@ -296,3 +296,8 @@ When work in this repo creates a dependency or follow-up in another repo:
 - `DIAGRAM.md` — the canonical diagram-language contract. ALL visual rules live here.
 - `.github/skills/` — repeatable procedures that reference `DIAGRAM.md` for rules.
 - Do not duplicate visual rules across these files. If you find the same rule in two places, delete one.
+
+<!-- SPECKIT START -->
+For additional context about technologies to be used, project structure,
+shell commands, and other important information, read the current plan
+<!-- SPECKIT END -->
