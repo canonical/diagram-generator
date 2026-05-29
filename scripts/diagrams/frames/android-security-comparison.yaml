@@ -27,6 +27,8 @@ root:
               sizing_h: hug
 
             - id: lxd_container
+
+              level: 2
               direction: vertical
               padding: 8
               heading: LXD container
@@ -52,6 +54,8 @@ root:
               sizing_h: hug
 
             - id: vm
+
+              level: 2
               direction: vertical
               padding: 8
               heading: VM

@@ -13,6 +13,7 @@ root:
   padding: 24
   children:
     - id: planning
+      level: 2
       heading: "Planning"
       children:
         - id: define
@@ -21,12 +22,16 @@ root:
           label: [Measure current, performance]
 
     - id: implementation
+
+      level: 2
       heading: "Implementation"
       children:
         - id: implement
           label: [Implement Ingress, pipeline]
 
     - id: delivery
+
+      level: 2
       heading: "Delivery"
       justify: space-between
       children:

@@ -60,6 +60,7 @@ root:
       variant: annotation
       children:
         - id: compute
+          level: 2
           direction: vertical
           padding: 8
           heading: "Always-on compute"
@@ -80,6 +81,8 @@ root:
               icon: AI.svg
 
         - id: revenue
+
+          level: 2
           direction: vertical
           padding: 8
           heading: "Revenue impact"

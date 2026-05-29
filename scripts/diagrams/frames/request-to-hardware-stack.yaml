@@ -25,6 +25,7 @@ root:
 
     # Orchestration layer
     - id: orch
+      level: 2
       direction: horizontal
       padding: 8
       heading: "Orchestration layer"
@@ -47,6 +48,7 @@ root:
 
     # Model runtime
     - id: runtime
+      level: 2
       direction: vertical
       padding: 8
       heading: "Model runtime"
@@ -73,6 +75,7 @@ root:
 
     # Compute kernel
     - id: kernel
+      level: 2
       direction: vertical
       padding: 8
       heading: "Compute kernel"
@@ -96,6 +99,7 @@ root:
 
     # Driver
     - id: driver
+      level: 2
       direction: horizontal
       padding: 8
       heading: "Driver"
@@ -108,6 +112,7 @@ root:
 
     # Hardware
     - id: hardware
+      level: 2
       direction: vertical
       padding: 8
       heading: "Hardware"

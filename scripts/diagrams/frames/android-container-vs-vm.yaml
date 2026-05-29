@@ -12,6 +12,7 @@ root:
       direction: horizontal
       children:
         - id: col_container_top
+          level: 2
           direction: vertical
           heading: Containerized Android
           children:
@@ -25,6 +26,8 @@ root:
                   label: [Android Runtime]
 
         - id: col_vm_top
+
+          level: 2
           direction: vertical
           heading: Virtualized Android
           children:
@@ -55,6 +58,7 @@ root:
       direction: horizontal
       children:
         - id: host_container
+          level: 2
           direction: vertical
           heading: "Host OS & Hardware (Kernel, GPU, drivers)"
           children:
@@ -64,6 +68,8 @@ root:
               label: [Host hardware]
 
         - id: host_vm
+
+          level: 2
           direction: vertical
           heading: "Host OS & Hardware (Kernel, GPU, drivers)"
           children:

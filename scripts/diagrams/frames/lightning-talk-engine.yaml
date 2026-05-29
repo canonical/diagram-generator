@@ -71,6 +71,7 @@ root:
               label: [Grid, spec]
               icon: Documents.svg
         - id: engine
+          level: 2
           direction: horizontal
           gap: 8
           padding: 8

@@ -26,6 +26,7 @@ root:
           label: []
           sizing_h: hug
         - id: input_panel
+          level: 2
           direction: horizontal
           padding: 8
           fill_weight: 2
@@ -44,6 +45,7 @@ root:
       variant: annotation
       children:
         - id: guidelines
+          level: 2
           direction: vertical
           padding: 8
           heading: "1. Guidelines"
@@ -58,6 +60,7 @@ root:
               label: [Layout]
               icon: Document.svg
         - id: engine
+          level: 2
           direction: vertical
           padding: 8
           fill_weight: 2
@@ -82,6 +85,7 @@ root:
           label: []
           sizing_h: hug
         - id: export_panel
+          level: 2
           direction: horizontal
           padding: 8
           fill_weight: 2

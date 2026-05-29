@@ -23,6 +23,7 @@ root:
   children:
     # Dashed input frame with three source boxes
     - id: inputs
+      level: 2
       direction: horizontal
       padding: 8
       heading: "Inputs and canonical context"

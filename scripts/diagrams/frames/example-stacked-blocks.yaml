@@ -34,6 +34,7 @@ root:
 
     # Row 1: dashed wrapper panel spanning all 3 columns
     - id: services
+      level: 2
       direction: horizontal
       heading: "Managed services"
       children:

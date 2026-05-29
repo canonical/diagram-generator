@@ -19,6 +19,7 @@ root:
   children:
     # Dashed input frame with two source boxes
     - id: sources
+      level: 2
       direction: horizontal
       padding: 8
       heading: "Rough initial diagram sources"

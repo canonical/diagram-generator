@@ -21,6 +21,7 @@ root:
   children:
     # Row 0: User-facing services panel
     - id: frontend
+      level: 2
       direction: horizontal
       padding: 8
       heading: "User-facing services"
@@ -39,6 +40,7 @@ root:
 
     # Row 2: Backend services panel
     - id: services
+      level: 2
       direction: horizontal
       padding: 8
       heading: "Backend services"

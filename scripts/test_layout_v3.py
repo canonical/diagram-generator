@@ -719,6 +719,7 @@ def test_frame_box_style_contract():
         gap=8,
         padding=8,
         border=Border.NONE,
+        level=2,
         heading=Line("Parent", weight="700"),
         children=[child, highlight],
     )

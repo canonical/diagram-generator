@@ -424,14 +424,35 @@ root:
 # ── Style resolution (level system) ────────────────────────────────
 
 
-def test_depth1_container_with_heading_resolves_to_level2_panel(tmp_path):
-    """Depth-1 container with heading gets panel style: grey fill, grey stroke."""
+def test_depth1_container_with_heading_defaults_to_outlined(tmp_path):
+    """Depth-1 container with heading defaults to outlined box (not panel).
+
+    Grey panel treatment requires explicit ``level: 2`` in the YAML."""
     diagram = _load(tmp_path, """
 engine: v3
 root:
   id: root
   children:
     - id: panel
+      heading: "Panel"
+      children:
+        - id: leaf
+          label: [Child]
+""")
+    panel = diagram.root.children[0]
+    assert panel.resolved_fill == "transparent"
+    assert panel.resolved_stroke == "#000000"
+
+
+def test_explicit_level2_gives_grey_panel(tmp_path):
+    """Explicit ``level: 2`` makes a container a grey panel."""
+    diagram = _load(tmp_path, """
+engine: v3
+root:
+  id: root
+  children:
+    - id: panel
+      level: 2
       heading: "Panel"
       children:
         - id: leaf
@@ -523,6 +544,7 @@ root:
   id: root
   children:
     - id: outer
+      level: 2
       heading: "Outer"
       children:
         - id: inner

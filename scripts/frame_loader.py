@@ -343,13 +343,14 @@ def _validate_meta(meta: dict, source: str) -> None:
 def _compute_level(frame: Frame, depth: int) -> int:
     """Return the effective prominence level for a frame.
 
-    If ``frame.level`` is explicitly set, use it.
-    Otherwise derive from nesting depth, container status, and heading:
+    If ``frame.level`` is explicitly set (``level: 2`` in YAML), use it.
+    Otherwise apply safe defaults:
       depth 0                              → 0 (root, invisible)
       container without heading            → 0 (layout wrapper, invisible)
-      depth 1 + container + heading        → 2 (panel)
-      depth 1 + leaf                       → 1 (box)
-      depth 2+                             → 1 (box)
+      everything else                      → 1 (outlined box)
+
+    Grey panel treatment (level 2) is never guessed from depth or
+    structure — it must be opted into via ``level: 2`` in the YAML.
     """
     if frame.level is not None:
         return frame.level
@@ -359,8 +360,6 @@ def _compute_level(frame: Frame, depth: int) -> int:
     has_heading = any(c.role == "heading" for c in frame.children) or frame.heading is not None
     if frame.is_container and not has_heading:
         return 0
-    if depth == 1 and frame.is_container:
-        return 2
     return 1
 
 

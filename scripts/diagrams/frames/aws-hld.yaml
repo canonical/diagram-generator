@@ -44,6 +44,7 @@ root:
       variant: annotation
       children:
         - id: modernisation
+          level: 2
           direction: vertical
           padding: 8
           heading: "Modernisation"
@@ -53,6 +54,8 @@ root:
               label: [LZ]
 
         - id: core
+
+          level: 2
           direction: horizontal
           padding: 8
           fill_weight: 2
@@ -83,6 +86,8 @@ root:
                   icon: Gateway.svg
 
         - id: security
+
+          level: 2
           direction: vertical
           padding: 8
           heading: "Security"
@@ -94,6 +99,8 @@ root:
               label: [TGW]
 
         - id: shared_svc
+
+          level: 2
           direction: vertical
           padding: 8
           heading: "Shared-services"
@@ -132,6 +139,7 @@ root:
 
     # Row 3: VPC accounts (dashed wrapper)
     - id: vpc_accounts
+      level: 2
       direction: horizontal
       padding: 8
       heading: "VPC_Accounts"
@@ -182,6 +190,7 @@ root:
       variant: annotation
       children:
         - id: ou_maatdb
+          level: 2
           direction: vertical
           padding: 8
           heading: "OU: MaatDB"
@@ -192,6 +201,7 @@ root:
             - id: ou_m_dev
               label: [development]
         - id: ou_nomis
+          level: 2
           direction: vertical
           padding: 8
           heading: "OU: Nomis"
@@ -204,6 +214,7 @@ root:
             - id: ou_n_test
               label: [test]
         - id: ou_oasys
+          level: 2
           direction: vertical
           padding: 8
           heading: "OU: Oasys"
@@ -214,6 +225,7 @@ root:
             - id: ou_o_test
               label: [test]
         - id: ou_ccr
+          level: 2
           direction: vertical
           padding: 8
           heading: "OU: CCR"
