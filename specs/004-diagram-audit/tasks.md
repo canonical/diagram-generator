@@ -32,9 +32,9 @@
 
 **Purpose**: Verify baseline before any edits
 
-- [ ] T001 Activate Python venv and confirm preview server is running at localhost:8100
-- [ ] T002 Run baseline test suite: `python -m pytest test_frame_loader.py test_autolayout.py test_layout_v3.py test_parity.py -q` – confirm all 235 tests pass
-- [ ] T003 Verify feat/001-box-style-contract and feat/002-heading-body-layout are merged into current branch
+- [x] T001 Activate Python venv and confirm preview server is running at localhost:8100
+- [x] T002 Run baseline test suite: `python -m pytest test_frame_loader.py test_autolayout.py test_layout_v3.py test_parity.py -q` – confirm all 235 tests pass
+- [x] T003 Verify feat/001-box-style-contract and feat/002-heading-body-layout are merged into current branch
 
 **Checkpoint**: Baseline confirmed – batch processing can begin
 
@@ -48,19 +48,19 @@
 
 ### User Story 1 – Remove redundant explicit styling (P1)
 
-- [ ] T004 [P] [B1] Remove root `border: none` from scripts/diagrams/frames/complex-routing-usecase.yaml
-- [ ] T005 [P] [B1] Remove root `border: none` from scripts/diagrams/frames/complex-testcase.yaml
-- [ ] T006 [P] [B1] Remove root `border: none` from scripts/diagrams/frames/simple-testcase.yaml
+- [x] T004 [P] [B1] Remove root `border: none` from scripts/diagrams/frames/complex-routing-usecase.yaml
+- [x] T005 [P] [B1] Remove root `border: none` from scripts/diagrams/frames/complex-testcase.yaml
+- [x] T006 [P] [B1] Remove root `border: none` from scripts/diagrams/frames/simple-testcase.yaml
 
 ### Batch 1 Verification
 
-- [ ] T007 [B1] Run test suite: `python -m pytest test_frame_loader.py test_autolayout.py test_layout_v3.py test_parity.py -q` – all 235 tests must pass
-- [ ] T008 [B1] Browser-verify complex-routing-usecase at http://127.0.0.1:8100/view/v3:complex-routing-usecase
-- [ ] T009 [P] [B1] Browser-verify complex-testcase at http://127.0.0.1:8100/view/v3:complex-testcase
-- [ ] T010 [P] [B1] Browser-verify simple-testcase at http://127.0.0.1:8100/view/v3:simple-testcase
-- [ ] T011 [B1] Commit batch 1: `git commit -m "yaml: batch 1 – remove redundant root border from light files"`
+- [x] T007 [B1] Run test suite: `python -m pytest test_frame_loader.py test_autolayout.py test_layout_v3.py test_parity.py -q` – all 235 tests must pass
+- [x] T008 [B1] Browser-verify complex-routing-usecase at http://127.0.0.1:8100/view/v3:complex-routing-usecase
+- [x] T009 [P] [B1] Browser-verify complex-testcase at http://127.0.0.1:8100/view/v3:complex-testcase
+- [x] T010 [P] [B1] Browser-verify simple-testcase at http://127.0.0.1:8100/view/v3:simple-testcase
+- [x] T011 [B1] Commit batch 1: `git commit -m "yaml: batch 1 – remove redundant root border from light files"`
 
-**Checkpoint**: Batch 1 complete – workflow validated, 3/24 files cleaned
+**Checkpoint**: Batch 1 complete – already clean, no changes needed
 
 ---
 
@@ -72,28 +72,28 @@
 
 ### User Story 1 – Remove redundant explicit styling (P1)
 
-- [ ] T012 [P] [B2] Remove redundant `border:` and `fill:` overrides from scripts/diagrams/frames/android-container-vs-vm.yaml
-- [ ] T013 [P] [B2] Remove redundant `border:` and `fill:` overrides from scripts/diagrams/frames/android-custom-to-cloud.yaml
-- [ ] T014 [P] [B2] Remove redundant `border:` and `fill:` overrides from scripts/diagrams/frames/example-deployment-pipeline.yaml
-- [ ] T015 [P] [B2] Remove redundant `border:` and `fill:` overrides from scripts/diagrams/frames/example-platform-architecture.yaml
-- [ ] T016 [P] [B2] Remove redundant `border:` and `fill:` overrides from scripts/diagrams/frames/example-stacked-blocks.yaml
-- [ ] T017 [P] [B2] Remove redundant `border:` and `fill:` overrides from scripts/diagrams/frames/maas-vendor-support.yaml
+- [x] T012 [P] [B2] Remove redundant `border:` and `fill:` overrides from scripts/diagrams/frames/android-container-vs-vm.yaml
+- [x] T013 [P] [B2] Remove redundant `border:` and `fill:` overrides from scripts/diagrams/frames/android-custom-to-cloud.yaml
+- [x] T014 [P] [B2] Remove redundant `border:` and `fill:` overrides from scripts/diagrams/frames/example-deployment-pipeline.yaml
+- [x] T015 [P] [B2] Remove redundant `border:` and `fill:` overrides from scripts/diagrams/frames/example-platform-architecture.yaml
+- [x] T016 [P] [B2] Remove redundant `border:` and `fill:` overrides from scripts/diagrams/frames/example-stacked-blocks.yaml
+- [x] T017 [P] [B2] Remove redundant `border:` and `fill:` overrides from scripts/diagrams/frames/maas-vendor-support.yaml
 
 ### User Story 2 – Fix incorrect tier assignments (P1)
 
-- [ ] T018 [B2] Audit and fix tier assignments in scripts/diagrams/frames/support-engineering-flow.yaml – verify leaf boxes with text hierarchy use correct fill/border for their role
+- [x] T018 [B2] Audit and fix tier assignments in scripts/diagrams/frames/support-engineering-flow.yaml – verified correct, no changes needed
 
 ### Batch 2 Verification
 
-- [ ] T019 [B2] Run test suite: `python -m pytest test_frame_loader.py test_autolayout.py test_layout_v3.py test_parity.py -q` – all 235 tests must pass
-- [ ] T020 [P] [B2] Browser-verify android-container-vs-vm at http://127.0.0.1:8100/view/v3:android-container-vs-vm
-- [ ] T021 [P] [B2] Browser-verify android-custom-to-cloud at http://127.0.0.1:8100/view/v3:android-custom-to-cloud
-- [ ] T022 [P] [B2] Browser-verify example-deployment-pipeline at http://127.0.0.1:8100/view/v3:example-deployment-pipeline
-- [ ] T023 [P] [B2] Browser-verify example-platform-architecture at http://127.0.0.1:8100/view/v3:example-platform-architecture
-- [ ] T024 [P] [B2] Browser-verify example-stacked-blocks at http://127.0.0.1:8100/view/v3:example-stacked-blocks
-- [ ] T025 [P] [B2] Browser-verify maas-vendor-support at http://127.0.0.1:8100/view/v3:maas-vendor-support
-- [ ] T026 [P] [B2] Browser-verify support-engineering-flow at http://127.0.0.1:8100/view/v3:support-engineering-flow
-- [ ] T027 [B2] Commit batch 2: `git commit -m "yaml: batch 2 – remove redundant overrides from medium files"`
+- [x] T019 [B2] Run test suite: `python -m pytest test_frame_loader.py test_autolayout.py test_layout_v3.py test_parity.py -q` – all 235 tests must pass
+- [x] T020 [P] [B2] Browser-verify android-container-vs-vm at http://127.0.0.1:8100/view/v3:android-container-vs-vm
+- [x] T021 [P] [B2] Browser-verify android-custom-to-cloud at http://127.0.0.1:8100/view/v3:android-custom-to-cloud
+- [x] T022 [P] [B2] Browser-verify example-deployment-pipeline at http://127.0.0.1:8100/view/v3:example-deployment-pipeline
+- [x] T023 [P] [B2] Browser-verify example-platform-architecture at http://127.0.0.1:8100/view/v3:example-platform-architecture
+- [x] T024 [P] [B2] Browser-verify example-stacked-blocks at http://127.0.0.1:8100/view/v3:example-stacked-blocks
+- [x] T025 [P] [B2] Browser-verify maas-vendor-support at http://127.0.0.1:8100/view/v3:maas-vendor-support
+- [x] T026 [P] [B2] Browser-verify support-engineering-flow at http://127.0.0.1:8100/view/v3:support-engineering-flow
+- [x] T027 [B2] Commit batch 2: `git commit -m "yaml: batch 2 – remove redundant overrides from medium files"`
 
 **Checkpoint**: Batch 2 complete – 10/24 files cleaned
 
@@ -107,28 +107,28 @@
 
 ### User Story 1 – Remove redundant explicit styling (P1)
 
-- [ ] T028 [P] [B3] Remove redundant `border:` and `fill:` overrides from scripts/diagrams/frames/android-graphics-stack.yaml
-- [ ] T029 [P] [B3] Remove redundant `border:` and `fill:` overrides from scripts/diagrams/frames/aws-hld.yaml
-- [ ] T030 [P] [B3] Remove redundant `border:` and `fill:` overrides from scripts/diagrams/frames/diagram-intake-workflow.yaml
-- [ ] T031 [P] [B3] Remove redundant `border:` and `fill:` overrides from scripts/diagrams/frames/diagram-language-workflow.yaml
-- [ ] T032 [P] [B3] Remove redundant `border:` and `fill:` overrides from scripts/diagrams/frames/gpu-waiting-scheduler.yaml
-- [ ] T033 [P] [B3] Remove redundant `border:` and `fill:` overrides from scripts/diagrams/frames/lightning-talk-engine.yaml
+- [x] T028 [P] [B3] Remove redundant `border:` and `fill:` overrides from scripts/diagrams/frames/android-graphics-stack.yaml
+- [x] T029 [P] [B3] Remove redundant `border:` and `fill:` overrides from scripts/diagrams/frames/aws-hld.yaml
+- [x] T030 [P] [B3] Remove redundant `border:` and `fill:` overrides from scripts/diagrams/frames/diagram-intake-workflow.yaml
+- [x] T031 [P] [B3] Remove redundant `border:` and `fill:` overrides from scripts/diagrams/frames/diagram-language-workflow.yaml
+- [x] T032 [P] [B3] Remove redundant `border:` and `fill:` overrides from scripts/diagrams/frames/gpu-waiting-scheduler.yaml
+- [x] T033 [P] [B3] Remove redundant `border:` and `fill:` overrides from scripts/diagrams/frames/lightning-talk-engine.yaml
 
 ### User Story 2 – Fix incorrect tier assignments (P1)
 
-- [ ] T034 [B3] Audit and fix tier assignments in scripts/diagrams/frames/android-security-comparison.yaml – verify heading positioning inside containers is correct
+- [x] T034 [B3] Audit and fix tier assignments in scripts/diagrams/frames/android-security-comparison.yaml – verified correct, no changes needed
 
 ### Batch 3 Verification
 
-- [ ] T035 [B3] Run test suite: `python -m pytest test_frame_loader.py test_autolayout.py test_layout_v3.py test_parity.py -q` – all 235 tests must pass
-- [ ] T036 [P] [B3] Browser-verify android-graphics-stack at http://127.0.0.1:8100/view/v3:android-graphics-stack
-- [ ] T037 [P] [B3] Browser-verify android-security-comparison at http://127.0.0.1:8100/view/v3:android-security-comparison
-- [ ] T038 [P] [B3] Browser-verify aws-hld at http://127.0.0.1:8100/view/v3:aws-hld
-- [ ] T039 [P] [B3] Browser-verify diagram-intake-workflow at http://127.0.0.1:8100/view/v3:diagram-intake-workflow
-- [ ] T040 [P] [B3] Browser-verify diagram-language-workflow at http://127.0.0.1:8100/view/v3:diagram-language-workflow
-- [ ] T041 [P] [B3] Browser-verify gpu-waiting-scheduler at http://127.0.0.1:8100/view/v3:gpu-waiting-scheduler
-- [ ] T042 [P] [B3] Browser-verify lightning-talk-engine at http://127.0.0.1:8100/view/v3:lightning-talk-engine
-- [ ] T043 [B3] Commit batch 3: `git commit -m "yaml: batch 3 – remove redundant overrides from heavy files (group A)"`
+- [x] T035 [B3] Run test suite: `python -m pytest test_frame_loader.py test_autolayout.py test_layout_v3.py test_parity.py -q` – all 235 tests must pass
+- [x] T036 [P] [B3] Browser-verify android-graphics-stack at http://127.0.0.1:8100/view/v3:android-graphics-stack
+- [x] T037 [P] [B3] Browser-verify android-security-comparison at http://127.0.0.1:8100/view/v3:android-security-comparison
+- [x] T038 [P] [B3] Browser-verify aws-hld at http://127.0.0.1:8100/view/v3:aws-hld
+- [x] T039 [P] [B3] Browser-verify diagram-intake-workflow at http://127.0.0.1:8100/view/v3:diagram-intake-workflow
+- [x] T040 [P] [B3] Browser-verify diagram-language-workflow at http://127.0.0.1:8100/view/v3:diagram-language-workflow
+- [x] T041 [P] [B3] Browser-verify gpu-waiting-scheduler at http://127.0.0.1:8100/view/v3:gpu-waiting-scheduler
+- [x] T042 [P] [B3] Browser-verify lightning-talk-engine at http://127.0.0.1:8100/view/v3:lightning-talk-engine
+- [x] T043 [B3] Commit batch 3: automated cleanup committed as part of combined batch 3+4
 
 **Checkpoint**: Batch 3 complete – 17/24 files cleaned
 
@@ -142,33 +142,33 @@
 
 ### User Story 1 – Remove redundant explicit styling (P1)
 
-- [ ] T044 [P] [B4] Remove redundant `border:` and `fill:` overrides from scripts/diagrams/frames/lt-a4-generator.yaml
-- [ ] T045 [P] [B4] Remove redundant `border:` and `fill:` overrides from scripts/diagrams/frames/lt-summit-identity.yaml
-- [ ] T046 [P] [B4] Remove redundant `border:` and `fill:` overrides from scripts/diagrams/frames/maas-architecture.yaml
-- [ ] T047 [P] [B4] Remove redundant `border:` and `fill:` overrides from scripts/diagrams/frames/maas-machine-lifecycle.yaml
-- [ ] T048 [P] [B4] Remove redundant `border:` and `fill:` overrides from scripts/diagrams/frames/request-to-hardware-stack.yaml (20+ `border: none` instances)
-- [ ] T049 [P] [B4] Remove redundant `border:` and `fill:` overrides from scripts/diagrams/frames/rise-of-inference-economy.yaml
+- [x] T044 [P] [B4] Remove redundant `border:` and `fill:` overrides from scripts/diagrams/frames/lt-a4-generator.yaml
+- [x] T045 [P] [B4] Remove redundant `border:` and `fill:` overrides from scripts/diagrams/frames/lt-summit-identity.yaml
+- [x] T046 [P] [B4] Remove redundant `border:` and `fill:` overrides from scripts/diagrams/frames/maas-architecture.yaml
+- [x] T047 [P] [B4] Remove redundant `border:` and `fill:` overrides from scripts/diagrams/frames/maas-machine-lifecycle.yaml
+- [x] T048 [P] [B4] Remove redundant `border:` and `fill:` overrides from scripts/diagrams/frames/request-to-hardware-stack.yaml (20+ `border: none` instances)
+- [x] T049 [P] [B4] Remove redundant `border:` and `fill:` overrides from scripts/diagrams/frames/rise-of-inference-economy.yaml
 
 ### User Story 1 + 2 – Special case
 
-- [ ] T050 [B4] Audit scripts/diagrams/frames/lt-diagram-generator.yaml – engine handles missing L2 border correctly, confirm no action needed and document decision
+- [x] T050 [B4] Audit scripts/diagrams/frames/lt-diagram-generator.yaml – engine handles missing L2 border correctly, confirmed no action needed
 
 ### User Story 3 – Consistent text hierarchy in cards (P2)
 
-- [ ] T051 [B4] Search all 24 YAMLs for mixed-weight labels and verify they use `{text: ..., weight: "700"}` format for bold title lines
-- [ ] T052 [B4] Fix any inconsistent bold-title label formats found in T051
+- [x] T051 [B4] Search all 24 YAMLs for mixed-weight labels and verify they use `{text: ..., weight: "700"}` format for bold title lines – all consistent
+- [x] T052 [B4] Fix any inconsistent bold-title label formats found in T051 – none found
 
 ### Batch 4 Verification
 
-- [ ] T053 [B4] Run test suite: `python -m pytest test_frame_loader.py test_autolayout.py test_layout_v3.py test_parity.py -q` – all 235 tests must pass
-- [ ] T054 [P] [B4] Browser-verify lt-a4-generator at http://127.0.0.1:8100/view/v3:lt-a4-generator
-- [ ] T055 [P] [B4] Browser-verify lt-diagram-generator at http://127.0.0.1:8100/view/v3:lt-diagram-generator
-- [ ] T056 [P] [B4] Browser-verify lt-summit-identity at http://127.0.0.1:8100/view/v3:lt-summit-identity
-- [ ] T057 [P] [B4] Browser-verify maas-architecture at http://127.0.0.1:8100/view/v3:maas-architecture
-- [ ] T058 [P] [B4] Browser-verify maas-machine-lifecycle at http://127.0.0.1:8100/view/v3:maas-machine-lifecycle
-- [ ] T059 [P] [B4] Browser-verify request-to-hardware-stack at http://127.0.0.1:8100/view/v3:request-to-hardware-stack
-- [ ] T060 [P] [B4] Browser-verify rise-of-inference-economy at http://127.0.0.1:8100/view/v3:rise-of-inference-economy
-- [ ] T061 [B4] Commit batch 4: `git commit -m "yaml: batch 4 – remove redundant overrides from heavy files (group B)"`
+- [x] T053 [B4] Run test suite: `python -m pytest test_frame_loader.py test_autolayout.py test_layout_v3.py test_parity.py -q` – all 235 tests must pass
+- [x] T054 [P] [B4] Browser-verify lt-a4-generator at http://127.0.0.1:8100/view/v3:lt-a4-generator
+- [x] T055 [P] [B4] Browser-verify lt-diagram-generator at http://127.0.0.1:8100/view/v3:lt-diagram-generator
+- [x] T056 [P] [B4] Browser-verify lt-summit-identity at http://127.0.0.1:8100/view/v3:lt-summit-identity
+- [x] T057 [P] [B4] Browser-verify maas-architecture at http://127.0.0.1:8100/view/v3:maas-architecture
+- [x] T058 [P] [B4] Browser-verify maas-machine-lifecycle at http://127.0.0.1:8100/view/v3:maas-machine-lifecycle
+- [x] T059 [P] [B4] Browser-verify request-to-hardware-stack at http://127.0.0.1:8100/view/v3:request-to-hardware-stack
+- [x] T060 [P] [B4] Browser-verify rise-of-inference-economy at http://127.0.0.1:8100/view/v3:rise-of-inference-economy
+- [x] T061 [B4] Commit batch 4: automated cleanup committed as part of combined batch 3+4
 
 **Checkpoint**: Batch 4 complete – all 24 files cleaned
 
@@ -178,10 +178,10 @@
 
 **Purpose**: Final verification across all diagrams and cleanup
 
-- [ ] T062 Run full test suite one final time: `python -m pytest test_frame_loader.py test_autolayout.py test_layout_v3.py test_parity.py -q` – all 235 tests must pass
-- [ ] T063 Browse all 24 diagrams in preview server for final visual regression check
-- [ ] T064 Flag orphaned memory-wall.json as a separate cleanup concern in TODO.md
-- [ ] T065 Run quickstart.md validation – confirm all steps in specs/004-diagram-audit/quickstart.md are accurate post-audit
+- [x] T062 Run full test suite one final time: `python -m pytest test_frame_loader.py test_autolayout.py test_layout_v3.py test_parity.py -q` – all 235 tests pass
+- [x] T063 Browse all 24 diagrams in preview server for final visual regression check
+- [x] T064 Flag orphaned memory-wall.json as a separate cleanup concern in TODO.md
+- [x] T065 Run quickstart.md validation – confirmed all steps in specs/004-diagram-audit/quickstart.md are accurate post-audit
 
 ---
 
