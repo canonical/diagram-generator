@@ -19,7 +19,7 @@ root:
   id: page
   direction: vertical
   padding: 24
-  border: none
+  variant: annotation
   children:
     # Dashed input frame with three source boxes
     - id: inputs

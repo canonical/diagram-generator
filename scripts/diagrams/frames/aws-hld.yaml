@@ -29,7 +29,7 @@ root:
   id: page
   direction: vertical
   padding: 24
-  border: none
+  variant: annotation
   children:
     # Row 0: title
     - id: title
@@ -41,7 +41,7 @@ root:
     # Row 1: service account panels
     - id: row1
       direction: horizontal
-      border: none
+      variant: annotation
       children:
         - id: modernisation
           direction: vertical
@@ -113,14 +113,13 @@ root:
     # Row 2: Transit Gateway hub area
     - id: row2
       direction: horizontal
-      border: none
+      variant: annotation
       children:
         - id: vpn_note
           label:
             - {text: "VPN attachments are", fill: "#666666"}
             - {text: "associated with", fill: "#666666"}
             - {text: "external route table", fill: "#666666"}
-          border: none
           sizing_w: hug
         - id: ca
           label: [Certificate, Authority]
@@ -131,7 +130,7 @@ root:
         - id: vpc_attach_note
           label:
             - {text: "vpc attachment", fill: "#666666"}
-          border: none
+          variant: annotation
           sizing_w: hug
         - id: customer_gw
           label: [Customer, Gateway]
@@ -167,7 +166,6 @@ root:
         - id: vpc_test
           direction: vertical
           padding: 8
-          border: solid
           heading: "core-vpc-test"
           children:
             - id: vpc_test_bu
@@ -192,7 +190,7 @@ root:
     # Row 4: organisational units
     - id: ous_wrapper
       direction: horizontal
-      border: none
+      variant: annotation
       children:
         - id: ou_maatdb
           direction: vertical
@@ -247,5 +245,5 @@ root:
         - {text: "Key: Transit Gateway · AWS account · Route Table ·", fill: "#666666"}
         - {text: "OU · VPN · Private Link · Route 53 ·", fill: "#666666"}
         - {text: "Systems Manager · Subnet · NAT · Certificate Authority", fill: "#666666"}
-      border: none
+      variant: annotation
       sizing_h: hug
