@@ -20,22 +20,4 @@ The gap is introduced by the **client-side layout bridge** (`scripts/preview/lay
 
 Add `_simplifyPath()` to the bridge (mirrors Python's `_simplify_path()`) and call it in `routeArrows()` before returning. This collapses collinear points so the segment count matches the SVG `<line>` count, and `isLastSegment` correctly identifies the final segment for `basePoint` replacement.
 
-## Tasks
-
-- [x] Add `_simplifyPath()` function to `layout-bridge.js`
-- [x] Apply simplification in `routeArrows()` after building the full path
-- [x] Verify zero gap on vertical arrows (request-to-hardware-stack: 5 arrows)
-- [x] Verify zero gap on horizontal arrows (example-deployment-pipeline: 5 arrows)
-- [x] Verify zero gap on multi-segment arrows (complex-routing-usecase: 3-seg + 5-seg)
-- [x] Verify zero gap on lifecycle arrows (maas-machine-lifecycle: 5 arrows)
-- [x] Run full v3 test suite (235 tests + 51 subtests)
-- [x] Commit fix on `feat/003-arrow-gap-fix`
-
-## Verification summary
-
-| Diagram | Arrows | Segments | Gap before | Gap after |
-|---------|--------|----------|------------|-----------|
-| request-to-hardware-stack | 5 | 1 each | 1.2px | 0.0px |
-| maas-machine-lifecycle | 5 | 1 each | 1.2px | 0.0px |
-| example-deployment-pipeline | 5 | 1 each | 1.2px | 0.0px |
-| complex-routing-usecase | 2 | 3 + 5 | 1.2px | 0.0px |
+Detailed tasks and verification in [tasks.md](tasks.md).
