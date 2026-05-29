@@ -9,7 +9,7 @@ acceptance.
 
 | Class | Level | Heading | Fill | Border | Text | Contains |
 |-------|-------|---------|------|--------|------|----------|
-| **Section** | 3 | small-caps, bold | transparent | black 1px | black | panels, leaves |
+| **Section** | 3 | ALL-CAPS, bold, ~85% size | transparent | black 1px | black | panels, leaves |
 | **Panel** | 2 | bold | `#F3F3F3` | `#F3F3F3` 1px | black | leaves |
 | **Leaf** | 1 | regular weight | transparent | black 1px | black | nothing |
 | **Annotation** | — | — | transparent | none | `#666666` | nothing |
@@ -66,3 +66,20 @@ A diagram is valid if and only if:
 5. No frame uses styling that doesn't match its class (e.g. bold
    heading on a leaf, grey fill without level 2, missing border on a
    panel).
+
+## Rendering notes
+
+**Small-caps simulation.** Section headings use simulated small-caps:
+the text is uppercased and the font-size is reduced to 85% of the
+standard heading size (e.g. 15px instead of 18px). This is baked into
+the SVG markup rather than using CSS `font-variant-caps`, which is
+silently ignored when SVG is embedded via `innerHTML` in the preview
+server. The `small_caps` flag on `Line` controls this – the SVG
+renderer uppercases the content string and scales the font-size.
+
+**Non-container sections.** A level-3 frame with no children (e.g. a
+leaf-like box with a bold label) gets section styling: black border,
+transparent fill, and small-caps on the first label line. The heading
+transform (Phase 2 in `frame_loader.py`) only fires for containers, so
+non-container sections apply small-caps directly to `frame.label[0]`
+rather than to a synthetic `__heading` child.

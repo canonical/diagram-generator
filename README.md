@@ -4,17 +4,14 @@ An LLM-based diagramming workflow that turns rough sketches and brand/layout rul
 
 ## Start Here
 
-If you are new to the repo and using an agent, make the pipeline choice explicit before doing anything else:
-
-- **Pipeline 3 (active)**: v3 frame layout engine on branch `frame-layout-engine`. Figma-like nested autolayout with per-axis sizing, 9-point alignment, native Frame YAML definitions, and a unified interactive editor shell shared between grid and force modes. 165 tests passing, 5 native frame diagrams + 3 real v2→v3 adapted diagrams browser-verified.
-- **Pipeline 2**: declarative grid. Still maintained for the existing v2 output batch and backward compatibility, but no longer the main development surface.
-- **Pipeline 1**: the original imperative batch. Kept for parity checks and legacy exports only.
+The repo uses a single render engine: **v3 autolayout** – a Figma-like nested frame engine with per-axis sizing, 9-point alignment, and native Frame YAML definitions.
 
 Fastest way to see the project working:
 
-- **v3 frame engine:** `python scripts/preview_server.py` → open `http://127.0.0.1:8100/view/v3:support-engineering-flow`
-- **Force preview:** same server → `http://127.0.0.1:8100/force/view/force-juju-landing-pages`
-- **v2 comparison:** open [`diagrams/3.compare/html/diagram-intake-workflow.html`](diagrams/3.compare/html/diagram-intake-workflow.html)
+```bash
+python scripts/preview_server.py
+# open http://127.0.0.1:8100/view/v3:support-engineering-flow
+```
 
 ### Cold-start path for layout work
 
@@ -25,22 +22,15 @@ If you are changing the autolayout engine, read these in order before editing co
 3. [`STATUS.md`](STATUS.md) — cold-start orientation, architecture, key files.
 4. [`.github/copilot-instructions.md`](.github/copilot-instructions.md) — workflow discipline and anti-patch protocol.
 
-The v3 frame engine lives on branch `frame-layout-engine`. Key files: `scripts/frame_model.py` (Frame dataclass), `scripts/frame_loader.py` (YAML parser), `scripts/layout_v3.py` (measure→place engine), `scripts/diagrams/frames/*.yaml` (native frame definitions).
-
-The grid and force editors share a unified shell: `scripts/preview/viewer-unified.html` (single HTML template, `data-dg-mode="grid"|"force"`), `scripts/preview/editor-base.js` (shared utilities), with mode-specific code in `scripts/preview/editor.js` and `scripts/preview/force.js`.
+Key files: `scripts/frame_model.py` (Frame dataclass), `scripts/frame_loader.py` (YAML parser + style resolver), `scripts/layout_v3.py` (measure→place engine), `scripts/diagram_render_svg.py` (SVG output), `scripts/diagrams/frames/*.yaml` (native frame definitions).
 
 ### Recommended exemplar path
 
-If you are cold-starting the repo and want the fastest route through the tracked corpus, inspect these in order:
+Start the preview server and open:
 
-1. **v3 Frame YAML diagrams** — start the preview server (`python scripts/preview_server.py`) and open:
-   - `http://127.0.0.1:8100/view/v3:support-engineering-flow` — the primary v3 demo with nested autolayout
-   - `http://127.0.0.1:8100/view/v3:android-container-vs-vm` — container/VM comparison with vertical nesting
-   - `http://127.0.0.1:8100/force/view/force-juju-landing-pages` — force-directed layout demo
-2. [`diagrams/2.output/svg/memory-wall-onbrand.svg`](diagrams/2.output/svg/memory-wall-onbrand.svg) — the current canonical v2 style exemplar.
-3. [`diagrams/3.compare/html/diagram-intake-workflow.html`](diagrams/3.compare/html/diagram-intake-workflow.html) — the workflow explainer and 3-way compare demo.
-4. [`diagrams/3.compare/html/logic-data-vram.html`](diagrams/3.compare/html/logic-data-vram.html) — dense grouped panels, bars, and nested framing.
-5. [`diagrams/3.compare/html/attention-qkv.html`](diagrams/3.compare/html/attention-qkv.html) — matrix widget coverage and complex connector routing.
+1. `http://127.0.0.1:8100/view/v3:support-engineering-flow` — the primary demo with nested autolayout
+2. `http://127.0.0.1:8100/view/v3:android-custom-to-cloud` — three-tier hierarchy (section/panel/leaf)
+3. `http://127.0.0.1:8100/view/v3:android-container-vs-vm` — container/VM comparison with vertical nesting
 
 ### Agent prompt: demo the project
 

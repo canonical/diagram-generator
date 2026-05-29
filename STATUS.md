@@ -14,79 +14,13 @@
 
 ## Current state
 
-Several paths below refer to locally generated or team-internal assets that are gitignored. Run the build to create them.
+The repo uses a single render engine: **v3 autolayout**. All v2/v1 pipeline code has been deleted.
 
-There are now **three diagram generation pipelines**. Pipeline 3 (v3 frame engine) is the active development surface. On a cold start, ask the user which pipeline to work on if unclear.
+**Active focus (2026-05-29):** Level/style system simplified – `_classify_levels()` replaced with depth-based `_compute_level()` inside `resolve_styles()`. Small-caps rendering baked into SVG markup (uppercase + 85% size). Preview server cleaned to v3-only paths.
 
-**Active focus (2026-05-29):** Level/style system simplified – `_classify_levels()` replaced with depth-based `_compute_level()` inside `resolve_styles()`. Default gap, padding, and body-wrapper behaviour changed. 231 tests pass but the diagram corpus likely has autolayout regressions (wrong gaps, padding, missing body-wrapper field inheritance). Corpus-wide visual audit is next.
+### Frame classes
 
-### Pipeline 1: imperative (original v1 batch)
-
-- Builder: `scripts/generate_remaining_diagrams.py`
-- Entry point: `python scripts/build_outputs.py`
-- Outputs: `*-onbrand.svg`, `*-onbrand.drawio`
-- Maintained for the existing v1 output batch in the canonical corpus; useful for parity checks and legacy exports, but no longer the main development surface.
-
-### Pipeline 2: declarative grid (current active surface)
-
-- Definitions: `scripts/diagrams/*.py`
-- Model: `scripts/diagram_model.py` — component types (`Box`, `Panel`, `Arrow`, `Annotation`, `JaggedPanel`, `IconCluster`, etc.) with `Border` enum and `GridSpec`.
-- Layout engine: `scripts/diagram_layout.py`
-- Entry point: `python scripts/build_v2.py`
-- Outputs: `*-onbrand-v2.svg`, `*-onbrand-v2.drawio`
-- **Component library refactored:** the current declarative corpus uses the new canonical types. Deprecated types (`Helper`, `IconComponent`, `RequestCluster`, `MemoryWall`) are still importable but no longer used in active definitions.
-- **Active surface:** this is where the declarative model, build-time validators, interactive editor, and Baseline Foundry preview integration now evolve.
-- **Force preview prototype (feature branch, 2026-05-13):** the tracked force lane now includes `force-stakeholders`, `force-juju-landing-pages`, and `force-support-case-lifecycle`. These pages run the Python force solver live in batched ticks, reset to tick 0 on load, export snapped JSON/SVG snapshots, and reuse the vendored BF preview shell (`navigation + main + aside`) plus the main editor's semantic box-style vocabulary through a shared preview module. Stage content must stay inside the normal `DIAGRAM.md` style contract rather than recreating source-photo styling.
-
-### Adding a new diagram (checklist)
-
-When creating a new diagram definition, three registration steps are required:
-
-1. **Build registry:** Add a `(slug, module, variable)` tuple to `_REGISTRY` in `scripts/build_v2.py`.
-2. **Reference image map:** Add a `slug: "subfolder/filename.png"` entry to `_REFERENCE_MAP` in `scripts/preview_server.py` so the preview "Both" tab shows the before/after comparison. The path is relative to `diagrams/1.input/`.
-3. **Compare pages:** Add a `{"slug", "title", "before", "after"}` entry to `PAIRS` in `scripts/build_compare_pages.py`.
-
-Without step 2, the preview editor shows "No reference sketch for this diagram" in the Input/Both tabs.
-
-### Validation tools
-
-- `python scripts/_compare_3way.py` — Playwright 3-way comparison: input sketch → v1 → v2
-- `python scripts/_audit_v2.py` — SVG element count audit (orange elements, texts, rects, icons)
-- `python scripts/_compare_all.py` — v1 vs v2 side-by-side comparisons
-- `python scripts/svg_illustrator_sanitize.py` — Illustrator-safety sanitizer for deliverable SVGs
-
-### v2 defect summary (April–May 2026)
-
-| Diagram | Status |
-|---|---|
-| attention-qkv | OK – matrix tiles + fan-out arrows rendering |
-| gpu-waiting-scheduler | OK |
-| inference-snaps | OK – content-width alignment verified |
-| logic-data-vram | OK |
-| memory-wall | OK |
-| request-to-hardware-stack | OK – content-width alignment verified |
-| rise-of-inference-economy | OK |
-| lt-diagram-generator | OK – lightning talk pipeline diagram |
-| lt-a4-generator | OK – lightning talk pipeline diagram |
-| lt-summit-identity | OK – lightning talk pipeline diagram |
-| android-custom-to-cloud | OK |
-| android-security-comparison | OK |
-| android-container-vs-vm | OK |
-
-### Output validation checkpoint (May 2026)
-
-- Generated draw.io XML is structurally clean across the current batch: all audited files parse, keep `adaptiveColors="none"`, and every generated edge now carries both `source` and `target` ids.
-- v2 draw.io exports now preserve semantic edge attachments for matrix widgets, terminal bars, jagged memory-wall panels, and other connectable component cells.
-- The legacy `memory-wall-onbrand.drawio` separator is now emitted as a line shape instead of an unattached decorative edge.
-- Build entrypoints now treat `diagrams/2.output/svg/` as the only canonical SVG lane and prune stale legacy duplicates left directly under `diagrams/2.output/`.
-- `svg_illustrator_sanitize.py` dry-run checks passed across 31 generated SVG outputs.
-- `_audit_v2.py` now reports the audited canonical diagrams as OK, including `attention-qkv` after the heading text was realigned to the v1 baseline.
-- **Arrow crossing validation** added to the build: `validate_arrow_crossings()` checks every arrow segment against all component boxes (excluding source, target, and shared ancestor panels). Build fails on any crossing.
-- **Arrow obstacle avoidance** rewritten for full-width panels: vertical arrows now route around panels that span the entire diagram width.
-- `build_v2.py` currently exits nonzero on 6 existing arrow-clearance violations across `example-platform-architecture`, `lightning-talk-engine`, `lt-diagram-generator`, `lt-a4-generator`, and `lt-summit-identity`; baseline-grid warnings also remain across several older diagrams and are warning-only.
-- Native draw.io desktop import/export and Illustrator desktop smoke tests were not run in this environment.
-
-### Layout engine (May 2026)
+Four visual treatments (section, panel, leaf, annotation) plus two specials (highlight, separator). See [`docs/frame-classes.md`](docs/frame-classes.md) for the full spec.
 
 - **Content-width alignment:** Two-pass VERTICAL layout separates content width from outer width. Panels with borders wrap content with INSET padding; standalone boxes align to the panel's inner content corridor. All 4 vertical diagrams (request-to-hardware-stack, inference-snaps, diagram-intake-workflow, diagram-language-workflow) have flush right edges.
 - **col_span/row_span:** Boxes inside panels can span multiple grid columns without explicit width overrides.
@@ -126,7 +60,7 @@ The project has evolved from a batch diagram generator into a **constrained inte
 **Remaining interactive editor work** (post-refactor):
 - Undo/redo is domain-specific: 12 targeted override-patch actions (completed 2026-05-22). Only grid-adjust and clear-all-overrides still use full snapshots.
 
-### Pipeline 3: v3 frame layout engine (branch `frame-layout-engine`, active)
+### v3 frame layout engine
 
 **Vision:** Figma-like nested frame system with direction, gap, padding, per-axis sizing (HUG/FILL/FIXED), and 9-point alignment. Two-pass engine: measure (bottom-up) → place (top-down).
 

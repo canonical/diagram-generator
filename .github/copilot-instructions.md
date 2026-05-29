@@ -230,11 +230,7 @@ When a new frame YAML is added to `scripts/diagrams/frames/`:
 
 ### v2 declarative pipeline (Pipeline 2)
 
-```bash
-python scripts/build_v2.py
-python scripts/_compare_3way.py
-python scripts/_audit_v2.py
-```
+Deleted. The repo uses a single render engine: v3 autolayout.
 
 ### Deliverable SVGs
 
