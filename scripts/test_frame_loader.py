@@ -12,7 +12,7 @@ import sys
 sys.path.insert(0, os.path.dirname(__file__))
 
 from frame_loader import load_frame_yaml
-from frame_model import Direction, Justify, Sizing
+from frame_model import Sizing
 from diagram_model import Border, Fill
 from diagram_model import Border
 
@@ -424,8 +424,8 @@ root:
 # ── Style resolution (level system) ────────────────────────────────
 
 
-def test_panel_with_heading_and_leaves_resolves_level2(tmp_path):
-    """Container with heading + leaf children gets panel style: grey fill."""
+def test_depth1_container_resolves_to_level2_panel(tmp_path):
+    """Depth-1 container gets panel style: grey fill, grey stroke."""
     diagram = _load(tmp_path, """
 engine: v3
 root:
@@ -442,8 +442,8 @@ root:
     assert panel.resolved_stroke == "#F3F3F3"
 
 
-def test_standalone_leaf_resolves_level1_box(tmp_path):
-    """Standalone leaf gets box style: transparent fill, black stroke."""
+def test_depth1_leaf_resolves_to_level1_box(tmp_path):
+    """Depth-1 leaf gets box style: transparent fill, black stroke."""
     diagram = _load(tmp_path, """
 engine: v3
 root:
@@ -457,26 +457,21 @@ root:
     assert leaf.resolved_stroke == "#000000"
 
 
-def test_leaf_inside_panel_resolves_level1_box(tmp_path):
-    """Leaf inside a panel gets box style (outlined)."""
+def test_depth2_leaf_resolves_to_level1_box(tmp_path):
+    """Depth-2 leaf inside a panel gets box style."""
     diagram = _load(tmp_path, """
 engine: v3
 root:
   id: root
   children:
     - id: panel
-      heading: "Panel"
       children:
         - id: leaf
           label: [Hello]
 """)
-    # panel has __heading and __body children; leaf is inside __body
-    body = panel = diagram.root.children[0]
-    for c in panel.children:
-        if "__body" in (c.id or ""):
-            body = c
-            break
-    leaf = body.children[0]
+    # panel has __body wrapper, leaf is inside that
+    body = diagram.root.children[0].children[0]  # no heading → no wrapper
+    leaf = body
     assert leaf.resolved_fill == "transparent"
     assert leaf.resolved_stroke == "#000000"
 
@@ -513,55 +508,28 @@ root:
     assert ann.resolved_stroke == "none"
 
 
-def test_panel_parent_resolves_level3_with_small_caps(tmp_path):
-    """Container with heading + panel descendant gets outlined + small-caps heading."""
+def test_explicit_level_override(tmp_path):
+    """Explicit level: 2 on a depth-3 frame is clamped to level 1 (box)
+    because panels are not nestable — grey-on-grey has no visible boundary."""
     diagram = _load(tmp_path, """
 engine: v3
 root:
   id: root
   children:
-    - id: section
-      heading: "Section"
+    - id: outer
       children:
-        - id: inner_panel
-          heading: "Panel"
+        - id: inner
+          level: 2
+          heading: "Promoted"
           children:
             - id: deep
               label: [Hello]
 """)
-    section = diagram.root.children[0]
-    # Level 3: outlined (transparent fill, black stroke)
-    assert section.resolved_fill == "transparent"
-    assert section.resolved_stroke == "#000000"
-    # Heading gets small caps
-    heading = section.children[0]
-    assert heading.role == "heading"
-    assert heading.label[0].small_caps is True
-
-    # Inner panel is still level 2 (grey)
-    body = section.children[1]  # __body
-    inner = body.children[0]
-    assert inner.resolved_fill == "#F3F3F3"
-
-
-def test_headingless_container_resolves_level0_transparent(tmp_path):
-    """Container without heading is a layout wrapper — transparent."""
-    diagram = _load(tmp_path, """
-engine: v3
-root:
-  id: root
-  children:
-    - id: wrapper
-      direction: horizontal
-      children:
-        - id: a
-          label: [A]
-        - id: b
-          label: [B]
-""")
-    wrapper = diagram.root.children[0]
-    assert wrapper.resolved_fill == "transparent"
-    assert wrapper.resolved_stroke == "none"
+    # outer has no heading → children directly accessible
+    inner = diagram.root.children[0].children[0]
+    # inner requested level 2 but outer is already a panel → clamped to box
+    assert inner.resolved_fill == "transparent"
+    assert inner.resolved_stroke == "#000000"
 
 
 def test_root_frame_resolves_transparent(tmp_path):
@@ -600,83 +568,6 @@ root:
     assert heading.resolved_stroke == "none"
     assert body.resolved_fill == "transparent"
     assert body.resolved_stroke == "none"
-
-
-# ── __body field inheritance ────────────────────────────────────────
-
-
-def test_body_inherits_wrap_from_parent(tmp_path):
-    """__body must copy wrap from its parent container."""
-    diagram = _load(tmp_path, """
-engine: v3
-root:
-  id: root
-  children:
-    - id: panel
-      heading: "Panel"
-      direction: horizontal
-      wrap: true
-      children:
-        - id: a
-          label: [A]
-        - id: b
-          label: [B]
-""")
-    panel = diagram.root.children[0]
-    body = panel.children[1]
-    assert "body" in body.id
-    assert body.wrap is True
-
-
-def test_body_inherits_fill_weight_from_parent(tmp_path):
-    """__body must copy fill_weight from its parent container."""
-    diagram = _load(tmp_path, """
-engine: v3
-root:
-  id: root
-  direction: horizontal
-  children:
-    - id: wide
-      heading: "Wide"
-      fill_weight: 3
-      sizing_w: fill
-      children:
-        - id: a
-          label: [A]
-    - id: narrow
-      heading: "Narrow"
-      fill_weight: 1
-      sizing_w: fill
-      children:
-        - id: b
-          label: [B]
-""")
-    wide = diagram.root.children[0]
-    body = wide.children[1]
-    assert "body" in body.id
-    assert body.fill_weight == 3
-
-
-def test_body_inherits_justify_in_vertical_parent(tmp_path):
-    """__body must copy justify from a vertical parent container."""
-    diagram = _load(tmp_path, """
-engine: v3
-root:
-  id: root
-  children:
-    - id: panel
-      heading: "Panel"
-      justify: space-between
-      children:
-        - id: a
-          label: [A]
-        - id: b
-          label: [B]
-""")
-    panel = diagram.root.children[0]
-    body = panel.children[1]
-    assert "body" in body.id
-    assert body.justify == Justify.SPACE_BETWEEN
 
 
 # ── Column span ─────────────────────────────────────────────────────

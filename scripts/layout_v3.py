@@ -13,7 +13,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from frame_model import Frame, FrameDiagram, Direction, Overlay, Sizing, Align, Justify
-from frame_loader import _classify_levels, resolve_styles
+from frame_loader import resolve_styles
 from diagram_model import Arrow, Line, Fill, Border
 from diagram_layout import (
     ArrowPrimitive,
@@ -1844,7 +1844,6 @@ def layout_frame_diagram(diagram: FrameDiagram) -> LayoutResult:
     # Ensure styles are resolved (idempotent: safe to call even if
     # load_frame_yaml already resolved them).
     if root.resolved_fill is None:
-        _classify_levels(root)
         resolve_styles(root)
 
     # Pass 1: measure (root uses sum-based sizing to avoid canvas inflation)
