@@ -49,12 +49,12 @@ FRAMES_DIR = SCRIPTS / "diagrams" / "frames"
 
 WATCH_PATHS = [
     DEFINITIONS_DIR,
-    DEFINITIONS_DIR / "yaml",
-    DEFINITIONS_DIR / "force",
+    FRAMES_DIR,
+    SCRIPTS / "frame_loader.py",
+    SCRIPTS / "frame_model.py",
+    SCRIPTS / "layout_v3.py",
     SCRIPTS / "diagram_layout.py",
-    SCRIPTS / "diagram_model.py",
     SCRIPTS / "diagram_render_svg.py",
-    SCRIPTS / "diagram_render_drawio.py",
     SCRIPTS / "diagram_shared.py",
     SCRIPTS / "preview",
 ]
@@ -103,25 +103,14 @@ def _collect_mtimes() -> dict[str, float]:
 
 
 def _definition_hash(slug: str) -> str:
-    py_name = slug.replace("-", "_") + ".py"
-    py_path = DEFINITIONS_DIR / py_name
-    if py_path.exists():
-        return hashlib.sha256(py_path.read_bytes()).hexdigest()[:16]
-    # Check YAML/JSON definitions
-    yaml_dir = DEFINITIONS_DIR / "yaml"
-    for ext in (".yaml", ".yml", ".json"):
-        candidate = yaml_dir / (slug + ext)
-        if candidate.exists():
-            return hashlib.sha256(candidate.read_bytes()).hexdigest()[:16]
+    frame_yaml = FRAMES_DIR / (slug + ".yaml")
+    if frame_yaml.exists():
+        return hashlib.sha256(frame_yaml.read_bytes()).hexdigest()[:16]
     return ""
 
 
 def _list_diagrams() -> list[str]:
-    slugs = []
-    for f in sorted(OUTPUT_SVG.glob("*-onbrand-v2.svg")):
-        slug = f.stem.replace("-onbrand-v2", "")
-        slugs.append(slug)
-    return slugs
+    return []
 
 
 def _list_v3_diagrams() -> list[str]:
@@ -166,97 +155,41 @@ def _is_safe_slug(slug: str) -> bool:
 
 def _rebuild(grid: bool = False) -> bool:
     global _last_rebuild_error, _layout_cache, _viewer_template, _force_template, _unified_template, _force_sessions
-    # Always clear v3 layout cache on file changes so live-rendered
-    # diagrams pick up edits even if the v2 batch build fails.
     _layout_cache.clear()
-    # Reload v3 engine modules so code changes take effect without a
+    _force_sessions.clear()
+    _viewer_template = None
+    _force_template = None
+    _unified_template = None
+    # Reload engine modules so code changes take effect without a
     # full server restart.
     for mod_name in ("frame_model", "frame_loader", "layout_v3",
                      "diagram_render_svg", "diagram_layout", "diagram_shared"):
         if mod_name in sys.modules:
             importlib.reload(sys.modules[mod_name])
-    cmd = [sys.executable, str(SCRIPTS / "build_v2.py")]
-    if grid:
-        cmd.append("--grid")
-    try:
-        result = subprocess.run(
-            cmd, cwd=str(ROOT),
-            capture_output=True, text=True, timeout=60,
-            env={**os.environ, "PYTHONIOENCODING": "utf-8"},
-        )
-        if result.returncode == 0:
-            _last_rebuild_error = None
-            _layout_cache.clear()
-            _force_sessions.clear()
-            _viewer_template = None  # reload template on next request
-            _force_template = None
-            _unified_template = None
-            return True
-        _last_rebuild_error = result.stderr or result.stdout
-        return False
-    except Exception as e:
-        _last_rebuild_error = str(e)
-        return False
+    _last_rebuild_error = None
+    return True
 
 
-def _get_layout_result(slug: str, engine: str = "v2"):
-    # Auto-detect engine from slug prefix
+def _get_layout_result(slug: str, engine: str = "v3"):
+    # Strip v3: prefix if present
     if slug.startswith("v3:"):
-        engine = "v3"
         slug = slug[3:]
-    # Auto-detect frame YAML when engine wasn't explicitly set to v3
-    if engine != "v3":
-        frame_yaml = FRAMES_DIR / (slug + ".yaml")
-        if frame_yaml.exists():
-            engine = "v3"
-    cache_key = f"{slug}:{engine}"
+    cache_key = f"{slug}:v3"
     if cache_key in _layout_cache:
         return _layout_cache[cache_key]
     try:
         if str(SCRIPTS) not in sys.path:
             sys.path.insert(0, str(SCRIPTS))
 
-        # Check for native frame YAML first (v3-only, no conversion)
-        if engine == "v3":
-            frame_yaml = FRAMES_DIR / (slug + ".yaml")
-            if frame_yaml.exists():
-                from frame_loader import load_frame_yaml
-                from layout_v3 import layout_frame_diagram
-                frame_diagram = load_frame_yaml(frame_yaml)
-                result = layout_frame_diagram(frame_diagram)
-                _layout_cache[cache_key] = result
-                return result
-
-        import importlib
-        mod_name = slug.replace("-", "_")
-        try:
-            mod = importlib.import_module(f"diagrams.{mod_name}")
-            importlib.reload(mod)
-            diagram_obj = getattr(mod, mod_name)
-        except (ModuleNotFoundError, AttributeError):
-            # Fall back to YAML definition
-            from diagram_loader import load_diagram
-            yaml_dir = SCRIPTS / "diagrams" / "yaml"
-            yaml_path = None
-            for ext in (".yaml", ".yml", ".json"):
-                candidate = yaml_dir / (slug + ext)
-                if candidate.exists():
-                    yaml_path = candidate
-                    break
-            if yaml_path is None:
-                return None
-            diagram_obj = load_diagram(yaml_path)
-
-        if engine == "v3":
-            from frame_adapter import diagram_to_frame
+        frame_yaml = FRAMES_DIR / (slug + ".yaml")
+        if frame_yaml.exists():
+            from frame_loader import load_frame_yaml
             from layout_v3 import layout_frame_diagram
-            frame_diagram = diagram_to_frame(diagram_obj)
+            frame_diagram = load_frame_yaml(frame_yaml)
             result = layout_frame_diagram(frame_diagram)
-        else:
-            import diagram_layout
-            result = diagram_layout.layout(diagram_obj)
-        _layout_cache[cache_key] = result
-        return result
+            _layout_cache[cache_key] = result
+            return result
+        return None
     except Exception:
         import traceback; traceback.print_exc()
         return None
@@ -276,7 +209,7 @@ def _get_grid_info(slug: str) -> dict | None:
 
 
 def _load_frame_diagram(slug: str):
-    """Load the raw FrameDiagram for a v3 slug (before layout)."""
+    """Load the raw FrameDiagram for a slug (before layout)."""
     try:
         if str(SCRIPTS) not in sys.path:
             sys.path.insert(0, str(SCRIPTS))
@@ -286,21 +219,7 @@ def _load_frame_diagram(slug: str):
         if frame_yaml.exists():
             from frame_loader import load_frame_yaml
             return copy.deepcopy(load_frame_yaml(frame_yaml))
-
-        from diagram_loader import load_diagram
-        from frame_adapter import diagram_to_frame
-        yaml_dir = SCRIPTS / "diagrams" / "yaml"
-        for ext in (".yaml", ".yml", ".json"):
-            candidate = yaml_dir / (slug + ext)
-            if candidate.exists():
-                return diagram_to_frame(copy.deepcopy(load_diagram(candidate)))
-
-        import importlib
-        mod_name = slug.replace("-", "_")
-        mod = importlib.import_module(f"diagrams.{mod_name}")
-        importlib.reload(mod)
-        diagram_obj = copy.deepcopy(getattr(mod, mod_name))
-        return diagram_to_frame(diagram_obj)
+        return None
     except Exception:
         import traceback; traceback.print_exc()
         return None
@@ -379,55 +298,26 @@ def _serialize_frame_diagram(diagram) -> dict:
 
 
 def _relayout(slug: str, grid_overrides: dict) -> dict | None:
-    """Re-run layout with patched grid params and return SVG + metadata."""
+    """Re-run v3 layout with patched grid params and return SVG + metadata."""
     try:
         if str(SCRIPTS) not in sys.path:
             sys.path.insert(0, str(SCRIPTS))
-        import importlib, copy
-        mod_name = slug.replace("-", "_")
-        try:
-            mod = importlib.import_module(f"diagrams.{mod_name}")
-            orig_col_gap = getattr(mod, mod_name).col_gap
-            orig_row_gap = getattr(mod, mod_name).row_gap
-            importlib.reload(mod)
-            diagram_obj = copy.deepcopy(getattr(mod, mod_name))
-        except (ModuleNotFoundError, AttributeError):
-            from diagram_loader import load_diagram
-            yaml_dir = SCRIPTS / "diagrams" / "yaml"
-            yaml_path = None
-            for ext in (".yaml", ".yml", ".json"):
-                candidate = yaml_dir / (slug + ext)
-                if candidate.exists():
-                    yaml_path = candidate
-                    break
-            if yaml_path is None:
-                return None
-            diagram_obj = copy.deepcopy(load_diagram(yaml_path))
-            orig_col_gap = diagram_obj.col_gap
-            orig_row_gap = diagram_obj.row_gap
-
-        # Patch grid params
-        for key in ("cols", "col_gap", "row_gap", "outer_margin"):
-            if key in grid_overrides:
-                setattr(diagram_obj, key, grid_overrides[key])
-
-        def _patch_panel_gaps(children):
-            from diagram_model import Panel as _PanelType
-            for comp in children:
-                if isinstance(comp, _PanelType):
-                    if "col_gap" in grid_overrides:
-                        if comp.col_gap is None or comp.col_gap == orig_col_gap:
-                            comp.col_gap = grid_overrides["col_gap"]
-                    if "row_gap" in grid_overrides:
-                        if comp.row_gap is None or comp.row_gap == orig_row_gap:
-                            comp.row_gap = grid_overrides["row_gap"]
-                    if hasattr(comp, "children") and comp.children:
-                        _patch_panel_gaps(comp.children)
-        _patch_panel_gaps(diagram_obj.components)
-
-        import diagram_layout
-        result = diagram_layout.layout(diagram_obj)
+        from frame_loader import load_frame_yaml
+        from layout_v3 import layout_frame_diagram
         import diagram_render_svg
+
+        frame_yaml = FRAMES_DIR / (slug + ".yaml")
+        if not frame_yaml.exists():
+            return None
+        frame_diagram = load_frame_yaml(frame_yaml)
+
+        # Patch grid params on the FrameDiagram
+        for key, attr in (("cols", "grid_cols"), ("col_gap", "grid_col_gap"),
+                          ("row_gap", "grid_row_gap"), ("outer_margin", "grid_outer_margin")):
+            if key in grid_overrides:
+                object.__setattr__(frame_diagram, attr, grid_overrides[key])
+
+        result = layout_frame_diagram(frame_diagram)
         svg_str = diagram_render_svg.render_svg(result)
         tree = [asdict(ci) for ci in result.component_tree] if result.component_tree else []
         gi = asdict(result.grid_info) if result.grid_info else None
@@ -526,68 +416,19 @@ def _build_preview_nav_options(current_path: str) -> str:
     if autolayout_options:
         sections.append(f'<optgroup label="Autolayout">{autolayout_options}</optgroup>')
 
-    diagram_options = "".join(
-        f'<option value="/view/{slug}"{" selected" if current_path == f"/view/{slug}" else ""}>{slug}</option>'
-        for slug in _list_diagrams()
-    )
-    if diagram_options:
-        sections.append(f'<optgroup label="Diagrams">{diagram_options}</optgroup>')
-
-    v3_only = [s for s in _list_v3_diagrams() if s not in set(_list_autolayout_diagrams())]
-    v3_options = "".join(
-        f'<option value="/view/v3:{slug}"{" selected" if current_path == f"/view/v3:{slug}" else ""}>{slug}</option>'
-        for slug in v3_only
-    )
-    if v3_options:
-        sections.append(f'<optgroup label="v3 Frame engine">{v3_options}</optgroup>')
-
-    force_options = "".join(
-        f'<option value="/force/view/{slug}"{" selected" if current_path == f"/force/view/{slug}" else ""}>{slug}</option>'
-        for slug in _list_force_examples()
-    )
-    if force_options:
-        sections.append(f'<optgroup label="Force demos">{force_options}</optgroup>')
-
     return "".join(sections)
 
 
 def _build_browse_nav(current_path: str) -> str:
-    """Build the left-sidebar browse panel HTML (grouped link lists)."""
-    groups: list[str] = []
-
+    """Build the left-sidebar browse panel HTML."""
     autolayout = _list_autolayout_diagrams()
-    if autolayout:
-        items = "".join(
-            f'<li><a class="dg-browse-link{" is-active" if current_path == f"/view/v3:{s}" else ""}" href="/view/v3:{s}">{s}</a></li>'
-            for s in autolayout
-        )
-        groups.append(f'<div class="dg-browse-group"><h3 class="dg-browse-heading">Autolayout</h3><ul class="dg-browse-list">{items}</ul></div>')
-
-    diagrams = _list_diagrams()
-    if diagrams:
-        items = "".join(
-            f'<li><a class="dg-browse-link{" is-active" if current_path == f"/view/{s}" else ""}" href="/view/{s}">{s}</a></li>'
-            for s in diagrams
-        )
-        groups.append(f'<div class="dg-browse-group"><h3 class="dg-browse-heading">Diagrams</h3><ul class="dg-browse-list">{items}</ul></div>')
-
-    v3_only = [s for s in _list_v3_diagrams() if s not in set(autolayout)]
-    if v3_only:
-        items = "".join(
-            f'<li><a class="dg-browse-link{" is-active" if current_path == f"/view/v3:{s}" else ""}" href="/view/v3:{s}">{s}</a></li>'
-            for s in v3_only
-        )
-        groups.append(f'<div class="dg-browse-group"><h3 class="dg-browse-heading">v3 Frame engine</h3><ul class="dg-browse-list">{items}</ul></div>')
-
-    force = _list_force_examples()
-    if force:
-        items = "".join(
-            f'<li><a class="dg-browse-link{" is-active" if current_path == f"/force/view/{s}" else ""}" href="/force/view/{s}">{s}</a></li>'
-            for s in force
-        )
-        groups.append(f'<div class="dg-browse-group"><h3 class="dg-browse-heading">Force demos</h3><ul class="dg-browse-list">{items}</ul></div>')
-
-    return "".join(groups)
+    if not autolayout:
+        return ""
+    items = "".join(
+        f'<li><a class="dg-browse-link{" is-active" if current_path == f"/view/v3:{s}" else ""}" href="/view/v3:{s}">{s}</a></li>'
+        for s in autolayout
+    )
+    return f'<div class="dg-browse-group"><h3 class="dg-browse-heading">Autolayout</h3><ul class="dg-browse-list">{items}</ul></div>'
 
 
 def _get_force_state(slug: str, *, reset: bool = False):
@@ -688,9 +529,9 @@ def _build_viewer_html(slug: str, all_slugs: list[str], grid: bool) -> str:
     nav_options = _build_preview_nav_options(view_path)
     browse_nav = _build_browse_nav(view_path)
     from diagram_shared import ARROW_HEAD_LENGTH, ARROW_HEAD_HALF_WIDTH, ICON_SIZE, GRID_GUTTER, INSET
-    is_v3 = slug.startswith("v3:")
-    real_slug = slug[3:] if is_v3 else slug
-    engine = "v3" if is_v3 else "v2"
+    is_v3 = True
+    real_slug = slug[3:] if slug.startswith("v3:") else slug
+    engine = "v3"
     has_ref = _find_reference_image(real_slug) is not None
     config_script = (
         f"window.__DG_CONFIG = {{"

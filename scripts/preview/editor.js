@@ -1,6 +1,6 @@
 "use strict";
 const SLUG = window.__DG_CONFIG.slug;
-const ENGINE = window.__DG_CONFIG.engine || "v2";
+const ENGINE = window.__DG_CONFIG.engine || "v3";
 const GRID = window.__DG_CONFIG.grid;
 const INSET = window.__DG_CONFIG.inset;
 let generation = 0;
