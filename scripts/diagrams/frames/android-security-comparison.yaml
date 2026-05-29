@@ -29,7 +29,6 @@ root:
             - id: lxd_container
               direction: vertical
               padding: 8
-              border: solid
               heading: LXD container
               children:
                 - id: lxd_headline
@@ -55,7 +54,6 @@ root:
             - id: vm
               direction: vertical
               padding: 8
-              border: solid
               heading: VM
               children:
                 - id: vm_headline

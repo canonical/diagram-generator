@@ -62,7 +62,6 @@ root:
         - id: compute
           direction: vertical
           padding: 8
-          border: solid
           heading: "Always-on compute"
           icon: Globe.svg
           children:

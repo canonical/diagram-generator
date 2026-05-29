@@ -28,7 +28,6 @@ root:
         - id: input_panel
           direction: horizontal
           padding: 8
-          border: solid
           fill_weight: 2
           heading: "2. Input"
           children:
@@ -61,7 +60,6 @@ root:
         - id: engine
           direction: vertical
           padding: 8
-          border: solid
           fill_weight: 2
           heading: "3. Engine"
           children:
@@ -86,7 +84,6 @@ root:
         - id: export_panel
           direction: vertical
           padding: 8
-          border: solid
           fill_weight: 2
           heading: "4. Export"
           children:

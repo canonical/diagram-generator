@@ -74,7 +74,6 @@ root:
           direction: horizontal
           gap: 8
           padding: 8
-          border: solid
           fill_weight: 3
           heading: "Design-language engine"
           children:

@@ -25,7 +25,6 @@ root:
     - id: inputs
       direction: horizontal
       padding: 8
-      border: solid
       heading: "Inputs and canonical context"
       children:
         - id: src_rough

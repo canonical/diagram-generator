@@ -46,7 +46,6 @@ root:
         - id: modernisation
           direction: vertical
           padding: 8
-          border: solid
           heading: "Modernisation"
           icon: Cloud.svg
           children:
@@ -56,7 +55,6 @@ root:
         - id: core
           direction: horizontal
           padding: 8
-          border: solid
           fill_weight: 2
           heading: "Core"
           icon: Cloud.svg
@@ -64,7 +62,6 @@ root:
             - id: logging
               direction: vertical
               padding: 8
-              border: solid
               heading: "Logging"
               icon: Document.svg
               children:
@@ -75,7 +72,6 @@ root:
             - id: network_svc
               direction: vertical
               padding: 8
-              border: solid
               heading: "Network Services"
               icon: Networking.svg
               children:
@@ -89,7 +85,6 @@ root:
         - id: security
           direction: vertical
           padding: 8
-          border: solid
           heading: "Security"
           icon: Security.svg
           children:
@@ -101,7 +96,6 @@ root:
         - id: shared_svc
           direction: vertical
           padding: 8
-          border: solid
           heading: "Shared-services"
           icon: Cloud support.svg
           children:
@@ -140,14 +134,12 @@ root:
     - id: vpc_accounts
       direction: horizontal
       padding: 8
-      border: solid
       heading: "VPC_Accounts"
       icon: Document management.svg
       children:
         - id: vpc_prod
           direction: vertical
           padding: 8
-          border: solid
           heading: "core-vpc-production"
           children:
             - id: vpc_prod_bu
@@ -158,7 +150,6 @@ root:
         - id: vpc_preprod
           direction: vertical
           padding: 8
-          border: solid
           heading: "core-vpc-preprod"
           children:
             - id: vpc_preprod_bu
@@ -173,7 +164,6 @@ root:
         - id: vpc_dev
           direction: vertical
           padding: 8
-          border: solid
           heading: "core-vpc-dev"
           children:
             - id: vpc_dev_bu
@@ -181,7 +171,6 @@ root:
         - id: vpc_sandbox
           direction: vertical
           padding: 8
-          border: solid
           heading: "core-vpc-sandbox"
           children:
             - id: vpc_sandbox_bu
@@ -195,7 +184,6 @@ root:
         - id: ou_maatdb
           direction: vertical
           padding: 8
-          border: solid
           heading: "OU: MaatDB"
           icon: Document management.svg
           children:
@@ -206,7 +194,6 @@ root:
         - id: ou_nomis
           direction: vertical
           padding: 8
-          border: solid
           heading: "OU: Nomis"
           icon: Document management.svg
           children:
@@ -219,7 +206,6 @@ root:
         - id: ou_oasys
           direction: vertical
           padding: 8
-          border: solid
           heading: "OU: Oasys"
           icon: Document management.svg
           children:
@@ -230,7 +216,6 @@ root:
         - id: ou_ccr
           direction: vertical
           padding: 8
-          border: solid
           heading: "OU: CCR"
           icon: Document management.svg
           children:

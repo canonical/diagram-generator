@@ -21,7 +21,6 @@ root:
     - id: sources
       direction: horizontal
       padding: 8
-      border: solid
       heading: "Rough initial diagram sources"
       children:
         - id: src_chatgpt
