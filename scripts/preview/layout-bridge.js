@@ -388,16 +388,19 @@ function _buildFrameTextElement(frame, renderState) {
     const fill = spec.fill ?? "#000000";
     const lineStep = LayoutEngine.sizeToPx(spec.lineStep ?? LayoutEngine.BODY_LINE_STEP);
 
+    if (spec.smallCaps) {
+      // Simulate all-small-caps: uppercase + 85% font-size.
+      // CSS font-variant-caps is silently ignored when SVG is embedded
+      // via innerHTML, so we bake the transform into the markup.
+      size = Math.round(size * 0.85);
+      spec = Object.assign({}, spec, { content: spec.content.toUpperCase() });
+    }
     const tspan = document.createElementNS(SVG_NS, "tspan");
     tspan.setAttribute("x", _fmtSvgNumber(x));
     tspan.setAttribute("y", _fmtSvgNumber(_lineTopToBaseline(top, size)));
     tspan.setAttribute("font-size", String(size));
     tspan.setAttribute("font-weight", String(weight));
     tspan.setAttribute("fill", fill);
-    if (spec.smallCaps) {
-      tspan.setAttribute("font-variant-caps", "all-small-caps");
-      tspan.setAttribute("letter-spacing", "0.05em");
-    }
     if (spec.fontFamily) {
       tspan.setAttribute("font-family", spec.fontFamily);
     }
