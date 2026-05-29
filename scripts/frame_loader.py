@@ -16,7 +16,7 @@ import yaml
 
 from diagram_model import Arrow, Border, Fill, Line
 from frame_model import Align, Direction, Frame, FrameDiagram, Justify, Overlay, Sizing
-from diagram_shared import BLACK, GREY, ICON_SIZE, INSET
+from diagram_shared import BLACK, GREY, GRID_GUTTER, ICON_SIZE, INSET
 
 # ── Enum maps (lowercase YAML strings → Python enums) ──────────────
 
@@ -131,8 +131,12 @@ def _parse_frame(data: dict, *, is_root: bool = False) -> Frame:
 
     # Sensible defaults differ for leaf vs container
     default_border = Border.NONE if is_container else Border.SOLID
-    default_gap = 24 if is_container else 0
+    # Gap: panels (bordered or headed) use tight INSET spacing;
+    # layout wrappers (borderless, headingless) use GRID_GUTTER.
+    has_heading = "heading" in data
     border = _BORDER.get(data.get("border", ""), default_border)
+    is_panel = (border != Border.NONE) or has_heading
+    default_gap = INSET if (is_container and is_panel) else GRID_GUTTER if is_container else 0
 
     # Per-axis sizing: uniform `sizing` as base, then per-axis overrides.
     # Root defaults to HUG/HUG — there is no parent to FILL into. Use
@@ -160,10 +164,9 @@ def _parse_frame(data: dict, *, is_root: bool = False) -> Frame:
     if "height" in data and "sizing_h" not in data and "sizing" not in data:
         sizing_h = Sizing.FIXED
 
-    # Padding: default is 8 for bordered nodes and containers with headings,
+    # Padding: default is INSET for bordered nodes and containers with headings,
     # 0 for borderless containers without headings (pure layout wrappers).
-    has_heading = "heading" in data
-    default_padding = 0 if (is_container and border == Border.NONE and not has_heading) else 8
+    default_padding = 0 if (is_container and not is_panel) else INSET
     uniform_padding = int(data.get("padding", default_padding))
     pad_t = int(data["padding_top"]) if "padding_top" in data else None
     pad_r = int(data["padding_right"]) if "padding_right" in data else None
@@ -220,23 +223,26 @@ def _parse_frame(data: dict, *, is_root: bool = False) -> Frame:
             role="heading",
             sizing_w=Sizing.FILL,
             sizing_h=Sizing.HUG,
-            min_height=ICON_SIZE + INSET,
+            min_height=ICON_SIZE,
             border=Border.NONE,
             fill=heading_fill,
-            padding=INSET,
+            padding=0,
             label=[heading_line],
             icon=data.get("icon"),
             icon_fill=heading_icon_fill,
         )
         if frame.direction == Direction.HORIZONTAL:
             # Wrap original children in a body sub-frame that preserves the
-            # horizontal direction, gap, align, and justify of the original.
+            # horizontal direction, gap, align, justify, wrap, and
+            # fill_weight of the original.
             body = Frame(
                 id=f"{frame.id}__body" if frame.id else "__body",
                 direction=Direction.HORIZONTAL,
                 gap=frame.gap,
                 align=frame.align,
                 justify=frame.justify,
+                wrap=frame.wrap,
+                fill_weight=frame.fill_weight,
                 sizing_w=Sizing.FILL,
                 sizing_h=Sizing.HUG,
                 border=Border.NONE,
@@ -255,6 +261,9 @@ def _parse_frame(data: dict, *, is_root: bool = False) -> Frame:
                 direction=Direction.VERTICAL,
                 gap=frame.gap,
                 align=frame.align,
+                justify=frame.justify,
+                wrap=frame.wrap,
+                fill_weight=frame.fill_weight,
                 sizing_w=Sizing.FILL,
                 sizing_h=Sizing.HUG,
                 border=Border.NONE,
@@ -335,15 +344,20 @@ def _compute_level(frame: Frame, depth: int) -> int:
     """Return the effective prominence level for a frame.
 
     If ``frame.level`` is explicitly set, use it.
-    Otherwise derive from nesting depth and container status:
-      depth 0                 → 0 (root, invisible)
-      depth 1 + container     → 2 (panel)
-      depth 1 + leaf          → 1 (box)
-      depth 2+                → 1 (box)
+    Otherwise derive from nesting depth, container status, and heading:
+      depth 0                              → 0 (root, invisible)
+      container without heading            → 0 (layout wrapper, invisible)
+      depth 1 + container + heading        → 2 (panel)
+      depth 1 + leaf                       → 1 (box)
+      depth 2+                             → 1 (box)
     """
     if frame.level is not None:
         return frame.level
     if depth == 0:
+        return 0
+    # Headingless containers are layout wrappers — invisible
+    has_heading = any(c.role == "heading" for c in frame.children) or frame.heading is not None
+    if frame.is_container and not has_heading:
         return 0
     if depth == 1 and frame.is_container:
         return 2
@@ -396,7 +410,11 @@ def resolve_styles(root: Frame, *, _depth: int = 0, _parent_is_panel: bool = Fal
                         font_family=child.label[0].font_family,
                     )
 
-        if root.border == Border.NONE and not root.is_container and not _is_layout_wrapper:
+        if level == 0:
+            # Level 0: headingless container / layout wrapper — invisible
+            root.resolved_fill = "transparent"
+            root.resolved_stroke = "none"
+        elif root.border == Border.NONE and not root.is_container and not _is_layout_wrapper:
             # Annotation: borderless leaf — no fill, no stroke
             root.resolved_fill = "transparent"
             root.resolved_stroke = "none"
@@ -447,9 +465,9 @@ def load_frame_yaml(path: str | pathlib.Path) -> FrameDiagram:
         arrows=arrows,
         overlays=overlays,
         grid_cols=int(grid.get("cols", 2)),
-        grid_col_gap=int(grid["col_gap"]) if "col_gap" in grid else None,
-        grid_row_gap=int(grid["row_gap"]) if "row_gap" in grid else None,
-        grid_outer_margin=int(grid["outer_margin"]) if "outer_margin" in grid else None,
+        grid_col_gap=int(grid.get("col_gap", GRID_GUTTER)) if grid else None,
+        grid_row_gap=int(grid.get("row_gap", GRID_GUTTER)) if grid else None,
+        grid_outer_margin=int(grid.get("outer_margin", GRID_GUTTER)) if grid else None,
         diagram_type=meta.get("diagram_type"),
         abstraction_level=meta.get("abstraction_level"),
         layout_engine=meta.get("layout_engine"),

@@ -424,8 +424,8 @@ root:
 # ── Style resolution (level system) ────────────────────────────────
 
 
-def test_depth1_container_resolves_to_level2_panel(tmp_path):
-    """Depth-1 container gets panel style: grey fill, grey stroke."""
+def test_depth1_container_with_heading_resolves_to_level2_panel(tmp_path):
+    """Depth-1 container with heading gets panel style: grey fill, grey stroke."""
     diagram = _load(tmp_path, """
 engine: v3
 root:
@@ -457,21 +457,27 @@ root:
     assert leaf.resolved_stroke == "#000000"
 
 
-def test_depth2_leaf_resolves_to_level1_box(tmp_path):
-    """Depth-2 leaf inside a panel gets box style."""
+def test_depth2_leaf_inside_headed_panel_resolves_to_level1_box(tmp_path):
+    """Depth-2 leaf inside a headed panel gets box style."""
     diagram = _load(tmp_path, """
 engine: v3
 root:
   id: root
   children:
     - id: panel
+      heading: "Panel"
       children:
         - id: leaf
           label: [Hello]
 """)
-    # panel has __body wrapper, leaf is inside that
-    body = diagram.root.children[0].children[0]  # no heading → no wrapper
-    leaf = body
+    # panel has __heading and __body children; leaf is inside __body
+    panel = diagram.root.children[0]
+    body = None
+    for c in panel.children:
+        if "__body" in (c.id or ""):
+            body = c
+            break
+    leaf = body.children[0]
     assert leaf.resolved_fill == "transparent"
     assert leaf.resolved_stroke == "#000000"
 
@@ -509,14 +515,15 @@ root:
 
 
 def test_explicit_level_override(tmp_path):
-    """Explicit level: 2 on a depth-3 frame is clamped to level 1 (box)
-    because panels are not nestable — grey-on-grey has no visible boundary."""
+    """Explicit level: 2 on a nested frame inside a panel is clamped to
+    level 1 (box) because panels are not nestable."""
     diagram = _load(tmp_path, """
 engine: v3
 root:
   id: root
   children:
     - id: outer
+      heading: "Outer"
       children:
         - id: inner
           level: 2
@@ -525,11 +532,32 @@ root:
             - id: deep
               label: [Hello]
 """)
-    # outer has no heading → children directly accessible
-    inner = diagram.root.children[0].children[0]
+    outer = diagram.root.children[0]
+    body = [c for c in outer.children if "__body" in (c.id or "")][0]
+    inner = body.children[0]
     # inner requested level 2 but outer is already a panel → clamped to box
     assert inner.resolved_fill == "transparent"
     assert inner.resolved_stroke == "#000000"
+
+
+def test_headingless_container_resolves_level0_transparent(tmp_path):
+    """Container without heading is a layout wrapper — transparent."""
+    diagram = _load(tmp_path, """
+engine: v3
+root:
+  id: root
+  children:
+    - id: wrapper
+      direction: horizontal
+      children:
+        - id: a
+          label: [A]
+        - id: b
+          label: [B]
+""")
+    wrapper = diagram.root.children[0]
+    assert wrapper.resolved_fill == "transparent"
+    assert wrapper.resolved_stroke == "none"
 
 
 def test_root_frame_resolves_transparent(tmp_path):
