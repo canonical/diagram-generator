@@ -314,9 +314,11 @@ def _parse_overlay(data: dict) -> Overlay:
 _META_ENUMS: dict[str, set[str]] = {
     "diagram_type": {
         "system_architecture", "infrastructure_and_network_topology",
+        "deployment_and_runtime_topology",
         "layered_stack", "interaction_and_sequence",
         "process_and_workflow", "data_flow_and_integration",
         "state_and_lifecycle", "data_model_and_relationships",
+        "concept_and_relationship_mapping", "matrix_and_comparison",
     },
     "abstraction_level": {"context", "container", "component", "code"},
     "layout_engine": {
