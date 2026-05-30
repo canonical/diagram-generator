@@ -12,7 +12,7 @@ import sys
 sys.path.insert(0, os.path.dirname(__file__))
 
 from frame_loader import load_frame_yaml
-from frame_model import Sizing
+from frame_model import Align, Direction, Justify, Sizing
 from diagram_model import Border, Fill
 from diagram_model import Border
 
@@ -620,6 +620,90 @@ root:
     assert body.resolved_stroke == "none"
 
 
+def test_heading_synthesis_horizontal_parent_preserves_layout_props(tmp_path):
+    """Horizontal parent with heading should synthesize __heading + __body.
+
+    The __body wrapper must keep the original horizontal flow properties so
+    content layout semantics remain stable.
+    """
+    diagram = _load(tmp_path, """
+engine: v3
+root:
+  id: root
+  children:
+    - id: panel
+      direction: horizontal
+      gap: 32
+      align: bottom-right
+      justify: space-between
+      wrap: true
+      fill_weight: 3
+      heading: "Panel"
+      icon: Cloud.svg
+      children:
+        - id: a
+          label: [A]
+        - id: b
+          label: [B]
+""")
+    panel = diagram.root.children[0]
+    assert panel.direction == Direction.VERTICAL
+    assert len(panel.children) == 2
+
+    heading = panel.children[0]
+    body = panel.children[1]
+    assert heading.role == "heading"
+    assert "__heading" in heading.id
+    assert "__body" in body.id
+
+    assert body.direction == Direction.HORIZONTAL
+    assert body.gap == 32
+    assert body.align == Align.BOTTOM_RIGHT
+    assert body.justify == Justify.SPACE_BETWEEN
+    assert body.wrap is True
+    assert body.fill_weight == 3
+
+    # Icon is moved to the synthetic heading child.
+    assert panel.icon is None
+    assert heading.icon == "Cloud.svg"
+
+
+def test_heading_synthesis_vertical_parent_preserves_layout_props(tmp_path):
+    """Vertical parent with heading should keep vertical content flow in __body."""
+    diagram = _load(tmp_path, """
+engine: v3
+root:
+  id: root
+  children:
+    - id: panel
+      direction: vertical
+      gap: 16
+      align: center-right
+      justify: space-around
+      wrap: true
+      fill_weight: 2
+      heading: "Services"
+      children:
+        - id: a
+          label: [A]
+        - id: b
+          label: [B]
+""")
+    panel = diagram.root.children[0]
+    assert panel.direction == Direction.VERTICAL
+    assert len(panel.children) == 2
+
+    heading = panel.children[0]
+    body = panel.children[1]
+    assert heading.role == "heading"
+    assert body.direction == Direction.VERTICAL
+    assert body.gap == 16
+    assert body.align == Align.CENTER_RIGHT
+    assert body.justify == Justify.SPACE_AROUND
+    assert body.wrap is True
+    assert body.fill_weight == 2
+
+
 # ── Column span ─────────────────────────────────────────────────────
 
 
@@ -647,7 +731,7 @@ root:
     assert a.col_span == 2
 
 
-def test_col_span_resolves_to_fixed_width(tmp_path):
+def test_col_span_applies_at_layout_time_without_semantic_mutation(tmp_path):
     from layout_v3 import layout_frame_diagram
     diagram = _load(
         tmp_path,
@@ -671,10 +755,13 @@ root:
     )
     result = layout_frame_diagram(diagram)
     wide = diagram.root.children[0]
-    assert wide.sizing_w == Sizing.FIXED
-    # col_span=2 means 2*col_w + 1*col_gap
-    assert wide.width is not None
-    assert wide.width > 0
+    # Semantic fields remain source-authored (non-mutating layout contract).
+    assert wide.sizing_w == Sizing.FILL
+    assert wide.width is None
+
+    # col_span still affects placed geometry at layout time.
+    # col_span=2 means roughly 2*col_w + 1*col_gap in the placed width.
+    assert wide._placed_w > 0
 
 
 def test_highlighted_section_heading_inherits_black_fill(tmp_path):

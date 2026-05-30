@@ -218,6 +218,8 @@ Port the v3 Frame layout engine (~800 lines) from Python to TypeScript for clien
 - **Expected impact:** 60fps interactive editing, race conditions eliminated, coercion lifecycle simplified, undo becomes local state manipulation
 - **What stays:** Figma-like sizing model, frame tree data model, YAML authoring, SVG rendering, 8px grid baseline, override persistence, ELK plan (complementary)
 
+Migration closure note: Stage 15.5 is not considered operationally complete until the repo converges to one interactive execution path. That closure work is tracked in `specs/007-style-foundation-unification/`.
+
 ### Design-foundry port checkpoint (periodic review)
 
 The layout engine in `packages/layout-engine/` is the single autolayout codebase in the workspace. It will eventually relocate to `design-foundry/packages/operator-autolayout/` as `@design-foundry/operator-autolayout`. Review this checkpoint when either trigger fires.

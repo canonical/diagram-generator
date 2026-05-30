@@ -62,6 +62,8 @@ Provide a cold-start-safe workflow and a consistent on-brand SVG system for rede
 
 ### Autolayout corpus audit (PRIORITY – 2026-05-29)
 
+Formal feature package: `specs/005-autolayout-hardening/` (`spec.md`, `plan.md`, `tasks.md`)
+
 The level/style simplification (depth-based `_compute_level`, uniform gap=24, padding=8/0, body-wrapper no longer inheriting wrap/fill_weight/justify) changed defaults that affect layout output across the diagram corpus. Tests pass but visual correctness needs a per-diagram audit.
 
 **What changed:**
@@ -101,6 +103,8 @@ The level/style simplification (depth-based `_compute_level`, uniform gap=24, pa
 
 ### Variant overlays and col_span
 
+Spec coverage: `specs/001-box-style-contract/` captures variants and tier contract foundations.
+
 - [x] `[M]` **Variant overlays.** `variant: highlight` (black fill, white text/icon) and `variant: annotation` (borderless leaf). Explicit YAML keys override variants. Engine auto-detects leaf vs parent — no type presets needed.
 - [x] `[S]` **Highlight heading propagation.** When a highlighted parent has a heading, the synthetic heading child inherits `fill: black` and white icon.
 - [x] `[S]` **`col_span` field.** `Frame.col_span: int | None` added to `frame_model.py`. Parsed in `frame_loader.py`. Resolved to `width = N * col_w + (N-1) * col_gap` with `sizing_w = FIXED` in `layout_v3.py` via `_resolve_col_spans()`.
@@ -131,6 +135,7 @@ TS port milestones M1–M6 done. See HISTORY.md for detailed entries. Remaining 
 ### Arrow routing redesign — port-based connection system
 
 Full plan: `docs/architecture/arrow-routing-redesign.md`
+Formal feature package: `specs/006-arrow-routing-redesign/` (`spec.md`, `plan.md`, `tasks.md`)
 
 The current A* router has structural issues: no port model, wrong obstacle handling for nested arrows, L-only wedge fix, no crossing minimization. The redesign adds:
 
@@ -141,13 +146,17 @@ The current A* router has structural issues: no port model, wrong obstacle handl
 - **Phase 5** `[S]` Pre-compute arrow geometry in layout pass (fix renderer layer violation)
 - **Phase 6** `[L]` Crossing minimization (stretch goal)
 
-### Python/TS parity gap — tracked
+### Python/TS migration completion — tracked
 
-Two recent Python features have no TS equivalent yet:
-- **Obstacle-aware arrow router** (A* on sparse grid, ~200 lines). TS engine has no arrow routing at all.
+Historical drift left mixed ownership between Python and TypeScript interactive paths. The completion track is now formalized in:
+
+- `specs/007-style-foundation-unification/` (`spec.md`, `plan.md`, `tasks.md`, `baseline.md`, `style-contract.md`)
+
+Current known parity gaps to close as part of that track:
+- **Obstacle-aware arrow router** (A* on sparse grid, ~200 lines). TS engine has no arrow routing yet.
 - **Grid-column snapping** (`_snap_fills_to_grid_columns`, `place()` grid_snap parameter). TS `place()` doesn't accept grid_snap.
 
-Both features operate correctly in the Python-rendered preview. TS parity is needed only if/when the TS engine runs client-side layout (currently only used for parity tests). Port when the TS engine gains production routing.
+Target end-state for interactive editing: one execution path (TypeScript local relayout), with Python retained as batch/export oracle and parity reference.
 
 ### Code quality — adversarial audit (2026-05-27)
 
@@ -156,6 +165,7 @@ Full audit: `docs/architecture/adversarial-audit-2026-05-27.md`. Two independent
 **HIGH — structural:**
 - [ ] `[H]` **H1. Layout mutates Frame tree.** `col_span` rewrites `width`/`sizing_w`; FILL/HUG coercion rewrites parent sizing; root width save/mutate/restore is fragile. Fix: layout-only derived fields, stop mutating semantic Frame fields.
 - [ ] `[H]` **H2. Style resolution duplicated (loader vs renderer).** Loader defaults fill=WHITE, renderer overrides containers to GREY. Explicit container fill can be overridden. Fix: one shared style resolver.
+	Formal feature package: `specs/007-style-foundation-unification/` (`spec.md`, `plan.md`, `tasks.md`, `baseline.md`).
 - [ ] `[H]` **H3. Heading synthetic child incomplete.** `__body` no longer copies `wrap`, `fill_weight`, `justify` from parent (deliberately removed in the depth-based simplification). If any diagram relied on these being inherited, it will regress. Needs corpus audit to determine whether explicit YAML fields are needed on affected diagrams.
 - [x] `[H]` **H4. Overlay geometry contradicts model.** Full-width band vs member bounds. FIXED — now uses member bounds.
 - [ ] `[M]` **H5. Leaf measure vs render padding mismatch.** Measurement uses INSET, rendering uses per-side padding + 1px hack. Fix: use `frame.padding_*` in measurement.

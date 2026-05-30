@@ -196,6 +196,12 @@ function applyOverridesToFrameTree(diagram, allOverrides, gridOverrides) {
         }
       }
     }
+    if (ovr.level != null) {
+      const level = parseInt(ovr.level, 10);
+      if (Number.isFinite(level) && level >= 0) {
+        target.level = level;
+      }
+    }
     if (ovr.fill && _FILL_MAP[ovr.fill]) {
       target.fill = _FILL_MAP[ovr.fill];
     }
@@ -324,9 +330,6 @@ function _frameBoxRenderState(frame) {
     stroke = "none";
   } else if (frame.border === "NONE") {
     fill = frame.fill !== LayoutEngine.Fill.WHITE ? frame.fill : "transparent";
-    stroke = "none";
-  } else if (frame.children.length > 0 && frame.border !== "DASHED") {
-    fill = LayoutEngine.Fill.GREY;
     stroke = "none";
   }
 
@@ -812,6 +815,10 @@ let _frameTreeJson = null;
 /** Canvas adapter for real text measurement. */
 let _textAdapter = null;
 
+function isLocalRelayoutReady() {
+  return !!_frameTreeJson && !!_textAdapter;
+}
+
 /**
  * Load the frame tree from the server and create the text adapter.
  * Call once during editor initialization.
@@ -845,7 +852,7 @@ async function initLayoutBridge(slug) {
  *   snap calculations keep referencing the original positions.
  */
 function performLocalRelayout(model, overrides, gridOverrides, opts) {
-  if (!_frameTreeJson || !_textAdapter) {
+  if (!isLocalRelayoutReady()) {
     console.warn("layout-bridge: not initialized, falling back to server");
     return null;
   }
@@ -920,3 +927,5 @@ function performLocalRelayout(model, overrides, gridOverrides, opts) {
     return null;
   }
 }
+
+window.isLocalRelayoutReady = isLocalRelayoutReady;

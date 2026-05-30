@@ -12,8 +12,10 @@ from __future__ import annotations
 
 import sys
 import os
+from unittest.mock import patch
 sys.path.insert(0, os.path.dirname(__file__))
 
+import layout_v3 as lv3
 from frame_model import Frame, FrameDiagram, Direction, Sizing, Align
 from diagram_model import Line, Fill, Border
 from layout_v3 import (
@@ -707,6 +709,130 @@ def test_separator_role_renders_dashed_line():
     print(f"  PASS: separator role renders dashed line at y={dl.y1}, width={dl.x2-dl.x1}")
 
 
+def _snapshot_semantic(frame: Frame, out: dict | None = None) -> dict:
+    if out is None:
+        out = {}
+    out[id(frame)] = {
+        "width": frame.width,
+        "height": frame.height,
+        "sizing_w": frame.sizing_w,
+        "sizing_h": frame.sizing_h,
+    }
+    for child in frame.children:
+        _snapshot_semantic(child, out)
+    return out
+
+
+def test_layout_preserves_semantic_fields_with_coercion_and_col_span():
+    """layout_frame_diagram should not persist runtime coercion/span mutations.
+
+    This fixture triggers all known mutation paths:
+    - HUG parent + FILL child coercion
+    - col_span width resolution under explicit grid
+    - grid column equalization (HUG -> FILL for column heights)
+    """
+    span_leaf = Frame(
+        id="span_leaf",
+        label=[Line("Spanning child")],
+        sizing_w=Sizing.FILL,
+        sizing_h=Sizing.HUG,
+        col_span=2,
+    )
+    left_col = Frame(
+        id="left_col",
+        direction=Direction.VERTICAL,
+        sizing_w=Sizing.FILL,
+        sizing_h=Sizing.HUG,
+        children=[span_leaf],
+    )
+    right_col = Frame(
+        id="right_col",
+        direction=Direction.VERTICAL,
+        sizing_w=Sizing.FILL,
+        sizing_h=Sizing.HUG,
+        children=[_box("r1", h=64)],
+    )
+    root = Frame(
+        id="root",
+        direction=Direction.HORIZONTAL,
+        sizing_w=Sizing.HUG,
+        sizing_h=Sizing.HUG,
+        padding=24,
+        children=[left_col, right_col],
+    )
+    diagram = FrameDiagram(
+        root=root,
+        grid_cols=4,
+        grid_col_gap=24,
+        grid_outer_margin=24,
+    )
+
+    before = _snapshot_semantic(root)
+    layout_frame_diagram(diagram)
+    after_first = _snapshot_semantic(root)
+    assert after_first == before, "semantic Frame fields changed after first layout"
+
+    layout_frame_diagram(diagram)
+    after_second = _snapshot_semantic(root)
+    assert after_second == before, "semantic Frame fields changed after repeated layout"
+
+
+def test_layout_restores_semantic_fields_when_place_raises():
+    """Semantic fields must be restored even when layout fails mid-pipeline."""
+    span_leaf = Frame(
+        id="span_leaf",
+        label=[Line("Spanning child")],
+        sizing_w=Sizing.FILL,
+        sizing_h=Sizing.HUG,
+        col_span=2,
+    )
+    root = Frame(
+        id="root",
+        direction=Direction.HORIZONTAL,
+        sizing_w=Sizing.HUG,
+        sizing_h=Sizing.HUG,
+        padding=24,
+        children=[span_leaf, _box("b", h=64)],
+    )
+    diagram = FrameDiagram(root=root, grid_cols=4, grid_col_gap=24, grid_outer_margin=24)
+    before = _snapshot_semantic(root)
+
+    with patch.object(lv3, "place", side_effect=RuntimeError("boom")):
+        try:
+            layout_frame_diagram(diagram)
+            assert False, "expected RuntimeError"
+        except RuntimeError as exc:
+            assert str(exc) == "boom"
+
+    after = _snapshot_semantic(root)
+    assert after == before, "semantic fields leaked after exception"
+
+
+def test_layout_resolves_styles_tree_wide_even_if_root_pre_resolved():
+    """If only root is pre-resolved, descendants should still be resolved."""
+    child = Frame(id="child", label=[Line("Hello")], fill=Fill.WHITE, border=Border.SOLID)
+    root = Frame(id="root", direction=Direction.VERTICAL, children=[child], border=Border.NONE)
+    root.resolved_fill = "transparent"
+    root.resolved_stroke = "none"
+    child.resolved_fill = None
+    child.resolved_stroke = None
+
+    result = layout_frame_diagram(FrameDiagram(root=root))
+    child_box = next(
+        p for p in result.foreground
+        if isinstance(p, FrameBox) and getattr(p, "component_id", None) == "child"
+    )
+    assert child_box.stroke == "#000000"
+
+
+def test_snap_fills_to_grid_columns_skips_when_children_exceed_cols():
+    """When FILL children outnumber columns, keep continuous fill sizes."""
+    fill_sizes = [100.0, 100.0, 100.0, 100.0]
+    weights = [1.0, 1.0, 1.0, 1.0]
+    out = _snap_fills_to_grid_columns(fill_sizes, weights, col_w=80.0, col_gap=24.0, total_cols=3)
+    assert out == fill_sizes
+
+
 def test_frame_box_style_contract():
     """v3 FrameBox visuals follow the four-style contract."""
     annotation = Frame(id="ann", border=Border.NONE, label=[Line("Annotation")])
@@ -936,6 +1062,57 @@ def test_body_zone_starts_below_heading():
     assert body_top >= heading_bottom + panel.gap - 0.5, \
         f"Body top {body_top} overlaps heading bottom {heading_bottom} + gap {panel.gap}"
     print("  PASS: body zone starts below heading")
+
+
+def test_leaf_measurement_respects_per_side_horizontal_padding_for_wrap():
+    """Larger left/right padding should reduce wrap width and increase height."""
+    text = "This line should wrap when horizontal padding gets large enough"
+
+    compact = Frame(
+        id="compact",
+        label=[Line(text, size=18)],
+        border=Border.NONE,
+        width=240,
+        sizing_w=Sizing.FIXED,
+        padding=8,
+    )
+    roomy = Frame(
+        id="roomy",
+        label=[Line(text, size=18)],
+        border=Border.NONE,
+        width=240,
+        sizing_w=Sizing.FIXED,
+        padding=8,
+        padding_left=40,
+        padding_right=40,
+    )
+
+    measure(compact)
+    measure(roomy)
+
+    assert roomy._measured_h > compact._measured_h, (
+        f"Expected larger horizontal padding to increase wrapped height: "
+        f"compact={compact._measured_h}, roomy={roomy._measured_h}"
+    )
+
+
+def test_leaf_measurement_respects_top_bottom_padding_with_icon():
+    """Icon-height floor should use per-side vertical padding, not fixed INSET."""
+    leaf = Frame(
+        id="icon_box",
+        label=[Line("X", size=18)],
+        border=Border.SOLID,
+        icon="Cloud.svg",
+        padding=8,
+        padding_top=20,
+        padding_bottom=28,
+    )
+    measure(leaf)
+
+    expected_min_h = leaf.padding_top + ICON_SIZE + leaf.padding_bottom
+    assert leaf._measured_h >= expected_min_h, (
+        f"Measured height {leaf._measured_h} should honor top/bottom icon floor {expected_min_h}"
+    )
 
 
 def test_heading_with_zero_children():

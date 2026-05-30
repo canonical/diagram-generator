@@ -59,6 +59,7 @@ const BOX_STYLES = window.__DG_BOX_STYLES || {
   default: { fill: "transparent", text: "#000000", icon: "#000000", border: "solid", label: "Child" },
   parent:  { fill: "#F3F3F3", text: "#000000", icon: "#000000", border: "none",  label: "Parent" },
   accent: { fill: "#F3F3F3", text: "#000000", icon: "#000000", border: "none", label: "Parent" },
+  section: { fill: "transparent", text: "#000000", icon: "#000000", border: "solid", label: "Section" },
   annotation: { fill: "transparent", text: "#000000", icon: "#000000", border: "none", label: "Annotation" },
   highlight: { fill: "#000000", text: "#FFFFFF", icon: "#FFFFFF", border: "none", label: "Highlight" },
 };
@@ -409,7 +410,7 @@ async function loadSVG() {
   // Apply saved grid overrides (gutter/margin changes) before rendering
   const hasGridOverrides = model.gridOverrides && Object.keys(model.gridOverrides).length > 0;
   // Check if any frame overrides need a relayout (text, sizing, etc.)
-  const hasFrameOverrides = ENGINE === "v3" && Object.values(overrides).some(ovr => ovr.text || ovr.direction || ovr.sizing_w || ovr.sizing_h || ovr.fill || ovr.border || ovr.position);
+  const hasFrameOverrides = ENGINE === "v3" && Object.values(overrides).some(ovr => ovr.text || ovr.direction || ovr.sizing_w || ovr.sizing_h || ovr.fill || ovr.border || ovr.level != null || ovr.position);
   if (hasGridOverrides) {
     const go = model.gridOverrides;
     if (ENGINE === "v3") {
@@ -1941,32 +1942,21 @@ window.setMultiFrameAlign = setMultiFrameAlign;
  * Apply style override to ALL selected box/panel/terminal items.
  */
 function applyMultiStyleOverride(styleName) {
-  const preset = BOX_STYLES[styleName];
+  const canonicalStyle = _normaliseStyleName(styleName);
+  const preset = BOX_STYLES[canonicalStyle];
   const ids = [...selectedIds];
   const msoBefore = _captureOverrideEntries(ids);
   for (const cid of ids) {
     const ctype = getComponentType(cid).toLowerCase();
     if (ctype !== 'box' && ctype !== 'panel' && ctype !== 'terminal') continue;
     if (ENGINE === "v3") {
-      if (!preset) {
-        if (overrides[cid]) {
-          delete overrides[cid].fill;
-          delete overrides[cid].border;
-          delete overrides[cid].style;
-          model.cleanOverride(cid);
-        }
-      } else {
-        if (!overrides[cid]) overrides[cid] = {};
-        const fillMap = { "transparent": "WHITE", "#FFFFFF": "WHITE", "#F3F3F3": "GREY", "#000000": "BLACK" };
-        const borderMap = { "solid": "SOLID", "none": "NONE" };
-        overrides[cid].fill = fillMap[preset.fill] || "WHITE";
-        overrides[cid].border = borderMap[preset.border] || "SOLID";
-        overrides[cid].style = styleName;
-      }
+      if (!overrides[cid]) overrides[cid] = {};
+      _applyV3StyleFields(overrides[cid], canonicalStyle);
+      model.cleanOverride(cid);
     } else {
       if (preset) {
         if (!overrides[cid]) overrides[cid] = {};
-        overrides[cid].style = styleName;
+        overrides[cid].style = canonicalStyle;
       } else {
         if (overrides[cid]) {
           delete overrides[cid].style;
@@ -2141,12 +2131,16 @@ function setMultiFrameSize(dimension, value) {
 }
 window.setMultiFrameSize = setMultiFrameSize;
 
+function isV3LocalRelayoutReady() {
+  return ENGINE === "v3" && typeof isLocalRelayoutReady === "function" && isLocalRelayoutReady();
+}
+
 function applyAllOverrides() {
   const svg = document.querySelector("#stage svg");
   if (!svg) return;
 
   function isV3FrameManaged(target) {
-    if (ENGINE !== "v3") return false;
+    if (!isV3LocalRelayoutReady()) return false;
     const group = target && target.closest ? target.closest("[data-component-id]") : null;
     if (!group) return false;
     const cid = group.getAttribute("data-component-id");
@@ -4521,10 +4515,11 @@ function applyStyleOverride(cid, styleName) {
     applyV3Style(cid, styleName);
     return;
   }
+  const canonicalStyle = _normaliseStyleName(styleName);
   const styleIds = [cid];
   const styleBefore = _captureOverrideEntries(styleIds);
-  if (styleName && BOX_STYLES[styleName]) {
-    setOverride(cid, { style: styleName });
+  if (canonicalStyle && BOX_STYLES[canonicalStyle]) {
+    setOverride(cid, { style: canonicalStyle });
   } else {
     const ovr = overrides[cid];
     if (ovr) {
@@ -4536,35 +4531,46 @@ function applyStyleOverride(cid, styleName) {
   commitOverridePatchAction("Change style", styleBefore, _captureOverrideEntries(styleIds));
 }
 
+function _normaliseStyleName(styleName) {
+  return styleName === "accent" ? "parent" : styleName;
+}
+
+function _applyV3StyleFields(ovr, styleName) {
+  const canonicalStyle = _normaliseStyleName(styleName);
+  const preset = BOX_STYLES[canonicalStyle];
+  if (!preset) {
+    delete ovr.level;
+    delete ovr.fill;
+    delete ovr.border;
+    delete ovr.style;
+    return false;
+  }
+  const fillMap = { "transparent": "WHITE", "#FFFFFF": "WHITE", "#F3F3F3": "GREY", "#000000": "BLACK" };
+  const borderMap = { "solid": "SOLID", "none": "NONE" };
+  if (canonicalStyle === "default") {
+    ovr.level = 1;
+  } else if (canonicalStyle === "parent") {
+    ovr.level = 2;
+  } else if (canonicalStyle === "section") {
+    ovr.level = 3;
+  } else {
+    delete ovr.level;
+  }
+  ovr.fill = fillMap[preset.fill] || "WHITE";
+  ovr.border = borderMap[preset.border] || "SOLID";
+  ovr.style = canonicalStyle;
+  return true;
+}
+
 /**
- * v3 style override: sets fill + border as frame properties and triggers relayout.
+ * v3 style override: applies level/fill/border style fields and triggers relayout.
  */
 function applyV3Style(cid, styleName) {
   const v3StyleIds = [cid];
   const v3StyleBefore = _captureOverrideEntries(v3StyleIds);
-  const preset = BOX_STYLES[styleName];
-  if (!preset) {
-    // Reset to definition — clear fill and border overrides
-    if (overrides[cid]) {
-      delete overrides[cid].fill;
-      delete overrides[cid].border;
-      delete overrides[cid].style;
-      model.cleanOverride(cid);
-    }
-    setDirty(true);
-    clearTimeout(_v3RelayoutTimer);
-    requestV3Relayout(cid);
-    renderSelectionInspector(cid);
-    commitOverridePatchAction("Change style", v3StyleBefore, _captureOverrideEntries(v3StyleIds));
-    return;
-  }
   if (!overrides[cid]) overrides[cid] = {};
-  // Map preset fill to frame fill enum value
-  const fillMap = { "transparent": "WHITE", "#FFFFFF": "WHITE", "#F3F3F3": "GREY", "#000000": "BLACK" };
-  const borderMap = { "solid": "SOLID", "none": "NONE" };  // DASHED gated out of style picker
-  overrides[cid].fill = fillMap[preset.fill] || "WHITE";
-  overrides[cid].border = borderMap[preset.border] || "SOLID";
-  overrides[cid].style = styleName;
+  _applyV3StyleFields(overrides[cid], styleName);
+  model.cleanOverride(cid);
   setDirty(true);
   clearTimeout(_v3RelayoutTimer);
   requestV3Relayout(cid);
@@ -5030,15 +5036,34 @@ function setFrameProp(cid, prop, value) {
 const _coercedKeys = new Set();
 
 async function requestV3Relayout(triggerCid) {
-  // --- Client-side layout (no server round-trip) ---
-  if (typeof performLocalRelayout !== "function") {
-    console.error("v3 relayout: performLocalRelayout not available");
+  async function fallbackToServerRelayout() {
+    const go = _normaliseGridOverrides(model.gridOverrides || {});
+    const base = gridInfo || baseGridInfo || {};
+    const cols = go.cols ?? base._cols ?? ((base.col_xs || []).length || 1);
+    const colGap = go.col_gap ?? base.col_gap ?? 24;
+    const rowGap = go.row_gap ?? base.row_gap ?? 24;
+    const margin = go.outer_margin ?? base.outer_margin ?? colGap;
+    await requestRelayout(cols, colGap, rowGap, margin);
+    applyAllOverrides();
+    reapplySelection();
+    renderSelectionInspector(triggerCid);
+    updateOverrideSummary();
+    refreshTreeColors();
+    runConstraints();
+  }
+
+  if (!isV3LocalRelayoutReady()) {
+    console.warn("v3 relayout: local bridge unavailable, using server fallback");
+    await fallbackToServerRelayout();
     return;
   }
+
+  // --- Client-side layout (no server round-trip) ---
   const gridOvr = _normaliseGridOverrides(model.gridOverrides || {});
   let localResult = performLocalRelayout(model, overrides, gridOvr);
   if (!localResult) {
     console.error("v3 relayout: local layout failed (performLocalRelayout returned null)");
+    await fallbackToServerRelayout();
     return;
   }
   // Clear stale position/size deltas
@@ -5625,44 +5650,34 @@ function clampShellWidth(value, minPx, maxPx) {
   return Math.max(minPx, Math.min(maxPx, value));
 }
 
+const volatileShellWidthState = new Map();
+
 function readShellWidth(application, storageKey) {
-  try {
-    const rawValue = window.localStorage.getItem(storageKey);
-    if (!rawValue) {
-      return null;
-    }
-
-    const trimmedValue = rawValue.trim();
-    const parsedWidth = Number.parseFloat(trimmedValue);
-    if (!Number.isFinite(parsedWidth)) {
-      return null;
-    }
-
-    if (/^-?\d+(\.\d+)?$/.test(trimmedValue)) {
-      return parsedWidth;
-    }
-
-    const resolvedWidthPx = resolveShellCssLengthPx(application, trimmedValue, -1);
-    return Number.isFinite(resolvedWidthPx) && resolvedWidthPx > 0 ? resolvedWidthPx : null;
-  } catch {
+  const rawValue = volatileShellWidthState.get(storageKey);
+  if (typeof rawValue !== "string" || !rawValue.trim()) {
     return null;
   }
+
+  const trimmedValue = rawValue.trim();
+  const parsedWidth = Number.parseFloat(trimmedValue);
+  if (!Number.isFinite(parsedWidth)) {
+    return null;
+  }
+
+  if (/^-?\d+(\.\d+)?$/.test(trimmedValue)) {
+    return parsedWidth;
+  }
+
+  const resolvedWidthPx = resolveShellCssLengthPx(application, trimmedValue, -1);
+  return Number.isFinite(resolvedWidthPx) && resolvedWidthPx > 0 ? resolvedWidthPx : null;
 }
 
 function writeShellWidth(application, storageKey, widthPx) {
-  try {
-    window.localStorage.setItem(storageKey, shellWidthToRem(application, widthPx));
-  } catch {
-    // Ignore storage failures so resizing still works for the current session.
-  }
+  volatileShellWidthState.set(storageKey, shellWidthToRem(application, widthPx));
 }
 
 function clearShellWidth(storageKey) {
-  try {
-    window.localStorage.removeItem(storageKey);
-  } catch {
-    // Ignore storage failures so reset still works visually.
-  }
+  volatileShellWidthState.delete(storageKey);
 }
 
 function bindShellResize({
@@ -6040,6 +6055,9 @@ connectSSE();
     });
   };
 
+  let preferredSplitDirection = "vertical";
+  let preferredViewMode = "output";
+
   // Always show the tab bar — it's a global editor feature.
   viewControls.hidden = false;
 
@@ -6076,21 +6094,19 @@ connectSSE();
       const current = stageShell.dataset.splitDirection || "vertical";
       const next = current === "horizontal" ? "vertical" : "horizontal";
       setSplitDirection(next);
-      try { localStorage.setItem("diagram-generator:split-direction", next); } catch {}
+      preferredSplitDirection = next;
     });
-    const savedSplit = (() => { try { return localStorage.getItem("diagram-generator:split-direction"); } catch { return null; } })();
-    setSplitDirection(savedSplit || "vertical");
+    setSplitDirection(preferredSplitDirection);
   }
 
   tabs.forEach((tab) => {
     tab.addEventListener("click", () => {
       const mode = tab.dataset.viewMode || "output";
       setViewModeWithToggle(mode);
-      try { localStorage.setItem("diagram-generator:view-mode", mode); } catch {}
+      preferredViewMode = mode;
     });
   });
-  const savedMode = (() => { try { return localStorage.getItem("diagram-generator:view-mode"); } catch { return null; } })();
-  setViewModeWithToggle(savedMode || "output");
+  setViewModeWithToggle(preferredViewMode);
 })();
 
 // ---- Left sidebar tabs (Browse / Layers) ----

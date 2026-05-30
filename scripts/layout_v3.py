@@ -28,6 +28,7 @@ from diagram_layout import (
     _lines_to_dicts,
 )
 from diagram_shared import (
+    BLACK,
     BASELINE_UNIT,
     BLOCK_WIDTH,
     BOX_MIN_HEIGHT,
@@ -155,6 +156,11 @@ def _snap_fills_to_grid_columns(
     if n == 0 or col_w <= 0 or total_cols <= 0:
         return fill_sizes
 
+    # Cannot assign at least one column per child when children outnumber
+    # columns. Fall back to continuous fill sizing in this case.
+    if n > total_cols:
+        return fill_sizes
+
     total_weight = sum(fill_weights)
     if total_weight <= 0:
         return fill_sizes
@@ -195,6 +201,27 @@ def _stroke_space_total(frame: Frame) -> int:
     return _stroke_inset_per_side(frame) * 2
 
 
+def _capture_semantic_state(frame: Frame, state: dict[int, tuple]) -> None:
+    """Capture semantic fields that layout must not persistently mutate.
+
+    Layout may temporarily coerce sizing or resolve spans to compute geometry,
+    but those changes are runtime-only. The source Frame tree must remain
+    semantically stable after layout_frame_diagram() returns.
+    """
+    state[id(frame)] = (frame.width, frame.height, frame.sizing_w, frame.sizing_h)
+    for child in frame.children:
+        _capture_semantic_state(child, state)
+
+
+def _restore_semantic_state(frame: Frame, state: dict[int, tuple]) -> None:
+    """Restore semantic fields captured by _capture_semantic_state()."""
+    snap = state.get(id(frame))
+    if snap is not None:
+        frame.width, frame.height, frame.sizing_w, frame.sizing_h = snap
+    for child in frame.children:
+        _restore_semantic_state(child, state)
+
+
 def _estimate_text_width(lines: list[Line]) -> float:
     """Estimate the pixel width of the widest text line."""
     max_w = 0.0
@@ -224,21 +251,26 @@ def _leaf_natural_size(frame: Frame, constrained_w: float | None = None) -> tupl
     """
     has_icon = frame.icon is not None
     all_lines = _leaf_all_lines(frame)
+    pad_l = frame.padding_left
+    pad_r = frame.padding_right
+    pad_t = frame.padding_top
+    pad_b = frame.padding_bottom
+    icon_col = (ICON_SIZE + INSET) if has_icon else 0
     if all_lines:
         # Estimate available text width for wrapping calculation
-        icon_col = (ICON_SIZE + INSET) if has_icon else 0
         if constrained_w is not None:
-            text_max_w = constrained_w - 2 * INSET - icon_col
+            text_max_w = constrained_w - pad_l - pad_r - icon_col
         elif frame.width is not None:
-            text_max_w = frame.width - 2 * INSET - icon_col
+            text_max_w = frame.width - pad_l - pad_r - icon_col
         else:
-            text_max_w = BLOCK_WIDTH - 2 * INSET - icon_col
+            text_max_w = BLOCK_WIDTH - pad_l - pad_r - icon_col
+        text_max_w = max(0, text_max_w)
         wrapped_lines = wrap_text_lines(all_lines, text_max_w)
-        text_h = stepped_lines_height(wrapped_lines, top_pad=INSET, bottom_pad=INSET, min_height=0)
+        text_h = stepped_lines_height(wrapped_lines, top_pad=pad_t, bottom_pad=pad_b, min_height=0)
         # All bordered boxes use the icon-height minimum (64px) for
         # consistent row heights whether an icon is present or not.
         if frame.border != Border.NONE:
-            icon_h = INSET + ICON_SIZE + INSET  # 64
+            icon_h = pad_t + ICON_SIZE + pad_b
             h = max(text_h, icon_h)
         else:
             h = text_h
@@ -255,8 +287,7 @@ def _leaf_natural_size(frame: Frame, constrained_w: float | None = None) -> tupl
         # Cap at wrap width: if text wraps, the box width is determined by the
         # wrap boundary, not the raw unwrapped text width.
         text_w = min(text_w, text_max_w)
-        icon_col = (ICON_SIZE + INSET) if has_icon else 0
-        content_w = INSET + text_w + INSET + icon_col
+        content_w = pad_l + text_w + pad_r + icon_col
         w = max(round_up_to_grid(content_w), BLOCK_WIDTH)
     else:
         w = BLOCK_WIDTH
@@ -1138,17 +1169,10 @@ def _render_frame(frame: Frame, fg: list, bg: list, bounds_map: dict,
         fg.append(DashedLinePrimitive(x, y, x + w, y, component_id=cid))
 
     # ── Resolve style fields ──
-    # Pre-resolved by frame_loader.resolve_styles() into resolved_fill / resolved_stroke.
-    # Falls back to legacy Border.FILL handling for v2 compat.
-    if frame.resolved_fill is not None:
-        box_fill = frame.resolved_fill
-        box_stroke = frame.resolved_stroke or "none"
-    elif frame.border == Border.FILL:
-        box_fill = frame.fill.value
-        box_stroke = "none"
-    else:
-        box_fill = "transparent"
-        box_stroke = "#000000"
+    # Style ownership lives in frame_loader.resolve_styles(). The renderer
+    # consumes resolved fields as-is and does not reinterpret class defaults.
+    box_fill = frame.resolved_fill if frame.resolved_fill is not None else "transparent"
+    box_stroke = frame.resolved_stroke if frame.resolved_stroke is not None else "none"
 
     pad_l = frame.padding_left
     pad_t = frame.padding_top
@@ -1163,13 +1187,13 @@ def _render_frame(frame: Frame, fg: list, bg: list, bounds_map: dict,
     label_lines: list[dict] = []
     icon_name = frame.icon
     icon_fill_color = frame.icon_fill or "#000000"
-    if frame.fill == Fill.BLACK and icon_fill_color == "#000000":
+    if box_fill == BLACK and icon_fill_color == "#000000":
         icon_fill_color = "#FFFFFF"
 
     if frame.is_leaf:
         all_lines = _leaf_all_lines(frame)
         if all_lines:
-            if frame.fill == Fill.BLACK:
+            if box_fill == BLACK:
                 all_lines = [{**ln, "fill": "#FFFFFF"} for ln in all_lines]
             label_lines = all_lines
     # Container icon only (leaf icon goes via label_lines path)
@@ -1845,95 +1869,103 @@ def _render_overlays(
 def layout_frame_diagram(diagram: FrameDiagram) -> LayoutResult:
     """Full layout pipeline: measure → place → render → return LayoutResult."""
     root = diagram.root
+    semantic_state: dict[int, tuple] = {}
+    _capture_semantic_state(root, semantic_state)
+    restored_semantics = False
 
-    # Ensure styles are resolved (idempotent: safe to call even if
-    # load_frame_yaml already resolved them).
-    if root.resolved_fill is None:
+    try:
+        # Ensure styles are resolved tree-wide (idempotent). This avoids
+        # partial-resolution drift when diagrams are built outside the loader.
         resolve_styles(root)
 
-    # Pass 1: measure (root uses sum-based sizing to avoid canvas inflation)
-    measure(root, _is_root=True)
+        # Pass 1: measure (root uses sum-based sizing to avoid canvas inflation)
+        measure(root, _is_root=True)
 
-    # Figma invariant: HUG parent + FILL child on primary axis → parent freezes to FIXED
-    coerced = _enforce_fill_hug_invariant(root)
+        # Figma invariant: HUG parent + FILL child on primary axis → parent freezes to FIXED
+        coerced = _enforce_fill_hug_invariant(root)
 
-    # Root gets its measured size (or fixed if set)
-    requested_root_w = root.width if root.width is not None else root._measured_w
-    root_w = _expand_root_width_for_snapped_fill_columns(root, requested_root_w)
-    original_root_width = root.width
-    if original_root_width is not None and root_w != original_root_width:
-        root.width = root_w
+        # Root gets its measured size (or fixed if set)
+        requested_root_w = root.width if root.width is not None else root._measured_w
+        root_w = _expand_root_width_for_snapped_fill_columns(root, requested_root_w)
+        original_root_width = root.width
+        if original_root_width is not None and root_w != original_root_width:
+            root.width = root_w
 
-    # Pass 1.5: constrained re-measurement — re-wrap text at resolved
-    # widths so HUG heights reflect actual placed widths, not the default
-    # BLOCK_WIDTH used during initial measurement.
-    _remeasure_with_width_constraints(root, root_w, coerced_ids=set(coerced.keys()))
+        # Pass 1.5: constrained re-measurement — re-wrap text at resolved
+        # widths so HUG heights reflect actual placed widths, not the default
+        # BLOCK_WIDTH used during initial measurement.
+        _remeasure_with_width_constraints(root, root_w, coerced_ids=set(coerced.keys()))
 
-    root_h = root.height if root.height is not None else root._measured_h
+        root_h = root.height if root.height is not None else root._measured_h
 
-    # Compute grid-snap info for fill_weight column alignment.
-    # Only activate when grid was explicitly configured (grid_col_gap is set,
-    # which is the signal that the YAML had a grid: section).
-    grid_snap = None
-    col_w = 0
-    col_gap_g = 0
-    grid_cols = int(diagram.grid_cols or 0)
-    if grid_cols > 1 and diagram.grid_col_gap is not None:
-        outer_margin = int(
-            diagram.grid_outer_margin
-            if diagram.grid_outer_margin is not None
-            else (root.padding_top if root.padding_top is not None else (root.padding or 0))
-        )
-        col_gap_g = int(diagram.grid_col_gap)
-        content_w = max(0, root_w - 2 * outer_margin)
-        col_w_raw = (content_w - (grid_cols - 1) * col_gap_g) / grid_cols
-        col_w = int((col_w_raw // BASELINE_UNIT) * BASELINE_UNIT)
+        # Compute grid-snap info for fill_weight column alignment.
+        # Only activate when grid was explicitly configured (grid_col_gap is set,
+        # which is the signal that the YAML had a grid: section).
+        grid_snap = None
+        col_w = 0
+        col_gap_g = 0
+        grid_cols = int(diagram.grid_cols or 0)
+        if grid_cols > 1 and diagram.grid_col_gap is not None:
+            outer_margin = int(
+                diagram.grid_outer_margin
+                if diagram.grid_outer_margin is not None
+                else (root.padding_top if root.padding_top is not None else (root.padding or 0))
+            )
+            col_gap_g = int(diagram.grid_col_gap)
+            content_w = max(0, root_w - 2 * outer_margin)
+            col_w_raw = (content_w - (grid_cols - 1) * col_gap_g) / grid_cols
+            col_w = int((col_w_raw // BASELINE_UNIT) * BASELINE_UNIT)
+            if col_w > 0:
+                grid_snap = (float(col_w), float(col_gap_g), grid_cols)
+
+        # Resolve col_span → explicit width before layout.
         if col_w > 0:
-            grid_snap = (float(col_w), float(col_gap_g), grid_cols)
+            _resolve_col_spans(root, col_w, col_gap_g)
 
-    # Resolve col_span → explicit width before layout.
-    if col_w > 0:
-        _resolve_col_spans(root, col_w, col_gap_g)
+        # Grid row equalization: when a grid is active and the root is
+        # horizontal, equalize column heights so children at the same row
+        # index align across columns (like CSS grid implicit rows).
+        if grid_cols > 1 and root.direction == Direction.HORIZONTAL:
+            _equalize_grid_columns(root)
 
-    # Grid row equalization: when a grid is active and the root is
-    # horizontal, equalize column heights so children at the same row
-    # index align across columns (like CSS grid implicit rows).
-    if grid_cols > 1 and root.direction == Direction.HORIZONTAL:
-        _equalize_grid_columns(root)
+        # Pass 2: place
+        place(root, 0, 0, root_w, root_h, grid_snap=grid_snap)
 
-    # Pass 2: place
-    place(root, 0, 0, root_w, root_h, grid_snap=grid_snap)
+        # Coercion/span/equalization are runtime-only for layout; do not persist
+        # them back into semantic Frame fields.
+        _restore_semantic_state(root, semantic_state)
+        restored_semantics = True
 
-    if original_root_width is not None and root.width != original_root_width:
-        root.width = original_root_width
+        # Render frame tree to primitives
+        fg: list = []
+        bg: list = []
+        bounds_map: dict[str, tuple[float, float, float, float, bool]] = {}
+        _render_frame(root, fg, bg, bounds_map)
 
-    # Render frame tree to primitives
-    fg: list = []
-    bg: list = []
-    bounds_map: dict[str, tuple[float, float, float, float, bool]] = {}
-    _render_frame(root, fg, bg, bounds_map)
+        # Route arrows
+        arrow_prims = _route_arrows(diagram.arrows, bounds_map)
+        fg.extend(arrow_prims)
 
-    # Route arrows
-    arrow_prims = _route_arrows(diagram.arrows, bounds_map)
-    fg.extend(arrow_prims)
+        # Render overlays (cross-cutting visual groups)
+        overlay_prims = _render_overlays(diagram.overlays, bounds_map)
+        fg.extend(overlay_prims)
 
-    # Render overlays (cross-cutting visual groups)
-    overlay_prims = _render_overlays(diagram.overlays, bounds_map)
-    fg.extend(overlay_prims)
+        # Build component tree for editor interactivity
+        component_tree = _build_component_tree(root)
+        grid_info = _build_grid_info(diagram, root)
 
-    # Build component tree for editor interactivity
-    component_tree = _build_component_tree(root)
-    grid_info = _build_grid_info(diagram, root)
-
-    return LayoutResult(
-        width=int(root._placed_w),
-        height=int(root._placed_h),
-        foreground=fg,
-        background=bg,
-        grid_info=grid_info,
-        component_tree=component_tree,
-        coerced_overrides=coerced,
-    )
+        return LayoutResult(
+            width=int(root._placed_w),
+            height=int(root._placed_h),
+            foreground=fg,
+            background=bg,
+            grid_info=grid_info,
+            component_tree=component_tree,
+            coerced_overrides=coerced,
+        )
+    finally:
+        if not restored_semantics:
+            _restore_semantic_state(root, semantic_state)
 
 
 def _build_component_tree(root: Frame) -> list[ComponentInfo]:

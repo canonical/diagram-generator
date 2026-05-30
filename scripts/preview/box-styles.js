@@ -4,6 +4,7 @@
   const BOX_STYLES = {
     default: { fill: "transparent", text: "#000000", icon: "#000000", border: "solid", label: "Child (stroke)" },
     parent: { fill: "#F3F3F3", text: "#000000", icon: "#000000", border: "none", label: "Parent (grey)" },
+    section: { fill: "transparent", text: "#000000", icon: "#000000", border: "solid", label: "Section (outline)" },
     annotation: { fill: "transparent", text: "#000000", icon: "#000000", border: "none", label: "Annotation" },
     highlight: { fill: "#000000", text: "#FFFFFF", icon: "#FFFFFF", border: "none", label: "Highlight (black)" },
   };

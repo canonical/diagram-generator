@@ -91,29 +91,34 @@ function leafNaturalSize(
 ): [number, number] {
   const hasIcon = frame.icon != null;
   const allSpecs = leafAllSpecs(frame);
+  const padL = frame.paddingLeft;
+  const padR = frame.paddingRight;
+  const padT = frame.paddingTop;
+  const padB = frame.paddingBottom;
 
   let w: number;
   let h: number;
-  let textMaxW = BLOCK_WIDTH - 2 * INSET;
+  let textMaxW = BLOCK_WIDTH - padL - padR;
 
   if (allSpecs.length > 0) {
     const iconCol = hasIcon ? (ICON_SIZE + INSET) : 0;
     if (constrainedW != null) {
-      textMaxW = constrainedW - 2 * INSET - iconCol;
+      textMaxW = constrainedW - padL - padR - iconCol;
     } else if (frame.width != null) {
-      textMaxW = frame.width - 2 * INSET - iconCol;
+      textMaxW = frame.width - padL - padR - iconCol;
     } else {
-      textMaxW = BLOCK_WIDTH - 2 * INSET - iconCol;
+      textMaxW = BLOCK_WIDTH - padL - padR - iconCol;
     }
+    textMaxW = Math.max(0, textMaxW);
 
     const wrappedSpecs = wrapTextLines(allSpecs, textMaxW, adapter);
     const textH = steppedLinesHeight(
       wrappedSpecs.map(s => ({ lineStep: s.lineStep != null ? sizeToPx(s.lineStep) : undefined, size: s.size })),
-      { topPad: INSET, bottomPad: INSET, minHeight: 0 },
+      { topPad: padT, bottomPad: padB, minHeight: 0 },
     );
 
     if (frame.border !== Border.NONE) {
-      const iconH = INSET + ICON_SIZE + INSET; // 64
+      const iconH = padT + ICON_SIZE + padB;
       h = Math.max(textH, iconH);
     } else {
       h = textH;
@@ -135,7 +140,7 @@ function leafNaturalSize(
     let textW = estimateTextWidth(textLines, adapter);
     textW = Math.min(textW, textMaxW);
     const iconCol = hasIcon ? (ICON_SIZE + INSET) : 0;
-    const contentW = INSET + textW + INSET + iconCol;
+    const contentW = padL + textW + padR + iconCol;
     w = Math.max(roundUpToGrid(contentW), BLOCK_WIDTH);
   } else {
     w = BLOCK_WIDTH;

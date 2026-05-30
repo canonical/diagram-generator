@@ -392,6 +392,26 @@ def test_support_engineering_flow_preview_regression():
                       const highlight = componentMetrics('step_fix');
                       const highlightText = textSignature('step_fix');
 
+                      async function captureStyle(styleName) {
+                        applyV3Style('step_fix', styleName);
+                        await sleep(350);
+                        const m = componentMetrics('step_fix');
+                        return {
+                          rectFill: m.rectFill,
+                          textFill: m.textFill,
+                          overflow: m.overflow,
+                        };
+                      }
+
+                      const styleMatrix = {
+                        default: await captureStyle('default'),
+                        parent: await captureStyle('parent'),
+                        section: await captureStyle('section'),
+                        annotation: await captureStyle('annotation'),
+                        highlight: await captureStyle('highlight'),
+                        accent: await captureStyle('accent'),
+                      };
+
                       applyV3Style('step_fix', '');
                       await sleep(350);
                       const reset = componentMetrics('step_fix');
@@ -408,6 +428,7 @@ def test_support_engineering_flow_preview_regression():
                         staleProbeText,
                         highlight,
                         highlightText,
+                        styleMatrix,
                         reset,
                         resetText,
                       };
@@ -464,6 +485,18 @@ def test_support_engineering_flow_preview_regression():
                 assert metrics["highlight"]["rectFill"] == "#000000"
                 assert metrics["highlight"]["textFill"] == "#FFFFFF"
                 assert not metrics["highlight"]["overflow"]
+                assert metrics["styleMatrix"]["default"]["rectFill"] == "transparent"
+                assert metrics["styleMatrix"]["default"]["textFill"] == "#000000"
+                assert metrics["styleMatrix"]["parent"]["rectFill"] == "#F3F3F3"
+                assert metrics["styleMatrix"]["parent"]["textFill"] == "#000000"
+                assert metrics["styleMatrix"]["section"]["rectFill"] == "transparent"
+                assert metrics["styleMatrix"]["section"]["textFill"] == "#000000"
+                assert metrics["styleMatrix"]["annotation"]["rectFill"] == "transparent"
+                assert metrics["styleMatrix"]["annotation"]["textFill"] == "#000000"
+                assert metrics["styleMatrix"]["highlight"]["rectFill"] == "#000000"
+                assert metrics["styleMatrix"]["highlight"]["textFill"] == "#FFFFFF"
+                assert metrics["styleMatrix"]["accent"] == metrics["styleMatrix"]["parent"]
+                assert all(not entry["overflow"] for entry in metrics["styleMatrix"].values())
                 assert metrics["reset"]["rectFill"] == "transparent"
                 assert metrics["reset"]["textFill"] == "#000000"
                 assert not metrics["reset"]["overflow"]
