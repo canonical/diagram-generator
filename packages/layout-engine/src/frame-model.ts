@@ -202,6 +202,11 @@ export interface FrameInit {
   heading?: Line;
   icon?: string;
   iconFill?: string;
+  level?: number;
+
+  // Resolved style (set by resolveStyles(), not by YAML)
+  resolvedFill?: string;
+  resolvedStroke?: string;
 
   // Content (leaf)
   label?: Line[];
@@ -265,6 +270,11 @@ export class Frame {
   heading: Line | undefined;
   icon: string | undefined;
   iconFill: string | undefined;
+  level: number | undefined;
+
+  // Resolved style (set by resolveStyles())
+  resolvedFill: string | undefined;
+  resolvedStroke: string | undefined;
 
   // Content (leaf)
   label: Line[];
@@ -311,6 +321,10 @@ export class Frame {
     this.heading = init?.heading;
     this.icon = init?.icon;
     this.iconFill = init?.iconFill;
+    this.level = init?.level;
+
+    this.resolvedFill = init?.resolvedFill;
+    this.resolvedStroke = init?.resolvedStroke;
 
     this.label = init?.label ?? [];
     this.role = init?.role ?? '';

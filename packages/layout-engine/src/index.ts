@@ -62,3 +62,8 @@ export {
   type LayoutOutput,
   type LayoutOptions,
 } from './layout.js';
+
+export {
+  computeLevel,
+  resolveStyles,
+} from './resolve-styles.js';

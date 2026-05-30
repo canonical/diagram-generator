@@ -38,6 +38,7 @@ function deserializeFrame(json) {
     heading: json.heading ? LayoutEngine.createLine(json.heading.content, json.heading) : undefined,
     icon: json.icon || undefined,
     iconFill: json.iconFill || undefined,
+    level: json.level ?? undefined,
     label: (json.label || []).map(ln => LayoutEngine.createLine(ln.content, ln)),
     role: json.role || "",
     children,
@@ -320,24 +321,16 @@ function _lineTopToBaseline(top, size) {
 }
 
 function _frameBoxRenderState(frame) {
-  let fill = "transparent";
-  let stroke = "#000000";
-  if (frame.fill === LayoutEngine.Fill.BLACK) {
-    fill = LayoutEngine.Fill.BLACK;
-    stroke = "none";
-  } else if (frame.border === "FILL") {
-    fill = frame.fill;
-    stroke = "none";
-  } else if (frame.border === "NONE") {
-    fill = frame.fill !== LayoutEngine.Fill.WHITE ? frame.fill : "transparent";
-    stroke = "none";
-  }
+  // Use resolved style values from resolveStyles() — the single source of truth.
+  // resolvedFill / resolvedStroke are always set after resolveStyles() runs.
+  const fill = frame.resolvedFill ?? "transparent";
+  const stroke = frame.resolvedStroke ?? "none";
 
   let padTop = frame.paddingTop;
   let padRight = frame.paddingRight;
   const padBottom = frame.paddingBottom;
   let padLeft = frame.paddingLeft;
-  if (frame.border === "NONE") {
+  if (stroke === "none" && fill === "transparent") {
     padTop += 1;
     padRight += 1;
     padLeft += 1;
@@ -866,7 +859,7 @@ function performLocalRelayout(model, overrides, gridOverrides, opts) {
     const FRAME_KEYS = [
       "direction", "gap", "padding", "sizing", "sizing_w", "sizing_h",
       "fill_weight", "align", "wrap", "width", "height", "min_width", "max_width", "min_height",
-      "max_height", "children_order", "fill", "border", "text",
+      "max_height", "children_order", "fill", "border", "level", "text",
       "position", "x", "y",
     ];
     const allFrameOverrides = {};
@@ -897,6 +890,9 @@ function performLocalRelayout(model, overrides, gridOverrides, opts) {
 
     // Run layout
     const result = LayoutEngine.layoutFrameTree(diagram.root, _textAdapter);
+
+    // Resolve visual styles (fill/stroke from level + context)
+    LayoutEngine.resolveStyles(diagram.root);
 
     // Collect new bounds
     const newBounds = collectPlacedBounds(diagram.root, {});
