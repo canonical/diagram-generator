@@ -22,7 +22,9 @@ Python remains intentionally narrow: YAML parsing/defaults, batch/export renderi
 
 Frame-class semantics are authored in [`docs/frame-classes.md`](docs/frame-classes.md) and implemented in both TS and Python. There is no hand-authored JSON contract for frame/editor semantics.
 
-**Active focus (2026-06-01):** `specs/009-client-side-ts-rendering/` complete (T001–T022). The preview editor renders SVG entirely from the TS pipeline on first load – no Python SVG fetch. All 23 diagrams browser-verified, both test suites green (198 TS + 271 Python), grid overlay confirmed, batch/export endpoints verified, error handling added for HarfBuzz failure, icon 404s, and empty diagrams.
+**Active focus (2026-06-01):** Spec 009 (client-side TS rendering) complete – all 23 diagrams render from the TS pipeline, no Python SVG fetch on the interactive path. Autolayout stress test passed with grid overlay – no column alignment issues across all diagram types (4-column, 5-column wrapped, vertical stacks, nested containers, mixed sizing). TODO reorganised: open work prioritised at top (highlight text contrast bug, spec 005 mutation removal, spec 008 Phase 5 tests), completed items archived to HISTORY.
+
+Next priorities: highlight text contrast bug (black text on black highlight fill in android-security-comparison), then spec 005 autolayout hardening (semantic mutation removal).
 
 `specs/008-repo-coherence-rewrite/` has Phases 1-4 and 6-8 complete; Phase 5 (resolved style snapshot end-to-end) is deferred to a focused follow-up.
 

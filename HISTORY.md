@@ -4,6 +4,20 @@ Completed work belongs here so `TODO.md` stays lean.
 
 ## Short-term
 
+### 2026-06-01 – Client-side TS rendering complete (spec 009)
+
+- **All 6 phases (T001–T022) done.** TS pipeline renders SVG on first load in the preview editor. Python SVG fetch eliminated from the interactive path; Python renderer remains for batch/export.
+- **Error handling added.** HarfBuzz load failure, icon fetch 404, and empty diagram (missing/null root) all surface visible error banners before falling back gracefully. Server fetch failure also handled with distinct messaging.
+- **23 diagrams browser-verified** with TS rendering, grid overlay, and constraint checks. No alignment issues, no regressions.
+- **Autolayout stress test passed.** Grid overlay verification across production diagrams (4-column, 5-column wrapped, vertical stacks, nested containers, mixed HUG/FILL/FIXED sizing) – all boxes align to column guides. "No violations" on all tested diagrams.
+- **Validation:** 198 TS + 271 Python tests passing. Commits: `fe7592c` (phases 1–3), `914c084` (phases 4–6).
+
+### 2026-06-01 – Autolayout corpus visual audit complete (spec 005 prerequisite)
+
+- **All 23 production diagrams visually audited** and confirmed correct after the level/style simplification. Inline styles converted, overrides baked into YAML, levels corrected where needed.
+- **Variant overlays and col_span landed.** `variant: highlight` (black fill, white text), `variant: annotation` (borderless), `col_span` field for grid-column spanning. 7 tests covering all combinations.
+- **Overlay model landed.** Dashed bounding-rect overlays parsed from YAML `overlays:` key. Mermaid testcase ports (simple + complex) with overlay demonstration. 3 tests.
+
 ### 2026-06-01 – Repo coherence rewrite: doc convergence and code cleanup (spec 008)
 
 - **Document convergence.** Stripped dead-pipeline references from README.md, agent.md, two skills, ROADMAP.md, STATUS.md, and TODO.md. Marked 3 audit docs as historical. Fixed copilot-instructions.md Spec Kit pointer. ROADMAP collapsed from 300 to 38 lines (future-only). README from 480 to 240 lines. STATUS from 200 to 78 lines.
