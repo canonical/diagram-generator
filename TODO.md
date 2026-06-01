@@ -1,4 +1,4 @@
-*# TODO
+# TODO
 
 ## Purpose
 
@@ -33,6 +33,14 @@ Provide a cold-start-safe workflow and a consistent on-brand SVG system for rede
 - Do not duplicate visual rules across files. If the same rule appears in two places, delete one.
 
 ## Active TODO
+
+### DIAGRAM.md token audit and HUG sizing fix (spec 010)
+
+Feature package: `specs/010-diagram-token-audit/` – 0/46 tasks, 3 phases.
+
+- Part 1: Audit every hardcoded value in DIAGRAM.md – classify as invariant / default / sample-artifact
+- Part 2: Remove the `BLOCK_WIDTH` (192px) floor from HUG leaf measurement in both engines
+- Part 3: Column-span conditional display in the width inspector (P2, independent)
 
 ### Highlight text contrast bug
 
