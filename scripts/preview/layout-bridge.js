@@ -1227,8 +1227,8 @@ function renderOverlaysSvg(overlays, boundsMap) {
  * @returns {SVGSVGElement}
  */
 function renderFrameTreeToSvg(diagram, result, options) {
-  const width = result.width;
-  const height = result.height;
+  const width = result.width || 400;
+  const height = result.height || 200;
   const iconElements = (options && options.iconElements) || new Map();
   const overlays = (options && options.overlays) || [];
 
@@ -1245,6 +1245,11 @@ function renderFrameTreeToSvg(diagram, result, options) {
   bgRect.setAttribute("height", String(height));
   bgRect.setAttribute("fill", "#FFFFFF");
   svg.appendChild(bgRect);
+
+  // Guard: empty or missing root produces valid SVG with just background
+  if (!diagram || !diagram.root) {
+    return svg;
+  }
 
   // Render frame tree depth-first
   function _renderFrame(frame) {

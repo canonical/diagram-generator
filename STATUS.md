@@ -22,7 +22,7 @@ Python remains intentionally narrow: YAML parsing/defaults, batch/export renderi
 
 Frame-class semantics are authored in [`docs/frame-classes.md`](docs/frame-classes.md) and implemented in both TS and Python. There is no hand-authored JSON contract for frame/editor semantics.
 
-**Active focus (2026-06-01):** `specs/009-client-side-ts-rendering/` Phases 1–3 complete (T001–T012). The preview editor now renders SVG entirely from the TS pipeline on first load – no Python SVG fetch. `loadSVG()` calls `renderFreshSvg()` which runs resolveStyles → layoutFrameTree → renderFrameTreeToSvg in the browser. Python SVG is only used as fallback if the TS bridge fails to initialise. 3/23 diagrams browser-verified (maas-architecture, complex-routing-usecase, aws-hld). Phases 4–6 (batch validation, grid overlay, error handling) are next.
+**Active focus (2026-06-01):** `specs/009-client-side-ts-rendering/` complete (T001–T022). The preview editor renders SVG entirely from the TS pipeline on first load – no Python SVG fetch. All 23 diagrams browser-verified, both test suites green (198 TS + 271 Python), grid overlay confirmed, batch/export endpoints verified, error handling added for HarfBuzz failure, icon 404s, and empty diagrams.
 
 `specs/008-repo-coherence-rewrite/` has Phases 1-4 and 6-8 complete; Phase 5 (resolved style snapshot end-to-end) is deferred to a focused follow-up.
 

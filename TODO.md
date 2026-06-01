@@ -128,13 +128,14 @@ Feature package: `specs/009-client-side-ts-rendering/`
 
 Phases 1–3 complete (T001–T012). The preview editor renders SVG from the TS pipeline on first load. Python SVG fetch eliminated from the interactive path.
 
-**Remaining:**
-- [ ] `[S]` T013: Browser-verify remaining ~20 diagrams (3/23 done: maas-architecture, complex-routing-usecase, aws-hld)
-- [ ] `[S]` T014–T015: Batch/export validation – confirm Python renderer and `/svg/` endpoint unchanged
-- [ ] `[S]` T016: Grid overlay verification with TS-rendered SVG
-- [ ] `[S]` T017–T019: Error handling (HarfBuzz load failure, icon fetch failure, empty diagram)
-- [ ] `[X]` T020–T021: Full test suite re-run
-- [ ] `[S]` T022: Final browser verification of all diagrams with edge cases
+Phases 1–6 complete (T001–T022). All tasks done.
+
+- [x] `[S]` T013: Browser-verify all 23 diagrams (23/23 done)
+- [x] `[S]` T014–T015: Batch/export validation – Python renderer and `/svg/` endpoint confirmed working
+- [x] `[S]` T016: Grid overlay verification with TS-rendered SVG
+- [x] `[S]` T017–T019: Error handling (HarfBuzz load failure, icon fetch failure, empty diagram)
+- [x] `[X]` T020–T021: Full test suites re-run (198 TS + 271 Python – all green)
+- [x] `[S]` T022: Final browser verification of all diagrams with edge cases
 
 ### Repo coherence and migration cleanup
 

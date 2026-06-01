@@ -398,9 +398,21 @@ async function loadSVG(options = {}) {
   const readiness = getLocalRelayoutStatus();
   if (!readiness.ready) {
     console.warn("TS bridge not ready, falling back to Python SVG:", readiness.reason);
+    // Show degraded-mode banner in stage
+    const reasonText = readiness.textAdapterError || readiness.reason || "unknown";
+    stage.innerHTML =
+      '<div style="padding:24px;font-family:Ubuntu Sans,sans-serif">' +
+      '<div style="color:#c7162b;margin-bottom:12px">⚠ Client-side rendering unavailable: ' +
+      escapeHtml(reasonText) + '</div>' +
+      '<div style="color:#666">Falling back to server-rendered SVG\u2026</div></div>';
     const suffix = GRID ? `-${ENGINE}-grid.svg` : `-${ENGINE}.svg`;
     const resp = await fetch("/svg/" + SLUG + "-onbrand" + suffix + "?t=" + Date.now());
-    if (!resp.ok) return;
+    if (!resp.ok) {
+      stage.innerHTML =
+        '<div style="padding:24px;color:#c7162b;font-family:Ubuntu Sans,sans-serif">' +
+        'Failed to load diagram: server returned ' + resp.status + '</div>';
+      return;
+    }
     stage.innerHTML = await resp.text();
     await loadTree();
     await loadGridInfo();
