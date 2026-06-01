@@ -7,6 +7,8 @@ import xml.etree.ElementTree as ET
 
 import uharfbuzz as hb
 
+# Role: shared tokens and measurement, used by both v2 and v3 while callers still depend on this monolith.
+
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 ICON_DIR = ROOT / "assets" / "icons"
 OUTPUT_DIR = ROOT / "diagrams" / "2.output"
@@ -217,6 +219,7 @@ def make_line(
     weight: str = "400",
     fill: str = BLACK,
     small_caps: bool = False,
+    letter_spacing: str | None = None,
     line_step: int | None = None,
     font_family: str | None = None,
 ) -> dict[str, object]:
@@ -226,6 +229,7 @@ def make_line(
         "weight": weight,
         "fill": fill,
         "small_caps": small_caps,
+        "letter_spacing": letter_spacing,
         "line_step": line_step or default_line_step(size),
     }
     if font_family:
@@ -249,12 +253,37 @@ def make_diagram_line(
     )
 
 
+def _parse_letter_spacing_px(letter_spacing: object, font_size: float) -> float:
+    if not letter_spacing:
+        return 0.0
+    text = str(letter_spacing).strip()
+    if not text:
+        return 0.0
+    try:
+        if text.endswith("em"):
+            return float(text[:-2]) * font_size
+        if text.endswith("px"):
+            return float(text[:-2])
+        return float(text)
+    except ValueError:
+        return 0.0
+
+
+def _letter_spacing_advance(text: str, letter_spacing: object, font_size: float) -> float:
+    per_gap = _parse_letter_spacing_px(letter_spacing, font_size)
+    if per_gap == 0:
+        return 0.0
+    return max(0, len(text) - 1) * per_gap
+
+
 def estimate_line_width(spec: dict[str, object]) -> float:
     text = str(spec["content"])
     size = size_to_px(spec.get("size", BODY_SIZE))
     weight = int(spec.get("weight", 400))
     features = {"smcp": True, "c2sc": True} if bool(spec.get("small_caps", False)) else None
-    return measure_text_width(text, size, weight, features=features)
+    width = measure_text_width(text, size, weight, features=features)
+    width += _letter_spacing_advance(text, spec.get("letter_spacing"), size)
+    return width
 
 
 def wrap_text_lines(lines: list[dict[str, object]], max_width: float) -> list[dict[str, object]]:
@@ -279,6 +308,7 @@ def wrap_text_lines(lines: list[dict[str, object]], max_width: float) -> list[di
         for word in words:
             test = (current + " " + word) if current else word
             test_w = measure_text_width(test, size, weight, features=features)
+            test_w += _letter_spacing_advance(test, spec.get("letter_spacing"), size)
             if test_w <= max_width or not current:
                 current = test
             else:

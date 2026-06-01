@@ -154,6 +154,33 @@ describe('measure', () => {
     expect(leaf._layout.measuredH % BASELINE_UNIT).toBe(0);
   });
 
+  it('includes leaf heading lines in measured height', () => {
+    const bodyOnly = new Frame({
+      id: 'body-only',
+      label: [
+        createLine('Body line 1'),
+        createLine('Body line 2'),
+        createLine('Body line 3'),
+      ],
+      border: Border.SOLID,
+    });
+    const withHeading = new Frame({
+      id: 'with-heading',
+      heading: createLine('Heading', { weight: '700' }),
+      label: [
+        createLine('Body line 1'),
+        createLine('Body line 2'),
+        createLine('Body line 3'),
+      ],
+      border: Border.SOLID,
+    });
+
+    measure(bodyOnly, adapter);
+    measure(withHeading, adapter);
+
+    expect(withHeading._layout.measuredH).toBeGreaterThan(bodyOnly._layout.measuredH);
+  });
+
   it('measures a container as sum of children plus padding and gaps', () => {
     const c1 = new Frame({ id: 'c1', sizingW: Sizing.FIXED, sizingH: Sizing.FIXED, width: 96, height: 48 });
     const c2 = new Frame({ id: 'c2', sizingW: Sizing.FIXED, sizingH: Sizing.FIXED, width: 96, height: 48 });

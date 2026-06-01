@@ -22,6 +22,7 @@ export interface Line {
   readonly weight?: string;     // default "400"
   readonly fill?: string;       // default "#000000"
   readonly smallCaps?: boolean; // default false
+  readonly letterSpacing?: string; // CSS-compatible SVG value, e.g. "0.05em"
   readonly lineStep?: number;   // override default line step
   readonly fontFamily?: string; // override (e.g. mono)
 }
@@ -33,6 +34,7 @@ export function createLine(content: string, overrides?: Partial<Omit<Line, 'cont
     weight: '400',
     fill: '#000000',
     smallCaps: false,
+    letterSpacing: undefined,
     ...overrides,
   };
 }

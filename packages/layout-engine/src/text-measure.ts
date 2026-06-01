@@ -23,8 +23,17 @@ export interface LineSpec {
   weight?: string | number;
   fill?: string;
   smallCaps?: boolean;
+  letterSpacing?: string | null;
   lineStep?: string | number;
   fontFamily?: string | null;
+}
+
+export interface TextMeasureRequest {
+  text: string;
+  fontSize: number;
+  weight?: number;
+  smallCaps?: boolean;
+  letterSpacing?: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -32,8 +41,42 @@ export interface LineSpec {
 // ---------------------------------------------------------------------------
 
 export interface TextMeasureAdapter {
-  /** Measure pixel width of text at a given font size and weight. */
-  measureTextWidth(text: string, fontSize: number, weight?: number): number;
+  /** Identifier for the measurement backend, used to enforce runtime invariants. */
+  readonly measurementBackend: string;
+  /** Measure pixel width of text for the full resolved text style. */
+  measureTextWidth(request: TextMeasureRequest): number;
+}
+
+export function letterSpacingPx(letterSpacing: string | null | undefined, fontSize: number): number {
+  if (!letterSpacing) return 0;
+  const trimmed = String(letterSpacing).trim();
+  if (!trimmed) return 0;
+  if (trimmed.endsWith('em')) {
+    const value = Number.parseFloat(trimmed.slice(0, -2));
+    return Number.isFinite(value) ? value * fontSize : 0;
+  }
+  if (trimmed.endsWith('px')) {
+    const value = Number.parseFloat(trimmed.slice(0, -2));
+    return Number.isFinite(value) ? value : 0;
+  }
+  const value = Number.parseFloat(trimmed);
+  return Number.isFinite(value) ? value : 0;
+}
+
+export function letterSpacingAdvance(text: string, letterSpacing: string | null | undefined, fontSize: number): number {
+  const perGap = letterSpacingPx(letterSpacing, fontSize);
+  if (perGap === 0) return 0;
+  return Math.max(0, Array.from(text).length - 1) * perGap;
+}
+
+export function lineSpecToMeasureRequest(spec: LineSpec): TextMeasureRequest {
+  return {
+    text: spec.content,
+    fontSize: sizeToPx(spec.size ?? BODY_SIZE),
+    weight: Number(spec.weight ?? 400),
+    smallCaps: spec.smallCaps ?? false,
+    letterSpacing: spec.letterSpacing ?? null,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -42,12 +85,7 @@ export interface TextMeasureAdapter {
 
 /** Estimate the pixel width of a single line spec. */
 export function estimateLineWidth(spec: LineSpec, adapter: TextMeasureAdapter): number {
-  const text = spec.content;
-  const size = sizeToPx(spec.size ?? BODY_SIZE);
-  const weight = Number(spec.weight ?? 400);
-  let width = adapter.measureTextWidth(text, size, weight);
-  if (spec.smallCaps) width *= 1.05;
-  return width;
+  return adapter.measureTextWidth(lineSpecToMeasureRequest(spec));
 }
 
 /** Word-wrap lines at max_width using the adapter for measurement. */
@@ -68,16 +106,15 @@ export function wrapTextLines(
       continue;
     }
 
-    const size = sizeToPx(spec.size ?? BODY_SIZE);
-    const weight = Number(spec.weight ?? 400);
-    const smallCaps = spec.smallCaps ?? false;
     const words = spec.content.split(/\s+/);
     let current = '';
 
     for (const word of words) {
       const test = current ? current + ' ' + word : word;
-      let testW = adapter.measureTextWidth(test, size, weight);
-      if (smallCaps) testW *= 1.05;
+      const testW = adapter.measureTextWidth({
+        ...lineSpecToMeasureRequest(spec),
+        text: test,
+      });
       if (testW <= maxWidth || !current) {
         current = test;
       } else {
@@ -107,6 +144,7 @@ export function lineToSpec(line: Line): LineSpec {
     weight: line.weight ?? '400',
     fill: line.fill ?? '#000000',
     smallCaps: line.smallCaps ?? false,
+    letterSpacing: line.letterSpacing ?? null,
     lineStep: line.lineStep != null ? String(line.lineStep) : String(BODY_LINE_STEP),
     fontFamily: line.fontFamily ?? null,
   };
@@ -126,9 +164,13 @@ export function linesToSpecs(lines: readonly Line[]): LineSpec[] {
  * Default factor 0.6 approximates average glyph width for proportional fonts.
  */
 export class MockTextAdapter implements TextMeasureAdapter {
+  readonly measurementBackend = 'mock';
+
   constructor(private readonly factor = 0.6) {}
 
-  measureTextWidth(text: string, fontSize: number, _weight?: number): number {
-    return text.length * fontSize * this.factor;
+  measureTextWidth(request: TextMeasureRequest): number {
+    let width = request.text.length * request.fontSize * this.factor;
+    width += letterSpacingAdvance(request.text, request.letterSpacing, request.fontSize);
+    return width;
   }
 }

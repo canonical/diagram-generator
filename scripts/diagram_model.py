@@ -16,6 +16,8 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import Union
 
+# Role: legacy model, Line and enum surfaces still used by style resolution and layout support.
+
 
 # ---------------------------------------------------------------------------
 # Text primitives
@@ -29,6 +31,7 @@ class Line:
     weight: str = "400"
     fill: str = "#000000"
     small_caps: bool = False
+    letter_spacing: str | None = None
     line_step: int | None = None       # override default_line_step
     font_family: str | None = None     # override (e.g. mono)
 

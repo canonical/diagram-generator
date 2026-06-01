@@ -140,9 +140,9 @@ def _walk_violations(
         weight = heading_child.label[0].weight
         small_caps = heading_child.label[0].small_caps
         if level >= 3:
-            if not small_caps:
+            if weight != "700":
                 violations.append(
-                    f"{current_path}: section heading should be small-caps"
+                    f"{current_path}: section heading should be bold (700), got {weight}"
                 )
         elif level == 2:
             if weight != "700":

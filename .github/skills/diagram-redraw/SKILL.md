@@ -25,8 +25,8 @@ argument-hint: "Describe the source asset, target slug, and any special constrai
 8. **Apply typography hierarchy.** Bold = structural headings only. Regular weight for content labels. Helper text uses color shift, not size change. See DIAGRAM.md "Typography".
 9. **Verify text containment.** Every text element fits entirely inside its parent or sits entirely outside. See DIAGRAM.md "Text containment".
 10. **Apply the correct group style.** Grey no-stroke for default groups. Dashed only for debug. See DIAGRAM.md "Group styling invariant".
-11. Add or update the generator logic in `scripts/export_drawio_batch.py` and `scripts/generate_remaining_diagrams.py`.
-12. Add the compare entry in `scripts/build_compare_pages.py` and create or refresh the input asset under `diagrams/1.input/`.
+11. Create or update the frame YAML in `scripts/diagrams/frames/`.
+12. The preview server auto-discovers new YAMLs, so no manual registration is needed.
 13. Run the build and validation workflow from the `diagram-build-validate` skill.
 14. **Post-generation layout audit.** Check against DIAGRAM.md rules:
     - All positions and dimensions on 8px baseline

@@ -126,7 +126,7 @@
 
     "box_style": {
       "type": "string",
-      "enum": ["default", "accent", "highlight"],
+      "enum": ["default", "highlight"],
       "description": "Semantic preset that sets fill + text + icon colours. Overrides raw fill when set."
     },
 

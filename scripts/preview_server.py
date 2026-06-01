@@ -2,17 +2,9 @@
 
 Serves diagram SVGs in a browser with:
   - Component tree sidebar with click-to-select and inspector
-  - Drag-to-nudge with position overrides that persist across rebuilds
   - Live rebuild on file change (watches scripts/diagrams/ and scripts/diagram_*.py)
   - Server-Sent Events for instant browser refresh
-  - Override staleness detection: flags when the definition changes under saved tweaks
-
-Override architecture:
-  Overrides live in diagrams/2.output/overrides/<slug>.json and store per-component
-  position deltas (dx, dy).  The SVG from the engine is always "pure" -- overrides are
-  applied client-side via CSS transforms.  This means the override is a drafting aid:
-  the user nudges things visually, then the agent reads the override file and applies
-  the fix to the Python definition.
+  - YAML-backed persistence for canonical v3 frame edits
 
 Usage:
     python scripts/preview_server.py                     # all diagrams, port 8100
@@ -24,7 +16,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import hashlib
 import http.server
 import importlib
 import json
@@ -38,15 +29,16 @@ import time
 from dataclasses import asdict
 from urllib.parse import unquote, urlparse
 
+from frame_yaml_persistence import persist_override_payload_to_yaml
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SCRIPTS = ROOT / "scripts"
 OUTPUT_SVG = ROOT / "diagrams" / "2.output" / "svg"
 V3_OUTPUT = ROOT / "diagrams" / "2.output" / "v3"
 V3_SVG = V3_OUTPUT / "svg"
 V3_DRAWIO = V3_OUTPUT / "draw.io"
-OVERRIDES_DIR = ROOT / "diagrams" / "2.output" / "overrides"
 DEFINITIONS_DIR = SCRIPTS / "diagrams"
-FRAMES_DIR = SCRIPTS / "diagrams" / "frames"
+FRAMES_DIR = pathlib.Path(os.environ.get("DG_FRAMES_DIR") or (SCRIPTS / "diagrams" / "frames"))
 
 WATCH_PATHS = [
     DEFINITIONS_DIR,
@@ -101,13 +93,6 @@ def _collect_mtimes() -> dict[str, float]:
                 for f in p.rglob(ext):
                     mtimes[str(f)] = f.stat().st_mtime
     return mtimes
-
-
-def _definition_hash(slug: str) -> str:
-    frame_yaml = FRAMES_DIR / (slug + ".yaml")
-    if frame_yaml.exists():
-        return hashlib.sha256(frame_yaml.read_bytes()).hexdigest()[:16]
-    return ""
 
 
 def _list_diagrams() -> list[str]:
@@ -234,6 +219,7 @@ def _serialize_line(line) -> dict:
         "weight": line.weight,
         "fill": line.fill,
         "smallCaps": getattr(line, "small_caps", False),
+        "letterSpacing": getattr(line, "letter_spacing", None),
         "lineStep": getattr(line, "line_step", None),
         "fontFamily": getattr(line, "font_family", None),
     }
@@ -299,50 +285,12 @@ def _serialize_frame_diagram(diagram) -> dict:
     }
 
 
-def _relayout(slug: str, grid_overrides: dict) -> dict | None:
-    """Re-run v3 layout with patched grid params and return SVG + metadata."""
-    try:
-        if str(SCRIPTS) not in sys.path:
-            sys.path.insert(0, str(SCRIPTS))
-        from frame_loader import load_frame_yaml
-        from layout_v3 import layout_frame_diagram
-        import diagram_render_svg
-
-        frame_yaml = FRAMES_DIR / (slug + ".yaml")
-        if not frame_yaml.exists():
-            return None
-        frame_diagram = load_frame_yaml(frame_yaml)
-
-        # Patch grid params on the FrameDiagram
-        for key, attr in (("cols", "grid_cols"), ("col_gap", "grid_col_gap"),
-                          ("row_gap", "grid_row_gap"), ("outer_margin", "grid_outer_margin")):
-            if key in grid_overrides:
-                object.__setattr__(frame_diagram, attr, grid_overrides[key])
-
-        result = layout_frame_diagram(frame_diagram)
-        svg_str = diagram_render_svg.render_svg(result)
-        tree = [asdict(ci) for ci in result.component_tree] if result.component_tree else []
-        gi = asdict(result.grid_info) if result.grid_info else None
-        return {"svg": svg_str, "tree": tree, "grid_info": gi}
-    except Exception as e:
-        import traceback; traceback.print_exc()
-        return None
-
-
-def _load_overrides(slug: str) -> dict:
-    path = OVERRIDES_DIR / f"{slug}.json"
-    if path.exists():
-        try:
-            return json.loads(path.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            pass
-    return {"format_version": 1, "definition_hash": "", "overrides": {}}
-
-
 def _save_overrides(slug: str, data: dict) -> None:
-    OVERRIDES_DIR.mkdir(parents=True, exist_ok=True)
-    path = OVERRIDES_DIR / f"{slug}.json"
-    path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    frame_path = FRAMES_DIR / f"{slug}.yaml"
+    if not frame_path.exists():
+        raise ValueError(f"Unknown frame slug: {slug}")
+    persist_override_payload_to_yaml(frame_path, data)
+    _layout_cache.pop(f"{slug}:v3", None)
 
 
 def _watch_loop(grid: bool = False, interval: float = 0.5):
@@ -765,6 +713,12 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
             self._serve_bf_font(path[len("/preview/bf-fonts/"):])
         elif path == "/preview/layout-engine.js":
             self._serve_layout_engine_bundle()
+        elif path == "/preview/layout-engine-harfbuzz.js":
+            self._serve_layout_engine_harfbuzz_bundle()
+        elif path == "/preview/harfbuzz.wasm":
+            self._serve_layout_engine_harfbuzz_wasm()
+        elif path == "/preview/layout-font.ttf":
+            self._serve_layout_engine_font()
         elif path.startswith("/preview/"):
             self._serve_static(path[9:])
         elif path.startswith("/svg/"):
@@ -783,8 +737,6 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
             self._serve_frame_tree(path[16:])
         elif path.startswith("/api/grid/"):
             self._serve_grid(path[10:])
-        elif path.startswith("/api/overrides/"):
-            self._serve_overrides_get(path[15:])
         elif path.startswith("/reference/"):
             self._serve_reference_image(path[11:])
         elif path == "/v3":
@@ -800,8 +752,6 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
         path = urlparse(self.path).path.rstrip("/")
         if path.startswith("/api/overrides/"):
             self._serve_overrides_post(path[15:])
-        elif path.startswith("/api/relayout/"):
-            self._serve_relayout(path[14:])
         elif path.startswith("/api/force-reset/"):
             self._serve_force_reset(path[17:])
         elif path.startswith("/api/force-save/"):
@@ -1084,6 +1034,28 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
             return
         self._respond(200, "application/javascript", bundle_path.read_bytes())
 
+    def _serve_layout_engine_harfbuzz_bundle(self):
+        """Serve the browser ESM bundle for the HarfBuzz text adapter."""
+        bundle_path = ROOT / "packages" / "layout-engine" / "dist" / "layout-engine-harfbuzz.js"
+        if not bundle_path.exists():
+            self.send_error(404, "HarfBuzz text adapter bundle not built")
+            return
+        self._respond(200, "application/javascript", bundle_path.read_bytes())
+
+    def _serve_layout_engine_harfbuzz_wasm(self):
+        wasm_path = ROOT / "packages" / "layout-engine" / "dist" / "harfbuzz.wasm"
+        if not wasm_path.exists():
+            self.send_error(404, "HarfBuzz wasm not built")
+            return
+        self._respond(200, "application/wasm", wasm_path.read_bytes())
+
+    def _serve_layout_engine_font(self):
+        font_path = ROOT / "assets" / "UbuntuSans[wdth,wght].ttf"
+        if not font_path.exists():
+            self.send_error(404, "Layout font not found")
+            return
+        self._respond(200, "font/ttf", font_path.read_bytes())
+
     def _serve_grid(self, slug: str):
         if not _is_safe_slug(slug):
             self.send_error(400, "Invalid slug")
@@ -1093,22 +1065,6 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
             self._respond(200, "application/json", b"null")
         else:
             self._respond(200, "application/json", json.dumps(info, indent=2).encode())
-
-    def _serve_overrides_get(self, slug: str):
-        if not _is_safe_slug(slug):
-            self.send_error(400, "Invalid slug")
-            return
-        data = _load_overrides(slug)
-        current_hash = _definition_hash(slug)
-        saved_hash = data.get("definition_hash", "")
-        stale = bool(saved_hash and current_hash and saved_hash != current_hash)
-        response = {
-            "definition_hash": current_hash,
-            "overrides": data.get("overrides", {}),
-            "grid_overrides": data.get("grid_overrides", {}),
-            "stale": stale,
-        }
-        self._respond(200, "application/json", json.dumps(response, indent=2).encode())
 
     def _serve_overrides_post(self, slug: str):
         if not _is_safe_slug(slug):
@@ -1127,67 +1083,15 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
         if not isinstance(data, dict):
             self.send_error(400, "Expected JSON object")
             return
-        # Validate overrides structure
-        if "overrides" in data and not isinstance(data.get("overrides"), dict):
-            self.send_error(400, "overrides must be an object")
-            return
-        overrides = data.get("overrides", {})
-        for comp_id, props in overrides.items():
-            if not isinstance(comp_id, str) or not _is_safe_slug(comp_id):
-                self.send_error(400, f"Invalid component ID: {comp_id}")
-                return
-            if not isinstance(props, dict):
-                self.send_error(400, f"Override for {comp_id} must be an object")
-                return
-            for key, val in props.items():
-                if not isinstance(key, str):
-                    self.send_error(400, f"Override key must be string")
-                    return
-                if val is not None and not isinstance(val, (int, float, str)):
-                    self.send_error(400, f"Override value for {comp_id}.{key} has invalid type")
-                    return
-        # Validate grid_overrides if present
-        if "grid_overrides" in data:
-            grid_ov = data["grid_overrides"]
-            if not isinstance(grid_ov, dict):
-                self.send_error(400, "grid_overrides must be an object")
-                return
-            allowed_grid_keys = {"cols", "col_gap", "row_gap", "outer_margin"}
-            for key, val in grid_ov.items():
-                if key not in allowed_grid_keys:
-                    self.send_error(400, f"Unknown grid_overrides key: {key}")
-                    return
-                if not isinstance(val, (int, float)):
-                    self.send_error(400, f"grid_overrides.{key} must be numeric")
-                    return
-        data["definition_hash"] = _definition_hash(slug)
-        data["format_version"] = 1
-        _save_overrides(slug, data)
-        self._respond(200, "application/json", b'{"ok":true}')
-
-    def _serve_relayout(self, slug: str):
-        if not _is_safe_slug(slug):
-            self.send_error(400, "Invalid slug")
-            return
-        content_length = int(self.headers.get("Content-Length", 0))
-        if content_length > 1_000_000:
-            self.send_error(413, "Payload too large")
-            return
-        body = self.rfile.read(content_length)
         try:
-            params = json.loads(body)
-        except json.JSONDecodeError:
-            self.send_error(400, "Invalid JSON")
+            _save_overrides(slug, data)
+        except ValueError as exc:
+            self._respond(400, "text/plain; charset=utf-8", str(exc).encode("utf-8"))
             return
-        grid_overrides = {}
-        for key in ("cols", "col_gap", "row_gap", "outer_margin"):
-            if key in params and params[key] is not None:
-                grid_overrides[key] = int(params[key])
-        result = _relayout(slug, grid_overrides)
-        if result is None:
-            self.send_error(500, "Relayout failed")
+        except OSError as exc:
+            self._respond(500, "text/plain; charset=utf-8", f"Failed to save YAML: {exc}".encode("utf-8"))
             return
-        self._respond(200, "application/json", json.dumps(result).encode())
+        self._respond(200, "application/json", b'{"ok":true}')
 
     def _serve_force_get(self, slug: str):
         if not _is_safe_slug(slug):

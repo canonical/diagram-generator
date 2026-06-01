@@ -3,7 +3,7 @@
  *
  * Walks a Frame tree and sets resolvedFill / resolvedStroke on every frame
  * based on the four-class hierarchy:
- *   Section  (level 3): small-caps bold heading, transparent, black border
+ *   Section  (level 3): bold heading token, transparent, black border
  *   Panel    (level 2): bold heading, grey fill, grey border
  *   Leaf     (level 1): regular heading, transparent, black border
  *   Annotation:         borderless leaf — transparent, no border
@@ -12,10 +12,8 @@
  * Renderers consume resolvedFill/resolvedStroke directly — no re-derivation.
  */
 
-import { Border, createLine, Fill, Frame } from './frame-model.js';
-
-const BLACK = '#000000';
-const GREY = '#F3F3F3';
+import { Border, Fill, Frame } from './frame-model.js';
+import { applyFrameClass, FRAME_CLASS_DEFS } from './frame-classes.js';
 
 /**
  * Compute the effective prominence level for a frame.
@@ -55,8 +53,9 @@ interface ResolveStylesContext {
 /**
  * Walk the tree and set resolvedFill / resolvedStroke on every frame.
  *
- * Must be called after layout so that children are known. Mirrors the
- * Python `resolve_styles()` in `frame_loader.py` exactly.
+ * Must be called before layout so typography-affecting mutations
+ * participate in measurement. Mirrors the Python `resolve_styles()`
+ * in `frame_loader.py` exactly.
  */
 export function resolveStyles(root: Frame, ctx?: Partial<ResolveStylesContext>): void {
   const depth = ctx?.depth ?? 0;
@@ -69,26 +68,20 @@ export function resolveStyles(root: Frame, ctx?: Partial<ResolveStylesContext>):
 
   if (depth === 0) {
     // Root frame: invisible
-    root.resolvedFill = 'transparent';
-    root.resolvedStroke = 'none';
+    applyFrameClass(root, FRAME_CLASS_DEFS.hidden);
   } else if (isLayoutWrapper) {
     // Synthetic __heading / __body frames: transparent
-    root.resolvedFill = 'transparent';
-    root.resolvedStroke = 'none';
+    applyFrameClass(root, FRAME_CLASS_DEFS.hidden);
     // __heading with a black-fill parent keeps its fill for contrast
     if (root.fill === Fill.BLACK) {
-      root.resolvedFill = BLACK;
+      root.resolvedFill = '#000000';
     } else if (root.fill === Fill.WHITE && root.role === 'heading') {
       root.resolvedFill = 'transparent';
     }
-  } else if (root.fill === Fill.BLACK) {
-    // Highlight variant (fill already set to BLACK by variant overlay)
-    root.resolvedFill = BLACK;
-    root.resolvedStroke = BLACK;
   } else if (root.role === 'separator') {
-    root.resolvedFill = 'transparent';
-    root.resolvedStroke = 'none';
+    applyFrameClass(root, FRAME_CLASS_DEFS.hidden);
   } else {
+    const isHighlight = root.fill === Fill.BLACK;
     // Normal frame: resolve from level
     let level = computeLevel(root, depth);
 
@@ -103,97 +96,26 @@ export function resolveStyles(root: Frame, ctx?: Partial<ResolveStylesContext>):
 
     if (level === 0) {
       // Level 0: headingless container / layout wrapper — invisible
-      root.resolvedFill = 'transparent';
-      root.resolvedStroke = 'none';
+      applyFrameClass(root, FRAME_CLASS_DEFS.hidden);
     } else if (root.border === Border.NONE && root.isLeaf && !isLayoutWrapper) {
       // Annotation: borderless leaf — no fill, no stroke
-      root.resolvedFill = 'transparent';
-      root.resolvedStroke = 'none';
+      applyFrameClass(root, FRAME_CLASS_DEFS.annotation);
     } else if (level >= 3) {
       // Section: small-caps bold heading, transparent fill, black border
-      root.resolvedFill = 'transparent';
-      root.resolvedStroke = BLACK;
+      applyFrameClass(root, FRAME_CLASS_DEFS.section);
       thisIsSection = true;
-
-      // Set small caps on heading children
-      for (const child of root.children) {
-        if (child.role === 'heading' && child.label.length > 0) {
-          const cl = child.label[0]!;
-          child.label[0] = createLine(cl.content, {
-            weight: cl.weight,
-            fill: cl.fill,
-            smallCaps: true,
-            lineStep: cl.lineStep,
-            fontFamily: cl.fontFamily,
-          });
-        }
-      }
-      if (root.heading != null) {
-        root.heading = createLine(root.heading.content, {
-          weight: root.heading.weight,
-          fill: root.heading.fill,
-          smallCaps: true,
-          lineStep: root.heading.lineStep,
-          fontFamily: root.heading.fontFamily,
-        });
-      }
-      // Non-container with first label line as heading
-      if (root.isLeaf && root.label.length > 0) {
-        const ln = root.label[0]!;
-        root.label[0] = createLine(ln.content, {
-          weight: ln.weight,
-          fill: ln.fill,
-          smallCaps: true,
-          lineStep: ln.lineStep,
-          fontFamily: ln.fontFamily,
-        });
-      }
     } else if (level >= 2) {
       // Panel: grey fill, grey border (invisible against fill)
-      root.resolvedFill = GREY;
-      root.resolvedStroke = GREY;
+      applyFrameClass(root, FRAME_CLASS_DEFS.panel);
       thisIsPanel = true;
     } else {
       // Leaf (level 1): outlined box, regular-weight heading
-      root.resolvedFill = 'transparent';
-      root.resolvedStroke = BLACK;
+        applyFrameClass(root, FRAME_CLASS_DEFS.leaf);
+      }
 
-      // Demote heading from bold to regular weight for leaves
-      for (const child of root.children) {
-        if (child.role === 'heading' && child.label.length > 0) {
-          const cl = child.label[0]!;
-          child.label[0] = createLine(cl.content, {
-            weight: '400',
-            fill: cl.fill,
-            smallCaps: false,
-            lineStep: cl.lineStep,
-            fontFamily: cl.fontFamily,
-          });
-        }
+      if (isHighlight) {
+        applyFrameClass(root, FRAME_CLASS_DEFS.highlight);
       }
-      if (root.heading != null) {
-        root.heading = createLine(root.heading.content, {
-          weight: '400',
-          fill: root.heading.fill,
-          smallCaps: false,
-          lineStep: root.heading.lineStep,
-          fontFamily: root.heading.fontFamily,
-        });
-      }
-      // Non-container leaves: demote first label line
-      if (root.isLeaf && root.label.length > 0) {
-        const ln = root.label[0]!;
-        if (ln.weight === '700') {
-          root.label[0] = createLine(ln.content, {
-            weight: '400',
-            fill: ln.fill,
-            smallCaps: false,
-            lineStep: ln.lineStep,
-            fontFamily: ln.fontFamily,
-          });
-        }
-      }
-    }
   }
 
   // Recurse into children

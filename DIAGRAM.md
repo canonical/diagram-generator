@@ -53,6 +53,13 @@ typography:
     lineHeight: 20px
     letterSpacing: 0.05em
     fontFeature: '"smcp" 1'
+    notes: True small caps only. Active for section headings in the browser/TS path. Do not simulate by uppercasing or shrinking the font size.
+  heading-strong:
+    fontFamily: Ubuntu Sans
+    fontSize: 18px
+    fontWeight: 700
+    lineHeight: 24px
+    notes: Python and batch fallback section-heading token when true small caps are unavailable; the browser/TS path uses body-smallcaps instead.
   heading:
     fontFamily: Ubuntu Sans
     fontSize: 18px
@@ -214,7 +221,7 @@ The system has exactly four box treatments plus two special cases. Do not invent
 
 | Class | Level | Heading | Fill | Border | Text |
 |-------|-------|---------|------|--------|------|
-| Section | 3 | small-caps, bold | transparent | black 1px | black |
+| Section | 3 | true small caps, bold; else bold sentence case | transparent | black 1px | black |
 | Panel | 2 | bold | `#F3F3F3` | `#F3F3F3` 1px | black |
 | Leaf | 1 | regular weight | transparent | black 1px | black |
 | Annotation | — | — | transparent | none | `#666666` |
@@ -224,7 +231,7 @@ Style resolution is centralised in `resolve_styles()` (called by `load_frame_yam
 
 The **annotation** style is the default for all text that sits outside a bordered box: row notes, explanatory labels, and arrow labels. In YAML, set `variant: annotation` or `border: none` on a leaf frame to get annotation style.
 
-**Sections** (level 3) wrap panels and leaves with a visible black border and small-caps heading. **Panels** (level 2) use grey fill and bold heading. **Leaves** (level 1) use a black outline and regular-weight heading. See [`docs/frame-classes.md`](docs/frame-classes.md) for the full hierarchy rules and validation contract.
+**Sections** (level 3) wrap panels and leaves with a visible black border and a section-heading treatment. The preferred treatment is true small caps with bold weight; when editable SVG cannot render true small caps faithfully, the only allowed fallback is bold sentence case at the authored heading size. **Panels** (level 2) use grey fill and bold heading. **Leaves** (level 1) use a black outline and regular-weight heading. See [`docs/frame-classes.md`](docs/frame-classes.md) for the full hierarchy rules and validation contract.
 
 ### Box height invariant
 
@@ -257,7 +264,14 @@ Exceptions: product names ("Anbox Cloud", "SurfaceFlinger"), acronyms ("GPU", "A
 
 - Body copy: `18px` Ubuntu Sans regular with `24px` line height (modular-scale step up from editorial-tier `16px`, sized to fill `192px` boxes alongside `48px` icons).
 - First hierarchy step is weight: `400` → `600`.
-- Second step is small-caps: `600` weight with `0.05em` tracking.
+- Second step is true small caps: `600` weight with `0.05em` tracking.
+
+### Typography invariants
+
+- Measurement and rendering must use the same text content, case, size, OpenType features, and letter-spacing.
+- Faux small caps are forbidden. Do not simulate small caps by uppercasing text, shrinking font size, or otherwise changing glyph selection outside the typography token.
+- Section headings in the browser/TS path use real OpenType small caps via `font-variant-caps: small-caps`, enabling the font's `smcp` and `c2sc` features.
+- If a target format cannot render true small caps in editable SVG, the fallback is a different token: bold sentence case, not simulated small caps.
 - When size must change, stay on the modular scale: `24px/32px` for major titles.
 - No heading or body label should fall below `16px` without an explicit accessibility reason.
 - Terminal-style command bars use Ubuntu Sans Mono or a compatible mono fallback at the same body size.
@@ -651,10 +665,7 @@ Do not mark the task complete without a screenshot-based check.
 
 Useful commands:
 
-- `python scripts/build_v2.py`
-- `python scripts/_audit_v2.py`
-- `python scripts/_compare_3way.py`
-- `python scripts/preview_server.py --slug <slug> --grid`
+- `python scripts/preview_server.py` — start the preview server, then open `http://127.0.0.1:8100/view/v3:<slug>`
 
 ### Known failure modes
 

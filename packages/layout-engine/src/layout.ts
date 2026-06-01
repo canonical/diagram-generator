@@ -72,16 +72,23 @@ function expandRootWidthForSnappedFillColumns(root: Frame, requestedW: number): 
   return Math.max(requestedW, compatibleW);
 }
 
-function estimateTextWidth(lines: readonly Line[], adapter: TextMeasureAdapter): number {
+function estimateTextWidth(specs: readonly LineSpec[], adapter: TextMeasureAdapter): number {
   let maxW = 0;
-  for (const ln of lines) {
-    maxW = Math.max(maxW, estimateLineWidth(lineToSpec(ln), adapter));
+  for (const spec of specs) {
+    maxW = Math.max(maxW, estimateLineWidth(spec, adapter));
   }
   return maxW;
 }
 
 function leafAllSpecs(frame: Frame): LineSpec[] {
-  return linesToSpecs(frame.label);
+  const specs: LineSpec[] = [];
+  if (frame.heading) {
+    specs.push(lineToSpec(frame.heading));
+  }
+  if (frame.label.length > 0) {
+    specs.push(...linesToSpecs(frame.label));
+  }
+  return specs;
 }
 
 function leafNaturalSize(
@@ -136,8 +143,7 @@ function leafNaturalSize(
   if (frame.width != null) {
     w = frame.width;
   } else if (allSpecs.length > 0) {
-    const textLines = [...frame.label];
-    let textW = estimateTextWidth(textLines, adapter);
+    let textW = estimateTextWidth(allSpecs, adapter);
     textW = Math.min(textW, textMaxW);
     const iconCol = hasIcon ? (ICON_SIZE + INSET) : 0;
     const contentW = padL + textW + padR + iconCol;

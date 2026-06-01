@@ -5,11 +5,15 @@ frame must resolve to exactly one of these classes. If a diagram
 contains styling that doesn't match one of these four, it fails
 acceptance.
 
+This document is the sole authored authority for frame-class semantics.
+If machine-readable derivatives exist, they are generated artifacts
+only and must not be edited as an independent truth source.
+
 ## The four classes
 
 | Class | Level | Heading | Fill | Border | Text | Contains |
 |-------|-------|---------|------|--------|------|----------|
-| **Section** | 3 | ALL-CAPS, bold, ~85% size | transparent | black 1px | black | panels, leaves |
+| **Section** | 3 | true small caps, bold in browser/TS; else bold sentence case | transparent | black 1px | black | panels, leaves |
 | **Panel** | 2 | bold | `#F3F3F3` | `#F3F3F3` 1px | black | leaves |
 | **Leaf** | 1 | regular weight | transparent | black 1px | black | nothing |
 | **Annotation** | — | — | transparent | none | `#666666` | nothing |
@@ -66,7 +70,7 @@ The YAML author sets `level:` explicitly on every headed container:
 ```yaml
 - id: my_section
   level: 3
-  heading: "Section heading"     # renders small-caps, bold
+  heading: "Section heading"     # renders true small caps, bold in browser/TS; else bold sentence case
   children:
     - id: my_panel
       level: 2
@@ -94,17 +98,22 @@ A diagram is valid if and only if:
 
 ## Rendering notes
 
-**Small-caps simulation.** Section headings use simulated small-caps:
-the text is uppercased and the font-size is reduced to 85% of the
-standard heading size (e.g. 15px instead of 18px). This is baked into
-the SVG markup rather than using CSS `font-variant-caps`, which is
-silently ignored when SVG is embedded via `innerHTML` in the preview
-server. The `small_caps` flag on `Line` controls this – the SVG
-renderer uppercases the content string and scales the font-size.
+**Typography invariant.** The renderer must emit the same text contract
+that layout measured: same content, same case, same font size, same
+feature set, same letter-spacing. Faux small caps are forbidden.
+Specifically, renderers must not uppercase text or shrink font size to
+approximate small caps.
+
+**Fallback rule.** Browser/TS output uses true small caps for section
+headings. If another target cannot render true small caps faithfully,
+section headings fall back to bold sentence case at the authored
+heading size. That is a different typography token, not a "close
+enough" implementation of small caps.
 
 **Non-container sections.** A level-3 frame with no children (e.g. a
 leaf-like box with a bold label) gets section styling: black border,
-transparent fill, and small-caps on the first label line. The heading
-transform (Phase 2 in `frame_loader.py`) only fires for containers, so
-non-container sections apply small-caps directly to `frame.label[0]`
-rather than to a synthetic `__heading` child.
+transparent fill, and the same section-heading typography on the first
+label line. The heading transform (Phase 2 in `frame_loader.py`) only
+fires for containers, so non-container sections apply the section
+heading token directly to `frame.label[0]` rather than to a synthetic
+`__heading` child.

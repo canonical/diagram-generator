@@ -68,6 +68,8 @@ from diagram_shared import (
     tight_box_height,
 )
 
+# Role: legacy shared primitives, imported by v3 renderer and layout parity tests.
+
 
 # ---------------------------------------------------------------------------
 # Positioned primitives (output of layout)
@@ -293,6 +295,9 @@ class ComponentInfo:
     padding_right: float = 0
     padding_bottom: float = 0
     padding_left: float = 0
+    level: int | None = None
+    fill: str = ""
+    border: str = ""
     # Semantic text content (unwrapped) for editor text editing
     heading_text: str = ""
     label_text: list[str] = field(default_factory=list)
@@ -335,6 +340,7 @@ def _line_to_dict(line: Line) -> dict:
         weight=line.weight,
         fill=line.fill,
         small_caps=line.small_caps,
+        letter_spacing=line.letter_spacing,
         line_step=line.line_step,
         font_family=line.font_family,
     )
@@ -1316,8 +1322,6 @@ def _estimate_label_width(lines: list[dict]) -> float:
         size = size_to_px(spec.get("size", BODY_SIZE))
         weight = int(spec.get("weight", 400))
         width = measure_text_width(text, size, weight)
-        if spec.get("small_caps"):
-            width *= 1.05
         max_width = max(max_width, width)
     return max(max_width, size_to_px(BODY_SIZE) * 3)
 

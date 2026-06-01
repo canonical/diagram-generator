@@ -124,19 +124,13 @@ def _text_block(x, y, lines, max_width=None) -> str:
         size = str(spec["size"])
         weight = str(spec["weight"])
         fill = str(spec["fill"])
-        sc = bool(spec.get("small_caps", False))
-        if sc:
-            # Simulate all-small-caps reliably: uppercase the text and
-            # shrink font-size to ~85%.  Pure CSS font-variant-caps is
-            # ignored when SVG is embedded via innerHTML in the preview
-            # server, so we bake the transform into the markup.
-            content = content.upper()
-            size = str(round(int(size) * 0.85))
+        letter_spacing = spec.get("letter_spacing")
+        ls_attr = f' letter-spacing="{letter_spacing}"' if letter_spacing else ""
         ff = spec.get("font_family")
         ff_attr = f' font-family="{ff}"' if ff else ""
         parts.append(
             f'    <tspan x="{fmt(x)}" y="{fmt(line_top_to_baseline(top, size))}" '
-            f'font-size="{size}" font-weight="{weight}" fill="{fill}"{ff_attr}>'
+            f'font-size="{size}" font-weight="{weight}" fill="{fill}"{ls_attr}{ff_attr}>'
             f'{content}</tspan>'
         )
         top += int(spec["line_step"])

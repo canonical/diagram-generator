@@ -21,35 +21,9 @@ Provide a cold-start-safe workflow and a consistent on-brand SVG system for rede
 3. For new diagrams, build from the sample block system: literal geometry, live text, natural-size local icons, and no hidden SVG reuse constructs.
 4. Reuse exact style snippets: `diagrams/0.reference/onbrand-svg-starter.svg` is now the copy source for the canonical block proportions, inset rhythm, and literal orange arrow geometry.
 5. Editable SVG over screenshots or embedded raster exports.
-6. The imported dense application and documentation mapping from `canonical-specs` remains the reference tier, and the current diagram tier now uses `18px` body copy with `24px` line height to keep live text proportionate to the standard `48px` icon treatment inside the `192px` block system.
-7. Orange is reserved for arrows and arrowheads; boxes do not get orange fills.
-8. Geometry stays tight and reference-scaled; do not casually upscale diagrams.
-9. Use local icons only, and omit the icon entirely when no suitable icon exists in `assets/icons/`.
-10. The current canonical output exemplar is `diagrams/2.output/svg/memory-wall-onbrand.svg` (generated locally by `build_v2.py`); inspect it before treating any other output as precedent.
-11. Canonical project state lives only in `STATUS.md`, `TODO.md`, `ROADMAP.md`, `HISTORY.md`, `INBOX.md`, `AGENT-INBOX.md`, and `docs/specs.md`.
+6. Canonical project state lives only in `STATUS.md`, `TODO.md`, `ROADMAP.md`, `HISTORY.md`, `INBOX.md`, `AGENT-INBOX.md`, and `docs/specs.md`.
 
 ## Architecture
-
-### Safe draw.io evolution lane
-
-- draw.io shape libraries and the scratchpad are copy-based insertion tools: they improve reuse for future additions, but changing a library item later does not retroactively update shapes already placed in diagrams.
-- draw.io default shape and connector styles are editor-scoped convenience settings, useful during a manual edit session but not a durable repo-wide source of truth.
-- For repo-wide style changes such as reducing top padding on text-bearing boxes, the real solution is a tokenized batch-update path over the diagram XML, not relying on manual paste-style passes.
-- draw.io custom stencils are still useful for reusable special shapes because they can define geometry, connection points, and local style overrides while inheriting fill and stroke from the applied style when appropriate.
-- Direct XML editing through draw.io and git-versioned `.drawio` files makes a deterministic merge and revert workflow feasible, provided generator-owned cells carry stable identity and provenance metadata.
-- `assets/drawio/diagram-generator-primitives.mxlibrary` is the tracked reusable library export for the current canonical primitives, and `scripts/export_drawio_library.py` regenerates it during the canonical batch build.
-- Generated draw.io cells now carry `data-dg-source`, `data-dg-role`, `data-dg-style-tokens`, and matching `tags`, so generator-owned cells can be filtered safely before any batch rewrite or merge logic touches them.
-- `scripts/drawio_style_sync.py` is the batch rewrite entrypoint for tokenized style changes such as `spacingTop`, text spacing, connector styles, and dash patterns.
-- Protected manual-edit workflow: when a manually polished draw.io file needs changes, create a mirrored review copy under `diagrams/2.output/draw.io/review/`, edit only that copy first, let the user review it, and promote it back only after checkpointing the original under `diagrams/2.output/draw.io/checkpoints/`.
-- Use `scripts/drawio_review_workflow.py` for the routine copy-review-promote steps so the original manually edited file is never the first place changes land.
-
-### Cold-start shareability findings
-
-- The repo is runnable from the tracked workflow docs, starter-block references, icon library, draw.io primitive library, and generator scripts, so a fresh clone still preserves the core on-brand style system.
-- The repo now carries the main input, output, compare, and reference lanes needed for internal cold starts without relying on a separate broader brand-language raster reference.
-- The tracked corpus now includes the main reference, input, output, compare, and draw.io working lanes, so a fresh internal clone has enough material to inspect the end-to-end workflow without reconstructing missing assets.
-- Compare pages resolve `diagrams/1.input/`, so the tracked HTML review lane stays self-contained for the current internal corpus.
-- Conclusion: the repo is now cold-start-safe for internal sharing. The remaining PM-shareability work is curation and guided onboarding, not recovering missing tracked files.
 
 ### Diagram language contract
 
@@ -101,6 +75,10 @@ The level/style simplification (depth-based `_compute_level`, uniform gap=24, pa
 | simple-testcase | ✅ | levels corrected |
 | support-engineering-flow | ✅ | overrides baked, inline styles converted |
 
+### Highlight text contrast bug (from INBOX)
+
+- [ ] `[M]` **Highlight children have black text on black fill.** In `android-security-comparison`, the "Virtualized Android" panel uses highlight style (black fill), but its child boxes render black text instead of white. The highlight variant should propagate white text/icon colour to children. Screenshot: `image-3.png`. Likely a resolved-style propagation gap – the parent's highlight semantics aren't reaching nested leaves through the style resolver.
+
 ### Variant overlays and col_span
 
 Spec coverage: `specs/001-box-style-contract/` captures variants and tier contract foundations.
@@ -124,9 +102,7 @@ Spec coverage: `specs/001-box-style-contract/` captures variants and tier contra
 - [x] `[S]` **Add meta validation in `frame_loader.py`.** Warn on unknown `diagram_type` or `abstraction_level` values. Allowed values should come from the JSON schema enum in `docs/diagram-schema.json`. DONE 2026-05-27.
 - [ ] `[M]` **After ontology-to-layout mapping lands, use `diagram_type` + `layout_engine` to auto-select the engine.** Depends on the mapping layer from `diagram-generator-planning`.
 
-### Client-side layout engine — TypeScript port (COMPLETE)
-
-TS port milestones M1–M6 done. See HISTORY.md for detailed entries. Remaining post-port items:
+### Interactive/editor follow-ups
 
 - [ ] `[S]` **`preview_server.py` decomposition (post-port).** Extract file watcher, layout cache, override manager, and SSE broadcaster into focused modules. Server role shrinks to static files + save/export API.
 - [ ] `[L]` **Security hardening before Stage 17.** Add schema validation for incoming JSON (`setattr` on Frame objects, override loading). Add CSRF when server becomes network-accessible. Not urgent while server is local-only.
@@ -146,17 +122,16 @@ The current A* router has structural issues: no port model, wrong obstacle handl
 - **Phase 5** `[S]` Pre-compute arrow geometry in layout pass (fix renderer layer violation)
 - **Phase 6** `[L]` Crossing minimization (stretch goal)
 
-### Python/TS migration completion — tracked
+### Repo coherence and migration cleanup
 
-Historical drift left mixed ownership between Python and TypeScript interactive paths. The completion track is now formalized in:
+Active coordination package: `specs/008-repo-coherence-rewrite/`
 
-- `specs/007-style-foundation-unification/` (`spec.md`, `plan.md`, `tasks.md`, `baseline.md`, `style-contract.md`)
+Current interactive state is settled: TypeScript local relayout only, YAML as authored authority, no secondary interactive executor, no v3 JSON sidecar authority, and no deprecated legacy style alias in the editor vocabulary.
 
-Current known parity gaps to close as part of that track:
-- **Obstacle-aware arrow router** (A* on sparse grid, ~200 lines). TS engine has no arrow routing yet.
-- **Grid-column snapping** (`_snap_fills_to_grid_columns`, `place()` grid_snap parameter). TS `place()` doesn't accept grid_snap.
-
-Target end-state for interactive editing: one execution path (TypeScript local relayout), with Python retained as batch/export oracle and parity reference.
+- [x] `[M]` Phase 3-4 complete: doc drift collapsed across the canonical repo docs, and `docs/frame-classes.md` is the single authored source for frame-class semantics.
+- [ ] `[M]` Phase 5 deferred for now: finish resolved-style snapshot cleanup and batch/export parity validation so renderers consume the same semantic contract the interactive path does.
+- [x] `[M]` Phase 6 complete: interactive state cleanup verified one executor and one authority; no fallback, no `localStorage`, no JSON sidecar, and no `accent` in `docs/diagram-schema.json`.
+- [x] `[M]` Phase 7 complete: Python surface classified and labeled intentionally, with orphaned `grid_helpers.py` deleted.
 
 ### Code quality — adversarial audit (2026-05-27)
 
@@ -164,7 +139,7 @@ Full audit: `docs/architecture/adversarial-audit-2026-05-27.md`. Two independent
 
 **HIGH — structural:**
 - [ ] `[H]` **H1. Layout mutates Frame tree.** `col_span` rewrites `width`/`sizing_w`; FILL/HUG coercion rewrites parent sizing; root width save/mutate/restore is fragile. Fix: layout-only derived fields, stop mutating semantic Frame fields.
-- [x] `[H]` **H2. Style resolution duplicated (loader vs renderer).** FIXED — `resolveStyles()` ported to TS (`resolve-styles.ts`), `_frameBoxRenderState()` rewritten to consume resolved values. Remaining migration closure in spec 007 Phases 4–7.
+- [x] `[H]` **H2. Style resolution duplicated (loader vs renderer).** FIXED — `resolveStyles()` ported to TS (`resolve-styles.ts`), `_frameBoxRenderState()` rewritten to consume resolved values. Remaining migration closure in spec 007 Phases 5–7.
 - [ ] `[H]` **H3. Heading synthetic child incomplete.** `__body` no longer copies `wrap`, `fill_weight`, `justify` from parent (deliberately removed in the depth-based simplification). If any diagram relied on these being inherited, it will regress. Needs corpus audit to determine whether explicit YAML fields are needed on affected diagrams.
 - [x] `[H]` **H4. Overlay geometry contradicts model.** Full-width band vs member bounds. FIXED — now uses member bounds.
 - [ ] `[M]` **H5. Leaf measure vs render padding mismatch.** Measurement uses INSET, rendering uses per-side padding + 1px hack. Fix: use `frame.padding_*` in measurement.
@@ -187,10 +162,6 @@ Full audit: `docs/architecture/adversarial-audit-2026-05-27.md`. Two independent
 - [ ] `[S]` Negative parser tests for invalid enums
 - [x] `[S]` Overlay geometry test (now checks coordinates)
 
-### Code quality — legacy
-
-- [ ] `[L]` Triage the current `build_v2.py` corpus blockers separately from the 2026-05-13 autolayout slice: clearance violations on `example-platform-architecture`, `lightning-talk-engine`, `lt-diagram-generator`, `lt-a4-generator`, and `lt-summit-identity` (fix: increase row_gap/col_gap to ARROW_GAP where arrows route), plus 59 warning-only baseline-grid violations across several older diagrams (cosmetic, not blocking).
-
 ### Force ↔ grid editor unification
 
 Goal: the force and grid editors share one editor shell; swapping the layout engine should not duplicate interaction code. Items ordered by user-facing impact. Unified shell + stage interaction parity + persistence/undo done — see HISTORY.md.
@@ -202,7 +173,7 @@ Goal: the force and grid editors share one editor shell; swapping the layout eng
 - [ ] `[S]` **Arrow waypoint editing.** Allow dragging force-link control points interactively, with double-click to add/remove.
 - [ ] `[S]` **Arrow endpoint attachment.** Force links should follow node moves via side-aware offset instead of recalculating from scratch.
 - [ ] `[S]` **Consistent stroke/outline weight.** Normalize force preview SVG viewBox so 1px strokes match the grid editor's visual weight.
-- [ ] `[S]` **Force → declarative pipeline.** Decide how force-preview exports feed back into `scripts/diagrams/*.py` or `build_v2.py`.
+- [ ] `[S]` **Force → frame YAML round-trip.** Decide how force-preview exports feed back into `scripts/diagrams/frames/*.yaml`.
 - [ ] `[L]` **Grid overlay toggle (W).** Decide whether force preview needs a baseline-grid overlay.
 - [ ] `[L]` **Double-click depth cycling.** Decide whether force nodes need a depth-drill concept (probably N/A for flat graphs).
 
@@ -302,16 +273,3 @@ This is an algorithm problem (obstacle avoidance, port assignment), not a struct
 
 - [x] `[S]` **~~Audit and clear stale dw/dh overrides.~~** DONE 2026-05-26 — Audited all override JSON files. No dw/dh entries found; all overrides are position-only (dx/dy) or style overrides.
 
-### v2 declarative pipeline — defect registry
-
-The audited canonical diagrams pass the compare/audit checks, but full `python scripts/build_v2.py` still exits nonzero on the known clearance blockers listed above. Use `python scripts/_compare_3way.py` for visual comparison and `python scripts/_audit_v2.py` for element counts. Arrow clearance and crossing remain enforced at build time.
-
-| Diagram | Status |
-|---|---|
-| attention-qkv | OK |
-| gpu-waiting-scheduler | OK |
-| inference-snaps | OK |
-| logic-data-vram | OK |
-| memory-wall | OK |
-| request-to-hardware-stack | OK |
-| rise-of-inference-economy | OK |

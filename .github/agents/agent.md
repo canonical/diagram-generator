@@ -37,18 +37,6 @@ If this file starts accumulating extra detail, move that detail to the canonical
 6. `docs/specs.md`
 7. `README.md`
 
-## Cold-start question
-
-Before starting diagram work, ask the user:
-
-> Which pipeline should we work on this session?
->
-> 1. **Pipeline 1 (stable)** – imperative builders in `generate_remaining_diagrams.py`, builds via `build_outputs.py`, outputs `*-onbrand.svg/drawio`
-> 2. **Pipeline 2 (declarative grid)** – declarative grid definitions in `scripts/diagrams/*.py`, builds via `build_v2.py`, outputs `*-onbrand-v2.svg/drawio`
-> 3. **Pipeline 3 (v3 frame engine)** – declarative YAML frames in `scripts/diagrams/frames/*.yaml`, Figma-like autolayout engine ported to TypeScript (`packages/layout-engine/`), runs client-side via `layout-bridge.js`, preview at `http://127.0.0.1:8100/view/v3:<slug>`. Python `layout_v3.py` stays for batch builds.
-
-This determines which files to edit, which build/test commands to run, and which validation mode matters. Do not assume one or the other.
-
 ## Canonical discipline
 
 - Read and follow the **anti-patch protocol** in `.github/copilot-instructions.md` before coding anything. Classify every request first.
@@ -75,4 +63,4 @@ This determines which files to edit, which build/test commands to run, and which
 
 ## Resume focus
 
-- Continue the active review lane in `TODO.md`: Illustrator re-audit, draw.io import validation, and shared-playbook drift control.
+- Continue the active review lane in `TODO.md`: repo coherence cleanup, v3 frame-engine validation, and shared-playbook drift control.

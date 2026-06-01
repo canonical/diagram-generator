@@ -12,7 +12,11 @@
  * after construction, or rely on the page's own font-loading guarantee.
  */
 
-import type { TextMeasureAdapter } from './text-measure.js';
+import {
+  letterSpacingAdvance,
+  type TextMeasureAdapter,
+  type TextMeasureRequest,
+} from './text-measure.js';
 
 export interface CanvasTextAdapterOptions {
   /** CSS font-family string.  Default: `"'Ubuntu Sans', sans-serif"`. */
@@ -24,6 +28,7 @@ export interface CanvasTextAdapterOptions {
 }
 
 export class CanvasTextAdapter implements TextMeasureAdapter {
+  readonly measurementBackend = 'canvas';
   private readonly ctx: CanvasRenderingContext2D;
   private readonly fontFamily: string;
   private readonly weight: number;
@@ -44,10 +49,12 @@ export class CanvasTextAdapter implements TextMeasureAdapter {
     }
   }
 
-  measureTextWidth(text: string, fontSize: number, weight?: number): number {
-    const w = weight ?? this.weight;
-    this.ctx.font = `${w} ${fontSize}px ${this.fontFamily}`;
-    return this.ctx.measureText(text).width;
+  measureTextWidth(request: TextMeasureRequest): number {
+    const w = request.weight ?? this.weight;
+    this.ctx.font = `${w} ${request.fontSize}px ${this.fontFamily}`;
+    let width = this.ctx.measureText(request.text).width;
+    width += letterSpacingAdvance(request.text, request.letterSpacing, request.fontSize);
+    return width;
   }
 
   /**

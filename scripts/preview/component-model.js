@@ -28,6 +28,9 @@ class ComponentNode {
     this.sizing_w = data.sizing_w || "";
     this.sizing_h = data.sizing_h || "";
     this.align = data.align || "";
+    this.level = data.level ?? null;
+    this.fill = data.fill || "";
+    this.border = data.border || "";
     this.padding_top = data.padding_top || 0;
     this.padding_right = data.padding_right || 0;
     this.padding_bottom = data.padding_bottom || 0;
@@ -76,8 +79,6 @@ class ComponentModel {
     this.overrides = {};     // id → { dx?, dy?, dw?, dh?, waypoints?, text? }
     this.gridOverrides = {}; // { col_gap?, row_gap?, outer_margin? }
     this.diagramGrid = null; // { col_gap, row_gap, outer_margin, ... } — diagram-level grid
-    this.definitionHash = "";
-    this.isStale = false;
   }
 
   /** Store diagram-level grid info so root nodes participate in relayout. */
@@ -510,7 +511,6 @@ class ComponentModel {
   /** Serialise overrides for saving. */
   toOverridePayload() {
     const payload = {
-      definition_hash: this.definitionHash,
       overrides: this.overrides,
       format_version: 1,
     };
@@ -518,14 +518,6 @@ class ComponentModel {
       payload.grid_overrides = this.gridOverrides;
     }
     return payload;
-  }
-
-  /** Load overrides from server response. */
-  loadOverrides(serverData) {
-    this.overrides = serverData.overrides || {};
-    this.definitionHash = serverData.definition_hash || "";
-    this.isStale = !!serverData.stale;
-    this.gridOverrides = serverData.grid_overrides || {};
   }
 }
 

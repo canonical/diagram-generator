@@ -5,6 +5,10 @@ const GRID = window.__DG_CONFIG.grid;
 const INSET = window.__DG_CONFIG.inset;
 let generation = 0;
 
+if (ENGINE !== "v3") {
+  throw new Error("preview/editor.js only supports the v3 local renderer");
+}
+
 // ---- Component model, interaction manager & constraints ----
 const model = new ComponentModel();
 const mgr = new InteractionManager();
@@ -24,14 +28,6 @@ Object.defineProperty(window, "componentTree", {
 Object.defineProperty(window, "overrides", {
   get() { return model.overrides; },
   set(v) { model.overrides = v; },
-});
-Object.defineProperty(window, "definitionHash", {
-  get() { return model.definitionHash; },
-  set(v) { model.definitionHash = v; },
-});
-Object.defineProperty(window, "isStale", {
-  get() { return model.isStale; },
-  set(v) { model.isStale = v; },
 });
 Object.defineProperty(window, "selectedIds", {
   get() { return mgr.selectedIds; },
@@ -58,9 +54,8 @@ const UI_AUTHORING_ACCENT_LINE = getThemeToken("--bf-authoring-accent-line", "rg
 const BOX_STYLES = window.__DG_BOX_STYLES || {
   default: { fill: "transparent", text: "#000000", icon: "#000000", border: "solid", label: "Child" },
   parent:  { fill: "#F3F3F3", text: "#000000", icon: "#000000", border: "none",  label: "Parent" },
-  accent: { fill: "#F3F3F3", text: "#000000", icon: "#000000", border: "none", label: "Parent" },
   section: { fill: "transparent", text: "#000000", icon: "#000000", border: "solid", label: "Section" },
-  annotation: { fill: "transparent", text: "#000000", icon: "#000000", border: "none", label: "Annotation" },
+  annotation: { fill: "transparent", text: "#666666", icon: "#666666", border: "none", label: "Annotation" },
   highlight: { fill: "#000000", text: "#FFFFFF", icon: "#FFFFFF", border: "none", label: "Highlight" },
 };
 const renderBoxStyleOptions = window.__DG_boxStyleOptionsHtml || function renderBoxStyleOptions(selectedValue, options = {}) {
@@ -68,7 +63,6 @@ const renderBoxStyleOptions = window.__DG_boxStyleOptionsHtml || function render
   const resetLabel = options.originalLabel || "— as defined —";
   let html = `<option value=""${current === "" ? " selected" : ""}>${resetLabel}</option>`;
   for (const [key, preset] of Object.entries(BOX_STYLES)) {
-    if (key === "accent") continue;
     html += `<option value="${key}"${current === key ? " selected" : ""}>${preset.label}</option>`;
   }
   return html;
@@ -221,24 +215,7 @@ function _normaliseGridOverrides(gridOverrides) {
   return next;
 }
 
-function _gridRequestValues(gridOverrides) {
-  const fallback = baseGridInfo || gridInfo || {};
-  const linkedColGap = gridOverrides.col_gap
-    ?? gridOverrides.outer_margin
-    ?? fallback.col_gap
-    ?? fallback.outer_margin
-    ?? window.__DG_CONFIG.col_gap
-    ?? 24;
-  return {
-    cols: gridOverrides.cols ?? ((fallback.col_xs || []).length || 1),
-    colGap: linkedColGap,
-    rowGap: gridOverrides.row_gap ?? fallback.row_gap ?? window.__DG_CONFIG.row_gap ?? 24,
-    outerMargin: linkedColGap,
-  };
-}
-
 function _pruneLinkedRootGridOverrides() {
-  if (ENGINE !== "v3") return;
   if (!model.gridOverrides || Object.keys(model.gridOverrides).length === 0) return;
   const rootId = (model.roots[0] || {}).id || "root";
   const rootOverrides = overrides[rootId];
@@ -341,13 +318,8 @@ async function _restoreEditorState(serializedState) {
     _pruneLinkedRootGridOverrides();
   }
   if (gridChanged) {
-    if (ENGINE === "v3") {
-      const rootId = (model.roots[0] || {}).id || "root";
-      await requestV3Relayout(rootId);
-    } else {
-      const request = _gridRequestValues(nextGridOverrides);
-      await requestRelayout(request.cols, request.colGap, request.rowGap, request.outerMargin);
-    }
+    const rootId = (model.roots[0] || {}).id || "root";
+    await requestV3Relayout(rootId);
   }
 
   overrides = nextOverrides;
@@ -392,34 +364,50 @@ async function _applyUndoCommand(command, direction) {
   await _restoreEditorState(direction === "undo" ? command.before : command.after);
 }
 
-async function loadSVG() {
+function _hasV3FrameOverride(ovr) {
+  if (!ovr) return false;
+  const keys = [
+    "text", "direction", "gap", "padding", "padding_top", "padding_right", "padding_bottom", "padding_left",
+    "sizing", "sizing_w", "sizing_h", "fill_weight", "align", "wrap",
+    "width", "height", "min_width", "max_width", "min_height", "max_height",
+    "fill", "border", "level", "position", "x", "y", "children_order",
+  ];
+  return keys.some(key => ovr[key] !== undefined && ovr[key] !== null);
+}
+
+async function loadSVG(options = {}) {
+  const preservedSelection = Array.isArray(options.preserveSelectionIds)
+    ? options.preserveSelectionIds.slice()
+    : null;
+  // Clear any stale selection UI before replacing the stage. Some browser
+  // surfaces restore previous form/DOM state aggressively across reloads,
+  // which can leave the inspector showing an old multi-selection until the
+  // new diagram finishes booting.
+  deselectAll();
+
   const suffix = GRID ? `-${ENGINE}-grid.svg` : `-${ENGINE}.svg`;
   const resp = await fetch("/svg/" + SLUG + "-onbrand" + suffix + "?t=" + Date.now());
   if (!resp.ok) return;
   document.getElementById("stage").innerHTML = await resp.text();
   await loadTree();
   await loadGridInfo();
-  // Initialize client-side layout bridge for v3 diagrams
-  if (ENGINE === "v3" && typeof initLayoutBridge === "function") {
-    await initLayoutBridge(SLUG);
+  if (typeof initLayoutBridge !== "function") {
+    throw new Error("preview layout bridge is required for the v3 editor");
   }
+  await initLayoutBridge(SLUG);
   // Wire diagram-level grid into the model so root nodes get sibling relayout
   if (gridInfo) model.setDiagramGrid(gridInfo);
   populateGridControls();
-  await loadOverrides();
+  resetOverrideState();
   // Apply saved grid overrides (gutter/margin changes) before rendering
   const hasGridOverrides = model.gridOverrides && Object.keys(model.gridOverrides).length > 0;
   // Check if any frame overrides need a relayout (text, sizing, etc.)
-  const hasFrameOverrides = ENGINE === "v3" && Object.values(overrides).some(ovr => ovr.text || ovr.direction || ovr.sizing_w || ovr.sizing_h || ovr.fill || ovr.border || ovr.level != null || ovr.position);
+  const hasFrameOverrides = Object.values(overrides).some(_hasV3FrameOverride);
   if (hasGridOverrides) {
     const go = model.gridOverrides;
-    if (ENGINE === "v3") {
-      if (go.link_to_root !== false) _pruneLinkedRootGridOverrides();
-      const rootId = (model.roots[0] || {}).id || "root";
-      await requestV3Relayout(rootId);
-    } else {
-      await requestRelayout(go.cols || 1, go.col_gap, go.row_gap, go.outer_margin);
-    }
+    if (go.link_to_root !== false) _pruneLinkedRootGridOverrides();
+    const rootId = (model.roots[0] || {}).id || "root";
+    await requestV3Relayout(rootId);
   } else if (hasFrameOverrides) {
     // Text or frame overrides without grid overrides — still need relayout
     const rootId = (model.roots[0] || {}).id || "root";
@@ -429,6 +417,10 @@ async function loadSVG() {
   applyAllOverrides();
   bindInteraction();
   renderGridOverlay();
+  if (preservedSelection) {
+    selectedIds.clear();
+    preservedSelection.forEach(id => selectedIds.add(id));
+  }
   reapplySelection();
   runConstraints();
   // Re-baseline dirty state after initial load + relayout
@@ -456,7 +448,7 @@ async function loadGridInfo() {
     }
   } catch (e) { /* ignore */ }
   // Fallback only if the server has not produced authoritative v3 grid info.
-  if (!gridInfo && ENGINE === "v3") {
+  if (!gridInfo) {
     const rootNode = model.roots[0] || null;
     const gap = rootNode ? (rootNode.data.layout_gap ?? 24) : 24;
     const pad = rootNode ? (rootNode.data.padding_top ?? 24) : 24;
@@ -706,17 +698,13 @@ function onGridControlChange() {
 
   // Capture root ID before the debounce window so a concurrent tree
   // reload can't change it mid-flight.
-  const rootId = ENGINE === "v3" ? ((model.roots[0] || {}).id || "root") : null;
+  const rootId = (model.roots[0] || {}).id || "root";
 
   // Debounce the relayout call so rapid typing doesn't flood the server
   if (relayoutTimer) clearTimeout(relayoutTimer);
   relayoutTimer = setTimeout(async () => {
     try {
-      if (ENGINE === "v3") {
-        await requestV3Relayout(rootId);
-      } else {
-        await requestRelayout(cols, colGap, rowGap, margin);
-      }
+      await requestV3Relayout(rootId);
     } finally {
       commitUndoableAction(pendingGridAction);
       pendingGridAction = null;
@@ -950,52 +938,6 @@ function refreshV3GridInfoFromLayout() {
   populateGridControls();
 }
 
-async function requestRelayout(cols, colGap, rowGap, margin) {
-  try {
-    const resp = await fetch("/api/relayout/" + SLUG, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ cols: cols, col_gap: colGap, row_gap: rowGap, outer_margin: margin }),
-    });
-    if (!resp.ok) return;
-    const data = await resp.json();
-    // Replace SVG in stage
-    document.getElementById("stage").innerHTML = data.svg;
-    // Update component tree — positions changed, so clear stale position overrides
-    // but preserve grid_overrides (they are the source of the relayout)
-    // and non-position overrides (waypoints, text, style).
-    const savedGridOverrides = Object.assign({}, model.gridOverrides);
-    const cleaned = {};
-    for (const [cid, ov] of Object.entries(model.overrides)) {
-      const kept = {};
-      // Preserve non-position fields (waypoints, text, style, etc.)
-      for (const [k, v] of Object.entries(ov)) {
-        if (k !== "dx" && k !== "dy" && k !== "dw" && k !== "dh") {
-          kept[k] = v;
-        }
-      }
-      if (Object.keys(kept).length > 0) cleaned[cid] = kept;
-    }
-    model.overrides = cleaned;
-    model.gridOverrides = savedGridOverrides;
-    if (data.tree) componentTree = data.tree;
-    // Update grid info from the actual layout result
-    if (data.grid_info) {
-      gridInfo = data.grid_info;
-      model.setDiagramGrid(gridInfo);
-      populateGridControls();
-    }
-    // Re-apply interaction on the new SVG (no position overrides to apply)
-    bindInteraction();
-    renderGridOverlay();
-    reapplySelection();
-    // Rebuild component tree in sidebar
-    buildTreeUI();
-    runConstraints();
-    updateOverrideSummary();
-  } catch (e) { /* ignore relayout errors */ }
-}
-
 function bindGridNumberInputSelection(input) {
   if (!input || input.readOnly) return;
   let selectPending = false;
@@ -1037,14 +979,9 @@ function bindGridNumberInputSelection(input) {
   bindGridNumberInputSelection(document.getElementById(id));
 });
 
-async function loadOverrides() {
-  try {
-    const resp = await fetch("/api/overrides/" + SLUG);
-    if (resp.ok) {
-      const data = await resp.json();
-      model.loadOverrides(data);
-    }
-  } catch (e) { /* ignore */ }
+function resetOverrideState() {
+  overrides = {};
+  model.gridOverrides = {};
   updateOverrideSummary();
   // Initialize undo stack and saved state
   undoStack = [];
@@ -1594,8 +1531,8 @@ function renderMultiSelectionInspector() {
     html += '<div class="field"><div class="hint">Arrow selections are ignored by these actions.</div></div>';
   }
 
-  // ── Bulk sizing controls (v3 only, homogeneous selection) ──
-  if (ENGINE === "v3" && info.items.length >= 2) {
+  // ── Bulk sizing controls (homogeneous selection) ──
+  if (info.items.length >= 2) {
     // ── Alignment widget (v3) ──
     const alignInfo = _getMultiAlignValues(info.items);
     if (alignInfo) {
@@ -1907,8 +1844,7 @@ function _getMultiStyleValues(items) {
     const ctype = getComponentType(item.id).toLowerCase();
     if (ctype === 'arrow') continue;
     count++;
-    const ovr = overrides[item.id] || {};
-    const style = ovr.style || '';
+    const style = _effectiveStyleName(item.id, item.node);
     if (first === null) first = style; else if (first !== style) mixed = true;
   }
   if (count === 0) return null;
@@ -1943,40 +1879,22 @@ window.setMultiFrameAlign = setMultiFrameAlign;
  */
 function applyMultiStyleOverride(styleName) {
   const canonicalStyle = _normaliseStyleName(styleName);
-  const preset = BOX_STYLES[canonicalStyle];
   const ids = [...selectedIds];
   const msoBefore = _captureOverrideEntries(ids);
   for (const cid of ids) {
     const ctype = getComponentType(cid).toLowerCase();
     if (ctype !== 'box' && ctype !== 'panel' && ctype !== 'terminal') continue;
-    if (ENGINE === "v3") {
-      if (!overrides[cid]) overrides[cid] = {};
-      _applyV3StyleFields(overrides[cid], canonicalStyle);
-      model.cleanOverride(cid);
-    } else {
-      if (preset) {
-        if (!overrides[cid]) overrides[cid] = {};
-        overrides[cid].style = canonicalStyle;
-      } else {
-        if (overrides[cid]) {
-          delete overrides[cid].style;
-          model.cleanOverride(cid);
-        }
-      }
-    }
+    if (!overrides[cid]) overrides[cid] = {};
+    _applyV3StyleFields(overrides[cid], canonicalStyle);
+    model.cleanOverride(cid);
   }
   setDirty(true);
   commitOverridePatchAction("Change style (multi)", msoBefore, _captureOverrideEntries(ids));
-  if (ENGINE === "v3" && ids.length > 0) {
+  if (ids.length > 0) {
     clearTimeout(_v3RelayoutTimer);
     requestV3Relayout(ids[0]);
   }
   renderMultiSelectionInspector();
-  if (ENGINE !== "v3") {
-    applyAllOverrides();
-    reapplySelection();
-    runConstraints();
-  }
 }
 window.applyMultiStyleOverride = applyMultiStyleOverride;
 
@@ -2131,37 +2049,106 @@ function setMultiFrameSize(dimension, value) {
 }
 window.setMultiFrameSize = setMultiFrameSize;
 
+const _v3RelayoutRuntime = {
+  lastMode: "not-run",
+  lastReason: "not-run",
+  sequence: 0,
+};
+
+function _setV3RelayoutExecution(mode, reason) {
+  _v3RelayoutRuntime.lastMode = mode;
+  _v3RelayoutRuntime.lastReason = reason || "unknown";
+  _v3RelayoutRuntime.sequence += 1;
+}
+
+function _v3RelayoutStatusMessage(reason) {
+  switch (reason) {
+    case "missing-frame-tree":
+      return "Local relayout unavailable: frame tree not loaded";
+    case "missing-text-adapter":
+      return "Local relayout unavailable: text adapter not ready";
+    case "forced-unready":
+      return "Local relayout intentionally disabled";
+    case "local-failure":
+      return "Local relayout failed";
+    default:
+      return "Local relayout unavailable";
+  }
+}
+
+function _failV3Relayout(reason, triggerCid) {
+  _setV3RelayoutExecution("local-error", reason);
+  if (typeof setStatus === "function") {
+    setStatus(_v3RelayoutStatusMessage(reason), "error");
+  }
+  renderSelectionInspector(triggerCid);
+  updateOverrideSummary();
+  refreshTreeColors();
+  runConstraints();
+  return false;
+}
+
+function getV3RelayoutStatus() {
+  const local = typeof getLocalRelayoutStatus === "function"
+    ? getLocalRelayoutStatus()
+    : {
+      ready: false,
+      reason: "bridge-unavailable",
+      overrideMode: "auto",
+      frameTreeLoaded: false,
+      textAdapterReady: false,
+      textAdapterBackend: null,
+      textAdapterError: null,
+    };
+
+  return {
+    engine: "v3",
+    isV3: true,
+    interactiveExecutor: "local-only",
+    interactiveFallbackAvailable: false,
+    local,
+    localReady: !!local.ready,
+    frameManaged: true,
+    fallbackActive: false,
+    lastMode: _v3RelayoutRuntime.lastMode,
+    lastReason: _v3RelayoutRuntime.lastReason,
+    sequence: _v3RelayoutRuntime.sequence,
+  };
+}
+
 function isV3LocalRelayoutReady() {
-  return ENGINE === "v3" && typeof isLocalRelayoutReady === "function" && isLocalRelayoutReady();
+  return getV3RelayoutStatus().localReady;
+}
+
+function isV3FrameManagedTarget(target, relayoutStatus) {
+  const status = relayoutStatus || getV3RelayoutStatus();
+  if (!status.frameManaged) return false;
+  const group = target && target.closest ? target.closest("[data-component-id]") : null;
+  if (!group) return false;
+  const cid = group.getAttribute("data-component-id");
+  const node = cid ? model.get(cid) : null;
+  return !!node && node.type !== "arrow";
 }
 
 function applyAllOverrides() {
   const svg = document.querySelector("#stage svg");
   if (!svg) return;
-
-  function isV3FrameManaged(target) {
-    if (!isV3LocalRelayoutReady()) return false;
-    const group = target && target.closest ? target.closest("[data-component-id]") : null;
-    if (!group) return false;
-    const cid = group.getAttribute("data-component-id");
-    const node = cid ? model.get(cid) : null;
-    return !!node && node.type !== "arrow";
-  }
+  const relayoutStatus = getV3RelayoutStatus();
 
   // Reset transforms
   svg.querySelectorAll("[data-component-id]").forEach(g => {
-    if (isV3FrameManaged(g)) return;
+    if (isV3FrameManagedTarget(g, relayoutStatus)) return;
     g.style.transform = "";
   });
   // Restore original rect sizes
   svg.querySelectorAll("rect[data-orig-width]").forEach(r => {
-    if (isV3FrameManaged(r)) return;
+    if (isV3FrameManagedTarget(r, relayoutStatus)) return;
     r.setAttribute("width", r.getAttribute("data-orig-width"));
     r.setAttribute("height", r.getAttribute("data-orig-height"));
   });
   // Restore original icon transforms
   svg.querySelectorAll(".dg-icon[data-orig-tx]").forEach(icon => {
-    if (isV3FrameManaged(icon)) return;
+    if (isV3FrameManagedTarget(icon, relayoutStatus)) return;
     icon.setAttribute("transform", "translate(" + icon.getAttribute("data-orig-tx") + " " + icon.getAttribute("data-orig-ty") + ")");
   });
   // Restore original arrow line coords
@@ -2176,7 +2163,7 @@ function applyAllOverrides() {
   });
   // Save original sizes on first pass
   svg.querySelectorAll("[data-component-id] > rect:first-of-type").forEach(r => {
-    if (isV3FrameManaged(r)) return;
+    if (isV3FrameManagedTarget(r, relayoutStatus)) return;
     if (!r.hasAttribute("data-orig-width")) {
       r.setAttribute("data-orig-width", r.getAttribute("width") || "0");
       r.setAttribute("data-orig-height", r.getAttribute("height") || "0");
@@ -2185,17 +2172,17 @@ function applyAllOverrides() {
   });
   // Restore original rect fills (style overrides may have changed them)
   svg.querySelectorAll("rect[data-orig-fill]").forEach(r => {
-    if (isV3FrameManaged(r)) return;
+    if (isV3FrameManagedTarget(r, relayoutStatus)) return;
     r.setAttribute("fill", r.getAttribute("data-orig-fill"));
   });
   // Reset icon filters (style overrides may have set invert(1))
   svg.querySelectorAll(".dg-icon").forEach(icon => {
-    if (isV3FrameManaged(icon)) return;
+    if (isV3FrameManagedTarget(icon, relayoutStatus)) return;
     icon.style.filter = "";
   });
   // Save original tspan text on first pass, restore on subsequent passes
   svg.querySelectorAll("[data-component-id] text").forEach(textEl => {
-    if (isV3FrameManaged(textEl)) return;
+    if (isV3FrameManagedTarget(textEl, relayoutStatus)) return;
     if (!textEl.hasAttribute("data-orig-inner")) {
       textEl.setAttribute("data-orig-inner", textEl.innerHTML);
     } else {
@@ -2218,7 +2205,7 @@ function applyAllOverrides() {
    * to accommodate the wrapped text.
    */
   function reflowTextInGroup(g, dw) {
-    if (isV3FrameManaged(g)) return 0;
+    if (isV3FrameManagedTarget(g, relayoutStatus)) return 0;
     const rect = g.querySelector(":scope > rect:first-of-type");
     if (!rect) return 0;
     const textEl = g.querySelector("text");
@@ -2354,7 +2341,7 @@ function applyAllOverrides() {
   function applyToComponent(cid) {
     const eff = getEffectiveDelta(cid);
     svg.querySelectorAll('[data-component-id="' + cid + '"]').forEach(g => {
-      const v3Managed = isV3FrameManaged(g);
+      const v3Managed = isV3FrameManagedTarget(g, relayoutStatus);
       if (!v3Managed) {
         if (eff.dx !== 0 || eff.dy !== 0) {
           g.style.transform = "translate(" + eff.dx + "px, " + eff.dy + "px)";
@@ -4199,6 +4186,8 @@ function _scheduleV3ResizeRelayout(cid, newW, newH, resizedW, resizedH) {
     delete tmpOverrides[st.cid].dh;
 
     const gridOvr = _normaliseGridOverrides(model.gridOverrides || {});
+    const relayoutStatus = getV3RelayoutStatus();
+    if (!relayoutStatus.localReady) return;
     performLocalRelayout(model, tmpOverrides, gridOvr, { skipModelUpdate: true });
   });
 }
@@ -4397,8 +4386,8 @@ function onResizeMove(e) {
   applyAllOverrides();
   if (selectedIds.has(s.cid)) updateInspector(s.cid);
 
-  // V3 live relayout — run the TS engine each frame for smooth feedback
-  if (ENGINE === "v3" && !s.selection) {
+  // Run the TS engine each frame for smooth feedback
+  if (!s.selection) {
     const own = getOwnDelta(s.cid);
     const resizedW = own.dw !== 0;
     const resizedH = own.dh !== 0;
@@ -4411,8 +4400,6 @@ function onResizeMove(e) {
 }
 
 function _persistResizeToV3(resizeIds, propagatedIds, triggerCid) {
-  if (ENGINE !== "v3") return;
-
   let changed = false;
   for (const cid of resizeIds) {
     const node = model.get(cid);
@@ -4511,54 +4498,103 @@ function cleanOverride(cid) {
 }
 
 function applyStyleOverride(cid, styleName) {
-  if (ENGINE === "v3") {
-    applyV3Style(cid, styleName);
-    return;
-  }
-  const canonicalStyle = _normaliseStyleName(styleName);
-  const styleIds = [cid];
-  const styleBefore = _captureOverrideEntries(styleIds);
-  if (canonicalStyle && BOX_STYLES[canonicalStyle]) {
-    setOverride(cid, { style: canonicalStyle });
-  } else {
-    const ovr = overrides[cid];
-    if (ovr) {
-      delete ovr.style;
-      model.cleanOverride(cid);
-    }
-    setDirty(true);
-  }
-  commitOverridePatchAction("Change style", styleBefore, _captureOverrideEntries(styleIds));
+  applyV3Style(cid, styleName);
 }
 
 function _normaliseStyleName(styleName) {
-  return styleName === "accent" ? "parent" : styleName;
+  return styleName;
+}
+
+// Canonical YAML projection for the v3 style picker. Keep this aligned with
+// scripts/frame_yaml_persistence.py; it is a persistence bridge, not a second
+// visual-authority layer.
+const _V3_STYLE_SEMANTICS = {
+  default: { level: 1, fill: "WHITE", border: "SOLID", style: "default" },
+  parent: { level: 2, fill: "GREY", border: "SOLID", style: "parent" },
+  section: { level: 3, fill: "WHITE", border: "SOLID", style: "section" },
+  annotation: { fill: "WHITE", border: "NONE", style: "annotation" },
+  highlight: { fill: "BLACK", border: "NONE", style: "highlight" },
+};
+
+function _normaliseStyleFill(fill) {
+  const upper = String(fill || "").toUpperCase();
+  if (upper === "#FFFFFF") return "WHITE";
+  if (upper === "#F3F3F3") return "GREY";
+  if (upper === "#000000") return "BLACK";
+  if (upper === "TRANSPARENT") return "TRANSPARENT";
+  return upper;
+}
+
+function _normaliseStyleStrokeOrBorder(value) {
+  const upper = String(value || "").toUpperCase();
+  if (!upper || upper === "NONE" || upper === "TRANSPARENT") return "NONE";
+  return "SOLID";
+}
+
+function _inferV3StyleFromFields(level, fill, strokeOrBorder) {
+  const resolvedFill = _normaliseStyleFill(fill);
+  const resolvedStroke = _normaliseStyleStrokeOrBorder(strokeOrBorder);
+  if (resolvedFill === "BLACK") {
+    return "highlight";
+  }
+  if (level === 2 && resolvedFill === "GREY") {
+    return "parent";
+  }
+  if (level === 3 && resolvedStroke !== "NONE") {
+    return "section";
+  }
+  if (level === 1 && resolvedStroke !== "NONE") {
+    return "default";
+  }
+  if (resolvedStroke === "NONE") {
+    return "annotation";
+  }
+  return "";
+}
+
+function _inferV3StyleFromNode(node) {
+  if (!node) return "";
+  const level = node.level ?? node.data?.level ?? null;
+  const fill = node.fill ?? node.data?.fill;
+  const strokeOrBorder = node.border ?? node.data?.border;
+  return _inferV3StyleFromFields(level, fill, strokeOrBorder);
+}
+
+function _effectiveStyleName(cid, node) {
+  const explicit = _normaliseStyleName((overrides[cid] && overrides[cid].style) || "");
+  if (explicit) return explicit;
+  const group = document.querySelector('[data-component-id="' + CSS.escape(cid) + '"]');
+  const rect = group ? group.querySelector(":scope > rect:first-of-type") : null;
+  if (rect) {
+    const level = node?.level ?? node?.data?.level ?? null;
+    const renderedStyle = _inferV3StyleFromFields(
+      level,
+      rect.getAttribute("fill"),
+      rect.getAttribute("stroke"),
+    );
+    if (renderedStyle) return renderedStyle;
+  }
+  return _inferV3StyleFromNode(node);
 }
 
 function _applyV3StyleFields(ovr, styleName) {
   const canonicalStyle = _normaliseStyleName(styleName);
-  const preset = BOX_STYLES[canonicalStyle];
-  if (!preset) {
+  const semantic = _V3_STYLE_SEMANTICS[canonicalStyle];
+  if (!semantic) {
     delete ovr.level;
     delete ovr.fill;
     delete ovr.border;
     delete ovr.style;
     return false;
   }
-  const fillMap = { "transparent": "WHITE", "#FFFFFF": "WHITE", "#F3F3F3": "GREY", "#000000": "BLACK" };
-  const borderMap = { "solid": "SOLID", "none": "NONE" };
-  if (canonicalStyle === "default") {
-    ovr.level = 1;
-  } else if (canonicalStyle === "parent") {
-    ovr.level = 2;
-  } else if (canonicalStyle === "section") {
-    ovr.level = 3;
-  } else {
+  if (semantic.level == null) {
     delete ovr.level;
+  } else {
+    ovr.level = semantic.level;
   }
-  ovr.fill = fillMap[preset.fill] || "WHITE";
-  ovr.border = borderMap[preset.border] || "SOLID";
-  ovr.style = canonicalStyle;
+  ovr.fill = semantic.fill;
+  ovr.border = semantic.border;
+  ovr.style = semantic.style;
   return true;
 }
 
@@ -5036,36 +5072,20 @@ function setFrameProp(cid, prop, value) {
 const _coercedKeys = new Set();
 
 async function requestV3Relayout(triggerCid) {
-  async function fallbackToServerRelayout() {
-    const go = _normaliseGridOverrides(model.gridOverrides || {});
-    const base = gridInfo || baseGridInfo || {};
-    const cols = go.cols ?? base._cols ?? ((base.col_xs || []).length || 1);
-    const colGap = go.col_gap ?? base.col_gap ?? 24;
-    const rowGap = go.row_gap ?? base.row_gap ?? 24;
-    const margin = go.outer_margin ?? base.outer_margin ?? colGap;
-    await requestRelayout(cols, colGap, rowGap, margin);
-    applyAllOverrides();
-    reapplySelection();
-    renderSelectionInspector(triggerCid);
-    updateOverrideSummary();
-    refreshTreeColors();
-    runConstraints();
-  }
-
-  if (!isV3LocalRelayoutReady()) {
-    console.warn("v3 relayout: local bridge unavailable, using server fallback");
-    await fallbackToServerRelayout();
-    return;
+  const relayoutStatus = getV3RelayoutStatus();
+  if (!relayoutStatus.localReady) {
+    console.error("v3 relayout: local bridge not ready (" + relayoutStatus.local.reason + ")");
+    return _failV3Relayout(relayoutStatus.local.reason, triggerCid);
   }
 
   // --- Client-side layout (no server round-trip) ---
   const gridOvr = _normaliseGridOverrides(model.gridOverrides || {});
   let localResult = performLocalRelayout(model, overrides, gridOvr);
   if (!localResult) {
-    console.error("v3 relayout: local layout failed (performLocalRelayout returned null)");
-    await fallbackToServerRelayout();
-    return;
+    console.error("v3 relayout: local layout failed");
+    return _failV3Relayout("local-failure", triggerCid);
   }
+  _setV3RelayoutExecution("local", relayoutStatus.local.reason);
   // Clear stale position/size deltas
   for (const [cid, ovr] of Object.entries(overrides)) {
     delete ovr.dx; delete ovr.dy; delete ovr.dw; delete ovr.dh;
@@ -5121,6 +5141,10 @@ async function requestV3Relayout(triggerCid) {
     if (staleCleaned) {
       const cleanGridOvr = _normaliseGridOverrides(model.gridOverrides || {});
       localResult = performLocalRelayout(model, overrides, cleanGridOvr);
+      if (!localResult) {
+        console.error("v3 relayout: local rerun after coercion cleanup failed");
+        return _failV3Relayout("local-failure", triggerCid);
+      }
     }
   }
   // Reconcile sizing with coercion
@@ -5146,7 +5170,13 @@ async function requestV3Relayout(triggerCid) {
   updateOverrideSummary();
   refreshTreeColors();
   runConstraints();
+  if (typeof setStatus === "function") {
+    setStatus("Ready", "ok");
+  }
+  return true;
 }
+
+window.getV3RelayoutStatus = getV3RelayoutStatus;
 
 // Expose to inline handlers
 window.setFrameProp = setFrameProp;
@@ -5236,13 +5266,9 @@ function updateInspector(cid) {
     html += '<div class="field"><span class="label">Layout</span><br>' +
       '<span class="value">' + inspNode.layout + (inspNode.layoutGap ? ' (gap ' + inspNode.layoutGap + 'px)' : '') + '</span></div>';
   }
-  // 9-point alignment widget (v3 only)
-  if (ENGINE === "v3") {
-    const currentAlign = (overrides[cid] && overrides[cid].align) || (inspNode && inspNode.align) || "TOP_LEFT";
-    html += buildAlignWidget(cid, currentAlign);
-    // Auto-layout controls (v3 only — shown for all nodes)
-    html += buildAutolayoutPanel(cid, inspNode);
-  }
+  const currentAlign = (overrides[cid] && overrides[cid].align) || (inspNode && inspNode.align) || "TOP_LEFT";
+  html += buildAlignWidget(cid, currentAlign);
+  html += buildAutolayoutPanel(cid, inspNode);
   if (hasMoveOverride) {
     html += '<div class="field"><span class="label">Position override</span><br>' +
       '<span class="value override">dx=' + own.dx + '  dy=' + own.dy + '</span></div>';
@@ -5267,7 +5293,7 @@ function updateInspector(cid) {
   // Style picker (available for all non-arrow components)
   const ctype = getComponentType(cid).toLowerCase();
   if (ctype !== "arrow") {
-    const currentStyle = (overrides[cid] && overrides[cid].style) || "";
+    const currentStyle = _effectiveStyleName(cid, inspNode);
     html += '<div class="field" style="margin-top:6px"><span class="label">Style</span><br>';
     html += '<select class="style-picker bf-input" onchange="applyStyleOverride(\'' + cid + '\', this.value)">';
     html += renderBoxStyleOptions(currentStyle, { originalLabel: '— original —' });
@@ -5318,26 +5344,38 @@ async function saveOverrides() {
     alert("Cannot save: " + summary.errors + " constraint error(s) must be resolved first.");
     return;
   }
+  const relayout = getV3RelayoutStatus();
+  if (_v3RelayoutRuntime.lastMode === "local-error") {
+    alert("Cannot save while local relayout is in an error state. Resolve the local relayout error first.");
+    return;
+  }
+  if (!relayout.localReady && (Object.keys(model.overrides).length > 0 || Object.keys(model.gridOverrides || {}).length > 0)) {
+    alert("Cannot save while local relayout is unavailable.");
+    return;
+  }
+  const preservedSelectionIds = [...selectedIds];
   try {
-    if ((model.gridOverrides || {}).link_to_root !== false) _pruneLinkedRootGridOverrides();
     const resp = await fetch("/api/overrides/" + SLUG, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(model.toOverridePayload()),
     });
     if (!resp.ok) {
-      console.error("Save failed:", resp.status, resp.statusText);
+      const message = await resp.text();
+      console.error("Save failed:", resp.status, resp.statusText, message);
+      alert("Save failed: " + (message || resp.statusText || "Unknown error"));
       return;
     }
   } catch (e) {
     console.error("Save failed:", e);
+    alert("Save failed: " + e);
     return;
   }
-  setDirty(false);
-  // Update saved state for dirty flag comparison
-  lastSavedState = _serializeDirtyState();
-  updateOverrideSummary();
-  refreshTreeColors();
+  _coercedKeys.clear();
+  await loadSVG({ preserveSelectionIds: preservedSelectionIds });
+  if (typeof setStatus === "function") {
+    setStatus("Ready", "ok");
+  }
 }
 
 function clearOverride(cid) {
@@ -5363,12 +5401,11 @@ function clearOverride(cid) {
 function updateOverrideSummary() {
   const n = Object.keys(overrides).length;
   const el = document.getElementById("override-summary");
-  if (n === 0) { el.innerHTML = '<span style="color:#555">No overrides.</span>'; }
-  else {
-    let txt = n + " override" + (n > 1 ? "s" : "");
-    if (isStale) txt += ' <span style="color:#cc6">(stale &#x2013; definition changed)</span>';
-    el.innerHTML = txt;
+  if (n === 0) {
+    el.innerHTML = '<span style="color:#555">No overrides.</span>';
+    return;
   }
+  el.innerHTML = n + " override" + (n > 1 ? "s" : "");
 }
 
 function refreshTreeColors() {
@@ -5391,9 +5428,7 @@ function _downloadTextFile(filename, content, mimeType) {
 
 function _currentSvgFilename() {
   const baseSlug = SLUG.replace(/^v3:/, "");
-  if (ENGINE === "v3") return baseSlug + "-onbrand-v3.svg";
-  const suffix = GRID ? `-${ENGINE}-grid.svg` : `-${ENGINE}.svg`;
-  return baseSlug + "-onbrand" + suffix;
+  return baseSlug + "-onbrand-v3.svg";
 }
 
 function saveCurrentSvg() {
@@ -5964,11 +5999,26 @@ function initDiagramPicker() {
     return;
   }
 
-  const currentPath = window.location.pathname;
+  function syncDiagramPickerToLocation() {
+    const currentPath = window.location.pathname;
+    let matched = false;
+    for (let i = 0; i < picker.options.length; i += 1) {
+      const option = picker.options[i];
+      const isMatch = option.value === currentPath;
+      option.selected = isMatch;
+      if (isMatch) {
+        picker.selectedIndex = i;
+        matched = true;
+      }
+    }
+    if (!matched) {
+      picker.value = currentPath;
+    }
+  }
 
   async function populateDiagramOptions() {
     if (picker.options.length > 0) {
-      picker.value = currentPath;
+      syncDiagramPickerToLocation();
       return;
     }
 
@@ -5996,7 +6046,7 @@ function initDiagramPicker() {
         picker.append(option);
       });
 
-      picker.value = currentPath;
+      syncDiagramPickerToLocation();
     } catch {
       // Leave the picker empty if the index cannot be fetched.
     }
@@ -6023,6 +6073,9 @@ function initDiagramPicker() {
   if (prevBtn) prevBtn.addEventListener("click", () => stepPicker(-1));
   if (nextBtn) nextBtn.addEventListener("click", () => stepPicker(1));
 
+  syncDiagramPickerToLocation();
+  requestAnimationFrame(syncDiagramPickerToLocation);
+  window.addEventListener("pageshow", syncDiagramPickerToLocation);
   void populateDiagramOptions();
 }
 

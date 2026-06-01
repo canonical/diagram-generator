@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import contextlib
+import os
 import pathlib
+import shutil
 import socket
 import subprocess
 import sys
@@ -9,6 +11,7 @@ import time
 import urllib.request
 
 import pytest
+import yaml
 from playwright.sync_api import sync_playwright
 
 
@@ -41,8 +44,11 @@ def _wait_for_server(base_url: str, process: subprocess.Popen[str], timeout: flo
 
 
 @contextlib.contextmanager
-def _preview_server() -> str:
+def _preview_server(*, extra_env: dict[str, str] | None = None) -> str:
     port = _reserve_port()
+    env = os.environ.copy()
+    if extra_env:
+        env.update(extra_env)
     process = subprocess.Popen(
         [
             sys.executable,
@@ -55,6 +61,7 @@ def _preview_server() -> str:
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
+        env=env,
     )
     base_url = f"http://127.0.0.1:{port}"
     try:
@@ -67,6 +74,581 @@ def _preview_server() -> str:
         except subprocess.TimeoutExpired:
             process.kill()
             process.wait(timeout=10)
+
+
+def _open_v3_page(
+    playwright: object,
+    base_url: str,
+    slug: str,
+    ready_component_id: str,
+):
+    browser = playwright.chromium.launch(headless=True)
+    page = browser.new_page(viewport={"width": 1600, "height": 1200})
+    page.goto(f"{base_url}/view/v3:{slug}", wait_until="domcontentloaded")
+    page.wait_for_function(
+        """
+        (readyComponentId) => (
+          typeof selectedIds !== 'undefined' &&
+          typeof applyV3Style === 'function' &&
+          typeof getV3RelayoutStatus === 'function' &&
+          typeof __DG_TEST_setLocalRelayoutMode === 'function' &&
+          document.querySelector(`[data-component-id="${readyComponentId}"]`) !== null
+        )
+        """,
+        arg=ready_component_id,
+    )
+    page.wait_for_timeout(150)
+    return browser, page
+
+
+def _open_v3_support_engineering_page(playwright: object, base_url: str):
+    return _open_v3_page(playwright, base_url, "support-engineering-flow", "step_fix")
+
+
+def _select_component(page, component_id: str) -> None:
+    page.locator(f'[data-component-id="{component_id}"] rect').click()
+    page.wait_for_function(
+        "(cid) => Array.from(selectedIds).length === 1 && Array.from(selectedIds)[0] === cid",
+        arg=component_id,
+    )
+
+
+def _capture_component_state(page, component_id: str) -> dict:
+    return page.evaluate(
+        """
+        (cid) => {
+          const group = document.querySelector(`[data-component-id="${cid}"]`);
+          const rect = group.querySelector(':scope > rect');
+          const firstTspan = group.querySelector(':scope > text tspan');
+          const text = group.querySelector(':scope > text');
+          const stylePicker = document.querySelector('#inspector .style-picker');
+          const bbox = text ? text.getBBox() : null;
+          const rectBottom = Number(rect.getAttribute('y') || '0') + Number(rect.getAttribute('height') || '0');
+          return {
+            rectFill: rect.getAttribute('fill'),
+            rectStroke: rect.getAttribute('stroke'),
+            textFill: firstTspan?.getAttribute('fill') || null,
+            rectWidth: Number(rect.getAttribute('width') || '0'),
+            rectHeight: Number(rect.getAttribute('height') || '0'),
+            overflow: bbox ? (bbox.y + bbox.height > rectBottom + 0.5) : false,
+            selected: Array.from(selectedIds),
+            override: JSON.parse(JSON.stringify(overrides[cid] || null)),
+            overrideSummary: document.getElementById('override-summary')?.textContent || '',
+            stylePickerValue: stylePicker ? stylePicker.value : null,
+            stylePickerLabel: stylePicker ? stylePicker.selectedOptions[0]?.textContent || '' : null,
+            buildStatusText: document.getElementById('build-status')?.textContent || '',
+            buildStatusClass: document.getElementById('build-status')?.className || '',
+            relayout: getV3RelayoutStatus(),
+          };
+        }
+        """,
+        component_id,
+    )
+
+
+def _apply_v3_style_and_capture(page, component_id: str, style_name: str) -> dict:
+    page.evaluate(
+        """
+        ({ cid, styleName }) => {
+          applyV3Style(cid, styleName);
+        }
+        """,
+        {"cid": component_id, "styleName": style_name},
+    )
+    page.wait_for_timeout(450)
+    return _capture_component_state(page, component_id)
+
+
+def _find_frame(frame_data: dict, frame_id: str) -> dict | None:
+    if frame_data.get("id") == frame_id:
+        return frame_data
+    for child in frame_data.get("children", []):
+        if not isinstance(child, dict):
+            continue
+        found = _find_frame(child, frame_id)
+        if found is not None:
+            return found
+    return None
+
+
+def _component_rect_origin(page, component_id: str) -> dict:
+    return page.evaluate(
+        """
+        (cid) => {
+          const rect = document.querySelector(`[data-component-id="${cid}"] rect`);
+          const box = rect.getBoundingClientRect();
+          return {
+            x: box.left,
+            y: box.top,
+          };
+        }
+        """,
+        component_id,
+    )
+
+
+def _component_model_x(page, component_id: str) -> float:
+    return page.evaluate("(cid) => model.get(cid).data.x", component_id)
+
+
+def _capture_group_tspans(page, component_id: str) -> list[dict[str, str | None]]:
+    return page.evaluate(
+        """
+        (cid) => Array.from(
+          document.querySelectorAll(`[data-component-id="${cid}"] text tspan`)
+        ).map((tspan) => ({
+          text: tspan.textContent,
+          x: tspan.getAttribute('x'),
+          y: tspan.getAttribute('y'),
+          size: tspan.getAttribute('font-size'),
+          weight: tspan.getAttribute('font-weight'),
+          fill: tspan.getAttribute('fill'),
+          ls: tspan.getAttribute('letter-spacing'),
+        }))
+        """,
+        component_id,
+    )
+
+
+def test_v3_style_changes_use_single_local_executor():
+    with _preview_server() as base_url:
+        with sync_playwright() as playwright:
+            browser, page = _open_v3_support_engineering_page(playwright, base_url)
+            try:
+                _select_component(page, "step_fix")
+                page.wait_for_function("() => getV3RelayoutStatus().localReady")
+
+                style_matrix = {
+                    "default": _apply_v3_style_and_capture(page, "step_fix", "default"),
+                    "parent": _apply_v3_style_and_capture(page, "step_fix", "parent"),
+                    "section": _apply_v3_style_and_capture(page, "step_fix", "section"),
+                    "annotation": _apply_v3_style_and_capture(page, "step_fix", "annotation"),
+                    "highlight": _apply_v3_style_and_capture(page, "step_fix", "highlight"),
+                }
+
+                assert style_matrix["default"]["rectFill"] == "transparent"
+                assert style_matrix["default"]["textFill"] == "#000000"
+                assert style_matrix["parent"]["rectFill"] == "#F3F3F3"
+                assert style_matrix["parent"]["textFill"] == "#000000"
+                assert style_matrix["section"]["rectFill"] == "transparent"
+                assert style_matrix["section"]["textFill"] == "#000000"
+                assert style_matrix["annotation"]["rectFill"] == "transparent"
+                assert style_matrix["annotation"]["textFill"] == "#666666"
+                assert style_matrix["highlight"]["rectFill"] == "#000000"
+                assert style_matrix["highlight"]["textFill"] == "#FFFFFF"
+                baseline_width = style_matrix["default"]["rectWidth"]
+                baseline_height = style_matrix["default"]["rectHeight"]
+                for state in style_matrix.values():
+                    assert state["selected"] == ["step_fix"]
+                    assert state["relayout"]["interactiveExecutor"] == "local-only"
+                    assert state["relayout"]["interactiveFallbackAvailable"] is False
+                    assert state["relayout"]["lastMode"] == "local"
+                    assert state["relayout"]["lastReason"] == "ready"
+                    assert state["relayout"]["fallbackActive"] is False
+                    assert state["relayout"]["local"]["reason"] == "ready"
+                    assert state["relayout"]["local"]["textAdapterBackend"] == "harfbuzz"
+                    assert state["relayout"]["local"]["textAdapterError"] is None
+                    assert state["overrideSummary"] != "No overrides."
+                    assert state["rectWidth"] == baseline_width
+                    assert state["rectHeight"] == baseline_height
+                    assert state["overflow"] is False
+                    assert state["buildStatusText"] == "Ready"
+                    assert "build-ok" in state["buildStatusClass"]
+
+                assert style_matrix["parent"]["override"]["style"] == "parent"
+                assert style_matrix["parent"]["override"]["level"] == 2
+                assert style_matrix["section"]["override"]["style"] == "section"
+                assert style_matrix["section"]["override"]["level"] == 3
+                assert style_matrix["annotation"]["override"]["style"] == "annotation"
+                assert style_matrix["annotation"]["override"].get("level") is None
+                assert style_matrix["highlight"]["override"]["style"] == "highlight"
+                assert style_matrix["highlight"]["override"].get("level") is None
+            finally:
+                browser.close()
+
+
+def test_v3_initial_style_picker_uses_semantic_panel_style():
+    with _preview_server() as base_url:
+        with sync_playwright() as playwright:
+            browser, page = _open_v3_page(playwright, base_url, "simple-testcase", "planning")
+            try:
+                page.evaluate("() => selectComponent('planning', false)")
+                page.wait_for_function(
+                    "() => Array.from(selectedIds).length === 1 && Array.from(selectedIds)[0] === 'planning'"
+                )
+                page.wait_for_function("() => getV3RelayoutStatus().localReady")
+
+                state = _capture_component_state(page, "planning")
+
+                assert state["selected"] == ["planning"]
+                assert state["override"] is None
+                assert state["stylePickerValue"] == "parent"
+                assert state["stylePickerLabel"] == "Parent (grey)"
+                assert state["rectFill"] == "#F3F3F3"
+                assert state["rectStroke"] == "#F3F3F3"
+                assert state["relayout"]["interactiveExecutor"] == "local-only"
+                assert state["relayout"]["local"]["textAdapterBackend"] == "harfbuzz"
+                assert state["relayout"]["local"]["textAdapterError"] is None
+                assert state["buildStatusText"] == "Ready"
+            finally:
+                browser.close()
+
+
+def test_v3_style_change_does_not_shift_untouched_heading_wrappers():
+    with _preview_server() as base_url:
+        with sync_playwright() as playwright:
+            browser, page = _open_v3_page(playwright, base_url, "diagram-intake-workflow", "workflow")
+            try:
+                _select_component(page, "workflow")
+                page.wait_for_function("() => getV3RelayoutStatus().localReady")
+
+                before_state = _capture_component_state(page, "workflow")
+                before_heading = _capture_group_tspans(page, "sources__heading")
+
+                assert before_state["stylePickerValue"] == "parent"
+                assert before_heading == [
+                    {
+                        "text": "Rough initial diagram sources",
+                        "x": "32",
+                        "y": "48.92",
+                        "size": "18",
+                        "weight": "700",
+                        "fill": "#000000",
+                        "ls": None,
+                    }
+                ]
+
+                same_style_state = _apply_v3_style_and_capture(page, "workflow", "parent")
+                assert same_style_state["stylePickerValue"] == "parent"
+                assert same_style_state["override"]["style"] == "parent"
+                assert _capture_group_tspans(page, "sources__heading") == before_heading
+
+                section_state = _apply_v3_style_and_capture(page, "workflow", "section")
+                assert section_state["stylePickerValue"] == "section"
+                assert section_state["override"]["style"] == "section"
+                assert _capture_group_tspans(page, "sources__heading") == before_heading
+            finally:
+                browser.close()
+
+
+def test_v3_section_style_uses_bold_fallback_for_container_and_leaf():
+    with _preview_server() as base_url:
+        with sync_playwright() as playwright:
+            browser, page = _open_v3_page(playwright, base_url, "test-deep-nesting", "main_panel")
+            try:
+                page.evaluate("() => selectComponent('main_panel', false)")
+                page.wait_for_function(
+                    "() => Array.from(selectedIds).length === 1 && Array.from(selectedIds)[0] === 'main_panel'"
+                )
+                page.wait_for_function("() => getV3RelayoutStatus().localReady")
+
+                panel_before = _capture_group_tspans(page, "main_panel__heading")
+                assert panel_before == [
+                    {
+                        "text": "Infrastructure",
+                        "x": "32",
+                        "y": "136.92",
+                        "size": "18",
+                        "weight": "400",
+                        "fill": "#000000",
+                        "ls": None,
+                    }
+                ]
+
+                panel_state = _apply_v3_style_and_capture(page, "main_panel", "section")
+                panel_after = _capture_group_tspans(page, "main_panel__heading")
+                assert panel_state["stylePickerValue"] == "section"
+                assert panel_state["override"]["style"] == "section"
+                assert len(panel_after) == 1
+                assert panel_after[0]["text"] == "Infrastructure"
+                assert panel_after[0]["size"] == "18"
+                assert panel_after[0]["weight"] == "700"
+                assert panel_after[0]["fill"] == "#000000"
+                assert panel_after[0]["ls"] is None
+
+                page.evaluate("() => selectComponent('vm_1', false)")
+                page.wait_for_function(
+                    "() => Array.from(selectedIds).length === 1 && Array.from(selectedIds)[0] === 'vm_1'"
+                )
+                leaf_state = _apply_v3_style_and_capture(page, "vm_1", "section")
+                leaf_after = _capture_group_tspans(page, "vm_1")
+                assert leaf_state["stylePickerValue"] == "section"
+                assert leaf_state["override"]["style"] == "section"
+                assert " ".join(line["text"] for line in leaf_after) == "VM Instance A"
+                assert all(line["x"] == "48" for line in leaf_after)
+                y_values = [float(line["y"]) for line in leaf_after]
+                assert y_values == sorted(y_values)
+                if len(y_values) > 1:
+                    assert all(abs((y_values[i] - y_values[i - 1]) - 24.0) < 0.01 for i in range(1, len(y_values)))
+                assert all(line["size"] == "18" for line in leaf_after)
+                assert all(line["weight"] == "700" for line in leaf_after)
+                assert all(line["fill"] == "#000000" for line in leaf_after)
+                assert all(line["ls"] is None for line in leaf_after)
+            finally:
+                browser.close()
+
+
+def test_v3_relayout_unready_or_failed_state_is_explicit_without_fallback():
+    with _preview_server() as base_url:
+        with sync_playwright() as playwright:
+            browser, page = _open_v3_support_engineering_page(playwright, base_url)
+            try:
+                _select_component(page, "step_fix")
+                page.wait_for_function("() => getV3RelayoutStatus().localReady")
+
+                ready_state = _apply_v3_style_and_capture(page, "step_fix", "highlight")
+                baseline_width = ready_state["rectWidth"]
+                baseline_height = ready_state["rectHeight"]
+                assert ready_state["rectFill"] == "#000000"
+                assert ready_state["textFill"] == "#FFFFFF"
+                assert ready_state["selected"] == ["step_fix"]
+                assert ready_state["relayout"]["lastMode"] == "local"
+                assert ready_state["relayout"]["lastReason"] == "ready"
+                assert ready_state["relayout"]["interactiveExecutor"] == "local-only"
+                assert ready_state["relayout"]["interactiveFallbackAvailable"] is False
+                assert ready_state["relayout"]["local"]["textAdapterBackend"] == "harfbuzz"
+                assert ready_state["relayout"]["local"]["textAdapterError"] is None
+                assert ready_state["override"]["style"] == "highlight"
+                assert ready_state["override"].get("level") is None
+                assert ready_state["overflow"] is False
+                assert ready_state["buildStatusText"] == "Ready"
+                assert all(ready_state["override"].get(key) is None for key in ("dx", "dy", "dw", "dh"))
+
+                page.evaluate("() => __DG_TEST_setLocalRelayoutMode('unready')")
+                page.wait_for_function("() => !getV3RelayoutStatus().localReady")
+                blocked_state = _apply_v3_style_and_capture(page, "step_fix", "parent")
+                assert blocked_state["rectFill"] == ready_state["rectFill"]
+                assert blocked_state["textFill"] == ready_state["textFill"]
+                assert blocked_state["selected"] == ["step_fix"]
+                assert blocked_state["relayout"]["lastMode"] == "local-error"
+                assert blocked_state["relayout"]["lastReason"] == "forced-unready"
+                assert blocked_state["relayout"]["local"]["reason"] == "forced-unready"
+                assert blocked_state["relayout"]["interactiveExecutor"] == "local-only"
+                assert blocked_state["relayout"]["interactiveFallbackAvailable"] is False
+                assert blocked_state["override"]["style"] == "parent"
+                assert blocked_state["override"]["level"] == 2
+                assert blocked_state["overflow"] is False
+                assert blocked_state["rectWidth"] == baseline_width
+                assert blocked_state["rectHeight"] == baseline_height
+                assert blocked_state["buildStatusText"] == "Local relayout intentionally disabled"
+                assert "build-err" in blocked_state["buildStatusClass"]
+                assert all(blocked_state["override"].get(key) is None for key in ("dx", "dy", "dw", "dh"))
+
+                page.evaluate("() => __DG_TEST_setLocalRelayoutMode('auto')")
+                page.wait_for_function("() => getV3RelayoutStatus().localReady")
+                recovered_state = _apply_v3_style_and_capture(page, "step_fix", "section")
+                assert recovered_state["rectFill"] == "transparent"
+                assert recovered_state["textFill"] == "#000000"
+                assert recovered_state["selected"] == ["step_fix"]
+                assert recovered_state["relayout"]["lastMode"] == "local"
+                assert recovered_state["relayout"]["lastReason"] == "ready"
+                assert recovered_state["override"]["style"] == "section"
+                assert recovered_state["override"]["level"] == 3
+                assert recovered_state["overflow"] is False
+                assert recovered_state["rectWidth"] == baseline_width
+                assert recovered_state["rectHeight"] == baseline_height
+                assert recovered_state["buildStatusText"] == "Ready"
+                assert all(recovered_state["override"].get(key) is None for key in ("dx", "dy", "dw", "dh"))
+
+                page.evaluate(
+                    """
+                    () => {
+                      const original = window.performLocalRelayout;
+                      window.performLocalRelayout = function(...args) {
+                        window.performLocalRelayout = original;
+                        return null;
+                      };
+                    }
+                    """
+                )
+                failed_local_state = _apply_v3_style_and_capture(page, "step_fix", "highlight")
+                assert failed_local_state["rectFill"] == recovered_state["rectFill"]
+                assert failed_local_state["textFill"] == recovered_state["textFill"]
+                assert failed_local_state["selected"] == ["step_fix"]
+                assert failed_local_state["relayout"]["lastMode"] == "local-error"
+                assert failed_local_state["relayout"]["lastReason"] == "local-failure"
+                assert failed_local_state["override"]["style"] == "highlight"
+                assert failed_local_state["override"].get("level") is None
+                assert failed_local_state["overflow"] is False
+                assert failed_local_state["rectWidth"] == baseline_width
+                assert failed_local_state["rectHeight"] == baseline_height
+                assert failed_local_state["buildStatusText"] == "Local relayout failed"
+                assert "build-err" in failed_local_state["buildStatusClass"]
+                assert all(failed_local_state["override"].get(key) is None for key in ("dx", "dy", "dw", "dh"))
+
+                final_state = _apply_v3_style_and_capture(page, "step_fix", "default")
+                assert final_state["rectFill"] == "transparent"
+                assert final_state["textFill"] == "#000000"
+                assert final_state["selected"] == ["step_fix"]
+                assert final_state["relayout"]["lastMode"] == "local"
+                assert final_state["relayout"]["lastReason"] == "ready"
+                assert final_state["override"]["style"] == "default"
+                assert final_state["override"]["level"] == 1
+                assert final_state["overflow"] is False
+                assert final_state["rectWidth"] == baseline_width
+                assert final_state["rectHeight"] == baseline_height
+                assert final_state["buildStatusText"] == "Ready"
+                assert all(final_state["override"].get(key) is None for key in ("dx", "dy", "dw", "dh"))
+            finally:
+                browser.close()
+
+
+def test_v3_style_save_roundtrip_uses_yaml_baseline(tmp_path):
+    frames_dir = tmp_path / "frames"
+    frames_dir.mkdir()
+    source_frame = SCRIPTS / "diagrams" / "frames" / "support-engineering-flow.yaml"
+    saved_frame = frames_dir / "support-engineering-flow.yaml"
+    shutil.copyfile(source_frame, saved_frame)
+
+    with _preview_server(extra_env={"DG_FRAMES_DIR": str(frames_dir)}) as base_url:
+        with sync_playwright() as playwright:
+            browser, page = _open_v3_support_engineering_page(playwright, base_url)
+            try:
+                _select_component(page, "step_fix")
+                page.wait_for_function("() => getV3RelayoutStatus().localReady")
+
+                saved_state = _apply_v3_style_and_capture(page, "step_fix", "parent")
+                assert saved_state["override"]["style"] == "parent"
+                assert saved_state["rectFill"] == "#F3F3F3"
+
+                page.evaluate("() => saveOverrides()")
+                page.wait_for_timeout(500)
+
+                saved_text = saved_frame.read_text(encoding="utf-8")
+                saved_yaml = yaml.safe_load(saved_text)
+                step_fix = _find_frame(saved_yaml["root"], "step_fix")
+                assert step_fix is not None
+                assert step_fix["level"] == 2
+                assert step_fix["fill"] == "grey"
+                assert step_fix["border"] == "solid"
+                assert "style:" not in saved_text
+                assert "overrideRole" not in saved_text
+                assert "grid_overrides:" not in saved_text
+
+                same_session_state = _capture_component_state(page, "step_fix")
+                assert same_session_state["override"] is None
+                assert same_session_state["rectFill"] == "#F3F3F3"
+                assert same_session_state["stylePickerValue"] == "parent"
+
+                page.evaluate("() => applyV3Style('step_result', 'highlight')")
+                page.wait_for_timeout(450)
+                persisted_state = _capture_component_state(page, "step_fix")
+                assert persisted_state["override"] is None
+                assert persisted_state["rectFill"] == "#F3F3F3"
+
+                page.reload(wait_until="domcontentloaded")
+                page.wait_for_function(
+                    """
+                    () => (
+                      typeof selectedIds !== 'undefined' &&
+                      typeof applyV3Style === 'function' &&
+                      typeof getV3RelayoutStatus === 'function' &&
+                      document.querySelector('[data-component-id="step_fix"]') !== null
+                    )
+                    """
+                )
+                page.wait_for_timeout(150)
+
+                _select_component(page, "step_fix")
+                reloaded_state = _capture_component_state(page, "step_fix")
+                assert reloaded_state["override"] is None
+                assert reloaded_state["rectFill"] == "#F3F3F3"
+                assert reloaded_state["textFill"] == "#000000"
+                assert reloaded_state["stylePickerValue"] == "parent"
+                assert reloaded_state["relayout"]["interactiveExecutor"] == "local-only"
+                assert reloaded_state["buildStatusText"] == "Ready"
+            finally:
+                browser.close()
+
+
+def test_v3_empty_save_is_a_yaml_no_op(tmp_path):
+    frames_dir = tmp_path / "frames"
+    frames_dir.mkdir()
+    source_frame = SCRIPTS / "diagrams" / "frames" / "support-engineering-flow.yaml"
+    saved_frame = frames_dir / "support-engineering-flow.yaml"
+    shutil.copyfile(source_frame, saved_frame)
+
+    baseline_text = saved_frame.read_text(encoding="utf-8")
+
+    with _preview_server(extra_env={"DG_FRAMES_DIR": str(frames_dir)}) as base_url:
+        with sync_playwright() as playwright:
+            browser, page = _open_v3_support_engineering_page(playwright, base_url)
+            try:
+                page.wait_for_function("() => getV3RelayoutStatus().localReady")
+                _select_component(page, "step_fix")
+                state = _capture_component_state(page, "step_fix")
+                assert state["override"] is None
+                assert state["rectFill"] == "transparent"
+                assert state["overrideSummary"] == "No overrides."
+
+                page.evaluate("() => saveOverrides()")
+                page.wait_for_timeout(500)
+
+                assert saved_frame.read_text(encoding="utf-8") == baseline_text
+            finally:
+                browser.close()
+
+
+def test_v3_per_side_padding_updates_live_and_persists(tmp_path):
+    frames_dir = tmp_path / "frames"
+    frames_dir.mkdir()
+    source_frame = SCRIPTS / "diagrams" / "frames" / "support-engineering-flow.yaml"
+    saved_frame = frames_dir / "support-engineering-flow.yaml"
+    shutil.copyfile(source_frame, saved_frame)
+
+    with _preview_server(extra_env={"DG_FRAMES_DIR": str(frames_dir)}) as base_url:
+        with sync_playwright() as playwright:
+            browser, page = _open_v3_support_engineering_page(playwright, base_url)
+            try:
+                page.wait_for_function("() => getV3RelayoutStatus().localReady")
+                assert _component_model_x(page, "step_problem") == 24
+
+                page.evaluate("() => setFrameProp('page', 'padding_left', 80)")
+                page.wait_for_timeout(500)
+                after_x = _component_model_x(page, "step_problem")
+                assert after_x == 80
+
+                page.evaluate("() => saveOverrides()")
+                page.wait_for_timeout(500)
+
+                saved_yaml = yaml.safe_load(saved_frame.read_text(encoding='utf-8'))
+                assert saved_yaml["root"]["padding_left"] == 80
+                assert _component_model_x(page, "step_problem") == after_x
+            finally:
+                browser.close()
+
+
+def test_v3_save_is_blocked_while_local_relayout_is_in_error(tmp_path):
+    frames_dir = tmp_path / "frames"
+    frames_dir.mkdir()
+    source_frame = SCRIPTS / "diagrams" / "frames" / "support-engineering-flow.yaml"
+    saved_frame = frames_dir / "support-engineering-flow.yaml"
+    shutil.copyfile(source_frame, saved_frame)
+    baseline_text = saved_frame.read_text(encoding="utf-8")
+
+    with _preview_server(extra_env={"DG_FRAMES_DIR": str(frames_dir)}) as base_url:
+        with sync_playwright() as playwright:
+            browser, page = _open_v3_support_engineering_page(playwright, base_url)
+            dialogs: list[str] = []
+            page.on("dialog", lambda dialog: (dialogs.append(dialog.message), dialog.accept()))
+            try:
+                _select_component(page, "step_fix")
+                page.wait_for_function("() => getV3RelayoutStatus().localReady")
+                page.evaluate("() => __DG_TEST_setLocalRelayoutMode('unready')")
+                page.wait_for_function("() => !getV3RelayoutStatus().localReady")
+
+                blocked_state = _apply_v3_style_and_capture(page, "step_fix", "parent")
+                assert blocked_state["relayout"]["lastMode"] == "local-error"
+                assert blocked_state["override"]["style"] == "parent"
+
+                page.evaluate("() => saveOverrides()")
+                page.wait_for_timeout(300)
+
+                assert dialogs
+                assert "Cannot save while local relayout is in an error state" in dialogs[-1]
+                assert saved_frame.read_text(encoding="utf-8") == baseline_text
+            finally:
+                browser.close()
 
 
 def test_support_engineering_flow_preview_regression():
@@ -337,7 +919,10 @@ def test_support_engineering_flow_preview_regression():
                         return {
                           pageWidth: Number(pageRect.getAttribute('width') || '0'),
                           colGapInput: Number(document.getElementById('grid-col-gap').value || '0'),
-                          pageGapInput: Number(document.getElementById('grid-margin').value || '0'),
+                          marginTopInput: Number(document.getElementById('grid-margin-top').value || '0'),
+                          marginRightInput: Number(document.getElementById('grid-margin-right').value || '0'),
+                          marginBottomInput: Number(document.getElementById('grid-margin-bottom').value || '0'),
+                          marginLeftInput: Number(document.getElementById('grid-margin-left').value || '0'),
                           gridColGap: Number(gridInfo?.col_gap || 0),
                           gridOuterMargin: Number(gridInfo?.outer_margin || 0),
                           firstBandX: colBands[0]?.x ?? null,
@@ -409,7 +994,6 @@ def test_support_engineering_flow_preview_regression():
                         section: await captureStyle('section'),
                         annotation: await captureStyle('annotation'),
                         highlight: await captureStyle('highlight'),
-                        accent: await captureStyle('accent'),
                       };
 
                       applyV3Style('step_fix', '');
@@ -441,7 +1025,10 @@ def test_support_engineering_flow_preview_regression():
                 assert metrics["expectedText"] == metrics["highlightText"]
                 assert metrics["expectedText"] == metrics["resetText"]
                 assert metrics["linkedBefore"]["pageWidth"] == 1464
-                assert metrics["linkedBefore"]["pageGapInput"] == metrics["linkedBefore"]["colGapInput"]
+                assert metrics["linkedBefore"]["marginTopInput"] == 24
+                assert metrics["linkedBefore"]["marginRightInput"] == 24
+                assert metrics["linkedBefore"]["marginBottomInput"] == 24
+                assert metrics["linkedBefore"]["marginLeftInput"] == 24
                 assert abs(metrics["linkedBefore"]["pageGap"] - metrics["linkedBefore"]["gutter"]) < 0.75
                 assert metrics["linkedBefore"]["gridOuterMargin"] == metrics["linkedBefore"]["gridColGap"]
                 assert metrics["linkedBefore"]["bandCount"] == 5
@@ -450,18 +1037,24 @@ def test_support_engineering_flow_preview_regression():
                 assert abs(metrics["linkedBefore"]["secondBandX"] - metrics["linkedBefore"]["secondX"]) < 0.75
                 assert metrics["linkedBefore"]["pageOverride"] in (None, {})
                 assert metrics["linkedAfterExpand"]["colGapInput"] == 32
-                assert metrics["linkedAfterExpand"]["pageGapInput"] == 32
+                assert metrics["linkedAfterExpand"]["marginTopInput"] == 24
+                assert metrics["linkedAfterExpand"]["marginRightInput"] == 24
+                assert metrics["linkedAfterExpand"]["marginBottomInput"] == 24
+                assert metrics["linkedAfterExpand"]["marginLeftInput"] == 24
                 assert metrics["linkedAfterExpand"]["gridColGap"] == 32
-                assert metrics["linkedAfterExpand"]["gridOuterMargin"] == 32
-                assert metrics["linkedAfterExpand"]["pageWidth"] == 1472
+                assert metrics["linkedAfterExpand"]["gridOuterMargin"] == 24
+                assert metrics["linkedAfterExpand"]["pageWidth"] == 1456
                 assert metrics["linkedAfterExpand"]["bandCount"] == 5
                 assert metrics["linkedAfterExpand"]["pageOverride"] in (None, {})
                 assert abs(metrics["linkedAfterExpand"]["firstBandX"] - metrics["linkedAfterExpand"]["pageGap"]) < 0.75
                 assert abs(metrics["linkedAfterExpand"]["firstBandWidth"] - metrics["linkedAfterExpand"]["firstWidth"]) < 0.75
                 assert abs(metrics["linkedAfterExpand"]["secondBandX"] - metrics["linkedAfterExpand"]["secondX"]) < 0.75
-                assert abs(metrics["linkedAfterExpand"]["pageGap"] - 32) < 0.75
+                assert abs(metrics["linkedAfterExpand"]["pageGap"] - 24) < 0.75
                 assert abs(metrics["linkedAfterExpand"]["gutter"]) < 32.75 and abs(metrics["linkedAfterExpand"]["gutter"] - 32) < 0.75
-                assert metrics["linkedAfterReset"]["pageGapInput"] == metrics["linkedBefore"]["pageGapInput"]
+                assert metrics["linkedAfterReset"]["marginTopInput"] == metrics["linkedBefore"]["marginTopInput"]
+                assert metrics["linkedAfterReset"]["marginRightInput"] == metrics["linkedBefore"]["marginRightInput"]
+                assert metrics["linkedAfterReset"]["marginBottomInput"] == metrics["linkedBefore"]["marginBottomInput"]
+                assert metrics["linkedAfterReset"]["marginLeftInput"] == metrics["linkedBefore"]["marginLeftInput"]
                 assert metrics["linkedAfterReset"]["gridOuterMargin"] == metrics["linkedBefore"]["gridOuterMargin"]
                 assert metrics["linkedAfterReset"]["pageOverride"] in (None, {})
                 assert metrics["linkedAfterReset"]["pageWidth"] == metrics["linkedBefore"]["pageWidth"]
@@ -492,10 +1085,9 @@ def test_support_engineering_flow_preview_regression():
                 assert metrics["styleMatrix"]["section"]["rectFill"] == "transparent"
                 assert metrics["styleMatrix"]["section"]["textFill"] == "#000000"
                 assert metrics["styleMatrix"]["annotation"]["rectFill"] == "transparent"
-                assert metrics["styleMatrix"]["annotation"]["textFill"] == "#000000"
+                assert metrics["styleMatrix"]["annotation"]["textFill"] == "#666666"
                 assert metrics["styleMatrix"]["highlight"]["rectFill"] == "#000000"
                 assert metrics["styleMatrix"]["highlight"]["textFill"] == "#FFFFFF"
-                assert metrics["styleMatrix"]["accent"] == metrics["styleMatrix"]["parent"]
                 assert all(not entry["overflow"] for entry in metrics["styleMatrix"].values())
                 assert metrics["reset"]["rectFill"] == "transparent"
                 assert metrics["reset"]["textFill"] == "#000000"
@@ -640,19 +1232,22 @@ def test_android_graphics_stack_click_selection_prefers_leaf_box():
                 browser.close()
 
 
-def test_grid_gap_typing_replaces_value_and_page_gap_is_readonly():
+def test_grid_gap_typing_replaces_value_and_per_side_margins_remain_stable():
     with _preview_server() as base_url:
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(headless=True)
             page = browser.new_page(viewport={"width": 1600, "height": 1200})
             try:
-                page.goto(f"{base_url}/view/android-container-vs-vm", wait_until="domcontentloaded")
+                page.goto(f"{base_url}/view/v3:android-container-vs-vm", wait_until="domcontentloaded")
                 page.wait_for_function(
                     """
                     () => (
                       document.getElementById('grid-col-gap') !== null &&
                       document.getElementById('grid-row-gap') !== null &&
-                      document.getElementById('grid-margin') !== null &&
+                      document.getElementById('grid-margin-top') !== null &&
+                      document.getElementById('grid-margin-right') !== null &&
+                      document.getElementById('grid-margin-bottom') !== null &&
+                      document.getElementById('grid-margin-left') !== null &&
                       document.querySelector('#stage svg') !== null
                     )
                     """
@@ -669,8 +1264,11 @@ def test_grid_gap_typing_replaces_value_and_page_gap_is_readonly():
                     () => ({
                       rowGapValue: document.getElementById('grid-row-gap').value,
                       rowGapReadOnly: document.getElementById('grid-row-gap').readOnly,
-                      pageGapValue: document.getElementById('grid-margin').value,
-                      pageGapReadOnly: document.getElementById('grid-margin').readOnly,
+                      marginTopValue: document.getElementById('grid-margin-top').value,
+                      marginRightValue: document.getElementById('grid-margin-right').value,
+                      marginBottomValue: document.getElementById('grid-margin-bottom').value,
+                      marginLeftValue: document.getElementById('grid-margin-left').value,
+                      marginTopReadOnly: document.getElementById('grid-margin-top').readOnly,
                       rows: document.getElementById('grid-rows').value,
                     })
                     """
@@ -678,8 +1276,11 @@ def test_grid_gap_typing_replaces_value_and_page_gap_is_readonly():
 
                 assert metrics['rowGapValue'] == '32'
                 assert metrics['rowGapReadOnly'] is False
-                assert metrics['pageGapValue'] == '24'
-                assert metrics['pageGapReadOnly'] is True
-                assert metrics['rows'] != '6'
+                assert metrics['marginTopValue'] == '24'
+                assert metrics['marginRightValue'] == '24'
+                assert metrics['marginBottomValue'] == '24'
+                assert metrics['marginLeftValue'] == '24'
+                assert metrics['marginTopReadOnly'] is False
+                assert metrics['rows'] == '6'
             finally:
                 browser.close()

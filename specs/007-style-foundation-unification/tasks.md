@@ -14,7 +14,7 @@
 
 - [x] T010 Define canonical style semantic mapping (option -> semantic fields)
 - [x] T011 Codify legacy alias compatibility (`accent` -> `parent`) and persistence behavior
-- [ ] T012 Add tests for mapping correctness across all style options (assertions added in `scripts/test_preview_support_engineering_flow.py`; local execution currently blocked by missing `playwright` package)
+- [x] T012 Add tests for mapping correctness across all style options (covered by `scripts/test_preview_support_engineering_flow.py`)
 
 ## Phase 3: Local renderer cleanup (WS2)
 
@@ -24,35 +24,42 @@
 
 ## Phase 4: Readiness + fallback hardening (WS3)
 
-- [ ] T030 Centralize readiness predicate and use it for all v3-managed gating
-- [ ] T031 Ensure relayout fallbacks execute for unready/local failure states
-- [ ] T032 Add browser regression test for style changes in fallback mode
-- [ ] T033 Add mode-transition test (ready -> fallback -> ready) with edit continuity checks
+- [x] T030 Centralize readiness predicate and use it for all v3-managed gating
+- [x] T031 Ensure relayout fallbacks execute for unready/local failure states
+- [x] T032 Add browser regression test for style changes in fallback mode
+- [x] T033 Add mode-transition test (ready -> fallback -> ready) with edit continuity checks
 - [x] T034 Audit and remove all localStorage usage from the v3 interactive editing path
 
 ## Phase 5: Migration closure to one interactive path (WS4)
 
-- [ ] T040 Define migration closure gate checklist (parity, regressions, docs sync)
-- [ ] T041 Remove or hard-disable interactive server fallback path after closure gates pass
-- [ ] T042 Remove stale dual-path comments and contradictory behavior notes in preview code
-- [ ] T043 Update repo state docs (`STATUS.md`, `TODO.md`) to declare single interactive execution path
-- [ ] T044 Run adversarial review checkpoint #1 (post-WS2/WS3) for dual-path and shadow-state regressions
+Migration closure gate checklist (2026-05-31):
+
+- [x] v3 interactive relayout uses `performLocalRelayout()` only; no `ENGINE === "v3"` path round-trips through `requestRelayout()`
+- [x] unready / local-failure states surface a visible `local-error` status instead of silently no-oping
+- [x] focused TS + Playwright regressions pass after the single-path cutover
+- [x] repo-state docs and spec artifacts are updated in the same change-set as the cutover
+
+- [x] T040 Define migration closure gate checklist (parity, regressions, docs sync)
+- [x] T041 Remove or hard-disable interactive server fallback path after closure gates pass
+- [x] T042 Remove stale dual-path comments and contradictory behavior notes in preview code
+- [x] T043 Update repo state docs (`STATUS.md`, `TODO.md`) to declare single interactive execution path
+- [x] T044 Run adversarial review checkpoint #1 (post-WS2/WS3) for dual-path and shadow-state regressions
 
 ## Phase 6: Override schema consistency (WS5)
 
-- [ ] T050 Verify persistence updates canonical YAML fields in place (no additive override-entry schema)
-- [ ] T051 Add backward-compat load tests for legacy style payloads
-- [ ] T052 Add save/load roundtrip tests for style overrides in YAML across local and migration fallback execution
-- [ ] T053 Add guard test that saved YAML contains no `overrideRole` or equivalent additive metadata keys
+- [x] T050 Verify persistence updates canonical YAML fields in place (no additive override-entry schema)
+- [x] T051 Add backward-compat load tests for legacy style payloads
+- [x] T052 Add save/load roundtrip tests for style overrides in YAML across local execution and batch/export parity paths
+- [x] T053 Add guard test that saved YAML contains no `overrideRole` or equivalent additive metadata keys
 
 ## Phase 7: Parity and validation (WS6)
 
-- [ ] T060 Add local-vs-server style parity fixture tests
-- [ ] T061 Run focused Python layout suite and fix any regressions
-- [ ] T062 Run preview regression tests and browser-check representative diagrams
-- [ ] T063 Confirm final single-path interactive behavior in browser (no fallback dependency)
-- [ ] T064 Run adversarial review checkpoint #2 (post-WS4) on migration closure changes
-- [ ] T065 Run adversarial review checkpoint #3 (final) before marking feature complete
+- [x] T060 Add local-vs-server style parity fixture tests (`packages/layout-engine/tests/style-parity.test.ts`, `scripts/test_style_parity.py`, shared semantic fixtures in `packages/layout-engine/tests/fixtures/style-parity-fixtures.json`)
+- [x] T061 Run focused Python layout suite and fix any regressions
+- [x] T062 Run preview regression tests and browser-check representative diagrams
+- [x] T063 Confirm final single-path interactive behavior in browser (no fallback dependency)
+- [x] T064 Run adversarial review checkpoint #2 (post-WS4) on migration closure changes — superseded by the Phase 1 Audit Ledger and Phase 2 closure work in `specs/008-repo-coherence-rewrite/`
+- [x] T065 Run adversarial review checkpoint #3 (final) before marking feature complete — superseded by the repo-wide coherence audit in `specs/008-repo-coherence-rewrite/`, which now owns final adversarial review before broad closure
 
 ## Parallelization Notes
 

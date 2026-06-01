@@ -1,0 +1,302 @@
+[
+  {
+    "name": "style-basics-and-variants",
+    "description": "Shared semantic style cases for leaf, panel, section, annotation, highlight, separator, and highlight heading wrappers.",
+    "root": {
+      "id": "page",
+      "children": [
+        {
+          "id": "leaf_default",
+          "label": ["Leaf default"]
+        },
+        {
+          "id": "panel",
+          "level": 2,
+          "heading": "Panel heading",
+          "children": [
+            {
+              "id": "panel_leaf",
+              "label": ["Panel leaf"]
+            }
+          ]
+        },
+        {
+          "id": "section",
+          "level": 3,
+          "heading": "Section heading",
+          "children": [
+            {
+              "id": "section_leaf",
+              "label": ["Section leaf"]
+            }
+          ]
+        },
+        {
+          "id": "annotation_leaf",
+          "variant": "annotation",
+          "label": ["Annotation leaf"]
+        },
+        {
+          "id": "highlight_leaf",
+          "variant": "highlight",
+          "label": ["Highlight leaf"]
+        },
+        {
+          "id": "separator_line",
+          "role": "separator"
+        },
+        {
+          "id": "highlight_container",
+          "variant": "highlight",
+          "heading": "Critical heading",
+          "children": [
+            {
+              "id": "highlight_child",
+              "label": ["Inner leaf"]
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "styles": {
+        "leaf_default": {
+          "resolvedFill": "transparent",
+          "resolvedStroke": "#000000",
+          "firstLine": {
+            "weight": "400",
+            "smallCaps": false,
+            "letterSpacing": null,
+            "fill": "#000000"
+          }
+        },
+        "panel": {
+          "resolvedFill": "#F3F3F3",
+          "resolvedStroke": "#F3F3F3"
+        },
+        "panel__heading": {
+          "resolvedFill": "transparent",
+          "resolvedStroke": "none",
+          "firstLine": {
+            "weight": "700",
+            "smallCaps": false,
+            "letterSpacing": null,
+            "fill": "#000000"
+          }
+        },
+        "panel_leaf": {
+          "resolvedFill": "transparent",
+          "resolvedStroke": "#000000",
+          "firstLine": {
+            "weight": "400",
+            "smallCaps": false,
+            "letterSpacing": null,
+            "fill": "#000000"
+          }
+        },
+        "section": {
+          "resolvedFill": "transparent",
+          "resolvedStroke": "#000000"
+        },
+        "section__heading": {
+          "resolvedFill": "transparent",
+          "resolvedStroke": "none",
+          "firstLine": {
+            "weight": "700",
+            "smallCaps": false,
+            "letterSpacing": null,
+            "fill": "#000000"
+          }
+        },
+        "annotation_leaf": {
+          "resolvedFill": "transparent",
+          "resolvedStroke": "none",
+          "firstLine": {
+            "weight": "400",
+            "smallCaps": false,
+            "letterSpacing": null,
+            "fill": "#666666"
+          }
+        },
+        "highlight_leaf": {
+          "resolvedFill": "#000000",
+          "resolvedStroke": "#000000",
+          "firstLine": {
+            "weight": "400",
+            "smallCaps": false,
+            "letterSpacing": null,
+            "fill": "#FFFFFF"
+          }
+        },
+        "separator_line": {
+          "resolvedFill": "transparent",
+          "resolvedStroke": "none"
+        },
+        "highlight_container": {
+          "resolvedFill": "#000000",
+          "resolvedStroke": "#000000"
+        },
+        "highlight_container__heading": {
+          "resolvedFill": "#000000",
+          "resolvedStroke": "none",
+          "firstLine": {
+            "weight": "400",
+            "smallCaps": false,
+            "letterSpacing": null,
+            "fill": "#FFFFFF"
+          }
+        },
+        "highlight_child": {
+          "resolvedFill": "transparent",
+          "resolvedStroke": "#000000",
+          "firstLine": {
+            "weight": "400",
+            "smallCaps": false,
+            "letterSpacing": null,
+            "fill": "#000000"
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "style-nesting-clamps",
+    "description": "Shared semantic style cases for panel/section nesting clamps and a level-3 leaf fallback token.",
+    "root": {
+      "id": "page",
+      "children": [
+        {
+          "id": "outer_panel",
+          "level": 2,
+          "heading": "Outer panel",
+          "children": [
+            {
+              "id": "inner_panel",
+              "level": 2,
+              "heading": "Inner panel",
+              "children": [
+                {
+                  "id": "inner_panel_leaf",
+                  "label": ["Inner panel leaf"]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "outer_section",
+          "level": 3,
+          "heading": "Outer section",
+          "children": [
+            {
+              "id": "inner_section",
+              "level": 3,
+              "heading": "Inner section",
+              "children": [
+                {
+                  "id": "inner_section_leaf",
+                  "label": ["Inner section leaf"]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "level3_leaf",
+          "level": 3,
+          "label": ["Section lead leaf"]
+        }
+      ]
+    },
+    "expected": {
+      "styles": {
+        "outer_panel": {
+          "resolvedFill": "#F3F3F3",
+          "resolvedStroke": "#F3F3F3"
+        },
+        "outer_panel__heading": {
+          "resolvedFill": "transparent",
+          "resolvedStroke": "none",
+          "firstLine": {
+            "weight": "700",
+            "smallCaps": false,
+            "letterSpacing": null,
+            "fill": "#000000"
+          }
+        },
+        "inner_panel": {
+          "resolvedFill": "transparent",
+          "resolvedStroke": "#000000"
+        },
+        "inner_panel__heading": {
+          "resolvedFill": "transparent",
+          "resolvedStroke": "none",
+          "firstLine": {
+            "weight": "400",
+            "smallCaps": false,
+            "letterSpacing": null,
+            "fill": "#000000"
+          }
+        },
+        "inner_panel_leaf": {
+          "resolvedFill": "transparent",
+          "resolvedStroke": "#000000",
+          "firstLine": {
+            "weight": "400",
+            "smallCaps": false,
+            "letterSpacing": null,
+            "fill": "#000000"
+          }
+        },
+        "outer_section": {
+          "resolvedFill": "transparent",
+          "resolvedStroke": "#000000"
+        },
+        "outer_section__heading": {
+          "resolvedFill": "transparent",
+          "resolvedStroke": "none",
+          "firstLine": {
+            "weight": "700",
+            "smallCaps": false,
+            "letterSpacing": null,
+            "fill": "#000000"
+          }
+        },
+        "inner_section": {
+          "resolvedFill": "#F3F3F3",
+          "resolvedStroke": "#F3F3F3"
+        },
+        "inner_section__heading": {
+          "resolvedFill": "transparent",
+          "resolvedStroke": "none",
+          "firstLine": {
+            "weight": "700",
+            "smallCaps": false,
+            "letterSpacing": null,
+            "fill": "#000000"
+          }
+        },
+        "inner_section_leaf": {
+          "resolvedFill": "transparent",
+          "resolvedStroke": "#000000",
+          "firstLine": {
+            "weight": "400",
+            "smallCaps": false,
+            "letterSpacing": null,
+            "fill": "#000000"
+          }
+        },
+        "level3_leaf": {
+          "resolvedFill": "transparent",
+          "resolvedStroke": "#000000",
+          "firstLine": {
+            "weight": "700",
+            "smallCaps": false,
+            "letterSpacing": null,
+            "fill": "#000000"
+          }
+        }
+      }
+    }
+  }
+]

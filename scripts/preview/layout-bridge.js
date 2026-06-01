@@ -135,6 +135,33 @@ function _findFrame(frame, fid) {
  * Apply editor overrides to a Frame tree (mirrors Python _relayout_v3).
  */
 function applyOverridesToFrameTree(diagram, allOverrides, gridOverrides) {
+  // Grid overrides first, so explicit frame overrides remain authoritative
+  // for the root frame when both are present.
+  gridOverrides = gridOverrides || {};
+  if (gridOverrides.cols != null) {
+    diagram.gridCols = Math.max(1, parseInt(gridOverrides.cols, 10));
+  }
+  if (gridOverrides.col_gap != null) {
+    diagram.gridColGap = Math.max(0, parseInt(gridOverrides.col_gap, 10));
+  }
+  if (gridOverrides.row_gap != null) {
+    diagram.gridRowGap = Math.max(0, parseInt(gridOverrides.row_gap, 10));
+  }
+  if (gridOverrides.outer_margin != null) {
+    diagram.gridOuterMargin = Math.max(0, parseInt(gridOverrides.outer_margin, 10));
+  }
+  // Per-side margins (stored on diagram for _applyLinkedRootGridSpacing)
+  if (gridOverrides.margin_top != null) diagram._gridMarginTop = Math.max(0, parseInt(gridOverrides.margin_top, 10));
+  if (gridOverrides.margin_right != null) diagram._gridMarginRight = Math.max(0, parseInt(gridOverrides.margin_right, 10));
+  if (gridOverrides.margin_bottom != null) diagram._gridMarginBottom = Math.max(0, parseInt(gridOverrides.margin_bottom, 10));
+  if (gridOverrides.margin_left != null) diagram._gridMarginLeft = Math.max(0, parseInt(gridOverrides.margin_left, 10));
+
+  // Only sync grid → root frame when the "link to root" toggle is on
+  const linkToRoot = gridOverrides.link_to_root !== false;
+  if (linkToRoot) {
+    _applyLinkedRootGridSpacing(diagram);
+  }
+
   for (const [fid, ovr] of Object.entries(allOverrides)) {
     const target = fid === "root"
       ? diagram.root
@@ -239,6 +266,7 @@ function applyOverridesToFrameTree(diagram, allOverrides, gridOverrides) {
             size: target.heading.size,
             fill: target.heading.fill,
             smallCaps: target.heading.smallCaps,
+            letterSpacing: target.heading.letterSpacing,
             fontFamily: target.heading.fontFamily,
           });
         } else if (ovr.text.heading) {
@@ -258,6 +286,7 @@ function applyOverridesToFrameTree(diagram, allOverrides, gridOverrides) {
               size: orig.size,
               fill: orig.fill,
               smallCaps: orig.smallCaps,
+              letterSpacing: orig.letterSpacing,
               fontFamily: orig.fontFamily,
             });
           }
@@ -265,32 +294,6 @@ function applyOverridesToFrameTree(diagram, allOverrides, gridOverrides) {
         });
       }
     }
-  }
-
-  // Grid overrides
-  gridOverrides = gridOverrides || {};
-  if (gridOverrides.cols != null) {
-    diagram.gridCols = Math.max(1, parseInt(gridOverrides.cols, 10));
-  }
-  if (gridOverrides.col_gap != null) {
-    diagram.gridColGap = Math.max(0, parseInt(gridOverrides.col_gap, 10));
-  }
-  if (gridOverrides.row_gap != null) {
-    diagram.gridRowGap = Math.max(0, parseInt(gridOverrides.row_gap, 10));
-  }
-  if (gridOverrides.outer_margin != null) {
-    diagram.gridOuterMargin = Math.max(0, parseInt(gridOverrides.outer_margin, 10));
-  }
-  // Per-side margins (stored on diagram for _applyLinkedRootGridSpacing)
-  if (gridOverrides.margin_top != null) diagram._gridMarginTop = Math.max(0, parseInt(gridOverrides.margin_top, 10));
-  if (gridOverrides.margin_right != null) diagram._gridMarginRight = Math.max(0, parseInt(gridOverrides.margin_right, 10));
-  if (gridOverrides.margin_bottom != null) diagram._gridMarginBottom = Math.max(0, parseInt(gridOverrides.margin_bottom, 10));
-  if (gridOverrides.margin_left != null) diagram._gridMarginLeft = Math.max(0, parseInt(gridOverrides.margin_left, 10));
-
-  // Only sync grid → root frame when the "link to root" toggle is on
-  const linkToRoot = gridOverrides.link_to_root !== false;
-  if (linkToRoot) {
-    _applyLinkedRootGridSpacing(diagram);
   }
 }
 
@@ -330,25 +333,15 @@ function _frameBoxRenderState(frame) {
   let padRight = frame.paddingRight;
   const padBottom = frame.paddingBottom;
   let padLeft = frame.paddingLeft;
-  if (stroke === "none" && fill === "transparent") {
-    padTop += 1;
-    padRight += 1;
-    padLeft += 1;
-  }
 
   const iconCol = frame.icon ? (LayoutEngine.ICON_SIZE + LayoutEngine.INSET) : 0;
   const textMaxWidth = frame._layout.placedW - padLeft - padRight - iconCol;
-  const iconFill = frame.fill === LayoutEngine.Fill.BLACK && !frame.iconFill
-    ? "#FFFFFF"
-    : (frame.iconFill || "#000000");
+  const iconFill = frame.iconFill || "#000000";
 
   let specs = [];
   if (frame.children.length === 0) {
     if (frame.heading) specs.push(LayoutEngine.lineToSpec(frame.heading));
     if (frame.label.length > 0) specs.push(...LayoutEngine.linesToSpecs(frame.label));
-    if (frame.fill === LayoutEngine.Fill.BLACK) {
-      specs = specs.map(spec => ({ ...spec, fill: "#FFFFFF" }));
-    }
   } else if (frame.heading) {
     specs = LayoutEngine.linesToSpecs([frame.heading]);
   }
@@ -379,29 +372,26 @@ function _buildFrameTextElement(frame, renderState) {
   let top = frame._layout.placedY + renderState.padTop;
   const x = frame._layout.placedX + renderState.padLeft;
   for (const spec of renderState.specs) {
-    let size = spec.size ?? LayoutEngine.BODY_SIZE;
+    const size = spec.size ?? LayoutEngine.BODY_SIZE;
     const weight = spec.weight ?? "400";
     const fill = spec.fill ?? "#000000";
     const lineStep = LayoutEngine.sizeToPx(spec.lineStep ?? LayoutEngine.BODY_LINE_STEP);
-
-    let content = spec.content;
-    if (spec.smallCaps) {
-      // Simulate all-small-caps: uppercase + 85% font-size.
-      // CSS font-variant-caps is silently ignored when SVG is embedded
-      // via innerHTML, so we bake the transform into the markup.
-      size = Math.round(size * 0.85);
-      content = content.toUpperCase();
-    }
     const tspan = document.createElementNS(SVG_NS, "tspan");
     tspan.setAttribute("x", _fmtSvgNumber(x));
     tspan.setAttribute("y", _fmtSvgNumber(_lineTopToBaseline(top, size)));
     tspan.setAttribute("font-size", String(size));
     tspan.setAttribute("font-weight", String(weight));
     tspan.setAttribute("fill", fill);
+    if (spec.letterSpacing) {
+      tspan.setAttribute("letter-spacing", String(spec.letterSpacing));
+    }
     if (spec.fontFamily) {
       tspan.setAttribute("font-family", spec.fontFamily);
     }
-    tspan.textContent = content;
+    if (spec.smallCaps) {
+      tspan.setAttribute("font-variant-caps", "small-caps");
+    }
+    tspan.textContent = spec.content;
     textEl.appendChild(tspan);
     top += lineStep;
   }
@@ -505,20 +495,24 @@ function patchSvgFromLayout(svgEl, oldBounds, newBounds, framesById) {
 
   for (const g of groups) {
     const cid = g.getAttribute("data-component-id");
-    const oldB = oldBounds[cid];
     const newB = newBounds[cid];
+
+    // Frame groups are fully rebuilt from the relaid-out frame tree.
+    // This covers heading/body synthetic children that may not have
+    // oldBounds entries in the component model.
+    const frame = framesById ? framesById[cid] : null;
+    if (frame && newB) {
+      patchFrameGroup(g, frame);
+      continue;
+    }
+
+    const oldB = oldBounds[cid];
     if (!oldB || !newB) continue;
 
     const dx = newB.x - oldB.x;
     const dy = newB.y - oldB.y;
     const dw = newB.w - oldB.w;
     const dh = newB.h - oldB.h;
-
-    const frame = framesById ? framesById[cid] : null;
-    if (frame) {
-      patchFrameGroup(g, frame);
-      continue;
-    }
 
     // Position: translate the group
     if (Math.abs(dx) > 0.1 || Math.abs(dy) > 0.1) {
@@ -594,6 +588,9 @@ function updateComponentModelFromLayout(model, frame) {
       padding_right: f.paddingRight,
       padding_bottom: f.paddingBottom,
       padding_left: f.paddingLeft,
+      level: f.level ?? null,
+      fill: f.fill,
+      border: f.border,
       heading_text: f.heading ? f.heading.content : "",
       label_text: f.label.map(ln => ln.content),
     };
@@ -805,11 +802,107 @@ function patchArrowsSvg(svgEl, routedArrows) {
 /** Stored frame tree JSON from the server (loaded once). */
 let _frameTreeJson = null;
 
-/** Canvas adapter for real text measurement. */
+/** HarfBuzz-backed text adapter for authoritative browser measurement. */
 let _textAdapter = null;
+let _textAdapterError = null;
+
+function _textAdapterBackend() {
+  return _textAdapter && typeof _textAdapter.measurementBackend === "string"
+    ? _textAdapter.measurementBackend
+    : null;
+}
+
+function _hasAuthoritativeTextAdapter() {
+  return _textAdapterBackend() === "harfbuzz";
+}
+
+/** Test-only override for deterministic local-unready coverage. */
+let _localRelayoutOverrideMode = "auto";
+
+function _normaliseLocalRelayoutOverrideMode(mode) {
+  return mode === "unready" ? "unready" : "auto";
+}
+
+function setLocalRelayoutOverrideMode(mode) {
+  _localRelayoutOverrideMode = _normaliseLocalRelayoutOverrideMode(mode);
+  return getLocalRelayoutStatus();
+}
+
+function getLocalRelayoutStatus() {
+  const overrideMode = _normaliseLocalRelayoutOverrideMode(_localRelayoutOverrideMode);
+  const frameTreeLoaded = !!_frameTreeJson;
+  const textAdapterReady = !!_textAdapter;
+  const textAdapterBackend = _textAdapterBackend();
+  const textAdapterError = _textAdapterError;
+
+  if (overrideMode === "unready") {
+    return {
+      ready: false,
+      reason: "forced-unready",
+      overrideMode,
+      frameTreeLoaded,
+      textAdapterReady,
+      textAdapterBackend,
+      textAdapterError,
+    };
+  }
+  if (!frameTreeLoaded) {
+    return {
+      ready: false,
+      reason: "missing-frame-tree",
+      overrideMode,
+      frameTreeLoaded,
+      textAdapterReady,
+      textAdapterBackend,
+      textAdapterError,
+    };
+  }
+  if (textAdapterError) {
+    return {
+      ready: false,
+      reason: "text-adapter-init-failed",
+      overrideMode,
+      frameTreeLoaded,
+      textAdapterReady,
+      textAdapterBackend,
+      textAdapterError,
+    };
+  }
+  if (!textAdapterReady) {
+    return {
+      ready: false,
+      reason: "missing-text-adapter",
+      overrideMode,
+      frameTreeLoaded,
+      textAdapterReady,
+      textAdapterBackend,
+      textAdapterError,
+    };
+  }
+  if (!_hasAuthoritativeTextAdapter()) {
+    return {
+      ready: false,
+      reason: "non-harfbuzz-text-adapter",
+      overrideMode,
+      frameTreeLoaded,
+      textAdapterReady,
+      textAdapterBackend,
+      textAdapterError,
+    };
+  }
+  return {
+    ready: true,
+    reason: "ready",
+    overrideMode,
+    frameTreeLoaded,
+    textAdapterReady,
+    textAdapterBackend,
+    textAdapterError,
+  };
+}
 
 function isLocalRelayoutReady() {
-  return !!_frameTreeJson && !!_textAdapter;
+  return getLocalRelayoutStatus().ready;
 }
 
 /**
@@ -817,6 +910,9 @@ function isLocalRelayoutReady() {
  * Call once during editor initialization.
  */
 async function initLayoutBridge(slug) {
+  _frameTreeJson = null;
+  _textAdapter = null;
+  _textAdapterError = null;
   try {
     const resp = await fetch("/api/frame-tree/" + slug);
     if (resp.ok) {
@@ -826,10 +922,21 @@ async function initLayoutBridge(slug) {
     console.warn("layout-bridge: failed to load frame tree", e);
   }
 
-  // Create Canvas text adapter (uses browser font rendering)
-  if (typeof LayoutEngine !== "undefined" && LayoutEngine.CanvasTextAdapter) {
-    _textAdapter = new LayoutEngine.CanvasTextAdapter();
-    await _textAdapter.ensureFontsReady();
+  try {
+    const hbModule = await import("/preview/layout-engine-harfbuzz.js");
+    _textAdapter = await hbModule.createDefaultHarfBuzzTextAdapter({
+      fontUrl: "/preview/layout-font.ttf",
+    });
+    if (!_hasAuthoritativeTextAdapter()) {
+      throw new Error(
+        "layout-bridge requires a HarfBuzz text adapter, got "
+        + String(_textAdapterBackend() || "unknown"),
+      );
+    }
+  } catch (e) {
+    _textAdapter = null;
+    _textAdapterError = e && e.message ? String(e.message) : String(e);
+    console.error("layout-bridge: failed to initialize HarfBuzz text adapter", e);
   }
 }
 
@@ -845,8 +952,9 @@ async function initLayoutBridge(slug) {
  *   snap calculations keep referencing the original positions.
  */
 function performLocalRelayout(model, overrides, gridOverrides, opts) {
-  if (!isLocalRelayoutReady()) {
-    console.warn("layout-bridge: not initialized, falling back to server");
+  const readiness = getLocalRelayoutStatus();
+  if (!readiness.ready) {
+    console.warn("layout-bridge: not ready (" + readiness.reason + ")");
     return null;
   }
 
@@ -857,7 +965,8 @@ function performLocalRelayout(model, overrides, gridOverrides, opts) {
 
     // Build override map (same format as requestV3Relayout sends)
     const FRAME_KEYS = [
-      "direction", "gap", "padding", "sizing", "sizing_w", "sizing_h",
+      "direction", "gap", "padding", "padding_top", "padding_right", "padding_bottom", "padding_left",
+      "sizing", "sizing_w", "sizing_h",
       "fill_weight", "align", "wrap", "width", "height", "min_width", "max_width", "min_height",
       "max_height", "children_order", "fill", "border", "level", "text",
       "position", "x", "y",
@@ -888,11 +997,13 @@ function performLocalRelayout(model, overrides, gridOverrides, opts) {
       }
     }
 
+    // Resolve styles before layout so typography-affecting mutations
+    // (for example section small-caps headings) participate in measure/place,
+    // matching the Python pipeline's resolve_styles() -> layout ordering.
+    LayoutEngine.resolveStyles(diagram.root);
+
     // Run layout
     const result = LayoutEngine.layoutFrameTree(diagram.root, _textAdapter);
-
-    // Resolve visual styles (fill/stroke from level + context)
-    LayoutEngine.resolveStyles(diagram.root);
 
     // Collect new bounds
     const newBounds = collectPlacedBounds(diagram.root, {});
@@ -925,3 +1036,5 @@ function performLocalRelayout(model, overrides, gridOverrides, opts) {
 }
 
 window.isLocalRelayoutReady = isLocalRelayoutReady;
+window.getLocalRelayoutStatus = getLocalRelayoutStatus;
+window.__DG_TEST_setLocalRelayoutMode = setLocalRelayoutOverrideMode;

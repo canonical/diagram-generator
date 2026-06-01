@@ -1187,14 +1187,10 @@ def _render_frame(frame: Frame, fg: list, bg: list, bounds_map: dict,
     label_lines: list[dict] = []
     icon_name = frame.icon
     icon_fill_color = frame.icon_fill or "#000000"
-    if box_fill == BLACK and icon_fill_color == "#000000":
-        icon_fill_color = "#FFFFFF"
 
     if frame.is_leaf:
         all_lines = _leaf_all_lines(frame)
         if all_lines:
-            if box_fill == BLACK:
-                all_lines = [{**ln, "fill": "#FFFFFF"} for ln in all_lines]
             label_lines = all_lines
     # Container icon only (leaf icon goes via label_lines path)
     # — icon_name is already set above
@@ -2009,6 +2005,9 @@ def _build_component_tree(root: Frame) -> list[ComponentInfo]:
             padding_right=frame.padding_right,
             padding_bottom=frame.padding_bottom,
             padding_left=frame.padding_left,
+            level=frame.level,
+            fill=frame.fill.name,
+            border=frame.border.name,
             heading_text="",
             label_text=[line.content for line in frame.label],
         )

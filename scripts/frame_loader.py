@@ -16,6 +16,7 @@ import yaml
 
 from diagram_model import Arrow, Border, Fill, Line
 from frame_model import Align, Direction, Frame, FrameDiagram, Justify, Overlay, Sizing
+from frame_style_classes import FRAME_CLASS_DEFS, apply_frame_class
 from diagram_shared import BLACK, GREY, GRID_GUTTER, ICON_SIZE, INSET
 
 # ── Enum maps (lowercase YAML strings → Python enums) ──────────────
@@ -352,7 +353,7 @@ def _validate_meta(meta: dict, source: str) -> None:
 #
 # Variants override the level-derived style:
 #   annotation: transparent fill, transparent stroke
-#   highlight:  #000000 fill, #000000 stroke
+#   highlight:  black fill/stroke with white text/icon overlay
 #
 # Layout wrappers (__heading, __body) stay transparent / no stroke.
 
@@ -384,7 +385,7 @@ def resolve_styles(root: Frame, *, _depth: int = 0, _parent_is_panel: bool = Fal
     """Walk the tree and set resolved_fill / resolved_stroke on every frame.
 
     Implements the four-class hierarchy from ``docs/frame-classes.md``:
-      Section (level 3): small-caps bold heading, transparent, black border
+      Section (level 3): bold heading token, transparent, black border
       Panel   (level 2): bold heading, grey fill, grey border
       Leaf    (level 1): regular heading, transparent, black border
       Annotation:        regular lighter-grey text, transparent, no border
@@ -395,25 +396,19 @@ def resolve_styles(root: Frame, *, _depth: int = 0, _parent_is_panel: bool = Fal
 
     if _depth == 0:
         # Root frame: invisible
-        root.resolved_fill = "transparent"
-        root.resolved_stroke = "none"
+        apply_frame_class(root, FRAME_CLASS_DEFS["hidden"])
     elif _is_layout_wrapper:
         # Synthetic __heading / __body frames: transparent
-        root.resolved_fill = "transparent"
-        root.resolved_stroke = "none"
+        apply_frame_class(root, FRAME_CLASS_DEFS["hidden"])
         # But __heading with a black-fill parent keeps its fill for contrast
         if root.fill == Fill.BLACK:
             root.resolved_fill = BLACK
         elif root.fill == Fill.WHITE and root.role == "heading":
             root.resolved_fill = "transparent"
-    elif root.fill == Fill.BLACK:
-        # Highlight variant (fill already set to BLACK by variant overlay)
-        root.resolved_fill = BLACK
-        root.resolved_stroke = BLACK
     elif root.role == "separator":
-        root.resolved_fill = "transparent"
-        root.resolved_stroke = "none"
+        apply_frame_class(root, FRAME_CLASS_DEFS["hidden"])
     else:
+        is_highlight = root.fill == Fill.BLACK
         # Normal frame: resolve from level
         level = _compute_level(root, _depth)
 
@@ -426,88 +421,25 @@ def resolve_styles(root: Frame, *, _depth: int = 0, _parent_is_panel: bool = Fal
 
         if level == 0:
             # Level 0: headingless container / layout wrapper — invisible
-            root.resolved_fill = "transparent"
-            root.resolved_stroke = "none"
+            apply_frame_class(root, FRAME_CLASS_DEFS["hidden"])
         elif root.border == Border.NONE and not root.is_container and not _is_layout_wrapper:
             # Annotation: borderless leaf — no fill, no stroke
-            root.resolved_fill = "transparent"
-            root.resolved_stroke = "none"
+            apply_frame_class(root, FRAME_CLASS_DEFS["annotation"])
         elif level >= 3:
             # Section: small-caps bold heading, transparent fill, black border.
             # Visually wraps panels/leaves with a visible outline.
-            root.resolved_fill = "transparent"
-            root.resolved_stroke = BLACK
+            apply_frame_class(root, FRAME_CLASS_DEFS["section"])
             _this_is_section = True
-            # Set small caps on the heading (keep bold weight).
-            # Heading may be a synthetic child (containers) or a direct
-            # field (non-containers where Phase 2 didn't fire).
-            for child in root.children:
-                if child.role == "heading" and child.label:
-                    child.label[0] = Line(
-                        child.label[0].content,
-                        weight=child.label[0].weight,
-                        fill=child.label[0].fill,
-                        small_caps=True,
-                        line_step=child.label[0].line_step,
-                        font_family=child.label[0].font_family,
-                    )
-            if root.heading is not None:
-                root.heading = Line(
-                    root.heading.content,
-                    weight=root.heading.weight,
-                    fill=root.heading.fill,
-                    small_caps=True,
-                    line_step=root.heading.line_step,
-                    font_family=root.heading.font_family,
-                )
-            # Non-container with first label line as heading
-            if not root.is_container and root.label:
-                ln = root.label[0]
-                root.label[0] = Line(
-                    ln.content, weight=ln.weight, fill=ln.fill,
-                    small_caps=True, line_step=ln.line_step,
-                    font_family=ln.font_family,
-                )
         elif level >= 2:
             # Panel: grey fill, grey border (invisible against fill)
-            root.resolved_fill = GREY
-            root.resolved_stroke = GREY
+            apply_frame_class(root, FRAME_CLASS_DEFS["panel"])
             _this_is_panel = True
         else:
             # Leaf (level 1): outlined box, regular-weight heading
-            root.resolved_fill = "transparent"
-            root.resolved_stroke = BLACK
-            # Demote heading from bold to regular weight for leaves.
-            # Heading may be a synthetic child or a direct field.
-            for child in root.children:
-                if child.role == "heading" and child.label:
-                    child.label[0] = Line(
-                        child.label[0].content,
-                        weight="400",
-                        fill=child.label[0].fill,
-                        small_caps=False,
-                        line_step=child.label[0].line_step,
-                        font_family=child.label[0].font_family,
-                    )
-            if root.heading is not None:
-                root.heading = Line(
-                    root.heading.content,
-                    weight="400",
-                    fill=root.heading.fill,
-                    small_caps=False,
-                    line_step=root.heading.line_step,
-                    font_family=root.heading.font_family,
-                )
-            # Non-container leaves: demote first label line (used as
-            # visual heading) from bold to regular weight.
-            if not root.is_container and root.label:
-                ln = root.label[0]
-                if ln.weight == "700":
-                    root.label[0] = Line(
-                        ln.content, weight="400", fill=ln.fill,
-                        small_caps=False, line_step=ln.line_step,
-                        font_family=ln.font_family,
-                    )
+            apply_frame_class(root, FRAME_CLASS_DEFS["leaf"])
+
+        if is_highlight:
+            apply_frame_class(root, FRAME_CLASS_DEFS["highlight"])
 
     for child in root.children:
         # Layout wrappers pass through the parent's panel/section status

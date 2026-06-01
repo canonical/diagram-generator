@@ -461,6 +461,10 @@ root:
     panel = diagram.root.children[0]
     assert panel.resolved_fill == "#F3F3F3"
     assert panel.resolved_stroke == "#F3F3F3"
+    heading = panel.children[0]
+    assert heading.role == "heading"
+    assert heading.label[0].weight == "700"
+    assert heading.label[0].small_caps is False
 
 
 def test_depth1_leaf_resolves_to_level1_box(tmp_path):
@@ -533,6 +537,43 @@ root:
     ann = diagram.root.children[0]
     assert ann.resolved_fill == "transparent"
     assert ann.resolved_stroke == "none"
+
+
+def test_explicit_level3_promotes_heading_to_bold_fallback(tmp_path):
+    diagram = _load(tmp_path, """
+engine: v3
+root:
+  id: root
+  children:
+    - id: section
+      level: 3
+      heading: "Infrastructure"
+      children:
+        - id: leaf
+          label: [Hello]
+""")
+    section = diagram.root.children[0]
+    heading = section.children[0]
+    assert heading.role == "heading"
+    assert heading.label[0].weight == "700"
+    assert heading.label[0].small_caps is False
+    assert heading.label[0].letter_spacing is None
+
+
+def test_explicit_level3_promotes_leaf_lead_to_bold_fallback(tmp_path):
+    diagram = _load(tmp_path, """
+engine: v3
+root:
+  id: root
+  children:
+    - id: leaf
+      level: 3
+      label: [VM Instance A]
+""")
+    leaf = diagram.root.children[0]
+    assert leaf.label[0].weight == "700"
+    assert leaf.label[0].small_caps is False
+    assert leaf.label[0].letter_spacing is None
 
 
 def test_explicit_level_override(tmp_path):

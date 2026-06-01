@@ -4,6 +4,55 @@ Completed work belongs here so `TODO.md` stays lean.
 
 ## Short-term
 
+### 2026-06-01 – Repo coherence rewrite: doc convergence and code cleanup (spec 008)
+
+- **Document convergence.** Stripped dead-pipeline references from README.md, agent.md, two skills, ROADMAP.md, STATUS.md, and TODO.md. Marked 3 audit docs as historical. Fixed copilot-instructions.md Spec Kit pointer. ROADMAP collapsed from 300 to 38 lines (future-only). README from 480 to 240 lines. STATUS from 200 to 78 lines.
+- **Interactive state verified clean.** Phase 6 audit confirmed: no server fallback, no localStorage, no JSON sidecar authority, YAML-only persistence. Accent style removed from diagram-schema.json.
+- **Python surface contracted.** Phase 7: 15 modules classified (parser/defaults, batch/export, parity oracle, style resolution, text metrics, preview server, legacy with active callers). Orphaned grid_helpers.py deleted. Role labels added to ambiguous modules.
+- **Browser and build verification passed.** Phase 8: TS build, browser bundle, and preview server all clean. support-engineering-flow and android-custom-to-cloud verified rendering correctly.
+- **Phase 5 deferred.** Resolved style snapshot end-to-end (resolvedTextColor/resolvedIconColor fields) deferred to a future focused pass.
+- **Validation:** 198 TS + 271 Python tests passing. No regressions.
+
+### 2026-05-31 – Repo coherence rewrite: frame-class authority cleanup
+
+- **Deleted the hand-authored JSON frame-class contract.** `packages/layout-engine/src/frame-classes.contract.json` is gone, and generated output was rebuilt so `dist/` no longer advertises it as a source of truth.
+- **`docs/frame-classes.md` is now the authored authority.** The doc now states explicitly that machine-readable derivatives, if any, are generated only and must not become an independent truth source.
+- **Highlight and annotation now behave as semantic overlays instead of replacement classes.** TS and Python both resolve base class typography first, then apply highlight/annotation color semantics, which preserves section/panel/leaf heading weight while still enforcing white highlight text and grey annotation text.
+- **Renderers now consume resolved text/icon color semantics without raw black-fill heuristics.** Preview and Python SVG paths rely on resolved frame/line state instead of `fill === black` contrast branches.
+- **Validation passed after the cleanup.** `npm --prefix packages/layout-engine test`, `python -m pytest scripts/test_frame_classes.py scripts/test_style_parity.py -q`, `npm --prefix packages/layout-engine run build`, `npm --prefix packages/layout-engine run build:browser`, and `python -m pytest scripts/test_preview_support_engineering_flow.py -q` all passed.
+
+### 2026-05-31 – HarfBuzz-backed browser measurement cutover (spec 007 Phase 7)
+
+- **Interactive text measurement now hard-requires HarfBuzz in the browser.** The preview bridge no longer instantiates `CanvasTextAdapter`; it dynamically loads a dedicated browser ESM bundle for `HarfBuzzTextAdapter`, fetches the canonical Ubuntu Sans variable font, and fails explicitly if the resulting adapter backend is anything other than `harfbuzz`.
+- **The text-measurement contract now carries typography features, not just string width.** `TextMeasureAdapter` now measures a full `TextMeasureRequest` (`text`, `fontSize`, `weight`, `smallCaps`, `letterSpacing`), which lets the TypeScript path shape `smcp` / `c2sc` and treat explicit letter-spacing as a first-class layout input instead of bolting width tweaks on afterward.
+- **Browser bundle split cleaned up the packaging model.** `packages/layout-engine/build-browser.mjs` now emits the existing global engine bundle separately from a HarfBuzz-specific browser module plus `harfbuzz.wasm`, and `preview_server.py` serves the adapter bundle, wasm asset, and canonical font explicitly.
+- **Faux small caps removed from the active section-heading path.** `DIAGRAM.md` and `docs/frame-classes.md` now forbid simulated small caps, the section class uses the sanctioned fallback token (bold sentence case), and both SVG renderers now emit measured text content directly instead of uppercasing and shrinking it.
+- **Frame-class semantics converged across runtimes.** TS and Python now apply the same shared semantics, with authored authority later settled in `docs/frame-classes.md` and the brief JSON contract experiment removed.
+- **Legacy fake small-caps multipliers removed.** The old `* 1.05` width heuristics were removed from `scripts/text_metrics.py`, `scripts/diagram_layout.py`, and non-authoritative TS adapters.
+- **Phase 7 validation advanced.** `npm test`, `npm run build`, `npm run build:browser`, `python -m pytest scripts\\test_preview_support_engineering_flow.py -q`, `python -m pytest scripts\\test_layout_v3.py -q`, `python -m pytest scripts\\test_frame_loader.py -q`, `python -m pytest scripts\\test_parity.py -q`, and `python -m pytest scripts\\test_autolayout.py -q` all passed. `specs/007-style-foundation-unification/tasks.md` now records T061–T063 complete.
+- **Audit findings reduced, not hidden.** Remaining debt is now mostly cleanup/governance: legacy metrics modules still exist as non-authoritative drift bait and final adversarial closure checkpoints are still pending.
+
+### 2026-05-31 – YAML-backed override persistence (spec 007 Phase 6)
+
+- **Canonical frame YAML is the only persisted v3 edit authority.** `/api/overrides/<slug>` writes supported frame/grid/text overrides back into `scripts/diagrams/frames/<slug>.yaml` and invalidates the preview layout cache. Legacy JSON sidecar handling has been removed from the v3 editor path, and the remaining override JSON artifact under `diagrams/2.output/overrides/` was deleted.
+- **Style alias shim removed.** The v3 editor no longer accepts `accent` as a synonym for `parent`; the style vocabulary is now the explicit set the renderer actually owns: `default`, `parent`, `section`, `annotation`, `highlight`.
+- **Editor reload semantics now follow YAML baseline, not fake override state.** Component tree metadata now carries `level` / `fill` / `border`, and the inspector style picker falls back to node semantics when no transient override exists, so saved styles still show correctly after reload without rehydrating a shadow override layer.
+- **Phase 6 coverage added.** `scripts/test_frame_yaml_persistence.py` verifies canonical YAML mutation and no-op save behavior, and `scripts/test_preview_support_engineering_flow.py` covers save/reload roundtrips from YAML baseline. The full preview regression file passes under `python -m pytest scripts\\test_preview_support_engineering_flow.py -q`.
+
+### 2026-05-31 – Single interactive path cutover (spec 007 Phase 5)
+
+- **Interactive server fallback removed from the v3 editor path.** `requestV3Relayout()` now uses the TypeScript local relayout path only. When the bridge is unready or a local rerun fails, the editor records `lastMode: local-error`, keeps the current SVG intact, and surfaces a visible status error instead of routing back through Python.
+- **Dead server relayout path deleted.** `editor.js` now hard-fails if loaded outside the v3 renderer contract, the old client `requestRelayout()` branch is gone, and `/api/relayout` has been removed from `preview_server.py`.
+- **v3 style mapping hardened to the shared resolver contract.** `_applyV3StyleFields()` no longer derives semantic fields from the generic `BOX_STYLES` preset table. It now applies an explicit v3 semantic map, including `parent -> { level: 2, fill: GREY, border: SOLID }`, which preserves the grey panel treatment on leaf nodes under the single local renderer.
+- **Focused browser coverage rewritten for local-only behavior.** The support-engineering Playwright tests now assert that style changes execute through `interactiveExecutor: local-only`, and that forced-unready / synthetic local-failure states surface explicit `local-error` status with no fallback dependency. The targeted slice passes under `python -m pytest scripts\\test_preview_support_engineering_flow.py -q -k "single_local_executor or unready_or_failed_state"`.
+- **Closure gate + repo-state docs synced.** Spec 007 `plan.md`, `tasks.md`, and `style-contract.md` now document the WS4 closure gate, and `STATUS.md` / `TODO.md` now describe the v3 editor as a single interactive TS execution path.
+
+### 2026-05-30 – Readiness + fallback hardening (spec 007 Phase 4)
+
+- **Centralized the v3 readiness contract.** `layout-bridge.js` now exposes `getLocalRelayoutStatus()` with explicit reason codes (`ready`, `missing-frame-tree`, `missing-text-adapter`, `forced-fallback`). `editor.js` consumes that through `getV3RelayoutStatus()` so frame-managed DOM gating and relayout execution share one predicate.
+- **Fallback behavior hardened.** `requestV3Relayout()` now falls back cleanly for both unready bridge states and local rerun failures after coercion cleanup. Live resize preview also checks the shared readiness predicate before attempting TS-only preview relayout.
+- **Browser regression coverage added.** New Playwright tests cover forced fallback style changes and a ready -> fallback -> ready transition with continuity checks, including a synthetic one-shot local relayout failure. The new cases pass under `.venv\\Scripts\\python.exe`.
+
 ### 2026-05-30 – Style resolution ported to TypeScript (spec 007 Phase 3)
 
 - **`resolve_styles()` ported to TS.** New `resolve-styles.ts` in `packages/layout-engine/` — full port of Python's depth-aware 4-class style resolution (section/panel/leaf/annotation), nesting constraints (grey-on-grey demotion, section-in-section cap), heading weight and small-caps mutations. 15 tests covering all style classes.

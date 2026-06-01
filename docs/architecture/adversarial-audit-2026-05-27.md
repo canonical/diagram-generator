@@ -1,4 +1,7 @@
-# Adversarial Audit — 2026-05-27
+# Adversarial Audit
+
+> **HISTORICAL** – superseded by `specs/008-repo-coherence-rewrite/`. Durable
+> findings triaged into `TODO.md` and spec 008 tasks. Do not add new findings. — 2026-05-27
 
 Two independent adversarial reviews (Claude Opus 4.6, GPT-5.4) audited the v3 engine.
 Both independently converged on the same core issues, ordered by severity.

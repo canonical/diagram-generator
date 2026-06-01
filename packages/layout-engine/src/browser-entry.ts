@@ -57,14 +57,6 @@ export {
 } from './canvas-text-adapter.js';
 
 export {
-  HarfBuzzTextAdapter,
-  createHarfBuzzTextAdapter,
-  createDefaultHarfBuzzTextAdapter,
-  type HarfBuzzTextAdapterOptions,
-  type HarfBuzzTextAdapterFetchOptions,
-} from './harfbuzz-text-adapter.js';
-
-export {
   distributeFillSpace,
   alignOffset,
   measure,

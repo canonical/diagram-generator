@@ -41,11 +41,12 @@ describe('resolveStyles', () => {
   });
 
   it('highlight (fill=BLACK) gets black fill and stroke', () => {
-    const child = new Frame({ id: 'hl', fill: Fill.BLACK });
+    const child = new Frame({ id: 'hl', fill: Fill.BLACK, label: [createLine('Alert')] });
     const root = new Frame({ id: 'root', children: [child] });
     resolveStyles(root);
     expect(child.resolvedFill).toBe('#000000');
     expect(child.resolvedStroke).toBe('#000000');
+    expect(child.label[0]!.fill).toBe('#FFFFFF');
   });
 
   it('panel (level=2) gets grey fill and stroke', () => {
@@ -56,6 +57,8 @@ describe('resolveStyles', () => {
     resolveStyles(root);
     expect(panel.resolvedFill).toBe('#F3F3F3');
     expect(panel.resolvedStroke).toBe('#F3F3F3');
+    expect(heading.label[0]!.weight).toBe('700');
+    expect(heading.label[0]!.smallCaps).toBe(false);
   });
 
   it('leaf (level=1) gets transparent fill and black stroke', () => {
@@ -74,8 +77,10 @@ describe('resolveStyles', () => {
     resolveStyles(root);
     expect(section.resolvedFill).toBe('transparent');
     expect(section.resolvedStroke).toBe('#000000');
-    // Heading should get small caps
+    // Section headings use the real small-caps token in the TS/browser path.
+    expect(heading.label[0]!.weight).toBe('700');
     expect(heading.label[0]!.smallCaps).toBe(true);
+    expect(heading.label[0]!.letterSpacing).toBeUndefined();
   });
 
   it('annotation (borderless leaf) gets transparent fill and stroke none', () => {
@@ -84,6 +89,7 @@ describe('resolveStyles', () => {
     resolveStyles(root);
     expect(leaf.resolvedFill).toBe('transparent');
     expect(leaf.resolvedStroke).toBe('none');
+    expect(leaf.label[0]!.fill).toBe('#666666');
   });
 
   it('layout wrappers (__body) get transparent/none', () => {
@@ -126,5 +132,18 @@ describe('resolveStyles', () => {
     const root = new Frame({ id: 'root', children: [leaf] });
     resolveStyles(root);
     expect(leaf.heading!.weight).toBe('400');
+  });
+
+  it('section promotes leaf lead text to bold without faux small caps', () => {
+    const leaf = new Frame({
+      id: 'leaf',
+      level: 3,
+      label: [createLine('Title')],
+    });
+    const root = new Frame({ id: 'root', children: [leaf] });
+    resolveStyles(root);
+    expect(leaf.label[0]!.weight).toBe('700');
+    expect(leaf.label[0]!.smallCaps).toBe(false);
+    expect(leaf.label[0]!.letterSpacing).toBeUndefined();
   });
 });

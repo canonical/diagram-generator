@@ -109,10 +109,7 @@ def estimate_line_width(spec: dict[str, object]) -> float:
     text = str(spec["content"])
     size = size_to_px(spec.get("size", BODY_SIZE))
     weight = int(spec.get("weight", 400))
-    width = measure_text_width(text, size, weight)
-    if bool(spec.get("small_caps", False)):
-        width *= 1.05
-    return width
+    return measure_text_width(text, size, weight)
 
 
 def wrap_text_lines(lines: list[dict[str, object]], max_width: float) -> list[dict[str, object]]:
@@ -130,15 +127,11 @@ def wrap_text_lines(lines: list[dict[str, object]], max_width: float) -> list[di
 
         size = size_to_px(spec.get("size", BODY_SIZE))
         weight = int(spec.get("weight", 400))
-        small_caps = bool(spec.get("small_caps", False))
-
         words = text.split()
         current = ""
         for word in words:
             test = (current + " " + word) if current else word
             test_w = measure_text_width(test, size, weight)
-            if small_caps:
-                test_w *= 1.05
             if test_w <= max_width or not current:
                 current = test
             else:

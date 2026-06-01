@@ -30,6 +30,7 @@ Complete the unfinished interactive Python -> TypeScript migration by unifying s
 - renderer should consume style decisions, not invent them
 - temporary fallback paths must preserve edit intent and visibility until migration closure
 - final state must remove interactive server fallback as default behavior
+- interactive local measurement must use HarfBuzz-backed shaping; non-HarfBuzz adapters are a hard failure, not a silent fallback
 - localStorage is not used in the v3 interactive editing path
 - one override authority using in-place replacement of canonical fields in the original frame YAML only (no additive override-entry schema such as `overrideRole`, and no sidecar override YAML/JSON authority), plus one render contract across paths
 
@@ -89,12 +90,19 @@ Complete the unfinished interactive Python -> TypeScript migration by unifying s
 
 ## Validation Gates
 
-1. Style dropdown changes produce visible SVG updates in both local-ready and temporary fallback modes.
+1. Style dropdown changes produce visible SVG updates in local-ready mode, local-unready states fail explicitly with a visible status, and the interactive path reports a HarfBuzz measurement backend.
 2. Local/server parity tests for style semantics pass.
 3. Interactive fallback removal gate passes and final single-path mode is validated.
 4. No newly introduced style branch duplicates ownership already defined in resolver contract.
 5. Focused Python suite and preview regression tests pass.
 6. Adversarial review checkpoints pass for each major block (WS2, WS4, WS6).
+
+## Migration Closure Gate Checklist (WS4)
+
+- `requestV3Relayout()` uses the TypeScript local path only when `ENGINE === "v3"`; no interactive call path routes back through `requestRelayout()`.
+- Unready and local-failure states surface a visible `local-error` status in the editor instead of silently no-oping.
+- Focused browser regressions verify both steady-state local relayout behavior and explicit no-fallback error behavior.
+- Repo state docs (`STATUS.md`, `TODO.md`, `HISTORY.md`, spec artifacts) are updated in the same change-set as the cutover.
 
 ## Deliverables
 
