@@ -142,14 +142,16 @@ describe('alignOffset', () => {
 // ---------------------------------------------------------------------------
 
 describe('measure', () => {
-  it('measures a leaf at BLOCK_WIDTH and grid-aligned height', () => {
+  it('measures a HUG leaf at grid-snapped content width', () => {
     const leaf = new Frame({
       id: 'leaf',
       label: [createLine('Hello')],
       border: Border.SOLID,
     });
     measure(leaf, adapter);
-    expect(leaf._layout.measuredW).toBe(BLOCK_WIDTH);
+    // HUG sizing: width = roundUpToGrid(content), not clamped to BLOCK_WIDTH
+    expect(leaf._layout.measuredW).toBeGreaterThan(0);
+    expect(leaf._layout.measuredW % BASELINE_UNIT).toBe(0);
     expect(leaf._layout.measuredH).toBeGreaterThan(0);
     expect(leaf._layout.measuredH % BASELINE_UNIT).toBe(0);
   });

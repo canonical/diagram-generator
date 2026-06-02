@@ -37,6 +37,8 @@ FRAME_CLASS_DEFS: dict[str, FrameClassDefinition] = {
         stroke="none",
         text_fill="#666666",
         icon_fill="#666666",
+        heading_text=FrameTextStyle(weight="400", small_caps=False),
+        leaf_lead_text=FrameTextStyle(weight="400", small_caps=False),
     ),
     "section": FrameClassDefinition(
         fill="transparent",

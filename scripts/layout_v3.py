@@ -288,9 +288,9 @@ def _leaf_natural_size(frame: Frame, constrained_w: float | None = None) -> tupl
         # wrap boundary, not the raw unwrapped text width.
         text_w = min(text_w, text_max_w)
         content_w = pad_l + text_w + pad_r + icon_col
-        w = max(round_up_to_grid(content_w), BLOCK_WIDTH)
+        w = round_up_to_grid(content_w)
     else:
-        w = BLOCK_WIDTH
+        w = BLOCK_WIDTH  # empty-box fallback (default, not a HUG floor)
     return (w, h)
 
 

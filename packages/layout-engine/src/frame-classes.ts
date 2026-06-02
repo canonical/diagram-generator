@@ -33,6 +33,14 @@ export const FRAME_CLASS_DEFS: Record<FrameClassKey, FrameClassDefinition> = {
     stroke: 'none',
     textFill: '#666666',
     iconFill: '#666666',
+    headingText: {
+      weight: '400',
+      smallCaps: false,
+    },
+    leafLeadText: {
+      weight: '400',
+      smallCaps: false,
+    },
   },
   section: {
     fill: 'transparent',

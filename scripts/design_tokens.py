@@ -23,7 +23,7 @@ BASELINE_UNIT = 8
 GRID_GUTTER = 24          # canonical gutter between components
 OUTER_MARGIN = 24
 
-BLOCK_WIDTH = 192
+BLOCK_WIDTH = 192         # default box width; not a HUG floor
 ICON_SIZE = 48
 INSET = 8
 BOX_MIN_HEIGHT = ICON_SIZE + (INSET * 2)
