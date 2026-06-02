@@ -147,9 +147,9 @@ function leafNaturalSize(
     textW = Math.min(textW, textMaxW);
     const iconCol = hasIcon ? (ICON_SIZE + INSET) : 0;
     const contentW = padL + textW + padR + iconCol;
-    w = Math.max(roundUpToGrid(contentW), BLOCK_WIDTH);
+    w = roundUpToGrid(contentW);
   } else {
-    w = BLOCK_WIDTH;
+    w = BLOCK_WIDTH; // empty-box fallback (default, not a HUG floor)
   }
 
   return [w, h];

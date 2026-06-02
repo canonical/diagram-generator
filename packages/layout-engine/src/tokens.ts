@@ -26,7 +26,7 @@ export function getActiveGridStep(): number {
   return _activeGridStep;
 }
 
-/** Standard component (box) width in pixels. */
+/** Default component (box) width in pixels. Not a HUG floor – HUG boxes shrink to content. */
 export const BLOCK_WIDTH = 192;
 
 /** Icon dimension in pixels. */
