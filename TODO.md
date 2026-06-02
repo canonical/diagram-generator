@@ -56,19 +56,28 @@ The corpus visual audit is complete (all 23 diagrams verified). The code hardeni
 - [ ] `[H]` **H3. Heading synthetic child incomplete.** `__body` no longer copies `wrap`, `fill_weight`, `justify` from parent. Corpus audit shows no regressions, but the behaviour is intentional – document as settled.
 - [ ] `[M]` **H5. Leaf measure vs render padding mismatch.** Measurement uses INSET, rendering uses per-side padding + 1px hack. Fix: use `frame.padding_*` in measurement.
 
-#### Repo coherence – resolved-style validation (spec 008 Phase 5)
+#### Repo coherence – resolved-style snapshot (spec 008 Phase 5)
 
-Feature package: `specs/008-repo-coherence-rewrite/` – Phase 5 partially done in code, test closure pending.
+Feature package: `specs/008-repo-coherence-rewrite/` – Phases 1–4 and 6–8 complete. Phase 5 (T040–T047, 8 tasks) is the remaining work.
 
-Resolved-style fields (`resolvedFill`, `resolvedStroke`) exist and are consumed by both TS and Python renderers. Remaining work is writing and running specific regression tests.
+Resolved-style fields exist in concept but the full snapshot pipeline (model fields → population → consumer replacement → tests) is not wired end-to-end.
 
+- [ ] `[S]` T040–T044: Define resolved-style snapshot fields, populate in resolvers, replace raw contrast branches in renderers.
 - [ ] `[S]` T045–T047: Write resolved-style regression tests and run full suites.
 
 ### Priority 2 – Standalone bugs and code quality
 
 #### Highlight text contrast bug
 
-- [ ] `[M]` **Highlight children have black text on black fill.** In `android-security-comparison`, the "Virtualized Android" panel uses highlight style (black fill), but its child boxes render black text instead of white. The highlight variant should propagate white text/icon colour to children. Screenshot: `image-3.png`. Likely a resolved-style propagation gap – the parent's highlight semantics aren't reaching nested leaves through the style resolver.
+- [ ] `[M]` **Highlight children have black text on black fill.** In `android-security-comparison`, the "Virtualized Android" panel uses highlight style (black fill), but its child boxes render black text instead of white. The highlight variant should propagate white text/icon colour to children. Likely a resolved-style propagation gap – the parent's highlight semantics aren't reaching nested leaves through the style resolver. (Note: original screenshot `image-3.png` deleted; reproduce by opening `v3:android-security-comparison` in preview.)
+
+#### Top-level containers should default to FILL sizing
+
+- [ ] `[M]` **Annotations and other top-level containers still default to HUG** instead of FILL, so they don't land on the grid. We planned to default top-level containers to FILL so they span their grid columns. The document grid is also often constrained to an area smaller than the full diagram canvas — review how root grid width is determined.
+
+#### Root element editable width/height
+
+- [ ] `[S]` **Make root element width/height editable in the inspector.** Options: explicit value | HUG. Currently the root element's dimensions aren't editable.
 
 #### Code quality – adversarial audit items
 
