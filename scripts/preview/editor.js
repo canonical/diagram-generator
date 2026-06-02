@@ -1678,7 +1678,9 @@ function renderMultiSelectionInspector() {
         html += ' style="width:60px;margin-left:4px">';
         html += '<select class="bf-input" style="width:50px;margin-left:2px" onchange="setWidthUnit(this.value)">';
         html += '<option value="px"' + (_inspectorWidthUnit === 'px' ? ' selected' : '') + '>px</option>';
-        html += '<option value="cols"' + (_inspectorWidthUnit === 'cols' ? ' selected' : '') + '>cols</option>';
+        if (gridInfo && gridInfo.col_widths && gridInfo.col_widths.length) {
+          html += '<option value="cols"' + (_inspectorWidthUnit === 'cols' ? ' selected' : '') + '>cols</option>';
+        }
         html += '</select>';
       }
       html += '</div>';
@@ -4930,7 +4932,9 @@ function buildAutolayoutPanel(cid, node) {
     html += ' style="width:60px;margin-left:4px">';
     html += '<select class="bf-input" style="width:50px;margin-left:2px" onchange="setWidthUnit(this.value,\'' + cid + '\')">';
     html += '<option value="px"' + (_inspectorWidthUnit === 'px' ? ' selected' : '') + '>px</option>';
-    html += '<option value="cols"' + (_inspectorWidthUnit === 'cols' ? ' selected' : '') + '>cols</option>';
+    if (gridInfo && gridInfo.col_widths && gridInfo.col_widths.length) {
+      html += '<option value="cols"' + (_inspectorWidthUnit === 'cols' ? ' selected' : '') + '>cols</option>';
+    }
     html += '</select>';
   }
   html += '</div>';
@@ -5252,6 +5256,10 @@ function setFrameSize(cid, dimension, value) {
 window.setFrameSize = setFrameSize;
 
 function setWidthUnit(unit, cid) {
+  // Reset to px if grid columns are unavailable
+  if (unit === 'cols' && (!gridInfo || !gridInfo.col_widths || !gridInfo.col_widths.length)) {
+    unit = 'px';
+  }
   _inspectorWidthUnit = unit;
   if (cid) renderSelectionInspector(cid);
 }
