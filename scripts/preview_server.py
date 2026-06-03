@@ -27,11 +27,11 @@ import sys
 import threading
 import time
 import traceback
-from dataclasses import asdict
 from urllib.parse import unquote, urlparse
 
 from frame_yaml_persistence import persist_override_payload_to_yaml
 from preview_ts_export import pool_from_env
+from preview_ts_layout import pool_from_env as layout_pool_from_env
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SCRIPTS = ROOT / "scripts"
@@ -64,6 +64,14 @@ _force_sessions: dict[str, object] = {}
 _TS_EXPORT_SCRIPT = ROOT / "packages" / "layout-engine" / "scripts" / "export-frame-svg.mjs"
 _ts_svg_pool = pool_from_env(
     script_path=_TS_EXPORT_SCRIPT,
+    repo_root=ROOT,
+    frames_dir=FRAMES_DIR,
+)
+_TS_LAYOUT_SCRIPT = ROOT / "packages" / "layout-engine" / "scripts" / "layout-frame-diagram.mjs"
+_TS_EMIT_SCRIPT = ROOT / "packages" / "layout-engine" / "scripts" / "emit-frame-diagram-json.mjs"
+_ts_layout_pool = layout_pool_from_env(
+    layout_script=_TS_LAYOUT_SCRIPT,
+    emit_script=_TS_EMIT_SCRIPT,
     repo_root=ROOT,
     frames_dir=FRAMES_DIR,
 )
@@ -154,6 +162,7 @@ def _rebuild(grid: bool = False) -> bool:
     global _last_rebuild_error, _layout_cache, _viewer_template, _force_template, _unified_template, _force_sessions, _watcher_fail_streak
     _layout_cache.clear()
     _ts_svg_pool.clear_cache()
+    _ts_layout_pool.clear_cache()
     _force_sessions.clear()
     _viewer_template = None
     _force_template = None
@@ -182,9 +191,10 @@ def _render_svg_via_ts(slug: str) -> bytes | None:
 
 
 def _render_svg_python_fallback(slug: str) -> bytes | None:
+    """Legacy SVG path only — uses Python layout_v3 until spec 012 retires it."""
     if slug.startswith("v3:"):
         slug = slug[3:]
-    result = _get_layout_result(slug, engine="v3")
+    result = _get_layout_result_for_svg_fallback(slug)
     if result is None:
         return None
     import diagram_render_svg
@@ -200,8 +210,8 @@ def _serve_v3_svg_bytes(slug: str) -> bytes | None:
     return _render_svg_python_fallback(slug)
 
 
-def _get_layout_result(slug: str, engine: str = "v3"):
-    # Strip v3: prefix if present
+def _get_layout_result_for_svg_fallback(slug: str):
+    """Python layout cache — SVG fallback only (not used for frame-tree/grid/tree)."""
     if slug.startswith("v3:"):
         slug = slug[3:]
     cache_key = f"{slug}:v3"
@@ -224,112 +234,24 @@ def _get_layout_result(slug: str, engine: str = "v3"):
         import traceback; traceback.print_exc()
         return None
 
+def _normalize_v3_slug(slug: str) -> str:
+    return slug[3:] if slug.startswith("v3:") else slug
+
+
 def _get_component_tree(slug: str) -> list[dict]:
-    result = _get_layout_result(slug)
-    if result and hasattr(result, "component_tree"):
-        return [asdict(ci) for ci in result.component_tree]
+    norm = _normalize_v3_slug(slug)
+    bundle = _ts_layout_pool.layout_bundle(norm)
+    if bundle and isinstance(bundle.get("componentTree"), list):
+        return bundle["componentTree"]
     return []
 
 
 def _get_grid_info(slug: str) -> dict | None:
-    result = _get_layout_result(slug)
-    if result and result.grid_info:
-        return asdict(result.grid_info)
+    norm = _normalize_v3_slug(slug)
+    bundle = _ts_layout_pool.layout_bundle(norm)
+    if bundle and isinstance(bundle.get("gridInfo"), dict):
+        return bundle["gridInfo"]
     return None
-
-
-def _load_frame_diagram(slug: str):
-    """Load the raw FrameDiagram for a slug (before layout)."""
-    try:
-        if str(SCRIPTS) not in sys.path:
-            sys.path.insert(0, str(SCRIPTS))
-        import copy
-
-        frame_yaml = FRAMES_DIR / (slug + ".yaml")
-        if frame_yaml.exists():
-            from frame_loader import load_frame_yaml
-            return copy.deepcopy(load_frame_yaml(frame_yaml))
-        return None
-    except Exception:
-        import traceback; traceback.print_exc()
-        return None
-
-
-def _serialize_line(line) -> dict:
-    """Serialize a Line dataclass to a JSON-safe dict."""
-    return {
-        "content": line.content,
-        "size": line.size,
-        "weight": line.weight,
-        "fill": line.fill,
-        "smallCaps": getattr(line, "small_caps", False),
-        "letterSpacing": getattr(line, "letter_spacing", None),
-        "lineStep": getattr(line, "line_step", None),
-        "fontFamily": getattr(line, "font_family", None),
-    }
-
-
-def _serialize_arrow(arrow) -> dict:
-    """Serialize an Arrow dataclass to a JSON-safe dict."""
-    return {
-        "source": arrow.source,
-        "target": arrow.target,
-        "id": getattr(arrow, "id", None),
-        "color": getattr(arrow, "color", "#E95420"),
-    }
-
-
-def _serialize_frame(frame) -> dict:
-    """Recursively serialize a Frame to a JSON-safe dict for the TS layout engine."""
-    return {
-        "id": frame.id,
-        "direction": frame.direction.name,
-        "gap": frame.gap,
-        "padding": frame.padding,
-        "paddingTop": frame.padding_top,
-        "paddingRight": frame.padding_right,
-        "paddingBottom": frame.padding_bottom,
-        "paddingLeft": frame.padding_left,
-        "align": frame.align.name,
-        "wrap": frame.wrap,
-        "sizingW": frame.sizing_w.name,
-        "sizingH": frame.sizing_h.name,
-        "fillWeight": frame.fill_weight,
-        "width": frame.width,
-        "height": frame.height,
-        "minWidth": frame.min_width,
-        "maxWidth": frame.max_width,
-        "maxWidthChars": frame.max_width_chars,
-        "minHeight": frame.min_height,
-        "maxHeight": frame.max_height,
-        "fill": frame.fill.value,
-        "border": frame.border.name,
-        "heading": _serialize_line(frame.heading) if frame.heading else None,
-        "icon": frame.icon,
-        "iconFill": frame.icon_fill,
-        "label": [_serialize_line(ln) for ln in frame.label],
-        "role": frame.role,
-        "level": frame.level,
-        "colSpan": frame.col_span,
-        "children": [_serialize_frame(child) for child in frame.children],
-        "positionType": frame.position_type,
-        "x": frame.x,
-        "y": frame.y,
-    }
-
-
-def _serialize_frame_diagram(diagram) -> dict:
-    """Serialize a FrameDiagram for the TS layout engine."""
-    return {
-        "title": diagram.title,
-        "root": _serialize_frame(diagram.root),
-        "arrows": [_serialize_arrow(a) for a in diagram.arrows],
-        "gridCols": diagram.grid_cols,
-        "gridColGap": diagram.grid_col_gap,
-        "gridRowGap": diagram.grid_row_gap,
-        "gridOuterMargin": diagram.grid_outer_margin,
-        "overlays": [{"id": o.id, "label": o.label, "members": o.members} for o in diagram.overlays],
-    }
 
 
 def _save_overrides(slug: str, data: dict) -> None:
@@ -339,6 +261,7 @@ def _save_overrides(slug: str, data: dict) -> None:
     persist_override_payload_to_yaml(frame_path, data)
     _layout_cache.pop(f"{slug}:v3", None)
     _ts_svg_pool.invalidate_slug(slug)
+    _ts_layout_pool.invalidate_slug(slug)
 
 
 def _watch_loop(grid: bool = False, interval: float = 0.5):
@@ -1079,15 +1002,18 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
         self._respond(200, "application/json", json.dumps(tree, indent=2).encode())
 
     def _serve_frame_tree(self, slug: str):
-        """Serve the raw Frame tree JSON for client-side layout."""
+        """Serve Frame tree JSON DTO from TS YAML loader (derived transport, not authority)."""
         if not _is_safe_slug(slug):
             self.send_error(400, "Invalid slug")
             return
-        diagram = _load_frame_diagram(slug)
-        if diagram is None:
+        norm = _normalize_v3_slug(slug)
+        if not (FRAMES_DIR / f"{norm}.yaml").is_file():
             self.send_error(404, "Frame diagram not found")
             return
-        data = _serialize_frame_diagram(diagram)
+        data = _ts_layout_pool.frame_tree_json(norm)
+        if data is None:
+            self.send_error(503, "TS frame-tree emit failed (see server log)")
+            return
         self._respond(200, "application/json", json.dumps(data).encode())
 
     def _serve_layout_engine_bundle(self):

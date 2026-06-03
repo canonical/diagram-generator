@@ -92,6 +92,9 @@ export {
 
 export { applyHeadingAsChild } from './heading-synthesis.js';
 export { loadFrameYaml } from './frame-yaml-loader.js';
+export { serializeFrameDiagram, serializeFrame } from './frame-serialize.js';
+export { buildGridInfo, type GridInfo } from './grid-info.js';
+export { buildComponentTree, type ComponentInfo } from './component-tree.js';
 export { renderFrameDiagramToSvg } from './svg-render.js';
 
 export {

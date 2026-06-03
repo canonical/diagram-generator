@@ -166,6 +166,7 @@ class TsSvgExportPool:
             text=True,
             timeout=self._config.timeout_sec,
             check=True,
+            env=os.environ.copy(),
         )
 
 

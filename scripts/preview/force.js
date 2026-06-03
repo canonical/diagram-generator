@@ -828,15 +828,7 @@ function toggleRun() {
   startRunning();
 }
 
-byId("diagram-picker").addEventListener("change", (event) => {
-  const nextUrl = event.target.value;
-  if (!nextUrl || nextUrl === window.location.pathname) {
-    return;
-  }
-  window.location.assign(nextUrl);
-});
-
-// Prev/next buttons are wired by initPreviewShell() from editor-base.js
+// Diagram picker + prev/next: initPreviewShell() → editor-base.js initDiagramPicker()
 
 byId("tree-force").addEventListener("click", (event) => {
   const item = event.target.closest("[data-node-id]");

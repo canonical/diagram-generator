@@ -8,32 +8,13 @@
  */
 
 import { readFileSync, writeFileSync } from 'node:fs';
-import { resolve, dirname, join } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const pkgRoot = resolve(__dirname, '..');
-const repoRoot = resolve(pkgRoot, '../..');
-
-function distImport(name) {
-  return import(pathToFileURL(join(pkgRoot, 'dist', name)).href);
-}
+import { resolve, join } from 'node:path';
+import { distImport, repoRoot, resolveFrameYamlPath } from './_dist-import.mjs';
 
 const { loadFrameYaml } = await distImport('frame-yaml-loader.js');
 const { layoutFrameTree } = await distImport('layout.js');
 const { renderFrameDiagramToSvg } = await distImport('svg-render.js');
 const { createHarfBuzzTextAdapter } = await distImport('harfbuzz-text-adapter.js');
-
-function resolveInputPath(arg) {
-  if (arg.startsWith('--slug=')) {
-    const slug = arg.slice('--slug='.length);
-    return join(repoRoot, 'scripts/diagrams/frames', `${slug}.yaml`);
-  }
-  if (arg === '--slug' && process.argv[3]) {
-    return join(repoRoot, 'scripts/diagrams/frames', `${process.argv[3]}.yaml`);
-  }
-  return resolve(arg);
-}
 
 async function main() {
   const arg = process.argv[2];
@@ -41,7 +22,7 @@ async function main() {
     console.error('Usage: export-frame-svg.mjs <frame.yaml> | --slug <name> [--out file.svg]');
     process.exit(1);
   }
-  const yamlPath = resolveInputPath(arg);
+  const yamlPath = resolveFrameYamlPath(arg, process.argv);
   const outIdx = process.argv.indexOf('--out');
   const outPath = outIdx >= 0 ? resolve(process.argv[outIdx + 1]) : null;
 
