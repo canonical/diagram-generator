@@ -9,7 +9,10 @@
  * coordinates to the Python engine for the same input.
  */
 
-import { Frame, Direction, Sizing, Align, Border, Justify, type Line, enforceFillHugInvariant } from './frame-model.js';
+import {
+  Frame, Direction, Sizing, Align, Border, Justify,
+  type Line, type CoercedOverride, enforceFillHugInvariant,
+} from './frame-model.js';
 import {
   BASELINE_UNIT, BLOCK_WIDTH, BOX_MIN_HEIGHT, INSET, ICON_SIZE,
   BODY_LINE_STEP, BODY_SIZE,
@@ -558,16 +561,22 @@ function propagateHeightChanges(frame: Frame, adapter: TextMeasureAdapter): void
   frame._layout.measuredH = roundUpToGrid(contentH + padV);
 }
 
-function refreshCoercedHeights(frame: Frame, adapter: TextMeasureAdapter, coercedIds: Set<string>): void {
+function refreshCoercedHeights(
+  frame: Frame,
+  adapter: TextMeasureAdapter,
+  coerced: Map<string, CoercedOverride>,
+): void {
   if (frame.isLeaf) return;
   for (const child of frame.children) {
-    refreshCoercedHeights(child, adapter, coercedIds);
+    refreshCoercedHeights(child, adapter, coerced);
   }
 
   // Only refresh containers that were actually coerced by
   // enforceFillHugInvariant (originally HUG, now FIXED).
   // Skip containers that were originally FIXED (user-set height/width).
-  if (!frame.id || !coercedIds.has(frame.id)) return;
+  if (!frame.id) return;
+  const override = coerced.get(frame.id);
+  if (!override) return;
 
   const autoChildren = frame.children.filter(c => c.positionType !== 'ABSOLUTE');
   const padV = frame.paddingTop + frame.paddingBottom;
@@ -580,12 +589,12 @@ function refreshCoercedHeights(frame: Frame, adapter: TextMeasureAdapter, coerce
     const contentH = rows.reduce((s, row) => s + row.height, 0) + frame.gap * Math.max(0, rows.length - 1);
     const newH = roundUpToGrid(contentH + padV);
     frame._layout.measuredH = newH;
-    frame.height = newH;
+    if (override.sizingH === 'FIXED') override.height = newH;
   } else if (frame.direction === Direction.HORIZONTAL) {
     const contentH = autoChildren.length > 0 ? Math.max(...autoChildren.map(c => c._layout.measuredH)) : 0;
     const newH = roundUpToGrid(contentH + padV);
     frame._layout.measuredH = newH;
-    frame.height = newH;
+    if (override.sizingH === 'FIXED') override.height = newH;
   } else {
     const fillH = autoChildren.filter(c => c.sizingH === Sizing.FILL).map(c => c._layout.measuredH);
     const nonFillH = autoChildren.filter(c => c.sizingH !== Sizing.FILL).reduce((s, c) => s + c._layout.measuredH, 0);
@@ -597,7 +606,7 @@ function refreshCoercedHeights(frame: Frame, adapter: TextMeasureAdapter, coerce
     }
     const newH = roundUpToGrid(contentH + padV);
     frame._layout.measuredH = newH;
-    frame.height = newH;
+    if (override.sizingH === 'FIXED') override.height = newH;
   }
 }
 
@@ -605,11 +614,11 @@ export function remeasureWithWidthConstraints(
   root: Frame,
   rootW: number,
   adapter: TextMeasureAdapter,
-  coercedIds?: Set<string>,
+  coerced?: Map<string, CoercedOverride>,
 ): void {
   propagateWidthAndRemeasure(root, rootW, adapter);
   propagateHeightChanges(root, adapter);
-  refreshCoercedHeights(root, adapter, coercedIds ?? new Set());
+  refreshCoercedHeights(root, adapter, coerced ?? new Map());
 }
 
 
@@ -860,7 +869,7 @@ export function place(
 export interface LayoutOutput {
   width: number;
   height: number;
-  coerced: Map<string, import('./frame-model.js').CoercedOverride>;
+  coerced: Map<string, CoercedOverride>;
 }
 
 /** Options for the layout pipeline. */
@@ -914,7 +923,7 @@ function _layoutFrameTreeInner(
   }
 
   // Pass 1.5: constrained re-measurement
-  remeasureWithWidthConstraints(root, rootW, adapter, new Set(coerced.keys()));
+  remeasureWithWidthConstraints(root, rootW, adapter, coerced);
 
   const rootH = root.height ?? root._layout.measuredH;
 

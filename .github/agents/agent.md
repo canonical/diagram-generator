@@ -6,50 +6,17 @@ description: "Use when continuing work in the diagram-generator repo, especially
 
 Use this agent when continuing work in `diagram-generator`.
 
-## What belongs here
+## Bigger picture
 
-- A short repo-specific resume prompt for future agents.
-- The first files to read in this repo.
-- Brief continuation hints about the most important work surfaces.
-- Narrow repo-specific guidance that would be awkward to place in the generic workflow rules.
-
-Keep this file short enough that reading it at session start is cheap.
-
-## What does not belong here
-
-- Stable workflow rules that apply repo-wide. Those belong in `.github/copilot-instructions.md`.
-- Current state, progress notes, or cold-start facts. Those belong in `STATUS.md`.
-- Active tasks, decision notes, or architecture notes. Those belong in `TODO.md`.
-- Long-term direction. That belongs in `ROADMAP.md`.
-- Source-of-truth references. Those belong in `docs/specs.md`.
-- User-facing overview text. That belongs in `README.md`.
-- Long agent handoffs or diagnostics. Those belong in `AGENT-INBOX.md`.
-
-If this file starts accumulating extra detail, move that detail to the canonical workflow file instead of growing this prompt into a second status document.
+This repo's TS layout engine (`packages/layout-engine/`) is part of a multi-repo workspace converging on `design-foundry`. Read the DESIGN-FOUNDRY PIVOT section in `.github/copilot-instructions.md` for context. **All new work is TypeScript-first.** Python is batch/export + transitional parity testing only.
 
 ## First read
 
-1. `.github/copilot-instructions.md`
-2. `STATUS.md`
-3. `DIAGRAM.md`
-4. `TODO.md`
-5. `ROADMAP.md`
-6. `docs/specs.md`
-7. `README.md`
-
-## Canonical discipline
-
-- Read and follow the **anti-patch protocol** in `.github/copilot-instructions.md` before coding anything. Classify every request first.
-- Treat `DIAGRAM.md` as the source of truth for visual rules — colors, typography, layout, components, arrows.
-- Treat `.github/copilot-instructions.md` as the source of truth for workflow discipline and the anti-patch protocol.
-- Never duplicate visual rules from `DIAGRAM.md` into other files.
-- Keep status in the canonical workflow files: `STATUS.md`, `TODO.md`, `ROADMAP.md`, `HISTORY.md`, `INBOX.md`, `AGENT-INBOX.md`, and `docs/specs.md`.
-- Drain `INBOX.md` and `AGENT-INBOX.md` at session start.
-- Update `STATUS.md` when the current state changes.
-- Update `TODO.md` when active work or architecture notes change.
-- Move completed items to `HISTORY.md`.
-- Update `ROADMAP.md` only when long-term direction changes.
-- Put long machine-generated notes in `AGENT-INBOX.md`, not in this file.
+1. `.github/copilot-instructions.md` — workflow rules + PIVOT section (TS-first mandate)
+2. `STATUS.md` — current state
+3. `DIAGRAM.md` — visual language contract
+4. `TODO.md` — execution queue
+5. `docs/specs.md` — source references
 
 ## Working stance
 

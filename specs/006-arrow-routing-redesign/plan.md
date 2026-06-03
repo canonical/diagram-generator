@@ -10,13 +10,17 @@ Implement phased routing redesign from architecture plan: explicit ports and nes
 
 ## Technical Context
 
-**Language/Version**: Python 3.11+ core routing implementation
+**Language/Version**: TypeScript (primary, in `packages/layout-engine/`). Python routing receives equivalent changes only for batch SVG export parity.
 
-**Primary Dependencies**: `scripts/layout_v3.py` routing functions, related model/parser modules, SVG render path emission
+**Primary Dependencies**: `packages/layout-engine/src/layout.ts` (routing logic), `scripts/preview/layout-bridge.js` (client-side arrow patching); `scripts/layout_v3.py` (Python parity only)
 
-**Testing**: focused pytest suite plus new routing fixtures
+**Testing**:
+```bash
+npm --prefix packages/layout-engine test          # TS tests (primary)
+python -m pytest test_autolayout.py test_layout_v3.py test_parity.py -q  # Python parity
+```
 
-**Target Platform**: v3 autolayout SVG output and preview routing behavior
+**Target Platform**: Client-side TS layout engine + preview bridge; Python batch SVG export
 
 **Constraints**: no renderer-owned routing decisions; no diagram-specific exception rules
 

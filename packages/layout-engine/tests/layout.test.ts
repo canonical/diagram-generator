@@ -16,6 +16,17 @@ import { MockTextAdapter } from '../src/text-measure.js';
 
 const adapter = new MockTextAdapter();
 
+function snapshotSemanticSizing(frame: Frame): object {
+  return {
+    id: frame.id,
+    sizingW: frame.sizingW,
+    sizingH: frame.sizingH,
+    width: frame.width,
+    height: frame.height,
+    children: frame.children.map(snapshotSemanticSizing),
+  };
+}
+
 // ---------------------------------------------------------------------------
 // distributeFillSpace
 // ---------------------------------------------------------------------------
@@ -357,6 +368,37 @@ describe('layoutFrameTree', () => {
     expect(result.height % BASELINE_UNIT).toBe(0);
   });
 
+  it('keeps semantic sizing fields unchanged when coercion is applied', () => {
+    const child = new Frame({
+      id: 'child',
+      sizingW: Sizing.FILL,
+      sizingH: Sizing.FILL,
+      label: [createLine('Content')],
+    });
+    const root = new Frame({
+      id: 'root',
+      direction: Direction.VERTICAL,
+      sizingW: Sizing.FIXED,
+      sizingH: Sizing.HUG,
+      width: 200,
+      padding: 8,
+      children: [child],
+    });
+
+    const before = snapshotSemanticSizing(root);
+
+    const first = layoutFrameTree(root, adapter);
+
+    expect(first.coerced.get('root')).toMatchObject({ sizingH: 'FIXED' });
+    expect(snapshotSemanticSizing(root)).toEqual(before);
+
+    const second = layoutFrameTree(root, adapter);
+
+    expect(snapshotSemanticSizing(root)).toEqual(before);
+    expect(second.width).toBe(first.width);
+    expect(second.height).toBe(first.height);
+  });
+
   it('coerces HUG parent with FILL child', () => {
     const child = new Frame({
       id: 'child',
@@ -373,8 +415,8 @@ describe('layoutFrameTree', () => {
     });
 
     const result = layoutFrameTree(root, adapter);
-    // Parent should have been coerced to FIXED on primary axis
-    expect(root.sizingH).toBe(Sizing.FIXED);
+    // Parent reports a coercion override without rewriting semantic sizing.
+    expect(root.sizingH).toBe(Sizing.HUG);
     expect(result.coerced.has('root')).toBe(true);
   });
 
@@ -489,13 +531,11 @@ describe('coercion lifecycle', () => {
     // Layout 1: c1 is FILL → root coerced to FIXED
     const r1 = layoutFrameTree(root, adapter);
     expect(r1.coerced.has('root')).toBe(true);
-    expect(root.sizingH).toBe(Sizing.FIXED);
-    const coercedHeight = root.height;
+    expect(root.sizingH).toBe(Sizing.HUG);
+    const coercedHeight = r1.coerced.get('root')?.height;
     expect(coercedHeight).toBeGreaterThan(0);
 
-    // Layout 2: reset root to HUG, change c1 to HUG → no coercion
-    root.sizingH = Sizing.HUG;
-    root.height = 0;
+    // Layout 2: change c1 to HUG → no coercion
     c1.sizingH = Sizing.HUG;
     const r2 = layoutFrameTree(root, adapter);
     expect(r2.coerced.has('root')).toBe(false);
@@ -524,16 +564,12 @@ describe('coercion lifecycle', () => {
     expect(r1.coerced.has('root')).toBe(true);
 
     // Layout 2: remove one FILL child (set to HUG), one FILL remains → still coerced
-    root.sizingH = Sizing.HUG;
-    root.height = 0;
     c1.sizingH = Sizing.HUG;
     const r2 = layoutFrameTree(root, adapter);
     expect(r2.coerced.has('root')).toBe(true);
-    expect(root.sizingH).toBe(Sizing.FIXED);
+    expect(root.sizingH).toBe(Sizing.HUG);
 
     // Layout 3: remove last FILL child → no coercion
-    root.sizingH = Sizing.HUG;
-    root.height = 0;
     c2.sizingH = Sizing.HUG;
     const r3 = layoutFrameTree(root, adapter);
     expect(r3.coerced.has('root')).toBe(false);
@@ -556,7 +592,7 @@ describe('coercion lifecycle', () => {
     expect(result.coerced.has('root')).toBe(true);
     const override = result.coerced.get('root')!;
     expect(override.sizingH).toBe('FIXED');
-    expect(override.height).toBe(root.height);
+    expect(override.height).toBe(result.height);
     // Width should not be in the override (not coerced)
     expect(override.sizingW).toBeUndefined();
     expect(override.width).toBeUndefined();
@@ -579,11 +615,9 @@ describe('coercion lifecycle', () => {
     // Layout 1: c1 FILL on primary (W) → coerced
     const r1 = layoutFrameTree(root, adapter);
     expect(r1.coerced.has('root')).toBe(true);
-    expect(root.sizingW).toBe(Sizing.FIXED);
+    expect(root.sizingW).toBe(Sizing.HUG);
 
-    // Layout 2: reset and remove FILL → no coercion
-    root.sizingW = Sizing.HUG;
-    root.width = 0;
+    // Layout 2: remove FILL → no coercion
     c1.sizingW = Sizing.HUG;
     const r2 = layoutFrameTree(root, adapter);
     expect(r2.coerced.has('root')).toBe(false);
@@ -618,18 +652,12 @@ describe('coercion lifecycle', () => {
     expect(r1.coerced.has('outer')).toBe(true);
 
     // Layout 2: remove leaf's FILL → inner reverts, outer still coerced (sibling is FILL)
-    outer.sizingH = Sizing.HUG;
-    outer.height = 0;
-    inner.sizingH = Sizing.HUG;
-    inner.height = 0;
     leaf.sizingH = Sizing.HUG;
     const r2 = layoutFrameTree(outer, adapter);
     expect(r2.coerced.has('inner')).toBe(false);
     expect(r2.coerced.has('outer')).toBe(true);
 
     // Layout 3: also remove sibling's FILL → both revert
-    outer.sizingH = Sizing.HUG;
-    outer.height = 0;
     sibling.sizingH = Sizing.HUG;
     const r3 = layoutFrameTree(outer, adapter);
     expect(r3.coerced.has('inner')).toBe(false);

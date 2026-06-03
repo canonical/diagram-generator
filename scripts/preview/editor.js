@@ -265,6 +265,15 @@ function _restoreOverrideEntries(entries) {
   }
 }
 
+function _snapshotNeedsV3Relayout(snapshot) {
+  for (const [cid, entry] of Object.entries(snapshot || {})) {
+    const node = model.get(cid);
+    if (!node || node.type === "arrow") continue;
+    if (entry == null || _hasV3FrameOverride(entry)) return true;
+  }
+  return false;
+}
+
 function _pushUndoCommand(command) {
   undoStack.push(command);
   if (undoStack.length > MAX_UNDO_STACK_SIZE) undoStack.shift();
@@ -306,31 +315,41 @@ async function _restoreEditorState(serializedState) {
     clearTimeout(relayoutTimer);
     relayoutTimer = null;
   }
+  clearTimeout(_v3RelayoutTimer);
   pendingGridAction = null;
+  const currentOverrides = _cloneState(overrides);
   const parsed = JSON.parse(serializedState || "{}");
   const nextOverrides = _cloneState(parsed.o);
   const nextGridOverrides = _normaliseGridOverrides(parsed.g);
   const currentGridOverrides = _normaliseGridOverrides(model.gridOverrides || {});
   const gridChanged = JSON.stringify(currentGridOverrides) !== JSON.stringify(nextGridOverrides);
 
+  overrides = nextOverrides;
   model.gridOverrides = _cloneState(nextGridOverrides);
   if (nextGridOverrides.link_to_root !== false) {
     _pruneLinkedRootGridOverrides();
   }
-  if (gridChanged) {
+
+  const needsV3Relayout = (
+    gridChanged
+    || _snapshotNeedsV3Relayout(currentOverrides)
+    || _snapshotNeedsV3Relayout(nextOverrides)
+  );
+
+  if (needsV3Relayout) {
     const rootId = (model.roots[0] || {}).id || "root";
     await requestV3Relayout(rootId);
+    if (gridInfo) populateGridControls();
+  } else {
+    applyWaypointOverrides();
+    applyAllOverrides();
+    reapplySelection();
+    renderSelectionInspector();
+    updateOverrideSummary();
+    refreshTreeColors();
+    runConstraints();
+    if (gridInfo) populateGridControls();
   }
-
-  overrides = nextOverrides;
-  applyWaypointOverrides();
-  applyAllOverrides();
-  reapplySelection();
-  renderSelectionInspector();
-  updateOverrideSummary();
-  refreshTreeColors();
-  runConstraints();
-  if (gridInfo) populateGridControls();
 
   const currentStateStr = _serializeDirtyState();
   setDirty(currentStateStr !== lastSavedState);
@@ -343,14 +362,27 @@ async function _restoreOverridePatch(entries) {
   }
   clearTimeout(_v3RelayoutTimer);
   pendingGridAction = null;
+  const touchedIds = Object.keys(entries || {});
+  const beforeEntries = _captureOverrideEntries(touchedIds);
   _restoreOverrideEntries(entries);
-  applyWaypointOverrides();
-  applyAllOverrides();
-  reapplySelection();
-  renderSelectionInspector();
-  updateOverrideSummary();
-  refreshTreeColors();
-  runConstraints();
+
+  const needsV3Relayout = (
+    _snapshotNeedsV3Relayout(beforeEntries)
+    || _snapshotNeedsV3Relayout(entries)
+  );
+
+  if (needsV3Relayout) {
+    const triggerId = touchedIds[0] || (model.roots[0] || {}).id || "root";
+    await requestV3Relayout(triggerId);
+  } else {
+    applyWaypointOverrides();
+    applyAllOverrides();
+    reapplySelection();
+    renderSelectionInspector();
+    updateOverrideSummary();
+    refreshTreeColors();
+    runConstraints();
+  }
 
   const currentStateStr = _serializeDirtyState();
   setDirty(currentStateStr !== lastSavedState);
@@ -474,7 +506,7 @@ async function loadSVG(options = {}) {
 
 async function loadTree() {
   try {
-    const resp = await fetch("/api/tree/" + SLUG);
+    const resp = await fetch("/api/tree/" + SLUG + "?t=" + Date.now(), { cache: "no-store" });
     if (resp.ok) {
       const data = await resp.json();
       model.loadTree(data);
@@ -484,7 +516,7 @@ async function loadTree() {
 
 async function loadGridInfo() {
   try {
-    const resp = await fetch("/api/grid/" + SLUG);
+    const resp = await fetch("/api/grid/" + SLUG + "?t=" + Date.now(), { cache: "no-store" });
     if (resp.ok) {
       gridInfo = await resp.json();
       baseGridInfo = _cloneState(gridInfo);
@@ -1777,9 +1809,8 @@ function _getMultiSizingValues(items) {
   for (const item of items) {
     const node = item.node;
     if (!node) continue;
-    const ovr = overrides[item.id] || {};
-    const sw = ovr.sizing_w || node.sizing_w || null;
-    const sh = ovr.sizing_h || node.sizing_h || null;
+    const sw = _getRuntimeSizingValue(item.id, node, 'w');
+    const sh = _getRuntimeSizingValue(item.id, node, 'h');
     if (!sw && !sh) continue; // not a v3 frame node
     hasAny = true;
     if (firstW === null) firstW = sw || 'HUG';
@@ -1799,6 +1830,13 @@ function _getMultiSizingValues(items) {
     wCoerced: anyW && allWCoerced,
     hCoerced: anyH && allHCoerced,
   };
+}
+
+function _getRuntimeSizingValue(cid, node, axis) {
+  const key = axis === 'w' ? 'sizing_w' : 'sizing_h';
+  if (_coercedKeys.has(cid + ':' + key)) return 'FIXED';
+  const ovr = overrides[cid] || {};
+  return ovr[key] || (node ? node[key] : null) || null;
 }
 
 /**
@@ -4849,8 +4887,10 @@ function buildAutolayoutPanel(cid, node) {
 
   // Read current values from overrides first, then from tree data
   const ovr = overrides[cid] || {};
-  const sizingW = ovr.sizing_w || node.sizing_w || 'HUG';
-  const sizingH = ovr.sizing_h || node.sizing_h || 'HUG';
+  const wCoerced = _coercedKeys.has(cid + ':sizing_w');
+  const hCoerced = _coercedKeys.has(cid + ':sizing_h');
+  const sizingW = _getRuntimeSizingValue(cid, node, 'w') || 'HUG';
+  const sizingH = _getRuntimeSizingValue(cid, node, 'h') || 'HUG';
 
   let html = '<div class="dg-autolayout-section">';
 
@@ -4913,9 +4953,6 @@ function buildAutolayoutPanel(cid, node) {
   }
 
   // Per-axis sizing (shown for all nodes)
-  const wCoerced = _coercedKeys.has(cid + ':sizing_w');
-  const hCoerced = _coercedKeys.has(cid + ':sizing_h');
-
   html += '<div class="field"><span class="label">Width</span>';
   html += '<select class="bf-input' + (wCoerced ? ' dg-coerced' : '') + '" onchange="setFrameProp(\'' + cid + '\',\'sizing_w\',this.value)">';
   html += '<option value="HUG"' + (sizingW === 'HUG' ? ' selected' : '') + '>Hug</option>';
@@ -5126,6 +5163,26 @@ async function requestV3Relayout(triggerCid) {
     return _failV3Relayout(relayoutStatus.local.reason, triggerCid);
   }
 
+  // Auto-coercion is runtime-only UI state. Clear any previously auto-managed
+  // keys before re-running layout so semantic overrides stay authorial.
+  for (const ck of Array.from(_coercedKeys)) {
+    const sepIdx = ck.indexOf(':');
+    const fid = ck.substring(0, sepIdx);
+    const key = ck.substring(sepIdx + 1);
+    if (!overrides[fid]) continue;
+    if (key === 'sizing_w') {
+      delete overrides[fid].sizing_w;
+      delete overrides[fid].width;
+    } else if (key === 'sizing_h') {
+      delete overrides[fid].sizing_h;
+      delete overrides[fid].height;
+    } else {
+      delete overrides[fid][key];
+    }
+    if (Object.keys(overrides[fid]).length === 0) delete overrides[fid];
+  }
+  _coercedKeys.clear();
+
   // --- Client-side layout (no server round-trip) ---
   const gridOvr = _normaliseGridOverrides(model.gridOverrides || {});
   let localResult = performLocalRelayout(model, overrides, gridOvr);
@@ -5139,73 +5196,20 @@ async function requestV3Relayout(triggerCid) {
     delete ovr.dx; delete ovr.dy; delete ovr.dw; delete ovr.dh;
     if (Object.keys(ovr).length === 0) delete overrides[cid];
   }
-  // Merge coerced overrides locally
+  // Track runtime-only coercion for inspector display without persisting it.
   {
     // SYNC: keys must match CoercedOverride in frame-model.ts
     const _COERCED_KEY_MAP = { sizingW: 'sizing_w', sizingH: 'sizing_h' };
-
-    // Build set of currently-coerced keys from engine output
-    const newCoercedKeys = new Set();
     if (localResult.coerced) {
-
       for (const [fid, coerced] of localResult.coerced.entries()) {
-        if (!overrides[fid]) overrides[fid] = {};
         for (const [rawKey, val] of Object.entries(coerced)) {
           // Engine returns camelCase (sizingW, sizingH); overrides use snake_case (sizing_w, sizing_h)
           const key = _COERCED_KEY_MAP[rawKey] || rawKey;
-          const ck = fid + ':' + key;
-          // Sizing properties: engine coercion is authoritative (HUG + FILL child = FIXED).
-          // Dimension properties: only apply if not already user-set.
-          const isSizingKey = (key === 'sizing_w' || key === 'sizing_h');
-          if (isSizingKey || overrides[fid][key] === undefined || _coercedKeys.has(ck)) {
-            overrides[fid][key] = val;
-            newCoercedKeys.add(ck);
+          if (key === 'sizing_w' || key === 'sizing_h') {
+            _coercedKeys.add(fid + ':' + key);
           }
         }
       }
-    }
-    // Remove stale coerced keys and their override values when engine no longer reports coercion.
-    // Without this, a parent that was once auto-coerced to FIXED stays FIXED in overrides
-    // even after the FILL child is removed — the indicator disappears but the value persists.
-    let staleCleaned = false;
-    for (const ck of _coercedKeys) {
-      if (!newCoercedKeys.has(ck)) {
-        _coercedKeys.delete(ck);
-        const sepIdx = ck.indexOf(':');
-        const fid = ck.substring(0, sepIdx);
-        const key = ck.substring(sepIdx + 1);
-        if (overrides[fid]) {
-          delete overrides[fid][key];
-          if (Object.keys(overrides[fid]).length === 0) delete overrides[fid];
-        }
-        staleCleaned = true;
-      }
-    }
-    // Add new coerced keys
-    for (const ck of newCoercedKeys) _coercedKeys.add(ck);
-
-    // If stale coercion overrides were cleaned, the frame tree was built with
-    // now-deleted values. Re-run layout so the model reflects the clean state.
-    if (staleCleaned) {
-      const cleanGridOvr = _normaliseGridOverrides(model.gridOverrides || {});
-      localResult = performLocalRelayout(model, overrides, cleanGridOvr);
-      if (!localResult) {
-        console.error("v3 relayout: local rerun after coercion cleanup failed");
-        return _failV3Relayout("local-failure", triggerCid);
-      }
-    }
-  }
-  // Reconcile sizing with coercion
-  for (const [fid, ovr] of Object.entries(overrides)) {
-    const node = model.get(fid);
-    if (!node) continue;
-    if (ovr.sizing_w === 'HUG' && node.sizing_w === 'FIXED') {
-      ovr.sizing_w = 'FIXED';
-      ovr.width = Math.round(node.data.width);
-    }
-    if (ovr.sizing_h === 'HUG' && node.sizing_h === 'FIXED') {
-      ovr.sizing_h = 'FIXED';
-      ovr.height = Math.round(node.data.height);
     }
   }
   buildTreeUI();

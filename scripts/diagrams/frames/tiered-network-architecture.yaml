@@ -1,0 +1,125 @@
+engine: v3
+title: Tiered network architecture
+arrows:
+- source: public_repo
+  target: global_server
+- source: global_server
+  target: tier2_left
+- source: global_server
+  target: tier2_center
+- source: global_server
+  target: tier2_right
+- source: tier2_left
+  target: client_l1
+- source: tier2_left
+  target: client_l2
+- source: tier2_left
+  target: client_l3
+- source: tier2_center
+  target: client_c1
+- source: tier2_center
+  target: client_c2
+- source: tier2_center
+  target: client_c3
+- source: tier2_right
+  target: client_r1
+- source: tier2_right
+  target: client_r2
+- source: tier2_right
+  target: client_r3
+root:
+  id: page
+  direction: vertical
+  padding: 24
+  align: top-center
+  children:
+  - id: public_repo
+    label:
+    - Public
+    - repository
+    icon: Cloud.svg
+    sizing_w: fill
+  - id: global_server
+    label:
+    - Tier 1
+    - Global server
+    icon: Server.svg
+    sizing_w: fill
+  - id: tier2_row
+    direction: horizontal
+    children:
+    - id: group_left
+      level: 2
+      direction: vertical
+      padding: 8
+      children:
+      - id: tier2_left
+        label:
+        - Tier 2
+        - Network server
+        icon: Network.svg
+      - id: clients_left_top
+        direction: horizontal
+        children:
+        - id: client_l1
+          label:
+          - Client
+          icon: Laptop.svg
+        - id: client_l2
+          label:
+          - Client
+          icon: Laptop.svg
+      - id: client_l3
+        label:
+        - Client
+        icon: Laptop.svg
+    - id: group_center
+      level: 2
+      direction: vertical
+      padding: 8
+      children:
+      - id: tier2_center
+        label:
+        - Tier 2
+        - Network server
+        icon: Network.svg
+      - id: clients_center_top
+        direction: horizontal
+        children:
+        - id: client_c1
+          label:
+          - Client
+          icon: Laptop.svg
+        - id: client_c2
+          label:
+          - Client
+          icon: Laptop.svg
+      - id: client_c3
+        label:
+        - Client
+        icon: Laptop.svg
+    - id: group_right
+      level: 2
+      direction: vertical
+      padding: 8
+      children:
+      - id: tier2_right
+        label:
+        - Tier 2
+        - Network server
+        icon: Network.svg
+      - id: clients_right_top
+        direction: horizontal
+        children:
+        - id: client_r1
+          label:
+          - Client
+          icon: Laptop.svg
+        - id: client_r2
+          label:
+          - Client
+          icon: Laptop.svg
+      - id: client_r3
+        label:
+        - Client
+        icon: Laptop.svg

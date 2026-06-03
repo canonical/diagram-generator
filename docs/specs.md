@@ -4,7 +4,7 @@
 
 List the external sources, reference assets, and sibling repos that govern this repo.
 
-If a sketch, reference export, or explicitly linked local asset governs a diagram, treat that source as the highest-priority visual truth and list it here. If no external product spec exists, `ROADMAP.md` carries long-term direction while this file records the concrete reference sources and sibling-repo relationships.
+If a sketch, reference export, or explicitly linked local asset governs a diagram, treat that source as the highest-priority visual truth and list it here.
 
 Use this file to answer two questions quickly:
 
@@ -20,8 +20,6 @@ Rows marked ⚠ reference assets excluded by `.gitignore`. Run the build or obta
 | Workflow rules | `.github/copilot-instructions.md` | Canonical workflow and diagram-rule source for this repo |
 | Diagram language spec | `DIAGRAM.md` | Canonical diagram tokens, prose rules, and output constraints (Layer 3 — Style) |
 | Current state | `STATUS.md` | Cold-start orientation and resume guidance |
-| Product direction | `ROADMAP.md` | Long-term direction and architecture blueprint |
-| Architecture blueprint | `ROADMAP.md` → "Architecture blueprint" | Non-negotiable layered architecture (Layers 0–6) governing all stages |
 | Starter block reference | `diagrams/0.reference/sample.svg` | Canonical single-block geometry and arrow treatment |
 | Visual preview of starter block | `diagrams/0.reference/sample.png` | Clearer `3x` raster preview of the same canonical block |
 | Reusable style copy source | `diagrams/0.reference/onbrand-svg-starter.svg` | Canonical inset rhythm, box proportions, and literal arrow geometry |
@@ -33,13 +31,13 @@ Rows marked ⚠ reference assets excluded by `.gitignore`. Run the build or obta
 
 These three specs are the upstream mathematical foundation for the diagram system's typography, spacing, and grid rules. They currently describe three tiers (applications, documentation, editorial). Diagrams will become a **4th tier** described by each spec — a dense, constrained visual domain with its own scale selections, spacing conventions, and grid presets derived from the same foundations.
 
-The specs are living documents maintained in the sibling `canonical-specs` repo. Changes to them may affect DIAGRAM.md tokens and renderer behavior. Treat them as the design compass for any typography, spacing, or grid decision in this system.
+The specs are living documents maintained in the sibling `canonical-spacing-spec` repo. Changes to them may affect DIAGRAM.md tokens and renderer behavior. Treat them as the design compass for any typography, spacing, or grid decision in this system.
 
 | Spec | Path | Governs |
 |------|------|---------|
-| Type scale | `../canonical-specs/specs/type scale/draft.md` | Modular scale formula, per-tier heading hierarchies, weight pairing, line height selection, baseline grid alignment. Diagram tier will select its own subset of the scale. |
-| Spacing | `../canonical-specs/specs/spacing/draft.md` | Vertical spacing architecture (element-owned vs container-owned), baseline grid and nudge tokens, intra-component padding. Diagram tier will define its own spacing mode and density. |
-| Grid | `../canonical-specs/specs/grid/draft.md` | Column counts, gutter widths, outer margins, bisection rule, nested grid alignment. Diagram tier will define its own grid presets (column counts, baseline unit enforcement). |
+| Type scale | `../canonical-spacing-spec/specs/type scale/draft.md` | Modular scale formula, per-tier heading hierarchies, weight pairing, line height selection, baseline grid alignment. Diagram tier will select its own subset of the scale. |
+| Spacing | `../canonical-spacing-spec/specs/spacing/draft.md` | Vertical spacing architecture (element-owned vs container-owned), baseline grid and nudge tokens, intra-component padding. Diagram tier will define its own spacing mode and density. |
+| Grid | `../canonical-spacing-spec/specs/grid/draft.md` | Column counts, gutter widths, outer margins, bisection rule, nested grid alignment. Diagram tier will define its own grid presets (column counts, baseline unit enforcement). |
 
 **How they flow into this repo:** DIAGRAM.md imports tokens from these specs and adapts them for diagram use (e.g., selecting 18px body from the modular scale, 8px baseline unit from the spacing architecture, 24px gutter from the grid spec). When the upstream specs change, DIAGRAM.md and `diagram_shared.py` must be reviewed and updated to stay aligned.
 
@@ -58,12 +56,11 @@ The specs are living documents maintained in the sibling `canonical-specs` repo.
 
 | Repo | Relationship | Notes |
 |------|--------------|-------|
-| `repo-workflow-boilerplate` | Workflow upstream | Centralized workflow template for the root file layout, inbox split, source precedence, and cold-start rules |
-| `baseline-foundry` | Read-only reference and refresh source | Upstream BF contract reference; a sibling checkout is only needed when refreshing the vendored preview-shell snapshot under `assets/baseline-foundry/` |
-| `canonical-specs` | Design compass (living upstream) | Upstream source for the type scale, spacing, and grid specs that govern DIAGRAM.md tokens. Diagrams will become a 4th tier in these specs. See "Design compass" section above. |
-| `diagram-generator-planning` | Product vision and architecture | Vision document, architectural benchmarks (D2, ELK, Penrose, Structurizr, etc.), and the hard-problem inventory that informs the architecture blueprint in ROADMAP.md |
-| `diagram-generator-planning` | Ontology contract source | `docs/corpus-scrape/diagram_ontology_schema_seed.py` defines the canonical taxonomy families, abstraction levels, layout engines, and presentation forms used by the `meta` block in frame YAML and SVG metadata |
-| `design.md` | Read-only format reference | Used as a structure reference for the plain-text `DIAGRAM.md` spec; Google's DESIGN.md format inspired our token+prose approach |
+| `design-foundry` | **Eventual home** | This repo's TS layout engine (`packages/layout-engine/`) will port there as `@design-foundry/operator-autolayout`. See `../design-foundry/PIVOT.md` for the full cross-repo plan. |
+| `baseline-foundry` | Read-only reference | Upstream BF contract reference; sibling checkout needed only when refreshing vendored preview-shell snapshot under `assets/baseline-foundry/` |
+| `canonical-spacing-spec` | Design compass (living upstream) | Upstream source for type scale, spacing, and grid specs governing DIAGRAM.md tokens. Diagrams will become a 4th tier. |
+| `diagram-generator-planning` | **Project home + ontology** | Owns the broader Canonical diagram project (Jira DE-941), corpus audit, taxonomy (11 families), Coda pages (9), and Streams A–D. This repo is Stream E (constrained editor). Taxonomy metadata feeds `meta:` blocks in frame YAML. |
+| `design.md` | Read-only format reference | Structure reference for the plain-text `DIAGRAM.md` spec |
 
 ## Notes
 

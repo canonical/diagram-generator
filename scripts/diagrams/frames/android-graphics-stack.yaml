@@ -1,17 +1,17 @@
 engine: v3
-title: "Android graphics stack"
+title: Android graphics stack
 grid:
   cols: 2
   row_gap: 32
 arrows:
-  - source: apps
-    target: runtime
-  - source: runtime
-    target: composition
-  - source: composition
-    target: kernel_gfx
-  - source: kernel_gfx
-    target: display
+- source: apps
+  target: runtime
+- source: runtime
+  target: composition
+- source: composition
+  target: kernel_gfx
+- source: kernel_gfx
+  target: display
 root:
   id: page
   direction: vertical
@@ -19,87 +19,85 @@ root:
   padding: 24
   variant: annotation
   children:
-    # Row 0: Applications
-    - id: row_apps
-      direction: horizontal
-      gap: 24
+  - id: row_apps
+    direction: horizontal
+    gap: 24
+    variant: annotation
+    children:
+    - id: apps
+      heading: Applications
+      label:
+      - • OpenGL / Vulkan
+      - • UI toolkits
+      icon: Mobile.svg
+      width: 288
+      sizing_w: fill
+    - id: note_apps
+      label:
+      - Applications render into GPU-backed buffers
       variant: annotation
-      children:
-        - id: apps
-          heading: "Applications"
-          label:
-            - "• OpenGL / Vulkan"
-            - "• UI toolkits"
-          icon: Mobile.svg
-          width: 288
-        - id: note_apps
-          label: [Applications render into GPU-backed buffers]
-          variant: annotation
-          sizing_w: hug
-
-    # Row 1: Android Graphics Runtime
-    - id: row_runtime
-      direction: horizontal
-      gap: 24
-      children:
-        - id: runtime
-          heading: "Android graphics runtime"
-          label:
-            - "• EGL"
-            - "• Vulkan loader"
-            - "• Buffer management abstractions"
-          icon: Gateway.svg
-          width: 288
-        - id: note_runtime
-          label:
-            - EGL connects rendering APIs
-            - to the native buffer system
-          variant: annotation
-          sizing_w: hug
-
-    # Row 2: System Composition and Display Policy
-    - id: row_composition
-      direction: horizontal
-      gap: 24
-      children:
-        - id: composition
-          heading: "System composition and display policy"
-          label:
-            - "• SurfaceFlinger"
-            - "• HWComposer (capability & policy)"
-          icon: Composable.svg
-          width: 288
-        - id: note_composition
-          label: [SurfaceFlinger composes buffers into a frame]
-          variant: annotation
-          sizing_w: hug
-
-    # Row 3: Kernel Graphics & Display Subsystems
-    - id: row_kernel
-      direction: horizontal
-      gap: 24
-      children:
-        - id: kernel_gfx
-          heading: "Kernel graphics & display subsystems"
-          label:
-            - "• DRM / KMS"
-            - "• GPU drivers"
-            - "• Memory & synchronization primitives"
-          icon: kernel.svg
-          width: 288
-        - id: note_kernel
-          label:
-            - HWComposer and kernel graphics subsystems
-            - interact with the GPU and display hardware
-          variant: annotation
-          sizing_w: hug
-
-    # Row 4: Display output
-    - id: row_display
-      direction: horizontal
-      gap: 24
-      children:
-        - id: display
-          heading: "Display output"
-          icon: Desktop monitor.svg
-          width: 288
+      sizing_w: fill
+  - id: row_runtime
+    direction: horizontal
+    gap: 24
+    children:
+    - id: runtime
+      heading: Android graphics runtime
+      label:
+      - • EGL
+      - • Vulkan loader
+      - • Buffer management abstractions
+      icon: Gateway.svg
+      width: 288
+      sizing_w: fill
+    - id: note_runtime
+      label:
+      - EGL connects rendering APIs
+      - to the native buffer system
+      variant: annotation
+      sizing_w: fill
+  - id: row_composition
+    direction: horizontal
+    gap: 24
+    children:
+    - id: composition
+      heading: System composition and display policy
+      label:
+      - • SurfaceFlinger
+      - • HWComposer (capability & policy)
+      icon: Composable.svg
+      width: 288
+      sizing_w: fill
+    - id: note_composition
+      label:
+      - SurfaceFlinger composes buffers into a frame
+      variant: annotation
+      sizing_w: fill
+  - id: row_kernel
+    direction: horizontal
+    gap: 24
+    children:
+    - id: kernel_gfx
+      heading: Kernel graphics & display subsystems
+      label:
+      - • DRM / KMS
+      - • GPU drivers
+      - • Memory & synchronization primitives
+      icon: kernel.svg
+      width: 288
+      sizing_w: fill
+    - id: note_kernel
+      label:
+      - HWComposer and kernel graphics subsystems
+      - interact with the GPU and display hardware
+      variant: annotation
+      sizing_w: fill
+  - id: row_display
+    direction: horizontal
+    gap: 24
+    children:
+    - id: display
+      heading: Display output
+      icon: Desktop monitor.svg
+      width: 288
+      sizing_w: fill

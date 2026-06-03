@@ -176,24 +176,27 @@ describe('enforceFillHugInvariant', () => {
 
   it('coerces HUG parent to FIXED on primary axis when child is FILL (vertical)', () => {
     const parent = verticalParent(Sizing.HUG, [Sizing.FILL, Sizing.HUG]);
-    enforceFillHugInvariant(parent);
-    expect(parent.sizingH).toBe(Sizing.FIXED);
-    expect(parent.height).toBe(200);
+    const coerced = enforceFillHugInvariant(parent);
+    expect(parent.sizingH).toBe(Sizing.HUG);
+    expect(parent.height).toBeUndefined();
+    expect(coerced.get('parent')).toMatchObject({ sizingH: 'FIXED', height: 200 });
   });
 
   it('coerces HUG parent to FIXED on primary axis when child is FILL (horizontal)', () => {
     const parent = horizontalParent(Sizing.HUG, [Sizing.FILL, Sizing.HUG]);
-    enforceFillHugInvariant(parent);
-    expect(parent.sizingW).toBe(Sizing.FIXED);
-    expect(parent.width).toBe(200);
+    const coerced = enforceFillHugInvariant(parent);
+    expect(parent.sizingW).toBe(Sizing.HUG);
+    expect(parent.width).toBeUndefined();
+    expect(coerced.get('parent')).toMatchObject({ sizingW: 'FIXED', width: 200 });
   });
 
   it('does not coerce FIXED parent', () => {
     const parent = verticalParent(Sizing.FIXED, [Sizing.FILL, Sizing.FILL]);
     parent.height = 300;
-    enforceFillHugInvariant(parent);
+    const coerced = enforceFillHugInvariant(parent);
     expect(parent.sizingH).toBe(Sizing.FIXED);
     expect(parent.height).toBe(300); // unchanged
+    expect(coerced.size).toBe(0);
   });
 
   it('does not coerce when no FILL children on primary axis', () => {
@@ -259,8 +262,8 @@ describe('enforceFillHugInvariant', () => {
     // Both inner and outer should be coerced
     expect(coerced.has('inner')).toBe(true);
     expect(coerced.has('outer')).toBe(true);
-    expect(inner.sizingH).toBe(Sizing.FIXED);
-    expect(outer.sizingH).toBe(Sizing.FIXED);
+    expect(inner.sizingH).toBe(Sizing.HUG);
+    expect(outer.sizingH).toBe(Sizing.HUG);
   });
 
   it('per-axis: FILL on primary triggers coercion, FILL on cross does not', () => {
@@ -282,10 +285,11 @@ describe('enforceFillHugInvariant', () => {
     parent._layout.measuredW = 200;
     parent._layout.measuredH = 100;
 
-    enforceFillHugInvariant(parent);
+    const coerced = enforceFillHugInvariant(parent);
     // Primary (W) coerced
-    expect(parent.sizingW).toBe(Sizing.FIXED);
-    expect(parent.width).toBe(200);
+    expect(parent.sizingW).toBe(Sizing.HUG);
+    expect(parent.width).toBeUndefined();
+    expect(coerced.get('parent')).toMatchObject({ sizingW: 'FIXED', width: 200 });
     // Cross (H) NOT coerced
     expect(parent.sizingH).toBe(Sizing.HUG);
   });

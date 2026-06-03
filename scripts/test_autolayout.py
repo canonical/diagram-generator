@@ -1885,16 +1885,18 @@ class TestParentCoercion:
     """Verify Figma-correct parent coercion: HUG→FIXED when children are FILL."""
 
     def test_parent_becomes_fixed_on_primary_axis(self):
-        """HUG parent with FILL child: parent.sizing becomes FIXED."""
+        """HUG parent with FILL child: runtime override becomes FIXED."""
         a = _box("a", w=100, h=64)
         a.sizing_h = Sizing.FILL
         root = _container("root", Direction.VERTICAL, [a], gap=0, padding=8)
         measure(root)
-        _enforce_fill_hug_invariant(root)
-        assert root.sizing_h == Sizing.FIXED, \
-            f"Parent should be FIXED, got {root.sizing_h}"
-        assert root.height == root._measured_h, \
-            f"Parent height should freeze at measured={root._measured_h}, got {root.height}"
+        coerced = _enforce_fill_hug_invariant(root)
+        assert root.sizing_h == Sizing.HUG, \
+            f"Semantic sizing should stay HUG, got {root.sizing_h}"
+        assert root.height is None, \
+            f"Semantic height should stay unset, got {root.height}"
+        assert coerced["root"]["sizing_h"] == "FIXED"
+        assert coerced["root"]["height"] == int(root._measured_h)
 
     def test_parent_stays_hug_on_cross_axis(self):
         """HUG parent with FILL child: cross-axis sizing stays HUG."""
@@ -1937,8 +1939,8 @@ class TestParentCoercion:
                           gap=8, padding=8)
         _layout(root)
 
-        # Parent should have frozen to FIXED
-        assert root.sizing_h == Sizing.FIXED
+        # Parent reports a coercion override without mutating semantics.
+        assert root.sizing_h == Sizing.HUG
         # HUG child keeps measured size
         assert hug._placed_h == hug._measured_h
         # FILL child gets the remainder
@@ -2017,10 +2019,11 @@ class TestParentCoercion:
         section = _container("section", Direction.VERTICAL, [row], gap=0, padding=4)
         page = _container("page", Direction.VERTICAL, [section], gap=0, padding=8)
         measure(page)
-        _enforce_fill_hug_invariant(page)
+        coerced = _enforce_fill_hug_invariant(page)
 
-        # Only row should be frozen (it has FILL children on primary W axis)
-        assert row.sizing_w == Sizing.FIXED, "Row should freeze to FIXED"
+        # Only row should report a frozen override (it has FILL children on primary W axis)
+        assert row.sizing_w == Sizing.HUG, "Row semantic sizing should stay HUG"
+        assert coerced["row"]["sizing_w"] == "FIXED"
         # Section and page should stay HUG (no FILL children on their primary axis)
         assert section.sizing_h == Sizing.HUG, "Section should stay HUG"
         assert page.sizing_h == Sizing.HUG, "Page should stay HUG"
@@ -2103,8 +2106,8 @@ class TestParentCoercion:
         outer = _container("outer", Direction.VERTICAL, [mid], gap=0, padding=8)
         _layout(outer)
 
-        # inner should be frozen (FILL children on primary axis)
-        assert inner.sizing_h == Sizing.FIXED
+        # inner should report a runtime frozen override (FILL children on primary axis)
+        assert inner.sizing_h == Sizing.HUG
         # mid and outer should stay HUG
         assert mid.sizing_h == Sizing.HUG
         assert outer.sizing_h == Sizing.HUG
@@ -2146,10 +2149,12 @@ class TestParentCoercion:
         child.sizing_h = Sizing.HUG
         root = _container("root", Direction.HORIZONTAL, [child], gap=0, padding=8)
         measure(root)
-        _enforce_fill_hug_invariant(root)
+        coerced = _enforce_fill_hug_invariant(root)
 
-        assert root.sizing_w == Sizing.FIXED, \
-            f"Primary axis should freeze: got {root.sizing_w}"
+        assert root.sizing_w == Sizing.HUG, \
+            f"Primary axis semantics should stay HUG: got {root.sizing_w}"
+        assert coerced["root"]["sizing_w"] == "FIXED", \
+            f"Primary axis should report FIXED override: {coerced}"
         assert root.sizing_h == Sizing.HUG, \
             f"Cross axis should stay HUG: got {root.sizing_h}"
 
@@ -2165,9 +2170,10 @@ class TestParentCoercion:
             child.sizing_h = Sizing.FILL
         root = _container("root", Direction.HORIZONTAL, [a, b], gap=8, padding=8)
         measure(root)
-        _enforce_fill_hug_invariant(root)
+        coerced = _enforce_fill_hug_invariant(root)
 
-        assert root.sizing_w == Sizing.FIXED, "Primary W should freeze"
+        assert root.sizing_w == Sizing.HUG, "Primary W semantics should stay HUG"
+        assert coerced["root"]["sizing_w"] == "FIXED", "Primary W should report FIXED override"
         assert root.sizing_h == Sizing.HUG, "Cross H should stay HUG"
 
         _layout(root)
@@ -2197,11 +2203,13 @@ class TestParentCoercion:
         outer = _container("outer", Direction.VERTICAL, [fill_sibling, inner_hug],
                            gap=8, padding=8)
         measure(outer)
-        _enforce_fill_hug_invariant(outer)
+        coerced = _enforce_fill_hug_invariant(outer)
 
-        # Both HUG containers should freeze
-        assert inner_hug.sizing_h == Sizing.FIXED, "Inner HUG should freeze"
-        assert outer.sizing_h == Sizing.FIXED, "Outer HUG should freeze"
+        # Both HUG containers should report frozen overrides
+        assert inner_hug.sizing_h == Sizing.HUG, "Inner HUG semantics should stay HUG"
+        assert outer.sizing_h == Sizing.HUG, "Outer HUG semantics should stay HUG"
+        assert coerced["inner_hug"]["sizing_h"] == "FIXED", "Inner HUG should report FIXED override"
+        assert coerced["outer"]["sizing_h"] == "FIXED", "Outer HUG should report FIXED override"
 
         # Layout should work
         place(outer, 0, 0, outer._measured_w, outer._measured_h)

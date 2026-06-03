@@ -589,6 +589,104 @@ def test_v3_empty_save_is_a_yaml_no_op(tmp_path):
                 browser.close()
 
 
+def test_v3_grid_gap_save_strips_transient_grid_fields(tmp_path):
+    frames_dir = tmp_path / "frames"
+    frames_dir.mkdir()
+    source_frame = SCRIPTS / "diagrams" / "frames" / "support-engineering-flow.yaml"
+    saved_frame = frames_dir / "support-engineering-flow.yaml"
+    shutil.copyfile(source_frame, saved_frame)
+
+    with _preview_server(extra_env={"DG_FRAMES_DIR": str(frames_dir)}) as base_url:
+        with sync_playwright() as playwright:
+            browser, page = _open_v3_support_engineering_page(playwright, base_url)
+            dialogs: list[str] = []
+            page.on("dialog", lambda dialog: (dialogs.append(dialog.message), dialog.accept()))
+            try:
+                page.wait_for_function("() => getV3RelayoutStatus().localReady")
+                page.evaluate(
+                    """
+                    () => {
+                      document.getElementById('grid-row-gap').value = '64';
+                      onGridControlChange();
+                    }
+                    """
+                )
+                page.wait_for_timeout(400)
+
+                page.evaluate("() => saveOverrides()")
+                page.wait_for_timeout(500)
+
+                assert dialogs == []
+                saved_text = saved_frame.read_text(encoding="utf-8")
+                saved_yaml = yaml.safe_load(saved_text)
+                assert saved_yaml["grid"]["row_gap"] == 64
+                assert "rows" not in saved_yaml["grid"]
+                assert "slack_absorption" not in saved_yaml["grid"]
+                assert "link_to_root" not in saved_yaml["grid"]
+            finally:
+                browser.close()
+
+
+def test_v3_runtime_width_coercion_does_not_overwrite_hug_save(tmp_path):
+    frames_dir = tmp_path / "frames"
+    frames_dir.mkdir()
+    source_frame = SCRIPTS / "diagrams" / "frames" / "support-engineering-flow.yaml"
+    saved_frame = frames_dir / "support-engineering-flow.yaml"
+    shutil.copyfile(source_frame, saved_frame)
+
+    with _preview_server(extra_env={"DG_FRAMES_DIR": str(frames_dir)}) as base_url:
+        with sync_playwright() as playwright:
+            browser, page = _open_v3_support_engineering_page(playwright, base_url)
+            try:
+                page.wait_for_function("() => getV3RelayoutStatus().localReady")
+                candidate = page.evaluate(
+                    """
+                    () => {
+                      function effectiveSizingW(node) {
+                        const ovr = overrides[node.id] || {};
+                        return ovr.sizing_w || node.sizing_w || '';
+                      }
+
+                      for (const id of model.allIds) {
+                        const node = model.get(id);
+                        if (!node || !node.children || node.children.length === 0) continue;
+                        if (node.layout !== 'horizontal') continue;
+                        if (effectiveSizingW(node) !== 'FIXED') continue;
+                        const fillChildren = node.children
+                          .filter((child) => effectiveSizingW(child) === 'FILL')
+                          .map((child) => child.id);
+                        if (fillChildren.length === 0) continue;
+                        return { id, fillChildren, width: node.data.width };
+                      }
+
+                      return null;
+                    }
+                    """
+                )
+                assert candidate is not None
+
+                page.evaluate("(cid) => setFrameProp(cid, 'sizing_w', 'HUG')", candidate["id"])
+                page.wait_for_timeout(450)
+
+                override_state = page.evaluate(
+                    "(cid) => JSON.parse(JSON.stringify(overrides[cid] || null))",
+                    candidate["id"],
+                )
+                assert override_state is not None
+                assert override_state["sizing_w"] == "HUG"
+                assert "width" not in override_state
+
+                page.evaluate("() => saveOverrides()")
+                page.wait_for_timeout(300)
+
+                saved_yaml = yaml.safe_load(saved_frame.read_text(encoding="utf-8"))
+                saved_node = _find_frame(saved_yaml["root"], candidate["id"])
+                assert saved_node is not None
+                assert str(saved_node["sizing_w"]).lower() == "hug"
+            finally:
+                browser.close()
+
+
 def test_v3_per_side_padding_updates_live_and_persists(tmp_path):
     frames_dir = tmp_path / "frames"
     frames_dir.mkdir()
@@ -609,11 +707,40 @@ def test_v3_per_side_padding_updates_live_and_persists(tmp_path):
                 assert after_x == 80
 
                 page.evaluate("() => saveOverrides()")
-                page.wait_for_timeout(500)
+                page.wait_for_function(
+                  "(targetX) => model.get('step_problem')?.data?.x === targetX",
+                  arg=after_x,
+                )
 
                 saved_yaml = yaml.safe_load(saved_frame.read_text(encoding='utf-8'))
                 assert saved_yaml["root"]["padding_left"] == 80
                 assert _component_model_x(page, "step_problem") == after_x
+            finally:
+                browser.close()
+
+
+def test_v3_undo_redo_relayouts_padding_override(tmp_path):
+    frames_dir = tmp_path / "frames"
+    frames_dir.mkdir()
+    source_frame = SCRIPTS / "diagrams" / "frames" / "support-engineering-flow.yaml"
+    saved_frame = frames_dir / "support-engineering-flow.yaml"
+    shutil.copyfile(source_frame, saved_frame)
+
+    with _preview_server(extra_env={"DG_FRAMES_DIR": str(frames_dir)}) as base_url:
+        with sync_playwright() as playwright:
+            browser, page = _open_v3_support_engineering_page(playwright, base_url)
+            try:
+                page.wait_for_function("() => getV3RelayoutStatus().localReady")
+                assert _component_model_x(page, "step_problem") == 24
+
+                page.evaluate("() => setFrameProp('page', 'padding_left', 80)")
+                page.wait_for_function("() => model.get('step_problem')?.data?.x === 80")
+
+                page.evaluate("() => performUndo()")
+                page.wait_for_function("() => model.get('step_problem')?.data?.x === 24")
+
+                page.evaluate("() => performRedo()")
+                page.wait_for_function("() => model.get('step_problem')?.data?.x === 80")
             finally:
                 browser.close()
 

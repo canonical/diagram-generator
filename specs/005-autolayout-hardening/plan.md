@@ -10,13 +10,17 @@ Harden the v3 autolayout engine by removing semantic mutation, unifying style ow
 
 ## Technical Context
 
-**Language/Version**: Python 3.11+ (target runtime contract), TypeScript for parity fixtures where applicable
+**Language/Version**: TypeScript (primary engine in `packages/layout-engine/src/layout.ts`). Python receives equivalent changes only for parity verification.
 
-**Primary Dependencies**: `scripts/frame_loader.py`, `scripts/layout_v3.py`, `scripts/diagram_render_svg.py`, `scripts/diagram_shared.py`
+**Primary Dependencies**: `packages/layout-engine/src/layout.ts`, `packages/layout-engine/src/frame-model.ts`, `packages/layout-engine/src/resolve-styles.ts` (TS); `scripts/layout_v3.py`, `scripts/frame_loader.py` (Python parity)
 
-**Testing**: `python -m pytest test_frame_loader.py test_autolayout.py test_layout_v3.py test_parity.py -q`
+**Testing**:
+```bash
+npm --prefix packages/layout-engine test          # TS tests (primary)
+python -m pytest test_frame_loader.py test_autolayout.py test_layout_v3.py test_parity.py -q  # Python parity
+```
 
-**Target Platform**: SVG renderer + preview server at localhost
+**Target Platform**: TS layout engine runs client-side via `layout-bridge.js`; Python engine for batch SVG export only
 
 **Project Type**: Engine refactor and contract hardening
 

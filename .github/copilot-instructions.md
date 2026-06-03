@@ -1,83 +1,62 @@
 # Workspace Instructions
 
-## DESIGN-FOUNDRY PIVOT — read this first
+## DESIGN-FOUNDRY PIVOT and TypeScript-first rule — read this first
 
-The workspace is mid-pivot (2026-05-23). A peer repo at `../design-foundry/` (formerly `brand-layout-ops`) is being built as the Houdini-in-spirit kernel monorepo for procedural graphic design. One decision affects this repo permanently:
+### The bigger picture
 
-- **The TypeScript autolayout in `packages/layout-engine/`** (HUG/FILL/FIXED, 9-point align, two-pass measure/place, parity-tested vs Python) will eventually port into `design-foundry` as `@design-foundry/operator-autolayout` with parity tests preserved. It is the single source of autolayout code in the workspace and stays here until the port.
+`design-foundry` (at `../design-foundry/`) is the ultimate home for all procedural graphic design code in this workspace — a Houdini-in-spirit kernel with a typed data graph, DAG runtime, operator libraries, and multi-backend renderers. The full cross-repo architecture is documented in `../design-foundry/PIVOT.md`.
 
-**This repo stays a sibling.** No merger with `canonical-spacing-spec` or any other repo is planned. `canonical-spacing-spec` is and remains a sibling spec repo that feeds multiple consumers; this repo is and remains an independent tool/repo.
+This repo (`diagram-generator`) owns the single autolayout codebase in the workspace: `packages/layout-engine/` (TypeScript). When design-foundry's kernel is ready to receive it, the TS layout engine physically relocates there as `@design-foundry/operator-autolayout` wrapped in a thin adapter. Until then, all autolayout work happens here.
 
-**Rules for ongoing work in this repo:**
+### TypeScript is the agreed implementation language
 
-- Continue refactoring, bug-fixing, and shipping features here. This repo is in active production use; do NOT block on the pivot.
-- Do NOT migrate code to `design-foundry` yet. The target kernel (graph runtime, operator interface, render IR) does not exist there yet. Migrating now means designing against a phantom.
-- **No-double-work guarantee:** design-foundry will not build a parallel autolayout. When the port happens, the code in `packages/layout-engine/` physically relocates into `design-foundry/packages/operator-autolayout/` and is wrapped in a thin adapter. Until then, autolayout work happens in exactly one place: here.
-- Do NOT introduce new persisted format identifiers that embed the package name or repo name. If a new file extension or `kind` discriminator is needed, use a short stable acronym (e.g. `dg`) decoupled from package naming so future renames are cheap. Example: `*.dg.json` and `"kind": "dg.diagram"`, never `*.diagram-generator.json`.
-- Keep public function signatures of `packages/layout-engine/` stable when you can. They are the de-facto interface for the eventual operator port. Breaking changes are allowed, just record them in `HISTORY.md` so the eventual porting agent knows what shifted.
-- Cross-repo structural decisions (anything affecting how this repo relates to design-foundry, canonical-spacing-spec, or a4-generator) belong in `AGENT-INBOX.md` for the user to review, not in this file. The current cross-repo plan of record is `../design-foundry/PIVOT.md`.
+TypeScript is the standard for all new feature work. The rationale (from the design-foundry pivot) is **agent productivity** — agents produce better TS than Python, and the entire design-foundry kernel is TS. WASM (Rust/Zig) is the escape hatch for profiled hot paths, not Python.
 
-Everything below this section is the existing workflow contract for this repo; it is unchanged by the pivot.
+**All new features, bug fixes, and refactors target the TypeScript engine first.** Python receives matching changes only when needed for batch/export correctness. Do not start new work in Python unless it is specifically about the YAML parser or batch SVG export.
+
+### Python's role (narrowing)
+
+Python is retained for three things:
+
+1. **YAML parsing and defaults** — `frame_loader.py` reads frame YAML and resolves styles. This is the authoritative parser until a TS YAML loader replaces it.
+2. **Batch SVG export** — `diagram_render_svg.py` produces static SVGs for CI/batch pipelines. This stays until TS rendering covers the batch path.
+3. **Transitional parity oracle** — shared fixtures in `packages/layout-engine/tests/fixtures/parity-fixtures.json` verify TS and Python produce identical geometry. This was essential during the TS port. As the TS engine matures and gains its own comprehensive test coverage, the parity oracle role fades. It is not a permanent architecture — it is scaffolding.
+
+Python does NOT do: interactive relayout, text measurement, editor state, or any new feature development.
+
+### Rules for ongoing work
+
+- **TS-first**: implement in `packages/layout-engine/` (TypeScript), then port to Python only if batch/export needs it.
+- Continue shipping features here — do NOT block on the design-foundry port.
+- Do NOT migrate code to design-foundry yet. The target kernel operator interface is not ready.
+- **No-double-work guarantee:** design-foundry will not build a parallel autolayout.
+- Keep public function signatures of `packages/layout-engine/` stable when convenient — they are the de-facto port interface.
+- Do NOT introduce persisted format identifiers that embed the package/repo name. Use short stable acronyms (e.g. `dg`).
+- Cross-repo structural decisions belong in `AGENT-INBOX.md` for user review.
+
+Everything below this section is the existing workflow contract for this repo.
 
 ---
 
-## Documentation structure
-
-
-| File | Role | Who writes |
-|------|------|-----------|
-| `.github/copilot-instructions.md` | Rules. Workflow discipline, anti-patch protocol, session protocol. | Agent maintains |
-| `.github/agents/agent.md` | Optional resume-agent prompt for repo-specific continuation. | Agent maintains |
-| `.github/skills/` | Optional workflow skills. Repeatable on-demand procedures. | Agent maintains |
-| `README.md` | Overview. Repo summary and workflow map. | User + agent maintain |
-| `DIAGRAM.md` | Diagram language. Canonical tokens, visual rules, and output constraints. | Agent maintains |
-| `ROADMAP.md` | Long-term. Product direction, stages, future ideas. | Agent updates rarely |
-| `TODO.md` | Active plan. Current execution queue, principles, architecture notes. | Agent updates every session |
-| `INBOX.md` | User inbox. Async user notes that should stay easy to scan. | User writes, agent drains |
-| `AGENT-INBOX.md` | Agent inbox. Long machine-generated handoffs, cross-repo notes, and diagnostics awaiting triage. | Agents and automation write, agent drains |
-| `STATUS.md` | Cold start. Repo orientation, current state, key files, invariants. | Agent updates when state changes |
-| `HISTORY.md` | Archive. Completed work log. | Agent appends when tasks complete |
-| `docs/specs.md` | Specs. Governing references, local source assets, sibling repos. | Agent updates when source paths change |
-
-No other files should carry duplicate TODO lists, handoff notes, or parallel status tracking.
-
-## Instruction file scope
-
-- `.github/copilot-instructions.md` owns **workflow discipline**: how to work, when to stop, how to classify requests, how to avoid patching. It does NOT contain diagram visual rules.
-- `DIAGRAM.md` owns the **diagram language contract**: colors, typography, spacing, box anatomy, arrow routing, component types. Read it before any diagram work. Do not duplicate its rules elsewhere.
-- `.github/agents/agent.md` owns **resume guidance**: first-read order, cold-start question, pipeline selection.
-- `.github/skills/` owns **procedures**: step-by-step how-to for repeatable tasks. Skills reference `DIAGRAM.md` for rules — they do not restate them.
-
-When deciding where extra detail belongs:
-
-| Information | Goes in |
-|-------------|---------|
-| Visual rules, tokens, box/arrow/text contracts | `DIAGRAM.md` |
-| Workflow protocol, session discipline, anti-patch rules | `.github/copilot-instructions.md` |
-| Current state, key files, pipeline descriptions | `STATUS.md` |
-| Active tasks, architecture decisions | `TODO.md` |
-| Long-term direction | `ROADMAP.md` |
-| Completed work | `HISTORY.md` |
-| Source-of-truth references | `docs/specs.md` |
-| Human-readable overview | `README.md` |
-| Async user notes | `INBOX.md` |
-| Agent-generated handoffs or diagnostics | `AGENT-INBOX.md` |
-
 ## Source-of-truth precedence
-
-When sources disagree, use this order:
 
 1. Source sketches, reference assets, or explicitly referenced source material in `docs/specs.md`
 2. `DIAGRAM.md`
-3. `ROADMAP.md`
-4. `.github/copilot-instructions.md`
-5. `STATUS.md` and `HISTORY.md`
-6. `README.md` and `docs/specs.md`
-7. `INBOX.md`
-8. `AGENT-INBOX.md`
-9. Local implementation details that are not clearly intentional or documented
+3. `.github/copilot-instructions.md`
+4. `STATUS.md` and `HISTORY.md`
+5. `README.md` and `docs/specs.md`
+6. `INBOX.md` and `AGENT-INBOX.md`
+7. Local implementation details that are not clearly intentional or documented
 
-Do not rewrite higher-priority docs to match lower-priority implementation drift.
+## Repo-specific session additions
+
+In addition to the standard agent-workflow-kit session protocol:
+
+- Read `DIAGRAM.md` before any diagram or layout work.
+- **Classify every request** through the anti-patch protocol below before starting implementation.
+- Run the patch smell test before every implementation.
+- After implementing, run ALL existing diagrams through the engine, not just the triggering one.
+- Browser-verify UI work before claiming it works.
 
 ---
 
@@ -117,19 +96,20 @@ Before writing code, ask:
 ├─────────────────────────────────────────────────┤
 │ frame_loader.py (parse + defaults contract)      │
 ├─────────────────────────────────────────────────┤
-│ layout_v3.py (measure + place — spatial truth)   │
-│   owns: text wrapping, sizing, alignment, snap   │
+│ TS layout engine (measure + place — spatial truth)│
+│   packages/layout-engine/src/layout.ts             │
+│   Python parity: layout_v3.py (batch export only)  │
 ├─────────────────────────────────────────────────┤
-│ diagram_shared.py (tokens + shared measurement)  │
+│ layout-bridge.js (client-side relayout + patching)│
 ├─────────────────────────────────────────────────┤
-│ diagram_render_svg.py (emit SVG from primitives) │
-│   ONLY converts engine decisions to markup       │
+│ diagram_render_svg.py (emit SVG from primitives)  │
+│   ONLY converts engine decisions to markup         │
 ├─────────────────────────────────────────────────┤
-│ preview_server.py (serve + relayout API)         │
-│   ONLY relays engine results to browser          │
+│ preview_server.py (serve + frame tree API)        │
+│   ONLY relays engine results to browser            │
 ├─────────────────────────────────────────────────┤
-│ editor.js (interaction + display)                │
-│   NEVER invents layout facts                     │
+│ editor.js (interaction + display)                 │
+│   NEVER invents layout facts                      │
 └─────────────────────────────────────────────────┘
 ```
 
@@ -155,66 +135,11 @@ The user can override with "proceed anyway" but the flag must be recorded in TOD
 - One feature at a time. Do not stack unverified changes.
 - Browser-verify UI work before claiming it works.
 
----
-
-## Planning threshold
-
-- Small task: act directly.
-- Medium task: write a short plan in `STATUS.md` before execution.
-- Large, architectural, or cross-repo task: create or update a dedicated plan section before broad changes.
-
-## History rules
-
-- Record completed short-term items under a short-term section.
-- Record completed long-term items under a long-term section.
-- Move items to history only when actually complete.
-- Do not use history as a backlog or scratchpad.
-- When `HISTORY.md` exceeds ~200 lines, archive older entries under `docs/archive/`.
-
-### The inbox pattern
-
-`INBOX.md` is the user write-only channel. `AGENT-INBOX.md` is the machine-generated handoff channel. At session start, the agent must:
-
-1. Read `INBOX.md` and triage each item into `TODO.md` (near-term) or `ROADMAP.md` (longer-term).
-2. Read `AGENT-INBOX.md` and triage durable facts into `TODO.md`, `ROADMAP.md`, `STATUS.md`, `HISTORY.md`, or `docs/specs.md`.
-3. Empty both files back to their header templates.
-
-If an INBOX item includes bug screenshots or image attachments: inspect the images first, implement the fix, present for confirmation, only then delete the images.
-
-## Agent workflow
-
-### Session start
-
-1. Read `STATUS.md` for orientation.
-2. Drain `INBOX.md` → triage into plan or roadmap, then empty it.
-3. Drain `AGENT-INBOX.md` → triage into canonical files, then empty it.
-4. Read `TODO.md` for current tasks.
-5. Read `DIAGRAM.md` before any diagram or layout work.
-6. Read `docs/specs.md` before changing spec-governed behavior.
-7. **Classify the user's request** through the anti-patch protocol before starting implementation.
-
-### During work
-
-- Mark tasks done in `TODO.md` as you complete them.
-- Move completed items to `HISTORY.md`.
-- Run the patch smell test before every implementation.
-
-### Session end
-
-1. Update `STATUS.md` if the current-state section is stale.
-2. Update `TODO.md` with any new tasks that emerged.
-3. Ensure `INBOX.md` is empty.
-4. Ensure `AGENT-INBOX.md` is empty.
-5. Do not create new markdown files to document status unless explicitly requested.
-
 ## Validation
 
-### v3 frame engine (Pipeline 3)
-
-The focused validation command is:
-
 ```bash
-python -m pytest test_frame_loader.py test_autolayout.py test_layout_v3.py test_parity.py -q
+npm --prefix packages/layout-engine test                                          # TS (primary)
+python -m pytest test_frame_loader.py test_autolayout.py test_layout_v3.py test_parity.py -q  # Python parity
 ```
 
 After any layout, render, or preview change, browser-verify the affected diagram at `http://127.0.0.1:8100/view/v3:<slug>`.

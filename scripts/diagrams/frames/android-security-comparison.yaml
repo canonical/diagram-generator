@@ -1,5 +1,5 @@
 engine: v3
-title: "Android security comparison"
+title: Android security comparison
 grid:
   cols: 3
 root:
@@ -8,106 +8,98 @@ root:
   padding: 24
   variant: annotation
   children:
-    # Top zone — headings + panels side by side
-    - id: top_zone
-      direction: horizontal
+  - id: top_zone
+    direction: horizontal
+    variant: annotation
+    children:
+    - id: col_container
+      direction: vertical
       variant: annotation
+      width: 288
+      sizing_w: fill
+      sizing_h: fill
       children:
-        # Left column: heading + LXD container panel
-        - id: col_container
-          direction: vertical
-          variant: annotation
-          width: 288
-          sizing_w: fixed
-          sizing_h: fill
-          children:
-            - id: hdr_container
-              heading: "Containerized Android"
-              variant: annotation
-              sizing_h: hug
-
-            - id: lxd_container
-
-              level: 2
-              direction: vertical
-              padding: 8
-              sizing_h: fill
-              heading: LXD container
-              children:
-                - id: lxd_headline
-                  heading: "SELinux removed"
-                  sizing_h: hug
-                - id: lxd_system
-                  label: [Android system]
-                  sizing_h: hug
-
-        # Right column: heading + VM panel
-        - id: col_vm
-          direction: vertical
-          variant: annotation
-          width: 288
-          sizing_w: fixed
-          sizing_h: fill
-          children:
-            - id: hdr_vm
-              heading: "Virtualized Android"
-              variant: annotation
-              sizing_h: hug
-
-            - id: vm
-
-              level: 2
-              direction: vertical
-              padding: 8
-              sizing_h: fill
-              heading: VM
-              children:
-                - id: vm_headline
-                  heading: "SELinux ON"
-                  label:
-                    - /enforcing mode
-                    - App sandboxing
-                    - System service isolation
-                  sizing_h: hug
-                - id: vm_system
-                  label: [Android system]
-                  sizing_h: hug
-                - id: vm_kernel
-                  label: [Android kernel]
-                  sizing_h: hug
-
-        # Annotation column
-        - id: note_top
+      - id: hdr_container
+        heading: Containerized Android
+        variant: annotation
+        sizing_h: hug
+      - id: lxd_container
+        level: 2
+        direction: vertical
+        padding: 8
+        sizing_h: fill
+        heading: LXD container
+        children:
+        - id: lxd_headline
+          heading: SELinux removed
+          sizing_h: hug
+        - id: lxd_system
           label:
-            - { text: "SELinux assumptions only", style: muted }
-          variant: annotation
-          sizing_h: fill
-          sizing_w: hug
-
-    # Separator
-    - id: security_separator
-      role: separator
+          - Android system
+          sizing_h: hug
+    - id: col_vm
+      direction: vertical
       variant: annotation
-      sizing_h: hug
-
-    # Bottom zone — host kernel layer
-    - id: bottom_zone
-      direction: horizontal
-      variant: annotation
+      width: 288
+      sizing_w: fill
+      sizing_h: fill
       children:
-        - id: host_container
-          label: [Host kernel (AppArmor)]
-          width: 288
-          sizing_w: fixed
-
-        - id: host_vm
-          label: [Host kernel (AppArmor)]
-          width: 288
-          sizing_w: fixed
-
-        - id: note_bottom
+      - id: hdr_vm
+        heading: Virtualized Android
+        variant: annotation
+        sizing_h: hug
+      - id: vm
+        level: 2
+        direction: vertical
+        padding: 8
+        sizing_h: fill
+        heading: VM
+        children:
+        - id: vm_headline
+          heading: SELinux ON
           label:
-            - { text: "AppArmor enforcement", style: muted }
-            - { text: "/ VM confinement", style: muted }
-          variant: annotation
-          sizing_w: hug
+          - /enforcing mode
+          - App sandboxing
+          - System service isolation
+          sizing_h: hug
+        - id: vm_system
+          label:
+          - Android system
+          sizing_h: hug
+        - id: vm_kernel
+          label:
+          - Android kernel
+          sizing_h: hug
+    - id: note_top
+      label:
+      - text: SELinux assumptions only
+        style: muted
+      variant: annotation
+      sizing_h: fill
+      sizing_w: fill
+  - id: security_separator
+    role: separator
+    variant: annotation
+    sizing_h: hug
+  - id: bottom_zone
+    direction: horizontal
+    variant: annotation
+    children:
+    - id: host_container
+      label:
+      - Host kernel (AppArmor)
+      width: 288
+      sizing_w: fill
+    - id: host_vm
+      label:
+      - Host kernel (AppArmor)
+      width: 288
+      sizing_w: fill
+    - id: note_bottom
+      label:
+      - text: AppArmor enforcement
+        style: muted
+      - text: / VM confinement
+        style: muted
+      variant: annotation
+      sizing_w: fill

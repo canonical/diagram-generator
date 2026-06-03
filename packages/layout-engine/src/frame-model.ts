@@ -418,6 +418,8 @@ export interface CoercedOverride {
  * and shorter FILL children stretch to match.
  *
  * Recurses bottom-up so inner containers are resolved before parents.
+ * The semantic Frame tree stays unchanged; callers consume the returned
+ * override map as runtime coercion state for the current layout pass.
  *
  * @returns Map of coerced frame IDs → override values.
  */
@@ -437,8 +439,6 @@ export function enforceFillHugInvariant(
     // Primary axis is W
     if (frame.sizingW === Sizing.HUG) {
       if (frame.children.some(c => c.sizingW === Sizing.FILL)) {
-        frame.sizingW = Sizing.FIXED;
-        frame.width = frame._layout.measuredW;
         if (frame.id) {
           const existing = coerced.get(frame.id) ?? {};
           existing.sizingW = 'FIXED';
@@ -451,8 +451,6 @@ export function enforceFillHugInvariant(
     // Primary axis is H (VERTICAL)
     if (frame.sizingH === Sizing.HUG) {
       if (frame.children.some(c => c.sizingH === Sizing.FILL)) {
-        frame.sizingH = Sizing.FIXED;
-        frame.height = frame._layout.measuredH;
         if (frame.id) {
           const existing = coerced.get(frame.id) ?? {};
           existing.sizingH = 'FIXED';

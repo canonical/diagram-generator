@@ -138,6 +138,7 @@ function applyOverridesToFrameTree(diagram, allOverrides, gridOverrides) {
   // Grid overrides first, so explicit frame overrides remain authoritative
   // for the root frame when both are present.
   gridOverrides = gridOverrides || {};
+  const hasGridOverrides = Object.keys(gridOverrides).length > 0;
   if (gridOverrides.cols != null) {
     diagram.gridCols = Math.max(1, parseInt(gridOverrides.cols, 10));
   }
@@ -156,8 +157,10 @@ function applyOverridesToFrameTree(diagram, allOverrides, gridOverrides) {
   if (gridOverrides.margin_bottom != null) diagram._gridMarginBottom = Math.max(0, parseInt(gridOverrides.margin_bottom, 10));
   if (gridOverrides.margin_left != null) diagram._gridMarginLeft = Math.max(0, parseInt(gridOverrides.margin_left, 10));
 
-  // Only sync grid → root frame when the "link to root" toggle is on
-  const linkToRoot = gridOverrides.link_to_root !== false;
+  // Only sync grid -> root frame when the editor is actively carrying grid
+  // overrides and the "link to root" toggle is on. A clean render with no
+  // grid override state must preserve authored root padding/gap from YAML.
+  const linkToRoot = hasGridOverrides && gridOverrides.link_to_root !== false;
   if (linkToRoot) {
     _applyLinkedRootGridSpacing(diagram);
   }
@@ -962,7 +965,7 @@ async function initLayoutBridge(slug) {
   _textAdapter = null;
   _textAdapterError = null;
   try {
-    const resp = await fetch("/api/frame-tree/" + slug);
+    const resp = await fetch("/api/frame-tree/" + slug + "?t=" + Date.now(), { cache: "no-store" });
     if (resp.ok) {
       _frameTreeJson = await resp.json();
     }

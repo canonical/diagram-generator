@@ -3,9 +3,9 @@ version: alpha
 name: Diagram Generator diagram language
 description: Diagram-specific design language contract for editable, on-brand SVG and draw.io outputs. Structured to align with DESIGN.md-style tokens and prose, and now mapped to the dense application and documentation tiers from canonical-specs so diagram geometry can inherit the same type, spacing, and grid logic.
 sourceSpecs:
-  typography: ../canonical-specs/specs/type scale/draft.md
-  spacing: ../canonical-specs/specs/spacing/draft.md
-  grid: ../canonical-specs/specs/grid/draft.md
+  typography: ../canonical-spacing-spec/specs/type scale/draft.md
+  spacing: ../canonical-spacing-spec/specs/spacing/draft.md
+  grid: ../canonical-spacing-spec/specs/grid/draft.md
   importedTier: applications
   adoptedTier: diagram
   rolloutStatus: pilot
@@ -232,7 +232,7 @@ The system has exactly four box treatments plus two special cases. Do not invent
 | Annotation | — | — | transparent | none | `#666666` |
 | Highlight | — | — | `#000000` | `#000000` 1px | white |
 
-Style resolution is centralised in `resolve_styles()` (called by `load_frame_yaml()` and `layout_frame_diagram()`). The YAML author controls style through `level:` (1=leaf, 2=panel, 3=section) and `variant:` (annotation, highlight) – never through `fill:` or `stroke:` directly.
+Style resolution is centralised in `resolve_styles()` (TS: `packages/layout-engine/src/resolve-styles.ts`, Python: `scripts/frame_loader.py`). The YAML author controls style through `level:` (1=leaf, 2=panel, 3=section) and `variant:` (annotation, highlight) – never through `fill:` or `stroke:` directly.
 
 The **annotation** style is the default for all text that sits outside a bordered box: row notes, explanatory labels, and arrow labels. In YAML, set `variant: annotation` or `border: none` on a leaf frame to get annotation style.
 
@@ -369,9 +369,9 @@ When building a v3 Frame YAML diagram, the choice of sizing, alignment, and gap 
 - Two parallel columns must share an exact width for visual symmetry. Express widths in grid-column spans rather than raw pixels – e.g., a 2-column span in an 8-column grid, not a magic number. See the grid formula: `col_width = (canvas_width − 2 × outer-margin − (cols − 1) × grid-gutter) / cols`.
 - A box must not grow beyond a known boundary.
 
-Note: setting `width` or `height` without an explicit `sizing_w`/`sizing_h` implicitly promotes that axis to FIXED (via `frame_loader.py`).
+Note: setting `width` or `height` without an explicit `sizing_w`/`sizing_h` implicitly promotes that axis to FIXED (via the frame loader in both TS and Python).
 
-**Default rule:** if you don't set sizing, the engine defaults to FILL width and HUG height for non-root nodes. Root defaults to HUG/HUG – this means a root with no explicit size wraps its content. In practice, most diagrams set an explicit root width, which promotes to FIXED. This matches Figma's model: Figma artboards start FIXED, and auto-convert to FIXED whenever FILL children appear. Our engine does the same coercion via `_enforce_fill_hug_invariant()`.
+**Default rule:** if you don't set sizing, the engine defaults to FILL width and HUG height for non-root nodes. Root defaults to HUG/HUG – this means a root with no explicit size wraps its content. In practice, most diagrams set an explicit root width, which promotes to FIXED. This matches Figma's model: Figma artboards start FIXED, and auto-convert to FIXED whenever FILL children appear. Both the TS and Python engines enforce this coercion automatically.
 
 #### Gap: dense stacks vs default stacks
 

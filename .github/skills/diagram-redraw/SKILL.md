@@ -27,7 +27,12 @@ argument-hint: "Describe the source asset, target slug, and any special constrai
 10. **Apply the correct group style.** Grey no-stroke for default groups. Dashed only for debug. See DIAGRAM.md "Group styling invariant".
 11. Create or update the frame YAML in `scripts/diagrams/frames/`.
 12. The preview server auto-discovers new YAMLs, so no manual registration is needed.
-13. Run the build and validation workflow from the `diagram-build-validate` skill.
+13. **Wire the source reference image** so the "Both" tab shows the original sketch beside the output:
+    - Save the source image to `diagrams/1.input/` (any subfolder is fine, e.g. `diagrams/1.input/maas/`).
+    - Add a slug → filename mapping to `_REFERENCE_MAP` in `scripts/preview_server.py`.
+    - The "Input" and "Both" tabs in the preview server load the image via `/reference/<slug>`.
+    - If the source is an attached image that can't be saved programmatically, note the expected filename and path so the user can save it manually.
+14. Run the build and validation workflow from the `diagram-build-validate` skill.
 14. **Post-generation layout audit.** Check against DIAGRAM.md rules:
     - All positions and dimensions on 8px baseline
     - Only two gap scales: compact-gap (8px) and grid-gutter (24px)

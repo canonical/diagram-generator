@@ -515,7 +515,12 @@ class ComponentModel {
       format_version: 1,
     };
     if (this.gridOverrides && Object.keys(this.gridOverrides).length > 0) {
-      payload.grid_overrides = this.gridOverrides;
+      const persistableGridOverrides = { ...this.gridOverrides };
+      delete persistableGridOverrides.rows;
+      delete persistableGridOverrides.slack_absorption;
+      if (Object.keys(persistableGridOverrides).length > 0) {
+        payload.grid_overrides = persistableGridOverrides;
+      }
     }
     return payload;
   }

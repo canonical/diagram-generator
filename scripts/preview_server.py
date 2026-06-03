@@ -151,7 +151,12 @@ def _rebuild(grid: bool = False) -> bool:
     for mod_name in ("frame_model", "frame_loader", "layout_v3",
                      "diagram_render_svg", "diagram_layout", "diagram_shared"):
         if mod_name in sys.modules:
-            importlib.reload(sys.modules[mod_name])
+            try:
+                importlib.reload(sys.modules[mod_name])
+            except SyntaxError as exc:
+                # File likely mid-save; skip this rebuild cycle.
+                _last_rebuild_error = f"SyntaxError reloading {mod_name}: {exc}"
+                return False
     _last_rebuild_error = None
     return True
 
@@ -345,6 +350,8 @@ _REFERENCE_MAP: dict[str, str] = {
     "android-custom-to-cloud": "android/image.png",
     "android-security-comparison": "android/image1.png",
     "android-container-vs-vm": "android/image2.png",
+    "maas-machine-lifecycle": "maas/maas-machine-lifecycle.png",
+    "tiered-network-architecture": "maas/tiered-network-architecture.png",
 }
 
 
@@ -1323,9 +1330,9 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
 
     def _serve_icon(self, name: str):
         """Serve an individual icon SVG from assets/icons/."""
-        # Prevent path traversal
-        safe_name = pathlib.PurePosixPath(name).name
-        if not safe_name or safe_name != name or '..' in name:
+        # URL-decode then prevent path traversal
+        safe_name = pathlib.PurePosixPath(unquote(name)).name
+        if not safe_name or '..' in name:
             self.send_error(400, "Invalid icon name")
             return
         icon_path = ROOT / "assets" / "icons" / safe_name

@@ -4,6 +4,8 @@
 
 **Prerequisites**: spec.md, plan.md
 
+**Engine rule**: All changes target TypeScript `packages/layout-engine/src/layout.ts` first. Python `scripts/layout_v3.py` receives equivalent changes only for parity verification. Do not start in Python.
+
 ## Phase 1: Setup and baseline
 
 - [ ] T001 Capture baseline test run for focused layout suite
@@ -14,8 +16,8 @@
 
 - [ ] T010 Introduce isolated derived-layout state structure
 - [ ] T011 Refactor col_span resolution to avoid mutating semantic width fields
-- [ ] T012 Refactor FILL/HUG coercion bookkeeping to derived state only
-- [ ] T013 Add idempotency regression test (run layout twice, compare semantic tree)
+- [x] T012 Refactor FILL/HUG coercion bookkeeping to derived state only
+- [x] T013 Add idempotency regression test (run layout twice, compare semantic tree)
 - [ ] T014 Add mutation-guard test for representative nested fixture
 
 ## Phase 3: Style ownership unification (WS2)

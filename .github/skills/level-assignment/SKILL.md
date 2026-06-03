@@ -49,8 +49,9 @@ Siblings never mix classes. If one item needs to be a section, **all** its sibli
      and highlights (`variant: highlight`) are exempt from level rules.
    - Layout wrappers (headingless containers with no `heading:` field)
      get level 0 automatically and don't count as a tier.
-   - If you violate the nesting rules, `resolve_styles()` in
-     `scripts/frame_loader.py` auto-downgrades at render time: a panel
+   - If you violate the nesting rules, `resolve_styles()` (TS:
+     `packages/layout-engine/src/resolve-styles.ts`, Python:
+     `scripts/frame_loader.py`) auto-downgrades at render time: a panel
      inside a panel becomes a leaf, a section inside a section becomes
      a panel. This is a safety net, not a feature – set levels
      correctly in YAML.
@@ -58,7 +59,8 @@ Siblings never mix classes. If one item needs to be a section, **all** its sibli
 ## Styling contract
 
 Levels determine visual treatment automatically through `resolve_styles()`
-in `scripts/frame_loader.py`. See `docs/frame-classes.md` for the
+(TS: `packages/layout-engine/src/resolve-styles.ts`, Python:
+`scripts/frame_loader.py`). See `docs/frame-classes.md` for the
 complete class table and rendering rules. Do **not** use inline styling
 in YAML.
 

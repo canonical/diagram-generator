@@ -1,6 +1,12 @@
 # Diagram Generator
 
-An LLM-based diagramming workflow that turns rough sketches and brand/layout rules into on-brand SVG and draw.io diagrams.
+A constrained interactive diagram editor that turns rough sketches and brand/layout rules into on-brand SVG and draw.io diagrams.
+
+## Bigger picture
+
+This repo is part of a multi-repo workspace converging on `design-foundry` — a Houdini-in-spirit kernel for procedural graphic design. The TS autolayout engine in `packages/layout-engine/` is the single autolayout codebase in the workspace and will eventually port into design-foundry as `@design-foundry/operator-autolayout`. See `../design-foundry/PIVOT.md` for the full cross-repo plan.
+
+**TypeScript is the implementation language.** All new features target the TS engine. Python is retained only for YAML parsing, batch SVG export, and transitional parity testing.
 
 ## Start Here
 
@@ -22,7 +28,7 @@ If you are changing the autolayout engine, read these in order before editing co
 3. [`STATUS.md`](STATUS.md) – cold-start orientation, architecture, key files.
 4. [`.github/copilot-instructions.md`](.github/copilot-instructions.md) – workflow discipline and anti-patch protocol.
 
-Key files: `scripts/frame_model.py` (Frame dataclass), `scripts/frame_loader.py` (YAML parser + style resolver), `scripts/layout_v3.py` (measure→place engine), `scripts/diagram_render_svg.py` (SVG output), `scripts/diagrams/frames/*.yaml` (native frame definitions).
+Key files: `packages/layout-engine/src/layout.ts` (TS measure→place engine — primary), `packages/layout-engine/src/resolve-styles.ts` (TS style resolution), `scripts/preview/layout-bridge.js` (client-side relayout), `scripts/frame_loader.py` (YAML parser + style resolver), `scripts/layout_v3.py` (Python parity engine), `scripts/diagram_render_svg.py` (SVG output), `scripts/diagrams/frames/*.yaml` (native frame definitions).
 
 ### Recommended exemplar path
 
@@ -181,7 +187,6 @@ Everything else lives at the repo root as operational workflow files:
 ```
 README.md        – human-readable overview
 DIAGRAM.md       – canonical diagram language spec
-ROADMAP.md       – long-term direction
 TODO.md          – active execution queue
 INBOX.md         – async user notes (agent drains these)
 AGENT-INBOX.md   – agent-only handoffs and diagnostics
@@ -210,7 +215,7 @@ This repo rebuilds rough, hand-drawn, or inconsistent diagrams into a strict reu
 **Read the playbook first.** The diagram style rules are non-negotiable:
 
 1. Read [`DIAGRAM.md`](DIAGRAM.md)
-2. Review the invariants in [`.github/copilot-instructions.md`](.github/copilot-instructions.md) under "Non-negotiable diagram rules"
+2. Review the anti-patch protocol in [`.github/copilot-instructions.md`](.github/copilot-instructions.md)
 
 Key rules you must not violate:
 
@@ -287,8 +292,7 @@ The protected manual-edit lane is infrastructure-ready, but not always populated
 | `.github/skills/` | Optional on-demand workflow skills |
 | `README.md` | Human-readable overview and workflow reminder |
 | `DIAGRAM.md` | Canonical diagram language spec |
-| `ROADMAP.md` | Long-term direction and future stages |
-| `TODO.md` | Active queue, principles, architecture notes |
+| `TODO.md` | Active execution queue |
 | `INBOX.md` | Quick user notes to be triaged later |
 | `AGENT-INBOX.md` | Machine-generated handoffs and diagnostics awaiting triage |
 | `STATUS.md` | Cold-start orientation for the next session |
@@ -304,14 +308,13 @@ The protected manual-edit lane is infrastructure-ready, but not always populated
 1. Put interrupting ideas, reminders, and loose notes in `INBOX.md`.
 2. Keep machine-generated handoff text out of `INBOX.md`; that belongs in `AGENT-INBOX.md`.
 3. Use `TODO.md` for the next real work items only.
-4. Use `ROADMAP.md` for longer-term direction, not the active queue.
-5. Read `README.md`, `STATUS.md`, and `DIAGRAM.md` when returning after time away.
+4. Read `README.md`, `STATUS.md`, and `DIAGRAM.md` when returning after time away.
 
 ### If you are the agent
 
 1. Start with `STATUS.md`.
 2. Read `DIAGRAM.md` before changing diagram behavior.
-3. Drain `INBOX.md` into `TODO.md` or `ROADMAP.md`.
+3. Drain `INBOX.md` into `TODO.md`.
 4. Drain `AGENT-INBOX.md` into canonical files.
 5. Read `TODO.md`.
 6. Read `docs/specs.md` before changing spec-governed behavior.

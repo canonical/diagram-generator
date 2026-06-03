@@ -612,7 +612,9 @@ def _enforce_fill_hug_invariant(frame: Frame, coerced: dict | None = None) -> di
     before their parents.
 
     Returns a dict of coerced frame IDs → {sizing_w, sizing_h, width, height}
-    so the caller can persist the coercion.
+    so the caller can persist the coercion. The semantic Frame tree stays
+    unchanged; callers should treat the returned dict as layout-only runtime
+    coercion state for the current pass.
     """
     if coerced is None:
         coerced = {}
@@ -629,8 +631,6 @@ def _enforce_fill_hug_invariant(frame: Frame, coerced: dict | None = None) -> di
         # Primary axis is W — freeze parent HUG→FIXED if any auto child is FILL
         if frame.sizing_w == Sizing.HUG:
             if any(c.sizing_w == Sizing.FILL for c in auto_children):
-                frame.sizing_w = Sizing.FIXED
-                frame.width = frame._measured_w
                 if frame.id:
                     coerced.setdefault(frame.id, {})
                     coerced[frame.id]["sizing_w"] = "FIXED"
@@ -640,8 +640,6 @@ def _enforce_fill_hug_invariant(frame: Frame, coerced: dict | None = None) -> di
         # Primary axis is H — freeze parent HUG→FIXED if any auto child is FILL
         if frame.sizing_h == Sizing.HUG:
             if any(c.sizing_h == Sizing.FILL for c in auto_children):
-                frame.sizing_h = Sizing.FIXED
-                frame.height = frame._measured_h
                 if frame.id:
                     coerced.setdefault(frame.id, {})
                     coerced[frame.id]["sizing_h"] = "FIXED"
@@ -745,6 +743,7 @@ def _resolve_child_widths(frame: Frame, frame_w: float) -> list[float]:
 
 
 def _remeasure_with_width_constraints(root: Frame, root_w: float,
+                                       coerced: dict | None = None,
                                        coerced_ids: set | None = None) -> None:
     """Constrained re-measurement pass (runs between coercion and place).
 
@@ -761,7 +760,9 @@ def _remeasure_with_width_constraints(root: Frame, root_w: float,
     """
     _propagate_width_and_remeasure(root, root_w)
     _propagate_height_changes(root)
-    _refresh_coerced_heights(root, coerced_ids or set())
+    if coerced is None:
+        coerced = {frame_id: {} for frame_id in (coerced_ids or set())}
+    _refresh_coerced_heights(root, coerced)
 
 
 def _propagate_width_and_remeasure(frame: Frame, resolved_w: float) -> None:
@@ -836,28 +837,29 @@ def _propagate_height_changes(frame: Frame) -> None:
     frame._measured_h = new_h
 
 
-def _refresh_coerced_heights(frame: Frame, coerced_ids: set) -> None:
+def _refresh_coerced_heights(frame: Frame, coerced: dict) -> None:
     """Update coerced parents whose frozen heights may be stale after remeasure.
 
-    _enforce_fill_hug_invariant() freezes HUG parents to FIXED by copying
-    _measured_h into frame.height.  If child heights changed during the
-    constrained re-measurement pass, those frozen values may be wrong.
+    _enforce_fill_hug_invariant() records HUG→FIXED overrides in a runtime
+    coercion dict. If child heights changed during the constrained
+    re-measurement pass, those derived height overrides may be wrong.
     Re-derive the correct height from children and update both
-    frame.height and frame._measured_h.
+    the coercion dict and frame._measured_h.
 
-    Only frames whose IDs are in coerced_ids are refreshed.  Frames that
-    were originally FIXED (user-set height) are preserved.
+    Only frames whose IDs are present in the coercion dict are refreshed.
+    Frames that were originally FIXED (user-set height) are preserved.
     """
     if frame.is_leaf:
         return
     for child in frame.children:
-        _refresh_coerced_heights(child, coerced_ids)
+        _refresh_coerced_heights(child, coerced)
 
     # Only refresh containers that were actually coerced by
     # _enforce_fill_hug_invariant (originally HUG, now FIXED).
     # Skip containers that were originally FIXED (user-set height/width).
-    if not frame.id or frame.id not in coerced_ids:
+    if not frame.id or frame.id not in coerced:
         return
+    override = coerced[frame.id]
 
     # Recompute height using the same logic as measure() / _propagate_height_changes()
     auto_children = [c for c in frame.children if c.position_type != "ABSOLUTE"]
@@ -873,12 +875,14 @@ def _refresh_coerced_heights(frame: Frame, coerced_ids: set) -> None:
         content_h = sum(r["height"] for r in rows) + frame.gap * max(0, len(rows) - 1)
         new_h = round_up_to_grid(content_h + pad_v)
         frame._measured_h = new_h
-        frame.height = new_h
+        if override.get("sizing_h") == "FIXED":
+            override["height"] = new_h
     elif frame.direction == Direction.HORIZONTAL:
         content_h = max(c._measured_h for c in auto_children) if auto_children else 0
         new_h = round_up_to_grid(content_h + pad_v)
         frame._measured_h = new_h
-        frame.height = new_h
+        if override.get("sizing_h") == "FIXED":
+            override["height"] = new_h
     else:
         fill_h = [c._measured_h for c in auto_children if c.sizing_h == Sizing.FILL]
         non_fill_h = sum(c._measured_h for c in auto_children if c.sizing_h != Sizing.FILL)
@@ -888,7 +892,8 @@ def _refresh_coerced_heights(frame: Frame, coerced_ids: set) -> None:
             content_h = sum(c._measured_h for c in auto_children) + total_gap
         new_h = round_up_to_grid(content_h + pad_v)
         frame._measured_h = new_h
-        frame.height = new_h
+        if override.get("sizing_h") == "FIXED":
+            override["height"] = new_h
 
 
 def _child_primary_sizing(child: Frame, direction: Direction) -> Sizing:
@@ -1890,7 +1895,7 @@ def layout_frame_diagram(diagram: FrameDiagram) -> LayoutResult:
         # Pass 1.5: constrained re-measurement — re-wrap text at resolved
         # widths so HUG heights reflect actual placed widths, not the default
         # BLOCK_WIDTH used during initial measurement.
-        _remeasure_with_width_constraints(root, root_w, coerced_ids=set(coerced.keys()))
+        _remeasure_with_width_constraints(root, root_w, coerced=coerced)
 
         root_h = root.height if root.height is not None else root._measured_h
 
