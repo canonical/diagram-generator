@@ -6,4 +6,6 @@ tmp/
 diagrams/2.output/png/
 node_modules/
 packages/*/dist/
+.preview_server_test.err.log
+.preview_server_test.out.log
 

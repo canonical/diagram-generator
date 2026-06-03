@@ -80,19 +80,24 @@ function initViewTabs() {
 
 function initDiagramPicker() {
   const picker = byId("diagram-picker");
-  if (!picker) return;
+  if (!(picker instanceof HTMLSelectElement)) return;
+
+  picker.addEventListener("change", () => {
+    const nextUrl = picker.value;
+    if (nextUrl && nextUrl !== window.location.pathname) {
+      window.location.assign(nextUrl);
+    }
+  });
 
   const prevBtn = byId("diagram-prev");
   const nextBtn = byId("diagram-next");
 
   function stepPicker(delta) {
-    const options = Array.from(picker.options);
-    const idx = options.findIndex(o => o.selected);
-    const next = idx + delta;
-    if (next >= 0 && next < options.length) {
-      picker.selectedIndex = next;
-      picker.dispatchEvent(new Event("change"));
-    }
+    if (picker.options.length === 0) return;
+    const idx = picker.selectedIndex + delta;
+    if (idx < 0 || idx >= picker.options.length) return;
+    picker.selectedIndex = idx;
+    picker.dispatchEvent(new Event("change"));
   }
 
   if (prevBtn) prevBtn.addEventListener("click", () => stepPicker(-1));

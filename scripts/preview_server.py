@@ -1416,28 +1416,30 @@ def main():
     parser.add_argument("--no-watch", action="store_true", help="Disable file watching")
     args = parser.parse_args()
 
-    # Auto-kill any process holding the port (Windows)
-    if sys.platform == "win32":
-        try:
-            out = subprocess.check_output(
-                ["powershell", "-NoProfile", "-Command",
-                 f"Get-NetTCPConnection -LocalPort {args.port} -ErrorAction SilentlyContinue"
-                 f" | Select-Object -ExpandProperty OwningProcess -Unique"],
-                stderr=subprocess.DEVNULL,
-                text=True,
-            ).strip()
-            if out:
-                for pid_str in out.splitlines():
-                    pid = int(pid_str.strip())
-                    if pid > 0 and pid != os.getpid():
-                        print(f"  [preview] killing PID {pid} holding port {args.port}")
-                        subprocess.run(
-                            ["powershell", "-NoProfile", "-Command",
-                             f"Stop-Process -Id {pid} -Force -ErrorAction SilentlyContinue"],
-                            stderr=subprocess.DEVNULL,
-                        )
-        except (subprocess.CalledProcessError, ValueError):
-            pass
+    # Optional: kill other processes on this port (destructive — off by default).
+    # Cursor/agent restarts were killing an already-healthy server and looking like crashes.
+    if os.environ.get("DG_PREVIEW_KILL_PORT", "").strip().lower() in ("1", "true", "yes"):
+        if sys.platform == "win32":
+            try:
+                out = subprocess.check_output(
+                    ["powershell", "-NoProfile", "-Command",
+                     f"Get-NetTCPConnection -LocalPort {args.port} -ErrorAction SilentlyContinue"
+                     f" | Select-Object -ExpandProperty OwningProcess -Unique"],
+                    stderr=subprocess.DEVNULL,
+                    text=True,
+                ).strip()
+                if out:
+                    for pid_str in out.splitlines():
+                        pid = int(pid_str.strip())
+                        if pid > 0 and pid != os.getpid():
+                            print(f"  [preview] killing PID {pid} holding port {args.port}")
+                            subprocess.run(
+                                ["powershell", "-NoProfile", "-Command",
+                                 f"Stop-Process -Id {pid} -Force -ErrorAction SilentlyContinue"],
+                                stderr=subprocess.DEVNULL,
+                            )
+            except (subprocess.CalledProcessError, ValueError):
+                pass
 
     PreviewHandler.grid = args.grid
 
@@ -1448,7 +1450,16 @@ def main():
         t = threading.Thread(target=_watch_loop, args=(args.grid,), daemon=True)
         t.start()
 
-    server = http.server.ThreadingHTTPServer(("127.0.0.1", args.port), PreviewHandler)
+    try:
+        server = http.server.ThreadingHTTPServer(("127.0.0.1", args.port), PreviewHandler)
+    except OSError as exc:
+        print(
+            f"  [preview] cannot bind 127.0.0.1:{args.port} ({exc}). "
+            f"Stop the other preview server or use --port <n>. "
+            f"Set DG_PREVIEW_KILL_PORT=1 to force-kill the holder (Windows).",
+            file=sys.stderr,
+        )
+        raise SystemExit(1) from exc
     url = f"http://127.0.0.1:{args.port}"
     if args.slug:
         url += f"/view/{args.slug}"
