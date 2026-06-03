@@ -26,10 +26,12 @@ import subprocess
 import sys
 import threading
 import time
+import traceback
 from dataclasses import asdict
 from urllib.parse import unquote, urlparse
 
 from frame_yaml_persistence import persist_override_payload_to_yaml
+from preview_ts_export import pool_from_env
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SCRIPTS = ROOT / "scripts"
@@ -49,7 +51,9 @@ WATCH_PATHS = [
     SCRIPTS / "diagram_layout.py",
     SCRIPTS / "diagram_render_svg.py",
     SCRIPTS / "diagram_shared.py",
+    SCRIPTS / "preview_ts_export.py",
     SCRIPTS / "preview",
+    ROOT / "packages" / "layout-engine" / "scripts" / "export-frame-svg.mjs",
 ]
 
 _rebuild_generation = 0
@@ -57,6 +61,13 @@ _rebuild_lock = threading.Lock()
 _last_rebuild_error: str | None = None
 _layout_cache: dict[str, object] = {}
 _force_sessions: dict[str, object] = {}
+_TS_EXPORT_SCRIPT = ROOT / "packages" / "layout-engine" / "scripts" / "export-frame-svg.mjs"
+_ts_svg_pool = pool_from_env(
+    script_path=_TS_EXPORT_SCRIPT,
+    repo_root=ROOT,
+    frames_dir=FRAMES_DIR,
+)
+_watcher_fail_streak = 0
 
 
 def _load_env_local() -> None:
@@ -140,8 +151,9 @@ def _is_safe_slug(slug: str) -> bool:
 
 
 def _rebuild(grid: bool = False) -> bool:
-    global _last_rebuild_error, _layout_cache, _viewer_template, _force_template, _unified_template, _force_sessions
+    global _last_rebuild_error, _layout_cache, _viewer_template, _force_template, _unified_template, _force_sessions, _watcher_fail_streak
     _layout_cache.clear()
+    _ts_svg_pool.clear_cache()
     _force_sessions.clear()
     _viewer_template = None
     _force_template = None
@@ -156,37 +168,36 @@ def _rebuild(grid: bool = False) -> bool:
             except Exception as exc:
                 # File likely mid-save; skip this rebuild cycle.
                 _last_rebuild_error = f"Reload error in {mod_name}: {exc}"
+                print(f"  [preview] reload failed ({mod_name}): {exc}", flush=True)
+                traceback.print_exc()
                 return False
     _last_rebuild_error = None
+    _watcher_fail_streak = 0
     return True
 
 
-_TS_EXPORT_SCRIPT = ROOT / "packages" / "layout-engine" / "scripts" / "export-frame-svg.mjs"
-
-
 def _render_svg_via_ts(slug: str) -> bytes | None:
-    """Layout + render SVG via the TypeScript engine (HarfBuzz measure)."""
+    """Layout + render SVG via TS export pool (bounded concurrency + cache)."""
+    return _ts_svg_pool.render_svg(slug)
+
+
+def _render_svg_python_fallback(slug: str) -> bytes | None:
     if slug.startswith("v3:"):
         slug = slug[3:]
-    if not _TS_EXPORT_SCRIPT.exists():
+    result = _get_layout_result(slug, engine="v3")
+    if result is None:
         return None
-    frame_yaml = FRAMES_DIR / (slug + ".yaml")
-    if not frame_yaml.exists():
-        return None
-    try:
-        proc = subprocess.run(
-            ["node", str(_TS_EXPORT_SCRIPT), "--slug", slug],
-            cwd=str(ROOT),
-            capture_output=True,
-            text=True,
-            timeout=120,
-            check=True,
-        )
-        return proc.stdout.encode("utf-8")
-    except (subprocess.CalledProcessError, OSError) as exc:
-        err = getattr(exc, "stderr", None) or getattr(exc, "stdout", None) or str(exc)
-        print(f"TS SVG export failed for {slug}: {err}", file=sys.stderr)
-        return None
+    import diagram_render_svg
+
+    return diagram_render_svg.render_svg(result).encode("utf-8")
+
+
+def _serve_v3_svg_bytes(slug: str) -> bytes | None:
+    """TS export first; Python render on failure (never raises TimeoutExpired)."""
+    svg_bytes = _render_svg_via_ts(slug)
+    if svg_bytes is not None:
+        return svg_bytes
+    return _render_svg_python_fallback(slug)
 
 
 def _get_layout_result(slug: str, engine: str = "v3"):
@@ -327,10 +338,11 @@ def _save_overrides(slug: str, data: dict) -> None:
         raise ValueError(f"Unknown frame slug: {slug}")
     persist_override_payload_to_yaml(frame_path, data)
     _layout_cache.pop(f"{slug}:v3", None)
+    _ts_svg_pool.invalidate_slug(slug)
 
 
 def _watch_loop(grid: bool = False, interval: float = 0.5):
-    global _rebuild_generation, _viewer_template, _force_template, _unified_template
+    global _rebuild_generation, _viewer_template, _force_template, _unified_template, _watcher_fail_streak
     prev_mtimes = _collect_mtimes()
     while True:
         try:
@@ -345,10 +357,26 @@ def _watch_loop(grid: bool = False, interval: float = 0.5):
                 with _rebuild_lock:
                     ok = _rebuild(grid=grid)
                     _rebuild_generation += 1
-                    status = "ok" if ok else "error"
+                    if ok:
+                        _watcher_fail_streak = 0
+                        status = "ok"
+                    else:
+                        _watcher_fail_streak += 1
+                        status = "error"
+                        if _last_rebuild_error:
+                            print(f"  [preview] rebuild error: {_last_rebuild_error}", flush=True)
+                        if _watcher_fail_streak >= 3:
+                            print(
+                                "  [preview] WARNING: "
+                                f"{_watcher_fail_streak} consecutive rebuild failures — "
+                                "runtime may be stale; fix errors above or restart server",
+                                flush=True,
+                            )
                     print(f"  [preview] rebuild #{_rebuild_generation} ({status})")
         except Exception as exc:
-            print(f"  [preview] watcher error (will retry): {exc}")
+            _watcher_fail_streak += 1
+            print(f"  [preview] watcher error (will retry): {exc}", flush=True)
+            traceback.print_exc()
 
 
 # ---------------------------------------------------------------------------
@@ -999,15 +1027,10 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
                 if prebuilt.exists():
                     self._respond(200, "image/svg+xml", prebuilt.read_bytes())
                     return
-            svg_bytes = _render_svg_via_ts(slug)
+            svg_bytes = _serve_v3_svg_bytes(slug)
             if svg_bytes is None:
-                result = _get_layout_result(slug, engine="v3")
-                if result is None:
-                    self.send_error(404, f"Cannot layout v3 diagram: {slug}")
-                    return
-                import diagram_render_svg
-                svg_str = diagram_render_svg.render_svg(result)
-                svg_bytes = svg_str.encode("utf-8")
+                self.send_error(404, f"Cannot layout v3 diagram: {slug}")
+                return
             self._respond(200, "image/svg+xml", svg_bytes)
             return
 
@@ -1028,15 +1051,9 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
         if engine == "v3":
             frame_yaml = FRAMES_DIR / (slug + ".yaml")
             if frame_yaml.exists():
-                svg_bytes = _render_svg_via_ts(slug)
+                svg_bytes = _serve_v3_svg_bytes(slug)
                 if svg_bytes is not None:
                     self._respond(200, "image/svg+xml", svg_bytes)
-                    return
-                result = _get_layout_result(slug, engine="v3")
-                if result is not None:
-                    import diagram_render_svg
-                    svg_str = diagram_render_svg.render_svg(result)
-                    self._respond(200, "image/svg+xml", svg_str.encode("utf-8"))
                     return
 
         # Try v2 output first, then v3 pre-built
@@ -1048,15 +1065,9 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
             return
         # No pre-built file — try on-the-fly v3 rendering
         if engine == "v3":
-            svg_bytes = _render_svg_via_ts(slug)
+            svg_bytes = _serve_v3_svg_bytes(slug)
             if svg_bytes is not None:
                 self._respond(200, "image/svg+xml", svg_bytes)
-                return
-            result = _get_layout_result(slug, engine="v3")
-            if result is not None:
-                import diagram_render_svg
-                svg_str = diagram_render_svg.render_svg(result)
-                self._respond(200, "image/svg+xml", svg_str.encode("utf-8"))
                 return
         self.send_error(404)
 
