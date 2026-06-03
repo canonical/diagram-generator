@@ -116,6 +116,22 @@ describe('resolveStyles', () => {
     expect(inner.resolvedStroke).toBe('#000000');
   });
 
+  it('children inside highlight parent get white text for contrast', () => {
+    const child = new Frame({ id: 'child', label: [createLine('Inside highlight')] });
+    const panel = new Frame({
+      id: 'panel',
+      fill: Fill.BLACK,
+      level: 2,
+      heading: createLine('Highlight panel'),
+      children: [child],
+    });
+    const root = new Frame({ id: 'root', children: [panel] });
+    resolveStyles(root);
+    expect(child.label[0]!.fill).toBe('#FFFFFF');
+    expect(child.resolvedFill).toBe('transparent');
+    expect(child.resolvedStroke).toBe('#000000');
+  });
+
   it('separator gets transparent/none', () => {
     const sep = new Frame({ id: 'sep', role: 'separator' });
     const root = new Frame({ id: 'root', children: [sep] });

@@ -39,6 +39,7 @@ function deserializeFrame(json) {
     icon: json.icon || undefined,
     iconFill: json.iconFill || undefined,
     level: json.level ?? undefined,
+    colSpan: json.colSpan ?? json.col_span ?? undefined,
     label: (json.label || []).map(ln => LayoutEngine.createLine(ln.content, ln)),
     role: json.role || "",
     children,
@@ -1002,6 +1003,14 @@ async function initLayoutBridge(slug) {
  *   is NOT updated after patching the SVG.  Used during live drag/resize so
  *   snap calculations keep referencing the original positions.
  */
+function _layoutOptionsFromDiagram(diagram) {
+  return {
+    gridCols: diagram.gridCols,
+    gridColGap: diagram.gridColGap,
+    gridOuterMargin: diagram.gridOuterMargin,
+  };
+}
+
 function performLocalRelayout(model, overrides, gridOverrides, opts) {
   const readiness = getLocalRelayoutStatus();
   if (!readiness.ready) {
@@ -1054,7 +1063,7 @@ function performLocalRelayout(model, overrides, gridOverrides, opts) {
     LayoutEngine.resolveStyles(diagram.root);
 
     // Run layout
-    const result = LayoutEngine.layoutFrameTree(diagram.root, _textAdapter);
+    const result = LayoutEngine.layoutFrameTree(diagram.root, _textAdapter, _layoutOptionsFromDiagram(diagram));
 
     // Collect new bounds
     const newBounds = collectPlacedBounds(diagram.root, {});
@@ -1345,7 +1354,7 @@ async function renderFreshSvg(overrides, gridOverrides, model) {
 
   // Resolve styles and run layout
   LayoutEngine.resolveStyles(diagram.root);
-  const result = LayoutEngine.layoutFrameTree(diagram.root, _textAdapter);
+  const result = LayoutEngine.layoutFrameTree(diagram.root, _textAdapter, _layoutOptionsFromDiagram(diagram));
 
   // Collect unique icon names from the frame tree
   const iconNames = new Set();

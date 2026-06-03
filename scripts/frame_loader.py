@@ -16,7 +16,7 @@ import yaml
 
 from diagram_model import Arrow, Border, Fill, Line
 from frame_model import Align, Direction, Frame, FrameDiagram, Justify, Overlay, Sizing
-from frame_style_classes import FRAME_CLASS_DEFS, apply_frame_class
+from frame_style_classes import FRAME_CLASS_DEFS, apply_frame_class, apply_highlight_parent_contrast
 from diagram_shared import BLACK, GREY, GRID_GUTTER, ICON_SIZE, INSET
 
 # ── Enum maps (lowercase YAML strings → Python enums) ──────────────
@@ -381,7 +381,7 @@ def _compute_level(frame: Frame, depth: int) -> int:
     return 1
 
 
-def resolve_styles(root: Frame, *, _depth: int = 0, _parent_is_panel: bool = False, _parent_is_section: bool = False) -> None:
+def resolve_styles(root: Frame, *, _depth: int = 0, _parent_is_panel: bool = False, _parent_is_section: bool = False, _parent_is_highlight: bool = False) -> None:
     """Walk the tree and set resolved_fill / resolved_stroke on every frame.
 
     Implements the four-class hierarchy from ``docs/frame-classes.md``:
@@ -393,6 +393,7 @@ def resolve_styles(root: Frame, *, _depth: int = 0, _parent_is_panel: bool = Fal
     _is_layout_wrapper = "__" in (root.id or "")
     _this_is_panel = False
     _this_is_section = False
+    _this_is_highlight = False
 
     if _depth == 0:
         # Root frame: invisible
@@ -409,6 +410,7 @@ def resolve_styles(root: Frame, *, _depth: int = 0, _parent_is_panel: bool = Fal
         apply_frame_class(root, FRAME_CLASS_DEFS["hidden"])
     else:
         is_highlight = root.fill == Fill.BLACK
+        _this_is_highlight = is_highlight
         # Normal frame: resolve from level
         level = _compute_level(root, _depth)
 
@@ -440,18 +442,23 @@ def resolve_styles(root: Frame, *, _depth: int = 0, _parent_is_panel: bool = Fal
 
         if is_highlight:
             apply_frame_class(root, FRAME_CLASS_DEFS["highlight"])
+        elif _parent_is_highlight:
+            apply_highlight_parent_contrast(root)
 
     for child in root.children:
         # Layout wrappers pass through the parent's panel/section status
         if _is_layout_wrapper:
             child_parent_panel = _parent_is_panel
             child_parent_section = _parent_is_section
+            child_parent_highlight = _parent_is_highlight
         else:
             child_parent_panel = _this_is_panel
             child_parent_section = _this_is_section
+            child_parent_highlight = _parent_is_highlight or _this_is_highlight
         resolve_styles(child, _depth=_depth + 1,
                        _parent_is_panel=child_parent_panel,
-                       _parent_is_section=child_parent_section)
+                       _parent_is_section=child_parent_section,
+                       _parent_is_highlight=child_parent_highlight)
 
 
 def load_frame_yaml(path: str | pathlib.Path) -> FrameDiagram:

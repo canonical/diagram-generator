@@ -214,6 +214,9 @@ export interface FrameInit {
   label?: Line[];
   role?: string;
 
+  // Grid span (semantic — resolved to width at layout time)
+  colSpan?: number;
+
   // Children (container)
   children?: Frame[];
 }
@@ -282,6 +285,9 @@ export class Frame {
   label: Line[];
   role: string;
 
+  // Grid column span — resolved to explicit width during layout (semantic field)
+  colSpan: number | undefined;
+
   // Children (container)
   children: Frame[];
 
@@ -330,6 +336,7 @@ export class Frame {
 
     this.label = init?.label ?? [];
     this.role = init?.role ?? '';
+    this.colSpan = init?.colSpan;
 
     this.children = init?.children ?? [];
 

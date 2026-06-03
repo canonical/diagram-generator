@@ -4,6 +4,13 @@ Completed work belongs here so `TODO.md` stays lean.
 
 ## Short-term
 
+### 2026-06-03 – P1 bug fixes and spec 005 WS1 completion
+
+- **Highlight contrast:** Children inside `variant: highlight` panels inherit white text/icon fill while keeping their own box styling.
+- **Height input blur:** `setFrameSize` clears runtime coercion keys so explicit FIXED heights survive relayout.
+- **WS1 semantic mutation removal (TS):** Layout captures/restores semantic fields; `col_span` and grid equalization are runtime-only.
+- **Validation:** 201 TS + 246 Python tests passing.
+
 ### 2026-06-02 – Preview coercion persistence fix
 
 - **Editor coercion is runtime-only now.** `scripts/preview/editor.js` no longer merges engine-reported auto-coercion back into persistent overrides during local relayout, so an explicit `HUG` choice is no longer rewritten to saved `FIXED` state.

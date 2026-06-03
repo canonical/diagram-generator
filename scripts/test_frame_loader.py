@@ -834,6 +834,40 @@ root:
 # ── Overlays ────────────────────────────────────────────────────────
 
 
+def test_highlight_child_on_highlight_parent_gets_white_text(tmp_path):
+    from frame_loader import resolve_styles
+
+    diagram = _load(
+        tmp_path,
+        """
+engine: v3
+root:
+  id: page
+  children:
+    - id: panel
+      variant: highlight
+      heading: Services
+      children:
+        - id: b
+          label: [Hello]
+""",
+    )
+    resolve_styles(diagram.root)
+
+    def _find_leaf(frame):
+        if frame.label:
+            return frame
+        for child in frame.children:
+            found = _find_leaf(child)
+            if found is not None:
+                return found
+        return None
+
+    content = _find_leaf(diagram.root.children[0])
+    assert content is not None
+    assert content.label[0].fill == "#FFFFFF"
+
+
 def test_overlays_parsed_from_yaml(tmp_path):
     diagram = _load(
         tmp_path,

@@ -115,6 +115,29 @@ function applyTextStyle(line: Line, style: FrameTextStyle, fill: string | undefi
   });
 }
 
+/** Apply readable text/icon contrast for frames sitting on a highlight parent. */
+export function applyHighlightParentContrast(frame: Frame): void {
+  const textFill = '#FFFFFF';
+  const iconFill = '#FFFFFF';
+
+  if (frame.label.length > 0) {
+    frame.label = frame.label.map((line) => applyLineFill(line, textFill));
+  }
+  if (frame.heading != null) {
+    frame.heading = applyLineFill(frame.heading, textFill);
+  }
+  if (frame.icon && (frame.iconFill == null || frame.iconFill === '#000000')) {
+    frame.iconFill = iconFill;
+  }
+  for (const child of frame.children) {
+    if (child.role !== 'heading') continue;
+    child.label = child.label.map((line) => applyLineFill(line, textFill));
+    if (child.icon && (child.iconFill == null || child.iconFill === '#000000')) {
+      child.iconFill = iconFill;
+    }
+  }
+}
+
 export function applyFrameClass(frame: Frame, frameClass: FrameClassDefinition): void {
   frame.resolvedFill = frameClass.fill;
   frame.resolvedStroke = frameClass.stroke;

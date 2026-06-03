@@ -2120,6 +2120,7 @@ function setMultiFrameSize(dimension, value) {
     if (!node) continue;
     if (node.type === 'arrow') continue;
     if (!overrides[cid]) overrides[cid] = {};
+    _clearSizingCoercion(cid, sizingProp, dimension);
     overrides[cid][sizingProp] = 'FIXED';
     overrides[cid][dimension] = px;
   }
@@ -5233,11 +5234,17 @@ window.getV3RelayoutStatus = getV3RelayoutStatus;
 // Expose to inline handlers
 window.setFrameProp = setFrameProp;
 
+function _clearSizingCoercion(cid, sizingProp, dimension) {
+  _coercedKeys.delete(cid + ':' + sizingProp);
+  _coercedKeys.delete(cid + ':' + dimension);
+}
+
 /**
  * Set an explicit width or height value, converting from the current
  * inspector unit (px, cols, rows) to pixels.
  */
 function setFrameSize(cid, dimension, value) {
+  if (!Number.isFinite(value) || value <= 0) return;
   let px;
   if (dimension === 'width' && _inspectorWidthUnit === 'cols') {
     px = colSpanToPx(value);
@@ -5249,10 +5256,14 @@ function setFrameSize(cid, dimension, value) {
   if (px == null || isNaN(px) || px <= 0) return;
   px = Math.round(px);
   const sizingProp = dimension === 'width' ? 'sizing_w' : 'sizing_h';
+  const fpIds = [cid];
+  const fpBefore = _captureOverrideEntries(fpIds);
   if (!overrides[cid]) overrides[cid] = {};
+  _clearSizingCoercion(cid, sizingProp, dimension);
   overrides[cid][sizingProp] = 'FIXED';
   overrides[cid][dimension] = px;
   setDirty(true);
+  commitOverridePatchAction("Set " + dimension, fpBefore, _captureOverrideEntries(fpIds));
   clearTimeout(_v3RelayoutTimer);
   _v3RelayoutTimer = setTimeout(() => requestV3Relayout(cid), 300);
   renderSelectionInspector(cid);

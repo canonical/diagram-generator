@@ -13,7 +13,7 @@
  */
 
 import { Border, Fill, Frame } from './frame-model.js';
-import { applyFrameClass, FRAME_CLASS_DEFS } from './frame-classes.js';
+import { applyFrameClass, applyHighlightParentContrast, FRAME_CLASS_DEFS } from './frame-classes.js';
 
 /**
  * Compute the effective prominence level for a frame.
@@ -48,6 +48,7 @@ interface ResolveStylesContext {
   depth: number;
   parentIsPanel: boolean;
   parentIsSection: boolean;
+  parentIsHighlight: boolean;
 }
 
 /**
@@ -61,10 +62,12 @@ export function resolveStyles(root: Frame, ctx?: Partial<ResolveStylesContext>):
   const depth = ctx?.depth ?? 0;
   const parentIsPanel = ctx?.parentIsPanel ?? false;
   const parentIsSection = ctx?.parentIsSection ?? false;
+  const parentIsHighlight = ctx?.parentIsHighlight ?? false;
 
   const isLayoutWrapper = (root.id || '').includes('__');
   let thisIsPanel = false;
   let thisIsSection = false;
+  let thisIsHighlight = false;
 
   if (depth === 0) {
     // Root frame: invisible
@@ -82,6 +85,7 @@ export function resolveStyles(root: Frame, ctx?: Partial<ResolveStylesContext>):
     applyFrameClass(root, FRAME_CLASS_DEFS.hidden);
   } else {
     const isHighlight = root.fill === Fill.BLACK;
+    thisIsHighlight = isHighlight;
     // Normal frame: resolve from level
     let level = computeLevel(root, depth);
 
@@ -115,6 +119,9 @@ export function resolveStyles(root: Frame, ctx?: Partial<ResolveStylesContext>):
 
       if (isHighlight) {
         applyFrameClass(root, FRAME_CLASS_DEFS.highlight);
+      } else if (parentIsHighlight) {
+        // Keep leaf/panel box styling, but use white text/icons on black parent fill.
+        applyHighlightParentContrast(root);
       }
   }
 
@@ -123,10 +130,14 @@ export function resolveStyles(root: Frame, ctx?: Partial<ResolveStylesContext>):
     // Layout wrappers pass through the parent's panel/section status
     const childParentPanel = isLayoutWrapper ? parentIsPanel : thisIsPanel;
     const childParentSection = isLayoutWrapper ? parentIsSection : thisIsSection;
+    const childParentHighlight = isLayoutWrapper
+      ? parentIsHighlight
+      : (parentIsHighlight || thisIsHighlight);
     resolveStyles(child, {
       depth: depth + 1,
       parentIsPanel: childParentPanel,
       parentIsSection: childParentSection,
+      parentIsHighlight: childParentHighlight,
     });
   }
 }

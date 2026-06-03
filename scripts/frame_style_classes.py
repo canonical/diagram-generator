@@ -135,3 +135,22 @@ def apply_frame_class(frame, frame_class: FrameClassDefinition) -> None:
         frame.label[0] = _apply_text_style(
             frame.label[0], frame_class.leaf_lead_text, frame_class.text_fill
         )
+
+
+def apply_highlight_parent_contrast(frame) -> None:
+    """Apply readable text/icon contrast for frames on a highlight parent."""
+    text_fill = "#FFFFFF"
+    icon_fill = "#FFFFFF"
+
+    if frame.label:
+        frame.label = [_apply_line_fill(line, text_fill) for line in frame.label]
+    if frame.heading is not None:
+        frame.heading = _apply_line_fill(frame.heading, text_fill)
+    if frame.icon and (frame.icon_fill is None or frame.icon_fill == "#000000"):
+        frame.icon_fill = icon_fill
+    for child in frame.children:
+        if child.role != "heading":
+            continue
+        child.label = [_apply_line_fill(line, text_fill) for line in child.label]
+        if child.icon and (child.icon_fill is None or child.icon_fill == "#000000"):
+            child.icon_fill = icon_fill

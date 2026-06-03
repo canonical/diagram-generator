@@ -26,6 +26,62 @@ import {
 
 
 // ---------------------------------------------------------------------------
+// Semantic state preservation (WS1 — no persistent mutation)
+// ---------------------------------------------------------------------------
+
+interface SemanticSnapshot {
+  width: number | undefined;
+  height: number | undefined;
+  sizingW: Sizing;
+  sizingH: Sizing;
+}
+
+function captureSemanticState(frame: Frame, state: Map<Frame, SemanticSnapshot>): void {
+  state.set(frame, {
+    width: frame.width,
+    height: frame.height,
+    sizingW: frame.sizingW,
+    sizingH: frame.sizingH,
+  });
+  for (const child of frame.children) {
+    captureSemanticState(child, state);
+  }
+}
+
+function restoreSemanticState(frame: Frame, state: Map<Frame, SemanticSnapshot>): void {
+  const snap = state.get(frame);
+  if (snap) {
+    frame.width = snap.width;
+    frame.height = snap.height;
+    frame.sizingW = snap.sizingW;
+    frame.sizingH = snap.sizingH;
+  }
+  for (const child of frame.children) {
+    restoreSemanticState(child, state);
+  }
+}
+
+function resolveColSpans(frame: Frame, colW: number, colGap: number): void {
+  if (frame.colSpan != null && frame.colSpan >= 1) {
+    const n = frame.colSpan;
+    frame.width = n * colW + Math.max(0, n - 1) * colGap;
+    frame.sizingW = Sizing.FIXED;
+  }
+  for (const child of frame.children) {
+    resolveColSpans(child, colW, colGap);
+  }
+}
+
+function equalizeGridColumns(root: Frame): void {
+  for (const child of root.children) {
+    if (child.positionType === 'ABSOLUTE') continue;
+    if (child.sizingH === Sizing.HUG) {
+      child.sizingH = Sizing.FILL;
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
@@ -880,6 +936,10 @@ export interface LayoutOptions {
    * Defaults to BASELINE_UNIT (8) for backward compatibility.
    */
   gridStep?: number;
+  /** Explicit grid column count from diagram YAML (enables col_span resolution). */
+  gridCols?: number;
+  gridColGap?: number;
+  gridOuterMargin?: number;
 }
 
 /**
@@ -898,7 +958,7 @@ export function layoutFrameTree(
   const step = options?.gridStep ?? BASELINE_UNIT;
   setActiveGridStep(step);
   try {
-    return _layoutFrameTreeInner(root, adapter);
+    return _layoutFrameTreeInner(root, adapter, options);
   } finally {
     setActiveGridStep(prevStep);
   }
@@ -907,36 +967,60 @@ export function layoutFrameTree(
 function _layoutFrameTreeInner(
   root: Frame,
   adapter: TextMeasureAdapter,
+  options?: LayoutOptions,
 ): LayoutOutput {
-  // Pass 1: measure (root uses sum-based sizing)
-  measure(root, adapter, true);
+  const semanticState = new Map<Frame, SemanticSnapshot>();
+  captureSemanticState(root, semanticState);
 
-  // Coerce: HUG parent + FILL child → parent freezes to FIXED
-  const coerced = enforceFillHugInvariant(root);
+  try {
+    // Pass 1: measure (root uses sum-based sizing)
+    measure(root, adapter, true);
 
-  // Root gets its measured size (or fixed if set)
-  const requestedRootW = root.width ?? root._layout.measuredW;
-  const rootW = expandRootWidthForSnappedFillColumns(root, requestedRootW);
-  const originalRootWidth = root.width;
-  if (originalRootWidth != null && rootW !== originalRootWidth) {
-    root.width = rootW;
+    // Coerce: HUG parent + FILL child → parent freezes to FIXED
+    const coerced = enforceFillHugInvariant(root);
+
+    // Root gets its measured size (or fixed if set)
+    const requestedRootW = root.width ?? root._layout.measuredW;
+    const rootW = expandRootWidthForSnappedFillColumns(root, requestedRootW);
+    if (root.width != null && rootW !== root.width) {
+      root.width = rootW;
+    }
+
+    // Pass 1.5: constrained re-measurement
+    remeasureWithWidthConstraints(root, rootW, adapter, coerced);
+
+    const rootH = root.height ?? root._layout.measuredH;
+
+    const gridCols = options?.gridCols ?? 0;
+    let colW = 0;
+    let colGapG = 0;
+    if (gridCols > 1 && options?.gridColGap != null) {
+      const outerMargin = options.gridOuterMargin
+        ?? root.paddingTop
+        ?? root.padding;
+      colGapG = options.gridColGap;
+      const contentW = Math.max(0, rootW - 2 * outerMargin);
+      const colWRaw = (contentW - (gridCols - 1) * colGapG) / gridCols;
+      colW = Math.floor(colWRaw / BASELINE_UNIT) * BASELINE_UNIT;
+    }
+
+    if (colW > 0) {
+      resolveColSpans(root, colW, colGapG);
+    }
+
+    if (gridCols > 1 && root.direction === Direction.HORIZONTAL) {
+      equalizeGridColumns(root);
+    }
+
+    // Pass 2: place
+    place(root, 0, 0, rootW, rootH, adapter);
+
+    return {
+      width: Math.round(root._layout.placedW),
+      height: Math.round(root._layout.placedH),
+      coerced,
+    };
+  } finally {
+    restoreSemanticState(root, semanticState);
   }
-
-  // Pass 1.5: constrained re-measurement
-  remeasureWithWidthConstraints(root, rootW, adapter, coerced);
-
-  const rootH = root.height ?? root._layout.measuredH;
-
-  // Pass 2: place
-  place(root, 0, 0, rootW, rootH, adapter);
-
-  if (originalRootWidth != null && root.width !== originalRootWidth) {
-    root.width = originalRootWidth;
-  }
-
-  return {
-    width: Math.round(root._layout.placedW),
-    height: Math.round(root._layout.placedH),
-    coerced,
-  };
 }

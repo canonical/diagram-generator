@@ -373,37 +373,6 @@ describe('layoutFrameTree', () => {
       id: 'child',
       sizingW: Sizing.FILL,
       sizingH: Sizing.FILL,
-      label: [createLine('Content')],
-    });
-    const root = new Frame({
-      id: 'root',
-      direction: Direction.VERTICAL,
-      sizingW: Sizing.FIXED,
-      sizingH: Sizing.HUG,
-      width: 200,
-      padding: 8,
-      children: [child],
-    });
-
-    const before = snapshotSemanticSizing(root);
-
-    const first = layoutFrameTree(root, adapter);
-
-    expect(first.coerced.get('root')).toMatchObject({ sizingH: 'FIXED' });
-    expect(snapshotSemanticSizing(root)).toEqual(before);
-
-    const second = layoutFrameTree(root, adapter);
-
-    expect(snapshotSemanticSizing(root)).toEqual(before);
-    expect(second.width).toBe(first.width);
-    expect(second.height).toBe(first.height);
-  });
-
-  it('coerces HUG parent with FILL child', () => {
-    const child = new Frame({
-      id: 'child',
-      sizingW: Sizing.FILL,
-      sizingH: Sizing.FILL,
     });
     const root = new Frame({
       id: 'root',
@@ -506,6 +475,78 @@ describe('layoutFrameTree', () => {
     // Leaves should be inside inner's padding
     expect(leaf1._layout.placedX).toBeGreaterThanOrEqual(inner._layout.placedX + 4);
     expect(leaf1._layout.placedY).toBeGreaterThanOrEqual(inner._layout.placedY + 4);
+  });
+
+  it('keeps semantic fields stable across repeated layout (idempotency)', () => {
+    const child = new Frame({
+      id: 'child',
+      sizingW: Sizing.FILL,
+      sizingH: Sizing.FILL,
+      label: [createLine('Content')],
+    });
+    const root = new Frame({
+      id: 'root',
+      direction: Direction.VERTICAL,
+      sizingW: Sizing.FIXED,
+      sizingH: Sizing.HUG,
+      width: 200,
+      padding: 8,
+      children: [child],
+    });
+
+    const before = snapshotSemanticSizing(root);
+    const first = layoutFrameTree(root, adapter);
+    expect(first.coerced.get('root')).toMatchObject({ sizingH: 'FIXED' });
+    expect(snapshotSemanticSizing(root)).toEqual(before);
+
+    const second = layoutFrameTree(root, adapter);
+    expect(snapshotSemanticSizing(root)).toEqual(before);
+    expect(second.width).toBe(first.width);
+    expect(second.height).toBe(first.height);
+  });
+
+  it('preserves semantic fields with coercion, col_span, and grid equalization', () => {
+    const spanLeaf = new Frame({
+      id: 'span_leaf',
+      label: [createLine('Spanning child')],
+      sizingW: Sizing.FILL,
+      sizingH: Sizing.HUG,
+      colSpan: 2,
+    });
+    const leftCol = new Frame({
+      id: 'left_col',
+      direction: Direction.VERTICAL,
+      sizingW: Sizing.FILL,
+      sizingH: Sizing.HUG,
+      children: [spanLeaf],
+    });
+    const rightCol = new Frame({
+      id: 'right_col',
+      direction: Direction.VERTICAL,
+      sizingW: Sizing.FILL,
+      sizingH: Sizing.HUG,
+      children: [new Frame({ id: 'r1', sizingH: Sizing.FIXED, height: 64, label: [createLine('R')] })],
+    });
+    const root = new Frame({
+      id: 'root',
+      direction: Direction.HORIZONTAL,
+      sizingW: Sizing.HUG,
+      sizingH: Sizing.HUG,
+      padding: 24,
+      children: [leftCol, rightCol],
+    });
+
+    const before = snapshotSemanticSizing(root);
+    const gridOpts = { gridCols: 4, gridColGap: 24, gridOuterMargin: 24 };
+
+    layoutFrameTree(root, adapter, gridOpts);
+    expect(snapshotSemanticSizing(root)).toEqual(before);
+    expect(spanLeaf.sizingW).toBe(Sizing.FILL);
+    expect(spanLeaf.width).toBeUndefined();
+    expect(spanLeaf._layout.placedW).toBeGreaterThan(0);
+
+    layoutFrameTree(root, adapter, gridOpts);
+    expect(snapshotSemanticSizing(root)).toEqual(before);
   });
 });
 

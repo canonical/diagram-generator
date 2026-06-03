@@ -12,22 +12,19 @@ Active execution queue for `diagram-generator`. All new work targets TypeScript 
 
 #### Highlight text contrast bug
 
-- [ ] `[M]` **Highlight children have black text on black fill.** In `android-security-comparison`, the "Virtualized Android" panel uses highlight style (black fill), but child boxes render black text instead of white. Likely a resolved-style propagation gap. Reproduce: `v3:android-security-comparison`.
+- [x] `[M]` **Highlight children have black text on black fill.** Children inside `variant: highlight` panels now inherit white text/icon contrast while keeping their own box styling.
 
 #### Fixed height input loses value on blur
 
-- [ ] `[M]` **Inspector height input clears on focus-out instead of applying the value.** Set height to Fixed, type `128`, blur — the value disappears and the element doesn't resize. See `image-3.png`.
+- [x] `[M]` **Inspector height input clears on focus-out instead of applying the value.** `setFrameSize` now clears runtime coercion keys before relayout so explicit FIXED heights persist.
 
 ### Priority 2 — Spec-kit tracked work
 
-#### Autolayout hardening — semantic mutation removal (spec 005) — NEXT
+#### Autolayout hardening — semantic mutation removal (spec 005) — IN PROGRESS
 
-Feature package: `specs/005-autolayout-hardening/` — 0/24 tasks done. **Target: TypeScript `layout.ts` as primary engine.** Python receives equivalent changes only for parity verification.
+Feature package: `specs/005-autolayout-hardening/` — WS1 largely complete in TS; WS2–WS5 remain.
 
-The code hardening work — eliminating Frame tree mutation during layout — has not started. This is the top architecture debt item. The key problem is that `layout.ts` (and `layout_v3.py`) directly mutate `frame.width` and `frame.sizing_w` during col_span resolution and FILL/HUG coercion. Layout should use derived-only fields and stop mutating semantic Frame fields.
-
-- [ ] `[H]` **H1. Layout mutates Frame tree.** `col_span` rewrites `width`/`sizing_w`; FILL/HUG coercion rewrites parent sizing; root width save/mutate/restore is fragile. Fix: layout-only derived fields.
-	Coercion bookkeeping no longer mutates semantic fields in TS or Python, and the preview editor no longer saves runtime auto-coercion back into overrides/YAML. Remaining slice: root-width temporary mutation and `col_span` width rewriting.
+- [x] `[H]` **H1. Layout mutates Frame tree.** Coercion, col_span, root-width expansion, and grid equalization are runtime-only; semantic fields restore after layout in TS and Python.
 - [ ] `[H]` **H3. Heading synthetic child incomplete.** `__body` no longer copies `wrap`, `fill_weight`, `justify` from parent. Document as settled.
 - [ ] `[M]` **H5. Leaf measure vs render padding mismatch.** Measurement uses INSET, rendering uses per-side padding + 1px hack. Fix: use `frame.padding_*` in measurement.
 

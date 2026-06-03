@@ -15,10 +15,10 @@
 ## Phase 2: Semantic mutation removal (WS1)
 
 - [ ] T010 Introduce isolated derived-layout state structure
-- [ ] T011 Refactor col_span resolution to avoid mutating semantic width fields
+- [x] T011 Refactor col_span resolution to avoid mutating semantic width fields
 - [x] T012 Refactor FILL/HUG coercion bookkeeping to derived state only
 - [x] T013 Add idempotency regression test (run layout twice, compare semantic tree)
-- [ ] T014 Add mutation-guard test for representative nested fixture
+- [x] T014 Add mutation-guard test for representative nested fixture
 
 ## Phase 3: Style ownership unification (WS2)
 

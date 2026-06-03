@@ -25,9 +25,9 @@ Don't create Jira issues for refactors or spec-level tasks. Jira is for mileston
 - **Tests:** ~200 TS + ~240 Python passing. 9 shared parity fixtures.
 - **Diagrams:** 32 v3 Frame YAML definitions.
 
-**Active focus (2026-06-02):** Specs 001–004, 007, 009, 010 complete. Next: 3 bugs (highlight contrast, height input blur, grid rows persist), then spec 005 (TS-first mutation removal).
+**Active focus (2026-06-03):** Spec 005 WS1 complete (coercion, col_span, root-width, grid equalization are runtime-only). P1 bugs fixed. Next: spec 005 WS2 (style ownership) or spec 008 Phase 5 (resolved-style snapshot).
 
-**Current slice (2026-06-03):** Spec 005 WS1 coercion slice landed. TypeScript and Python now keep FILL/HUG coercion in runtime override data instead of mutating semantic `Frame` fields, TS has a repeated-layout mutation guard, and the preview editor now keeps auto-coercion runtime-only instead of saving it back into YAML authoring state. The preview reload path also now preserves authored root padding on fresh TS renders, strips transient grid fields from save payloads, and relayouts correctly on undo/redo for v3-managed overrides. Remaining H1 work: root-width temporary mutation and other width-derived semantic rewrites such as `col_span` width mutation.
+**Current slice:** WS1 semantic mutation removal landed in TS and Python. Highlight children inside highlight panels get white text contrast. Inspector FIXED height input persists through relayout.
 
 ## Key files
 
