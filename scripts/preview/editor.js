@@ -2946,7 +2946,15 @@ async function deleteSelectedFrames() {
   return ok;
 }
 
+function _treeHasFrameId(frameId) {
+  const treeEl = document.getElementById("tree");
+  if (!treeEl) return false;
+  return Array.from(treeEl.querySelectorAll(".tree-item"))
+    .some(el => el.textContent === frameId);
+}
+
 window.deleteSelectedFrames = deleteSelectedFrames;
+window.__DG_TEST_treeHasFrameId = _treeHasFrameId;
 
 // ---- Interaction ----
 
@@ -3019,21 +3027,19 @@ function _showTreeContextMenu(clientX, clientY) {
   setTimeout(() => document.addEventListener("mousedown", dismiss, true), 0);
 }
 
-function bindInteraction() {
-  const svg = document.querySelector("#stage svg");
-  if (!svg) return;
+let _interactionSvg = null;
 
-  // Add invisible wider hit-area lines for arrow and separator components
+function _ensureSvgHitAreas(svg) {
   const ns = "http://www.w3.org/2000/svg";
   svg.querySelectorAll("[data-component-id]").forEach(g => {
     const hasRect = g.querySelector(":scope > rect");
     const lines = g.querySelectorAll("line");
     const icons = g.querySelectorAll(".dg-icon");
     if (lines.length > 0 && !hasRect) {
-      // Arrow or separator group (lines, no rect) – add wider hit areas
       lines.forEach(ln => {
-        if (ln.style.pointerEvents === "stroke") return; // already a hit area
+        if (ln.getAttribute("data-dg-hit-area") === "1") return;
         const hit = document.createElementNS(ns, "line");
+        hit.setAttribute("data-dg-hit-area", "1");
         hit.setAttribute("x1", ln.getAttribute("x1"));
         hit.setAttribute("y1", ln.getAttribute("y1"));
         hit.setAttribute("x2", ln.getAttribute("x2"));
@@ -3045,9 +3051,10 @@ function bindInteraction() {
       });
     }
     if (icons.length > 0 && !hasRect) {
-      // Icon cluster (icons, no rect) – add invisible rect hit area
+      if (g.querySelector(':scope > rect[data-dg-hit-area="1"]')) return;
       const bbox = g.getBBox();
       const hit = document.createElementNS(ns, "rect");
+      hit.setAttribute("data-dg-hit-area", "1");
       hit.setAttribute("x", bbox.x);
       hit.setAttribute("y", bbox.y);
       hit.setAttribute("width", bbox.width);
@@ -3057,31 +3064,50 @@ function bindInteraction() {
       g.insertBefore(hit, g.firstChild);
     }
   });
+}
 
-  // Build tree sidebar
+function _teardownSvgInteraction(svg) {
+  if (!svg) return;
+  svg.removeEventListener("mousedown", onSvgMouseDown);
+  svg.removeEventListener("dblclick", onSvgDblClick);
+  svg.removeEventListener("mouseover", _onSvgMouseOver);
+  svg.removeEventListener("mouseout", _onSvgMouseOut);
+}
+
+function _onSvgMouseOver(e) {
+  if (mgr.suppressHover) return;
+  const svg = e.currentTarget;
+  const pt = svg.createSVGPoint();
+  pt.x = e.clientX;
+  pt.y = e.clientY;
+  const svgPt = pt.matrixTransform(svg.getScreenCTM().inverse());
+  const hoverCid = findComponentAtDepth(svgPt.x, svgPt.y, selectionDepth);
+  svg.querySelectorAll(".dg-hover").forEach(el => el.classList.remove("dg-hover"));
+  if (hoverCid) {
+    svg.querySelectorAll('[data-component-id="' + hoverCid + '"]')
+      .forEach(el => el.classList.add("dg-hover"));
+  }
+}
+
+function _onSvgMouseOut(e) {
+  if (mgr.suppressHover) return;
+  e.currentTarget.querySelectorAll(".dg-hover").forEach(el => el.classList.remove("dg-hover"));
+}
+
+function bindInteraction() {
+  const svg = document.querySelector("#stage svg");
+  if (!svg) return;
+
+  _ensureSvgHitAreas(svg);
   buildTreeUI();
 
-  // Mouse handlers on SVG
+  if (_interactionSvg === svg) return;
+  _teardownSvgInteraction(_interactionSvg);
+  _interactionSvg = svg;
   svg.addEventListener("mousedown", onSvgMouseDown);
   svg.addEventListener("dblclick", onSvgDblClick);
-  svg.addEventListener("mouseover", (e) => {
-    if (mgr.suppressHover) return;
-    const pt = svg.createSVGPoint();
-    pt.x = e.clientX;
-    pt.y = e.clientY;
-    const svgPt = pt.matrixTransform(svg.getScreenCTM().inverse());
-    const hoverCid = findComponentAtDepth(svgPt.x, svgPt.y, selectionDepth);
-    svg.querySelectorAll(".dg-hover").forEach(el => el.classList.remove("dg-hover"));
-    if (hoverCid) {
-      svg.querySelectorAll('[data-component-id="' + hoverCid + '"]')
-        .forEach(el => el.classList.add("dg-hover"));
-    }
-  });
-  svg.addEventListener("mouseout", () => {
-    if (!mgr.suppressHover) {
-      svg.querySelectorAll(".dg-hover").forEach(el => el.classList.remove("dg-hover"));
-    }
-  });
+  svg.addEventListener("mouseover", _onSvgMouseOver);
+  svg.addEventListener("mouseout", _onSvgMouseOut);
 }
 
 // ---- Drag (move) ----

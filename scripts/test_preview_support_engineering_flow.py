@@ -719,6 +719,82 @@ def test_v3_per_side_padding_updates_live_and_persists(tmp_path):
                 browser.close()
 
 
+def test_v3_keyboard_delete_removes_frame_persists_and_undo(tmp_path):
+    frames_dir = tmp_path / "frames"
+    frames_dir.mkdir()
+    source_frame = SCRIPTS / "diagrams" / "frames" / "simple-testcase.yaml"
+    saved_frame = frames_dir / "simple-testcase.yaml"
+    shutil.copyfile(source_frame, saved_frame)
+
+    with _preview_server(extra_env={"DG_FRAMES_DIR": str(frames_dir)}) as base_url:
+        with sync_playwright() as playwright:
+            browser, page = _open_v3_page(playwright, base_url, "simple-testcase", "define")
+            try:
+                page.wait_for_function("() => getV3RelayoutStatus().localReady")
+                page.locator('[data-component-id="define"] rect').click()
+                page.wait_for_function(
+                    "() => selectedIds.size === 1 && selectedIds.has('define')",
+                )
+                page.keyboard.press("Delete")
+                page.wait_for_function("() => model.get('define') === null")
+                page.wait_for_function("() => !__DG_TEST_treeHasFrameId('define')")
+
+                page.evaluate("() => performUndo()")
+                page.wait_for_function("() => model.get('define') !== null")
+                page.wait_for_function("() => __DG_TEST_treeHasFrameId('define')")
+
+                page.evaluate("() => performRedo()")
+                page.wait_for_function("() => model.get('define') === null")
+
+                page.evaluate("() => saveOverrides()")
+                page.wait_for_timeout(500)
+                saved_yaml = yaml.safe_load(saved_frame.read_text(encoding="utf-8"))
+                assert _find_frame(saved_yaml["root"], "define") is None
+                arrows = saved_yaml.get("arrows") or []
+                assert not any(
+                    a.get("source") == "define" or a.get("target") == "define"
+                    for a in arrows
+                    if isinstance(a, dict)
+                )
+            finally:
+                browser.close()
+
+
+def test_v3_tree_context_menu_delete_removes_frame(tmp_path):
+    frames_dir = tmp_path / "frames"
+    frames_dir.mkdir()
+    source_frame = SCRIPTS / "diagrams" / "frames" / "simple-testcase.yaml"
+    saved_frame = frames_dir / "simple-testcase.yaml"
+    shutil.copyfile(source_frame, saved_frame)
+
+    with _preview_server(extra_env={"DG_FRAMES_DIR": str(frames_dir)}) as base_url:
+        with sync_playwright() as playwright:
+            browser, page = _open_v3_page(playwright, base_url, "simple-testcase", "measure")
+            try:
+                page.wait_for_function("() => getV3RelayoutStatus().localReady")
+                page.evaluate(
+                    """
+                    () => {
+                      const el = [...document.querySelectorAll('#tree .tree-item')]
+                        .find((node) => node.textContent === 'measure');
+                      if (!el) throw new Error('measure tree row missing');
+                      el.dispatchEvent(new MouseEvent('contextmenu', {
+                        bubbles: true,
+                        cancelable: true,
+                        view: window,
+                        clientX: 20,
+                        clientY: 20,
+                      }));
+                    }
+                    """
+                )
+                page.locator("#dg-tree-context-menu button", has_text="Delete frame").click()
+                page.wait_for_function("() => model.get('measure') === null")
+                page.wait_for_function("() => !__DG_TEST_treeHasFrameId('measure')")
+            finally:
+                browser.close()
+
+
 def test_v3_undo_redo_relayouts_padding_override(tmp_path):
     frames_dir = tmp_path / "frames"
     frames_dir.mkdir()
