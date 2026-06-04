@@ -4,6 +4,12 @@ Completed work belongs here so `TODO.md` stays lean.
 
 ## Short-term
 
+### 2026-06-03 – Main reset audit, dirty nav, spec 012 T060a
+
+- **Git audit:** Verified no work lost when local `main` was reset to `origin/main` and FF-merged `feat/010` + `feat/005` (`31bce6e` ⊆ `6790df0`). Verdict **SAFE**; details archived from `AGENT-INBOX.md`.
+- **Dirty diagram navigation:** Confirm before prev/next or browse-link when unsaved; on cancel, sync picker/browse UI to current URL (`6c712cc`).
+- **Spec 012 T060a:** Preview server live v3 SVG is TS export only; failure logs and returns 404 (no `layout_v3` + `diagram_render_svg` fallback). Tests in `test_preview_server_reload.py` (`00887f8`).
+
 ### 2026-06-03 – P1 bug fixes and spec 005 WS1 completion
 
 - **Highlight contrast:** Children inside `variant: highlight` panels inherit white text/icon fill while keeping their own box styling.

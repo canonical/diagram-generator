@@ -26,7 +26,7 @@ Don't create Jira issues for refactors or spec-level tasks. Jira is for mileston
 - **Export:** `node packages/layout-engine/scripts/export-frame-svg.mjs --slug <name>` (TS layout + HarfBuzz + SVG).
 - **Diagrams:** 32 v3 Frame YAML definitions.
 
-**Active focus (2026-06-03):** Spec 011 complete — 66ch default, TS batch SVG export (`export-frame-svg.mjs`), preview server uses TS path first. 212 TS tests green. Next: spec 005 WS2 or retire Python `layout_v3` from component-tree path.
+**Active focus (2026-06-03):** Spec **012** in progress — preview live SVG is TS-only (T060a done); next: `svg-render.ts` parity (icons, arrows, overlays) then retire `diagram_render_svg.py` (T060b). Spec 005 WS2 and spec 008 Phase 5 queued after 012. YAML is already authoring source of truth; remaining split is TS vs Python **runtime**, not YAML adoption.
 
 ## Key files
 
@@ -37,7 +37,7 @@ Don't create Jira issues for refactors or spec-level tasks. Jira is for mileston
 | TS relayout bridge | `scripts/preview/layout-bridge.js` |
 | Python YAML parser | `scripts/frame_loader.py` |
 | Python layout (parity) | `scripts/layout_v3.py` |
-| Python SVG export | `scripts/diagram_render_svg.py` |
+| Python SVG export (batch only; preview retired) | `scripts/diagram_render_svg.py` |
 | Frame-class definitions | `scripts/frame_style_classes.py` |
 | Frame YAML sources | `scripts/diagrams/frames/*.yaml` |
 | Interactive editor | `scripts/preview/editor.js` |

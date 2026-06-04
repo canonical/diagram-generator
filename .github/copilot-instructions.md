@@ -19,8 +19,8 @@ TypeScript is the standard for all new feature work. The rationale (from the des
 Python is retained for three things:
 
 1. **YAML parsing** — **Frame YAML on disk is authority.** `/api/frame-tree` JSON is a derived DTO from `frame-yaml-loader.ts` + `frame-serialize.ts` (via `emit-frame-diagram-json.mjs`), not a second source of truth. `frame_loader.py` is legacy fallback only.
-2. **Batch SVG export** — `node packages/layout-engine/scripts/export-frame-svg.mjs --slug <name>` (TS layout + HarfBuzz + `svg-render.ts`). Preview server uses this path first; `diagram_render_svg.py` is fallback only.
-3. **Preview layout API** — `layout-frame-diagram.mjs` + `preview_ts_layout.py` supply `/api/frame-tree`, grid, and component tree (TS-only). Python `layout_v3` is **SVG render fallback only** until spec 012. Node CLIs resolve frames via `DG_FRAMES_DIR` (same as `preview_server.py`) in `packages/layout-engine/scripts/_dist-import.mjs`.
+2. **Batch SVG export** — `node packages/layout-engine/scripts/export-frame-svg.mjs --slug <name>` (TS layout + HarfBuzz + `svg-render.ts`). `diagram_render_svg.py` remains for batch callers until spec 012 T060b.
+3. **Preview** — Live v3 SVG and layout API are TS-only (`preview_ts_export.py`, `preview_ts_layout.py`, `layout-bridge.js`). TS SVG failure → HTTP 404 + log (no Python SVG fallback; spec 012 T060a). Node CLIs resolve frames via `DG_FRAMES_DIR` in `packages/layout-engine/scripts/_dist-import.mjs`.
 4. **Transitional parity oracle** — TS-only fixtures under spec 011 semantics; Python layout parity is not required for new measure work.
 
 Python does NOT do: interactive relayout, text measurement, editor state, or any new feature development. **Do not add new layout or measure logic to Python** — parse/serialize passthrough for YAML fields is acceptable.
