@@ -1748,12 +1748,13 @@ function renderMultiSelectionInspector() {
     const parentNode = model.get(info.parentId);
     if (parentNode && parentNode.layout) {
       const pOvr = overrides[info.parentId] || {};
-      const stackGap = pOvr.stack_gap !== undefined ? pOvr.stack_gap : (parentNode.layoutGap ?? DEFAULT_STACK_GAP);
+      const parentHeaded = _isHeadedStackContainer(parentNode);
+      const parentGap = pOvr.gap !== undefined ? pOvr.gap : (parentHeaded ? (parentNode.layoutHeaderGap ?? 0) : (parentNode.layoutGap ?? DEFAULT_STACK_GAP));
       html += '<div class="dg-autolayout-section" style="margin-top:8px">';
       html += '<span class="label" style="margin-bottom:4px;display:block">Stack spacing</span>';
-      html += '<div class="field"><span class="label">Stack gap</span>';
-      html += '<input class="bf-input" type="number" min="0" step="8" value="' + stackGap + '"';
-      html += ' onchange="setFrameProp(\'' + info.parentId + '\',\'stack_gap\',parseInt(this.value))"';
+      html += '<div class="field"><span class="label">Gap</span>';
+      html += '<input class="bf-input" type="number" min="0" step="8" value="' + parentGap + '"';
+      html += ' onchange="setFrameProp(\'' + info.parentId + '\',\'gap\',parseInt(this.value))"';
       html += ' style="width:60px">';
       html += '<span class="unit" style="margin-left:4px;color:#888;font-size:11px">px</span></div>';
       html += '</div>';
@@ -1834,11 +1835,10 @@ function renderMultiSelectionInspector() {
         html += '</div>';
       }
 
-      const multiHeaded = info.items.some((item) => item.node && _isHeadedStackContainer(item.node));
-      html += '<div class="field"><span class="label">' + (multiHeaded ? 'Stack gap' : 'Gap') + '</span>';
+      html += '<div class="field"><span class="label">Gap</span>';
       html += '<input class="bf-input" type="number" min="0" step="8" value="' + (containerInfo.gapMixed ? '' : containerInfo.gap) + '"';
       html += ' placeholder="' + (containerInfo.gapMixed ? 'Mixed' : '') + '"';
-      html += ' onchange="setMultiFrameProp(\'' + (multiHeaded ? 'stack_gap' : 'gap') + '\',parseInt(this.value))"';
+      html += ' onchange="setMultiFrameProp(\'gap\',parseInt(this.value))"';
       html += ' style="width:60px"></div>';
 
       // Padding — per-side with link toggle
@@ -5273,24 +5273,11 @@ function buildAutolayoutPanel(cid, node) {
     html += '<option value="HORIZONTAL"' + (direction === 'HORIZONTAL' ? ' selected' : '') + '>Horizontal</option>';
     html += '</select></div>';
 
-    if (headed) {
-      html += '<div class="field"><span class="label">Title gap</span>';
-      html += '<input class="bf-input" type="number" min="0" step="8" value="' + titleGap + '"';
-      html += ' onchange="setFrameProp(\'' + cid + '\',\'gap\',parseInt(this.value))"';
-      html += ' style="width:60px" title="Heading to content stack">';
-      html += '<span class="unit" style="margin-left:4px;color:#888;font-size:11px">px</span></div>';
-      html += '<div class="field"><span class="label">Stack gap</span>';
-      html += '<input class="bf-input" type="number" min="0" step="8" value="' + stackGap + '"';
-      html += ' onchange="setFrameProp(\'' + cid + '\',\'stack_gap\',parseInt(this.value))"';
-      html += ' style="width:60px" title="Between items in the stack">';
-      html += '<span class="unit" style="margin-left:4px;color:#888;font-size:11px">px</span></div>';
-    } else {
-      const gap = ovr.gap !== undefined ? ovr.gap : (node.layoutGap ?? DEFAULT_STACK_GAP);
-      html += '<div class="field"><span class="label">Gap</span>';
-      html += '<input class="bf-input" type="number" min="0" step="8" value="' + gap + '"';
-      html += ' onchange="setFrameProp(\'' + cid + '\',\'gap\',parseInt(this.value))"';
-      html += ' style="width:60px"></div>';
-    }
+    const gap = ovr.gap !== undefined ? ovr.gap : (headed ? (node.layoutHeaderGap ?? 0) : (node.layoutGap ?? DEFAULT_STACK_GAP));
+    html += '<div class="field"><span class="label">Gap</span>';
+    html += '<input class="bf-input" type="number" min="0" step="8" value="' + gap + '"';
+    html += ' onchange="setFrameProp(\'' + cid + '\',\'gap\',parseInt(this.value))"';
+    html += ' style="width:60px"></div>';
 
     // Padding — per-side with link toggle
     // Resolve effective per-side values: per-side override > uniform override > tree data > 0
@@ -5736,7 +5723,6 @@ function updateInspector(cid) {
     '<span class="value">' + Math.round(minX) + ', ' + Math.round(minY) + '</span></div>';
   html += '<div class="field"><span class="label">Size</span><br>' +
     '<span class="value">' + Math.round(maxX - minX) + ' &#x00d7; ' + Math.round(maxY - minY) + '</span></div>';
-  // Show layout type if this component has children
   const inspNode = model.get(cid);
   if (inspNode && inspNode.layout) {
     html += '<div class="field"><span class="label">Layout</span><br>' +
@@ -5786,12 +5772,13 @@ function updateInspector(cid) {
     const parentNode = model.getParent(cid);
     if (parentNode && parentNode.layout) {
       const pOvr = overrides[parentNode.id] || {};
-      const stackGap = pOvr.stack_gap !== undefined ? pOvr.stack_gap : (parentNode.layoutGap ?? DEFAULT_STACK_GAP);
+      const parentHeaded = _isHeadedStackContainer(parentNode);
+      const parentGap = pOvr.gap !== undefined ? pOvr.gap : (parentHeaded ? (parentNode.layoutHeaderGap ?? 0) : (parentNode.layoutGap ?? DEFAULT_STACK_GAP));
       html += '<div class="dg-autolayout-section" style="margin-top:8px">';
       html += '<span class="label" style="margin-bottom:4px;display:block">Stack spacing</span>';
-      html += '<div class="field"><span class="label">Stack gap</span>';
-      html += '<input class="bf-input" type="number" min="0" step="8" value="' + stackGap + '"';
-      html += ' onchange="setFrameProp(\'' + parentNode.id + '\',\'stack_gap\',parseInt(this.value))"';
+      html += '<div class="field"><span class="label">Gap</span>';
+      html += '<input class="bf-input" type="number" min="0" step="8" value="' + parentGap + '"';
+      html += ' onchange="setFrameProp(\'' + parentNode.id + '\',\'gap\',parseInt(this.value))"';
       html += ' style="width:60px">';
       html += '<span class="unit" style="margin-left:4px;color:#888;font-size:11px">px</span></div>';
       html += '</div>';

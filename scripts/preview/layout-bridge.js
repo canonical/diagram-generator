@@ -440,9 +440,17 @@ function _frameBoxRenderState(frame) {
     specs = LayoutEngine.wrapTextLines(specs, textMaxWidth, _textAdapter);
   }
 
+  const strokeWidth = typeof LayoutEngine.effectiveResolvedStrokeWidth === "function"
+    ? LayoutEngine.effectiveResolvedStrokeWidth(frame)
+    : (stroke === "none" || stroke === "transparent"
+      ? 0
+      : (frame.resolvedStrokeWidth
+        ?? (frame.border === "SOLID" || frame.border === "DASHED" ? 1 : 0)));
+
   return {
     fill,
     stroke,
+    strokeWidth,
     dashed: frame.border === "DASHED",
     padTop,
     padRight,
@@ -523,7 +531,7 @@ function patchFrameGroup(g, frame, iconElement) {
   rect.setAttribute("height", _fmtSvgNumber(frame._layout.placedH));
   rect.setAttribute("fill", renderState.fill);
   rect.setAttribute("stroke", renderState.stroke);
-  rect.setAttribute("stroke-width", "1");
+  rect.setAttribute("stroke-width", String(renderState.strokeWidth));
   rect.setAttribute("stroke-miterlimit", "10");
   rect.setAttribute("data-orig-width", _fmtSvgNumber(frame._layout.placedW));
   rect.setAttribute("data-orig-height", _fmtSvgNumber(frame._layout.placedH));
