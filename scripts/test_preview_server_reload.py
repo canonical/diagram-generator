@@ -27,3 +27,10 @@ def test_watch_paths_include_ts_layout_and_node_clis():
     assert str(preview_server._TS_LAYOUT_SCRIPT) in watched
     assert str(preview_server._TS_EMIT_SCRIPT) in watched
     assert str(preview_server._LAYOUT_ENGINE_DIST) in watched
+    assert str(preview_server.SCRIPTS / "layout_v3.py") not in watched
+    assert str(preview_server.SCRIPTS / "diagram_render_svg.py") not in watched
+
+
+def test_serve_v3_svg_bytes_ts_only_no_python_fallback(monkeypatch):
+    monkeypatch.setattr(preview_server, "_render_svg_via_ts", lambda _slug: None)
+    assert preview_server._serve_v3_svg_bytes("simple-testcase") is None

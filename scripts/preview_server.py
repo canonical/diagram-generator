@@ -49,9 +49,6 @@ WATCH_PATHS = [
     FRAMES_DIR,
     SCRIPTS / "frame_loader.py",
     SCRIPTS / "frame_model.py",
-    SCRIPTS / "layout_v3.py",
-    SCRIPTS / "diagram_layout.py",
-    SCRIPTS / "diagram_render_svg.py",
     SCRIPTS / "diagram_shared.py",
     SCRIPTS / "preview_ts_export.py",
     SCRIPTS / "preview_ts_layout.py",
@@ -66,7 +63,6 @@ WATCH_PATHS = [
 _rebuild_generation = 0
 _rebuild_lock = threading.Lock()
 _last_rebuild_error: str | None = None
-_layout_cache: dict[str, object] = {}
 _force_sessions: dict[str, object] = {}
 _TS_EXPORT_SCRIPT = _LAYOUT_ENGINE_SCRIPTS / "export-frame-svg.mjs"
 _TS_LAYOUT_SCRIPT = _LAYOUT_ENGINE_SCRIPTS / "layout-frame-diagram.mjs"
@@ -176,16 +172,14 @@ def _is_safe_slug(slug: str) -> bool:
 
 
 def _rebuild(grid: bool = False) -> bool:
-    global _last_rebuild_error, _layout_cache, _viewer_template, _force_template, _unified_template, _force_sessions, _watcher_fail_streak
-    _layout_cache.clear()
+    global _last_rebuild_error, _viewer_template, _force_template, _unified_template, _force_sessions, _watcher_fail_streak
     _force_sessions.clear()
     _viewer_template = None
     _force_template = None
     _unified_template = None
     # Reload engine modules so code changes take effect without a
     # full server restart.
-    for mod_name in ("frame_model", "frame_loader", "layout_v3",
-                     "diagram_render_svg", "diagram_layout", "diagram_shared"):
+    for mod_name in ("frame_model", "frame_loader", "diagram_layout", "diagram_shared"):
         if mod_name in sys.modules:
             try:
                 importlib.reload(sys.modules[mod_name])
@@ -212,49 +206,23 @@ def _render_svg_via_ts(slug: str) -> bytes | None:
     return _ts_svg_pool.render_svg(slug)
 
 
-def _render_svg_python_fallback(slug: str) -> bytes | None:
-    """Legacy SVG path only — uses Python layout_v3 until spec 012 retires it."""
+def _serve_v3_svg_bytes(slug: str) -> bytes | None:
+    """TS export only (spec 012). No Python SVG fallback."""
     if slug.startswith("v3:"):
         slug = slug[3:]
-    result = _get_layout_result_for_svg_fallback(slug)
-    if result is None:
-        return None
-    import diagram_render_svg
-
-    return diagram_render_svg.render_svg(result).encode("utf-8")
-
-
-def _serve_v3_svg_bytes(slug: str) -> bytes | None:
-    """TS export first; Python render on failure (never raises TimeoutExpired)."""
     svg_bytes = _render_svg_via_ts(slug)
     if svg_bytes is not None:
         return svg_bytes
-    return _render_svg_python_fallback(slug)
+    pool_disabled = getattr(
+        getattr(_ts_svg_pool, "_config", None), "disabled", False
+    )
+    print(
+        f"  [preview] TS SVG export failed for {slug} "
+        f"(pool disabled={pool_disabled}); no Python fallback",
+        flush=True,
+    )
+    return None
 
-
-def _get_layout_result_for_svg_fallback(slug: str):
-    """Python layout cache — SVG fallback only (not used for frame-tree/grid/tree)."""
-    if slug.startswith("v3:"):
-        slug = slug[3:]
-    cache_key = f"{slug}:v3"
-    if cache_key in _layout_cache:
-        return _layout_cache[cache_key]
-    try:
-        if str(SCRIPTS) not in sys.path:
-            sys.path.insert(0, str(SCRIPTS))
-
-        frame_yaml = FRAMES_DIR / (slug + ".yaml")
-        if frame_yaml.exists():
-            from frame_loader import load_frame_yaml
-            from layout_v3 import layout_frame_diagram
-            frame_diagram = load_frame_yaml(frame_yaml)
-            result = layout_frame_diagram(frame_diagram)
-            _layout_cache[cache_key] = result
-            return result
-        return None
-    except Exception:
-        import traceback; traceback.print_exc()
-        return None
 
 def _normalize_v3_slug(slug: str) -> str:
     return slug[3:] if slug.startswith("v3:") else slug
@@ -281,7 +249,6 @@ def _save_overrides(slug: str, data: dict) -> None:
     if not frame_path.exists():
         raise ValueError(f"Unknown frame slug: {slug}")
     persist_override_payload_to_yaml(frame_path, data)
-    _layout_cache.pop(f"{slug}:v3", None)
     _ts_svg_pool.invalidate_slug(slug)
     _ts_layout_pool.invalidate_slug(slug)
 

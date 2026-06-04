@@ -23,9 +23,10 @@
 
 **Given** repeated requests for the same slug with unchanged YAML mtime, **When** TS export already succeeded, **Then** no new Node subprocess is spawned.
 
-### US3 – Timeout → Python fallback (P1)
+### US3 – Timeout handling (P1) — superseded by spec 012 (2026-06-03)
 
-**Given** TS export exceeds timeout or Node fails, **When** `_serve_svg` handles the request, **Then** Python `diagram_render_svg` fallback runs and the HTTP request completes (no uncaught `TimeoutExpired`).
+**Was:** Timeout → Python `diagram_render_svg` fallback.  
+**Now:** TS export failure returns no SVG bytes → HTTP **404** for live v3 paths; no Python fallback. `TimeoutExpired` must still not propagate uncaught.
 
 ### US4 – Watcher visibility (P2)
 
@@ -34,7 +35,7 @@
 ## Non-goals
 
 - Long-lived Node worker pool (future spec)
-- Removing Python SVG fallback entirely (spec 012)
+- ~~Removing Python SVG fallback entirely~~ — done in spec 012 T060a for preview server
 
 ## Success criteria
 

@@ -11,7 +11,7 @@ You are doing an **adversarial code review** of the `diagram-generator` repo. Be
 ### Context
 
 - **North star:** TypeScript-only for layout/measure (`packages/layout-engine/`). Frame **YAML** is the only authored source of truth. JSON from `/api/frame-tree` is a **derived wire DTO**, not authority.
-- **Preview:** `scripts/preview_server.py` + `layout-bridge.js` (HarfBuzz). TS pools: `preview_ts_export.py` (SVG), `preview_ts_layout.py` (frame-tree/grid/tree). Python `layout_v3` / `diagram_render_svg` remain **SVG fallback only** until spec 012.
+- **Preview:** `scripts/preview_server.py` + `layout-bridge.js` (HarfBuzz). TS pools: `preview_ts_export.py` (SVG), `preview_ts_layout.py` (frame-tree/grid/tree). **Live v3 SVG is TS-only** (spec 012 T060a); failure → 404 + log, no Python SVG fallback. Python `layout_v3` / `diagram_render_svg` may still exist for batch/parity until T060b.
 - **Recent specs on branch `feat/005-autolayout-hardening`:**
   - 011 — 66ch HUG, `text-layout.ts`, TS export
   - 013 — TS preview API (frame-tree/grid/tree); Python layout off preview paths
