@@ -1,7 +1,7 @@
 # Status
 
-**Last updated:** 2026-06-04  
-**Branch:** `main` @ `82d0cc8` (uncommitted composer work on top)
+**Last updated:** 2026-06-05  
+**Branch:** `main` @ `edcf6ca`
 
 ## Stakeholder path
 
@@ -31,7 +31,7 @@ Making a diagram for a review or deck: **[`docs/stakeholder-guide.md`](docs/stak
 | **Interactive preview** | TS layout via `layout-bridge.js` + HarfBuzz; save → YAML via `frame_yaml_persistence.py` |
 | **Preview APIs** | TS-only: frame-tree, grid, component tree (`preview_ts_layout.py`) |
 | **Live preview SVG** | TS-only Node export (`preview_ts_export.py`); no Python SVG fallback (spec 012 T060a) |
-| **Batch SVG** | `export-frame-svg.mjs` — boxes, text, **real icons** (T020); simple elbows; arrows/overlays parity in progress |
+| **Batch SVG** | `export-frame-svg.mjs` — boxes, text, icons (T020), arrows + arrowheads + overlays (T030/T040 ✓) |
 | **Tests** | 226 TS layout-engine (vitest); Python suite (46 tests) for YAML/legacy parity |
 
 ### Recent work — gap semantics + inspector (2026-06-04)

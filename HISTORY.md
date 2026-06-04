@@ -4,6 +4,15 @@ Completed work belongs here so `TODO.md` stays lean.
 
 ## Short-term
 
+### 2026-06-05 – Spec 012 T030/T040 – arrows + overlays in svg-render.ts
+
+- **tokens.ts:** Added `GRID_GUTTER`, `ARROW_HEAD_LENGTH`, `ARROW_HEAD_HALF_WIDTH`, `ARROW_COLOR` as exported constants.
+- **frame-model.ts:** Added `DiagramOverlay` interface; `overlays: DiagramOverlay[]` field on `FrameDiagram`.
+- **frame-yaml-loader.ts:** Parses `color`, `waypoints`, `id` on arrows; parses `overlays:` list.
+- **svg-render.ts:** Full orthogonal arrow routing (infers sides from bounding boxes, elbow waypoints, collinear simplification); orange `<line>` shaft segments + filled `<polygon>` arrowhead; optional label `<text>` above midpoint. `renderOverlays()` emits dashed `<rect>` + label per overlay. Old `<polyline>` with black stroke replaced.
+- **index.ts:** Exports `DiagramOverlay`, `GRID_GUTTER`, arrow tokens.
+- Commit `edcf6ca` on `main`.
+
 ### 2026-06-04 – Stakeholder docs refresh
 
 - Added [`docs/stakeholder-guide.md`](docs/stakeholder-guide.md): YAML → preview → save → batch SVG for non-engineering users.
