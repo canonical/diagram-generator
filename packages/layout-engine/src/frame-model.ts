@@ -131,6 +131,16 @@ export interface Arrow {
   labelGap?: number;
 }
 
+// ---------------------------------------------------------------------------
+// Diagram overlay (dashed bounding-rect over a named group of frames)
+// ---------------------------------------------------------------------------
+
+export interface DiagramOverlay {
+  id?: string;
+  label?: string;
+  members: string[];
+}
+
 export function createArrow(source: string, target: string, overrides?: Partial<Omit<Arrow, 'source' | 'target'>>): Arrow {
   return {
     source,
@@ -384,6 +394,7 @@ export interface FrameDiagramInit {
   title?: string;
   root?: Frame;
   arrows?: Arrow[];
+  overlays?: DiagramOverlay[];
   gridCols?: number;
   gridColGap?: number;
   gridRowGap?: number;
@@ -394,6 +405,7 @@ export class FrameDiagram {
   title: string;
   root: Frame;
   arrows: Arrow[];
+  overlays: DiagramOverlay[];
   gridCols: number;
   gridColGap: number | undefined;
   gridRowGap: number | undefined;
@@ -403,6 +415,7 @@ export class FrameDiagram {
     this.title = init?.title ?? '';
     this.root = init?.root ?? new Frame();
     this.arrows = init?.arrows ?? [];
+    this.overlays = init?.overlays ?? [];
     this.gridCols = init?.gridCols ?? 2;
     this.gridColGap = init?.gridColGap;
     this.gridRowGap = init?.gridRowGap;

@@ -41,6 +41,18 @@ export const ICON_SIZE = 48;
 /** Internal padding (inset) in pixels. */
 export const INSET = 8;
 
+/** Canonical gutter between layout columns and rows. */
+export const GRID_GUTTER = 24;
+
+/** Arrow head length in pixels. Frozen-sample — measured from initial SVG arrowhead. DIAGRAM.md: arrowHeadLength */
+export const ARROW_HEAD_LENGTH = 10.8408;
+
+/** Arrow head half-width in pixels. Frozen-sample — measured from initial SVG arrowhead. DIAGRAM.md: arrowHeadHalfWidth */
+export const ARROW_HEAD_HALF_WIDTH = 2.9053;
+
+/** Default arrow shaft and head color. */
+export const ARROW_COLOR = '#E95420';
+
 /** Frame border stroke width (leaf/panel/section/highlight). DIAGRAM.md: spacing.frame-stroke-width */
 export const DEFAULT_FRAME_STROKE_WIDTH = 1;
 

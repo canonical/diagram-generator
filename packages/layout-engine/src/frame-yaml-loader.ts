@@ -17,10 +17,9 @@ import {
   createLine,
   createArrow,
   type Line,
+  type DiagramOverlay,
 } from './frame-model.js';
-import { INSET } from './tokens.js';
-
-const GRID_GUTTER = 24;
+import { INSET, GRID_GUTTER } from './tokens.js';
 import { resolveStyles } from './resolve-styles.js';
 import { applyHeadingAsChild } from './heading-synthesis.js';
 
@@ -222,14 +221,33 @@ export function loadFrameYaml(path: string): FrameDiagram {
       typeof labelRaw === 'string'
         ? [createLine(labelRaw)]
         : undefined;
-    return createArrow(String(a.source ?? ''), String(a.target ?? ''), { label });
+    const waypointsRaw = a.waypoints as unknown;
+    const waypoints = Array.isArray(waypointsRaw)
+      ? (waypointsRaw as unknown[]).map(wp => {
+          const pair = wp as unknown[];
+          return [Number(pair[0]), Number(pair[1])] as [number, number];
+        })
+      : undefined;
+    return createArrow(String(a.source ?? ''), String(a.target ?? ''), {
+      label,
+      waypoints,
+      color: a.color != null ? String(a.color) : undefined,
+      id: a.id != null ? String(a.id) : undefined,
+    });
   });
+
+  const overlays: DiagramOverlay[] = ((data.overlays as Record<string, unknown>[]) ?? []).map(o => ({
+    id: o.id != null ? String(o.id) : undefined,
+    label: o.label != null ? String(o.label) : undefined,
+    members: ((o.members as unknown[]) ?? []).map(m => String(m)),
+  }));
 
   const grid = (data.grid as Record<string, unknown>) ?? {};
   return new FrameDiagram({
     title: String(data.title ?? ''),
     root,
     arrows,
+    overlays,
     gridCols: Number(grid.cols ?? 2),
     gridColGap: grid.col_gap != null ? Number(grid.col_gap) : GRID_GUTTER,
     gridRowGap: grid.row_gap != null ? Number(grid.row_gap) : GRID_GUTTER,
