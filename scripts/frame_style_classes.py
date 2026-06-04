@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from diagram_model import Line
+from diagram_shared import DEFAULT_FRAME_STROKE_WIDTH
 
 
 @dataclass(frozen=True)
@@ -16,6 +17,7 @@ class FrameTextStyle:
 class FrameClassDefinition:
     fill: str
     stroke: str
+    stroke_width: int = DEFAULT_FRAME_STROKE_WIDTH
     text_fill: str | None = None
     icon_fill: str | None = None
     heading_text: FrameTextStyle | None = None
@@ -25,6 +27,7 @@ FRAME_CLASS_DEFS: dict[str, FrameClassDefinition] = {
     "hidden": FrameClassDefinition(
         fill="transparent",
         stroke="none",
+        stroke_width=0,
     ),
     "highlight": FrameClassDefinition(
         fill="#000000",
@@ -35,6 +38,7 @@ FRAME_CLASS_DEFS: dict[str, FrameClassDefinition] = {
     "annotation": FrameClassDefinition(
         fill="transparent",
         stroke="none",
+        stroke_width=0,
         text_fill="#666666",
         icon_fill="#666666",
         heading_text=FrameTextStyle(weight="400", small_caps=False),
@@ -43,6 +47,7 @@ FRAME_CLASS_DEFS: dict[str, FrameClassDefinition] = {
     "section": FrameClassDefinition(
         fill="transparent",
         stroke="#000000",
+        stroke_width=DEFAULT_FRAME_STROKE_WIDTH,
         text_fill="#000000",
         icon_fill="#000000",
         heading_text=FrameTextStyle(weight="700", small_caps=False),
@@ -96,9 +101,33 @@ def _apply_text_style(line: Line, style: FrameTextStyle, fill: str | None) -> Li
     )
 
 
+def stroke_width_for_class(frame_class: FrameClassDefinition) -> int:
+    """Stroke width from a frame-class definition (0 when the class has no visible stroke)."""
+    if frame_class.stroke in ("none", "transparent"):
+        return 0
+    return frame_class.stroke_width
+
+
+def effective_resolved_stroke_width(frame) -> int:
+    """Effective border width after resolve_styles() — layout inset and SVG render."""
+    from diagram_model import Border
+
+    # If resolve_styles() has run, trust the resolved values.
+    if frame.resolved_stroke is not None:
+        stroke = frame.resolved_stroke
+        if stroke in ("none", "transparent"):
+            return 0
+        if frame.resolved_stroke_width is not None and frame.resolved_stroke_width > 0:
+            return int(frame.resolved_stroke_width)
+        return DEFAULT_FRAME_STROKE_WIDTH
+    # resolve_styles() hasn't run yet — fall back to the border field.
+    return DEFAULT_FRAME_STROKE_WIDTH if frame.border in (Border.SOLID, Border.DASHED) else 0
+
+
 def apply_frame_class(frame, frame_class: FrameClassDefinition) -> None:
     frame.resolved_fill = frame_class.fill
     frame.resolved_stroke = frame_class.stroke
+    frame.resolved_stroke_width = stroke_width_for_class(frame_class)
     if frame.icon and (frame.icon_fill is None or frame.icon_fill == "#000000"):
         frame.icon_fill = frame_class.icon_fill or frame.icon_fill
 

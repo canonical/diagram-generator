@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 
 from frame_model import Frame, FrameDiagram, Direction, Overlay, Sizing, Align, Justify
 from frame_loader import resolve_styles
+from frame_style_classes import effective_resolved_stroke_width
 from diagram_model import Arrow, Line, Fill, Border
 from diagram_layout import (
     ArrowPrimitive,
@@ -193,7 +194,7 @@ def _snap_fills_to_grid_columns(
 
 def _stroke_inset_per_side(frame: Frame) -> int:
     """Return the inside-stroke inset applied on each side of stroked frames."""
-    return 1 if frame.border in (Border.SOLID, Border.DASHED) else 0
+    return effective_resolved_stroke_width(frame)
 
 
 def _stroke_space_total(frame: Frame) -> int:
@@ -1200,9 +1201,12 @@ def _render_frame(frame: Frame, fg: list, bg: list, bounds_map: dict,
     # Container icon only (leaf icon goes via label_lines path)
     # — icon_name is already set above
 
+    stroke_w = effective_resolved_stroke_width(frame) if box_stroke not in ("none", "transparent") else 0
+
     fg.append(FrameBox(
         x=x, y=y, width=w, height=h,
         fill=box_fill, stroke=box_stroke,
+        stroke_width=stroke_w,
         dashed=(frame.border == Border.DASHED),
         padding_top=pad_t, padding_right=pad_r,
         padding_bottom=pad_b, padding_left=pad_l,

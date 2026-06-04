@@ -96,6 +96,13 @@ A diagram is valid if and only if:
    heading on a leaf, grey fill without level 2, missing border on a
    panel).
 
+## Stroke width (trace path)
+
+Border width is **not** per-diagram YAML. All framed classes (leaf, panel,
+section, highlight) use `spacing.frame-stroke-width` (1px) via
+`FRAME_CLASS_DEFS` → `resolve_styles()` → `resolvedStrokeWidth` → layout
+inset and SVG `stroke-width`.
+
 ## Rendering notes
 
 **Typography invariant.** The renderer must emit the same text contract

@@ -120,6 +120,7 @@ grid:
   default-box-min-height: 64px  # role: invariant – ICON_SIZE + 2*INSET; ensures row rhythm
   default-box-growth-step: 8px  # role: invariant – alias of baseline-unit
   icon-size: 48px             # role: invariant
+  frame-stroke-width: 1px    # role: invariant — all framed classes including section (FRAME_CLASS_DEFS)
 components:
   box-default:
     width: 192px               # role: default – same as default-box-width
@@ -129,7 +130,7 @@ components:
     paddingY: 8px
     fill: transparent
     stroke: "{colors.ink}"
-    strokeWidth: 1px
+    strokeWidth: 1px            # maps to spacing.frame-stroke-width
   box-accent:
     width: 192px               # role: default – same as default-box-width
     minHeight: 64px            # role: invariant

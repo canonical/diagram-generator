@@ -145,6 +145,7 @@ function parseFrame(data: Record<string, unknown>, isRoot = false): Frame {
   if ('width' in data && !('sizing_w' in data) && !('sizing' in data)) sizingW = Sizing.FIXED;
   if ('height' in data && !('sizing_h' in data) && !('sizing' in data)) sizingH = Sizing.FIXED;
 
+  const isAnnotation = border === Border.NONE && !isContainer;
   const defaultPadding = isContainer && !isPanel ? 0 : INSET;
   const uniformPadding = Number(data.padding ?? defaultPadding);
 
@@ -154,9 +155,19 @@ function parseFrame(data: Record<string, unknown>, isRoot = false): Frame {
     gap: Number(data.gap ?? defaultGap),
     padding: uniformPadding,
     paddingTop: data.padding_top != null ? Number(data.padding_top) : undefined,
-    paddingRight: data.padding_right != null ? Number(data.padding_right) : undefined,
+    paddingRight:
+      data.padding_right != null
+        ? Number(data.padding_right)
+        : isAnnotation
+          ? 0
+          : undefined,
     paddingBottom: data.padding_bottom != null ? Number(data.padding_bottom) : undefined,
-    paddingLeft: data.padding_left != null ? Number(data.padding_left) : undefined,
+    paddingLeft:
+      data.padding_left != null
+        ? Number(data.padding_left)
+        : isAnnotation
+          ? 0
+          : undefined,
     sizingW,
     sizingH,
     fillWeight: Number(data.fill_weight ?? 1),

@@ -16,7 +16,7 @@ root:
   direction: vertical
   gap: 32
   padding: 24
-  width: 960
+  width: 464
   sizing_w: fixed
   children:
   - id: custom_files
@@ -26,6 +26,7 @@ root:
     padding: 8
     sizing_h: fill
     heading: Custom Android files
+    icon: SD card.svg
     children:
     - id: partitions
       level: 2
@@ -47,6 +48,7 @@ root:
     padding: 8
     sizing_h: hug
     heading: Host-side tools
+    icon: Wrench 1.svg
     children:
     - id: cvd
       label:
@@ -66,9 +68,9 @@ root:
     - id: consume_system_images
       label:
       - '- Consumes system images'
-    - id: consume_host_tools
-      label:
       - '- Consumes host-side tools'
+      fill: white
+      border: none
   - id: virt_instance
     level: 3
     direction: vertical
@@ -80,8 +82,7 @@ root:
     children:
     - id: virt_unmodified
       label:
-      - '- Unmodified'
-      - '  Cuttlefish-based Android'
-    - id: virt_no_rebuild
-      label:
+      - '- Unmodified Cuttlefish-based Android'
       - '- No rebuild required'
+      fill: white
+      border: none

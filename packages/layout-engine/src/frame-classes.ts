@@ -1,4 +1,32 @@
-import { createLine, type Frame, type Line } from './frame-model.js';
+import { Border, createLine, type Frame, type Line } from './frame-model.js';
+import { DEFAULT_FRAME_STROKE_WIDTH } from './tokens.js';
+
+/** Stroke width from a frame-class definition (0 when the class has no visible stroke). */
+export function strokeWidthForClass(frameClass: FrameClassDefinition): number {
+  const stroke = frameClass.stroke;
+  if (stroke === 'none' || stroke === 'transparent') {
+    return 0;
+  }
+  return frameClass.strokeWidth ?? DEFAULT_FRAME_STROKE_WIDTH;
+}
+
+/**
+ * Effective border width after resolveStyles() — used by layout inset and SVG render.
+ * Never infer section width from YAML `border`; only from frame-class resolution.
+ */
+export function effectiveResolvedStrokeWidth(frame: Frame): number {
+  // If resolveStyles() has run, trust the resolved values.
+  if (frame.resolvedStroke !== undefined) {
+    const stroke = frame.resolvedStroke;
+    if (stroke === 'none' || stroke === 'transparent') return 0;
+    if (frame.resolvedStrokeWidth != null && frame.resolvedStrokeWidth > 0) return frame.resolvedStrokeWidth;
+    return DEFAULT_FRAME_STROKE_WIDTH;
+  }
+  // resolveStyles() hasn't run yet — fall back to the border field.
+  return frame.border === Border.SOLID || frame.border === Border.DASHED
+    ? DEFAULT_FRAME_STROKE_WIDTH
+    : 0;
+}
 
 export interface FrameTextStyle {
   weight: string;
@@ -9,6 +37,7 @@ export interface FrameTextStyle {
 export interface FrameClassDefinition {
   fill: string;
   stroke: string;
+  strokeWidth?: number;
   textFill?: string;
   iconFill?: string;
   headingText?: FrameTextStyle;
@@ -21,6 +50,7 @@ export const FRAME_CLASS_DEFS: Record<FrameClassKey, FrameClassDefinition> = {
   hidden: {
     fill: 'transparent',
     stroke: 'none',
+    strokeWidth: 0,
   },
   highlight: {
     fill: '#000000',
@@ -31,6 +61,7 @@ export const FRAME_CLASS_DEFS: Record<FrameClassKey, FrameClassDefinition> = {
   annotation: {
     fill: 'transparent',
     stroke: 'none',
+    strokeWidth: 0,
     textFill: '#666666',
     iconFill: '#666666',
     headingText: {
@@ -45,6 +76,7 @@ export const FRAME_CLASS_DEFS: Record<FrameClassKey, FrameClassDefinition> = {
   section: {
     fill: 'transparent',
     stroke: '#000000',
+    strokeWidth: DEFAULT_FRAME_STROKE_WIDTH,
     textFill: '#000000',
     iconFill: '#000000',
     headingText: {
@@ -59,6 +91,7 @@ export const FRAME_CLASS_DEFS: Record<FrameClassKey, FrameClassDefinition> = {
   panel: {
     fill: '#F3F3F3',
     stroke: '#F3F3F3',
+    strokeWidth: DEFAULT_FRAME_STROKE_WIDTH,
     textFill: '#000000',
     iconFill: '#000000',
     headingText: {
@@ -73,6 +106,7 @@ export const FRAME_CLASS_DEFS: Record<FrameClassKey, FrameClassDefinition> = {
   leaf: {
     fill: 'transparent',
     stroke: '#000000',
+    strokeWidth: DEFAULT_FRAME_STROKE_WIDTH,
     textFill: '#000000',
     iconFill: '#000000',
     headingText: {
@@ -141,6 +175,7 @@ export function applyHighlightParentContrast(frame: Frame): void {
 export function applyFrameClass(frame: Frame, frameClass: FrameClassDefinition): void {
   frame.resolvedFill = frameClass.fill;
   frame.resolvedStroke = frameClass.stroke;
+  frame.resolvedStrokeWidth = strokeWidthForClass(frameClass);
   if (frame.icon && (frame.iconFill == null || frame.iconFill === '#000000')) {
     frame.iconFill = frameClass.iconFill ?? frame.iconFill;
   }

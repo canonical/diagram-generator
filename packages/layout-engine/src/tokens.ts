@@ -41,6 +41,9 @@ export const ICON_SIZE = 48;
 /** Internal padding (inset) in pixels. */
 export const INSET = 8;
 
+/** Frame border stroke width (leaf/panel/section/highlight). DIAGRAM.md: spacing.frame-stroke-width */
+export const DEFAULT_FRAME_STROKE_WIDTH = 1;
+
 /** Minimum box height = ICON_SIZE + 2 * INSET. */
 export const BOX_MIN_HEIGHT = 64;
 

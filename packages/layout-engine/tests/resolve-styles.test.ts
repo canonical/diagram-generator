@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { Frame, Fill, Border, Direction, createLine } from '../src/frame-model.js';
 import { computeLevel, resolveStyles } from '../src/resolve-styles.js';
+import { DEFAULT_FRAME_STROKE_WIDTH } from '../src/tokens.js';
 
 describe('computeLevel', () => {
   it('returns 0 for depth 0 (root)', () => {
@@ -93,6 +94,7 @@ describe('resolveStyles', () => {
     resolveStyles(root);
     expect(section.resolvedFill).toBe('transparent');
     expect(section.resolvedStroke).toBe('#000000');
+    expect(section.resolvedStrokeWidth).toBe(DEFAULT_FRAME_STROKE_WIDTH);
     // Section headings use the real small-caps token in the TS/browser path.
     expect(heading.label[0]!.weight).toBe('700');
     expect(heading.label[0]!.smallCaps).toBe(true);

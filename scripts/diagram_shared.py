@@ -84,6 +84,9 @@ ICON_SIZE = 48
 INSET = 8
 BOX_MIN_HEIGHT = ICON_SIZE + (INSET * 2)
 
+# Frame-class stroke width — keep in sync with DIAGRAM.md spacing.frame-stroke-width
+DEFAULT_FRAME_STROKE_WIDTH = 1
+
 BODY_SIZE = "18"
 HEADING_SIZE = "18"
 TITLE_SIZE = "24"

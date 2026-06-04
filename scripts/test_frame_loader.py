@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from frame_loader import load_frame_yaml
 from frame_model import Align, Direction, Justify, Sizing
-from diagram_shared import INSET
+from diagram_shared import DEFAULT_FRAME_STROKE_WIDTH, INSET
 from diagram_model import Border, Fill
 from diagram_model import Border
 
@@ -382,6 +382,10 @@ root:
     )
     note = diagram.root.children[0]
     assert note.border == Border.NONE
+    assert note.padding_top == INSET
+    assert note.padding_bottom == INSET
+    assert note.padding_left == 0
+    assert note.padding_right == 0
 
 
 def test_explicit_yaml_overrides_variant(tmp_path):
@@ -559,6 +563,7 @@ root:
     assert heading.label[0].weight == "700"
     assert heading.label[0].small_caps is False
     assert heading.label[0].letter_spacing is None
+    assert section.resolved_stroke_width == DEFAULT_FRAME_STROKE_WIDTH
 
 
 def test_explicit_level3_promotes_leaf_lead_to_bold_fallback(tmp_path):

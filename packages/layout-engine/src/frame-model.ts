@@ -210,6 +210,7 @@ export interface FrameInit {
   // Resolved style (set by resolveStyles(), not by YAML)
   resolvedFill?: string;
   resolvedStroke?: string;
+  resolvedStrokeWidth?: number;
 
   // Content (leaf)
   label?: Line[];
@@ -282,6 +283,7 @@ export class Frame {
   // Resolved style (set by resolveStyles())
   resolvedFill: string | undefined;
   resolvedStroke: string | undefined;
+  resolvedStrokeWidth: number | undefined;
 
   // Content (leaf)
   label: Line[];
@@ -336,6 +338,7 @@ export class Frame {
 
     this.resolvedFill = init?.resolvedFill;
     this.resolvedStroke = init?.resolvedStroke;
+    this.resolvedStrokeWidth = init?.resolvedStrokeWidth;
 
     this.label = init?.label ?? [];
     this.role = init?.role ?? '';

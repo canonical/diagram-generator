@@ -23,6 +23,7 @@ import {
   type TextMeasureAdapter, type LineSpec,
   estimateLineWidth, wrapTextLines, linesToSpecs, lineToSpec,
 } from './text-measure.js';
+import { effectiveResolvedStrokeWidth } from './frame-classes.js';
 import {
   applyTextLayoutDefaults,
   resolveLeafTextWrapWidth,
@@ -90,7 +91,7 @@ function equalizeGridColumns(root: Frame): void {
 // ---------------------------------------------------------------------------
 
 function strokeInsetPerSide(frame: Frame): number {
-  return frame.border === Border.SOLID || frame.border === Border.DASHED ? 1 : 0;
+  return effectiveResolvedStrokeWidth(frame);
 }
 
 function strokeSpaceTotal(frame: Frame): number {

@@ -137,6 +137,7 @@ class Frame:
     # ── Resolved style (set by resolve_styles(), not by YAML) ──
     resolved_fill: str | None = field(default=None, repr=False)    # hex colour
     resolved_stroke: str | None = field(default=None, repr=False)  # hex colour or "none"/"transparent"
+    resolved_stroke_width: int | None = field(default=None, repr=False)  # px; from frame class
 
     # ── Content (leaf) ──
     label: list[Line] = field(default_factory=list)

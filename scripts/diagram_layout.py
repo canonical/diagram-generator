@@ -207,6 +207,7 @@ class FrameBox:
     height: float
     fill: str = "#FFFFFF"
     stroke: str = "#000000"
+    stroke_width: float = 1
     dashed: bool = False
     # Padding (already resolved to px by the engine)
     padding_top: float = 8

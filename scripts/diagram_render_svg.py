@@ -249,7 +249,7 @@ def _frame_box(prim: FrameBox) -> str:
         f'  <rect x="{fmt(prim.x)}" y="{fmt(prim.y)}"'
         f' width="{fmt(prim.width)}" height="{fmt(prim.height)}"'
         f' fill="{prim.fill}" stroke="{prim.stroke}"'
-        f' stroke-width="1" stroke-miterlimit="10"{dash}{extra} />'
+        f' stroke-width="{fmt(prim.stroke_width)}" stroke-miterlimit="10"{dash}{extra} />'
     )
     # Text: heading lines then label lines
     all_lines = list(prim.heading_lines) + list(prim.label_lines)

@@ -26,6 +26,7 @@ export {
   BLOCK_WIDTH,
   BOX_MIN_HEIGHT,
   INSET,
+  DEFAULT_FRAME_STROKE_WIDTH,
   ICON_SIZE,
   BODY_LINE_STEP,
   BODY_SIZE,
@@ -87,6 +88,8 @@ export { applyHeadingAsChild } from './heading-synthesis.js';
 export {
   FRAME_CLASS_DEFS,
   applyFrameClass,
+  strokeWidthForClass,
+  effectiveResolvedStrokeWidth,
   type FrameClassDefinition,
   type FrameTextStyle,
 } from './frame-classes.js';

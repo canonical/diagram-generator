@@ -81,8 +81,8 @@ def _parse_line(raw) -> Line:
 # override color, not structure or font weight.
 #
 #   highlight  — black fill, white text/icon.  Applies to leaf or parent.
-#   annotation — borderless leaf.  Same padding and text as a regular
-#                leaf, just no visible border or fill.
+#   annotation — borderless leaf.  Vertical INSET padding, 0 left/right;
+#                no visible border or fill.
 
 _VARIANT_OVERLAYS: dict[str, dict] = {
     "highlight": {
@@ -182,12 +182,18 @@ def _parse_frame(data: dict, *, is_root: bool = False) -> Frame:
 
     # Padding: default is INSET for bordered nodes and containers with headings,
     # 0 for borderless containers without headings (pure layout wrappers).
+    # Annotations (borderless leaves): INSET top/bottom, 0 left/right.
+    is_annotation = border == Border.NONE and not is_container
     default_padding = 0 if (is_container and not is_panel) else INSET
     uniform_padding = int(data.get("padding", default_padding))
     pad_t = int(data["padding_top"]) if "padding_top" in data else None
-    pad_r = int(data["padding_right"]) if "padding_right" in data else None
     pad_b = int(data["padding_bottom"]) if "padding_bottom" in data else None
-    pad_l = int(data["padding_left"]) if "padding_left" in data else None
+    if is_annotation:
+        pad_r = int(data["padding_right"]) if "padding_right" in data else 0
+        pad_l = int(data["padding_left"]) if "padding_left" in data else 0
+    else:
+        pad_r = int(data["padding_right"]) if "padding_right" in data else None
+        pad_l = int(data["padding_left"]) if "padding_left" in data else None
 
     frame = Frame(
         id=data.get("id", ""),

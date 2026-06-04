@@ -22,6 +22,8 @@ Use this file to answer two questions quickly:
 | 013 TS preview API | `specs/013-ts-preview-api-retire-python-layout/` | Complete | TS frame-tree/grid/component-tree from YAML via `preview_ts_layout.py`. |
 | 016 Adversarial review follow-up | `specs/016-adversarial-review-followup/` | Complete | `DG_FRAMES_DIR` in Node CLIs; layout pool coalescing; force.js picker dedup. |
 | 017 Preview frame delete | `specs/017-preview-frame-delete/` | Complete | Delete/Backspace + tree context menu; `removed_ids` YAML persistence; undo restores frame tree. |
+| 018 PNG export | `specs/018-png-export/` | Draft | Preview **Save PNG** + slug batch CLI; rasterize TS SVG via Playwright; `diagrams/2.output/v3/png/`. |
+| 019 Preview inspector cleanup | `specs/019-preview-inspector-cleanup/` | Draft | Remove redundant Selection summary fields (component, position, size, layout) duplicated by Auto-layout panel. |
 | — | `specs/ADVERSARIAL_REVIEW_PROMPT.md` | Template | Copy-paste prompt for post-session adversarial reviews. |
 | 005 Autolayout hardening | `specs/005-autolayout-hardening/` | In progress | Semantic mutation removal, coercion, preview save/reload. WS1 complete. |
 | 008 Repo coherence rewrite | `specs/008-repo-coherence-rewrite/` | In progress | Doc and workflow consolidation toward design-foundry port. |

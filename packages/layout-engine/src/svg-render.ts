@@ -23,6 +23,7 @@ import {
   linesToSpecs,
   wrapTextLines,
 } from './text-measure.js';
+import { effectiveResolvedStrokeWidth } from './frame-classes.js';
 import type { LayoutOutput } from './layout.js';
 import { tintIconInnerMarkup } from './icon-embed.js';
 
@@ -47,6 +48,7 @@ function lineTopToBaseline(top: number, size: string): number {
 interface FrameRenderState {
   fill: string;
   stroke: string;
+  strokeWidth: number;
   dashed: boolean;
   padTop: number;
   padRight: number;
@@ -77,9 +79,12 @@ function frameRenderState(frame: Frame, adapter: TextMeasureAdapter): FrameRende
     specs = wrapTextLines(specs, textMaxWidth, adapter);
   }
 
+  const strokeWidth = effectiveResolvedStrokeWidth(frame);
+
   return {
     fill,
     stroke,
+    strokeWidth,
     dashed: frame.border === Border.DASHED,
     padTop,
     padRight,
@@ -168,7 +173,7 @@ function renderFrameGroup(
     `height="${fmt(frame._layout.placedH)}"`,
     `fill="${esc(rs.fill)}"`,
     `stroke="${esc(rs.stroke)}"`,
-    'stroke-width="1"',
+    `stroke-width="${rs.strokeWidth}"`,
     'stroke-miterlimit="10"',
   ];
   if (rs.dashed) rectAttrs.push('stroke-dasharray="8 8"');
