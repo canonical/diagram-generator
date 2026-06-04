@@ -25,7 +25,8 @@ Active execution queue for `diagram-generator`. All new work targets TypeScript 
 Feature package: `specs/012-ts-svg-renderer-retire-python/`
 
 - [x] `[H]` **T060a.** Preview server: remove Python SVG fallback; TS failure → 404 + log.
-- [ ] `[H]` **T020–T040.** Port icons, arrow heads, overlays to `svg-render.ts` (export parity with `layout-bridge.js`).
+- [x] `[H]` **T020.** Icons in batch SVG via `icon-embed.ts` (`createFsIconLoader`, `preloadIconMarkup`).
+- [ ] `[H]` **T030–T040.** Arrow heads, overlays to `svg-render.ts` (export parity with `layout-bridge.js`).
 - [ ] `[M]` **T050.** Golden SVG tests for corpus subset.
 - [ ] `[M]` **T060b.** Retire or archive `diagram_render_svg.py` for batch paths.
 - [ ] `[S]` **T070.** Agent docs + `docs/specs.md` (partially done on T060a).

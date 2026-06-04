@@ -24,6 +24,7 @@ import {
   wrapTextLines,
 } from './text-measure.js';
 import type { LayoutOutput } from './layout.js';
+import { tintIconInnerMarkup } from './icon-embed.js';
 
 const ASCENT_RATIO = 0.94;
 
@@ -122,7 +123,32 @@ function renderIconPlaceholder(frame: Frame, rs: FrameRenderState): string {
   return `<rect class="dg-icon" x="${fmt(iconX)}" y="${fmt(iconY)}" width="${ICON_SIZE}" height="${ICON_SIZE}" fill="${esc(rs.iconFill)}" opacity="0.15"/>`;
 }
 
-function renderFrameGroup(frame: Frame, adapter: TextMeasureAdapter): string {
+function renderIcon(
+  frame: Frame,
+  rs: FrameRenderState,
+  iconMarkupByName: Map<string, string> | undefined,
+): string {
+  if (!frame.icon) return '';
+  const iconX = frame._layout.placedX + frame._layout.placedW - rs.padRight - ICON_SIZE;
+  const iconY = frame._layout.placedY + rs.padTop;
+  const inner = iconMarkupByName?.get(frame.icon);
+  if (!inner) return renderIconPlaceholder(frame, rs);
+  const tinted = tintIconInnerMarkup(inner, rs.iconFill);
+  return (
+    `<g class="dg-icon" transform="translate(${fmt(iconX)} ${fmt(iconY)})">${tinted}</g>`
+  );
+}
+
+export interface SvgRenderOptions {
+  /** Inner SVG markup per icon file name (from assets/icons). */
+  iconMarkupByName?: Map<string, string>;
+}
+
+function renderFrameGroup(
+  frame: Frame,
+  adapter: TextMeasureAdapter,
+  iconMarkupByName?: Map<string, string>,
+): string {
   const rs = frameRenderState(frame, adapter);
   const parts: string[] = [];
   const cid = frame.id && !frame.id.startsWith('__') ? ` data-component-id="${esc(frame.id)}"` : '';
@@ -150,11 +176,11 @@ function renderFrameGroup(frame: Frame, adapter: TextMeasureAdapter): string {
 
   const text = renderFrameText(frame, rs);
   if (text) parts.push(text);
-  parts.push(renderIconPlaceholder(frame, rs));
+  parts.push(renderIcon(frame, rs, iconMarkupByName));
 
   let inner = parts.join('');
   for (const child of frame.children) {
-    inner += renderFrameGroup(child, adapter);
+    inner += renderFrameGroup(child, adapter, iconMarkupByName);
   }
   return `<g${cid}>${inner}</g>`;
 }
@@ -203,10 +229,11 @@ export function renderFrameDiagramToSvg(
   diagram: FrameDiagram,
   result: LayoutOutput,
   adapter: TextMeasureAdapter,
+  options?: SvgRenderOptions,
 ): string {
   const w = result.width || 400;
   const h = result.height || 200;
-  const body = renderFrameGroup(diagram.root, adapter);
+  const body = renderFrameGroup(diagram.root, adapter, options?.iconMarkupByName);
   const bounds = collectBounds(diagram.root);
   const arrows = routeArrows(diagram.arrows, bounds);
   return (

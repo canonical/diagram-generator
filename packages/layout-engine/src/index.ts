@@ -95,7 +95,16 @@ export { loadFrameYaml } from './frame-yaml-loader.js';
 export { serializeFrameDiagram, serializeFrame } from './frame-serialize.js';
 export { buildGridInfo, type GridInfo } from './grid-info.js';
 export { buildComponentTree, type ComponentInfo } from './component-tree.js';
-export { renderFrameDiagramToSvg } from './svg-render.js';
+export { renderFrameDiagramToSvg, type SvgRenderOptions } from './svg-render.js';
+export {
+  collectIconNames,
+  createFsIconLoader,
+  extractSvgInnerMarkup,
+  preloadIconMarkup,
+  safeIconFileName,
+  tintIconInnerMarkup,
+  type IconInnerMarkupLoader,
+} from './icon-embed.js';
 
 export {
   FRAME_CLASS_DEFS,

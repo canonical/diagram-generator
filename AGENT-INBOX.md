@@ -12,9 +12,9 @@ The agent should triage anything durable from this file into `TODO.md`, `STATUS.
 
 **Branch:** `main` (work lands on `main` per repo convention; no long-lived feature branch required unless user starts `/speckit.git.feature`).
 
-**Done on `main`:** T060a (preview TS-only SVG). See `HISTORY.md` 2026-06-03 entry.
+**Done on `main`:** T060a (preview TS-only SVG), T020 (batch icon embed via `icon-embed.ts`).
 
-**Next tasks** (`specs/012-ts-svg-renderer-retire-python/tasks.md`): T020 icons → T030 arrows → T040 overlays → T050 golden SVG → T060b batch Python SVG removal → T070 docs.
+**Next tasks** (`specs/012-ts-svg-renderer-retire-python/tasks.md`): T030 arrows → T040 overlays → T050 golden SVG → T060b batch Python SVG removal → T070 docs.
 
 **Then:** spec 005 WS2, spec 008 Phase 5. Cleanup: rename `test_preview_support_engineering_flow.py`, decompose `preview_server.py`.
 

@@ -15,6 +15,13 @@ const { loadFrameYaml } = await distImport('frame-yaml-loader.js');
 const { layoutFrameTree } = await distImport('layout.js');
 const { renderFrameDiagramToSvg } = await distImport('svg-render.js');
 const { createHarfBuzzTextAdapter } = await distImport('harfbuzz-text-adapter.js');
+const {
+  collectIconNames,
+  createFsIconLoader,
+  preloadIconMarkup,
+} = await distImport('icon-embed.js');
+
+const ICONS_DIR = join(repoRoot, 'assets/icons');
 
 async function main() {
   const arg = process.argv[2];
@@ -37,7 +44,9 @@ async function main() {
     gridRowGap: diagram.gridRowGap,
     gridOuterMargin: diagram.gridOuterMargin,
   });
-  const svg = renderFrameDiagramToSvg(diagram, result, adapter);
+  const iconLoader = createFsIconLoader(ICONS_DIR);
+  const iconMarkupByName = preloadIconMarkup(iconLoader, collectIconNames(diagram.root));
+  const svg = renderFrameDiagramToSvg(diagram, result, adapter, { iconMarkupByName });
 
   if (outPath) {
     writeFileSync(outPath, svg, 'utf-8');
