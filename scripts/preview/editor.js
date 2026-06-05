@@ -5774,6 +5774,15 @@ document.getElementById("btn-redo").addEventListener("click", () => {
   void EditorState.redo(_applyUndoCommand);
 });
 
+// Preserve the long-lived browser API used by Playwright coverage and ad hoc
+// console-driven preview debugging while the shell continues migrating behind
+// module boundaries.
+window.performUndo = () => EditorState.undo(_applyUndoCommand);
+window.performRedo = () => EditorState.redo(_applyUndoCommand);
+window.canUndo = () => EditorState.canUndo();
+window.canRedo = () => EditorState.canRedo();
+window.saveOverrides = () => PreviewSaveClient.saveOverrides();
+
 // Warn before leaving with unsaved changes.
 // Internal diagram navigation uses its own confirm path and suppresses this.
 // beforeunload wiring lives in PreviewSaveClient.init().

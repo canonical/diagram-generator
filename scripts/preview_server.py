@@ -204,11 +204,8 @@ def _is_safe_slug(slug: str) -> bool:
 
 
 def _rebuild(grid: bool = False) -> bool:
-    global _last_rebuild_error, _viewer_template, _force_template, _unified_template, _force_sessions
+    global _last_rebuild_error, _force_sessions
     _force_sessions.clear()
-    _viewer_template = None
-    _force_template = None
-    _unified_template = None
     try:
         # Clear pool caches so the next request re-runs Node with fresh YAML/dist.
         # Do NOT importlib.reload() here — the pools spawn fresh Node subprocesses
@@ -287,7 +284,7 @@ def _canonical_saved_state(slug: str) -> dict[str, object]:
 
 
 def _watch_loop(grid: bool = False, interval: float = 0.5):
-    global _rebuild_generation, _viewer_template, _force_template, _unified_template
+    global _rebuild_generation
     _DEBOUNCE = 1.0  # seconds quiet after last change before rebuilding
     prev_mtimes = _collect_mtimes()
     _last_change_time: float = 0.0
@@ -310,10 +307,6 @@ def _watch_loop(grid: bool = False, interval: float = 0.5):
             # Fire the rebuild once things have been quiet for _DEBOUNCE seconds
             if _pending and (now - _last_change_time) >= _DEBOUNCE:
                 _pending = False
-                # Invalidate cached viewer template so HTML/CSS/JS changes are picked up
-                _viewer_template = None
-                _force_template = None
-                _unified_template = None
                 with _rebuild_lock:
                     ok = _rebuild(grid=grid)
                     _rebuild_generation += 1
@@ -331,9 +324,6 @@ PREVIEW_DIR = pathlib.Path(__file__).resolve().parent / "preview"
 BF_VENDOR_ROOT = ROOT / "assets" / "baseline-foundry"
 BF_VENDOR_OS_CSS = BF_VENDOR_ROOT / "os" / "styles.css"
 BF_VENDOR_FONT_DIR = BF_VENDOR_ROOT / "fonts"
-_viewer_template: str | None = None
-_force_template: str | None = None
-_unified_template: str | None = None
 
 
 def _preview_asset_url(filename: str) -> str:
@@ -653,20 +643,6 @@ def _require_bf_preview_assets() -> tuple[pathlib.Path, pathlib.Path]:
 def _bf_styles_link_html() -> str:
     _require_bf_preview_assets()
     return '<link rel="stylesheet" href="/preview/bf-os.css">'
-
-
-def _get_viewer_template() -> str:
-    global _viewer_template
-    if _viewer_template is None:
-        _viewer_template = (PREVIEW_DIR / "viewer.html").read_text(encoding="utf-8")
-    return _viewer_template
-
-
-def _get_force_template() -> str:
-    global _force_template
-    if _force_template is None:
-        _force_template = (PREVIEW_DIR / "force-viewer.html").read_text(encoding="utf-8")
-    return _force_template
 
 
 def _get_unified_template() -> str:

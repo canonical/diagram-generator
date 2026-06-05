@@ -71,8 +71,6 @@ Full audit: `docs/architecture/adversarial-audit-2026-05-27.md`.
 - [ ] `[M]` **M4. Silent enum fallbacks.** Bad `sizing`/`direction`/`align`/`variant` silently default. Fix: warn on unknown values.
 - [ ] `[M]` **M5. Preview JSON contract stale.** Missing `justify`, `col_span`.
 - [ ] `[S]` **M6. `estimate_line_width` duplicated.** `diagram_shared.py` vs `text_metrics.py`.
-- [ ] `[M]` **Preview shell grows by engine branch instead of contract.** Spec 025 must land before additional engine packages are integrated into the live preview.
-- [ ] `[M]` **`editor.js` monolith blocks multi-engine growth.** Spec 026 should extract save/orchestration and engine controller slices before more preview engines arrive.
 - [ ] `[L]` **Legacy Python parity harness drift.** `scripts/test_parity.py` still reconstructs the pre-WS3 heading/body model, so full `pytest scripts -q` has 5 stale failures. Either realign it with the current loader contract or retire it as a non-gating legacy oracle; do not block TS work on it.
 
 ### Lower priority
@@ -84,7 +82,7 @@ Full audit: `docs/architecture/adversarial-audit-2026-05-27.md`.
 - [ ] `[M]` Forward ontology — auto-select engine from `diagram_type` + `layout_engine`
 - [ ] `[S]` `preview_server.py` decomposition (post-port)
 - [ ] `[L]` Security hardening before Stage 17
-- [ ] `[S]` `EditorState` container — replace 40+ globals
+- [ ] `[S]` Further preview-shell shrink: replace remaining `editor.js` globals once browser/test compatibility shims are no longer needed
 - [ ] `[S]` Swappable engine interface — Phase 3+
 - [ ] `[S]` Constraint enforcement on force nodes
 - [ ] `[S]` Arrow waypoint editing / endpoint attachment

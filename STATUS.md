@@ -37,6 +37,7 @@ Making a diagram for a review or deck: **[`docs/stakeholder-guide.md`](docs/stak
 ### Current delta — spec 026 preview shell decomposition closed (2026-06-06)
 
 - Spec 026 is complete: save client, ELK controller, TS editor state store, `editor.js` shell shrink, and boundary documentation in `specs/026-preview-shell-decomposition-ts-migration/boundaries.md`.
+- Post-closeout follow-up kept the existing browser-facing preview API stable: `saveOverrides`, `performUndo`, `performRedo`, `canUndo`, and `canRedo` now remain as thin shims over the extracted modules, and the dead `viewer.html` / `force-viewer.html` template leftovers were removed.
 - T031 reassessment: `layout-bridge.js` remains the runtime bridge (frame-tree JSON ↔ LayoutEngine ↔ SVG); it does not own shell concerns and was not rewritten in this milestone. Deferred follow-ups (TS override application, SVG bridge split) are documented in `boundaries.md`.
 - Focused coverage: full spec 026 validation slice (39 pytest + 24 vitest) including `scripts/test_preview_layout_bridge_boundaries.py`.
 
