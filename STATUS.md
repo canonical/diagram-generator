@@ -34,6 +34,12 @@ Making a diagram for a review or deck: **[`docs/stakeholder-guide.md`](docs/stak
 | **Batch SVG** | `export-frame-svg.mjs` — TS-only (`svg-render.ts`); golden harness `tests/svg-golden.test.ts` (3 canonical slugs after the first pruning pass) |
 | **Tests** | Latest full TS suite green in the current slice (`246/246`); retained 11-slug export sweep green; focused preview browser regressions green; spec 005 high-risk browser spot-checks render with zero errors; `test_preview_frames_dir.py` and `test_preview_ts_api.py` green. Full `pytest scripts -q` still has legacy parity drift outside the active TS path |
 
+### Current delta — spec 026 T030 editor.js shell shrink (2026-06-06)
+
+- Removed obsolete inline wrappers for dirty snapshot, undo/redo, and override patch helpers from `scripts/preview/editor.js`; call sites now use `EditorState` and `PreviewSaveClient` directly.
+- Undo restore path uses `LayoutEngine.parseEditorSnapshot` for typed snapshot parsing.
+- Focused coverage: `scripts/test_preview_editor_shell_shrink.py`; validation slice green (35 pytest + 24 vitest).
+
 ### Current delta — spec 026 T020–T022 TS-first editor state migration (2026-06-06)
 
 - Moved undo/redo stack and dirty-state orchestration into TS: `packages/layout-engine/src/preview-shell/editor-undo-stack.ts` and `editor-state-store.ts`, exported via `LayoutEngine.createEditorStateStore`.
@@ -130,7 +136,7 @@ Commit **`a6822da`** (`scripts: land ts svg renderer cleanup`):
 
 | Priority | Work |
 |----------|------|
-| Now | Continue **spec 026** — shrink `editor.js` and remove obsolete inline helpers (T030) |
+| Now | **Spec 026** closeout — reassess `layout-bridge.js` (T031) and update docs (T032) |
 | Next | Resume **spec 022** diagram authoring AST after the preview architecture slices |
 | Later | Start **spec 024** ELK interactive node alignment once spec 026 state boundaries are in place |
 

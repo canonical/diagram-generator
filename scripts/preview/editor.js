@@ -17,7 +17,6 @@ let lastViolations = [];
 
 // Legacy accessors – thin wrappers that delegate to model/mgr so the rest of
 // the file can be migrated incrementally.
-function _getOverrides() { return model.overrides; }
 
 // Compatibility shims – these expose the old global variable interface
 // while storing state in the model/manager objects.
@@ -252,29 +251,13 @@ function _snapEdgeToGrid(edge, targets) {
   return snapEdgeToTarget(edge, targets);
 }
 
-// ---- Undo/Redo stack (EditorState container) ----
+// ---- Dirty tracking + editor state (EditorState / PreviewSaveClient) ----
 
 function setDirty(dirty) {
   PreviewSaveClient.setDirty(dirty);
 }
 
 window.setDirty = setDirty;
-
-function isEditorDirty() {
-  return PreviewSaveClient.isDirty();
-}
-
-function _cloneState(value) {
-  return EditorState.cloneValue(value);
-}
-
-function _serializeDirtyState() {
-  return EditorState.serializeDirtyState();
-}
-
-function _normaliseGridOverrides(gridOverrides) {
-  return EditorState.normalizeGridOverrides(gridOverrides);
-}
 
 function _pruneLinkedRootGridOverrides() {
   if (!model.gridOverrides || Object.keys(model.gridOverrides).length === 0) return;
@@ -294,14 +277,10 @@ function _pruneLinkedRootGridOverrides() {
   }
 }
 
-function _captureOverrideEntries(ids) {
-  return EditorState.captureOverrideEntries(ids);
-}
-
 function _restoreOverrideEntries(entries) {
   for (const [cid, entry] of Object.entries(entries || {})) {
     if (entry && Object.keys(entry).length > 0) {
-      overrides[cid] = _cloneState(entry);
+      overrides[cid] = EditorState.cloneValue(entry);
       model.cleanOverride(cid);
       if (overrides[cid] && Object.keys(overrides[cid]).length === 0) {
         delete overrides[cid];
@@ -321,22 +300,6 @@ function _snapshotNeedsV3Relayout(snapshot) {
   return false;
 }
 
-function beginUndoableAction(label) {
-  return EditorState.beginUndoableAction(label);
-}
-
-function commitUndoableAction(action) {
-  return EditorState.commitUndoableAction(action);
-}
-
-function commitOverridePatchAction(label, beforeEntries, afterEntries) {
-  return EditorState.commitOverridePatchAction(label, beforeEntries, afterEntries);
-}
-
-function runUndoableAction(label, mutate) {
-  return EditorState.runUndoableAction(label, mutate);
-}
-
 /** Serialise the full dirty-trackable state (overrides + grid overrides). */
 async function _restoreEditorState(serializedState) {
   if (relayoutTimer) {
@@ -345,16 +308,18 @@ async function _restoreEditorState(serializedState) {
   }
   clearTimeout(_v3RelayoutTimer);
   EditorState.setPendingGridAction(null);
-  const currentOverrides = _cloneState(overrides);
-  const parsed = JSON.parse(serializedState || "{}");
-  const nextOverrides = _cloneState(parsed.o);
-  const nextGridOverrides = _normaliseGridOverrides(parsed.g);
-  const currentGridOverrides = _normaliseGridOverrides(model.gridOverrides || {});
+  const parsed = typeof LayoutEngine !== "undefined" && LayoutEngine.parseEditorSnapshot
+    ? LayoutEngine.parseEditorSnapshot(serializedState)
+    : JSON.parse(serializedState || "{}");
+  const currentOverrides = EditorState.cloneValue(overrides);
+  const nextOverrides = EditorState.cloneValue(parsed.o);
+  const nextGridOverrides = EditorState.normalizeGridOverrides(parsed.g);
+  const currentGridOverrides = EditorState.normalizeGridOverrides(model.gridOverrides || {});
   const gridChanged = JSON.stringify(currentGridOverrides) !== JSON.stringify(nextGridOverrides);
 
   overrides = nextOverrides;
-  model.gridOverrides = _cloneState(nextGridOverrides);
-  model.elkLayoutOverrides = _cloneState(parsed.e || {});
+  model.gridOverrides = EditorState.cloneValue(nextGridOverrides);
+  model.elkLayoutOverrides = EditorState.cloneValue(parsed.e || {});
   const prevRemovedIds = model.removedIds || new Set();
   const nextRemovedIds = new Set(Array.isArray(parsed.r) ? parsed.r : []);
   const removalsChanged = (
@@ -397,7 +362,7 @@ async function _restoreEditorState(serializedState) {
     if (gridInfo) populateGridControls();
   }
 
-  const currentStateStr = _serializeDirtyState();
+  const currentStateStr = EditorState.serializeDirtyState();
   PreviewSaveClient.syncDirtyFromSerialized(currentStateStr);
 }
 
@@ -409,7 +374,7 @@ async function _restoreOverridePatch(entries) {
   clearTimeout(_v3RelayoutTimer);
   EditorState.setPendingGridAction(null);
   const touchedIds = Object.keys(entries || {});
-  const beforeEntries = _captureOverrideEntries(touchedIds);
+  const beforeEntries = EditorState.captureOverrideEntries(touchedIds);
   _restoreOverrideEntries(entries);
 
   const needsV3Relayout = (
@@ -430,7 +395,7 @@ async function _restoreOverridePatch(entries) {
     runConstraints();
   }
 
-  const currentStateStr = _serializeDirtyState();
+  const currentStateStr = EditorState.serializeDirtyState();
   PreviewSaveClient.syncDirtyFromSerialized(currentStateStr);
 }
 
@@ -519,7 +484,7 @@ async function loadSVG(options = {}) {
     }
     reapplySelection();
     runConstraints();
-    PreviewSaveClient.markSaved(_serializeDirtyState());
+    PreviewSaveClient.markSaved(EditorState.serializeDirtyState());
     _signalDiagramLoaded();
     return;
   }
@@ -560,7 +525,7 @@ async function loadSVG(options = {}) {
   }
   reapplySelection();
   runConstraints();
-  PreviewSaveClient.markSaved(_serializeDirtyState());
+  PreviewSaveClient.markSaved(EditorState.serializeDirtyState());
   if (ElkPreviewController.isElkLayeredDiagram()) {
     ElkPreviewController.initPanel();
   }
@@ -649,7 +614,7 @@ function _attemptDiagramNavigation(nextUrl, syncUi) {
     syncUi();
     return false;
   }
-  if (isEditorDirty()) {
+  if (PreviewSaveClient.isDirty()) {
     const confirmed = window.confirm(DIRTY_DIAGRAM_NAV_CONFIRM);
     if (!confirmed) {
       syncUi();
@@ -712,7 +677,7 @@ async function loadGridInfo(canonicalState = null) {
   baseGridInfo = null;
   if (canonicalGridInfo) {
     gridInfo = canonicalGridInfo;
-    baseGridInfo = _cloneState(gridInfo);
+    baseGridInfo = EditorState.cloneValue(gridInfo);
     model.setDiagramGrid(gridInfo);
     return;
   }
@@ -720,7 +685,7 @@ async function loadGridInfo(canonicalState = null) {
     const resp = await fetch("/api/grid/" + SLUG + "?t=" + Date.now(), { cache: "no-store" });
     if (resp.ok) {
       gridInfo = await resp.json();
-      baseGridInfo = _cloneState(gridInfo);
+      baseGridInfo = EditorState.cloneValue(gridInfo);
       model.setDiagramGrid(gridInfo);
     }
   } catch (e) { /* ignore */ }
@@ -737,7 +702,7 @@ async function loadGridInfo(canonicalState = null) {
       columnCount: 2, columnGutter: gap, rowGutter: gap,
       marginTop: pad, marginRight: pad, marginBottom: pad, marginLeft: pad,
     });
-    baseGridInfo = _cloneState(gridInfo);
+    baseGridInfo = EditorState.cloneValue(gridInfo);
   }
 }
 
@@ -963,7 +928,7 @@ function onGridControlChange() {
   const slackAbsorption = slackEl ? slackEl.checked : true;
 
   if (!EditorState.getPendingGridAction()) {
-    EditorState.setPendingGridAction(beginUndoableAction("Adjust grid"));
+    EditorState.setPendingGridAction(EditorState.beginUndoableAction("Adjust grid"));
   }
 
   // Track grid overrides for persistence
@@ -990,7 +955,7 @@ function onGridControlChange() {
     try {
       await requestV3Relayout(rootId);
     } finally {
-      commitUndoableAction(EditorState.getPendingGridAction());
+      EditorState.commitUndoableAction(EditorState.getPendingGridAction());
       EditorState.setPendingGridAction(null);
     }
   }, 200);
@@ -1272,7 +1237,7 @@ function resetOverrideState() {
   updateOverrideSummary();
   // Initialize undo stack and saved state
   EditorState.clearUndoHistory();
-  PreviewSaveClient.markSaved(_serializeDirtyState());
+  PreviewSaveClient.markSaved(EditorState.serializeDirtyState());
 }
 
 function applyWaypointOverrides() {
@@ -1287,20 +1252,6 @@ function applyWaypointOverrides() {
       rebuildArrowSVG(cid);
     }
   }
-}
-
-// ---- Undo/Redo functions ----
-
-async function performUndo() {
-  await EditorState.undo(_applyUndoCommand);
-}
-
-async function performRedo() {
-  await EditorState.redo(_applyUndoCommand);
-}
-
-function updateUndoRedoButtons() {
-  EditorState.updateUndoRedoButtons();
 }
 
 // ---- Override application ----
@@ -1680,7 +1631,7 @@ function clampSelectionTarget(item, targetX, targetY) {
 function applySelectionTargets(targets) {
   if (Object.keys(targets).length === 0) return;
   const ids = Object.keys(targets);
-  const beforeEntries = _captureOverrideEntries(ids);
+  const beforeEntries = EditorState.captureOverrideEntries(ids);
   for (const [id, target] of Object.entries(targets)) {
     const node = model.get(id);
     if (!node) continue;
@@ -1698,7 +1649,7 @@ function applySelectionTargets(targets) {
   updateOverrideSummary();
   refreshTreeColors();
   runConstraints();
-  commitOverridePatchAction("Reposition selection", beforeEntries, _captureOverrideEntries(ids));
+  EditorState.commitOverridePatchAction("Reposition selection", beforeEntries, EditorState.captureOverrideEntries(ids));
 }
 
 function distributeSelection(axis) {
@@ -2094,7 +2045,7 @@ function _getMultiStyleValues(items) {
  */
 function setMultiFrameAlign(align) {
   const ids = [...selectedIds];
-  const maiBefore = _captureOverrideEntries(ids);
+  const maiBefore = EditorState.captureOverrideEntries(ids);
   for (const cid of ids) {
     const node = model.get(cid);
     if (!node) continue;
@@ -2103,7 +2054,7 @@ function setMultiFrameAlign(align) {
     overrides[cid].align = align;
   }
   setDirty(true);
-  commitOverridePatchAction("Change alignment (multi)", maiBefore, _captureOverrideEntries(ids));
+  EditorState.commitOverridePatchAction("Change alignment (multi)", maiBefore, EditorState.captureOverrideEntries(ids));
   if (ids.length > 0) {
     clearTimeout(_v3RelayoutTimer);
     _v3RelayoutTimer = setTimeout(() => requestV3Relayout(ids[0]), 300);
@@ -2118,7 +2069,7 @@ window.setMultiFrameAlign = setMultiFrameAlign;
 function applyMultiStyleOverride(styleName) {
   const canonicalStyle = _normaliseStyleName(styleName);
   const ids = [...selectedIds];
-  const msoBefore = _captureOverrideEntries(ids);
+  const msoBefore = EditorState.captureOverrideEntries(ids);
   for (const cid of ids) {
     const ctype = getComponentType(cid).toLowerCase();
     if (ctype !== 'box' && ctype !== 'panel' && ctype !== 'terminal') continue;
@@ -2127,7 +2078,7 @@ function applyMultiStyleOverride(styleName) {
     model.cleanOverride(cid);
   }
   setDirty(true);
-  commitOverridePatchAction("Change style (multi)", msoBefore, _captureOverrideEntries(ids));
+  EditorState.commitOverridePatchAction("Change style (multi)", msoBefore, EditorState.captureOverrideEntries(ids));
   if (ids.length > 0) {
     clearTimeout(_v3RelayoutTimer);
     requestV3Relayout(ids[0]);
@@ -2157,7 +2108,7 @@ function setMultiFrameProp(prop, value) {
     if (value === '' || value == null) {
       // Clear constraint for all selected items
       const ids = [...selectedIds];
-      const mfpBefore = _captureOverrideEntries(ids);
+      const mfpBefore = EditorState.captureOverrideEntries(ids);
       for (const cid of ids) {
         if (overrides[cid]) {
           delete overrides[cid][prop];
@@ -2165,7 +2116,7 @@ function setMultiFrameProp(prop, value) {
         }
       }
       setDirty(true);
-      commitOverridePatchAction("Clear " + prop + " (multi)", mfpBefore, _captureOverrideEntries(ids));
+      EditorState.commitOverridePatchAction("Clear " + prop + " (multi)", mfpBefore, EditorState.captureOverrideEntries(ids));
       renderSelectionInspector();
       clearTimeout(_v3RelayoutTimer);
       _v3RelayoutTimer = setTimeout(() => requestV3Relayout(ids[0]), 300);
@@ -2175,7 +2126,7 @@ function setMultiFrameProp(prop, value) {
   }
 
   const ids = [...selectedIds];
-  const mfpBefore = _captureOverrideEntries(ids);
+  const mfpBefore = EditorState.captureOverrideEntries(ids);
   for (const cid of ids) {
     const node = model.get(cid);
     if (!node) continue;
@@ -2236,7 +2187,7 @@ function setMultiFrameProp(prop, value) {
   }
 
   setDirty(true);
-  commitOverridePatchAction("Change " + prop + " (multi)", mfpBefore, _captureOverrideEntries(ids));
+  EditorState.commitOverridePatchAction("Change " + prop + " (multi)", mfpBefore, EditorState.captureOverrideEntries(ids));
 
   // Single debounced relayout for the batch (guard empty selection)
   if (ids.length > 0) {
@@ -2268,7 +2219,7 @@ function setMultiFrameSize(dimension, value) {
 
   const sizingProp = dimension === 'width' ? 'sizing_w' : 'sizing_h';
   const ids = [...selectedIds];
-  const msBefore = _captureOverrideEntries(ids);
+  const msBefore = EditorState.captureOverrideEntries(ids);
   for (const cid of ids) {
     const node = model.get(cid);
     if (!node) continue;
@@ -2279,7 +2230,7 @@ function setMultiFrameSize(dimension, value) {
     overrides[cid][dimension] = px;
   }
   setDirty(true);
-  commitOverridePatchAction("Set " + dimension + " (multi)", msBefore, _captureOverrideEntries(ids));
+  EditorState.commitOverridePatchAction("Set " + dimension + " (multi)", msBefore, EditorState.captureOverrideEntries(ids));
   if (ids.length > 0) {
     clearTimeout(_v3RelayoutTimer);
     _v3RelayoutTimer = setTimeout(() => requestV3Relayout(ids[0]), 300);
@@ -3016,7 +2967,7 @@ async function deleteSelectedFrames() {
   }
 
   const topIds = _topLevelRemovalTargets(candidates);
-  const action = beginUndoableAction("Delete frame");
+  const action = EditorState.beginUndoableAction("Delete frame");
   const subtreeIds = _collectSubtreeRemovalIds(topIds);
 
   for (const id of subtreeIds) {
@@ -3032,7 +2983,7 @@ async function deleteSelectedFrames() {
   } else {
     deselectAll();
   }
-  commitUndoableAction(action);
+  EditorState.commitUndoableAction(action);
   return ok;
 }
 
@@ -3333,7 +3284,7 @@ function onSvgMouseDown(e) {
   }
   mgr.startDrag({ cid: finalCid, cids: dragCids, startX: e.clientX, startY: e.clientY,
                    origDeltas, hasMoved: false,
-                   overrideSnapshotBefore: _captureOverrideEntries(dragCids),
+                   overrideSnapshotBefore: EditorState.captureOverrideEntries(dragCids),
                    snapTargets: dragCids.length === 1 ? collectSnapTargets(finalCid) : null,
                    autolayout: _isAutolayoutChild(finalCid),
                    reorderTarget: null });
@@ -3567,13 +3518,13 @@ function onDragUp() {
       selectComponent(s.cid);
     } else if (!s.autolayout) {
       for (const id of s.cids) cleanOverride(id);
-      const afterOverrides = _captureOverrideEntries(s.cids);
+      const afterOverrides = EditorState.captureOverrideEntries(s.cids);
       if (s.cids.length === 1) {
         selectComponent(s.cid);
       } else {
         reapplySelection();
       }
-      commitOverridePatchAction(
+      EditorState.commitOverridePatchAction(
         s.cids.length > 1 ? "Move selection" : "Move component",
         s.overrideSnapshotBefore,
         afterOverrides,
@@ -4002,11 +3953,11 @@ function onWpDragUp(e) {
   if (s && s.hasMoved) {
     // Prune collinear waypoints (dragged onto a straight line between neighbours)
     const wpIds = [s.cid];
-    const wpBefore = _captureOverrideEntries(wpIds);
+    const wpBefore = EditorState.captureOverrideEntries(wpIds);
     pruneCollinearWaypoints(s.cid);
     setWaypointOverride(s.cid);
     _refreshSelectedArrowInspector(s.cid);
-    commitOverridePatchAction("Move waypoint", wpBefore, _captureOverrideEntries(wpIds));
+    EditorState.commitOverridePatchAction("Move waypoint", wpBefore, EditorState.captureOverrideEntries(wpIds));
   }
   mgr.endInteraction();
 }
@@ -4056,7 +4007,7 @@ function addWaypoint(cid, segIdx, x, y) {
   const node = getArrowNode(cid);
   if (!node) return;
   const addWpIds = [cid];
-  const addWpBefore = _captureOverrideEntries(addWpIds);
+  const addWpBefore = EditorState.captureOverrideEntries(addWpIds);
   if (!node.waypoints) node.waypoints = [];
   const snapX = Math.round(x / 8) * 8;
   const snapY = Math.round(y / 8) * 8;
@@ -4065,20 +4016,20 @@ function addWaypoint(cid, segIdx, x, y) {
   showArrowWaypointHandles(cid);
   setWaypointOverride(cid);
   _refreshSelectedArrowInspector(cid);
-  commitOverridePatchAction("Add waypoint", addWpBefore, _captureOverrideEntries(addWpIds));
+  EditorState.commitOverridePatchAction("Add waypoint", addWpBefore, EditorState.captureOverrideEntries(addWpIds));
 }
 
 function removeWaypoint(cid, idx) {
   const node = getArrowNode(cid);
   if (!node || !node.waypoints || node.waypoints.length <= 1) return;
   const rmWpIds = [cid];
-  const rmWpBefore = _captureOverrideEntries(rmWpIds);
+  const rmWpBefore = EditorState.captureOverrideEntries(rmWpIds);
   node.waypoints.splice(idx, 1);
   rebuildArrowSVG(cid);
   showArrowWaypointHandles(cid);
   setWaypointOverride(cid);
   _refreshSelectedArrowInspector(cid);
-  commitOverridePatchAction("Remove waypoint", rmWpBefore, _captureOverrideEntries(rmWpIds));
+  EditorState.commitOverridePatchAction("Remove waypoint", rmWpBefore, EditorState.captureOverrideEntries(rmWpIds));
 }
 
 function getArrowPoints(cid) {
@@ -4452,9 +4403,9 @@ function commitTextEdit() {
       textOverride.label = newLines;
     }
     const editIds = [cid];
-    const editBefore = _captureOverrideEntries(editIds);
+    const editBefore = EditorState.captureOverrideEntries(editIds);
     setOverride(cid, { text: textOverride });
-    commitOverridePatchAction("Edit text", editBefore, _captureOverrideEntries(editIds));
+    EditorState.commitOverridePatchAction("Edit text", editBefore, EditorState.captureOverrideEntries(editIds));
   }
 
   // Remove the textarea and show text element (will be replaced by relayout)
@@ -4511,7 +4462,7 @@ function startResize(e) {
       startX: e.clientX,
       startY: e.clientY,
       origOverrides,
-      overrideSnapshotBefore: _captureOverrideEntries(touchedIds),
+      overrideSnapshotBefore: EditorState.captureOverrideEntries(touchedIds),
       hasMoved: false,
       snapshotRecorded: false,
       selection,
@@ -4546,7 +4497,7 @@ function startResize(e) {
     origDx: own.dx, origDy: own.dy,
     origDw: own.dw, origDh: own.dh,
     origOverrides,
-    overrideSnapshotBefore: _captureOverrideEntries(touchedIds),
+    overrideSnapshotBefore: EditorState.captureOverrideEntries(touchedIds),
     hasMoved: false, snapshotRecorded: false,
     v3BaseW: node ? node.data.width : 0,
     v3BaseH: node ? node.data.height : 0,
@@ -4625,7 +4576,7 @@ function _scheduleV3ResizeRelayout(cid, newW, newH, resizedW, resizedH) {
     delete tmpOverrides[st.cid].dw;
     delete tmpOverrides[st.cid].dh;
 
-    const gridOvr = _normaliseGridOverrides(model.gridOverrides || {});
+    const gridOvr = EditorState.normalizeGridOverrides(model.gridOverrides || {});
     const relayoutStatus = getV3RelayoutStatus();
     if (!relayoutStatus.localReady) return;
     performLocalRelayout(model, tmpOverrides, gridOvr, { skipModelUpdate: true });
@@ -4897,13 +4848,13 @@ function onResizeUp() {
         cleanOverride(childId);
       }
     }
-    const afterOverrides = _captureOverrideEntries(Object.keys(s.origOverrides));
+    const afterOverrides = EditorState.captureOverrideEntries(Object.keys(s.origOverrides));
     if (s.selection) {
       reapplySelection();
     } else {
       selectComponent(s.cid);
     }
-    commitOverridePatchAction(
+    EditorState.commitOverridePatchAction(
       s.selection ? "Resize selection" : "Resize component",
       s.overrideSnapshotBefore,
       afterOverrides,
@@ -5043,7 +4994,7 @@ function _applyV3StyleFields(ovr, styleName) {
  */
 function applyV3Style(cid, styleName) {
   const v3StyleIds = [cid];
-  const v3StyleBefore = _captureOverrideEntries(v3StyleIds);
+  const v3StyleBefore = EditorState.captureOverrideEntries(v3StyleIds);
   if (!overrides[cid]) overrides[cid] = {};
   _applyV3StyleFields(overrides[cid], styleName);
   model.cleanOverride(cid);
@@ -5051,7 +5002,7 @@ function applyV3Style(cid, styleName) {
   clearTimeout(_v3RelayoutTimer);
   requestV3Relayout(cid);
   renderSelectionInspector(cid);
-  commitOverridePatchAction("Change style", v3StyleBefore, _captureOverrideEntries(v3StyleIds));
+  EditorState.commitOverridePatchAction("Change style", v3StyleBefore, EditorState.captureOverrideEntries(v3StyleIds));
 }
 
 // ---- Selection & Inspector ----
@@ -5151,11 +5102,11 @@ function buildAlignWidget(cid, currentAlign) {
 }
 function setFrameAlign(cid, align) {
   const faIds = [cid];
-  const faBefore = _captureOverrideEntries(faIds);
+  const faBefore = EditorState.captureOverrideEntries(faIds);
   if (!overrides[cid]) overrides[cid] = {};
   overrides[cid].align = align;
   setDirty(true);
-  commitOverridePatchAction("Change alignment", faBefore, _captureOverrideEntries(faIds));
+  EditorState.commitOverridePatchAction("Change alignment", faBefore, EditorState.captureOverrideEntries(faIds));
   renderSelectionInspector(cid);
   // Trigger v3 relayout so alignment change takes effect immediately
   clearTimeout(_v3RelayoutTimer);
@@ -5343,7 +5294,7 @@ function buildAutolayoutPanel(cid, node) {
 let _v3RelayoutTimer = null;
 function setFrameProp(cid, prop, value) {
   const fpIds = [cid];
-  const fpBefore = _captureOverrideEntries(fpIds);
+  const fpBefore = EditorState.captureOverrideEntries(fpIds);
   if (!overrides[cid]) overrides[cid] = {};
 
   // Clamp numeric frame properties to sane ranges
@@ -5415,7 +5366,7 @@ function setFrameProp(cid, prop, value) {
   }
 
   setDirty(true);
-  commitOverridePatchAction("Change " + prop, fpBefore, _captureOverrideEntries(fpIds));
+  EditorState.commitOverridePatchAction("Change " + prop, fpBefore, EditorState.captureOverrideEntries(fpIds));
 
   // Debounce relayout — 300ms after last change
   clearTimeout(_v3RelayoutTimer);
@@ -5457,7 +5408,7 @@ async function requestV3Relayout(triggerCid) {
   _coercedKeys.clear();
 
   // --- Client-side layout (no server round-trip) ---
-  const gridOvr = _normaliseGridOverrides(model.gridOverrides || {});
+  const gridOvr = EditorState.normalizeGridOverrides(model.gridOverrides || {});
 
   if (ElkPreviewController.isElkLayeredDiagram() && typeof performElkRelayout === "function") {
     const elkResult = await performElkRelayout(model, overrides, gridOvr);
@@ -5518,13 +5469,13 @@ function setFrameSize(cid, dimension, value) {
   px = Math.round(px);
   const sizingProp = dimension === 'width' ? 'sizing_w' : 'sizing_h';
   const fpIds = [cid];
-  const fpBefore = _captureOverrideEntries(fpIds);
+  const fpBefore = EditorState.captureOverrideEntries(fpIds);
   if (!overrides[cid]) overrides[cid] = {};
   _clearSizingCoercion(cid, sizingProp, dimension);
   overrides[cid][sizingProp] = 'FIXED';
   overrides[cid][dimension] = px;
   setDirty(true);
-  commitOverridePatchAction("Set " + dimension, fpBefore, _captureOverrideEntries(fpIds));
+  EditorState.commitOverridePatchAction("Set " + dimension, fpBefore, EditorState.captureOverrideEntries(fpIds));
   clearTimeout(_v3RelayoutTimer);
   _v3RelayoutTimer = setTimeout(() => requestV3Relayout(cid), 300);
   renderSelectionInspector(cid);
@@ -5640,7 +5591,7 @@ function updateInspector(cid) {
 
 function clearOverride(cid) {
   const clearIds = [cid];
-  const clearBefore = _captureOverrideEntries(clearIds);
+  const clearBefore = EditorState.captureOverrideEntries(clearIds);
   const hadWaypoints = overrides[cid] && overrides[cid].waypoints;
   model.clearOverride(cid);
   setDirty(true);
@@ -5668,7 +5619,7 @@ function clearOverride(cid) {
     applyAllOverrides();
     if (selectedIds.has(cid)) updateInspector(cid);
   }
-  commitOverridePatchAction("Clear override", clearBefore, _captureOverrideEntries(clearIds));
+  EditorState.commitOverridePatchAction("Clear override", clearBefore, EditorState.captureOverrideEntries(clearIds));
 }
 
 function updateOverrideSummary() {
@@ -5705,7 +5656,7 @@ document.getElementById("btn-export").addEventListener("click", () => {
 document.getElementById("btn-clear-all").addEventListener("click", () => {
   if (Object.keys(overrides).length === 0) return;
   if (!confirm("Clear all overrides for " + SLUG + "?")) return;
-  runUndoableAction("Clear all overrides", () => {
+  EditorState.runUndoableAction("Clear all overrides", () => {
     overrides = {};
     _coercedKeys.clear();
     setDirty(true);
@@ -5729,10 +5680,10 @@ document.addEventListener("keydown", (e) => {
     PreviewSaveClient.trySaveIfDirty();
   } else if (e.ctrlKey && e.key === "z" && !e.shiftKey) {
     e.preventDefault();
-    performUndo();
+    void EditorState.undo(_applyUndoCommand);
   } else if ((e.ctrlKey && e.shiftKey && e.key === "Z") || (e.ctrlKey && e.key === "y")) {
     e.preventDefault();
-    performRedo();
+    void EditorState.redo(_applyUndoCommand);
   } else if ((e.key === "Delete" || e.key === "Backspace") && !e.ctrlKey && !e.metaKey && !e.altKey) {
     const tag = (e.target && e.target.tagName) || "";
     if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || e.target.isContentEditable) {
@@ -5797,7 +5748,7 @@ document.addEventListener("keydown", (e) => {
     e.preventDefault();
     const step = e.shiftKey ? 24 : 8;
     const nudgeIds = [...selectedIds];
-    const nudgeBefore = _captureOverrideEntries(nudgeIds);
+    const nudgeBefore = EditorState.captureOverrideEntries(nudgeIds);
     selectedIds.forEach(id => {
       const own = getOwnDelta(id);
       let dx = own.dx, dy = own.dy;
@@ -5807,7 +5758,7 @@ document.addEventListener("keydown", (e) => {
       else if (e.key === "ArrowRight") dx += step;
       setOverride(id, { dx, dy });
     });
-    commitOverridePatchAction("Nudge selection", nudgeBefore, _captureOverrideEntries(nudgeIds));
+    EditorState.commitOverridePatchAction("Nudge selection", nudgeBefore, EditorState.captureOverrideEntries(nudgeIds));
     applyAllOverrides();
     const primary = [...selectedIds].pop();
     if (primary) showResizeHandles(primary);
@@ -5816,8 +5767,12 @@ document.addEventListener("keydown", (e) => {
 });
 
 // Undo/Redo button event listeners
-document.getElementById("btn-undo").addEventListener("click", performUndo);
-document.getElementById("btn-redo").addEventListener("click", performRedo);
+document.getElementById("btn-undo").addEventListener("click", () => {
+  void EditorState.undo(_applyUndoCommand);
+});
+document.getElementById("btn-redo").addEventListener("click", () => {
+  void EditorState.redo(_applyUndoCommand);
+});
 
 // Warn before leaving with unsaved changes.
 // Internal diagram navigation uses its own confirm path and suppresses this.
@@ -6369,7 +6324,7 @@ function _initPreviewSaveClient() {
     slug: SLUG,
     getModel: () => model,
     getSelectedIds: () => [...selectedIds],
-    serializeDirtyState: () => _serializeDirtyState(),
+    serializeDirtyState: () => EditorState.serializeDirtyState(),
     reloadDiagram: (options) => loadSVG(options),
     isElkLayeredDiagram: () => ElkPreviewController.isElkLayeredDiagram(),
     wireElkLayoutPanel: () => ElkPreviewController.wirePanel(),

@@ -24,6 +24,6 @@
 
 ## Phase 4 - Shell shrink and follow-up
 
-- [ ] T030 Remove obsolete inline helpers from `editor.js`
+- [x] T030 Remove obsolete inline helpers from `editor.js`
 - [ ] T031 Reassess `layout-bridge.js` for additional decomposition after the first shell slices land
 - [ ] T032 Update `TODO.md`, `STATUS.md`, and `docs/specs.md` after the feature lands
