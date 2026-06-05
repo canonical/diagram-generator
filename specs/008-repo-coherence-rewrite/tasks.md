@@ -73,11 +73,11 @@
 - [x] T040 [US2] **[TS]** Define the resolved style snapshot fields in `packages/layout-engine/src/frame-model.ts`. Include fill, stroke, text color, icon color, border visibility, and heading text style.
 - [x] T041 [US2] **[TS]** Populate the snapshot in `packages/layout-engine/src/resolve-styles.ts` (authoritative resolver).
 - [x] T042 [US2] **[JS]** Replace raw contrast branches in `scripts/preview/layout-bridge.js` with resolved snapshot reads (fill, icon, heading weight/small-caps via `resolvedSpecTypography`).
-- [ ] T043 [US2] **[TS]** Audit the remaining live TS render/export path (`packages/layout-engine/src/svg-render.ts`, any resolved-style consumers, and preview patching helpers) for raw frame-style reinterpretation. Replace any remaining contrast or heading-style heuristics with resolved snapshot reads.
-- [ ] T044 [US2] **[Spec/docs]** Record explicitly that Phase 5 no longer extends `scripts/layout_v3.py`; Python stays bounded to retained oracle/export roles unless a separate spec reopens that scope.
-- [ ] T045 [US2] Add regression tests that fail on raw-fill contrast regressions in the TS path. Prefer semantic inline fixtures over large JSON snapshots.
-- [ ] T046 [US2] Run `npm --prefix packages/layout-engine test`.
-- [ ] T047 [US2] Run the narrow post-change checks for retained cross-language contracts only if touched; otherwise validate with the focused TS suite and one preview/export smoke check.
+- [x] T043 [US2] **[TS]** Audit the remaining live TS render/export path (`packages/layout-engine/src/svg-render.ts`, any resolved-style consumers, and preview patching helpers) for raw frame-style reinterpretation. Replace any remaining contrast or heading-style heuristics with resolved snapshot reads.
+- [x] T044 [US2] **[Spec/docs]** Record explicitly that Phase 5 no longer extends `scripts/layout_v3.py`; Python stays bounded to retained oracle/export roles unless a separate spec reopens that scope.
+- [x] T045 [US2] Add regression tests that fail on raw-fill contrast regressions in the TS path. Prefer semantic inline fixtures over large JSON snapshots.
+- [x] T046 [US2] Run `npm --prefix packages/layout-engine test`.
+- [x] T047 [US2] Run the narrow post-change checks for retained cross-language contracts only if touched; otherwise validate with the focused TS suite and one preview/export smoke check.
 
 **Checkpoint**: Live renderer and preview patching paths consume resolved style snapshots without reopening Python authority.
 
@@ -114,7 +114,7 @@
 - [x] T070 [US2] Run `npm --prefix packages/layout-engine run build`. PASSED.
 - [x] T071 [US2] Run `npm --prefix packages/layout-engine run build:browser`. PASSED.
 - [x] T072 [US3] Preview server started at http://127.0.0.1:8100.
-- [x] T073 [US3] Browser-verified `support-engineering-flow` and `android-custom-to-cloud`. Both render correctly: Ready status, no violations, nested panels/sections/leaves with arrows and icons, layout grid controls functional.
+- [x] T073 [US3] Browser-verified `support-engineering-flow`. The original second spot-check used a pre-pruning slug that has since been deleted; retained-corpus browser checks now continue under spec 005 validation tasks. Verified result: Ready status, no violations, nested panels/sections/leaves with arrows and icons, layout grid controls functional.
 - [x] T074 [US3] No code changes needed from browser verification.
 
 **Checkpoint**: Built artifacts and at least one representative browser path are verified.

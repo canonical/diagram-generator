@@ -1,7 +1,7 @@
 # Status
 
 **Last updated:** 2026-06-05  
-**Branch:** `main` @ `e45bd18` + local runtime dist-fix edits
+**Branch:** `fix/spec008-closeout-cleanup` @ `d7c99ec` + local resolved-style/spec cleanup
 
 ## Stakeholder path
 
@@ -32,7 +32,7 @@ Making a diagram for a review or deck: **[`docs/stakeholder-guide.md`](docs/stak
 | **Preview APIs** | TS-only: frame-tree, grid, component tree (`preview_ts_layout.py`) |
 | **Live preview SVG** | TS-only Node export (`preview_ts_export.py`); no Python SVG renderer (spec 012) |
 | **Batch SVG** | `export-frame-svg.mjs` — TS-only (`svg-render.ts`); golden harness `tests/svg-golden.test.ts` (3 canonical slugs after the first pruning pass) |
-| **Tests** | 241 TS vitest (229 pass; 12 known `test-deep-nesting` width parity failures). Focused preview browser regressions green; `test_preview_frames_dir.py` and `test_preview_ts_api.py` green. Full `pytest scripts -q` still has legacy parity drift outside the active TS path |
+| **Tests** | Latest full TS suite green in the current slice; focused preview browser regressions green; `test_preview_frames_dir.py` and `test_preview_ts_api.py` green. Full `pytest scripts -q` still has legacy parity drift outside the active TS path |
 
 ### Current delta — runtime dist freshness fix (2026-06-05)
 
@@ -54,11 +54,11 @@ Commit **`a6822da`** (`scripts: land ts svg renderer cleanup`):
 
 | Priority | Work |
 |----------|------|
-| Now | Spec **020** lean variant-only style authority + fixture-pruning rewrite |
-| Next | Spec **005** WS2–WS5 (style ownership, heading/body docs, padding parity) |
+| Now | Spec **005** WS5 validation + spec/task reconciliation after the resolved-style snapshot closeout |
+| Next | Next high-value TS slice from the active TODO queue, avoiding overlap with the separate ELK worktree |
 | Parallel | Spec **021** arrow labels use annotation variant — landed |
 | Parallel | Spec **018** PNG export |
-| Parallel | Re-scope Spec **008** Phase 5 so it does not deepen Python authority |
+| Parallel | Re-scope Spec **008** Phase 5 docs so it does not deepen Python authority |
 | Next major slice | New TS force-layout restoration spec |
 
 ## Key files

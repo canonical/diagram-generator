@@ -6,7 +6,7 @@
 - [ ] T011 Extend `scripts/export_png.py`: `--slug`, `--refresh-svg`, `--all-v3`, default dirs `diagrams/2.output/v3/{svg,png}`
 - [ ] T012 Wire `--slug` to `node packages/layout-engine/scripts/export-frame-svg.mjs --slug <slug>` (respect `DG_FRAMES_DIR`)
 - [ ] T013 Add `scripts/test_export_png.py` (path/slug unit tests; optional Playwright integration behind env flag)
-- [ ] T014 Smoke: `python scripts/export_png.py --slug android-custom-to-cloud --scale 2` produces non-empty PNG
+- [ ] T014 Smoke: `python scripts/export_png.py --slug request-to-hardware-stack --scale 2` produces non-empty PNG
 
 ## Phase 2 – Preview UI
 

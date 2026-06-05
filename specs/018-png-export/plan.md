@@ -60,11 +60,11 @@ playwright install chromium
 npm --prefix packages/layout-engine run build
 
 # Single diagram
-python scripts/export_png.py --slug android-custom-to-cloud --scale 2
+python scripts/export_png.py --slug request-to-hardware-stack --scale 2
 
 # Preview server + browser
 python scripts/preview_server.py
-# Open /view/v3:android-custom-to-cloud → Save PNG
+# Open /view/v3:request-to-hardware-stack → Save PNG
 ```
 
 ## Risks

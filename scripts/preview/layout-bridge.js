@@ -404,7 +404,7 @@ function _frameBoxRenderState(frame) {
 
   const iconCol = frame.icon ? (LayoutEngine.ICON_SIZE + LayoutEngine.INSET) : 0;
   const textMaxWidth = frame._layout.placedW - padLeft - padRight - iconCol;
-  const iconFill = frame.resolvedIconFill ?? frame.iconFill ?? "#000000";
+  const iconFill = frame.resolvedIconFill ?? "#000000";
 
   let specs = [];
   if (frame.children.length === 0) {
@@ -1499,7 +1499,7 @@ function renderFrameTreeToSvg(diagram, result, options) {
     if (frame.icon && iconElements.has(frame.icon)) {
       iconEl = iconElements.get(frame.icon).cloneNode(true);
       // Apply per-frame icon fill
-      const iconFill = frame.resolvedIconFill ?? frame.iconFill ?? "#000000";
+      const iconFill = frame.resolvedIconFill ?? "#000000";
       iconEl.querySelectorAll("path, circle, rect, polygon, ellipse").forEach(el => {
         el.setAttribute("fill", iconFill);
       });

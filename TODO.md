@@ -52,9 +52,9 @@ Feature package: `specs/005-autolayout-hardening/` — WS1 largely complete in T
 Feature package: `specs/008-repo-coherence-rewrite/` — Phases 1–4 and 6–8 complete. Phase 5 (T040–T047, 8 tasks) is the remaining work.
 
 - [x] `[S]` T040–T042 **[TS/JS]:** `resolvedTextFill` / `resolvedIconFill` / heading snapshot on `Frame`; populated in `frame-classes.ts`; `layout-bridge.js` reads snapshot.
-- [ ] `[H]` **Re-scope Phase 5 away from new Python authority.** T043–T044 currently extend `scripts/layout_v3.py`; replace them with TS-side validation or explicitly retire them if Python is no longer the right owner.
-- [ ] `[S]` T043–T044 **[Python parity]:** Port resolved-style snapshot to `scripts/layout_v3.py` + batch render audit.
-- [ ] `[S]` T045–T047: Additional resolved-style regression coverage + full suites after Python half lands.
+- [x] `[H]` **Re-scope Phase 5 away from new Python authority.** Phase 5 is now explicitly TS-only: remaining live render/export consumers audited, preview raw `iconFill` fallback removed, and docs/tasks no longer point at `scripts/layout_v3.py`.
+- [x] `[S]` T043–T045 **[TS]:** Added resolved-style render regressions, including highlight contrast from snapshot rather than raw fields.
+- [x] `[S]` T046–T047: Full TS suite green; focused resolved-style tests and one TS export smoke check completed.
 
 ### Priority 3 — Standalone items
 
@@ -70,7 +70,7 @@ Feature package: `specs/008-repo-coherence-rewrite/` — Phases 1–4 and 6–8 
 
 #### Root direction change should reset children sizing to hug
 
-- [ ] `[M]` **Switching root `direction` vertical→horizontal leaves top-level children as FILL on the old axis.** They should reset to HUG so authors re-opt in. Fix in the preview inspector direction handler (`editor.js`) and optionally in `frame_yaml_persistence.py` when `direction` is saved on `page`. Reported during `android-custom-to-cloud` editor pass 2026-06-04.
+- [ ] `[M]` **Switching root `direction` vertical→horizontal leaves top-level children as FILL on the old axis.** They should reset to HUG so authors re-opt in. Fix in the preview inspector direction handler (`editor.js`) and optionally in `frame_yaml_persistence.py` when `direction` is saved on `page`. Reported during a preview editor pass on 2026-06-04.
 - [ ] `[H]` **Add drag-and-drop reordering in the layers palette.** Needed to repair cases like `complex-routing-usecase` where an absolute-positioned overlay (`dev team`) should be a separate protruding layer rather than living inside the wrong container.
 - [ ] `[M]` **Absolute-positioned items resize incorrectly from the left edge.** Left-edge resize currently expands the right side instead of moving the left boundary.
 - [ ] `[M]` **Wrapped text in the parent variant loses consistent heading styling across lines.** A parent-frame line that wraps to two visual lines currently renders the first line bold and the second line non-bold; both lines should carry the same resolved style.

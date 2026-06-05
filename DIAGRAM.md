@@ -355,14 +355,14 @@ When building a v3 Frame YAML diagram, the choice of sizing, alignment, and gap 
 **FILL** (the non-root default) makes siblings share space equally, or by weight. Use it when:
 
 - Top-level children should look like uniform cards in a horizontal flow. Equal widths align arrows between columns, produce balanced negative space, and create a card-like rhythm. Example: `support-engineering-flow` (5 equal-width steps, all with explicit `sizing_w: fill`).
-- Children in a row represent parallel options, comparisons, or equivalent tiers. Example: `android-container-vs-vm` (container column vs VM column), `support-engineering-flow` (equal-width sequential steps).
+- Children in a row represent parallel options, comparisons, or equivalent tiers. Example: `tiered-network-architecture` (three parallel tier-2 groups), `support-engineering-flow` (equal-width sequential steps).
 - Leaf children inside a bordered panel should usually keep the default (FILL width), so they stretch to fill the panel and stack uniformly. This is how most panels in the corpus work.
-- A specific child should be wider than its siblings – use `fill_weight: 2` (or 3) to give it proportional extra space. Example: the generator rows in `lt-diagram-generator` use `fill_weight: 2` to privilege the central content block.
+- A specific child should be wider than its siblings – use `fill_weight: 2` (or 3) to give it proportional extra space. Treat this as a supported recipe rather than a current trimmed-corpus invariant.
 
 **HUG** lets a box shrink to exactly its content. Use it when:
 
 - A box with explicit `sizing_h: hug` should collapse to its content height instead of stretching vertically. Common for separators, borderless headings, spacers, and key/legend rows.
-- Width-hug is rare. Prefer FILL width so siblings share columns consistently. The only current width-hug use is `note_top` in `android-container-vs-vm`, which should migrate to FILL.
+- Width-hug is rare. Prefer FILL width so siblings share columns consistently. The trimmed corpus does not rely on width-hug as a canonical pattern.
 
 **FIXED** pins a dimension to an explicit value. Use it when:
 
@@ -378,13 +378,13 @@ Note: setting `width` or `height` without an explicit `sizing_w`/`sizing_h` impl
 
 The engine uses two gap scales, mapped to the spacing tokens in the frontmatter. The deciding factor is what the container holds.
 
-**Dense stack (gap = `compact-gap`, padding = `inset`):** a panel whose children are leaf boxes. The tight `1 × baseline-unit` gap keeps items visually bound as a single group. Example: `lxd_container` in `android-container-vs-vm`.
+**Dense stack (gap = `compact-gap`, padding = `inset`):** a panel whose children are leaf boxes. The tight `1 × baseline-unit` gap keeps items visually bound as a single group. Example: `planning` in `complex-routing-usecase`.
 
-**Default stack (gap = `grid-gutter`, padding = `inset`–`outer-margin`):** a panel whose children are sub-panels, horizontal rows, or peer units. The `3 × baseline-unit` gap gives each child room to read as an independent element. Example: `host_tools` in `android-custom-to-cloud` (contains independent tool boxes).
+**Default stack (gap = `grid-gutter`, padding = `inset`–`outer-margin`):** a panel whose children are sub-panels, horizontal rows, or peer units. The `3 × baseline-unit` gap gives each child room to read as an independent element. Example: `runtime` in `request-to-hardware-stack` (contains independent horizontal rows and a peer unit).
 
-**Borderless wrappers (gap = `grid-gutter` to `4 × baseline-unit`, no padding):** invisible layout containers that group siblings into rows or columns. Example: `top_zone` in `android-container-vs-vm`.
+**Borderless wrappers (gap = `grid-gutter` to `4 × baseline-unit`, no padding):** invisible layout containers that group siblings into rows or columns. Example: `tier2_row` in `tiered-network-architecture`.
 
-**Root gap:** `grid-gutter` (`3 × baseline-unit`) is the baseline. Use `4 × baseline-unit` for wider or sparser diagrams – `android-graphics-stack` is one example. Root gap and padding do not need to match.
+**Root gap:** `grid-gutter` (`3 × baseline-unit`) is the baseline. Use `4 × baseline-unit` for wider or sparser diagrams when the composition needs extra separation. Root gap and padding do not need to match.
 
 **Common mistake:** mixing gap scales at the same nesting level. If sibling panels use different gaps for the same kind of children, the visual rhythm breaks.
 
@@ -476,7 +476,7 @@ Height-hug is also the standard for:
 
 Several diagrams place a text note beside content columns to explain what a row or zone represents. Annotations should use default FILL width (not HUG) so they participate in the same column grid as their siblings. Use `border: none` for annotation style.
 
-Examples: `note_top` / `note_bottom` in `android-container-vs-vm`, annotation labels in `android-graphics-stack`.
+Examples: annotation rows in `request-to-hardware-stack`, `annotation_leaf` in `test-box-styles`.
 
 When every row has an annotation column at the same position, use a consistent width expressed as a grid-column span (e.g., 2 columns in an 8-column grid) so annotations align vertically across rows. Avoid hard-coding raw pixel widths – derive them from the grid formula.
 
@@ -502,14 +502,14 @@ When every row has an annotation column at the same position, use a consistent w
 - Root: vertical, gap = `grid-gutter` to `4 × baseline-unit`, padding = `outer-margin`, border none
 - Children: borderless horizontal wrappers (rows), each containing leaf boxes or panels
 - Arrow flow: top to bottom between rows
-- Example: `android-graphics-stack` (root gap = `4 × baseline-unit`, annotation columns at a fixed column span)
+- Example: `request-to-hardware-stack` (stacked layers, annotation rows, top-to-bottom flow)
 
 **Multi-zone comparison** (column pairs with separator):
 - Root: vertical, gap = `grid-gutter`, padding = `outer-margin`, border none
 - Children: horizontal zones (top, separator, bottom), each zone containing columns
 - Columns are borderless vertical wrappers stacking a heading over a bordered panel
-- Column widths: fixed column span for symmetry (`android-security-comparison`) or default FILL (`android-container-vs-vm`)
-- Example: `android-container-vs-vm`, `android-security-comparison`
+- Column widths: fixed column span for symmetry or default FILL for more flexible comparisons.
+- This pattern is currently recipe-only in the trimmed corpus.
 
 **Stacked layer chain** (vertical stack of headed panels):
 - Root: vertical, gap = `grid-gutter`, padding = `outer-margin`, border none
@@ -522,13 +522,13 @@ When every row has an annotation column at the same position, use a consistent w
 - Children: borderless horizontal wrapper rows of headed panels
 - Panels contain sub-panels or leaf boxes
 - Use `fill_weight` for asymmetric panels, headed panels for logical grouping
-- Example: `android-custom-to-cloud`
+- Example: `example-platform-architecture`
 
 **Generator/tool diagram** (input → engine → output):
 - Root: vertical, gap = `grid-gutter` to `4 × baseline-unit`, padding = `outer-margin`, border none
 - Children: 3 rows (input, processing, output), each a horizontal wrapper
 - Use height-hug spacers (default fill-width) alongside `fill_weight` siblings to create asymmetric indentation
-- Example: `lt-diagram-generator`, `lt-a4-generator`, `lt-summit-identity`
+- This pattern is currently recipe-only in the trimmed corpus.
 
 
 

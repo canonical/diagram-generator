@@ -33,10 +33,10 @@ Stakeholders routinely need **PNG** (PowerPoint, Confluence, Jira, comparison pa
 
 ### US2 – Slug-based batch CLI (P1)
 
-**Given** a frame slug `android-custom-to-cloud`, **When**:
+**Given** a frame slug `request-to-hardware-stack`, **When**:
 
 ```bash
-python scripts/export_png.py --slug android-custom-to-cloud --scale 2
+python scripts/export_png.py --slug request-to-hardware-stack --scale 2
 ```
 
 **Then** the tool runs TS SVG export (or reuses an existing `*-onbrand-v3.svg`), rasterizes via Playwright, and writes:
@@ -74,7 +74,7 @@ python scripts/export_png.py --slug android-custom-to-cloud --scale 2
 ## Success criteria
 
 - Stakeholder guide lists **Export PNG** as Ready with copy-paste commands.
-- `android-custom-to-cloud` → `@2x.png` matches visual review of live preview at same scale (±1px tolerance from rasterization).
+- `request-to-hardware-stack` → `@2x.png` matches visual review of live preview at same scale (±1px tolerance from rasterization).
 - `python -m pytest scripts/test_export_png.py -q` (new) covers slug resolution and path conventions; Playwright tests marked optional/skipped in CI without browser.
 - Preview Save PNG downloads a file without console errors when Playwright + TS export are available.
 

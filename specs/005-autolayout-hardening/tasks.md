@@ -22,10 +22,12 @@
 
 ## Phase 3: Style ownership unification (WS2)
 
-- [ ] T020 Define/confirm single style resolver entrypoint
-- [ ] T021 Remove renderer-side default style branching that duplicates resolver
-- [ ] T022 Add tests asserting renderer consumes resolved style values verbatim
-- [ ] T023 Add regression fixture for explicit style overrides vs defaults
+- [x] T020 Define/confirm single style resolver entrypoint
+- [x] T021 Remove renderer-side default style branching that duplicates resolver
+- [x] T022 Add tests asserting renderer consumes resolved style values verbatim
+- [x] T023 Add regression fixture for explicit style overrides vs defaults
+
+Note: WS2 closed under spec 008 Phase 5 resolved-style snapshot work. Keep future deltas there unless spec 005 is explicitly reopened.
 
 ## Phase 4: Heading/body contract hardening (WS3)
 
@@ -45,7 +47,7 @@
 
 - [ ] T050 Run focused test suite and capture results
 - [ ] T051 Render frame corpus and verify no unplanned regressions
-- [ ] T052 Browser-check high-risk diagrams: request-to-hardware-stack, android-custom-to-cloud, support-engineering-flow
+- [ ] T052 Browser-check high-risk diagrams: request-to-hardware-stack, test-deep-nesting, support-engineering-flow
 - [ ] T053 Update TODO links/status for autolayout section after implementation lands
 
 ## Parallelization Notes
