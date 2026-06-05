@@ -4,6 +4,13 @@ Completed work belongs here so `TODO.md` stays lean.
 
 ## Short-term
 
+### 2026-06-05 – Spec 023 force follow-up: save persistence + stable live controls
+
+- Restored local save persistence for the TS-owned force demos: the force preview now posts the exported TS snapshot back through `/api/force-save/<slug>`, and the preview server writes the current `simulation` / `render` defaults plus node state back into the canonical force YAML.
+- Expanded force runtime style support to match the shared preview picker vocabulary: `parent`, `section`, `annotation`, and `highlight` now resolve correctly, with `accent` retained only as a legacy alias to `parent`.
+- Fixed the live Juju force inspector interaction failure by pausing the running solver at the start of stage/tree/inspector interactions, so the Selection panel no longer rebuilds under the user’s click and the style / pin / unpin controls stay usable.
+- Validation: browser-checked `force-stakeholders` and `force-juju-landing-pages`; confirmed style changes land, save writes YAML, and pin/unpin can toggle on the live TS runtime.
+
 ### 2026-06-05 – Spec 023 TS force lane restoration landed on branch
 
 - Restored the force demo lane as a TypeScript-owned runtime instead of reviving the deleted Python solver/backend: YAML-authored force specs under `scripts/diagrams/force/`, historical solver port in `force-solver.ts` / `force-quadtree.ts`, and a stateful preview runtime wrapper in `force-runtime.ts`.

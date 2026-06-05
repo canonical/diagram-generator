@@ -1,7 +1,7 @@
 # Status
 
 **Last updated:** 2026-06-05  
-**Branch:** `main` @ `c05376a`
+**Branch:** `main`
 
 ## Stakeholder path
 
@@ -46,7 +46,7 @@ Making a diagram for a review or deck: **[`docs/stakeholder-guide.md`](docs/stak
 - Browser warning context is now explicit rather than implicit: `support-engineering-flow` has no violations; `test-deep-nesting` shows 10 warnings; `request-to-hardware-stack` shows 34 `grid-align` warnings, consistent with its intentional `col_gap: 16` invariant exception.
 - Active tracking no longer treats spec 005 as an open implementation slice; the next high-value TS feature should land on a fresh branch after this closeout commit.
 
-### Current delta — spec 023 TS force lane restored, persistence still pending (2026-06-05)
+### Current delta — spec 023 TS force lane restored, save + interaction follow-up landed (2026-06-05)
 
 - Created `specs/023-force-layout-restoration/` to restore the broken force lane under spec-kit discipline instead of mixing force work into TODO-only prose.
 - The recovered force examples are now YAML-authored source files under `scripts/diagrams/force/`; archived JSON remains migration archaeology only.
@@ -57,7 +57,8 @@ Making a diagram for a review or deck: **[`docs/stakeholder-guide.md`](docs/stak
 - `scripts/preview/force.js` now keeps a committed runtime-backed snapshot separate from temporary drag/resize preview clones, so runtime-backed actions no longer lose their simulation state.
 - Real geometry edits now resume the simulation correctly, including the unpin path: releasing a moved node forces an immediate local tick and then continues the run loop so the rest of the graph can react instead of staying frozen.
 - Focused validation is green: `npm --prefix packages/layout-engine run build`, `npm --prefix packages/layout-engine run build:browser`, and `npm --prefix packages/layout-engine test -- tests/force-runtime.test.ts` all pass after the parity-port slice.
-- Browser validation confirms all three restored demos load on the TS runtime: `force-stakeholders`, `force-juju-landing-pages`, and `force-support-case-lifecycle`. Local save persistence is still pending.
+- Browser validation confirms all three restored demos load on the TS runtime: `force-stakeholders`, `force-juju-landing-pages`, and `force-support-case-lifecycle`.
+- Local force save now writes the current defaults and node state back to YAML, force style variants accept the shared `parent` / `section` / `annotation` vocabulary, and live stage/inspector interactions pause the running solver early enough to keep the Selection controls usable on the Juju demo.
 
 ### Recent work — spec 012 complete + arrow editing (2026-06-04)
 
@@ -73,12 +74,10 @@ Commit **`a6822da`** (`scripts: land ts svg renderer cleanup`):
 
 | Priority | Work |
 |----------|------|
-| Now | Spec **023** follow-up work: restore local save persistence for the TS-owned force lane |
-| Next | Rewrite orphaned force benchmark usage and add stronger automated save/export/browser coverage for the restored force demos |
-| Parallel | Spec **021** arrow labels use annotation variant — landed |
-| Parallel | Spec **018** PNG export |
-| Parallel | Re-scope Spec **008** Phase 5 docs so it does not deepen Python authority |
-| Next major slice | Finish the remaining spec 023 persistence/coverage gaps on top of the restored TS force runtime |
+| Now | Close the remaining **spec 023** cleanup: benchmark migration + focused route/save/reset/export/browser coverage |
+| Next | Spec **018** PNG export |
+| Next | Spec **022** diagram authoring AST |
+| Later | Spec **006** arrow routing redesign |
 
 ## Key files
 

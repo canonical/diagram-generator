@@ -84,8 +84,8 @@ describe('createInitialForceSnapshot', () => {
       id: 'software',
       fill: '#000000',
       text_fill: '#FFFFFF',
-      stroke: '#000000',
-      stroke_width: 1,
+      stroke: 'none',
+      stroke_width: 0,
     });
   });
 });
@@ -202,6 +202,60 @@ describe('applyForceNodePatch', () => {
       style_override: null,
       fill: '#FFFFFF',
       text_fill: '#000000',
+    });
+  });
+
+  it('accepts frame-style aliases exposed by the force picker', () => {
+    const spec: ForceAuthoredSpec = {
+      title: 'Stakeholders',
+      reference_image: 'force/IMG_3229.jpg',
+      canvas: { width: 960, height: 640 },
+      render: {
+        curve_handle_ratio: 0.35,
+        curve_handle_min: 24,
+        curve_handle_max: 64,
+      },
+      simulation: {
+        ticks_per_frame: 1,
+        max_iterations: 220,
+        charge_strength: -900,
+        link_distance: 256,
+        link_strength: 0.08,
+        collision_padding: 24,
+        collision_iterations: 4,
+        velocity_decay: 0.34,
+        alpha_min: 0.006,
+        center: [480, 320],
+      },
+      nodes: [
+        {
+          id: 'users',
+          label: ['Users'],
+          width: 192,
+          height: 64,
+          x: 240,
+          y: 392,
+        },
+      ],
+      links: [],
+    };
+
+    const snapshot = createInitialForceSnapshot(spec);
+    const parent = applyForceNodePatch(snapshot, 'users', { style: 'parent' });
+    const annotation = applyForceNodePatch(parent, 'users', { style: 'annotation' });
+
+    expect(parent.nodes[0]).toMatchObject({
+      style_override: 'parent',
+      fill: '#F3F3F3',
+      stroke: 'none',
+      stroke_width: 0,
+    });
+    expect(annotation.nodes[0]).toMatchObject({
+      style_override: 'annotation',
+      fill: 'transparent',
+      text_fill: '#666666',
+      stroke: 'none',
+      stroke_width: 0,
     });
   });
 });

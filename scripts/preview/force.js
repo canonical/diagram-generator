@@ -36,6 +36,7 @@ let dragCandidate = null;
 let dragState = null;
 let resizeState = null;
 let suppressStageClick = false;
+let forceSaveDirty = false;
 const EMPTY_SELECTION_HTML = '<p class="dg-empty-message bf-form-help">Select or drag a node from the stage or the left rail. Dragging drops it into a pinned manual-polish position.</p>';
 
 function canUseLocalForceRuntime() {
@@ -59,7 +60,7 @@ async function loadLocalForceSnapshot() {
 function updateLocalRuntimeControls() {
   byId("btn-play").disabled = false;
   byId("btn-step").disabled = false;
-  byId("btn-force-save").disabled = localRuntimeOnly || !forceUndoManager.isDirty();
+  byId("btn-force-save").disabled = !(forceUndoManager.isDirty() || forceSaveDirty);
   const container = document.getElementById("force-params");
   if (!container) return;
   const canEditLocalParams = !localRuntimeOnly || Boolean(
@@ -484,7 +485,7 @@ function buildNodeMarkup(node, isSelected) {
 
   return `
     <g ${isSelected ? 'class="dg-selected" ' : ""}data-component-id="${escapeHtml(node.id)}">
-      <rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${node.width.toFixed(1)}" height="${node.height.toFixed(1)}" fill="${escapeHtml(node.fill)}" stroke="${escapeHtml(node.stroke)}" stroke-width="${Number(node.stroke_width || 1).toFixed(1)}"></rect>
+      <rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${node.width.toFixed(1)}" height="${node.height.toFixed(1)}" fill="${escapeHtml(node.fill)}" stroke="${escapeHtml(node.stroke)}" stroke-width="${Number(node.stroke_width ?? 1).toFixed(1)}"></rect>
       ${textMarkup}
     </g>`;
 }
@@ -559,7 +560,7 @@ function renderSelection(snapshot) {
 function updateSummary(snapshot) {
   const settled = snapshot.simulation.settled ? "settled" : "live";
   if (localRuntimeOnly) {
-    byId("force-summary").textContent = `TS local runtime. alpha ${snapshot.simulation.alpha.toFixed(3)} • ${snapshot.simulation.tick_count} ticks • ${settled}. Export snaps positions to the 8px grid; local save is still pending.`;
+    byId("force-summary").textContent = `TS local runtime. alpha ${snapshot.simulation.alpha.toFixed(3)} • ${snapshot.simulation.tick_count} ticks • ${settled}. Export snaps positions to the 8px grid; Save writes the current defaults and node state to YAML.`;
     return;
   }
   byId("force-summary").textContent = `alpha ${snapshot.simulation.alpha.toFixed(3)} • ${snapshot.simulation.tick_count} ticks • ${settled}. Export snaps positions to the 8px grid.`;
@@ -813,6 +814,8 @@ async function loadSnapshot(reset = true) {
     }
   }
   render(snapshot);
+  forceSaveDirty = false;
+  updateLocalRuntimeControls();
 }
 
 async function tickSimulation(iterations) {
@@ -871,14 +874,30 @@ async function exportSvg() {
 
 async function saveForceOverrides() {
   if (localRuntimeOnly) {
-    throw new Error("Save is not implemented yet for the TS force runtime");
+    if (!committedSnapshot) {
+      throw new Error("Force snapshot is not loaded");
+    }
+    const snapshot = window.LayoutEngine.exportForceSnapshot(committedSnapshot);
+    await fetchJson(`/api/force-save/${encodeURIComponent(FORCE_SLUG)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(snapshot),
+    });
+    render(snapshot);
+    forceSaveDirty = false;
+    forceUndoManager.markSaved();
+    updateLocalRuntimeControls();
+    setStatus("Saved to YAML", "ok");
+    return;
   }
   await fetchJson(`/api/force-save/${encodeURIComponent(FORCE_SLUG)}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: "{}",
   });
+  forceSaveDirty = false;
   forceUndoManager.markSaved();
+  updateLocalRuntimeControls();
   setStatus("Saved", "ok");
 }
 
@@ -934,6 +953,16 @@ function toggleRun() {
   startRunning();
 }
 
+function pauseForceInteraction() {
+  if (!running) {
+    return false;
+  }
+  running = false;
+  updateRunButton();
+  setStatus("Paused", "ok");
+  return true;
+}
+
 // Diagram picker + prev/next: initPreviewShell() → editor-base.js initDiagramPicker()
 
 byId("tree-force").addEventListener("click", (event) => {
@@ -941,6 +970,7 @@ byId("tree-force").addEventListener("click", (event) => {
   if (!item || !currentSnapshot) {
     return;
   }
+  pauseForceInteraction();
   const nodeId = item.getAttribute("data-node-id");
   if (event.shiftKey || event.ctrlKey || event.metaKey) {
     if (selectedIds.has(nodeId)) selectedIds.delete(nodeId);
@@ -961,6 +991,7 @@ byId("stage").addEventListener("click", (event) => {
     return;
   }
   if (node) {
+    pauseForceInteraction();
     const nodeId = node.getAttribute("data-component-id");
     if (event.shiftKey || event.ctrlKey || event.metaKey) {
       if (selectedIds.has(nodeId)) selectedIds.delete(nodeId);
@@ -1064,7 +1095,7 @@ function startForceTextEdit(nodeData, gEl) {
   });
 }
 
-byId("stage").addEventListener("mousedown", (event) => {
+byId("stage").addEventListener("pointerdown", (event) => {
   if (event.button !== 0 || !currentSnapshot) {
     return;
   }
@@ -1080,6 +1111,7 @@ byId("stage").addEventListener("mousedown", (event) => {
   if (!nodeElement) {
     return;
   }
+  pauseForceInteraction();
   const point = pointerToStagePoint(event);
   if (!point) {
     return;
@@ -1099,6 +1131,13 @@ byId("stage").addEventListener("mousedown", (event) => {
     nodeY: node.y,
     wasRunning: running,
   };
+});
+
+byId("inspector").addEventListener("pointerdown", (event) => {
+  if (!event.target.closest("[data-force-style-select], [data-force-pin-toggle]")) {
+    return;
+  }
+  pauseForceInteraction();
 });
 
 document.addEventListener("mousemove", (event) => {
@@ -1294,6 +1333,8 @@ document.getElementById("force-params").addEventListener("change", async (event)
       }
       const snapshot = window.LayoutEngine.updateForceSimulationParams(committedSnapshot, { [key]: value });
       render(snapshot);
+      forceSaveDirty = true;
+      updateLocalRuntimeControls();
       if (!running) startRunning();
       setStatus(`${key} → ${value}`, "ok");
     } catch (error) {
@@ -1310,6 +1351,8 @@ document.getElementById("force-params").addEventListener("change", async (event)
     if (!resp.ok) throw new Error(await resp.text());
     const snapshot = await resp.json();
     render(snapshot);
+    forceSaveDirty = true;
+    updateLocalRuntimeControls();
     if (!running) startRunning();
     setStatus(`${key} → ${value}`, "ok");
   } catch (error) {

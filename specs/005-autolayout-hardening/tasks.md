@@ -8,17 +8,19 @@
 
 ## Phase 1: Setup and baseline
 
-- [ ] T001 Capture baseline test run for focused layout suite
-- [ ] T002 Inventory all semantic mutations currently performed during layout
-- [ ] T003 Inventory all style-resolution branches in loader and renderer
+- [x] T001 Capture baseline test run for focused layout suite
+- [x] T002 Inventory all semantic mutations currently performed during layout
+- [x] T003 Inventory all style-resolution branches in loader and renderer
 
 ## Phase 2: Semantic mutation removal (WS1)
 
-- [ ] T010 Introduce isolated derived-layout state structure
+- [x] T010 Introduce isolated derived-layout state structure
 - [x] T011 Refactor col_span resolution to avoid mutating semantic width fields
 - [x] T012 Refactor FILL/HUG coercion bookkeeping to derived state only
 - [x] T013 Add idempotency regression test (run layout twice, compare semantic tree)
 - [x] T014 Add mutation-guard test for representative nested fixture
+
+Note: The original Phase 1 + WS1 setup rows were left unchecked during delivery, but the implemented WS1 code and the final WS5 closeout prove the baseline/inventory/derived-state work landed. They are now marked complete to match the shipped feature state recorded in `HISTORY.md`.
 
 ## Phase 3: Style ownership unification (WS2)
 

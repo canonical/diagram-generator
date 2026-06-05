@@ -26,7 +26,7 @@
 
 - [x] T020 Restore drag-to-pin behavior
 - [x] T021 Restore play/step/reset behavior around current pinned state
-- [ ] T022 Restore save persistence for force examples
+- [x] T022 Restore save persistence for force examples
 - [x] T023 Restore shared resize-handle behavior (8px snap, 48px minimum)
 - [x] T024 Reconfirm BF-shell preview parity: picker, prev/next, inspector empty state
 

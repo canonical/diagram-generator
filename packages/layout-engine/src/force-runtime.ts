@@ -68,7 +68,7 @@ export interface ForceAuthoredSpec {
   links: ForceLinkSpec[];
 }
 
-type ForceStyleName = 'default' | 'accent' | 'highlight';
+type ForceStyleName = 'default' | 'parent' | 'section' | 'annotation' | 'highlight';
 
 export interface ForceRuntimeNode extends ForceNodeSpec {
   fill: string;
@@ -139,9 +139,11 @@ const DEFAULT_TEXT_FILL = '#000000';
 const DEFAULT_STROKE = '#000000';
 const DEFAULT_LINK_STROKE = '#E95420';
 const FORCE_BOX_STYLES = {
-  default: { fill: '#FFFFFF', text_fill: '#000000' },
-  accent: { fill: '#F3F3F3', text_fill: '#000000' },
-  highlight: { fill: '#000000', text_fill: '#FFFFFF' },
+  default: { fill: '#FFFFFF', text_fill: '#000000', stroke: '#000000', stroke_width: 1 },
+  parent: { fill: '#F3F3F3', text_fill: '#000000', stroke: 'none', stroke_width: 0 },
+  section: { fill: 'transparent', text_fill: '#000000', stroke: '#000000', stroke_width: 1 },
+  annotation: { fill: 'transparent', text_fill: '#666666', stroke: 'none', stroke_width: 0 },
+  highlight: { fill: '#000000', text_fill: '#FFFFFF', stroke: 'none', stroke_width: 0 },
 } as const;
 
 interface ForcePreviewState {
@@ -217,7 +219,10 @@ function resolveStyleName(style: string | null | undefined): ForceStyleName | nu
   if (style == null || style === '') {
     return null;
   }
-  if (style === 'default' || style === 'accent' || style === 'highlight') {
+  if (style === 'accent') {
+    return 'parent';
+  }
+  if (style === 'default' || style === 'parent' || style === 'section' || style === 'annotation' || style === 'highlight') {
     return style;
   }
   throw new Error(`Unknown force style: ${style}`);
@@ -437,8 +442,8 @@ function getSnapshot(state: ForcePreviewState, snap = false): ForceRuntimeSnapsh
       ...(node.fy == null ? {} : { fy: node.fy }),
       fill: preset?.fill ?? nodeSpec.fill ?? DEFAULT_FILL,
       text_fill: preset?.text_fill ?? nodeSpec.text_fill ?? DEFAULT_TEXT_FILL,
-      stroke: nodeSpec.stroke ?? DEFAULT_STROKE,
-      stroke_width: Number(nodeSpec.stroke_width ?? 1),
+      stroke: preset?.stroke ?? nodeSpec.stroke ?? DEFAULT_STROKE,
+      stroke_width: Number(preset?.stroke_width ?? nodeSpec.stroke_width ?? 1),
       style,
       base_style: state.nodeBaseStyles.get(node.componentId) ?? null,
       style_override: styleOverride,

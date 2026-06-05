@@ -8,49 +8,33 @@ Active execution queue for `diagram-generator`. All new work targets TypeScript 
 
 ## Active TODO
 
-### Priority 1 — Bugs
+### Priority 1 — Spec-kit tracked work
 
-#### Highlight text contrast bug
+#### Force layout restoration (spec 023)
 
-- [x] `[M]` **Highlight children have black text on black fill.** Children inside `variant: highlight` panels now inherit white text/icon contrast while keeping their own box styling.
+Feature package: `specs/023-force-layout-restoration/`.
 
-#### Fixed height input loses value on blur
+- [ ] `[H]` **Finish the remaining spec 023 cleanup.** Save persistence, shared frame-style variants, and stable live inspector interactions are now back on the TS force lane. Remaining work: rewrite or retire `scripts/benchmark_force.py`, add focused automated coverage for force demo discovery/routes, and add focused save/reset/export/browser tests.
 
-- [x] `[M]` **Inspector height input clears on focus-out instead of applying the value.** `setFrameSize` now clears runtime coercion keys before relayout so explicit FIXED heights persist.
+#### PNG export (spec 018)
 
-### Priority 2 — Spec-kit tracked work
+Feature package: `specs/018-png-export/`.
 
-#### Arrow labels use annotation variant (spec 021) — DRAFTED
+- [ ] `[H]` **Build the TS-SVG-to-PNG export path.** Add the CLI/server raster path, preview Save PNG action, and validation for Windows/WSL behavior.
 
-Feature package: `specs/021-arrow-labels-use-annotation-variant/` — arrow labels are semantic annotation text, not a free-floating style path.
+#### Diagram authoring AST (spec 022)
 
-- [x] `[H]` **P1. Route arrow labels through annotation semantics.** TS export now ignores authored arrow-label style fields and renders annotation typography instead. No separate live preview arrow-label renderer currently exists.
+Feature package: `specs/022-diagram-authoring-ast/`.
 
-#### Lean variant-only style authority and fixture pruning (spec 020) — DRAFTED
+- [ ] `[H]` **Start the authoring compiler slice.** AST types, YAML compile pipeline, legacy normalization, lower-to-frame, and Mermaid/D2 exporters are all still untouched.
 
-Feature package: `specs/020-lean-variant-style-authority/` — new north-star simplification slice. Diagrams are disposable test fixtures; compatibility is explicitly subordinate to a lean, rigorous, TS-first model.
+#### Arrow routing redesign (spec 006)
 
-- [x] `[H]` **P1. Remove line-level styling authority from frame-owned text.** YAML parsing, preview wire transport, preview relayout, the Python legacy mirror, and the dist-backed Node runtime now keep frame-owned lines semantic and derive typography from resolved snapshots instead.
-- [x] `[H]` **P1. Prune the diagram corpus to a minimal invariant pack.** 11 canonical slugs remain; 8 redundant domain fixtures deleted (android-*, lt-*, rise-of-inference-economy).
-- [x] `[H]` **P1. Rewrite YAML toward semantic inputs only.** Kept corpus has no line-level style escape hatches; redundant root `padding: 24` / `border: none` stripped.
-- [x] `[H]` **P1. Derive spacing from composition and shrink the authored gap surface.** `stack_gap` absent; explicit grid exceptions kept only where they prove an invariant (`support-engineering-flow` `row_gap: 48`, `request-to-hardware-stack` `col_gap: 16`).
+Feature package: `specs/006-arrow-routing-redesign/`.
 
-#### Force layout restoration (spec 023) — DRAFTED
+- [ ] `[H]` **Keep spec 006 parked as the next major routing slice.** Entire routing redesign plan remains open; not blocking the current editor work.
 
-Feature package: `specs/023-force-layout-restoration/` — restore the broken force demo lane as a TS-owned surface, rebuild the three tracked examples, and keep the BF-shell interaction model without reviving Python solver/backend authority. Recovered JSON from history is migration input only; do not treat it as final authority.
-
-- [ ] `[H]` **P1. Close the remaining force-lane follow-up after the TS restoration.** All three canonical force demos now load on the TS runtime, drag/pin/unpin/export behavior is back, and the unpin path reheats correctly; next land local save persistence, finish the benchmark cleanup, and add stronger automated coverage for save/export/browser checks.
-
-#### Repo coherence — resolved-style snapshot (spec 008 Phase 5)
-
-Feature package: `specs/008-repo-coherence-rewrite/` — Phases 1–4 and 6–8 complete. Phase 5 (T040–T047, 8 tasks) is the remaining work.
-
-- [x] `[S]` T040–T042 **[TS/JS]:** `resolvedTextFill` / `resolvedIconFill` / heading snapshot on `Frame`; populated in `frame-classes.ts`; `layout-bridge.js` reads snapshot.
-- [x] `[H]` **Re-scope Phase 5 away from new Python authority.** Phase 5 is now explicitly TS-only: remaining live render/export consumers audited, preview raw `iconFill` fallback removed, and docs/tasks no longer point at `scripts/layout_v3.py`.
-- [x] `[S]` T043–T045 **[TS]:** Added resolved-style render regressions, including highlight contrast from snapshot rather than raw fields.
-- [x] `[S]` T046–T047: Full TS suite green; focused resolved-style tests and one TS export smoke check completed.
-
-### Priority 3 — Standalone items
+### Priority 2 — Standalone items
 
 #### Top-level containers should default to FILL sizing
 
@@ -76,12 +60,6 @@ Full audit: `docs/architecture/adversarial-audit-2026-05-27.md`.
 - [ ] `[M]` **M5. Preview JSON contract stale.** Missing `justify`, `col_span`.
 - [ ] `[S]` **M6. `estimate_line_width` duplicated.** `diagram_shared.py` vs `text_metrics.py`.
 - [ ] `[L]` **Legacy Python parity harness drift.** `scripts/test_parity.py` still reconstructs the pre-WS3 heading/body model, so full `pytest scripts -q` has 5 stale failures. Either realign it with the current loader contract or retire it as a non-gating legacy oracle; do not block TS work on it.
-
-### Priority 4 — Future specs
-
-#### Arrow routing redesign (spec 006)
-
-Feature package: `specs/006-arrow-routing-redesign/` — 0/25 tasks done. TS-only. Not blocking.
 
 ### Lower priority
 
