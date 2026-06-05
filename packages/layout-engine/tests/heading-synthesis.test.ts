@@ -48,26 +48,26 @@ describe('applyHeadingAsChild propagation contract', () => {
         new Frame({ id: 'b', label: [createLine('B')] }),
       ],
     });
-    applyHeadingAsChild(row, createLine('Row title'), { stackGap: 20 });
+    applyHeadingAsChild(row, createLine('Row title'));
 
     expect(row.direction).toBe(Direction.VERTICAL);
     const body = findSyntheticBody(row)!;
     expect(body.direction).toBe(Direction.HORIZONTAL);
-    expect(body.gap).toBe(20);
+    expect(body.gap).toBe(INSET);
     expect(body.wrap).toBe(false);
     expect(body.justify).toBe(Justify.PACKED);
     expect(body.fillWeight).toBe(1);
     expect(body.children.map(c => c.id)).toEqual(['a', 'b']);
   });
 
-  it('stackGap overrides default inner gap without copying parent gap', () => {
+  it('keeps parent gap as title spacing while deriving inner gap from composition', () => {
     const section = new Frame({
       id: 'sect',
       gap: 4,
       children: [new Frame({ id: 'x', label: [createLine('X')] })],
     });
-    applyHeadingAsChild(section, createLine('H'), { stackGap: 16 });
-    expect(findSyntheticBody(section)!.gap).toBe(16);
+    applyHeadingAsChild(section, createLine('H'));
+    expect(findSyntheticBody(section)!.gap).toBe(INSET);
     expect(section.gap).toBe(4);
   });
 

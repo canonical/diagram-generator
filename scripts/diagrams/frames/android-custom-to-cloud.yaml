@@ -2,8 +2,6 @@ engine: v3
 title: Custom Android to Anbox Cloud
 grid:
   cols: 4
-  col_gap: 32
-  row_gap: 32
 arrows:
 - source: custom_files
   target: host_tools
@@ -14,7 +12,6 @@ arrows:
 root:
   id: page
   direction: vertical
-  gap: 32
   padding: 24
   width: 464
   sizing_w: fixed
@@ -22,8 +19,6 @@ root:
   - id: custom_files
     level: 3
     direction: vertical
-    gap: 0
-    padding: 8
     sizing_h: fill
     heading: Custom Android files
     icon: SD card.svg
@@ -31,8 +26,6 @@ root:
     - id: partitions
       level: 2
       direction: vertical
-      gap: 0
-      padding: 8
       heading: Partitions
       children:
       - id: system_image
@@ -44,8 +37,6 @@ root:
   - id: host_tools
     level: 3
     direction: vertical
-    gap: 0
-    padding: 8
     sizing_h: hug
     heading: Host-side tools
     icon: Wrench 1.svg
@@ -59,8 +50,6 @@ root:
   - id: anbox_cloud
     level: 3
     direction: vertical
-    gap: 0
-    padding: 8
     sizing_h: hug
     heading: Anbox Cloud
     icon: Cloud.svg
@@ -73,8 +62,6 @@ root:
   - id: virt_instance
     level: 3
     direction: vertical
-    gap: 0
-    padding: 8
     sizing_h: hug
     heading: Virtualized Android instance
     icon: Virtual machine.svg

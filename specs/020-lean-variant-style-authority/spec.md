@@ -18,6 +18,7 @@ Rewrite the frame styling and fixture strategy so the repo becomes simpler, smal
 - one render contract: renderers consume resolved style only
 - one measurement contract: text measurement consumes resolved typography only
 - one authored model: semantic YAML, not style-rich text lines
+- one spacing model: derive common gaps and padding from structure/variant defaults instead of authoring them per frame
 - one fixture philosophy: diagrams are disposable tests, not preserved artifacts
 - fewer diagrams, fewer exceptions, fewer compatibility branches
 
@@ -34,7 +35,31 @@ The next agent implementing this spec MUST follow these rules:
 5. If a diagram depends on legacy styling escape hatches, rewrite it semantically or delete it.
 6. Keep the TypeScript path authoritative. Python may lag or be retired for this slice if it slows down the clean model.
 7. Do not widen the canonical fixture corpus while implementing this spec.
-8. Mark tasks complete only after deletion, simplification, and validation have all landed together.
+8. Prefer derived spacing over authored `gap` / `stack_gap` / padding fields. Keep explicit exceptions only where the default rule cannot express the intended structure.
+9. Mark tasks complete only after deletion, simplification, and validation have all landed together.
+
+## Additional simplification target: derived spacing
+
+This spec also covers a spacing-surface contraction aimed at faster authoring, smaller YAML, and less inspector logic.
+
+The intent is to remove most authored frame `gap` fields and make spacing follow a small semantic rule set:
+
+- plain container with only leaf children → `8px`
+- plain container with any container child → `24px`
+- root container → `24px`
+- headed container title-to-body gap → `0px`
+- headed container body stack gap → derived from the body children using the same composition rule
+- explicit `gap: 0` remains allowed for non-headed structural exceptions that intentionally need abutted siblings
+
+`stack_gap` is legacy plumbing and should disappear from authored YAML in this slice. The body stack should derive its gap automatically.
+
+Grid overlay spacing is related but separate. The simplification direction for `grid.col_gap` / `grid.row_gap` is a default of `24px` with authored overrides kept only when they prove a distinct invariant or a deliberate exception.
+
+Padding follows the same contraction strategy:
+
+- non-root frames default to `8px` padding
+- annotation leaves keep `8px` top/bottom padding but collapse side padding to `0px`
+- explicit authored padding should survive only for deliberate asymmetric or non-canonical exceptions
 
 ## User Scenarios & Testing
 
@@ -67,6 +92,24 @@ As a diagram author, I need YAML to describe structure and semantic intent, not 
 1. **Given** a note inside a highlighted section, **When** its text needs white contrast, **Then** the YAML expresses that through semantic frame inputs and resolved contrast rules, not `fill: white` on the note.
 2. **Given** a section heading, **When** it needs strong/small-caps styling, **Then** YAML does not carry heading typography overrides.
 3. **Given** a new diagram author reads a frame YAML, **When** they inspect styling inputs, **Then** they see semantic choices like level, variant, role, and layout fields rather than styling trivia.
+
+---
+
+### User Story 2B - spacing is derived, not authored per container (Priority: P1)
+
+As a diagram author, I need common spacing to come from a tiny structural rule set so YAML stays short and the inspector stops exposing knobs that mostly restate defaults.
+
+**Why this priority**: `gap`, `stack_gap`, and non-canonical grid gap values expand both prompt surface and code paths. Most of that surface is repetitive rather than expressive.
+
+**Independent Test**: Search the kept YAML corpus. Most frame `gap` fields are gone, `stack_gap` is absent, root spacing resolves to `24px`, leaf-only stacks resolve to `8px`, container stacks resolve to `24px`, and only true structural exceptions retain explicit `gap: 0`.
+
+**Acceptance Scenarios**:
+
+1. **Given** a plain container whose children are all leaves, **When** `gap` is omitted, **Then** the loader resolves the stack gap to `8px`.
+2. **Given** a plain container with at least one child container, **When** `gap` is omitted, **Then** the loader resolves the stack gap to `24px`.
+3. **Given** a headed container, **When** heading synthesis runs, **Then** the authored parent/body split uses `0px` from title to body and derives the body stack gap from the body children instead of reading `stack_gap`.
+4. **Given** a non-headed structural wrapper that intentionally needs abutted siblings, **When** it keeps `gap: 0`, **Then** that explicit zero remains a valid escape hatch instead of being overwritten by the derived rule.
+5. **Given** a diagram grid omits `col_gap` and `row_gap`, **When** the overlay resolves, **Then** both default to `24px` unless the diagram intentionally overrides them.
 
 ---
 
@@ -115,6 +158,8 @@ As an engine maintainer, I need tests to certify the simplified model directly s
 - Arrow labels and free annotations may need an explicit semantic role if they remain outside the main frame-owned text model.
 - Some kept fixture diagrams may still be useful for manual preview QA even after they leave the automated corpus.
 - Python parity tests may fail during the rewrite and should not block the TS-owned architecture cleanup.
+- Structural wrappers can legitimately need `gap: 0` even when they contain containers; the derived rule must leave room for that explicit exception.
+- Existing grid overlays still use `16`, `32`, and `48` in a few fixtures; normalizing them to `24` is acceptable only where that loss of distinction is deliberate and covered by the simplified invariant pack.
 
 ## Requirements
 
@@ -132,6 +177,11 @@ As an engine maintainer, I need tests to certify the simplified model directly s
 - **FR-010**: The TypeScript path MUST remain the only authoritative interactive implementation during this rewrite.
 - **FR-011**: Tests for style and heading behavior MUST prefer inline semantic fixtures over corpus files whenever practical.
 - **FR-012**: The final docs MUST state clearly that diagrams are treated as disposable test fixtures unless explicitly promoted for another purpose.
+- **FR-013**: Frame `gap` MUST default from structure, not depth: root `24px`, plain leaf-only stacks `8px`, plain stacks containing any container `24px`, and headed parent title-to-body gap `0px`.
+- **FR-014**: `stack_gap` MUST cease to be an authored YAML field for the canonical corpus. Heading synthesis MUST derive the body stack gap automatically.
+- **FR-015**: Explicit `gap: 0` MUST remain available for intentional structural exceptions that the derived rule cannot express semantically yet.
+- **FR-016**: `grid.col_gap` and `grid.row_gap` MUST default to `24px` when omitted. Non-`24px` authored grid gaps should survive only when they prove a distinct kept invariant.
+- **FR-017**: Non-root frames MUST default to `8px` padding when omitted. Annotation leaves MUST default to `8px` top/bottom padding and `0px` side padding. Authored padding fields should remain only for deliberate exceptions.
 
 ### Key Entities
 
@@ -151,6 +201,9 @@ As an engine maintainer, I need tests to certify the simplified model directly s
 - **SC-005**: Focused semantic tests replace deleted corpus coverage for heading/body synthesis, variant contrast, section/panel/leaf styling, icon contrast, wrap behavior, and arrow basics.
 - **SC-006**: A cold-start agent can explain the styling model in one sentence: "variant and context resolve style; layout and render consume resolved style only." 
 - **SC-007**: The final diff deletes more fixture and compatibility surface than it adds, excluding generated build output.
+- **SC-008**: Repo-wide search of the kept YAML corpus shows `stack_gap` absent and frame `gap` present only where it expresses a deliberate exception.
+- **SC-009**: The default spacing rule can be summarized in one sentence: "leaf stacks are 8, container stacks and root are 24, headed title gap is 0, and only structural zero stays explicit."
+- **SC-010**: Repo-wide search of the kept YAML corpus shows authored padding removed wherever it only restates the default rule of `8px` non-root padding or annotation side padding `0px`.
 
 ## Assumptions
 

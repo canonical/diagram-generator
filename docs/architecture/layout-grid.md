@@ -122,23 +122,31 @@ The TypeScript autolayout engine in `packages/layout-engine/` will eventually po
 
 The design-foundry counterpart is `resolveGridCore()` in `packages/layout-grid/src/grid-core.ts`. The two implementations share the same algorithm but `_resolveGrid()` is a simplified JS version tailored to the preview's gridInfo shape.
 
-## Grid override persistence
+## Grid persistence
 
-Grid overrides are stored alongside frame overrides in the override JSON file (`tmp/overrides/<slug>.json`). The grid override shape:
+Grid edits are persisted back into the diagram YAML through `frame_yaml_persistence.py`, not to a sidecar override file.
 
-```json
-{
-  "cols": 4,
-  "rows": 6,
-  "col_gap": 24,
-  "row_gap": 24,
-  "margin_top": 48,
-  "margin_right": 48,
-  "margin_bottom": 48,
-  "margin_left": 48,
-  "link_to_root": true,
-  "slack_absorption": true
-}
+Persistable grid fields today are intentionally narrow:
+
+- `cols`
+- `col_gap`
+- `row_gap`
+- `outer_margin`
+
+The preview may still traffic a richer `grid_overrides` payload at runtime, but only the YAML-safe subset is canonical. Important constraints:
+
+- per-side margins are only persistable when all four sides match, in which case they collapse to `grid.outer_margin`
+- `rows` and `slack_absorption` are preview-only and are not persisted into frame YAML
+- `link_to_root=true` is compatible with YAML persistence, but `link_to_root=false` is not a persisted authored setting
+
+Example persisted YAML shape:
+
+```yaml
+grid:
+  cols: 4
+  col_gap: 24
+  row_gap: 24
+  outer_margin: 48
 ```
 
-Legacy overrides with `outer_margin` (uniform margin) are still read for backward compatibility.
+Legacy YAML with `outer_margin` remains supported as the canonical uniform-margin field.

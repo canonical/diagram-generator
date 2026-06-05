@@ -26,7 +26,6 @@ root:
       - id: lxd_container
         level: 2
         direction: vertical
-        padding: 8
         sizing_h: fill
         heading: LXD container
         children:
@@ -51,7 +50,6 @@ root:
       - id: vm
         level: 2
         direction: vertical
-        padding: 8
         sizing_h: fill
         heading: VM
         children:

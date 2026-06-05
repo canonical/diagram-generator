@@ -14,15 +14,22 @@ import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
 
-from force_layout import (
-    ForceCenter,
-    ForceCollideRect,
-    ForceLinkForce,
-    ForceManyBody,
-    ForceNode,
-    ForceLink,
-    ForceSimulation,
-)
+try:
+    from force_layout import (
+        ForceCenter,
+        ForceCollideRect,
+        ForceLinkForce,
+        ForceManyBody,
+        ForceNode,
+        ForceLink,
+        ForceSimulation,
+    )
+except ModuleNotFoundError:
+    print(
+        "force benchmark unavailable: scripts/force_layout.py is not present in this checkout. "
+        "Restore or replace it with the future TypeScript force solver before rerunning this benchmark."
+    )
+    raise SystemExit(0)
 
 TICKS = 300
 SIZES = [10, 50, 100, 200, 500]

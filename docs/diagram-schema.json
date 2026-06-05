@@ -86,20 +86,14 @@
     },
 
     "line": {
-      "description": "A single line of text. Can be a plain string (uses body defaults) or an object with overrides.",
+      "description": "A single semantic line of text. Can be a plain string or an object with explicit text only.",
       "oneOf": [
         { "type": "string" },
         {
           "type": "object",
           "required": ["text"],
           "properties": {
-            "text": { "type": "string" },
-            "size": { "type": "string", "default": "18" },
-            "weight": { "type": "string", "enum": ["400", "500", "600", "700"], "default": "400" },
-            "fill": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
-            "small_caps": { "type": "boolean", "default": false },
-            "line_step": { "type": "integer", "minimum": 1 },
-            "font_family": { "type": "string" }
+            "text": { "type": "string" }
           },
           "additionalProperties": false
         }

@@ -59,7 +59,6 @@ root:
         - id: compute
           level: 2
           direction: vertical
-          padding: 8
           heading: "Always-on compute"
           icon: Globe.svg
           children:
@@ -81,7 +80,6 @@ root:
 
           level: 2
           direction: vertical
-          padding: 8
           heading: "Revenue impact"
           icon: Financial data.svg
           children:

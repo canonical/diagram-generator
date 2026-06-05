@@ -33,6 +33,11 @@ Feature package: `specs/020-lean-variant-style-authority/` — new north-star si
 - [x] `[H]` **P1. Remove line-level styling authority from frame-owned text.** YAML parsing, preview wire transport, preview relayout, the Python legacy mirror, and the dist-backed Node runtime now keep frame-owned lines semantic and derive typography from resolved snapshots instead.
 - [ ] `[H]` **P1. Prune the diagram corpus to a minimal invariant pack.** Keep only a small canonical fixture set; delete or rewrite the rest.
 - [ ] `[H]` **P1. Rewrite YAML toward semantic inputs only.** No legacy text color/weight/small-caps escape hatches for frame-owned text.
+- [ ] `[H]` **P1. Derive spacing from composition and shrink the authored gap surface.** Under spec 020, make root/container/leaf/title spacing default from structure (`24 / 24 / 8 / 0`), remove `stack_gap` from the canonical corpus, keep explicit `gap: 0` only for structural exceptions, and collapse redundant grid gaps toward the `24px` default where the invariant pack allows it.
+
+#### Force layout restoration (new spec after 020)
+
+- [ ] `[H]` **Rebuild the force-layout lane in TypeScript.** `force.js` and the preview shell remain, but `force_preview.py`, `force_layout.py`, and the tracked JSON example specs are gone. Use `docs/architecture/repo-health-audit-2026-06-05.md` as the brief, keep the rebuild TS-only, and restore `force-stakeholders`, `force-juju-landing-pages`, and `force-support-case-lifecycle` against the existing `diagrams/1.input/force/*.jpg` references.
 
 #### Autolayout hardening — semantic mutation removal (spec 005) — IN PROGRESS
 
@@ -47,6 +52,7 @@ Feature package: `specs/005-autolayout-hardening/` — WS1 largely complete in T
 Feature package: `specs/008-repo-coherence-rewrite/` — Phases 1–4 and 6–8 complete. Phase 5 (T040–T047, 8 tasks) is the remaining work.
 
 - [x] `[S]` T040–T042 **[TS/JS]:** `resolvedTextFill` / `resolvedIconFill` / heading snapshot on `Frame`; populated in `frame-classes.ts`; `layout-bridge.js` reads snapshot.
+- [ ] `[H]` **Re-scope Phase 5 away from new Python authority.** T043–T044 currently extend `scripts/layout_v3.py`; replace them with TS-side validation or explicitly retire them if Python is no longer the right owner.
 - [ ] `[S]` T043–T044 **[Python parity]:** Port resolved-style snapshot to `scripts/layout_v3.py` + batch render audit.
 - [ ] `[S]` T045–T047: Additional resolved-style regression coverage + full suites after Python half lands.
 

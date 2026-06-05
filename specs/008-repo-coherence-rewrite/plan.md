@@ -185,7 +185,7 @@ Default deletion candidates, subject to evidence:
 
 - Add or consolidate one resolved style object on frame/layout output.
 - Populate it from the frame-class semantics owned by `docs/frame-classes.md` after YAML semantic fields and overrides are applied.
-- Thread it through Python serialization, TS model, preview patching, SVG rendering, and draw.io rendering where applicable.
+- Thread it through the live TS model, preview patching, and TS SVG rendering. Audit retained Python/export paths only to avoid stale reinterpretation; do not extend `scripts/layout_v3.py` just to mirror TS snapshot fields.
 - Replace raw fill/border branches in renderers with resolved style reads.
 - Keep raw authored fields available for persistence only, not rendering decisions.
 - Add tests that fail if leaves resolve white, panels lose grey class fill, sections use faux small caps, or highlighted text/icon contrast comes from raw fill.
@@ -202,7 +202,7 @@ The migration is complete only when all are true:
 - HarfBuzz-backed measurement is required for interactive text measurement.
 - Python is documented and tested as batch/export oracle only.
 - docs no longer disagree about the above.
-- TS tests, focused Python tests, and one browser check pass.
+- focused TS tests and one browser/export smoke check pass; run focused Python tests only when the touched slice still owns a retained Python contract.
 
 ## Audit Ledger
 

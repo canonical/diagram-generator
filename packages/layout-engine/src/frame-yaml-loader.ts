@@ -21,7 +21,7 @@ import {
 } from './frame-model.js';
 import { INSET, GRID_GUTTER } from './tokens.js';
 import { resolveStyles } from './resolve-styles.js';
-import { applyHeadingAsChild } from './heading-synthesis.js';
+import { applyHeadingAsChild, deriveContentGap } from './heading-synthesis.js';
 
 const DIRECTION: Record<string, Direction> = {
   vertical: Direction.VERTICAL,
@@ -111,8 +111,7 @@ function parseFrame(data: Record<string, unknown>, isRoot = false): Frame {
   const borderKey = String(data.border ?? '');
   const border = BORDER[borderKey] ?? defaultBorder;
   const isPanel = border !== Border.NONE || hasHeading;
-  const defaultGap =
-    isContainer && isPanel ? INSET : isContainer ? GRID_GUTTER : 0;
+  const defaultGap = hasHeading ? 0 : deriveContentGap(children, { isRoot });
 
   let sizingW: Sizing;
   let sizingH: Sizing;
@@ -132,7 +131,7 @@ function parseFrame(data: Record<string, unknown>, isRoot = false): Frame {
   if ('height' in data && !('sizing_h' in data) && !('sizing' in data)) sizingH = Sizing.FIXED;
 
   const isAnnotation = border === Border.NONE && !isContainer;
-  const defaultPadding = isContainer && !isPanel ? 0 : INSET;
+  const defaultPadding = isRoot ? 0 : INSET;
   const uniformPadding = Number(data.padding ?? defaultPadding);
 
   const frame = new Frame({
@@ -185,7 +184,6 @@ function parseFrame(data: Record<string, unknown>, isRoot = false): Frame {
     applyHeadingAsChild(frame, headingLine, {
       icon: data.icon as string | undefined,
       iconFill: data.icon_fill as string | undefined,
-      stackGap: data.stack_gap != null ? Number(data.stack_gap) : undefined,
     });
   }
 

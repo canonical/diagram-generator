@@ -36,6 +36,12 @@ _JUSTIFY = {
 }
 
 
+def _derive_content_gap(children: list[Frame]) -> int:
+    if not children:
+        return 0
+    return GRID_GUTTER if any(child.is_container for child in children) else INSET
+
+
 def _parse_line(raw) -> Line:
     """Parse a label line from YAML — string or {text}.
 
@@ -217,7 +223,7 @@ def _parse_frame(data: dict, *, is_root: bool = False) -> Frame:
     # wrapped in a ``__body`` sub-frame so the heading spans the full width.
     #
     # Propagation contract (spec 005 WS3 — matches heading-synthesis.ts):
-    #   parent gap  → title gap (heading↔body); __body gap → stack_gap legacy / INSET
+    #   parent gap  → title gap (heading↔body); __body gap → derived content gap
     #   __body gets align + direction only; NOT wrap, justify, or fill_weight
     if heading_line and frame.is_container:
         heading_fill = frame.fill if frame.fill == Fill.BLACK else Fill.WHITE
@@ -238,11 +244,10 @@ def _parse_frame(data: dict, *, is_root: bool = False) -> Frame:
             icon_fill=heading_icon_fill,
         )
         if frame.direction == Direction.HORIZONTAL:
-            stack_gap = int(data["stack_gap"]) if "stack_gap" in data else INSET
             body = Frame(
                 id=f"{frame.id}__body" if frame.id else "__body",
                 direction=Direction.HORIZONTAL,
-                gap=stack_gap,
+                gap=_derive_content_gap(frame.children),
                 align=frame.align,
                 sizing_w=Sizing.FILL,
                 sizing_h=Sizing.HUG,
@@ -253,11 +258,10 @@ def _parse_frame(data: dict, *, is_root: bool = False) -> Frame:
             frame.children = [heading_child, body]
             frame.direction = Direction.VERTICAL
         else:
-            stack_gap = int(data["stack_gap"]) if "stack_gap" in data else INSET
             body = Frame(
                 id=f"{frame.id}__body" if frame.id else "__body",
                 direction=Direction.VERTICAL,
-                gap=stack_gap,
+                gap=_derive_content_gap(frame.children),
                 align=frame.align,
                 sizing_w=Sizing.FILL,
                 sizing_h=Sizing.HUG,

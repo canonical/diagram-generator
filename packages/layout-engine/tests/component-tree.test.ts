@@ -47,8 +47,7 @@ describe('buildComponentTree', () => {
     expect(tree[0]!.children.map(c => c.id)).toEqual(['a', 'b']);
   });
 
-  it('uses stackGap option for __body gap, independent of frame.gap (title gap)', () => {
-    // Mirrors the Python path: stack_gap controls leaf spacing; gap controls heading→body spacing.
+  it('derives __body gap from composition, independent of frame.gap (title gap)', () => {
     const section = new Frame({
       id: 'sect',
       gap: 0,   // title gap = 0
@@ -57,11 +56,10 @@ describe('buildComponentTree', () => {
         new Frame({ id: 'y', label: [createLine('Y')] }),
       ],
     });
-    // Pass explicit stackGap=16 (as if stack_gap: 16 was in YAML)
-    applyHeadingAsChild(section, createLine('Heading', { weight: '700' }), { stackGap: 16 });
+    applyHeadingAsChild(section, createLine('Heading', { weight: '700' }));
     layoutFrameTree(section, new MockTextAdapter());
     const tree = buildComponentTree(section);
     expect(tree[0]!.layout_header_gap).toBe(0);   // title gap unchanged
-    expect(tree[0]!.layout_gap).toBe(16);          // stack gap = explicit stackGap, not INSET
+    expect(tree[0]!.layout_gap).toBe(8);          // body gap derives from the leaf-only body
   });
 });

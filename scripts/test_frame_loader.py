@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from frame_loader import load_frame_yaml
 from frame_model import Align, Direction, Justify, Sizing
-from diagram_shared import DEFAULT_FRAME_STROKE_WIDTH, INSET
+from diagram_shared import DEFAULT_FRAME_STROKE_WIDTH, GRID_GUTTER, INSET
 from diagram_model import Border, Fill
 from diagram_model import Border
 
@@ -716,7 +716,7 @@ root:
     assert heading.icon == "Cloud.svg"
 
 
-def test_heading_body_stack_gap_independent_of_title_gap(tmp_path):
+def test_heading_body_gap_independent_of_title_gap(tmp_path):
     """Section gap is heading→body; __body stack defaults to INSET between leaves."""
     diagram = _load(tmp_path, """
 engine: v3
@@ -738,8 +738,8 @@ root:
     assert body.gap == INSET
 
 
-def test_heading_body_explicit_stack_gap_from_yaml(tmp_path):
-    """Explicit stack_gap in YAML sets __body.gap independently of title gap."""
+def test_heading_body_derives_container_gap_from_body_children(tmp_path):
+    """Headed bodies use GRID_GUTTER when the body contains containers."""
     diagram = _load(tmp_path, """
 engine: v3
 root:
@@ -747,18 +747,19 @@ root:
   children:
     - id: section
       gap: 0
-      stack_gap: 16
       heading: "Title"
       children:
-        - id: a
-          label: [A]
+        - id: group
+          children:
+            - id: a
+              label: [A]
         - id: b
           label: [B]
 """)
     section = diagram.root.children[0]
     body = [c for c in section.children if "__body" in (c.id or "")][0]
-    assert section.gap == 0      # title gap
-    assert body.gap == 16        # stack gap from YAML, not INSET
+    assert section.gap == 0
+    assert body.gap == GRID_GUTTER
 
 
 def test_heading_synthesis_vertical_parent_preserves_layout_props(tmp_path):

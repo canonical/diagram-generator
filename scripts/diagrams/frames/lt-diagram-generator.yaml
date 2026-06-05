@@ -2,7 +2,6 @@ engine: v3
 title: "Diagram generator"
 grid:
   cols: 3
-  col_gap: 32
 arrows:
   - source: input_panel
     target: engine

@@ -17,7 +17,7 @@ You are doing an **adversarial code review** of the `diagram-generator` repo. Be
 - **Recent session work (verify on current HEAD):**
   - Preview arrow editing — `ComponentModel` arrows, segment hit areas, waypoint double-click, clear-override routing
   - Spec **019** — inspector cleanup (no duplicate Selection summary; `Auto-layout · {cid}`)
-  - Headed-container: one `gap` per container (legacy `stack_gap` loader plumbing only)
+   - Headed-container: one `gap` per container (body gap derives from composition; no `stack_gap` compatibility path)
 - **Branch:** `git log -1 --oneline` for exact HEAD
 
 ### Your tasks
@@ -59,7 +59,7 @@ You are doing an **adversarial code review** of the `diagram-generator` repo. Be
    cd packages/layout-engine && npm test -- svg-golden
    cd packages/layout-engine && npm test -- arrow-render
    cd scripts && python -m pytest test_preview_ts_export.py test_preview_ts_layout.py test_preview_frames_dir.py test_preview_ts_api.py test_preview_server_reload.py test_frame_yaml_persistence.py -q
-   cd scripts && python -m pytest test_preview_support_engineering_flow.py -q -k "roundtrip or per_side_padding or save or stack_gap"
+   cd scripts && python -m pytest test_preview_support_engineering_flow.py -q -k "roundtrip or per_side_padding or save"
    ```
 
 ### Output format

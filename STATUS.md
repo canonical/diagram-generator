@@ -38,6 +38,7 @@ Making a diagram for a review or deck: **[`docs/stakeholder-guide.md`](docs/stak
 
 - `export-frame-svg.mjs`, `emit-frame-diagram-json.mjs`, and sibling Node CLIs now auto-rebuild `packages/layout-engine/dist/` when TS source is newer than the requested dist artifact, so the active runtime no longer drifts behind source edits.
 - Added runtime regressions in `scripts/test_preview_frames_dir.py` proving the live DTO/export scripts strip retired line-level style fields rather than only the source-level unit tests doing so.
+- Force routes and the orphaned benchmark now fail explicitly: `preview_server.py` returns a clear backend-unavailable response for `/force` surfaces when `force_preview.py` is absent, and `benchmark_force.py` exits with migration guidance instead of a raw `ModuleNotFoundError` traceback.
 
 ### Recent work — spec 012 complete + arrow editing (2026-06-04)
 
@@ -46,7 +47,7 @@ Commit **`a6822da`** (`scripts: land ts svg renderer cleanup`):
 - **Spec 012 closed:** TS-only SVG runtime; `diagram_render_svg.py` removed; golden SVG harness + fixtures; agent docs refreshed (T070).
 - **Arrow editing:** Arrows in `ComponentModel`; segment hit areas; `arrowComponentId` parity with `svg-render.ts`; double-click waypoint + clear-override routing tests green.
 - **Spec 019:** Inspector deduped; id in Auto-layout heading.
-- **Headed-container contract:** one `gap` per container (header/body split is internal; `stack_gap` remains legacy loader plumbing only).
+- **Headed-container contract:** one `gap` per container (header/body split is internal; body gap derives from composition and there is no `stack_gap` compatibility path).
 - **Audit snapshot:** TS preview tests green (`11/11`), full TS suite still only has the known 12 `test-deep-nesting` parity failures, and Python red state is confined to stale legacy `scripts/test_parity.py` reconstruction logic rather than the active TS preview/render path.
 
 ### Active focus
@@ -57,7 +58,8 @@ Commit **`a6822da`** (`scripts: land ts svg renderer cleanup`):
 | Next | Spec **005** WS2–WS5 (style ownership, heading/body docs, padding parity) |
 | Parallel | Spec **021** arrow labels use annotation variant — landed |
 | Parallel | Spec **018** PNG export |
-| Parallel | Spec **008** Phase 5 (resolved-style snapshot) |
+| Parallel | Re-scope Spec **008** Phase 5 so it does not deepen Python authority |
+| Next major slice | New TS force-layout restoration spec |
 
 ## Key files
 

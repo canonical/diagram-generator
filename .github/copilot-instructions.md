@@ -14,6 +14,22 @@ TypeScript is the standard for all new feature work. The rationale (from the des
 
 **All new features, bug fixes, and refactors target the TypeScript engine first.** Python receives matching changes only when needed for batch/export correctness. Do not start new work in Python unless it is specifically about the YAML parser or batch SVG export.
 
+### Preview shell policy (`scripts/preview/*.js`)
+
+The browser preview (`editor.js`, `editor-base.js`, `layout-bridge.js`, etc.) is **legacy DOM shell + glue**, not a second engine. Do **not** grow diagram semantics there.
+
+| Layer | Location | Rule |
+|-------|----------|------|
+| Engine | `packages/layout-engine/` | TS only — layout, measure, styles, SVG truth |
+| Bridge | `layout-bridge.js` | Thin glue — deserialize, call `LayoutEngine`, patch SVG; no new semantics |
+| Shell | `editor.js`, `editor-base.js` | Maintain + small fixes — selection, inspector, drag, save UX |
+
+**Allowed in JS:** bug fixes; DOM/interaction plumbing; wiring to `LayoutEngine` APIs; export sanitization; deleting code as TS absorbs behavior.
+
+**Not allowed in JS:** new layout/measure/style-resolution/SVG-generation logic; renderer-side reinterpretation of frame classes; inspector fields that encode engine rules instead of YAML/TS DTO fields; large new subsystems inside `editor.js`.
+
+**Escalation rule:** if a feature needs more than ~50 lines of non-DOM logic in `scripts/preview/`, implement it in `packages/layout-engine/` (or frame YAML + TS loader) first, then wire the shell. Do not schedule a full `editor.js` → TypeScript rewrite unless a dedicated migration spec exists — freeze scope, not the files.
+
 ### Python's role (narrowing)
 
 Python is retained for three things:
@@ -36,7 +52,9 @@ The TS layout engine targets a **faithful port of Figma autolayout semantics**. 
 ### Rules for ongoing work
 
 - **TS-only for layout/measure features**: implement in `packages/layout-engine/` only. Python gets YAML field passthrough at most — no new measure logic.
+- **Preview shell maintain-only**: see Preview shell policy above — no new diagram semantics in `scripts/preview/*.js`.
 - **TS-first**: legacy parity port to Python is optional and fading; do not block TS work on Python parity.
+- **No speculative compatibility shims**: this is a single-user, single-developer repo. If a contract, field, or path is being retired and nothing real depends on it, delete it instead of carrying dual support "for now".
 - Continue shipping features here — do NOT block on the design-foundry port.
 - Do NOT migrate code to design-foundry yet. The target kernel operator interface is not ready.
 - **No-double-work guarantee:** design-foundry will not build a parallel autolayout.

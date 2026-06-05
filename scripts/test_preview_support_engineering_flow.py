@@ -1212,6 +1212,36 @@ def test_support_engineering_flow_preview_regression():
                 assert page_click["rootSelectedClass"] is True
                 assert page_click["geometry"] == baseline["geometry"]
 
+                export_svg = page.evaluate(
+                    """
+                    () => {
+                      const svg = document.querySelector('#stage svg');
+                      if (!svg || typeof sanitizeSvgCloneForExport !== 'function') {
+                        return { ok: false, reason: 'missing sanitizer or svg' };
+                      }
+                      const clone = svg.cloneNode(true);
+                      sanitizeSvgCloneForExport(clone);
+                      const serialized = new XMLSerializer().serializeToString(clone);
+                      return {
+                        ok: true,
+                        hasPage: serialized.includes('data-component-id="page"'),
+                        hasHandle: serialized.includes('dg-handle'),
+                        hasOutline: serialized.includes('dg-handle-outline'),
+                        hasWpHandle: serialized.includes('dg-wp-handle'),
+                        hasSnapGuide: serialized.includes('dg-snap-guide'),
+                        hasSelectedClass: serialized.includes('dg-selected'),
+                      };
+                    }
+                    """
+                )
+                assert export_svg["ok"] is True
+                assert export_svg["hasPage"] is True
+                assert export_svg["hasHandle"] is False
+                assert export_svg["hasOutline"] is False
+                assert export_svg["hasWpHandle"] is False
+                assert export_svg["hasSnapGuide"] is False
+                assert export_svg["hasSelectedClass"] is False
+
                 metrics = page.evaluate(
                     """
                     async () => {

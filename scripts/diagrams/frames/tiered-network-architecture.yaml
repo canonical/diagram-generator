@@ -51,7 +51,6 @@ root:
     - id: group_left
       level: 2
       direction: vertical
-      padding: 8
       children:
       - id: tier2_left
         label:
@@ -76,7 +75,6 @@ root:
     - id: group_center
       level: 2
       direction: vertical
-      padding: 8
       children:
       - id: tier2_center
         label:
@@ -101,7 +99,6 @@ root:
     - id: group_right
       level: 2
       direction: vertical
-      padding: 8
       children:
       - id: tier2_right
         label:

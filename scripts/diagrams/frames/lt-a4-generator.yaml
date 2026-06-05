@@ -2,7 +2,6 @@ engine: v3
 title: "A4 generator"
 grid:
   cols: 3
-  col_gap: 32
 arrows:
   - source: input_panel
     target: engine
@@ -28,7 +27,6 @@ root:
         - id: input_panel
           level: 2
           direction: horizontal
-          padding: 8
           fill_weight: 2
           heading: "2. Input"
           children:
@@ -47,7 +45,6 @@ root:
         - id: guidelines
           level: 2
           direction: vertical
-          padding: 8
           heading: "1. Guidelines"
           children:
             - id: typo
@@ -62,7 +59,6 @@ root:
         - id: engine
           level: 2
           direction: vertical
-          padding: 8
           fill_weight: 2
           heading: "3. Engine"
           children:
@@ -87,7 +83,6 @@ root:
         - id: export_panel
           level: 2
           direction: vertical
-          padding: 8
           fill_weight: 2
           heading: "4. Export"
           children:

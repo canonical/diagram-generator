@@ -12,13 +12,11 @@ root:
 
     - id: main_panel
       direction: horizontal
-      padding: 8
       border: solid
       heading: Infrastructure
       children:
         - id: col_left
           direction: vertical
-          padding: 8
           border: solid
           heading: Compute
           children:
@@ -33,7 +31,6 @@ root:
 
         - id: col_right
           direction: vertical
-          padding: 8
           border: solid
           heading: Storage
           children:

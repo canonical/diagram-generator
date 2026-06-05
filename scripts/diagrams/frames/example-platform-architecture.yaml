@@ -2,7 +2,6 @@ engine: v3
 title: "Platform architecture"
 grid:
   cols: 3
-  col_gap: 32
 arrows:
   - source: frontend
     target: gateway
@@ -23,7 +22,6 @@ root:
     - id: frontend
       level: 2
       direction: horizontal
-      padding: 8
       heading: "User-facing services"
       children:
         - id: fe_web
@@ -42,7 +40,6 @@ root:
     - id: services
       level: 2
       direction: horizontal
-      padding: 8
       heading: "Backend services"
       children:
         - id: svc_auth

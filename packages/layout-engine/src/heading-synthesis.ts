@@ -9,15 +9,15 @@
  *
  * | Field        | Authored parent | __heading | __body |
  * |--------------|-----------------|-----------|--------|
- * | gap          | title gap       | —         | `stack_gap` legacy or INSET default (content stack only) |
+ * | gap          | title gap       | —         | derived content gap |
  * | align        | —               | —         | yes    |
  * | direction    | may become VERTICAL when parent was HORIZONTAL | — | preserves horizontal body when parent was horizontal |
  * | wrap         | parent only     | no        | **no** (not inherited) |
  * | justify      | parent only (heading vs body) | no | **no** (packed default) |
  * | fill_weight  | parent only     | no        | **no** (default 1) |
  *
- * `stack_gap` in YAML is legacy plumbing for the inner content stack; prefer
- * the single parent `gap` for title spacing.
+ * The body stack derives gap from child composition. The authored parent
+ * `gap` remains the single control for title-to-body spacing.
  */
 
 import {
@@ -28,7 +28,13 @@ import {
   Fill,
   type Line,
 } from './frame-model.js';
-import { ICON_SIZE, INSET } from './tokens.js';
+import { GRID_GUTTER, ICON_SIZE, INSET } from './tokens.js';
+
+export function deriveContentGap(children: Frame[], options?: { isRoot?: boolean }): number {
+  if (children.length === 0) return 0;
+  if (options?.isRoot) return GRID_GUTTER;
+  return children.some(child => child.isContainer) ? GRID_GUTTER : INSET;
+}
 
 export function findSyntheticBody(frame: Frame): Frame | undefined {
   return frame.children.find(
@@ -39,7 +45,7 @@ export function findSyntheticBody(frame: Frame): Frame | undefined {
 export function applyHeadingAsChild(
   frame: Frame,
   heading: Line,
-  options?: { icon?: string; iconFill?: string; stackGap?: number },
+  options?: { icon?: string; iconFill?: string },
 ): void {
   if (!frame.isContainer) return;
 
@@ -71,7 +77,7 @@ export function applyHeadingAsChild(
   const body = new Frame({
     id: frame.id ? `${frame.id}__body` : '__body',
     direction: bodyDirection,
-    gap: options?.stackGap ?? INSET,
+    gap: deriveContentGap(frame.children),
     align: frame.align,
     sizingW: Sizing.FILL,
     sizingH: Sizing.HUG,

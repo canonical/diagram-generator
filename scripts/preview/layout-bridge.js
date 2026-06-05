@@ -57,10 +57,6 @@ function deserializeFrame(json) {
       icon: json.icon || undefined,
       iconFill: json.iconFill || undefined,
     });
-    const body = _findSyntheticBody(frame);
-    if (body && json.stack_gap != null) {
-      body.gap = Math.max(0, parseInt(json.stack_gap, 10));
-    }
   }
   return frame;
 }
@@ -219,15 +215,6 @@ function applyOverridesToFrameTree(diagram, allOverrides, gridOverrides) {
     if (ovr.gap != null) {
       const gap = Math.max(0, parseInt(ovr.gap, 10));
       target.gap = gap;
-    }
-    if (ovr.stack_gap != null) {
-      const stackGap = Math.max(0, parseInt(ovr.stack_gap, 10));
-      const body = _findSyntheticBody(target);
-      if (body) {
-        body.gap = stackGap;
-      } else {
-        target.gap = stackGap;
-      }
     }
     if (ovr.padding != null) {
       const p = Math.max(0, parseInt(ovr.padding, 10));
@@ -1245,7 +1232,7 @@ function performLocalRelayout(model, overrides, gridOverrides, opts) {
 
     // Build override map (same format as requestV3Relayout sends)
     const FRAME_KEYS = [
-      "direction", "gap", "stack_gap", "padding", "padding_top", "padding_right", "padding_bottom", "padding_left",
+      "direction", "gap", "padding", "padding_top", "padding_right", "padding_bottom", "padding_left",
       "sizing", "sizing_w", "sizing_h",
       "fill_weight", "align", "wrap", "width", "height", "min_width", "max_width", "max_width_chars", "min_height",
       "max_height", "children_order", "fill", "border", "level", "text",

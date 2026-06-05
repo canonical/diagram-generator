@@ -299,13 +299,24 @@ _REFERENCE_MAP: dict[str, str] = {
 }
 
 
-def _list_force_examples() -> list[str]:
+def _load_force_preview_module():
     try:
         import force_preview
 
-        return force_preview.list_force_examples()
+        return force_preview
     except Exception:
+        return None
+
+
+def _force_backend_unavailable_message() -> str:
+    return "Force layout backend is not available in this checkout. Restore the TypeScript force lane before using /force."
+
+
+def _list_force_examples() -> list[str]:
+    force_preview = _load_force_preview_module()
+    if force_preview is None:
         return []
+    return force_preview.list_force_examples()
 
 
 def _build_preview_nav_options(current_path: str) -> str:
@@ -335,7 +346,9 @@ def _build_browse_nav(current_path: str) -> str:
 
 def _get_force_state(slug: str, *, reset: bool = False):
     global _force_sessions
-    import force_preview
+    force_preview = _load_force_preview_module()
+    if force_preview is None:
+        raise RuntimeError(_force_backend_unavailable_message())
 
     if reset and slug in _force_sessions:
         _force_sessions[slug] = force_preview.reset_force_state(_force_sessions[slug])
@@ -345,9 +358,10 @@ def _get_force_state(slug: str, *, reset: bool = False):
 
 
 def _get_force_snapshot(slug: str, *, reset: bool = False, snap: bool = False) -> dict | None:
+    force_preview = _load_force_preview_module()
+    if force_preview is None:
+        return None
     try:
-        import force_preview
-
         state = _get_force_state(slug, reset=reset)
         if snap:
             return force_preview.export_force_snapshot(state)
@@ -360,9 +374,10 @@ def _get_force_snapshot(slug: str, *, reset: bool = False, snap: bool = False) -
 
 
 def _tick_force_snapshot(slug: str, iterations: int | None = None) -> dict | None:
+    force_preview = _load_force_preview_module()
+    if force_preview is None:
+        return None
     try:
-        import force_preview
-
         state = _get_force_state(slug)
         return force_preview.tick_force_state(state, iterations=iterations)
     except Exception:
@@ -376,14 +391,14 @@ def _find_reference_image(slug: str) -> pathlib.Path | None:
     """Find the rough input sketch for a diagram slug."""
     filename = _REFERENCE_MAP.get(slug)
     if not filename:
-        try:
-            import force_preview
-
-            if slug in force_preview.list_force_examples():
-                spec = force_preview.load_force_spec(slug)
-                filename = spec.get("reference_image")
-        except Exception:
-            filename = None
+        force_preview = _load_force_preview_module()
+        if force_preview is not None:
+            try:
+                if slug in force_preview.list_force_examples():
+                    spec = force_preview.load_force_spec(slug)
+                    filename = spec.get("reference_image")
+            except Exception:
+                filename = None
     if not filename:
         return None
     for d in _INPUT_DIRS:
@@ -719,6 +734,12 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
         else:
             self.send_error(404)
 
+    def _ensure_force_backend(self) -> bool:
+        if _load_force_preview_module() is None:
+            self.send_error(501, _force_backend_unavailable_message())
+            return False
+        return True
+
     def _serve_index(self):
         slugs = _list_diagrams()
         diagram_links = "\n  ".join(f'<a href="/view/{s}">{s}</a>' for s in slugs)
@@ -758,6 +779,8 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
         self._respond(200, "text/html", html.encode())
 
     def _serve_force_index(self):
+        if not self._ensure_force_backend():
+            return
         slugs = _list_force_examples()
         if not slugs:
             self.send_error(404, "No force previews found")
@@ -768,7 +791,7 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
     def _serve_v3_index(self):
         slugs = _list_v3_diagrams()
         if not slugs:
-            self.send_error(404, "No v3 outputs found. Run: python build_v2.py --engine v3")
+            self.send_error(404, "No v3 outputs or frame YAMLs found for the current preview roots")
             return
         svg_links = "\n  ".join(f'<a href="/v3/view/{s}">{s}</a>' for s in slugs)
         drawio_files = sorted(V3_DRAWIO.glob("*-v3.drawio")) if V3_DRAWIO.exists() else []
@@ -866,6 +889,8 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
         self._respond(200, "text/html", html.encode())
 
     def _serve_force_viewer(self, slug: str):
+        if not self._ensure_force_backend():
+            return
         if not _is_safe_slug(slug):
             self.send_error(400, "Invalid slug")
             return
@@ -1057,6 +1082,8 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
         self._respond(200, "application/json", b'{"ok":true}')
 
     def _serve_force_get(self, slug: str):
+        if not self._ensure_force_backend():
+            return
         if not _is_safe_slug(slug):
             self.send_error(400, "Invalid slug")
             return
@@ -1070,6 +1097,8 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
         self._respond(200, "application/json", json.dumps(result).encode())
 
     def _serve_force_reset(self, slug: str):
+        if not self._ensure_force_backend():
+            return
         if not _is_safe_slug(slug):
             self.send_error(400, "Invalid slug")
             return
@@ -1083,6 +1112,8 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
         self._respond(200, "application/json", json.dumps(result).encode())
 
     def _serve_force_tick(self, slug: str):
+        if not self._ensure_force_backend():
+            return
         if not _is_safe_slug(slug):
             self.send_error(400, "Invalid slug")
             return
@@ -1106,6 +1137,8 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
         self._respond(200, "application/json", json.dumps(result).encode())
 
     def _serve_force_node_update(self, slug: str):
+        if not self._ensure_force_backend():
+            return
         if not _is_safe_slug(slug):
             self.send_error(400, "Invalid slug")
             return
@@ -1167,8 +1200,9 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
                 return
 
         try:
-            import force_preview
-
+            force_preview = _load_force_preview_module()
+            if force_preview is None:
+                raise RuntimeError(_force_backend_unavailable_message())
             state = _get_force_state(slug)
             result = force_preview.update_force_node(
                 state,
@@ -1197,6 +1231,8 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
         self._respond(200, "application/json", json.dumps(result).encode())
 
     def _serve_force_save(self, slug: str):
+        if not self._ensure_force_backend():
+            return
         if not _is_safe_slug(slug):
             self.send_error(400, "Invalid slug")
             return
@@ -1205,8 +1241,9 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
             return
 
         try:
-            import force_preview
-
+            force_preview = _load_force_preview_module()
+            if force_preview is None:
+                raise RuntimeError(_force_backend_unavailable_message())
             state = _get_force_state(slug)
             force_preview.save_force_overrides(state)
         except Exception:
@@ -1219,6 +1256,8 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
         self._respond(200, "application/json", b'{"ok":true}')
 
     def _serve_force_params(self, slug: str):
+        if not self._ensure_force_backend():
+            return
         if not _is_safe_slug(slug):
             self.send_error(400, "Invalid slug")
             return
@@ -1235,7 +1274,9 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
             return
 
         try:
-            import force_preview
+            force_preview = _load_force_preview_module()
+            if force_preview is None:
+                raise RuntimeError(_force_backend_unavailable_message())
             state = _get_force_state(slug)
             result = force_preview.update_simulation_params(state, params)
         except Exception:
@@ -1247,6 +1288,8 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
         self._respond(200, "application/json", json.dumps(result).encode())
 
     def _serve_force_export(self, slug: str):
+        if not self._ensure_force_backend():
+            return
         if not _is_safe_slug(slug):
             self.send_error(400, "Invalid slug")
             return

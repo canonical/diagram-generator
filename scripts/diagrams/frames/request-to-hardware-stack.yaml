@@ -3,7 +3,6 @@ title: "Request to hardware stack"
 grid:
   cols: 1
   col_gap: 16
-  row_gap: 24
 arrows:
   - source: user
     target: orch
@@ -29,7 +28,6 @@ root:
     - id: orch
       level: 2
       direction: horizontal
-      padding: 8
       heading: "Orchestration layer"
       icon: Snap.svg
       children:
@@ -52,7 +50,6 @@ root:
     - id: runtime
       level: 2
       direction: vertical
-      padding: 8
       heading: "Model runtime"
       icon: AI.svg
       children:
@@ -79,7 +76,6 @@ root:
     - id: kernel
       level: 2
       direction: vertical
-      padding: 8
       heading: "Compute kernel"
       icon: kernel.svg
       children:
@@ -103,7 +99,6 @@ root:
     - id: driver
       level: 2
       direction: horizontal
-      padding: 8
       heading: "Driver"
       icon: Wrench 1.svg
       children:
@@ -116,7 +111,6 @@ root:
     - id: hardware
       level: 2
       direction: vertical
-      padding: 8
       heading: "Hardware"
       icon: Chip 1.svg
       children:

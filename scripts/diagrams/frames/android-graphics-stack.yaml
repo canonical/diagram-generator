@@ -2,7 +2,6 @@ engine: v3
 title: Android graphics stack
 grid:
   cols: 2
-  row_gap: 32
 arrows:
 - source: apps
   target: runtime
@@ -15,13 +14,11 @@ arrows:
 root:
   id: page
   direction: vertical
-  gap: 32
   padding: 24
   variant: annotation
   children:
   - id: row_apps
     direction: horizontal
-    gap: 24
     variant: annotation
     children:
     - id: apps
@@ -39,7 +36,6 @@ root:
       sizing_w: fill
   - id: row_runtime
     direction: horizontal
-    gap: 24
     children:
     - id: runtime
       heading: Android graphics runtime
@@ -58,7 +54,6 @@ root:
       sizing_w: fill
   - id: row_composition
     direction: horizontal
-    gap: 24
     children:
     - id: composition
       heading: System composition and display policy
@@ -75,7 +70,6 @@ root:
       sizing_w: fill
   - id: row_kernel
     direction: horizontal
-    gap: 24
     children:
     - id: kernel_gfx
       heading: Kernel graphics & display subsystems
@@ -94,7 +88,6 @@ root:
       sizing_w: fill
   - id: row_display
     direction: horizontal
-    gap: 24
     children:
     - id: display
       heading: Display output

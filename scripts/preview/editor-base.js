@@ -489,12 +489,29 @@ function renderResizeHandles(svg, left, top, right, bottom, nodeId, opts) {
     rect.setAttribute(nodeAttr, nodeId);
     rect.setAttribute(dirAttr, dir);
     rect.style.cursor = cursors[dir];
-    // Default style — callers can override via CSS
-    rect.setAttribute("fill", "#0066cc");
-    rect.setAttribute("stroke", "#ffffff");
-    rect.setAttribute("stroke-width", "1");
     svg.appendChild(rect);
   }
+}
+
+/** Editor-only SVG nodes that must not appear in exported files. */
+const EXPORT_STRIP_SELECTORS = [
+  ".dg-handle",
+  ".dg-handle-outline",
+  ".dg-wp-handle",
+  ".dg-snap-guide",
+];
+
+/**
+ * Strip editor chrome from a cloned stage SVG before serialization.
+ * Operates on a clone only — never call on the live preview SVG.
+ * @param {SVGSVGElement} svgRoot
+ */
+function sanitizeSvgCloneForExport(svgRoot) {
+  for (const selector of EXPORT_STRIP_SELECTORS) {
+    svgRoot.querySelectorAll(selector).forEach((el) => el.remove());
+  }
+  svgRoot.querySelectorAll(".dg-selected").forEach((el) => el.classList.remove("dg-selected"));
+  svgRoot.querySelectorAll(".dg-hover").forEach((el) => el.classList.remove("dg-hover"));
 }
 
 /**
@@ -534,3 +551,4 @@ window.SHARED_MIN_NODE_SIZE = SHARED_MIN_NODE_SIZE;
 window.snapRectToTargets = snapRectToTargets;
 window.renderResizeHandles = renderResizeHandles;
 window.clearHandlesByClass = clearHandlesByClass;
+window.sanitizeSvgCloneForExport = sanitizeSvgCloneForExport;

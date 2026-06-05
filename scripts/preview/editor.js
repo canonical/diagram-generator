@@ -86,9 +86,6 @@ const GRID_DEFAULTS = {
   slack_absorption: true,
 };
 
-/** Default vertical stack spacing between sibling leaves (headed __body stacks). */
-const DEFAULT_STACK_GAP = 8;
-
 /** Read a layout field from ComponentNode (top-level or raw tree data). */
 function _nodeProp(node, key) {
   if (!node) return undefined;
@@ -506,7 +503,7 @@ async function _applyUndoCommand(command, direction) {
 function _hasV3FrameOverride(ovr) {
   if (!ovr) return false;
   const keys = [
-    "text", "direction", "gap", "stack_gap", "padding", "padding_top", "padding_right", "padding_bottom", "padding_left",
+    "text", "direction", "gap", "padding", "padding_top", "padding_right", "padding_bottom", "padding_left",
     "sizing", "sizing_w", "sizing_h", "fill_weight", "align", "wrap",
     "width", "height", "min_width", "max_width", "max_width_chars", "min_height", "max_height",
     "fill", "border", "level", "position", "x", "y", "children_order",
@@ -1808,17 +1805,10 @@ function renderMultiSelectionInspector() {
   if (info.sameParent && info.parentId) {
     const parentNode = model.get(info.parentId);
     if (parentNode && parentNode.layout) {
-      const pOvr = overrides[info.parentId] || {};
-      const parentHeaded = _isHeadedStackContainer(parentNode);
-      const parentGap = pOvr.gap !== undefined ? pOvr.gap : (parentHeaded ? (parentNode.layoutHeaderGap ?? 0) : (parentNode.layoutGap ?? DEFAULT_STACK_GAP));
-      html += '<div class="dg-autolayout-section" style="margin-top:8px">';
-      html += '<span class="label" style="margin-bottom:4px;display:block">Stack spacing</span>';
-      html += '<div class="field"><span class="label">Gap</span>';
-      html += '<input class="bf-input" type="number" min="0" step="8" value="' + parentGap + '"';
-      html += ' onchange="setFrameProp(\'' + info.parentId + '\',\'gap\',parseInt(this.value))"';
-      html += ' style="width:60px">';
-      html += '<span class="unit" style="margin-left:4px;color:#888;font-size:11px">px</span></div>';
-      html += '</div>';
+        html += '<div class="dg-autolayout-section" style="margin-top:8px">';
+        html += '<span class="label" style="margin-bottom:4px;display:block">Stack spacing</span>';
+        html += '<div class="hint">Frame gap now derives from composition. Use distribute for arrangement, or edit YAML only for true structural exceptions.</div>';
+        html += '</div>';
     }
   }
 
@@ -1875,7 +1865,7 @@ function renderMultiSelectionInspector() {
       html += '</div></div>';
     }
 
-    // ── Container properties (direction, gap, padding) ──
+    // ── Container properties (direction) ──
     const containerInfo = _getMultiContainerValues(info.items);
     if (containerInfo) {
       html += '<div class="dg-autolayout-section" style="margin-top:8px">';
@@ -1895,43 +1885,8 @@ function renderMultiSelectionInspector() {
         html += '<input type="checkbox"' + (containerInfo.wrap ? ' checked' : '') + ' onchange="setMultiFrameProp(\'wrap\',this.checked)">';
         html += '</div>';
       }
-
-      html += '<div class="field"><span class="label">Gap</span>';
-      html += '<input class="bf-input" type="number" min="0" step="8" value="' + (containerInfo.gapMixed ? '' : containerInfo.gap) + '"';
-      html += ' placeholder="' + (containerInfo.gapMixed ? 'Mixed' : '') + '"';
-      html += ' onchange="setMultiFrameProp(\'gap\',parseInt(this.value))"';
-      html += ' style="width:60px"></div>';
-
-      // Padding — per-side with link toggle
-      const isLinkedMulti = containerInfo.allUniform;
-      html += '<div class="field" style="align-items:flex-start"><span class="label">Padding</span>';
-      html += '<div style="display:flex;flex-direction:column;gap:4px">';
-      html += '<button class="bf-input" style="width:28px;height:24px;padding:0;cursor:pointer;font-size:13px" title="' + (isLinkedMulti ? 'Unlink sides' : 'Link all sides') + '"';
-      html += ' onclick="toggleMultiPaddingLink(' + !isLinkedMulti + ')">';
-      html += isLinkedMulti ? '🔗' : '🔓';
-      html += '</button>';
-      if (isLinkedMulti) {
-        html += '<input class="bf-input" type="number" min="0" step="8" value="' + (containerInfo.padMixed ? '' : containerInfo.padding) + '"';
-        html += ' placeholder="' + (containerInfo.padMixed ? 'Mixed' : '') + '"';
-        html += ' onchange="setMultiFrameProp(\'padding\',parseInt(this.value))"';
-        html += ' style="width:60px">';
-      } else {
-        html += '<div style="display:grid;grid-template-columns:auto 48px;gap:2px 4px;font-size:11px">';
-        html += '<span style="color:#888">T</span><input class="bf-input" type="number" min="0" step="8" value="' + (containerInfo.ptMixed ? '' : containerInfo.pt) + '"';
-        html += ' placeholder="' + (containerInfo.ptMixed ? 'Mixed' : '') + '"';
-        html += ' onchange="setMultiFrameProp(\'padding_top\',parseInt(this.value))" style="width:48px">';
-        html += '<span style="color:#888">R</span><input class="bf-input" type="number" min="0" step="8" value="' + (containerInfo.prMixed ? '' : containerInfo.pr) + '"';
-        html += ' placeholder="' + (containerInfo.prMixed ? 'Mixed' : '') + '"';
-        html += ' onchange="setMultiFrameProp(\'padding_right\',parseInt(this.value))" style="width:48px">';
-        html += '<span style="color:#888">B</span><input class="bf-input" type="number" min="0" step="8" value="' + (containerInfo.pbMixed ? '' : containerInfo.pb) + '"';
-        html += ' placeholder="' + (containerInfo.pbMixed ? 'Mixed' : '') + '"';
-        html += ' onchange="setMultiFrameProp(\'padding_bottom\',parseInt(this.value))" style="width:48px">';
-        html += '<span style="color:#888">L</span><input class="bf-input" type="number" min="0" step="8" value="' + (containerInfo.plMixed ? '' : containerInfo.pl) + '"';
-        html += ' placeholder="' + (containerInfo.plMixed ? 'Mixed' : '') + '"';
-        html += ' onchange="setMultiFrameProp(\'padding_left\',parseInt(this.value))" style="width:48px">';
-        html += '</div>';
-      }
-      html += '</div></div>';
+      html += '<div class="hint">Padding now derives from frame defaults: 8px for non-root frames, with annotation side padding collapsed to 0.</div>';
+      html += '</div>';
 
       html += '</div>';
     }
@@ -2086,17 +2041,14 @@ function _getRuntimeSizingValue(cid, node, axis) {
 }
 
 /**
- * Read shared container properties (direction, gap, padding) across selected items.
+ * Read shared container properties (direction) across selected items.
  * Returns null if no containers in selection.
  */
 function _getMultiContainerValues(items) {
-  let firstDir = null, firstGap = null, firstPad = null;
-  let dirMixed = false, gapMixed = false, padMixed = false;
+  let firstDir = null;
+  let dirMixed = false;
   let containerCount = 0;
-  let allUniform = true;
   let firstWrap = false;
-  let firstPT = null, firstPR = null, firstPB = null, firstPL = null;
-  let ptMixed = false, prMixed = false, pbMixed = false, plMixed = false;
 
   for (const item of items) {
     const node = item.node;
@@ -2106,45 +2058,19 @@ function _getMultiContainerValues(items) {
     containerCount++;
     const ovr = overrides[item.id] || {};
     const dir = ovr.direction || (node.layout === 'horizontal' ? 'HORIZONTAL' : 'VERTICAL');
-    const headed = _isHeadedStackContainer(node);
-    const gap = headed
-      ? (ovr.stack_gap !== undefined ? ovr.stack_gap : (node.layoutGap ?? DEFAULT_STACK_GAP))
-      : (ovr.gap !== undefined ? ovr.gap : (node.layoutGap ?? DEFAULT_STACK_GAP));
-    const pad = ovr.padding !== undefined ? ovr.padding : (node.padding_top !== undefined ? node.padding_top : 8);
     if (firstDir === null) firstDir = dir; else if (firstDir !== dir) dirMixed = true;
-    if (firstGap === null) firstGap = gap; else if (firstGap !== gap) gapMixed = true;
-    if (firstPad === null) firstPad = pad; else if (firstPad !== pad) padMixed = true;
 
     // Wrap state
     const wrapVal = ovr.wrap != null ? ovr.wrap : (_nodeProp(node, "wrap") || false);
     if (containerCount === 1) firstWrap = wrapVal;
-
-    // Resolve effective per-side values
-    const pt = ovr.padding_top != null ? ovr.padding_top : (ovr.padding != null ? ovr.padding : (node.padding_top || 0));
-    const pr = ovr.padding_right != null ? ovr.padding_right : (ovr.padding != null ? ovr.padding : (node.padding_right || 0));
-    const pb = ovr.padding_bottom != null ? ovr.padding_bottom : (ovr.padding != null ? ovr.padding : (node.padding_bottom || 0));
-    const pl = ovr.padding_left != null ? ovr.padding_left : (ovr.padding != null ? ovr.padding : (node.padding_left || 0));
-    if (pt !== pr || pr !== pb || pb !== pl) allUniform = false;
-    // Explicit per-side overrides force unlinked mode even if values are equal
-    if (ovr.padding_top != null || ovr.padding_right != null || ovr.padding_bottom != null || ovr.padding_left != null) allUniform = false;
-    if (firstPT === null) firstPT = pt; else if (firstPT !== pt) ptMixed = true;
-    if (firstPR === null) firstPR = pr; else if (firstPR !== pr) prMixed = true;
-    if (firstPB === null) firstPB = pb; else if (firstPB !== pb) pbMixed = true;
-    if (firstPL === null) firstPL = pl; else if (firstPL !== pl) plMixed = true;
   }
 
   if (containerCount === 0) return null;
   return {
     containerCount,
     direction: dirMixed ? '' : firstDir,
-    gap: gapMixed ? '' : firstGap,
-    padding: padMixed ? '' : firstPad,
-    dirMixed, gapMixed, padMixed,
-    allUniform,
+    dirMixed,
     wrap: firstWrap,
-    pt: ptMixed ? '' : (firstPT ?? 0), pr: prMixed ? '' : (firstPR ?? 0),
-    pb: pbMixed ? '' : (firstPB ?? 0), pl: plMixed ? '' : (firstPL ?? 0),
-    ptMixed, prMixed, pbMixed, plMixed,
   };
 }
 
@@ -2240,11 +2166,11 @@ function setMultiFrameProp(prop, value) {
   if (typeof value === 'number' && !Number.isFinite(value)) return; // ignore NaN from empty input
 
   // For container-only props, only apply to containers
-  const containerProps = new Set(['direction', 'gap', 'stack_gap', 'padding', 'padding_top', 'padding_right', 'padding_bottom', 'padding_left']);
+  const containerProps = new Set(['direction', 'padding', 'padding_top', 'padding_right', 'padding_bottom', 'padding_left']);
   const isContainerProp = containerProps.has(prop);
 
   // Clamp numeric frame properties
-  if (prop === 'gap' || prop === 'stack_gap' || prop === 'padding' || prop === 'padding_top' || prop === 'padding_right' || prop === 'padding_bottom' || prop === 'padding_left') {
+  if (prop === 'padding' || prop === 'padding_top' || prop === 'padding_right' || prop === 'padding_bottom' || prop === 'padding_left') {
     value = Math.max(0, Number.isFinite(value) ? value : 0);
   }
   // Constraint props: empty clears, otherwise clamp to non-negative
@@ -5253,77 +5179,6 @@ function setFrameAlign(cid, align) {
 // Expose to onclick handlers
 window.setFrameAlign = setFrameAlign;
 
-/**
- * Toggle between uniform and per-side padding in the inspector.
- * @param {string} cid - Component ID
- * @param {boolean} link - true = link all sides (uniform), false = unlink (per-side)
- */
-function togglePaddingLink(cid, link) {
-  if (!overrides[cid]) overrides[cid] = {};
-  const ovr = overrides[cid];
-  const node = model.get(cid);
-  const nodeData = node ? node.data : {};
-  if (link) {
-    // Unlink → Link: take the top value as the uniform value
-    const topVal = ovr.padding_top != null ? ovr.padding_top : (ovr.padding != null ? ovr.padding : (nodeData.padding_top || 0));
-    ovr.padding = topVal;
-    delete ovr.padding_top;
-    delete ovr.padding_right;
-    delete ovr.padding_bottom;
-    delete ovr.padding_left;
-  } else {
-    // Link → Unlink: expand uniform to 4 sides
-    const uniform = ovr.padding != null ? ovr.padding : (nodeData.padding_top || 0);
-    ovr.padding_top = uniform;
-    ovr.padding_right = uniform;
-    ovr.padding_bottom = uniform;
-    ovr.padding_left = uniform;
-    delete ovr.padding;
-  }
-  setDirty(true);
-  renderSelectionInspector(cid);
-  clearTimeout(_v3RelayoutTimer);
-  _v3RelayoutTimer = setTimeout(() => requestV3Relayout(cid), 300);
-}
-window.togglePaddingLink = togglePaddingLink;
-
-/**
- * Toggle between uniform and per-side padding for all selected containers.
- * @param {boolean} link - true = link all sides, false = unlink
- */
-function toggleMultiPaddingLink(link) {
-  const ids = [...selectedIds];
-  for (const cid of ids) {
-    const node = model.get(cid);
-    if (!node) continue;
-    const isContainer = node.layout || (node.children && node.children.length > 0);
-    if (!isContainer) continue;
-    if (!overrides[cid]) overrides[cid] = {};
-    const ovr = overrides[cid];
-    const nodeData = node.data || {};
-    if (link) {
-      const topVal = ovr.padding_top != null ? ovr.padding_top : (ovr.padding != null ? ovr.padding : (nodeData.padding_top || 0));
-      ovr.padding = topVal;
-      delete ovr.padding_top;
-      delete ovr.padding_right;
-      delete ovr.padding_bottom;
-      delete ovr.padding_left;
-    } else {
-      const uniform = ovr.padding != null ? ovr.padding : (nodeData.padding_top || 0);
-      ovr.padding_top = uniform;
-      ovr.padding_right = uniform;
-      ovr.padding_bottom = uniform;
-      ovr.padding_left = uniform;
-      delete ovr.padding;
-    }
-  }
-  setDirty(true);
-  renderSelectionInspector();
-  clearTimeout(_v3RelayoutTimer);
-  _v3RelayoutTimer = setTimeout(() => requestV3Relayout(ids[0]), 300);
-}
-window.toggleMultiPaddingLink = toggleMultiPaddingLink;
-
 // ---- Auto-layout controls (v3) ----
 
 function _isHeadedStackContainer(node) {
@@ -5346,9 +5201,6 @@ function buildAutolayoutPanel(cid, node) {
 
   if (isContainer) {
     const direction = ovr.direction || (node.layout === 'horizontal' ? 'HORIZONTAL' : 'VERTICAL');
-    const headed = _isHeadedStackContainer(node);
-    const stackGap = ovr.stack_gap !== undefined ? ovr.stack_gap : (node.layoutGap ?? DEFAULT_STACK_GAP);
-    const titleGap = ovr.gap !== undefined ? ovr.gap : (node.layoutHeaderGap ?? 0);
 
     html += '<span class="label" style="margin-bottom:4px;display:block">Auto-layout · ' + cid + '</span>';
 
@@ -5359,47 +5211,7 @@ function buildAutolayoutPanel(cid, node) {
     html += '<option value="HORIZONTAL"' + (direction === 'HORIZONTAL' ? ' selected' : '') + '>Horizontal</option>';
     html += '</select></div>';
 
-    const gap = ovr.gap !== undefined ? ovr.gap : (headed ? (node.layoutHeaderGap ?? 0) : (node.layoutGap ?? DEFAULT_STACK_GAP));
-    html += '<div class="field"><span class="label">Gap</span>';
-    html += '<input class="bf-input" type="number" min="0" step="8" value="' + gap + '"';
-    html += ' onchange="setFrameProp(\'' + cid + '\',\'gap\',parseInt(this.value))"';
-    html += ' style="width:60px"></div>';
-
-    // Padding — per-side with link toggle
-    // Resolve effective per-side values: per-side override > uniform override > tree data > 0
-    const effPT = ovr.padding_top != null ? ovr.padding_top : (ovr.padding != null ? ovr.padding : (node.padding_top || 0));
-    const effPR = ovr.padding_right != null ? ovr.padding_right : (ovr.padding != null ? ovr.padding : (node.padding_right || 0));
-    const effPB = ovr.padding_bottom != null ? ovr.padding_bottom : (ovr.padding != null ? ovr.padding : (node.padding_bottom || 0));
-    const effPL = ovr.padding_left != null ? ovr.padding_left : (ovr.padding != null ? ovr.padding : (node.padding_left || 0));
-    // Linked = all values equal AND no explicit per-side overrides
-    const hasPerSideOvr = ovr.padding_top != null || ovr.padding_right != null || ovr.padding_bottom != null || ovr.padding_left != null;
-    const isLinked = !hasPerSideOvr && (effPT === effPR && effPR === effPB && effPB === effPL);
-    html += '<div class="field" style="align-items:flex-start"><span class="label">Padding</span>';
-    html += '<div style="display:flex;flex-direction:column;gap:4px">';
-    // Link toggle button
-    html += '<button class="bf-input" style="width:28px;height:24px;padding:0;cursor:pointer;font-size:13px" title="' + (isLinked ? 'Unlink sides' : 'Link all sides') + '"';
-    html += ' onclick="togglePaddingLink(\'' + cid + '\',' + !isLinked + ')">';
-    html += isLinked ? '🔗' : '🔓';
-    html += '</button>';
-    if (isLinked) {
-      // Uniform mode: single input
-      html += '<input class="bf-input" type="number" min="0" step="8" value="' + effPT + '"';
-      html += ' onchange="setFrameProp(\'' + cid + '\',\'padding\',parseInt(this.value))"';
-      html += ' style="width:60px" title="All sides">';
-    } else {
-      // Per-side mode: 4 inputs in a compact grid (T/R/B/L)
-      html += '<div style="display:grid;grid-template-columns:auto 48px;gap:2px 4px;font-size:11px">';
-      html += '<span style="color:#888">T</span><input class="bf-input" type="number" min="0" step="8" value="' + effPT + '"';
-      html += ' onchange="setFrameProp(\'' + cid + '\',\'padding_top\',parseInt(this.value))" style="width:48px">';
-      html += '<span style="color:#888">R</span><input class="bf-input" type="number" min="0" step="8" value="' + effPR + '"';
-      html += ' onchange="setFrameProp(\'' + cid + '\',\'padding_right\',parseInt(this.value))" style="width:48px">';
-      html += '<span style="color:#888">B</span><input class="bf-input" type="number" min="0" step="8" value="' + effPB + '"';
-      html += ' onchange="setFrameProp(\'' + cid + '\',\'padding_bottom\',parseInt(this.value))" style="width:48px">';
-      html += '<span style="color:#888">L</span><input class="bf-input" type="number" min="0" step="8" value="' + effPL + '"';
-      html += ' onchange="setFrameProp(\'' + cid + '\',\'padding_left\',parseInt(this.value))" style="width:48px">';
-      html += '</div>';
-    }
-    html += '</div></div>';
+    html += '<div class="hint">Padding now derives from frame defaults: 8px for non-root frames, with annotation side padding collapsed to 0.</div>';
   } else {
     html += '<span class="label" style="margin-bottom:4px;display:block">Sizing</span>';
   }
@@ -5550,7 +5362,7 @@ function setFrameProp(cid, prop, value) {
   if (!overrides[cid]) overrides[cid] = {};
 
   // Clamp numeric frame properties to sane ranges
-  if (prop === 'gap' || prop === 'stack_gap' || prop === 'padding' || prop === 'padding_top' || prop === 'padding_right' || prop === 'padding_bottom' || prop === 'padding_left') {
+  if (prop === 'gap' || prop === 'padding' || prop === 'padding_top' || prop === 'padding_right' || prop === 'padding_bottom' || prop === 'padding_left') {
     value = Math.max(0, Number.isFinite(value) ? value : 0);
   }
   // When setting uniform padding, clear per-side overrides
@@ -5826,16 +5638,9 @@ function updateInspector(cid) {
   if (isAutoChild) {
     const parentNode = model.getParent(cid);
     if (parentNode && parentNode.layout) {
-      const pOvr = overrides[parentNode.id] || {};
-      const parentHeaded = _isHeadedStackContainer(parentNode);
-      const parentGap = pOvr.gap !== undefined ? pOvr.gap : (parentHeaded ? (parentNode.layoutHeaderGap ?? 0) : (parentNode.layoutGap ?? DEFAULT_STACK_GAP));
       html += '<div class="dg-autolayout-section" style="margin-top:8px">';
       html += '<span class="label" style="margin-bottom:4px;display:block">Stack spacing</span>';
-      html += '<div class="field"><span class="label">Gap</span>';
-      html += '<input class="bf-input" type="number" min="0" step="8" value="' + parentGap + '"';
-      html += ' onchange="setFrameProp(\'' + parentNode.id + '\',\'gap\',parseInt(this.value))"';
-      html += ' style="width:60px">';
-      html += '<span class="unit" style="margin-left:4px;color:#888;font-size:11px">px</span></div>';
+      html += '<div class="hint">Frame gap now derives from composition. Use distribute for arrangement, or edit YAML only for true structural exceptions.</div>';
       html += '</div>';
     }
   }
@@ -5975,6 +5780,7 @@ function saveCurrentSvg() {
     return;
   }
   const clone = svg.cloneNode(true);
+  sanitizeSvgCloneForExport(clone);
   if (!clone.getAttribute("xmlns")) {
     clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
   }
