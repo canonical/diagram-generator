@@ -8,13 +8,6 @@ import { Frame, FrameDiagram, type Line, type Arrow } from './frame-model.js';
 function serializeLine(line: Line): Record<string, unknown> {
   return {
     content: line.content,
-    size: line.size,
-    weight: line.weight,
-    fill: line.fill,
-    smallCaps: line.smallCaps ?? false,
-    letterSpacing: line.letterSpacing ?? null,
-    lineStep: line.lineStep ?? null,
-    fontFamily: line.fontFamily ?? null,
   };
 }
 

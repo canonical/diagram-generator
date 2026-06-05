@@ -355,9 +355,9 @@ When building a v3 Frame YAML diagram, the choice of sizing, alignment, and gap 
 **FILL** (the non-root default) makes siblings share space equally, or by weight. Use it when:
 
 - Top-level children should look like uniform cards in a horizontal flow. Equal widths align arrows between columns, produce balanced negative space, and create a card-like rhythm. Example: `support-engineering-flow` (5 equal-width steps, all with explicit `sizing_w: fill`).
-- Children in a row represent parallel options, comparisons, or equivalent tiers. Example: `android-container-vs-vm` (container column vs VM column), `aws-hld` row1 (4 service account panels).
+- Children in a row represent parallel options, comparisons, or equivalent tiers. Example: `android-container-vs-vm` (container column vs VM column), `support-engineering-flow` (equal-width sequential steps).
 - Leaf children inside a bordered panel should usually keep the default (FILL width), so they stretch to fill the panel and stack uniformly. This is how most panels in the corpus work.
-- A specific child should be wider than its siblings – use `fill_weight: 2` (or 3) to give it proportional extra space. Example: `core` in `aws-hld` row1 uses `fill_weight: 2` because it holds two sub-panels.
+- A specific child should be wider than its siblings – use `fill_weight: 2` (or 3) to give it proportional extra space. Example: the generator rows in `lt-diagram-generator` use `fill_weight: 2` to privilege the central content block.
 
 **HUG** lets a box shrink to exactly its content. Use it when:
 
@@ -378,13 +378,13 @@ Note: setting `width` or `height` without an explicit `sizing_w`/`sizing_h` impl
 
 The engine uses two gap scales, mapped to the spacing tokens in the frontmatter. The deciding factor is what the container holds.
 
-**Dense stack (gap = `compact-gap`, padding = `inset`):** a panel whose children are leaf boxes. The tight `1 × baseline-unit` gap keeps items visually bound as a single group. Example: `lxd_container` in `android-container-vs-vm`, `logging` in `aws-hld`.
+**Dense stack (gap = `compact-gap`, padding = `inset`):** a panel whose children are leaf boxes. The tight `1 × baseline-unit` gap keeps items visually bound as a single group. Example: `lxd_container` in `android-container-vs-vm`.
 
-**Default stack (gap = `grid-gutter`, padding = `inset`–`outer-margin`):** a panel whose children are sub-panels, horizontal rows, or peer units. The `3 × baseline-unit` gap gives each child room to read as an independent element. Example: `core` in `aws-hld` (contains two sub-panels), `host_tools` in `android-custom-to-cloud` (contains independent tool boxes).
+**Default stack (gap = `grid-gutter`, padding = `inset`–`outer-margin`):** a panel whose children are sub-panels, horizontal rows, or peer units. The `3 × baseline-unit` gap gives each child room to read as an independent element. Example: `host_tools` in `android-custom-to-cloud` (contains independent tool boxes).
 
 **Borderless wrappers (gap = `grid-gutter` to `4 × baseline-unit`, no padding):** invisible layout containers that group siblings into rows or columns. Example: `top_zone` in `android-container-vs-vm`.
 
-**Root gap:** `grid-gutter` (`3 × baseline-unit`) is the baseline. Use `4 × baseline-unit` for wider or sparser diagrams – `android-graphics-stack` and `lightning-talk-engine` use this. Root gap and padding do not need to match.
+**Root gap:** `grid-gutter` (`3 × baseline-unit`) is the baseline. Use `4 × baseline-unit` for wider or sparser diagrams – `android-graphics-stack` is one example. Root gap and padding do not need to match.
 
 **Common mistake:** mixing gap scales at the same nesting level. If sibling panels use different gaps for the same kind of children, the visual rhythm breaks.
 
@@ -476,7 +476,7 @@ Height-hug is also the standard for:
 
 Several diagrams place a text note beside content columns to explain what a row or zone represents. Annotations should use default FILL width (not HUG) so they participate in the same column grid as their siblings. Use `border: none` for annotation style.
 
-Examples: `note_top` / `note_bottom` in `android-container-vs-vm`, annotation labels in `android-graphics-stack`, `key_note` in `aws-hld`.
+Examples: `note_top` / `note_bottom` in `android-container-vs-vm`, annotation labels in `android-graphics-stack`.
 
 When every row has an annotation column at the same position, use a consistent width expressed as a grid-column span (e.g., 2 columns in an 8-column grid) so annotations align vertically across rows. Avoid hard-coding raw pixel widths – derive them from the grid formula.
 
@@ -484,14 +484,14 @@ When every row has an annotation column at the same position, use a consistent w
 
 **White-on-grey nesting:** leaf boxes inside a grey-filled panel render as white (outlined) boxes on a grey background. This is the default – no special fill is needed on the children. The contrast makes the panel's grouping role visually clear.
 
-**Black emphasis boxes:** use `fill: black` (white text) to highlight at most one element per diagram – typically a final output, key result, or focal node. Example: `example-deployment-pipeline` production step, `diagram-language-workflow` output steps.
+**Black emphasis boxes:** use `fill: black` (white text) to highlight at most one element per diagram – typically a final output, key result, or focal node. Example: `example-deployment-pipeline` production step, or the dedicated highlight cases in `test-box-styles`.
 
 #### Pattern recipes
 
 **Vertical linear flow** (pipeline, process steps):
 - Root: vertical, gap = `grid-gutter`, padding = `outer-margin`, border none
 - Children: leaf boxes with icons, connected by arrows
-- Example: `example-deployment-pipeline`, `diagram-intake-workflow`
+- Example: `example-deployment-pipeline`
 
 **Horizontal linear flow** (sequential process chain):
 - Root: horizontal, gap = `grid-gutter`, padding = `outer-margin`, border none, fixed width
@@ -522,7 +522,7 @@ When every row has an annotation column at the same position, use a consistent w
 - Children: borderless horizontal wrapper rows of headed panels
 - Panels contain sub-panels or leaf boxes
 - Use `fill_weight` for asymmetric panels, headed panels for logical grouping
-- Example: `aws-hld`
+- Example: `android-custom-to-cloud`
 
 **Generator/tool diagram** (input → engine → output):
 - Root: vertical, gap = `grid-gutter` to `4 × baseline-unit`, padding = `outer-margin`, border none

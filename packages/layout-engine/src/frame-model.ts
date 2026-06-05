@@ -217,10 +217,18 @@ export interface FrameInit {
   iconFill?: string;
   level?: number;
 
-  // Resolved style (set by resolveStyles(), not by YAML)
+  // Resolved style snapshot (set by resolveStyles(), not by YAML)
   resolvedFill?: string;
   resolvedStroke?: string;
   resolvedStrokeWidth?: number;
+  resolvedTextFill?: string;
+  resolvedIconFill?: string;
+  resolvedHeadingWeight?: string;
+  resolvedHeadingSmallCaps?: boolean;
+  resolvedHeadingLetterSpacing?: string;
+  resolvedLeafLeadWeight?: string;
+  resolvedLeafLeadSmallCaps?: boolean;
+  resolvedLeafLeadLetterSpacing?: string;
 
   // Content (leaf)
   label?: Line[];
@@ -290,10 +298,18 @@ export class Frame {
   iconFill: string | undefined;
   level: number | undefined;
 
-  // Resolved style (set by resolveStyles())
+  // Resolved style snapshot (set by resolveStyles())
   resolvedFill: string | undefined;
   resolvedStroke: string | undefined;
   resolvedStrokeWidth: number | undefined;
+  resolvedTextFill: string | undefined;
+  resolvedIconFill: string | undefined;
+  resolvedHeadingWeight: string | undefined;
+  resolvedHeadingSmallCaps: boolean | undefined;
+  resolvedHeadingLetterSpacing: string | undefined;
+  resolvedLeafLeadWeight: string | undefined;
+  resolvedLeafLeadSmallCaps: boolean | undefined;
+  resolvedLeafLeadLetterSpacing: string | undefined;
 
   // Content (leaf)
   label: Line[];
@@ -349,6 +365,14 @@ export class Frame {
     this.resolvedFill = init?.resolvedFill;
     this.resolvedStroke = init?.resolvedStroke;
     this.resolvedStrokeWidth = init?.resolvedStrokeWidth;
+    this.resolvedTextFill = init?.resolvedTextFill;
+    this.resolvedIconFill = init?.resolvedIconFill;
+    this.resolvedHeadingWeight = init?.resolvedHeadingWeight;
+    this.resolvedHeadingSmallCaps = init?.resolvedHeadingSmallCaps;
+    this.resolvedHeadingLetterSpacing = init?.resolvedHeadingLetterSpacing;
+    this.resolvedLeafLeadWeight = init?.resolvedLeafLeadWeight;
+    this.resolvedLeafLeadSmallCaps = init?.resolvedLeafLeadSmallCaps;
+    this.resolvedLeafLeadLetterSpacing = init?.resolvedLeafLeadLetterSpacing;
 
     this.label = init?.label ?? [];
     this.role = init?.role ?? '';

@@ -93,3 +93,12 @@ export {
   type FrameClassDefinition,
   type FrameTextStyle,
 } from './frame-classes.js';
+
+export {
+  annotationTextToSpec,
+  frameOwnedHeadingToSpec,
+  frameOwnedLabelToSpec,
+  resolvedSpecTypography,
+  usesHeadingStyleSnapshot,
+  type ResolvedSpecTypography,
+} from './resolved-spec-typography.js';

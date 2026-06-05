@@ -223,24 +223,48 @@ def _restore_semantic_state(frame: Frame, state: dict[int, tuple]) -> None:
         _restore_semantic_state(child, state)
 
 
-def _estimate_text_width(lines: list[Line]) -> float:
+def _estimate_text_width(lines: list[dict]) -> float:
     """Estimate the pixel width of the widest text line."""
     max_w = 0.0
     for ln in lines:
-        max_w = max(max_w, estimate_line_width(_lines_to_dicts([ln])[0]))
+        max_w = max(max_w, estimate_line_width(ln))
     return max_w
+
+
+def _frame_owned_heading_to_dict(frame: Frame, line: Line) -> dict:
+    return _make_line(
+        line.content,
+        size=line.size,
+        weight=frame.resolved_heading_weight or "400",
+        fill=frame.resolved_text_fill or "#000000",
+        small_caps=bool(frame.resolved_heading_small_caps),
+        letter_spacing=frame.resolved_heading_letter_spacing,
+        line_step=line.line_step,
+    )
+
+
+def _frame_owned_label_to_dict(frame: Frame, line: Line, label_index: int) -> dict:
+    is_leaf_lead = frame.is_leaf and label_index == 0
+    return _make_line(
+        line.content,
+        size=line.size,
+        weight=(frame.resolved_leaf_lead_weight if is_leaf_lead else None) or "400",
+        fill=frame.resolved_text_fill or "#000000",
+        small_caps=bool(frame.resolved_leaf_lead_small_caps) if is_leaf_lead else False,
+        letter_spacing=frame.resolved_leaf_lead_letter_spacing if is_leaf_lead else None,
+        line_step=line.line_step,
+    )
 
 
 def _leaf_all_lines(frame: Frame) -> list[dict]:
     """Convert a leaf node's heading + label lines to dicts for measurement/rendering."""
-    lines: list = []
     if frame.heading:
-        lines.append(frame.heading)
+        lines = [_frame_owned_heading_to_dict(frame, frame.heading)]
+    else:
+        lines = []
     if frame.label:
-        lines.extend(frame.label)
-    if lines:
-        return _lines_to_dicts(lines)
-    return []
+        lines.extend(_frame_owned_label_to_dict(frame, line, label_index) for label_index, line in enumerate(frame.label))
+    return lines
 
 
 def _leaf_natural_size(frame: Frame, constrained_w: float | None = None) -> tuple[float, float]:
@@ -284,7 +308,7 @@ def _leaf_natural_size(frame: Frame, constrained_w: float | None = None) -> tupl
     if frame.width is not None:
         w = frame.width
     elif all_lines:
-        text_w = _estimate_text_width(list(frame.label))
+        text_w = _estimate_text_width(all_lines)
         # Cap at wrap width: if text wraps, the box width is determined by the
         # wrap boundary, not the raw unwrapped text width.
         text_w = min(text_w, text_max_w)
@@ -1192,7 +1216,7 @@ def _render_frame(frame: Frame, fg: list, bg: list, bounds_map: dict,
     heading_lines: list[dict] = []
     label_lines: list[dict] = []
     icon_name = frame.icon
-    icon_fill_color = frame.icon_fill or "#000000"
+    icon_fill_color = frame.resolved_icon_fill or frame.icon_fill or "#000000"
 
     if frame.is_leaf:
         all_lines = _leaf_all_lines(frame)

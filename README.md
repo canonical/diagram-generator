@@ -2,7 +2,7 @@
 
 A constrained interactive diagram editor that turns rough sketches and brand/layout rules into on-brand SVG and draw.io diagrams.
 
-**Need a diagram for a stakeholder review?** Start with [`docs/stakeholder-guide.md`](docs/stakeholder-guide.md) and [`STATUS.md`](STATUS.md) (updated 2026-06-04).
+**Need a diagram for a stakeholder review?** Start with [`docs/stakeholder-guide.md`](docs/stakeholder-guide.md) and [`STATUS.md`](STATUS.md) (updated 2026-06-04, `main` @ `a6822da`).
 
 ## Bigger picture
 
@@ -30,7 +30,7 @@ If you are changing the autolayout engine, read these in order before editing co
 3. [`STATUS.md`](STATUS.md) – cold-start orientation, architecture, key files.
 4. [`.github/copilot-instructions.md`](.github/copilot-instructions.md) – workflow discipline and anti-patch protocol.
 
-Key files: `packages/layout-engine/src/layout.ts` (measure→place), `packages/layout-engine/src/svg-render.ts` + `export-frame-svg.mjs` (batch SVG), `scripts/preview/layout-bridge.js` (interactive relayout), `scripts/preview_server.py` (preview + TS SVG pool), `scripts/diagrams/frames/*.yaml` (authored diagrams). See `docs/stakeholder-guide.md` for the edit→preview→export loop.
+Key files: `packages/layout-engine/src/layout.ts` (measure→place), `packages/layout-engine/src/svg-render.ts` + `export-frame-svg.mjs` (batch SVG; golden tests in `tests/svg-golden.test.ts`), `scripts/preview/layout-bridge.js` (interactive relayout), `scripts/preview_server.py` (preview + TS SVG pool), `scripts/diagrams/frames/*.yaml` (authored diagrams). See `docs/stakeholder-guide.md` for the edit→preview→export loop.
 
 ### Recommended exemplar path
 
@@ -100,7 +100,7 @@ root:
       icon: Package.svg
 ```
 
-Start the preview server with `python scripts/preview_server.py` and open `http://127.0.0.1:8100/view/v3:my-diagram`. See `scripts/diagrams/frames/test-vertical-stack.yaml` for a minimal working example and `scripts/diagrams/frames/support-engineering-flow.yaml` for a fuller authored surface.
+Start the preview server with `python scripts/preview_server.py` and open `http://127.0.0.1:8100/view/v3:my-diagram`. See `scripts/diagrams/frames/example-deployment-pipeline.yaml` for a compact working example and `scripts/diagrams/frames/support-engineering-flow.yaml` for a fuller authored surface.
 
 ### Example diagrams (tracked)
 
@@ -108,11 +108,10 @@ Tracked examples ship with the repo for reference:
 
 | Example | What it demonstrates |
 |---------|---------------------|
-| [`test-vertical-stack.yaml`](scripts/diagrams/frames/test-vertical-stack.yaml) | Minimal working v3 frame definition |
 | [`example-deployment-pipeline.yaml`](scripts/diagrams/frames/example-deployment-pipeline.yaml) | Simple vertical flow with arrows |
 | [`example-platform-architecture.yaml`](scripts/diagrams/frames/example-platform-architecture.yaml) | Nested panels and multi-column layout |
-| [`example-stacked-blocks.yaml`](scripts/diagrams/frames/example-stacked-blocks.yaml) | Fill distribution and stacked-layout behaviour |
-| [`complex-testcase.yaml`](scripts/diagrams/frames/complex-testcase.yaml) | Structured testcase with overlays |
+| [`test-box-styles.yaml`](scripts/diagrams/frames/test-box-styles.yaml) | Compact style and contrast fixture |
+| [`complex-routing-usecase.yaml`](scripts/diagrams/frames/complex-routing-usecase.yaml) | Structured testcase with overlays and arrow routing |
 | [`support-engineering-flow.yaml`](scripts/diagrams/frames/support-engineering-flow.yaml) | Primary end-to-end demo surface |
 
 ### Interactive autolayout demo
@@ -129,7 +128,7 @@ Then open one of these URLs in your browser:
 
 - `http://127.0.0.1:8100/` for the diagram index
 - `http://127.0.0.1:8100/view/v3:support-engineering-flow` for the primary nested-frame demo
-- `http://127.0.0.1:8100/view/v3:diagram-intake-workflow` for the workflow explainer
+- `http://127.0.0.1:8100/view/v3:example-deployment-pipeline` for a compact workflow explainer
 - `http://127.0.0.1:8100/view/v3:request-to-hardware-stack` for a dense vertical-stack example
 
 Suggested demo flow:
@@ -147,7 +146,7 @@ Features: component tree sidebar, click-to-select inspector, drag-and-resize wit
 Paste this into an agent if you want it to launch the live demo end-to-end instead of just describing the steps:
 
 ```text
-Open this repo and launch the interactive autolayout demo for `diagram-intake-workflow`.
+Open this repo and launch the interactive autolayout demo for `support-engineering-flow`.
 
 Work from the repo root. Do not stop at instructions; actually run the setup and open the demo.
 
@@ -155,9 +154,9 @@ Work from the repo root. Do not stop at instructions; actually run the setup and
     python scripts/preview_server.py
 2. Keep that terminal running.
 3. Prefer opening the demo in a VS Code webview or Simple Browser if your environment supports it. Otherwise open it in the default browser at:
-    http://127.0.0.1:8100/view/v3:diagram-intake-workflow
+  http://127.0.0.1:8100/view/v3:support-engineering-flow
 4. If you need a Windows command to open the browser yourself, use:
-    Start-Process "http://127.0.0.1:8100/view/v3:diagram-intake-workflow"
+  Start-Process "http://127.0.0.1:8100/view/v3:support-engineering-flow"
 5. Wait until the page is visibly loaded, then tell me the interactive demo is ready.
 6. If the first attempt fails because the port is busy or the server needs a restart, recover and retry rather than stopping early.
 ```
@@ -258,7 +257,7 @@ Output:
 - Reusable SVG starter: [`onbrand-svg-starter.svg`](diagrams/0.reference/onbrand-svg-starter.svg)
 - Frame-class contract: [`docs/frame-classes.md`](docs/frame-classes.md)
 - Primary live demo surface: [`support-engineering-flow.yaml`](scripts/diagrams/frames/support-engineering-flow.yaml)
-- Minimal v3 starter example: [`test-vertical-stack.yaml`](scripts/diagrams/frames/test-vertical-stack.yaml)
+- Compact v3 starter example: [`example-deployment-pipeline.yaml`](scripts/diagrams/frames/example-deployment-pipeline.yaml)
 - Shared primitives module: [`diagram_shared.py`](scripts/diagram_shared.py)
 
 ## Draw.io export rules

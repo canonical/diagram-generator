@@ -14,20 +14,22 @@ import {
   type Line, type CoercedOverride, enforceFillHugInvariant,
 } from './frame-model.js';
 import {
-  BASELINE_UNIT, BLOCK_WIDTH, BOX_MIN_HEIGHT, INSET, ICON_SIZE,
+  BASELINE_UNIT, BLOCK_WIDTH, BOX_MIN_HEIGHT, ICON_SIZE,
   BODY_LINE_STEP, BODY_SIZE,
   roundUpToGrid, sizeToPx, steppedLinesHeight, clampToConstraints,
   setActiveGridStep, getActiveGridStep,
 } from './tokens.js';
 import {
   type TextMeasureAdapter, type LineSpec,
-  estimateLineWidth, wrapTextLines, linesToSpecs, lineToSpec,
+  estimateLineWidth, wrapTextLines,
 } from './text-measure.js';
 import { effectiveResolvedStrokeWidth } from './frame-classes.js';
 import {
   applyTextLayoutDefaults,
   resolveLeafTextWrapWidth,
 } from './text-layout.js';
+import { leafIconColumnWidth } from './spatial.js';
+import { frameOwnedHeadingToSpec, frameOwnedLabelToSpec } from './resolved-spec-typography.js';
 
 
 // ---------------------------------------------------------------------------
@@ -139,10 +141,10 @@ function expandRootWidthForSnappedFillColumns(root: Frame, requestedW: number): 
 function leafAllSpecs(frame: Frame): LineSpec[] {
   const specs: LineSpec[] = [];
   if (frame.heading) {
-    specs.push(lineToSpec(frame.heading));
+    specs.push(frameOwnedHeadingToSpec(frame, frame.heading));
   }
-  if (frame.label.length > 0) {
-    specs.push(...linesToSpecs(frame.label));
+  for (const [labelIndex, line] of frame.label.entries()) {
+    specs.push(frameOwnedLabelToSpec(frame, line, labelIndex));
   }
   return specs;
 }
@@ -158,7 +160,7 @@ function leafNaturalSize(
   const padR = frame.paddingRight;
   const padT = frame.paddingTop;
   const padB = frame.paddingBottom;
-  const iconCol = hasIcon ? (ICON_SIZE + INSET) : 0;
+  const iconCol = leafIconColumnWidth(frame);
 
   let w: number;
   let h: number;

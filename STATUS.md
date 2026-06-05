@@ -1,7 +1,7 @@
 # Status
 
 **Last updated:** 2026-06-05  
-**Branch:** `main` @ `edcf6ca`
+**Branch:** `main` @ `a6822da`
 
 ## Stakeholder path
 
@@ -27,42 +27,32 @@ Making a diagram for a review or deck: **[`docs/stakeholder-guide.md`](docs/stak
 
 | Area | State |
 |------|--------|
-| **Authoring** | Frame YAML in `scripts/diagrams/frames/` — **only** source of truth (32 diagrams) |
+| **Authoring** | Frame YAML in `scripts/diagrams/frames/` — **only** source of truth (18 diagrams after the first pruning pass) |
 | **Interactive preview** | TS layout via `layout-bridge.js` + HarfBuzz; save → YAML via `frame_yaml_persistence.py` |
 | **Preview APIs** | TS-only: frame-tree, grid, component tree (`preview_ts_layout.py`) |
-| **Live preview SVG** | TS-only Node export (`preview_ts_export.py`); no Python SVG fallback (spec 012 T060a) |
-| **Batch SVG** | `export-frame-svg.mjs` — TS-only (`svg-render.ts`); golden tests in `tests/svg-golden.test.ts` |
-| **Tests** | 240 TS layout-engine (vitest); Python suite (46 tests) for YAML/legacy parity |
+| **Live preview SVG** | TS-only Node export (`preview_ts_export.py`); no Python SVG renderer (spec 012) |
+| **Batch SVG** | `export-frame-svg.mjs` — TS-only (`svg-render.ts`); golden harness `tests/svg-golden.test.ts` (3 canonical slugs after the first pruning pass) |
+| **Tests** | 241 TS vitest (229 pass; 12 known `test-deep-nesting` width parity failures). Focused preview browser regressions green and `test_preview_ts_api.py` green. Full `pytest scripts -q` still has legacy parity drift outside the active TS path |
 
-### Recent work — spec 012 close-out + inspector (2026-06-05)
+### Recent work — spec 012 complete + arrow editing (2026-06-04)
 
-- **T050:** Golden SVG regression harness — 6 corpus slugs, `UPDATE_SVG_GOLDEN=1` refresh path.
-- **T060b:** Deleted `scripts/diagram_render_svg.py`; no Python code emits diagram SVG.
-- **Spec 019:** Inspector no longer duplicates Component / position / size / layout rows; id shown in Auto-layout heading.
-- **Arrow editing:** Arrows indexed in `ComponentModel`; preview selection uses segment hit areas + `arrowComponentId` parity with `svg-render.ts`.
+Commit **`a6822da`** (`scripts: land ts svg renderer cleanup`):
 
-### Prior — gap semantics + inspector (2026-06-04)
+- **Spec 012 closed:** TS-only SVG runtime; `diagram_render_svg.py` removed; golden SVG harness + fixtures; agent docs refreshed (T070).
+- **Arrow editing:** Arrows in `ComponentModel`; segment hit areas; `arrowComponentId` parity with `svg-render.ts`; double-click waypoint + clear-override routing tests green.
+- **Spec 019:** Inspector deduped; id in Auto-layout heading.
+- **Headed-container contract:** one `gap` per container (header/body split is internal; `stack_gap` remains legacy loader plumbing only).
+- **Audit snapshot:** TS preview tests green (`11/11`), full TS suite still only has the known 12 `test-deep-nesting` parity failures, and Python red state is confined to stale legacy `scripts/test_parity.py` reconstruction logic rather than the active TS preview/render path.
 
-Adversarial review complete. Composer work verified and one bug found + fixed:
+### Active focus
 
-- **Headed-container spacing contract**: headed containers author one gap per container. The header/body split is internal structure, the body keeps child items grouped, and nesting stays simpler because each container contributes one gap value.
-- **Legacy stack-gap plumbing**: the loader/preview path still carries `stack_gap` support from earlier work, but the active authoring contract is the single-gap headed-container model above.
-- **Inspector**: primary single-select cleanup landed; Auto-layout remains the main editing surface and headed containers intentionally keep a single `Gap` control.
-- **android-custom-to-cloud**: Correct structure — 4 sections, leaf text labels, 3 arrows. No wrapper panels.
-- **15 files** uncommitted (composer work + bug fix). Pre-existing parity failures: 12 TS (`test-deep-nesting` width), 5 Python (`__body` frame ID).
-
-### Active focus — spec 012
-
-Finish **TS-only render runtime** (not “move to YAML” — YAML is already authoritative):
-
-- [x] T060a — preview server: no Python SVG fallback  
-- [x] T020 — batch icon embed (`icon-embed.ts`)  
-- [x] T030–T040 — arrow heads, overlays in `svg-render.ts`  
-- [x] T050 — golden SVG subset (`tests/svg-golden.test.ts`, 6 corpus slugs)  
-- [x] T060b — removed `diagram_render_svg.py` (TS-only SVG emit)  
-- [ ] T070 — agent docs + `docs/specs.md` (close 012)
-
-Then: spec **018** PNG export, spec **005** WS2, spec **008** Phase 5.
+| Priority | Work |
+|----------|------|
+| Now | Spec **020** lean variant-only style authority + fixture-pruning rewrite |
+| Next | Spec **005** WS2–WS5 (style ownership, heading/body docs, padding parity) |
+| Parallel | Spec **021** arrow labels use annotation variant — landed |
+| Parallel | Spec **018** PNG export |
+| Parallel | Spec **008** Phase 5 (resolved-style snapshot) |
 
 ## Key files
 
@@ -70,6 +60,7 @@ Then: spec **018** PNG export, spec **005** WS2, spec **008** Phase 5.
 |---------|------|
 | TS layout engine | `packages/layout-engine/` |
 | TS SVG export | `packages/layout-engine/src/svg-render.ts`, `src/icon-embed.ts` |
+| Golden SVG tests | `packages/layout-engine/tests/svg-golden.test.ts`, `tests/svg-golden-harness.ts` |
 | Browser relayout | `scripts/preview/layout-bridge.js` |
 | Editor UI | `scripts/preview/editor.js` |
 | Preview server | `scripts/preview_server.py` |
@@ -81,3 +72,4 @@ Then: spec **018** PNG export, spec **005** WS2, spec **008** Phase 5.
 
 - `DIAGRAM.md` governs tokens and output constraints.  
 - Deliverable SVG: Illustrator-safe (no `<symbol>`, `<use>`, external `<image href>`, marker refs).
+- Headed containers: author **one gap** per container; do not reintroduce separate header/body gap controls in the inspector.

@@ -76,8 +76,11 @@ export function resolveStyles(root: Frame, ctx?: Partial<ResolveStylesContext>):
     // Root frame: invisible
     applyFrameClass(root, FRAME_CLASS_DEFS.hidden);
   } else if (isLayoutWrapper) {
-    // Synthetic __heading / __body frames: transparent
-    applyFrameClass(root, FRAME_CLASS_DEFS.hidden);
+    // Synthetic __heading / __body frames: transparent box chrome, but a
+    // parent-applied heading snapshot must survive for __heading content.
+    root.resolvedFill = 'transparent';
+    root.resolvedStroke = 'none';
+    root.resolvedStrokeWidth = 0;
     // __heading with a black-fill parent keeps its fill for contrast
     if (root.fill === Fill.BLACK) {
       root.resolvedFill = '#000000';

@@ -313,7 +313,7 @@ def test_v3_style_changes_use_single_local_executor():
 def test_v3_initial_style_picker_uses_semantic_panel_style():
     with _preview_server() as base_url:
         with sync_playwright() as playwright:
-            browser, page = _open_v3_page(playwright, base_url, "simple-testcase", "planning")
+            browser, page = _open_v3_page(playwright, base_url, "preview-smoke", "planning")
             try:
                 page.evaluate("() => selectComponent('planning', false)")
                 page.wait_for_function(
@@ -340,26 +340,24 @@ def test_v3_initial_style_picker_uses_semantic_panel_style():
 def test_v3_style_change_does_not_shift_untouched_heading_wrappers():
     with _preview_server() as base_url:
         with sync_playwright() as playwright:
-            browser, page = _open_v3_page(playwright, base_url, "diagram-intake-workflow", "workflow")
+            browser, page = _open_v3_page(playwright, base_url, "preview-smoke", "workflow")
             try:
-                _select_component(page, "workflow")
+                page.evaluate("() => selectComponent('workflow', false)")
+                page.wait_for_function(
+                    "() => Array.from(selectedIds).length === 1 && Array.from(selectedIds)[0] === 'workflow'"
+                )
                 page.wait_for_function("() => getV3RelayoutStatus().localReady")
 
                 before_state = _capture_component_state(page, "workflow")
                 before_heading = _capture_group_tspans(page, "sources__heading")
 
                 assert before_state["stylePickerValue"] == "parent"
-                assert before_heading == [
-                    {
-                        "text": "Rough initial diagram sources",
-                        "x": "32",
-                        "y": "48.92",
-                        "size": "18",
-                        "weight": "700",
-                        "fill": "#000000",
-                        "ls": None,
-                    }
-                ]
+                assert len(before_heading) == 1
+                assert before_heading[0]["text"] == "Sources"
+                assert before_heading[0]["size"] == "18"
+                assert before_heading[0]["weight"] == "700"
+                assert before_heading[0]["fill"] == "#000000"
+                assert before_heading[0]["ls"] is None
 
                 same_style_state = _apply_v3_style_and_capture(page, "workflow", "parent")
                 assert same_style_state["stylePickerValue"] == "parent"
@@ -765,13 +763,13 @@ def test_v3_per_side_padding_updates_live_and_persists(tmp_path):
 def test_v3_keyboard_delete_removes_frame_persists_and_undo(tmp_path):
     frames_dir = tmp_path / "frames"
     frames_dir.mkdir()
-    source_frame = SCRIPTS / "diagrams" / "frames" / "simple-testcase.yaml"
-    saved_frame = frames_dir / "simple-testcase.yaml"
+    source_frame = SCRIPTS / "diagrams" / "frames" / "preview-smoke.yaml"
+    saved_frame = frames_dir / "preview-smoke.yaml"
     shutil.copyfile(source_frame, saved_frame)
 
     with _preview_server(extra_env={"DG_FRAMES_DIR": str(frames_dir)}) as base_url:
         with sync_playwright() as playwright:
-            browser, page = _open_v3_page(playwright, base_url, "simple-testcase", "define")
+            browser, page = _open_v3_page(playwright, base_url, "preview-smoke", "define")
             try:
                 page.wait_for_function("() => getV3RelayoutStatus().localReady")
                 page.locator('[data-component-id="define"] rect').click()
@@ -806,12 +804,12 @@ def test_v3_keyboard_delete_removes_frame_persists_and_undo(tmp_path):
 def test_v3_clear_panel_heading_keeps_parent_stroke(tmp_path):
     frames_dir = tmp_path / "frames"
     frames_dir.mkdir()
-    source_frame = SCRIPTS / "diagrams" / "frames" / "simple-testcase.yaml"
-    shutil.copyfile(source_frame, frames_dir / "simple-testcase.yaml")
+    source_frame = SCRIPTS / "diagrams" / "frames" / "preview-smoke.yaml"
+    shutil.copyfile(source_frame, frames_dir / "preview-smoke.yaml")
 
     with _preview_server(extra_env={"DG_FRAMES_DIR": str(frames_dir)}) as base_url:
         with sync_playwright() as playwright:
-            browser, page = _open_v3_page(playwright, base_url, "simple-testcase", "planning")
+            browser, page = _open_v3_page(playwright, base_url, "preview-smoke", "planning")
             try:
                 page.wait_for_function("() => getV3RelayoutStatus().localReady")
                 page.evaluate(
@@ -843,12 +841,12 @@ def test_v3_clear_panel_heading_keeps_parent_stroke(tmp_path):
 def test_v3_dirty_diagram_next_cancel_keeps_nav_ui_in_sync(tmp_path):
     frames_dir = tmp_path / "frames"
     frames_dir.mkdir()
-    for name in ("simple-testcase.yaml", "support-engineering-flow.yaml"):
+    for name in ("preview-smoke.yaml", "support-engineering-flow.yaml"):
         shutil.copyfile(SCRIPTS / "diagrams" / "frames" / name, frames_dir / name)
 
     with _preview_server(extra_env={"DG_FRAMES_DIR": str(frames_dir)}) as base_url:
         with sync_playwright() as playwright:
-            browser, page = _open_v3_page(playwright, base_url, "simple-testcase", "define")
+            browser, page = _open_v3_page(playwright, base_url, "preview-smoke", "define")
             dialogs: list[str] = []
             page.on("dialog", lambda dialog: (dialogs.append(dialog.message), dialog.dismiss()))
             try:
@@ -876,12 +874,12 @@ def test_v3_dirty_diagram_next_cancel_keeps_nav_ui_in_sync(tmp_path):
 def test_v3_dirty_browse_link_cancel_keeps_nav_ui_in_sync(tmp_path):
     frames_dir = tmp_path / "frames"
     frames_dir.mkdir()
-    for name in ("simple-testcase.yaml", "support-engineering-flow.yaml"):
+    for name in ("preview-smoke.yaml", "support-engineering-flow.yaml"):
         shutil.copyfile(SCRIPTS / "diagrams" / "frames" / name, frames_dir / name)
 
     with _preview_server(extra_env={"DG_FRAMES_DIR": str(frames_dir)}) as base_url:
         with sync_playwright() as playwright:
-            browser, page = _open_v3_page(playwright, base_url, "simple-testcase", "define")
+            browser, page = _open_v3_page(playwright, base_url, "preview-smoke", "define")
             dialogs: list[str] = []
             page.on("dialog", lambda dialog: (dialogs.append(dialog.message), dialog.dismiss()))
             try:
@@ -908,12 +906,12 @@ def test_v3_dirty_browse_link_cancel_keeps_nav_ui_in_sync(tmp_path):
 def test_v3_unsaved_delete_restored_after_diagram_next_and_back(tmp_path):
     frames_dir = tmp_path / "frames"
     frames_dir.mkdir()
-    for name in ("simple-testcase.yaml", "support-engineering-flow.yaml"):
+    for name in ("preview-smoke.yaml", "support-engineering-flow.yaml"):
         shutil.copyfile(SCRIPTS / "diagrams" / "frames" / name, frames_dir / name)
 
     with _preview_server(extra_env={"DG_FRAMES_DIR": str(frames_dir)}) as base_url:
         with sync_playwright() as playwright:
-            browser, page = _open_v3_page(playwright, base_url, "simple-testcase", "define")
+            browser, page = _open_v3_page(playwright, base_url, "preview-smoke", "define")
             try:
                 dialogs: list[str] = []
                 page.on("dialog", lambda dialog: (dialogs.append(dialog.message), dialog.accept()))
@@ -929,7 +927,7 @@ def test_v3_unsaved_delete_restored_after_diagram_next_and_back(tmp_path):
                 assert dialogs == [DIRTY_DIAGRAM_NAV_CONFIRM]
 
                 page.go_back(wait_until="domcontentloaded")
-                _wait_for_diagram_loaded(page, slug="simple-testcase", component_id="define")
+                _wait_for_diagram_loaded(page, slug="preview-smoke", component_id="define")
                 page.wait_for_function("() => model.get('define') !== null")
                 page.wait_for_function("() => __DG_TEST_treeHasFrameId('define')")
             finally:
@@ -939,14 +937,14 @@ def test_v3_unsaved_delete_restored_after_diagram_next_and_back(tmp_path):
 def test_v3_delete_without_save_restored_on_reload(tmp_path):
     frames_dir = tmp_path / "frames"
     frames_dir.mkdir()
-    source_frame = SCRIPTS / "diagrams" / "frames" / "simple-testcase.yaml"
-    saved_frame = frames_dir / "simple-testcase.yaml"
+    source_frame = SCRIPTS / "diagrams" / "frames" / "preview-smoke.yaml"
+    saved_frame = frames_dir / "preview-smoke.yaml"
     shutil.copyfile(source_frame, saved_frame)
     yaml_before = yaml.safe_load(saved_frame.read_text(encoding="utf-8"))
 
     with _preview_server(extra_env={"DG_FRAMES_DIR": str(frames_dir)}) as base_url:
         with sync_playwright() as playwright:
-            browser, page = _open_v3_page(playwright, base_url, "simple-testcase", "define")
+            browser, page = _open_v3_page(playwright, base_url, "preview-smoke", "define")
             try:
                 page.wait_for_function("() => getV3RelayoutStatus().localReady")
                 page.locator('[data-component-id="define"] rect').click()
@@ -971,13 +969,13 @@ def test_v3_delete_without_save_restored_on_reload(tmp_path):
 def test_v3_tree_context_menu_delete_removes_frame(tmp_path):
     frames_dir = tmp_path / "frames"
     frames_dir.mkdir()
-    source_frame = SCRIPTS / "diagrams" / "frames" / "simple-testcase.yaml"
-    saved_frame = frames_dir / "simple-testcase.yaml"
+    source_frame = SCRIPTS / "diagrams" / "frames" / "preview-smoke.yaml"
+    saved_frame = frames_dir / "preview-smoke.yaml"
     shutil.copyfile(source_frame, saved_frame)
 
     with _preview_server(extra_env={"DG_FRAMES_DIR": str(frames_dir)}) as base_url:
         with sync_playwright() as playwright:
-            browser, page = _open_v3_page(playwright, base_url, "simple-testcase", "measure")
+            browser, page = _open_v3_page(playwright, base_url, "preview-smoke", "measure")
             try:
                 page.wait_for_function("() => getV3RelayoutStatus().localReady")
                 page.evaluate(

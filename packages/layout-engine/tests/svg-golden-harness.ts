@@ -29,11 +29,8 @@ export interface SvgGoldenCase {
 }
 
 export const SVG_GOLDEN_CASES: SvgGoldenCase[] = [
-  { slug: 'test-vertical-stack', markers: { hasIcon: true } },
   { slug: 'test-nested-containers', markers: { hasHeading: true, hasIcon: true } },
   { slug: 'test-box-styles', markers: { hasHighlight: true, hasIcon: true } },
-  { slug: 'test-fill-distribution', markers: { hasIcon: true } },
-  { slug: 'simple-testcase', markers: { hasArrow: true } },
   { slug: 'android-custom-to-cloud', markers: { hasArrow: true, hasHeading: true, hasIcon: true } },
 ];
 

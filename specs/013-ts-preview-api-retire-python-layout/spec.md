@@ -2,8 +2,8 @@
 
 **Branch**: `feat/013-ts-preview-api-retire-python-layout`  
 **Created**: 2026-06-03  
-**Status**: Complete (preview frame-tree/grid/tree are TS-only; Python `layout_v3` remains for SVG fallback until spec 012)  
-**Depends on**: Spec 011 (`frame-yaml-loader.ts`), Spec 012 (optional for SVG; not blocking tree/grid)
+**Status**: Complete (preview frame-tree/grid/tree are TS-only via `preview_ts_layout.py`; Python `layout_v3` remains for pytest parity only)  
+**Depends on**: Spec 011 (`frame-yaml-loader.ts`), Spec 012 (TS-only SVG)
 
 ## Mission
 

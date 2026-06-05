@@ -21,7 +21,7 @@ A redundant override is any explicit `fill:` or `border:` property in a frame YA
 | File | Effort | Redundancies | Notes |
 |------|--------|-------------|-------|
 | complex-routing-usecase | Light | root `border: none` | |
-| complex-testcase | Light | root `border: none` | |
+| complex-routing-usecase | Light | overlays + routing | (was complex-testcase; slug removed) |
 | simple-testcase | Light | root `border: none` | |
 | android-container-vs-vm | Medium | root border + interior overrides | |
 | android-custom-to-cloud | Medium | root border + interior overrides | |

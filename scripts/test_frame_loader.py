@@ -450,7 +450,7 @@ root:
 
 
 def test_explicit_level2_gives_grey_panel(tmp_path):
-    """Explicit ``level: 2`` makes a container a grey panel."""
+    """Explicit ``level: 2`` makes a container a grey panel while heading lines stay neutral."""
     diagram = _load(tmp_path, """
 engine: v3
 root:
@@ -468,7 +468,7 @@ root:
     assert panel.resolved_stroke == "#F3F3F3"
     heading = panel.children[0]
     assert heading.role == "heading"
-    assert heading.label[0].weight == "700"
+    assert heading.label[0].weight == "400"
     assert heading.label[0].small_caps is False
 
 
@@ -544,7 +544,7 @@ root:
     assert ann.resolved_stroke == "none"
 
 
-def test_explicit_level3_promotes_heading_to_bold_fallback(tmp_path):
+def test_explicit_level3_keeps_heading_line_neutral(tmp_path):
     diagram = _load(tmp_path, """
 engine: v3
 root:
@@ -560,13 +560,13 @@ root:
     section = diagram.root.children[0]
     heading = section.children[0]
     assert heading.role == "heading"
-    assert heading.label[0].weight == "700"
+    assert heading.label[0].weight == "400"
     assert heading.label[0].small_caps is False
     assert heading.label[0].letter_spacing is None
     assert section.resolved_stroke_width == DEFAULT_FRAME_STROKE_WIDTH
 
 
-def test_explicit_level3_promotes_leaf_lead_to_bold_fallback(tmp_path):
+def test_explicit_level3_keeps_leaf_lead_line_neutral(tmp_path):
     diagram = _load(tmp_path, """
 engine: v3
 root:
@@ -577,7 +577,7 @@ root:
       label: [VM Instance A]
 """)
     leaf = diagram.root.children[0]
-    assert leaf.label[0].weight == "700"
+    assert leaf.label[0].weight == "400"
     assert leaf.label[0].small_caps is False
     assert leaf.label[0].letter_spacing is None
 
@@ -707,9 +707,9 @@ root:
     assert panel.gap == 32
     assert body.gap == INSET
     assert body.align == Align.BOTTOM_RIGHT
-    assert body.justify == Justify.SPACE_BETWEEN
-    assert body.wrap is True
-    assert body.fill_weight == 3
+    assert body.justify == Justify.PACKED
+    assert body.wrap is False
+    assert body.fill_weight == 1
 
     # Icon is moved to the synthetic heading child.
     assert panel.icon is None
@@ -793,9 +793,9 @@ root:
     assert panel.gap == 16
     assert body.gap == INSET
     assert body.align == Align.CENTER_RIGHT
-    assert body.justify == Justify.SPACE_AROUND
-    assert body.wrap is True
-    assert body.fill_weight == 2
+    assert body.justify == Justify.PACKED
+    assert body.wrap is False
+    assert body.fill_weight == 1
 
 
 # ── Column span ─────────────────────────────────────────────────────

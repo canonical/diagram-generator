@@ -1,8 +1,9 @@
 # Spec 012 – TypeScript SVG renderer (retire `diagram_render_svg.py`)
 
-**Branch**: `feat/012-ts-svg-renderer-retire-python`  
+**Branch**: `main` (landed `a6822da`)  
 **Created**: 2026-06-03  
-**Status**: In progress — T060a (preview TS-only SVG), T020 (batch icons) done; T030–T060b open  
+**Completed**: 2026-06-04  
+**Status**: Complete — all tasks T010–T070 done  
 **Depends on**: Spec 011 (TS layout + minimal `svg-render.ts`)
 
 ## Mission
@@ -11,17 +12,9 @@ Replace `scripts/diagram_render_svg.py` and the Python primitive render path wit
 
 Frame YAML remains the **only authored source of truth**. Layout and render are derived operations in TS.
 
-## Problem
+## Problem (resolved)
 
-`svg-render.ts` and `export-frame-svg.mjs` handle layout + boxes/text/icons (real icons since T020) + simple elbow arrows. **Preview no longer falls back to Python** (T060a). Batch still shares gaps with interactive preview until T030–T040; `diagram_render_svg.py` still implements:
-
-- Real icon SVG embedding (`load_icon`)
-- Arrow heads, labels, waypoint styling
-- Overlays, separators, matrix tiles, terminal chrome
-- Grid overlay metadata in SVG
-- Ontology metadata block
-
-Two renderers means drift (spec 011 already proved measure drift when Python laid out).
+Python `diagram_render_svg.py` duplicated primitive emitters (icons, arrow heads, overlays, separators) and drifted from the TS layout/measure path. Preview and batch now share one TS renderer (`svg-render.ts` + `export-frame-svg.mjs`); the Python module is deleted.
 
 ## User scenarios
 

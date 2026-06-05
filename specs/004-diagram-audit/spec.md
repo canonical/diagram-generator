@@ -57,7 +57,7 @@ Boxes that use the "card" pattern (bold title line + regular body text) should a
 ### Edge Cases
 
 - Diagrams with intentional non-default overrides (e.g. `fill: "#666666"` for annotation text colour, `variant: highlight`) – these stay. Only overrides that duplicate the engine's level-based defaults are removed.
-- `*-testcase.yaml` files (simple-testcase, complex-testcase) are production-like engine demos and are included in the audit. Unit test fixtures (`test-*.yaml`) are exempt.
+- `*-testcase.yaml` files (simple-testcase, complex-routing-usecase) are production-like engine demos and are included in the audit. The duplicate `complex-testcase` slug was removed in favor of `complex-routing-usecase`. Unit test fixtures (`test-*.yaml`) are exempt.
 
 ## Requirements
 

@@ -138,6 +138,14 @@ class Frame:
     resolved_fill: str | None = field(default=None, repr=False)    # hex colour
     resolved_stroke: str | None = field(default=None, repr=False)  # hex colour or "none"/"transparent"
     resolved_stroke_width: int | None = field(default=None, repr=False)  # px; from frame class
+    resolved_text_fill: str | None = field(default=None, repr=False)
+    resolved_icon_fill: str | None = field(default=None, repr=False)
+    resolved_heading_weight: str | None = field(default=None, repr=False)
+    resolved_heading_small_caps: bool | None = field(default=None, repr=False)
+    resolved_heading_letter_spacing: str | None = field(default=None, repr=False)
+    resolved_leaf_lead_weight: str | None = field(default=None, repr=False)
+    resolved_leaf_lead_small_caps: bool | None = field(default=None, repr=False)
+    resolved_leaf_lead_letter_spacing: str | None = field(default=None, repr=False)
 
     # ── Content (leaf) ──
     label: list[Line] = field(default_factory=list)

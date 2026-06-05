@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { createArrow, Frame, FrameDiagram } from '../src/frame-model.js';
+import { createArrow, createLine, Frame, FrameDiagram } from '../src/frame-model.js';
 import { loadFrameYaml } from '../src/frame-yaml-loader.js';
 import { MockTextAdapter } from '../src/text-measure.js';
 import { renderFrameDiagramToSvg } from '../src/svg-render.js';
@@ -87,5 +87,87 @@ describe('arrow rendering parity', () => {
 
     expect(svg).toContain('x1="50" y1="25" x2="50" y2="100"');
     expect(svg).toContain('x1="50" y1="100" x2="200" y2="100"');
+  });
+
+  it('ignores raw YAML line style fields in favor of semantic defaults', () => {
+    const tempDir = mkdtempSync(join(tmpdir(), 'dg-line-style-test-'));
+    const yamlPath = join(tempDir, 'styled-lines.yaml');
+
+    try {
+      writeFileSync(
+        yamlPath,
+        [
+          'engine: v3',
+          'title: loader strips line styling',
+          'root:',
+          '  id: page',
+          '  children:',
+          '    - id: note',
+          '      variant: annotation',
+          '      label:',
+          '        - text: Semantic note',
+          '          fill: "#FF00FF"',
+          '          weight: "900"',
+          '          small_caps: true',
+          '',
+        ].join('\n'),
+        'utf8',
+      );
+
+      const diagram = loadFrameYaml(yamlPath);
+      const note = diagram.root.children[0]!;
+
+      expect(note.label[0]?.content).toBe('Semantic note');
+      expect(note.label[0]?.fill).toBe('#000000');
+      expect(note.label[0]?.weight).toBe('400');
+      expect(note.label[0]?.smallCaps).toBe(false);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('renders arrow labels with annotation variant styling, not authored line styling', () => {
+    const root = new Frame({
+      id: 'page',
+      children: [
+        new Frame({ id: 'source', label: [createLine('Source')] }),
+        new Frame({ id: 'target', label: [createLine('Target')] }),
+      ],
+    });
+
+    root._layout.placedX = 0;
+    root._layout.placedY = 0;
+    root._layout.placedW = 300;
+    root._layout.placedH = 150;
+
+    const source = root.children[0]!;
+    source._layout.placedX = 0;
+    source._layout.placedY = 0;
+    source._layout.placedW = 50;
+    source._layout.placedH = 50;
+
+    const target = root.children[1]!;
+    target._layout.placedX = 200;
+    target._layout.placedY = 0;
+    target._layout.placedW = 50;
+    target._layout.placedH = 50;
+
+    const diagram = new FrameDiagram({
+      root,
+      arrows: [
+        createArrow('source.right', 'target.left', {
+          label: [createLine('Fast path', { fill: '#FF00FF', weight: '900', smallCaps: true })],
+        }),
+      ],
+    });
+
+    const svg = renderFrameDiagramToSvg(diagram, { width: 300, height: 150 }, new MockTextAdapter());
+
+    expect(svg).toContain('>Fast path</tspan>');
+    expect(svg).toContain('fill="#666666"');
+    expect(svg).toContain('font-weight="400"');
+    expect(svg).not.toContain('fill="#FF00FF">Fast path</tspan>');
+    expect(svg).not.toContain('font-weight="900"');
+    expect(svg).not.toContain('font-variant-caps="small-caps">Fast path</tspan>');
   });
 });

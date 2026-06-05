@@ -1579,9 +1579,6 @@ def main() -> None:
     export_inference_snaps()
     export_inference_snaps_dense()
     export_rise_of_inference()
-    export_gpu_waiting()
-    export_diagram_intake_workflow()
-    export_diagram_language_workflow()
     export_logic_data_vram()
     export_attention_qkv()
 

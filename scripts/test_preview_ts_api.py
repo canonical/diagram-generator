@@ -16,7 +16,7 @@ import pytest
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SCRIPTS = ROOT / "scripts"
-SLUG = "simple-testcase"
+SLUG = "preview-smoke"
 
 
 def _reserve_port() -> int:

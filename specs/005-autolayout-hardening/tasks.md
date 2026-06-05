@@ -29,23 +29,23 @@
 
 ## Phase 4: Heading/body contract hardening (WS3)
 
-- [ ] T030 Write propagation contract table in code comments/tests (wrap/fill_weight/justify/gap)
-- [ ] T031 Align loader synthesis logic with contract table
-- [ ] T032 Add tests for heading/body synthesis across vertical and horizontal parents
-- [ ] T033 Add negative tests for unsupported/ambiguous propagation paths
+- [x] T030 Write propagation contract table in code comments/tests (wrap/fill_weight/justify/gap)
+- [x] T031 Align loader synthesis logic with contract table (TS + Python `frame_loader.py`)
+- [x] T032 Add tests for heading/body synthesis across vertical and horizontal parents
+- [x] T033 Add negative tests for unsupported/ambiguous propagation paths
 
 ## Phase 5: Padding parity (WS4)
 
-- [ ] T040 Align measurement code to per-side padding fields
-- [ ] T041 Remove obsolete measurement/render compensation logic where safe
-- [ ] T042 Add tests for icon/no-icon and explicit zero padding cases
-- [ ] T043 Add test comparing measured wrap width assumptions to rendered positions
+- [x] T040 Align measurement code to per-side padding fields
+- [x] T041 Remove obsolete measurement/render compensation logic where safe
+- [x] T042 Add tests for icon/no-icon and explicit zero padding cases
+- [x] T043 Add test comparing measured wrap width assumptions to rendered positions
 
 ## Phase 6: Validation and closeout (WS5)
 
 - [ ] T050 Run focused test suite and capture results
 - [ ] T051 Render frame corpus and verify no unplanned regressions
-- [ ] T052 Browser-check high-risk diagrams: request-to-hardware-stack, aws-hld, example-stacked-blocks
+- [ ] T052 Browser-check high-risk diagrams: request-to-hardware-stack, android-custom-to-cloud, support-engineering-flow
 - [ ] T053 Update TODO links/status for autolayout section after implementation lands
 
 ## Parallelization Notes

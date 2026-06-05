@@ -10,9 +10,9 @@ import {
   type Arrow,
   type DiagramOverlay,
 } from './frame-model.js';
+import { leafIconColumnWidth } from './spatial.js';
 import {
   ICON_SIZE,
-  INSET,
   BODY_SIZE,
   BODY_LINE_STEP,
   GRID_GUTTER,
@@ -24,11 +24,14 @@ import {
 import {
   type LineSpec,
   type TextMeasureAdapter,
-  lineToSpec,
-  linesToSpecs,
   wrapTextLines,
 } from './text-measure.js';
 import { effectiveResolvedStrokeWidth } from './frame-classes.js';
+import {
+  annotationTextToSpec,
+  frameOwnedHeadingToSpec,
+  frameOwnedLabelToSpec,
+} from './resolved-spec-typography.js';
 import type { LayoutOutput } from './layout.js';
 import { tintIconInnerMarkup } from './icon-embed.js';
 
@@ -70,15 +73,17 @@ function frameRenderState(frame: Frame, adapter: TextMeasureAdapter): FrameRende
   const padRight = frame.paddingRight;
   const padBottom = frame.paddingBottom;
   const padLeft = frame.paddingLeft;
-  const iconCol = frame.icon ? ICON_SIZE + INSET : 0;
+  const iconCol = leafIconColumnWidth(frame);
   const textMaxWidth = frame._layout.placedW - padLeft - padRight - iconCol;
 
   let specs: LineSpec[] = [];
   if (frame.children.length === 0) {
-    if (frame.heading) specs.push(lineToSpec(frame.heading));
-    if (frame.label.length > 0) specs.push(...linesToSpecs(frame.label));
+    if (frame.heading) specs.push(frameOwnedHeadingToSpec(frame, frame.heading));
+    for (const [labelIndex, line] of frame.label.entries()) {
+      specs.push(frameOwnedLabelToSpec(frame, line, labelIndex));
+    }
   } else if (frame.heading) {
-    specs = linesToSpecs([frame.heading]);
+    specs = [frameOwnedHeadingToSpec(frame, frame.heading)];
   }
   if (specs.length > 0 && textMaxWidth > 0) {
     specs = wrapTextLines(specs, textMaxWidth, adapter);
@@ -96,7 +101,7 @@ function frameRenderState(frame: Frame, adapter: TextMeasureAdapter): FrameRende
     padBottom,
     padLeft,
     specs,
-    iconFill: frame.iconFill ?? '#000000',
+    iconFill: frame.resolvedIconFill ?? '#000000',
   };
 }
 
@@ -108,6 +113,7 @@ function renderFrameText(frame: Frame, rs: FrameRenderState): string {
   for (const spec of rs.specs) {
     const size = String(spec.size ?? BODY_SIZE);
     const weight = spec.weight ?? '400';
+    const smallCaps = spec.smallCaps ?? false;
     const fill = spec.fill ?? '#000000';
     const lineStep = sizeToPx(spec.lineStep ?? BODY_LINE_STEP);
     const attrs = [
@@ -118,8 +124,7 @@ function renderFrameText(frame: Frame, rs: FrameRenderState): string {
       `fill="${esc(fill)}"`,
     ];
     if (spec.letterSpacing) attrs.push(`letter-spacing="${esc(String(spec.letterSpacing))}"`);
-    if (spec.fontFamily) attrs.push(`font-family="${esc(spec.fontFamily)}"`);
-    if (spec.smallCaps) attrs.push('font-variant-caps="small-caps"');
+    if (smallCaps) attrs.push('font-variant-caps="small-caps"');
     parts.push(`<tspan ${attrs.join(' ')}>${esc(spec.content)}</tspan>`);
     top += lineStep;
   }
@@ -377,7 +382,7 @@ function renderArrows(routed: RoutedArrow[], adapter: TextMeasureAdapter): strin
       const [mx2, my2] = shaftPoints[Math.min(midIdx + 1, shaftPoints.length - 1)]!;
       const lx = (mx1 + mx2) / 2;
       const ly = Math.min(my1, my2) - labelGap;
-      const specs = linesToSpecs(label);
+      const specs = label.map(annotationTextToSpec);
       if (specs.length > 0) {
         let top = ly;
         const tspans: string[] = [];
@@ -393,6 +398,8 @@ function renderArrows(routed: RoutedArrow[], adapter: TextMeasureAdapter): strin
             `font-weight="${esc(String(weight))}"`,
             `fill="${esc(fill)}"`,
           ];
+          if (spec.letterSpacing) attrs.push(`letter-spacing="${esc(String(spec.letterSpacing))}"`);
+          if (spec.smallCaps) attrs.push('font-variant-caps="small-caps"');
           tspans.push(`<tspan ${attrs.join(' ')}>${esc(spec.content)}</tspan>`);
           top += lineStep;
         }

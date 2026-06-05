@@ -374,7 +374,7 @@ All changes are backward-compatible:
 After each phase:
 1. All 205+ existing tests pass
 2. All 24 diagrams pass automated overlap/overflow audit
-3. Browser-verify: aws-hld, example-platform-architecture, android-custom-to-cloud, lightning-talk-engine
+3. Browser-verify: request-to-hardware-stack, example-platform-architecture, android-custom-to-cloud, complex-routing-usecase
 4. No arrow regression in any existing diagram
 
 ## 7. Non-goals

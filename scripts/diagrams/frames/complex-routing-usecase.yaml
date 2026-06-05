@@ -2,7 +2,7 @@ engine: v3
 title: "Complex Routing Usecase"
 # Source: mermaid structured-beta test case
 # Reference: mermaid/examples/complex-routing-usecase.drawio
-# Same as complex-testcase PLUS "Build spike" in Dev team group
+# Canonical complex routing demo (replaces removed complex-testcase slug)
 # 3 parent columns, 5 leaf boxes, 2 arrows
 # Arrows: define→implement, measure→review (routed around spike)
 grid:

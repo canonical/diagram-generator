@@ -53,7 +53,7 @@ describe('resolveStyles', () => {
     resolveStyles(root);
     expect(child.resolvedFill).toBe('#000000');
     expect(child.resolvedStroke).toBe('#000000');
-    expect(child.label[0]!.fill).toBe('#FFFFFF');
+    expect(child.resolvedTextFill).toBe('#FFFFFF');
   });
 
   it('panel (level=2) gets grey fill and stroke', () => {
@@ -64,8 +64,8 @@ describe('resolveStyles', () => {
     resolveStyles(root);
     expect(panel.resolvedFill).toBe('#F3F3F3');
     expect(panel.resolvedStroke).toBe('#F3F3F3');
-    expect(heading.label[0]!.weight).toBe('700');
-    expect(heading.label[0]!.smallCaps).toBe(false);
+    expect(heading.resolvedHeadingWeight).toBe('700');
+    expect(heading.resolvedHeadingSmallCaps).toBe(false);
   });
 
   it('panel (level=2) with cleared heading text stays visible (not level 0)', () => {
@@ -95,10 +95,9 @@ describe('resolveStyles', () => {
     expect(section.resolvedFill).toBe('transparent');
     expect(section.resolvedStroke).toBe('#000000');
     expect(section.resolvedStrokeWidth).toBe(DEFAULT_FRAME_STROKE_WIDTH);
-    // Section headings use the real small-caps token in the TS/browser path.
-    expect(heading.label[0]!.weight).toBe('700');
-    expect(heading.label[0]!.smallCaps).toBe(true);
-    expect(heading.label[0]!.letterSpacing).toBeUndefined();
+    expect(heading.resolvedHeadingWeight).toBe('700');
+    expect(heading.resolvedHeadingSmallCaps).toBe(true);
+    expect(heading.resolvedHeadingLetterSpacing).toBeUndefined();
   });
 
   it('annotation (borderless leaf) gets transparent fill and stroke none', () => {
@@ -107,7 +106,7 @@ describe('resolveStyles', () => {
     resolveStyles(root);
     expect(leaf.resolvedFill).toBe('transparent');
     expect(leaf.resolvedStroke).toBe('none');
-    expect(leaf.label[0]!.fill).toBe('#666666');
+    expect(leaf.resolvedTextFill).toBe('#666666');
   });
 
   it('layout wrappers (__body) get transparent/none', () => {
@@ -145,7 +144,7 @@ describe('resolveStyles', () => {
     });
     const root = new Frame({ id: 'root', children: [panel] });
     resolveStyles(root);
-    expect(child.label[0]!.fill).toBe('#FFFFFF');
+    expect(child.resolvedTextFill).toBe('#FFFFFF');
     expect(child.resolvedFill).toBe('transparent');
     expect(child.resolvedStroke).toBe('#000000');
   });
@@ -158,17 +157,18 @@ describe('resolveStyles', () => {
     expect(sep.resolvedStroke).toBe('none');
   });
 
-  it('leaf heading weight is demoted to 400', () => {
+  it('leaf heading weight is demoted in the snapshot without rewriting authored text', () => {
     const leaf = new Frame({
       id: 'leaf',
       heading: createLine('Title', { weight: '700' }),
     });
     const root = new Frame({ id: 'root', children: [leaf] });
     resolveStyles(root);
-    expect(leaf.heading!.weight).toBe('400');
+    expect(leaf.heading!.weight).toBe('700');
+    expect(leaf.resolvedHeadingWeight).toBe('400');
   });
 
-  it('section promotes leaf lead text to bold without faux small caps', () => {
+  it('section promotes leaf lead text in the snapshot without rewriting authored lines', () => {
     const leaf = new Frame({
       id: 'leaf',
       level: 3,
@@ -176,8 +176,46 @@ describe('resolveStyles', () => {
     });
     const root = new Frame({ id: 'root', children: [leaf] });
     resolveStyles(root);
-    expect(leaf.label[0]!.weight).toBe('700');
-    expect(leaf.label[0]!.smallCaps).toBe(false);
-    expect(leaf.label[0]!.letterSpacing).toBeUndefined();
+    expect(leaf.label[0]!.weight).toBe('400');
+    expect(leaf.resolvedLeafLeadWeight).toBe('700');
+    expect(leaf.resolvedLeafLeadSmallCaps).toBe(false);
+    expect(leaf.resolvedLeafLeadLetterSpacing).toBeUndefined();
+  });
+
+  it('populates resolved text/icon snapshot on highlight', () => {
+    const child = new Frame({ id: 'hl', fill: Fill.BLACK, label: [createLine('Alert')] });
+    const root = new Frame({ id: 'root', children: [child] });
+    resolveStyles(root);
+    expect(child.resolvedTextFill).toBe('#FFFFFF');
+    expect(child.resolvedIconFill).toBe('#FFFFFF');
+  });
+
+  it('populates resolved heading snapshot on panel __heading child', () => {
+    const heading = new Frame({ id: '__heading', role: 'heading', label: [createLine('Panel')] });
+    const body = new Frame({ id: '__body' });
+    const panel = new Frame({ id: 'p', level: 2, children: [heading, body] });
+    const root = new Frame({ id: 'root', children: [panel] });
+    resolveStyles(root);
+    expect(heading.resolvedTextFill).toBe('#000000');
+    expect(heading.resolvedHeadingWeight).toBe('700');
+    expect(heading.resolvedHeadingSmallCaps).toBe(false);
+  });
+
+  it('populates section heading small-caps snapshot', () => {
+    const heading = new Frame({ id: '__heading', role: 'heading', label: [createLine('Section')] });
+    const body = new Frame({ id: '__body' });
+    const section = new Frame({ id: 's', level: 3, children: [heading, body] });
+    const root = new Frame({ id: 'root', children: [section] });
+    resolveStyles(root);
+    expect(heading.resolvedHeadingSmallCaps).toBe(true);
+    expect(heading.resolvedHeadingWeight).toBe('700');
+  });
+
+  it('annotation snapshot uses muted text fill', () => {
+    const leaf = new Frame({ id: 'ann', border: Border.NONE, label: [createLine('note')] });
+    const root = new Frame({ id: 'root', children: [leaf] });
+    resolveStyles(root);
+    expect(leaf.resolvedTextFill).toBe('#666666');
+    expect(leaf.resolvedIconFill).toBe('#666666');
   });
 });

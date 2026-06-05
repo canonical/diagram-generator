@@ -13,12 +13,12 @@ You are doing an **adversarial code review** of the `diagram-generator` repo. Be
 - **North star:** TypeScript-only for layout/measure/SVG export (`packages/layout-engine/`). Frame **YAML** is the only authored source of truth. JSON from `/api/frame-tree` is a **derived wire DTO**, not authority.
 - **Preview:** `scripts/preview_server.py` + `layout-bridge.js` (HarfBuzz). TS pools: `preview_ts_export.py` (SVG), `preview_ts_layout.py` (frame-tree/grid/tree). **Live v3 SVG is TS-only** (spec 012 T060a); failure → 404 + log. **No Python SVG renderer** — `diagram_render_svg.py` deleted (T060b).
 - **Batch SVG:** `node packages/layout-engine/scripts/export-frame-svg.mjs --slug <name>` → `svg-render.ts`. Golden regression: `packages/layout-engine/tests/svg-golden.test.ts` (6 slugs).
-- **Recent session work (verify on `main` or current branch):**
-  - Spec **012** T050 — golden SVG harness + fixtures
-  - Spec **012** T060b — deleted `diagram_render_svg.py`
+- **Spec 012:** Complete on `main` @ `a6822da` — TS-only SVG, golden harness, `diagram_render_svg.py` deleted, T070 docs closed.
+- **Recent session work (verify on current HEAD):**
+  - Preview arrow editing — `ComponentModel` arrows, segment hit areas, waypoint double-click, clear-override routing
   - Spec **019** — inspector cleanup (no duplicate Selection summary; `Auto-layout · {cid}`)
-   - Prior: T030/T040 arrows+overlays, single-gap headed-container semantics, inspector cleanup
-- **Branch:** `main` (or `git log -5 --oneline` for exact HEAD)
+  - Headed-container: one `gap` per container (legacy `stack_gap` loader plumbing only)
+- **Branch:** `git log -1 --oneline` for exact HEAD
 
 ### Your tasks
 
@@ -27,8 +27,8 @@ You are doing an **adversarial code review** of the `diagram-generator` repo. Be
    - Commits atomic and bisectable?
    - Should golden SVG fixtures be split from inspector/editor changes?
 
-2. **TS SVG renderer (P1)** — spec 012
-   - `grep -r diagram_render_svg` — must be zero in `scripts/` and runtime paths (docs/history OK).
+2. **TS SVG renderer (P1)** — spec 012 (closed; regression watch)
+   - `grep -r diagram_render_svg scripts/` — must be zero **importable** runtime refs (stale string/watch entries and docs/history OK to flag P2).
    - Golden tests: run `cd packages/layout-engine && npm test -- svg-golden` — all pass?
    - Arrow routing: waypoints preserved? Orange `#E95420` heads? Labels + `label_gap` from YAML?
    - Icons embedded (no placeholder rects when asset exists)?
@@ -56,7 +56,8 @@ You are doing an **adversarial code review** of the `diagram-generator` repo. Be
 
 7. **Tests** — run and report pass/fail:
    ```bash
-   cd packages/layout-engine && npm test
+   cd packages/layout-engine && npm test -- svg-golden
+   cd packages/layout-engine && npm test -- arrow-render
    cd scripts && python -m pytest test_preview_ts_export.py test_preview_ts_layout.py test_preview_frames_dir.py test_preview_ts_api.py test_preview_server_reload.py test_frame_yaml_persistence.py -q
    cd scripts && python -m pytest test_preview_support_engineering_flow.py -q -k "roundtrip or per_side_padding or save or stack_gap"
    ```
@@ -79,4 +80,4 @@ Prefer minimal TS-first fixes. No large rewrites unless P0/P1.
 
 ## Optional one-liner
 
-> Adversarial review `diagram-generator` `main`: spec 012 T050 golden SVG + T060b delete Python renderer + spec 019 inspector cleanup. Verify no `diagram_render_svg` refs, golden tests pass, inspector no duplicate fields, stack_gap roundtrip. P0/P1 table + top 3 risks. Run pytest/vitest bundle above.
+> Adversarial review `diagram-generator` @ HEAD: post–spec 012 (`a6822da`) TS-only SVG + arrow editing + inspector. Verify no live `diagram_render_svg` imports, `svg-golden` + `arrow-render` pass, arrow waypoint pytest green, one-gap headed containers. P0/P1 table + top 3 risks.

@@ -1,4 +1,4 @@
-import { Border, createLine, type Frame, type Line } from './frame-model.js';
+import { Border, type Frame } from './frame-model.js';
 import { DEFAULT_FRAME_STROKE_WIDTH } from './tokens.js';
 
 /** Stroke width from a frame-class definition (0 when the class has no visible stroke). */
@@ -120,105 +120,46 @@ export const FRAME_CLASS_DEFS: Record<FrameClassKey, FrameClassDefinition> = {
   },
 };
 
-function cloneLine(line: Line, overrides?: Partial<Omit<Line, 'content'>>): Line {
-  return createLine(line.content, {
-    size: line.size,
-    weight: line.weight,
-    fill: line.fill,
-    smallCaps: line.smallCaps,
-    letterSpacing: line.letterSpacing,
-    lineStep: line.lineStep,
-    fontFamily: line.fontFamily,
-    ...overrides,
-  });
-}
-
-function applyLineFill(line: Line, fill: string | undefined): Line {
-  if (fill == null) {
-    return line;
-  }
-  return cloneLine(line, { fill });
-}
-
-function applyTextStyle(line: Line, style: FrameTextStyle, fill: string | undefined): Line {
-  return cloneLine(line, {
-    weight: style.weight,
-    fill: fill ?? line.fill,
-    smallCaps: style.smallCaps,
-    letterSpacing: style.letterSpacing,
-  });
-}
-
 /** Apply readable text/icon contrast for frames sitting on a highlight parent. */
 export function applyHighlightParentContrast(frame: Frame): void {
   const textFill = '#FFFFFF';
   const iconFill = '#FFFFFF';
-
-  if (frame.label.length > 0) {
-    frame.label = frame.label.map((line) => applyLineFill(line, textFill));
-  }
-  if (frame.heading != null) {
-    frame.heading = applyLineFill(frame.heading, textFill);
-  }
-  if (frame.icon && (frame.iconFill == null || frame.iconFill === '#000000')) {
-    frame.iconFill = iconFill;
-  }
+  frame.resolvedTextFill = textFill;
+  frame.resolvedIconFill = iconFill;
   for (const child of frame.children) {
     if (child.role !== 'heading') continue;
-    child.label = child.label.map((line) => applyLineFill(line, textFill));
-    if (child.icon && (child.iconFill == null || child.iconFill === '#000000')) {
-      child.iconFill = iconFill;
-    }
+    child.resolvedTextFill = textFill;
+    child.resolvedIconFill = iconFill;
   }
 }
 
-export function applyFrameClass(frame: Frame, frameClass: FrameClassDefinition): void {
+function applyResolvedStyleSnapshot(frame: Frame, frameClass: FrameClassDefinition): void {
   frame.resolvedFill = frameClass.fill;
   frame.resolvedStroke = frameClass.stroke;
   frame.resolvedStrokeWidth = strokeWidthForClass(frameClass);
-  if (frame.icon && (frame.iconFill == null || frame.iconFill === '#000000')) {
-    frame.iconFill = frameClass.iconFill ?? frame.iconFill;
-  }
+  frame.resolvedTextFill = frameClass.textFill;
+  frame.resolvedIconFill = frameClass.iconFill;
+  frame.resolvedHeadingWeight = frameClass.headingText?.weight;
+  frame.resolvedHeadingSmallCaps = frameClass.headingText?.smallCaps;
+  frame.resolvedHeadingLetterSpacing = frameClass.headingText?.letterSpacing;
+  frame.resolvedLeafLeadWeight = frameClass.leafLeadText?.weight;
+  frame.resolvedLeafLeadSmallCaps = frameClass.leafLeadText?.smallCaps;
+  frame.resolvedLeafLeadLetterSpacing = frameClass.leafLeadText?.letterSpacing;
+}
 
-  if (frameClass.headingText) {
-    for (const child of frame.children) {
-      if (child.role === 'heading') {
-        if (frameClass.textFill) {
-          child.label = child.label.map(line => applyLineFill(line, frameClass.textFill));
-        }
-        if (child.label.length > 0) {
-          child.label[0] = applyTextStyle(child.label[0]!, frameClass.headingText, frameClass.textFill);
-        }
-        if (child.icon && (child.iconFill == null || child.iconFill === '#000000')) {
-          child.iconFill = frameClass.iconFill ?? child.iconFill;
-        }
-      }
-    }
-    if (frame.heading != null) {
-      if (frameClass.textFill) {
-        frame.heading = applyLineFill(frame.heading, frameClass.textFill);
-      }
-      frame.heading = applyTextStyle(frame.heading, frameClass.headingText, frameClass.textFill);
-    }
-  } else if (frameClass.textFill) {
-    for (const child of frame.children) {
-      if (child.role === 'heading') {
-        child.label = child.label.map(line => applyLineFill(line, frameClass.textFill));
-        if (child.icon && (child.iconFill == null || child.iconFill === '#000000')) {
-          child.iconFill = frameClass.iconFill ?? child.iconFill;
-        }
-      }
-    }
-    if (frame.heading != null) {
-      frame.heading = applyLineFill(frame.heading, frameClass.textFill);
-    }
-  }
+function applyHeadingChildSnapshot(frame: Frame, frameClass: FrameClassDefinition): void {
+  frame.resolvedTextFill = frameClass.textFill;
+  frame.resolvedIconFill = frameClass.iconFill;
+  frame.resolvedHeadingWeight = frameClass.headingText?.weight;
+  frame.resolvedHeadingSmallCaps = frameClass.headingText?.smallCaps;
+  frame.resolvedHeadingLetterSpacing = frameClass.headingText?.letterSpacing;
+}
 
-  if (frameClass.textFill && frame.label.length > 0) {
-    frame.label = frame.label.map(line => applyLineFill(line, frameClass.textFill));
-  }
-
-  if (frameClass.leafLeadText && frame.isLeaf && frame.label.length > 0) {
-    frame.label[0] = applyTextStyle(frame.label[0]!, frameClass.leafLeadText, frameClass.textFill);
+export function applyFrameClass(frame: Frame, frameClass: FrameClassDefinition): void {
+  applyResolvedStyleSnapshot(frame, frameClass);
+  for (const child of frame.children) {
+    if (child.role === 'heading') {
+      applyHeadingChildSnapshot(child, frameClass);
+    }
   }
 }

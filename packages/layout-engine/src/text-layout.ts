@@ -16,10 +16,10 @@ import {
   type LineSpec,
   type TextMeasureAdapter,
   estimateLineWidth,
-  lineToSpec,
 } from './text-measure.js';
-import type { Line } from './frame-model.js';
-import { ICON_SIZE, INSET, BLOCK_WIDTH } from './tokens.js';
+import { BLOCK_WIDTH, BODY_LINE_STEP } from './tokens.js';
+import { leafIconColumnWidth } from './spatial.js';
+import { frameOwnedHeadingToSpec, frameOwnedLabelToSpec } from './resolved-spec-typography.js';
 
 export { DEFAULT_MAX_WIDTH_CHARS, NO_WRAP_MAX_WIDTH_CHARS } from './tokens.js';
 
@@ -48,10 +48,22 @@ export function hasCharWrapCap(frame: Frame): boolean {
 }
 
 function referenceLineSpec(frame: Frame): LineSpec {
-  if (frame.heading) return lineToSpec(frame.heading);
-  const first = frame.label.find((line) => line.content.trim().length > 0);
-  if (first) return lineToSpec(first);
-  return lineToSpec({ content: 'n', size: String(BODY_SIZE), weight: '400' } as Line);
+  if (frame.heading) return frameOwnedHeadingToSpec(frame, frame.heading);
+  for (const [labelIndex, line] of frame.label.entries()) {
+    if (line.content.trim().length > 0) {
+      return frameOwnedLabelToSpec(frame, line, labelIndex);
+    }
+  }
+  return {
+    content: 'n',
+    size: String(BODY_SIZE),
+    weight: '400',
+    fill: '#000000',
+    smallCaps: false,
+    letterSpacing: null,
+    lineStep: String(BODY_LINE_STEP),
+    fontFamily: null,
+  };
 }
 
 /**
@@ -83,7 +95,7 @@ export function resolveLeafTextWrapWidth(
 ): number {
   const padL = frame.paddingLeft;
   const padR = frame.paddingRight;
-  const iconCol = frame.icon ? (ICON_SIZE + INSET) : 0;
+  const iconCol = leafIconColumnWidth(frame);
 
   if (constrainedW != null) {
     return Math.max(0, constrainedW - padL - padR - iconCol);

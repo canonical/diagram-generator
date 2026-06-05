@@ -57,7 +57,7 @@ git commit -m "yaml: batch N – remove redundant overrides from <file-list>"
 
 | Batch | Files | Effort |
 |-------|-------|--------|
-| 1 | complex-routing-usecase, complex-testcase, simple-testcase | Light |
+| 1 | complex-routing-usecase, simple-testcase | Light |
 | 2 | android-container-vs-vm, android-custom-to-cloud, example-deployment-pipeline, example-platform-architecture, example-stacked-blocks, maas-vendor-support, support-engineering-flow | Medium |
 | 3 | android-graphics-stack, android-security-comparison, aws-hld, diagram-intake-workflow, diagram-language-workflow, gpu-waiting-scheduler, lightning-talk-engine | Heavy A |
 | 4 | lt-a4-generator, lt-diagram-generator, lt-summit-identity, maas-architecture, maas-machine-lifecycle, request-to-hardware-stack, rise-of-inference-economy | Heavy B |

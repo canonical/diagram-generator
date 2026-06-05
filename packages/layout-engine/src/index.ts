@@ -89,6 +89,13 @@ export {
 } from './resolve-styles.js';
 
 export {
+  annotationTextToSpec,
+  frameOwnedHeadingToSpec,
+  frameOwnedLabelToSpec,
+  resolvedSpecTypography,
+} from './resolved-spec-typography.js';
+
+export {
   frameHasTextContent,
   applyTextLayoutDefaults,
   hasCharWrapCap,

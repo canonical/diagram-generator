@@ -14,6 +14,7 @@ import {
   type Line,
 } from '../src/frame-model.js';
 import { resolveStyles } from '../src/resolve-styles.js';
+import { frameOwnedHeadingToSpec, frameOwnedLabelToSpec } from '../src/resolved-spec-typography.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const fixturesPath = resolve(__dirname, 'fixtures', 'style-parity-fixtures.json');
@@ -231,12 +232,15 @@ function collectActualStyles(frame: Frame, out: Record<string, ExpectedStyleSnap
       resolvedFill: frame.resolvedFill ?? '',
       resolvedStroke: frame.resolvedStroke ?? '',
     };
-    if (frame.label[0]) {
+    const firstLine = frame.heading
+      ? frameOwnedHeadingToSpec(frame, frame.heading)
+      : (frame.label[0] ? frameOwnedLabelToSpec(frame, frame.label[0], 0) : null);
+    if (firstLine) {
       snapshot.firstLine = {
-        weight: frame.label[0].weight ?? '400',
-        smallCaps: frame.label[0].smallCaps ?? false,
-        letterSpacing: frame.label[0].letterSpacing ?? null,
-        fill: frame.label[0].fill ?? '#000000',
+        weight: firstLine.weight ?? '400',
+        smallCaps: firstLine.smallCaps ?? false,
+        letterSpacing: firstLine.letterSpacing ?? null,
+        fill: firstLine.fill ?? '#000000',
       };
     }
     out[frame.id] = snapshot;

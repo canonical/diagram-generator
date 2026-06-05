@@ -48,7 +48,7 @@ Both enforce a 192px minimum on HUG-measured leaf width. The fix removes the `BL
 
 24 production frame YAMLs (non-test) must be regression-checked after any sizing change:
 
-`android-container-vs-vm`, `android-custom-to-cloud`, `android-graphics-stack`, `android-security-comparison`, `aws-hld`, `complex-routing-usecase`, `complex-testcase`, `diagram-intake-workflow`, `diagram-language-workflow`, `example-deployment-pipeline`, `example-platform-architecture`, `example-stacked-blocks`, `gpu-waiting-scheduler`, `lightning-talk-engine`, `lt-a4-generator`, `lt-diagram-generator`, `lt-summit-identity`, `maas-architecture`, `maas-machine-lifecycle`, `maas-vendor-support`, `request-to-hardware-stack`, `rise-of-inference-economy`, `simple-testcase`, `support-engineering-flow`
+`android-container-vs-vm`, `android-custom-to-cloud`, `android-graphics-stack`, `android-security-comparison`, `aws-hld`, `complex-routing-usecase`, `diagram-intake-workflow`, `diagram-language-workflow`, `example-deployment-pipeline`, `example-platform-architecture`, `example-stacked-blocks`, `gpu-waiting-scheduler`, `lightning-talk-engine`, `lt-a4-generator`, `lt-diagram-generator`, `lt-summit-identity`, `maas-architecture`, `maas-machine-lifecycle`, `maas-vendor-support`, `request-to-hardware-stack`, `rise-of-inference-economy`, `simple-testcase`, `support-engineering-flow`
 
 Plus 7 test-prefixed YAMLs for the test suite.
 

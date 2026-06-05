@@ -72,8 +72,7 @@ root:
           sizing_h: hug
     - id: note_top
       label:
-      - text: SELinux assumptions only
-        style: muted
+      - SELinux assumptions only
       variant: annotation
       sizing_h: fill
       sizing_w: fill
@@ -97,9 +96,7 @@ root:
       sizing_w: fill
     - id: note_bottom
       label:
-      - text: AppArmor enforcement
-        style: muted
-      - text: / VM confinement
-        style: muted
+      - AppArmor enforcement
+      - / VM confinement
       variant: annotation
       sizing_w: fill

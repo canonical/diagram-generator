@@ -6,7 +6,7 @@ recursive Frame tree directly — no v2 Diagram intermediary.
 Usage::
 
     from frame_loader import load_frame_yaml
-    diagram = load_frame_yaml("diagrams/frames/test-vertical-stack.yaml")
+    diagram = load_frame_yaml("scripts/diagrams/frames/test-nested-containers.yaml")
 """
 
 from __future__ import annotations
@@ -36,37 +36,16 @@ _JUSTIFY = {
 }
 
 
-# Named text styles.  Use ``style: <name>`` in label-line dicts
-# instead of raw ``fill:`` or ``weight:`` overrides.
-_LINE_STYLES: dict[str, dict] = {
-    "muted": {"fill": "#666666"},
-}
-
-
 def _parse_line(raw) -> Line:
-    """Parse a label line from YAML — string or {text, style, ...}.
+    """Parse a label line from YAML — string or {text}.
 
-    Accepts plain strings or dicts.  Dict keys:
-      text        — the text content
-      style       — named text style (e.g. ``muted``)
-      small_caps  — boolean flag
-
-    Raw ``weight:``, ``fill:``, and ``size:`` are not allowed in YAML.
-    Use ``heading:`` on the frame for bold, ``style: muted`` for grey,
-    and the class system (``level:``, ``variant:``) for everything else.
+    Accepts plain strings or dicts whose only meaningful key is ``text``.
+    Line-level style keys are ignored so non-export paths stay semantic.
     """
     if isinstance(raw, str):
         return Line(raw)
     if isinstance(raw, dict):
-        kw = {}
-        # Named style overrides
-        style_name = raw.get("style")
-        if style_name:
-            style = _LINE_STYLES.get(style_name, {})
-            kw.update(style)
-        if "small_caps" in raw:
-            kw["small_caps"] = raw["small_caps"]
-        return Line(raw.get("text", ""), **kw)
+        return Line(raw.get("text", ""))
     return Line(str(raw))
 
 
@@ -143,7 +122,7 @@ def _parse_frame(data: dict, *, is_root: bool = False) -> Frame:
     heading_line = None
     if "heading" in data:
         h = data["heading"]
-        heading_line = Line(h, weight="700") if isinstance(h, str) else _parse_line(h)
+        heading_line = Line(h) if isinstance(h, str) else _parse_line(h)
 
     # Sensible defaults differ for leaf vs container
     default_border = Border.NONE if is_container else Border.SOLID
@@ -236,6 +215,10 @@ def _parse_frame(data: dict, *, is_root: bool = False) -> Frame:
     # Convert `heading:` from a magic field to a synthetic first child with
     # role="heading".  For horizontal containers the existing children are
     # wrapped in a ``__body`` sub-frame so the heading spans the full width.
+    #
+    # Propagation contract (spec 005 WS3 — matches heading-synthesis.ts):
+    #   parent gap  → title gap (heading↔body); __body gap → stack_gap legacy / INSET
+    #   __body gets align + direction only; NOT wrap, justify, or fill_weight
     if heading_line and frame.is_container:
         heading_fill = frame.fill if frame.fill == Fill.BLACK else Fill.WHITE
         heading_icon_fill = data.get("icon_fill")
@@ -255,18 +238,12 @@ def _parse_frame(data: dict, *, is_root: bool = False) -> Frame:
             icon_fill=heading_icon_fill,
         )
         if frame.direction == Direction.HORIZONTAL:
-            # Wrap original children in a body sub-frame that preserves the
-            # horizontal direction, gap, align, justify, wrap, and
-            # fill_weight of the original.
             stack_gap = int(data["stack_gap"]) if "stack_gap" in data else INSET
             body = Frame(
                 id=f"{frame.id}__body" if frame.id else "__body",
                 direction=Direction.HORIZONTAL,
                 gap=stack_gap,
                 align=frame.align,
-                justify=frame.justify,
-                wrap=frame.wrap,
-                fill_weight=frame.fill_weight,
                 sizing_w=Sizing.FILL,
                 sizing_h=Sizing.HUG,
                 border=Border.NONE,
@@ -276,19 +253,12 @@ def _parse_frame(data: dict, *, is_root: bool = False) -> Frame:
             frame.children = [heading_child, body]
             frame.direction = Direction.VERTICAL
         else:
-            # Wrap original children in a body sub-frame so the heading is
-            # separate from the content group.  This lets justify modes
-            # (e.g. space-between) distribute space between heading and
-            # content without spreading individual content children apart.
             stack_gap = int(data["stack_gap"]) if "stack_gap" in data else INSET
             body = Frame(
                 id=f"{frame.id}__body" if frame.id else "__body",
                 direction=Direction.VERTICAL,
                 gap=stack_gap,
                 align=frame.align,
-                justify=frame.justify,
-                wrap=frame.wrap,
-                fill_weight=frame.fill_weight,
                 sizing_w=Sizing.FILL,
                 sizing_h=Sizing.HUG,
                 border=Border.NONE,

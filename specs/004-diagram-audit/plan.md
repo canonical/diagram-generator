@@ -79,7 +79,7 @@ From `resolve_styles()` in `frame_loader.py`:
 
 **Light (root border: none only – 3 files):**
 - complex-routing-usecase
-- complex-testcase
+- complex-routing-usecase (replaces removed complex-testcase)
 - simple-testcase
 
 **Medium (root border + a few redundant overrides – 7 files):**
@@ -171,7 +171,7 @@ scripts/diagrams/frames/
 ├── android-security-comparison.yaml
 ├── aws-hld.yaml
 ├── complex-routing-usecase.yaml
-├── complex-testcase.yaml
+├── complex-routing-usecase.yaml
 ├── diagram-intake-workflow.yaml
 ├── diagram-language-workflow.yaml
 ├── example-deployment-pipeline.yaml

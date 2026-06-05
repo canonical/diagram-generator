@@ -13,6 +13,8 @@ import {
 } from '../src/frame-model.js';
 import { BASELINE_UNIT, BLOCK_WIDTH, roundUpToGrid } from '../src/tokens.js';
 import { MockTextAdapter } from '../src/text-measure.js';
+import { applyTextLayoutDefaults, resolveLeafTextWrapWidth } from '../src/text-layout.js';
+import { leafIconColumnWidth } from '../src/spatial.js';
 
 const adapter = new MockTextAdapter();
 
@@ -1387,5 +1389,88 @@ describe('wrap mode', () => {
   it('wrap defaults to false', () => {
     const f = new Frame({ id: 'test' });
     expect(f.wrap).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Per-side padding contract (spec 005 WS4)
+// ---------------------------------------------------------------------------
+
+describe('per-side padding measure/render contract', () => {
+  it('explicit zero per-side padding remains zero after layout', () => {
+    const leaf = new Frame({
+      id: 'leaf',
+      padding: 0,
+      paddingTop: 0,
+      paddingRight: 0,
+      paddingBottom: 0,
+      paddingLeft: 0,
+      label: [createLine('Hi')],
+    });
+    layoutFrameTree(leaf, adapter);
+    expect(leaf.paddingTop).toBe(0);
+    expect(leaf.paddingRight).toBe(0);
+    expect(leaf.paddingBottom).toBe(0);
+    expect(leaf.paddingLeft).toBe(0);
+    expect(leaf._layout.placedX).toBe(0);
+    expect(leaf._layout.placedY).toBe(0);
+  });
+
+  it('asymmetric vertical padding changes measured height', () => {
+    const topHeavy = new Frame({
+      id: 'top',
+      paddingTop: 24,
+      paddingBottom: 0,
+      paddingLeft: 8,
+      paddingRight: 8,
+      label: [createLine('Same')],
+    });
+    const bottomHeavy = new Frame({
+      id: 'bottom',
+      paddingTop: 0,
+      paddingBottom: 24,
+      paddingLeft: 8,
+      paddingRight: 8,
+      label: [createLine('Same')],
+    });
+    layoutFrameTree(topHeavy, adapter);
+    layoutFrameTree(bottomHeavy, adapter);
+    expect(topHeavy._layout.placedH).toBe(bottomHeavy._layout.placedH);
+    expect(topHeavy._layout.placedH).toBeGreaterThan(24);
+  });
+
+  it('leaf without icon has no icon column in wrap width', () => {
+    const leaf = new Frame({
+      id: 'plain',
+      paddingLeft: 10,
+      paddingRight: 14,
+      width: 120,
+      sizingW: Sizing.FIXED,
+      label: [createLine('Text')],
+    });
+    applyTextLayoutDefaults(leaf);
+    layoutFrameTree(leaf, adapter);
+    expect(leafIconColumnWidth(leaf)).toBe(0);
+    const wrapW = resolveLeafTextWrapWidth(leaf, adapter, leaf._layout.placedW);
+    expect(wrapW).toBe(leaf._layout.placedW - leaf.paddingLeft - leaf.paddingRight);
+  });
+
+  it('icon leaf wrap width matches render inner width', () => {
+    const leaf = new Frame({
+      id: 'icon-leaf',
+      icon: 'chip',
+      paddingLeft: 4,
+      paddingRight: 12,
+      width: 200,
+      sizingW: Sizing.FIXED,
+      label: [createLine('Wrapped label text here')],
+    });
+    applyTextLayoutDefaults(leaf);
+    layoutFrameTree(leaf, adapter);
+    const wrapW = resolveLeafTextWrapWidth(leaf, adapter, leaf._layout.placedW);
+    const renderInner =
+      leaf._layout.placedW - leaf.paddingLeft - leaf.paddingRight - leafIconColumnWidth(leaf);
+    expect(wrapW).toBe(renderInner);
+    expect(leafIconColumnWidth(leaf)).toBeGreaterThan(0);
   });
 });

@@ -1,8 +1,10 @@
-"""Tests for preview_server hot-reload of TS preview pools."""
+"""Tests for preview_server TS pool wiring and TS-only SVG paths."""
 
 from __future__ import annotations
 
-import importlib
+import io
+from http import HTTPStatus
+from unittest.mock import MagicMock
 
 import preview_server
 
@@ -21,6 +23,23 @@ def test_rebuild_recreates_ts_pools():
     assert preview_server._ts_svg_pool is not old_svg
 
 
+def test_recreate_ts_preview_pools_calls_pool_from_env_on_imported_modules(monkeypatch):
+    import types
+
+    calls: list[str] = []
+    fake_export = types.ModuleType("preview_ts_export")
+    fake_layout = types.ModuleType("preview_ts_layout")
+    fake_export.pool_from_env = lambda **_kw: calls.append("svg") or object()
+    fake_layout.pool_from_env = lambda **_kw: calls.append("layout") or object()
+
+    def fake_import(name: str):
+        return {"preview_ts_export": fake_export, "preview_ts_layout": fake_layout}[name]
+
+    monkeypatch.setattr(preview_server, "_import_ts_preview_module", fake_import)
+    preview_server._recreate_ts_preview_pools()
+    assert calls == ["svg", "layout"]
+
+
 def test_watch_paths_include_ts_layout_and_node_clis():
     watched = {str(p) for p in preview_server.WATCH_PATHS}
     assert str(preview_server.SCRIPTS / "preview_ts_layout.py") in watched
@@ -33,4 +52,22 @@ def test_watch_paths_include_ts_layout_and_node_clis():
 
 def test_serve_v3_svg_bytes_ts_only_no_python_fallback(monkeypatch):
     monkeypatch.setattr(preview_server, "_render_svg_via_ts", lambda _slug: None)
-    assert preview_server._serve_v3_svg_bytes("simple-testcase") is None
+    assert preview_server._serve_v3_svg_bytes("preview-smoke") is None
+
+
+def test_serve_svg_v3_frame_yaml_ts_failure_returns_404(monkeypatch, tmp_path):
+    slug = "preview-smoke"
+    frame_yaml = tmp_path / f"{slug}.yaml"
+    frame_yaml.write_text("engine: v3\nroot:\n  id: page\n", encoding="utf-8")
+    monkeypatch.setattr(preview_server, "FRAMES_DIR", tmp_path)
+    monkeypatch.setattr(preview_server, "_render_svg_via_ts", lambda _slug: None)
+
+    handler = object.__new__(preview_server.PreviewHandler)
+    handler.send_error = MagicMock()
+    handler._respond = MagicMock()
+
+    handler._serve_svg(f"v3:{slug}-onbrand-v3.svg")
+
+    handler.send_error.assert_called_once()
+    assert handler.send_error.call_args[0][0] == HTTPStatus.NOT_FOUND
+    handler._respond.assert_not_called()

@@ -15,7 +15,7 @@ function deserializeFrame(json) {
   const children = (json.children || []).map(deserializeFrame);
   const headingJson = json.heading;
   const headingLine = headingJson
-    ? LayoutEngine.createLine(headingJson.content, headingJson)
+    ? LayoutEngine.createLine(headingJson.content)
     : undefined;
   const frame = new LayoutEngine.Frame({
     id: json.id || "",
@@ -45,7 +45,7 @@ function deserializeFrame(json) {
     iconFill: json.iconFill || undefined,
     level: json.level ?? undefined,
     colSpan: json.colSpan ?? json.col_span ?? undefined,
-    label: (json.label || []).map(ln => LayoutEngine.createLine(ln.content, ln)),
+    label: (json.label || []).map(ln => LayoutEngine.createLine(ln.content)),
     role: json.role || "",
     children,
     positionType: json.positionType || "AUTO",
@@ -167,14 +167,12 @@ function _hasHeadingBodyLayout(frame) {
   return !!(body && hasHeading);
 }
 
-/** Sync cross-axis layout fields from parent to __body (not gap — that is independent). */
+/** Sync cross-axis layout fields from parent to __body (align only — spec 005 WS3). */
 function _syncSyntheticBodyFromParent(frame) {
   if (!_hasHeadingBodyLayout(frame)) return;
   const body = _findSyntheticBody(frame);
   if (!body) return;
   body.align = frame.align;
-  body.justify = frame.justify;
-  body.wrap = frame.wrap;
 }
 
 function applyOverridesToFrameTree(diagram, allOverrides, gridOverrides) {
@@ -324,15 +322,7 @@ function applyOverridesToFrameTree(diagram, allOverrides, gridOverrides) {
       if (Array.isArray(ovr.text.label)) {
         target.label = ovr.text.label.map((text, i) => {
           if (i < target.label.length) {
-            const orig = target.label[i];
-            return LayoutEngine.createLine(text, {
-              weight: orig.weight,
-              size: orig.size,
-              fill: orig.fill,
-              smallCaps: orig.smallCaps,
-              letterSpacing: orig.letterSpacing,
-              fontFamily: orig.fontFamily,
-            });
+            return LayoutEngine.createLine(text);
           }
           return LayoutEngine.createLine(text);
         });
@@ -427,14 +417,16 @@ function _frameBoxRenderState(frame) {
 
   const iconCol = frame.icon ? (LayoutEngine.ICON_SIZE + LayoutEngine.INSET) : 0;
   const textMaxWidth = frame._layout.placedW - padLeft - padRight - iconCol;
-  const iconFill = frame.iconFill || "#000000";
+  const iconFill = frame.resolvedIconFill ?? frame.iconFill ?? "#000000";
 
   let specs = [];
   if (frame.children.length === 0) {
-    if (frame.heading) specs.push(LayoutEngine.lineToSpec(frame.heading));
-    if (frame.label.length > 0) specs.push(...LayoutEngine.linesToSpecs(frame.label));
+    if (frame.heading) specs.push(LayoutEngine.frameOwnedHeadingToSpec(frame, frame.heading));
+    if (frame.label.length > 0) {
+      specs.push(...frame.label.map((line, labelIndex) => LayoutEngine.frameOwnedLabelToSpec(frame, line, labelIndex)));
+    }
   } else if (frame.heading) {
-    specs = LayoutEngine.linesToSpecs([frame.heading]);
+    specs = [LayoutEngine.frameOwnedHeadingToSpec(frame, frame.heading)];
   }
   if (specs.length > 0 && textMaxWidth > 0) {
     specs = LayoutEngine.wrapTextLines(specs, textMaxWidth, _textAdapter);
@@ -470,9 +462,10 @@ function _buildFrameTextElement(frame, renderState) {
 
   let top = frame._layout.placedY + renderState.padTop;
   const x = frame._layout.placedX + renderState.padLeft;
-  for (const spec of renderState.specs) {
+  for (const [specIndex, spec] of renderState.specs.entries()) {
     const size = spec.size ?? LayoutEngine.BODY_SIZE;
     const weight = spec.weight ?? "400";
+    const smallCaps = spec.smallCaps ?? false;
     const fill = spec.fill ?? "#000000";
     const lineStep = LayoutEngine.sizeToPx(spec.lineStep ?? LayoutEngine.BODY_LINE_STEP);
     const tspan = document.createElementNS(SVG_NS, "tspan");
@@ -487,7 +480,7 @@ function _buildFrameTextElement(frame, renderState) {
     if (spec.fontFamily) {
       tspan.setAttribute("font-family", spec.fontFamily);
     }
-    if (spec.smallCaps) {
+    if (smallCaps) {
       tspan.setAttribute("font-variant-caps", "small-caps");
     }
     tspan.textContent = spec.content;
@@ -1100,35 +1093,15 @@ function setFrameTreeJson(json) {
 function _applyTextHeadingOverride(target, headingText) {
   const headingChild = target.children.find(c => c.role === "heading");
   if (headingChild) {
-    const styleSource = headingChild.label[0];
-    const lineOpts = styleSource
-      ? {
-        weight: styleSource.weight,
-        size: styleSource.size,
-        fill: styleSource.fill,
-        smallCaps: styleSource.smallCaps,
-        letterSpacing: styleSource.letterSpacing,
-        fontFamily: styleSource.fontFamily,
-      }
-      : { weight: "700" };
     headingChild.label = [
-      LayoutEngine.createLine(headingText || "", lineOpts),
+      LayoutEngine.createLine(headingText || ""),
     ];
     return;
   }
   if (headingText && target.heading) {
-    target.heading = LayoutEngine.createLine(headingText, {
-      weight: target.heading.weight,
-      size: target.heading.size,
-      fill: target.heading.fill,
-      smallCaps: target.heading.smallCaps,
-      letterSpacing: target.heading.letterSpacing,
-      fontFamily: target.heading.fontFamily,
-    });
+    target.heading = LayoutEngine.createLine(headingText);
   } else if (headingText) {
-    target.heading = LayoutEngine.createLine(headingText, {
-      weight: "700",
-    });
+    target.heading = LayoutEngine.createLine(headingText);
   } else {
     target.heading = undefined;
   }
@@ -1539,7 +1512,7 @@ function renderFrameTreeToSvg(diagram, result, options) {
     if (frame.icon && iconElements.has(frame.icon)) {
       iconEl = iconElements.get(frame.icon).cloneNode(true);
       // Apply per-frame icon fill
-      const iconFill = frame.iconFill || "#000000";
+      const iconFill = frame.resolvedIconFill ?? frame.iconFill ?? "#000000";
       iconEl.querySelectorAll("path, circle, rect, polygon, ellipse").forEach(el => {
         el.setAttribute("fill", iconFill);
       });

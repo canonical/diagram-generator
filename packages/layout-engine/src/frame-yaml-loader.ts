@@ -72,24 +72,11 @@ const VARIANT_OVERLAYS: Record<string, Record<string, unknown>> = {
   annotation: { border: 'none' },
 };
 
-const LINE_STYLES: Record<string, Record<string, string>> = {
-  muted: { fill: '#666666' },
-};
-
 function parseLine(raw: unknown): Line {
   if (typeof raw === 'string') return createLine(raw);
   if (raw && typeof raw === 'object') {
     const d = raw as Record<string, unknown>;
-    const styleName = d.style as string | undefined;
-    const style = styleName ? LINE_STYLES[styleName] ?? {} : {};
-    return createLine(String(d.text ?? ''), {
-      weight: (d.weight as string) ?? style.weight,
-      size: (d.size as string) ?? style.size,
-      fill: (d.fill as string) ?? style.fill,
-      smallCaps: d.small_caps as boolean | undefined,
-      letterSpacing: d.letter_spacing as string | undefined,
-      fontFamily: d.font_family as string | undefined,
-    });
+    return createLine(String(d.text ?? ''));
   }
   return createLine(String(raw ?? ''));
 }
@@ -115,7 +102,7 @@ function parseFrame(data: Record<string, unknown>, isRoot = false): Frame {
     const h = data.heading;
     headingLine =
       typeof h === 'string'
-        ? createLine(h, { weight: '700' })
+        ? createLine(h)
         : parseLine(h);
   }
 

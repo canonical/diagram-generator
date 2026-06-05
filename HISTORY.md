@@ -4,6 +4,61 @@ Completed work belongs here so `TODO.md` stays lean.
 
 ## Short-term
 
+### 2026-06-05 – Spec 020 non-export line-style authority cut
+
+- Removed non-export line-style parsing from the TS and Python YAML loaders. Line dicts now collapse to pure text content in active authoring paths, and string `heading:` no longer injects `weight: 700` into the model.
+- Sanitized preview frame-tree transport so heading/label lines now serialize as content-only DTOs; `layout-bridge.js` no longer reconstructs or preserves line-level `fill` / `weight` / `smallCaps` / `letterSpacing` / `fontFamily` during deserialization or text overrides.
+- Switched the preview renderer to the same frame-owned resolved typography helpers used by the TS batch SVG path; added the missing browser-entry exports and rebuilt the browser bundle.
+- Ported the minimal resolved text snapshot fields into the Python legacy mirror so `frame_style_classes.py` and `layout_v3.py` stop rewriting frame-owned `Line` objects for semantic styling.
+- Rewrote the remaining kept semantic YAML holdouts: removed `style: muted` annotation lines in `android-security-comparison.yaml` and replaced the dead `fill: white` / `border: none` boxes in `android-custom-to-cloud.yaml` with `variant: annotation`.
+- Validation: focused TS regressions green, browser bundle rebuilt, focused preview browser regressions green, `test_preview_ts_api.py` green, full TS suite returns to the existing baseline with only the 12 known `tests/parity.test.ts` `test-deep-nesting` failures.
+
+### 2026-06-05 – Spec 021 arrow labels use annotation variant
+
+- Added `specs/021-arrow-labels-use-annotation-variant/spec.md` and prioritized the slice in `TODO.md` before implementation.
+- Arrow labels in `svg-render.ts` now resolve through `annotationTextToSpec()` instead of raw `Line` styling fields, so authored `fill` / `weight` / `smallCaps` / `letterSpacing` / `fontFamily` are no longer authoritative.
+- Added focused regression coverage in `tests/arrow-render.test.ts` proving stale authored arrow-label styling does not affect exported SVG output.
+- Validation: `tests/arrow-render.test.ts` green; full TS suite returns to the existing baseline with only the 12 known `tests/parity.test.ts` `test-deep-nesting` failures.
+
+### 2026-06-04 – Pruned fixture generated-output cleanup
+
+- Removed orphaned `diagrams/2.output/**` and `diagrams/3.compare/**` artifacts for 13 pruned corpus slugs (draw.io, v3 svg, compare HTML/jpg/visual-diff).
+- Removed orphaned `1.input` rough SVGs for deleted workflow sketches; deleted `scripts/export_aws_hld.py`.
+- Updated `diagrams/3.compare/index.html`, `preview_server.py` reference map, `export_drawio_batch.py` main(), `docs/architecture/arrow-routing-redesign.md`, `frame_loader.py` docstring example.
+
+### 2026-06-04 – Over-closure fixes (heading snapshot render + Python WS3)
+
+- **Spec 008:** `resolvedSpecTypography()` is now the renderer path for heading weight/small-caps in `svg-render.ts` and `layout-bridge.js`; regression in `svg-render-style.test.ts`.
+- **Spec 005 WS3:** Python `frame_loader.py` aligned with TS — `__body` no longer inherits `wrap`/`justify`/`fill_weight`; `layout-bridge` `_syncSyntheticBodyFromParent` syncs `align` only.
+- **Validation:** TS 245 pass / 12 fail (deep-nesting only); preview subset 35 pass; Python heading loader tests 8 pass.
+
+### 2026-06-04 – AGENT-INBOX three slices (spec 005 WS3/WS4 + spec 008 Phase 5 TS)
+
+- **WS3:** Heading/body propagation contract documented and enforced in `heading-synthesis.ts`; `heading-synthesis.test.ts` added; spec 005 T030–T033 marked done.
+- **WS4:** `spatial.ts` unifies icon-column width for measure/render; per-side padding contract tests; spec 005 T040–T043 marked done.
+- **Spec 008 Phase 5 (TS):** Resolved-style snapshot fields on `Frame`, populated via `applyFrameClass`, consumed in `layout-bridge.js` / `svg-render.ts`; spec 008 T040–T042 marked done.
+- **Validation:** `npm --prefix packages/layout-engine test` → 241 pass / 12 fail (`test-deep-nesting`, unchanged baseline); preview pytest subset 35 pass.
+
+### 2026-06-04 – Full test audit after TS preview cleanup
+
+- **Full validation run:** `npm --prefix packages/layout-engine test` and `./.venv/Scripts/python.exe -m pytest scripts -q`.
+- **TS state:** `228` pass / `12` fail, all in the already-known `packages/layout-engine/tests/parity.test.ts` `test-deep-nesting` width slice.
+- **Python state:** `317` pass / `5` fail, all in stale legacy `scripts/test_parity.py` heading/body reconstruction drift after the current loader synthesis contract changed.
+- **Conclusion:** Active TS preview/render work remains green on focused validation; remaining Python parity failures are repo-coherence debt, not the forward implementation surface.
+
+### 2026-06-04 – Adversarial review: TS-only preview APIs + SVG 404 path
+
+- **preview_server.py:** Wired `preview_ts_layout.TsLayoutPool` for `/api/frame-tree`, `/api/grid`, `/api/tree`; `preview_ts_export.TsSvgExportPool` for live SVG. Removed dead `diagram_render_svg` fallbacks (TS failure → 404 + stderr log). Dropped Python `_get_layout_result` from preview paths.
+- **test_preview_server_reload.py:** Rewritten against current pool API; added TS-failure 404 regression.
+- **Corpus:** Removed duplicate `complex-testcase.yaml` (superseded by `complex-routing-usecase`).
+- **Hot reload:** `_recreate_ts_preview_pools()` resolves `pool_from_env` from reloaded `preview_ts_*` modules (no stale import aliases).
+
+### 2026-06-04 – Spec 012 complete (T070) + TS SVG cleanup landed
+
+- **Commit `a6822da`:** Landed TS-only SVG cleanup — deleted `diagram_render_svg.py`, golden SVG harness (`svg-golden-harness.ts`, 6 corpus fixtures), preview arrow editing (waypoints, clear-override routing), inspector/spec 019 follow-ups.
+- **T070:** Refreshed `STATUS.md`, `TODO.md`, `README.md`, `docs/specs.md`, `docs/stakeholder-guide.md`; marked spec 012 complete in task/spec files.
+- **Validation:** `svg-golden` (12), `arrow-render` (2), arrow-editing pytest subset (2) green.
+
 ### 2026-06-05 – Preview arrow selection + identity parity
 
 - **Root cause:** `/api/tree` indexes frames only; arrows were not in `ComponentModel`, so clicks fell through to `page` bbox picking. `layout-bridge` used `source->target` ids while `svg-render.ts` prefers authored `arrow.id`.

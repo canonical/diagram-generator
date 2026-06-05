@@ -8,10 +8,8 @@ Scope:
   - `1.jpg` -> AWS HLD source sketch
   - `2.jpg` -> Layer 3 IP/MPLS source sketch
 - Generated outputs reviewed:
-  - `diagrams/2.output/draw.io/aws-hld-onbrand.drawio`
-  - `diagrams/2.output/draw.io/layer3-mpls-onbrand.drawio`
+  - `diagrams/2.output/draw.io/layer3-mpls-onbrand.drawio` (AWS HLD generated output removed with corpus prune)
 - Generator scripts reviewed:
-  - `scripts/export_aws_hld.py`
   - `scripts/export_layer3_mpls.py`
 
 This review focuses on two failure modes that make the stress test inconclusive:
@@ -54,7 +52,7 @@ This review focuses on two failure modes that make the stress test inconclusive:
 
 ### Generator issues to fix
 
-1. `scripts/export_aws_hld.py` currently returns only outer container IDs for major composites.
+1. The retired AWS HLD export script (`scripts/export_aws_hld.py`, removed with corpus prune) returned only outer container IDs for major composites.
    - `add_service_panel()` returns only the outer panel.
    - `add_vpc_account_panel()` returns only the outer panel.
    - `add_ou_panel()` returns only the outer panel.

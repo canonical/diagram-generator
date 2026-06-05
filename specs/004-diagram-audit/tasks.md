@@ -49,14 +49,14 @@
 ### User Story 1 – Remove redundant explicit styling (P1)
 
 - [x] T004 [P] [B1] Remove root `border: none` from scripts/diagrams/frames/complex-routing-usecase.yaml
-- [x] T005 [P] [B1] Remove root `border: none` from scripts/diagrams/frames/complex-testcase.yaml
+- [x] T005 [P] [B1] Remove root `border: none` from scripts/diagrams/frames/complex-testcase.yaml (file later removed; use `complex-routing-usecase.yaml`)
 - [x] T006 [P] [B1] Remove root `border: none` from scripts/diagrams/frames/simple-testcase.yaml
 
 ### Batch 1 Verification
 
 - [x] T007 [B1] Run test suite: `python -m pytest test_frame_loader.py test_autolayout.py test_layout_v3.py test_parity.py -q` – all 235 tests must pass
 - [x] T008 [B1] Browser-verify complex-routing-usecase at http://127.0.0.1:8100/view/v3:complex-routing-usecase
-- [x] T009 [P] [B1] Browser-verify complex-testcase at http://127.0.0.1:8100/view/v3:complex-testcase
+- [x] T009 [P] [B1] Browser-verify complex routing demo at http://127.0.0.1:8100/view/v3:complex-routing-usecase (was complex-testcase)
 - [x] T010 [P] [B1] Browser-verify simple-testcase at http://127.0.0.1:8100/view/v3:simple-testcase
 - [x] T011 [B1] Commit batch 1: `git commit -m "yaml: batch 1 – remove redundant root border from light files"`
 

@@ -70,9 +70,9 @@
 
 **Goal**: Make renderers consume resolved style instead of raw authored fields.
 
-- [ ] T040 [US2] **[TS]** Define the resolved style snapshot fields in `packages/layout-engine/src/frame-model.ts`. Include fill, stroke, text color, icon color, border visibility, and heading text style.
-- [ ] T041 [US2] **[TS]** Populate the snapshot in `packages/layout-engine/src/resolve-styles.ts` (authoritative resolver).
-- [ ] T042 [US2] **[JS]** Replace raw contrast branches in `scripts/preview/layout-bridge.js` with resolved snapshot reads.
+- [x] T040 [US2] **[TS]** Define the resolved style snapshot fields in `packages/layout-engine/src/frame-model.ts`. Include fill, stroke, text color, icon color, border visibility, and heading text style.
+- [x] T041 [US2] **[TS]** Populate the snapshot in `packages/layout-engine/src/resolve-styles.ts` (authoritative resolver).
+- [x] T042 [US2] **[JS]** Replace raw contrast branches in `scripts/preview/layout-bridge.js` with resolved snapshot reads (fill, icon, heading weight/small-caps via `resolvedSpecTypography`).
 - [ ] T043 [US2] **[Python parity]** Port equivalent resolved-style fields to `scripts/layout_v3.py` for batch SVG export. Do not treat Python as the interactive authority.
 - [ ] T044 [US2] **[Python parity]** Audit `scripts/diagram_render_svg.py`, `scripts/export_drawio_batch.py`, and `scripts/diagram_render_drawio.py` for frame-style reinterpretation. Update only paths that consume v3 frame semantics.
 - [ ] T045 [US2] Add regression tests that fail on raw-fill contrast regressions. Prefer semantic inline fixtures over large JSON snapshots.

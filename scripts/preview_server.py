@@ -8,7 +8,7 @@ Serves diagram SVGs in a browser with:
 
 Usage:
     python scripts/preview_server.py                     # all diagrams, port 8100
-    python scripts/preview_server.py --slug aws-hld      # single diagram
+    python scripts/preview_server.py --slug request-to-hardware-stack  # single diagram
     python scripts/preview_server.py --port 8200
     python scripts/preview_server.py --grid               # show grid overlay
 """
@@ -26,12 +26,12 @@ import subprocess
 import sys
 import threading
 import time
-from dataclasses import asdict
 from urllib.parse import unquote, urlparse
 
 from frame_yaml_persistence import persist_override_payload_to_yaml
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
+_TS_PREVIEW_MODULE_NAMES = ("preview_ts_export", "preview_ts_layout")
 SCRIPTS = ROOT / "scripts"
 OUTPUT_SVG = ROOT / "diagrams" / "2.output" / "svg"
 V3_OUTPUT = ROOT / "diagrams" / "2.output" / "v3"
@@ -40,23 +40,64 @@ V3_DRAWIO = V3_OUTPUT / "draw.io"
 DEFINITIONS_DIR = SCRIPTS / "diagrams"
 FRAMES_DIR = pathlib.Path(os.environ.get("DG_FRAMES_DIR") or (SCRIPTS / "diagrams" / "frames"))
 
+_LAYOUT_ENGINE_DIST = ROOT / "packages" / "layout-engine" / "dist"
+_TS_LAYOUT_SCRIPT = ROOT / "packages" / "layout-engine" / "scripts" / "layout-frame-diagram.mjs"
+_TS_EMIT_SCRIPT = ROOT / "packages" / "layout-engine" / "scripts" / "emit-frame-diagram-json.mjs"
+_TS_EXPORT_SCRIPT = ROOT / "packages" / "layout-engine" / "scripts" / "export-frame-svg.mjs"
+
 WATCH_PATHS = [
     DEFINITIONS_DIR,
     FRAMES_DIR,
-    SCRIPTS / "frame_loader.py",
-    SCRIPTS / "frame_model.py",
-    SCRIPTS / "layout_v3.py",
-    SCRIPTS / "diagram_layout.py",
-    SCRIPTS / "diagram_render_svg.py",
-    SCRIPTS / "diagram_shared.py",
+    SCRIPTS / "frame_yaml_persistence.py",
+    SCRIPTS / "preview_ts_layout.py",
+    SCRIPTS / "preview_ts_export.py",
+    _TS_LAYOUT_SCRIPT,
+    _TS_EMIT_SCRIPT,
+    _TS_EXPORT_SCRIPT,
+    _LAYOUT_ENGINE_DIST,
     SCRIPTS / "preview",
 ]
 
 _rebuild_generation = 0
 _rebuild_lock = threading.Lock()
 _last_rebuild_error: str | None = None
-_layout_cache: dict[str, object] = {}
 _force_sessions: dict[str, object] = {}
+
+
+def _ts_layout_disabled() -> bool:
+    return os.environ.get("DG_DISABLE_TS_LAYOUT", "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+    )
+
+
+def _import_ts_preview_module(name: str):
+    mod = sys.modules.get(name)
+    if mod is None:
+        return importlib.import_module(name)
+    return importlib.reload(mod)
+
+
+def _recreate_ts_preview_pools() -> None:
+    """Build pools from the current preview_ts_* modules (not stale import aliases)."""
+    global _ts_svg_pool, _ts_layout_pool
+    export_mod = _import_ts_preview_module("preview_ts_export")
+    layout_mod = _import_ts_preview_module("preview_ts_layout")
+    _ts_svg_pool = export_mod.pool_from_env(
+        script_path=_TS_EXPORT_SCRIPT,
+        repo_root=ROOT,
+        frames_dir=FRAMES_DIR,
+    )
+    _ts_layout_pool = layout_mod.pool_from_env(
+        layout_script=_TS_LAYOUT_SCRIPT,
+        emit_script=_TS_EMIT_SCRIPT,
+        repo_root=ROOT,
+        frames_dir=FRAMES_DIR,
+    )
+
+
+_recreate_ts_preview_pools()
 
 
 def _load_env_local() -> None:
@@ -140,185 +181,55 @@ def _is_safe_slug(slug: str) -> bool:
 
 
 def _rebuild(grid: bool = False) -> bool:
-    global _last_rebuild_error, _layout_cache, _viewer_template, _force_template, _unified_template, _force_sessions
-    _layout_cache.clear()
+    global _last_rebuild_error, _viewer_template, _force_template, _unified_template, _force_sessions
     _force_sessions.clear()
     _viewer_template = None
     _force_template = None
     _unified_template = None
-    # Reload engine modules so code changes take effect without a
-    # full server restart.
-    for mod_name in ("frame_model", "frame_loader", "layout_v3",
-                     "diagram_render_svg", "diagram_layout", "diagram_shared"):
-        if mod_name in sys.modules:
-            try:
-                importlib.reload(sys.modules[mod_name])
-            except Exception as exc:
-                # File likely mid-save; skip this rebuild cycle.
-                _last_rebuild_error = f"Reload error in {mod_name}: {exc}"
-                return False
+    try:
+        _recreate_ts_preview_pools()
+    except Exception as exc:
+        _last_rebuild_error = f"Reload error in TS preview pools: {exc}"
+        return False
     _last_rebuild_error = None
     return True
 
 
-_TS_EXPORT_SCRIPT = ROOT / "packages" / "layout-engine" / "scripts" / "export-frame-svg.mjs"
+def _normalize_slug(slug: str) -> str:
+    return slug[3:] if slug.startswith("v3:") else slug
 
 
 def _render_svg_via_ts(slug: str) -> bytes | None:
-    """Layout + render SVG via the TypeScript engine (HarfBuzz measure)."""
-    if slug.startswith("v3:"):
-        slug = slug[3:]
-    if not _TS_EXPORT_SCRIPT.exists():
-        return None
-    frame_yaml = FRAMES_DIR / (slug + ".yaml")
-    if not frame_yaml.exists():
-        return None
-    try:
-        proc = subprocess.run(
-            ["node", str(_TS_EXPORT_SCRIPT), "--slug", slug],
-            cwd=str(ROOT),
-            capture_output=True,
-            text=True,
-            timeout=120,
-            check=True,
-        )
-        return proc.stdout.encode("utf-8")
-    except (subprocess.CalledProcessError, OSError) as exc:
-        err = getattr(exc, "stderr", None) or getattr(exc, "stdout", None) or str(exc)
-        print(f"TS SVG export failed for {slug}: {err}", file=sys.stderr)
-        return None
+    """Layout + render SVG via the TypeScript engine (cached Node pool)."""
+    return _ts_svg_pool.render_svg(_normalize_slug(slug))
 
 
-def _get_layout_result(slug: str, engine: str = "v3"):
-    # Strip v3: prefix if present
-    if slug.startswith("v3:"):
-        slug = slug[3:]
-    cache_key = f"{slug}:v3"
-    if cache_key in _layout_cache:
-        return _layout_cache[cache_key]
-    try:
-        if str(SCRIPTS) not in sys.path:
-            sys.path.insert(0, str(SCRIPTS))
+def _serve_v3_svg_bytes(slug: str) -> bytes | None:
+    """Live v3 SVG bytes for frame YAML, or None when TS export fails."""
+    key = _normalize_slug(slug)
+    if not (FRAMES_DIR / f"{key}.yaml").is_file():
+        return None
+    return _render_svg_via_ts(slug)
 
-        frame_yaml = FRAMES_DIR / (slug + ".yaml")
-        if frame_yaml.exists():
-            from frame_loader import load_frame_yaml
-            from layout_v3 import layout_frame_diagram
-            frame_diagram = load_frame_yaml(frame_yaml)
-            result = layout_frame_diagram(frame_diagram)
-            _layout_cache[cache_key] = result
-            return result
-        return None
-    except Exception:
-        import traceback; traceback.print_exc()
-        return None
+
+def _ts_layout_bundle(slug: str) -> dict | None:
+    return _ts_layout_pool.layout_bundle(_normalize_slug(slug))
+
 
 def _get_component_tree(slug: str) -> list[dict]:
-    result = _get_layout_result(slug)
-    if result and hasattr(result, "component_tree"):
-        return [asdict(ci) for ci in result.component_tree]
-    return []
+    bundle = _ts_layout_bundle(slug)
+    if not bundle:
+        return []
+    tree = bundle.get("componentTree")
+    return tree if isinstance(tree, list) else []
 
 
 def _get_grid_info(slug: str) -> dict | None:
-    result = _get_layout_result(slug)
-    if result and result.grid_info:
-        return asdict(result.grid_info)
-    return None
-
-
-def _load_frame_diagram(slug: str):
-    """Load the raw FrameDiagram for a slug (before layout)."""
-    try:
-        if str(SCRIPTS) not in sys.path:
-            sys.path.insert(0, str(SCRIPTS))
-        import copy
-
-        frame_yaml = FRAMES_DIR / (slug + ".yaml")
-        if frame_yaml.exists():
-            from frame_loader import load_frame_yaml
-            return copy.deepcopy(load_frame_yaml(frame_yaml))
+    bundle = _ts_layout_bundle(slug)
+    if not bundle:
         return None
-    except Exception:
-        import traceback; traceback.print_exc()
-        return None
-
-
-def _serialize_line(line) -> dict:
-    """Serialize a Line dataclass to a JSON-safe dict."""
-    return {
-        "content": line.content,
-        "size": line.size,
-        "weight": line.weight,
-        "fill": line.fill,
-        "smallCaps": getattr(line, "small_caps", False),
-        "letterSpacing": getattr(line, "letter_spacing", None),
-        "lineStep": getattr(line, "line_step", None),
-        "fontFamily": getattr(line, "font_family", None),
-    }
-
-
-def _serialize_arrow(arrow) -> dict:
-    """Serialize an Arrow dataclass to a JSON-safe dict."""
-    return {
-        "source": arrow.source,
-        "target": arrow.target,
-        "id": getattr(arrow, "id", None),
-        "color": getattr(arrow, "color", "#E95420"),
-    }
-
-
-def _serialize_frame(frame) -> dict:
-    """Recursively serialize a Frame to a JSON-safe dict for the TS layout engine."""
-    return {
-        "id": frame.id,
-        "direction": frame.direction.name,
-        "gap": frame.gap,
-        "padding": frame.padding,
-        "paddingTop": frame.padding_top,
-        "paddingRight": frame.padding_right,
-        "paddingBottom": frame.padding_bottom,
-        "paddingLeft": frame.padding_left,
-        "align": frame.align.name,
-        "wrap": frame.wrap,
-        "sizingW": frame.sizing_w.name,
-        "sizingH": frame.sizing_h.name,
-        "fillWeight": frame.fill_weight,
-        "width": frame.width,
-        "height": frame.height,
-        "minWidth": frame.min_width,
-        "maxWidth": frame.max_width,
-        "maxWidthChars": frame.max_width_chars,
-        "minHeight": frame.min_height,
-        "maxHeight": frame.max_height,
-        "fill": frame.fill.value,
-        "border": frame.border.name,
-        "heading": _serialize_line(frame.heading) if frame.heading else None,
-        "icon": frame.icon,
-        "iconFill": frame.icon_fill,
-        "label": [_serialize_line(ln) for ln in frame.label],
-        "role": frame.role,
-        "level": frame.level,
-        "colSpan": frame.col_span,
-        "children": [_serialize_frame(child) for child in frame.children],
-        "positionType": frame.position_type,
-        "x": frame.x,
-        "y": frame.y,
-    }
-
-
-def _serialize_frame_diagram(diagram) -> dict:
-    """Serialize a FrameDiagram for the TS layout engine."""
-    return {
-        "title": diagram.title,
-        "root": _serialize_frame(diagram.root),
-        "arrows": [_serialize_arrow(a) for a in diagram.arrows],
-        "gridCols": diagram.grid_cols,
-        "gridColGap": diagram.grid_col_gap,
-        "gridRowGap": diagram.grid_row_gap,
-        "gridOuterMargin": diagram.grid_outer_margin,
-        "overlays": [{"id": o.id, "label": o.label, "members": o.members} for o in diagram.overlays],
-    }
+    info = bundle.get("gridInfo")
+    return info if isinstance(info, dict) else None
 
 
 def _save_overrides(slug: str, data: dict) -> None:
@@ -326,7 +237,9 @@ def _save_overrides(slug: str, data: dict) -> None:
     if not frame_path.exists():
         raise ValueError(f"Unknown frame slug: {slug}")
     persist_override_payload_to_yaml(frame_path, data)
-    _layout_cache.pop(f"{slug}:v3", None)
+    key = _normalize_slug(slug)
+    _ts_layout_pool.invalidate_slug(key)
+    _ts_svg_pool.invalidate_slug(key)
 
 
 def _watch_loop(grid: bool = False, interval: float = 0.5):
@@ -374,7 +287,6 @@ _REFERENCE_MAP: dict[str, str] = {
     "rise-of-inference-economy": "image.png",
     "attention-qkv": "image 3.png",
     "logic-data-vram": "image 4.png",
-    "gpu-waiting-scheduler": "image 5.png",
     "request-to-hardware-stack": "image 6.png",
     "inference-snaps": "image 7.png",
     "example-arrow-label-separator": "example-arrow-label-separator-rough.svg",
@@ -383,7 +295,6 @@ _REFERENCE_MAP: dict[str, str] = {
     "android-custom-to-cloud": "android/image.png",
     "android-security-comparison": "android/image1.png",
     "android-container-vs-vm": "android/image2.png",
-    "maas-machine-lifecycle": "maas/maas-machine-lifecycle.png",
     "tiered-network-architecture": "maas/tiered-network-architecture.png",
 }
 
@@ -999,15 +910,11 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
                 if prebuilt.exists():
                     self._respond(200, "image/svg+xml", prebuilt.read_bytes())
                     return
-            svg_bytes = _render_svg_via_ts(slug)
+            svg_bytes = _serve_v3_svg_bytes(slug)
             if svg_bytes is None:
-                result = _get_layout_result(slug, engine="v3")
-                if result is None:
-                    self.send_error(404, f"Cannot layout v3 diagram: {slug}")
-                    return
-                import diagram_render_svg
-                svg_str = diagram_render_svg.render_svg(result)
-                svg_bytes = svg_str.encode("utf-8")
+                print(f"TS SVG export failed for {slug}; returning 404", file=sys.stderr)
+                self.send_error(404, f"Cannot render v3 diagram: {slug}")
+                return
             self._respond(200, "image/svg+xml", svg_bytes)
             return
 
@@ -1028,16 +935,13 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
         if engine == "v3":
             frame_yaml = FRAMES_DIR / (slug + ".yaml")
             if frame_yaml.exists():
-                svg_bytes = _render_svg_via_ts(slug)
+                svg_bytes = _serve_v3_svg_bytes(slug)
                 if svg_bytes is not None:
                     self._respond(200, "image/svg+xml", svg_bytes)
                     return
-                result = _get_layout_result(slug, engine="v3")
-                if result is not None:
-                    import diagram_render_svg
-                    svg_str = diagram_render_svg.render_svg(result)
-                    self._respond(200, "image/svg+xml", svg_str.encode("utf-8"))
-                    return
+                print(f"TS SVG export failed for {slug}; returning 404", file=sys.stderr)
+                self.send_error(404, f"Cannot render v3 diagram: {slug}")
+                return
 
         # Try v2 output first, then v3 pre-built
         svg_path = OUTPUT_SVG / safe_name
@@ -1048,15 +952,13 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
             return
         # No pre-built file — try on-the-fly v3 rendering
         if engine == "v3":
-            svg_bytes = _render_svg_via_ts(slug)
+            svg_bytes = _serve_v3_svg_bytes(slug)
             if svg_bytes is not None:
                 self._respond(200, "image/svg+xml", svg_bytes)
                 return
-            result = _get_layout_result(slug, engine="v3")
-            if result is not None:
-                import diagram_render_svg
-                svg_str = diagram_render_svg.render_svg(result)
-                self._respond(200, "image/svg+xml", svg_str.encode("utf-8"))
+            if (FRAMES_DIR / f"{_normalize_slug(slug)}.yaml").is_file():
+                print(f"TS SVG export failed for {slug}; returning 404", file=sys.stderr)
+                self.send_error(404, f"Cannot render v3 diagram: {slug}")
                 return
         self.send_error(404)
 
@@ -1068,15 +970,23 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
         self._respond(200, "application/json", json.dumps(tree, indent=2).encode())
 
     def _serve_frame_tree(self, slug: str):
-        """Serve the raw Frame tree JSON for client-side layout."""
+        """Serve frame-tree JSON from TS YAML loader (derived DTO, not authority)."""
         if not _is_safe_slug(slug):
             self.send_error(400, "Invalid slug")
             return
-        diagram = _load_frame_diagram(slug)
-        if diagram is None:
+        key = _normalize_slug(slug)
+        frame_yaml = FRAMES_DIR / f"{key}.yaml"
+        if not frame_yaml.is_file():
             self.send_error(404, "Frame diagram not found")
             return
-        data = _serialize_frame_diagram(diagram)
+        if _ts_layout_disabled():
+            self.send_error(503, "TS frame-tree export disabled")
+            return
+        data = _ts_layout_pool.frame_tree_json(slug)
+        if data is None:
+            print(f"TS frame-tree export failed for {key}", file=sys.stderr)
+            self.send_error(503, "TS frame-tree export failed")
+            return
         self._respond(200, "application/json", json.dumps(data).encode())
 
     def _serve_layout_engine_bundle(self):

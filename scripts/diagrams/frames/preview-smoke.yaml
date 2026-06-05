@@ -1,0 +1,40 @@
+engine: v3
+title: Preview smoke
+arrows:
+  - source: define
+    target: measure
+root:
+  id: page
+  direction: vertical
+  padding: 24
+  gap: 24
+  children:
+    - id: sources
+      level: 2
+      heading: Sources
+      children:
+        - id: source_notes
+          variant: annotation
+          label:
+            - Rough initial diagram sources
+
+    - id: workflow
+      level: 2
+      heading: Workflow
+      children:
+        - id: implement
+          label:
+            - Implement output
+
+    - id: planning
+      level: 2
+      heading: Planning
+      children:
+        - id: define
+          label:
+            - Define ingress
+            - Pipeline shape
+        - id: measure
+          label:
+            - Measure current
+            - Performance

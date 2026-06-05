@@ -16,7 +16,7 @@ Use this file to answer two questions quickly:
 | Spec | Path | Status | Summary |
 |------|------|--------|---------|
 | 011 Figma autolayout fidelity | `specs/011-figma-autolayout-fidelity/` | Complete | Default `max_width_chars: 66` on text frames; HUG wraps at HarfBuzz-derived measure and hugs longest line. TS-only measure; Python YAML passthrough. |
-| 012 TS SVG renderer | `specs/012-ts-svg-renderer-retire-python/` | In progress | T060a–T060b + T020–T050 done. TS-only SVG emit. T070 doc close-out remaining. |
+| 012 TS SVG renderer | `specs/012-ts-svg-renderer-retire-python/` | Complete | TS-only SVG (preview + batch); `diagram_render_svg.py` removed; golden harness (6 slugs); arrow editing + doc close-out (`a6822da`). |
 | 014 Preview TS export hardening | `specs/014-preview-server-ts-export-hardening/` | Complete | Bounded Node pool: cache, concurrency, coalescing, timeout handling. Python SVG fallback removed by spec 012 T060a. |
 | 015 Preview stability + nav | `specs/015-preview-stability-and-nav-triage/` | Complete | Diagram picker change handler in editor-base (force mode); port auto-kill opt-in; bind error message. |
 | 013 TS preview API | `specs/013-ts-preview-api-retire-python-layout/` | Complete | TS frame-tree/grid/component-tree from YAML via `preview_ts_layout.py`. |

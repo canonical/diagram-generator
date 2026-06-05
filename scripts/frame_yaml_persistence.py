@@ -120,9 +120,7 @@ def _yaml_align(value: Any) -> str:
 
 def _yaml_text_scalar(existing: Any, text: str) -> Any:
     if isinstance(existing, dict):
-        updated = dict(existing)
-        updated["text"] = text
-        return updated
+        return {"text": text}
     return text
 
 

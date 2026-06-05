@@ -69,8 +69,7 @@ root:
       label:
       - '- Consumes system images'
       - '- Consumes host-side tools'
-      fill: white
-      border: none
+      variant: annotation
   - id: virt_instance
     level: 3
     direction: vertical
@@ -84,5 +83,4 @@ root:
       label:
       - '- Unmodified Cuttlefish-based Android'
       - '- No rebuild required'
-      fill: white
-      border: none
+      variant: annotation

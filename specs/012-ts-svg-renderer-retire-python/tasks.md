@@ -7,4 +7,4 @@
 - [x] T050 Golden SVG tests for corpus subset
 - [x] T060a Remove preview Python SVG fallback (`preview_server._serve_v3_svg_bytes`)
 - [x] T060b Remove or archive `diagram_render_svg.py` + batch callers still on Python SVG
-- [ ] T070 Update agent docs and `docs/specs.md`
+- [x] T070 Update agent docs and `docs/specs.md`
