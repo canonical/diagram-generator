@@ -26,6 +26,7 @@ import subprocess
 import sys
 import threading
 import time
+import yaml
 from urllib.parse import unquote, urlparse
 
 from frame_yaml_persistence import persist_override_payload_to_yaml
@@ -38,6 +39,7 @@ V3_OUTPUT = ROOT / "diagrams" / "2.output" / "v3"
 V3_SVG = V3_OUTPUT / "svg"
 V3_DRAWIO = V3_OUTPUT / "draw.io"
 DEFINITIONS_DIR = SCRIPTS / "diagrams"
+FORCE_DEFINITIONS_DIR = DEFINITIONS_DIR / "force"
 FRAMES_DIR = pathlib.Path(os.environ.get("DG_FRAMES_DIR") or (SCRIPTS / "diagrams" / "frames"))
 
 _LAYOUT_ENGINE_DIST = ROOT / "packages" / "layout-engine" / "dist"
@@ -244,13 +246,30 @@ def _save_overrides(slug: str, data: dict) -> None:
 
 def _watch_loop(grid: bool = False, interval: float = 0.5):
     global _rebuild_generation, _viewer_template, _force_template, _unified_template
+    _DEBOUNCE = 2.0  # seconds quiet after last change before rebuilding
+    # Give the OS a moment to settle file timestamps after startup
+    time.sleep(1.0)
     prev_mtimes = _collect_mtimes()
+    _last_change_time: float = 0.0
+    _pending = False
     while True:
         try:
             time.sleep(interval)
             curr_mtimes = _collect_mtimes()
+            now = time.monotonic()
             if curr_mtimes != prev_mtimes:
+                added = [k for k in curr_mtimes if k not in prev_mtimes]
+                removed = [k for k in prev_mtimes if k not in curr_mtimes]
+                changed = [k for k in curr_mtimes if k in prev_mtimes and curr_mtimes[k] != prev_mtimes[k]]
+                for f in (added + removed + changed)[:5]:
+                    tag = "+" if f in added else ("-" if f in removed else "~")
+                    print(f"  [preview] {tag} {pathlib.Path(f).name}")
                 prev_mtimes = curr_mtimes
+                _last_change_time = now
+                _pending = True
+            # Fire the rebuild once things have been quiet for _DEBOUNCE seconds
+            if _pending and (now - _last_change_time) >= _DEBOUNCE:
+                _pending = False
                 # Invalidate cached viewer template so HTML/CSS/JS changes are picked up
                 _viewer_template = None
                 _force_template = None
@@ -276,10 +295,20 @@ _viewer_template: str | None = None
 _force_template: str | None = None
 _unified_template: str | None = None
 
-# Reference-image directories (rough input sketches)
+
+def _preview_asset_url(filename: str) -> str:
+    asset_map = {
+        "layout-engine.js": ROOT / "packages" / "layout-engine" / "dist" / "layout-engine.iife.js",
+    }
+    asset_path = asset_map.get(filename, PREVIEW_DIR / filename)
+    version = int(asset_path.stat().st_mtime_ns) if asset_path.exists() else 0
+    return f"/preview/{filename}?v={version}"
+
+# Reference-image directories (rough input sketches + corpus audit PNGs)
 _INPUT_DIRS = [
     ROOT / "diagrams" / "1.input",
 ]
+_CORPUS_REF_DIR = ROOT / "docs" / "corpus-references"
 
 # Slug → input sketch mapping (mirrors build_compare_pages.py PAIRS)
 _REFERENCE_MAP: dict[str, str] = {
@@ -307,11 +336,23 @@ def _force_backend_unavailable_message() -> str:
     return "Force layout backend is not available in this checkout. Restore the TypeScript force lane before using /force."
 
 
+def _load_force_spec_from_disk(slug: str) -> dict | None:
+    if not _is_safe_slug(slug):
+        return None
+    spec_path = FORCE_DEFINITIONS_DIR / f"{slug}.yaml"
+    if not spec_path.exists():
+        return None
+    try:
+        data = yaml.safe_load(spec_path.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else None
+    except Exception:
+        return None
+
+
 def _list_force_examples() -> list[str]:
-    force_preview = _load_force_preview_module()
-    if force_preview is None:
+    if not FORCE_DEFINITIONS_DIR.exists():
         return []
-    return force_preview.list_force_examples()
+    return sorted(path.stem for path in FORCE_DEFINITIONS_DIR.glob("*.yaml") if _is_safe_slug(path.stem))
 
 
 def _build_preview_nav_options(current_path: str) -> str:
@@ -324,19 +365,41 @@ def _build_preview_nav_options(current_path: str) -> str:
     if autolayout_options:
         sections.append(f'<optgroup label="Autolayout">{autolayout_options}</optgroup>')
 
+    force_options = "".join(
+        f'<option value="/force/view/{slug}"{" selected" if current_path == f"/force/view/{slug}" else ""}>{slug}</option>'
+        for slug in _list_force_examples()
+    )
+    if force_options:
+        sections.append(f'<optgroup label="Force demos">{force_options}</optgroup>')
+
     return "".join(sections)
 
 
 def _build_browse_nav(current_path: str) -> str:
     """Build the left-sidebar browse panel HTML."""
+    sections: list[str] = []
+
     autolayout = _list_autolayout_diagrams()
-    if not autolayout:
-        return ""
-    items = "".join(
-        f'<li><a class="dg-browse-link{" is-active" if current_path == f"/view/v3:{s}" else ""}" href="/view/v3:{s}">{s}</a></li>'
-        for s in autolayout
-    )
-    return f'<div class="dg-browse-group"><h3 class="dg-browse-heading">Autolayout</h3><ul class="dg-browse-list">{items}</ul></div>'
+    if autolayout:
+        items = "".join(
+            f'<li><a class="dg-browse-link{" is-active" if current_path == f"/view/v3:{s}" else ""}" href="/view/v3:{s}">{s}</a></li>'
+            for s in autolayout
+        )
+        sections.append(
+            f'<div class="dg-browse-group"><h3 class="dg-browse-heading">Autolayout</h3><ul class="dg-browse-list">{items}</ul></div>'
+        )
+
+    force = _list_force_examples()
+    if force:
+        items = "".join(
+            f'<li><a class="dg-browse-link{" is-active" if current_path == f"/force/view/{s}" else ""}" href="/force/view/{s}">{s}</a></li>'
+            for s in force
+        )
+        sections.append(
+            f'<div class="dg-browse-group"><h3 class="dg-browse-heading">Force demos</h3><ul class="dg-browse-list">{items}</ul></div>'
+        )
+
+    return "".join(sections)
 
 
 def _get_force_state(slug: str, *, reset: bool = False):
@@ -383,8 +446,15 @@ def _tick_force_snapshot(slug: str, iterations: int | None = None) -> dict | Non
 
 
 def _find_reference_image(slug: str) -> pathlib.Path | None:
-    """Find the rough input sketch for a diagram slug."""
+    """Find the rough input sketch or corpus source PNG for a diagram slug."""
+    corpus = _CORPUS_REF_DIR / f"{slug}-source.png"
+    if corpus.exists():
+        return corpus
     filename = _REFERENCE_MAP.get(slug)
+    if not filename:
+        spec = _load_force_spec_from_disk(slug)
+        if spec is not None:
+            filename = spec.get("reference_image")
     if not filename:
         force_preview = _load_force_preview_module()
         if force_preview is not None:
@@ -413,6 +483,24 @@ def _resolve_bf_preview_assets() -> tuple[pathlib.Path, pathlib.Path] | None:
 
 def _has_bf_preview_assets() -> bool:
     return _resolve_bf_preview_assets() is not None
+
+
+def _require_bf_preview_assets() -> tuple[pathlib.Path, pathlib.Path]:
+    """Hard fail when vendored Baseline Foundry assets are missing."""
+    assets = _resolve_bf_preview_assets()
+    if assets is None:
+        raise RuntimeError(
+            "Baseline Foundry preview assets are required but missing under "
+            f"{BF_VENDOR_ROOT.relative_to(ROOT)}. "
+            "Run: python scripts/sync_baseline_foundry_assets.py "
+            "(requires sibling baseline-foundry checkout with built os tier)."
+        )
+    return assets
+
+
+def _bf_styles_link_html() -> str:
+    _require_bf_preview_assets()
+    return '<link rel="stylesheet" href="/preview/bf-os.css">'
 
 
 def _get_viewer_template() -> str:
@@ -460,21 +548,18 @@ def _build_viewer_html(slug: str, all_slugs: list[str], grid: bool) -> str:
     )
     html = _get_unified_template()
     html = html.replace("%TITLE%", f"{slug} – diagram preview")
-    html = html.replace(
-        "%BF_STYLES%",
-        '<link rel="stylesheet" href="/preview/bf-os.css">' if _has_bf_preview_assets() else "",
-    )
+    html = html.replace("%BF_STYLES%", _bf_styles_link_html())
     html = html.replace("%MODE%", "grid")
     html = html.replace("%NAV_OPTIONS%", nav_options)
     html = html.replace("%BROWSE_NAV%", browse_nav)
     html = html.replace("%INSPECTOR_EMPTY%", "Click a component to inspect it.")
     html = html.replace(
         "%MODE_SCRIPTS%",
-        '<script src="/preview/layout-engine.js"></script>\n'
-        '<script src="/preview/layout-bridge.js"></script>\n'
-        '<script src="/preview/component-model.js"></script>\n'
-        '<script src="/preview/constraints.js"></script>\n'
-        '<script src="/preview/editor.js"></script>',
+        f'<script src="{_preview_asset_url("layout-engine.js")}"></script>\n'
+        f'<script src="{_preview_asset_url("layout-bridge.js")}"></script>\n'
+        f'<script src="{_preview_asset_url("component-model.js")}"></script>\n'
+        f'<script src="{_preview_asset_url("constraints.js")}"></script>\n'
+        f'<script src="{_preview_asset_url("editor.js")}"></script>',
     )
     html = html.replace("%CONFIG_SCRIPT%", config_script)
     return html
@@ -497,17 +582,15 @@ def _build_force_viewer_html(slug: str, all_slugs: list[str]) -> str:
     )
     html = _get_unified_template()
     html = html.replace("%TITLE%", f"{slug} – force preview")
-    html = html.replace(
-        "%BF_STYLES%",
-        '<link rel="stylesheet" href="/preview/bf-os.css">' if _has_bf_preview_assets() else "",
-    )
+    html = html.replace("%BF_STYLES%", _bf_styles_link_html())
     html = html.replace("%MODE%", "force")
     html = html.replace("%NAV_OPTIONS%", nav_options)
     html = html.replace("%BROWSE_NAV%", browse_nav)
     html = html.replace("%INSPECTOR_EMPTY%", "Click a node to select it.")
     html = html.replace(
         "%MODE_SCRIPTS%",
-        '<script src="/preview/force.js"></script>',
+        f'<script src="{_preview_asset_url("layout-engine.js")}"></script>\n'
+        f'<script src="{_preview_asset_url("force.js")}"></script>',
     )
     html = html.replace("%CONFIG_SCRIPT%", config_script)
     return html
@@ -632,7 +715,7 @@ FORCE_INDEX_HTML = """<!DOCTYPE html>
 <body>
     <div class="page">
         <h1>Force previews</h1>
-        <p>Live Python-solver demos that tick over time, can be paused, and can export the current settled state.</p>
+        <p>Tracked force-layout demos with restored navigation and preview shell wiring. Live interaction remains blocked until the TypeScript runtime replaces the deleted backend.</p>
         <div class="nav">%LINKS%</div>
         <a class="back" href="/">&larr; all previews</a>
     </div>
@@ -691,6 +774,8 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
             self._serve_viewer(path[6:])
         elif path.startswith("/api/force-export/"):
             self._serve_force_export(path[18:])
+        elif path.startswith("/api/force-spec/"):
+            self._serve_force_spec(path[16:])
         elif path.startswith("/api/force/"):
             self._serve_force_get(path[11:])
         elif path.startswith("/api/tree/"):
@@ -774,8 +859,6 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
         self._respond(200, "text/html", html.encode())
 
     def _serve_force_index(self):
-        if not self._ensure_force_backend():
-            return
         slugs = _list_force_examples()
         if not slugs:
             self.send_error(404, "No force previews found")
@@ -884,8 +967,6 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
         self._respond(200, "text/html", html.encode())
 
     def _serve_force_viewer(self, slug: str):
-        if not self._ensure_force_backend():
-            return
         if not _is_safe_slug(slug):
             self.send_error(400, "Invalid slug")
             return
@@ -1090,6 +1171,16 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
             self.send_error(500, "Force preview failed")
             return
         self._respond(200, "application/json", json.dumps(result).encode())
+
+    def _serve_force_spec(self, slug: str):
+        if not _is_safe_slug(slug):
+            self.send_error(400, "Invalid slug")
+            return
+        spec = _load_force_spec_from_disk(slug)
+        if spec is None:
+            self.send_error(404, f"Unknown force example: {slug}")
+            return
+        self._respond(200, "application/json", json.dumps(spec).encode())
 
     def _serve_force_reset(self, slug: str):
         if not self._ensure_force_backend():
@@ -1353,6 +1444,8 @@ def main():
     parser.add_argument("--no-watch", action="store_true", help="Disable file watching")
     args = parser.parse_args()
 
+    _require_bf_preview_assets()
+
     # Auto-kill any process holding the port (Windows)
     if sys.platform == "win32":
         try:
@@ -1397,7 +1490,19 @@ def main():
     except KeyboardInterrupt:
         print("\n  [preview] stopped")
         server.server_close()
+    except Exception as exc:
+        import traceback
+        print(f"\n  [preview] FATAL: {exc}")
+        traceback.print_exc()
+        server.server_close()
+        raise
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as exc:
+        import traceback
+        print(f"\n  [preview] top-level crash: {exc}")
+        traceback.print_exc()
+        raise
