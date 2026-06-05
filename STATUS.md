@@ -1,7 +1,7 @@
 # Status
 
 **Last updated:** 2026-06-05  
-**Branch:** `feat/force-layout-restoration` @ `42fff38` + local spec 023 drafting
+**Branch:** `main` @ `c05376a`
 
 ## Stakeholder path
 

@@ -56,7 +56,10 @@ WATCH_PATHS = [
     _TS_LAYOUT_SCRIPT,
     _TS_EMIT_SCRIPT,
     _TS_EXPORT_SCRIPT,
-    _LAYOUT_ENGINE_DIST,
+    # NOTE: _LAYOUT_ENGINE_DIST is intentionally NOT watched. The Node pools
+    # spawn a fresh subprocess per request, so dist changes are picked up
+    # automatically without a server restart. Watching dist causes cascading
+    # rebuild loops whenever `tsc` or `build:browser` writes output files.
     SCRIPTS / "preview",
 ]
 
@@ -246,9 +249,7 @@ def _save_overrides(slug: str, data: dict) -> None:
 
 def _watch_loop(grid: bool = False, interval: float = 0.5):
     global _rebuild_generation, _viewer_template, _force_template, _unified_template
-    _DEBOUNCE = 2.0  # seconds quiet after last change before rebuilding
-    # Give the OS a moment to settle file timestamps after startup
-    time.sleep(1.0)
+    _DEBOUNCE = 1.0  # seconds quiet after last change before rebuilding
     prev_mtimes = _collect_mtimes()
     _last_change_time: float = 0.0
     _pending = False
@@ -347,6 +348,118 @@ def _load_force_spec_from_disk(slug: str) -> dict | None:
         return data if isinstance(data, dict) else None
     except Exception:
         return None
+
+
+def _force_style_for_yaml(node: dict) -> str | None:
+    style = node.get("style_override")
+    if style is None:
+        style = node.get("style")
+    if style == "accent":
+        return "parent"
+    if style in {"parent", "section", "annotation", "highlight"}:
+        return str(style)
+    return None
+
+
+def _force_snapshot_to_authored_spec(snapshot: dict) -> dict:
+    simulation_params = snapshot.get("simulation", {}).get("params", {})
+    render = snapshot.get("render", {})
+
+    spec: dict[str, object] = {
+        "title": snapshot.get("title"),
+        "reference_image": snapshot.get("reference_image"),
+        "canvas": {
+            "width": snapshot.get("canvas", {}).get("width"),
+            "height": snapshot.get("canvas", {}).get("height"),
+        },
+        "render": {
+            key: render[key]
+            for key in ("curve_handle_ratio", "curve_handle_min", "curve_handle_max")
+            if render.get(key) is not None
+        },
+        "simulation": {
+            key: simulation_params[key]
+            for key in (
+                "alpha",
+                "alpha_min",
+                "alpha_decay",
+                "alpha_target",
+                "ticks_per_frame",
+                "max_iterations",
+                "charge_strength",
+                "link_distance",
+                "link_strength",
+                "link_iterations",
+                "collision_padding",
+                "collision_iterations",
+                "velocity_decay",
+                "center",
+            )
+            if simulation_params.get(key) is not None
+        },
+        "nodes": [],
+        "links": [],
+    }
+
+    nodes: list[dict[str, object]] = []
+    for node in snapshot.get("nodes", []):
+        if not isinstance(node, dict):
+            continue
+        entry: dict[str, object] = {
+            "id": node.get("id"),
+            "label": node.get("label") or [node.get("id")],
+            "width": node.get("width"),
+            "height": node.get("height"),
+            "x": node.get("x"),
+            "y": node.get("y"),
+        }
+        if node.get("fx") is not None:
+            entry["fx"] = node.get("fx")
+        if node.get("fy") is not None:
+            entry["fy"] = node.get("fy")
+        style = _force_style_for_yaml(node)
+        if style is not None:
+            entry["style"] = style
+        elif node.get("fill") not in (None, "#FFFFFF"):
+            entry["fill"] = node.get("fill")
+            if node.get("text_fill") is not None:
+                entry["text_fill"] = node.get("text_fill")
+        if node.get("stroke") not in (None, "#000000", "none"):
+            entry["stroke"] = node.get("stroke")
+        if node.get("stroke_width") not in (None, 0, 1):
+            entry["stroke_width"] = node.get("stroke_width")
+        if node.get("shape") is not None:
+            entry["shape"] = node.get("shape")
+        nodes.append(entry)
+    spec["nodes"] = nodes
+
+    links: list[dict[str, object]] = []
+    for link in snapshot.get("links", []):
+        if not isinstance(link, dict):
+            continue
+        entry: dict[str, object] = {
+            "source": link.get("source"),
+            "target": link.get("target"),
+        }
+        if link.get("stroke") is not None:
+            entry["stroke"] = link.get("stroke")
+        if link.get("stroke_width") is not None:
+            entry["stroke_width"] = link.get("stroke_width")
+        if isinstance(link.get("render"), dict) and link.get("render"):
+            entry["render"] = link.get("render")
+        links.append(entry)
+    spec["links"] = links
+
+    return spec
+
+
+def _save_force_snapshot_to_yaml(slug: str, snapshot: dict) -> None:
+    spec_path = FORCE_DEFINITIONS_DIR / f"{slug}.yaml"
+    if not spec_path.exists():
+        raise FileNotFoundError(f"Unknown force example: {slug}")
+    authored = _force_snapshot_to_authored_spec(snapshot)
+    spec_path.write_text(yaml.safe_dump(authored, sort_keys=False, allow_unicode=True), encoding="utf-8")
+    _force_sessions.pop(slug, None)
 
 
 def _list_force_examples() -> list[str]:
@@ -518,10 +631,56 @@ def _get_force_template() -> str:
 
 
 def _get_unified_template() -> str:
-    global _unified_template
-    if _unified_template is None:
-        _unified_template = (PREVIEW_DIR / "viewer-unified.html").read_text(encoding="utf-8")
-    return _unified_template
+    """Read template each request so placeholder/HTML edits apply without restart."""
+    return (PREVIEW_DIR / "viewer-unified.html").read_text(encoding="utf-8")
+
+
+def _render_elk_controls_html(slug: str) -> str:
+    preview_scripts = str(PREVIEW_DIR)
+    if preview_scripts not in sys.path:
+        sys.path.insert(0, preview_scripts)
+    from elk_sidebar_html import render_elk_layout_controls_html
+
+    return render_elk_layout_controls_html(_frame_yaml_elk_overrides(slug))
+
+
+def _apply_unified_elk_placeholders(html: str, slug: str, is_elk: bool) -> str:
+    html = html.replace("%ELK_SECTION_HIDDEN%", "" if is_elk else "hidden")
+    html = html.replace("%ELK_LAYOUT_CONTROLS_HTML%", "")
+    empty_elk = '<div class="grid-controls" id="elk-layout-controls"></div>'
+    if is_elk and empty_elk in html:
+        elk_html = _render_elk_controls_html(slug)
+        html = html.replace(
+            empty_elk,
+            f'<div class="grid-controls" id="elk-layout-controls">\n{elk_html}\n</div>',
+            1,
+        )
+    return html
+
+
+def _strip_unresolved_placeholders(html: str) -> str:
+    return _re.sub(r"%[A-Z0-9_]+%", "", html)
+
+
+def _frame_yaml_elk_overrides(slug: str) -> dict[str, str]:
+    path = FRAMES_DIR / f"{_normalize_slug(slug)}.yaml"
+    if not path.is_file():
+        return {}
+    try:
+        import yaml
+
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+        if not isinstance(data, dict):
+            return {}
+        meta = data.get("meta")
+        if not isinstance(meta, dict):
+            return {}
+        elk = meta.get("elk")
+        if not isinstance(elk, dict):
+            return {}
+        return {str(k): str(v) for k, v in elk.items()}
+    except Exception:
+        return {}
 
 
 def _frame_yaml_layout_engine(slug: str) -> str | None:
@@ -576,7 +735,7 @@ def _build_viewer_html(slug: str, all_slugs: list[str], grid: bool) -> str:
     html = html.replace("%NAV_OPTIONS%", nav_options)
     html = html.replace("%BROWSE_NAV%", browse_nav)
     html = html.replace("%INSPECTOR_EMPTY%", "Click a component to inspect it.")
-    html = html.replace("%ELK_SECTION_HIDDEN%", "" if is_elk else "hidden")
+    html = _apply_unified_elk_placeholders(html, real_slug, is_elk)
     html = html.replace(
         "%MODE_SCRIPTS%",
         f'<script src="{_preview_asset_url("layout-engine.js")}"></script>\n'
@@ -587,7 +746,7 @@ def _build_viewer_html(slug: str, all_slugs: list[str], grid: bool) -> str:
         f'<script src="{_preview_asset_url("editor.js")}"></script>',
     )
     html = html.replace("%CONFIG_SCRIPT%", config_script)
-    return html
+    return _strip_unresolved_placeholders(html)
 
 
 def _build_force_viewer_html(slug: str, all_slugs: list[str]) -> str:
@@ -612,13 +771,14 @@ def _build_force_viewer_html(slug: str, all_slugs: list[str]) -> str:
     html = html.replace("%NAV_OPTIONS%", nav_options)
     html = html.replace("%BROWSE_NAV%", browse_nav)
     html = html.replace("%INSPECTOR_EMPTY%", "Click a node to select it.")
+    html = _apply_unified_elk_placeholders(html, slug, False)
     html = html.replace(
         "%MODE_SCRIPTS%",
         f'<script src="{_preview_asset_url("layout-engine.js")}"></script>\n'
         f'<script src="{_preview_asset_url("force.js")}"></script>',
     )
     html = html.replace("%CONFIG_SCRIPT%", config_script)
-    return html
+    return _strip_unresolved_placeholders(html)
 
 
 INDEX_HTML = """<!DOCTYPE html>
@@ -1342,13 +1502,34 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
         self._respond(200, "application/json", json.dumps(result).encode())
 
     def _serve_force_save(self, slug: str):
-        if not self._ensure_force_backend():
-            return
         if not _is_safe_slug(slug):
             self.send_error(400, "Invalid slug")
             return
         if slug not in _list_force_examples():
             self.send_error(404, f"Unknown force example: {slug}")
+            return
+
+        content_length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(content_length) if content_length else b"{}"
+        try:
+            params = json.loads(body)
+        except json.JSONDecodeError:
+            self.send_error(400, "Invalid JSON")
+            return
+
+        if isinstance(params, dict) and isinstance(params.get("nodes"), list) and isinstance(params.get("links"), list):
+            try:
+                _save_force_snapshot_to_yaml(slug, params)
+            except Exception:
+                import traceback
+
+                traceback.print_exc()
+                self.send_error(500, "Force save failed")
+                return
+            self._respond(200, "application/json", b'{"ok":true}')
+            return
+
+        if not self._ensure_force_backend():
             return
 
         try:
@@ -1515,6 +1696,12 @@ def main():
     except KeyboardInterrupt:
         print("\n  [preview] stopped")
         server.server_close()
+    except OSError as exc:
+        import traceback
+        print(f"\n  [preview] socket error (exit): {exc}")
+        traceback.print_exc()
+        server.server_close()
+        raise
     except Exception as exc:
         import traceback
         print(f"\n  [preview] FATAL: {exc}")
