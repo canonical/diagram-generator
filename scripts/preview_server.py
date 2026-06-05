@@ -39,7 +39,9 @@ V3_OUTPUT = ROOT / "diagrams" / "2.output" / "v3"
 V3_SVG = V3_OUTPUT / "svg"
 V3_DRAWIO = V3_OUTPUT / "draw.io"
 DEFINITIONS_DIR = SCRIPTS / "diagrams"
-FORCE_DEFINITIONS_DIR = DEFINITIONS_DIR / "force"
+FORCE_DEFINITIONS_DIR = pathlib.Path(
+    os.environ.get("DG_FORCE_DEFINITIONS_DIR") or (DEFINITIONS_DIR / "force")
+)
 FRAMES_DIR = pathlib.Path(os.environ.get("DG_FRAMES_DIR") or (SCRIPTS / "diagrams" / "frames"))
 
 _LAYOUT_ENGINE_DIST = ROOT / "packages" / "layout-engine" / "dist"
@@ -103,6 +105,22 @@ def _recreate_ts_preview_pools() -> None:
 
 
 _recreate_ts_preview_pools()
+
+
+def _install_thread_excepthook() -> None:
+    """Log unhandled exceptions in daemon threads instead of silently dying."""
+    import traceback as _tb
+
+    def _hook(args: threading.ExceptHookArgs) -> None:
+        if args.exc_type is SystemExit:
+            return
+        print(f"  [preview] THREAD CRASH in {args.thread}: {args.exc_value}", flush=True)
+        _tb.print_exception(args.exc_type, args.exc_value, args.exc_tb)
+
+    threading.excepthook = _hook
+
+
+_install_thread_excepthook()
 
 
 def _load_env_local() -> None:
@@ -192,9 +210,16 @@ def _rebuild(grid: bool = False) -> bool:
     _force_template = None
     _unified_template = None
     try:
-        _recreate_ts_preview_pools()
+        # Clear pool caches so the next request re-runs Node with fresh YAML/dist.
+        # Do NOT importlib.reload() here — the pools spawn fresh Node subprocesses
+        # per request so dist changes are already picked up automatically. Reloading
+        # partially-written Python modules during active dev is unsafe and can
+        # silently corrupt the interpreter state. Restart the server to pick up
+        # changes to preview_ts_layout.py or preview_ts_export.py themselves.
+        _ts_layout_pool.clear_cache()
+        _ts_svg_pool.clear_cache()
     except Exception as exc:
-        _last_rebuild_error = f"Reload error in TS preview pools: {exc}"
+        _last_rebuild_error = f"Cache clear error: {exc}"
         return False
     _last_rebuild_error = None
     return True
@@ -241,7 +266,12 @@ def _save_overrides(slug: str, data: dict) -> None:
     frame_path = FRAMES_DIR / f"{slug}.yaml"
     if not frame_path.exists():
         raise ValueError(f"Unknown frame slug: {slug}")
+    elk_layout_overrides = data.get("elk_layout_overrides")
     persist_override_payload_to_yaml(frame_path, data)
+    if isinstance(elk_layout_overrides, dict) and elk_layout_overrides:
+        from frame_yaml_persistence import verify_elk_layout_persisted
+
+        verify_elk_layout_persisted(frame_path, elk_layout_overrides)
     key = _normalize_slug(slug)
     _ts_layout_pool.invalidate_slug(key)
     _ts_svg_pool.invalidate_slug(key)
