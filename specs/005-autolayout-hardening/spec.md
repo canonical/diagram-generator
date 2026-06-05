@@ -4,7 +4,7 @@
 
 **Created**: 2026-05-30
 
-**Status**: In progress (WS3 heading/body contract settled in TS — 2026-06-04)
+**Status**: Complete (WS1-WS5 validated — 2026-06-05)
 
 **Input**: Formalize and execute the high-risk autolayout corrective work currently tracked in TODO/adversarial audit, so layout behavior is predictable, non-patchy, and architecture-clean.
 

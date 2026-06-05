@@ -1,7 +1,7 @@
 # Status
 
 **Last updated:** 2026-06-05  
-**Branch:** `fix/spec008-closeout-cleanup` @ `d7c99ec` + local resolved-style/spec cleanup
+**Branch:** `feat/spec005-ws5-validation` @ `48893a9` + local spec 005 WS5 closeout
 
 ## Stakeholder path
 
@@ -32,13 +32,19 @@ Making a diagram for a review or deck: **[`docs/stakeholder-guide.md`](docs/stak
 | **Preview APIs** | TS-only: frame-tree, grid, component tree (`preview_ts_layout.py`) |
 | **Live preview SVG** | TS-only Node export (`preview_ts_export.py`); no Python SVG renderer (spec 012) |
 | **Batch SVG** | `export-frame-svg.mjs` — TS-only (`svg-render.ts`); golden harness `tests/svg-golden.test.ts` (3 canonical slugs after the first pruning pass) |
-| **Tests** | Latest full TS suite green in the current slice; focused preview browser regressions green; `test_preview_frames_dir.py` and `test_preview_ts_api.py` green. Full `pytest scripts -q` still has legacy parity drift outside the active TS path |
+| **Tests** | Latest full TS suite green in the current slice (`246/246`); retained 11-slug export sweep green; focused preview browser regressions green; spec 005 high-risk browser spot-checks render with zero errors; `test_preview_frames_dir.py` and `test_preview_ts_api.py` green. Full `pytest scripts -q` still has legacy parity drift outside the active TS path |
 
 ### Current delta — runtime dist freshness fix (2026-06-05)
 
 - `export-frame-svg.mjs`, `emit-frame-diagram-json.mjs`, and sibling Node CLIs now auto-rebuild `packages/layout-engine/dist/` when TS source is newer than the requested dist artifact, so the active runtime no longer drifts behind source edits.
 - Added runtime regressions in `scripts/test_preview_frames_dir.py` proving the live DTO/export scripts strip retired line-level style fields rather than only the source-level unit tests doing so.
 - Force routes and the orphaned benchmark now fail explicitly: `preview_server.py` returns a clear backend-unavailable response for `/force` surfaces when `force_preview.py` is absent, and `benchmark_force.py` exits with migration guidance instead of a raw `ModuleNotFoundError` traceback.
+
+### Current delta — spec 005 WS5 closeout (2026-06-05)
+
+- Spec 005 is now fully validated and closed: full TS suite green (`246/246`), retained 11-slug export sweep green, and the three high-risk browser spot-check diagrams render with zero errors.
+- Browser warning context is now explicit rather than implicit: `support-engineering-flow` has no violations; `test-deep-nesting` shows 10 warnings; `request-to-hardware-stack` shows 34 `grid-align` warnings, consistent with its intentional `col_gap: 16` invariant exception.
+- Active tracking no longer treats spec 005 as an open implementation slice; the next high-value TS feature should land on a fresh branch after this closeout commit.
 
 ### Recent work — spec 012 complete + arrow editing (2026-06-04)
 
@@ -54,8 +60,8 @@ Commit **`a6822da`** (`scripts: land ts svg renderer cleanup`):
 
 | Priority | Work |
 |----------|------|
-| Now | Spec **005** WS5 validation + spec/task reconciliation after the resolved-style snapshot closeout |
-| Next | Next high-value TS slice from the active TODO queue, avoiding overlap with the separate ELK worktree |
+| Now | Checkpoint the completed spec **005** WS5 closeout, then move to the next non-overlapping TS feature branch |
+| Next | TS force-layout restoration, avoiding overlap with the separate ELK worktree |
 | Parallel | Spec **021** arrow labels use annotation variant — landed |
 | Parallel | Spec **018** PNG export |
 | Parallel | Re-scope Spec **008** Phase 5 docs so it does not deepen Python authority |

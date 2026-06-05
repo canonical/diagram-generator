@@ -39,14 +39,6 @@ Feature package: `specs/020-lean-variant-style-authority/` — new north-star si
 
 - [ ] `[H]` **Rebuild the force-layout lane in TypeScript.** `force.js` and the preview shell remain, but `force_preview.py`, `force_layout.py`, and the tracked JSON example specs are gone. Use `docs/architecture/repo-health-audit-2026-06-05.md` as the brief, keep the rebuild TS-only, and restore `force-stakeholders`, `force-juju-landing-pages`, and `force-support-case-lifecycle` against the existing `diagrams/1.input/force/*.jpg` references.
 
-#### Autolayout hardening — semantic mutation removal (spec 005) — IN PROGRESS
-
-Feature package: `specs/005-autolayout-hardening/` — WS1 largely complete in TS; WS2–WS5 remain.
-
-- [x] `[H]` **H1. Layout mutates Frame tree.** Coercion, col_span, root-width expansion, and grid equalization are runtime-only; semantic fields restore after layout in TS and Python.
-- [x] `[S]` **H3. Heading/body synthesis docs.** WS3 settled in TS (`heading-synthesis.ts` contract table + tests); `__body` does not inherit `wrap`/`fill_weight`/`justify`.
-- [x] `[M]` **H5. Leaf measure vs render padding mismatch.** Shared `spatial.leafIconColumnWidth`; per-side padding tests in `layout.test.ts` (spec 005 WS4).
-
 #### Repo coherence — resolved-style snapshot (spec 008 Phase 5)
 
 Feature package: `specs/008-repo-coherence-rewrite/` — Phases 1–4 and 6–8 complete. Phase 5 (T040–T047, 8 tasks) is the remaining work.

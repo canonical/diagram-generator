@@ -4,6 +4,13 @@ Completed work belongs here so `TODO.md` stays lean.
 
 ## Short-term
 
+### 2026-06-05 – Spec 005 WS5 validation and closeout
+
+- Closed spec 005 after the final validation pass: `npm --prefix packages/layout-engine test` green (`246/246`), retained 11-slug batch SVG export sweep green.
+- Browser spot-checked the three high-risk diagrams named in WS5: `request-to-hardware-stack`, `test-deep-nesting`, and `support-engineering-flow` all render in preview with zero errors.
+- Captured browser warning context honestly instead of treating it as a blocker: `support-engineering-flow` has no violations; `test-deep-nesting` shows 10 warnings; `request-to-hardware-stack` shows 34 `grid-align` warnings consistent with its intentional `col_gap: 16` exception.
+- Updated spec/task tracking so spec 005 is no longer presented as an open implementation slice.
+
 ### 2026-06-05 – Spec 020 invariant-pack corpus prune + semantic YAML trim
 
 - Pruned `scripts/diagrams/frames/` from 19 to **11** canonical slugs; deleted 8 redundant domain fixtures (`android-*`, `lt-*`, `rise-of-inference-economy`).

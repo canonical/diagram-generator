@@ -25,7 +25,7 @@ Use this file to answer two questions quickly:
 | 018 PNG export | `specs/018-png-export/` | Draft | Preview **Save PNG** + slug batch CLI; rasterize TS SVG via Playwright; `diagrams/2.output/v3/png/`. |
 | 019 Preview inspector cleanup | `specs/019-preview-inspector-cleanup/` | Complete | Removed redundant Selection summary fields; id in Auto-layout heading. |
 | — | `specs/ADVERSARIAL_REVIEW_PROMPT.md` | Template | Copy-paste prompt for post-session adversarial reviews. |
-| 005 Autolayout hardening | `specs/005-autolayout-hardening/` | In progress | Semantic mutation removal, coercion, preview save/reload. WS1 complete. |
+| 005 Autolayout hardening | `specs/005-autolayout-hardening/` | Complete | Semantic mutation, style ownership, heading/body synthesis, and padding-contract hardening all validated; WS5 closeout completed on the retained 11-slug corpus. |
 | 008 Repo coherence rewrite | `specs/008-repo-coherence-rewrite/` | In progress | Doc and workflow consolidation toward design-foundry port. |
 
 ## Source docs and reference assets

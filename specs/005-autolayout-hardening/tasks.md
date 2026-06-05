@@ -45,10 +45,16 @@ Note: WS2 closed under spec 008 Phase 5 resolved-style snapshot work. Keep futur
 
 ## Phase 6: Validation and closeout (WS5)
 
-- [ ] T050 Run focused test suite and capture results
-- [ ] T051 Render frame corpus and verify no unplanned regressions
-- [ ] T052 Browser-check high-risk diagrams: request-to-hardware-stack, test-deep-nesting, support-engineering-flow
-- [ ] T053 Update TODO links/status for autolayout section after implementation lands
+- [x] T050 Run focused test suite and capture results
+- [x] T051 Render frame corpus and verify no unplanned regressions
+- [x] T052 Browser-check high-risk diagrams: request-to-hardware-stack, test-deep-nesting, support-engineering-flow
+- [x] T053 Update TODO links/status for autolayout section after implementation lands
+
+Validation capture:
+
+- `npm --prefix packages/layout-engine test` → 246 passed.
+- Retained 11-slug corpus export sweep via `export-frame-svg.mjs` → all passed.
+- Browser spot-checks: all three high-risk diagrams rendered with zero errors. `support-engineering-flow` had no violations; `test-deep-nesting` surfaced 10 warnings; `request-to-hardware-stack` surfaced 34 `grid-align` warnings, consistent with its intentional `col_gap: 16` exception.
 
 ## Parallelization Notes
 
