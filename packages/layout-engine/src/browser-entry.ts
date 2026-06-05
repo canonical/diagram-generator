@@ -134,6 +134,18 @@ export {
 } from './force-runtime.js';
 
 export {
+  captureEditorSnapshot,
+  cloneEditorSnapshotValue,
+  normalizeGridOverrides,
+  parseEditorSnapshot,
+  serializeEditorSnapshot,
+} from './preview-shell/index.js';
+export type {
+  EditorSnapshot,
+  EditorSnapshotInput,
+} from './preview-shell/index.js';
+
+export {
   ELK_LAYERED_PREVIEW_ENGINE,
   FORCE_PREVIEW_ENGINE,
   FORCE_PREVIEW_PARAM_SPECS,

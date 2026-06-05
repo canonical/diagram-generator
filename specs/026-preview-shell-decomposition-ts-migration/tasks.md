@@ -14,7 +14,7 @@
 
 - [x] T010 Extract save/reload orchestration into a dedicated client module
 - [x] T011 Extract ELK controller wiring into a dedicated module
-- [ ] T012 Extract shared editor state helpers into a dedicated state container
+- [x] T012 Extract shared editor state helpers into a dedicated state container
 
 ## Phase 3 - TypeScript-first migration
 

@@ -252,11 +252,7 @@ function _snapEdgeToGrid(edge, targets) {
   return snapEdgeToTarget(edge, targets);
 }
 
-// ---- Undo/Redo stack ----
-let undoStack = [];
-let redoStack = [];
-let pendingGridAction = null;
-const MAX_UNDO_STACK_SIZE = 50;
+// ---- Undo/Redo stack (EditorState container) ----
 
 function setDirty(dirty) {
   PreviewSaveClient.setDirty(dirty);
@@ -269,48 +265,15 @@ function isEditorDirty() {
 }
 
 function _cloneState(value) {
-  return JSON.parse(JSON.stringify(value || {}));
+  return EditorState.cloneValue(value);
 }
 
-function _captureEditorState() {
-  const state = {
-    o: _cloneState(overrides),
-    g: _cloneState(model.gridOverrides || {}),
-  };
-  if (model.elkLayoutOverrides && Object.keys(model.elkLayoutOverrides).length > 0) {
-    state.e = _cloneState(model.elkLayoutOverrides);
-  }
-  if (model.removedIds && model.removedIds.size > 0) {
-    state.r = [...model.removedIds];
-  }
-  if (typeof getFrameTreeJson === "function") {
-    const tree = getFrameTreeJson();
-    if (tree) state.f = tree;
-  }
-  return state;
+function _serializeDirtyState() {
+  return EditorState.serializeDirtyState();
 }
 
 function _normaliseGridOverrides(gridOverrides) {
-  const next = {};
-  if (gridOverrides && Number.isFinite(gridOverrides.cols)) next.cols = gridOverrides.cols;
-  if (gridOverrides && Number.isFinite(gridOverrides.rows)) next.rows = gridOverrides.rows;
-  if (gridOverrides && Number.isFinite(gridOverrides.col_gap)) next.col_gap = gridOverrides.col_gap;
-  if (gridOverrides && Number.isFinite(gridOverrides.row_gap)) next.row_gap = gridOverrides.row_gap;
-  // Per-side margins
-  if (gridOverrides && Number.isFinite(gridOverrides.margin_top)) next.margin_top = gridOverrides.margin_top;
-  if (gridOverrides && Number.isFinite(gridOverrides.margin_right)) next.margin_right = gridOverrides.margin_right;
-  if (gridOverrides && Number.isFinite(gridOverrides.margin_bottom)) next.margin_bottom = gridOverrides.margin_bottom;
-  if (gridOverrides && Number.isFinite(gridOverrides.margin_left)) next.margin_left = gridOverrides.margin_left;
-  // Legacy outer_margin compat (derived from margin_top or col_gap)
-  if (Number.isFinite(next.margin_top)) {
-    next.outer_margin = next.margin_top;
-  } else if (Number.isFinite(next.col_gap)) {
-    next.outer_margin = next.col_gap;
-  }
-  // Toggles
-  if (gridOverrides && typeof gridOverrides.link_to_root === "boolean") next.link_to_root = gridOverrides.link_to_root;
-  if (gridOverrides && typeof gridOverrides.slack_absorption === "boolean") next.slack_absorption = gridOverrides.slack_absorption;
-  return next;
+  return EditorState.normalizeGridOverrides(gridOverrides);
 }
 
 function _pruneLinkedRootGridOverrides() {
@@ -331,22 +294,8 @@ function _pruneLinkedRootGridOverrides() {
   }
 }
 
-function _createUndoCommand(label, beforeState, afterState) {
-  return { label, before: beforeState, after: afterState };
-}
-
-function _createOverridePatchCommand(label, beforeEntries, afterEntries) {
-  return { label, kind: "override-patch", beforeEntries, afterEntries };
-}
-
 function _captureOverrideEntries(ids) {
-  const snapshot = {};
-  const orderedIds = [...new Set(ids || [])].sort();
-  for (const cid of orderedIds) {
-    const entry = overrides[cid];
-    snapshot[cid] = entry ? _cloneState(entry) : null;
-  }
-  return snapshot;
+  return EditorState.captureOverrideEntries(ids);
 }
 
 function _restoreOverrideEntries(entries) {
@@ -372,49 +321,30 @@ function _snapshotNeedsV3Relayout(snapshot) {
   return false;
 }
 
-function _pushUndoCommand(command) {
-  undoStack.push(command);
-  if (undoStack.length > MAX_UNDO_STACK_SIZE) undoStack.shift();
-  redoStack = [];
-  updateUndoRedoButtons();
-  return true;
-}
-
 function beginUndoableAction(label) {
-  return { label, before: _serializeDirtyState() };
+  return EditorState.beginUndoableAction(label);
 }
 
 function commitUndoableAction(action) {
-  if (!action) return false;
-  const after = _serializeDirtyState();
-  if (action.before === after) return false;
-  return _pushUndoCommand(_createUndoCommand(action.label, action.before, after));
+  return EditorState.commitUndoableAction(action);
 }
 
 function commitOverridePatchAction(label, beforeEntries, afterEntries) {
-  if (JSON.stringify(beforeEntries) === JSON.stringify(afterEntries)) return false;
-  return _pushUndoCommand(_createOverridePatchCommand(label, beforeEntries, afterEntries));
+  return EditorState.commitOverridePatchAction(label, beforeEntries, afterEntries);
 }
 
 function runUndoableAction(label, mutate) {
-  const action = beginUndoableAction(label);
-  const result = mutate();
-  commitUndoableAction(action);
-  return result;
+  return EditorState.runUndoableAction(label, mutate);
 }
 
 /** Serialise the full dirty-trackable state (overrides + grid overrides). */
-function _serializeDirtyState() {
-  return JSON.stringify(_captureEditorState());
-}
-
 async function _restoreEditorState(serializedState) {
   if (relayoutTimer) {
     clearTimeout(relayoutTimer);
     relayoutTimer = null;
   }
   clearTimeout(_v3RelayoutTimer);
-  pendingGridAction = null;
+  EditorState.setPendingGridAction(null);
   const currentOverrides = _cloneState(overrides);
   const parsed = JSON.parse(serializedState || "{}");
   const nextOverrides = _cloneState(parsed.o);
@@ -477,7 +407,7 @@ async function _restoreOverridePatch(entries) {
     relayoutTimer = null;
   }
   clearTimeout(_v3RelayoutTimer);
-  pendingGridAction = null;
+  EditorState.setPendingGridAction(null);
   const touchedIds = Object.keys(entries || {});
   const beforeEntries = _captureOverrideEntries(touchedIds);
   _restoreOverrideEntries(entries);
@@ -1032,8 +962,8 @@ function onGridControlChange() {
   const slackEl = document.getElementById("grid-slack");
   const slackAbsorption = slackEl ? slackEl.checked : true;
 
-  if (!pendingGridAction) {
-    pendingGridAction = beginUndoableAction("Adjust grid");
+  if (!EditorState.getPendingGridAction()) {
+    EditorState.setPendingGridAction(beginUndoableAction("Adjust grid"));
   }
 
   // Track grid overrides for persistence
@@ -1060,8 +990,8 @@ function onGridControlChange() {
     try {
       await requestV3Relayout(rootId);
     } finally {
-      commitUndoableAction(pendingGridAction);
-      pendingGridAction = null;
+      commitUndoableAction(EditorState.getPendingGridAction());
+      EditorState.setPendingGridAction(null);
     }
   }, 200);
 
@@ -1341,11 +1271,8 @@ function resetOverrideState() {
   model.removedIds = new Set();
   updateOverrideSummary();
   // Initialize undo stack and saved state
-  undoStack = [];
-  redoStack = [];
-  pendingGridAction = null;
+  EditorState.clearUndoHistory();
   PreviewSaveClient.markSaved(_serializeDirtyState());
-  updateUndoRedoButtons();
 }
 
 function applyWaypointOverrides() {
@@ -1364,39 +1291,16 @@ function applyWaypointOverrides() {
 
 // ---- Undo/Redo functions ----
 
-function canUndo() {
-  return undoStack.length > 0;
-}
-
-function canRedo() {
-  return redoStack.length > 0;
-}
-
 async function performUndo() {
-  if (!canUndo()) return;
-  
-  const command = undoStack.pop();
-  redoStack.push(command);
-  await _applyUndoCommand(command, "undo");
-  
-  updateUndoRedoButtons();
+  await EditorState.undo(_applyUndoCommand);
 }
 
 async function performRedo() {
-  if (!canRedo()) return;
-  
-  const command = redoStack.pop();
-  undoStack.push(command);
-  await _applyUndoCommand(command, "redo");
-  
-  updateUndoRedoButtons();
+  await EditorState.redo(_applyUndoCommand);
 }
 
 function updateUndoRedoButtons() {
-  const undoBtn = document.getElementById("btn-undo");
-  const redoBtn = document.getElementById("btn-redo");
-  if (undoBtn) undoBtn.disabled = !canUndo();
-  if (redoBtn) redoBtn.disabled = !canRedo();
+  EditorState.updateUndoRedoButtons();
 }
 
 // ---- Override application ----
@@ -6406,6 +6310,38 @@ function initDiagramPicker() {
   void populateDiagramOptions();
 }
 
+function _initEditorState() {
+  if (typeof EditorState === "undefined") {
+    window.EditorState = {
+      init() {},
+      cloneValue(value) { return JSON.parse(JSON.stringify(value || {})); },
+      serializeDirtyState() { return "{}"; },
+      normalizeGridOverrides(value) { return value || {}; },
+      beginUndoableAction(label) { return { label, before: "{}" }; },
+      commitUndoableAction() { return false; },
+      commitOverridePatchAction() { return false; },
+      runUndoableAction(_label, mutate) { return mutate(); },
+      pushUndoCommand() { return false; },
+      captureOverrideEntries() { return {}; },
+      canUndo() { return false; },
+      canRedo() { return false; },
+      undo() { return Promise.resolve(null); },
+      redo() { return Promise.resolve(null); },
+      clearUndoHistory() {},
+      getPendingGridAction() { return null; },
+      setPendingGridAction() {},
+      updateUndoRedoButtons() {},
+    };
+  }
+  EditorState.init({
+    getOverrides: () => overrides,
+    getGridOverrides: () => model.gridOverrides,
+    getElkLayoutOverrides: () => model.elkLayoutOverrides || {},
+    getRemovedIds: () => model.removedIds,
+    getFrameTree: () => (typeof getFrameTreeJson === "function" ? getFrameTreeJson() : null),
+  });
+}
+
 function _initElkPreviewController() {
   if (typeof ElkPreviewController === "undefined") {
     window.ElkPreviewController = {
@@ -6459,6 +6395,7 @@ function _initPreviewSaveClient() {
 initPreviewShell();
 initDiagramPicker();
 initNavTabs();
+_initEditorState();
 _initElkPreviewController();
 _initPreviewSaveClient();
 window.addEventListener("pageshow", (event) => {

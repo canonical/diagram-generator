@@ -34,6 +34,13 @@ Making a diagram for a review or deck: **[`docs/stakeholder-guide.md`](docs/stak
 | **Batch SVG** | `export-frame-svg.mjs` — TS-only (`svg-render.ts`); golden harness `tests/svg-golden.test.ts` (3 canonical slugs after the first pruning pass) |
 | **Tests** | Latest full TS suite green in the current slice (`246/246`); retained 11-slug export sweep green; focused preview browser regressions green; spec 005 high-risk browser spot-checks render with zero errors; `test_preview_frames_dir.py` and `test_preview_ts_api.py` green. Full `pytest scripts -q` still has legacy parity drift outside the active TS path |
 
+### Current delta — spec 026 T012 editor state extraction (2026-06-06)
+
+- Extracted undo/redo stacks, pending grid action, and dirty snapshot serialization from `editor.js` into `scripts/preview/editor-state.js` (`EditorState` container).
+- TS-owned snapshot helpers live in `packages/layout-engine/src/preview-shell/editor-snapshot.ts` and export through `LayoutEngine` for browser consumption.
+- `viewer-unified.html` loads `editor-state.js` before mode scripts; `editor.js` delegates via `EditorState.init()` and no longer owns local undo/redo stack variables.
+- Focused coverage: `scripts/test_preview_editor_state.py`, `packages/layout-engine/tests/editor-snapshot.test.ts`; full preview regression suite green (31 pytest + 16 vitest in the validation slice).
+
 ### Current delta — spec 026 T011 ELK controller extraction (2026-06-05)
 
 - Extracted ELK shell wiring from `editor.js` into `scripts/preview/elk-controller.js` (`ElkPreviewController`: engine detection via preview-engine registry, sidebar init, override state, relayout requests).
@@ -117,7 +124,7 @@ Commit **`a6822da`** (`scripts: land ts svg renderer cleanup`):
 
 | Priority | Work |
 |----------|------|
-| Now | Continue **spec 026** — extract shared editor state helpers (T012) |
+| Now | Continue **spec 026** — TS-first migration of extracted shell logic (T020–T022) |
 | Next | Resume **spec 022** diagram authoring AST after the preview architecture slices |
 | Later | Start **spec 024** ELK interactive node alignment once spec 026 state boundaries are in place |
 
