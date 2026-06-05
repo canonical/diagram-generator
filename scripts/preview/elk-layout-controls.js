@@ -17,13 +17,13 @@
         { value: "UP", label: "Bottom → top" },
         { value: "LEFT", label: "Right → left" },
       ] },
-    { key: "elk.layered.spacing.nodeNodeBetweenLayers", label: "Layer gap", group: "Spacing", kind: "number", defaultValue: "96", min: 8, max: 512, step: 8,
+    { key: "elk.layered.spacing.nodeNodeBetweenLayers", label: "Layer gap", group: "Spacing", kind: "number", defaultValue: "144", min: 8, max: 512, step: 8,
       description: "Vertical gap between layers — main control for arrow length (TB)." },
     { key: "elk.spacing.nodeNode", label: "Same-layer gap", group: "Spacing", kind: "number", defaultValue: "48", min: 8, max: 256, step: 8 },
-    { key: "elk.spacing.edgeNode", label: "Edge ↔ node", group: "Spacing", kind: "number", defaultValue: "24", min: 0, max: 128, step: 4,
+    { key: "elk.spacing.edgeNode", label: "Edge ↔ node", group: "Spacing", kind: "number", defaultValue: "56", min: 0, max: 128, step: 4,
       description: "Clearance between edges and boxes — helps keep labels off nodes." },
-    { key: "elk.spacing.edgeEdge", label: "Edge ↔ edge", group: "Spacing", kind: "number", defaultValue: "32", min: 0, max: 128, step: 4 },
-    { key: "elk.layered.spacing.edgeEdgeBetweenLayers", label: "Edge gap (layers)", group: "Spacing", kind: "number", defaultValue: "32", min: 0, max: 128, step: 4 },
+    { key: "elk.spacing.edgeEdge", label: "Edge ↔ edge", group: "Spacing", kind: "number", defaultValue: "48", min: 0, max: 128, step: 4 },
+    { key: "elk.layered.spacing.edgeEdgeBetweenLayers", label: "Edge gap (layers)", group: "Spacing", kind: "number", defaultValue: "40", min: 0, max: 128, step: 4 },
     { key: "elk.edgeRouting", label: "Edge routing", group: "Edges", kind: "enum", defaultValue: "ORTHOGONAL",
       enumValues: [
         { value: "ORTHOGONAL", label: "Orthogonal" },
@@ -73,7 +73,14 @@
   function _isElkDiagram(frameTreeJson) {
     if (frameTreeJson && frameTreeJson.layoutEngine === "elk-layered") return true;
     const cfg = window.__DG_CONFIG || {};
-    return cfg.layout_engine === "elk-layered";
+    if (cfg.layout_engine === "elk-layered") return true;
+    const section = document.getElementById(SECTION_ID);
+    if (section && !section.hasAttribute("hidden")) return true;
+    return false;
+  }
+
+  function _containerHasPlaceholder(container) {
+    return /%ELK_LAYOUT_CONTROLS_HTML%/.test(container.innerHTML);
   }
 
   function _paramSpecs() {
@@ -104,7 +111,8 @@
 
   function _groups() {
     if (typeof LayoutEngine !== "undefined" && typeof LayoutEngine.elkParamGroups === "function") {
-      return LayoutEngine.elkParamGroups();
+      const fromBundle = LayoutEngine.elkParamGroups();
+      if (fromBundle && fromBundle.length) return fromBundle;
     }
     const buckets = new Map();
     for (const spec of _paramSpecs()) {
@@ -175,8 +183,24 @@
     return next;
   }
 
+  function _ensureInit() {
+    if (typeof window.__DG_ensureElkControlsInit === "function") {
+      window.__DG_ensureElkControlsInit();
+    }
+  }
+
+  function collectOverrides() {
+    _ensureInit();
+    return _collectOverridesFromDom();
+  }
+
   function _onControlInput() {
-    _setOverrides(_collectOverridesFromDom());
+    if (!window.__DG_elkControlsInited) _ensureInit();
+    const next = _collectOverridesFromDom();
+    _setOverrides(next);
+    if (typeof window.__DG_applyElkLayoutOverrides === "function") {
+      window.__DG_applyElkLayoutOverrides(next);
+    }
     if (typeof window.setDirty === "function") window.setDirty(true);
     if (_relayoutTimer) clearTimeout(_relayoutTimer);
     _relayoutTimer = setTimeout(() => {
@@ -191,9 +215,29 @@
 
   function _bindControls(container) {
     container.querySelectorAll("[data-elk-key]").forEach((el) => {
+      if (el.dataset.elkBound === "1") return;
+      el.dataset.elkBound = "1";
       el.addEventListener("input", _onControlInput);
       el.addEventListener("change", _onControlInput);
     });
+  }
+
+  function _syncExistingControls(container, resolved) {
+    const activeId = document.activeElement && document.activeElement.id;
+    for (const spec of _paramSpecs()) {
+      const id = _controlId(spec);
+      const el = document.getElementById(id);
+      if (!el) continue;
+      // Do not clobber the field the user is actively editing.
+      if (activeId && id === activeId) continue;
+      const val = resolved[spec.key] ?? spec.defaultValue;
+      if (spec.kind === "boolean") {
+        el.checked = val === "true" || val === true;
+      } else {
+        el.value = String(val);
+      }
+    }
+    _bindControls(container);
   }
 
   function buildPanel(frameTreeJson) {
@@ -204,8 +248,11 @@
     const isElk = _isElkDiagram(frameTreeJson);
     section.hidden = !isElk;
     if (!isElk) {
-      container.innerHTML = "";
       return;
+    }
+
+    if (_containerHasPlaceholder(container)) {
+      container.textContent = "";
     }
 
     const family = _slugToFamily(frameTreeJson && frameTreeJson.diagramType);
@@ -213,6 +260,12 @@
     const yamlElk = (frameTreeJson && frameTreeJson.elkLayout) || {};
     const merged = { ...yamlElk, ...session };
     const resolved = _resolvedValues(family, merged);
+
+    if (container.querySelector("[data-elk-key]")) {
+      _syncExistingControls(container, resolved);
+      _bindElkViewToggles(section);
+      return;
+    }
 
     const parts = [];
     if (typeof LayoutEngine === "undefined") {
@@ -233,20 +286,54 @@
     }
     container.innerHTML = parts.join("");
     _bindControls(container);
+    _bindElkViewToggles(section);
+  }
+
+  function _bindElkViewToggles(section) {
+    const rawToggle = section.querySelector("#elk-raw-view-toggle");
+    if (rawToggle && rawToggle.dataset.elkBound !== "1") {
+      rawToggle.dataset.elkBound = "1";
+      rawToggle.checked = !!window.__DG_elkRawView;
+      rawToggle.addEventListener("change", () => {
+        if (typeof window.__DG_setElkRawView === "function") {
+          window.__DG_setElkRawView(rawToggle.checked);
+        }
+      });
+    }
+
+    const debugToggle = section.querySelector("#elk-debug-overlay-toggle");
+    if (debugToggle && debugToggle.dataset.elkBound !== "1") {
+      debugToggle.dataset.elkBound = "1";
+      debugToggle.checked = !!window.__DG_elkDebugOverlay;
+      debugToggle.addEventListener("change", () => {
+        if (typeof window.__DG_setElkDebugOverlay === "function") {
+          window.__DG_setElkDebugOverlay(debugToggle.checked);
+        }
+      });
+    }
   }
 
   function init(options) {
     _getOverrides = (options && options.getOverrides) || (() => ({}));
     _setOverrides = (options && options.setOverrides) || (() => {});
-    buildPanel(typeof getFrameTreeJson === "function" ? getFrameTreeJson() : null);
+  }
+
+  function refresh() {
+    const tree = typeof getFrameTreeJson === "function" ? getFrameTreeJson() : null;
+    buildPanel(tree);
   }
 
   window.ElkLayoutControls = {
     init,
     buildPanel,
-    refresh: () => {
-      const tree = typeof getFrameTreeJson === "function" ? getFrameTreeJson() : null;
-      buildPanel(tree);
-    },
+    refresh,
+    collectOverrides,
   };
+
+  window.addEventListener("dg-diagram-loaded", refresh);
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", refresh);
+  } else {
+    refresh();
+  }
 })();

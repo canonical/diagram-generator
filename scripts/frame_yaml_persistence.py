@@ -356,6 +356,26 @@ def _apply_frame_override(frame_data: dict[str, Any], override: Any, frame_id: s
             _apply_direct_field(frame_data, key, value)
 
 
+def _apply_elk_layout_overrides(document: dict[str, Any], elk_overrides: dict[str, Any]) -> None:
+    if not elk_overrides:
+        return
+    meta = document.setdefault("meta", {})
+    if not isinstance(meta, dict):
+        raise ValueError("meta must be a mapping")
+    elk: dict[str, str] = {}
+    if isinstance(meta.get("elk"), dict):
+        elk = {str(k): str(v) for k, v in meta["elk"].items()}
+    for key, value in elk_overrides.items():
+        if value is None or value == "":
+            elk.pop(str(key), None)
+        else:
+            elk[str(key)] = str(value)
+    if elk:
+        meta["elk"] = elk
+    elif "elk" in meta:
+        del meta["elk"]
+
+
 def persist_override_payload_to_yaml(
     frame_path: pathlib.Path,
     payload: dict[str, Any],
@@ -373,7 +393,9 @@ def persist_override_payload_to_yaml(
         raise ValueError("removed_ids must be an array")
     grid_overrides = payload.get("grid_overrides")
     has_grid_overrides = "grid_overrides" in payload and isinstance(grid_overrides, dict) and len(grid_overrides) > 0
-    if not overrides and not has_grid_overrides and not removed_ids:
+    elk_layout_overrides = payload.get("elk_layout_overrides")
+    has_elk_overrides = isinstance(elk_layout_overrides, dict) and len(elk_layout_overrides) > 0
+    if not overrides and not has_grid_overrides and not removed_ids and not has_elk_overrides:
         return
 
     document = yaml.safe_load(frame_path.read_text(encoding="utf-8"))
@@ -388,6 +410,9 @@ def persist_override_payload_to_yaml(
 
     if "grid_overrides" in payload:
         _apply_grid_overrides(document, payload.get("grid_overrides"))
+
+    if has_elk_overrides:
+        _apply_elk_layout_overrides(document, elk_layout_overrides)
 
     if removed_ids:
         _apply_removed_frame_ids(document, removed_ids)

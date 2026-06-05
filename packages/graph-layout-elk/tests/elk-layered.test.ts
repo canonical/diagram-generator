@@ -194,6 +194,23 @@ describe('ELK layered (Sugiyama)', () => {
     }
   });
 
+  it('returns edge label geometry when label boxes are supplied', async () => {
+    const result = await layoutLayered({
+      id: 'root',
+      direction: 'TB',
+      nodes: [{ id: 'a', ...BOX }, { id: 'b', ...BOX }],
+      edges: [{
+        id: 'e1',
+        source: 'a',
+        target: 'b',
+        labels: [{ text: 'step 1', width: 96, height: 24 }],
+      }],
+    });
+    expect(result.edges[0]?.labels?.length).toBe(1);
+    expect(result.edges[0]?.labels?.[0]?.text).toBe('step 1');
+    expect(result.edges[0]?.labels?.[0]?.width).toBeGreaterThan(0);
+  });
+
   it('layoutLayeredForFamily applies data-flow LR defaults', async () => {
     const result = await layoutLayeredForFamily('data_flow_and_integration', {
       id: 'root',

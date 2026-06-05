@@ -57,6 +57,40 @@ def test_persist_override_payload_writes_canonical_yaml_fields(tmp_path):
     assert "grid_overrides:" not in saved_text
 
 
+def test_persist_elk_layout_overrides_writes_meta_elk(tmp_path):
+    frame_path = tmp_path / "demo.yaml"
+    frame_path.write_text(
+        """
+engine: v3
+title: Demo
+meta:
+  layout_engine: elk-layered
+root:
+  id: page
+  direction: vertical
+  children:
+    - id: leaf_a
+      label: [A]
+""".strip(),
+        encoding="utf-8",
+    )
+
+    persist_override_payload_to_yaml(
+        frame_path,
+        {
+            "overrides": {},
+            "elk_layout_overrides": {
+                "elk.layered.spacing.nodeNodeBetweenLayers": "144",
+                "elk.spacing.edgeNode": "56",
+            },
+        },
+    )
+
+    saved_yaml = yaml.safe_load(frame_path.read_text(encoding="utf-8"))
+    assert saved_yaml["meta"]["elk"]["elk.layered.spacing.nodeNodeBetweenLayers"] == "144"
+    assert saved_yaml["meta"]["elk"]["elk.spacing.edgeNode"] == "56"
+
+
 def test_persist_removed_ids_prunes_frames_and_arrows(tmp_path):
     frame_path = tmp_path / "demo.yaml"
     frame_path.write_text(

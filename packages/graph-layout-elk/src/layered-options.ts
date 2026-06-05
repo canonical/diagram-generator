@@ -67,8 +67,13 @@ export function layeredConfigForFamily(family: LayeredCorpusFamily): LayeredLayo
       return {
         direction: 'TB',
         spacingProfile: 'normal',
-        betweenLayersPx: 96,
+        betweenLayersPx: 144,
         sameLayerPx: 48,
+        optionOverrides: {
+          'elk.spacing.edgeNode': '56',
+          'elk.spacing.edgeEdge': '48',
+          'elk.layered.spacing.edgeEdgeBetweenLayers': '40',
+        },
       };
   }
 }
@@ -85,6 +90,7 @@ export function buildLayeredLayoutOptions(config: LayeredLayoutConfig): ElkLayou
   base['elk.direction'] = DIRECTION[direction];
   base['elk.layered.spacing.nodeNodeBetweenLayers'] = betweenLayers;
   base['elk.spacing.nodeNode'] = sameLayer;
+  base['elk.edgeLabels.inline'] = 'true';
 
   return resolveElkLayoutOptions(base, config.optionOverrides);
 }

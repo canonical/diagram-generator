@@ -113,7 +113,7 @@
             <button class="btn bf-button is-base" id="btn-export-json" type="button">Export JSON</button>
             <button class="btn bf-button is-base" id="btn-export-svg" type="button">Export SVG</button>
           </div>
-          <p class="bf-form-help dg-override-summary" id="force-summary">The force preview shell is wired and the authored YAML sources are restored. Live simulation resumes when the TypeScript runtime lands.</p>
+          <p class="bf-form-help dg-override-summary" id="force-summary">The force preview shell is wired and the authored YAML sources are restored. Save writes the current defaults and node state to YAML.</p>
         </section>
 
         <!-- ── Shared: Inspector / Selection ── -->
@@ -182,7 +182,19 @@
         <section class="dg-sidebar-section dg-grid-only" id="elk-layout-section" %ELK_SECTION_HIDDEN%>
           <h2 class="dg-section-heading bf-h5">ELK layout</h2>
           <div class="grid-controls" id="elk-layout-controls"></div>
-          <p class="bf-form-help dg-override-summary">Layer spacing, edge routing, and compound options. Changes relayout live.</p>
+          <p class="bf-form-help dg-override-summary">Layer spacing and routing options pass through to ELK. Step labels are measured and placed by ELK (not post-hoc).</p>
+          <label class="bf-switch is-full-span dg-elk-only">
+            <input class="bf-switch-input" type="checkbox" id="elk-raw-view-toggle">
+            <span class="bf-switch-slider"></span>
+            <span class="bf-switch-label">Show ELK raw view</span>
+          </label>
+          <p class="bf-form-help">Replaces BF styling with ELK’s default look: gray boxes, black orthogonal edges, ELK-placed labels.</p>
+          <label class="bf-switch is-full-span dg-elk-only">
+            <input class="bf-switch-input" type="checkbox" id="elk-debug-overlay-toggle">
+            <span class="bf-switch-slider"></span>
+            <span class="bf-switch-label">Show ELK debug overlay</span>
+          </label>
+          <p class="bf-form-help">Overlay on styled view: dashed blue rects = node boxes, green = routes, amber = label bounds.</p>
         </section>
 
         <!-- ── Grid mode: Overrides ── -->

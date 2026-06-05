@@ -15,16 +15,6 @@ const mgr = new InteractionManager();
 const constraints = createDefaultRegistry();
 let lastViolations = [];
 
-if (window.ElkLayoutControls) {
-  ElkLayoutControls.init({
-    getOverrides: () => model.elkLayoutOverrides || {},
-    setOverrides: (v) => {
-      model.elkLayoutOverrides = { ...v };
-    },
-  });
-  window.__DG_elkControlsInited = true;
-}
-
 // Legacy accessors – thin wrappers that delegate to model/mgr so the rest of
 // the file can be migrated incrementally.
 function _getOverrides() { return model.overrides; }
@@ -621,29 +611,37 @@ async function loadSVG(options = {}) {
   runConstraints();
   lastSavedState = _serializeDirtyState();
   setDirty(false);
-  _signalDiagramLoaded();
   _initElkLayoutPanel();
+  _signalDiagramLoaded();
 }
 
 function _isElkLayeredDiagram() {
   const tree = typeof getFrameTreeJson === "function" ? getFrameTreeJson() : null;
-  return !!(tree && tree.layoutEngine === "elk-layered");
+  if (tree && tree.layoutEngine === "elk-layered") return true;
+  const cfg = window.__DG_CONFIG || {};
+  return cfg.layout_engine === "elk-layered";
 }
 
 function _initElkLayoutPanel() {
   if (!window.ElkLayoutControls) return;
-  if (!window.__DG_elkControlsInited) {
-    ElkLayoutControls.init({
-      getOverrides: () => model.elkLayoutOverrides || {},
-      setOverrides: (v) => {
-        model.elkLayoutOverrides = { ...v };
-      },
-    });
-    window.__DG_elkControlsInited = true;
-  } else {
-    ElkLayoutControls.refresh();
-  }
+  if (window.__DG_elkControlsInited) return;
+  ElkLayoutControls.init({
+    getOverrides: () => model.elkLayoutOverrides || {},
+    setOverrides: (v) => {
+      model.elkLayoutOverrides = { ...v };
+    },
+  });
+  window.__DG_elkControlsInited = true;
+  ElkLayoutControls.refresh();
 }
+
+window.__DG_ensureElkControlsInit = function () {
+  _initElkLayoutPanel();
+};
+
+window.__DG_applyElkLayoutOverrides = function (overrides) {
+  model.elkLayoutOverrides = { ...(overrides || {}) };
+};
 
 async function _finishV3Relayout(triggerCid, localResult, executionLabel) {
   if (!localResult) {
@@ -685,6 +683,9 @@ function _signalDiagramLoaded() {
   window.dispatchEvent(new CustomEvent("dg-diagram-loaded", {
     detail: { generation: _diagramLoadGeneration, slug: SLUG },
   }));
+  if (window.ElkLayoutControls && typeof ElkLayoutControls.refresh === "function") {
+    ElkLayoutControls.refresh();
+  }
 }
 
 function whenDiagramLoaded() {
@@ -4675,6 +4676,12 @@ let _resizeRafId = null;
 let _resizeLatest = null;
 
 function _scheduleV3ResizeRelayout(cid, newW, newH, resizedW, resizedH) {
+  // ELK diagrams must not run box autolayout during live resize — it corrupts
+  // ELK positions/routes. Visual feedback comes from applyAllOverrides(); full
+  // ELK relayout runs on mouseup via requestV3Relayout().
+  if (typeof _isElkLayeredDiagram === "function" && _isElkLayeredDiagram()) {
+    return;
+  }
   _resizeLatest = { cid, newW, newH, resizedW, resizedH };
   if (_resizeRafId) return; // already scheduled for next paint frame
   _resizeRafId = requestAnimationFrame(() => {
@@ -5569,6 +5576,9 @@ async function requestV3Relayout(triggerCid) {
 }
 
 window.requestElkRelayout = async function () {
+  if (window.ElkLayoutControls && typeof ElkLayoutControls.collectOverrides === "function") {
+    window.__DG_applyElkLayoutOverrides(ElkLayoutControls.collectOverrides());
+  }
   const rootId = (model.roots[0] || {}).id || "root";
   return requestV3Relayout(rootId);
 };

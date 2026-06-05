@@ -361,6 +361,23 @@ function _arrowheadPoints(
   return { base: [bx, by], polyPoints: pts };
 }
 
+function labelAnchorForSegment(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  labelGap: number,
+): { lx: number; ly: number } {
+  const mx = (x1 + x2) / 2;
+  const my = (y1 + y2) / 2;
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const len = Math.hypot(dx, dy) || 1;
+  const nx = -dy / len;
+  const ny = dx / len;
+  return { lx: mx + nx * labelGap, ly: my + ny * labelGap };
+}
+
 function renderArrows(routed: RoutedArrow[], adapter: TextMeasureAdapter): string {
   const parts: string[] = [];
   for (const arrow of routed) {
@@ -387,21 +404,34 @@ function renderArrows(routed: RoutedArrow[], adapter: TextMeasureAdapter): strin
     }
     if (head) inner.push(`<polygon points="${head.polyPoints}" fill="${esc(color)}"/>`);
 
-    // Arrow label at midpoint of shaft, offset above the line
+    // Arrow label on longest shaft segment — annotation typography, offset from line.
     if (label && label.length > 0) {
-      const midIdx = Math.floor((shaftPoints.length - 1) / 2);
-      const [mx1, my1] = shaftPoints[midIdx]!;
-      const [mx2, my2] = shaftPoints[Math.min(midIdx + 1, shaftPoints.length - 1)]!;
-      const lx = (mx1 + mx2) / 2;
-      const ly = Math.min(my1, my2) - labelGap;
+      let bestIdx = 0;
+      let bestLen = 0;
+      for (let i = 0; i < shaftPoints.length - 1; i++) {
+        const [x1, y1] = shaftPoints[i]!;
+        const [x2, y2] = shaftPoints[i + 1]!;
+        const len = Math.hypot(x2 - x1, y2 - y1);
+        if (len > bestLen) {
+          bestLen = len;
+          bestIdx = i;
+        }
+      }
+      const [mx1, my1] = shaftPoints[bestIdx]!;
+      const [mx2, my2] = shaftPoints[bestIdx + 1]!;
+      const { lx, ly } = labelAnchorForSegment(mx1, my1, mx2, my2, labelGap);
       const specs = label.map(annotationTextToSpec);
       if (specs.length > 0) {
-        let top = ly;
+        const totalHeight = specs.reduce((sum, spec, index) => {
+          const lineStep = sizeToPx(spec.lineStep ?? BODY_LINE_STEP);
+          return sum + (index === 0 ? 0 : lineStep);
+        }, 0);
+        let top = ly - totalHeight / 2;
         const tspans: string[] = [];
         for (const spec of specs) {
           const size = String(spec.size ?? BODY_SIZE);
           const weight = spec.weight ?? '400';
-          const fill = spec.fill ?? '#000000';
+          const fill = spec.fill ?? '#666666';
           const lineStep = sizeToPx(spec.lineStep ?? BODY_LINE_STEP);
           const attrs = [
             `x="${fmt(lx)}"`,
@@ -415,7 +445,9 @@ function renderArrows(routed: RoutedArrow[], adapter: TextMeasureAdapter): strin
           tspans.push(`<tspan ${attrs.join(' ')}>${esc(spec.content)}</tspan>`);
           top += lineStep;
         }
-        inner.push(`<text font-family="Ubuntu Sans">${tspans.join('')}</text>`);
+        inner.push(
+          `<text font-family="Ubuntu Sans" text-anchor="middle" dominant-baseline="middle">${tspans.join('')}</text>`,
+        );
       }
     }
 

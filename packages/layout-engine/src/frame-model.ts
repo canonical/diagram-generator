@@ -129,6 +129,8 @@ export interface Arrow {
   waypoints?: [number, number][];
   /** Full orthogonal polyline from ELK (or other layout engine); bypasses box-edge inference. */
   layoutPath?: [number, number][];
+  /** ELK-placed edge label geometry (absolute canvas coordinates). */
+  elkLabels?: { text: string; x: number; y: number; width: number; height: number }[];
   label?: Line[];
   labelGap?: number;
 }

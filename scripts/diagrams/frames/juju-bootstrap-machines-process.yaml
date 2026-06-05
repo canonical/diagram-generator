@@ -7,6 +7,12 @@ title: "Juju bootstrap on machines (process)"
 meta:
   diagram_type: process_and_workflow
   layout_engine: elk-layered
+  elk:
+    elk.layered.spacing.nodeNodeBetweenLayers: "144"
+    elk.spacing.nodeNode: "48"
+    elk.spacing.edgeNode: "56"
+    elk.spacing.edgeEdge: "48"
+    elk.layered.spacing.edgeEdgeBetweenLayers: "40"
   abstraction_level: context
   corpus_content_hash: sha256:983e195f9303c86c
   corpus_estate: output-juju-docs
@@ -20,37 +26,37 @@ arrows:
     source: client
     target: simplestreams_binaries
     label: "1: agent binary location"
-    label_gap: 8
+    label_gap: 24
   - id: step2
     source: client
     target: simplestreams_images
     label: "2: image location"
-    label_gap: 8
+    label_gap: 24
   - id: step3
     source: client
     target: cloud
     label: "3: initial machine"
-    label_gap: 8
+    label_gap: 24
   - id: step4
     source: cloud
     target: client
     label: "4: provision + contact info"
-    label_gap: 8
+    label_gap: 24
   - id: step5
     source: client
     target: controller_agent
     label: "5: SSH + setup"
-    label_gap: 8
+    label_gap: 24
   - id: step6
     source: controller_agent
     target: snap_store
     label: "6: juju-db snap"
-    label_gap: 8
+    label_gap: 24
   - id: step7
     source: controller_agent
     target: charmhub
     label: "7: controller charm"
-    label_gap: 8
+    label_gap: 24
 root:
   id: page
   direction: vertical

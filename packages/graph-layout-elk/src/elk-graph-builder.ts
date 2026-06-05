@@ -16,6 +16,7 @@ export interface ElkGraphEdge {
   id: string;
   sources: string[];
   targets: string[];
+  labels?: { text: string; width: number; height: number }[];
 }
 
 export interface ElkGraphRoot {
@@ -44,6 +45,15 @@ export function buildElkGraph(
     id: edge.id,
     sources: [edge.source],
     targets: [edge.target],
+    ...(edge.labels?.length
+      ? {
+          labels: edge.labels.map((label) => ({
+            text: label.text,
+            width: label.width,
+            height: label.height,
+          })),
+        }
+      : {}),
   }));
 
   return {

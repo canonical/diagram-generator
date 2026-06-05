@@ -63,7 +63,10 @@ export async function layoutLayeredForFamily(
 ): Promise<GraphLayoutResult> {
   const config = layeredConfigForFamily(family);
   if (optionOverrides) {
-    config.optionOverrides = optionOverrides;
+    config.optionOverrides = {
+      ...config.optionOverrides,
+      ...optionOverrides,
+    };
   }
   return layoutLayered(
     {

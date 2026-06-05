@@ -2,6 +2,7 @@ import type {
   GraphLayoutInput,
   GraphLayoutResult,
   PlacedEdge,
+  PlacedEdgeLabel,
   PlacedNode,
   Point2,
   RoutedEdgeSection,
@@ -20,11 +21,20 @@ interface ElkLayoutSection {
   bendPoints?: ElkLayoutPoint[];
 }
 
+interface ElkLayoutLabel {
+  text?: string;
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+}
+
 interface ElkLayoutEdge {
   id: string;
   sources?: string[];
   targets?: string[];
   sections?: ElkLayoutSection[];
+  labels?: ElkLayoutLabel[];
   /** ELK: edge path coordinates are relative to this compound node (or root graph id). */
   container?: string;
 }
@@ -105,6 +115,22 @@ function containerOffset(
   return { x: node.x, y: node.y };
 }
 
+function mapEdgeLabels(
+  labels: ElkLayoutLabel[] | undefined,
+  offset: Point2,
+): PlacedEdgeLabel[] {
+  if (!labels?.length) return [];
+  return labels
+    .filter((label) => label.text != null && label.x != null && label.y != null)
+    .map((label) => ({
+      text: label.text!,
+      x: snap(label.x! + offset.x),
+      y: snap(label.y! + offset.y),
+      width: label.width ?? 0,
+      height: label.height ?? 0,
+    }));
+}
+
 function normalizeEdges(
   edges: ElkLayoutEdge[],
   rootId: string,
@@ -122,6 +148,7 @@ function normalizeEdges(
       source: edge.sources?.[0] ?? '',
       target: edge.targets?.[0] ?? '',
       sections,
+      labels: mapEdgeLabels(edge.labels, offset),
     };
   });
 }

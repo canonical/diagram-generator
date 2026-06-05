@@ -2,14 +2,21 @@
  * Wire ELK layered positions into FrameDiagram using the same measure + render path
  * as box autolayout. ELK supplies coordinates only — styling comes from resolveStyles().
  */
-import type { GraphLayoutInput, GraphNodeInput, LayeredCorpusFamily, PlacedEdge, PlacedNode } from '@diagram-generator/graph-layout-core';
+import type { GraphLayoutInput, GraphLayoutResult, GraphNodeInput, LayeredCorpusFamily, PlacedEdge, PlacedNode } from '@diagram-generator/graph-layout-core';
 import { layoutLayeredForFamily } from '@diagram-generator/graph-layout-elk';
 
-import { Frame, FrameDiagram, Border } from './frame-model.js';
+import { Frame, FrameDiagram, Border, createLine } from './frame-model.js';
 import { measure, type LayoutOutput } from './layout.js';
 import { resolveStyles } from './resolve-styles.js';
+import { annotationTextToSpec } from './resolved-spec-typography.js';
 import type { TextMeasureAdapter } from './text-measure.js';
-import { INSET } from './tokens.js';
+import { lineSpecToMeasureRequest } from './text-measure.js';
+import { INSET, roundUpToGrid, sizeToPx, BODY_LINE_STEP } from './tokens.js';
+
+export interface ElkLayoutSnapshot extends GraphLayoutResult {
+  originX: number;
+  originY: number;
+}
 
 export interface ElkLayoutOptions {
   diagramType?: LayeredCorpusFamily;
@@ -18,6 +25,11 @@ export interface ElkLayoutOptions {
   originY?: number;
   /** Session/YAML ELK option overrides (full elk.* keys). */
   elkOptionOverrides?: Record<string, string>;
+}
+
+export interface ElkLayoutOutput extends LayoutOutput {
+  /** Raw ELK node/edge geometry for debug overlay (absolute coordinates). */
+  elkSnapshot?: ElkLayoutSnapshot;
 }
 
 function findFrame(root: Frame, id: string): Frame | null {
@@ -210,6 +222,73 @@ function simplifyOrthogonalPath(points: [number, number][]): [number, number][] 
   return out;
 }
 
+function measureEdgeLabelBox(text: string, adapter: TextMeasureAdapter): { width: number; height: number } {
+  const spec = annotationTextToSpec(createLine(text));
+  const req = lineSpecToMeasureRequest(spec);
+  const width = adapter.measureTextWidth(req);
+  const height = sizeToPx(spec.lineStep ?? BODY_LINE_STEP);
+  const pad = 4;
+  return {
+    width: roundUpToGrid(width + pad * 2),
+    height: roundUpToGrid(height + pad * 2),
+  };
+}
+
+function arrowLabelText(arrow: { label?: { content: string }[] }): string {
+  if (!arrow.label?.length) return '';
+  return arrow.label.map((line) => line.content).join(' ').trim();
+}
+
+function buildGraphEdges(
+  diagram: FrameDiagram,
+  adapter: TextMeasureAdapter,
+): GraphLayoutInput['edges'] {
+  return diagram.arrows.map((a, i) => {
+    const edge: GraphLayoutInput['edges'][number] = {
+      id: a.id ?? `edge-${i}`,
+      source: a.source.split('.')[0]!,
+      target: a.target.split('.')[0]!,
+    };
+    const text = arrowLabelText(a);
+    if (text) {
+      const dims = measureEdgeLabelBox(text, adapter);
+      edge.labels = [{ text, width: dims.width, height: dims.height }];
+    }
+    return edge;
+  });
+}
+
+function applyElkEdgeLabels(
+  diagram: FrameDiagram,
+  edges: PlacedEdge[],
+  originX: number,
+  originY: number,
+): void {
+  const byId = new Map<string, PlacedEdge>();
+  const byEndpoints = new Map<string, PlacedEdge>();
+  for (const edge of edges) {
+    byId.set(edge.id, edge);
+    byEndpoints.set(`${edge.source}->${edge.target}`, edge);
+  }
+
+  for (const arrow of diagram.arrows) {
+    const src = arrow.source.split('.')[0]!;
+    const tgt = arrow.target.split('.')[0]!;
+    const edge = (arrow.id ? byId.get(arrow.id) : undefined) ?? byEndpoints.get(`${src}->${tgt}`);
+    if (!edge?.labels?.length) {
+      delete arrow.elkLabels;
+      continue;
+    }
+    arrow.elkLabels = edge.labels.map((label) => ({
+      text: label.text,
+      x: label.x + originX,
+      y: label.y + originY,
+      width: label.width,
+      height: label.height,
+    }));
+  }
+}
+
 function applyElkEdgeRoutes(
   diagram: FrameDiagram,
   edges: PlacedEdge[],
@@ -244,7 +323,12 @@ export async function layoutElkFrameDiagram(
   diagram: FrameDiagram,
   adapter: TextMeasureAdapter,
   options: ElkLayoutOptions = {},
-): Promise<LayoutOutput> {
+): Promise<ElkLayoutOutput> {
+  if (adapter.measurementBackend !== 'harfbuzz' && adapter.measurementBackend !== 'mock') {
+    throw new Error(
+      `layoutElkFrameDiagram requires HarfBuzz measurement (got "${adapter.measurementBackend}")`,
+    );
+  }
   resolveStyles(diagram.root);
 
   const endpoints = collectEndpointIds(diagram);
@@ -257,11 +341,7 @@ export async function layoutElkFrameDiagram(
     direction: 'TB',
     spacingProfile: 'normal',
     nodes,
-    edges: diagram.arrows.map((a, i) => ({
-      id: a.id ?? `edge-${i}`,
-      source: a.source.split('.')[0]!,
-      target: a.target.split('.')[0]!,
-    })),
+    edges: buildGraphEdges(diagram, adapter),
   };
 
   const family = options.diagramType ?? familyFromDiagram(diagram);
@@ -276,6 +356,7 @@ export async function layoutElkFrameDiagram(
   );
   const placedById = indexPlaced(elk.nodes);
   applyElkEdgeRoutes(diagram, elk.edges, originX, originY);
+  applyElkEdgeLabels(diagram, elk.edges, originX, originY);
 
   const placedFrames: Frame[] = [];
   for (const [id, placed] of placedById) {
@@ -303,5 +384,10 @@ export async function layoutElkFrameDiagram(
   diagram.root._layout.measuredW = rootW;
   diagram.root._layout.measuredH = rootH;
 
-  return { width: rootW, height: rootH, coerced: new Map() };
+  return {
+    width: rootW,
+    height: rootH,
+    coerced: new Map(),
+    elkSnapshot: { ...elk, originX, originY },
+  };
 }

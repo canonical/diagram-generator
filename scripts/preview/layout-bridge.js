@@ -75,7 +75,8 @@ function deserializeFrameDiagram(json) {
     gridColGap: json.gridColGap ?? undefined,
     gridRowGap: json.gridRowGap ?? undefined,
     gridOuterMargin: json.gridOuterMargin ?? undefined,
-    layoutEngine: json.layoutEngine ?? undefined,
+    layoutEngine: json.layoutEngine
+      ?? ((window.__DG_CONFIG && window.__DG_CONFIG.layout_engine) || undefined),
     diagramType: json.diagramType ?? undefined,
     sourceImage: json.sourceImage ?? undefined,
     elkLayout: json.elkLayout ?? undefined,
@@ -393,6 +394,150 @@ function collectFramesById(frame, out) {
 
 function _lineTopToBaseline(top, size) {
   return top + LayoutEngine.sizeToPx(size) * _ASCENT_RATIO;
+}
+
+function _arrowLabelLines(arrow) {
+  if (!arrow.label || arrow.label.length === 0) return [];
+  return arrow.label.map((line) => {
+    if (typeof line === "string") {
+      return LayoutEngine.createLine(line);
+    }
+    return LayoutEngine.createLine(line.content || "", {
+      size: line.size,
+      weight: line.weight,
+      fill: line.fill,
+      smallCaps: line.smallCaps,
+      letterSpacing: line.letterSpacing,
+      lineStep: line.lineStep,
+    });
+  });
+}
+
+/** Offset label anchor perpendicular to the shaft; pick the side with more node clearance. */
+function _minDistanceToBounds(lx, ly, boundsList) {
+  let minDist = Infinity;
+  for (const b of boundsList) {
+    if (!b) continue;
+    const cx = Math.max(b.x, Math.min(lx, b.x + b.w));
+    const cy = Math.max(b.y, Math.min(ly, b.y + b.h));
+    minDist = Math.min(minDist, Math.hypot(lx - cx, ly - cy));
+  }
+  return minDist;
+}
+
+function _labelAnchorForSegment(x1, y1, x2, y2, labelGap, boundsMap) {
+  const mx = (x1 + x2) / 2;
+  const my = (y1 + y2) / 2;
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const len = Math.hypot(dx, dy) || 1;
+  const nx = -dy / len;
+  const ny = dx / len;
+  const boundsList = Object.values(boundsMap || {});
+  const candidates = [
+    { lx: mx + nx * labelGap, ly: my + ny * labelGap },
+    { lx: mx - nx * labelGap, ly: my - ny * labelGap },
+  ];
+  let best = candidates[0];
+  let bestScore = -Infinity;
+  for (const c of candidates) {
+    const score = _minDistanceToBounds(c.lx, c.ly, boundsList);
+    if (score > bestScore) {
+      bestScore = score;
+      best = c;
+    }
+  }
+  return best;
+}
+
+function _buildArrowLabelsFromElk(arrow) {
+  if (!arrow.elkLabels || !arrow.elkLabels.length) return null;
+  if (typeof LayoutEngine.annotationTextToSpec !== "function") return null;
+
+  const frag = document.createDocumentFragment();
+  for (const lbl of arrow.elkLabels) {
+    const spec = LayoutEngine.annotationTextToSpec(
+      LayoutEngine.createLine(lbl.text),
+    );
+    const size = spec.size ?? LayoutEngine.BODY_SIZE;
+    const cx = lbl.x + lbl.width / 2;
+    const cy = lbl.y + lbl.height / 2;
+    const text = document.createElementNS(SVG_NS, "text");
+    text.setAttribute("font-family", "Ubuntu Sans");
+    text.setAttribute("text-anchor", "middle");
+    text.setAttribute("dominant-baseline", "middle");
+    const tspan = document.createElementNS(SVG_NS, "tspan");
+    tspan.setAttribute("x", _fmtSvgNumber(cx));
+    tspan.setAttribute("y", _fmtSvgNumber(_lineTopToBaseline(cy - LayoutEngine.sizeToPx(size) / 2, size)));
+    tspan.setAttribute("font-size", String(size));
+    tspan.setAttribute("font-weight", String(spec.weight ?? "400"));
+    tspan.setAttribute("fill", spec.fill ?? "#666666");
+    tspan.textContent = lbl.text;
+    text.appendChild(tspan);
+    frag.appendChild(text);
+  }
+  return frag;
+}
+
+function _buildArrowLabelElement(arrow, shaftPoints, labelGap, boundsMap) {
+  const elkLabels = _buildArrowLabelsFromElk(arrow);
+  if (elkLabels) return elkLabels;
+
+  const lines = _arrowLabelLines(arrow);
+  if (!lines.length) return null;
+  if (typeof LayoutEngine.annotationTextToSpec !== "function") return null;
+
+  let bestIdx = 0;
+  let bestLen = 0;
+  for (let i = 0; i < shaftPoints.length - 1; i++) {
+    const [x1, y1] = shaftPoints[i];
+    const [x2, y2] = shaftPoints[i + 1];
+    const len = Math.hypot(x2 - x1, y2 - y1);
+    if (len > bestLen) {
+      bestLen = len;
+      bestIdx = i;
+    }
+  }
+  const [mx1, my1] = shaftPoints[bestIdx];
+  const [mx2, my2] = shaftPoints[bestIdx + 1];
+  const { lx, ly } = _labelAnchorForSegment(mx1, my1, mx2, my2, labelGap, boundsMap);
+
+  const text = document.createElementNS(SVG_NS, "text");
+  text.setAttribute("font-family", "Ubuntu Sans");
+  text.setAttribute("text-anchor", "middle");
+  text.setAttribute("dominant-baseline", "middle");
+
+  const specs = lines.map((line) => LayoutEngine.annotationTextToSpec(line));
+  if (!specs.length) return null;
+
+  const totalHeight = specs.reduce((sum, spec, index) => {
+    const lineStep = LayoutEngine.sizeToPx(spec.lineStep ?? LayoutEngine.BODY_LINE_STEP);
+    return sum + (index === 0 ? 0 : lineStep);
+  }, 0);
+  let top = ly - totalHeight / 2;
+
+  for (const spec of specs) {
+    const size = spec.size ?? LayoutEngine.BODY_SIZE;
+    const weight = spec.weight ?? "400";
+    const fill = spec.fill ?? "#666666";
+    const lineStep = LayoutEngine.sizeToPx(spec.lineStep ?? LayoutEngine.BODY_LINE_STEP);
+    const tspan = document.createElementNS(SVG_NS, "tspan");
+    tspan.setAttribute("x", _fmtSvgNumber(lx));
+    tspan.setAttribute("y", _fmtSvgNumber(_lineTopToBaseline(top, size)));
+    tspan.setAttribute("font-size", String(size));
+    tspan.setAttribute("font-weight", String(weight));
+    tspan.setAttribute("fill", fill);
+    if (spec.letterSpacing) {
+      tspan.setAttribute("letter-spacing", String(spec.letterSpacing));
+    }
+    if (spec.smallCaps) {
+      tspan.setAttribute("font-variant-caps", "small-caps");
+    }
+    tspan.textContent = spec.content;
+    text.appendChild(tspan);
+    top += lineStep;
+  }
+  return text;
 }
 
 function _frameBoxRenderState(frame) {
@@ -853,7 +998,8 @@ function routeArrows(arrows, boundsMap) {
         targetRef: arrow.target,
         color: arrow.color || "#E95420",
         label: arrow.label,
-        labelGap: arrow.labelGap ?? 8,
+        labelGap: arrow.labelGap ?? LayoutEngine.GRID_GUTTER ?? 24,
+        elkLabels: arrow.elkLabels,
       });
       continue;
     }
@@ -897,7 +1043,7 @@ function routeArrows(arrows, boundsMap) {
       targetRef: arrow.target,
       color: arrow.color || "#E95420",
       label: arrow.label,
-      labelGap: arrow.labelGap ?? 8,
+      labelGap: arrow.labelGap ?? LayoutEngine.GRID_GUTTER ?? 24,
     });
   }
   return result;
@@ -986,6 +1132,313 @@ function patchArrowsSvg(svgEl, routedArrows) {
 
 /** Stored frame tree JSON from the server (loaded once). */
 let _frameTreeJson = null;
+let _lastElkSnapshot = null;
+let _lastElkFrameLabels = null;
+
+function _elkDebugEnabled() {
+  return window.__DG_elkDebugOverlay === true && !window.__DG_elkRawView;
+}
+
+function _elkRawViewEnabled() {
+  return window.__DG_elkRawView === true;
+}
+
+function _collectElkFrameLabels(frame) {
+  const map = {};
+  function walk(f) {
+    if (f.id && !String(f.id).startsWith("__")) {
+      const lines = [];
+      const heading = _headingTextForFrame(f);
+      if (heading) lines.push(heading);
+      if (f.label && f.label.length) {
+        for (const ln of f.label) {
+          if (ln.content) lines.push(ln.content);
+        }
+      }
+      map[f.id] = lines.length ? lines.join("\n") : f.id;
+    }
+    (f.children || []).forEach(walk);
+  }
+  walk(frame);
+  return map;
+}
+
+function _walkPlacedNodesAbsolute(nodes, visit) {
+  if (!nodes) return;
+  for (const node of nodes) {
+    visit(node);
+    if (node.children && node.children.length) {
+      _walkPlacedNodesAbsolute(node.children, visit);
+    }
+  }
+}
+
+function renderElkDebugOverlay(snapshot) {
+  const g = document.createElementNS(SVG_NS, "g");
+  g.id = "dg-elk-debug-overlay";
+  g.setAttribute("pointer-events", "none");
+
+  const ox = snapshot.originX || 0;
+  const oy = snapshot.originY || 0;
+
+  _walkPlacedNodesAbsolute(snapshot.nodes, (node) => {
+    const x = node.x + ox;
+    const y = node.y + oy;
+    const rect = document.createElementNS(SVG_NS, "rect");
+    rect.setAttribute("x", _fmtSvgNumber(x));
+    rect.setAttribute("y", _fmtSvgNumber(y));
+    rect.setAttribute("width", _fmtSvgNumber(node.width));
+    rect.setAttribute("height", _fmtSvgNumber(node.height));
+    rect.setAttribute("fill", "none");
+    rect.setAttribute("stroke", node.children && node.children.length ? "#3366cc" : "#0099cc");
+    rect.setAttribute("stroke-width", "1");
+    rect.setAttribute("stroke-dasharray", "4 3");
+    g.appendChild(rect);
+
+    const idText = document.createElementNS(SVG_NS, "text");
+    idText.setAttribute("x", _fmtSvgNumber(x + 4));
+    idText.setAttribute("y", _fmtSvgNumber(y + 12));
+    idText.setAttribute("font-family", "Ubuntu Sans, monospace");
+    idText.setAttribute("font-size", "10");
+    idText.setAttribute("fill", "#3366cc");
+    idText.textContent = node.id;
+    g.appendChild(idText);
+  });
+
+  for (const edge of snapshot.edges || []) {
+    for (const section of edge.sections || []) {
+      const points = [
+        [section.startPoint.x + ox, section.startPoint.y + oy],
+        ...(section.bendPoints || []).map((bp) => [bp.x + ox, bp.y + oy]),
+        [section.endPoint.x + ox, section.endPoint.y + oy],
+      ];
+      for (let i = 0; i < points.length - 1; i++) {
+        const line = document.createElementNS(SVG_NS, "line");
+        line.setAttribute("x1", _fmtSvgNumber(points[i][0]));
+        line.setAttribute("y1", _fmtSvgNumber(points[i][1]));
+        line.setAttribute("x2", _fmtSvgNumber(points[i + 1][0]));
+        line.setAttribute("y2", _fmtSvgNumber(points[i + 1][1]));
+        line.setAttribute("stroke", "#00aa66");
+        line.setAttribute("stroke-width", "1.5");
+        g.appendChild(line);
+      }
+    }
+    for (const lbl of edge.labels || []) {
+      const rect = document.createElementNS(SVG_NS, "rect");
+      rect.setAttribute("x", _fmtSvgNumber(lbl.x + ox));
+      rect.setAttribute("y", _fmtSvgNumber(lbl.y + oy));
+      rect.setAttribute("width", _fmtSvgNumber(lbl.width));
+      rect.setAttribute("height", _fmtSvgNumber(lbl.height));
+      rect.setAttribute("fill", "rgba(255, 180, 60, 0.15)");
+      rect.setAttribute("stroke", "#cc7700");
+      rect.setAttribute("stroke-width", "1");
+      g.appendChild(rect);
+
+      const text = document.createElementNS(SVG_NS, "text");
+      text.setAttribute("x", _fmtSvgNumber(lbl.x + ox + lbl.width / 2));
+      text.setAttribute("y", _fmtSvgNumber(lbl.y + oy + lbl.height / 2 + 4));
+      text.setAttribute("text-anchor", "middle");
+      text.setAttribute("font-family", "Ubuntu Sans, monospace");
+      text.setAttribute("font-size", "10");
+      text.setAttribute("fill", "#884400");
+      text.textContent = lbl.text;
+      g.appendChild(text);
+    }
+  }
+
+  const caption = document.createElementNS(SVG_NS, "text");
+  caption.setAttribute("x", "8");
+  caption.setAttribute("y", "16");
+  caption.setAttribute("font-family", "Ubuntu Sans, monospace");
+  caption.setAttribute("font-size", "11");
+  caption.setAttribute("fill", "#3366cc");
+  caption.textContent = "ELK debug: dashed rects = node boxes (not circles), green = edge routes, amber = ELK label boxes";
+  g.appendChild(caption);
+
+  return g;
+}
+
+/** Classic ELK renderer aesthetic — gray nodes, black orthogonal edges, label boxes. */
+function renderElkRawView(snapshot, labelMap) {
+  const g = document.createElementNS(SVG_NS, "g");
+  g.id = "dg-elk-raw-view";
+  g.setAttribute("pointer-events", "none");
+
+  const ox = snapshot.originX || 0;
+  const oy = snapshot.originY || 0;
+
+  const caption = document.createElementNS(SVG_NS, "text");
+  caption.setAttribute("x", "8");
+  caption.setAttribute("y", "16");
+  caption.setAttribute("font-family", "sans-serif");
+  caption.setAttribute("font-size", "11");
+  caption.setAttribute("fill", "#555555");
+  caption.textContent = "ELK raw layout — gray nodes, black routes, ELK label boxes (toggle off for BF styling)";
+  g.appendChild(caption);
+
+  _walkPlacedNodesAbsolute(snapshot.nodes, (node) => {
+    const x = node.x + ox;
+    const y = node.y + oy;
+    const isCompound = node.children && node.children.length > 0;
+
+    const rect = document.createElementNS(SVG_NS, "rect");
+    rect.setAttribute("x", _fmtSvgNumber(x));
+    rect.setAttribute("y", _fmtSvgNumber(y));
+    rect.setAttribute("width", _fmtSvgNumber(node.width));
+    rect.setAttribute("height", _fmtSvgNumber(node.height));
+    rect.setAttribute("fill", isCompound ? "#f5f5f5" : "#ececec");
+    rect.setAttribute("stroke", "#333333");
+    rect.setAttribute("stroke-width", "1");
+    g.appendChild(rect);
+
+    const label = (labelMap && labelMap[node.id]) || node.id;
+    const lines = String(label).split("\n");
+    const lineHeight = 13;
+    const totalH = lines.length * lineHeight;
+    let ty = y + (node.height - totalH) / 2 + 10;
+
+    for (const line of lines) {
+      const text = document.createElementNS(SVG_NS, "text");
+      text.setAttribute("x", _fmtSvgNumber(x + node.width / 2));
+      text.setAttribute("y", _fmtSvgNumber(ty));
+      text.setAttribute("text-anchor", "middle");
+      text.setAttribute("font-family", "sans-serif");
+      text.setAttribute("font-size", "11");
+      text.setAttribute("fill", "#111111");
+      text.textContent = line;
+      g.appendChild(text);
+      ty += lineHeight;
+    }
+  });
+
+  const headLen = 8;
+  const headHalf = 4;
+
+  for (const edge of snapshot.edges || []) {
+    for (const section of edge.sections || []) {
+      const points = [
+        [section.startPoint.x + ox, section.startPoint.y + oy],
+        ...(section.bendPoints || []).map((bp) => [bp.x + ox, bp.y + oy]),
+        [section.endPoint.x + ox, section.endPoint.y + oy],
+      ];
+
+      for (let i = 0; i < points.length - 1; i++) {
+        const [x1, y1] = points[i];
+        const [x2, y2] = points[i + 1];
+        const line = document.createElementNS(SVG_NS, "line");
+        line.setAttribute("x1", _fmtSvgNumber(x1));
+        line.setAttribute("y1", _fmtSvgNumber(y1));
+        line.setAttribute("x2", _fmtSvgNumber(x2));
+        line.setAttribute("y2", _fmtSvgNumber(y2));
+        line.setAttribute("stroke", "#000000");
+        line.setAttribute("stroke-width", "1");
+        g.appendChild(line);
+
+        if (i === points.length - 2) {
+          const head = _arrowheadPoints(x2, y2, x1, y1, headLen, headHalf);
+          if (head) {
+            const polygon = document.createElementNS(SVG_NS, "polygon");
+            polygon.setAttribute("points", head.points);
+            polygon.setAttribute("fill", "#000000");
+            g.appendChild(polygon);
+            const port = document.createElementNS(SVG_NS, "circle");
+            port.setAttribute("cx", _fmtSvgNumber(x2));
+            port.setAttribute("cy", _fmtSvgNumber(y2));
+            port.setAttribute("r", "2.5");
+            port.setAttribute("fill", "#000000");
+            g.appendChild(port);
+          }
+        }
+      }
+
+      const [sx, sy] = points[0];
+      const startPort = document.createElementNS(SVG_NS, "circle");
+      startPort.setAttribute("cx", _fmtSvgNumber(sx));
+      startPort.setAttribute("cy", _fmtSvgNumber(sy));
+      startPort.setAttribute("r", "2.5");
+      startPort.setAttribute("fill", "#000000");
+      g.appendChild(startPort);
+    }
+
+    for (const lbl of edge.labels || []) {
+      const lx = lbl.x + ox;
+      const ly = lbl.y + oy;
+      const box = document.createElementNS(SVG_NS, "rect");
+      box.setAttribute("x", _fmtSvgNumber(lx));
+      box.setAttribute("y", _fmtSvgNumber(ly));
+      box.setAttribute("width", _fmtSvgNumber(lbl.width));
+      box.setAttribute("height", _fmtSvgNumber(lbl.height));
+      box.setAttribute("fill", "#ffffff");
+      box.setAttribute("stroke", "#666666");
+      box.setAttribute("stroke-width", "1");
+      g.appendChild(box);
+
+      const text = document.createElementNS(SVG_NS, "text");
+      text.setAttribute("x", _fmtSvgNumber(lx + lbl.width / 2));
+      text.setAttribute("y", _fmtSvgNumber(ly + lbl.height / 2 + 4));
+      text.setAttribute("text-anchor", "middle");
+      text.setAttribute("font-family", "sans-serif");
+      text.setAttribute("font-size", "10");
+      text.setAttribute("fill", "#111111");
+      text.textContent = lbl.text;
+      g.appendChild(text);
+    }
+  }
+
+  return g;
+}
+
+function refreshElkViewMode() {
+  const svg = document.querySelector("#stage svg");
+  if (!svg) return;
+
+  const styled = svg.querySelector("#dg-styled-layer");
+  const rawOn = _elkRawViewEnabled();
+
+  if (styled) {
+    styled.setAttribute("display", rawOn ? "none" : "inline");
+  }
+
+  svg.querySelector("#dg-elk-raw-view")?.remove();
+  svg.querySelector("#dg-elk-debug-overlay")?.remove();
+
+  if (rawOn && _lastElkSnapshot) {
+    svg.appendChild(renderElkRawView(_lastElkSnapshot, _lastElkFrameLabels || {}));
+    return;
+  }
+
+  if (_elkDebugEnabled() && _lastElkSnapshot) {
+    svg.appendChild(renderElkDebugOverlay(_lastElkSnapshot));
+  }
+}
+
+function refreshElkDebugOverlay() {
+  refreshElkViewMode();
+}
+
+window.__DG_setElkDebugOverlay = function (enabled) {
+  window.__DG_elkDebugOverlay = !!enabled;
+  try {
+    localStorage.setItem("dg.elkDebugOverlay", enabled ? "1" : "0");
+  } catch (_) { /* ignore */ }
+  refreshElkViewMode();
+};
+
+window.__DG_setElkRawView = function (enabled) {
+  window.__DG_elkRawView = !!enabled;
+  try {
+    localStorage.setItem("dg.elkRawView", enabled ? "1" : "0");
+  } catch (_) { /* ignore */ }
+  refreshElkViewMode();
+};
+
+try {
+  window.__DG_elkDebugOverlay = localStorage.getItem("dg.elkDebugOverlay") === "1";
+  window.__DG_elkRawView = localStorage.getItem("dg.elkRawView") === "1";
+} catch (_) {
+  window.__DG_elkDebugOverlay = false;
+  window.__DG_elkRawView = false;
+}
 
 /** HarfBuzz-backed text adapter for authoritative browser measurement. */
 let _textAdapter = null;
@@ -1092,6 +1545,28 @@ function isLocalRelayoutReady() {
 
 function getFrameTreeJson() {
   return _frameTreeJson ? JSON.parse(JSON.stringify(_frameTreeJson)) : null;
+}
+
+function _isElkLayeredDiagramJson(json) {
+  if (json && json.layoutEngine === "elk-layered") return true;
+  const cfg = window.__DG_CONFIG || {};
+  return cfg.layout_engine === "elk-layered";
+}
+
+function _resolveElkOptionOverrides(diagram, model) {
+  let session = (model && model.elkLayoutOverrides) || {};
+  if (window.ElkLayoutControls && typeof ElkLayoutControls.collectOverrides === "function") {
+    session = ElkLayoutControls.collectOverrides();
+    if (model && typeof window.__DG_applyElkLayoutOverrides === "function") {
+      window.__DG_applyElkLayoutOverrides(session);
+    } else if (model) {
+      model.elkLayoutOverrides = { ...session };
+    }
+  }
+  return {
+    ...(diagram.elkLayout || {}),
+    ...session,
+  };
 }
 
 function setFrameTreeJson(json) {
@@ -1258,6 +1733,10 @@ function performLocalRelayout(model, overrides, gridOverrides, opts) {
     // Deep-clone the stored frame tree and deserialize
     const diagramJson = JSON.parse(JSON.stringify(_frameTreeJson));
     applySessionRemovalsToDiagramJson(diagramJson, model);
+    if (_isElkLayeredDiagramJson(diagramJson)) {
+      console.warn("layout-bridge: performLocalRelayout skipped for elk-layered diagram");
+      return null;
+    }
     const diagram = deserializeFrameDiagram(diagramJson);
 
     // Build override map (same format as requestV3Relayout sends)
@@ -1386,7 +1865,7 @@ function _arrowheadPoints(tipX, tipY, prevX, prevY, headLen, headHalf) {
   };
 }
 
-function createArrowsSvg(routedArrows) {
+function createArrowsSvg(routedArrows, boundsMap) {
   const frag = document.createDocumentFragment();
   const HL = (window.__DG_CONFIG && window.__DG_CONFIG.head_len) || 12;
   const HH = (window.__DG_CONFIG && window.__DG_CONFIG.head_half) || 6;
@@ -1445,40 +1924,11 @@ function createArrowsSvg(routedArrows) {
       g.appendChild(polygon);
     }
 
-    // Step label on the longest shaft segment (close to the arrow line).
-    if (arrow.label && arrow.label.length > 0) {
-      const labelGap = arrow.labelGap ?? 8;
-      let bestIdx = 0;
-      let bestLen = 0;
-      for (let i = 0; i < shaftPoints.length - 1; i++) {
-        const [x1, y1] = shaftPoints[i];
-        const [x2, y2] = shaftPoints[i + 1];
-        const len = Math.hypot(x2 - x1, y2 - y1);
-        if (len > bestLen) {
-          bestLen = len;
-          bestIdx = i;
-        }
-      }
-      const [mx1, my1] = shaftPoints[bestIdx];
-      const [mx2, my2] = shaftPoints[bestIdx + 1];
-      const lx = (mx1 + mx2) / 2;
-      const ly = Math.min(my1, my2) - labelGap;
-      const text = document.createElementNS(SVG_NS, "text");
-      text.setAttribute("font-family", "Ubuntu Sans");
-      for (let li = 0; li < arrow.label.length; li++) {
-        const line = arrow.label[li];
-        const content = typeof line === "string" ? line : (line && line.content) || "";
-        const size = (line && line.size) || "14";
-        const tspan = document.createElementNS(SVG_NS, "tspan");
-        tspan.setAttribute("x", lx.toFixed(1));
-        tspan.setAttribute("y", (ly + li * 16).toFixed(1));
-        tspan.setAttribute("font-size", String(size));
-        tspan.setAttribute("font-weight", (line && line.weight) || "400");
-        tspan.setAttribute("fill", (line && line.fill) || "#000000");
-        tspan.textContent = content;
-        text.appendChild(tspan);
-      }
-      g.appendChild(text);
+    // Step label on longest shaft segment — annotation typography, offset from line.
+    const labelGap = arrow.labelGap ?? LayoutEngine.GRID_GUTTER ?? 24;
+    const labelEl = _buildArrowLabelElement(arrow, shaftPoints, labelGap, boundsMap);
+    if (labelEl) {
+      g.appendChild(labelEl);
     }
 
     frag.appendChild(g);
@@ -1578,6 +2028,10 @@ function renderFrameTreeToSvg(diagram, result, options) {
   bgRect.setAttribute("fill", "#FFFFFF");
   svg.appendChild(bgRect);
 
+  const styledLayer = document.createElementNS(SVG_NS, "g");
+  styledLayer.id = "dg-styled-layer";
+  svg.appendChild(styledLayer);
+
   // Guard: empty or missing root produces valid SVG with just background
   if (!diagram || !diagram.root) {
     return svg;
@@ -1603,7 +2057,7 @@ function renderFrameTreeToSvg(diagram, result, options) {
     }
 
     patchFrameGroup(g, frame, iconEl);
-    svg.appendChild(g);
+    styledLayer.appendChild(g);
 
     // Recurse into children
     if (frame.children) {
@@ -1619,15 +2073,15 @@ function renderFrameTreeToSvg(diagram, result, options) {
   if (diagram.arrows && diagram.arrows.length > 0) {
     const boundsMap = collectPlacedBounds(diagram.root, {});
     const routed = routeArrows(diagram.arrows, boundsMap);
-    const arrowFrag = createArrowsSvg(routed);
-    svg.appendChild(arrowFrag);
+    const arrowFrag = createArrowsSvg(routed, boundsMap);
+    styledLayer.appendChild(arrowFrag);
   }
 
   // Render overlays
   if (overlays.length > 0) {
     const boundsMap = collectPlacedBounds(diagram.root, {});
     const overlayFrag = renderOverlaysSvg(overlays, boundsMap);
-    svg.appendChild(overlayFrag);
+    styledLayer.appendChild(overlayFrag);
   }
 
   return svg;
@@ -1674,11 +2128,8 @@ async function renderFreshSvg(overrides, gridOverrides, model) {
   applyOverridesToFrameTree(diagram, allFrameOverrides, gridOverrides);
 
   let result;
-  if (diagram.layoutEngine === "elk-layered" && typeof LayoutEngine.layoutElkFrameDiagram === "function") {
-    const elkOptionOverrides = {
-      ...(diagram.elkLayout || {}),
-      ...(model && model.elkLayoutOverrides ? model.elkLayoutOverrides : {}),
-    };
+  if (_isElkLayeredDiagramJson(diagramJson) && typeof LayoutEngine.layoutElkFrameDiagram === "function") {
+    const elkOptionOverrides = _resolveElkOptionOverrides(diagram, model);
     result = await LayoutEngine.layoutElkFrameDiagram(diagram, _textAdapter, {
       diagramType: diagram.diagramType,
       elkOptionOverrides,
@@ -1717,6 +2168,10 @@ async function renderFreshSvg(overrides, gridOverrides, model) {
   // Build SVG DOM
   const svgElement = renderFrameTreeToSvg(diagram, result, { iconElements, overlays: rawOverlays });
 
+  _lastElkSnapshot = result.elkSnapshot || null;
+  _lastElkFrameLabels = _lastElkSnapshot ? _collectElkFrameLabels(diagram.root) : null;
+  refreshElkViewMode();
+
   // Update component model from layout
   updateComponentModelFromLayout(model, diagram.root);
   const boundsMap = collectPlacedBounds(diagram.root, {});
@@ -1739,6 +2194,8 @@ window.__DG_TEST_setLocalRelayoutMode = setLocalRelayoutOverrideMode;
 window.renderFrameTreeToSvg = renderFrameTreeToSvg;
 window.fetchIconSvg = fetchIconSvg;
 window.buildIconElement = buildIconElement;
+window.refreshElkDebugOverlay = refreshElkDebugOverlay;
+window.refreshElkViewMode = refreshElkViewMode;
 window.renderFreshSvg = renderFreshSvg;
 window.arrowComponentId = arrowComponentId;
 window.syncArrowsInModel = syncArrowsInModel;

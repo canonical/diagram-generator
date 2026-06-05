@@ -18,10 +18,18 @@ export interface GraphNodeInput {
   children?: GraphNodeInput[];
 }
 
+export interface GraphEdgeLabelInput {
+  text: string;
+  width: number;
+  height: number;
+}
+
 export interface GraphEdgeInput {
   id: string;
   source: string;
   target: string;
+  /** Pre-measured label boxes — ELK places these; we must supply dimensions. */
+  labels?: GraphEdgeLabelInput[];
 }
 
 export interface GraphLayoutInput {
@@ -52,11 +60,21 @@ export interface RoutedEdgeSection {
   bendPoints?: Point2[];
 }
 
+export interface PlacedEdgeLabel {
+  text: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export interface PlacedEdge {
   id: string;
   source: string;
   target: string;
   sections: RoutedEdgeSection[];
+  /** Label geometry returned by ELK (absolute, after normalisation). */
+  labels?: PlacedEdgeLabel[];
 }
 
 export interface GraphLayoutResult {
