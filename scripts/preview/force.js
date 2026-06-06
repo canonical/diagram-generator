@@ -35,10 +35,10 @@ const BOX_STYLES = window.__DG_BOX_STYLES || {
   accent: { fill: "#F3F3F3", text: "#000000", icon: "#000000", label: "Accent (grey)" },
   highlight: { fill: "#000000", text: "#FFFFFF", icon: "#FFFFFF", label: "Highlight (black)" },
 };
-const boxStyleLabel = window.__DG_boxStyleLabel || ((styleName) => BOX_STYLES[styleName]?.label || "Original");
+const boxStyleLabel = window.__DG_boxStyleLabel || ((styleName) => BOX_STYLES[styleName]?.label || "As defined");
 const boxStyleOptionsHtml = window.__DG_boxStyleOptionsHtml || function boxStyleOptionsHtml(selectedValue, options = {}) {
   const current = selectedValue == null ? "" : String(selectedValue);
-  const originalLabel = options.originalLabel || "— original —";
+  const originalLabel = options.originalLabel || "— as defined —";
   let html = `<option value=""${current === "" ? " selected" : ""}>${escapeHtml(originalLabel)}</option>`;
   for (const [key, preset] of Object.entries(BOX_STYLES)) {
     html += `<option value="${escapeHtml(key)}"${current === key ? " selected" : ""}>${escapeHtml(preset.label)}</option>`;
@@ -664,7 +664,7 @@ function renderSelection(snapshot) {
       <span class="label">Style</span>
       <select class="style-picker bf-input" data-force-style-select="${escapeHtml(node.id)}">
         ${boxStyleOptionsHtml(node.style_override || "", {
-          originalLabel: node.base_style ? `— original (${boxStyleLabel(node.base_style)}) —` : "— original —",
+          originalLabel: node.base_style ? `— as defined (${boxStyleLabel(node.base_style)}) —` : "— as defined —",
         })}
       </select>
     </div>

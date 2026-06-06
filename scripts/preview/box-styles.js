@@ -19,13 +19,13 @@
   }
 
   function boxStyleLabel(styleName) {
-    return BOX_STYLES[styleName]?.label || "Original";
+    return BOX_STYLES[styleName]?.label || "As defined";
   }
 
   function boxStyleOptionsHtml(selectedValue, options = {}) {
     const current = selectedValue == null ? "" : String(selectedValue);
     const includeOriginal = options.includeOriginal !== false;
-    const originalLabel = options.originalLabel || "— original —";
+    const originalLabel = options.originalLabel || "— as defined —";
     let html = "";
     if (includeOriginal) {
       html += `<option value=""${current === "" ? " selected" : ""}>${escapeHtml(originalLabel)}</option>`;

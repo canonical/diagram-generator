@@ -67,6 +67,9 @@ const renderBoxStyleOptions = window.__DG_boxStyleOptionsHtml || function render
   }
   return html;
 };
+const boxStyleLabel = window.__DG_boxStyleLabel || function boxStyleLabel(styleName) {
+  return BOX_STYLES[styleName]?.label || "As defined";
+};
 
 // ---- Grid constants ----
 // BASELINE_STEP is defined in editor-base.js (shared constant)
@@ -1932,7 +1935,9 @@ function renderMultiSelectionInspector() {
       html += '<div class="field" style="margin-top:6px"><span class="label">Style (' + styleInfo.count + ' boxes)</span><br>';
       html += '<select class="style-picker bf-input" onchange="applyMultiStyleOverride(this.value)">';
       if (styleInfo.mixed) html += '<option value="__mixed__" selected>Mixed</option>';
-      html += renderBoxStyleOptions(styleInfo.mixed ? '__nomatch__' : styleInfo.style, { originalLabel: '— original —' });
+      html += renderBoxStyleOptions(styleInfo.mixed ? '__nomatch__' : styleInfo.style, {
+        originalLabel: _originalStyleOptionLabelForItems(info.items),
+      });
       html += '</select></div>';
     }
   }
@@ -2053,6 +2058,37 @@ function _getMultiStyleValues(items) {
   }
   if (count === 0) return null;
   return { style: mixed ? '__mixed__' : first, mixed, count };
+}
+
+function _formatAsDefinedStyleLabel(styleName, mixed = false) {
+  if (mixed) return '— as defined (mixed) —';
+  const canonical = _normaliseStyleName(styleName);
+  if (canonical && BOX_STYLES[canonical]) {
+    return `— as defined (${boxStyleLabel(canonical)}) —`;
+  }
+  return '— as defined —';
+}
+
+function _baseStyleName(node) {
+  return _inferV3StyleFromNode(node);
+}
+
+function _originalStyleOptionLabelForItems(items) {
+  let first = null;
+  let mixed = false;
+  let hasAny = false;
+  for (const item of items) {
+    const ctype = getComponentType(item.id).toLowerCase();
+    if (ctype === 'arrow') continue;
+    hasAny = true;
+    const style = _baseStyleName(item.node);
+    if (first === null) {
+      first = style;
+    } else if (first !== style) {
+      mixed = true;
+    }
+  }
+  return _formatAsDefinedStyleLabel(hasAny ? first : '', mixed);
 }
 
 /**
@@ -4998,6 +5034,10 @@ function _effectiveStyleName(cid, node) {
   return _inferV3StyleFromNode(node);
 }
 
+function _originalStyleOptionLabelForNode(node) {
+  return _formatAsDefinedStyleLabel(_baseStyleName(node));
+}
+
 function _applyV3StyleFields(ovr, styleName) {
   const canonicalStyle = _normaliseStyleName(styleName);
   const semantic = _V3_STYLE_SEMANTICS[canonicalStyle];
@@ -5586,7 +5626,9 @@ function updateInspector(cid) {
     const currentStyle = _effectiveStyleName(cid, inspNode);
     html += '<div class="field" style="margin-top:6px"><span class="label">Style</span><br>';
     html += '<select class="style-picker bf-input" onchange="applyStyleOverride(\'' + cid + '\', this.value)">';
-    html += renderBoxStyleOptions(currentStyle, { originalLabel: '— original —' });
+    html += renderBoxStyleOptions(currentStyle, {
+      originalLabel: _originalStyleOptionLabelForNode(inspNode),
+    });
     html += '</select></div>';
   }
   const isAutoChild = _isAutolayoutChild(cid);
