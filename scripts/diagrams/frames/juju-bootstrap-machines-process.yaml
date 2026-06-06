@@ -31,37 +31,37 @@ arrows:
 - id: step1
   source: client
   target: simplestreams_binaries
-  label: '1: agent binary location'
+  label: '1: Requests agent binary location from'
   label_gap: 24
 - id: step2
   source: client
   target: simplestreams_images
-  label: '2: image location'
+  label: '2: Requests resource image location from'
   label_gap: 24
 - id: step3
   source: client
   target: cloud
-  label: '3: initial machine'
+  label: '3: Requests initial machine from'
   label_gap: 24
 - id: step4
   source: cloud
   target: client
-  label: '4: provision + contact info'
+  label: '4: Provisions and sends resource contact info to'
   label_gap: 24
 - id: step5
   source: client
   target: controller_agent
-  label: '5: SSH + setup'
+  label: '5: SSHs into resource and sets everything up, including'
   label_gap: 24
 - id: step6
   source: controller_agent
   target: snap_store
-  label: '6: juju-db snap'
+  label: '6: Downloads the database snap (juju-db) from'
   label_gap: 24
 - id: step7
   source: controller_agent
   target: charmhub
-  label: '7: controller charm'
+  label: '7: Downloads the controller charm (juju-controller) from'
   label_gap: 24
 root:
   id: page
@@ -106,20 +106,17 @@ root:
       children:
       - id: charmhub
         level: 2
-        heading: Charmhub
         width: 192
         sizing_w: fixed
         label:
-        - Charm
-        - registry
+        - Charmhub
         icon: Globe.svg
       - id: snap_store
         level: 2
-        heading: Snap store
         width: 192
         sizing_w: fixed
         label:
-        - juju-db snap
+        - Snap store
         icon: Snap.svg
   - id: row_external_bottom
     direction: horizontal
@@ -128,28 +125,22 @@ root:
     children:
     - id: simplestreams_binaries
       level: 2
-      heading: SimpleStreams
-      width: 192
+      width: 224
       sizing_w: fixed
       label:
-      - Agent
-      - binaries
+      - Simplestreams - Agent Binaries
       icon: Package.svg
     - id: simplestreams_images
       level: 2
-      heading: SimpleStreams
-      width: 192
+      width: 224
       sizing_w: fixed
       label:
-      - Machine
-      - images
+      - Simplestreams - Images
       icon: Storage image.svg
     - id: cloud
       level: 2
-      heading: Cloud
       width: 192
       sizing_w: fixed
       label:
-      - Initial
-      - machine
+      - Cloud
       icon: Cloud.svg

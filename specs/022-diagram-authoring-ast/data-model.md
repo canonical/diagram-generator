@@ -6,12 +6,12 @@
 
 ```text
 RawYamlDocument          # parsed YAML (untrusted)
-  ↓ normalizeLegacy
-AuthorDocument           # new+old schema unified shape
+  ↓ normalizeArrowSyntax
+AuthorDocument           # canonical frame YAML + additive sugar unified
   ↓ expandDefaults
 AuthorDocumentExpanded
   ↓ validate + index
-DiagramDocument          # strict AST (export + lower source of truth)
+DiagramDocument          # strict AST (frame-tree-native)
   ↓ lowerToFrameDiagram
 FrameDiagram             # existing runtime (layout-engine)
 ```
@@ -20,31 +20,133 @@ FrameDiagram             # existing runtime (layout-engine)
 
 ```typescript
 interface DiagramDocument {
-  engine: 'v3';                    // runtime engine family
-  schema?: 'author-v1';          // authoring grammar version
+  engine: 'v3';
+  schema?: 'author-v1';
   title: string;
   metadata?: Record<string, unknown>;
-  defaults: Record<string, NodeTemplate>;
-  nodes: Record<NodeId, DiagramNode>;
-  groups: Record<GroupId, DiagramGroup>;
-  edges: Edge[];
-  layoutTree: LayoutTreeNode;
-  overlays?: DiagramOverlay[];   // optional; maps to existing overlay type
-  grid?: GridSpec;               // optional; maps to FrameDiagram grid fields
+  defaults: Record<string, FrameTemplate>;
+  root: AuthorFrameNode;
+  arrows: AuthorArrow[];
+  frameIndex: Record<FrameId, FrameIndexEntry>;
+  overlays?: DiagramOverlay[];
+  grid?: GridSpec;
+  meta?: Record<string, unknown>;
 }
 
-type NodeId = string;
-type GroupId = string;
+type FrameId = string;
 ```
 
-## DiagramNode
+## AuthorFrameNode
 
-Connectable leaf — maps to `Frame` leaf (or headed container leaf semantics via lower rules).
+Strict AST node mirroring the canonical recursive frame YAML shape.
 
 ```typescript
-interface DiagramNode {
-  id: NodeId;
-  label: LabelSpec;              // normalized from string | string[]
+interface AuthorFrameNode {
+  id: FrameId;
+  direction?: 'vertical' | 'horizontal';
+  gap?: number;
+  padding?: number;
+  paddingTop?: number;
+  paddingRight?: number;
+  paddingBottom?: number;
+  paddingLeft?: number;
+  sizingW?: Sizing;
+  sizingH?: Sizing;
+  fillWeight?: number;
+  width?: number;
+  height?: number;
+  minWidth?: number;
+  maxWidth?: number;
+  maxWidthChars?: number;
+  minHeight?: number;
+  maxHeight?: number;
+  align?: Align;
+  justify?: Justify;
+  wrap?: boolean;
+  fill?: FillSpec;
+  border?: BorderSpec;
+  level?: number;
+  variant?: string;
+  role?: string;
+  heading?: LineSpec;
+  label?: LineSpec[];
+  icon?: string;
+  iconFill?: string;
+  position?: 'AUTO' | 'ABSOLUTE';
+  x?: number;
+  y?: number;
+  colSpan?: number;
+  use?: string;
+  children: AuthorFrameNode[];
+}
+```
+
+Container vs leaf is derived from `children.length > 0`, matching the current project contract.
+
+## LineSpec
+
+```typescript
+interface LineSpec {
+  text: string;
+  size?: string;
+  weight?: string;
+  fill?: string;
+  smallCaps?: boolean;
+  letterSpacing?: string;
+  lineStep?: number;
+  fontFamily?: string;
+}
+```
+
+Normalization rules:
+
+- `"Client"` → `[{ text: "Client" }]`
+- `["Tier 1", "Global server"]` → `[{ text: "Tier 1" }, { text: "Global server" }]`
+- Existing object form retains authored style fields where present.
+
+## AuthorArrow
+
+Normalized from shorthand or object form.
+
+```typescript
+interface AuthorArrow {
+  source: string;
+  target: string;
+  kind: 'directed';
+  id?: string;
+  label?: LineSpec[];
+  labelGap?: number;
+  style?: 'solid' | 'dashed' | 'dotted';
+  color?: string;
+  waypoints?: [number, number][];
+}
+```
+
+### Arrow reference grammar
+
+Arrow endpoints preserve the repo's existing string-ref contract.
+
+| Input | Meaning |
+|-------|---------|
+| `public_repo` | plain frame id |
+| `global_server.right` | frame id + side anchor |
+| `panel_id.col.row.right` | panel/cell-style anchor ref already supported by routing code |
+
+The compiler validates the base frame id and preserves the authored ref string.
+
+### Shorthand parsing
+
+| Input | Result |
+|-------|--------|
+| `public_repo -> global_server` | `{ source: 'public_repo', target: 'global_server', kind: 'directed' }` |
+| `tier2_row.left -> group_left.right` | same shape, refs preserved verbatim |
+| `{ source: a, target: b, label: sync }` | object fields merged |
+
+## FrameTemplate (defaults)
+
+```typescript
+interface FrameTemplate {
+  label?: LineSpec[];
   icon?: string;
   iconFill?: string;
   sizingW?: Sizing;
@@ -53,101 +155,40 @@ interface DiagramNode {
   variant?: string;
   role?: string;
   heading?: LineSpec;
-  // layout-only hints that apply when node is sole child — lower rules document mapping
-  connectable: true;             // always true for nodes
-}
-
-type LabelSpec = string[];       // one line per array element; string input → [string]
-```
-
-## DiagramGroup
-
-Layout container — maps to `Frame` container (no direct edge attachment by default).
-
-```typescript
-interface DiagramGroup {
-  id: GroupId;
-  direction: 'vertical' | 'horizontal';
-  padding?: number | PerSidePadding;
-  align?: Align;
-  justify?: Justify;
+  direction?: 'vertical' | 'horizontal';
   gap?: number;
-  level?: number;
-  heading?: LineSpec;
-  connectable?: boolean;         // default false — edges must not target unless true
-  allowEmpty?: boolean;        // default false
-  children: LayoutTreeNode[];
+  padding?: number;
 }
 ```
 
-## LayoutTreeNode
+Expansion: for a frame entry with `use: client`, shallow-merge `defaults.client` then frame-local keys (frame wins).
 
-Discriminated union — preserves authoring tree.
-
-```typescript
-type LayoutTreeNode =
-  | { kind: 'node'; ref: NodeId }
-  | { kind: 'group'; ref: GroupId };
-```
-
-## Edge
-
-Normalized from shorthand or object form.
+## FrameIndexEntry
 
 ```typescript
-interface Edge {
-  source: NodeId;
-  target: NodeId;
-  kind: 'directed';              // reserved for undirected/bidirectional later
-  id?: string;
-  label?: LabelSpec;
-  style?: 'solid' | 'dashed' | 'dotted';
-  color?: string;
-  waypoints?: [number, number][];
+interface FrameIndexEntry {
+  id: FrameId;
+  parentId?: FrameId;
+  isContainer: boolean;
+  path: string;
 }
 ```
-
-### Shorthand parsing
-
-| Input | Result |
-|-------|--------|
-| `public_repo -> global_server` | `{ source: 'public_repo', target: 'global_server', kind: 'directed' }` |
-| `{ source: a, target: b, label: sync }` | object fields merged |
-
-Regex (informative): `^\s*([A-Za-z_][A-Za-z0-9_]*)\s*->\s*([A-Za-z_][A-Za-z0-9_]*)\s*$`
-
-## NodeTemplate (defaults)
-
-```typescript
-interface NodeTemplate {
-  label?: LabelSpec;
-  icon?: string;
-  iconFill?: string;
-  sizingW?: Sizing;
-  sizingH?: Sizing;
-  level?: number;
-  variant?: string;
-  // partial — only listed fields apply
-}
-```
-
-Expansion: for `node: client_l1` + `use: client`, shallow-merge `defaults.client` then node-local keys (node wins).
 
 ## CompileResult
 
 ```typescript
 interface CompileResult {
   ast?: DiagramDocument;
-  frameDiagram?: FrameDiagram;   // present when lower succeeds
-  errors: CompileDiagnostic[];   // fatal
-  warnings: CompileDiagnostic[];// non-fatal
+  frameDiagram?: FrameDiagram;
+  errors: CompileDiagnostic[];
+  warnings: CompileDiagnostic[];
   deprecations: CompileDiagnostic[];
 }
 
 interface CompileDiagnostic {
-  code: string;                  // e.g. EDGE_UNKNOWN_SOURCE
+  code: string;
   message: string;
-  path?: string;                 // YAML path e.g. edges[2]
+  path?: string;
   line?: number;
 }
 ```
@@ -156,49 +197,45 @@ interface CompileDiagnostic {
 
 | Code | Condition |
 |------|-----------|
-| `DUPLICATE_NODE_ID` | Two nodes same id |
-| `DUPLICATE_GROUP_ID` | Two groups same id |
-| `ID_COLLISION` | Same id in nodes and groups |
-| `EDGE_UNKNOWN_SOURCE` | source not a node (or connectable group) |
-| `EDGE_UNKNOWN_TARGET` | target not a node |
-| `EDGE_GROUP_ENDPOINT` | endpoint is non-connectable group |
+| `DUPLICATE_FRAME_ID` | Two frames share the same id |
+| `ARROW_UNKNOWN_SOURCE` | source base id does not exist |
+| `ARROW_UNKNOWN_TARGET` | target base id does not exist |
+| `ARROW_INVALID_REF` | shorthand/object ref shape is malformed |
 | `UNKNOWN_TEMPLATE` | `use` references missing default |
-| `GROUP_EMPTY` | group without children and without `allow_empty` |
-| `INVALID_LAYOUT_CHILD` | child entry not node/group |
-| `EDGE_SHORTHAND_PARSE` | shorthand string malformed |
-| `LEGACY_KEY_DEPRECATED` | `arrows` used instead of `edges` |
+| `INVALID_FRAME_CHILD` | child entry is not a frame mapping |
+| `ARROW_SHORTHAND_PARSE` | shorthand string malformed |
+| `ROOT_MISSING` | top-level `root` missing or invalid |
 
 ## Warning codes (minimum set)
 
 | Code | Condition |
 |------|-----------|
 | `UNUSED_DEFAULT` | default template never referenced |
-| `ORPHAN_NODE` | node with zero incident edges |
-| `EMPTY_GROUP` | allowed empty group |
-| `DUPLICATE_EDGE` | same source+target (+label) repeated |
+| `ORPHAN_LEAF` | leaf frame with zero incident arrows |
+| `DUPLICATE_ARROW` | same source+target (+label) repeated |
+| `SELF_LOOP_ARROW` | source and target are identical |
 | `MERMAID_UNSUPPORTED_*` | property not representable in Mermaid |
 | `D2_UNSUPPORTED_*` | property not representable in D2 |
 
 ## Lowering: DiagramDocument → FrameDiagram
 
-- `layoutTree` root → `Frame` root (`id: page` or preserved root id)
-- Each `DiagramGroup` → `Frame` container with `children`
-- Each `DiagramNode` → `Frame` leaf (label lines → `createLine` list)
-- `edges` → `FrameDiagram.arrows` via `createArrow` (internal name unchanged at runtime until optional rename phase)
-- `defaults` do not appear in FrameDiagram — expansion happens pre-lower only
+- `root` → `FrameDiagram.root`
+- each `AuthorFrameNode` → `Frame`
+- `arrows` → `FrameDiagram.arrows` via `createArrow`, preserving authored `source` / `target` strings
+- `defaults` do not appear in `FrameDiagram` — expansion happens pre-lower only
 
-**Note**: Runtime may keep `arrows` field name on `FrameDiagram` while authoring uses `edges`; lowering maps between them. Renaming runtime `Arrow`→`Edge` is optional follow-up (out of scope unless zero churn).
+Lowering should be mechanically close to today's `frame-yaml-loader.ts`, not a lossy translation from a second structure.
 
 ## Mermaid export model (adapter input: DiagramDocument only)
 
-- Nodes → `nodeId["label<br/>line2"]`
-- Groups → `subgraph id` with nested content
-- Edges → `source --> target`
-- Lossy: icons, padding, fill sizing, exact alignment, waypoint geometry
+- Frames → Mermaid nodes or subgraphs depending on whether they have children
+- Arrows → `source --> target`
+- Multi-line labels → `<br/>`
+- Lossy areas: exact padding, sizing, alignment, icon placement, anchor-qualified refs, waypoint geometry
 
 ## D2 export model (adapter input: DiagramDocument only)
 
-- Groups → D2 containers
-- Nodes → D2 shapes with labels
-- Edges → D2 connections
-- Icons → D2 icon syntax where supported
+- Containers → D2 containers
+- Leaves → D2 shapes with labels
+- Arrows → D2 connections
+- Lossy areas: exact padding/alignment, some icon handling, anchor-qualified refs

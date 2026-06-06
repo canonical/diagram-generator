@@ -148,13 +148,16 @@ export {
 
 export { compileDiagramYaml } from './diagram-author/compile.js';
 export type {
+  AuthorArrow,
+  AuthorFrameNode,
   CompileOptions,
   CompileResult,
   DiagramDocument,
   Diagnostic,
   DiagnosticLevel,
   Edge,
-  LayoutTreeNode,
+  FrameIndexEntry,
+  LineSpec,
 } from './diagram-author/types.js';
 
 export {

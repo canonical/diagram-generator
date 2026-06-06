@@ -1,4 +1,4 @@
-# Feature Specification: Diagram authoring AST, concise YAML, and export adapters
+# Feature Specification: Diagram authoring compiler, additive YAML sugar, and export adapters
 
 **Feature Branch**: `feat/022-diagram-authoring-ast`
 
@@ -8,18 +8,21 @@
 
 **Status**: In progress
 
-**Input**: Improve the frame YAML authoring format (concise edges, node/group grammar, defaults/templates) while preserving it as canonical source of truth; compile to a strict internal AST; render via existing TS engine; add Mermaid/D2 as export adapters only.
+**Input**: Improve the existing frame YAML authoring format with concise arrow syntax, reusable frame templates, and strict validation while preserving the current `root` frame tree and `arrows` list as the canonical source of truth; compile to a strict internal AST; render via the existing TS engine; add Mermaid/D2 as export adapters only.
 
 ## Mission
 
-Refactor diagram authoring into a **parser → normalizer → validator → AST → renderer/exporters** pipeline. Mermaid and D2 are **export targets**, never canonical syntax.
+Refactor diagram authoring into a **parser → normalizer → validator → AST → renderer/exporters** pipeline without introducing a competing schema. Mermaid and D2 are **export targets**, never canonical syntax.
 
-```
-author-friendly YAML
-  → parse + normalize legacy variants
-  → expand defaults/templates
-  → validate references
-  → strict DiagramDocument AST
+```text
+frame YAML (current canonical shape)
+  + additive authoring sugar
+    - arrow shorthand inside `arrows`
+    - `defaults` + `use` for repeated frame props
+  → parse + normalize sugar
+  → expand templates/defaults
+  → validate references + invariants
+  → strict DiagramDocument AST (frame-tree-native)
   → lower → FrameDiagram (existing layout runtime)
   → custom SVG renderer (existing)
   → optional Mermaid exporter (new)
@@ -29,6 +32,8 @@ author-friendly YAML
 **Non-goals for this spec**
 
 - Replacing YAML with Mermaid or D2 as source of truth
+- Replacing canonical `root` / `arrows` with a new top-level `layout` / `edges` schema
+- Introducing a separate `node:` / `group:` grammar that duplicates the frame tree
 - Rewriting the preview shell (`scripts/preview/*.js`) — see Preview shell policy in `.github/copilot-instructions.md`
 - Big-bang migration of all corpus diagrams in one PR
 - Changing `docs/diagram-schema.json` ontology schema (separate legacy/agent schema; document relationship only)
@@ -36,53 +41,54 @@ author-friendly YAML
 ## Operating contract for implementers
 
 1. **TypeScript owns the compiler** — new code lands in `packages/layout-engine/` first.
-2. **Exporters consume AST only** — never parse raw YAML.
-3. **Renderer stays on FrameDiagram** — AST lowers to existing `Frame` / `FrameDiagram`; do not fork layout/measure in exporters.
-4. **Backward compatibility** — legacy `arrows` + `root:` YAML continues to load; emit deprecation warnings, normalize to AST.
-5. **Small, tested increments** — no parallel architecture beside the paths named in `plan.md`.
+2. **Canonical authoring stays frame-tree-native** — the repo's authored shape remains top-level `root` + `arrows`.
+3. **Exporters consume AST only** — never parse raw YAML.
+4. **Renderer stays on FrameDiagram** — AST lowers to existing `Frame` / `FrameDiagram`; do not fork layout/measure in exporters.
+5. **Additive sugar only** — authoring conveniences must round-trip back to the existing semantic model; do not create a second source of truth beside the preview/editor save path.
 6. **Do not block on Python parity** — `frame_loader.py` may lag; TS compiler is authoritative.
 7. Another agent may be active in the repo — touch only files listed in `tasks.md` for each task.
 
 ## User scenarios and testing
 
-### User Story 1 — Concise edge authoring (Priority: P1)
+### User Story 1 — Concise arrow authoring (Priority: P1)
 
-As a diagram author, I want to write `public_repo -> global_server` instead of verbose `source`/`target` objects so edge lists stay readable.
+As a diagram author, I want to write `public_repo -> global_server` inside `arrows:` instead of verbose `source` / `target` mappings so connector lists stay readable.
 
-**Independent test**: Parse mixed shorthand + object edges; normalized AST contains structured `Edge` records with `source`, `target`, `kind: directed`.
+**Independent test**: Parse mixed shorthand + object arrows; normalized AST contains structured `Arrow` records with `source`, `target`, `kind: directed`.
 
 **Acceptance scenarios**
 
-1. **Given** `edges: [public_repo -> global_server]`, **When** compiled, **Then** AST has one edge `{ source: public_repo, target: global_server, kind: directed }`.
+1. **Given** `arrows: [public_repo -> global_server]`, **When** compiled, **Then** AST has one arrow `{ source: public_repo, target: global_server, kind: directed }`.
 2. **Given** invalid shorthand `public_repo ->`, **When** compiled, **Then** a clear parse error names the line and expected `source -> target` form.
-3. **Given** legacy `arrows:` with object form, **When** compiled, **Then** same AST as equivalent `edges:` and a deprecation warning is recorded.
+3. **Given** a container endpoint such as `tier2_row -> global_server`, **When** compiled, **Then** validation accepts it if both frame ids exist.
+4. **Given** side-qualified refs such as `global_server.right -> tier2_left.left`, **When** compiled, **Then** the compiler preserves the authored refs and validates their base frame ids.
 
 ---
 
-### User Story 2 — Node vs group grammar (Priority: P1)
+### User Story 2 — Frame-tree-native AST (Priority: P1)
 
-As a diagram author, I want `node:` and `group:` entries so connectable leaves are distinct from layout containers.
+As a diagram author, I want the compiler to understand the existing recursive `root` tree directly so the authoring AST matches the project's real source of truth.
 
-**Independent test**: Parse layout tree with nested groups and nodes; AST has separate `nodes` and `groups` indexes plus `layoutTree`; edges resolve only to node ids.
+**Independent test**: Parse a nested `root` tree; AST preserves the recursive frame structure and a frame index; arrows resolve against frame ids rather than a separate node/group registry.
 
 **Acceptance scenarios**
 
-1. **Given** a `group: tier2_row` with child nodes, **When** compiled, **Then** group exists in `groups`, children are nodes or nested groups, layout tree preserves nesting.
-2. **Given** an edge targeting a group id, **When** compiled, **Then** validation fails unless the group is explicitly marked connectable (future field; default: not connectable).
-3. **Given** duplicate ids across a node and group, **When** compiled, **Then** validation fails with a collision error.
+1. **Given** a nested frame tree under `root.children`, **When** compiled, **Then** AST preserves the same containment structure.
+2. **Given** duplicate frame ids anywhere in the tree, **When** compiled, **Then** validation fails with a collision error.
+3. **Given** an arrow targeting a headed container, **When** compiled, **Then** validation succeeds if that container id exists.
 
 ---
 
 ### User Story 3 — Defaults and `use` templates (Priority: P1)
 
-As a diagram author, I want reusable `defaults` and `use: template` on nodes so repeated icon/label patterns are not copy-pasted.
+As a diagram author, I want reusable `defaults` and `use: template` on frame entries so repeated icon/label patterns are not copy-pasted.
 
-**Independent test**: Template expansion merges defaults; node-level overrides win.
+**Independent test**: Template expansion merges defaults; frame-local overrides win.
 
 **Acceptance scenarios**
 
-1. **Given** `defaults.client.label: Client` and `node: client_l1 use: client`, **When** compiled, **Then** node `client_l1` has label `Client`.
-2. **Given** the same with `label: Special client` on the node, **When** compiled, **Then** label is `Special client`.
+1. **Given** `defaults.client.label: Client` and a frame entry `id: client_l1` with `use: client`, **When** compiled, **Then** frame `client_l1` has label `Client`.
+2. **Given** the same with `label: Special client` on the frame, **When** compiled, **Then** label is `Special client`.
 3. **Given** `use: missing_template`, **When** compiled, **Then** validation fails with unknown template error.
 
 ---
@@ -95,9 +101,9 @@ As a maintainer, I want strict validation errors and non-fatal warnings so broke
 
 **Acceptance scenarios**
 
-1. **Given** edge source id that does not exist, **When** compiled, **Then** error cites source id and edge index.
-2. **Given** unused default template, **When** compiled, **Then** warning lists unused template keys.
-3. **Given** duplicate edges, **When** compiled, **Then** warning (not error unless configured strict).
+1. **Given** an arrow source ref whose base id does not exist, **When** compiled, **Then** the error cites the ref and arrow index.
+2. **Given** an unused default template, **When** compiled, **Then** a warning lists the unused template key.
+3. **Given** duplicate arrows, **When** compiled, **Then** validation emits a warning (not error unless configured strict).
 
 ---
 
@@ -109,9 +115,9 @@ As an integrator, I want Mermaid flowchart output from the normalized AST for do
 
 **Acceptance scenarios**
 
-1. **Given** multi-line labels `["Tier 1", "Global server"]`, **When** exported, **Then** Mermaid node uses `<br/>` line breaks.
-2. **Given** nested groups, **When** exported, **Then** `subgraph` blocks with `direction LR`/`TB` where feasible.
-3. **Given** icons, padding, fill sizing, **When** exported, **Then** warnings note unsupported hints.
+1. **Given** multi-line labels `[{ text: "Tier 1" }, { text: "Global server" }]`, **When** exported, **Then** Mermaid node uses `<br/>` line breaks.
+2. **Given** nested containers, **When** exported, **Then** Mermaid uses `subgraph` blocks where feasible.
+3. **Given** anchor-qualified arrow refs or exact layout hints, **When** exported, **Then** warnings note unsupported or lossy translation.
 
 ---
 
@@ -119,107 +125,112 @@ As an integrator, I want Mermaid flowchart output from the normalized AST for do
 
 As an integrator, I want D2 output for nested container diagrams where Mermaid is too lossy.
 
-**Independent test**: AST → D2 string golden test on tiered-network-shaped fixture.
+**Independent test**: AST → D2 string golden test on a tiered-network-shaped fixture.
 
 **Acceptance scenarios**
 
-1. **Given** nested groups, **When** exported, **Then** D2 containers mirror group hierarchy.
-2. **Given** icon metadata on nodes, **When** exported, **Then** icon included where D2 supports it; warning otherwise.
+1. **Given** nested containers, **When** exported, **Then** D2 containers mirror the frame hierarchy.
+2. **Given** icon metadata on frames, **When** exported, **Then** icon metadata is included where D2 supports it and warnings are recorded otherwise.
 
 ---
 
 ### User Story 7 — Documentation and migration (Priority: P2)
 
-As a cold-start agent, I need schema docs, migration notes, and export limitation tables.
+As a cold-start agent, I need schema docs, migration notes, and export limitation tables that reflect the real project contract.
 
-**Independent test**: `quickstart.md` examples parse and match documented AST shape.
+**Independent test**: `quickstart.md` examples parse and match the documented AST shape.
 
 **Acceptance scenarios**
 
-1. **Given** old `arrows` + `root:` document, **When** migration utility or compat path runs, **Then** produces new-style YAML or loads equivalently with warnings documented.
+1. **Given** an existing `arrows` + `root` document, **When** the compat path runs, **Then** it loads without deprecation and produces equivalent AST/runtime output.
+2. **Given** a migration utility, **When** it rewrites a legacy file, **Then** it only applies additive sugar such as shorthand arrows or extracted defaults; it does not rename canonical top-level keys.
 
 ## Functional requirements
 
-### FR-001 — Edge rename and syntax
+### FR-001 — Arrow syntax
 
-- Authoring key **`edges`** replaces **`arrows`** (legacy alias with deprecation warning).
-- Shorthand: `source -> target` (whitespace around `->` tolerated; ids must match `[A-Za-z_][A-Za-z0-9_]*` or existing id rules).
-- Object form retained: `source`, `target`, optional `label`, `style`, `id`, `waypoints`, etc.
-- Normalized AST edge: `{ source, target, kind: "directed", ...optional }`.
+- Canonical authoring key remains **`arrows`**.
+- Each `arrows` entry may be either:
+  - shorthand scalar `source -> target`
+  - object form with `source`, `target`, optional `label`, `style`, `id`, `waypoints`, `label_gap`, etc.
+- Arrow endpoint grammar preserves the current repo contract: endpoints are string refs, not just bare ids. That includes:
+  - plain frame ids such as `tier2_row`
+  - side-qualified refs such as `global_server.right`
+  - cell-like refs already supported by runtime routing, such as `panel_id.col.row.right`
+- Normalized AST arrow shape is `{ source, target, kind: "directed", ...optional }`.
 
-### FR-002 — Layout grammar
+### FR-002 — Root grammar
 
-- Top-level **`layout`** (new) or legacy **`root`** (compat) — both normalize to `layoutTree`.
-- Children entries are discriminated:
-  - `node: <id>` — connectable visible node
-  - `group: <id>` — layout container
-- Layout hints on groups/nodes: `direction`, `padding`, `align`, `sizing_w`, `sizing_h`, `level`, `gap`, `heading`, `icon`, `variant`, etc. (map to existing Frame fields on lower).
+- Canonical top-level layout key remains **`root`**.
+- `root` is a recursive frame tree using the existing frame fields (`id`, `children`, `direction`, `padding`, `align`, `justify`, `gap`, `sizing_w`, `sizing_h`, `width`, `height`, `min_*`, `max_*`, `wrap`, `level`, `variant`, `role`, `heading`, `label`, `icon`, `position`, `x`, `y`, `col_span`, etc.).
+- The compiler may normalize additive sugar within frame entries, but it must not replace the frame tree with a separate `layout` / `node` / `group` schema in v1.
+- Container vs leaf status derives from the existing rule: presence of `children`, not a separate authoring keyword.
 
 ### FR-003 — Defaults / templates
 
-- `defaults:` map of template name → partial node properties.
-- `use: <template>` on node entries; expansion before validation.
-- Override precedence: node properties > template > implicit defaults.
+- `defaults:` is a map of template name → partial frame properties.
+- `use: <template>` may appear on any frame entry in the `root` tree.
+- Override precedence: frame properties > template > implicit defaults.
 
 ### FR-004 — Internal AST
 
-See `data-model.md`. Minimum separation: `nodes`, `groups`, `edges`, `layoutTree`, `defaults`, `metadata`.
+See `data-model.md`. Minimum shape: `root`, `arrows`, `defaults`, `frameIndex`, `metadata`, plus passthrough `grid`, `overlays`, and `meta`.
 
 ### FR-005 — Validation (errors)
 
-- Unique node ids; unique group ids; no id collision across nodes and groups.
-- Every edge `source`/`target` resolves to a **node** id (not group, unless `connectable: true` on group — optional v1 field).
-- Every `use` references existing default.
-- Labels: string or string array (normalize to line list).
-- Groups must have `children` unless `allow_empty: true`.
-- Layout children must be valid `node` or `group` entries.
-- Invalid edge shorthand → parse error with line context.
+- Unique frame ids across the full recursive tree.
+- Every arrow `source` / `target` resolves to an existing frame id after stripping any supported anchor suffix.
+- Every `use` references an existing default.
+- Labels normalize from string | string[] | line-object forms to a consistent line-array representation.
+- `root` and `children` entries must be valid frame objects.
+- Invalid arrow shorthand yields a parse error with line context.
 
 ### FR-006 — Warnings (non-fatal)
 
-- Unused defaults; orphan nodes (no incident edge); empty groups; duplicate edges; Mermaid/D2 unsupported property lists per node/group.
+- Unused defaults; orphan leaf frames; duplicate arrows; self-loop arrows; Mermaid/D2 unsupported property lists.
 
 ### FR-007 — Pipeline
 
-Implement as explicit stages (no string replacement migration):
+Implement as explicit stages (no schema-replacement migration):
 
 1. `parseYamlDocument(raw)`
-2. `normalizeLegacySchema(doc)` — `arrows`→`edges`, `root`→`layout`
+2. `normalizeArrowSyntax(doc)` — object + shorthand `arrows` → normalized arrow records
 3. `expandDefaults(doc)`
-4. `buildIndexes(doc)` — nodes, groups
-5. `validate(doc, indexes)` — errors + warnings
-6. `buildDiagramAst(...)` — strict AST
+4. `buildFrameIndex(doc.root)` — ids, parentage, lookup
+5. `validate(doc, index)` — errors + warnings
+6. `buildDiagramAst(...)` — strict frame-tree-native AST
 7. `lowerToFrameDiagram(ast)` — existing runtime
 8. `exportMermaid(ast)` / `exportD2(ast)` — adapters only
 
 ### FR-008 — Backward compatibility
 
-- Legacy YAML with `arrows` and `root.children[].id` continues to load.
-- Deprecation warnings logged (compiler `warnings[]`); optional `--strict` fails on deprecated keys.
-- Optional CLI `migrate-diagram-yaml.mjs` rewrites to new schema (does not run automatically).
+- Existing YAML with `arrows` and recursive `root.children[].id` continues to load with no deprecation.
+- Additive sugar must compile back to equivalent runtime semantics.
+- Optional CLI `migrate-diagram-yaml.mjs` may rewrite verbose arrow objects to shorthand and extract defaults, but must not rename `arrows` or `root` in v1.
 
 ### FR-009 — Tests
 
-Cover all cases listed in user requirements §9 (concise/object/mixed edges, templates, validation errors, layout tree, exporters).
+Cover all cases listed in user requirements §9: concise/object/mixed arrows, templates, validation errors, nested frame tree, container arrow endpoints, side-qualified refs, exporters.
 
 ### FR-010 — Documentation
 
-Update or add under this spec package and canonical docs when implementing (see tasks): authoring schema, edge syntax, node vs group, defaults, validation, Mermaid/D2 limitations, migration from `arrows`.
+Update or add under this spec package and canonical docs when implementing: authoring schema, arrow syntax, defaults, validation, Mermaid/D2 limitations, migration examples, and the rule that containers remain valid arrow endpoints.
 
 ## Edge cases
 
-- Empty `edges: []` — valid.
-- Self-loop `a -> a` — warning or error (decide in implementation; default: allow with warning).
-- Edge shorthand with extra `:` confusion vs YAML mapping — parser must not treat `->` lines as mappings.
-- Legacy flat `children[].id` without `node:`/`group:` — normalizer infers: leaf with label/icon → node; container with children → group.
-- `engine: v3` retained; compiler version field `schema: author-v1` optional on new documents.
+- Empty `arrows: []` — valid.
+- Self-loop `a -> a` — allowed with warning by default.
+- Arrow shorthand with extra `:` confusion vs YAML mapping — parser must not treat `->` lines as mappings.
+- Container-to-container arrows are valid.
+- Side-qualified refs are valid when the base frame id exists; exporters may degrade them with warnings.
+- `engine: v3` retained; compiler version field `schema: author-v1` is optional and marks additive sugar, not a new top-level schema.
 
 ## Success criteria
 
-- **SC-001**: New authoring YAML for `tiered-network-architecture` is ≤40% fewer lines than legacy equivalent without losing layout intent.
-- **SC-002**: 100% of kept corpus loads through compat path with zero behavior change in SVG golden tests (post-lower).
+- **SC-001**: New authoring YAML for `tiered-network-architecture` is materially shorter than the current version through shorthand arrows and `defaults` / `use`, without replacing the canonical frame-tree shape.
+- **SC-002**: 100% of kept corpus loads through the compiler path with zero behavior change in SVG golden tests (post-lower).
 - **SC-003**: All validation error fixtures produce stable error codes/messages.
-- **SC-004**: Mermaid exporter produces parseable flowchart for tiered-network AST fixture.
+- **SC-004**: Mermaid exporter produces a parseable flowchart for the tiered-network AST fixture.
 - **SC-005**: No exporter reads raw YAML.
 
 ## References

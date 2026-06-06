@@ -16,6 +16,12 @@ Feature package: `specs/025-multi-engine-preview-architecture/`.
 
 - [x] `[H]` **Define the preview engine contract before more engines land.** Spec 025 is now closed: the preview-engine manifest owns engine bootstrap metadata, `/api/overrides` returns canonical persisted state for save rehydration, and the onboarding path for future engines is documented in `specs/025-multi-engine-preview-architecture/plan.md`.
 
+#### Preview browser test API / shim removal (spec 027)
+
+Feature package: `specs/027-preview-browser-test-api/`.
+
+- [ ] `[S]` **Retire spec 026 browser globals.** Migrate Playwright off `saveOverrides` / `performUndo` / `performRedo` / `canUndo` / `canRedo` to documented `__DG_TEST_preview` hooks, then remove shims from `editor.js`. Can start now; ~1 session; run before new Playwright tests copy the global pattern.
+
 #### Preview shell decomposition + TS migration (spec 026)
 
 Feature package: `specs/026-preview-shell-decomposition-ts-migration/`.
@@ -82,7 +88,6 @@ Full audit: `docs/architecture/adversarial-audit-2026-05-27.md`.
 - [ ] `[M]` Forward ontology — auto-select engine from `diagram_type` + `layout_engine`
 - [ ] `[S]` `preview_server.py` decomposition (post-port)
 - [ ] `[L]` Security hardening before Stage 17
-- [ ] `[S]` Further preview-shell shrink: replace remaining `editor.js` globals once browser/test compatibility shims are no longer needed
 - [ ] `[S]` Swappable engine interface — Phase 3+
 - [ ] `[S]` Constraint enforcement on force nodes
 - [ ] `[S]` Arrow waypoint editing / endpoint attachment

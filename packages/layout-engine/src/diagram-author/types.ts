@@ -14,29 +14,48 @@ export interface CompileOptions {
   sourcePath?: string;
 }
 
-export interface Edge {
+export interface LineSpec {
+  text: string;
+  size?: string;
+  weight?: string;
+  fill?: string;
+  smallCaps?: boolean;
+  letterSpacing?: string;
+  lineStep?: number;
+  fontFamily?: string;
+}
+
+export interface AuthorArrow {
   id?: string;
   source: string;
   target: string;
   kind: 'directed';
-  label?: string[];
+  label?: LineSpec[];
   style?: string;
+  color?: string;
+  labelGap?: number;
   waypoints?: [number, number][];
 }
 
-export interface LayoutTreeNode {
-  kind: 'node' | 'group';
+export interface AuthorFrameNode {
   id: string;
-  children: LayoutTreeNode[];
+  children: AuthorFrameNode[];
+  [key: string]: unknown;
+}
+
+export interface FrameIndexEntry {
+  id: string;
+  parentId?: string;
+  isContainer: boolean;
+  path: string;
 }
 
 export interface DiagramDocument {
   metadata: Record<string, unknown>;
   defaults: Record<string, Record<string, unknown>>;
-  nodes: Record<string, Record<string, unknown>>;
-  groups: Record<string, Record<string, unknown>>;
-  edges: Edge[];
-  layoutTree: LayoutTreeNode | null;
+  root: AuthorFrameNode | null;
+  arrows: AuthorArrow[];
+  frameIndex: Record<string, FrameIndexEntry>;
   source: Record<string, unknown>;
 }
 
@@ -45,6 +64,9 @@ export interface CompileResult {
   diagnostics: Diagnostic[];
   errors: Diagnostic[];
   warnings: Diagnostic[];
+  deprecations: Diagnostic[];
   raw: Record<string, unknown>;
   normalized: Record<string, unknown>;
 }
+
+export type Edge = AuthorArrow;
