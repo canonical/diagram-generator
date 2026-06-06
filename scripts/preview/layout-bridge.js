@@ -713,6 +713,44 @@ function collectPlacedBounds(frame, out) {
   return out;
 }
 
+function fitSvgToRenderedContent(svgEl, options) {
+  if (!svgEl) return null;
+  const styledLayer = svgEl.querySelector("#dg-styled-layer");
+  if (!styledLayer || typeof styledLayer.getBBox !== "function") return null;
+
+  let bbox;
+  try {
+    bbox = styledLayer.getBBox();
+  } catch (_error) {
+    return null;
+  }
+  if (!bbox || !Number.isFinite(bbox.width) || !Number.isFinite(bbox.height)) return null;
+
+  const padding = Number(options && options.padding) || 24;
+  const minWidth = Math.max(0, Number(options && options.minWidth) || 0);
+  const minHeight = Math.max(0, Number(options && options.minHeight) || 0);
+  const minX = Math.min(0, Math.floor(bbox.x - padding));
+  const minY = Math.min(0, Math.floor(bbox.y - padding));
+  const maxX = Math.max(minWidth, Math.ceil(bbox.x + bbox.width + padding));
+  const maxY = Math.max(minHeight, Math.ceil(bbox.y + bbox.height + padding));
+  const width = Math.max(1, maxX - minX);
+  const height = Math.max(1, maxY - minY);
+
+  svgEl.setAttribute("viewBox", `${minX} ${minY} ${width} ${height}`);
+  svgEl.setAttribute("width", String(width));
+  svgEl.setAttribute("height", String(height));
+
+  const bgRect = svgEl.querySelector(":scope > rect:first-of-type");
+  if (bgRect) {
+    bgRect.setAttribute("x", String(minX));
+    bgRect.setAttribute("y", String(minY));
+    bgRect.setAttribute("width", String(width));
+    bgRect.setAttribute("height", String(height));
+  }
+
+  return { x: minX, y: minY, width, height };
+}
+
 /**
  * Patch SVG DOM elements to reflect new layout positions/sizes.
  * FrameBox groups are rebuilt from the relaid-out frame tree so text,
@@ -772,6 +810,10 @@ function patchSvgFromLayout(svgEl, oldBounds, newBounds, framesById) {
     svgEl.setAttribute("viewBox", `0 0 ${rootBounds.w} ${rootBounds.h}`);
     svgEl.setAttribute("width", String(rootBounds.w));
     svgEl.setAttribute("height", String(rootBounds.h));
+    fitSvgToRenderedContent(svgEl, {
+      minWidth: rootBounds.w,
+      minHeight: rootBounds.h,
+    });
   }
 }
 

@@ -514,6 +514,12 @@ async function loadSVG(options = {}) {
 
   // Replace stage content with TS-rendered SVG
   stage.replaceChildren(renderResult.svg);
+  if (typeof fitSvgToRenderedContent === "function") {
+    fitSvgToRenderedContent(renderResult.svg, {
+      minWidth: renderResult.width,
+      minHeight: renderResult.height,
+    });
+  }
 
   applyWaypointOverrides();
   applyAllOverrides();
