@@ -1,5 +1,6 @@
 import { buildFrameAst } from './build-ast.js';
 import { expandFrameDefaults } from './expand-defaults.js';
+import { lowerToFrameDiagram } from './lower-to-frame.js';
 import { normalizeArrows } from './normalize-arrows.js';
 import { parseYamlDocument } from './parse-yaml.js';
 import { validateArrowRefs } from './ref-grammar.js';
@@ -61,9 +62,13 @@ export function compileDiagramYaml(raw: string, options: CompileOptions = {}): C
   const diagnostics = [...scaffold.diagnostics];
   const errors = diagnostics.filter(diagnostic => diagnostic.level === 'error');
   const warnings = diagnostics.filter(diagnostic => diagnostic.level === 'warning');
+  const frameDiagram = errors.length === 0 && scaffold.ast.root
+    ? lowerToFrameDiagram(scaffold.ast, parsed)
+    : undefined;
 
   return {
     ast: scaffold.ast,
+    frameDiagram,
     diagnostics,
     errors,
     warnings,

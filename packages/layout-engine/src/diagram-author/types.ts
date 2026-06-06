@@ -108,8 +108,11 @@ export interface DiagramDocument {
   source: Record<string, unknown>;
 }
 
+import type { FrameDiagram } from '../frame-model.js';
+
 export interface CompileResult {
   ast: DiagramDocument;
+  frameDiagram?: FrameDiagram;
   diagnostics: Diagnostic[];
   errors: Diagnostic[];
   warnings: Diagnostic[];

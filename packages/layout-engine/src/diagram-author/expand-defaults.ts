@@ -1,18 +1,39 @@
 import { normalizeFrameTemplate } from './build-ast.js';
 import type { AuthorFrameNode, Diagnostic, FrameTemplate } from './types.js';
 
-function normalizeDefaultsMap(value: unknown): Record<string, FrameTemplate> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return {};
+function normalizeDefaultsMap(value: unknown): {
+  defaults: Record<string, FrameTemplate>;
+  diagnostics: Diagnostic[];
+} {
+  const diagnostics: Diagnostic[] = [];
+  if (value === undefined || value === null) {
+    return { defaults: {}, diagnostics };
   }
-  return Object.fromEntries(
-    Object.entries(value as Record<string, unknown>).map(([name, entry]) => [
-      name,
-      entry && typeof entry === 'object' && !Array.isArray(entry)
-        ? normalizeFrameTemplate(entry as Record<string, unknown>)
-        : {},
-    ]),
-  );
+  if (typeof value !== 'object' || Array.isArray(value)) {
+    diagnostics.push({
+      code: 'INVALID_DEFAULT',
+      level: 'error',
+      message: 'Top-level `defaults` must be a mapping.',
+      path: 'defaults',
+    });
+    return { defaults: {}, diagnostics };
+  }
+
+  const defaults: Record<string, FrameTemplate> = {};
+  for (const [name, entry] of Object.entries(value as Record<string, unknown>)) {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+      diagnostics.push({
+        code: 'INVALID_DEFAULT',
+        level: 'error',
+        message: 'Default template entry must be a mapping.',
+        path: `defaults.${name}`,
+      });
+      continue;
+    }
+    defaults[name] = normalizeFrameTemplate(entry as Record<string, unknown>);
+  }
+
+  return { defaults, diagnostics };
 }
 
 function mergeTemplateIntoNode(
@@ -72,16 +93,21 @@ export function expandFrameDefaults(
   usedTemplates: Set<string>;
   diagnostics: Diagnostic[];
 } {
-  const defaults = normalizeDefaultsMap(rawDefaults);
+  const normalizedDefaults = normalizeDefaultsMap(rawDefaults);
   if (!root) {
-    return { root: null, defaults, usedTemplates: new Set(), diagnostics: [] };
+    return {
+      root: null,
+      defaults: normalizedDefaults.defaults,
+      usedTemplates: new Set(),
+      diagnostics: normalizedDefaults.diagnostics,
+    };
   }
 
-  const diagnostics: Diagnostic[] = [];
+  const diagnostics: Diagnostic[] = [...normalizedDefaults.diagnostics];
   const usedTemplates = new Set<string>();
   return {
-    root: expandNode(root, defaults, 'root', diagnostics, usedTemplates),
-    defaults,
+    root: expandNode(root, normalizedDefaults.defaults, 'root', diagnostics, usedTemplates),
+    defaults: normalizedDefaults.defaults,
     usedTemplates,
     diagnostics,
   };

@@ -668,4 +668,97 @@ describe('compileDiagramYaml', () => {
       }),
     );
   });
+
+  it('reports malformed default template entries', () => {
+    const result = compileDiagramYaml(
+      [
+        'schema: author-v1',
+        'title: Bad default',
+        'engine: v3',
+        'arrows: []',
+        'defaults:',
+        '  client: Client',
+        'root:',
+        '  id: page',
+        '  children:',
+        '    - id: client_l1',
+        '      use: client',
+        '      children: []',
+        '',
+      ].join('\n'),
+    );
+
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        code: 'INVALID_DEFAULT',
+        level: 'error',
+        path: 'defaults.client',
+      }),
+    );
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        code: 'UNKNOWN_TEMPLATE',
+        level: 'error',
+        path: 'root.children[0]',
+      }),
+    );
+    expect(result.frameDiagram).toBeUndefined();
+  });
+
+  it('reports frames with missing ids', () => {
+    const result = compileDiagramYaml(
+      [
+        'schema: author-v1',
+        'title: Missing frame id',
+        'engine: v3',
+        'arrows: []',
+        'root:',
+        '  id: page',
+        '  children:',
+        '    - label: Orphan entry',
+        '      children: []',
+        '',
+      ].join('\n'),
+    );
+
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        code: 'FRAME_MISSING_ID',
+        level: 'error',
+        path: 'root.children[0]',
+      }),
+    );
+    expect(result.frameDiagram).toBeUndefined();
+  });
+
+  it('lowers a valid diagram to FrameDiagram when compile has no errors', () => {
+    const result = compileDiagramYaml(
+      [
+        'engine: v3',
+        'title: Preview smoke',
+        'arrows:',
+        '  - source: define',
+        '    target: measure',
+        'root:',
+        '  id: page',
+        '  direction: vertical',
+        '  children:',
+        '    - id: define',
+        '      label: Define',
+        '      children: []',
+        '    - id: measure',
+        '      label: Measure',
+        '      children: []',
+        '',
+      ].join('\n'),
+    );
+
+    expect(result.errors).toEqual([]);
+    expect(result.frameDiagram).toBeDefined();
+    expect(result.frameDiagram?.title).toBe('Preview smoke');
+    expect(result.frameDiagram?.root.id).toBe('page');
+    expect(result.frameDiagram?.arrows).toHaveLength(1);
+    expect(result.frameDiagram?.arrows[0]?.source).toBe('define');
+    expect(result.frameDiagram?.arrows[0]?.target).toBe('measure');
+  });
 });

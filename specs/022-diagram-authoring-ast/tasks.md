@@ -43,9 +43,9 @@
 
 ## Phase 6: Lowering to runtime (US1–3 integration)
 
-- [ ] T050 Create `lower-to-frame.ts` — `DiagramDocument` → `FrameDiagram`
-- [ ] T051 Wire `frame-yaml-loader.ts` through `compileDiagramYaml` + lower (API unchanged)
-- [ ] T052 Regression: existing corpus YAML loads; SVG golden unchanged through compiler path
+- [x] T050 Create `lower-to-frame.ts` — `DiagramDocument` → `FrameDiagram`
+- [x] T051 Wire `frame-yaml-loader.ts` through `compileDiagramYaml` + lower (API unchanged)
+- [x] T052 Regression: existing corpus YAML loads; SVG golden unchanged through compiler path
 
 ## Phase 7: Mermaid exporter (US5)
 
@@ -55,7 +55,7 @@
 - [ ] T063 Tests: tiered-network AST golden Mermaid string
 - [ ] T064 [P] CLI `packages/layout-engine/scripts/export-mermaid.mjs`
 
-## Phase 8: D2 exporter (US6)
+## Phase 8: D2 exporter (US6) // defer for now
 
 - [ ] T070 Create `export-d2.ts` — containers, leaves, arrows, icons where supported
 - [ ] T071 D2 unsupported-property warnings

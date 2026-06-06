@@ -229,22 +229,27 @@ export function buildFrameIndex(root: AuthorFrameNode | null): {
   const diagnostics: Diagnostic[] = [];
 
   const visit = (node: AuthorFrameNode, path: string, parentId?: string) => {
-    if (node.id) {
-      if (frameIndex[node.id]) {
-        diagnostics.push({
-          code: 'DUPLICATE_FRAME_ID',
-          level: 'error',
-          message: `Duplicate frame id: ${node.id}`,
-          path,
-        });
-      } else {
-        frameIndex[node.id] = {
-          id: node.id,
-          parentId,
-          isContainer: node.children.length > 0,
-          path,
-        };
-      }
+    if (!node.id) {
+      diagnostics.push({
+        code: 'FRAME_MISSING_ID',
+        level: 'error',
+        message: 'Frame entry requires a non-empty id.',
+        path,
+      });
+    } else if (frameIndex[node.id]) {
+      diagnostics.push({
+        code: 'DUPLICATE_FRAME_ID',
+        level: 'error',
+        message: `Duplicate frame id: ${node.id}`,
+        path,
+      });
+    } else {
+      frameIndex[node.id] = {
+        id: node.id,
+        parentId,
+        isContainer: node.children.length > 0,
+        path,
+      };
     }
     node.children.forEach((child, childIndex) => {
       visit(child, `${path}.children[${childIndex}]`, node.id || parentId);
