@@ -195,7 +195,7 @@ describe('arrow rendering parity', () => {
     }
   });
 
-  it('defaults plain non-root container padding to 8px', () => {
+  it('defaults plain non-root headingless container padding to 0px', () => {
     const tempDir = mkdtempSync(join(tmpdir(), 'dg-padding-test-'));
     const yamlPath = join(tempDir, 'derived-padding.yaml');
 
@@ -220,11 +220,49 @@ describe('arrow rendering parity', () => {
       const diagram = loadFrameYaml(yamlPath);
       const cluster = diagram.root.children[0]!;
 
-      expect(cluster.padding).toBe(8);
-      expect(cluster.paddingTop).toBe(8);
-      expect(cluster.paddingRight).toBe(8);
-      expect(cluster.paddingBottom).toBe(8);
-      expect(cluster.paddingLeft).toBe(8);
+      expect(cluster.padding).toBe(0);
+      expect(cluster.paddingTop).toBe(0);
+      expect(cluster.paddingRight).toBe(0);
+      expect(cluster.paddingBottom).toBe(0);
+      expect(cluster.paddingLeft).toBe(0);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('renders leaf heading and body as separate blocks without needing a blank label row', () => {
+    const tempDir = mkdtempSync(join(tmpdir(), 'dg-leaf-heading-test-'));
+    const yamlPath = join(tempDir, 'leaf-heading.yaml');
+
+    try {
+      writeFileSync(
+        yamlPath,
+        [
+          'engine: v3',
+          'title: leaf heading',
+          'root:',
+          '  id: page',
+          '  children:',
+          '    - id: card',
+          '      level: 3',
+          '      heading: The problem',
+          '      label: [Databases have crawled to a halt.]',
+          '',
+        ].join('\n'),
+        'utf8',
+      );
+
+      const diagram = loadFrameYaml(yamlPath);
+      const card = diagram.root.children[0]!;
+      const svg = renderFrameDiagramToSvg(diagram, { width: 400, height: 160 }, new MockTextAdapter());
+
+      expect(card.heading?.content).toBe('The problem');
+      expect(svg).toContain('>The problem</tspan>');
+      expect(svg).toContain('>Databases have crawled to a halt.</tspan>');
+      expect(svg).toContain('font-weight="700" fill="#000000" font-variant-caps="small-caps">The problem</tspan>');
+      expect(svg).toContain('font-weight="400" fill="#000000">Databases have crawled to a halt.</tspan>');
+      expect(svg).not.toContain('font-weight="700" fill="#000000">Databases have crawled to a halt.</tspan>');
+      expect(svg).toMatch(/<text[^>]*><tspan x="8" y="24\.92"[^>]*>The problem<\/tspan><\/text><text[^>]*><tspan x="8" y="72\.92"[^>]*>Databases have crawled to a halt\.<\/tspan><\/text>/);
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }

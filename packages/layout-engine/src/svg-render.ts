@@ -29,8 +29,8 @@ import {
 import { effectiveResolvedStrokeWidth } from './frame-classes.js';
 import {
   annotationTextToSpec,
-  frameOwnedHeadingToSpec,
-  frameOwnedLabelToSpec,
+  frameOwnedTextBlocks,
+  frameOwnedTextBlockGap,
 } from './resolved-spec-typography.js';
 import type { LayoutOutput } from './layout.js';
 import { tintIconInnerMarkup } from './icon-embed.js';
@@ -62,7 +62,7 @@ interface FrameRenderState {
   padRight: number;
   padBottom: number;
   padLeft: number;
-  specs: LineSpec[];
+  textBlocks: LineSpec[][];
   iconFill: string;
 }
 
@@ -76,17 +76,11 @@ function frameRenderState(frame: Frame, adapter: TextMeasureAdapter): FrameRende
   const iconCol = leafIconColumnWidth(frame);
   const textMaxWidth = frame._layout.placedW - padLeft - padRight - iconCol;
 
-  let specs: LineSpec[] = [];
-  if (frame.children.length === 0) {
-    if (frame.heading) specs.push(frameOwnedHeadingToSpec(frame, frame.heading));
-    for (const [labelIndex, line] of frame.label.entries()) {
-      specs.push(frameOwnedLabelToSpec(frame, line, labelIndex));
-    }
-  } else if (frame.heading) {
-    specs = [frameOwnedHeadingToSpec(frame, frame.heading)];
-  }
-  if (specs.length > 0 && textMaxWidth > 0) {
-    specs = wrapTextLines(specs, textMaxWidth, adapter);
+  let textBlocks = frameOwnedTextBlocks(frame);
+  if (textBlocks.length > 0 && textMaxWidth > 0) {
+    textBlocks = textBlocks
+      .map(block => wrapTextLines(block, textMaxWidth, adapter))
+      .filter(block => block.length > 0);
   }
 
   const strokeWidth = effectiveResolvedStrokeWidth(frame);
@@ -100,35 +94,40 @@ function frameRenderState(frame: Frame, adapter: TextMeasureAdapter): FrameRende
     padRight,
     padBottom,
     padLeft,
-    specs,
+    textBlocks,
     iconFill: frame.resolvedIconFill ?? '#000000',
   };
 }
 
 function renderFrameText(frame: Frame, rs: FrameRenderState): string {
-  if (!rs.specs.length) return '';
+  if (!rs.textBlocks.length) return '';
   const parts: string[] = [];
   let top = frame._layout.placedY + rs.padTop;
   const x = frame._layout.placedX + rs.padLeft;
-  for (const spec of rs.specs) {
-    const size = String(spec.size ?? BODY_SIZE);
-    const weight = spec.weight ?? '400';
-    const smallCaps = spec.smallCaps ?? false;
-    const fill = spec.fill ?? '#000000';
-    const lineStep = sizeToPx(spec.lineStep ?? BODY_LINE_STEP);
-    const attrs = [
-      `x="${fmt(x)}"`,
-      `y="${fmt(lineTopToBaseline(top, size))}"`,
-      `font-size="${esc(size)}"`,
-      `font-weight="${esc(String(weight))}"`,
-      `fill="${esc(fill)}"`,
-    ];
-    if (spec.letterSpacing) attrs.push(`letter-spacing="${esc(String(spec.letterSpacing))}"`);
-    if (smallCaps) attrs.push('font-variant-caps="small-caps"');
-    parts.push(`<tspan ${attrs.join(' ')}>${esc(spec.content)}</tspan>`);
-    top += lineStep;
+  for (const [blockIndex, block] of rs.textBlocks.entries()) {
+    const blockParts: string[] = [];
+    for (const spec of block) {
+      const size = String(spec.size ?? BODY_SIZE);
+      const weight = spec.weight ?? '400';
+      const smallCaps = spec.smallCaps ?? false;
+      const fill = spec.fill ?? '#000000';
+      const lineStep = sizeToPx(spec.lineStep ?? BODY_LINE_STEP);
+      const attrs = [
+        `x="${fmt(x)}"`,
+        `y="${fmt(lineTopToBaseline(top, size))}"`,
+        `font-size="${esc(size)}"`,
+        `font-weight="${esc(String(weight))}"`,
+        `fill="${esc(fill)}"`,
+      ];
+      if (spec.letterSpacing) attrs.push(`letter-spacing="${esc(String(spec.letterSpacing))}"`);
+      if (smallCaps) attrs.push('font-variant-caps="small-caps"');
+      blockParts.push(`<tspan ${attrs.join(' ')}>${esc(spec.content)}</tspan>`);
+      top += lineStep;
+    }
+    parts.push(`<text font-family="Ubuntu Sans">${blockParts.join('')}</text>`);
+    top += frameOwnedTextBlockGap(frame, blockIndex, rs.textBlocks.length);
   }
-  return `<text font-family="Ubuntu Sans">${parts.join('')}</text>`;
+  return parts.join('');
 }
 
 function renderIconPlaceholder(frame: Frame, rs: FrameRenderState): string {

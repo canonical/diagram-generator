@@ -10,6 +10,13 @@ export type LayeredCorpusFamily =
   | 'process_and_workflow'
   | 'data_flow_and_integration';
 
+/** Matches planning `layout_mapping.py` ELK force-directed families. */
+export type ForceCorpusFamily =
+  | 'system_architecture'
+  | 'infrastructure_and_network_topology'
+  | 'data_model_and_relationships'
+  | 'concept_and_relationship_mapping';
+
 export interface GraphNodeInput {
   id: string;
   width: number;
@@ -82,7 +89,7 @@ export interface GraphLayoutResult {
   height: number;
   nodes: PlacedNode[];
   edges: PlacedEdge[];
-  engine: 'elk-layered';
+  engine: 'elk-layered' | 'elk-force';
   direction: LayoutDirection;
 }
 

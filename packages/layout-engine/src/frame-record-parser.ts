@@ -103,6 +103,7 @@ export function parseFrameRecord(data: Record<string, unknown>, isRoot = false):
   const hasHeading = 'heading' in data;
   const borderKey = String(data.border ?? '');
   const border = BORDER[borderKey] ?? defaultBorder;
+  const isPanel = border !== Border.NONE || hasHeading;
   const isAnnotation = border === Border.NONE && !isContainer;
   const defaultGap = hasHeading ? 0 : deriveContentGap(children, { isRoot });
 
@@ -123,7 +124,7 @@ export function parseFrameRecord(data: Record<string, unknown>, isRoot = false):
   if ('width' in data && !('sizing_w' in data) && !('sizing' in data)) sizingW = Sizing.FIXED;
   if ('height' in data && !('sizing_h' in data) && !('sizing' in data)) sizingH = Sizing.FIXED;
 
-  const defaultPadding = isRoot ? 0 : INSET;
+  const defaultPadding = isRoot || (isContainer && !isPanel) ? 0 : INSET;
   const uniformPadding = Number(data.padding ?? defaultPadding);
 
   const frame = new Frame({
@@ -161,6 +162,7 @@ export function parseFrameRecord(data: Record<string, unknown>, isRoot = false):
     maxHeight: data.max_height != null ? Number(data.max_height) : undefined,
     fill: FILL[String(data.fill ?? 'white')] ?? Fill.WHITE,
     border,
+    heading: headingLine && !isContainer ? headingLine : undefined,
     icon: headingLine && isContainer ? undefined : (data.icon as string | undefined),
     iconFill: data.icon_fill as string | undefined,
     label,

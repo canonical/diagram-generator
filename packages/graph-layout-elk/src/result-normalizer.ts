@@ -156,6 +156,7 @@ function normalizeEdges(
 export function normalizeElkLayoutResult(
   input: GraphLayoutInput,
   elkRoot: ElkLayoutNode,
+  engine: GraphLayoutResult['engine'] = 'elk-layered',
 ): GraphLayoutResult {
   const width = snap(elkRoot.width ?? 0);
   const height = snap(elkRoot.height ?? 0);
@@ -168,7 +169,7 @@ export function normalizeElkLayoutResult(
     height,
     nodes,
     edges,
-    engine: 'elk-layered',
+    engine,
     direction: input.direction,
   };
 }

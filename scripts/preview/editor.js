@@ -441,6 +441,8 @@ async function loadSVG(options = {}) {
   await initLayoutBridge(SLUG);
   if (canonicalState && canonicalState.frameTree && typeof setFrameTreeJson === "function") {
     setFrameTreeJson(canonicalState.frameTree);
+  } else if (canonicalState && canonicalState.previewDocument && canonicalState.previewDocument.kind === "sequence" && typeof setFrameTreeJson === "function") {
+    setFrameTreeJson(null);
   }
 
   // Seed ELK overrides from saved YAML before any sidebar sync or layout read.
@@ -514,6 +516,12 @@ async function loadSVG(options = {}) {
 
   // Replace stage content with TS-rendered SVG
   stage.replaceChildren(renderResult.svg);
+  if (typeof fitSvgToRenderedContent === "function") {
+    fitSvgToRenderedContent(renderResult.svg, {
+      minWidth: renderResult.width,
+      minHeight: renderResult.height,
+    });
+  }
 
   applyWaypointOverrides();
   applyAllOverrides();
@@ -631,6 +639,13 @@ function _attemptDiagramNavigation(nextUrl, syncUi) {
 }
 
 async function loadTree(canonicalState = null) {
+  const previewDocument = (canonicalState && canonicalState.previewDocument)
+    || (typeof getPreviewDocumentJson === "function" ? getPreviewDocumentJson() : null);
+  if (previewDocument && previewDocument.kind === "sequence") {
+    model.loadTree([]);
+    if (typeof model.loadArrows === "function") model.loadArrows([]);
+    return;
+  }
   const canonicalComponentTree = canonicalState && Array.isArray(canonicalState.componentTree)
     ? canonicalState.componentTree
     : null;
@@ -4284,12 +4299,12 @@ function startTextEdit(cid, e) {
 
   // Find the <text> element(s) inside this component's group
   const groups = svg.querySelectorAll('[data-component-id="' + cid + '"]');
-  let textEl = null;
+  const textEls = [];
   groups.forEach(g => {
-    const t = g.querySelector("text");
-    if (t && !textEl) textEl = t;
+    g.querySelectorAll("text").forEach(t => textEls.push(t));
   });
-  if (!textEl) return;
+  if (textEls.length === 0) return;
+  const textEl = textEls[0];
 
   // Get semantic text from the component tree (unwrapped, pre-wrapping content)
   const node = model.get(cid);
@@ -4304,13 +4319,13 @@ function startTextEdit(cid, e) {
 
   // If no semantic text available, fall back to tspan content
   if (semanticLines.length === 0) {
-    const tspans = textEl.querySelectorAll("tspan");
+    const tspans = textEls.flatMap(t => Array.from(t.querySelectorAll("tspan")));
     if (tspans.length === 0) return;
     tspans.forEach(ts => semanticLines.push(ts.textContent));
   }
 
   // Read styles from the first tspan for visual appearance
-  const tspans = textEl.querySelectorAll("tspan");
+  const tspans = textEls.flatMap(t => Array.from(t.querySelectorAll("tspan")));
   const styles = [];
   tspans.forEach(ts => {
     styles.push({
@@ -4320,8 +4335,23 @@ function startTextEdit(cid, e) {
     });
   });
 
-  // Get bounding rect of the text element in page coordinates
-  const textBBox = textEl.getBoundingClientRect();
+  // Union the rendered text bounds so split heading/body blocks edit as one field.
+  const textRects = textEls.map(t => t.getBoundingClientRect());
+  const textBBox = textRects.reduce((acc, rect) => {
+    if (!acc) return rect;
+    const left = Math.min(acc.left, rect.left);
+    const top = Math.min(acc.top, rect.top);
+    const right = Math.max(acc.right, rect.right);
+    const bottom = Math.max(acc.bottom, rect.bottom);
+    return {
+      left,
+      top,
+      right,
+      bottom,
+      width: right - left,
+      height: bottom - top,
+    };
+  }, null);
   // Also get the parent component's bounding rect for width constraint
   let containerRect = textBBox;
   let hasIcon = false;
@@ -4359,10 +4389,10 @@ function startTextEdit(cid, e) {
   ta.focus();
   ta.select();
 
-  // Hide the original text while editing
-  textEl.style.opacity = "0";
+  // Hide all rendered text blocks while editing.
+  textEls.forEach(node => { node.style.opacity = "0"; });
 
-  mgr.startTextEdit({ cid, textEl, ta, originalLines: semanticLines, styles, hasHeading });
+  mgr.startTextEdit({ cid, textEl, textEls, ta, originalLines: semanticLines, styles, hasHeading });
 
   ta.addEventListener("keydown", (ev) => {
     if (ev.key === "Escape") {
@@ -4386,7 +4416,7 @@ function startTextEdit(cid, e) {
 
 function commitTextEdit() {
   if (!mgr.isMode(InteractionMode.TEXT_EDITING)) return;
-  const { cid, textEl, ta, originalLines, hasHeading } = mgr.state;
+  const { cid, textEls, ta, originalLines, hasHeading } = mgr.state;
   const newLines = ta.value.split("\n");
 
   // Check if text actually changed
@@ -4410,7 +4440,7 @@ function commitTextEdit() {
 
   // Remove the textarea and show text element (will be replaced by relayout)
   ta.remove();
-  textEl.style.opacity = "";
+  (textEls || []).forEach(node => { node.style.opacity = ""; });
 
   mgr.endInteraction();
 
@@ -4424,7 +4454,7 @@ function commitTextEdit() {
 
 function cancelTextEdit() {
   if (!mgr.isMode(InteractionMode.TEXT_EDITING)) return;
-  mgr.state.textEl.style.opacity = "";
+  (mgr.state.textEls || [mgr.state.textEl]).forEach(node => { node.style.opacity = ""; });
   mgr.state.ta.remove();
   mgr.endInteraction();
 }

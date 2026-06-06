@@ -40,6 +40,19 @@ Making a diagram for a review or deck: **[`docs/stakeholder-guide.md`](docs/stak
 - Docs and tooling: [`docs/diagram-authoring.md`](docs/diagram-authoring.md), `migrate-diagram-yaml.mjs`, `export-mermaid.mjs`, `export-d2.mjs`, reference fixture `tiered-network-architecture.author-v1.yaml`, and the spec 028 interchange package.
 - Root canvas endpoints are now rejected at compile time; Mermaid and D2 exporters skip invalid arrows defensively with warnings. Preview save format remains canonical `root` + `arrows`.
 
+### Current delta — ELK force core port started (2026-06-06)
+
+- The planning ontology still ranks `elk-layered` as the highest-demand graph engine and `elk-force` as the next ELK engine after it.
+- `graph-layout-elk` now has a first bounded `elk-force` port: shared ELK graph-builder path, `layoutForceForFamily()`, planning-aligned family mapping for force-directed families, and focused package coverage.
+- This slice is deliberately core-only. The preview registry and shell still point `force` at the existing D3/quadtree force lane, which remains a first-class engine in this repo; no preview-side ELK force onboarding has been claimed yet.
+
+### Current delta — spec 030 sequence layout complete (2026-06-06)
+
+- Spec 030 is now complete as a bounded v1 slice.
+- Sequence support is landed as a first-party TypeScript lane with compiler-owned `sequence:` YAML, preview-engine registration, TS-owned preview documents, and browser-bundle exports for live preview rendering.
+- The validated live fixture is now corpus-backed: the active sequence demo redraws Landscape package reporting and loads the tracked source image in Input and Both for direct fidelity checks.
+- Unsupported sequence affordances visible in the corpus source, notably activation bars and the sleep bracket, remain explicit follow-up work rather than shell-side patches or fake frame-tree edits.
+
 ### Current delta — spec 029 force preview shell convergence drafted (2026-06-06)
 
 - Added `specs/029-force-preview-shell-convergence/` as a bounded follow-up to the recent force preview save-button regression.
@@ -162,7 +175,7 @@ Commit **`a6822da`** (`scripts: land ts svg renderer cleanup`):
 | Priority | Work |
 |----------|------|
 | Now | Continue the first Mermaid-heavy direct port under **spec 030** (`sequence layout`) through TypeScript + preview-engine registry boundaries |
-| Next | Start **spec 029** only if the force preview shell needs more convergence work beyond the local save-button fix; keep delegation bounded to shell-side cleanup, not a force controller rewrite |
+| Next | Keep spec 024 fail-closed on `main`, continue additive `elk-force` core work on this branch only where useful, and draft the remaining Mermaid-aware layout specs after `030` is better defined |
 
 ## Key files
 

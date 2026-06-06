@@ -46,7 +46,7 @@ FRAMES_DIR = pathlib.Path(os.environ.get("DG_FRAMES_DIR") or (SCRIPTS / "diagram
 
 _LAYOUT_ENGINE_DIST = ROOT / "packages" / "layout-engine" / "dist"
 _TS_LAYOUT_SCRIPT = ROOT / "packages" / "layout-engine" / "scripts" / "layout-frame-diagram.mjs"
-_TS_EMIT_SCRIPT = ROOT / "packages" / "layout-engine" / "scripts" / "emit-frame-diagram-json.mjs"
+_TS_EMIT_SCRIPT = ROOT / "packages" / "layout-engine" / "scripts" / "emit-preview-document-json.mjs"
 _TS_EXPORT_SCRIPT = ROOT / "packages" / "layout-engine" / "scripts" / "export-frame-svg.mjs"
 
 WATCH_PATHS = [
@@ -259,6 +259,10 @@ def _get_grid_info(slug: str) -> dict | None:
     return info if isinstance(info, dict) else None
 
 
+def _get_preview_document(slug: str) -> dict | None:
+    return _ts_layout_pool.preview_document_json(_normalize_slug(slug))
+
+
 def _save_overrides(slug: str, data: dict) -> None:
     frame_path = FRAMES_DIR / f"{slug}.yaml"
     if not frame_path.exists():
@@ -275,9 +279,16 @@ def _save_overrides(slug: str, data: dict) -> None:
 
 
 def _canonical_saved_state(slug: str) -> dict[str, object]:
+    preview_document = _get_preview_document(slug)
+    frame_tree = None
+    if isinstance(preview_document, dict) and preview_document.get("kind") == "frame-diagram":
+        maybe_tree = preview_document.get("frameTree")
+        if isinstance(maybe_tree, dict):
+            frame_tree = maybe_tree
     return {
         "slug": slug,
-        "frameTree": _ts_layout_pool.frame_tree_json(slug),
+        "previewDocument": preview_document,
+        "frameTree": frame_tree,
         "componentTree": _get_component_tree(slug),
         "gridInfo": _get_grid_info(slug),
     }
@@ -1023,6 +1034,8 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
             self._serve_force_get(path[11:])
         elif path.startswith("/api/tree/"):
             self._serve_tree(path[10:])
+        elif path.startswith("/api/preview-document/"):
+            self._serve_preview_document(path[22:])
         elif path.startswith("/api/frame-tree/"):
             self._serve_frame_tree(path[16:])
         elif path.startswith("/api/grid/"):
@@ -1330,6 +1343,26 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
         if data is None:
             print(f"TS frame-tree export failed for {key}", file=sys.stderr)
             self.send_error(503, "TS frame-tree export failed")
+            return
+        self._respond(200, "application/json", json.dumps(data).encode())
+
+    def _serve_preview_document(self, slug: str):
+        """Serve preview-document JSON from the TS authoring compiler."""
+        if not _is_safe_slug(slug):
+            self.send_error(400, "Invalid slug")
+            return
+        key = _normalize_slug(slug)
+        frame_yaml = FRAMES_DIR / f"{key}.yaml"
+        if not frame_yaml.is_file():
+            self.send_error(404, "Preview document not found")
+            return
+        if _ts_layout_disabled():
+            self.send_error(503, "TS preview-document export disabled")
+            return
+        data = _get_preview_document(slug)
+        if data is None:
+            print(f"TS preview-document export failed for {key}", file=sys.stderr)
+            self.send_error(503, "TS preview-document export failed")
             return
         self._respond(200, "application/json", json.dumps(data).encode())
 

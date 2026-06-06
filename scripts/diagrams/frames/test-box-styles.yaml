@@ -1,56 +1,53 @@
 engine: v3
-title: "Box Style Contract Test"
-
+title: Box Style Contract Test
 root:
   id: root
   direction: vertical
   children:
-    # Level 2 (panel) — container with heading + leaf children
-    - id: panel_a
-      heading: "Panel heading"
-      icon: Cloud.svg
-      children:
-        - id: leaf_1
-          label:
-            - "Leaf box 1"
-        - id: leaf_2
-          label:
-            - "Leaf box 2"
-          icon: Chip 1.svg
-
-    # Level 1 (box) — standalone leaf, no explicit styling
-    - id: standalone_leaf
+  - id: panel_a
+    heading: Panel heading
+    icon: Cloud.svg
+    children:
+    - id: leaf_1
       label:
-        - "Standalone leaf"
-
-    # Highlight variant on a leaf
-    - id: highlight_leaf
-      variant: highlight
+      - Leaf box 1
+    - id: leaf_2
       label:
-        - "Highlighted"
-
-    # Highlight variant on a container
-    - id: highlight_panel
-      variant: highlight
-      heading: "Dark panel"
-      children:
-        - id: inner_leaf
-          label:
-            - "Inside highlight"
-
-    # Annotation variant
-    - id: annotation_leaf
-      variant: annotation
+      - Leaf box 2
+      icon: Chip 1.svg
+    level: 3
+    fill: white
+    border: solid
+  - id: standalone_leaf
+    label:
+    - Standalone leaf
+  - id: highlight_leaf
+    variant: highlight
+    label:
+    - Highlighted
+  - id: highlight_panel
+    variant: highlight
+    heading: Dark panel
+    children:
+    - id: inner_leaf
       label:
-        - "Annotation text"
-
-    # Three-tier hierarchy: section (level 3) → panel (level 2) → leaf
-    - id: section_a
-      heading: "Section heading"
+      - Inside highlight
+  - id: annotation_leaf
+    variant: annotation
+    label:
+    - Annotation text
+  - id: section_a
+    heading: Section heading
+    children:
+    - id: nested_panel
+      heading: Nested panel
       children:
-        - id: nested_panel
-          heading: "Nested panel"
-          children:
-            - id: deep_leaf
-              label:
-                - "Deep leaf"
+      - id: deep_leaf
+        label:
+        - Deep leaf
+      level: 2
+      fill: grey
+      border: solid
+    level: 3
+    fill: white
+    border: solid

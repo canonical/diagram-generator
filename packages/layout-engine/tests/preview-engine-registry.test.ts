@@ -4,6 +4,7 @@ import {
   FORCE_PREVIEW_ENGINE,
   FORCE_PREVIEW_PARAM_SPECS,
   PREVIEW_ENGINE_REGISTRY,
+  SEQUENCE_PREVIEW_ENGINE,
   getPreviewEngine,
   listPreviewEngines,
   resolvePreviewEngine,
@@ -11,8 +12,8 @@ import {
 } from '../src/preview-engine/index.js';
 
 describe('preview-engine registry', () => {
-  it('registers ELK and force as the first two engines', () => {
-    expect(PREVIEW_ENGINE_REGISTRY.map((entry) => entry.id)).toEqual(['elk-layered', 'force']);
+  it('registers ELK, force, and sequence engines', () => {
+    expect(PREVIEW_ENGINE_REGISTRY.map((entry) => entry.id)).toEqual(['elk-layered', 'force', 'sequence']);
   });
 
   it('exposes ELK control specs from the TS authority path', () => {
@@ -39,10 +40,11 @@ describe('preview-engine registry', () => {
 
   it('serializes a JSON-safe manifest list for preview-server consumption', () => {
     const serialized = serializePreviewEngineManifest();
-    expect(serialized).toHaveLength(2);
+    expect(serialized).toHaveLength(3);
     const roundTrip = JSON.parse(JSON.stringify(serialized));
     expect(roundTrip[0].id).toBe('elk-layered');
     expect(roundTrip[1].capabilities.simulationControls).toBe(true);
+    expect(roundTrip[2].id).toBe('sequence');
     expect(listPreviewEngines()).toEqual(serialized);
   });
 
@@ -51,5 +53,7 @@ describe('preview-engine registry', () => {
     expect(ELK_LAYERED_PREVIEW_ENGINE.capabilities.localRelayout).toBe(false);
     expect(FORCE_PREVIEW_ENGINE.capabilities.localRelayout).toBe(true);
     expect(FORCE_PREVIEW_ENGINE.capabilities.simulationControls).toBe(true);
+    expect(SEQUENCE_PREVIEW_ENGINE.capabilities.localRelayout).toBe(true);
+    expect(SEQUENCE_PREVIEW_ENGINE.capabilities.nodeInspector).toBe(false);
   });
 });
