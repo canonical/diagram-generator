@@ -46,6 +46,12 @@ Making a diagram for a review or deck: **[`docs/stakeholder-guide.md`](docs/stak
 - Delegation boundary is explicit: composer-safe work is limited to shell-side save / dirty convergence, focused tests, and boundary docs.
 - The broader idea of moving the full force controller toward TypeScript is intentionally not delegated here; that remains a future local-orchestrated architectural slice if still wanted.
 
+### Current delta — spec 024 summary recorded on main (2026-06-06)
+
+- Mainline conclusion: do not ship interactive ELK nudging on the current plain-`elkjs` path.
+- The explored pseudo-position route can affect simple fixtures but failed the live Juju graph shippability test with catastrophic non-local relayout.
+- Any further technical work for spec 024 should stay off `main` until there is a stronger result, with upstream Java ELK parity as the next meaningful check.
+
 ### Current delta — spec 026 preview shell decomposition closed (2026-06-06)
 
 - Spec 026 is complete: save client, ELK controller, TS editor state store, `editor.js` shell shrink, and boundary documentation in `specs/026-preview-shell-decomposition-ts-migration/boundaries.md`.
@@ -155,7 +161,7 @@ Commit **`a6822da`** (`scripts: land ts svg renderer cleanup`):
 
 | Priority | Work |
 |----------|------|
-| Now | Start **spec 024** phase 0 elkjs interactive-constraint spike and scope the ELK “move then relayout / pin” flow |
+| Now | Continue the first Mermaid-heavy direct port under **spec 030** (`sequence layout`) through TypeScript + preview-engine registry boundaries |
 | Next | Start **spec 029** only if the force preview shell needs more convergence work beyond the local save-button fix; keep delegation bounded to shell-side cleanup, not a force controller rewrite |
 
 ## Key files

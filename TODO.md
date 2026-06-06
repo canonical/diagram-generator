@@ -38,7 +38,13 @@ Feature package: `specs/026-preview-shell-decomposition-ts-migration/`.
 
 Feature package: `specs/024-elk-interactive-node-alignment/`.
 
-- [ ] `[H]` **Start the elkjs feasibility spike for spec 024.** Native ELK only: moved-node / pin-style relayout via `layerChoiceConstraint` / `positionChoiceConstraint` → persist under `meta.elk_nodes` → re-run layered with INTERACTIVE strategies. Integrate through the spec 025 engine contract and spec 026 ELK controller slice — no SVG translate hacks or new `editor.js` branches.
+- [ ] `[H]` **Keep spec 024 fail-closed on `main`.** The plain-`elkjs` interactive route did not survive the live Juju graph check. Preserve the spec summary on `main`; keep any deeper exploration on a separate branch; if revisited, test upstream Java ELK before more shell/controller work.
+
+#### Sequence layout (spec 030)
+
+Feature package: `specs/030-sequence-layout/`.
+
+- [ ] `[H]` **Start the first direct Mermaid-heavy port as a first-party TypeScript lane.** Build `sequenceDiagram`-style layout under the preview-engine architecture from specs 025 and 026, with Mermaid as a compatibility surface rather than the runtime renderer.
 
 #### Folder-backed editor app + nav unification (new spec needed)
 

@@ -6,7 +6,7 @@
 
 **Created**: 2026-06-05
 
-**Status**: Draft — blocked on elkjs feasibility spike and must land through the spec 025 engine contract plus the spec 026 ELK controller slice
+**Status**: Draft — fail-closed on `main`; exploratory code remains on the feature branch, and any future revisit must still land through the spec 025 engine contract plus the spec 026 ELK controller slice
 
 **Input**: Authors need to nudge slightly misaligned boxes on ELK-layered diagrams (e.g. Juju process corpus), persist those hints, and re-run the layered algorithm so routes, spacing, and label boxes stay coherent. Must use **native ELK interactive constraints**, not post-layout SVG patching.
 
@@ -25,7 +25,7 @@ A fragile approach — translating node `<g>` elements in the preview DOM withou
 | Preview-only SVG `transform` / manual `x,y` overrides without ELK rerun | **Explicit non-goal** — fragile, non-exportable, breaks arrow sync. |
 | Replace layered with force / box autolayout for ELK diagrams | **Non-goal** — different engine contract. |
 
-**Feasibility gate (P0 spike):** Confirm `elkjs` evaluates interactive constraints the same way as Eclipse ELK’s `InteractiveLayeredGraphVisitor` / `DiagramLayoutEngine` path. If elkjs cannot honor `layerChoiceConstraint` / `positionChoiceConstraint` under interactive strategies, **stop implementation** and report upstream gap — do not ship a SVG hack workaround.
+**Feasibility gate (P0 spike):** Mainline outcome recorded: plain `elkjs` did not produce a shippable interactive nudge path on the live Juju graph. Do not ship a SVG hack workaround. If the feature is revisited, the next meaningful check is upstream Java ELK parity.
 
 ## Mission
 

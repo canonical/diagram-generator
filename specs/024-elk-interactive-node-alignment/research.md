@@ -30,6 +30,15 @@ Can the repo's current `elkjs` path honor interactive layered constraints strong
 3. Which minimal fixture proves the effect without relying on preview DOM behavior?
 4. If `elkjs` ignores the options, is there an upstream gap or a graph-builder omission in our current package?
 
+## Summary outcome
+
+- The visitor-only constraint route (`layerChoiceConstraint` / `positionChoiceConstraint`) did not produce usable behavior in plain `elkjs`.
+- A narrower pseudo-position route exists and can affect simple fixtures, but it failed the live Juju graph shippability check.
+- On the real `juju-bootstrap-machines-process` graph, small requested nudges produced catastrophic non-local relayouts rather than coherent local adjustment.
+- Seeding more node positions reduced some symptoms but did not make the interaction reliable enough to ship.
+- Conclusion: keep spec 024 fail-closed on `main`; do not ship interactive ELK nudging on the current plain-`elkjs` path and do not add preview-side transform hacks.
+- If this feature is revisited, the next meaningful technical check is upstream Java ELK parity rather than more shell/controller tuning.
+
 ## Decision
 
-Implementation remains blocked until an automated fixture proves that `elkjs` changes layered output because of the persisted per-node constraints. If that proof does not exist, stop and record the upstream or package gap. Do not ship a shell-side transform workaround.
+Implementation remains blocked on `main`. Exploratory code may continue on the feature branch, but the mainline conclusion is stable: no shell-side transform workaround, no second-authority position state, and no claim that plain `elkjs` currently delivers a shippable interactive nudge path for this graph class.
