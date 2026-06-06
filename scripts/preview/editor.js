@@ -100,6 +100,26 @@ function _nodeHeadingText(node) {
   return t ? String(t) : "";
 }
 
+function _isContainerNode(node) {
+  return !!(node && Array.isArray(node.children) && node.children.length > 0);
+}
+
+function _hasExplicitVisibleContainerStyle(node) {
+  if (!node) return false;
+  if (_nodeProp(node, "level") != null) return true;
+  const fill = _normaliseStyleFill(_nodeProp(node, "fill"));
+  const stroke = _normaliseStyleStrokeOrBorder(_nodeProp(node, "border"));
+  return fill !== "WHITE" || stroke !== "NONE";
+}
+
+function _isImplicitStructuralWrapper(node) {
+  return _isContainerNode(node) && !_nodeHeadingText(node).trim() && !_hasExplicitVisibleContainerStyle(node);
+}
+
+function _nodeSupportsVisibleStylePicker(node) {
+  return !_isImplicitStructuralWrapper(node);
+}
+
 function _gridEl(id) {
   return document.getElementById(id);
 }
@@ -2052,6 +2072,7 @@ function _getMultiStyleValues(items) {
   for (const item of items) {
     const ctype = getComponentType(item.id).toLowerCase();
     if (ctype === 'arrow') continue;
+    if (!_nodeSupportsVisibleStylePicker(item.node)) continue;
     count++;
     const style = _effectiveStyleName(item.id, item.node);
     if (first === null) first = style; else if (first !== style) mixed = true;
@@ -2070,6 +2091,7 @@ function _formatAsDefinedStyleLabel(styleName, mixed = false) {
 }
 
 function _baseStyleName(node) {
+  if (_isImplicitStructuralWrapper(node)) return "";
   return _inferV3StyleFromNode(node);
 }
 
@@ -2080,6 +2102,7 @@ function _originalStyleOptionLabelForItems(items) {
   for (const item of items) {
     const ctype = getComponentType(item.id).toLowerCase();
     if (ctype === 'arrow') continue;
+    if (!_nodeSupportsVisibleStylePicker(item.node)) continue;
     hasAny = true;
     const style = _baseStyleName(item.node);
     if (first === null) {
@@ -2121,12 +2144,15 @@ function applyMultiStyleOverride(styleName) {
   const canonicalStyle = _normaliseStyleName(styleName);
   const ids = [...selectedIds];
   const msoBefore = EditorState.captureOverrideEntries(ids);
+  let changedAny = false;
   for (const cid of ids) {
     const ctype = getComponentType(cid).toLowerCase();
     if (ctype !== 'box' && ctype !== 'panel' && ctype !== 'terminal') continue;
-    if (!overrides[cid]) overrides[cid] = {};
-    _applyV3StyleFields(overrides[cid], canonicalStyle);
-    model.cleanOverride(cid);
+    changedAny = _applyVisibleStyleOverrideIfSupported(cid, canonicalStyle) || changedAny;
+  }
+  if (!changedAny) {
+    renderMultiSelectionInspector();
+    return;
   }
   setDirty(true);
   EditorState.commitOverridePatchAction("Change style (multi)", msoBefore, EditorState.captureOverrideEntries(ids));
@@ -5020,6 +5046,7 @@ function _inferV3StyleFromNode(node) {
 function _effectiveStyleName(cid, node) {
   const explicit = _normaliseStyleName((overrides[cid] && overrides[cid].style) || "");
   if (explicit) return explicit;
+  if (_isImplicitStructuralWrapper(node)) return "";
   const group = document.querySelector('[data-component-id="' + CSS.escape(cid) + '"]');
   const rect = group ? group.querySelector(":scope > rect:first-of-type") : null;
   if (rect) {
@@ -5059,15 +5086,29 @@ function _applyV3StyleFields(ovr, styleName) {
   return true;
 }
 
+function _applyVisibleStyleOverrideIfSupported(cid, styleName) {
+  const node = model.get(cid);
+  if (!node) return false;
+  if (!_nodeSupportsVisibleStylePicker(node) && _normaliseStyleName(styleName)) {
+    return false;
+  }
+  if (!overrides[cid]) overrides[cid] = {};
+  _applyV3StyleFields(overrides[cid], styleName);
+  model.cleanOverride(cid);
+  return true;
+}
+
 /**
  * v3 style override: applies level/fill/border style fields and triggers relayout.
  */
 function applyV3Style(cid, styleName) {
   const v3StyleIds = [cid];
   const v3StyleBefore = EditorState.captureOverrideEntries(v3StyleIds);
-  if (!overrides[cid]) overrides[cid] = {};
-  _applyV3StyleFields(overrides[cid], styleName);
-  model.cleanOverride(cid);
+  const changed = _applyVisibleStyleOverrideIfSupported(cid, styleName);
+  if (!changed) {
+    renderSelectionInspector(cid);
+    return;
+  }
   setDirty(true);
   clearTimeout(_v3RelayoutTimer);
   requestV3Relayout(cid);
@@ -5623,13 +5664,17 @@ function updateInspector(cid) {
   // Style picker (available for all non-arrow components)
   const ctype = getComponentType(cid).toLowerCase();
   if (ctype !== "arrow") {
-    const currentStyle = _effectiveStyleName(cid, inspNode);
-    html += '<div class="field" style="margin-top:6px"><span class="label">Style</span><br>';
-    html += '<select class="style-picker bf-input" onchange="applyStyleOverride(\'' + cid + '\', this.value)">';
-    html += renderBoxStyleOptions(currentStyle, {
-      originalLabel: _originalStyleOptionLabelForNode(inspNode),
-    });
-    html += '</select></div>';
+    if (_nodeSupportsVisibleStylePicker(inspNode)) {
+      const currentStyle = _effectiveStyleName(cid, inspNode);
+      html += '<div class="field" style="margin-top:6px"><span class="label">Style</span><br>';
+      html += '<select class="style-picker bf-input" onchange="applyStyleOverride(\'' + cid + '\', this.value)">';
+      html += renderBoxStyleOptions(currentStyle, {
+        originalLabel: _originalStyleOptionLabelForNode(inspNode),
+      });
+      html += '</select></div>';
+    } else {
+      html += '<div class="field" style="margin-top:6px"><span class="label">Style</span><div class="hint">Structural wrapper — no box style or default panel padding.</div></div>';
+    }
   }
   const isAutoChild = _isAutolayoutChild(cid);
   if (isAutoChild) {

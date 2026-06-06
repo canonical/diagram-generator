@@ -14,6 +14,13 @@ def test_grid_style_picker_uses_as_defined_labels() -> None:
     assert "— as defined (" in editor
 
 
+def test_implicit_wrappers_do_not_offer_visible_style_picker() -> None:
+    editor = (PREVIEW / "editor.js").read_text(encoding="utf-8")
+    assert "_isImplicitStructuralWrapper" in editor
+    assert "_nodeSupportsVisibleStylePicker" in editor
+    assert "Structural wrapper — no box style or default panel padding." in editor
+
+
 def test_force_style_picker_uses_as_defined_labels() -> None:
     force = (PREVIEW / "force.js").read_text(encoding="utf-8")
     assert "— original —" not in force
