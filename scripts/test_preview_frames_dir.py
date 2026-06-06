@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
-EMIT_SCRIPT = ROOT / "packages" / "layout-engine" / "scripts" / "emit-frame-diagram-json.mjs"
+EMIT_SCRIPT = ROOT / "packages" / "layout-engine" / "scripts" / "emit-preview-document-json.mjs"
 EXPORT_SCRIPT = ROOT / "packages" / "layout-engine" / "scripts" / "export-frame-svg.mjs"
 REPO_FRAMES = ROOT / "scripts" / "diagrams" / "frames"
 

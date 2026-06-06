@@ -230,6 +230,62 @@ describe('compileDiagramYaml', () => {
     });
   });
 
+  it('normalizes a canonical sequence block through the authoring compiler without Mermaid runtime authority', () => {
+    const result = compileDiagramYaml(
+      [
+        'schema: author-v1',
+        'title: Sequence flow',
+        'engine: v3',
+        'root:',
+        '  id: page',
+        '  children: []',
+        'sequence:',
+        '  participants:',
+        '    - id: user',
+        '      kind: actor',
+        '      label: User',
+        '    - id: api',
+        '      label:',
+        '        - Public',
+        '        - API',
+        '  messages:',
+        '    - from: user',
+        '      to: api',
+        '      label: GET /v1/things',
+        '  notes:',
+        '    - target: api',
+        '      placement: right-of',
+        '      label: Auth happens here',
+        '',
+      ].join('\n'),
+    );
+
+    expect(result.errors).toEqual([]);
+    expect(result.ast.sequence).toEqual({
+      participants: [
+        { id: 'user', kind: 'actor', label: [{ text: 'User' }] },
+        { id: 'api', kind: 'participant', label: [{ text: 'Public' }, { text: 'API' }] },
+      ],
+      messages: [
+        {
+          id: 'm1',
+          from: 'user',
+          to: 'api',
+          label: [{ text: 'GET /v1/things' }],
+        },
+      ],
+      notes: [
+        {
+          id: 'note1',
+          target: 'api',
+          placement: 'right-of',
+          label: [{ text: 'Auth happens here' }],
+        },
+      ],
+      groups: [],
+    });
+  });
+
   it('reports duplicate frame ids', () => {
     const result = compileDiagramYaml(
       [

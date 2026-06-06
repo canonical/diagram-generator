@@ -880,10 +880,12 @@ function ensureReferenceImage() {
   }
   image.dataset.initialized = "true";
   image.onerror = () => {
-    byId("view-tab-input").disabled = true;
-    byId("view-tab-both").disabled = true;
-    setViewMode("output");
-    byId("force-reference-wrap").innerHTML = '<p class="dg-empty-message bf-form-help">No tracked source image is mapped for this force example.</p>';
+    image.alt = "No reference sketch available";
+    image.removeAttribute("src");
+    const wrap = image.closest(".dg-reference-img-wrap");
+    if (wrap) {
+      wrap.innerHTML = '<p class="dg-empty-message bf-form-help">No tracked source image is mapped for this force example.</p>';
+    }
   };
   image.src = `/reference/${encodeURIComponent(FORCE_SLUG)}`;
 }

@@ -4,6 +4,14 @@ Completed work belongs here so `TODO.md` stays lean.
 
 ## Short-term
 
+### 2026-06-06 – Spec 030 closeout: sequence layout (bounded v1)
+
+- Completed the first TS-owned sequence lane under the multi-engine preview contract: compiler-owned `sequence:` YAML, preview-engine registration, preview-document transport, browser runtime exports, and shared-style SVG rendering are all landed.
+- Replaced the synthetic sequence demo with a corpus-backed Landscape package reporting redraw and wired the tracked source image into the shared Input and Both tabs for fidelity checks.
+- Kept unsupported source affordances such as activation bars and the sleep bracket explicit in the reference image instead of patching them into unrelated primitives.
+- Tightened shell consistency by keeping the split toggle out of the `dg-grid-only` branch and by letting force previews show the standard missing-reference placeholder instead of disabling shared view tabs.
+- Validation: `npm --prefix packages/layout-engine test -- tests/diagram-author-compile.test.ts tests/sequence-layout-model.test.ts tests/sequence-layout-layout.test.ts tests/sequence-layout-render-svg.test.ts tests/preview-engine-registry.test.ts`, plus live browser verification on the sequence preview route.
+
 ### 2026-06-06 – Spec 022 closeout: diagram authoring AST (v1)
 
 - Landed TS diagram compiler under `packages/layout-engine/src/diagram-author/` with arrow shorthand, defaults/`use:` expansion, validation, lowering wired through `loadFrameYaml`, and Mermaid export adapter.

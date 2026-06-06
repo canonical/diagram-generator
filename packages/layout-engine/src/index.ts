@@ -92,6 +92,8 @@ export {
   annotationTextToSpec,
   frameOwnedHeadingToSpec,
   frameOwnedLabelToSpec,
+  frameOwnedTextBlocks,
+  frameOwnedTextBlockGap,
   resolvedSpecTypography,
 } from './resolved-spec-typography.js';
 
@@ -145,6 +147,38 @@ export {
   type ForceRuntimeSnapshot,
   type ForceSimulationSpec,
 } from './force-runtime.js';
+
+export {
+  layoutSequenceDiagram,
+  type SequenceLayoutConfig,
+  type SequenceLayoutGroupSpan,
+  type SequenceLayoutMessageRow,
+  type SequenceLayoutNoteBox,
+  type SequenceLayoutParticipantBox,
+  type SequenceLayoutResult,
+} from './sequence-layout/layout.js';
+
+export { renderSequenceDiagramToSvg } from './sequence-layout/render-svg.js';
+export type { SequenceSvgRenderOptions } from './sequence-layout/render-svg.js';
+
+export {
+  normalizeSequenceDiagram,
+  type NormalizeSequenceDiagramResult,
+  type SequenceDiagramInput,
+  type SequenceDiagramSpec,
+  type SequenceGroup,
+  type SequenceGroupInput,
+  type SequenceLine,
+  type SequenceMessage,
+  type SequenceMessageInput,
+  type SequenceModelDiagnostic,
+  type SequenceNote,
+  type SequenceNoteInput,
+  type SequenceNotePlacement,
+  type SequenceParticipant,
+  type SequenceParticipantInput,
+  type SequenceParticipantKind,
+} from './sequence-layout/model.js';
 
 export { compileDiagramYaml } from './diagram-author/compile.js';
 export { exportMermaid } from './diagram-author/export-mermaid.js';

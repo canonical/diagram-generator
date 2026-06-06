@@ -40,11 +40,22 @@ Feature package: `specs/024-elk-interactive-node-alignment/`.
 
 - [ ] `[H]` **Keep spec 024 fail-closed on `main`.** The plain-`elkjs` interactive route did not survive the live Juju graph check. Preserve the spec summary on `main`; keep any deeper exploration on a separate branch; if revisited, test upstream Java ELK before more shell/controller work.
 
+#### ELK force core port (branch-only additive lane)
+
+- [ ] `[H]` **Port the ontology's second-highest-demand ELK engine as an additional core package path.** The planning ontology ranks `elk-force` behind `elk-layered`; the first bounded core slice is now in `packages/graph-layout-elk` with `layoutForceForFamily()`. Next: expose it as an additive `elk-force` preview engine alongside the existing D3/quadtree `force` lane, not as a replacement for that engine.
+
 #### Sequence layout (spec 030)
 
 Feature package: `specs/030-sequence-layout/`.
 
-- [ ] `[H]` **Start the first direct Mermaid-heavy port as a first-party TypeScript lane.** Build `sequenceDiagram`-style layout under the preview-engine architecture from specs 025 and 026, with Mermaid as a compatibility surface rather than the runtime renderer.
+- [x] `[H]` **Spec 030 v1 closed.** The first direct Mermaid-heavy port is live as a TS-owned sequence lane under specs 025 and 026, with the active corpus-backed reference image visible in Input and Both for fidelity checks. Unsupported activation bars remain explicit follow-up work rather than shell patches.
+
+#### Proposed next layout spec-kit packages
+
+- [ ] `[H]` **`specs/031-state-machine-layout/` — branded state/lifecycle layout.** Target Mermaid `stateDiagram-v2` parity with Canonical typography, left-aligned labels, clear transition routing, and compound-state handling. Ontology: `state_and_lifecycle` is a confident keep.
+- [ ] `[H]` **`specs/032-tree-mindmap-layout/` — tidy tree and mindmap layout.** Cover Mermaid `mindmap`-style and tree-form concept maps with branded node treatment, left-aligned text, and controllable branch spacing. Ontology: `concept_and_relationship_mapping` explicitly wants tree-form alternatives.
+- [ ] `[H]` **`specs/033-swimlane-workflow-layout/` — lane-based workflow layout.** Bring a branded lane layout to process diagrams that currently stretch box layout. Target Mermaid-heavy engineering usage around flowcharts, subgraphs, and journey-like procedural flows. Ontology: `process_and_workflow` is high-volume and currently defers swimlanes.
+- [ ] `[H]` **`specs/034-er-class-orthogonal-layout/` — branded ER/class relationship layout.** Support Mermaid-adjacent `erDiagram` / `classDiagram` usage with left-aligned entity text, orthogonal connectors, cardinality labels, and schema-friendly grouping. Ontology: `data_model_and_relationships` is smaller but structurally distinct and currently underserved.
 
 #### Folder-backed editor app + nav unification (new spec needed)
 

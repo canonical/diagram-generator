@@ -8,6 +8,7 @@
   "scripts": {
     "build": "tsc",
     "build:browser": "node build-browser.mjs",
+    "export:sequence-svg": "node scripts/export-sequence-svg.mjs",
     "export:svg": "node scripts/export-frame-svg.mjs",
     "test": "vitest run",
     "test:watch": "vitest"

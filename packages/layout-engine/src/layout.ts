@@ -29,7 +29,12 @@ import {
   resolveLeafTextWrapWidth,
 } from './text-layout.js';
 import { leafIconColumnWidth } from './spatial.js';
-import { frameOwnedHeadingToSpec, frameOwnedLabelToSpec } from './resolved-spec-typography.js';
+import {
+  frameOwnedHeadingToSpec,
+  frameOwnedLabelToSpec,
+  frameOwnedTextBlocks,
+  frameOwnedTextBlockGap,
+} from './resolved-spec-typography.js';
 
 
 // ---------------------------------------------------------------------------
@@ -139,14 +144,32 @@ function expandRootWidthForSnappedFillColumns(root: Frame, requestedW: number): 
 }
 
 function leafAllSpecs(frame: Frame): LineSpec[] {
-  const specs: LineSpec[] = [];
-  if (frame.heading) {
-    specs.push(frameOwnedHeadingToSpec(frame, frame.heading));
+  return frameOwnedTextBlocks(frame).flat();
+}
+
+function wrapLeafTextBlocks(
+  frame: Frame,
+  textMaxW: number,
+  adapter: TextMeasureAdapter,
+): LineSpec[][] {
+  return frameOwnedTextBlocks(frame)
+    .map(block => (textMaxW > 0 ? wrapTextLines(block, textMaxW, adapter) : block))
+    .filter(block => block.length > 0);
+}
+
+function leafTextHeight(frame: Frame, blocks: ReadonlyArray<ReadonlyArray<LineSpec>>, padT: number, padB: number): number {
+  let total = padT + padB;
+  for (const [blockIndex, block] of blocks.entries()) {
+    total += steppedLinesHeight(
+      block.map(spec => ({
+        lineStep: spec.lineStep != null ? sizeToPx(spec.lineStep) : undefined,
+        size: spec.size,
+      })),
+      { topPad: 0, bottomPad: 0, minHeight: 0 },
+    );
+    total += frameOwnedTextBlockGap(frame, blockIndex, blocks.length);
   }
-  for (const [labelIndex, line] of frame.label.entries()) {
-    specs.push(frameOwnedLabelToSpec(frame, line, labelIndex));
-  }
-  return specs;
+  return roundUpToGrid(total);
 }
 
 function leafNaturalSize(
@@ -167,11 +190,9 @@ function leafNaturalSize(
 
   if (allSpecs.length > 0) {
     const textMaxW = resolveLeafTextWrapWidth(frame, adapter, constrainedW);
-    const wrappedSpecs = wrapTextLines(allSpecs, textMaxW, adapter);
-    const textH = steppedLinesHeight(
-      wrappedSpecs.map(s => ({ lineStep: s.lineStep != null ? sizeToPx(s.lineStep) : undefined, size: s.size })),
-      { topPad: padT, bottomPad: padB, minHeight: 0 },
-    );
+    const wrappedBlocks = wrapLeafTextBlocks(frame, textMaxW, adapter);
+    const wrappedSpecs = wrappedBlocks.flat();
+    const textH = leafTextHeight(frame, wrappedBlocks, padT, padB);
 
     if (frame.border !== Border.NONE) {
       const iconH = padT + ICON_SIZE + padB;

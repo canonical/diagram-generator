@@ -555,17 +555,11 @@ function _frameBoxRenderState(frame) {
   const textMaxWidth = frame._layout.placedW - padLeft - padRight - iconCol;
   const iconFill = frame.resolvedIconFill ?? frame.iconFill ?? "#000000";
 
-  let specs = [];
-  if (frame.children.length === 0) {
-    if (frame.heading) specs.push(LayoutEngine.frameOwnedHeadingToSpec(frame, frame.heading));
-    if (frame.label.length > 0) {
-      specs.push(...frame.label.map((line, labelIndex) => LayoutEngine.frameOwnedLabelToSpec(frame, line, labelIndex)));
-    }
-  } else if (frame.heading) {
-    specs = [LayoutEngine.frameOwnedHeadingToSpec(frame, frame.heading)];
-  }
-  if (specs.length > 0 && textMaxWidth > 0) {
-    specs = LayoutEngine.wrapTextLines(specs, textMaxWidth, _textAdapter);
+  let textBlocks = LayoutEngine.frameOwnedTextBlocks(frame);
+  if (textBlocks.length > 0 && textMaxWidth > 0) {
+    textBlocks = textBlocks
+      .map(block => LayoutEngine.wrapTextLines(block, textMaxWidth, _textAdapter))
+      .filter(block => block.length > 0);
   }
 
   const strokeWidth = typeof LayoutEngine.effectiveResolvedStrokeWidth === "function"
@@ -585,47 +579,54 @@ function _frameBoxRenderState(frame) {
     padBottom,
     padLeft,
     textMaxWidth,
-    specs,
+    textBlocks,
     iconFill,
   };
 }
 
-function _buildFrameTextElement(frame, renderState) {
-  if (!renderState.specs.length) return null;
+function _buildFrameTextElements(frame, renderState) {
+  if (!renderState.textBlocks.length) return [];
 
-  const textEl = document.createElementNS(SVG_NS, "text");
-  textEl.setAttribute("font-family", "Ubuntu Sans");
-
+  const elements = [];
   let top = frame._layout.placedY + renderState.padTop;
   const x = frame._layout.placedX + renderState.padLeft;
-  for (const [specIndex, spec] of renderState.specs.entries()) {
-    const size = spec.size ?? LayoutEngine.BODY_SIZE;
-    const weight = spec.weight ?? "400";
-    const smallCaps = spec.smallCaps ?? false;
-    const fill = spec.fill ?? "#000000";
-    const lineStep = LayoutEngine.sizeToPx(spec.lineStep ?? LayoutEngine.BODY_LINE_STEP);
-    const tspan = document.createElementNS(SVG_NS, "tspan");
-    tspan.setAttribute("x", _fmtSvgNumber(x));
-    tspan.setAttribute("y", _fmtSvgNumber(_lineTopToBaseline(top, size)));
-    tspan.setAttribute("font-size", String(size));
-    tspan.setAttribute("font-weight", String(weight));
-    tspan.setAttribute("fill", fill);
-    if (spec.letterSpacing) {
-      tspan.setAttribute("letter-spacing", String(spec.letterSpacing));
+
+  for (const [blockIndex, block] of renderState.textBlocks.entries()) {
+    const textEl = document.createElementNS(SVG_NS, "text");
+    textEl.setAttribute("font-family", "Ubuntu Sans");
+
+    for (const spec of block) {
+      const size = spec.size ?? LayoutEngine.BODY_SIZE;
+      const weight = spec.weight ?? "400";
+      const smallCaps = spec.smallCaps ?? false;
+      const fill = spec.fill ?? "#000000";
+      const lineStep = LayoutEngine.sizeToPx(spec.lineStep ?? LayoutEngine.BODY_LINE_STEP);
+      const tspan = document.createElementNS(SVG_NS, "tspan");
+      tspan.setAttribute("x", _fmtSvgNumber(x));
+      tspan.setAttribute("y", _fmtSvgNumber(_lineTopToBaseline(top, size)));
+      tspan.setAttribute("font-size", String(size));
+      tspan.setAttribute("font-weight", String(weight));
+      tspan.setAttribute("fill", fill);
+      if (spec.letterSpacing) {
+        tspan.setAttribute("letter-spacing", String(spec.letterSpacing));
+      }
+      if (spec.fontFamily) {
+        tspan.setAttribute("font-family", spec.fontFamily);
+      }
+      if (smallCaps) {
+        tspan.setAttribute("font-variant-caps", "small-caps");
+      }
+      tspan.textContent = spec.content;
+      textEl.appendChild(tspan);
+      top += lineStep;
     }
-    if (spec.fontFamily) {
-      tspan.setAttribute("font-family", spec.fontFamily);
-    }
-    if (smallCaps) {
-      tspan.setAttribute("font-variant-caps", "small-caps");
-    }
-    tspan.textContent = spec.content;
-    textEl.appendChild(tspan);
-    top += lineStep;
+
+    textEl.setAttribute("data-orig-inner", textEl.innerHTML);
+    elements.push(textEl);
+    top += LayoutEngine.frameOwnedTextBlockGap(frame, blockIndex, renderState.textBlocks.length);
   }
 
-  textEl.setAttribute("data-orig-inner", textEl.innerHTML);
-  return textEl;
+  return elements;
 }
 
 function patchFrameGroup(g, frame, iconElement) {
@@ -670,14 +671,14 @@ function patchFrameGroup(g, frame, iconElement) {
   // Structural transparent rects (no text, no stroke) are pure containers —
   // keep them click-transparent so child components remain selectable.
   if (renderState.fill === "transparent" && renderState.stroke === "none"
-      && !renderState.specs.length) {
+      && !renderState.textBlocks.length) {
     rect.setAttribute("pointer-events", "none");
   }
 
   children.push(rect);
-  const textEl = _buildFrameTextElement(frame, renderState);
-  if (textEl) {
-    children.push(textEl);
+  const textEls = _buildFrameTextElements(frame, renderState);
+  if (textEls.length) {
+    children.push(...textEls);
   }
 
   const iconToUse = iconElement || existingIcon;
@@ -1173,6 +1174,7 @@ function patchArrowsSvg(svgEl, routedArrows) {
 // ---------------------------------------------------------------------------
 
 /** Stored frame tree JSON from the server (loaded once). */
+let _previewDocumentJson = null;
 let _frameTreeJson = null;
 let _lastElkSnapshot = null;
 let _lastElkFrameLabels = null;
@@ -1510,7 +1512,7 @@ function setLocalRelayoutOverrideMode(mode) {
 
 function getLocalRelayoutStatus() {
   const overrideMode = _normaliseLocalRelayoutOverrideMode(_localRelayoutOverrideMode);
-  const frameTreeLoaded = !!_frameTreeJson;
+  const frameTreeLoaded = !!_frameTreeJson || !!_previewDocumentJson;
   const textAdapterReady = !!_textAdapter;
   const textAdapterBackend = _textAdapterBackend();
   const textAdapterError = _textAdapterError;
@@ -1589,6 +1591,10 @@ function getFrameTreeJson() {
   return _frameTreeJson ? JSON.parse(JSON.stringify(_frameTreeJson)) : null;
 }
 
+function getPreviewDocumentJson() {
+  return _previewDocumentJson ? JSON.parse(JSON.stringify(_previewDocumentJson)) : null;
+}
+
 function _isElkLayeredDiagramJson(json) {
   if (json && json.layoutEngine === "elk-layered") return true;
   const cfg = window.__DG_CONFIG || {};
@@ -1613,6 +1619,12 @@ function _resolveElkOptionOverrides(diagram, model) {
 
 function setFrameTreeJson(json) {
   _frameTreeJson = json ? JSON.parse(JSON.stringify(json)) : null;
+}
+
+function _parseSvgMarkup(svgMarkup) {
+  const parser = new DOMParser();
+  const parsed = parser.parseFromString(svgMarkup, "image/svg+xml");
+  return document.importNode(parsed.documentElement, true);
 }
 
 /**
@@ -1711,16 +1723,20 @@ function applySessionRemovalsToDiagramJson(diagramJson, model) {
  * Call once during editor initialization.
  */
 async function initLayoutBridge(slug) {
+  _previewDocumentJson = null;
   _frameTreeJson = null;
   _textAdapter = null;
   _textAdapterError = null;
   try {
-    const resp = await fetch("/api/frame-tree/" + slug + "?t=" + Date.now(), { cache: "no-store" });
+    const resp = await fetch("/api/preview-document/" + slug + "?t=" + Date.now(), { cache: "no-store" });
     if (resp.ok) {
-      _frameTreeJson = await resp.json();
+      _previewDocumentJson = await resp.json();
+      _frameTreeJson = _previewDocumentJson && _previewDocumentJson.kind === "frame-diagram"
+        ? JSON.parse(JSON.stringify(_previewDocumentJson.frameTree || null))
+        : null;
     }
   } catch (e) {
-    console.warn("layout-bridge: failed to load frame tree", e);
+    console.warn("layout-bridge: failed to load preview document", e);
   }
 
   try {
@@ -2140,6 +2156,24 @@ function renderFrameTreeToSvg(diagram, result, options) {
  * @returns {Promise<{svg: SVGSVGElement, width: number, height: number, coerced: boolean}>}
  */
 async function renderFreshSvg(overrides, gridOverrides, model) {
+  if (_previewDocumentJson && _previewDocumentJson.kind === "sequence") {
+    const layout = LayoutEngine.layoutSequenceDiagram(_previewDocumentJson.sequence);
+    const svgMarkup = LayoutEngine.renderSequenceDiagramToSvg(
+      _previewDocumentJson.sequence,
+      layout,
+      { title: _previewDocumentJson.title || "Sequence diagram" },
+    );
+    _lastElkSnapshot = null;
+    _lastElkFrameLabels = null;
+    refreshElkViewMode();
+    return {
+      svg: _parseSvgMarkup(svgMarkup),
+      width: layout.width,
+      height: layout.height,
+      coerced: false,
+    };
+  }
+
   // Deep-clone the stored frame tree and deserialize
   const diagramJson = JSON.parse(JSON.stringify(_frameTreeJson));
   applySessionRemovalsToDiagramJson(diagramJson, model);
@@ -2238,6 +2272,7 @@ window.renderFreshSvg = renderFreshSvg;
 window.arrowComponentId = arrowComponentId;
 window.syncArrowsInModel = syncArrowsInModel;
 window.getLayoutTextAdapter = () => _textAdapter;
+window.getPreviewDocumentJson = getPreviewDocumentJson;
 window.getFrameTreeJson = getFrameTreeJson;
 window.setFrameTreeJson = setFrameTreeJson;
 window.applyFrameTreeRemovals = applyFrameTreeRemovals;

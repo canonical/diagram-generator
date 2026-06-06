@@ -2,6 +2,7 @@ export {
   type LayoutDirection,
   type SpacingProfile,
   type LayeredCorpusFamily,
+  type ForceCorpusFamily,
   type GraphNodeInput,
   type GraphEdgeInput,
   type GraphLayoutInput,
@@ -24,6 +25,15 @@ export {
 } from './elk-layered.js';
 
 export {
+  layoutForce,
+  layoutForceForFamily,
+  buildForceLayoutOptions,
+  forceConfigForFamily,
+  resolvedElkForceOptionsForFamily,
+  type LayoutForceOptions,
+} from './elk-force.js';
+
+export {
   toAbsolutePlacedNodes,
   indexPlacedNodes,
   leafNodeRects,
@@ -33,6 +43,7 @@ export {
 } from './node-bounds.js';
 
 export type { LayeredLayoutConfig, ElkLayoutOptions, ElkParamSpec, ElkParamKind } from './layered-options.js';
+export type { ForceLayoutConfig, ElkForceLayoutOptions } from './force-options.js';
 export {
   ELK_LAYERED_PARAM_SPECS,
   elkParamDefaults,

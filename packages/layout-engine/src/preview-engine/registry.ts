@@ -52,10 +52,31 @@ export const FORCE_PREVIEW_ENGINE: PreviewEngineManifest = {
   },
 };
 
+export const SEQUENCE_PREVIEW_ENGINE: PreviewEngineManifest = {
+  id: 'sequence',
+  label: 'Sequence layout',
+  layoutEngineKey: 'sequence',
+  shellMode: 'grid',
+  capabilities: {
+    layoutControls: false,
+    localRelayout: true,
+    serverRelayout: false,
+    engineBackedSave: false,
+    nodeInspector: false,
+    gridEditing: false,
+    referenceImage: true,
+    simulationControls: false,
+    rawDebugView: false,
+  },
+  controlSpecs: [],
+  scripts: [],
+};
+
 /** Registered preview engines — extend here when onboarding new packages. */
 export const PREVIEW_ENGINE_REGISTRY: readonly PreviewEngineManifest[] = [
   ELK_LAYERED_PREVIEW_ENGINE,
   FORCE_PREVIEW_ENGINE,
+  SEQUENCE_PREVIEW_ENGINE,
 ] as const;
 
 export function listPreviewEngines(): PreviewEngineManifest[] {

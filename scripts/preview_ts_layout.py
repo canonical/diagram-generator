@@ -96,15 +96,24 @@ class TsLayoutPool:
             label="layout",
         )
 
-    def frame_tree_json(self, slug: str) -> dict[str, Any] | None:
+    def preview_document_json(self, slug: str) -> dict[str, Any] | None:
         return self._fetch(
             slug,
             cache=self._emit_cache,
             inflight=self._emit_inflight,
             script_ok=self._config.emit_script_path.is_file(),
             runner=self._emit_runner,
-            label="frame-tree emit",
+            label="preview-document emit",
         )
+
+    def frame_tree_json(self, slug: str) -> dict[str, Any] | None:
+        preview_document = self.preview_document_json(slug)
+        if not isinstance(preview_document, dict):
+            return None
+        if preview_document.get("kind") != "frame-diagram":
+            return None
+        frame_tree = preview_document.get("frameTree")
+        return frame_tree if isinstance(frame_tree, dict) else None
 
     def _fetch(
         self,

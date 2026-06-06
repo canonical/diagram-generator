@@ -110,6 +110,8 @@ export {
   annotationTextToSpec,
   frameOwnedHeadingToSpec,
   frameOwnedLabelToSpec,
+  frameOwnedTextBlocks,
+  frameOwnedTextBlockGap,
   resolvedSpecTypography,
   usesHeadingStyleSnapshot,
   type ResolvedSpecTypography,
@@ -132,6 +134,38 @@ export {
   type ForceRuntimeSnapshot,
   type ForceSimulationSpec,
 } from './force-runtime.js';
+
+export {
+  layoutSequenceDiagram,
+  type SequenceLayoutConfig,
+  type SequenceLayoutGroupSpan,
+  type SequenceLayoutMessageRow,
+  type SequenceLayoutNoteBox,
+  type SequenceLayoutParticipantBox,
+  type SequenceLayoutResult,
+} from './sequence-layout/layout.js';
+
+export { renderSequenceDiagramToSvg } from './sequence-layout/render-svg.js';
+export type { SequenceSvgRenderOptions } from './sequence-layout/render-svg.js';
+
+export {
+  normalizeSequenceDiagram,
+  type NormalizeSequenceDiagramResult,
+  type SequenceDiagramInput,
+  type SequenceDiagramSpec,
+  type SequenceGroup,
+  type SequenceGroupInput,
+  type SequenceLine,
+  type SequenceMessage,
+  type SequenceMessageInput,
+  type SequenceModelDiagnostic,
+  type SequenceNote,
+  type SequenceNoteInput,
+  type SequenceNotePlacement,
+  type SequenceParticipant,
+  type SequenceParticipantInput,
+  type SequenceParticipantKind,
+} from './sequence-layout/model.js';
 
 export {
   captureEditorSnapshot,
@@ -163,6 +197,7 @@ export {
   ELK_LAYERED_PREVIEW_ENGINE,
   FORCE_PREVIEW_ENGINE,
   FORCE_PREVIEW_PARAM_SPECS,
+  SEQUENCE_PREVIEW_ENGINE,
   PREVIEW_ENGINE_REGISTRY,
   elkLayeredPreviewControlSpecs,
   getPreviewEngine,

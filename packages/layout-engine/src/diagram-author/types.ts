@@ -99,11 +99,14 @@ export interface FrameIndexEntry {
   path: string;
 }
 
+import type { SequenceDiagramSpec } from '../sequence-layout/model.js';
+
 export interface DiagramDocument {
   metadata: Record<string, unknown>;
   defaults: Record<string, FrameTemplate>;
   root: AuthorFrameNode | null;
   arrows: AuthorArrow[];
+  sequence?: SequenceDiagramSpec;
   frameIndex: Record<string, FrameIndexEntry>;
   source: Record<string, unknown>;
 }

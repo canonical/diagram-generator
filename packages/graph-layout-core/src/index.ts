@@ -2,6 +2,7 @@ export {
   type LayoutDirection,
   type SpacingProfile,
   type LayeredCorpusFamily,
+  type ForceCorpusFamily,
   type GraphNodeInput,
   type GraphEdgeLabelInput,
   type GraphEdgeInput,
