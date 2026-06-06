@@ -203,6 +203,8 @@ interface CompileDiagnostic {
 | `ARROW_INVALID_REF` | shorthand/object ref shape is malformed |
 | `UNKNOWN_TEMPLATE` | `use` references missing default |
 | `INVALID_FRAME_CHILD` | child entry is not a frame mapping |
+| `INVALID_DEFAULT` | defaults entry is not a mapping |
+| `FRAME_MISSING_ID` | frame entry has empty/missing `id` |
 | `ARROW_SHORTHAND_PARSE` | shorthand string malformed |
 | `ROOT_MISSING` | top-level `root` missing or invalid |
 
@@ -211,7 +213,7 @@ interface CompileDiagnostic {
 | Code | Condition |
 |------|-----------|
 | `UNUSED_DEFAULT` | default template never referenced |
-| `ORPHAN_LEAF` | leaf frame with zero incident arrows |
+| `ORPHAN_LEAF` | non-root leaf frame with zero incident arrows |
 | `DUPLICATE_ARROW` | same source+target (+label) repeated |
 | `SELF_LOOP_ARROW` | source and target are identical |
 | `MERMAID_UNSUPPORTED_*` | property not representable in Mermaid |

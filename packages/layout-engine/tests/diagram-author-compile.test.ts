@@ -18,12 +18,7 @@ describe('compileDiagramYaml', () => {
     );
 
     expect(result.errors).toEqual([]);
-    expect(result.warnings).toContainEqual(
-      expect.objectContaining({
-        code: 'ORPHAN_LEAF',
-        path: 'root',
-      }),
-    );
+    expect(result.warnings).toEqual([]);
     expect(result.raw).toMatchObject({
       schema: 'author-v1',
       title: 'Example diagram',
@@ -506,6 +501,24 @@ describe('compileDiagramYaml', () => {
         weight: 'bold',
       },
     ]);
+  });
+
+  it('does not warn about the layout root wrapper as an orphan leaf', () => {
+    const result = compileDiagramYaml(
+      [
+        'schema: author-v1',
+        'title: Root wrapper only',
+        'engine: v3',
+        'arrows: []',
+        'root:',
+        '  id: page',
+        '  children: []',
+        '',
+      ].join('\n'),
+    );
+
+    expect(result.errors).toEqual([]);
+    expect(result.warnings.filter(w => w.code === 'ORPHAN_LEAF')).toEqual([]);
   });
 
   it('warns about unused default templates', () => {

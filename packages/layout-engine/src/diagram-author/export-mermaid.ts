@@ -63,6 +63,15 @@ function collectFrameWarnings(node: AuthorFrameNode, path: string, warnings: Dia
     });
   }
 
+  if (node.children.length > 0 && (node.label?.length || node.heading)) {
+    warnings.push({
+      code: 'MERMAID_UNSUPPORTED_CONTAINER_LABEL',
+      level: 'warning',
+      message: `Mermaid export ignores container label/heading metadata for frame: ${node.id}`,
+      path,
+    });
+  }
+
   if (UNSUPPORTED_LAYOUT_FIELDS.some(field => node[field] !== undefined)) {
     warnings.push({
       code: 'MERMAID_UNSUPPORTED_LAYOUT',

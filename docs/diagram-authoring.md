@@ -91,7 +91,7 @@ const result = compileDiagramYaml(rawYaml, { sourcePath, strict });
 | Code | Meaning |
 |------|---------|
 | `UNUSED_DEFAULT` | Template never referenced |
-| `ORPHAN_LEAF` | Leaf with no incident arrows |
+| `ORPHAN_LEAF` | Non-root leaf with no incident arrows |
 | `DUPLICATE_ARROW` | Same source/target/label repeated |
 | `SELF_LOOP_ARROW` | `source === target` |
 

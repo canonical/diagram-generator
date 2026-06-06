@@ -51,7 +51,7 @@ export function collectCompileWarnings(input: {
 
   collectLeafIds(input.root).forEach(frameId => {
     const entry = input.frameIndex[frameId];
-    if (!entry || entry.isContainer) {
+    if (!entry || entry.isContainer || entry.path === 'root') {
       return;
     }
     if (incidentArrowCount(frameId, input.arrows) === 0) {
