@@ -180,4 +180,181 @@ describe('compileDiagramYaml', () => {
       }),
     );
   });
+
+  it('preserves nested container trees and normalizes canonical frame fields', () => {
+    const result = compileDiagramYaml(
+      [
+        'schema: author-v1',
+        'title: Nested tree',
+        'engine: v3',
+        'arrows: []',
+        'root:',
+        '  id: page',
+        '  direction: vertical',
+        '  children:',
+        '    - id: tier2_row',
+        '      direction: horizontal',
+        '      padding: 16',
+        '      children:',
+        '        - id: tier2_left',
+        '          label: Left leaf',
+        '          sizing_w: fill',
+        '          children: []',
+        '',
+      ].join('\n'),
+    );
+
+    expect(result.errors).toEqual([]);
+    expect(result.ast.root).toMatchObject({
+      id: 'page',
+      direction: 'vertical',
+      children: [
+        {
+          id: 'tier2_row',
+          direction: 'horizontal',
+          padding: 16,
+          children: [
+            {
+              id: 'tier2_left',
+              sizingW: 'fill',
+              label: [{ text: 'Left leaf' }],
+              children: [],
+            },
+          ],
+        },
+      ],
+    });
+    expect(result.ast.frameIndex).toMatchObject({
+      page: { path: 'root', isContainer: true },
+      tier2_row: { parentId: 'page', isContainer: true, path: 'root.children[0]' },
+      tier2_left: { parentId: 'tier2_row', isContainer: false, path: 'root.children[0].children[0]' },
+    });
+  });
+
+  it('reports duplicate frame ids', () => {
+    const result = compileDiagramYaml(
+      [
+        'schema: author-v1',
+        'title: Duplicate ids',
+        'engine: v3',
+        'arrows: []',
+        'root:',
+        '  id: page',
+        '  children:',
+        '    - id: dup',
+        '      children: []',
+        '    - id: dup',
+        '      children: []',
+        '',
+      ].join('\n'),
+    );
+
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        code: 'DUPLICATE_FRAME_ID',
+        level: 'error',
+        path: 'root.children[1]',
+      }),
+    );
+  });
+
+  it('reports invalid frame child entries', () => {
+    const result = compileDiagramYaml(
+      [
+        'schema: author-v1',
+        'title: Invalid child',
+        'engine: v3',
+        'arrows: []',
+        'root:',
+        '  id: page',
+        '  children:',
+        '    - not-a-frame',
+        '',
+      ].join('\n'),
+    );
+
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        code: 'INVALID_FRAME_CHILD',
+        level: 'error',
+        path: 'root.children[0]',
+      }),
+    );
+  });
+
+  it('reports missing root as a compile error', () => {
+    const result = compileDiagramYaml(
+      [
+        'schema: author-v1',
+        'title: Missing root',
+        'engine: v3',
+        'arrows: []',
+        '',
+      ].join('\n'),
+    );
+
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        code: 'ROOT_MISSING',
+        level: 'error',
+        path: 'root',
+      }),
+    );
+    expect(result.ast.root).toBeNull();
+  });
+
+  it('allows arrows to container frame endpoints', () => {
+    const result = compileDiagramYaml(
+      [
+        'schema: author-v1',
+        'title: Container endpoint',
+        'engine: v3',
+        'arrows:',
+        '  - client -> tier2_row',
+        'root:',
+        '  id: page',
+        '  children:',
+        '    - id: client',
+        '      children: []',
+        '    - id: tier2_row',
+        '      children:',
+        '        - id: tier2_left',
+        '          children: []',
+        '',
+      ].join('\n'),
+    );
+
+    expect(result.errors).toEqual([]);
+    expect(result.ast.arrows[0]).toMatchObject({
+      source: 'client',
+      target: 'tier2_row',
+    });
+    expect(result.ast.frameIndex.tier2_row.isContainer).toBe(true);
+  });
+
+  it('preserves line-object heading style fields during frame normalization', () => {
+    const result = compileDiagramYaml(
+      [
+        'schema: author-v1',
+        'title: Heading styles',
+        'engine: v3',
+        'arrows: []',
+        'root:',
+        '  id: panel',
+        '  heading:',
+        '    text: Tier 1',
+        '    size: heading',
+        '    weight: bold',
+        '  children: []',
+        '',
+      ].join('\n'),
+    );
+
+    expect(result.errors).toEqual([]);
+    expect(result.ast.root?.heading).toEqual({
+      text: 'Tier 1',
+      size: 'heading',
+      weight: 'bold',
+    });
+  });
 });

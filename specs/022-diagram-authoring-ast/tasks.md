@@ -24,10 +24,10 @@
 
 ## Phase 3: Frame-tree AST (US2)
 
-- [ ] T020 Parse canonical `root:` tree into frame-node AST
-- [ ] T021 Build frame index / parentage map in `build-ast.ts`
-- [ ] T022 Normalize line content and current frame fields needed for lowering/export
-- [ ] T023 Tests: nested containers, tree preservation, duplicate ids, invalid child entry, arrow to container
+- [x] T020 Parse canonical `root:` tree into frame-node AST
+- [x] T021 Build frame index / parentage map in `build-ast.ts`
+- [x] T022 Normalize line content and current frame fields needed for lowering/export
+- [x] T023 Tests: nested containers, tree preservation, duplicate ids, invalid child entry, arrow to container
 
 ## Phase 4: Defaults / templates (US3)
 

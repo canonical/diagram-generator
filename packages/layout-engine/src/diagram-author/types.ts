@@ -39,8 +39,42 @@ export interface AuthorArrow {
 
 export interface AuthorFrameNode {
   id: string;
+  direction?: 'vertical' | 'horizontal';
+  gap?: number;
+  padding?: number;
+  paddingTop?: number;
+  paddingRight?: number;
+  paddingBottom?: number;
+  paddingLeft?: number;
+  sizing?: string;
+  sizingW?: string;
+  sizingH?: string;
+  fillWeight?: number;
+  width?: number;
+  height?: number;
+  minWidth?: number;
+  maxWidth?: number;
+  maxWidthChars?: number;
+  minHeight?: number;
+  maxHeight?: number;
+  align?: string;
+  justify?: string;
+  wrap?: boolean;
+  fill?: string;
+  border?: string;
+  level?: number;
+  variant?: string;
+  role?: string;
+  heading?: LineSpec;
+  label?: LineSpec[];
+  icon?: string;
+  iconFill?: string;
+  position?: 'AUTO' | 'ABSOLUTE';
+  x?: number;
+  y?: number;
+  colSpan?: number;
+  use?: string;
   children: AuthorFrameNode[];
-  [key: string]: unknown;
 }
 
 export interface FrameIndexEntry {

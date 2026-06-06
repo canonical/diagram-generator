@@ -1,33 +1,6 @@
 import { parseArrowShorthand } from './arrow-shorthand.js';
-import type { AuthorArrow, Diagnostic, LineSpec } from './types.js';
-
-function normalizeLineArray(value: unknown): LineSpec[] | undefined {
-  if (typeof value === 'string') {
-    return [{ text: value }];
-  }
-  if (!Array.isArray(value)) {
-    return undefined;
-  }
-  return value.map(entry => {
-    if (typeof entry === 'string') {
-      return { text: entry };
-    }
-    if (entry && typeof entry === 'object' && !Array.isArray(entry)) {
-      const line = entry as Record<string, unknown>;
-      return {
-        text: String(line.text ?? ''),
-        size: typeof line.size === 'string' ? line.size : undefined,
-        weight: typeof line.weight === 'string' ? line.weight : undefined,
-        fill: typeof line.fill === 'string' ? line.fill : undefined,
-        smallCaps: typeof line.smallCaps === 'boolean' ? line.smallCaps : undefined,
-        letterSpacing: typeof line.letterSpacing === 'string' ? line.letterSpacing : undefined,
-        lineStep: typeof line.lineStep === 'number' ? line.lineStep : undefined,
-        fontFamily: typeof line.fontFamily === 'string' ? line.fontFamily : undefined,
-      };
-    }
-    return { text: String(entry ?? '') };
-  });
-}
+import { normalizeLineArray } from './normalize-lines.js';
+import type { AuthorArrow, Diagnostic } from './types.js';
 
 function normalizeArrow(entry: unknown, path: string): { arrow?: AuthorArrow; diagnostics: Diagnostic[] } {
   if (typeof entry === 'string') {
