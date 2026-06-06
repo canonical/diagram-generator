@@ -22,10 +22,25 @@ export function parseArrowShorthand(value: string, path: string): ParseArrowResu
     };
   }
 
+  const source = match[1]?.trim();
+  const target = match[2]?.trim();
+  if (!source || !target) {
+    return {
+      diagnostics: [
+        {
+          code: 'ARROW_SHORTHAND_PARSE',
+          level: 'error',
+          message: 'Arrow shorthand must use `source -> target`.',
+          path,
+        },
+      ],
+    };
+  }
+
   return {
     arrow: {
-      source: match[1],
-      target: match[2],
+      source,
+      target,
       kind: 'directed',
     },
     diagnostics: [],

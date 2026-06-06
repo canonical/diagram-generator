@@ -9,6 +9,7 @@ Use this page when you need an **on-brand architecture or workflow diagram** wit
 | Author diagrams as **Frame YAML** | Ready — source of truth on disk |
 | **Interactive preview** (edit, resize, save) | Ready — TypeScript layout + HarfBuzz text in the browser |
 | **Export SVG** (batch / CI) | Ready — `export-frame-svg.mjs` (TS); icons, arrow heads, overlays; golden-regression locked for a small canonical corpus |
+| **Author-v1 compiler + Mermaid export** | Ready — optional shorthand arrows, `defaults` / `use:` templates, validation; see [`docs/diagram-authoring.md`](diagram-authoring.md) |
 | draw.io export | Separate scripts; not the primary path for new work |
 
 ## Fastest path — new diagram

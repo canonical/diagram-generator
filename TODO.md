@@ -44,7 +44,7 @@ Feature package: `specs/018-png-export/`.
 
 Feature package: `specs/022-diagram-authoring-ast/`.
 
-- [ ] `[H]` **Continue the authoring compiler after phase 7.** Phases 1–7 are landed through Mermaid export. Next slice is D2 export (phase 8, deferred), then docs/migration (phase 9).
+- [x] `[H]` **Spec 022 v1 closed.** Compiler, validation, lowering via `loadFrameYaml`, Mermaid export, docs, and migration CLI are landed. D2 export remains deferred (phase 8).
 
 #### Arrow routing redesign (spec 006)
 

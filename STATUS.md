@@ -34,6 +34,12 @@ Making a diagram for a review or deck: **[`docs/stakeholder-guide.md`](docs/stak
 | **Batch SVG** | `export-frame-svg.mjs` — TS-only (`svg-render.ts`); golden harness `tests/svg-golden.test.ts` (3 canonical slugs after the first pruning pass) |
 | **Tests** | Latest full TS suite green in the current slice (`246/246`); retained 11-slug export sweep green; focused preview browser regressions green; spec 005 high-risk browser spot-checks render with zero errors; `test_preview_frames_dir.py` and `test_preview_ts_api.py` green. Full `pytest scripts -q` still has legacy parity drift outside the active TS path |
 
+### Current delta — spec 022 diagram authoring AST closed (2026-06-06)
+
+- TypeScript diagram compiler in `packages/layout-engine/src/diagram-author/`: frame-tree AST, arrow shorthand, `defaults` / `use:` expansion, validation warnings, lowering through `loadFrameYaml`, and Mermaid export.
+- Docs and tooling: [`docs/diagram-authoring.md`](docs/diagram-authoring.md), `migrate-diagram-yaml.mjs`, `export-mermaid.mjs`, reference fixture `tiered-network-architecture.author-v1.yaml`.
+- D2 export (phase 8) deferred; preview save format unchanged (`root` + `arrows`).
+
 ### Current delta — spec 026 preview shell decomposition closed (2026-06-06)
 
 - Spec 026 is complete: save client, ELK controller, TS editor state store, `editor.js` shell shrink, and boundary documentation in `specs/026-preview-shell-decomposition-ts-migration/boundaries.md`.

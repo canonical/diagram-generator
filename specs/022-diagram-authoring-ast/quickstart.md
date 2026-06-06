@@ -1,6 +1,6 @@
 # Quickstart: Authoring YAML (spec 022)
 
-**Status**: Spec only — compiler not implemented until tasks T001+ land.
+**Status**: Compiler, lowering, validation, and Mermaid export are implemented in `packages/layout-engine/src/diagram-author/`. See [`docs/diagram-authoring.md`](../../docs/diagram-authoring.md).
 
 ## Minimal additive-sugar diagram
 
@@ -131,7 +131,7 @@ No deprecation is expected for `arrows` or `root`; they remain canonical in v1.
 
 See [contracts/migration-example.md](contracts/migration-example.md) for a full before/after example.# Quickstart: Authoring YAML (spec 022)
 
-**Status**: Spec only — compiler not implemented until tasks T001+ land.
+**Status**: Compiler, lowering, validation, and Mermaid export are implemented in `packages/layout-engine/src/diagram-author/`. See [`docs/diagram-authoring.md`](../../docs/diagram-authoring.md).
 
 ## Minimal additive-sugar diagram
 

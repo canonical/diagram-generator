@@ -160,7 +160,7 @@ export type {
   Edge,
   FrameIndexEntry,
   FrameTemplate,
-  LineSpec,
+  LineSpec as AuthorLineSpec,
 } from './diagram-author/types.js';
 
 export {

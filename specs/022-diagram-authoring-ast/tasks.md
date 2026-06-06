@@ -64,16 +64,16 @@
 
 ## Phase 9: Documentation and migration (US7)
 
-- [ ] T080 Add `docs/diagram-authoring.md` — schema, validation, export limitations
-- [ ] T081 Add `migrate-diagram-yaml.mjs` — optional shorthand-arrow / defaults extraction utility that preserves canonical `root` + `arrows`
-- [ ] T082 Add reference fixture `tiered-network-architecture.author-v1.yaml`
-- [ ] T083 Cross-link from `README.md` or `docs/stakeholder-guide.md` (one paragraph)
+- [x] T080 Add `docs/diagram-authoring.md` — schema, validation, export limitations
+- [x] T081 Add `migrate-diagram-yaml.mjs` — optional shorthand-arrow / defaults extraction utility that preserves canonical `root` + `arrows`
+- [x] T082 Add reference fixture `tiered-network-architecture.author-v1.yaml`
+- [x] T083 Cross-link from `README.md` or `docs/stakeholder-guide.md` (one paragraph)
 - [x] T084 Register spec in `docs/specs.md` when implementation starts
 
 ## Phase 10: Close-out
 
-- [ ] T090 Adversarial review per `specs/ADVERSARIAL_REVIEW_PROMPT.md`
-- [ ] T091 Update `STATUS.md` / `HISTORY.md` with compiler + exporter delivery notes
+- [x] T090 Adversarial review per `specs/ADVERSARIAL_REVIEW_PROMPT.md`
+- [x] T091 Update `STATUS.md` / `HISTORY.md` with compiler + exporter delivery notes
 
 ---
 

@@ -4,6 +4,13 @@ Completed work belongs here so `TODO.md` stays lean.
 
 ## Short-term
 
+### 2026-06-06 – Spec 022 closeout: diagram authoring AST (v1)
+
+- Landed TS diagram compiler under `packages/layout-engine/src/diagram-author/` with arrow shorthand, defaults/`use:` expansion, validation, lowering wired through `loadFrameYaml`, and Mermaid export adapter.
+- Added `docs/diagram-authoring.md`, `migrate-diagram-yaml.mjs`, `export-mermaid.mjs`, and reference fixture `scripts/diagrams/frames/tiered-network-architecture.author-v1.yaml`.
+- D2 export deferred; canonical authored keys remain `root` + `arrows`.
+- Validation: `npm --prefix packages/layout-engine exec vitest run tests/diagram-author-compile.test.ts tests/diagram-author-export-mermaid.test.ts tests/diagram-author-fixture.test.ts tests/diagram-author-lower.test.ts`, `npm --prefix packages/layout-engine exec vitest run tests/svg-golden.test.ts`.
+
 ### 2026-06-06 – Spec 026 closeout: preview shell decomposition + TS migration
 
 - Completed preview shell decomposition: `save-client.js`, `elk-controller.js`, `editor-state.js`, TS `preview-shell/` (snapshot + undo store), and `editor.js` shell shrink (direct module calls, no obsolete wrappers).
