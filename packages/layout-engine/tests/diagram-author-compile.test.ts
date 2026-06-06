@@ -357,4 +357,150 @@ describe('compileDiagramYaml', () => {
       weight: 'bold',
     });
   });
+
+  it('expands defaults templates onto frames referenced by use', () => {
+    const result = compileDiagramYaml(
+      [
+        'schema: author-v1',
+        'title: Template expansion',
+        'engine: v3',
+        'arrows: []',
+        'defaults:',
+        '  client:',
+        '    label: Client',
+        '    icon: Laptop.svg',
+        '  network_server:',
+        '    label: [Tier 2, Network server]',
+        '    icon: Network.svg',
+        'root:',
+        '  id: page',
+        '  children:',
+        '    - id: client_l1',
+        '      use: client',
+        '      children: []',
+        '    - id: tier2_left',
+        '      use: network_server',
+        '      children: []',
+        '',
+      ].join('\n'),
+    );
+
+    expect(result.errors).toEqual([]);
+    expect(result.ast.defaults.client).toEqual({
+      label: [{ text: 'Client' }],
+      icon: 'Laptop.svg',
+    });
+    expect(result.ast.defaults.network_server).toEqual({
+      label: [{ text: 'Tier 2' }, { text: 'Network server' }],
+      icon: 'Network.svg',
+    });
+    expect(result.ast.root?.children[0]).toMatchObject({
+      id: 'client_l1',
+      label: [{ text: 'Client' }],
+      icon: 'Laptop.svg',
+    });
+    expect(result.ast.root?.children[0]?.use).toBeUndefined();
+    expect(result.ast.root?.children[1]).toMatchObject({
+      id: 'tier2_left',
+      label: [{ text: 'Tier 2' }, { text: 'Network server' }],
+      icon: 'Network.svg',
+    });
+  });
+
+  it('lets frame-local properties override expanded defaults', () => {
+    const result = compileDiagramYaml(
+      [
+        'schema: author-v1',
+        'title: Template override',
+        'engine: v3',
+        'arrows: []',
+        'defaults:',
+        '  client:',
+        '    label: Client',
+        '    icon: Laptop.svg',
+        'root:',
+        '  id: page',
+        '  children:',
+        '    - id: client_l1',
+        '      use: client',
+        '      label: Special client',
+        '      children: []',
+        '',
+      ].join('\n'),
+    );
+
+    expect(result.errors).toEqual([]);
+    expect(result.ast.root?.children[0]).toMatchObject({
+      id: 'client_l1',
+      label: [{ text: 'Special client' }],
+      icon: 'Laptop.svg',
+    });
+  });
+
+  it('reports unknown default templates referenced by use', () => {
+    const result = compileDiagramYaml(
+      [
+        'schema: author-v1',
+        'title: Missing template',
+        'engine: v3',
+        'arrows: []',
+        'root:',
+        '  id: page',
+        '  children:',
+        '    - id: client_l1',
+        '      use: missing_template',
+        '      children: []',
+        '',
+      ].join('\n'),
+    );
+
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        code: 'UNKNOWN_TEMPLATE',
+        level: 'error',
+        path: 'root.children[0]',
+      }),
+    );
+    expect(result.ast.root?.children[0]?.use).toBe('missing_template');
+  });
+
+  it('preserves line-object label style fields in defaults templates', () => {
+    const result = compileDiagramYaml(
+      [
+        'schema: author-v1',
+        'title: Styled template label',
+        'engine: v3',
+        'arrows: []',
+        'defaults:',
+        '  panel:',
+        '    label:',
+        '      - text: Tier 1',
+        '        size: heading',
+        '        weight: bold',
+        'root:',
+        '  id: page',
+        '  children:',
+        '    - id: tier1',
+        '      use: panel',
+        '      children: []',
+        '',
+      ].join('\n'),
+    );
+
+    expect(result.errors).toEqual([]);
+    expect(result.ast.defaults.panel?.label).toEqual([
+      {
+        text: 'Tier 1',
+        size: 'heading',
+        weight: 'bold',
+      },
+    ]);
+    expect(result.ast.root?.children[0]?.label).toEqual([
+      {
+        text: 'Tier 1',
+        size: 'heading',
+        weight: 'bold',
+      },
+    ]);
+  });
 });

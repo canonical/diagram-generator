@@ -1,4 +1,5 @@
 import { buildFrameAst } from './build-ast.js';
+import { expandFrameDefaults } from './expand-defaults.js';
 import { normalizeArrows } from './normalize-arrows.js';
 import { parseYamlDocument } from './parse-yaml.js';
 import { validateArrowRefs } from './ref-grammar.js';
@@ -8,20 +9,6 @@ import type {
   DiagramDocument,
   Diagnostic,
 } from './types.js';
-
-function asRecordMap(value: unknown): Record<string, Record<string, unknown>> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return {};
-  }
-  return Object.fromEntries(
-    Object.entries(value as Record<string, unknown>).map(([key, entry]) => [
-      key,
-      entry && typeof entry === 'object' && !Array.isArray(entry)
-        ? { ...(entry as Record<string, unknown>) }
-        : {},
-    ]),
-  );
-}
 
 function buildMetadata(source: Record<string, unknown>): Record<string, unknown> {
   return Object.fromEntries(
@@ -35,18 +22,20 @@ function buildMetadata(source: Record<string, unknown>): Record<string, unknown>
 
 function createScaffoldAst(source: Record<string, unknown>): { ast: DiagramDocument; diagnostics: Diagnostic[] } {
   const frameAst = buildFrameAst(source.root);
+  const expanded = expandFrameDefaults(frameAst.root, source.defaults);
   const normalizedArrows = normalizeArrows(source.arrows);
   return {
     ast: {
       metadata: buildMetadata(source),
-      defaults: asRecordMap(source.defaults),
-      root: frameAst.root,
+      defaults: expanded.defaults,
+      root: expanded.root,
       arrows: normalizedArrows.arrows,
       frameIndex: frameAst.frameIndex,
       source: { ...source },
     },
     diagnostics: [
       ...frameAst.diagnostics,
+      ...expanded.diagnostics,
       ...normalizedArrows.diagnostics,
       ...validateArrowRefs(normalizedArrows.arrows, frameAst.frameIndex),
     ],

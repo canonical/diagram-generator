@@ -37,6 +37,21 @@ export interface AuthorArrow {
   waypoints?: [number, number][];
 }
 
+export interface FrameTemplate {
+  label?: LineSpec[];
+  icon?: string;
+  iconFill?: string;
+  sizingW?: string;
+  sizingH?: string;
+  level?: number;
+  variant?: string;
+  role?: string;
+  heading?: LineSpec;
+  direction?: 'vertical' | 'horizontal';
+  gap?: number;
+  padding?: number;
+}
+
 export interface AuthorFrameNode {
   id: string;
   direction?: 'vertical' | 'horizontal';
@@ -86,7 +101,7 @@ export interface FrameIndexEntry {
 
 export interface DiagramDocument {
   metadata: Record<string, unknown>;
-  defaults: Record<string, Record<string, unknown>>;
+  defaults: Record<string, FrameTemplate>;
   root: AuthorFrameNode | null;
   arrows: AuthorArrow[];
   frameIndex: Record<string, FrameIndexEntry>;

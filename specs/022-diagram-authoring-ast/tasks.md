@@ -31,9 +31,9 @@
 
 ## Phase 4: Defaults / templates (US3)
 
-- [ ] T030 Create `expand-defaults.ts` — merge `defaults` + `use:` on frame entries; local overrides win
-- [ ] T031 Normalize labels / headings — string, array, line-object → `LineSpec`
-- [ ] T032 Tests: template expansion, override, missing template, string label, array label, line-object preservation
+- [x] T030 Create `expand-defaults.ts` — merge `defaults` + `use:` on frame entries; local overrides win
+- [x] T031 Normalize labels / headings — string, array, line-object → `LineSpec`
+- [x] T032 Tests: template expansion, override, missing template, string label, array label, line-object preservation
 
 ## Phase 5: Validation and warnings (US4)
 

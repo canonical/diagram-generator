@@ -1,5 +1,5 @@
 import { normalizeLineArray, normalizeLineSpec } from './normalize-lines.js';
-import type { AuthorFrameNode, Diagnostic, FrameIndexEntry } from './types.js';
+import type { AuthorFrameNode, Diagnostic, FrameIndexEntry, FrameTemplate } from './types.js';
 
 function readNumber(record: Record<string, unknown>, camel: string, snake: string): number | undefined {
   const value = record[camel] ?? record[snake];
@@ -145,6 +145,42 @@ function normalizeFrameFields(record: Record<string, unknown>): Omit<AuthorFrame
   if (use) node.use = use;
 
   return node;
+}
+
+export function normalizeFrameTemplate(record: Record<string, unknown>): FrameTemplate {
+  const {
+    id: _id,
+    children: _children,
+    use: _use,
+    width: _width,
+    height: _height,
+    minWidth: _minWidth,
+    maxWidth: _maxWidth,
+    maxWidthChars: _maxWidthChars,
+    minHeight: _minHeight,
+    maxHeight: _maxHeight,
+    align: _align,
+    justify: _justify,
+    wrap: _wrap,
+    fill: _fill,
+    border: _border,
+    fillWeight: _fillWeight,
+    sizing: _sizing,
+    paddingTop: _paddingTop,
+    paddingRight: _paddingRight,
+    paddingBottom: _paddingBottom,
+    paddingLeft: _paddingLeft,
+    position: _position,
+    x: _x,
+    y: _y,
+    colSpan: _colSpan,
+    ...template
+  } = {
+    id: '',
+    children: [],
+    ...normalizeFrameFields(record),
+  };
+  return template;
 }
 
 export function normalizeFrameNode(

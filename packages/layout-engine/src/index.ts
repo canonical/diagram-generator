@@ -157,6 +157,7 @@ export type {
   DiagnosticLevel,
   Edge,
   FrameIndexEntry,
+  FrameTemplate,
   LineSpec,
 } from './diagram-author/types.js';
 
