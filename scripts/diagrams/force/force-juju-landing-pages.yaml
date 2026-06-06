@@ -32,10 +32,10 @@ nodes:
   - and charm bits
   width: 256
   height: 112
-  x: 464
-  y: 424
-  fx: 465.05175124254436
-  fy: 420.0104510035785
+  x: 1344
+  y: 480
+  fx: 1343.5201355293054
+  fy: 476.9875230831828
   style: highlight
 - id: juju-for-developers
   label:
@@ -45,103 +45,111 @@ nodes:
   - and charm bits
   width: 256
   height: 112
-  x: 1120
-  y: 520
-  fx: 1117.332071794227
-  fy: 521.226030463179
+  x: 336
+  y: 480
+  fx: 334.77496338136257
+  fy: 481.4639818828571
   style: highlight
 - id: left-core-ellipsis
   label:
   - '...'
   width: 96
   height: 64
-  x: 248
-  y: 96
+  x: 1680
+  y: 384
 - id: juju
   label:
   - Juju
   width: 144
   height: 64
-  x: 808
-  y: 232
+  x: 840
+  y: 240
+  fx: 837.2283474361458
+  fy: 249.4874575137145
 - id: right-core-ellipsis
   label:
   - '...'
   width: 96
   height: 64
-  x: 1384
-  y: 240
+  x: 56
+  y: 424
 - id: ops
   label:
   - Ops
   width: 128
   height: 64
-  x: 1504
-  y: 456
+  x: 280
+  y: 168
 - id: charmcraft
   label:
   - Charmcraft
   width: 160
   height: 64
-  x: 1456
-  y: 720
+  x: 200
+  y: 760
 - id: data
   label:
   - Data
   width: 192
   height: 80
-  x: 736
-  y: 392
+  x: 864
+  y: 352
+  fx: 861.2283474361458
+  fy: 355.8997868743153
 - id: identity
   label:
   - Identity
   width: 192
   height: 80
-  x: 712
-  y: 672
+  x: 864
+  y: 608
+  fx: 861.2283474361458
+  fy: 605.9500675695307
 - id: platform-ellipsis
   label:
   - '...'
   width: 192
   height: 80
-  x: 976
-  y: 352
+  x: 864
+  y: 480
+  fx: 861.2283474361458
+  fy: 481.4639818828571
 - id: data-ellipsis
   label:
   - '...'
   width: 96
   height: 64
-  x: 240
-  y: 328
+  x: 1144
+  y: 40
 - id: postgresql-charm
   label:
   - PostgreSQL
   - charm
   width: 160
   height: 80
-  x: 408
-  y: 896
+  x: 904
+  y: 984
 - id: identity-ellipsis
   label:
   - '...'
   width: 96
   height: 64
-  x: 648
-  y: 992
+  x: 1136
+  y: 944
 - id: platform-ellipsis-a
   label:
   - '...'
   width: 96
   height: 64
-  x: 1008
-  y: 696
+  x: 1144
+  y: 720
 - id: platform-ellipsis-b
   label:
   - '...'
   width: 96
   height: 64
-  x: 1240
-  y: 656
+  x: 1264
+  y: 608
 links:
 - source: juju-for-sres
   target: left-core-ellipsis
