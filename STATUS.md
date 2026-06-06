@@ -36,9 +36,9 @@ Making a diagram for a review or deck: **[`docs/stakeholder-guide.md`](docs/stak
 
 ### Current delta — spec 022 diagram authoring AST closed (2026-06-06)
 
-- TypeScript diagram compiler in `packages/layout-engine/src/diagram-author/`: frame-tree AST, arrow shorthand, `defaults` / `use:` expansion, validation warnings, lowering through `loadFrameYaml`, and Mermaid export.
-- Docs and tooling: [`docs/diagram-authoring.md`](docs/diagram-authoring.md), `migrate-diagram-yaml.mjs`, `export-mermaid.mjs`, reference fixture `tiered-network-architecture.author-v1.yaml`.
-- D2 export (phase 8) deferred; preview save format unchanged (`root` + `arrows`).
+- TypeScript diagram compiler in `packages/layout-engine/src/diagram-author/`: frame-tree AST, arrow shorthand, `defaults` / `use:` expansion, validation warnings, lowering through `loadFrameYaml`, Mermaid export, and D2 export.
+- Docs and tooling: [`docs/diagram-authoring.md`](docs/diagram-authoring.md), `migrate-diagram-yaml.mjs`, `export-mermaid.mjs`, `export-d2.mjs`, reference fixture `tiered-network-architecture.author-v1.yaml`, and the spec 028 interchange package.
+- Root canvas endpoints are now rejected at compile time; Mermaid and D2 exporters skip invalid arrows defensively with warnings. Preview save format remains canonical `root` + `arrows`.
 
 ### Current delta — spec 026 preview shell decomposition closed (2026-06-06)
 
@@ -149,8 +149,8 @@ Commit **`a6822da`** (`scripts: land ts svg renderer cleanup`):
 
 | Priority | Work |
 |----------|------|
-| Now | Resume **spec 022** diagram authoring AST |
-| Next | Start **spec 024** ELK interactive node alignment (spec 025/026 prerequisites met) |
+| Now | Start **spec 024** phase 0 elkjs interactive-constraint spike and scope the ELK “move then relayout / pin” flow |
+| Next | Draft a new cross-engine spec for multi-select align/distribute and bulk pin/unpin behavior (force first, ELK applicability investigated) |
 
 ## Key files
 

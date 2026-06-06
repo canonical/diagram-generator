@@ -32,7 +32,11 @@ Feature package: `specs/026-preview-shell-decomposition-ts-migration/`.
 
 Feature package: `specs/024-elk-interactive-node-alignment/`.
 
-- [ ] `[H]` **Spec drafted; implementation blocked on elkjs interactive-constraint spike.** Native ELK only: nudge → `layerChoiceConstraint` / `positionChoiceConstraint` → persist under `meta.elk_nodes` → re-run layered with INTERACTIVE strategies. Integrate through the spec 025 engine contract and spec 026 ELK controller slice — no SVG translate hacks or new `editor.js` branches.
+- [ ] `[H]` **Start the elkjs feasibility spike for spec 024.** Native ELK only: moved-node / pin-style relayout via `layerChoiceConstraint` / `positionChoiceConstraint` → persist under `meta.elk_nodes` → re-run layered with INTERACTIVE strategies. Integrate through the spec 025 engine contract and spec 026 ELK controller slice — no SVG translate hacks or new `editor.js` branches.
+
+#### Cross-engine multi-select align/distribute + bulk pin actions (new spec needed)
+
+- [ ] `[H]` **Draft a new spec-kit package for multi-select align/distribute and bulk pin/unpin.** Investigate force first, then whether ELK can support the same UX through native constraints. Keep this separate from spec 024 unless the investigation proves the same data contract and controller shape can serve both.
 
 #### PNG export (spec 018)
 
@@ -44,7 +48,7 @@ Feature package: `specs/018-png-export/`.
 
 Feature package: `specs/022-diagram-authoring-ast/`.
 
-- [x] `[H]` **Spec 022 v1 closed.** Compiler, validation, lowering via `loadFrameYaml`, Mermaid export, docs, and migration CLI are landed. D2 export remains deferred (phase 8).
+- [x] `[H]` **Spec 022 v1 closed.** Compiler, validation, lowering via `loadFrameYaml`, Mermaid + D2 export, docs, and migration CLI are landed.
 
 #### Arrow routing redesign (spec 006)
 
@@ -90,6 +94,8 @@ Full audit: `docs/architecture/adversarial-audit-2026-05-27.md`.
 - [ ] `[L]` Security hardening before Stage 17
 - [ ] `[S]` Swappable engine interface — Phase 3+
 - [ ] `[S]` Constraint enforcement on force nodes
+- [ ] `[S]` **Force preview: multi-select unpin should apply to every selected node.** Simple interaction fix; suitable for composer.
+- [ ] `[S]` **Force preview: unpinned nodes revert to pinned after Save/Reload.** Fix persistence or save-path drift so unpin survives a saved round-trip; suitable for composer.
 - [ ] `[S]` Arrow waypoint editing / endpoint attachment
 - [ ] `[S]` Consistent stroke/outline weight
 - [ ] `[S]` Force → frame YAML round-trip
