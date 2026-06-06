@@ -28,7 +28,7 @@ arrows:
     label: sync
 ```
 
-Object arrows with only `source` and `target` normalize to the same AST as shorthand. Side-qualified refs and container endpoints stay valid.
+Object arrows with only `source` and `target` normalize to the same AST as shorthand. Side-qualified refs and non-root container endpoints stay valid. The `root` frame is the canvas wrapper, not a connectable endpoint.
 
 ### Defaults and `use:`
 
@@ -85,6 +85,7 @@ const result = compileDiagramYaml(rawYaml, { sourcePath, strict });
 | `ARROW_SHORTHAND_PARSE` | Malformed `source -> target` string |
 | `ARROW_INVALID_REF` | Arrow entry shape invalid |
 | `ARROW_UNKNOWN_SOURCE` / `ARROW_UNKNOWN_TARGET` | Base frame id missing |
+| `ARROW_ROOT_ENDPOINT` | Arrow references the root canvas frame |
 
 ### Warnings (non-fatal unless `strict: true` for arrow duplicates/self-loops)
 
@@ -119,11 +120,26 @@ node packages/layout-engine/scripts/migrate-diagram-yaml.mjs \
 - Containers → `subgraph`; leaves → labeled nodes; multiline labels → `<br/>`
 - Root layout wrapper (`page`) is omitted when it only groups children
 - Lossy: padding, sizing, alignment, icons, anchor-qualified arrow refs, waypoints, arrow labels
-- Emits `MERMAID_UNSUPPORTED_*` warnings for ignored metadata
+- Invalid edges are skipped defensively when refs are missing or point at the root canvas
+- Emits `MERMAID_UNSUPPORTED_*`, `MERMAID_MISSING_FRAME_REF`, and `MERMAID_ROOT_ENDPOINT_UNSUPPORTED` warnings
 
-### D2
+### D2 (`exportD2`)
 
-Deferred (spec 022 phase 8). No `export-d2.mjs` in v1.
+```bash
+node packages/layout-engine/scripts/export-d2.mjs --slug juju-bootstrap-machines-process \
+  --out ../d2/juju-bootstrap-machines-process.d2
+```
+
+- Containers → nested D2 blocks; container headings/labels preserved on the block header
+- Leaves → inline labels; multiline labels → quoted strings with line breaks
+- Arrows → fully qualified `parent.child -> other.parent.child` paths; arrow labels exported (unlike Mermaid)
+- When `meta.layout_engine` contains `elk`, emits `vars.d2-config.layout-engine: elk`
+- Root layout wrapper (`page`) is omitted when it only groups children
+- Lossy: padding, sizing, alignment, icons, anchor-qualified arrow refs, waypoints
+- Invalid edges are skipped defensively when refs are missing or point at the root canvas
+- Emits `D2_UNSUPPORTED_*`, `D2_MISSING_FRAME_REF`, and `D2_ROOT_ENDPOINT_UNSUPPORTED` warnings
+
+See [`specs/028-diagram-interchange-mermaid-d2/`](../specs/028-diagram-interchange-mermaid-d2/spec.md) for import parsers and round-trip fidelity matrix.
 
 ## Reference material
 

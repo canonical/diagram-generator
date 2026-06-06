@@ -200,6 +200,7 @@ interface CompileDiagnostic {
 | `DUPLICATE_FRAME_ID` | Two frames share the same id |
 | `ARROW_UNKNOWN_SOURCE` | source base id does not exist |
 | `ARROW_UNKNOWN_TARGET` | target base id does not exist |
+| `ARROW_ROOT_ENDPOINT` | source or target references the root canvas frame |
 | `ARROW_INVALID_REF` | shorthand/object ref shape is malformed |
 | `UNKNOWN_TEMPLATE` | `use` references missing default |
 | `INVALID_FRAME_CHILD` | child entry is not a frame mapping |
@@ -216,7 +217,11 @@ interface CompileDiagnostic {
 | `ORPHAN_LEAF` | non-root leaf frame with zero incident arrows |
 | `DUPLICATE_ARROW` | same source+target (+label) repeated |
 | `SELF_LOOP_ARROW` | source and target are identical |
+| `MERMAID_MISSING_FRAME_REF` | Mermaid exporter skips an unresolved arrow endpoint |
+| `MERMAID_ROOT_ENDPOINT_UNSUPPORTED` | Mermaid exporter skips an arrow that targets the root canvas |
 | `MERMAID_UNSUPPORTED_*` | property not representable in Mermaid |
+| `D2_MISSING_FRAME_REF` | D2 exporter skips an unresolved arrow endpoint |
+| `D2_ROOT_ENDPOINT_UNSUPPORTED` | D2 exporter skips an arrow that targets the root canvas |
 | `D2_UNSUPPORTED_*` | property not representable in D2 |
 
 ## Lowering: DiagramDocument → FrameDiagram
@@ -237,7 +242,20 @@ Lowering should be mechanically close to today's `frame-yaml-loader.ts`, not a l
 
 ## D2 export model (adapter input: DiagramDocument only)
 
-- Containers → D2 containers
-- Leaves → D2 shapes with labels
-- Arrows → D2 connections
-- Lossy areas: exact padding/alignment, some icon handling, anchor-qualified refs
+- Containers → nested D2 blocks; container `heading` / `label` on block header
+- Leaves → inline or quoted labels; multiline → `\n` escapes inside quotes
+- Arrows → dot-qualified `source -> target` paths; arrow labels exported
+- Optional `vars.d2-config.layout-engine: elk` when `meta.layout_engine` mentions elk
+- Lossy areas: padding/sizing/alignment, icons, anchor-qualified refs, waypoint geometry, arrow style/color/label_gap
+
+### D2 export warning codes
+
+| Code | When |
+|------|------|
+| `D2_UNSUPPORTED_ICON` | `icon` / `iconFill` on a frame |
+| `D2_UNSUPPORTED_LAYOUT` | layout/sizing/variant fields on a frame |
+| `D2_AMBIGUOUS_CONTAINER_LABEL` | both `label` and `heading` on a frame |
+| `D2_UNSUPPORTED_ANCHOR_REF` | anchor-qualified arrow endpoint |
+| `D2_UNSUPPORTED_WAYPOINTS` | arrow `waypoints` |
+| `D2_UNSUPPORTED_ARROW_STYLE` | arrow `style`, `color`, or `label_gap` |
+| `D2_MISSING_FRAME_REF` | arrow endpoint id absent from `frameIndex` |

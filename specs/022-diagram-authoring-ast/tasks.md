@@ -55,12 +55,12 @@
 - [x] T063 Tests: tiered-network AST golden Mermaid string
 - [x] T064 [P] CLI `packages/layout-engine/scripts/export-mermaid.mjs`
 
-## Phase 8: D2 exporter (US6) // defer for now
+## Phase 8: D2 exporter (US6)
 
-- [ ] T070 Create `export-d2.ts` — containers, leaves, arrows, icons where supported
-- [ ] T071 D2 unsupported-property warnings
-- [ ] T072 Tests: tiered-network AST golden D2 string
-- [ ] T073 [P] CLI `packages/layout-engine/scripts/export-d2.mjs`
+- [x] T070 Create `export-d2.ts` — containers, leaves, arrows, icons where supported
+- [x] T071 D2 unsupported-property warnings
+- [x] T072 Tests: tiered-network AST golden D2 string
+- [x] T073 [P] CLI `packages/layout-engine/scripts/export-d2.mjs`
 
 ## Phase 9: Documentation and migration (US7)
 

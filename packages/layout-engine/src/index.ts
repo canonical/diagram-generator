@@ -149,6 +149,8 @@ export {
 export { compileDiagramYaml } from './diagram-author/compile.js';
 export { exportMermaid } from './diagram-author/export-mermaid.js';
 export type { MermaidExportResult } from './diagram-author/export-mermaid.js';
+export { exportD2 } from './diagram-author/export-d2.js';
+export type { D2ExportResult } from './diagram-author/export-d2.js';
 export type {
   AuthorArrow,
   AuthorFrameNode,

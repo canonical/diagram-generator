@@ -71,9 +71,11 @@ arrows:
 | Authored shape | Meaning | Valid arrow endpoint |
 |----------------|---------|----------------------|
 | frame without `children` | leaf | yes |
-| frame with `children` | container | yes |
+| frame with `children` | container | yes, except `root` |
 
 There is no separate `node:` / `group:` grammar in v1. A frame becomes a container when it has children.
+
+The top-level `root` frame is the canvas wrapper. It is not a valid arrow endpoint.
 
 ## Container arrows are valid
 
@@ -105,13 +107,15 @@ root:
 
 ```bash
 node packages/layout-engine/scripts/export-mermaid.mjs --slug tiered-network-architecture
+node packages/layout-engine/scripts/export-d2.mjs --slug juju-bootstrap-machines-process \
+  --out ../d2/juju-bootstrap-machines-process.d2
 node packages/layout-engine/scripts/migrate-diagram-yaml.mjs \
   --in scripts/diagrams/frames/tiered-network-architecture.yaml \
   --out scripts/diagrams/frames/tiered-network-architecture.author-v1.yaml \
   --shorthand-arrows --extract-defaults
 ```
 
-D2 export remains deferred (spec 022 phase 8).
+D2 export preserves nested containers and arrow labels; see [`docs/diagram-authoring.md`](../../docs/diagram-authoring.md) for `D2_UNSUPPORTED_*`, `D2_MISSING_FRAME_REF`, and `D2_ROOT_ENDPOINT_UNSUPPORTED` warnings.
 
 ## Current document shape still loads
 

@@ -118,7 +118,7 @@ specs/022-diagram-authoring-ast/
 |------|---------|
 | Loader regression | Compiler lowers mechanically to current `FrameDiagram`; golden SVG unchanged post-lower |
 | Arrow shorthand ambiguity | Dedicated scalar parser; reject ambiguous lines |
-| Narrowing the live arrow contract | Preserve container endpoints and anchor-qualified refs; validate base ids only |
+| Narrowing the live arrow contract | Preserve non-root container endpoints and anchor-qualified refs; reject `root` as a canvas endpoint |
 | Preview save drift | Do not change canonical `root` / `arrows` save format in v1 |
 | Exporter overpromising | Warn on unsupported layout hints and anchor-qualified refs |
 

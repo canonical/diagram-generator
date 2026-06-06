@@ -54,7 +54,8 @@ When authored refs contain anchor suffixes, the AST preserves the original strin
 
 ## Arrow endpoint rules
 
-- Container ids are valid arrow endpoints.
+- Non-root container ids are valid arrow endpoints.
+- The top-level `root` frame is the canvas wrapper and must not be used as an arrow endpoint.
 - Side-qualified refs such as `foo.right` are valid.
 - Exporters may degrade anchor-qualified refs with warnings, but the compiler must preserve them.
 
@@ -134,4 +135,15 @@ Template names are referenced by `use:` on frame entries.
 
 ### D2
 
-Deferred in spec 022 v1 (phase 8).
+| Feature | Supported | Notes |
+|---------|-----------|-------|
+| Frames + labels | yes | quoted `\n` for multi-line |
+| Directed arrows | yes | `source -> target` |
+| Nested containers | yes | nested blocks |
+| Container labels/headings | yes | block header, with ambiguity warning when both are set |
+| Icons | no | warn |
+| Padding / align / sizing | no | warn |
+| Anchor-qualified refs | lossy | warn and degrade to base ids |
+| Waypoints | no | warn |
+| Missing frame refs | skipped | warn |
+| Root canvas endpoints | skipped | warn |
