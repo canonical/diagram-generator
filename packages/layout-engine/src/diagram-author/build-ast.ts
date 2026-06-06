@@ -147,39 +147,30 @@ function normalizeFrameFields(record: Record<string, unknown>): Omit<AuthorFrame
   return node;
 }
 
+const FRAME_TEMPLATE_KEYS: (keyof FrameTemplate)[] = [
+  'label',
+  'icon',
+  'iconFill',
+  'sizingW',
+  'sizingH',
+  'level',
+  'variant',
+  'role',
+  'heading',
+  'direction',
+  'gap',
+  'padding',
+];
+
 export function normalizeFrameTemplate(record: Record<string, unknown>): FrameTemplate {
-  const {
-    id: _id,
-    children: _children,
-    use: _use,
-    width: _width,
-    height: _height,
-    minWidth: _minWidth,
-    maxWidth: _maxWidth,
-    maxWidthChars: _maxWidthChars,
-    minHeight: _minHeight,
-    maxHeight: _maxHeight,
-    align: _align,
-    justify: _justify,
-    wrap: _wrap,
-    fill: _fill,
-    border: _border,
-    fillWeight: _fillWeight,
-    sizing: _sizing,
-    paddingTop: _paddingTop,
-    paddingRight: _paddingRight,
-    paddingBottom: _paddingBottom,
-    paddingLeft: _paddingLeft,
-    position: _position,
-    x: _x,
-    y: _y,
-    colSpan: _colSpan,
-    ...template
-  } = {
-    id: '',
-    children: [],
-    ...normalizeFrameFields(record),
-  };
+  const fields = normalizeFrameFields(record);
+  const template: FrameTemplate = {};
+  for (const key of FRAME_TEMPLATE_KEYS) {
+    const value = fields[key];
+    if (value !== undefined) {
+      template[key] = value as never;
+    }
+  }
   return template;
 }
 

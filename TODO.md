@@ -44,7 +44,7 @@ Feature package: `specs/018-png-export/`.
 
 Feature package: `specs/022-diagram-authoring-ast/`.
 
-- [ ] `[H]` **Continue the authoring compiler after phase 4.** Phases 1–4 are landed (scaffold, arrows, frame-tree AST, defaults/templates). Next slice is validation warnings (phase 5), then lowering and exporters.
+- [ ] `[H]` **Continue the authoring compiler after phase 5.** Phases 1–5 are landed (scaffold through validation warnings). Next slice is lowering to FrameDiagram (phase 6), then exporters.
 
 #### Arrow routing redesign (spec 006)
 

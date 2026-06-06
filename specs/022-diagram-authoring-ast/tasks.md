@@ -37,9 +37,9 @@
 
 ## Phase 5: Validation and warnings (US4)
 
-- [ ] T040 Create `validate.ts` — all error codes in `data-model.md`
-- [ ] T041 Warning pass — unused defaults, orphan leaves, duplicate arrows, self-loops
-- [ ] T042 Tests: invalid arrow endpoints, unknown source/target, strict vs warn modes
+- [x] T040 Create `validate.ts` — all error codes in `data-model.md`
+- [x] T041 Warning pass — unused defaults, orphan leaves, duplicate arrows, self-loops
+- [x] T042 Tests: invalid arrow endpoints, unknown source/target, strict vs warn modes
 
 ## Phase 6: Lowering to runtime (US1–3 integration)
 

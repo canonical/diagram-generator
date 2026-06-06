@@ -33,9 +33,10 @@ function expandNode(
   defaults: Record<string, FrameTemplate>,
   path: string,
   diagnostics: Diagnostic[],
+  usedTemplates: Set<string>,
 ): AuthorFrameNode {
   const children = node.children.map((child, index) =>
-    expandNode(child, defaults, `${path}.children[${index}]`, diagnostics),
+    expandNode(child, defaults, `${path}.children[${index}]`, diagnostics, usedTemplates),
   );
 
   let expanded: AuthorFrameNode = {
@@ -44,6 +45,7 @@ function expandNode(
   };
 
   if (node.use) {
+    usedTemplates.add(node.use);
     const template = defaults[node.use];
     if (!template) {
       diagnostics.push({
@@ -67,17 +69,20 @@ export function expandFrameDefaults(
 ): {
   root: AuthorFrameNode | null;
   defaults: Record<string, FrameTemplate>;
+  usedTemplates: Set<string>;
   diagnostics: Diagnostic[];
 } {
   const defaults = normalizeDefaultsMap(rawDefaults);
   if (!root) {
-    return { root: null, defaults, diagnostics: [] };
+    return { root: null, defaults, usedTemplates: new Set(), diagnostics: [] };
   }
 
   const diagnostics: Diagnostic[] = [];
+  const usedTemplates = new Set<string>();
   return {
-    root: expandNode(root, defaults, 'root', diagnostics),
+    root: expandNode(root, defaults, 'root', diagnostics, usedTemplates),
     defaults,
+    usedTemplates,
     diagnostics,
   };
 }

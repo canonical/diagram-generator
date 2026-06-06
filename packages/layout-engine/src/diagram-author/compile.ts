@@ -3,6 +3,7 @@ import { expandFrameDefaults } from './expand-defaults.js';
 import { normalizeArrows } from './normalize-arrows.js';
 import { parseYamlDocument } from './parse-yaml.js';
 import { validateArrowRefs } from './ref-grammar.js';
+import { applyStrictMode, collectCompileWarnings } from './validate.js';
 import type {
   CompileOptions,
   CompileResult,
@@ -20,31 +21,43 @@ function buildMetadata(source: Record<string, unknown>): Record<string, unknown>
   );
 }
 
-function createScaffoldAst(source: Record<string, unknown>): { ast: DiagramDocument; diagnostics: Diagnostic[] } {
+function createScaffoldAst(
+  source: Record<string, unknown>,
+  options: CompileOptions,
+): { ast: DiagramDocument; diagnostics: Diagnostic[] } {
   const frameAst = buildFrameAst(source.root);
   const expanded = expandFrameDefaults(frameAst.root, source.defaults);
   const normalizedArrows = normalizeArrows(source.arrows);
-  return {
-    ast: {
-      metadata: buildMetadata(source),
-      defaults: expanded.defaults,
-      root: expanded.root,
-      arrows: normalizedArrows.arrows,
-      frameIndex: frameAst.frameIndex,
-      source: { ...source },
-    },
-    diagnostics: [
+  const ast: DiagramDocument = {
+    metadata: buildMetadata(source),
+    defaults: expanded.defaults,
+    root: expanded.root,
+    arrows: normalizedArrows.arrows,
+    frameIndex: frameAst.frameIndex,
+    source: { ...source },
+  };
+  const diagnostics = applyStrictMode(
+    [
       ...frameAst.diagnostics,
       ...expanded.diagnostics,
       ...normalizedArrows.diagnostics,
       ...validateArrowRefs(normalizedArrows.arrows, frameAst.frameIndex),
+      ...collectCompileWarnings({
+        root: ast.root,
+        arrows: ast.arrows,
+        defaults: ast.defaults,
+        frameIndex: ast.frameIndex,
+        usedTemplates: expanded.usedTemplates,
+      }),
     ],
-  };
+    options.strict === true,
+  );
+  return { ast, diagnostics };
 }
 
 export function compileDiagramYaml(raw: string, options: CompileOptions = {}): CompileResult {
   const parsed = parseYamlDocument(raw, options);
-  const scaffold = createScaffoldAst(parsed);
+  const scaffold = createScaffoldAst(parsed, options);
   const diagnostics = [...scaffold.diagnostics];
   const errors = diagnostics.filter(diagnostic => diagnostic.level === 'error');
   const warnings = diagnostics.filter(diagnostic => diagnostic.level === 'warning');

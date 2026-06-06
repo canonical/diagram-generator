@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { compileDiagramYaml } from '../src/index.js';
 
 describe('compileDiagramYaml', () => {
-  it('parses frame-tree-native authoring YAML into a scaffold AST with empty diagnostics', () => {
+  it('parses frame-tree-native authoring YAML into a scaffold AST with no errors', () => {
     const result = compileDiagramYaml(
       [
         'schema: author-v1',
@@ -18,8 +18,12 @@ describe('compileDiagramYaml', () => {
     );
 
     expect(result.errors).toEqual([]);
-    expect(result.warnings).toEqual([]);
-    expect(result.diagnostics).toEqual([]);
+    expect(result.warnings).toContainEqual(
+      expect.objectContaining({
+        code: 'ORPHAN_LEAF',
+        path: 'root',
+      }),
+    );
     expect(result.raw).toMatchObject({
       schema: 'author-v1',
       title: 'Example diagram',
@@ -502,5 +506,166 @@ describe('compileDiagramYaml', () => {
         weight: 'bold',
       },
     ]);
+  });
+
+  it('warns about unused default templates', () => {
+    const result = compileDiagramYaml(
+      [
+        'schema: author-v1',
+        'title: Unused default',
+        'engine: v3',
+        'arrows: []',
+        'defaults:',
+        '  client:',
+        '    label: Client',
+        '  unused:',
+        '    label: Never referenced',
+        'root:',
+        '  id: page',
+        '  children:',
+        '    - id: client_l1',
+        '      use: client',
+        '      children: []',
+        '',
+      ].join('\n'),
+    );
+
+    expect(result.errors).toEqual([]);
+    expect(result.warnings).toContainEqual(
+      expect.objectContaining({
+        code: 'UNUSED_DEFAULT',
+        path: 'defaults.unused',
+      }),
+    );
+  });
+
+  it('warns about orphan leaf frames without incident arrows', () => {
+    const result = compileDiagramYaml(
+      [
+        'schema: author-v1',
+        'title: Orphan leaf',
+        'engine: v3',
+        'arrows:',
+        '  - client -> server',
+        'root:',
+        '  id: page',
+        '  children:',
+        '    - id: client',
+        '      children: []',
+        '    - id: server',
+        '      children: []',
+        '    - id: orphan',
+        '      children: []',
+        '',
+      ].join('\n'),
+    );
+
+    expect(result.errors).toEqual([]);
+    expect(result.warnings).toContainEqual(
+      expect.objectContaining({
+        code: 'ORPHAN_LEAF',
+        path: 'root.children[2]',
+      }),
+    );
+  });
+
+  it('warns about duplicate arrows and self-loops by default', () => {
+    const result = compileDiagramYaml(
+      [
+        'schema: author-v1',
+        'title: Arrow warnings',
+        'engine: v3',
+        'arrows:',
+        '  - client -> client',
+        '  - client -> server',
+        '  - client -> server',
+        'root:',
+        '  id: page',
+        '  children:',
+        '    - id: client',
+        '      children: []',
+        '    - id: server',
+        '      children: []',
+        '',
+      ].join('\n'),
+    );
+
+    expect(result.errors).toEqual([]);
+    expect(result.warnings).toContainEqual(
+      expect.objectContaining({
+        code: 'SELF_LOOP_ARROW',
+        path: 'arrows[0]',
+      }),
+    );
+    expect(result.warnings).toContainEqual(
+      expect.objectContaining({
+        code: 'DUPLICATE_ARROW',
+        path: 'arrows[2]',
+      }),
+    );
+  });
+
+  it('promotes duplicate arrows and self-loops to errors in strict mode', () => {
+    const yaml = [
+      'schema: author-v1',
+      'title: Strict mode',
+      'engine: v3',
+      'arrows:',
+      '  - client -> client',
+      '  - client -> server',
+      '  - client -> server',
+      'root:',
+      '  id: page',
+      '  children:',
+      '    - id: client',
+      '      children: []',
+      '    - id: server',
+      '      children: []',
+      '',
+    ].join('\n');
+
+    const result = compileDiagramYaml(yaml, { strict: true });
+
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        code: 'SELF_LOOP_ARROW',
+        level: 'error',
+        path: 'arrows[0]',
+      }),
+    );
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        code: 'DUPLICATE_ARROW',
+        level: 'error',
+        path: 'arrows[2]',
+      }),
+    );
+    expect(result.warnings.filter(w => w.code === 'SELF_LOOP_ARROW')).toEqual([]);
+    expect(result.warnings.filter(w => w.code === 'DUPLICATE_ARROW')).toEqual([]);
+  });
+
+  it('keeps unknown arrow endpoint diagnostics as errors regardless of strict mode', () => {
+    const yaml = [
+      'schema: author-v1',
+      'title: Strict unknown endpoint',
+      'engine: v3',
+      'arrows:',
+      '  - missing -> client',
+      'root:',
+      '  id: page',
+      '  children:',
+      '    - id: client',
+      '      children: []',
+      '',
+    ].join('\n');
+
+    const result = compileDiagramYaml(yaml, { strict: true });
+
+    expect(result.errors).toContainEqual(
+      expect.objectContaining({
+        code: 'ARROW_UNKNOWN_SOURCE',
+        level: 'error',
+      }),
+    );
   });
 });
