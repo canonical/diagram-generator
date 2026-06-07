@@ -212,6 +212,18 @@ def _apply_style_fields(frame_data: dict[str, Any], style_name: Any) -> None:
     frame_data["border"] = semantic["border"]
 
 
+def _is_implicit_structural_wrapper_frame(frame_data: dict[str, Any]) -> bool:
+    children = frame_data.get("children")
+    if not isinstance(children, list) or len(children) == 0:
+        return False
+    heading = frame_data.get("heading")
+    if isinstance(heading, str) and heading.strip():
+        return False
+    if isinstance(heading, dict) and str(heading.get("text", "")).strip():
+        return False
+    return all(key not in frame_data for key in ("level", "fill", "border", "variant"))
+
+
 def _apply_direct_field(frame_data: dict[str, Any], key: str, value: Any) -> None:
     if key == "align":
         frame_data[key] = _yaml_align(value)
@@ -301,7 +313,10 @@ def _apply_frame_override(frame_data: dict[str, Any], override: Any, frame_id: s
 
     style_name = override.get("style")
     if "style" in override:
-        _apply_style_fields(frame_data, style_name)
+        if _is_implicit_structural_wrapper_frame(frame_data) and _normalise_style_name(style_name):
+            pass
+        else:
+            _apply_style_fields(frame_data, style_name)
 
     for key, value in override.items():
         if key not in SUPPORTED_FRAME_KEYS and key not in UNSUPPORTED_FRAME_KEYS:

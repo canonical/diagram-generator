@@ -203,3 +203,74 @@ def test_empty_payload_is_a_no_op_without_rewriting_yaml(tmp_path):
     persist_override_payload_to_yaml(frame_path, {"overrides": {}, "grid_overrides": {}})
 
     assert frame_path.read_text(encoding="utf-8") == baseline_text
+
+
+def test_persist_style_does_not_promote_implicit_headingless_wrapper(tmp_path):
+    frame_path = tmp_path / "wrapper.yaml"
+    frame_path.write_text(
+        """
+engine: v3
+title: Wrapper
+root:
+  id: page
+  direction: vertical
+  children:
+    - id: wrapper
+      direction: horizontal
+      children:
+        - id: leaf_a
+          label: [A]
+        - id: leaf_b
+          label: [B]
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+    persist_override_payload_to_yaml(
+        frame_path,
+        {"overrides": {"wrapper": {"style": "parent"}}},
+    )
+
+    saved = yaml.safe_load(frame_path.read_text(encoding="utf-8"))
+    wrapper = _find_frame(saved["root"], "wrapper")
+    assert wrapper is not None
+    assert "level" not in wrapper
+    assert "fill" not in wrapper
+    assert "border" not in wrapper
+
+
+def test_persist_style_preserves_explicit_visible_headingless_group(tmp_path):
+    frame_path = tmp_path / "group.yaml"
+    frame_path.write_text(
+        """
+engine: v3
+title: Group
+root:
+  id: page
+  direction: vertical
+  children:
+    - id: group
+      level: 2
+      direction: horizontal
+      children:
+        - id: leaf_a
+          label: [A]
+        - id: leaf_b
+          label: [B]
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+    persist_override_payload_to_yaml(
+        frame_path,
+        {"overrides": {"group": {"style": "section"}}},
+    )
+
+    saved = yaml.safe_load(frame_path.read_text(encoding="utf-8"))
+    group = _find_frame(saved["root"], "group")
+    assert group is not None
+    assert group["level"] == 3
+    assert group["fill"] == "white"
+    assert group["border"] == "solid"
