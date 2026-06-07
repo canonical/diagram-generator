@@ -17,11 +17,12 @@ argument-hint: "Describe which diagram slugs or files changed"
 
 1. Run `npm --prefix packages/layout-engine test` (TS — primary).
 2. Run `python -m pytest scripts/test_frame_loader.py scripts/test_autolayout.py scripts/test_layout_v3.py scripts/test_parity.py -q` (Python parity).
-3. Start the preview server and browser-verify changed diagrams at `http://127.0.0.1:8100/view/v3:<slug>`.
-4. Sanitize changed deliverable SVGs with `python scripts/svg_illustrator_sanitize.py --write <svg>`.
-5. Update `STATUS.md`, `TODO.md`, and `HISTORY.md` if the change altered the repo's current state or added a reusable rule.
-6. Check the touched Python and Markdown files for errors if the editor reports any.
-7. Spot-check the changed SVG for syntax or portability issues.
+3. Run `node scripts/check_no_new_python.mjs` (spec 038 ratchet).
+4. Start the preview server and browser-verify changed diagrams at `http://127.0.0.1:8100/view/v3:<slug>`.
+5. Sanitize changed deliverable SVGs with `python scripts/svg_illustrator_sanitize.py --write <svg>`.
+6. Update `STATUS.md`, `TODO.md`, and `HISTORY.md` if the change altered the repo's current state or added a reusable rule.
+7. Check the touched Python and Markdown files for errors if the editor reports any.
+8. Spot-check the changed SVG for syntax or portability issues.
 
 ## Guardrails
 
@@ -30,6 +31,7 @@ All visual rules (gutter consistency, arrow clearance, equal-height equalization
 Key constraints to verify during build:
 
 - Do not skip the focused v3 Python and TypeScript tests when loader, layout, render, or preview code changed.
+- Do not add new Python product-path files; the ratchet must stay green.
 - Do not skip the sanitizer for changed deliverable SVGs.
 - Text must not overlap arrows, borders, icons, or other text.
 - Browser-verify the changed diagram in the v3 preview before treating the work as done.

@@ -7,11 +7,13 @@
 
 Making a diagram for a review or deck: **[`docs/stakeholder-guide.md`](docs/stakeholder-guide.md)** — copy a frame YAML, run `python scripts/preview_server.py`, open `/view/v3:<slug>`, save and optionally export SVG.
 
+**Hard rule:** no Python in the diagram product path. Preview, layout, render, export, and save belong on the Node / TypeScript path; remaining Python is temporary parity-oracle, draw.io, and token-bridge debt under spec 038.
+
 ## What this repo is
 
 `diagram-generator` is a constrained interactive diagram editor that turns frame YAML into on-brand SVG and draw.io outputs. It owns the single autolayout codebase in the workspace (`packages/layout-engine/`, TypeScript), eventually porting to `design-foundry` as `@design-foundry/operator-autolayout`. See `../design-foundry/PIVOT.md`.
 
-**TypeScript is the implementation language** for layout, measure, and SVG export. Python is narrowing to YAML persistence helpers and layout parity tests (`layout_v3.py`).
+**TypeScript is the implementation language** for layout, measure, and SVG export. Existing Python product-path files are migration debt being removed by spec 038, not a valid place for new work.
 
 ## Project context
 

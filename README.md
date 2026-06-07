@@ -4,11 +4,13 @@ A constrained interactive diagram editor that turns rough sketches and brand/lay
 
 **Need a diagram for a stakeholder review?** Start with [`docs/stakeholder-guide.md`](docs/stakeholder-guide.md) and [`STATUS.md`](STATUS.md) (updated 2026-06-04, `main` @ `a6822da`).
 
+**Hard rule:** no Python in the diagram product path. Preview, layout, render, export, and save work belong in Node / TypeScript; remaining Python is temporary parity-oracle, draw.io, and token-bridge debt under spec 038.
+
 ## Bigger picture
 
 This repo is part of a multi-repo workspace converging on `design-foundry` — a Houdini-in-spirit kernel for procedural graphic design. The TS autolayout engine in `packages/layout-engine/` is the single autolayout codebase in the workspace and will eventually port into design-foundry as `@design-foundry/operator-autolayout`. See `../design-foundry/PIVOT.md` for the full cross-repo plan.
 
-**TypeScript is the implementation language.** Layout, measure, and SVG export run in `packages/layout-engine/`. Python is narrowing to YAML save helpers and layout parity tests (`layout_v3.py`).
+**TypeScript is the implementation language.** Layout, measure, and SVG export run in `packages/layout-engine/`. Existing Python product-path files are migration debt being removed by spec 038, not a valid place for new work.
 
 ## Start Here
 
@@ -233,6 +235,7 @@ Validate the live v3 surface:
 2. Start `python scripts/preview_server.py`
 3. Open `http://127.0.0.1:8100/view/v3:<slug>` and browser-check the result
 4. If you changed layout or render behaviour, run `python -m pytest test_frame_loader.py test_autolayout.py test_layout_v3.py test_parity.py -q`
+5. Run `node scripts/check_no_new_python.mjs`
 
 ### Input/output structure
 

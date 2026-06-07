@@ -6,13 +6,13 @@
 
 `design-foundry` (at `../design-foundry/`) is the ultimate home for all procedural graphic design code in this workspace — a Houdini-in-spirit kernel with a typed data graph, DAG runtime, operator libraries, and multi-backend renderers. The full cross-repo architecture is documented in `../design-foundry/PIVOT.md`.
 
-This repo (`diagram-generator`) owns the single autolayout codebase in the workspace: `packages/layout-engine/` (TypeScript). When design-foundry's kernel is ready to receive it, the TS layout engine physically relocates there as `@design-foundry/operator-autolayout` wrapped in a thin adapter. Until then, all autolayout work happens here.
+This repo (`diagram-generator`) owns the single autolayout codebase in the workspace: `packages/layout-engine/` (TypeScript). The design-foundry kernel contracts are ready; the remaining blocker is this repo's Python preview front door. Spec 038 resolves that blocker here first, then the TS layout engine relocates there as `@design-foundry/operator-autolayout` behind a thin adapter.
 
 ### TypeScript is the agreed implementation language
 
 TypeScript is the standard for all new feature work. The rationale (from the design-foundry pivot) is **agent productivity** — agents produce better TS than Python, and the entire design-foundry kernel is TS. WASM (Rust/Zig) is the escape hatch for profiled hot paths, not Python.
 
-**All new features, bug fixes, and refactors target the TypeScript engine first.** Python receives matching changes only when needed for batch/export correctness. Do not start new work in Python unless it is specifically about the YAML parser or batch SVG export.
+**All new features, bug fixes, and refactors target the TypeScript engine first.** Existing product-path Python is migration debt under spec 038 and must be deleted or retired, not expanded.
 
 ### Preview shell policy (`scripts/preview/*.js`)
 
@@ -30,16 +30,17 @@ The browser preview (`editor.js`, `editor-base.js`, `layout-bridge.js`, etc.) is
 
 **Escalation rule:** if a feature needs more than ~50 lines of non-DOM logic in `scripts/preview/`, implement it in `packages/layout-engine/` (or frame YAML + TS loader) first, then wire the shell. Do not schedule a full `editor.js` → TypeScript rewrite unless a dedicated migration spec exists — freeze scope, not the files.
 
-### Python's role (narrowing)
+### No Python in the diagram product path
 
-Python is retained for three things:
+Hard rule: preview, layout, render, export, save, and runtime feature work belong on the Node / TypeScript product path. Python product-path files that still exist today are migration debt under spec 038 and must not gain new behavior.
 
-1. **YAML parsing** — **Frame YAML on disk is authority.** `/api/frame-tree` JSON is a derived DTO from `frame-yaml-loader.ts` + `frame-serialize.ts` (via `emit-frame-diagram-json.mjs`), not a second source of truth. `frame_loader.py` is legacy fallback only.
-2. **Batch SVG export** — `node packages/layout-engine/scripts/export-frame-svg.mjs --slug <name>` (TS layout + HarfBuzz + `svg-render.ts`). No Python SVG renderer.
-3. **Preview** — Live v3 SVG and layout API are TS-only (`preview_ts_export.py`, `preview_ts_layout.py`, `layout-bridge.js`). TS SVG failure → HTTP 404 + log (spec 012 T060a). Node CLIs resolve frames via `DG_FRAMES_DIR` in `packages/layout-engine/scripts/_dist-import.mjs`.
-4. **Transitional parity oracle** — TS-only fixtures under spec 011 semantics; Python `layout_v3.py` remains for layout parity tests only (no SVG emit).
+Allowed Python is limited to:
 
-Python does NOT do: interactive relayout, text measurement, editor state, or any new feature development. **Do not add new layout or measure logic to Python** — parse/serialize passthrough for YAML fields is acceptable.
+1. **Dated parity oracle** — `scripts/layout_v3.py` and `scripts/frame_loader.py` for cross-language parity tests only.
+2. **Draw.io batch tooling** — existing draw.io export / review helpers.
+3. **Token bridge** — `scripts/design_tokens.py` until `tokens.ts` becomes the sole source.
+
+Do not add new Python preview endpoints, YAML-save helpers, layout/render/export helpers, or other diagram logic.
 
 ### Frame YAML editing rule
 
@@ -56,7 +57,7 @@ The TS layout engine targets a **faithful port of Figma autolayout semantics**. 
 - **TS-first**: legacy parity port to Python is optional and fading; do not block TS work on Python parity.
 - **No speculative compatibility shims**: this is a single-user, single-developer repo. If a contract, field, or path is being retired and nothing real depends on it, delete it instead of carrying dual support "for now".
 - Continue shipping features here — do NOT block on the design-foundry port.
-- Do NOT migrate code to design-foundry yet. The target kernel operator interface is not ready.
+- The design-foundry kernel contracts are ready (`operator-kernel` K4, `render-ir` K1, `text-shape` K3). The blocker is this repo's Python preview front door, which spec 038 removes before physical relocation.
 - **No-double-work guarantee:** design-foundry will not build a parallel autolayout.
 - Keep public function signatures of `packages/layout-engine/` stable when convenient — they are the de-facto port interface.
 - Do NOT introduce persisted format identifiers that embed the package/repo name. Use short stable acronyms (e.g. `dg`).
@@ -168,6 +169,7 @@ The user can override with "proceed anyway" but the flag must be recorded in TOD
 ```bash
 npm --prefix packages/layout-engine test                                          # TS (primary)
 python -m pytest test_frame_loader.py test_autolayout.py test_layout_v3.py test_parity.py -q  # Python parity
+node scripts/check_no_new_python.mjs                                              # Python product-path ratchet
 ```
 
 After any layout, render, or preview change, browser-verify the affected diagram at `http://127.0.0.1:8100/view/v3:<slug>`.
@@ -249,5 +251,5 @@ When work in this repo creates a dependency or follow-up in another repo:
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/010-diagram-token-audit/plan.md
+at specs/038-ts-authority-python-removal/plan.md
 <!-- SPECKIT END -->
