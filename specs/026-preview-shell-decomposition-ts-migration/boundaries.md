@@ -79,6 +79,8 @@ No layout-bridge rewrite was performed in spec 026; boundaries are documented so
 
 Legacy browser globals (`saveOverrides`, `performUndo`, etc.) were retired in **spec 027**. In-repo browser tests now use the explicit `window.__DG_TEST_preview` facade instead.
 
+Force preview remains a JS-owned controller lane, but spec 029 now aligns its Save-button dirty semantics with the shared shell direction: the force lane compares the authored payload it will persist, not ad hoc button toggles or solver tick state.
+
 ## Target module map (T003)
 
 | Module | Role |

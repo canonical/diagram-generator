@@ -26,7 +26,7 @@ Feature package: `specs/027-preview-browser-test-api/`.
 
 Feature package: `specs/029-force-preview-shell-convergence/`.
 
-- [ ] `[S]` **Converge force save / dirty semantics with the preview-shell architecture.** Keep the scope narrow: shell-side save-button state, focused regression coverage, and force-lane boundary docs only. Do not delegate a broad `force.js` rewrite or a full TS controller migration.
+- [x] `[S]` **Converge force save / dirty semantics with the preview-shell architecture.** Closed on `feat/029-force-preview-shell-convergence`: force Save now compares the authored payload that will persist to YAML, focused browser coverage locks Save-button enable/disable behavior, and the force-lane boundary is documented without broad controller rewrites.
 
 #### Headingless wrapper contract (spec 036)
 

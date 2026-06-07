@@ -53,11 +53,11 @@ Making a diagram for a review or deck: **[`docs/stakeholder-guide.md`](docs/stak
 - The validated live fixture is now corpus-backed: the active sequence demo redraws Landscape package reporting and loads the tracked source image in Input and Both for direct fidelity checks.
 - Unsupported sequence affordances visible in the corpus source, notably activation bars and the sleep bracket, remain explicit follow-up work rather than shell-side patches or fake frame-tree edits.
 
-### Current delta — spec 029 force preview shell convergence drafted (2026-06-06)
+### Current delta — spec 029 force preview shell convergence complete (2026-06-07)
 
-- Added `specs/029-force-preview-shell-convergence/` as a bounded follow-up to the recent force preview save-button regression.
-- Delegation boundary is explicit: composer-safe work is limited to shell-side save / dirty convergence, focused tests, and boundary docs.
-- The broader idea of moving the full force controller toward TypeScript is intentionally not delegated here; that remains a future local-orchestrated architectural slice if still wanted.
+- Force Save-button state now follows the same direction as the shared preview shell: dirty is derived from the authored payload that will persist to YAML, not from undo-stack position or live solver tick metadata.
+- The force lane still posts through the canonical YAML save path only, but the browser now sends the same authored-spec-shaped payload that the server persists, so live alpha/tick churn no longer marks a freshly loaded or freshly saved graph dirty.
+- Focused coverage now locks the boundary: `scripts/test_preview_force_api.py` proves a force param can dirty and clean without saving, a persisted node move enables Save, and canonical save/reload returns the button to a clean disabled state.
 
 ### Current delta — spec 027 preview browser test API complete (2026-06-07)
 

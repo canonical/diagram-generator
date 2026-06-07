@@ -11,6 +11,13 @@ Completed work belongs here so `TODO.md` stays lean.
 - Added `scripts/test_preview_browser_test_api.py`, extended `scripts/test_preview_editor_shell_shrink.py`, and updated spec/boundary tracking so the old globals fail static coverage if they reappear.
 - Validation: `python -m pytest scripts/test_preview_support_engineering_flow.py scripts/test_preview_browser_test_api.py scripts/test_preview_editor_shell_shrink.py scripts/test_preview_editor_state.py scripts/test_preview_save_client.py -q`.
 
+### 2026-06-07 – Spec 029 closeout: force preview shell convergence
+
+- Force preview Save now compares the authored-spec-shaped payload that will persist to YAML instead of mixing undo-stack position with separate param-input dirty flags, so startup solver ticks no longer mark a clean force graph dirty.
+- `scripts/preview/force.js` now posts that authored payload directly to `/api/force-save/<slug>`, keeping the force lane on the canonical YAML-only save path while matching the shared preview-shell direction of serialized-state dirty comparison.
+- Added focused browser coverage in `scripts/test_preview_force_api.py` proving that parameter changes can dirty and clean without saving, persisted node movement enables Save, and canonical save/reload returns the button to a clean disabled state.
+- Validation: `python -m pytest scripts/test_preview_force_api.py -q`, `npm --prefix packages/layout-engine test -- tests/force-runtime.test.ts`.
+
 ### 2026-06-06 – Spec 030 closeout: sequence layout (bounded v1)
 
 - Completed the first TS-owned sequence lane under the multi-engine preview contract: compiler-owned `sequence:` YAML, preview-engine registration, preview-document transport, browser runtime exports, and shared-style SVG rendering are all landed.

@@ -56,7 +56,7 @@ let dragCandidate = null;
 let dragState = null;
 let resizeState = null;
 let suppressStageClick = false;
-let lastSavedForceParamState = null;
+let lastSavedForceState = null;
 const EMPTY_SELECTION_HTML = '<p class="dg-empty-message bf-form-help">Select or drag a node from the stage or the left rail. Dragging drops it into a pinned manual-polish position.</p>';
 
 function stageElement() {
@@ -130,7 +130,7 @@ function applyForceParamMetadata() {
 function updateLocalRuntimeControls() {
   byId("btn-play").disabled = false;
   byId("btn-step").disabled = false;
-  byId("btn-force-save").disabled = !(forceUndoManager.isDirty() || hasUnsavedForceParamInputs());
+  byId("btn-force-save").disabled = !isForcePersistedStateDirty();
   const container = document.getElementById("force-params");
   if (!container) return;
   const canEditLocalParams = !localRuntimeOnly || Boolean(
@@ -141,27 +141,130 @@ function updateLocalRuntimeControls() {
   }
 }
 
-function serializeForceParamInputs() {
-  const container = document.getElementById("force-params");
-  if (!container) return "[]";
-  const entries = [];
-  for (const input of container.querySelectorAll("[data-force-param]")) {
-    const key = input.getAttribute("data-force-param");
-    if (!key) continue;
-    entries.push([key, String(input.value ?? "")]);
+function persistedForceStyle(node) {
+  const style = node?.style_override ?? node?.style ?? null;
+  if (style === "accent") {
+    return "parent";
   }
-  return JSON.stringify(entries);
+  if (style === "parent" || style === "section" || style === "annotation" || style === "highlight") {
+    return style;
+  }
+  return null;
 }
 
-function hasUnsavedForceParamInputs() {
-  if (lastSavedForceParamState == null) {
+function exportPersistedForceSnapshot(snapshot) {
+  if (!snapshot || typeof snapshot !== "object") {
+    return null;
+  }
+  const simulationParams = snapshot.simulation?.params && typeof snapshot.simulation.params === "object"
+    ? snapshot.simulation.params
+    : {};
+  const render = snapshot.render && typeof snapshot.render === "object" ? snapshot.render : {};
+  const exportedNodes = Array.isArray(snapshot.nodes) ? snapshot.nodes : [];
+  const exportedLinks = Array.isArray(snapshot.links) ? snapshot.links : [];
+  return {
+    title: snapshot.title,
+    reference_image: snapshot.reference_image,
+    canvas: {
+      width: snapshot.canvas?.width,
+      height: snapshot.canvas?.height,
+    },
+    render: Object.fromEntries(
+      ["curve_handle_ratio", "curve_handle_min", "curve_handle_max"]
+        .filter((key) => render[key] != null)
+        .map((key) => [key, render[key]])
+    ),
+    simulation: Object.fromEntries(
+      [
+        "alpha",
+        "alpha_min",
+        "alpha_decay",
+        "alpha_target",
+        "ticks_per_frame",
+        "max_iterations",
+        "charge_strength",
+        "link_distance",
+        "link_strength",
+        "link_iterations",
+        "collision_padding",
+        "collision_iterations",
+        "velocity_decay",
+        "center",
+      ]
+        .filter((key) => simulationParams[key] != null)
+        .map((key) => [key, simulationParams[key]])
+    ),
+    nodes: exportedNodes.map((node) => {
+      const entry = {
+        id: node.id,
+        label: Array.isArray(node.label) && node.label.length > 0 ? node.label : [node.id],
+        width: node.width,
+        height: node.height,
+        x: node.x,
+        y: node.y,
+      };
+      if (node.fx != null) entry.fx = node.fx;
+      if (node.fy != null) entry.fy = node.fy;
+      const style = persistedForceStyle(node);
+      if (style != null) {
+        entry.style = style;
+      } else if (node.fill != null && node.fill !== "#FFFFFF") {
+        entry.fill = node.fill;
+        if (node.text_fill != null) {
+          entry.text_fill = node.text_fill;
+        }
+      }
+      if (node.stroke != null && node.stroke !== "#000000" && node.stroke !== "none") {
+        entry.stroke = node.stroke;
+      }
+      if (node.stroke_width != null && node.stroke_width !== 0 && node.stroke_width !== 1) {
+        entry.stroke_width = node.stroke_width;
+      }
+      if (node.shape != null) {
+        entry.shape = node.shape;
+      }
+      return entry;
+    }),
+    links: exportedLinks.map((link) => {
+      const entry = {
+        source: link.source,
+        target: link.target,
+      };
+      if (link.stroke != null) {
+        entry.stroke = link.stroke;
+      }
+      if (link.stroke_width != null) {
+        entry.stroke_width = link.stroke_width;
+      }
+      if (link.render && typeof link.render === "object" && Object.keys(link.render).length > 0) {
+        entry.render = link.render;
+      }
+      return entry;
+    }),
+  };
+}
+
+function serializeForcePersistedState(snapshot) {
+  const exportedSnapshot = exportPersistedForceSnapshot(snapshot);
+  if (!exportedSnapshot) {
+    return null;
+  }
+  return JSON.stringify(exportedSnapshot);
+}
+
+function isForcePersistedStateDirty() {
+  if (lastSavedForceState == null) {
     return false;
   }
-  return serializeForceParamInputs() !== lastSavedForceParamState;
+  const currentState = serializeForcePersistedState(committedSnapshot);
+  if (currentState == null) {
+    return false;
+  }
+  return currentState !== lastSavedForceState;
 }
 
-function markForceParamInputsSaved() {
-  lastSavedForceParamState = serializeForceParamInputs();
+function markForceStateSaved(snapshot = committedSnapshot) {
+  lastSavedForceState = serializeForcePersistedState(snapshot);
 }
 
 function snapshotFromCanonicalState(canonicalState) {
@@ -976,7 +1079,7 @@ async function loadSnapshot(reset = true) {
     }
   }
   render(snapshot);
-  markForceParamInputsSaved();
+  markForceStateSaved(snapshot);
   updateLocalRuntimeControls();
 }
 
@@ -1063,16 +1166,15 @@ async function saveForceOverrides() {
   if (!committedSnapshot) {
     throw new Error("Force snapshot is not loaded");
   }
-  const snapshot = window.LayoutEngine?.exportForceSnapshot
-    ? window.LayoutEngine.exportForceSnapshot(committedSnapshot)
-    : committedSnapshot;
+  const snapshot = exportPersistedForceSnapshot(committedSnapshot) || committedSnapshot;
   const responsePayload = await fetchJson(forceApiPath("save", `/api/force-save/${encodeURIComponent(FORCE_SLUG)}`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(snapshot),
   });
-  render(snapshotFromCanonicalState(responsePayload?.canonicalState) || snapshot);
-  markForceParamInputsSaved();
+  const canonicalSnapshot = snapshotFromCanonicalState(responsePayload?.canonicalState) || snapshot;
+  render(canonicalSnapshot);
+  markForceStateSaved(canonicalSnapshot);
   forceUndoManager.markSaved();
   updateLocalRuntimeControls();
   setStatus("Saved to YAML", "ok");
