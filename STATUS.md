@@ -1,6 +1,6 @@
 # Status
 
-**Last updated:** 2026-06-06  
+**Last updated:** 2026-06-07  
 **Branch:** `main`
 
 ## Stakeholder path
@@ -58,6 +58,18 @@ Making a diagram for a review or deck: **[`docs/stakeholder-guide.md`](docs/stak
 - Added `specs/029-force-preview-shell-convergence/` as a bounded follow-up to the recent force preview save-button regression.
 - Delegation boundary is explicit: composer-safe work is limited to shell-side save / dirty convergence, focused tests, and boundary docs.
 - The broader idea of moving the full force controller toward TypeScript is intentionally not delegated here; that remains a future local-orchestrated architectural slice if still wanted.
+
+### Current delta — spec 036 headingless wrapper contract started on main (2026-06-07)
+
+- Added `specs/036-headingless-wrapper-contract/` to capture the correct fix direction: restore invisible-wrapper semantics for headingless grouping containers instead of adding a new pass-through variant first.
+- Mainline now reflects the first bounded guard: style reset labels say `as defined`, implicit headingless wrappers no longer advertise visible style-picker controls in the preview shell, and stale save payloads can no longer promote a clean wrapper into `parent` / `section` chrome.
+- Remaining work is explicitly bounded in the spec: decide the long-term contract for intentionally visible non-headed groups and add broader end-to-end wrapper regression coverage.
+
+### Current delta — spec 037 preview engine drift closeout drafted (2026-06-07)
+
+- Added `specs/037-preview-engine-drift-closeout/` to convert the 2026-06-06 architectural review into a bounded cleanup slice.
+- The draft scope is explicit: align accepted engine ids with hostable runtime lanes, converge force save on canonical persisted state, remove forbidden `localStorage` usage from the live preview path, and add typed compatibility groundwork for spec 035.
+- This keeps the review findings actionable without widening them into an unbounded preview/runtime rewrite.
 
 ### Current delta — spec 024 summary recorded on main (2026-06-06)
 

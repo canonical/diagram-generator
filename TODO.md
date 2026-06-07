@@ -28,6 +28,18 @@ Feature package: `specs/029-force-preview-shell-convergence/`.
 
 - [ ] `[S]` **Converge force save / dirty semantics with the preview-shell architecture.** Keep the scope narrow: shell-side save-button state, focused regression coverage, and force-lane boundary docs only. Do not delegate a broad `force.js` rewrite or a full TS controller migration.
 
+#### Headingless wrapper contract (spec 036)
+
+Feature package: `specs/036-headingless-wrapper-contract/`.
+
+- [ ] `[S]` **Finish spec 036 beyond the initial guard now on `main`.** Preview labels and save-path protection now keep implicit headingless wrappers styleless by default; next close the remaining contract work around explicit visible non-headed groups and end-to-end wrapper reload coverage.
+
+#### Preview engine drift closeout (spec 037)
+
+Feature package: `specs/037-preview-engine-drift-closeout/`.
+
+- [ ] `[H]` **Close the engine-surface drift called out in the 2026-06-06 architectural review.** Scope: accepted engine ids must match hostable runtime lanes, force save must return canonical persisted state, forbidden `localStorage` writes must go, and the preview-engine model needs typed compatibility groundwork for spec 035.
+
 #### Preview shell decomposition + TS migration (spec 026)
 
 Feature package: `specs/026-preview-shell-decomposition-ts-migration/`.
@@ -60,6 +72,10 @@ Feature package: `specs/030-sequence-layout/`.
 #### Folder-backed editor app + nav unification (new spec needed)
 
 - [ ] `[H]` **Draft a spec-kit package for a folder-backed editor app shell.** The preview should open a user-chosen diagram folder, populate the left nav from that folder instead of the fixed test list, and remove the duplicate diagram picker UI in favor of one coherent sidenav-driven navigation model.
+
+#### Shared preview-shell chrome consistency (new spec needed)
+
+- [ ] `[M]` **Draft a spec-kit package for shell-chrome consistency across Input / Output / Both.** Shared preview UI chrome should not disappear per engine or per missing reference image; unavailable content should degrade with placeholders, not by trimming shell affordances.
 
 #### Cross-engine multi-select align/distribute + bulk pin actions (new spec needed)
 
