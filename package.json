@@ -1,0 +1,9 @@
+{
+  "name": "diagram-generator",
+  "private": true,
+  "scripts": {
+    "preview": "npm --prefix apps/preview run start",
+    "preview:dev": "npm --prefix apps/preview run dev",
+    "preview:build": "npm --prefix apps/preview run build"
+  }
+}

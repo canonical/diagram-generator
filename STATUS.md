@@ -36,6 +36,12 @@ Making a diagram for a review or deck: **[`docs/stakeholder-guide.md`](docs/stak
 | **Batch SVG** | `export-frame-svg.mjs` — TS-only (`svg-render.ts`); golden harness `tests/svg-golden.test.ts` (3 canonical slugs after the first pruning pass) |
 | **Tests** | Latest full TS suite green in the current slice (`246/246`); retained 11-slug export sweep green; focused preview browser regressions green; spec 005 high-risk browser spot-checks render with zero errors; `test_preview_frames_dir.py` and `test_preview_ts_api.py` green. Full `pytest scripts -q` still has legacy parity drift outside the active TS path |
 
+### Current delta — spec 038 Phase 1 scaffold started (2026-06-07)
+
+- `apps/preview/` now exists as the first dedicated Node preview app package, with root `npm run preview` / `npm run preview:build` entrypoints.
+- The scaffold already imports `@diagram-generator/layout-engine` directly and serves `/`, `/api/runtime-identity`, and `/api/preview-engines`; full route parity with `preview_server.py` is the next slice.
+- Validation for this scaffold slice is green: `npm run preview:build`, `node scripts/check_no_new_python.mjs`, and a direct probe against `node apps/preview/dist/server.js --port 8123`.
+
 ### Current delta — spec 022 diagram authoring AST closed (2026-06-06)
 
 - TypeScript diagram compiler in `packages/layout-engine/src/diagram-author/`: frame-tree AST, arrow shorthand, `defaults` / `use:` expansion, validation warnings, lowering through `loadFrameYaml`, Mermaid export, and D2 export.

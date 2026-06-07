@@ -4,6 +4,13 @@ Completed work belongs here so `TODO.md` stays lean.
 
 ## Short-term
 
+### 2026-06-07 – Spec 038 Phase 1 scaffold: Node preview app boundary
+
+- Added `apps/preview/` as the first dedicated Node preview app package, with its own `package.json`, TypeScript config, and minimal HTTP server.
+- Added a root `package.json` entrypoint so the repo now has `npm run preview` / `npm run preview:build` for the migration path without yet flipping the official docs away from `preview_server.py`.
+- The scaffold already imports `@diagram-generator/layout-engine` directly and serves `/`, `/api/runtime-identity`, and `/api/preview-engines`, proving the preview control plane can talk to the TS package without Python subprocess glue.
+- Validation: `npm run preview:build`, `node scripts/check_no_new_python.mjs`, and a direct endpoint probe against `node apps/preview/dist/server.js --port 8123`.
+
 ### 2026-06-07 – Spec 027 closeout: preview browser test API
 
 - Replaced the legacy browser globals (`saveOverrides`, `performUndo`, `performRedo`, `canUndo`, `canRedo`) with the explicit `window.__DG_TEST_preview` facade in `scripts/preview/editor.js`, keeping the surface as thin delegates over `PreviewSaveClient` and `EditorState`.
