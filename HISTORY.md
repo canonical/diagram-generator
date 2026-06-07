@@ -4,6 +4,13 @@ Completed work belongs here so `TODO.md` stays lean.
 
 ## Short-term
 
+### 2026-06-08 – Spec 038 Phase 1 reload slice: frame-tree + SSE watcher
+
+- Completed the remaining early Node preview parity plumbing by adding `/api/frame-tree/*` and `/events` to the preview app.
+- The Node app now tracks watched file mtimes across the active frames dir, force dir, preview shell assets, Baseline Foundry preview assets, and `packages/layout-engine/dist/`, then broadcasts generation-bump SSE events to connected preview clients.
+- This keeps the existing browser shell contract intact: `editor.js` can continue using `EventSource('/events')` without a parallel Node-specific reload path.
+- Validation: `npm --prefix apps/preview run build`, `node scripts/check_no_new_python.mjs`, `/api/frame-tree/support-engineering-flow` probe on port `8127`, and a temp-fixture `/events` reload probe on port `8128` showing generation `0 -> 1` after YAML mutation.
+
 ### 2026-06-07 – Spec 038 Phase 1 write slice: Node YAML save routes
 
 - Added `apps/preview/src/frame-yaml-persistence.ts`, a TypeScript port of the Python YAML persistence helper, including canonical style projection, grid restrictions, removed-id pruning, text updates, child reordering, and `meta.elk` passthrough verification.

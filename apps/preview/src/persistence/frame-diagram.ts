@@ -335,7 +335,7 @@ function applyFrameOverride(frameData: Record<string, unknown>, override: unknow
   const styleName = override.style;
   if ("style" in override) {
     if (isImplicitStructuralWrapperFrame(frameData) && normalizeStyleName(styleName)) {
-      // no-op: keep wrappers structural-only
+      // keep wrappers structural-only
     } else {
       applyStyleFields(frameData, styleName);
     }
@@ -443,7 +443,7 @@ export function verifyElkLayoutPersisted(documentText: string, expected: Record<
   }
 }
 
-export function persistOverridePayloadToYaml(
+export function persistFrameDiagramOverridePayloadToYaml(
   framePath: string,
   baselineText: string,
   payload: PersistOverridePayload,
@@ -500,24 +500,6 @@ export function persistOverridePayloadToYaml(
   });
 }
 
-export function persistForceAuthoredSpecToYaml(
-  framePath: string,
-  payload: unknown,
-): string {
-  if (!isRecord(payload) || !Array.isArray(payload.nodes) || !Array.isArray(payload.links)) {
-    throw new Error("Expected authored force spec JSON payload");
-  }
-  const simulation = payload.simulation;
-  if (isRecord(simulation) && isRecord(simulation.params)) {
-    throw new Error("Expected authored force spec JSON payload, not runtime snapshot state");
-  }
-  return yaml.stringify(payload, {
-    aliasDuplicateObjects: false,
-    lineWidth: 1000,
-    sortMapEntries: false,
-  });
-}
-
-export function fileLabelForError(filePath: string): string {
+export function framePersistenceFileLabel(filePath: string): string {
   return path.basename(filePath);
 }

@@ -27,11 +27,11 @@ import {
   type PreviewEngineManifest,
 } from "@diagram-generator/layout-engine";
 import {
-  persistForceAuthoredSpecToYaml,
-  persistOverridePayloadToYaml,
+  persistForceSpecToYaml,
+  persistFrameDiagramOverridePayloadToYaml,
   verifyElkLayoutPersisted,
   type PersistOverridePayload,
-} from "./frame-yaml-persistence.js";
+} from "./persistence/index.js";
 
 const DEFAULT_PORT = 8100;
 const SPEC_HOME = "specs/038-ts-authority-python-removal/";
@@ -98,6 +98,13 @@ const hostableGridLayoutKeys = new Set(
 const textAdapterPromise = createHarfBuzzTextAdapter({
   fontData: readFileSync(path.join(REPO_ROOT, "assets", "UbuntuSans[wdth,wght].ttf")).buffer,
 });
+const WATCH_EXTENSIONS = new Set([".yaml", ".yml", ".json", ".html", ".css", ".js", ".svg", ".ttf", ".woff", ".woff2"]);
+const WATCH_PATHS = [FRAMES_DIR, FORCE_DEFINITIONS_DIR, PREVIEW_DIR, BF_VENDOR_ROOT, path.join(REPO_ROOT, "packages", "layout-engine", "dist")];
+let rebuildGeneration = 0;
+let lastRebuildError: string | null = null;
+let watchIntervalHandle: NodeJS.Timeout | null = null;
+let lastWatchMtimes = new Map<string, number>();
+const sseClients = new Set<ServerResponse>();
 
 function parsePort(argv: readonly string[], env: NodeJS.ProcessEnv): number {
   const rawArgPort = argv.find((arg) => arg.startsWith("--port="))?.split("=", 2)[1];
@@ -168,6 +175,79 @@ async function readJsonBody(req: IncomingMessage): Promise<unknown> {
 
 function requestUrl(req: IncomingMessage): URL {
   return new URL(req.url ?? "/", `http://${req.headers.host ?? "127.0.0.1"}`);
+}
+
+function collectWatchMtimes(): Map<string, number> {
+  const mtimes = new Map<string, number>();
+  const visit = (targetPath: string): void => {
+    if (!existsSync(targetPath)) return;
+    const stats = statSync(targetPath);
+    if (stats.isFile()) {
+      if (WATCH_EXTENSIONS.has(path.extname(targetPath).toLowerCase())) {
+        mtimes.set(targetPath, Math.trunc(stats.mtimeMs));
+      }
+      return;
+    }
+    for (const entry of readdirSync(targetPath, { withFileTypes: true })) {
+      const childPath = path.join(targetPath, entry.name);
+      if (entry.isDirectory()) {
+        visit(childPath);
+      } else if (entry.isFile() && WATCH_EXTENSIONS.has(path.extname(entry.name).toLowerCase())) {
+        mtimes.set(childPath, Math.trunc(statSync(childPath).mtimeMs));
+      }
+    }
+  };
+  for (const watchPath of WATCH_PATHS) {
+    visit(watchPath);
+  }
+  return mtimes;
+}
+
+function broadcastReloadEvent(): void {
+  const payload = JSON.stringify({
+    generation: rebuildGeneration,
+    error: lastRebuildError,
+  });
+  for (const client of [...sseClients]) {
+    try {
+      client.write(`data: ${payload}\n\n`);
+    } catch {
+      sseClients.delete(client);
+      try {
+        client.end();
+      } catch {
+        // ignore client teardown errors
+      }
+    }
+  }
+}
+
+function startWatchLoop(): void {
+  if (watchIntervalHandle) return;
+  lastWatchMtimes = collectWatchMtimes();
+  watchIntervalHandle = setInterval(() => {
+    try {
+      const currentMtimes = collectWatchMtimes();
+      let changed = currentMtimes.size !== lastWatchMtimes.size;
+      if (!changed) {
+        for (const [filePath, mtime] of currentMtimes) {
+          if (lastWatchMtimes.get(filePath) !== mtime) {
+            changed = true;
+            break;
+          }
+        }
+      }
+      if (!changed) return;
+      lastWatchMtimes = currentMtimes;
+      rebuildGeneration += 1;
+      lastRebuildError = null;
+      broadcastReloadEvent();
+    } catch (error) {
+      rebuildGeneration += 1;
+      lastRebuildError = error instanceof Error ? error.message : String(error);
+      broadcastReloadEvent();
+    }
+  }, 500);
 }
 
 function currentGitBranch(): string | null {
@@ -502,6 +582,10 @@ function previewDocumentForSlug(slug: string) {
   };
 }
 
+function frameTreeForSlug(slug: string) {
+  return serializeFrameDiagram(loadFrameDiagram(slug));
+}
+
 function loadFrameDiagram(slug: string) {
   return loadFrameYaml(path.join(FRAMES_DIR, `${slug}.yaml`));
 }
@@ -592,7 +676,11 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, port: nu
       }
       try {
         const baseline = readFileSync(framePath, "utf8");
-        const nextText = persistOverridePayloadToYaml(framePath, baseline, payload as PersistOverridePayload);
+        const nextText = persistFrameDiagramOverridePayloadToYaml(
+          framePath,
+          baseline,
+          payload as PersistOverridePayload,
+        );
         if (nextText !== baseline) {
           writeFileSync(framePath, nextText, "utf8");
         }
@@ -632,7 +720,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, port: nu
         return;
       }
       try {
-        const nextText = persistForceAuthoredSpecToYaml(framePath, payload);
+        const nextText = persistForceSpecToYaml(payload);
         writeFileSync(framePath, nextText, "utf8");
         sendJson(res, 200, {
           ok: true,
@@ -663,6 +751,29 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, port: nu
   }
   if (pathname === "/api/preview-engines") {
     handlePreviewEngines(res);
+    return;
+  }
+  if (pathname === "/events") {
+    res.writeHead(200, {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+      "Access-Control-Allow-Origin": "*",
+    });
+    const payload = JSON.stringify({
+      generation: rebuildGeneration,
+      error: lastRebuildError,
+    });
+    res.write(`data: ${payload}\n\n`);
+    sseClients.add(res);
+    req.on("close", () => {
+      sseClients.delete(res);
+      try {
+        res.end();
+      } catch {
+        // ignore close races
+      }
+    });
     return;
   }
   if (pathname === "/preview/bf-os.css") {
@@ -750,6 +861,15 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, port: nu
     sendJson(res, 200, previewDocumentForSlug(slug));
     return;
   }
+  if (pathname.startsWith("/api/frame-tree/")) {
+    const slug = normalizeFrameSlug(pathname.slice("/api/frame-tree/".length));
+    if (!slug) {
+      sendText(res, 400, "Invalid slug");
+      return;
+    }
+    sendJson(res, 200, frameTreeForSlug(slug));
+    return;
+  }
   if (pathname.startsWith("/api/tree/")) {
     const slug = normalizeFrameSlug(pathname.slice("/api/tree/".length));
     if (!slug) {
@@ -835,6 +955,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, port: nu
 }
 
 export function startPreviewServer(port = parsePort(process.argv.slice(2), process.env)) {
+  startWatchLoop();
   const server = createServer((req, res) => {
     void handleRequest(req, res, port).catch((error: unknown) => {
       const message = error instanceof Error ? error.message : String(error);

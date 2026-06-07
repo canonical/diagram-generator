@@ -39,10 +39,11 @@ Making a diagram for a review or deck: **[`docs/stakeholder-guide.md`](docs/stak
 ### Current delta — spec 038 Phase 1 scaffold started (2026-06-07)
 
 - `apps/preview/` now exists as the first dedicated Node preview app package, with root `npm run preview` / `npm run preview:build` entrypoints.
-- The Node app now serves the real preview shell HTML plus the GET route slice the current editor depends on: `/preview/*`, `/reference/*`, `/api/icon/*`, `/api/preview-document/*`, `/api/tree/*`, `/api/grid/*`, `/svg/*`, `/view/v3:*`, `/v3/view/*`, `/force/view/*`, and `/api/force-spec/*`.
+- The Node app now serves the real preview shell HTML plus the GET route slice the current editor depends on: `/preview/*`, `/reference/*`, `/api/icon/*`, `/api/preview-document/*`, `/api/frame-tree/*`, `/api/tree/*`, `/api/grid/*`, `/svg/*`, `/view/v3:*`, `/v3/view/*`, `/force/view/*`, and `/api/force-spec/*`.
 - The Node app now also owns the first write-path slice: `POST /api/overrides/*` and `POST /api/force-save/*`, backed by a TypeScript port of `frame_yaml_persistence.py` plus temp-fixture validation through `DG_FRAMES_DIR` / `DG_FORCE_DEFINITIONS_DIR`.
-- This still is not the full cutover: SSE reload, watcher parity, and the remaining Python preview routes/helpers stay on the Python server until later spec 038 slices.
-- Validation for the read/write slice is green: `npm --prefix apps/preview run build`, `npm --prefix packages/layout-engine run build:browser`, `node scripts/check_no_new_python.mjs`, direct Node-server probes on port `8124`, temp-fixture POST route probes on port `8125`, and direct persistence checks for byte-stable no-op saves plus `meta.elk` passthrough retention.
+- The Node app now also provides watcher-driven SSE reload on `/events`, with file-change generation bumps covering frame YAML, force YAML, preview shell assets, Baseline Foundry preview assets, and `packages/layout-engine/dist/`.
+- This still is not the full cutover: browser parity validation, spec 027 API validation on the Node server, and final Python preview deletion remain later spec 038 slices.
+- Validation for the read/write/reload slice is green: `npm --prefix apps/preview run build`, `npm --prefix packages/layout-engine run build:browser`, `node scripts/check_no_new_python.mjs`, direct Node-server probes on ports `8124` and `8128`, temp-fixture POST route probes on port `8125`, and direct persistence checks for byte-stable no-op saves plus `meta.elk` passthrough retention.
 
 ### Current delta — spec 022 diagram authoring AST closed (2026-06-06)
 
