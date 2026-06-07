@@ -4,6 +4,13 @@ Completed work belongs here so `TODO.md` stays lean.
 
 ## Short-term
 
+### 2026-06-07 – Spec 038 Phase 1 route slice: shell + GET preview APIs
+
+- Expanded `apps/preview/src/server.ts` from a placeholder page into a real Node preview surface that serves the existing unified shell template and static preview assets.
+- Added Node-hosted GET routes for the current preview contract: preview shell assets, Baseline Foundry CSS/fonts, reference images, icon SVGs, frame preview-document JSON, component tree JSON, grid JSON, frame SVG export, force-spec JSON, and the `view` / `force/view` HTML routes.
+- Kept the migration boundary explicit: save/write routes, SSE reload, and the remaining Python parity surfaces are still pending, so this slice proves the Node front door can host the current read path before the write path moves.
+- Validation: `npm --prefix apps/preview run build`, `npm --prefix packages/layout-engine run build:browser`, `node scripts/check_no_new_python.mjs`, and a direct endpoint probe against `node apps/preview/dist/server.js --port 8124`.
+
 ### 2026-06-07 – Spec 038 Phase 1 scaffold: Node preview app boundary
 
 - Added `apps/preview/` as the first dedicated Node preview app package, with its own `package.json`, TypeScript config, and minimal HTTP server.

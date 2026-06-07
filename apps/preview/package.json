@@ -10,7 +10,8 @@
   },
   "dependencies": {
     "@diagram-generator/layout-engine": "file:../../packages/layout-engine",
-    "diagram-generator": "file:../.."
+    "diagram-generator": "file:../..",
+    "yaml": "^2.8.1"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
