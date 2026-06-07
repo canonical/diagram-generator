@@ -128,6 +128,11 @@ export function isPreviewEngineCompatible(
   engine: PreviewEngineManifest,
   context: PreviewEngineContext,
 ): boolean {
+  const shellMode = context.shellMode ?? null;
+  if (shellMode && engine.shellMode !== shellMode) {
+    return false;
+  }
+
   const previewDocumentKind = context.previewDocumentKind ?? null;
   if (previewDocumentKind && !engine.compatibility.documentKinds.includes(previewDocumentKind)) {
     return false;

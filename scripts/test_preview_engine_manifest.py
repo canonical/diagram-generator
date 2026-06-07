@@ -78,7 +78,21 @@ def test_serve_preview_engines_returns_ts_manifest_json():
 
 def test_hostable_frame_layout_engine_keys_come_from_ts_manifest():
     _ensure_manifest_built()
-    assert preview_server._hostable_frame_layout_engine_keys() == {"elk-layered", "sequence"}
+    assert preview_server._try_hostable_frame_layout_engine_keys() == {"elk-layered", "sequence"}
+
+
+def test_normalize_hostable_frame_layout_engine_ignores_unhostable_values():
+    _ensure_manifest_built()
+    assert preview_server._normalize_hostable_frame_layout_engine("elk-layered") == "elk-layered"
+    assert preview_server._normalize_hostable_frame_layout_engine("sequence") == "sequence"
+    assert preview_server._normalize_hostable_frame_layout_engine("elk-force") is None
+    assert preview_server._normalize_hostable_frame_layout_engine("vertical-stack") is None
+
+
+def test_normalize_hostable_frame_layout_engine_degrades_open_when_manifest_missing(monkeypatch):
+    monkeypatch.setattr(preview_server, "_try_hostable_frame_layout_engine_keys", lambda: None)
+    assert preview_server._normalize_hostable_frame_layout_engine("elk-layered") == "elk-layered"
+    assert preview_server._normalize_hostable_frame_layout_engine("elk-force") == "elk-force"
 
 
 def test_overrides_post_returns_canonical_state(monkeypatch):

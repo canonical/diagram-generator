@@ -346,7 +346,7 @@ root:
     assert any("not a recognised value" in str(x.message) for x in w)
 
 
-def test_unsupported_layout_engine_warns_and_is_not_loaded(tmp_path):
+def test_non_hostable_layout_engine_is_preserved_for_metadata_round_trip(tmp_path):
     import warnings
 
     with warnings.catch_warnings(record=True) as w:
@@ -362,11 +362,11 @@ root:
   children:
     - id: child
       label:
-        - Hello
+            - Hello
 """,
         )
-    assert any("not a recognised value" in str(x.message) for x in w)
-    assert diagram.layout_engine is None
+    assert not w
+    assert diagram.layout_engine == "elk-force"
 
 
 # ── Variant overlays ───────────────────────────────────────────────

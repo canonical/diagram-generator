@@ -67,7 +67,7 @@ Making a diagram for a review or deck: **[`docs/stakeholder-guide.md`](docs/stak
 
 ### Current delta — spec 037 preview engine drift closeout complete (2026-06-07)
 
-- The preview-engine manifest is now the hostability authority for frame-backed runtime lanes: frame YAML `layout_engine` values are narrowed to hostable keys, preview viewer routes fail fast on unsupported values, and the old `elk-force` acceptance drift is closed instead of being silently tolerated.
+- The preview-engine manifest is now the hostability authority for frame-backed runtime lanes: hostable preview keys are normalized from the TS manifest, stale non-hostable metadata such as `elk-force` no longer hijacks the runtime lane, and older diagrams can still open for repair instead of failing closed on load.
 - Force save now returns canonical persisted state and the force preview rehydrates from that canonical authored payload after save instead of treating the pre-save local snapshot as authoritative.
 - Live preview no longer writes ELK debug/raw-view shell state into `localStorage`, and the preview-engine model now carries typed compatibility metadata for `frame-diagram`, `sequence`, and `force-spec` as groundwork for spec 035.
 - Focused validation for the closeout slice is green: `tests/preview-engine-registry.test.ts` plus targeted pytest coverage for manifest discovery, frame-loader hostability, layout-bridge persistence boundaries, and force save persistence.

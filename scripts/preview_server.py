@@ -744,7 +744,10 @@ def _resolve_preview_engine_manifest(
     return None
 
 
-def _hostable_frame_layout_engine_keys() -> set[str]:
+def _try_hostable_frame_layout_engine_keys() -> set[str] | None:
+    manifest_path = _LAYOUT_ENGINE_DIST / "preview-engine-manifest.json"
+    if not manifest_path.exists():
+        return None
     keys: set[str] = set()
     for entry in _load_preview_engine_manifest():
         layout_engine_key = entry.get("layoutEngineKey")
@@ -753,6 +756,20 @@ def _hostable_frame_layout_engine_keys() -> set[str]:
         if isinstance(layout_engine_key, str) and layout_engine_key:
             keys.add(layout_engine_key)
     return keys
+
+
+def _normalize_hostable_frame_layout_engine(layout_engine: str | None) -> str | None:
+    if not isinstance(layout_engine, str):
+        return None
+    key = layout_engine.strip()
+    if not key:
+        return None
+    hostable_keys = _try_hostable_frame_layout_engine_keys()
+    if hostable_keys is None:
+        return key
+    if key in hostable_keys:
+        return key
+    return None
 
 
 def _canonical_force_saved_state(slug: str) -> dict[str, object]:
@@ -788,7 +805,8 @@ def _build_viewer_html(slug: str, all_slugs: list[str], grid: bool) -> str:
     is_v3 = True
     real_slug = slug[3:] if slug.startswith("v3:") else slug
     engine = "v3"
-    layout_engine = _frame_yaml_layout_engine(real_slug) or ""
+    raw_layout_engine = _frame_yaml_layout_engine(real_slug)
+    layout_engine = _normalize_hostable_frame_layout_engine(raw_layout_engine) or ""
     engine_manifest = _resolve_preview_engine_manifest(layout_engine=layout_engine, shell_mode="grid")
     is_elk = layout_engine == "elk-layered"
     has_ref = _find_reference_image(real_slug) is not None
@@ -1239,14 +1257,6 @@ class PreviewHandler(http.server.BaseHTTPRequestHandler):
         else:
             if real_slug not in _list_diagrams():
                 self.send_error(404, f"Unknown diagram: {real_slug}")
-                return
-        if is_v3:
-            layout_engine = _frame_yaml_layout_engine(real_slug)
-            if layout_engine and layout_engine not in _hostable_frame_layout_engine_keys():
-                self.send_error(
-                    400,
-                    f"Frame layout_engine '{layout_engine}' is not hostable by this preview runtime",
-                )
                 return
         html = _build_viewer_html(slug, _list_diagrams(), self.grid)
         self._respond(200, "text/html", html.encode())

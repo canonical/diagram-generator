@@ -81,5 +81,11 @@ describe('preview-engine registry', () => {
     expect(
       listCompatiblePreviewEngines({ previewDocumentKind: 'force-spec' }).map((entry) => entry.id),
     ).toEqual(['force']);
+    expect(
+      listCompatiblePreviewEngines({
+        previewDocumentKind: 'force-spec',
+        shellMode: 'grid',
+      }),
+    ).toEqual([]);
   });
 });
