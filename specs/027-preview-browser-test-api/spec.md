@@ -6,7 +6,7 @@
 
 **Created**: 2026-06-06
 
-**Status**: Draft
+**Status**: Complete
 
 **Depends on**: spec 026 (complete) — save client, editor state store, and shell shrink must be landed first.
 

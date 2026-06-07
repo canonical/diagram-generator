@@ -77,7 +77,7 @@ These are reasonable future slices but **out of scope** for the current shell de
 
 No layout-bridge rewrite was performed in spec 026; boundaries are documented so later work does not re-tangle shell and runtime concerns.
 
-Legacy browser globals (`saveOverrides`, `performUndo`, etc.) are temporary shims documented in spec 026 closeout; retirement is tracked in **spec 027**.
+Legacy browser globals (`saveOverrides`, `performUndo`, etc.) were retired in **spec 027**. In-repo browser tests now use the explicit `window.__DG_TEST_preview` facade instead.
 
 ## Target module map (T003)
 

@@ -1,6 +1,6 @@
 # Quickstart: Preview browser test API (spec 027)
 
-**Status**: Spec only — implementation starts at tasks T010+.
+**Status**: Complete.
 
 ## When to run this work
 
@@ -28,7 +28,7 @@ await __DG_TEST_preview.undo()
 __DG_TEST_preview.canUndo()
 ```
 
-Legacy globals (`saveOverrides()`, `performUndo()`, …) are removed once spec 027 lands.
+Legacy globals (`saveOverrides()`, `performUndo()`, …) are removed.
 
 ## Implementation order
 

@@ -20,7 +20,7 @@ Feature package: `specs/025-multi-engine-preview-architecture/`.
 
 Feature package: `specs/027-preview-browser-test-api/`.
 
-- [ ] `[S]` **Retire spec 026 browser globals.** Migrate Playwright off `saveOverrides` / `performUndo` / `performRedo` / `canUndo` / `canRedo` to documented `__DG_TEST_preview` hooks, then remove shims from `editor.js`. Can start now; ~1 session; run before new Playwright tests copy the global pattern.
+- [x] `[S]` **Retire spec 026 browser globals.** Closed on `feat/027-preview-browser-test-api`: Playwright now goes through the documented `__DG_TEST_preview` facade, legacy `window.*` save/undo shims are removed from `editor.js`, and static/runtime coverage locks the boundary.
 
 #### Force preview shell convergence (spec 029)
 

@@ -4,6 +4,13 @@ Completed work belongs here so `TODO.md` stays lean.
 
 ## Short-term
 
+### 2026-06-07 – Spec 027 closeout: preview browser test API
+
+- Replaced the legacy browser globals (`saveOverrides`, `performUndo`, `performRedo`, `canUndo`, `canRedo`) with the explicit `window.__DG_TEST_preview` facade in `scripts/preview/editor.js`, keeping the surface as thin delegates over `PreviewSaveClient` and `EditorState`.
+- Migrated `scripts/test_preview_support_engineering_flow.py` to helper calls that use the named facade instead of bare globals, and tightened page readiness checks so Playwright waits for the documented test API.
+- Added `scripts/test_preview_browser_test_api.py`, extended `scripts/test_preview_editor_shell_shrink.py`, and updated spec/boundary tracking so the old globals fail static coverage if they reappear.
+- Validation: `python -m pytest scripts/test_preview_support_engineering_flow.py scripts/test_preview_browser_test_api.py scripts/test_preview_editor_shell_shrink.py scripts/test_preview_editor_state.py scripts/test_preview_save_client.py -q`.
+
 ### 2026-06-06 – Spec 030 closeout: sequence layout (bounded v1)
 
 - Completed the first TS-owned sequence lane under the multi-engine preview contract: compiler-owned `sequence:` YAML, preview-engine registration, preview-document transport, browser runtime exports, and shared-style SVG rendering are all landed.

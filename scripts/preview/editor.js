@@ -5891,14 +5891,15 @@ document.getElementById("btn-redo").addEventListener("click", () => {
   void EditorState.redo(_applyUndoCommand);
 });
 
-// Preserve the long-lived browser API used by Playwright coverage and ad hoc
-// console-driven preview debugging while the shell continues migrating behind
-// module boundaries.
-window.performUndo = () => EditorState.undo(_applyUndoCommand);
-window.performRedo = () => EditorState.redo(_applyUndoCommand);
-window.canUndo = () => EditorState.canUndo();
-window.canRedo = () => EditorState.canRedo();
-window.saveOverrides = () => PreviewSaveClient.saveOverrides();
+// Test/debug facade for in-repo browser coverage. This remains a thin shell
+// over the extracted modules rather than reviving legacy top-level globals.
+window.__DG_TEST_preview = Object.freeze({
+  saveOverrides: () => PreviewSaveClient.saveOverrides(),
+  undo: () => EditorState.undo(_applyUndoCommand),
+  redo: () => EditorState.redo(_applyUndoCommand),
+  canUndo: () => EditorState.canUndo(),
+  canRedo: () => EditorState.canRedo(),
+});
 
 // Warn before leaving with unsaved changes.
 // Internal diagram navigation uses its own confirm path and suppresses this.

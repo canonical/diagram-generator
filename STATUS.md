@@ -59,6 +59,12 @@ Making a diagram for a review or deck: **[`docs/stakeholder-guide.md`](docs/stak
 - Delegation boundary is explicit: composer-safe work is limited to shell-side save / dirty convergence, focused tests, and boundary docs.
 - The broader idea of moving the full force controller toward TypeScript is intentionally not delegated here; that remains a future local-orchestrated architectural slice if still wanted.
 
+### Current delta — spec 027 preview browser test API complete (2026-06-07)
+
+- `editor.js` no longer publishes the legacy `saveOverrides` / `performUndo` / `performRedo` / `canUndo` / `canRedo` globals.
+- In-repo browser automation now uses the explicit `window.__DG_TEST_preview` facade, which stays a thin delegate over `PreviewSaveClient` and `EditorState` rather than reintroducing save or undo logic in the shell.
+- Boundary coverage now locks both sides: `scripts/test_preview_support_engineering_flow.py` uses the named facade, and `scripts/test_preview_browser_test_api.py` plus `scripts/test_preview_editor_shell_shrink.py` fail if the old globals return.
+
 ### Current delta — spec 036 headingless wrapper contract complete (2026-06-07)
 
 - Mainline now enforces the intended default: implicit headingless containers behave like structural wrappers, do not expose visible style-picker controls, and do not pick up panel padding/chrome through save/reload drift.
@@ -81,7 +87,7 @@ Making a diagram for a review or deck: **[`docs/stakeholder-guide.md`](docs/stak
 ### Current delta — spec 026 preview shell decomposition closed (2026-06-06)
 
 - Spec 026 is complete: save client, ELK controller, TS editor state store, `editor.js` shell shrink, and boundary documentation in `specs/026-preview-shell-decomposition-ts-migration/boundaries.md`.
-- Post-closeout follow-up kept the existing browser-facing preview API stable: `saveOverrides`, `performUndo`, `performRedo`, `canUndo`, and `canRedo` now remain as thin shims over the extracted modules, and the dead `viewer.html` / `force-viewer.html` template leftovers were removed.
+- Post-closeout follow-up initially kept the existing browser-facing preview API stable as thin shims over the extracted modules; those temporary globals are now retired by spec 027, and the dead `viewer.html` / `force-viewer.html` template leftovers were removed.
 - T031 reassessment: `layout-bridge.js` remains the runtime bridge (frame-tree JSON ↔ LayoutEngine ↔ SVG); it does not own shell concerns and was not rewritten in this milestone. Deferred follow-ups (TS override application, SVG bridge split) are documented in `boundaries.md`.
 - Focused coverage: full spec 026 validation slice (39 pytest + 24 vitest) including `scripts/test_preview_layout_bridge_boundaries.py`.
 

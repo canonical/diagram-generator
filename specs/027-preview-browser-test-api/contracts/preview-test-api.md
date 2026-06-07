@@ -1,7 +1,7 @@
 # Contract: Preview browser test API
 
 **Spec**: 027-preview-browser-test-api  
-**Status**: Draft  
+**Status**: Complete  
 **Audience**: In-repo Playwright tests and maintainer console debugging only — **not** a public integration API.
 
 ## Namespace
@@ -38,7 +38,7 @@ def _preview_undo(page):
 
 Do **not** add new call sites using bare `saveOverrides()` / `performUndo()` globals.
 
-## Legacy globals (deprecated — remove in spec 027)
+## Legacy globals (removed in spec 027)
 
 | Legacy global | Replacement |
 | --- | --- |

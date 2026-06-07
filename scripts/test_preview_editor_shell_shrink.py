@@ -36,3 +36,16 @@ def test_editor_calls_extracted_modules_directly():
     assert "EditorState.undo(_applyUndoCommand)" in editor
     assert "PreviewSaveClient.isDirty()" in editor
     assert "LayoutEngine.parseEditorSnapshot" in editor
+
+
+def test_editor_no_longer_assigns_legacy_browser_globals():
+    editor = (PREVIEW / "editor.js").read_text(encoding="utf-8")
+    forbidden = [
+        "window.saveOverrides =",
+        "window.performUndo =",
+        "window.performRedo =",
+        "window.canUndo =",
+        "window.canRedo =",
+    ]
+    for token in forbidden:
+        assert token not in editor, f"legacy global shim still present: {token}"
