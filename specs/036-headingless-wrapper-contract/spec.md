@@ -6,7 +6,7 @@
 
 **Created**: 2026-06-06
 
-**Status**: Draft
+**Status**: Complete
 
 **Depends on**: spec 020 (style authority direction), spec 025 (preview-engine contract), spec 026 (preview shell decomposition)
 

@@ -59,11 +59,11 @@ Making a diagram for a review or deck: **[`docs/stakeholder-guide.md`](docs/stak
 - Delegation boundary is explicit: composer-safe work is limited to shell-side save / dirty convergence, focused tests, and boundary docs.
 - The broader idea of moving the full force controller toward TypeScript is intentionally not delegated here; that remains a future local-orchestrated architectural slice if still wanted.
 
-### Current delta — spec 036 headingless wrapper contract started on main (2026-06-07)
+### Current delta — spec 036 headingless wrapper contract complete (2026-06-07)
 
-- Added `specs/036-headingless-wrapper-contract/` to capture the correct fix direction: restore invisible-wrapper semantics for headingless grouping containers instead of adding a new pass-through variant first.
-- Mainline now reflects the first bounded guard: style reset labels say `as defined`, implicit headingless wrappers no longer advertise visible style-picker controls in the preview shell, and stale save payloads can no longer promote a clean wrapper into `parent` / `section` chrome.
-- Remaining work is explicitly bounded in the spec: decide the long-term contract for intentionally visible non-headed groups and add broader end-to-end wrapper regression coverage.
+- Mainline now enforces the intended default: implicit headingless containers behave like structural wrappers, do not expose visible style-picker controls, and do not pick up panel padding/chrome through save/reload drift.
+- The explicit supported path is now bounded and tested: non-headed containers remain visible only when the authored document already opts in through visible container fields (`level` / `fill` / `border` or equivalent persisted style semantics), rather than through accidental wrapper promotion.
+- Focused coverage now spans persistence plus browser save/reload behavior: implicit wrapper style attempts stay no-op and reload cleanly, while explicitly visible non-headed groups remain editable and round-trip as deliberate container styles.
 
 ### Current delta — spec 037 preview engine drift closeout complete (2026-06-07)
 

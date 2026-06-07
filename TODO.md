@@ -32,7 +32,7 @@ Feature package: `specs/029-force-preview-shell-convergence/`.
 
 Feature package: `specs/036-headingless-wrapper-contract/`.
 
-- [ ] `[S]` **Finish spec 036 beyond the initial guard now on `main`.** Preview labels and save-path protection now keep implicit headingless wrappers styleless by default; next close the remaining contract work around explicit visible non-headed groups and end-to-end wrapper reload coverage.
+- [x] `[S]` **Finish spec 036 beyond the initial guard now on `main`.** Closed on `feat/036-headingless-wrapper-contract`: implicit headingless wrappers remain structural-only by default, explicitly authored visible non-headed groups are the bounded supported path, and focused save/reload coverage now locks both behaviors.
 
 #### Preview engine drift closeout (spec 037)
 

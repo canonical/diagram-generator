@@ -626,6 +626,159 @@ def test_v3_empty_save_is_a_yaml_no_op(tmp_path):
                 browser.close()
 
 
+def test_v3_implicit_wrapper_style_attempt_stays_structural_on_save_reload(tmp_path):
+    frames_dir = tmp_path / "frames"
+    frames_dir.mkdir()
+    frame_path = frames_dir / "wrapper-contract.yaml"
+    baseline_text = (
+        """
+engine: v3
+title: Wrapper contract
+root:
+  id: page
+  direction: vertical
+  children:
+    - id: wrapper
+      direction: horizontal
+      children:
+        - id: leaf_a
+          label: [A]
+        - id: leaf_b
+          label: [B]
+""".strip()
+        + "\n"
+    )
+    frame_path.write_text(baseline_text, encoding="utf-8")
+
+    with _preview_server(extra_env={"DG_FRAMES_DIR": str(frames_dir)}) as base_url:
+        with sync_playwright() as playwright:
+            browser, page = _open_v3_page(playwright, base_url, "wrapper-contract", "wrapper")
+            try:
+                page.wait_for_function("() => getV3RelayoutStatus().localReady")
+                page.evaluate("() => selectComponent('wrapper', false)")
+                page.wait_for_function(
+                    "() => Array.from(selectedIds).length === 1 && Array.from(selectedIds)[0] === 'wrapper'"
+                )
+
+                before = page.evaluate(
+                    """
+                    () => {
+                      const stylePicker = document.querySelector('#inspector .style-picker');
+                      return {
+                        inspectorText: document.getElementById('inspector').textContent || '',
+                        stylePickerValue: stylePicker ? stylePicker.value : null,
+                        override: JSON.parse(JSON.stringify(overrides.wrapper || null)),
+                      };
+                    }
+                    """
+                )
+                assert "Structural wrapper" in before["inspectorText"]
+                assert before["stylePickerValue"] is None
+                assert before["override"] is None
+
+                page.evaluate("() => applyV3Style('wrapper', 'parent')")
+                page.wait_for_timeout(450)
+
+                after = page.evaluate(
+                    """
+                    () => ({
+                      override: JSON.parse(JSON.stringify(overrides.wrapper || null)),
+                      stylePicker: document.querySelector('#inspector .style-picker') !== null,
+                    })
+                    """
+                )
+                assert after["override"] is None
+                assert after["stylePicker"] is False
+
+                page.evaluate("() => saveOverrides()")
+                page.wait_for_timeout(500)
+                assert frame_path.read_text(encoding="utf-8") == baseline_text
+
+                page.reload(wait_until="domcontentloaded")
+                _wait_for_diagram_loaded(page, slug="wrapper-contract", component_id="wrapper")
+                page.evaluate("() => selectComponent('wrapper', false)")
+                reloaded = page.evaluate(
+                    """
+                    () => ({
+                      inspectorText: document.getElementById('inspector').textContent || '',
+                      stylePicker: document.querySelector('#inspector .style-picker') !== null,
+                    })
+                    """
+                )
+                assert "Structural wrapper" in reloaded["inspectorText"]
+                assert reloaded["stylePicker"] is False
+            finally:
+                browser.close()
+
+
+def test_v3_explicit_visible_headingless_group_roundtrips_as_supported_contract(tmp_path):
+    frames_dir = tmp_path / "frames"
+    frames_dir.mkdir()
+    frame_path = frames_dir / "visible-group-contract.yaml"
+    frame_path.write_text(
+        """
+engine: v3
+title: Visible headingless group
+root:
+  id: page
+  direction: vertical
+  children:
+    - id: visible_group
+      level: 2
+      fill: grey
+      border: solid
+      direction: horizontal
+      children:
+        - id: leaf_a
+          label: [A]
+        - id: leaf_b
+          label: [B]
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+    with _preview_server(extra_env={"DG_FRAMES_DIR": str(frames_dir)}) as base_url:
+        with sync_playwright() as playwright:
+            browser, page = _open_v3_page(playwright, base_url, "visible-group-contract", "visible_group")
+            try:
+                page.wait_for_function("() => getV3RelayoutStatus().localReady")
+                page.evaluate("() => selectComponent('visible_group', false)")
+                page.wait_for_function(
+                    "() => Array.from(selectedIds).length === 1 && Array.from(selectedIds)[0] === 'visible_group'"
+                )
+
+                before = _capture_component_state(page, "visible_group")
+                assert before["stylePickerValue"] == "parent"
+                assert before["rectFill"] == "#F3F3F3"
+
+                updated = _apply_v3_style_and_capture(page, "visible_group", "section")
+                assert updated["stylePickerValue"] == "section"
+                assert updated["override"]["style"] == "section"
+                assert updated["rectFill"] == "transparent"
+
+                page.evaluate("() => saveOverrides()")
+                page.wait_for_timeout(500)
+
+                saved_yaml = yaml.safe_load(frame_path.read_text(encoding="utf-8"))
+                visible_group = _find_frame(saved_yaml["root"], "visible_group")
+                assert visible_group is not None
+                assert visible_group["level"] == 3
+                assert visible_group["fill"] == "white"
+                assert visible_group["border"] == "solid"
+
+                page.reload(wait_until="domcontentloaded")
+                _wait_for_diagram_loaded(page, slug="visible-group-contract", component_id="visible_group")
+                page.evaluate("() => selectComponent('visible_group', false)")
+                reloaded = _capture_component_state(page, "visible_group")
+                assert reloaded["override"] is None
+                assert reloaded["stylePickerValue"] == "section"
+                assert reloaded["rectFill"] == "transparent"
+                assert reloaded["rectStroke"] == "#000000"
+            finally:
+                browser.close()
+
+
 def test_v3_grid_gap_save_strips_transient_grid_fields(tmp_path):
     frames_dir = tmp_path / "frames"
     frames_dir.mkdir()
