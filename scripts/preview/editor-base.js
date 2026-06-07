@@ -78,15 +78,54 @@ function initViewTabs() {
 
 // ---- Diagram picker (prev / next) ----
 
+function _normaliseDiagramPath(nextUrl) {
+  try {
+    return new URL(String(nextUrl || ""), window.location.origin).pathname;
+  } catch {
+    return "";
+  }
+}
+
+function _attemptShellDiagramNavigation(nextUrl, syncUi) {
+  const customAttempt = window.__DG_attemptDiagramNavigation;
+  if (typeof customAttempt === "function") {
+    return customAttempt(nextUrl, syncUi);
+  }
+  const nextPath = _normaliseDiagramPath(nextUrl);
+  if (!nextPath || nextPath === window.location.pathname) {
+    syncUi();
+    return false;
+  }
+  window.location.assign(nextPath);
+  window.setTimeout(() => {
+    syncUi();
+  }, 0);
+  return true;
+}
+
 function initDiagramPicker() {
   const picker = byId("diagram-picker");
   if (!(picker instanceof HTMLSelectElement)) return;
 
+  function syncBrowseNavToLocation() {
+    const currentPath = window.location.pathname;
+    document.querySelectorAll(".dg-browse-link").forEach((link) => {
+      const href = link.getAttribute("href") || "";
+      const active = href === currentPath;
+      link.classList.toggle("is-active", active);
+      link.setAttribute("aria-current", active ? "page" : "false");
+    });
+  }
+
+  function syncNavToLocation() {
+    const currentPath = window.location.pathname;
+    picker.value = currentPath;
+    syncBrowseNavToLocation();
+  }
+
   picker.addEventListener("change", () => {
     const nextUrl = picker.value;
-    if (nextUrl && nextUrl !== window.location.pathname) {
-      window.location.assign(nextUrl);
-    }
+    _attemptShellDiagramNavigation(nextUrl, syncNavToLocation);
   });
 
   const prevBtn = byId("diagram-prev");
@@ -97,11 +136,23 @@ function initDiagramPicker() {
     const idx = picker.selectedIndex + delta;
     if (idx < 0 || idx >= picker.options.length) return;
     picker.selectedIndex = idx;
-    picker.dispatchEvent(new Event("change"));
+    _attemptShellDiagramNavigation(picker.value, syncNavToLocation);
   }
 
   if (prevBtn) prevBtn.addEventListener("click", () => stepPicker(-1));
   if (nextBtn) nextBtn.addEventListener("click", () => stepPicker(1));
+
+  document.querySelectorAll(".dg-browse-link").forEach((link) => {
+    link.addEventListener("click", (event) => {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+        return;
+      }
+      event.preventDefault();
+      _attemptShellDiagramNavigation(link.getAttribute("href"), syncNavToLocation);
+    });
+  });
+
+  syncNavToLocation();
 }
 
 // ---- Sidebar resize handles ----

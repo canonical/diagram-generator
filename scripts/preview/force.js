@@ -1,5 +1,6 @@
 const FORCE_CONFIG = window.__DG_FORCE_CONFIG || {};
 const FORCE_SLUG = FORCE_CONFIG.slug;
+const DIRTY_DIAGRAM_NAV_CONFIRM = "You have unsaved changes. Leave this diagram without saving?";
 
 /** Control metadata from the TS preview-engine registry (spec 025). */
 function forcePreviewEngine() {
@@ -57,6 +58,7 @@ let dragState = null;
 let resizeState = null;
 let suppressStageClick = false;
 let lastSavedForceState = null;
+let _allowInternalDirtyNavigation = false;
 const EMPTY_SELECTION_HTML = '<p class="dg-empty-message bf-form-help">Select or drag a node from the stage or the left rail. Dragging drops it into a pinned manual-polish position.</p>';
 
 function stageElement() {
@@ -265,6 +267,67 @@ function isForcePersistedStateDirty() {
 
 function markForceStateSaved(snapshot = committedSnapshot) {
   lastSavedForceState = serializeForcePersistedState(snapshot);
+}
+
+function _normaliseForceDiagramPath(nextUrl) {
+  try {
+    return new URL(String(nextUrl || ""), window.location.origin).pathname;
+  } catch {
+    return "";
+  }
+}
+
+function _syncForceBrowseNavToLocation() {
+  const currentPath = window.location.pathname;
+  document.querySelectorAll(".dg-browse-link").forEach((link) => {
+    const href = link.getAttribute("href") || "";
+    const active = href === currentPath;
+    link.classList.toggle("is-active", active);
+    link.setAttribute("aria-current", active ? "page" : "false");
+  });
+}
+
+function _syncForceNavToLocation() {
+  const picker = document.getElementById("diagram-picker");
+  if (picker instanceof HTMLSelectElement) {
+    const currentPath = window.location.pathname;
+    let matched = false;
+    for (let i = 0; i < picker.options.length; i += 1) {
+      const option = picker.options[i];
+      const isMatch = option.value === currentPath;
+      option.selected = isMatch;
+      if (isMatch) {
+        picker.selectedIndex = i;
+        matched = true;
+      }
+    }
+    if (!matched) {
+      picker.value = currentPath;
+    }
+  }
+  _syncForceBrowseNavToLocation();
+}
+
+function _attemptForceDiagramNavigation(nextUrl, syncUi) {
+  const nextPath = _normaliseForceDiagramPath(nextUrl);
+  if (!nextPath || nextPath === window.location.pathname) {
+    syncUi();
+    return false;
+  }
+  if (isForcePersistedStateDirty()) {
+    const confirmed = window.confirm(DIRTY_DIAGRAM_NAV_CONFIRM);
+    if (!confirmed) {
+      syncUi();
+      return false;
+    }
+  }
+  _allowInternalDirtyNavigation = true;
+  window.location.assign(nextPath);
+  window.setTimeout(() => {
+    _allowInternalDirtyNavigation = false;
+    syncUi();
+  }, 0);
+  return true;
 }
 
 function snapshotFromCanonicalState(canonicalState) {
@@ -1166,7 +1229,9 @@ async function saveForceOverrides() {
   if (!committedSnapshot) {
     throw new Error("Force snapshot is not loaded");
   }
-  const snapshot = exportPersistedForceSnapshot(committedSnapshot) || committedSnapshot;
+  const snapshot = window.LayoutEngine?.exportForceSnapshot
+    ? window.LayoutEngine.exportForceSnapshot(committedSnapshot)
+    : committedSnapshot;
   const responsePayload = await fetchJson(forceApiPath("save", `/api/force-save/${encodeURIComponent(FORCE_SLUG)}`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -1526,6 +1591,8 @@ byId("inspector").addEventListener("click", async (event) => {
   }
 });
 
+window.__DG_attemptDiagramNavigation = _attemptForceDiagramNavigation;
+
 // Shell init: sidebar resize, view tabs, prev/next — from editor-base.js
 initPreviewShell();
 
@@ -1684,3 +1751,28 @@ loadSnapshot(true)
     setStatus(error.message || "Initial load failed", "error");
     byId("stage").innerHTML = `<p class="dg-empty-message bf-form-help">${escapeHtml(error.message || "Initial load failed")}</p>`;
   });
+
+window.addEventListener("beforeunload", (event) => {
+  if (isForcePersistedStateDirty() && !_allowInternalDirtyNavigation) {
+    event.preventDefault();
+    event.returnValue = "";
+    return "";
+  }
+});
+
+window.addEventListener("pageshow", (event) => {
+  _syncForceNavToLocation();
+  if (!event.persisted) {
+    return;
+  }
+  running = false;
+  updateRunButton();
+  void loadSnapshot(true)
+    .then(() => {
+      forceUndoManager.clear();
+      startRunning();
+    })
+    .catch((error) => {
+      setStatus(error.message || "Reload failed", "error");
+    });
+});

@@ -1658,6 +1658,8 @@ def test_support_engineering_flow_preview_regression():
                 assert metrics["linkedAfterExpand"]["bandCount"] == 5
                 assert metrics["linkedAfterExpand"]["pageOverride"] in (None, {})
                 assert abs(metrics["linkedAfterExpand"]["firstBandX"] - metrics["linkedAfterExpand"]["pageGap"]) < 0.75
+                assert abs(metrics["linkedAfterExpand"]["firstBandWidth"] - metrics["linkedAfterExpand"]["firstWidth"]) < 0.75
+                assert abs(metrics["linkedAfterExpand"]["secondBandX"] - metrics["linkedAfterExpand"]["secondX"]) < 0.75
                 assert abs(metrics["linkedAfterExpand"]["pageGap"] - metrics["linkedAfterExpand"]["marginLeftInput"]) < 0.75
                 assert abs(metrics["linkedAfterExpand"]["gutter"]) < 32.75 and abs(metrics["linkedAfterExpand"]["gutter"] - 32) < 0.75
                 assert metrics["linkedAfterReset"]["marginTopInput"] == metrics["linkedBefore"]["marginTopInput"]
@@ -1668,6 +1670,8 @@ def test_support_engineering_flow_preview_regression():
                 assert metrics["linkedAfterReset"]["pageOverride"] in (None, {})
                 assert metrics["linkedAfterReset"]["pageWidth"] > 0
                 assert abs(metrics["linkedAfterReset"]["firstBandX"] - metrics["linkedAfterReset"]["pageGap"]) < 0.75
+                assert abs(metrics["linkedAfterReset"]["firstBandWidth"] - metrics["linkedAfterReset"]["firstWidth"]) < 0.75
+                assert abs(metrics["linkedAfterReset"]["secondBandX"] - metrics["linkedAfterReset"]["secondX"]) < 0.75
                 assert abs(metrics["linkedAfterReset"]["pageGap"] - metrics["linkedAfterReset"]["marginLeftInput"]) < 0.75
                 assert abs(metrics["linkedAfterReset"]["gutter"] - metrics["linkedBefore"]["gutter"]) < 0.75
                 assert not metrics["roundTrip"]["overflow"]

@@ -1166,6 +1166,23 @@ function _resolveGrid(params) {
   };
 }
 
+function _gridCanvasDimensionsFromStage() {
+  const svg = document.querySelector("#stage svg");
+  if (!svg) return null;
+  const vb = svg.viewBox.baseVal;
+  const fallbackWidth = vb.width || parseFloat(svg.getAttribute("width") || svg.clientWidth);
+  const fallbackHeight = vb.height || parseFloat(svg.getAttribute("height") || svg.clientHeight);
+  const pageRect = document
+    .querySelector('[data-component-id="page"]')
+    ?.querySelector(':scope > rect');
+  const pageWidth = Number(pageRect?.getAttribute("width") || "0");
+  const pageHeight = Number(pageRect?.getAttribute("height") || "0");
+  return {
+    width: pageWidth > 0 ? pageWidth : fallbackWidth,
+    height: pageHeight > 0 ? pageHeight : fallbackHeight,
+  };
+}
+
 function updateGridOverlayFromInputs() {
   const cols = Math.max(1, parseInt(document.getElementById("grid-cols").value) || 1);
   const rows = Math.max(0, parseInt(document.getElementById("grid-rows").value) || 0);
@@ -1175,14 +1192,11 @@ function updateGridOverlayFromInputs() {
   const slackEl = document.getElementById("grid-slack");
   const slack = slackEl ? slackEl.checked : true;
 
-  const svg = document.querySelector("#stage svg");
-  if (!svg) return;
-  const vb = svg.viewBox.baseVal;
-  const svgW = vb.width || parseFloat(svg.getAttribute("width") || svg.clientWidth);
-  const svgH = vb.height || parseFloat(svg.getAttribute("height") || svg.clientHeight);
+  const canvas = _gridCanvasDimensionsFromStage();
+  if (!canvas) return;
 
   gridInfo = _resolveGrid({
-    canvasWidth: svgW, canvasHeight: svgH,
+    canvasWidth: canvas.width, canvasHeight: canvas.height,
     columnCount: cols, columnGutter: colGap,
     rowCount: rows, rowGutter: rowGap,
     marginTop: mTop, marginRight: mRight,
@@ -1195,17 +1209,14 @@ function updateGridOverlayFromInputs() {
 }
 
 function refreshV3GridInfoFromLayout() {
-  const svg = document.querySelector("#stage svg");
-  if (!svg) return;
+  const canvas = _gridCanvasDimensionsFromStage();
+  if (!canvas) return;
   const go = model.gridOverrides || {};
   const fallback = baseGridInfo || gridInfo || {};
-  const vb = svg.viewBox.baseVal;
-  const svgW = vb.width || parseFloat(svg.getAttribute("width") || svg.clientWidth);
-  const svgH = vb.height || parseFloat(svg.getAttribute("height") || svg.clientHeight);
 
   const margin = go.outer_margin ?? go.col_gap ?? fallback.outer_margin ?? fallback.col_gap ?? 24;
   gridInfo = _resolveGrid({
-    canvasWidth: svgW, canvasHeight: svgH,
+    canvasWidth: canvas.width, canvasHeight: canvas.height,
     columnCount: go.cols ?? fallback._cols ?? ((fallback.col_xs || []).length || 1),
     columnGutter: go.col_gap ?? fallback.col_gap ?? 24,
     rowCount: go.rows ?? fallback._rows ?? 0,

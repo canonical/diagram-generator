@@ -402,7 +402,13 @@ def _force_style_for_yaml(node: dict) -> str | None:
 
 
 def _force_snapshot_to_authored_spec(snapshot: dict) -> dict:
-    simulation_params = snapshot.get("simulation", {}).get("params", {})
+    simulation = snapshot.get("simulation", {})
+    if isinstance(simulation, dict) and isinstance(simulation.get("params"), dict):
+        simulation_params = simulation.get("params", {})
+    elif isinstance(simulation, dict):
+        simulation_params = simulation
+    else:
+        simulation_params = {}
     render = snapshot.get("render", {})
 
     spec: dict[str, object] = {

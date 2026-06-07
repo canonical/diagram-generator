@@ -24,6 +24,7 @@ FORCE_SLUGS = [
     "force-juju-landing-pages",
     "force-support-case-lifecycle",
 ]
+DIRTY_DIAGRAM_NAV_CONFIRM = "You have unsaved changes. Leave this diagram without saving?"
 
 
 def _reserve_port() -> int:
@@ -111,6 +112,40 @@ def _preview_server(*, extra_env: dict[str, str] | None = None) -> str:
 def preview_base() -> str:
     with _preview_server() as base:
         yield base
+
+
+def _force_nav_state(page) -> dict:
+    return page.evaluate(
+        """
+        () => {
+          const picker = document.getElementById('diagram-picker');
+          const activeBrowse = document.querySelector('.dg-browse-link.is-active');
+          const nextOption = (
+            picker
+            && picker.selectedIndex >= 0
+            && picker.selectedIndex + 1 < picker.options.length
+          ) ? picker.options[picker.selectedIndex + 1] : null;
+          return {
+            path: window.location.pathname,
+            pickerValue: picker ? picker.value : null,
+            activeBrowseHref: activeBrowse ? activeBrowse.getAttribute('href') : null,
+            nextValue: nextOption ? nextOption.value : null,
+          };
+        }
+        """
+    )
+
+
+def _force_node_position(page, node_id: str) -> dict:
+    return page.evaluate(
+        """
+        (nodeId) => {
+          const node = committedSnapshot?.nodes?.find((candidate) => candidate.id === nodeId);
+          return node ? { x: node.x, y: node.y, fx: node.fx ?? null, fy: node.fy ?? null } : null;
+        }
+        """,
+        node_id,
+    )
 
 
 def test_force_demo_routes_are_discoverable(preview_base: str):
@@ -399,6 +434,8 @@ def test_force_save_button_tracks_persisted_state(tmp_path: pathlib.Path):
                 )
 
                 saved_yaml = yaml.safe_load(force_path.read_text(encoding="utf-8"))
+                assert saved_yaml["simulation"]["link_distance"] == 256
+                assert saved_yaml["simulation"]["ticks_per_frame"] == 1
                 assert saved_yaml["nodes"][0]["x"] == 312
                 assert saved_yaml["nodes"][0]["y"] == 416
                 assert saved_yaml["nodes"][0]["fx"] == 312
@@ -409,5 +446,136 @@ def test_force_save_button_tracks_persisted_state(tmp_path: pathlib.Path):
                     "() => document.querySelector('[data-component-id=\"users\"]') !== null"
                 )
                 page.wait_for_function("() => document.getElementById('btn-force-save').disabled")
+            finally:
+                browser.close()
+
+
+def test_force_dirty_navigation_cancel_keeps_nav_ui_in_sync(tmp_path: pathlib.Path):
+    force_dir = tmp_path / "force"
+    force_dir.mkdir()
+    for slug in ("force-a", "force-b"):
+        (force_dir / f"{slug}.yaml").write_text(
+            "\n".join(
+                [
+                    f"title: {slug}",
+                    "reference_image: force/IMG_3229.jpg",
+                    "canvas:",
+                    "  width: 960",
+                    "  height: 640",
+                    "simulation:",
+                    "  ticks_per_frame: 1",
+                    "  max_iterations: 1",
+                    "nodes:",
+                    "  - id: users",
+                    "    label: [Users]",
+                    "    width: 192",
+                    "    height: 64",
+                    "    x: 240",
+                    "    y: 392",
+                    "    fx: 240",
+                    "    fy: 392",
+                    "links: []",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+    with _preview_server(extra_env={"DG_FORCE_DEFINITIONS_DIR": str(force_dir)}) as base_url:
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch(headless=True)
+            page = browser.new_page(viewport={"width": 1600, "height": 1200})
+            dialogs: list[str] = []
+            page.on("dialog", lambda dialog: (dialogs.append(dialog.message), dialog.dismiss()))
+            try:
+                page.goto(f"{base_url}/force/view/force-a", wait_until="domcontentloaded")
+                page.wait_for_function(
+                    "() => document.querySelector('[data-component-id=\"users\"]') !== null"
+                )
+                nav_before = _force_nav_state(page)
+                assert nav_before["nextValue"] == "/force/view/force-b"
+
+                page.evaluate("() => updateForceNode('users', { x: 312, y: 416, pinned: true })")
+                page.wait_for_function("() => !document.getElementById('btn-force-save').disabled")
+
+                page.locator("#diagram-next").click()
+                page.wait_for_timeout(200)
+
+                nav_after = _force_nav_state(page)
+                assert dialogs == [DIRTY_DIAGRAM_NAV_CONFIRM]
+                assert nav_after["path"] == nav_before["path"]
+                assert nav_after["pickerValue"] == nav_before["path"]
+                assert nav_after["activeBrowseHref"] == nav_before["path"]
+                assert _force_node_position(page, "users") == {"x": 312, "y": 416, "fx": 312, "fy": 416}
+
+                page.locator(".dg-browse-link", has_text="force-b").click()
+                page.wait_for_timeout(200)
+
+                nav_after_browse = _force_nav_state(page)
+                assert dialogs == [DIRTY_DIAGRAM_NAV_CONFIRM, DIRTY_DIAGRAM_NAV_CONFIRM]
+                assert nav_after_browse["path"] == nav_before["path"]
+                assert nav_after_browse["pickerValue"] == nav_before["path"]
+                assert nav_after_browse["activeBrowseHref"] == nav_before["path"]
+            finally:
+                browser.close()
+
+
+def test_force_unsaved_move_is_restored_after_navigation_back(tmp_path: pathlib.Path):
+    force_dir = tmp_path / "force"
+    force_dir.mkdir()
+    for slug in ("force-a", "force-b"):
+        (force_dir / f"{slug}.yaml").write_text(
+            "\n".join(
+                [
+                    f"title: {slug}",
+                    "reference_image: force/IMG_3229.jpg",
+                    "canvas:",
+                    "  width: 960",
+                    "  height: 640",
+                    "simulation:",
+                    "  ticks_per_frame: 1",
+                    "  max_iterations: 1",
+                    "nodes:",
+                    "  - id: users",
+                    "    label: [Users]",
+                    "    width: 192",
+                    "    height: 64",
+                    "    x: 240",
+                    "    y: 392",
+                    "    fx: 240",
+                    "    fy: 392",
+                    "links: []",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+    with _preview_server(extra_env={"DG_FORCE_DEFINITIONS_DIR": str(force_dir)}) as base_url:
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch(headless=True)
+            page = browser.new_page(viewport={"width": 1600, "height": 1200})
+            dialogs: list[str] = []
+            page.on("dialog", lambda dialog: (dialogs.append(dialog.message), dialog.accept()))
+            try:
+                page.goto(f"{base_url}/force/view/force-a", wait_until="domcontentloaded")
+                page.wait_for_function(
+                    "() => document.querySelector('[data-component-id=\"users\"]') !== null"
+                )
+
+                page.evaluate("() => updateForceNode('users', { x: 312, y: 416, pinned: true })")
+                page.wait_for_function("() => !document.getElementById('btn-force-save').disabled")
+                assert _force_node_position(page, "users") == {"x": 312, "y": 416, "fx": 312, "fy": 416}
+
+                page.locator("#diagram-next").click()
+                page.wait_for_function("() => window.location.pathname === '/force/view/force-b'")
+                page.go_back(wait_until="domcontentloaded")
+                page.wait_for_function("() => window.location.pathname === '/force/view/force-a'")
+                page.wait_for_function(
+                    "() => document.querySelector('[data-component-id=\"users\"]') !== null"
+                )
+                page.wait_for_function("() => document.getElementById('btn-force-save').disabled")
+                assert dialogs == [DIRTY_DIAGRAM_NAV_CONFIRM]
+                assert _force_node_position(page, "users") == {"x": 240, "y": 392, "fx": 240, "fy": 392}
             finally:
                 browser.close()
