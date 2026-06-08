@@ -54,7 +54,13 @@ export interface PreviewEngineCompatibility {
    * frame-YAML-backed preview lane.
    */
   requiredLayoutEngineKey?: string;
+  /**
+   * Human-readable description of what this engine can render.
+   * Shown in the switcher UI as a tooltip or help text.
+   */
+  description?: string;
 }
+
 
 /** Serializable manifest consumed by the preview shell and preview server. */
 export interface PreviewEngineManifest {
@@ -75,4 +81,15 @@ export interface PreviewEngineContext {
   layoutEngine?: string | null;
   shellMode?: PreviewShellMode | null;
   previewDocumentKind?: PreviewDocumentKind | null;
+}
+
+/**
+ * Result of evaluating engine compatibility.
+
+ * Provides both the boolean result and a human-readable reason when incompatible.
+ */
+export interface CompatibilityResult {
+  compatible: boolean;
+  /** Human-readable reason when incompatible; undefined when compatible. */
+  reason?: string;
 }

@@ -1,5 +1,7 @@
 export type {
+  CompatibilityResult,
   PreviewControlKind,
+
   PreviewControlSpec,
   PreviewDocumentKind,
   PreviewEngineApiRoutes,
@@ -17,11 +19,13 @@ export {
   FORCE_PREVIEW_ENGINE,
   SEQUENCE_PREVIEW_ENGINE,
   PREVIEW_ENGINE_REGISTRY,
+  evaluatePreviewEngineCompatibility,
   getPreviewEngine,
   isPreviewEngineCompatible,
   listCompatiblePreviewEngines,
   listHostableLayoutEngineKeys,
   listPreviewEngines,
+  listPreviewEnginesWithCompatibility,
   resolvePreviewEngine,
   serializePreviewEngineManifest,
 } from './registry.js';

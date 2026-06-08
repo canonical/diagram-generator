@@ -1,9 +1,11 @@
 import { elkLayeredPreviewControlSpecs } from './elk-controls.js';
 import { FORCE_PREVIEW_PARAM_SPECS } from './force-param-registry.js';
 import type {
+  CompatibilityResult,
   PreviewEngineContext,
   PreviewEngineManifest,
 } from './types.js';
+
 
 export const ELK_LAYERED_PREVIEW_ENGINE: PreviewEngineManifest = {
   id: 'elk-layered',
@@ -26,6 +28,7 @@ export const ELK_LAYERED_PREVIEW_ENGINE: PreviewEngineManifest = {
   compatibility: {
     documentKinds: ['frame-diagram'],
     requiredLayoutEngineKey: 'elk-layered',
+    description: 'Hierarchical layered layout for directed graphs and flowcharts',
   },
 };
 
@@ -52,6 +55,7 @@ export const FORCE_PREVIEW_ENGINE: PreviewEngineManifest = {
   },
   compatibility: {
     documentKinds: ['force-spec'],
+    description: 'Physics-based force-directed layout for organic graph structures',
   },
 };
 
@@ -76,6 +80,7 @@ export const SEQUENCE_PREVIEW_ENGINE: PreviewEngineManifest = {
   compatibility: {
     documentKinds: ['sequence'],
     requiredLayoutEngineKey: 'sequence',
+    description: 'Timeline-based layout for sequence diagrams and message flows',
   },
 };
 
@@ -120,33 +125,72 @@ export function listHostableLayoutEngineKeys(): string[] {
     .filter((key): key is string => typeof key === 'string' && key.length > 0);
 }
 
-export function isPreviewEngineCompatible(
+/**
+ * Evaluate whether an engine is compatible with the given context.
+ * Returns a detailed result with a reason when incompatible.
+ */
+export function evaluatePreviewEngineCompatibility(
   engine: PreviewEngineManifest,
   context: PreviewEngineContext,
-): boolean {
+): CompatibilityResult {
   const shellMode = context.shellMode ?? null;
   if (shellMode && engine.shellMode !== shellMode) {
-    return false;
+    return {
+      compatible: false,
+      reason: `Engine requires shell mode '${engine.shellMode}' but document uses '${shellMode}'`,
+    };
   }
 
   const previewDocumentKind = context.previewDocumentKind ?? null;
   if (previewDocumentKind && !engine.compatibility.documentKinds.includes(previewDocumentKind)) {
-    return false;
+    return {
+      compatible: false,
+      reason: `Engine cannot render document kind '${previewDocumentKind}'`,
+    };
   }
 
+  // `requiredLayoutEngineKey` is an OFFER filter, not an ACTIVE-resolution gate.
+  // When a document has not yet chosen an engine (`layoutEngine` empty), this
+  // engine is still offerable for its document kind — the switcher needs to be
+  // able to propose it. The key is only enforced when the document already
+  // declares a *conflicting* layout engine. Picking the active engine for a
+  // chosen key is `resolvePreviewEngine`'s job, not this predicate's.
   const requiredLayoutEngineKey = engine.compatibility.requiredLayoutEngineKey;
   const layoutEngine = context.layoutEngine?.trim() ?? '';
   if (requiredLayoutEngineKey && layoutEngine && layoutEngine !== requiredLayoutEngineKey) {
-    return false;
+    return {
+      compatible: false,
+      reason: `Engine requires layout engine '${requiredLayoutEngineKey}' but document uses '${layoutEngine}'`,
+    };
   }
 
-  return true;
+  return { compatible: true };
+}
+
+export function isPreviewEngineCompatible(
+  engine: PreviewEngineManifest,
+  context: PreviewEngineContext,
+): boolean {
+  return evaluatePreviewEngineCompatibility(engine, context).compatible;
 }
 
 export function listCompatiblePreviewEngines(
   context: PreviewEngineContext,
 ): PreviewEngineManifest[] {
   return PREVIEW_ENGINE_REGISTRY.filter((entry) => isPreviewEngineCompatible(entry, context));
+}
+
+/**
+ * List all engines with their compatibility status for the given context.
+ * Useful for building a switcher UI that shows disabled engines with reasons.
+ */
+export function listPreviewEnginesWithCompatibility(
+  context: PreviewEngineContext,
+): Array<{ engine: PreviewEngineManifest; compatibility: CompatibilityResult }> {
+  return PREVIEW_ENGINE_REGISTRY.map((engine) => ({
+    engine,
+    compatibility: evaluatePreviewEngineCompatibility(engine, context),
+  }));
 }
 
 /** JSON-serializable manifest list for preview-server consumption. */

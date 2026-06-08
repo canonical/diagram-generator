@@ -77,6 +77,12 @@ export interface PersistOverridePayload {
   removed_ids?: unknown[];
   grid_overrides?: Record<string, unknown>;
   elk_layout_overrides?: Record<string, unknown>;
+  /**
+   * Canonical layout engine key to persist (spec 035).
+   * Stored as `meta.layout_engine` in the frame YAML.
+   * Set to null to clear the layout engine choice.
+   */
+  layout_engine?: string | null;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -405,6 +411,27 @@ function applyFrameOverride(frameData: Record<string, unknown>, override: unknow
   }
 }
 
+/**
+ * Apply layout engine choice to the document's meta section (spec 035).
+ * The layout engine is persisted as `meta.layout_engine` in the frame YAML.
+ */
+function applyLayoutEngineChoice(document: Record<string, unknown>, layoutEngine: string | null): void {
+  const meta = isRecord(document.meta) ? document.meta : {};
+  document.meta = meta;
+
+  if (layoutEngine === null || layoutEngine === "") {
+    // Clear the layout engine choice
+    delete meta.layout_engine;
+  } else {
+    meta.layout_engine = layoutEngine;
+  }
+
+  // Clean up empty meta object
+  if (Object.keys(meta).length === 0) {
+    delete document.meta;
+  }
+}
+
 function applyElkLayoutOverrides(document: Record<string, unknown>, elkOverrides: Record<string, unknown>): void {
   if (Object.keys(elkOverrides).length === 0) return;
   const meta = isRecord(document.meta) ? document.meta : {};
@@ -462,7 +489,8 @@ export function persistFrameDiagramOverridePayloadToYaml(
   const hasGridOverrides = isRecord(gridOverrides) && Object.keys(gridOverrides).length > 0;
   const elkLayoutOverrides = payload.elk_layout_overrides;
   const hasElkOverrides = isRecord(elkLayoutOverrides) && Object.keys(elkLayoutOverrides).length > 0;
-  if (Object.keys(overrides).length === 0 && !hasGridOverrides && removedIds.length === 0 && !hasElkOverrides) {
+  const hasLayoutEngine = "layout_engine" in payload;
+  if (Object.keys(overrides).length === 0 && !hasGridOverrides && removedIds.length === 0 && !hasElkOverrides && !hasLayoutEngine) {
     return baselineText;
   }
 
@@ -479,6 +507,16 @@ export function persistFrameDiagramOverridePayloadToYaml(
   }
   if (hasElkOverrides) {
     applyElkLayoutOverrides(document, elkLayoutOverrides);
+  }
+  if ("layout_engine" in payload) {
+    const layoutEngineValue = payload.layout_engine;
+    if (layoutEngineValue === null || layoutEngineValue === undefined) {
+      applyLayoutEngineChoice(document, null);
+    } else if (typeof layoutEngineValue === "string") {
+      applyLayoutEngineChoice(document, layoutEngineValue);
+    } else {
+      throw new Error("layout_engine must be a string or null");
+    }
   }
   if (removedIds.length > 0) {
     applyRemovedFrameIds(

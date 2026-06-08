@@ -284,3 +284,144 @@ test("persist style preserves explicit visible headingless group", () => {
 
   assert.strictEqual(output, expected);
 });
+
+test("persist layout_engine writes meta.layout_engine (spec 035)", () => {
+  const baselineText = [
+    "engine: v3",
+    "title: Demo",
+    "root:",
+    "  id: page",
+    "  direction: vertical",
+    "  children:",
+    "    - id: leaf_a",
+    "      label: [A]",
+    "",
+  ].join("\n");
+  const output = persistToYaml("demo.yaml", baselineText, {
+    layout_engine: "elk-layered",
+  });
+  // When meta is added to a document that didn't have it, YAML serializer
+  // appends it at the end. The key order doesn't affect parsing.
+  const expected = [
+    "engine: v3",
+    "title: Demo",
+    "root:",
+    "  id: page",
+    "  direction: vertical",
+    "  children:",
+    "  - id: leaf_a",
+    "    label:",
+    "    - A",
+    "meta:",
+    "  layout_engine: elk-layered",
+    "",
+  ].join("\r\n");
+
+  assert.strictEqual(output, expected);
+});
+
+test("persist layout_engine updates existing meta.layout_engine (spec 035)", () => {
+  const baselineText = [
+    "engine: v3",
+    "title: Demo",
+    "meta:",
+    "  layout_engine: vertical-stack",
+    "root:",
+    "  id: page",
+    "  direction: vertical",
+    "  children:",
+    "    - id: leaf_a",
+    "      label: [A]",
+    "",
+  ].join("\n");
+  const output = persistToYaml("demo.yaml", baselineText, {
+    layout_engine: "elk-layered",
+  });
+  const expected = [
+    "engine: v3",
+    "title: Demo",
+    "meta:",
+    "  layout_engine: elk-layered",
+    "root:",
+    "  id: page",
+    "  direction: vertical",
+    "  children:",
+    "  - id: leaf_a",
+    "    label:",
+    "    - A",
+    "",
+  ].join("\r\n");
+
+  assert.strictEqual(output, expected);
+});
+
+test("persist layout_engine null clears meta.layout_engine (spec 035)", () => {
+  const baselineText = [
+    "engine: v3",
+    "title: Demo",
+    "meta:",
+    "  layout_engine: elk-layered",
+    "root:",
+    "  id: page",
+    "  direction: vertical",
+    "  children:",
+    "    - id: leaf_a",
+    "      label: [A]",
+    "",
+  ].join("\n");
+  const output = persistToYaml("demo.yaml", baselineText, {
+    layout_engine: null,
+  });
+  const expected = [
+    "engine: v3",
+    "title: Demo",
+    "root:",
+    "  id: page",
+    "  direction: vertical",
+    "  children:",
+    "  - id: leaf_a",
+    "    label:",
+    "    - A",
+    "",
+  ].join("\r\n");
+
+  assert.strictEqual(output, expected);
+});
+
+test("persist layout_engine preserves other meta fields (spec 035)", () => {
+  const baselineText = [
+    "engine: v3",
+    "title: Demo",
+    "meta:",
+    "  elk:",
+    "    elk.direction: DOWN",
+    "root:",
+    "  id: page",
+    "  direction: vertical",
+    "  children:",
+    "    - id: leaf_a",
+    "      label: [A]",
+    "",
+  ].join("\n");
+  const output = persistToYaml("demo.yaml", baselineText, {
+    layout_engine: "elk-layered",
+  });
+  const expected = [
+    "engine: v3",
+    "title: Demo",
+    "meta:",
+    "  elk:",
+    "    elk.direction: DOWN",
+    "  layout_engine: elk-layered",
+    "root:",
+    "  id: page",
+    "  direction: vertical",
+    "  children:",
+    "  - id: leaf_a",
+    "    label:",
+    "    - A",
+    "",
+  ].join("\r\n");
+
+  assert.strictEqual(output, expected);
+});

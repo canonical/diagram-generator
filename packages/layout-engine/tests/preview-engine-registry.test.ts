@@ -5,11 +5,13 @@ import {
   FORCE_PREVIEW_PARAM_SPECS,
   PREVIEW_ENGINE_REGISTRY,
   SEQUENCE_PREVIEW_ENGINE,
+  evaluatePreviewEngineCompatibility,
   getPreviewEngine,
   isPreviewEngineCompatible,
   listCompatiblePreviewEngines,
   listHostableLayoutEngineKeys,
   listPreviewEngines,
+  listPreviewEnginesWithCompatibility,
   resolvePreviewEngine,
   serializePreviewEngineManifest,
 } from '../src/preview-engine/index.js';
@@ -88,5 +90,70 @@ describe('preview-engine registry', () => {
         shellMode: 'grid',
       }),
     ).toEqual([]);
+  });
+
+  it('evaluates compatibility with detailed reasons for incompatible engines', () => {
+    // ELK engine incompatible with sequence document
+    const elkResult = evaluatePreviewEngineCompatibility(ELK_LAYERED_PREVIEW_ENGINE, {
+      previewDocumentKind: 'sequence',
+    });
+    expect(elkResult.compatible).toBe(false);
+    expect(elkResult.reason).toContain('sequence');
+
+    // Force engine incompatible with grid shell mode
+    const forceResult = evaluatePreviewEngineCompatibility(FORCE_PREVIEW_ENGINE, {
+      shellMode: 'grid',
+    });
+    expect(forceResult.compatible).toBe(false);
+    expect(forceResult.reason).toContain('shell mode');
+
+    // Sequence engine incompatible with wrong layout engine key
+    const seqResult = evaluatePreviewEngineCompatibility(SEQUENCE_PREVIEW_ENGINE, {
+      previewDocumentKind: 'sequence',
+      layoutEngine: 'elk-layered',
+    });
+    expect(seqResult.compatible).toBe(false);
+    expect(seqResult.reason).toContain('layout engine');
+  });
+
+  it('returns compatible result for matching engines', () => {
+    const elkResult = evaluatePreviewEngineCompatibility(ELK_LAYERED_PREVIEW_ENGINE, {
+      previewDocumentKind: 'frame-diagram',
+      layoutEngine: 'elk-layered',
+    });
+    expect(elkResult.compatible).toBe(true);
+    expect(elkResult.reason).toBeUndefined();
+
+    const forceResult = evaluatePreviewEngineCompatibility(FORCE_PREVIEW_ENGINE, {
+      previewDocumentKind: 'force-spec',
+      shellMode: 'force',
+    });
+    expect(forceResult.compatible).toBe(true);
+    expect(forceResult.reason).toBeUndefined();
+  });
+
+  it('lists all engines with compatibility status for switcher UI', () => {
+    const results = listPreviewEnginesWithCompatibility({
+      previewDocumentKind: 'frame-diagram',
+      layoutEngine: 'elk-layered',
+    });
+    expect(results).toHaveLength(3);
+    expect(results[0].engine.id).toBe('elk-layered');
+    expect(results[0].compatibility.compatible).toBe(true);
+    expect(results[1].engine.id).toBe('force');
+    expect(results[1].compatibility.compatible).toBe(false);
+    expect(results[1].compatibility.reason).toBeDefined();
+    expect(results[2].engine.id).toBe('sequence');
+    expect(results[2].compatibility.compatible).toBe(false);
+  });
+
+  it('exposes engine descriptions for switcher UI', () => {
+
+    expect(ELK_LAYERED_PREVIEW_ENGINE.compatibility.description).toBeDefined();
+    expect(ELK_LAYERED_PREVIEW_ENGINE.compatibility.description).toContain('layered');
+    expect(FORCE_PREVIEW_ENGINE.compatibility.description).toBeDefined();
+    expect(FORCE_PREVIEW_ENGINE.compatibility.description).toContain('force');
+    expect(SEQUENCE_PREVIEW_ENGINE.compatibility.description).toBeDefined();
+    expect(SEQUENCE_PREVIEW_ENGINE.compatibility.description).toContain('sequence');
   });
 });

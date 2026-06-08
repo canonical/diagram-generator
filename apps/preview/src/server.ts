@@ -799,6 +799,21 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, port: nu
         sendText(res, 400, error instanceof Error ? error.message : String(error));
         return;
       }
+      // Spec 035: a persisted engine choice must be a hostable grid engine.
+      // The switcher must never write an engine the document/shell cannot host.
+      if (payload && typeof payload === "object" && !Array.isArray(payload) && "layout_engine" in payload) {
+        const requested = (payload as Record<string, unknown>).layout_engine;
+        if (requested !== null && requested !== undefined && requested !== "") {
+          if (typeof requested !== "string" || normalizeLayoutEngine(requested) !== requested.trim()) {
+            sendText(
+              res,
+              400,
+              `Incompatible layout_engine '${String(requested)}': not a hostable preview engine`,
+            );
+            return;
+          }
+        }
+      }
       try {
         const baseline = readFileSync(framePath, "utf8");
         const nextText = persistFrameDiagramOverridePayloadToYaml(
@@ -806,6 +821,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, port: nu
           baseline,
           payload as PersistOverridePayload,
         );
+
         if (nextText !== baseline) {
           writeFileSync(framePath, nextText, "utf8");
         }
