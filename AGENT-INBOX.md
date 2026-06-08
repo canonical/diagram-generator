@@ -52,13 +52,28 @@ Phase 1 plumbing (typed compatibility contract + `meta.layout_engine` persistenc
 
 ### Recommended fixes (in priority order)
 
-- [ ] Do **not** mark spec 035 complete. It is Phase 1 only.
-- [ ] Wire the compatibility API into `server.ts`/the shell so the switcher actually lists compatible engines and rerenders (T010/T011). This is the feature.
-- [ ] Make `applyLayoutEngineChoice()` reject engine keys that are not hostable/compatible (consult `listHostableLayoutEngineKeys()` / `evaluatePreviewEngineCompatibility`), so persistence cannot store an incompatible engine (FR-003).
-- [ ] Either widen `PreviewDocumentKind` to admit the near-term kinds or remove the near-term matrix rows from `plan.md` so the docs stop claiming type-level support that does not exist (FR-006).
-- [ ] Defer/remove the AST-shape predicate engine until a real engine consumes it, or land at least one real engine + a real `astShape` producer so it is not dead code.
-- [ ] Decide and document how grid↔force shell-mode switching participates (or is explicitly out of scope) — currently it silently can't.
-- [ ] Add a true persist→reload→resolve round-trip test (T020).
-- [ ] Add T012 incompatible-engine UI test against the real registry.
-- [ ] Reconcile T003 checkbox vs the matrices already in `plan.md`.
-- [ ] Commit the work to the `feat/035-compatible-engine-switcher` branch.
+Status legend: `[x]` cleared in this pass (branch `feat/035-compatible-engine-switcher`,
+commit `548bb4b`); `[ ]` deferred to the Phase 2 build (hand to Claude).
+
+- [x] Do **not** mark spec 035 complete — it is Phase 1 only (spec Status stays Draft).
+- [ ] **(Phase 2, Claude)** Wire the compatibility API into `server.ts`/the shell so the switcher actually lists compatible engines and rerenders (T010/T011). This is the feature.
+- [x] Reject incompatible engine keys on persist — added a guard at the `/api/overrides/{slug}` write boundary (`normalizeLayoutEngine`/`hostableGridLayoutKeys`) instead of the low-level YAML writer (which would break the legitimate `vertical-stack`/`elk-force` metadata round-trip). Full document-kind gating still belongs in the Phase 2 switcher where the doc kind is known.
+- [x] Stop claiming type-level support that does not exist — `plan.md` near-term matrix now marked "NOT yet representable" with the `PreviewDocumentKind` widening pre-req called out (FR-006).
+- [x] Remove the dead AST-shape predicate engine (types/registry/index/tests) — YAGNI; documented how to reintroduce when a real engine needs it.
+- [ ] **(Phase 2, Claude)** Decide and document how grid↔force shell-mode switching participates (or is explicitly out of scope) — currently it silently can't.
+- [ ] **(Phase 2, Claude)** Add a true persist→reload→resolve round-trip test (T020).
+- [ ] **(Phase 2, Claude)** Add T012 incompatible-engine UI test against the real registry.
+- [x] Reconcile T003 checkbox vs the matrices in `plan.md`.
+- [x] Commit the work to the `feat/035-compatible-engine-switcher` branch.
+
+### Handoff to Claude (Phase 2)
+
+Build the switcher itself: a manifest-driven dropdown that calls
+`listPreviewEnginesWithCompatibility(context)` for the current document, offers only
+compatible engines (disabled/hidden with `reason` for the rest), persists the choice via
+the now-guarded `/api/overrides/{slug}`, and rerenders through `resolvePreviewEngine`
+rather than bespoke shell paths. Resolve the grid↔force shell-mode question, add the
+round-trip + UI tests (T012/T020), then come back for re-review. The Phase 1 contract,
+persistence, and write-boundary guard are in place and green.
+
+
