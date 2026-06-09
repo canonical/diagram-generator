@@ -46,6 +46,14 @@ Feature package: `specs/038-ts-authority-python-removal/`.
 
 - [x] `[H]` **Close the Python-preview retirement and design-foundry prep lane.** Closed on `feat/038-ts-authority-python-removal`: `apps/preview/` is the Node front door, preview/save/watch routes are TS-owned, the product-path Python preview files are deleted, the no-new-Python ratchet is active, and `packages/layout-engine/` now exposes the internal seams needed for the later `design-foundry` package move.
 
+#### Compatible engine switcher (spec 035)
+
+Feature package: `specs/035-compatible-engine-switcher/`.
+
+- [x] `[H]` **Phase 1 complete: Contract + persistence.** Closed on `feat/035-compatible-engine-switcher`: `evaluatePreviewEngineCompatibility()` API implemented, `meta.layout_engine` persistence guard validates full document-kind compatibility (not just hostable-key), document kind is dynamically detected from YAML structure (`sequence:` vs `root:` key), compatible engines list wired into preview config, and 12 persistence + round-trip tests passing.
+- [ ] `[M]` **Phase 2: Switcher UI + rerender.** Implement `buildPreviewEngineSwitcherModel()`, wire into DOM inspector, handle incompatible-engine case (hide/disable), test round-trip through rerender.
+- [ ] `[L]` **Phase 3: Docs + closeout.** Add typed contract docs, cross-engine preview guide, note on future lanes (state, tree, swimlane, ER/class).
+
 #### Preview shell decomposition + TS migration (spec 026)
 
 Feature package: `specs/026-preview-shell-decomposition-ts-migration/`.

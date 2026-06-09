@@ -1,7 +1,7 @@
 # Status
 
-**Last updated:** 2026-06-08  
-**Branch:** `feat/038-ts-authority-python-removal`
+**Last updated:** 2026-06-08 (updated for spec 035 Phase 1 completion)
+**Branch:** `feat/035-compatible-engine-switcher` (Phase 1 complete, Phase 2 beginning)
 
 ## Stakeholder path
 
@@ -34,7 +34,36 @@ Making a diagram for a review or deck: **[`docs/stakeholder-guide.md`](docs/stak
 | **Preview APIs** | Node/TS-only: frame-tree, grid, component tree, preview document, icons, and save routes via `apps/preview/src/server.ts` |
 | **Live preview SVG** | TS-only Node export via `apps/preview/src/server.ts`; no Python SVG renderer (spec 012) |
 | **Batch SVG** | `export-frame-svg.mjs` — TS-only (`svg-render.ts`); golden harness `tests/svg-golden.test.ts` (3 canonical slugs after the first pruning pass) |
-| **Tests** | `npm --prefix packages/layout-engine test` green (`325/325`); `npm --prefix apps/preview test` green (`7/7`); full `python -m pytest scripts -q` green (`334 passed`, `65` subtests); focused Node-preview browser/Playwright lanes green for v3, force, and sequence; `node scripts/check_no_new_python.mjs` green |
+| **Tests** | `npm --prefix packages/layout-engine test` green (`325/325`); `npm --prefix apps/preview test` green (`12/12`); full `python -m pytest scripts -q` green (`334 passed`, `65` subtests); focused Node-preview browser/Playwright lanes green for v3, force, and sequence; `node scripts/check_no_new_python.mjs` green |
+
+### Current delta — spec 035 Phase 1 complete: compatible engine switcher (2026-06-08)
+
+**Triggered by:** Adversarial review finding that draft spec 035 was merged to `main` in Phase-1-only state with incomplete persistence validation.
+
+**What was fixed:**
+- Deleted orphaned `dist/preview-engine-switcher.js` (no source file)
+- Implemented `determineFrameYamlKind()` helper to detect document type from YAML structure (`sequence:` vs `root:` key)
+- Replaced naive `normalizeLayoutEngine()` persistence guard with full `evaluatePreviewEngineCompatibility()` validation keyed on actual document kind
+- Exported `evaluatePreviewEngineCompatibility` and `PreviewDocumentKind` from `@diagram-generator/layout-engine` top-level index
+- Wired `listPreviewEngines()` into `buildGridViewerHtml()` to provide compatible-engines list for Phase 2 UI dropdown
+- Added persist→reload round-trip test verifying engine choice survives write and re-parse
+- Updated spec.md: Phase status, test count (11→12), explicit grid↔force boundary in Non-Goals
+
+**Phase 1 deliverables (COMPLETE):**
+- [x] Typed compatibility contract (`PreviewEngineManifest`, `CompatibilityResult`)
+- [x] Compatibility evaluation API (`evaluatePreviewEngineCompatibility()`, `listCompatiblePreviewEngines()`)
+- [x] Persistence guard validates full document-kind compatibility (not just hostable-key)
+- [x] Document kind detection from YAML structure
+- [x] 12 persistence and round-trip tests passing
+- [x] Grid↔force cross-shell boundary documented (non-goal: cross-shell switching out of scope)
+
+**Phase 2 todo (NEXT):**
+- Implement switcher UI wiring into `buildGridViewerHtml()` inspector
+- Handle incompatible-engine display (hide/disable with reason)
+- Test rerender through resolved-engine path
+- Add incompatible-engine rejection test
+
+**Validation:** `npm --prefix apps/preview test` passes all 12 tests (persistence, contracts, round-trip).
 
 ### Current delta — spec 038 complete (2026-06-08)
 
