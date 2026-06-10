@@ -3,7 +3,7 @@ title: Secure Software Delivery Lifecycle (SSDLC)
 meta:
   diagram_type: process_and_workflow
   abstraction_level: container
-  layout_engine: elk-layered
+  layout_engine: v3
 grid:
   cols: 3
   col_gap: 24
