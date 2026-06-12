@@ -13,11 +13,6 @@ export function normalizeLineSpec(value: unknown): LineSpec | undefined {
     size: typeof line.size === 'string' ? line.size : undefined,
     weight: typeof line.weight === 'string' ? line.weight : undefined,
     fill: typeof line.fill === 'string' ? line.fill : undefined,
-    smallCaps: typeof line.smallCaps === 'boolean'
-      ? line.smallCaps
-      : typeof line.small_caps === 'boolean'
-        ? line.small_caps
-        : undefined,
     letterSpacing: typeof line.letterSpacing === 'string'
       ? line.letterSpacing
       : typeof line.letter_spacing === 'string'

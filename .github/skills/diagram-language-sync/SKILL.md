@@ -14,16 +14,16 @@ argument-hint: "Describe the upstream spec source and which token families are c
 
 ## Procedure
 
-1. Read the upstream design-language source, then read `packages/layout-engine/src/tokens.ts`, `packages/layout-engine/src/frame-classes.ts`, `scripts/design_tokens.py`, and `scripts/drawio_style_sync.py`.
-2. Update **code constants first** (`tokens.ts`, `frame-classes.ts`, Python parity if still required).
-3. Update the **Runtime constants** table in `DIAGRAM.md` so prose stays aligned with code.
+1. Read the upstream design-language source, then read `packages/layout-engine/src/tokens.ts` and `packages/layout-engine/src/frame-classes.ts`. Read draw.io scripts only if the change affects draw.io outputs.
+2. Update **code constants first** in TypeScript.
+3. Update `DIAGRAM.md` only if the public-facing diagram contract changed.
 4. Rebuild outputs with the `diagram-build-validate` skill.
 5. Audit changed diagrams specifically for text ascent, line spacing, box growth, connector spacing, and icon padding regressions.
-6. Record any newly generalized mapping rules in `DIAGRAM.md`, `STATUS.md`, or `TODO.md` as appropriate.
+6. Record any newly generalized mapping rules in `DIAGRAM.md`, `STATUS.md`, or `TODO.md` only if they are still needed for cold starts.
 
 ## Guardrails
 
-- Do not update `DIAGRAM.md` prose without updating `tokens.ts` / `frame-classes.ts` (or vice versa).
+- Do not let `DIAGRAM.md` contradict `tokens.ts` / `frame-classes.ts`.
 - Keep imported values explicit; avoid burying new design-language rules in chat-only rationale.
 - Prefer one source-to-token mapping over per-diagram overrides.
 - Unless the user explicitly asks for another tier, keep the repo aligned to the current diagram pilot: `18px` body text, `8px` baseline unit, `24px` line step, and `24px` structural gutters.

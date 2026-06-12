@@ -64,4 +64,4 @@ Index: `http://127.0.0.1:8100/` lists all frame YAML diagrams.
 
 ## Architecture (one paragraph)
 
-Diagrams are **YAML on disk**. The **TypeScript** layout engine (`packages/layout-engine/`) measures and places frames (Figma-like autolayout). The preview editor runs layout in the browser; the Node preview app serves YAML APIs and emits SVG. Python remains only as a temporary parity oracle and utility debt outside the product path.
+Diagrams are **YAML on disk**. The **TypeScript** layout engine (`packages/layout-engine/`) measures and places frames (Figma-like autolayout). The preview editor runs layout in the browser; the Node preview app serves YAML APIs and emits SVG. Python remains only as legacy utility debt outside the product path.

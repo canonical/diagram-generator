@@ -25,6 +25,113 @@ function maybeFindFrameById(frame: Frame, id: string): Frame | undefined {
   return undefined;
 }
 
+function writeSsdlcLifecycleFixture(yamlPath: string): void {
+  writeFileSync(
+    yamlPath,
+    [
+      'engine: v3',
+      'title: Secure Software Delivery Lifecycle (SSDLC)',
+      'meta:',
+      '  diagram_type: process_and_workflow',
+      '  abstraction_level: container',
+      '  layout_engine: elk-layered',
+      'grid:',
+      '  cols: 3',
+      '  col_gap: 24',
+      '  row_gap: 48',
+      'arrows:',
+      '  - source: ssdlc',
+      '    target: phase_a',
+      '  - source: ssdlc',
+      '    target: phase_b',
+      '  - source: ssdlc',
+      '    target: phase_c',
+      '  - source: phase_a',
+      '    target: purpose_a',
+      '  - source: phase_b',
+      '    target: purpose_b',
+      '  - source: phase_c',
+      '    target: purpose_c',
+      'root:',
+      '  id: page',
+      '  direction: vertical',
+      '  width: 1440',
+      '  sizing_w: fixed',
+      '  sizing_h: hug',
+      '  children:',
+      '    - id: ssdlc',
+      '      level: 2',
+      '      heading: Secure Software Delivery Lifecycle (SSDLC)',
+      '      sizing_w: fill',
+      '      sizing_h: hug',
+      '    - id: phases_row',
+      '      direction: horizontal',
+      '      sizing_w: fill',
+      '      sizing_h: hug',
+      '      children:',
+      '        - id: col_a',
+      '          direction: vertical',
+      '          sizing_w: fill',
+      '          sizing_h: hug',
+      '          children:',
+      '            - id: phase_a',
+      '              level: 3',
+      '              heading: Phase A',
+      '              label:',
+      '                - Build & Ship',
+      '              sizing_w: fill',
+      '              sizing_h: hug',
+      '            - id: purpose_a',
+      '              level: 3',
+      '              heading: What is it for?',
+      '              label:',
+      '                - Upstream Integrity',
+      '              sizing_w: fill',
+      '              sizing_h: hug',
+      '        - id: col_b',
+      '          direction: vertical',
+      '          sizing_w: fill',
+      '          sizing_h: hug',
+      '          children:',
+      '            - id: phase_b',
+      '              level: 3',
+      '              heading: Phase B',
+      '              label:',
+      '                - Deploy & Run',
+      '              sizing_w: fill',
+      '              sizing_h: hug',
+      '            - id: purpose_b',
+      '              level: 3',
+      '              heading: What is it for?',
+      '              label:',
+      '                - In-Use Live Protection',
+      '              sizing_w: fill',
+      '              sizing_h: hug',
+      '        - id: col_c',
+      '          direction: vertical',
+      '          sizing_w: fill',
+      '          sizing_h: hug',
+      '          children:',
+      '            - id: phase_c',
+      '              level: 3',
+      '              heading: Phase C',
+      '              label:',
+      '                - Patch & Prove',
+      '              sizing_w: fill',
+      '              sizing_h: hug',
+      '            - id: purpose_c',
+      '              level: 3',
+      '              heading: What is it for?',
+      '              label:',
+      '                - Long-Term Maintenance',
+      '              sizing_w: fill',
+      '              sizing_h: hug',
+      '',
+    ].join('\n'),
+    'utf8',
+  );
+}
+
 describe('arrow rendering parity', () => {
   it('loadFrameYaml parses arrow label arrays and label_gap', () => {
     const tempDir = mkdtempSync(join(tmpdir(), 'dg-arrow-test-'));
@@ -420,30 +527,38 @@ describe('arrow rendering parity', () => {
   });
 
   it('promotes dense leaf-stack gaps globally when arrows need inter-child lanes', () => {
-    const diagram = loadFrameYaml('../../scripts/diagrams/frames/ssdlc-lifecycle.yaml');
-    const adapter = new MockTextAdapter();
-    layoutFrameTree(diagram.root, adapter, {
-      gridCols: diagram.gridCols,
-      gridColGap: diagram.gridColGap,
-      gridRowGap: diagram.gridRowGap,
-      gridOuterMargin: diagram.gridOuterMargin,
-      arrows: diagram.arrows,
-    });
+    const tempDir = mkdtempSync(join(tmpdir(), 'dg-ssdlc-test-'));
+    const yamlPath = join(tempDir, 'ssdlc-lifecycle.yaml');
 
-    const phaseA = findFrameById(diagram.root, 'phase_a');
-    const purposeA = findFrameById(diagram.root, 'purpose_a');
-    const phaseB = findFrameById(diagram.root, 'phase_b');
-    const purposeB = findFrameById(diagram.root, 'purpose_b');
-    const phaseC = findFrameById(diagram.root, 'phase_c');
-    const purposeC = findFrameById(diagram.root, 'purpose_c');
+    try {
+      writeSsdlcLifecycleFixture(yamlPath);
+      const diagram = loadFrameYaml(yamlPath);
+      const adapter = new MockTextAdapter();
+      layoutFrameTree(diagram.root, adapter, {
+        gridCols: diagram.gridCols,
+        gridColGap: diagram.gridColGap,
+        gridRowGap: diagram.gridRowGap,
+        gridOuterMargin: diagram.gridOuterMargin,
+        arrows: diagram.arrows,
+      });
 
-    const gapA = purposeA._layout.placedY - (phaseA._layout.placedY + phaseA._layout.placedH);
-    const gapB = purposeB._layout.placedY - (phaseB._layout.placedY + phaseB._layout.placedH);
-    const gapC = purposeC._layout.placedY - (phaseC._layout.placedY + phaseC._layout.placedH);
+      const phaseA = findFrameById(diagram.root, 'phase_a');
+      const purposeA = findFrameById(diagram.root, 'purpose_a');
+      const phaseB = findFrameById(diagram.root, 'phase_b');
+      const purposeB = findFrameById(diagram.root, 'purpose_b');
+      const phaseC = findFrameById(diagram.root, 'phase_c');
+      const purposeC = findFrameById(diagram.root, 'purpose_c');
 
-    expect(gapA).toBe(24);
-    expect(gapB).toBe(24);
-    expect(gapC).toBe(24);
+      const gapA = purposeA._layout.placedY - (phaseA._layout.placedY + phaseA._layout.placedH);
+      const gapB = purposeB._layout.placedY - (phaseB._layout.placedY + phaseB._layout.placedH);
+      const gapC = purposeC._layout.placedY - (phaseC._layout.placedY + phaseC._layout.placedH);
+
+      expect(gapA).toBe(24);
+      expect(gapB).toBe(24);
+      expect(gapC).toBe(24);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
   });
 
   it('applies authored gap_delta on top of the promoted dense arrow lane gap', () => {
@@ -499,57 +614,65 @@ describe('arrow rendering parity', () => {
   });
 
   it('routes ssdlc fan arrows from a shared bottom stem into the phase tops', () => {
-    const diagram = loadFrameYaml('../../scripts/diagrams/frames/ssdlc-lifecycle.yaml');
-    const adapter = new MockTextAdapter();
-    const layout = layoutFrameTree(diagram.root, adapter, {
-      gridCols: diagram.gridCols,
-      gridColGap: diagram.gridColGap,
-      gridRowGap: diagram.gridRowGap,
-      gridOuterMargin: diagram.gridOuterMargin,
-      arrows: diagram.arrows,
-    });
-    const displayList = emitFrameDiagramDisplayList(diagram, layout, adapter);
+    const tempDir = mkdtempSync(join(tmpdir(), 'dg-ssdlc-test-'));
+    const yamlPath = join(tempDir, 'ssdlc-lifecycle.yaml');
 
-    const ssdlc = findFrameById(diagram.root, 'ssdlc');
-    const phaseA = findFrameById(diagram.root, 'phase_a');
-    const phaseB = findFrameById(diagram.root, 'phase_b');
-    const phaseC = findFrameById(diagram.root, 'phase_c');
-    const sourceCenterX = ssdlc._layout.placedX + ssdlc._layout.placedW / 2;
-    const sourceBottomY = ssdlc._layout.placedY + ssdlc._layout.placedH;
-    const targetCenters = new Map([
-      ['ssdlc->phase_a', phaseA._layout.placedX + phaseA._layout.placedW / 2],
-      ['ssdlc->phase_b', phaseB._layout.placedX + phaseB._layout.placedW / 2],
-      ['ssdlc->phase_c', phaseC._layout.placedX + phaseC._layout.placedW / 2],
-    ]);
-    const centerArrowId = 'ssdlc->phase_b';
+    try {
+      writeSsdlcLifecycleFixture(yamlPath);
+      const diagram = loadFrameYaml(yamlPath);
+      const adapter = new MockTextAdapter();
+      const layout = layoutFrameTree(diagram.root, adapter, {
+        gridCols: diagram.gridCols,
+        gridColGap: diagram.gridColGap,
+        gridRowGap: diagram.gridRowGap,
+        gridOuterMargin: diagram.gridOuterMargin,
+        arrows: diagram.arrows,
+      });
+      const displayList = emitFrameDiagramDisplayList(diagram, layout, adapter);
 
-    for (const [arrowId, targetCenterX] of targetCenters) {
-      const group = displayList.items.find(
-        item => item.kind === 'group' && item.id === arrowId,
-      );
-      expect(group && group.kind === 'group').toBeTruthy();
-      const lines = group && group.kind === 'group'
-        ? group.children.filter(item => item.kind === 'line')
-        : [];
-      if (arrowId === centerArrowId) {
-        expect(lines).toHaveLength(1);
-      } else {
-        expect(lines.length).toBeGreaterThan(1);
+      const ssdlc = findFrameById(diagram.root, 'ssdlc');
+      const phaseA = findFrameById(diagram.root, 'phase_a');
+      const phaseB = findFrameById(diagram.root, 'phase_b');
+      const phaseC = findFrameById(diagram.root, 'phase_c');
+      const sourceCenterX = ssdlc._layout.placedX + ssdlc._layout.placedW / 2;
+      const sourceBottomY = ssdlc._layout.placedY + ssdlc._layout.placedH;
+      const targetCenters = new Map([
+        ['ssdlc->phase_a', phaseA._layout.placedX + phaseA._layout.placedW / 2],
+        ['ssdlc->phase_b', phaseB._layout.placedX + phaseB._layout.placedW / 2],
+        ['ssdlc->phase_c', phaseC._layout.placedX + phaseC._layout.placedW / 2],
+      ]);
+      const centerArrowId = 'ssdlc->phase_b';
+
+      for (const [arrowId, targetCenterX] of targetCenters) {
+        const group = displayList.items.find(
+          item => item.kind === 'group' && item.id === arrowId,
+        );
+        expect(group && group.kind === 'group').toBeTruthy();
+        const lines = group && group.kind === 'group'
+          ? group.children.filter(item => item.kind === 'line')
+          : [];
+        if (arrowId === centerArrowId) {
+          expect(lines).toHaveLength(1);
+        } else {
+          expect(lines.length).toBeGreaterThan(1);
+        }
+
+        const firstLine = lines[0]!;
+        expect(firstLine.x1).toBe(sourceCenterX);
+        expect(firstLine.x2).toBe(sourceCenterX);
+        expect(firstLine.y1).toBe(sourceBottomY);
+
+        if (arrowId === centerArrowId) {
+          expect(firstLine.x1).toBe(targetCenterX);
+          expect(firstLine.x2).toBe(targetCenterX);
+        } else {
+          const horizontalFork = lines.find(line => line.y1 === line.y2 && line.x1 !== line.x2);
+          expect(horizontalFork).toBeTruthy();
+          expect(horizontalFork?.x2).toBe(targetCenterX);
+        }
       }
-
-      const firstLine = lines[0]!;
-      expect(firstLine.x1).toBe(sourceCenterX);
-      expect(firstLine.x2).toBe(sourceCenterX);
-      expect(firstLine.y1).toBe(sourceBottomY);
-
-      if (arrowId === centerArrowId) {
-        expect(firstLine.x1).toBe(targetCenterX);
-        expect(firstLine.x2).toBe(targetCenterX);
-      } else {
-        const horizontalFork = lines.find(line => line.y1 === line.y2 && line.x1 !== line.x2);
-        expect(horizontalFork).toBeTruthy();
-        expect(horizontalFork?.x2).toBe(targetCenterX);
-      }
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
     }
   });
 

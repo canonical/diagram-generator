@@ -18,6 +18,12 @@ Guidance for AI agents working in this repo. Goal: correct fixes with minimal to
 - `scripts/diagrams/frames/*.yaml` is the authored source of truth.
 - Read the current YAML from disk before editing it and make minimal diffs.
 
+## Spec workflow
+
+- Spec authoring in this repo uses the local Speckit workflow under `.github/agents/` and `.github/prompts/`.
+- Keep repo operating rules in this file. Do not duplicate them into Speckit prompts or agents.
+- Use spec packages under `specs/<id>-<slug>/` for feature/fix planning; keep cold-start repo guidance here.
+
 ## Cold-start path
 
 Read these first:

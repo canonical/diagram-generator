@@ -11,3 +11,7 @@ Use `AGENTS.md` as the single authority for:
 - repo search hygiene and commit discipline
 
 Do not duplicate repo-specific workflow rules here. Update `AGENTS.md` instead.
+
+<!-- SPECKIT START -->
+Current implementation plan: `specs/039-diagram-typography-token-cleanup/plan.md`
+<!-- SPECKIT END -->

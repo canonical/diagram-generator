@@ -43,24 +43,22 @@ Siblings never mix classes. If one item needs to be a section, **all** its sibli
 4. **Verify sibling consistency.** Scan each group of siblings. Every sibling at the same depth must have the same level.
 
 5. **Check hierarchy rules.**
-   - No section (3) inside a section (3).
-   - No panel (2) inside a panel (2).
-   - Annotations (`variant: annotation`), separators (`role: separator`),
-     and highlights (`variant: highlight`) are exempt from level rules.
-   - Layout wrappers (headingless containers with no `heading:` field)
-     get level 0 automatically and don't count as a tier.
-   - If you violate the nesting rules, `resolve_styles()` (TS:
-     `packages/layout-engine/src/resolve-styles.ts`, Python:
-     `scripts/frame_loader.py`) auto-downgrades at render time: a panel
-     inside a panel becomes a leaf, a section inside a section becomes
-     a panel. This is a safety net, not a feature – set levels
-     correctly in YAML.
+    - No section (3) inside a section (3).
+    - No panel (2) inside a panel (2).
+    - Annotations (`variant: annotation`), separators (`role: separator`),
+      and highlights (`variant: highlight`) are exempt from level rules.
+    - Layout wrappers (headingless containers with no `heading:` field)
+      get level 0 automatically and don't count as a tier.
+    - If you violate the nesting rules, `resolve_styles()` in
+      `packages/layout-engine/src/resolve-styles.ts` auto-downgrades at render time: a panel
+      inside a panel becomes a leaf, a section inside a section becomes
+      a panel. This is a safety net, not a feature – set levels
+      correctly in YAML.
 
 ## Styling contract
 
 Levels determine visual treatment automatically through `resolve_styles()`
-(TS: `packages/layout-engine/src/resolve-styles.ts`, Python:
-`scripts/frame_loader.py`). See `docs/frame-classes.md` for the
+(TS: `packages/layout-engine/src/resolve-styles.ts`). See `docs/frame-classes.md` for the
 complete class table and rendering rules. Do **not** use inline styling
 in YAML.
 
@@ -130,7 +128,7 @@ children:
 
 After assigning levels:
 
-1. Run `python -m pytest test_frame_loader.py test_layout_v3.py -q` from `scripts/`.
+1. Run `npm --prefix packages/layout-engine test`.
 2. Run `node scripts/check_no_new_python.mjs` from the repo root.
 3. Open the diagram in the preview server and verify:
    - Sections have bold headings with black borders.

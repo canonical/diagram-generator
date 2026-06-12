@@ -9,7 +9,6 @@ function lineSpecToRecord(line: LineSpec): Record<string, unknown> {
   if (line.size) record.size = line.size;
   if (line.weight) record.weight = line.weight;
   if (line.fill) record.fill = line.fill;
-  if (line.smallCaps !== undefined) record.small_caps = line.smallCaps;
   if (line.letterSpacing) record.letter_spacing = line.letterSpacing;
   if (line.lineStep !== undefined) record.line_step = line.lineStep;
   if (line.fontFamily) record.font_family = line.fontFamily;

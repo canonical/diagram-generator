@@ -48,7 +48,7 @@ Rows marked ⚠ reference assets excluded by `.gitignore`. Run the build or obta
 | Source | Path | Role |
 |--------|------|------|
 | Stakeholder how-to | `docs/stakeholder-guide.md` | Copy YAML → preview → save → export SVG (non-engineering) |
-| Workflow rules | `.github/copilot-instructions.md` | Canonical workflow and diagram-rule source for this repo |
+| Workflow rules | `AGENTS.md` | Canonical repo workflow, shell, validation, and cold-start guidance |
 | Diagram language spec | `DIAGRAM.md` | Authoring rules and output constraints (Layer 3 — Style); runtime constants in `tokens.ts` / `frame-classes.ts` |
 | Current state | `STATUS.md` | Cold-start orientation and resume guidance |
 | Starter block reference | `diagrams/0.reference/sample.svg` | Canonical single-block geometry and arrow treatment |
@@ -71,7 +71,7 @@ The specs are living documents maintained in the sibling `canonical-spacing-spec
 | Spacing | `../canonical-spacing-spec/specs/spacing/draft.md` | Vertical spacing architecture (element-owned vs container-owned), baseline grid and nudge tokens, intra-component padding. Diagram tier will define its own spacing mode and density. |
 | Grid | `../canonical-spacing-spec/specs/grid/draft.md` | Column counts, gutter widths, outer margins, bisection rule, nested grid alignment. Diagram tier will define its own grid presets (column counts, baseline unit enforcement). |
 
-**How they flow into this repo:** `packages/layout-engine/src/tokens.ts` and `frame-classes.ts` implement diagram-tier selections from these specs (e.g., 18px body, 8px baseline, 24px gutter). `DIAGRAM.md` documents the resulting contract. When upstream specs change, update the TS constants first, then the DIAGRAM.md summary table.
+**How they flow into this repo:** `packages/layout-engine/src/tokens.ts` and `frame-classes.ts` implement diagram-tier selections from these specs (e.g., 18px body, 8px baseline, 24px gutter). `DIAGRAM.md` documents the resulting contract. When upstream specs change, update the TS constants first, then adjust `DIAGRAM.md` only if the public-facing contract changed.
 
 ## External tool references
 
