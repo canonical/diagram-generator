@@ -939,6 +939,20 @@ function routeArrows(arrows, boundsMap) {
     .filter((arrow) => arrow.start && arrow.end);
 }
 
+function _syncArrowOriginGeometry(g) {
+  if (!g) return;
+  g.style.transform = "";
+  g.querySelectorAll("line").forEach((line) => {
+    line.setAttribute("data-orig-x1", line.getAttribute("x1") || "0");
+    line.setAttribute("data-orig-y1", line.getAttribute("y1") || "0");
+    line.setAttribute("data-orig-x2", line.getAttribute("x2") || "0");
+    line.setAttribute("data-orig-y2", line.getAttribute("y2") || "0");
+  });
+  g.querySelectorAll("polygon").forEach((polygon) => {
+    polygon.setAttribute("data-orig-points", polygon.getAttribute("points") || "");
+  });
+}
+
 /**
  * Update arrow SVG elements from routed arrow data.
  */
@@ -961,6 +975,7 @@ function patchArrowsSvg(svgEl, routedArrows) {
       if (replacement) {
         g.querySelectorAll("line, polygon").forEach((el) => el.remove());
         Array.from(replacement.childNodes).forEach((child) => g.appendChild(child));
+        _syncArrowOriginGeometry(g);
       }
       continue;
     }
@@ -1013,6 +1028,7 @@ function patchArrowsSvg(svgEl, routedArrows) {
         polygon.setAttribute("points", pts);
       }
     }
+    _syncArrowOriginGeometry(g);
   }
 }
 
