@@ -115,7 +115,7 @@ Feature package: `specs/006-arrow-routing-redesign/`.
 - [ ] `[H]` **Close the remaining spec 006 review follow-ups on this branch.** Browser router convergence is done; remaining major gaps are the full route-aware gap classifier (T080/T081), arrow dependency ordering + cycle diagnostics (T094), and moving final arrow geometry ownership out of the renderer path (T050-T052 / FR-005).
 - [x] `[S]` **Fix author-tooling fallout from `arrow:<id>` refs.** Compile orphan checks now resolve through referenced arrow ids, and Mermaid/D2 exporters treat arrow-to-arrow refs as unsupported anchors instead of misleading missing-frame errors.
 - [x] `[L]` **Reconcile the review docs with what ships today.** The spec addendum now calls out that dense leaf-stack gap promotion is an interim heuristic rather than the full route-lane classifier.
-- [ ] `[H]` **Save fails for `page` overrides with `gap_delta`.** Preview Save throws `Unknown override key for page: gap_delta` when a root/page gap edit is persisted. Owner: `apps/preview/src/persistence/frame-diagram.ts` (`SUPPORTED_FRAME_KEYS` / `applyFrameOverride`). Partial allowlist work may be on branch — needs browser verification on page save before closing. Reported 2026-06-10.
+- [x] `[H]` **Save fails for `page` overrides with `gap_delta`.** Fixed in `apps/preview/src/persistence/frame-diagram.ts` (`SUPPORTED_FRAME_KEYS` + `applyFrameOverride` handler). Added page-level persist regression test; follow-up wired `gapDelta` through client deserialize/component-tree, fixed inspector effective-gap math, undo relayout for `gap_delta`, and null-sentinel clear-to-YAML. **Restart the preview server** after pulling. Reported 2026-06-10, closed 2026-06-12.
 
 ### Priority 2 — Standalone items
 

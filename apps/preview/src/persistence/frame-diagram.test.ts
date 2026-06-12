@@ -202,6 +202,62 @@ test("empty payload is a no-op without rewriting yaml", () => {
   assert.strictEqual(output, baselineText);
 });
 
+test("persist gap_delta null clears authored gap_delta from yaml", () => {
+  const baselineText = [
+    "engine: v3",
+    "title: Gap delta clear",
+    "root:",
+    "  id: page",
+    "  direction: vertical",
+    "  gap_delta: 16",
+    "  children:",
+    "    - id: leaf",
+    "      label: [Leaf]",
+    "",
+  ].join("\n");
+
+  const persistent = persistToYaml("page-gap-delta-clear.yaml", baselineText, {
+    overrides: {
+      page: {
+        gap_delta: null,
+      },
+    },
+  });
+
+  assert.doesNotMatch(persistent, /gap_delta:/);
+});
+
+test("persist→reload round-trip: page gap_delta survives write without emitting absolute gap", () => {
+  const baselineText = [
+    "engine: v3",
+    "title: Gap delta page",
+    "root:",
+    "  id: page",
+    "  direction: vertical",
+    "  children:",
+    "    - id: leaf",
+    "      label: [Leaf]",
+    "",
+  ].join("\n");
+
+  const persistent = persistToYaml("page-gap-delta-roundtrip.yaml", baselineText, {
+    overrides: {
+      page: {
+        gap_delta: 16,
+      },
+    },
+  });
+
+  assert.match(persistent, /gap_delta: 16/);
+  assert.doesNotMatch(persistent, /\n\s+gap: /);
+
+  const reloadedPath = writeTempFrame("page-gap-delta-reloaded.yaml", persistent);
+  const reloaded = loadFrameYaml(reloadedPath);
+
+  assert.strictEqual(reloaded.root.id, "page");
+  assert.strictEqual(reloaded.root.gapDelta, 16, "page gap_delta must survive save + reload");
+});
+
 test("persist→reload round-trip: gap_delta survives write without emitting absolute gap", () => {
   const baselineText = [
     "engine: v3",

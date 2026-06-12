@@ -289,6 +289,7 @@ function _pruneLinkedRootGridOverrides() {
   if (!rootOverrides) return;
 
   delete rootOverrides.gap;
+  delete rootOverrides.gap_delta;
   delete rootOverrides.padding;
   delete rootOverrides.padding_top;
   delete rootOverrides.padding_right;
@@ -433,7 +434,7 @@ async function _applyUndoCommand(command, direction) {
 function _hasV3FrameOverride(ovr) {
   if (!ovr) return false;
   const keys = [
-    "text", "direction", "gap", "padding", "padding_top", "padding_right", "padding_bottom", "padding_left",
+    "text", "direction", "gap", "gap_delta", "padding", "padding_top", "padding_right", "padding_bottom", "padding_left",
     "sizing", "sizing_w", "sizing_h", "fill_weight", "align", "wrap",
     "width", "height", "min_width", "max_width", "max_width_chars", "min_height", "max_height",
     "fill", "border", "level", "position", "x", "y", "children_order",
@@ -5262,8 +5263,10 @@ function buildAutolayoutPanel(cid, node) {
     const runtimeGap = direction === 'HORIZONTAL'
       ? (node.layoutColGap ?? node.layoutGap ?? 24)
       : (node.layoutRowGap ?? node.layoutGap ?? 24);
-    const currentGapDelta = Number(ovr.gap_delta ?? node.data?.gapDelta ?? 0) || 0;
-    const automaticGap = Math.max(0, runtimeGap);
+    const currentGapDelta = 'gap_delta' in ovr
+      ? (ovr.gap_delta == null ? 0 : (Number(ovr.gap_delta) || 0))
+      : (Number(node.data?.gapDelta ?? node.data?.gap_delta) || 0);
+    const automaticGap = Math.max(0, runtimeGap - currentGapDelta);
     const effectiveGap = Math.max(0, automaticGap + currentGapDelta);
 
     html += '<span class="label" style="margin-bottom:4px;display:block">Auto-layout · ' + cid + '</span>';
@@ -5440,8 +5443,7 @@ function setFrameProp(cid, prop, value) {
   if (prop === 'gap_delta') {
     const numeric = Number(value);
     if (value === '' || value == null || !Number.isFinite(numeric) || snapToGrid(numeric) === 0) {
-      delete overrides[cid].gap_delta;
-      if (Object.keys(overrides[cid]).length === 0) delete overrides[cid];
+      overrides[cid].gap_delta = null;
       setDirty(true);
       EditorState.commitOverridePatchAction('Change gap_delta', fpBefore, EditorState.captureOverrideEntries(fpIds));
       clearTimeout(_v3RelayoutTimer);

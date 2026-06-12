@@ -6,6 +6,22 @@ import { buildComponentTree } from '../src/component-tree.js';
 import { applyHeadingAsChild } from '../src/heading-synthesis.js';
 
 describe('buildComponentTree', () => {
+  it('exposes authored gap_delta on component tree nodes', () => {
+    const stack = new Frame({
+      id: 'stack',
+      gap: 24,
+      gapDelta: 16,
+      children: [
+        new Frame({ id: 'a', label: [createLine('A')] }),
+        new Frame({ id: 'b', label: [createLine('B')] }),
+      ],
+    });
+    layoutFrameTree(stack, new MockTextAdapter());
+    expect(stack.gapDelta).toBe(16);
+    const tree = buildComponentTree(stack);
+    expect(tree[0]!.gap_delta).toBe(16);
+  });
+
   it('includes placed bounds and label text', () => {
     const leaf = new Frame({
       id: 'leaf',

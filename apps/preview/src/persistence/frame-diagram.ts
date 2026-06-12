@@ -383,6 +383,10 @@ function applyFrameOverride(frameData: Record<string, unknown>, override: unknow
       continue;
     }
     if (key === "gap_delta") {
+      if (value == null) {
+        delete frameData.gap_delta;
+        continue;
+      }
       applyDirectField(frameData, key, value);
       delete frameData.gap;
       continue;

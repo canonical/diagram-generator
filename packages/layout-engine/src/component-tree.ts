@@ -17,6 +17,7 @@ export interface ComponentInfo {
   layout_col_gap: number;
   layout_row_gap: number;
   layout_header_gap: number;
+  gap_delta?: number;
   pad: number;
   sizing_w: string;
   sizing_h: string;
@@ -118,6 +119,7 @@ function frameToComponentInfo(frame: Frame): ComponentInfo | null {
     layout_col_gap: layoutGap,
     layout_row_gap: layoutGap,
     layout_header_gap: layoutHeaderGap,
+    ...(frame.gapDelta != null ? { gap_delta: frame.gapDelta } : {}),
     pad: frame.border !== Border.NONE ? frame.paddingTop : 0,
     sizing_w: frame.sizingW,
     sizing_h: frame.sizingH,

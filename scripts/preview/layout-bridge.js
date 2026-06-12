@@ -21,6 +21,7 @@ function deserializeFrame(json) {
     id: json.id || "",
     direction: json.direction || "VERTICAL",
     gap: json.gap ?? 24,
+    gapDelta: json.gapDelta ?? undefined,
     padding: json.padding ?? 8,
     paddingTop: json.paddingTop,
     paddingRight: json.paddingRight,
@@ -222,7 +223,12 @@ function applyOverridesToFrameTree(diagram, allOverrides, gridOverrides) {
       target.gap = gap;
       target.gapDelta = undefined;
     }
-    if (ovr.gap_delta != null) {
+    if (ovr.gap_delta === null) {
+      const currentGap = Number.isFinite(target.gap) ? target.gap : 0;
+      const currentGapDelta = Number.isFinite(target.gapDelta) ? target.gapDelta : 0;
+      target.gapDelta = undefined;
+      target.gap = currentGap - currentGapDelta;
+    } else if (ovr.gap_delta != null) {
       const gapDelta = parseInt(ovr.gap_delta, 10);
       const currentGap = Number.isFinite(target.gap) ? target.gap : 0;
       const currentGapDelta = Number.isFinite(target.gapDelta) ? target.gapDelta : 0;
@@ -899,6 +905,7 @@ function updateComponentModelFromLayout(model, frame) {
       layout_col_gap: hasLayout ? layoutGap : 0,
       layout_row_gap: hasLayout ? layoutGap : 0,
       layout_header_gap: hasLayout ? layoutHeaderGap : 0,
+      gap_delta: f.gapDelta ?? undefined,
       pad: f.border !== "NONE" ? f.paddingTop : 0,
       sizing_w: f.sizingW,
       sizing_h: f.sizingH,
