@@ -54,6 +54,13 @@ Feature package: `specs/035-compatible-engine-switcher/`.
 - [x] `[M]` **Phase 2: Switcher UI + rerender consumer.** Built `scripts/preview/engine-switcher.js` (reads `__DG_CONFIG.compatible_engines`, renders the `#engine-switcher-section` `<select>`, POSTs `{layout_engine}` to `/api/overrides/{slug}`, reloads to re-render via `resolvePreviewEngine`). Round-trip test now genuinely reloads via `loadFrameYaml` + resolves via the registry. Latent `getPreviewEngine`-by-id bug fixed with `getPreviewEngineByLayoutKey`. See `adversarial-review-merge.md` → "Re-review #2 — resolution". The control is now live on frame-diagram docs after the native v3 registration below.
 - [x] `[H]` **Register a second grid-mode engine so the switcher becomes visible.** Native v3 autolayout is now a first-class `PreviewEngineManifest` (`id/layoutEngineKey: v3`, `shellMode: grid`, `documentKinds: ['frame-diagram']`). Blank frame-diagram docs resolve to native v3 by default precedence, and the switcher now offers `v3` + `elk-layered` on authored frame diagrams.
 - [x] `[L]` **Phase 3: Docs + closeout.** The spec package now documents the live compatibility matrix and future lanes, repo tracking docs are updated, and closeout validation includes registry tests, preview-app contract tests, and browser verification of the visible switcher.
+- [ ] `[H]` **ELK layered drops headings and icons on parent containers.** Headed panels (e.g. Planning / Implementation / Delivery in `complex-routing-usecase`) lose title + icon treatment under `elk-layered`; headers should remain in the container chrome ELK lays out. Investigate, draft spec-kit fix package, add tier-2 flow map. Reported via inbox 2026-06-12.
+
+#### Diagram typography token cleanup (spec 039)
+
+Feature package: `specs/039-diagram-typography-token-cleanup/`.
+
+- [ ] `[H]` **Review, tighten, and execute spec 039.** Draft was written by a lower-tier model — audit against live TS engine + `DIAGRAM.md`, update spec/tasks for accuracy, then shrink dead typography tokens to `diagram-body` + `diagram-heading-1` and remove unused constants. Reported via inbox 2026-06-12.
 
 #### Preview shell decomposition + TS migration (spec 026)
 
@@ -115,6 +122,7 @@ Feature package: `specs/006-arrow-routing-redesign/`.
 - [ ] `[H]` **Close the remaining spec 006 review follow-ups on this branch.** Browser router convergence is done; remaining major gaps are the full route-aware gap classifier (T080/T081), arrow dependency ordering + cycle diagnostics (T094), and moving final arrow geometry ownership out of the renderer path (T050-T052 / FR-005).
 - [x] `[S]` **Fix author-tooling fallout from `arrow:<id>` refs.** Compile orphan checks now resolve through referenced arrow ids, and Mermaid/D2 exporters treat arrow-to-arrow refs as unsupported anchors instead of misleading missing-frame errors.
 - [x] `[L]` **Reconcile the review docs with what ships today.** The spec addendum now calls out that dense leaf-stack gap promotion is an interim heuristic rather than the full route-lane classifier.
+- [ ] `[H]` **Arrow routing breaks when container direction flips vertical ↔ horizontal.** v3 router convergence works in one orientation; inspector direction changes leave stale or wrong arrow geometry. Owner: spec 006 (`arrow-routing.ts`, `layout-bridge.js` patchArrowsSvg). Reported via inbox 2026-06-12.
 - [x] `[H]` **Save fails for `page` overrides with `gap_delta`.** Fixed in `apps/preview/src/persistence/frame-diagram.ts` (`SUPPORTED_FRAME_KEYS` + `applyFrameOverride` handler). Added page-level persist regression test; follow-up wired `gapDelta` through client deserialize/component-tree, fixed inspector effective-gap math, undo relayout for `gap_delta`, and null-sentinel clear-to-YAML. **Restart the preview server** after pulling. Reported 2026-06-10, closed 2026-06-12.
 
 ### Priority 2 — Standalone items

@@ -5,6 +5,7 @@
     "preview": "npm --prefix apps/preview run start",
     "preview:dev": "npm --prefix apps/preview run dev",
     "preview:build": "npm --prefix apps/preview run build",
+    "preview:build-browser": "npm --prefix packages/layout-engine run build:browser",
     "clean:src-artifacts": "node scripts/clean-src-artifacts.mjs"
   }
 }

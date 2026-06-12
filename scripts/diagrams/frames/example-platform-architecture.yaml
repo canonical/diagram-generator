@@ -1,66 +1,78 @@
 engine: v3
-title: "Platform architecture"
+title: Platform architecture
 grid:
   cols: 3
 arrows:
-  - source: frontend
-    target: gateway
-  - source: gateway
-    target: services
-  - source: services
-    target: database
-  - source: services
-    target: cache
-  - source: services
-    target: queue
+- source: frontend
+  target: gateway
+- source: gateway
+  target: services
+- source: services
+  target: database
+- source: services
+  target: cache
+- source: services
+  target: queue
 root:
   id: page
   direction: vertical
   children:
-    # Row 0: User-facing services panel
-    - id: frontend
-      level: 2
-      direction: horizontal
-      heading: "User-facing services"
-      children:
-        - id: fe_web
-          label: [Web, application]
-          icon: Laptop with window.svg
-        - id: fe_mobile
-          label: [Mobile, client]
-          icon: Mobile.svg
-
-    # Row 1: API gateway
-    - id: gateway
-      label: [API, gateway]
-      icon: Gateway.svg
-
-    # Row 2: Backend services panel
-    - id: services
-      level: 2
-      direction: horizontal
-      heading: "Backend services"
-      children:
-        - id: svc_auth
-          label: [Auth, service]
-          icon: Lock.svg
-        - id: svc_order
-          label: [Order, service]
-          icon: Document.svg
-        - id: svc_notify
-          label: [Notification, service]
-          icon: Letter.svg
-
-    # Row 3: Data layer
-    - id: row3
-      direction: horizontal
-      children:
-        - id: database
-          label: [Primary, database]
-          icon: Storage node.svg
-        - id: cache
-          label: [Cache, layer]
-          icon: Memory.svg
-        - id: queue
-          label: [Message, queue]
-          icon: Operations.svg
+  - id: frontend
+    level: 2
+    direction: horizontal
+    heading: User-facing services
+    children:
+    - id: fe_web
+      label:
+      - Web
+      - application
+      icon: Laptop with window.svg
+    - id: fe_mobile
+      label:
+      - Mobile
+      - client
+      icon: Mobile.svg
+  - id: gateway
+    label:
+    - API
+    - gateway
+    icon: Gateway.svg
+  - id: services
+    level: 2
+    direction: horizontal
+    heading: Backend services
+    children:
+    - id: svc_auth
+      label:
+      - Auth
+      - service
+      icon: Lock.svg
+    - id: svc_order
+      label:
+      - Order
+      - service
+      icon: Document.svg
+    - id: svc_notify
+      label:
+      - Notification
+      - service
+      icon: Letter.svg
+  - id: row3
+    direction: horizontal
+    children:
+    - id: database
+      label:
+      - Primary
+      - database
+      icon: Storage node.svg
+    - id: cache
+      label:
+      - Cache
+      - layer
+      icon: Memory.svg
+    - id: queue
+      label:
+      - Message
+      - queue
+      icon: Operations.svg
+  gap_delta: 16

@@ -6,7 +6,9 @@
   "scripts": {
     "prebuild": "npm --prefix ../../packages/layout-engine run build",
     "build": "tsc -p tsconfig.json",
+    "predev": "npm --prefix ../../packages/layout-engine run build:browser",
     "dev": "tsx watch src/server.ts",
+    "prestart": "npm --prefix ../../packages/layout-engine run build:browser",
     "start": "tsx src/server.ts",
     "pretest": "npm --prefix ../.. run clean:src-artifacts",
     "test": "node --import tsx --test src/persistence/*.test.ts"

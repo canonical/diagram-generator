@@ -351,8 +351,36 @@ function resolvePreviewAssetPath(filename: string): string | null {
   return path.join(PREVIEW_DIR, safe);
 }
 
+function maxSourceMtimeMs(rootDir: string): number {
+  let newest = 0;
+  for (const entry of readdirSync(rootDir, { withFileTypes: true })) {
+    const fullPath = path.join(rootDir, entry.name);
+    if (entry.isDirectory()) {
+      newest = Math.max(newest, maxSourceMtimeMs(fullPath));
+      continue;
+    }
+    if (entry.isFile() && entry.name.endsWith(".ts")) {
+      newest = Math.max(newest, statSync(fullPath).mtimeMs);
+    }
+  }
+  return newest;
+}
+
+function layoutEngineBrowserSourceIsNewerThanBundle(): boolean {
+  const srcRoot = path.join(REPO_ROOT, "packages", "layout-engine", "src");
+  if (!existsSync(LAYOUT_ENGINE_BUNDLE) || !existsSync(srcRoot)) {
+    return true;
+  }
+  return maxSourceMtimeMs(srcRoot) > statSync(LAYOUT_ENGINE_BUNDLE).mtimeMs;
+}
+
 async function ensureLayoutEngineBrowserAssets(): Promise<void> {
-  if (existsSync(LAYOUT_ENGINE_BUNDLE) && existsSync(LAYOUT_ENGINE_HARFBUZZ_BUNDLE) && existsSync(LAYOUT_ENGINE_WASM)) {
+  const bundleMissing =
+    !existsSync(LAYOUT_ENGINE_BUNDLE) ||
+    !existsSync(LAYOUT_ENGINE_HARFBUZZ_BUNDLE) ||
+    !existsSync(LAYOUT_ENGINE_WASM);
+  const bundleStale = !bundleMissing && layoutEngineBrowserSourceIsNewerThanBundle();
+  if (!bundleMissing && !bundleStale) {
     return;
   }
   if (previewBundleBuildPromise) {
@@ -1037,8 +1065,9 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, port: nu
       return;
     }
     if (
-      (safeName === "layout-engine.js" || safeName === "layout-engine-harfbuzz.js" || safeName === "harfbuzz.wasm") &&
-      !existsSync(assetPath)
+      safeName === "layout-engine.js" ||
+      safeName === "layout-engine-harfbuzz.js" ||
+      safeName === "harfbuzz.wasm"
     ) {
       await ensureLayoutEngineBrowserAssets();
     }

@@ -1,49 +1,50 @@
 engine: v3
-title: "Complex Routing Usecase"
-# Source: mermaid structured-beta test case
-# Reference: mermaid/examples/complex-routing-usecase.drawio
-# Canonical complex routing demo (replaces removed complex-testcase slug)
-# 3 parent columns, 5 leaf boxes, 2 arrows
-# Arrows: define→implement, measure→review (routed around spike)
+title: Complex Routing Usecase
 grid:
   cols: 3
 arrows:
-  - source: define
-    target: implement
-  - source: measure
-    target: review
+- source: define
+  target: implement
+- source: measure
+  target: review
 root:
   id: page
   direction: horizontal
   children:
-    - id: planning
-      level: 3
-      heading: "Planning"
+  - id: planning
+    level: 3
+    heading: Planning
+    children:
+    - id: define
+      label:
+      - Define ingress
+      - pipeline
+    - id: measure
+      label:
+      - Measure current
+      - performance
+  - id: implementation
+    level: 3
+    heading: Implementation
+    children:
+    - id: devteam
+      level: 2
+      heading: Dev team
       children:
-        - id: define
-          label: [Define ingress, pipeline]
-        - id: measure
-          label: [Measure current, performance]
-
-    - id: implementation
-
-      level: 3
-      heading: "Implementation"
-      children:
-        - id: devteam
-          level: 2
-          heading: "Dev team"
-          children:
-            - id: implement
-              label: [Implement Ingress, pipeline]
-            - id: spike
-              label: "Build spike"
-
-    - id: delivery
-
-      level: 3
-      heading: "Delivery"
-      justify: space-between
-      children:
-        - id: review
-          label: [Review performance, improvement]
+      - id: implement
+        label:
+        - Implement Ingress
+        - pipeline
+      - id: spike
+        label: Build spike
+  - id: delivery
+    level: 3
+    heading: Delivery
+    justify: space-between
+    children:
+    - id: review
+      label:
+      - Review performance
+      - improvement
+meta:
+  layout_engine: v3
