@@ -69,6 +69,16 @@ Prefer **narrow, scoped searches** over repo-wide scans.
 
 **WSL note:** If you want lower agent friction, WSL is usually more reliable than PowerShell for generated shell commands. Best case: keep the repo in the WSL filesystem and run the toolchain there. Mixed Windows-mounted paths (`H:\...` or `/mnt/h/...`) work, but they can add quoting, path, and search-performance quirks. If you stay on Windows, prefer direct interpreter calls like `.venv\Scripts\python.exe` over shell activation commands.
 
+## Test economy
+
+Be deliberate about test cost. Protect the **live YAML -> TypeScript -> SVG path**, but err on the side of **lean, durable coverage** over broad or temporary suites.
+
+- Prefer one focused test at the owning layer over the same behavior re-tested in 3 layers.
+- Prefer extending an existing targeted test over creating a new sprawling fixture or browser suite.
+- Do not add large regression harnesses for transitional, legacy, or likely-to-be-deleted code unless the user explicitly wants that protection.
+- For small localized fixes, validate with the narrowest test that proves the contract and stop there.
+- Add or keep broader end-to-end tests only when they protect a real user workflow that unit-level tests would miss.
+
 ## Scoped review (instead of full simo-sweep)
 
 For localized preview/persist bugs:
@@ -98,6 +108,7 @@ node scripts/check_no_new_python.mjs
 ```
 
 Use targeted preview tests when changing preview routes, shell behavior, or save flows.
+Do not default to adding new broad test suites unless the change affects a durable cross-layer contract.
 
 ## Commits
 

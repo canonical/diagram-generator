@@ -2,7 +2,7 @@
 
 Frame YAML in `scripts/diagrams/frames/` → TypeScript layout/render in `packages/layout-engine/` → editable SVG in preview and batch export.
 
-This repo is TS-first. Python is retirement debt for draw.io and a few black-box test harnesses only. Do not add new Python product-path behavior.
+This repo is TS-first. Python is retained only for the draw.io lane. Do not add new Python product-path behavior.
 
 ## Start
 
@@ -51,5 +51,4 @@ npm --prefix packages/layout-engine run build:browser
 ## Notes
 
 - Product path is Node + TypeScript.
-- Existing preview tests under `scripts/test_preview_*.py` still cover the TS preview app; they are black-box tests, not Python rendering authority.
 - Keep repo docs short. Durable behavior belongs in code and a few small docs, not large prose specs.
