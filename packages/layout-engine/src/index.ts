@@ -99,6 +99,7 @@ export {
   frameOwnedHeadingToSpec,
   frameOwnedLabelToSpec,
   frameOwnedTextBlocks,
+  frameOwnedTextBlockRole,
   frameOwnedTextBlockGap,
   resolvedSpecTypography,
 } from './resolved-spec-typography.js';

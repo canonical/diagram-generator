@@ -551,6 +551,8 @@ function _buildFrameTextElements(frame, renderState) {
   for (const [blockIndex, block] of renderState.textBlocks.entries()) {
     const textEl = document.createElementNS(SVG_NS, "text");
     textEl.setAttribute("font-family", "Ubuntu Sans");
+    textEl.setAttribute("data-dg-text-role", LayoutEngine.frameOwnedTextBlockRole(frame, blockIndex));
+    textEl.setAttribute("data-dg-text-block-index", String(blockIndex));
 
     for (const spec of block) {
       const size = spec.size ?? LayoutEngine.BODY_SIZE;

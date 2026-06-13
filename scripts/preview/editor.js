@@ -3246,6 +3246,19 @@ function onSvgDblClick(e) {
   if (mgr.isMode(InteractionMode.TEXT_EDITING)) return;
   const svg = document.querySelector("#stage svg");
   if (!svg) return;
+
+  const editableText = _findEditableTextTarget(e.target, e.clientX, e.clientY);
+  if (editableText) {
+    const cid = _editableComponentIdForTextElement(editableText);
+    if (cid) {
+      const ancestors = getAncestors(cid);
+      selectionDepth = ancestors.length;
+      selectComponent(cid, false);
+      startTextEdit(cid, e, { textEl: editableText });
+      return;
+    }
+  }
+
   const pt = svg.createSVGPoint();
   pt.x = e.clientX;
   pt.y = e.clientY;
@@ -4362,106 +4375,181 @@ function rebuildArrowSVG(cid) {
 
 // ---- Inline text editing ----
 
-function startTextEdit(cid, e) {
+function _textEditorBlockStyle(textEl) {
+  const tspans = Array.from(textEl.querySelectorAll("tspan"));
+  const first = tspans[0] || null;
+  const second = tspans[1] || null;
+  const firstY = parseFloat(first ? (first.getAttribute("y") || "NaN") : "NaN");
+  const secondY = parseFloat(second ? (second.getAttribute("y") || "NaN") : "NaN");
+  return {
+    fontSize: parseFloat(first ? (first.getAttribute("font-size") || "14") : "14"),
+    fontWeight: first ? (first.getAttribute("font-weight") || "400") : "400",
+    fill: first ? (first.getAttribute("fill") || "#000") : "#000",
+    fontFamily: (first && first.getAttribute("font-family"))
+      || textEl.getAttribute("font-family")
+      || "'Ubuntu Sans', sans-serif",
+    letterSpacing: first ? (first.getAttribute("letter-spacing") || "") : "",
+    fontVariantCaps: first ? (first.getAttribute("font-variant-caps") || "") : "",
+    lineHeight: Number.isFinite(firstY) && Number.isFinite(secondY) && secondY > firstY
+      ? (secondY - firstY)
+      : 24,
+  };
+}
+
+function _renderedTextLines(textEl) {
+  return Array.from(textEl.querySelectorAll("tspan")).map(ts => ts.textContent || "");
+}
+
+function _textBlockRole(textEl, hasHeading, fallbackIndex) {
+  const explicit = textEl ? textEl.getAttribute("data-dg-text-role") : "";
+  if (explicit === "heading" || explicit === "label") return explicit;
+  return hasHeading && fallbackIndex === 0 ? "heading" : "label";
+}
+
+function _textRectContainsPoint(rect, clientX, clientY, pad) {
+  const inset = Number.isFinite(pad) ? pad : 0;
+  return clientX >= rect.left - inset &&
+    clientX <= rect.right + inset &&
+    clientY >= rect.top - inset &&
+    clientY <= rect.bottom + inset;
+}
+
+function _findTextBlockAtPoint(textEls, clientX, clientY) {
+  if (!Array.isArray(textEls) || textEls.length === 0) return null;
+  const hits = textEls
+    .map((candidate) => ({ candidate, rect: candidate.getBoundingClientRect() }))
+    .filter(({ rect }) => rect && _textRectContainsPoint(rect, clientX, clientY, 2));
+  if (hits.length === 0) return null;
+  hits.sort((a, b) => a.rect.top - b.rect.top || a.rect.left - b.rect.left);
+  return hits[0].candidate;
+}
+
+function _findEditableTextTarget(target, clientX, clientY) {
+  if (!target || typeof target.closest !== "function") return null;
+  const textEl = target.closest('text[data-dg-text-role], text');
+  if (textEl) {
+    const owner = textEl.closest("[data-component-id]");
+    if (owner) return textEl;
+  }
+  const owner = target.closest("[data-component-id]");
+  if (!owner) return null;
+  const directTextEls = Array.from(owner.querySelectorAll(":scope > text"));
+  return _findTextBlockAtPoint(directTextEls, clientX, clientY);
+}
+
+function _editableComponentIdForTextElement(textEl) {
+  if (!textEl || typeof textEl.closest !== "function") return "";
+  const owner = textEl.closest("[data-component-id]");
+  if (!owner) return "";
+  const ownerId = owner.getAttribute("data-component-id") || "";
+  if (!ownerId) return "";
+  if (model.get(ownerId)) return ownerId;
+  const authoredParentId = ownerId.replace(/__(heading|body)$/, "");
+  if (authoredParentId !== ownerId && model.get(authoredParentId)) {
+    return authoredParentId;
+  }
+  return ownerId;
+}
+
+function _textEditorSurface(fill) {
+  if (!fill) return "#FFFFFF";
+  const normalized = String(fill).trim().toLowerCase();
+  if (!normalized || normalized === "none" || normalized === "transparent") return "#FFFFFF";
+  return fill;
+}
+
+function _scheduleTextEditCommit() {
+  setTimeout(() => {
+    if (!mgr.isMode(InteractionMode.TEXT_EDITING)) return;
+    const editor = mgr.state.editor;
+    if (editor && editor.ta === document.activeElement) return;
+    commitTextEdit();
+  }, 100);
+}
+
+function startTextEdit(cid, e, opts) {
   const svg = document.querySelector("#stage svg");
   if (!svg) return;
 
-  // Find the <text> element(s) inside this component's group
+  // Only edit this frame's own text blocks. Descendant labels belong to child frames.
   const groups = svg.querySelectorAll('[data-component-id="' + cid + '"]');
   const textEls = [];
   groups.forEach(g => {
-    g.querySelectorAll("text").forEach(t => textEls.push(t));
+    g.querySelectorAll(":scope > text").forEach(t => textEls.push(t));
   });
   if (textEls.length === 0) return;
-  const textEl = textEls[0];
 
-  // Get semantic text from the component tree (unwrapped, pre-wrapping content)
   const node = model.get(cid);
   const headingText = (node && node.data.heading_text) || "";
   const labelText = (node && node.data.label_text) || [];
   const hasHeading = !!headingText;
+  const targetedTextEl = opts && opts.textEl ? opts.textEl : textEls[0];
+  const blockIndex = Math.max(0, textEls.indexOf(targetedTextEl));
+  const blockRole = _textBlockRole(targetedTextEl, hasHeading, blockIndex);
 
-  // Build semantic lines for the textarea (heading first, then label entries)
-  const semanticLines = [];
-  if (hasHeading) semanticLines.push(headingText);
-  for (const lt of labelText) semanticLines.push(lt);
-
-  // If no semantic text available, fall back to tspan content
-  if (semanticLines.length === 0) {
-    const tspans = textEls.flatMap(t => Array.from(t.querySelectorAll("tspan")));
-    if (tspans.length === 0) return;
-    tspans.forEach(ts => semanticLines.push(ts.textContent));
+  let semanticLines;
+  if (blockRole === "heading") {
+    semanticLines = headingText ? [headingText] : _renderedTextLines(targetedTextEl);
+  } else {
+    semanticLines = labelText.length > 0 ? labelText.slice() : _renderedTextLines(targetedTextEl);
   }
+  if (!semanticLines || semanticLines.length === 0) return;
 
-  // Read styles from the first tspan for visual appearance
-  const tspans = textEls.flatMap(t => Array.from(t.querySelectorAll("tspan")));
-  const styles = [];
-  tspans.forEach(ts => {
-    styles.push({
-      fontSize: ts.getAttribute("font-size") || "14",
-      fontWeight: ts.getAttribute("font-weight") || "400",
-      fill: ts.getAttribute("fill") || "#000",
-    });
-  });
-
-  // Union the rendered text bounds so split heading/body blocks edit as one field.
-  const textRects = textEls.map(t => t.getBoundingClientRect());
-  const textBBox = textRects.reduce((acc, rect) => {
-    if (!acc) return rect;
-    const left = Math.min(acc.left, rect.left);
-    const top = Math.min(acc.top, rect.top);
-    const right = Math.max(acc.right, rect.right);
-    const bottom = Math.max(acc.bottom, rect.bottom);
-    return {
-      left,
-      top,
-      right,
-      bottom,
-      width: right - left,
-      height: bottom - top,
-    };
-  }, null);
-  // Also get the parent component's bounding rect for width constraint
-  let containerRect = textBBox;
+  let containerRect = textEls[0].getBoundingClientRect();
   let hasIcon = false;
+  let containerFill = "#FFFFFF";
   groups.forEach(g => {
     const rect = g.querySelector(":scope > rect");
-    if (rect) containerRect = rect.getBoundingClientRect();
-    if (g.querySelector(".dg-icon")) hasIcon = true;
+    if (rect) {
+      containerRect = rect.getBoundingClientRect();
+      containerFill = rect.getAttribute("fill") || containerFill;
+    }
+    if (g.querySelector(":scope > .dg-icon")) hasIcon = true;
   });
 
-  // Compute SVG-to-screen scale so we can convert SVG-coordinate values
-  // (font-size, icon gutter) to screen pixels for the HTML overlay.
   const ctm = svg.getScreenCTM();
-  const svgScale = ctm ? ctm.a : 1;  // uniform scale (a == d for non-skew)
+  const svgScale = ctm ? ctm.a : 1;
 
-  // Width: container minus insets, minus icon area + gutter if icon present
   const iconGutter = hasIcon ? (window.__DG_CONFIG.icon_size + window.__DG_CONFIG.col_gap) * svgScale : 0;
-  const insetPx = 16 * svgScale;
-  const editorW = Math.max(containerRect.width - insetPx - iconGutter, 60);
-
-  // Create textarea overlay — shows semantic (unwrapped) text so the user
-  // edits the raw text flow and the engine handles visual line breaking.
+  const insetPx = 8 * svgScale;
+  const editorLeft = containerRect.left + insetPx;
+  const editorW = Math.max(containerRect.width - (insetPx * 2) - iconGutter, 60);
+  const blockRect = targetedTextEl.getBoundingClientRect();
+  const style = _textEditorBlockStyle(targetedTextEl);
   const ta = document.createElement("textarea");
   ta.className = "dg-text-editor";
   ta.value = semanticLines.join("\n");
-  ta.style.left = (textBBox.left - 4) + "px";
-  ta.style.top = (textBBox.top - 4) + "px";
+  ta.style.left = editorLeft + "px";
+  ta.style.top = blockRect.top + "px";
   ta.style.width = editorW + "px";
-  ta.style.minHeight = textBBox.height + "px";
-  ta.style.fontSize = (parseFloat(styles[0] ? styles[0].fontSize : "14") * svgScale) + "px";
-  ta.style.lineHeight = (24 * svgScale) + "px";
-  ta.style.fontWeight = styles[0] ? styles[0].fontWeight : "400";
-  ta.style.color = styles[0] ? styles[0].fill : "#000";
-
+  ta.style.minHeight = Math.max(blockRect.height, semanticLines.length * style.lineHeight * svgScale) + "px";
+  ta.style.fontSize = (style.fontSize * svgScale) + "px";
+  ta.style.lineHeight = (style.lineHeight * svgScale) + "px";
+  ta.style.fontWeight = style.fontWeight;
+  ta.style.color = style.fill;
+  ta.style.caretColor = style.fill;
+  ta.style.backgroundColor = _textEditorSurface(containerFill);
+  ta.style.fontFamily = style.fontFamily;
+  if (style.letterSpacing) ta.style.letterSpacing = style.letterSpacing;
+  if (style.fontVariantCaps) ta.style.fontVariantCaps = style.fontVariantCaps;
   document.body.appendChild(ta);
+
   ta.focus();
   ta.select();
 
-  // Hide all rendered text blocks while editing.
-  textEls.forEach(node => { node.style.opacity = "0"; });
+  // Hide only the targeted rendered text block while editing.
+  targetedTextEl.style.opacity = "0";
 
-  mgr.startTextEdit({ cid, textEl, textEls, ta, originalLines: semanticLines, styles, hasHeading });
+  mgr.startTextEdit({
+    cid,
+    textEl: targetedTextEl,
+    editor: {
+      role: blockRole,
+      ta,
+      originalValue: ta.value,
+    },
+    hasHeading,
+  });
 
   ta.addEventListener("keydown", (ev) => {
     if (ev.key === "Escape") {
@@ -4471,35 +4559,29 @@ function startTextEdit(cid, e) {
       ev.preventDefault();
       commitTextEdit();
     }
-    // Stop all key events from bubbling to the document handler
-    // (prevents arrow keys from nudging the box while editing text)
     ev.stopPropagation();
   });
-  ta.addEventListener("blur", () => {
-    // Small delay to avoid race with Escape
-    setTimeout(() => { if (mgr.isMode(InteractionMode.TEXT_EDITING)) commitTextEdit(); }, 100);
-  });
-  // Prevent SVG interactions while editing
+  ta.addEventListener("blur", _scheduleTextEditCommit);
+
   e.stopPropagation();
 }
 
 function commitTextEdit() {
   if (!mgr.isMode(InteractionMode.TEXT_EDITING)) return;
-  const { cid, textEls, ta, originalLines, hasHeading } = mgr.state;
-  const newLines = ta.value.split("\n");
-
-  // Check if text actually changed
-  const changed = newLines.join("\n") !== originalLines.join("\n");
+  const { cid, textEl, editor } = mgr.state;
+  const currentValue = editor ? editor.ta.value.replace(/\r/g, "") : "";
+  const originalValue = editor ? editor.originalValue : "";
+  const changed = currentValue !== originalValue;
 
   if (changed) {
-    // Build structured text override: split into heading + label
-    const textOverride = {};
-    if (hasHeading) {
-      textOverride.heading = newLines[0] || "";
-      textOverride.label = newLines.slice(1);
+    const existingText = (model.overrides[cid] && model.overrides[cid].text && typeof model.overrides[cid].text === "object")
+      ? { ...model.overrides[cid].text }
+      : {};
+    const textOverride = existingText;
+    if (editor && editor.role === "heading") {
+      textOverride.heading = currentValue;
     } else {
-      textOverride.heading = "";
-      textOverride.label = newLines;
+      textOverride.label = currentValue === "" ? [] : currentValue.split("\n");
     }
     const editIds = [cid];
     const editBefore = EditorState.captureOverrideEntries(editIds);
@@ -4507,9 +4589,8 @@ function commitTextEdit() {
     EditorState.commitOverridePatchAction("Edit text", editBefore, EditorState.captureOverrideEntries(editIds));
   }
 
-  // Remove the textarea and show text element (will be replaced by relayout)
-  ta.remove();
-  (textEls || []).forEach(node => { node.style.opacity = ""; });
+  if (editor) editor.ta.remove();
+  if (textEl) textEl.style.opacity = "";
 
   mgr.endInteraction();
 
@@ -4523,8 +4604,8 @@ function commitTextEdit() {
 
 function cancelTextEdit() {
   if (!mgr.isMode(InteractionMode.TEXT_EDITING)) return;
-  (mgr.state.textEls || [mgr.state.textEl]).forEach(node => { node.style.opacity = ""; });
-  mgr.state.ta.remove();
+  if (mgr.state.textEl) mgr.state.textEl.style.opacity = "";
+  if (mgr.state.editor) mgr.state.editor.ta.remove();
   mgr.endInteraction();
 }
 

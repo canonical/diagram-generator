@@ -43,9 +43,8 @@ root:
     - approval
     icon: User management.svg
   - id: production
-    heading: Production
     label:
-    - deploy
+    - Production deploy
     variant: highlight
     icon: Server.svg
 meta:

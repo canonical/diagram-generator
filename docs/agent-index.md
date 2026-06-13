@@ -37,6 +37,7 @@ Thin shell modules (safe to read whole): `editor-state.js`, `editor-base.js`, `s
 | Topic | Map |
 |-------|-----|
 | Preview override persist / `gap_delta` | [`specs/006-arrow-routing-redesign/preview-override-flow.md`](../specs/006-arrow-routing-redesign/preview-override-flow.md) |
+| Preview text-block edit / YAML persist | [`specs/041-text-block-inline-editing/text-edit-flow.md`](../specs/041-text-block-inline-editing/text-edit-flow.md) |
 | Shell decomposition boundaries | [`docs/spec-archive/026-preview-shell-decomposition-ts-migration/boundaries.md`](./spec-archive/026-preview-shell-decomposition-ts-migration/boundaries.md) |
 | Agent token / workspace slimming | [`docs/spec-archive/040-agent-token-slimming/spec.md`](./spec-archive/040-agent-token-slimming/spec.md) |
 

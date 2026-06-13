@@ -439,6 +439,8 @@ describe('arrow rendering parity', () => {
       expect(card.heading?.content).toBe('The problem');
       expect(svg).toContain('>The problem</tspan>');
       expect(svg).toContain('>Databases have crawled to a halt.</tspan>');
+      expect(svg).toContain('data-dg-text-role="heading"');
+      expect(svg).toContain('data-dg-text-role="label"');
       expect(svg).toContain('font-weight="700" fill="#000000">The problem</tspan>');
       expect(svg).toContain('font-weight="400" fill="#000000">Databases have crawled to a halt.</tspan>');
       expect(svg).not.toContain('font-weight="700" fill="#000000">Databases have crawled to a halt.</tspan>');

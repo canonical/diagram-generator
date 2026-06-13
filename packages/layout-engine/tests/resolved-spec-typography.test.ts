@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { Frame, createLine } from '../src/frame-model.js';
 import {
   resolvedSpecTypography,
+  frameOwnedTextBlockRole,
   usesLeafLeadStyleSnapshot,
   usesHeadingStyleSnapshot,
 } from '../src/resolved-spec-typography.js';
@@ -73,5 +74,24 @@ describe('resolvedSpecTypography', () => {
     expect(ty.weight).toBe('400');
     expect(ty.smallCaps).toBe(false);
     expect(ty.fill).toBe('#666666');
+  });
+
+  it('identifies heading and label block roles for frame-owned text blocks', () => {
+    const leaf = new Frame({
+      id: 'leaf',
+      heading: createLine('Title'),
+      label: [createLine('Body')],
+    });
+    expect(frameOwnedTextBlockRole(leaf, 0)).toBe('heading');
+    expect(frameOwnedTextBlockRole(leaf, 1)).toBe('label');
+  });
+
+  it('treats synthetic heading-role frames as heading blocks', () => {
+    const heading = new Frame({
+      id: '__heading',
+      role: 'heading',
+      label: [createLine('Panel')],
+    });
+    expect(frameOwnedTextBlockRole(heading, 0)).toBe('heading');
   });
 });

@@ -772,13 +772,16 @@ body.dg-preview {
 
 .dg-text-editor {
        background: #fff;
-       border: 2px solid var(--dg-selection-accent);
-       box-sizing: border-box;
+       border: 0;
+       box-sizing: content-box;
+       border-radius: 2px;
+       box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15);
        font-family: 'Ubuntu Sans', sans-serif;
        line-height: 1.333;
        outline: none;
+       outline: 2px solid var(--dg-selection-accent);
        overflow: hidden;
-       padding: 4px;
+       padding: 0;
        position: fixed;
        resize: none;
        white-space: pre-wrap;

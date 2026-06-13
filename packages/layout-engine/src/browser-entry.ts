@@ -111,6 +111,7 @@ export {
   frameOwnedHeadingToSpec,
   frameOwnedLabelToSpec,
   frameOwnedTextBlocks,
+  frameOwnedTextBlockRole,
   frameOwnedTextBlockGap,
   resolvedSpecTypography,
   usesHeadingStyleSnapshot,

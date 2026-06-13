@@ -22,6 +22,7 @@ export interface ResolvedFrameOwnedTypography extends ResolvedSpecTypography {
 }
 
 export type FrameOwnedTextBlock = LineSpec[];
+export type FrameOwnedTextBlockRole = 'heading' | 'label';
 
 /** True when this spec row should use heading snapshot fields on the frame. */
 export function usesHeadingStyleSnapshot(frame: Frame, specIndex: number): boolean {
@@ -126,6 +127,10 @@ export function frameOwnedTextBlocks(frame: Frame): FrameOwnedTextBlock[] {
   }
 
   return blocks.filter(block => block.length > 0);
+}
+
+export function frameOwnedTextBlockRole(frame: Frame, blockIndex: number): FrameOwnedTextBlockRole {
+  return (frame.role === 'heading' || (frame.heading != null && blockIndex === 0)) ? 'heading' : 'label';
 }
 
 export function frameOwnedTextBlockGap(frame: Frame, blockIndex: number, blockCount: number): number {

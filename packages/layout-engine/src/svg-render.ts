@@ -30,6 +30,7 @@ import { effectiveResolvedStrokeWidth } from './frame-classes.js';
 import {
   annotationTextToSpec,
   frameOwnedTextBlocks,
+  frameOwnedTextBlockRole,
   frameOwnedTextBlockGap,
 } from './resolved-spec-typography.js';
 import type { LayoutOutput } from './layout.js';
@@ -107,6 +108,7 @@ function renderFrameText(frame: Frame, rs: FrameRenderState): string {
   const x = frame._layout.placedX + rs.padLeft;
   for (const [blockIndex, block] of rs.textBlocks.entries()) {
     const blockParts: string[] = [];
+    const blockRole = frameOwnedTextBlockRole(frame, blockIndex);
     for (const spec of block) {
       const size = String(spec.size ?? BODY_SIZE);
       const weight = spec.weight ?? '400';
@@ -123,7 +125,10 @@ function renderFrameText(frame: Frame, rs: FrameRenderState): string {
       blockParts.push(`<tspan ${attrs.join(' ')}>${esc(spec.content)}</tspan>`);
       top += lineStep;
     }
-    parts.push(`<text font-family="Ubuntu Sans">${blockParts.join('')}</text>`);
+    parts.push(
+      `<text font-family="Ubuntu Sans" data-dg-text-role="${esc(blockRole)}" data-dg-text-block-index="${blockIndex}">` +
+      `${blockParts.join('')}</text>`,
+    );
     top += frameOwnedTextBlockGap(frame, blockIndex, rs.textBlocks.length);
   }
   return parts.join('');

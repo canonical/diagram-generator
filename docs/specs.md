@@ -22,6 +22,7 @@ Active spec packages stay under `specs/`. Completed or retired packages move to 
 | 006 Arrow routing redesign | `specs/006-arrow-routing-redesign/` | Draft | Contract-driven routing overhaul with explicit ports, hierarchy-aware obstacles, deterministic side selection, and layout-owned geometry. |
 | 018 PNG export | `specs/018-png-export/` | Draft | Preview **Save PNG** + slug batch CLI; rasterize TS SVG via Playwright; `diagrams/2.output/v3/png/`. |
 | 028 Diagram interchange (Mermaid & D2) | `specs/028-diagram-interchange-mermaid-d2/` | Draft | Bidirectional interchange: import parsers, fidelity matrix, export hardening, round-trip CLIs; builds on the archived spec 022 adapters. |
+| 041 Text-block inline editing | `specs/041-text-block-inline-editing/` | Draft | Make preview inline editing block-scoped, theme-safe, and semantically faithful to `heading` vs `label`. |
 | — | `specs/ADVERSARIAL_REVIEW_PROMPT.md` | Template | Copy-paste prompt for post-session adversarial reviews. |
 
 Archived completed packages: [`docs/spec-archive/README.md`](./spec-archive/README.md)
