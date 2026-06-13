@@ -405,6 +405,14 @@ function applyLayoutEngineChoice(document: Record<string, unknown>, layoutEngine
   }
 }
 
+function sanitizePersistedElkMeta(meta: Record<string, unknown>): void {
+  if (!isRecord(meta.elk)) return;
+  delete meta.elk["elk.portConstraints"];
+  if (Object.keys(meta.elk).length === 0) {
+    delete meta.elk;
+  }
+}
+
 function applyElkLayoutOverrides(document: Record<string, unknown>, elkOverrides: Record<string, unknown>): void {
   if (Object.keys(elkOverrides).length === 0) return;
   const meta = isRecord(document.meta) ? document.meta : {};
@@ -424,6 +432,7 @@ function applyElkLayoutOverrides(document: Record<string, unknown>, elkOverrides
   } else {
     delete meta.elk;
   }
+  sanitizePersistedElkMeta(meta);
 }
 
 export function verifyElkLayoutPersisted(documentText: string, expected: Record<string, unknown>): void {
@@ -503,6 +512,12 @@ export function persistFrameDiagramOverridePayloadToYaml(
       throw new Error(`Unknown component id in overrides: ${frameId}`);
     }
     applyFrameOverride(target, override, frameId);
+  }
+  if (isRecord(document.meta)) {
+    sanitizePersistedElkMeta(document.meta);
+    if (Object.keys(document.meta).length === 0) {
+      delete document.meta;
+    }
   }
 
   const dumped = yaml.stringify(document, {

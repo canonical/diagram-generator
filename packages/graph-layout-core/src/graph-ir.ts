@@ -4,6 +4,8 @@ export type LayoutDirection = 'TB' | 'LR';
 
 export type SpacingProfile = 'compact' | 'normal' | 'loose';
 
+export type GraphPortSide = 'top' | 'right' | 'bottom' | 'left';
+
 /** Matches planning `layout_mapping.py` layered families. */
 export type LayeredCorpusFamily =
   | 'deployment_and_runtime_topology'
@@ -17,10 +19,24 @@ export type ForceCorpusFamily =
   | 'data_model_and_relationships'
   | 'concept_and_relationship_mapping';
 
+export interface GraphPortInput {
+  id: string;
+  side: GraphPortSide;
+  /** Relative to the owning node's top-left corner. */
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+}
+
 export interface GraphNodeInput {
   id: string;
   width: number;
   height: number;
+  /** Optional compound padding for layout engines that support child insets. */
+  padding?: string;
+  /** Optional explicit ports; ELK builder may also synthesize implicit ports. */
+  ports?: GraphPortInput[];
   /** Nested compound nodes (ELK hierarchy). */
   children?: GraphNodeInput[];
 }
@@ -35,6 +51,10 @@ export interface GraphEdgeInput {
   id: string;
   source: string;
   target: string;
+  /** Optional explicit source port id. */
+  sourcePort?: string;
+  /** Optional explicit target port id. */
+  targetPort?: string;
   /** Pre-measured label boxes — ELK places these; we must supply dimensions. */
   labels?: GraphEdgeLabelInput[];
 }
@@ -79,6 +99,10 @@ export interface PlacedEdge {
   id: string;
   source: string;
   target: string;
+  sourcePort?: string;
+  targetPort?: string;
+  sourcePortSide?: GraphPortSide;
+  targetPortSide?: GraphPortSide;
   sections: RoutedEdgeSection[];
   /** Label geometry returned by ELK (absolute, after normalisation). */
   labels?: PlacedEdgeLabel[];

@@ -27,6 +27,28 @@ function cloneDiagram<T>(diagram: T): T {
   return JSON.parse(JSON.stringify(diagram));
 }
 
+function expectPortAttachment(
+  points: Array<[number, number]>,
+  expectedStart: [number, number],
+  expectedEnd: [number, number],
+) {
+  expect(points.length).toBeGreaterThanOrEqual(2);
+  expect(points[0]).toEqual(expectedStart);
+  expect(points[points.length - 1]).toEqual(expectedEnd);
+}
+
+function expectOrthogonalPath(points: Array<[number, number]>) {
+  expect(points.length).toBeGreaterThanOrEqual(2);
+  for (let i = 1; i < points.length; i += 1) {
+    const [prevX, prevY] = points[i - 1]!;
+    const [nextX, nextY] = points[i]!;
+    expect(
+      prevX === nextX || prevY === nextY,
+      `segment ${i - 1} -> ${i} should be orthogonal: (${prevX}, ${prevY}) -> (${nextX}, ${nextY})`,
+    ).toBe(true);
+  }
+}
+
 function semanticBoundsForDiagram(diagramInput: ReturnType<typeof loadFrameYaml>) {
   const adapter = new MockTextAdapter();
   const semanticDiagram = deserializeFrameDiagramWire(
@@ -373,9 +395,167 @@ describe('layoutElkFrameDiagram', () => {
       gapDiagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
       'cloud',
     );
+    const baseController = findFrameById(
+      baseDiagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'controller_agent',
+    );
+    const gapController = findFrameById(
+      gapDiagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'controller_agent',
+    );
 
     expect(gapSnapStore?._layout.placedX).not.toBe(baseSnapStore?._layout.placedX);
-    expect(gapCloud?._layout.placedX).not.toBe(baseCloud?._layout.placedX);
+    expect(gapController?._layout.placedX).not.toBe(baseController?._layout.placedX);
+    expect(gapCloud?._layout.placedX).toBe(baseCloud?._layout.placedX);
+  });
+
+  it('keeps process edges attached to source bottom and target top across ELK spacing changes', async () => {
+    const baseDiagram = loadFrameYaml(join(FRAMES_DIR, 'support-engineering-flow.yaml'));
+    const gapDiagram = loadFrameYaml(join(FRAMES_DIR, 'support-engineering-flow.yaml'));
+    const adapter = new MockTextAdapter();
+
+    await layoutElkFrameDiagram(baseDiagram, adapter);
+    await layoutElkFrameDiagram(gapDiagram, adapter, {
+      elkOptionOverrides: {
+        'elk.layered.spacing.nodeNodeBetweenLayers': '144',
+      },
+    });
+
+    const baseSource = findFrameById(
+      baseDiagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'step_problem',
+    );
+    const baseTarget = findFrameById(
+      baseDiagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'step_investigation',
+    );
+    const gapSource = findFrameById(
+      gapDiagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'step_problem',
+    );
+    const gapTarget = findFrameById(
+      gapDiagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'step_investigation',
+    );
+
+    expectPortAttachment(
+      baseDiagram.arrows[0]?.layoutPath ?? [],
+      [
+        (baseSource?._layout.placedX ?? 0) + ((baseSource?._layout.placedW ?? 0) / 2),
+        (baseSource?._layout.placedY ?? 0) + (baseSource?._layout.placedH ?? 0),
+      ],
+      [
+        (baseTarget?._layout.placedX ?? 0) + ((baseTarget?._layout.placedW ?? 0) / 2),
+        baseTarget?._layout.placedY ?? 0,
+      ],
+    );
+    expectPortAttachment(
+      gapDiagram.arrows[0]?.layoutPath ?? [],
+      [
+        (gapSource?._layout.placedX ?? 0) + ((gapSource?._layout.placedW ?? 0) / 2),
+        (gapSource?._layout.placedY ?? 0) + (gapSource?._layout.placedH ?? 0),
+      ],
+      [
+        (gapTarget?._layout.placedX ?? 0) + ((gapTarget?._layout.placedW ?? 0) / 2),
+        gapTarget?._layout.placedY ?? 0,
+      ],
+    );
+  });
+
+  it('keeps juju client fan-out edges attached to true side midpoints with orthogonal first segments', async () => {
+    const diagram = loadFrameYaml(join(FRAMES_DIR, 'juju-bootstrap-machines-process.yaml'));
+    const adapter = new MockTextAdapter();
+
+    await layoutElkFrameDiagram(diagram, adapter);
+
+    const client = findFrameById(
+      diagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'client',
+    );
+    const cloud = findFrameById(
+      diagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'cloud',
+    );
+    const binaries = findFrameById(
+      diagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'simplestreams_binaries',
+    );
+    const images = findFrameById(
+      diagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'simplestreams_images',
+    );
+    const controller = findFrameById(
+      diagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'controller_agent',
+    );
+
+    const step1 = diagram.arrows.find((arrow) => arrow.id === 'step1');
+    const step2 = diagram.arrows.find((arrow) => arrow.id === 'step2');
+    const step3 = diagram.arrows.find((arrow) => arrow.id === 'step3');
+    const step4 = diagram.arrows.find((arrow) => arrow.id === 'step4');
+    const step5 = diagram.arrows.find((arrow) => arrow.id === 'step5');
+
+    expectPortAttachment(
+      step1?.layoutPath ?? [],
+      [
+        (client?._layout.placedX ?? 0) + ((client?._layout.placedW ?? 0) / 2),
+        (client?._layout.placedY ?? 0) + (client?._layout.placedH ?? 0),
+      ],
+      [
+        (binaries?._layout.placedX ?? 0) + ((binaries?._layout.placedW ?? 0) / 2),
+        binaries?._layout.placedY ?? 0,
+      ],
+    );
+    expectPortAttachment(
+      step2?.layoutPath ?? [],
+      [
+        (client?._layout.placedX ?? 0) + ((client?._layout.placedW ?? 0) / 2),
+        (client?._layout.placedY ?? 0) + (client?._layout.placedH ?? 0),
+      ],
+      [
+        (images?._layout.placedX ?? 0) + ((images?._layout.placedW ?? 0) / 2),
+        images?._layout.placedY ?? 0,
+      ],
+    );
+    expectPortAttachment(
+      step3?.layoutPath ?? [],
+      [
+        (client?._layout.placedX ?? 0) + ((client?._layout.placedW ?? 0) / 2),
+        client?._layout.placedY ?? 0,
+      ],
+      [
+        (cloud?._layout.placedX ?? 0) + ((cloud?._layout.placedW ?? 0) / 2),
+        (cloud?._layout.placedY ?? 0) + (cloud?._layout.placedH ?? 0),
+      ],
+    );
+    expectPortAttachment(
+      step5?.layoutPath ?? [],
+      [
+        (client?._layout.placedX ?? 0) + ((client?._layout.placedW ?? 0) / 2),
+        (client?._layout.placedY ?? 0) + (client?._layout.placedH ?? 0),
+      ],
+      [
+        (controller?._layout.placedX ?? 0) + ((controller?._layout.placedW ?? 0) / 2),
+        controller?._layout.placedY ?? 0,
+      ],
+    );
+    expectPortAttachment(
+      step4?.layoutPath ?? [],
+      [
+        (cloud?._layout.placedX ?? 0) + (cloud?._layout.placedW ?? 0),
+        (cloud?._layout.placedY ?? 0) + ((cloud?._layout.placedH ?? 0) / 2),
+      ],
+      [
+        (client?._layout.placedX ?? 0) + (client?._layout.placedW ?? 0),
+        (client?._layout.placedY ?? 0) + ((client?._layout.placedH ?? 0) / 2),
+      ],
+    );
+
+    expectOrthogonalPath(step1?.layoutPath ?? []);
+    expectOrthogonalPath(step2?.layoutPath ?? []);
+    expectOrthogonalPath(step3?.layoutPath ?? []);
+    expectOrthogonalPath(step4?.layoutPath ?? []);
+    expectOrthogonalPath(step5?.layoutPath ?? []);
   });
 
   it('expands the root width to include ELK edge geometry beyond authored fixed width', async () => {

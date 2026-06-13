@@ -168,19 +168,6 @@ export const ELK_LAYERED_PARAM_SPECS: ElkParamSpec[] = [
       'Affects ELK compound nodes only. This corpus has few compounds — changes may be subtle unless sections are nested.',
   },
   {
-    key: 'elk.portConstraints',
-    label: 'Port constraints',
-    group: 'Compound',
-    kind: 'enum',
-    defaultValue: 'FREE',
-    enumValues: [
-      { value: 'FREE', label: 'Free' },
-      { value: 'FIXED_SIDE', label: 'Fixed side' },
-      { value: 'FIXED_ORDER', label: 'Fixed order' },
-      { value: 'FIXED_RATIO', label: 'Fixed ratio' },
-    ],
-  },
-  {
     key: 'elk.padding',
     label: 'Compound padding',
     group: 'Compound',

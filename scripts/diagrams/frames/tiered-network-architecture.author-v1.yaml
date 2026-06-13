@@ -1,7 +1,6 @@
 engine: v3
 schema: author-v1
 title: Tiered network architecture
-
 defaults:
   client:
     label: Client
@@ -11,7 +10,6 @@ defaults:
     - Tier 2
     - Network server
     icon: Network.svg
-
 arrows:
 - public_repo -> global_server
 - global_server -> tier2_left
@@ -26,7 +24,6 @@ arrows:
 - tier2_right -> client_r1
 - tier2_right -> client_r2
 - tier2_right -> client_r3
-
 root:
   id: page
   direction: vertical
@@ -92,3 +89,5 @@ root:
           use: client
       - id: client_r3
         use: client
+meta:
+  layout_engine: elk-layered

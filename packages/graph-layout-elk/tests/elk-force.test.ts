@@ -1,11 +1,33 @@
 import { describe, expect, it } from 'vitest';
 
+import { buildElkGraph } from '../src/elk-graph-builder.js';
+import { buildForceLayoutOptions } from '../src/force-options.js';
 import { indexPlacedNodes } from '../src/node-bounds.js';
 import { layoutForceForFamily } from '../src/index.js';
 
 const BOX = { width: 192, height: 64 };
 
 describe('ELK force', () => {
+  it('keeps force graphs on node endpoints when implicit layered ports are disabled', () => {
+    const graph = buildElkGraph({
+      id: 'root',
+      direction: 'TB',
+      spacingProfile: 'normal',
+      nodes: [
+        { id: 'gateway', ...BOX },
+        { id: 'api', ...BOX },
+      ],
+      edges: [{ id: 'gateway-api', source: 'gateway', target: 'api' }],
+    }, buildForceLayoutOptions({ spacingProfile: 'normal' }));
+
+    expect(graph.children[0]?.ports).toBeUndefined();
+    expect(graph.children[1]?.ports).toBeUndefined();
+    expect(graph.edges[0]).toMatchObject({
+      sources: ['gateway'],
+      targets: ['api'],
+    });
+  });
+
   it('runs ELK force for force-directed corpus families', async () => {
     const result = await layoutForceForFamily('system_architecture', {
       id: 'root',

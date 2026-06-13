@@ -55,6 +55,19 @@ function simplifyPath(points: [number, number][]): [number, number][] {
   return result;
 }
 
+function dedupeConsecutivePoints(points: [number, number][]): [number, number][] {
+  if (points.length <= 1) return points;
+  const result: [number, number][] = [points[0]!];
+  for (let index = 1; index < points.length; index += 1) {
+    const [px, py] = result[result.length - 1]!;
+    const [cx, cy] = points[index]!;
+    if (px !== cx || py !== cy) {
+      result.push(points[index]!);
+    }
+  }
+  return result;
+}
+
 function inferSides(
   sx: number,
   sy: number,
@@ -321,7 +334,9 @@ export function routeArrows(arrows: Arrow[], bounds: Bounds): RoutedArrow[] {
 
     if (arrow.layoutPath && arrow.layoutPath.length >= 2) {
       const routedArrow = {
-        points: simplifyPath(arrow.layoutPath.map((point) => [point[0], point[1]] as [number, number])),
+        points: dedupeConsecutivePoints(
+          arrow.layoutPath.map((point) => [point[0], point[1]] as [number, number]),
+        ),
         color: arrow.color ?? ARROW_COLOR,
         label: arrow.label && arrow.label.length > 0 ? arrow.label : undefined,
         labelGap: arrow.labelGap ?? GRID_GUTTER,

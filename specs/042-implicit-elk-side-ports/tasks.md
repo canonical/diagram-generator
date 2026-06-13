@@ -6,30 +6,46 @@
 
 ## Phase 1: Graph IR and builder
 
-- [ ] T001 Add a minimal port model to the shared graph IR
-- [ ] T002 Extend ELK graph building to emit generated side-midpoint ports for eligible nodes
-- [ ] T003 Add stable edge endpoint mapping from edges to generated ports
-- [ ] T004 Add focused tests for port ids, side geometry, and endpoint references
+- [x] T001 Extend `packages/graph-layout-core/src/graph-ir.ts` with optional node-owned ports plus optional `sourcePort` / `targetPort` edge refs
+- [x] T002 Re-export the new IR types from `packages/graph-layout-core/src/index.ts` without breaking non-port callers
+- [x] T003 Keep the output contract centered on native ELK sections and labels rather than inventing a second route model
+- [x] T004 Add focused IR/builder tests for stable port ids, side metadata, and endpoint references
 
-## Phase 2: Side-selection policy
+## Phase 2: Native ELK port modeling
 
-- [ ] T010 Define the first deterministic ingress/egress side policy for TB and LR graphs
-- [ ] T011 Validate the policy on one process/workflow and one architecture-style diagram
-- [ ] T012 Document where the first policy is intentionally limited
+- [x] T010 Add eligible-node detection and four midpoint side ports in `packages/graph-layout-elk/src/elk-graph-builder.ts`
+- [x] T011 Use native ELK edge-port refs when the chosen layered-plus-port setup requires them
+- [x] T012 Evaluate supported ELK options for shared-source fan-out or merged stems; enable only if compatible with the chosen layered-plus-port setup
+- [x] T013 If no compatible native ELK option exists, keep default ELK behavior instead of adding a TypeScript fan-out pass
+- [x] T014 Document the intentional first-slice limit: one logical port per side and no custom same-side lane policy
 
-## Phase 3: Preview control audit
+## Phase 3: Thin render-path authority
 
-- [ ] T020 Remove or relabel dead ELK controls that still do nothing with the real graph model
-- [ ] T021 Re-evaluate `portConstraints` against implicit ports and keep only meaningful values
-- [ ] T022 Remove unsupported or suspect enum values that do not match current ELK support
+- [x] T020 Ensure `packages/graph-layout-elk/src/result-normalizer.ts` preserves native ELK sections and labels without synthetic rerouting
+- [x] T021 Ensure `packages/layout-engine/src/elk-layout.ts` forwards ELK-managed arrow geometry directly
+- [x] T022 Remove or bypass secondary route rewriting for ELK-managed arrows in `packages/layout-engine/src/arrow-routing.ts`
+- [x] T023 Audit `scripts/preview/layout-bridge.js` so arrowheads derive from the final ELK segment without preview-only route repair
+- [x] T024 Ensure ELK-managed edge labels remain authoritative and no post-layout pass creates route-over-label collisions
 
-## Phase 4: Regression validation
+## Phase 4: Preview control and persistence audit
 
-- [ ] T030 Add a real-diagram regression that demonstrates improved attachment stability
-- [ ] T031 Run focused graph-layout, layout-engine, and browser-bundle validation
-- [ ] T032 Run full repo validation and Python-path ratchet
+- [x] T030 Remove `elk.portConstraints` from `packages/graph-layout-elk/src/elk-param-registry.ts`
+- [x] T031 Ensure legacy `meta.elk.elk.portConstraints` values do not override fixed-side generated-port behavior and are scrubbed on save
+- [x] T032 Update preview control coverage in `packages/layout-engine/tests/preview-engine-registry.test.ts`
+- [x] T033 Add preview persistence coverage for stale `elk.portConstraints` cleanup
 
-## Phase 5: Adversarial review
+## Phase 5: Regression validation
 
-- [ ] T040 Review architecture drift: graph IR scope, YAML authority, spec 006 overlap
-- [ ] T041 Review implementation risks: rigid side policy, compound-node leakage, control-panel drift
+- [x] T040 Extend `packages/graph-layout-elk/tests/elk-layered.test.ts` with builder-level native-port and endpoint-ref coverage
+- [x] T041 Reuse the existing ELK corpus fixtures for `juju-bootstrap-machines-process` and `ubuntu-pro-wsl-deployment` to verify native side attachment
+- [x] T042 Add one `packages/layout-engine/tests/elk-layout.test.ts` regression proving rendered paths and arrowhead-bearing final segments follow ELK output on a real frame diagram
+- [x] T043 Run `npm --prefix packages/graph-layout-elk test`
+- [x] T044 Run `npm --prefix packages/layout-engine run build:browser`
+- [x] T045 Run `npm --prefix packages/layout-engine test`
+- [x] T046 Run `npm --prefix apps/preview test`
+- [x] T047 Run `node scripts/check_no_new_python.mjs`
+
+## Phase 6: Adversarial review
+
+- [x] T050 Review architecture drift: shared IR size, builder-owned port synthesis, render-path thinness, YAML authority, spec 006 overlap
+- [x] T051 Review behavior risks: compound endpoint leakage, unsupported shared-fan-out expectations, inert legacy YAML keys, and duplicate preview rendering logic

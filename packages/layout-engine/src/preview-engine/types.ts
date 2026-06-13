@@ -64,6 +64,11 @@ export interface PreviewEngineCompatibility {
 export interface FrameDiagramCompatibilitySummary {
   /** ELK layered is only meaningful when the authored frame diagram has connectors. */
   arrowCount: number;
+  /**
+   * Headed non-endpoint containers whose internal composition is not fully
+   * expressible by the directed graph passed to native ELK layered.
+   */
+  unsupportedElkCarrierIds: string[];
 }
 
 

@@ -168,11 +168,115 @@ export function resolvePreviewEngine(
   return listCompatiblePreviewEngines(context)[0];
 }
 
+function walkFrames(frame: FrameDiagram['root'], visit: (frame: FrameDiagram['root']) => void): void {
+  visit(frame);
+  for (const child of frame.children) {
+    walkFrames(child, visit);
+  }
+}
+
+function collectEndpointIds(diagram: FrameDiagram): Set<string> {
+  const ids = new Set<string>();
+  for (const arrow of diagram.arrows) {
+    ids.add(arrow.source.split('.')[0]!);
+    ids.add(arrow.target.split('.')[0]!);
+  }
+  return ids;
+}
+
+function isSyntheticHeadingFrame(frame: FrameDiagram['root']): boolean {
+  return frame.role === 'heading' || Boolean(frame.id?.endsWith('__heading'));
+}
+
+function isSyntheticBodyFrame(frame: FrameDiagram['root']): boolean {
+  return Boolean(frame.id?.endsWith('__body'));
+}
+
+function isSyntheticLayoutFrame(frame: FrameDiagram['root']): boolean {
+  return isSyntheticHeadingFrame(frame) || isSyntheticBodyFrame(frame);
+}
+
+function isHeadedContainer(frame: FrameDiagram['root']): boolean {
+  return !frame.isLeaf && frame.children.some((child) => isSyntheticBodyFrame(child));
+}
+
+function collectLeafDescendantIds(frame: FrameDiagram['root']): string[] {
+  if (isSyntheticLayoutFrame(frame)) {
+    return frame.children.flatMap((child) => collectLeafDescendantIds(child));
+  }
+  if (frame.isLeaf) return frame.id ? [frame.id] : [];
+  return frame.children.flatMap((child) => collectLeafDescendantIds(child));
+}
+
+function buildArrowAdjacency(diagram: FrameDiagram): Map<string, Set<string>> {
+  const adjacency = new Map<string, Set<string>>();
+  for (const arrow of diagram.arrows) {
+    const source = arrow.source.split('.')[0]!;
+    const target = arrow.target.split('.')[0]!;
+    const next = adjacency.get(source) ?? new Set<string>();
+    next.add(target);
+    adjacency.set(source, next);
+  }
+  return adjacency;
+}
+
+function hasDirectedPath(
+  source: string,
+  target: string,
+  adjacency: Map<string, Set<string>>,
+): boolean {
+  if (source === target) return true;
+  const seen = new Set<string>([source]);
+  const queue = [source];
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    for (const next of adjacency.get(current) ?? []) {
+      if (next === target) return true;
+      if (seen.has(next)) continue;
+      seen.add(next);
+      queue.push(next);
+    }
+  }
+  return false;
+}
+
 export function summarizeFrameDiagramCompatibility(
   diagram: FrameDiagram,
 ): FrameDiagramCompatibilitySummary {
+  const endpointIds = collectEndpointIds(diagram);
+  const adjacency = buildArrowAdjacency(diagram);
+  const unsupportedElkCarrierIds: string[] = [];
+
+  walkFrames(diagram.root, (frame) => {
+    if (!frame.id || !isHeadedContainer(frame) || endpointIds.has(frame.id)) return;
+
+    const leafIds = [...new Set(collectLeafDescendantIds(frame))];
+    const endpointLeaves = leafIds.filter((id) => endpointIds.has(id));
+    if (endpointLeaves.length === 0) return;
+
+    const nonEndpointLeaves = leafIds.filter((id) => !endpointIds.has(id));
+    if (nonEndpointLeaves.length > 0) {
+      unsupportedElkCarrierIds.push(frame.id);
+      return;
+    }
+
+    for (let i = 0; i < endpointLeaves.length; i += 1) {
+      for (let j = i + 1; j < endpointLeaves.length; j += 1) {
+        const left = endpointLeaves[i]!;
+        const right = endpointLeaves[j]!;
+        const comparable =
+          hasDirectedPath(left, right, adjacency) || hasDirectedPath(right, left, adjacency);
+        if (!comparable) {
+          unsupportedElkCarrierIds.push(frame.id);
+          return;
+        }
+      }
+    }
+  });
+
   return {
     arrowCount: diagram.arrows.length,
+    unsupportedElkCarrierIds,
   };
 }
 
@@ -215,6 +319,20 @@ export function evaluatePreviewEngineCompatibility(
     return {
       compatible: false,
       reason: 'Engine requires at least one authored arrow',
+    };
+  }
+
+  if (
+    engine.id === 'elk-layered' &&
+    previewDocumentKind === 'frame-diagram' &&
+    context.frameDiagramSummary &&
+    context.frameDiagramSummary.unsupportedElkCarrierIds.length > 0
+  ) {
+    return {
+      compatible: false,
+      reason:
+        `Engine cannot natively represent headed non-endpoint groups: ` +
+        context.frameDiagramSummary.unsupportedElkCarrierIds.slice(0, 3).join(', '),
     };
   }
 

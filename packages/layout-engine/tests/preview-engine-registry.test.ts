@@ -1,4 +1,7 @@
+import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { loadFrameYaml } from '../src/frame-yaml-loader.js';
 import {
   ELK_LAYERED_PREVIEW_ENGINE,
   FORCE_PREVIEW_ENGINE,
@@ -15,7 +18,11 @@ import {
   listPreviewEnginesWithCompatibility,
   resolvePreviewEngine,
   serializePreviewEngineManifest,
+  summarizeFrameDiagramCompatibility,
 } from '../src/preview-engine/index.js';
+
+const __dirname = fileURLToPath(new URL('.', import.meta.url));
+const FRAMES_DIR = join(__dirname, '../../..', 'scripts/diagrams/frames');
 
 describe('preview-engine registry', () => {
   it('registers native v3, ELK, force, and sequence engines', () => {
@@ -27,6 +34,7 @@ describe('preview-engine registry', () => {
     expect(elk).toBeDefined();
     expect(elk?.controlSpecs.length).toBeGreaterThan(5);
     expect(elk?.controlSpecs.some((spec) => spec.key === 'elk.direction')).toBe(true);
+    expect(elk?.controlSpecs.some((spec) => spec.key === 'elk.portConstraints')).toBe(false);
     expect(elk?.controlSpecs.every((spec) => spec.persistNamespace === 'meta.elk')).toBe(true);
     expect(elk?.scripts).toEqual(['elk-layout-controls.js', 'elk-controller.js']);
   });
@@ -49,7 +57,7 @@ describe('preview-engine registry', () => {
     const context = {
       shellMode: 'grid' as const,
       previewDocumentKind: 'frame-diagram' as const,
-      frameDiagramSummary: { arrowCount: 1 },
+      frameDiagramSummary: { arrowCount: 1, unsupportedElkCarrierIds: [] },
     };
 
     expect(resolvePreviewEngine(context)?.id).toBe('v3');
@@ -89,7 +97,7 @@ describe('preview-engine registry', () => {
       isPreviewEngineCompatible(ELK_LAYERED_PREVIEW_ENGINE, {
         previewDocumentKind: 'frame-diagram',
         layoutEngine: 'elk-layered',
-        frameDiagramSummary: { arrowCount: 2 },
+        frameDiagramSummary: { arrowCount: 2, unsupportedElkCarrierIds: [] },
       }),
     ).toBe(true);
     expect(
@@ -100,7 +108,7 @@ describe('preview-engine registry', () => {
     expect(
       listCompatiblePreviewEngines({
         previewDocumentKind: 'frame-diagram',
-        frameDiagramSummary: { arrowCount: 2 },
+        frameDiagramSummary: { arrowCount: 2, unsupportedElkCarrierIds: [] },
       }).map((entry) => entry.id),
     ).toEqual(['v3', 'elk-layered']);
     expect(
@@ -139,7 +147,7 @@ describe('preview-engine registry', () => {
 
     const arrowlessElkResult = evaluatePreviewEngineCompatibility(ELK_LAYERED_PREVIEW_ENGINE, {
       previewDocumentKind: 'frame-diagram',
-      frameDiagramSummary: { arrowCount: 0 },
+      frameDiagramSummary: { arrowCount: 0, unsupportedElkCarrierIds: [] },
     });
     expect(arrowlessElkResult.compatible).toBe(false);
     expect(arrowlessElkResult.reason).toContain('arrow');
@@ -149,7 +157,7 @@ describe('preview-engine registry', () => {
     const elkResult = evaluatePreviewEngineCompatibility(ELK_LAYERED_PREVIEW_ENGINE, {
       previewDocumentKind: 'frame-diagram',
       layoutEngine: 'elk-layered',
-      frameDiagramSummary: { arrowCount: 1 },
+      frameDiagramSummary: { arrowCount: 1, unsupportedElkCarrierIds: [] },
     });
     expect(elkResult.compatible).toBe(true);
     expect(elkResult.reason).toBeUndefined();
@@ -166,7 +174,7 @@ describe('preview-engine registry', () => {
     const results = listPreviewEnginesWithCompatibility({
       previewDocumentKind: 'frame-diagram',
       layoutEngine: 'elk-layered',
-      frameDiagramSummary: { arrowCount: 2 },
+      frameDiagramSummary: { arrowCount: 2, unsupportedElkCarrierIds: [] },
     });
     expect(results).toHaveLength(4);
     expect(results[0].engine.id).toBe('v3');
@@ -195,7 +203,7 @@ describe('preview-engine registry', () => {
     const context = {
       shellMode: 'grid' as const,
       previewDocumentKind: 'frame-diagram' as const,
-      frameDiagramSummary: { arrowCount: 0 },
+      frameDiagramSummary: { arrowCount: 0, unsupportedElkCarrierIds: [] },
     };
 
     expect(resolvePreviewEngine(context)?.id).toBe('v3');
@@ -208,8 +216,40 @@ describe('preview-engine registry', () => {
         layoutEngine: 'elk-layered',
         shellMode: 'grid',
         previewDocumentKind: 'frame-diagram',
-        frameDiagramSummary: { arrowCount: 0 },
+        frameDiagramSummary: { arrowCount: 0, unsupportedElkCarrierIds: [] },
       })?.id,
     ).toBe('v3');
+  });
+
+  it('summarizes complex routed groups as ELK-incompatible and keeps juju compatible', () => {
+    const complex = summarizeFrameDiagramCompatibility(
+      loadFrameYaml(join(FRAMES_DIR, 'complex-routing-usecase.yaml')),
+    );
+    const juju = summarizeFrameDiagramCompatibility(
+      loadFrameYaml(join(FRAMES_DIR, 'juju-bootstrap-machines-process.yaml')),
+    );
+
+    expect(complex.unsupportedElkCarrierIds).toEqual(
+      expect.arrayContaining(['planning', 'implementation', 'devteam']),
+    );
+    expect(juju.unsupportedElkCarrierIds).toEqual([]);
+  });
+
+  it('omits elk layered from frame diagrams with non-native headed group composition', () => {
+    const summary = summarizeFrameDiagramCompatibility(
+      loadFrameYaml(join(FRAMES_DIR, 'complex-routing-usecase.yaml')),
+    );
+    const context = {
+      shellMode: 'grid' as const,
+      previewDocumentKind: 'frame-diagram' as const,
+      frameDiagramSummary: summary,
+    };
+
+    expect(resolvePreviewEngine(context)?.id).toBe('v3');
+    expect(listCompatiblePreviewEngines(context).map((entry) => entry.id)).toEqual(['v3']);
+
+    const elkResult = evaluatePreviewEngineCompatibility(ELK_LAYERED_PREVIEW_ENGINE, context);
+    expect(elkResult.compatible).toBe(false);
+    expect(elkResult.reason).toContain('planning');
   });
 });

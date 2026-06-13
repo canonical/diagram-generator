@@ -1,4 +1,6 @@
 import type {
+  GraphPortSide,
+  GraphEdgeInput,
   GraphLayoutInput,
   GraphLayoutResult,
   PlacedEdge,
@@ -29,10 +31,18 @@ interface ElkLayoutLabel {
   height?: number;
 }
 
+interface ElkLayoutPort {
+  id: string;
+  x?: number;
+  y?: number;
+}
+
 interface ElkLayoutEdge {
   id: string;
   sources?: string[];
   targets?: string[];
+  sourcePort?: string;
+  targetPort?: string;
   sections?: ElkLayoutSection[];
   labels?: ElkLayoutLabel[];
   /** ELK: edge path coordinates are relative to this compound node (or root graph id). */
@@ -45,8 +55,15 @@ interface ElkLayoutNode {
   y?: number;
   width?: number;
   height?: number;
+  ports?: ElkLayoutPort[];
   children?: ElkLayoutNode[];
   edges?: ElkLayoutEdge[];
+}
+
+interface PortPlacement {
+  point: Point2;
+  side: GraphPortSide;
+  nodeId: string;
 }
 
 function snapPoint(p: Point2): Point2 {
@@ -85,6 +102,34 @@ function collectEdges(root: ElkLayoutNode): ElkLayoutEdge[] {
   const out: ElkLayoutEdge[] = [...(root.edges ?? [])];
   for (const child of root.children ?? []) {
     out.push(...collectEdges(child));
+  }
+  return out;
+}
+
+function collectAbsolutePortPositions(
+  nodes: ElkLayoutNode[],
+  parentX = 0,
+  parentY = 0,
+  out = new Map<string, PortPlacement>(),
+): Map<string, PortPlacement> {
+  for (const node of nodes) {
+    const nodeX = parentX + (node.x ?? 0);
+    const nodeY = parentY + (node.y ?? 0);
+    for (const port of node.ports ?? []) {
+      if (port.x == null || port.y == null) continue;
+      const point = snapPoint({ x: nodeX + port.x, y: nodeY + port.y });
+      const width = node.width ?? 0;
+      const height = node.height ?? 0;
+      const side: GraphPortSide =
+        port.y === 0 ? 'top'
+          : port.y === height ? 'bottom'
+            : port.x === 0 ? 'left'
+              : 'right';
+      out.set(port.id, { point, side, nodeId: node.id });
+    }
+    if (node.children?.length) {
+      collectAbsolutePortPositions(node.children, nodeX, nodeY, out);
+    }
   }
   return out;
 }
@@ -131,10 +176,27 @@ function mapEdgeLabels(
     }));
 }
 
+function indexInputEdges(
+  inputEdges: GraphLayoutInput['edges'],
+): {
+  byId: Map<string, GraphEdgeInput>;
+  byEndpoints: Map<string, GraphEdgeInput>;
+} {
+  const byId = new Map<string, GraphEdgeInput>();
+  const byEndpoints = new Map<string, GraphEdgeInput>();
+  for (const edge of inputEdges) {
+    byId.set(edge.id, edge);
+    byEndpoints.set(`${edge.source}->${edge.target}`, edge);
+  }
+  return { byId, byEndpoints };
+}
+
 function normalizeEdges(
   edges: ElkLayoutEdge[],
   rootId: string,
   nodesById: Map<string, PlacedNode>,
+  portPositions: Map<string, PortPlacement>,
+  inputEdges: ReturnType<typeof indexInputEdges>,
 ): PlacedEdge[] {
   return edges.map((edge) => {
     const offset = containerOffset(edge.container, rootId, nodesById);
@@ -143,10 +205,25 @@ function normalizeEdges(
       .filter((s): s is RoutedEdgeSection => s != null)
       .map((section) => offsetSection(section, offset.x, offset.y));
 
+    const inputEdge = inputEdges.byId.get(edge.id)
+      ?? inputEdges.byEndpoints.get(`${edge.sources?.[0] ?? ''}->${edge.targets?.[0] ?? ''}`);
+    const sourceRef = edge.sourcePort ?? edge.sources?.[0] ?? '';
+    const targetRef = edge.targetPort ?? edge.targets?.[0] ?? '';
+    const sourcePortPlacement = sourceRef ? portPositions.get(sourceRef) : undefined;
+    const targetPortPlacement = targetRef ? portPositions.get(targetRef) : undefined;
+    const sourcePortId = sourcePortPlacement ? sourceRef : inputEdge?.sourcePort;
+    const targetPortId = targetPortPlacement ? targetRef : inputEdge?.targetPort;
+    const sourceId = inputEdge?.source ?? sourcePortPlacement?.nodeId ?? edge.sources?.[0] ?? '';
+    const targetId = inputEdge?.target ?? targetPortPlacement?.nodeId ?? edge.targets?.[0] ?? '';
+
     return {
       id: edge.id,
-      source: edge.sources?.[0] ?? '',
-      target: edge.targets?.[0] ?? '',
+      source: sourceId,
+      target: targetId,
+      ...(sourcePortId ? { sourcePort: sourcePortId } : {}),
+      ...(targetPortId ? { targetPort: targetPortId } : {}),
+      ...(sourcePortPlacement?.side ? { sourcePortSide: sourcePortPlacement.side } : {}),
+      ...(targetPortPlacement?.side ? { targetPortSide: targetPortPlacement.side } : {}),
       sections,
       labels: mapEdgeLabels(edge.labels, offset),
     };
@@ -249,7 +326,14 @@ export function normalizeElkLayoutResult(
 ): GraphLayoutResult {
   const nodes = toAbsolutePlacedNodes((elkRoot.children ?? []).map(mapPlacedNode));
   const nodesById = indexPlacedNodes(nodes);
-  const edges = normalizeEdges(collectEdges(elkRoot), input.id, nodesById);
+  const portPositions = collectAbsolutePortPositions(elkRoot.children ?? []);
+  const edges = normalizeEdges(
+    collectEdges(elkRoot),
+    input.id,
+    nodesById,
+    portPositions,
+    indexInputEdges(input.edges),
+  );
   const bounds = normalizedGraphBounds(nodes, edges);
   const shiftedNodes = shiftPlacedNodes(nodes, bounds.minX, bounds.minY);
   const shiftedEdges = shiftEdges(edges, bounds.minX, bounds.minY);

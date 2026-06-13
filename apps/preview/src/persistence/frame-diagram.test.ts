@@ -148,6 +148,68 @@ test("persist elk layout overrides replaces meta.elk entries canonically", () =>
   });
 });
 
+test("persist elk layout overrides drops legacy meta.elk.elk.portConstraints", () => {
+  const baselineText = [
+    "engine: v3",
+    "title: Demo",
+    "meta:",
+    "  layout_engine: elk-layered",
+    "  elk:",
+    "    elk.portConstraints: FREE",
+    "    elk.spacing.nodeNode: \"48\"",
+    "root:",
+    "  id: page",
+    "  direction: vertical",
+    "  children:",
+    "    - id: leaf_a",
+    "      label: [A]",
+    "",
+  ].join("\n");
+  const output = persistToYaml("demo.yaml", baselineText, {
+    overrides: {},
+    elk_layout_overrides: {
+      "elk.spacing.edgeNode": "56",
+    },
+  });
+
+  assert.doesNotMatch(output, /elk\.portConstraints/);
+  verifyElkLayoutPersisted(output, {
+    "elk.spacing.nodeNode": "48",
+    "elk.spacing.edgeNode": "56",
+  });
+});
+
+test("persist non-ELK edits still scrub a stale lone meta.elk.elk.portConstraints", () => {
+  const baselineText = [
+    "engine: v3",
+    "title: Demo",
+    "meta:",
+    "  layout_engine: elk-layered",
+    "  elk:",
+    "    elk.portConstraints: FREE",
+    "root:",
+    "  id: page",
+    "  direction: vertical",
+    "  children:",
+    "    - id: leaf_a",
+    "      label: [A]",
+    "",
+  ].join("\n");
+  const output = persistToYaml("demo.yaml", baselineText, {
+    overrides: {
+      leaf_a: {
+        text: {
+          label: ["Updated"],
+        },
+      },
+    },
+  });
+
+  assert.match(output, /layout_engine: elk-layered/);
+  assert.doesNotMatch(output, /elk:\r?\n/);
+  assert.doesNotMatch(output, /elk\.portConstraints/);
+});
+
 test("persist removed ids prunes frames and arrows", () => {
   const baselineText = [
     "engine: v3",

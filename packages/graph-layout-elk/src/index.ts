@@ -3,6 +3,8 @@ export {
   type SpacingProfile,
   type LayeredCorpusFamily,
   type ForceCorpusFamily,
+  type GraphPortSide,
+  type GraphPortInput,
   type GraphNodeInput,
   type GraphEdgeInput,
   type GraphLayoutInput,

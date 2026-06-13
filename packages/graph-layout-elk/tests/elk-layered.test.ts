@@ -89,6 +89,69 @@ describe('ELK layered (Sugiyama)', () => {
     expect(edge.sections[0]!.startPoint).toEqual(expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }));
   });
 
+  it('routes explicit port endpoints through true midpoint coordinates', async () => {
+    const result = await layoutLayered({
+      id: 'root',
+      direction: 'TB',
+      nodes: [
+        {
+          id: 'a',
+          ...BOX,
+          ports: [
+            { id: 'a__top', side: 'top', x: BOX.width / 2, y: 0 },
+            { id: 'a__right', side: 'right', x: BOX.width, y: BOX.height / 2 },
+            { id: 'a__bottom', side: 'bottom', x: BOX.width / 2, y: BOX.height },
+            { id: 'a__left', side: 'left', x: 0, y: BOX.height / 2 },
+          ],
+        },
+        {
+          id: 'b',
+          ...BOX,
+          ports: [
+            { id: 'b__top', side: 'top', x: BOX.width / 2, y: 0 },
+            { id: 'b__right', side: 'right', x: BOX.width, y: BOX.height / 2 },
+            { id: 'b__bottom', side: 'bottom', x: BOX.width / 2, y: BOX.height },
+            { id: 'b__left', side: 'left', x: 0, y: BOX.height / 2 },
+          ],
+        },
+      ],
+      edges: [{
+        id: 'e',
+        source: 'a',
+        target: 'b',
+        sourcePort: 'a__bottom',
+        targetPort: 'b__top',
+      }],
+    });
+
+    expect(result.edges[0]?.sections[0]?.startPoint).toEqual({ x: BOX.width / 2, y: BOX.height });
+    expect(result.edges[0]?.sections[0]?.endPoint).toEqual({ x: BOX.width / 2, y: BOX.height + 24 });
+  });
+
+  it('assigns a later reciprocal edge to alternate side ports without post-routing overrides', async () => {
+    const result = await layoutLayered({
+      id: 'root',
+      direction: 'TB',
+      nodes: [{ id: 'cloud', ...BOX }, { id: 'client', ...BOX }],
+      edges: [
+        { id: 'request', source: 'client', target: 'cloud' },
+        { id: 'return', source: 'cloud', target: 'client' },
+      ],
+    });
+
+    const request = result.edges.find((edge) => edge.id === 'request');
+    const returning = result.edges.find((edge) => edge.id === 'return');
+
+    expect(request).toMatchObject({
+      sourcePortSide: 'bottom',
+      targetPortSide: 'top',
+    });
+    expect(returning).toMatchObject({
+      sourcePortSide: 'right',
+      targetPortSide: 'right',
+    });
+  });
+
   it('maps corpus families to TB vs LR per layout_mapping.py', () => {
     expect(layeredConfigForFamily('deployment_and_runtime_topology').direction).toBe('TB');
     expect(layeredConfigForFamily('process_and_workflow').direction).toBe('TB');
@@ -254,11 +317,85 @@ describe('ELK layered (Sugiyama)', () => {
     expect(graph.children[0]?.layoutOptions?.['elk.padding']).toBe('[top=16,left=16,bottom=16,right=16]');
   });
 
+  it('generates fixed-side midpoint ports for endpoint nodes and routes LR edges through them', () => {
+    const layoutOptions = buildLayeredLayoutOptions({
+      direction: 'LR',
+      spacingProfile: 'normal',
+    });
+    const graph = buildElkGraph({
+      id: 'root',
+      direction: 'LR',
+      spacingProfile: 'normal',
+      nodes: [
+        { id: 'source', ...BOX },
+        { id: 'target', ...BOX },
+        { id: 'unused', ...BOX },
+      ],
+      edges: [{ id: 'flow', source: 'source', target: 'target' }],
+    }, layoutOptions);
+
+    expect(graph.layoutOptions['elk.portConstraints']).toBeUndefined();
+    expect(layoutOptions['elk.edgeLabels.inline']).toBe('false');
+    expect(graph.children[0]?.layoutOptions?.['elk.portConstraints']).toBe('FIXED_POS');
+    expect(graph.children[1]?.layoutOptions?.['elk.portConstraints']).toBe('FIXED_POS');
+    expect(graph.children[2]?.ports).toBeUndefined();
+
+    expect(graph.children[0]?.ports?.map((port) => port.id)).toEqual([
+      'source__top',
+      'source__right',
+      'source__bottom',
+      'source__left',
+    ]);
+    expect(graph.children[0]?.ports?.[1]).toMatchObject({
+      id: 'source__right',
+      x: BOX.width,
+      y: BOX.height / 2,
+      layoutOptions: { 'org.eclipse.elk.port.side': 'EAST' },
+    });
+    expect(graph.children[1]?.ports?.[3]).toMatchObject({
+      id: 'target__left',
+      x: 0,
+      y: BOX.height / 2,
+      layoutOptions: { 'org.eclipse.elk.port.side': 'WEST' },
+    });
+    expect(graph.edges[0]).toMatchObject({
+      sources: ['source__right'],
+      targets: ['target__left'],
+    });
+  });
+
+  it('respects explicit elk.direction overrides and ignores legacy root portConstraints overrides', () => {
+    const layoutOptions = buildLayeredLayoutOptions({
+      direction: 'TB',
+      spacingProfile: 'normal',
+      optionOverrides: {
+        'elk.direction': 'LEFT',
+        'elk.portConstraints': 'FREE',
+      },
+    });
+    const graph = buildElkGraph({
+      id: 'root',
+      direction: 'TB',
+      spacingProfile: 'normal',
+      nodes: [{ id: 'a', ...BOX }, { id: 'b', ...BOX }],
+      edges: [{ id: 'edge', source: 'a', target: 'b' }],
+    }, layoutOptions);
+
+    expect(layoutOptions['elk.portConstraints']).toBeUndefined();
+    expect(graph.layoutOptions['elk.portConstraints']).toBeUndefined();
+    expect(graph.edges[0]).toMatchObject({
+      sources: ['a__left'],
+      targets: ['b__right'],
+    });
+  });
+
   it('exposes only batch-safe layering controls in the preview registry', () => {
     const layering = ELK_LAYERED_PARAM_SPECS.find((spec) => spec.key === 'elk.layered.layering.strategy');
     const crossing = ELK_LAYERED_PARAM_SPECS.find((spec) => spec.key === 'elk.layered.crossingMinimization.strategy');
+    const portConstraints = ELK_LAYERED_PARAM_SPECS.find((spec) => spec.key === 'elk.portConstraints');
 
     expect(layering?.enumValues?.map((value) => value.value)).toEqual(['NETWORK_SIMPLEX', 'LONGEST_PATH']);
     expect(crossing?.enumValues?.map((value) => value.value)).toEqual(['LAYER_SWEEP']);
+    expect(portConstraints).toBeUndefined();
   });
 });

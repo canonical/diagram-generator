@@ -69,6 +69,11 @@ function isSyntheticLayoutFrame(frame: Frame): boolean {
 }
 
 function descendantLeafIds(frame: Frame): string[] {
+  if (isSyntheticLayoutFrame(frame)) {
+    const out: string[] = [];
+    for (const child of frame.children) out.push(...descendantLeafIds(child));
+    return out;
+  }
   if (frame.isLeaf) return frame.id ? [frame.id] : [];
   const out: string[] = [];
   for (const child of frame.children) out.push(...descendantLeafIds(child));
@@ -83,6 +88,7 @@ function hasEndpointDescendant(frame: Frame, endpoints: Set<string>): boolean {
 /** Semantic ELK compound — section/panel whose direct subtree leaves are all arrow endpoints. */
 function isElkCompound(frame: Frame, endpoints: Set<string>): boolean {
   if (frame.isLeaf || frame.children.length === 0) return false;
+  if (frame.children.some((child) => isSyntheticLayoutFrame(child))) return false;
   const leaves = descendantLeafIds(frame);
   if (leaves.length < 2) return false;
   if (!leaves.every((id) => endpoints.has(id))) return false;
@@ -115,10 +121,41 @@ function cloneFrameDiagram(diagram: FrameDiagram): FrameDiagram {
   );
 }
 
-function collectSemanticNodeSizes(
+interface SemanticFramePlacement {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+function semanticCompoundPadding(
+  frame: Frame,
+  semanticPlacements: Map<string, SemanticFramePlacement>,
+): string | undefined {
+  if (frame.children.length === 0 || !frame.id) return undefined;
+  const framePlacement = semanticPlacements.get(frame.id);
+  const body = frame.children.find((child) => isSyntheticBodyFrame(child) && child.id);
+  const bodyPlacement = body?.id ? semanticPlacements.get(body.id) : undefined;
+  if (!framePlacement || !bodyPlacement) return undefined;
+
+  const top = Math.max(0, Math.round(bodyPlacement.y - framePlacement.y));
+  const left = Math.max(0, Math.round(bodyPlacement.x - framePlacement.x));
+  const right = Math.max(
+    0,
+    Math.round((framePlacement.x + framePlacement.width) - (bodyPlacement.x + bodyPlacement.width)),
+  );
+  const bottom = Math.max(0, Math.round(frame.paddingBottom));
+
+  return `[top=${top},left=${left},bottom=${bottom},right=${right}]`;
+}
+
+function collectSemanticLayoutSnapshot(
   diagram: FrameDiagram,
   adapter: TextMeasureAdapter,
-): Map<string, { width: number; height: number }> {
+): {
+  sizes: Map<string, { width: number; height: number }>;
+  placements: Map<string, SemanticFramePlacement>;
+} {
   const cloned = cloneFrameDiagram(diagram);
   resolveStyles(cloned.root);
   layoutFrameTree(cloned.root, adapter, {
@@ -129,14 +166,21 @@ function collectSemanticNodeSizes(
   });
 
   const sizes = new Map<string, { width: number; height: number }>();
+  const placements = new Map<string, SemanticFramePlacement>();
   walkFrames(cloned.root, (frame) => {
     if (!frame.id) return;
     sizes.set(frame.id, {
       width: frame._layout.placedW,
       height: frame._layout.placedH,
     });
+    placements.set(frame.id, {
+      x: frame._layout.placedX,
+      y: frame._layout.placedY,
+      width: frame._layout.placedW,
+      height: frame._layout.placedH,
+    });
   });
-  return sizes;
+  return { sizes, placements };
 }
 
 function frameToGraphNode(
@@ -144,6 +188,7 @@ function frameToGraphNode(
   adapter: TextMeasureAdapter,
   endpoints: Set<string>,
   semanticSizes: Map<string, { width: number; height: number }>,
+  semanticPlacements: Map<string, SemanticFramePlacement>,
   allowStructuralCarriers: boolean,
 ): GraphNodeInput {
   measureSubtree(frame, adapter);
@@ -152,12 +197,16 @@ function frameToGraphNode(
     id: frame.id,
     width: semantic?.width ?? frame._layout.measuredW,
     height: semantic?.height ?? frame._layout.measuredH,
+    ...(semanticCompoundPadding(frame, semanticPlacements)
+      ? { padding: semanticCompoundPadding(frame, semanticPlacements) }
+      : {}),
   };
   const childNodes = collectGraphChildNodes(
     frame.children,
     adapter,
     endpoints,
     semanticSizes,
+    semanticPlacements,
     allowStructuralCarriers || isElkCompound(frame, endpoints),
   );
   if (childNodes.length > 0) {
@@ -171,6 +220,7 @@ function collectGraphChildNodes(
   adapter: TextMeasureAdapter,
   endpoints: Set<string>,
   semanticSizes: Map<string, { width: number; height: number }>,
+  semanticPlacements: Map<string, SemanticFramePlacement>,
   allowStructuralCarriers: boolean,
 ): GraphNodeInput[] {
   const nodes: GraphNodeInput[] = [];
@@ -182,13 +232,23 @@ function collectGraphChildNodes(
           adapter,
           endpoints,
           semanticSizes,
+          semanticPlacements,
           allowStructuralCarriers,
         ));
       }
       continue;
     }
     if (shouldIncludeElkNode(frame, endpoints, allowStructuralCarriers)) {
-      nodes.push(frameToGraphNode(frame, adapter, endpoints, semanticSizes, allowStructuralCarriers));
+      nodes.push(
+        frameToGraphNode(
+          frame,
+          adapter,
+          endpoints,
+          semanticSizes,
+          semanticPlacements,
+          allowStructuralCarriers,
+        ),
+      );
     }
   }
   return nodes;
@@ -199,15 +259,26 @@ function buildElkGraphNodes(
   adapter: TextMeasureAdapter,
   endpoints: Set<string>,
   semanticSizes: Map<string, { width: number; height: number }>,
+  semanticPlacements: Map<string, SemanticFramePlacement>,
 ): GraphNodeInput[] {
   const nodes: GraphNodeInput[] = [];
 
   function walk(frame: Frame, insideCompound: boolean, allowStructuralCarriers: boolean): void {
     if (!insideCompound && shouldIncludeElkNode(frame, endpoints, allowStructuralCarriers)) {
-      nodes.push(frameToGraphNode(frame, adapter, endpoints, semanticSizes, allowStructuralCarriers));
+      nodes.push(
+        frameToGraphNode(
+          frame,
+          adapter,
+          endpoints,
+          semanticSizes,
+          semanticPlacements,
+          allowStructuralCarriers,
+        ),
+      );
       return;
     }
-    const nextAllowStructuralCarriers = allowStructuralCarriers || isElkCompound(frame, endpoints);
+    const nextAllowStructuralCarriers =
+      allowStructuralCarriers || isElkCompound(frame, endpoints);
     for (const child of frame.children) walk(child, insideCompound, nextAllowStructuralCarriers);
   }
 
@@ -255,12 +326,12 @@ function bboxOfFrames(frames: Frame[]): { minX: number; minY: number; maxX: numb
   return { minX, minY, maxX, maxY };
 }
 
-function wrapUnplacedStructuralContainers(root: Frame): void {
+function wrapStructuralContainers(root: Frame, lockedIds: Set<string>): void {
   function visit(frame: Frame): void {
     for (const child of frame.children) {
       visit(child);
     }
-    if (frame.isLeaf || frame._layout.placedW > 0 || frame._layout.placedH > 0) return;
+    if (frame.isLeaf || lockedIds.has(frame.id)) return;
 
     const placedChildren = frame.children.filter(
       (child) => child._layout.placedW > 0 && child._layout.placedH > 0,
@@ -283,6 +354,166 @@ function wrapUnplacedStructuralContainers(root: Frame): void {
   }
 
   visit(root);
+}
+
+function collectPlacedFrames(root: Frame): Frame[] {
+  const frames: Frame[] = [];
+  walkFrames(root, (frame) => {
+    if (frame._layout.placedW > 0 || frame._layout.placedH > 0) {
+      frames.push(frame);
+    }
+  });
+  return frames;
+}
+
+function hasPlacedGeometry(frame: Frame, placedIds: Set<string>): boolean {
+  return placedIds.has(frame.id) || frame._layout.placedW > 0 || frame._layout.placedH > 0;
+}
+
+function placeFromSemanticAnchor(
+  frame: Frame,
+  semantic: SemanticFramePlacement,
+  anchor: {
+    placedX: number;
+    placedY: number;
+    semanticX: number;
+    semanticY: number;
+  },
+): void {
+  frame._layout.placedX = anchor.placedX + (semantic.x - anchor.semanticX);
+  frame._layout.placedY = anchor.placedY + (semantic.y - anchor.semanticY);
+  frame._layout.placedW = semantic.width;
+  frame._layout.placedH = semantic.height;
+  frame._layout.measuredW = semantic.width;
+  frame._layout.measuredH = semantic.height;
+}
+
+function anchorSemanticDescendants(
+  frame: Frame,
+  placedIds: Set<string>,
+  semanticPlacements: Map<string, SemanticFramePlacement>,
+  endpoints: Set<string>,
+  inheritedAnchor?: {
+    placedX: number;
+    placedY: number;
+    semanticX: number;
+    semanticY: number;
+  },
+): void {
+  function findSubtreeAnchor(node: Frame): {
+    placedX: number;
+    placedY: number;
+    semanticX: number;
+    semanticY: number;
+  } | undefined {
+    const semantic = node.id ? semanticPlacements.get(node.id) : undefined;
+    const hasPlacement = placedIds.has(node.id) || node._layout.placedW > 0 || node._layout.placedH > 0;
+    if (semantic && hasPlacement) {
+      return {
+        placedX: node._layout.placedX,
+        placedY: node._layout.placedY,
+        semanticX: semantic.x,
+        semanticY: semantic.y,
+      };
+    }
+    for (const child of node.children) {
+      const anchor = findSubtreeAnchor(child);
+      if (anchor) return anchor;
+    }
+    return undefined;
+  }
+
+  const frameSemantic = frame.id ? semanticPlacements.get(frame.id) : undefined;
+  const selfAnchor = frameSemantic && hasPlacedGeometry(frame, placedIds)
+    ? {
+        placedX: frame._layout.placedX,
+        placedY: frame._layout.placedY,
+        semanticX: frameSemantic.x,
+        semanticY: frameSemantic.y,
+      }
+    : undefined;
+  const subtreeAnchor = selfAnchor ?? inheritedAnchor;
+
+  for (const child of frame.children) {
+    if (isAnnotationFrame(child, endpoints)) continue;
+    const childSemantic = child.id ? semanticPlacements.get(child.id) : undefined;
+    const childAnchor = findSubtreeAnchor(child) ?? subtreeAnchor;
+    if (!childSemantic) {
+      anchorSemanticDescendants(child, placedIds, semanticPlacements, endpoints, childAnchor);
+      continue;
+    }
+
+    if (isSyntheticLayoutFrame(child)) {
+      if (child.id && !placedIds.has(child.id) && selfAnchor) {
+        placeFromSemanticAnchor(child, childSemantic, selfAnchor);
+      }
+      anchorSemanticDescendants(child, placedIds, semanticPlacements, endpoints, childAnchor);
+      continue;
+    }
+
+    if (child.isContainer && child.id && !placedIds.has(child.id)) {
+      anchorSemanticDescendants(child, placedIds, semanticPlacements, endpoints, childAnchor);
+      continue;
+    }
+
+    if (child.id && !placedIds.has(child.id) && childAnchor) {
+      placeFromSemanticAnchor(child, childSemantic, childAnchor);
+    }
+
+    anchorSemanticDescendants(child, placedIds, semanticPlacements, endpoints, childAnchor);
+  }
+}
+
+function anchorSyntheticLayoutDescendants(
+  frame: Frame,
+  placedIds: Set<string>,
+  semanticPlacements: Map<string, SemanticFramePlacement>,
+): void {
+  for (const child of frame.children) {
+    anchorSyntheticLayoutDescendants(child, placedIds, semanticPlacements);
+  }
+
+  const frameSemantic = frame.id ? semanticPlacements.get(frame.id) : undefined;
+  const selfAnchor = frameSemantic && hasPlacedGeometry(frame, placedIds)
+    ? {
+        placedX: frame._layout.placedX,
+        placedY: frame._layout.placedY,
+        semanticX: frameSemantic.x,
+        semanticY: frameSemantic.y,
+      }
+    : undefined;
+  const syntheticBody = frame.children.find((child) => isSyntheticBodyFrame(child));
+  const bodyBox = syntheticBody
+    ? bboxOfFrames(syntheticBody.children.filter((child) => hasPlacedGeometry(child, placedIds)))
+    : null;
+
+  for (const child of frame.children) {
+    const childSemantic = child.id ? semanticPlacements.get(child.id) : undefined;
+    if (syntheticBody && bodyBox && child.id === syntheticBody.id) {
+      child._layout.placedX = bodyBox.minX;
+      child._layout.placedY = bodyBox.minY;
+      child._layout.placedW = bodyBox.maxX - bodyBox.minX;
+      child._layout.placedH = bodyBox.maxY - bodyBox.minY;
+      child._layout.measuredW = child._layout.placedW;
+      child._layout.measuredH = child._layout.placedH;
+      continue;
+    }
+    if (bodyBox && isSyntheticHeadingFrame(child)) {
+      const height = childSemantic?.height ?? child._layout.measuredH;
+      const width = Math.max(bodyBox.maxX - bodyBox.minX, childSemantic?.width ?? child._layout.measuredW);
+      const topGap = Math.max(0, Math.round(frame.paddingTop));
+      child._layout.placedX = bodyBox.minX;
+      child._layout.placedY = bodyBox.minY - height - topGap;
+      child._layout.placedW = width;
+      child._layout.placedH = height;
+      child._layout.measuredW = width;
+      child._layout.measuredH = height;
+      continue;
+    }
+    if (isSyntheticLayoutFrame(child) && childSemantic && selfAnchor) {
+      placeFromSemanticAnchor(child, childSemantic, selfAnchor);
+    }
+  }
 }
 
 function bboxOfElkEdges(
@@ -354,6 +585,36 @@ function layoutAnnotationsBelow(
   for (const child of root.children) placeAnnotation(child);
 }
 
+function translateDiagramGeometry(
+  diagram: FrameDiagram,
+  dx: number,
+  dy: number,
+): void {
+  if (dx === 0 && dy === 0) return;
+  walkFrames(diagram.root, (frame) => {
+    if (frame === diagram.root) return;
+    if (frame._layout.placedW <= 0 && frame._layout.placedH <= 0) return;
+    frame._layout.placedX += dx;
+    frame._layout.placedY += dy;
+  });
+
+  for (const arrow of diagram.arrows) {
+    if (arrow.layoutPath) {
+      arrow.layoutPath = arrow.layoutPath.map(([x, y]) => [x + dx, y + dy]);
+    }
+    if (arrow.waypoints) {
+      arrow.waypoints = arrow.waypoints.map(([x, y]) => [x + dx, y + dy]);
+    }
+    if (arrow.elkLabels) {
+      arrow.elkLabels = arrow.elkLabels.map((label) => ({
+        ...label,
+        x: label.x + dx,
+        y: label.y + dy,
+      }));
+    }
+  }
+}
+
 function familyFromDiagram(diagram: FrameDiagram): LayeredCorpusFamily {
   const t = diagram.diagramType;
   if (t === 'data_flow_and_integration' || t === 'process_and_workflow' || t === 'deployment_and_runtime_topology') {
@@ -382,18 +643,16 @@ function elkEdgeToLayoutPath(edge: PlacedEdge, originX: number, originY: number)
   return points;
 }
 
-function simplifyOrthogonalPath(points: [number, number][]): [number, number][] {
-  if (points.length <= 2) return points;
+function dedupeConsecutivePoints(points: [number, number][]): [number, number][] {
+  if (points.length <= 1) return points;
   const out: [number, number][] = [points[0]!];
-  for (let i = 1; i < points.length - 1; i++) {
+  for (let i = 1; i < points.length; i += 1) {
     const prev = out[out.length - 1]!;
     const cur = points[i]!;
-    const next = points[i + 1]!;
-    const collinearH = prev[1] === cur[1] && cur[1] === next[1];
-    const collinearV = prev[0] === cur[0] && cur[0] === next[0];
-    if (!collinearH && !collinearV) out.push(cur);
+    if (prev[0] !== cur[0] || prev[1] !== cur[1]) {
+      out.push(cur);
+    }
   }
-  out.push(points[points.length - 1]!);
   return out;
 }
 
@@ -482,7 +741,7 @@ function applyElkEdgeRoutes(
     const tgt = arrow.target.split('.')[0]!;
     const edge = (arrow.id ? byId.get(arrow.id) : undefined) ?? byEndpoints.get(`${src}->${tgt}`);
     if (!edge) continue;
-    const layoutPath = simplifyOrthogonalPath(elkEdgeToLayoutPath(edge, originX, originY));
+    const layoutPath = dedupeConsecutivePoints(elkEdgeToLayoutPath(edge, originX, originY));
     if (layoutPath.length >= 2) {
       arrow.layoutPath = layoutPath;
       arrow.waypoints = layoutPath.slice(1, -1);
@@ -509,9 +768,16 @@ export async function layoutElkFrameDiagram(
   const endpoints = collectEndpointIds(diagram);
   const originX = options.originX ?? diagram.root.paddingLeft;
   const originY = options.originY ?? diagram.root.paddingTop;
-  const semanticSizes = collectSemanticNodeSizes(diagram, adapter);
+  const semanticLayout = collectSemanticLayoutSnapshot(diagram, adapter);
+  const semanticSizes = semanticLayout.sizes;
 
-  const nodes = buildElkGraphNodes(diagram.root, adapter, endpoints, semanticSizes);
+  const nodes = buildElkGraphNodes(
+    diagram.root,
+    adapter,
+    endpoints,
+    semanticSizes,
+    semanticLayout.placements,
+  );
   const input: GraphLayoutInput = {
     id: diagram.title || 'diagram',
     direction: 'TB',
@@ -546,6 +812,7 @@ export async function layoutElkFrameDiagram(
     }
     placedFrames.push(frame);
   }
+  const placedIds = new Set(placedById.keys());
 
   for (const frame of standaloneContainers) {
     place(
@@ -558,22 +825,39 @@ export async function layoutElkFrameDiagram(
     );
   }
 
-  wrapUnplacedStructuralContainers(diagram.root);
+  anchorSemanticDescendants(diagram.root, placedIds, semanticLayout.placements, endpoints);
+  wrapStructuralContainers(diagram.root, placedIds);
+  anchorSyntheticLayoutDescendants(diagram.root, placedIds, semanticLayout.placements);
+  wrapStructuralContainers(diagram.root, placedIds);
 
   layoutAnnotationsBelow(diagram.root, adapter, elk.height, originX, originY, endpoints);
 
-  const entityBox = bboxOfFrames(placedFrames);
+  const allPlacedFrames = collectPlacedFrames(diagram.root).filter((frame) => frame !== diagram.root);
+  const frameBox = bboxOfFrames(allPlacedFrames);
+  const shiftX = frameBox && frameBox.minX < 0 ? -frameBox.minX : 0;
+  const shiftY = frameBox && frameBox.minY < 0 ? -frameBox.minY : 0;
+  translateDiagramGeometry(diagram, shiftX, shiftY);
+
+  const normalizedFrameBox = bboxOfFrames(collectPlacedFrames(diagram.root).filter((frame) => frame !== diagram.root));
+  const normalizedEdgeBox = edgeBox
+    ? {
+        minX: edgeBox.minX + shiftX,
+        minY: edgeBox.minY + shiftY,
+        maxX: edgeBox.maxX + shiftX,
+        maxY: edgeBox.maxY + shiftY,
+      }
+    : null;
   const rootW = Math.max(
     diagram.root.width ?? 0,
     elk.width + originX * 2,
-    entityBox?.maxX ?? 0,
-    edgeBox?.maxX ?? 0,
+    normalizedFrameBox?.maxX ?? 0,
+    normalizedEdgeBox?.maxX ?? 0,
   );
   let rootH = Math.max(
     diagram.root.height ?? 0,
     elk.height + originY * 2,
-    entityBox?.maxY ?? 0,
-    edgeBox?.maxY ?? 0,
+    normalizedFrameBox?.maxY ?? 0,
+    normalizedEdgeBox?.maxY ?? 0,
   );
   walkFrames(diagram.root, (f) => {
     if (isAnnotationFrame(f, endpoints)) {
