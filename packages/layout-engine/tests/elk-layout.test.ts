@@ -37,7 +37,7 @@ describe('layoutElkFrameDiagram', () => {
     expect(diagram.arrows[0]?.layoutPath?.length ?? 0).toBeGreaterThanOrEqual(2);
   });
 
-  it('respects explicit fixed widths in the ELK lane', async () => {
+  it('respects explicit fixed sizes in the ELK lane', async () => {
     const diagram = loadFrameYaml(join(FRAMES_DIR, 'support-engineering-flow.yaml'));
     const adapter = new MockTextAdapter();
     const ids = [
@@ -59,7 +59,9 @@ describe('layoutElkFrameDiagram', () => {
         width: number | undefined;
       };
       target.sizingW = 'FIXED';
+      target.sizingH = 'FIXED';
       target.width = 480;
+      target.height = 160;
     }
 
     await layoutElkFrameDiagram(diagram, adapter);
@@ -70,6 +72,7 @@ describe('layoutElkFrameDiagram', () => {
         id,
       );
       expect(frame?._layout.placedW).toBe(480);
+      expect(frame?._layout.placedH).toBe(160);
     }
   });
 });
