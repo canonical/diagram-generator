@@ -18,7 +18,7 @@ Feature package: `specs/040-agent-token-slimming/`.
 
 #### Compatible engine switcher (spec 035)
 
-Feature package: `specs/035-compatible-engine-switcher/`.
+Feature package: `docs/spec-archive/035-compatible-engine-switcher/`.
 
 - [ ] `[H]` **ELK layered drops headings and icons on parent containers.** Headed panels (e.g. Planning / Implementation / Delivery in `complex-routing-usecase`) lose title + icon treatment under `elk-layered`; headers should remain in the container chrome ELK lays out. Investigate, draft spec-kit fix package, add tier-2 flow map. Reported via inbox 2026-06-12.
 - [ ] `[H]` **ELK layered does not honor non-fixed authored sizing semantics consistently on switched frame diagrams.** Switching a valid frame diagram from `v3` to `elk-layered` can collapse equal-width `FILL` stacks into uneven intrinsic widths because `layoutElkFrameDiagram()` currently measures nodes and hands ELK concrete box sizes instead of preserving the repo's non-fixed sizing behavior end-to-end. Explicit `FIXED` sizing should remain supported (including bulk "set same fixed size" editing); investigate on `support-engineering-flow` and `tiered-network-architecture`, then decide the TS-owned contract for ELK `FILL` / `HUG` per axis. Reported via inbox 2026-06-13.

@@ -59,4 +59,4 @@ See `contracts/interchange-fidelity.md`. Structural fields (ids, nesting, arrows
 
 ## Adversarial review input
 
-Spec 028 phase 0 explicitly closes findings from `specs/022-diagram-authoring-ast/adversarial-review-d2-export.md` items D2-01, D2-03, D2-06, D2-08.
+Spec 028 phase 0 explicitly closes findings from `docs/spec-archive/022-diagram-authoring-ast/adversarial-review-d2-export.md` items D2-01, D2-03, D2-06, D2-08.

@@ -40,7 +40,7 @@ import {
 } from "./persistence/index.js";
 
 const DEFAULT_PORT = 8100;
-const SPEC_HOME = "specs/038-ts-authority-python-removal/";
+const SPEC_HOME = "docs/spec-archive/038-ts-authority-python-removal/";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);

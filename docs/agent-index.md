@@ -28,7 +28,7 @@ Read this before broad repo searches.
 | `scripts/preview/force.js` | 1,450 | same |
 | `packages/layout-engine/dist/layout-engine.iife.js` | 3.5 MB | edit `packages/layout-engine/src/`; run `build:browser` |
 | `diagrams/**` | binaries | ignored by `.cursorignore`; not product code |
-| `specs/**` (bulk) | 8k+ | open **one** `specs/<id>-<slug>/` when doing spec work |
+| `specs/**` (bulk) | 8k+ | open **one** active `specs/<id>-<slug>/` when doing spec work |
 
 Thin shell modules (safe to read whole): `editor-state.js`, `editor-base.js`, `save-client.js`, `undo-manager.js`, `elk-controller.js`.
 
@@ -37,7 +37,7 @@ Thin shell modules (safe to read whole): `editor-state.js`, `editor-base.js`, `s
 | Topic | Map |
 |-------|-----|
 | Preview override persist / `gap_delta` | [`specs/006-arrow-routing-redesign/preview-override-flow.md`](../specs/006-arrow-routing-redesign/preview-override-flow.md) |
-| Shell decomposition boundaries | [`specs/026-preview-shell-decomposition-ts-migration/boundaries.md`](../specs/026-preview-shell-decomposition-ts-migration/boundaries.md) |
+| Shell decomposition boundaries | [`docs/spec-archive/026-preview-shell-decomposition-ts-migration/boundaries.md`](./spec-archive/026-preview-shell-decomposition-ts-migration/boundaries.md) |
 | Agent token / workspace slimming | [`specs/040-agent-token-slimming/spec.md`](../specs/040-agent-token-slimming/spec.md) |
 
 Add a new row when you land a cross-layer map (UI → server → engine → disk). Keep maps ≤60 lines.
@@ -78,3 +78,4 @@ node scripts/check_no_new_python.mjs
 - Read one targeted file after search hits.
 - Avoid repo-wide sweeps unless the task is genuinely cross-cutting.
 - Do not load `.github/agents/speckit.*` unless the user asked for spec-kit work.
+- Completed spec packages live under `docs/spec-archive/` and are excluded from Cursor indexing; use `docs/specs.md` to find the active package first.

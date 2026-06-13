@@ -99,7 +99,7 @@ Codex, Copilot, Cursor, Claude, and other agents see the same token rules via `A
 ### Non-Goals
 
 - Splitting `editor.js` (continues under spec 026 trajectory; out of scope except documenting trap-file reads).
-- Deleting completed spec packages under `specs/`.
+- Hard-deleting completed spec packages instead of archiving them under `docs/spec-archive/`.
 - Changing `diagram-generator-planning` STATUS/TODO workflow (that repo keeps its own doc model).
 
 ## Success Metrics

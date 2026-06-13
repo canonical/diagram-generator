@@ -11,36 +11,23 @@ Use this file to answer two questions quickly:
 1. What source material governs diagram behavior or workflow here?
 2. Which sibling repos are references versus sources of truth?
 
-## Active specs (spec-kit)
+## Spec packages
+
+Active spec packages stay under `specs/`. Completed or retired packages move to `docs/spec-archive/` and are excluded from Cursor indexing by `.cursorignore` and `.cursorindexingignore`.
+
+### Active packages
 
 | Spec | Path | Status | Summary |
 |------|------|--------|---------|
-| 011 Figma autolayout fidelity | `specs/011-figma-autolayout-fidelity/` | Complete | Default `max_width_chars: 66` on text frames; HUG wraps at HarfBuzz-derived measure and hugs longest line. TS-only measure; Python YAML passthrough. |
-| 012 TS SVG renderer | `specs/012-ts-svg-renderer-retire-python/` | Complete | TS-only SVG (preview + batch); `diagram_render_svg.py` removed; golden harness (6 slugs); arrow editing + doc close-out (`a6822da`). |
-| 014 Preview TS export hardening | `specs/014-preview-server-ts-export-hardening/` | Complete | Bounded Node pool: cache, concurrency, coalescing, timeout handling. Python SVG fallback removed by spec 012 T060a. |
-| 015 Preview stability + nav | `specs/015-preview-stability-and-nav-triage/` | Complete | Diagram picker change handler in editor-base (force mode); port auto-kill opt-in; bind error message. |
-| 013 TS preview API | `specs/013-ts-preview-api-retire-python-layout/` | Complete | TS frame-tree/grid/component-tree from YAML via `preview_ts_layout.py`. |
-| 016 Adversarial review follow-up | `specs/016-adversarial-review-followup/` | Complete | `DG_FRAMES_DIR` in Node CLIs; layout pool coalescing; force.js picker dedup. |
-| 017 Preview frame delete | `specs/017-preview-frame-delete/` | Complete | Delete/Backspace + tree context menu; `removed_ids` YAML persistence; undo restores frame tree. |
+| 006 Arrow routing redesign | `specs/006-arrow-routing-redesign/` | Draft | Contract-driven routing overhaul with explicit ports, hierarchy-aware obstacles, deterministic side selection, and layout-owned geometry. |
 | 018 PNG export | `specs/018-png-export/` | Draft | Preview **Save PNG** + slug batch CLI; rasterize TS SVG via Playwright; `diagrams/2.output/v3/png/`. |
-| 019 Preview inspector cleanup | `specs/019-preview-inspector-cleanup/` | Complete | Removed redundant Selection summary fields; id in Auto-layout heading. |
-| 022 Diagram authoring AST | `specs/022-diagram-authoring-ast/` | Complete (v1) | TS diagram compiler: frame-tree AST, arrow/defaults sugar, validation, lowering through `loadFrameYaml`, Mermaid + D2 export CLIs, migration utility. Import/round-trip → spec 028. |
-| 028 Diagram interchange (Mermaid & D2) | `specs/028-diagram-interchange-mermaid-d2/` | Draft | Bidirectional interchange: import parsers, fidelity matrix, export hardening, round-trip CLIs; builds on 022 adapters. |
-| 029 Force preview shell convergence | `specs/029-force-preview-shell-convergence/` | Complete | Force Save now compares the authored payload that will persist to YAML, focused browser coverage locks Save-button state transitions, and the force-lane boundary is documented without reopening a broad controller rewrite. |
-| 030 Sequence layout | `specs/030-sequence-layout/` | Complete | First Mermaid-heavy direct port: a first-party TypeScript `sequenceDiagram`-style lane with branded participant headers, ordered messages, left-aligned text treatment, preview-engine integration, and a corpus-backed reference preview for fidelity checks. Mermaid remains an adapter surface, not the runtime renderer. |
-| 035 Compatible engine switcher | `specs/035-compatible-engine-switcher/` | Complete | Frame-diagram docs now switch between native `v3` and `elk-layered` through a compatibility-filtered dropdown, with the chosen engine persisting as `meta.layout_engine` and blank authored docs defaulting to `v3`. |
-| 036 Headingless wrapper contract | `specs/036-headingless-wrapper-contract/` | Complete | Implicit headingless containers stay structural-only by default; explicitly authored visible non-headed groups are the bounded supported path, with save/reload coverage locking both behaviors. |
-| 037 Preview engine drift closeout | `specs/037-preview-engine-drift-closeout/` | Complete | Hostable frame-engine ids now come from the TS manifest/runtime surface, force save rehydrates from canonical persisted state, and forbidden preview-shell localStorage writes are removed. |
-| 038 TS authority + Python removal | `specs/038-ts-authority-python-removal/` | Complete | Node preview app is now the front door, product-path Python preview files are deleted, the no-new-Python ratchet is active, and `packages/layout-engine/` exposes the design-foundry-aligned seams (`document-model`, `operator-autolayout`, `render-ir`, `text-shape`). |
-| 040 Agent token slimming | `specs/040-agent-token-slimming/` | Draft | `.cursorignore`, two-folder workspace, retire `STATUS.md` handover, trap-file index, spec-kit on demand only. |
-| 023 Force-layout restoration | `specs/023-force-layout-restoration/` | Complete | TS-owned force runtime restored and closed out for the three canonical demos, including drag/pin/unpin/export/save behavior, focused route/save/export coverage, and a TypeScript runtime benchmark path. |
-| 024 ELK interactive node alignment | `specs/024-elk-interactive-node-alignment/` | Draft (summary only on main) | Mainline conclusion: do not ship interactive nudging on the current plain-`elkjs` path. The spec summary is retained on `main`; exploratory code remains off-main until a stronger result, likely via upstream Java ELK parity, exists. |
-| 025 Multi-engine preview architecture | `specs/025-multi-engine-preview-architecture/` | Complete | Preview-engine manifest/capability contract is landed: manifest-owned script bootstrap, canonical save responses from `/api/overrides`, TS-owned engine metadata, runtime identity, and documented onboarding for future engines so additional engines stop accumulating in `editor.js`. |
-| 026 Preview shell decomposition + TS migration | `specs/026-preview-shell-decomposition-ts-migration/` | Complete | Shell modules extracted (`save-client.js`, `elk-controller.js`, `editor-state.js` + TS `preview-shell/`); `editor.js` shrunk; runtime vs shell boundaries documented in `boundaries.md`. |
-| 027 Preview browser test API | `specs/027-preview-browser-test-api/` | Complete | Playwright and console debugging now use the explicit `__DG_TEST_preview` facade; legacy save/undo globals are removed from `editor.js` and static/runtime tests guard the boundary. |
+| 024 ELK interactive node alignment | `specs/024-elk-interactive-node-alignment/` | Draft (summary only on main) | Mainline conclusion: do not ship interactive nudging on the current plain-`elkjs` path. The summary remains on `main`; deeper exploration stays off-main until a stronger result exists. |
+| 028 Diagram interchange (Mermaid & D2) | `specs/028-diagram-interchange-mermaid-d2/` | Draft | Bidirectional interchange: import parsers, fidelity matrix, export hardening, round-trip CLIs; builds on the archived spec 022 adapters. |
+| 039 Diagram typography token cleanup | `specs/039-diagram-typography-token-cleanup/` | Draft | Audit `DIAGRAM.md` against the live engine, collapse dead typography tokens, and remove stale contract language that no longer matches runtime behavior. |
+| 040 Agent token slimming | `specs/040-agent-token-slimming/` | Draft | `.cursorignore`, two-folder workspace, archive completed specs, retire `STATUS.md` handover, trap-file index, spec-kit on demand only. |
 | — | `specs/ADVERSARIAL_REVIEW_PROMPT.md` | Template | Copy-paste prompt for post-session adversarial reviews. |
-| 005 Autolayout hardening | `specs/005-autolayout-hardening/` | Complete | Semantic mutation, style ownership, heading/body synthesis, and padding-contract hardening all validated; WS5 closeout completed on the retained 11-slug corpus. |
-| 008 Repo coherence rewrite | `specs/008-repo-coherence-rewrite/` | Complete | Doc and workflow consolidation landed; resolved-style snapshot, YAML-authoritative persistence, and Python-surface contraction are all closed. |
+
+Archived completed packages: [`docs/spec-archive/README.md`](./spec-archive/README.md)
 
 ## Source docs and reference assets
 

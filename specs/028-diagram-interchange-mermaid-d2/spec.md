@@ -21,7 +21,7 @@ Spec 022 established frame YAML as the **only canonical** authoring format and a
 
 There is **no import path** from Mermaid or D2 back into the AST, no documented round-trip expectations, and no unified interchange API. Integrators experimenting in D2 (see `../d2/juju-4-architecture.d2`) cannot merge structural edits back into frame YAML without manual rewrite.
 
-Adversarial review of the D2 exporter ([`specs/022-diagram-authoring-ast/adversarial-review-d2-export.md`](../022-diagram-authoring-ast/adversarial-review-d2-export.md)) identified silent-loss gaps that interchange work should close.
+Adversarial review of the D2 exporter ([`docs/spec-archive/022-diagram-authoring-ast/adversarial-review-d2-export.md`](../../docs/spec-archive/022-diagram-authoring-ast/adversarial-review-d2-export.md)) identified silent-loss gaps that interchange work should close.
 
 ## Mission
 
@@ -194,6 +194,6 @@ All CLIs support `--strict`, `--out`, and stderr diagnostics consistent with com
 
 | Artifact | Path |
 |----------|------|
-| D2 export adversarial review | `specs/022-diagram-authoring-ast/adversarial-review-d2-export.md` |
+| D2 export adversarial review | `docs/spec-archive/022-diagram-authoring-ast/adversarial-review-d2-export.md` |
 | D2 PoC repo | `../d2/` (`juju-4-architecture.d2`, `juju-bootstrap-machines-process.d2`) |
 | Authoring docs | `docs/diagram-authoring.md` |

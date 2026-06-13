@@ -145,9 +145,9 @@ See [`specs/028-diagram-interchange-mermaid-d2/`](../specs/028-diagram-interchan
 
 | Doc | Purpose |
 |-----|---------|
-| [`specs/022-diagram-authoring-ast/quickstart.md`](../specs/022-diagram-authoring-ast/quickstart.md) | Examples |
-| [`specs/022-diagram-authoring-ast/data-model.md`](../specs/022-diagram-authoring-ast/data-model.md) | AST types |
-| [`specs/022-diagram-authoring-ast/contracts/authoring-schema.md`](../specs/022-diagram-authoring-ast/contracts/authoring-schema.md) | Normative schema |
+| [`docs/spec-archive/022-diagram-authoring-ast/quickstart.md`](./spec-archive/022-diagram-authoring-ast/quickstart.md) | Examples |
+| [`docs/spec-archive/022-diagram-authoring-ast/data-model.md`](./spec-archive/022-diagram-authoring-ast/data-model.md) | AST types |
+| [`docs/spec-archive/022-diagram-authoring-ast/contracts/authoring-schema.md`](./spec-archive/022-diagram-authoring-ast/contracts/authoring-schema.md) | Normative schema |
 | [`scripts/diagrams/frames/tiered-network-architecture.author-v1.yaml`](../scripts/diagrams/frames/tiered-network-architecture.author-v1.yaml) | Reference author-v1 fixture |
 
 Full visual contract for boxes, tokens, and preview editing: [`DIAGRAM.md`](../DIAGRAM.md).

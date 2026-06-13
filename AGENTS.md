@@ -27,7 +27,8 @@ Guidance for AI agents working in this repo. Goal: correct fixes with minimal to
 ## Spec workflow
 
 - **Do not load spec-kit unless the user explicitly asks** (e.g. "/speckit", "write a spec", "run spec-kit"). Normal bugfixes skip `.github/agents/speckit.*`, `.github/prompts/speckit.*`, and bulk `specs/**` reads.
-- When spec work *is* requested, open **one** package under `specs/<id>-<slug>/` named in the task; see [`docs/specs.md`](docs/specs.md) for the index.
+- When spec work *is* requested, open **one** package under `specs/<id>-<slug>/` named in the task; see [`docs/specs.md`](docs/specs.md) for the active index.
+- Completed or retired packages live under [`docs/spec-archive/`](docs/spec-archive/README.md). They are de-indexed on purpose; open them only when a task directly depends on historical context.
 - Keep repo operating rules in this file. Do not duplicate them into Speckit prompts or agents.
 
 ## Cold-start path

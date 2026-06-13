@@ -11,6 +11,7 @@ apps/*/dist/
 # Reference / corpus assets (not product code)
 diagrams/
 scripts/diagrams/2.output/
+docs/spec-archive/
 
 # Large binaries and draw.io sources
 *.png

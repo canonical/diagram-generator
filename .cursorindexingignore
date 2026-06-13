@@ -9,6 +9,7 @@ apps/*/dist/
 .venv/
 diagrams/
 scripts/diagrams/2.output/
+docs/spec-archive/
 rtd_images/
 tmp/
 *.png
