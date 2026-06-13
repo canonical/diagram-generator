@@ -974,7 +974,7 @@ function patchArrowsSvg(svgEl, routedArrows, boundsMap) {
   if (!svgEl) return;
   for (const arrow of routedArrows) {
     const g = svgEl.querySelector(
-      `[data-component-id="${CSS.escape(arrow.componentId)}"]`
+      `[data-dg-arrow="true"][data-component-id="${CSS.escape(arrow.componentId)}"]`
     );
     if (!g) continue;
     // Update visible arrow segments only. Interactive hit-area lines may
@@ -1788,6 +1788,7 @@ function createArrowsSvg(routedArrows, boundsMap) {
 
   for (const arrow of routedArrows) {
     const g = document.createElementNS(SVG_NS, "g");
+    g.setAttribute("data-dg-arrow", "true");
     if (arrow.componentId) {
       g.setAttribute("data-component-id", arrow.componentId);
     }
@@ -1947,6 +1948,15 @@ function renderFrameTreeToSvg(diagram, result, options) {
   const styledLayer = document.createElementNS(SVG_NS, "g");
   styledLayer.id = "dg-styled-layer";
   svg.appendChild(styledLayer);
+  const arrowLayer = document.createElementNS(SVG_NS, "g");
+  arrowLayer.id = "dg-arrow-layer";
+  styledLayer.appendChild(arrowLayer);
+  const frameLayer = document.createElementNS(SVG_NS, "g");
+  frameLayer.id = "dg-frame-layer";
+  styledLayer.appendChild(frameLayer);
+  const overlayLayer = document.createElementNS(SVG_NS, "g");
+  overlayLayer.id = "dg-overlay-layer";
+  styledLayer.appendChild(overlayLayer);
 
   // Guard: empty or missing root produces valid SVG with just background
   if (!diagram || !diagram.root) {
@@ -1973,7 +1983,7 @@ function renderFrameTreeToSvg(diagram, result, options) {
     }
 
     patchFrameGroup(g, frame, iconEl);
-    styledLayer.appendChild(g);
+    frameLayer.appendChild(g);
 
     // Recurse into children
     if (frame.children) {
@@ -1990,14 +2000,14 @@ function renderFrameTreeToSvg(diagram, result, options) {
     const boundsMap = collectPlacedBounds(diagram.root, {});
     const routed = routeArrows(diagram.arrows, boundsMap);
     const arrowFrag = createArrowsSvg(routed, boundsMap);
-    styledLayer.appendChild(arrowFrag);
+    arrowLayer.appendChild(arrowFrag);
   }
 
   // Render overlays
   if (overlays.length > 0) {
     const boundsMap = collectPlacedBounds(diagram.root, {});
     const overlayFrag = renderOverlaysSvg(overlays, boundsMap);
-    styledLayer.appendChild(overlayFrag);
+    overlayLayer.appendChild(overlayFrag);
   }
 
   return svg;

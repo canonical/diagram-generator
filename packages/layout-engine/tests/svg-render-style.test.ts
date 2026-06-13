@@ -4,6 +4,7 @@ import { resolveStyles } from '../src/resolve-styles.js';
 import { layoutFrameTree } from '../src/layout.js';
 import { MockTextAdapter } from '../src/text-measure.js';
 import { renderFrameDiagramToSvg } from '../src/svg-render.js';
+import { createArrow } from '../src/frame-model.js';
 
 describe('renderFrameDiagramToSvg resolved style snapshot', () => {
   it('renders section __heading typography from snapshot not stale line spec', () => {
@@ -97,5 +98,33 @@ describe('renderFrameDiagramToSvg resolved style snapshot', () => {
     expect(svg).toContain('fill="#FFFFFF">Highlighted</tspan>');
     expect(svg).toContain('class="dg-icon"');
     expect(svg).not.toContain('fill="#FF00FF"');
+  });
+
+  it('renders arrow groups beneath frame groups so border-hugging routes do not paint over boxes', () => {
+    const root = new Frame({
+      id: 'page',
+      direction: 'VERTICAL',
+      width: 480,
+      sizingW: 'FIXED',
+      children: [
+        new Frame({ id: 'top', label: [createLine('Top')] }),
+        new Frame({ id: 'bottom', label: [createLine('Bottom')] }),
+      ],
+    });
+    const diagram = new FrameDiagram({
+      title: 'Arrow layering',
+      root,
+      arrows: [createArrow('top', 'bottom', { id: 'edge-1' })],
+    });
+    resolveStyles(root);
+    const adapter = new MockTextAdapter();
+    const result = layoutFrameTree(root, adapter, { arrows: diagram.arrows });
+    const svg = renderFrameDiagramToSvg(diagram, result, adapter);
+
+    const arrowIndex = svg.indexOf('data-dg-arrow="true" data-component-id="edge-1"');
+    const pageIndex = svg.indexOf('data-component-id="page"');
+    expect(arrowIndex).toBeGreaterThan(-1);
+    expect(pageIndex).toBeGreaterThan(-1);
+    expect(arrowIndex).toBeLessThan(pageIndex);
   });
 });

@@ -7,6 +7,7 @@ import type { GraphLayoutInput } from '@diagram-generator/graph-layout-core';
 import { GRID_BASELINE_PX } from '@diagram-generator/graph-layout-core';
 
 import {
+  ELK_LAYERED_PARAM_SPECS,
   edgeEndpointsTouchEndpointNodes,
   edgeEndpointsTouchLeaves,
   indexPlacedNodes,
@@ -251,5 +252,13 @@ describe('ELK layered (Sugiyama)', () => {
 
     expect(graph.layoutOptions['elk.padding']).toBeUndefined();
     expect(graph.children[0]?.layoutOptions?.['elk.padding']).toBe('[top=16,left=16,bottom=16,right=16]');
+  });
+
+  it('exposes only batch-safe layering controls in the preview registry', () => {
+    const layering = ELK_LAYERED_PARAM_SPECS.find((spec) => spec.key === 'elk.layered.layering.strategy');
+    const crossing = ELK_LAYERED_PARAM_SPECS.find((spec) => spec.key === 'elk.layered.crossingMinimization.strategy');
+
+    expect(layering?.enumValues?.map((value) => value.value)).toEqual(['NETWORK_SIMPLEX', 'LONGEST_PATH']);
+    expect(crossing?.enumValues?.map((value) => value.value)).toEqual(['LAYER_SWEEP']);
   });
 });

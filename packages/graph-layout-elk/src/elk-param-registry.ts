@@ -126,10 +126,8 @@ export const ELK_LAYERED_PARAM_SPECS: ElkParamSpec[] = [
     enumValues: [
       { value: 'NETWORK_SIMPLEX', label: 'Network simplex' },
       { value: 'LONGEST_PATH', label: 'Longest path' },
-      { value: 'INTERACTIVE', label: 'Interactive (needs layer hints)' },
     ],
-    description:
-      'Batch layout only. INTERACTIVE reuses prior layer positions / layerChoiceConstraint — not drag-to-move nodes in this preview.',
+    description: 'Batch layout strategies only. Interactive layering needs explicit layer constraints that this preview does not author.',
   },
   {
     key: 'elk.layered.crossingMinimization.strategy',
@@ -139,9 +137,8 @@ export const ELK_LAYERED_PARAM_SPECS: ElkParamSpec[] = [
     defaultValue: 'LAYER_SWEEP',
     enumValues: [
       { value: 'LAYER_SWEEP', label: 'Layer sweep' },
-      { value: 'INTERACTIVE', label: 'Interactive (needs order hints)' },
     ],
-    description: 'INTERACTIVE preserves prior in-layer order; requires constraints from an interactive editor run.',
+    description: 'Layer sweep is the supported batch mode here. Interactive crossing minimization needs in-layer order constraints and is invalid for these compound preview graphs.',
   },
   {
     key: 'elk.layered.nodePlacement.strategy',

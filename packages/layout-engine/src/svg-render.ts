@@ -312,7 +312,7 @@ function renderArrows(routed: RoutedArrow[], adapter: TextMeasureAdapter): strin
       }
     }
 
-    parts.push(`<g${cid}>${inner.join('')}</g>`);
+    parts.push(`<g data-dg-arrow="true"${cid}>${inner.join('')}</g>`);
   }
   return parts.join('');
 }
@@ -387,8 +387,8 @@ export function renderFrameDiagramToSvg(
     `<?xml version="1.0" encoding="UTF-8"?>\n` +
     `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" xml:space="preserve">` +
     `<rect width="${w}" height="${h}" fill="#FFFFFF"/>` +
-    body +
     arrows +
+    body +
     overlays +
     `</svg>\n`
   );
