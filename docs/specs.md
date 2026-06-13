@@ -23,6 +23,7 @@ Active spec packages stay under `specs/`. Completed or retired packages move to 
 | 018 PNG export | `specs/018-png-export/` | Draft | Preview **Save PNG** + slug batch CLI; rasterize TS SVG via Playwright; `diagrams/2.output/v3/png/`. |
 | 028 Diagram interchange (Mermaid & D2) | `specs/028-diagram-interchange-mermaid-d2/` | Draft | Bidirectional interchange: import parsers, fidelity matrix, export hardening, round-trip CLIs; builds on the archived spec 022 adapters. |
 | 041 Text-block inline editing | `specs/041-text-block-inline-editing/` | Draft | Make preview inline editing block-scoped, theme-safe, and semantically faithful to `heading` vs `label`. |
+| 042 Implicit ELK side ports | `specs/042-implicit-elk-side-ports/` | Draft | Add automatic midpoint side ports to ELK layered so edge attachment becomes deterministic without YAML-authored port definitions. |
 | — | `specs/ADVERSARIAL_REVIEW_PROMPT.md` | Template | Copy-paste prompt for post-session adversarial reviews. |
 
 Archived completed packages: [`docs/spec-archive/README.md`](./spec-archive/README.md)

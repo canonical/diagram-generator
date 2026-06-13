@@ -53,6 +53,12 @@ Feature package: `specs/006-arrow-routing-redesign/`.
 - [ ] `[H]` **Close the remaining spec 006 review follow-ups on this branch.** Browser router convergence is done; remaining major gaps are the full route-aware gap classifier (T080/T081), arrow dependency ordering + cycle diagnostics (T094), and moving final arrow geometry ownership out of the renderer path (T050-T052 / FR-005).
 - [ ] `[H]` **Arrow routing breaks when container direction flips vertical ↔ horizontal.** v3 router convergence works in one orientation; inspector direction changes leave stale or wrong arrow geometry. Owner: spec 006 (`arrow-routing.ts`, `layout-bridge.js` patchArrowsSvg). Reported via inbox 2026-06-12.
 
+#### Implicit ELK side ports (spec 042)
+
+Feature package: `specs/042-implicit-elk-side-ports/`.
+
+- [ ] `[H]` **Add automatic side-midpoint ports to ELK layered without YAML authoring.** Extend the shared graph IR, generate implicit ports in TypeScript, audit `portConstraints`, and validate on real drift-prone diagrams.
+
 ### Priority 2 — Standalone items
 
 #### Top-level containers should default to FILL sizing
