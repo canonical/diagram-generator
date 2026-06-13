@@ -56,6 +56,10 @@ function collectEndpointIds(diagram: FrameDiagram): Set<string> {
   return ids;
 }
 
+function isSyntheticHeadingFrame(frame: Frame): boolean {
+  return frame.role === 'heading' || Boolean(frame.id?.endsWith('__heading'));
+}
+
 function descendantLeafIds(frame: Frame): string[] {
   if (frame.isLeaf) return frame.id ? [frame.id] : [];
   const out: string[] = [];
@@ -192,7 +196,10 @@ function bboxOfFrames(frames: Frame[]): { minX: number; minY: number; maxX: numb
 }
 
 function isAnnotationFrame(frame: Frame, endpoints: Set<string>): boolean {
-  return frame.isLeaf && frame.border === Border.NONE && !endpoints.has(frame.id);
+  return frame.isLeaf &&
+    frame.border === Border.NONE &&
+    !endpoints.has(frame.id) &&
+    !isSyntheticHeadingFrame(frame);
 }
 
 function layoutAnnotationsBelow(

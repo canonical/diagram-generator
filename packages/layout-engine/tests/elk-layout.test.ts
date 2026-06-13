@@ -261,4 +261,48 @@ describe('layoutElkFrameDiagram', () => {
       expect(elkFrame?._layout.placedH).toBe(semanticFrame?._layout.placedH);
     }
   });
+
+  it('keeps synthesized heading rows inside ELK endpoint containers', async () => {
+    const diagram = loadFrameYaml(join(FRAMES_DIR, 'example-platform-architecture.yaml'));
+    const adapter = new MockTextAdapter();
+
+    await layoutElkFrameDiagram(diagram, adapter);
+
+    const frontend = findFrameById(
+      diagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'frontend',
+    );
+    const frontendHeading = findFrameById(
+      diagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'frontend__heading',
+    );
+    const frontendBody = findFrameById(
+      diagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'frontend__body',
+    );
+    const services = findFrameById(
+      diagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'services',
+    );
+    const servicesHeading = findFrameById(
+      diagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'services__heading',
+    );
+    const servicesBody = findFrameById(
+      diagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'services__body',
+    );
+
+    expect(frontendHeading?._layout.placedY).toBeGreaterThanOrEqual(frontend?._layout.placedY ?? -Infinity);
+    expect(frontendHeading?._layout.placedY).toBeLessThan(frontendBody?._layout.placedY ?? Infinity);
+    expect(
+      (frontendHeading?._layout.placedY ?? 0) + (frontendHeading?._layout.placedH ?? 0),
+    ).toBeLessThanOrEqual((frontend?._layout.placedY ?? 0) + (frontend?._layout.placedH ?? 0));
+
+    expect(servicesHeading?._layout.placedY).toBeGreaterThanOrEqual(services?._layout.placedY ?? -Infinity);
+    expect(servicesHeading?._layout.placedY).toBeLessThan(servicesBody?._layout.placedY ?? Infinity);
+    expect(
+      (servicesHeading?._layout.placedY ?? 0) + (servicesHeading?._layout.placedH ?? 0),
+    ).toBeLessThanOrEqual((services?._layout.placedY ?? 0) + (services?._layout.placedH ?? 0));
+  });
 });
