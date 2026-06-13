@@ -305,4 +305,43 @@ describe('layoutElkFrameDiagram', () => {
       (servicesHeading?._layout.placedY ?? 0) + (servicesHeading?._layout.placedH ?? 0),
     ).toBeLessThanOrEqual((services?._layout.placedY ?? 0) + (services?._layout.placedH ?? 0));
   });
+
+  it('lays out nested structural carriers that contain endpoint descendants', async () => {
+    const diagram = loadFrameYaml(join(FRAMES_DIR, 'tiered-network-architecture.yaml'));
+    const adapter = new MockTextAdapter();
+
+    await expect(layoutElkFrameDiagram(diagram, adapter)).resolves.toMatchObject({
+      width: expect.any(Number),
+      height: expect.any(Number),
+    });
+
+    const tier2Row = findFrameById(
+      diagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'tier2_row',
+    );
+    const groupLeft = findFrameById(
+      diagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'group_left',
+    );
+    const clientsLeftTop = findFrameById(
+      diagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'clients_left_top',
+    );
+    const clientL1 = findFrameById(
+      diagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'client_l1',
+    );
+    const clientL2 = findFrameById(
+      diagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'client_l2',
+    );
+
+    expect(tier2Row?._layout.placedW).toBeGreaterThan(0);
+    expect(groupLeft?._layout.placedW).toBeGreaterThan(0);
+    expect(clientsLeftTop?._layout.placedW).toBeGreaterThan(0);
+    expect(clientL1?._layout.placedW).toBeGreaterThan(0);
+    expect(clientL2?._layout.placedW).toBeGreaterThan(0);
+    expect(clientL1?._layout.placedX).toBeGreaterThanOrEqual(clientsLeftTop?._layout.placedX ?? -Infinity);
+    expect(clientL2?._layout.placedX).toBeGreaterThanOrEqual(clientsLeftTop?._layout.placedX ?? -Infinity);
+  });
 });

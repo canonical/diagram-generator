@@ -1032,6 +1032,23 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, port: nu
     });
     return;
   }
+  if (pathname === "/favicon.ico") {
+    sendBytes(res, 204, "image/x-icon", Buffer.alloc(0));
+    return;
+  }
+  if (pathname.startsWith("/assets/fonts/")) {
+    const safeName = path.posix.basename(pathname.slice("/assets/fonts/".length));
+    if (!safeName || safeName.includes("..")) {
+      sendText(res, 400, "Invalid font path");
+      return;
+    }
+    if (safeName === "UbuntuSans[wdth,wght].ttf") {
+      serveFile(res, LAYOUT_ENGINE_FONT, "public, max-age=300");
+      return;
+    }
+    sendText(res, 404, `${safeName} not found`);
+    return;
+  }
   if (pathname === "/preview/bf-os.css") {
     if (!existsSync(BF_VENDOR_OS_CSS)) {
       sendText(

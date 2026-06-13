@@ -60,11 +60,24 @@ function isSyntheticHeadingFrame(frame: Frame): boolean {
   return frame.role === 'heading' || Boolean(frame.id?.endsWith('__heading'));
 }
 
+function isSyntheticBodyFrame(frame: Frame): boolean {
+  return Boolean(frame.id?.endsWith('__body'));
+}
+
+function isSyntheticLayoutFrame(frame: Frame): boolean {
+  return isSyntheticHeadingFrame(frame) || isSyntheticBodyFrame(frame);
+}
+
 function descendantLeafIds(frame: Frame): string[] {
   if (frame.isLeaf) return frame.id ? [frame.id] : [];
   const out: string[] = [];
   for (const child of frame.children) out.push(...descendantLeafIds(child));
   return out;
+}
+
+function hasEndpointDescendant(frame: Frame, endpoints: Set<string>): boolean {
+  if (frame.id && endpoints.has(frame.id)) return true;
+  return frame.children.some((child) => hasEndpointDescendant(child, endpoints));
 }
 
 /** Semantic ELK compound — section/panel whose direct subtree leaves are all arrow endpoints. */
@@ -74,6 +87,12 @@ function isElkCompound(frame: Frame, endpoints: Set<string>): boolean {
   if (leaves.length < 2) return false;
   if (!leaves.every((id) => endpoints.has(id))) return false;
   return frame.level != null || frame.heading != null;
+}
+
+function isElkCarrier(frame: Frame, endpoints: Set<string>): boolean {
+  if (frame.isLeaf || frame.children.length === 0) return false;
+  if (isSyntheticLayoutFrame(frame)) return false;
+  return hasEndpointDescendant(frame, endpoints);
 }
 
 function measureSubtree(frame: Frame, adapter: TextMeasureAdapter): void {
@@ -123,12 +142,32 @@ function frameToGraphNode(
     width: semantic?.width ?? frame._layout.measuredW,
     height: semantic?.height ?? frame._layout.measuredH,
   };
-  if (isElkCompound(frame, endpoints)) {
-    node.children = frame.children
-      .filter((c) => endpoints.has(c.id) || isElkCompound(c, endpoints))
-      .map((c) => frameToGraphNode(c, adapter, endpoints, semanticSizes));
+  const childNodes = collectGraphChildNodes(frame.children, adapter, endpoints, semanticSizes);
+  if (childNodes.length > 0) {
+    node.children = childNodes;
   }
   return node;
+}
+
+function collectGraphChildNodes(
+  frames: Frame[],
+  adapter: TextMeasureAdapter,
+  endpoints: Set<string>,
+  semanticSizes: Map<string, { width: number; height: number }>,
+): GraphNodeInput[] {
+  const nodes: GraphNodeInput[] = [];
+  for (const frame of frames) {
+    if (isSyntheticLayoutFrame(frame)) {
+      if (hasEndpointDescendant(frame, endpoints)) {
+        nodes.push(...collectGraphChildNodes(frame.children, adapter, endpoints, semanticSizes));
+      }
+      continue;
+    }
+    if (endpoints.has(frame.id) || isElkCompound(frame, endpoints) || isElkCarrier(frame, endpoints)) {
+      nodes.push(frameToGraphNode(frame, adapter, endpoints, semanticSizes));
+    }
+  }
+  return nodes;
 }
 
 function buildElkGraphNodes(
@@ -140,11 +179,7 @@ function buildElkGraphNodes(
   const nodes: GraphNodeInput[] = [];
 
   function walk(frame: Frame, insideCompound: boolean): void {
-    if (!insideCompound && isElkCompound(frame, endpoints)) {
-      nodes.push(frameToGraphNode(frame, adapter, endpoints, semanticSizes));
-      return;
-    }
-    if (endpoints.has(frame.id)) {
+    if (!insideCompound && (endpoints.has(frame.id) || isElkCompound(frame, endpoints) || isElkCarrier(frame, endpoints))) {
       nodes.push(frameToGraphNode(frame, adapter, endpoints, semanticSizes));
       return;
     }
