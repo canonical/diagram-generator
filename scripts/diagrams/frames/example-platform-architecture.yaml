@@ -76,3 +76,5 @@ root:
       - queue
       icon: Operations.svg
   gap_delta: 16
+meta:
+  layout_engine: elk-layered

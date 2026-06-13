@@ -119,3 +119,5 @@ root:
         label:
         - Client
         icon: Laptop.svg
+meta:
+  layout_engine: elk-layered
