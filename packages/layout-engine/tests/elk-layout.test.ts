@@ -345,6 +345,39 @@ describe('layoutElkFrameDiagram', () => {
     expect(clientL2?._layout.placedX).toBeGreaterThanOrEqual(clientsLeftTop?._layout.placedX ?? -Infinity);
   });
 
+  it('keeps same-layer gap overrides effective on process graphs with structural rows', async () => {
+    const baseDiagram = loadFrameYaml(join(FRAMES_DIR, 'juju-bootstrap-machines-process.yaml'));
+    const gapDiagram = loadFrameYaml(join(FRAMES_DIR, 'juju-bootstrap-machines-process.yaml'));
+    const adapter = new MockTextAdapter();
+
+    await layoutElkFrameDiagram(baseDiagram, adapter);
+    await layoutElkFrameDiagram(gapDiagram, adapter, {
+      elkOptionOverrides: {
+        'elk.spacing.nodeNode': '96',
+      },
+    });
+
+    const baseSnapStore = findFrameById(
+      baseDiagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'snap_store',
+    );
+    const gapSnapStore = findFrameById(
+      gapDiagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'snap_store',
+    );
+    const baseCloud = findFrameById(
+      baseDiagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'cloud',
+    );
+    const gapCloud = findFrameById(
+      gapDiagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'cloud',
+    );
+
+    expect(gapSnapStore?._layout.placedX).not.toBe(baseSnapStore?._layout.placedX);
+    expect(gapCloud?._layout.placedX).not.toBe(baseCloud?._layout.placedX);
+  });
+
   it('expands the root width to include ELK edge geometry beyond authored fixed width', async () => {
     const diagram = loadFrameYaml(join(FRAMES_DIR, 'juju-bootstrap-machines-process.yaml'));
     const adapter = new MockTextAdapter();

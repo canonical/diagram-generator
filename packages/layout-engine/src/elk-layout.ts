@@ -95,6 +95,16 @@ function isElkCarrier(frame: Frame, endpoints: Set<string>): boolean {
   return hasEndpointDescendant(frame, endpoints);
 }
 
+function shouldIncludeElkNode(
+  frame: Frame,
+  endpoints: Set<string>,
+  allowStructuralCarriers: boolean,
+): boolean {
+  return endpoints.has(frame.id)
+    || isElkCompound(frame, endpoints)
+    || (allowStructuralCarriers && isElkCarrier(frame, endpoints));
+}
+
 function measureSubtree(frame: Frame, adapter: TextMeasureAdapter): void {
   measure(frame, adapter, true);
 }
@@ -134,6 +144,7 @@ function frameToGraphNode(
   adapter: TextMeasureAdapter,
   endpoints: Set<string>,
   semanticSizes: Map<string, { width: number; height: number }>,
+  allowStructuralCarriers: boolean,
 ): GraphNodeInput {
   measureSubtree(frame, adapter);
   const semantic = semanticSizes.get(frame.id);
@@ -142,7 +153,13 @@ function frameToGraphNode(
     width: semantic?.width ?? frame._layout.measuredW,
     height: semantic?.height ?? frame._layout.measuredH,
   };
-  const childNodes = collectGraphChildNodes(frame.children, adapter, endpoints, semanticSizes);
+  const childNodes = collectGraphChildNodes(
+    frame.children,
+    adapter,
+    endpoints,
+    semanticSizes,
+    allowStructuralCarriers || isElkCompound(frame, endpoints),
+  );
   if (childNodes.length > 0) {
     node.children = childNodes;
   }
@@ -154,17 +171,24 @@ function collectGraphChildNodes(
   adapter: TextMeasureAdapter,
   endpoints: Set<string>,
   semanticSizes: Map<string, { width: number; height: number }>,
+  allowStructuralCarriers: boolean,
 ): GraphNodeInput[] {
   const nodes: GraphNodeInput[] = [];
   for (const frame of frames) {
     if (isSyntheticLayoutFrame(frame)) {
       if (hasEndpointDescendant(frame, endpoints)) {
-        nodes.push(...collectGraphChildNodes(frame.children, adapter, endpoints, semanticSizes));
+        nodes.push(...collectGraphChildNodes(
+          frame.children,
+          adapter,
+          endpoints,
+          semanticSizes,
+          allowStructuralCarriers,
+        ));
       }
       continue;
     }
-    if (endpoints.has(frame.id) || isElkCompound(frame, endpoints) || isElkCarrier(frame, endpoints)) {
-      nodes.push(frameToGraphNode(frame, adapter, endpoints, semanticSizes));
+    if (shouldIncludeElkNode(frame, endpoints, allowStructuralCarriers)) {
+      nodes.push(frameToGraphNode(frame, adapter, endpoints, semanticSizes, allowStructuralCarriers));
     }
   }
   return nodes;
@@ -178,15 +202,16 @@ function buildElkGraphNodes(
 ): GraphNodeInput[] {
   const nodes: GraphNodeInput[] = [];
 
-  function walk(frame: Frame, insideCompound: boolean): void {
-    if (!insideCompound && (endpoints.has(frame.id) || isElkCompound(frame, endpoints) || isElkCarrier(frame, endpoints))) {
-      nodes.push(frameToGraphNode(frame, adapter, endpoints, semanticSizes));
+  function walk(frame: Frame, insideCompound: boolean, allowStructuralCarriers: boolean): void {
+    if (!insideCompound && shouldIncludeElkNode(frame, endpoints, allowStructuralCarriers)) {
+      nodes.push(frameToGraphNode(frame, adapter, endpoints, semanticSizes, allowStructuralCarriers));
       return;
     }
-    for (const child of frame.children) walk(child, insideCompound);
+    const nextAllowStructuralCarriers = allowStructuralCarriers || isElkCompound(frame, endpoints);
+    for (const child of frame.children) walk(child, insideCompound, nextAllowStructuralCarriers);
   }
 
-  for (const child of root.children) walk(child, false);
+  for (const child of root.children) walk(child, false, false);
   return nodes;
 }
 
@@ -228,6 +253,36 @@ function bboxOfFrames(frames: Frame[]): { minX: number; minY: number; maxX: numb
     maxY = Math.max(maxY, ls.placedY + ls.placedH);
   }
   return { minX, minY, maxX, maxY };
+}
+
+function wrapUnplacedStructuralContainers(root: Frame): void {
+  function visit(frame: Frame): void {
+    for (const child of frame.children) {
+      visit(child);
+    }
+    if (frame.isLeaf || frame._layout.placedW > 0 || frame._layout.placedH > 0) return;
+
+    const placedChildren = frame.children.filter(
+      (child) => child._layout.placedW > 0 && child._layout.placedH > 0,
+    );
+    if (placedChildren.length === 0) return;
+
+    const box = bboxOfFrames(placedChildren);
+    if (!box) return;
+
+    const x = box.minX - frame.paddingLeft;
+    const y = box.minY - frame.paddingTop;
+    const w = box.maxX - box.minX + frame.paddingLeft + frame.paddingRight;
+    const h = box.maxY - box.minY + frame.paddingTop + frame.paddingBottom;
+    frame._layout.placedX = x;
+    frame._layout.placedY = y;
+    frame._layout.placedW = w;
+    frame._layout.placedH = h;
+    frame._layout.measuredW = w;
+    frame._layout.measuredH = h;
+  }
+
+  visit(root);
 }
 
 function bboxOfElkEdges(
@@ -502,6 +557,8 @@ export async function layoutElkFrameDiagram(
       adapter,
     );
   }
+
+  wrapUnplacedStructuralContainers(diagram.root);
 
   layoutAnnotationsBelow(diagram.root, adapter, elk.height, originX, originY, endpoints);
 
