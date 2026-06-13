@@ -4996,7 +4996,7 @@ function _normaliseStyleName(styleName) {
 }
 
 // Canonical YAML projection for the v3 style picker. Keep this aligned with
-// scripts/frame_yaml_persistence.py; it is a persistence bridge, not a second
+// the preview-app persistence layer; it is a persistence bridge, not a second
 // visual-authority layer.
 const _V3_STYLE_SEMANTICS = {
   default: { level: 1, fill: "WHITE", border: "SOLID", style: "default" },

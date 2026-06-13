@@ -12,13 +12,13 @@ Consolidate DIAGRAM.md's typography frontmatter from 13 tokens to 2 (`diagram-bo
 
 ## Technical Context
 
-**Language/Version**: Python 3.11, TypeScript 5.x
+**Language/Version**: TypeScript 5.x, retained Python helpers only
 
 **Primary Dependencies**: `scripts/diagram_shared.py` (Python tokens), `packages/layout-engine/src/tokens.ts` (TS tokens), `packages/layout-engine/src/frame-classes.ts` (frame class definitions)
 
 **Storage**: N/A — no data layer changes
 
-**Testing**: `pytest scripts/test_*.py`, `npx tsc --noEmit` in `packages/layout-engine`
+**Testing**: `npm --prefix packages/layout-engine test`, `npx tsc --noEmit` in `packages/layout-engine`, `node scripts/check_no_new_python.mjs`
 
 **Target Platform**: N/A — documentation and constant cleanup only
 
@@ -26,7 +26,7 @@ Consolidate DIAGRAM.md's typography frontmatter from 13 tokens to 2 (`diagram-bo
 
 **Performance Goals**: N/A
 
-**Constraints**: All existing tests must pass. No runtime behavior changes.
+**Constraints**: TS/Node remains the product path. No runtime behavior changes.
 
 **Scale/Scope**: 1 markdown file (DIAGRAM.md), 1 Python file (diagram_shared.py), 0 TS files (tokens.ts has no dead constants to remove — it only defines `BODY_SIZE` and `BODY_LINE_STEP` which are both used)
 
@@ -37,7 +37,7 @@ Consolidate DIAGRAM.md's typography frontmatter from 13 tokens to 2 (`diagram-bo
 - No new dependencies introduced ✓
 - No new files created (spec files only) ✓
 - No runtime behavior changes ✓
-- TypeScript and Python parity maintained ✓
+- TypeScript / Node product path preserved ✓
 
 ## Project Structure
 

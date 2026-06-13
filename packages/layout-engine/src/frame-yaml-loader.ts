@@ -1,6 +1,6 @@
 /**
  * Native frame YAML → FrameDiagram (v3).
- * TypeScript source of truth for batch export; mirrors scripts/frame_loader.py.
+ * TypeScript source of truth for batch export and preview loading.
  */
 
 import { readFileSync } from 'node:fs';

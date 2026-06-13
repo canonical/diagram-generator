@@ -21,10 +21,7 @@ Active spec packages stay under `specs/`. Completed or retired packages move to 
 |------|------|--------|---------|
 | 006 Arrow routing redesign | `specs/006-arrow-routing-redesign/` | Draft | Contract-driven routing overhaul with explicit ports, hierarchy-aware obstacles, deterministic side selection, and layout-owned geometry. |
 | 018 PNG export | `specs/018-png-export/` | Draft | Preview **Save PNG** + slug batch CLI; rasterize TS SVG via Playwright; `diagrams/2.output/v3/png/`. |
-| 024 ELK interactive node alignment | `specs/024-elk-interactive-node-alignment/` | Draft (summary only on main) | Mainline conclusion: do not ship interactive nudging on the current plain-`elkjs` path. The summary remains on `main`; deeper exploration stays off-main until a stronger result exists. |
 | 028 Diagram interchange (Mermaid & D2) | `specs/028-diagram-interchange-mermaid-d2/` | Draft | Bidirectional interchange: import parsers, fidelity matrix, export hardening, round-trip CLIs; builds on the archived spec 022 adapters. |
-| 039 Diagram typography token cleanup | `specs/039-diagram-typography-token-cleanup/` | Draft | Audit `DIAGRAM.md` against the live engine, collapse dead typography tokens, and remove stale contract language that no longer matches runtime behavior. |
-| 040 Agent token slimming | `specs/040-agent-token-slimming/` | Draft | `.cursorignore`, two-folder workspace, archive completed specs, retire `STATUS.md` handover, trap-file index, spec-kit on demand only. |
 | — | `specs/ADVERSARIAL_REVIEW_PROMPT.md` | Template | Copy-paste prompt for post-session adversarial reviews. |
 
 Archived completed packages: [`docs/spec-archive/README.md`](./spec-archive/README.md)

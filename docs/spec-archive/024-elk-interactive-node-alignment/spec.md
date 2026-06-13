@@ -6,7 +6,7 @@
 
 **Created**: 2026-06-05
 
-**Status**: Draft — fail-closed on `main`; exploratory code remains on the feature branch, and any future revisit must still land through the spec 025 engine contract plus the spec 026 ELK controller slice
+**Status**: Closed on `main` — plain `elkjs` did not produce a shippable interactive nudge path. Archive this package as a fail-closed design record; any future revisit must prove upstream Java ELK parity before new implementation work starts.
 
 **Input**: Authors need to nudge slightly misaligned boxes on ELK-layered diagrams (e.g. Juju process corpus), persist those hints, and re-run the layered algorithm so routes, spacing, and label boxes stay coherent. Must use **native ELK interactive constraints**, not post-layout SVG patching.
 

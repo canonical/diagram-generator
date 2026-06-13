@@ -1,12 +1,11 @@
 /**
- * Frame-based two-pass layout engine — TypeScript port of layout_v3.py.
+ * Frame-based two-pass layout engine for native frame YAML.
  *
  * Pass 1 — measure(): bottom-up, computes natural size of each Frame.
  * Pass 1.5 — constrained re-measurement: re-wraps text at resolved widths.
  * Pass 2 — place(): top-down, assigns positions and distributes fill space.
  *
- * This is a faithful port. The TS layout engine must produce identical
- * coordinates to the Python engine for the same input.
+ * This module owns the live layout contract used by preview and export.
  */
 
 import {

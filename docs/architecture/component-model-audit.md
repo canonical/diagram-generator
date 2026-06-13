@@ -50,7 +50,7 @@ Separators and arrows are systematically excluded from capabilities that should 
 
 | Location | What's hard-coded | What it should be |
 |---|---|---|
-| layout_v3.py:1075–1087 | Separator render: early return, DashedLinePrimitive + TextBlock | Render dispatch after standard bounds resolution – same `(x, y, w, h)` contract |
+| historical Python renderer | Separator render: early return, DashedLinePrimitive + TextBlock | Render dispatch after standard bounds resolution – same `(x, y, w, h)` contract |
 | layout-bridge.js:500 | Separator excluded from SVG patching | All nodes patched uniformly; render dispatch handles visual differences |
 | editor.js:2683 | Arrows can have children but skip normal processing | Arrow-children relationship should be typed and documented, or removed |
 

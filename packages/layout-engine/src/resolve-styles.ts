@@ -1,5 +1,5 @@
 /**
- * Style resolution — TypeScript port of frame_loader.py resolve_styles().
+ * Style resolution for native frame YAML.
  *
  * Walks a Frame tree and sets resolvedFill / resolvedStroke on every frame
  * based on the four-class hierarchy:
@@ -58,8 +58,7 @@ interface ResolveStylesContext {
  * Walk the tree and set resolvedFill / resolvedStroke on every frame.
  *
  * Must be called before layout so typography-affecting mutations
- * participate in measurement. Mirrors the Python `resolve_styles()`
- * in `frame_loader.py` exactly.
+ * participate in measurement.
  */
 export function resolveStyles(root: Frame, ctx?: Partial<ResolveStylesContext>): void {
   const depth = ctx?.depth ?? 0;

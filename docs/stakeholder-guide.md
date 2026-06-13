@@ -58,8 +58,8 @@ Index: `http://127.0.0.1:8100/` lists all frame YAML diagrams.
 | Audience | Document |
 |----------|----------|
 | PM / milestone tracking | Jira [DE-941](https://warthogs.atlassian.net/browse/DE-941), Coda (sibling `diagram-generator-planning` repo) |
-| Current repo state | [`STATUS.md`](../STATUS.md) |
-| Active tasks | [`TODO.md`](../TODO.md) — spec 005 autolayout hardening, spec 018 PNG export |
+| Current repo state | [`AGENTS.md#handover`](../AGENTS.md#handover) |
+| Active tasks | [`TODO.md`](../TODO.md) — spec 018 PNG export, ELK engine-switcher follow-ups, arrow-routing follow-ups |
 | Visual language | [`DIAGRAM.md`](../DIAGRAM.md) |
 
 ## Architecture (one paragraph)

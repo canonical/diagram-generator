@@ -120,7 +120,7 @@ enough" implementation of small caps.
 **Non-container sections.** A level-3 frame with no children (e.g. a
 leaf-like box with a bold label) gets section styling: black border,
 transparent fill, and the same section-heading typography on the first
-label line. The heading transform (Phase 2 in `frame_loader.py`) only
-fires for containers, so non-container sections apply the section
-heading token directly to `frame.label[0]` rather than to a synthetic
-`__heading` child.
+label line. Container heading synthesis only applies to headed
+containers, so non-container sections apply the section heading token
+directly to `frame.label[0]` rather than to a synthetic `__heading`
+child.

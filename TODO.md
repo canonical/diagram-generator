@@ -10,30 +10,12 @@ Active execution queue for `diagram-generator`. All new work targets TypeScript 
 
 ### Priority 1 — Spec-kit tracked work
 
-#### Agent token slimming (spec 040)
-
-Feature package: `specs/040-agent-token-slimming/`.
-
-- [ ] `[M]` **Execute spec 040 closeout.** Verify two-folder workspace in a fresh chat, drain `AGENT-INBOX.md`, add planning-repo ignore files if not landed. Reported via inbox 2026-06-13.
-
 #### Compatible engine switcher (spec 035)
 
 Feature package: `docs/spec-archive/035-compatible-engine-switcher/`.
 
 - [ ] `[H]` **ELK layered drops headings and icons on parent containers.** Headed panels (e.g. Planning / Implementation / Delivery in `complex-routing-usecase`) lose title + icon treatment under `elk-layered`; headers should remain in the container chrome ELK lays out. Investigate, draft spec-kit fix package, add tier-2 flow map. Reported via inbox 2026-06-12.
 - [ ] `[H]` **ELK layered does not honor non-fixed authored sizing semantics consistently on switched frame diagrams.** Switching a valid frame diagram from `v3` to `elk-layered` can collapse equal-width `FILL` stacks into uneven intrinsic widths because `layoutElkFrameDiagram()` currently measures nodes and hands ELK concrete box sizes instead of preserving the repo's non-fixed sizing behavior end-to-end. Explicit `FIXED` sizing should remain supported (including bulk "set same fixed size" editing); investigate on `support-engineering-flow` and `tiered-network-architecture`, then decide the TS-owned contract for ELK `FILL` / `HUG` per axis. Reported via inbox 2026-06-13.
-
-#### Diagram typography token cleanup (spec 039)
-
-Feature package: `specs/039-diagram-typography-token-cleanup/`.
-
-- [ ] `[H]` **Review, tighten, and execute spec 039.** Draft was written by a lower-tier model — audit against live TS engine + `DIAGRAM.md`, update spec/tasks for accuracy, then shrink dead typography tokens to `diagram-body` + `diagram-heading-1` and remove unused constants. Reported via inbox 2026-06-12.
-
-#### ELK interactive node alignment (spec 024)
-
-Feature package: `specs/024-elk-interactive-node-alignment/`.
-
-- [ ] `[H]` **Keep spec 024 fail-closed on `main`.** The plain-`elkjs` interactive route did not survive the live Juju graph check. Preserve the spec summary on `main`; keep any deeper exploration on a separate branch; if revisited, test upstream Java ELK before more shell/controller work.
 
 #### ELK force core port (branch-only additive lane)
 

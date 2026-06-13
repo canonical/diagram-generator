@@ -882,7 +882,7 @@ function updateComponentModelFromLayout(model, frame) {
 }
 
 // ---------------------------------------------------------------------------
-// Arrow routing (port of layout_v3.py arrow routing)
+// Arrow routing bridges serialized preview state to the TS-owned router.
 // ---------------------------------------------------------------------------
 
 /** Match packages/layout-engine/src/svg-render.ts arrow group ids. */

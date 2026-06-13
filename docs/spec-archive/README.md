@@ -29,11 +29,14 @@ Completed or retired spec packages live here so `specs/` stays focused on curren
 - `021-arrow-labels-use-annotation-variant`
 - `022-diagram-authoring-ast`
 - `023-force-layout-restoration`
+- `024-elk-interactive-node-alignment`
 - `025-multi-engine-preview-architecture`
 - `026-preview-shell-decomposition-ts-migration`
 - `027-preview-browser-test-api`
 - `029-force-preview-shell-convergence`
 - `030-sequence-layout`
+- `039-diagram-typography-token-cleanup`
+- `040-agent-token-slimming`
 - `035-compatible-engine-switcher`
 - `036-headingless-wrapper-contract`
 - `037-preview-engine-drift-closeout`

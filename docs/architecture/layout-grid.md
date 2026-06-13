@@ -124,7 +124,7 @@ The design-foundry counterpart is `resolveGridCore()` in `packages/layout-grid/s
 
 ## Grid persistence
 
-Grid edits are persisted back into the diagram YAML through `frame_yaml_persistence.py`, not to a sidecar override file.
+Grid edits are persisted back into the diagram YAML through the preview-app persistence path (`apps/preview/src/persistence/frame-diagram.ts`), not to a sidecar override file.
 
 Persistable grid fields today are intentionally narrow:
 

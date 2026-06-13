@@ -4,9 +4,11 @@
 
 **Created**: 2026-06-13
 
-**Status**: Draft
+**Status**: Complete
 
 **Input**: Reduce AI agent token burn when working in `diagram-generator` (and the paired `diagram-generator-planning` workspace) without losing fix quality.
+
+**Closeout note (2026-06-13)**: The repo now ships the two-root workspace, de-indexes `docs/spec-archive/`, keeps `STATUS.md` as a pointer stub, routes cold starts through `AGENTS.md` + `docs/agent-index.md`, archives completed spec packages out of `specs/`, and keeps the planning repo ignore files aligned.
 
 ## Problem Statement
 

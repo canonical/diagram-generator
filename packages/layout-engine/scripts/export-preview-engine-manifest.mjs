@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** Emit preview-engine manifest JSON for preview_server.py (spec 025 T002). */
+/** Emit preview-engine manifest JSON for the preview app (spec 025 T002). */
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { distImport, pkgRoot } from './_dist-import.mjs';

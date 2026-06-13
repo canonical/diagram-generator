@@ -289,7 +289,7 @@ The arrow connects container-to-leaf. The user *means* "from the modernisation g
 
 ### 3.6 SVG rendering improvements
 
-Current: arrow geometry (head shape, shaft segments) computed in `diagram_render_svg.py`.
+Historical problem: arrow geometry (head shape, shaft segments) used to be computed in the retired Python renderer.
 
 **Architecture violation** (flagged in planning repo audit): arrow geometry should be pre-computed in the layout pass, not computed during rendering.
 

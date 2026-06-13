@@ -31,11 +31,11 @@ description: "Task list for diagram typography token cleanup"
 
 **Purpose**: Establish baseline before making changes
 
-- [ ] T001 Run full Python test suite to establish baseline: `pytest scripts/test_*.py`
+- [ ] T001 Run TS baseline validation: `npm --prefix packages/layout-engine test`
 - [ ] T002 [P] Run TypeScript compilation check: `cd packages/layout-engine && npx tsc --noEmit`
 - [ ] T003 [P] Grep for dead constants to confirm they exist before removal: `grep -r "TITLE_SIZE\|HEADING_SIZE\|TITLE_LINE_STEP\|HEADING_LINE_STEP\|DIAGRAM_TIER_BODY" scripts/ packages/`
 
-**Checkpoint**: Baseline established. All tests pass. Dead constants confirmed present.
+**Checkpoint**: Baseline established. TS validation passes. Dead constants confirmed present.
 
 ---
 
@@ -77,9 +77,9 @@ description: "Task list for diagram typography token cleanup"
 - [ ] T013 [US2] Remove line: `DIAGRAM_TIER_BODY_SIZE = BODY_SIZE` (around line 95).
 - [ ] T014 [US2] Remove line: `DIAGRAM_TIER_BODY_LINE_STEP = BODY_LINE_STEP` (around line 100).
 - [ ] T015 [US2] Run grep to verify removal: `grep -r "TITLE_SIZE\|HEADING_SIZE\|TITLE_LINE_STEP\|HEADING_LINE_STEP\|DIAGRAM_TIER_BODY" scripts/ packages/` — should return zero results.
-- [ ] T016 [US2] Run full Python test suite: `pytest scripts/test_*.py` — all tests must pass.
+- [ ] T016 [US2] Run repo ratchet + TS validation: `node scripts/check_no_new_python.mjs` and `npm --prefix packages/layout-engine test`
 
-**Checkpoint**: Dead constants removed. Zero grep hits. All tests pass.
+**Checkpoint**: Dead constants removed. Zero grep hits. TS validation and no-new-Python ratchet pass.
 
 ---
 
@@ -122,7 +122,7 @@ description: "Task list for diagram typography token cleanup"
 
 **Purpose**: Final verification and documentation
 
-- [ ] T026 [P] Run full Python test suite one final time: `pytest scripts/test_*.py`
+- [ ] T026 [P] Run no-new-Python ratchet: `node scripts/check_no_new_python.mjs`
 - [ ] T027 [P] Run TypeScript compilation one final time: `cd packages/layout-engine && npx tsc --noEmit`
 - [ ] T028 [P] Verify no SVG output changes by generating a test diagram and comparing before/after (optional, low priority)
 - [ ] T029 Update `STATUS.md` or `TODO.md` to note that spec 039 is complete (if project convention requires it)

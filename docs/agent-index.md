@@ -38,7 +38,7 @@ Thin shell modules (safe to read whole): `editor-state.js`, `editor-base.js`, `s
 |-------|-----|
 | Preview override persist / `gap_delta` | [`specs/006-arrow-routing-redesign/preview-override-flow.md`](../specs/006-arrow-routing-redesign/preview-override-flow.md) |
 | Shell decomposition boundaries | [`docs/spec-archive/026-preview-shell-decomposition-ts-migration/boundaries.md`](./spec-archive/026-preview-shell-decomposition-ts-migration/boundaries.md) |
-| Agent token / workspace slimming | [`specs/040-agent-token-slimming/spec.md`](../specs/040-agent-token-slimming/spec.md) |
+| Agent token / workspace slimming | [`docs/spec-archive/040-agent-token-slimming/spec.md`](./spec-archive/040-agent-token-slimming/spec.md) |
 
 Add a new row when you land a cross-layer map (UI → server → engine → disk). Keep maps ≤60 lines.
 

@@ -63,7 +63,7 @@ function _ensureDistCurrent(name) {
   _distChecked = true;
 }
 
-/** Match preview_server.py `DG_FRAMES_DIR` override for isolated tests and custom layouts. */
+/** Match the preview app `DG_FRAMES_DIR` override for isolated tests and custom layouts. */
 export function framesDir() {
   const override = process.env.DG_FRAMES_DIR;
   if (override && String(override).trim()) {
