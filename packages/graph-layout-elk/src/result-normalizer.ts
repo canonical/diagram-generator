@@ -113,8 +113,8 @@ function collectAbsolutePortPositions(
   out = new Map<string, PortPlacement>(),
 ): Map<string, PortPlacement> {
   for (const node of nodes) {
-    const nodeX = parentX + (node.x ?? 0);
-    const nodeY = parentY + (node.y ?? 0);
+    const nodeX = snap(parentX + (node.x ?? 0));
+    const nodeY = snap(parentY + (node.y ?? 0));
     for (const port of node.ports ?? []) {
       if (port.x == null || port.y == null) continue;
       const point = snapPoint({ x: nodeX + port.x, y: nodeY + port.y });
@@ -191,6 +191,35 @@ function indexInputEdges(
   return { byId, byEndpoints };
 }
 
+function alignSectionsToPortPlacements(
+  sections: RoutedEdgeSection[],
+  sourcePortPlacement: PortPlacement | undefined,
+  targetPortPlacement: PortPlacement | undefined,
+): RoutedEdgeSection[] {
+  if (sections.length < 1) return sections;
+
+  const alignToPortSide = (point: Point2, placement: PortPlacement): Point2 => {
+    switch (placement.side) {
+      case 'top':
+      case 'bottom':
+        return snapPoint({ x: point.x, y: placement.point.y });
+      case 'left':
+      case 'right':
+        return snapPoint({ x: placement.point.x, y: point.y });
+    }
+  };
+
+  return sections.map((section, index) => ({
+    ...section,
+    ...(index === 0 && sourcePortPlacement
+      ? { startPoint: alignToPortSide(section.startPoint, sourcePortPlacement) }
+      : {}),
+    ...(index === sections.length - 1 && targetPortPlacement
+      ? { endPoint: alignToPortSide(section.endPoint, targetPortPlacement) }
+      : {}),
+  }));
+}
+
 function normalizeEdges(
   edges: ElkLayoutEdge[],
   rootId: string,
@@ -215,6 +244,11 @@ function normalizeEdges(
     const targetPortId = targetPortPlacement ? targetRef : inputEdge?.targetPort;
     const sourceId = inputEdge?.source ?? sourcePortPlacement?.nodeId ?? edge.sources?.[0] ?? '';
     const targetId = inputEdge?.target ?? targetPortPlacement?.nodeId ?? edge.targets?.[0] ?? '';
+    const normalizedSections = alignSectionsToPortPlacements(
+      sections,
+      sourcePortPlacement,
+      targetPortPlacement,
+    );
 
     return {
       id: edge.id,
@@ -224,7 +258,7 @@ function normalizeEdges(
       ...(targetPortId ? { targetPort: targetPortId } : {}),
       ...(sourcePortPlacement?.side ? { sourcePortSide: sourcePortPlacement.side } : {}),
       ...(targetPortPlacement?.side ? { targetPortSide: targetPortPlacement.side } : {}),
-      sections,
+      sections: normalizedSections,
       labels: mapEdgeLabels(edge.labels, offset),
     };
   });

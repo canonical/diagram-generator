@@ -18,6 +18,7 @@
 - [x] T012 Evaluate supported ELK options for shared-source fan-out or merged stems; enable only if compatible with the chosen layered-plus-port setup
 - [x] T013 If no compatible native ELK option exists, keep default ELK behavior instead of adding a TypeScript fan-out pass
 - [x] T014 Document the intentional first-slice limit: one logical port per side and no custom same-side lane policy
+- [x] T015 Keep headed and icon-bearing compounds ELK-compatible by treating heading chrome as decorative container padding instead of a fallback trigger or graph-participating node
 
 ## Phase 3: Thin render-path authority
 
@@ -39,6 +40,7 @@
 - [x] T040 Extend `packages/graph-layout-elk/tests/elk-layered.test.ts` with builder-level native-port and endpoint-ref coverage
 - [x] T041 Reuse the existing ELK corpus fixtures for `juju-bootstrap-machines-process` and `ubuntu-pro-wsl-deployment` to verify native side attachment
 - [x] T042 Add one `packages/layout-engine/tests/elk-layout.test.ts` regression proving rendered paths and arrowhead-bearing final segments follow ELK output on a real frame diagram
+- [x] T042a Add regression coverage for headed compounds staying native ELK while headings/icons remain decorative chrome
 - [x] T043 Run `npm --prefix packages/graph-layout-elk test`
 - [x] T044 Run `npm --prefix packages/layout-engine run build:browser`
 - [x] T045 Run `npm --prefix packages/layout-engine test`

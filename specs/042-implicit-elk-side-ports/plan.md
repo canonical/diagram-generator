@@ -19,6 +19,7 @@ Give ELK layered deterministic edge attachment via generated side-midpoint ports
 - `packages/graph-layout-elk/src/elk-graph-builder.ts` remains the authority that turns port-capable IR into an ELK graph.
 - Generate four midpoint ports (`top`, `right`, `bottom`, `left`) with stable ids derived from node id and side.
 - Treat authored edge endpoint nodes as eligible. Structural carriers stay unported. Compound nodes only get ports when the authored arrow points to that compound id directly.
+- Keep headed or icon-bearing compounds ELK-native. Their heading/body chrome should behave like decorative padding/background that moves with the box, while authored body children remain the ELK participants.
 - Use ELK's native port API and edge-port refs only; do not plan a TypeScript reroute layer to compensate later.
 
 ### 3. Use supported ELK configuration, not a second routing algorithm
@@ -31,7 +32,7 @@ Give ELK layered deterministic edge attachment via generated side-midpoint ports
 ### 4. Make ELK output authoritative in the render path
 
 - `packages/graph-layout-elk/src/result-normalizer.ts` may translate or preserve ELK geometry, but it should not invent new route geometry beyond what ELK returned.
-- `packages/layout-engine/src/elk-layout.ts` should forward ELK sections and ELK label positions as the authoritative route payload.
+- `packages/layout-engine/src/elk-layout.ts` should forward ELK sections and ELK label positions as the authoritative route payload, while mapping native ELK compound child placements back through decorative headed-container wrappers.
 - `packages/layout-engine/src/arrow-routing.ts` and `scripts/preview/layout-bridge.js` must not re-route ELK-managed arrows, synthesize fan-out stems, or simplify paths in ways that change final segment direction.
 - Arrowheads should be drawn from the final ELK segment only.
 - If arrows run through labels, treat that as an ELK input/config problem or default ELK behavior, not as a signal to add a post-layout rerouter.
@@ -53,6 +54,7 @@ Give ELK layered deterministic edge attachment via generated side-midpoint ports
 - Add builder-level coverage in `packages/graph-layout-elk/tests/elk-layered.test.ts` for stable port ids, side selection, and edge port refs.
 - Reuse the existing ELK corpus fixtures (`corpus-juju-bootstrap-machines-process.graph.json` and `corpus-ubuntu-pro-wsl-deployment.graph.json`) to confirm routed endpoints stay on intended sides under native ELK geometry.
 - Add one layout-engine regression in `packages/layout-engine/tests/elk-layout.test.ts` to prove rendered paths and arrowhead-bearing final segments follow native ELK output on a real frame diagram.
+- Add headed-compound coverage so frames with headers/icons remain ELK-compatible and keep their chrome decorative.
 - Keep preview validation focused on native-route consumption and control registry behavior; do not add new preview-only routing behavior.
 
 ## Files

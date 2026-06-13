@@ -221,7 +221,7 @@ describe('preview-engine registry', () => {
     ).toBe('v3');
   });
 
-  it('summarizes complex routed groups as ELK-incompatible and keeps juju compatible', () => {
+  it('keeps headed groups ELK-compatible when their headings stay decorative', () => {
     const complex = summarizeFrameDiagramCompatibility(
       loadFrameYaml(join(FRAMES_DIR, 'complex-routing-usecase.yaml')),
     );
@@ -229,13 +229,11 @@ describe('preview-engine registry', () => {
       loadFrameYaml(join(FRAMES_DIR, 'juju-bootstrap-machines-process.yaml')),
     );
 
-    expect(complex.unsupportedElkCarrierIds).toEqual(
-      expect.arrayContaining(['planning', 'implementation', 'devteam']),
-    );
+    expect(complex.unsupportedElkCarrierIds).toEqual([]);
     expect(juju.unsupportedElkCarrierIds).toEqual([]);
   });
 
-  it('omits elk layered from frame diagrams with non-native headed group composition', () => {
+  it('keeps elk layered available for headed frame diagrams', () => {
     const summary = summarizeFrameDiagramCompatibility(
       loadFrameYaml(join(FRAMES_DIR, 'complex-routing-usecase.yaml')),
     );
@@ -246,10 +244,12 @@ describe('preview-engine registry', () => {
     };
 
     expect(resolvePreviewEngine(context)?.id).toBe('v3');
-    expect(listCompatiblePreviewEngines(context).map((entry) => entry.id)).toEqual(['v3']);
+    expect(listCompatiblePreviewEngines(context).map((entry) => entry.id)).toEqual([
+      'v3',
+      'elk-layered',
+    ]);
 
     const elkResult = evaluatePreviewEngineCompatibility(ELK_LAYERED_PREVIEW_ENGINE, context);
-    expect(elkResult.compatible).toBe(false);
-    expect(elkResult.reason).toContain('planning');
+    expect(elkResult.compatible).toBe(true);
   });
 });

@@ -14,6 +14,7 @@ The current ELK layered integration connects edges directly to nodes, not to exp
 
 - edge anchors drift when layout parameters change
 - edges can enter and leave the same box from visually awkward sides
+- headed or icon-bearing compounds can be treated too conservatively even though their header chrome should be decorative, not a reason to abandon native ELK
 - controls such as `portConstraints` appear configurable even though the current graph model has no ports to constrain
 - authors cannot improve edge readability without hand-tuning unrelated spacing controls
 - post-ELK route repair creates rendering smells such as broken arrowheads, synthetic fan-out, and routes cutting through ELK-managed edge labels
@@ -89,6 +90,7 @@ As a maintainer, I want arrow rendering to stay a thin styling pass over native 
 
 - nodes with many incident edges on one side; the first slice still uses one logical midpoint port per side
 - compound nodes that are direct arrow endpoints versus compounds that exist only as structural carriers
+- headed or icon-bearing compounds whose header chrome should move with the box as decorative padding/background, not as a separate ELK-participating layout node
 - very small nodes where side-midpoint attachment can collide with labels or icons
 - `elk.direction` overrides that reverse the family default axis (`UP` or `LEFT`)
 - diagrams that mix semantic containers and ordinary endpoint boxes
@@ -106,7 +108,7 @@ As a maintainer, I want arrow rendering to stay a thin styling pass over native 
 - **FR-005**: If the chosen ELK layered configuration requires explicit endpoint-port refs, edge endpoints MUST connect through generated `sourcePort` / `targetPort` ids rather than unconstrained node bodies.
 - **FR-006**: If the chosen ELK layered configuration can natively choose among declared ports without explicit endpoint-port refs, the implementation MAY use that behavior; any such choice MUST remain native ELK behavior rather than a post-layout repair pass.
 - **FR-007**: Any preferred ingress and egress side policy MUST be expressed through ELK input modeling or supported ELK options only; the implementation MUST NOT mutate returned ELK routes to repair side choice.
-- **FR-008**: Structural carrier nodes MUST NOT receive implicit ports unless that exact frame id is an authored arrow endpoint; carrier-only compounds remain layout structure only.
+- **FR-008**: Structural carrier nodes MUST NOT receive implicit ports unless that exact frame id is an authored arrow endpoint; carrier-only compounds remain layout structure only. Headed or icon-bearing compounds remain ELK-eligible when their header chrome is treated as decorative padding/background rather than as graph-participating layout nodes.
 - **FR-009**: The first implementation MUST use one logical midpoint port per side.
 - **FR-010**: If a supported native ELK option exists for shared-source fan-out or merged stems and is compatible with the chosen layered-plus-port setup, the implementation MAY enable it; otherwise the result MUST stay with default ELK edge behavior.
 - **FR-011**: The implicit-port feature MUST remain TypeScript-internal and MUST NOT require new YAML fields or authored port objects.
@@ -145,7 +147,7 @@ As a maintainer, I want arrow rendering to stay a thin styling pass over native 
 
 ## First-Iteration Decisions
 
-1. **Eligible nodes**: Only authored arrow endpoint nodes get implicit ports. Structural carriers remain unported. Compound nodes get ports only when they are referenced directly as `source` or `target`.
+1. **Eligible nodes**: Only authored arrow endpoint nodes get implicit ports. Structural carriers remain unported. Compound nodes get ports only when they are referenced directly as `source` or `target`. Headed compounds stay ELK-compatible; their heading/icon chrome remains decorative and moves with the box instead of participating in ELK layout.
 2. **Port count**: The first slice uses one logical midpoint port per side. Multiple generated lanes per side are deferred.
 3. **Authority**: ELK owns route geometry and edge-label placement. The render path may translate coordinates and apply visual styling, but it does not redesign arrows after layout.
 4. **Shared-source behavior**: If a compatible native ELK option exists for shared fan-out, it may be enabled. If not, the feature accepts default ELK behavior instead of emulating shared stems in TypeScript.

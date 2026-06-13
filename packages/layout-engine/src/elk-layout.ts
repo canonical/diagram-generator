@@ -68,16 +68,10 @@ function isSyntheticLayoutFrame(frame: Frame): boolean {
   return isSyntheticHeadingFrame(frame) || isSyntheticBodyFrame(frame);
 }
 
-function descendantLeafIds(frame: Frame): string[] {
-  if (isSyntheticLayoutFrame(frame)) {
-    const out: string[] = [];
-    for (const child of frame.children) out.push(...descendantLeafIds(child));
-    return out;
-  }
-  if (frame.isLeaf) return frame.id ? [frame.id] : [];
-  const out: string[] = [];
-  for (const child of frame.children) out.push(...descendantLeafIds(child));
-  return out;
+function authoredLayoutChildren(frame: Frame): Frame[] {
+  const body = frame.children.find((child) => isSyntheticBodyFrame(child));
+  const source = body?.children ?? frame.children;
+  return source.filter((child) => !isSyntheticLayoutFrame(child));
 }
 
 function hasEndpointDescendant(frame: Frame, endpoints: Set<string>): boolean {
@@ -85,14 +79,11 @@ function hasEndpointDescendant(frame: Frame, endpoints: Set<string>): boolean {
   return frame.children.some((child) => hasEndpointDescendant(child, endpoints));
 }
 
-/** Semantic ELK compound — section/panel whose direct subtree leaves are all arrow endpoints. */
+/** A headed authored container becomes a native ELK compound with decorative header padding. */
 function isElkCompound(frame: Frame, endpoints: Set<string>): boolean {
   if (frame.isLeaf || frame.children.length === 0) return false;
-  if (frame.children.some((child) => isSyntheticLayoutFrame(child))) return false;
-  const leaves = descendantLeafIds(frame);
-  if (leaves.length < 2) return false;
-  if (!leaves.every((id) => endpoints.has(id))) return false;
-  return frame.level != null || frame.heading != null;
+  if (!frame.children.some((child) => isSyntheticBodyFrame(child))) return false;
+  return authoredLayoutChildren(frame).some((child) => !isAnnotationFrame(child, endpoints));
 }
 
 function isElkCarrier(frame: Frame, endpoints: Set<string>): boolean {
@@ -105,10 +96,12 @@ function shouldIncludeElkNode(
   frame: Frame,
   endpoints: Set<string>,
   allowStructuralCarriers: boolean,
+  includePassiveLeaves: boolean,
 ): boolean {
-  return endpoints.has(frame.id)
-    || isElkCompound(frame, endpoints)
-    || (allowStructuralCarriers && isElkCarrier(frame, endpoints));
+  if (isSyntheticLayoutFrame(frame) || isAnnotationFrame(frame, endpoints)) return false;
+  if (isElkCompound(frame, endpoints)) return true;
+  if (includePassiveLeaves && frame.isLeaf) return true;
+  return endpoints.has(frame.id) || (allowStructuralCarriers && isElkCarrier(frame, endpoints));
 }
 
 function measureSubtree(frame: Frame, adapter: TextMeasureAdapter): void {
@@ -190,9 +183,11 @@ function frameToGraphNode(
   semanticSizes: Map<string, { width: number; height: number }>,
   semanticPlacements: Map<string, SemanticFramePlacement>,
   allowStructuralCarriers: boolean,
+  includePassiveLeaves: boolean,
 ): GraphNodeInput {
   measureSubtree(frame, adapter);
   const semantic = semanticSizes.get(frame.id);
+  const compound = isElkCompound(frame, endpoints);
   const node: GraphNodeInput = {
     id: frame.id,
     width: semantic?.width ?? frame._layout.measuredW,
@@ -202,12 +197,13 @@ function frameToGraphNode(
       : {}),
   };
   const childNodes = collectGraphChildNodes(
-    frame.children,
+    authoredLayoutChildren(frame),
     adapter,
     endpoints,
     semanticSizes,
     semanticPlacements,
-    allowStructuralCarriers || isElkCompound(frame, endpoints),
+    allowStructuralCarriers || compound,
+    includePassiveLeaves || compound,
   );
   if (childNodes.length > 0) {
     node.children = childNodes;
@@ -222,23 +218,11 @@ function collectGraphChildNodes(
   semanticSizes: Map<string, { width: number; height: number }>,
   semanticPlacements: Map<string, SemanticFramePlacement>,
   allowStructuralCarriers: boolean,
+  includePassiveLeaves: boolean,
 ): GraphNodeInput[] {
   const nodes: GraphNodeInput[] = [];
   for (const frame of frames) {
-    if (isSyntheticLayoutFrame(frame)) {
-      if (hasEndpointDescendant(frame, endpoints)) {
-        nodes.push(...collectGraphChildNodes(
-          frame.children,
-          adapter,
-          endpoints,
-          semanticSizes,
-          semanticPlacements,
-          allowStructuralCarriers,
-        ));
-      }
-      continue;
-    }
-    if (shouldIncludeElkNode(frame, endpoints, allowStructuralCarriers)) {
+    if (shouldIncludeElkNode(frame, endpoints, allowStructuralCarriers, includePassiveLeaves)) {
       nodes.push(
         frameToGraphNode(
           frame,
@@ -247,9 +231,20 @@ function collectGraphChildNodes(
           semanticSizes,
           semanticPlacements,
           allowStructuralCarriers,
+          includePassiveLeaves,
         ),
       );
+      continue;
     }
+    nodes.push(...collectGraphChildNodes(
+      authoredLayoutChildren(frame),
+      adapter,
+      endpoints,
+      semanticSizes,
+      semanticPlacements,
+      allowStructuralCarriers,
+      includePassiveLeaves,
+    ));
   }
   return nodes;
 }
@@ -261,29 +256,15 @@ function buildElkGraphNodes(
   semanticSizes: Map<string, { width: number; height: number }>,
   semanticPlacements: Map<string, SemanticFramePlacement>,
 ): GraphNodeInput[] {
-  const nodes: GraphNodeInput[] = [];
-
-  function walk(frame: Frame, insideCompound: boolean, allowStructuralCarriers: boolean): void {
-    if (!insideCompound && shouldIncludeElkNode(frame, endpoints, allowStructuralCarriers)) {
-      nodes.push(
-        frameToGraphNode(
-          frame,
-          adapter,
-          endpoints,
-          semanticSizes,
-          semanticPlacements,
-          allowStructuralCarriers,
-        ),
-      );
-      return;
-    }
-    const nextAllowStructuralCarriers =
-      allowStructuralCarriers || isElkCompound(frame, endpoints);
-    for (const child of frame.children) walk(child, insideCompound, nextAllowStructuralCarriers);
-  }
-
-  for (const child of root.children) walk(child, false, false);
-  return nodes;
+  return collectGraphChildNodes(
+    authoredLayoutChildren(root),
+    adapter,
+    endpoints,
+    semanticSizes,
+    semanticPlacements,
+    false,
+    false,
+  );
 }
 
 function indexPlaced(nodes: PlacedNode[], out = new Map<string, PlacedNode>()): Map<string, PlacedNode> {
@@ -304,7 +285,7 @@ function applyPlacedNode(frame: Frame, placed: PlacedNode, originX: number, orig
 
   if (placed.children?.length) {
     for (const childPlaced of placed.children) {
-      const childFrame = frame.children.find((c) => c.id === childPlaced.id);
+      const childFrame = findFrame(frame, childPlaced.id);
       if (childFrame) applyPlacedNode(childFrame, childPlaced, originX, originY);
     }
   }

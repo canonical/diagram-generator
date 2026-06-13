@@ -37,6 +37,14 @@ function expectPortAttachment(
   expect(points[points.length - 1]).toEqual(expectedEnd);
 }
 
+function expectPointInsideHorizontalSpan(
+  point: [number, number],
+  frame: { _layout: { placedX: number; placedW: number } } | null,
+) {
+  expect(point[0]).toBeGreaterThanOrEqual(frame?._layout.placedX ?? Infinity);
+  expect(point[0]).toBeLessThanOrEqual((frame?._layout.placedX ?? -Infinity) + (frame?._layout.placedW ?? 0));
+}
+
 function expectOrthogonalPath(points: Array<[number, number]>) {
   expect(points.length).toBeGreaterThanOrEqual(2);
   for (let i = 1; i < points.length; i += 1) {
@@ -367,9 +375,9 @@ describe('layoutElkFrameDiagram', () => {
     expect(clientL2?._layout.placedX).toBeGreaterThanOrEqual(clientsLeftTop?._layout.placedX ?? -Infinity);
   });
 
-  it('keeps same-layer gap overrides effective on process graphs with structural rows', async () => {
-    const baseDiagram = loadFrameYaml(join(FRAMES_DIR, 'juju-bootstrap-machines-process.yaml'));
-    const gapDiagram = loadFrameYaml(join(FRAMES_DIR, 'juju-bootstrap-machines-process.yaml'));
+  it('keeps same-layer gap overrides effective inside headed ELK compounds', async () => {
+    const baseDiagram = loadFrameYaml(join(FRAMES_DIR, 'complex-routing-usecase.yaml'));
+    const gapDiagram = loadFrameYaml(join(FRAMES_DIR, 'complex-routing-usecase.yaml'));
     const adapter = new MockTextAdapter();
 
     await layoutElkFrameDiagram(baseDiagram, adapter);
@@ -379,34 +387,34 @@ describe('layoutElkFrameDiagram', () => {
       },
     });
 
-    const baseSnapStore = findFrameById(
+    const basePlanning = findFrameById(
       baseDiagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
-      'snap_store',
+      'planning',
     );
-    const gapSnapStore = findFrameById(
+    const gapPlanning = findFrameById(
       gapDiagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
-      'snap_store',
+      'planning',
     );
-    const baseCloud = findFrameById(
+    const baseMeasure = findFrameById(
       baseDiagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
-      'cloud',
+      'measure',
     );
-    const gapCloud = findFrameById(
+    const gapMeasure = findFrameById(
       gapDiagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
-      'cloud',
+      'measure',
     );
-    const baseController = findFrameById(
+    const baseImplementation = findFrameById(
       baseDiagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
-      'controller_agent',
+      'implementation',
     );
-    const gapController = findFrameById(
+    const gapImplementation = findFrameById(
       gapDiagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
-      'controller_agent',
+      'implementation',
     );
 
-    expect(gapSnapStore?._layout.placedX).not.toBe(baseSnapStore?._layout.placedX);
-    expect(gapController?._layout.placedX).not.toBe(baseController?._layout.placedX);
-    expect(gapCloud?._layout.placedX).toBe(baseCloud?._layout.placedX);
+    expect(gapPlanning?._layout.placedX).not.toBe(basePlanning?._layout.placedX);
+    expect(gapMeasure?._layout.placedX).not.toBe(baseMeasure?._layout.placedX);
+    expect(gapImplementation?._layout.placedX).toBe(baseImplementation?._layout.placedX);
   });
 
   it('keeps process edges attached to source bottom and target top across ELK spacing changes', async () => {
@@ -460,6 +468,109 @@ describe('layoutElkFrameDiagram', () => {
         gapTarget?._layout.placedY ?? 0,
       ],
     );
+  });
+
+  it('treats headed groups as ELK compounds while keeping headings decorative', async () => {
+    const diagram = loadFrameYaml(join(FRAMES_DIR, 'complex-routing-usecase.yaml'));
+    const adapter = new MockTextAdapter();
+
+    await layoutElkFrameDiagram(diagram, adapter);
+
+    const planning = findFrameById(
+      diagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'planning',
+    );
+    const planningHeading = findFrameById(
+      diagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'planning__heading',
+    );
+    const planningBody = findFrameById(
+      diagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'planning__body',
+    );
+    const define = findFrameById(
+      diagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'define',
+    );
+    const measure = findFrameById(
+      diagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'measure',
+    );
+    const implementation = findFrameById(
+      diagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'implementation',
+    );
+    const implementationBody = findFrameById(
+      diagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'implementation__body',
+    );
+    const devteam = findFrameById(
+      diagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'devteam',
+    );
+    const devteamBody = findFrameById(
+      diagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'devteam__body',
+    );
+    const implement = findFrameById(
+      diagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'implement',
+    );
+    const spike = findFrameById(
+      diagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'spike',
+    );
+    const delivery = findFrameById(
+      diagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'delivery',
+    );
+    const deliveryBody = findFrameById(
+      diagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'delivery__body',
+    );
+    const review = findFrameById(
+      diagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'review',
+    );
+
+    expect((planningHeading?._layout.placedY ?? 0) + (planningHeading?._layout.placedH ?? 0))
+      .toBeLessThanOrEqual(planningBody?._layout.placedY ?? Infinity);
+    expect((planning?._layout.placedY ?? 0) + (planning?._layout.placedH ?? 0))
+      .toBeLessThanOrEqual(implementation?._layout.placedY ?? Infinity);
+    expect((planning?._layout.placedY ?? 0) + (planning?._layout.placedH ?? 0))
+      .toBeLessThanOrEqual(delivery?._layout.placedY ?? Infinity);
+    expect(implementation?._layout.placedX).toBeLessThan(delivery?._layout.placedX ?? Infinity);
+
+    expect(define?._layout.placedY).toBeGreaterThanOrEqual(planningBody?._layout.placedY ?? -Infinity);
+    expect(measure?._layout.placedY).toBeGreaterThanOrEqual(planningBody?._layout.placedY ?? -Infinity);
+    expect(implement?._layout.placedY).toBeGreaterThanOrEqual(devteamBody?._layout.placedY ?? -Infinity);
+    expect(spike?._layout.placedY).toBeGreaterThanOrEqual(devteamBody?._layout.placedY ?? -Infinity);
+    expect(review?._layout.placedY).toBeGreaterThanOrEqual(deliveryBody?._layout.placedY ?? -Infinity);
+    expect((spike?._layout.placedX ?? 0) + (spike?._layout.placedW ?? 0))
+      .toBeLessThanOrEqual((devteam?._layout.placedX ?? 0) + (devteam?._layout.placedW ?? 0));
+    expect((implement?._layout.placedY ?? 0) + (implement?._layout.placedH ?? 0))
+      .toBeLessThanOrEqual((implementationBody?._layout.placedY ?? 0) + (implementationBody?._layout.placedH ?? 0));
+
+    const defineToImplement = diagram.arrows.find((arrow) => arrow.source === 'define' && arrow.target === 'implement');
+    const measureToReview = diagram.arrows.find((arrow) => arrow.source === 'measure' && arrow.target === 'review');
+
+    const defineStart = defineToImplement?.layoutPath?.[0];
+    const defineEnd = defineToImplement?.layoutPath?.[defineToImplement.layoutPath.length - 1];
+    const measureStart = measureToReview?.layoutPath?.[0];
+    const measureEnd = measureToReview?.layoutPath?.[measureToReview.layoutPath.length - 1];
+
+    expect(defineStart?.[1]).toBe((define?._layout.placedY ?? 0) + (define?._layout.placedH ?? 0));
+    expectPointInsideHorizontalSpan(defineStart ?? [Infinity, Infinity], define);
+    expect(defineEnd?.[1]).toBe(implement?._layout.placedY ?? Infinity);
+    expectPointInsideHorizontalSpan(defineEnd ?? [Infinity, Infinity], implement);
+
+    expect(measureStart?.[1]).toBe((measure?._layout.placedY ?? 0) + (measure?._layout.placedH ?? 0));
+    expectPointInsideHorizontalSpan(measureStart ?? [Infinity, Infinity], measure);
+    expect(measureEnd?.[1]).toBe(review?._layout.placedY ?? Infinity);
+    expectPointInsideHorizontalSpan(measureEnd ?? [Infinity, Infinity], review);
+
+    expectOrthogonalPath(defineToImplement?.layoutPath ?? []);
+    expectOrthogonalPath(measureToReview?.layoutPath ?? []);
   });
 
   it('keeps juju client fan-out edges attached to true side midpoints with orthogonal first segments', async () => {
