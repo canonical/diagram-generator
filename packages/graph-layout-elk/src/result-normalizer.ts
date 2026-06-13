@@ -153,22 +153,114 @@ function normalizeEdges(
   });
 }
 
+function walkPlacedNodes(nodes: PlacedNode[], visit: (node: PlacedNode) => void): void {
+  for (const node of nodes) {
+    visit(node);
+    if (node.children?.length) {
+      walkPlacedNodes(node.children, visit);
+    }
+  }
+}
+
+function shiftPlacedNodes(nodes: PlacedNode[], dx: number, dy: number): PlacedNode[] {
+  if (dx === 0 && dy === 0) return nodes;
+  return nodes.map((node) => ({
+    ...node,
+    x: snap(node.x - dx),
+    y: snap(node.y - dy),
+    ...(node.children?.length
+      ? { children: shiftPlacedNodes(node.children, dx, dy) }
+      : {}),
+  }));
+}
+
+function shiftEdges(edges: PlacedEdge[], dx: number, dy: number): PlacedEdge[] {
+  if (dx === 0 && dy === 0) return edges;
+  return edges.map((edge) => ({
+    ...edge,
+    sections: edge.sections.map((section) => ({
+      startPoint: snapPoint({ x: section.startPoint.x - dx, y: section.startPoint.y - dy }),
+      endPoint: snapPoint({ x: section.endPoint.x - dx, y: section.endPoint.y - dy }),
+      ...(section.bendPoints?.length
+        ? {
+            bendPoints: section.bendPoints.map((bp) =>
+              snapPoint({ x: bp.x - dx, y: bp.y - dy }),
+            ),
+          }
+        : {}),
+    })),
+    labels: edge.labels?.map((label) => ({
+      ...label,
+      x: snap(label.x - dx),
+      y: snap(label.y - dy),
+    })),
+  }));
+}
+
+function normalizedGraphBounds(
+  nodes: PlacedNode[],
+  edges: PlacedEdge[],
+): { minX: number; minY: number; maxX: number; maxY: number } {
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+
+  walkPlacedNodes(nodes, (node) => {
+    minX = Math.min(minX, node.x);
+    minY = Math.min(minY, node.y);
+    maxX = Math.max(maxX, node.x + node.width);
+    maxY = Math.max(maxY, node.y + node.height);
+  });
+
+  for (const edge of edges) {
+    for (const section of edge.sections) {
+      const points = [
+        section.startPoint,
+        ...(section.bendPoints ?? []),
+        section.endPoint,
+      ];
+      for (const point of points) {
+        minX = Math.min(minX, point.x);
+        minY = Math.min(minY, point.y);
+        maxX = Math.max(maxX, point.x);
+        maxY = Math.max(maxY, point.y);
+      }
+    }
+    for (const label of edge.labels ?? []) {
+      minX = Math.min(minX, label.x);
+      minY = Math.min(minY, label.y);
+      maxX = Math.max(maxX, label.x + label.width);
+      maxY = Math.max(maxY, label.y + label.height);
+    }
+  }
+
+  if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) {
+    return { minX: 0, minY: 0, maxX: 0, maxY: 0 };
+  }
+
+  return { minX, minY, maxX, maxY };
+}
+
 export function normalizeElkLayoutResult(
   input: GraphLayoutInput,
   elkRoot: ElkLayoutNode,
   engine: GraphLayoutResult['engine'] = 'elk-layered',
 ): GraphLayoutResult {
-  const width = snap(elkRoot.width ?? 0);
-  const height = snap(elkRoot.height ?? 0);
   const nodes = toAbsolutePlacedNodes((elkRoot.children ?? []).map(mapPlacedNode));
   const nodesById = indexPlacedNodes(nodes);
   const edges = normalizeEdges(collectEdges(elkRoot), input.id, nodesById);
+  const bounds = normalizedGraphBounds(nodes, edges);
+  const shiftedNodes = shiftPlacedNodes(nodes, bounds.minX, bounds.minY);
+  const shiftedEdges = shiftEdges(edges, bounds.minX, bounds.minY);
+  const width = snap(Math.max(0, bounds.maxX - bounds.minX));
+  const height = snap(Math.max(0, bounds.maxY - bounds.minY));
 
   return {
     width,
     height,
-    nodes,
-    edges,
+    nodes: shiftedNodes,
+    edges: shiftedEdges,
     engine,
     direction: input.direction,
   };

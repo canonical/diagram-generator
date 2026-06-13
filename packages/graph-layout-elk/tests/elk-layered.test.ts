@@ -13,7 +13,9 @@ import {
   layoutLayered,
   layoutLayeredForFamily,
   layeredConfigForFamily,
+  buildLayeredLayoutOptions,
 } from '../src/index.js';
+import { buildElkGraph } from '../src/elk-graph-builder.js';
 
 const BOX = { width: 192, height: 64 };
 
@@ -39,6 +41,7 @@ describe('ELK layered (Sugiyama)', () => {
     const result = await layoutLayered(chainInput('TB', ['a', 'b', 'c']));
     const nodes = indexPlacedNodes(result.nodes);
 
+    expect(Math.min(...[...nodes.values()].map((node) => node.y))).toBe(0);
     expect(nodes.get('a')!.y).toBeLessThan(nodes.get('b')!.y);
     expect(nodes.get('b')!.y).toBeLessThan(nodes.get('c')!.y);
 
@@ -52,6 +55,7 @@ describe('ELK layered (Sugiyama)', () => {
     const result = await layoutLayered(chainInput('LR', ['ingress', 'service', 'store']));
     const nodes = indexPlacedNodes(result.nodes);
 
+    expect(Math.min(...[...nodes.values()].map((node) => node.x))).toBe(0);
     expect(nodes.get('ingress')!.x).toBeLessThan(nodes.get('service')!.x);
     expect(nodes.get('service')!.x).toBeLessThan(nodes.get('store')!.x);
   });
@@ -220,5 +224,32 @@ describe('ELK layered (Sugiyama)', () => {
     expect(result.direction).toBe('LR');
     const nodes = indexPlacedNodes(result.nodes);
     expect(nodes.get('source')!.x).toBeLessThan(nodes.get('sink')!.x);
+  });
+
+  it('applies elk.padding to compound nodes without forwarding it to the root graph', () => {
+    const layoutOptions = buildLayeredLayoutOptions({
+      direction: 'TB',
+      spacingProfile: 'normal',
+      optionOverrides: {
+        'elk.padding': '[top=16,left=16,bottom=16,right=16]',
+      },
+    });
+    const graph = buildElkGraph({
+      id: 'root',
+      direction: 'TB',
+      spacingProfile: 'normal',
+      nodes: [
+        {
+          id: 'cluster',
+          width: 400,
+          height: 200,
+          children: [{ id: 'a', ...BOX }, { id: 'b', ...BOX }],
+        },
+      ],
+      edges: [{ id: 'edge', source: 'a', target: 'b' }],
+    }, layoutOptions);
+
+    expect(graph.layoutOptions['elk.padding']).toBeUndefined();
+    expect(graph.children[0]?.layoutOptions?.['elk.padding']).toBe('[top=16,left=16,bottom=16,right=16]');
   });
 });

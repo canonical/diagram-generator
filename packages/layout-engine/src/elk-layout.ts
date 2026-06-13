@@ -6,7 +6,8 @@ import type { GraphLayoutInput, GraphLayoutResult, GraphNodeInput, LayeredCorpus
 import { layoutLayeredForFamily } from '@diagram-generator/graph-layout-elk';
 
 import { Frame, FrameDiagram, Border, createLine } from './frame-model.js';
-import { measure, place, type LayoutOutput } from './layout.js';
+import { measure, place, layoutFrameTree, type LayoutOutput } from './layout.js';
+import { deserializeFrameDiagramWire, serializeFrameDiagram } from './frame-serialize.js';
 import { resolveStyles } from './resolve-styles.js';
 import { annotationTextToSpec } from './resolved-spec-typography.js';
 import type { TextMeasureAdapter } from './text-measure.js';
@@ -43,7 +44,7 @@ function findFrame(root: Frame, id: string): Frame | null {
 
 function walkFrames(root: Frame, visit: (f: Frame) => void): void {
   visit(root);
-  for (const child of root.children) visit(child);
+  for (const child of root.children) walkFrames(child, visit);
 }
 
 function collectEndpointIds(diagram: FrameDiagram): Set<string> {
@@ -75,31 +76,72 @@ function measureSubtree(frame: Frame, adapter: TextMeasureAdapter): void {
   measure(frame, adapter, true);
 }
 
-function frameToGraphNode(frame: Frame, adapter: TextMeasureAdapter, endpoints: Set<string>): GraphNodeInput {
+function cloneFrameDiagram(diagram: FrameDiagram): FrameDiagram {
+  return deserializeFrameDiagramWire(
+    JSON.parse(JSON.stringify(serializeFrameDiagram(diagram))) as Record<string, unknown>,
+  );
+}
+
+function collectSemanticNodeSizes(
+  diagram: FrameDiagram,
+  adapter: TextMeasureAdapter,
+): Map<string, { width: number; height: number }> {
+  const cloned = cloneFrameDiagram(diagram);
+  resolveStyles(cloned.root);
+  layoutFrameTree(cloned.root, adapter, {
+    gridCols: cloned.gridCols,
+    gridColGap: cloned.gridColGap,
+    gridOuterMargin: cloned.gridOuterMargin,
+    arrows: cloned.arrows,
+  });
+
+  const sizes = new Map<string, { width: number; height: number }>();
+  walkFrames(cloned.root, (frame) => {
+    if (!frame.id) return;
+    sizes.set(frame.id, {
+      width: frame._layout.placedW,
+      height: frame._layout.placedH,
+    });
+  });
+  return sizes;
+}
+
+function frameToGraphNode(
+  frame: Frame,
+  adapter: TextMeasureAdapter,
+  endpoints: Set<string>,
+  semanticSizes: Map<string, { width: number; height: number }>,
+): GraphNodeInput {
   measureSubtree(frame, adapter);
+  const semantic = semanticSizes.get(frame.id);
   const node: GraphNodeInput = {
     id: frame.id,
-    width: frame._layout.measuredW,
-    height: frame._layout.measuredH,
+    width: semantic?.width ?? frame._layout.measuredW,
+    height: semantic?.height ?? frame._layout.measuredH,
   };
   if (isElkCompound(frame, endpoints)) {
     node.children = frame.children
       .filter((c) => endpoints.has(c.id) || isElkCompound(c, endpoints))
-      .map((c) => frameToGraphNode(c, adapter, endpoints));
+      .map((c) => frameToGraphNode(c, adapter, endpoints, semanticSizes));
   }
   return node;
 }
 
-function buildElkGraphNodes(root: Frame, adapter: TextMeasureAdapter, endpoints: Set<string>): GraphNodeInput[] {
+function buildElkGraphNodes(
+  root: Frame,
+  adapter: TextMeasureAdapter,
+  endpoints: Set<string>,
+  semanticSizes: Map<string, { width: number; height: number }>,
+): GraphNodeInput[] {
   const nodes: GraphNodeInput[] = [];
 
   function walk(frame: Frame, insideCompound: boolean): void {
     if (!insideCompound && isElkCompound(frame, endpoints)) {
-      nodes.push(frameToGraphNode(frame, adapter, endpoints));
+      nodes.push(frameToGraphNode(frame, adapter, endpoints, semanticSizes));
       return;
     }
     if (endpoints.has(frame.id)) {
-      nodes.push(frameToGraphNode(frame, adapter, endpoints));
+      nodes.push(frameToGraphNode(frame, adapter, endpoints, semanticSizes));
       return;
     }
     for (const child of frame.children) walk(child, insideCompound);
@@ -334,8 +376,9 @@ export async function layoutElkFrameDiagram(
   const endpoints = collectEndpointIds(diagram);
   const originX = options.originX ?? diagram.root.paddingLeft;
   const originY = options.originY ?? diagram.root.paddingTop;
+  const semanticSizes = collectSemanticNodeSizes(diagram, adapter);
 
-  const nodes = buildElkGraphNodes(diagram.root, adapter, endpoints);
+  const nodes = buildElkGraphNodes(diagram.root, adapter, endpoints, semanticSizes);
   const input: GraphLayoutInput = {
     id: diagram.title || 'diagram',
     direction: 'TB',
