@@ -22,6 +22,7 @@ Shrink `scripts/preview/editor.js` into a thin bootstrap/coordinator so the stan
 - keyboard dispatch controller helper: `packages/layout-engine/src/preview-shell/interaction-keyboard-dispatch.ts`
 - drag / resize completion-plan helpers: `packages/layout-engine/src/preview-shell/interaction-completion.ts`
 - preview grid resolver + span conversion helpers: `packages/layout-engine/src/preview-shell/grid-resolution.ts`
+- preview grid control state helpers: `packages/layout-engine/src/preview-shell/grid-controls.ts`
 - frame override allowlists: `packages/layout-engine/src/preview-shell/frame-override-manifest.ts`
 - engine registry contracts: `packages/layout-engine/src/index.ts`, `packages/layout-engine/tests/preview-engine-registry.test.ts`
 
@@ -55,6 +56,7 @@ Landed:
 - document keydown branching now delegates to a TS keyboard dispatcher, leaving `editor.js` as a thin state/callback wrapper
 - drag-end and resize-end completion branching now delegate to TS completion-plan helpers
 - Brockman-style preview grid resolution and span/pixel conversion now delegate to TS grid helpers
+- grid control display-state resolution and runtime override shaping now delegate to TS grid-control helpers
 
 Still in `editor.js` for now:
 
@@ -90,5 +92,5 @@ Still in `editor.js` for now:
 
 1. Remaining drag / resize persist/commit cleanup and controller state
 2. Remaining inspector DOM/wiring cleanup only where it still removes real branching
-3. Grid control state shaping and remaining DOM wiring
+3. Remaining grid DOM wiring and overlay update plumbing
 4. Bootstrap cleanup and hook normalization

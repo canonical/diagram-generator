@@ -194,3 +194,14 @@ export {
   resolvePreviewGridInfo,
   rowSpanToPx,
 } from './grid-resolution.js';
+
+export type {
+  PreviewGridControlState,
+  PreviewGridInfoState,
+} from './grid-controls.js';
+
+export {
+  createPreviewGridOverrides,
+  isGridControlInputId,
+  resolvePreviewGridControlState,
+} from './grid-controls.js';

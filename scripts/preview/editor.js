@@ -897,47 +897,34 @@ function addRect(parent, ns, x, y, w, h, fill) {
 function populateGridControls() {
   if (!gridInfo) return;
 
-  // Don't overwrite editable inputs while the user is actively typing.
-  const gridInputIds = [
-    "grid-cols", "grid-rows", "grid-col-gap", "grid-row-gap",
-    "grid-margin-top", "grid-margin-right", "grid-margin-bottom", "grid-margin-left",
-  ];
   const activeEl = document.activeElement;
-  const userIsTyping = activeEl && gridInputIds.includes(activeEl.id);
-  if (userIsTyping) return;
+  if (LayoutEngine.isGridControlInputId(activeEl?.id)) return;
 
-  const go = model.gridOverrides || {};
+  const controlState = LayoutEngine.resolvePreviewGridControlState({
+    gridInfo,
+    gridOverrides: model.gridOverrides || {},
+  });
 
-  // Columns and rows
-  document.getElementById("grid-cols").value = (go.cols ?? gridInfo._cols ?? (gridInfo.col_xs || []).length) || 1;
-  document.getElementById("grid-rows").value = (go.rows ?? gridInfo._rows ?? (gridInfo.row_ys || []).length) || 1;
+  document.getElementById("grid-cols").value = controlState.cols;
+  document.getElementById("grid-rows").value = controlState.rows;
+  document.getElementById("grid-col-gap").value = controlState.colGap;
+  document.getElementById("grid-row-gap").value = controlState.rowGap;
 
-  // Gutters
-  document.getElementById("grid-col-gap").value = go.col_gap ?? gridInfo.col_gap ?? 0;
-  document.getElementById("grid-row-gap").value = go.row_gap ?? gridInfo.row_gap ?? 0;
-
-  // Per-side margins (unified viewer) or legacy single margin field (viewer.html)
-  const fallbackMargin = gridInfo.outer_margin ?? gridInfo.col_gap ?? 24;
-  const mTop = go.margin_top ?? gridInfo.margin_top ?? fallbackMargin;
-  const mRight = go.margin_right ?? gridInfo.margin_right ?? fallbackMargin;
-  const mBottom = go.margin_bottom ?? gridInfo.margin_bottom ?? fallbackMargin;
-  const mLeft = go.margin_left ?? gridInfo.margin_left ?? fallbackMargin;
   const topEl = _gridEl("grid-margin-top");
   if (topEl) {
-    topEl.value = mTop;
-    _gridEl("grid-margin-right").value = mRight;
-    _gridEl("grid-margin-bottom").value = mBottom;
-    _gridEl("grid-margin-left").value = mLeft;
+    topEl.value = controlState.marginTop;
+    _gridEl("grid-margin-right").value = controlState.marginRight;
+    _gridEl("grid-margin-bottom").value = controlState.marginBottom;
+    _gridEl("grid-margin-left").value = controlState.marginLeft;
   } else {
     const legacy = _gridEl("grid-margin");
-    if (legacy) legacy.value = mTop;
+    if (legacy) legacy.value = controlState.marginTop;
   }
 
-  // Toggles
   const linkEl = document.getElementById("grid-link-root");
-  if (linkEl) linkEl.checked = go.link_to_root ?? true;
+  if (linkEl) linkEl.checked = controlState.linkToRoot;
   const slackEl = document.getElementById("grid-slack");
-  if (slackEl) slackEl.checked = go.slack_absorption ?? true;
+  if (slackEl) slackEl.checked = controlState.slackAbsorption;
 }
 
 let relayoutTimer = null;
@@ -958,15 +945,13 @@ function onGridControlChange() {
     EditorState.setPendingGridAction(EditorState.beginUndoableAction("Adjust grid"));
   }
 
-  // Track grid overrides for persistence
-  model.gridOverrides = {
-    cols, rows, col_gap: colGap, row_gap: rowGap,
-    margin_top: mTop, margin_right: mRight,
-    margin_bottom: mBottom, margin_left: mLeft,
-    outer_margin: mTop, // legacy compat
-    link_to_root: linkToRoot,
-    slack_absorption: slackAbsorption,
-  };
+  model.gridOverrides = LayoutEngine.createPreviewGridOverrides({
+    cols, rows, colGap, rowGap,
+    marginTop: mTop, marginRight: mRight,
+    marginBottom: mBottom, marginLeft: mLeft,
+    linkToRoot,
+    slackAbsorption,
+  });
   if (linkToRoot) {
     _pruneLinkedRootGridOverrides();
   }
