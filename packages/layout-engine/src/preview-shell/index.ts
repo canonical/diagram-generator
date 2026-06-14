@@ -190,6 +190,34 @@ export {
 } from './inspector-single-panel.js';
 
 export type {
+  SelectionActionPlanItem,
+  SelectionAlignMode,
+  SelectionDistributeAxis,
+  SelectionParentBounds,
+  SelectionTargetOverrideEntry,
+  SelectionTargetPoint,
+} from './selection-actions.js';
+
+export {
+  clampSelectionTarget,
+  createSelectionTargetOverrideEntries,
+  normalizeSelectionGap,
+  resolveSelectionAlignTargets,
+  resolveSelectionDistributeTargets,
+} from './selection-actions.js';
+
+export {
+  createPreviewGridOverlayScene,
+} from './grid-overlay-scene.js';
+
+export type {
+  PreviewGridOverlayLine,
+  PreviewGridOverlayRect,
+  PreviewGridOverlayScene,
+  PreviewGridOverlayShape,
+} from './grid-overlay-scene.js';
+
+export type {
   ReorderResolution,
   ReorderTargetPoint,
   ResizeBounds,
@@ -260,6 +288,7 @@ export {
 } from './grid-resolution.js';
 
 export type {
+  PreviewGridControlInputState,
   PreviewGridControlState,
   PreviewGridInfoState,
 } from './grid-controls.js';
@@ -267,5 +296,8 @@ export type {
 export {
   createPreviewGridOverrides,
   isGridControlInputId,
+  resolvePreviewGridControlInputState,
   resolvePreviewGridControlState,
+  resolvePreviewGridInfoFromControlState,
+  resolvePreviewGridInfoFromRuntimeState,
 } from './grid-controls.js';

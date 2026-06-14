@@ -1,4 +1,7 @@
-import type { PreviewGridInfo } from './grid-resolution.js';
+import {
+  resolvePreviewGridInfo,
+  type PreviewGridInfo,
+} from './grid-resolution.js';
 
 /**
  * Preview grid-control state helpers (spec 043 grid slice B).
@@ -23,6 +26,19 @@ export interface PreviewGridControlState {
 export interface PreviewGridInfoState extends PreviewGridInfo {
   _link_to_root?: boolean;
   _slack_absorption?: boolean;
+}
+
+export interface PreviewGridControlInputState {
+  cols?: unknown;
+  rows?: unknown;
+  colGap?: unknown;
+  rowGap?: unknown;
+  marginTop?: unknown;
+  marginRight?: unknown;
+  marginBottom?: unknown;
+  marginLeft?: unknown;
+  linkToRoot?: unknown;
+  slackAbsorption?: unknown;
 }
 
 const GRID_CONTROL_INPUT_IDS = new Set([
@@ -134,4 +150,88 @@ export function createPreviewGridOverrides(
     link_to_root: Boolean(state.linkToRoot),
     slack_absorption: Boolean(state.slackAbsorption),
   };
+}
+
+export function resolvePreviewGridControlInputState(
+  input: PreviewGridControlInputState,
+): PreviewGridControlState {
+  return {
+    cols: Math.max(1, Math.round(finiteNumber(input.cols) ?? 1)),
+    rows: Math.max(0, Math.round(finiteNumber(input.rows) ?? 0)),
+    colGap: Math.max(0, Math.round(finiteNumber(input.colGap) ?? 0)),
+    rowGap: Math.max(0, Math.round(finiteNumber(input.rowGap) ?? 0)),
+    marginTop: Math.max(0, Math.round(finiteNumber(input.marginTop) ?? 24)),
+    marginRight: Math.max(0, Math.round(finiteNumber(input.marginRight) ?? 24)),
+    marginBottom: Math.max(0, Math.round(finiteNumber(input.marginBottom) ?? 24)),
+    marginLeft: Math.max(0, Math.round(finiteNumber(input.marginLeft) ?? 24)),
+    linkToRoot: typeof input.linkToRoot === 'boolean' ? input.linkToRoot : true,
+    slackAbsorption: typeof input.slackAbsorption === 'boolean' ? input.slackAbsorption : true,
+  };
+}
+
+export function resolvePreviewGridInfoFromControlState(options: {
+  canvasWidth: number;
+  canvasHeight: number;
+  baselineStep: number;
+  controlState: PreviewGridControlState;
+}): PreviewGridInfo {
+  return resolvePreviewGridInfo({
+    canvasWidth: options.canvasWidth,
+    canvasHeight: options.canvasHeight,
+    baselineStep: options.baselineStep,
+    columnCount: options.controlState.cols,
+    columnGutter: options.controlState.colGap,
+    rowCount: options.controlState.rows,
+    rowGutter: options.controlState.rowGap,
+    marginTop: options.controlState.marginTop,
+    marginRight: options.controlState.marginRight,
+    marginBottom: options.controlState.marginBottom,
+    marginLeft: options.controlState.marginLeft,
+    slackAbsorption: options.controlState.slackAbsorption,
+  });
+}
+
+export function resolvePreviewGridInfoFromRuntimeState(options: {
+  canvasWidth: number;
+  canvasHeight: number;
+  baselineStep: number;
+  gridOverrides?: Record<string, unknown> | null;
+  fallbackGridInfo?: Partial<PreviewGridInfoState> | null;
+  baseGridInfo?: Partial<PreviewGridInfoState> | null;
+}): PreviewGridInfoState {
+  const gridOverrides = options.gridOverrides ?? {};
+  const fallback = options.baseGridInfo ?? options.fallbackGridInfo ?? {};
+  const margin = finiteNumber(gridOverrides.outer_margin)
+    ?? finiteNumber(gridOverrides.col_gap)
+    ?? finiteNumber(fallback.outer_margin)
+    ?? finiteNumber(fallback.col_gap)
+    ?? 24;
+
+  const controlState = resolvePreviewGridControlInputState({
+    cols: gridOverrides.cols ?? finiteNumber(fallback._cols) ?? (fallback.col_xs?.length ?? 1),
+    rows: gridOverrides.rows ?? finiteNumber(fallback._rows) ?? 0,
+    colGap: gridOverrides.col_gap ?? finiteNumber(fallback.col_gap) ?? 24,
+    rowGap: gridOverrides.row_gap ?? finiteNumber(fallback.row_gap) ?? 24,
+    marginTop: gridOverrides.margin_top ?? finiteNumber(fallback.margin_top) ?? margin,
+    marginRight: gridOverrides.margin_right ?? finiteNumber(fallback.margin_right) ?? margin,
+    marginBottom: gridOverrides.margin_bottom ?? finiteNumber(fallback.margin_bottom) ?? margin,
+    marginLeft: gridOverrides.margin_left ?? finiteNumber(fallback.margin_left) ?? margin,
+    linkToRoot: typeof gridOverrides.link_to_root === 'boolean'
+      ? gridOverrides.link_to_root
+      : (typeof fallback._link_to_root === 'boolean' ? fallback._link_to_root : true),
+    slackAbsorption: typeof gridOverrides.slack_absorption === 'boolean'
+      ? gridOverrides.slack_absorption
+      : (typeof fallback._slack_absorption === 'boolean' ? fallback._slack_absorption : true),
+  });
+
+  const gridInfo = resolvePreviewGridInfoFromControlState({
+    canvasWidth: options.canvasWidth,
+    canvasHeight: options.canvasHeight,
+    baselineStep: options.baselineStep,
+    controlState,
+  }) as PreviewGridInfoState;
+
+  gridInfo._link_to_root = controlState.linkToRoot;
+  gridInfo._slack_absorption = controlState.slackAbsorption;
+  return gridInfo;
 }

@@ -749,10 +749,8 @@ function cycleGuideMode() {
 function renderGridOverlay() {
   const svg = document.querySelector("#stage svg");
   if (!svg) return;
-  // Remove existing overlay
   const existing = svg.querySelector("#dg-grid-overlay");
   if (existing) existing.remove();
-
   if (guideMode === "off" || !gridInfo) return;
 
   const ns = "http://www.w3.org/2000/svg";
@@ -763,135 +761,42 @@ function renderGridOverlay() {
   const vb = svg.viewBox.baseVal;
   const svgW = vb.width || parseFloat(svg.getAttribute("width") || svg.clientWidth);
   const svgH = vb.height || parseFloat(svg.getAttribute("height") || svg.clientHeight);
-  const colXs = gridInfo.col_xs || [];
-  const colWidths = gridInfo.col_widths || [];
-  const rowYs = gridInfo.row_ys || [];
-  const rowHeights = gridInfo.row_heights || [];
-  const colGap = gridInfo.col_gap || 0;
-  const rowGap = gridInfo.row_gap || 0;
-  // Per-side margins (fall back to legacy outer_margin for old gridInfo shapes)
-  const legacyMargin = gridInfo.outer_margin || 0;
-  const mTop = gridInfo.margin_top ?? legacyMargin;
-  const mRight = gridInfo.margin_right ?? legacyMargin;
-  const mBottom = gridInfo.margin_bottom ?? legacyMargin;
-  const mLeft = gridInfo.margin_left ?? legacyMargin;
-
-  if (guideMode === "all") {
-    // -- Margin overlays --
-    const marginColor = "rgba(235,180,65,0.06)";
-    // Top
-    if (mTop > 0) addRect(g, ns, 0, 0, svgW, mTop, marginColor);
-    // Bottom (requested, before slack)
-    if (mBottom > 0) addRect(g, ns, 0, svgH - mBottom, svgW, mBottom, marginColor);
-    // Left
-    if (mLeft > 0) addRect(g, ns, 0, mTop, mLeft, svgH - mTop - mBottom, marginColor);
-    // Right
-    if (mRight > 0) addRect(g, ns, svgW - mRight, mTop, mRight, svgH - mTop - mBottom, marginColor);
-
-    // -- Content area dashed boundary --
-    const contentX = mLeft;
-    const contentY = mTop;
-    const contentW = Math.max(0, svgW - mLeft - mRight);
-    const contentH = Math.max(0, svgH - mTop - mBottom);
-    const boundary = document.createElementNS(ns, "rect");
-    boundary.setAttribute("x", contentX);
-    boundary.setAttribute("y", contentY);
-    boundary.setAttribute("width", contentW);
-    boundary.setAttribute("height", contentH);
-    boundary.setAttribute("fill", "none");
-    boundary.setAttribute("stroke", "rgba(255,255,255,0.18)");
-    boundary.setAttribute("stroke-dasharray", "6 4");
-    boundary.setAttribute("stroke-width", "1");
-    g.appendChild(boundary);
-
-    // -- Column bands --
-    const colFill = "rgba(100,160,255,0.04)";
-    const keylineColor = "rgba(100,160,255,0.22)";
-    for (let c = 0; c < colXs.length; c++) {
-      const cx = colXs[c];
-      const cw = c < colWidths.length ? colWidths[c] : colWidths[colWidths.length - 1];
-      addRect(g, ns, cx, mTop, cw, svgH - mTop - mBottom, colFill);
-      const kl = document.createElementNS(ns, "line");
-      kl.setAttribute("x1", cx); kl.setAttribute("y1", mTop);
-      kl.setAttribute("x2", cx); kl.setAttribute("y2", svgH - mBottom);
-      kl.setAttribute("stroke", keylineColor); kl.setAttribute("stroke-width", "0.5");
-      g.appendChild(kl);
-      const kr = document.createElementNS(ns, "line");
-      kr.setAttribute("x1", cx + cw); kr.setAttribute("y1", mTop);
-      kr.setAttribute("x2", cx + cw); kr.setAttribute("y2", svgH - mBottom);
-      kr.setAttribute("stroke", keylineColor); kr.setAttribute("stroke-width", "0.5");
-      g.appendChild(kr);
-      if (c < colXs.length - 1 && colGap > 0) {
-        addRect(g, ns, cx + cw, mTop, colGap, svgH - mTop - mBottom, "rgba(255,100,100,0.06)");
-      }
-    }
-
-    // -- Row bands --
-    const rowLine = "rgba(100,255,160,0.15)";
-    for (let r = 0; r < rowYs.length; r++) {
-      const ry = rowYs[r];
-      const rh = r < rowHeights.length ? rowHeights[r] : rowHeights[rowHeights.length - 1];
-      const rl = document.createElementNS(ns, "line");
-      rl.setAttribute("x1", mLeft); rl.setAttribute("y1", ry);
-      rl.setAttribute("x2", svgW - mRight); rl.setAttribute("y2", ry);
-      rl.setAttribute("stroke", rowLine); rl.setAttribute("stroke-width", "0.5");
-      g.appendChild(rl);
-      const rb = document.createElementNS(ns, "line");
-      rb.setAttribute("x1", mLeft); rb.setAttribute("y1", ry + rh);
-      rb.setAttribute("x2", svgW - mRight); rb.setAttribute("y2", ry + rh);
-      rb.setAttribute("stroke", rowLine); rb.setAttribute("stroke-width", "0.5");
-      g.appendChild(rb);
-      if (r < rowYs.length - 1 && rowGap > 0) {
-        addRect(g, ns, mLeft, ry + rh, svgW - mLeft - mRight, rowGap, "rgba(255,100,100,0.06)");
-      }
-    }
+  const scene = LayoutEngine.createPreviewGridOverlayScene({
+    guideMode,
+    gridInfo,
+    svgWidth: svgW,
+    svgHeight: svgH,
+    baselineStep: BASELINE_STEP,
+  });
+  if (!scene) return;
+  for (const shape of scene.shapes) {
+    _appendGridOverlayShape(g, ns, shape);
   }
-
-  // -- Baseline grid (BASELINE_STEP lines) --
-  if (guideMode === "all") {
-    // Horizontal baseline grid
-    const baselineColor = "rgba(255,100,100,0.08)";
-    for (let y = mTop; y <= svgH - mBottom; y += BASELINE_STEP) {
-      const bl = document.createElementNS(ns, "line");
-      bl.setAttribute("x1", mLeft); bl.setAttribute("y1", y);
-      bl.setAttribute("x2", svgW - mRight); bl.setAttribute("y2", y);
-      bl.setAttribute("stroke", baselineColor); bl.setAttribute("stroke-width", "0.5");
-      g.appendChild(bl);
-    }
-    // Vertical baseline grid
-    for (let x = mLeft; x <= svgW - mRight; x += BASELINE_STEP) {
-      const vl = document.createElementNS(ns, "line");
-      vl.setAttribute("x1", x); vl.setAttribute("y1", mTop);
-      vl.setAttribute("x2", x); vl.setAttribute("y2", svgH - mBottom);
-      vl.setAttribute("stroke", baselineColor); vl.setAttribute("stroke-width", "0.25");
-      g.appendChild(vl);
-    }
-    // -- Bottom margin absorption zone --
-    // When row heights are baseline-snapped, the bottom margin absorbs
-    // the leftover slack.  Highlight it so the user can see the resolved
-    // bottom margin differs from the requested bottom margin.
-    const resolvedBottom = gridInfo.resolved_bottom_margin ?? gridInfo._resolved_bottom_margin;
-    if (resolvedBottom != null && resolvedBottom > mBottom + 1) {
-      addRect(g, ns, 0, svgH - resolvedBottom, svgW, resolvedBottom, "rgba(235,180,65,0.10)");
-    }
-
-    // Same for column widths: right margin absorbs leftover after baseline-snapping.
-    const resolvedRight = gridInfo.resolved_right_margin ?? gridInfo._resolved_right_margin;
-    if (resolvedRight != null && resolvedRight > mRight + 1) {
-      addRect(g, ns, svgW - resolvedRight, 0, resolvedRight, svgH, "rgba(235,180,65,0.10)");
-    }
-  }
-
-  // Insert overlay just before the closing of the SVG so it sits on top
   svg.appendChild(g);
 }
 
-function addRect(parent, ns, x, y, w, h, fill) {
-  const r = document.createElementNS(ns, "rect");
-  r.setAttribute("x", x); r.setAttribute("y", y);
-  r.setAttribute("width", w); r.setAttribute("height", h);
-  r.setAttribute("fill", fill);
-  parent.appendChild(r);
+function _appendGridOverlayShape(parent, ns, shape) {
+  if (shape.kind === "rect") {
+    const rect = document.createElementNS(ns, "rect");
+    rect.setAttribute("x", shape.x);
+    rect.setAttribute("y", shape.y);
+    rect.setAttribute("width", shape.width);
+    rect.setAttribute("height", shape.height);
+    rect.setAttribute("fill", shape.fill);
+    parent.appendChild(rect);
+    return;
+  }
+  const line = document.createElementNS(ns, "line");
+  line.setAttribute("x1", shape.x1);
+  line.setAttribute("y1", shape.y1);
+  line.setAttribute("x2", shape.x2);
+  line.setAttribute("y2", shape.y2);
+  line.setAttribute("stroke", shape.stroke);
+  line.setAttribute("stroke-width", shape.strokeWidth);
+  if (shape.strokeDasharray) {
+    line.setAttribute("stroke-dasharray", shape.strokeDasharray);
+  }
+  parent.appendChild(line);
 }
 
 function populateGridControls() {
@@ -929,30 +834,34 @@ function populateGridControls() {
 
 let relayoutTimer = null;
 
+function _readGridControlStateFromDom() {
+  const margins = _readGridMargins();
+  const linkEl = document.getElementById("grid-link-root");
+  const slackEl = document.getElementById("grid-slack");
+  return LayoutEngine.resolvePreviewGridControlInputState({
+    cols: document.getElementById("grid-cols").value,
+    rows: document.getElementById("grid-rows").value,
+    colGap: document.getElementById("grid-col-gap").value,
+    rowGap: document.getElementById("grid-row-gap").value,
+    marginTop: margins.top,
+    marginRight: margins.right,
+    marginBottom: margins.bottom,
+    marginLeft: margins.left,
+    linkToRoot: linkEl ? linkEl.checked : true,
+    slackAbsorption: slackEl ? slackEl.checked : true,
+  });
+}
+
 function onGridControlChange() {
   if (!gridInfo) return;
-  const cols = Math.max(1, parseInt(document.getElementById("grid-cols").value) || 1);
-  const rows = Math.max(0, parseInt(document.getElementById("grid-rows").value) || 0);
-  const colGap = Math.max(0, parseInt(document.getElementById("grid-col-gap").value) || 0);
-  const rowGap = Math.max(0, parseInt(document.getElementById("grid-row-gap").value) || 0);
-  const { top: mTop, right: mRight, bottom: mBottom, left: mLeft } = _readGridMargins();
-  const linkEl = document.getElementById("grid-link-root");
-  const linkToRoot = linkEl ? linkEl.checked : true;
-  const slackEl = document.getElementById("grid-slack");
-  const slackAbsorption = slackEl ? slackEl.checked : true;
+  const controlState = _readGridControlStateFromDom();
 
   if (!EditorState.getPendingGridAction()) {
     EditorState.setPendingGridAction(EditorState.beginUndoableAction("Adjust grid"));
   }
 
-  model.gridOverrides = LayoutEngine.createPreviewGridOverrides({
-    cols, rows, colGap, rowGap,
-    marginTop: mTop, marginRight: mRight,
-    marginBottom: mBottom, marginLeft: mLeft,
-    linkToRoot,
-    slackAbsorption,
-  });
-  if (linkToRoot) {
+  model.gridOverrides = LayoutEngine.createPreviewGridOverrides(controlState);
+  if (controlState.linkToRoot) {
     _pruneLinkedRootGridOverrides();
   }
   setDirty(true);
@@ -1000,27 +909,15 @@ function _gridCanvasDimensionsFromStage() {
 }
 
 function updateGridOverlayFromInputs() {
-  const cols = Math.max(1, parseInt(document.getElementById("grid-cols").value) || 1);
-  const rows = Math.max(0, parseInt(document.getElementById("grid-rows").value) || 0);
-  const colGap = Math.max(0, parseInt(document.getElementById("grid-col-gap").value) || 0);
-  const rowGap = Math.max(0, parseInt(document.getElementById("grid-row-gap").value) || 0);
-  const { top: mTop, right: mRight, bottom: mBottom, left: mLeft } = _readGridMargins();
-  const slackEl = document.getElementById("grid-slack");
-  const slack = slackEl ? slackEl.checked : true;
-
   const canvas = _gridCanvasDimensionsFromStage();
   if (!canvas) return;
-
-  gridInfo = LayoutEngine.resolvePreviewGridInfo({
-    canvasWidth: canvas.width, canvasHeight: canvas.height,
+  const controlState = _readGridControlStateFromDom();
+  gridInfo = LayoutEngine.resolvePreviewGridInfoFromControlState({
+    canvasWidth: canvas.width,
+    canvasHeight: canvas.height,
     baselineStep: BASELINE_STEP,
-    columnCount: cols, columnGutter: colGap,
-    rowCount: rows, rowGutter: rowGap,
-    marginTop: mTop, marginRight: mRight,
-    marginBottom: mBottom, marginLeft: mLeft,
-    slackAbsorption: slack,
+    controlState,
   });
-  // Update derived rows display
   document.getElementById("grid-rows").value = gridInfo._rows;
   renderGridOverlay();
 }
@@ -1028,25 +925,14 @@ function updateGridOverlayFromInputs() {
 function refreshV3GridInfoFromLayout() {
   const canvas = _gridCanvasDimensionsFromStage();
   if (!canvas) return;
-  const go = model.gridOverrides || {};
-  const fallback = baseGridInfo || gridInfo || {};
-
-  const margin = go.outer_margin ?? go.col_gap ?? fallback.outer_margin ?? fallback.col_gap ?? 24;
-  gridInfo = LayoutEngine.resolvePreviewGridInfo({
-    canvasWidth: canvas.width, canvasHeight: canvas.height,
+  gridInfo = LayoutEngine.resolvePreviewGridInfoFromRuntimeState({
+    canvasWidth: canvas.width,
+    canvasHeight: canvas.height,
     baselineStep: BASELINE_STEP,
-    columnCount: go.cols ?? fallback._cols ?? ((fallback.col_xs || []).length || 1),
-    columnGutter: go.col_gap ?? fallback.col_gap ?? 24,
-    rowCount: go.rows ?? fallback._rows ?? 0,
-    rowGutter: go.row_gap ?? fallback.row_gap ?? 24,
-    marginTop: go.margin_top ?? fallback.margin_top ?? margin,
-    marginRight: go.margin_right ?? fallback.margin_right ?? margin,
-    marginBottom: go.margin_bottom ?? fallback.margin_bottom ?? margin,
-    marginLeft: go.margin_left ?? fallback.margin_left ?? margin,
-    slackAbsorption: go.slack_absorption ?? fallback._slack_absorption ?? true,
+    gridOverrides: model.gridOverrides || {},
+    fallbackGridInfo: gridInfo || {},
+    baseGridInfo: baseGridInfo || {},
   });
-  gridInfo._link_to_root = go.link_to_root ?? true;
-  gridInfo._slack_absorption = go.slack_absorption ?? true;
   model.setDiagramGrid(gridInfo);
   populateGridControls();
 }
@@ -1414,12 +1300,32 @@ function getSelectionActionItems() {
     }
     const own = getOwnDelta(id);
     const eff = getEffectiveDelta(id);
+    const ancestorDx = eff.dx - own.dx;
+    const ancestorDy = eff.dy - own.dy;
+    let parentBounds = null;
+    if (node.parent) {
+      const parent = model.get(node.parent.id);
+      if (parent) {
+        const parentEff = getEffectiveDelta(parent.id);
+        const parentOwn = getOwnDelta(parent.id);
+        const minX = parent.data.x + parentEff.dx + INSET;
+        const minY = parent.data.y + parentEff.dy + INSET;
+        const maxX = minX + parent.data.width + parentOwn.dw - 2 * INSET - (node.data.width + own.dw);
+        const maxY = minY + parent.data.height + parentOwn.dh - 2 * INSET - (node.data.height + own.dh);
+        parentBounds = { minX, minY, maxX, maxY };
+      }
+    }
     items.push({
       id,
       node,
       parentId: node.parent ? node.parent.id : "",
       own,
       eff,
+      baseX: node.data.x,
+      baseY: node.data.y,
+      ancestorDx,
+      ancestorDy,
+      parentBounds,
       x: node.data.x + eff.dx,
       y: node.data.y + eff.dy,
       width: node.data.width + own.dw,
@@ -1432,50 +1338,25 @@ function getSelectionActionItems() {
 
 function setMultiActionGap(value) {
   const parsed = parseInt(value, 10);
-  multiActionGap = snapToGrid(Math.max(0, Number.isFinite(parsed) ? parsed : 0));
+  multiActionGap = LayoutEngine.normalizeSelectionGap(
+    Number.isFinite(parsed) ? parsed : 0,
+    BASELINE_STEP,
+  );
   const input = document.getElementById("multi-action-gap");
   if (input) input.value = multiActionGap;
 }
 
-function clampSelectionTarget(item, targetX, targetY) {
-  let nextX = snapToGrid(targetX);
-  let nextY = snapToGrid(targetY);
-
-  if (!item.parentId) {
-    return { x: nextX, y: nextY };
-  }
-
-  const parent = model.get(item.parentId);
-  if (!parent) {
-    return { x: nextX, y: nextY };
-  }
-
-  const parentEff = getEffectiveDelta(parent.id);
-  const parentOwn = getOwnDelta(parent.id);
-  const minX = parent.data.x + parentEff.dx + INSET;
-  const minY = parent.data.y + parentEff.dy + INSET;
-  const maxX = minX + parent.data.width + parentOwn.dw - 2 * INSET - item.width;
-  const maxY = minY + parent.data.height + parentOwn.dh - 2 * INSET - item.height;
-
-  nextX = snapToGrid(Math.min(Math.max(nextX, minX), maxX));
-  nextY = snapToGrid(Math.min(Math.max(nextY, minY), maxY));
-  return { x: nextX, y: nextY };
-}
-
-function applySelectionTargets(targets) {
+function applySelectionTargets(items, targets) {
   if (Object.keys(targets).length === 0) return;
   const ids = Object.keys(targets);
   const beforeEntries = EditorState.captureOverrideEntries(ids);
-  for (const [id, target] of Object.entries(targets)) {
-    const node = model.get(id);
-    if (!node) continue;
-    const own = getOwnDelta(id);
-    const eff = getEffectiveDelta(id);
-    const ancestorDx = eff.dx - own.dx;
-    const ancestorDy = eff.dy - own.dy;
-    const dx = snapToGrid(target.x - node.data.x - ancestorDx);
-    const dy = snapToGrid(target.y - node.data.y - ancestorDy);
-    setOverride(id, { dx, dy });
+  const entries = LayoutEngine.createSelectionTargetOverrideEntries({
+    items,
+    targets,
+    snapStep: BASELINE_STEP,
+  });
+  for (const entry of entries) {
+    setOverride(entry.id, { dx: entry.dx, dy: entry.dy });
   }
   applyAllOverrides();
   reapplySelection();
@@ -1498,24 +1379,15 @@ function distributeSelection(axis) {
     return;
   }
 
-  const gap = snapToGrid(Math.max(0, multiActionGap));
+  const gap = LayoutEngine.normalizeSelectionGap(multiActionGap, BASELINE_STEP);
   multiActionGap = gap;
-  const items = [...info.items].sort((a, b) =>
-    axis === "x" ? ((a.x - b.x) || (a.y - b.y)) : ((a.y - b.y) || (a.x - b.x))
-  );
-
-  const targets = {};
-  let cursor = axis === "x" ? items[0].x : items[0].y;
-  for (const item of items) {
-    const target = clampSelectionTarget(
-      item,
-      axis === "x" ? cursor : item.x,
-      axis === "y" ? cursor : item.y,
-    );
-    targets[item.id] = target;
-    cursor = axis === "x" ? (target.x + item.width + gap) : (target.y + item.height + gap);
-  }
-  applySelectionTargets(targets);
+  const targets = LayoutEngine.resolveSelectionDistributeTargets({
+    items: info.items,
+    axis,
+    gap,
+    snapStep: BASELINE_STEP,
+  });
+  applySelectionTargets(info.items, targets);
 }
 
 function alignSelection(mode) {
@@ -1525,28 +1397,12 @@ function alignSelection(mode) {
     alert("Align currently supports boxes, panels, terminals, and other non-arrow components only.");
     return;
   }
-
-  const left = Math.min(...info.items.map(item => item.x));
-  const top = Math.min(...info.items.map(item => item.y));
-  const right = Math.max(...info.items.map(item => item.x + item.width));
-  const bottom = Math.max(...info.items.map(item => item.y + item.height));
-  const centerX = (left + right) / 2;
-  const centerY = (top + bottom) / 2;
-  const targets = {};
-
-  info.items.forEach((item) => {
-    let targetX = item.x;
-    let targetY = item.y;
-    if (mode === "left") targetX = left;
-    if (mode === "center") targetX = centerX - (item.width / 2);
-    if (mode === "right") targetX = right - item.width;
-    if (mode === "top") targetY = top;
-    if (mode === "middle") targetY = centerY - (item.height / 2);
-    if (mode === "bottom") targetY = bottom - item.height;
-    targets[item.id] = clampSelectionTarget(item, targetX, targetY);
+  const targets = LayoutEngine.resolveSelectionAlignTargets({
+    items: info.items,
+    mode,
+    snapStep: BASELINE_STEP,
   });
-
-  applySelectionTargets(targets);
+  applySelectionTargets(info.items, targets);
 }
 
 function renderMultiSelectionInspector() {

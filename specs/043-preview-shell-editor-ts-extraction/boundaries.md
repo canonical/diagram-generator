@@ -12,6 +12,7 @@ Shrink `scripts/preview/editor.js` into a thin bootstrap/coordinator so the stan
 - editor state helpers: `scripts/preview/editor-state.js`
 - ELK controller slice: `scripts/preview/elk-controller.js`
 - inspector selection view-model helpers: `packages/layout-engine/src/preview-shell/inspector-selection.ts`
+- multi-selection action target helpers: `packages/layout-engine/src/preview-shell/selection-actions.ts`
 - single-selection inspector state helpers: `packages/layout-engine/src/preview-shell/inspector-single.ts`
 - single-selection inspector panel renderer: `packages/layout-engine/src/preview-shell/inspector-single-panel.ts`
 - multi-selection field-state helpers: `packages/layout-engine/src/preview-shell/inspector-multi.ts`
@@ -29,6 +30,7 @@ Shrink `scripts/preview/editor.js` into a thin bootstrap/coordinator so the stan
 - live resize move-dispatch helpers: `packages/layout-engine/src/preview-shell/interaction-resize-dispatch.ts`
 - preview grid resolver + span conversion helpers: `packages/layout-engine/src/preview-shell/grid-resolution.ts`
 - preview grid control state helpers: `packages/layout-engine/src/preview-shell/grid-controls.ts`
+- preview grid overlay scene helpers: `packages/layout-engine/src/preview-shell/grid-overlay-scene.ts`
 - frame override allowlists: `packages/layout-engine/src/preview-shell/frame-override-manifest.ts`
 - engine registry contracts: `packages/layout-engine/src/index.ts`, `packages/layout-engine/tests/preview-engine-registry.test.ts`
 
@@ -39,7 +41,7 @@ Shrink `scripts/preview/editor.js` into a thin bootstrap/coordinator so the stan
 - remaining selection depth-cycling edge cases
 - most nudge controller logic
 - drag / resize DOM cleanup, DOM-derived coordinate capture, and shell callback wiring still wired in JS after move/completion dispatch
-- grid control state shaping and update dispatch
+- remaining grid DOM reads/writes, event binding, and relayout debounce glue
 - `loadSVG()` shell coordination and some engine hookup glue
 
 ## Slice 1 status
@@ -49,6 +51,7 @@ Landed:
 - primary-selection resolution
 - multi-selection grouping and same-parent classification
 - selection-derived inferred gap rules
+- multi-selection align / distribute target planning
 - top-level multi-selection inspector flags
 - single-selection summary flags (`currentAlign`, override state, waypoint state, child-note mode)
 - single-selection autolayout panel branch state
@@ -69,6 +72,7 @@ Landed:
 - live resize move branching now delegates to a TS dispatcher, leaving `editor.js` to supply model lookups, DOM callbacks, and shell glue
 - Brockman-style preview grid resolution and span/pixel conversion now delegate to TS grid helpers
 - grid control display-state resolution and runtime override shaping now delegate to TS grid-control helpers
+- grid overlay geometry and grid-info recompute fallback logic now delegate to TS helpers, leaving `editor.js` with DOM reads/writes and relayout debounce glue
 
 Still in `editor.js` for now:
 
@@ -103,5 +107,5 @@ Still in `editor.js` for now:
 ## Next recommended order
 
 1. Remaining inspector DOM/wiring cleanup only where it still removes real branching
-2. Remaining grid DOM wiring and overlay update plumbing
+2. Remaining grid DOM wiring and event hookup cleanup
 3. Bootstrap cleanup and hook normalization
