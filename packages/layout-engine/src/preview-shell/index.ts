@@ -172,3 +172,16 @@ export {
   isNudgeKey,
   resolveKeyboardShortcutAction,
 } from './interaction-keyboard.js';
+
+export type {
+  PreviewGridInfo,
+  ResolvePreviewGridInfoParams,
+} from './grid-resolution.js';
+
+export {
+  colSpanToPx,
+  pxToColSpan,
+  pxToRowSpan,
+  resolvePreviewGridInfo,
+  rowSpanToPx,
+} from './grid-resolution.js';

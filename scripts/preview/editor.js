@@ -723,7 +723,7 @@ async function loadGridInfo(canonicalState = null) {
     const svg = document.querySelector("#stage svg");
     const svgW = svg ? (svg.viewBox.baseVal.width || parseFloat(svg.getAttribute("width") || 840)) : 840;
     const svgH = svg ? (svg.viewBox.baseVal.height || parseFloat(svg.getAttribute("height") || 840)) : 840;
-    gridInfo = _resolveGrid({
+    gridInfo = LayoutEngine.resolvePreviewGridInfo({
       canvasWidth: svgW, canvasHeight: svgH,
       columnCount: 2, columnGutter: gap, rowGutter: gap,
       marginTop: pad, marginRight: pad, marginBottom: pad, marginLeft: pad,
@@ -992,167 +992,9 @@ function onGridControlChange() {
 
 // ---- Column/row span ↔ pixel conversion ----
 
-/** Convert a column span count to pixel width. */
-function colSpanToPx(span) {
-  if (!gridInfo || !gridInfo.col_widths || !gridInfo.col_widths.length) return null;
-  const colW = gridInfo.col_widths[0];
-  const gap = gridInfo.col_gap || 0;
-  return colW * span + gap * (span - 1);
-}
-
-/** Convert a row span count to pixel height. */
-function rowSpanToPx(span) {
-  if (!gridInfo || !gridInfo.row_heights || !gridInfo.row_heights.length) return null;
-  const rowH = gridInfo.row_heights[0];
-  const gap = gridInfo.row_gap || 0;
-  return rowH * span + gap * (span - 1);
-}
-
-/** Convert a pixel width to the nearest column span (may be fractional). */
-function pxToColSpan(px) {
-  if (!gridInfo || !gridInfo.col_widths || !gridInfo.col_widths.length) return null;
-  const colW = gridInfo.col_widths[0];
-  const gap = gridInfo.col_gap || 0;
-  if (colW + gap <= 0) return null;
-  return (px + gap) / (colW + gap);
-}
-
-/** Convert a pixel height to the nearest row span (may be fractional). */
-function pxToRowSpan(px) {
-  if (!gridInfo || !gridInfo.row_heights || !gridInfo.row_heights.length) return null;
-  const rowH = gridInfo.row_heights[0];
-  const gap = gridInfo.row_gap || 0;
-  if (rowH + gap <= 0) return null;
-  return (px + gap) / (rowH + gap);
-}
-
 // Track inspector width/height unit preference: 'px', 'cols', 'rows'
 let _inspectorWidthUnit = 'px';
 let _inspectorHeightUnit = 'px';
-
-// ---- Layout grid resolver (port of design-foundry resolveGridCore) ----
-// Unit-agnostic grid math. Handles per-side margins, baseline-snapped row
-// heights, and bottom-margin slack absorption. Column widths are derived from
-// the content area after subtracting gutters. Row count is a user input
-// (unlike the old Brockman solver which auto-calculated it).
-//
-// Returns the same gridInfo shape the rest of editor.js expects, extended
-// with per-side margin fields.
-function _resolveGrid(params) {
-  const {
-    canvasWidth,
-    canvasHeight,
-    baselineStep = BASELINE_STEP,
-    marginTop = 24,
-    marginRight = 24,
-    marginBottom = 24,
-    marginLeft = 24,
-    columnCount = 2,
-    columnGutter = 24,
-    rowCount: requestedRowCount = 0,
-    rowGutter: requestedRowGutter = 24,
-    slackAbsorption = true,
-  } = params;
-
-  const step = Math.max(1, baselineStep);
-  const snap = (v) => Math.max(0, Math.round(v / step)) * step;
-
-  const mTop = snap(marginTop);
-  const mRight = snap(marginRight);
-  const mLeft = snap(marginLeft);
-  const requestedMBottom = snap(marginBottom);
-  const minMBottom = slackAbsorption
-    ? Math.max(requestedMBottom, mTop)
-    : requestedMBottom;
-
-  const cols = Math.max(1, Math.round(columnCount));
-  const colGutter = snap(columnGutter);
-
-  // Content area
-  const contentW = Math.max(0, canvasWidth - mLeft - mRight);
-  const contentH_available = Math.max(0, canvasHeight - mTop - minMBottom);
-
-  // ---- Columns ----
-  const colWRaw = cols > 1
-    ? (contentW - (cols - 1) * colGutter) / cols
-    : contentW;
-  const colW = colWRaw >= step
-    ? Math.floor(colWRaw / step) * step
-    : Math.max(step, Math.round(colWRaw));
-
-  const colXs = [];
-  const colWidths = [];
-  for (let c = 0; c < cols; c++) {
-    colXs.push(mLeft + c * (colW + colGutter));
-    colWidths.push(colW);
-  }
-
-  // ---- Rows (baseline-snapped, bottom margin absorbs slack) ----
-  let rows = requestedRowCount;
-  const rGapSnapped = snap(requestedRowGutter);
-
-  // Auto-calculate row count if not user-specified (rows <= 0)
-  if (rows <= 0) {
-    const targetRowH = Math.max(step * 10, 80);
-    rows = Math.max(1, Math.floor((contentH_available + rGapSnapped) / (targetRowH + rGapSnapped)));
-  }
-
-  const rowGapCount = Math.max(0, rows - 1);
-
-  // Clamp row gutter if slack absorption is on
-  let rowGutter;
-  if (rowGapCount === 0) {
-    rowGutter = 0;
-  } else if (slackAbsorption) {
-    const maxRowGutter = Math.floor(contentH_available / (rowGapCount * step)) * step;
-    rowGutter = Math.min(rGapSnapped, Math.max(0, maxRowGutter));
-  } else {
-    rowGutter = rGapSnapped;
-  }
-
-  const totalRowGutter = rowGutter * rowGapCount;
-  const maxRowHSpace = contentH_available - totalRowGutter;
-  const rowH = Math.max(0, Math.floor(Math.max(0, maxRowHSpace) / (rows * step)) * step);
-
-  // Resolved bottom margin (absorbs slack)
-  const resolvedMBottom = slackAbsorption
-    ? Math.max(minMBottom, canvasHeight - mTop - rowH * rows - totalRowGutter)
-    : Math.max(0, canvasHeight - mTop - rowH * rows - totalRowGutter);
-
-  // Resolved right margin (absorbs column width snapping slack)
-  const usedWidth = cols > 0 ? colXs[cols - 1] + colW : mLeft;
-  const resolvedMRight = canvasWidth - usedWidth;
-
-  const rowYs = [];
-  const rowHeights = [];
-  for (let r = 0; r < rows; r++) {
-    rowYs.push(mTop + r * (rowH + rowGutter));
-    rowHeights.push(rowH);
-  }
-
-  return {
-    col_xs: colXs,
-    col_widths: colWidths,
-    row_ys: rowYs,
-    row_heights: rowHeights,
-    col_gap: colGutter,
-    row_gap: rowGutter,
-    // Per-side margins (requested values for UI display)
-    margin_top: mTop,
-    margin_right: mRight,
-    margin_bottom: requestedMBottom,
-    margin_left: mLeft,
-    // Legacy compat (backward compat with older code paths)
-    outer_margin: mTop,
-    // Resolved margins (after slack absorption / col snapping)
-    _resolved_bottom_margin: resolvedMBottom,
-    _resolved_right_margin: resolvedMRight,
-    _baseline_step: step,
-    // Explicit counts for UI
-    _cols: cols,
-    _rows: rows,
-  };
-}
 
 function _gridCanvasDimensionsFromStage() {
   const svg = document.querySelector("#stage svg");
@@ -1183,7 +1025,7 @@ function updateGridOverlayFromInputs() {
   const canvas = _gridCanvasDimensionsFromStage();
   if (!canvas) return;
 
-  gridInfo = _resolveGrid({
+  gridInfo = LayoutEngine.resolvePreviewGridInfo({
     canvasWidth: canvas.width, canvasHeight: canvas.height,
     columnCount: cols, columnGutter: colGap,
     rowCount: rows, rowGutter: rowGap,
@@ -1203,7 +1045,7 @@ function refreshV3GridInfoFromLayout() {
   const fallback = baseGridInfo || gridInfo || {};
 
   const margin = go.outer_margin ?? go.col_gap ?? fallback.outer_margin ?? fallback.col_gap ?? 24;
-  gridInfo = _resolveGrid({
+  gridInfo = LayoutEngine.resolvePreviewGridInfo({
     canvasWidth: canvas.width, canvasHeight: canvas.height,
     columnCount: go.cols ?? fallback._cols ?? ((fallback.col_xs || []).length || 1),
     columnGutter: go.col_gap ?? fallback.col_gap ?? 24,
@@ -2199,9 +2041,9 @@ function setMultiFrameSize(dimension, value) {
   if (!Number.isFinite(value) || value <= 0) return;
   let px;
   if (dimension === 'width' && _inspectorWidthUnit === 'cols') {
-    px = colSpanToPx(value);
+    px = LayoutEngine.colSpanToPx(gridInfo, value);
   } else if (dimension === 'height' && _inspectorHeightUnit === 'rows') {
-    px = rowSpanToPx(value);
+    px = LayoutEngine.rowSpanToPx(gridInfo, value);
   } else {
     px = Math.round(value / BASELINE_STEP) * BASELINE_STEP;
   }
@@ -5211,7 +5053,9 @@ function buildAutolayoutPanel(cid, node) {
   // Numeric width + unit selector (shown when FIXED)
   if (panelState.showWidthFixedInput) {
     const rawW = ovr.width !== undefined ? ovr.width : (node.data ? node.data.width : 0);
-    const displayW = _inspectorWidthUnit === 'cols' ? Math.round(pxToColSpan(rawW) * 100) / 100 : Math.round(rawW);
+    const displayW = _inspectorWidthUnit === 'cols'
+      ? Math.round(LayoutEngine.pxToColSpan(gridInfo, rawW) * 100) / 100
+      : Math.round(rawW);
     const stepW = _inspectorWidthUnit === 'cols' ? 1 : BASELINE_STEP;
     html += '<input class="bf-input" type="number" min="0" step="' + stepW + '" value="' + displayW + '"';
     html += ' onchange="setFrameSize(\'' + cid + '\',\'width\',parseFloat(this.value))"';
@@ -5283,7 +5127,9 @@ function buildAutolayoutPanel(cid, node) {
   // Numeric height + unit selector (shown when FIXED)
   if (panelState.showHeightFixedInput) {
     const rawH = ovr.height !== undefined ? ovr.height : (node.data ? node.data.height : 0);
-    const displayH = _inspectorHeightUnit === 'rows' ? Math.round(pxToRowSpan(rawH) * 100) / 100 : Math.round(rawH);
+    const displayH = _inspectorHeightUnit === 'rows'
+      ? Math.round(LayoutEngine.pxToRowSpan(gridInfo, rawH) * 100) / 100
+      : Math.round(rawH);
     const stepH = _inspectorHeightUnit === 'rows' ? 1 : BASELINE_STEP;
     html += '<input class="bf-input" type="number" min="0" step="' + stepH + '" value="' + displayH + '"';
     html += ' onchange="setFrameSize(\'' + cid + '\',\'height\',parseFloat(this.value))"';
@@ -5520,9 +5366,9 @@ function setFrameSize(cid, dimension, value) {
   if (!Number.isFinite(value) || value <= 0) return;
   let px;
   if (dimension === 'width' && _inspectorWidthUnit === 'cols') {
-    px = colSpanToPx(value);
+    px = LayoutEngine.colSpanToPx(gridInfo, value);
   } else if (dimension === 'height' && _inspectorHeightUnit === 'rows') {
-    px = rowSpanToPx(value);
+    px = LayoutEngine.rowSpanToPx(gridInfo, value);
   } else {
     px = Math.round(value / BASELINE_STEP) * BASELINE_STEP;
   }
