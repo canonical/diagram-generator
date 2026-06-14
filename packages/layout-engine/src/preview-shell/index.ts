@@ -164,6 +164,14 @@ export {
 } from './interaction-drag-dispatch.js';
 
 export type {
+  SingleSelectionAutolayoutPanelRenderOptions,
+} from './inspector-autolayout-panel.js';
+
+export {
+  renderSingleSelectionAutolayoutPanel,
+} from './inspector-autolayout-panel.js';
+
+export type {
   ReorderResolution,
   ReorderTargetPoint,
   ResizeBounds,

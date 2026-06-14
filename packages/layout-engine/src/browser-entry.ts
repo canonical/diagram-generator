@@ -234,6 +234,7 @@ export {
   resolveAutolayoutReorderTarget,
   resolvePointerSelection,
   resolvePrimarySelectedId,
+  renderSingleSelectionAutolayoutPanel,
   rowSpanToPx,
 } from './preview-shell/index.js';
 export type {
@@ -274,6 +275,7 @@ export type {
   InspectorEffectiveDeltaState,
   InspectorPositionType,
   InspectorSizingMode,
+  SingleSelectionAutolayoutPanelRenderOptions,
   PointerSelectionResolution,
   InteractionDeltaPatch,
   InteractionDeltaValue,

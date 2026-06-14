@@ -4880,171 +4880,79 @@ function buildAutolayoutPanel(cid, node) {
     hasTextContent: _nodeHasTextContent(node),
     positionType: ovr.position,
   });
-
-  let html = '<div class="dg-autolayout-section">';
-
-  if (panelState.isContainer) {
-    html += '<span class="label" style="margin-bottom:4px;display:block">Auto-layout · ' + cid + '</span>';
-
-    // Direction
-    html += '<div class="field"><span class="label">Direction</span>';
-    html += '<select class="bf-input" onchange="setFrameProp(\'' + cid + '\',\'direction\',this.value)">';
-    html += '<option value="VERTICAL"' + (panelState.direction === 'VERTICAL' ? ' selected' : '') + '>Vertical</option>';
-    html += '<option value="HORIZONTAL"' + (panelState.direction === 'HORIZONTAL' ? ' selected' : '') + '>Horizontal</option>';
-    html += '</select></div>';
-
-    html += '<div class="field"><span class="label">Gap bump</span>';
-    html += '<input class="bf-input" type="number" step="8" value="' + panelState.currentGapDelta + '"';
-    html += ' onchange="setFrameProp(\'' + cid + '\',\'gap_delta\',this.value)"';
-    html += ' onkeydown="if(event.key===\'Enter\'){event.preventDefault();event.stopPropagation();this.blur();}"';
-    html += ' style="width:64px;margin-left:4px">';
-    html += '<span class="label" style="margin-left:4px">px</span></div>';
-    html += '<div class="hint">Effective gap ' + panelState.effectiveGap + 'px = auto ' + panelState.automaticGap + 'px + delta ' + panelState.currentGapDelta + 'px. Set 0 to clear the manual bump.</div>';
-
-    html += '<div class="hint">Padding now derives from frame defaults: 8px for non-root frames, with annotation side padding collapsed to 0.</div>';
-  } else {
-    html += '<span class="label" style="margin-bottom:4px;display:block">Sizing</span>';
-  }
-
-  // Per-axis sizing (shown for all nodes)
-  html += '<div class="field"><span class="label">Width</span>';
-  html += '<select class="bf-input' + (panelState.wCoerced ? ' dg-coerced' : '') + '" onchange="setFrameProp(\'' + cid + '\',\'sizing_w\',this.value)">';
-  html += '<option value="HUG"' + (panelState.sizingW === 'HUG' ? ' selected' : '') + '>Hug</option>';
-  html += '<option value="FILL"' + (panelState.sizingW === 'FILL' ? ' selected' : '') + '>Fill</option>';
-  html += '<option value="FIXED"' + (panelState.sizingW === 'FIXED' ? ' selected' : '') + '>' + (panelState.wCoerced ? 'Fixed (auto)' : 'Fixed') + '</option>';
-  html += '</select>';
-  // Numeric width + unit selector (shown when FIXED)
+  let widthFixedValue = '';
+  let widthFixedStep = _inspectorWidthUnit === 'cols' ? 1 : BASELINE_STEP;
   if (panelState.showWidthFixedInput) {
     const rawW = ovr.width !== undefined ? ovr.width : (node.data ? node.data.width : 0);
-    const displayW = _inspectorWidthUnit === 'cols'
+    widthFixedValue = _inspectorWidthUnit === 'cols'
       ? Math.round(LayoutEngine.pxToColSpan(gridInfo, rawW) * 100) / 100
       : Math.round(rawW);
-    const stepW = _inspectorWidthUnit === 'cols' ? 1 : BASELINE_STEP;
-    html += '<input class="bf-input" type="number" min="0" step="' + stepW + '" value="' + displayW + '"';
-    html += ' onchange="setFrameSize(\'' + cid + '\',\'width\',parseFloat(this.value))"';
-    html += ' style="width:60px;margin-left:4px">';
-    html += '<select class="bf-input" style="width:50px;margin-left:2px" onchange="setWidthUnit(this.value,\'' + cid + '\')">';
-    html += '<option value="px"' + (_inspectorWidthUnit === 'px' ? ' selected' : '') + '>px</option>';
-    if (gridInfo && gridInfo.col_widths && gridInfo.col_widths.length) {
-      html += '<option value="cols"' + (_inspectorWidthUnit === 'cols' ? ' selected' : '') + '>cols</option>';
-    }
-    html += '</select>';
-  }
-  html += '</div>';
-  // Min/max width (FILL and FIXED always; typographic measure for text-bearing HUG)
-  if (panelState.showWidthMinMax) {
-    const curMinW = ovr.min_width !== undefined ? ovr.min_width : (_nodeProp(node, "min_width") ?? '');
-    const curMaxW = ovr.max_width !== undefined ? ovr.max_width : (_nodeProp(node, "max_width") ?? '');
-    html += '<div class="field dg-constraint-row"><span class="label">Min W</span>';
-    html += '<input class="bf-input" type="number" min="0" step="' + BASELINE_STEP + '" value="' + curMinW + '"';
-    html += ' placeholder="—"';
-    html += ' onchange="setFrameProp(\'' + cid + '\',\'min_width\',this.value)"';
-    html += ' style="width:52px">';
-    html += '<span class="label" style="margin-left:4px">Max W</span>';
-    html += '<input class="bf-input" type="number" min="0" step="' + BASELINE_STEP + '" value="' + curMaxW + '"';
-    html += ' placeholder="—"';
-    html += ' onchange="setFrameProp(\'' + cid + '\',\'max_width\',this.value)"';
-    html += ' style="width:52px">';
-    html += '</div>';
-  }
-  if (panelState.showWidthTextMeasure) {
-    const curMinW = ovr.min_width !== undefined ? ovr.min_width : (_nodeProp(node, "min_width") ?? '');
-    const curMaxW = _inspectorDisplayMaxWidth(node, ovr);
-    const curMaxChars = _inspectorMaxWidthChars(node, ovr);
-    const charsDisabled = _inspectorHasExplicitMaxWidthPx(node, ovr);
-    html += '<div class="field dg-constraint-row"><span class="label">Min W</span>';
-    html += '<input class="bf-input" type="number" min="0" step="' + BASELINE_STEP + '" value="' + curMinW + '"';
-    html += ' placeholder="—"';
-    html += ' onchange="setFrameProp(\'' + cid + '\',\'min_width\',this.value)"';
-    html += ' style="width:52px">';
-    html += '<span class="label" style="margin-left:4px">Max W</span>';
-    html += '<input class="bf-input" type="number" min="0" step="' + BASELINE_STEP + '" value="' + curMaxW + '"';
-    html += ' placeholder="—"';
-    html += ' onchange="setFrameProp(\'' + cid + '\',\'max_width\',this.value)"';
-    html += ' style="width:52px">';
-    html += '</div>';
-    html += '<div class="field"><span class="label">Max chars</span>';
-    html += '<input class="bf-input" type="number" min="0" step="1" value="' + curMaxChars + '"';
-    if (charsDisabled) html += ' disabled title="Clear Max W (px) to edit character measure"';
-    html += ' onchange="setFrameProp(\'' + cid + '\',\'max_width_chars\',this.value)"';
-    html += ' style="width:52px" title="0 = unbounded single line">';
-    html += '<span class="label" style="margin-left:4px;font-size:11px;color:#666">0=off</span>';
-    html += '</div>';
-  }
-  // Fill weight (shown when width sizing is FILL)
-  if (panelState.showWidthFillWeight) {
-    const curFW = ovr.fill_weight !== undefined ? ovr.fill_weight : (_nodeProp(node, "fill_weight") ?? 1);
-    html += '<div class="field"><span class="label">Weight</span>';
-    html += '<input class="bf-input" type="number" min="0" step="0.5" value="' + curFW + '"';
-    html += ' onchange="setFrameProp(\'' + cid + '\',\'fill_weight\',parseFloat(this.value))"';
-    html += ' style="width:52px">';
-    html += '</div>';
   }
 
-  html += '<div class="field"><span class="label">Height</span>';
-  html += '<select class="bf-input' + (panelState.hCoerced ? ' dg-coerced' : '') + '" onchange="setFrameProp(\'' + cid + '\',\'sizing_h\',this.value)">';
-  html += '<option value="HUG"' + (panelState.sizingH === 'HUG' ? ' selected' : '') + '>Hug</option>';
-  html += '<option value="FILL"' + (panelState.sizingH === 'FILL' ? ' selected' : '') + '>Fill</option>';
-  html += '<option value="FIXED"' + (panelState.sizingH === 'FIXED' ? ' selected' : '') + '>' + (panelState.hCoerced ? 'Fixed (auto)' : 'Fixed') + '</option>';
-  html += '</select>';
-  // Numeric height + unit selector (shown when FIXED)
+  let widthMinValue = '';
+  let widthMaxValue = '';
+  if (panelState.showWidthMinMax) {
+    widthMinValue = ovr.min_width !== undefined ? ovr.min_width : (_nodeProp(node, "min_width") ?? '');
+    widthMaxValue = ovr.max_width !== undefined ? ovr.max_width : (_nodeProp(node, "max_width") ?? '');
+  }
+
+  let widthMaxCharsValue = '';
+  let widthMaxCharsDisabled = false;
+  if (panelState.showWidthTextMeasure) {
+    widthMinValue = ovr.min_width !== undefined ? ovr.min_width : (_nodeProp(node, "min_width") ?? '');
+    widthMaxValue = _inspectorDisplayMaxWidth(node, ovr);
+    widthMaxCharsValue = _inspectorMaxWidthChars(node, ovr);
+    widthMaxCharsDisabled = _inspectorHasExplicitMaxWidthPx(node, ovr);
+  }
+
+  let widthFillWeightValue = 1;
+  if (panelState.showWidthFillWeight) {
+    widthFillWeightValue = ovr.fill_weight !== undefined ? ovr.fill_weight : (_nodeProp(node, "fill_weight") ?? 1);
+  }
+
+  let heightFixedValue = '';
+  let heightFixedStep = _inspectorHeightUnit === 'rows' ? 1 : BASELINE_STEP;
   if (panelState.showHeightFixedInput) {
     const rawH = ovr.height !== undefined ? ovr.height : (node.data ? node.data.height : 0);
-    const displayH = _inspectorHeightUnit === 'rows'
+    heightFixedValue = _inspectorHeightUnit === 'rows'
       ? Math.round(LayoutEngine.pxToRowSpan(gridInfo, rawH) * 100) / 100
       : Math.round(rawH);
-    const stepH = _inspectorHeightUnit === 'rows' ? 1 : BASELINE_STEP;
-    html += '<input class="bf-input" type="number" min="0" step="' + stepH + '" value="' + displayH + '"';
-    html += ' onchange="setFrameSize(\'' + cid + '\',\'height\',parseFloat(this.value))"';
-    html += ' style="width:60px;margin-left:4px">';
-    html += '<select class="bf-input" style="width:50px;margin-left:2px" onchange="setHeightUnit(this.value,\'' + cid + '\')">';
-    html += '<option value="px"' + (_inspectorHeightUnit === 'px' ? ' selected' : '') + '>px</option>';
-    html += '<option value="rows"' + (_inspectorHeightUnit === 'rows' ? ' selected' : '') + '>rows</option>';
-    html += '</select>';
   }
-  html += '</div>';
-  // Min/max height (FILL and FIXED)
+
+  let heightMinValue = '';
+  let heightMaxValue = '';
   if (panelState.showHeightMinMax) {
-    const curMinH = ovr.min_height !== undefined ? ovr.min_height : (_nodeProp(node, "min_height") ?? '');
-    const curMaxH = ovr.max_height !== undefined ? ovr.max_height : (_nodeProp(node, "max_height") ?? '');
-    html += '<div class="field dg-constraint-row"><span class="label">Min H</span>';
-    html += '<input class="bf-input" type="number" min="0" step="' + BASELINE_STEP + '" value="' + curMinH + '"';
-    html += ' placeholder="—"';
-    html += ' onchange="setFrameProp(\'' + cid + '\',\'min_height\',this.value)"';
-    html += ' style="width:52px">';
-    html += '<span class="label" style="margin-left:4px">Max</span>';
-    html += '<input class="bf-input" type="number" min="0" step="' + BASELINE_STEP + '" value="' + curMaxH + '"';
-    html += ' placeholder="—"';
-    html += ' onchange="setFrameProp(\'' + cid + '\',\'max_height\',this.value)"';
-    html += ' style="width:52px">';
-    html += '</div>';
+    heightMinValue = ovr.min_height !== undefined ? ovr.min_height : (_nodeProp(node, "min_height") ?? '');
+    heightMaxValue = ovr.max_height !== undefined ? ovr.max_height : (_nodeProp(node, "max_height") ?? '');
   }
 
-  // Position type (absolute vs auto) — shown for non-root nodes
-  if (panelState.showPositionType) {
-    html += '<div class="field"><span class="label">Position</span>';
-    html += '<select class="bf-input" onchange="setFrameProp(\'' + cid + '\',\'position\',this.value)">';
-    html += '<option value="AUTO"' + (panelState.positionType !== 'ABSOLUTE' ? ' selected' : '') + '>Auto</option>';
-    html += '<option value="ABSOLUTE"' + (panelState.positionType === 'ABSOLUTE' ? ' selected' : '') + '>Absolute</option>';
-    html += '</select></div>';
-    if (panelState.showAbsoluteOffsetControls) {
-      const xVal = ovr.x !== undefined ? ovr.x : 0;
-      const yVal = ovr.y !== undefined ? ovr.y : 0;
-      html += '<div class="field"><span class="label">Offset</span>';
-      html += '<span style="color:#888;font-size:11px">X</span>';
-      html += '<input class="bf-input" type="number" step="' + BASELINE_STEP + '" value="' + xVal + '"';
-      html += ' onchange="setFrameProp(\'' + cid + '\',\'x\',parseInt(this.value))"';
-      html += ' style="width:52px">';
-      html += '<span style="color:#888;font-size:11px;margin-left:4px">Y</span>';
-      html += '<input class="bf-input" type="number" step="' + BASELINE_STEP + '" value="' + yVal + '"';
-      html += ' onchange="setFrameProp(\'' + cid + '\',\'y\',parseInt(this.value))"';
-      html += ' style="width:52px">';
-      html += '</div>';
-    }
-  }
+  const positionXValue = panelState.showAbsoluteOffsetControls
+    ? (ovr.x !== undefined ? ovr.x : 0)
+    : 0;
+  const positionYValue = panelState.showAbsoluteOffsetControls
+    ? (ovr.y !== undefined ? ovr.y : 0)
+    : 0;
 
-  html += '</div>';
-  return html;
+  return LayoutEngine.renderSingleSelectionAutolayoutPanel({
+    cid,
+    panelState,
+    widthFixedValue,
+    widthFixedStep,
+    widthUnit: _inspectorWidthUnit,
+    showWidthColsOption: Boolean(gridInfo && gridInfo.col_widths && gridInfo.col_widths.length),
+    widthMinValue,
+    widthMaxValue,
+    widthMaxCharsValue,
+    widthMaxCharsDisabled,
+    widthFillWeightValue,
+    heightFixedValue,
+    heightFixedStep,
+    heightUnit: _inspectorHeightUnit,
+    heightMinValue,
+    heightMaxValue,
+    positionXValue,
+    positionYValue,
+  });
 }
 
 let _v3RelayoutTimer = null;

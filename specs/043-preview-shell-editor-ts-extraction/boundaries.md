@@ -14,6 +14,7 @@ Shrink `scripts/preview/editor.js` into a thin bootstrap/coordinator so the stan
 - inspector selection view-model helpers: `packages/layout-engine/src/preview-shell/inspector-selection.ts`
 - single-selection inspector state helpers: `packages/layout-engine/src/preview-shell/inspector-single.ts`
 - multi-selection field-state helpers: `packages/layout-engine/src/preview-shell/inspector-multi.ts`
+- single-selection autolayout panel renderer: `packages/layout-engine/src/preview-shell/inspector-autolayout-panel.ts`
 - click / double-click selection-resolution helpers: `packages/layout-engine/src/preview-shell/interaction-selection.ts`
 - selection-set / depth mutation helpers: `packages/layout-engine/src/preview-shell/interaction-selection-state.ts`
 - reorder / multi-resize geometry helpers: `packages/layout-engine/src/preview-shell/interaction-geometry.ts`
@@ -32,7 +33,7 @@ Shrink `scripts/preview/editor.js` into a thin bootstrap/coordinator so the stan
 ## Responsibilities still concentrated in `editor.js`
 
 - most inspector view-model resolution and field merge rules
-- inspector DOM rendering and field wiring
+- most inspector DOM rendering and field wiring
 - remaining selection depth-cycling edge cases
 - most nudge controller logic
 - drag / resize DOM cleanup, DOM-derived coordinate capture, and shell callback wiring still wired in JS after move/completion dispatch
@@ -49,6 +50,7 @@ Landed:
 - top-level multi-selection inspector flags
 - single-selection summary flags (`currentAlign`, override state, waypoint state, child-note mode)
 - single-selection autolayout panel branch state
+- single-selection autolayout panel HTML assembly
 - multi-selection shared sizing / container / align state
 - legacy JS fallback branches for those inspector state helpers are removed; `editor.js` now delegates those decisions directly to `LayoutEngine`
 - SVG click / double-click selection-depth decisions now delegate to `LayoutEngine`
@@ -66,7 +68,7 @@ Landed:
 
 Still in `editor.js` for now:
 
-- HTML assembly for single- and multi-selection inspector panels
+- HTML assembly for most single- and multi-selection inspector panels
 - field-level value formatting and unit conversion
 - style picker resolution
 - single-selection constraint and style rendering
