@@ -4480,149 +4480,50 @@ function _cancelV3ResizeRelayout() {
 function onResizeMove(e) {
   if (!mgr.isMode(InteractionMode.RESIZING)) return;
   const s = mgr.state;
-  const dx = e.clientX - s.startX;
-  const dy = e.clientY - s.startY;
-  if (Math.abs(dx) > 2 || Math.abs(dy) > 2) s.hasMoved = true;
-  if (!s.hasMoved) return;
-  if (!s.snapshotRecorded) {
-    const svg = document.querySelector("#stage svg");
-    if (svg) svg.querySelectorAll(".dg-handle").forEach(h => h.style.display = "none");
-    s.snapshotRecorded = true;
-  }
-  let newDx = s.origDx;
-  let newDy = s.origDy;
-  let newDw = s.origDw;
-  let newDh = s.origDh;
-  
-  const axis = s.axis;
   const node = model.get(s.cid);
-  const baseX = node ? node.data.x : 0;
-  const baseY = node ? node.data.y : 0;
   const gridTargets = _gridSnapTargets();
-
-  // Hoist SVG dimensions for guide lines (avoid repeated DOM queries)
   const svgEl = document.querySelector("#stage svg");
   const svgW = svgEl ? parseFloat(svgEl.getAttribute("width") || "0") : 0;
   const svgH = svgEl ? parseFloat(svgEl.getAttribute("height") || "0") : 0;
-
-  if (s.selection) {
-    const nextBounds = LayoutEngine.resizeBoundsFromHandle({
-      bounds: s.selection.bounds,
-      axis,
-      dx,
-      dy,
-      gridTargets,
-      svgW,
-      svgH,
-      minWidth: s.selection.minWidth,
-      minHeight: s.selection.minHeight,
-      snapStep: BASELINE_STEP,
-    });
-
-    if (nextBounds.resizeLines.length > 0) {
-      renderGuideLines(nextBounds.resizeLines, GUIDE_COLOR, GUIDE_OPACITY);
-    } else {
-      clearGuideLines();
-    }
-
-    if (!s.propagatedIds) s.propagatedIds = new Set();
-    _restorePropagatedResizeOverrides(s);
-
-    const memberOverrides = LayoutEngine.createMultiSelectionResizeOverrides({
-      selectionBounds: s.selection.bounds,
-      nextBounds,
-      members: s.selection.members,
-    });
-    _applyInteractionOverrideEntries(memberOverrides);
-
-    for (const member of memberOverrides) {
-      if (!member.hasLayoutChildren) continue;
-      _applyInteractionOverrideEntries(
-        _collectRecursiveRelayoutEntries(member.id, member, s.origOverrides),
-        s.propagatedIds,
-      );
-    }
-
-    applyAllOverrides();
-    renderSelectionInspector(s.cid);
-    return;
-  }
-
-  const singleResize = LayoutEngine.resolveSingleResizeOverride({
-    axis,
-    dx,
-    dy,
-    baseX,
-    baseY,
-    baseW: node ? node.data.width : 0,
-    baseH: node ? node.data.height : 0,
-    origDx: s.origDx,
-    origDy: s.origDy,
-    origDw: s.origDw,
-    origDh: s.origDh,
+  LayoutEngine.dispatchPreviewResizeMove({
+    state: s,
+    clientX: e.clientX,
+    clientY: e.clientY,
     gridTargets,
     svgW,
     svgH,
     snapStep: BASELINE_STEP,
+    nodeBounds: node ? {
+      x: node.data.x,
+      y: node.data.y,
+      width: node.data.width,
+      height: node.data.height,
+    } : null,
+    hasLayoutChildren: _hasLayoutChildren(s.cid),
+    hasLayoutContext: Boolean(node && (
+      (node.parent && node.parent.layout) ||
+      (!node.parent && model.diagramGrid)
+    )),
+    isSelected: selectedIds.has(s.cid),
+    hideHandles: () => {
+      if (svgEl) svgEl.querySelectorAll(".dg-handle").forEach(h => h.style.display = "none");
+    },
+    renderGuideLines: (lines) => renderGuideLines(lines, GUIDE_COLOR, GUIDE_OPACITY),
+    clearGuideLines,
+    restorePropagatedResizeOverrides: _restorePropagatedResizeOverrides,
+    applyInteractionOverrideEntries: _applyInteractionOverrideEntries,
+    applyAllOverrides,
+    renderSelectionInspector,
+    updateInspector,
+    setOverride,
+    collectRecursiveRelayoutEntries: (parentId, parentDelta, origOverrides) => {
+      return _collectRecursiveRelayoutEntries(parentId, parentDelta, origOverrides);
+    },
+    relayoutSiblingsAfterChildResize: (cid, rightEdgeDelta, bottomEdgeDelta) => {
+      return model.relayoutSiblingsAfterChildResize(cid, rightEdgeDelta, bottomEdgeDelta);
+    },
+    scheduleV3ResizeRelayout: _scheduleV3ResizeRelayout,
   });
-  newDx = singleResize.dx;
-  newDy = singleResize.dy;
-  newDw = singleResize.dw;
-  newDh = singleResize.dh;
-
-  // Show grid snap guides during resize
-  if (singleResize.resizeLines.length > 0) {
-    renderGuideLines(singleResize.resizeLines, GUIDE_COLOR, GUIDE_OPACITY);
-  } else {
-    clearGuideLines();
-  }
-
-  setOverride(s.cid, { dx: newDx, dy: newDy, dw: newDw, dh: newDh });
-
-  // --- Auto-layout engine ---
-  if (!s.propagatedIds) s.propagatedIds = new Set();
-  _restorePropagatedResizeOverrides(s);
-
-  // Parent resize: relayout descendant children live so the preview keeps
-  // matching the solver's sizing intent during the drag.
-  const resizedNode = model.get(s.cid);
-  if (_hasLayoutChildren(s.cid)) {
-    _applyInteractionOverrideEntries(
-      _collectRecursiveRelayoutEntries(s.cid, { dx: newDx, dy: newDy, dw: newDw, dh: newDh }, s.origOverrides),
-      s.propagatedIds,
-    );
-  }
-
-  // Child resize → shift siblings to maintain gutters.
-  // Works for both nested children and root-level nodes (via diagramGrid).
-  const hasLayoutContext = resizedNode && (
-    (resizedNode.parent && resizedNode.parent.layout) ||
-    (!resizedNode.parent && model.diagramGrid)
-  );
-  if (hasLayoutContext) {
-    const rightEdgeDelta = (newDx + newDw) - (s.origDx + s.origDw);
-    const bottomEdgeDelta = (newDy + newDh) - (s.origDy + s.origDh);
-    const siblingAdj = model.relayoutSiblingsAfterChildResize(s.cid, rightEdgeDelta, bottomEdgeDelta);
-    _applyInteractionOverrideEntries(
-      LayoutEngine.mergeRelativeOverrideEntries(siblingAdj, s.origOverrides),
-      s.propagatedIds,
-    );
-  }
-
-  applyAllOverrides();
-  if (selectedIds.has(s.cid)) updateInspector(s.cid);
-
-  // Run the TS engine each frame for smooth feedback
-  if (!s.selection) {
-    const own = getOwnDelta(s.cid);
-    const resizedW = own.dw !== 0;
-    const resizedH = own.dh !== 0;
-    if (resizedW || resizedH) {
-      const newW = Math.max(8, s.v3BaseW + own.dw);
-      const newH = Math.max(8, s.v3BaseH + own.dh);
-      _scheduleV3ResizeRelayout(s.cid, newW, newH, resizedW, resizedH);
-    }
-  }
 }
 
 function _persistResizeToV3(resizeIds, propagatedIds, triggerCid) {

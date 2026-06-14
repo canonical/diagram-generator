@@ -138,6 +138,18 @@ export {
 } from './interaction-completion-dispatch.js';
 
 export type {
+  PreviewResizeMoveDispatchOptions,
+  PreviewResizeMoveResult,
+  PreviewResizeMoveState,
+  PreviewResizeNodeBounds,
+  PreviewResizeSelection,
+} from './interaction-resize-dispatch.js';
+
+export {
+  dispatchPreviewResizeMove,
+} from './interaction-resize-dispatch.js';
+
+export type {
   ReorderResolution,
   ReorderTargetPoint,
   ResizeBounds,
