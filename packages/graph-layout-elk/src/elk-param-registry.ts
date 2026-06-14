@@ -19,7 +19,7 @@ export interface ElkParamSpec {
   enumValues?: { value: string; label: string }[];
 }
 
-/** All layered options we wire today — defaults match buildLayeredLayoutOptions(). */
+/** User-facing layered options we intentionally expose — defaults match buildLayeredLayoutOptions(). */
 export const ELK_LAYERED_PARAM_SPECS: ElkParamSpec[] = [
   {
     key: 'elk.direction',
@@ -88,19 +88,7 @@ export const ELK_LAYERED_PARAM_SPECS: ElkParamSpec[] = [
     min: 0,
     max: 128,
     step: 4,
-    description: 'Gap between edges that span adjacent layers.',
-  },
-  {
-    key: 'elk.edgeRouting',
-    label: 'Edge routing',
-    group: 'Edges',
-    kind: 'enum',
-    defaultValue: 'ORTHOGONAL',
-    enumValues: [
-      { value: 'ORTHOGONAL', label: 'Orthogonal' },
-      { value: 'POLYLINE', label: 'Polyline' },
-      { value: 'SPLINES', label: 'Splines' },
-    ],
+    description: 'Gap between edges that span adjacent layers; most visible when several layer-crossing routes run in parallel.',
   },
   {
     key: 'elk.layered.unnecessaryBendpoints',
@@ -165,17 +153,19 @@ export const ELK_LAYERED_PARAM_SPECS: ElkParamSpec[] = [
       { value: 'CHILDREN_ON', label: 'Children on' },
     ],
     description:
-      'Affects ELK compound nodes only. This corpus has few compounds — changes may be subtle unless sections are nested.',
-  },
-  {
-    key: 'elk.padding',
-    label: 'Compound padding',
-    group: 'Compound',
-    kind: 'text',
-    defaultValue: '[top=0,left=0,bottom=0,right=0]',
-    description: 'ELK padding inside compound (section) nodes — applied per compound, not the page root.',
+      'Only affects compounds that survive the selective flattening pass before ELK. Structural carrier wrappers are flattened first, so changes can be subtle.',
   },
 ];
+
+const ELK_LAYERED_PARAM_KEY_SET = new Set(ELK_LAYERED_PARAM_SPECS.map((spec) => spec.key));
+
+function unsupportedElkLayeredOverrideKeys(
+  overrides: Record<string, string | null | undefined>,
+): string[] {
+  return Object.keys(overrides)
+    .filter((key) => !ELK_LAYERED_PARAM_KEY_SET.has(key))
+    .sort();
+}
 
 export function elkParamDefaults(): Record<string, string> {
   const out: Record<string, string> = { 'elk.algorithm': 'layered' };
@@ -196,6 +186,10 @@ export function resolveElkLayoutOptions(
 ): Record<string, string> {
   const merged = { ...baseOptions };
   if (!userOverrides) return merged;
+  const unsupported = unsupportedElkLayeredOverrideKeys(userOverrides);
+  if (unsupported.length > 0) {
+    throw new Error(`Unsupported ELK layered override keys: ${unsupported.join(', ')}`);
+  }
   for (const [key, raw] of Object.entries(userOverrides)) {
     if (raw == null || raw === '') {
       delete merged[key];

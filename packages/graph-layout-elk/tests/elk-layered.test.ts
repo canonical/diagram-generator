@@ -290,13 +290,10 @@ describe('ELK layered (Sugiyama)', () => {
     expect(nodes.get('source')!.x).toBeLessThan(nodes.get('sink')!.x);
   });
 
-  it('applies elk.padding to compound nodes without forwarding it to the root graph', () => {
+  it('applies node-owned compound padding without forwarding it to the root graph', () => {
     const layoutOptions = buildLayeredLayoutOptions({
       direction: 'TB',
       spacingProfile: 'normal',
-      optionOverrides: {
-        'elk.padding': '[top=16,left=16,bottom=16,right=16]',
-      },
     });
     const graph = buildElkGraph({
       id: 'root',
@@ -307,6 +304,7 @@ describe('ELK layered (Sugiyama)', () => {
           id: 'cluster',
           width: 400,
           height: 200,
+          padding: '[top=16,left=16,bottom=16,right=16]',
           children: [{ id: 'a', ...BOX }, { id: 'b', ...BOX }],
         },
       ],
@@ -364,13 +362,12 @@ describe('ELK layered (Sugiyama)', () => {
     });
   });
 
-  it('respects explicit elk.direction overrides and ignores legacy root portConstraints overrides', () => {
+  it('respects explicit elk.direction overrides', () => {
     const layoutOptions = buildLayeredLayoutOptions({
       direction: 'TB',
       spacingProfile: 'normal',
       optionOverrides: {
         'elk.direction': 'LEFT',
-        'elk.portConstraints': 'FREE',
       },
     });
     const graph = buildElkGraph({
@@ -389,13 +386,43 @@ describe('ELK layered (Sugiyama)', () => {
     });
   });
 
+  it('rejects unsupported implementation-owned override keys instead of silently ignoring them', () => {
+    expect(() => buildLayeredLayoutOptions({
+      direction: 'TB',
+      spacingProfile: 'normal',
+      optionOverrides: {
+        'elk.edgeRouting': 'SPLINES',
+        'elk.padding': '[top=16,left=16,bottom=16,right=16]',
+        'elk.portConstraints': 'FREE',
+        'elk.spacing.nodeNode': '48',
+      },
+    })).toThrow(/Unsupported ELK layered override keys: elk\.edgeRouting, elk\.padding, elk\.portConstraints/);
+  });
+
+  it('keeps orthogonal routing implementation-owned in resolved layered defaults', () => {
+    const layoutOptions = buildLayeredLayoutOptions({
+      direction: 'TB',
+      spacingProfile: 'normal',
+      optionOverrides: {
+        'elk.spacing.nodeNode': '48',
+      },
+    });
+
+    expect(layoutOptions['elk.edgeRouting']).toBe('ORTHOGONAL');
+    expect(layoutOptions['elk.spacing.nodeNode']).toBe('48');
+  });
+
   it('exposes only batch-safe layering controls in the preview registry', () => {
     const layering = ELK_LAYERED_PARAM_SPECS.find((spec) => spec.key === 'elk.layered.layering.strategy');
     const crossing = ELK_LAYERED_PARAM_SPECS.find((spec) => spec.key === 'elk.layered.crossingMinimization.strategy');
     const portConstraints = ELK_LAYERED_PARAM_SPECS.find((spec) => spec.key === 'elk.portConstraints');
+    const edgeRouting = ELK_LAYERED_PARAM_SPECS.find((spec) => spec.key === 'elk.edgeRouting');
+    const padding = ELK_LAYERED_PARAM_SPECS.find((spec) => spec.key === 'elk.padding');
 
     expect(layering?.enumValues?.map((value) => value.value)).toEqual(['NETWORK_SIMPLEX', 'LONGEST_PATH']);
     expect(crossing?.enumValues?.map((value) => value.value)).toEqual(['LAYER_SWEEP']);
     expect(portConstraints).toBeUndefined();
+    expect(edgeRouting).toBeUndefined();
+    expect(padding).toBeUndefined();
   });
 });

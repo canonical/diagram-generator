@@ -191,6 +191,13 @@ export { renderSequenceDiagramToSvg } from './sequence-layout/render-svg.js';
 export type { SequenceSvgRenderOptions } from './sequence-layout/render-svg.js';
 
 export {
+  ELK_LAYERED_PARAM_SPECS,
+  elkParamGroups,
+  resolvedElkOptionsForFamily,
+  layeredConfigForFamily,
+} from '@diagram-generator/graph-layout-elk';
+
+export {
   normalizeSequenceDiagram,
   type NormalizeSequenceDiagramResult,
   type SequenceDiagramInput,

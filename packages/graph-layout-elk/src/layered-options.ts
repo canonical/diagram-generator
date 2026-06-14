@@ -73,7 +73,6 @@ export function layeredConfigForFamily(family: LayeredCorpusFamily): LayeredLayo
         spacingProfile: 'normal',
         optionOverrides: {
           'elk.layered.nodePlacement.strategy': 'BRANDES_KOEPF',
-          'elk.padding': '[top=0,left=0,bottom=0,right=0]',
         },
       };
     default:
@@ -93,6 +92,8 @@ export function buildLayeredLayoutOptions(config: LayeredLayoutConfig): ElkLayou
 
   const base = elkParamDefaults();
   base['elk.direction'] = defaultDirection!;
+  // BF diagram rules keep ELK layered on orthogonal routing; this is not user-overridable.
+  base['elk.edgeRouting'] = 'ORTHOGONAL';
   // YAML/session overrides must win — never let family betweenLayersPx clobber saved meta.elk.
   base['elk.layered.spacing.nodeNodeBetweenLayers'] = String(
     overrides['elk.layered.spacing.nodeNodeBetweenLayers']
