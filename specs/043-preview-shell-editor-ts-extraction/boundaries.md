@@ -18,7 +18,7 @@ Shrink `scripts/preview/editor.js` into a thin bootstrap/coordinator so the stan
 - selection-set / depth mutation helpers: `packages/layout-engine/src/preview-shell/interaction-selection-state.ts`
 - reorder / multi-resize geometry helpers: `packages/layout-engine/src/preview-shell/interaction-geometry.ts`
 - live resize override shaping / recursive relayout helpers: `packages/layout-engine/src/preview-shell/interaction-resize.ts`
-- keyboard nudge helpers: `packages/layout-engine/src/preview-shell/interaction-keyboard.ts`
+- keyboard shortcut resolution + nudge helpers: `packages/layout-engine/src/preview-shell/interaction-keyboard.ts`
 - frame override allowlists: `packages/layout-engine/src/preview-shell/frame-override-manifest.ts`
 - engine registry contracts: `packages/layout-engine/src/index.ts`, `packages/layout-engine/tests/preview-engine-registry.test.ts`
 
@@ -28,7 +28,7 @@ Shrink `scripts/preview/editor.js` into a thin bootstrap/coordinator so the stan
 - inspector DOM rendering and field wiring
 - remaining selection depth-cycling edge cases
 - most drag / resize / nudge controller logic
-- non-trivial keyboard dispatch
+- keyboard side effects and DOM cleanup still wired in shell
 - grid control state shaping and update dispatch
 - `loadSVG()` shell coordination and some engine hookup glue
 
@@ -48,7 +48,7 @@ Landed:
 - selection-set and selection-depth mutations now route through TS helpers instead of inline JS state updates
 - autolayout reorder targeting and multi-selection resize bounds now delegate to TS geometry helpers
 - multi-selection member scaling, recursive child relayout collection, propagated-override reset shaping, and sibling-relayout override merging now delegate to TS resize helpers
-- arrow-key nudge override shaping and resize-persist plan building now delegate to TS interaction helpers
+- arrow-key nudge override shaping, top-level keyboard shortcut resolution, and resize-persist plan building now delegate to TS interaction helpers
 
 Still in `editor.js` for now:
 

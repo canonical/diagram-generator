@@ -151,6 +151,7 @@ export {
 } from './interaction-resize.js';
 
 export type {
+  KeyboardShortcutAction,
   NudgeKey,
   NudgeSelectionItem,
 } from './interaction-keyboard.js';
@@ -158,4 +159,5 @@ export type {
 export {
   createNudgeOverrideEntries,
   isNudgeKey,
+  resolveKeyboardShortcutAction,
 } from './interaction-keyboard.js';

@@ -97,8 +97,8 @@ test("editor shell keydown nudges selected items through the extracted LayoutEng
       RESIZING: "resize",
     },
     LayoutEngine: {
-      isNudgeKey(key: string) {
-        return key.startsWith("Arrow");
+      resolveKeyboardShortcutAction() {
+        return { kind: "nudge-selection", key: "ArrowLeft", step: 24 };
       },
       createNudgeOverrideEntries(args: Record<string, unknown>) {
         createArgs = args;
@@ -196,8 +196,8 @@ test("editor shell keydown skips nudge when any selected item is autolayout-mana
       RESIZING: "resize",
     },
     LayoutEngine: {
-      isNudgeKey() {
-        return true;
+      resolveKeyboardShortcutAction() {
+        return { kind: "none" };
       },
       createNudgeOverrideEntries() {
         helperCalled = true;
