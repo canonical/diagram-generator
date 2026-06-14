@@ -3230,86 +3230,76 @@ function _applyReorder(parentId, cid, insertIndex) {
 function onDragMove(e) {
   if (!mgr.isMode(InteractionMode.DRAGGING)) return;
   const s = mgr.state;
-  const dx = e.clientX - s.startX;
-  const dy = e.clientY - s.startY;
-  if (Math.abs(dx) > 2 || Math.abs(dy) > 2) s.hasMoved = true;
-  if (!s.hasMoved) return;
-
-  // Autolayout drag: show reorder indicator instead of free positioning
+  let autolayoutContext = null;
   if (s.autolayout && s.cids.length === 1) {
     const cid = s.cids[0];
     const parentNode = model.getParent(cid);
-    if (parentNode) {
+    const svg = document.querySelector('#stage svg');
+    if (parentNode && svg) {
       const parent = parentNode.data;
       const isVertical = parent.layout === 'vertical';
-      const siblings = parentNode.children.map((n) => n.data);
-      const targets = siblings.map((sibling) => ({
-        cid: sibling.id,
-        midpoint: isVertical ? (sibling.y + sibling.height / 2) : (sibling.x + sibling.width / 2),
+      const targets = parentNode.children.map((child) => ({
+        cid: child.data.id,
+        midpoint: isVertical
+          ? (child.data.y + child.data.height / 2)
+          : (child.data.x + child.data.width / 2),
       }));
-      // Get the SVG coordinate of the cursor
-      const svg = document.querySelector('#stage svg');
       const pt = svg.createSVGPoint();
       pt.x = e.clientX;
       pt.y = e.clientY;
       const ctm = svg.getScreenCTM();
       const svgPt = pt.matrixTransform(ctm.inverse());
-      const cursorPos = isVertical ? svgPt.y : svgPt.x;
-
-      const reorderResolution = LayoutEngine.resolveAutolayoutReorderTarget({
-        cid,
-        cursorPos,
+      autolayoutContext = {
+        parentId: parentNode.data.id,
+        isVertical,
+        cursorPos: isVertical ? svgPt.y : svgPt.x,
         targets,
-      });
-      if (reorderResolution.isNoop) {
-        _clearReorderIndicator();
-        s.reorderTarget = null;
-      } else {
-        _showReorderIndicator(parentNode.data.id, reorderResolution.insertIndex, isVertical);
-        s.reorderTarget = { parentId: parentNode.data.id, insertIndex: reorderResolution.insertIndex };
+      };
+    }
+  }
+
+  LayoutEngine.dispatchPreviewDragMove({
+    state: s,
+    clientX: e.clientX,
+    clientY: e.clientY,
+    snapStep: BASELINE_STEP,
+    autolayoutContext,
+    showReorderIndicator: _showReorderIndicator,
+    clearReorderIndicator: _clearReorderIndicator,
+    resolveSnap: (cid, proposedDx, proposedDy, targets) => {
+      const snap = findSnaps(cid, proposedDx, proposedDy, targets);
+      return { dx: snap.snapDx, dy: snap.snapDy, lines: snap.lines };
+    },
+    renderGuideLines: (lines) => renderGuideLines(lines, GUIDE_COLOR, GUIDE_OPACITY),
+    clampDragDelta: (cid, proposedDx, proposedDy) => {
+      let nextDx = proposedDx;
+      let nextDy = proposedDy;
+      const parent = getParentNode(cid);
+      const node = getComponentNode(cid);
+      if (parent && node && parent.type !== "arrow") {
+        const pEff = getEffectiveDelta(parent.id);
+        const pOwn = getOwnDelta(parent.id);
+        const pLeft = parent.x + pEff.dx + INSET;
+        const pTop = parent.y + pEff.dy + INSET;
+        const pRight = pLeft + parent.width + pOwn.dw - 2 * INSET;
+        const pBottom = pTop + parent.height + pOwn.dh - 2 * INSET;
+        const own = getOwnDelta(cid);
+        const cW = node.width + own.dw;
+        const cH = node.height + own.dh;
+        const cLeft = node.x + nextDx;
+        const cTop = node.y + nextDy;
+        if (cLeft < pLeft) nextDx = pLeft - node.x;
+        if (cTop < pTop) nextDy = pTop - node.y;
+        if (cLeft + cW > pRight) nextDx = pRight - cW - node.x;
+        if (cTop + cH > pBottom) nextDy = pBottom - cH - node.y;
       }
-    }
-    return; // Don't apply dx/dy for autolayout children
-  }
-
-  for (const id of s.cids) {
-    const orig = s.origDeltas[id];
-    let newDx = Math.round((orig.dx + dx) / 8) * 8;
-    let newDy = Math.round((orig.dy + dy) / 8) * 8;
-
-    // Alignment snap guides (single-component drag only)
-    if (s.snapTargets && s.cids.length === 1) {
-      const snap = findSnaps(id, newDx, newDy, s.snapTargets);
-      newDx = snap.snapDx;
-      newDy = snap.snapDy;
-      renderGuideLines(snap.lines, GUIDE_COLOR, GUIDE_OPACITY);
-    }
-
-    // Clamp to parent bounds if nested
-    const parent = getParentNode(id);
-    const node = getComponentNode(id);
-    if (parent && node && parent.type !== "arrow") {
-      const pEff = getEffectiveDelta(parent.id);
-      const pOwn = getOwnDelta(parent.id);
-      const pLeft = parent.x + pEff.dx + INSET;
-      const pTop = parent.y + pEff.dy + INSET;
-      const pRight = pLeft + parent.width + pOwn.dw - 2 * INSET;
-      const pBottom = pTop + parent.height + pOwn.dh - 2 * INSET;
-      const own = getOwnDelta(id);
-      const cW = node.width + own.dw;
-      const cH = node.height + own.dh;
-      const cLeft = node.x + newDx;
-      const cTop = node.y + newDy;
-      if (cLeft < pLeft) newDx = pLeft - node.x;
-      if (cTop < pTop) newDy = pTop - node.y;
-      if (cLeft + cW > pRight) newDx = pRight - cW - node.x;
-      if (cTop + cH > pBottom) newDy = pBottom - cH - node.y;
-    }
-
-    setOverride(id, { dx: newDx, dy: newDy });
-  }
-  applyAllOverrides();
-  if (selectedIds.has(s.cid) && selectedIds.size === 1) updateInspector(s.cid);
+      return { dx: nextDx, dy: nextDy };
+    },
+    setOverride,
+    applyAllOverrides,
+    updateInspector,
+    shouldUpdateInspector: selectedIds.has(s.cid) && selectedIds.size === 1,
+  });
 }
 
 function onDragUp() {

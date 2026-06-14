@@ -150,6 +150,20 @@ export {
 } from './interaction-resize-dispatch.js';
 
 export type {
+  PreviewAutolayoutDragContext,
+  PreviewDragDelta,
+  PreviewDragMoveDispatchOptions,
+  PreviewDragMoveResult,
+  PreviewDragMoveState,
+  PreviewDragSnapResult,
+  PreviewDragSnapTargets,
+} from './interaction-drag-dispatch.js';
+
+export {
+  dispatchPreviewDragMove,
+} from './interaction-drag-dispatch.js';
+
+export type {
   ReorderResolution,
   ReorderTargetPoint,
   ResizeBounds,

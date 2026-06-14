@@ -22,6 +22,7 @@ Shrink `scripts/preview/editor.js` into a thin bootstrap/coordinator so the stan
 - keyboard dispatch controller helper: `packages/layout-engine/src/preview-shell/interaction-keyboard-dispatch.ts`
 - drag / resize completion-plan helpers: `packages/layout-engine/src/preview-shell/interaction-completion.ts`
 - drag / resize completion-dispatch helpers: `packages/layout-engine/src/preview-shell/interaction-completion-dispatch.ts`
+- live drag move-dispatch helpers: `packages/layout-engine/src/preview-shell/interaction-drag-dispatch.ts`
 - live resize move-dispatch helpers: `packages/layout-engine/src/preview-shell/interaction-resize-dispatch.ts`
 - preview grid resolver + span conversion helpers: `packages/layout-engine/src/preview-shell/grid-resolution.ts`
 - preview grid control state helpers: `packages/layout-engine/src/preview-shell/grid-controls.ts`
@@ -33,8 +34,8 @@ Shrink `scripts/preview/editor.js` into a thin bootstrap/coordinator so the stan
 - most inspector view-model resolution and field merge rules
 - inspector DOM rendering and field wiring
 - remaining selection depth-cycling edge cases
-- most drag / nudge controller logic
-- resize DOM cleanup and shell callback wiring still wired in JS after move/completion dispatch
+- most nudge controller logic
+- drag / resize DOM cleanup, DOM-derived coordinate capture, and shell callback wiring still wired in JS after move/completion dispatch
 - grid control state shaping and update dispatch
 - `loadSVG()` shell coordination and some engine hookup glue
 
@@ -58,6 +59,7 @@ Landed:
 - document keydown branching now delegates to a TS keyboard dispatcher, leaving `editor.js` as a thin state/callback wrapper
 - drag-end and resize-end completion branching now delegate to TS completion-plan helpers
 - drag-end and resize-end completion dispatch now delegates to TS helpers, leaving `editor.js` to provide shell callbacks and DOM cleanup only
+- live drag move branching now delegates to a TS dispatcher, leaving `editor.js` to provide SVG coordinate capture, clamp lookups, and shell glue
 - live resize move branching now delegates to a TS dispatcher, leaving `editor.js` to supply model lookups, DOM callbacks, and shell glue
 - Brockman-style preview grid resolution and span/pixel conversion now delegate to TS grid helpers
 - grid control display-state resolution and runtime override shaping now delegate to TS grid-control helpers
@@ -94,7 +96,6 @@ Still in `editor.js` for now:
 
 ## Next recommended order
 
-1. Remaining drag controller state and live-move wiring
-2. Remaining inspector DOM/wiring cleanup only where it still removes real branching
-3. Remaining grid DOM wiring and overlay update plumbing
-4. Bootstrap cleanup and hook normalization
+1. Remaining inspector DOM/wiring cleanup only where it still removes real branching
+2. Remaining grid DOM wiring and overlay update plumbing
+3. Bootstrap cleanup and hook normalization
