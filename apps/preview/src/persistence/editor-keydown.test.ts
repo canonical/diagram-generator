@@ -9,16 +9,16 @@ function loadEditorSource(): string {
   return fs.readFileSync(path.join(repoRoot, "scripts", "preview", "editor.js"), "utf8");
 }
 
-function extractKeydownRegistrationSource(source: string): string {
-  const marker = 'document.addEventListener("keydown", (e) => {';
+function extractNamedFunctionSource(source: string, functionName: string): string {
+  const marker = `function ${functionName}(e) {`;
   const start = source.indexOf(marker);
   if (start === -1) {
-    throw new Error("editor.js keydown registration not found");
+    throw new Error(`${functionName} definition not found`);
   }
 
   const bodyStart = source.indexOf("{", start);
   if (bodyStart === -1) {
-    throw new Error("editor.js keydown body start not found");
+    throw new Error(`${functionName} body start not found`);
   }
 
   let depth = 0;
@@ -36,35 +36,23 @@ function extractKeydownRegistrationSource(source: string): string {
   }
 
   if (end === -1) {
-    throw new Error("editor.js keydown body end not found");
+    throw new Error(`${functionName} body end not found`);
   }
 
-  const close = source.indexOf(");", end);
-  if (close === -1) {
-    throw new Error("editor.js keydown registration close not found");
-  }
-
-  return source.slice(start, close + 2);
+  return source.slice(start, end + 1);
 }
 
 function loadKeydownHandler(overrides: Record<string, unknown>) {
-  let keydownHandler: ((event: Record<string, unknown>) => void) | null = null;
-  const document = {
-    addEventListener(type: string, listener: (event: Record<string, unknown>) => void) {
-      if (type === "keydown") keydownHandler = listener;
-    },
-  };
-
   const context = {
-    document,
     console,
     ...overrides,
   };
 
-  const source = extractKeydownRegistrationSource(loadEditorSource());
+  const source = `${extractNamedFunctionSource(loadEditorSource(), "onDocumentKeyDown")}\nthis.__keydownHandler = onDocumentKeyDown;`;
   vm.runInNewContext(source, context);
+  const keydownHandler = (context as { __keydownHandler?: (event: Record<string, unknown>) => void }).__keydownHandler ?? null;
   if (!keydownHandler) {
-    throw new Error("keydown handler was not registered");
+    throw new Error("keydown handler was not loaded");
   }
   return keydownHandler;
 }
@@ -73,23 +61,29 @@ function normalizeVmValue<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
-test("editor shell keydown nudges selected items through the extracted LayoutEngine helper", () => {
-  let createArgs: Record<string, unknown> | null = null;
-  let appliedEntries: unknown = null;
-  let commitArgs: unknown[] | null = null;
-  let applied = false;
-  let shownPrimary: string | null = null;
-  let inspectedPrimary: string | null = null;
-  let prevented = false;
+function createShellNoops() {
+  return {
+    cancelTextEdit() {},
+    cycleGuideMode() {},
+    applyAllOverrides() {},
+    showResizeHandles() {},
+    renderSelectionInspector() {},
+  };
+}
+
+test("editor shell keydown delegates current selection state to the extracted keyboard dispatcher", () => {
+  let delegatedOptions: Record<string, unknown> | null = null;
 
   const selectedIds = new Set(["alpha", "beta"]);
   const handler = loadKeydownHandler({
+    ...createShellNoops(),
     selectedIds,
+    selectionDepth: 2,
     mgr: {
       isMode() {
         return false;
       },
-      isBusy: false,
+      isBusy: true,
     },
     InteractionMode: {
       TEXT_EDITING: "text",
@@ -97,43 +91,23 @@ test("editor shell keydown nudges selected items through the extracted LayoutEng
       RESIZING: "resize",
     },
     LayoutEngine: {
-      resolveKeyboardShortcutAction() {
-        return { kind: "nudge-selection", key: "ArrowLeft", step: 24 };
-      },
-      createNudgeOverrideEntries(args: Record<string, unknown>) {
-        createArgs = args;
-        return [
-          { id: "alpha", dx: -16, dy: 0, dw: 4, dh: 6 },
-          { id: "beta", dx: -24, dy: 16, dw: 0, dh: 8 },
-        ];
+      dispatchPreviewKeyboardShortcut(options: Record<string, unknown>) {
+        delegatedOptions = normalizeVmValue({
+          key: options.key,
+          shiftKey: options.shiftKey,
+          selectedIds: options.selectedIds,
+          selectionDepth: options.selectionDepth,
+          isBusy: options.isBusy,
+          isEditableTarget: options.isEditableTarget,
+          isTextEditing: options.isTextEditing,
+          isDragging: options.isDragging,
+          isResizing: options.isResizing,
+          hasAutolayoutSelection: options.hasAutolayoutSelection,
+        });
       },
     },
     _isAutolayoutChild() {
       return false;
-    },
-    EditorState: {
-      captureOverrideEntries(ids: string[]) {
-        return ids.map((id) => ({ id }));
-      },
-      commitOverridePatchAction(...args: unknown[]) {
-        commitArgs = args;
-      },
-    },
-    getOwnDelta(id: string) {
-      if (id === "alpha") return { dx: 8, dy: 0, dw: 4, dh: 6 };
-      return { dx: 0, dy: 16, dw: 0, dh: 8 };
-    },
-    _applyInteractionOverrideEntries(entries: unknown) {
-      appliedEntries = entries;
-    },
-    applyAllOverrides() {
-      applied = true;
-    },
-    showResizeHandles(id: string) {
-      shownPrimary = id;
-    },
-    renderSelectionInspector(id: string) {
-      inspectedPrimary = id;
     },
   });
 
@@ -147,43 +121,31 @@ test("editor shell keydown nudges selected items through the extracted LayoutEng
       tagName: "DIV",
       isContentEditable: false,
     },
-    preventDefault() {
-      prevented = true;
-    },
+    preventDefault() {},
   });
 
-  assert.equal(prevented, true);
-  assert.deepEqual(normalizeVmValue(createArgs), {
-    items: [
-      { id: "alpha", dx: 8, dy: 0, dw: 4, dh: 6 },
-      { id: "beta", dx: 0, dy: 16, dw: 0, dh: 8 },
-    ],
+  assert.deepEqual(delegatedOptions, {
     key: "ArrowLeft",
-    step: 24,
+    shiftKey: true,
+    selectedIds: ["alpha", "beta"],
+    selectionDepth: 2,
+    isBusy: true,
+    isEditableTarget: false,
+    isTextEditing: false,
+    isDragging: false,
+    isResizing: false,
+    hasAutolayoutSelection: false,
   });
-  assert.deepEqual(appliedEntries, [
-    { id: "alpha", dx: -16, dy: 0, dw: 4, dh: 6 },
-    { id: "beta", dx: -24, dy: 16, dw: 0, dh: 8 },
-  ]);
-  assert.equal(applied, true);
-  assert.deepEqual(normalizeVmValue(commitArgs), [
-    "Nudge selection",
-    [{ id: "alpha" }, { id: "beta" }],
-    [{ id: "alpha" }, { id: "beta" }],
-  ]);
-  assert.equal(shownPrimary, "beta");
-  assert.equal(inspectedPrimary, "beta");
 });
 
-test("editor shell keydown skips nudge when any selected item is autolayout-managed", () => {
-  let helperCalled = false;
-  let prevented = false;
-  let committed = false;
-  let applied = false;
+test("editor shell keydown forwards autolayout-selection state to the dispatcher", () => {
+  let delegatedOptions: Record<string, unknown> | null = null;
 
   const selectedIds = new Set(["autolayout-child"]);
   const handler = loadKeydownHandler({
+    ...createShellNoops(),
     selectedIds,
+    selectionDepth: 1,
     mgr: {
       isMode() {
         return false;
@@ -196,36 +158,18 @@ test("editor shell keydown skips nudge when any selected item is autolayout-mana
       RESIZING: "resize",
     },
     LayoutEngine: {
-      resolveKeyboardShortcutAction() {
-        return { kind: "none" };
-      },
-      createNudgeOverrideEntries() {
-        helperCalled = true;
-        return [];
+      dispatchPreviewKeyboardShortcut(options: Record<string, unknown>) {
+        delegatedOptions = normalizeVmValue({
+          key: options.key,
+          selectedIds: options.selectedIds,
+          selectionDepth: options.selectionDepth,
+          hasAutolayoutSelection: options.hasAutolayoutSelection,
+        });
       },
     },
     _isAutolayoutChild() {
       return true;
     },
-    EditorState: {
-      captureOverrideEntries() {
-        return [];
-      },
-      commitOverridePatchAction() {
-        committed = true;
-      },
-    },
-    getOwnDelta() {
-      return { dx: 0, dy: 0, dw: 0, dh: 0 };
-    },
-    _applyInteractionOverrideEntries() {
-      applied = true;
-    },
-    applyAllOverrides() {
-      applied = true;
-    },
-    showResizeHandles() {},
-    renderSelectionInspector() {},
   });
 
   handler({
@@ -238,13 +182,13 @@ test("editor shell keydown skips nudge when any selected item is autolayout-mana
       tagName: "DIV",
       isContentEditable: false,
     },
-    preventDefault() {
-      prevented = true;
-    },
+    preventDefault() {},
   });
 
-  assert.equal(prevented, false);
-  assert.equal(helperCalled, false);
-  assert.equal(committed, false);
-  assert.equal(applied, false);
+  assert.deepEqual(delegatedOptions, {
+    key: "ArrowRight",
+    selectedIds: ["autolayout-child"],
+    selectionDepth: 1,
+    hasAutolayoutSelection: true,
+  });
 });

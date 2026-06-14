@@ -19,6 +19,7 @@ Shrink `scripts/preview/editor.js` into a thin bootstrap/coordinator so the stan
 - reorder / multi-resize geometry helpers: `packages/layout-engine/src/preview-shell/interaction-geometry.ts`
 - live resize override shaping / recursive relayout helpers: `packages/layout-engine/src/preview-shell/interaction-resize.ts`
 - keyboard shortcut resolution + nudge helpers: `packages/layout-engine/src/preview-shell/interaction-keyboard.ts`
+- keyboard dispatch controller helper: `packages/layout-engine/src/preview-shell/interaction-keyboard-dispatch.ts`
 - drag / resize completion-plan helpers: `packages/layout-engine/src/preview-shell/interaction-completion.ts`
 - preview grid resolver + span conversion helpers: `packages/layout-engine/src/preview-shell/grid-resolution.ts`
 - frame override allowlists: `packages/layout-engine/src/preview-shell/frame-override-manifest.ts`
@@ -30,7 +31,7 @@ Shrink `scripts/preview/editor.js` into a thin bootstrap/coordinator so the stan
 - inspector DOM rendering and field wiring
 - remaining selection depth-cycling edge cases
 - most drag / resize / nudge controller logic
-- keyboard side effects and DOM cleanup still wired in shell
+- drag / resize DOM cleanup and shell callback wiring still wired in JS
 - grid control state shaping and update dispatch
 - `loadSVG()` shell coordination and some engine hookup glue
 
@@ -51,6 +52,7 @@ Landed:
 - autolayout reorder targeting and multi-selection resize bounds now delegate to TS geometry helpers
 - multi-selection member scaling, recursive child relayout collection, propagated-override reset shaping, and sibling-relayout override merging now delegate to TS resize helpers
 - arrow-key nudge override shaping, top-level keyboard shortcut resolution, and resize-persist plan building now delegate to TS interaction helpers
+- document keydown branching now delegates to a TS keyboard dispatcher, leaving `editor.js` as a thin state/callback wrapper
 - drag-end and resize-end completion branching now delegate to TS completion-plan helpers
 - Brockman-style preview grid resolution and span/pixel conversion now delegate to TS grid helpers
 
@@ -86,7 +88,7 @@ Still in `editor.js` for now:
 
 ## Next recommended order
 
-1. Remaining drag / resize / nudge controller state, especially keyboard dispatch and persist/commit cleanup
+1. Remaining drag / resize persist/commit cleanup and controller state
 2. Remaining inspector DOM/wiring cleanup only where it still removes real branching
 3. Grid control state shaping and remaining DOM wiring
 4. Bootstrap cleanup and hook normalization

@@ -174,6 +174,15 @@ export {
 } from './interaction-keyboard.js';
 
 export type {
+  PreviewKeyboardDelta,
+  PreviewKeyboardDispatchOptions,
+} from './interaction-keyboard-dispatch.js';
+
+export {
+  dispatchPreviewKeyboardShortcut,
+} from './interaction-keyboard-dispatch.js';
+
+export type {
   PreviewGridInfo,
   ResolvePreviewGridInfoParams,
 } from './grid-resolution.js';

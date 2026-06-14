@@ -5583,136 +5583,79 @@ document.getElementById("btn-clear-all").addEventListener("click", () => {
 });
 
 // Keyboard shortcuts: Ctrl+S to save, Ctrl+Z to undo, Ctrl+Shift+Z/Ctrl+Y to redo, arrows to nudge
-document.addEventListener("keydown", (e) => {
+function onDocumentKeyDown(e) {
   const tag = (e.target && e.target.tagName) || "";
   const isEditableTarget = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || e.target.isContentEditable;
-  const shortcutAction = LayoutEngine.resolveKeyboardShortcutAction({
+  const selectedIdList = [...selectedIds];
+  LayoutEngine.dispatchPreviewKeyboardShortcut({
     key: e.key,
     ctrlKey: e.ctrlKey,
     shiftKey: e.shiftKey,
     metaKey: e.metaKey,
     altKey: e.altKey,
-    selectedCount: selectedIds.size,
     isEditableTarget,
+    selectedIds: selectedIdList,
+    selectionDepth,
     isBusy: mgr.isBusy,
     isTextEditing: mgr.isMode(InteractionMode.TEXT_EDITING),
     isDragging: mgr.isMode(InteractionMode.DRAGGING),
     isResizing: mgr.isMode(InteractionMode.RESIZING),
-    hasAutolayoutSelection: [...selectedIds].some((id) => _isAutolayoutChild(id)),
-  });
-
-  if (shortcutAction.kind === "toggle-sidebar") {
-    e.preventDefault();
-    const app = document.querySelector(".dg-preview-app");
-    if (!app) return;
-    app.classList.toggle(shortcutAction.sidebar === "nav" ? "is-nav-hidden" : "is-aside-hidden");
-    return;
-  }
-  if (shortcutAction.kind === "save") {
-    e.preventDefault();
-    PreviewSaveClient.trySaveIfDirty();
-    return;
-  }
-  if (shortcutAction.kind === "undo") {
-    e.preventDefault();
-    void EditorState.undo(_applyUndoCommand);
-    return;
-  }
-  if (shortcutAction.kind === "redo") {
-    e.preventDefault();
-    void EditorState.redo(_applyUndoCommand);
-    return;
-  }
-  if (shortcutAction.kind === "delete-selection") {
-    e.preventDefault();
-    deleteSelectedFrames();
-    return;
-  }
-  if (shortcutAction.kind === "cancel-text-edit") {
-    cancelTextEdit();
-    return;
-  }
-  if (shortcutAction.kind === "cancel-drag") {
-    clearGuideLines();
-    document.removeEventListener("mousemove", onDragMove);
-    document.removeEventListener("mouseup", onDragUp);
-    mgr.endInteraction();
-    return;
-  }
-  if (shortcutAction.kind === "cancel-resize") {
-    clearGuideLines();
-    document.removeEventListener("mousemove", onResizeMove);
-    document.removeEventListener("mouseup", onResizeUp);
-    const svg = document.querySelector("#stage svg");
-    if (svg) svg.querySelectorAll(".dg-handle").forEach(h => h.style.display = "");
-    mgr.endInteraction();
-    return;
-  }
-  if (shortcutAction.kind === "deselect-all") {
-    deselectAll();
-    return;
-  }
-  if (shortcutAction.kind === "cycle-guide-mode") {
-    cycleGuideMode();
-    return;
-  }
-  if (shortcutAction.kind === "select-parent") {
-    e.preventDefault();
-    const primary = [...selectedIds][0];
-    const parent = getParentNode(primary);
-    if (parent) {
-      selectComponent(parent.id);
-    }
-    return;
-  }
-  if (shortcutAction.kind === "select-children") {
-    e.preventDefault();
-    const childIds = [];
-    for (const id of selectedIds) {
+    hasAutolayoutSelection: selectedIdList.some((id) => _isAutolayoutChild(id)),
+    preventDefault: () => e.preventDefault(),
+    toggleSidebar: (sidebar) => {
+      const app = document.querySelector(".dg-preview-app");
+      if (!app) return;
+      app.classList.toggle(sidebar === "nav" ? "is-nav-hidden" : "is-aside-hidden");
+    },
+    save: () => PreviewSaveClient.trySaveIfDirty(),
+    undo: () => { void EditorState.undo(_applyUndoCommand); },
+    redo: () => { void EditorState.redo(_applyUndoCommand); },
+    deleteSelection: () => deleteSelectedFrames(),
+    cancelTextEdit,
+    cancelDrag: () => {
+      clearGuideLines();
+      document.removeEventListener("mousemove", onDragMove);
+      document.removeEventListener("mouseup", onDragUp);
+      mgr.endInteraction();
+    },
+    cancelResize: () => {
+      clearGuideLines();
+      document.removeEventListener("mousemove", onResizeMove);
+      document.removeEventListener("mouseup", onResizeUp);
+      const svg = document.querySelector("#stage svg");
+      if (svg) svg.querySelectorAll(".dg-handle").forEach(h => h.style.display = "");
+      mgr.endInteraction();
+    },
+    cycleGuideMode,
+    getParentId: (id) => getParentNode(id)?.id || null,
+    getChildIds: (id) => {
       const node = model.get(id);
-      if (node && node.children && node.children.length > 0) {
-        node.children.forEach(n => childIds.push(n.data.id));
-      }
-    }
-    if (childIds.length > 0) {
-      const nextState = LayoutEngine.applySelectionStateMutation({
-        selectedIds: [...selectedIds],
-        selectionDepth,
-      }, {
-        kind: 'replace-many',
-        targetIds: childIds,
-        nextSelectionDepth: getAncestors(childIds[0]).length,
-      });
-      _applySelectionStateSnapshot(nextState, childIds[childIds.length - 1]);
-    }
-    return;
-  }
-  if (shortcutAction.kind === "nudge-selection") {
-    e.preventDefault();
-    const nudgeIds = [...selectedIds];
-    const nudgeBefore = EditorState.captureOverrideEntries(nudgeIds);
-    const nudgeItems = nudgeIds.map((id) => {
+      return node && node.children ? node.children.map((n) => n.data.id) : [];
+    },
+    getAncestorDepth: (id) => getAncestors(id).length,
+    selectComponent: (id) => selectComponent(id),
+    applySelectionState: (nextState, preferredId) => _applySelectionStateSnapshot(nextState, preferredId),
+    captureOverrideEntries: (ids) => EditorState.captureOverrideEntries(ids),
+    commitOverridePatchAction: (label, beforeEntries, afterEntries) => {
+      EditorState.commitOverridePatchAction(label, beforeEntries, afterEntries);
+    },
+    getOwnDelta: (id) => {
       const own = getOwnDelta(id);
       return {
-        id,
         dx: own.dx,
         dy: own.dy,
         dw: own.dw,
         dh: own.dh,
       };
-    });
-    _applyInteractionOverrideEntries(LayoutEngine.createNudgeOverrideEntries({
-      items: nudgeItems,
-      key: shortcutAction.key,
-      step: shortcutAction.step,
-    }));
-    EditorState.commitOverridePatchAction("Nudge selection", nudgeBefore, EditorState.captureOverrideEntries(nudgeIds));
-    applyAllOverrides();
-    const primary = [...selectedIds].pop();
-    if (primary) showResizeHandles(primary);
-    renderSelectionInspector(primary);
-  }
-});
+    },
+    applyInteractionOverrideEntries: (entries) => _applyInteractionOverrideEntries(entries),
+    applyAllOverrides,
+    showResizeHandles,
+    renderSelectionInspector,
+  });
+}
+
+document.addEventListener("keydown", onDocumentKeyDown);
 
 // Undo/Redo button event listeners
 document.getElementById("btn-undo").addEventListener("click", () => {
