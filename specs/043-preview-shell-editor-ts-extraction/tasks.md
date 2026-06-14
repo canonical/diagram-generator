@@ -21,7 +21,7 @@
 
 - [x] T020 Extract selection state transitions into TS-owned modules
 - [ ] T021 Extract drag / resize / nudge controller logic into explicit interaction modules or state machines
-- [ ] T022 Add focused regression coverage for extracted interaction logic, including one controller/DOM/browser path rather than persistence-only validation
+- [x] T022 Add focused regression coverage for extracted interaction logic, including one controller/DOM/browser path rather than persistence-only validation
 
 ## Phase 4 - Grid and shell coordinator extraction
 
