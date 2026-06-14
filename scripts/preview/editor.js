@@ -725,6 +725,7 @@ async function loadGridInfo(canonicalState = null) {
     const svgH = svg ? (svg.viewBox.baseVal.height || parseFloat(svg.getAttribute("height") || 840)) : 840;
     gridInfo = LayoutEngine.resolvePreviewGridInfo({
       canvasWidth: svgW, canvasHeight: svgH,
+      baselineStep: BASELINE_STEP,
       columnCount: 2, columnGutter: gap, rowGutter: gap,
       marginTop: pad, marginRight: pad, marginBottom: pad, marginLeft: pad,
     });
@@ -1027,6 +1028,7 @@ function updateGridOverlayFromInputs() {
 
   gridInfo = LayoutEngine.resolvePreviewGridInfo({
     canvasWidth: canvas.width, canvasHeight: canvas.height,
+    baselineStep: BASELINE_STEP,
     columnCount: cols, columnGutter: colGap,
     rowCount: rows, rowGutter: rowGap,
     marginTop: mTop, marginRight: mRight,
@@ -1047,6 +1049,7 @@ function refreshV3GridInfoFromLayout() {
   const margin = go.outer_margin ?? go.col_gap ?? fallback.outer_margin ?? fallback.col_gap ?? 24;
   gridInfo = LayoutEngine.resolvePreviewGridInfo({
     canvasWidth: canvas.width, canvasHeight: canvas.height,
+    baselineStep: BASELINE_STEP,
     columnCount: go.cols ?? fallback._cols ?? ((fallback.col_xs || []).length || 1),
     columnGutter: go.col_gap ?? fallback.col_gap ?? 24,
     rowCount: go.rows ?? fallback._rows ?? 0,
