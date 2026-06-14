@@ -84,4 +84,16 @@ describe('interaction selection helpers', () => {
       nextSelectionDepth: 1,
     });
   });
+
+  it('keeps double-click on a selected leaf in the text-edit path', () => {
+    expect(resolveDoubleClickSelection({
+      currentSelectionDepth: 2,
+      currentHitId: 'leaf',
+      currentHitIsSelected: true,
+      currentHitChildIds: [],
+      deeperHitId: 'leaf',
+    })).toEqual({
+      kind: 'none',
+    });
+  });
 });

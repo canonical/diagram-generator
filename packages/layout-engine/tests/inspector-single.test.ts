@@ -48,6 +48,7 @@ describe('single-selection inspector helpers', () => {
       childCount: 2,
       hasParent: true,
       overrideDirection: 'HORIZONTAL',
+      overrideGapDeltaPresent: true,
       overrideGapDelta: 8,
       layoutColGap: 24,
       sizingW: 'FILL',
@@ -88,5 +89,20 @@ describe('single-selection inspector helpers', () => {
     expect(state.showHeightMinMax).toBe(false);
     expect(state.showPositionType).toBe(false);
     expect(state.showAbsoluteOffsetControls).toBe(false);
+  });
+
+  it('treats a present null gap_delta override as an explicit cleared zero', () => {
+    const state = createSingleSelectionAutolayoutState({
+      nodeLayout: 'vertical',
+      childCount: 2,
+      overrideGapDeltaPresent: true,
+      overrideGapDelta: null,
+      nodeGapDelta: 16,
+      layoutRowGap: 32,
+    });
+
+    expect(state.currentGapDelta).toBe(0);
+    expect(state.automaticGap).toBe(32);
+    expect(state.effectiveGap).toBe(32);
   });
 });

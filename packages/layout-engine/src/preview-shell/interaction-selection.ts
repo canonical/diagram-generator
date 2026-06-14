@@ -98,11 +98,14 @@ export function resolveDoubleClickSelection(options: {
   deeperHitId?: string | null;
 }): DoubleClickSelectionResolution {
   const childIds = options.currentHitChildIds ?? [];
-  if (options.currentHitId && options.currentHitIsSelected && childIds.length > 0) {
-    return {
-      kind: 'select-children',
-      nextSelectionDepth: Math.max(0, options.currentSelectionDepth) + 1,
-    };
+  if (options.currentHitId && options.currentHitIsSelected) {
+    if (childIds.length > 0) {
+      return {
+        kind: 'select-children',
+        nextSelectionDepth: Math.max(0, options.currentSelectionDepth) + 1,
+      };
+    }
+    return { kind: 'none' };
   }
 
   if (options.deeperHitId) {

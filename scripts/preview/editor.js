@@ -5008,6 +5008,7 @@ function buildAutolayoutPanel(cid, node) {
     childCount: node.children ? node.children.length : 0,
     hasParent: !!node.parent,
     overrideDirection: ovr.direction,
+    overrideGapDeltaPresent: Object.prototype.hasOwnProperty.call(ovr, 'gap_delta'),
     overrideGapDelta: ovr.gap_delta,
     nodeGapDelta: node.data?.gapDelta ?? node.data?.gap_delta,
     layoutGap: node.layoutGap,

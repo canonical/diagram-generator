@@ -106,6 +106,7 @@ export function createSingleSelectionAutolayoutState(options: {
   childCount?: number | null;
   hasParent?: boolean;
   overrideDirection?: string | null;
+  overrideGapDeltaPresent?: boolean;
   overrideGapDelta?: unknown;
   nodeGapDelta?: unknown;
   layoutGap?: number | null;
@@ -126,8 +127,12 @@ export function createSingleSelectionAutolayoutState(options: {
   );
   const sizingW = normalizeSizingMode(options.sizingW);
   const sizingH = normalizeSizingMode(options.sizingH);
-  const rawGapDelta = options.overrideGapDelta != null && options.overrideGapDelta !== ''
-    ? options.overrideGapDelta
+  const rawGapDelta = options.overrideGapDeltaPresent
+    ? (
+      options.overrideGapDelta == null || options.overrideGapDelta === ''
+        ? 0
+        : options.overrideGapDelta
+    )
     : options.nodeGapDelta;
   const currentGapDelta = Number.isFinite(Number(rawGapDelta)) ? Number(rawGapDelta) : 0;
   const runtimeGap = direction === 'HORIZONTAL'
