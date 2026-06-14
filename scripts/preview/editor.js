@@ -266,14 +266,6 @@ function _gridSnapTargets() {
   return collectGridSnapTargets(gridInfo);
 }
 
-/**
- * Grid-model-aware wrapper for edge snapping.
- * Delegates to snapEdgeToTarget() from editor-base.js.
- */
-function _snapEdgeToGrid(edge, targets) {
-  return snapEdgeToTarget(edge, targets);
-}
-
 // ---- Dirty tracking + editor state (EditorState / PreviewSaveClient) ----
 
 function setDirty(dirty) {
@@ -1535,6 +1527,11 @@ function getComponentNode(cid) {
   return node ? node.data : null;
 }
 
+function _hasLayoutChildren(cid) {
+  const node = model.get(cid);
+  return !!(node && node.layout && node.children.length > 0);
+}
+
 function getDescendantIds(cid) {
   return model.getDescendants(cid);
 }
@@ -1559,8 +1556,7 @@ function renderEmptyInspector() {
 }
 
 function getPrimarySelectedId(preferredCid) {
-  if (preferredCid && selectedIds.has(preferredCid)) return preferredCid;
-  return [...selectedIds].pop() || null;
+  return LayoutEngine.resolvePrimarySelectedId(selectedIds, preferredCid);
 }
 
 function renderSelectionInspector(preferredCid) {
@@ -1601,44 +1597,7 @@ function getSelectionActionItems() {
     });
   });
 
-  const parentIds = new Set(items.map(item => item.parentId));
-  return {
-    items,
-    hasUnsupported,
-    sameParent: parentIds.size <= 1,
-    parentId: parentIds.size === 1 ? [...parentIds][0] : null,
-  };
-}
-
-function inferSelectionGap(info) {
-  if (!info.sameParent || info.items.length < 2) {
-    return snapToGrid(window.__DG_CONFIG.col_gap || 24);
-  }
-
-  if (info.parentId) {
-    const parent = model.get(info.parentId);
-    if (parent) {
-      if (parent.layout === "vertical") {
-        return snapToGrid(parent.layoutRowGap ?? parent.layoutGap ?? 24);
-      }
-      if (parent.layout === "horizontal") {
-        return snapToGrid(parent.layoutColGap ?? parent.layoutGap ?? 24);
-      }
-    }
-  }
-
-  const byX = [...info.items].sort((a, b) => (a.x - b.x) || (a.y - b.y));
-  const byY = [...info.items].sort((a, b) => (a.y - b.y) || (a.x - b.x));
-  const xGaps = [];
-  const yGaps = [];
-  for (let i = 1; i < byX.length; i++) {
-    xGaps.push(byX[i].x - (byX[i - 1].x + byX[i - 1].width));
-    yGaps.push(byY[i].y - (byY[i - 1].y + byY[i - 1].height));
-  }
-  const nonNegativeX = xGaps.filter(gap => gap >= 0);
-  const nonNegativeY = yGaps.filter(gap => gap >= 0);
-  const candidate = nonNegativeX.length >= nonNegativeY.length ? nonNegativeX[0] : nonNegativeY[0];
-  return snapToGrid(candidate != null ? candidate : (window.__DG_CONFIG.col_gap || 24));
+  return LayoutEngine.createSelectionActionInfo(items, hasUnsupported);
 }
 
 function setMultiActionGap(value) {
@@ -1771,23 +1730,36 @@ function renderMultiSelectionInspector() {
     return;
   }
 
-  multiActionGap = inferSelectionGap(info);
+  const parent = info.parentId ? model.get(info.parentId) : null;
+  const parentLayout = parent ? {
+    layout: parent.layout,
+    layoutGap: parent.layoutGap,
+    layoutRowGap: parent.layoutRowGap,
+    layoutColGap: parent.layoutColGap,
+  } : null;
+  const fallbackGap = window.__DG_CONFIG.col_gap || 24;
+  const viewModel = LayoutEngine.createMultiSelectionInspectorViewModel({
+    selectedCount: selectedIds.size,
+    info,
+    fallbackGap,
+    parentLayout,
+    snapStep: BASELINE_STEP,
+  });
+
+  multiActionGap = viewModel.inferredGap;
 
   let html = '<div class="field"><span class="label">Selection</span><br>' +
-    '<span class="value">' + selectedIds.size + ' components</span></div>';
+    '<span class="value">' + viewModel.selectedCount + ' components</span></div>';
   html += '<div class="hint">Shift+click adds to the selection. Drag still moves the group together.</div>';
 
-  if (info.sameParent && info.parentId) {
-    const parentNode = model.get(info.parentId);
-    if (parentNode && parentNode.layout) {
-        html += '<div class="dg-autolayout-section" style="margin-top:8px">';
-        html += '<span class="label" style="margin-bottom:4px;display:block">Stack spacing</span>';
-        html += '<div class="hint">Frame gap now derives from composition. Use distribute for arrangement, or edit YAML only for true structural exceptions.</div>';
-        html += '</div>';
-    }
+  if (viewModel.showStackSpacingHint) {
+    html += '<div class="dg-autolayout-section" style="margin-top:8px">';
+    html += '<span class="label" style="margin-bottom:4px;display:block">Stack spacing</span>';
+    html += '<div class="hint">Frame gap now derives from composition. Use distribute for arrangement, or edit YAML only for true structural exceptions.</div>';
+    html += '</div>';
   }
 
-  if (!info.sameParent) {
+  if (viewModel.showAlignOnlyHint) {
     html += '<div class="field" style="margin-top:8px"><span class="label">Actions</span><br>' +
       '<div class="hint">Distribute is limited to sibling components under the same parent. Align still works across the current selection.</div>' +
       '<div class="multi-action-grid">' +
@@ -1817,14 +1789,21 @@ function renderMultiSelectionInspector() {
       '</div></div>';
   }
 
-  if (info.hasUnsupported) {
+  if (viewModel.hasUnsupported) {
     html += '<div class="field"><div class="hint">Arrow selections are ignored by these actions.</div></div>';
   }
 
   // ── Bulk sizing controls (homogeneous selection) ──
   if (info.items.length >= 2) {
     // ── Alignment widget (v3) ──
-    const alignInfo = _getMultiAlignValues(info.items);
+    const alignInfo = LayoutEngine.createMultiSelectionAlignState(info.items.map((item) => {
+      const node = item.node;
+      if (!node) return { hasFrameAlignment: false };
+      return {
+        hasFrameAlignment: !!(node.sizing_w || node.sizing_h || node.align),
+        align: (overrides[item.id] || {}).align || node.align || 'TOP_LEFT',
+      };
+    }));
     if (alignInfo) {
       html += '<div class="field"><span class="label">Alignment</span>';
       html += '<div class="dg-align-field">';
@@ -1841,7 +1820,16 @@ function renderMultiSelectionInspector() {
     }
 
     // ── Container properties (direction) ──
-    const containerInfo = _getMultiContainerValues(info.items);
+    const containerInfo = LayoutEngine.createMultiSelectionContainerState(info.items.map((item) => {
+      const node = item.node;
+      if (!node) return { isContainer: false };
+      const ovr = overrides[item.id] || {};
+      return {
+        isContainer: !!(node.layout || (node.children && node.children.length > 0)),
+        direction: ovr.direction || (node.layout === 'horizontal' ? 'HORIZONTAL' : 'VERTICAL'),
+        wrap: ovr.wrap != null ? ovr.wrap : (_nodeProp(node, "wrap") || false),
+      };
+    }));
     if (containerInfo) {
       html += '<div class="dg-autolayout-section" style="margin-top:8px">';
       html += '<span class="label" style="margin-bottom:4px;display:block">Auto-layout (' + containerInfo.containerCount + ' containers)</span>';
@@ -1867,7 +1855,16 @@ function renderMultiSelectionInspector() {
     }
 
     // ── Sizing ──
-    const sizingInfo = _getMultiSizingValues(info.items);
+    const sizingInfo = LayoutEngine.createMultiSelectionSizingState(info.items.map((item) => {
+      const node = item.node;
+      if (!node) return {};
+      return {
+        sizingW: _getRuntimeSizingValue(item.id, node, 'w'),
+        sizingH: _getRuntimeSizingValue(item.id, node, 'h'),
+        wCoerced: _coercedKeys.has(item.id + ':sizing_w'),
+        hCoerced: _coercedKeys.has(item.id + ':sizing_h'),
+      };
+    }));
     if (sizingInfo) {
       html += '<div class="dg-autolayout-section" style="margin-top:8px">';
       html += '<span class="label" style="margin-bottom:4px;display:block">Sizing</span>';
@@ -1973,101 +1970,11 @@ function renderMultiSelectionInspector() {
   inspector.innerHTML = html;
 }
 
-/**
- * Read the common sizing_w / sizing_h across all selected items.
- * Returns null if none of the items are v3 frame nodes.
- */
-function _getMultiSizingValues(items) {
-  let firstW = null, firstH = null;
-  let wMixed = false, hMixed = false;
-  let hasAny = false;
-  let allWCoerced = true, allHCoerced = true;
-  let anyW = false, anyH = false;
-
-  for (const item of items) {
-    const node = item.node;
-    if (!node) continue;
-    const sw = _getRuntimeSizingValue(item.id, node, 'w');
-    const sh = _getRuntimeSizingValue(item.id, node, 'h');
-    if (!sw && !sh) continue; // not a v3 frame node
-    hasAny = true;
-    if (firstW === null) firstW = sw || 'HUG';
-    else if (firstW !== (sw || 'HUG')) wMixed = true;
-    if (firstH === null) firstH = sh || 'HUG';
-    else if (firstH !== (sh || 'HUG')) hMixed = true;
-    if (sw) { anyW = true; if (!_coercedKeys.has(item.id + ':sizing_w')) allWCoerced = false; }
-    if (sh) { anyH = true; if (!_coercedKeys.has(item.id + ':sizing_h')) allHCoerced = false; }
-  }
-
-  if (!hasAny) return null;
-  return {
-    sizingW: wMixed ? '' : (firstW || 'HUG'),
-    sizingH: hMixed ? '' : (firstH || 'HUG'),
-    wMixed,
-    hMixed,
-    wCoerced: anyW && allWCoerced,
-    hCoerced: anyH && allHCoerced,
-  };
-}
-
 function _getRuntimeSizingValue(cid, node, axis) {
   const key = axis === 'w' ? 'sizing_w' : 'sizing_h';
   if (_coercedKeys.has(cid + ':' + key)) return 'FIXED';
   const ovr = overrides[cid] || {};
   return ovr[key] || (node ? node[key] : null) || null;
-}
-
-/**
- * Read shared container properties (direction) across selected items.
- * Returns null if no containers in selection.
- */
-function _getMultiContainerValues(items) {
-  let firstDir = null;
-  let dirMixed = false;
-  let containerCount = 0;
-  let firstWrap = false;
-
-  for (const item of items) {
-    const node = item.node;
-    if (!node) continue;
-    const isContainer = node.layout || (node.children && node.children.length > 0);
-    if (!isContainer) continue;
-    containerCount++;
-    const ovr = overrides[item.id] || {};
-    const dir = ovr.direction || (node.layout === 'horizontal' ? 'HORIZONTAL' : 'VERTICAL');
-    if (firstDir === null) firstDir = dir; else if (firstDir !== dir) dirMixed = true;
-
-    // Wrap state
-    const wrapVal = ovr.wrap != null ? ovr.wrap : (_nodeProp(node, "wrap") || false);
-    if (containerCount === 1) firstWrap = wrapVal;
-  }
-
-  if (containerCount === 0) return null;
-  return {
-    containerCount,
-    direction: dirMixed ? '' : firstDir,
-    dirMixed,
-    wrap: firstWrap,
-  };
-}
-
-/**
- * Read shared alignment across selected items.
- * Returns null if no v3 frame nodes, or {align, mixed}.
- */
-function _getMultiAlignValues(items) {
-  let first = null, mixed = false, hasAny = false;
-  for (const item of items) {
-    const node = item.node;
-    if (!node) continue;
-    if (!node.sizing_w && !node.sizing_h && !node.align) continue;
-    hasAny = true;
-    const ovr = overrides[item.id] || {};
-    const align = ovr.align || node.align || 'TOP_LEFT';
-    if (first === null) first = align; else if (first !== align) mixed = true;
-  }
-  if (!hasAny) return null;
-  return { align: mixed ? '' : first, mixed };
 }
 
 /**
@@ -3266,25 +3173,43 @@ function onSvgDblClick(e) {
 
   // If current selection is a container with children, select all children
   const current = findComponentAtDepth(svgPt.x, svgPt.y, selectionDepth);
-  if (current && selectedIds.has(current)) {
-    const node = model.get(current);
-    if (node && node.children && node.children.length > 0) {
-      const childIds = node.children.map(n => n.data.id);
-      selectedIds.clear();
-      childIds.forEach(id => selectedIds.add(id));
-      selectionDepth++;
-      reapplySelection();
-      return;
-    }
-    // No children — try text edit
-    startTextEdit(current, e);
+  const currentNode = current ? model.get(current) : null;
+  const childIds = currentNode && currentNode.children ? currentNode.children.map((n) => n.data.id) : [];
+  const doubleClickResolution = LayoutEngine.resolveDoubleClickSelection({
+    currentSelectionDepth: selectionDepth,
+    currentHitId: current,
+    currentHitIsSelected: Boolean(current && selectedIds.has(current)),
+    currentHitChildIds: childIds,
+    deeperHitId: findComponentAtDepth(svgPt.x, svgPt.y, selectionDepth + 1),
+  });
+
+  if (doubleClickResolution.kind === 'select-children') {
+    const nextState = LayoutEngine.applySelectionStateMutation({
+      selectedIds: [...selectedIds],
+      selectionDepth,
+    }, {
+      kind: 'replace-many',
+      targetIds: childIds,
+      nextSelectionDepth: doubleClickResolution.nextSelectionDepth,
+    });
+    selectedIds.clear();
+    nextState.selectedIds.forEach((id) => selectedIds.add(id));
+    selectionDepth = nextState.selectionDepth;
+    reapplySelection();
     return;
   }
 
-  const deeper = findComponentAtDepth(svgPt.x, svgPt.y, selectionDepth + 1);
-  if (deeper) {
-    selectionDepth++;
-    selectComponent(deeper, false);
+  if (current && selectedIds.has(current)) {
+    if (doubleClickResolution.kind === 'none') {
+      // No children — try text edit
+      startTextEdit(current, e);
+      return;
+    }
+  }
+
+  if (doubleClickResolution.kind === 'select-deeper' && doubleClickResolution.targetId) {
+    selectionDepth = doubleClickResolution.nextSelectionDepth;
+    selectComponent(doubleClickResolution.targetId, false);
   }
 }
 
@@ -3310,62 +3235,47 @@ function onSvgMouseDown(e) {
   if (e.button !== 0) return;
 
   const arrowCid = findArrowAtPoint(e.clientX, e.clientY);
-  if (arrowCid) {
-    selectionDepth = 0;
-    selectComponent(arrowCid, e.shiftKey);
-    e.preventDefault();
-    return;
-  }
+  const deepest = (e.ctrlKey || e.metaKey) ? findDeepestComponent(svgPt.x, svgPt.y) : null;
+  const currentDepthId = findComponentAtDepth(svgPt.x, svgPt.y, selectionDepth);
+  const topLevelId = findComponentAtDepth(svgPt.x, svgPt.y, 0);
 
-  // Ctrl+click: jump straight to the deepest (innermost) component (Figma behavior)
-  if (e.ctrlKey || e.metaKey) {
-    const deepest = findDeepestComponent(svgPt.x, svgPt.y);
-    if (deepest) {
-      // Set selectionDepth to match so subsequent clicks stay at that level
-      const ancestors = getAncestors(deepest);
-      selectionDepth = ancestors.length;
-      selectComponent(deepest, e.shiftKey);
-    } else {
-      deselectAll();
-    }
-    e.preventDefault();
-    return;
-  }
-
-  // Find component at current selectionDepth (shallowest = depth 0 by default)
-  const cid = findComponentAtDepth(svgPt.x, svgPt.y, selectionDepth);
-  // Fall back: if nothing at current depth, try top-level
-  const effectiveCid = cid || findComponentAtDepth(svgPt.x, svgPt.y, 0);
-  
-  if (!effectiveCid) {
-    deselectAll();
-    return;
-  }
-  
-  // If clicking a different top-level group, reset to depth 0
-  const clickedTopLevel = findComponentAtDepth(svgPt.x, svgPt.y, 0);
-  const currentTopLevel = selectedIds.size > 0
-    ? findComponentAtDepth(svgPt.x, svgPt.y, 0)
-    : null;
   let currentSelectedTopLevel = null;
   if (selectedIds.size > 0) {
     const firstSelected = [...selectedIds][0];
-    // Walk ancestors to find the root
     const ancestors = getAncestors(firstSelected);
     currentSelectedTopLevel = ancestors.length > 0 ? ancestors[0] : firstSelected;
   }
-  if (clickedTopLevel && currentSelectedTopLevel && clickedTopLevel !== currentSelectedTopLevel) {
-    selectionDepth = 0;
-  }
-  
-  const finalCid = selectionDepth === 0 ? (clickedTopLevel || effectiveCid) : effectiveCid;
 
-  // Shift+click: toggle additive selection, no drag
-  if (e.shiftKey) {
-    selectComponent(finalCid, true);
+  const pointerResolution = LayoutEngine.resolvePointerSelection({
+    currentSelectionDepth: selectionDepth,
+    arrowId: arrowCid,
+    shiftKey: e.shiftKey,
+    jumpToDeepest: e.ctrlKey || e.metaKey,
+    deepestId: deepest,
+    deepestDepth: deepest ? getAncestors(deepest).length : null,
+    currentDepthId,
+    topLevelId,
+    currentSelectedTopLevelId: currentSelectedTopLevel,
+  });
+
+  if (pointerResolution.kind === 'deselect') {
+    deselectAll();
+    return;
+  }
+
+  if (pointerResolution.kind === 'select-only' && pointerResolution.targetId) {
+    selectionDepth = pointerResolution.nextSelectionDepth;
+    selectComponent(pointerResolution.targetId, Boolean(pointerResolution.additive));
     e.preventDefault();
     return;
   }
+
+  if (pointerResolution.kind !== 'prepare-drag' || !pointerResolution.targetId) {
+    e.preventDefault();
+    return;
+  }
+
+  const finalCid = pointerResolution.targetId;
 
   // Determine which components to drag
   let dragCids;
@@ -3395,29 +3305,13 @@ function onSvgMouseDown(e) {
  */
 function _isAutolayoutChild(cid) {
   const parent = getParentNode(cid);
-  if (!parent) return false;
-  return parent.layout === 'vertical' || parent.layout === 'horizontal';
+  return LayoutEngine.isAutolayoutParentLayout(parent ? parent.layout : null);
 }
 
 /**
  * Get sibling insertion targets for autolayout reorder.
  * Returns array of { cid, midpoint } sorted by position along the layout axis.
  */
-function _getReorderTargets(cid) {
-  const parentNode = model.getParent(cid);
-  if (!parentNode) return [];
-  const parent = parentNode.data;
-  const isVertical = parent.layout === 'vertical';
-  const siblings = parentNode.children.map(n => n.data);
-  // Build midpoints along the layout axis
-  return siblings.map(s => ({
-    cid: s.id,
-    midpoint: isVertical ? (s.y + s.height / 2) : (s.x + s.width / 2),
-    pos: isVertical ? s.y : s.x,
-    size: isVertical ? s.height : s.width,
-  }));
-}
-
 /**
  * Show a reorder insertion indicator line between siblings.
  */
@@ -3496,19 +3390,8 @@ function _applyReorder(parentId, cid, insertIndex) {
   const parentNode = model.get(parentId);
   if (!parentNode) return;
   const currentOrder = parentNode.children.map(n => n.data.id);
-  const currentIdx = currentOrder.indexOf(cid);
-  if (currentIdx === -1) return;
-
-  // Build new order
-  const newOrder = currentOrder.filter(id => id !== cid);
-  // Adjust insertIndex since we removed the item
-  const adjustedIdx = insertIndex > currentIdx ? insertIndex - 1 : insertIndex;
-  newOrder.splice(adjustedIdx, 0, cid);
-
-  // Skip if order didn't change
-  if (newOrder.every((id, i) => id === currentOrder[i])) {
-    return;
-  }
+  const newOrder = LayoutEngine.applyReorderOrder(currentOrder, cid, insertIndex);
+  if (!newOrder) return;
 
   // Set children_order override on the parent
   setFrameProp(parentId, 'children_order', newOrder);
@@ -3529,7 +3412,11 @@ function onDragMove(e) {
     if (parentNode) {
       const parent = parentNode.data;
       const isVertical = parent.layout === 'vertical';
-      const targets = _getReorderTargets(cid);
+      const siblings = parentNode.children.map((n) => n.data);
+      const targets = siblings.map((sibling) => ({
+        cid: sibling.id,
+        midpoint: isVertical ? (sibling.y + sibling.height / 2) : (sibling.x + sibling.width / 2),
+      }));
       // Get the SVG coordinate of the cursor
       const svg = document.querySelector('#stage svg');
       const pt = svg.createSVGPoint();
@@ -3539,22 +3426,17 @@ function onDragMove(e) {
       const svgPt = pt.matrixTransform(ctm.inverse());
       const cursorPos = isVertical ? svgPt.y : svgPt.x;
 
-      // Find insertion index
-      let insertIdx = targets.length;
-      for (let i = 0; i < targets.length; i++) {
-        if (cursorPos < targets[i].midpoint) {
-          insertIdx = i;
-          break;
-        }
-      }
-      // Skip if dropping at the same position
-      const currentIdx = targets.findIndex(t => t.cid === cid);
-      if (insertIdx === currentIdx || insertIdx === currentIdx + 1) {
+      const reorderResolution = LayoutEngine.resolveAutolayoutReorderTarget({
+        cid,
+        cursorPos,
+        targets,
+      });
+      if (reorderResolution.isNoop) {
         _clearReorderIndicator();
         s.reorderTarget = null;
       } else {
-        _showReorderIndicator(parentNode.data.id, insertIdx, isVertical);
-        s.reorderTarget = { parentId: parentNode.data.id, insertIndex: insertIdx };
+        _showReorderIndicator(parentNode.data.id, reorderResolution.insertIndex, isVertical);
+        s.reorderTarget = { parentId: parentNode.data.id, insertIndex: reorderResolution.insertIndex };
       }
     }
     return; // Don't apply dx/dy for autolayout children
@@ -3635,6 +3517,18 @@ function onDragUp() {
   // repositioned by the engine relayout, so expanding the viewBox
   // here would create stale padding that never shrinks back.
   if (s && s.hasMoved && !s.autolayout) autoFitArtboard();
+}
+
+function _applyInteractionOverrideEntries(entries, propagatedIds) {
+  for (const entry of entries) {
+    setOverride(entry.id, {
+      dx: entry.dx,
+      dy: entry.dy,
+      dw: entry.dw,
+      dh: entry.dh,
+    });
+    if (propagatedIds) propagatedIds.add(entry.id);
+  }
 }
 
 // ---- Resize ----
@@ -3719,10 +3613,14 @@ function _getMultiResizeSelection(svg, idsOverride) {
     const eff = getEffectiveDelta(id);
     members.push({
       id,
-      node,
       bounds,
       ancestorDx: eff.dx - own.dx,
       ancestorDy: eff.dy - own.dy,
+      baseX: node.data.x,
+      baseY: node.data.y,
+      baseW: node.data.width,
+      baseH: node.data.height,
+      hasLayoutChildren: _hasLayoutChildren(id),
     });
     minX = Math.min(minX, bounds.left);
     minY = Math.min(minY, bounds.top);
@@ -3753,60 +3651,6 @@ function _getMultiResizeSelection(svg, idsOverride) {
     },
     minWidth: Math.min(width, minWidth || SHARED_MIN_NODE_SIZE),
     minHeight: Math.min(height, minHeight || SHARED_MIN_NODE_SIZE),
-  };
-}
-
-function _resizeBoundsFromHandle(bounds, axis, dx, dy, gridTargets, svgW, svgH, minWidth, minHeight) {
-  let left = bounds.left;
-  let top = bounds.top;
-  let right = bounds.right;
-  let bottom = bounds.bottom;
-  const resizeLines = [];
-
-  if (axis === "l" || axis === "tl" || axis === "bl") {
-    const rawLeft = bounds.left + Math.round(dx / 8) * 8;
-    const snapL = _snapEdgeToGrid(rawLeft, gridTargets.xs);
-    const nextLeft = Math.min(snapL.snapped ? snapL.value : rawLeft, bounds.right - minWidth);
-    if (snapL.snapped && nextLeft === snapL.value) {
-      resizeLines.push({ x1: snapL.target, y1: 0, x2: snapL.target, y2: svgH });
-    }
-    left = nextLeft;
-  } else if (axis === "r" || axis === "tr" || axis === "br") {
-    const rawRight = bounds.right + Math.round(dx / 8) * 8;
-    const snapR = _snapEdgeToGrid(rawRight, gridTargets.xs);
-    const nextRight = Math.max(snapR.snapped ? snapR.value : rawRight, bounds.left + minWidth);
-    if (snapR.snapped && nextRight === snapR.value) {
-      resizeLines.push({ x1: snapR.target, y1: 0, x2: snapR.target, y2: svgH });
-    }
-    right = nextRight;
-  }
-
-  if (axis === "t" || axis === "tl" || axis === "tr") {
-    const rawTop = bounds.top + Math.round(dy / 8) * 8;
-    const snapT = _snapEdgeToGrid(rawTop, gridTargets.ys);
-    const nextTop = Math.min(snapT.snapped ? snapT.value : rawTop, bounds.bottom - minHeight);
-    if (snapT.snapped && nextTop === snapT.value) {
-      resizeLines.push({ x1: 0, y1: snapT.target, x2: svgW, y2: snapT.target });
-    }
-    top = nextTop;
-  } else if (axis === "b" || axis === "bl" || axis === "br") {
-    const rawBottom = bounds.bottom + Math.round(dy / 8) * 8;
-    const snapB = _snapEdgeToGrid(rawBottom, gridTargets.ys);
-    const nextBottom = Math.max(snapB.snapped ? snapB.value : rawBottom, bounds.top + minHeight);
-    if (snapB.snapped && nextBottom === snapB.value) {
-      resizeLines.push({ x1: 0, y1: snapB.target, x2: svgW, y2: snapB.target });
-    }
-    bottom = nextBottom;
-  }
-
-  return {
-    left,
-    top,
-    right,
-    bottom,
-    width: right - left,
-    height: bottom - top,
-    resizeLines,
   };
 }
 
@@ -4725,30 +4569,32 @@ function startResize(e) {
   e.stopPropagation();
 }
 
-/**
- * Recursively apply relayoutChildren down the tree.
- * For each child that is itself a layout parent, relayout its children too.
- */
-function _applyRelayoutRecursive(parentId, parentDx, parentDy, parentDw, parentDh, origOverrides, propagatedIds) {
-  const childDeltas = model.relayoutChildren(parentId, parentDx, parentDy, parentDw, parentDh, origOverrides);
-  for (const [childId, delta] of Object.entries(childDeltas)) {
-    setOverride(childId, {
-      dx: delta.dx,
-      dy: delta.dy,
-      dw: delta.dw,
-      dh: delta.dh,
-    });
-    propagatedIds.add(childId);
-    // Recurse: if this child has layout children, relayout them too
-    const childNode = model.get(childId);
-    if (childNode && childNode.layout && childNode.children.length > 0) {
-      const childEffDx = delta.dx;
-      const childEffDy = delta.dy;
-      const childEffDw = delta.dw;
-      const childEffDh = delta.dh;
-      _applyRelayoutRecursive(childId, childEffDx, childEffDy, childEffDw, childEffDh, origOverrides, propagatedIds);
-    }
-  }
+function _collectRecursiveRelayoutEntries(parentId, parentDelta, origOverrides) {
+  return LayoutEngine.collectRecursiveRelayoutEntries({
+    parentId,
+    parentDelta,
+    relayoutChildren(relayoutParentId, relayoutParentDelta) {
+      return model.relayoutChildren(
+        relayoutParentId,
+        relayoutParentDelta.dx,
+        relayoutParentDelta.dy,
+        relayoutParentDelta.dw,
+        relayoutParentDelta.dh,
+        origOverrides,
+      );
+    },
+    hasLayoutChildren(id) {
+      return _hasLayoutChildren(id);
+    },
+  });
+}
+
+function _restorePropagatedResizeOverrides(state) {
+  if (!state.propagatedIds || state.propagatedIds.size === 0) return;
+  _applyInteractionOverrideEntries(
+    LayoutEngine.createOriginalOverrideEntries(state.propagatedIds, state.origOverrides),
+  );
+  state.propagatedIds.clear();
 }
 
 // ---------------------------------------------------------------------------
@@ -4829,10 +4675,7 @@ function onResizeMove(e) {
   const node = model.get(s.cid);
   const baseX = node ? node.data.x : 0;
   const baseY = node ? node.data.y : 0;
-  const baseW = node ? node.data.width : 0;
-  const baseH = node ? node.data.height : 0;
   const gridTargets = _gridSnapTargets();
-  const resizeLines = [];
 
   // Hoist SVG dimensions for guide lines (avoid repeated DOM queries)
   const svgEl = document.querySelector("#stage svg");
@@ -4840,17 +4683,18 @@ function onResizeMove(e) {
   const svgH = svgEl ? parseFloat(svgEl.getAttribute("height") || "0") : 0;
 
   if (s.selection) {
-    const nextBounds = _resizeBoundsFromHandle(
-      s.selection.bounds,
+    const nextBounds = LayoutEngine.resizeBoundsFromHandle({
+      bounds: s.selection.bounds,
       axis,
       dx,
       dy,
       gridTargets,
       svgW,
       svgH,
-      s.selection.minWidth,
-      s.selection.minHeight,
-    );
+      minWidth: s.selection.minWidth,
+      minHeight: s.selection.minHeight,
+      snapStep: BASELINE_STEP,
+    });
 
     if (nextBounds.resizeLines.length > 0) {
       renderGuideLines(nextBounds.resizeLines, GUIDE_COLOR, GUIDE_OPACITY);
@@ -4859,32 +4703,21 @@ function onResizeMove(e) {
     }
 
     if (!s.propagatedIds) s.propagatedIds = new Set();
-    if (s.propagatedIds.size > 0) {
-      for (const pid of s.propagatedIds) {
-        const orig = s.origOverrides[pid] || { dx: 0, dy: 0, dw: 0, dh: 0 };
-        setOverride(pid, { dx: orig.dx, dy: orig.dy, dw: orig.dw, dh: orig.dh });
-      }
-      s.propagatedIds.clear();
-    }
+    _restorePropagatedResizeOverrides(s);
 
-    const scaleX = s.selection.bounds.width === 0 ? 1 : nextBounds.width / s.selection.bounds.width;
-    const scaleY = s.selection.bounds.height === 0 ? 1 : nextBounds.height / s.selection.bounds.height;
+    const memberOverrides = LayoutEngine.createMultiSelectionResizeOverrides({
+      selectionBounds: s.selection.bounds,
+      nextBounds,
+      members: s.selection.members,
+    });
+    _applyInteractionOverrideEntries(memberOverrides);
 
-    for (const member of s.selection.members) {
-      const memberLeft = nextBounds.left + (member.bounds.left - s.selection.bounds.left) * scaleX;
-      const memberTop = nextBounds.top + (member.bounds.top - s.selection.bounds.top) * scaleY;
-      const memberRight = nextBounds.left + (member.bounds.right - s.selection.bounds.left) * scaleX;
-      const memberBottom = nextBounds.top + (member.bounds.bottom - s.selection.bounds.top) * scaleY;
-      const newDx = memberLeft - member.node.data.x - member.ancestorDx;
-      const newDy = memberTop - member.node.data.y - member.ancestorDy;
-      const newDw = (memberRight - memberLeft) - member.node.data.width;
-      const newDh = (memberBottom - memberTop) - member.node.data.height;
-
-      setOverride(member.id, { dx: newDx, dy: newDy, dw: newDw, dh: newDh });
-
-      if (member.node.layout && member.node.children.length > 0) {
-        _applyRelayoutRecursive(member.id, newDx, newDy, newDw, newDh, s.origOverrides, s.propagatedIds);
-      }
+    for (const member of memberOverrides) {
+      if (!member.hasLayoutChildren) continue;
+      _applyInteractionOverrideEntries(
+        _collectRecursiveRelayoutEntries(member.id, member, s.origOverrides),
+        s.propagatedIds,
+      );
     }
 
     applyAllOverrides();
@@ -4892,59 +4725,31 @@ function onResizeMove(e) {
     return;
   }
 
-  // Handle horizontal resizing
-  if (axis === "l" || axis === "tl" || axis === "bl") {
-    const delta = Math.round(dx / 8) * 8;
-    newDx = s.origDx + delta;
-    newDw = s.origDw - delta;
-    // Snap left edge to grid
-    const leftEdge = baseX + newDx;
-    const snapL = _snapEdgeToGrid(leftEdge, gridTargets.xs);
-    if (snapL.snapped) {
-      const adj = snapL.value - leftEdge;
-      newDx += adj;
-      newDw -= adj;
-      resizeLines.push({ x1: snapL.target, y1: 0, x2: snapL.target, y2: svgH });
-    }
-  } else if (axis === "r" || axis === "tr" || axis === "br") {
-    newDw = Math.round((s.origDw + dx) / 8) * 8;
-    // Snap right edge to grid
-    const rightEdge = baseX + s.origDx + baseW + newDw;
-    const snapR = _snapEdgeToGrid(rightEdge, gridTargets.xs);
-    if (snapR.snapped) {
-      newDw += snapR.value - rightEdge;
-      resizeLines.push({ x1: snapR.target, y1: 0, x2: snapR.target, y2: svgH });
-    }
-  }
-  
-  // Handle vertical resizing
-  if (axis === "t" || axis === "tl" || axis === "tr") {
-    const delta = Math.round(dy / 8) * 8;
-    newDy = s.origDy + delta;
-    newDh = s.origDh - delta;
-    // Snap top edge to grid
-    const topEdge = baseY + newDy;
-    const snapT = _snapEdgeToGrid(topEdge, gridTargets.ys);
-    if (snapT.snapped) {
-      const adj = snapT.value - topEdge;
-      newDy += adj;
-      newDh -= adj;
-      resizeLines.push({ x1: 0, y1: snapT.target, x2: svgW, y2: snapT.target });
-    }
-  } else if (axis === "b" || axis === "bl" || axis === "br") {
-    newDh = Math.round((s.origDh + dy) / 8) * 8;
-    // Snap bottom edge to grid
-    const bottomEdge = baseY + s.origDy + baseH + newDh;
-    const snapB = _snapEdgeToGrid(bottomEdge, gridTargets.ys);
-    if (snapB.snapped) {
-      newDh += snapB.value - bottomEdge;
-      resizeLines.push({ x1: 0, y1: snapB.target, x2: svgW, y2: snapB.target });
-    }
-  }
+  const singleResize = LayoutEngine.resolveSingleResizeOverride({
+    axis,
+    dx,
+    dy,
+    baseX,
+    baseY,
+    baseW: node ? node.data.width : 0,
+    baseH: node ? node.data.height : 0,
+    origDx: s.origDx,
+    origDy: s.origDy,
+    origDw: s.origDw,
+    origDh: s.origDh,
+    gridTargets,
+    svgW,
+    svgH,
+    snapStep: BASELINE_STEP,
+  });
+  newDx = singleResize.dx;
+  newDy = singleResize.dy;
+  newDw = singleResize.dw;
+  newDh = singleResize.dh;
 
   // Show grid snap guides during resize
-  if (resizeLines.length > 0) {
-    renderGuideLines(resizeLines, GUIDE_COLOR, GUIDE_OPACITY);
+  if (singleResize.resizeLines.length > 0) {
+    renderGuideLines(singleResize.resizeLines, GUIDE_COLOR, GUIDE_OPACITY);
   } else {
     clearGuideLines();
   }
@@ -4953,20 +4758,16 @@ function onResizeMove(e) {
 
   // --- Auto-layout engine ---
   if (!s.propagatedIds) s.propagatedIds = new Set();
-
-  if (s.propagatedIds.size > 0) {
-    for (const pid of s.propagatedIds) {
-      const orig = s.origOverrides[pid] || { dx: 0, dy: 0, dw: 0, dh: 0 };
-      setOverride(pid, { dx: orig.dx, dy: orig.dy, dw: orig.dw, dh: orig.dh });
-    }
-    s.propagatedIds.clear();
-  }
+  _restorePropagatedResizeOverrides(s);
 
   // Parent resize: relayout descendant children live so the preview keeps
   // matching the solver's sizing intent during the drag.
   const resizedNode = model.get(s.cid);
-  if (resizedNode && resizedNode.layout && resizedNode.children.length > 0) {
-    _applyRelayoutRecursive(s.cid, newDx, newDy, newDw, newDh, s.origOverrides, s.propagatedIds);
+  if (_hasLayoutChildren(s.cid)) {
+    _applyInteractionOverrideEntries(
+      _collectRecursiveRelayoutEntries(s.cid, { dx: newDx, dy: newDy, dw: newDw, dh: newDh }, s.origOverrides),
+      s.propagatedIds,
+    );
   }
 
   // Child resize → shift siblings to maintain gutters.
@@ -4979,16 +4780,10 @@ function onResizeMove(e) {
     const rightEdgeDelta = (newDx + newDw) - (s.origDx + s.origDw);
     const bottomEdgeDelta = (newDy + newDh) - (s.origDy + s.origDh);
     const siblingAdj = model.relayoutSiblingsAfterChildResize(s.cid, rightEdgeDelta, bottomEdgeDelta);
-    for (const [adjId, delta] of Object.entries(siblingAdj)) {
-      const origAdj = s.origOverrides[adjId] || { dx: 0, dy: 0, dw: 0, dh: 0 };
-      const patch = {};
-      if (delta.dx !== undefined) patch.dx = origAdj.dx + delta.dx;
-      if (delta.dy !== undefined) patch.dy = origAdj.dy + delta.dy;
-      if (delta.dw !== undefined) patch.dw = origAdj.dw + delta.dw;
-      if (delta.dh !== undefined) patch.dh = origAdj.dh + delta.dh;
-      setOverride(adjId, patch);
-      s.propagatedIds.add(adjId);
-    }
+    _applyInteractionOverrideEntries(
+      LayoutEngine.mergeRelativeOverrideEntries(siblingAdj, s.origOverrides),
+      s.propagatedIds,
+    );
   }
 
   applyAllOverrides();
@@ -5008,39 +4803,40 @@ function onResizeMove(e) {
 }
 
 function _persistResizeToV3(resizeIds, propagatedIds, triggerCid) {
-  let changed = false;
-  for (const cid of resizeIds) {
+  const items = resizeIds.map((cid) => {
     const node = model.get(cid);
-    if (!node) continue;
-    const baseW = node.data.width;
-    const baseH = node.data.height;
-    const own = getOwnDelta(cid);
-    const newW = Math.max(8, baseW + own.dw);
-    const newH = Math.max(8, baseH + own.dh);
-    const resizedW = own.dw !== 0;
-    const resizedH = own.dh !== 0;
+    if (!node) return null;
+    return {
+      id: cid,
+      baseW: node.data.width,
+      baseH: node.data.height,
+      delta: getOwnDelta(cid),
+    };
+  }).filter(Boolean);
+  const plan = LayoutEngine.createResizePersistencePlan({
+    items,
+    propagatedIds,
+    minSize: 8,
+  });
 
-    if (!resizedW && !resizedH) continue;
-    if (!overrides[cid]) overrides[cid] = {};
-    if (resizedW) {
-      overrides[cid].width = newW;
-      overrides[cid].sizing_w = "FIXED";
+  for (const entry of plan.entries) {
+    if (!overrides[entry.id]) overrides[entry.id] = {};
+    if (entry.sizingWFixed) {
+      overrides[entry.id].width = entry.width;
+      overrides[entry.id].sizing_w = "FIXED";
     }
-    if (resizedH) {
-      overrides[cid].height = newH;
-      overrides[cid].sizing_h = "FIXED";
+    if (entry.sizingHFixed) {
+      overrides[entry.id].height = entry.height;
+      overrides[entry.id].sizing_h = "FIXED";
     }
-    setOverride(cid, { dx: 0, dy: 0, dw: 0, dh: 0 });
-    changed = true;
+    setOverride(entry.id, { dx: 0, dy: 0, dw: 0, dh: 0 });
   }
 
-  if (propagatedIds) {
-    for (const pid of propagatedIds) {
-      setOverride(pid, { dx: 0, dy: 0, dw: 0, dh: 0 });
-    }
+  for (const pid of plan.resetIds) {
+    setOverride(pid, { dx: 0, dy: 0, dw: 0, dh: 0 });
   }
 
-  if (changed || (propagatedIds && propagatedIds.size > 0)) {
+  if (plan.shouldTriggerRelayout) {
     requestV3Relayout(triggerCid);
   }
 }
@@ -5244,70 +5040,65 @@ function applyV3Style(cid, styleName) {
 // ---- Selection & Inspector ----
 
 function deselectAll() {
+  const nextState = LayoutEngine.applySelectionStateMutation({
+    selectedIds: [...selectedIds],
+    selectionDepth,
+  }, { kind: 'clear' });
   selectedIds.clear();
-  selectionDepth = 0;
-  const svg = document.querySelector("#stage svg");
-  if (svg) {
-    svg.querySelectorAll(".dg-selected").forEach(el => el.classList.remove("dg-selected"));
-  }
-  removeResizeHandles();
-  document.querySelectorAll(".tree-item").forEach(el => el.classList.remove("selected"));
-  renderEmptyInspector();
+  nextState.selectedIds.forEach((id) => selectedIds.add(id));
+  selectionDepth = nextState.selectionDepth;
+  _syncSelectionUi();
 }
 
-function selectComponent(cid, additive) {
-  if (additive) {
-    if (selectedIds.has(cid)) {
-      selectedIds.delete(cid);
-    } else {
-      selectedIds.add(cid);
-    }
-  } else {
-    selectedIds.clear();
-    selectedIds.add(cid);
-    // Sync selectionDepth so SVG mousedown targets the right level
-    const ancestors = getAncestors(cid);
-    selectionDepth = ancestors.length;
-  }
+function _syncSelectionUi(preferredCid) {
   const svg = document.querySelector("#stage svg");
   if (svg) {
     svg.querySelectorAll(".dg-selected").forEach(el => el.classList.remove("dg-selected"));
-    selectedIds.forEach(id => {
+    selectedIds.forEach((id) => {
       svg.querySelectorAll('[data-component-id="' + id + '"]')
-        .forEach(g => g.classList.add("dg-selected"));
+        .forEach((g) => g.classList.add("dg-selected"));
     });
-    showResizeHandles(cid);
   }
-  document.querySelectorAll(".tree-item").forEach(el => {
+  document.querySelectorAll(".tree-item").forEach((el) => {
     el.classList.toggle("selected", selectedIds.has(el.textContent));
   });
-  renderSelectionInspector(cid);
-}
 
-function reapplySelection() {
-  const svg = document.querySelector("#stage svg");
-  if (!svg || selectedIds.size === 0) return;
-  svg.querySelectorAll(".dg-selected").forEach(el => el.classList.remove("dg-selected"));
-  selectedIds.forEach(id => {
-    svg.querySelectorAll('[data-component-id="' + id + '"]')
-      .forEach(g => g.classList.add("dg-selected"));
-  });
-  document.querySelectorAll(".tree-item").forEach(el => {
-    el.classList.toggle("selected", selectedIds.has(el.textContent));
-  });
-  const primary = [...selectedIds].pop();
-  if (primary) showResizeHandles(primary);
+  if (selectedIds.size === 0) {
+    removeResizeHandles();
+    renderEmptyInspector();
+    return;
+  }
+
+  removeResizeHandles();
+  const primary = getPrimarySelectedId(preferredCid);
+  if (primary) {
+    showResizeHandles(primary);
+  }
   renderSelectionInspector(primary);
 }
 
-function clearSelection() {
+function selectComponent(cid, additive) {
+  const nextState = additive
+    ? LayoutEngine.applySelectionStateMutation({
+      selectedIds: [...selectedIds],
+      selectionDepth,
+    }, { kind: 'toggle', targetId: cid })
+    : LayoutEngine.applySelectionStateMutation({
+      selectedIds: [...selectedIds],
+      selectionDepth,
+    }, { kind: 'replace', targetId: cid, nextSelectionDepth: getAncestors(cid).length });
   selectedIds.clear();
-  selectionDepth = 0;
-  const svg = document.querySelector("#stage svg");
-  if (svg) svg.querySelectorAll(".dg-selected").forEach(el => el.classList.remove("dg-selected"));
-  removeResizeHandles();
-  document.querySelectorAll(".tree-item.selected").forEach(el => el.classList.remove("selected"));
-  renderEmptyInspector();
+  nextState.selectedIds.forEach((id) => selectedIds.add(id));
+  selectionDepth = nextState.selectionDepth;
+  _syncSelectionUi(cid);
+}
+
+function reapplySelection() {
+  _syncSelectionUi();
+}
+
+function clearSelection() {
+  deselectAll();
 }
 
 // ---- 9-point alignment widget (v3) ----
@@ -5353,51 +5144,51 @@ window.setFrameAlign = setFrameAlign;
 
 // ---- Auto-layout controls (v3) ----
 
-function _isHeadedStackContainer(node) {
-  return !!(node && node.layout && _nodeHeadingText(node));
-}
-
 function buildAutolayoutPanel(cid, node) {
   // Show for any node that has layout data from the v3 engine
   if (!node) return '';
-  const isContainer = node.layout || (node.children && node.children.length > 0);
-
-  // Read current values from overrides first, then from tree data
   const ovr = overrides[cid] || {};
   const wCoerced = _coercedKeys.has(cid + ':sizing_w');
   const hCoerced = _coercedKeys.has(cid + ':sizing_h');
   const sizingW = _getRuntimeSizingValue(cid, node, 'w') || 'HUG';
   const sizingH = _getRuntimeSizingValue(cid, node, 'h') || 'HUG';
+  const panelState = LayoutEngine.createSingleSelectionAutolayoutState({
+    nodeLayout: node.layout,
+    childCount: node.children ? node.children.length : 0,
+    hasParent: !!node.parent,
+    overrideDirection: ovr.direction,
+    overrideGapDelta: ovr.gap_delta,
+    nodeGapDelta: node.data?.gapDelta ?? node.data?.gap_delta,
+    layoutGap: node.layoutGap,
+    layoutRowGap: node.layoutRowGap,
+    layoutColGap: node.layoutColGap,
+    sizingW,
+    sizingH,
+    wCoerced,
+    hCoerced,
+    hasTextContent: _nodeHasTextContent(node),
+    positionType: ovr.position,
+  });
 
   let html = '<div class="dg-autolayout-section">';
 
-  if (isContainer) {
-    const direction = ovr.direction || (node.layout === 'horizontal' ? 'HORIZONTAL' : 'VERTICAL');
-    const runtimeGap = direction === 'HORIZONTAL'
-      ? (node.layoutColGap ?? node.layoutGap ?? 24)
-      : (node.layoutRowGap ?? node.layoutGap ?? 24);
-    const currentGapDelta = 'gap_delta' in ovr
-      ? (ovr.gap_delta == null ? 0 : (Number(ovr.gap_delta) || 0))
-      : (Number(node.data?.gapDelta ?? node.data?.gap_delta) || 0);
-    const automaticGap = Math.max(0, runtimeGap - currentGapDelta);
-    const effectiveGap = Math.max(0, automaticGap + currentGapDelta);
-
+  if (panelState.isContainer) {
     html += '<span class="label" style="margin-bottom:4px;display:block">Auto-layout · ' + cid + '</span>';
 
     // Direction
     html += '<div class="field"><span class="label">Direction</span>';
     html += '<select class="bf-input" onchange="setFrameProp(\'' + cid + '\',\'direction\',this.value)">';
-    html += '<option value="VERTICAL"' + (direction === 'VERTICAL' ? ' selected' : '') + '>Vertical</option>';
-    html += '<option value="HORIZONTAL"' + (direction === 'HORIZONTAL' ? ' selected' : '') + '>Horizontal</option>';
+    html += '<option value="VERTICAL"' + (panelState.direction === 'VERTICAL' ? ' selected' : '') + '>Vertical</option>';
+    html += '<option value="HORIZONTAL"' + (panelState.direction === 'HORIZONTAL' ? ' selected' : '') + '>Horizontal</option>';
     html += '</select></div>';
 
     html += '<div class="field"><span class="label">Gap bump</span>';
-    html += '<input class="bf-input" type="number" step="8" value="' + currentGapDelta + '"';
+    html += '<input class="bf-input" type="number" step="8" value="' + panelState.currentGapDelta + '"';
     html += ' onchange="setFrameProp(\'' + cid + '\',\'gap_delta\',this.value)"';
     html += ' onkeydown="if(event.key===\'Enter\'){event.preventDefault();event.stopPropagation();this.blur();}"';
     html += ' style="width:64px;margin-left:4px">';
     html += '<span class="label" style="margin-left:4px">px</span></div>';
-    html += '<div class="hint">Effective gap ' + effectiveGap + 'px = auto ' + automaticGap + 'px + delta ' + currentGapDelta + 'px. Set 0 to clear the manual bump.</div>';
+    html += '<div class="hint">Effective gap ' + panelState.effectiveGap + 'px = auto ' + panelState.automaticGap + 'px + delta ' + panelState.currentGapDelta + 'px. Set 0 to clear the manual bump.</div>';
 
     html += '<div class="hint">Padding now derives from frame defaults: 8px for non-root frames, with annotation side padding collapsed to 0.</div>';
   } else {
@@ -5406,13 +5197,13 @@ function buildAutolayoutPanel(cid, node) {
 
   // Per-axis sizing (shown for all nodes)
   html += '<div class="field"><span class="label">Width</span>';
-  html += '<select class="bf-input' + (wCoerced ? ' dg-coerced' : '') + '" onchange="setFrameProp(\'' + cid + '\',\'sizing_w\',this.value)">';
-  html += '<option value="HUG"' + (sizingW === 'HUG' ? ' selected' : '') + '>Hug</option>';
-  html += '<option value="FILL"' + (sizingW === 'FILL' ? ' selected' : '') + '>Fill</option>';
-  html += '<option value="FIXED"' + (sizingW === 'FIXED' ? ' selected' : '') + '>' + (wCoerced ? 'Fixed (auto)' : 'Fixed') + '</option>';
+  html += '<select class="bf-input' + (panelState.wCoerced ? ' dg-coerced' : '') + '" onchange="setFrameProp(\'' + cid + '\',\'sizing_w\',this.value)">';
+  html += '<option value="HUG"' + (panelState.sizingW === 'HUG' ? ' selected' : '') + '>Hug</option>';
+  html += '<option value="FILL"' + (panelState.sizingW === 'FILL' ? ' selected' : '') + '>Fill</option>';
+  html += '<option value="FIXED"' + (panelState.sizingW === 'FIXED' ? ' selected' : '') + '>' + (panelState.wCoerced ? 'Fixed (auto)' : 'Fixed') + '</option>';
   html += '</select>';
   // Numeric width + unit selector (shown when FIXED)
-  if (sizingW === 'FIXED') {
+  if (panelState.showWidthFixedInput) {
     const rawW = ovr.width !== undefined ? ovr.width : (node.data ? node.data.width : 0);
     const displayW = _inspectorWidthUnit === 'cols' ? Math.round(pxToColSpan(rawW) * 100) / 100 : Math.round(rawW);
     const stepW = _inspectorWidthUnit === 'cols' ? 1 : BASELINE_STEP;
@@ -5428,7 +5219,7 @@ function buildAutolayoutPanel(cid, node) {
   }
   html += '</div>';
   // Min/max width (FILL and FIXED always; typographic measure for text-bearing HUG)
-  if (sizingW === 'FILL' || sizingW === 'FIXED') {
+  if (panelState.showWidthMinMax) {
     const curMinW = ovr.min_width !== undefined ? ovr.min_width : (_nodeProp(node, "min_width") ?? '');
     const curMaxW = ovr.max_width !== undefined ? ovr.max_width : (_nodeProp(node, "max_width") ?? '');
     html += '<div class="field dg-constraint-row"><span class="label">Min W</span>';
@@ -5443,7 +5234,7 @@ function buildAutolayoutPanel(cid, node) {
     html += ' style="width:52px">';
     html += '</div>';
   }
-  if (sizingW === 'HUG' && _nodeHasTextContent(node)) {
+  if (panelState.showWidthTextMeasure) {
     const curMinW = ovr.min_width !== undefined ? ovr.min_width : (_nodeProp(node, "min_width") ?? '');
     const curMaxW = _inspectorDisplayMaxWidth(node, ovr);
     const curMaxChars = _inspectorMaxWidthChars(node, ovr);
@@ -5468,7 +5259,7 @@ function buildAutolayoutPanel(cid, node) {
     html += '</div>';
   }
   // Fill weight (shown when width sizing is FILL)
-  if (sizingW === 'FILL') {
+  if (panelState.showWidthFillWeight) {
     const curFW = ovr.fill_weight !== undefined ? ovr.fill_weight : (_nodeProp(node, "fill_weight") ?? 1);
     html += '<div class="field"><span class="label">Weight</span>';
     html += '<input class="bf-input" type="number" min="0" step="0.5" value="' + curFW + '"';
@@ -5478,13 +5269,13 @@ function buildAutolayoutPanel(cid, node) {
   }
 
   html += '<div class="field"><span class="label">Height</span>';
-  html += '<select class="bf-input' + (hCoerced ? ' dg-coerced' : '') + '" onchange="setFrameProp(\'' + cid + '\',\'sizing_h\',this.value)">';
-  html += '<option value="HUG"' + (sizingH === 'HUG' ? ' selected' : '') + '>Hug</option>';
-  html += '<option value="FILL"' + (sizingH === 'FILL' ? ' selected' : '') + '>Fill</option>';
-  html += '<option value="FIXED"' + (sizingH === 'FIXED' ? ' selected' : '') + '>' + (hCoerced ? 'Fixed (auto)' : 'Fixed') + '</option>';
+  html += '<select class="bf-input' + (panelState.hCoerced ? ' dg-coerced' : '') + '" onchange="setFrameProp(\'' + cid + '\',\'sizing_h\',this.value)">';
+  html += '<option value="HUG"' + (panelState.sizingH === 'HUG' ? ' selected' : '') + '>Hug</option>';
+  html += '<option value="FILL"' + (panelState.sizingH === 'FILL' ? ' selected' : '') + '>Fill</option>';
+  html += '<option value="FIXED"' + (panelState.sizingH === 'FIXED' ? ' selected' : '') + '>' + (panelState.hCoerced ? 'Fixed (auto)' : 'Fixed') + '</option>';
   html += '</select>';
   // Numeric height + unit selector (shown when FIXED)
-  if (sizingH === 'FIXED') {
+  if (panelState.showHeightFixedInput) {
     const rawH = ovr.height !== undefined ? ovr.height : (node.data ? node.data.height : 0);
     const displayH = _inspectorHeightUnit === 'rows' ? Math.round(pxToRowSpan(rawH) * 100) / 100 : Math.round(rawH);
     const stepH = _inspectorHeightUnit === 'rows' ? 1 : BASELINE_STEP;
@@ -5498,7 +5289,7 @@ function buildAutolayoutPanel(cid, node) {
   }
   html += '</div>';
   // Min/max height (FILL and FIXED)
-  if (sizingH === 'FILL' || sizingH === 'FIXED') {
+  if (panelState.showHeightMinMax) {
     const curMinH = ovr.min_height !== undefined ? ovr.min_height : (_nodeProp(node, "min_height") ?? '');
     const curMaxH = ovr.max_height !== undefined ? ovr.max_height : (_nodeProp(node, "max_height") ?? '');
     html += '<div class="field dg-constraint-row"><span class="label">Min H</span>';
@@ -5515,15 +5306,13 @@ function buildAutolayoutPanel(cid, node) {
   }
 
   // Position type (absolute vs auto) — shown for non-root nodes
-  if (node.parent) {
-    const posType = ovr.position || 'AUTO';
-    const isAbsolute = posType.toUpperCase() === 'ABSOLUTE';
+  if (panelState.showPositionType) {
     html += '<div class="field"><span class="label">Position</span>';
     html += '<select class="bf-input" onchange="setFrameProp(\'' + cid + '\',\'position\',this.value)">';
-    html += '<option value="AUTO"' + (!isAbsolute ? ' selected' : '') + '>Auto</option>';
-    html += '<option value="ABSOLUTE"' + (isAbsolute ? ' selected' : '') + '>Absolute</option>';
+    html += '<option value="AUTO"' + (panelState.positionType !== 'ABSOLUTE' ? ' selected' : '') + '>Auto</option>';
+    html += '<option value="ABSOLUTE"' + (panelState.positionType === 'ABSOLUTE' ? ' selected' : '') + '>Absolute</option>';
     html += '</select></div>';
-    if (isAbsolute) {
+    if (panelState.showAbsoluteOffsetControls) {
       const xVal = ovr.x !== undefined ? ovr.x : 0;
       const yVal = ovr.y !== undefined ? ovr.y : 0;
       html += '<div class="field"><span class="label">Offset</span>';
@@ -5779,46 +5568,50 @@ function updateInspector(cid) {
   }
   const own = getOwnDelta(cid);
   const eff = getEffectiveDelta(cid);
-  const hasMoveOverride = own.dx !== 0 || own.dy !== 0;
-  const hasSizeOverride = own.dw !== 0 || own.dh !== 0;
   const hasWpOverride = !!(overrides[cid] && overrides[cid].waypoints);
-  const hasOverride = hasMoveOverride || hasSizeOverride || hasWpOverride;
-  const hasParentOverride = eff.dx !== own.dx || eff.dy !== own.dy;
+  const componentType = getComponentType(cid);
+  const parentNode = getParentNode(cid);
+  const inspectorView = LayoutEngine.createSingleSelectionInspectorViewModel({
+    align: (overrides[cid] && overrides[cid].align) || (inspNode && inspNode.align) || "TOP_LEFT",
+    ownDelta: own,
+    effectiveDelta: eff,
+    hasWaypointOverride: hasWpOverride,
+    waypointCount: arrowNode && arrowNode.waypoints ? arrowNode.waypoints.length : 0,
+    componentType,
+    parentLayout: parentNode ? parentNode.layout : null,
+  });
 
   let html = '';
-  const currentAlign = (overrides[cid] && overrides[cid].align) || (inspNode && inspNode.align) || "TOP_LEFT";
   try {
-    html += buildAlignWidget(cid, currentAlign);
+    html += buildAlignWidget(cid, inspectorView.currentAlign);
     html += buildAutolayoutPanel(cid, inspNode);
   } catch (err) {
     console.error("Inspector panel render failed:", err);
     html += '<p class="bf-form-help" style="color:#c66">Inspector controls failed: ' +
       (typeof escapeHtml === "function" ? escapeHtml(err.message) : err.message) + '</p>';
   }
-  if (hasMoveOverride) {
+  if (inspectorView.hasMoveOverride) {
     html += '<div class="field"><span class="label">Position override</span><br>' +
       '<span class="value override">dx=' + own.dx + '  dy=' + own.dy + '</span></div>';
   }
-  if (hasSizeOverride) {
+  if (inspectorView.hasSizeOverride) {
     html += '<div class="field"><span class="label">Size override</span><br>' +
       '<span class="value override">dw=' + own.dw + '  dh=' + own.dh + '</span></div>';
   }
-  if (hasParentOverride) {
+  if (inspectorView.hasParentOverride) {
     html += '<div class="field"><span class="label">Effective (incl. parents)</span><br>' +
       '<span class="value override">dx=' + eff.dx + '  dy=' + eff.dy + '</span></div>';
   }
   if (arrowNode) {
-    const wpCount = arrowNode.waypoints ? arrowNode.waypoints.length : 0;
     html += '<div class="field"><span class="label">Waypoints</span><br>' +
-      '<span class="value' + (hasWpOverride ? ' override' : '') + '">' + wpCount +
-      (hasWpOverride ? ' (overridden)' : '') + '</span></div>';
+      '<span class="value' + (inspectorView.hasWaypointOverride ? ' override' : '') + '">' + inspectorView.waypointCount +
+      (inspectorView.hasWaypointOverride ? ' (overridden)' : '') + '</span></div>';
   }
-  if (hasOverride) {
+  if (inspectorView.hasAnyOverride) {
     html += '<button class="bf-button is-base danger" onclick="clearOverride(\''+cid+'\')">Clear override</button>';
   }
   // Style picker (available for all non-arrow components)
-  const ctype = getComponentType(cid).toLowerCase();
-  if (ctype !== "arrow") {
+  if (!inspectorView.isArrowComponent) {
     if (_nodeSupportsVisibleStylePicker(inspNode)) {
       const currentStyle = _effectiveStyleName(cid, inspNode);
       html += '<div class="field" style="margin-top:6px"><span class="label">Style</span><br>';
@@ -5831,15 +5624,11 @@ function updateInspector(cid) {
       html += '<div class="field" style="margin-top:6px"><span class="label">Style</span><div class="hint">Structural wrapper — no box style or default panel padding.</div></div>';
     }
   }
-  const isAutoChild = _isAutolayoutChild(cid);
-  if (isAutoChild) {
-    const parentNode = model.getParent(cid);
-    if (parentNode && parentNode.layout) {
-      html += '<div class="dg-autolayout-section" style="margin-top:8px">';
-      html += '<span class="label" style="margin-bottom:4px;display:block">Stack spacing</span>';
-      html += '<div class="hint">Frame gap now derives from composition. Use distribute for arrangement, or edit YAML only for true structural exceptions.</div>';
-      html += '</div>';
-    }
+  if (inspectorView.showStackSpacingHint) {
+    html += '<div class="dg-autolayout-section" style="margin-top:8px">';
+    html += '<span class="label" style="margin-bottom:4px;display:block">Stack spacing</span>';
+    html += '<div class="hint">Frame gap now derives from composition. Use distribute for arrangement, or edit YAML only for true structural exceptions.</div>';
+    html += '</div>';
   }
   // Show constraint violations for this component
   const cv = getViolationsForComponent(cid);
@@ -5851,7 +5640,7 @@ function updateInspector(cid) {
     }
     html += '</div>';
   }
-  if (isAutoChild) {
+  if (inspectorView.noteKind === 'reorder-child') {
     html += '<p class="dg-inspector-note">Drag to reorder &#xb7; Shift+Enter to select parent &#xb7; W to toggle grid overlay.</p>';
   } else {
     html += '<p class="dg-inspector-note">Drag to move &#xb7; handles to resize (8px grid) &#xb7; W to toggle grid overlay.</p>';
@@ -6014,7 +5803,7 @@ document.addEventListener("keydown", (e) => {
     }
   } else if (selectedIds.size > 0 && !mgr.isMode(InteractionMode.TEXT_EDITING) &&
              !e.ctrlKey && !e.metaKey && !e.altKey &&
-             ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+             LayoutEngine.isNudgeKey(e.key)) {
     // Skip nudge for autolayout children — position is engine-controlled
     const anyAutolayout = [...selectedIds].some(id => _isAutolayoutChild(id));
     if (anyAutolayout) return;
@@ -6022,15 +5811,21 @@ document.addEventListener("keydown", (e) => {
     const step = e.shiftKey ? 24 : 8;
     const nudgeIds = [...selectedIds];
     const nudgeBefore = EditorState.captureOverrideEntries(nudgeIds);
-    selectedIds.forEach(id => {
+    const nudgeItems = nudgeIds.map((id) => {
       const own = getOwnDelta(id);
-      let dx = own.dx, dy = own.dy;
-      if (e.key === "ArrowUp") dy -= step;
-      else if (e.key === "ArrowDown") dy += step;
-      else if (e.key === "ArrowLeft") dx -= step;
-      else if (e.key === "ArrowRight") dx += step;
-      setOverride(id, { dx, dy });
+      return {
+        id,
+        dx: own.dx,
+        dy: own.dy,
+        dw: own.dw,
+        dh: own.dh,
+      };
     });
+    _applyInteractionOverrideEntries(LayoutEngine.createNudgeOverrideEntries({
+      items: nudgeItems,
+      key: e.key,
+      step,
+    }));
     EditorState.commitOverridePatchAction("Nudge selection", nudgeBefore, EditorState.captureOverrideEntries(nudgeIds));
     applyAllOverrides();
     const primary = [...selectedIds].pop();

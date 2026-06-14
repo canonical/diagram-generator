@@ -32,6 +32,10 @@ Feature package: `docs/spec-archive/035-compatible-engine-switcher/`.
 
 - [ ] `[H]` **Draft a spec-kit package for a folder-backed editor app shell.** The preview should open a user-chosen diagram folder, populate the left nav from that folder instead of the fixed test list, and remove the duplicate diagram picker UI in favor of one coherent sidenav-driven navigation model.
 
+#### Preview shell editor TS extraction (spec 043)
+
+- [ ] `[H]` **Finish the remaining `editor.js` decomposition into TS-owned slices.** Spec package: `specs/043-preview-shell-editor-ts-extraction/`. Prioritize inspector, interaction, and grid-control extraction so the standalone preview shell becomes leaner, stabler, and easier to extend across many engine lanes.
+
 #### Shared preview-shell chrome consistency (new spec needed)
 
 - [ ] `[M]` **Draft a spec-kit package for shell-chrome consistency across Input / Output / Both.** Shared preview UI chrome should not disappear per engine or per missing reference image; unavailable content should degrade with placeholders, not by trimming shell affordances. Preserve the existing editor demo structure and replace ad hoc preview-app CSS with Baseline Foundry-owned styling rather than inventing new UI.
