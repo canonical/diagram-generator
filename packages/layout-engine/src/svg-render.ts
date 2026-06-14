@@ -209,12 +209,15 @@ function _arrowheadPoints(
   const dy = tipY - prevY;
   const len = Math.hypot(dx, dy);
   if (len === 0) return null;
+  const scale = Math.min(1, len / ARROW_HEAD_LENGTH);
+  const headLength = ARROW_HEAD_LENGTH * scale;
+  const headHalfWidth = ARROW_HEAD_HALF_WIDTH * scale;
   const ux = dx / len;
   const uy = dy / len;
-  const bx = tipX - ux * ARROW_HEAD_LENGTH;
-  const by = tipY - uy * ARROW_HEAD_LENGTH;
-  const nx = -uy * ARROW_HEAD_HALF_WIDTH;
-  const ny = ux * ARROW_HEAD_HALF_WIDTH;
+  const bx = tipX - ux * headLength;
+  const by = tipY - uy * headLength;
+  const nx = -uy * headHalfWidth;
+  const ny = ux * headHalfWidth;
   const pts = [
     `${fmt(bx + nx)},${fmt(by + ny)}`,
     `${fmt(tipX)},${fmt(tipY)}`,

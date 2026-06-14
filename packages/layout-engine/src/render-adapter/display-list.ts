@@ -225,12 +225,15 @@ function arrowheadPath(
   const dy = tipY - prevY;
   const length = Math.hypot(dx, dy);
   if (length === 0) return null;
+  const scale = Math.min(1, length / ARROW_HEAD_LENGTH);
+  const headLength = ARROW_HEAD_LENGTH * scale;
+  const headHalfWidth = ARROW_HEAD_HALF_WIDTH * scale;
   const ux = dx / length;
   const uy = dy / length;
-  const bx = tipX - ux * ARROW_HEAD_LENGTH;
-  const by = tipY - uy * ARROW_HEAD_LENGTH;
-  const nx = -uy * ARROW_HEAD_HALF_WIDTH;
-  const ny = ux * ARROW_HEAD_HALF_WIDTH;
+  const bx = tipX - ux * headLength;
+  const by = tipY - uy * headLength;
+  const nx = -uy * headHalfWidth;
+  const ny = ux * headHalfWidth;
   return {
     base: [bx, by],
     commands: [

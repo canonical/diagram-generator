@@ -997,13 +997,15 @@ function patchArrowsSvg(svgEl, routedArrows, boundsMap) {
       let basePoint = null;
       const [tx, ty] = points[points.length - 1];
       const [px, py] = points[points.length - 2];
-      const dx = tx - px;
-      const dy = ty - py;
-      const length = Math.hypot(dx, dy);
-      if (length > 0) {
-        const HL = window.__DG_CONFIG.head_len || 12;
-        basePoint = [tx - (dx / length) * HL, ty - (dy / length) * HL];
-      }
+      const head = _arrowheadPoints(
+        tx,
+        ty,
+        px,
+        py,
+        window.__DG_CONFIG.head_len || 12,
+        window.__DG_CONFIG.head_half || 6,
+      );
+      if (head) basePoint = head.base;
 
       for (let i = 0; i < lines.length && i < points.length - 1; i++) {
         lines[i].setAttribute("x1", points[i][0].toFixed(1));
@@ -1026,21 +1028,15 @@ function patchArrowsSvg(svgEl, routedArrows, boundsMap) {
     if (polygon && points.length >= 2) {
       const [tx, ty] = points[points.length - 1];
       const [px, py] = points[points.length - 2];
-      const dx = tx - px;
-      const dy = ty - py;
-      const length = Math.hypot(dx, dy);
-      if (length > 0) {
-        const HL = window.__DG_CONFIG.head_len || 12;
-        const HH = window.__DG_CONFIG.head_half || 6;
-        const ux = dx / length;
-        const uy = dy / length;
-        const bx = tx - ux * HL;
-        const by = ty - uy * HL;
-        const nx = -uy * HH;
-        const ny = ux * HH;
-        const pts = `${(bx + nx).toFixed(1)},${(by + ny).toFixed(1)} ${tx.toFixed(1)},${ty.toFixed(1)} ${(bx - nx).toFixed(1)},${(by - ny).toFixed(1)}`;
-        polygon.setAttribute("points", pts);
-      }
+      const head = _arrowheadPoints(
+        tx,
+        ty,
+        px,
+        py,
+        window.__DG_CONFIG.head_len || 12,
+        window.__DG_CONFIG.head_half || 6,
+      );
+      if (head) polygon.setAttribute("points", head.points);
     }
     _replaceArrowLabels(g, arrow, boundsMap);
     _syncArrowOriginGeometry(g);
@@ -1769,12 +1765,15 @@ function _arrowheadPoints(tipX, tipY, prevX, prevY, headLen, headHalf) {
   const dy = tipY - prevY;
   const length = Math.hypot(dx, dy);
   if (length === 0) return null;
+  const scale = Math.min(1, length / headLen);
+  const scaledHeadLen = headLen * scale;
+  const scaledHeadHalf = headHalf * scale;
   const ux = dx / length;
   const uy = dy / length;
-  const bx = tipX - ux * headLen;
-  const by = tipY - uy * headLen;
-  const nx = -uy * headHalf;
-  const ny = ux * headHalf;
+  const bx = tipX - ux * scaledHeadLen;
+  const by = tipY - uy * scaledHeadLen;
+  const nx = -uy * scaledHeadHalf;
+  const ny = ux * scaledHeadHalf;
   return {
     base: [bx, by],
     points: `${(bx + nx).toFixed(1)},${(by + ny).toFixed(1)} ${tipX.toFixed(1)},${tipY.toFixed(1)} ${(bx - nx).toFixed(1)},${(by - ny).toFixed(1)}`,

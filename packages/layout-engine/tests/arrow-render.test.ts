@@ -214,6 +214,63 @@ describe('arrow rendering parity', () => {
     expect(svg).toContain('x1="50" y1="100" x2="200" y2="100"');
   });
 
+  it('clamps arrowheads to short final segments without reversing the shaft', () => {
+    const root = new Frame({
+      id: 'page',
+      children: [
+        new Frame({ id: 'source', label: [{ content: 'Source' }] }),
+        new Frame({ id: 'target', label: [{ content: 'Target' }] }),
+      ],
+    });
+
+    root._layout.placedX = 0;
+    root._layout.placedY = 0;
+    root._layout.placedW = 220;
+    root._layout.placedH = 80;
+
+    const source = root.children[0]!;
+    source._layout.placedX = 0;
+    source._layout.placedY = 0;
+    source._layout.placedW = 80;
+    source._layout.placedH = 50;
+
+    const target = root.children[1]!;
+    target._layout.placedX = 120;
+    target._layout.placedY = 0;
+    target._layout.placedW = 80;
+    target._layout.placedH = 50;
+
+    const arrow = createArrow('source.right', 'target.left', {
+      id: 'short-leftward',
+      layoutPath: [[100, 25], [95, 25]],
+    });
+    const diagram = new FrameDiagram({ root, arrows: [arrow] });
+    const adapter = new MockTextAdapter();
+
+    const svg = renderFrameDiagramToSvg(diagram, { width: 220, height: 80 }, adapter);
+    expect(svg).toContain('data-component-id="short-leftward"');
+    expect(svg).toContain('x1="100" y1="25" x2="100" y2="25"');
+
+    const polygonMatch = svg.match(/<polygon points="([^"]+)" fill="#E95420"\/>/);
+    expect(polygonMatch?.[1]).toBeDefined();
+    const xs = (polygonMatch?.[1] ?? '')
+      .split(' ')
+      .map((point) => Number.parseFloat(point.split(',')[0] ?? 'NaN'));
+    expect(Math.max(...xs)).toBeLessThanOrEqual(100);
+
+    const displayList = emitFrameDiagramDisplayList(diagram, { width: 220, height: 80 }, adapter);
+    const group = displayList.items.find(
+      item => item.kind === 'group' && item.id === 'short-leftward',
+    );
+    expect(group && group.kind === 'group').toBeTruthy();
+    const lines = group && group.kind === 'group'
+      ? group.children.filter(item => item.kind === 'line')
+      : [];
+    expect(lines).toHaveLength(1);
+    expect(lines[0]?.x1).toBe(100);
+    expect(lines[0]?.x2).toBeLessThanOrEqual(lines[0]?.x1 ?? -Infinity);
+  });
+
   it('ignores raw YAML line style fields in favor of semantic defaults', () => {
     const tempDir = mkdtempSync(join(tmpdir(), 'dg-line-style-test-'));
     const yamlPath = join(tempDir, 'styled-lines.yaml');

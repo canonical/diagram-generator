@@ -4227,9 +4227,11 @@ function updateArrowVisual(cid) {
         const segDx = tipX - prevX;
         const segDy = tipY - prevY;
         const segLen = Math.sqrt(segDx * segDx + segDy * segDy);
-        if (segLen > HEAD_LEN) {
-          const baseX = tipX - (segDx / segLen) * HEAD_LEN;
-          const baseY = tipY - (segDy / segLen) * HEAD_LEN;
+        if (segLen > 0) {
+          const scale = Math.min(1, segLen / HEAD_LEN);
+          const headLen = HEAD_LEN * scale;
+          const baseX = tipX - (segDx / segLen) * headLen;
+          const baseY = tipY - (segDy / segLen) * headLen;
           visLines[i].setAttribute("x2", baseX);
           visLines[i].setAttribute("y2", baseY);
         } else {
@@ -4257,12 +4259,15 @@ function updateArrowVisual(cid) {
       const segDy = tipY - prevY;
       const segLen = Math.sqrt(segDx * segDx + segDy * segDy);
       if (segLen > 0) {
+        const scale = Math.min(1, segLen / HEAD_LEN);
+        const headLen = HEAD_LEN * scale;
+        const headHalf = HEAD_HALF * scale;
         const ux = segDx / segLen;
         const uy = segDy / segLen;
-        const baseX = tipX - ux * HEAD_LEN;
-        const baseY = tipY - uy * HEAD_LEN;
-        const perpX = -uy * HEAD_HALF;
-        const perpY = ux * HEAD_HALF;
+        const baseX = tipX - ux * headLen;
+        const baseY = tipY - uy * headLen;
+        const perpX = -uy * headHalf;
+        const perpY = ux * headHalf;
         const p1 = (baseX + perpX) + "," + (baseY + perpY);
         const p2 = tipX + "," + tipY;
         const p3 = (baseX - perpX) + "," + (baseY - perpY);
@@ -4322,9 +4327,11 @@ function rebuildArrowSVG(cid) {
       const segDx = tipX - x1;
       const segDy = tipY - y1;
       const segLen = Math.sqrt(segDx * segDx + segDy * segDy);
-      if (segLen > HEAD_LEN) {
-        x2 = tipX - (segDx / segLen) * HEAD_LEN;
-        y2 = tipY - (segDy / segLen) * HEAD_LEN;
+      if (segLen > 0) {
+        const scale = Math.min(1, segLen / HEAD_LEN);
+        const headLen = HEAD_LEN * scale;
+        x2 = tipX - (segDx / segLen) * headLen;
+        y2 = tipY - (segDy / segLen) * headLen;
       } else {
         x2 = tipX; y2 = tipY;
       }
@@ -4356,12 +4363,15 @@ function rebuildArrowSVG(cid) {
     const segDy = tipY - prevY;
     const segLen = Math.sqrt(segDx * segDx + segDy * segDy);
     if (segLen > 0) {
+      const scale = Math.min(1, segLen / HEAD_LEN);
+      const headLen = HEAD_LEN * scale;
+      const headHalf = HEAD_HALF * scale;
       const ux = segDx / segLen;
       const uy = segDy / segLen;
-      const baseX = tipX - ux * HEAD_LEN;
-      const baseY = tipY - uy * HEAD_LEN;
-      const perpX = -uy * HEAD_HALF;
-      const perpY = ux * HEAD_HALF;
+      const baseX = tipX - ux * headLen;
+      const baseY = tipY - uy * headLen;
+      const perpX = -uy * headHalf;
+      const perpY = ux * headHalf;
       const poly = document.createElementNS(ns, "polygon");
       poly.setAttribute("points",
         (baseX + perpX) + "," + (baseY + perpY) + " " +
