@@ -667,6 +667,36 @@ describe('layoutElkFrameDiagram', () => {
     expectOrthogonalPath(step3?.layoutPath ?? []);
     expectOrthogonalPath(step4?.layoutPath ?? []);
     expectOrthogonalPath(step5?.layoutPath ?? []);
+    expect(step3?.layoutPath).toHaveLength(2);
+    expect(step3?.layoutPath?.[0]?.[0]).toBe(step3?.layoutPath?.[1]?.[0]);
+  });
+
+  it('keeps layering strategy changes observable on juju ELK layouts', async () => {
+    const longestPathDiagram = loadFrameYaml(join(FRAMES_DIR, 'juju-bootstrap-machines-process.yaml'));
+    const networkSimplexDiagram = loadFrameYaml(join(FRAMES_DIR, 'juju-bootstrap-machines-process.yaml'));
+    const adapter = new MockTextAdapter();
+
+    await layoutElkFrameDiagram(longestPathDiagram, adapter, {
+      elkOptionOverrides: {
+        'elk.layered.layering.strategy': 'LONGEST_PATH',
+      },
+    });
+    await layoutElkFrameDiagram(networkSimplexDiagram, adapter, {
+      elkOptionOverrides: {
+        'elk.layered.layering.strategy': 'NETWORK_SIMPLEX',
+      },
+    });
+
+    const longestPathClient = findFrameById(
+      longestPathDiagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'client',
+    );
+    const networkSimplexClient = findFrameById(
+      networkSimplexDiagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'client',
+    );
+
+    expect(longestPathClient?._layout.placedX).not.toBe(networkSimplexClient?._layout.placedX);
   });
 
   it('expands the root width to include ELK edge geometry beyond authored fixed width', async () => {

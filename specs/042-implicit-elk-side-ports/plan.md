@@ -19,7 +19,7 @@ Give ELK layered deterministic edge attachment via generated side-midpoint ports
 - `packages/graph-layout-elk/src/elk-graph-builder.ts` remains the authority that turns port-capable IR into an ELK graph.
 - Generate four midpoint ports (`top`, `right`, `bottom`, `left`) with stable ids derived from node id and side.
 - Treat authored edge endpoint nodes as eligible. Structural carriers stay unported. Compound nodes only get ports when the authored arrow points to that compound id directly.
-- Keep headed or icon-bearing compounds ELK-native. Their heading/body chrome should behave like decorative padding/background that moves with the box, while authored body children remain the ELK participants.
+- Keep headed or icon-bearing compounds ELK-compatible. Their heading/body chrome should behave like decorative padding/background that moves with the box, while authored body children remain the ELK participants. When bidirectional external descendant traffic makes native compound routing detour around the carrier boundary, flatten that carrier into the ELK input and keep the wrapper decorative.
 - Use ELK's native port API and edge-port refs only; do not plan a TypeScript reroute layer to compensate later.
 
 ### 3. Use supported ELK configuration, not a second routing algorithm

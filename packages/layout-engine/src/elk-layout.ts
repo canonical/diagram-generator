@@ -74,16 +74,66 @@ function authoredLayoutChildren(frame: Frame): Frame[] {
   return source.filter((child) => !isSyntheticLayoutFrame(child));
 }
 
+function descendantLeafIds(frame: Frame): string[] {
+  if (frame.isLeaf) return frame.id ? [frame.id] : [];
+  const out: string[] = [];
+  for (const child of authoredLayoutChildren(frame)) {
+    out.push(...descendantLeafIds(child));
+  }
+  return out;
+}
+
 function hasEndpointDescendant(frame: Frame, endpoints: Set<string>): boolean {
   if (frame.id && endpoints.has(frame.id)) return true;
   return frame.children.some((child) => hasEndpointDescendant(child, endpoints));
 }
 
-/** A headed authored container becomes a native ELK compound with decorative header padding. */
-function isElkCompound(frame: Frame, endpoints: Set<string>): boolean {
-  if (frame.isLeaf || frame.children.length === 0) return false;
-  if (!frame.children.some((child) => isSyntheticBodyFrame(child))) return false;
-  return authoredLayoutChildren(frame).some((child) => !isAnnotationFrame(child, endpoints));
+function collectNativeCompoundIds(
+  diagram: FrameDiagram,
+  endpoints: Set<string>,
+): Set<string> {
+  const nativeCompoundIds = new Set<string>();
+
+  walkFrames(diagram.root, (frame) => {
+    if (frame.isLeaf || frame.children.length === 0 || !frame.id) return;
+    const authoredChildren = authoredLayoutChildren(frame)
+      .filter((child) => !isAnnotationFrame(child, endpoints));
+    if (authoredChildren.length === 0) return;
+
+    if (endpoints.has(frame.id)) {
+      nativeCompoundIds.add(frame.id);
+      return;
+    }
+    if (!frame.children.some((child) => isSyntheticBodyFrame(child))) return;
+
+    const descendantEndpointIds = new Set(
+      descendantLeafIds(frame).filter((id) => endpoints.has(id)),
+    );
+    if (descendantEndpointIds.size === 0) return;
+
+    let hasInboundExternal = false;
+    let hasOutboundExternal = false;
+    for (const arrow of diagram.arrows) {
+      const sourceId = arrow.source.split('.')[0]!;
+      const targetId = arrow.target.split('.')[0]!;
+      const sourceInside = descendantEndpointIds.has(sourceId);
+      const targetInside = descendantEndpointIds.has(targetId);
+      if (sourceInside && !targetInside) hasOutboundExternal = true;
+      if (targetInside && !sourceInside) hasInboundExternal = true;
+      if (hasInboundExternal && hasOutboundExternal) {
+        return;
+      }
+    }
+
+    nativeCompoundIds.add(frame.id);
+  });
+
+  return nativeCompoundIds;
+}
+
+/** Headed wrappers stay native compounds unless bidirectional external traffic makes ELK detour around the carrier boundary. */
+function isElkCompound(frame: Frame, nativeCompoundIds: Set<string>): boolean {
+  return Boolean(frame.id) && nativeCompoundIds.has(frame.id);
 }
 
 function isElkCarrier(frame: Frame, endpoints: Set<string>): boolean {
@@ -95,11 +145,12 @@ function isElkCarrier(frame: Frame, endpoints: Set<string>): boolean {
 function shouldIncludeElkNode(
   frame: Frame,
   endpoints: Set<string>,
+  nativeCompoundIds: Set<string>,
   allowStructuralCarriers: boolean,
   includePassiveLeaves: boolean,
 ): boolean {
   if (isSyntheticLayoutFrame(frame) || isAnnotationFrame(frame, endpoints)) return false;
-  if (isElkCompound(frame, endpoints)) return true;
+  if (isElkCompound(frame, nativeCompoundIds)) return true;
   if (includePassiveLeaves && frame.isLeaf) return true;
   return endpoints.has(frame.id) || (allowStructuralCarriers && isElkCarrier(frame, endpoints));
 }
@@ -180,6 +231,7 @@ function frameToGraphNode(
   frame: Frame,
   adapter: TextMeasureAdapter,
   endpoints: Set<string>,
+  nativeCompoundIds: Set<string>,
   semanticSizes: Map<string, { width: number; height: number }>,
   semanticPlacements: Map<string, SemanticFramePlacement>,
   allowStructuralCarriers: boolean,
@@ -187,7 +239,7 @@ function frameToGraphNode(
 ): GraphNodeInput {
   measureSubtree(frame, adapter);
   const semantic = semanticSizes.get(frame.id);
-  const compound = isElkCompound(frame, endpoints);
+  const compound = isElkCompound(frame, nativeCompoundIds);
   const node: GraphNodeInput = {
     id: frame.id,
     width: semantic?.width ?? frame._layout.measuredW,
@@ -200,6 +252,7 @@ function frameToGraphNode(
     authoredLayoutChildren(frame),
     adapter,
     endpoints,
+    nativeCompoundIds,
     semanticSizes,
     semanticPlacements,
     allowStructuralCarriers || compound,
@@ -215,6 +268,7 @@ function collectGraphChildNodes(
   frames: Frame[],
   adapter: TextMeasureAdapter,
   endpoints: Set<string>,
+  nativeCompoundIds: Set<string>,
   semanticSizes: Map<string, { width: number; height: number }>,
   semanticPlacements: Map<string, SemanticFramePlacement>,
   allowStructuralCarriers: boolean,
@@ -222,12 +276,19 @@ function collectGraphChildNodes(
 ): GraphNodeInput[] {
   const nodes: GraphNodeInput[] = [];
   for (const frame of frames) {
-    if (shouldIncludeElkNode(frame, endpoints, allowStructuralCarriers, includePassiveLeaves)) {
+    if (shouldIncludeElkNode(
+      frame,
+      endpoints,
+      nativeCompoundIds,
+      allowStructuralCarriers,
+      includePassiveLeaves,
+    )) {
       nodes.push(
         frameToGraphNode(
           frame,
           adapter,
           endpoints,
+          nativeCompoundIds,
           semanticSizes,
           semanticPlacements,
           allowStructuralCarriers,
@@ -240,6 +301,7 @@ function collectGraphChildNodes(
       authoredLayoutChildren(frame),
       adapter,
       endpoints,
+      nativeCompoundIds,
       semanticSizes,
       semanticPlacements,
       allowStructuralCarriers,
@@ -253,6 +315,7 @@ function buildElkGraphNodes(
   root: Frame,
   adapter: TextMeasureAdapter,
   endpoints: Set<string>,
+  nativeCompoundIds: Set<string>,
   semanticSizes: Map<string, { width: number; height: number }>,
   semanticPlacements: Map<string, SemanticFramePlacement>,
 ): GraphNodeInput[] {
@@ -260,6 +323,7 @@ function buildElkGraphNodes(
     authoredLayoutChildren(root),
     adapter,
     endpoints,
+    nativeCompoundIds,
     semanticSizes,
     semanticPlacements,
     false,
@@ -747,6 +811,7 @@ export async function layoutElkFrameDiagram(
   resolveStyles(diagram.root);
 
   const endpoints = collectEndpointIds(diagram);
+  const nativeCompoundIds = collectNativeCompoundIds(diagram, endpoints);
   const originX = options.originX ?? diagram.root.paddingLeft;
   const originY = options.originY ?? diagram.root.paddingTop;
   const semanticLayout = collectSemanticLayoutSnapshot(diagram, adapter);
@@ -756,6 +821,7 @@ export async function layoutElkFrameDiagram(
     diagram.root,
     adapter,
     endpoints,
+    nativeCompoundIds,
     semanticSizes,
     semanticLayout.placements,
   );

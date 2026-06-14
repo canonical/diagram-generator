@@ -18,7 +18,7 @@
 - [x] T012 Evaluate supported ELK options for shared-source fan-out or merged stems; enable only if compatible with the chosen layered-plus-port setup
 - [x] T013 If no compatible native ELK option exists, keep default ELK behavior instead of adding a TypeScript fan-out pass
 - [x] T014 Document the intentional first-slice limit: one logical port per side and no custom same-side lane policy
-- [x] T015 Keep headed and icon-bearing compounds ELK-compatible by treating heading chrome as decorative container padding instead of a fallback trigger or graph-participating node
+- [x] T015 Keep headed and icon-bearing compounds ELK-compatible by treating heading chrome as decorative container padding instead of a fallback trigger or graph-participating node, while flattening bidirectional external-traffic carriers that would otherwise force ELK boundary detours
 
 ## Phase 3: Thin render-path authority
 
