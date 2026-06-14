@@ -126,6 +126,18 @@ export {
 } from './interaction-completion.js';
 
 export type {
+  PreviewDragCompletionDispatchOptions,
+  PreviewDragCompletionState,
+  PreviewResizeCompletionDispatchOptions,
+  PreviewResizeCompletionState,
+} from './interaction-completion-dispatch.js';
+
+export {
+  dispatchPreviewDragCompletion,
+  dispatchPreviewResizeCompletion,
+} from './interaction-completion-dispatch.js';
+
+export type {
   ReorderResolution,
   ReorderTargetPoint,
   ResizeBounds,
