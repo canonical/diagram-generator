@@ -1577,56 +1577,13 @@ function renderMultiSelectionInspector() {
   });
 
   multiActionGap = viewModel.inferredGap;
-
-  let html = '<div class="field"><span class="label">Selection</span><br>' +
-    '<span class="value">' + viewModel.selectedCount + ' components</span></div>';
-  html += '<div class="hint">Shift+click adds to the selection. Drag still moves the group together.</div>';
-
-  if (viewModel.showStackSpacingHint) {
-    html += '<div class="dg-autolayout-section" style="margin-top:8px">';
-    html += '<span class="label" style="margin-bottom:4px;display:block">Stack spacing</span>';
-    html += '<div class="hint">Frame gap now derives from composition. Use distribute for arrangement, or edit YAML only for true structural exceptions.</div>';
-    html += '</div>';
-  }
-
-  if (viewModel.showAlignOnlyHint) {
-    html += '<div class="field" style="margin-top:8px"><span class="label">Actions</span><br>' +
-      '<div class="hint">Distribute is limited to sibling components under the same parent. Align still works across the current selection.</div>' +
-      '<div class="multi-action-grid">' +
-      '<button class="bf-button is-base" type="button" onclick="alignSelection(\'left\')">Align left</button>' +
-      '<button class="bf-button is-base" type="button" onclick="alignSelection(\'center\')">Align center</button>' +
-      '<button class="bf-button is-base" type="button" onclick="alignSelection(\'right\')">Align right</button>' +
-      '<button class="bf-button is-base" type="button" onclick="alignSelection(\'top\')">Align top</button>' +
-      '<button class="bf-button is-base" type="button" onclick="alignSelection(\'middle\')">Align middle</button>' +
-      '<button class="bf-button is-base" type="button" onclick="alignSelection(\'bottom\')">Align bottom</button>' +
-      '</div></div>';
-  } else {
-    html += '<div class="field" style="margin-top:8px"><span class="label">Distribute</span>' +
-      '<div class="multi-action-row">' +
-      '<span class="value">Gap</span>' +
-      '<input class="bf-input" type="number" id="multi-action-gap" min="0" step="8" value="' + multiActionGap + '" oninput="setMultiActionGap(this.value)">' +
-      '<span class="unit">px</span>' +
-      '</div>' +
-      '<div class="multi-action-grid">' +
-      '<button class="bf-button" type="button" onclick="distributeSelection(\'x\')">Distribute H</button>' +
-      '<button class="bf-button" type="button" onclick="distributeSelection(\'y\')">Distribute V</button>' +
-      '<button class="bf-button is-base" type="button" onclick="alignSelection(\'left\')">Align left</button>' +
-      '<button class="bf-button is-base" type="button" onclick="alignSelection(\'center\')">Align center</button>' +
-      '<button class="bf-button is-base" type="button" onclick="alignSelection(\'right\')">Align right</button>' +
-      '<button class="bf-button is-base" type="button" onclick="alignSelection(\'top\')">Align top</button>' +
-      '<button class="bf-button is-base" type="button" onclick="alignSelection(\'middle\')">Align middle</button>' +
-      '<button class="bf-button is-base" type="button" onclick="alignSelection(\'bottom\')">Align bottom</button>' +
-      '</div></div>';
-  }
-
-  if (viewModel.hasUnsupported) {
-    html += '<div class="field"><div class="hint">Arrow selections are ignored by these actions.</div></div>';
-  }
-
-  // ── Bulk sizing controls (homogeneous selection) ──
+  let alignInfo = null;
+  let containerInfo = null;
+  let sizingInfo = null;
+  let styleInfo = null;
+  let styleOptionsHtml = '';
   if (info.items.length >= 2) {
-    // ── Alignment widget (v3) ──
-    const alignInfo = LayoutEngine.createMultiSelectionAlignState(info.items.map((item) => {
+    alignInfo = LayoutEngine.createMultiSelectionAlignState(info.items.map((item) => {
       const node = item.node;
       if (!node) return { hasFrameAlignment: false };
       return {
@@ -1634,23 +1591,8 @@ function renderMultiSelectionInspector() {
         align: (overrides[item.id] || {}).align || node.align || 'TOP_LEFT',
       };
     }));
-    if (alignInfo) {
-      html += '<div class="field"><span class="label">Alignment</span>';
-      html += '<div class="dg-align-field">';
-      html += '<div class="dg-align-grid">';
-      for (const pt of ALIGN_POINTS) {
-        const active = !alignInfo.mixed && pt === alignInfo.align ? " active" : "";
-        html += '<button class="' + active + '" title="' + ALIGN_LABELS[pt] +
-          '" onclick="setMultiFrameAlign(\'' + pt + '\')">' +
-          '</button>';
-      }
-      html += '</div>';
-      html += '<span class="value">' + (alignInfo.mixed ? 'Mixed' : ALIGN_LABELS[alignInfo.align]) + '</span>';
-      html += '</div></div>';
-    }
 
-    // ── Container properties (direction) ──
-    const containerInfo = LayoutEngine.createMultiSelectionContainerState(info.items.map((item) => {
+    containerInfo = LayoutEngine.createMultiSelectionContainerState(info.items.map((item) => {
       const node = item.node;
       if (!node) return { isContainer: false };
       const ovr = overrides[item.id] || {};
@@ -1660,32 +1602,8 @@ function renderMultiSelectionInspector() {
         wrap: ovr.wrap != null ? ovr.wrap : (_nodeProp(node, "wrap") || false),
       };
     }));
-    if (containerInfo) {
-      html += '<div class="dg-autolayout-section" style="margin-top:8px">';
-      html += '<span class="label" style="margin-bottom:4px;display:block">Auto-layout (' + containerInfo.containerCount + ' containers)</span>';
 
-      // Direction
-      html += '<div class="field"><span class="label">Direction</span>';
-      html += '<select class="bf-input" onchange="setMultiFrameProp(\'direction\',this.value)">';
-      if (containerInfo.dirMixed) html += '<option value="" selected>Mixed</option>';
-      html += '<option value="VERTICAL"' + (containerInfo.direction === 'VERTICAL' ? ' selected' : '') + '>Vertical</option>';
-      html += '<option value="HORIZONTAL"' + (containerInfo.direction === 'HORIZONTAL' ? ' selected' : '') + '>Horizontal</option>';
-      html += '</select></div>';
-
-      // Wrap (horizontal only)
-      if (containerInfo.direction === 'HORIZONTAL') {
-        html += '<div class="field"><span class="label">Wrap</span>';
-        html += '<input type="checkbox"' + (containerInfo.wrap ? ' checked' : '') + ' onchange="setMultiFrameProp(\'wrap\',this.checked)">';
-        html += '</div>';
-      }
-      html += '<div class="hint">Padding now derives from frame defaults: 8px for non-root frames, with annotation side padding collapsed to 0.</div>';
-      html += '</div>';
-
-      html += '</div>';
-    }
-
-    // ── Sizing ──
-    const sizingInfo = LayoutEngine.createMultiSelectionSizingState(info.items.map((item) => {
+    sizingInfo = LayoutEngine.createMultiSelectionSizingState(info.items.map((item) => {
       const node = item.node;
       if (!node) return {};
       return {
@@ -1695,109 +1613,29 @@ function renderMultiSelectionInspector() {
         hCoerced: _coercedKeys.has(item.id + ':sizing_h'),
       };
     }));
-    if (sizingInfo) {
-      html += '<div class="dg-autolayout-section" style="margin-top:8px">';
-      html += '<span class="label" style="margin-bottom:4px;display:block">Sizing</span>';
-
-      // Width sizing
-      html += '<div class="field"><span class="label">Width</span>';
-      html += '<select class="bf-input' + (sizingInfo.wCoerced ? ' dg-coerced' : '') + '" onchange="setMultiFrameProp(\'sizing_w\',this.value)">';
-      if (sizingInfo.wMixed) html += '<option value="" selected>Mixed</option>';
-      html += '<option value="HUG"' + (sizingInfo.sizingW === 'HUG' ? ' selected' : '') + '>Hug</option>';
-      html += '<option value="FILL"' + (sizingInfo.sizingW === 'FILL' ? ' selected' : '') + '>Fill</option>';
-      html += '<option value="FIXED"' + (sizingInfo.sizingW === 'FIXED' ? ' selected' : '') + '>' + (sizingInfo.wCoerced ? 'Fixed (auto)' : 'Fixed') + '</option>';
-      html += '</select>';
-      if (sizingInfo.sizingW === 'FIXED' && !sizingInfo.wMixed) {
-        const stepW = _inspectorWidthUnit === 'cols' ? 1 : BASELINE_STEP;
-        html += '<input class="bf-input" type="number" min="0" step="' + stepW + '" value=""';
-        html += ' placeholder="' + (_inspectorWidthUnit === 'cols' ? 'cols' : 'px') + '"';
-        html += ' onchange="setMultiFrameSize(\'width\',parseFloat(this.value))"';
-        html += ' style="width:60px;margin-left:4px">';
-        html += '<select class="bf-input" style="width:50px;margin-left:2px" onchange="setWidthUnit(this.value)">';
-        html += '<option value="px"' + (_inspectorWidthUnit === 'px' ? ' selected' : '') + '>px</option>';
-        if (gridInfo && gridInfo.col_widths && gridInfo.col_widths.length) {
-          html += '<option value="cols"' + (_inspectorWidthUnit === 'cols' ? ' selected' : '') + '>cols</option>';
-        }
-        html += '</select>';
-      }
-      html += '</div>';
-
-      if (sizingInfo.sizingW === 'FILL' || sizingInfo.sizingW === 'FIXED') {
-        html += '<div class="field dg-constraint-row"><span class="label">Min W</span>';
-        html += '<input class="bf-input" type="number" min="0" step="' + BASELINE_STEP + '" value=""';
-        html += ' placeholder="—"';
-        html += ' onchange="setMultiFrameProp(\'min_width\',this.value)"';
-        html += ' style="width:52px">';
-        html += '<span class="label" style="margin-left:4px">Max W</span>';
-        html += '<input class="bf-input" type="number" min="0" step="' + BASELINE_STEP + '" value=""';
-        html += ' placeholder="—"';
-        html += ' onchange="setMultiFrameProp(\'max_width\',this.value)"';
-        html += ' style="width:52px">';
-        html += '</div>';
-      }
-      // Fill weight (shown when width sizing is FILL)
-      if (sizingInfo.sizingW === 'FILL') {
-        html += '<div class="field"><span class="label">Weight</span>';
-        html += '<input class="bf-input" type="number" min="0" step="0.5" value=""';
-        html += ' placeholder="—"';
-        html += ' onchange="setMultiFrameProp(\'fill_weight\',parseFloat(this.value))"';
-        html += ' style="width:52px">';
-        html += '</div>';
-      }
-
-      // Height sizing
-      html += '<div class="field"><span class="label">Height</span>';
-      html += '<select class="bf-input' + (sizingInfo.hCoerced ? ' dg-coerced' : '') + '" onchange="setMultiFrameProp(\'sizing_h\',this.value)">';
-      if (sizingInfo.hMixed) html += '<option value="" selected>Mixed</option>';
-      html += '<option value="HUG"' + (sizingInfo.sizingH === 'HUG' ? ' selected' : '') + '>Hug</option>';
-      html += '<option value="FILL"' + (sizingInfo.sizingH === 'FILL' ? ' selected' : '') + '>Fill</option>';
-      html += '<option value="FIXED"' + (sizingInfo.sizingH === 'FIXED' ? ' selected' : '') + '>' + (sizingInfo.hCoerced ? 'Fixed (auto)' : 'Fixed') + '</option>';
-      html += '</select>';
-      if (sizingInfo.sizingH === 'FIXED' && !sizingInfo.hMixed) {
-        const stepH = _inspectorHeightUnit === 'rows' ? 1 : BASELINE_STEP;
-        html += '<input class="bf-input" type="number" min="0" step="' + stepH + '" value=""';
-        html += ' placeholder="' + (_inspectorHeightUnit === 'rows' ? 'rows' : 'px') + '"';
-        html += ' onchange="setMultiFrameSize(\'height\',parseFloat(this.value))"';
-        html += ' style="width:60px;margin-left:4px">';
-        html += '<select class="bf-input" style="width:50px;margin-left:2px" onchange="setHeightUnit(this.value)">';
-        html += '<option value="px"' + (_inspectorHeightUnit === 'px' ? ' selected' : '') + '>px</option>';
-        html += '<option value="rows"' + (_inspectorHeightUnit === 'rows' ? ' selected' : '') + '>rows</option>';
-        html += '</select>';
-      }
-      html += '</div>';
-
-      if (sizingInfo.sizingH === 'FILL' || sizingInfo.sizingH === 'FIXED') {
-        html += '<div class="field dg-constraint-row"><span class="label">Min H</span>';
-        html += '<input class="bf-input" type="number" min="0" step="' + BASELINE_STEP + '" value=""';
-        html += ' placeholder="—"';
-        html += ' onchange="setMultiFrameProp(\'min_height\',this.value)"';
-        html += ' style="width:52px">';
-        html += '<span class="label" style="margin-left:4px">Max H</span>';
-        html += '<input class="bf-input" type="number" min="0" step="' + BASELINE_STEP + '" value=""';
-        html += ' placeholder="—"';
-        html += ' onchange="setMultiFrameProp(\'max_height\',this.value)"';
-        html += ' style="width:52px">';
-        html += '</div>';
-      }
-
-      html += '</div>';
-    }
-
-    // ── Bulk style picker ──
-    const styleInfo = _getMultiStyleValues(info.items);
+    styleInfo = _getMultiStyleValues(info.items);
     if (styleInfo) {
-      html += '<div class="field" style="margin-top:6px"><span class="label">Style (' + styleInfo.count + ' boxes)</span><br>';
-      html += '<select class="style-picker bf-input" onchange="applyMultiStyleOverride(this.value)">';
-      if (styleInfo.mixed) html += '<option value="__mixed__" selected>Mixed</option>';
-      html += renderBoxStyleOptions(styleInfo.mixed ? '__nomatch__' : styleInfo.style, {
+      styleOptionsHtml = renderBoxStyleOptions(styleInfo.mixed ? '__nomatch__' : styleInfo.style, {
         originalLabel: _originalStyleOptionLabelForItems(info.items),
       });
-      html += '</select></div>';
     }
   }
 
-  html += '<p class="dg-selection-note">All actions snap to the 8px baseline and remain undoable.</p>';
-  inspector.innerHTML = html;
+  inspector.innerHTML = LayoutEngine.renderMultiSelectionInspectorPanel({
+    selectedCount: viewModel.selectedCount,
+    multiActionGap,
+    showStackSpacingHint: viewModel.showStackSpacingHint,
+    showAlignOnlyHint: viewModel.showAlignOnlyHint,
+    hasUnsupported: viewModel.hasUnsupported,
+    alignState: alignInfo,
+    containerState: containerInfo,
+    sizingState: sizingInfo,
+    styleState: styleInfo,
+    widthUnit: _inspectorWidthUnit,
+    heightUnit: _inspectorHeightUnit,
+    showWidthColsOption: Boolean(gridInfo && gridInfo.col_widths && gridInfo.col_widths.length),
+    styleOptionsHtml,
+  });
 }
 
 function _getRuntimeSizingValue(cid, node, axis) {

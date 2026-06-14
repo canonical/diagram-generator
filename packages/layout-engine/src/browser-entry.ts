@@ -234,6 +234,7 @@ export {
   resolveAutolayoutReorderTarget,
   resolvePointerSelection,
   resolvePrimarySelectedId,
+  renderMultiSelectionInspectorPanel,
   renderSingleSelectionAutolayoutPanel,
   rowSpanToPx,
 } from './preview-shell/index.js';
@@ -256,8 +257,10 @@ export type {
   MultiSelectionAlignState,
   MultiSelectionContainerItem,
   MultiSelectionContainerState,
+  MultiSelectionInspectorPanelRenderOptions,
   MultiSelectionSizingItem,
   MultiSelectionSizingState,
+  MultiSelectionStyleState,
   DoubleClickSelectionResolution,
   DragCompletionPlan,
   DragReorderTarget,

@@ -172,6 +172,15 @@ export {
 } from './inspector-autolayout-panel.js';
 
 export type {
+  MultiSelectionInspectorPanelRenderOptions,
+  MultiSelectionStyleState,
+} from './inspector-multi-panel.js';
+
+export {
+  renderMultiSelectionInspectorPanel,
+} from './inspector-multi-panel.js';
+
+export type {
   ReorderResolution,
   ReorderTargetPoint,
   ResizeBounds,
