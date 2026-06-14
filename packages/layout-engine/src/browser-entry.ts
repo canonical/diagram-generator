@@ -236,6 +236,7 @@ export {
   resolvePrimarySelectedId,
   renderMultiSelectionInspectorPanel,
   renderSingleSelectionAutolayoutPanel,
+  renderSingleSelectionInspectorPanel,
   rowSpanToPx,
 } from './preview-shell/index.js';
 export type {
@@ -317,6 +318,8 @@ export type {
   SelectionStateSnapshot,
   SingleSelectionAutolayoutState,
   SingleSelectionInspectorViewModel,
+  SingleSelectionInspectorPanelRenderOptions,
+  SingleSelectionInspectorViolation,
 } from './preview-shell/index.js';
 
 export {

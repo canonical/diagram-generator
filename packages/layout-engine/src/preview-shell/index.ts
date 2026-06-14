@@ -181,6 +181,15 @@ export {
 } from './inspector-multi-panel.js';
 
 export type {
+  SingleSelectionInspectorPanelRenderOptions,
+  SingleSelectionInspectorViolation,
+} from './inspector-single-panel.js';
+
+export {
+  renderSingleSelectionInspectorPanel,
+} from './inspector-single-panel.js';
+
+export type {
   ReorderResolution,
   ReorderTargetPoint,
   ResizeBounds,

@@ -13,6 +13,7 @@ Shrink `scripts/preview/editor.js` into a thin bootstrap/coordinator so the stan
 - ELK controller slice: `scripts/preview/elk-controller.js`
 - inspector selection view-model helpers: `packages/layout-engine/src/preview-shell/inspector-selection.ts`
 - single-selection inspector state helpers: `packages/layout-engine/src/preview-shell/inspector-single.ts`
+- single-selection inspector panel renderer: `packages/layout-engine/src/preview-shell/inspector-single-panel.ts`
 - multi-selection field-state helpers: `packages/layout-engine/src/preview-shell/inspector-multi.ts`
 - multi-selection inspector panel renderer: `packages/layout-engine/src/preview-shell/inspector-multi-panel.ts`
 - single-selection autolayout panel renderer: `packages/layout-engine/src/preview-shell/inspector-autolayout-panel.ts`
@@ -34,7 +35,7 @@ Shrink `scripts/preview/editor.js` into a thin bootstrap/coordinator so the stan
 ## Responsibilities still concentrated in `editor.js`
 
 - most inspector view-model resolution and field merge rules
-- remaining single-selection inspector DOM rendering and field wiring
+- remaining inspector field wiring and some single-selection value shaping
 - remaining selection depth-cycling edge cases
 - most nudge controller logic
 - drag / resize DOM cleanup, DOM-derived coordinate capture, and shell callback wiring still wired in JS after move/completion dispatch
@@ -52,6 +53,7 @@ Landed:
 - single-selection summary flags (`currentAlign`, override state, waypoint state, child-note mode)
 - single-selection autolayout panel branch state
 - single-selection autolayout panel HTML assembly
+- single-selection inspector panel HTML assembly
 - multi-selection shared sizing / container / align state
 - multi-selection inspector panel HTML assembly
 - legacy JS fallback branches for those inspector state helpers are removed; `editor.js` now delegates those decisions directly to `LayoutEngine`

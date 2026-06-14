@@ -24,15 +24,15 @@ const ALIGN_POINTS = [
 ] as const;
 
 const ALIGN_LABELS: Record<string, string> = {
-  TOP_LEFT: 'Top-left',
-  TOP_CENTER: 'Top-center',
-  TOP_RIGHT: 'Top-right',
-  CENTER_LEFT: 'Center-left',
+  TOP_LEFT: 'Top Left',
+  TOP_CENTER: 'Top Center',
+  TOP_RIGHT: 'Top Right',
+  CENTER_LEFT: 'Center Left',
   CENTER: 'Center',
-  CENTER_RIGHT: 'Center-right',
-  BOTTOM_LEFT: 'Bottom-left',
-  BOTTOM_CENTER: 'Bottom-center',
-  BOTTOM_RIGHT: 'Bottom-right',
+  CENTER_RIGHT: 'Center Right',
+  BOTTOM_LEFT: 'Bottom Left',
+  BOTTOM_CENTER: 'Bottom Center',
+  BOTTOM_RIGHT: 'Bottom Right',
 };
 
 export interface MultiSelectionStyleState {

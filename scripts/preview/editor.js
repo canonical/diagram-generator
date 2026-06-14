@@ -4649,32 +4649,6 @@ function clearSelection() {
   deselectAll();
 }
 
-// ---- 9-point alignment widget (v3) ----
-const ALIGN_POINTS = [
-  "TOP_LEFT", "TOP_CENTER", "TOP_RIGHT",
-  "CENTER_LEFT", "CENTER", "CENTER_RIGHT",
-  "BOTTOM_LEFT", "BOTTOM_CENTER", "BOTTOM_RIGHT",
-];
-const ALIGN_LABELS = {
-  TOP_LEFT: "Top Left", TOP_CENTER: "Top Center", TOP_RIGHT: "Top Right",
-  CENTER_LEFT: "Center Left", CENTER: "Center", CENTER_RIGHT: "Center Right",
-  BOTTOM_LEFT: "Bottom Left", BOTTOM_CENTER: "Bottom Center", BOTTOM_RIGHT: "Bottom Right",
-};
-function buildAlignWidget(cid, currentAlign) {
-  let html = '<div class="field"><span class="label">Alignment</span>';
-  html += '<div class="dg-align-field">';
-  html += '<div class="dg-align-grid">';
-  for (const pt of ALIGN_POINTS) {
-    const active = pt === currentAlign ? " active" : "";
-    html += '<button class="' + active + '" title="' + ALIGN_LABELS[pt] +
-      '" onclick="setFrameAlign(\'' + cid + '\',\'' + pt + '\')">' +
-      '</button>';
-  }
-  html += '</div>';
-  html += '<span class="value">' + ALIGN_LABELS[currentAlign] + '</span>';
-  html += '</div></div>';
-  return html;
-}
 function setFrameAlign(cid, align) {
   const faIds = [cid];
   const faBefore = EditorState.captureOverrideEntries(faIds);
@@ -5042,71 +5016,39 @@ function updateInspector(cid) {
     parentLayout: parentNode ? parentNode.layout : null,
   });
 
-  let html = '';
+  let autolayoutPanelHtml = '';
+  let controlsErrorMessage = null;
   try {
-    html += buildAlignWidget(cid, inspectorView.currentAlign);
-    html += buildAutolayoutPanel(cid, inspNode);
+    autolayoutPanelHtml = buildAutolayoutPanel(cid, inspNode);
   } catch (err) {
     console.error("Inspector panel render failed:", err);
-    html += '<p class="bf-form-help" style="color:#c66">Inspector controls failed: ' +
-      (typeof escapeHtml === "function" ? escapeHtml(err.message) : err.message) + '</p>';
+    controlsErrorMessage = typeof escapeHtml === "function" ? escapeHtml(err.message) : err.message;
   }
-  if (inspectorView.hasMoveOverride) {
-    html += '<div class="field"><span class="label">Position override</span><br>' +
-      '<span class="value override">dx=' + own.dx + '  dy=' + own.dy + '</span></div>';
-  }
-  if (inspectorView.hasSizeOverride) {
-    html += '<div class="field"><span class="label">Size override</span><br>' +
-      '<span class="value override">dw=' + own.dw + '  dh=' + own.dh + '</span></div>';
-  }
-  if (inspectorView.hasParentOverride) {
-    html += '<div class="field"><span class="label">Effective (incl. parents)</span><br>' +
-      '<span class="value override">dx=' + eff.dx + '  dy=' + eff.dy + '</span></div>';
-  }
-  if (arrowNode) {
-    html += '<div class="field"><span class="label">Waypoints</span><br>' +
-      '<span class="value' + (inspectorView.hasWaypointOverride ? ' override' : '') + '">' + inspectorView.waypointCount +
-      (inspectorView.hasWaypointOverride ? ' (overridden)' : '') + '</span></div>';
-  }
-  if (inspectorView.hasAnyOverride) {
-    html += '<button class="bf-button is-base danger" onclick="clearOverride(\''+cid+'\')">Clear override</button>';
-  }
-  // Style picker (available for all non-arrow components)
+  let styleMode = 'none';
+  let styleOptionsHtml = '';
   if (!inspectorView.isArrowComponent) {
     if (_nodeSupportsVisibleStylePicker(inspNode)) {
+      styleMode = 'picker';
       const currentStyle = _effectiveStyleName(cid, inspNode);
-      html += '<div class="field" style="margin-top:6px"><span class="label">Style</span><br>';
-      html += '<select class="style-picker bf-input" onchange="applyStyleOverride(\'' + cid + '\', this.value)">';
-      html += renderBoxStyleOptions(currentStyle, {
+      styleOptionsHtml = renderBoxStyleOptions(currentStyle, {
         originalLabel: _originalStyleOptionLabelForNode(inspNode),
       });
-      html += '</select></div>';
     } else {
-      html += '<div class="field" style="margin-top:6px"><span class="label">Style</span><div class="hint">Structural wrapper — no box style or default panel padding.</div></div>';
+      styleMode = 'structural';
     }
   }
-  if (inspectorView.showStackSpacingHint) {
-    html += '<div class="dg-autolayout-section" style="margin-top:8px">';
-    html += '<span class="label" style="margin-bottom:4px;display:block">Stack spacing</span>';
-    html += '<div class="hint">Frame gap now derives from composition. Use distribute for arrangement, or edit YAML only for true structural exceptions.</div>';
-    html += '</div>';
-  }
-  // Show constraint violations for this component
   const cv = getViolationsForComponent(cid);
-  if (cv.length > 0) {
-    html += '<div style="margin-top:8px"><span class="label">Violations</span>';
-    for (const v of cv) {
-      const color = v.severity === "error" ? "#c66" : "#cc6";
-      html += '<div style="font-size:11px;color:' + color + '">&#x26a0; ' + v.message + '</div>';
-    }
-    html += '</div>';
-  }
-  if (inspectorView.noteKind === 'reorder-child') {
-    html += '<p class="dg-inspector-note">Drag to reorder &#xb7; Shift+Enter to select parent &#xb7; W to toggle grid overlay.</p>';
-  } else {
-    html += '<p class="dg-inspector-note">Drag to move &#xb7; handles to resize (8px grid) &#xb7; W to toggle grid overlay.</p>';
-  }
-  inspector.innerHTML = html;
+  inspector.innerHTML = LayoutEngine.renderSingleSelectionInspectorPanel({
+    cid,
+    viewModel: inspectorView,
+    ownDelta: own,
+    effectiveDelta: eff,
+    autolayoutPanelHtml,
+    controlsErrorMessage,
+    styleMode,
+    styleOptionsHtml,
+    violations: cv,
+  });
 }
 
 // ---- Override persistence (save orchestration in save-client.js) ----
