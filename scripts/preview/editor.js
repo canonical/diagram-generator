@@ -3488,35 +3488,37 @@ function onDragUp() {
   clearGuideLines();
   _clearReorderIndicator();
   const s = mgr.state;
-  if (s && s.hasMoved) {
-    // Handle autolayout reorder
-    if (s.autolayout && s.reorderTarget && s.cids.length === 1) {
-      const { parentId, insertIndex } = s.reorderTarget;
-      const cid = s.cids[0];
-      _applyReorder(parentId, cid, insertIndex);
-      selectComponent(s.cid);
-    } else if (!s.autolayout) {
-      for (const id of s.cids) cleanOverride(id);
-      const afterOverrides = EditorState.captureOverrideEntries(s.cids);
-      if (s.cids.length === 1) {
-        selectComponent(s.cid);
-      } else {
-        reapplySelection();
-      }
-      EditorState.commitOverridePatchAction(
-        s.cids.length > 1 ? "Move selection" : "Move component",
-        s.overrideSnapshotBefore,
-        afterOverrides,
-      );
+  const plan = s ? LayoutEngine.resolveDragCompletion({
+    hasMoved: s.hasMoved,
+    autolayout: s.autolayout,
+    cid: s.cid,
+    cids: s.cids,
+    reorderTarget: s.reorderTarget,
+  }) : { kind: 'none', autoFit: false };
+  if (plan.kind === 'apply-reorder') {
+    _applyReorder(plan.parentId, s.cids[0], plan.insertIndex);
+    selectComponent(plan.selectedId);
+  } else if (plan.kind === 'commit-free-drag') {
+    for (const id of plan.cleanIds) cleanOverride(id);
+    const afterOverrides = EditorState.captureOverrideEntries(plan.captureAfterIds);
+    if (plan.reapplySelection) {
+      reapplySelection();
+    } else {
+      selectComponent(plan.selectedId);
     }
-  } else if (s) {
-    selectComponent(s.cid);
+    EditorState.commitOverridePatchAction(
+      plan.actionLabel,
+      s.overrideSnapshotBefore,
+      afterOverrides,
+    );
+  } else if (plan.kind === 'select-only') {
+    selectComponent(plan.selectedId);
   }
   mgr.endInteraction();
   // Only auto-fit for free-position drags; autolayout drags are
   // repositioned by the engine relayout, so expanding the viewBox
   // here would create stale padding that never shrinks back.
-  if (s && s.hasMoved && !s.autolayout) autoFitArtboard();
+  if (plan.kind !== 'none' && plan.autoFit) autoFitArtboard();
 }
 
 function _applyInteractionOverrideEntries(entries, propagatedIds) {
@@ -4850,35 +4852,38 @@ function onResizeUp() {
   const svg = document.querySelector("#stage svg");
   if (svg) svg.querySelectorAll(".dg-hover").forEach(el => el.classList.remove("dg-hover"));
   const s = mgr.state;
-  if (s && s.hasMoved) {
-    const resizedIds = s.selection ? s.selection.ids : [s.cid];
-    for (const cid of resizedIds) {
+  const plan = s ? LayoutEngine.resolveResizeCompletion({
+    hasMoved: s.hasMoved,
+    cid: s.cid,
+    selectionIds: s.selection ? s.selection.ids : null,
+    origOverrideIds: Object.keys(s.origOverrides),
+    propagatedIds: s.propagatedIds,
+  }) : { kind: 'none', showHandles: false, autoFit: false };
+  if (plan.kind === 'commit-resize') {
+    for (const cid of plan.cleanIds) {
       cleanOverride(cid);
     }
-    // Clean propagated child/parent overrides (only zero-valued fields)
-    if (s.propagatedIds) {
-      for (const childId of s.propagatedIds) {
-        cleanOverride(childId);
-      }
+    for (const childId of plan.propagatedIdsToClean) {
+      cleanOverride(childId);
     }
-    const afterOverrides = EditorState.captureOverrideEntries(Object.keys(s.origOverrides));
-    if (s.selection) {
+    const afterOverrides = EditorState.captureOverrideEntries(plan.captureAfterIds);
+    if (plan.reapplySelection) {
       reapplySelection();
     } else {
-      selectComponent(s.cid);
+      selectComponent(plan.selectedId);
     }
     EditorState.commitOverridePatchAction(
-      s.selection ? "Resize selection" : "Resize component",
+      plan.actionLabel,
       s.overrideSnapshotBefore,
       afterOverrides,
     );
-    _persistResizeToV3(resizedIds, s.propagatedIds, s.cid);
-  } else {
+    _persistResizeToV3(plan.resizedIds, s.propagatedIds, s.cid);
+  } else if (plan.showHandles) {
     // No move happened: re-show handles that were hidden
     if (svg) svg.querySelectorAll(".dg-handle").forEach(h => h.style.display = "");
   }
   mgr.endInteraction();
-  if (s && s.hasMoved) autoFitArtboard();
+  if (plan.autoFit) autoFitArtboard();
 }
 
 // ---- Override helpers ----

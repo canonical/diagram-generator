@@ -19,6 +19,7 @@ Shrink `scripts/preview/editor.js` into a thin bootstrap/coordinator so the stan
 - reorder / multi-resize geometry helpers: `packages/layout-engine/src/preview-shell/interaction-geometry.ts`
 - live resize override shaping / recursive relayout helpers: `packages/layout-engine/src/preview-shell/interaction-resize.ts`
 - keyboard shortcut resolution + nudge helpers: `packages/layout-engine/src/preview-shell/interaction-keyboard.ts`
+- drag / resize completion-plan helpers: `packages/layout-engine/src/preview-shell/interaction-completion.ts`
 - frame override allowlists: `packages/layout-engine/src/preview-shell/frame-override-manifest.ts`
 - engine registry contracts: `packages/layout-engine/src/index.ts`, `packages/layout-engine/tests/preview-engine-registry.test.ts`
 
@@ -49,6 +50,7 @@ Landed:
 - autolayout reorder targeting and multi-selection resize bounds now delegate to TS geometry helpers
 - multi-selection member scaling, recursive child relayout collection, propagated-override reset shaping, and sibling-relayout override merging now delegate to TS resize helpers
 - arrow-key nudge override shaping, top-level keyboard shortcut resolution, and resize-persist plan building now delegate to TS interaction helpers
+- drag-end and resize-end completion branching now delegate to TS completion-plan helpers
 
 Still in `editor.js` for now:
 

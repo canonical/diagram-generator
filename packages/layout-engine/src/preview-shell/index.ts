@@ -115,6 +115,17 @@ export {
 } from './interaction-selection-state.js';
 
 export type {
+  DragCompletionPlan,
+  DragReorderTarget,
+  ResizeCompletionPlan,
+} from './interaction-completion.js';
+
+export {
+  resolveDragCompletion,
+  resolveResizeCompletion,
+} from './interaction-completion.js';
+
+export type {
   ReorderResolution,
   ReorderTargetPoint,
   ResizeBounds,
