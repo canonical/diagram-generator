@@ -3,6 +3,10 @@ import type {
   InspectorEffectiveDeltaState,
   SingleSelectionInspectorViewModel,
 } from './inspector-single.js';
+import {
+  escapePreviewHtml,
+  quotePreviewInlineJsString,
+} from './inline-actions.js';
 
 /**
  * Single-selection inspector renderer (spec 043 slice M).
@@ -58,7 +62,7 @@ function renderAlignWidget(cid: string, currentAlign: string): string {
   html += '<div class="dg-align-grid">';
   for (const point of ALIGN_POINTS) {
     const active = point === currentAlign ? ' active' : '';
-    html += `<button class="${active}" title="${ALIGN_LABELS[point]}" onclick="setFrameAlign('${cid}','${point}')"></button>`;
+    html += `<button class="${active}" title="${ALIGN_LABELS[point]}" onclick="setFrameAlign(${quotePreviewInlineJsString(cid)},${quotePreviewInlineJsString(point)})"></button>`;
   }
   html += '</div>';
   html += `<span class="value">${ALIGN_LABELS[currentAlign] ?? currentAlign}</span>`;
@@ -69,10 +73,11 @@ function renderAlignWidget(cid: string, currentAlign: string): string {
 export function renderSingleSelectionInspectorPanel(
   options: SingleSelectionInspectorPanelRenderOptions,
 ): string {
+  const quotedCid = quotePreviewInlineJsString(options.cid);
   let html = '';
   if (options.controlsErrorMessage) {
     html += '<p class="bf-form-help" style="color:#c66">Inspector controls failed: '
-      + options.controlsErrorMessage
+      + escapePreviewHtml(options.controlsErrorMessage)
       + '</p>';
   } else {
     html += renderAlignWidget(options.cid, options.viewModel.currentAlign);
@@ -100,12 +105,12 @@ export function renderSingleSelectionInspectorPanel(
     html += '</span></div>';
   }
   if (options.viewModel.hasAnyOverride) {
-    html += `<button class="bf-button is-base danger" onclick="clearOverride('${options.cid}')">Clear override</button>`;
+    html += `<button class="bf-button is-base danger" onclick="clearOverride(${quotedCid})">Clear override</button>`;
   }
 
   if (options.styleMode === 'picker') {
     html += '<div class="field" style="margin-top:6px"><span class="label">Style</span><br>';
-    html += `<select class="style-picker bf-input" onchange="applyStyleOverride('${options.cid}', this.value)">`;
+    html += `<select class="style-picker bf-input" onchange="applyStyleOverride(${quotedCid}, this.value)">`;
     html += options.styleOptionsHtml || '';
     html += '</select></div>';
   } else if (options.styleMode === 'structural') {
@@ -124,7 +129,7 @@ export function renderSingleSelectionInspectorPanel(
     html += '<div style="margin-top:8px"><span class="label">Violations</span>';
     for (const violation of violations) {
       const color = violation.severity === 'error' ? '#c66' : '#cc6';
-      html += `<div style="font-size:11px;color:${color}">&#x26a0; ${violation.message}</div>`;
+      html += `<div style="font-size:11px;color:${color}">&#x26a0; ${escapePreviewHtml(violation.message)}</div>`;
     }
     html += '</div>';
   }

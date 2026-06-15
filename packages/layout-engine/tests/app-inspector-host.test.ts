@@ -15,6 +15,8 @@ describe('preview inspector host helpers', () => {
 
   it('renders a missing-component fallback when neither node nor arrow data exist', () => {
     expect(createPreviewMissingInspectorMarkup('ghost')).toContain('ghost');
+    expect(createPreviewMissingInspectorMarkup(`ghost"><img src=x onerror=alert(1)>`))
+      .not.toContain('<img');
     expect(renderPreviewSingleSelectionInspector({
       cid: 'ghost',
       ownDelta: { dx: 0, dy: 0, dw: 0, dh: 0 },
@@ -53,9 +55,9 @@ describe('preview inspector host helpers', () => {
         `<option>${currentStyle}|${originalStyleName}</option>`,
     });
 
-    expect(html).toContain("setFrameAlign('frame-1','CENTER')");
+    expect(html).toContain('setFrameAlign(&quot;frame-1&quot;,&quot;CENTER&quot;)');
     expect(html).toContain('Sizing');
-    expect(html).toContain("applyStyleOverride('frame-1'");
+    expect(html).toContain('applyStyleOverride(&quot;frame-1&quot;');
     expect(html).toContain('highlight|parent');
   });
 });

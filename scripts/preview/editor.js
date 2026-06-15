@@ -1176,13 +1176,15 @@ function _formatAsDefinedStyleLabel(styleName, mixed = false) {
 function setMultiFrameAlign(align) {
   const ids = [...selectedIds];
   const maiBefore = EditorState.captureOverrideEntries(ids);
-  for (const cid of ids) {
-    const node = model.get(cid);
-    if (!node) continue;
-    if (node.type === 'arrow') continue;
-    if (!overrides[cid]) overrides[cid] = {};
-    overrides[cid].align = align;
-  }
+  const result = LayoutEngine.applyMultiFramePropMutation({
+    overrides,
+    coercedKeys: _coercedKeys,
+    ids,
+    prop: 'align',
+    value: align,
+    getNode: (cid) => model.get(cid),
+  });
+  if (result.kind === 'none') return;
   setDirty(true);
   EditorState.commitOverridePatchAction("Change alignment (multi)", maiBefore, EditorState.captureOverrideEntries(ids));
   if (ids.length > 0) {
@@ -2444,57 +2446,32 @@ function _restorePropagatedResizeOverrides(state) {
 // Live v3 resize relayout — runs the TS engine each animation frame so the
 // diagram responds smoothly while the user drags a resize handle.
 // ---------------------------------------------------------------------------
-let _resizeRafId = null;
-let _resizeLatest = null;
+const _liveResizeRelayoutState = LayoutEngine.createPreviewLiveResizeRelayoutState();
 
 function _scheduleV3ResizeRelayout(cid, newW, newH, resizedW, resizedH) {
-  // ELK diagrams must not run box autolayout during live resize — it corrupts
-  // ELK positions/routes. Visual feedback comes from applyAllOverrides(); full
-  // ELK relayout runs on mouseup via requestV3Relayout().
-  if (ElkPreviewController.isElkLayeredDiagram()) {
-    return;
-  }
-  _resizeLatest = { cid, newW, newH, resizedW, resizedH };
-  if (_resizeRafId) return; // already scheduled for next paint frame
-  _resizeRafId = requestAnimationFrame(() => {
-    _resizeRafId = null;
-    const st = _resizeLatest;
-    if (!st) return;
-    _resizeLatest = null;
-
-    // Build temporary overrides with the tentative sizing
-    const tmpOverrides = {};
-    for (const [fid, ovr] of Object.entries(overrides)) {
-      tmpOverrides[fid] = Object.assign({}, ovr);
-    }
-    if (!tmpOverrides[st.cid]) tmpOverrides[st.cid] = {};
-    if (st.resizedW) {
-      tmpOverrides[st.cid].width = st.newW;
-      tmpOverrides[st.cid].sizing_w = "FIXED";
-    }
-    if (st.resizedH) {
-      tmpOverrides[st.cid].height = st.newH;
-      tmpOverrides[st.cid].sizing_h = "FIXED";
-    }
-    // Clear dx/dy/dw/dh deltas — they're baked into width/height
-    delete tmpOverrides[st.cid].dx;
-    delete tmpOverrides[st.cid].dy;
-    delete tmpOverrides[st.cid].dw;
-    delete tmpOverrides[st.cid].dh;
-
-    const gridOvr = EditorState.normalizeGridOverrides(model.gridOverrides || {});
-    const relayoutStatus = getV3RelayoutStatus();
-    if (!relayoutStatus.localReady) return;
-    performLocalRelayout(model, tmpOverrides, gridOvr, { skipModelUpdate: true });
+  LayoutEngine.schedulePreviewLiveResizeRelayout({
+    state: _liveResizeRelayoutState,
+    request: { cid, newW, newH, resizedW, resizedH },
+    isElkLayeredDiagram: ElkPreviewController.isElkLayeredDiagram(),
+    requestAnimationFrameFn: (callback) => requestAnimationFrame(callback),
+    overrides,
+    getGridOverrides: () => model.gridOverrides || {},
+    normalizeGridOverrides: (value) => EditorState.normalizeGridOverrides(value),
+    getRelayoutStatus,
+    performLocalRelayout: (temporaryOverrides, gridOvr) => performLocalRelayout(
+      model,
+      temporaryOverrides,
+      gridOvr,
+      { skipModelUpdate: true },
+    ),
   });
 }
 
 function _cancelV3ResizeRelayout() {
-  if (_resizeRafId) {
-    cancelAnimationFrame(_resizeRafId);
-    _resizeRafId = null;
-  }
-  _resizeLatest = null;
+  LayoutEngine.cancelPreviewLiveResizeRelayout(
+    _liveResizeRelayoutState,
+    (id) => cancelAnimationFrame(id),
+  );
 }
 
 function onResizeMove(e) {
@@ -2738,8 +2715,15 @@ function clearSelection() {
 function setFrameAlign(cid, align) {
   const faIds = [cid];
   const faBefore = EditorState.captureOverrideEntries(faIds);
-  if (!overrides[cid]) overrides[cid] = {};
-  overrides[cid].align = align;
+  LayoutEngine.applySingleFramePropMutation({
+    overrides,
+    coercedKeys: _coercedKeys,
+    cid,
+    prop: 'align',
+    value: align,
+    node: model.get(cid),
+    snapToGrid,
+  });
   setDirty(true);
   EditorState.commitOverridePatchAction("Change alignment", faBefore, EditorState.captureOverrideEntries(faIds));
   renderSelectionInspector(cid);

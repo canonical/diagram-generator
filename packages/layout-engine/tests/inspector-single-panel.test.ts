@@ -29,14 +29,14 @@ describe('single-selection inspector panel renderer', () => {
       ],
     });
 
-    expect(html).toContain("setFrameAlign('box-1','CENTER')");
+    expect(html).toContain('setFrameAlign(&quot;box-1&quot;,&quot;CENTER&quot;)');
     expect(html).toContain('<span class="value">Center</span>');
     expect(html).toContain('<div class="auto-panel">Sizing</div>');
     expect(html).toContain('dx=16  dy=-8');
     expect(html).toContain('dw=24  dh=0');
     expect(html).toContain('dx=32  dy=0');
-    expect(html).toContain("clearOverride('box-1')");
-    expect(html).toContain("applyStyleOverride('box-1', this.value)");
+    expect(html).toContain('clearOverride(&quot;box-1&quot;)');
+    expect(html).toContain('applyStyleOverride(&quot;box-1&quot;, this.value)');
     expect(html).toContain('Width exceeded');
     expect(html).toContain('Gap coerced');
     expect(html).toContain('Drag to move');
@@ -97,5 +97,33 @@ describe('single-selection inspector panel renderer', () => {
     expect(html).toContain('Inspector controls failed: boom');
     expect(html).not.toContain('ignored');
     expect(html).not.toContain("setFrameAlign('box-2'");
+  });
+
+  it('escapes dynamic ids and messages before injecting them into markup', () => {
+    const html = renderSingleSelectionInspectorPanel({
+      cid: `box'"<&`,
+      viewModel: {
+        currentAlign: 'CENTER',
+        hasMoveOverride: false,
+        hasSizeOverride: false,
+        hasWaypointOverride: false,
+        hasAnyOverride: true,
+        hasParentOverride: false,
+        waypointCount: 0,
+        isArrowComponent: false,
+        isAutolayoutChild: false,
+        showStackSpacingHint: false,
+        noteKind: 'move-resize',
+      },
+      ownDelta: { dx: 0, dy: 0, dw: 0, dh: 0 },
+      effectiveDelta: { dx: 0, dy: 0 },
+      controlsErrorMessage: `boom <bad>`,
+      violations: [{ message: `warn "quoted"` }],
+      styleMode: 'none',
+    });
+
+    expect(html).toContain('boom &lt;bad&gt;');
+    expect(html).toContain('warn &quot;quoted&quot;');
+    expect(html).toContain('clearOverride(&quot;box&#39;\\&quot;&lt;&amp;&quot;)');
   });
 });

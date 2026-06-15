@@ -49,7 +49,7 @@ Use [`TODO.md`](TODO.md) for the execution queue and [`INBOX.md`](INBOX.md) for 
 
 - **Product path:** Node preview app + TypeScript layout engine.
 - **Source of truth:** frame YAML in `scripts/diagrams/frames/`.
-- **Active spec (when relevant):** `specs/042-implicit-elk-side-ports/` for ELK midpoint-port planning; otherwise see `TODO.md` / `docs/specs.md`.
+- **Active spec (when relevant):** `specs/043-preview-shell-editor-ts-extraction/` for preview-shell decomposition; ELK midpoint-port follow-up remains under `specs/042-implicit-elk-side-ports/`. Otherwise see `TODO.md` / `docs/specs.md`.
 - **Trap files (search, then partial read):** `scripts/preview/editor.js`, `scripts/preview/layout-bridge.js`, `packages/layout-engine/dist/layout-engine.iife.js`.
 
 ## Flow maps (tier 2 — add on demand)

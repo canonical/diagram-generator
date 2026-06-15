@@ -29,6 +29,7 @@ import type {
   InspectorEffectiveDeltaState,
 } from './inspector-single.js';
 import type { TextMeasureAdapter } from '../text-measure.js';
+import { escapePreviewHtml } from './inline-actions.js';
 
 export interface PreviewInspectorArrowNode {
   waypoints?: unknown[] | null;
@@ -61,7 +62,7 @@ export interface RenderPreviewSingleSelectionInspectorOptions {
 
 export function createPreviewMissingInspectorMarkup(cid: string): string {
   return '<p class="dg-empty-message bf-form-help">Component <strong>'
-    + cid
+    + escapePreviewHtml(cid)
     + '</strong> not found. Try reloading the preview.</p>';
 }
 

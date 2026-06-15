@@ -46,10 +46,9 @@ Done means:
 
 Do not move yet:
 
-- inspector HTML string assembly
-- inline event handlers
-- style picker rendering
-- single-selection control rendering
+- full event-delegation replacement for inline inspector handlers
+- broad shell rewrites that touch `layout-bridge.js`
+- cosmetic HTML churn that does not reduce coordinator logic
 
 ### Slice 2: Inspector field/state resolution
 
@@ -117,12 +116,12 @@ Done means:
 
 Current next step:
 
-- keep inspector rendering in `editor.js` for now
-- keep pushing interaction state out first, because that is now shrinking `editor.js` faster than inspector HTML work
-- do not start a full inspector renderer rewrite
+- keep `editor.js` focused on browser-host wiring only: pointer events, timers, compatibility globals, and unavoidable DOM cleanup
+- keep moving engine policy, mutation shaping, and live-resize orchestration into typed owners under `preview-shell/`
+- do not spend time on a full event-model rewrite until the remaining coordinator hotspots are smaller and clearer
 
 The current highest-value move is:
 
-1. finish the remaining drag / resize / nudge controller state, especially keyboard dispatch and resize persist/commit cleanup
-2. add one focused shell-level regression path for the landed interaction slices if an existing browser/DOM hook can cover it cheaply
-3. only return to inspector field formatting where it removes real branching rather than relocating markup
+1. finish the remaining pointer/resize shell cleanup, especially artboard fitting, snap-target helpers, and the last resize-persist wrappers
+2. add cheap shell-level regression paths where `editor.js` still wires typed helpers into real timers or DOM callbacks
+3. keep the boundary note and flow map concise enough for a cold reviewer before taking another large extraction slice

@@ -86,6 +86,44 @@ describe('preview-shell frame prop actions', () => {
     expect(coercedKeys.has('frame:sizing_w')).toBe(false);
   });
 
+  it('routes align mutations through the shared frame-prop helpers', () => {
+    const overrides = {
+      frame: {},
+      arrow: {},
+    };
+
+    expect(applySingleFramePropMutation({
+      overrides,
+      cid: 'frame',
+      prop: 'align',
+      value: 'CENTER_RIGHT',
+      snapToGrid(value) {
+        return value;
+      },
+    })).toEqual({ kind: 'change' });
+    expect(overrides.frame).toEqual({
+      align: 'CENTER_RIGHT',
+    });
+
+    expect(applyMultiFramePropMutation({
+      overrides,
+      ids: ['frame', 'arrow'],
+      prop: 'align',
+      value: 'BOTTOM_CENTER',
+      getNode(cid) {
+        return cid === 'arrow'
+          ? { type: 'arrow' }
+          : { data: { width: 120, height: 64 } };
+      },
+    })).toEqual({ kind: 'change' });
+    expect(overrides).toEqual({
+      frame: {
+        align: 'BOTTOM_CENTER',
+      },
+      arrow: {},
+    });
+  });
+
   it('clears single-frame constraints and keeps opposite bounds ordered', () => {
     const overrides = {
       frame: {

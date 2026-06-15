@@ -369,6 +369,20 @@ export {
 } from './app-bootstrap.js';
 
 export type {
+  PreviewLiveResizeOverrideEntry,
+  PreviewLiveResizeOverrideMap,
+  PreviewLiveResizeRelayoutRequest,
+  PreviewLiveResizeRelayoutState,
+  SchedulePreviewLiveResizeRelayoutOptions,
+} from './app-live-resize.js';
+
+export {
+  cancelPreviewLiveResizeRelayout,
+  createPreviewLiveResizeRelayoutState,
+  schedulePreviewLiveResizeRelayout,
+} from './app-live-resize.js';
+
+export type {
   PreviewDiagramNavigationInitOptions,
   PreviewDiagramOptionEntry,
 } from './app-diagram-navigation.js';

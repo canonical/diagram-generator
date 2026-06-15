@@ -35,10 +35,10 @@ describe('inspector autolayout panel renderer', () => {
     });
 
     expect(html).toContain('Auto-layout · frame-1');
-    expect(html).toContain("setFrameProp('frame-1','direction',this.value)");
+    expect(html).toContain("setFrameProp(&quot;frame-1&quot;,'direction',this.value)");
     expect(html).toContain('Effective gap 40px = auto 24px + delta 16px');
     expect(html).toContain('<option value="cols" selected>cols</option>');
-    expect(html).toContain("setFrameProp('frame-1','min_width',this.value)");
+    expect(html).toContain("setFrameProp(&quot;frame-1&quot;,'min_width',this.value)");
   });
 
   it('renders text-measure controls and disables max chars when px max width is active', () => {
@@ -75,7 +75,7 @@ describe('inspector autolayout panel renderer', () => {
     expect(html).toContain('dg-coerced');
     expect(html).toContain('Max chars');
     expect(html).toContain('disabled title="Clear Max W (px) to edit character measure"');
-    expect(html).toContain("setFrameProp('note','max_width_chars',this.value)");
+    expect(html).toContain("setFrameProp(&quot;note&quot;,'max_width_chars',this.value)");
   });
 
   it('renders absolute positioning offsets when the node is absolute', () => {
@@ -112,8 +112,8 @@ describe('inspector autolayout panel renderer', () => {
     });
 
     expect(html).toContain('<option value="ABSOLUTE" selected>Absolute</option>');
-    expect(html).toContain("setFrameProp('child','x',parseInt(this.value))");
-    expect(html).toContain("setFrameProp('child','y',parseInt(this.value))");
+    expect(html).toContain("setFrameProp(&quot;child&quot;,'x',parseInt(this.value))");
+    expect(html).toContain("setFrameProp(&quot;child&quot;,'y',parseInt(this.value))");
     expect(html).toContain('<option value="rows" selected>rows</option>');
     expect(html).toContain('value="64"');
   });

@@ -37,6 +37,7 @@ Shrink `scripts/preview/editor.js` into a thin bootstrap/coordinator so the stan
 - preview shell tree/sidebar rendering, override summary/export shaping, and constraint-status helpers: `packages/layout-engine/src/preview-shell/app-shell-panels.ts`
 - preview load/bootstrap coordinator helpers: `packages/layout-engine/src/preview-shell/app-load.ts`
 - preview local-vs-ELK relayout coordination and runtime coercion cleanup helpers: `packages/layout-engine/src/preview-shell/app-relayout.ts`
+- preview live resize relayout policy, RAF queueing, and temporary override shaping helpers: `packages/layout-engine/src/preview-shell/app-live-resize.ts`
 - preview single-selection inspector host composition helpers: `packages/layout-engine/src/preview-shell/app-inspector-host.ts`
 - preview drag-start, reorder-indicator, rendered-bounds, multi-resize selection, resize-handle planning, and resize-start host helpers: `packages/layout-engine/src/preview-shell/app-interaction-host.ts`
 - preview stage SVG hit-area, hover-state, and event-binding helpers: `packages/layout-engine/src/preview-shell/app-stage-svg.ts`
@@ -51,70 +52,31 @@ Shrink `scripts/preview/editor.js` into a thin bootstrap/coordinator so the stan
 ## Responsibilities still concentrated in `editor.js`
 
 - selection-depth DOM/event wiring around pointer handlers
-- drag / resize mousemove/mouseup cleanup, live local-resize relayout scheduling, and shell callback wiring still wired in JS after move/completion dispatch
+- drag / resize mousemove/mouseup cleanup and shell callback wiring still wired in JS after move/completion dispatch
 - remaining grid event binding, DOM patch application, undo/dirty coordination, and relayout debounce glue
+- residual artboard-fit, snap-target, and delete orchestration helpers
 - undo wiring and mutation commits around waypoint add/remove/move after the typed geometry/DOM helpers run
 - compatibility shims / global exposures used during migration
 
-## Slice 1 status
+## Current shape
 
-Landed:
+Landed concerns now group into these typed owners:
 
-- primary-selection resolution
-- multi-selection grouping and same-parent classification
-- selection-derived inferred gap rules
-- multi-selection align / distribute target planning
-- multi-selection action-item assembly, including parent-bound derivation and unsupported-item filtering
-- top-level multi-selection inspector flags
-- single-selection summary flags (`currentAlign`, override state, waypoint state, child-note mode)
-- single-selection autolayout panel branch state
-- single-selection autolayout panel HTML assembly
-- single-selection inspector panel HTML assembly
-- multi-selection shared sizing / container / align state
-- multi-selection inspector panel HTML assembly
-- multi-selection inspector option resolution now delegates to TS helpers, including inferred gap, align/container/sizing state, and runtime sizing lookup
-- legacy JS fallback branches for those inspector state helpers are removed; `editor.js` now delegates those decisions directly to `LayoutEngine`
-- SVG click / double-click selection-depth decisions now delegate to `LayoutEngine`
-- depth-aware and deepest selection hit-testing now delegates to TS helpers, leaving `editor.js` with only DOM bounds capture for the live SVG
-- selection-set and selection-depth mutations now route through TS helpers instead of inline JS state updates
-- autolayout reorder targeting and multi-selection resize bounds now delegate to TS geometry helpers
-- multi-selection member scaling, recursive child relayout collection, propagated-override reset shaping, and sibling-relayout override merging now delegate to TS resize helpers
-- arrow-key nudge override shaping, top-level keyboard shortcut resolution, and resize-persist plan building now delegate to TS interaction helpers
-- document keydown branching now delegates to a TS keyboard dispatcher, leaving `editor.js` as a thin state/callback wrapper
-- drag-end and resize-end completion branching now delegate to TS completion-plan helpers
-- drag-end and resize-end completion dispatch now delegates to TS helpers, leaving `editor.js` to provide shell callbacks and DOM cleanup only
-- live drag move branching now delegates to a TS dispatcher, leaving `editor.js` to provide SVG coordinate capture, clamp lookups, and shell glue
-- live resize move branching now delegates to a TS dispatcher, leaving `editor.js` to supply model lookups, DOM callbacks, and shell glue
-- drag-start selection capture, autolayout reorder context shaping, and reorder-indicator rendering now delegate to TS helpers instead of inline shell planning
-- rendered component bounds capture, multi-selection resize envelope shaping, resize-handle plan selection, and resize-start state capture now delegate to a TS host helper instead of inline `editor.js` traversal
-- Brockman-style preview grid resolution and span/pixel conversion now delegate to TS grid helpers
-- grid control display-state resolution and runtime override shaping now delegate to TS grid-control helpers
-- grid overlay geometry and grid-info recompute fallback logic now delegate to TS helpers, leaving `editor.js` with DOM patch application, event hookup, and relayout debounce glue
-- grid control margin normalization, DOM-state parsing, and control-value patch shaping now delegate to TS helpers, leaving `editor.js` to apply the resulting DOM patch and handle relayout timing
-- grid control runtime update planning now delegates to TS helpers, including normalized override payloads, local overlay recompute, link-to-root pruning intent, and stable relayout target fallback
-- preview shell resize-handle behavior, width persistence, and panel-specific binding presets now delegate to TS helpers, leaving `editor.js` with only DOM lookup for shell bootstrap
-- preview load/bootstrap coordination now delegates to a TS helper, including canonical frame-tree seeding, local-readiness fallback branching, shared post-load replay, and ELK/grid bootstrap decisions
-- preview shell bootstrap now delegates to TS helpers for shell resize/picker hookup, fallback `EditorState` / `ElkPreviewController` initialization, save-client init config shaping, pageshow reload registration, and SSE reconnect status updates
-- preview input/output/split-view tab state now delegates to a TS helper, including reference placeholder behavior and split-toggle label updates
-- tree/sidebar rendering, context-menu setup, override summary/export shaping, and constraint-status view-state resolution now delegate to TS helpers instead of inline shell UI assembly
-- the local-vs-ELK relayout branch, normalized grid-override handoff, and runtime-only coercion cleanup now delegate to a TS helper instead of living inline in `editor.js`
-- single-selection inspector host composition now delegates to a TS helper, including missing-component fallback, width-unit normalization, autolayout panel composition, and final panel markup assembly
-- stage SVG hit-area insertion, hover class toggling, and stage event binding now delegate to a TS helper instead of inline browser-host logic
-- arrow waypoint endpoint reading, in-place segment updates, full arrow SVG rebuilds, arrowhead geometry, and waypoint-handle position updates now delegate to TS helpers
-- arrow waypoint handle rendering, segment double-click binding, drag-axis resolution, collinear-prune planning, and add/remove waypoint mutation helpers now delegate to TS helpers
-- the full preview SVG override pass now delegates to a TS helper, including reset/restore passes, text reflow and re-anchoring, grid-row reflow offsets, and arrow endpoint/waypoint geometry updates
-- serialized-state and override-patch restore planning now delegates to TS helpers, including relayout-vs-local refresh decisions and frame-tree-aware rerender selection
-- single- and multi-selection frame-property mutation rules now delegate to TS helpers, including constraint normalization, FIXED sizing capture, and inspector size-unit px conversion
-- single-selection autolayout panel option resolution now delegates to TS helpers, including runtime sizing, text-measure preview widths, unit conversions, and absolute-position field values
-- structural-wrapper detection, authored/rendered style inference, single-selection style mode resolution, multi-selection shared style resolution, and visible style mutation rules now delegate to TS helpers
-- single-selection inspector panel option resolution now delegates to a TS helper, including view-model assembly, autolayout-panel error fallback, style-option selection, and final panel render-option packaging
+- Inspector state and renderer shaping
+  `inspector-*`, `app-inspector-host.ts`, `frame-prop-actions.ts`, `frame-style.ts`
+- Interaction state and controller decisions
+  `interaction-*`, `app-interaction-host.ts`, `app-live-resize.ts`, `app-arrow-waypoints.ts`
+- Grid state and runtime update planning
+  `grid-resolution.ts`, `grid-controls.ts`, `grid-overlay-scene.ts`
+- Shell coordinator and restore flow
+  `app-load.ts`, `app-bootstrap.ts`, `app-shell-panels.ts`, `app-shell-resize.ts`, `app-stage-svg.ts`, `app-relayout.ts`, `app-override-application.ts`, `app-state-restore.ts`, `app-view-modes.ts`
 
-Still in `editor.js` for now:
+The migration has materially reduced `editor.js`, but the residual shell is still not closeout-ready for an external architecture review. The remaining JS hotspots are now concentrated enough to attack directly:
 
-- DOM event wiring for pointer down / double-click and live drag / resize interaction
-- live resize RAF scheduling and final resize-persist wrappers
+- pointer down / double-click wiring and remaining drag / resize shell callbacks
 - residual grid DOM host glue and relayout debounce timing
-- a small set of shell runtime shims and migration-era globals
+- artboard-fit, snap-target, and delete orchestration helpers
+- a small set of compatibility globals and migration-era browser shims
 
 ## Target landing zones
 
@@ -140,6 +102,6 @@ Still in `editor.js` for now:
 
 ## Next recommended order
 
-1. Residual pointer/drag/resize DOM cleanup, resize-relayout scheduling, and shell callbacks
+1. Residual pointer/drag/resize DOM cleanup and shell callbacks
 2. Remaining grid DOM wiring and debounce glue
 3. Final shell hook normalization and compatibility-shim cleanup

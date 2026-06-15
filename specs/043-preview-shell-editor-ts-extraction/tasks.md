@@ -31,6 +31,7 @@
 - [x] T031B Extract the local-vs-ELK relayout coordinator and runtime-only coercion cleanup into TS-owned helpers
 - [x] T031C Extract the remaining single-selection inspector host glue and stage SVG host helpers into TS-owned modules
 - [x] T031D Extract arrow waypoint handle/binding and drag-geometry helpers into `app-arrow-waypoints.ts`
+- [x] T031E Extract live resize relayout policy and temporary override shaping into TS-owned helpers so ELK-vs-local resize behavior stops living inline in `editor.js`
 - [ ] T032 Remove obsolete inline helpers and stale compatibility paths uncovered by the extractions
 - [ ] T033 Normalize shared shell hooks so future engine lanes do not require bespoke `editor.js` branches
 
