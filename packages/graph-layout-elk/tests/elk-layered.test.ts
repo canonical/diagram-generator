@@ -15,6 +15,7 @@ import {
   layoutLayeredForFamily,
   layeredConfigForFamily,
   buildLayeredLayoutOptions,
+  stripImplementationOwnedElkLayeredOverrides,
 } from '../src/index.js';
 import { buildElkGraph } from '../src/elk-graph-builder.js';
 
@@ -397,6 +398,19 @@ describe('ELK layered (Sugiyama)', () => {
         'elk.spacing.nodeNode': '48',
       },
     })).toThrow(/Unsupported ELK layered override keys: elk\.edgeRouting, elk\.padding, elk\.portConstraints/);
+  });
+
+  it('strips only legacy implementation-owned keys before higher-level callers merge ELK overrides', () => {
+    expect(stripImplementationOwnedElkLayeredOverrides({
+      'elk.edgeRouting': 'SPLINES',
+      'elk.padding': '[top=16,left=16,bottom=16,right=16]',
+      'elk.portConstraints': 'FREE',
+      'elk.spacing.nodeNode': '48',
+      'elk.unknown': 'surprise',
+    })).toEqual({
+      'elk.spacing.nodeNode': '48',
+      'elk.unknown': 'surprise',
+    });
   });
 
   it('keeps orthogonal routing implementation-owned in resolved layered defaults', () => {

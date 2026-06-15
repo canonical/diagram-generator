@@ -158,6 +158,11 @@ export const ELK_LAYERED_PARAM_SPECS: ElkParamSpec[] = [
 ];
 
 const ELK_LAYERED_PARAM_KEY_SET = new Set(ELK_LAYERED_PARAM_SPECS.map((spec) => spec.key));
+const IMPLEMENTATION_OWNED_ELK_LAYERED_KEYS = new Set([
+  'elk.edgeRouting',
+  'elk.padding',
+  'elk.portConstraints',
+]);
 
 function unsupportedElkLayeredOverrideKeys(
   overrides: Record<string, string | null | undefined>,
@@ -177,6 +182,22 @@ export function elkParamDefaults(): Record<string, string> {
 
 export function elkParamSpecByKey(): Map<string, ElkParamSpec> {
   return new Map(ELK_LAYERED_PARAM_SPECS.map((s) => [s.key, s]));
+}
+
+/**
+ * Legacy frame YAML may still carry implementation-owned ELK keys that are no
+ * longer authorable. Strip only those keys before handing overrides to the
+ * strict layered-option resolver so old diagrams still render while typos and
+ * unknown keys continue to fail fast.
+ */
+export function stripImplementationOwnedElkLayeredOverrides<T extends string | null | undefined>(
+  overrides?: Record<string, T> | null,
+): Record<string, T> {
+  if (!overrides) return {};
+  return Object.fromEntries(
+    Object.entries(overrides)
+      .filter(([key]) => !IMPLEMENTATION_OWNED_ELK_LAYERED_KEYS.has(key)),
+  ) as Record<string, T>;
 }
 
 /** Merge family defaults + YAML/session overrides into ELK layoutOptions map. */

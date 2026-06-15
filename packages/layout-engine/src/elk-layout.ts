@@ -3,7 +3,10 @@
  * as box autolayout. ELK supplies coordinates only — styling comes from resolveStyles().
  */
 import type { GraphLayoutInput, GraphLayoutResult, GraphNodeInput, LayeredCorpusFamily, PlacedEdge, PlacedNode } from '@diagram-generator/graph-layout-core';
-import { layoutLayeredForFamily } from '@diagram-generator/graph-layout-elk';
+import {
+  layoutLayeredForFamily,
+  stripImplementationOwnedElkLayeredOverrides,
+} from '@diagram-generator/graph-layout-elk';
 
 import { Frame, FrameDiagram, Border, createLine } from './frame-model.js';
 import { measure, place, layoutFrameTree, type LayoutOutput } from './layout.js';
@@ -835,8 +838,8 @@ export async function layoutElkFrameDiagram(
 
   const family = options.diagramType ?? familyFromDiagram(diagram);
   const elkOverrides = {
-    ...(diagram.elkLayout ?? {}),
-    ...(options.elkOptionOverrides ?? {}),
+    ...stripImplementationOwnedElkLayeredOverrides(diagram.elkLayout),
+    ...stripImplementationOwnedElkLayeredOverrides(options.elkOptionOverrides),
   };
   const elk = await layoutLayeredForFamily(
     family,
