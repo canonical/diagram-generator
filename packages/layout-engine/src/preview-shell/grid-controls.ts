@@ -41,6 +41,38 @@ export interface PreviewGridControlInputState {
   slackAbsorption?: unknown;
 }
 
+export interface PreviewGridMarginInputState {
+  hasSplitMargins?: boolean;
+  marginTop?: unknown;
+  marginRight?: unknown;
+  marginBottom?: unknown;
+  marginLeft?: unknown;
+  legacyMargin?: unknown;
+  fallbackMargin?: number;
+}
+
+export interface PreviewGridControlDomState extends PreviewGridMarginInputState {
+  cols?: unknown;
+  rows?: unknown;
+  colGap?: unknown;
+  rowGap?: unknown;
+  linkToRoot?: unknown;
+  slackAbsorption?: unknown;
+}
+
+export interface PreviewGridControlDomPatch {
+  checked: Record<string, boolean>;
+  values: Record<string, number>;
+}
+
+export interface PreviewGridControlRuntimeUpdate {
+  controlState: PreviewGridControlState;
+  gridOverrides: Record<string, number | boolean>;
+  overlayGridInfo: PreviewGridInfo;
+  relayoutRootId: string;
+  shouldPruneLinkedRootOverrides: boolean;
+}
+
 const GRID_CONTROL_INPUT_IDS = new Set([
   'grid-cols',
   'grid-rows',
@@ -59,6 +91,22 @@ function finiteNumber(value: unknown): number | null {
 
 export function isGridControlInputId(value: string | null | undefined): boolean {
   return GRID_CONTROL_INPUT_IDS.has(String(value || ''));
+}
+
+export function resolvePreviewGridMarginsFromInputState(
+  input: PreviewGridMarginInputState,
+): { top: number; right: number; bottom: number; left: number } {
+  const fallbackMargin = Math.max(0, Math.round(input.fallbackMargin ?? 24));
+  if (input.hasSplitMargins) {
+    return {
+      top: Math.max(0, Math.round(finiteNumber(input.marginTop) ?? 0)),
+      right: Math.max(0, Math.round(finiteNumber(input.marginRight) ?? 0)),
+      bottom: Math.max(0, Math.round(finiteNumber(input.marginBottom) ?? 0)),
+      left: Math.max(0, Math.round(finiteNumber(input.marginLeft) ?? 0)),
+    };
+  }
+  const uniform = Math.max(0, Math.round(finiteNumber(input.legacyMargin) ?? fallbackMargin));
+  return { top: uniform, right: uniform, bottom: uniform, left: uniform };
 }
 
 export function resolvePreviewGridControlState(options: {
@@ -169,6 +217,52 @@ export function resolvePreviewGridControlInputState(
   };
 }
 
+export function resolvePreviewGridControlStateFromDomState(
+  input: PreviewGridControlDomState,
+): PreviewGridControlState {
+  const margins = resolvePreviewGridMarginsFromInputState(input);
+  return resolvePreviewGridControlInputState({
+    cols: input.cols,
+    rows: input.rows,
+    colGap: input.colGap,
+    rowGap: input.rowGap,
+    marginTop: margins.top,
+    marginRight: margins.right,
+    marginBottom: margins.bottom,
+    marginLeft: margins.left,
+    linkToRoot: input.linkToRoot,
+    slackAbsorption: input.slackAbsorption,
+  });
+}
+
+export function resolvePreviewGridControlDomPatch(options: {
+  controlState: PreviewGridControlState;
+  hasSplitMargins?: boolean;
+}): PreviewGridControlDomPatch {
+  const values: Record<string, number> = {
+    'grid-cols': options.controlState.cols,
+    'grid-rows': options.controlState.rows,
+    'grid-col-gap': options.controlState.colGap,
+    'grid-row-gap': options.controlState.rowGap,
+  };
+  if (options.hasSplitMargins) {
+    values['grid-margin-top'] = options.controlState.marginTop;
+    values['grid-margin-right'] = options.controlState.marginRight;
+    values['grid-margin-bottom'] = options.controlState.marginBottom;
+    values['grid-margin-left'] = options.controlState.marginLeft;
+  } else {
+    values['grid-margin'] = options.controlState.marginTop;
+  }
+
+  return {
+    values,
+    checked: {
+      'grid-link-root': options.controlState.linkToRoot,
+      'grid-slack': options.controlState.slackAbsorption,
+    },
+  };
+}
+
 export function resolvePreviewGridInfoFromControlState(options: {
   canvasWidth: number;
   canvasHeight: number;
@@ -189,6 +283,27 @@ export function resolvePreviewGridInfoFromControlState(options: {
     marginLeft: options.controlState.marginLeft,
     slackAbsorption: options.controlState.slackAbsorption,
   });
+}
+
+export function resolvePreviewGridControlRuntimeUpdate(options: {
+  canvasWidth: number;
+  canvasHeight: number;
+  baselineStep: number;
+  controlState: PreviewGridControlState;
+  rootId?: string | null;
+}): PreviewGridControlRuntimeUpdate {
+  return {
+    controlState: options.controlState,
+    gridOverrides: createPreviewGridOverrides(options.controlState),
+    overlayGridInfo: resolvePreviewGridInfoFromControlState({
+      canvasWidth: options.canvasWidth,
+      canvasHeight: options.canvasHeight,
+      baselineStep: options.baselineStep,
+      controlState: options.controlState,
+    }),
+    relayoutRootId: options.rootId ? String(options.rootId) : 'root',
+    shouldPruneLinkedRootOverrides: Boolean(options.controlState.linkToRoot),
+  };
 }
 
 export function resolvePreviewGridInfoFromRuntimeState(options: {

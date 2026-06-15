@@ -39,6 +39,8 @@ Read these first:
 2. [`DIAGRAM.md`](DIAGRAM.md)
 3. Only the source files relevant to the task
 
+**Read discipline:** do not load large context up front. Locate first with narrow `rg` / `Glob`, then read only what the task needs — usually a symbol hit or a bounded slice (`offset`/`limit` on trap files). Whole-file reads are fine for small modules; read whole files when that is genuinely simpler than stitching partial reads.
+
 Use [`TODO.md`](TODO.md) for the execution queue and [`INBOX.md`](INBOX.md) for user async notes. Do not trawl large history docs unless the task explicitly needs them.
 
 ## Handover
@@ -78,6 +80,7 @@ Prefer **narrow, scoped searches** over repo-wide scans.
 |----|--------|
 | `rg pattern apps/preview/src` | `rg pattern` from repo root (slow on large trees) |
 | `rg pattern scripts/preview/editor.js` | Chain `find … \| head` — use PowerShell-native limits (`Select-Object -First N`) on Windows |
+| `rg` / `Glob` to locate, then partial `Read` | Open a trap file or spec tree whole-file without a search hit |
 | One targeted read after rg | Re-read the same 6k-line file in every sub-agent |
 | Run the tests listed in the flow map | Launch 5 parallel "sweep" agents for a single-file bug |
 

@@ -2,10 +2,14 @@ import { describe, expect, it } from 'vitest';
 import {
   createPreviewGridOverrides,
   isGridControlInputId,
+  resolvePreviewGridControlDomPatch,
   resolvePreviewGridControlInputState,
+  resolvePreviewGridControlRuntimeUpdate,
   resolvePreviewGridControlState,
+  resolvePreviewGridControlStateFromDomState,
   resolvePreviewGridInfoFromControlState,
   resolvePreviewGridInfoFromRuntimeState,
+  resolvePreviewGridMarginsFromInputState,
 } from '../src/preview-shell/grid-controls.js';
 
 describe('preview-shell grid control helpers', () => {
@@ -102,6 +106,168 @@ describe('preview-shell grid control helpers', () => {
       marginLeft: 0,
       linkToRoot: false,
       slackAbsorption: true,
+    });
+  });
+
+  it('resolves split and legacy margin inputs into stable per-side margins', () => {
+    expect(resolvePreviewGridMarginsFromInputState({
+      hasSplitMargins: true,
+      marginTop: '17.2',
+      marginRight: '-9',
+      marginBottom: 'abc',
+      marginLeft: 40.8,
+      fallbackMargin: 32,
+    })).toEqual({
+      top: 17,
+      right: 0,
+      bottom: 0,
+      left: 41,
+    });
+
+    expect(resolvePreviewGridMarginsFromInputState({
+      hasSplitMargins: false,
+      legacyMargin: '',
+      fallbackMargin: 32.4,
+    })).toEqual({
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 0,
+    });
+  });
+
+  it('normalizes grid control DOM state, including legacy margin fallback', () => {
+    expect(resolvePreviewGridControlStateFromDomState({
+      cols: '5',
+      rows: -1,
+      colGap: '23.6',
+      rowGap: null,
+      hasSplitMargins: false,
+      legacyMargin: '18.9',
+      fallbackMargin: 24,
+      linkToRoot: false,
+      slackAbsorption: 'yes',
+    })).toEqual({
+      cols: 5,
+      rows: 0,
+      colGap: 24,
+      rowGap: 0,
+      marginTop: 19,
+      marginRight: 19,
+      marginBottom: 19,
+      marginLeft: 19,
+      linkToRoot: false,
+      slackAbsorption: true,
+    });
+  });
+
+  it('builds DOM patches for split and legacy margin control layouts', () => {
+    expect(resolvePreviewGridControlDomPatch({
+      controlState: {
+        cols: 3,
+        rows: 4,
+        colGap: 24,
+        rowGap: 16,
+        marginTop: 20,
+        marginRight: 28,
+        marginBottom: 36,
+        marginLeft: 44,
+        linkToRoot: true,
+        slackAbsorption: false,
+      },
+      hasSplitMargins: true,
+    })).toEqual({
+      values: {
+        'grid-cols': 3,
+        'grid-rows': 4,
+        'grid-col-gap': 24,
+        'grid-row-gap': 16,
+        'grid-margin-top': 20,
+        'grid-margin-right': 28,
+        'grid-margin-bottom': 36,
+        'grid-margin-left': 44,
+      },
+      checked: {
+        'grid-link-root': true,
+        'grid-slack': false,
+      },
+    });
+
+    expect(resolvePreviewGridControlDomPatch({
+      controlState: {
+        cols: 2,
+        rows: 1,
+        colGap: 8,
+        rowGap: 12,
+        marginTop: 30,
+        marginRight: 30,
+        marginBottom: 30,
+        marginLeft: 30,
+        linkToRoot: false,
+        slackAbsorption: true,
+      },
+      hasSplitMargins: false,
+    })).toEqual({
+      values: {
+        'grid-cols': 2,
+        'grid-rows': 1,
+        'grid-col-gap': 8,
+        'grid-row-gap': 12,
+        'grid-margin': 30,
+      },
+      checked: {
+        'grid-link-root': false,
+        'grid-slack': true,
+      },
+    });
+  });
+
+  it('builds a grid runtime update plan from normalized control state', () => {
+    expect(resolvePreviewGridControlRuntimeUpdate({
+      canvasWidth: 480,
+      canvasHeight: 360,
+      baselineStep: 8,
+      rootId: '',
+      controlState: {
+        cols: 4,
+        rows: 3,
+        colGap: 24,
+        rowGap: 16,
+        marginTop: 20,
+        marginRight: 28,
+        marginBottom: 36,
+        marginLeft: 44,
+        linkToRoot: true,
+        slackAbsorption: false,
+      },
+    })).toMatchObject({
+      controlState: {
+        cols: 4,
+        rows: 3,
+        colGap: 24,
+        rowGap: 16,
+        marginTop: 20,
+        marginRight: 28,
+        marginBottom: 36,
+        marginLeft: 44,
+        linkToRoot: true,
+        slackAbsorption: false,
+      },
+      gridOverrides: {
+        cols: 4,
+        rows: 3,
+        col_gap: 24,
+        row_gap: 16,
+        margin_top: 20,
+        margin_right: 28,
+        margin_bottom: 36,
+        margin_left: 44,
+        outer_margin: 20,
+        link_to_root: true,
+        slack_absorption: false,
+      },
+      relayoutRootId: 'root',
+      shouldPruneLinkedRootOverrides: true,
     });
   });
 

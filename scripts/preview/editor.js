@@ -95,93 +95,18 @@ function _nodeProp(node, key) {
   return undefined;
 }
 
-function _nodeHeadingText(node) {
-  const t = _nodeProp(node, "heading_text");
-  return t ? String(t) : "";
-}
-
-function _isContainerNode(node) {
-  return !!(node && Array.isArray(node.children) && node.children.length > 0);
-}
-
-function _hasExplicitVisibleContainerStyle(node) {
-  if (!node) return false;
-  if (_nodeProp(node, "level") != null) return true;
-  const fill = _normaliseStyleFill(_nodeProp(node, "fill"));
-  const stroke = _normaliseStyleStrokeOrBorder(_nodeProp(node, "border"));
-  return fill !== "WHITE" || stroke !== "NONE";
-}
-
-function _isImplicitStructuralWrapper(node) {
-  return _isContainerNode(node) && !_nodeHeadingText(node).trim() && !_hasExplicitVisibleContainerStyle(node);
-}
-
-function _nodeSupportsVisibleStylePicker(node) {
-  return !_isImplicitStructuralWrapper(node);
+function _readRenderedStyleFields(cid) {
+  const group = document.querySelector('[data-component-id="' + CSS.escape(cid) + '"]');
+  const rect = group ? group.querySelector(":scope > rect:first-of-type") : null;
+  if (!rect) return null;
+  return {
+    fill: rect.getAttribute("fill"),
+    stroke: rect.getAttribute("stroke"),
+  };
 }
 
 function _gridEl(id) {
   return document.getElementById(id);
-}
-
-/** Read per-side page margins from grid controls (unified viewer) or legacy single field. */
-function _readGridMargins() {
-  const topEl = _gridEl("grid-margin-top");
-  if (topEl) {
-    return {
-      top: Math.max(0, parseInt(topEl.value, 10) || 0),
-      right: Math.max(0, parseInt(_gridEl("grid-margin-right").value, 10) || 0),
-      bottom: Math.max(0, parseInt(_gridEl("grid-margin-bottom").value, 10) || 0),
-      left: Math.max(0, parseInt(_gridEl("grid-margin-left").value, 10) || 0),
-    };
-  }
-  const legacy = _gridEl("grid-margin");
-  const uniform = legacy ? Math.max(0, parseInt(legacy.value, 10) || 0) : GRID_DEFAULTS.margin_top;
-  return { top: uniform, right: uniform, bottom: uniform, left: uniform };
-}
-
-function _nodeHasTextContent(node) {
-  if (!node) return false;
-  if (_nodeHeadingText(node).trim()) return true;
-  if (Array.isArray(node.label_text) && node.label_text.some((t) => String(t || "").trim())) return true;
-  return false;
-}
-
-function _inspectorMaxWidthChars(node, ovr) {
-  if (ovr && ovr.max_width_chars != null && ovr.max_width_chars !== "") return ovr.max_width_chars;
-  if (node && node.max_width_chars != null) return node.max_width_chars;
-  if (_nodeHasTextContent(node) && typeof LayoutEngine !== "undefined") {
-    return LayoutEngine.DEFAULT_MAX_WIDTH_CHARS;
-  }
-  return "";
-}
-
-function _inspectorHasExplicitMaxWidthPx(node, ovr) {
-  if (ovr && ovr.max_width !== undefined && ovr.max_width !== "") return true;
-  return !!(node && node.max_width != null && node.max_width !== "");
-}
-
-function _inspectorMaxWidthPxPreview(chars, node) {
-  if (!chars || chars === "0" || chars === 0) return "";
-  if (typeof LayoutEngine === "undefined" || !LayoutEngine.maxWidthPxFromChars) return "";
-  const adapter = (typeof window.getLayoutTextAdapter === "function")
-    ? window.getLayoutTextAdapter()
-    : null;
-  if (!adapter) return "";
-  let reference;
-  if (node && Array.isArray(node.label_text) && node.label_text.length) {
-    reference = { content: String(node.label_text[0]), size: String(LayoutEngine.BODY_SIZE), weight: "400" };
-  }
-  return Math.round(LayoutEngine.maxWidthPxFromChars(Number(chars), adapter, reference));
-}
-
-function _inspectorDisplayMaxWidth(node, ovr) {
-  if (ovr && ovr.max_width !== undefined && ovr.max_width !== "") return ovr.max_width;
-  if (node && node.max_width != null && node.max_width !== "") return node.max_width;
-  if (_inspectorHasExplicitMaxWidthPx(node, ovr)) return "";
-  const chars = _inspectorMaxWidthChars(node, ovr);
-  if (chars !== "" && chars !== 0 && chars !== "0") return _inspectorMaxWidthPxPreview(chars, node);
-  return "";
 }
 
 // ---- Guide mode (W key) ----
@@ -294,125 +219,101 @@ function _pruneLinkedRootGridOverrides() {
 }
 
 function _restoreOverrideEntries(entries) {
-  for (const [cid, entry] of Object.entries(entries || {})) {
-    if (entry && Object.keys(entry).length > 0) {
-      overrides[cid] = EditorState.cloneValue(entry);
-      model.cleanOverride(cid);
-      if (overrides[cid] && Object.keys(overrides[cid]).length === 0) {
-        delete overrides[cid];
-      }
-    } else {
-      delete overrides[cid];
-    }
-  }
+  overrides = LayoutEngine.restorePreviewOverrideEntries({
+    currentOverrides: overrides,
+    entries,
+  });
+  Object.keys(entries || {}).forEach((cid) => model.cleanOverride(cid));
 }
 
 function _snapshotNeedsV3Relayout(snapshot) {
-  for (const [cid, entry] of Object.entries(snapshot || {})) {
-    const node = model.get(cid);
-    if (!node || node.type === "arrow") continue;
-    if (entry == null || _hasV3FrameOverride(entry)) return true;
+  return LayoutEngine.snapshotNeedsPreviewRelayout({
+    snapshot,
+    getNode: (cid) => model.get(cid),
+    hasV3FrameOverride: (entry) => _hasV3FrameOverride(entry),
+  });
+}
+
+function _clearPendingRestoreRuntime() {
+  if (relayoutTimer) {
+    clearTimeout(relayoutTimer);
+    relayoutTimer = null;
   }
-  return false;
+  clearTimeout(_v3RelayoutTimer);
+  EditorState.setPendingGridAction(null);
+}
+
+function _applyLocalRestoreRefresh(syncGridControls = false) {
+  applyWaypointOverrides();
+  applyAllOverrides();
+  reapplySelection();
+  renderSelectionInspector();
+  updateOverrideSummary();
+  refreshTreeColors();
+  runConstraints();
+  if (syncGridControls && gridInfo) {
+    populateGridControls();
+  }
 }
 
 /** Serialise the full dirty-trackable state (overrides + grid overrides). */
 async function _restoreEditorState(serializedState) {
-  if (relayoutTimer) {
-    clearTimeout(relayoutTimer);
-    relayoutTimer = null;
-  }
-  clearTimeout(_v3RelayoutTimer);
-  EditorState.setPendingGridAction(null);
-  const parsed = typeof LayoutEngine !== "undefined" && LayoutEngine.parseEditorSnapshot
-    ? LayoutEngine.parseEditorSnapshot(serializedState)
-    : JSON.parse(serializedState || "{}");
-  const currentOverrides = EditorState.cloneValue(overrides);
-  const nextOverrides = EditorState.cloneValue(parsed.o);
-  const nextGridOverrides = EditorState.normalizeGridOverrides(parsed.g);
-  const currentGridOverrides = EditorState.normalizeGridOverrides(model.gridOverrides || {});
-  const gridChanged = JSON.stringify(currentGridOverrides) !== JSON.stringify(nextGridOverrides);
-
-  overrides = nextOverrides;
-  model.gridOverrides = EditorState.cloneValue(nextGridOverrides);
-  model.elkLayoutOverrides = EditorState.cloneValue(parsed.e || {});
-  const prevRemovedIds = model.removedIds || new Set();
-  const nextRemovedIds = new Set(Array.isArray(parsed.r) ? parsed.r : []);
-  const removalsChanged = (
-    prevRemovedIds.size !== nextRemovedIds.size
-    || [...prevRemovedIds].some(id => !nextRemovedIds.has(id))
-  );
-  model.removedIds = nextRemovedIds;
-  if (parsed.f && typeof setFrameTreeJson === "function") {
-    setFrameTreeJson(parsed.f);
-  }
-  if (nextGridOverrides.link_to_root !== false) {
-    _pruneLinkedRootGridOverrides();
-  }
-
-  const frameTreeChanged = Object.prototype.hasOwnProperty.call(parsed, "f");
-  const needsV3Relayout = (
-    frameTreeChanged
-    || removalsChanged
-    || gridChanged
-    || _snapshotNeedsV3Relayout(currentOverrides)
-    || _snapshotNeedsV3Relayout(nextOverrides)
-  );
-
-  if (needsV3Relayout) {
-    const rootId = (model.roots[0] || {}).id || "root";
-    if ((frameTreeChanged || removalsChanged) && typeof renderFreshSvg === "function") {
-      await _rerenderStageFromFrameTree();
-    } else {
-      await requestV3Relayout(rootId);
-    }
-    if (gridInfo) populateGridControls();
-  } else {
-    applyWaypointOverrides();
-    applyAllOverrides();
-    reapplySelection();
-    renderSelectionInspector();
-    updateOverrideSummary();
-    refreshTreeColors();
-    runConstraints();
-    if (gridInfo) populateGridControls();
-  }
-
-  const currentStateStr = EditorState.serializeDirtyState();
-  PreviewSaveClient.syncDirtyFromSerialized(currentStateStr);
+  await LayoutEngine.restorePreviewSerializedState({
+    serializedState,
+    currentOverrides: overrides,
+    currentGridOverrides: model.gridOverrides || {},
+    currentRemovedIds: model.removedIds || new Set(),
+    rootId: (model.roots[0] || {}).id || "root",
+    getNode: (cid) => model.get(cid),
+    hasV3FrameOverride: (entry) => _hasV3FrameOverride(entry),
+    setOverrides: (nextOverrides) => {
+      overrides = nextOverrides;
+    },
+    setGridOverrides: (nextGridOverrides) => {
+      model.gridOverrides = EditorState.cloneValue(nextGridOverrides);
+    },
+    setElkLayoutOverrides: (nextElkLayoutOverrides) => {
+      model.elkLayoutOverrides = EditorState.cloneValue(nextElkLayoutOverrides);
+    },
+    setRemovedIds: (nextRemovedIds) => {
+      model.removedIds = new Set(nextRemovedIds);
+    },
+    setFrameTree: (frameTree) => {
+      if (typeof setFrameTreeJson === "function") {
+        setFrameTreeJson(frameTree);
+      }
+    },
+    pruneLinkedRootOverrides: () => _pruneLinkedRootGridOverrides(),
+    clearPendingRuntime: () => _clearPendingRestoreRuntime(),
+    rerenderStageFromFrameTree: () => _rerenderStageFromFrameTree(),
+    requestRelayout: (triggerId) => requestV3Relayout(triggerId),
+    applyLocalRefresh: ({ syncGridControls }) => _applyLocalRestoreRefresh(syncGridControls),
+    syncGridControls: () => {
+      if (gridInfo) populateGridControls();
+    },
+    syncDirtyFromSerialized: (currentStateStr) => PreviewSaveClient.syncDirtyFromSerialized(currentStateStr),
+    serializeDirtyState: () => EditorState.serializeDirtyState(),
+  });
 }
 
 async function _restoreOverridePatch(entries) {
-  if (relayoutTimer) {
-    clearTimeout(relayoutTimer);
-    relayoutTimer = null;
-  }
-  clearTimeout(_v3RelayoutTimer);
-  EditorState.setPendingGridAction(null);
-  const touchedIds = Object.keys(entries || {});
-  const beforeEntries = EditorState.captureOverrideEntries(touchedIds);
-  _restoreOverrideEntries(entries);
-
-  const needsV3Relayout = (
-    _snapshotNeedsV3Relayout(beforeEntries)
-    || _snapshotNeedsV3Relayout(entries)
-  );
-
-  if (needsV3Relayout) {
-    const triggerId = touchedIds[0] || (model.roots[0] || {}).id || "root";
-    await requestV3Relayout(triggerId);
-  } else {
-    applyWaypointOverrides();
-    applyAllOverrides();
-    reapplySelection();
-    renderSelectionInspector();
-    updateOverrideSummary();
-    refreshTreeColors();
-    runConstraints();
-  }
-
-  const currentStateStr = EditorState.serializeDirtyState();
-  PreviewSaveClient.syncDirtyFromSerialized(currentStateStr);
+  await LayoutEngine.restorePreviewOverridePatch({
+    entries,
+    currentOverrides: overrides,
+    rootId: (model.roots[0] || {}).id || "root",
+    getNode: (cid) => model.get(cid),
+    hasV3FrameOverride: (entry) => _hasV3FrameOverride(entry),
+    captureOverrideEntries: (ids) => EditorState.captureOverrideEntries(ids),
+    setOverrides: (nextOverrides) => {
+      overrides = nextOverrides;
+    },
+    cleanOverride: (cid) => model.cleanOverride(cid),
+    clearPendingRuntime: () => _clearPendingRestoreRuntime(),
+    requestRelayout: (triggerId) => requestV3Relayout(triggerId),
+    applyLocalRefresh: ({ syncGridControls }) => _applyLocalRestoreRefresh(syncGridControls),
+    syncDirtyFromSerialized: (currentStateStr) => PreviewSaveClient.syncDirtyFromSerialized(currentStateStr),
+    serializeDirtyState: () => EditorState.serializeDirtyState(),
+  });
 }
 
 async function _applyUndoCommand(command, direction) {
@@ -430,125 +331,69 @@ function _hasV3FrameOverride(ovr) {
 }
 
 async function loadSVG(options = {}) {
-  const preservedSelection = Array.isArray(options.preserveSelectionIds)
-    ? options.preserveSelectionIds.slice()
-    : null;
-  const canonicalState = options.canonicalState && typeof options.canonicalState === "object"
-    ? options.canonicalState
-    : null;
-  // Clear any stale selection UI before replacing the stage. Some browser
-  // surfaces restore previous form/DOM state aggressively across reloads,
-  // which can leave the inspector showing an old multi-selection until the
-  // new diagram finishes booting.
-  deselectAll();
-
   const stage = document.getElementById("stage");
-  stage.innerHTML = '<div style="padding:24px;color:#666;font-family:Ubuntu Sans,sans-serif">Loading\u2026</div>';
-
-  // Initialize layout bridge (loads frame tree JSON + HarfBuzz)
-  if (typeof initLayoutBridge !== "function") {
-    throw new Error("preview layout bridge is required for the v3 editor");
-  }
-  await initLayoutBridge(SLUG);
-  if (canonicalState && canonicalState.frameTree && typeof setFrameTreeJson === "function") {
-    setFrameTreeJson(canonicalState.frameTree);
-  } else if (canonicalState && canonicalState.previewDocument && canonicalState.previewDocument.kind === "sequence" && typeof setFrameTreeJson === "function") {
-    setFrameTreeJson(null);
-  }
-
-  // Seed ELK overrides from saved YAML before any sidebar sync or layout read.
-  if (ElkPreviewController.isElkLayeredDiagram()) {
-    resetOverrideState();
-    ElkPreviewController.initPanel();
-  }
-
-  // Check readiness — fall back to Python SVG if bridge fails
-  const readiness = getLocalRelayoutStatus();
-  if (!readiness.ready) {
-    console.warn("TS bridge not ready, falling back to Python SVG:", readiness.reason);
-    // Show degraded-mode banner in stage
-    const reasonText = readiness.textAdapterError || readiness.reason || "unknown";
-    stage.innerHTML =
-      '<div style="padding:24px;font-family:Ubuntu Sans,sans-serif">' +
-      '<div style="color:#c7162b;margin-bottom:12px">⚠ Client-side rendering unavailable: ' +
-      escapeHtml(reasonText) + '</div>' +
-      '<div style="color:#666">Falling back to server-rendered SVG\u2026</div></div>';
-    const suffix = GRID ? `-${ENGINE}-grid.svg` : `-${ENGINE}.svg`;
-    const resp = await fetch("/svg/" + SLUG + "-onbrand" + suffix + "?t=" + Date.now());
-    if (!resp.ok) {
-      stage.innerHTML =
-        '<div style="padding:24px;color:#c7162b;font-family:Ubuntu Sans,sans-serif">' +
-        'Failed to load diagram: server returned ' + resp.status + '</div>';
-      return;
-    }
-    stage.innerHTML = await resp.text();
-    await loadTree(canonicalState);
-    await loadGridInfo(canonicalState);
-    if (gridInfo) model.setDiagramGrid(gridInfo);
-    populateGridControls();
-    resetOverrideState();
-    applyWaypointOverrides();
-    applyAllOverrides();
-    bindInteraction();
-    renderGridOverlay();
-    if (preservedSelection) {
-      selectedIds.clear();
-      preservedSelection.forEach(id => selectedIds.add(id));
-    }
-    reapplySelection();
-    runConstraints();
-    PreviewSaveClient.markSaved(EditorState.serializeDirtyState());
-    _signalDiagramLoaded();
-    return;
-  }
-
-  // Load tree + grid info
-  await loadTree(canonicalState);
-  await loadGridInfo(canonicalState);
-  if (gridInfo) model.setDiagramGrid(gridInfo);
-  populateGridControls();
-  if (!ElkPreviewController.isElkLayeredDiagram()) {
-    resetOverrideState();
-  }
-
-  // Build overrides
-  const hasGridOverrides = model.gridOverrides && Object.keys(model.gridOverrides).length > 0;
-  if (hasGridOverrides) {
-    const go = model.gridOverrides;
-    if (go.link_to_root !== false) _pruneLinkedRootGridOverrides();
-  }
-
-  // Build complete SVG via TS pipeline
-  const renderResult = await renderFreshSvg(
-    overrides,
-    hasGridOverrides ? model.gridOverrides : null,
-    model
-  );
-
-  // Replace stage content with TS-rendered SVG
-  stage.replaceChildren(renderResult.svg);
-  if (typeof fitSvgToRenderedContent === "function") {
-    fitSvgToRenderedContent(renderResult.svg, {
-      minWidth: renderResult.width,
-      minHeight: renderResult.height,
-    });
-  }
-
-  applyWaypointOverrides();
-  applyAllOverrides();
-  bindInteraction();
-  renderGridOverlay();
-  if (preservedSelection) {
-    selectedIds.clear();
-    preservedSelection.forEach(id => selectedIds.add(id));
-  }
-  reapplySelection();
-  runConstraints();
-  PreviewSaveClient.markSaved(EditorState.serializeDirtyState());
-  if (ElkPreviewController.isElkLayeredDiagram()) {
-    ElkPreviewController.initPanel();
-  }
-  _signalDiagramLoaded();
+  await LayoutEngine.loadPreviewSvg({
+    invocation: options,
+    deselectAll,
+    initLayoutBridge: async () => {
+      if (typeof initLayoutBridge !== "function") {
+        throw new Error("preview layout bridge is required for the v3 editor");
+      }
+      await initLayoutBridge(SLUG);
+    },
+    setFrameTreeJson: typeof setFrameTreeJson === "function" ? setFrameTreeJson : null,
+    isElkLayeredDiagram: () => ElkPreviewController.isElkLayeredDiagram(),
+    resetOverrideState,
+    initElkPanel: () => ElkPreviewController.initPanel(),
+    getLocalRelayoutStatus,
+    escapeHtml,
+    setStageHtml: (html) => {
+      stage.innerHTML = html;
+    },
+    loadTree,
+    loadGridInfo,
+    getGridInfo: () => gridInfo,
+    setDiagramGrid: (nextGridInfo) => model.setDiagramGrid(nextGridInfo),
+    populateGridControls,
+    applyWaypointOverrides,
+    applyAllOverrides,
+    bindInteraction,
+    renderGridOverlay,
+    restoreSelection: (ids) => {
+      if (ids) {
+        selectedIds.clear();
+        ids.forEach((id) => selectedIds.add(id));
+      }
+      reapplySelection();
+    },
+    runConstraints,
+    markSaved: (serializedState) => PreviewSaveClient.markSaved(serializedState),
+    serializeDirtyState: () => EditorState.serializeDirtyState(),
+    signalDiagramLoaded: _signalDiagramLoaded,
+    getGridOverrides: () => model.gridOverrides,
+    pruneLinkedRootGridOverrides: _pruneLinkedRootGridOverrides,
+    renderFreshSvg: () => {
+      const gridOverrides = model.gridOverrides && Object.keys(model.gridOverrides).length > 0
+        ? model.gridOverrides
+        : null;
+      return renderFreshSvg(overrides, gridOverrides, model);
+    },
+    replaceStageWithRenderedSvg: (renderResult) => {
+      stage.replaceChildren(renderResult.svg);
+    },
+    fitRenderedSvg: typeof fitSvgToRenderedContent === "function"
+      ? (renderResult) => {
+        fitSvgToRenderedContent(renderResult.svg, {
+          minWidth: renderResult.width,
+          minHeight: renderResult.height,
+        });
+      }
+      : null,
+    fetchFallbackSvg: async () => {
+      const suffix = GRID ? `-${ENGINE}-grid.svg` : `-${ENGINE}.svg`;
+      return fetch("/svg/" + SLUG + "-onbrand" + suffix + "?t=" + Date.now());
+    },
+  });
 }
 
 async function _finishV3Relayout(triggerCid, localResult, executionLabel) {
@@ -607,24 +452,14 @@ window.whenDiagramLoaded = whenDiagramLoaded;
 window.__DG_TEST_getDiagramLoadGeneration = () => _diagramLoadGeneration;
 
 function _syncBrowseNavToLocation() {
-  const currentPath = window.location.pathname;
-  document.querySelectorAll(".dg-browse-link").forEach((link) => {
-    const active = link.getAttribute("href") === currentPath;
-    link.classList.toggle("is-active", active);
-    if (active) {
-      link.setAttribute("aria-current", "page");
-    } else {
-      link.removeAttribute("aria-current");
-    }
-  });
+  LayoutEngine.syncPreviewBrowseLinksToPath(
+    Array.from(document.querySelectorAll(".dg-browse-link")),
+    window.location.pathname,
+  );
 }
 
 function _normaliseDiagramPath(nextUrl) {
-  try {
-    return new URL(String(nextUrl || ""), window.location.origin).pathname;
-  } catch {
-    return "";
-  }
+  return LayoutEngine.normalizePreviewDiagramPath(nextUrl, window.location.origin);
 }
 
 function _attemptDiagramNavigation(nextUrl, syncUi) {
@@ -809,66 +644,73 @@ function populateGridControls() {
     gridInfo,
     gridOverrides: model.gridOverrides || {},
   });
+  const domPatch = LayoutEngine.resolvePreviewGridControlDomPatch({
+    controlState,
+    hasSplitMargins: Boolean(_gridEl("grid-margin-top")),
+  });
 
-  document.getElementById("grid-cols").value = controlState.cols;
-  document.getElementById("grid-rows").value = controlState.rows;
-  document.getElementById("grid-col-gap").value = controlState.colGap;
-  document.getElementById("grid-row-gap").value = controlState.rowGap;
-
-  const topEl = _gridEl("grid-margin-top");
-  if (topEl) {
-    topEl.value = controlState.marginTop;
-    _gridEl("grid-margin-right").value = controlState.marginRight;
-    _gridEl("grid-margin-bottom").value = controlState.marginBottom;
-    _gridEl("grid-margin-left").value = controlState.marginLeft;
-  } else {
-    const legacy = _gridEl("grid-margin");
-    if (legacy) legacy.value = controlState.marginTop;
-  }
-
-  const linkEl = document.getElementById("grid-link-root");
-  if (linkEl) linkEl.checked = controlState.linkToRoot;
-  const slackEl = document.getElementById("grid-slack");
-  if (slackEl) slackEl.checked = controlState.slackAbsorption;
+  Object.entries(domPatch.values).forEach(([id, value]) => {
+    const el = _gridEl(id);
+    if (el) el.value = value;
+  });
+  Object.entries(domPatch.checked).forEach(([id, checked]) => {
+    const el = _gridEl(id);
+    if (el) el.checked = checked;
+  });
 }
 
 let relayoutTimer = null;
 
 function _readGridControlStateFromDom() {
-  const margins = _readGridMargins();
   const linkEl = document.getElementById("grid-link-root");
   const slackEl = document.getElementById("grid-slack");
-  return LayoutEngine.resolvePreviewGridControlInputState({
+  return LayoutEngine.resolvePreviewGridControlStateFromDomState({
+    hasSplitMargins: Boolean(_gridEl("grid-margin-top")),
     cols: document.getElementById("grid-cols").value,
     rows: document.getElementById("grid-rows").value,
     colGap: document.getElementById("grid-col-gap").value,
     rowGap: document.getElementById("grid-row-gap").value,
-    marginTop: margins.top,
-    marginRight: margins.right,
-    marginBottom: margins.bottom,
-    marginLeft: margins.left,
+    marginTop: _gridEl("grid-margin-top")?.value,
+    marginRight: _gridEl("grid-margin-right")?.value,
+    marginBottom: _gridEl("grid-margin-bottom")?.value,
+    marginLeft: _gridEl("grid-margin-left")?.value,
+    legacyMargin: _gridEl("grid-margin")?.value,
+    fallbackMargin: GRID_DEFAULTS.margin_top,
     linkToRoot: linkEl ? linkEl.checked : true,
     slackAbsorption: slackEl ? slackEl.checked : true,
   });
 }
 
+function _resolveGridControlRuntimeUpdate() {
+  const canvas = _gridCanvasDimensionsFromStage();
+  if (!canvas) return null;
+  return LayoutEngine.resolvePreviewGridControlRuntimeUpdate({
+    canvasWidth: canvas.width,
+    canvasHeight: canvas.height,
+    baselineStep: BASELINE_STEP,
+    controlState: _readGridControlStateFromDom(),
+    rootId: (model.roots[0] || {}).id || "root",
+  });
+}
+
 function onGridControlChange() {
   if (!gridInfo) return;
-  const controlState = _readGridControlStateFromDom();
+  const runtimeUpdate = _resolveGridControlRuntimeUpdate();
+  if (!runtimeUpdate) return;
 
   if (!EditorState.getPendingGridAction()) {
     EditorState.setPendingGridAction(EditorState.beginUndoableAction("Adjust grid"));
   }
 
-  model.gridOverrides = LayoutEngine.createPreviewGridOverrides(controlState);
-  if (controlState.linkToRoot) {
+  model.gridOverrides = runtimeUpdate.gridOverrides;
+  if (runtimeUpdate.shouldPruneLinkedRootOverrides) {
     _pruneLinkedRootGridOverrides();
   }
   setDirty(true);
 
   // Capture root ID before the debounce window so a concurrent tree
   // reload can't change it mid-flight.
-  const rootId = (model.roots[0] || {}).id || "root";
+  const rootId = runtimeUpdate.relayoutRootId;
 
   // Debounce the relayout call so rapid typing doesn't flood the server
   if (relayoutTimer) clearTimeout(relayoutTimer);
@@ -882,7 +724,9 @@ function onGridControlChange() {
   }, 200);
 
   // Immediately update the grid overlay from the input values (local recompute)
-  updateGridOverlayFromInputs();
+  gridInfo = runtimeUpdate.overlayGridInfo;
+  document.getElementById("grid-rows").value = gridInfo._rows;
+  renderGridOverlay();
 }
 
 // ---- Column/row span ↔ pixel conversion ----
@@ -906,20 +750,6 @@ function _gridCanvasDimensionsFromStage() {
     width: pageWidth > 0 ? pageWidth : fallbackWidth,
     height: pageHeight > 0 ? pageHeight : fallbackHeight,
   };
-}
-
-function updateGridOverlayFromInputs() {
-  const canvas = _gridCanvasDimensionsFromStage();
-  if (!canvas) return;
-  const controlState = _readGridControlStateFromDom();
-  gridInfo = LayoutEngine.resolvePreviewGridInfoFromControlState({
-    canvasWidth: canvas.width,
-    canvasHeight: canvas.height,
-    baselineStep: BASELINE_STEP,
-    controlState,
-  });
-  document.getElementById("grid-rows").value = gridInfo._rows;
-  renderGridOverlay();
 }
 
 function refreshV3GridInfoFromLayout() {
@@ -1053,140 +883,45 @@ function ensureArrowHitAreas(svg) {
   }
 }
 
+function _getPreviewHitNodeBounds(svg, node) {
+  let nx, ny, nw, nh;
+  const g = svg.querySelector('[data-component-id="' + node.id + '"]');
+  const rect = g ? g.querySelector(":scope > rect:first-of-type") : null;
+  if (rect) {
+    nx = parseFloat(rect.getAttribute("x"));
+    ny = parseFloat(rect.getAttribute("y"));
+    nw = parseFloat(rect.getAttribute("width"));
+    nh = parseFloat(rect.getAttribute("height"));
+  } else {
+    const eff = getEffectiveDelta(node.id);
+    const own = getOwnDelta(node.id);
+    nx = node.x + eff.dx;
+    ny = node.y + eff.dy;
+    nw = node.width + own.dw;
+    nh = node.height + own.dh;
+  }
+  if (g) {
+    const t = g.style.transform || "";
+    const m = t.match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/);
+    if (m) {
+      nx += parseFloat(m[1]);
+      ny += parseFloat(m[2]);
+    }
+  }
+  return { nx, ny, nw, nh, hasRenderedRect: !!rect };
+}
+
 function findComponentAtDepth(x, y, targetDepth) {
   const svg = document.querySelector("#stage svg");
   if (!svg) return null;
-
-  function getNodeBounds(node) {
-    let nx, ny, nw, nh;
-    const g = svg.querySelector('[data-component-id="' + node.id + '"]');
-    const rect = g ? g.querySelector(":scope > rect:first-of-type") : null;
-    if (rect) {
-      nx = parseFloat(rect.getAttribute("x"));
-      ny = parseFloat(rect.getAttribute("y"));
-      nw = parseFloat(rect.getAttribute("width"));
-      nh = parseFloat(rect.getAttribute("height"));
-    } else {
-      const eff = getEffectiveDelta(node.id);
-      const own = getOwnDelta(node.id);
-      nx = node.x + eff.dx;
-      ny = node.y + eff.dy;
-      nw = node.width + own.dw;
-      nh = node.height + own.dh;
-    }
-    if (g) {
-      const t = g.style.transform || "";
-      const m = t.match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/);
-      if (m) { nx += parseFloat(m[1]); ny += parseFloat(m[2]); }
-    }
-    return { g, rect, nx, ny, nw, nh };
-  }
-
-  function findRenderedDescendant(nodes) {
-    let bestId = null;
-    let bestDist = Infinity;
-    for (const node of nodes) {
-      const { rect, nx, ny, nw, nh } = getNodeBounds(node);
-      if (!(x >= nx && x <= nx + nw && y >= ny && y <= ny + nh)) continue;
-      if (rect) {
-        const cx = nx + nw / 2;
-        const cy = ny + nh / 2;
-        const dist = (x - cx) * (x - cx) + (y - cy) * (y - cy);
-        if (dist < bestDist) {
-          bestDist = dist;
-          bestId = node.id;
-        }
-        continue;
-      }
-      if (node.children && node.children.length > 0) {
-        const child = findRenderedDescendant(node.children);
-        if (child) return child;
-      }
-    }
-    return bestId;
-  }
-
-  function findContainingImmediateChild(nodes) {
-    let bestNode = null;
-    let bestDist = Infinity;
-    for (const node of nodes) {
-      const { nx, ny, nw, nh } = getNodeBounds(node);
-      if (!(x >= nx && x <= nx + nw && y >= ny && y <= ny + nh)) continue;
-      const cx = nx + nw / 2;
-      const cy = ny + nh / 2;
-      const dist = (x - cx) * (x - cx) + (y - cy) * (y - cy);
-      if (dist < bestDist) {
-        bestDist = dist;
-        bestNode = node;
-      }
-    }
-    return bestNode;
-  }
-
-  function findContainingDescendant(nodes) {
-    let bestNode = null;
-    let bestDist = Infinity;
-    for (const node of nodes) {
-      const { nx, ny, nw, nh } = getNodeBounds(node);
-      if (!(x >= nx && x <= nx + nw && y >= ny && y <= ny + nh)) continue;
-      if (node.children && node.children.length > 0) {
-        const nested = findContainingDescendant(node.children);
-        if (nested) return nested;
-      }
-      const cx = nx + nw / 2;
-      const cy = ny + nh / 2;
-      const dist = (x - cx) * (x - cx) + (y - cy) * (y - cy);
-      if (dist < bestDist) {
-        bestDist = dist;
-        bestNode = node;
-      }
-    }
-    return bestNode;
-  }
-
-  function walk(nodes, depth) {
-    let bestId = null;
-    let bestDist = Infinity;
-    for (const node of nodes) {
-      // Use actual SVG DOM geometry instead of model data, which can diverge
-      // from the rendered positions. Fall back to model data for arrows or
-      // components without a rect.
-      const { rect, nx, ny, nw, nh } = getNodeBounds(node);
-      if (x >= nx && x <= nx + nw && y >= ny && y <= ny + nh) {
-        if (depth === targetDepth) {
-          if (depth === 0 && node.children && node.children.length > 0) {
-            const directChild = findContainingImmediateChild(node.children);
-            if (directChild) {
-              if (directChild.children && directChild.children.length > 0) {
-                const descendant = findContainingDescendant(directChild.children);
-                if (descendant) return descendant.id;
-              }
-              return directChild.id;
-            }
-          }
-          if (!rect && node.children && node.children.length > 0) {
-            const renderedChild = findRenderedDescendant(node.children);
-            if (renderedChild) return renderedChild;
-          }
-          // When overrides cause overlapping bounds, pick the child
-          // whose center is closest to the click point.
-          const cx = nx + nw / 2;
-          const cy = ny + nh / 2;
-          const dist = (x - cx) * (x - cx) + (y - cy) * (y - cy);
-          if (dist < bestDist) {
-            bestDist = dist;
-            bestId = node.id;
-          }
-        } else if (node.children && node.children.length > 0 && depth < targetDepth) {
-          const child = walk(node.children, depth + 1);
-          if (child) return child;
-        }
-      }
-    }
-    return bestId;
-  }
   const roots = model._roots.map(n => n.data);
-  return walk(roots, 0);
+  return LayoutEngine.findPreviewComponentAtDepth({
+    x,
+    y,
+    targetDepth,
+    roots,
+    getNodeBounds: (node) => _getPreviewHitNodeBounds(svg, node),
+  });
 }
 
 /**
@@ -1196,37 +931,13 @@ function findComponentAtDepth(x, y, targetDepth) {
 function findDeepestComponent(x, y) {
   const svg = document.querySelector("#stage svg");
   if (!svg) return null;
-
-  function walk(nodes) {
-    for (const node of nodes) {
-      let nx, ny, nw, nh;
-      const g = svg.querySelector('[data-component-id="' + node.id + '"]');
-      const rect = g ? g.querySelector(":scope > rect:first-of-type") : null;
-      if (rect) {
-        nx = parseFloat(rect.getAttribute("x"));
-        ny = parseFloat(rect.getAttribute("y"));
-        nw = parseFloat(rect.getAttribute("width"));
-        nh = parseFloat(rect.getAttribute("height"));
-      } else {
-        nx = node.x; ny = node.y; nw = node.width; nh = node.height;
-      }
-      if (g) {
-        const t = g.style.transform || "";
-        const m = t.match(/translate\(([-.\d]+)px,\s*([-.\d]+)px\)/);
-        if (m) { nx += parseFloat(m[1]); ny += parseFloat(m[2]); }
-      }
-      if (x >= nx && x <= nx + nw && y >= ny && y <= ny + nh) {
-        if (node.children && node.children.length > 0) {
-          const deeper = walk(node.children);
-          if (deeper) return deeper;
-        }
-        return node.id;
-      }
-    }
-    return null;
-  }
   const roots = model._roots.map(n => n.data);
-  return walk(roots);
+  return LayoutEngine.findDeepestPreviewComponent({
+    x,
+    y,
+    roots,
+    getNodeBounds: (node) => _getPreviewHitNodeBounds(svg, node),
+  });
 }
 
 function getAncestors(cid) {
@@ -1289,51 +1000,13 @@ function renderSelectionInspector(preferredCid) {
 }
 
 function getSelectionActionItems() {
-  const items = [];
-  let hasUnsupported = false;
-
-  selectedIds.forEach((id) => {
-    const node = model.get(id);
-    if (!node || node.type === "arrow") {
-      hasUnsupported = true;
-      return;
-    }
-    const own = getOwnDelta(id);
-    const eff = getEffectiveDelta(id);
-    const ancestorDx = eff.dx - own.dx;
-    const ancestorDy = eff.dy - own.dy;
-    let parentBounds = null;
-    if (node.parent) {
-      const parent = model.get(node.parent.id);
-      if (parent) {
-        const parentEff = getEffectiveDelta(parent.id);
-        const parentOwn = getOwnDelta(parent.id);
-        const minX = parent.data.x + parentEff.dx + INSET;
-        const minY = parent.data.y + parentEff.dy + INSET;
-        const maxX = minX + parent.data.width + parentOwn.dw - 2 * INSET - (node.data.width + own.dw);
-        const maxY = minY + parent.data.height + parentOwn.dh - 2 * INSET - (node.data.height + own.dh);
-        parentBounds = { minX, minY, maxX, maxY };
-      }
-    }
-    items.push({
-      id,
-      node,
-      parentId: node.parent ? node.parent.id : "",
-      own,
-      eff,
-      baseX: node.data.x,
-      baseY: node.data.y,
-      ancestorDx,
-      ancestorDy,
-      parentBounds,
-      x: node.data.x + eff.dx,
-      y: node.data.y + eff.dy,
-      width: node.data.width + own.dw,
-      height: node.data.height + own.dh,
-    });
+  return LayoutEngine.collectPreviewSelectionActionInfo({
+    selectedIds,
+    getNode: (id) => model.get(id),
+    getOwnDelta,
+    getEffectiveDelta,
+    inset: INSET,
   });
-
-  return LayoutEngine.createSelectionActionInfo(items, hasUnsupported);
 }
 
 function setMultiActionGap(value) {
@@ -1424,68 +1097,45 @@ function renderMultiSelectionInspector() {
     layoutColGap: parent.layoutColGap,
   } : null;
   const fallbackGap = window.__DG_CONFIG.col_gap || 24;
-  const viewModel = LayoutEngine.createMultiSelectionInspectorViewModel({
+  const panelState = LayoutEngine.resolveMultiSelectionInspectorState({
     selectedCount: selectedIds.size,
     info,
-    fallbackGap,
     parentLayout,
+    fallbackGap,
     snapStep: BASELINE_STEP,
+    items: info.items.map((item) => ({
+      id: item.id,
+      node: item.node,
+      override: overrides[item.id] || {},
+      widthCoerced: _coercedKeys.has(item.id + ':sizing_w'),
+      heightCoerced: _coercedKeys.has(item.id + ':sizing_h'),
+    })),
   });
 
-  multiActionGap = viewModel.inferredGap;
-  let alignInfo = null;
-  let containerInfo = null;
-  let sizingInfo = null;
+  multiActionGap = panelState.viewModel.inferredGap;
   let styleInfo = null;
   let styleOptionsHtml = '';
   if (info.items.length >= 2) {
-    alignInfo = LayoutEngine.createMultiSelectionAlignState(info.items.map((item) => {
-      const node = item.node;
-      if (!node) return { hasFrameAlignment: false };
-      return {
-        hasFrameAlignment: !!(node.sizing_w || node.sizing_h || node.align),
-        align: (overrides[item.id] || {}).align || node.align || 'TOP_LEFT',
-      };
-    }));
-
-    containerInfo = LayoutEngine.createMultiSelectionContainerState(info.items.map((item) => {
-      const node = item.node;
-      if (!node) return { isContainer: false };
-      const ovr = overrides[item.id] || {};
-      return {
-        isContainer: !!(node.layout || (node.children && node.children.length > 0)),
-        direction: ovr.direction || (node.layout === 'horizontal' ? 'HORIZONTAL' : 'VERTICAL'),
-        wrap: ovr.wrap != null ? ovr.wrap : (_nodeProp(node, "wrap") || false),
-      };
-    }));
-
-    sizingInfo = LayoutEngine.createMultiSelectionSizingState(info.items.map((item) => {
-      const node = item.node;
-      if (!node) return {};
-      return {
-        sizingW: _getRuntimeSizingValue(item.id, node, 'w'),
-        sizingH: _getRuntimeSizingValue(item.id, node, 'h'),
-        wCoerced: _coercedKeys.has(item.id + ':sizing_w'),
-        hCoerced: _coercedKeys.has(item.id + ':sizing_h'),
-      };
-    }));
     styleInfo = _getMultiStyleValues(info.items);
     if (styleInfo) {
       styleOptionsHtml = renderBoxStyleOptions(styleInfo.mixed ? '__nomatch__' : styleInfo.style, {
-        originalLabel: _originalStyleOptionLabelForItems(info.items),
+        originalLabel: _formatAsDefinedStyleLabel(
+          styleInfo.originalStyleName,
+          styleInfo.originalStyleMixed,
+        ),
       });
     }
   }
 
   inspector.innerHTML = LayoutEngine.renderMultiSelectionInspectorPanel({
-    selectedCount: viewModel.selectedCount,
+    selectedCount: panelState.viewModel.selectedCount,
     multiActionGap,
-    showStackSpacingHint: viewModel.showStackSpacingHint,
-    showAlignOnlyHint: viewModel.showAlignOnlyHint,
-    hasUnsupported: viewModel.hasUnsupported,
-    alignState: alignInfo,
-    containerState: containerInfo,
-    sizingState: sizingInfo,
+    showStackSpacingHint: panelState.viewModel.showStackSpacingHint,
+    showAlignOnlyHint: panelState.viewModel.showAlignOnlyHint,
+    hasUnsupported: panelState.viewModel.hasUnsupported,
+    alignState: panelState.alignState,
+    containerState: panelState.containerState,
+    sizingState: panelState.sizingState,
     styleState: styleInfo,
     widthUnit: _inspectorWidthUnit,
     heightUnit: _inspectorHeightUnit,
@@ -1494,29 +1144,21 @@ function renderMultiSelectionInspector() {
   });
 }
 
-function _getRuntimeSizingValue(cid, node, axis) {
-  const key = axis === 'w' ? 'sizing_w' : 'sizing_h';
-  if (_coercedKeys.has(cid + ':' + key)) return 'FIXED';
-  const ovr = overrides[cid] || {};
-  return ovr[key] || (node ? node[key] : null) || null;
-}
-
 /**
  * Read shared style across selected box/panel/terminal items.
  * Returns null if no styleable items, or {style, mixed, count}.
  */
 function _getMultiStyleValues(items) {
-  let first = null, mixed = false, count = 0;
-  for (const item of items) {
-    const ctype = getComponentType(item.id).toLowerCase();
-    if (ctype === 'arrow') continue;
-    if (!_nodeSupportsVisibleStylePicker(item.node)) continue;
-    count++;
-    const style = _effectiveStyleName(item.id, item.node);
-    if (first === null) first = style; else if (first !== style) mixed = true;
-  }
-  if (count === 0) return null;
-  return { style: mixed ? '__mixed__' : first, mixed, count };
+  return LayoutEngine.resolveMultiSelectionPreviewStyleState(items.map((item) => {
+    const rendered = _readRenderedStyleFields(item.id);
+    return {
+      componentType: getComponentType(item.id),
+      node: item.node,
+      overrideStyle: (overrides[item.id] || {}).style,
+      renderedFill: rendered ? rendered.fill : null,
+      renderedStroke: rendered ? rendered.stroke : null,
+    };
+  }));
 }
 
 function _formatAsDefinedStyleLabel(styleName, mixed = false) {
@@ -1526,30 +1168,6 @@ function _formatAsDefinedStyleLabel(styleName, mixed = false) {
     return `— as defined (${boxStyleLabel(canonical)}) —`;
   }
   return '— as defined —';
-}
-
-function _baseStyleName(node) {
-  if (_isImplicitStructuralWrapper(node)) return "";
-  return _inferV3StyleFromNode(node);
-}
-
-function _originalStyleOptionLabelForItems(items) {
-  let first = null;
-  let mixed = false;
-  let hasAny = false;
-  for (const item of items) {
-    const ctype = getComponentType(item.id).toLowerCase();
-    if (ctype === 'arrow') continue;
-    if (!_nodeSupportsVisibleStylePicker(item.node)) continue;
-    hasAny = true;
-    const style = _baseStyleName(item.node);
-    if (first === null) {
-      first = style;
-    } else if (first !== style) {
-      mixed = true;
-    }
-  }
-  return _formatAsDefinedStyleLabel(hasAny ? first : '', mixed);
 }
 
 /**
@@ -1584,9 +1202,17 @@ function applyMultiStyleOverride(styleName) {
   const msoBefore = EditorState.captureOverrideEntries(ids);
   let changedAny = false;
   for (const cid of ids) {
-    const ctype = getComponentType(cid).toLowerCase();
-    if (ctype !== 'box' && ctype !== 'panel' && ctype !== 'terminal') continue;
-    changedAny = _applyVisibleStyleOverrideIfSupported(cid, canonicalStyle) || changedAny;
+    if (!LayoutEngine.isPreviewStyleableComponentType(getComponentType(cid))) continue;
+    const changed = LayoutEngine.applyVisiblePreviewStyleOverride({
+      overrides,
+      cid,
+      node: model.get(cid),
+      styleName: canonicalStyle,
+    });
+    if (changed) {
+      model.cleanOverride(cid);
+      changedAny = true;
+    }
   }
   if (!changedAny) {
     renderMultiSelectionInspector();
@@ -1606,103 +1232,21 @@ window.applyMultiStyleOverride = applyMultiStyleOverride;
  * Apply a frame property to ALL selected items, then trigger a single relayout.
  */
 function setMultiFrameProp(prop, value) {
-  const isConstraintProp = prop === 'min_width' || prop === 'max_width' || prop === 'max_width_chars' || prop === 'min_height' || prop === 'max_height';
-  if (!isConstraintProp && (value === '' || value === null || value === undefined)) return; // ignore "Mixed" placeholder
-  if (typeof value === 'number' && !Number.isFinite(value)) return; // ignore NaN from empty input
-
-  // For container-only props, only apply to containers
-  const containerProps = new Set(['direction', 'padding', 'padding_top', 'padding_right', 'padding_bottom', 'padding_left']);
-  const isContainerProp = containerProps.has(prop);
-
-  // Clamp numeric frame properties
-  if (prop === 'padding' || prop === 'padding_top' || prop === 'padding_right' || prop === 'padding_bottom' || prop === 'padding_left') {
-    value = Math.max(0, Number.isFinite(value) ? value : 0);
-  }
-  // Constraint props: empty clears, otherwise clamp to non-negative
-  if (isConstraintProp) {
-    if (value === '' || value == null) {
-      // Clear constraint for all selected items
-      const ids = [...selectedIds];
-      const mfpBefore = EditorState.captureOverrideEntries(ids);
-      for (const cid of ids) {
-        if (overrides[cid]) {
-          delete overrides[cid][prop];
-          if (Object.keys(overrides[cid]).length === 0) delete overrides[cid];
-        }
-      }
-      setDirty(true);
-      EditorState.commitOverridePatchAction("Clear " + prop + " (multi)", mfpBefore, EditorState.captureOverrideEntries(ids));
-      renderSelectionInspector();
-      clearTimeout(_v3RelayoutTimer);
-      _v3RelayoutTimer = setTimeout(() => requestV3Relayout(ids[0]), 300);
-      return;
-    }
-    value = Math.max(0, Number.isFinite(Number(value)) ? Number(value) : 0);
-  }
-
   const ids = [...selectedIds];
   const mfpBefore = EditorState.captureOverrideEntries(ids);
-  for (const cid of ids) {
-    const node = model.get(cid);
-    if (!node) continue;
-    // Skip non-frame nodes (arrows)
-    if (node.type === "arrow") continue;
-    // Container-only props skip leaf nodes
-    if (isContainerProp) {
-      const isContainer = node.layout || (node.children && node.children.length > 0);
-      if (!isContainer) continue;
-    }
-
-    if (!overrides[cid]) overrides[cid] = {};
-    // When setting uniform padding, clear per-side overrides
-    if (prop === 'padding') {
-      delete overrides[cid].padding_top;
-      delete overrides[cid].padding_right;
-      delete overrides[cid].padding_bottom;
-      delete overrides[cid].padding_left;
-    }
-    // When setting a per-side padding, clear the uniform override
-    if (prop === 'padding_top' || prop === 'padding_right' || prop === 'padding_bottom' || prop === 'padding_left') {
-      delete overrides[cid].padding;
-    }
-    // Auto-adjust opposite bound to prevent min > max
-    if (isConstraintProp) {
-      if (prop === 'min_width' && overrides[cid].max_width !== undefined && value > overrides[cid].max_width) {
-        overrides[cid].max_width = value;
-      }
-      if (prop === 'max_width' && overrides[cid].min_width !== undefined && value < overrides[cid].min_width) {
-        overrides[cid].min_width = value;
-      }
-      if (prop === 'min_height' && overrides[cid].max_height !== undefined && value > overrides[cid].max_height) {
-        overrides[cid].max_height = value;
-      }
-      if (prop === 'max_height' && overrides[cid].min_height !== undefined && value < overrides[cid].min_height) {
-        overrides[cid].min_height = value;
-      }
-    }
-    overrides[cid][prop] = value;
-    _coercedKeys.delete(cid + ':' + prop);
-
-    // FIXED captures current placed size (guard node.data for un-laid-out nodes)
-    if ((prop === 'sizing_w' || prop === 'sizing_h') && value === 'FIXED' && node.data) {
-      if (prop === 'sizing_w' && overrides[cid].width === undefined) {
-        overrides[cid].width = Math.round(node.data.width);
-      }
-      if (prop === 'sizing_h' && overrides[cid].height === undefined) {
-        overrides[cid].height = Math.round(node.data.height);
-      }
-    }
-    // Switching away from FIXED clears the captured size
-    if (prop === 'sizing_w' && value !== 'FIXED') {
-      delete overrides[cid].width;
-    }
-    if (prop === 'sizing_h' && value !== 'FIXED') {
-      delete overrides[cid].height;
-    }
-  }
+  const result = LayoutEngine.applyMultiFramePropMutation({
+    overrides,
+    coercedKeys: _coercedKeys,
+    ids,
+    prop,
+    value,
+    getNode: (cid) => model.get(cid),
+  });
+  if (result.kind === 'none') return;
 
   setDirty(true);
-  EditorState.commitOverridePatchAction("Change " + prop + " (multi)", mfpBefore, EditorState.captureOverrideEntries(ids));
+  const labelPrefix = result.kind === 'clear' ? 'Clear ' : 'Change ';
+  EditorState.commitOverridePatchAction(labelPrefix + prop + ' (multi)', mfpBefore, EditorState.captureOverrideEntries(ids));
 
   // Single debounced relayout for the batch (guard empty selection)
   if (ids.length > 0) {
@@ -1710,7 +1254,10 @@ function setMultiFrameProp(prop, value) {
     _v3RelayoutTimer = setTimeout(() => requestV3Relayout(ids[0]), 300);
   }
 
-  // Refresh inspector
+  if (result.kind === 'clear') {
+    renderSelectionInspector();
+    return;
+  }
   renderMultiSelectionInspector();
 }
 window.setMultiFrameProp = setMultiFrameProp;
@@ -1720,30 +1267,25 @@ window.setMultiFrameProp = setMultiFrameProp;
  * the current inspector unit (px, cols, rows) to pixels.
  */
 function setMultiFrameSize(dimension, value) {
-  if (!Number.isFinite(value) || value <= 0) return;
-  let px;
-  if (dimension === 'width' && _inspectorWidthUnit === 'cols') {
-    px = LayoutEngine.colSpanToPx(gridInfo, value);
-  } else if (dimension === 'height' && _inspectorHeightUnit === 'rows') {
-    px = LayoutEngine.rowSpanToPx(gridInfo, value);
-  } else {
-    px = Math.round(value / BASELINE_STEP) * BASELINE_STEP;
-  }
-  if (px == null || isNaN(px) || px <= 0) return;
-  px = Math.round(px);
-
-  const sizingProp = dimension === 'width' ? 'sizing_w' : 'sizing_h';
+  const px = LayoutEngine.resolvePreviewFrameSizePx({
+    dimension,
+    value,
+    gridInfo,
+    widthUnit: _inspectorWidthUnit,
+    heightUnit: _inspectorHeightUnit,
+    baselineStep: BASELINE_STEP,
+  });
+  if (px == null) return;
   const ids = [...selectedIds];
   const msBefore = EditorState.captureOverrideEntries(ids);
-  for (const cid of ids) {
-    const node = model.get(cid);
-    if (!node) continue;
-    if (node.type === 'arrow') continue;
-    if (!overrides[cid]) overrides[cid] = {};
-    _clearSizingCoercion(cid, sizingProp, dimension);
-    overrides[cid][sizingProp] = 'FIXED';
-    overrides[cid][dimension] = px;
-  }
+  LayoutEngine.applyMultiFrameSizeMutation({
+    overrides,
+    coercedKeys: _coercedKeys,
+    ids,
+    dimension,
+    px,
+    getNode: (cid) => model.get(cid),
+  });
   setDirty(true);
   EditorState.commitOverridePatchAction("Set " + dimension + " (multi)", msBefore, EditorState.captureOverrideEntries(ids));
   if (ids.length > 0) {
@@ -1838,517 +1380,27 @@ function isV3FrameManagedTarget(target, relayoutStatus) {
 function applyAllOverrides() {
   const svg = document.querySelector("#stage svg");
   if (!svg) return;
-  const relayoutStatus = getV3RelayoutStatus();
-
-  // Reset transforms
-  svg.querySelectorAll("[data-component-id]").forEach(g => {
-    if (isV3FrameManagedTarget(g, relayoutStatus)) return;
-    g.style.transform = "";
+  const selectedId = selectedIds.size > 0 ? [...selectedIds].pop() : null;
+  LayoutEngine.applyPreviewSvgOverrides({
+    svg,
+    componentTree: model._roots.map((node) => node.data),
+    rootNodes: model._roots
+      .filter((node) => node.type !== "arrow")
+      .map((node) => ({ id: node.id, gridRow: node.gridRow })),
+    overrides,
+    relayoutStatus: getV3RelayoutStatus(),
+    boxStyles: BOX_STYLES,
+    inset: window.__DG_CONFIG.inset || 8,
+    iconSize: window.__DG_CONFIG.icon_size || 48,
+    gridStep: BASELINE_STEP,
+    hasDiagramGrid: Boolean(model.diagramGrid),
+    getNode: (cid) => model.get(cid),
+    getOwnDelta: (cid) => getOwnDelta(cid),
+    getEffectiveDelta: (cid) => getEffectiveDelta(cid),
+    isFrameManagedTarget: (target, relayoutStatus) => isV3FrameManagedTarget(target, relayoutStatus),
+    selectedId,
+    showResizeHandles,
   });
-  // Restore original rect sizes
-  svg.querySelectorAll("rect[data-orig-width]").forEach(r => {
-    if (isV3FrameManagedTarget(r, relayoutStatus)) return;
-    r.setAttribute("width", r.getAttribute("data-orig-width"));
-    r.setAttribute("height", r.getAttribute("data-orig-height"));
-  });
-  // Restore original icon transforms
-  svg.querySelectorAll(".dg-icon[data-orig-tx]").forEach(icon => {
-    if (isV3FrameManagedTarget(icon, relayoutStatus)) return;
-    icon.setAttribute("transform", "translate(" + icon.getAttribute("data-orig-tx") + " " + icon.getAttribute("data-orig-ty") + ")");
-  });
-  // Restore original arrow line coords
-  svg.querySelectorAll("line[data-orig-x1]").forEach(ln => {
-    ln.setAttribute("x1", ln.getAttribute("data-orig-x1"));
-    ln.setAttribute("y1", ln.getAttribute("data-orig-y1"));
-    ln.setAttribute("x2", ln.getAttribute("data-orig-x2"));
-    ln.setAttribute("y2", ln.getAttribute("data-orig-y2"));
-  });
-  svg.querySelectorAll("polygon[data-orig-points]").forEach(p => {
-    p.setAttribute("points", p.getAttribute("data-orig-points"));
-  });
-  // Save original sizes on first pass
-  svg.querySelectorAll("[data-component-id] > rect:first-of-type").forEach(r => {
-    if (isV3FrameManagedTarget(r, relayoutStatus)) return;
-    if (!r.hasAttribute("data-orig-width")) {
-      r.setAttribute("data-orig-width", r.getAttribute("width") || "0");
-      r.setAttribute("data-orig-height", r.getAttribute("height") || "0");
-      r.setAttribute("data-orig-fill", r.getAttribute("fill") || "#FFFFFF");
-    }
-  });
-  // Restore original rect fills (style overrides may have changed them)
-  svg.querySelectorAll("rect[data-orig-fill]").forEach(r => {
-    if (isV3FrameManagedTarget(r, relayoutStatus)) return;
-    r.setAttribute("fill", r.getAttribute("data-orig-fill"));
-  });
-  // Reset icon filters (style overrides may have set invert(1))
-  svg.querySelectorAll(".dg-icon").forEach(icon => {
-    if (isV3FrameManagedTarget(icon, relayoutStatus)) return;
-    icon.style.filter = "";
-  });
-  // Save original tspan text on first pass, restore on subsequent passes
-  svg.querySelectorAll("[data-component-id] text").forEach(textEl => {
-    if (isV3FrameManagedTarget(textEl, relayoutStatus)) return;
-    if (!textEl.hasAttribute("data-orig-inner")) {
-      textEl.setAttribute("data-orig-inner", textEl.innerHTML);
-    } else {
-      textEl.innerHTML = textEl.getAttribute("data-orig-inner");
-    }
-  });
-
-  // Lazily created canvas context for text measurement
-  let _measureCtx = null;
-  function getMeasureCtx() {
-    if (!_measureCtx) {
-      _measureCtx = document.createElement("canvas").getContext("2d");
-    }
-    return _measureCtx;
-  }
-
-  /**
-   * Reflow text inside a component group to fit the current box width.
-   * Wraps long tspans at word boundaries and auto-expands the rect height
-   * to accommodate the wrapped text.
-   */
-  function reflowTextInGroup(g, dw) {
-    if (isV3FrameManagedTarget(g, relayoutStatus)) return 0;
-    const rect = g.querySelector(":scope > rect:first-of-type");
-    if (!rect) return 0;
-    const textEl = g.querySelector("text");
-    if (!textEl) return 0;
-
-    const origW = parseFloat(rect.getAttribute("data-orig-width") || rect.getAttribute("width"));
-    const newW = origW + dw;
-    const INSET = window.__DG_CONFIG.inset || 8;
-    const hasIcon = !!g.querySelector(".dg-icon");
-    const iconW = hasIcon ? (window.__DG_CONFIG.icon_size || 48) : 0;
-    const iconGap = hasIcon ? INSET : 0;
-    const availW = newW - 2 * INSET - (iconW > 0 ? iconW + iconGap : 0);
-    if (availW <= 0) return 0;
-
-    const tspans = textEl.querySelectorAll("tspan");
-    if (tspans.length === 0) return;
-
-    // Compute line step from existing tspans
-    const firstY = parseFloat(tspans[0].getAttribute("y"));
-    const lineStep = tspans.length >= 2
-      ? parseFloat(tspans[1].getAttribute("y")) - firstY
-      : 24;
-
-    const ctx = getMeasureCtx();
-    const ns = "http://www.w3.org/2000/svg";
-
-    // --- Phase 1: Join consecutive same-style tspans into runs ---
-    // Without this, widening a box can't merge lines that were previously
-    // wrapped at a narrower width (each narrow tspan still fits, so the
-    // split-only logic below would keep them as-is).
-    const runs = []; // { text, fontSize, fontWeight, fill, x, scAttr, lsAttr, ffAttr }
-    for (const ts of tspans) {
-      const fontSize = ts.getAttribute("font-size") || "14";
-      const fontWeight = ts.getAttribute("font-weight") || "400";
-      const fill = ts.getAttribute("fill") || "#000";
-      const x = ts.getAttribute("x");
-      const content = ts.textContent;
-      const scAttr = ts.getAttribute("font-variant-caps") || "";
-      const lsAttr = ts.getAttribute("letter-spacing") || "";
-      const ffAttr = ts.getAttribute("font-family") || "";
-
-      const prev = runs.length > 0 ? runs[runs.length - 1] : null;
-      const sameStyle = prev
-        && prev.fontSize === fontSize
-        && prev.fontWeight === fontWeight
-        && prev.fill === fill
-        && prev.scAttr === scAttr
-        && prev.lsAttr === lsAttr
-        && prev.ffAttr === ffAttr;
-
-      if (sameStyle && prev.text !== "" && content !== "") {
-        // Merge into the previous run (space-join wrapped fragments)
-        prev.text += " " + content;
-      } else {
-        runs.push({ text: content, fontSize, fontWeight, fill, x, scAttr, lsAttr, ffAttr });
-      }
-    }
-
-    // --- Phase 2: Re-wrap each run at the new available width ---
-    const specs = [];
-    for (const run of runs) {
-      ctx.font = run.fontWeight + " " + run.fontSize + "px 'Ubuntu Sans', sans-serif";
-
-      if (!run.text || ctx.measureText(run.text).width <= availW) {
-        specs.push({ content: run.text, fontSize: run.fontSize, fontWeight: run.fontWeight,
-          fill: run.fill, x: run.x, scAttr: run.scAttr, lsAttr: run.lsAttr, ffAttr: run.ffAttr });
-      } else {
-        // Word-wrap at word boundaries
-        const words = run.text.split(/(\s+)/);
-        let line = "";
-        for (const word of words) {
-          const test = line + word;
-          if (ctx.measureText(test.trim()).width > availW && line.trim()) {
-            specs.push({ content: line.trim(), fontSize: run.fontSize, fontWeight: run.fontWeight,
-              fill: run.fill, x: run.x, scAttr: run.scAttr, lsAttr: run.lsAttr, ffAttr: run.ffAttr });
-            line = word.trimStart();
-          } else {
-            line = test;
-          }
-        }
-        if (line.trim()) {
-          specs.push({ content: line.trim(), fontSize: run.fontSize, fontWeight: run.fontWeight,
-            fill: run.fill, x: run.x, scAttr: run.scAttr, lsAttr: run.lsAttr, ffAttr: run.ffAttr });
-        }
-      }
-    }
-
-    // Rebuild tspans if wrapping changed the line count or content
-    const contentChanged = specs.length !== tspans.length
-      || specs.some((s, i) => s.content !== tspans[i].textContent);
-    if (contentChanged) {
-      textEl.innerHTML = "";
-      let y = firstY;
-      for (const spec of specs) {
-        const ts = document.createElementNS(ns, "tspan");
-        ts.setAttribute("x", spec.x);
-        ts.setAttribute("y", y.toFixed(2));
-        ts.setAttribute("font-size", spec.fontSize);
-        ts.setAttribute("font-weight", spec.fontWeight);
-        ts.setAttribute("fill", spec.fill);
-        if (spec.scAttr) ts.setAttribute("font-variant-caps", spec.scAttr);
-        if (spec.lsAttr) ts.setAttribute("letter-spacing", spec.lsAttr);
-        if (spec.ffAttr) ts.setAttribute("font-family", spec.ffAttr);
-        ts.textContent = spec.content;
-        textEl.appendChild(ts);
-        y += lineStep;
-      }
-    }
-
-    // Always auto-expand box height to fit text (even if tspan count didn't change,
-    // since a prior applyToComponent pass may have reset the rect height)
-    const origH = parseFloat(rect.getAttribute("data-orig-height") || rect.getAttribute("height"));
-    const lastTspan = textEl.querySelector("tspan:last-of-type");
-    if (lastTspan) {
-      const lastY = parseFloat(lastTspan.getAttribute("y"));
-      const lastFontSize = parseFloat(lastTspan.getAttribute("font-size") || "18");
-      const textBottom = lastY + lastFontSize * 0.25; // baseline + descender
-      const rectY = parseFloat(rect.getAttribute("y") || "0");
-      const minHeight = textBottom - rectY + INSET;
-      const currentH = parseFloat(rect.getAttribute("height"));
-      if (minHeight > currentH) {
-        const newH = Math.ceil(minHeight / 8) * 8;
-        rect.setAttribute("height", newH);
-        return newH - origH; // height expansion delta
-      }
-    }
-    return 0; // no expansion
-  }
-
-  // Collect reflow-induced height expansions for post-pass vertical shift
-  const reflowDhByComponent = {};
-
-  function applyToComponent(cid) {
-    const eff = getEffectiveDelta(cid);
-    svg.querySelectorAll('[data-component-id="' + cid + '"]').forEach(g => {
-      const v3Managed = isV3FrameManagedTarget(g, relayoutStatus);
-      if (!v3Managed) {
-        if (eff.dx !== 0 || eff.dy !== 0) {
-          g.style.transform = "translate(" + eff.dx + "px, " + eff.dy + "px)";
-        }
-        if (eff.dw !== 0 || eff.dh !== 0) {
-          const rect = g.querySelector(":scope > rect:first-of-type");
-          if (rect) {
-            const origW = parseFloat(rect.getAttribute("data-orig-width") || rect.getAttribute("width"));
-            const origH = parseFloat(rect.getAttribute("data-orig-height") || rect.getAttribute("height"));
-            rect.setAttribute("width", Math.max(32, origW + eff.dw));
-            rect.setAttribute("height", Math.max(32, origH + eff.dh));
-          }
-          // Re-anchor top-right icons when width changes
-          if (eff.dw !== 0) {
-            g.querySelectorAll(".dg-icon").forEach(icon => {
-              if (!icon.hasAttribute("data-orig-tx")) {
-                const m = (icon.getAttribute("transform") || "").match(/translate\(([\d.e+-]+)[, ]\s*([\d.e+-]+)\)/);
-                if (m) {
-                  icon.setAttribute("data-orig-tx", m[1]);
-                  icon.setAttribute("data-orig-ty", m[2]);
-                }
-              }
-              const otx = parseFloat(icon.getAttribute("data-orig-tx") || "0");
-              const oty = parseFloat(icon.getAttribute("data-orig-ty") || "0");
-              const ownDw = getOwnDelta(cid).dw;
-              icon.setAttribute("transform", "translate(" + (otx + ownDw) + " " + oty + ")");
-            });
-          }
-        }
-      }
-      // Apply text overrides
-      const ovr = overrides[cid];
-      if (ovr && ovr.text && !v3Managed) {
-        const textEl = g.querySelector("text");
-        if (textEl) {
-          const tspans = textEl.querySelectorAll("tspan");
-          const newLines = ovr.text;
-          const minLen = Math.min(newLines.length, tspans.length);
-          for (let i = 0; i < minLen; i++) {
-            tspans[i].textContent = newLines[i];
-          }
-          // Add tspans for extra lines
-          if (newLines.length > tspans.length && tspans.length > 0) {
-            const lastTs = tspans[tspans.length - 1];
-            const x = lastTs.getAttribute("x");
-            const lastY = parseFloat(lastTs.getAttribute("y"));
-            const lineStep = tspans.length >= 2
-              ? parseFloat(tspans[1].getAttribute("y")) - parseFloat(tspans[0].getAttribute("y"))
-              : 20;
-            const ns = "http://www.w3.org/2000/svg";
-            for (let ti = tspans.length; ti < newLines.length; ti++) {
-              const ts = document.createElementNS(ns, "tspan");
-              ts.setAttribute("x", x);
-              ts.setAttribute("y", lastY + lineStep * (ti - tspans.length + 1));
-              ts.setAttribute("font-size", lastTs.getAttribute("font-size") || "14");
-              ts.setAttribute("font-weight", lastTs.getAttribute("font-weight") || "400");
-              ts.setAttribute("fill", lastTs.getAttribute("fill") || "#000");
-              ts.textContent = newLines[ti];
-              textEl.appendChild(ts);
-            }
-          }
-          // Remove excess tspans
-          if (newLines.length < tspans.length) {
-            for (let ti = tspans.length - 1; ti >= newLines.length; ti--) {
-              tspans[ti].remove();
-            }
-          }
-        }
-      }
-      // Apply style overrides (BoxStyle swap)
-      if (ovr && ovr.style && BOX_STYLES[ovr.style] && !v3Managed) {
-        const preset = BOX_STYLES[ovr.style];
-        const rect = g.querySelector(":scope > rect:first-of-type");
-        if (rect) rect.setAttribute("fill", preset.fill);
-        g.querySelectorAll("text tspan").forEach(ts => ts.setAttribute("fill", preset.text));
-        g.querySelectorAll(".dg-icon").forEach(icon => {
-          icon.style.filter = preset.icon === "#FFFFFF" ? "invert(1)" : "";
-        });
-      }
-
-      // Reflow text when box width has changed
-      if (!v3Managed && eff.dw !== 0) {
-        const reflowDh = reflowTextInGroup(g, eff.dw);
-        if (reflowDh > 0) reflowDhByComponent[cid] = reflowDh;
-      }
-    });
-  }
-  // Apply to tree components
-  function visit(nodes) {
-    for (const node of nodes) {
-      if (node.type !== "arrow") applyToComponent(node.id);
-      if (node.children) visit(node.children);
-    }
-  }
-  visit(componentTree);
-  // Also handle overrides outside tree
-  for (const cid of Object.keys(overrides)) applyToComponent(cid);
-
-  // -----------------------------------------------------------------------
-  // Reflow post-pass: when text reflow made a box taller, shift all
-  // components in subsequent grid rows downward so nothing overlaps.
-  // The shift is computed per-row (max reflow dh across all columns in
-  // that row) and applied cumulatively to every component below.
-  // -----------------------------------------------------------------------
-  const cumulativeReflowDy = {}; // cid → total dy from reflow of boxes above
-  if (Object.keys(reflowDhByComponent).length > 0 && model.diagramGrid) {
-    const rootNodes = model._roots.filter(n => n.type !== "arrow");
-    // Compute the max reflow dh per row (across all columns)
-    const maxReflowDhByRow = {};
-    for (const [cid, dh] of Object.entries(reflowDhByComponent)) {
-      const node = model.get(cid);
-      if (!node) continue;
-      const row = node.gridRow || 0;
-      maxReflowDhByRow[row] = Math.max(maxReflowDhByRow[row] || 0, dh);
-    }
-    // For each component, sum reflow dh from all rows above it
-    const affectedRows = Object.keys(maxReflowDhByRow).map(Number).sort((a, b) => a - b);
-    for (const n of rootNodes) {
-      const row = n.gridRow || 0;
-      let dy = 0;
-      for (const affectedRow of affectedRows) {
-        if (affectedRow < row) dy += maxReflowDhByRow[affectedRow];
-      }
-      if (dy > 0) cumulativeReflowDy[n.id] = dy;
-    }
-    // Re-apply transforms for shifted components
-    for (const [cid, dy] of Object.entries(cumulativeReflowDy)) {
-      const eff = getEffectiveDelta(cid);
-      svg.querySelectorAll('[data-component-id="' + cid + '"]').forEach(g => {
-        g.style.transform = "translate(" + eff.dx + "px, " + (eff.dy + dy) + "px)";
-      });
-    }
-  }
-
-  // Arrow attachment: adjust arrow positions based on source/target box overrides
-  for (const node of componentTree) {
-    if (node.type !== "arrow" || (!node.source && !node.target)) continue;
-    const srcCid = node.source ? node.source.split(".")[0] : "";
-    const srcSide = node.source ? node.source.split(".").pop() : "";
-    const tgtCid = node.target ? node.target.split(".")[0] : "";
-    const tgtSide = node.target ? node.target.split(".").pop() : "";
-
-    // Compute the endpoint deltas from source/target box overrides
-    const srcEff = srcCid ? getEffectiveDelta(srcCid) : { dx: 0, dy: 0, dw: 0, dh: 0 };
-    const tgtEff = tgtCid ? getEffectiveDelta(tgtCid) : { dx: 0, dy: 0, dw: 0, dh: 0 };
-
-    // Side-aware endpoint shift: midpoint of the side shifts with dx/dy + half of dw/dh
-    // Also accounts for reflow-induced height expansion and cumulative vertical shift
-    function sideShift(eff, side, cid) {
-      const reflowDh = reflowDhByComponent[cid] || 0;
-      const totalDh = eff.dh + reflowDh;
-      const reflowDy = cumulativeReflowDy[cid] || 0;
-      let sdx = eff.dx, sdy = eff.dy + reflowDy;
-      if (side === "bottom") sdy += totalDh;
-      if (side === "top") {} // top edge doesn't move on dh
-      if (side === "right") sdx += eff.dw;
-      if (side === "left") {} // left edge doesn't move on dw
-      // Side midpoint shifts by half the perpendicular size delta
-      if (side === "top" || side === "bottom") sdx += eff.dw / 2;
-      if (side === "left" || side === "right") sdy += totalDh / 2;
-      return { dx: sdx, dy: sdy };
-    }
-
-    const srcShift = sideShift(srcEff, srcSide, srcCid);
-    const tgtShift = sideShift(tgtEff, tgtSide, tgtCid);
-
-    // If both shifts are the same, just CSS-translate the whole arrow group
-    if (srcShift.dx === tgtShift.dx && srcShift.dy === tgtShift.dy) {
-      if (srcShift.dx !== 0 || srcShift.dy !== 0) {
-        svg.querySelectorAll('[data-component-id="' + node.id + '"]').forEach(g => {
-          g.style.transform = "translate(" + srcShift.dx + "px, " + srcShift.dy + "px)";
-        });
-      }
-    } else {
-      // Different shifts for source vs target → modify individual line coords
-      svg.querySelectorAll('[data-component-id="' + node.id + '"]').forEach(g => {
-        const lines = g.querySelectorAll("line");
-        const polys = g.querySelectorAll("polygon");
-        if (lines.length === 0) return;
-
-        // Save original coords on first pass
-        lines.forEach(ln => {
-          if (!ln.hasAttribute("data-orig-x1")) {
-            ln.setAttribute("data-orig-x1", ln.getAttribute("x1"));
-            ln.setAttribute("data-orig-y1", ln.getAttribute("y1"));
-            ln.setAttribute("data-orig-x2", ln.getAttribute("x2"));
-            ln.setAttribute("data-orig-y2", ln.getAttribute("y2"));
-          }
-        });
-        polys.forEach(p => {
-          if (!p.hasAttribute("data-orig-points")) {
-            p.setAttribute("data-orig-points", p.getAttribute("points"));
-          }
-        });
-
-        // Restore originals before applying new shifts
-        lines.forEach(ln => {
-          ln.setAttribute("x1", ln.getAttribute("data-orig-x1"));
-          ln.setAttribute("y1", ln.getAttribute("data-orig-y1"));
-          ln.setAttribute("x2", ln.getAttribute("data-orig-x2"));
-          ln.setAttribute("y2", ln.getAttribute("data-orig-y2"));
-        });
-        polys.forEach(p => {
-          p.setAttribute("points", p.getAttribute("data-orig-points"));
-        });
-
-        // The visible lines are those NOT used as hit areas (not transparent)
-        const visLines = Array.from(lines).filter(ln => ln.getAttribute("stroke") !== "transparent");
-        const hitLines = Array.from(lines).filter(ln => ln.getAttribute("stroke") === "transparent");
-
-        if (visLines.length === 0) return;
-
-        // Read original coords for all visible segments
-        const origCoords = visLines.map(ln => ({
-          x1: parseFloat(ln.getAttribute("data-orig-x1")),
-          y1: parseFloat(ln.getAttribute("data-orig-y1")),
-          x2: parseFloat(ln.getAttribute("data-orig-x2")),
-          y2: parseFloat(ln.getAttribute("data-orig-y2")),
-        }));
-
-        // Determine segment orientation: true = horizontal, false = vertical
-        function isHorizontal(c) { return Math.abs(c.y2 - c.y1) <= Math.abs(c.x2 - c.x1); }
-
-        if (visLines.length === 1) {
-          // Single segment: shift start by srcShift, end by tgtShift
-          visLines[0].setAttribute("x1", origCoords[0].x1 + srcShift.dx);
-          visLines[0].setAttribute("y1", origCoords[0].y1 + srcShift.dy);
-          visLines[0].setAttribute("x2", origCoords[0].x2 + tgtShift.dx);
-          visLines[0].setAttribute("y2", origCoords[0].y2 + tgtShift.dy);
-        } else {
-          // Multi-segment orthogonal arrows: axis-aware waypoint adjustment.
-          // Endpoints shift fully with their respective box. Waypoints shift
-          // only on the axis perpendicular to their source-side segment,
-          // preserving orthogonality.
-
-          // Start with all coords at original
-          const coords = origCoords.map(c => ({ ...c }));
-          const n = coords.length;
-
-          // 1. Shift first endpoint by srcShift
-          coords[0].x1 += srcShift.dx;
-          coords[0].y1 += srcShift.dy;
-
-          // 2. Shift last endpoint by tgtShift
-          coords[n - 1].x2 += tgtShift.dx;
-          coords[n - 1].y2 += tgtShift.dy;
-
-          // 3. Adjust first waypoint (end of seg0 / start of seg1)
-          //    by the perpendicular component of srcShift
-          if (isHorizontal(origCoords[0])) {
-            coords[0].y2 += srcShift.dy;
-          } else {
-            coords[0].x2 += srcShift.dx;
-          }
-          coords[1].x1 = coords[0].x2;
-          coords[1].y1 = coords[0].y2;
-
-          // 4. Adjust last waypoint (end of seg[n-2] / start of seg[n-1])
-          //    by the perpendicular component of tgtShift
-          if (isHorizontal(origCoords[n - 1])) {
-            coords[n - 1].y1 += tgtShift.dy;
-          } else {
-            coords[n - 1].x1 += tgtShift.dx;
-          }
-          coords[n - 2].x2 = coords[n - 1].x1;
-          coords[n - 2].y2 = coords[n - 1].y1;
-
-          // Apply computed coords
-          for (let i = 0; i < n; i++) {
-            visLines[i].setAttribute("x1", coords[i].x1);
-            visLines[i].setAttribute("y1", coords[i].y1);
-            visLines[i].setAttribute("x2", coords[i].x2);
-            visLines[i].setAttribute("y2", coords[i].y2);
-          }
-        }
-
-        // Shift arrowhead polygon by target shift
-        polys.forEach(p => {
-          const origPts = p.getAttribute("data-orig-points");
-          const shifted = origPts.split(/[, ]+/).reduce((acc, v, i) => {
-            if (i % 2 === 0) acc.push(parseFloat(v) + tgtShift.dx);
-            else acc[acc.length - 1] = acc[acc.length - 1] + "," + (parseFloat(v) + tgtShift.dy);
-            return acc;
-          }, []).join(" ");
-          p.setAttribute("points", shifted);
-        });
-
-        // Update hit-area lines to match
-        hitLines.forEach((hl, i) => {
-          if (i < visLines.length) {
-            hl.setAttribute("x1", visLines[i].getAttribute("x1"));
-            hl.setAttribute("y1", visLines[i].getAttribute("y1"));
-            hl.setAttribute("x2", visLines[i].getAttribute("x2"));
-            hl.setAttribute("y2", visLines[i].getAttribute("y2"));
-          }
-        });
-      });
-    }
-  }
-
-  // Refresh resize handles if selected
-  if (selectedIds.size > 0) showResizeHandles([...selectedIds].pop());
 }
 
 /**
@@ -2505,8 +1557,7 @@ async function deleteSelectedFrames() {
 function _treeHasFrameId(frameId) {
   const treeEl = document.getElementById("tree");
   if (!treeEl) return false;
-  return Array.from(treeEl.querySelectorAll(".tree-item"))
-    .some(el => el.textContent === frameId);
+  return LayoutEngine.previewTreeHasFrameId(treeEl, frameId);
 }
 
 window.deleteSelectedFrames = deleteSelectedFrames;
@@ -2517,119 +1568,39 @@ window.__DG_TEST_findArrowAtPoint = findArrowAtPoint;
 
 function buildTreeUI() {
   const treeEl = document.getElementById("tree");
-  treeEl.innerHTML = "";
-  function buildTree(nodes, container, depth) {
-    for (const node of nodes) {
-      const item = document.createElement("div");
-      item.className = "tree-item";
-      item.style.paddingLeft = (8 + depth * 12) + "px";
-      item.textContent = node.id;
-      if (overrides[node.id]) item.style.color = UI_AUTHORING_ACCENT;
-      item.onclick = (e) => { e.stopPropagation(); selectComponent(node.id, e.shiftKey); };
-      item.addEventListener("contextmenu", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (!selectedIds.has(node.id)) selectComponent(node.id, false);
-        _showTreeContextMenu(e.clientX, e.clientY);
-      });
-      container.appendChild(item);
-      if (node.children && node.children.length > 0) {
-        buildTree(node.children, container, depth + 1);
-      }
-    }
-  }
-  buildTree(model._roots.map(n => n.data), treeEl, 0);
-}
-
-function _showTreeContextMenu(clientX, clientY) {
-  const existing = document.getElementById("dg-tree-context-menu");
-  if (existing) existing.remove();
-
-  const menu = document.createElement("div");
-  menu.id = "dg-tree-context-menu";
-  menu.className = "dg-context-menu";
-  menu.style.position = "fixed";
-  menu.style.left = clientX + "px";
-  menu.style.top = clientY + "px";
-  menu.style.zIndex = "10000";
-  menu.style.background = "#fff";
-  menu.style.border = "1px solid #ccc";
-  menu.style.borderRadius = "4px";
-  menu.style.padding = "4px";
-  menu.style.boxShadow = "0 2px 8px rgba(0,0,0,0.15)";
-
-  const deleteBtn = document.createElement("button");
-  deleteBtn.style.display = "block";
-  deleteBtn.style.width = "100%";
-  deleteBtn.style.textAlign = "left";
-  deleteBtn.style.border = "none";
-  deleteBtn.style.background = "transparent";
-  deleteBtn.style.padding = "6px 10px";
-  deleteBtn.style.cursor = "pointer";
-  deleteBtn.type = "button";
-  deleteBtn.textContent = "Delete frame";
-  deleteBtn.onclick = () => {
-    menu.remove();
-    deleteSelectedFrames();
-  };
-  menu.appendChild(deleteBtn);
-  document.body.appendChild(menu);
-
-  const dismiss = (ev) => {
-    if (!menu.contains(ev.target)) {
-      menu.remove();
-      document.removeEventListener("mousedown", dismiss, true);
-    }
-  };
-  setTimeout(() => document.addEventListener("mousedown", dismiss, true), 0);
-}
-
-let _interactionSvg = null;
-
-function _ensureSvgHitAreas(svg) {
-  const ns = "http://www.w3.org/2000/svg";
-  svg.querySelectorAll("[data-component-id]").forEach(g => {
-    const hasRect = g.querySelector(":scope > rect");
-    const lines = g.querySelectorAll("line");
-    const icons = g.querySelectorAll(".dg-icon");
-    if (lines.length > 0 && !hasRect) {
-      lines.forEach(ln => {
-        if (ln.getAttribute("data-dg-hit-area") === "1") return;
-        const hit = document.createElementNS(ns, "line");
-        hit.setAttribute("data-dg-hit-area", "1");
-        hit.setAttribute("x1", ln.getAttribute("x1"));
-        hit.setAttribute("y1", ln.getAttribute("y1"));
-        hit.setAttribute("x2", ln.getAttribute("x2"));
-        hit.setAttribute("y2", ln.getAttribute("y2"));
-        hit.setAttribute("stroke", "transparent");
-        hit.setAttribute("stroke-width", "12");
-        hit.style.pointerEvents = "stroke";
-        g.insertBefore(hit, g.firstChild);
-      });
-    }
-    if (icons.length > 0 && !hasRect) {
-      if (g.querySelector(':scope > rect[data-dg-hit-area="1"]')) return;
-      const bbox = g.getBBox();
-      const hit = document.createElementNS(ns, "rect");
-      hit.setAttribute("data-dg-hit-area", "1");
-      hit.setAttribute("x", bbox.x);
-      hit.setAttribute("y", bbox.y);
-      hit.setAttribute("width", bbox.width);
-      hit.setAttribute("height", bbox.height);
-      hit.setAttribute("fill", "transparent");
-      hit.style.pointerEvents = "fill";
-      g.insertBefore(hit, g.firstChild);
-    }
+  if (!treeEl) return;
+  LayoutEngine.renderPreviewTreePanel({
+    container: treeEl,
+    nodes: model._roots.map(n => n.data),
+    overrides,
+    selectedIds,
+    onSelect: (id, additive) => {
+      selectComponent(id, additive);
+    },
+    onContextMenu: (event, id) => {
+      if (!selectedIds.has(id)) selectComponent(id, false);
+      _showTreeContextMenu(event.clientX, event.clientY);
+    },
   });
 }
 
-function _teardownSvgInteraction(svg) {
-  if (!svg) return;
-  svg.removeEventListener("mousedown", onSvgMouseDown);
-  svg.removeEventListener("dblclick", onSvgDblClick);
-  svg.removeEventListener("mouseover", _onSvgMouseOver);
-  svg.removeEventListener("mouseout", _onSvgMouseOut);
+function _showTreeContextMenu(clientX, clientY) {
+  LayoutEngine.showPreviewContextMenu({
+    document,
+    clientX,
+    clientY,
+    actions: [
+      {
+        label: "Delete frame",
+        onSelect: () => {
+          void deleteSelectedFrames();
+        },
+      },
+    ],
+  });
 }
+
+let _interactionSvg = null;
 
 function _onSvgMouseOver(e) {
   if (mgr.suppressHover) return;
@@ -2640,33 +1611,29 @@ function _onSvgMouseOver(e) {
   const svgPt = pt.matrixTransform(svg.getScreenCTM().inverse());
   const hoverCid = findArrowAtPoint(e.clientX, e.clientY)
     || findComponentAtDepth(svgPt.x, svgPt.y, selectionDepth);
-  svg.querySelectorAll(".dg-hover").forEach(el => el.classList.remove("dg-hover"));
-  if (hoverCid) {
-    svg.querySelectorAll('[data-component-id="' + hoverCid + '"]')
-      .forEach(el => el.classList.add("dg-hover"));
-  }
+  LayoutEngine.syncPreviewSvgHoverState(svg, hoverCid);
 }
 
 function _onSvgMouseOut(e) {
   if (mgr.suppressHover) return;
-  e.currentTarget.querySelectorAll(".dg-hover").forEach(el => el.classList.remove("dg-hover"));
+  LayoutEngine.clearPreviewSvgHoverState(e.currentTarget);
 }
 
 function bindInteraction() {
   const svg = document.querySelector("#stage svg");
   if (!svg) return;
-
-  _ensureSvgHitAreas(svg);
-  ensureArrowHitAreas(svg);
-  buildTreeUI();
-
-  if (_interactionSvg === svg) return;
-  _teardownSvgInteraction(_interactionSvg);
-  _interactionSvg = svg;
-  svg.addEventListener("mousedown", onSvgMouseDown);
-  svg.addEventListener("dblclick", onSvgDblClick);
-  svg.addEventListener("mouseover", _onSvgMouseOver);
-  svg.addEventListener("mouseout", _onSvgMouseOut);
+  _interactionSvg = LayoutEngine.bindPreviewStageSvgInteraction({
+    svg,
+    previousSvg: _interactionSvg,
+    handlers: {
+      onMouseDown: onSvgMouseDown,
+      onDoubleClick: onSvgDblClick,
+      onMouseOver: _onSvgMouseOver,
+      onMouseOut: _onSvgMouseOut,
+    },
+    ensureArrowHitAreas: (currentSvg) => ensureArrowHitAreas(currentSvg),
+    rebuildTreeUi: buildTreeUI,
+  });
 }
 
 // ---- Drag (move) ----
@@ -2678,9 +1645,12 @@ function onSvgDblClick(e) {
   const svg = document.querySelector("#stage svg");
   if (!svg) return;
 
-  const editableText = _findEditableTextTarget(e.target, e.clientX, e.clientY);
+  const editableText = LayoutEngine.findPreviewEditableTextTarget(e.target, e.clientX, e.clientY);
   if (editableText) {
-    const cid = _editableComponentIdForTextElement(editableText);
+    const cid = LayoutEngine.resolvePreviewEditableComponentId(
+      editableText,
+      (id) => Boolean(model.get(id)),
+    );
     if (cid) {
       const ancestors = getAncestors(cid);
       selectionDepth = ancestors.length;
@@ -2800,25 +1770,23 @@ function onSvgMouseDown(e) {
   }
 
   const finalCid = pointerResolution.targetId;
-
-  // Determine which components to drag
-  let dragCids;
-  if (selectedIds.has(finalCid)) {
-    dragCids = [...selectedIds];
-  } else {
-    dragCids = [finalCid];
+  const dragStart = LayoutEngine.createPreviewDragStartState({
+    componentId: finalCid,
+    selectedIds,
+    clientX: e.clientX,
+    clientY: e.clientY,
+    getOwnDelta,
+    collectSnapTargets,
+    isAutolayoutChild: _isAutolayoutChild,
+  });
+  if (dragStart.kind !== "start") {
+    e.preventDefault();
+    return;
   }
-  const origDeltas = {};
-  for (const id of dragCids) {
-    const own = getOwnDelta(id);
-    origDeltas[id] = { dx: own.dx, dy: own.dy };
-  }
-  mgr.startDrag({ cid: finalCid, cids: dragCids, startX: e.clientX, startY: e.clientY,
-                   origDeltas, hasMoved: false,
-                   overrideSnapshotBefore: EditorState.captureOverrideEntries(dragCids),
-                   snapTargets: dragCids.length === 1 ? collectSnapTargets(finalCid) : null,
-                   autolayout: _isAutolayoutChild(finalCid),
-                   reorderTarget: null });
+  mgr.startDrag({
+    ...dragStart.state,
+    overrideSnapshotBefore: EditorState.captureOverrideEntries(dragStart.captureIds),
+  });
   document.addEventListener("mousemove", onDragMove);
   document.addEventListener("mouseup", onDragUp);
   e.preventDefault();
@@ -2840,70 +1808,21 @@ function _isAutolayoutChild(cid) {
  * Show a reorder insertion indicator line between siblings.
  */
 function _showReorderIndicator(parentCid, insertIndex, isVertical) {
-  _clearReorderIndicator();
-  const parentNode = model.get(parentCid);
-  if (!parentNode) return;
-  const parent = parentNode.data;
-  const siblings = parentNode.children.map(n => n.data);
-  if (siblings.length === 0) return;
-
   const svg = document.querySelector('#stage svg');
-  if (!svg) return;
-
-  // Calculate indicator position
-  let x1, y1, x2, y2;
-  const gap = parent.layout_gap ?? 24;
-  if (isVertical) {
-    const leftEdge = parent.x + (parent.padding_left || parent.pad || 0);
-    const rightEdge = leftEdge + (siblings[0] ? siblings[0].width : 100);
-    if (insertIndex <= 0) {
-      const firstY = siblings[0].y;
-      y1 = y2 = firstY - gap / 2;
-    } else if (insertIndex >= siblings.length) {
-      const last = siblings[siblings.length - 1];
-      y1 = y2 = last.y + last.height + gap / 2;
-    } else {
-      const prev = siblings[insertIndex - 1];
-      const next = siblings[insertIndex];
-      y1 = y2 = (prev.y + prev.height + next.y) / 2;
-    }
-    x1 = leftEdge;
-    x2 = rightEdge;
-  } else {
-    const topEdge = parent.y + (parent.padding_top || parent.pad || 0);
-    const bottomEdge = topEdge + (siblings[0] ? siblings[0].height : 64);
-    if (insertIndex <= 0) {
-      const firstX = siblings[0].x;
-      x1 = x2 = firstX - gap / 2;
-    } else if (insertIndex >= siblings.length) {
-      const last = siblings[siblings.length - 1];
-      x1 = x2 = last.x + last.width + gap / 2;
-    } else {
-      const prev = siblings[insertIndex - 1];
-      const next = siblings[insertIndex];
-      x1 = x2 = (prev.x + prev.width + next.x) / 2;
-    }
-    y1 = topEdge;
-    y2 = bottomEdge;
-  }
-
-  const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-  line.setAttribute('x1', x1);
-  line.setAttribute('y1', y1);
-  line.setAttribute('x2', x2);
-  line.setAttribute('y2', y2);
-  line.setAttribute('stroke', '#E95420');
-  line.setAttribute('stroke-width', '3');
-  line.setAttribute('stroke-dasharray', '6 4');
-  line.setAttribute('data-reorder-indicator', 'true');
-  svg.appendChild(line);
+  const parentNode = model.get(parentCid);
+  if (!svg || !parentNode) return;
+  LayoutEngine.renderPreviewReorderIndicator({
+    svg,
+    parent: parentNode.data,
+    siblings: parentNode.children.map((n) => n.data),
+    insertIndex,
+    isVertical,
+  });
 }
 
 function _clearReorderIndicator() {
   const svg = document.querySelector('#stage svg');
-  if (!svg) return;
-  const indicators = svg.querySelectorAll('[data-reorder-indicator]');
-  indicators.forEach(el => el.remove());
+  if (svg) LayoutEngine.clearPreviewReorderIndicator(svg);
 }
 
 /**
@@ -2924,33 +1843,15 @@ function _applyReorder(parentId, cid, insertIndex) {
 function onDragMove(e) {
   if (!mgr.isMode(InteractionMode.DRAGGING)) return;
   const s = mgr.state;
-  let autolayoutContext = null;
-  if (s.autolayout && s.cids.length === 1) {
-    const cid = s.cids[0];
-    const parentNode = model.getParent(cid);
-    const svg = document.querySelector('#stage svg');
-    if (parentNode && svg) {
-      const parent = parentNode.data;
-      const isVertical = parent.layout === 'vertical';
-      const targets = parentNode.children.map((child) => ({
-        cid: child.data.id,
-        midpoint: isVertical
-          ? (child.data.y + child.data.height / 2)
-          : (child.data.x + child.data.width / 2),
-      }));
-      const pt = svg.createSVGPoint();
-      pt.x = e.clientX;
-      pt.y = e.clientY;
-      const ctm = svg.getScreenCTM();
-      const svgPt = pt.matrixTransform(ctm.inverse());
-      autolayoutContext = {
-        parentId: parentNode.data.id,
-        isVertical,
-        cursorPos: isVertical ? svgPt.y : svgPt.x,
-        targets,
-      };
-    }
-  }
+  const autolayoutContext = s.autolayout && s.cids.length === 1
+    ? LayoutEngine.resolvePreviewAutolayoutDragContext({
+      componentId: s.cids[0],
+      svg: document.querySelector('#stage svg'),
+      clientX: e.clientX,
+      clientY: e.clientY,
+      getParentNode: (id) => model.getParent(id),
+    })
+    : null;
 
   LayoutEngine.dispatchPreviewDragMove({
     state: s,
@@ -3045,120 +1946,28 @@ function getComponentType(cid) {
 }
 
 function _getRenderedComponentBounds(cid, svg) {
-  const groups = svg.querySelectorAll('[data-component-id="' + cid + '"]');
-  if (groups.length === 0) {
-    const treeNode = model.get(cid);
-    if (!treeNode || !treeNode.data) return null;
-    const eff = getEffectiveDelta(cid);
-    const left = treeNode.data.x + eff.dx;
-    const top = treeNode.data.y + eff.dy;
-    const width = treeNode.data.width + eff.dw;
-    const height = treeNode.data.height + eff.dh;
-    return { left, top, right: left + width, bottom: top + height, width, height };
-  }
-
-  let minX = Infinity;
-  let minY = Infinity;
-  let maxX = -Infinity;
-  let maxY = -Infinity;
-
-  groups.forEach((g) => {
-    const bbox = g.getBBox();
-    let tdx = 0;
-    let tdy = 0;
-    const tm = (g.style.transform || "").match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/);
-    if (tm) {
-      tdx = parseFloat(tm[1]);
-      tdy = parseFloat(tm[2]);
-    }
-    minX = Math.min(minX, bbox.x + tdx);
-    minY = Math.min(minY, bbox.y + tdy);
-    maxX = Math.max(maxX, bbox.x + bbox.width + tdx);
-    maxY = Math.max(maxY, bbox.y + bbox.height + tdy);
+  const node = model.get(cid);
+  return LayoutEngine.readPreviewRenderedComponentBounds({
+    svg,
+    componentId: cid,
+    fallbackNodeBounds: node ? node.data : null,
+    delta: getEffectiveDelta(cid),
   });
-
-  return {
-    left: minX,
-    top: minY,
-    right: maxX,
-    bottom: maxY,
-    width: maxX - minX,
-    height: maxY - minY,
-  };
 }
 
 function _getMultiResizeSelection(svg, idsOverride) {
-  const ids = [...new Set(idsOverride || [...selectedIds])];
-  if (ids.length <= 1) return null;
-
-  const selectedSet = new Set(ids);
-  const members = [];
-  let minX = Infinity;
-  let minY = Infinity;
-  let maxX = -Infinity;
-  let maxY = -Infinity;
-  let minWidth = 0;
-  let minHeight = 0;
-
-  for (const id of ids) {
-    const node = model.get(id);
-    if (!node) return null;
-    const type = String(node.type || "").toLowerCase();
-    if (type === "arrow" || _isAutolayoutChild(id)) {
-      return null;
-    }
-    if (getAncestors(id).some((ancestorId) => selectedSet.has(ancestorId))) {
-      return null;
-    }
-
-    const bounds = _getRenderedComponentBounds(id, svg);
-    if (!bounds || bounds.width <= 0 || bounds.height <= 0) {
-      return null;
-    }
-
-    const own = getOwnDelta(id);
-    const eff = getEffectiveDelta(id);
-    members.push({
-      id,
-      bounds,
-      ancestorDx: eff.dx - own.dx,
-      ancestorDy: eff.dy - own.dy,
-      baseX: node.data.x,
-      baseY: node.data.y,
-      baseW: node.data.width,
-      baseH: node.data.height,
-      hasLayoutChildren: _hasLayoutChildren(id),
-    });
-    minX = Math.min(minX, bounds.left);
-    minY = Math.min(minY, bounds.top);
-    maxX = Math.max(maxX, bounds.right);
-    maxY = Math.max(maxY, bounds.bottom);
-  }
-
-  const width = maxX - minX;
-  const height = maxY - minY;
-  if (width <= 0 || height <= 0) return null;
-
-  for (const member of members) {
-    minWidth = Math.max(minWidth, width * (SHARED_MIN_NODE_SIZE / member.bounds.width));
-    minHeight = Math.max(minHeight, height * (SHARED_MIN_NODE_SIZE / member.bounds.height));
-  }
-
-  return {
-    ids,
-    members,
-    primaryId: getPrimarySelectedId(ids[ids.length - 1]) || ids[ids.length - 1],
-    bounds: {
-      left: minX,
-      top: minY,
-      right: maxX,
-      bottom: maxY,
-      width,
-      height,
-    },
-    minWidth: Math.min(width, minWidth || SHARED_MIN_NODE_SIZE),
-    minHeight: Math.min(height, minHeight || SHARED_MIN_NODE_SIZE),
-  };
+  return LayoutEngine.collectPreviewMultiResizeSelection({
+    ids: idsOverride || [...selectedIds],
+    getNode: (id) => model.get(id),
+    getAncestors,
+    getRenderedBounds: (id) => _getRenderedComponentBounds(id, svg),
+    getOwnDelta,
+    getEffectiveDelta,
+    hasLayoutChildren: _hasLayoutChildren,
+    isAutolayoutChild: _isAutolayoutChild,
+    resolvePrimaryId: getPrimarySelectedId,
+    minNodeSize: SHARED_MIN_NODE_SIZE,
+  });
 }
 
 function showResizeHandles(cid) {
@@ -3168,14 +1977,20 @@ function showResizeHandles(cid) {
   clearHandlesByClass("dg-handle");
 
   const multiSelection = _getMultiResizeSelection(svg);
-  if (selectedIds.size > 1) {
-    if (!multiSelection) return;
+  const handlePlan = LayoutEngine.resolvePreviewResizeHandlePlan({
+    selectedCount: selectedIds.size,
+    multiSelection,
+    singleBounds: selectedIds.size > 1 ? null : _getRenderedComponentBounds(cid, svg),
+    componentType: selectedIds.size > 1 ? null : getComponentType(cid),
+  });
+  if (handlePlan.kind === "none") return;
+  if (handlePlan.kind === "multi") {
     renderResizeHandles(
       svg,
-      multiSelection.bounds.left,
-      multiSelection.bounds.top,
-      multiSelection.bounds.right,
-      multiSelection.bounds.bottom,
+      handlePlan.bounds.left,
+      handlePlan.bounds.top,
+      handlePlan.bounds.right,
+      handlePlan.bounds.bottom,
       "multi",
       {
         handleClass: "dg-handle",
@@ -3186,24 +2001,15 @@ function showResizeHandles(cid) {
     return;
   }
 
-  const bounds = _getRenderedComponentBounds(cid, svg);
-  if (!bounds) return;
-  const minX = bounds.left;
-  const minY = bounds.top;
-  const maxX = bounds.right;
-  const maxY = bounds.bottom;
-  const ctype = getComponentType(cid);
-  const isHLine = ctype === "Separator";
-  const isArrow = ctype === "arrow";
-  if (isHLine) {
+  if (handlePlan.kind === "separator") {
     // Horizontal line: left and right edge handles only
     const hs = SHARED_HANDLE_SIZE;
     const ns = "http://www.w3.org/2000/svg";
     const outline = document.createElementNS(ns, "line");
-    outline.setAttribute("x1", String(minX));
-    outline.setAttribute("y1", String((minY + maxY) / 2));
-    outline.setAttribute("x2", String(maxX));
-    outline.setAttribute("y2", String((minY + maxY) / 2));
+    outline.setAttribute("x1", String(handlePlan.bounds.left));
+    outline.setAttribute("y1", String((handlePlan.bounds.top + handlePlan.bounds.bottom) / 2));
+    outline.setAttribute("x2", String(handlePlan.bounds.right));
+    outline.setAttribute("y2", String((handlePlan.bounds.top + handlePlan.bounds.bottom) / 2));
     outline.setAttribute("class", "dg-handle-outline");
     outline.setAttribute("pointer-events", "none");
     svg.appendChild(outline);
@@ -3218,18 +2024,26 @@ function showResizeHandles(cid) {
       r.setAttribute("data-resize-axis", axis);
       svg.appendChild(r);
     }
-    mkEdgeHandle(minX, (minY + maxY) / 2, "dg-handle-l", "l");
-    mkEdgeHandle(maxX, (minY + maxY) / 2, "dg-handle-r", "r");
-  } else if (isArrow) {
+    mkEdgeHandle(handlePlan.bounds.left, (handlePlan.bounds.top + handlePlan.bounds.bottom) / 2, "dg-handle-l", "l");
+    mkEdgeHandle(handlePlan.bounds.right, (handlePlan.bounds.top + handlePlan.bounds.bottom) / 2, "dg-handle-r", "r");
+  } else if (handlePlan.kind === "arrow") {
     // Arrow: show draggable waypoint handles (circles at each bend)
     showArrowWaypointHandles(cid);
   } else {
     // 2D component: all 8 handles via shared renderer
-    renderResizeHandles(svg, minX, minY, maxX, maxY, cid, {
+    renderResizeHandles(
+      svg,
+      handlePlan.bounds.left,
+      handlePlan.bounds.top,
+      handlePlan.bounds.right,
+      handlePlan.bounds.bottom,
+      cid,
+      {
       handleClass: "dg-handle",
       nodeAttr: "data-resize-cid",
       dirAttr: "data-resize-axis",
-    });
+      },
+    );
   }
 }
 
@@ -3252,32 +2066,14 @@ function _refreshSelectedArrowInspector(cid) {
 function _bindArrowSegmentInsertHandles(cid, eff) {
   const svg = document.querySelector("#stage svg");
   if (!svg) return;
-
-  const groups = svg.querySelectorAll('[data-component-id="' + cid + '"]');
-  let segIdx = 0;
-  groups.forEach(g => {
-    g.querySelectorAll("line").forEach(ln => {
-      if (ln.style.pointerEvents !== "stroke") return; // only hit-area lines
-      const idx = segIdx++;
-      const bindingKey = cid + ":" + idx;
-      ln.setAttribute("data-wp-seg-cid", cid);
-      ln.setAttribute("data-wp-seg-idx", idx);
-      if (ln.dataset.wpSegBinding === bindingKey) return;
-      ln.dataset.wpSegBinding = bindingKey;
-      ln.addEventListener("dblclick", function wpSegClick(e) {
-        if (!selectedIds.has(cid)) return;
-        e.stopPropagation();
-        const svg = document.querySelector("#stage svg");
-        if (!svg) return;
-        const pt = svg.createSVGPoint();
-        pt.x = e.clientX;
-        pt.y = e.clientY;
-        const svgPt = pt.matrixTransform(svg.getScreenCTM().inverse());
-        const snapX = Math.round(svgPt.x / 8) * 8;
-        const snapY = Math.round(svgPt.y / 8) * 8;
-        addWaypoint(cid, idx, snapX - eff.dx, snapY - eff.dy);
-      });
-    });
+  LayoutEngine.bindPreviewArrowSegmentInsertHandles({
+    svg,
+    componentId: cid,
+    delta: eff,
+    isSelected: selectedIds.has(cid),
+    onAddWaypoint: (segmentIndex, x, y) => {
+      addWaypoint(cid, segmentIndex, x, y);
+    },
   });
 }
 
@@ -3296,26 +2092,15 @@ function showArrowWaypointHandles(cid) {
 
   const wps = node.waypoints || [];
   if (wps.length === 0) return;
-
-  const ns = "http://www.w3.org/2000/svg";
-
-  // Show a circle handle at each waypoint
-  wps.forEach((wp, idx) => {
-    const cx = wp[0] + eff.dx;
-    const cy = wp[1] + eff.dy;
-    const circle = document.createElementNS(ns, "circle");
-    circle.setAttribute("cx", cx);
-    circle.setAttribute("cy", cy);
-    circle.setAttribute("r", 5);
-    circle.setAttribute("class", "dg-wp-handle");
-    circle.setAttribute("data-wp-cid", cid);
-    circle.setAttribute("data-wp-idx", idx);
-    circle.addEventListener("mousedown", startWpDrag);
-    circle.addEventListener("dblclick", (e) => {
-      e.stopPropagation();
-      removeWaypoint(cid, idx);
-    });
-    svg.appendChild(circle);
+  LayoutEngine.renderPreviewArrowWaypointHandles({
+    svg,
+    componentId: cid,
+    waypoints: wps,
+    delta: eff,
+    onHandleMouseDown: startWpDrag,
+    onHandleDoubleClick: (index) => {
+      removeWaypoint(cid, index);
+    },
   });
 }
 
@@ -3325,14 +2110,14 @@ function startWpDrag(e) {
   const node = getArrowNode(cid);
   if (!node || !node.waypoints || !node.waypoints[idx]) return;
 
-  mgr.startWaypointDrag({
-    cid, idx,
-    startX: e.clientX, startY: e.clientY,
+  mgr.startWaypointDrag(LayoutEngine.createPreviewWaypointDragState({
+    cid,
+    index: idx,
+    startX: e.clientX,
+    startY: e.clientY,
     origX: node.waypoints[idx][0],
     origY: node.waypoints[idx][1],
-    hasMoved: false,
-    axis: null,  // will be set on first move
-  });
+  }));
   document.addEventListener("mousemove", onWpDragMove);
   document.addEventListener("mouseup", onWpDragUp);
   e.preventDefault();
@@ -3342,52 +2127,23 @@ function startWpDrag(e) {
 function onWpDragMove(e) {
   if (!mgr.isMode(InteractionMode.WAYPOINT_DRAGGING)) return;
   const s = mgr.state;
-  const dx = e.clientX - s.startX;
-  const dy = e.clientY - s.startY;
-  if (Math.abs(dx) > 2 || Math.abs(dy) > 2) s.hasMoved = true;
-  if (!s.hasMoved) return;
 
   const node = getArrowNode(s.cid);
   if (!node || !node.waypoints) return;
 
   const wps = node.waypoints;
   const idx = s.idx;
-
-  // Determine axis constraint from adjacent segments on first move.
-  // For orthogonal arrows, a waypoint that sits on a straight horizontal
-  // or vertical run should only move perpendicular to that run.
-  if (s.axis === null) {
-    const pts = getArrowPoints(s.cid);
-    if (pts.start) {
-      const all = [pts.start, ...wps, pts.end];
-      const ai = idx + 1;  // offset for start point
-      const prev = all[ai - 1];
-      const next = all[ai + 1];
-      const inH = Math.abs(prev[1] - s.origY) < 2;  // prev segment horizontal
-      const inV = Math.abs(prev[0] - s.origX) < 2;  // prev segment vertical
-      const outH = Math.abs(next[1] - s.origY) < 2; // next segment horizontal
-      const outV = Math.abs(next[0] - s.origX) < 2; // next segment vertical
-      if (inH && outH) s.axis = "y";       // on horizontal run → move vertically
-      else if (inV && outV) s.axis = "x";  // on vertical run → move horizontally
-      else s.axis = "free";                 // corner → free movement
-    } else {
-      s.axis = "free";
-    }
-  }
-
-  let newX = s.origX + dx;
-  let newY = s.origY + dy;
-
-  // Apply axis constraint
-  if (s.axis === "x") newY = s.origY;
-  if (s.axis === "y") newX = s.origX;
-
-  // Snap to 4px grid
-  const snapX = Math.round(newX / 8) * 8;
-  const snapY = Math.round(newY / 8) * 8;
-
-  // Update the waypoint position in the component tree
-  wps[idx] = [snapX, snapY];
+  const move = LayoutEngine.resolvePreviewWaypointDragMove({
+    state: s,
+    clientX: e.clientX,
+    clientY: e.clientY,
+    endpoints: getArrowPoints(s.cid),
+    waypoints: wps,
+  });
+  s.hasMoved = move.hasMoved;
+  s.axis = move.axis;
+  if (!move.hasMoved || !move.waypoint) return;
+  wps[idx] = move.waypoint;
 
   // Visually update the SVG lines and waypoint handle
   updateArrowVisual(s.cid);
@@ -3416,36 +2172,12 @@ function onWpDragUp(e) {
 function pruneCollinearWaypoints(cid) {
   const node = getArrowNode(cid);
   if (!node || !node.waypoints || node.waypoints.length === 0) return;
-
-  const pts = getArrowPoints(cid);
-  if (!pts.start) return;
-
-  // Full ordered point list: start → waypoints → end
-  const all = [pts.start, ...node.waypoints, pts.end];
-  const TOLERANCE = 2; // px
-
-  // Walk backwards so splicing doesn't shift indices of points still to check
-  let changed = false;
-  for (let i = node.waypoints.length - 1; i >= 0; i--) {
-    // Index inside `all` is i + 1 (offset by the start point)
-    const ai = i + 1;
-    const prev = all[ai - 1];
-    const cur  = all[ai];
-    const next = all[ai + 1];
-    // Perpendicular distance of cur from line prev→next
-    const dx = next[0] - prev[0];
-    const dy = next[1] - prev[1];
-    const len = Math.sqrt(dx * dx + dy * dy);
-    if (len === 0) { node.waypoints.splice(i, 1); changed = true; continue; }
-    const dist = Math.abs(dx * (prev[1] - cur[1]) - dy * (prev[0] - cur[0])) / len;
-    if (dist < TOLERANCE) {
-      node.waypoints.splice(i, 1);
-      all.splice(ai, 1);
-      changed = true;
-    }
-  }
-
-  if (changed) {
+  const pruned = LayoutEngine.prunePreviewCollinearWaypoints({
+    waypoints: node.waypoints,
+    endpoints: getArrowPoints(cid),
+  });
+  if (pruned.changed) {
+    node.waypoints = pruned.waypoints;
     rebuildArrowSVG(cid);
     showArrowWaypointHandles(cid);
   }
@@ -3456,10 +2188,7 @@ function addWaypoint(cid, segIdx, x, y) {
   if (!node) return;
   const addWpIds = [cid];
   const addWpBefore = EditorState.captureOverrideEntries(addWpIds);
-  if (!node.waypoints) node.waypoints = [];
-  const snapX = Math.round(x / 8) * 8;
-  const snapY = Math.round(y / 8) * 8;
-  node.waypoints.splice(segIdx, 0, [snapX, snapY]);
+  node.waypoints = LayoutEngine.insertPreviewWaypoint(node.waypoints || [], segIdx, x, y);
   rebuildArrowSVG(cid);
   showArrowWaypointHandles(cid);
   setWaypointOverride(cid);
@@ -3472,7 +2201,9 @@ function removeWaypoint(cid, idx) {
   if (!node || !node.waypoints || node.waypoints.length <= 1) return;
   const rmWpIds = [cid];
   const rmWpBefore = EditorState.captureOverrideEntries(rmWpIds);
-  node.waypoints.splice(idx, 1);
+  const nextWaypoints = LayoutEngine.removePreviewWaypoint(node.waypoints, idx);
+  if (!nextWaypoints) return;
+  node.waypoints = nextWaypoints;
   rebuildArrowSVG(cid);
   showArrowWaypointHandles(cid);
   setWaypointOverride(cid);
@@ -3481,366 +2212,50 @@ function removeWaypoint(cid, idx) {
 }
 
 function getArrowPoints(cid) {
-  // Build the full point list for an arrow: start → waypoints → end
   const svg = document.querySelector("#stage svg");
-  if (!svg) return [];
-  const node = getArrowNode(cid);
-  if (!node) return [];
-
-  const groups = svg.querySelectorAll('[data-component-id="' + cid + '"]');
-  let visLines = [];
-  let poly = null;
-  groups.forEach(g => {
-    g.querySelectorAll("line").forEach(ln => {
-      if (ln.getAttribute("stroke") !== "transparent") visLines.push(ln);
-    });
-    const p = g.querySelector("polygon");
-    if (p) poly = p;
-  });
-
-  if (visLines.length === 0) return [];
-
-  // Start point from first line
-  const sx = parseFloat(visLines[0].getAttribute("data-orig-x1") || visLines[0].getAttribute("x1"));
-  const sy = parseFloat(visLines[0].getAttribute("data-orig-y1") || visLines[0].getAttribute("y1"));
-
-  // End point: arrowhead tip from polygon
-  let ex, ey;
-  if (poly) {
-    const ptsStr = (poly.getAttribute("data-orig-points") || poly.getAttribute("points")).trim();
-    const ptsArr = ptsStr.split(/\s+/).map(s => s.split(",").map(Number));
-    if (ptsArr.length >= 3) { ex = ptsArr[1][0]; ey = ptsArr[1][1]; }
-    else { ex = sx; ey = sy; }
-  } else {
-    const last = visLines[visLines.length - 1];
-    ex = parseFloat(last.getAttribute("data-orig-x2") || last.getAttribute("x2"));
-    ey = parseFloat(last.getAttribute("data-orig-y2") || last.getAttribute("y2"));
-  }
-
-  return { start: [sx, sy], end: [ex, ey] };
+  if (!svg || !getArrowNode(cid)) return [];
+  return LayoutEngine.readPreviewArrowEndpoints({
+    svg,
+    componentId: cid,
+  }) || [];
 }
 
 function updateArrowVisual(cid) {
-  // Update SVG line coordinates to match current waypoints in componentTree
   const svg = document.querySelector("#stage svg");
   if (!svg) return;
   const node = getArrowNode(cid);
   if (!node) return;
-
-  const groups = svg.querySelectorAll('[data-component-id="' + cid + '"]');
-  const wps = node.waypoints || [];
-  const eff = getEffectiveDelta(cid);
-
-  let visLines = [];
-  let hitLines = [];
-  let poly = null;
-  groups.forEach(g => {
-    g.querySelectorAll("line").forEach(ln => {
-      if (ln.getAttribute("stroke") === "transparent") hitLines.push(ln);
-      else visLines.push(ln);
-    });
-    const p = g.querySelector("polygon");
-    if (p) poly = p;
-  });
-
-  if (visLines.length === 0) return;
-
-  // Get the original start/end points
-  const pts = getArrowPoints(cid);
-  if (!pts.start) return;
-
-  // Build full point list: start → waypoints → end
-  const allPts = [pts.start, ...wps, pts.end];
-
-  // Arrow head geometry constants
-  const HEAD_LEN = window.__DG_CONFIG.head_len;
-  const HEAD_HALF = window.__DG_CONFIG.head_half;
-
-  // Update each visible line segment
-  // There should be (waypoints.length + 1) segments = (allPts.length - 1) segments
-  // But SVG may have different count if waypoints were added/removed
-  // If counts match, update in place; otherwise rebuild is needed
-  if (visLines.length === allPts.length - 1) {
-    for (let i = 0; i < visLines.length; i++) {
-      visLines[i].setAttribute("x1", allPts[i][0]);
-      visLines[i].setAttribute("y1", allPts[i][1]);
-      if (i < visLines.length - 1) {
-        // Intermediate segment: end at next waypoint
-        visLines[i].setAttribute("x2", allPts[i + 1][0]);
-        visLines[i].setAttribute("y2", allPts[i + 1][1]);
-      } else {
-        // Last segment: end at arrowhead base (not tip)
-        const tipX = allPts[i + 1][0];
-        const tipY = allPts[i + 1][1];
-        const prevX = allPts[i][0];
-        const prevY = allPts[i][1];
-        // Calculate arrowhead base
-        const segDx = tipX - prevX;
-        const segDy = tipY - prevY;
-        const segLen = Math.sqrt(segDx * segDx + segDy * segDy);
-        if (segLen > 0) {
-          const scale = Math.min(1, segLen / HEAD_LEN);
-          const headLen = HEAD_LEN * scale;
-          const baseX = tipX - (segDx / segLen) * headLen;
-          const baseY = tipY - (segDy / segLen) * headLen;
-          visLines[i].setAttribute("x2", baseX);
-          visLines[i].setAttribute("y2", baseY);
-        } else {
-          visLines[i].setAttribute("x2", tipX);
-          visLines[i].setAttribute("y2", tipY);
-        }
-      }
-    }
-
-    // Update hit-area lines to match
-    for (let i = 0; i < hitLines.length && i < visLines.length; i++) {
-      hitLines[i].setAttribute("x1", visLines[i].getAttribute("x1"));
-      hitLines[i].setAttribute("y1", visLines[i].getAttribute("y1"));
-      hitLines[i].setAttribute("x2", visLines[i].getAttribute("x2"));
-      hitLines[i].setAttribute("y2", visLines[i].getAttribute("y2"));
-    }
-
-    // Update arrowhead polygon
-    if (poly && allPts.length >= 2) {
-      const tipX = allPts[allPts.length - 1][0];
-      const tipY = allPts[allPts.length - 1][1];
-      const prevX = allPts[allPts.length - 2][0];
-      const prevY = allPts[allPts.length - 2][1];
-      const segDx = tipX - prevX;
-      const segDy = tipY - prevY;
-      const segLen = Math.sqrt(segDx * segDx + segDy * segDy);
-      if (segLen > 0) {
-        const scale = Math.min(1, segLen / HEAD_LEN);
-        const headLen = HEAD_LEN * scale;
-        const headHalf = HEAD_HALF * scale;
-        const ux = segDx / segLen;
-        const uy = segDy / segLen;
-        const baseX = tipX - ux * headLen;
-        const baseY = tipY - uy * headLen;
-        const perpX = -uy * headHalf;
-        const perpY = ux * headHalf;
-        const p1 = (baseX + perpX) + "," + (baseY + perpY);
-        const p2 = tipX + "," + tipY;
-        const p3 = (baseX - perpX) + "," + (baseY - perpY);
-        poly.setAttribute("points", p1 + " " + p2 + " " + p3);
-      }
-    }
-  }
-
-  // Update waypoint handles positions
-  svg.querySelectorAll('.dg-wp-handle[data-wp-cid="' + cid + '"]').forEach(h => {
-    const idx = parseInt(h.getAttribute("data-wp-idx"), 10);
-    if (wps[idx]) {
-      h.setAttribute("cx", wps[idx][0] + eff.dx);
-      h.setAttribute("cy", wps[idx][1] + eff.dy);
-    }
+  LayoutEngine.updatePreviewArrowSvg({
+    svg,
+    componentId: cid,
+    waypoints: node.waypoints || [],
+    delta: getEffectiveDelta(cid),
+    headLen: window.__DG_CONFIG.head_len,
+    headHalf: window.__DG_CONFIG.head_half,
   });
 }
 
 function rebuildArrowSVG(cid) {
-  // When waypoint count changes (add/remove), rebuild the arrow SVG elements
   const svg = document.querySelector("#stage svg");
   if (!svg) return;
   const node = getArrowNode(cid);
   if (!node) return;
-  const wps = node.waypoints || [];
-  const pts = getArrowPoints(cid);
-  if (!pts.start) return;
-
-  const allPts = [pts.start, ...wps, pts.end];
-  const HEAD_LEN = window.__DG_CONFIG.head_len;
-  const HEAD_HALF = window.__DG_CONFIG.head_half;
-  const color = "#E95420";
-
-  // Find the existing arrow group and rebuild its contents
-  const groups = svg.querySelectorAll('[data-component-id="' + cid + '"]');
-  if (groups.length === 0) return;
-  const g = groups[0];
-
-  // Clear existing lines and polygon
-  g.querySelectorAll("line, polygon").forEach(el => el.remove());
-
-  const ns = "http://www.w3.org/2000/svg";
-
-  // Build line segments
-  for (let i = 0; i < allPts.length - 1; i++) {
-    const x1 = allPts[i][0];
-    const y1 = allPts[i][1];
-    let x2, y2;
-
-    if (i < allPts.length - 2) {
-      x2 = allPts[i + 1][0];
-      y2 = allPts[i + 1][1];
-    } else {
-      // Last segment: end at arrowhead base
-      const tipX = allPts[i + 1][0];
-      const tipY = allPts[i + 1][1];
-      const segDx = tipX - x1;
-      const segDy = tipY - y1;
-      const segLen = Math.sqrt(segDx * segDx + segDy * segDy);
-      if (segLen > 0) {
-        const scale = Math.min(1, segLen / HEAD_LEN);
-        const headLen = HEAD_LEN * scale;
-        x2 = tipX - (segDx / segLen) * headLen;
-        y2 = tipY - (segDy / segLen) * headLen;
-      } else {
-        x2 = tipX; y2 = tipY;
-      }
-    }
-
-    // Visible line
-    const ln = document.createElementNS(ns, "line");
-    ln.setAttribute("x1", x1); ln.setAttribute("y1", y1);
-    ln.setAttribute("x2", x2); ln.setAttribute("y2", y2);
-    ln.setAttribute("stroke", color); ln.setAttribute("stroke-width", "1");
-    g.appendChild(ln);
-
-    // Hit-area line (transparent, fat)
-    const hit = document.createElementNS(ns, "line");
-    hit.setAttribute("x1", x1); hit.setAttribute("y1", y1);
-    hit.setAttribute("x2", x2); hit.setAttribute("y2", y2);
-    hit.setAttribute("stroke", "transparent"); hit.setAttribute("stroke-width", "12");
-    hit.style.pointerEvents = "stroke";
-    g.appendChild(hit);
-  }
-
-  // Build arrowhead polygon
-  if (allPts.length >= 2) {
-    const tipX = allPts[allPts.length - 1][0];
-    const tipY = allPts[allPts.length - 1][1];
-    const prevX = allPts[allPts.length - 2][0];
-    const prevY = allPts[allPts.length - 2][1];
-    const segDx = tipX - prevX;
-    const segDy = tipY - prevY;
-    const segLen = Math.sqrt(segDx * segDx + segDy * segDy);
-    if (segLen > 0) {
-      const scale = Math.min(1, segLen / HEAD_LEN);
-      const headLen = HEAD_LEN * scale;
-      const headHalf = HEAD_HALF * scale;
-      const ux = segDx / segLen;
-      const uy = segDy / segLen;
-      const baseX = tipX - ux * headLen;
-      const baseY = tipY - uy * headLen;
-      const perpX = -uy * headHalf;
-      const perpY = ux * headHalf;
-      const poly = document.createElementNS(ns, "polygon");
-      poly.setAttribute("points",
-        (baseX + perpX) + "," + (baseY + perpY) + " " +
-        tipX + "," + tipY + " " +
-        (baseX - perpX) + "," + (baseY - perpY));
-      poly.setAttribute("fill", color);
-      g.appendChild(poly);
-    }
-  }
+  LayoutEngine.rebuildPreviewArrowSvg({
+    svg,
+    componentId: cid,
+    waypoints: node.waypoints || [],
+    headLen: window.__DG_CONFIG.head_len,
+    headHalf: window.__DG_CONFIG.head_half,
+    color: "#E95420",
+  });
 }
 
 // ---- Inline text editing ----
-
-function _textEditorBlockStyle(textEl) {
-  const tspans = Array.from(textEl.querySelectorAll("tspan"));
-  const first = tspans[0] || null;
-  const second = tspans[1] || null;
-  const firstY = parseFloat(first ? (first.getAttribute("y") || "NaN") : "NaN");
-  const secondY = parseFloat(second ? (second.getAttribute("y") || "NaN") : "NaN");
-  return {
-    fontSize: parseFloat(first ? (first.getAttribute("font-size") || "14") : "14"),
-    fontWeight: first ? (first.getAttribute("font-weight") || "400") : "400",
-    fill: first ? (first.getAttribute("fill") || "#000") : "#000",
-    fontFamily: (first && first.getAttribute("font-family"))
-      || textEl.getAttribute("font-family")
-      || "'Ubuntu Sans', sans-serif",
-    letterSpacing: first ? (first.getAttribute("letter-spacing") || "") : "",
-    fontVariantCaps: first ? (first.getAttribute("font-variant-caps") || "") : "",
-    lineHeight: Number.isFinite(firstY) && Number.isFinite(secondY) && secondY > firstY
-      ? (secondY - firstY)
-      : 24,
-  };
-}
-
-function _renderedTextLines(textEl) {
-  return Array.from(textEl.querySelectorAll("tspan")).map(ts => ts.textContent || "");
-}
-
-function _textBlockRole(textEl, hasHeading, fallbackIndex) {
-  const explicit = textEl ? textEl.getAttribute("data-dg-text-role") : "";
-  if (explicit === "heading" || explicit === "label") return explicit;
-  return hasHeading && fallbackIndex === 0 ? "heading" : "label";
-}
-
-function _textRectContainsPoint(rect, clientX, clientY, pad) {
-  const inset = Number.isFinite(pad) ? pad : 0;
-  return clientX >= rect.left - inset &&
-    clientX <= rect.right + inset &&
-    clientY >= rect.top - inset &&
-    clientY <= rect.bottom + inset;
-}
-
-function _findTextBlockAtPoint(textEls, clientX, clientY) {
-  if (!Array.isArray(textEls) || textEls.length === 0) return null;
-  const hits = textEls
-    .map((candidate) => ({ candidate, rect: candidate.getBoundingClientRect() }))
-    .filter(({ rect }) => rect && _textRectContainsPoint(rect, clientX, clientY, 2));
-  if (hits.length === 0) return null;
-  hits.sort((a, b) => a.rect.top - b.rect.top || a.rect.left - b.rect.left);
-  return hits[0].candidate;
-}
-
-function _findEditableTextTarget(target, clientX, clientY) {
-  if (!target || typeof target.closest !== "function") return null;
-  const textEl = target.closest('text[data-dg-text-role], text');
-  if (textEl) {
-    const owner = textEl.closest("[data-component-id]");
-    if (owner) return textEl;
-  }
-  const owner = target.closest("[data-component-id]");
-  if (!owner) return null;
-  const directTextEls = Array.from(owner.querySelectorAll(":scope > text"));
-  return _findTextBlockAtPoint(directTextEls, clientX, clientY);
-}
-
-function _textEditingGroupsForComponent(svg, cid) {
-  if (!svg || !cid) return [];
-  const selectors = [
-    '[data-component-id="' + cid + '"]',
-    '[data-component-id="' + cid + '__heading"]',
-  ];
-  const seen = new Set();
-  const groups = [];
-  selectors.forEach((selector) => {
-    svg.querySelectorAll(selector).forEach((group) => {
-      if (seen.has(group)) return;
-      seen.add(group);
-      groups.push(group);
-    });
-  });
-  return groups;
-}
 
 function _suspendSelectionChromeForTextEdit(svg) {
   if (!svg) return;
   svg.querySelectorAll(".dg-selected").forEach(el => el.classList.remove("dg-selected"));
   removeResizeHandles();
-}
-
-function _editableComponentIdForTextElement(textEl) {
-  if (!textEl || typeof textEl.closest !== "function") return "";
-  const owner = textEl.closest("[data-component-id]");
-  if (!owner) return "";
-  const ownerId = owner.getAttribute("data-component-id") || "";
-  if (!ownerId) return "";
-  if (model.get(ownerId)) return ownerId;
-  const authoredParentId = ownerId.replace(/__(heading|body)$/, "");
-  if (authoredParentId !== ownerId && model.get(authoredParentId)) {
-    return authoredParentId;
-  }
-  return ownerId;
-}
-
-function _textEditorSurface(fill) {
-  if (!fill) return "#FFFFFF";
-  const normalized = String(fill).trim().toLowerCase();
-  if (!normalized || normalized === "none" || normalized === "transparent") return "#FFFFFF";
-  return fill;
 }
 
 function _scheduleTextEditCommit() {
@@ -3856,85 +2271,53 @@ function startTextEdit(cid, e, opts) {
   const svg = document.querySelector("#stage svg");
   if (!svg) return;
 
-  // Only edit this frame's own text blocks. Descendant labels belong to child frames.
-  const groups = _textEditingGroupsForComponent(svg, cid);
-  const textEls = [];
-  groups.forEach(g => {
-    g.querySelectorAll(":scope > text").forEach(t => textEls.push(t));
-  });
-  if (textEls.length === 0) return;
-
   const node = model.get(cid);
-  const headingText = (node && node.data.heading_text) || "";
-  const labelText = (node && node.data.label_text) || [];
-  const hasHeading = !!headingText;
-  const targetedTextEl = opts && opts.textEl ? opts.textEl : textEls[0];
-  const blockIndex = Math.max(0, textEls.indexOf(targetedTextEl));
-  const blockRole = _textBlockRole(targetedTextEl, hasHeading, blockIndex);
-
-  let semanticLines;
-  if (blockRole === "heading") {
-    semanticLines = headingText ? [headingText] : _renderedTextLines(targetedTextEl);
-  } else {
-    semanticLines = labelText.length > 0 ? labelText.slice() : _renderedTextLines(targetedTextEl);
-  }
-  if (!semanticLines || semanticLines.length === 0) return;
-
-  let containerRect = textEls[0].getBoundingClientRect();
-  let hasIcon = false;
-  let containerFill = "#FFFFFF";
-  groups.forEach(g => {
-    const rect = g.querySelector(":scope > rect");
-    if (rect) {
-      containerRect = rect.getBoundingClientRect();
-      containerFill = rect.getAttribute("fill") || containerFill;
-    }
-    if (g.querySelector(":scope > .dg-icon")) hasIcon = true;
-  });
-
   const ctm = svg.getScreenCTM();
-  const svgScale = ctm ? ctm.a : 1;
+  const plan = LayoutEngine.resolvePreviewTextEditStartState({
+    groups: LayoutEngine.collectPreviewTextEditingGroups(svg, cid),
+    headingText: (node && node.data.heading_text) || "",
+    labelText: (node && node.data.label_text) || [],
+    targetedTextEl: opts && opts.textEl ? opts.textEl : null,
+    iconSize: window.__DG_CONFIG.icon_size,
+    columnGap: window.__DG_CONFIG.col_gap,
+    svgScale: ctm ? ctm.a : 1,
+  });
+  if (!plan) return;
 
-  const iconGutter = hasIcon ? (window.__DG_CONFIG.icon_size + window.__DG_CONFIG.col_gap) * svgScale : 0;
-  const insetPx = 8 * svgScale;
-  const editorLeft = containerRect.left + insetPx;
-  const editorW = Math.max(containerRect.width - (insetPx * 2) - iconGutter, 60);
-  const blockRect = targetedTextEl.getBoundingClientRect();
-  const style = _textEditorBlockStyle(targetedTextEl);
   const ta = document.createElement("textarea");
   ta.className = "dg-text-editor";
-  ta.value = semanticLines.join("\n");
-  ta.style.left = editorLeft + "px";
-  ta.style.top = blockRect.top + "px";
-  ta.style.width = editorW + "px";
-  ta.style.minHeight = Math.max(blockRect.height, semanticLines.length * style.lineHeight * svgScale) + "px";
-  ta.style.fontSize = (style.fontSize * svgScale) + "px";
-  ta.style.lineHeight = (style.lineHeight * svgScale) + "px";
-  ta.style.fontWeight = style.fontWeight;
-  ta.style.color = style.fill;
-  ta.style.caretColor = style.fill;
-  ta.style.backgroundColor = _textEditorSurface(containerFill);
-  ta.style.fontFamily = style.fontFamily;
-  if (style.letterSpacing) ta.style.letterSpacing = style.letterSpacing;
-  if (style.fontVariantCaps) ta.style.fontVariantCaps = style.fontVariantCaps;
+  ta.value = plan.semanticLines.join("\n");
+  ta.style.left = plan.editorLeft + "px";
+  ta.style.top = plan.editorTop + "px";
+  ta.style.width = plan.editorWidth + "px";
+  ta.style.minHeight = plan.editorMinHeight + "px";
+  ta.style.fontSize = (plan.style.fontSize * (ctm ? ctm.a : 1)) + "px";
+  ta.style.lineHeight = (plan.style.lineHeight * (ctm ? ctm.a : 1)) + "px";
+  ta.style.fontWeight = plan.style.fontWeight;
+  ta.style.color = plan.style.fill;
+  ta.style.caretColor = plan.style.fill;
+  ta.style.backgroundColor = plan.backgroundColor;
+  ta.style.fontFamily = plan.style.fontFamily;
+  if (plan.style.letterSpacing) ta.style.letterSpacing = plan.style.letterSpacing;
+  if (plan.style.fontVariantCaps) ta.style.fontVariantCaps = plan.style.fontVariantCaps;
   document.body.appendChild(ta);
 
   ta.focus();
   ta.select();
 
   // Hide only the targeted rendered text block while editing.
-  targetedTextEl.style.opacity = "0";
+  plan.textEl.style.opacity = "0";
   _suspendSelectionChromeForTextEdit(svg);
 
   mgr.startTextEdit({
     cid,
-    textEl: targetedTextEl,
+    textEl: plan.textEl,
     editor: {
-      role: blockRole,
+      role: plan.blockRole,
       ta,
       originalValue: ta.value,
     },
-    hasHeading,
+    hasHeading: plan.hasHeading,
   });
 
   ta.addEventListener("keydown", (ev) => {
@@ -3955,23 +2338,19 @@ function startTextEdit(cid, e, opts) {
 function commitTextEdit() {
   if (!mgr.isMode(InteractionMode.TEXT_EDITING)) return;
   const { cid, textEl, editor } = mgr.state;
-  const currentValue = editor ? editor.ta.value.replace(/\r/g, "") : "";
-  const originalValue = editor ? editor.originalValue : "";
-  const changed = currentValue !== originalValue;
+  const resolution = LayoutEngine.resolvePreviewTextEditCommit({
+    currentValue: editor ? editor.ta.value : "",
+    originalValue: editor ? editor.originalValue : "",
+    existingText: model.overrides[cid] && model.overrides[cid].text && typeof model.overrides[cid].text === "object"
+      ? model.overrides[cid].text
+      : {},
+    role: editor ? editor.role : "label",
+  });
 
-  if (changed) {
-    const existingText = (model.overrides[cid] && model.overrides[cid].text && typeof model.overrides[cid].text === "object")
-      ? { ...model.overrides[cid].text }
-      : {};
-    const textOverride = existingText;
-    if (editor && editor.role === "heading") {
-      textOverride.heading = currentValue;
-    } else {
-      textOverride.label = currentValue === "" ? [] : currentValue.split("\n");
-    }
+  if (resolution.changed && resolution.nextTextOverride) {
     const editIds = [cid];
     const editBefore = EditorState.captureOverrideEntries(editIds);
-    setOverride(cid, { text: textOverride });
+    setOverride(cid, { text: resolution.nextTextOverride });
     EditorState.commitOverridePatchAction("Edit text", editBefore, EditorState.captureOverrideEntries(editIds));
   }
 
@@ -3983,7 +2362,7 @@ function commitTextEdit() {
 
   // Trigger server relayout to re-wrap text at the correct frame width
   // and resize the box if needed (HUG height).
-  if (changed) {
+  if (resolution.changed) {
     clearTimeout(_v3RelayoutTimer);
     _v3RelayoutTimer = setTimeout(() => requestV3Relayout(cid), 100);
   }
@@ -3999,76 +2378,33 @@ function cancelTextEdit() {
 
 function startResize(e) {
   const handle = e.target;
-  const selectionToken = handle.getAttribute("data-resize-selection");
-  const cid = handle.getAttribute("data-resize-cid");
-  const axis = handle.getAttribute("data-resize-axis");
-  // Capture original overrides for ALL nodes that may be affected
-  const origOverrides = {};
-  function captureSubtree(nodeId) {
-    const n = model.get(nodeId);
-    if (!n) return;
-    const o = getOwnDelta(nodeId);
-    origOverrides[nodeId] = { dx: o.dx, dy: o.dy, dw: o.dw, dh: o.dh };
-    for (const child of n.children) captureSubtree(child.id);
-  }
-
-  if (selectionToken === "multi") {
-    const svg = document.querySelector("#stage svg");
-    const selection = svg ? _getMultiResizeSelection(svg) : null;
-    if (!selection) {
-      e.preventDefault();
-      e.stopPropagation();
-      return;
-    }
-    for (const member of selection.members) {
-      captureSubtree(member.id);
-    }
-    const touchedIds = Object.keys(origOverrides);
-    mgr.startResize({
-      cid: selection.primaryId,
-      axis,
-      startX: e.clientX,
-      startY: e.clientY,
-      origOverrides,
-      overrideSnapshotBefore: EditorState.captureOverrideEntries(touchedIds),
-      hasMoved: false,
-      snapshotRecorded: false,
-      selection,
-    });
-    document.addEventListener("mousemove", onResizeMove);
-    document.addEventListener("mouseup", onResizeUp);
+  const startPlan = LayoutEngine.createPreviewResizeStartState({
+    selectionToken: handle.getAttribute("data-resize-selection"),
+    componentId: handle.getAttribute("data-resize-cid"),
+    axis: handle.getAttribute("data-resize-axis"),
+    clientX: e.clientX,
+    clientY: e.clientY,
+    svg: document.querySelector("#stage svg"),
+    selectedIds,
+    hasDiagramGrid: Boolean(model.diagramGrid),
+    getNode: (id) => model.get(id),
+    getSiblings: (id) => model.getSiblings(id),
+    getAncestors,
+    getOwnDelta,
+    getEffectiveDelta,
+    hasLayoutChildren: _hasLayoutChildren,
+    isAutolayoutChild: _isAutolayoutChild,
+    resolvePrimaryId: getPrimarySelectedId,
+    minNodeSize: SHARED_MIN_NODE_SIZE,
+  });
+  if (startPlan.kind !== "start") {
     e.preventDefault();
     e.stopPropagation();
     return;
   }
-
-  const own = getOwnDelta(cid);
-  const node = model.get(cid);
-  if (node) {
-    captureSubtree(cid);
-    // Capture parent + siblings for child-in-layout resize
-    if (node.parent) {
-      const po = getOwnDelta(node.parent.id);
-      origOverrides[node.parent.id] = { dx: po.dx, dy: po.dy, dw: po.dw, dh: po.dh };
-      const siblings = model.getSiblings(cid);
-      for (const sib of siblings) captureSubtree(sib.id);
-    } else if (model.diagramGrid) {
-      // Root node: capture all root siblings for diagram-level grid relayout
-      const siblings = model.getSiblings(cid);
-      for (const sib of siblings) captureSubtree(sib.id);
-    }
-  }
-  const touchedIds = Object.keys(origOverrides);
   mgr.startResize({
-    cid, axis,
-    startX: e.clientX, startY: e.clientY,
-    origDx: own.dx, origDy: own.dy,
-    origDw: own.dw, origDh: own.dh,
-    origOverrides,
-    overrideSnapshotBefore: EditorState.captureOverrideEntries(touchedIds),
-    hasMoved: false, snapshotRecorded: false,
-    v3BaseW: node ? node.data.width : 0,
-    v3BaseH: node ? node.data.height : 0,
+    ...startPlan.state,
+    overrideSnapshotBefore: EditorState.captureOverrideEntries(startPlan.touchedIds),
   });
   document.addEventListener("mousemove", onResizeMove);
   document.addEventListener("mouseup", onResizeUp);
@@ -4309,117 +2645,7 @@ function applyStyleOverride(cid, styleName) {
 }
 
 function _normaliseStyleName(styleName) {
-  return styleName;
-}
-
-// Canonical YAML projection for the v3 style picker. Keep this aligned with
-// the preview-app persistence layer; it is a persistence bridge, not a second
-// visual-authority layer.
-const _V3_STYLE_SEMANTICS = {
-  default: { level: 1, fill: "WHITE", border: "SOLID", style: "default" },
-  parent: { level: 2, fill: "GREY", border: "SOLID", style: "parent" },
-  section: { level: 3, fill: "WHITE", border: "SOLID", style: "section" },
-  annotation: { fill: "WHITE", border: "NONE", style: "annotation" },
-  highlight: { fill: "BLACK", border: "NONE", style: "highlight" },
-};
-
-function _normaliseStyleFill(fill) {
-  const upper = String(fill || "").toUpperCase();
-  if (upper === "#FFFFFF") return "WHITE";
-  if (upper === "#F3F3F3") return "GREY";
-  if (upper === "#000000") return "BLACK";
-  if (upper === "TRANSPARENT") return "TRANSPARENT";
-  return upper;
-}
-
-function _normaliseStyleStrokeOrBorder(value) {
-  const upper = String(value || "").toUpperCase();
-  if (!upper || upper === "NONE" || upper === "TRANSPARENT") return "NONE";
-  return "SOLID";
-}
-
-function _inferV3StyleFromFields(level, fill, strokeOrBorder) {
-  const resolvedFill = _normaliseStyleFill(fill);
-  const resolvedStroke = _normaliseStyleStrokeOrBorder(strokeOrBorder);
-  if (resolvedFill === "BLACK") {
-    return "highlight";
-  }
-  if (level === 2 && resolvedFill === "GREY") {
-    return "parent";
-  }
-  if (level === 3 && resolvedStroke !== "NONE") {
-    return "section";
-  }
-  if (level === 1 && resolvedStroke !== "NONE") {
-    return "default";
-  }
-  if (resolvedStroke === "NONE") {
-    return "annotation";
-  }
-  return "";
-}
-
-function _inferV3StyleFromNode(node) {
-  if (!node) return "";
-  const level = node.level ?? node.data?.level ?? null;
-  const fill = node.fill ?? node.data?.fill;
-  const strokeOrBorder = node.border ?? node.data?.border;
-  return _inferV3StyleFromFields(level, fill, strokeOrBorder);
-}
-
-function _effectiveStyleName(cid, node) {
-  const explicit = _normaliseStyleName((overrides[cid] && overrides[cid].style) || "");
-  if (explicit) return explicit;
-  if (_isImplicitStructuralWrapper(node)) return "";
-  const group = document.querySelector('[data-component-id="' + CSS.escape(cid) + '"]');
-  const rect = group ? group.querySelector(":scope > rect:first-of-type") : null;
-  if (rect) {
-    const level = node?.level ?? node?.data?.level ?? null;
-    const renderedStyle = _inferV3StyleFromFields(
-      level,
-      rect.getAttribute("fill"),
-      rect.getAttribute("stroke"),
-    );
-    if (renderedStyle) return renderedStyle;
-  }
-  return _inferV3StyleFromNode(node);
-}
-
-function _originalStyleOptionLabelForNode(node) {
-  return _formatAsDefinedStyleLabel(_baseStyleName(node));
-}
-
-function _applyV3StyleFields(ovr, styleName) {
-  const canonicalStyle = _normaliseStyleName(styleName);
-  const semantic = _V3_STYLE_SEMANTICS[canonicalStyle];
-  if (!semantic) {
-    delete ovr.level;
-    delete ovr.fill;
-    delete ovr.border;
-    delete ovr.style;
-    return false;
-  }
-  if (semantic.level == null) {
-    delete ovr.level;
-  } else {
-    ovr.level = semantic.level;
-  }
-  ovr.fill = semantic.fill;
-  ovr.border = semantic.border;
-  ovr.style = semantic.style;
-  return true;
-}
-
-function _applyVisibleStyleOverrideIfSupported(cid, styleName) {
-  const node = model.get(cid);
-  if (!node) return false;
-  if (!_nodeSupportsVisibleStylePicker(node) && _normaliseStyleName(styleName)) {
-    return false;
-  }
-  if (!overrides[cid]) overrides[cid] = {};
-  _applyV3StyleFields(overrides[cid], styleName);
-  model.cleanOverride(cid);
-  return true;
+  return LayoutEngine.normalizePreviewStyleName(styleName);
 }
 
 /**
@@ -4428,11 +2654,17 @@ function _applyVisibleStyleOverrideIfSupported(cid, styleName) {
 function applyV3Style(cid, styleName) {
   const v3StyleIds = [cid];
   const v3StyleBefore = EditorState.captureOverrideEntries(v3StyleIds);
-  const changed = _applyVisibleStyleOverrideIfSupported(cid, styleName);
+  const changed = LayoutEngine.applyVisiblePreviewStyleOverride({
+    overrides,
+    cid,
+    node: model.get(cid),
+    styleName,
+  });
   if (!changed) {
     renderSelectionInspector(cid);
     return;
   }
+  model.cleanOverride(cid);
   setDirty(true);
   clearTimeout(_v3RelayoutTimer);
   requestV3Relayout(cid);
@@ -4466,9 +2698,7 @@ function _syncSelectionUi(preferredCid) {
         .forEach((g) => g.classList.add("dg-selected"));
     });
   }
-  document.querySelectorAll(".tree-item").forEach((el) => {
-    el.classList.toggle("selected", selectedIds.has(el.textContent));
-  });
+  LayoutEngine.syncPreviewTreeSelectionState(document, selectedIds);
 
   if (selectedIds.size === 0) {
     removeResizeHandles();
@@ -4520,199 +2750,26 @@ function setFrameAlign(cid, align) {
 // Expose to onclick handlers
 window.setFrameAlign = setFrameAlign;
 
-// ---- Auto-layout controls (v3) ----
-
-function buildAutolayoutPanel(cid, node) {
-  // Show for any node that has layout data from the v3 engine
-  if (!node) return '';
-  const ovr = overrides[cid] || {};
-  const wCoerced = _coercedKeys.has(cid + ':sizing_w');
-  const hCoerced = _coercedKeys.has(cid + ':sizing_h');
-  const sizingW = _getRuntimeSizingValue(cid, node, 'w') || 'HUG';
-  const sizingH = _getRuntimeSizingValue(cid, node, 'h') || 'HUG';
-  const panelState = LayoutEngine.createSingleSelectionAutolayoutState({
-    nodeLayout: node.layout,
-    childCount: node.children ? node.children.length : 0,
-    hasParent: !!node.parent,
-    overrideDirection: ovr.direction,
-    overrideGapDeltaPresent: Object.prototype.hasOwnProperty.call(ovr, 'gap_delta'),
-    overrideGapDelta: ovr.gap_delta,
-    nodeGapDelta: node.data?.gapDelta ?? node.data?.gap_delta,
-    layoutGap: node.layoutGap,
-    layoutRowGap: node.layoutRowGap,
-    layoutColGap: node.layoutColGap,
-    sizingW,
-    sizingH,
-    wCoerced,
-    hCoerced,
-    hasTextContent: _nodeHasTextContent(node),
-    positionType: ovr.position,
-  });
-  let widthFixedValue = '';
-  let widthFixedStep = _inspectorWidthUnit === 'cols' ? 1 : BASELINE_STEP;
-  if (panelState.showWidthFixedInput) {
-    const rawW = ovr.width !== undefined ? ovr.width : (node.data ? node.data.width : 0);
-    widthFixedValue = _inspectorWidthUnit === 'cols'
-      ? Math.round(LayoutEngine.pxToColSpan(gridInfo, rawW) * 100) / 100
-      : Math.round(rawW);
-  }
-
-  let widthMinValue = '';
-  let widthMaxValue = '';
-  if (panelState.showWidthMinMax) {
-    widthMinValue = ovr.min_width !== undefined ? ovr.min_width : (_nodeProp(node, "min_width") ?? '');
-    widthMaxValue = ovr.max_width !== undefined ? ovr.max_width : (_nodeProp(node, "max_width") ?? '');
-  }
-
-  let widthMaxCharsValue = '';
-  let widthMaxCharsDisabled = false;
-  if (panelState.showWidthTextMeasure) {
-    widthMinValue = ovr.min_width !== undefined ? ovr.min_width : (_nodeProp(node, "min_width") ?? '');
-    widthMaxValue = _inspectorDisplayMaxWidth(node, ovr);
-    widthMaxCharsValue = _inspectorMaxWidthChars(node, ovr);
-    widthMaxCharsDisabled = _inspectorHasExplicitMaxWidthPx(node, ovr);
-  }
-
-  let widthFillWeightValue = 1;
-  if (panelState.showWidthFillWeight) {
-    widthFillWeightValue = ovr.fill_weight !== undefined ? ovr.fill_weight : (_nodeProp(node, "fill_weight") ?? 1);
-  }
-
-  let heightFixedValue = '';
-  let heightFixedStep = _inspectorHeightUnit === 'rows' ? 1 : BASELINE_STEP;
-  if (panelState.showHeightFixedInput) {
-    const rawH = ovr.height !== undefined ? ovr.height : (node.data ? node.data.height : 0);
-    heightFixedValue = _inspectorHeightUnit === 'rows'
-      ? Math.round(LayoutEngine.pxToRowSpan(gridInfo, rawH) * 100) / 100
-      : Math.round(rawH);
-  }
-
-  let heightMinValue = '';
-  let heightMaxValue = '';
-  if (panelState.showHeightMinMax) {
-    heightMinValue = ovr.min_height !== undefined ? ovr.min_height : (_nodeProp(node, "min_height") ?? '');
-    heightMaxValue = ovr.max_height !== undefined ? ovr.max_height : (_nodeProp(node, "max_height") ?? '');
-  }
-
-  const positionXValue = panelState.showAbsoluteOffsetControls
-    ? (ovr.x !== undefined ? ovr.x : 0)
-    : 0;
-  const positionYValue = panelState.showAbsoluteOffsetControls
-    ? (ovr.y !== undefined ? ovr.y : 0)
-    : 0;
-
-  return LayoutEngine.renderSingleSelectionAutolayoutPanel({
-    cid,
-    panelState,
-    widthFixedValue,
-    widthFixedStep,
-    widthUnit: _inspectorWidthUnit,
-    showWidthColsOption: Boolean(gridInfo && gridInfo.col_widths && gridInfo.col_widths.length),
-    widthMinValue,
-    widthMaxValue,
-    widthMaxCharsValue,
-    widthMaxCharsDisabled,
-    widthFillWeightValue,
-    heightFixedValue,
-    heightFixedStep,
-    heightUnit: _inspectorHeightUnit,
-    heightMinValue,
-    heightMaxValue,
-    positionXValue,
-    positionYValue,
-  });
-}
-
 let _v3RelayoutTimer = null;
 function setFrameProp(cid, prop, value) {
   const fpIds = [cid];
   const fpBefore = EditorState.captureOverrideEntries(fpIds);
-  if (!overrides[cid]) overrides[cid] = {};
-
-  // Clamp numeric frame properties to sane ranges
-  if (prop === 'gap' || prop === 'padding' || prop === 'padding_top' || prop === 'padding_right' || prop === 'padding_bottom' || prop === 'padding_left') {
-    value = Math.max(0, Number.isFinite(value) ? value : 0);
-  }
-  if (prop === 'gap_delta') {
-    const numeric = Number(value);
-    if (value === '' || value == null || !Number.isFinite(numeric) || snapToGrid(numeric) === 0) {
-      overrides[cid].gap_delta = null;
-      setDirty(true);
-      EditorState.commitOverridePatchAction('Change gap_delta', fpBefore, EditorState.captureOverrideEntries(fpIds));
-      clearTimeout(_v3RelayoutTimer);
-      _v3RelayoutTimer = setTimeout(() => requestV3Relayout(cid), 300);
-      renderSelectionInspector(cid);
-      return;
-    }
-    value = snapToGrid(numeric);
-    delete overrides[cid].gap;
-  }
-  // When setting uniform padding, clear per-side overrides
-  if (prop === 'padding') {
-    delete overrides[cid].padding_top;
-    delete overrides[cid].padding_right;
-    delete overrides[cid].padding_bottom;
-    delete overrides[cid].padding_left;
-  }
-  // When setting a per-side padding, clear the uniform override
-  if (prop === 'padding_top' || prop === 'padding_right' || prop === 'padding_bottom' || prop === 'padding_left') {
-    delete overrides[cid].padding;
-  }
-  if (prop === 'min_width' || prop === 'max_width' || prop === 'min_height' || prop === 'max_height' || prop === 'max_width_chars') {
-    if (value === '' || value == null) {
-      delete overrides[cid][prop];
-      _coercedKeys.delete(cid + ':' + prop);
-      setDirty(true);
-      renderSelectionInspector(cid);
-      clearTimeout(_v3RelayoutTimer);
-      _v3RelayoutTimer = setTimeout(() => requestV3Relayout(cid), 300);
-      return;
-    }
-    value = Math.max(0, Number.isFinite(Number(value)) ? Number(value) : 0);
-    // Auto-adjust opposite bound to prevent min > max
-    if (prop === 'min_width' && overrides[cid].max_width !== undefined && value > overrides[cid].max_width) {
-      overrides[cid].max_width = value;
-    }
-    if (prop === 'max_width' && overrides[cid].min_width !== undefined && value < overrides[cid].min_width) {
-      overrides[cid].min_width = value;
-    }
-    if (prop === 'min_height' && overrides[cid].max_height !== undefined && value > overrides[cid].max_height) {
-      overrides[cid].max_height = value;
-    }
-    if (prop === 'max_height' && overrides[cid].min_height !== undefined && value < overrides[cid].min_height) {
-      overrides[cid].min_height = value;
-    }
-  }
-
-  overrides[cid][prop] = value;
-
-  // User explicitly set this property — remove it from coercion tracking
-  _coercedKeys.delete(cid + ':' + prop);
-
-  // Figma behavior: switching to FIXED captures the current placed size
-  // so the frame remembers its dimensions instead of falling back to measured.
-  if ((prop === 'sizing_w' || prop === 'sizing_h') && value === 'FIXED') {
-    const node = model.get(cid);
-    if (node && node.data) {
-      if (prop === 'sizing_w' && overrides[cid].width === undefined) {
-        overrides[cid].width = Math.round(node.data.width);
-      }
-      if (prop === 'sizing_h' && overrides[cid].height === undefined) {
-        overrides[cid].height = Math.round(node.data.height);
-      }
-    }
-  }
-  // Switching away from FIXED: clear the captured explicit size so the
-  // frame reverts to content-driven (HUG) or parent-driven (FILL) sizing.
-  if (prop === 'sizing_w' && value !== 'FIXED') {
-    delete overrides[cid].width;
-  }
-  if (prop === 'sizing_h' && value !== 'FIXED') {
-    delete overrides[cid].height;
-  }
+  const result = LayoutEngine.applySingleFramePropMutation({
+    overrides,
+    coercedKeys: _coercedKeys,
+    cid,
+    prop,
+    value,
+    node: model.get(cid),
+    snapToGrid,
+  });
 
   setDirty(true);
-  EditorState.commitOverridePatchAction("Change " + prop, fpBefore, EditorState.captureOverrideEntries(fpIds));
+  let label = 'Change ' + prop;
+  if (result.kind === 'clear' && prop !== 'gap_delta') {
+    label = 'Clear ' + prop;
+  }
+  EditorState.commitOverridePatchAction(label, fpBefore, EditorState.captureOverrideEntries(fpIds));
 
   // Debounce relayout — 300ms after last change
   clearTimeout(_v3RelayoutTimer);
@@ -4728,63 +2785,26 @@ const _coercedKeys = new Set();
 
 async function requestV3Relayout(triggerCid) {
   const relayoutStatus = getV3RelayoutStatus();
-  if (!relayoutStatus.localReady) {
-    console.error("v3 relayout: local bridge not ready (" + relayoutStatus.local.reason + ")");
-    return _failV3Relayout(relayoutStatus.local.reason, triggerCid);
-  }
-
-  // Auto-coercion is runtime-only UI state. Clear any previously auto-managed
-  // keys before re-running layout so semantic overrides stay authorial.
-  for (const ck of Array.from(_coercedKeys)) {
-    const sepIdx = ck.indexOf(':');
-    const fid = ck.substring(0, sepIdx);
-    const key = ck.substring(sepIdx + 1);
-    if (!overrides[fid]) continue;
-    if (key === 'sizing_w') {
-      delete overrides[fid].sizing_w;
-      delete overrides[fid].width;
-    } else if (key === 'sizing_h') {
-      delete overrides[fid].sizing_h;
-      delete overrides[fid].height;
-    } else {
-      delete overrides[fid][key];
-    }
-    if (Object.keys(overrides[fid]).length === 0) delete overrides[fid];
-  }
-  _coercedKeys.clear();
-
-  // --- Client-side layout (no server round-trip) ---
-  const gridOvr = EditorState.normalizeGridOverrides(model.gridOverrides || {});
-
-  if (ElkPreviewController.isElkLayeredDiagram() && typeof performElkRelayout === "function") {
-    const elkResult = await performElkRelayout(model, overrides, gridOvr);
-    if (!elkResult) {
-      console.error("v3 relayout: ELK layout failed");
-      return _failV3Relayout("elk-failure", triggerCid);
-    }
-    return _finishV3Relayout(triggerCid, elkResult, "elk");
-  }
-
-  const localResult = performLocalRelayout(model, overrides, gridOvr);
-  if (!localResult) {
-    console.error("v3 relayout: local layout failed");
-    return _failV3Relayout("local-failure", triggerCid);
-  }
-  // Track runtime-only coercion for inspector display without persisting it.
-  {
-    const _COERCED_KEY_MAP = { sizingW: 'sizing_w', sizingH: 'sizing_h' };
-    if (localResult.coerced) {
-      for (const [fid, coerced] of localResult.coerced.entries()) {
-        for (const [rawKey, val] of Object.entries(coerced)) {
-          const key = _COERCED_KEY_MAP[rawKey] || rawKey;
-          if (key === 'sizing_w' || key === 'sizing_h') {
-            _coercedKeys.add(fid + ':' + key);
-          }
-        }
-      }
-    }
-  }
-  return _finishV3Relayout(triggerCid, localResult, "local");
+  return LayoutEngine.runPreviewRelayout({
+    triggerCid,
+    overrides,
+    coercedKeys: _coercedKeys,
+    gridOverrides: model.gridOverrides || {},
+    normalizeGridOverrides: (value) => EditorState.normalizeGridOverrides(value),
+    relayoutStatus,
+    isElkLayeredDiagram: ElkPreviewController.isElkLayeredDiagram(),
+    performElkRelayout: typeof performElkRelayout === "function"
+      ? async (gridOvr) => performElkRelayout(model, overrides, gridOvr)
+      : null,
+    performLocalRelayout: (gridOvr) => performLocalRelayout(
+      model,
+      overrides,
+      gridOvr,
+    ),
+    failRelayout: (reason, nextTriggerCid) => _failV3Relayout(reason, nextTriggerCid),
+    finishRelayout: (nextTriggerCid, result, executionLabel) => _finishV3Relayout(nextTriggerCid, result, executionLabel),
+    logError: (message) => console.error(message),
+  });
 }
 
 window.getV3RelayoutStatus = getV3RelayoutStatus;
@@ -4792,34 +2812,29 @@ window.getV3RelayoutStatus = getV3RelayoutStatus;
 // Expose to inline handlers
 window.setFrameProp = setFrameProp;
 
-function _clearSizingCoercion(cid, sizingProp, dimension) {
-  _coercedKeys.delete(cid + ':' + sizingProp);
-  _coercedKeys.delete(cid + ':' + dimension);
-}
-
 /**
  * Set an explicit width or height value, converting from the current
  * inspector unit (px, cols, rows) to pixels.
  */
 function setFrameSize(cid, dimension, value) {
-  if (!Number.isFinite(value) || value <= 0) return;
-  let px;
-  if (dimension === 'width' && _inspectorWidthUnit === 'cols') {
-    px = LayoutEngine.colSpanToPx(gridInfo, value);
-  } else if (dimension === 'height' && _inspectorHeightUnit === 'rows') {
-    px = LayoutEngine.rowSpanToPx(gridInfo, value);
-  } else {
-    px = Math.round(value / BASELINE_STEP) * BASELINE_STEP;
-  }
-  if (px == null || isNaN(px) || px <= 0) return;
-  px = Math.round(px);
-  const sizingProp = dimension === 'width' ? 'sizing_w' : 'sizing_h';
+  const px = LayoutEngine.resolvePreviewFrameSizePx({
+    dimension,
+    value,
+    gridInfo,
+    widthUnit: _inspectorWidthUnit,
+    heightUnit: _inspectorHeightUnit,
+    baselineStep: BASELINE_STEP,
+  });
+  if (px == null) return;
   const fpIds = [cid];
   const fpBefore = EditorState.captureOverrideEntries(fpIds);
-  if (!overrides[cid]) overrides[cid] = {};
-  _clearSizingCoercion(cid, sizingProp, dimension);
-  overrides[cid][sizingProp] = 'FIXED';
-  overrides[cid][dimension] = px;
+  LayoutEngine.applySingleFrameSizeMutation({
+    overrides,
+    coercedKeys: _coercedKeys,
+    cid,
+    dimension,
+    px,
+  });
   setDirty(true);
   EditorState.commitOverridePatchAction("Set " + dimension, fpBefore, EditorState.captureOverrideEntries(fpIds));
   clearTimeout(_v3RelayoutTimer);
@@ -4829,11 +2844,7 @@ function setFrameSize(cid, dimension, value) {
 window.setFrameSize = setFrameSize;
 
 function setWidthUnit(unit, cid) {
-  // Reset to px if grid columns are unavailable
-  if (unit === 'cols' && (!gridInfo || !gridInfo.col_widths || !gridInfo.col_widths.length)) {
-    unit = 'px';
-  }
-  _inspectorWidthUnit = unit;
+  _inspectorWidthUnit = LayoutEngine.normalizePreviewInspectorWidthUnit(unit, gridInfo);
   if (cid) renderSelectionInspector(cid);
 }
 window.setWidthUnit = setWidthUnit;
@@ -4851,59 +2862,37 @@ function updateInspector(cid) {
   }
   const inspNode = model.get(cid);
   const arrowNode = getArrowNode(cid);
-  if (!inspNode && !arrowNode) {
-    inspector.innerHTML =
-      '<p class="dg-empty-message bf-form-help">Component <strong>' + cid +
-      '</strong> not found. Try reloading the preview.</p>';
-    return;
-  }
   const own = getOwnDelta(cid);
   const eff = getEffectiveDelta(cid);
-  const hasWpOverride = !!(overrides[cid] && overrides[cid].waypoints);
-  const componentType = getComponentType(cid);
-  const parentNode = getParentNode(cid);
-  const inspectorView = LayoutEngine.createSingleSelectionInspectorViewModel({
-    align: (overrides[cid] && overrides[cid].align) || (inspNode && inspNode.align) || "TOP_LEFT",
-    ownDelta: own,
-    effectiveDelta: eff,
-    hasWaypointOverride: hasWpOverride,
-    waypointCount: arrowNode && arrowNode.waypoints ? arrowNode.waypoints.length : 0,
-    componentType,
-    parentLayout: parentNode ? parentNode.layout : null,
-  });
-
-  let autolayoutPanelHtml = '';
-  let controlsErrorMessage = null;
-  try {
-    autolayoutPanelHtml = buildAutolayoutPanel(cid, inspNode);
-  } catch (err) {
-    console.error("Inspector panel render failed:", err);
-    controlsErrorMessage = typeof escapeHtml === "function" ? escapeHtml(err.message) : err.message;
-  }
-  let styleMode = 'none';
-  let styleOptionsHtml = '';
-  if (!inspectorView.isArrowComponent) {
-    if (_nodeSupportsVisibleStylePicker(inspNode)) {
-      styleMode = 'picker';
-      const currentStyle = _effectiveStyleName(cid, inspNode);
-      styleOptionsHtml = renderBoxStyleOptions(currentStyle, {
-        originalLabel: _originalStyleOptionLabelForNode(inspNode),
-      });
-    } else {
-      styleMode = 'structural';
-    }
-  }
-  const cv = getViolationsForComponent(cid);
-  inspector.innerHTML = LayoutEngine.renderSingleSelectionInspectorPanel({
+  const renderedStyle = _readRenderedStyleFields(cid);
+  inspector.innerHTML = LayoutEngine.renderPreviewSingleSelectionInspector({
     cid,
-    viewModel: inspectorView,
+    node: inspNode,
+    arrowNode,
+    override: overrides[cid] || {},
     ownDelta: own,
     effectiveDelta: eff,
-    autolayoutPanelHtml,
-    controlsErrorMessage,
-    styleMode,
-    styleOptionsHtml,
-    violations: cv,
+    componentType: getComponentType(cid),
+    parentLayout: getParentNode(cid)?.layout || null,
+    renderedStyle,
+    violations: getViolationsForComponent(cid),
+    widthCoerced: _coercedKeys.has(cid + ':sizing_w'),
+    heightCoerced: _coercedKeys.has(cid + ':sizing_h'),
+    widthUnit: _inspectorWidthUnit,
+    heightUnit: _inspectorHeightUnit,
+    gridInfo,
+    baselineStep: BASELINE_STEP,
+    textAdapter: typeof window.getLayoutTextAdapter === 'function'
+      ? window.getLayoutTextAdapter()
+      : null,
+    formatControlErrorMessage(message) {
+      return typeof escapeHtml === "function" ? escapeHtml(message) : message;
+    },
+    renderStyleOptions(currentStyle, originalStyleName) {
+      return renderBoxStyleOptions(currentStyle, {
+        originalLabel: _formatAsDefinedStyleLabel(originalStyleName),
+      });
+    },
   });
 }
 
@@ -4943,47 +2932,14 @@ function clearOverride(cid) {
 }
 
 function updateOverrideSummary() {
-  const n = Object.keys(overrides).length;
   const el = document.getElementById("override-summary");
-  if (n === 0) {
-    el.innerHTML = '<span style="color:#555">No overrides.</span>';
-    return;
-  }
-  el.innerHTML = n + " override" + (n > 1 ? "s" : "");
+  if (!el) return;
+  el.textContent = LayoutEngine.formatPreviewOverrideSummary(Object.keys(overrides).length);
 }
 
 function refreshTreeColors() {
-  document.querySelectorAll(".tree-item").forEach(el => {
-    el.style.color = overrides[el.textContent] ? UI_AUTHORING_ACCENT : "";
-  });
+  LayoutEngine.syncPreviewTreeOverrideState(document, overrides);
 }
-
-document.getElementById("btn-export").addEventListener("click", () => {
-  const entries = Object.entries(overrides).filter(([,d]) =>
-    (d.dx||0) !== 0 || (d.dy||0) !== 0 || (d.dw||0) !== 0 || (d.dh||0) !== 0 || d.waypoints);
-  if (entries.length === 0) { alert("No overrides to export."); return; }
-  const lines = ["# Overrides for " + SLUG, ""];
-  for (const [cid, d] of entries) {
-    let parts = [];
-    if (d.dx || d.dy) parts.push("move x+" + (d.dx||0) + " y+" + (d.dy||0));
-    if (d.dw || d.dh) parts.push("resize w+" + (d.dw||0) + " h+" + (d.dh||0));
-    if (d.waypoints) parts.push("waypoints: " + d.waypoints.length);
-    lines.push("# " + cid + ": " + parts.join(", "));
-  }
-  navigator.clipboard.writeText(lines.join("\n")).then(() => alert("Copied to clipboard."));
-});
-
-document.getElementById("btn-clear-all").addEventListener("click", () => {
-  if (Object.keys(overrides).length === 0) return;
-  if (!confirm("Clear all overrides for " + SLUG + "?")) return;
-  EditorState.runUndoableAction("Clear all overrides", () => {
-    overrides = {};
-    _coercedKeys.clear();
-    setDirty(true);
-  });
-  applyAllOverrides();
-  renderSelectionInspector();
-});
 
 // Keyboard shortcuts: Ctrl+S to save, Ctrl+Z to undo, Ctrl+Shift+Z/Ctrl+Y to redo, arrows to nudge
 function onDocumentKeyDown(e) {
@@ -5095,18 +3051,7 @@ function updateConstraintUI() {
   const el = document.getElementById("constraint-status");
   PreviewSaveClient.syncSaveButton(summary.errors);
   if (!el) return;
-  if (summary.total === 0) {
-    el.textContent = "No violations";
-    el.className = "build-status build-ok";
-  } else if (summary.errors > 0) {
-    el.textContent = `${summary.errors} error(s), ${summary.warnings} warning(s)`;
-    el.className = "build-status build-err";
-  } else {
-    el.textContent = `${summary.warnings} warning(s)`;
-    el.className = "build-status";
-    el.style.background = "#3a3a1a";
-    el.style.color = "#cc6";
-  }
+  LayoutEngine.syncPreviewConstraintStatus(el, summary);
 }
 
 function getViolationsForComponent(cid) {
@@ -5115,639 +3060,109 @@ function getViolationsForComponent(cid) {
 
 // ---- SSE ----
 
-function connectSSE() {
-  const es = new EventSource("/events");
-  es.onmessage = (e) => {
-    const data = JSON.parse(e.data);
-    if (data.generation > generation) {
-      generation = data.generation;
-      loadSVG();
-      const st = document.getElementById("build-status");
-      if (data.error) { st.className = "build-status build-err"; st.textContent = "Build error"; }
-      else { st.className = "build-status build-ok"; st.textContent = "Rebuilt #" + generation; }
+LayoutEngine.initPreviewShellCoordinator({
+  document,
+  window,
+  getCurrentPath: () => window.location.pathname,
+  syncBrowseNav: _syncBrowseNavToLocation,
+  fetchIndexHtml: async () => {
+    const response = await fetch("/", { credentials: "same-origin" });
+    if (!response.ok) {
+      return null;
     }
-  };
-  es.onerror = () => setTimeout(connectSSE, 2000);
-}
-
-function resolveShellCssLengthPx(context, cssValue, fallbackPx) {
-  const trimmedValue = typeof cssValue === "string" ? cssValue.trim() : "";
-  if (!trimmedValue) {
-    return fallbackPx;
-  }
-
-  const probe = context.ownerDocument.createElement("div");
-  probe.style.border = "0";
-  probe.style.inlineSize = trimmedValue;
-  probe.style.margin = "0";
-  probe.style.opacity = "0";
-  probe.style.padding = "0";
-  probe.style.pointerEvents = "none";
-  probe.style.position = "absolute";
-  probe.style.visibility = "hidden";
-  context.appendChild(probe);
-  const resolvedPx = probe.getBoundingClientRect().width;
-  probe.remove();
-
-  return Number.isFinite(resolvedPx) && resolvedPx > 0 ? resolvedPx : fallbackPx;
-}
-
-function shellWidthToRem(context, widthPx) {
-  const rootFontSizePx = Number.parseFloat(getComputedStyle(context.ownerDocument.documentElement).fontSize || "16");
-  const safeRootFontSizePx = Number.isFinite(rootFontSizePx) && rootFontSizePx > 0 ? rootFontSizePx : 16;
-  const widthRem = Math.round((widthPx / safeRootFontSizePx) * 1000) / 1000;
-  return `${widthRem}rem`;
-}
-
-function clampShellWidth(value, minPx, maxPx) {
-  return Math.max(minPx, Math.min(maxPx, value));
-}
-
-const volatileShellWidthState = new Map();
-
-function readShellWidth(application, storageKey) {
-  const rawValue = volatileShellWidthState.get(storageKey);
-  if (typeof rawValue !== "string" || !rawValue.trim()) {
-    return null;
-  }
-
-  const trimmedValue = rawValue.trim();
-  const parsedWidth = Number.parseFloat(trimmedValue);
-  if (!Number.isFinite(parsedWidth)) {
-    return null;
-  }
-
-  if (/^-?\d+(\.\d+)?$/.test(trimmedValue)) {
-    return parsedWidth;
-  }
-
-  const resolvedWidthPx = resolveShellCssLengthPx(application, trimmedValue, -1);
-  return Number.isFinite(resolvedWidthPx) && resolvedWidthPx > 0 ? resolvedWidthPx : null;
-}
-
-function writeShellWidth(application, storageKey, widthPx) {
-  volatileShellWidthState.set(storageKey, shellWidthToRem(application, widthPx));
-}
-
-function clearShellWidth(storageKey) {
-  volatileShellWidthState.delete(storageKey);
-}
-
-function bindShellResize({
-  application,
-  panel,
-  handle,
-  resizingClass,
-  storageKey,
-  widthProperty,
-  legacyWidthProperty,
-  minWidthProperty,
-  maxWidthProperty,
-  fallbackWidth,
-  fallbackMinWidth,
-  fallbackMaxWidth,
-  isEnabled,
-  measureWidth,
-  pointerWidthFromEvent,
-  ariaLabel,
-}) {
-  const documentRoot = application.ownerDocument.documentElement;
-
-  function getBounds() {
-    const computedStyle = getComputedStyle(application);
-    const minPx = resolveShellCssLengthPx(
-      application,
-      computedStyle.getPropertyValue(minWidthProperty) || fallbackMinWidth,
-      resolveShellCssLengthPx(application, fallbackMinWidth, 160)
-    );
-    const maxPx = resolveShellCssLengthPx(
-      application,
-      computedStyle.getPropertyValue(maxWidthProperty) || fallbackMaxWidth,
-      resolveShellCssLengthPx(application, fallbackMaxWidth, 320)
-    );
-
-    return {
-      minPx,
-      maxPx: Math.max(minPx, maxPx)
-    };
-  }
-
-  function getCurrentWidthPx() {
-    const measuredWidth = measureWidth();
-    if (measuredWidth > 0) {
-      return measuredWidth;
-    }
-
-    const computedStyle = getComputedStyle(application);
-    return resolveShellCssLengthPx(
-      application,
-      computedStyle.getPropertyValue(widthProperty)
-        || computedStyle.getPropertyValue(legacyWidthProperty)
-        || fallbackWidth,
-      resolveShellCssLengthPx(application, fallbackWidth, 240)
-    );
-  }
-
-  function updateHandleA11y(widthPx = getCurrentWidthPx()) {
-    if (!handle.hasAttribute("role")) {
-      handle.setAttribute("role", "separator");
-    }
-
-    if (!handle.hasAttribute("aria-orientation")) {
-      handle.setAttribute("aria-orientation", "vertical");
-    }
-
-    if (!handle.hasAttribute("aria-label")) {
-      handle.setAttribute("aria-label", ariaLabel);
-    }
-
-    const enabled = isEnabled();
-    handle.setAttribute("aria-disabled", String(!enabled));
-    handle.tabIndex = enabled ? 0 : -1;
-
-    if (!enabled) {
-      return;
-    }
-
-    const { minPx, maxPx } = getBounds();
-    handle.setAttribute("aria-valuemin", String(Math.round(minPx)));
-    handle.setAttribute("aria-valuemax", String(Math.round(maxPx)));
-    handle.setAttribute("aria-valuenow", String(Math.round(clampShellWidth(widthPx, minPx, maxPx))));
-  }
-
-  function applyWidth(widthPx, persist) {
-    const { minPx, maxPx } = getBounds();
-    const nextWidthPx = clampShellWidth(widthPx, minPx, maxPx);
-    const nextWidthCss = shellWidthToRem(documentRoot, nextWidthPx);
-    application.style.setProperty(widthProperty, nextWidthCss);
-    application.style.setProperty(legacyWidthProperty, nextWidthCss);
-    updateHandleA11y(nextWidthPx);
-
-    if (persist) {
-      writeShellWidth(application, storageKey, nextWidthPx);
-    }
-
-    return nextWidthPx;
-  }
-
-  function resetWidth() {
-    application.style.removeProperty(widthProperty);
-    application.style.removeProperty(legacyWidthProperty);
-    clearShellWidth(storageKey);
-    updateHandleA11y();
-  }
-
-  const persistedWidth = readShellWidth(application, storageKey);
-  if (persistedWidth !== null) {
-    applyWidth(persistedWidth, false);
-  } else {
-    updateHandleA11y();
-  }
-
-  const onDoubleClick = () => {
-    resetWidth();
-  };
-
-  const onKeyDown = (event) => {
-    if (!isEnabled()) {
-      return;
-    }
-
-    const currentWidthPx = getCurrentWidthPx();
-    const stepPx = resolveShellCssLengthPx(application, "1rem", 16);
-    const adjustedStepPx = event.shiftKey ? stepPx * 3 : stepPx;
-    const { minPx, maxPx } = getBounds();
-
-    if (event.key === "ArrowLeft") {
-      applyWidth(currentWidthPx - adjustedStepPx, true);
-      event.preventDefault();
-      return;
-    }
-
-    if (event.key === "ArrowRight") {
-      applyWidth(currentWidthPx + adjustedStepPx, true);
-      event.preventDefault();
-      return;
-    }
-
-    if (event.key === "Home") {
-      applyWidth(minPx, true);
-      event.preventDefault();
-      return;
-    }
-
-    if (event.key === "End") {
-      applyWidth(maxPx, true);
-      event.preventDefault();
-    }
-  };
-
-  const onPointerDown = (event) => {
-    if (event.button !== 0 || !isEnabled()) {
-      return;
-    }
-
-    event.preventDefault();
-    const shellRect = application.getBoundingClientRect();
-    application.classList.add(resizingClass);
-    handle.setPointerCapture(event.pointerId);
-    let finished = false;
-
-    const onPointerMove = (moveEvent) => {
-      const nextWidthPx = pointerWidthFromEvent(shellRect, moveEvent);
-      applyWidth(nextWidthPx, false);
-    };
-
-    const finishResize = () => {
-      if (finished) {
-        return;
-      }
-
-      finished = true;
-      application.classList.remove(resizingClass);
-      applyWidth(getCurrentWidthPx(), true);
-      handle.removeEventListener("pointermove", onPointerMove);
-      handle.removeEventListener("pointerup", finishResize);
-      handle.removeEventListener("pointercancel", finishResize);
-      handle.removeEventListener("lostpointercapture", finishResize);
-      window.removeEventListener("pointermove", onPointerMove);
-      window.removeEventListener("pointerup", finishResize);
-      window.removeEventListener("pointercancel", finishResize);
-
-      if (handle.hasPointerCapture(event.pointerId)) {
-        handle.releasePointerCapture(event.pointerId);
-      }
-    };
-
-    handle.addEventListener("pointermove", onPointerMove);
-    handle.addEventListener("pointerup", finishResize, { once: true });
-    handle.addEventListener("pointercancel", finishResize, { once: true });
-    handle.addEventListener("lostpointercapture", finishResize, { once: true });
-    window.addEventListener("pointermove", onPointerMove);
-    window.addEventListener("pointerup", finishResize, { once: true });
-    window.addEventListener("pointercancel", finishResize, { once: true });
-  };
-
-  const onWindowResize = () => {
-    if (isEnabled()) {
-      applyWidth(getCurrentWidthPx(), false);
-      return;
-    }
-
-    updateHandleA11y();
-  };
-
-  handle.addEventListener("dblclick", onDoubleClick);
-  handle.addEventListener("keydown", onKeyDown);
-  handle.addEventListener("pointerdown", onPointerDown);
-  window.addEventListener("resize", onWindowResize);
-
-  return () => {
-    handle.removeEventListener("dblclick", onDoubleClick);
-    handle.removeEventListener("keydown", onKeyDown);
-    handle.removeEventListener("pointerdown", onPointerDown);
-    window.removeEventListener("resize", onWindowResize);
-  };
-}
-
-function initPreviewShell() {
-  const application = document.querySelector(".dg-preview-app");
-  const navigation = document.getElementById("dg-component-navigation");
-  const navigationHandle = navigation?.querySelector(".bf-application-navigation-resize-handle");
-  const aside = document.getElementById("dg-preview-aside");
-  const asideHandle = aside?.querySelector(".bf-application-aside-resize-handle");
-  const desktopMedia = window.matchMedia ? window.matchMedia("(min-width: 48rem)") : null;
-
-  if (!(application instanceof HTMLElement)) {
-    return () => {};
-  }
-
-  const teardowns = [];
-
-  if (navigation instanceof HTMLElement && navigationHandle instanceof HTMLElement) {
-    teardowns.push(bindShellResize({
-      application,
-      panel: navigation,
-      handle: navigationHandle,
-      resizingClass: "is-resizing-navigation",
-      storageKey: "diagram-generator:preview-navigation-width",
-      widthProperty: "--bf-application-navigation-width",
-      legacyWidthProperty: "--bf-app-navigation-width",
-      minWidthProperty: "--dg-component-nav-width-min",
-      maxWidthProperty: "--dg-component-nav-width-max",
-      fallbackWidth: "12rem",
-      fallbackMinWidth: "10rem",
-      fallbackMaxWidth: "16rem",
-      isEnabled: () => !navigation.classList.contains("is-collapsed") && (desktopMedia ? desktopMedia.matches : true),
-      measureWidth: () => navigation.getBoundingClientRect().width,
-      pointerWidthFromEvent: (shellRect, moveEvent) => moveEvent.clientX - shellRect.left,
-      ariaLabel: "Resize components panel",
-    }));
-  }
-
-  if (aside instanceof HTMLElement && asideHandle instanceof HTMLElement) {
-    teardowns.push(bindShellResize({
-      application,
-      panel: aside,
-      handle: asideHandle,
-      resizingClass: "is-resizing-aside",
-      storageKey: "diagram-generator:preview-aside-width",
-      widthProperty: "--bf-application-aside-width",
-      legacyWidthProperty: "--bf-app-aside-width",
-      minWidthProperty: "--dg-preview-aside-width-min",
-      maxWidthProperty: "--dg-preview-aside-width-max",
-      fallbackWidth: "22rem",
-      fallbackMinWidth: "18rem",
-      fallbackMaxWidth: "36rem",
-      isEnabled: () => !aside.classList.contains("is-collapsed") && !aside.classList.contains("is-overlay") && !aside.classList.contains("is-drawer"),
-      measureWidth: () => aside.getBoundingClientRect().width,
-      pointerWidthFromEvent: (shellRect, moveEvent) => shellRect.right - moveEvent.clientX,
-      ariaLabel: "Resize inspector panel",
-    }));
-  }
-
-  return () => {
-    teardowns.forEach((teardown) => teardown());
-  };
-}
-
-function initDiagramPicker() {
-  const picker = document.getElementById("diagram-picker");
-  if (!(picker instanceof HTMLSelectElement)) {
-    return;
-  }
-
-  function syncDiagramPickerToLocation() {
-    const currentPath = window.location.pathname;
-    let matched = false;
-    for (let i = 0; i < picker.options.length; i += 1) {
-      const option = picker.options[i];
-      const isMatch = option.value === currentPath;
-      option.selected = isMatch;
-      if (isMatch) {
-        picker.selectedIndex = i;
-        matched = true;
-      }
-    }
-    if (!matched) {
-      picker.value = currentPath;
-    }
-  }
-
-  function syncNavToLocation() {
-    syncDiagramPickerToLocation();
-    _syncBrowseNavToLocation();
-  }
-
-  async function populateDiagramOptions() {
-    if (picker.options.length > 0) {
-      syncNavToLocation();
-      return;
-    }
-
-    try {
-      const response = await fetch("/", { credentials: "same-origin" });
-      if (!response.ok) {
-        return;
-      }
-
-      const html = await response.text();
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(html, "text/html");
-      const viewLinks = Array.from(doc.querySelectorAll('a[href^="/view/"], a[href^="/force/view/"]'));
-      const seen = new Set();
-
-      viewLinks.forEach((link) => {
-        const href = link.getAttribute("href");
-        if (!href || seen.has(href)) {
-          return;
-        }
-        seen.add(href);
-        const option = document.createElement("option");
-        option.value = href;
-        option.textContent = link.textContent?.trim() || href.replace("/view/", "").replace("/force/view/", "");
-        picker.append(option);
-      });
-
-      syncNavToLocation();
-    } catch {
-      // Leave the picker empty if the index cannot be fetched.
-    }
-  }
-
-  picker.addEventListener("change", () => {
-    _attemptDiagramNavigation(picker.value, syncNavToLocation);
-  });
-
-  const prevBtn = document.getElementById("diagram-prev");
-  const nextBtn = document.getElementById("diagram-next");
-
-  function stepPicker(delta) {
-    if (picker.options.length === 0) return;
-    const idx = picker.selectedIndex + delta;
-    if (idx < 0 || idx >= picker.options.length) return;
-    const nextUrl = picker.options[idx]?.value || "";
-    _attemptDiagramNavigation(nextUrl, syncNavToLocation);
-  }
-
-  if (prevBtn) prevBtn.addEventListener("click", () => stepPicker(-1));
-  if (nextBtn) nextBtn.addEventListener("click", () => stepPicker(1));
-
-  document.querySelectorAll(".dg-browse-link").forEach((link) => {
-    link.addEventListener("click", (event) => {
-      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
-        return;
-      }
-      event.preventDefault();
-      _attemptDiagramNavigation(link.getAttribute("href"), syncNavToLocation);
-    });
-  });
-
-  syncNavToLocation();
-  requestAnimationFrame(syncNavToLocation);
-  window.addEventListener("pageshow", syncNavToLocation);
-  void populateDiagramOptions();
-}
-
-function _initEditorState() {
-  if (typeof EditorState === "undefined") {
-    window.EditorState = {
-      init() {},
-      cloneValue(value) { return JSON.parse(JSON.stringify(value || {})); },
-      serializeDirtyState() { return "{}"; },
-      normalizeGridOverrides(value) { return value || {}; },
-      beginUndoableAction(label) { return { label, before: "{}" }; },
-      commitUndoableAction() { return false; },
-      commitOverridePatchAction() { return false; },
-      runUndoableAction(_label, mutate) { return mutate(); },
-      pushUndoCommand() { return false; },
-      captureOverrideEntries() { return {}; },
-      canUndo() { return false; },
-      canRedo() { return false; },
-      undo() { return Promise.resolve(null); },
-      redo() { return Promise.resolve(null); },
-      clearUndoHistory() {},
-      getPendingGridAction() { return null; },
-      setPendingGridAction() {},
-      updateUndoRedoButtons() {},
-    };
-  }
-  EditorState.init({
-    getOverrides: () => overrides,
-    getGridOverrides: () => model.gridOverrides,
-    getElkLayoutOverrides: () => model.elkLayoutOverrides || {},
-    getRemovedIds: () => model.removedIds,
-    getFrameTree: () => (typeof getFrameTreeJson === "function" ? getFrameTreeJson() : null),
-  });
-}
-
-function _initElkPreviewController() {
-  if (typeof ElkPreviewController === "undefined") {
-    window.ElkPreviewController = {
-      init() {},
-      isElkLayeredDiagram() { return false; },
-      wirePanel() {},
-      syncPanel() {},
-      initPanel() {},
-      applyElkLayoutOverrides() {},
-      requestRelayout() { return Promise.resolve(); },
-    };
-  }
-  ElkPreviewController.init({
-    getElkLayoutOverrides: () => model.elkLayoutOverrides || {},
-    setElkLayoutOverrides: (value) => {
-      model.elkLayoutOverrides = { ...value };
-    },
-    getRootId: () => (model.roots[0] || {}).id || "root",
-    requestV3Relayout: (cid) => requestV3Relayout(cid),
-  });
-}
-
-function _initPreviewSaveClient() {
-  PreviewSaveClient.init({
-    slug: SLUG,
-    getModel: () => model,
-    getSelectedIds: () => [...selectedIds],
-    restoreSelectionIds: (ids) => {
-      selectedIds.clear();
-      ids.forEach(id => selectedIds.add(id));
-      reapplySelection();
-    },
-    serializeDirtyState: () => EditorState.serializeDirtyState(),
-    reloadDiagram: (options) => loadSVG(options),
-    isElkLayeredDiagram: () => ElkPreviewController.isElkLayeredDiagram(),
-    wireElkLayoutPanel: () => ElkPreviewController.wirePanel(),
-    applyElkLayoutOverrides: (overrides) => ElkPreviewController.applyElkLayoutOverrides(overrides),
-    getV3RelayoutStatus: () => getV3RelayoutStatus(),
-    getV3RelayoutRuntime: () => _v3RelayoutRuntime,
-    getConstraintSummary: () => constraints.summarise(lastViolations),
-    getConstraintErrorCount: () => constraints.summarise(lastViolations).errors,
-    runConstraints: () => runConstraints(),
-    clearCoercedKeys: () => _coercedKeys.clear(),
-    setStatus: (message, kind) => setStatus(message, kind),
-    sanitizeSvgCloneForExport: (clone) => sanitizeSvgCloneForExport(clone),
-    onBeforeUnload: (event) => {
-      if (PreviewSaveClient.isDirty() && !_allowInternalDirtyNavigation) {
-        event.preventDefault();
-        event.returnValue = "";
-        return "";
-      }
-    },
-  });
-}
-
-initPreviewShell();
-initDiagramPicker();
-initNavTabs();
-_initEditorState();
-_initElkPreviewController();
-_initPreviewSaveClient();
-window.addEventListener("pageshow", (event) => {
-  // Back-forward cache can restore the full JS heap (mutated frame tree, undo stack).
-  // Always reload from the server so unsaved deletes do not survive navigation.
-  if (event.persisted) {
-    void loadSVG();
-  }
+    return response.text();
+  },
+  attemptNavigation: (nextUrl, syncUi) => _attemptDiagramNavigation(nextUrl, syncUi),
 });
-loadSVG();
-connectSSE();
-
-// ---- Input/output/both preview modes ----
-(function initPreviewModes() {
-  const hasReference = Boolean(window.__DG_CONFIG.has_reference);
-  const stageShell = document.getElementById("stage-shell");
-  const stageLayout = document.getElementById("stage-layout");
-  const viewControls = document.getElementById("view-controls");
-  const inputPane = document.getElementById("input-pane");
-  const outputPane = document.getElementById("output-pane");
-  const img = document.getElementById("reference-img");
-  const tabs = Array.from(document.querySelectorAll(".dg-view-tab"));
-  if (!stageShell || !stageLayout || !viewControls || !inputPane || !outputPane || !img || tabs.length === 0) return;
-
-  const setViewMode = (mode) => {
-    const nextMode = ["input", "output", "both"].includes(mode) ? mode : "output";
-    stageShell.dataset.viewMode = nextMode;
-    // Let CSS data-attribute selector handle grid columns — no inline style needed.
-    tabs.forEach((tab) => {
-      const isActive = tab.dataset.viewMode === nextMode;
-      tab.setAttribute("aria-selected", String(isActive));
-      tab.tabIndex = isActive ? 0 : -1;
+initNavTabs();
+LayoutEngine.ensurePreviewEditorState(window, {
+  getOverrides: () => overrides,
+  getGridOverrides: () => model.gridOverrides,
+  getElkLayoutOverrides: () => model.elkLayoutOverrides || {},
+  getRemovedIds: () => model.removedIds,
+  getFrameTree: () => (typeof getFrameTreeJson === "function" ? getFrameTreeJson() : null),
+});
+LayoutEngine.ensurePreviewElkPreviewController(window, {
+  getElkLayoutOverrides: () => model.elkLayoutOverrides || {},
+  setElkLayoutOverrides: (value) => {
+    model.elkLayoutOverrides = { ...value };
+  },
+  getRootId: () => (model.roots[0] || {}).id || "root",
+  requestV3Relayout: (cid) => requestV3Relayout(cid),
+});
+LayoutEngine.initPreviewSaveClient({
+  slug: SLUG,
+  previewSaveClient: PreviewSaveClient,
+  getModel: () => model,
+  getSelectedIds: () => [...selectedIds],
+  restoreSelectionIds: (ids) => {
+    selectedIds.clear();
+    ids.forEach(id => selectedIds.add(id));
+    reapplySelection();
+  },
+  serializeDirtyState: () => window.EditorState.serializeDirtyState(),
+  reloadDiagram: (options) => loadSVG(options),
+  isElkLayeredDiagram: () => window.ElkPreviewController.isElkLayeredDiagram(),
+  wireElkLayoutPanel: () => window.ElkPreviewController.wirePanel(),
+  applyElkLayoutOverrides: (overrides) => window.ElkPreviewController.applyElkLayoutOverrides(overrides),
+  getV3RelayoutStatus: () => getV3RelayoutStatus(),
+  getV3RelayoutRuntime: () => _v3RelayoutRuntime,
+  getConstraintSummary: () => constraints.summarise(lastViolations),
+  getConstraintErrorCount: () => constraints.summarise(lastViolations).errors,
+  runConstraints: () => runConstraints(),
+  clearCoercedKeys: () => _coercedKeys.clear(),
+  setStatus: (message, kind) => setStatus(message, kind),
+  sanitizeSvgCloneForExport: (clone) => sanitizeSvgCloneForExport(clone),
+  allowInternalDirtyNavigation: () => _allowInternalDirtyNavigation,
+});
+LayoutEngine.initPreviewOverrideToolbar({
+  exportButton: document.getElementById("btn-export"),
+  clearAllButton: document.getElementById("btn-clear-all"),
+  slug: SLUG,
+  getOverrides: () => overrides,
+  writeClipboardText: (text) => navigator.clipboard.writeText(text),
+  alert: (message) => alert(message),
+  confirmClearAll: (message) => confirm(message),
+  confirmClearAllMessage: "Clear all overrides for " + SLUG + "?",
+  onClearAll: () => {
+    EditorState.runUndoableAction("Clear all overrides", () => {
+      overrides = {};
+      _coercedKeys.clear();
+      setDirty(true);
     });
-  };
-
-  let preferredSplitDirection = "vertical";
-  let preferredViewMode = "output";
-
-  // Always show the tab bar — it's a global editor feature.
-  viewControls.hidden = false;
-
-  if (hasReference) {
-    img.src = "/reference/" + SLUG;
-  } else {
-    // No reference sketch — show placeholder in input pane.
-    img.alt = "No reference sketch available";
-    img.removeAttribute("src");
-    const wrap = img.closest(".dg-reference-img-wrap");
-    if (wrap) {
-      wrap.innerHTML = '<p class="dg-empty-message">No reference sketch for this diagram.</p>';
+    applyAllOverrides();
+    renderSelectionInspector();
+  },
+});
+LayoutEngine.registerPreviewPageshowReload({
+  addPageshowListener: (handler) => {
+    window.addEventListener("pageshow", handler);
+  },
+  reloadDiagram: () => loadSVG(),
+});
+void loadSVG();
+LayoutEngine.connectPreviewSse({
+  eventSourceFactory: (url) => new EventSource(url),
+  getGeneration: () => generation,
+  setGeneration: (value) => {
+    generation = value;
+  },
+  reloadDiagram: () => loadSVG(),
+  setBuildStatus: ({ message, kind }) => {
+    const statusEl = document.getElementById("build-status");
+    if (!statusEl) {
+      return;
     }
-  }
-
-  // ---- Horizontal / vertical split toggle ----
-  const splitToggle = document.getElementById("split-toggle");
-  const setSplitDirection = (dir) => {
-    const next = dir === "vertical" ? "vertical" : "horizontal";
-    stageShell.dataset.splitDirection = next;
-    splitToggle.setAttribute("aria-label",
-      next === "horizontal" ? "Switch to vertical split" : "Switch to horizontal split");
-    splitToggle.title = splitToggle.getAttribute("aria-label");
-  };
-
-  const origSetViewMode = setViewMode;
-  const setViewModeWithToggle = (mode) => {
-    origSetViewMode(mode);
-    if (splitToggle) splitToggle.style.display = mode === "both" ? "" : "none";
-  };
-
-  if (splitToggle) {
-    splitToggle.addEventListener("click", () => {
-      const current = stageShell.dataset.splitDirection || "vertical";
-      const next = current === "horizontal" ? "vertical" : "horizontal";
-      setSplitDirection(next);
-      preferredSplitDirection = next;
-    });
-    setSplitDirection(preferredSplitDirection);
-  }
-
-  tabs.forEach((tab) => {
-    tab.addEventListener("click", () => {
-      const mode = tab.dataset.viewMode || "output";
-      setViewModeWithToggle(mode);
-      preferredViewMode = mode;
-    });
-  });
-  setViewModeWithToggle(preferredViewMode);
-})();
+    statusEl.className = kind === "error" ? "build-status build-err" : "build-status build-ok";
+    statusEl.textContent = message;
+  },
+  scheduleReconnect: (callback, delayMs) => setTimeout(callback, delayMs),
+});
+LayoutEngine.initPreviewViewModes({
+  document,
+  slug: SLUG,
+  hasReference: Boolean(window.__DG_CONFIG.has_reference),
+});
 
 // ---- Left sidebar tabs (Browse / Layers) ----
 // Handled by initNavTabs() in editor-base.js via initPreviewShell().

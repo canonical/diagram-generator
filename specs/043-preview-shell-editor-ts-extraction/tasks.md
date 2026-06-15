@@ -14,19 +14,23 @@
 ## Phase 2 - Inspector extraction
 
 - [x] T010 Extract inspector view-model logic into TS-owned preview-shell modules
-- [ ] T011 Extract inspector field visibility / merge logic into typed helpers with targeted tests
+- [x] T011 Extract inspector field visibility / merge logic into typed helpers with targeted tests
 - [ ] T012 Reduce `editor.js` inspector code to thin rendering / event hookup glue
 
 ## Phase 3 - Interaction extraction
 
 - [x] T020 Extract selection state transitions into TS-owned modules
-- [ ] T021 Extract drag / resize / nudge controller logic into explicit interaction modules or state machines
+- [x] T021 Extract drag / resize / nudge controller logic into explicit interaction modules or state machines
 - [x] T022 Add focused regression coverage for extracted interaction logic, including one controller/DOM/browser path rather than persistence-only validation
 
 ## Phase 4 - Grid and shell coordinator extraction
 
-- [ ] T030 Extract grid-control state resolution and update dispatch out of `editor.js`
-- [ ] T031 Reassess `loadSVG()` / shell bootstrap responsibilities and keep only coordinator behavior in `editor.js`
+- [x] T030 Extract grid-control state resolution and update dispatch out of `editor.js`
+- [x] T031 Reassess `loadSVG()` / shell bootstrap responsibilities and keep only coordinator behavior in `editor.js`
+- [x] T031A Extract shell tree/sidebar and status-panel UI helpers into TS-owned modules so residual JS reads as coordinator code during architecture review
+- [x] T031B Extract the local-vs-ELK relayout coordinator and runtime-only coercion cleanup into TS-owned helpers
+- [x] T031C Extract the remaining single-selection inspector host glue and stage SVG host helpers into TS-owned modules
+- [x] T031D Extract arrow waypoint handle/binding and drag-geometry helpers into `app-arrow-waypoints.ts`
 - [ ] T032 Remove obsolete inline helpers and stale compatibility paths uncovered by the extractions
 - [ ] T033 Normalize shared shell hooks so future engine lanes do not require bespoke `editor.js` branches
 

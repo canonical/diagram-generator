@@ -75,6 +75,7 @@ node scripts/check_no_new_python.mjs
 
 ## Search hygiene
 
+- Locate before loading: narrow `rg` / `Glob` first; then `Read` only the hit region (`offset`/`limit` on trap files). Whole-file reads are fine for thin modules listed above.
 - Prefer narrow `rg` scoped to one directory.
 - Read one targeted file after search hits.
 - Avoid repo-wide sweeps unless the task is genuinely cross-cutting.

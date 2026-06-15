@@ -65,6 +65,12 @@ Each slice should leave behind:
 
 That makes future sessions additive instead of rediscovery-heavy.
 
+### 8. Optimize the closeout phase for external architecture review
+
+- After the highest-risk logic slices land, prioritize the residual `editor.js` shapes that still look monolithic to a fresh reviewer: tree/sidebar UI, status panels, compatibility shims, and any remaining inline shell assembly.
+- Prefer extracting a cohesive residual shell concern into a typed owner even when the line-count win is moderate if it makes the browser host read more clearly.
+- Treat boundary-note accuracy as part of the deliverable, because external review will judge both the code and whether its ownership model is easy to follow.
+
 ## Proposed module targets
 
 These names are directional; exact filenames can adapt to the existing preview-shell layout.
@@ -107,6 +113,7 @@ These names are directional; exact filenames can adapt to the existing preview-s
 - Move selection state transitions, drag/resize mode transitions, and nudge/keyboard rules into TS-owned modules.
 - Keep direct DOM pointer event hookup shallow in JS until a later pass if necessary.
 - Add targeted tests for the extracted interaction state transitions plus one focused controller/DOM/browser regression path.
+- Land browser-host planning helpers under `preview-shell/app-*` when the remaining interaction work is mostly DOM-derived state capture rather than pure state-machine logic; current examples are drag-start/reorder planning and resize-start/rendered-bounds shaping in `app-interaction-host.ts`.
 
 ### Slice D - Extract grid control state resolution
 

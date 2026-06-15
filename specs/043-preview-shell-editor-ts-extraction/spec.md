@@ -4,7 +4,7 @@
 
 **Created**: 2026-06-14
 
-**Status**: Draft
+**Status**: In Progress
 
 **Depends on**: spec 025 (complete), spec 026 (archived complete), spec 027 (complete), spec 029 (complete), spec 035 (archived complete)
 
@@ -37,6 +37,17 @@ Spec 026 was therefore necessary but not sufficient. This spec completes the rem
 ## Mission
 
 Turn `editor.js` from the main behavioral surface into a thin shell coordinator over typed modules, while preserving the live preview UX, keeping YAML + TypeScript as the only product-path authorities, and making the standalone repo leaner and more stable to extend.
+
+## Architectural Review Bar
+
+This repo will be reviewed by external software architects, not just used for local maintenance. The closeout bar for this spec is therefore higher than "tests pass" or "the file got smaller."
+
+The remaining work should optimize for:
+
+- obvious ownership boundaries at a glance
+- no new inline UI assembly blocks growing inside `editor.js`
+- residual JS that reads as browser-host glue rather than hidden business logic
+- shell concerns that are legible enough for a cold reviewer to map to typed owners without rediscovering the project
 
 ## Alignment with spec 038
 
@@ -164,6 +175,7 @@ These slices may land in multiple sessions and multiple PRs. The spec intentiona
 - **NFR-004**: The end state SHOULD leave `editor.js` as a thin shell coordinator/bootstrap file rather than the main behavioral surface.
 - **NFR-005**: TypeScript extraction SHOULD prioritize logic-heavy and regression-prone areas before cosmetic or purely mechanical JS-to-TS translation.
 - **NFR-006**: The resulting shell architecture SHOULD make adding many more engines materially cheaper by shrinking shared-shell branching and hidden global state.
+- **NFR-007**: The residual `editor.js` surface SHOULD remain review-legible: browser-host glue, compatibility shims, and temporary DOM adapters only, with obvious typed owners for tree/sidebar UI, status panels, inspector state, interaction planning, and bootstrap coordination.
 
 ## Success Criteria
 
@@ -174,6 +186,7 @@ These slices may land in multiple sessions and multiple PRs. The spec intentiona
 - **SC-005**: Focused tests or boundary checks exist for each landed extraction slice.
 - **SC-006**: New or revised engine lanes stop defaulting to `editor.js` for shared-shell integration work.
 - **SC-007**: Extracted browser-facing TS modules build and ship through the layout-engine browser bundle without ad hoc legacy helper growth.
+- **SC-008**: A reviewer can inspect the active boundary note and the remaining `editor.js` file and identify the typed owner for each major shell concern without reopening archived specs or tracing unrelated engine code.
 
 ## Out of Scope
 

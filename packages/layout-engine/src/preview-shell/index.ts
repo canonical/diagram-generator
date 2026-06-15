@@ -95,6 +95,15 @@ export {
 } from './inspector-multi.js';
 
 export type {
+  MultiSelectionInspectorResolvedState,
+  MultiSelectionInspectorRuntimeItem,
+} from './inspector-multi-options.js';
+
+export {
+  resolveMultiSelectionInspectorState,
+} from './inspector-multi-options.js';
+
+export type {
   DoubleClickSelectionResolution,
   PointerSelectionResolution,
 } from './interaction-selection.js';
@@ -172,6 +181,18 @@ export {
 } from './inspector-autolayout-panel.js';
 
 export type {
+  PreviewAutolayoutInspectorNode,
+  PreviewAutolayoutInspectorNodeData,
+  PreviewSizingAxis,
+} from './inspector-autolayout-options.js';
+
+export {
+  hasPreviewNodeTextContent,
+  resolvePreviewRuntimeSizingValue,
+  resolveSingleSelectionAutolayoutPanelOptions,
+} from './inspector-autolayout-options.js';
+
+export type {
   MultiSelectionInspectorPanelRenderOptions,
   MultiSelectionStyleState,
 } from './inspector-multi-panel.js';
@@ -190,6 +211,14 @@ export {
 } from './inspector-single-panel.js';
 
 export type {
+  PreviewSingleSelectionInspectorNode,
+} from './inspector-single-options.js';
+
+export {
+  resolveSingleSelectionInspectorPanelRenderOptions,
+} from './inspector-single-options.js';
+
+export type {
   SelectionActionPlanItem,
   SelectionAlignMode,
   SelectionDistributeAxis,
@@ -205,6 +234,19 @@ export {
   resolveSelectionAlignTargets,
   resolveSelectionDistributeTargets,
 } from './selection-actions.js';
+
+export type {
+  CollectPreviewSelectionActionInfoOptions,
+  PreviewSelectionActionInfo,
+  PreviewSelectionActionItem,
+  PreviewSelectionActionNode,
+  PreviewSelectionActionNodeData,
+  PreviewSelectionDelta,
+} from './selection-action-items.js';
+
+export {
+  collectPreviewSelectionActionInfo,
+} from './selection-action-items.js';
 
 export {
   createPreviewGridOverlayScene,
@@ -275,6 +317,288 @@ export {
 } from './interaction-keyboard-dispatch.js';
 
 export type {
+  PreviewArrowDelta,
+  PreviewArrowEndpoints,
+  PreviewArrowPoint,
+  PreviewArrowSvgUpdatePlan,
+  PreviewWaypointDragAxis,
+  PreviewWaypointDragMoveResolution,
+  PreviewWaypointDragState,
+  PreviewArrowhead,
+} from './app-arrow-waypoints.js';
+
+export {
+  bindPreviewArrowSegmentInsertHandles,
+  createPreviewWaypointDragState,
+  insertPreviewWaypoint,
+  prunePreviewCollinearWaypoints,
+  readPreviewArrowEndpoints,
+  rebuildPreviewArrowSvg,
+  removePreviewWaypoint,
+  renderPreviewArrowWaypointHandles,
+  resolvePreviewArrowSvgUpdatePlan,
+  resolvePreviewWaypointDragMove,
+  resolvePreviewArrowWaypointHandlePositions,
+  resolvePreviewArrowhead,
+  updatePreviewArrowSvg,
+} from './app-arrow-waypoints.js';
+
+export type {
+  ConnectPreviewSseOptions,
+  PreviewBuildStatusUpdate,
+  PreviewEditorStateApi,
+  PreviewEditorStateInitOptions,
+  PreviewElkControllerApi,
+  PreviewElkControllerInitOptions,
+  PreviewEventSourceLike,
+  PreviewPageshowReloadOptions,
+  PreviewSaveClientApi,
+  PreviewSaveClientInitConfig,
+  PreviewSaveClientInitOptions,
+  PreviewShellCoordinatorInitOptions,
+} from './app-bootstrap.js';
+
+export {
+  connectPreviewSse,
+  createPreviewSaveClientInitConfig,
+  ensurePreviewEditorState,
+  ensurePreviewElkPreviewController,
+  initPreviewSaveClient,
+  initPreviewShellCoordinator,
+  registerPreviewPageshowReload,
+} from './app-bootstrap.js';
+
+export type {
+  PreviewDiagramNavigationInitOptions,
+  PreviewDiagramOptionEntry,
+} from './app-diagram-navigation.js';
+
+export {
+  extractPreviewDiagramOptionEntries,
+  initPreviewDiagramNavigation,
+  normalizePreviewDiagramPath,
+  resolveSteppedPreviewDiagramUrl,
+  syncPreviewBrowseLinksToPath,
+  syncPreviewDiagramPickerToPath,
+} from './app-diagram-navigation.js';
+
+export type {
+  PreviewTextEditCommitResolution,
+  PreviewTextEditStartState,
+  PreviewTextEditorBlockStyle,
+  PreviewTextEditorRole,
+} from './app-text-edit.js';
+
+export {
+  collectPreviewTextEditingGroups,
+  findPreviewEditableTextTarget,
+  findPreviewTextBlockAtPoint,
+  renderPreviewTextLines,
+  resolvePreviewEditableComponentId,
+  resolvePreviewTextBlockRole,
+  resolvePreviewTextEditCommit,
+  resolvePreviewTextEditStartState,
+  resolvePreviewTextEditorBlockStyle,
+  resolvePreviewTextEditorSurface,
+} from './app-text-edit.js';
+
+export type {
+  PreviewSplitDirection,
+  PreviewViewMode,
+  PreviewViewModesInitOptions,
+} from './app-view-modes.js';
+
+export {
+  applyPreviewReferenceImageState,
+  applyPreviewSplitDirectionState,
+  applyPreviewViewModeState,
+  initPreviewViewModes,
+  normalizePreviewSplitDirection,
+  normalizePreviewViewMode,
+} from './app-view-modes.js';
+
+export type {
+  PreviewHitNodeBounds,
+  PreviewHitTestNode,
+  PreviewHitTestOptions,
+} from './interaction-hit-testing.js';
+
+export {
+  findDeepestPreviewComponent,
+  findPreviewComponentAtDepth,
+} from './interaction-hit-testing.js';
+
+export type {
+  LoadPreviewSvgOptions,
+  PreviewFallbackResponse,
+  PreviewFrameTreeSeed,
+  PreviewLoadCanonicalState,
+  PreviewLoadExecutionMode,
+  PreviewLoadInvocationOptions,
+  PreviewLoadNormalizedOptions,
+  PreviewLoadRenderResult,
+  PreviewLocalRelayoutStatus,
+} from './app-load.js';
+
+export {
+  createPreviewLoadFailureMarkup,
+  createPreviewLoadLoadingMarkup,
+  createPreviewLoadUnavailableMarkup,
+  loadPreviewSvg,
+  normalizePreviewLoadInvocation,
+  resolvePreviewFrameTreeSeed,
+} from './app-load.js';
+
+export type {
+  PreviewShellResizeBindingOptions,
+  PreviewShellResizeBindingsInitOptions,
+} from './app-shell-resize.js';
+
+export {
+  bindPreviewShellResize,
+  clampPreviewShellWidth,
+  clearPreviewShellWidth,
+  initPreviewShellResizeBindings,
+  previewShellWidthToRem,
+  readPreviewShellWidth,
+  resolvePreviewShellCssLengthPx,
+  writePreviewShellWidth,
+} from './app-shell-resize.js';
+
+export type {
+  InitPreviewOverrideToolbarOptions,
+  PreviewConstraintStatus,
+  PreviewConstraintSummary,
+  PreviewOverrideExportEntry,
+  PreviewShellTreeEntry,
+  PreviewShellTreeNode,
+  RenderPreviewTreePanelOptions,
+  ShowPreviewContextMenuAction,
+  ShowPreviewContextMenuOptions,
+} from './app-shell-panels.js';
+
+export {
+  createPreviewOverrideExportText,
+  flattenPreviewTreeEntries,
+  formatPreviewOverrideSummary,
+  initPreviewOverrideToolbar,
+  previewTreeHasFrameId,
+  renderPreviewTreePanel,
+  resolvePreviewConstraintStatus,
+  showPreviewContextMenu,
+  syncPreviewConstraintStatus,
+  syncPreviewTreeOverrideState,
+  syncPreviewTreeSelectionState,
+} from './app-shell-panels.js';
+
+export type {
+  PreviewRelayoutOverrideEntry,
+  PreviewRelayoutResult,
+  PreviewRelayoutStatus,
+  RunPreviewRelayoutOptions,
+} from './app-relayout.js';
+
+export {
+  clearPreviewCoercedOverrides,
+  collectPreviewCoercedKeys,
+  runPreviewRelayout,
+} from './app-relayout.js';
+
+export type {
+  PreviewInspectorArrowNode,
+  PreviewInspectorGridInfo,
+  RenderPreviewSingleSelectionInspectorOptions,
+} from './app-inspector-host.js';
+
+export {
+  createPreviewMissingInspectorMarkup,
+  normalizePreviewInspectorWidthUnit,
+  renderPreviewSingleSelectionInspector,
+  resolvePreviewAutolayoutPanelHtml,
+} from './app-inspector-host.js';
+
+export type {
+  BindPreviewStageSvgInteractionOptions,
+  PreviewStageInteractionHandlers,
+} from './app-stage-svg.js';
+
+export {
+  bindPreviewStageSvgInteraction,
+  clearPreviewSvgHoverState,
+  ensurePreviewSvgHitAreas,
+  syncPreviewSvgHoverState,
+  teardownPreviewStageSvgInteraction,
+} from './app-stage-svg.js';
+
+export type {
+  CollectPreviewMultiResizeSelectionOptions,
+  CreatePreviewDragStartStateOptions,
+  CreatePreviewResizeStartStateOptions,
+  PreviewAutolayoutParentNode,
+  PreviewDragStartPlan,
+  PreviewInteractionChildRef,
+  PreviewInteractionDeltaValue,
+  PreviewInteractionNode,
+  PreviewInteractionNodeData,
+  PreviewInteractionParentRef,
+  PreviewRenderedBounds,
+  PreviewResizeHandlePlan,
+  PreviewResizeStartPlan,
+  ReadPreviewRenderedComponentBoundsOptions,
+  RenderPreviewReorderIndicatorOptions,
+  ResolvePreviewAutolayoutDragContextOptions,
+  ResolvePreviewResizeHandlePlanOptions,
+} from './app-interaction-host.js';
+
+export {
+  clearPreviewReorderIndicator,
+  collectPreviewMultiResizeSelection,
+  createPreviewDragStartState,
+  createPreviewResizeStartState,
+  readPreviewRenderedComponentBounds,
+  renderPreviewReorderIndicator,
+  resolvePreviewAutolayoutDragContext,
+  resolvePreviewResizeHandlePlan,
+} from './app-interaction-host.js';
+
+export type {
+  ApplyPreviewSvgOverridesOptions,
+  PreviewArrowEndpointShift,
+  PreviewArrowSegmentCoordinate,
+  PreviewOverrideBoxStylePreset,
+  PreviewOverrideDelta,
+  PreviewOverrideEntry,
+  PreviewOverrideRelayoutStatus,
+  PreviewOverrideRootNode,
+  PreviewOverrideTreeNode,
+} from './app-override-application.js';
+
+export {
+  applyPreviewSvgOverrides,
+  resolvePreviewArrowShiftedSegments,
+  resolvePreviewArrowSideShift,
+  resolvePreviewReflowShiftMap,
+  shiftPreviewArrowheadPoints,
+} from './app-override-application.js';
+
+export type {
+  PreviewOverridePatchRestorePlan,
+  PreviewRestoreNode,
+  PreviewSerializedStateRestorePlan,
+  RestorePreviewOverridePatchOptions,
+  RestorePreviewSerializedStateOptions,
+} from './app-state-restore.js';
+
+export {
+  resolvePreviewOverridePatchRestorePlan,
+  resolvePreviewSerializedStateRestorePlan,
+  restorePreviewOverrideEntries,
+  restorePreviewOverridePatch,
+  restorePreviewSerializedState,
+  snapshotNeedsPreviewRelayout,
+} from './app-state-restore.js';
+
+export type {
   PreviewGridInfo,
   ResolvePreviewGridInfoParams,
 } from './grid-resolution.js';
@@ -289,6 +613,10 @@ export {
 
 export type {
   PreviewGridControlInputState,
+  PreviewGridControlDomPatch,
+  PreviewGridControlDomState,
+  PreviewGridMarginInputState,
+  PreviewGridControlRuntimeUpdate,
   PreviewGridControlState,
   PreviewGridInfoState,
 } from './grid-controls.js';
@@ -296,8 +624,60 @@ export type {
 export {
   createPreviewGridOverrides,
   isGridControlInputId,
+  resolvePreviewGridControlDomPatch,
   resolvePreviewGridControlInputState,
+  resolvePreviewGridControlRuntimeUpdate,
   resolvePreviewGridControlState,
+  resolvePreviewGridControlStateFromDomState,
   resolvePreviewGridInfoFromControlState,
   resolvePreviewGridInfoFromRuntimeState,
+  resolvePreviewGridMarginsFromInputState,
 } from './grid-controls.js';
+
+export type {
+  PreviewFrameMutationNode,
+  PreviewFrameMutationNodeData,
+  PreviewFrameOverrideEntry,
+  PreviewFrameOverrideMap,
+  PreviewFramePropMutationKind,
+  PreviewFramePropMutationResult,
+  PreviewFrameSizeDimension,
+} from './frame-prop-actions.js';
+
+export {
+  applyMultiFramePropMutation,
+  applyMultiFrameSizeMutation,
+  applySingleFramePropMutation,
+  applySingleFrameSizeMutation,
+  resolvePreviewFrameSizePx,
+} from './frame-prop-actions.js';
+
+export type {
+  MultiSelectionPreviewStyleItem,
+  MultiSelectionPreviewStyleState,
+  PreviewRenderedStyleFields,
+  PreviewStyleMode,
+  PreviewStyleNode,
+  PreviewStyleNodeData,
+  PreviewStyleOverrideEntry,
+  PreviewStyleOverrideMap,
+  SingleSelectionPreviewStyleState,
+} from './frame-style.js';
+
+export {
+  PREVIEW_STYLE_SEMANTICS,
+  applyPreviewStyleFields,
+  applyVisiblePreviewStyleOverride,
+  hasPreviewVisibleStylePicker,
+  inferPreviewStyleFromFields,
+  inferPreviewStyleFromNode,
+  isPreviewStructuralWrapper,
+  isPreviewStyleableComponentType,
+  normalizePreviewStyleFill,
+  normalizePreviewStyleName,
+  normalizePreviewStyleStrokeOrBorder,
+  resolveBasePreviewStyleName,
+  resolveEffectivePreviewStyleName,
+  resolveMultiSelectionPreviewStyleState,
+  resolveSingleSelectionPreviewStyleState,
+} from './frame-style.js';

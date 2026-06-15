@@ -470,6 +470,26 @@ body.dg-preview {
 .tree-item.overridden { font-style: italic; color: var(--bf-color-accent, #e95420); }
 .tree-item.overridden.selected { color: var(--dg-selection-accent); }
 
+.dg-context-menu {
+       background: #fff;
+       border: 1px solid #ccc;
+       border-radius: 4px;
+       box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+       padding: 4px;
+       position: fixed;
+       z-index: 10000;
+}
+
+.dg-context-menu__button {
+       background: transparent;
+       border: none;
+       cursor: pointer;
+       display: block;
+       padding: 6px 10px;
+       text-align: left;
+       width: 100%;
+}
+
 .grid-controls {
        display: grid;
        column-gap: 12px;
