@@ -40,7 +40,7 @@ Concrete TODOs for the next chat:
 
 I) we need to run harfbuzz every time a box changes width manuall - right now i make a box wider, but text inside it stays wrap even though it would fit
 II) interactive resizing is incredibly slow, only activates on dropping a resize handle, not interactively; we switched from python to ts to allow more interactive fast controls as in figma, why is that not working?
-III) elk has a lot of promise, maybe to even replace our v3 engine; but right now resiing is very unpredictable. ![ these are all set to fill now, and they dont fill; setting items to same size doesnt make them same ize. is there a way to do it without breakign the elk algo? surely, wit can handle items with explicit size right?](image-7.png)
+III) elk has a lot of promise, maybe to even replace our v3 engine; but right now resiing is very unpredictable. ![ these are all set to fill now, and they dont fill; setting items to same size doesnt make them same ize. is there a way to do it without breakign the elk algo? surely, wit can handle items with explicit size right?](tmp/image-7.png)
 
 
-reent regression: ![alt text](image-9.png) space above text in frames varies; especially the parent variant - se how it is coloser to the edge. happens in elk layouts, compare with v3 and you'll find it is different
+reent regression: ![alt text](tmp/image-9.png) space above text in frames varies; especially the parent variant - se how it is coloser to the edge. happens in elk layouts, compare with v3 and you'll find it is different
