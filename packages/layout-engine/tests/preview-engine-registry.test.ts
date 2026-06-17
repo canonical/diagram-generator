@@ -1,6 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { ELK_LAYERED_PARAM_SPECS } from '@diagram-generator/graph-layout-elk';
 import { loadFrameYaml } from '../src/frame-yaml-loader.js';
 import {
   ELK_LAYERED_PREVIEW_ENGINE,
@@ -33,8 +34,13 @@ describe('preview-engine registry', () => {
     const elk = getPreviewEngine('elk-layered');
     expect(elk).toBeDefined();
     expect(elk?.controlSpecs.length).toBeGreaterThan(5);
+    expect(elk?.controlSpecs.map((spec) => spec.key).sort()).toEqual(
+      ELK_LAYERED_PARAM_SPECS.map((spec) => spec.key).sort(),
+    );
     expect(elk?.controlSpecs.some((spec) => spec.key === 'elk.direction')).toBe(true);
     expect(elk?.controlSpecs.some((spec) => spec.key === 'elk.portConstraints')).toBe(false);
+    expect(elk?.controlSpecs.some((spec) => spec.key === 'elk.edgeRouting')).toBe(false);
+    expect(elk?.controlSpecs.some((spec) => spec.key === 'elk.padding')).toBe(false);
     expect(elk?.controlSpecs.every((spec) => spec.persistNamespace === 'meta.elk')).toBe(true);
     expect(elk?.scripts).toEqual(['elk-layout-controls.js', 'elk-controller.js']);
   });

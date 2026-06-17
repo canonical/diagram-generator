@@ -470,6 +470,26 @@ body.dg-preview {
 .tree-item.overridden { font-style: italic; color: var(--bf-color-accent, #e95420); }
 .tree-item.overridden.selected { color: var(--dg-selection-accent); }
 
+.dg-context-menu {
+       background: #fff;
+       border: 1px solid #ccc;
+       border-radius: 4px;
+       box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+       padding: 4px;
+       position: fixed;
+       z-index: 10000;
+}
+
+.dg-context-menu__button {
+       background: transparent;
+       border: none;
+       cursor: pointer;
+       display: block;
+       padding: 6px 10px;
+       text-align: left;
+       width: 100%;
+}
+
 .grid-controls {
        display: grid;
        column-gap: 12px;
@@ -537,32 +557,19 @@ body.dg-preview {
        min-inline-size: 0;
 }
 
-.dg-view-controls {
-       align-items: center;
-       display: flex;
-       gap: 12px;
-       padding: 16px 32px 0;
-}
-
 /* Remove BF default tab-list margin so tabs sit flush on the rule line. */
-.dg-nav-tabs .bf-tabs-list,
-.dg-view-tabs .bf-tabs-list {
+.dg-nav-tabs .bf-tabs-list {
        margin-bottom: 0;
 }
 
 /* Kill the BF baseline-snap margin on tab links so they sit on the rule. */
-.dg-nav-tabs .bf-tabs-link,
-.dg-view-tabs .bf-tabs-link {
+.dg-nav-tabs .bf-tabs-link {
        margin-bottom: 0;
 }
 
 /* Remove BF panel-header bottom padding so tab rule meets content edge. */
 .dg-nav-tabs-header.bf-panel-header {
        padding-bottom: 0;
-}
-
-.dg-view-tabs {
-       min-inline-size: 0;
 }
 
 .dg-stage-layout {
@@ -597,64 +604,6 @@ body.dg-preview {
        text-transform: uppercase;
 }
 
-.dg-stage-shell[data-view-mode="both"] .dg-stage-layout {
-       grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.dg-stage-shell[data-view-mode="both"][data-split-direction="vertical"] .dg-stage-layout {
-       grid-template-columns: minmax(0, 1fr);
-       grid-template-rows: minmax(0, 2fr) minmax(0, 1fr);
-       padding-block: 4px;
-       gap: 8px;
-}
-
-.dg-stage-shell[data-view-mode="both"][data-split-direction="vertical"] .dg-output-pane {
-       order: -1;
-}
-
-/* Scale output SVG to fit its pane — no scrollbars */
-.dg-stage-shell[data-view-mode="both"][data-split-direction="vertical"] .stage {
-       overflow: hidden;
-       padding: 8px;
-       align-items: center;
-}
-.dg-stage-shell[data-view-mode="both"][data-split-direction="vertical"] .stage svg {
-       max-width: 100%;
-       max-height: 100%;
-       width: auto;
-       height: auto;
-}
-
-/* Scale input reference image to fit remaining space */
-.dg-stage-shell[data-view-mode="both"][data-split-direction="vertical"] .dg-reference-img-wrap {
-       overflow: hidden;
-       padding: 8px;
-}
-.dg-stage-shell[data-view-mode="both"][data-split-direction="vertical"] .dg-reference-img {
-       max-height: 100%;
-}
-
-.dg-split-toggle {
-       flex-shrink: 0;
-}
-
-.dg-split-toggle .dg-split-icon--vertical {
-       display: none;
-}
-
-.dg-stage-shell[data-split-direction="vertical"] .dg-split-toggle .dg-split-icon--horizontal {
-       display: none;
-}
-
-.dg-stage-shell[data-split-direction="vertical"] .dg-split-toggle .dg-split-icon--vertical {
-       display: block;
-}
-
-.dg-stage-shell[data-view-mode="input"] .dg-output-pane,
-.dg-stage-shell[data-view-mode="output"] .dg-input-pane {
-       display: none;
-}
-
 .stage {
        align-items: flex-start;
        display: flex;
@@ -672,39 +621,6 @@ body.dg-preview {
        justify-content: center;
        overflow: hidden;
        padding: 16px;
-}
-
-.dg-reference-img-wrap {
-       align-items: flex-start;
-       display: flex;
-       flex: 1 1 auto;
-       justify-content: center;
-       min-block-size: 0;
-       overflow: auto;
-       padding: 32px;
-       width: 100%;
-}
-
-[data-dg-mode="force"] .dg-reference-img-wrap {
-       align-items: center;
-       justify-content: center;
-       overflow: hidden;
-       padding: 16px;
-}
-
-.dg-reference-img {
-       border: 1px solid #333;
-       border-radius: 4px;
-       display: block;
-       max-inline-size: 100%;
-       max-width: 100%;
-       object-fit: contain;
-       box-shadow: 0 24px 72px rgba(0, 0, 0, 0.32);
-}
-
-[data-dg-mode="force"] .dg-reference-img {
-       max-block-size: 100%;
-       width: auto;
 }
 
 .stage svg {

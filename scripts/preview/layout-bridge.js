@@ -11,15 +11,51 @@
  * Reconstruct a LayoutEngine.Frame from a serialized JSON object.
  * The JSON comes from the server's /api/frame-tree/<slug> endpoint.
  */
+function _collectRelayoutFrameOverrides(overrides) {
+  const previewBridgeRelayout = window.__DG_getPreviewBridgeRelayoutContract();
+  if (typeof previewBridgeRelayout.collectPreviewRelayoutFrameOverrides === "function") {
+    return previewBridgeRelayout.collectPreviewRelayoutFrameOverrides(overrides || {});
+  }
+  const collected = {};
+  for (const [frameId, entry] of Object.entries(overrides || {})) {
+    const filtered = previewBridgeRelayout.filterRelayoutOverrideEntry(entry || {});
+    if (Object.keys(filtered).length > 0) {
+      collected[frameId] = filtered;
+    }
+  }
+  return collected;
+}
+
+function previewCoreContract() {
+  return window.__DG_getPreviewCoreContract?.()
+    ?? window.LayoutEngine?.core
+    ?? window.LayoutEngine
+    ?? (typeof LayoutEngine !== "undefined" ? LayoutEngine : null);
+}
+
+function previewBridgeRenderContract() {
+  return window.LayoutEngine?.previewBridge?.render
+    ?? window.LayoutEngine
+    ?? (typeof LayoutEngine !== "undefined" ? LayoutEngine : null);
+}
+
+function previewElkEngineContract() {
+  return window.__DG_getPreviewElkEngineContract?.()
+    ?? window.LayoutEngine?.previewEngines?.elk
+    ?? window.LayoutEngine?.previewEngines
+    ?? window.LayoutEngine
+    ?? (typeof LayoutEngine !== "undefined" ? LayoutEngine : null);
+}
+
 function deserializeFrame(json) {
-  return LayoutEngine.deserializeFrameWire(json);
+  return previewCoreContract().deserializeFrameWire(json);
 }
 
 /**
  * Reconstruct a LayoutEngine.FrameDiagram from serialized JSON.
  */
 function deserializeFrameDiagram(json) {
-  const diagram = LayoutEngine.deserializeFrameDiagramWire(json);
+  const diagram = previewCoreContract().deserializeFrameDiagramWire(json);
   if (!diagram.layoutEngine && window.__DG_CONFIG && window.__DG_CONFIG.layout_engine) {
     diagram.layoutEngine = window.__DG_CONFIG.layout_engine;
   }
@@ -27,257 +63,19 @@ function deserializeFrameDiagram(json) {
 }
 
 // ---------------------------------------------------------------------------
-// Override application — port of _relayout_v3's override logic
+// Override application — delegated to previewBridge.relayout
 // ---------------------------------------------------------------------------
 
-const _DIRECTION_MAP = { VERTICAL: "VERTICAL", HORIZONTAL: "HORIZONTAL" };
-const _SIZING_MAP = { HUG: "HUG", FILL: "FILL", FIXED: "FIXED" };
-const _FILL_MAP = { WHITE: "#FFFFFF", GREY: "#F3F3F3", BLACK: "#000000" };
-const _BORDER_MAP = { SOLID: "SOLID", DASHED: "DASHED", NONE: "NONE" };
-
-function _linkedPageGap(diagram) {
-  return Math.max(
-    0,
-    parseInt(
-      diagram.gridColGap
-      ?? diagram.gridOuterMargin
-      ?? diagram.root.paddingLeft
-      ?? diagram.root.padding
-      ?? diagram.root.gap
-      ?? 24,
-      10,
-    ),
-  );
-}
-
-function _linkedRowGap(diagram) {
-  const rootDirection = String(diagram.root.direction || "VERTICAL").toUpperCase();
-  const fallback = rootDirection === "VERTICAL"
-    ? (diagram.root.gap ?? 24)
-    : _linkedPageGap(diagram);
-  return Math.max(0, parseInt(diagram.gridRowGap ?? fallback, 10));
-}
-
-function _applyLinkedRootGridSpacing(diagram) {
-  const pageGap = _linkedPageGap(diagram);
-  const rowGap = _linkedRowGap(diagram);
-  const rootDirection = String(diagram.root.direction || "VERTICAL").toUpperCase();
-
-  diagram.gridColGap = pageGap;
-  diagram.gridOuterMargin = pageGap;
-  diagram.gridRowGap = rowGap;
-
-  diagram.root.gap = rootDirection === "VERTICAL" ? rowGap : pageGap;
-
-  // Use per-side margins from grid overrides when available,
-  // otherwise fall back to uniform pageGap
-  const mTop = diagram._gridMarginTop ?? pageGap;
-  const mRight = diagram._gridMarginRight ?? pageGap;
-  const mBottom = diagram._gridMarginBottom ?? pageGap;
-  const mLeft = diagram._gridMarginLeft ?? pageGap;
-
-  diagram.root.padding = mTop; // legacy uniform fallback
-  diagram.root.paddingTop = mTop;
-  diagram.root.paddingRight = mRight;
-  diagram.root.paddingBottom = mBottom;
-  diagram.root.paddingLeft = mLeft;
-}
-
-function _findFrame(frame, fid) {
-  if (frame.id === fid) return frame;
-  for (const child of frame.children) {
-    const found = _findFrame(child, fid);
-    if (found) return found;
-  }
-  return null;
-}
-
-/**
- * Apply editor overrides to a Frame tree (mirrors Python _relayout_v3).
- */
-function _findSyntheticBody(frame) {
-  if (!frame || !frame.children) return null;
-  return frame.children.find(
-    c => c.id === "__body" || (c.id && c.id.endsWith("__body")),
-  ) || null;
-}
-
-function _hasHeadingBodyLayout(frame) {
-  if (!frame || !frame.children) return false;
-  const body = _findSyntheticBody(frame);
-  const hasHeading = frame.children.some(
-    c => c.role === "heading" || (c.id && c.id.endsWith("__heading")),
-  );
-  return !!(body && hasHeading);
-}
-
-/** Sync cross-axis layout fields from parent to __body (align only — spec 005 WS3). */
-function _syncSyntheticBodyFromParent(frame) {
-  if (!_hasHeadingBodyLayout(frame)) return;
-  const body = _findSyntheticBody(frame);
-  if (!body) return;
-  body.align = frame.align;
-}
-
 function applyOverridesToFrameTree(diagram, allOverrides, gridOverrides) {
-  // Grid overrides first, so explicit frame overrides remain authoritative
-  // for the root frame when both are present.
-  gridOverrides = gridOverrides || {};
-  const hasGridOverrides = Object.keys(gridOverrides).length > 0;
-  if (gridOverrides.cols != null) {
-    diagram.gridCols = Math.max(1, parseInt(gridOverrides.cols, 10));
+  const previewBridgeRelayout = window.__DG_getPreviewBridgeRelayoutContract();
+  if (typeof previewBridgeRelayout.applyPreviewOverridesToFrameTree !== "function") {
+    throw new Error("layout-bridge: previewBridge.relayout.applyPreviewOverridesToFrameTree is unavailable");
   }
-  if (gridOverrides.col_gap != null) {
-    diagram.gridColGap = Math.max(0, parseInt(gridOverrides.col_gap, 10));
-  }
-  if (gridOverrides.row_gap != null) {
-    diagram.gridRowGap = Math.max(0, parseInt(gridOverrides.row_gap, 10));
-  }
-  if (gridOverrides.outer_margin != null) {
-    diagram.gridOuterMargin = Math.max(0, parseInt(gridOverrides.outer_margin, 10));
-  }
-  // Per-side margins (stored on diagram for _applyLinkedRootGridSpacing)
-  if (gridOverrides.margin_top != null) diagram._gridMarginTop = Math.max(0, parseInt(gridOverrides.margin_top, 10));
-  if (gridOverrides.margin_right != null) diagram._gridMarginRight = Math.max(0, parseInt(gridOverrides.margin_right, 10));
-  if (gridOverrides.margin_bottom != null) diagram._gridMarginBottom = Math.max(0, parseInt(gridOverrides.margin_bottom, 10));
-  if (gridOverrides.margin_left != null) diagram._gridMarginLeft = Math.max(0, parseInt(gridOverrides.margin_left, 10));
-
-  // Only sync grid -> root frame when the editor is actively carrying grid
-  // overrides and the "link to root" toggle is on. A clean render with no
-  // grid override state must preserve authored root padding/gap from YAML.
-  const linkToRoot = hasGridOverrides && gridOverrides.link_to_root !== false;
-  if (linkToRoot) {
-    _applyLinkedRootGridSpacing(diagram);
-  }
-
-  for (const [fid, ovr] of Object.entries(allOverrides)) {
-    const target = fid === "root"
-      ? diagram.root
-      : _findFrame(diagram.root, fid);
-    if (!target) continue;
-
-    if (ovr.direction && _DIRECTION_MAP[ovr.direction]) {
-      target.direction = ovr.direction;
-      _syncSyntheticBodyFromParent(target);
-    }
-    if (ovr.gap != null) {
-      const gap = Math.max(0, parseInt(ovr.gap, 10));
-      target.gap = gap;
-      target.gapDelta = undefined;
-    }
-    if (ovr.gap_delta === null) {
-      const currentGap = Number.isFinite(target.gap) ? target.gap : 0;
-      const currentGapDelta = Number.isFinite(target.gapDelta) ? target.gapDelta : 0;
-      target.gapDelta = undefined;
-      target.gap = currentGap - currentGapDelta;
-    } else if (ovr.gap_delta != null) {
-      const gapDelta = parseInt(ovr.gap_delta, 10);
-      const currentGap = Number.isFinite(target.gap) ? target.gap : 0;
-      const currentGapDelta = Number.isFinite(target.gapDelta) ? target.gapDelta : 0;
-      const automaticGap = currentGap - currentGapDelta;
-      target.gapDelta = gapDelta;
-      target.gap = automaticGap + gapDelta;
-    }
-    if (ovr.padding != null) {
-      const p = Math.max(0, parseInt(ovr.padding, 10));
-      target.padding = p;
-      target.paddingTop = p;
-      target.paddingRight = p;
-      target.paddingBottom = p;
-      target.paddingLeft = p;
-    }
-    // Per-side padding overrides (applied after uniform padding, so they win)
-    if (ovr.padding_top != null) target.paddingTop = Math.max(0, parseInt(ovr.padding_top, 10));
-    if (ovr.padding_right != null) target.paddingRight = Math.max(0, parseInt(ovr.padding_right, 10));
-    if (ovr.padding_bottom != null) target.paddingBottom = Math.max(0, parseInt(ovr.padding_bottom, 10));
-    if (ovr.padding_left != null) target.paddingLeft = Math.max(0, parseInt(ovr.padding_left, 10));
-    if (ovr.sizing && _SIZING_MAP[ovr.sizing]) {
-      target.sizingW = ovr.sizing;
-      target.sizingH = ovr.sizing;
-    }
-    if (ovr.sizing_w && _SIZING_MAP[ovr.sizing_w]) {
-      target.sizingW = ovr.sizing_w;
-    }
-    if (ovr.sizing_h && _SIZING_MAP[ovr.sizing_h]) {
-      target.sizingH = ovr.sizing_h;
-    }
-    if (ovr.align) {
-      target.align = ovr.align;
-    }
-    if (ovr.wrap != null) {
-      target.wrap = !!ovr.wrap;
-    }
-    if (ovr.fill_weight != null) {
-      target.fillWeight = parseFloat(ovr.fill_weight);
-    }
-    if (ovr.width != null) {
-      target.width = parseInt(ovr.width, 10);
-    }
-    if (ovr.height != null) {
-      target.height = parseInt(ovr.height, 10);
-    }
-    for (const key of ["minWidth", "maxWidth", "maxWidthChars", "minHeight", "maxHeight"]) {
-      // Map snake_case override keys to camelCase Frame properties
-      const snakeKey = key === "maxWidthChars"
-        ? "max_width_chars"
-        : key.replace(/([A-Z])/g, "_$1").toLowerCase();
-      if (snakeKey in ovr) {
-        if (ovr[snakeKey] == null || ovr[snakeKey] === "") {
-          target[key] = undefined;
-        } else {
-          const val = parseInt(ovr[snakeKey], 10);
-          if (val >= 0) target[key] = val;
-        }
-      }
-    }
-    if (ovr.level != null) {
-      const level = parseInt(ovr.level, 10);
-      if (Number.isFinite(level) && level >= 0) {
-        target.level = level;
-      }
-    }
-    if (ovr.fill && _FILL_MAP[ovr.fill]) {
-      target.fill = _FILL_MAP[ovr.fill];
-    }
-    if (ovr.border && _BORDER_MAP[ovr.border]) {
-      target.border = ovr.border;
-    }
-    if (ovr.position) {
-      const pos = ovr.position.toUpperCase();
-      if (pos === "ABSOLUTE" || pos === "AUTO") {
-        target.positionType = pos;
-      }
-    }
-    if (ovr.x != null) {
-      target.x = parseInt(ovr.x, 10);
-    }
-    if (ovr.y != null) {
-      target.y = parseInt(ovr.y, 10);
-    }
-    if (ovr.children_order && Array.isArray(ovr.children_order)) {
-      const childMap = new Map(target.children.map(c => [c.id, c]));
-      const reordered = ovr.children_order
-        .filter(id => childMap.has(id))
-        .map(id => childMap.get(id));
-      const remaining = target.children.filter(
-        c => !ovr.children_order.includes(c.id)
-      );
-      target.children = [...reordered, ...remaining];
-    }
-    if (ovr.text && typeof ovr.text === "object") {
-      if (ovr.text.heading != null) {
-        _applyTextHeadingOverride(target, ovr.text.heading);
-      }
-      if (Array.isArray(ovr.text.label)) {
-        target.label = ovr.text.label.map((text, i) => {
-          if (i < target.label.length) {
-            return LayoutEngine.createLine(text);
-          }
-          return LayoutEngine.createLine(text);
-        });
-      }
-    }
-  }
+  previewBridgeRelayout.applyPreviewOverridesToFrameTree(
+    diagram,
+    allOverrides || {},
+    gridOverrides || {},
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -285,52 +83,6 @@ function applyOverridesToFrameTree(diagram, allOverrides, gridOverrides) {
 // ---------------------------------------------------------------------------
 
 const SVG_NS = "http://www.w3.org/2000/svg";
-
-// ---------------------------------------------------------------------------
-// Icon fetching and caching
-// ---------------------------------------------------------------------------
-
-const _iconCache = new Map();
-
-async function fetchIconSvg(name) {
-  if (_iconCache.has(name)) return _iconCache.get(name);
-  try {
-    const resp = await fetch("/api/icon/" + encodeURIComponent(name));
-    if (!resp.ok) {
-      console.warn("layout-bridge: icon fetch failed for", name, resp.status);
-      _iconCache.set(name, null);
-      return null;
-    }
-    const text = await resp.text();
-    _iconCache.set(name, text);
-    return text;
-  } catch (e) {
-    console.warn("layout-bridge: icon fetch error for", name, e);
-    _iconCache.set(name, null);
-    return null;
-  }
-}
-
-function buildIconElement(name, svgContent, fill) {
-  if (!svgContent) return null;
-  const g = document.createElementNS(SVG_NS, "g");
-  g.setAttribute("class", "dg-icon");
-  // Parse the SVG content and extract children of the <svg> root
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(svgContent, "image/svg+xml");
-  const svgRoot = doc.documentElement;
-  // Copy children from parsed SVG into the group
-  for (const child of Array.from(svgRoot.childNodes)) {
-    g.appendChild(document.importNode(child, true));
-  }
-  // Apply fill to shape elements
-  if (fill) {
-    g.querySelectorAll("path, circle, rect, polygon, ellipse").forEach(el => {
-      el.setAttribute("fill", fill);
-    });
-  }
-  return g;
-}
 
 const _ASCENT_RATIO = 0.94;
 
@@ -350,16 +102,16 @@ function collectFramesById(frame, out) {
 }
 
 function _lineTopToBaseline(top, size) {
-  return top + LayoutEngine.sizeToPx(size) * _ASCENT_RATIO;
+  return top + previewCoreContract().sizeToPx(size) * _ASCENT_RATIO;
 }
 
 function _arrowLabelLines(arrow) {
   if (!arrow.label || arrow.label.length === 0) return [];
   return arrow.label.map((line) => {
     if (typeof line === "string") {
-      return LayoutEngine.createLine(line);
+      return previewCoreContract().createLine(line);
     }
-    return LayoutEngine.createLine(line.content || "", {
+    return previewCoreContract().createLine(line.content || "", {
       size: line.size,
       weight: line.weight,
       fill: line.fill,
@@ -408,15 +160,16 @@ function _labelAnchorForSegment(x1, y1, x2, y2, labelGap, boundsMap) {
 }
 
 function _buildArrowLabelsFromElk(arrow) {
+  const previewCore = previewCoreContract();
   if (!arrow.elkLabels || !arrow.elkLabels.length) return null;
-  if (typeof LayoutEngine.annotationTextToSpec !== "function") return null;
+  if (typeof previewCore.annotationTextToSpec !== "function") return null;
 
   const frag = document.createDocumentFragment();
   for (const lbl of arrow.elkLabels) {
-    const spec = LayoutEngine.annotationTextToSpec(
-      LayoutEngine.createLine(lbl.text),
+    const spec = previewCore.annotationTextToSpec(
+      previewCore.createLine(lbl.text),
     );
-    const size = spec.size ?? LayoutEngine.BODY_SIZE;
+    const size = spec.size ?? previewCore.BODY_SIZE;
     const cx = lbl.x + lbl.width / 2;
     const cy = lbl.y + lbl.height / 2;
     const text = document.createElementNS(SVG_NS, "text");
@@ -425,7 +178,7 @@ function _buildArrowLabelsFromElk(arrow) {
     text.setAttribute("dominant-baseline", "middle");
     const tspan = document.createElementNS(SVG_NS, "tspan");
     tspan.setAttribute("x", _fmtSvgNumber(cx));
-    tspan.setAttribute("y", _fmtSvgNumber(_lineTopToBaseline(cy - LayoutEngine.sizeToPx(size) / 2, size)));
+    tspan.setAttribute("y", _fmtSvgNumber(_lineTopToBaseline(cy - previewCore.sizeToPx(size) / 2, size)));
     tspan.setAttribute("font-size", String(size));
     tspan.setAttribute("font-weight", String(spec.weight ?? "400"));
     tspan.setAttribute("fill", spec.fill ?? "#666666");
@@ -442,7 +195,8 @@ function _buildArrowLabelElement(arrow, shaftPoints, labelGap, boundsMap) {
 
   const lines = _arrowLabelLines(arrow);
   if (!lines.length) return null;
-  if (typeof LayoutEngine.annotationTextToSpec !== "function") return null;
+  const previewCore = previewCoreContract();
+  if (typeof previewCore.annotationTextToSpec !== "function") return null;
 
   let bestIdx = 0;
   let bestLen = 0;
@@ -464,20 +218,20 @@ function _buildArrowLabelElement(arrow, shaftPoints, labelGap, boundsMap) {
   text.setAttribute("text-anchor", "middle");
   text.setAttribute("dominant-baseline", "middle");
 
-  const specs = lines.map((line) => LayoutEngine.annotationTextToSpec(line));
+  const specs = lines.map((line) => previewCore.annotationTextToSpec(line));
   if (!specs.length) return null;
 
   const totalHeight = specs.reduce((sum, spec, index) => {
-    const lineStep = LayoutEngine.sizeToPx(spec.lineStep ?? LayoutEngine.BODY_LINE_STEP);
+    const lineStep = previewCore.sizeToPx(spec.lineStep ?? previewCore.BODY_LINE_STEP);
     return sum + (index === 0 ? 0 : lineStep);
   }, 0);
   let top = ly - totalHeight / 2;
 
   for (const spec of specs) {
-    const size = spec.size ?? LayoutEngine.BODY_SIZE;
+    const size = spec.size ?? previewCore.BODY_SIZE;
     const weight = spec.weight ?? "400";
     const fill = spec.fill ?? "#666666";
-    const lineStep = LayoutEngine.sizeToPx(spec.lineStep ?? LayoutEngine.BODY_LINE_STEP);
+    const lineStep = previewCore.sizeToPx(spec.lineStep ?? previewCore.BODY_LINE_STEP);
     const tspan = document.createElementNS(SVG_NS, "tspan");
     tspan.setAttribute("x", _fmtSvgNumber(lx));
     tspan.setAttribute("y", _fmtSvgNumber(_lineTopToBaseline(top, size)));
@@ -508,19 +262,20 @@ function _frameBoxRenderState(frame) {
   const padBottom = frame.paddingBottom;
   let padLeft = frame.paddingLeft;
 
-  const iconCol = frame.icon ? (LayoutEngine.ICON_SIZE + LayoutEngine.INSET) : 0;
+  const previewCore = previewCoreContract();
+  const iconCol = frame.icon ? (previewCore.ICON_SIZE + previewCore.INSET) : 0;
   const textMaxWidth = frame._layout.placedW - padLeft - padRight - iconCol;
   const iconFill = frame.resolvedIconFill ?? frame.iconFill ?? "#000000";
 
-  let textBlocks = LayoutEngine.frameOwnedTextBlocks(frame);
+  let textBlocks = previewCore.frameOwnedTextBlocks(frame);
   if (textBlocks.length > 0 && textMaxWidth > 0) {
     textBlocks = textBlocks
-      .map(block => LayoutEngine.wrapTextLines(block, textMaxWidth, _textAdapter))
+      .map(block => previewCore.wrapTextLines(block, textMaxWidth, _textAdapter))
       .filter(block => block.length > 0);
   }
 
-  const strokeWidth = typeof LayoutEngine.effectiveResolvedStrokeWidth === "function"
-    ? LayoutEngine.effectiveResolvedStrokeWidth(frame)
+  const strokeWidth = typeof previewCore.effectiveResolvedStrokeWidth === "function"
+    ? previewCore.effectiveResolvedStrokeWidth(frame)
     : (stroke === "none" || stroke === "transparent"
       ? 0
       : (frame.resolvedStrokeWidth
@@ -543,6 +298,7 @@ function _frameBoxRenderState(frame) {
 
 function _buildFrameTextElements(frame, renderState) {
   if (!renderState.textBlocks.length) return [];
+  const previewCore = previewCoreContract();
 
   const elements = [];
   let top = frame._layout.placedY + renderState.padTop;
@@ -551,15 +307,15 @@ function _buildFrameTextElements(frame, renderState) {
   for (const [blockIndex, block] of renderState.textBlocks.entries()) {
     const textEl = document.createElementNS(SVG_NS, "text");
     textEl.setAttribute("font-family", "Ubuntu Sans");
-    textEl.setAttribute("data-dg-text-role", LayoutEngine.frameOwnedTextBlockRole(frame, blockIndex));
+    textEl.setAttribute("data-dg-text-role", previewCore.frameOwnedTextBlockRole(frame, blockIndex));
     textEl.setAttribute("data-dg-text-block-index", String(blockIndex));
 
     for (const spec of block) {
-      const size = spec.size ?? LayoutEngine.BODY_SIZE;
+      const size = spec.size ?? previewCore.BODY_SIZE;
       const weight = spec.weight ?? "400";
       const smallCaps = spec.smallCaps ?? false;
       const fill = spec.fill ?? "#000000";
-      const lineStep = LayoutEngine.sizeToPx(spec.lineStep ?? LayoutEngine.BODY_LINE_STEP);
+      const lineStep = previewCore.sizeToPx(spec.lineStep ?? previewCore.BODY_LINE_STEP);
       const tspan = document.createElementNS(SVG_NS, "tspan");
       tspan.setAttribute("x", _fmtSvgNumber(x));
       tspan.setAttribute("y", _fmtSvgNumber(_lineTopToBaseline(top, size)));
@@ -582,7 +338,7 @@ function _buildFrameTextElements(frame, renderState) {
 
     textEl.setAttribute("data-orig-inner", textEl.innerHTML);
     elements.push(textEl);
-    top += LayoutEngine.frameOwnedTextBlockGap(frame, blockIndex, renderState.textBlocks.length);
+    top += previewCore.frameOwnedTextBlockGap(frame, blockIndex, renderState.textBlocks.length);
   }
 
   return elements;
@@ -642,7 +398,7 @@ function patchFrameGroup(g, frame, iconElement) {
 
   const iconToUse = iconElement || existingIcon;
   if (frame.icon && iconToUse) {
-    const iconX = frame._layout.placedX + frame._layout.placedW - renderState.padRight - LayoutEngine.ICON_SIZE;
+    const iconX = frame._layout.placedX + frame._layout.placedW - renderState.padRight - previewCoreContract().ICON_SIZE;
     const iconY = frame._layout.placedY + renderState.padTop;
     iconToUse.setAttribute("transform", `translate(${_fmtSvgNumber(iconX)} ${_fmtSvgNumber(iconY)})`);
     iconToUse.setAttribute("data-orig-tx", _fmtSvgNumber(iconX));
@@ -914,7 +670,8 @@ function syncArrowsInModel(model, arrows, routedArrows) {
 }
 
 function routeArrows(arrows, boundsMap) {
-  if (typeof LayoutEngine.routeArrows !== "function") {
+  const previewCore = previewCoreContract();
+  if (typeof previewCore.routeArrows !== "function") {
     console.warn("layout-bridge: LayoutEngine.routeArrows is unavailable");
     return [];
   }
@@ -923,7 +680,7 @@ function routeArrows(arrows, boundsMap) {
     (arrows || []).map((arrow) => [arrowComponentId(arrow), arrow]),
   );
 
-  return LayoutEngine.routeArrows(arrows, boundsMap)
+  return previewCore.routeArrows(arrows, boundsMap)
     .map((routed) => {
       const points = routed.points || [];
       const authored = authoredByComponentId.get(routed.componentId) || {};
@@ -934,7 +691,7 @@ function routeArrows(arrows, boundsMap) {
         componentId: routed.componentId || arrowComponentId(authored),
         color: routed.color || authored.color || "#E95420",
         label: routed.label ?? authored.label,
-        labelGap: routed.labelGap ?? authored.labelGap ?? LayoutEngine.GRID_GUTTER ?? 24,
+        labelGap: routed.labelGap ?? authored.labelGap ?? previewCore.GRID_GUTTER ?? 24,
         elkLabels: authored.elkLabels,
       };
     })
@@ -1061,254 +818,10 @@ function _elkRawViewEnabled() {
   return window.__DG_elkRawView === true;
 }
 
-function _collectElkFrameLabels(frame) {
-  const map = {};
-  function walk(f) {
-    if (f.id && !String(f.id).startsWith("__")) {
-      const lines = [];
-      const heading = _headingTextForFrame(f);
-      if (heading) lines.push(heading);
-      if (f.label && f.label.length) {
-        for (const ln of f.label) {
-          if (ln.content) lines.push(ln.content);
-        }
-      }
-      map[f.id] = lines.length ? lines.join("\n") : f.id;
-    }
-    (f.children || []).forEach(walk);
-  }
-  walk(frame);
-  return map;
-}
-
-function _walkPlacedNodesAbsolute(nodes, visit) {
-  if (!nodes) return;
-  for (const node of nodes) {
-    visit(node);
-    if (node.children && node.children.length) {
-      _walkPlacedNodesAbsolute(node.children, visit);
-    }
-  }
-}
-
-function renderElkDebugOverlay(snapshot) {
-  const g = document.createElementNS(SVG_NS, "g");
-  g.id = "dg-elk-debug-overlay";
-  g.setAttribute("pointer-events", "none");
-
-  const ox = snapshot.originX || 0;
-  const oy = snapshot.originY || 0;
-
-  _walkPlacedNodesAbsolute(snapshot.nodes, (node) => {
-    const x = node.x + ox;
-    const y = node.y + oy;
-    const rect = document.createElementNS(SVG_NS, "rect");
-    rect.setAttribute("x", _fmtSvgNumber(x));
-    rect.setAttribute("y", _fmtSvgNumber(y));
-    rect.setAttribute("width", _fmtSvgNumber(node.width));
-    rect.setAttribute("height", _fmtSvgNumber(node.height));
-    rect.setAttribute("fill", "none");
-    rect.setAttribute("stroke", node.children && node.children.length ? "#3366cc" : "#0099cc");
-    rect.setAttribute("stroke-width", "1");
-    rect.setAttribute("stroke-dasharray", "4 3");
-    g.appendChild(rect);
-
-    const idText = document.createElementNS(SVG_NS, "text");
-    idText.setAttribute("x", _fmtSvgNumber(x + 4));
-    idText.setAttribute("y", _fmtSvgNumber(y + 12));
-    idText.setAttribute("font-family", "Ubuntu Sans, monospace");
-    idText.setAttribute("font-size", "10");
-    idText.setAttribute("fill", "#3366cc");
-    idText.textContent = node.id;
-    g.appendChild(idText);
-  });
-
-  for (const edge of snapshot.edges || []) {
-    for (const section of edge.sections || []) {
-      const points = [
-        [section.startPoint.x + ox, section.startPoint.y + oy],
-        ...(section.bendPoints || []).map((bp) => [bp.x + ox, bp.y + oy]),
-        [section.endPoint.x + ox, section.endPoint.y + oy],
-      ];
-      for (let i = 0; i < points.length - 1; i++) {
-        const line = document.createElementNS(SVG_NS, "line");
-        line.setAttribute("x1", _fmtSvgNumber(points[i][0]));
-        line.setAttribute("y1", _fmtSvgNumber(points[i][1]));
-        line.setAttribute("x2", _fmtSvgNumber(points[i + 1][0]));
-        line.setAttribute("y2", _fmtSvgNumber(points[i + 1][1]));
-        line.setAttribute("stroke", "#00aa66");
-        line.setAttribute("stroke-width", "1.5");
-        g.appendChild(line);
-      }
-    }
-    for (const lbl of edge.labels || []) {
-      const rect = document.createElementNS(SVG_NS, "rect");
-      rect.setAttribute("x", _fmtSvgNumber(lbl.x + ox));
-      rect.setAttribute("y", _fmtSvgNumber(lbl.y + oy));
-      rect.setAttribute("width", _fmtSvgNumber(lbl.width));
-      rect.setAttribute("height", _fmtSvgNumber(lbl.height));
-      rect.setAttribute("fill", "rgba(255, 180, 60, 0.15)");
-      rect.setAttribute("stroke", "#cc7700");
-      rect.setAttribute("stroke-width", "1");
-      g.appendChild(rect);
-
-      const text = document.createElementNS(SVG_NS, "text");
-      text.setAttribute("x", _fmtSvgNumber(lbl.x + ox + lbl.width / 2));
-      text.setAttribute("y", _fmtSvgNumber(lbl.y + oy + lbl.height / 2 + 4));
-      text.setAttribute("text-anchor", "middle");
-      text.setAttribute("font-family", "Ubuntu Sans, monospace");
-      text.setAttribute("font-size", "10");
-      text.setAttribute("fill", "#884400");
-      text.textContent = lbl.text;
-      g.appendChild(text);
-    }
-  }
-
-  const caption = document.createElementNS(SVG_NS, "text");
-  caption.setAttribute("x", "8");
-  caption.setAttribute("y", "16");
-  caption.setAttribute("font-family", "Ubuntu Sans, monospace");
-  caption.setAttribute("font-size", "11");
-  caption.setAttribute("fill", "#3366cc");
-  caption.textContent = "ELK debug: dashed rects = node boxes (not circles), green = edge routes, amber = ELK label boxes";
-  g.appendChild(caption);
-
-  return g;
-}
-
-/** Classic ELK renderer aesthetic — gray nodes, black orthogonal edges, label boxes. */
-function renderElkRawView(snapshot, labelMap) {
-  const g = document.createElementNS(SVG_NS, "g");
-  g.id = "dg-elk-raw-view";
-  g.setAttribute("pointer-events", "none");
-
-  const ox = snapshot.originX || 0;
-  const oy = snapshot.originY || 0;
-
-  const caption = document.createElementNS(SVG_NS, "text");
-  caption.setAttribute("x", "8");
-  caption.setAttribute("y", "16");
-  caption.setAttribute("font-family", "sans-serif");
-  caption.setAttribute("font-size", "11");
-  caption.setAttribute("fill", "#555555");
-  caption.textContent = "ELK raw layout — gray nodes, black routes, ELK label boxes (toggle off for BF styling)";
-  g.appendChild(caption);
-
-  _walkPlacedNodesAbsolute(snapshot.nodes, (node) => {
-    const x = node.x + ox;
-    const y = node.y + oy;
-    const isCompound = node.children && node.children.length > 0;
-
-    const rect = document.createElementNS(SVG_NS, "rect");
-    rect.setAttribute("x", _fmtSvgNumber(x));
-    rect.setAttribute("y", _fmtSvgNumber(y));
-    rect.setAttribute("width", _fmtSvgNumber(node.width));
-    rect.setAttribute("height", _fmtSvgNumber(node.height));
-    rect.setAttribute("fill", isCompound ? "#f5f5f5" : "#ececec");
-    rect.setAttribute("stroke", "#333333");
-    rect.setAttribute("stroke-width", "1");
-    g.appendChild(rect);
-
-    const label = (labelMap && labelMap[node.id]) || node.id;
-    const lines = String(label).split("\n");
-    const lineHeight = 13;
-    const totalH = lines.length * lineHeight;
-    let ty = y + (node.height - totalH) / 2 + 10;
-
-    for (const line of lines) {
-      const text = document.createElementNS(SVG_NS, "text");
-      text.setAttribute("x", _fmtSvgNumber(x + node.width / 2));
-      text.setAttribute("y", _fmtSvgNumber(ty));
-      text.setAttribute("text-anchor", "middle");
-      text.setAttribute("font-family", "sans-serif");
-      text.setAttribute("font-size", "11");
-      text.setAttribute("fill", "#111111");
-      text.textContent = line;
-      g.appendChild(text);
-      ty += lineHeight;
-    }
-  });
-
-  const headLen = 8;
-  const headHalf = 4;
-
-  for (const edge of snapshot.edges || []) {
-    for (const section of edge.sections || []) {
-      const points = [
-        [section.startPoint.x + ox, section.startPoint.y + oy],
-        ...(section.bendPoints || []).map((bp) => [bp.x + ox, bp.y + oy]),
-        [section.endPoint.x + ox, section.endPoint.y + oy],
-      ];
-
-      for (let i = 0; i < points.length - 1; i++) {
-        const [x1, y1] = points[i];
-        const [x2, y2] = points[i + 1];
-        const line = document.createElementNS(SVG_NS, "line");
-        line.setAttribute("x1", _fmtSvgNumber(x1));
-        line.setAttribute("y1", _fmtSvgNumber(y1));
-        line.setAttribute("x2", _fmtSvgNumber(x2));
-        line.setAttribute("y2", _fmtSvgNumber(y2));
-        line.setAttribute("stroke", "#000000");
-        line.setAttribute("stroke-width", "1");
-        g.appendChild(line);
-
-        if (i === points.length - 2) {
-          const head = _arrowheadPoints(x2, y2, x1, y1, headLen, headHalf);
-          if (head) {
-            const polygon = document.createElementNS(SVG_NS, "polygon");
-            polygon.setAttribute("points", head.points);
-            polygon.setAttribute("fill", "#000000");
-            g.appendChild(polygon);
-            const port = document.createElementNS(SVG_NS, "circle");
-            port.setAttribute("cx", _fmtSvgNumber(x2));
-            port.setAttribute("cy", _fmtSvgNumber(y2));
-            port.setAttribute("r", "2.5");
-            port.setAttribute("fill", "#000000");
-            g.appendChild(port);
-          }
-        }
-      }
-
-      const [sx, sy] = points[0];
-      const startPort = document.createElementNS(SVG_NS, "circle");
-      startPort.setAttribute("cx", _fmtSvgNumber(sx));
-      startPort.setAttribute("cy", _fmtSvgNumber(sy));
-      startPort.setAttribute("r", "2.5");
-      startPort.setAttribute("fill", "#000000");
-      g.appendChild(startPort);
-    }
-
-    for (const lbl of edge.labels || []) {
-      const lx = lbl.x + ox;
-      const ly = lbl.y + oy;
-      const box = document.createElementNS(SVG_NS, "rect");
-      box.setAttribute("x", _fmtSvgNumber(lx));
-      box.setAttribute("y", _fmtSvgNumber(ly));
-      box.setAttribute("width", _fmtSvgNumber(lbl.width));
-      box.setAttribute("height", _fmtSvgNumber(lbl.height));
-      box.setAttribute("fill", "#ffffff");
-      box.setAttribute("stroke", "#666666");
-      box.setAttribute("stroke-width", "1");
-      g.appendChild(box);
-
-      const text = document.createElementNS(SVG_NS, "text");
-      text.setAttribute("x", _fmtSvgNumber(lx + lbl.width / 2));
-      text.setAttribute("y", _fmtSvgNumber(ly + lbl.height / 2 + 4));
-      text.setAttribute("text-anchor", "middle");
-      text.setAttribute("font-family", "sans-serif");
-      text.setAttribute("font-size", "10");
-      text.setAttribute("fill", "#111111");
-      text.textContent = lbl.text;
-      g.appendChild(text);
-    }
-  }
-
-  return g;
-}
-
 function refreshElkViewMode() {
   const svg = document.querySelector("#stage svg");
   if (!svg) return;
+  const previewElk = previewElkEngineContract();
 
   const styled = svg.querySelector("#dg-styled-layer");
   const rawOn = _elkRawViewEnabled();
@@ -1320,13 +833,24 @@ function refreshElkViewMode() {
   svg.querySelector("#dg-elk-raw-view")?.remove();
   svg.querySelector("#dg-elk-debug-overlay")?.remove();
 
-  if (rawOn && _lastElkSnapshot) {
-    svg.appendChild(renderElkRawView(_lastElkSnapshot, _lastElkFrameLabels || {}));
+  if (rawOn && _lastElkSnapshot && typeof previewElk.renderPreviewElkRawView === "function") {
+    svg.appendChild(previewElk.renderPreviewElkRawView({
+      ownerDocument: document,
+      snapshot: _lastElkSnapshot,
+      labelMap: _lastElkFrameLabels || {},
+      svgNs: SVG_NS,
+      headLen: 8,
+      headHalf: 4,
+    }));
     return;
   }
 
-  if (_elkDebugEnabled() && _lastElkSnapshot) {
-    svg.appendChild(renderElkDebugOverlay(_lastElkSnapshot));
+  if (_elkDebugEnabled() && _lastElkSnapshot && typeof previewElk.renderPreviewElkDebugOverlay === "function") {
+    svg.appendChild(previewElk.renderPreviewElkDebugOverlay({
+      ownerDocument: document,
+      snapshot: _lastElkSnapshot,
+      svgNs: SVG_NS,
+    }));
   }
 }
 
@@ -1484,34 +1008,6 @@ function setFrameTreeJson(json) {
   _frameTreeJson = json ? JSON.parse(JSON.stringify(json)) : null;
 }
 
-function _parseSvgMarkup(svgMarkup) {
-  const parser = new DOMParser();
-  const parsed = parser.parseFromString(svgMarkup, "image/svg+xml");
-  return document.importNode(parsed.documentElement, true);
-}
-
-/**
- * Apply a session text.heading override to the frame tree (mutates target in place).
- * Containers with synthetic __heading children are updated there — clearing heading
- * text must not strip panel/section structure or demote the parent to level 0.
- */
-function _applyTextHeadingOverride(target, headingText) {
-  const headingChild = target.children.find(c => c.role === "heading");
-  if (headingChild) {
-    headingChild.label = [
-      LayoutEngine.createLine(headingText || ""),
-    ];
-    return;
-  }
-  if (headingText && target.heading) {
-    target.heading = LayoutEngine.createLine(headingText);
-  } else if (headingText) {
-    target.heading = LayoutEngine.createLine(headingText);
-  } else {
-    target.heading = undefined;
-  }
-}
-
 /**
  * Remove frames (and subtrees) from a frame-tree JSON object (mutates in place).
  * @param {object} treeJson
@@ -1658,11 +1154,7 @@ function performLocalRelayout(model, overrides, gridOverrides, opts) {
     const diagram = deserializeFrameDiagram(diagramJson);
 
     // Build override map (same format as requestV3Relayout sends)
-    const allFrameOverrides = {};
-    for (const [fid, ovr] of Object.entries(overrides)) {
-      const entry = LayoutEngine.filterRelayoutOverrideEntry(ovr || {});
-      if (Object.keys(entry).length > 0) allFrameOverrides[fid] = entry;
-    }
+    const allFrameOverrides = _collectRelayoutFrameOverrides(overrides);
 
     // Apply overrides to the frame tree
     applyOverridesToFrameTree(diagram, allFrameOverrides, gridOverrides);
@@ -1684,10 +1176,10 @@ function performLocalRelayout(model, overrides, gridOverrides, opts) {
     // Resolve styles before layout so typography-affecting mutations
     // (for example section small-caps headings) participate in measure/place,
     // matching the Python pipeline's resolve_styles() -> layout ordering.
-    LayoutEngine.resolveStyles(diagram.root);
+    previewCoreContract().resolveStyles(diagram.root);
 
     // Run layout
-    const result = LayoutEngine.layoutFrameTree(diagram.root, _textAdapter, _layoutOptionsFromDiagram(diagram));
+    const result = previewCoreContract().layoutFrameTree(diagram.root, _textAdapter, _layoutOptionsFromDiagram(diagram));
 
     // Collect new bounds
     const newBounds = collectPlacedBounds(diagram.root, {});
@@ -1841,7 +1333,7 @@ function createArrowsSvg(routedArrows, boundsMap) {
     }
 
     // Step label on longest shaft segment — annotation typography, offset from line.
-    const labelGap = arrow.labelGap ?? LayoutEngine.GRID_GUTTER ?? 24;
+    const labelGap = arrow.labelGap ?? previewCoreContract().GRID_GUTTER ?? 24;
     const labelEl = _buildArrowLabelElement(arrow, shaftPoints, labelGap, boundsMap);
     if (labelEl) {
       g.appendChild(labelEl);
@@ -1856,277 +1348,69 @@ function createArrowsSvg(routedArrows, boundsMap) {
 // Overlay SVG rendering (T009)
 // ---------------------------------------------------------------------------
 
-function renderOverlaysSvg(overlays, boundsMap) {
-  const OVERLAY_PAD = 8;
-  const frag = document.createDocumentFragment();
-  if (!overlays || overlays.length === 0) return frag;
-
-  for (const ov of overlays) {
-    const memberBounds = ov.members
-      .filter(m => boundsMap[m])
-      .map(m => boundsMap[m]);
-    if (memberBounds.length === 0) continue;
-
-    const minX = Math.min(...memberBounds.map(b => b.x));
-    const minY = Math.min(...memberBounds.map(b => b.y));
-    const maxX = Math.max(...memberBounds.map(b => b.x + b.w));
-    const maxY = Math.max(...memberBounds.map(b => b.y + b.h));
-
-    const rx = minX - OVERLAY_PAD;
-    const ry = minY - OVERLAY_PAD;
-    const rw = (maxX - minX) + 2 * OVERLAY_PAD;
-    const rh = (maxY - minY) + 2 * OVERLAY_PAD;
-
-    const g = document.createElementNS(SVG_NS, "g");
-    if (ov.id) g.setAttribute("data-component-id", ov.id);
-
-    const rect = document.createElementNS(SVG_NS, "rect");
-    rect.setAttribute("x", _fmtSvgNumber(rx));
-    rect.setAttribute("y", _fmtSvgNumber(ry));
-    rect.setAttribute("width", _fmtSvgNumber(rw));
-    rect.setAttribute("height", _fmtSvgNumber(rh));
-    rect.setAttribute("fill", "transparent");
-    rect.setAttribute("stroke", "#000000");
-    rect.setAttribute("stroke-width", "1");
-    rect.setAttribute("stroke-dasharray", "2 4");
-    g.appendChild(rect);
-
-    if (ov.label) {
-      const text = document.createElementNS(SVG_NS, "text");
-      text.setAttribute("font-family", "Ubuntu Sans");
-      text.setAttribute("font-size", "14");
-      text.setAttribute("font-weight", "400");
-      text.setAttribute("fill", "#000000");
-      const tspan = document.createElementNS(SVG_NS, "tspan");
-      tspan.setAttribute("x", _fmtSvgNumber(rx + OVERLAY_PAD));
-      tspan.setAttribute("y", _fmtSvgNumber(ry - 4));
-      tspan.textContent = ov.label;
-      text.appendChild(tspan);
-      g.appendChild(text);
-    }
-
-    frag.appendChild(g);
-  }
-  return frag;
-}
-
-// ---------------------------------------------------------------------------
-// Core rendering: renderFrameTreeToSvg (T010)
-// ---------------------------------------------------------------------------
-
-/**
- * Build a complete SVG element from a laid-out FrameDiagram.
- *
- * @param {object} diagram  Deserialized FrameDiagram (with overlays, arrows)
- * @param {object} result   Output of layoutFrameTree() – { width, height, coerced }
- * @param {object} options
- * @param {Map<string, Element>} [options.iconElements]  Pre-built icon <g> elements keyed by icon name
- * @param {Array} [options.overlays]  Raw overlay objects from the JSON (not on TS FrameDiagram)
- * @returns {SVGSVGElement}
- */
 function renderFrameTreeToSvg(diagram, result, options) {
-  const width = result.width || 400;
-  const height = result.height || 200;
-  const iconElements = (options && options.iconElements) || new Map();
-  const overlays = (options && options.overlays) || [];
-
-  const svg = document.createElementNS(SVG_NS, "svg");
-  svg.setAttribute("xmlns", SVG_NS);
-  svg.setAttribute("width", String(width));
-  svg.setAttribute("height", String(height));
-  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
-  svg.setAttribute("xml:space", "preserve");
-
-  // White background
-  const bgRect = document.createElementNS(SVG_NS, "rect");
-  bgRect.setAttribute("width", String(width));
-  bgRect.setAttribute("height", String(height));
-  bgRect.setAttribute("fill", "#FFFFFF");
-  svg.appendChild(bgRect);
-
-  const styledLayer = document.createElementNS(SVG_NS, "g");
-  styledLayer.id = "dg-styled-layer";
-  svg.appendChild(styledLayer);
-  const arrowLayer = document.createElementNS(SVG_NS, "g");
-  arrowLayer.id = "dg-arrow-layer";
-  styledLayer.appendChild(arrowLayer);
-  const frameLayer = document.createElementNS(SVG_NS, "g");
-  frameLayer.id = "dg-frame-layer";
-  styledLayer.appendChild(frameLayer);
-  const overlayLayer = document.createElementNS(SVG_NS, "g");
-  overlayLayer.id = "dg-overlay-layer";
-  styledLayer.appendChild(overlayLayer);
-
-  // Guard: empty or missing root produces valid SVG with just background
-  if (!diagram || !diagram.root) {
-    return svg;
+  const previewBridgeRender = previewBridgeRenderContract();
+  if (typeof previewBridgeRender.renderPreviewFrameTreeToSvg !== "function") {
+    throw new Error("layout-bridge: previewBridge.render.renderPreviewFrameTreeToSvg is unavailable");
   }
-
-  // Render frame tree depth-first
-  function _renderFrame(frame) {
-    const cid = frame.id || null;
-    const g = document.createElementNS(SVG_NS, "g");
-    if (cid) {
-      g.setAttribute("data-component-id", cid);
-    }
-
-    // Get pre-fetched icon element for this frame
-    let iconEl = null;
-    if (frame.icon && iconElements.has(frame.icon)) {
-      iconEl = iconElements.get(frame.icon).cloneNode(true);
-      // Apply per-frame icon fill
-      const iconFill = frame.resolvedIconFill ?? frame.iconFill ?? "#000000";
-      iconEl.querySelectorAll("path, circle, rect, polygon, ellipse").forEach(el => {
-        el.setAttribute("fill", iconFill);
-      });
-    }
-
-    patchFrameGroup(g, frame, iconEl);
-    frameLayer.appendChild(g);
-
-    // Recurse into children
-    if (frame.children) {
-      for (const child of frame.children) {
-        _renderFrame(child);
-      }
-    }
-  }
-
-  _renderFrame(diagram.root);
-
-  // Route and render arrows
-  if (diagram.arrows && diagram.arrows.length > 0) {
-    const boundsMap = collectPlacedBounds(diagram.root, {});
-    const routed = routeArrows(diagram.arrows, boundsMap);
-    const arrowFrag = createArrowsSvg(routed, boundsMap);
-    arrowLayer.appendChild(arrowFrag);
-  }
-
-  // Render overlays
-  if (overlays.length > 0) {
-    const boundsMap = collectPlacedBounds(diagram.root, {});
-    const overlayFrag = renderOverlaysSvg(overlays, boundsMap);
-    overlayLayer.appendChild(overlayFrag);
-  }
-
-  return svg;
+  return previewBridgeRender.renderPreviewFrameTreeToSvg({
+    ownerDocument: document,
+    diagram,
+    result,
+    textAdapter: _textAdapter,
+    iconElements: options && options.iconElements,
+    overlays: options && options.overlays,
+  });
 }
 
-// ---------------------------------------------------------------------------
-// Full fresh-render pipeline (called by editor.js loadSVG)
-// ---------------------------------------------------------------------------
-
-/**
- * Build a complete SVG element from scratch using the TS pipeline.
- *
- * Assumes initLayoutBridge() has already been called and the bridge is ready.
- *
- * @param {object} overrides       Frame-level overrides keyed by frame id
- * @param {object|null} gridOverrides  Grid-level overrides (or null)
- * @param {object} model           ComponentModel instance (for updateComponentModelFromLayout)
- * @returns {Promise<{svg: SVGSVGElement, width: number, height: number, coerced: boolean}>}
- */
 async function renderFreshSvg(overrides, gridOverrides, model) {
-  if (_previewDocumentJson && _previewDocumentJson.kind === "sequence") {
-    const layout = LayoutEngine.layoutSequenceDiagram(_previewDocumentJson.sequence);
-    const svgMarkup = LayoutEngine.renderSequenceDiagramToSvg(
-      _previewDocumentJson.sequence,
-      layout,
-      { title: _previewDocumentJson.title || "Sequence diagram" },
-    );
-    _lastElkSnapshot = null;
-    _lastElkFrameLabels = null;
-    refreshElkViewMode();
-    return {
-      svg: _parseSvgMarkup(svgMarkup),
-      width: layout.width,
-      height: layout.height,
-      coerced: false,
-    };
+  const previewBridgeRender = previewBridgeRenderContract();
+  if (typeof previewBridgeRender.renderFreshPreviewSvg !== "function") {
+    throw new Error("layout-bridge: previewBridge.render.renderFreshPreviewSvg is unavailable");
   }
-
-  // Deep-clone the stored frame tree and deserialize
-  const diagramJson = JSON.parse(JSON.stringify(_frameTreeJson));
-  applySessionRemovalsToDiagramJson(diagramJson, model);
-  const rawOverlays = diagramJson.overlays || [];
-  const diagram = deserializeFrameDiagram(diagramJson);
-
-  // Build override map (same format as performLocalRelayout)
-  const allFrameOverrides = {};
-  for (const [fid, ovr] of Object.entries(overrides)) {
-    const entry = LayoutEngine.filterRelayoutOverrideEntry(ovr || {});
-    if (Object.keys(entry).length > 0) allFrameOverrides[fid] = entry;
-  }
-
-  applyOverridesToFrameTree(diagram, allFrameOverrides, gridOverrides);
-
-  let result;
-  if (_isElkLayeredDiagramJson(diagramJson) && typeof LayoutEngine.layoutElkFrameDiagram === "function") {
-    const elkOptionOverrides = _resolveElkOptionOverrides(diagram, model);
-    result = await LayoutEngine.layoutElkFrameDiagram(diagram, _textAdapter, {
-      diagramType: diagram.diagramType,
-      elkOptionOverrides,
-    });
-  } else {
-    LayoutEngine.resolveStyles(diagram.root);
-    result = LayoutEngine.layoutFrameTree(diagram.root, _textAdapter, _layoutOptionsFromDiagram(diagram));
-  }
-
-  // Collect unique icon names from the frame tree
-  const iconNames = new Set();
-  function _collectIcons(frame) {
-    if (frame.icon) iconNames.add(frame.icon);
-    if (frame.children) frame.children.forEach(_collectIcons);
-  }
-  _collectIcons(diagram.root);
-
-  // Fetch all icons in parallel
-  const iconElements = new Map();
-  if (iconNames.size > 0) {
-    const entries = await Promise.all(
-      Array.from(iconNames).map(async (name) => {
-        const svgContent = await fetchIconSvg(name);
-        if (svgContent) {
-          const el = buildIconElement(name, svgContent, null);
-          return [name, el];
-        }
-        return [name, null];
-      })
-    );
-    for (const [name, el] of entries) {
-      if (el) iconElements.set(name, el);
-    }
-  }
-
-  // Build SVG DOM
-  const svgElement = renderFrameTreeToSvg(diagram, result, { iconElements, overlays: rawOverlays });
-
-  _lastElkSnapshot = result.elkSnapshot || null;
-  _lastElkFrameLabels = _lastElkSnapshot ? _collectElkFrameLabels(diagram.root) : null;
+  const renderResult = await previewBridgeRender.renderFreshPreviewSvg({
+    ownerDocument: document,
+    previewDocumentJson: _previewDocumentJson,
+    frameTreeJson: _frameTreeJson,
+    overrides: overrides || {},
+    gridOverrides: gridOverrides || null,
+    model,
+    textAdapter: _textAdapter,
+    applySessionRemovalsToDiagramJson,
+    applyOverridesToFrameTree,
+    collectRelayoutFrameOverrides: _collectRelayoutFrameOverrides,
+    isElkLayeredDiagramJson: _isElkLayeredDiagramJson,
+    resolveElkOptionOverrides: _resolveElkOptionOverrides,
+    updateModelFromLayout: updateComponentModelFromLayout,
+    syncArrowsInModel,
+  });
+  _lastElkSnapshot = renderResult.elkSnapshot || null;
+  _lastElkFrameLabels = renderResult.elkFrameLabels || null;
   refreshElkViewMode();
-
-  // Update component model from layout
-  updateComponentModelFromLayout(model, diagram.root);
-  const boundsMap = collectPlacedBounds(diagram.root, {});
-  const routedArrows = diagram.arrows && diagram.arrows.length > 0
-    ? routeArrows(diagram.arrows, boundsMap)
-    : [];
-  syncArrowsInModel(model, diagram.arrows, routedArrows);
-
   return {
-    svg: svgElement,
-    width: result.width,
-    height: result.height,
-    coerced: result.coerced,
+    svg: renderResult.svg,
+    width: renderResult.width,
+    height: renderResult.height,
+    coerced: renderResult.coerced,
   };
 }
 
 window.isLocalRelayoutReady = isLocalRelayoutReady;
 window.getLocalRelayoutStatus = getLocalRelayoutStatus;
 window.__DG_TEST_setLocalRelayoutMode = setLocalRelayoutOverrideMode;
+window.__DG_previewBridgeRenderHost = {
+  renderPreviewFrameTreeToSvg: (options) => renderFrameTreeToSvg(
+    options && options.diagram,
+    options && options.result,
+    options,
+  ),
+  renderFreshPreviewSvg: (options) => renderFreshSvg(
+    options && options.overrides,
+    options && options.gridOverrides,
+    options && options.model,
+  ),
+};
 window.renderFrameTreeToSvg = renderFrameTreeToSvg;
-window.fetchIconSvg = fetchIconSvg;
-window.buildIconElement = buildIconElement;
 window.refreshElkDebugOverlay = refreshElkDebugOverlay;
 window.refreshElkViewMode = refreshElkViewMode;
 window.renderFreshSvg = renderFreshSvg;

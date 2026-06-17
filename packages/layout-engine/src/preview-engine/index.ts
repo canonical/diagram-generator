@@ -14,6 +14,12 @@ export type {
 } from './types.js';
 
 export { elkLayeredPreviewControlSpecs, elkParamToPreviewControl } from './elk-controls.js';
+export {
+  renderPreviewElkDebugOverlay,
+  renderPreviewElkRawView,
+  type RenderPreviewElkOverlayOptions,
+  type RenderPreviewElkRawViewOptions,
+} from './elk-debug-view.js';
 export { FORCE_PREVIEW_PARAM_SPECS } from './force-param-registry.js';
 export {
   V3_PREVIEW_ENGINE,

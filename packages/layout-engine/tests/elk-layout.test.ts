@@ -671,6 +671,20 @@ describe('layoutElkFrameDiagram', () => {
     expect(step3?.layoutPath?.[0]?.[0]).toBe(step3?.layoutPath?.[1]?.[0]);
   });
 
+  it('ignores legacy implementation-owned ELK keys when preview-style session overrides echo them back', async () => {
+    const diagram = loadFrameYaml(join(FRAMES_DIR, 'juju-bootstrap-machines-process.yaml'));
+    const adapter = new MockTextAdapter();
+
+    await expect(layoutElkFrameDiagram(diagram, adapter, {
+      elkOptionOverrides: {
+        ...(diagram.elkLayout ?? {}),
+      },
+    })).resolves.toMatchObject({
+      width: expect.any(Number),
+      height: expect.any(Number),
+    });
+  });
+
   it('keeps layering strategy changes observable on juju ELK layouts', async () => {
     const longestPathDiagram = loadFrameYaml(join(FRAMES_DIR, 'juju-bootstrap-machines-process.yaml'));
     const networkSimplexDiagram = loadFrameYaml(join(FRAMES_DIR, 'juju-bootstrap-machines-process.yaml'));

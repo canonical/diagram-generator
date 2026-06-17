@@ -10,7 +10,7 @@ Guidance for AI agents working in this repo. Goal: correct fixes with minimal to
 
 ## Workspace
 
-- **Open only two roots when using the saved workspace:** `diagram-generator` + `diagram-generator-planning`. Drop every other sibling repo from the Cursor window — their `AGENTS.md` / rules inject **every turn**.
+- **Open only two roots when using the saved workspace:** `diagram-generator` + `diagram-generator-planning`, if the latter is explicitly mentioned. Drop every other sibling repo from the Cursor window — their `AGENTS.md` / rules inject **every turn**.
 - Reopen [`diagram-generator.code-workspace`](diagram-generator.code-workspace) after changing roots. Old chats keep the workspace snapshot from when they started; start a **new chat** after trimming roots.
 - `.cursorignore` and `.cursorindexingignore` exclude `diagrams/`, `node_modules/`, `dist/`, binaries, and spec-kit command files. Do not `@`-reference ignored paths unless the task requires them.
 
@@ -24,10 +24,26 @@ Guidance for AI agents working in this repo. Goal: correct fixes with minimal to
 - `scripts/diagrams/frames/*.yaml` is the authored source of truth.
 - Read the current YAML from disk before editing it and make minimal diffs.
 
+## Priority ratchet
+
+- Treat the remaining `scripts/preview/editor.js` monolith as a **top-priority architectural blocker**, not as acceptable steady state.
+- Do **not** assume a 2k-3k-line hand-authored `editor.js` is "good enough" because earlier slices extracted some logic already.
+- Until the `specs/046-editor-host-endgame/` closeout bar is met, agents should bias toward finishing that decomposition over starting secondary preview-shell polish or unrelated new engine-integration convenience work.
+- A small line-count reduction is **not** completion. The target is a genuinely thin grid-shell entry/bootstrap file that would not block scaling toward dozens of engine lanes.
+- Do **not** mark `specs/046-editor-host-endgame/` complete unless the repo is
+  credibly ready for adding on the order of **150 heterogeneous engines**
+  through typed registration points rather than through `editor.js` or
+  `layout-bridge.js`.
+- If a proposed change would widen `editor.js`, stop and route that work through the typed preview-shell owners or the active 046 decomposition plan instead.
+
 ## Spec workflow
 
 - **Do not load spec-kit unless the user explicitly asks** (e.g. "/speckit", "write a spec", "run spec-kit"). Normal bugfixes skip `.github/agents/speckit.*`, `.github/prompts/speckit.*`, and bulk `specs/**` reads.
 - When spec work *is* requested, open **one** package under `specs/<id>-<slug>/` named in the task; see [`docs/specs.md`](docs/specs.md) for the active index.
+- Spec-driven work must use a matching feature branch: `feat/<id>-<slug>`.
+- Keep one active spec per feature branch. Do not continue spec 046 work on a lingering `feat/043-...` branch or mix multiple active specs on one long-lived branch.
+- If the active spec and current branch do not match, stop and either create/switch to the matching branch or ask the user how to split the work before making substantial edits.
+- Review and merge per spec branch. After merge, delete the local and remote feature branch and archive the completed spec package under `docs/spec-archive/`.
 - Completed or retired packages live under [`docs/spec-archive/`](docs/spec-archive/README.md). They are de-indexed on purpose; open them only when a task directly depends on historical context.
 - Keep repo operating rules in this file. Do not duplicate them into Speckit prompts or agents.
 
@@ -39,6 +55,8 @@ Read these first:
 2. [`DIAGRAM.md`](DIAGRAM.md)
 3. Only the source files relevant to the task
 
+**Read discipline:** do not load large context up front. Locate first with narrow `rg` / `Glob`, then read only what the task needs — usually a symbol hit or a bounded slice (`offset`/`limit` on trap files). Whole-file reads are fine for small modules; read whole files when that is genuinely simpler than stitching partial reads.
+
 Use [`TODO.md`](TODO.md) for the execution queue and [`INBOX.md`](INBOX.md) for user async notes. Do not trawl large history docs unless the task explicitly needs them.
 
 ## Handover
@@ -47,8 +65,8 @@ Use [`TODO.md`](TODO.md) for the execution queue and [`INBOX.md`](INBOX.md) for 
 
 - **Product path:** Node preview app + TypeScript layout engine.
 - **Source of truth:** frame YAML in `scripts/diagrams/frames/`.
-- **Active spec (when relevant):** `specs/042-implicit-elk-side-ports/` for ELK midpoint-port planning; otherwise see `TODO.md` / `docs/specs.md`.
-- **Trap files (search, then partial read):** `scripts/preview/editor.js`, `scripts/preview/layout-bridge.js`, `packages/layout-engine/dist/layout-engine.iife.js`.
+- **Active spec (when relevant):** `specs/046-editor-host-endgame/` is the highest-priority preview-shell closeout and should not be deprioritized after minor trap-file shrink. `specs/044-preview-shell-architecture-followup/` owns browser contract / bundle / `layout-bridge.js` follow-up, and `specs/045-preview-host-engine-modularity/` owns Node preview-host route/page modularity. `specs/047-render-ir-unification/` is drafted but gated until 046 closeout; do not switch to it early. `docs/spec-archive/043-preview-shell-editor-ts-extraction/` is extraction-complete and reopens only for regressions. ELK midpoint-port follow-up remains under `specs/042-implicit-elk-side-ports/`. Otherwise see `TODO.md` / `docs/specs.md`.
+- **Trap files (search, then partial read):** `scripts/preview/editor.js` (~2,178 lines in the current tree), `scripts/preview/layout-bridge.js` (~1,286 lines), `packages/layout-engine/dist/layout-engine.iife.js`.
 
 ## Flow maps (tier 2 — add on demand)
 
@@ -78,6 +96,7 @@ Prefer **narrow, scoped searches** over repo-wide scans.
 |----|--------|
 | `rg pattern apps/preview/src` | `rg pattern` from repo root (slow on large trees) |
 | `rg pattern scripts/preview/editor.js` | Chain `find … \| head` — use PowerShell-native limits (`Select-Object -First N`) on Windows |
+| `rg` / `Glob` to locate, then partial `Read` | Open a trap file or spec tree whole-file without a search hit |
 | One targeted read after rg | Re-read the same 6k-line file in every sub-agent |
 | Run the tests listed in the flow map | Launch 5 parallel "sweep" agents for a single-file bug |
 

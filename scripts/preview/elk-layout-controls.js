@@ -12,7 +12,15 @@
   let _getOverrides = () => ({});
   let _setOverrides = () => {};
 
+  function _previewEngines() {
+    return (typeof LayoutEngine !== "undefined" && LayoutEngine.previewEngines) || null;
+  }
+
   function _resolvePreviewEngine(context) {
+    const registry = _previewEngines()?.registry;
+    if (registry && typeof registry.resolvePreviewEngine === "function") {
+      return registry.resolvePreviewEngine(context);
+    }
     if (typeof LayoutEngine !== "undefined" && typeof LayoutEngine.resolvePreviewEngine === "function") {
       return LayoutEngine.resolvePreviewEngine(context);
     }
@@ -20,6 +28,10 @@
   }
 
   function _elkPreviewEngine() {
+    const registry = _previewEngines()?.registry;
+    if (registry && typeof registry.getPreviewEngine === "function") {
+      return registry.getPreviewEngine("elk-layered");
+    }
     if (typeof LayoutEngine !== "undefined" && typeof LayoutEngine.getPreviewEngine === "function") {
       return LayoutEngine.getPreviewEngine("elk-layered");
     }
@@ -52,6 +64,10 @@
     if (engine && Array.isArray(engine.controlSpecs) && engine.controlSpecs.length) {
       return engine.controlSpecs;
     }
+    const elk = _previewEngines()?.elk;
+    if (elk && Array.isArray(elk.ELK_LAYERED_PARAM_SPECS) && elk.ELK_LAYERED_PARAM_SPECS.length) {
+      return elk.ELK_LAYERED_PARAM_SPECS;
+    }
     if (typeof LayoutEngine !== "undefined" && Array.isArray(LayoutEngine.ELK_LAYERED_PARAM_SPECS)) {
       return LayoutEngine.ELK_LAYERED_PARAM_SPECS;
     }
@@ -59,6 +75,11 @@
   }
 
   function _groups() {
+    const elk = _previewEngines()?.elk;
+    if (elk && typeof elk.elkParamGroups === "function") {
+      const fromContract = elk.elkParamGroups();
+      if (fromContract && fromContract.length) return fromContract;
+    }
     if (typeof LayoutEngine !== "undefined" && typeof LayoutEngine.elkParamGroups === "function") {
       const fromBundle = LayoutEngine.elkParamGroups();
       if (fromBundle && fromBundle.length) return fromBundle;
@@ -158,7 +179,8 @@
       } else if (typeof window.requestElkRelayout === "function") {
         window.requestElkRelayout();
       } else if (typeof window.requestV3Relayout === "function") {
-        const rootId = (window.componentTree && window.componentTree[0] && window.componentTree[0].id) || "root";
+        const frameTree = typeof window.getFrameTreeJson === "function" ? window.getFrameTreeJson() : null;
+        const rootId = (frameTree && frameTree.root && frameTree.root.id) || "root";
         window.requestV3Relayout(rootId);
       }
     }, 250);

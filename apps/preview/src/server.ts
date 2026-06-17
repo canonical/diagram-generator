@@ -38,6 +38,8 @@ import {
   verifyElkLayoutPersisted,
   type PersistOverridePayload,
 } from "./persistence/index.js";
+import { AUTOLAYOUT_HOST_LANE, FORCE_HOST_LANE, buildPreviewBrowseSections } from "./preview-host/lanes.js";
+import { buildIndexPageHtml, buildViewerPageHtml } from "./preview-host/pages.js";
 
 const DEFAULT_PORT = 8100;
 const SPEC_HOME = "docs/spec-archive/038-ts-authority-python-removal/";
@@ -301,14 +303,6 @@ function currentGitBranch(): string | null {
   }
 }
 
-function htmlEscape(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
-}
-
 function isSafeSlug(slug: string): boolean {
   return /^[A-Za-z0-9._:-]+$/.test(slug);
 }
@@ -507,90 +501,19 @@ function previewEngineScriptTags(
   return scripts.map((script: string) => `<script src="${previewAssetUrl(script)}"></script>`).join("\n");
 }
 
-function buildPreviewNavOptions(currentPath: string): string {
-  const groups: string[] = [];
-  const autolayoutOptions = listAutolayoutDiagrams()
-    .map((slug) => {
-      const value = `/view/v3:${slug}`;
-      const selected = currentPath === value ? " selected" : "";
-      return `<option value="${value}"${selected}>${htmlEscape(slug)}</option>`;
-    })
-    .join("");
-  if (autolayoutOptions) groups.push(`<optgroup label="Autolayout">${autolayoutOptions}</optgroup>`);
-
-  const forceOptions = listForceExamples()
-    .map((slug) => {
-      const value = `/force/view/${slug}`;
-      const selected = currentPath === value ? " selected" : "";
-      return `<option value="${value}"${selected}>${htmlEscape(slug)}</option>`;
-    })
-    .join("");
-  if (forceOptions) groups.push(`<optgroup label="Force demos">${forceOptions}</optgroup>`);
-
-  return groups.join("");
-}
-
-function buildBrowseNav(currentPath: string): string {
-  const sections: string[] = [];
-  const autolayout = listAutolayoutDiagrams();
-  if (autolayout.length > 0) {
-    const items = autolayout
-      .map((slug) => {
-        const href = `/view/v3:${slug}`;
-        const active = currentPath === href ? " is-active" : "";
-        return `<li><a class="dg-browse-link${active}" href="${href}">${htmlEscape(slug)}</a></li>`;
-      })
-      .join("");
-    sections.push(
-      `<div class="dg-browse-group"><h3 class="dg-browse-heading">Autolayout</h3><ul class="dg-browse-list">${items}</ul></div>`,
-    );
-  }
-
-  const force = listForceExamples();
-  if (force.length > 0) {
-    const items = force
-      .map((slug) => {
-        const href = `/force/view/${slug}`;
-        const active = currentPath === href ? " is-active" : "";
-        return `<li><a class="dg-browse-link${active}" href="${href}">${htmlEscape(slug)}</a></li>`;
-      })
-      .join("");
-    sections.push(
-      `<div class="dg-browse-group"><h3 class="dg-browse-heading">Force demos</h3><ul class="dg-browse-list">${items}</ul></div>`,
-    );
-  }
-  return sections.join("");
-}
-
 function bfStylesLinkHtml(): string {
   return '<link rel="stylesheet" href="/preview/bf-os.css">';
 }
 
-function buildIndexSection(title: string, emptyText: string, links: Array<{ href: string; label: string }>): string {
-  const content =
-    links.length > 0
-      ? `<ul class="dg-browse-list">${links
-          .map(
-            (link) =>
-              `<li><a class="dg-browse-link" href="${link.href}">${htmlEscape(link.label)}</a></li>`,
-          )
-          .join("")}</ul>`
-      : `<p class="bf-form-help">${htmlEscape(emptyText)}</p>`;
-  return `<section class="dg-browse-group"><h2 class="dg-browse-heading">${htmlEscape(title)}</h2>${content}</section>`;
-}
-
-function applyUnifiedElkPlaceholders(html: string, isElk: boolean): string {
-  return html
-    .replace("%ELK_SECTION_HIDDEN%", isElk ? "" : "hidden")
-    .replace("%ELK_LAYOUT_CONTROLS_HTML%", "");
-}
-
-function stripUnresolvedPlaceholders(html: string): string {
-  return html.replace(/%[A-Z0-9_]+%/g, "");
+function buildBrowseSections() {
+  return buildPreviewBrowseSections([
+    { lane: AUTOLAYOUT_HOST_LANE, slugs: listAutolayoutDiagrams() },
+    { lane: FORCE_HOST_LANE, slugs: listForceExamples() },
+  ]);
 }
 
 function buildGridViewerHtml(slug: string): string {
-  const currentPath = `/view/v3:${slug}`;
+  const currentPath = AUTOLAYOUT_HOST_LANE.buildViewerPath(slug);
   const template = readFileSync(VIEWER_TEMPLATE, "utf8");
   const diagram = loadFrameYaml(path.join(FRAMES_DIR, `${slug}.yaml`));
   const frameDiagramSummary = summarizeFrameDiagramCompatibility(diagram);
@@ -645,21 +568,22 @@ function buildGridViewerHtml(slug: string): string {
     `<script src="${previewAssetUrl("editor.js")}"></script>\n` +
     `<script src="${previewAssetUrl("engine-switcher.js")}"></script>`;
 
-  return stripUnresolvedPlaceholders(
-    applyUnifiedElkPlaceholders(template, isElk)
-      .replace("%TITLE%", `${slug} – diagram preview`)
-      .replace("%BF_STYLES%", bfStylesLinkHtml())
-      .replace("%MODE%", "grid")
-      .replace("%NAV_OPTIONS%", buildPreviewNavOptions(currentPath))
-      .replace("%BROWSE_NAV%", buildBrowseNav(currentPath))
-      .replace("%INSPECTOR_EMPTY%", "Click a component to inspect it.")
-      .replace("%MODE_SCRIPTS%", modeScripts)
-      .replace("%CONFIG_SCRIPT%", configScript),
-  );
+  return buildViewerPageHtml({
+    title: `${slug} – diagram preview`,
+    mode: "grid",
+    currentPath,
+    templateHtml: template,
+    browseSections: buildBrowseSections(),
+    inspectorEmptyText: "Click a component to inspect it.",
+    modeScriptsHtml: modeScripts,
+    configScript,
+    includeElkSection: isElk,
+    baselineStylesHtml: bfStylesLinkHtml(),
+  });
 }
 
 function buildForceViewerHtml(slug: string): string {
-  const currentPath = `/force/view/${slug}`;
+  const currentPath = FORCE_HOST_LANE.buildViewerPath(slug);
   const template = readFileSync(VIEWER_TEMPLATE, "utf8");
   const engineManifest = resolvePreviewEngine({ shellMode: "force" });
   const configScript = [
@@ -674,51 +598,27 @@ function buildForceViewerHtml(slug: string): string {
   const engineScripts = previewEngineScriptTags(engineManifest, ["force.js"]);
   const modeScripts =
     `<script src="${previewAssetUrl("layout-engine.js")}"></script>\n` + engineScripts;
-  return stripUnresolvedPlaceholders(
-    applyUnifiedElkPlaceholders(template, false)
-      .replace("%TITLE%", `${slug} – force preview`)
-      .replace("%BF_STYLES%", bfStylesLinkHtml())
-      .replace("%MODE%", "force")
-      .replace("%NAV_OPTIONS%", buildPreviewNavOptions(currentPath))
-      .replace("%BROWSE_NAV%", buildBrowseNav(currentPath))
-      .replace("%INSPECTOR_EMPTY%", "Click a node to select it.")
-      .replace("%MODE_SCRIPTS%", modeScripts)
-      .replace("%CONFIG_SCRIPT%", configScript),
-  );
+  return buildViewerPageHtml({
+    title: `${slug} – force preview`,
+    mode: "force",
+    currentPath,
+    templateHtml: template,
+    browseSections: buildBrowseSections(),
+    inspectorEmptyText: "Click a node to select it.",
+    modeScriptsHtml: modeScripts,
+    configScript,
+    includeElkSection: false,
+    baselineStylesHtml: bfStylesLinkHtml(),
+  });
 }
 
 function buildIndexHtml(port: number): string {
-  const autolayoutLinks = listAutolayoutDiagrams().map((slug) => ({
-    href: `/view/v3:${slug}`,
-    label: slug,
-  }));
-  const forceLinks = listForceExamples().map((slug) => ({
-    href: `/force/view/${slug}`,
-    label: slug,
-  }));
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<title>Preview index</title>
-${bfStylesLinkHtml()}
-<link rel="stylesheet" href="/preview/editor.css">
-</head>
-<body class="bf-theme bf-tier-os is-dark">
-<main class="bf-main">
-  <section class="bf-panel">
-    <div class="bf-panel-header">
-      <h1 class="bf-h4">Preview index</h1>
-      <p class="bf-form-help">Node preview app on port ${port}. Spec home: ${htmlEscape(SPEC_HOME)}</p>
-    </div>
-    <div class="bf-panel-content">
-      ${buildIndexSection("Autolayout", "No autolayout diagrams found.", autolayoutLinks)}
-      ${buildIndexSection("Force demos", "No force demos found.", forceLinks)}
-    </div>
-  </section>
-</main>
-</body>
-</html>`;
+  return buildIndexPageHtml({
+    port,
+    specHome: SPEC_HOME,
+    browseSections: buildBrowseSections(),
+    baselineStylesHtml: bfStylesLinkHtml(),
+  });
 }
 
 function readForceSpec(slug: string): unknown {

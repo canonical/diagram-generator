@@ -16,6 +16,7 @@ Feature package: `docs/spec-archive/035-compatible-engine-switcher/`.
 
 - [ ] `[H]` **ELK layered drops headings and icons on parent containers.** Headed panels (e.g. Planning / Implementation / Delivery in `complex-routing-usecase`) lose title + icon treatment under `elk-layered`; headers should remain in the container chrome ELK lays out. Investigate, draft spec-kit fix package, add tier-2 flow map. Reported via inbox 2026-06-12.
 - [ ] `[H]` **ELK layered does not honor non-fixed authored sizing semantics consistently on switched frame diagrams.** Switching a valid frame diagram from `v3` to `elk-layered` can collapse equal-width `FILL` stacks into uneven intrinsic widths because `layoutElkFrameDiagram()` currently measures nodes and hands ELK concrete box sizes instead of preserving the repo's non-fixed sizing behavior end-to-end. Explicit `FIXED` sizing should remain supported (including bulk "set same fixed size" editing); investigate on `support-engineering-flow` and `tiered-network-architecture`, then decide the TS-owned contract for ELK `FILL` / `HUG` per axis. Reported via inbox 2026-06-13.
+- [ ] `[M]` **ELK parent/container text inset drifts from v3.** Top spacing above text, especially in parent-styled frames, varies under ELK compared with v3; align the chrome/text inset contract across engines.
 
 #### ELK force core port (branch-only additive lane)
 
@@ -32,9 +33,32 @@ Feature package: `docs/spec-archive/035-compatible-engine-switcher/`.
 
 - [ ] `[H]` **Draft a spec-kit package for a folder-backed editor app shell.** The preview should open a user-chosen diagram folder, populate the left nav from that folder instead of the fixed test list, and remove the duplicate diagram picker UI in favor of one coherent sidenav-driven navigation model.
 
-#### Shared preview-shell chrome consistency (new spec needed)
+#### Preview shell editor TS extraction (spec 043)
 
-- [ ] `[M]` **Draft a spec-kit package for shell-chrome consistency across Input / Output / Both.** Shared preview UI chrome should not disappear per engine or per missing reference image; unavailable content should degrade with placeholders, not by trimming shell affordances. Preserve the existing editor demo structure and replace ad hoc preview-app CSS with Baseline Foundry-owned styling rather than inventing new UI.
+Review-closeout status: archived package `docs/spec-archive/043-preview-shell-editor-ts-extraction/` is extraction-complete. Only reopen it for a concrete browser-edge regression; registry/bundle/`layout-bridge.js` work moved to spec 044.
+
+#### Preview shell architecture follow-up (spec 044)
+
+- [ ] `[H]` **Define the post-043 shell contract and bundle plan.** Spec package: `specs/044-preview-shell-architecture-followup/`. Scope: replace the flat browser `LayoutEngine` bag with a staged contract/registry plan, define bundle boundaries, and map the `layout-bridge.js` decomposition path without reopening 043 as another long-running extraction spec.
+- [ ] `[H]` **Finish the 044 review hardening passes.** Retire transitional root-level browser-entry aliases, split the oversized browser contract VM harness into smaller owner-scoped suites, and keep shrinking `layout-bridge.js` so it does not remain the browser-side integration sink.
+- [ ] `[H]` **Grid-shell width changes must remeasure text immediately.** Manual width edits and resize interactions should re-run HarfBuzz/text wrapping so widened boxes unwrap and live preview matches the final dropped state.
+- [ ] `[H]` **Interactive grid-shell resize should update during drag, not only on drop.** Investigate the live relayout/RAF path so resize feels responsive enough for Figma-like editing rather than delayed post-drop recompute.
+
+#### Editor host endgame (spec 046)
+
+- [ ] `[H]` **Finish the `editor.js` monolith reduction before adding more engine pressure.** Spec package: `specs/046-editor-host-endgame/`. Scope: explicit endgame for the remaining ~2.8k-line grid-shell entrypoint so it becomes genuinely thin bootstrap/event glue instead of a legacy browser trap file.
+
+#### Render IR unification (spec 047, gated after 046)
+
+- [ ] `[M]` **Park the renderer-convergence work until spec 046 is closed enough.** Spec package: `specs/047-render-ir-unification/`. Scope: converge preview/export geometry around one render IR authority with separate export-SVG and preview-DOM serializers, but do not start until the `editor.js` endgame is out of the critical path.
+
+#### Preview host engine modularity (spec 045)
+
+- [ ] `[H]` **Modularize the Node preview host for many more engine lanes.** Spec package: `specs/045-preview-host-engine-modularity/`. Scope: typed lane descriptors, shared page-shell builders, and staged `apps/preview/src/server.ts` shrink so new engines stop starting as server-local route/UI branches.
+
+#### Output-only preview-shell chrome consistency (new spec needed)
+
+- [ ] `[M]` **Draft a spec-kit package for output-only shell-chrome consistency.** The preview shell is intentionally output-only; unavailable reference content should degrade with placeholders rather than reintroducing Input / Output / Both compatibility panes. Preserve the existing editor demo structure and replace ad hoc preview-app CSS with Baseline Foundry-owned styling rather than inventing new UI.
 
 #### Cross-engine multi-select align/distribute + bulk pin actions (new spec needed)
 

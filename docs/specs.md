@@ -15,6 +15,13 @@ Use this file to answer two questions quickly:
 
 Active spec packages stay under `specs/`. Completed or retired packages move to `docs/spec-archive/` and are excluded from Cursor indexing by `.cursorignore` and `.cursorindexingignore`.
 
+For spec-driven implementation, keep git aligned to the spec package:
+
+- branch name: `feat/<id>-<slug>`
+- one active spec per branch
+- merge and delete the feature branch when the spec closes
+- archive the completed package under `docs/spec-archive/`
+
 ### Active packages
 
 | Spec | Path | Status | Summary |
@@ -24,6 +31,10 @@ Active spec packages stay under `specs/`. Completed or retired packages move to 
 | 028 Diagram interchange (Mermaid & D2) | `specs/028-diagram-interchange-mermaid-d2/` | Draft | Bidirectional interchange: import parsers, fidelity matrix, export hardening, round-trip CLIs; builds on the archived spec 022 adapters. |
 | 041 Text-block inline editing | `specs/041-text-block-inline-editing/` | Draft | Make preview inline editing block-scoped, theme-safe, and semantically faithful to `heading` vs `label`. |
 | 042 Implicit ELK side ports | `specs/042-implicit-elk-side-ports/` | Draft | Add automatic midpoint side ports to ELK layered so edge attachment becomes deterministic without YAML-authored port definitions. |
+| 044 Preview shell architecture follow-up | `specs/044-preview-shell-architecture-followup/` | In Progress | Active post-043 contract package: browser namespaces, migration rules, bundle boundaries, `layout-bridge.js` decomposition plan, and active consumer migration across `editor-state.js`, engine-owned shell scripts, `editor.js` bridge/scene/inspector/bootstrap helpers, and the first direct `layout-bridge.js` seam. |
+| 045 Preview host engine modularity | `specs/045-preview-host-engine-modularity/` | In Progress | Active preview-app modularity package: typed lane descriptors, shared viewer/index page shell, and staged `apps/preview/src/server.ts` shrink so future engine lanes start from host contracts instead of server-local branching. |
+| 046 Editor host endgame | `specs/046-editor-host-endgame/` | In Progress | Priority preview-shell closeout package: finish the remaining `editor.js` monolith reduction so the grid-shell entrypoint becomes genuinely thin host glue before more engine lanes arrive. |
+| 047 Render IR unification | `specs/047-render-ir-unification/` | Draft (gated) | Parked post-046 convergence package: collapse duplicated preview/export geometry emitters toward one IR authority with separate export-SVG and preview-DOM serializers. |
 | — | `specs/ADVERSARIAL_REVIEW_PROMPT.md` | Template | Copy-paste prompt for post-session adversarial reviews. |
 
 Archived completed packages: [`docs/spec-archive/README.md`](./spec-archive/README.md)

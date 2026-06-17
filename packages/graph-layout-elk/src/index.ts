@@ -51,4 +51,5 @@ export {
   elkParamDefaults,
   elkParamSpecByKey,
   resolveElkLayoutOptions,
+  stripImplementationOwnedElkLayeredOverrides,
 } from './elk-param-registry.js';

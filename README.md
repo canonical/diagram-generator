@@ -23,6 +23,20 @@ Read these in order:
 
 Handover lives in [`AGENTS.md`](AGENTS.md#handover). Use [`docs/specs.md`](docs/specs.md) only when you need governing references. Workspace: [`diagram-generator.code-workspace`](diagram-generator.code-workspace) (two roots only).
 
+## Spec Branch Workflow
+
+For spec-driven work, keep git history aligned to the active spec package.
+
+1. Start or resume exactly one active spec under `specs/<id>-<slug>/`.
+2. Create or switch to a matching feature branch before coding:
+   `feat/<id>-<slug>`
+3. Keep that branch focused on that spec's scope. Do not mix unrelated spec work on the same branch.
+4. Review and merge per spec branch, not as one long-running catch-all branch.
+5. When the spec is complete and merged, delete the feature branch locally and remotely.
+6. Move the completed spec package to `docs/spec-archive/` as part of closeout.
+
+If the active spec and current branch name do not match, fix that before continuing substantial work.
+
 ## Key Paths
 
 | Path | Role |

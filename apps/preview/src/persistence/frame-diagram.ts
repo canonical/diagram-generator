@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 import { EOL } from "node:os";
 
 import {
+  ELK_LAYERED_PARAM_SPECS,
   PERSIST_FRAME_KEYS,
   PERSIST_INT_FRAME_KEYS,
   PERSIST_LOWER_FRAME_KEYS,
@@ -30,6 +31,7 @@ const IGNORED_GRID_KEYS = new Set(["link_to_root"]);
 const UNSUPPORTED_GRID_KEYS = new Set(["rows", "slack_absorption"]);
 const LOWER_KEYS = new Set<string>(PERSIST_LOWER_FRAME_KEYS);
 const INT_KEYS = new Set<string>(PERSIST_INT_FRAME_KEYS);
+const SUPPORTED_ELK_KEYS = new Set<string>(ELK_LAYERED_PARAM_SPECS.map((spec) => spec.key));
 
 export interface PersistOverridePayload {
   overrides?: Record<string, unknown>;
@@ -405,9 +407,18 @@ function applyLayoutEngineChoice(document: Record<string, unknown>, layoutEngine
   }
 }
 
-function sanitizePersistedElkMeta(meta: Record<string, unknown>): void {
+function assertSupportedElkKeys(elk: Record<string, unknown>, source: string): void {
+  const unsupported = Object.keys(elk)
+    .filter((key) => !SUPPORTED_ELK_KEYS.has(key))
+    .sort();
+  if (unsupported.length > 0) {
+    throw new Error(`${source} contains unsupported ELK keys: ${unsupported.join(", ")}`);
+  }
+}
+
+function assertSupportedPersistedElkMeta(meta: Record<string, unknown>, source: string): void {
   if (!isRecord(meta.elk)) return;
-  delete meta.elk["elk.portConstraints"];
+  assertSupportedElkKeys(meta.elk, source);
   if (Object.keys(meta.elk).length === 0) {
     delete meta.elk;
   }
@@ -427,12 +438,12 @@ function applyElkLayoutOverrides(document: Record<string, unknown>, elkOverrides
       elk[String(key)] = String(value);
     }
   }
+  assertSupportedElkKeys(elk, "elk_layout_overrides");
   if (Object.keys(elk).length > 0) {
     meta.elk = elk;
   } else {
     delete meta.elk;
   }
-  sanitizePersistedElkMeta(meta);
 }
 
 export function verifyElkLayoutPersisted(documentText: string, expected: Record<string, unknown>): void {
@@ -483,6 +494,9 @@ export function persistFrameDiagramOverridePayloadToYaml(
   }
   const rootData = document.root;
   if (!isRecord(rootData)) throw new Error(`${framePath}: root must be a mapping`);
+  if (isRecord(document.meta)) {
+    assertSupportedPersistedElkMeta(document.meta, `${framePath}: meta.elk`);
+  }
 
   if ("grid_overrides" in payload) {
     applyGridOverrides(document, gridOverrides ?? {});
@@ -514,7 +528,7 @@ export function persistFrameDiagramOverridePayloadToYaml(
     applyFrameOverride(target, override, frameId);
   }
   if (isRecord(document.meta)) {
-    sanitizePersistedElkMeta(document.meta);
+    assertSupportedPersistedElkMeta(document.meta, `${framePath}: meta.elk`);
     if (Object.keys(document.meta).length === 0) {
       delete document.meta;
     }
