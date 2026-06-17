@@ -5,7 +5,7 @@ import type {
 } from './inspector-single.js';
 import {
   escapePreviewHtml,
-  quotePreviewInlineJsString,
+  renderPreviewDataAttrs,
 } from './inline-actions.js';
 
 /**
@@ -62,7 +62,11 @@ function renderAlignWidget(cid: string, currentAlign: string): string {
   html += '<div class="dg-align-grid">';
   for (const point of ALIGN_POINTS) {
     const active = point === currentAlign ? ' active' : '';
-    html += `<button class="${active}" title="${ALIGN_LABELS[point]}" onclick="setFrameAlign(${quotePreviewInlineJsString(cid)},${quotePreviewInlineJsString(point)})"></button>`;
+    html += `<button type="button" class="${active}" title="${ALIGN_LABELS[point]}"${renderPreviewDataAttrs({
+      'data-dg-click-action': 'single-align',
+      'data-dg-cid': cid,
+      'data-dg-align': point,
+    })}></button>`;
   }
   html += '</div>';
   html += `<span class="value">${ALIGN_LABELS[currentAlign] ?? currentAlign}</span>`;
@@ -73,7 +77,6 @@ function renderAlignWidget(cid: string, currentAlign: string): string {
 export function renderSingleSelectionInspectorPanel(
   options: SingleSelectionInspectorPanelRenderOptions,
 ): string {
-  const quotedCid = quotePreviewInlineJsString(options.cid);
   let html = '';
   if (options.controlsErrorMessage) {
     html += '<p class="bf-form-help" style="color:#c66">Inspector controls failed: '
@@ -105,12 +108,18 @@ export function renderSingleSelectionInspectorPanel(
     html += '</span></div>';
   }
   if (options.viewModel.hasAnyOverride) {
-    html += `<button class="bf-button is-base danger" onclick="clearOverride(${quotedCid})">Clear override</button>`;
+    html += `<button class="bf-button is-base danger" type="button"${renderPreviewDataAttrs({
+      'data-dg-click-action': 'clear-override',
+      'data-dg-cid': options.cid,
+    })}>Clear override</button>`;
   }
 
   if (options.styleMode === 'picker') {
     html += '<div class="field" style="margin-top:6px"><span class="label">Style</span><br>';
-    html += `<select class="style-picker bf-input" onchange="applyStyleOverride(${quotedCid}, this.value)">`;
+    html += `<select class="style-picker bf-input"${renderPreviewDataAttrs({
+      'data-dg-change-action': 'single-style',
+      'data-dg-cid': options.cid,
+    })}>`;
     html += options.styleOptionsHtml || '';
     html += '</select></div>';
   } else if (options.styleMode === 'structural') {

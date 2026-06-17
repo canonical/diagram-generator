@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  applyPreviewSvgOverridesHost,
   resolvePreviewArrowShiftedSegments,
   resolvePreviewArrowSideShift,
   resolvePreviewReflowShiftMap,
@@ -76,5 +77,67 @@ describe('preview override application helpers', () => {
   it('shifts arrowhead polygon point strings by the target delta', () => {
     expect(shiftPreviewArrowheadPoints('10,20 30,40 50,60', { dx: 5, dy: -10 }))
       .toBe('15,10 35,30 55,50');
+  });
+
+  it('applies preview svg overrides through the host wrapper', () => {
+    const captured: unknown[] = [];
+    const svg = { tagName: 'svg' } as unknown as SVGSVGElement;
+
+    expect(applyPreviewSvgOverridesHost({
+      document: {
+        querySelector(selector: string) {
+          return selector === '#stage svg' ? svg : null;
+        },
+      },
+      selectedIds: new Set(['alpha', 'beta']),
+      componentTree: [{ id: 'alpha' }],
+      rootNodes: [{ id: 'root' }],
+      overrides: { alpha: { text: 'x' } },
+      relayoutStatus: { frameManaged: true },
+      boxStyles: {},
+      inset: 8,
+      iconSize: 48,
+      gridStep: 8,
+      hasDiagramGrid: true,
+      getNode() {
+        return { id: 'alpha' };
+      },
+      getOwnDelta() {
+        return { dx: 0, dy: 0, dw: 0, dh: 0 };
+      },
+      getEffectiveDelta() {
+        return { dx: 0, dy: 0, dw: 0, dh: 0 };
+      },
+      isFrameManagedTarget() {
+        return false;
+      },
+      showResizeHandles(id: string) {
+        captured.push({ showResizeHandles: id });
+      },
+      applyPreviewSvgOverrides(options) {
+        captured.push(options);
+      },
+    })).toBe(true);
+
+    expect(captured).toEqual([
+      {
+        svg,
+        componentTree: [{ id: 'alpha' }],
+        rootNodes: [{ id: 'root' }],
+        overrides: { alpha: { text: 'x' } },
+        relayoutStatus: { frameManaged: true },
+        boxStyles: {},
+        inset: 8,
+        iconSize: 48,
+        gridStep: 8,
+        hasDiagramGrid: true,
+        getNode: expect.any(Function),
+        getOwnDelta: expect.any(Function),
+        getEffectiveDelta: expect.any(Function),
+        isFrameManagedTarget: expect.any(Function),
+        selectedId: 'beta',
+        showResizeHandles: expect.any(Function),
+      },
+    ]);
   });
 });

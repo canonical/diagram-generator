@@ -14,8 +14,12 @@ describe('multi-selection inspector panel renderer', () => {
     expect(html).toContain('3 components');
     expect(html).toContain('Stack spacing');
     expect(html).toContain('id="multi-action-gap"');
-    expect(html).toContain("distributeSelection('x')");
-    expect(html).toContain("alignSelection('bottom')");
+    expect(html).toContain('data-dg-input-action="multi-gap"');
+    expect(html).toContain('data-dg-click-action="distribute-selection"');
+    expect(html).toContain('data-dg-axis="x"');
+    expect(html).toContain('data-dg-mode="bottom"');
+    expect(html).not.toContain('onclick=');
+    expect(html).not.toContain('oninput=');
   });
 
   it('renders mixed align/container/sizing states and bulk style picker', () => {
@@ -91,10 +95,12 @@ describe('multi-selection inspector panel renderer', () => {
       showWidthColsOption: false,
     });
 
-    expect(html).toContain("setMultiFrameProp('wrap',this.checked)");
+    expect(html).toContain('data-dg-change-action="multi-prop"');
+    expect(html).toContain('data-dg-prop="wrap"');
     expect(html).toContain('type="checkbox" checked');
     expect(html).toContain('placeholder="px"');
-    expect(html).toContain("setMultiFrameSize('height',parseFloat(this.value))");
+    expect(html).toContain('data-dg-change-action="multi-size"');
+    expect(html).toContain('data-dg-dimension="height"');
     expect(html).toContain('dg-coerced');
   });
 });

@@ -59,7 +59,7 @@ This order reduces the chance that every future ELK, force, sequence, or new-eng
 
 Each slice should leave behind:
 
-- one updated boundary note in `specs/043-preview-shell-editor-ts-extraction/boundaries.md`
+- one updated boundary note in `docs/spec-archive/043-preview-shell-editor-ts-extraction/boundaries.md`
 - one targeted validation path
 - one narrow list of remaining responsibilities still owned by `editor.js`
 
@@ -139,8 +139,8 @@ These names are directional; exact filenames can adapt to the existing preview-s
 - `packages/layout-engine/src/index.ts`
 - `packages/layout-engine/tests/*.test.ts`
 - `docs/agent-index.md`
-- `specs/043-preview-shell-editor-ts-extraction/*`
-- `specs/043-preview-shell-editor-ts-extraction/boundaries.md`
+- `docs/spec-archive/043-preview-shell-editor-ts-extraction/*`
+- `docs/spec-archive/043-preview-shell-editor-ts-extraction/boundaries.md`
 
 ## Validation
 

@@ -43,6 +43,6 @@ Cold-start map for the preview-shell callback chain after the spec 043 extractio
 
 ## Known limits
 
-- Inline inspector handler globals still exist during the migration.
+- Inspector action routing now uses delegated `data-dg-*` handlers, but the dispatch bridge still lives in `editor.js`.
 - Pointer down / move / up DOM wiring still lives in `editor.js`.
 - `scripts/preview/layout-bridge.js` remains part of the local relayout path and is still a trap file.

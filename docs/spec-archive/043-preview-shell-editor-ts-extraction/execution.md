@@ -114,14 +114,16 @@ Done means:
 
 ## Current recommended next step
 
-Current next step:
+Current closeout state:
 
-- keep `editor.js` focused on browser-host wiring only: pointer events, timers, compatibility globals, and unavoidable DOM cleanup
-- keep moving engine policy, mutation shaping, and live-resize orchestration into typed owners under `preview-shell/`
-- do not spend time on a full event-model rewrite until the remaining coordinator hotspots are smaller and clearer
+- review-closeout bar for spec 043 is met for the decomposition remit: inspector action delegation, artboard-fit, snap resolution, frame-delete, grid host dispatch, resize-end teardown, and drag-end teardown now route through typed owners
+- waypoint mutation commit flow and text-edit commit/cancel cleanup now route through typed host helpers as well
+- `editor.js` is now primarily browser-host wiring: pointer events, timers, selection-depth UX, waypoint live-move hooks, text-edit textarea creation, compatibility/test bridges, and unavoidable DOM cleanup
+- inspector panels stay on the `data-dg-*` delegated-event contract; do not reintroduce inline handler strings or new `window.*` action exports
+- registry design, bundle strategy, and `layout-bridge.js` decomposition remain intentionally deferred to follow-on spec 044
 
 The current highest-value move is:
 
-1. finish the remaining pointer/resize shell cleanup, especially artboard fitting, snap-target helpers, and the last resize-persist wrappers
-2. add cheap shell-level regression paths where `editor.js` still wires typed helpers into real timers or DOM callbacks
-3. keep the boundary note and flow map concise enough for a cold reviewer before taking another large extraction slice
+1. reopen 043 only for a concrete browser-edge hotspot, not for broad architectural churn
+2. keep adding cheap shell-level regression paths when `editor.js` wires a new typed helper into real timers or DOM callbacks
+3. open a new bounded spec if shell-contract or bundle work becomes necessary, rather than stretching 043 beyond its decomposition remit

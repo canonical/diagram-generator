@@ -121,10 +121,94 @@ export interface ConnectPreviewSseOptions {
   reconnectDelayMs?: number;
 }
 
+export interface PreviewEditorBindingButtonLike {
+  addEventListener: (type: 'click', listener: () => void) => void;
+}
+
+export interface PreviewEditorDocumentBindingsHostOptions {
+  document: {
+    addEventListener: (type: 'keydown', listener: (event: KeyboardEvent) => void) => void;
+    getElementById: (id: string) => PreviewEditorBindingButtonLike | null;
+  };
+  onDocumentKeyDown: (event: KeyboardEvent) => void;
+  onUndoClick: () => void;
+  onRedoClick: () => void;
+}
+
+export interface PreviewEditorTestFacadeHostOptions {
+  previewWindow: Window & typeof globalThis & {
+    __DG_TEST_preview?: unknown;
+  };
+  saveOverrides: () => unknown;
+  undo: () => unknown;
+  redo: () => unknown;
+  canUndo: () => boolean;
+  canRedo: () => boolean;
+}
+
+export interface InitPreviewEditorRuntimeHostOptions {
+  registerDocumentBindings?: (() => void) | null;
+  installTestFacade?: (() => void) | null;
+  initShellCoordinator: () => void;
+  initNavTabs: () => void;
+  ensureEditorState: () => void;
+  ensureElkPreviewController: () => void;
+  initSaveClient: () => void;
+  initOverrideToolbar: () => void;
+  registerPageshowReload: () => void;
+  loadDiagram: () => unknown;
+  connectSse: () => void;
+}
+
+export interface PreviewDiagramLoadSignalState {
+  generation: number;
+  resolvers: Array<(generation: number) => void>;
+}
+
 type PreviewGlobalWindow = Window & typeof globalThis & {
   EditorState?: PreviewEditorStateApi;
   ElkPreviewController?: PreviewElkControllerApi;
+  __DG_DIAGRAM_LOAD_GENERATION?: number;
+  whenDiagramLoaded?: () => Promise<number>;
 };
+
+export function createPreviewDiagramLoadSignalState(): PreviewDiagramLoadSignalState {
+  return {
+    generation: 0,
+    resolvers: [],
+  };
+}
+
+export function signalPreviewDiagramLoaded(
+  state: PreviewDiagramLoadSignalState,
+  previewWindow: PreviewGlobalWindow,
+  slug: string,
+): number {
+  state.generation += 1;
+  previewWindow.__DG_DIAGRAM_LOAD_GENERATION = state.generation;
+  const resolvers = state.resolvers;
+  state.resolvers = [];
+  for (const resolve of resolvers) {
+    resolve(state.generation);
+  }
+  previewWindow.dispatchEvent(new CustomEvent('dg-diagram-loaded', {
+    detail: { generation: state.generation, slug },
+  }));
+  return state.generation;
+}
+
+export function whenPreviewDiagramLoaded(
+  state: PreviewDiagramLoadSignalState,
+  hasRenderedStageSvg: () => boolean,
+): Promise<number> {
+  return new Promise((resolve) => {
+    if (hasRenderedStageSvg()) {
+      resolve(state.generation);
+      return;
+    }
+    state.resolvers.push(resolve);
+  });
+}
 
 function createPreviewEditorStateFallback(): PreviewEditorStateApi {
   return {
@@ -306,6 +390,42 @@ export function registerPreviewPageshowReload(
       void options.reloadDiagram();
     }
   });
+}
+
+export function registerPreviewEditorDocumentBindingsHost(
+  options: PreviewEditorDocumentBindingsHostOptions,
+): void {
+  options.document.addEventListener('keydown', options.onDocumentKeyDown);
+  options.document.getElementById('btn-undo')?.addEventListener('click', options.onUndoClick);
+  options.document.getElementById('btn-redo')?.addEventListener('click', options.onRedoClick);
+}
+
+export function installPreviewEditorTestFacadeHost(
+  options: PreviewEditorTestFacadeHostOptions,
+): void {
+  options.previewWindow.__DG_TEST_preview = Object.freeze({
+    saveOverrides: () => options.saveOverrides(),
+    undo: () => options.undo(),
+    redo: () => options.redo(),
+    canUndo: () => options.canUndo(),
+    canRedo: () => options.canRedo(),
+  });
+}
+
+export function initPreviewEditorRuntimeHost(
+  options: InitPreviewEditorRuntimeHostOptions,
+): void {
+  options.registerDocumentBindings?.();
+  options.installTestFacade?.();
+  options.initShellCoordinator();
+  options.initNavTabs();
+  options.ensureEditorState();
+  options.ensureElkPreviewController();
+  options.initSaveClient();
+  options.initOverrideToolbar();
+  options.registerPageshowReload();
+  void options.loadDiagram();
+  options.connectSse();
 }
 
 export function connectPreviewSse(

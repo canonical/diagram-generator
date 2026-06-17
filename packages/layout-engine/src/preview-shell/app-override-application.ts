@@ -76,6 +76,31 @@ export interface ApplyPreviewSvgOverridesOptions {
   showResizeHandles?: ((cid: string) => void) | null;
 }
 
+export interface ApplyPreviewSvgOverridesHostOptions {
+  document: {
+    querySelector: (selector: string) => SVGSVGElement | null;
+  };
+  selectedIds: Iterable<string>;
+  componentTree: PreviewOverrideTreeNode[];
+  rootNodes: PreviewOverrideRootNode[];
+  overrides: Record<string, PreviewOverrideEntry | undefined>;
+  relayoutStatus?: PreviewOverrideRelayoutStatus | null;
+  boxStyles: Record<string, PreviewOverrideBoxStylePreset>;
+  inset: number;
+  iconSize: number;
+  gridStep: number;
+  hasDiagramGrid: boolean;
+  getNode: (cid: string) => PreviewOverrideTreeNode | null | undefined;
+  getOwnDelta: (cid: string) => PreviewOverrideDelta;
+  getEffectiveDelta: (cid: string) => PreviewOverrideDelta;
+  isFrameManagedTarget: (
+    target: Element | null | undefined,
+    relayoutStatus?: PreviewOverrideRelayoutStatus | null,
+  ) => boolean;
+  showResizeHandles?: ((cid: string) => void) | null;
+  applyPreviewSvgOverrides?: ((options: ApplyPreviewSvgOverridesOptions) => void) | null;
+}
+
 function finiteNumber(value: string | null | undefined, fallback = 0): number {
   const numeric = Number.parseFloat(value ?? '');
   return Number.isFinite(numeric) ? numeric : fallback;
@@ -660,4 +685,38 @@ export function applyPreviewSvgOverrides(options: ApplyPreviewSvgOverridesOption
   if (options.selectedId && options.showResizeHandles) {
     options.showResizeHandles(options.selectedId);
   }
+}
+
+export function applyPreviewSvgOverridesHost(
+  options: ApplyPreviewSvgOverridesHostOptions,
+): boolean {
+  const svg = options.document.querySelector('#stage svg');
+  if (!svg) {
+    return false;
+  }
+  const selectedIdList = [...options.selectedIds];
+  const selectedId = selectedIdList.length > 0
+    ? selectedIdList[selectedIdList.length - 1] ?? null
+    : null;
+
+  const applySvgOverrides = options.applyPreviewSvgOverrides ?? applyPreviewSvgOverrides;
+  applySvgOverrides({
+    svg,
+    componentTree: options.componentTree,
+    rootNodes: options.rootNodes,
+    overrides: options.overrides,
+    relayoutStatus: options.relayoutStatus ?? null,
+    boxStyles: options.boxStyles,
+    inset: options.inset,
+    iconSize: options.iconSize,
+    gridStep: options.gridStep,
+    hasDiagramGrid: options.hasDiagramGrid,
+    getNode: options.getNode,
+    getOwnDelta: options.getOwnDelta,
+    getEffectiveDelta: options.getEffectiveDelta,
+    isFrameManagedTarget: options.isFrameManagedTarget,
+    selectedId,
+    showResizeHandles: options.showResizeHandles ?? null,
+  });
+  return true;
 }

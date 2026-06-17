@@ -13,6 +13,14 @@
   let _deps = null;
   let _panelWired = false;
 
+  function _previewEngineRegistry() {
+    return (
+      typeof LayoutEngine !== "undefined"
+      && LayoutEngine.previewEngines
+      && LayoutEngine.previewEngines.registry
+    ) || null;
+  }
+
   function _requireDeps() {
     if (!_deps) {
       throw new Error("ElkPreviewController.init() must run before ELK shell operations");
@@ -27,6 +35,14 @@
     const layoutEngine = tree?.layoutEngine
       ?? (window.__DG_CONFIG && window.__DG_CONFIG.layout_engine)
       ?? null;
+    const registry = _previewEngineRegistry();
+    if (
+      registry
+      && typeof registry.resolvePreviewEngine === "function"
+      && registry.resolvePreviewEngine({ layoutEngine, shellMode: "grid" })?.id === "elk-layered"
+    ) {
+      return true;
+    }
     if (
       typeof LayoutEngine !== "undefined"
       && typeof LayoutEngine.resolvePreviewEngine === "function"

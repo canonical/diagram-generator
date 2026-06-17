@@ -10,21 +10,28 @@
   /** @type {import("@diagram-generator/layout-engine").EditorStateStore | null} */
   let _store = null;
 
+  function _bootstrapContract() {
+    const bootstrap = LayoutEngine?.previewShell?.bootstrap;
+    if (bootstrap && typeof bootstrap.createEditorStateStore === "function") {
+      return bootstrap;
+    }
+    if (typeof LayoutEngine !== "undefined" && typeof LayoutEngine.createEditorStateStore === "function") {
+      return LayoutEngine;
+    }
+    throw new Error("LayoutEngine previewShell.bootstrap.createEditorStateStore is required for EditorState");
+  }
+
   function _requireStore() {
     if (!_store) {
       throw new Error("EditorState.init() must run before editor state operations");
     }
-    if (typeof LayoutEngine === "undefined" || !LayoutEngine.createEditorStateStore) {
-      throw new Error("LayoutEngine.createEditorStateStore is required for EditorState");
-    }
+    _bootstrapContract();
     return _store;
   }
 
   function init(deps) {
-    if (typeof LayoutEngine === "undefined" || !LayoutEngine.createEditorStateStore) {
-      throw new Error("LayoutEngine.createEditorStateStore is required for EditorState");
-    }
-    _store = LayoutEngine.createEditorStateStore({
+    const bootstrap = _bootstrapContract();
+    _store = bootstrap.createEditorStateStore({
       getOverrides: () => deps.getOverrides(),
       getGridOverrides: () => deps.getGridOverrides(),
       getElkLayoutOverrides: () => deps.getElkLayoutOverrides(),
@@ -34,7 +41,7 @@
   }
 
   function cloneValue(value) {
-    return LayoutEngine.cloneEditorSnapshotValue(value);
+    return _bootstrapContract().cloneEditorSnapshotValue(value);
   }
 
   function captureSnapshot() {

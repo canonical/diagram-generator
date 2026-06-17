@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  bindPreviewStageSvgInteractionHost,
   bindPreviewStageSvgInteraction,
   clearPreviewSvgHoverState,
+  dispatchPreviewStageSvgHoverHost,
+  dispatchPreviewStageSvgHoverOutHost,
   ensurePreviewSvgHitAreas,
   syncPreviewSvgHoverState,
   teardownPreviewStageSvgInteraction,
@@ -188,5 +191,83 @@ describe('preview stage svg helpers', () => {
 
     teardownPreviewStageSvgInteraction(nextSvg, handlers);
     expect(nextRemove).toHaveBeenCalledTimes(4);
+  });
+
+  it('routes hover and bind host wiring through the shared stage helpers', () => {
+    const syncHoverState = vi.fn();
+    const clearHoverState = vi.fn();
+    const binder = vi.fn(({ handlers }) => {
+      handlers.onMouseOver({
+        currentTarget: svg,
+        clientX: 10,
+        clientY: 12,
+      });
+      handlers.onMouseOut({
+        currentTarget: svg,
+      });
+      return svg;
+    });
+    const svg = {
+      createSVGPoint() {
+        return {
+          x: 0,
+          y: 0,
+          matrixTransform() {
+            return { x: 20, y: 24 };
+          },
+        };
+      },
+      getScreenCTM() {
+        return {
+          inverse() {
+            return {};
+          },
+        };
+      },
+    } as unknown as SVGSVGElement;
+
+    expect(dispatchPreviewStageSvgHoverHost({
+      event: {
+        currentTarget: svg,
+        clientX: 8,
+        clientY: 9,
+      },
+      selectionDepth: 1,
+      findArrowAtPoint() {
+        return null;
+      },
+      findComponentAtDepth() {
+        return 'alpha';
+      },
+      syncHoverState,
+    })).toBe(true);
+    expect(syncHoverState).toHaveBeenCalledWith(svg, 'alpha');
+
+    expect(dispatchPreviewStageSvgHoverOutHost({
+      event: {
+        currentTarget: svg,
+      },
+      clearHoverState,
+    })).toBe(true);
+    expect(clearHoverState).toHaveBeenCalledWith(svg);
+
+    expect(bindPreviewStageSvgInteractionHost({
+      document: {
+        querySelector() {
+          return svg;
+        },
+      },
+      previousSvg: null,
+      suppressHover: false,
+      selectionDepth: 1,
+      onMouseDown: vi.fn(),
+      onDoubleClick: vi.fn(),
+      findArrowAtPoint: () => null,
+      findComponentAtDepth: () => 'beta',
+      syncHoverState,
+      clearHoverState,
+      bindStageSvgInteraction: binder,
+    })).toBe(svg);
+    expect(binder).toHaveBeenCalledTimes(1);
   });
 });

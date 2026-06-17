@@ -68,6 +68,88 @@ export interface PreviewKeyboardDispatchOptions {
   renderSelectionInspector: (id?: string) => void;
 }
 
+export interface PreviewKeyboardHostEventTargetLike {
+  tagName?: string | null;
+  isContentEditable?: boolean;
+}
+
+export interface PreviewKeyboardHostEventLike {
+  key: string;
+  ctrlKey?: boolean;
+  shiftKey?: boolean;
+  metaKey?: boolean;
+  altKey?: boolean;
+  target?: PreviewKeyboardHostEventTargetLike | null;
+  preventDefault: () => void;
+}
+
+export interface PreviewKeyboardHostToggleElement {
+  classList: {
+    toggle: (name: string) => void;
+  };
+}
+
+export interface PreviewKeyboardHostSvgHandleLike {
+  style: {
+    display: string;
+  };
+}
+
+export interface PreviewKeyboardHostSvgLike {
+  querySelectorAll: (selector: string) => Iterable<PreviewKeyboardHostSvgHandleLike>;
+}
+
+export interface PreviewKeyboardHostDocumentLike {
+  querySelector: (selector: string) => PreviewKeyboardHostToggleElement | PreviewKeyboardHostSvgLike | null;
+  removeEventListener: (
+    type: 'mousemove' | 'mouseup',
+    handler: ((event?: any) => void),
+  ) => void;
+}
+
+export interface DispatchPreviewKeyboardShortcutHostOptions {
+  event: PreviewKeyboardHostEventLike;
+  document: PreviewKeyboardHostDocumentLike;
+  selectedIds: Iterable<string>;
+  selectionDepth: number;
+  isBusy?: boolean;
+  isTextEditing?: boolean;
+  isDragging?: boolean;
+  isResizing?: boolean;
+  hasAutolayoutSelection?: boolean;
+  save: () => void;
+  undo: () => void;
+  redo: () => void;
+  deleteSelection: () => void;
+  cancelTextEdit: () => void;
+  clearGuideLines: () => void;
+  onDragMove: (event?: any) => void;
+  onDragUp: (event?: any) => void;
+  onResizeMove: (event?: any) => void;
+  onResizeUp: (event?: any) => void;
+  endInteraction: () => void;
+  cycleGuideMode: () => void;
+  getParentId: (id: string) => string | null | undefined;
+  getChildIds: (id: string) => string[];
+  getAncestorDepth: (id: string) => number;
+  selectComponent: (id: string) => void;
+  applySelectionState: (
+    nextState: SelectionStateSnapshot,
+    preferredId?: string,
+  ) => void;
+  captureOverrideEntries: (ids: string[]) => unknown;
+  commitOverridePatchAction: (
+    label: string,
+    beforeEntries: unknown,
+    afterEntries: unknown,
+  ) => void;
+  getOwnDelta: (id: string) => PreviewKeyboardDelta;
+  applyInteractionOverrideEntries: (entries: InteractionOverrideEntry[]) => void;
+  applyAllOverrides: () => void;
+  showResizeHandles: (id: string) => void;
+  renderSelectionInspector: (id?: string) => void;
+}
+
 function uniqueIds(ids: Iterable<string>): string[] {
   return [...new Set(ids)].filter(Boolean);
 }
@@ -182,4 +264,72 @@ export function dispatchPreviewKeyboardShortcut(
     default:
       return action;
   }
+}
+
+export function dispatchPreviewKeyboardShortcutHost(
+  options: DispatchPreviewKeyboardShortcutHostOptions,
+): KeyboardShortcutAction {
+  const tag = options.event.target?.tagName || '';
+  const isEditableTarget = tag === 'INPUT'
+    || tag === 'TEXTAREA'
+    || tag === 'SELECT'
+    || Boolean(options.event.target?.isContentEditable);
+
+  return dispatchPreviewKeyboardShortcut({
+    key: options.event.key,
+    ctrlKey: options.event.ctrlKey,
+    shiftKey: options.event.shiftKey,
+    metaKey: options.event.metaKey,
+    altKey: options.event.altKey,
+    isEditableTarget,
+    selectedIds: [...options.selectedIds],
+    selectionDepth: options.selectionDepth,
+    isBusy: options.isBusy,
+    isTextEditing: options.isTextEditing,
+    isDragging: options.isDragging,
+    isResizing: options.isResizing,
+    hasAutolayoutSelection: options.hasAutolayoutSelection,
+    preventDefault: () => options.event.preventDefault(),
+    toggleSidebar: (sidebar) => {
+      const app = options.document.querySelector('.dg-preview-app') as PreviewKeyboardHostToggleElement | null;
+      if (!app) {
+        return;
+      }
+      app.classList.toggle(sidebar === 'nav' ? 'is-nav-hidden' : 'is-aside-hidden');
+    },
+    save: options.save,
+    undo: options.undo,
+    redo: options.redo,
+    deleteSelection: options.deleteSelection,
+    cancelTextEdit: options.cancelTextEdit,
+    cancelDrag: () => {
+      options.clearGuideLines();
+      options.document.removeEventListener('mousemove', options.onDragMove);
+      options.document.removeEventListener('mouseup', options.onDragUp);
+      options.endInteraction();
+    },
+    cancelResize: () => {
+      options.clearGuideLines();
+      options.document.removeEventListener('mousemove', options.onResizeMove);
+      options.document.removeEventListener('mouseup', options.onResizeUp);
+      const svg = options.document.querySelector('#stage svg') as PreviewKeyboardHostSvgLike | null;
+      for (const handle of svg?.querySelectorAll('.dg-handle') || []) {
+        handle.style.display = '';
+      }
+      options.endInteraction();
+    },
+    cycleGuideMode: options.cycleGuideMode,
+    getParentId: options.getParentId,
+    getChildIds: options.getChildIds,
+    getAncestorDepth: options.getAncestorDepth,
+    selectComponent: options.selectComponent,
+    applySelectionState: options.applySelectionState,
+    captureOverrideEntries: options.captureOverrideEntries,
+    commitOverridePatchAction: options.commitOverridePatchAction,
+    getOwnDelta: options.getOwnDelta,
+    applyInteractionOverrideEntries: options.applyInteractionOverrideEntries,
+    applyAllOverrides: options.applyAllOverrides,
+    showResizeHandles: options.showResizeHandles,
+    renderSelectionInspector: options.renderSelectionInspector,
+  });
 }

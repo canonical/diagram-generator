@@ -43,10 +43,24 @@ function extractNamedFunctionSource(source: string, functionName: string): strin
 }
 
 function loadKeydownHandler(overrides: Record<string, unknown>) {
-  const context = {
+  const context: Record<string, any> = {
     console,
     ...overrides,
   };
+  context.document ??= {
+    querySelector() {
+      return null;
+    },
+    removeEventListener() {},
+  };
+  context.window ??= {};
+  if (typeof context.window.__DG_getPreviewShellInteractionContract !== "function") {
+    context.window.__DG_getPreviewShellInteractionContract = () => (
+      context.LayoutEngine?.previewShell?.interaction
+      ?? context.LayoutEngine
+      ?? null
+    );
+  }
 
   const source = `${extractNamedFunctionSource(loadEditorSource(), "onDocumentKeyDown")}\nthis.__keydownHandler = onDocumentKeyDown;`;
   vm.runInNewContext(source, context);
@@ -65,6 +79,11 @@ function createShellNoops() {
   return {
     cancelTextEdit() {},
     cycleGuideMode() {},
+    clearGuideLines() {},
+    onDragMove() {},
+    onDragUp() {},
+    onResizeMove() {},
+    onResizeUp() {},
     applyAllOverrides() {},
     showResizeHandles() {},
     renderSelectionInspector() {},
@@ -90,19 +109,25 @@ test("editor shell keydown delegates current selection state to the extracted ke
       DRAGGING: "drag",
       RESIZING: "resize",
     },
+    document: {
+      querySelector() {
+        return null;
+      },
+      removeEventListener() {},
+    },
     LayoutEngine: {
-      dispatchPreviewKeyboardShortcut(options: Record<string, unknown>) {
+      dispatchPreviewKeyboardShortcutHost(options: Record<string, unknown>) {
         delegatedOptions = normalizeVmValue({
-          key: options.key,
-          shiftKey: options.shiftKey,
-          selectedIds: options.selectedIds,
+          key: options.event?.key,
+          shiftKey: options.event?.shiftKey,
+          selectedIds: Array.from(options.selectedIds as Iterable<string>),
           selectionDepth: options.selectionDepth,
           isBusy: options.isBusy,
-          isEditableTarget: options.isEditableTarget,
           isTextEditing: options.isTextEditing,
           isDragging: options.isDragging,
           isResizing: options.isResizing,
           hasAutolayoutSelection: options.hasAutolayoutSelection,
+          hasDocument: typeof options.document?.querySelector,
         });
       },
     },
@@ -130,11 +155,11 @@ test("editor shell keydown delegates current selection state to the extracted ke
     selectedIds: ["alpha", "beta"],
     selectionDepth: 2,
     isBusy: true,
-    isEditableTarget: false,
     isTextEditing: false,
     isDragging: false,
     isResizing: false,
     hasAutolayoutSelection: false,
+    hasDocument: "function",
   });
 });
 
@@ -157,13 +182,20 @@ test("editor shell keydown forwards autolayout-selection state to the dispatcher
       DRAGGING: "drag",
       RESIZING: "resize",
     },
+    document: {
+      querySelector() {
+        return null;
+      },
+      removeEventListener() {},
+    },
     LayoutEngine: {
-      dispatchPreviewKeyboardShortcut(options: Record<string, unknown>) {
+      dispatchPreviewKeyboardShortcutHost(options: Record<string, unknown>) {
         delegatedOptions = normalizeVmValue({
-          key: options.key,
-          selectedIds: options.selectedIds,
+          key: options.event?.key,
+          selectedIds: Array.from(options.selectedIds as Iterable<string>),
           selectionDepth: options.selectionDepth,
           hasAutolayoutSelection: options.hasAutolayoutSelection,
+          hasDocument: typeof options.document?.querySelector,
         });
       },
     },
@@ -190,5 +222,6 @@ test("editor shell keydown forwards autolayout-selection state to the dispatcher
     selectedIds: ["autolayout-child"],
     selectionDepth: 1,
     hasAutolayoutSelection: true,
+    hasDocument: "function",
   });
 });

@@ -67,6 +67,18 @@ const PER_SIDE_PADDING_PROPS = new Set([
   'padding_left',
 ]);
 
+const ALIGN_VALUES = new Set([
+  'TOP_LEFT',
+  'TOP_CENTER',
+  'TOP_RIGHT',
+  'CENTER_LEFT',
+  'CENTER',
+  'CENTER_RIGHT',
+  'BOTTOM_LEFT',
+  'BOTTOM_CENTER',
+  'BOTTOM_RIGHT',
+]);
+
 function ensureOverrideEntry(
   overrides: PreviewFrameOverrideMap,
   cid: string,
@@ -100,6 +112,13 @@ function clearPaddingConflicts(entry: PreviewFrameOverrideEntry, prop: string): 
 function normalizeConstraintValue(value: unknown): number {
   const numeric = Number(value);
   return Math.max(0, Number.isFinite(numeric) ? numeric : 0);
+}
+
+function normalizeAlignValue(value: unknown): string | null {
+  const nextValue = typeof value === 'string'
+    ? value
+    : String(value ?? '');
+  return ALIGN_VALUES.has(nextValue) ? nextValue : null;
 }
 
 function applyConstraintBounds(
@@ -205,6 +224,14 @@ export function applySingleFramePropMutation(options: {
   const entry = ensureOverrideEntry(options.overrides, options.cid);
   let value = options.value;
 
+  if (options.prop === 'align') {
+    const alignValue = normalizeAlignValue(value);
+    if (!alignValue) {
+      return { kind: 'none' };
+    }
+    value = alignValue;
+  }
+
   if (options.prop === 'gap' || PADDING_PROPS.has(options.prop)) {
     value = Math.max(0, typeof value === 'number' && Number.isFinite(value) ? value : 0);
   }
@@ -254,6 +281,14 @@ export function applyMultiFramePropMutation(options: {
 }): PreviewFramePropMutationResult {
   const isConstraint = isConstraintProp(options.prop);
   let value = options.value;
+
+  if (options.prop === 'align') {
+    const alignValue = normalizeAlignValue(value);
+    if (!alignValue) {
+      return { kind: 'none' };
+    }
+    value = alignValue;
+  }
 
   if (!isConstraint && (value === '' || value === null || value === undefined)) {
     return { kind: 'none' };

@@ -1,10 +1,16 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   connectPreviewSse,
+  createPreviewDiagramLoadSignalState,
   createPreviewSaveClientInitConfig,
   ensurePreviewEditorState,
   ensurePreviewElkPreviewController,
+  initPreviewEditorRuntimeHost,
+  installPreviewEditorTestFacadeHost,
+  registerPreviewEditorDocumentBindingsHost,
   registerPreviewPageshowReload,
+  signalPreviewDiagramLoaded,
+  whenPreviewDiagramLoaded,
 } from '../src/preview-shell/app-bootstrap.js';
 
 afterEach(() => {
@@ -124,5 +130,118 @@ describe('preview bootstrap helpers', () => {
     listener?.({ persisted: true } as PageTransitionEvent);
 
     expect(reloadDiagram).toHaveBeenCalledTimes(1);
+  });
+
+  it('registers keydown and undo-redo document bindings through the bootstrap host', () => {
+    const keydownListeners: Array<(event: KeyboardEvent) => void> = [];
+    const undoClick = vi.fn();
+    const redoClick = vi.fn();
+    const buttons = new Map<string, { addEventListener: (type: 'click', listener: () => void) => void }>();
+
+    registerPreviewEditorDocumentBindingsHost({
+      document: {
+        addEventListener(_type, listener) {
+          keydownListeners.push(listener);
+        },
+        getElementById(id: string) {
+          if (buttons.has(id)) {
+            return buttons.get(id) || null;
+          }
+          const element = {
+            addEventListener(_type: 'click', listener: () => void) {
+              if (id === 'btn-undo') {
+                undoClick.mockImplementation(listener);
+              } else if (id === 'btn-redo') {
+                redoClick.mockImplementation(listener);
+              }
+            },
+          };
+          buttons.set(id, element);
+          return element;
+        },
+      },
+      onDocumentKeyDown: vi.fn(),
+      onUndoClick: vi.fn(),
+      onRedoClick: vi.fn(),
+    });
+
+    expect(keydownListeners).toHaveLength(1);
+    expect(buttons.has('btn-undo')).toBe(true);
+    expect(buttons.has('btn-redo')).toBe(true);
+  });
+
+  it('installs the preview test facade and preserves bootstrap ordering', () => {
+    const previewWindow = {} as Window & typeof globalThis;
+    const orderedCalls: string[] = [];
+
+    installPreviewEditorTestFacadeHost({
+      previewWindow,
+      saveOverrides: () => {
+        orderedCalls.push('saveOverrides');
+      },
+      undo: () => {
+        orderedCalls.push('undo');
+      },
+      redo: () => {
+        orderedCalls.push('redo');
+      },
+      canUndo: () => true,
+      canRedo: () => false,
+    });
+
+    expect((previewWindow as { __DG_TEST_preview?: Record<string, () => unknown> }).__DG_TEST_preview).toMatchObject({
+      saveOverrides: expect.any(Function),
+      undo: expect.any(Function),
+      redo: expect.any(Function),
+      canUndo: expect.any(Function),
+      canRedo: expect.any(Function),
+    });
+
+    initPreviewEditorRuntimeHost({
+      registerDocumentBindings: () => orderedCalls.push('registerDocumentBindings'),
+      installTestFacade: () => orderedCalls.push('installTestFacade'),
+      initShellCoordinator: () => orderedCalls.push('initShellCoordinator'),
+      initNavTabs: () => orderedCalls.push('initNavTabs'),
+      ensureEditorState: () => orderedCalls.push('ensureEditorState'),
+      ensureElkPreviewController: () => orderedCalls.push('ensureElkPreviewController'),
+      initSaveClient: () => orderedCalls.push('initSaveClient'),
+      initOverrideToolbar: () => orderedCalls.push('initOverrideToolbar'),
+      registerPageshowReload: () => orderedCalls.push('registerPageshowReload'),
+      loadDiagram: () => {
+        orderedCalls.push('loadDiagram');
+      },
+      connectSse: () => orderedCalls.push('connectSse'),
+    });
+
+    expect(orderedCalls).toEqual([
+      'registerDocumentBindings',
+      'installTestFacade',
+      'initShellCoordinator',
+      'initNavTabs',
+      'ensureEditorState',
+      'ensureElkPreviewController',
+      'initSaveClient',
+      'initOverrideToolbar',
+      'registerPageshowReload',
+      'loadDiagram',
+      'connectSse',
+    ]);
+  });
+
+  it('tracks diagram-load generations and resolves waiters when the stage becomes ready', async () => {
+    const state = createPreviewDiagramLoadSignalState();
+    const dispatchEvent = vi.fn();
+    const previewWindow = {
+      dispatchEvent,
+    } as unknown as Window & typeof globalThis;
+
+    const pending = whenPreviewDiagramLoaded(state, () => false);
+    const generation = signalPreviewDiagramLoaded(state, previewWindow, 'demo');
+
+    await expect(pending).resolves.toBe(1);
+    expect(generation).toBe(1);
+    expect(dispatchEvent).toHaveBeenCalledTimes(1);
+
+    await expect(whenPreviewDiagramLoaded(state, () => true)).resolves.toBe(1);
   });
 });

@@ -23,9 +23,9 @@ Read this before broad repo searches.
 
 | File | ~Lines | Instead |
 |------|-------:|---------|
-| `scripts/preview/editor.js` | 6,000 | `rg` symbol, then `Read` with offset/limit |
-| `scripts/preview/layout-bridge.js` | 1,900 | same |
-| `scripts/preview/force.js` | 1,450 | same |
+| `scripts/preview/editor.js` | 2,178 | `rg` symbol, then `Read` with offset/limit |
+| `scripts/preview/layout-bridge.js` | 1,286 | same |
+| `scripts/preview/force.js` | 1,600 | same |
 | `packages/layout-engine/dist/layout-engine.iife.js` | 3.5 MB | edit `packages/layout-engine/src/`; run `build:browser` |
 | `diagrams/**` | binaries | ignored by `.cursorignore`; not product code |
 | `specs/**` (bulk) | 8k+ | open **one** active `specs/<id>-<slug>/` when doing spec work |
@@ -38,8 +38,14 @@ Thin shell modules (safe to read whole): `editor-state.js`, `editor-base.js`, `s
 |-------|-----|
 | Preview override persist / `gap_delta` | [`specs/006-arrow-routing-redesign/preview-override-flow.md`](../specs/006-arrow-routing-redesign/preview-override-flow.md) |
 | Preview text-block edit / YAML persist | [`specs/041-text-block-inline-editing/text-edit-flow.md`](../specs/041-text-block-inline-editing/text-edit-flow.md) |
-| Shell decomposition boundaries | [`specs/043-preview-shell-editor-ts-extraction/boundaries.md`](../specs/043-preview-shell-editor-ts-extraction/boundaries.md) |
-| Preview shell callback ordering | [`specs/043-preview-shell-editor-ts-extraction/shell-callback-flow.md`](../specs/043-preview-shell-editor-ts-extraction/shell-callback-flow.md) |
+| Shell decomposition boundaries | [`docs/spec-archive/043-preview-shell-editor-ts-extraction/boundaries.md`](./spec-archive/043-preview-shell-editor-ts-extraction/boundaries.md) |
+| Preview shell callback ordering | [`docs/spec-archive/043-preview-shell-editor-ts-extraction/shell-callback-flow.md`](./spec-archive/043-preview-shell-editor-ts-extraction/shell-callback-flow.md) |
+| Post-043 shell surface audit | [`specs/044-preview-shell-architecture-followup/surface-audit.md`](../specs/044-preview-shell-architecture-followup/surface-audit.md) |
+| `layout-bridge.js` decomposition map | [`specs/044-preview-shell-architecture-followup/layout-bridge-decomposition-map.md`](../specs/044-preview-shell-architecture-followup/layout-bridge-decomposition-map.md) |
+| Post-043 shell contract shape | [`specs/044-preview-shell-architecture-followup/contract-shape.md`](../specs/044-preview-shell-architecture-followup/contract-shape.md) |
+| Post-043 bundle strategy | [`specs/044-preview-shell-architecture-followup/bundle-strategy.md`](../specs/044-preview-shell-architecture-followup/bundle-strategy.md) |
+| Preview host lane/page topology | [`specs/045-preview-host-engine-modularity/host-topology.md`](../specs/045-preview-host-engine-modularity/host-topology.md) |
+| Editor host decomposition map | [`specs/046-editor-host-endgame/decomposition-map.md`](../specs/046-editor-host-endgame/decomposition-map.md) |
 | Agent token / workspace slimming | [`docs/spec-archive/040-agent-token-slimming/spec.md`](./spec-archive/040-agent-token-slimming/spec.md) |
 
 Add a new row when you land a cross-layer map (UI → server → engine → disk). Keep maps ≤60 lines.

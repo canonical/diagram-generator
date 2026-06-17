@@ -122,6 +122,32 @@ describe('preview-shell frame prop actions', () => {
       },
       arrow: {},
     });
+
+    expect(applySingleFramePropMutation({
+      overrides,
+      cid: 'frame',
+      prop: 'align',
+      value: 'DIAGONAL',
+      snapToGrid(value) {
+        return value;
+      },
+    })).toEqual({ kind: 'none' });
+
+    expect(applyMultiFramePropMutation({
+      overrides,
+      ids: ['frame'],
+      prop: 'align',
+      value: 'OFF_CENTER',
+      getNode() {
+        return { data: { width: 120, height: 64 } };
+      },
+    })).toEqual({ kind: 'none' });
+    expect(overrides).toEqual({
+      frame: {
+        align: 'BOTTOM_CENTER',
+      },
+      arrow: {},
+    });
   });
 
   it('clears single-frame constraints and keeps opposite bounds ordered', () => {

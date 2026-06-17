@@ -1,8 +1,5 @@
 /**
- * Small HTML/inline-handler escaping helpers for preview-shell panel renderers.
- *
- * The legacy shell still uses inline handler attributes during the migration,
- * so dynamic ids and messages must be escaped before they enter markup.
+ * Small HTML/data-attribute escaping helpers for preview-shell panel renderers.
  */
 
 export function escapePreviewHtml(value: unknown): string {
@@ -14,6 +11,11 @@ export function escapePreviewHtml(value: unknown): string {
     .replace(/'/g, '&#39;');
 }
 
-export function quotePreviewInlineJsString(value: string): string {
-  return escapePreviewHtml(JSON.stringify(String(value)));
+export function renderPreviewDataAttrs(
+  attrs: Record<string, unknown>,
+): string {
+  return Object.entries(attrs)
+    .filter(([, value]) => value !== undefined && value !== null)
+    .map(([name, value]) => ` ${name}="${escapePreviewHtml(value)}"`)
+    .join('');
 }

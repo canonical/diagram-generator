@@ -308,12 +308,14 @@ export {
 } from './interaction-keyboard.js';
 
 export type {
+  DispatchPreviewKeyboardShortcutHostOptions,
   PreviewKeyboardDelta,
   PreviewKeyboardDispatchOptions,
 } from './interaction-keyboard-dispatch.js';
 
 export {
   dispatchPreviewKeyboardShortcut,
+  dispatchPreviewKeyboardShortcutHost,
 } from './interaction-keyboard-dispatch.js';
 
 export type {
@@ -344,13 +346,40 @@ export {
 } from './app-arrow-waypoints.js';
 
 export type {
+  CommitPreviewWaypointInsertOptions,
+  CommitPreviewWaypointRemovalOptions,
+  CompletePreviewWaypointDragInteractionOptions,
+  DispatchPreviewWaypointDragMoveHostOptions,
+  PreviewWaypointHostNode,
+  PreviewWaypointDragHostEvent,
+  PreviewWaypointDragHostResult,
+  PreviewWaypointHostResult,
+  PreviewWaypointOverrideSnapshot,
+  RenderPreviewWaypointHandlesHostOptions,
+  StartPreviewWaypointDragHostOptions,
+} from './app-waypoint-host.js';
+
+export {
+  commitPreviewWaypointInsert,
+  commitPreviewWaypointRemoval,
+  completePreviewWaypointDragInteraction,
+  dispatchPreviewWaypointDragMoveHost,
+  renderPreviewWaypointHandlesHost,
+  startPreviewWaypointDragHost,
+} from './app-waypoint-host.js';
+
+export type {
   ConnectPreviewSseOptions,
+  PreviewDiagramLoadSignalState,
   PreviewBuildStatusUpdate,
+  PreviewEditorDocumentBindingsHostOptions,
   PreviewEditorStateApi,
   PreviewEditorStateInitOptions,
+  PreviewEditorTestFacadeHostOptions,
   PreviewElkControllerApi,
   PreviewElkControllerInitOptions,
   PreviewEventSourceLike,
+  InitPreviewEditorRuntimeHostOptions,
   PreviewPageshowReloadOptions,
   PreviewSaveClientApi,
   PreviewSaveClientInitConfig,
@@ -360,12 +389,18 @@ export type {
 
 export {
   connectPreviewSse,
+  createPreviewDiagramLoadSignalState,
   createPreviewSaveClientInitConfig,
   ensurePreviewEditorState,
   ensurePreviewElkPreviewController,
+  initPreviewEditorRuntimeHost,
   initPreviewSaveClient,
   initPreviewShellCoordinator,
+  installPreviewEditorTestFacadeHost,
   registerPreviewPageshowReload,
+  registerPreviewEditorDocumentBindingsHost,
+  signalPreviewDiagramLoaded,
+  whenPreviewDiagramLoaded,
 } from './app-bootstrap.js';
 
 export type {
@@ -383,6 +418,31 @@ export {
 } from './app-live-resize.js';
 
 export type {
+  AttemptPreviewDiagramNavigationOptions,
+  LoadPreviewComponentTreeOptions,
+  LoadPreviewGridInfoOptions,
+  LoadedPreviewGridInfoState,
+  PreviewCanonicalArrowState,
+  PreviewCanonicalDocumentState,
+  PreviewCanonicalFrameTreeState,
+  PreviewComponentTreeLoadMode,
+  PreviewDiagramBootstrapState,
+  PreviewDiagramTreeModel,
+  PreviewGridInfoFallbackMetrics,
+  PreviewGridInfoLoadMode,
+  PreviewJsonFetchResponse,
+  ResolvePreviewGridInfoOptions,
+  SyncPreviewArrowModelFromFrameTreeOptions,
+} from './app-diagram-data.js';
+
+export {
+  attemptPreviewDiagramNavigation,
+  loadPreviewComponentTree,
+  loadPreviewGridInfo,
+  syncPreviewArrowModelFromFrameTree,
+} from './app-diagram-data.js';
+
+export type {
   PreviewDiagramNavigationInitOptions,
   PreviewDiagramOptionEntry,
 } from './app-diagram-navigation.js';
@@ -395,6 +455,50 @@ export {
   syncPreviewBrowseLinksToPath,
   syncPreviewDiagramPickerToPath,
 } from './app-diagram-navigation.js';
+
+export type {
+  ApplyPreviewSelectionStateSnapshotOptions,
+  ClearPreviewSelectionStateOptions,
+  HandlePreviewDoubleClickSelectionHostOptions,
+  PreviewDoubleClickSelectionHostResult,
+  RenderPreviewTreeSelectionHostOptions,
+  PreviewSelectionHostClassList,
+  PreviewSelectionHostDoubleClickEvent,
+  PreviewSelectionHostSvgLike,
+  PreviewSelectionHostSvgPointLike,
+  ResolvePreviewComponentSelectionStateOptions,
+  SyncPreviewSelectionUiOptions,
+} from './app-selection-host.js';
+
+export {
+  applyPreviewSelectionStateSnapshot,
+  clearPreviewSelectionState,
+  handlePreviewDoubleClickSelectionHost,
+  renderPreviewTreeSelectionHost,
+  resolvePreviewComponentSelectionState,
+  syncPreviewSelectionUi,
+} from './app-selection-host.js';
+
+export type {
+  PreviewSelectionChromeArrowNode,
+  PreviewSelectionChromeBounds,
+  PreviewSelectionChromeDocument,
+  PreviewSelectionChromeHandleRenderOptions,
+  ReadPreviewArrowPointsHostOptions,
+  RebuildPreviewArrowSvgHostOptions,
+  RemovePreviewHandlesHostOptions,
+  RenderPreviewSelectionChromeHandlesOptions,
+  ShowPreviewResizeHandlesHostOptions,
+  UpdatePreviewArrowVisualHostOptions,
+} from './app-selection-chrome.js';
+
+export {
+  readPreviewArrowPointsHost,
+  rebuildPreviewArrowSvgHost,
+  removePreviewHandlesHost,
+  showPreviewResizeHandlesHost,
+  updatePreviewArrowVisualHost,
+} from './app-selection-chrome.js';
 
 export type {
   PreviewTextEditCommitResolution,
@@ -417,19 +521,162 @@ export {
 } from './app-text-edit.js';
 
 export type {
-  PreviewSplitDirection,
-  PreviewViewMode,
-  PreviewViewModesInitOptions,
-} from './app-view-modes.js';
+  CancelPreviewTextEditOptions,
+  CompletePreviewTextEditOptions,
+  PreviewTextEditEditorState,
+  PreviewTextEditElement,
+  PreviewTextEditHostResult,
+  PreviewTextEditInteractionState,
+  PreviewTextEditOverrideSnapshot,
+  PreviewTextEditTextarea,
+  StartPreviewTextEditHostOptions,
+} from './app-text-edit-host.js';
 
 export {
-  applyPreviewReferenceImageState,
-  applyPreviewSplitDirectionState,
-  applyPreviewViewModeState,
-  initPreviewViewModes,
-  normalizePreviewSplitDirection,
-  normalizePreviewViewMode,
-} from './app-view-modes.js';
+  cancelPreviewTextEdit,
+  completePreviewTextEdit,
+  startPreviewTextEditHost,
+} from './app-text-edit-host.js';
+
+export type {
+  PreviewArtboardBounds,
+  PreviewArtboardNode,
+  PreviewArtboardViewBox,
+} from './app-artboard.js';
+
+export {
+  autoFitPreviewArtboard,
+  collectPreviewArtboardBounds,
+  resolvePreviewArtboardFit,
+} from './app-artboard.js';
+
+export type {
+  BindPreviewGridControlsOptions,
+  CyclePreviewGuideModeHostOptions,
+  DispatchPreviewGridControlChangeHostOptions,
+  DispatchPreviewGridControlChangeOptions,
+  PopulatePreviewGridControlsOptions,
+  PopulatePreviewGridControlsHostOptions,
+  PreviewGridControlChangeDispatchResult,
+  PreviewGridHostControlElement,
+  PreviewGridHostDocumentLike,
+  PreviewGridSelectionBindingOptions,
+  ReadPreviewGridControlStateFromDomOptions,
+  ResolvePreviewGridControlRuntimeUpdateHostOptions,
+} from './app-grid-host.js';
+
+export {
+  bindPreviewGridControls,
+  bindPreviewGridNumberInputSelection,
+  cyclePreviewGuideModeHost,
+  dispatchPreviewGridControlChangeHost,
+  dispatchPreviewGridControlChange,
+  populatePreviewGridControlsHost,
+  populatePreviewGridControls,
+  readPreviewGridControlStateFromDom,
+  resolvePreviewGridControlRuntimeUpdateHost,
+} from './app-grid-host.js';
+
+export type {
+  ApplyPreviewWaypointOverridesHostOptions,
+  PreviewSceneHostShape,
+  PreviewStageCanvasDimensions,
+  RefreshPreviewGridInfoFromLayoutHostOptions,
+  RefreshPreviewSceneHostOptions,
+  RerenderPreviewStageFromModelHostOptions,
+  RerenderPreviewStageHostOptions,
+  RenderPreviewGridOverlayHostOptions,
+  RunPreviewConstraintValidationHostOptions,
+  UpdatePreviewConstraintStatusHostOptions,
+  UpdatePreviewOverrideSummaryHostOptions,
+} from './app-scene-host.js';
+
+export {
+  applyPreviewWaypointOverridesHost,
+  readPreviewStageCanvasDimensions,
+  refreshPreviewGridInfoFromLayoutHost,
+  refreshPreviewSceneHost,
+  refreshPreviewTreeOverrideStateHost,
+  rerenderPreviewStageFromModelHost,
+  rerenderPreviewStageHost,
+  renderPreviewGridOverlayHost,
+  runPreviewConstraintValidationHost,
+  updatePreviewConstraintStatusHost,
+  updatePreviewOverrideSummaryHost,
+} from './app-scene-host.js';
+
+export type {
+  DeletePreviewSelectedFramesHostOptions,
+  PreviewFrameDeleteNode,
+  DispatchPreviewDeleteFramesOptions,
+  DispatchPreviewDeleteFramesResult,
+  DispatchPreviewDeleteFramesHostOptions,
+  ResolvePreviewDiagramRootFrameIdOptions,
+} from './app-frame-delete.js';
+
+export {
+  collectPreviewSubtreeRemovalIds,
+  deletePreviewSelectedFramesHost,
+  dispatchPreviewDeleteFramesHost,
+  dispatchPreviewDeleteFrames,
+  resolvePreviewDeleteCandidates,
+  resolvePreviewDiagramRootFrameId,
+  resolvePreviewDeleteTopLevelTargets,
+} from './app-frame-delete.js';
+
+export type {
+  CollectPreviewRecursiveRelayoutEntriesOptions,
+  CompletePreviewResizeInteractionOptions,
+  DispatchPreviewResizeMoveHostOptions,
+  PersistPreviewResizeToFrameOverridesOptions,
+  PreviewResizePersistNode,
+  PreviewResizeHostEvent,
+  PreviewResizeHostHandle,
+  RestorePreviewPropagatedResizeOverridesOptions,
+  StartPreviewResizeHostOptions,
+  StartPreviewResizeHostResult,
+} from './app-resize-host.js';
+
+export {
+  collectPreviewRecursiveRelayoutEntries,
+  completePreviewResizeInteraction,
+  dispatchPreviewResizeMoveHost,
+  persistPreviewResizeToFrameOverrides,
+  restorePreviewPropagatedResizeOverrides,
+  startPreviewResizeHost,
+} from './app-resize-host.js';
+
+export type {
+  ClampPreviewDragDeltaWithinParentOptions,
+  CompletePreviewDragInteractionOptions,
+  DispatchPreviewDragMoveHostOptions,
+  PreviewDragClampDelta,
+  PreviewDragClampNode,
+  PreviewDragClampParentNode,
+  PreviewPointerClassList,
+  PreviewPointerEventLike,
+  PreviewPointerSvgLike,
+  StartPreviewPointerInteractionHostOptions,
+  StartPreviewPointerInteractionHostResult,
+} from './app-drag-host.js';
+
+export {
+  clampPreviewDragDeltaWithinParent,
+  dispatchPreviewDragMoveHost,
+  completePreviewDragInteraction,
+  startPreviewPointerInteractionHost,
+} from './app-drag-host.js';
+
+export type {
+  PreviewSnapComputation,
+  PreviewSnapRect,
+  PreviewSnapTargets,
+} from './interaction-snaps.js';
+
+export {
+  collectPreviewSnapTargets,
+  resolvePreviewDragSnap,
+} from './interaction-snaps.js';
 
 export type {
   PreviewHitNodeBounds,
@@ -506,39 +753,124 @@ export {
 } from './app-shell-panels.js';
 
 export type {
+  DispatchPreviewRelayoutFailureHostOptions,
+  DispatchPreviewRelayoutSuccessHostOptions,
+  PreviewGridOverrideEntry,
   PreviewRelayoutOverrideEntry,
   PreviewRelayoutResult,
   PreviewRelayoutStatus,
+  PreviewV3RelayoutRuntimeState,
+  PreviewV3RelayoutStatus,
+  ResolvePreviewV3RelayoutStatusOptions,
   RunPreviewRelayoutOptions,
 } from './app-relayout.js';
 
 export {
+  applyPreviewOverridesToFrameTree,
   clearPreviewCoercedOverrides,
+  clearPreviewTransientLayoutOverrides,
+  collectPreviewRelayoutFrameOverrides,
   collectPreviewCoercedKeys,
+  createPreviewRelayoutRuntimeState,
+  dispatchPreviewRelayoutFailureHost,
+  dispatchPreviewClearOverride,
+  dispatchPreviewRelayoutSuccessHost,
+  formatPreviewRelayoutStatusMessage,
+  isPreviewFrameManagedTarget,
+  markPreviewRelayoutExecution,
+  resolvePreviewV3RelayoutStatus,
   runPreviewRelayout,
 } from './app-relayout.js';
 
 export type {
+  DispatchPreviewClearOverrideOptions,
+  IsPreviewFrameManagedTargetOptions,
+} from './app-relayout.js';
+
+export type {
+  PreviewInspectorHostElement,
+  PreviewMultiSelectionInspectorHostResult,
   PreviewInspectorArrowNode,
   PreviewInspectorGridInfo,
+  PreviewMultiSelectionInspectorRuntimeNode,
+  RenderPreviewMultiSelectionInspectorRuntimeHostOptions,
+  RenderPreviewSelectionInspectorHostOptions,
+  RenderPreviewMultiSelectionInspectorHostOptions,
+  RenderPreviewSingleSelectionInspectorRuntimeHostOptions,
+  RenderPreviewSingleSelectionInspectorHostOptions,
   RenderPreviewSingleSelectionInspectorOptions,
 } from './app-inspector-host.js';
 
 export {
   createPreviewMissingInspectorMarkup,
   normalizePreviewInspectorWidthUnit,
+  renderPreviewEmptyInspectorHost,
+  renderPreviewMultiSelectionInspectorHost,
+  renderPreviewMultiSelectionInspectorRuntimeHost,
+  renderPreviewSelectionInspectorHost,
   renderPreviewSingleSelectionInspector,
+  renderPreviewSingleSelectionInspectorRuntimeHost,
+  renderPreviewSingleSelectionInspectorHost,
   resolvePreviewAutolayoutPanelHtml,
 } from './app-inspector-host.js';
 
 export type {
+  DispatchPreviewAlignSelectionHostOptions,
+  DispatchPreviewApplySelectionTargetsHostOptions,
+  DispatchPreviewDistributeSelectionHostOptions,
+  DispatchPreviewMultiFrameAlignHostOptions,
+  DispatchPreviewMultiFramePropHostOptions,
+  DispatchPreviewMultiFrameSizeHostOptions,
+  DispatchPreviewMultiStyleOverrideHostOptions,
+  DispatchPreviewSingleFrameAlignHostOptions,
+  DispatchPreviewSingleFramePropHostOptions,
+  DispatchPreviewSingleFrameSizeHostOptions,
+  PreviewMutationHostResult,
+} from './app-inspector-mutation-host.js';
+
+export {
+  dispatchPreviewAlignSelectionHost,
+  dispatchPreviewApplySelectionTargetsHost,
+  dispatchPreviewDistributeSelectionHost,
+  dispatchPreviewMultiFrameAlignHost,
+  dispatchPreviewMultiFramePropHost,
+  dispatchPreviewMultiFrameSizeHost,
+  dispatchPreviewMultiStyleOverrideHost,
+  dispatchPreviewSingleFrameAlignHost,
+  dispatchPreviewSingleFramePropHost,
+  dispatchPreviewSingleFrameSizeHost,
+} from './app-inspector-mutation-host.js';
+
+export type {
+  BindPreviewInspectorActionsOptions,
+  PreviewInspectorActionElement,
+  PreviewInspectorActionEventLike,
+  PreviewInspectorActionHost,
+} from './app-inspector-actions.js';
+
+export {
+  bindPreviewInspectorActions,
+  dispatchPreviewInspectorChangeAction,
+  dispatchPreviewInspectorClickAction,
+  dispatchPreviewInspectorInputAction,
+  readPreviewInspectorActionValue,
+  resolvePreviewInspectorActionElement,
+} from './app-inspector-actions.js';
+
+export type {
   BindPreviewStageSvgInteractionOptions,
+  BindPreviewStageSvgInteractionHostOptions,
+  DispatchPreviewStageSvgHoverHostOptions,
+  DispatchPreviewStageSvgHoverOutHostOptions,
   PreviewStageInteractionHandlers,
 } from './app-stage-svg.js';
 
 export {
   bindPreviewStageSvgInteraction,
+  bindPreviewStageSvgInteractionHost,
   clearPreviewSvgHoverState,
+  dispatchPreviewStageSvgHoverHost,
+  dispatchPreviewStageSvgHoverOutHost,
   ensurePreviewSvgHitAreas,
   syncPreviewSvgHoverState,
   teardownPreviewStageSvgInteraction,
@@ -576,6 +908,7 @@ export {
 } from './app-interaction-host.js';
 
 export type {
+  ApplyPreviewSvgOverridesHostOptions,
   ApplyPreviewSvgOverridesOptions,
   PreviewArrowEndpointShift,
   PreviewArrowSegmentCoordinate,
@@ -588,12 +921,25 @@ export type {
 } from './app-override-application.js';
 
 export {
+  applyPreviewSvgOverridesHost,
   applyPreviewSvgOverrides,
   resolvePreviewArrowShiftedSegments,
   resolvePreviewArrowSideShift,
   resolvePreviewReflowShiftMap,
   shiftPreviewArrowheadPoints,
 } from './app-override-application.js';
+
+export type {
+  FreshPreviewDocument,
+  FreshPreviewSvgRenderResult,
+  RenderFreshPreviewSvgOptions,
+  RenderPreviewFrameTreeToSvgOptions,
+} from './app-fresh-render.js';
+
+export {
+  renderFreshPreviewSvg,
+  renderPreviewFrameTreeToSvg,
+} from './app-fresh-render.js';
 
 export type {
   PreviewOverridePatchRestorePlan,

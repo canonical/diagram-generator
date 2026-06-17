@@ -4,8 +4,14 @@ const DIRTY_DIAGRAM_NAV_CONFIRM = "You have unsaved changes. Leave this diagram 
 const FORCE_RUNTIME_BUILD_HINT = "Layout engine bundle is required for force preview. Run `npm --prefix packages/layout-engine run build:browser`.";
 
 /** Control metadata from the TS preview-engine registry (spec 025). */
+function forceRuntimeContract() {
+  return window.LayoutEngine?.previewEngines?.force ?? null;
+}
+
 function forcePreviewEngine() {
-  return window.LayoutEngine?.getPreviewEngine?.("force") ?? null;
+  return window.LayoutEngine?.previewEngines?.registry?.getPreviewEngine?.("force")
+    ?? window.LayoutEngine?.getPreviewEngine?.("force")
+    ?? null;
 }
 
 function forceParamSpec(key) {
@@ -93,7 +99,7 @@ function releaseStagePointer(pointerId) {
 }
 
 function requireForceRuntimeMethod(methodName) {
-  const fn = window.LayoutEngine?.[methodName];
+  const fn = forceRuntimeContract()?.[methodName] ?? window.LayoutEngine?.[methodName];
   if (typeof fn !== "function") {
     throw new Error(`${FORCE_RUNTIME_BUILD_HINT} Missing LayoutEngine.${methodName}().`);
   }
@@ -133,7 +139,8 @@ function updateLocalRuntimeControls() {
   const container = document.getElementById("force-params");
   if (!container) return;
   const canEditLocalParams = Boolean(
-    window.LayoutEngine && typeof window.LayoutEngine.updateForceSimulationParams === "function"
+    typeof forceRuntimeContract()?.updateForceSimulationParams === "function"
+    || (window.LayoutEngine && typeof window.LayoutEngine.updateForceSimulationParams === "function")
   );
   for (const input of container.querySelectorAll("input")) {
     input.disabled = !canEditLocalParams;
@@ -239,10 +246,9 @@ function snapshotFromCanonicalState(canonicalState) {
   if (
     canonicalState.authoredSpec
     && typeof canonicalState.authoredSpec === "object"
-    && window.LayoutEngine
-    && typeof window.LayoutEngine.createInitialForceSnapshot === "function"
+    && typeof (forceRuntimeContract()?.createInitialForceSnapshot ?? window.LayoutEngine?.createInitialForceSnapshot) === "function"
   ) {
-    return window.LayoutEngine.createInitialForceSnapshot(canonicalState.authoredSpec);
+    return requireForceRuntimeMethod("createInitialForceSnapshot")(canonicalState.authoredSpec);
   }
   if (canonicalState.snapshot && typeof canonicalState.snapshot === "object") {
     return canonicalState.snapshot;
@@ -942,23 +948,6 @@ function cancelActivePointerInteraction(event) {
   }
 }
 
-function ensureReferenceImage() {
-  const image = byId("reference-img");
-  if (image.dataset.initialized) {
-    return;
-  }
-  image.dataset.initialized = "true";
-  image.onerror = () => {
-    image.alt = "No reference sketch available";
-    image.removeAttribute("src");
-    const wrap = image.closest(".dg-reference-img-wrap");
-    if (wrap) {
-      wrap.innerHTML = '<p class="dg-empty-message bf-form-help">No tracked source image is mapped for this force example.</p>';
-    }
-  };
-  image.src = `/reference/${encodeURIComponent(FORCE_SLUG)}`;
-}
-
 function render(snapshot, options = {}) {
   const { previewOnly = false } = options;
   currentSnapshot = snapshot;
@@ -978,7 +967,6 @@ function render(snapshot, options = {}) {
   renderSelection(snapshot);
   updateSummary(snapshot);
   updateSimulationParams(snapshot);
-  ensureReferenceImage();
 
   // Show resize handles on the single selected node (unless dragging)
   if (selectedIds.size === 1 && !dragState && !resizeState) {
@@ -1535,7 +1523,6 @@ byId("btn-export-svg").addEventListener("click", async () => {
   }
 });
 
-setViewMode("output");
 updateRunButton();
 
 // --- Simulation parameter sliders ---

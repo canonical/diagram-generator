@@ -2,7 +2,7 @@
  * editor-base.js — Shared shell infrastructure for grid and force editor modes.
  *
  * Loaded before the mode-specific script (editor.js or force.js).
- * Provides: utilities, shell init, sidebar resize, view tabs, diagram picker.
+ * Provides: utilities, shell init, sidebar resize, diagram picker.
  */
 
 // ---- Shared utilities ----
@@ -53,28 +53,70 @@ function getShellMode() {
   return shell ? shell.dataset.dgMode : "grid";
 }
 
-// ---- View mode tabs ----
+// ---- Browser contract helpers ----
 
-function setViewMode(mode) {
-  const shell = byId("stage-shell");
-  if (shell) shell.dataset.viewMode = mode;
+function getPreviewBridgeRelayoutContract() {
+  return window.LayoutEngine?.previewBridge?.relayout
+    ?? window.LayoutEngine
+    ?? (typeof LayoutEngine !== "undefined" ? LayoutEngine : null);
+}
 
-  const tabs = Array.from(document.querySelectorAll(".dg-view-tab"));
-  for (const tab of tabs) {
-    const active = (tab.dataset.viewMode || tab.dataset.forceViewTab) === mode;
-    tab.setAttribute("aria-selected", active ? "true" : "false");
-    tab.tabIndex = active ? 0 : -1;
+function getPreviewBridgeRenderContract() {
+  const bundleRender = window.LayoutEngine?.previewBridge?.render
+    ?? window.LayoutEngine
+    ?? (typeof LayoutEngine !== "undefined" ? LayoutEngine : null);
+  const hostRender = window.__DG_previewBridgeRenderHost || null;
+  if (bundleRender && hostRender && bundleRender !== hostRender) {
+    return { ...bundleRender, ...hostRender };
   }
+  return hostRender || bundleRender;
 }
 
-function initViewTabs() {
-  document.querySelectorAll(".dg-view-tab").forEach(tab => {
-    tab.addEventListener("click", () => {
-      const mode = tab.dataset.viewMode || tab.dataset.forceViewTab;
-      if (mode) setViewMode(mode);
-    });
-  });
+function getPreviewCoreContract() {
+  return window.LayoutEngine?.core
+    ?? window.LayoutEngine
+    ?? (typeof LayoutEngine !== "undefined" ? LayoutEngine : null);
 }
+
+function getPreviewElkEngineContract() {
+  return window.LayoutEngine?.previewEngines?.elk
+    ?? window.LayoutEngine?.previewEngines
+    ?? window.LayoutEngine
+    ?? (typeof LayoutEngine !== "undefined" ? LayoutEngine : null);
+}
+
+function getPreviewShellSceneContract() {
+  return window.LayoutEngine?.previewShell?.scene
+    ?? window.LayoutEngine
+    ?? (typeof LayoutEngine !== "undefined" ? LayoutEngine : null);
+}
+
+function getPreviewShellInspectorContract() {
+  return window.LayoutEngine?.previewShell?.inspector
+    ?? window.LayoutEngine
+    ?? (typeof LayoutEngine !== "undefined" ? LayoutEngine : null);
+}
+
+function getPreviewShellInteractionContract() {
+  return window.LayoutEngine?.previewShell?.interaction
+    ?? window.LayoutEngine
+    ?? (typeof LayoutEngine !== "undefined" ? LayoutEngine : null);
+}
+
+function getPreviewShellBootstrapContract() {
+  return window.LayoutEngine?.previewShell?.bootstrap
+    ?? window.LayoutEngine
+    ?? (typeof LayoutEngine !== "undefined" ? LayoutEngine : null);
+}
+
+window.__DG_getPreviewBridgeRelayoutContract = getPreviewBridgeRelayoutContract;
+window.__DG_getPreviewBridgeRenderContract = getPreviewBridgeRenderContract;
+window.__DG_getPreviewCoreContract = getPreviewCoreContract;
+window.__DG_getPreviewElkEngineContract = getPreviewElkEngineContract;
+window.__DG_getPreviewShellSceneContract = getPreviewShellSceneContract;
+window.__DG_getPreviewShellInspectorContract = getPreviewShellInspectorContract;
+window.__DG_getPreviewShellInteractionContract = getPreviewShellInteractionContract;
+window.__DG_getPreviewShellBootstrapContract = getPreviewShellBootstrapContract;
 
 // ---- Diagram picker (prev / next) ----
 
@@ -263,7 +305,6 @@ function initNavTabs() {
 
 function initPreviewShell() {
   bindShellResize();
-  initViewTabs();
   initDiagramPicker();
   initNavTabs();
 }
@@ -584,7 +625,6 @@ window.fetchJson = fetchJson;
 window.downloadFile = downloadFile;
 window.getThemeToken = getThemeToken;
 window.getShellMode = getShellMode;
-window.setViewMode = setViewMode;
 window.getStageSvg = getStageSvg;
 window.pointerToSvgPoint = pointerToSvgPoint;
 window.setStatus = setStatus;

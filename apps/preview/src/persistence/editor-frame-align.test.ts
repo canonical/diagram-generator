@@ -47,10 +47,18 @@ function loadEditorFunction<T extends (...args: any[]) => unknown>(
   signature: string,
   overrides: Record<string, unknown>,
 ): T {
-  const context = {
+  const context: Record<string, any> = {
     console,
     ...overrides,
   };
+  context.window ??= {};
+  if (typeof context.window.__DG_getPreviewShellInspectorContract !== "function") {
+    context.window.__DG_getPreviewShellInspectorContract = () => (
+      context.LayoutEngine?.previewShell?.inspector
+      ?? context.LayoutEngine
+      ?? null
+    );
+  }
   const source = `${extractNamedFunctionSource(loadEditorSource(), functionName, signature)}\nthis.__loaded = ${functionName};`;
   vm.runInNewContext(source, context);
   const loaded = (context as { __loaded?: T }).__loaded;
@@ -90,12 +98,12 @@ test("setFrameAlign delegates through the typed single-frame mutation helper", (
         },
       },
       LayoutEngine: {
-        applySingleFramePropMutation(options: Record<string, unknown>) {
+        dispatchPreviewSingleFrameAlignHost(options: Record<string, unknown>) {
           delegatedOptions = {
             cid: options.cid,
-            prop: options.prop,
-            value: options.value,
+            align: options.align,
           };
+          options.scheduleRelayout(options.cid);
           return { kind: "change" };
         },
       },
@@ -123,8 +131,7 @@ test("setFrameAlign delegates through the typed single-frame mutation helper", (
 
   assert.deepEqual(delegatedOptions, {
     cid: "alpha",
-    prop: "align",
-    value: "CENTER_RIGHT",
+    align: "CENTER_RIGHT",
   });
   assert.equal(relayoutCid, "alpha");
 });
@@ -146,12 +153,12 @@ test("setMultiFrameAlign delegates through the typed multi-frame mutation helper
         },
       },
       LayoutEngine: {
-        applyMultiFramePropMutation(options: Record<string, unknown>) {
+        dispatchPreviewMultiFrameAlignHost(options: Record<string, unknown>) {
           delegatedOptions = {
-            ids: Array.from(options.ids as Iterable<string>),
-            prop: options.prop,
-            value: options.value,
+            selectedIds: Array.from(options.selectedIds as Iterable<string>),
+            align: options.align,
           };
+          options.scheduleRelayout("alpha");
           return { kind: "change" };
         },
       },
@@ -178,9 +185,8 @@ test("setMultiFrameAlign delegates through the typed multi-frame mutation helper
   setMultiFrameAlign("BOTTOM_CENTER");
 
   assert.deepEqual(delegatedOptions, {
-    ids: ["alpha", "beta"],
-    prop: "align",
-    value: "BOTTOM_CENTER",
+    selectedIds: ["alpha", "beta"],
+    align: "BOTTOM_CENTER",
   });
   assert.equal(relayoutCid, "alpha");
 });

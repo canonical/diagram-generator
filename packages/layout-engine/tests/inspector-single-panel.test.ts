@@ -29,17 +29,21 @@ describe('single-selection inspector panel renderer', () => {
       ],
     });
 
-    expect(html).toContain('setFrameAlign(&quot;box-1&quot;,&quot;CENTER&quot;)');
+    expect(html).toContain('data-dg-click-action="single-align"');
+    expect(html).toContain('data-dg-cid="box-1"');
+    expect(html).toContain('data-dg-align="CENTER"');
     expect(html).toContain('<span class="value">Center</span>');
     expect(html).toContain('<div class="auto-panel">Sizing</div>');
     expect(html).toContain('dx=16  dy=-8');
     expect(html).toContain('dw=24  dh=0');
     expect(html).toContain('dx=32  dy=0');
-    expect(html).toContain('clearOverride(&quot;box-1&quot;)');
-    expect(html).toContain('applyStyleOverride(&quot;box-1&quot;, this.value)');
+    expect(html).toContain('data-dg-click-action="clear-override"');
+    expect(html).toContain('data-dg-change-action="single-style"');
     expect(html).toContain('Width exceeded');
     expect(html).toContain('Gap coerced');
     expect(html).toContain('Drag to move');
+    expect(html).not.toContain('onclick=');
+    expect(html).not.toContain('onchange=');
   });
 
   it('renders structural wrapper hint, waypoint override, and stack note', () => {
@@ -96,7 +100,7 @@ describe('single-selection inspector panel renderer', () => {
 
     expect(html).toContain('Inspector controls failed: boom');
     expect(html).not.toContain('ignored');
-    expect(html).not.toContain("setFrameAlign('box-2'");
+    expect(html).not.toContain('data-dg-click-action="single-align"');
   });
 
   it('escapes dynamic ids and messages before injecting them into markup', () => {
@@ -124,6 +128,6 @@ describe('single-selection inspector panel renderer', () => {
 
     expect(html).toContain('boom &lt;bad&gt;');
     expect(html).toContain('warn &quot;quoted&quot;');
-    expect(html).toContain('clearOverride(&quot;box&#39;\\&quot;&lt;&amp;&quot;)');
+    expect(html).toContain('data-dg-cid="box&#39;&quot;&lt;&amp;"');
   });
 });

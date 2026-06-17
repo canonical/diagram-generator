@@ -4,7 +4,7 @@
 
 **Created**: 2026-06-14
 
-**Status**: In Progress
+**Status**: Complete
 
 **Depends on**: spec 025 (complete), spec 026 (archived complete), spec 027 (complete), spec 029 (complete), spec 035 (archived complete)
 
@@ -37,6 +37,10 @@ Spec 026 was therefore necessary but not sufficient. This spec completes the rem
 ## Mission
 
 Turn `editor.js` from the main behavioral surface into a thin shell coordinator over typed modules, while preserving the live preview UX, keeping YAML + TypeScript as the only product-path authorities, and making the standalone repo leaner and more stable to extend.
+
+## Execution amendment (2026-06-15)
+
+During execution, the preview shell's legacy Input / Output / Both compatibility chrome was explicitly retired. The preview shell is now intentionally output-only. Restoring multi-pane compatibility UI is not part of spec 043 and would require a separate product-led spec.
 
 ## Architectural Review Bar
 
@@ -163,7 +167,7 @@ These slices may land in multiple sessions and multiple PRs. The spec intentiona
 - **FR-008**: The active boundary documentation for the preview shell MUST be refreshed as slices land so cold-start sessions do not rely on archived spec 026 as the primary truth.
 - **FR-009**: Each extraction slice MUST define targeted validation sufficient to prove behavior did not drift before the next slice starts.
 - **FR-010**: Shared browser-consumed TS extraction modules MUST live under `packages/layout-engine/src/preview-shell/` and integrate through `packages/layout-engine/src/browser-entry.ts` when they need browser-bundle exposure.
-- **FR-011**: The active preview-shell boundary note for this work MUST live at `specs/043-preview-shell-editor-ts-extraction/boundaries.md` and be linked from `docs/agent-index.md`.
+- **FR-011**: The preview-shell boundary note for this archived work lives at `docs/spec-archive/043-preview-shell-editor-ts-extraction/boundaries.md` and remains linked from `docs/agent-index.md`.
 - **FR-012**: This migration MUST preserve the spec 038 relocation seams and MUST NOT introduce new direct dependencies on design-foundry.
 - **FR-013**: Shared shell integration for future engines MUST prefer typed registries, manifests, or controller contracts over per-engine branching in `editor.js`.
 

@@ -7,6 +7,8 @@
 
 export interface PreviewLoadCanonicalState {
   frameTree?: unknown;
+  componentTree?: unknown[] | null;
+  gridInfo?: unknown;
   previewDocument?: {
     kind?: string | null;
   } | null;
