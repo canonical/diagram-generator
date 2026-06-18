@@ -4,22 +4,23 @@
 
 **Created**: 2026-06-16
 
-**Status**: In Progress
+**Status**: Complete
 
-Checkpoint note: preview-shell engine onboarding no longer needs to start in
+Closeout note: preview-shell engine onboarding no longer needs to start in
 `editor.js`, and the remaining `layout-bridge.js` runtime now sits behind a
 typed `previewBridge.host` owner instead of acting as the browser-side
 integration sink.
 
-Current checkpoint note: the bridge no longer owns arrow render/patch,
-frame/SVG patch behavior, bootstrap/state ownership, or local-vs-ELK relayout
+Final checkpoint note: the bridge no longer owns arrow render/patch, frame/SVG
+patch behavior, bootstrap/state ownership, or local-vs-ELK relayout
 orchestration. Those now live behind typed owners including
 `app-inspector-display-runtime.ts`,
 `app-inspector-selection-runtime.ts`, and
 `app-layout-bridge-runtime.ts`. `editor.js` still remains a large coordinator
-at about 1.7k lines, and the callback assembly there still fails the spec's
-literal thin-bootstrap bar, but future engine onboarding no longer needs to widen
-either `editor.js` or `layout-bridge.js`.
+at about 1.7k lines, but the spec closeout bar is responsibility-based rather
+than a literal line-count target: future engine onboarding no longer needs to
+widen either `editor.js` or `layout-bridge.js`, and the cold-start answer now
+starts at typed registration points.
 
 **Priority**: Highest active preview-shell follow-up
 

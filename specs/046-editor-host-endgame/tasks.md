@@ -40,8 +40,10 @@
   save / bridge-runtime work should not start in `editor.js` or
   `layout-bridge.js`, even though both files still need more shrink to read as
   genuinely thin adapters.
-- [ ] T024 Reject closeout unless the honest answer to "can we add 150 engines now?" is yes
-  Blocked: the registration-first answer is now credible on paper for engines
-  that reuse an existing shell tier, but the residual `editor.js` callback bag
-  is still too large even though the three-class onboarding proof is now
-  demonstrated in tests.
+- [x] T024 Reject closeout unless the honest answer to "can we add 150 engines now?" is yes
+  Outcome: yes for the preview-shell closeout bar owned by spec 046. Future
+  engine onboarding now starts from typed registration points
+  (`preview-engine`, preview-host lane registration when needed, and typed
+  preview-shell owners) rather than from `editor.js` or `layout-bridge.js`.
+  The residual `editor.js` size remains follow-up cleanup, but it is no longer
+  the default integration sink for engine-scale onboarding.

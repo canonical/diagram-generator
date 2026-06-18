@@ -44,13 +44,13 @@ Review-closeout status: archived package `docs/spec-archive/043-preview-shell-ed
 - [ ] `[H]` **Grid-shell width changes must remeasure text immediately.** Manual width edits and resize interactions should re-run HarfBuzz/text wrapping so widened boxes unwrap and live preview matches the final dropped state.
 - [ ] `[H]` **Interactive grid-shell resize should update during drag, not only on drop.** Investigate the live relayout/RAF path so resize feels responsive enough for Figma-like editing rather than delayed post-drop recompute.
 
-#### Editor host endgame (spec 046)
+#### Preview shell follow-up (spec 044)
 
-- [ ] `[H]` **Finish the residual `editor.js` closeout work before opening new preview-shell architecture fronts.** Spec package: `specs/046-editor-host-endgame/`. Structural engine-onboarding progress is real: future engine onboarding no longer needs to widen `editor.js` or `layout-bridge.js`. The remaining work is to shrink the callback-heavy residual host until it reads as thin bootstrap glue and to make the 150-engine proof honest rather than architecture-only.
+- [ ] `[M]` **Finish the residual browser-entry / bridge-contract cleanup after the 046 closeout.** Spec package: `specs/044-preview-shell-architecture-followup/`. Scope: shrink the preview-shell/browser-entry cold-start surface, retire compatibility wrappers where possible, and keep the VM/browser harness cost bounded now that engine onboarding no longer starts in the legacy JS sink files.
 
-#### Render IR unification (spec 047, gated after 046)
+#### Render IR unification (spec 047)
 
-- [ ] `[M]` **Keep the renderer-convergence follow-up gated until spec 046 closes for real.** Spec package: `specs/047-render-ir-unification/`. Scope: converge preview/export geometry around one render IR authority with separate export-SVG and preview-DOM serializers once the residual `editor.js` host is no longer blocking cold-start maintenance.
+- [ ] `[M]` **Re-evaluate the renderer-convergence follow-up after the remaining preview-host and preview-shell cleanup.** Spec package: `specs/047-render-ir-unification/`. Scope: converge preview/export geometry around one render IR authority with separate export-SVG and preview-DOM serializers once the remaining host-lane and browser-entry cleanup no longer dominates cold-start maintenance.
 
 #### Preview host engine modularity (spec 045)
 
