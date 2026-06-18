@@ -97,6 +97,14 @@ test("setFrameAlign delegates through the typed single-frame mutation helper", (
           return { data: { width: 120, height: 64 } };
         },
       },
+      _getInspectorMutationRuntime() {
+        return {
+          setFrameAlign(cid: string, align: string) {
+            delegatedOptions = { cid, align };
+            relayoutCid = cid;
+          },
+        };
+      },
       LayoutEngine: {
         dispatchPreviewSingleFrameAlignHost(options: Record<string, unknown>) {
           delegatedOptions = {
@@ -138,28 +146,24 @@ test("setFrameAlign delegates through the typed single-frame mutation helper", (
 
 test("setMultiFrameAlign delegates through the typed multi-frame mutation helper", () => {
   let delegatedOptions: Record<string, unknown> | null = null;
-  let relayoutCid: string | null = null;
 
   const setMultiFrameAlign = loadEditorFunction<(align: string) => void>(
     "setMultiFrameAlign",
     "(align)",
     {
+      _getInspectorSelectionRuntime() {
+        return {
+          setMultiFrameAlign(align: string) {
+            delegatedOptions = { align };
+          },
+        };
+      },
       selectedIds: new Set(["alpha", "beta"]),
       overrides: createMutationTrap("overrides"),
       _coercedKeys: new Set<string>(),
       model: {
         get(cid: string) {
           return { id: cid, data: { width: 120, height: 64 } };
-        },
-      },
-      LayoutEngine: {
-        dispatchPreviewMultiFrameAlignHost(options: Record<string, unknown>) {
-          delegatedOptions = {
-            selectedIds: Array.from(options.selectedIds as Iterable<string>),
-            align: options.align,
-          };
-          options.scheduleRelayout("alpha");
-          return { kind: "change" };
         },
       },
       EditorState: {
@@ -170,9 +174,6 @@ test("setMultiFrameAlign delegates through the typed multi-frame mutation helper
       },
       setDirty() {},
       renderMultiSelectionInspector() {},
-      requestV3Relayout(cid: string) {
-        relayoutCid = cid;
-      },
       clearTimeout() {},
       setTimeout(callback: () => void) {
         callback();
@@ -185,8 +186,6 @@ test("setMultiFrameAlign delegates through the typed multi-frame mutation helper
   setMultiFrameAlign("BOTTOM_CENTER");
 
   assert.deepEqual(delegatedOptions, {
-    selectedIds: ["alpha", "beta"],
     align: "BOTTOM_CENTER",
   });
-  assert.equal(relayoutCid, "alpha");
 });

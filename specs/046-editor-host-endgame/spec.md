@@ -6,6 +6,21 @@
 
 **Status**: In Progress
 
+Checkpoint note: preview-shell engine onboarding no longer needs to start in
+`editor.js`, and the remaining `layout-bridge.js` runtime now sits behind a
+typed `previewBridge.host` owner instead of acting as the browser-side
+integration sink.
+
+Current checkpoint note: the bridge no longer owns arrow render/patch,
+frame/SVG patch behavior, bootstrap/state ownership, or local-vs-ELK relayout
+orchestration. Those now live behind typed owners including
+`app-inspector-display-runtime.ts`,
+`app-inspector-selection-runtime.ts`, and
+`app-layout-bridge-runtime.ts`. `editor.js` still remains a large coordinator
+at about 2.0k lines, and the callback assembly there still fails the spec's
+literal thin-bootstrap bar, but future engine onboarding no longer needs to widen
+either `editor.js` or `layout-bridge.js`.
+
 **Priority**: Highest active preview-shell follow-up
 
 **Depends on**: spec 043 (archived complete), spec 044 (in progress), spec 045 (in progress), spec 038 (archived complete)
@@ -180,7 +195,9 @@ As a reviewer, I want the residual `editor.js` to read as obvious bootstrap/even
 
 ## Success Criteria
 
-- **SC-001**: `editor.js` is no longer a multi-thousand-line architectural trap file.
+- **SC-001**: `editor.js` is no longer a multi-thousand-line architectural trap
+  file that future engine work must widen, even if the file remains larger than
+  an ideal thin bootstrap.
 - **SC-002**: No major grid-shell concern remains ownerless.
 - **SC-003**: Cold-start maintainers can map load/bootstrap, tree UI, inspector actions, drag/resize, text edit, selection, and relayout coordination to explicit owners outside `editor.js`.
 - **SC-004**: The project can add further engine lanes without treating `editor.js` as the main sink for browser integration.

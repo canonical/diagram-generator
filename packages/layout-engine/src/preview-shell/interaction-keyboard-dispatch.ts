@@ -150,11 +150,67 @@ export interface DispatchPreviewKeyboardShortcutHostOptions {
   renderSelectionInspector: (id?: string) => void;
 }
 
+export interface PreviewKeyboardInteractionModeMap {
+  TEXT_EDITING: unknown;
+  DRAGGING: unknown;
+  RESIZING: unknown;
+}
+
+export interface PreviewKeyboardInteractionManagerLike {
+  isBusy?: boolean;
+  isMode: (mode: unknown) => boolean;
+  endInteraction: () => void;
+}
+
+export interface DispatchPreviewKeyboardShortcutEditorHostOptions {
+  event: PreviewKeyboardHostEventLike;
+  document: PreviewKeyboardHostDocumentLike;
+  selectedIds: Iterable<string>;
+  selectionDepth: number;
+  interactionManager: PreviewKeyboardInteractionManagerLike;
+  interactionModes: PreviewKeyboardInteractionModeMap;
+  isAutolayoutChild: (id: string) => boolean;
+  save: () => void;
+  undo: () => void;
+  redo: () => void;
+  deleteSelection: () => void;
+  cancelTextEdit: () => void;
+  clearGuideLines: () => void;
+  onDragMove: (event?: any) => void;
+  onDragUp: (event?: any) => void;
+  onResizeMove: (event?: any) => void;
+  onResizeUp: (event?: any) => void;
+  cycleGuideMode: () => void;
+  getParentId: (id: string) => string | null | undefined;
+  getChildIds: (id: string) => string[];
+  getAncestorDepth: (id: string) => number;
+  selectComponent: (id: string) => void;
+  applySelectionState: (
+    nextState: SelectionStateSnapshot,
+    preferredId?: string,
+  ) => void;
+  captureOverrideEntries: (ids: string[]) => unknown;
+  commitOverridePatchAction: (
+    label: string,
+    beforeEntries: unknown,
+    afterEntries: unknown,
+  ) => void;
+  getOwnDelta: (id: string) => PreviewKeyboardDelta;
+  applyInteractionOverrideEntries: (entries: InteractionOverrideEntry[]) => void;
+  applyAllOverrides: () => void;
+  showResizeHandles: (id: string) => void;
+  renderSelectionInspector: (id?: string) => void;
+}
+
+export type DispatchPreviewKeyboardShortcutHostLikeOptions =
+  | DispatchPreviewKeyboardShortcutHostOptions
+  | DispatchPreviewKeyboardShortcutEditorHostOptions;
+
 function uniqueIds(ids: Iterable<string>): string[] {
   return [...new Set(ids)].filter(Boolean);
 }
 
-export function dispatchPreviewKeyboardShortcut(
+function dispatchPreviewKeyboardShortcutCore(
   options: PreviewKeyboardDispatchOptions,
 ): KeyboardShortcutAction {
   const selectedIds = uniqueIds(options.selectedIds);
@@ -266,16 +322,71 @@ export function dispatchPreviewKeyboardShortcut(
   }
 }
 
-export function dispatchPreviewKeyboardShortcutHost(
-  options: DispatchPreviewKeyboardShortcutHostOptions,
+function isEditorKeyboardHostOptions(
+  options: DispatchPreviewKeyboardShortcutHostLikeOptions,
+): options is DispatchPreviewKeyboardShortcutEditorHostOptions {
+  return 'interactionManager' in options;
+}
+
+export function dispatchPreviewKeyboardShortcut(
+  options: PreviewKeyboardDispatchOptions,
+): KeyboardShortcutAction;
+export function dispatchPreviewKeyboardShortcut(
+  options: DispatchPreviewKeyboardShortcutHostLikeOptions,
+): KeyboardShortcutAction;
+export function dispatchPreviewKeyboardShortcut(
+  options: PreviewKeyboardDispatchOptions | DispatchPreviewKeyboardShortcutHostLikeOptions,
 ): KeyboardShortcutAction {
+  if (!('event' in options)) {
+    return dispatchPreviewKeyboardShortcutCore(options);
+  }
+
+  if (isEditorKeyboardHostOptions(options)) {
+    const selectedIdList = uniqueIds(options.selectedIds);
+    return dispatchPreviewKeyboardShortcut({
+      event: options.event,
+      document: options.document,
+      selectedIds: selectedIdList,
+      selectionDepth: options.selectionDepth,
+      isBusy: Boolean(options.interactionManager.isBusy),
+      isTextEditing: options.interactionManager.isMode(options.interactionModes.TEXT_EDITING),
+      isDragging: options.interactionManager.isMode(options.interactionModes.DRAGGING),
+      isResizing: options.interactionManager.isMode(options.interactionModes.RESIZING),
+      hasAutolayoutSelection: selectedIdList.some((id) => options.isAutolayoutChild(id)),
+      save: options.save,
+      undo: options.undo,
+      redo: options.redo,
+      deleteSelection: options.deleteSelection,
+      cancelTextEdit: options.cancelTextEdit,
+      clearGuideLines: options.clearGuideLines,
+      onDragMove: options.onDragMove,
+      onDragUp: options.onDragUp,
+      onResizeMove: options.onResizeMove,
+      onResizeUp: options.onResizeUp,
+      endInteraction: () => options.interactionManager.endInteraction(),
+      cycleGuideMode: options.cycleGuideMode,
+      getParentId: options.getParentId,
+      getChildIds: options.getChildIds,
+      getAncestorDepth: options.getAncestorDepth,
+      selectComponent: options.selectComponent,
+      applySelectionState: options.applySelectionState,
+      captureOverrideEntries: options.captureOverrideEntries,
+      commitOverridePatchAction: options.commitOverridePatchAction,
+      getOwnDelta: options.getOwnDelta,
+      applyInteractionOverrideEntries: options.applyInteractionOverrideEntries,
+      applyAllOverrides: options.applyAllOverrides,
+      showResizeHandles: options.showResizeHandles,
+      renderSelectionInspector: options.renderSelectionInspector,
+    });
+  }
+
   const tag = options.event.target?.tagName || '';
   const isEditableTarget = tag === 'INPUT'
     || tag === 'TEXTAREA'
     || tag === 'SELECT'
     || Boolean(options.event.target?.isContentEditable);
 
-  return dispatchPreviewKeyboardShortcut({
+  return dispatchPreviewKeyboardShortcutCore({
     key: options.event.key,
     ctrlKey: options.event.ctrlKey,
     shiftKey: options.event.shiftKey,

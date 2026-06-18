@@ -110,17 +110,17 @@ test("onDragUp delegates drag completion through the typed drag host helper and 
       },
       LayoutEngine: {
         completePreviewDragInteraction(options: Record<string, any>) {
-          delegatedState = normalizeVmValue(options.state);
-          options.removeDocumentListener("mousemove", options.onDragMove);
-          options.removeDocumentListener("mouseup", options.onDragUp);
+          delegatedState = normalizeVmValue(options.interactionManager?.state);
+          options.document.removeEventListener("mousemove", options.onDragMove);
+          options.document.removeEventListener("mouseup", options.onDragUp);
           options.clearGuideLines();
           options.clearReorderIndicator();
           options.cleanOverride("alpha");
           options.cleanOverride("beta");
           const after = options.captureOverrideEntries(["alpha", "beta"]);
           options.reapplySelection();
-          options.commitOverridePatchAction("Move selection", options.state.overrideSnapshotBefore, after);
-          options.endInteraction();
+          options.commitOverridePatchAction("Move selection", options.interactionManager.state.overrideSnapshotBefore, after);
+          options.interactionManager.endInteraction();
           options.autoFitArtboard();
         },
       },

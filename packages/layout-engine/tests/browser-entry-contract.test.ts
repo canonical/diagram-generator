@@ -13,14 +13,23 @@ import {
   bindPreviewStageSvgInteraction,
   BODY_LINE_STEP,
   BODY_SIZE,
+  bootstrapPreviewEditorHost,
+  collectPreviewFramesById,
+  collectPreviewPlacedBounds,
   captureEditorSnapshot,
+  createPreviewInspectorDisplayRuntime,
+  createPreviewInspectorMutationRuntime,
+  createPreviewInspectorSelectionRuntime,
+  createPreviewArrowWaypointRuntime,
   createPreviewRelayoutRuntimeState,
+  createPreviewRelayoutRuntime,
   cloneEditorSnapshotValue,
   collectPreviewRecursiveRelayoutEntries,
   collectPreviewSelectionActionInfo,
   core,
   cyclePreviewGuideModeHost,
   createEditorStateStore,
+  createPreviewSelectionRuntime,
   createLine,
   createPreviewDragStartState,
   createPreviewResizeStartState,
@@ -32,7 +41,6 @@ import {
   dispatchPreviewDeleteFramesHost,
   dispatchPreviewDragMoveHost,
   dispatchPreviewGridControlChangeHost,
-  dispatchPreviewKeyboardShortcutHost,
   dispatchPreviewKeyboardShortcut,
   dispatchPreviewMultiFrameAlignHost,
   dispatchPreviewMultiFramePropHost,
@@ -94,11 +102,18 @@ import {
   dispatchPreviewSingleFrameAlignHost,
   dispatchPreviewSingleFramePropHost,
   dispatchPreviewSingleFrameSizeHost,
+  findPreviewArrowAtPoint,
+  findDeepestPreviewComponent,
+  findPreviewComponentAtDepth,
+  fitPreviewSvgToRenderedContent,
   resolvePreviewResizeHandlePlan,
   resolvePreviewTextEditStartState,
+  patchPreviewFrameGroup,
+  patchPreviewSvgFromLayout,
   resolvePrimarySelectedId,
   rebuildPreviewArrowSvgHost,
   removePreviewHandlesHost,
+  schedulePreviewTextEditCommitHost,
   restorePreviewPropagatedResizeOverrides,
   routeArrows,
   serializePreviewEngineManifest,
@@ -107,6 +122,7 @@ import {
   startPreviewResizeHost,
   startPreviewWaypointDragHost,
   startPreviewTextEditHost,
+  suspendPreviewTextEditSelectionChromeHost,
   syncPreviewArrowModelFromFrameTree,
   renderPreviewTreeSelectionHost,
   resolvePreviewComponentSelectionState,
@@ -160,8 +176,14 @@ describe('browser entry contract pilot', () => {
     expect(previewShell.bootstrap.createEditorStateStore).toBe(createEditorStateStore);
     expect(previewShell.bootstrap.cloneEditorSnapshotValue).toBe(cloneEditorSnapshotValue);
     expect(previewShell.bootstrap.captureEditorSnapshot).toBe(captureEditorSnapshot);
+    expect(previewShell.bootstrap.collectPreviewEngineSavePayload).toBeTypeOf('function');
+    expect(previewShell.bootstrap.ensurePreviewEngineShellController).toBeTypeOf('function');
     expect(previewShell.bootstrap.ensurePreviewElkPreviewController).toBeTypeOf('function');
+    expect(previewShell.bootstrap.getPreviewEngineShellController).toBeTypeOf('function');
+    expect(previewShell.bootstrap.initPreviewEngineShellPanel).toBeTypeOf('function');
     expect(previewShell.bootstrap.initPreviewEditorRuntimeHost).toBe(initPreviewEditorRuntimeHost);
+    expect(previewShell.bootstrap.isPreviewEngineShellLayoutActive).toBeTypeOf('function');
+    expect(previewShell.bootstrap.bootstrapPreviewEditorHost).toBe(bootstrapPreviewEditorHost);
     expect(previewShell.bootstrap.installPreviewEditorTestFacadeHost).toBe(installPreviewEditorTestFacadeHost);
     expect(previewShell.bootstrap.loadPreviewComponentTree).toBe(loadPreviewComponentTree);
     expect(previewShell.bootstrap.loadPreviewGridInfo).toBe(loadPreviewGridInfo);
@@ -170,7 +192,15 @@ describe('browser entry contract pilot', () => {
   });
 
   it('exposes preview-bridge relayout/render aliases under a namespaced contract', () => {
+    expect(previewBridge.host.applyFrameTreeRemovalsToPreviewTreeJson).toBeTypeOf('function');
+    expect(previewBridge.host.applyPreviewSessionRemovalsToDiagramJson).toBeTypeOf('function');
+    expect(previewBridge.host.createPreviewLayoutBridgeRuntime).toBeTypeOf('function');
+    expect(previewBridge.host.createPreviewLayoutBridgeState).toBeTypeOf('function');
+    expect(previewBridge.host.normalizePreviewLayoutBridgeLocalRelayoutOverrideMode).toBeTypeOf('function');
+    expect(previewBridge.host.resolvePreviewLayoutBridgeLocalRelayoutStatus).toBeTypeOf('function');
+    expect(previewBridge.host.updatePreviewComponentModelFromLayout).toBeTypeOf('function');
     expect(previewBridge.relayout.collectPreviewRelayoutFrameOverrides).toBeTypeOf('function');
+    expect(previewBridge.relayout.createPreviewRelayoutRuntime).toBe(createPreviewRelayoutRuntime);
     expect(previewBridge.relayout.createPreviewRelayoutRuntimeState).toBe(createPreviewRelayoutRuntimeState);
     expect(previewBridge.relayout.resolvePreviewV3RelayoutStatus).toBe(resolvePreviewV3RelayoutStatus);
     expect(previewBridge.relayout.dispatchPreviewClearOverride).toBe(dispatchPreviewClearOverride);
@@ -184,6 +214,16 @@ describe('browser entry contract pilot', () => {
     expect(previewBridge.relayout.persistPreviewResizeToFrameOverrides).toBeTypeOf('function');
     expect(previewBridge.render.applyPreviewSvgOverrides).toBe(applyPreviewSvgOverrides);
     expect(previewBridge.render.applyPreviewSvgOverridesHost).toBe(applyPreviewSvgOverridesHost);
+    expect(previewBridge.render.collectPreviewFramesById).toBe(collectPreviewFramesById);
+    expect(previewBridge.render.collectPreviewPlacedBounds).toBe(collectPreviewPlacedBounds);
+    expect(previewBridge.render.fitPreviewSvgToRenderedContent).toBe(fitPreviewSvgToRenderedContent);
+    expect(previewBridge.render.patchPreviewFrameGroup).toBe(patchPreviewFrameGroup);
+    expect(previewBridge.render.patchPreviewSvgFromLayout).toBe(patchPreviewSvgFromLayout);
+    expect(previewBridge.render.previewArrowComponentId).toBeTypeOf('function');
+    expect(previewBridge.render.routePreviewArrows).toBeTypeOf('function');
+    expect(previewBridge.render.syncPreviewArrowsInModel).toBeTypeOf('function');
+    expect(previewBridge.render.createPreviewArrowSvgFragment).toBeTypeOf('function');
+    expect(previewBridge.render.patchPreviewArrowSvg).toBeTypeOf('function');
     expect(previewBridge.render.renderFreshPreviewSvg).toBe(renderFreshPreviewSvg);
     expect(previewBridge.render.renderPreviewFrameTreeToSvg).toBe(renderPreviewFrameTreeToSvg);
     expect(previewBridge.render.readPreviewArrowEndpoints).toBeTypeOf('function');
@@ -198,6 +238,7 @@ describe('browser entry contract pilot', () => {
     expect(previewEngines.elk.ELK_LAYERED_PREVIEW_ENGINE).toBe(ELK_LAYERED_PREVIEW_ENGINE);
     expect(previewEngines.elk.ELK_LAYERED_PARAM_SPECS).toBe(ELK_LAYERED_PARAM_SPECS);
     expect(previewEngines.elk.elkParamGroups).toBe(elkParamGroups);
+    expect(previewEngines.elk.ensurePreviewEngineShellController).toBeTypeOf('function');
     expect(previewEngines.elk.renderPreviewElkDebugOverlay).toBe(renderPreviewElkDebugOverlay);
     expect(previewEngines.elk.renderPreviewElkRawView).toBe(renderPreviewElkRawView);
     expect(previewEngines.force.FORCE_PREVIEW_PARAM_SPECS).toBe(FORCE_PREVIEW_PARAM_SPECS);
@@ -234,6 +275,9 @@ describe('browser entry contract pilot', () => {
     expect(previewShell.inspector.resolvePreviewEditableComponentId).toBe(resolvePreviewEditableComponentId);
     expect(previewShell.inspector.applySingleFramePropMutation).toBe(applySingleFramePropMutation);
     expect(previewShell.inspector.applyVisiblePreviewStyleOverride).toBe(applyVisiblePreviewStyleOverride);
+    expect(previewShell.inspector.createPreviewInspectorDisplayRuntime).toBe(createPreviewInspectorDisplayRuntime);
+    expect(previewShell.inspector.createPreviewInspectorMutationRuntime).toBe(createPreviewInspectorMutationRuntime);
+    expect(previewShell.inspector.createPreviewInspectorSelectionRuntime).toBe(createPreviewInspectorSelectionRuntime);
     expect(previewShell.inspector.normalizePreviewStyleName).toBe(normalizePreviewStyleName);
     expect(previewShell.inspector.dispatchPreviewAlignSelectionHost).toBe(dispatchPreviewAlignSelectionHost);
     expect(previewShell.inspector.dispatchPreviewApplySelectionTargetsHost).toBe(dispatchPreviewApplySelectionTargetsHost);
@@ -253,10 +297,16 @@ describe('browser entry contract pilot', () => {
     expect(previewShell.inspector.renderPreviewSingleSelectionInspectorHost).toBe(renderPreviewSingleSelectionInspectorHost);
     expect(previewShell.inspector.resolvePreviewFrameSizePx).toBe(resolvePreviewFrameSizePx);
     expect(previewShell.inspector.resolvePreviewTextEditStartState).toBe(resolvePreviewTextEditStartState);
+    expect(previewShell.inspector.schedulePreviewTextEditCommitHost).toBe(schedulePreviewTextEditCommitHost);
     expect(previewShell.inspector.startPreviewTextEditHost).toBe(startPreviewTextEditHost);
+    expect(previewShell.inspector.suspendPreviewTextEditSelectionChromeHost).toBe(
+      suspendPreviewTextEditSelectionChromeHost,
+    );
     expect(previewShell.interaction.applyPreviewSelectionStateSnapshot).toBe(applyPreviewSelectionStateSnapshot);
     expect(previewShell.interaction.clearPreviewSelectionState).toBe(clearPreviewSelectionState);
     expect(previewShell.interaction.applySelectionStateMutation).toBe(applySelectionStateMutation);
+    expect(previewShell.interaction.createPreviewArrowWaypointRuntime).toBe(createPreviewArrowWaypointRuntime);
+    expect(previewShell.interaction.createPreviewSelectionRuntime).toBe(createPreviewSelectionRuntime);
     expect(previewShell.interaction.bindPreviewStageSvgInteraction).toBe(bindPreviewStageSvgInteraction);
     expect(previewShell.interaction.bindPreviewStageSvgInteractionHost).toBe(bindPreviewStageSvgInteractionHost);
     expect(previewShell.interaction.collectPreviewRecursiveRelayoutEntries).toBe(collectPreviewRecursiveRelayoutEntries);
@@ -268,10 +318,12 @@ describe('browser entry contract pilot', () => {
     expect(previewShell.interaction.dispatchPreviewDeleteFramesHost).toBe(dispatchPreviewDeleteFramesHost);
     expect(previewShell.interaction.dispatchPreviewDragMoveHost).toBe(dispatchPreviewDragMoveHost);
     expect(previewShell.interaction.dispatchPreviewKeyboardShortcut).toBe(dispatchPreviewKeyboardShortcut);
-    expect(previewShell.interaction.dispatchPreviewKeyboardShortcutHost).toBe(dispatchPreviewKeyboardShortcutHost);
     expect(previewShell.interaction.dispatchPreviewResizeMove).toBe(dispatchPreviewResizeMove);
     expect(previewShell.interaction.dispatchPreviewResizeMoveHost).toBe(dispatchPreviewResizeMoveHost);
     expect(previewShell.interaction.dispatchPreviewWaypointDragMoveHost).toBe(dispatchPreviewWaypointDragMoveHost);
+    expect(previewShell.interaction.findPreviewArrowAtPoint).toBe(findPreviewArrowAtPoint);
+    expect(previewShell.interaction.findDeepestPreviewComponent).toBe(findDeepestPreviewComponent);
+    expect(previewShell.interaction.findPreviewComponentAtDepth).toBe(findPreviewComponentAtDepth);
     expect(previewShell.interaction.handlePreviewDoubleClickSelectionHost).toBe(handlePreviewDoubleClickSelectionHost);
     expect(previewShell.interaction.readPreviewArrowPointsHost).toBe(readPreviewArrowPointsHost);
     expect(previewShell.interaction.removePreviewHandlesHost).toBe(removePreviewHandlesHost);

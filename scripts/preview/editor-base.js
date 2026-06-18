@@ -72,6 +72,17 @@ function getPreviewBridgeRenderContract() {
   return hostRender || bundleRender;
 }
 
+function getPreviewBridgeHostContract() {
+  const bundleHost = window.LayoutEngine?.previewBridge?.host
+    ?? window.LayoutEngine
+    ?? (typeof LayoutEngine !== "undefined" ? LayoutEngine : null);
+  const hostRuntime = window.__DG_previewBridgeHostRuntime || null;
+  if (bundleHost && hostRuntime && bundleHost !== hostRuntime) {
+    return { ...bundleHost, ...hostRuntime };
+  }
+  return hostRuntime || bundleHost;
+}
+
 function getPreviewCoreContract() {
   return window.LayoutEngine?.core
     ?? window.LayoutEngine
@@ -111,6 +122,7 @@ function getPreviewShellBootstrapContract() {
 
 window.__DG_getPreviewBridgeRelayoutContract = getPreviewBridgeRelayoutContract;
 window.__DG_getPreviewBridgeRenderContract = getPreviewBridgeRenderContract;
+window.__DG_getPreviewBridgeHostContract = getPreviewBridgeHostContract;
 window.__DG_getPreviewCoreContract = getPreviewCoreContract;
 window.__DG_getPreviewElkEngineContract = getPreviewElkEngineContract;
 window.__DG_getPreviewShellSceneContract = getPreviewShellSceneContract;

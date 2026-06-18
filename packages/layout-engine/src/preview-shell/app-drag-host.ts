@@ -129,6 +129,26 @@ export interface CompletePreviewDragInteractionOptions extends Omit<
   clearReorderIndicator: () => void;
 }
 
+export interface CompletePreviewDragInteractionEditorHostOptions extends Omit<
+  CompletePreviewDragInteractionOptions,
+  'removeDocumentListener' | 'state' | 'endInteraction'
+> {
+  document: {
+    removeEventListener: (
+      type: 'mousemove' | 'mouseup',
+      handler: ((event?: any) => void),
+    ) => void;
+  };
+  interactionManager: {
+    state?: PreviewDragCompletionState | null;
+    endInteraction: () => void;
+  };
+}
+
+export type CompletePreviewDragInteractionHostLikeOptions =
+  | CompletePreviewDragInteractionOptions
+  | CompletePreviewDragInteractionEditorHostOptions;
+
 export interface DispatchPreviewDragMoveHostOptions extends Omit<
   PreviewDragMoveDispatchOptions,
   'state' | 'autolayoutContext'
@@ -320,9 +340,36 @@ export function dispatchPreviewDragMoveHost(
   });
 }
 
+function isEditorDragCompletionOptions(
+  options: CompletePreviewDragInteractionHostLikeOptions,
+): options is CompletePreviewDragInteractionEditorHostOptions {
+  return 'interactionManager' in options;
+}
+
 export function completePreviewDragInteraction(
-  options: CompletePreviewDragInteractionOptions,
+  options: CompletePreviewDragInteractionHostLikeOptions,
 ) {
+  if (isEditorDragCompletionOptions(options)) {
+    return completePreviewDragInteraction({
+      removeDocumentListener: (type, handler) => {
+        options.document.removeEventListener(type, handler);
+      },
+      onDragMove: options.onDragMove,
+      onDragUp: options.onDragUp,
+      clearGuideLines: options.clearGuideLines,
+      clearReorderIndicator: options.clearReorderIndicator,
+      state: options.interactionManager.state ?? null,
+      applyReorder: options.applyReorder,
+      cleanOverride: options.cleanOverride,
+      captureOverrideEntries: options.captureOverrideEntries,
+      reapplySelection: options.reapplySelection,
+      selectComponent: options.selectComponent,
+      commitOverridePatchAction: options.commitOverridePatchAction,
+      endInteraction: () => options.interactionManager.endInteraction(),
+      autoFitArtboard: options.autoFitArtboard,
+    });
+  }
+
   options.removeDocumentListener('mousemove', options.onDragMove);
   options.removeDocumentListener('mouseup', options.onDragUp);
   options.clearGuideLines();

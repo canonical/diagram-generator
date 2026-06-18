@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   cancelPreviewTextEdit,
   completePreviewTextEdit,
+  schedulePreviewTextEditCommitHost,
   startPreviewTextEditHost,
+  suspendPreviewTextEditSelectionChromeHost,
 } from '../src/preview-shell/app-text-edit-host.js';
 
 describe('preview text-edit host helpers', () => {
@@ -257,5 +259,58 @@ describe('preview text-edit host helpers', () => {
       'endInteraction',
       'reapplySelection',
     ]);
+  });
+
+  it('suspends selection chrome and removes resize handles for text edit', () => {
+    const removals: string[] = [];
+    const actions: string[] = [];
+
+    suspendPreviewTextEditSelectionChromeHost({
+      svg: {
+        querySelectorAll() {
+          return [{
+            classList: {
+              remove(name: string) {
+                removals.push(name);
+              },
+            },
+          }];
+        },
+      },
+      removeResizeHandles() {
+        actions.push('removeResizeHandles');
+      },
+    });
+
+    expect(removals).toEqual(['dg-selected']);
+    expect(actions).toEqual(['removeResizeHandles']);
+  });
+
+  it('commits text edit after blur when the editor is no longer active', () => {
+    const actions: string[] = [];
+    const activeTextarea = {};
+    let scheduledCallback: (() => void) | null = null;
+
+    schedulePreviewTextEditCommitHost({
+      setTimeoutFn(callback) {
+        scheduledCallback = callback;
+        return 1;
+      },
+      isTextEditing() {
+        return true;
+      },
+      getEditorTextarea() {
+        return activeTextarea as any;
+      },
+      getActiveElement() {
+        return null;
+      },
+      commitTextEdit() {
+        actions.push('commitTextEdit');
+      },
+    });
+
+    scheduledCallback?.();
+    expect(actions).toEqual(['commitTextEdit']);
   });
 });

@@ -77,6 +77,19 @@ function normalizeVmValue<T>(value: T): T {
 
 function createShellNoops() {
   return {
+    PreviewSaveClient: {
+      trySaveIfDirty() {},
+    },
+    EditorState: {
+      undo() {},
+      redo() {},
+      captureOverrideEntries() {
+        return [];
+      },
+      commitOverridePatchAction() {},
+    },
+    _applyUndoCommand() {},
+    deleteSelectedFrames() {},
     cancelTextEdit() {},
     cycleGuideMode() {},
     clearGuideLines() {},
@@ -84,6 +97,23 @@ function createShellNoops() {
     onDragUp() {},
     onResizeMove() {},
     onResizeUp() {},
+    getParentNode() {
+      return null;
+    },
+    model: {
+      get() {
+        return { children: [] };
+      },
+    },
+    getAncestors() {
+      return [];
+    },
+    selectComponent() {},
+    _applySelectionStateSnapshot() {},
+    getOwnDelta() {
+      return { dx: 0, dy: 0, dw: 0, dh: 0 };
+    },
+    _applyInteractionOverrideEntries() {},
     applyAllOverrides() {},
     showResizeHandles() {},
     renderSelectionInspector() {},
@@ -116,17 +146,17 @@ test("editor shell keydown delegates current selection state to the extracted ke
       removeEventListener() {},
     },
     LayoutEngine: {
-      dispatchPreviewKeyboardShortcutHost(options: Record<string, unknown>) {
+      dispatchPreviewKeyboardShortcut(options: Record<string, unknown>) {
         delegatedOptions = normalizeVmValue({
           key: options.event?.key,
           shiftKey: options.event?.shiftKey,
           selectedIds: Array.from(options.selectedIds as Iterable<string>),
           selectionDepth: options.selectionDepth,
-          isBusy: options.isBusy,
-          isTextEditing: options.isTextEditing,
-          isDragging: options.isDragging,
-          isResizing: options.isResizing,
-          hasAutolayoutSelection: options.hasAutolayoutSelection,
+          interactionManagerIsBusy: options.interactionManager?.isBusy,
+          textMode: options.interactionModes?.TEXT_EDITING,
+          dragMode: options.interactionModes?.DRAGGING,
+          resizeMode: options.interactionModes?.RESIZING,
+          hasIsAutolayoutChild: typeof options.isAutolayoutChild,
           hasDocument: typeof options.document?.querySelector,
         });
       },
@@ -154,11 +184,11 @@ test("editor shell keydown delegates current selection state to the extracted ke
     shiftKey: true,
     selectedIds: ["alpha", "beta"],
     selectionDepth: 2,
-    isBusy: true,
-    isTextEditing: false,
-    isDragging: false,
-    isResizing: false,
-    hasAutolayoutSelection: false,
+    interactionManagerIsBusy: true,
+    textMode: "text",
+    dragMode: "drag",
+    resizeMode: "resize",
+    hasIsAutolayoutChild: "function",
     hasDocument: "function",
   });
 });
@@ -189,12 +219,12 @@ test("editor shell keydown forwards autolayout-selection state to the dispatcher
       removeEventListener() {},
     },
     LayoutEngine: {
-      dispatchPreviewKeyboardShortcutHost(options: Record<string, unknown>) {
+      dispatchPreviewKeyboardShortcut(options: Record<string, unknown>) {
         delegatedOptions = normalizeVmValue({
           key: options.event?.key,
           selectedIds: Array.from(options.selectedIds as Iterable<string>),
           selectionDepth: options.selectionDepth,
-          hasAutolayoutSelection: options.hasAutolayoutSelection,
+          hasIsAutolayoutChild: typeof options.isAutolayoutChild,
           hasDocument: typeof options.document?.querySelector,
         });
       },
@@ -221,7 +251,7 @@ test("editor shell keydown forwards autolayout-selection state to the dispatcher
     key: "ArrowRight",
     selectedIds: ["autolayout-child"],
     selectionDepth: 1,
-    hasAutolayoutSelection: true,
+    hasIsAutolayoutChild: "function",
     hasDocument: "function",
   });
 });

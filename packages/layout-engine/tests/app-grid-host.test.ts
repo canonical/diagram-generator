@@ -285,9 +285,10 @@ describe('preview grid host helpers', () => {
 
     expect(populatePreviewGridControlsHost({
       document: {
+        controls,
         activeElement: null,
         getElementById(id) {
-          return controls.get(id) ?? null;
+          return this.controls.get(id) ?? null;
         },
       },
       gridInfo: {
@@ -325,8 +326,9 @@ describe('preview grid host helpers', () => {
 
     const runtimeUpdate = resolvePreviewGridControlRuntimeUpdateHost({
       document: {
+        controls,
         getElementById(id) {
-          return controls.get(id) ?? null;
+          return this.controls.get(id) ?? null;
         },
         querySelector(selector: string) {
           return selector === '#stage svg' ? svg : null;

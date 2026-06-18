@@ -85,6 +85,19 @@
     syncPanel();
   }
 
+  function collectPersistedPayload(basePayload, model) {
+    wirePanel();
+    const domElk = window.ElkLayoutControls && typeof ElkLayoutControls.collectOverrides === "function"
+      ? ElkLayoutControls.collectOverrides()
+      : {};
+    const elkOverrides = { ...((model && model.elkLayoutOverrides) || {}), ...domElk };
+    applyElkLayoutOverrides(elkOverrides);
+    return {
+      ...(basePayload || {}),
+      elk_layout_overrides: { ...elkOverrides },
+    };
+  }
+
   async function requestRelayout() {
     wirePanel();
     if (window.ElkLayoutControls && typeof ElkLayoutControls.collectOverrides === "function") {
@@ -106,13 +119,19 @@
     window.requestElkRelayout = requestRelayout;
   }
 
-  window.ElkPreviewController = {
+  const controller = {
     init,
     isElkLayeredDiagram,
+    isActiveLayoutEngine: isElkLayeredDiagram,
     wirePanel,
     syncPanel,
     initPanel,
+    initializePanel: initPanel,
     applyElkLayoutOverrides,
+    applyLayoutOverrides: applyElkLayoutOverrides,
+    collectPersistedPayload,
     requestRelayout,
   };
+  window.PreviewEngineShellController = controller;
+  window.ElkPreviewController = controller;
 })();

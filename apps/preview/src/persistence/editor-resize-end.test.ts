@@ -135,20 +135,22 @@ test("onResizeUp delegates resize completion through the typed resize host helpe
           clearedHoverTargets.push(svgNode);
         },
         completePreviewResizeInteraction(options: Record<string, any>) {
-          delegatedState = normalizeVmValue(options.state);
+          delegatedState = normalizeVmValue(options.interactionManager?.state);
           options.cancelLiveRelayout();
-          options.removeDocumentListener("mousemove", options.onResizeMove);
-          options.removeDocumentListener("mouseup", options.onResizeUp);
+          options.document.removeEventListener("mousemove", options.onResizeMove);
+          options.document.removeEventListener("mouseup", options.onResizeUp);
           options.clearGuideLines();
-          options.clearSvgHoverState();
+          options.clearPreviewSvgHoverState(svg);
           options.cleanOverride("alpha");
           const before = options.captureOverrideEntries(["alpha"]);
           options.commitOverridePatchAction("Resize selection", before, before);
           options.reapplySelection();
           options.selectComponent("beta");
           options.persistResize(["alpha"], ["beta"], "alpha");
-          options.showHandles();
-          options.endInteraction();
+          svg.querySelectorAll(".dg-handle").forEach((handle: any) => {
+            handle.style.display = "";
+          });
+          options.interactionManager.endInteraction();
           options.autoFitArtboard();
         },
       },
@@ -195,8 +197,11 @@ test("onResizeUp delegates resize completion through the typed resize host helpe
   assert.deepEqual(delegatedState, {
     hasMoved: true,
     cid: "alpha",
-    selectionIds: ["alpha", "beta"],
-    origOverrideIds: ["alpha", "beta"],
+    selection: { ids: ["alpha", "beta"] },
+    origOverrides: {
+      alpha: { dw: 24 },
+      beta: { dx: 8 },
+    },
     propagatedIds: ["beta"],
     overrideSnapshotBefore: {
       alpha: { dw: 24 },

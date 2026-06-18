@@ -1,8 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import {
-  dispatchPreviewKeyboardShortcut,
-  dispatchPreviewKeyboardShortcutHost,
-} from '../src/preview-shell/interaction-keyboard-dispatch.js';
+import { dispatchPreviewKeyboardShortcut } from '../src/preview-shell/interaction-keyboard-dispatch.js';
 
 function createBaseOptions() {
   return {
@@ -126,7 +123,7 @@ describe('interaction keyboard dispatch helper', () => {
     const toggleApp = vi.fn();
     const handle = { style: { display: 'none' } };
 
-    const action = dispatchPreviewKeyboardShortcutHost({
+    const action = dispatchPreviewKeyboardShortcut({
       event: {
         key: 's',
         ctrlKey: true,
@@ -189,5 +186,63 @@ describe('interaction keyboard dispatch helper', () => {
     expect(endInteraction).not.toHaveBeenCalled();
     expect(toggleApp).not.toHaveBeenCalled();
     expect(handle.style.display).toBe('none');
+  });
+
+  it('derives live editor interaction flags through the editor-host wrapper', () => {
+    const action = dispatchPreviewKeyboardShortcut({
+      event: {
+        key: 'ArrowDown',
+        preventDefault: vi.fn(),
+        target: { tagName: 'DIV', isContentEditable: false },
+      },
+      document: {
+        querySelector() {
+          return null;
+        },
+        removeEventListener: vi.fn(),
+      },
+      selectedIds: new Set(['auto-child', 'free-child']),
+      selectionDepth: 2,
+      interactionManager: {
+        isBusy: true,
+        isMode(mode: unknown) {
+          return mode === 'drag';
+        },
+        endInteraction: vi.fn(),
+      },
+      interactionModes: {
+        TEXT_EDITING: 'text',
+        DRAGGING: 'drag',
+        RESIZING: 'resize',
+      },
+      isAutolayoutChild(id: string) {
+        return id === 'auto-child';
+      },
+      save: vi.fn(),
+      undo: vi.fn(),
+      redo: vi.fn(),
+      deleteSelection: vi.fn(),
+      cancelTextEdit: vi.fn(),
+      clearGuideLines: vi.fn(),
+      onDragMove: vi.fn(),
+      onDragUp: vi.fn(),
+      onResizeMove: vi.fn(),
+      onResizeUp: vi.fn(),
+      cycleGuideMode: vi.fn(),
+      getParentId: vi.fn(() => null),
+      getChildIds: vi.fn(() => []),
+      getAncestorDepth: vi.fn(() => 0),
+      selectComponent: vi.fn(),
+      applySelectionState: vi.fn(),
+      captureOverrideEntries: vi.fn(() => []),
+      commitOverridePatchAction: vi.fn(),
+      getOwnDelta: vi.fn(() => ({ dx: 0, dy: 0, dw: 0, dh: 0 })),
+      applyInteractionOverrideEntries: vi.fn(),
+      applyAllOverrides: vi.fn(),
+      showResizeHandles: vi.fn(),
+      renderSelectionInspector: vi.fn(),
+    });
+
+    expect(action).toEqual({ kind: 'none' });
   });
 });

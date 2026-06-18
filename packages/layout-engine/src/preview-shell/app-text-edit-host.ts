@@ -82,6 +82,26 @@ export interface CancelPreviewTextEditOptions {
   reapplySelection: () => void;
 }
 
+export interface SuspendPreviewTextEditSelectionChromeHostOptions {
+  svg: {
+    querySelectorAll: (selector: string) => Iterable<{
+      classList?: {
+        remove: (name: string) => void;
+      };
+    }>;
+  } | null | undefined;
+  removeResizeHandles: () => void;
+}
+
+export interface SchedulePreviewTextEditCommitHostOptions {
+  delayMs?: number;
+  setTimeoutFn: (callback: () => void, delayMs: number) => unknown;
+  isTextEditing: () => boolean;
+  getEditorTextarea: () => PreviewTextEditTextarea | null | undefined;
+  getActiveElement: () => unknown;
+  commitTextEdit: () => void;
+}
+
 export interface PreviewTextEditHostResult {
   kind: 'noop' | 'started' | 'cancelled' | 'unchanged' | 'committed';
   cid: string | null;
@@ -96,6 +116,33 @@ function cleanupPreviewTextEditDom(state: PreviewTextEditInteractionState | null
   if (state.textEl) {
     state.textEl.style.opacity = '';
   }
+}
+
+export function suspendPreviewTextEditSelectionChromeHost(
+  options: SuspendPreviewTextEditSelectionChromeHostOptions,
+): void {
+  if (!options.svg) {
+    return;
+  }
+  for (const element of options.svg.querySelectorAll('.dg-selected')) {
+    element.classList?.remove('dg-selected');
+  }
+  options.removeResizeHandles();
+}
+
+export function schedulePreviewTextEditCommitHost(
+  options: SchedulePreviewTextEditCommitHostOptions,
+): void {
+  options.setTimeoutFn(() => {
+    if (!options.isTextEditing()) {
+      return;
+    }
+    const editorTextarea = options.getEditorTextarea();
+    if (editorTextarea && editorTextarea === options.getActiveElement()) {
+      return;
+    }
+    options.commitTextEdit();
+  }, options.delayMs ?? 100);
 }
 
 export function startPreviewTextEditHost(

@@ -236,7 +236,7 @@ export function populatePreviewGridControlsHost(
     gridOverrides: options.gridOverrides ?? {},
     activeElementId: options.document.activeElement?.id || null,
     hasSplitMargins: Boolean(options.document.getElementById('grid-margin-top')),
-    getElementById: options.document.getElementById,
+    getElementById: (id) => options.document.getElementById(id),
   });
 }
 
@@ -286,7 +286,7 @@ export function resolvePreviewGridControlRuntimeUpdateHost(
     canvasHeight: canvas.height,
     baselineStep: options.baselineStep,
     controlState: readPreviewGridControlStateFromDom({
-      getElementById: options.document.getElementById,
+      getElementById: (id) => options.document.getElementById(id),
       hasSplitMargins: options.hasSplitMargins ?? Boolean(options.document.getElementById('grid-margin-top')),
       fallbackMargin: options.fallbackMargin ?? 24,
     }),

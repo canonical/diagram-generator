@@ -308,15 +308,45 @@ export {
 } from './interaction-keyboard.js';
 
 export type {
+  DispatchPreviewKeyboardShortcutHostLikeOptions,
   DispatchPreviewKeyboardShortcutHostOptions,
   PreviewKeyboardDelta,
   PreviewKeyboardDispatchOptions,
+  PreviewKeyboardInteractionManagerLike,
+  PreviewKeyboardInteractionModeMap,
 } from './interaction-keyboard-dispatch.js';
 
 export {
   dispatchPreviewKeyboardShortcut,
-  dispatchPreviewKeyboardShortcutHost,
 } from './interaction-keyboard-dispatch.js';
+
+export type {
+  PreviewArrowBoundsMap,
+  PreviewArrowFrameBounds,
+  PreviewArrowModelLike,
+  PreviewRoutedArrow,
+} from './app-arrow-render.js';
+
+export {
+  createPreviewArrowSvgFragment,
+  patchPreviewArrowSvg,
+  previewArrowComponentId,
+  routePreviewArrows,
+  syncPreviewArrowsInModel,
+} from './app-arrow-render.js';
+
+export type {
+  PreviewPlacedFrameBounds,
+  PreviewPlacedFrameBoundsMap,
+} from './app-frame-svg.js';
+
+export {
+  collectPreviewFramesById,
+  collectPreviewPlacedBounds,
+  fitPreviewSvgToRenderedContent,
+  patchPreviewFrameGroup,
+  patchPreviewSvgFromLayout,
+} from './app-frame-svg.js';
 
 export type {
   PreviewArrowDelta,
@@ -348,6 +378,7 @@ export {
 export type {
   CommitPreviewWaypointInsertOptions,
   CommitPreviewWaypointRemovalOptions,
+  CompletePreviewWaypointDragInteractionHostLikeOptions,
   CompletePreviewWaypointDragInteractionOptions,
   DispatchPreviewWaypointDragMoveHostOptions,
   PreviewWaypointHostNode,
@@ -369,7 +400,10 @@ export {
 } from './app-waypoint-host.js';
 
 export type {
+  BootstrapPreviewEditorHostOptions,
   ConnectPreviewSseOptions,
+  PreviewEnginePayloadModelLike,
+  PreviewEngineShellControllerApi,
   PreviewDiagramLoadSignalState,
   PreviewBuildStatusUpdate,
   PreviewEditorDocumentBindingsHostOptions,
@@ -388,14 +422,20 @@ export type {
 } from './app-bootstrap.js';
 
 export {
+  bootstrapPreviewEditorHost,
+  collectPreviewEngineSavePayload,
   connectPreviewSse,
   createPreviewDiagramLoadSignalState,
   createPreviewSaveClientInitConfig,
   ensurePreviewEditorState,
+  ensurePreviewEngineShellController,
   ensurePreviewElkPreviewController,
+  getPreviewEngineShellController,
+  initPreviewEngineShellPanel,
   initPreviewEditorRuntimeHost,
   initPreviewSaveClient,
   initPreviewShellCoordinator,
+  isPreviewEngineShellLayoutActive,
   installPreviewEditorTestFacadeHost,
   registerPreviewPageshowReload,
   registerPreviewEditorDocumentBindingsHost,
@@ -480,6 +520,15 @@ export {
 } from './app-selection-host.js';
 
 export type {
+  CreatePreviewSelectionRuntimeOptions,
+  PreviewSelectionRuntime,
+} from './app-selection-runtime.js';
+
+export {
+  createPreviewSelectionRuntime,
+} from './app-selection-runtime.js';
+
+export type {
   PreviewSelectionChromeArrowNode,
   PreviewSelectionChromeBounds,
   PreviewSelectionChromeDocument,
@@ -529,13 +578,17 @@ export type {
   PreviewTextEditInteractionState,
   PreviewTextEditOverrideSnapshot,
   PreviewTextEditTextarea,
+  SchedulePreviewTextEditCommitHostOptions,
   StartPreviewTextEditHostOptions,
+  SuspendPreviewTextEditSelectionChromeHostOptions,
 } from './app-text-edit-host.js';
 
 export {
   cancelPreviewTextEdit,
   completePreviewTextEdit,
+  schedulePreviewTextEditCommitHost,
   startPreviewTextEditHost,
+  suspendPreviewTextEditSelectionChromeHost,
 } from './app-text-edit-host.js';
 
 export type {
@@ -626,6 +679,7 @@ export {
 
 export type {
   CollectPreviewRecursiveRelayoutEntriesOptions,
+  CompletePreviewResizeInteractionHostLikeOptions,
   CompletePreviewResizeInteractionOptions,
   DispatchPreviewResizeMoveHostOptions,
   PersistPreviewResizeToFrameOverridesOptions,
@@ -648,6 +702,7 @@ export {
 
 export type {
   ClampPreviewDragDeltaWithinParentOptions,
+  CompletePreviewDragInteractionHostLikeOptions,
   CompletePreviewDragInteractionOptions,
   DispatchPreviewDragMoveHostOptions,
   PreviewDragClampDelta,
@@ -679,14 +734,27 @@ export {
 } from './interaction-snaps.js';
 
 export type {
+  FindDeepestPreviewComponentHostOptions,
+  FindPreviewArrowAtPointHostOptions,
+  FindPreviewComponentAtDepthHostOptions,
+  PreviewArrowHitTestHostDocumentLike,
+  PreviewArrowHitTestHostElementLike,
+  PreviewArrowHitTestHostSvgLike,
+  PreviewHitBoundsHostGroupLike,
+  PreviewHitBoundsHostRectLike,
+  PreviewHitBoundsHostSvgLike,
+  PreviewHitTestDeltaLike,
   PreviewHitNodeBounds,
   PreviewHitTestNode,
   PreviewHitTestOptions,
+  ReadPreviewHitNodeBoundsHostOptions,
 } from './interaction-hit-testing.js';
 
 export {
   findDeepestPreviewComponent,
+  findPreviewArrowAtPoint,
   findPreviewComponentAtDepth,
+  readPreviewHitNodeBoundsHost,
 } from './interaction-hit-testing.js';
 
 export type {
@@ -753,6 +821,27 @@ export {
 } from './app-shell-panels.js';
 
 export type {
+  CreatePreviewLayoutBridgeRuntimeOptions,
+  PreviewLayoutBridgeLocalRelayoutOptions,
+  PreviewLayoutBridgeModelTreeLoader,
+  PreviewLayoutBridgeOldBoundsEntry,
+  PreviewLayoutBridgeRelayoutResult,
+  PreviewLayoutBridgeRemovalModel,
+  PreviewLayoutBridgeRuntime,
+  PreviewLayoutBridgeState,
+} from './app-layout-bridge-runtime.js';
+
+export {
+  applyFrameTreeRemovalsToPreviewTreeJson,
+  applyPreviewSessionRemovalsToDiagramJson,
+  createPreviewLayoutBridgeRuntime,
+  createPreviewLayoutBridgeState,
+  normalizePreviewLayoutBridgeLocalRelayoutOverrideMode,
+  resolvePreviewLayoutBridgeLocalRelayoutStatus,
+  updatePreviewComponentModelFromLayout,
+} from './app-layout-bridge-runtime.js';
+
+export type {
   DispatchPreviewRelayoutFailureHostOptions,
   DispatchPreviewRelayoutSuccessHostOptions,
   PreviewGridOverrideEntry,
@@ -764,6 +853,11 @@ export type {
   ResolvePreviewV3RelayoutStatusOptions,
   RunPreviewRelayoutOptions,
 } from './app-relayout.js';
+
+export type {
+  CreatePreviewRelayoutRuntimeOptions,
+  PreviewRelayoutRuntime,
+} from './app-relayout-runtime.js';
 
 export {
   applyPreviewOverridesToFrameTree,
@@ -781,6 +875,10 @@ export {
   resolvePreviewV3RelayoutStatus,
   runPreviewRelayout,
 } from './app-relayout.js';
+
+export {
+  createPreviewRelayoutRuntime,
+} from './app-relayout-runtime.js';
 
 export type {
   DispatchPreviewClearOverrideOptions,
@@ -813,6 +911,43 @@ export {
   renderPreviewSingleSelectionInspectorHost,
   resolvePreviewAutolayoutPanelHtml,
 } from './app-inspector-host.js';
+
+export type {
+  CreatePreviewInspectorDisplayRuntimeOptions,
+  PreviewInspectorDisplayRuntime,
+  PreviewInspectorDisplayRuntimeNode,
+} from './app-inspector-display-runtime.js';
+
+export {
+  createPreviewInspectorDisplayRuntime,
+} from './app-inspector-display-runtime.js';
+
+export type {
+  CreatePreviewInspectorMutationRuntimeOptions,
+  PreviewInspectorMutationRuntime,
+} from './app-inspector-mutation-runtime.js';
+
+export {
+  createPreviewInspectorMutationRuntime,
+} from './app-inspector-mutation-runtime.js';
+
+export type {
+  CreatePreviewInspectorSelectionRuntimeOptions,
+  PreviewInspectorSelectionRuntime,
+} from './app-inspector-selection-runtime.js';
+
+export {
+  createPreviewInspectorSelectionRuntime,
+} from './app-inspector-selection-runtime.js';
+
+export type {
+  CreatePreviewArrowWaypointRuntimeOptions,
+  PreviewArrowWaypointRuntime,
+} from './app-arrow-waypoint-runtime.js';
+
+export {
+  createPreviewArrowWaypointRuntime,
+} from './app-arrow-waypoint-runtime.js';
 
 export type {
   DispatchPreviewAlignSelectionHostOptions,

@@ -130,6 +130,63 @@ describe('preview stage svg helpers', () => {
     ]);
   });
 
+  it('does not duplicate existing transparent arrow hit lines', () => {
+    const inserted: Array<{ kind: string; attrs: Record<string, string> }> = [];
+    const lines = [
+      {
+        getAttribute(name: string) {
+          return ({ x1: '1', y1: '2', x2: '3', y2: '4', stroke: '#E95420' } as Record<string, string>)[name] ?? null;
+        },
+      },
+      {
+        getAttribute(name: string) {
+          return ({ x1: '1', y1: '2', x2: '3', y2: '4', stroke: 'transparent' } as Record<string, string>)[name] ?? null;
+        },
+      },
+    ];
+    const lineGroup = {
+      firstChild: {},
+      querySelector() {
+        return null;
+      },
+      querySelectorAll(selector: string) {
+        if (selector === 'line') return lines;
+        if (selector === '.dg-icon') return [];
+        return [];
+      },
+      insertBefore(node: { kind: string; attrs: Record<string, string> }) {
+        inserted.push({
+          kind: node.kind,
+          attrs: node.attrs,
+        });
+      },
+      getBBox() {
+        return { x: 0, y: 0, width: 0, height: 0 };
+      },
+    };
+    const svg = {
+      ownerDocument: {
+        createElementNS(_ns: string, kind: string) {
+          return {
+            kind,
+            attrs: {} as Record<string, string>,
+            style: { pointerEvents: '' },
+            setAttribute(name: string, value: string | null) {
+              this.attrs[name] = String(value);
+            },
+          };
+        },
+      },
+      querySelectorAll() {
+        return [lineGroup];
+      },
+    } as unknown as SVGSVGElement;
+
+    ensurePreviewSvgHitAreas(svg);
+
+    expect(inserted).toEqual([]);
+  });
+
   it('syncs and clears svg hover classes by component id', () => {
     const hovered = { classList: createClassList() };
     hovered.classList.add('dg-hover');

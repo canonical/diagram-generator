@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 describe('preview fresh-render arrowhead contract', () => {
   it('uses canonical arrow token constants instead of legacy 12/6 preview values', () => {
     const source = readFileSync(
-      resolve(import.meta.dirname, '../src/preview-shell/app-fresh-render.ts'),
+      resolve(import.meta.dirname, '../src/preview-shell/app-arrow-render.ts'),
       'utf8',
     );
 

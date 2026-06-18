@@ -30,6 +30,88 @@ export interface PreviewHitTestOptions {
   getNodeBounds: (node: PreviewHitTestNode) => PreviewHitNodeBounds;
 }
 
+export interface PreviewHitTestDeltaLike {
+  dx?: number | null;
+  dy?: number | null;
+  dw?: number | null;
+  dh?: number | null;
+}
+
+export interface PreviewArrowHitTestHostElementLike {
+  closest: (selector: string) => PreviewArrowHitTestHostAttributeElementLike | null;
+}
+
+export interface PreviewArrowHitTestHostAttributeElementLike {
+  getAttribute: (name: string) => string | null;
+}
+
+export interface PreviewArrowHitTestHostSvgLike {
+  contains: (node: unknown) => boolean;
+}
+
+export interface PreviewArrowHitTestHostDocumentLike {
+  querySelector: (selector: string) => PreviewArrowHitTestHostSvgLike | null;
+  elementFromPoint: (x: number, y: number) => PreviewArrowHitTestHostElementLike | null;
+}
+
+export interface FindPreviewArrowAtPointHostOptions<TNode = unknown> {
+  document: PreviewArrowHitTestHostDocumentLike;
+  clientX: number;
+  clientY: number;
+  getNode: (id: string) => TNode | null | undefined;
+  getNodeType?: (node: TNode | null | undefined) => string | null | undefined;
+}
+
+export interface PreviewHitBoundsHostRectLike {
+  getAttribute: (name: string) => string | null;
+}
+
+export interface PreviewHitBoundsHostGroupLike {
+  querySelector: (selector: string) => PreviewHitBoundsHostRectLike | null;
+  style?: {
+    transform?: string | null;
+  } | null;
+}
+
+export interface PreviewHitBoundsHostSvgLike {
+  querySelector: (selector: string) => PreviewHitBoundsHostGroupLike | null;
+}
+
+export interface ReadPreviewHitNodeBoundsHostOptions {
+  svg: PreviewHitBoundsHostSvgLike;
+  node: PreviewHitTestNode;
+  getEffectiveDelta: (id: string) => PreviewHitTestDeltaLike | null | undefined;
+  getOwnDelta: (id: string) => PreviewHitTestDeltaLike | null | undefined;
+}
+
+export interface FindPreviewComponentAtDepthHostOptions {
+  document: {
+    querySelector: (selector: string) => PreviewHitBoundsHostSvgLike | null;
+  };
+  x: number;
+  y: number;
+  targetDepth: number;
+  roots: PreviewHitTestNode[];
+  getEffectiveDelta: (id: string) => PreviewHitTestDeltaLike | null | undefined;
+  getOwnDelta: (id: string) => PreviewHitTestDeltaLike | null | undefined;
+}
+
+export interface FindDeepestPreviewComponentHostOptions {
+  document: {
+    querySelector: (selector: string) => PreviewHitBoundsHostSvgLike | null;
+  };
+  x: number;
+  y: number;
+  roots: PreviewHitTestNode[];
+  getEffectiveDelta: (id: string) => PreviewHitTestDeltaLike | null | undefined;
+  getOwnDelta: (id: string) => PreviewHitTestDeltaLike | null | undefined;
+}
+
+function numberOrZero(value: unknown): number {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : 0;
+}
+
 function pointWithinBounds(
   x: number,
   y: number,
@@ -51,7 +133,7 @@ function pointDistanceFromBoundsCenter(
   return (x - cx) * (x - cx) + (y - cy) * (y - cy);
 }
 
-export function findPreviewComponentAtDepth(
+function findPreviewComponentAtDepthCore(
   options: PreviewHitTestOptions & { targetDepth: number },
 ): string | null {
   function findRenderedDescendant(nodes: PreviewHitTestNode[]): string | null {
@@ -181,7 +263,7 @@ export function findPreviewComponentAtDepth(
   return walk(options.roots, 0);
 }
 
-export function findDeepestPreviewComponent(
+function findDeepestPreviewComponentCore(
   options: PreviewHitTestOptions,
 ): string | null {
   function walk(nodes: PreviewHitTestNode[]): string | null {
@@ -205,4 +287,137 @@ export function findDeepestPreviewComponent(
   }
 
   return walk(options.roots);
+}
+
+export function findPreviewArrowAtPoint<TNode = unknown>(
+  options: FindPreviewArrowAtPointHostOptions<TNode>,
+): string | null {
+  const svg = options.document.querySelector('#stage svg');
+  if (!svg) {
+    return null;
+  }
+
+  const element = options.document.elementFromPoint(options.clientX, options.clientY);
+  if (!element || !svg.contains(element)) {
+    return null;
+  }
+
+  const host = element.closest('[data-component-id]');
+  if (!host || !svg.contains(host)) {
+    return null;
+  }
+
+  const componentId = host.getAttribute('data-component-id');
+  if (!componentId) {
+    return null;
+  }
+
+  const node = options.getNode(componentId);
+  const nodeType = options.getNodeType
+    ? options.getNodeType(node)
+    : (node as { type?: string | null } | null | undefined)?.type;
+  return nodeType === 'arrow' ? componentId : null;
+}
+
+export function readPreviewHitNodeBoundsHost(
+  options: ReadPreviewHitNodeBoundsHostOptions,
+): PreviewHitNodeBounds {
+  let nx: number;
+  let ny: number;
+  let nw: number;
+  let nh: number;
+
+  const group = options.svg.querySelector(`[data-component-id="${options.node.id}"]`);
+  const rect = group?.querySelector(':scope > rect:first-of-type') ?? null;
+  if (rect) {
+    nx = numberOrZero(rect.getAttribute('x'));
+    ny = numberOrZero(rect.getAttribute('y'));
+    nw = numberOrZero(rect.getAttribute('width'));
+    nh = numberOrZero(rect.getAttribute('height'));
+  } else {
+    const effective = options.getEffectiveDelta(options.node.id);
+    const own = options.getOwnDelta(options.node.id);
+    nx = options.node.x + numberOrZero(effective?.dx);
+    ny = options.node.y + numberOrZero(effective?.dy);
+    nw = options.node.width + numberOrZero(own?.dw);
+    nh = options.node.height + numberOrZero(own?.dh);
+  }
+
+  const transform = group?.style?.transform ?? '';
+  const match = /translate\(([-\d.]+)px,\s*([-\d.]+)px\)/.exec(transform);
+  if (match) {
+    nx += numberOrZero(match[1]);
+    ny += numberOrZero(match[2]);
+  }
+
+  return {
+    nx,
+    ny,
+    nw,
+    nh,
+    hasRenderedRect: Boolean(rect),
+  };
+}
+
+export function findPreviewComponentAtDepth(
+  options: PreviewHitTestOptions & { targetDepth: number },
+): string | null;
+export function findPreviewComponentAtDepth(
+  options: FindPreviewComponentAtDepthHostOptions,
+): string | null;
+export function findPreviewComponentAtDepth(
+  options: (PreviewHitTestOptions & { targetDepth: number }) | FindPreviewComponentAtDepthHostOptions,
+): string | null {
+  if (!('document' in options)) {
+    return findPreviewComponentAtDepthCore(options);
+  }
+
+  const svg = options.document.querySelector('#stage svg');
+  if (!svg) {
+    return null;
+  }
+
+  return findPreviewComponentAtDepthCore({
+    x: options.x,
+    y: options.y,
+    targetDepth: options.targetDepth,
+    roots: options.roots,
+    getNodeBounds: (node) => readPreviewHitNodeBoundsHost({
+      svg,
+      node,
+      getEffectiveDelta: options.getEffectiveDelta,
+      getOwnDelta: options.getOwnDelta,
+    }),
+  });
+}
+
+export function findDeepestPreviewComponent(
+  options: PreviewHitTestOptions,
+): string | null;
+export function findDeepestPreviewComponent(
+  options: FindDeepestPreviewComponentHostOptions,
+): string | null;
+export function findDeepestPreviewComponent(
+  options: PreviewHitTestOptions | FindDeepestPreviewComponentHostOptions,
+): string | null {
+  if (!('document' in options)) {
+    return findDeepestPreviewComponentCore(options);
+  }
+
+  const svg = options.document.querySelector('#stage svg');
+  if (!svg) {
+    return null;
+  }
+
+  return findDeepestPreviewComponentCore({
+    x: options.x,
+    y: options.y,
+    roots: options.roots,
+    getNodeBounds: (node) => readPreviewHitNodeBoundsHost({
+      svg,
+      node,
+      getEffectiveDelta: options.getEffectiveDelta,
+      getOwnDelta: options.getOwnDelta,
+    }),
+  });
 }

@@ -73,82 +73,22 @@ function normalizeVmValue<T>(value: T): T {
 }
 
 test("onWpDragUp delegates waypoint drag completion through the typed host helper", () => {
-  const removedListeners: Array<{ type: string; handlerName: string }> = [];
-  const callbackActions: Array<string | Record<string, unknown>> = [];
-  let delegatedState: Record<string, unknown> | null = null;
+  const callbackActions: Array<Record<string, unknown>> = [];
 
   const onWpDragUp = loadEditorFunction<(event?: unknown) => void>(
     "onWpDragUp",
     "(e)",
     {
+      _getArrowWaypointRuntime() {
+        return {
+          onWaypointDragUp(event?: unknown) {
+            callbackActions.push({ onWaypointDragUp: event ?? null });
+          },
+        };
+      },
       document: {
-        removeEventListener(type: string, handler: { name?: string }) {
-          removedListeners.push({ type, handlerName: handler.name ?? "" });
-        },
-      },
-      onWpDragMove() {},
-      getArrowNode(cid: string) {
-        return { id: cid };
-      },
-      getArrowPoints(cid: string) {
-        return { cid };
-      },
-      rebuildArrowSVG(cid: string) {
-        callbackActions.push({ rebuildArrowSVG: cid });
-      },
-      showArrowWaypointHandles(cid: string) {
-        callbackActions.push({ showArrowWaypointHandles: cid });
-      },
-      setWaypointOverride(cid: string) {
-        callbackActions.push({ setWaypointOverride: cid });
-      },
-      _refreshSelectedArrowInspector(cid: string) {
-        callbackActions.push({ refreshInspector: cid });
-      },
-      EditorState: {
-        captureOverrideEntries(ids: string[]) {
-          return { ids };
-        },
-        commitOverridePatchAction(label: string, beforeEntries: unknown, afterEntries: unknown) {
-          callbackActions.push({
-            commitOverridePatchAction: {
-              label,
-              beforeEntries,
-              afterEntries,
-            },
-          });
-        },
-      },
-      mgr: {
-        state: {
-          cid: "arrow-1",
-          idx: 0,
-          startX: 10,
-          startY: 20,
-          origX: 40,
-          origY: 60,
-          hasMoved: true,
-          axis: "free",
-        },
-        endInteraction() {
-          callbackActions.push("endInteraction");
-        },
-      },
-      LayoutEngine: {
-        completePreviewWaypointDragInteraction(options: Record<string, any>) {
-          delegatedState = normalizeVmValue(options.state);
-          options.removeDocumentListener("mousemove", options.onWaypointDragMove);
-          options.removeDocumentListener("mouseup", options.onWaypointDragUp);
-          options.rebuildArrowSvg("arrow-1");
-          options.showArrowWaypointHandles("arrow-1");
-          options.persistWaypointOverride("arrow-1");
-          options.refreshInspector("arrow-1");
-          options.commitOverridePatchAction(
-            "Move waypoint",
-            options.captureOverrideEntries(["arrow-1"]),
-            options.captureOverrideEntries(["arrow-1"]),
-          );
-          options.endInteraction();
+        removeEventListener() {
+          throw new Error("document listeners should be removed inside the typed runtime");
         },
       },
     },
@@ -156,32 +96,7 @@ test("onWpDragUp delegates waypoint drag completion through the typed host helpe
 
   onWpDragUp();
 
-  assert.deepEqual(delegatedState, {
-    cid: "arrow-1",
-    idx: 0,
-    startX: 10,
-    startY: 20,
-    origX: 40,
-    origY: 60,
-    hasMoved: true,
-    axis: "free",
-  });
-  assert.deepEqual(removedListeners, [
-    { type: "mousemove", handlerName: "onWpDragMove" },
-    { type: "mouseup", handlerName: "onWpDragUp" },
-  ]);
   assert.deepEqual(callbackActions, [
-    { rebuildArrowSVG: "arrow-1" },
-    { showArrowWaypointHandles: "arrow-1" },
-    { setWaypointOverride: "arrow-1" },
-    { refreshInspector: "arrow-1" },
-    {
-      commitOverridePatchAction: {
-        label: "Move waypoint",
-        beforeEntries: { ids: ["arrow-1"] },
-        afterEntries: { ids: ["arrow-1"] },
-      },
-    },
-    "endInteraction",
+    { onWaypointDragUp: null },
   ]);
 });

@@ -164,8 +164,14 @@ test("elk-controller resolves ELK diagrams from the namespaced previewEngines re
 
   vm.runInNewContext(readPreviewScript("elk-controller.js"), context);
   const elkPreviewController = (context.window as { ElkPreviewController: { isElkLayeredDiagram: (frameTreeJson: unknown) => boolean } }).ElkPreviewController;
+  const previewEngineShellController = (
+    context.window as {
+      PreviewEngineShellController: { isActiveLayoutEngine: (frameTreeJson: unknown) => boolean };
+    }
+  ).PreviewEngineShellController;
 
   assert.equal(elkPreviewController.isElkLayeredDiagram({ layoutEngine: "elk-layered" }), true);
+  assert.equal(previewEngineShellController.isActiveLayoutEngine({ layoutEngine: "elk-layered" }), true);
 });
 
 test("force preview helpers accept the namespaced previewEngines.force contract", () => {
@@ -326,6 +332,27 @@ test("editor clear-override helper accepts the namespaced previewBridge.relayout
         capturedCalls.push({ kind: "commitOverridePatchAction", label, beforeEntries, afterEntries });
       },
     },
+    _getRelayoutRuntime() {
+      return {
+        clearOverride(cid: string) {
+          capturedCalls.push({
+            kind: "dispatchPreviewClearOverride",
+            cid,
+            hasWaypointOverride: true,
+            relayoutStatus: { localReady: true },
+            clearOverride() {},
+            setDirty() {},
+            applyAllOverrides() {},
+            isSelected() {},
+            updateInspector() {},
+            requestRelayout() {},
+            restoreArrowFromTree() {},
+            captureOverrideEntries() {},
+            commitOverridePatchAction() {},
+          });
+        },
+      };
+    },
     window: {
       __DG_getPreviewBridgeRelayoutContract() {
         return context.LayoutEngine.previewBridge.relayout;
@@ -404,9 +431,17 @@ test("editor relayout status helper accepts the namespaced previewBridge.relayou
       __DG_getPreviewBridgeRelayoutContract() {
         return context.LayoutEngine.previewBridge.relayout;
       },
+      __DG_getPreviewBridgeHostContract() {
+        return context.LayoutEngine.previewBridge.host;
+      },
     },
     LayoutEngine: {
       previewBridge: {
+        host: {
+          getLocalRelayoutStatus() {
+            return { ready: true, reason: "ready" };
+          },
+        },
         relayout: {
           resolvePreviewV3RelayoutStatus(options: Record<string, unknown>) {
             capturedCalls.push(options);
@@ -418,6 +453,8 @@ test("editor relayout status helper accepts the namespaced previewBridge.relayou
   };
 
   const helperSource = [
+    extractNamedFunctionSource(source, "_getPreviewBridgeHostContract", "()"),
+    extractNamedFunctionSource(source, "_getLocalBridgeRelayoutStatus", "()"),
     extractNamedFunctionSource(source, "getV3RelayoutStatus", "()"),
     "this.__loaded = { getV3RelayoutStatus };",
   ].join("\n");
@@ -443,6 +480,112 @@ test("editor relayout status helper accepts the namespaced previewBridge.relayou
     },
   ]);
   assert.equal(typeof capturedCalls[0]?.getLocalRelayoutStatus, "function");
+});
+
+test("editor live-resize relayout helper forwards the current v3 relayout status getter", () => {
+  const source = readPreviewScript("editor.js");
+  const capturedCalls: Array<Record<string, unknown>> = [];
+  const context = {
+    console,
+    _liveResizeRelayoutState: { token: "live-resize" },
+    overrides: {
+      alpha: { dw: 24 },
+    },
+    model: {
+      gridOverrides: { rows: 3 },
+    },
+    EditorState: {
+      normalizeGridOverrides(value: Record<string, unknown>) {
+        return value;
+      },
+    },
+    requestAnimationFrame() {
+      return 17;
+    },
+    getV3RelayoutStatus() {
+      return { localReady: true, local: { reason: "ready" } };
+    },
+    window: {
+      __DG_getPreviewBridgeRelayoutContract() {
+        return context.LayoutEngine.previewBridge.relayout;
+      },
+      __DG_getPreviewBridgeHostContract() {
+        return context.LayoutEngine.previewBridge.host;
+      },
+      __DG_getPreviewShellBootstrapContract() {
+        return context.LayoutEngine.previewShell.bootstrap;
+      },
+    },
+    LayoutEngine: {
+      previewShell: {
+        bootstrap: {
+          isPreviewEngineShellLayoutActive() {
+            return true;
+          },
+        },
+      },
+      previewBridge: {
+        host: {
+          performLocalRelayout() {
+            return { ok: true };
+          },
+        },
+        relayout: {
+          schedulePreviewLiveResizeRelayout(options: Record<string, any>) {
+            capturedCalls.push({
+              state: options.state,
+              request: options.request,
+              isElkLayeredDiagram: options.isElkLayeredDiagram,
+              relayoutStatus: options.getRelayoutStatus(),
+              gridOverrides: options.getGridOverrides(),
+              normalizedGridOverrides: options.normalizeGridOverrides({ rows: 9 }),
+              hasPerformLocalRelayout: typeof options.performLocalRelayout,
+            });
+          },
+        },
+      },
+    },
+  };
+
+  const helperSource = [
+    extractNamedFunctionSource(source, "_getPreviewBridgeHostContract", "()"),
+    extractNamedFunctionSource(source, "_isPreviewEngineShellLayoutActive", "(frameTreeJson)"),
+    extractNamedFunctionSource(source, "_scheduleV3ResizeRelayout", "(cid, newW, newH, resizedW, resizedH)"),
+    "this.__loaded = { _scheduleV3ResizeRelayout };",
+  ].join("\n");
+
+  vm.runInNewContext(helperSource, context);
+  const loaded = (context as {
+    __loaded: {
+      _scheduleV3ResizeRelayout: (
+        cid: string,
+        newW: number,
+        newH: number,
+        resizedW: number,
+        resizedH: number,
+      ) => void;
+    };
+  }).__loaded;
+
+  loaded._scheduleV3ResizeRelayout("alpha", 320, 200, 320, 200);
+
+  assert.deepEqual(normalizeVmValue(capturedCalls), [
+    {
+      state: { token: "live-resize" },
+      request: {
+        cid: "alpha",
+        newW: 320,
+        newH: 200,
+        resizedW: 320,
+        resizedH: 200,
+      },
+      isElkLayeredDiagram: true,
+      relayoutStatus: { localReady: true, local: { reason: "ready" } },
+      gridOverrides: { rows: 3 },
+      normalizedGridOverrides: { rows: 9 },
+      hasPerformLocalRelayout: "function",
+    },
+  ]);
 });
 
 test("editor relayout lifecycle helpers accept the namespaced previewBridge.relayout contract", async () => {
@@ -558,13 +701,16 @@ test("editor arrow-point helper accepts the namespaced previewShell.interaction 
   const capturedCalls: Array<Record<string, unknown>> = [];
   const context = {
     console,
-    window: {
-      __DG_getPreviewShellInteractionContract() {
-        return context.LayoutEngine.previewShell.interaction;
-      },
-      __DG_getPreviewBridgeRenderContract() {
-        return context.LayoutEngine.previewBridge.render;
-      },
+    _getArrowWaypointRuntime() {
+      return {
+        getArrowPoints(cid: string) {
+          capturedCalls.push({
+            kind: "runtimeGetArrowPoints",
+            componentId: cid,
+          });
+          return [{ x: 1, y: 2 }];
+        },
+      };
     },
     document: {
       querySelector(selector: string) {
@@ -573,28 +719,6 @@ test("editor arrow-point helper accepts the namespaced previewShell.interaction 
     },
     getArrowNode(cid: string) {
       return cid === "arrow-1" ? { id: cid } : null;
-    },
-    LayoutEngine: {
-      previewShell: {
-        interaction: {
-          readPreviewArrowPointsHost(options: Record<string, unknown>) {
-            capturedCalls.push({
-              kind: "readPreviewArrowPointsHost",
-              componentId: options.componentId,
-              hasReadArrowEndpoints: typeof options.readArrowEndpoints,
-              hasArrowNode: options.hasArrowNode,
-            });
-            return [{ x: 1, y: 2 }];
-          },
-        },
-      },
-      previewBridge: {
-        render: {
-          readPreviewArrowEndpoints() {
-            return [{ x: 1, y: 2 }];
-          },
-        },
-      },
     },
   };
 
@@ -613,10 +737,8 @@ test("editor arrow-point helper accepts the namespaced previewShell.interaction 
   assert.deepEqual(normalizeVmValue(loaded.getArrowPoints("arrow-1")), [{ x: 1, y: 2 }]);
   assert.deepEqual(normalizeVmValue(capturedCalls), [
     {
-      kind: "readPreviewArrowPointsHost",
+      kind: "runtimeGetArrowPoints",
       componentId: "arrow-1",
-      hasReadArrowEndpoints: "function",
-      hasArrowNode: true,
     },
   ]);
 });
@@ -1388,12 +1510,8 @@ test("editor text-edit host helper accepts the namespaced previewShell.inspector
         return context.LayoutEngine.previewShell.inspector;
       },
     },
-    _scheduleTextEditCommit() {},
     commitTextEdit() {},
     cancelTextEdit() {},
-    removeResizeHandles() {
-      capturedCalls.push({ kind: "removeResizeHandles" });
-    },
     LayoutEngine: {
       previewShell: {
         inspector: {
@@ -1406,7 +1524,6 @@ test("editor text-edit host helper accepts the namespaced previewShell.inspector
   };
 
   const helperSource = [
-    extractNamedFunctionSource(source, "_suspendSelectionChromeForTextEdit", "(svg)"),
     extractNamedFunctionSource(source, "startTextEdit", "(cid, e, opts)"),
     "this.__loaded = { startTextEdit };",
   ].join("\n");
@@ -1466,77 +1583,26 @@ test("editor inspector mutation helpers accept the namespaced previewShell.inspe
   const capturedCalls: Array<Record<string, unknown>> = [];
   const context = {
     console,
-    _coercedKeys: new Set<string>(),
-    overrides: { alpha: {}, beta: {} },
-    gridInfo: { cols: 8 },
-    _inspectorWidthUnit: "px",
-    _inspectorHeightUnit: "px",
-    BASELINE_STEP: 24,
-    model: {
-      get(id: string) {
-        return { id };
-      },
-    },
-    snapToGrid(value: number) {
-      return value;
-    },
-    setDirty() {},
-    EditorState: {
-      captureOverrideEntries(ids: string[]) {
-        return { ids };
-      },
-      commitOverridePatchAction() {},
-    },
-    _v3RelayoutTimer: null,
-    requestV3Relayout() {
-      return Promise.resolve(true);
-    },
-    renderSelectionInspector() {},
-    renderMultiSelectionInspector() {},
-    selectedIds: new Set(["alpha", "beta"]),
-    getComponentType() {
-      return "box";
-    },
-    _normaliseStyleName(value: string) {
-      return value;
-    },
-    window: {
-      __DG_getPreviewShellInspectorContract() {
-        return context.LayoutEngine.previewShell.inspector;
-      },
-    },
-    LayoutEngine: {
-      previewShell: {
-        inspector: {
-          dispatchPreviewSingleFramePropHost(options: Record<string, unknown>) {
-            capturedCalls.push({
-              kind: "singleProp",
-              cid: options.cid,
-              prop: options.prop,
-              value: options.value,
-              hasCaptureOverrideEntries: typeof options.captureOverrideEntries,
-              hasApplySingleFramePropMutation: typeof options.applySingleFramePropMutation,
-              hasScheduleRelayout: typeof options.scheduleRelayout,
-              hasRenderSelectionInspector: typeof options.renderSelectionInspector,
-            });
-          },
-          dispatchPreviewMultiFrameSizeHost(options: Record<string, unknown>) {
-            capturedCalls.push({
-              kind: "multiSize",
-              selectedIds: Array.from(options.selectedIds as Set<string> | string[]),
-              dimension: options.dimension,
-              value: options.value,
-              widthUnit: options.widthUnit,
-              heightUnit: options.heightUnit,
-              baselineStep: options.baselineStep,
-              hasResolveFrameSizePx: typeof options.resolveFrameSizePx,
-              hasApplyMultiFrameSizeMutation: typeof options.applyMultiFrameSizeMutation,
-              hasScheduleRelayout: typeof options.scheduleRelayout,
-              hasRenderMultiSelectionInspector: typeof options.renderMultiSelectionInspector,
-            });
-          },
+    _getInspectorMutationRuntime() {
+      return {
+        setFrameProp(cid: string, prop: string, value: unknown) {
+          capturedCalls.push({
+            kind: "singleProp",
+            cid, prop, value,
+          });
         },
-      },
+      };
+    },
+    _getInspectorSelectionRuntime() {
+      return {
+        setMultiFrameSize(dimension: string, value: unknown) {
+          capturedCalls.push({
+            kind: "multiSize",
+            dimension,
+            value,
+          });
+        },
+      };
     },
   };
 
@@ -1563,53 +1629,75 @@ test("editor inspector mutation helpers accept the namespaced previewShell.inspe
       cid: "alpha",
       prop: "gap",
       value: 24,
-      hasCaptureOverrideEntries: "function",
-      hasApplySingleFramePropMutation: "function",
-      hasScheduleRelayout: "function",
-      hasRenderSelectionInspector: "function",
     },
     {
       kind: "multiSize",
-      selectedIds: ["alpha", "beta"],
       dimension: "width",
       value: 320,
-      widthUnit: "px",
-      heightUnit: "px",
-      baselineStep: 24,
-      hasResolveFrameSizePx: "function",
-      hasApplyMultiFrameSizeMutation: "function",
-      hasScheduleRelayout: "function",
-      hasRenderMultiSelectionInspector: "function",
     },
   ]);
 });
 
-test("editor selection action helpers accept the namespaced previewShell.inspector contract", () => {
+test("editor inspector-selection runtime accepts the namespaced previewShell.inspector contract", () => {
   const source = readPreviewScript("editor.js");
-  const capturedCalls: Array<Record<string, unknown>> = [];
+  let capturedOptions: Record<string, unknown> | null = null;
   const context = {
     console,
-    BASELINE_STEP: 24,
+    selectedIds: new Set(["alpha", "beta"]),
     multiActionGap: 17,
+    BASELINE_STEP: 24,
+    overrides: { alpha: {}, beta: {} },
+    _coercedKeys: new Set<string>(),
+    gridInfo: { cols: 8 },
     EditorState: {
       captureOverrideEntries(ids: string[]) {
         return { ids };
       },
       commitOverridePatchAction() {},
     },
-    setOverride() {},
+    model: {
+      get(id: string) {
+        return { id, data: { width: 120, height: 64 } };
+      },
+      cleanOverride() {},
+    },
+    setDirty() {},
+    _scheduleV3Relayout() {},
+    requestV3Relayout() {
+      return Promise.resolve(true);
+    },
+    clearTimeout() {},
+    _v3RelayoutTimer: null,
+    renderSelectionInspector() {},
+    renderMultiSelectionInspector() {},
     applyAllOverrides() {},
     reapplySelection() {},
-    renderSelectionInspector() {},
     updateOverrideSummary() {},
     refreshTreeColors() {},
     runConstraints() {},
+    setOverride() {},
     getSelectionActionItems() {
       return {
         items: [{ id: "alpha" }, { id: "beta" }],
         sameParent: true,
         hasUnsupported: false,
       };
+    },
+    _getInspectorDisplayRuntime() {
+      return {
+        getWidthUnit() {
+          return "px";
+        },
+        getHeightUnit() {
+          return "rows";
+        },
+      };
+    },
+    getComponentType() {
+      return "box";
+    },
+    _normaliseStyleName(value: string) {
+      return value;
     },
     alert() {},
     window: {
@@ -1623,37 +1711,17 @@ test("editor selection action helpers accept the namespaced previewShell.inspect
     LayoutEngine: {
       previewShell: {
         inspector: {
-          dispatchPreviewApplySelectionTargetsHost(options: Record<string, unknown>) {
-            capturedCalls.push({
-              kind: "applyTargets",
-              targets: options.targets,
-              snapStep: options.snapStep,
-              hasCaptureOverrideEntries: typeof options.captureOverrideEntries,
-              hasCreateSelectionTargetOverrideEntries: typeof options.createSelectionTargetOverrideEntries,
-              hasSetOverride: typeof options.setOverride,
-              hasRunConstraints: typeof options.runConstraints,
-            });
-          },
-          dispatchPreviewDistributeSelectionHost(options: Record<string, unknown>) {
-            capturedCalls.push({
-              kind: "distribute",
-              axis: options.axis,
-              currentGap: options.currentGap,
-              snapStep: options.snapStep,
-              hasNormalizeSelectionGap: typeof options.normalizeSelectionGap,
-              hasSetGap: typeof options.setGap,
-              hasResolveSelectionDistributeTargets: typeof options.resolveSelectionDistributeTargets,
-              hasApplySelectionTargets: typeof options.applySelectionTargets,
-            });
-          },
-          dispatchPreviewAlignSelectionHost(options: Record<string, unknown>) {
-            capturedCalls.push({
-              kind: "align",
-              mode: options.mode,
-              snapStep: options.snapStep,
-              hasResolveSelectionAlignTargets: typeof options.resolveSelectionAlignTargets,
-              hasApplySelectionTargets: typeof options.applySelectionTargets,
-            });
+          createPreviewInspectorSelectionRuntime(options: Record<string, unknown>) {
+            capturedOptions = options;
+            return {
+              applySelectionTargets() {},
+              distributeSelection() {},
+              alignSelection() {},
+              setMultiFrameAlign() {},
+              applyMultiStyleOverride() {},
+              setMultiFrameProp() {},
+              setMultiFrameSize() {},
+            };
           },
         },
         interaction: {
@@ -1675,10 +1743,104 @@ test("editor selection action helpers accept the namespaced previewShell.inspect
   };
 
   const helperSource = [
+    "let _inspectorSelectionRuntime = null;",
+    extractNamedFunctionSource(source, "_getInspectorSelectionRuntime", "()"),
+    "this.__loaded = { _getInspectorSelectionRuntime };",
+  ].join("\n");
+
+  vm.runInNewContext(helperSource, context);
+  const loaded = (context as {
+    __loaded: {
+      _getInspectorSelectionRuntime: () => Record<string, unknown>;
+    };
+  }).__loaded;
+
+  const runtime = loaded._getInspectorSelectionRuntime();
+
+  assert.deepEqual(normalizeVmValue({
+    selectedIds: Array.from(capturedOptions?.selectedIds as Iterable<string>),
+    hasGetSelectionActionInfo: typeof capturedOptions?.getSelectionActionInfo,
+    hasGetMultiActionGap: typeof capturedOptions?.getMultiActionGap,
+    hasSetMultiActionGap: typeof capturedOptions?.setMultiActionGap,
+    hasSetOverride: typeof capturedOptions?.setOverride,
+    hasGetGridInfo: typeof capturedOptions?.getGridInfo,
+    hasGetWidthUnit: typeof capturedOptions?.getWidthUnit,
+    hasNormalizeSelectionGap: typeof capturedOptions?.normalizeSelectionGap,
+    hasResolveSelectionDistributeTargets: typeof capturedOptions?.resolveSelectionDistributeTargets,
+    hasResolveSelectionAlignTargets: typeof capturedOptions?.resolveSelectionAlignTargets,
+    hasCreateSelectionTargetOverrideEntries: typeof capturedOptions?.createSelectionTargetOverrideEntries,
+    baselineStep: capturedOptions?.baselineStep,
+    runtimeHasApplyTargets: typeof runtime.applySelectionTargets,
+    runtimeHasDistribute: typeof runtime.distributeSelection,
+    runtimeHasAlign: typeof runtime.alignSelection,
+    runtimeHasMultiAlign: typeof runtime.setMultiFrameAlign,
+    runtimeHasMultiStyle: typeof runtime.applyMultiStyleOverride,
+    runtimeHasMultiProp: typeof runtime.setMultiFrameProp,
+    runtimeHasMultiSize: typeof runtime.setMultiFrameSize,
+  }), {
+    selectedIds: ["alpha", "beta"],
+    hasGetSelectionActionInfo: "function",
+    hasGetMultiActionGap: "function",
+    hasSetMultiActionGap: "function",
+    hasSetOverride: "function",
+    hasGetGridInfo: "function",
+    hasGetWidthUnit: "function",
+    hasNormalizeSelectionGap: "function",
+    hasResolveSelectionDistributeTargets: "function",
+    hasResolveSelectionAlignTargets: "function",
+    hasCreateSelectionTargetOverrideEntries: "function",
+    baselineStep: 24,
+    runtimeHasApplyTargets: "function",
+    runtimeHasDistribute: "function",
+    runtimeHasAlign: "function",
+    runtimeHasMultiAlign: "function",
+    runtimeHasMultiStyle: "function",
+    runtimeHasMultiProp: "function",
+    runtimeHasMultiSize: "function",
+  });
+});
+
+test("editor inspector-selection wrappers delegate through the typed runtime", () => {
+  const source = readPreviewScript("editor.js");
+  const capturedCalls: Array<Record<string, unknown>> = [];
+  const context = {
+    console,
+    _getInspectorSelectionRuntime() {
+      return {
+        applySelectionTargets(items: unknown[], targets: Record<string, unknown>) {
+          capturedCalls.push({ kind: "applyTargets", items, targets });
+        },
+        distributeSelection(axis: string) {
+          capturedCalls.push({ kind: "distribute", axis });
+        },
+        alignSelection(mode: string) {
+          capturedCalls.push({ kind: "align", mode });
+        },
+        setMultiFrameAlign(align: string) {
+          capturedCalls.push({ kind: "multiAlign", align });
+        },
+        applyMultiStyleOverride(styleName: string) {
+          capturedCalls.push({ kind: "multiStyle", styleName });
+        },
+        setMultiFrameProp(prop: string, value: unknown) {
+          capturedCalls.push({ kind: "multiProp", prop, value });
+        },
+        setMultiFrameSize(dimension: string, value: unknown) {
+          capturedCalls.push({ kind: "multiSize", dimension, value });
+        },
+      };
+    },
+  };
+
+  const helperSource = [
     extractNamedFunctionSource(source, "applySelectionTargets", "(items, targets)"),
     extractNamedFunctionSource(source, "distributeSelection", "(axis)"),
     extractNamedFunctionSource(source, "alignSelection", "(mode)"),
-    "this.__loaded = { applySelectionTargets, distributeSelection, alignSelection };",
+    extractNamedFunctionSource(source, "setMultiFrameAlign", "(align)"),
+    extractNamedFunctionSource(source, "applyMultiStyleOverride", "(styleName)"),
+    extractNamedFunctionSource(source, "setMultiFrameProp", "(prop, value)"),
+    extractNamedFunctionSource(source, "setMultiFrameSize", "(dimension, value)"),
+    "this.__loaded = { applySelectionTargets, distributeSelection, alignSelection, setMultiFrameAlign, applyMultiStyleOverride, setMultiFrameProp, setMultiFrameSize };",
   ].join("\n");
 
   vm.runInNewContext(helperSource, context);
@@ -1687,46 +1849,35 @@ test("editor selection action helpers accept the namespaced previewShell.inspect
       applySelectionTargets: (items: unknown[], targets: Record<string, unknown>) => void;
       distributeSelection: (axis: string) => void;
       alignSelection: (mode: string) => void;
+      setMultiFrameAlign: (align: string) => void;
+      applyMultiStyleOverride: (styleName: string) => void;
+      setMultiFrameProp: (prop: string, value: unknown) => void;
+      setMultiFrameSize: (dimension: string, value: unknown) => void;
     };
   }).__loaded;
 
   loaded.applySelectionTargets([{ id: "alpha" }], { alpha: { dx: 8 } });
   loaded.distributeSelection("x");
   loaded.alignSelection("left");
+  loaded.setMultiFrameAlign("BOTTOM_CENTER");
+  loaded.applyMultiStyleOverride("highlight");
+  loaded.setMultiFrameProp("gap", 24);
+  loaded.setMultiFrameSize("width", 320);
 
   assert.deepEqual(normalizeVmValue(capturedCalls), [
-    {
-      kind: "applyTargets",
-      targets: { alpha: { dx: 8 } },
-      snapStep: 24,
-      hasCaptureOverrideEntries: "function",
-      hasCreateSelectionTargetOverrideEntries: "function",
-      hasSetOverride: "function",
-      hasRunConstraints: "function",
-    },
-    {
-      kind: "distribute",
-      axis: "x",
-      currentGap: 17,
-      snapStep: 24,
-      hasNormalizeSelectionGap: "function",
-      hasSetGap: "function",
-      hasResolveSelectionDistributeTargets: "function",
-      hasApplySelectionTargets: "function",
-    },
-    {
-      kind: "align",
-      mode: "left",
-      snapStep: 24,
-      hasResolveSelectionAlignTargets: "function",
-      hasApplySelectionTargets: "function",
-    },
+    { kind: "applyTargets", items: [{ id: "alpha" }], targets: { alpha: { dx: 8 } } },
+    { kind: "distribute", axis: "x" },
+    { kind: "align", mode: "left" },
+    { kind: "multiAlign", align: "BOTTOM_CENTER" },
+    { kind: "multiStyle", styleName: "highlight" },
+    { kind: "multiProp", prop: "gap", value: 24 },
+    { kind: "multiSize", dimension: "width", value: 320 },
   ]);
 });
 
-test("editor inspector render helpers accept the namespaced previewShell.inspector contract", () => {
+test("editor inspector-display runtime accepts the namespaced previewShell.inspector contract", () => {
   const source = readPreviewScript("editor.js");
-  const capturedCalls: Array<Record<string, unknown>> = [];
+  let capturedOptions: Record<string, unknown> | null = null;
   const inspector = { id: "inspector", innerHTML: "" };
   const context = {
     console,
@@ -1736,8 +1887,6 @@ test("editor inspector render helpers accept the namespaced previewShell.inspect
       beta: { style: "highlight" },
     },
     _coercedKeys: new Set(["alpha:sizing_w"]),
-    _inspectorWidthUnit: "px",
-    _inspectorHeightUnit: "rows",
     gridInfo: { col_widths: [120] },
     BASELINE_STEP: 8,
     BOX_STYLES: { highlight: { label: "Highlight" } },
@@ -1755,6 +1904,9 @@ test("editor inspector render helpers accept the namespaced previewShell.inspect
     getInspectorElement() {
       return inspector;
     },
+    getPrimarySelectedId(preferredId?: string | null) {
+      return preferredId || "beta";
+    },
     getSelectionActionItems() {
       return {
         items: [
@@ -1764,15 +1916,6 @@ test("editor inspector render helpers accept the namespaced previewShell.inspect
         hasUnsupported: false,
         sameParent: true,
         parentId: "root",
-      };
-    },
-    _getMultiStyleValues() {
-      return {
-        count: 2,
-        mixed: false,
-        style: "highlight",
-        originalStyleName: "highlight",
-        originalStyleMixed: false,
       };
     },
     _formatAsDefinedStyleLabel() {
@@ -1815,13 +1958,22 @@ test("editor inspector render helpers accept the namespaced previewShell.inspect
     LayoutEngine: {
       previewShell: {
         inspector: {
-          renderPreviewMultiSelectionInspectorRuntimeHost(options: Record<string, unknown>) {
-            capturedCalls.push({ kind: "renderPreviewMultiSelectionInspectorRuntimeHost", ...options });
-            return { kind: "rendered", inferredGap: 40 };
-          },
-          renderPreviewSingleSelectionInspectorRuntimeHost(options: Record<string, unknown>) {
-            capturedCalls.push({ kind: "renderPreviewSingleSelectionInspectorRuntimeHost", ...options });
-            return true;
+          createPreviewInspectorDisplayRuntime(options: Record<string, unknown>) {
+            capturedOptions = options;
+            return {
+              renderEmptyInspector() {},
+              renderSelectionInspector() {},
+              renderMultiSelectionInspector() {},
+              updateInspector() {},
+              getWidthUnit() {
+                return "px";
+              },
+              getHeightUnit() {
+                return "rows";
+              },
+              setWidthUnit() {},
+              setHeightUnit() {},
+            };
           },
         },
       },
@@ -1829,126 +1981,122 @@ test("editor inspector render helpers accept the namespaced previewShell.inspect
   };
 
   const helperSource = [
+    "let _inspectorDisplayRuntime = null;",
+    extractNamedFunctionSource(source, "_getInspectorDisplayRuntime", "()"),
+    "this.__loaded = { _getInspectorDisplayRuntime };",
+  ].join("\n");
+
+  vm.runInNewContext(helperSource, context);
+  const loaded = (context as {
+    __loaded: {
+      _getInspectorDisplayRuntime: () => Record<string, unknown>;
+    };
+  }).__loaded;
+
+  const runtime = loaded._getInspectorDisplayRuntime();
+
+  assert.deepEqual(normalizeVmValue({
+    selectedIds: Array.from(capturedOptions?.selectedIds as Iterable<string>),
+    hasGetInspector: typeof capturedOptions?.getInspector,
+    hasGetSelectionActionInfo: typeof capturedOptions?.getSelectionActionInfo,
+    hasGetNode: typeof capturedOptions?.getNode,
+    hasGetArrowNode: typeof capturedOptions?.getArrowNode,
+    hasGetRenderedStyle: typeof capturedOptions?.getRenderedStyle,
+    hasGetViolations: typeof capturedOptions?.getViolations,
+    hasIsWidthCoerced: typeof capturedOptions?.isWidthCoerced,
+    hasGetTextAdapter: typeof capturedOptions?.getTextAdapter,
+    hasFormatControlErrorMessage: typeof capturedOptions?.formatControlErrorMessage,
+    hasRenderSingleStyleOptions: typeof capturedOptions?.renderSingleStyleOptions,
+    hasRenderMultiStyleOptions: typeof capturedOptions?.renderMultiStyleOptions,
+    baselineStep: capturedOptions?.baselineStep,
+    fallbackGap: capturedOptions?.fallbackGap,
+    snapStep: capturedOptions?.snapStep,
+    inspector: (capturedOptions?.getInspector as (() => unknown) | undefined)?.(),
+    runtimeHasRenderSelectionInspector: typeof runtime.renderSelectionInspector,
+    runtimeHasSetWidthUnit: typeof runtime.setWidthUnit,
+    runtimeHasUpdateInspector: typeof runtime.updateInspector,
+  }), {
+    selectedIds: ["alpha", "beta"],
+    hasGetInspector: "function",
+    hasGetSelectionActionInfo: "function",
+    hasGetNode: "function",
+    hasGetArrowNode: "function",
+    hasGetRenderedStyle: "function",
+    hasGetViolations: "function",
+    hasIsWidthCoerced: "function",
+    hasGetTextAdapter: "function",
+    hasFormatControlErrorMessage: "function",
+    hasRenderSingleStyleOptions: "function",
+    hasRenderMultiStyleOptions: "function",
+    baselineStep: 8,
+    fallbackGap: 24,
+    snapStep: 8,
+    inspector: { id: "inspector", innerHTML: "" },
+    runtimeHasRenderSelectionInspector: "function",
+    runtimeHasSetWidthUnit: "function",
+    runtimeHasUpdateInspector: "function",
+  });
+});
+
+test("editor inspector-display wrappers delegate through the typed runtime", () => {
+  const source = readPreviewScript("editor.js");
+  const capturedCalls: Array<Record<string, unknown>> = [];
+  const context = {
+    console,
+    _getInspectorDisplayRuntime() {
+      return {
+        renderSelectionInspector(preferredId?: string | null) {
+          capturedCalls.push({ kind: "renderSelectionInspector", preferredId });
+        },
+        renderMultiSelectionInspector() {
+          capturedCalls.push({ kind: "renderMultiSelectionInspector" });
+        },
+        updateInspector(cid: string) {
+          capturedCalls.push({ kind: "updateInspector", cid });
+        },
+        setWidthUnit(unit: string, cid?: string | null) {
+          capturedCalls.push({ kind: "setWidthUnit", unit, cid });
+        },
+        setHeightUnit(unit: string, cid?: string | null) {
+          capturedCalls.push({ kind: "setHeightUnit", unit, cid });
+        },
+      };
+    },
+  };
+
+  const helperSource = [
     extractNamedFunctionSource(source, "renderMultiSelectionInspector", "()"),
+    extractNamedFunctionSource(source, "renderSelectionInspector", "(preferredCid)"),
     extractNamedFunctionSource(source, "updateInspector", "(cid)"),
-    "this.__loaded = { renderMultiSelectionInspector, updateInspector };",
+    extractNamedFunctionSource(source, "setWidthUnit", "(unit, cid)"),
+    extractNamedFunctionSource(source, "setHeightUnit", "(unit, cid)"),
+    "this.__loaded = { renderMultiSelectionInspector, renderSelectionInspector, updateInspector, setWidthUnit, setHeightUnit };",
   ].join("\n");
 
   vm.runInNewContext(helperSource, context);
   const loaded = (context as {
     __loaded: {
       renderMultiSelectionInspector: () => void;
+      renderSelectionInspector: (preferredCid?: string | null) => void;
       updateInspector: (cid: string) => void;
+      setWidthUnit: (unit: string, cid?: string | null) => void;
+      setHeightUnit: (unit: string, cid?: string | null) => void;
     };
   }).__loaded;
 
   loaded.renderMultiSelectionInspector();
-  loaded.updateInspector("alpha");
-
-  assert.deepEqual(normalizeVmValue({
-    multiKind: capturedCalls[0]?.kind,
-    multiInspector: capturedCalls[0]?.inspector,
-    multiSelectedCount: capturedCalls[0]?.selectedCount,
-    multiFallbackGap: capturedCalls[0]?.fallbackGap,
-    multiHasGetNode: typeof capturedCalls[0]?.getNode,
-    multiHasResolveMultiStyleState: typeof capturedCalls[0]?.resolveMultiStyleState,
-    multiHasRenderStyleOptions: typeof capturedCalls[0]?.renderStyleOptions,
-    singleKind: capturedCalls[1]?.kind,
-    singleInspector: capturedCalls[1]?.inspector,
-    singleCid: capturedCalls[1]?.cid,
-    singleWidthCoerced: capturedCalls[1]?.widthCoerced,
-    singleHeightUnit: capturedCalls[1]?.heightUnit,
-    singleBaselineStep: capturedCalls[1]?.baselineStep,
-    singleHasGetNode: typeof capturedCalls[1]?.getNode,
-    singleHasGetArrowNode: typeof capturedCalls[1]?.getArrowNode,
-    singleHasGetRenderedStyle: typeof capturedCalls[1]?.getRenderedStyle,
-    singleHasGetViolations: typeof capturedCalls[1]?.getViolations,
-    singleHasTextAdapter: typeof capturedCalls[1]?.textAdapter,
-    singleHasFormatControlErrorMessage: typeof capturedCalls[1]?.formatControlErrorMessage,
-    singleHasRenderStyleOptions: typeof capturedCalls[1]?.renderStyleOptions,
-  }), {
-    multiKind: "renderPreviewMultiSelectionInspectorRuntimeHost",
-    multiInspector: { id: "inspector", innerHTML: "" },
-    multiSelectedCount: 2,
-    multiFallbackGap: 24,
-    multiHasGetNode: "function",
-    multiHasResolveMultiStyleState: "function",
-    multiHasRenderStyleOptions: "function",
-    singleKind: "renderPreviewSingleSelectionInspectorRuntimeHost",
-    singleInspector: { id: "inspector", innerHTML: "" },
-    singleCid: "alpha",
-    singleWidthCoerced: true,
-    singleHeightUnit: "rows",
-    singleBaselineStep: 8,
-    singleHasGetNode: "function",
-    singleHasGetArrowNode: "function",
-    singleHasGetRenderedStyle: "function",
-    singleHasGetViolations: "function",
-    singleHasTextAdapter: "object",
-    singleHasFormatControlErrorMessage: "function",
-    singleHasRenderStyleOptions: "function",
-  });
-});
-
-test("editor selection-inspector dispatcher accepts the namespaced previewShell.inspector contract", () => {
-  const source = readPreviewScript("editor.js");
-  const capturedCalls: Array<Record<string, unknown>> = [];
-  const context = {
-    console,
-    selectedIds: new Set(["alpha", "beta"]),
-    window: {
-      __DG_getPreviewShellInspectorContract() {
-        return context.LayoutEngine.previewShell.inspector;
-      },
-    },
-    getPrimarySelectedId(preferredId?: string | null) {
-      return preferredId || "beta";
-    },
-    renderEmptyInspector() {},
-    updateInspector() {},
-    renderMultiSelectionInspector() {},
-    LayoutEngine: {
-      previewShell: {
-        inspector: {
-          renderPreviewSelectionInspectorHost(options: Record<string, unknown>) {
-            capturedCalls.push({ kind: "renderPreviewSelectionInspectorHost", ...options });
-          },
-        },
-      },
-    },
-  };
-
-  const helperSource = [
-    extractNamedFunctionSource(source, "renderSelectionInspector", "(preferredCid)"),
-    "this.__loaded = { renderSelectionInspector };",
-  ].join("\n");
-
-  vm.runInNewContext(helperSource, context);
-  const loaded = (context as {
-    __loaded: {
-      renderSelectionInspector: (preferredCid?: string | null) => void;
-    };
-  }).__loaded;
-
   loaded.renderSelectionInspector("alpha");
+  loaded.updateInspector("alpha");
+  loaded.setWidthUnit("cols", "alpha");
+  loaded.setHeightUnit("rows", "alpha");
 
-  assert.deepEqual(normalizeVmValue({
-    kind: capturedCalls[0]?.kind,
-    preferredId: capturedCalls[0]?.preferredId,
-    selectedCount: capturedCalls[0]?.selectedCount,
-    hasResolvePrimaryId: typeof capturedCalls[0]?.resolvePrimaryId,
-    hasRenderEmptyInspector: typeof capturedCalls[0]?.renderEmptyInspector,
-    hasRenderSingleSelectionInspector: typeof capturedCalls[0]?.renderSingleSelectionInspector,
-    hasRenderMultiSelectionInspector: typeof capturedCalls[0]?.renderMultiSelectionInspector,
-  }), {
-    kind: "renderPreviewSelectionInspectorHost",
-    preferredId: "alpha",
-    selectedCount: 2,
-    hasResolvePrimaryId: "function",
-    hasRenderEmptyInspector: "function",
-    hasRenderSingleSelectionInspector: "function",
-    hasRenderMultiSelectionInspector: "function",
-  });
+  assert.deepEqual(normalizeVmValue(capturedCalls), [
+    { kind: "renderMultiSelectionInspector" },
+    { kind: "renderSelectionInspector", preferredId: "alpha" },
+    { kind: "updateInspector", cid: "alpha" },
+    { kind: "setWidthUnit", unit: "cols", cid: "alpha" },
+    { kind: "setHeightUnit", unit: "rows", cid: "alpha" },
+  ]);
 });
 
 test("editor resize host helpers accept the namespaced previewShell.interaction contract", () => {
@@ -2137,9 +2285,9 @@ test("editor resize host helpers accept the namespaced previewShell.interaction 
   });
 });
 
-test("editor waypoint host helpers accept the namespaced previewShell.interaction contract", () => {
+test("editor arrow-waypoint runtime accepts the namespaced previewShell.interaction contract", () => {
   const source = readPreviewScript("editor.js");
-  const capturedCalls: Array<Record<string, unknown>> = [];
+  let capturedOptions: Record<string, unknown> | null = null;
   const context = {
     console,
     selectedIds: new Set(["arrow-1"]),
@@ -2181,31 +2329,54 @@ test("editor waypoint host helpers accept the namespaced previewShell.interactio
     getEffectiveDelta() {
       return { dx: 4, dy: 8 };
     },
-    addWaypoint() {},
-    removeWaypoint() {},
-    getArrowPoints() {
-      return { start: [0, 0], end: [80, 0] };
+    updateInspector() {},
+    setWaypointOverride() {},
+    EditorState: {
+      captureOverrideEntries(ids: string[]) {
+        return { ids };
+      },
+      commitOverridePatchAction() {},
     },
-    updateArrowVisual() {},
-    onWpDragUp() {},
     window: {
       __DG_getPreviewShellInteractionContract() {
         return context.LayoutEngine.previewShell.interaction;
+      },
+      __DG_getPreviewBridgeRenderContract() {
+        return context.LayoutEngine.previewBridge.render;
+      },
+      __DG_CONFIG: {
+        head_len: 10,
+        head_half: 5,
       },
     },
     LayoutEngine: {
       previewShell: {
         interaction: {
-          renderPreviewWaypointHandlesHost(options: Record<string, unknown>) {
-            capturedCalls.push({ kind: "renderPreviewWaypointHandlesHost", ...options });
+          createPreviewArrowWaypointRuntime(options: Record<string, unknown>) {
+            capturedOptions = options;
+            return {
+              showArrowWaypointHandles() {},
+              startWaypointDrag() {},
+              onWaypointDragMove() {},
+              onWaypointDragUp() {},
+              addWaypoint() {},
+              removeWaypoint() {},
+              getArrowPoints() {
+                return [];
+              },
+              updateArrowVisual() {},
+              rebuildArrowSvg() {},
+            };
           },
-          startPreviewWaypointDragHost(options: Record<string, unknown>) {
-            capturedCalls.push({ kind: "startPreviewWaypointDragHost", ...options });
+        },
+      },
+      previewBridge: {
+        render: {
+          readPreviewArrowEndpoints() {
+            return { start: [0, 0], end: [80, 0] };
           },
-          dispatchPreviewWaypointDragMoveHost(options: Record<string, unknown>) {
-            capturedCalls.push({ kind: "dispatchPreviewWaypointDragMoveHost", ...options });
-            return { kind: "moved", cid: "arrow-1" };
-          },
+          updatePreviewArrowSvg() {},
+          rebuildPreviewArrowSvg() {},
         },
       },
     },
@@ -2213,86 +2384,157 @@ test("editor waypoint host helpers accept the namespaced previewShell.interactio
 
   const helperSource = [
     extractNamedFunctionSource(source, "getArrowNode", "(cid)"),
+    "let _arrowWaypointRuntime = null;",
+    extractNamedFunctionSource(source, "_getArrowWaypointRuntime", "()"),
+    "this.__loaded = { _getArrowWaypointRuntime };",
+  ].join("\n");
+
+  vm.runInNewContext(helperSource, context);
+  const loaded = (context as {
+    __loaded: {
+      _getArrowWaypointRuntime: () => Record<string, unknown>;
+    };
+  }).__loaded;
+
+  const runtime = loaded._getArrowWaypointRuntime();
+
+  assert.deepEqual(normalizeVmValue({
+    waypointDraggingMode: capturedOptions?.waypointDraggingMode,
+    hasGetArrowNode: typeof capturedOptions?.getArrowNode,
+    hasGetEffectiveDelta: typeof capturedOptions?.getEffectiveDelta,
+    hasIsSelected: typeof capturedOptions?.isSelected,
+    hasCaptureOverrideEntries: typeof capturedOptions?.captureOverrideEntries,
+    hasPersistWaypointOverride: typeof capturedOptions?.persistWaypointOverride,
+    hasRefreshInspector: typeof capturedOptions?.refreshInspector,
+    hasReadArrowEndpoints: typeof capturedOptions?.readArrowEndpoints,
+    hasUpdateArrowSvg: typeof capturedOptions?.updateArrowSvg,
+    hasRebuildArrowSvg: typeof capturedOptions?.rebuildArrowSvg,
+    headLen: capturedOptions?.headLen,
+    headHalf: capturedOptions?.headHalf,
+    color: capturedOptions?.color,
+    runtimeHasShow: typeof runtime.showArrowWaypointHandles,
+    runtimeHasStart: typeof runtime.startWaypointDrag,
+    runtimeHasMove: typeof runtime.onWaypointDragMove,
+    runtimeHasUp: typeof runtime.onWaypointDragUp,
+    runtimeHasAdd: typeof runtime.addWaypoint,
+    runtimeHasRemove: typeof runtime.removeWaypoint,
+    runtimeHasRead: typeof runtime.getArrowPoints,
+    runtimeHasUpdate: typeof runtime.updateArrowVisual,
+    runtimeHasRebuild: typeof runtime.rebuildArrowSvg,
+  }), {
+    waypointDraggingMode: "waypoint_dragging",
+    hasGetArrowNode: "function",
+    hasGetEffectiveDelta: "function",
+    hasIsSelected: "function",
+    hasCaptureOverrideEntries: "function",
+    hasPersistWaypointOverride: "function",
+    hasRefreshInspector: "function",
+    hasReadArrowEndpoints: "function",
+    hasUpdateArrowSvg: "function",
+    hasRebuildArrowSvg: "function",
+    headLen: 10,
+    headHalf: 5,
+    color: "#E95420",
+    runtimeHasShow: "function",
+    runtimeHasStart: "function",
+    runtimeHasMove: "function",
+    runtimeHasUp: "function",
+    runtimeHasAdd: "function",
+    runtimeHasRemove: "function",
+    runtimeHasRead: "function",
+    runtimeHasUpdate: "function",
+    runtimeHasRebuild: "function",
+  });
+});
+
+test("editor arrow-waypoint wrappers delegate through the typed runtime", () => {
+  const source = readPreviewScript("editor.js");
+  const capturedCalls: Array<Record<string, unknown>> = [];
+  const context = {
+    console,
+    _getArrowWaypointRuntime() {
+      return {
+        showArrowWaypointHandles(cid: string) {
+          capturedCalls.push({ kind: "show", cid });
+        },
+        startWaypointDrag(event: unknown) {
+          capturedCalls.push({ kind: "start", eventType: typeof event });
+        },
+        onWaypointDragMove(event: unknown) {
+          capturedCalls.push({ kind: "move", eventType: typeof event });
+        },
+        onWaypointDragUp(event: unknown) {
+          capturedCalls.push({ kind: "up", eventType: typeof event });
+        },
+        addWaypoint(cid: string, segmentIndex: number, x: number, y: number) {
+          capturedCalls.push({ kind: "add", cid, segmentIndex, x, y });
+        },
+        removeWaypoint(cid: string, index: number) {
+          capturedCalls.push({ kind: "remove", cid, index });
+        },
+        getArrowPoints(cid: string) {
+          capturedCalls.push({ kind: "points", cid });
+          return [[1, 2]];
+        },
+        updateArrowVisual(cid: string) {
+          capturedCalls.push({ kind: "update", cid });
+        },
+        rebuildArrowSvg(cid: string) {
+          capturedCalls.push({ kind: "rebuild", cid });
+        },
+      };
+    },
+  };
+
+  const helperSource = [
     extractNamedFunctionSource(source, "showArrowWaypointHandles", "(cid)"),
     extractNamedFunctionSource(source, "startWpDrag", "(e)"),
     extractNamedFunctionSource(source, "onWpDragMove", "(e)"),
-    "this.__loaded = { showArrowWaypointHandles, startWpDrag, onWpDragMove };",
+    extractNamedFunctionSource(source, "onWpDragUp", "(e)"),
+    extractNamedFunctionSource(source, "addWaypoint", "(cid, segIdx, x, y)"),
+    extractNamedFunctionSource(source, "removeWaypoint", "(cid, idx)"),
+    extractNamedFunctionSource(source, "getArrowPoints", "(cid)"),
+    extractNamedFunctionSource(source, "updateArrowVisual", "(cid)"),
+    extractNamedFunctionSource(source, "rebuildArrowSVG", "(cid)"),
+    "this.__loaded = { showArrowWaypointHandles, startWpDrag, onWpDragMove, onWpDragUp, addWaypoint, removeWaypoint, getArrowPoints, updateArrowVisual, rebuildArrowSVG };",
   ].join("\n");
 
   vm.runInNewContext(helperSource, context);
   const loaded = (context as {
     __loaded: {
       showArrowWaypointHandles: (cid: string) => void;
-      startWpDrag: (event: Record<string, unknown>) => void;
-      onWpDragMove: (event: Record<string, unknown>) => void;
+      startWpDrag: (event: unknown) => void;
+      onWpDragMove: (event: unknown) => void;
+      onWpDragUp: (event?: unknown) => void;
+      addWaypoint: (cid: string, segIdx: number, x: number, y: number) => void;
+      removeWaypoint: (cid: string, idx: number) => void;
+      getArrowPoints: (cid: string) => unknown;
+      updateArrowVisual: (cid: string) => void;
+      rebuildArrowSVG: (cid: string) => void;
     };
   }).__loaded;
 
   loaded.showArrowWaypointHandles("arrow-1");
-  loaded.startWpDrag({
-    target: {
-      getAttribute(name: string) {
-        const map: Record<string, string> = {
-          "data-wp-cid": "arrow-1",
-          "data-wp-idx": "0",
-        };
-        return map[name] ?? null;
-      },
-    },
-    clientX: 100,
-    clientY: 120,
-    preventDefault() {},
-    stopPropagation() {},
-  });
-  loaded.onWpDragMove({
-    clientX: 132,
-    clientY: 120,
-    preventDefault() {},
-  });
+  loaded.startWpDrag({});
+  loaded.onWpDragMove({});
+  loaded.onWpDragUp();
+  loaded.addWaypoint("arrow-1", 1, 24, 32);
+  loaded.removeWaypoint("arrow-1", 0);
+  assert.deepEqual(normalizeVmValue(loaded.getArrowPoints("arrow-1")), [[1, 2]]);
+  loaded.updateArrowVisual("arrow-1");
+  loaded.rebuildArrowSVG("arrow-1");
 
-  assert.deepEqual(normalizeVmValue({
-    renderKind: capturedCalls[0]?.kind,
-    renderSvg: capturedCalls[0]?.svg,
-    renderComponentId: capturedCalls[0]?.componentId,
-    renderWaypoints: capturedCalls[0]?.waypoints,
-    renderDelta: capturedCalls[0]?.delta,
-    renderIsSelected: capturedCalls[0]?.isSelected,
-    renderHasOnAddWaypoint: typeof capturedCalls[0]?.onAddWaypoint,
-    renderHasOnHandleMouseDown: typeof capturedCalls[0]?.onHandleMouseDown,
-    renderHasOnHandleDoubleClick: typeof capturedCalls[0]?.onHandleDoubleClick,
-    startKind: capturedCalls[1]?.kind,
-    startHasGetNode: typeof capturedCalls[1]?.getNode,
-    startHasStartInteraction: typeof capturedCalls[1]?.startInteraction,
-    startHasAddDocumentListener: typeof capturedCalls[1]?.addDocumentListener,
-    startHasOnMove: typeof capturedCalls[1]?.onWaypointDragMove,
-    startHasOnUp: typeof capturedCalls[1]?.onWaypointDragUp,
-    moveKind: capturedCalls[2]?.kind,
-    moveStateCid: capturedCalls[2]?.state?.cid,
-    moveHasGetNode: typeof capturedCalls[2]?.getNode,
-    moveHasReadEndpoints: typeof capturedCalls[2]?.readEndpoints,
-    moveHasUpdateArrowVisual: typeof capturedCalls[2]?.updateArrowVisual,
-  }), {
-    renderKind: "renderPreviewWaypointHandlesHost",
-    renderSvg: { tagName: "svg" },
-    renderComponentId: "arrow-1",
-    renderWaypoints: [[24, 32]],
-    renderDelta: { dx: 4, dy: 8 },
-    renderIsSelected: true,
-    renderHasOnAddWaypoint: "function",
-    renderHasOnHandleMouseDown: "function",
-    renderHasOnHandleDoubleClick: "function",
-    startKind: "startPreviewWaypointDragHost",
-    startHasGetNode: "function",
-    startHasStartInteraction: "function",
-    startHasAddDocumentListener: "function",
-    startHasOnMove: "function",
-    startHasOnUp: "function",
-    moveKind: "dispatchPreviewWaypointDragMoveHost",
-    moveStateCid: "arrow-1",
-    moveHasGetNode: "function",
-    moveHasReadEndpoints: "function",
-    moveHasUpdateArrowVisual: "function",
-  });
+  assert.deepEqual(normalizeVmValue(capturedCalls), [
+    { kind: "show", cid: "arrow-1" },
+    { kind: "start", eventType: "object" },
+    { kind: "move", eventType: "object" },
+    { kind: "up", eventType: "undefined" },
+    { kind: "add", cid: "arrow-1", segmentIndex: 1, x: 24, y: 32 },
+    { kind: "remove", cid: "arrow-1", index: 0 },
+    { kind: "points", cid: "arrow-1" },
+    { kind: "update", cid: "arrow-1" },
+    { kind: "rebuild", cid: "arrow-1" },
+  ]);
 });
 
 test("editor pointer-interaction host helper accepts the namespaced previewShell.interaction contract", () => {
@@ -2676,11 +2918,13 @@ test("editor keyboard helper accepts the namespaced previewShell.interaction con
     LayoutEngine: {
       previewShell: {
         interaction: {
-          dispatchPreviewKeyboardShortcutHost(options: Record<string, unknown>) {
+          dispatchPreviewKeyboardShortcut(options: Record<string, unknown>) {
             capturedCalls.push({
               eventKey: options.event?.key,
               selectedIds: Array.from(options.selectedIds as Set<string> | string[]),
               selectionDepth: options.selectionDepth,
+              hasInteractionManager: typeof options.interactionManager?.isMode,
+              textMode: options.interactionModes?.TEXT_EDITING,
               hasSave: typeof options.save,
               hasUndo: typeof options.undo,
               hasRedo: typeof options.redo,
@@ -2718,6 +2962,8 @@ test("editor keyboard helper accepts the namespaced previewShell.interaction con
       eventKey: "s",
       selectedIds: ["alpha"],
       selectionDepth: 1,
+      hasInteractionManager: "function",
+      textMode: "TEXT_EDITING",
       hasSave: "function",
       hasUndo: "function",
       hasRedo: "function",
@@ -2765,9 +3011,6 @@ test("editor delete helpers accept the namespaced previewShell.interaction contr
       commitUndoableAction() {},
     },
     alert() {},
-    getFrameTreeJson() {
-      return { root: { id: "tree-root" } };
-    },
     window: {
       __DG_getPreviewShellInteractionContract() {
         return context.LayoutEngine.previewShell.interaction;
@@ -2778,9 +3021,17 @@ test("editor delete helpers accept the namespaced previewShell.interaction contr
       __DG_getPreviewBridgeRenderContract() {
         return context.LayoutEngine.previewBridge.render;
       },
+      __DG_getPreviewBridgeHostContract() {
+        return context.LayoutEngine.previewBridge.host;
+      },
     },
     LayoutEngine: {
       previewBridge: {
+        host: {
+          getFrameTreeJson() {
+            return { root: { id: "tree-root" } };
+          },
+        },
         render: {
           renderFreshPreviewSvg() {
             return Promise.resolve({ svg: { tagName: "svg" } });
@@ -2817,6 +3068,8 @@ test("editor delete helpers accept the namespaced previewShell.interaction contr
   };
 
   const helperSource = [
+    extractNamedFunctionSource(source, "_getPreviewBridgeHostContract", "()"),
+    extractNamedFunctionSource(source, "_readFrameTreeJson", "()"),
     extractNamedFunctionSource(source, "deleteSelectedFrames", "()").replace(/^function /, "async function "),
     "this.__loaded = { deleteSelectedFrames };",
   ].join("\n");
@@ -2865,7 +3118,6 @@ test("editor stage-binding helper accepts the namespaced previewShell.interactio
     findComponentAtDepth() {
       return "alpha";
     },
-    ensureArrowHitAreas() {},
     buildTreeUI() {},
     window: {
       __DG_getPreviewShellInteractionContract() {
@@ -2923,7 +3175,7 @@ test("editor stage-binding helper accepts the namespaced previewShell.interactio
       hasFindComponentAtDepth: "function",
       hasSyncHoverState: "function",
       hasClearHoverState: "function",
-      hasEnsureArrowHitAreas: "function",
+      hasEnsureArrowHitAreas: "undefined",
       hasRebuildTreeUi: "function",
     },
   ]);
@@ -2963,22 +3215,23 @@ test("editor selection chrome helpers accept the namespaced previewShell.interac
     renderResizeHandles(...args: unknown[]) {
       capturedCalls.push({ kind: "renderResizeHandles", args });
     },
-    getArrowNode() {
-      return { waypoints: [[20, 24]] };
-    },
-    getEffectiveDelta() {
-      return { dx: 4, dy: 8 };
+    _getArrowWaypointRuntime() {
+      return {
+        getArrowPoints(cid: string) {
+          capturedCalls.push({ kind: "runtimeGetArrowPoints", cid });
+          return [[4, 8], [20, 24]];
+        },
+        updateArrowVisual(cid: string) {
+          capturedCalls.push({ kind: "runtimeUpdateArrowVisual", cid });
+        },
+        rebuildArrowSvg(cid: string) {
+          capturedCalls.push({ kind: "runtimeRebuildArrowSvg", cid });
+        },
+      };
     },
     window: {
-      __DG_CONFIG: {
-        head_len: 10,
-        head_half: 5,
-      },
       __DG_getPreviewShellInteractionContract() {
         return context.LayoutEngine.previewShell.interaction;
-      },
-      __DG_getPreviewBridgeRenderContract() {
-        return context.LayoutEngine.previewBridge.render;
       },
     },
     LayoutEngine: {
@@ -3005,46 +3258,6 @@ test("editor selection chrome helpers accept the namespaced previewShell.interac
               hasClearHandlesByClass: typeof options.clearHandlesByClass,
             });
           },
-          readPreviewArrowPointsHost(options: Record<string, unknown>) {
-            capturedCalls.push({
-              kind: "readPreviewArrowPointsHost",
-              componentId: options.componentId,
-              hasReadArrowEndpoints: typeof options.readArrowEndpoints,
-              hasArrowNode: options.hasArrowNode,
-            });
-            return [[4, 8], [20, 24]];
-          },
-          updatePreviewArrowVisualHost(options: Record<string, unknown>) {
-            capturedCalls.push({
-              kind: "updatePreviewArrowVisualHost",
-              componentId: options.componentId,
-              delta: options.delta,
-              headLen: options.headLen,
-              headHalf: options.headHalf,
-              hasUpdateArrowSvg: typeof options.updateArrowSvg,
-            });
-            return true;
-          },
-          rebuildPreviewArrowSvgHost(options: Record<string, unknown>) {
-            capturedCalls.push({
-              kind: "rebuildPreviewArrowSvgHost",
-              componentId: options.componentId,
-              headLen: options.headLen,
-              headHalf: options.headHalf,
-              color: options.color,
-              hasRebuildArrowSvg: typeof options.rebuildArrowSvg,
-            });
-            return true;
-          },
-        },
-      },
-      previewBridge: {
-        render: {
-          readPreviewArrowEndpoints() {
-            return { start: [4, 8], end: [20, 24] };
-          },
-          updatePreviewArrowSvg() {},
-          rebuildPreviewArrowSvg() {},
         },
       },
     },
@@ -3093,28 +3306,9 @@ test("editor selection chrome helpers accept the namespaced previewShell.interac
       kind: "removePreviewHandlesHost",
       hasClearHandlesByClass: "function",
     },
-    {
-      kind: "readPreviewArrowPointsHost",
-      componentId: "alpha",
-      hasReadArrowEndpoints: "function",
-      hasArrowNode: true,
-    },
-    {
-      kind: "updatePreviewArrowVisualHost",
-      componentId: "alpha",
-      delta: { dx: 4, dy: 8 },
-      headLen: 10,
-      headHalf: 5,
-      hasUpdateArrowSvg: "function",
-    },
-    {
-      kind: "rebuildPreviewArrowSvgHost",
-      componentId: "alpha",
-      headLen: 10,
-      headHalf: 5,
-      color: "#E95420",
-      hasRebuildArrowSvg: "function",
-    },
+    { kind: "runtimeGetArrowPoints", cid: "alpha" },
+    { kind: "runtimeUpdateArrowVisual", cid: "alpha" },
+    { kind: "runtimeRebuildArrowSvg", cid: "alpha" },
   ]);
 });
 
@@ -3130,6 +3324,28 @@ test("editor selection UI helpers accept the namespaced previewShell.interaction
     showResizeHandles() {},
     renderEmptyInspector() {},
     renderSelectionInspector() {},
+    _getSelectionRuntime() {
+      return {
+        applySelectionStateSnapshot(nextState: Record<string, unknown>, preferredCid?: string | null) {
+          capturedCalls.push({
+            kind: "apply",
+            nextState,
+            preferredId: preferredCid,
+            setSelectionDepth() {},
+            syncSelectionUi() {},
+          });
+        },
+        syncSelectionUi(preferredCid?: string | null) {
+          capturedCalls.push({
+            kind: "sync",
+            preferredId: preferredCid,
+            resolvePrimaryId() {},
+            syncTreeSelectionState() {},
+            selectedIds: context.selectedIds,
+          });
+        },
+      };
+    },
     getPrimarySelectedId(preferredCid?: string | null) {
       return preferredCid || "alpha";
     },
@@ -3229,6 +3445,34 @@ test("editor tree-selection host helpers accept the namespaced previewShell.inte
       capturedCalls.push({ kind: "deleteSelectedFrames" });
       return Promise.resolve(true);
     },
+    _getSelectionRuntime() {
+      return {
+        deselectAll() {
+          capturedCalls.push({
+            kind: "clearSelection",
+            selectedIds: context.selectedIds,
+            selectionDepth: context.selectionDepth,
+          });
+          capturedCalls.push({
+            kind: "applySelectionState",
+            nextState: { selectedIds: [], selectionDepth: 0 },
+          });
+        },
+        selectComponent(cid: string, additive: boolean) {
+          capturedCalls.push({
+            kind: "resolveSelection",
+            cid,
+            additive,
+            getAncestorDepth() {},
+          });
+          capturedCalls.push({
+            kind: "applySelectionState",
+            preferredCid: cid,
+            nextState: { selectedIds: [cid], selectionDepth: 2 },
+          });
+        },
+      };
+    },
     window: {
       __DG_getPreviewShellInteractionContract() {
         return context.LayoutEngine.previewShell.interaction;
@@ -3304,577 +3548,15 @@ test("editor tree-selection host helpers accept the namespaced previewShell.inte
     clearKind: "clearSelection",
     clearSelectedIds: ["alpha"],
     clearSelectionDepth: 2,
-    clearAppliedKind: "applySnapshot",
+    clearAppliedKind: "applySelectionState",
     clearAppliedState: { selectedIds: [], selectionDepth: 0 },
     resolveKind: "resolveSelection",
     resolveCid: "beta",
     resolveAdditive: false,
     resolveHasAncestorDepth: "function",
-    resolveAppliedKind: "applySnapshot",
+    resolveAppliedKind: "applySelectionState",
     resolveAppliedPreferredCid: "beta",
     resolveAppliedState: { selectedIds: ["beta"], selectionDepth: 2 },
   });
 });
 
-test("editor navigation helper accepts the namespaced previewShell.bootstrap contract", () => {
-  const source = readPreviewScript("editor.js");
-  const capturedCalls: Array<Record<string, unknown>> = [];
-  const context = {
-    console,
-    DIRTY_DIAGRAM_NAV_CONFIRM: "Leave?",
-    _allowInternalDirtyNavigation: false,
-    PreviewSaveClient: {
-      isDirty() {
-        return true;
-      },
-    },
-    window: {
-      location: {
-        pathname: "/view/alpha",
-        origin: "http://127.0.0.1:8100",
-        assign() {},
-      },
-      confirm() {
-        return true;
-      },
-      setTimeout(callback: () => void) {
-        callback();
-        return 1;
-      },
-      __DG_getPreviewShellBootstrapContract() {
-        return context.LayoutEngine.previewShell.bootstrap;
-      },
-    },
-    LayoutEngine: {
-      previewShell: {
-        bootstrap: {
-          attemptPreviewDiagramNavigation(options: Record<string, unknown>) {
-            capturedCalls.push(options);
-            return true;
-          },
-        },
-      },
-    },
-  };
-
-  const helperSource = [
-    extractNamedFunctionSource(source, "_attemptDiagramNavigation", "(nextUrl, syncUi)"),
-    "this.__loaded = { _attemptDiagramNavigation };",
-  ].join("\n");
-
-  vm.runInNewContext(helperSource, context);
-  const loaded = (context as {
-    __loaded: {
-      _attemptDiagramNavigation: (nextUrl: string, syncUi: () => void) => boolean;
-    };
-  }).__loaded;
-
-  const syncUi = () => {};
-  assert.equal(loaded._attemptDiagramNavigation("/view/beta", syncUi), true);
-  assert.equal(capturedCalls.length, 1);
-  assert.deepEqual(normalizeVmValue({
-    nextUrl: capturedCalls[0]?.nextUrl,
-    currentPath: capturedCalls[0]?.currentPath,
-    origin: capturedCalls[0]?.origin,
-    isDirty: capturedCalls[0]?.isDirty,
-    dirtyConfirmMessage: capturedCalls[0]?.dirtyConfirmMessage,
-    hasConfirm: typeof capturedCalls[0]?.confirmNavigation,
-    hasSyncUi: typeof capturedCalls[0]?.syncUi,
-    hasSetAllow: typeof capturedCalls[0]?.setAllowInternalDirtyNavigation,
-    hasAssign: typeof capturedCalls[0]?.assignLocation,
-    hasSchedule: typeof capturedCalls[0]?.schedulePostNavigationReset,
-  }), {
-    nextUrl: "/view/beta",
-    currentPath: "/view/alpha",
-    origin: "http://127.0.0.1:8100",
-    isDirty: true,
-    dirtyConfirmMessage: "Leave?",
-    hasConfirm: "function",
-    hasSyncUi: "function",
-    hasSetAllow: "function",
-    hasAssign: "function",
-    hasSchedule: "function",
-  });
-});
-
-test("editor tree loader accepts the namespaced previewShell.bootstrap contract", async () => {
-  const source = readPreviewScript("editor.js");
-  const capturedCalls: Array<Record<string, unknown>> = [];
-  const context = {
-    console,
-    SLUG: "demo",
-    model: { loadTree() {}, loadArrows() {} },
-    fetch(url: string, init: Record<string, unknown>) {
-      capturedCalls.push({ fetchUrl: url, init });
-      return Promise.resolve({
-        ok: true,
-        async json() {
-          return [];
-        },
-      });
-    },
-    getPreviewDocumentJson() {
-      return { kind: "frame-diagram" };
-    },
-    getFrameTreeJson() {
-      return { arrows: [{ source: "a", target: "b" }] };
-    },
-    syncArrowsInModel() {},
-    arrowComponentId() {
-      return "arrow-1";
-    },
-    window: {
-      __DG_getPreviewShellBootstrapContract() {
-        return context.LayoutEngine.previewShell.bootstrap;
-      },
-    },
-    LayoutEngine: {
-      previewShell: {
-        bootstrap: {
-          async loadPreviewComponentTree(options: Record<string, unknown>) {
-            capturedCalls.push(options);
-            await (options.fetchTree as () => Promise<unknown>)();
-            return "fetched";
-          },
-        },
-      },
-    },
-  };
-
-  const helperSource = [
-    extractNamedFunctionSource(source, "loadTree", "(canonicalState = null)").replace(/^function /, "async function "),
-    "this.__loaded = { loadTree };",
-  ].join("\n");
-
-  vm.runInNewContext(helperSource, context);
-  const loaded = (context as {
-    __loaded: {
-      loadTree: (canonicalState?: Record<string, unknown> | null) => Promise<string>;
-    };
-  }).__loaded;
-
-  assert.equal(await loaded.loadTree({ componentTree: [] }), "fetched");
-  assert.equal(capturedCalls.length, 2);
-  assert.match(String(capturedCalls[1]?.fetchUrl || ""), /^\/api\/tree\/demo\?t=\d+$/);
-  assert.deepEqual(normalizeVmValue({
-    canonicalState: capturedCalls[0]?.canonicalState,
-    hasReadPreviewDocument: typeof capturedCalls[0]?.readPreviewDocument,
-    hasFetchTree: typeof capturedCalls[0]?.fetchTree,
-    model: capturedCalls[0]?.model,
-    hasReadFrameTreeJson: typeof capturedCalls[0]?.readFrameTreeJson,
-    hasSyncArrowsInModel: typeof capturedCalls[0]?.syncArrowsInModel,
-    hasArrowComponentId: typeof capturedCalls[0]?.arrowComponentId,
-    fetchUrl: capturedCalls[1]?.fetchUrl,
-    fetchCache: capturedCalls[1]?.init?.cache,
-  }), {
-    canonicalState: { componentTree: [] },
-    hasReadPreviewDocument: "function",
-    hasFetchTree: "function",
-    model: {},
-    hasReadFrameTreeJson: "function",
-    hasSyncArrowsInModel: "function",
-    hasArrowComponentId: "function",
-    fetchUrl: String(capturedCalls[1]?.fetchUrl || ""),
-    fetchCache: "no-store",
-  });
-});
-
-test("editor grid loader accepts the namespaced previewShell.bootstrap contract", async () => {
-  const source = readPreviewScript("editor.js");
-  const capturedCalls: Array<Record<string, unknown>> = [];
-  const context = {
-    console,
-    SLUG: "demo",
-    BASELINE_STEP: 8,
-    gridInfo: null as unknown,
-    baseGridInfo: null as unknown,
-    EditorState: {
-      cloneValue(value: unknown) {
-        return { cloned: value };
-      },
-    },
-    model: {
-      roots: [{ data: { layout_gap: 24, padding_top: 32 } }],
-    },
-    document: {
-      querySelector(selector: string) {
-        if (selector !== "#stage svg") return null;
-        return {
-          viewBox: { baseVal: { width: 640, height: 480 } },
-          getAttribute(name: string) {
-            return name === "width" ? "640" : "480";
-          },
-        };
-      },
-    },
-    fetch(url: string, init: Record<string, unknown>) {
-      capturedCalls.push({ fetchUrl: url, init });
-      return Promise.resolve({
-        ok: true,
-        async json() {
-          return { cols: 8 };
-        },
-      });
-    },
-    window: {
-      __DG_getPreviewShellBootstrapContract() {
-        return context.LayoutEngine.previewShell.bootstrap;
-      },
-      __DG_getPreviewShellSceneContract() {
-        return context.LayoutEngine.previewShell.scene;
-      },
-    },
-    LayoutEngine: {
-      previewShell: {
-        bootstrap: {
-          async loadPreviewGridInfo(options: Record<string, unknown>) {
-            capturedCalls.push(options);
-            const metrics = (options.readFallbackMetrics as () => Record<string, unknown>)();
-            const resolved = (options.resolvePreviewGridInfo as (value: Record<string, unknown>) => unknown)({
-              canvasWidth: metrics.canvasWidth,
-            });
-            assert.deepEqual(normalizeVmValue(resolved), { resolved: true, canvasWidth: 640 });
-            await (options.fetchGridInfo as () => Promise<unknown>)();
-            return {
-              gridInfo: { cols: 12 },
-              baseGridInfo: { cols: 12, cloned: true },
-            };
-          },
-        },
-        scene: {
-          resolvePreviewGridInfo(value: Record<string, unknown>) {
-            return { resolved: true, canvasWidth: value.canvasWidth };
-          },
-        },
-      },
-    },
-  };
-
-  const helperSource = [
-    extractNamedFunctionSource(source, "loadGridInfo", "(canonicalState = null)").replace(/^function /, "async function "),
-    "this.__loaded = { loadGridInfo };",
-  ].join("\n");
-
-  vm.runInNewContext(helperSource, context);
-  const loaded = (context as {
-    __loaded: {
-      loadGridInfo: (canonicalState?: Record<string, unknown> | null) => Promise<void>;
-    };
-  }).__loaded;
-
-  await loaded.loadGridInfo({ gridInfo: { cols: 4 } });
-
-  assert.equal(capturedCalls.length, 2);
-  assert.match(String(capturedCalls[1]?.fetchUrl || ""), /^\/api\/grid\/demo\?t=\d+$/);
-  assert.deepEqual(normalizeVmValue({
-    canonicalState: capturedCalls[0]?.canonicalState,
-    hasFetchGridInfo: typeof capturedCalls[0]?.fetchGridInfo,
-    hasCloneValue: typeof capturedCalls[0]?.cloneValue,
-    hasReadFallbackMetrics: typeof capturedCalls[0]?.readFallbackMetrics,
-    hasResolvePreviewGridInfo: typeof capturedCalls[0]?.resolvePreviewGridInfo,
-    fetchUrl: capturedCalls[1]?.fetchUrl,
-    fetchCache: capturedCalls[1]?.init?.cache,
-    gridInfo: context.gridInfo,
-    baseGridInfo: context.baseGridInfo,
-  }), {
-    canonicalState: { gridInfo: { cols: 4 } },
-    hasFetchGridInfo: "function",
-    hasCloneValue: "function",
-    hasReadFallbackMetrics: "function",
-    hasResolvePreviewGridInfo: "function",
-    fetchUrl: String(capturedCalls[1]?.fetchUrl || ""),
-    fetchCache: "no-store",
-    gridInfo: { cols: 12 },
-    baseGridInfo: { cols: 12, cloned: true },
-  });
-});
-
-test("layout bridge override collector accepts the namespaced previewBridge.relayout contract", () => {
-  const source = readPreviewScript("layout-bridge.js");
-  const context = {
-    console,
-    window: {
-      __DG_getPreviewBridgeRelayoutContract() {
-        return context.window.LayoutEngine.previewBridge.relayout;
-      },
-      LayoutEngine: {
-        previewBridge: {
-          relayout: {
-            collectPreviewRelayoutFrameOverrides(overrides: Record<string, unknown>) {
-              return { collected: overrides };
-            },
-          },
-        },
-      },
-    },
-    LayoutEngine: {
-      filterRelayoutOverrideEntry() {
-        throw new Error("flat fallback should not be used");
-      },
-    },
-  };
-
-  const helperSource = [
-    extractNamedFunctionSource(source, "_collectRelayoutFrameOverrides", "(overrides)"),
-    "this.__loaded = { _collectRelayoutFrameOverrides };",
-  ].join("\n");
-
-  vm.runInNewContext(helperSource, context);
-  const loaded = (context as {
-    __loaded: {
-      _collectRelayoutFrameOverrides: (overrides: Record<string, unknown>) => unknown;
-    };
-  }).__loaded;
-
-  assert.deepEqual(
-    normalizeVmValue(loaded._collectRelayoutFrameOverrides({ root: { gap_delta: null } })),
-    { collected: { root: { gap_delta: null } } },
-  );
-});
-
-test("layout bridge override application accepts the namespaced previewBridge.relayout contract", () => {
-  const source = readPreviewScript("layout-bridge.js");
-  const capturedCalls: Array<Record<string, unknown>> = [];
-  const diagram = { root: { id: "root" } };
-  const overrides = { root: { gap: 24 } };
-  const gridOverrides = { col_gap: 40 };
-  const context = {
-    console,
-    window: {
-      __DG_getPreviewBridgeRelayoutContract() {
-        return context.window.LayoutEngine.previewBridge.relayout;
-      },
-      LayoutEngine: {
-        previewBridge: {
-          relayout: {
-            applyPreviewOverridesToFrameTree(
-              nextDiagram: Record<string, unknown>,
-              nextOverrides: Record<string, unknown>,
-              nextGridOverrides: Record<string, unknown>,
-            ) {
-              capturedCalls.push({
-                diagram: nextDiagram,
-                overrides: nextOverrides,
-                gridOverrides: nextGridOverrides,
-              });
-            },
-          },
-        },
-      },
-    },
-  };
-
-  const helperSource = [
-    extractNamedFunctionSource(source, "applyOverridesToFrameTree", "(diagram, allOverrides, gridOverrides)"),
-    "this.__loaded = { applyOverridesToFrameTree };",
-  ].join("\n");
-
-  vm.runInNewContext(helperSource, context);
-  const loaded = (context as {
-    __loaded: {
-      applyOverridesToFrameTree: (
-        diagram: Record<string, unknown>,
-        allOverrides: Record<string, unknown>,
-        gridOverrides: Record<string, unknown>,
-      ) => void;
-    };
-  }).__loaded;
-
-  loaded.applyOverridesToFrameTree(diagram, overrides, gridOverrides);
-
-  assert.deepEqual(normalizeVmValue(capturedCalls), [
-    {
-      diagram,
-      overrides,
-      gridOverrides,
-    },
-  ]);
-});
-
-test("layout bridge fresh-render wrapper accepts the namespaced previewBridge.render contract", async () => {
-  const source = readPreviewScript("layout-bridge.js");
-  const refreshCalls: string[] = [];
-  const context = {
-    console,
-    document: { tagName: "document" },
-    _previewDocumentJson: { kind: "frame-diagram" },
-    _frameTreeJson: { root: { id: "root" } },
-    _textAdapter: { measurementBackend: "mock" },
-    _lastElkSnapshot: null as unknown,
-    _lastElkFrameLabels: null as unknown,
-    applySessionRemovalsToDiagramJson() {},
-    applyOverridesToFrameTree() {},
-    _collectRelayoutFrameOverrides(value: Record<string, unknown>) {
-      return value;
-    },
-    _isElkLayeredDiagramJson() {
-      return false;
-    },
-    _resolveElkOptionOverrides() {
-      return {};
-    },
-    updateComponentModelFromLayout() {},
-    syncArrowsInModel() {},
-    refreshElkViewMode() {
-      refreshCalls.push("refreshElkViewMode");
-    },
-    window: {
-      LayoutEngine: {
-        previewBridge: {
-          render: {
-            async renderFreshPreviewSvg(options: Record<string, unknown>) {
-              context.captured = options;
-              return {
-                svg: { tagName: "svg" },
-                width: 320,
-                height: 200,
-                coerced: new Map(),
-                elkSnapshot: { id: "elk" },
-                elkFrameLabels: { root: "Root" },
-              };
-            },
-          },
-        },
-      },
-    },
-    captured: null as Record<string, unknown> | null,
-  };
-
-  const helperSource = [
-    extractNamedFunctionSource(source, "previewBridgeRenderContract", "()"),
-    extractNamedFunctionSource(source, "renderFreshSvg", "(overrides, gridOverrides, model)").replace(/^function /, "async function "),
-    "this.__loaded = { renderFreshSvg };",
-  ].join("\n");
-
-  vm.runInNewContext(helperSource, context);
-  const loaded = (context as {
-    __loaded: {
-      renderFreshSvg: (
-        overrides: Record<string, unknown>,
-        gridOverrides: Record<string, unknown> | null,
-        model: Record<string, unknown>,
-      ) => Promise<Record<string, unknown>>;
-    };
-  }).__loaded;
-
-  const result = await loaded.renderFreshSvg({ alpha: { dx: 8 } }, { cols: 8 }, { id: "model" });
-
-  assert.deepEqual(normalizeVmValue({
-    ownerDocument: context.captured?.ownerDocument,
-    previewDocumentJson: context.captured?.previewDocumentJson,
-    frameTreeJson: context.captured?.frameTreeJson,
-    overrides: context.captured?.overrides,
-    gridOverrides: context.captured?.gridOverrides,
-    model: context.captured?.model,
-    textAdapter: context.captured?.textAdapter,
-  }), {
-    ownerDocument: { tagName: "document" },
-    previewDocumentJson: { kind: "frame-diagram" },
-    frameTreeJson: { root: { id: "root" } },
-    overrides: { alpha: { dx: 8 } },
-    gridOverrides: { cols: 8 },
-    model: { id: "model" },
-    textAdapter: { measurementBackend: "mock" },
-  });
-  assert.equal(typeof context.captured?.applySessionRemovalsToDiagramJson, "function");
-  assert.equal(typeof context.captured?.applyOverridesToFrameTree, "function");
-  assert.equal(typeof context.captured?.collectRelayoutFrameOverrides, "function");
-  assert.equal(typeof context.captured?.isElkLayeredDiagramJson, "function");
-  assert.equal(typeof context.captured?.resolveElkOptionOverrides, "function");
-  assert.equal(typeof context.captured?.updateModelFromLayout, "function");
-  assert.equal(typeof context.captured?.syncArrowsInModel, "function");
-  assert.deepEqual(normalizeVmValue(result), {
-    svg: { tagName: "svg" },
-    width: 320,
-    height: 200,
-    coerced: {},
-  });
-  assert.deepEqual(normalizeVmValue(context._lastElkSnapshot), { id: "elk" });
-  assert.deepEqual(normalizeVmValue(context._lastElkFrameLabels), { root: "Root" });
-  assert.deepEqual(refreshCalls, ["refreshElkViewMode"]);
-});
-
-test("layout bridge core helpers accept the namespaced core contract", () => {
-  const source = readPreviewScript("layout-bridge.js");
-  const context = {
-    console,
-    window: {
-      __DG_getPreviewCoreContract() {
-        return context.window.LayoutEngine.core;
-      },
-      LayoutEngine: {
-        core: {
-          deserializeFrameWire(json: Record<string, unknown>) {
-            return { restored: json };
-          },
-        },
-      },
-    },
-    LayoutEngine: {
-      deserializeFrameWire() {
-        throw new Error("flat fallback should not be used");
-      },
-    },
-  };
-
-  const helperSource = [
-    extractNamedFunctionSource(source, "previewCoreContract", "()"),
-    extractNamedFunctionSource(source, "deserializeFrame", "(json)"),
-    "this.__loaded = { deserializeFrame };",
-  ].join("\n");
-
-  vm.runInNewContext(helperSource, context);
-  const loaded = (context as {
-    __loaded: {
-      deserializeFrame: (json: Record<string, unknown>) => unknown;
-    };
-  }).__loaded;
-
-  assert.deepEqual(
-    normalizeVmValue(loaded.deserializeFrame({ id: "alpha" })),
-    { restored: { id: "alpha" } },
-  );
-});
-
-test("layout bridge ELK view helpers accept the namespaced previewEngines.elk contract", () => {
-  const source = readPreviewScript("layout-bridge.js");
-  const context = {
-    console,
-    window: {
-      __DG_getPreviewElkEngineContract() {
-        return context.window.LayoutEngine.previewEngines.elk;
-      },
-      LayoutEngine: {
-        previewEngines: {
-          elk: {
-            renderPreviewElkDebugOverlay() {
-              return { mode: "debug" };
-            },
-          },
-        },
-      },
-    },
-    LayoutEngine: {
-      renderPreviewElkDebugOverlay() {
-        throw new Error("flat fallback should not be used");
-      },
-    },
-  };
-
-  const helperSource = [
-    extractNamedFunctionSource(source, "previewElkEngineContract", "()"),
-    "this.__loaded = { previewElkEngineContract };",
-  ].join("\n");
-
-  vm.runInNewContext(helperSource, context);
-  const loaded = (context as {
-    __loaded: {
-      previewElkEngineContract: () => { renderPreviewElkDebugOverlay: () => { mode: string } };
-    };
-  }).__loaded;
-
-  assert.deepEqual(
-    normalizeVmValue(loaded.previewElkEngineContract().renderPreviewElkDebugOverlay()),
-    { mode: "debug" },
-  );
-});

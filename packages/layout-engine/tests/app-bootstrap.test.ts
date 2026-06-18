@@ -1,11 +1,17 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  bootstrapPreviewEditorHost,
+  collectPreviewEngineSavePayload,
   connectPreviewSse,
   createPreviewDiagramLoadSignalState,
   createPreviewSaveClientInitConfig,
   ensurePreviewEditorState,
+  ensurePreviewEngineShellController,
   ensurePreviewElkPreviewController,
+  getPreviewEngineShellController,
+  initPreviewEngineShellPanel,
   initPreviewEditorRuntimeHost,
+  isPreviewEngineShellLayoutActive,
   installPreviewEditorTestFacadeHost,
   registerPreviewEditorDocumentBindingsHost,
   registerPreviewPageshowReload,
@@ -38,6 +44,11 @@ describe('preview bootstrap helpers', () => {
     const elkController = ensurePreviewElkPreviewController(previewWindow, elkInit);
 
     expect(previewWindow.EditorState).toBe(editorState);
+    expect(
+      (previewWindow as Window & typeof globalThis & {
+        PreviewEngineShellController?: unknown;
+      }).PreviewEngineShellController,
+    ).toBe(elkController);
     expect(previewWindow.ElkPreviewController).toBe(elkController);
     expect(editorState.init).toBeTypeOf('function');
     expect(elkController.init).toBeTypeOf('function');
@@ -55,9 +66,7 @@ describe('preview bootstrap helpers', () => {
       restoreSelectionIds: vi.fn(),
       serializeDirtyState: vi.fn(() => '{}'),
       reloadDiagram: vi.fn(),
-      isElkLayeredDiagram: vi.fn(() => false),
-      wireElkLayoutPanel: vi.fn(),
-      applyElkLayoutOverrides: vi.fn(),
+      collectEngineSavePayload: vi.fn((payload) => payload),
       getV3RelayoutStatus: vi.fn(),
       getV3RelayoutRuntime: vi.fn(),
       getConstraintSummary: vi.fn(),
@@ -226,6 +235,254 @@ describe('preview bootstrap helpers', () => {
       'loadDiagram',
       'connectSse',
     ]);
+  });
+
+  it('bootstraps the editor runtime through one high-level host owner', () => {
+    const orderedCalls: string[] = [];
+    const keydownListeners: Array<(event: KeyboardEvent) => void> = [];
+    class FakeSelectElement {}
+    const previewWindow = {
+      addEventListener(type: string, listener: (event: PageTransitionEvent) => void) {
+        orderedCalls.push(`window:${type}`);
+        if (type === 'pageshow') {
+          listener({ persisted: false } as PageTransitionEvent);
+        }
+      },
+      matchMedia: () => null,
+      requestAnimationFrame: undefined,
+      HTMLSelectElement: FakeSelectElement,
+    } as unknown as Window & typeof globalThis;
+    const button = {
+      addEventListener(type: 'click', _listener: () => void) {
+        orderedCalls.push(`button:${type}`);
+      },
+    };
+    const document = {
+      addEventListener(_type: 'keydown', listener: (event: KeyboardEvent) => void) {
+        keydownListeners.push(listener);
+      },
+      getElementById(id: string) {
+        if (id === 'btn-undo' || id === 'btn-redo' || id === 'btn-export' || id === 'btn-clear-all') {
+          return button;
+        }
+        if (id === 'diagram-picker') {
+          return null;
+        }
+        return null;
+      },
+      querySelector() {
+        return null;
+      },
+      querySelectorAll() {
+        return [];
+      },
+    } as unknown as Document;
+
+    bootstrapPreviewEditorHost({
+      document,
+      previewWindow,
+      slug: 'demo',
+      onDocumentKeyDown: vi.fn(),
+      undo() {
+        orderedCalls.push('undo');
+      },
+      redo() {
+        orderedCalls.push('redo');
+      },
+      saveOverrides() {
+        orderedCalls.push('saveOverrides');
+      },
+      canUndo() {
+        return true;
+      },
+      canRedo() {
+        return false;
+      },
+      getCurrentPath() {
+        return '/view/v3:demo';
+      },
+      syncBrowseNav() {
+        orderedCalls.push('syncBrowseNav');
+      },
+      async fetchIndexHtml() {
+        orderedCalls.push('fetchIndexHtml');
+        return null;
+      },
+      attemptNavigation() {
+        orderedCalls.push('attemptNavigation');
+        return true;
+      },
+      initNavTabs() {
+        orderedCalls.push('initNavTabs');
+      },
+      getOverrides() {
+        return {};
+      },
+      getGridOverrides() {
+        return {};
+      },
+      getElkLayoutOverrides() {
+        return {};
+      },
+      getRemovedIds() {
+        return new Set();
+      },
+      getFrameTree() {
+        return null;
+      },
+      setElkLayoutOverrides() {
+        orderedCalls.push('setElkLayoutOverrides');
+      },
+      getRootId() {
+        return 'root';
+      },
+      requestV3Relayout() {
+        orderedCalls.push('requestV3Relayout');
+      },
+      previewSaveClient: {
+        init() {
+          orderedCalls.push('previewSaveClient.init');
+        },
+        isDirty() {
+          return false;
+        },
+      },
+      getModel() {
+        return {};
+      },
+      getSelectedIds() {
+        return [];
+      },
+      restoreSelectionIds() {
+        orderedCalls.push('restoreSelectionIds');
+      },
+      serializeDirtyState() {
+        return '{}';
+      },
+      reloadDiagram() {
+        orderedCalls.push('reloadDiagram');
+      },
+      getV3RelayoutStatus() {
+        return {};
+      },
+      getV3RelayoutRuntime() {
+        return {};
+      },
+      getConstraintSummary() {
+        return {};
+      },
+      getConstraintErrorCount() {
+        return 0;
+      },
+      runConstraints() {
+        orderedCalls.push('runConstraints');
+      },
+      clearCoercedKeys() {
+        orderedCalls.push('clearCoercedKeys');
+      },
+      setStatus() {
+        orderedCalls.push('setStatus');
+      },
+      sanitizeSvgCloneForExport() {
+        orderedCalls.push('sanitizeSvgCloneForExport');
+      },
+      allowInternalDirtyNavigation() {
+        return false;
+      },
+      overrideToolbar: {
+        exportButton: button as unknown as HTMLElement,
+        clearAllButton: button as unknown as HTMLElement,
+        slug: 'demo',
+        getOverrides() {
+          return {};
+        },
+        writeClipboardText() {
+          orderedCalls.push('writeClipboardText');
+          return Promise.resolve();
+        },
+        alert() {
+          orderedCalls.push('alert');
+        },
+        confirmClearAll() {
+          orderedCalls.push('confirmClearAll');
+          return true;
+        },
+        confirmClearAllMessage: 'clear demo?',
+        onClearAll() {
+          orderedCalls.push('onClearAll');
+        },
+      },
+      eventSourceFactory() {
+        orderedCalls.push('eventSourceFactory');
+        return { onmessage: null, onerror: null };
+      },
+      getGeneration() {
+        return 0;
+      },
+      setGeneration() {
+        orderedCalls.push('setGeneration');
+      },
+      setBuildStatus() {
+        orderedCalls.push('setBuildStatus');
+      },
+      scheduleReconnect() {
+        orderedCalls.push('scheduleReconnect');
+      },
+    });
+
+    expect(keydownListeners).toHaveLength(1);
+    expect(orderedCalls).toContain('initNavTabs');
+    expect(orderedCalls).toContain('previewSaveClient.init');
+    expect(orderedCalls).toContain('reloadDiagram');
+    expect(orderedCalls).toContain('eventSourceFactory');
+  });
+
+  it('resolves generic preview-engine shell helpers through the registered controller', () => {
+    const init = vi.fn();
+    const initializePanel = vi.fn();
+    const applyLayoutOverrides = vi.fn();
+    const collectPersistedPayload = vi.fn((payload: Record<string, unknown>) => ({
+      ...payload,
+      lane: 'engine',
+    }));
+    const previewWindow = {
+      PreviewEngineShellController: {
+        init,
+        isActiveLayoutEngine() {
+          return true;
+        },
+        initializePanel,
+        applyLayoutOverrides,
+        collectPersistedPayload,
+        isElkLayeredDiagram() {
+          return true;
+        },
+        wirePanel() {},
+        syncPanel() {},
+        initPanel() {},
+        applyElkLayoutOverrides() {},
+        requestRelayout() {
+          return Promise.resolve();
+        },
+      },
+    } as unknown as Window & typeof globalThis;
+
+    const controller = ensurePreviewEngineShellController(previewWindow, {
+      getElkLayoutOverrides: () => ({}),
+      setElkLayoutOverrides: () => {},
+      getRootId: () => 'root',
+      requestV3Relayout: async () => undefined,
+    });
+
+    expect(getPreviewEngineShellController(previewWindow)).toBe(controller);
+    expect(isPreviewEngineShellLayoutActive(previewWindow)).toBe(true);
+    initPreviewEngineShellPanel(previewWindow);
+    expect(initializePanel).toHaveBeenCalledTimes(1);
+    expect(collectPreviewEngineSavePayload(previewWindow, { saved: true }, { elkLayoutOverrides: {} })).toEqual({
+      saved: true,
+      lane: 'engine',
+    });
+    expect(collectPersistedPayload).toHaveBeenCalledTimes(1);
   });
 
   it('tracks diagram-load generations and resolves waiters when the stage becomes ready', async () => {

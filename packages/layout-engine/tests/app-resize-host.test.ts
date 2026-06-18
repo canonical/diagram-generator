@@ -386,4 +386,67 @@ describe('preview resize host helpers', () => {
       'auto-fit-artboard',
     ]);
   });
+
+  it('accepts the live resize interaction state without a JS-side copy wrapper', () => {
+    const persisted: Array<Record<string, unknown>> = [];
+
+    const result = completePreviewResizeInteraction({
+      cancelLiveRelayout() {},
+      removeDocumentListener() {},
+      onResizeMove() {},
+      onResizeUp() {},
+      clearGuideLines() {},
+      clearSvgHoverState() {},
+      state: {
+        hasMoved: true,
+        cid: 'alpha',
+        selection: { ids: ['alpha', 'beta'] },
+        origOverrides: {
+          alpha: { dw: 16 },
+          beta: { dx: 8 },
+        },
+        propagatedIds: new Set(['beta']),
+        overrideSnapshotBefore: { before: true },
+        axis: 'e',
+        startX: 10,
+        startY: 20,
+      },
+      cleanOverride() {},
+      captureOverrideEntries(ids) {
+        return ids;
+      },
+      reapplySelection() {},
+      selectComponent() {},
+      commitOverridePatchAction() {},
+      persistResize(resizedIds, propagatedIds, triggerCid) {
+        persisted.push({
+          resizedIds,
+          propagatedIds: [...(propagatedIds ?? [])],
+          triggerCid,
+        });
+      },
+      showHandles() {},
+      endInteraction() {},
+      autoFitArtboard() {},
+    });
+
+    expect(result).toEqual({
+      kind: 'commit-resize',
+      selectedId: 'alpha',
+      resizedIds: ['alpha', 'beta'],
+      cleanIds: ['alpha', 'beta'],
+      propagatedIdsToClean: ['beta'],
+      captureAfterIds: ['alpha', 'beta'],
+      actionLabel: 'Resize selection',
+      reapplySelection: true,
+      autoFit: true,
+    });
+    expect(persisted).toEqual([
+      {
+        resizedIds: ['alpha', 'beta'],
+        propagatedIds: ['beta'],
+        triggerCid: 'alpha',
+      },
+    ]);
+  });
 });

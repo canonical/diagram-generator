@@ -10,8 +10,17 @@ function loadEditorSource(): string {
 }
 
 function extractNamedFunctionSource(source: string, functionName: string, signature: string): string {
-  const marker = `async function ${functionName}${signature} {`;
-  const start = source.indexOf(marker);
+  const markers = [
+    `async function ${functionName}${signature} {`,
+    `function ${functionName}${signature} {`,
+  ];
+  let start = -1;
+  for (const marker of markers) {
+    start = source.indexOf(marker);
+    if (start !== -1) {
+      break;
+    }
+  }
   if (start === -1) {
     throw new Error(`${functionName} definition not found`);
   }
@@ -59,7 +68,20 @@ function loadAsyncEditorFunction<T extends (...args: any[]) => Promise<unknown>>
       ?? null
     );
   }
-  const source = `${extractNamedFunctionSource(loadEditorSource(), functionName, signature)}\nthis.__loaded = ${functionName};`;
+  if (typeof context.window.__DG_getPreviewBridgeHostContract !== "function") {
+    context.window.__DG_getPreviewBridgeHostContract = () => (
+      context.LayoutEngine?.previewBridge?.host
+      ?? context.LayoutEngine
+      ?? null
+    );
+  }
+  const editorSource = loadEditorSource();
+  const source = [
+    extractNamedFunctionSource(editorSource, "_getPreviewBridgeHostContract", "()"),
+    extractNamedFunctionSource(editorSource, "_readFrameTreeJson", "()"),
+    extractNamedFunctionSource(editorSource, functionName, signature),
+    `this.__loaded = ${functionName};`,
+  ].join("\n");
   vm.runInNewContext(source, context);
   const loaded = (context as { __loaded?: T }).__loaded;
   if (!loaded) {
@@ -90,6 +112,13 @@ test("deleteSelectedFrames delegates through the typed delete dispatcher", async
         TEXT_EDITING: "text_editing",
       },
       LayoutEngine: {
+        previewBridge: {
+          host: {
+            getFrameTreeJson() {
+              return { root: { id: "root" } };
+            },
+          },
+        },
         async deletePreviewSelectedFramesHost(options: Record<string, any>) {
           delegatedOptions = {
             selectedIds: Array.from(options.selectedIds as Iterable<string>),
@@ -110,9 +139,6 @@ test("deleteSelectedFrames delegates through the typed delete dispatcher", async
             rerendered: true,
           };
         },
-      },
-      getFrameTreeJson() {
-        return { root: { id: "root" } };
       },
       model: {
         roots: [{ id: "page-root" }],

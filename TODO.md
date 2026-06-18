@@ -46,11 +46,11 @@ Review-closeout status: archived package `docs/spec-archive/043-preview-shell-ed
 
 #### Editor host endgame (spec 046)
 
-- [ ] `[H]` **Finish the `editor.js` monolith reduction before adding more engine pressure.** Spec package: `specs/046-editor-host-endgame/`. Scope: explicit endgame for the remaining ~2.8k-line grid-shell entrypoint so it becomes genuinely thin bootstrap/event glue instead of a legacy browser trap file.
+- [ ] `[H]` **Finish the residual `editor.js` closeout work before opening new preview-shell architecture fronts.** Spec package: `specs/046-editor-host-endgame/`. Structural engine-onboarding progress is real: future engine onboarding no longer needs to widen `editor.js` or `layout-bridge.js`. The remaining work is to shrink the callback-heavy residual host until it reads as thin bootstrap glue and to make the 150-engine proof honest rather than architecture-only.
 
 #### Render IR unification (spec 047, gated after 046)
 
-- [ ] `[M]` **Park the renderer-convergence work until spec 046 is closed enough.** Spec package: `specs/047-render-ir-unification/`. Scope: converge preview/export geometry around one render IR authority with separate export-SVG and preview-DOM serializers, but do not start until the `editor.js` endgame is out of the critical path.
+- [ ] `[M]` **Keep the renderer-convergence follow-up gated until spec 046 closes for real.** Spec package: `specs/047-render-ir-unification/`. Scope: converge preview/export geometry around one render IR authority with separate export-SVG and preview-DOM serializers once the residual `editor.js` host is no longer blocking cold-start maintenance.
 
 #### Preview host engine modularity (spec 045)
 

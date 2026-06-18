@@ -134,17 +134,8 @@
     }
 
     let payload = model.toOverridePayload();
-    const isElk = typeof deps.isElkLayeredDiagram === "function" && deps.isElkLayeredDiagram();
-    if (isElk && window.ElkLayoutControls && typeof ElkLayoutControls.collectOverrides === "function") {
-      if (typeof deps.wireElkLayoutPanel === "function") {
-        deps.wireElkLayoutPanel();
-      }
-      const domElk = ElkLayoutControls.collectOverrides();
-      const elkOverrides = { ...(model.elkLayoutOverrides || {}), ...domElk };
-      if (typeof deps.applyElkLayoutOverrides === "function") {
-        deps.applyElkLayoutOverrides(elkOverrides);
-      }
-      payload = { ...payload, elk_layout_overrides: { ...elkOverrides } };
+    if (typeof deps.collectEngineSavePayload === "function") {
+      payload = deps.collectEngineSavePayload(payload, model);
     }
 
     const relayout = typeof deps.getV3RelayoutStatus === "function"

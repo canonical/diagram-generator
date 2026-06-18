@@ -7,6 +7,10 @@
 
 import { initPreviewDiagramNavigation } from './app-diagram-navigation.js';
 import { initPreviewShellResizeBindings } from './app-shell-resize.js';
+import {
+  initPreviewOverrideToolbar,
+  type InitPreviewOverrideToolbarOptions,
+} from './app-shell-panels.js';
 
 export interface PreviewEditorStateInitOptions {
   getOverrides: () => unknown;
@@ -30,13 +34,28 @@ export interface PreviewElkControllerInitOptions {
 
 export interface PreviewElkControllerApi {
   init: (options: PreviewElkControllerInitOptions) => void;
-  isElkLayeredDiagram: () => boolean;
+  isElkLayeredDiagram: (frameTreeJson?: unknown) => boolean;
   wirePanel: () => void;
   syncPanel: () => void;
   initPanel: () => void;
   applyElkLayoutOverrides: (overrides: Record<string, unknown>) => void;
   requestRelayout: () => Promise<void>;
   [key: string]: unknown;
+}
+
+export interface PreviewEnginePayloadModelLike {
+  elkLayoutOverrides?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export interface PreviewEngineShellControllerApi extends PreviewElkControllerApi {
+  isActiveLayoutEngine?: (frameTreeJson?: unknown) => boolean;
+  initializePanel?: () => void;
+  applyLayoutOverrides?: (overrides: Record<string, unknown>) => void;
+  collectPersistedPayload?: (
+    basePayload: Record<string, unknown>,
+    model: PreviewEnginePayloadModelLike,
+  ) => Record<string, unknown>;
 }
 
 export interface PreviewShellCoordinatorInitOptions {
@@ -61,9 +80,10 @@ export interface PreviewSaveClientInitOptions {
   restoreSelectionIds: (ids: string[]) => void;
   serializeDirtyState: () => string;
   reloadDiagram: (options?: unknown) => unknown;
-  isElkLayeredDiagram: () => boolean;
-  wireElkLayoutPanel: () => void;
-  applyElkLayoutOverrides: (overrides: Record<string, unknown>) => void;
+  collectEngineSavePayload?: (
+    basePayload: Record<string, unknown>,
+    model: PreviewEnginePayloadModelLike,
+  ) => Record<string, unknown>;
   getV3RelayoutStatus: () => unknown;
   getV3RelayoutRuntime: () => unknown;
   getConstraintSummary: () => unknown;
@@ -82,9 +102,10 @@ export interface PreviewSaveClientInitConfig {
   restoreSelectionIds: (ids: string[]) => void;
   serializeDirtyState: () => string;
   reloadDiagram: (options?: unknown) => unknown;
-  isElkLayeredDiagram: () => boolean;
-  wireElkLayoutPanel: () => void;
-  applyElkLayoutOverrides: (overrides: Record<string, unknown>) => void;
+  collectEngineSavePayload?: (
+    basePayload: Record<string, unknown>,
+    model: PreviewEnginePayloadModelLike,
+  ) => Record<string, unknown>;
   getV3RelayoutStatus: () => unknown;
   getV3RelayoutRuntime: () => unknown;
   getConstraintSummary: () => unknown;
@@ -160,6 +181,53 @@ export interface InitPreviewEditorRuntimeHostOptions {
   connectSse: () => void;
 }
 
+export interface BootstrapPreviewEditorHostOptions {
+  document: Document;
+  previewWindow: PreviewGlobalWindow;
+  slug: string;
+  onDocumentKeyDown: (event: KeyboardEvent) => void;
+  undo: () => unknown;
+  redo: () => unknown;
+  saveOverrides: () => unknown;
+  canUndo: () => boolean;
+  canRedo: () => boolean;
+  getCurrentPath: () => string;
+  syncBrowseNav: () => void;
+  fetchIndexHtml: () => Promise<string | null>;
+  attemptNavigation: (nextUrl: string | null | undefined, syncUi: () => void) => boolean;
+  initNavTabs: () => void;
+  getOverrides: () => unknown;
+  getGridOverrides: () => unknown;
+  getElkLayoutOverrides: () => Record<string, unknown>;
+  getRemovedIds: () => unknown;
+  getFrameTree: () => unknown;
+  setElkLayoutOverrides: (value: Record<string, unknown>) => void;
+  getRootId: () => string;
+  requestV3Relayout: (cid: string) => Promise<unknown> | unknown;
+  previewSaveClient: PreviewSaveClientApi;
+  getModel: () => unknown;
+  getSelectedIds: () => string[];
+  restoreSelectionIds: (ids: string[]) => void;
+  serializeDirtyState: () => string;
+  reloadDiagram: (options?: unknown) => unknown;
+  getV3RelayoutStatus: () => unknown;
+  getV3RelayoutRuntime: () => unknown;
+  getConstraintSummary: () => unknown;
+  getConstraintErrorCount: () => number;
+  runConstraints: () => unknown;
+  clearCoercedKeys: () => void;
+  setStatus: (message: string, kind?: string) => void;
+  sanitizeSvgCloneForExport: (clone: SVGElement) => void;
+  allowInternalDirtyNavigation: () => boolean;
+  overrideToolbar: InitPreviewOverrideToolbarOptions;
+  eventSourceFactory: (url: string) => PreviewEventSourceLike;
+  getGeneration: () => number;
+  setGeneration: (value: number) => void;
+  setBuildStatus: (update: PreviewBuildStatusUpdate) => void;
+  scheduleReconnect?: (callback: () => void, delayMs: number) => unknown;
+  reconnectDelayMs?: number;
+}
+
 export interface PreviewDiagramLoadSignalState {
   generation: number;
   resolvers: Array<(generation: number) => void>;
@@ -168,6 +236,10 @@ export interface PreviewDiagramLoadSignalState {
 type PreviewGlobalWindow = Window & typeof globalThis & {
   EditorState?: PreviewEditorStateApi;
   ElkPreviewController?: PreviewElkControllerApi;
+  PreviewEngineShellController?: PreviewEngineShellControllerApi;
+  ElkLayoutControls?: {
+    collectOverrides?: () => Record<string, unknown>;
+  };
   __DG_DIAGRAM_LOAD_GENERATION?: number;
   whenDiagramLoaded?: () => Promise<number>;
 };
@@ -277,6 +349,103 @@ function createPreviewElkControllerFallback(): PreviewElkControllerApi {
   };
 }
 
+function createPreviewEngineShellControllerFallback(): PreviewEngineShellControllerApi {
+  const fallback = createPreviewElkControllerFallback() as PreviewEngineShellControllerApi;
+  fallback.isActiveLayoutEngine = () => false;
+  fallback.initializePanel = () => {};
+  fallback.applyLayoutOverrides = () => {};
+  fallback.collectPersistedPayload = (basePayload) => ({ ...basePayload });
+  return fallback;
+}
+
+export function getPreviewEngineShellController(
+  previewWindow: PreviewGlobalWindow,
+): PreviewEngineShellControllerApi | null {
+  const controller = previewWindow.PreviewEngineShellController
+    ?? previewWindow.ElkPreviewController
+    ?? null;
+  return controller as PreviewEngineShellControllerApi | null;
+}
+
+export function isPreviewEngineShellLayoutActive(
+  previewWindow: PreviewGlobalWindow,
+  frameTreeJson?: unknown,
+): boolean {
+  const controller = getPreviewEngineShellController(previewWindow);
+  if (!controller) {
+    return false;
+  }
+  if (typeof controller.isActiveLayoutEngine === 'function') {
+    return Boolean(controller.isActiveLayoutEngine(frameTreeJson));
+  }
+  if (typeof controller.isElkLayeredDiagram === 'function') {
+    return Boolean(controller.isElkLayeredDiagram(frameTreeJson));
+  }
+  return false;
+}
+
+export function initPreviewEngineShellPanel(
+  previewWindow: PreviewGlobalWindow,
+): void {
+  const controller = getPreviewEngineShellController(previewWindow);
+  if (!controller) {
+    return;
+  }
+  if (typeof controller.initializePanel === 'function') {
+    controller.initializePanel();
+    return;
+  }
+  if (typeof controller.initPanel === 'function') {
+    controller.initPanel();
+    return;
+  }
+  if (typeof controller.wirePanel === 'function') {
+    controller.wirePanel();
+  }
+}
+
+export function collectPreviewEngineSavePayload(
+  previewWindow: PreviewGlobalWindow,
+  basePayload: Record<string, unknown>,
+  model: PreviewEnginePayloadModelLike,
+): Record<string, unknown> {
+  const controller = getPreviewEngineShellController(previewWindow);
+  if (!controller) {
+    return basePayload;
+  }
+
+  if (typeof controller.collectPersistedPayload === 'function') {
+    return controller.collectPersistedPayload(basePayload, model);
+  }
+
+  if (!isPreviewEngineShellLayoutActive(previewWindow)) {
+    return basePayload;
+  }
+
+  const collectOverrides = previewWindow.ElkLayoutControls?.collectOverrides;
+  if (typeof collectOverrides !== 'function') {
+    return basePayload;
+  }
+
+  initPreviewEngineShellPanel(previewWindow);
+  const domOverrides = collectOverrides();
+  const layoutOverrides = {
+    ...(model.elkLayoutOverrides || {}),
+    ...(domOverrides || {}),
+  };
+
+  if (typeof controller.applyLayoutOverrides === 'function') {
+    controller.applyLayoutOverrides(layoutOverrides);
+  } else if (typeof controller.applyElkLayoutOverrides === 'function') {
+    controller.applyElkLayoutOverrides(layoutOverrides);
+  }
+
+  return {
+    ...basePayload,
+    elk_layout_overrides: { ...layoutOverrides },
+  };
+}
+
 function isHtmlSelectElement(
   value: Element | null,
   previewWindow: Window & typeof globalThis,
@@ -340,10 +509,19 @@ export function ensurePreviewElkPreviewController(
   previewWindow: PreviewGlobalWindow,
   initOptions: PreviewElkControllerInitOptions,
 ): PreviewElkControllerApi {
-  const elkController = previewWindow.ElkPreviewController ?? createPreviewElkControllerFallback();
-  previewWindow.ElkPreviewController = elkController;
-  elkController.init(initOptions);
-  return elkController;
+  return ensurePreviewEngineShellController(previewWindow, initOptions);
+}
+
+export function ensurePreviewEngineShellController(
+  previewWindow: PreviewGlobalWindow,
+  initOptions: PreviewElkControllerInitOptions,
+): PreviewEngineShellControllerApi {
+  const controller = getPreviewEngineShellController(previewWindow)
+    ?? createPreviewEngineShellControllerFallback();
+  previewWindow.PreviewEngineShellController = controller;
+  previewWindow.ElkPreviewController = controller;
+  controller.init(initOptions);
+  return controller;
 }
 
 export function createPreviewSaveClientInitConfig(
@@ -356,9 +534,7 @@ export function createPreviewSaveClientInitConfig(
     restoreSelectionIds: options.restoreSelectionIds,
     serializeDirtyState: options.serializeDirtyState,
     reloadDiagram: options.reloadDiagram,
-    isElkLayeredDiagram: options.isElkLayeredDiagram,
-    wireElkLayoutPanel: options.wireElkLayoutPanel,
-    applyElkLayoutOverrides: options.applyElkLayoutOverrides,
+    collectEngineSavePayload: options.collectEngineSavePayload,
     getV3RelayoutStatus: options.getV3RelayoutStatus,
     getV3RelayoutRuntime: options.getV3RelayoutRuntime,
     getConstraintSummary: options.getConstraintSummary,
@@ -426,6 +602,109 @@ export function initPreviewEditorRuntimeHost(
   options.registerPageshowReload();
   void options.loadDiagram();
   options.connectSse();
+}
+
+export function bootstrapPreviewEditorHost(
+  options: BootstrapPreviewEditorHostOptions,
+): void {
+  initPreviewEditorRuntimeHost({
+    registerDocumentBindings: () => {
+      registerPreviewEditorDocumentBindingsHost({
+        document: options.document,
+        onDocumentKeyDown: options.onDocumentKeyDown,
+        onUndoClick: () => {
+          void options.undo();
+        },
+        onRedoClick: () => {
+          void options.redo();
+        },
+      });
+    },
+    installTestFacade: () => {
+      installPreviewEditorTestFacadeHost({
+        previewWindow: options.previewWindow,
+        saveOverrides: options.saveOverrides,
+        undo: options.undo,
+        redo: options.redo,
+        canUndo: options.canUndo,
+        canRedo: options.canRedo,
+      });
+    },
+    initShellCoordinator: () => {
+      initPreviewShellCoordinator({
+        document: options.document,
+        window: options.previewWindow,
+        getCurrentPath: options.getCurrentPath,
+        syncBrowseNav: options.syncBrowseNav,
+        fetchIndexHtml: options.fetchIndexHtml,
+        attemptNavigation: options.attemptNavigation,
+      });
+    },
+    initNavTabs: options.initNavTabs,
+    ensureEditorState: () => {
+      ensurePreviewEditorState(options.previewWindow, {
+        getOverrides: options.getOverrides,
+        getGridOverrides: options.getGridOverrides,
+        getElkLayoutOverrides: options.getElkLayoutOverrides,
+        getRemovedIds: options.getRemovedIds,
+        getFrameTree: options.getFrameTree,
+      });
+    },
+    ensureElkPreviewController: () => {
+      ensurePreviewEngineShellController(options.previewWindow, {
+        getElkLayoutOverrides: options.getElkLayoutOverrides,
+        setElkLayoutOverrides: options.setElkLayoutOverrides,
+        getRootId: options.getRootId,
+        requestV3Relayout: (cid) => Promise.resolve(options.requestV3Relayout(cid)),
+      });
+    },
+    initSaveClient: () => {
+      initPreviewSaveClient({
+        slug: options.slug,
+        previewSaveClient: options.previewSaveClient,
+        getModel: options.getModel,
+        getSelectedIds: options.getSelectedIds,
+        restoreSelectionIds: options.restoreSelectionIds,
+        serializeDirtyState: options.serializeDirtyState,
+        reloadDiagram: options.reloadDiagram,
+        collectEngineSavePayload: (basePayload, model) => (
+          collectPreviewEngineSavePayload(options.previewWindow, basePayload, model)
+        ),
+        getV3RelayoutStatus: options.getV3RelayoutStatus,
+        getV3RelayoutRuntime: options.getV3RelayoutRuntime,
+        getConstraintSummary: options.getConstraintSummary,
+        getConstraintErrorCount: options.getConstraintErrorCount,
+        runConstraints: options.runConstraints,
+        clearCoercedKeys: options.clearCoercedKeys,
+        setStatus: options.setStatus,
+        sanitizeSvgCloneForExport: options.sanitizeSvgCloneForExport,
+        allowInternalDirtyNavigation: options.allowInternalDirtyNavigation,
+      });
+    },
+    initOverrideToolbar: () => {
+      initPreviewOverrideToolbar(options.overrideToolbar);
+    },
+    registerPageshowReload: () => {
+      registerPreviewPageshowReload({
+        addPageshowListener: (listener) => {
+          options.previewWindow.addEventListener('pageshow', listener);
+        },
+        reloadDiagram: () => options.reloadDiagram(),
+      });
+    },
+    loadDiagram: () => options.reloadDiagram(),
+    connectSse: () => {
+      connectPreviewSse({
+        eventSourceFactory: options.eventSourceFactory,
+        getGeneration: options.getGeneration,
+        setGeneration: options.setGeneration,
+        reloadDiagram: () => options.reloadDiagram(),
+        setBuildStatus: options.setBuildStatus,
+        scheduleReconnect: options.scheduleReconnect,
+        reconnectDelayMs: options.reconnectDelayMs,
+      });
+    },
+  });
 }
 
 export function connectPreviewSse(

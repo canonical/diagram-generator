@@ -93,14 +93,21 @@ export function ensurePreviewSvgHitAreas(svg: SVGSVGElement): void {
 
   svg.querySelectorAll('[data-component-id]').forEach((group) => {
     const hasRect = group.querySelector(':scope > rect');
-    const lines = group.querySelectorAll('line');
+    const lines = Array.from(group.querySelectorAll('line'));
     const icons = group.querySelectorAll('.dg-icon');
 
     if (lines.length > 0 && !hasRect) {
-      lines.forEach((line) => {
-        if (line.getAttribute('data-dg-hit-area') === '1') {
-          return;
-        }
+      const visibleLines = lines.filter((line) => (
+        line.getAttribute('data-dg-hit-area') !== '1'
+        && line.getAttribute('stroke') !== 'transparent'
+      ));
+      const existingHitCount = lines.filter((line) => (
+        line.getAttribute('data-dg-hit-area') === '1'
+        || line.getAttribute('stroke') === 'transparent'
+      )).length;
+      const missingHitCount = Math.max(0, visibleLines.length - existingHitCount);
+
+      visibleLines.slice(0, missingHitCount).forEach((line) => {
         const hit = svgDocument.createElementNS(svgNamespace, 'line');
         hit.setAttribute('data-dg-hit-area', '1');
         hit.setAttribute('x1', line.getAttribute('x1') ?? '');

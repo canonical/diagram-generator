@@ -97,6 +97,26 @@ export interface CompletePreviewWaypointDragInteractionOptions {
   endInteraction: () => void;
 }
 
+export interface CompletePreviewWaypointDragInteractionEditorHostOptions extends Omit<
+  CompletePreviewWaypointDragInteractionOptions,
+  'removeDocumentListener' | 'state' | 'endInteraction'
+> {
+  document: {
+    removeEventListener: (
+      type: 'mousemove' | 'mouseup',
+      handler: ((event?: any) => void),
+    ) => void;
+  };
+  interactionManager: {
+    state?: PreviewWaypointDragState | null;
+    endInteraction: () => void;
+  };
+}
+
+export type CompletePreviewWaypointDragInteractionHostLikeOptions =
+  | CompletePreviewWaypointDragInteractionOptions
+  | CompletePreviewWaypointDragInteractionEditorHostOptions;
+
 export interface CommitPreviewWaypointInsertOptions {
   cid: string;
   segmentIndex: number;
@@ -258,9 +278,35 @@ export function dispatchPreviewWaypointDragMoveHost(
   };
 }
 
+function isEditorWaypointCompletionOptions(
+  options: CompletePreviewWaypointDragInteractionHostLikeOptions,
+): options is CompletePreviewWaypointDragInteractionEditorHostOptions {
+  return 'interactionManager' in options;
+}
+
 export function completePreviewWaypointDragInteraction(
-  options: CompletePreviewWaypointDragInteractionOptions,
+  options: CompletePreviewWaypointDragInteractionHostLikeOptions,
 ): PreviewWaypointHostResult {
+  if (isEditorWaypointCompletionOptions(options)) {
+    return completePreviewWaypointDragInteraction({
+      removeDocumentListener: (type, handler) => {
+        options.document.removeEventListener(type, handler);
+      },
+      onWaypointDragMove: options.onWaypointDragMove,
+      onWaypointDragUp: options.onWaypointDragUp,
+      state: options.interactionManager.state ?? null,
+      getNode: options.getNode,
+      readEndpoints: options.readEndpoints,
+      rebuildArrowSvg: options.rebuildArrowSvg,
+      showArrowWaypointHandles: options.showArrowWaypointHandles,
+      persistWaypointOverride: options.persistWaypointOverride,
+      refreshInspector: options.refreshInspector,
+      captureOverrideEntries: options.captureOverrideEntries,
+      commitOverridePatchAction: options.commitOverridePatchAction,
+      endInteraction: () => options.interactionManager.endInteraction(),
+    });
+  }
+
   options.removeDocumentListener('mousemove', options.onWaypointDragMove);
   options.removeDocumentListener('mouseup', options.onWaypointDragUp);
 

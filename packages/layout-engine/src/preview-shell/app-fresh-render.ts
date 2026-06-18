@@ -1,51 +1,38 @@
-import { routeArrows, type RoutedArrow } from '../arrow-routing.js';
 import {
   layoutElkFrameDiagram,
   type ElkLayoutOptions,
   type ElkLayoutOutput,
   type ElkLayoutSnapshot,
 } from '../elk-layout.js';
-import { effectiveResolvedStrokeWidth } from '../frame-classes.js';
 import { deserializeFrameDiagramWire } from '../frame-serialize.js';
 import {
   type Arrow,
   type DiagramOverlay,
   type Frame,
   type FrameDiagram,
-  createLine,
 } from '../frame-model.js';
 import { layoutFrameTree, type LayoutOutput } from '../layout.js';
 import { resolveStyles } from '../resolve-styles.js';
-import {
-  annotationTextToSpec,
-  frameOwnedTextBlockGap,
-  frameOwnedTextBlockRole,
-  frameOwnedTextBlocks,
-} from '../resolved-spec-typography.js';
 import { layoutSequenceDiagram } from '../sequence-layout/layout.js';
 import { renderSequenceDiagramToSvg } from '../sequence-layout/render-svg.js';
+import { type TextMeasureAdapter } from '../text-measure.js';
 import {
-  ARROW_HEAD_HALF_WIDTH,
-  ARROW_HEAD_LENGTH,
-  BODY_LINE_STEP,
-  BODY_SIZE,
-  GRID_GUTTER,
-  ICON_SIZE,
-  INSET,
-  sizeToPx,
-} from '../tokens.js';
-import { type TextMeasureAdapter, wrapTextLines } from '../text-measure.js';
-import { resolvePreviewArrowhead } from './app-arrow-waypoints.js';
+  createPreviewArrowSvgFragment,
+  routePreviewArrows,
+  type PreviewArrowBoundsMap,
+  type PreviewArrowFrameBounds,
+  type PreviewRoutedArrow,
+} from './app-arrow-render.js';
+import {
+  collectPreviewPlacedBounds,
+  patchPreviewFrameGroup,
+} from './app-frame-svg.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
-const ASCENT_RATIO = 0.94;
 const OVERLAY_PAD = 8;
 const ICON_CACHE = new Map<string, string | null>();
 
-type FrameBounds = { x: number; y: number; w: number; h: number };
-type BoundsMap = Record<string, FrameBounds>;
 type PreviewLayoutResult = LayoutOutput | ElkLayoutOutput;
-type PreviewRoutedArrow = RoutedArrow & { elkLabels?: Arrow['elkLabels'] };
 
 export interface RenderPreviewFrameTreeToSvgOptions {
   ownerDocument: Document;
@@ -96,10 +83,6 @@ function fmtSvgNumber(value: number): string {
   return String(Math.round(value * 100) / 100);
 }
 
-function lineTopToBaseline(top: number, size: string | number): number {
-  return top + sizeToPx(size) * ASCENT_RATIO;
-}
-
 function headingTextForFrame(frame: Frame): string {
   if (frame.heading?.content) {
     return frame.heading.content;
@@ -134,41 +117,6 @@ function collectElkFrameLabels(frame: Frame): Record<string, string> {
 
   walk(frame);
   return map;
-}
-
-function collectPlacedBounds(frame: Frame, out: BoundsMap = {}): BoundsMap {
-  if (frame.id && !frame.id.startsWith('__')) {
-    const layoutState = frame._layout;
-    out[frame.id] = {
-      x: layoutState.placedX,
-      y: layoutState.placedY,
-      w: layoutState.placedW,
-      h: layoutState.placedH,
-    };
-  }
-  for (const child of frame.children) {
-    collectPlacedBounds(child, out);
-  }
-  return out;
-}
-
-function arrowComponentId(arrow: Arrow): string {
-  return arrow.id ?? `${arrow.source}->${arrow.target}`;
-}
-
-function routePreviewArrows(arrows: Arrow[], boundsMap: BoundsMap): PreviewRoutedArrow[] {
-  const authoredByComponentId = new Map(arrows.map((arrow) => [arrowComponentId(arrow), arrow]));
-  return routeArrows(arrows, boundsMap).map((routed) => {
-    const authored = authoredByComponentId.get(routed.componentId || '') || null;
-    return {
-      ...routed,
-      componentId: routed.componentId || (authored ? arrowComponentId(authored) : undefined),
-      color: routed.color || authored?.color || '#E95420',
-      label: routed.label ?? authored?.label,
-      labelGap: routed.labelGap ?? authored?.labelGap ?? GRID_GUTTER,
-      elkLabels: authored?.elkLabels,
-    };
-  });
 }
 
 function parseMarkupDocument(ownerDocument: Document, markup: string): SVGSVGElement {
@@ -225,390 +173,16 @@ function buildPreviewIconElement(
   return group;
 }
 
-function arrowLabelLines(arrow: PreviewRoutedArrow) {
-  if (!arrow.label || arrow.label.length === 0) {
-    return [];
-  }
-  return arrow.label.map((line) => {
-    if (typeof line === 'string') {
-      return createLine(line);
-    }
-    return createLine(line.content || '', {
-      size: line.size,
-      weight: line.weight,
-      fill: line.fill,
-      smallCaps: line.smallCaps,
-      letterSpacing: line.letterSpacing,
-      lineStep: line.lineStep,
-    });
-  });
-}
-
-function minDistanceToBounds(x: number, y: number, boundsList: FrameBounds[]): number {
-  let minDistance = Number.POSITIVE_INFINITY;
-  for (const bounds of boundsList) {
-    const clampedX = Math.max(bounds.x, Math.min(x, bounds.x + bounds.w));
-    const clampedY = Math.max(bounds.y, Math.min(y, bounds.y + bounds.h));
-    minDistance = Math.min(minDistance, Math.hypot(x - clampedX, y - clampedY));
-  }
-  return minDistance;
-}
-
-function labelAnchorForSegment(
-  x1: number,
-  y1: number,
-  x2: number,
-  y2: number,
-  labelGap: number,
-  boundsMap: BoundsMap,
-): { lx: number; ly: number } {
-  const mx = (x1 + x2) / 2;
-  const my = (y1 + y2) / 2;
-  const dx = x2 - x1;
-  const dy = y2 - y1;
-  const length = Math.hypot(dx, dy) || 1;
-  const nx = -dy / length;
-  const ny = dx / length;
-  const boundsList = Object.values(boundsMap);
-  const candidates = [
-    { lx: mx + nx * labelGap, ly: my + ny * labelGap },
-    { lx: mx - nx * labelGap, ly: my - ny * labelGap },
-  ];
-  let best = candidates[0]!;
-  let bestScore = Number.NEGATIVE_INFINITY;
-  for (const candidate of candidates) {
-    const score = minDistanceToBounds(candidate.lx, candidate.ly, boundsList);
-    if (score > bestScore) {
-      best = candidate;
-      bestScore = score;
-    }
-  }
-  return best;
-}
-
-function buildArrowLabelsFromElk(
-  ownerDocument: Document,
-  arrow: PreviewRoutedArrow,
-): DocumentFragment | null {
-  if (!arrow.elkLabels || arrow.elkLabels.length === 0) {
-    return null;
-  }
-  const fragment = ownerDocument.createDocumentFragment();
-  for (const label of arrow.elkLabels) {
-    const spec = annotationTextToSpec(createLine(label.text));
-    const size = spec.size ?? BODY_SIZE;
-    const centerX = label.x + label.width / 2;
-    const centerY = label.y + label.height / 2;
-    const text = ownerDocument.createElementNS(SVG_NS, 'text');
-    text.setAttribute('font-family', 'Ubuntu Sans');
-    text.setAttribute('text-anchor', 'middle');
-    text.setAttribute('dominant-baseline', 'middle');
-    const tspan = ownerDocument.createElementNS(SVG_NS, 'tspan');
-    tspan.setAttribute('x', fmtSvgNumber(centerX));
-    tspan.setAttribute('y', fmtSvgNumber(lineTopToBaseline(centerY - sizeToPx(size) / 2, size)));
-    tspan.setAttribute('font-size', String(size));
-    tspan.setAttribute('font-weight', String(spec.weight ?? '400'));
-    tspan.setAttribute('fill', spec.fill ?? '#666666');
-    tspan.textContent = label.text;
-    text.appendChild(tspan);
-    fragment.appendChild(text);
-  }
-  return fragment;
-}
-
-function buildArrowLabelElement(
-  ownerDocument: Document,
-  arrow: PreviewRoutedArrow,
-  shaftPoints: [number, number][],
-  labelGap: number,
-  boundsMap: BoundsMap,
-): SVGTextElement | DocumentFragment | null {
-  const elkLabels = buildArrowLabelsFromElk(ownerDocument, arrow);
-  if (elkLabels) {
-    return elkLabels;
-  }
-
-  const lines = arrowLabelLines(arrow);
-  if (lines.length === 0) {
-    return null;
-  }
-
-  let bestIndex = 0;
-  let bestLength = 0;
-  for (let index = 0; index < shaftPoints.length - 1; index += 1) {
-    const [x1, y1] = shaftPoints[index]!;
-    const [x2, y2] = shaftPoints[index + 1]!;
-    const length = Math.hypot(x2 - x1, y2 - y1);
-    if (length > bestLength) {
-      bestLength = length;
-      bestIndex = index;
-    }
-  }
-
-  const [sx1, sy1] = shaftPoints[bestIndex]!;
-  const [sx2, sy2] = shaftPoints[bestIndex + 1]!;
-  const { lx, ly } = labelAnchorForSegment(sx1, sy1, sx2, sy2, labelGap, boundsMap);
-
-  const text = ownerDocument.createElementNS(SVG_NS, 'text');
-  text.setAttribute('font-family', 'Ubuntu Sans');
-  text.setAttribute('text-anchor', 'middle');
-  text.setAttribute('dominant-baseline', 'middle');
-
-  const specs = lines.map((line) => annotationTextToSpec(line));
-  const totalHeight = specs.reduce((sum, spec, index) => {
-    const lineStep = sizeToPx(spec.lineStep ?? BODY_LINE_STEP);
-    return sum + (index === 0 ? 0 : lineStep);
-  }, 0);
-  let top = ly - totalHeight / 2;
-
-  for (const spec of specs) {
-    const size = spec.size ?? BODY_SIZE;
-    const lineStep = sizeToPx(spec.lineStep ?? BODY_LINE_STEP);
-    const tspan = ownerDocument.createElementNS(SVG_NS, 'tspan');
-    tspan.setAttribute('x', fmtSvgNumber(lx));
-    tspan.setAttribute('y', fmtSvgNumber(lineTopToBaseline(top, size)));
-    tspan.setAttribute('font-size', String(size));
-    tspan.setAttribute('font-weight', String(spec.weight ?? '400'));
-    tspan.setAttribute('fill', spec.fill ?? '#666666');
-    if (spec.letterSpacing) {
-      tspan.setAttribute('letter-spacing', String(spec.letterSpacing));
-    }
-    if (spec.smallCaps) {
-      tspan.setAttribute('font-variant-caps', 'small-caps');
-    }
-    tspan.textContent = spec.content;
-    text.appendChild(tspan);
-    top += lineStep;
-  }
-
-  return text;
-}
-
-function frameBoxRenderState(frame: Frame, textAdapter: TextMeasureAdapter) {
-  const fill = frame.resolvedFill ?? 'transparent';
-  const stroke = frame.resolvedStroke ?? 'none';
-  const iconColumn = frame.icon ? ICON_SIZE + INSET : 0;
-  const textMaxWidth = frame._layout.placedW - frame.paddingLeft - frame.paddingRight - iconColumn;
-  let textBlocks = frameOwnedTextBlocks(frame);
-  if (textBlocks.length > 0 && textMaxWidth > 0) {
-    textBlocks = textBlocks
-      .map((block) => wrapTextLines(block, textMaxWidth, textAdapter))
-      .filter((block) => block.length > 0);
-  }
-
-  const strokeWidth = effectiveResolvedStrokeWidth(frame);
-  return {
-    fill,
-    stroke,
-    strokeWidth,
-    dashed: frame.border === 'DASHED',
-    padTop: frame.paddingTop,
-    padRight: frame.paddingRight,
-    padBottom: frame.paddingBottom,
-    padLeft: frame.paddingLeft,
-    textBlocks,
-  };
-}
-
-function buildFrameTextElements(
-  ownerDocument: Document,
-  frame: Frame,
-  textAdapter: TextMeasureAdapter,
-) {
-  const renderState = frameBoxRenderState(frame, textAdapter);
-  if (renderState.textBlocks.length === 0) {
-    return { renderState, elements: [] as SVGTextElement[] };
-  }
-
-  const elements: SVGTextElement[] = [];
-  let top = frame._layout.placedY + renderState.padTop;
-  const x = frame._layout.placedX + renderState.padLeft;
-
-  for (const [blockIndex, block] of renderState.textBlocks.entries()) {
-    const text = ownerDocument.createElementNS(SVG_NS, 'text');
-    text.setAttribute('font-family', 'Ubuntu Sans');
-    text.setAttribute('data-dg-text-role', frameOwnedTextBlockRole(frame, blockIndex));
-    text.setAttribute('data-dg-text-block-index', String(blockIndex));
-
-    for (const spec of block) {
-      const size = spec.size ?? BODY_SIZE;
-      const lineStep = sizeToPx(spec.lineStep ?? BODY_LINE_STEP);
-      const tspan = ownerDocument.createElementNS(SVG_NS, 'tspan');
-      tspan.setAttribute('x', fmtSvgNumber(x));
-      tspan.setAttribute('y', fmtSvgNumber(lineTopToBaseline(top, size)));
-      tspan.setAttribute('font-size', String(size));
-      tspan.setAttribute('font-weight', String(spec.weight ?? '400'));
-      tspan.setAttribute('fill', spec.fill ?? '#000000');
-      if (spec.letterSpacing) {
-        tspan.setAttribute('letter-spacing', String(spec.letterSpacing));
-      }
-      if (spec.fontFamily) {
-        tspan.setAttribute('font-family', spec.fontFamily);
-      }
-      if (spec.smallCaps) {
-        tspan.setAttribute('font-variant-caps', 'small-caps');
-      }
-      tspan.textContent = spec.content;
-      text.appendChild(tspan);
-      top += lineStep;
-    }
-
-    text.setAttribute('data-orig-inner', text.innerHTML);
-    elements.push(text);
-    top += frameOwnedTextBlockGap(frame, blockIndex, renderState.textBlocks.length);
-  }
-
-  return { renderState, elements };
-}
-
-function patchFrameGroup(
-  ownerDocument: Document,
-  group: SVGGElement,
-  frame: Frame,
-  textAdapter: TextMeasureAdapter,
-  iconElement: Element | null,
-): void {
-  const { renderState, elements } = buildFrameTextElements(ownerDocument, frame, textAdapter);
-  const existingIcon = group.querySelector(':scope > .dg-icon');
-  const children: Element[] = [];
-
-  if (frame.role === 'separator') {
-    const line = ownerDocument.createElementNS(SVG_NS, 'line');
-    line.setAttribute('class', 'dg-separator');
-    line.setAttribute('x1', fmtSvgNumber(frame._layout.placedX));
-    line.setAttribute('y1', fmtSvgNumber(frame._layout.placedY));
-    line.setAttribute('x2', fmtSvgNumber(frame._layout.placedX + frame._layout.placedW));
-    line.setAttribute('y2', fmtSvgNumber(frame._layout.placedY));
-    line.setAttribute('fill', 'none');
-    line.setAttribute('stroke', '#000000');
-    line.setAttribute('stroke-width', '1');
-    line.setAttribute('stroke-miterlimit', '10');
-    line.setAttribute('stroke-dasharray', '8 8');
-    children.push(line);
-  }
-
-  const rect = ownerDocument.createElementNS(SVG_NS, 'rect');
-  rect.setAttribute('x', fmtSvgNumber(frame._layout.placedX));
-  rect.setAttribute('y', fmtSvgNumber(frame._layout.placedY));
-  rect.setAttribute('width', fmtSvgNumber(frame._layout.placedW));
-  rect.setAttribute('height', fmtSvgNumber(frame._layout.placedH));
-  rect.setAttribute('fill', renderState.fill);
-  rect.setAttribute('stroke', renderState.stroke);
-  rect.setAttribute('stroke-width', String(renderState.strokeWidth));
-  rect.setAttribute('stroke-miterlimit', '10');
-  rect.setAttribute('data-orig-width', fmtSvgNumber(frame._layout.placedW));
-  rect.setAttribute('data-orig-height', fmtSvgNumber(frame._layout.placedH));
-  if (renderState.dashed) {
-    rect.setAttribute('stroke-dasharray', '8 8');
-  }
-  if (renderState.fill === 'transparent' && renderState.stroke === 'none' && renderState.textBlocks.length === 0) {
-    rect.setAttribute('pointer-events', 'none');
-  }
-  children.push(rect);
-  children.push(...elements);
-
-  const iconToUse = (frame.icon ? iconElement : null) ?? existingIcon;
-  if (frame.icon && iconToUse) {
-    const iconX = frame._layout.placedX + frame._layout.placedW - renderState.padRight - ICON_SIZE;
-    const iconY = frame._layout.placedY + renderState.padTop;
-    iconToUse.setAttribute('transform', `translate(${fmtSvgNumber(iconX)} ${fmtSvgNumber(iconY)})`);
-    iconToUse.setAttribute('data-orig-tx', fmtSvgNumber(iconX));
-    iconToUse.setAttribute('data-orig-ty', fmtSvgNumber(iconY));
-    children.push(iconToUse);
-  }
-
-  group.replaceChildren(...children);
-}
-
-function createArrowsSvg(
-  ownerDocument: Document,
-  routedArrows: PreviewRoutedArrow[],
-  boundsMap: BoundsMap,
-): DocumentFragment {
-  const fragment = ownerDocument.createDocumentFragment();
-  for (const arrow of routedArrows) {
-    const group = ownerDocument.createElementNS(SVG_NS, 'g');
-    group.setAttribute('data-component-id', arrow.componentId || '');
-
-    const points = arrow.points || [];
-    if (points.length < 2) {
-      fragment.appendChild(group);
-      continue;
-    }
-
-    let headPoints: string | null = null;
-    let shaftPoints = points;
-    const head = resolvePreviewArrowhead({
-      tip: points[points.length - 1]!,
-      previous: points[points.length - 2]!,
-      headLen: ARROW_HEAD_LENGTH,
-      headHalf: ARROW_HEAD_HALF_WIDTH,
-    });
-    if (head) {
-      headPoints = head.points;
-      shaftPoints = [...points.slice(0, -1), head.base];
-    }
-
-    const color = arrow.color || '#E95420';
-    for (let index = 0; index < shaftPoints.length - 1; index += 1) {
-      const [x1, y1] = shaftPoints[index]!;
-      const [x2, y2] = shaftPoints[index + 1]!;
-
-      const line = ownerDocument.createElementNS(SVG_NS, 'line');
-      line.setAttribute('x1', x1.toFixed(1));
-      line.setAttribute('y1', y1.toFixed(1));
-      line.setAttribute('x2', x2.toFixed(1));
-      line.setAttribute('y2', y2.toFixed(1));
-      line.setAttribute('fill', 'none');
-      line.setAttribute('stroke', color);
-      line.setAttribute('stroke-width', '1');
-      line.setAttribute('stroke-miterlimit', '10');
-      group.appendChild(line);
-
-      const hit = ownerDocument.createElementNS(SVG_NS, 'line');
-      hit.setAttribute('x1', x1.toFixed(1));
-      hit.setAttribute('y1', y1.toFixed(1));
-      hit.setAttribute('x2', x2.toFixed(1));
-      hit.setAttribute('y2', y2.toFixed(1));
-      hit.setAttribute('stroke', 'transparent');
-      hit.setAttribute('stroke-width', '12');
-      (hit as SVGElement).style.pointerEvents = 'stroke';
-      group.appendChild(hit);
-    }
-
-    if (headPoints) {
-      const polygon = ownerDocument.createElementNS(SVG_NS, 'polygon');
-      polygon.setAttribute('points', headPoints);
-      polygon.setAttribute('fill', color);
-      group.appendChild(polygon);
-    }
-
-    const labelElement = buildArrowLabelElement(
-      ownerDocument,
-      arrow,
-      shaftPoints,
-      arrow.labelGap ?? GRID_GUTTER,
-      boundsMap,
-    );
-    if (labelElement) {
-      group.appendChild(labelElement);
-    }
-
-    fragment.appendChild(group);
-  }
-  return fragment;
-}
-
 function renderOverlaysSvg(
   ownerDocument: Document,
   overlays: DiagramOverlay[],
-  boundsMap: BoundsMap,
+  boundsMap: PreviewArrowBoundsMap,
 ): DocumentFragment {
   const fragment = ownerDocument.createDocumentFragment();
   for (const overlay of overlays) {
     const memberBounds = overlay.members
       .map((memberId) => boundsMap[memberId])
-      .filter((member): member is FrameBounds => Boolean(member));
+      .filter((member): member is PreviewArrowFrameBounds => Boolean(member));
     if (memberBounds.length === 0) {
       continue;
     }
@@ -748,7 +322,13 @@ export function renderPreviewFrameTreeToSvg(
       });
     }
 
-    patchFrameGroup(options.ownerDocument, group, frame, options.textAdapter, iconElement);
+    patchPreviewFrameGroup({
+      ownerDocument: options.ownerDocument,
+      group,
+      frame,
+      textAdapter: options.textAdapter,
+      iconElement,
+    });
     frameLayer.appendChild(group);
 
     for (const child of frame.children) {
@@ -759,12 +339,16 @@ export function renderPreviewFrameTreeToSvg(
   renderFrame(options.diagram.root);
 
   if (options.diagram.arrows.length > 0) {
-    const boundsMap = collectPlacedBounds(options.diagram.root);
-    arrowLayer.appendChild(createArrowsSvg(options.ownerDocument, routePreviewArrows(options.diagram.arrows, boundsMap), boundsMap));
+    const boundsMap = collectPreviewPlacedBounds(options.diagram.root);
+    arrowLayer.appendChild(createPreviewArrowSvgFragment({
+      ownerDocument: options.ownerDocument,
+      routedArrows: routePreviewArrows(options.diagram.arrows, boundsMap),
+      boundsMap,
+    }));
   }
 
   if (overlays.length > 0) {
-    const boundsMap = collectPlacedBounds(options.diagram.root);
+    const boundsMap = collectPreviewPlacedBounds(options.diagram.root);
     overlayLayer.appendChild(renderOverlaysSvg(options.ownerDocument, overlays, boundsMap));
   }
 
@@ -826,7 +410,7 @@ export async function renderFreshPreviewSvg<TModel = unknown>(
   });
 
   options.updateModelFromLayout(options.model, diagram.root);
-  const boundsMap = collectPlacedBounds(diagram.root);
+  const boundsMap = collectPreviewPlacedBounds(diagram.root);
   const routedArrows = diagram.arrows.length > 0 ? routePreviewArrows(diagram.arrows, boundsMap) : [];
   options.syncArrowsInModel(options.model, diagram.arrows, routedArrows);
 

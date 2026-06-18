@@ -145,7 +145,9 @@ export interface CompletePreviewResizeInteractionOptions extends Omit<
   PreviewResizeCompletionDispatchOptions,
   'state'
 > {
-  state?: PreviewResizeCompletionState | null;
+  state?: PreviewResizeCompletionState | (PreviewResizeMoveState & {
+    overrideSnapshotBefore?: unknown;
+  }) | null;
   cancelLiveRelayout: () => void;
   removeDocumentListener: (
     type: 'mousemove' | 'mouseup',
@@ -155,6 +157,57 @@ export interface CompletePreviewResizeInteractionOptions extends Omit<
   onResizeUp: (event?: any) => void;
   clearGuideLines: () => void;
   clearSvgHoverState: () => void;
+}
+
+export interface PreviewResizeEditorHostHandleLike {
+  style: {
+    display: string;
+  };
+}
+
+export interface CompletePreviewResizeInteractionEditorHostOptions extends Omit<
+  CompletePreviewResizeInteractionOptions,
+  'removeDocumentListener' | 'clearSvgHoverState' | 'state' | 'showHandles' | 'endInteraction'
+> {
+  document: {
+    removeEventListener: (
+      type: 'mousemove' | 'mouseup',
+      handler: ((event?: any) => void),
+    ) => void;
+    querySelector: (selector: string) => {
+      querySelectorAll: (selector: string) => Iterable<PreviewResizeEditorHostHandleLike>;
+    } | null;
+  };
+  interactionManager: {
+    state?: CompletePreviewResizeInteractionOptions['state'];
+    endInteraction: () => void;
+  };
+  clearPreviewSvgHoverState: (svg: unknown) => void;
+}
+
+export type CompletePreviewResizeInteractionHostLikeOptions =
+  | CompletePreviewResizeInteractionOptions
+  | CompletePreviewResizeInteractionEditorHostOptions;
+
+function normalizePreviewResizeCompletionState(
+  state: CompletePreviewResizeInteractionOptions['state'],
+): PreviewResizeCompletionState | null {
+  if (!state) {
+    return null;
+  }
+
+  if ('origOverrideIds' in state) {
+    return state;
+  }
+
+  return {
+    hasMoved: state.hasMoved,
+    cid: state.cid,
+    selectionIds: state.selection?.ids ?? null,
+    origOverrideIds: Object.keys(state.origOverrides || {}),
+    propagatedIds: state.propagatedIds,
+    overrideSnapshotBefore: state.overrideSnapshotBefore,
+  };
 }
 
 export function startPreviewResizeHost(
@@ -317,9 +370,48 @@ export function persistPreviewResizeToFrameOverrides(
   }
 }
 
+function isEditorResizeCompletionOptions(
+  options: CompletePreviewResizeInteractionHostLikeOptions,
+): options is CompletePreviewResizeInteractionEditorHostOptions {
+  return 'interactionManager' in options;
+}
+
 export function completePreviewResizeInteraction(
-  options: CompletePreviewResizeInteractionOptions,
+  options: CompletePreviewResizeInteractionHostLikeOptions,
 ) {
+  if (isEditorResizeCompletionOptions(options)) {
+    const svg = options.document.querySelector('#stage svg');
+
+    return completePreviewResizeInteraction({
+      cancelLiveRelayout: options.cancelLiveRelayout,
+      removeDocumentListener: (type, handler) => {
+        options.document.removeEventListener(type, handler);
+      },
+      onResizeMove: options.onResizeMove,
+      onResizeUp: options.onResizeUp,
+      clearGuideLines: options.clearGuideLines,
+      clearSvgHoverState: () => {
+        if (svg) {
+          options.clearPreviewSvgHoverState(svg);
+        }
+      },
+      state: options.interactionManager.state ?? null,
+      cleanOverride: options.cleanOverride,
+      captureOverrideEntries: options.captureOverrideEntries,
+      reapplySelection: options.reapplySelection,
+      selectComponent: options.selectComponent,
+      commitOverridePatchAction: options.commitOverridePatchAction,
+      persistResize: options.persistResize,
+      showHandles: () => {
+        for (const handle of svg?.querySelectorAll('.dg-handle') || []) {
+          handle.style.display = '';
+        }
+      },
+      endInteraction: () => options.interactionManager.endInteraction(),
+      autoFitArtboard: options.autoFitArtboard,
+    });
+  }
+
   options.cancelLiveRelayout();
   options.removeDocumentListener('mousemove', options.onResizeMove);
   options.removeDocumentListener('mouseup', options.onResizeUp);
@@ -327,7 +419,7 @@ export function completePreviewResizeInteraction(
   options.clearSvgHoverState();
 
   return dispatchPreviewResizeCompletion({
-    state: options.state ?? null,
+    state: normalizePreviewResizeCompletionState(options.state),
     cleanOverride: options.cleanOverride,
     captureOverrideEntries: options.captureOverrideEntries,
     reapplySelection: options.reapplySelection,

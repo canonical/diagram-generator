@@ -39,5 +39,5 @@
 ## Phase 6 - Review follow-up hardening
 
 - [ ] T060 Retire transitional root-level browser-entry aliases once all real consumers are stable on `previewShell.*`, `previewBridge.*`, `previewEngines.*`, and `core`
-- [ ] T061 Split the oversized browser contract VM harness into smaller owner-scoped suites so contract coverage does not become a new trap file
-- [ ] T062 Continue shrinking `layout-bridge.js` until it no longer reads like the default integration sink for future engine-specific browser work
+- [x] T061 Split the oversized browser contract VM harness into smaller owner-scoped suites so contract coverage does not become a new trap file
+- [x] T062 Continue shrinking `layout-bridge.js` until it no longer reads like the default integration sink for future engine-specific browser work
