@@ -560,3 +560,16 @@ test("layout bridge fresh-render runtime uses the bundle previewBridge.render co
     /renderFreshPreviewSvg:\s*async\s*\(options\)\s*=>\s*\{\s*const previewBridgeRender = previewBridgeBundleRenderContract\(\);/s,
   );
 });
+
+test("layout bridge routes engine relayout through the manifest/runtime seam instead of ELK-local helpers", () => {
+  const source = readPreviewScript("layout-bridge.js");
+
+  assert.match(source, /function _isEngineLayoutDiagramJson\(json\)/);
+  assert.match(source, /resolvePreviewEngineManifest\(json\)/);
+  assert.match(
+    source,
+    /async function performEngineRelayout\(model, overrides, gridOverrides\)\s*\{\s*return _layoutBridgeRuntime\.performEngineRelayout\(/s,
+  );
+  assert.doesNotMatch(source, /function _isElkLayeredDiagramJson\(json\)/);
+  assert.doesNotMatch(source, /function _resolveElkOptionOverrides\(diagram, model\)/);
+});

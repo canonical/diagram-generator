@@ -850,11 +850,23 @@ test("editor rerender helper accepts the namespaced previewShell.scene fresh-ren
   const source = readPreviewScript("editor.js");
   const sceneCalls: Array<Record<string, unknown>> = [];
   const followUps: string[] = [];
+  let mergedRenderCalls = 0;
   const context = {
     console,
     window: {
       __DG_getPreviewBridgeRenderContract() {
-        return context.LayoutEngine.previewBridge.render;
+        return {
+          ...context.LayoutEngine.previewBridge.render,
+          async renderFreshPreviewSvg() {
+            mergedRenderCalls += 1;
+            return {
+              svg: { tagName: "svg" },
+              width: 640,
+              height: 480,
+              coerced: new Map(),
+            };
+          },
+        };
       },
       __DG_getPreviewShellSceneContract() {
         return context.LayoutEngine.previewShell.scene;
@@ -912,13 +924,8 @@ test("editor rerender helper accepts the namespaced previewShell.scene fresh-ren
     LayoutEngine: {
       previewBridge: {
         render: {
-          async renderFreshPreviewSvg(options: Record<string, unknown>) {
-            return {
-              svg: { tagName: "svg" },
-              width: 640,
-              height: 480,
-              coerced: new Map(),
-            };
+          async renderFreshPreviewSvg(_options: Record<string, unknown>) {
+            return { svg: { tagName: "svg" }, width: 640, height: 480, coerced: new Map() };
           },
         },
       },
@@ -969,6 +976,7 @@ test("editor rerender helper accepts the namespaced previewShell.scene fresh-ren
   }).__loaded;
 
   assert.equal(await loaded._rerenderStageFromModel(), true);
+  assert.equal(mergedRenderCalls, 1);
   assert.deepEqual(normalizeVmValue(sceneCalls), [
     {
       documentTagName: "document",
@@ -1796,7 +1804,7 @@ test("editor runtime-set bootstrap accepts the namespaced previewShell.bootstrap
     LayoutEngine: {
       previewShell: {
         bootstrap: {
-          createPreviewEditorRuntimeSetFromHost(options: Record<string, unknown>) {
+          createPreviewEditorRuntimeSetFromRuntime(options: Record<string, unknown>) {
             capturedOptions = options;
             return runtimeSet;
           },
@@ -1836,7 +1844,9 @@ test("editor runtime-set bootstrap accepts the namespaced previewShell.bootstrap
     selectionDepth: (
       capturedOptions?.selectionDepthState as { get?: () => number } | undefined
     )?.get?.(),
-    ancestorDepth: (capturedOptions?.getAncestorDepth as ((id: string) => number) | undefined)?.("alpha"),
+    ancestorDepth: (
+      capturedOptions?.getAncestors as ((id: string) => string[]) | undefined
+    )?.("alpha")?.length,
     inspector: (capturedOptions?.getInspector as (() => unknown) | undefined)?.(),
     hasGetSelectionActionInfo: typeof capturedOptions?.getSelectionActionInfo,
     hasGetMultiActionGap: typeof (
@@ -1845,8 +1855,12 @@ test("editor runtime-set bootstrap accepts the namespaced previewShell.bootstrap
     hasSetMultiActionGap: typeof (
       capturedOptions?.multiActionGapState as { set?: (value: number) => void } | undefined
     )?.set,
-    hasSetOverride: typeof capturedOptions?.setOverride,
-    hasGetGridInfo: typeof capturedOptions?.getGridInfo,
+    hasSetOverride: typeof (
+      capturedOptions?.relayoutActions as { setOverride?: (...args: unknown[]) => unknown } | undefined
+    )?.setOverride,
+    hasGetGridInfo: typeof (
+      capturedOptions?.gridState as { getGridInfo?: () => unknown } | undefined
+    )?.getGridInfo,
     hasFormatControlErrorMessage: typeof capturedOptions?.formatControlErrorMessage,
     hasSyncPreviewTreeSelectionState: typeof (
       capturedOptions?.previewShellScene as {
@@ -1894,11 +1908,15 @@ test("editor runtime-set bootstrap accepts the namespaced previewShell.bootstrap
     renderContractMatches: capturedOptions?.previewBridgeRender === previewBridgeRenderContract,
     textAdapter: (capturedOptions?.getTextAdapter as (() => unknown) | undefined)?.(),
     formatError: (capturedOptions?.formatControlErrorMessage as ((value: string) => string) | undefined)?.("bad"),
-    baselineStep: capturedOptions?.baselineStep,
-    fallbackGap: capturedOptions?.fallbackGap,
-    headLen: capturedOptions?.headLen,
-    headHalf: capturedOptions?.headHalf,
-    color: capturedOptions?.color,
+    baselineStep: (
+      capturedOptions?.gridState as { baselineStep?: number } | undefined
+    )?.baselineStep,
+    fallbackGap: (
+      capturedOptions?.gridState as { fallbackGap?: number } | undefined
+    )?.fallbackGap,
+    headLen: (capturedOptions?.theme as { headLen?: number } | undefined)?.headLen,
+    headHalf: (capturedOptions?.theme as { headHalf?: number } | undefined)?.headHalf,
+    color: (capturedOptions?.theme as { color?: string } | undefined)?.color,
   }), {
     selectedIds: ["alpha", "beta"],
     selectionDepth: 3,

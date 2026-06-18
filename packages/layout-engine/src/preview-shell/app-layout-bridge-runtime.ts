@@ -59,7 +59,7 @@ export interface CreatePreviewLayoutBridgeRuntimeOptions<
   createTextAdapter: () => Promise<TextMeasureAdapter>;
   getTextAdapterBackend: (textAdapter: TextMeasureAdapter | null) => string | null;
   isAuthoritativeTextAdapter: (textAdapter: TextMeasureAdapter | null) => boolean;
-  isElkLayeredDiagramJson: (json: TFrameTreeJson | Record<string, unknown> | null) => boolean;
+  isEngineLayoutDiagramJson: (json: TFrameTreeJson | Record<string, unknown> | null) => boolean;
   deserializeFrameDiagram: (json: TFrameTreeJson | Record<string, unknown>) => FrameDiagram;
   collectRelayoutFrameOverrides: (
     overrides: Record<string, PreviewRelayoutOverrideEntry>,
@@ -115,8 +115,11 @@ export interface CreatePreviewLayoutBridgeRuntimeOptions<
     collectRelayoutFrameOverrides: (
       overrides: Record<string, PreviewRelayoutOverrideEntry>,
     ) => Record<string, PreviewRelayoutOverrideEntry>;
-    isElkLayeredDiagramJson: (json: TFrameTreeJson | Record<string, unknown> | null) => boolean;
-    resolveElkOptionOverrides: (diagram: FrameDiagram, model: TModel) => Record<string, string>;
+    isEngineLayoutDiagramJson: (json: TFrameTreeJson | Record<string, unknown> | null) => boolean;
+    resolveEngineLayoutOptionOverrides: (
+      diagram: FrameDiagram,
+      model: TModel,
+    ) => Record<string, string>;
     updateModelFromLayout: (model: TModel, root: Frame) => void;
     syncArrowsInModel: (model: TModel, arrows: Arrow[], routedArrows: PreviewRoutedArrow[]) => void;
   }) => Promise<FreshPreviewSvgRenderResult<SVGSVGElement>>;
@@ -126,7 +129,10 @@ export interface CreatePreviewLayoutBridgeRuntimeOptions<
     svg: SVGSVGElement,
     options: { minWidth: number; minHeight: number },
   ) => unknown;
-  resolveElkOptionOverrides: (diagram: FrameDiagram, model: TModel) => Record<string, string>;
+  resolveEngineLayoutOptionOverrides: (
+    diagram: FrameDiagram,
+    model: TModel,
+  ) => Record<string, string>;
   refreshElkViewMode: () => void;
   warn: (message: string, error?: unknown) => void;
   error: (message: string, error?: unknown) => void;
@@ -160,6 +166,12 @@ export interface PreviewLayoutBridgeRuntime<
     gridOverrides: Record<string, unknown> | null,
     model: TModel,
   ) => Promise<PreviewLayoutBridgeRelayoutResult & { svg: SVGSVGElement }>;
+  performEngineRelayout: (
+    model: TModel,
+    overrides: Record<string, PreviewRelayoutOverrideEntry>,
+    gridOverrides: Record<string, unknown>,
+  ) => Promise<PreviewLayoutBridgeRelayoutResult | null>;
+  /** @deprecated Prefer `performEngineRelayout`. */
   performElkRelayout: (
     model: TModel,
     overrides: Record<string, PreviewRelayoutOverrideEntry>,
@@ -754,8 +766,8 @@ export function createPreviewLayoutBridgeRuntime<
           options.state.frameTreeJson,
         ) as Record<string, unknown>;
         applyPreviewSessionRemovalsToDiagramJson(diagramJson, model);
-        if (options.isElkLayeredDiagramJson(diagramJson)) {
-          options.warn('layout-bridge: performLocalRelayout skipped for elk-layered diagram');
+        if (options.isEngineLayoutDiagramJson(diagramJson)) {
+          options.warn('layout-bridge: performLocalRelayout skipped for engine-backed diagram');
           return null;
         }
 
@@ -832,8 +844,8 @@ export function createPreviewLayoutBridgeRuntime<
         },
         applyOverridesToFrameTree: options.applyOverridesToFrameTree,
         collectRelayoutFrameOverrides: options.collectRelayoutFrameOverrides,
-        isElkLayeredDiagramJson: options.isElkLayeredDiagramJson,
-        resolveElkOptionOverrides: options.resolveElkOptionOverrides,
+        isEngineLayoutDiagramJson: options.isEngineLayoutDiagramJson,
+        resolveEngineLayoutOptionOverrides: options.resolveEngineLayoutOptionOverrides,
         updateModelFromLayout: options.updateModelFromLayout,
         syncArrowsInModel: options.syncArrowsInModel,
       });
@@ -847,7 +859,7 @@ export function createPreviewLayoutBridgeRuntime<
         coerced: renderResult.coerced,
       };
     },
-    async performElkRelayout(model, overrides, gridOverrides) {
+    async performEngineRelayout(model, overrides, gridOverrides) {
       const readiness = runtime.getLocalRelayoutStatus();
       if (!readiness.ready) {
         options.warn(`layout-bridge: not ready (${readiness.reason})`);
@@ -875,9 +887,12 @@ export function createPreviewLayoutBridgeRuntime<
           height: renderResult.height,
         };
       } catch (error) {
-        options.error('layout-bridge: ELK relayout failed', error);
+        options.error('layout-bridge: engine relayout failed', error);
         return null;
       }
+    },
+    async performElkRelayout(model, overrides, gridOverrides) {
+      return runtime.performEngineRelayout(model, overrides, gridOverrides);
     },
   };
 

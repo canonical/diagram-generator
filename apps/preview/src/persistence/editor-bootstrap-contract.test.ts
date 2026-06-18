@@ -352,6 +352,15 @@ test("editor svg loader accepts the namespaced previewShell.bootstrap contract",
   const source = loadEditorSource();
   let capturedHostOptions: Record<string, unknown> | null = null;
   let capturedLoadOptions: Record<string, unknown> | null = null;
+  const previewBridgeBundleRenderContract = {
+    async renderFreshPreviewSvg() {
+      return { svg: { tagName: "svg" }, width: 640, height: 480 };
+    },
+  };
+  const previewBridgeMergedRenderContract = {
+    ...previewBridgeBundleRenderContract,
+    hostWrapper: true,
+  };
   const stage = {
     id: "stage",
     innerHTML: "",
@@ -413,6 +422,9 @@ test("editor svg loader accepts the namespaced previewShell.bootstrap contract",
         return context.LayoutEngine.previewShell.bootstrap;
       },
       __DG_getPreviewBridgeRenderContract() {
+        return previewBridgeMergedRenderContract;
+      },
+      __DG_getPreviewBridgeBundleRenderContract() {
         return context.LayoutEngine.previewBridge.render;
       },
     },
@@ -429,11 +441,7 @@ test("editor svg loader accepts the namespaced previewShell.bootstrap contract",
           },
           setFrameTreeJson() {},
         },
-        render: {
-          async renderFreshPreviewSvg() {
-            return { svg: { tagName: "svg" }, width: 640, height: 480 };
-          },
-        },
+        render: previewBridgeBundleRenderContract,
       },
       previewShell: {
         bootstrap: {
@@ -454,7 +462,7 @@ test("editor svg loader accepts the namespaced previewShell.bootstrap contract",
               hasMarkSaved: typeof options.previewSaveClient?.markSaved,
               hasSerializeDirtyState: typeof options.dirtyStateSerializer?.serializeDirtyState,
               previewBridgeRenderMatches:
-                options.previewBridgeRender === context.LayoutEngine.previewBridge.render,
+                options.previewBridgeRender === previewBridgeMergedRenderContract,
               hasFitRenderedSvgToContent: typeof options.fitRenderedSvgToContent,
             });
             return { kind: "load-options" };
@@ -507,7 +515,6 @@ test("editor svg loader accepts the namespaced previewShell.bootstrap contract",
 test("editor relayout runtime bootstrap accepts the namespaced previewBridge.relayout contract", () => {
   const source = loadEditorSource();
   let capturedHostOptions: Record<string, unknown> | null = null;
-  let capturedRuntimeOptions: Record<string, unknown> | null = null;
   const context = {
     console,
     _relayoutRuntime: null,
@@ -560,7 +567,7 @@ test("editor relayout runtime bootstrap accepts the namespaced previewBridge.rel
           },
         },
         relayout: {
-          createPreviewRelayoutRuntimeOptionsFromRuntime(options: Record<string, unknown>) {
+          createPreviewRelayoutRuntimeFromRuntime(options: Record<string, unknown>) {
             capturedHostOptions = normalizeVmValue({
               previewBridgeHostMatches: options.previewBridgeHost === context.LayoutEngine.previewBridge.host,
               overridesKeys: Object.keys((options.overrides as Record<string, unknown>) ?? {}),
@@ -582,10 +589,6 @@ test("editor relayout runtime bootstrap accepts the namespaced previewBridge.rel
               hasCaptureOverrideEntries: typeof options.editorState?.captureOverrideEntries,
               hasCommitOverridePatchAction: typeof options.editorState?.commitOverridePatchAction,
             });
-            return { kind: "runtime-options" };
-          },
-          createPreviewRelayoutRuntime(options: Record<string, unknown>) {
-            capturedRuntimeOptions = normalizeVmValue(options);
             return { kind: "runtime" };
           },
         },
@@ -628,9 +631,6 @@ test("editor relayout runtime bootstrap accepts the namespaced previewBridge.rel
     hasRebuildArrowSvg: "function",
     hasCaptureOverrideEntries: "function",
     hasCommitOverridePatchAction: "function",
-  });
-  assert.deepEqual(capturedRuntimeOptions, {
-    kind: "runtime-options",
   });
 });
 

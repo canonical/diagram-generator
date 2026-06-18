@@ -59,8 +59,12 @@ function getPreviewBridgeRelayoutContract() {
   return window.LayoutEngine?.previewBridge?.relayout ?? null;
 }
 
+function getPreviewBridgeBundleRenderContract() {
+  return window.LayoutEngine?.previewBridge?.render ?? null;
+}
+
 function getPreviewBridgeRenderContract() {
-  const bundleRender = window.LayoutEngine?.previewBridge?.render ?? null;
+  const bundleRender = getPreviewBridgeBundleRenderContract();
   const hostRender = window.__DG_previewBridgeRenderHost || null;
   if (bundleRender && hostRender && bundleRender !== hostRender) {
     return { ...bundleRender, ...hostRender };
@@ -102,6 +106,7 @@ function getPreviewShellBootstrapContract() {
 }
 
 window.__DG_getPreviewBridgeRelayoutContract = getPreviewBridgeRelayoutContract;
+window.__DG_getPreviewBridgeBundleRenderContract = getPreviewBridgeBundleRenderContract;
 window.__DG_getPreviewBridgeRenderContract = getPreviewBridgeRenderContract;
 window.__DG_getPreviewBridgeHostContract = getPreviewBridgeHostContract;
 window.__DG_getPreviewCoreContract = getPreviewCoreContract;

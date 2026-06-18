@@ -194,6 +194,80 @@ export interface CreatePreviewEditorRuntimeSetHostOptions {
   color: CreatePreviewEditorRuntimeSetOptions['color'];
 }
 
+export interface CreatePreviewEditorRuntimeSetFromRuntimeOptions {
+  document: CreatePreviewEditorRuntimeSetHostOptions['document'];
+  selectedIds: CreatePreviewEditorRuntimeSetHostOptions['selectedIds'];
+  selectionDepthState: CreatePreviewEditorRuntimeSetHostOptions['selectionDepthState'];
+  getPrimarySelectedId: CreatePreviewEditorRuntimeSetHostOptions['getPrimarySelectedId'];
+  getAncestors: (cid: string) => string[];
+  previewShellScene: CreatePreviewEditorRuntimeSetHostOptions['previewShellScene'];
+  previewShellInteraction: CreatePreviewEditorRuntimeSetHostOptions['previewShellInteraction'];
+  previewBridgeRender: CreatePreviewEditorRuntimeSetHostOptions['previewBridgeRender'];
+  model: {
+    get: CreatePreviewEditorRuntimeSetHostOptions['getNode'];
+    cleanOverride: CreatePreviewEditorRuntimeSetHostOptions['cleanOverride'];
+  };
+  overrides: CreatePreviewEditorRuntimeSetHostOptions['overrides'];
+  coercedKeys: CreatePreviewEditorRuntimeSetHostOptions['coercedKeys'];
+  gridState: {
+    getGridInfo: CreatePreviewEditorRuntimeSetHostOptions['getGridInfo'];
+    baselineStep: CreatePreviewEditorRuntimeSetHostOptions['baselineStep'];
+    fallbackGap: CreatePreviewEditorRuntimeSetHostOptions['fallbackGap'];
+    snapStep: CreatePreviewEditorRuntimeSetHostOptions['snapStep'];
+  };
+  multiActionGapState: CreatePreviewEditorRuntimeSetHostOptions['multiActionGapState'];
+  getInspector: CreatePreviewEditorRuntimeSetHostOptions['getInspector'];
+  getSelectionActionInfo: CreatePreviewEditorRuntimeSetHostOptions['getSelectionActionInfo'];
+  getArrowNode: CreatePreviewEditorRuntimeSetHostOptions['getArrowNode'];
+  getOwnDelta: CreatePreviewEditorRuntimeSetHostOptions['getOwnDelta'];
+  getEffectiveDelta: CreatePreviewEditorRuntimeSetHostOptions['getEffectiveDelta'];
+  getComponentType: CreatePreviewEditorRuntimeSetHostOptions['getComponentType'];
+  getParentNode: (cid: string) => { layout?: string | null } | null;
+  getViolations: CreatePreviewEditorRuntimeSetHostOptions['getViolations'];
+  readRenderedStyleFields: CreatePreviewEditorRuntimeSetHostOptions['getRenderedStyle'];
+  getTextAdapter: CreatePreviewEditorRuntimeSetHostOptions['getTextAdapter'];
+  formatControlErrorMessage: CreatePreviewEditorRuntimeSetHostOptions['formatControlErrorMessage'];
+  renderSingleStyleOptions: CreatePreviewEditorRuntimeSetHostOptions['renderSingleStyleOptions'];
+  renderMultiStyleOptions: CreatePreviewEditorRuntimeSetHostOptions['renderMultiStyleOptions'];
+  editorState: {
+    captureOverrideEntries: CreatePreviewEditorRuntimeSetHostOptions['captureOverrideEntries'];
+    commitOverridePatchAction: CreatePreviewEditorRuntimeSetHostOptions['commitOverridePatchAction'];
+  };
+  resizeHandles: {
+    removeResizeHandles: CreatePreviewEditorRuntimeSetHostOptions['removeResizeHandles'];
+    showResizeHandles: CreatePreviewEditorRuntimeSetHostOptions['showResizeHandles'];
+  };
+  inspectorRender: {
+    renderEmptyInspector: CreatePreviewEditorRuntimeSetHostOptions['renderEmptyInspector'];
+    renderSelectionInspector: CreatePreviewEditorRuntimeSetHostOptions['renderSelectionInspector'];
+    renderMultiSelectionInspector: CreatePreviewEditorRuntimeSetHostOptions['renderMultiSelectionInspector'];
+  };
+  relayoutActions: {
+    snapToGrid: CreatePreviewEditorRuntimeSetHostOptions['snapToGrid'];
+    setDirty: CreatePreviewEditorRuntimeSetHostOptions['setDirty'];
+    scheduleRelayout: CreatePreviewEditorRuntimeSetHostOptions['scheduleRelayout'];
+    requestRelayoutNow: CreatePreviewEditorRuntimeSetHostOptions['requestRelayoutNow'];
+    applyAllOverrides: CreatePreviewEditorRuntimeSetHostOptions['applyAllOverrides'];
+    reapplySelection: CreatePreviewEditorRuntimeSetHostOptions['reapplySelection'];
+    updateOverrideSummary: CreatePreviewEditorRuntimeSetHostOptions['updateOverrideSummary'];
+    refreshTreeColors: CreatePreviewEditorRuntimeSetHostOptions['refreshTreeColors'];
+    runConstraints: CreatePreviewEditorRuntimeSetHostOptions['runConstraints'];
+    setOverride: CreatePreviewEditorRuntimeSetHostOptions['setOverride'];
+  };
+  interactionState: {
+    alert: CreatePreviewEditorRuntimeSetHostOptions['alert'];
+    normalizeStyleName: CreatePreviewEditorRuntimeSetHostOptions['normalizeStyleName'];
+    interactionManager: CreatePreviewEditorRuntimeSetHostOptions['interactionManager'];
+    waypointDraggingMode: CreatePreviewEditorRuntimeSetHostOptions['waypointDraggingMode'];
+    persistWaypointOverride: CreatePreviewEditorRuntimeSetHostOptions['persistWaypointOverride'];
+  };
+  theme: {
+    headLen: CreatePreviewEditorRuntimeSetHostOptions['headLen'];
+    headHalf: CreatePreviewEditorRuntimeSetHostOptions['headHalf'];
+    color: CreatePreviewEditorRuntimeSetHostOptions['color'];
+  };
+}
+
 export interface PreviewEditorRuntimeSet {
   selection: PreviewSelectionRuntime;
   inspectorDisplay: PreviewInspectorDisplayRuntime;
@@ -274,6 +348,72 @@ export function createPreviewEditorRuntimeSetFromHost(
     headLen: options.headLen,
     headHalf: options.headHalf,
     color: options.color,
+  });
+}
+
+export function createPreviewEditorRuntimeSetFromRuntime(
+  options: CreatePreviewEditorRuntimeSetFromRuntimeOptions,
+): PreviewEditorRuntimeSet {
+  return createPreviewEditorRuntimeSetFromHost({
+    document: options.document,
+    selectedIds: options.selectedIds,
+    selectionDepthState: options.selectionDepthState,
+    getPrimarySelectedId: options.getPrimarySelectedId,
+    getAncestorDepth: (cid) => options.getAncestors(cid).length,
+    previewShellScene: options.previewShellScene,
+    removeResizeHandles: options.resizeHandles.removeResizeHandles,
+    showResizeHandles: options.resizeHandles.showResizeHandles,
+    renderEmptyInspector: options.inspectorRender.renderEmptyInspector,
+    renderSelectionInspector: options.inspectorRender.renderSelectionInspector,
+    getInspector: options.getInspector,
+    getSelectionActionInfo: options.getSelectionActionInfo,
+    getNode: (cid) => options.model.get(cid),
+    getArrowNode: options.getArrowNode,
+    getOverride: (cid) => options.overrides[cid] || {},
+    getOwnDelta: options.getOwnDelta,
+    getEffectiveDelta: options.getEffectiveDelta,
+    getComponentType: options.getComponentType,
+    getParentLayout: (cid) => options.getParentNode(cid)?.layout || null,
+    getRenderedStyle: options.readRenderedStyleFields,
+    getViolations: options.getViolations,
+    isWidthCoerced: (cid) => options.coercedKeys.has(`${cid}:sizing_w`),
+    isHeightCoerced: (cid) => options.coercedKeys.has(`${cid}:sizing_h`),
+    getGridInfo: options.gridState.getGridInfo,
+    baselineStep: options.gridState.baselineStep,
+    fallbackGap: options.gridState.fallbackGap,
+    snapStep: options.gridState.snapStep,
+    multiActionGapState: options.multiActionGapState,
+    getTextAdapter: options.getTextAdapter,
+    formatControlErrorMessage: options.formatControlErrorMessage,
+    renderSingleStyleOptions: options.renderSingleStyleOptions,
+    renderMultiStyleOptions: options.renderMultiStyleOptions,
+    captureOverrideEntries: options.editorState.captureOverrideEntries,
+    commitOverridePatchAction: options.editorState.commitOverridePatchAction,
+    overrides: options.overrides,
+    coercedKeys: options.coercedKeys,
+    snapToGrid: options.relayoutActions.snapToGrid,
+    setDirty: options.relayoutActions.setDirty,
+    scheduleRelayout: options.relayoutActions.scheduleRelayout,
+    cleanOverride: (cid) => options.model.cleanOverride(cid),
+    requestRelayoutNow: options.relayoutActions.requestRelayoutNow,
+    renderMultiSelectionInspector: options.inspectorRender.renderMultiSelectionInspector,
+    applyAllOverrides: options.relayoutActions.applyAllOverrides,
+    reapplySelection: options.relayoutActions.reapplySelection,
+    updateOverrideSummary: options.relayoutActions.updateOverrideSummary,
+    refreshTreeColors: options.relayoutActions.refreshTreeColors,
+    runConstraints: options.relayoutActions.runConstraints,
+    setOverride: options.relayoutActions.setOverride,
+    previewShellInteraction: options.previewShellInteraction,
+    alert: options.interactionState.alert,
+    normalizeStyleName: options.interactionState.normalizeStyleName,
+    interactionManager: options.interactionState.interactionManager,
+    waypointDraggingMode: options.interactionState.waypointDraggingMode,
+    isSelected: (cid) => options.selectedIds.has(cid),
+    persistWaypointOverride: options.interactionState.persistWaypointOverride,
+    previewBridgeRender: options.previewBridgeRender,
+    headLen: options.theme.headLen,
+    headHalf: options.theme.headHalf,
+    color: options.theme.color,
   });
 }
 

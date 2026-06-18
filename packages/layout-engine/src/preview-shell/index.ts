@@ -419,6 +419,7 @@ export type {
   PreviewEditorUndoStateApi,
   PreviewElkControllerApi,
   PreviewElkControllerInitOptions,
+  PreviewEngineShellControllerInitOptions,
   PreviewEventSourceLike,
   InitPreviewEditorRuntimeHostOptions,
   PreviewPageshowReloadOptions,
@@ -543,6 +544,7 @@ export {
 } from './app-selection-runtime.js';
 
 export type {
+  CreatePreviewEditorRuntimeSetFromRuntimeOptions,
   CreatePreviewEditorRuntimeSetHostOptions,
   CreatePreviewEditorRuntimeSetOptions,
   PreviewEditorRuntimeNumericState,
@@ -550,6 +552,7 @@ export type {
 } from './app-editor-runtime-set.js';
 
 export {
+  createPreviewEditorRuntimeSetFromRuntime,
   createPreviewEditorRuntimeSetFromHost,
   createPreviewEditorRuntimeSet,
 } from './app-editor-runtime-set.js';
@@ -917,6 +920,7 @@ export {
 } from './app-relayout.js';
 
 export {
+  createPreviewRelayoutRuntimeFromRuntime,
   createPreviewRelayoutRuntimeOptionsFromRuntime,
   createPreviewRelayoutRuntimeOptionsFromHost,
   createPreviewRelayoutRuntime,

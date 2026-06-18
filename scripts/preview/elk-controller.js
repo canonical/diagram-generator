@@ -28,6 +28,29 @@
     return _deps;
   }
 
+  function _readLayoutOverrides() {
+    const deps = _requireDeps();
+    if (typeof deps.getLayoutOverrides === "function") {
+      return deps.getLayoutOverrides() || {};
+    }
+    if (typeof deps.getElkLayoutOverrides === "function") {
+      return deps.getElkLayoutOverrides() || {};
+    }
+    return {};
+  }
+
+  function _writeLayoutOverrides(overrides) {
+    const nextOverrides = { ...(overrides || {}) };
+    const deps = _requireDeps();
+    if (typeof deps.setLayoutOverrides === "function") {
+      deps.setLayoutOverrides(nextOverrides);
+      return;
+    }
+    if (typeof deps.setElkLayoutOverrides === "function") {
+      deps.setElkLayoutOverrides(nextOverrides);
+    }
+  }
+
   function isElkLayeredDiagram(frameTreeJson) {
     const tree = frameTreeJson !== undefined
       ? frameTreeJson
@@ -60,16 +83,16 @@
 
   function applyElkLayoutOverrides(overrides) {
     if (!_deps) return;
-    _deps.setElkLayoutOverrides({ ...(overrides || {}) });
+    _writeLayoutOverrides(overrides);
   }
 
   function wirePanel() {
     if (!window.ElkLayoutControls) return;
     if (_panelWired) return;
-    const deps = _requireDeps();
+    _requireDeps();
     ElkLayoutControls.init({
-      getOverrides: () => deps.getElkLayoutOverrides() || {},
-      setOverrides: (value) => deps.setElkLayoutOverrides({ ...value }),
+      getOverrides: () => _readLayoutOverrides(),
+      setOverrides: (value) => _writeLayoutOverrides(value),
     });
     _panelWired = true;
   }
@@ -101,9 +124,8 @@
   async function requestRelayout() {
     wirePanel();
     if (window.ElkLayoutControls && typeof ElkLayoutControls.collectOverrides === "function") {
-      const deps = _deps;
       applyElkLayoutOverrides({
-        ...((deps && deps.getElkLayoutOverrides()) || {}),
+        ..._readLayoutOverrides(),
         ...ElkLayoutControls.collectOverrides(),
       });
     }
@@ -127,8 +149,11 @@
     syncPanel,
     initPanel,
     initializePanel: initPanel,
-    applyElkLayoutOverrides,
+    getLayoutOverrides() {
+      return _deps ? _readLayoutOverrides() : {};
+    },
     applyLayoutOverrides: applyElkLayoutOverrides,
+    applyElkLayoutOverrides,
     collectPersistedPayload,
     requestRelayout,
   };

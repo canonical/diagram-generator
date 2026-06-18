@@ -23,6 +23,7 @@ import {
   createLoadPreviewSvgHostOptionsFromRuntime,
   createLoadPreviewSvgHostOptions,
   createPreviewBuildStatusUpdater,
+  createPreviewEditorRuntimeSetFromRuntime,
   createPreviewEditorRuntimeSetFromHost,
   createPreviewEditorRuntimeSet,
   createPreviewInspectorDisplayRuntime,
@@ -31,6 +32,7 @@ import {
   createPreviewArrowWaypointRuntime,
   createPreviewElkViewModeRuntime,
   createPreviewOverrideToolbarHostOptions,
+  createPreviewRelayoutRuntimeFromRuntime,
   createPreviewRelayoutRuntimeOptionsFromRuntime,
   createPreviewRelayoutRuntimeOptionsFromHost,
   createPreviewRelayoutRuntimeState,
@@ -197,6 +199,8 @@ describe('browser entry contract pilot', () => {
     expect(previewShell.bootstrap.createPreviewBuildStatusUpdater).toBe(createPreviewBuildStatusUpdater);
     expect(previewShell.bootstrap.createPreviewEditorRuntimeSetFromHost)
       .toBe(createPreviewEditorRuntimeSetFromHost);
+    expect(previewShell.bootstrap.createPreviewEditorRuntimeSetFromRuntime)
+      .toBe(createPreviewEditorRuntimeSetFromRuntime);
     expect(previewShell.bootstrap.createPreviewEditorRuntimeSet).toBe(createPreviewEditorRuntimeSet);
     expect(previewShell.bootstrap.createBootstrapPreviewEditorRuntimeOptionsFromHost)
       .toBe(createBootstrapPreviewEditorRuntimeOptionsFromHost);
@@ -230,6 +234,8 @@ describe('browser entry contract pilot', () => {
     expect(previewBridge.host.updatePreviewComponentModelFromLayout).toBeTypeOf('function');
     expect(previewBridge.relayout.collectPreviewRelayoutFrameOverrides).toBeTypeOf('function');
     expect(previewBridge.relayout.createPreviewRelayoutRuntime).toBe(createPreviewRelayoutRuntime);
+    expect(previewBridge.relayout.createPreviewRelayoutRuntimeFromRuntime)
+      .toBe(createPreviewRelayoutRuntimeFromRuntime);
     expect(previewBridge.relayout.createPreviewRelayoutRuntimeOptionsFromRuntime)
       .toBe(createPreviewRelayoutRuntimeOptionsFromRuntime);
     expect(previewBridge.relayout.createPreviewRelayoutRuntimeOptionsFromHost)

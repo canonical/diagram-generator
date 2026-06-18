@@ -64,8 +64,11 @@ export interface RenderFreshPreviewSvgOptions<TModel = unknown> {
     gridOverrides?: Record<string, unknown> | null,
   ) => void;
   collectRelayoutFrameOverrides: (overrides: Record<string, unknown>) => Record<string, unknown>;
-  isElkLayeredDiagramJson: (diagramJson: Record<string, unknown>) => boolean;
-  resolveElkOptionOverrides: (diagram: FrameDiagram, model: TModel) => Record<string, string>;
+  isEngineLayoutDiagramJson: (diagramJson: Record<string, unknown>) => boolean;
+  resolveEngineLayoutOptionOverrides: (
+    diagram: FrameDiagram,
+    model: TModel,
+  ) => Record<string, string>;
   updateModelFromLayout: (model: TModel, root: Frame) => void;
   syncArrowsInModel: (model: TModel, arrows: Arrow[], routedArrows: PreviewRoutedArrow[]) => void;
 }
@@ -389,10 +392,10 @@ export async function renderFreshPreviewSvg<TModel = unknown>(
   options.applyOverridesToFrameTree(diagram, allFrameOverrides, options.gridOverrides || {});
 
   let result: PreviewLayoutResult;
-  if (options.isElkLayeredDiagramJson(diagramJson)) {
+  if (options.isEngineLayoutDiagramJson(diagramJson)) {
     result = await layoutElkFrameDiagram(diagram, options.textAdapter, {
       diagramType: diagram.diagramType as ElkLayoutOptions['diagramType'],
-      elkOptionOverrides: options.resolveElkOptionOverrides(diagram, options.model),
+      elkOptionOverrides: options.resolveEngineLayoutOptionOverrides(diagram, options.model),
     });
   } else {
     resolveStyles(diagram.root);

@@ -136,6 +136,10 @@ export interface PreviewRelayoutRuntime {
   clearOverride: (cid: string) => void;
 }
 
+export interface CreatePreviewRelayoutRuntimeFromRuntimeOptions<TGridOverrides, TModel>
+  extends CreatePreviewRelayoutRuntimeOptionsFromRuntimeOptions<TGridOverrides, TModel> {
+}
+
 export function createPreviewRelayoutRuntimeOptionsFromHost<TGridOverrides, TModel>(
   options: CreatePreviewRelayoutRuntimeHostOptions<TGridOverrides, TModel>,
 ): CreatePreviewRelayoutRuntimeOptions<TGridOverrides> {
@@ -209,6 +213,14 @@ export function createPreviewRelayoutRuntimeOptionsFromRuntime<TGridOverrides, T
     captureOverrideEntries: options.editorState.captureOverrideEntries,
     commitOverridePatchAction: options.editorState.commitOverridePatchAction,
   });
+}
+
+export function createPreviewRelayoutRuntimeFromRuntime<TGridOverrides, TModel>(
+  options: CreatePreviewRelayoutRuntimeFromRuntimeOptions<TGridOverrides, TModel>,
+): PreviewRelayoutRuntime {
+  return createPreviewRelayoutRuntime(
+    createPreviewRelayoutRuntimeOptionsFromRuntime(options),
+  );
 }
 
 export function createPreviewRelayoutRuntime<TGridOverrides>(

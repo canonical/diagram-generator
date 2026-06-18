@@ -26,11 +26,18 @@ export interface PreviewEditorStateApi {
   [key: string]: unknown;
 }
 
-export interface PreviewElkControllerInitOptions {
-  getElkLayoutOverrides: () => Record<string, unknown>;
-  setElkLayoutOverrides: (value: Record<string, unknown>) => void;
+export interface PreviewEngineShellControllerInitOptions {
+  getLayoutOverrides: () => Record<string, unknown>;
+  setLayoutOverrides: (value: Record<string, unknown>) => void;
   getRootId: () => string;
   requestV3Relayout: (cid: string) => Promise<unknown>;
+  /** @deprecated Prefer `getLayoutOverrides`. */
+  getElkLayoutOverrides?: () => Record<string, unknown>;
+  /** @deprecated Prefer `setLayoutOverrides`. */
+  setElkLayoutOverrides?: (value: Record<string, unknown>) => void;
+}
+
+export interface PreviewElkControllerInitOptions extends PreviewEngineShellControllerInitOptions {
 }
 
 export interface PreviewElkControllerApi {
@@ -52,6 +59,7 @@ export interface PreviewEnginePayloadModelLike {
 export interface PreviewEngineShellControllerApi extends PreviewElkControllerApi {
   isActiveLayoutEngine?: (frameTreeJson?: unknown) => boolean;
   initializePanel?: () => void;
+  getLayoutOverrides?: () => Record<string, unknown>;
   applyLayoutOverrides?: (overrides: Record<string, unknown>) => void;
   collectPersistedPayload?: (
     basePayload: Record<string, unknown>,
@@ -203,9 +211,11 @@ export interface BootstrapPreviewEditorHostOptions {
   initNavTabs: () => void;
   getOverrides: () => Record<string, PreviewOverrideExportEntry>;
   getGridOverrides: () => unknown;
+  getLayoutOverrides?: () => Record<string, unknown>;
   getElkLayoutOverrides: () => Record<string, unknown>;
   getRemovedIds: () => unknown;
   getFrameTree: () => unknown;
+  setLayoutOverrides?: (value: Record<string, unknown>) => void;
   setElkLayoutOverrides: (value: Record<string, unknown>) => void;
   getRootId: () => string;
   requestV3Relayout: (cid: string) => Promise<unknown> | unknown;
@@ -457,20 +467,35 @@ function createPreviewEditorStateFallback(): PreviewEditorStateApi {
   };
 }
 
-function createPreviewElkControllerFallback(): PreviewElkControllerApi {
+function createPreviewEngineShellControllerFallback(): PreviewEngineShellControllerApi {
   return {
     init() {},
     isElkLayeredDiagram() {
       return false;
     },
+    isActiveLayoutEngine() {
+      return false;
+    },
     wirePanel() {},
     syncPanel() {},
     initPanel() {},
+    initializePanel() {},
+    getLayoutOverrides() {
+      return {};
+    },
+    applyLayoutOverrides() {},
     applyElkLayoutOverrides() {},
+    collectPersistedPayload(basePayload) {
+      return { ...(basePayload || {}) };
+    },
     requestRelayout() {
       return Promise.resolve();
     },
   };
+}
+
+function createPreviewElkControllerFallback(): PreviewElkControllerApi {
+  return createPreviewEngineShellControllerFallback();
 }
 
 export function restorePreviewSelectionIds(
@@ -587,6 +612,10 @@ export function createBootstrapPreviewEditorRuntimeOptionsFromHost(
 export function createBootstrapPreviewEditorHostOptionsFromRuntime(
   options: BootstrapPreviewEditorRuntimeOptions,
 ): BootstrapPreviewEditorHostOptions {
+  const getLayoutOverrides = () => options.model.elkLayoutOverrides || {};
+  const setLayoutOverrides = (value: Record<string, unknown>) => {
+    options.model.elkLayoutOverrides = { ...value };
+  };
   return {
     document: options.document,
     previewWindow: options.previewWindow,
@@ -604,12 +633,12 @@ export function createBootstrapPreviewEditorHostOptionsFromRuntime(
     initNavTabs: options.initNavTabs,
     getOverrides: options.getOverrides,
     getGridOverrides: () => options.model.gridOverrides,
-    getElkLayoutOverrides: () => options.model.elkLayoutOverrides || {},
+    getLayoutOverrides,
+    getElkLayoutOverrides: getLayoutOverrides,
     getRemovedIds: () => options.model.removedIds,
     getFrameTree: options.getFrameTree,
-    setElkLayoutOverrides: (value) => {
-      options.model.elkLayoutOverrides = { ...value };
-    },
+    setLayoutOverrides,
+    setElkLayoutOverrides: setLayoutOverrides,
     getRootId: () => resolvePreviewBootstrapRootId(options.model),
     requestV3Relayout: options.requestV3Relayout,
     previewSaveClient: options.previewSaveClient,
@@ -657,15 +686,6 @@ export function bootstrapPreviewEditorRuntime(
   bootstrapPreviewEditorHost(
     createBootstrapPreviewEditorHostOptionsFromRuntime(options),
   );
-}
-
-function createPreviewEngineShellControllerFallback(): PreviewEngineShellControllerApi {
-  const fallback = createPreviewElkControllerFallback() as PreviewEngineShellControllerApi;
-  fallback.isActiveLayoutEngine = () => false;
-  fallback.initializePanel = () => {};
-  fallback.applyLayoutOverrides = () => {};
-  fallback.collectPersistedPayload = (basePayload) => ({ ...basePayload });
-  return fallback;
 }
 
 export function getPreviewEngineShellController(
@@ -817,14 +837,14 @@ export function ensurePreviewEditorState(
 
 export function ensurePreviewElkPreviewController(
   previewWindow: PreviewGlobalWindow,
-  initOptions: PreviewElkControllerInitOptions,
+  initOptions: PreviewEngineShellControllerInitOptions,
 ): PreviewElkControllerApi {
   return ensurePreviewEngineShellController(previewWindow, initOptions);
 }
 
 export function ensurePreviewEngineShellController(
   previewWindow: PreviewGlobalWindow,
-  initOptions: PreviewElkControllerInitOptions,
+  initOptions: PreviewEngineShellControllerInitOptions,
 ): PreviewEngineShellControllerApi {
   const controller = getPreviewEngineShellController(previewWindow)
     ?? createPreviewEngineShellControllerFallback();
@@ -962,6 +982,8 @@ export function bootstrapPreviewEditorHost(
     },
     ensureElkPreviewController: () => {
       ensurePreviewEngineShellController(options.previewWindow, {
+        getLayoutOverrides: options.getLayoutOverrides ?? options.getElkLayoutOverrides,
+        setLayoutOverrides: options.setLayoutOverrides ?? options.setElkLayoutOverrides,
         getElkLayoutOverrides: options.getElkLayoutOverrides,
         setElkLayoutOverrides: options.setElkLayoutOverrides,
         getRootId: options.getRootId,

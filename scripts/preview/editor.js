@@ -1500,7 +1500,7 @@ function _getEditorRuntimeSet() {
   const previewShellScene = window.__DG_getPreviewShellSceneContract();
   const previewShellInteraction = window.__DG_getPreviewShellInteractionContract();
   const previewBridgeRender = window.__DG_getPreviewBridgeRenderContract();
-  _editorRuntimeSet = previewShellBootstrap.createPreviewEditorRuntimeSetFromHost({
+  _editorRuntimeSet = previewShellBootstrap.createPreviewEditorRuntimeSetFromRuntime({
     document,
     selectedIds,
     selectionDepthState: {
@@ -1510,35 +1510,34 @@ function _getEditorRuntimeSet() {
       },
     },
     getPrimarySelectedId,
-    getAncestorDepth: (cid) => getAncestors(cid).length,
+    getAncestors,
     previewShellScene,
-    removeResizeHandles,
-    showResizeHandles,
-    renderEmptyInspector,
-    renderSelectionInspector,
-    getInspector: getInspectorElement,
-    getSelectionActionInfo: getSelectionActionItems,
-    getNode: (cid) => model.get(cid),
-    getArrowNode,
-    getOverride: (cid) => overrides[cid] || {},
-    getOwnDelta,
-    getEffectiveDelta,
-    getComponentType,
-    getParentLayout: (cid) => getParentNode(cid)?.layout || null,
-    getRenderedStyle: (cid) => _readRenderedStyleFields(cid),
-    getViolations: (cid) => getViolationsForComponent(cid),
-    isWidthCoerced: (cid) => _coercedKeys.has(cid + ':sizing_w'),
-    isHeightCoerced: (cid) => _coercedKeys.has(cid + ':sizing_h'),
-    getGridInfo: () => gridInfo,
-    baselineStep: BASELINE_STEP,
-    fallbackGap: window.__DG_CONFIG.col_gap || 24,
-    snapStep: BASELINE_STEP,
+    previewShellInteraction,
+    previewBridgeRender,
+    model,
+    overrides,
+    coercedKeys: _coercedKeys,
+    gridState: {
+      getGridInfo: () => gridInfo,
+      baselineStep: BASELINE_STEP,
+      fallbackGap: window.__DG_CONFIG.col_gap || 24,
+      snapStep: BASELINE_STEP,
+    },
     multiActionGapState: {
       get: () => multiActionGap,
       set: (gap) => {
         multiActionGap = gap;
       },
     },
+    getInspector: getInspectorElement,
+    getSelectionActionInfo: getSelectionActionItems,
+    getArrowNode,
+    getOwnDelta,
+    getEffectiveDelta,
+    getComponentType,
+    getParentNode,
+    getViolations: (cid) => getViolationsForComponent(cid),
+    readRenderedStyleFields: (cid) => _readRenderedStyleFields(cid),
     getTextAdapter: typeof window.getLayoutTextAdapter === 'function'
       ? () => window.getLayoutTextAdapter()
       : null,
@@ -1558,38 +1557,48 @@ function _getEditorRuntimeSet() {
         ),
       })
     ),
-    captureOverrideEntries: (ids) => EditorState.captureOverrideEntries(ids),
-    commitOverridePatchAction: (label, beforeEntries, afterEntries) => {
-      EditorState.commitOverridePatchAction(label, beforeEntries, afterEntries);
+    editorState: {
+      captureOverrideEntries: (ids) => EditorState.captureOverrideEntries(ids),
+      commitOverridePatchAction: (label, beforeEntries, afterEntries) => {
+        EditorState.commitOverridePatchAction(label, beforeEntries, afterEntries);
+      },
     },
-    overrides,
-    coercedKeys: _coercedKeys,
-    snapToGrid,
-    setDirty,
-    scheduleRelayout: _scheduleV3Relayout,
-    cleanOverride: (cid) => model.cleanOverride(cid),
-    requestRelayoutNow: (cid) => {
-      clearTimeout(_v3RelayoutTimer);
-      requestV3Relayout(cid);
+    resizeHandles: {
+      removeResizeHandles,
+      showResizeHandles,
     },
-    renderMultiSelectionInspector,
-    applyAllOverrides,
-    reapplySelection,
-    updateOverrideSummary,
-    refreshTreeColors,
-    runConstraints,
-    setOverride: (id, partial) => setOverride(id, partial),
-    previewShellInteraction,
-    alert: (message) => alert(message),
-    normalizeStyleName: _normaliseStyleName,
-    interactionManager: mgr,
-    waypointDraggingMode: InteractionMode.WAYPOINT_DRAGGING,
-    isSelected: (cid) => selectedIds.has(cid),
-    persistWaypointOverride: setWaypointOverride,
-    previewBridgeRender,
-    headLen: window.__DG_CONFIG.head_len,
-    headHalf: window.__DG_CONFIG.head_half,
-    color: "#E95420",
+    inspectorRender: {
+      renderEmptyInspector,
+      renderSelectionInspector,
+      renderMultiSelectionInspector,
+    },
+    relayoutActions: {
+      snapToGrid,
+      setDirty,
+      scheduleRelayout: _scheduleV3Relayout,
+      requestRelayoutNow: (cid) => {
+        clearTimeout(_v3RelayoutTimer);
+        requestV3Relayout(cid);
+      },
+      applyAllOverrides,
+      reapplySelection,
+      updateOverrideSummary,
+      refreshTreeColors,
+      runConstraints,
+      setOverride: (id, partial) => setOverride(id, partial),
+    },
+    interactionState: {
+      alert: (message) => alert(message),
+      normalizeStyleName: _normaliseStyleName,
+      interactionManager: mgr,
+      waypointDraggingMode: InteractionMode.WAYPOINT_DRAGGING,
+      persistWaypointOverride: setWaypointOverride,
+    },
+    theme: {
+      headLen: window.__DG_CONFIG.head_len,
+      headHalf: window.__DG_CONFIG.head_half,
+      color: "#E95420",
+    },
   });
   return _editorRuntimeSet;
 }
@@ -1660,38 +1669,36 @@ function _getRelayoutRuntime() {
   if (_relayoutRuntime) return _relayoutRuntime;
   const previewBridgeHost = _getPreviewBridgeHostContract();
   const previewBridgeRelayout = window.__DG_getPreviewBridgeRelayoutContract();
-  _relayoutRuntime = previewBridgeRelayout.createPreviewRelayoutRuntime(
-    previewBridgeRelayout.createPreviewRelayoutRuntimeOptionsFromRuntime({
-      overrides,
-      coercedKeys: _coercedKeys,
-      model,
-      previewBridgeHost,
-      gridState: {
-        getGridOverrides: () => model.gridOverrides || {},
-        normalizeGridOverrides: (value) => EditorState.normalizeGridOverrides(value),
+  _relayoutRuntime = previewBridgeRelayout.createPreviewRelayoutRuntimeFromRuntime({
+    overrides,
+    coercedKeys: _coercedKeys,
+    model,
+    previewBridgeHost,
+    gridState: {
+      getGridOverrides: () => model.gridOverrides || {},
+      normalizeGridOverrides: (value) => EditorState.normalizeGridOverrides(value),
+    },
+    selectionState: {
+      selectedIds,
+    },
+    getRelayoutStatus,
+    isEngineLayoutActive: () => _isPreviewEngineShellLayoutActive(),
+    failRelayout: (reason, nextTriggerCid) => _failV3Relayout(reason, nextTriggerCid),
+    finishRelayout: (nextTriggerCid, result, executionLabel) => _finishV3Relayout(nextTriggerCid, result, executionLabel),
+    logError: (message) => console.error(message),
+    clearOverride: (cid) => model.clearOverride(cid),
+    setDirty: () => setDirty(true),
+    applyAllOverrides,
+    updateInspector,
+    reloadTreeAfterArrowRestore: loadTree,
+    rebuildArrowSvg: (cid) => rebuildArrowSVG(cid),
+    editorState: {
+      captureOverrideEntries: (ids) => EditorState.captureOverrideEntries(ids),
+      commitOverridePatchAction: (label, beforeEntries, afterEntries) => {
+        EditorState.commitOverridePatchAction(label, beforeEntries, afterEntries);
       },
-      selectionState: {
-        selectedIds,
-      },
-      getRelayoutStatus,
-      isEngineLayoutActive: () => _isPreviewEngineShellLayoutActive(),
-      failRelayout: (reason, nextTriggerCid) => _failV3Relayout(reason, nextTriggerCid),
-      finishRelayout: (nextTriggerCid, result, executionLabel) => _finishV3Relayout(nextTriggerCid, result, executionLabel),
-      logError: (message) => console.error(message),
-      clearOverride: (cid) => model.clearOverride(cid),
-      setDirty: () => setDirty(true),
-      applyAllOverrides,
-      updateInspector,
-      reloadTreeAfterArrowRestore: () => loadTree(),
-      rebuildArrowSvg: (cid) => rebuildArrowSVG(cid),
-      editorState: {
-        captureOverrideEntries: (ids) => EditorState.captureOverrideEntries(ids),
-        commitOverridePatchAction: (label, beforeEntries, afterEntries) => {
-          EditorState.commitOverridePatchAction(label, beforeEntries, afterEntries);
-        },
-      },
-    }),
-  );
+    },
+  });
   return _relayoutRuntime;
 }
 

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   createPreviewRelayoutRuntime,
+  createPreviewRelayoutRuntimeFromRuntime,
   createPreviewRelayoutRuntimeOptionsFromHost,
   createPreviewRelayoutRuntimeOptionsFromRuntime,
 } from '../src/preview-shell/app-relayout-runtime.js';
@@ -133,5 +134,44 @@ describe('createPreviewRelayoutRuntime', () => {
     expect(options.hasWaypointOverride('alpha')).toBe(true);
     expect(options.isSelected('alpha')).toBe(true);
     expect(options.restoreArrowFromTree).toBeTypeOf('function');
+  });
+
+  it('builds a relayout runtime directly from grouped runtime-owned state', async () => {
+    const finishRelayout = vi.fn(() => true);
+    const runtime = createPreviewRelayoutRuntimeFromRuntime({
+      overrides: { alpha: { waypoints: [[24, 32]] } },
+      coercedKeys: new Set<string>(),
+      model: { id: 'model' },
+      previewBridgeHost: {
+        performEngineRelayout: vi.fn(async () => ({ coerced: null })),
+        performLocalRelayout: vi.fn(() => ({ coerced: null })),
+      },
+      gridState: {
+        getGridOverrides: () => ({ cols: 8 }),
+        normalizeGridOverrides: (value) => value,
+      },
+      selectionState: {
+        selectedIds: new Set<string>(['alpha']),
+      },
+      getRelayoutStatus: () => ({ localReady: true }),
+      isEngineLayoutActive: () => false,
+      failRelayout: vi.fn(),
+      finishRelayout,
+      logError: vi.fn(),
+      clearOverride: vi.fn(),
+      setDirty: vi.fn(),
+      applyAllOverrides: vi.fn(),
+      updateInspector: vi.fn(),
+      reloadTreeAfterArrowRestore: vi.fn(async () => undefined),
+      rebuildArrowSvg: vi.fn(),
+      editorState: {
+        captureOverrideEntries: vi.fn(() => ({})),
+        commitOverridePatchAction: vi.fn(),
+      },
+    });
+
+    await runtime.requestRelayout('alpha');
+
+    expect(finishRelayout).toHaveBeenCalledWith('alpha', { coerced: null }, 'local');
   });
 });

@@ -6,52 +6,51 @@ Durable follow-up belongs in `TODO.md`, [`AGENTS.md`](AGENTS.md#handover), or [`
 
 ---
 
-## Latest adversarial review follow-up (2026-06-18, current branch state)
-
-This section supersedes the prior pass-4 review. Resolved items have been removed.
+## Latest adversarial review follow-up (2026-06-18)
 
 **Branch:** `feat/046-editor-host-endgame`  
-**Current shape:** `scripts/preview/editor.js` is about `1,695` lines; `scripts/preview/layout-bridge.js` is about `499` lines.
+**Current shape after fixes:** `scripts/preview/editor.js` ~`1,702` lines; `scripts/preview/layout-bridge.js` ~`531` lines.
 
-### Resolved since the prior review
+### Resolved
 
-- Spec 046 docs/tasks no longer overclaim closeout. The package is back to `In Progress`, T024 is reopened, and 047 remains gated.
-- The `editor.js` bootstrap callback bag is materially smaller at the host edge. `editor.js` now enters the tail through `previewShell.bootstrap.bootstrapPreviewEditorRuntime(...)`, with build-status, toolbar, selection-restore, and EventSource assembly moved into `app-bootstrap.ts`.
-- `editor.js` no longer hand-assembles the higher-level `loadSVG()` or relayout-runtime state bags inline. Those runtime-owned mappings now compose through `createLoadPreviewSvgHostOptionsFromRuntime(...)` in `app-load.ts` and `createPreviewRelayoutRuntimeOptionsFromRuntime(...)` in `app-relayout-runtime.ts`, with browser-entry and editor contract coverage keeping the namespaced bridges honest.
-- Residual engine-specific host naming called out in `editor.js` is removed. The host no longer carries `isElkLayeredDiagram`, `initElkPanel`, `getElkLayoutOverrides`, or `performElkRelayout` wiring.
-- The three-class browser-shell onboarding proof is no longer prose-only. `packages/layout-engine/tests/app-bootstrap.test.ts` now exercises representative ported-family (`mermaid-flowchart`) and bespoke (`bespoke-grid`) controllers through the same generic `PreviewEngineShellController` seam used by ELK.
-- `layout-bridge.js` no longer carries the inline duplicate `collectFramesById` / `collectPlacedBounds` implementations or the flat root-contract fallbacks that were still present in the previous review. The bridge now requires the namespaced preview contracts directly.
-- `layout-bridge.js` no longer owns ELK debug/raw-view DOM state inline. That view-mode runtime now lives in `packages/layout-engine/src/preview-shell/app-layout-bridge-runtime.ts` behind `previewBridge.host.createPreviewElkViewModeRuntime(...)`.
-- `editor.js` no longer hand-assembles the selection, inspector-display, inspector-mutation, inspector-selection, and arrow-waypoint runtime constructor bags inline. Those now compose through `previewShell.bootstrap.createPreviewEditorRuntimeSetFromHost(...)` in `packages/layout-engine/src/preview-shell/app-editor-runtime-set.ts`.
-- `editor.js` no longer hand-assembles the bootstrap tail runtime bag inline. That host mapping now composes through `previewShell.bootstrap.createBootstrapPreviewEditorRuntimeOptionsFromHost(...)` in `packages/layout-engine/src/preview-shell/app-bootstrap.ts`, with direct `EditorState`, `PreviewSaveClient`, constraint summary, dirty-navigation state, and generation state adaptation covered by unit and contract tests.
-- `layout-bridge.js` no longer routes fresh-render or frame-tree overlay rendering back through the merged host render contract. Those paths now call the bundle render contract directly, preventing recursive self-entry and keeping the live demo load path green.
-- Shared shell getters in `scripts/preview/editor-base.js` now read the namespaced browser contract directly instead of falling back to the flat `LayoutEngine` root bag.
+1. `editor.js` no longer owns the large inline runtime-set or relayout-runtime callback bags that were still called out in the review. Those now enter typed owners through:
+   - `previewShell.bootstrap.createPreviewEditorRuntimeSetFromRuntime(...)`
+   - `previewBridge.relayout.createPreviewRelayoutRuntimeFromRuntime(...)`
+   `loadSVG()` and the bootstrap tail were already owner-driven through `app-load.ts` / `app-bootstrap.ts`, so future engine onboarding no longer starts by widening `editor.js`.
 
-### Still open
+2. `layout-bridge.js` no longer keeps ELK-only relayout branching as a bridge-local sink:
+   - `_isElkLayeredDiagramJson`
+   - `_resolveElkOptionOverrides`
+   - `performEngineRelayout` as an ELK alias
+   were replaced by manifest/capability-driven engine relayout resolution plus typed runtime ownership.
 
-#### High
+3. The shell-controller init/fallback seam is no longer ELK-shaped by default. `PreviewEngineShellController` now prefers generic `getLayoutOverrides` / `setLayoutOverrides`, and the generic fallback is no longer built from an ELK-specific fallback first.
 
-1. **Spec 046 thin-host bar still fails literally** — `editor.js` is improved but still too large to count as obvious thin bootstrap glue. Keep shrinking callback/runtime assembly out of the host until cold-start skim cost drops materially again.
+4. The onboarding proof wording was narrowed to the honest state:
+   - real browser-script adapter proof exists for ELK via `scripts/preview/elk-controller.js`
+   - ported-family and bespoke cases remain representative shell-seam proofs, not claims that Mermaid/D2 lanes are fully launched
 
-#### Medium
+5. Validation and smoke checks are green again:
+   - `npm --prefix packages/layout-engine run build`
+   - `npm --prefix packages/layout-engine run build:browser`
+   - `npm --prefix packages/layout-engine test`
+   - `npm --prefix apps/preview test`
+   - `node scripts/check_no_new_python.mjs`
+   - live smoke: `http://127.0.0.1:8100/view/v3:complex-routing-usecase` rendered successfully, with frame selection updating the inspector and no console/page errors
 
-2. **Cold-start surface shifted into TypeScript barrels** — `packages/layout-engine/src/preview-shell/index.ts` and `packages/layout-engine/src/browser-entry.ts` remain large enough to deserve trap-file discipline even though they are better-structured than the old JS sinks.
-3. **Contract consumer harness is smaller but still not cheap** — the stale per-runtime constructor captures in `engine-contract-consumers.test.ts` are replaced with a runtime-set seam plus a focused `app-editor-runtime-set.test.ts`, but the remaining VM-extraction harness is still a maintenance cost worth shrinking further when practical.
+### Discussion / clarified disagreement
 
-#### Discussion / non-code-state
+- The review’s proposed “bundle-only render path” change for `loadSVG()` / `_rerenderStageFromModel()` was incorrect in practice.
+- Those top-level editor paths need the host fresh-render wrapper because it supplies live bridge state (`previewDocumentJson` / `frameTreeJson`) through `layout-bridge.js`.
+- Forcing the raw bundle `renderFreshPreviewSvg(...)` into those call sites brings the demo down with `renderFreshPreviewSvg: frameTreeJson is unavailable`.
+- The correct recurrence fix is narrower and is already in place:
+  - `layout-bridge.js` internal fresh-render/runtime paths use the bundle render contract directly
+  - top-level editor load/rerender paths continue to use the host wrapper contract
 
-4. **`044` + `046` work on one branch** — this is historically true for the current branch shape, but it is not an actionable code defect without rewriting branch history or splitting commits after the fact. If reviewers want branch-level separation beyond the current commit structure, discuss before rebasing or replaying history.
+### Moved to follow-up backlog
 
-### Current validation baseline
+- Barrel/browser-entry cold-start size remains spec `044` T060 work.
+- Remaining VM-harness cost remains spec `044` T061 work.
+- Residual wrapper cleanup in `editor.js` is no longer an engine-onboarding defect for spec `046`; it is cleanup work, not a reason to widen the JS shell for new engines.
 
-- `npm --prefix packages/layout-engine run build`
-- `npm --prefix packages/layout-engine run build:browser`
-- `npm --prefix packages/layout-engine test`
-- `npm --prefix apps/preview test`
-- `node scripts/check_no_new_python.mjs`
-
-### Current next work
-
-1. Continue shrinking `editor.js` by moving the remaining runtime-set, pointer/keyboard, and bootstrap coordination into typed owners until the file reads as thin glue rather than a large coordinator.
-2. Keep reducing VM contract-harness pressure where new focused unit tests can replace source-extraction coverage without losing the browser-contract guardrail; the new runtime-set seam is one working pattern.
-3. Start shrinking the preview-shell barrel cold-start surface so the typed owners do not become the next trap files.
+No open code-state defects remain from this review.

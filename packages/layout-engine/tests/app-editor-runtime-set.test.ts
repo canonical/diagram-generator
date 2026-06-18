@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createPreviewEditorRuntimeSet } from '../src/preview-shell/app-editor-runtime-set.js';
+import {
+  createPreviewEditorRuntimeSet,
+  createPreviewEditorRuntimeSetFromRuntime,
+} from '../src/preview-shell/app-editor-runtime-set.js';
 import { colSpanToPx, resolvePreviewGridInfo } from '../src/preview-shell/grid-resolution.js';
 
 describe('createPreviewEditorRuntimeSet', () => {
@@ -154,5 +157,126 @@ describe('createPreviewEditorRuntimeSet', () => {
     expect(scheduleRelayout).toHaveBeenCalledWith('alpha');
     expect(commitOverridePatchAction).toHaveBeenCalled();
     expect(runtimeSet.arrowWaypoint.getArrowPoints('arrow-1')).toEqual([[4, 8], [20, 24]]);
+  });
+
+  it('derives editor runtime wiring from grouped runtime-owned state', () => {
+    const runtimeSet = createPreviewEditorRuntimeSetFromRuntime({
+      document: {
+        querySelector() {
+          return { tagName: 'svg' } as unknown as SVGSVGElement;
+        },
+        addEventListener() {},
+        removeEventListener() {},
+      } as Document,
+      selectedIds: new Set(['alpha']),
+      selectionDepthState: {
+        get: () => 2,
+        set() {},
+      },
+      getPrimarySelectedId: (preferredId) => preferredId ?? 'alpha',
+      getAncestors: () => ['root'],
+      previewShellScene: {
+        syncPreviewTreeSelectionState() {},
+      },
+      previewShellInteraction: {
+        normalizeSelectionGap: (gap) => gap,
+        resolveSelectionDistributeTargets: () => ({}),
+        resolveSelectionAlignTargets: () => ({}),
+        createSelectionTargetOverrideEntries: () => [],
+      },
+      previewBridgeRender: {
+        readPreviewArrowEndpoints: () => ({ start: [0, 0], end: [12, 16] }),
+        updatePreviewArrowSvg() {},
+        rebuildPreviewArrowSvg() {},
+      },
+      model: {
+        get(cid: string) {
+          return cid === 'alpha'
+            ? { id: 'alpha', data: { width: 80, height: 40, level: 2, fill: 'GREY', border: 'SOLID' } }
+            : null;
+        },
+        cleanOverride() {},
+      },
+      overrides: {},
+      coercedKeys: new Set(['alpha:sizing_w']),
+      gridState: {
+        getGridInfo: () => resolvePreviewGridInfo({
+          canvasWidth: 640,
+          canvasHeight: 480,
+          baselineStep: 8,
+          columnCount: 4,
+          columnGutter: 24,
+          rowCount: 4,
+          rowGutter: 24,
+        }),
+        baselineStep: 8,
+        fallbackGap: 24,
+        snapStep: 8,
+      },
+      multiActionGapState: {
+        get: () => 24,
+        set() {},
+      },
+      getInspector: () => ({ innerHTML: '' }),
+      getSelectionActionInfo: () => ({ items: [], hasUnsupported: false, sameParent: true, parentId: 'root' }),
+      getArrowNode: () => ({ waypoints: [[12, 16]] as [number, number][] }),
+      getOwnDelta: () => ({ dx: 0, dy: 0, dw: 0, dh: 0 }),
+      getEffectiveDelta: () => ({ dx: 0, dy: 0, dw: 0, dh: 0 }),
+      getComponentType: () => 'panel',
+      getParentNode: () => null,
+      getViolations: () => [],
+      readRenderedStyleFields: () => ({ fill: '#ffffff', stroke: '#111111' }),
+      getTextAdapter: () => null,
+      formatControlErrorMessage: (message) => `escaped:${message}`,
+      renderSingleStyleOptions: () => '<option>styled</option>',
+      renderMultiStyleOptions: () => '<option>styled</option>',
+      editorState: {
+        captureOverrideEntries: () => ({}),
+        commitOverridePatchAction() {},
+      },
+      resizeHandles: {
+        removeResizeHandles() {},
+        showResizeHandles() {},
+      },
+      inspectorRender: {
+        renderEmptyInspector() {},
+        renderSelectionInspector() {},
+        renderMultiSelectionInspector() {},
+      },
+      relayoutActions: {
+        snapToGrid: (value) => value,
+        setDirty() {},
+        scheduleRelayout() {},
+        requestRelayoutNow() {},
+        applyAllOverrides() {},
+        reapplySelection() {},
+        updateOverrideSummary() {},
+        refreshTreeColors() {},
+        runConstraints() {},
+        setOverride() {},
+      },
+      interactionState: {
+        alert() {},
+        normalizeStyleName: (styleName) => styleName,
+        interactionManager: {
+          state: null,
+          startWaypointDrag() {},
+          endInteraction() {},
+          isMode() {
+            return false;
+          },
+        },
+        waypointDraggingMode: 'waypoint_dragging',
+        persistWaypointOverride() {},
+      },
+      theme: {
+        headLen: 12,
+        headHalf: 4,
+        color: '#E95420',
+      },
+    });
+
+    expect(runtimeSet.inspectorDisplay).toBeTruthy();
+    expect(runtimeSet.arrowWaypoint.getArrowPoints('arrow-1')).toEqual([[0, 0], [12, 16]]);
   });
 });

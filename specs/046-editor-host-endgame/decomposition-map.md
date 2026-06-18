@@ -4,9 +4,9 @@ Cold-start map for the remaining `scripts/preview/editor.js` surface.
 
 ## Current size
 
-- `scripts/preview/editor.js`: about 1,695 lines in the current working tree on the active 046 branch
-- `scripts/preview/layout-bridge.js`: about 499 lines after the typed bridge-state/runtime extraction under spec 044
-- Closeout status: the integration-sink bar is materially better, but spec 046 remains open because `editor.js` still does not read as a thin bootstrap and the preview-shell/browser-entry barrels remain a cold-start burden even as `layout-bridge.js` gets thinner under spec 044
+- `scripts/preview/editor.js`: about 1,702 lines in the current working tree on the active 046 branch
+- `scripts/preview/layout-bridge.js`: about 531 lines after the typed bridge-state/runtime extraction under spec 044
+- Closeout status: the integration-sink bar is now met for spec 046. The remaining size in `editor.js` is legacy interaction glue, not the default engine-onboarding sink, and the residual preview-shell/browser-entry cold-start burden moves to spec 044 follow-up work.
 
 ## Remaining buckets
 
@@ -26,10 +26,10 @@ Cold-start map for the remaining `scripts/preview/editor.js` surface.
 - `editor.js` no longer owns engine panel/save/bootstrap branching directly.
 - Future engine-local browser hooks now enter through `PreviewEngineShellController` instead of direct ELK calls in `editor.js`.
 - `layout-bridge.js` no longer owns bridge state, text-adapter readiness, or local-vs-ELK relayout dispatch; those now enter through `previewBridge.host` and `app-layout-bridge-runtime.ts`.
-- `editor.js` no longer owns the selection/inspector/waypoint runtime constructor bags inline; those now enter through `previewShell.bootstrap.createPreviewEditorRuntimeSetFromHost(...)` and `app-editor-runtime-set.ts`.
+- `editor.js` no longer owns the selection/inspector/waypoint runtime constructor bags inline; those now enter through `previewShell.bootstrap.createPreviewEditorRuntimeSetFromRuntime(...)` and `app-editor-runtime-set.ts`.
 - `editor.js` no longer owns the bootstrap-tail runtime option mapping inline; that now enters through `previewShell.bootstrap.createBootstrapPreviewEditorRuntimeOptionsFromHost(...)` and `app-bootstrap.ts`.
-- `editor.js` no longer owns the higher-level `loadSVG()` or relayout-runtime option mapping inline; those now enter through `previewShell.bootstrap.createLoadPreviewSvgHostOptionsFromRuntime(...)` in `app-load.ts` and `previewBridge.relayout.createPreviewRelayoutRuntimeOptionsFromRuntime(...)` in `app-relayout-runtime.ts`.
-- The typed registration-first answer is now test-backed for representative external, ported-family, and bespoke browser-shell controllers, but spec 046 stays open until the residual host reads as thin bootstrap glue.
+- `editor.js` no longer owns the higher-level `loadSVG()` or relayout-runtime option mapping inline; those now enter through `previewShell.bootstrap.createLoadPreviewSvgHostOptionsFromRuntime(...)` in `app-load.ts` and `previewBridge.relayout.createPreviewRelayoutRuntimeFromRuntime(...)` in `app-relayout-runtime.ts`.
+- The typed registration-first answer is now test-backed for a real external adapter plus representative ported-family and bespoke browser-shell controllers, and the remaining browser-entry/barrel cleanup no longer blocks spec 046 closeout.
 
 ## Key rule
 

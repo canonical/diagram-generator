@@ -65,7 +65,7 @@ describe('preview layout bridge runtime', () => {
     });
   });
 
-  it('delegates local and ELK relayout through the typed runtime', async () => {
+  it('delegates local and engine relayout through the typed runtime', async () => {
     const state = createPreviewLayoutBridgeState<Record<string, unknown>, Record<string, unknown>>();
     state.previewDocumentJson = { kind: 'frame-diagram' };
     state.frameTreeJson = {
@@ -96,7 +96,7 @@ describe('preview layout bridge runtime', () => {
           : null
       ),
       isAuthoritativeTextAdapter: () => true,
-      isElkLayeredDiagramJson: () => false,
+      isEngineLayoutDiagramJson: () => false,
       deserializeFrameDiagram: () => ({
         root: {
           id: 'root',
@@ -132,7 +132,7 @@ describe('preview layout bridge runtime', () => {
       ownerDocument: { tagName: 'document' } as never,
       getStageContainer: () => ({ replaceChildren } as never),
       fitRenderedSvg,
-      resolveElkOptionOverrides: () => ({}),
+      resolveEngineLayoutOptionOverrides: () => ({}),
       refreshElkViewMode,
       warn: vi.fn(),
       error: vi.fn(),
@@ -158,8 +158,8 @@ describe('preview layout bridge runtime', () => {
     expect(updateModelFromLayout).toHaveBeenCalledTimes(1);
     expect(syncArrowsInModel).toHaveBeenCalledTimes(1);
 
-    const elk = await runtime.performElkRelayout(model, { root: { dx: 8 } }, { cols: 8 });
-    expect(elk).toMatchObject({
+    const engine = await runtime.performEngineRelayout(model, { root: { dx: 8 } }, { cols: 8 });
+    expect(engine).toMatchObject({
       width: 640,
       height: 480,
     });

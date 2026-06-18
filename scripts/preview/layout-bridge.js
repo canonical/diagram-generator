@@ -67,6 +67,34 @@ function previewElkEngineContract() {
   return contract;
 }
 
+function previewEngineRegistryContract() {
+  return window.LayoutEngine?.previewEngines?.registry ?? null;
+}
+
+function resolvePreviewEngineManifest(json) {
+  const layoutEngine = json?.layoutEngine
+    ?? window.__DG_CONFIG?.layout_engine
+    ?? null;
+  const registry = previewEngineRegistryContract();
+  if (registry && typeof registry.resolvePreviewEngine === "function") {
+    return registry.resolvePreviewEngine({ layoutEngine, shellMode: "grid" }) || null;
+  }
+  if (typeof window.LayoutEngine?.resolvePreviewEngine === "function") {
+    return window.LayoutEngine.resolvePreviewEngine({ layoutEngine, shellMode: "grid" }) || null;
+  }
+  return null;
+}
+
+function getPreviewEngineShellController() {
+  const previewShellBootstrap = typeof window.__DG_getPreviewShellBootstrapContract === "function"
+    ? window.__DG_getPreviewShellBootstrapContract()
+    : null;
+  if (previewShellBootstrap && typeof previewShellBootstrap.getPreviewEngineShellController === "function") {
+    return previewShellBootstrap.getPreviewEngineShellController(window);
+  }
+  return window.PreviewEngineShellController || window.ElkPreviewController || null;
+}
+
 function deserializeFrame(json) {
   return previewCoreContract().deserializeFrameWire(json);
 }
@@ -243,15 +271,21 @@ function getPreviewDocumentJson() {
   return _layoutBridgeRuntime.getPreviewDocumentJson();
 }
 
-function _isElkLayeredDiagramJson(json) {
-  if (json && json.layoutEngine === "elk-layered") return true;
-  const cfg = window.__DG_CONFIG || {};
-  return cfg.layout_engine === "elk-layered";
+function _isEngineLayoutDiagramJson(json) {
+  const engine = resolvePreviewEngineManifest(json);
+  return Boolean(engine && engine.capabilities && engine.capabilities.serverRelayout);
 }
 
-function _resolveElkOptionOverrides(diagram, model) {
+function _resolveEngineLayoutOptionOverrides(diagram, model) {
   const fromYaml = (diagram && diagram.elkLayout) || {};
   let session = (model && model.elkLayoutOverrides) || {};
+  const controller = getPreviewEngineShellController();
+  if (controller && typeof controller.getLayoutOverrides === "function") {
+    session = {
+      ...session,
+      ...(controller.getLayoutOverrides() || {}),
+    };
+  }
   // Model is updated on every sidebar input — prefer it over DOM reads so load/reload
   // cannot clobber saved YAML with stale server-rendered sidebar HTML.
   if (Object.keys(session).length === 0
@@ -295,7 +329,7 @@ const _layoutBridgeRuntime = previewBridgeHostContract().createPreviewLayoutBrid
       ? textAdapter.measurementBackend === "harfbuzz"
       : false
   ),
-  isElkLayeredDiagramJson: _isElkLayeredDiagramJson,
+  isEngineLayoutDiagramJson: _isEngineLayoutDiagramJson,
   deserializeFrameDiagram,
   collectRelayoutFrameOverrides: _collectRelayoutFrameOverrides,
   applyOverridesToFrameTree,
@@ -334,7 +368,7 @@ const _layoutBridgeRuntime = previewBridgeHostContract().createPreviewLayoutBrid
   ownerDocument: document,
   getStageContainer: () => document.getElementById("stage"),
   fitRenderedSvg: (svg, options) => fitSvgToRenderedContent(svg, options),
-  resolveElkOptionOverrides: _resolveElkOptionOverrides,
+  resolveEngineLayoutOptionOverrides: _resolveEngineLayoutOptionOverrides,
   refreshElkViewMode,
   warn: (message, error) => console.warn(message, error),
   error: (message, error) => console.error(message, error),
@@ -439,18 +473,19 @@ function performLocalRelayout(model, overrides, gridOverrides, opts) {
 }
 
 /**
- * Full ELK relayout + SVG replace (async). Used when ELK params or frame overrides change.
+ * Full engine-backed relayout + SVG replace (async). Used when engine params
+ * or frame overrides change.
  */
-async function performElkRelayout(model, overrides, gridOverrides) {
-  return _layoutBridgeRuntime.performElkRelayout(
+async function performEngineRelayout(model, overrides, gridOverrides) {
+  return _layoutBridgeRuntime.performEngineRelayout(
     model,
     overrides || {},
     gridOverrides || {},
   );
 }
 
-async function performEngineRelayout(model, overrides, gridOverrides) {
-  return performElkRelayout(model, overrides, gridOverrides);
+async function performElkRelayout(model, overrides, gridOverrides) {
+  return performEngineRelayout(model, overrides, gridOverrides);
 }
 
 // ---------------------------------------------------------------------------

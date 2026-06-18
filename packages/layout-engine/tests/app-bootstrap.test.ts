@@ -40,6 +40,8 @@ describe('preview bootstrap helpers', () => {
       getFrameTree: vi.fn(),
     };
     const elkInit = {
+      getLayoutOverrides: vi.fn(() => ({})),
+      setLayoutOverrides: vi.fn(),
       getElkLayoutOverrides: vi.fn(() => ({})),
       setElkLayoutOverrides: vi.fn(),
       getRootId: vi.fn(() => 'root'),
@@ -327,6 +329,9 @@ describe('preview bootstrap helpers', () => {
       getGridOverrides() {
         return {};
       },
+      getLayoutOverrides() {
+        return {};
+      },
       getElkLayoutOverrides() {
         return {};
       },
@@ -335,6 +340,9 @@ describe('preview bootstrap helpers', () => {
       },
       getFrameTree() {
         return null;
+      },
+      setLayoutOverrides() {
+        orderedCalls.push('setLayoutOverrides');
       },
       setElkLayoutOverrides() {
         orderedCalls.push('setElkLayoutOverrides');
@@ -507,6 +515,7 @@ describe('preview bootstrap helpers', () => {
 
     expect(options.getCurrentPath()).toBe('/view/v3:demo');
     expect(options.getGridOverrides()).toEqual({ cols: 6 });
+    expect(options.getLayoutOverrides?.()).toEqual({ root: { spacing: 24 } });
     expect(options.getElkLayoutOverrides()).toEqual({ root: { spacing: 24 } });
     expect(Array.from(options.getRemovedIds() as Set<string>)).toEqual(['stale']);
     expect(options.getRootId()).toBe('root');
@@ -733,6 +742,8 @@ describe('preview bootstrap helpers', () => {
     } as unknown as Window & typeof globalThis;
 
     const controller = ensurePreviewEngineShellController(previewWindow, {
+      getLayoutOverrides: () => ({}),
+      setLayoutOverrides: () => {},
       getElkLayoutOverrides: () => ({}),
       setElkLayoutOverrides: () => {},
       getRootId: () => 'root',
@@ -792,6 +803,8 @@ describe('preview bootstrap helpers', () => {
       } as unknown as Window & typeof globalThis;
 
       ensurePreviewEngineShellController(previewWindow, {
+        getLayoutOverrides: () => ({}),
+        setLayoutOverrides: () => {},
         getElkLayoutOverrides: () => ({}),
         setElkLayoutOverrides: () => {},
         getRootId: () => 'root',

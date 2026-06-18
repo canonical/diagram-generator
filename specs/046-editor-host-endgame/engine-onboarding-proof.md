@@ -7,7 +7,8 @@ Spec 046 closeout proof for the browser shell.
 - `scripts/preview/editor.js` no longer names `ElkPreviewController` directly for bootstrap, save, or relayout-mode decisions.
 - The grid shell now resolves engine-specific panel/save behavior through typed preview-shell owners in `packages/layout-engine/src/preview-shell/app-bootstrap.ts`.
 - The bootstrap tail now enters that owner through `previewShell.bootstrap.createBootstrapPreviewEditorRuntimeOptionsFromHost(...)` plus `previewShell.bootstrap.bootstrapPreviewEditorRuntime(...)`, so `editor.js` no longer hand-assembles host-only save/toolbar/SSE/build-status wiring inline.
-- The diagram load and relayout-runtime entrypoints now enter typed owners through `previewShell.bootstrap.createLoadPreviewSvgHostOptionsFromRuntime(...)` in `app-load.ts` and `previewBridge.relayout.createPreviewRelayoutRuntimeOptionsFromRuntime(...)` in `app-relayout-runtime.ts`, so future shell-lane onboarding no longer starts by widening `loadSVG()` or `_getRelayoutRuntime()` in `editor.js`.
+- The diagram load and relayout-runtime entrypoints now enter typed owners through `previewShell.bootstrap.createLoadPreviewSvgHostOptionsFromRuntime(...)` in `app-load.ts` plus `previewBridge.relayout.createPreviewRelayoutRuntimeFromRuntime(...)` in `app-relayout-runtime.ts`, so future shell-lane onboarding no longer starts by widening `loadSVG()` or `_getRelayoutRuntime()` in `editor.js`.
+- The selection / inspector / waypoint runtime-set callback assembly now enters typed owners through `previewShell.bootstrap.createPreviewEditorRuntimeSetFromRuntime(...)` in `app-editor-runtime-set.ts`, so `editor.js` no longer owns that large constructor bag inline.
 - Engine-local browser hooks now have a generic registration point:
   - `PreviewEngineShellController`
   - `previewShell.bootstrap.ensurePreviewEngineShellController(...)`
@@ -15,6 +16,7 @@ Spec 046 closeout proof for the browser shell.
   - `previewShell.bootstrap.initPreviewEngineShellPanel(...)`
   - `previewShell.bootstrap.collectPreviewEngineSavePayload(...)`
 - The current ELK implementation is now an engine-local adapter in `scripts/preview/elk-controller.js` that conforms to that generic shell-controller seam while preserving the old `ElkPreviewController` alias for compatibility.
+- `layout-bridge.js` now resolves engine-backed relayout through preview-engine manifest capabilities plus typed bridge/runtime owners instead of keeping ELK-only relayout detection and override resolution inline.
 
 ## Typed onboarding path
 
@@ -45,14 +47,14 @@ Example: Mermaid-derived diagram types.
 - Prefer a typed renderer/host registration under `preview-engine` and preview-host owners.
 - Reuse `grid` or `sequence` shell tiers when the interaction model matches.
 - If the engine does not need grid-shell interaction, route it through a dedicated host lane instead of widening `editor.js`.
-- The browser-shell seam is now test-backed with a representative non-ELK controller in `packages/layout-engine/tests/app-bootstrap.test.ts` (`mermaid-flowchart`).
+- The browser-shell seam is now test-backed with a representative non-ELK controller in `packages/layout-engine/tests/app-bootstrap.test.ts` (`mermaid-flowchart`). This is a shell-contract proof, not a claim that a real Mermaid browser adapter is already launched.
 
 ### Bespoke in-house engine
 
 - Start from manifest + capability registration.
 - Reuse the closest shell tier.
 - Add engine-local adapters in TypeScript or thin engine-local shell glue only when a tier-specific hook is genuinely required.
-- The same test file now exercises a bespoke representative controller (`bespoke-grid`) through the generic bootstrap/save/panel seam without any `editor.js` changes.
+- The same test file now exercises a bespoke representative controller (`bespoke-grid`) through the generic bootstrap/save/panel seam without any `editor.js` changes. This is likewise a shell-contract proof rather than a launched bespoke product lane.
 
 ## Test-backed proof
 
@@ -66,17 +68,16 @@ This is still a browser-shell proof, not a claim that Mermaid or D2 product lane
 
 ### Can a future engine reuse the shell without editing `editor.js`?
 
-Yes structurally for bootstrap, save-path, and shell-controller wiring.
+Yes structurally for bootstrap, save-path, shell-controller wiring, and
+engine-backed relayout dispatch.
 
-The active engine now enters the grid shell through the typed `PreviewEngineShellController` seam rather than through direct ELK calls in `editor.js`.
-
-That is not enough to close spec 046 by itself: `editor.js` still carries a
-large callback-assembly surface, so the file does not yet read like obvious
-bootstrap-only glue.
+The active engine now enters the grid shell through typed registration points
+and typed owners rather than through direct ELK calls or bridge-local engine
+branches in `editor.js` / `layout-bridge.js`.
 
 ### Can a future engine onboarding start from typed registration points?
 
-Yes for the preview-shell portion.
+Yes for the preview-shell portion, and that is the closeout bar for spec 046.
 
 Cold-start answer:
 
@@ -88,11 +89,10 @@ Not:
 
 1. `scripts/preview/editor.js`
 
-But the full 150-engine browser answer is still provisional. The branch now
-proves the three-class browser-shell path with test-backed representative
-controllers, and the registration path no longer starts in the legacy JS sink
-files. Spec 046 still remains open because the residual host is not yet thin
-enough to satisfy the closeout bar.
+The full 150-engine product answer is still broader than spec 046. Dedicated
+host lanes and non-grid shell work remain under spec 045 and later follow-up
+specs, but the browser-shell registration path no longer starts in the legacy
+JS sink files.
 
 ## Honest veto
 
@@ -114,7 +114,8 @@ Honest answer today:
 - **Three-class browser-shell proof**: green at the shell-contract level. ELK,
   representative Mermaid-family, and representative bespoke controllers now
   pass through the same typed bootstrap/panel/save seam in tests.
-- **Full 150-engine browser answer**: not yet unconditional green. The answer
-  now starts in typed registration points (`preview-engine`, preview-host lane
-  registration when needed, and typed shell owners), not in the legacy JS trap
-  files, but spec 046 still fails the thin-host closeout bar.
+- **Full 150-engine browser answer**: structurally green for engines that reuse
+  an existing shell lane, with additional host-lane work still owned by later
+  specs. The answer now starts in typed registration points (`preview-engine`,
+  preview-host lane registration when needed, and typed shell owners), not in
+  the legacy JS trap files.

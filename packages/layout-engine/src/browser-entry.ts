@@ -302,6 +302,7 @@ export {
   clearPreviewTransientLayoutOverrides,
   dispatchPreviewClearOverride,
   createPreviewRelayoutRuntimeState,
+  createPreviewRelayoutRuntimeFromRuntime,
   createPreviewRelayoutRuntimeOptionsFromRuntime,
   createPreviewRelayoutRuntimeOptionsFromHost,
   clearPreviewReorderIndicator,
@@ -345,6 +346,7 @@ export {
   createBootstrapPreviewEditorHostOptionsFromRuntime,
   createLoadPreviewSvgHostOptionsFromRuntime,
   createPreviewBuildStatusUpdater,
+  createPreviewEditorRuntimeSetFromRuntime,
   createPreviewEditorRuntimeSetFromHost,
   createPreviewEditorRuntimeSet,
   createPreviewArrowWaypointRuntime,
@@ -646,10 +648,12 @@ export type {
   PreviewArrowhead,
   PreviewStageCanvasDimensions,
   RerenderPreviewStageHostOptions,
+  CreatePreviewEditorRuntimeSetFromRuntimeOptions,
   PreviewEditorStateApi,
   PreviewEditorStateInitOptions,
   PreviewElkControllerApi,
   PreviewElkControllerInitOptions,
+  PreviewEngineShellControllerInitOptions,
   PreviewEventSourceLike,
   PreviewPageshowReloadOptions,
   PreviewSaveClientApi,
@@ -885,6 +889,8 @@ export const previewShell = Object.freeze({
     createPreviewDiagramLoadSignalState: previewShellRuntime.createPreviewDiagramLoadSignalState,
     signalPreviewDiagramLoaded: previewShellRuntime.signalPreviewDiagramLoaded,
     whenPreviewDiagramLoaded: previewShellRuntime.whenPreviewDiagramLoaded,
+    createPreviewEditorRuntimeSetFromRuntime:
+      previewShellRuntime.createPreviewEditorRuntimeSetFromRuntime,
     createPreviewEditorRuntimeSetFromHost: previewShellRuntime.createPreviewEditorRuntimeSetFromHost,
     createPreviewEditorRuntimeSet: previewShellRuntime.createPreviewEditorRuntimeSet,
     createBootstrapPreviewEditorRuntimeOptionsFromHost:
@@ -1112,6 +1118,8 @@ export const previewBridge = Object.freeze({
   relayout: Object.freeze({
     applyPreviewOverridesToFrameTree: previewShellRuntime.applyPreviewOverridesToFrameTree,
     collectPreviewRelayoutFrameOverrides: previewShellRuntime.collectPreviewRelayoutFrameOverrides,
+    createPreviewRelayoutRuntimeFromRuntime:
+      previewShellRuntime.createPreviewRelayoutRuntimeFromRuntime,
     createPreviewRelayoutRuntime: previewShellRuntime.createPreviewRelayoutRuntime,
     createPreviewRelayoutRuntimeOptionsFromRuntime:
       previewShellRuntime.createPreviewRelayoutRuntimeOptionsFromRuntime,
