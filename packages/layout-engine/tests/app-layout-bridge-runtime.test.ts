@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   applyFrameTreeRemovalsToPreviewTreeJson,
+  createPreviewElkViewModeRuntime,
   createPreviewLayoutBridgeRuntime,
   createPreviewLayoutBridgeState,
   resolvePreviewLayoutBridgeLocalRelayoutStatus,
@@ -167,5 +168,54 @@ describe('preview layout bridge runtime', () => {
     expect(refreshElkViewMode).toHaveBeenCalledTimes(1);
     expect(runtime.getLastElkSnapshot()).toEqual({ id: 'elk' });
     expect(runtime.getLastElkFrameLabels()).toEqual({ root: 'Root' });
+  });
+
+  it('owns the ELK raw/debug overlay view mode outside layout-bridge.js', () => {
+    const appendChild = vi.fn();
+    const setAttribute = vi.fn();
+    const removeRawView = vi.fn();
+    const removeDebugOverlay = vi.fn();
+    const svg = {
+      querySelector(selector: string) {
+        if (selector === '#dg-styled-layer') {
+          return { setAttribute };
+        }
+        if (selector === '#dg-elk-raw-view') {
+          return { remove: removeRawView };
+        }
+        if (selector === '#dg-elk-debug-overlay') {
+          return { remove: removeDebugOverlay };
+        }
+        return null;
+      },
+      appendChild,
+    } as unknown as SVGSVGElement;
+    const previewWindow = {
+      __DG_elkDebugOverlay: 'truthy' as unknown as boolean,
+      __DG_elkRawView: false,
+    };
+    const runtime = createPreviewElkViewModeRuntime({
+      previewWindow,
+      getStageSvg: () => svg,
+      ownerDocument: {} as Document,
+      getLastElkSnapshot: () => ({ id: 'elk' } as never),
+      getLastElkFrameLabels: () => ({ root: 'Root' }),
+      renderPreviewElkRawView: vi.fn(() => ({ id: 'raw' } as never)),
+      renderPreviewElkDebugOverlay: vi.fn(() => ({ id: 'overlay' } as never)),
+      svgNs: 'http://www.w3.org/2000/svg',
+      headLen: 8,
+      headHalf: 4,
+    });
+
+    runtime.initializeWindowState();
+    runtime.setDebugOverlay(true);
+    runtime.setRawView(true);
+
+    expect(previewWindow.__DG_elkDebugOverlay).toBe(true);
+    expect(previewWindow.__DG_elkRawView).toBe(true);
+    expect(setAttribute).toHaveBeenCalledWith('display', 'none');
+    expect(removeRawView).toHaveBeenCalled();
+    expect(removeDebugOverlay).toHaveBeenCalled();
+    expect(appendChild).toHaveBeenCalledTimes(2);
   });
 });

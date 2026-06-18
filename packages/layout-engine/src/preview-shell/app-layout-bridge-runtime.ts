@@ -167,6 +167,43 @@ export interface PreviewLayoutBridgeRuntime<
   ) => Promise<PreviewLayoutBridgeRelayoutResult | null>;
 }
 
+export interface PreviewElkViewModeWindowLike {
+  __DG_elkDebugOverlay?: boolean;
+  __DG_elkRawView?: boolean;
+}
+
+export interface CreatePreviewElkViewModeRuntimeOptions {
+  previewWindow: PreviewElkViewModeWindowLike;
+  getStageSvg: () => SVGSVGElement | null;
+  ownerDocument: Document;
+  getLastElkSnapshot: () => ElkLayoutSnapshot | null;
+  getLastElkFrameLabels: () => Record<string, string> | null;
+  renderPreviewElkRawView?: ((options: {
+    ownerDocument: Document;
+    snapshot: ElkLayoutSnapshot;
+    labelMap: Record<string, string>;
+    svgNs: string;
+    headLen: number;
+    headHalf: number;
+  }) => SVGElement | SVGGElement | null) | null;
+  renderPreviewElkDebugOverlay?: ((options: {
+    ownerDocument: Document;
+    snapshot: ElkLayoutSnapshot;
+    svgNs: string;
+  }) => SVGElement | SVGGElement | null) | null;
+  svgNs: string;
+  headLen: number;
+  headHalf: number;
+}
+
+export interface PreviewElkViewModeRuntime {
+  initializeWindowState: () => void;
+  refreshViewMode: () => void;
+  refreshDebugOverlay: () => void;
+  setDebugOverlay: (enabled: boolean) => void;
+  setRawView: (enabled: boolean) => void;
+}
+
 interface PreviewLayoutBridgeTreeNode {
   id?: string | null;
   role?: string | null;
@@ -206,6 +243,86 @@ function clonePreviewLayoutBridgeValue<T>(value: T): T {
     return value;
   }
   return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function isPreviewElkDebugEnabled(
+  previewWindow: PreviewElkViewModeWindowLike,
+): boolean {
+  return previewWindow.__DG_elkDebugOverlay === true
+    && previewWindow.__DG_elkRawView !== true;
+}
+
+function isPreviewElkRawViewEnabled(
+  previewWindow: PreviewElkViewModeWindowLike,
+): boolean {
+  return previewWindow.__DG_elkRawView === true;
+}
+
+export function createPreviewElkViewModeRuntime(
+  options: CreatePreviewElkViewModeRuntimeOptions,
+): PreviewElkViewModeRuntime {
+  const refreshViewMode = (): void => {
+    const svg = options.getStageSvg();
+    if (!svg) {
+      return;
+    }
+
+    const elkSnapshot = options.getLastElkSnapshot();
+    const elkFrameLabels = options.getLastElkFrameLabels();
+    const rawViewEnabled = isPreviewElkRawViewEnabled(options.previewWindow);
+    const styledLayer = svg.querySelector<SVGElement>('#dg-styled-layer');
+
+    styledLayer?.setAttribute('display', rawViewEnabled ? 'none' : 'inline');
+    svg.querySelector('#dg-elk-raw-view')?.remove();
+    svg.querySelector('#dg-elk-debug-overlay')?.remove();
+
+    if (rawViewEnabled && elkSnapshot && options.renderPreviewElkRawView) {
+      const rawView = options.renderPreviewElkRawView({
+        ownerDocument: options.ownerDocument,
+        snapshot: elkSnapshot,
+        labelMap: elkFrameLabels || {},
+        svgNs: options.svgNs,
+        headLen: options.headLen,
+        headHalf: options.headHalf,
+      });
+      if (rawView) {
+        svg.appendChild(rawView);
+      }
+      return;
+    }
+
+    if (isPreviewElkDebugEnabled(options.previewWindow)
+      && elkSnapshot
+      && options.renderPreviewElkDebugOverlay) {
+      const overlay = options.renderPreviewElkDebugOverlay({
+        ownerDocument: options.ownerDocument,
+        snapshot: elkSnapshot,
+        svgNs: options.svgNs,
+      });
+      if (overlay) {
+        svg.appendChild(overlay);
+      }
+    }
+  };
+
+  return {
+    initializeWindowState() {
+      options.previewWindow.__DG_elkDebugOverlay = options.previewWindow.__DG_elkDebugOverlay === true;
+      options.previewWindow.__DG_elkRawView = options.previewWindow.__DG_elkRawView === true;
+    },
+    refreshViewMode,
+    refreshDebugOverlay() {
+      refreshViewMode();
+    },
+    setDebugOverlay(enabled) {
+      options.previewWindow.__DG_elkDebugOverlay = Boolean(enabled);
+      refreshViewMode();
+    },
+    setRawView(enabled) {
+      options.previewWindow.__DG_elkRawView = Boolean(enabled);
+      refreshViewMode();
+    },
+  };
 }
 
 export function normalizePreviewLayoutBridgeLocalRelayoutOverrideMode(

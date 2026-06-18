@@ -6,32 +6,49 @@ Durable follow-up belongs in `TODO.md`, [`AGENTS.md`](AGENTS.md#handover), or [`
 
 ---
 
-## Latest adversarial review (Composer 2.5, 2026-06-17)
+## Latest adversarial review follow-up (2026-06-18, current branch state)
 
-Status: this is now the only retained inbox review. Older resolved or durable items were moved to the owning specs/docs and removed from this file.
+This section supersedes the prior pass-4 review. Resolved items have been removed.
 
-### Already addressed after the review
+**Branch:** `feat/046-editor-host-endgame`  
+**Current shape:** `scripts/preview/editor.js` is about `1,937` lines; `scripts/preview/layout-bridge.js` is about `544` lines.
 
-- Preview consumer regressions called out in the review are fixed; `npm --prefix apps/preview test` should stay green before merge.
-- Branch-per-spec workflow is now documented in `README.md`, `AGENTS.md`, and `docs/specs.md`.
-- `scripts/preview/editor.js` is down to about **2,178** lines and the stage-rerender/delete plus bootstrap-tail ordering/document bindings now route through typed owners.
-- Spec 043 is archived under `docs/spec-archive/043-preview-shell-editor-ts-extraction/`; it is no longer the active spec target.
+### Resolved since the prior review
 
-### Moved to owning specs
+- Spec 046 docs/tasks no longer overclaim closeout. The package is back to `In Progress`, T024 is reopened, and 047 remains gated.
+- The `editor.js` bootstrap callback bag is materially smaller at the host edge. `editor.js` now enters the tail through `previewShell.bootstrap.bootstrapPreviewEditorRuntime(...)`, with build-status, toolbar, selection-restore, and EventSource assembly moved into `app-bootstrap.ts`.
+- `editor.js` no longer hand-assembles the `loadPreviewSvg(...)` or relayout-runtime callback bags inline. Those host-option builders now live in typed preview-shell owners (`createLoadPreviewSvgHostOptions(...)` and `createPreviewRelayoutRuntimeOptionsFromHost(...)`).
+- Residual engine-specific host naming called out in `editor.js` is removed. The host no longer carries `isElkLayeredDiagram`, `initElkPanel`, `getElkLayoutOverrides`, or `performElkRelayout` wiring.
+- The three-class browser-shell onboarding proof is no longer prose-only. `packages/layout-engine/tests/app-bootstrap.test.ts` now exercises representative ported-family (`mermaid-flowchart`) and bespoke (`bespoke-grid`) controllers through the same generic `PreviewEngineShellController` seam used by ELK.
+- `layout-bridge.js` no longer carries the inline duplicate `collectFramesById` / `collectPlacedBounds` implementations or the flat root-contract fallbacks that were still present in the previous review. The bridge now requires the namespaced preview contracts directly.
+- `layout-bridge.js` no longer owns ELK debug/raw-view DOM state inline. That view-mode runtime now lives in `packages/layout-engine/src/preview-shell/app-layout-bridge-runtime.ts` behind `previewBridge.host.createPreviewElkViewModeRuntime(...)`.
+- Shared shell getters in `scripts/preview/editor-base.js` now read the namespaced browser contract directly instead of falling back to the flat `LayoutEngine` root bag.
 
-- **Spec 044** now owns the remaining review hardening around transitional root aliases, the oversized browser-contract VM harness, and the remaining `layout-bridge.js` sink risk.
-- **Spec 045** remains the owner for further `apps/preview/src/server.ts` shrink and lane-onboarding host topology.
-- **Spec 046** remains the owner for the unfinished `editor.js` endgame: remaining drag/resize/waypoint completion glue, keyboard/document-event callback assembly, and residual state-copy wrappers.
-- **Spec 047** remains gated; render-IR convergence is parked there rather than treated as active 046 work.
+### Still open
 
-### Merge gate from this review
+#### High
 
-Before merging any branch carrying the 044/045/046 follow-up work:
+1. **Spec 046 thin-host bar still fails literally** — `editor.js` is improved but still too large to count as obvious thin bootstrap glue. Keep shrinking callback/runtime assembly out of the host until cold-start skim cost drops materially again.
 
-1. Keep unrelated assets and user-local inputs out of the commit.
-2. Rebuild the browser bundle after browser-entry/export changes.
-3. Run at least:
-   - `npm --prefix packages/layout-engine test`
-   - `npm --prefix apps/preview test`
-   - `node scripts/check_no_new_python.mjs`
-4. Do not continue remaining spec 046 work on a misnamed legacy branch after this merge; create or switch to `feat/046-editor-host-endgame`.
+#### Medium
+
+2. **Cold-start surface shifted into TypeScript barrels** — `packages/layout-engine/src/preview-shell/index.ts` and `packages/layout-engine/src/browser-entry.ts` remain large enough to deserve trap-file discipline even though they are better-structured than the old JS sinks.
+3. **Contract consumer harness remains expensive** — the split into `engine-contract-consumers.test.ts`, `editor-bootstrap-contract.test.ts`, and `layout-bridge-contract-consumers.test.ts` is better, but the VM-extraction harness is still a maintenance cost worth shrinking further when practical.
+
+#### Discussion / non-code-state
+
+4. **`044` + `046` work on one branch** — this is historically true for the current branch shape, but it is not an actionable code defect without rewriting branch history or splitting commits after the fact. If reviewers want branch-level separation beyond the current commit structure, discuss before rebasing or replaying history.
+
+### Current validation baseline
+
+- `npm --prefix packages/layout-engine run build`
+- `npm --prefix packages/layout-engine run build:browser`
+- `npm --prefix packages/layout-engine test`
+- `npm --prefix apps/preview test`
+- `node scripts/check_no_new_python.mjs`
+
+### Current next work
+
+1. Continue shrinking `editor.js` by moving additional relayout/scene/bootstrap coordination into typed owners until the file reads as thin glue rather than a large coordinator.
+2. Keep reducing VM contract-harness pressure where new focused unit tests can replace source-extraction coverage without losing the browser-contract guardrail.
+3. Start shrinking the preview-shell barrel cold-start surface so the typed owners do not become the next trap files.

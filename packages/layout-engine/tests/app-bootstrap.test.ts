@@ -1,9 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  bootstrapPreviewEditorRuntime,
   bootstrapPreviewEditorHost,
   collectPreviewEngineSavePayload,
   connectPreviewSse,
+  createBootstrapPreviewEditorHostOptionsFromRuntime,
+  createPreviewBuildStatusUpdater,
   createPreviewDiagramLoadSignalState,
+  createPreviewOverrideToolbarHostOptions,
   createPreviewSaveClientInitConfig,
   ensurePreviewEditorState,
   ensurePreviewEngineShellController,
@@ -15,6 +19,7 @@ import {
   installPreviewEditorTestFacadeHost,
   registerPreviewEditorDocumentBindingsHost,
   registerPreviewPageshowReload,
+  restorePreviewSelectionIds,
   signalPreviewDiagramLoaded,
   whenPreviewDiagramLoaded,
 } from '../src/preview-shell/app-bootstrap.js';
@@ -437,6 +442,179 @@ describe('preview bootstrap helpers', () => {
     expect(orderedCalls).toContain('eventSourceFactory');
   });
 
+  it('derives host bootstrap options from a thinner runtime context', () => {
+    const selectedIds = new Set(['alpha', 'beta']);
+    const model = {
+      roots: [{ id: 'root' }],
+      gridOverrides: { cols: 6 },
+      elkLayoutOverrides: { root: { spacing: 24 } },
+      removedIds: new Set(['stale']),
+    };
+    const options = createBootstrapPreviewEditorHostOptionsFromRuntime({
+      document: {
+        getElementById(id: string) {
+          return id === 'build-status' ? { className: '', textContent: '' } as unknown as HTMLElement : null;
+        },
+      } as Document,
+      previewWindow: {
+        location: { pathname: '/view/v3:demo' },
+        EventSource: class FakeEventSource {
+          onmessage = null;
+          onerror = null;
+          constructor(_url: string) {}
+        } as unknown as typeof EventSource,
+      } as unknown as Window & typeof globalThis,
+      slug: 'demo',
+      model,
+      selectedIds,
+      reapplySelection: vi.fn(),
+      onDocumentKeyDown: vi.fn(),
+      undo: vi.fn(),
+      redo: vi.fn(),
+      saveOverrides: vi.fn(),
+      canUndo: () => true,
+      canRedo: () => false,
+      syncBrowseNav: vi.fn(),
+      fetchIndexHtml: vi.fn(async () => null),
+      attemptNavigation: vi.fn(() => true),
+      initNavTabs: vi.fn(),
+      getOverrides: () => ({ alpha: { dx: 8 } }),
+      getFrameTree: () => ({ frames: [] }),
+      requestV3Relayout: vi.fn(async () => undefined),
+      previewSaveClient: {
+        init: vi.fn(),
+        isDirty: () => false,
+      },
+      serializeDirtyState: () => '{}',
+      reloadDiagram: vi.fn(),
+      getV3RelayoutStatus: () => ({ localReady: true }),
+      getV3RelayoutRuntime: () => ({ sequence: 1 }),
+      getConstraintSummary: () => ({ errors: 0 }),
+      runConstraints: vi.fn(),
+      clearCoercedKeys: vi.fn(),
+      setStatus: vi.fn(),
+      sanitizeSvgCloneForExport: vi.fn(),
+      allowInternalDirtyNavigation: () => false,
+      writeClipboardText: vi.fn(),
+      alert: vi.fn(),
+      confirmClearAll: vi.fn(() => true),
+      onClearAllOverrides: vi.fn(),
+      getGeneration: () => 2,
+      setGeneration: vi.fn(),
+      scheduleReconnect: vi.fn(),
+    });
+
+    expect(options.getCurrentPath()).toBe('/view/v3:demo');
+    expect(options.getGridOverrides()).toEqual({ cols: 6 });
+    expect(options.getElkLayoutOverrides()).toEqual({ root: { spacing: 24 } });
+    expect(Array.from(options.getRemovedIds() as Set<string>)).toEqual(['stale']);
+    expect(options.getRootId()).toBe('root');
+    expect(options.getSelectedIds()).toEqual(['alpha', 'beta']);
+    expect(options.overrideToolbar.slug).toBe('demo');
+    expect(options.eventSourceFactory('/events')).toBeInstanceOf((options.previewWindow.EventSource as typeof EventSource));
+  });
+
+  it('restores selection ids and exposes document-owned build / toolbar helpers', () => {
+    const selectedIds = new Set(['stale']);
+    const reapplySelection = vi.fn();
+    restorePreviewSelectionIds(selectedIds, ['alpha', 'beta'], reapplySelection);
+    expect(Array.from(selectedIds)).toEqual(['alpha', 'beta']);
+    expect(reapplySelection).toHaveBeenCalledTimes(1);
+
+    const buildStatusEl = { className: '', textContent: '' };
+    const setBuildStatus = createPreviewBuildStatusUpdater({
+      getElementById(id: string) {
+        return id === 'build-status' ? buildStatusEl as unknown as HTMLElement : null;
+      },
+    } as Pick<Document, 'getElementById'>);
+    setBuildStatus({ kind: 'ok', message: 'Rebuilt #2' });
+    expect(buildStatusEl.className).toBe('build-status build-ok');
+    expect(buildStatusEl.textContent).toBe('Rebuilt #2');
+
+    const toolbarOptions = createPreviewOverrideToolbarHostOptions({
+      document: {
+        getElementById: vi.fn(() => null),
+      } as Pick<Document, 'getElementById'>,
+      slug: 'demo',
+      getOverrides: () => ({}),
+      writeClipboardText: vi.fn(),
+      alert: vi.fn(),
+      confirmClearAll: vi.fn(() => true),
+      onClearAllOverrides: vi.fn(),
+    });
+    expect(toolbarOptions.slug).toBe('demo');
+    expect(toolbarOptions.confirmClearAllMessage).toBe('Clear all overrides for demo?');
+  });
+
+  it('bootstraps through the runtime-owned entrypoint without editor.js assembling host-only glue', () => {
+    const previewWindow = {
+      location: { pathname: '/view/v3:demo' },
+      EventSource: class FakeEventSource {
+        onmessage = null;
+        onerror = null;
+        constructor(_url: string) {}
+      } as unknown as typeof EventSource,
+      addEventListener: vi.fn(),
+      matchMedia: () => null,
+      HTMLSelectElement: class FakeSelectElement {},
+    } as unknown as Window & typeof globalThis;
+    const button = { addEventListener: vi.fn() };
+    const document = {
+      addEventListener: vi.fn(),
+      getElementById(id: string) {
+        if (id === 'btn-undo' || id === 'btn-redo' || id === 'btn-export' || id === 'btn-clear-all') {
+          return button;
+        }
+        if (id === 'build-status') {
+          return { className: '', textContent: '' } as unknown as HTMLElement;
+        }
+        return null;
+      },
+      querySelector: vi.fn(() => null),
+      querySelectorAll: vi.fn(() => []),
+    } as unknown as Document;
+
+    expect(() => bootstrapPreviewEditorRuntime({
+      document,
+      previewWindow,
+      slug: 'demo',
+      model: { roots: [{ id: 'root' }] },
+      selectedIds: new Set<string>(),
+      reapplySelection: vi.fn(),
+      onDocumentKeyDown: vi.fn(),
+      undo: vi.fn(),
+      redo: vi.fn(),
+      saveOverrides: vi.fn(),
+      canUndo: () => true,
+      canRedo: () => false,
+      syncBrowseNav: vi.fn(),
+      fetchIndexHtml: vi.fn(async () => null),
+      attemptNavigation: vi.fn(() => true),
+      initNavTabs: vi.fn(),
+      getOverrides: () => ({}),
+      getFrameTree: () => null,
+      requestV3Relayout: vi.fn(async () => undefined),
+      previewSaveClient: { init: vi.fn(), isDirty: () => false },
+      serializeDirtyState: () => '{}',
+      reloadDiagram: vi.fn(),
+      getV3RelayoutStatus: () => ({}),
+      getV3RelayoutRuntime: () => ({}),
+      getConstraintSummary: () => ({ errors: 0 }),
+      runConstraints: vi.fn(),
+      clearCoercedKeys: vi.fn(),
+      setStatus: vi.fn(),
+      sanitizeSvgCloneForExport: vi.fn(),
+      allowInternalDirtyNavigation: () => false,
+      writeClipboardText: vi.fn(),
+      alert: vi.fn(),
+      confirmClearAll: vi.fn(() => true),
+      onClearAllOverrides: vi.fn(),
+      getGeneration: () => 0,
+      setGeneration: vi.fn(),
+      scheduleReconnect: vi.fn(),
+    })).not.toThrow();
+  });
+
   it('resolves generic preview-engine shell helpers through the registered controller', () => {
     const init = vi.fn();
     const initializePanel = vi.fn();
@@ -483,6 +661,67 @@ describe('preview bootstrap helpers', () => {
       lane: 'engine',
     });
     expect(collectPersistedPayload).toHaveBeenCalledTimes(1);
+  });
+
+  it('supports representative non-ELK engine classes through the same generic shell-controller seam', () => {
+    const engineCases = [
+      {
+        id: 'mermaid-flowchart',
+        classLabel: 'ported-diagram-family',
+        persistedPayload: { mermaid_layout_overrides: { rankdir: 'LR' } },
+      },
+      {
+        id: 'bespoke-grid',
+        classLabel: 'bespoke-in-house',
+        persistedPayload: { bespoke_layout_overrides: { laneSpacing: 24 } },
+      },
+    ] as const;
+
+    for (const engineCase of engineCases) {
+      const init = vi.fn();
+      const initializePanel = vi.fn();
+      const collectPersistedPayload = vi.fn((payload: Record<string, unknown>) => ({
+        ...payload,
+        engine: engineCase.id,
+        classLabel: engineCase.classLabel,
+        ...engineCase.persistedPayload,
+      }));
+      const previewWindow = {
+        PreviewEngineShellController: {
+          init,
+          isActiveLayoutEngine(frameTreeJson?: unknown) {
+            return (frameTreeJson as { layoutEngine?: string } | undefined)?.layoutEngine === engineCase.id;
+          },
+          initializePanel,
+          collectPersistedPayload,
+          wirePanel() {},
+          syncPanel() {},
+          initPanel() {},
+          applyElkLayoutOverrides() {},
+          requestRelayout() {
+            return Promise.resolve();
+          },
+        },
+      } as unknown as Window & typeof globalThis;
+
+      ensurePreviewEngineShellController(previewWindow, {
+        getElkLayoutOverrides: () => ({}),
+        setElkLayoutOverrides: () => {},
+        getRootId: () => 'root',
+        requestV3Relayout: async () => undefined,
+      });
+
+      expect(isPreviewEngineShellLayoutActive(previewWindow, { layoutEngine: engineCase.id })).toBe(true);
+      initPreviewEngineShellPanel(previewWindow);
+      expect(initializePanel).toHaveBeenCalledTimes(1);
+      expect(
+        collectPreviewEngineSavePayload(previewWindow, { saved: true }, { elkLayoutOverrides: {} }),
+      ).toMatchObject({
+        saved: true,
+        engine: engineCase.id,
+        classLabel: engineCase.classLabel,
+      });
+    }
   });
 
   it('tracks diagram-load generations and resolves waiters when the stage becomes ready', async () => {

@@ -12,11 +12,11 @@ Progress note: the bridge pilot work now includes typed arrow render/patch and
 frame/SVG patch owners in
 `packages/layout-engine/src/preview-shell/app-arrow-render.ts` and
 `packages/layout-engine/src/preview-shell/app-frame-svg.ts`.
-`layout-bridge.js` is down to about 623 lines in the current working tree after
+`layout-bridge.js` is down to about 544 lines in the current working tree after
 bridge-state/bootstrap and local-vs-ELK relayout orchestration moved behind
 `packages/layout-engine/src/preview-shell/app-layout-bridge-runtime.ts`.
-Spec 044 remains open for the remaining ELK debug/raw-view and compatibility
-fallback cleanup, not for core bridge ownership.
+Spec 044 remains open for the remaining compatibility/barrel cleanup, not for
+core bridge ownership.
 
 **Depends on**: spec 043 (complete), spec 038 (pivot / relocation seams), spec 035 (archived complete)
 

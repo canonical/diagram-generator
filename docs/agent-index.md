@@ -23,8 +23,8 @@ Read this before broad repo searches.
 
 | File | ~Lines | Instead |
 |------|-------:|---------|
-| `scripts/preview/editor.js` | 2,000 | `rg` symbol, then `Read` with offset/limit |
-| `scripts/preview/layout-bridge.js` | 623 | same |
+| `scripts/preview/editor.js` | 1,937 | `rg` symbol, then `Read` with offset/limit |
+| `scripts/preview/layout-bridge.js` | 544 | same |
 | `scripts/preview/force.js` | 1,600 | same |
 | `packages/layout-engine/dist/layout-engine.iife.js` | 3.5 MB | edit `packages/layout-engine/src/`; run `build:browser` |
 | `diagrams/**` | binaries | ignored by `.cursorignore`; not product code |

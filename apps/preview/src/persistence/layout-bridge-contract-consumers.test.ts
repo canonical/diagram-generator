@@ -222,6 +222,9 @@ test("layout bridge frame-svg patch helpers accept the namespaced previewBridge.
       },
     },
     window: {
+      __DG_getPreviewBridgeRenderContract() {
+        return context.window.LayoutEngine.previewBridge.render;
+      },
       LayoutEngine: {
         previewBridge: {
           render: {

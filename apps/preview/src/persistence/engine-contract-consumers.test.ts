@@ -535,7 +535,7 @@ test("editor live-resize relayout helper forwards the current v3 relayout status
             capturedCalls.push({
               state: options.state,
               request: options.request,
-              isElkLayeredDiagram: options.isElkLayeredDiagram,
+              isEngineLayoutActive: options.isEngineLayoutActive,
               relayoutStatus: options.getRelayoutStatus(),
               gridOverrides: options.getGridOverrides(),
               normalizedGridOverrides: options.normalizeGridOverrides({ rows: 9 }),
@@ -579,7 +579,7 @@ test("editor live-resize relayout helper forwards the current v3 relayout status
         resizedW: 320,
         resizedH: 200,
       },
-      isElkLayeredDiagram: true,
+      isEngineLayoutActive: true,
       relayoutStatus: { localReady: true, local: { reason: "ready" } },
       gridOverrides: { rows: 3 },
       normalizedGridOverrides: { rows: 9 },

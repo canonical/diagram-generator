@@ -56,15 +56,11 @@ function getShellMode() {
 // ---- Browser contract helpers ----
 
 function getPreviewBridgeRelayoutContract() {
-  return window.LayoutEngine?.previewBridge?.relayout
-    ?? window.LayoutEngine
-    ?? (typeof LayoutEngine !== "undefined" ? LayoutEngine : null);
+  return window.LayoutEngine?.previewBridge?.relayout ?? null;
 }
 
 function getPreviewBridgeRenderContract() {
-  const bundleRender = window.LayoutEngine?.previewBridge?.render
-    ?? window.LayoutEngine
-    ?? (typeof LayoutEngine !== "undefined" ? LayoutEngine : null);
+  const bundleRender = window.LayoutEngine?.previewBridge?.render ?? null;
   const hostRender = window.__DG_previewBridgeRenderHost || null;
   if (bundleRender && hostRender && bundleRender !== hostRender) {
     return { ...bundleRender, ...hostRender };
@@ -73,9 +69,7 @@ function getPreviewBridgeRenderContract() {
 }
 
 function getPreviewBridgeHostContract() {
-  const bundleHost = window.LayoutEngine?.previewBridge?.host
-    ?? window.LayoutEngine
-    ?? (typeof LayoutEngine !== "undefined" ? LayoutEngine : null);
+  const bundleHost = window.LayoutEngine?.previewBridge?.host ?? null;
   const hostRuntime = window.__DG_previewBridgeHostRuntime || null;
   if (bundleHost && hostRuntime && bundleHost !== hostRuntime) {
     return { ...bundleHost, ...hostRuntime };
@@ -84,40 +78,27 @@ function getPreviewBridgeHostContract() {
 }
 
 function getPreviewCoreContract() {
-  return window.LayoutEngine?.core
-    ?? window.LayoutEngine
-    ?? (typeof LayoutEngine !== "undefined" ? LayoutEngine : null);
+  return window.LayoutEngine?.core ?? null;
 }
 
 function getPreviewElkEngineContract() {
-  return window.LayoutEngine?.previewEngines?.elk
-    ?? window.LayoutEngine?.previewEngines
-    ?? window.LayoutEngine
-    ?? (typeof LayoutEngine !== "undefined" ? LayoutEngine : null);
+  return window.LayoutEngine?.previewEngines?.elk ?? null;
 }
 
 function getPreviewShellSceneContract() {
-  return window.LayoutEngine?.previewShell?.scene
-    ?? window.LayoutEngine
-    ?? (typeof LayoutEngine !== "undefined" ? LayoutEngine : null);
+  return window.LayoutEngine?.previewShell?.scene ?? null;
 }
 
 function getPreviewShellInspectorContract() {
-  return window.LayoutEngine?.previewShell?.inspector
-    ?? window.LayoutEngine
-    ?? (typeof LayoutEngine !== "undefined" ? LayoutEngine : null);
+  return window.LayoutEngine?.previewShell?.inspector ?? null;
 }
 
 function getPreviewShellInteractionContract() {
-  return window.LayoutEngine?.previewShell?.interaction
-    ?? window.LayoutEngine
-    ?? (typeof LayoutEngine !== "undefined" ? LayoutEngine : null);
+  return window.LayoutEngine?.previewShell?.interaction ?? null;
 }
 
 function getPreviewShellBootstrapContract() {
-  return window.LayoutEngine?.previewShell?.bootstrap
-    ?? window.LayoutEngine
-    ?? (typeof LayoutEngine !== "undefined" ? LayoutEngine : null);
+  return window.LayoutEngine?.previewShell?.bootstrap ?? null;
 }
 
 window.__DG_getPreviewBridgeRelayoutContract = getPreviewBridgeRelayoutContract;

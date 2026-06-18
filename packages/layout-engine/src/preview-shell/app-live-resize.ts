@@ -33,7 +33,9 @@ PreviewLiveResizeOverrideEntry | undefined
 export interface SchedulePreviewLiveResizeRelayoutOptions<TGridOverrides> {
   state: PreviewLiveResizeRelayoutState;
   request: PreviewLiveResizeRelayoutRequest;
-  isElkLayeredDiagram: boolean;
+  isEngineLayoutActive?: boolean;
+  /** @deprecated Prefer `isEngineLayoutActive`. */
+  isElkLayeredDiagram?: boolean;
   requestAnimationFrameFn: (callback: () => void) => number;
   overrides: PreviewLiveResizeOverrideMap;
   getGridOverrides: () => TGridOverrides;
@@ -87,7 +89,8 @@ export function createPreviewLiveResizeRelayoutState(): PreviewLiveResizeRelayou
 export function schedulePreviewLiveResizeRelayout<TGridOverrides>(
   options: SchedulePreviewLiveResizeRelayoutOptions<TGridOverrides>,
 ): boolean {
-  if (options.isElkLayeredDiagram) {
+  const isEngineLayoutActive = options.isEngineLayoutActive ?? options.isElkLayeredDiagram ?? false;
+  if (isEngineLayoutActive) {
     return false;
   }
 

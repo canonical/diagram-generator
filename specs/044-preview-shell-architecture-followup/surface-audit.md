@@ -11,7 +11,7 @@ Baseline was captured at 043 closeout. The figures below are refreshed after the
 | `packages/layout-engine/src/browser-entry.ts` | 587 exported names across 24 export blocks | Flat browser surface remains the main contract problem |
 | `./preview-shell/index.js` re-export in `browser-entry.ts` | 437 names total | 221 runtime exports + 216 type exports |
 | `scripts/preview/editor.js` | 0 direct `LayoutEngine.` call sites | `editor.js` now consumes browser helpers entirely through `__DG_getPreview*Contract()` seams |
-| `scripts/preview/layout-bridge.js` | 623 lines | T051 and the follow-up bridge-runtime extraction have moved override normalization, fresh render, bridge state/bootstrap, frame-tree mutation helpers, and local-vs-ELK relayout orchestration into typed owners; the residual bridge now routes through `LayoutEngine.core`, `previewBridge.host`, `previewBridge.relayout`, `previewBridge.render`, and `previewEngines.elk` |
+| `scripts/preview/layout-bridge.js` | 544 lines | T051 and the follow-up bridge-runtime extraction have moved override normalization, fresh render, bridge state/bootstrap, frame-tree mutation helpers, local-vs-ELK relayout orchestration, and ELK view-mode DOM state into typed owners; the residual bridge now routes through `LayoutEngine.core`, `previewBridge.host`, `previewBridge.relayout`, `previewBridge.render`, and `previewEngines.elk`, with the inline duplicate render/frame fallbacks removed |
 | `packages/layout-engine/dist/layout-engine.iife.js` | 3,967,845 bytes | About 3.78 MiB browser payload |
 
 ## Browser-entry owner groups
@@ -37,9 +37,9 @@ Baseline was captured at 043 closeout. The figures below are refreshed after the
 
 1. `editor.js` pays for many single-use callbacks because the browser contract is function-level, not concern-level.
 2. `preview-shell/index.js` mixes runtime helpers, host helpers, renderers, stores, and types into one browser surface.
-3. `layout-bridge.js` is no longer the bridge-state or relayout owner, but it
-   still carries ELK debug/raw-view DOM wiring plus compatibility fallbacks in
-   one file.
+3. `layout-bridge.js` is no longer the bridge-state or relayout owner, and its
+   inline duplicate frame/render fallbacks are gone, but browser-entry and the
+   preview-shell barrel now carry more of the cold-start burden.
 4. ELK controller hooks are thin now, but still shell-wired through globals rather than a typed browser contract.
 
 ## Delta since the first 044 pilot
@@ -55,8 +55,11 @@ Baseline was captured at 043 closeout. The figures below are refreshed after the
   relayout orchestration into
   `packages/layout-engine/src/preview-shell/app-layout-bridge-runtime.ts`, with
   `editor.js` consuming the live bridge runtime through `previewBridge.host`.
-- Together those slices shrank the browser bridge by about 1,385 lines, from
-  1,947 to 623.
+- The current follow-up also moved ELK raw/debug view-mode DOM state behind
+  `createPreviewElkViewModeRuntime(...)`, leaving `layout-bridge.js` with thin
+  wrappers instead of inline overlay ownership.
+- Together those slices shrank the browser bridge by about 1,370 lines, from
+  1,947 to 544.
 
 ## First safe moves for spec 044
 

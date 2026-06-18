@@ -10,6 +10,7 @@ import { initPreviewShellResizeBindings } from './app-shell-resize.js';
 import {
   initPreviewOverrideToolbar,
   type InitPreviewOverrideToolbarOptions,
+  type PreviewOverrideExportEntry,
 } from './app-shell-panels.js';
 
 export interface PreviewEditorStateInitOptions {
@@ -128,8 +129,8 @@ export interface PreviewBuildStatusUpdate {
 }
 
 export interface PreviewEventSourceLike {
-  onmessage: ((event: { data: string }) => void) | null;
-  onerror: (() => void) | null;
+  onmessage: ((this: EventSource, event: { data: string }) => unknown) | null;
+  onerror: ((this: EventSource, event?: unknown) => unknown) | null;
 }
 
 export interface ConnectPreviewSseOptions {
@@ -196,7 +197,7 @@ export interface BootstrapPreviewEditorHostOptions {
   fetchIndexHtml: () => Promise<string | null>;
   attemptNavigation: (nextUrl: string | null | undefined, syncUi: () => void) => boolean;
   initNavTabs: () => void;
-  getOverrides: () => unknown;
+  getOverrides: () => Record<string, PreviewOverrideExportEntry>;
   getGridOverrides: () => unknown;
   getElkLayoutOverrides: () => Record<string, unknown>;
   getRemovedIds: () => unknown;
@@ -224,6 +225,67 @@ export interface BootstrapPreviewEditorHostOptions {
   getGeneration: () => number;
   setGeneration: (value: number) => void;
   setBuildStatus: (update: PreviewBuildStatusUpdate) => void;
+  scheduleReconnect?: (callback: () => void, delayMs: number) => unknown;
+  reconnectDelayMs?: number;
+}
+
+export interface PreviewBootstrapRuntimeModelLike {
+  roots?: Array<{ id?: string | null }>;
+  gridOverrides?: unknown;
+  elkLayoutOverrides?: Record<string, unknown>;
+  removedIds?: unknown;
+  [key: string]: unknown;
+}
+
+export interface CreatePreviewOverrideToolbarHostOptions {
+  document: Pick<Document, 'getElementById'>;
+  slug: string;
+  getOverrides: () => Record<string, PreviewOverrideExportEntry>;
+  writeClipboardText: (text: string) => Promise<unknown>;
+  alert: (message: string) => void;
+  confirmClearAll: (message: string) => boolean;
+  onClearAllOverrides: () => void;
+  confirmClearAllMessage?: string;
+}
+
+export interface BootstrapPreviewEditorRuntimeOptions {
+  document: Document;
+  previewWindow: PreviewGlobalWindow;
+  slug: string;
+  model: PreviewBootstrapRuntimeModelLike;
+  selectedIds: Set<string>;
+  reapplySelection: () => void;
+  onDocumentKeyDown: (event: KeyboardEvent) => void;
+  undo: () => unknown;
+  redo: () => unknown;
+  saveOverrides: () => unknown;
+  canUndo: () => boolean;
+  canRedo: () => boolean;
+  syncBrowseNav: () => void;
+  fetchIndexHtml: () => Promise<string | null>;
+  attemptNavigation: (nextUrl: string | null | undefined, syncUi: () => void) => boolean;
+  initNavTabs: () => void;
+  getOverrides: () => Record<string, PreviewOverrideExportEntry>;
+  getFrameTree: () => unknown;
+  requestV3Relayout: (cid: string) => Promise<unknown> | unknown;
+  previewSaveClient: PreviewSaveClientApi;
+  serializeDirtyState: () => string;
+  reloadDiagram: (options?: unknown) => unknown;
+  getV3RelayoutStatus: () => unknown;
+  getV3RelayoutRuntime: () => unknown;
+  getConstraintSummary: () => unknown;
+  getConstraintErrorCount?: (() => number) | null;
+  runConstraints: () => unknown;
+  clearCoercedKeys: () => void;
+  setStatus: (message: string, kind?: string) => void;
+  sanitizeSvgCloneForExport: (clone: SVGElement) => void;
+  allowInternalDirtyNavigation: () => boolean;
+  writeClipboardText: (text: string) => Promise<unknown>;
+  alert: (message: string) => void;
+  confirmClearAll: (message: string) => boolean;
+  onClearAllOverrides: () => void;
+  getGeneration: () => number;
+  setGeneration: (value: number) => void;
   scheduleReconnect?: (callback: () => void, delayMs: number) => unknown;
   reconnectDelayMs?: number;
 }
@@ -347,6 +409,136 @@ function createPreviewElkControllerFallback(): PreviewElkControllerApi {
       return Promise.resolve();
     },
   };
+}
+
+export function restorePreviewSelectionIds(
+  selectedIds: Set<string>,
+  ids: string[],
+  reapplySelection: () => void,
+): void {
+  selectedIds.clear();
+  ids.forEach((id) => selectedIds.add(id));
+  reapplySelection();
+}
+
+export function createPreviewBuildStatusUpdater(
+  document: Pick<Document, 'getElementById'>,
+): (update: PreviewBuildStatusUpdate) => void {
+  return ({ message, kind }) => {
+    const statusEl = document.getElementById('build-status');
+    if (!statusEl) {
+      return;
+    }
+    statusEl.className = kind === 'error' ? 'build-status build-err' : 'build-status build-ok';
+    statusEl.textContent = message;
+  };
+}
+
+export function createPreviewOverrideToolbarHostOptions(
+  options: CreatePreviewOverrideToolbarHostOptions,
+): InitPreviewOverrideToolbarOptions {
+  return {
+    exportButton: options.document.getElementById('btn-export'),
+    clearAllButton: options.document.getElementById('btn-clear-all'),
+    slug: options.slug,
+    getOverrides: options.getOverrides,
+    writeClipboardText: options.writeClipboardText,
+    alert: options.alert,
+    confirmClearAll: options.confirmClearAll,
+    confirmClearAllMessage: options.confirmClearAllMessage
+      ?? `Clear all overrides for ${options.slug}?`,
+    onClearAll: options.onClearAllOverrides,
+  };
+}
+
+function resolvePreviewBootstrapRootId(
+  model: PreviewBootstrapRuntimeModelLike,
+): string {
+  return model.roots?.[0]?.id || 'root';
+}
+
+function createPreviewEventSourceFactory(
+  previewWindow: PreviewGlobalWindow,
+): (url: string) => PreviewEventSourceLike {
+  return (url) => {
+    const EventSourceCtor = previewWindow.EventSource ?? EventSource;
+    return new EventSourceCtor(url) as PreviewEventSourceLike;
+  };
+}
+
+export function createBootstrapPreviewEditorHostOptionsFromRuntime(
+  options: BootstrapPreviewEditorRuntimeOptions,
+): BootstrapPreviewEditorHostOptions {
+  return {
+    document: options.document,
+    previewWindow: options.previewWindow,
+    slug: options.slug,
+    onDocumentKeyDown: options.onDocumentKeyDown,
+    undo: options.undo,
+    redo: options.redo,
+    saveOverrides: options.saveOverrides,
+    canUndo: options.canUndo,
+    canRedo: options.canRedo,
+    getCurrentPath: () => options.previewWindow.location?.pathname || '',
+    syncBrowseNav: options.syncBrowseNav,
+    fetchIndexHtml: options.fetchIndexHtml,
+    attemptNavigation: options.attemptNavigation,
+    initNavTabs: options.initNavTabs,
+    getOverrides: options.getOverrides,
+    getGridOverrides: () => options.model.gridOverrides,
+    getElkLayoutOverrides: () => options.model.elkLayoutOverrides || {},
+    getRemovedIds: () => options.model.removedIds,
+    getFrameTree: options.getFrameTree,
+    setElkLayoutOverrides: (value) => {
+      options.model.elkLayoutOverrides = { ...value };
+    },
+    getRootId: () => resolvePreviewBootstrapRootId(options.model),
+    requestV3Relayout: options.requestV3Relayout,
+    previewSaveClient: options.previewSaveClient,
+    getModel: () => options.model,
+    getSelectedIds: () => [...options.selectedIds],
+    restoreSelectionIds: (ids) => {
+      restorePreviewSelectionIds(options.selectedIds, ids, options.reapplySelection);
+    },
+    serializeDirtyState: options.serializeDirtyState,
+    reloadDiagram: options.reloadDiagram,
+    getV3RelayoutStatus: options.getV3RelayoutStatus,
+    getV3RelayoutRuntime: options.getV3RelayoutRuntime,
+    getConstraintSummary: options.getConstraintSummary,
+    getConstraintErrorCount: options.getConstraintErrorCount
+      ?? (() => {
+        const summary = options.getConstraintSummary() as { errors?: unknown } | null;
+        return typeof summary?.errors === 'number' ? summary.errors : 0;
+      }),
+    runConstraints: options.runConstraints,
+    clearCoercedKeys: options.clearCoercedKeys,
+    setStatus: options.setStatus,
+    sanitizeSvgCloneForExport: options.sanitizeSvgCloneForExport,
+    allowInternalDirtyNavigation: options.allowInternalDirtyNavigation,
+    overrideToolbar: createPreviewOverrideToolbarHostOptions({
+      document: options.document,
+      slug: options.slug,
+      getOverrides: options.getOverrides,
+      writeClipboardText: options.writeClipboardText,
+      alert: options.alert,
+      confirmClearAll: options.confirmClearAll,
+      onClearAllOverrides: options.onClearAllOverrides,
+    }),
+    eventSourceFactory: createPreviewEventSourceFactory(options.previewWindow),
+    getGeneration: options.getGeneration,
+    setGeneration: options.setGeneration,
+    setBuildStatus: createPreviewBuildStatusUpdater(options.document),
+    scheduleReconnect: options.scheduleReconnect,
+    reconnectDelayMs: options.reconnectDelayMs,
+  };
+}
+
+export function bootstrapPreviewEditorRuntime(
+  options: BootstrapPreviewEditorRuntimeOptions,
+): void {
+  bootstrapPreviewEditorHost(
+    createBootstrapPreviewEditorHostOptionsFromRuntime(options),
+  );
 }
 
 function createPreviewEngineShellControllerFallback(): PreviewEngineShellControllerApi {

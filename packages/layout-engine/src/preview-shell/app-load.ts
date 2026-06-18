@@ -52,9 +52,13 @@ export interface LoadPreviewSvgOptions<TSvg = unknown> {
   deselectAll: () => void;
   initLayoutBridge: () => Promise<void>;
   setFrameTreeJson?: ((frameTree: unknown) => void) | null;
-  isElkLayeredDiagram: () => boolean;
+  isEngineLayoutActive?: (() => boolean) | null;
+  /** @deprecated Prefer `isEngineLayoutActive`. */
+  isElkLayeredDiagram?: (() => boolean) | null;
   resetOverrideState: () => void;
-  initElkPanel: () => void;
+  initEnginePanel?: (() => void) | null;
+  /** @deprecated Prefer `initEnginePanel`. */
+  initElkPanel?: (() => void) | null;
   getLocalRelayoutStatus: () => PreviewLocalRelayoutStatus;
   escapeHtml: (value: string) => string;
   setStageHtml: (html: string) => void;
@@ -78,6 +82,56 @@ export interface LoadPreviewSvgOptions<TSvg = unknown> {
   replaceStageWithRenderedSvg: (renderResult: PreviewLoadRenderResult<TSvg>) => void;
   fitRenderedSvg?: ((renderResult: PreviewLoadRenderResult<TSvg>) => void) | null;
   fetchFallbackSvg: () => Promise<PreviewFallbackResponse>;
+}
+
+export interface CreateLoadPreviewSvgHostOptions<TSvg = unknown, TModel = unknown> {
+  invocation?: PreviewLoadInvocationOptions | null;
+  stage: {
+    innerHTML: string;
+    replaceChildren: (...nodes: TSvg[]) => void;
+  };
+  slug: string;
+  engine: string;
+  gridEnabled: boolean;
+  deselectAll: () => void;
+  previewBridgeHost: {
+    initLayoutBridge?: ((slug: string) => Promise<unknown> | unknown) | null;
+    setFrameTreeJson?: ((frameTree: unknown) => void) | null;
+  };
+  isEngineLayoutActive: () => boolean;
+  resetOverrideState: () => void;
+  initEnginePanel: () => void;
+  getLocalRelayoutStatus: () => PreviewLocalRelayoutStatus;
+  escapeHtml: (value: string) => string;
+  loadTree: (canonicalState: PreviewLoadCanonicalState | null) => Promise<void>;
+  loadGridInfo: (canonicalState: PreviewLoadCanonicalState | null) => Promise<void>;
+  getGridInfo: () => unknown;
+  setDiagramGrid: (gridInfo: unknown) => void;
+  populateGridControls: () => void;
+  applyWaypointOverrides: () => void;
+  applyAllOverrides: () => void;
+  bindInteraction: () => void;
+  renderGridOverlay: () => void;
+  restoreSelection: (ids: string[] | null) => void;
+  runConstraints: () => void;
+  markSaved: (serializedState: string) => void;
+  serializeDirtyState: () => string;
+  signalDiagramLoaded: () => void;
+  getGridOverrides: () => Record<string, unknown> | null | undefined;
+  pruneLinkedRootGridOverrides: () => void;
+  previewBridgeRender: {
+    renderFreshPreviewSvg?: ((options: {
+      overrides: Record<string, unknown>;
+      gridOverrides: Record<string, unknown> | null;
+      model: TModel;
+    }) => Promise<PreviewLoadRenderResult<TSvg>>) | null;
+  };
+  overrides: Record<string, unknown>;
+  model: TModel;
+  fitRenderedSvgToContent?: ((
+    svg: TSvg,
+    options: { minWidth: number; minHeight: number },
+  ) => unknown) | null;
 }
 
 export type PreviewLoadExecutionMode =
@@ -141,6 +195,78 @@ export function createPreviewLoadFailureMarkup(status: number): string {
     + `Failed to load diagram: server returned ${status}</div>`;
 }
 
+export function createLoadPreviewSvgHostOptions<TSvg = unknown, TModel = unknown>(
+  options: CreateLoadPreviewSvgHostOptions<TSvg, TModel>,
+): LoadPreviewSvgOptions<TSvg> {
+  return {
+    invocation: options.invocation,
+    deselectAll: options.deselectAll,
+    initLayoutBridge: async () => {
+      if (typeof options.previewBridgeHost.initLayoutBridge !== 'function') {
+        throw new Error('preview layout bridge is required for the v3 editor');
+      }
+      await options.previewBridgeHost.initLayoutBridge(options.slug);
+    },
+    setFrameTreeJson: typeof options.previewBridgeHost.setFrameTreeJson === 'function'
+      ? (frameTree) => options.previewBridgeHost.setFrameTreeJson?.(frameTree)
+      : null,
+    isEngineLayoutActive: options.isEngineLayoutActive,
+    resetOverrideState: options.resetOverrideState,
+    initEnginePanel: options.initEnginePanel,
+    getLocalRelayoutStatus: options.getLocalRelayoutStatus,
+    escapeHtml: options.escapeHtml,
+    setStageHtml: (html) => {
+      options.stage.innerHTML = html;
+    },
+    loadTree: options.loadTree,
+    loadGridInfo: options.loadGridInfo,
+    getGridInfo: options.getGridInfo,
+    setDiagramGrid: options.setDiagramGrid,
+    populateGridControls: options.populateGridControls,
+    applyWaypointOverrides: options.applyWaypointOverrides,
+    applyAllOverrides: options.applyAllOverrides,
+    bindInteraction: options.bindInteraction,
+    renderGridOverlay: options.renderGridOverlay,
+    restoreSelection: options.restoreSelection,
+    runConstraints: options.runConstraints,
+    markSaved: options.markSaved,
+    serializeDirtyState: options.serializeDirtyState,
+    signalDiagramLoaded: options.signalDiagramLoaded,
+    getGridOverrides: options.getGridOverrides,
+    pruneLinkedRootGridOverrides: options.pruneLinkedRootGridOverrides,
+    renderFreshSvg: async () => {
+      if (typeof options.previewBridgeRender.renderFreshPreviewSvg !== 'function') {
+        throw new Error('preview fresh-render bridge is required for the v3 editor');
+      }
+      const gridOverrides = options.getGridOverrides();
+      return options.previewBridgeRender.renderFreshPreviewSvg({
+        overrides: options.overrides,
+        gridOverrides: gridOverrides && Object.keys(gridOverrides).length > 0
+          ? gridOverrides
+          : null,
+        model: options.model,
+      });
+    },
+    replaceStageWithRenderedSvg: (renderResult) => {
+      options.stage.replaceChildren(renderResult.svg);
+    },
+    fitRenderedSvg: options.fitRenderedSvgToContent
+      ? (renderResult) => {
+        options.fitRenderedSvgToContent?.(renderResult.svg, {
+          minWidth: renderResult.width,
+          minHeight: renderResult.height,
+        });
+      }
+      : null,
+    fetchFallbackSvg: async () => {
+      const suffix = options.gridEnabled
+        ? `-${options.engine}-grid.svg`
+        : `-${options.engine}.svg`;
+      return fetch(`/svg/${options.slug}-onbrand${suffix}?t=${Date.now()}`);
+    },
+  };
+}
+
 function shouldPrunePreviewRootGridOverrides(
   gridOverrides: Record<string, unknown> | null | undefined,
 ): boolean {
@@ -188,10 +314,17 @@ export async function loadPreviewSvg<TSvg = unknown>(
     options.setFrameTreeJson(frameTreeSeed.frameTree);
   }
 
-  const isElkLayeredDiagram = options.isElkLayeredDiagram();
-  if (isElkLayeredDiagram) {
+  const isEngineLayoutActive = options.isEngineLayoutActive
+    ?? options.isElkLayeredDiagram
+    ?? (() => false);
+  const initEnginePanel = options.initEnginePanel
+    ?? options.initElkPanel
+    ?? (() => {});
+
+  const engineLayoutActive = isEngineLayoutActive();
+  if (engineLayoutActive) {
     options.resetOverrideState();
-    options.initElkPanel();
+    initEnginePanel();
   }
 
   const readiness = options.getLocalRelayoutStatus();
@@ -240,7 +373,7 @@ export async function loadPreviewSvg<TSvg = unknown>(
   }
 
   options.populateGridControls();
-  if (!isElkLayeredDiagram) {
+  if (!engineLayoutActive) {
     options.resetOverrideState();
   }
 
@@ -266,8 +399,8 @@ export async function loadPreviewSvg<TSvg = unknown>(
     signalDiagramLoaded: options.signalDiagramLoaded,
   });
 
-  if (isElkLayeredDiagram) {
-    options.initElkPanel();
+  if (engineLayoutActive) {
+    initEnginePanel();
   }
 
   return 'client-render';

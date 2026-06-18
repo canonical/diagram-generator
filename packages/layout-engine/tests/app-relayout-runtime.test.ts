@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createPreviewRelayoutRuntime } from '../src/preview-shell/app-relayout-runtime.js';
+import {
+  createPreviewRelayoutRuntime,
+  createPreviewRelayoutRuntimeOptionsFromHost,
+} from '../src/preview-shell/app-relayout-runtime.js';
 
 describe('createPreviewRelayoutRuntime', () => {
   it('delegates relayout requests and clear-override flows through typed relayout owners', async () => {
@@ -39,5 +42,47 @@ describe('createPreviewRelayoutRuntime', () => {
     expect(finishRelayout).toHaveBeenCalledWith('alpha', { coerced: null }, 'local');
     expect(applyAllOverrides).not.toHaveBeenCalled();
     expect(updateInspector).toHaveBeenCalledWith('alpha');
+  });
+
+  it('builds typed relayout runtime options from host-owned bridge contracts', async () => {
+    const options = createPreviewRelayoutRuntimeOptionsFromHost({
+      overrides: { alpha: { waypoints: [[24, 32]] } },
+      coercedKeys: new Set<string>(),
+      model: { id: 'model' },
+      selectedIds: new Set<string>(['alpha']),
+      previewBridgeHost: {
+        performEngineRelayout: vi.fn(async (_model, overrides, gridOverrides) => ({
+          coerced: null,
+          width: Object.keys(overrides).length,
+          height: Object.keys(gridOverrides as Record<string, unknown>).length,
+        })),
+        performLocalRelayout: vi.fn(() => ({ coerced: null, width: 320, height: 200 })),
+      },
+      getGridOverrides: () => ({ cols: 8 }),
+      normalizeGridOverrides: (value) => value,
+      getRelayoutStatus: () => ({ localReady: true }),
+      isEngineLayoutActive: () => true,
+      failRelayout: vi.fn(),
+      finishRelayout: vi.fn(),
+      logError: vi.fn(),
+      clearOverride: vi.fn(),
+      setDirty: vi.fn(),
+      applyAllOverrides: vi.fn(),
+      updateInspector: vi.fn(),
+      reloadTreeAfterArrowRestore: vi.fn(async () => undefined),
+      rebuildArrowSvg: vi.fn(),
+      captureOverrideEntries: vi.fn(() => ({})),
+      commitOverridePatchAction: vi.fn(),
+    });
+
+    const localResult = options.performLocalRelayout({ cols: 8 });
+    const engineResult = await options.performEngineRelayout?.({ cols: 4 });
+    await options.restoreArrowFromTree('alpha');
+
+    expect(localResult).toMatchObject({ width: 320, height: 200 });
+    expect(engineResult).toMatchObject({ width: 1, height: 1 });
+    expect(options.hasWaypointOverride('alpha')).toBe(true);
+    expect(options.isSelected('alpha')).toBe(true);
+    expect(options.restoreArrowFromTree).toBeTypeOf('function');
   });
 });

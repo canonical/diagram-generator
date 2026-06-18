@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  createLoadPreviewSvgHostOptions,
   loadPreviewSvg,
   resolvePreviewFrameTreeSeed,
   type LoadPreviewSvgOptions,
@@ -190,5 +191,100 @@ describe('preview load helpers', () => {
     expect(harness.calls.filter((call) => call === 'resetOverrideState')).toHaveLength(1);
     expect(harness.calls).not.toContain('initElkPanel');
     expect(harness.calls).toContain('restoreSelection:');
+  });
+
+  it('builds typed load options from host-owned bridge contracts', async () => {
+    const calls: string[] = [];
+    let fetchedUrl = '';
+    const stage = {
+      innerHTML: '',
+      replaceChildren(svg: { tag: string }) {
+        calls.push(`replace:${svg.tag}`);
+      },
+    };
+    const options = createLoadPreviewSvgHostOptions({
+      invocation: {
+        preserveSelectionIds: ['alpha'],
+      },
+      stage,
+      slug: 'demo',
+      engine: 'mermaid',
+      gridEnabled: false,
+      deselectAll: () => calls.push('deselectAll'),
+      previewBridgeHost: {
+        async initLayoutBridge(slug: string) {
+          calls.push(`init:${slug}`);
+        },
+        setFrameTreeJson(frameTree: unknown) {
+          calls.push(`frameTree:${String(frameTree)}`);
+        },
+      },
+      isEngineLayoutActive: () => true,
+      resetOverrideState: () => calls.push('resetOverrideState'),
+      initEnginePanel: () => calls.push('initEnginePanel'),
+      getLocalRelayoutStatus: () => ({ ready: true }),
+      escapeHtml: (value) => value,
+      loadTree: async () => {
+        calls.push('loadTree');
+      },
+      loadGridInfo: async () => {
+        calls.push('loadGridInfo');
+      },
+      getGridInfo: () => null,
+      setDiagramGrid: () => calls.push('setDiagramGrid'),
+      populateGridControls: () => calls.push('populateGridControls'),
+      applyWaypointOverrides: () => calls.push('applyWaypointOverrides'),
+      applyAllOverrides: () => calls.push('applyAllOverrides'),
+      bindInteraction: () => calls.push('bindInteraction'),
+      renderGridOverlay: () => calls.push('renderGridOverlay'),
+      restoreSelection: (ids) => calls.push(`restore:${(ids || []).join(',')}`),
+      runConstraints: () => calls.push('runConstraints'),
+      markSaved: (serializedState) => calls.push(`markSaved:${serializedState}`),
+      serializeDirtyState: () => 'state',
+      signalDiagramLoaded: () => calls.push('signalDiagramLoaded'),
+      getGridOverrides: () => ({ cols: 8 }),
+      pruneLinkedRootGridOverrides: () => calls.push('pruneLinkedRootGridOverrides'),
+      previewBridgeRender: {
+        async renderFreshPreviewSvg(renderOptions) {
+          calls.push(`render:${JSON.stringify(renderOptions.gridOverrides)}`);
+          return { svg: { tag: 'svg' }, width: 320, height: 200 };
+        },
+      },
+      overrides: { alpha: { dx: 8 } },
+      model: { id: 'model' },
+      fitRenderedSvgToContent: (_svg, fitOptions) => {
+        calls.push(`fit:${fitOptions.minWidth}x${fitOptions.minHeight}`);
+      },
+    });
+
+    await options.initLayoutBridge();
+    options.setFrameTreeJson?.('seed');
+    await options.renderFreshSvg();
+    options.replaceStageWithRenderedSvg({ svg: { tag: 'svg' }, width: 320, height: 200 });
+    options.fitRenderedSvg?.({ svg: { tag: 'svg' }, width: 320, height: 200 });
+
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (url: string) => {
+      fetchedUrl = url;
+      return {
+        ok: true,
+        status: 200,
+        text: async () => '<svg />',
+      };
+    }) as typeof fetch;
+    try {
+      await options.fetchFallbackSvg();
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+
+    expect(calls).toEqual([
+      'init:demo',
+      'frameTree:seed',
+      'render:{"cols":8}',
+      'replace:svg',
+      'fit:320x200',
+    ]);
+    expect(fetchedUrl).toMatch(/^\/svg\/demo-onbrand-mermaid\.svg\?t=\d+$/);
   });
 });

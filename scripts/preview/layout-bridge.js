@@ -13,45 +13,50 @@
  */
 function _collectRelayoutFrameOverrides(overrides) {
   const previewBridgeRelayout = window.__DG_getPreviewBridgeRelayoutContract();
-  if (typeof previewBridgeRelayout.collectPreviewRelayoutFrameOverrides === "function") {
-    return previewBridgeRelayout.collectPreviewRelayoutFrameOverrides(overrides || {});
+  if (typeof previewBridgeRelayout.collectPreviewRelayoutFrameOverrides !== "function") {
+    throw new Error("layout-bridge: previewBridge.relayout.collectPreviewRelayoutFrameOverrides is unavailable");
   }
-  const collected = {};
-  for (const [frameId, entry] of Object.entries(overrides || {})) {
-    const filtered = previewBridgeRelayout.filterRelayoutOverrideEntry(entry || {});
-    if (Object.keys(filtered).length > 0) {
-      collected[frameId] = filtered;
-    }
-  }
-  return collected;
+  return previewBridgeRelayout.collectPreviewRelayoutFrameOverrides(overrides || {});
 }
 
 function previewCoreContract() {
-  return window.__DG_getPreviewCoreContract?.()
-    ?? window.LayoutEngine?.core
-    ?? window.LayoutEngine
-    ?? (typeof LayoutEngine !== "undefined" ? LayoutEngine : null);
+  const contract = typeof window.__DG_getPreviewCoreContract === "function"
+    ? window.__DG_getPreviewCoreContract()
+    : null;
+  if (!contract) {
+    throw new Error("layout-bridge: preview core contract is unavailable");
+  }
+  return contract;
 }
 
 function previewBridgeRenderContract() {
-  return window.LayoutEngine?.previewBridge?.render
-    ?? window.LayoutEngine
-    ?? (typeof LayoutEngine !== "undefined" ? LayoutEngine : null);
+  const contract = typeof window.__DG_getPreviewBridgeRenderContract === "function"
+    ? window.__DG_getPreviewBridgeRenderContract()
+    : null;
+  if (!contract) {
+    throw new Error("layout-bridge: previewBridge.render contract is unavailable");
+  }
+  return contract;
 }
 
 function previewBridgeHostContract() {
-  return window.__DG_getPreviewBridgeHostContract?.()
-    ?? window.LayoutEngine?.previewBridge?.host
-    ?? window.LayoutEngine
-    ?? (typeof LayoutEngine !== "undefined" ? LayoutEngine : null);
+  const contract = typeof window.__DG_getPreviewBridgeHostContract === "function"
+    ? window.__DG_getPreviewBridgeHostContract()
+    : null;
+  if (!contract) {
+    throw new Error("layout-bridge: previewBridge.host contract is unavailable");
+  }
+  return contract;
 }
 
 function previewElkEngineContract() {
-  return window.__DG_getPreviewElkEngineContract?.()
-    ?? window.LayoutEngine?.previewEngines?.elk
-    ?? window.LayoutEngine?.previewEngines
-    ?? window.LayoutEngine
-    ?? (typeof LayoutEngine !== "undefined" ? LayoutEngine : null);
+  const contract = typeof window.__DG_getPreviewElkEngineContract === "function"
+    ? window.__DG_getPreviewElkEngineContract()
+    : null;
+  if (!contract) {
+    throw new Error("layout-bridge: previewEngines.elk contract is unavailable");
+  }
+  return contract;
 }
 
 function deserializeFrame(json) {
@@ -93,35 +98,24 @@ const SVG_NS = "http://www.w3.org/2000/svg";
 
 function collectFramesById(frame, out) {
   const previewBridgeRender = previewBridgeRenderContract();
-  if (typeof previewBridgeRender.collectPreviewFramesById === "function") {
-    return previewBridgeRender.collectPreviewFramesById(frame, out || {});
+  if (typeof previewBridgeRender.collectPreviewFramesById !== "function") {
+    throw new Error("layout-bridge: previewBridge.render.collectPreviewFramesById is unavailable");
   }
-  if (!out) out = {};
-  if (frame.id && !frame.id.startsWith("__")) {
-    out[frame.id] = frame;
-  }
-  for (const child of frame.children) collectFramesById(child, out);
-  return out;
+  return previewBridgeRender.collectPreviewFramesById(frame, out || {});
 }
 
 function collectPlacedBounds(frame, out) {
   const previewBridgeRender = previewBridgeRenderContract();
-  if (typeof previewBridgeRender.collectPreviewPlacedBounds === "function") {
-    return previewBridgeRender.collectPreviewPlacedBounds(frame, out || {});
+  if (typeof previewBridgeRender.collectPreviewPlacedBounds !== "function") {
+    throw new Error("layout-bridge: previewBridge.render.collectPreviewPlacedBounds is unavailable");
   }
-  if (!out) out = {};
-  if (frame.id && !frame.id.startsWith("__")) {
-    const ls = frame._layout;
-    out[frame.id] = { x: ls.placedX, y: ls.placedY, w: ls.placedW, h: ls.placedH };
-  }
-  for (const child of frame.children) collectPlacedBounds(child, out);
-  return out;
+  return previewBridgeRender.collectPreviewPlacedBounds(frame, out || {});
 }
 
 function fitSvgToRenderedContent(svgEl, options) {
   const previewBridgeRender = previewBridgeRenderContract();
   if (typeof previewBridgeRender.fitPreviewSvgToRenderedContent !== "function") {
-    return null;
+    throw new Error("layout-bridge: previewBridge.render.fitPreviewSvgToRenderedContent is unavailable");
   }
   return previewBridgeRender.fitPreviewSvgToRenderedContent({
     svg: svgEl,
@@ -139,8 +133,7 @@ function fitSvgToRenderedContent(svgEl, options) {
 function patchSvgFromLayout(svgEl, oldBounds, newBounds, framesById) {
   const previewBridgeRender = previewBridgeRenderContract();
   if (typeof previewBridgeRender.patchPreviewSvgFromLayout !== "function") {
-    console.warn("layout-bridge: previewBridge.render.patchPreviewSvgFromLayout is unavailable");
-    return;
+    throw new Error("layout-bridge: previewBridge.render.patchPreviewSvgFromLayout is unavailable");
   }
   previewBridgeRender.patchPreviewSvgFromLayout({
     svg: svgEl,
@@ -153,10 +146,10 @@ function patchSvgFromLayout(svgEl, oldBounds, newBounds, framesById) {
 
 function updateComponentModelFromLayout(model, frame) {
   const previewBridgeHost = previewBridgeHostContract();
-  if (typeof previewBridgeHost.updatePreviewComponentModelFromLayout === "function") {
-    return previewBridgeHost.updatePreviewComponentModelFromLayout(model, frame);
+  if (typeof previewBridgeHost.updatePreviewComponentModelFromLayout !== "function") {
+    throw new Error("layout-bridge: previewBridge.host.updatePreviewComponentModelFromLayout is unavailable");
   }
-  console.warn("layout-bridge: previewBridge.host.updatePreviewComponentModelFromLayout is unavailable");
+  return previewBridgeHost.updatePreviewComponentModelFromLayout(model, frame);
 }
 
 // ---------------------------------------------------------------------------
@@ -166,8 +159,7 @@ function updateComponentModelFromLayout(model, frame) {
 function arrowComponentId(arrow) {
   const previewBridgeRender = previewBridgeRenderContract();
   if (typeof previewBridgeRender.previewArrowComponentId !== "function") {
-    if (arrow && arrow.id) return String(arrow.id);
-    return `${arrow.source}->${arrow.target}`;
+    throw new Error("layout-bridge: previewBridge.render.previewArrowComponentId is unavailable");
   }
   return previewBridgeRender.previewArrowComponentId(arrow);
 }
@@ -175,24 +167,7 @@ function arrowComponentId(arrow) {
 function syncArrowsInModel(model, arrows, routedArrows) {
   const previewBridgeRender = previewBridgeRenderContract();
   if (typeof previewBridgeRender.syncPreviewArrowsInModel !== "function") {
-    if (!model || typeof model.loadArrows !== "function") return;
-    const routedById = new Map();
-    for (const r of routedArrows || []) {
-      routedById.set(r.componentId, r);
-    }
-    const payload = (arrows || []).map((a) => {
-      const cid = arrowComponentId(a);
-      const routed = routedById.get(cid);
-      return {
-        id: cid,
-        source: a.source,
-        target: a.target,
-        color: a.color,
-        waypoints: routed ? routed.waypoints : (a.waypoints || []),
-      };
-    });
-    model.loadArrows(payload);
-    return;
+    throw new Error("layout-bridge: previewBridge.render.syncPreviewArrowsInModel is unavailable");
   }
   previewBridgeRender.syncPreviewArrowsInModel(
     model,
@@ -203,55 +178,28 @@ function syncArrowsInModel(model, arrows, routedArrows) {
 
 function routeArrows(arrows, boundsMap) {
   const previewBridgeRender = previewBridgeRenderContract();
-  if (typeof previewBridgeRender.routePreviewArrows === "function") {
-    return previewBridgeRender.routePreviewArrows(
-      Array.isArray(arrows) ? arrows : [],
-      boundsMap || {},
-    );
+  if (typeof previewBridgeRender.routePreviewArrows !== "function") {
+    throw new Error("layout-bridge: previewBridge.render.routePreviewArrows is unavailable");
   }
-
-  const previewCore = previewCoreContract();
-  if (typeof previewCore.routeArrows !== "function") {
-    console.warn("layout-bridge: LayoutEngine.routeArrows is unavailable");
-    return [];
-  }
-
-  const authoredByComponentId = new Map(
-    (arrows || []).map((arrow) => [arrowComponentId(arrow), arrow]),
+  return previewBridgeRender.routePreviewArrows(
+    Array.isArray(arrows) ? arrows : [],
+    boundsMap || {},
   );
-
-  return previewCore.routeArrows(arrows, boundsMap)
-    .map((routed) => {
-      const points = routed.points || [];
-      const authored = authoredByComponentId.get(routed.componentId) || {};
-      return {
-        start: points[0],
-        end: points[points.length - 1],
-        waypoints: points.slice(1, -1),
-        componentId: routed.componentId || arrowComponentId(authored),
-        color: routed.color || authored.color || "#E95420",
-        label: routed.label ?? authored.label,
-        labelGap: routed.labelGap ?? authored.labelGap ?? previewCore.GRID_GUTTER ?? 24,
-        elkLabels: authored.elkLabels,
-      };
-    })
-    .filter((arrow) => arrow.start && arrow.end);
 }
 
 function patchArrowsSvg(svgEl, routedArrows, boundsMap) {
   if (!svgEl) return;
   const previewBridgeRender = previewBridgeRenderContract();
-  if (typeof previewBridgeRender.patchPreviewArrowSvg === "function") {
-    previewBridgeRender.patchPreviewArrowSvg({
-      svg: svgEl,
-      routedArrows: Array.isArray(routedArrows) ? routedArrows : [],
-      boundsMap: boundsMap || {},
-      headLen: window.__DG_CONFIG?.head_len,
-      headHalf: window.__DG_CONFIG?.head_half,
-    });
-    return;
+  if (typeof previewBridgeRender.patchPreviewArrowSvg !== "function") {
+    throw new Error("layout-bridge: previewBridge.render.patchPreviewArrowSvg is unavailable");
   }
-  console.warn("layout-bridge: previewBridge.render.patchPreviewArrowSvg is unavailable");
+  previewBridgeRender.patchPreviewArrowSvg({
+    svg: svgEl,
+    routedArrows: Array.isArray(routedArrows) ? routedArrows : [],
+    boundsMap: boundsMap || {},
+    headLen: window.__DG_CONFIG?.head_len,
+    headHalf: window.__DG_CONFIG?.head_half,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -259,69 +207,6 @@ function patchArrowsSvg(svgEl, routedArrows, boundsMap) {
 // ---------------------------------------------------------------------------
 
 const _layoutBridgeState = previewBridgeHostContract().createPreviewLayoutBridgeState();
-
-function _elkDebugEnabled() {
-  return window.__DG_elkDebugOverlay === true && !window.__DG_elkRawView;
-}
-
-function _elkRawViewEnabled() {
-  return window.__DG_elkRawView === true;
-}
-
-function refreshElkViewMode() {
-  const svg = document.querySelector("#stage svg");
-  if (!svg) return;
-  const previewElk = previewElkEngineContract();
-  const elkSnapshot = _layoutBridgeRuntime.getLastElkSnapshot();
-  const elkFrameLabels = _layoutBridgeRuntime.getLastElkFrameLabels();
-
-  const styled = svg.querySelector("#dg-styled-layer");
-  const rawOn = _elkRawViewEnabled();
-
-  if (styled) {
-    styled.setAttribute("display", rawOn ? "none" : "inline");
-  }
-
-  svg.querySelector("#dg-elk-raw-view")?.remove();
-  svg.querySelector("#dg-elk-debug-overlay")?.remove();
-
-  if (rawOn && elkSnapshot && typeof previewElk.renderPreviewElkRawView === "function") {
-    svg.appendChild(previewElk.renderPreviewElkRawView({
-      ownerDocument: document,
-      snapshot: elkSnapshot,
-      labelMap: elkFrameLabels || {},
-      svgNs: SVG_NS,
-      headLen: 8,
-      headHalf: 4,
-    }));
-    return;
-  }
-
-  if (_elkDebugEnabled() && elkSnapshot && typeof previewElk.renderPreviewElkDebugOverlay === "function") {
-    svg.appendChild(previewElk.renderPreviewElkDebugOverlay({
-      ownerDocument: document,
-      snapshot: elkSnapshot,
-      svgNs: SVG_NS,
-    }));
-  }
-}
-
-function refreshElkDebugOverlay() {
-  refreshElkViewMode();
-}
-
-window.__DG_setElkDebugOverlay = function (enabled) {
-  window.__DG_elkDebugOverlay = !!enabled;
-  refreshElkViewMode();
-};
-
-window.__DG_setElkRawView = function (enabled) {
-  window.__DG_elkRawView = !!enabled;
-  refreshElkViewMode();
-};
-
-window.__DG_elkDebugOverlay = window.__DG_elkDebugOverlay === true;
-window.__DG_elkRawView = window.__DG_elkRawView === true;
 
 function _textAdapterBackend() {
   const textAdapter = _layoutBridgeRuntime.getTextAdapter();
@@ -447,6 +332,36 @@ const _layoutBridgeRuntime = previewBridgeHostContract().createPreviewLayoutBrid
   error: (message, error) => console.error(message, error),
 });
 
+const _elkViewModeRuntime = previewBridgeHostContract().createPreviewElkViewModeRuntime({
+  previewWindow: window,
+  getStageSvg: () => document.querySelector("#stage svg"),
+  ownerDocument: document,
+  getLastElkSnapshot: () => _layoutBridgeRuntime.getLastElkSnapshot(),
+  getLastElkFrameLabels: () => _layoutBridgeRuntime.getLastElkFrameLabels(),
+  renderPreviewElkRawView: (options) => previewElkEngineContract().renderPreviewElkRawView(options),
+  renderPreviewElkDebugOverlay: (options) => previewElkEngineContract().renderPreviewElkDebugOverlay(options),
+  svgNs: SVG_NS,
+  headLen: 8,
+  headHalf: 4,
+});
+_elkViewModeRuntime.initializeWindowState();
+
+function refreshElkViewMode() {
+  _elkViewModeRuntime.refreshViewMode();
+}
+
+function refreshElkDebugOverlay() {
+  _elkViewModeRuntime.refreshDebugOverlay();
+}
+
+window.__DG_setElkDebugOverlay = function (enabled) {
+  _elkViewModeRuntime.setDebugOverlay(enabled);
+};
+
+window.__DG_setElkRawView = function (enabled) {
+  _elkViewModeRuntime.setRawView(enabled);
+};
+
 function setFrameTreeJson(json) {
   _layoutBridgeRuntime.setFrameTreeJson(json || null);
 }
@@ -459,11 +374,10 @@ function setFrameTreeJson(json) {
  */
 function applyFrameTreeRemovalsToJson(treeJson, frameIds) {
   const previewBridgeHost = previewBridgeHostContract();
-  if (typeof previewBridgeHost.applyFrameTreeRemovalsToPreviewTreeJson === "function") {
-    return previewBridgeHost.applyFrameTreeRemovalsToPreviewTreeJson(treeJson, frameIds);
+  if (typeof previewBridgeHost.applyFrameTreeRemovalsToPreviewTreeJson !== "function") {
+    throw new Error("layout-bridge: previewBridge.host.applyFrameTreeRemovalsToPreviewTreeJson is unavailable");
   }
-  console.warn("layout-bridge: previewBridge.host.applyFrameTreeRemovalsToPreviewTreeJson is unavailable");
-  return [];
+  return previewBridgeHost.applyFrameTreeRemovalsToPreviewTreeJson(treeJson, frameIds);
 }
 
 /** @deprecated Prefer session-only removals via model.removedIds; mutates canonical cache. */
@@ -473,10 +387,10 @@ function applyFrameTreeRemovals(frameIds) {
 
 function applySessionRemovalsToDiagramJson(diagramJson, model) {
   const previewBridgeHost = previewBridgeHostContract();
-  if (typeof previewBridgeHost.applyPreviewSessionRemovalsToDiagramJson === "function") {
-    return previewBridgeHost.applyPreviewSessionRemovalsToDiagramJson(diagramJson, model);
+  if (typeof previewBridgeHost.applyPreviewSessionRemovalsToDiagramJson !== "function") {
+    throw new Error("layout-bridge: previewBridge.host.applyPreviewSessionRemovalsToDiagramJson is unavailable");
   }
-  console.warn("layout-bridge: previewBridge.host.applyPreviewSessionRemovalsToDiagramJson is unavailable");
+  return previewBridgeHost.applyPreviewSessionRemovalsToDiagramJson(diagramJson, model);
 }
 
 /**
@@ -525,6 +439,10 @@ async function performElkRelayout(model, overrides, gridOverrides) {
     overrides || {},
     gridOverrides || {},
   );
+}
+
+async function performEngineRelayout(model, overrides, gridOverrides) {
+  return performElkRelayout(model, overrides, gridOverrides);
 }
 
 // ---------------------------------------------------------------------------
@@ -590,6 +508,9 @@ window.__DG_previewBridgeHostRuntime = {
   ),
   performElkRelayout: (model, overrides, gridOverrides) => (
     performElkRelayout(model, overrides, gridOverrides)
+  ),
+  performEngineRelayout: (model, overrides, gridOverrides) => (
+    performEngineRelayout(model, overrides, gridOverrides)
   ),
   renderFreshSvg: (overrides, gridOverrides, model) => (
     renderFreshSvg(overrides, gridOverrides, model)

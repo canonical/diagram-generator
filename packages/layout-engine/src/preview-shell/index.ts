@@ -400,8 +400,10 @@ export {
 } from './app-waypoint-host.js';
 
 export type {
+  BootstrapPreviewEditorRuntimeOptions,
   BootstrapPreviewEditorHostOptions,
   ConnectPreviewSseOptions,
+  CreatePreviewOverrideToolbarHostOptions,
   PreviewEnginePayloadModelLike,
   PreviewEngineShellControllerApi,
   PreviewDiagramLoadSignalState,
@@ -422,10 +424,14 @@ export type {
 } from './app-bootstrap.js';
 
 export {
+  bootstrapPreviewEditorRuntime,
   bootstrapPreviewEditorHost,
   collectPreviewEngineSavePayload,
   connectPreviewSse,
+  createBootstrapPreviewEditorHostOptionsFromRuntime,
+  createPreviewBuildStatusUpdater,
   createPreviewDiagramLoadSignalState,
+  createPreviewOverrideToolbarHostOptions,
   createPreviewSaveClientInitConfig,
   ensurePreviewEditorState,
   ensurePreviewEngineShellController,
@@ -439,6 +445,7 @@ export {
   installPreviewEditorTestFacadeHost,
   registerPreviewPageshowReload,
   registerPreviewEditorDocumentBindingsHost,
+  restorePreviewSelectionIds,
   signalPreviewDiagramLoaded,
   whenPreviewDiagramLoaded,
 } from './app-bootstrap.js';
@@ -758,6 +765,7 @@ export {
 } from './interaction-hit-testing.js';
 
 export type {
+  CreateLoadPreviewSvgHostOptions,
   LoadPreviewSvgOptions,
   PreviewFallbackResponse,
   PreviewFrameTreeSeed,
@@ -770,6 +778,7 @@ export type {
 } from './app-load.js';
 
 export {
+  createLoadPreviewSvgHostOptions,
   createPreviewLoadFailureMarkup,
   createPreviewLoadLoadingMarkup,
   createPreviewLoadUnavailableMarkup,
@@ -821,7 +830,9 @@ export {
 } from './app-shell-panels.js';
 
 export type {
+  CreatePreviewElkViewModeRuntimeOptions,
   CreatePreviewLayoutBridgeRuntimeOptions,
+  PreviewElkViewModeRuntime,
   PreviewLayoutBridgeLocalRelayoutOptions,
   PreviewLayoutBridgeModelTreeLoader,
   PreviewLayoutBridgeOldBoundsEntry,
@@ -834,6 +845,7 @@ export type {
 export {
   applyFrameTreeRemovalsToPreviewTreeJson,
   applyPreviewSessionRemovalsToDiagramJson,
+  createPreviewElkViewModeRuntime,
   createPreviewLayoutBridgeRuntime,
   createPreviewLayoutBridgeState,
   normalizePreviewLayoutBridgeLocalRelayoutOverrideMode,
@@ -855,6 +867,7 @@ export type {
 } from './app-relayout.js';
 
 export type {
+  CreatePreviewRelayoutRuntimeHostOptions,
   CreatePreviewRelayoutRuntimeOptions,
   PreviewRelayoutRuntime,
 } from './app-relayout-runtime.js';
@@ -877,6 +890,7 @@ export {
 } from './app-relayout.js';
 
 export {
+  createPreviewRelayoutRuntimeOptionsFromHost,
   createPreviewRelayoutRuntime,
 } from './app-relayout-runtime.js';
 

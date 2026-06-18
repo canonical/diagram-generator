@@ -335,78 +335,51 @@ function _initPreviewEngineShellPanel() {
 
 async function loadSVG(options = {}) {
   const stage = document.getElementById("stage");
-  await window.__DG_getPreviewShellBootstrapContract().loadPreviewSvg({
-    invocation: options,
-    deselectAll,
-    initLayoutBridge: async () => {
-      const previewBridgeHost = _getPreviewBridgeHostContract();
-      if (typeof previewBridgeHost.initLayoutBridge !== "function") {
-        throw new Error("preview layout bridge is required for the v3 editor");
-      }
-      await previewBridgeHost.initLayoutBridge(SLUG);
-    },
-    setFrameTreeJson: (() => {
-      const previewBridgeHost = _getPreviewBridgeHostContract();
-      return typeof previewBridgeHost.setFrameTreeJson === "function"
-        ? (frameTree) => previewBridgeHost.setFrameTreeJson(frameTree)
-        : null;
-    })(),
-    isElkLayeredDiagram: () => _isPreviewEngineShellLayoutActive(),
-    resetOverrideState,
-    initElkPanel: () => _initPreviewEngineShellPanel(),
-    getLocalRelayoutStatus: () => _getLocalBridgeRelayoutStatus(),
-    escapeHtml,
-    setStageHtml: (html) => {
-      stage.innerHTML = html;
-    },
-    loadTree,
-    loadGridInfo,
-    getGridInfo: () => gridInfo,
-    setDiagramGrid: (nextGridInfo) => model.setDiagramGrid(nextGridInfo),
-    populateGridControls,
-    applyWaypointOverrides,
-    applyAllOverrides,
-    bindInteraction,
-    renderGridOverlay,
-    restoreSelection: (ids) => {
-      if (ids) {
-        selectedIds.clear();
-        ids.forEach((id) => selectedIds.add(id));
-      }
-      reapplySelection();
-    },
-    runConstraints,
-    markSaved: (serializedState) => PreviewSaveClient.markSaved(serializedState),
-    serializeDirtyState: () => EditorState.serializeDirtyState(),
-    signalDiagramLoaded: _signalDiagramLoaded,
-    getGridOverrides: () => model.gridOverrides,
-    pruneLinkedRootGridOverrides: _pruneLinkedRootGridOverrides,
-    renderFreshSvg: () => {
-      const gridOverrides = model.gridOverrides && Object.keys(model.gridOverrides).length > 0
-        ? model.gridOverrides
-        : null;
-      return window.__DG_getPreviewBridgeRenderContract().renderFreshPreviewSvg({
-        overrides,
-        gridOverrides,
-        model,
-      });
-    },
-    replaceStageWithRenderedSvg: (renderResult) => {
-      stage.replaceChildren(renderResult.svg);
-    },
-    fitRenderedSvg: typeof fitSvgToRenderedContent === "function"
-      ? (renderResult) => {
-        fitSvgToRenderedContent(renderResult.svg, {
-          minWidth: renderResult.width,
-          minHeight: renderResult.height,
-        });
-      }
-      : null,
-    fetchFallbackSvg: async () => {
-      const suffix = GRID ? `-${ENGINE}-grid.svg` : `-${ENGINE}.svg`;
-      return fetch("/svg/" + SLUG + "-onbrand" + suffix + "?t=" + Date.now());
-    },
-  });
+  const previewShellBootstrap = window.__DG_getPreviewShellBootstrapContract();
+  await previewShellBootstrap.loadPreviewSvg(
+    previewShellBootstrap.createLoadPreviewSvgHostOptions({
+      invocation: options,
+      stage,
+      slug: SLUG,
+      engine: ENGINE,
+      gridEnabled: GRID,
+      deselectAll,
+      previewBridgeHost: _getPreviewBridgeHostContract(),
+      isEngineLayoutActive: () => _isPreviewEngineShellLayoutActive(),
+      resetOverrideState,
+      initEnginePanel: () => _initPreviewEngineShellPanel(),
+      getLocalRelayoutStatus: () => _getLocalBridgeRelayoutStatus(),
+      escapeHtml,
+      loadTree,
+      loadGridInfo,
+      getGridInfo: () => gridInfo,
+      setDiagramGrid: (nextGridInfo) => model.setDiagramGrid(nextGridInfo),
+      populateGridControls,
+      applyWaypointOverrides,
+      applyAllOverrides,
+      bindInteraction,
+      renderGridOverlay,
+      restoreSelection: (ids) => {
+        if (ids) {
+          selectedIds.clear();
+          ids.forEach((id) => selectedIds.add(id));
+        }
+        reapplySelection();
+      },
+      runConstraints,
+      markSaved: (serializedState) => PreviewSaveClient.markSaved(serializedState),
+      serializeDirtyState: () => EditorState.serializeDirtyState(),
+      signalDiagramLoaded: _signalDiagramLoaded,
+      getGridOverrides: () => model.gridOverrides,
+      pruneLinkedRootGridOverrides: _pruneLinkedRootGridOverrides,
+      previewBridgeRender: window.__DG_getPreviewBridgeRenderContract(),
+      overrides,
+      model,
+      fitRenderedSvgToContent: typeof fitSvgToRenderedContent === "function"
+        ? (svg, fitOptions) => fitSvgToRenderedContent(svg, fitOptions)
+        : null,
+    }),
+  );
 }
 
 async function _finishV3Relayout(triggerCid, localResult, executionLabel) {
@@ -1380,7 +1353,7 @@ function _scheduleV3ResizeRelayout(cid, newW, newH, resizedW, resizedH) {
   window.__DG_getPreviewBridgeRelayoutContract().schedulePreviewLiveResizeRelayout({
     state: _liveResizeRelayoutState,
     request: { cid, newW, newH, resizedW, resizedH },
-    isElkLayeredDiagram: _isPreviewEngineShellLayoutActive(),
+    isEngineLayoutActive: _isPreviewEngineShellLayoutActive(),
     requestAnimationFrameFn: (callback) => requestAnimationFrame(callback),
     overrides,
     getGridOverrides: () => model.gridOverrides || {},
@@ -1749,40 +1722,33 @@ let _relayoutRuntime = null;
 function _getRelayoutRuntime() {
   if (_relayoutRuntime) return _relayoutRuntime;
   const previewBridgeHost = _getPreviewBridgeHostContract();
-  _relayoutRuntime = window.__DG_getPreviewBridgeRelayoutContract().createPreviewRelayoutRuntime({
-    overrides,
-    coercedKeys: _coercedKeys,
-    getGridOverrides: () => model.gridOverrides || {},
-    normalizeGridOverrides: (value) => EditorState.normalizeGridOverrides(value),
-    getRelayoutStatus,
-    isElkLayeredDiagram: () => _isPreviewEngineShellLayoutActive(),
-    performElkRelayout: typeof previewBridgeHost.performElkRelayout === "function"
-      ? async (gridOvr) => previewBridgeHost.performElkRelayout(model, overrides, gridOvr)
-      : null,
-    performLocalRelayout: (gridOvr) => previewBridgeHost.performLocalRelayout(
-      model,
+  const previewBridgeRelayout = window.__DG_getPreviewBridgeRelayoutContract();
+  _relayoutRuntime = previewBridgeRelayout.createPreviewRelayoutRuntime(
+    previewBridgeRelayout.createPreviewRelayoutRuntimeOptionsFromHost({
       overrides,
-      gridOvr,
-    ),
-    failRelayout: (reason, nextTriggerCid) => _failV3Relayout(reason, nextTriggerCid),
-    finishRelayout: (nextTriggerCid, result, executionLabel) => _finishV3Relayout(nextTriggerCid, result, executionLabel),
-    logError: (message) => console.error(message),
-    hasWaypointOverride: (cid) => Boolean(overrides[cid] && overrides[cid].waypoints),
-    clearOverride: (cid) => model.clearOverride(cid),
-    setDirty: () => setDirty(true),
-    applyAllOverrides,
-    isSelected: (cid) => selectedIds.has(cid),
-    updateInspector,
-    restoreArrowFromTree: (cid) => loadTree().then(() => {
-      rebuildArrowSVG(cid);
-      applyAllOverrides();
-      if (selectedIds.has(cid)) updateInspector(cid);
+      coercedKeys: _coercedKeys,
+      model,
+      selectedIds,
+      previewBridgeHost,
+      getGridOverrides: () => model.gridOverrides || {},
+      normalizeGridOverrides: (value) => EditorState.normalizeGridOverrides(value),
+      getRelayoutStatus,
+      isEngineLayoutActive: () => _isPreviewEngineShellLayoutActive(),
+      failRelayout: (reason, nextTriggerCid) => _failV3Relayout(reason, nextTriggerCid),
+      finishRelayout: (nextTriggerCid, result, executionLabel) => _finishV3Relayout(nextTriggerCid, result, executionLabel),
+      logError: (message) => console.error(message),
+      clearOverride: (cid) => model.clearOverride(cid),
+      setDirty: () => setDirty(true),
+      applyAllOverrides,
+      updateInspector,
+      reloadTreeAfterArrowRestore: () => loadTree(),
+      rebuildArrowSvg: (cid) => rebuildArrowSVG(cid),
+      captureOverrideEntries: (ids) => EditorState.captureOverrideEntries(ids),
+      commitOverridePatchAction: (label, beforeEntries, afterEntries) => {
+        EditorState.commitOverridePatchAction(label, beforeEntries, afterEntries);
+      },
     }),
-    captureOverrideEntries: (ids) => EditorState.captureOverrideEntries(ids),
-    commitOverridePatchAction: (label, beforeEntries, afterEntries) => {
-      EditorState.commitOverridePatchAction(label, beforeEntries, afterEntries);
-    },
-  });
+  );
   return _relayoutRuntime;
 }
 
@@ -1908,17 +1874,19 @@ function getViolationsForComponent(cid) {
 // ---- SSE / bootstrap tail ----
 
 function bootstrapPreviewEditor() {
-  window.__DG_getPreviewShellBootstrapContract().bootstrapPreviewEditorHost({
+  window.__DG_getPreviewShellBootstrapContract().bootstrapPreviewEditorRuntime({
     document,
     previewWindow: window,
     slug: SLUG,
+    model,
+    selectedIds,
+    reapplySelection,
     onDocumentKeyDown,
     undo: () => EditorState.undo(_applyUndoCommand),
     redo: () => EditorState.redo(_applyUndoCommand),
     saveOverrides: () => PreviewSaveClient.saveOverrides(),
     canUndo: () => EditorState.canUndo(),
     canRedo: () => EditorState.canRedo(),
-    getCurrentPath: () => window.location.pathname,
     syncBrowseNav: _syncBrowseNavToLocation,
     fetchIndexHtml: async () => {
       const response = await fetch("/", { credentials: "same-origin" });
@@ -1930,65 +1898,34 @@ function bootstrapPreviewEditor() {
     attemptNavigation: (nextUrl, syncUi) => _attemptDiagramNavigation(nextUrl, syncUi),
     initNavTabs,
     getOverrides: () => overrides,
-    getGridOverrides: () => model.gridOverrides,
-    getElkLayoutOverrides: () => model.elkLayoutOverrides || {},
-    getRemovedIds: () => model.removedIds,
     getFrameTree: () => (typeof getFrameTreeJson === "function" ? getFrameTreeJson() : null),
-    setElkLayoutOverrides: (value) => {
-      model.elkLayoutOverrides = { ...value };
-    },
-    getRootId: () => (model.roots[0] || {}).id || "root",
     requestV3Relayout: (cid) => requestV3Relayout(cid),
     previewSaveClient: PreviewSaveClient,
-    getModel: () => model,
-    getSelectedIds: () => [...selectedIds],
-    restoreSelectionIds: (ids) => {
-      selectedIds.clear();
-      ids.forEach(id => selectedIds.add(id));
-      reapplySelection();
-    },
     serializeDirtyState: () => window.EditorState.serializeDirtyState(),
     reloadDiagram: (options) => loadSVG(options),
     getV3RelayoutStatus: () => getV3RelayoutStatus(),
     getV3RelayoutRuntime: () => _v3RelayoutRuntime,
     getConstraintSummary: () => constraints.summarise(lastViolations),
-    getConstraintErrorCount: () => constraints.summarise(lastViolations).errors,
-    runConstraints: () => runConstraints(),
+    runConstraints,
     clearCoercedKeys: () => _coercedKeys.clear(),
-    setStatus: (message, kind) => setStatus(message, kind),
-    sanitizeSvgCloneForExport: (clone) => sanitizeSvgCloneForExport(clone),
+    setStatus,
+    sanitizeSvgCloneForExport,
     allowInternalDirtyNavigation: () => _allowInternalDirtyNavigation,
-    overrideToolbar: {
-      exportButton: document.getElementById("btn-export"),
-      clearAllButton: document.getElementById("btn-clear-all"),
-      slug: SLUG,
-      getOverrides: () => overrides,
-      writeClipboardText: (text) => navigator.clipboard.writeText(text),
-      alert: (message) => alert(message),
-      confirmClearAll: (message) => confirm(message),
-      confirmClearAllMessage: "Clear all overrides for " + SLUG + "?",
-      onClearAll: () => {
-        EditorState.runUndoableAction("Clear all overrides", () => {
-          replaceOverrides({});
-          _coercedKeys.clear();
-          setDirty(true);
-        });
-        applyAllOverrides();
-        renderSelectionInspector();
-      },
+    writeClipboardText: (text) => navigator.clipboard.writeText(text),
+    alert: (message) => alert(message),
+    confirmClearAll: (message) => confirm(message),
+    onClearAllOverrides: () => {
+      EditorState.runUndoableAction("Clear all overrides", () => {
+        replaceOverrides({});
+        _coercedKeys.clear();
+        setDirty(true);
+      });
+      applyAllOverrides();
+      renderSelectionInspector();
     },
-    eventSourceFactory: (url) => new EventSource(url),
     getGeneration: () => generation,
     setGeneration: (value) => {
       generation = value;
-    },
-    setBuildStatus: ({ message, kind }) => {
-      const statusEl = document.getElementById("build-status");
-      if (!statusEl) {
-        return;
-      }
-      statusEl.className = kind === "error" ? "build-status build-err" : "build-status build-ok";
-      statusEl.textContent = message;
     },
     scheduleReconnect: (callback, delayMs) => setTimeout(callback, delayMs),
   });
