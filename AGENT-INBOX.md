@@ -11,7 +11,7 @@ Durable follow-up belongs in `TODO.md`, [`AGENTS.md`](AGENTS.md#handover), or [`
 This section supersedes the prior pass-4 review. Resolved items have been removed.
 
 **Branch:** `feat/046-editor-host-endgame`  
-**Current shape:** `scripts/preview/editor.js` is about `1,937` lines; `scripts/preview/layout-bridge.js` is about `544` lines.
+**Current shape:** `scripts/preview/editor.js` is about `1,704` lines; `scripts/preview/layout-bridge.js` is about `499` lines.
 
 ### Resolved since the prior review
 
@@ -22,6 +22,8 @@ This section supersedes the prior pass-4 review. Resolved items have been remove
 - The three-class browser-shell onboarding proof is no longer prose-only. `packages/layout-engine/tests/app-bootstrap.test.ts` now exercises representative ported-family (`mermaid-flowchart`) and bespoke (`bespoke-grid`) controllers through the same generic `PreviewEngineShellController` seam used by ELK.
 - `layout-bridge.js` no longer carries the inline duplicate `collectFramesById` / `collectPlacedBounds` implementations or the flat root-contract fallbacks that were still present in the previous review. The bridge now requires the namespaced preview contracts directly.
 - `layout-bridge.js` no longer owns ELK debug/raw-view DOM state inline. That view-mode runtime now lives in `packages/layout-engine/src/preview-shell/app-layout-bridge-runtime.ts` behind `previewBridge.host.createPreviewElkViewModeRuntime(...)`.
+- `editor.js` no longer hand-assembles the selection, inspector-display, inspector-mutation, inspector-selection, and arrow-waypoint runtime constructor bags inline. Those now compose through `previewShell.bootstrap.createPreviewEditorRuntimeSet(...)` in `packages/layout-engine/src/preview-shell/app-editor-runtime-set.ts`.
+- `layout-bridge.js` no longer routes fresh-render or frame-tree overlay rendering back through the merged host render contract. Those paths now call the bundle render contract directly, preventing recursive self-entry and keeping the live demo load path green.
 - Shared shell getters in `scripts/preview/editor-base.js` now read the namespaced browser contract directly instead of falling back to the flat `LayoutEngine` root bag.
 
 ### Still open
@@ -33,7 +35,7 @@ This section supersedes the prior pass-4 review. Resolved items have been remove
 #### Medium
 
 2. **Cold-start surface shifted into TypeScript barrels** — `packages/layout-engine/src/preview-shell/index.ts` and `packages/layout-engine/src/browser-entry.ts` remain large enough to deserve trap-file discipline even though they are better-structured than the old JS sinks.
-3. **Contract consumer harness remains expensive** — the split into `engine-contract-consumers.test.ts`, `editor-bootstrap-contract.test.ts`, and `layout-bridge-contract-consumers.test.ts` is better, but the VM-extraction harness is still a maintenance cost worth shrinking further when practical.
+3. **Contract consumer harness is smaller but still not cheap** — the stale per-runtime constructor captures in `engine-contract-consumers.test.ts` are replaced with a runtime-set seam plus a focused `app-editor-runtime-set.test.ts`, but the remaining VM-extraction harness is still a maintenance cost worth shrinking further when practical.
 
 #### Discussion / non-code-state
 
@@ -50,5 +52,5 @@ This section supersedes the prior pass-4 review. Resolved items have been remove
 ### Current next work
 
 1. Continue shrinking `editor.js` by moving additional relayout/scene/bootstrap coordination into typed owners until the file reads as thin glue rather than a large coordinator.
-2. Keep reducing VM contract-harness pressure where new focused unit tests can replace source-extraction coverage without losing the browser-contract guardrail.
+2. Keep reducing VM contract-harness pressure where new focused unit tests can replace source-extraction coverage without losing the browser-contract guardrail; the new runtime-set seam is one working pattern.
 3. Start shrinking the preview-shell barrel cold-start surface so the typed owners do not become the next trap files.

@@ -321,6 +321,76 @@ test("layout bridge frame-svg patch helpers accept the namespaced previewBridge.
   ]);
 });
 
+test("layout bridge frame-tree render helper uses the bundle previewBridge.render contract when host wrappers overlap", () => {
+  const source = readPreviewScript("layout-bridge.js");
+  const capturedCalls: Array<Record<string, unknown>> = [];
+  const diagram = { root: { id: "root" } };
+  const result = { width: 320, height: 200 };
+  const context = {
+    console,
+    document: { tagName: "document" },
+    _layoutBridgeRuntime: {
+      getTextAdapter() {
+        return { measurementBackend: "mock" };
+      },
+    },
+    window: {
+      __DG_getPreviewBridgeRenderContract() {
+        return {
+          renderPreviewFrameTreeToSvg() {
+            throw new Error("merged render contract should not shadow the bundle renderer");
+          },
+        };
+      },
+      LayoutEngine: {
+        previewBridge: {
+          render: {
+            renderPreviewFrameTreeToSvg(options: Record<string, unknown>) {
+              capturedCalls.push(options);
+              return { tagName: "svg" };
+            },
+          },
+        },
+      },
+    },
+  };
+
+  const helperSource = [
+    extractNamedFunctionSource(source, "previewBridgeBundleRenderContract", "()"),
+    extractNamedFunctionSource(source, "renderFrameTreeToSvg", "(diagram, result, options)"),
+    "this.__loaded = { renderFrameTreeToSvg };",
+  ].join("\n");
+
+  vm.runInNewContext(helperSource, context);
+  const loaded = (context as {
+    __loaded: {
+      renderFrameTreeToSvg: (
+        diagram: Record<string, unknown>,
+        result: Record<string, unknown>,
+        options: Record<string, unknown>,
+      ) => unknown;
+    };
+  }).__loaded;
+
+  assert.deepEqual(
+    normalizeVmValue(loaded.renderFrameTreeToSvg(diagram, result, {
+      iconElements: [{ id: "icon" }],
+      overlays: [{ id: "overlay" }],
+    })),
+    { tagName: "svg" },
+  );
+  assert.deepEqual(normalizeVmValue(capturedCalls), [
+    {
+      ownerDocument: { tagName: "document" },
+      diagram,
+      result,
+      textAdapter: { measurementBackend: "mock" },
+      iconElements: [{ id: "icon" }],
+      overlays: [{ id: "overlay" }],
+    },
+  ]);
+});
+
 test("layout bridge host helpers accept the namespaced previewBridge.host contract", () => {
   const source = readPreviewScript("layout-bridge.js");
   const capturedCalls: Array<Record<string, unknown>> = [];
@@ -479,4 +549,14 @@ test("layout bridge runtime setup wires the local model-update wrapper into the 
 
   assert.match(source, /updateModelFromLayout:\s*updateComponentModelFromLayout,/);
   assert.doesNotMatch(source, /[^A-Za-z]updateModelFromLayout,\s*[\r\n]/);
+});
+
+test("layout bridge fresh-render runtime uses the bundle previewBridge.render contract instead of the merged host wrapper", () => {
+  const source = readPreviewScript("layout-bridge.js");
+
+  assert.match(source, /function previewBridgeBundleRenderContract\(\)/);
+  assert.match(
+    source,
+    /renderFreshPreviewSvg:\s*async\s*\(options\)\s*=>\s*\{\s*const previewBridgeRender = previewBridgeBundleRenderContract\(\);/s,
+  );
 });

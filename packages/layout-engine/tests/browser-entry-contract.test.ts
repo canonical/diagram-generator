@@ -21,6 +21,7 @@ import {
   createBootstrapPreviewEditorHostOptionsFromRuntime,
   createLoadPreviewSvgHostOptions,
   createPreviewBuildStatusUpdater,
+  createPreviewEditorRuntimeSet,
   createPreviewInspectorDisplayRuntime,
   createPreviewInspectorMutationRuntime,
   createPreviewInspectorSelectionRuntime,
@@ -188,6 +189,7 @@ describe('browser entry contract pilot', () => {
     expect(previewShell.bootstrap.createBootstrapPreviewEditorHostOptionsFromRuntime)
       .toBe(createBootstrapPreviewEditorHostOptionsFromRuntime);
     expect(previewShell.bootstrap.createPreviewBuildStatusUpdater).toBe(createPreviewBuildStatusUpdater);
+    expect(previewShell.bootstrap.createPreviewEditorRuntimeSet).toBe(createPreviewEditorRuntimeSet);
     expect(previewShell.bootstrap.createPreviewOverrideToolbarHostOptions)
       .toBe(createPreviewOverrideToolbarHostOptions);
     expect(previewShell.bootstrap.collectPreviewEngineSavePayload).toBeTypeOf('function');

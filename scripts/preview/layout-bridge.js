@@ -39,6 +39,14 @@ function previewBridgeRenderContract() {
   return contract;
 }
 
+function previewBridgeBundleRenderContract() {
+  const contract = window.LayoutEngine?.previewBridge?.render ?? null;
+  if (!contract) {
+    throw new Error("layout-bridge: previewBridge.render bundle contract is unavailable");
+  }
+  return contract;
+}
+
 function previewBridgeHostContract() {
   const contract = typeof window.__DG_getPreviewBridgeHostContract === "function"
     ? window.__DG_getPreviewBridgeHostContract()
@@ -317,7 +325,7 @@ const _layoutBridgeRuntime = previewBridgeHostContract().createPreviewLayoutBrid
   updateModelFromLayout: updateComponentModelFromLayout,
   syncArrowsInModel,
   renderFreshPreviewSvg: async (options) => {
-    const previewBridgeRender = previewBridgeRenderContract();
+    const previewBridgeRender = previewBridgeBundleRenderContract();
     if (typeof previewBridgeRender.renderFreshPreviewSvg !== "function") {
       throw new Error("layout-bridge: previewBridge.render.renderFreshPreviewSvg is unavailable");
     }
@@ -468,7 +476,7 @@ function createArrowsSvg(routedArrows, boundsMap) {
 // ---------------------------------------------------------------------------
 
 function renderFrameTreeToSvg(diagram, result, options) {
-  const previewBridgeRender = previewBridgeRenderContract();
+  const previewBridgeRender = previewBridgeBundleRenderContract();
   if (typeof previewBridgeRender.renderPreviewFrameTreeToSvg !== "function") {
     throw new Error("layout-bridge: previewBridge.render.renderPreviewFrameTreeToSvg is unavailable");
   }

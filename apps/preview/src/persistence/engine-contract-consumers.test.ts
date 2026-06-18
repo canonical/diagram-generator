@@ -1638,12 +1638,22 @@ test("editor inspector mutation helpers accept the namespaced previewShell.inspe
   ]);
 });
 
-test("editor inspector-selection runtime accepts the namespaced previewShell.inspector contract", () => {
+test("editor runtime-set bootstrap accepts the namespaced previewShell.bootstrap contract", () => {
   const source = readPreviewScript("editor.js");
   let capturedOptions: Record<string, unknown> | null = null;
+  const inspector = { id: "inspector", innerHTML: "" };
+  const runtimeSet = {
+    selection: { id: "selection-runtime" },
+    inspectorDisplay: { id: "display-runtime" },
+    inspectorMutation: { id: "mutation-runtime" },
+    inspectorSelection: { id: "selection-inspector-runtime" },
+    arrowWaypoint: { id: "waypoint-runtime" },
+  };
   const context = {
     console,
+    document: { tagName: "document" },
     selectedIds: new Set(["alpha", "beta"]),
+    selectionDepth: 3,
     multiActionGap: 17,
     BASELINE_STEP: 24,
     overrides: { alpha: {}, beta: {} },
@@ -1661,13 +1671,26 @@ test("editor inspector-selection runtime accepts the namespaced previewShell.ins
       },
       cleanOverride() {},
     },
+    getAncestors() {
+      return ["root"];
+    },
+    getPrimarySelectedId(preferredId?: string | null) {
+      return preferredId || "alpha";
+    },
+    getInspectorElement() {
+      return inspector;
+    },
     setDirty() {},
+    snapToGrid(value: number) {
+      return value;
+    },
     _scheduleV3Relayout() {},
     requestV3Relayout() {
       return Promise.resolve(true);
     },
     clearTimeout() {},
     _v3RelayoutTimer: null,
+    renderEmptyInspector() {},
     renderSelectionInspector() {},
     renderMultiSelectionInspector() {},
     applyAllOverrides() {},
@@ -1676,6 +1699,8 @@ test("editor inspector-selection runtime accepts the namespaced previewShell.ins
     refreshTreeColors() {},
     runConstraints() {},
     setOverride() {},
+    removeResizeHandles() {},
+    showResizeHandles() {},
     getSelectionActionItems() {
       return {
         items: [{ id: "alpha" }, { id: "beta" }],
@@ -1683,46 +1708,83 @@ test("editor inspector-selection runtime accepts the namespaced previewShell.ins
         hasUnsupported: false,
       };
     },
-    _getInspectorDisplayRuntime() {
-      return {
-        getWidthUnit() {
-          return "px";
-        },
-        getHeightUnit() {
-          return "rows";
-        },
-      };
+    getArrowNode() {
+      return { waypoints: [] };
+    },
+    getOwnDelta() {
+      return { dx: 0, dy: 0, dw: 0, dh: 0 };
+    },
+    getEffectiveDelta() {
+      return { dx: 0, dy: 0, dw: 0, dh: 0 };
     },
     getComponentType() {
       return "box";
     },
+    getParentNode() {
+      return { layout: "horizontal" };
+    },
+    getViolationsForComponent() {
+      return [];
+    },
+    _readRenderedStyleFields() {
+      return { fill: "#ffffff", stroke: "#111111" };
+    },
+    renderBoxStyleOptions() {
+      return "<option>highlight</option>";
+    },
+    _formatAsDefinedStyleLabel() {
+      return "Defined";
+    },
     _normaliseStyleName(value: string) {
       return value;
     },
+    setWaypointOverride() {},
+    mgr: { state: null },
+    InteractionMode: {
+      WAYPOINT_DRAGGING: "waypoint_dragging",
+    },
+    escapeHtml(message: string) {
+      return `escaped:${message}`;
+    },
     alert() {},
     window: {
-      __DG_getPreviewShellInspectorContract() {
-        return context.LayoutEngine.previewShell.inspector;
+      __DG_getPreviewShellBootstrapContract() {
+        return context.LayoutEngine.previewShell.bootstrap;
+      },
+      __DG_getPreviewShellSceneContract() {
+        return context.LayoutEngine.previewShell.scene;
       },
       __DG_getPreviewShellInteractionContract() {
         return context.LayoutEngine.previewShell.interaction;
       },
+      __DG_getPreviewBridgeRenderContract() {
+        return {
+          readPreviewArrowEndpoints() {
+            return { start: [0, 0], end: [80, 0] };
+          },
+          updatePreviewArrowSvg() {},
+          rebuildPreviewArrowSvg() {},
+        };
+      },
+      getLayoutTextAdapter() {
+        return { name: "adapter" };
+      },
+      __DG_CONFIG: {
+        col_gap: 24,
+        head_len: 10,
+        head_half: 5,
+      },
     },
     LayoutEngine: {
       previewShell: {
-        inspector: {
-          createPreviewInspectorSelectionRuntime(options: Record<string, unknown>) {
+        bootstrap: {
+          createPreviewEditorRuntimeSet(options: Record<string, unknown>) {
             capturedOptions = options;
-            return {
-              applySelectionTargets() {},
-              distributeSelection() {},
-              alignSelection() {},
-              setMultiFrameAlign() {},
-              applyMultiStyleOverride() {},
-              setMultiFrameProp() {},
-              setMultiFrameSize() {},
-            };
+            return runtimeSet;
           },
+        },
+        scene: {
+          syncPreviewTreeSelectionState() {},
         },
         interaction: {
           createSelectionTargetOverrideEntries() {
@@ -1743,60 +1805,79 @@ test("editor inspector-selection runtime accepts the namespaced previewShell.ins
   };
 
   const helperSource = [
-    "let _inspectorSelectionRuntime = null;",
+    "let _editorRuntimeSet = null;",
+    extractNamedFunctionSource(source, "_getEditorRuntimeSet", "()"),
     extractNamedFunctionSource(source, "_getInspectorSelectionRuntime", "()"),
-    "this.__loaded = { _getInspectorSelectionRuntime };",
+    extractNamedFunctionSource(source, "_getInspectorDisplayRuntime", "()"),
+    extractNamedFunctionSource(source, "_getArrowWaypointRuntime", "()"),
+    "this.__loaded = { _getEditorRuntimeSet, _getInspectorSelectionRuntime, _getInspectorDisplayRuntime, _getArrowWaypointRuntime };",
   ].join("\n");
 
   vm.runInNewContext(helperSource, context);
   const loaded = (context as {
     __loaded: {
+      _getEditorRuntimeSet: () => Record<string, unknown>;
       _getInspectorSelectionRuntime: () => Record<string, unknown>;
+      _getInspectorDisplayRuntime: () => Record<string, unknown>;
+      _getArrowWaypointRuntime: () => Record<string, unknown>;
     };
   }).__loaded;
 
-  const runtime = loaded._getInspectorSelectionRuntime();
+  assert.equal(loaded._getEditorRuntimeSet(), runtimeSet);
+  assert.equal(loaded._getInspectorSelectionRuntime(), runtimeSet.inspectorSelection);
+  assert.equal(loaded._getInspectorDisplayRuntime(), runtimeSet.inspectorDisplay);
+  assert.equal(loaded._getArrowWaypointRuntime(), runtimeSet.arrowWaypoint);
 
   assert.deepEqual(normalizeVmValue({
     selectedIds: Array.from(capturedOptions?.selectedIds as Iterable<string>),
+    selectionDepth: (capturedOptions?.getSelectionDepth as (() => number) | undefined)?.(),
+    ancestorDepth: (capturedOptions?.getAncestorDepth as ((id: string) => number) | undefined)?.("alpha"),
+    inspector: (capturedOptions?.getInspector as (() => unknown) | undefined)?.(),
     hasGetSelectionActionInfo: typeof capturedOptions?.getSelectionActionInfo,
     hasGetMultiActionGap: typeof capturedOptions?.getMultiActionGap,
     hasSetMultiActionGap: typeof capturedOptions?.setMultiActionGap,
     hasSetOverride: typeof capturedOptions?.setOverride,
     hasGetGridInfo: typeof capturedOptions?.getGridInfo,
-    hasGetWidthUnit: typeof capturedOptions?.getWidthUnit,
+    hasFormatControlErrorMessage: typeof capturedOptions?.formatControlErrorMessage,
     hasNormalizeSelectionGap: typeof capturedOptions?.normalizeSelectionGap,
     hasResolveSelectionDistributeTargets: typeof capturedOptions?.resolveSelectionDistributeTargets,
     hasResolveSelectionAlignTargets: typeof capturedOptions?.resolveSelectionAlignTargets,
     hasCreateSelectionTargetOverrideEntries: typeof capturedOptions?.createSelectionTargetOverrideEntries,
+    hasReadArrowEndpoints: typeof capturedOptions?.readArrowEndpoints,
+    hasUpdateArrowSvg: typeof capturedOptions?.updateArrowSvg,
+    hasRebuildArrowSvg: typeof capturedOptions?.rebuildArrowSvg,
+    textAdapter: (capturedOptions?.getTextAdapter as (() => unknown) | undefined)?.(),
+    formatError: (capturedOptions?.formatControlErrorMessage as ((value: string) => string) | undefined)?.("bad"),
     baselineStep: capturedOptions?.baselineStep,
-    runtimeHasApplyTargets: typeof runtime.applySelectionTargets,
-    runtimeHasDistribute: typeof runtime.distributeSelection,
-    runtimeHasAlign: typeof runtime.alignSelection,
-    runtimeHasMultiAlign: typeof runtime.setMultiFrameAlign,
-    runtimeHasMultiStyle: typeof runtime.applyMultiStyleOverride,
-    runtimeHasMultiProp: typeof runtime.setMultiFrameProp,
-    runtimeHasMultiSize: typeof runtime.setMultiFrameSize,
+    fallbackGap: capturedOptions?.fallbackGap,
+    headLen: capturedOptions?.headLen,
+    headHalf: capturedOptions?.headHalf,
+    color: capturedOptions?.color,
   }), {
     selectedIds: ["alpha", "beta"],
+    selectionDepth: 3,
+    ancestorDepth: 1,
+    inspector: { id: "inspector", innerHTML: "" },
     hasGetSelectionActionInfo: "function",
     hasGetMultiActionGap: "function",
     hasSetMultiActionGap: "function",
     hasSetOverride: "function",
     hasGetGridInfo: "function",
-    hasGetWidthUnit: "function",
+    hasFormatControlErrorMessage: "function",
     hasNormalizeSelectionGap: "function",
     hasResolveSelectionDistributeTargets: "function",
     hasResolveSelectionAlignTargets: "function",
     hasCreateSelectionTargetOverrideEntries: "function",
+    hasReadArrowEndpoints: "function",
+    hasUpdateArrowSvg: "function",
+    hasRebuildArrowSvg: "function",
+    textAdapter: { name: "adapter" },
+    formatError: "escaped:bad",
     baselineStep: 24,
-    runtimeHasApplyTargets: "function",
-    runtimeHasDistribute: "function",
-    runtimeHasAlign: "function",
-    runtimeHasMultiAlign: "function",
-    runtimeHasMultiStyle: "function",
-    runtimeHasMultiProp: "function",
-    runtimeHasMultiSize: "function",
+    fallbackGap: 24,
+    headLen: 10,
+    headHalf: 5,
+    color: "#E95420",
   });
 });
 
@@ -1873,169 +1954,6 @@ test("editor inspector-selection wrappers delegate through the typed runtime", (
     { kind: "multiProp", prop: "gap", value: 24 },
     { kind: "multiSize", dimension: "width", value: 320 },
   ]);
-});
-
-test("editor inspector-display runtime accepts the namespaced previewShell.inspector contract", () => {
-  const source = readPreviewScript("editor.js");
-  let capturedOptions: Record<string, unknown> | null = null;
-  const inspector = { id: "inspector", innerHTML: "" };
-  const context = {
-    console,
-    selectedIds: new Set(["alpha", "beta"]),
-    overrides: {
-      alpha: { dx: 8 },
-      beta: { style: "highlight" },
-    },
-    _coercedKeys: new Set(["alpha:sizing_w"]),
-    gridInfo: { col_widths: [120] },
-    BASELINE_STEP: 8,
-    BOX_STYLES: { highlight: { label: "Highlight" } },
-    window: {
-      __DG_getPreviewShellInspectorContract() {
-        return context.LayoutEngine.previewShell.inspector;
-      },
-      getLayoutTextAdapter() {
-        return { name: "adapter" };
-      },
-      __DG_CONFIG: {
-        col_gap: 24,
-      },
-    },
-    getInspectorElement() {
-      return inspector;
-    },
-    getPrimarySelectedId(preferredId?: string | null) {
-      return preferredId || "beta";
-    },
-    getSelectionActionItems() {
-      return {
-        items: [
-          { id: "alpha", node: { data: { width: 120, height: 64 } } },
-          { id: "beta", node: { data: { width: 80, height: 48 } } },
-        ],
-        hasUnsupported: false,
-        sameParent: true,
-        parentId: "root",
-      };
-    },
-    _formatAsDefinedStyleLabel() {
-      return "Defined";
-    },
-    renderBoxStyleOptions() {
-      return "<option>highlight</option>";
-    },
-    model: {
-      get(id: string) {
-        return id === "root"
-          ? { layout: "horizontal", layoutGap: 24, layoutRowGap: 24, layoutColGap: 24 }
-          : { id, data: { width: 120, height: 64 } };
-      },
-    },
-    getArrowNode() {
-      return { waypoints: [] };
-    },
-    getOwnDelta() {
-      return { dx: 0, dy: 0, dw: 0, dh: 0 };
-    },
-    getEffectiveDelta() {
-      return { dx: 0, dy: 0 };
-    },
-    _readRenderedStyleFields() {
-      return { fill: "#ffffff", stroke: "#111111" };
-    },
-    getComponentType() {
-      return "panel";
-    },
-    getParentNode() {
-      return { layout: "horizontal" };
-    },
-    getViolationsForComponent() {
-      return [];
-    },
-    escapeHtml(message: string) {
-      return `escaped:${message}`;
-    },
-    LayoutEngine: {
-      previewShell: {
-        inspector: {
-          createPreviewInspectorDisplayRuntime(options: Record<string, unknown>) {
-            capturedOptions = options;
-            return {
-              renderEmptyInspector() {},
-              renderSelectionInspector() {},
-              renderMultiSelectionInspector() {},
-              updateInspector() {},
-              getWidthUnit() {
-                return "px";
-              },
-              getHeightUnit() {
-                return "rows";
-              },
-              setWidthUnit() {},
-              setHeightUnit() {},
-            };
-          },
-        },
-      },
-    },
-  };
-
-  const helperSource = [
-    "let _inspectorDisplayRuntime = null;",
-    extractNamedFunctionSource(source, "_getInspectorDisplayRuntime", "()"),
-    "this.__loaded = { _getInspectorDisplayRuntime };",
-  ].join("\n");
-
-  vm.runInNewContext(helperSource, context);
-  const loaded = (context as {
-    __loaded: {
-      _getInspectorDisplayRuntime: () => Record<string, unknown>;
-    };
-  }).__loaded;
-
-  const runtime = loaded._getInspectorDisplayRuntime();
-
-  assert.deepEqual(normalizeVmValue({
-    selectedIds: Array.from(capturedOptions?.selectedIds as Iterable<string>),
-    hasGetInspector: typeof capturedOptions?.getInspector,
-    hasGetSelectionActionInfo: typeof capturedOptions?.getSelectionActionInfo,
-    hasGetNode: typeof capturedOptions?.getNode,
-    hasGetArrowNode: typeof capturedOptions?.getArrowNode,
-    hasGetRenderedStyle: typeof capturedOptions?.getRenderedStyle,
-    hasGetViolations: typeof capturedOptions?.getViolations,
-    hasIsWidthCoerced: typeof capturedOptions?.isWidthCoerced,
-    hasGetTextAdapter: typeof capturedOptions?.getTextAdapter,
-    hasFormatControlErrorMessage: typeof capturedOptions?.formatControlErrorMessage,
-    hasRenderSingleStyleOptions: typeof capturedOptions?.renderSingleStyleOptions,
-    hasRenderMultiStyleOptions: typeof capturedOptions?.renderMultiStyleOptions,
-    baselineStep: capturedOptions?.baselineStep,
-    fallbackGap: capturedOptions?.fallbackGap,
-    snapStep: capturedOptions?.snapStep,
-    inspector: (capturedOptions?.getInspector as (() => unknown) | undefined)?.(),
-    runtimeHasRenderSelectionInspector: typeof runtime.renderSelectionInspector,
-    runtimeHasSetWidthUnit: typeof runtime.setWidthUnit,
-    runtimeHasUpdateInspector: typeof runtime.updateInspector,
-  }), {
-    selectedIds: ["alpha", "beta"],
-    hasGetInspector: "function",
-    hasGetSelectionActionInfo: "function",
-    hasGetNode: "function",
-    hasGetArrowNode: "function",
-    hasGetRenderedStyle: "function",
-    hasGetViolations: "function",
-    hasIsWidthCoerced: "function",
-    hasGetTextAdapter: "function",
-    hasFormatControlErrorMessage: "function",
-    hasRenderSingleStyleOptions: "function",
-    hasRenderMultiStyleOptions: "function",
-    baselineStep: 8,
-    fallbackGap: 24,
-    snapStep: 8,
-    inspector: { id: "inspector", innerHTML: "" },
-    runtimeHasRenderSelectionInspector: "function",
-    runtimeHasSetWidthUnit: "function",
-    runtimeHasUpdateInspector: "function",
-  });
 });
 
 test("editor inspector-display wrappers delegate through the typed runtime", () => {
@@ -2282,168 +2200,6 @@ test("editor resize host helpers accept the namespaced previewShell.interaction 
     moveHasRelayoutChildren: "function",
     moveHasRelayoutSiblings: "function",
     moveHasScheduleRelayout: "function",
-  });
-});
-
-test("editor arrow-waypoint runtime accepts the namespaced previewShell.interaction contract", () => {
-  const source = readPreviewScript("editor.js");
-  let capturedOptions: Record<string, unknown> | null = null;
-  const context = {
-    console,
-    selectedIds: new Set(["arrow-1"]),
-    document: {
-      querySelector(selector: string) {
-        return selector === "#stage svg" ? { tagName: "svg" } : null;
-      },
-      addEventListener(type: string, handler: unknown) {
-        capturedCalls.push({ kind: "addDocumentListener", type, handlerType: typeof handler });
-      },
-    },
-    model: {
-      get(id: string) {
-        return id === "arrow-1"
-          ? {
-              type: "arrow",
-              data: {
-                waypoints: [[24, 32]],
-              },
-            }
-          : null;
-      },
-    },
-    mgr: {
-      state: {
-        cid: "arrow-1",
-        idx: 0,
-      },
-      isMode() {
-        return true;
-      },
-      startWaypointDrag(state: Record<string, unknown>) {
-        capturedCalls.push({ kind: "startWaypointDrag", state });
-      },
-    },
-    InteractionMode: {
-      WAYPOINT_DRAGGING: "waypoint_dragging",
-    },
-    getEffectiveDelta() {
-      return { dx: 4, dy: 8 };
-    },
-    updateInspector() {},
-    setWaypointOverride() {},
-    EditorState: {
-      captureOverrideEntries(ids: string[]) {
-        return { ids };
-      },
-      commitOverridePatchAction() {},
-    },
-    window: {
-      __DG_getPreviewShellInteractionContract() {
-        return context.LayoutEngine.previewShell.interaction;
-      },
-      __DG_getPreviewBridgeRenderContract() {
-        return context.LayoutEngine.previewBridge.render;
-      },
-      __DG_CONFIG: {
-        head_len: 10,
-        head_half: 5,
-      },
-    },
-    LayoutEngine: {
-      previewShell: {
-        interaction: {
-          createPreviewArrowWaypointRuntime(options: Record<string, unknown>) {
-            capturedOptions = options;
-            return {
-              showArrowWaypointHandles() {},
-              startWaypointDrag() {},
-              onWaypointDragMove() {},
-              onWaypointDragUp() {},
-              addWaypoint() {},
-              removeWaypoint() {},
-              getArrowPoints() {
-                return [];
-              },
-              updateArrowVisual() {},
-              rebuildArrowSvg() {},
-            };
-          },
-        },
-      },
-      previewBridge: {
-        render: {
-          readPreviewArrowEndpoints() {
-            return { start: [0, 0], end: [80, 0] };
-          },
-          updatePreviewArrowSvg() {},
-          rebuildPreviewArrowSvg() {},
-        },
-      },
-    },
-  };
-
-  const helperSource = [
-    extractNamedFunctionSource(source, "getArrowNode", "(cid)"),
-    "let _arrowWaypointRuntime = null;",
-    extractNamedFunctionSource(source, "_getArrowWaypointRuntime", "()"),
-    "this.__loaded = { _getArrowWaypointRuntime };",
-  ].join("\n");
-
-  vm.runInNewContext(helperSource, context);
-  const loaded = (context as {
-    __loaded: {
-      _getArrowWaypointRuntime: () => Record<string, unknown>;
-    };
-  }).__loaded;
-
-  const runtime = loaded._getArrowWaypointRuntime();
-
-  assert.deepEqual(normalizeVmValue({
-    waypointDraggingMode: capturedOptions?.waypointDraggingMode,
-    hasGetArrowNode: typeof capturedOptions?.getArrowNode,
-    hasGetEffectiveDelta: typeof capturedOptions?.getEffectiveDelta,
-    hasIsSelected: typeof capturedOptions?.isSelected,
-    hasCaptureOverrideEntries: typeof capturedOptions?.captureOverrideEntries,
-    hasPersistWaypointOverride: typeof capturedOptions?.persistWaypointOverride,
-    hasRefreshInspector: typeof capturedOptions?.refreshInspector,
-    hasReadArrowEndpoints: typeof capturedOptions?.readArrowEndpoints,
-    hasUpdateArrowSvg: typeof capturedOptions?.updateArrowSvg,
-    hasRebuildArrowSvg: typeof capturedOptions?.rebuildArrowSvg,
-    headLen: capturedOptions?.headLen,
-    headHalf: capturedOptions?.headHalf,
-    color: capturedOptions?.color,
-    runtimeHasShow: typeof runtime.showArrowWaypointHandles,
-    runtimeHasStart: typeof runtime.startWaypointDrag,
-    runtimeHasMove: typeof runtime.onWaypointDragMove,
-    runtimeHasUp: typeof runtime.onWaypointDragUp,
-    runtimeHasAdd: typeof runtime.addWaypoint,
-    runtimeHasRemove: typeof runtime.removeWaypoint,
-    runtimeHasRead: typeof runtime.getArrowPoints,
-    runtimeHasUpdate: typeof runtime.updateArrowVisual,
-    runtimeHasRebuild: typeof runtime.rebuildArrowSvg,
-  }), {
-    waypointDraggingMode: "waypoint_dragging",
-    hasGetArrowNode: "function",
-    hasGetEffectiveDelta: "function",
-    hasIsSelected: "function",
-    hasCaptureOverrideEntries: "function",
-    hasPersistWaypointOverride: "function",
-    hasRefreshInspector: "function",
-    hasReadArrowEndpoints: "function",
-    hasUpdateArrowSvg: "function",
-    hasRebuildArrowSvg: "function",
-    headLen: 10,
-    headHalf: 5,
-    color: "#E95420",
-    runtimeHasShow: "function",
-    runtimeHasStart: "function",
-    runtimeHasMove: "function",
-    runtimeHasUp: "function",
-    runtimeHasAdd: "function",
-    runtimeHasRemove: "function",
-    runtimeHasRead: "function",
-    runtimeHasUpdate: "function",
-    runtimeHasRebuild: "function",
   });
 });
 

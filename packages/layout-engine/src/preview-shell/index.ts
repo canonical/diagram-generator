@@ -536,6 +536,15 @@ export {
 } from './app-selection-runtime.js';
 
 export type {
+  CreatePreviewEditorRuntimeSetOptions,
+  PreviewEditorRuntimeSet,
+} from './app-editor-runtime-set.js';
+
+export {
+  createPreviewEditorRuntimeSet,
+} from './app-editor-runtime-set.js';
+
+export type {
   PreviewSelectionChromeArrowNode,
   PreviewSelectionChromeBounds,
   PreviewSelectionChromeDocument,

@@ -4,8 +4,8 @@ Cold-start map for the remaining `scripts/preview/editor.js` surface.
 
 ## Current size
 
-- `scripts/preview/editor.js`: about 1,937 lines in the current working tree on the active 046 branch
-- `scripts/preview/layout-bridge.js`: about 544 lines after the typed bridge-state/runtime extraction under spec 044
+- `scripts/preview/editor.js`: about 1,704 lines in the current working tree on the active 046 branch
+- `scripts/preview/layout-bridge.js`: about 499 lines after the typed bridge-state/runtime extraction under spec 044
 - Closeout status: the integration-sink bar is materially better, but spec 046 remains open because `editor.js` still does not read as a thin bootstrap and the preview-shell/browser-entry barrels remain a cold-start burden even as `layout-bridge.js` gets thinner under spec 044
 
 ## Remaining buckets
@@ -26,6 +26,7 @@ Cold-start map for the remaining `scripts/preview/editor.js` surface.
 - `editor.js` no longer owns engine panel/save/bootstrap branching directly.
 - Future engine-local browser hooks now enter through `PreviewEngineShellController` instead of direct ELK calls in `editor.js`.
 - `layout-bridge.js` no longer owns bridge state, text-adapter readiness, or local-vs-ELK relayout dispatch; those now enter through `previewBridge.host` and `app-layout-bridge-runtime.ts`.
+- `editor.js` no longer owns the selection/inspector/waypoint runtime constructor bags inline; those now enter through `previewShell.bootstrap.createPreviewEditorRuntimeSet(...)` and `app-editor-runtime-set.ts`.
 - The typed registration-first answer is now test-backed for representative external, ported-family, and bespoke browser-shell controllers, but spec 046 stays open until the residual host reads as thin bootstrap glue.
 
 ## Key rule

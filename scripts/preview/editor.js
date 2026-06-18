@@ -1481,29 +1481,6 @@ function _normaliseStyleName(styleName) {
   return window.__DG_getPreviewShellInspectorContract().normalizePreviewStyleName(styleName);
 }
 
-let _selectionRuntime = null;
-function _getSelectionRuntime() {
-  if (_selectionRuntime) return _selectionRuntime;
-  _selectionRuntime = window.__DG_getPreviewShellInteractionContract().createPreviewSelectionRuntime({
-    document,
-    selectedIds,
-    getSelectionDepth: () => selectionDepth,
-    setSelectionDepth: (depth) => {
-      selectionDepth = depth;
-    },
-    getPrimarySelectedId,
-    getAncestorDepth: (cid) => getAncestors(cid).length,
-    syncTreeSelectionState: (container, ids) => {
-      window.__DG_getPreviewShellSceneContract().syncPreviewTreeSelectionState(container, ids);
-    },
-    removeResizeHandles,
-    showResizeHandles,
-    renderEmptyInspector,
-    renderSelectionInspector,
-  });
-  return _selectionRuntime;
-}
-
 let _v3RelayoutTimer = null;
 function _scheduleV3Relayout(cid) {
   clearTimeout(_v3RelayoutTimer);
@@ -1517,13 +1494,30 @@ function _scheduleV3Relayout(cid) {
 // Format: Set of "fid:key" strings, e.g. "root:sizing_h"
 const _coercedKeys = new Set();
 
-let _inspectorDisplayRuntime = null;
-function _getInspectorDisplayRuntime() {
-  if (_inspectorDisplayRuntime) return _inspectorDisplayRuntime;
-  _inspectorDisplayRuntime = window.__DG_getPreviewShellInspectorContract().createPreviewInspectorDisplayRuntime({
-    getInspector: getInspectorElement,
+let _editorRuntimeSet = null;
+function _getEditorRuntimeSet() {
+  if (_editorRuntimeSet) return _editorRuntimeSet;
+  const previewShellBootstrap = window.__DG_getPreviewShellBootstrapContract();
+  const previewShellScene = window.__DG_getPreviewShellSceneContract();
+  const previewShellInteraction = window.__DG_getPreviewShellInteractionContract();
+  const previewBridgeRender = window.__DG_getPreviewBridgeRenderContract();
+  _editorRuntimeSet = previewShellBootstrap.createPreviewEditorRuntimeSet({
+    document,
     selectedIds,
+    getSelectionDepth: () => selectionDepth,
+    setSelectionDepth: (depth) => {
+      selectionDepth = depth;
+    },
     getPrimarySelectedId,
+    getAncestorDepth: (cid) => getAncestors(cid).length,
+    syncTreeSelectionState: (container, ids) => (
+      previewShellScene.syncPreviewTreeSelectionState(container, ids)
+    ),
+    removeResizeHandles,
+    showResizeHandles,
+    renderEmptyInspector,
+    renderSelectionInspector,
+    getInspector: getInspectorElement,
     getSelectionActionInfo: getSelectionActionItems,
     getNode: (cid) => model.get(cid),
     getArrowNode,
@@ -1540,81 +1534,43 @@ function _getInspectorDisplayRuntime() {
     baselineStep: BASELINE_STEP,
     fallbackGap: window.__DG_CONFIG.col_gap || 24,
     snapStep: BASELINE_STEP,
+    getMultiActionGap: () => multiActionGap,
     setMultiActionGap: (gap) => {
       multiActionGap = gap;
     },
     getTextAdapter: typeof window.getLayoutTextAdapter === 'function'
       ? () => window.getLayoutTextAdapter()
       : null,
-    formatControlErrorMessage(message) {
-      return typeof escapeHtml === "function" ? escapeHtml(message) : message;
-    },
-    renderSingleStyleOptions(currentStyle, originalStyleName) {
-      return renderBoxStyleOptions(currentStyle, {
+    formatControlErrorMessage: (message) => (
+      typeof escapeHtml === "function" ? escapeHtml(message) : message
+    ),
+    renderSingleStyleOptions: (currentStyle, originalStyleName) => (
+      renderBoxStyleOptions(currentStyle, {
         originalLabel: _formatAsDefinedStyleLabel(originalStyleName),
-      });
-    },
-    renderMultiStyleOptions(styleInfo) {
-      return renderBoxStyleOptions(styleInfo.mixed ? '__nomatch__' : styleInfo.style, {
+      })
+    ),
+    renderMultiStyleOptions: (styleInfo) => (
+      renderBoxStyleOptions(styleInfo.mixed ? '__nomatch__' : styleInfo.style, {
         originalLabel: _formatAsDefinedStyleLabel(
           styleInfo.originalStyleName,
           styleInfo.originalStyleMixed,
         ),
-      });
-    },
-  });
-  return _inspectorDisplayRuntime;
-}
-
-let _inspectorMutationRuntime = null;
-function _getInspectorMutationRuntime() {
-  if (_inspectorMutationRuntime) return _inspectorMutationRuntime;
-  _inspectorMutationRuntime = window.__DG_getPreviewShellInspectorContract().createPreviewInspectorMutationRuntime({
+      })
+    ),
     captureOverrideEntries: (ids) => EditorState.captureOverrideEntries(ids),
     commitOverridePatchAction: (label, beforeEntries, afterEntries) => {
       EditorState.commitOverridePatchAction(label, beforeEntries, afterEntries);
     },
     overrides,
     coercedKeys: _coercedKeys,
-    getNode: (cid) => model.get(cid),
     snapToGrid,
     setDirty,
     scheduleRelayout: _scheduleV3Relayout,
-    renderSelectionInspector,
     cleanOverride: (cid) => model.cleanOverride(cid),
-    getGridInfo: () => gridInfo,
-    getWidthUnit: () => _getInspectorDisplayRuntime().getWidthUnit(),
-    getHeightUnit: () => _getInspectorDisplayRuntime().getHeightUnit(),
-    baselineStep: BASELINE_STEP,
-  });
-  return _inspectorMutationRuntime;
-}
-
-let _inspectorSelectionRuntime = null;
-function _getInspectorSelectionRuntime() {
-  if (_inspectorSelectionRuntime) return _inspectorSelectionRuntime;
-  _inspectorSelectionRuntime = window.__DG_getPreviewShellInspectorContract().createPreviewInspectorSelectionRuntime({
-    selectedIds,
-    getSelectionActionInfo: getSelectionActionItems,
-    getMultiActionGap: () => multiActionGap,
-    setMultiActionGap: (gap) => {
-      multiActionGap = gap;
-    },
-    captureOverrideEntries: (ids) => EditorState.captureOverrideEntries(ids),
-    commitOverridePatchAction: (label, beforeEntries, afterEntries) => {
-      EditorState.commitOverridePatchAction(label, beforeEntries, afterEntries);
-    },
-    overrides,
-    coercedKeys: _coercedKeys,
-    getNode: (cid) => model.get(cid),
-    cleanOverride: (cid) => model.cleanOverride(cid),
-    setDirty,
-    scheduleRelayout: _scheduleV3Relayout,
     requestRelayoutNow: (cid) => {
       clearTimeout(_v3RelayoutTimer);
       requestV3Relayout(cid);
     },
-    renderSelectionInspector: () => renderSelectionInspector(),
     renderMultiSelectionInspector,
     applyAllOverrides,
     reapplySelection,
@@ -1622,59 +1578,52 @@ function _getInspectorSelectionRuntime() {
     refreshTreeColors,
     runConstraints,
     setOverride: (id, partial) => setOverride(id, partial),
-    getGridInfo: () => gridInfo,
-    getWidthUnit: () => _getInspectorDisplayRuntime().getWidthUnit(),
-    getHeightUnit: () => _getInspectorDisplayRuntime().getHeightUnit(),
-    baselineStep: BASELINE_STEP,
     normalizeSelectionGap: (gap, snapStep) => (
-      window.__DG_getPreviewShellInteractionContract().normalizeSelectionGap(gap, snapStep)
+      previewShellInteraction.normalizeSelectionGap(gap, snapStep)
     ),
     resolveSelectionDistributeTargets: (options) => (
-      window.__DG_getPreviewShellInteractionContract().resolveSelectionDistributeTargets(options)
+      previewShellInteraction.resolveSelectionDistributeTargets(options)
     ),
     resolveSelectionAlignTargets: (options) => (
-      window.__DG_getPreviewShellInteractionContract().resolveSelectionAlignTargets(options)
+      previewShellInteraction.resolveSelectionAlignTargets(options)
     ),
     createSelectionTargetOverrideEntries: (options) => (
-      window.__DG_getPreviewShellInteractionContract().createSelectionTargetOverrideEntries(options)
+      previewShellInteraction.createSelectionTargetOverrideEntries(options)
     ),
     alert: (message) => alert(message),
-    getComponentType,
     normalizeStyleName: _normaliseStyleName,
-  });
-  return _inspectorSelectionRuntime;
-}
-
-let _arrowWaypointRuntime = null;
-function _getArrowWaypointRuntime() {
-  if (_arrowWaypointRuntime) return _arrowWaypointRuntime;
-  _arrowWaypointRuntime = window.__DG_getPreviewShellInteractionContract().createPreviewArrowWaypointRuntime({
-    document,
     interactionManager: mgr,
     waypointDraggingMode: InteractionMode.WAYPOINT_DRAGGING,
-    getArrowNode,
-    getEffectiveDelta,
     isSelected: (cid) => selectedIds.has(cid),
-    captureOverrideEntries: (ids) => EditorState.captureOverrideEntries(ids),
-    commitOverridePatchAction: (label, beforeEntries, afterEntries) => {
-      EditorState.commitOverridePatchAction(label, beforeEntries, afterEntries);
-    },
     persistWaypointOverride: setWaypointOverride,
-    refreshInspector: updateInspector,
-    readArrowEndpoints: (options) => (
-      window.__DG_getPreviewBridgeRenderContract().readPreviewArrowEndpoints(options)
-    ),
-    updateArrowSvg: (options) => (
-      window.__DG_getPreviewBridgeRenderContract().updatePreviewArrowSvg(options)
-    ),
-    rebuildArrowSvg: (options) => (
-      window.__DG_getPreviewBridgeRenderContract().rebuildPreviewArrowSvg(options)
-    ),
+    readArrowEndpoints: (options) => previewBridgeRender.readPreviewArrowEndpoints(options),
+    updateArrowSvg: (options) => previewBridgeRender.updatePreviewArrowSvg(options),
+    rebuildArrowSvg: (options) => previewBridgeRender.rebuildPreviewArrowSvg(options),
     headLen: window.__DG_CONFIG.head_len,
     headHalf: window.__DG_CONFIG.head_half,
     color: "#E95420",
   });
-  return _arrowWaypointRuntime;
+  return _editorRuntimeSet;
+}
+
+function _getSelectionRuntime() {
+  return _getEditorRuntimeSet().selection;
+}
+
+function _getInspectorDisplayRuntime() {
+  return _getEditorRuntimeSet().inspectorDisplay;
+}
+
+function _getInspectorMutationRuntime() {
+  return _getEditorRuntimeSet().inspectorMutation;
+}
+
+function _getInspectorSelectionRuntime() {
+  return _getEditorRuntimeSet().inspectorSelection;
+}
+
+function _getArrowWaypointRuntime() {
+  return _getEditorRuntimeSet().arrowWaypoint;
 }
 
 /**
