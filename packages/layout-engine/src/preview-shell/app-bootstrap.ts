@@ -73,6 +73,10 @@ export interface PreviewSaveClientApi {
   isDirty: () => boolean;
 }
 
+export interface PreviewRuntimeSaveClientApi extends PreviewSaveClientApi {
+  saveOverrides: () => unknown;
+}
+
 export interface PreviewSaveClientInitOptions {
   slug: string;
   previewSaveClient: PreviewSaveClientApi;
@@ -290,6 +294,64 @@ export interface BootstrapPreviewEditorRuntimeOptions {
   reconnectDelayMs?: number;
 }
 
+export interface PreviewEditorUndoStateApi {
+  undo: (applyUndoCommand: (...args: unknown[]) => unknown) => unknown;
+  redo: (applyUndoCommand: (...args: unknown[]) => unknown) => unknown;
+  canUndo: () => boolean;
+  canRedo: () => boolean;
+  serializeDirtyState: () => string;
+}
+
+export interface PreviewBootstrapBooleanState {
+  get: () => boolean;
+}
+
+export interface PreviewBootstrapNumericState {
+  get: () => number;
+  set: (value: number) => void;
+}
+
+export interface PreviewBootstrapConstraintSummaryHost {
+  summarise: (violations: unknown) => unknown;
+}
+
+export interface CreateBootstrapPreviewEditorRuntimeOptionsFromHostOptions {
+  document: BootstrapPreviewEditorRuntimeOptions['document'];
+  previewWindow: BootstrapPreviewEditorRuntimeOptions['previewWindow'];
+  slug: BootstrapPreviewEditorRuntimeOptions['slug'];
+  model: BootstrapPreviewEditorRuntimeOptions['model'];
+  selectedIds: BootstrapPreviewEditorRuntimeOptions['selectedIds'];
+  reapplySelection: BootstrapPreviewEditorRuntimeOptions['reapplySelection'];
+  onDocumentKeyDown: BootstrapPreviewEditorRuntimeOptions['onDocumentKeyDown'];
+  editorState: PreviewEditorUndoStateApi;
+  applyUndoCommand: (...args: unknown[]) => unknown;
+  syncBrowseNav: BootstrapPreviewEditorRuntimeOptions['syncBrowseNav'];
+  fetchIndexHtml?: BootstrapPreviewEditorRuntimeOptions['fetchIndexHtml'] | null;
+  attemptNavigation: BootstrapPreviewEditorRuntimeOptions['attemptNavigation'];
+  initNavTabs: BootstrapPreviewEditorRuntimeOptions['initNavTabs'];
+  getOverrides: BootstrapPreviewEditorRuntimeOptions['getOverrides'];
+  getFrameTree: BootstrapPreviewEditorRuntimeOptions['getFrameTree'];
+  requestV3Relayout: BootstrapPreviewEditorRuntimeOptions['requestV3Relayout'];
+  previewSaveClient: PreviewRuntimeSaveClientApi;
+  reloadDiagram: BootstrapPreviewEditorRuntimeOptions['reloadDiagram'];
+  getV3RelayoutStatus: BootstrapPreviewEditorRuntimeOptions['getV3RelayoutStatus'];
+  getV3RelayoutRuntime: BootstrapPreviewEditorRuntimeOptions['getV3RelayoutRuntime'];
+  constraints: PreviewBootstrapConstraintSummaryHost;
+  lastViolations: unknown;
+  runConstraints: BootstrapPreviewEditorRuntimeOptions['runConstraints'];
+  clearCoercedKeys: BootstrapPreviewEditorRuntimeOptions['clearCoercedKeys'];
+  setStatus: BootstrapPreviewEditorRuntimeOptions['setStatus'];
+  sanitizeSvgCloneForExport: BootstrapPreviewEditorRuntimeOptions['sanitizeSvgCloneForExport'];
+  allowInternalDirtyNavigationState: PreviewBootstrapBooleanState;
+  writeClipboardText: BootstrapPreviewEditorRuntimeOptions['writeClipboardText'];
+  alert: BootstrapPreviewEditorRuntimeOptions['alert'];
+  confirmClearAll: BootstrapPreviewEditorRuntimeOptions['confirmClearAll'];
+  onClearAllOverrides: BootstrapPreviewEditorRuntimeOptions['onClearAllOverrides'];
+  generationState: PreviewBootstrapNumericState;
+  scheduleReconnect?: BootstrapPreviewEditorRuntimeOptions['scheduleReconnect'];
+  reconnectDelayMs?: BootstrapPreviewEditorRuntimeOptions['reconnectDelayMs'];
+}
+
 export interface PreviewDiagramLoadSignalState {
   generation: number;
   resolvers: Array<(generation: number) => void>;
@@ -463,6 +525,62 @@ function createPreviewEventSourceFactory(
   return (url) => {
     const EventSourceCtor = previewWindow.EventSource ?? EventSource;
     return new EventSourceCtor(url) as PreviewEventSourceLike;
+  };
+}
+
+async function fetchPreviewBootstrapIndexHtml(): Promise<string | null> {
+  if (typeof globalThis.fetch !== 'function') {
+    return null;
+  }
+  const response = await globalThis.fetch('/', { credentials: 'same-origin' });
+  if (!response.ok) {
+    return null;
+  }
+  return response.text();
+}
+
+export function createBootstrapPreviewEditorRuntimeOptionsFromHost(
+  options: CreateBootstrapPreviewEditorRuntimeOptionsFromHostOptions,
+): BootstrapPreviewEditorRuntimeOptions {
+  return {
+    document: options.document,
+    previewWindow: options.previewWindow,
+    slug: options.slug,
+    model: options.model,
+    selectedIds: options.selectedIds,
+    reapplySelection: options.reapplySelection,
+    onDocumentKeyDown: options.onDocumentKeyDown,
+    undo: () => options.editorState.undo(options.applyUndoCommand),
+    redo: () => options.editorState.redo(options.applyUndoCommand),
+    saveOverrides: () => options.previewSaveClient.saveOverrides(),
+    canUndo: options.editorState.canUndo,
+    canRedo: options.editorState.canRedo,
+    syncBrowseNav: options.syncBrowseNav,
+    fetchIndexHtml: options.fetchIndexHtml ?? fetchPreviewBootstrapIndexHtml,
+    attemptNavigation: options.attemptNavigation,
+    initNavTabs: options.initNavTabs,
+    getOverrides: options.getOverrides,
+    getFrameTree: options.getFrameTree,
+    requestV3Relayout: options.requestV3Relayout,
+    previewSaveClient: options.previewSaveClient,
+    serializeDirtyState: options.editorState.serializeDirtyState,
+    reloadDiagram: options.reloadDiagram,
+    getV3RelayoutStatus: options.getV3RelayoutStatus,
+    getV3RelayoutRuntime: options.getV3RelayoutRuntime,
+    getConstraintSummary: () => options.constraints.summarise(options.lastViolations),
+    runConstraints: options.runConstraints,
+    clearCoercedKeys: options.clearCoercedKeys,
+    setStatus: options.setStatus,
+    sanitizeSvgCloneForExport: options.sanitizeSvgCloneForExport,
+    allowInternalDirtyNavigation: options.allowInternalDirtyNavigationState.get,
+    writeClipboardText: options.writeClipboardText,
+    alert: options.alert,
+    confirmClearAll: options.confirmClearAll,
+    onClearAllOverrides: options.onClearAllOverrides,
+    getGeneration: options.generationState.get,
+    setGeneration: options.generationState.set,
+    scheduleReconnect: options.scheduleReconnect,
+    reconnectDelayMs: options.reconnectDelayMs,
   };
 }
 

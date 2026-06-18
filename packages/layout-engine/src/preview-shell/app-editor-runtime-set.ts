@@ -113,12 +113,168 @@ export interface CreatePreviewEditorRuntimeSetOptions {
   color: CreatePreviewArrowWaypointRuntimeOptions['color'];
 }
 
+export interface PreviewEditorRuntimeNumericState {
+  get: () => number;
+  set: (value: number) => void;
+}
+
+export interface CreatePreviewEditorRuntimeSetHostOptions {
+  document: CreatePreviewEditorRuntimeSetOptions['document'];
+  selectedIds: CreatePreviewEditorRuntimeSetOptions['selectedIds'];
+  selectionDepthState: PreviewEditorRuntimeNumericState;
+  getPrimarySelectedId: CreatePreviewEditorRuntimeSetOptions['getPrimarySelectedId'];
+  getAncestorDepth: CreatePreviewEditorRuntimeSetOptions['getAncestorDepth'];
+  previewShellScene: {
+    syncPreviewTreeSelectionState: CreatePreviewEditorRuntimeSetOptions['syncTreeSelectionState'];
+  };
+  removeResizeHandles: CreatePreviewEditorRuntimeSetOptions['removeResizeHandles'];
+  showResizeHandles: CreatePreviewEditorRuntimeSetOptions['showResizeHandles'];
+  renderEmptyInspector: CreatePreviewEditorRuntimeSetOptions['renderEmptyInspector'];
+  renderSelectionInspector: CreatePreviewEditorRuntimeSetOptions['renderSelectionInspector'];
+  getInspector: CreatePreviewEditorRuntimeSetOptions['getInspector'];
+  getSelectionActionInfo: CreatePreviewEditorRuntimeSetOptions['getSelectionActionInfo'];
+  getNode: CreatePreviewEditorRuntimeSetOptions['getNode'];
+  getArrowNode: CreatePreviewEditorRuntimeSetOptions['getArrowNode'];
+  getOverride: CreatePreviewEditorRuntimeSetOptions['getOverride'];
+  getOwnDelta: CreatePreviewEditorRuntimeSetOptions['getOwnDelta'];
+  getEffectiveDelta: CreatePreviewEditorRuntimeSetOptions['getEffectiveDelta'];
+  getComponentType: CreatePreviewEditorRuntimeSetOptions['getComponentType'];
+  getParentLayout: CreatePreviewEditorRuntimeSetOptions['getParentLayout'];
+  getRenderedStyle: CreatePreviewEditorRuntimeSetOptions['getRenderedStyle'];
+  getViolations: CreatePreviewEditorRuntimeSetOptions['getViolations'];
+  isWidthCoerced: CreatePreviewEditorRuntimeSetOptions['isWidthCoerced'];
+  isHeightCoerced: CreatePreviewEditorRuntimeSetOptions['isHeightCoerced'];
+  getGridInfo: CreatePreviewEditorRuntimeSetOptions['getGridInfo'];
+  baselineStep: CreatePreviewEditorRuntimeSetOptions['baselineStep'];
+  fallbackGap: CreatePreviewEditorRuntimeSetOptions['fallbackGap'];
+  snapStep: CreatePreviewEditorRuntimeSetOptions['snapStep'];
+  multiActionGapState: PreviewEditorRuntimeNumericState;
+  getTextAdapter: CreatePreviewEditorRuntimeSetOptions['getTextAdapter'];
+  formatControlErrorMessage: CreatePreviewEditorRuntimeSetOptions['formatControlErrorMessage'];
+  renderSingleStyleOptions: CreatePreviewEditorRuntimeSetOptions['renderSingleStyleOptions'];
+  renderMultiStyleOptions: CreatePreviewEditorRuntimeSetOptions['renderMultiStyleOptions'];
+  captureOverrideEntries: CreatePreviewEditorRuntimeSetOptions['captureOverrideEntries'];
+  commitOverridePatchAction: CreatePreviewEditorRuntimeSetOptions['commitOverridePatchAction'];
+  overrides: CreatePreviewEditorRuntimeSetOptions['overrides'];
+  coercedKeys: CreatePreviewEditorRuntimeSetOptions['coercedKeys'];
+  snapToGrid: CreatePreviewEditorRuntimeSetOptions['snapToGrid'];
+  setDirty: CreatePreviewEditorRuntimeSetOptions['setDirty'];
+  scheduleRelayout: CreatePreviewEditorRuntimeSetOptions['scheduleRelayout'];
+  cleanOverride: CreatePreviewEditorRuntimeSetOptions['cleanOverride'];
+  requestRelayoutNow: CreatePreviewEditorRuntimeSetOptions['requestRelayoutNow'];
+  renderMultiSelectionInspector: CreatePreviewEditorRuntimeSetOptions['renderMultiSelectionInspector'];
+  applyAllOverrides: CreatePreviewEditorRuntimeSetOptions['applyAllOverrides'];
+  reapplySelection: CreatePreviewEditorRuntimeSetOptions['reapplySelection'];
+  updateOverrideSummary: CreatePreviewEditorRuntimeSetOptions['updateOverrideSummary'];
+  refreshTreeColors: CreatePreviewEditorRuntimeSetOptions['refreshTreeColors'];
+  runConstraints: CreatePreviewEditorRuntimeSetOptions['runConstraints'];
+  setOverride: CreatePreviewEditorRuntimeSetOptions['setOverride'];
+  previewShellInteraction: {
+    normalizeSelectionGap: CreatePreviewEditorRuntimeSetOptions['normalizeSelectionGap'];
+    resolveSelectionDistributeTargets:
+      CreatePreviewEditorRuntimeSetOptions['resolveSelectionDistributeTargets'];
+    resolveSelectionAlignTargets:
+      CreatePreviewEditorRuntimeSetOptions['resolveSelectionAlignTargets'];
+    createSelectionTargetOverrideEntries:
+      CreatePreviewEditorRuntimeSetOptions['createSelectionTargetOverrideEntries'];
+  };
+  alert: CreatePreviewEditorRuntimeSetOptions['alert'];
+  normalizeStyleName: CreatePreviewEditorRuntimeSetOptions['normalizeStyleName'];
+  interactionManager: CreatePreviewEditorRuntimeSetOptions['interactionManager'];
+  waypointDraggingMode: CreatePreviewEditorRuntimeSetOptions['waypointDraggingMode'];
+  isSelected: CreatePreviewEditorRuntimeSetOptions['isSelected'];
+  persistWaypointOverride: CreatePreviewEditorRuntimeSetOptions['persistWaypointOverride'];
+  previewBridgeRender: {
+    readPreviewArrowEndpoints: CreatePreviewEditorRuntimeSetOptions['readArrowEndpoints'];
+    updatePreviewArrowSvg: CreatePreviewEditorRuntimeSetOptions['updateArrowSvg'];
+    rebuildPreviewArrowSvg: CreatePreviewEditorRuntimeSetOptions['rebuildArrowSvg'];
+  };
+  headLen: CreatePreviewEditorRuntimeSetOptions['headLen'];
+  headHalf: CreatePreviewEditorRuntimeSetOptions['headHalf'];
+  color: CreatePreviewEditorRuntimeSetOptions['color'];
+}
+
 export interface PreviewEditorRuntimeSet {
   selection: PreviewSelectionRuntime;
   inspectorDisplay: PreviewInspectorDisplayRuntime;
   inspectorMutation: PreviewInspectorMutationRuntime;
   inspectorSelection: PreviewInspectorSelectionRuntime;
   arrowWaypoint: PreviewArrowWaypointRuntime;
+}
+
+export function createPreviewEditorRuntimeSetFromHost(
+  options: CreatePreviewEditorRuntimeSetHostOptions,
+): PreviewEditorRuntimeSet {
+  return createPreviewEditorRuntimeSet({
+    document: options.document,
+    selectedIds: options.selectedIds,
+    getSelectionDepth: options.selectionDepthState.get,
+    setSelectionDepth: options.selectionDepthState.set,
+    getPrimarySelectedId: options.getPrimarySelectedId,
+    getAncestorDepth: options.getAncestorDepth,
+    syncTreeSelectionState: options.previewShellScene.syncPreviewTreeSelectionState,
+    removeResizeHandles: options.removeResizeHandles,
+    showResizeHandles: options.showResizeHandles,
+    renderEmptyInspector: options.renderEmptyInspector,
+    renderSelectionInspector: options.renderSelectionInspector,
+    getInspector: options.getInspector,
+    getSelectionActionInfo: options.getSelectionActionInfo,
+    getNode: options.getNode,
+    getArrowNode: options.getArrowNode,
+    getOverride: options.getOverride,
+    getOwnDelta: options.getOwnDelta,
+    getEffectiveDelta: options.getEffectiveDelta,
+    getComponentType: options.getComponentType,
+    getParentLayout: options.getParentLayout,
+    getRenderedStyle: options.getRenderedStyle,
+    getViolations: options.getViolations,
+    isWidthCoerced: options.isWidthCoerced,
+    isHeightCoerced: options.isHeightCoerced,
+    getGridInfo: options.getGridInfo,
+    baselineStep: options.baselineStep,
+    fallbackGap: options.fallbackGap,
+    snapStep: options.snapStep,
+    getMultiActionGap: options.multiActionGapState.get,
+    setMultiActionGap: options.multiActionGapState.set,
+    getTextAdapter: options.getTextAdapter,
+    formatControlErrorMessage: options.formatControlErrorMessage,
+    renderSingleStyleOptions: options.renderSingleStyleOptions,
+    renderMultiStyleOptions: options.renderMultiStyleOptions,
+    captureOverrideEntries: options.captureOverrideEntries,
+    commitOverridePatchAction: options.commitOverridePatchAction,
+    overrides: options.overrides,
+    coercedKeys: options.coercedKeys,
+    snapToGrid: options.snapToGrid,
+    setDirty: options.setDirty,
+    scheduleRelayout: options.scheduleRelayout,
+    cleanOverride: options.cleanOverride,
+    requestRelayoutNow: options.requestRelayoutNow,
+    renderMultiSelectionInspector: options.renderMultiSelectionInspector,
+    applyAllOverrides: options.applyAllOverrides,
+    reapplySelection: options.reapplySelection,
+    updateOverrideSummary: options.updateOverrideSummary,
+    refreshTreeColors: options.refreshTreeColors,
+    runConstraints: options.runConstraints,
+    setOverride: options.setOverride,
+    normalizeSelectionGap: options.previewShellInteraction.normalizeSelectionGap,
+    resolveSelectionDistributeTargets:
+      options.previewShellInteraction.resolveSelectionDistributeTargets,
+    resolveSelectionAlignTargets: options.previewShellInteraction.resolveSelectionAlignTargets,
+    createSelectionTargetOverrideEntries:
+      options.previewShellInteraction.createSelectionTargetOverrideEntries,
+    alert: options.alert,
+    normalizeStyleName: options.normalizeStyleName,
+    interactionManager: options.interactionManager,
+    waypointDraggingMode: options.waypointDraggingMode,
+    isSelected: options.isSelected,
+    persistWaypointOverride: options.persistWaypointOverride,
+    readArrowEndpoints: options.previewBridgeRender.readPreviewArrowEndpoints,
+    updateArrowSvg: options.previewBridgeRender.updatePreviewArrowSvg,
+    rebuildArrowSvg: options.previewBridgeRender.rebuildPreviewArrowSvg,
+    headLen: options.headLen,
+    headHalf: options.headHalf,
+    color: options.color,
+  });
 }
 
 export function createPreviewEditorRuntimeSet(

@@ -1642,6 +1642,30 @@ test("editor runtime-set bootstrap accepts the namespaced previewShell.bootstrap
   const source = readPreviewScript("editor.js");
   let capturedOptions: Record<string, unknown> | null = null;
   const inspector = { id: "inspector", innerHTML: "" };
+  const previewBridgeRenderContract = {
+    readPreviewArrowEndpoints() {
+      return { start: [0, 0], end: [80, 0] };
+    },
+    updatePreviewArrowSvg() {},
+    rebuildPreviewArrowSvg() {},
+  };
+  const previewShellSceneContract = {
+    syncPreviewTreeSelectionState() {},
+  };
+  const previewShellInteractionContract = {
+    createSelectionTargetOverrideEntries() {
+      return [];
+    },
+    normalizeSelectionGap() {
+      return 24;
+    },
+    resolveSelectionDistributeTargets() {
+      return {};
+    },
+    resolveSelectionAlignTargets() {
+      return {};
+    },
+  };
   const runtimeSet = {
     selection: { id: "selection-runtime" },
     inspectorDisplay: { id: "display-runtime" },
@@ -1758,13 +1782,7 @@ test("editor runtime-set bootstrap accepts the namespaced previewShell.bootstrap
         return context.LayoutEngine.previewShell.interaction;
       },
       __DG_getPreviewBridgeRenderContract() {
-        return {
-          readPreviewArrowEndpoints() {
-            return { start: [0, 0], end: [80, 0] };
-          },
-          updatePreviewArrowSvg() {},
-          rebuildPreviewArrowSvg() {},
-        };
+        return previewBridgeRenderContract;
       },
       getLayoutTextAdapter() {
         return { name: "adapter" };
@@ -1778,28 +1796,13 @@ test("editor runtime-set bootstrap accepts the namespaced previewShell.bootstrap
     LayoutEngine: {
       previewShell: {
         bootstrap: {
-          createPreviewEditorRuntimeSet(options: Record<string, unknown>) {
+          createPreviewEditorRuntimeSetFromHost(options: Record<string, unknown>) {
             capturedOptions = options;
             return runtimeSet;
           },
         },
-        scene: {
-          syncPreviewTreeSelectionState() {},
-        },
-        interaction: {
-          createSelectionTargetOverrideEntries() {
-            return [];
-          },
-          normalizeSelectionGap() {
-            return 24;
-          },
-          resolveSelectionDistributeTargets() {
-            return {};
-          },
-          resolveSelectionAlignTargets() {
-            return {};
-          },
-        },
+        scene: previewShellSceneContract,
+        interaction: previewShellInteractionContract,
       },
     },
   };
@@ -1830,22 +1833,65 @@ test("editor runtime-set bootstrap accepts the namespaced previewShell.bootstrap
 
   assert.deepEqual(normalizeVmValue({
     selectedIds: Array.from(capturedOptions?.selectedIds as Iterable<string>),
-    selectionDepth: (capturedOptions?.getSelectionDepth as (() => number) | undefined)?.(),
+    selectionDepth: (
+      capturedOptions?.selectionDepthState as { get?: () => number } | undefined
+    )?.get?.(),
     ancestorDepth: (capturedOptions?.getAncestorDepth as ((id: string) => number) | undefined)?.("alpha"),
     inspector: (capturedOptions?.getInspector as (() => unknown) | undefined)?.(),
     hasGetSelectionActionInfo: typeof capturedOptions?.getSelectionActionInfo,
-    hasGetMultiActionGap: typeof capturedOptions?.getMultiActionGap,
-    hasSetMultiActionGap: typeof capturedOptions?.setMultiActionGap,
+    hasGetMultiActionGap: typeof (
+      capturedOptions?.multiActionGapState as { get?: () => number } | undefined
+    )?.get,
+    hasSetMultiActionGap: typeof (
+      capturedOptions?.multiActionGapState as { set?: (value: number) => void } | undefined
+    )?.set,
     hasSetOverride: typeof capturedOptions?.setOverride,
     hasGetGridInfo: typeof capturedOptions?.getGridInfo,
     hasFormatControlErrorMessage: typeof capturedOptions?.formatControlErrorMessage,
-    hasNormalizeSelectionGap: typeof capturedOptions?.normalizeSelectionGap,
-    hasResolveSelectionDistributeTargets: typeof capturedOptions?.resolveSelectionDistributeTargets,
-    hasResolveSelectionAlignTargets: typeof capturedOptions?.resolveSelectionAlignTargets,
-    hasCreateSelectionTargetOverrideEntries: typeof capturedOptions?.createSelectionTargetOverrideEntries,
-    hasReadArrowEndpoints: typeof capturedOptions?.readArrowEndpoints,
-    hasUpdateArrowSvg: typeof capturedOptions?.updateArrowSvg,
-    hasRebuildArrowSvg: typeof capturedOptions?.rebuildArrowSvg,
+    hasSyncPreviewTreeSelectionState: typeof (
+      capturedOptions?.previewShellScene as {
+        syncPreviewTreeSelectionState?: (...args: unknown[]) => unknown;
+      } | undefined
+    )?.syncPreviewTreeSelectionState,
+    hasNormalizeSelectionGap: typeof (
+      capturedOptions?.previewShellInteraction as {
+        normalizeSelectionGap?: (...args: unknown[]) => unknown;
+      } | undefined
+    )?.normalizeSelectionGap,
+    hasResolveSelectionDistributeTargets: typeof (
+      capturedOptions?.previewShellInteraction as {
+        resolveSelectionDistributeTargets?: (...args: unknown[]) => unknown;
+      } | undefined
+    )?.resolveSelectionDistributeTargets,
+    hasResolveSelectionAlignTargets: typeof (
+      capturedOptions?.previewShellInteraction as {
+        resolveSelectionAlignTargets?: (...args: unknown[]) => unknown;
+      } | undefined
+    )?.resolveSelectionAlignTargets,
+    hasCreateSelectionTargetOverrideEntries: typeof (
+      capturedOptions?.previewShellInteraction as {
+        createSelectionTargetOverrideEntries?: (...args: unknown[]) => unknown;
+      } | undefined
+    )?.createSelectionTargetOverrideEntries,
+    hasReadArrowEndpoints: typeof (
+      capturedOptions?.previewBridgeRender as {
+        readPreviewArrowEndpoints?: (...args: unknown[]) => unknown;
+      } | undefined
+    )?.readPreviewArrowEndpoints,
+    hasUpdateArrowSvg: typeof (
+      capturedOptions?.previewBridgeRender as {
+        updatePreviewArrowSvg?: (...args: unknown[]) => unknown;
+      } | undefined
+    )?.updatePreviewArrowSvg,
+    hasRebuildArrowSvg: typeof (
+      capturedOptions?.previewBridgeRender as {
+        rebuildPreviewArrowSvg?: (...args: unknown[]) => unknown;
+      } | undefined
+    )?.rebuildPreviewArrowSvg,
+    sceneContractMatches: capturedOptions?.previewShellScene === previewShellSceneContract,
+    interactionContractMatches:
+      capturedOptions?.previewShellInteraction === previewShellInteractionContract,
+    renderContractMatches: capturedOptions?.previewBridgeRender === previewBridgeRenderContract,
     textAdapter: (capturedOptions?.getTextAdapter as (() => unknown) | undefined)?.(),
     formatError: (capturedOptions?.formatControlErrorMessage as ((value: string) => string) | undefined)?.("bad"),
     baselineStep: capturedOptions?.baselineStep,
@@ -1864,6 +1910,7 @@ test("editor runtime-set bootstrap accepts the namespaced previewShell.bootstrap
     hasSetOverride: "function",
     hasGetGridInfo: "function",
     hasFormatControlErrorMessage: "function",
+    hasSyncPreviewTreeSelectionState: "function",
     hasNormalizeSelectionGap: "function",
     hasResolveSelectionDistributeTargets: "function",
     hasResolveSelectionAlignTargets: "function",
@@ -1871,6 +1918,9 @@ test("editor runtime-set bootstrap accepts the namespaced previewShell.bootstrap
     hasReadArrowEndpoints: "function",
     hasUpdateArrowSvg: "function",
     hasRebuildArrowSvg: "function",
+    sceneContractMatches: true,
+    interactionContractMatches: true,
+    renderContractMatches: true,
     textAdapter: { name: "adapter" },
     formatError: "escaped:bad",
     baselineStep: 24,
@@ -1879,6 +1929,11 @@ test("editor runtime-set bootstrap accepts the namespaced previewShell.bootstrap
     headHalf: 5,
     color: "#E95420",
   });
+
+  (capturedOptions?.selectionDepthState as { set: (value: number) => void }).set(9);
+  (capturedOptions?.multiActionGapState as { set: (value: number) => void }).set(33);
+  assert.equal(context.selectionDepth, 9);
+  assert.equal(context.multiActionGap, 33);
 });
 
 test("editor inspector-selection wrappers delegate through the typed runtime", () => {

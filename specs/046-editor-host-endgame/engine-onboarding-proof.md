@@ -6,7 +6,7 @@ Spec 046 closeout proof for the browser shell.
 
 - `scripts/preview/editor.js` no longer names `ElkPreviewController` directly for bootstrap, save, or relayout-mode decisions.
 - The grid shell now resolves engine-specific panel/save behavior through typed preview-shell owners in `packages/layout-engine/src/preview-shell/app-bootstrap.ts`.
-- The bootstrap tail now enters that owner through `previewShell.bootstrap.bootstrapPreviewEditorRuntime(...)`, so `editor.js` no longer hand-assembles host-only save/toolbar/SSE/build-status wiring inline.
+- The bootstrap tail now enters that owner through `previewShell.bootstrap.createBootstrapPreviewEditorRuntimeOptionsFromHost(...)` plus `previewShell.bootstrap.bootstrapPreviewEditorRuntime(...)`, so `editor.js` no longer hand-assembles host-only save/toolbar/SSE/build-status wiring inline.
 - Engine-local browser hooks now have a generic registration point:
   - `PreviewEngineShellController`
   - `previewShell.bootstrap.ensurePreviewEngineShellController(...)`

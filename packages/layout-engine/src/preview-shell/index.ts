@@ -400,23 +400,29 @@ export {
 } from './app-waypoint-host.js';
 
 export type {
+  CreateBootstrapPreviewEditorRuntimeOptionsFromHostOptions,
   BootstrapPreviewEditorRuntimeOptions,
   BootstrapPreviewEditorHostOptions,
   ConnectPreviewSseOptions,
   CreatePreviewOverrideToolbarHostOptions,
+  PreviewBootstrapBooleanState,
+  PreviewBootstrapConstraintSummaryHost,
   PreviewEnginePayloadModelLike,
   PreviewEngineShellControllerApi,
+  PreviewBootstrapNumericState,
   PreviewDiagramLoadSignalState,
   PreviewBuildStatusUpdate,
   PreviewEditorDocumentBindingsHostOptions,
   PreviewEditorStateApi,
   PreviewEditorStateInitOptions,
   PreviewEditorTestFacadeHostOptions,
+  PreviewEditorUndoStateApi,
   PreviewElkControllerApi,
   PreviewElkControllerInitOptions,
   PreviewEventSourceLike,
   InitPreviewEditorRuntimeHostOptions,
   PreviewPageshowReloadOptions,
+  PreviewRuntimeSaveClientApi,
   PreviewSaveClientApi,
   PreviewSaveClientInitConfig,
   PreviewSaveClientInitOptions,
@@ -428,6 +434,7 @@ export {
   bootstrapPreviewEditorHost,
   collectPreviewEngineSavePayload,
   connectPreviewSse,
+  createBootstrapPreviewEditorRuntimeOptionsFromHost,
   createBootstrapPreviewEditorHostOptionsFromRuntime,
   createPreviewBuildStatusUpdater,
   createPreviewDiagramLoadSignalState,
@@ -536,11 +543,14 @@ export {
 } from './app-selection-runtime.js';
 
 export type {
+  CreatePreviewEditorRuntimeSetHostOptions,
   CreatePreviewEditorRuntimeSetOptions,
+  PreviewEditorRuntimeNumericState,
   PreviewEditorRuntimeSet,
 } from './app-editor-runtime-set.js';
 
 export {
+  createPreviewEditorRuntimeSetFromHost,
   createPreviewEditorRuntimeSet,
 } from './app-editor-runtime-set.js';
 

@@ -4,6 +4,7 @@ import {
   bootstrapPreviewEditorHost,
   collectPreviewEngineSavePayload,
   connectPreviewSse,
+  createBootstrapPreviewEditorRuntimeOptionsFromHost,
   createBootstrapPreviewEditorHostOptionsFromRuntime,
   createPreviewBuildStatusUpdater,
   createPreviewDiagramLoadSignalState,
@@ -512,6 +513,92 @@ describe('preview bootstrap helpers', () => {
     expect(options.getSelectedIds()).toEqual(['alpha', 'beta']);
     expect(options.overrideToolbar.slug).toBe('demo');
     expect(options.eventSourceFactory('/events')).toBeInstanceOf((options.previewWindow.EventSource as typeof EventSource));
+  });
+
+  it('derives runtime bootstrap options from thinner host-owned editor state', async () => {
+    let generation = 3;
+    const applyUndoCommand = vi.fn();
+    const fetchIndexHtml = vi.fn(async () => '<html></html>');
+    const undo = vi.fn(() => 'undo-result');
+    const redo = vi.fn(() => 'redo-result');
+    const saveOverrides = vi.fn(() => 'save-result');
+    const summarise = vi.fn((violations) => ({ errors: Array.isArray(violations) ? violations.length : 0 }));
+    const options = createBootstrapPreviewEditorRuntimeOptionsFromHost({
+      document: {
+        getElementById: vi.fn(() => null),
+      } as unknown as Document,
+      previewWindow: {
+        location: { pathname: '/view/v3:demo' },
+      } as unknown as Window & typeof globalThis,
+      slug: 'demo',
+      model: { roots: [{ id: 'root' }] },
+      selectedIds: new Set(['alpha']),
+      reapplySelection: vi.fn(),
+      onDocumentKeyDown: vi.fn(),
+      editorState: {
+        undo,
+        redo,
+        canUndo: () => true,
+        canRedo: () => false,
+        serializeDirtyState: () => '{}',
+      },
+      applyUndoCommand,
+      syncBrowseNav: vi.fn(),
+      fetchIndexHtml,
+      attemptNavigation: vi.fn(() => true),
+      initNavTabs: vi.fn(),
+      getOverrides: () => ({ alpha: { dx: 8 } }),
+      getFrameTree: () => ({ frames: [] }),
+      requestV3Relayout: vi.fn(async () => undefined),
+      previewSaveClient: {
+        init: vi.fn(),
+        isDirty: () => false,
+        saveOverrides,
+      },
+      reloadDiagram: vi.fn(),
+      getV3RelayoutStatus: () => ({ localReady: true }),
+      getV3RelayoutRuntime: () => ({ sequence: 1 }),
+      constraints: {
+        summarise,
+      },
+      lastViolations: ['a', 'b'],
+      runConstraints: vi.fn(),
+      clearCoercedKeys: vi.fn(),
+      setStatus: vi.fn(),
+      sanitizeSvgCloneForExport: vi.fn(),
+      allowInternalDirtyNavigationState: {
+        get: () => false,
+      },
+      writeClipboardText: vi.fn(),
+      alert: vi.fn(),
+      confirmClearAll: vi.fn(() => true),
+      onClearAllOverrides: vi.fn(),
+      generationState: {
+        get: () => generation,
+        set: (value) => {
+          generation = value;
+        },
+      },
+      scheduleReconnect: vi.fn(),
+    });
+
+    expect(options.undo()).toBe('undo-result');
+    expect(options.redo()).toBe('redo-result');
+    expect(options.saveOverrides()).toBe('save-result');
+    expect(undo).toHaveBeenCalledWith(applyUndoCommand);
+    expect(redo).toHaveBeenCalledWith(applyUndoCommand);
+    expect(saveOverrides).toHaveBeenCalledTimes(1);
+    expect(options.canUndo()).toBe(true);
+    expect(options.canRedo()).toBe(false);
+    expect(options.serializeDirtyState()).toBe('{}');
+    expect(options.getConstraintSummary()).toEqual({ errors: 2 });
+    expect(summarise).toHaveBeenCalledWith(['a', 'b']);
+    expect(options.allowInternalDirtyNavigation()).toBe(false);
+    expect(options.getGeneration()).toBe(3);
+    options.setGeneration(4);
+    expect(options.getGeneration()).toBe(4);
+    expect(await options.fetchIndexHtml()).toBe('<html></html>');
+    expect(Array.from(options.selectedIds)).toEqual(['alpha']);
   });
 
   it('restores selection ids and exposes document-owned build / toolbar helpers', () => {

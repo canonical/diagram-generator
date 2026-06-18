@@ -350,7 +350,8 @@ test("editor grid loader accepts the namespaced previewShell.bootstrap contract"
 
 test("editor bootstrap tail accepts the namespaced previewShell.bootstrap contract", () => {
   const source = loadEditorSource();
-  let capturedOptions: Record<string, unknown> | null = null;
+  let capturedHostOptions: Record<string, unknown> | null = null;
+  let capturedRuntimeOptions: Record<string, unknown> | null = null;
   const context = {
     console,
     SLUG: "demo",
@@ -376,13 +377,11 @@ test("editor bootstrap tail accepts the namespaced previewShell.bootstrap contra
     },
     window: {
       location: { pathname: "/view/v3:demo" },
-      EditorState: {
-        serializeDirtyState() {
-          return "{}";
-        },
-      },
       __DG_getPreviewShellBootstrapContract() {
         return context.LayoutEngine.previewShell.bootstrap;
+      },
+      __DG_getPreviewBridgeHostContract() {
+        return context.LayoutEngine.previewBridge.host;
       },
       addEventListener() {},
       removeEventListener() {},
@@ -415,6 +414,9 @@ test("editor bootstrap tail accepts the namespaced previewShell.bootstrap contra
       canRedo() {
         return false;
       },
+      serializeDirtyState() {
+        return "{}";
+      },
       runUndoableAction(_label: string, mutate: () => void) {
         mutate();
       },
@@ -425,9 +427,6 @@ test("editor bootstrap tail accepts the namespaced previewShell.bootstrap contra
       elkLayoutOverrides: { root: { spacing: 24 } },
       removedIds: new Set(["stale"]),
       roots: [{ id: "root" }],
-    },
-    getFrameTreeJson() {
-      return { frames: [] };
     },
     requestV3Relayout() {
       return Promise.resolve();
@@ -457,10 +456,69 @@ test("editor bootstrap tail accepts the namespaced previewShell.bootstrap contra
     },
     v3RelayoutStatus: { localReady: true },
     LayoutEngine: {
+      previewBridge: {
+        host: {
+          getFrameTreeJson() {
+            return { frames: [] };
+          },
+        },
+      },
       previewShell: {
         bootstrap: {
+          createBootstrapPreviewEditorRuntimeOptionsFromHost(options: Record<string, unknown>) {
+            capturedHostOptions = normalizeVmValue({
+              slug: options.slug,
+              hasEditorStateUndo: typeof options.editorState?.undo,
+              hasEditorStateRedo: typeof options.editorState?.redo,
+              hasEditorStateSerializeDirtyState: typeof options.editorState?.serializeDirtyState,
+              applyUndoCommandMatches: options.applyUndoCommand === context._applyUndoCommand,
+              hasAttemptNavigation: typeof options.attemptNavigation,
+              hasInitNavTabs: typeof options.initNavTabs,
+              gridOverrides: (options.model as Record<string, unknown>).gridOverrides,
+              elkLayoutOverrides: (options.model as Record<string, unknown>).elkLayoutOverrides,
+              removedIds: Array.from((options.model as { removedIds: Set<string> }).removedIds),
+              frameTree: (options.getFrameTree as () => unknown)(),
+              selectedIds: Array.from(options.selectedIds as Set<string>),
+              constraintSummary: (options.constraints as { summarise: (violations: unknown) => unknown })
+                .summarise(options.lastViolations),
+              allowInternalDirtyNavigation: (
+                options.allowInternalDirtyNavigationState as { get: () => boolean }
+              ).get(),
+              hasWriteClipboardText: typeof options.writeClipboardText,
+              hasPreviewSaveClientSaveOverrides: typeof options.previewSaveClient?.saveOverrides,
+              hasConfirmClearAll: typeof options.confirmClearAll,
+              hasOnClearAllOverrides: typeof options.onClearAllOverrides,
+              generation: (options.generationState as { get: () => number }).get(),
+              hasGenerationSet: typeof (options.generationState as { set: (value: number) => void }).set,
+              hasScheduleReconnect: typeof options.scheduleReconnect,
+            });
+            return {
+              slug: options.slug,
+              model: options.model,
+              selectedIds: options.selectedIds,
+              onDocumentKeyDown: options.onDocumentKeyDown,
+              undo: () => options.editorState.undo(options.applyUndoCommand),
+              redo: () => options.editorState.redo(options.applyUndoCommand),
+              saveOverrides: () => options.previewSaveClient.saveOverrides(),
+              canUndo: () => options.editorState.canUndo(),
+              canRedo: () => options.editorState.canRedo(),
+              attemptNavigation: options.attemptNavigation,
+              initNavTabs: options.initNavTabs,
+              getFrameTree: options.getFrameTree,
+              serializeDirtyState: () => options.editorState.serializeDirtyState(),
+              getV3RelayoutStatus: options.getV3RelayoutStatus,
+              getV3RelayoutRuntime: options.getV3RelayoutRuntime,
+              getConstraintSummary: () => options.constraints.summarise(options.lastViolations),
+              allowInternalDirtyNavigation: () => options.allowInternalDirtyNavigationState.get(),
+              writeClipboardText: options.writeClipboardText,
+              confirmClearAll: options.confirmClearAll,
+              onClearAllOverrides: options.onClearAllOverrides,
+              getGeneration: () => options.generationState.get(),
+              scheduleReconnect: options.scheduleReconnect,
+            };
+          },
           bootstrapPreviewEditorRuntime(options: Record<string, unknown>) {
-            capturedOptions = normalizeVmValue({
+            capturedRuntimeOptions = normalizeVmValue({
               slug: options.slug,
               hasOnDocumentKeyDown: typeof options.onDocumentKeyDown,
               hasUndo: typeof options.undo,
@@ -468,11 +526,7 @@ test("editor bootstrap tail accepts the namespaced previewShell.bootstrap contra
               hasSaveOverrides: typeof options.saveOverrides,
               hasAttemptNavigation: typeof options.attemptNavigation,
               hasInitNavTabs: typeof options.initNavTabs,
-              gridOverrides: (options.model as Record<string, unknown>).gridOverrides,
-              elkLayoutOverrides: (options.model as Record<string, unknown>).elkLayoutOverrides,
-              removedIds: Array.from((options.model as { removedIds: Set<string> }).removedIds),
               frameTree: (options.getFrameTree as () => unknown)(),
-              rootId: ((options.model as { roots: Array<{ id: string }> }).roots[0] || {}).id,
               selectedIds: Array.from(options.selectedIds as Set<string>),
               serializedState: (options.serializeDirtyState as () => string)(),
               relayoutStatus: (options.getV3RelayoutStatus as () => unknown)(),
@@ -498,6 +552,8 @@ test("editor bootstrap tail accepts the namespaced previewShell.bootstrap contra
   };
 
   const helperSource = [
+    extractNamedFunctionSource(source, "_getPreviewBridgeHostContract", "()"),
+    extractNamedFunctionSource(source, "_readFrameTreeJson", "()"),
     extractNamedFunctionSource(source, "bootstrapPreviewEditor", "()"),
     "this.__loaded = { bootstrapPreviewEditor };",
   ].join("\n");
@@ -511,7 +567,31 @@ test("editor bootstrap tail accepts the namespaced previewShell.bootstrap contra
 
   loaded.bootstrapPreviewEditor();
 
-  assert.deepEqual(capturedOptions, {
+  assert.deepEqual(capturedHostOptions, {
+    slug: "demo",
+    hasEditorStateUndo: "function",
+    hasEditorStateRedo: "function",
+    hasEditorStateSerializeDirtyState: "function",
+    applyUndoCommandMatches: true,
+    hasAttemptNavigation: "function",
+    hasInitNavTabs: "function",
+    gridOverrides: { rows: 2 },
+    elkLayoutOverrides: { root: { spacing: 24 } },
+    removedIds: ["stale"],
+    frameTree: { frames: [] },
+    selectedIds: ["alpha", "beta"],
+    constraintSummary: { errors: 0 },
+    allowInternalDirtyNavigation: false,
+    hasWriteClipboardText: "function",
+    hasPreviewSaveClientSaveOverrides: "function",
+    hasConfirmClearAll: "function",
+    hasOnClearAllOverrides: "function",
+    generation: 3,
+    hasGenerationSet: "function",
+    hasScheduleReconnect: "function",
+  });
+
+  assert.deepEqual(capturedRuntimeOptions, {
     slug: "demo",
     hasOnDocumentKeyDown: "function",
     hasUndo: "function",
@@ -519,11 +599,7 @@ test("editor bootstrap tail accepts the namespaced previewShell.bootstrap contra
     hasSaveOverrides: "function",
     hasAttemptNavigation: "function",
     hasInitNavTabs: "function",
-    gridOverrides: { rows: 2 },
-    elkLayoutOverrides: { root: { spacing: 24 } },
-    removedIds: ["stale"],
     frameTree: { frames: [] },
-    rootId: "root",
     selectedIds: ["alpha", "beta"],
     serializedState: "{}",
     relayoutStatus: { localReady: true },

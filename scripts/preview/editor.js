@@ -1501,18 +1501,18 @@ function _getEditorRuntimeSet() {
   const previewShellScene = window.__DG_getPreviewShellSceneContract();
   const previewShellInteraction = window.__DG_getPreviewShellInteractionContract();
   const previewBridgeRender = window.__DG_getPreviewBridgeRenderContract();
-  _editorRuntimeSet = previewShellBootstrap.createPreviewEditorRuntimeSet({
+  _editorRuntimeSet = previewShellBootstrap.createPreviewEditorRuntimeSetFromHost({
     document,
     selectedIds,
-    getSelectionDepth: () => selectionDepth,
-    setSelectionDepth: (depth) => {
-      selectionDepth = depth;
+    selectionDepthState: {
+      get: () => selectionDepth,
+      set: (depth) => {
+        selectionDepth = depth;
+      },
     },
     getPrimarySelectedId,
     getAncestorDepth: (cid) => getAncestors(cid).length,
-    syncTreeSelectionState: (container, ids) => (
-      previewShellScene.syncPreviewTreeSelectionState(container, ids)
-    ),
+    previewShellScene,
     removeResizeHandles,
     showResizeHandles,
     renderEmptyInspector,
@@ -1534,9 +1534,11 @@ function _getEditorRuntimeSet() {
     baselineStep: BASELINE_STEP,
     fallbackGap: window.__DG_CONFIG.col_gap || 24,
     snapStep: BASELINE_STEP,
-    getMultiActionGap: () => multiActionGap,
-    setMultiActionGap: (gap) => {
-      multiActionGap = gap;
+    multiActionGapState: {
+      get: () => multiActionGap,
+      set: (gap) => {
+        multiActionGap = gap;
+      },
     },
     getTextAdapter: typeof window.getLayoutTextAdapter === 'function'
       ? () => window.getLayoutTextAdapter()
@@ -1578,27 +1580,14 @@ function _getEditorRuntimeSet() {
     refreshTreeColors,
     runConstraints,
     setOverride: (id, partial) => setOverride(id, partial),
-    normalizeSelectionGap: (gap, snapStep) => (
-      previewShellInteraction.normalizeSelectionGap(gap, snapStep)
-    ),
-    resolveSelectionDistributeTargets: (options) => (
-      previewShellInteraction.resolveSelectionDistributeTargets(options)
-    ),
-    resolveSelectionAlignTargets: (options) => (
-      previewShellInteraction.resolveSelectionAlignTargets(options)
-    ),
-    createSelectionTargetOverrideEntries: (options) => (
-      previewShellInteraction.createSelectionTargetOverrideEntries(options)
-    ),
+    previewShellInteraction,
     alert: (message) => alert(message),
     normalizeStyleName: _normaliseStyleName,
     interactionManager: mgr,
     waypointDraggingMode: InteractionMode.WAYPOINT_DRAGGING,
     isSelected: (cid) => selectedIds.has(cid),
     persistWaypointOverride: setWaypointOverride,
-    readArrowEndpoints: (options) => previewBridgeRender.readPreviewArrowEndpoints(options),
-    updateArrowSvg: (options) => previewBridgeRender.updatePreviewArrowSvg(options),
-    rebuildArrowSvg: (options) => previewBridgeRender.rebuildPreviewArrowSvg(options),
+    previewBridgeRender,
     headLen: window.__DG_CONFIG.head_len,
     headHalf: window.__DG_CONFIG.head_half,
     color: "#E95420",
@@ -1823,61 +1812,58 @@ function getViolationsForComponent(cid) {
 // ---- SSE / bootstrap tail ----
 
 function bootstrapPreviewEditor() {
-  window.__DG_getPreviewShellBootstrapContract().bootstrapPreviewEditorRuntime({
-    document,
-    previewWindow: window,
-    slug: SLUG,
-    model,
-    selectedIds,
-    reapplySelection,
-    onDocumentKeyDown,
-    undo: () => EditorState.undo(_applyUndoCommand),
-    redo: () => EditorState.redo(_applyUndoCommand),
-    saveOverrides: () => PreviewSaveClient.saveOverrides(),
-    canUndo: () => EditorState.canUndo(),
-    canRedo: () => EditorState.canRedo(),
-    syncBrowseNav: _syncBrowseNavToLocation,
-    fetchIndexHtml: async () => {
-      const response = await fetch("/", { credentials: "same-origin" });
-      if (!response.ok) {
-        return null;
-      }
-      return response.text();
-    },
-    attemptNavigation: (nextUrl, syncUi) => _attemptDiagramNavigation(nextUrl, syncUi),
-    initNavTabs,
-    getOverrides: () => overrides,
-    getFrameTree: () => (typeof getFrameTreeJson === "function" ? getFrameTreeJson() : null),
-    requestV3Relayout: (cid) => requestV3Relayout(cid),
-    previewSaveClient: PreviewSaveClient,
-    serializeDirtyState: () => window.EditorState.serializeDirtyState(),
-    reloadDiagram: (options) => loadSVG(options),
-    getV3RelayoutStatus: () => getV3RelayoutStatus(),
-    getV3RelayoutRuntime: () => _v3RelayoutRuntime,
-    getConstraintSummary: () => constraints.summarise(lastViolations),
-    runConstraints,
-    clearCoercedKeys: () => _coercedKeys.clear(),
-    setStatus,
-    sanitizeSvgCloneForExport,
-    allowInternalDirtyNavigation: () => _allowInternalDirtyNavigation,
-    writeClipboardText: (text) => navigator.clipboard.writeText(text),
-    alert: (message) => alert(message),
-    confirmClearAll: (message) => confirm(message),
-    onClearAllOverrides: () => {
-      EditorState.runUndoableAction("Clear all overrides", () => {
-        replaceOverrides({});
-        _coercedKeys.clear();
-        setDirty(true);
-      });
-      applyAllOverrides();
-      renderSelectionInspector();
-    },
-    getGeneration: () => generation,
-    setGeneration: (value) => {
-      generation = value;
-    },
-    scheduleReconnect: (callback, delayMs) => setTimeout(callback, delayMs),
-  });
+  const previewShellBootstrap = window.__DG_getPreviewShellBootstrapContract();
+  previewShellBootstrap.bootstrapPreviewEditorRuntime(
+    previewShellBootstrap.createBootstrapPreviewEditorRuntimeOptionsFromHost({
+      document,
+      previewWindow: window,
+      slug: SLUG,
+      model,
+      selectedIds,
+      reapplySelection,
+      onDocumentKeyDown,
+      editorState: EditorState,
+      applyUndoCommand: _applyUndoCommand,
+      syncBrowseNav: _syncBrowseNavToLocation,
+      attemptNavigation: _attemptDiagramNavigation,
+      initNavTabs,
+      getOverrides: () => overrides,
+      getFrameTree: () => _readFrameTreeJson(),
+      requestV3Relayout,
+      previewSaveClient: PreviewSaveClient,
+      reloadDiagram: loadSVG,
+      getV3RelayoutStatus,
+      getV3RelayoutRuntime: () => _v3RelayoutRuntime,
+      constraints,
+      lastViolations,
+      runConstraints,
+      clearCoercedKeys: () => _coercedKeys.clear(),
+      setStatus,
+      sanitizeSvgCloneForExport,
+      allowInternalDirtyNavigationState: {
+        get: () => _allowInternalDirtyNavigation,
+      },
+      writeClipboardText: (text) => navigator.clipboard.writeText(text),
+      alert: (message) => alert(message),
+      confirmClearAll: (message) => confirm(message),
+      onClearAllOverrides: () => {
+        EditorState.runUndoableAction("Clear all overrides", () => {
+          replaceOverrides({});
+          _coercedKeys.clear();
+          setDirty(true);
+        });
+        applyAllOverrides();
+        renderSelectionInspector();
+      },
+      generationState: {
+        get: () => generation,
+        set: (value) => {
+          generation = value;
+        },
+      },
+      scheduleReconnect: (callback, delayMs) => setTimeout(callback, delayMs),
+    }),
+  );
 }
 
 bootstrapPreviewEditor();

@@ -340,8 +340,10 @@ export {
   completePreviewTextEdit,
   completePreviewWaypointDragInteraction,
   connectPreviewSse,
+  createBootstrapPreviewEditorRuntimeOptionsFromHost,
   createBootstrapPreviewEditorHostOptionsFromRuntime,
   createPreviewBuildStatusUpdater,
+  createPreviewEditorRuntimeSetFromHost,
   createPreviewEditorRuntimeSet,
   createPreviewArrowWaypointRuntime,
   createPreviewElkViewModeRuntime,
@@ -879,7 +881,10 @@ export const previewShell = Object.freeze({
     createPreviewDiagramLoadSignalState: previewShellRuntime.createPreviewDiagramLoadSignalState,
     signalPreviewDiagramLoaded: previewShellRuntime.signalPreviewDiagramLoaded,
     whenPreviewDiagramLoaded: previewShellRuntime.whenPreviewDiagramLoaded,
+    createPreviewEditorRuntimeSetFromHost: previewShellRuntime.createPreviewEditorRuntimeSetFromHost,
     createPreviewEditorRuntimeSet: previewShellRuntime.createPreviewEditorRuntimeSet,
+    createBootstrapPreviewEditorRuntimeOptionsFromHost:
+      previewShellRuntime.createBootstrapPreviewEditorRuntimeOptionsFromHost,
     createBootstrapPreviewEditorHostOptionsFromRuntime:
       previewShellRuntime.createBootstrapPreviewEditorHostOptionsFromRuntime,
     createPreviewBuildStatusUpdater: previewShellRuntime.createPreviewBuildStatusUpdater,

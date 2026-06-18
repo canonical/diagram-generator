@@ -11,7 +11,7 @@ Durable follow-up belongs in `TODO.md`, [`AGENTS.md`](AGENTS.md#handover), or [`
 This section supersedes the prior pass-4 review. Resolved items have been removed.
 
 **Branch:** `feat/046-editor-host-endgame`  
-**Current shape:** `scripts/preview/editor.js` is about `1,704` lines; `scripts/preview/layout-bridge.js` is about `499` lines.
+**Current shape:** `scripts/preview/editor.js` is about `1,872` lines; `scripts/preview/layout-bridge.js` is about `552` lines.
 
 ### Resolved since the prior review
 
@@ -22,7 +22,8 @@ This section supersedes the prior pass-4 review. Resolved items have been remove
 - The three-class browser-shell onboarding proof is no longer prose-only. `packages/layout-engine/tests/app-bootstrap.test.ts` now exercises representative ported-family (`mermaid-flowchart`) and bespoke (`bespoke-grid`) controllers through the same generic `PreviewEngineShellController` seam used by ELK.
 - `layout-bridge.js` no longer carries the inline duplicate `collectFramesById` / `collectPlacedBounds` implementations or the flat root-contract fallbacks that were still present in the previous review. The bridge now requires the namespaced preview contracts directly.
 - `layout-bridge.js` no longer owns ELK debug/raw-view DOM state inline. That view-mode runtime now lives in `packages/layout-engine/src/preview-shell/app-layout-bridge-runtime.ts` behind `previewBridge.host.createPreviewElkViewModeRuntime(...)`.
-- `editor.js` no longer hand-assembles the selection, inspector-display, inspector-mutation, inspector-selection, and arrow-waypoint runtime constructor bags inline. Those now compose through `previewShell.bootstrap.createPreviewEditorRuntimeSet(...)` in `packages/layout-engine/src/preview-shell/app-editor-runtime-set.ts`.
+- `editor.js` no longer hand-assembles the selection, inspector-display, inspector-mutation, inspector-selection, and arrow-waypoint runtime constructor bags inline. Those now compose through `previewShell.bootstrap.createPreviewEditorRuntimeSetFromHost(...)` in `packages/layout-engine/src/preview-shell/app-editor-runtime-set.ts`.
+- `editor.js` no longer hand-assembles the bootstrap tail runtime bag inline. That host mapping now composes through `previewShell.bootstrap.createBootstrapPreviewEditorRuntimeOptionsFromHost(...)` in `packages/layout-engine/src/preview-shell/app-bootstrap.ts`, with direct `EditorState`, `PreviewSaveClient`, constraint summary, dirty-navigation state, and generation state adaptation covered by unit and contract tests.
 - `layout-bridge.js` no longer routes fresh-render or frame-tree overlay rendering back through the merged host render contract. Those paths now call the bundle render contract directly, preventing recursive self-entry and keeping the live demo load path green.
 - Shared shell getters in `scripts/preview/editor-base.js` now read the namespaced browser contract directly instead of falling back to the flat `LayoutEngine` root bag.
 

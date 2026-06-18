@@ -4,15 +4,15 @@ Cold-start map for the remaining `scripts/preview/editor.js` surface.
 
 ## Current size
 
-- `scripts/preview/editor.js`: about 1,704 lines in the current working tree on the active 046 branch
-- `scripts/preview/layout-bridge.js`: about 499 lines after the typed bridge-state/runtime extraction under spec 044
+- `scripts/preview/editor.js`: about 1,872 lines in the current working tree on the active 046 branch
+- `scripts/preview/layout-bridge.js`: about 552 lines after the typed bridge-state/runtime extraction under spec 044
 - Closeout status: the integration-sink bar is materially better, but spec 046 remains open because `editor.js` still does not read as a thin bootstrap and the preview-shell/browser-entry barrels remain a cold-start burden even as `layout-bridge.js` gets thinner under spec 044
 
 ## Remaining buckets
 
 | Bucket | Example regions | Direction |
 |--------|-----------------|-----------|
-| Bootstrap/load/navigation | `loadSVG()`, dirty nav, diagram load signaling, tree/grid fetch bootstrap, SSE tail | diagram-load signaling, dirty navigation, tree load, arrow sync, grid load, and load-option/bootstrap-tail assembly now live behind bootstrap owners in `app-bootstrap.ts`, `app-load.ts`, and `app-diagram-data.ts`; the remaining code is callback assembly around those owners |
+| Bootstrap/load/navigation | `loadSVG()`, dirty nav, diagram load signaling, tree/grid fetch bootstrap, SSE tail | diagram-load signaling, dirty navigation, tree load, arrow sync, grid load, load-option assembly, and bootstrap-tail runtime-option mapping now live behind bootstrap owners in `app-bootstrap.ts`, `app-load.ts`, and `app-diagram-data.ts`; the remaining code is callback assembly around those owners |
 | Grid/tree host UI | grid overlay/control host, tree panel render/sync | tree host render/context-menu wiring now lives in `app-selection-host.ts`; grid overlay, grid-info refresh, waypoint reapply, override-summary, constraint refresh, scene refresh sequencing, and stage-rerender host composition now live in `app-scene-host.ts`; keep shrinking the remaining grid-control runtime glue |
 | Inspector host dispatch | delegated click/change/input action binding and inspector render entry | action binding lives in `app-inspector-actions.ts`; single/multi inspector runtime assembly plus inspector unit-state/render orchestration now also live in `app-inspector-host.ts` and `app-inspector-display-runtime.ts`; keep shrinking adjacent callback wiring |
 | Selection/interaction glue | selection sync, bindInteraction, drag/resize/waypoint host entrypoints | selection UI sync, select/deselect state wrappers, and tree-selection host wiring now also live behind `app-selection-runtime.ts` and typed hosts; double-click/depth-selection host flow, pointer/drag-start wiring, drag-move/autolayout-context wiring, resize start/move wiring, waypoint handle/drag start-move wiring, selection chrome/arrow visual helpers, and drag/resize/waypoint completion teardown already live behind typed hosts; the remaining file is mostly generic callback assembly rather than engine-specific ownership |
@@ -26,7 +26,8 @@ Cold-start map for the remaining `scripts/preview/editor.js` surface.
 - `editor.js` no longer owns engine panel/save/bootstrap branching directly.
 - Future engine-local browser hooks now enter through `PreviewEngineShellController` instead of direct ELK calls in `editor.js`.
 - `layout-bridge.js` no longer owns bridge state, text-adapter readiness, or local-vs-ELK relayout dispatch; those now enter through `previewBridge.host` and `app-layout-bridge-runtime.ts`.
-- `editor.js` no longer owns the selection/inspector/waypoint runtime constructor bags inline; those now enter through `previewShell.bootstrap.createPreviewEditorRuntimeSet(...)` and `app-editor-runtime-set.ts`.
+- `editor.js` no longer owns the selection/inspector/waypoint runtime constructor bags inline; those now enter through `previewShell.bootstrap.createPreviewEditorRuntimeSetFromHost(...)` and `app-editor-runtime-set.ts`.
+- `editor.js` no longer owns the bootstrap-tail runtime option mapping inline; that now enters through `previewShell.bootstrap.createBootstrapPreviewEditorRuntimeOptionsFromHost(...)` and `app-bootstrap.ts`.
 - The typed registration-first answer is now test-backed for representative external, ported-family, and bespoke browser-shell controllers, but spec 046 stays open until the residual host reads as thin bootstrap glue.
 
 ## Key rule
