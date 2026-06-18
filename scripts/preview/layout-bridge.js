@@ -314,7 +314,7 @@ const _layoutBridgeRuntime = previewBridgeHostContract().createPreviewLayoutBrid
     options.routedArrows,
     options.boundsMap,
   ),
-  updateModelFromLayout,
+  updateModelFromLayout: updateComponentModelFromLayout,
   syncArrowsInModel,
   renderFreshPreviewSvg: async (options) => {
     const previewBridgeRender = previewBridgeRenderContract();

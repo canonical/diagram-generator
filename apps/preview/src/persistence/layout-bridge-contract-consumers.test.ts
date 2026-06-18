@@ -473,3 +473,10 @@ test("layout bridge ELK view helpers accept the namespaced previewEngines.elk co
     { kind: "raw" },
   );
 });
+
+test("layout bridge runtime setup wires the local model-update wrapper into the typed runtime", () => {
+  const source = readPreviewScript("layout-bridge.js");
+
+  assert.match(source, /updateModelFromLayout:\s*updateComponentModelFromLayout,/);
+  assert.doesNotMatch(source, /[^A-Za-z]updateModelFromLayout,\s*[\r\n]/);
+});
