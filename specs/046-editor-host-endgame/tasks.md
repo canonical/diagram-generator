@@ -33,7 +33,7 @@
 - [x] T021 Add or extend focused contract tests that lock the new host owners in place
 - [x] T022 Re-measure `editor.js` and decide whether the residual file now qualifies as a thin host entrypoint
   Outcome: not yet "thin" in the literal sense. The active branch still leaves
-  `editor.js` at roughly 2.0k lines, so the residual file is still larger than
+  `editor.js` at roughly 1.7k lines, so the residual file is still larger than
   ideal, but it no longer owns engine onboarding or bridge runtime behavior.
 - [x] T023 Confirm no remaining preview-shell JS trap file still functions as the default integration sink for future engines
   Outcome: structurally yes for future engine integration. New engine panel /
@@ -43,5 +43,5 @@
 - [ ] T024 Reject closeout unless the honest answer to "can we add 150 engines now?" is yes
   Blocked: the registration-first answer is now credible on paper for engines
   that reuse an existing shell tier, but the residual `editor.js` callback bag
-  is still too large and the three-class onboarding proof is still
-  architecture-only rather than demonstrated.
+  is still too large even though the three-class onboarding proof is now
+  demonstrated in tests.

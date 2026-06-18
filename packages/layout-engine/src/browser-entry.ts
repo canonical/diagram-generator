@@ -302,6 +302,7 @@ export {
   clearPreviewTransientLayoutOverrides,
   dispatchPreviewClearOverride,
   createPreviewRelayoutRuntimeState,
+  createPreviewRelayoutRuntimeOptionsFromRuntime,
   createPreviewRelayoutRuntimeOptionsFromHost,
   clearPreviewReorderIndicator,
   collectPreviewCoercedKeys,
@@ -342,6 +343,7 @@ export {
   connectPreviewSse,
   createBootstrapPreviewEditorRuntimeOptionsFromHost,
   createBootstrapPreviewEditorHostOptionsFromRuntime,
+  createLoadPreviewSvgHostOptionsFromRuntime,
   createPreviewBuildStatusUpdater,
   createPreviewEditorRuntimeSetFromHost,
   createPreviewEditorRuntimeSet,
@@ -869,6 +871,8 @@ export type {
 export const previewShell = Object.freeze({
   bootstrap: Object.freeze({
     attemptPreviewDiagramNavigation: previewShellRuntime.attemptPreviewDiagramNavigation,
+    createLoadPreviewSvgHostOptionsFromRuntime:
+      previewShellRuntime.createLoadPreviewSvgHostOptionsFromRuntime,
     createLoadPreviewSvgHostOptions: previewShellRuntime.createLoadPreviewSvgHostOptions,
     loadPreviewSvg: previewShellRuntime.loadPreviewSvg,
     loadPreviewComponentTree: previewShellRuntime.loadPreviewComponentTree,
@@ -1109,6 +1113,8 @@ export const previewBridge = Object.freeze({
     applyPreviewOverridesToFrameTree: previewShellRuntime.applyPreviewOverridesToFrameTree,
     collectPreviewRelayoutFrameOverrides: previewShellRuntime.collectPreviewRelayoutFrameOverrides,
     createPreviewRelayoutRuntime: previewShellRuntime.createPreviewRelayoutRuntime,
+    createPreviewRelayoutRuntimeOptionsFromRuntime:
+      previewShellRuntime.createPreviewRelayoutRuntimeOptionsFromRuntime,
     createPreviewRelayoutRuntimeOptionsFromHost:
       previewShellRuntime.createPreviewRelayoutRuntimeOptionsFromHost,
     createPreviewRelayoutRuntimeState: previewShellRuntime.createPreviewRelayoutRuntimeState,

@@ -134,6 +134,58 @@ export interface CreateLoadPreviewSvgHostOptions<TSvg = unknown, TModel = unknow
   ) => unknown) | null;
 }
 
+export interface PreviewLoadSvgGridState<TGridInfo = unknown> {
+  getGridInfo: () => TGridInfo;
+  setDiagramGrid: (gridInfo: unknown) => void;
+  getGridOverrides: () => Record<string, unknown> | null | undefined;
+  pruneLinkedRootGridOverrides: () => void;
+}
+
+export interface PreviewLoadSvgSelectionState {
+  selectedIds: Set<string>;
+  reapplySelection: () => void;
+}
+
+export interface CreateLoadPreviewSvgHostOptionsFromRuntimeOptions<
+  TSvg = unknown,
+  TModel = unknown,
+  TGridInfo = unknown,
+> {
+  invocation?: PreviewLoadInvocationOptions | null;
+  stage: CreateLoadPreviewSvgHostOptions<TSvg, TModel>['stage'];
+  slug: string;
+  engine: string;
+  gridEnabled: boolean;
+  deselectAll: () => void;
+  previewBridgeHost: CreateLoadPreviewSvgHostOptions<TSvg, TModel>['previewBridgeHost'];
+  isEngineLayoutActive: () => boolean;
+  resetOverrideState: () => void;
+  initEnginePanel: () => void;
+  getLocalRelayoutStatus: () => PreviewLocalRelayoutStatus;
+  escapeHtml: (value: string) => string;
+  loadTree: (canonicalState: PreviewLoadCanonicalState | null) => Promise<void>;
+  loadGridInfo: (canonicalState: PreviewLoadCanonicalState | null) => Promise<void>;
+  gridState: PreviewLoadSvgGridState<TGridInfo>;
+  populateGridControls: () => void;
+  applyWaypointOverrides: () => void;
+  applyAllOverrides: () => void;
+  bindInteraction: () => void;
+  renderGridOverlay: () => void;
+  selectionState: PreviewLoadSvgSelectionState;
+  runConstraints: () => void;
+  previewSaveClient: {
+    markSaved: (serializedState: string) => void;
+  };
+  dirtyStateSerializer: {
+    serializeDirtyState: () => string;
+  };
+  signalDiagramLoaded: () => void;
+  previewBridgeRender: CreateLoadPreviewSvgHostOptions<TSvg, TModel>['previewBridgeRender'];
+  overrides: Record<string, unknown>;
+  model: TModel;
+  fitRenderedSvgToContent?: CreateLoadPreviewSvgHostOptions<TSvg, TModel>['fitRenderedSvgToContent'];
+}
+
 export type PreviewLoadExecutionMode =
   | 'client-render'
   | 'fallback-error'
@@ -265,6 +317,55 @@ export function createLoadPreviewSvgHostOptions<TSvg = unknown, TModel = unknown
       return fetch(`/svg/${options.slug}-onbrand${suffix}?t=${Date.now()}`);
     },
   };
+}
+
+export function createLoadPreviewSvgHostOptionsFromRuntime<
+  TSvg = unknown,
+  TModel = unknown,
+  TGridInfo = unknown,
+>(
+  options: CreateLoadPreviewSvgHostOptionsFromRuntimeOptions<TSvg, TModel, TGridInfo>,
+): LoadPreviewSvgOptions<TSvg> {
+  return createLoadPreviewSvgHostOptions({
+    invocation: options.invocation,
+    stage: options.stage,
+    slug: options.slug,
+    engine: options.engine,
+    gridEnabled: options.gridEnabled,
+    deselectAll: options.deselectAll,
+    previewBridgeHost: options.previewBridgeHost,
+    isEngineLayoutActive: options.isEngineLayoutActive,
+    resetOverrideState: options.resetOverrideState,
+    initEnginePanel: options.initEnginePanel,
+    getLocalRelayoutStatus: options.getLocalRelayoutStatus,
+    escapeHtml: options.escapeHtml,
+    loadTree: options.loadTree,
+    loadGridInfo: options.loadGridInfo,
+    getGridInfo: options.gridState.getGridInfo,
+    setDiagramGrid: options.gridState.setDiagramGrid,
+    populateGridControls: options.populateGridControls,
+    applyWaypointOverrides: options.applyWaypointOverrides,
+    applyAllOverrides: options.applyAllOverrides,
+    bindInteraction: options.bindInteraction,
+    renderGridOverlay: options.renderGridOverlay,
+    restoreSelection: (ids) => {
+      if (ids) {
+        options.selectionState.selectedIds.clear();
+        ids.forEach((id) => options.selectionState.selectedIds.add(id));
+      }
+      options.selectionState.reapplySelection();
+    },
+    runConstraints: options.runConstraints,
+    markSaved: (serializedState) => options.previewSaveClient.markSaved(serializedState),
+    serializeDirtyState: options.dirtyStateSerializer.serializeDirtyState,
+    signalDiagramLoaded: options.signalDiagramLoaded,
+    getGridOverrides: options.gridState.getGridOverrides,
+    pruneLinkedRootGridOverrides: options.gridState.pruneLinkedRootGridOverrides,
+    previewBridgeRender: options.previewBridgeRender,
+    overrides: options.overrides,
+    model: options.model,
+    fitRenderedSvgToContent: options.fitRenderedSvgToContent ?? null,
+  });
 }
 
 function shouldPrunePreviewRootGridOverrides(

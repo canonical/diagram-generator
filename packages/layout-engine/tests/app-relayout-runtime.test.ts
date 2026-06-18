@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   createPreviewRelayoutRuntime,
   createPreviewRelayoutRuntimeOptionsFromHost,
+  createPreviewRelayoutRuntimeOptionsFromRuntime,
 } from '../src/preview-shell/app-relayout-runtime.js';
 
 describe('createPreviewRelayoutRuntime', () => {
@@ -73,6 +74,54 @@ describe('createPreviewRelayoutRuntime', () => {
       rebuildArrowSvg: vi.fn(),
       captureOverrideEntries: vi.fn(() => ({})),
       commitOverridePatchAction: vi.fn(),
+    });
+
+    const localResult = options.performLocalRelayout({ cols: 8 });
+    const engineResult = await options.performEngineRelayout?.({ cols: 4 });
+    await options.restoreArrowFromTree('alpha');
+
+    expect(localResult).toMatchObject({ width: 320, height: 200 });
+    expect(engineResult).toMatchObject({ width: 1, height: 1 });
+    expect(options.hasWaypointOverride('alpha')).toBe(true);
+    expect(options.isSelected('alpha')).toBe(true);
+    expect(options.restoreArrowFromTree).toBeTypeOf('function');
+  });
+
+  it('derives typed relayout runtime options from thinner runtime-owned state', async () => {
+    const options = createPreviewRelayoutRuntimeOptionsFromRuntime({
+      overrides: { alpha: { waypoints: [[24, 32]] } },
+      coercedKeys: new Set<string>(),
+      model: { id: 'model' },
+      previewBridgeHost: {
+        performEngineRelayout: vi.fn(async (_model, overrides, gridOverrides) => ({
+          coerced: null,
+          width: Object.keys(overrides).length,
+          height: Object.keys(gridOverrides as Record<string, unknown>).length,
+        })),
+        performLocalRelayout: vi.fn(() => ({ coerced: null, width: 320, height: 200 })),
+      },
+      gridState: {
+        getGridOverrides: () => ({ cols: 8 }),
+        normalizeGridOverrides: (value) => value,
+      },
+      selectionState: {
+        selectedIds: new Set<string>(['alpha']),
+      },
+      getRelayoutStatus: () => ({ localReady: true }),
+      isEngineLayoutActive: () => true,
+      failRelayout: vi.fn(),
+      finishRelayout: vi.fn(),
+      logError: vi.fn(),
+      clearOverride: vi.fn(),
+      setDirty: vi.fn(),
+      applyAllOverrides: vi.fn(),
+      updateInspector: vi.fn(),
+      reloadTreeAfterArrowRestore: vi.fn(async () => undefined),
+      rebuildArrowSvg: vi.fn(),
+      editorState: {
+        captureOverrideEntries: vi.fn(() => ({})),
+        commitOverridePatchAction: vi.fn(),
+      },
     });
 
     const localResult = options.performLocalRelayout({ cols: 8 });

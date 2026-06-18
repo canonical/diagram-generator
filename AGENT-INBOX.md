@@ -11,13 +11,13 @@ Durable follow-up belongs in `TODO.md`, [`AGENTS.md`](AGENTS.md#handover), or [`
 This section supersedes the prior pass-4 review. Resolved items have been removed.
 
 **Branch:** `feat/046-editor-host-endgame`  
-**Current shape:** `scripts/preview/editor.js` is about `1,872` lines; `scripts/preview/layout-bridge.js` is about `552` lines.
+**Current shape:** `scripts/preview/editor.js` is about `1,695` lines; `scripts/preview/layout-bridge.js` is about `499` lines.
 
 ### Resolved since the prior review
 
 - Spec 046 docs/tasks no longer overclaim closeout. The package is back to `In Progress`, T024 is reopened, and 047 remains gated.
 - The `editor.js` bootstrap callback bag is materially smaller at the host edge. `editor.js` now enters the tail through `previewShell.bootstrap.bootstrapPreviewEditorRuntime(...)`, with build-status, toolbar, selection-restore, and EventSource assembly moved into `app-bootstrap.ts`.
-- `editor.js` no longer hand-assembles the `loadPreviewSvg(...)` or relayout-runtime callback bags inline. Those host-option builders now live in typed preview-shell owners (`createLoadPreviewSvgHostOptions(...)` and `createPreviewRelayoutRuntimeOptionsFromHost(...)`).
+- `editor.js` no longer hand-assembles the higher-level `loadSVG()` or relayout-runtime state bags inline. Those runtime-owned mappings now compose through `createLoadPreviewSvgHostOptionsFromRuntime(...)` in `app-load.ts` and `createPreviewRelayoutRuntimeOptionsFromRuntime(...)` in `app-relayout-runtime.ts`, with browser-entry and editor contract coverage keeping the namespaced bridges honest.
 - Residual engine-specific host naming called out in `editor.js` is removed. The host no longer carries `isElkLayeredDiagram`, `initElkPanel`, `getElkLayoutOverrides`, or `performElkRelayout` wiring.
 - The three-class browser-shell onboarding proof is no longer prose-only. `packages/layout-engine/tests/app-bootstrap.test.ts` now exercises representative ported-family (`mermaid-flowchart`) and bespoke (`bespoke-grid`) controllers through the same generic `PreviewEngineShellController` seam used by ELK.
 - `layout-bridge.js` no longer carries the inline duplicate `collectFramesById` / `collectPlacedBounds` implementations or the flat root-contract fallbacks that were still present in the previous review. The bridge now requires the namespaced preview contracts directly.
@@ -52,6 +52,6 @@ This section supersedes the prior pass-4 review. Resolved items have been remove
 
 ### Current next work
 
-1. Continue shrinking `editor.js` by moving additional relayout/scene/bootstrap coordination into typed owners until the file reads as thin glue rather than a large coordinator.
+1. Continue shrinking `editor.js` by moving the remaining runtime-set, pointer/keyboard, and bootstrap coordination into typed owners until the file reads as thin glue rather than a large coordinator.
 2. Keep reducing VM contract-harness pressure where new focused unit tests can replace source-extraction coverage without losing the browser-contract guardrail; the new runtime-set seam is one working pattern.
 3. Start shrinking the preview-shell barrel cold-start surface so the typed owners do not become the next trap files.

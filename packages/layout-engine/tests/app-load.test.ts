@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  createLoadPreviewSvgHostOptionsFromRuntime,
   createLoadPreviewSvgHostOptions,
   loadPreviewSvg,
   resolvePreviewFrameTreeSeed,
@@ -286,5 +287,93 @@ describe('preview load helpers', () => {
       'fit:320x200',
     ]);
     expect(fetchedUrl).toMatch(/^\/svg\/demo-onbrand-mermaid\.svg\?t=\d+$/);
+  });
+
+  it('derives typed load options from thinner runtime-owned state', async () => {
+    const calls: string[] = [];
+    const selectedIds = new Set(['stale']);
+    const stage = {
+      innerHTML: '',
+      replaceChildren(svg: { tag: string }) {
+        calls.push(`replace:${svg.tag}`);
+      },
+    };
+    const options = createLoadPreviewSvgHostOptionsFromRuntime({
+      invocation: {
+        preserveSelectionIds: ['alpha', 'beta'],
+      },
+      stage,
+      slug: 'demo',
+      engine: 'mermaid',
+      gridEnabled: true,
+      deselectAll: () => calls.push('deselectAll'),
+      previewBridgeHost: {
+        async initLayoutBridge(slug: string) {
+          calls.push(`init:${slug}`);
+        },
+      },
+      isEngineLayoutActive: () => false,
+      resetOverrideState: () => calls.push('resetOverrideState'),
+      initEnginePanel: () => calls.push('initEnginePanel'),
+      getLocalRelayoutStatus: () => ({ ready: true }),
+      escapeHtml: (value) => value,
+      loadTree: async () => {
+        calls.push('loadTree');
+      },
+      loadGridInfo: async () => {
+        calls.push('loadGridInfo');
+      },
+      gridState: {
+        getGridInfo: () => ({ cols: 8 }),
+        setDiagramGrid: () => calls.push('setDiagramGrid'),
+        getGridOverrides: () => ({ cols: 8 }),
+        pruneLinkedRootGridOverrides: () => calls.push('pruneLinkedRootGridOverrides'),
+      },
+      populateGridControls: () => calls.push('populateGridControls'),
+      applyWaypointOverrides: () => calls.push('applyWaypointOverrides'),
+      applyAllOverrides: () => calls.push('applyAllOverrides'),
+      bindInteraction: () => calls.push('bindInteraction'),
+      renderGridOverlay: () => calls.push('renderGridOverlay'),
+      selectionState: {
+        selectedIds,
+        reapplySelection: () => calls.push('reapplySelection'),
+      },
+      runConstraints: () => calls.push('runConstraints'),
+      previewSaveClient: {
+        markSaved: (serializedState) => calls.push(`markSaved:${serializedState}`),
+      },
+      dirtyStateSerializer: {
+        serializeDirtyState: () => 'dirty-state',
+      },
+      signalDiagramLoaded: () => calls.push('signalDiagramLoaded'),
+      previewBridgeRender: {
+        async renderFreshPreviewSvg(renderOptions) {
+          calls.push(`render:${JSON.stringify(renderOptions.gridOverrides)}`);
+          return { svg: { tag: 'svg' }, width: 320, height: 200 };
+        },
+      },
+      overrides: { alpha: { dx: 8 } },
+      model: { id: 'model' },
+      fitRenderedSvgToContent: (_svg, fitOptions) => {
+        calls.push(`fit:${fitOptions.minWidth}x${fitOptions.minHeight}`);
+      },
+    });
+
+    await options.initLayoutBridge();
+    await options.renderFreshSvg();
+    options.restoreSelection(['alpha', 'beta']);
+    options.markSaved(options.serializeDirtyState());
+    options.replaceStageWithRenderedSvg({ svg: { tag: 'svg' }, width: 320, height: 200 });
+    options.fitRenderedSvg?.({ svg: { tag: 'svg' }, width: 320, height: 200 });
+
+    expect(Array.from(selectedIds)).toEqual(['alpha', 'beta']);
+    expect(calls).toEqual([
+      'init:demo',
+      'render:{"cols":8}',
+      'reapplySelection',
+      'markSaved:dirty-state',
+      'replace:svg',
+      'fit:320x200',
+    ]);
   });
 });

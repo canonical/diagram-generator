@@ -337,7 +337,7 @@ async function loadSVG(options = {}) {
   const stage = document.getElementById("stage");
   const previewShellBootstrap = window.__DG_getPreviewShellBootstrapContract();
   await previewShellBootstrap.loadPreviewSvg(
-    previewShellBootstrap.createLoadPreviewSvgHostOptions({
+    previewShellBootstrap.createLoadPreviewSvgHostOptionsFromRuntime({
       invocation: options,
       stage,
       slug: SLUG,
@@ -345,38 +345,37 @@ async function loadSVG(options = {}) {
       gridEnabled: GRID,
       deselectAll,
       previewBridgeHost: _getPreviewBridgeHostContract(),
-      isEngineLayoutActive: () => _isPreviewEngineShellLayoutActive(),
+      isEngineLayoutActive: _isPreviewEngineShellLayoutActive,
       resetOverrideState,
-      initEnginePanel: () => _initPreviewEngineShellPanel(),
-      getLocalRelayoutStatus: () => _getLocalBridgeRelayoutStatus(),
+      initEnginePanel: _initPreviewEngineShellPanel,
+      getLocalRelayoutStatus: _getLocalBridgeRelayoutStatus,
       escapeHtml,
       loadTree,
       loadGridInfo,
-      getGridInfo: () => gridInfo,
-      setDiagramGrid: (nextGridInfo) => model.setDiagramGrid(nextGridInfo),
+      gridState: {
+        getGridInfo: () => gridInfo,
+        setDiagramGrid: (nextGridInfo) => model.setDiagramGrid(nextGridInfo),
+        getGridOverrides: () => model.gridOverrides,
+        pruneLinkedRootGridOverrides: _pruneLinkedRootGridOverrides,
+      },
       populateGridControls,
       applyWaypointOverrides,
       applyAllOverrides,
       bindInteraction,
       renderGridOverlay,
-      restoreSelection: (ids) => {
-        if (ids) {
-          selectedIds.clear();
-          ids.forEach((id) => selectedIds.add(id));
-        }
-        reapplySelection();
+      selectionState: {
+        selectedIds,
+        reapplySelection,
       },
       runConstraints,
-      markSaved: (serializedState) => PreviewSaveClient.markSaved(serializedState),
-      serializeDirtyState: () => EditorState.serializeDirtyState(),
+      previewSaveClient: PreviewSaveClient,
+      dirtyStateSerializer: EditorState,
       signalDiagramLoaded: _signalDiagramLoaded,
-      getGridOverrides: () => model.gridOverrides,
-      pruneLinkedRootGridOverrides: _pruneLinkedRootGridOverrides,
       previewBridgeRender: window.__DG_getPreviewBridgeRenderContract(),
       overrides,
       model,
       fitRenderedSvgToContent: typeof fitSvgToRenderedContent === "function"
-        ? (svg, fitOptions) => fitSvgToRenderedContent(svg, fitOptions)
+        ? fitSvgToRenderedContent
         : null,
     }),
   );
@@ -1662,14 +1661,18 @@ function _getRelayoutRuntime() {
   const previewBridgeHost = _getPreviewBridgeHostContract();
   const previewBridgeRelayout = window.__DG_getPreviewBridgeRelayoutContract();
   _relayoutRuntime = previewBridgeRelayout.createPreviewRelayoutRuntime(
-    previewBridgeRelayout.createPreviewRelayoutRuntimeOptionsFromHost({
+    previewBridgeRelayout.createPreviewRelayoutRuntimeOptionsFromRuntime({
       overrides,
       coercedKeys: _coercedKeys,
       model,
-      selectedIds,
       previewBridgeHost,
-      getGridOverrides: () => model.gridOverrides || {},
-      normalizeGridOverrides: (value) => EditorState.normalizeGridOverrides(value),
+      gridState: {
+        getGridOverrides: () => model.gridOverrides || {},
+        normalizeGridOverrides: (value) => EditorState.normalizeGridOverrides(value),
+      },
+      selectionState: {
+        selectedIds,
+      },
       getRelayoutStatus,
       isEngineLayoutActive: () => _isPreviewEngineShellLayoutActive(),
       failRelayout: (reason, nextTriggerCid) => _failV3Relayout(reason, nextTriggerCid),
@@ -1681,9 +1684,11 @@ function _getRelayoutRuntime() {
       updateInspector,
       reloadTreeAfterArrowRestore: () => loadTree(),
       rebuildArrowSvg: (cid) => rebuildArrowSVG(cid),
-      captureOverrideEntries: (ids) => EditorState.captureOverrideEntries(ids),
-      commitOverridePatchAction: (label, beforeEntries, afterEntries) => {
-        EditorState.commitOverridePatchAction(label, beforeEntries, afterEntries);
+      editorState: {
+        captureOverrideEntries: (ids) => EditorState.captureOverrideEntries(ids),
+        commitOverridePatchAction: (label, beforeEntries, afterEntries) => {
+          EditorState.commitOverridePatchAction(label, beforeEntries, afterEntries);
+        },
       },
     }),
   );

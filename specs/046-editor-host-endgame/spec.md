@@ -17,7 +17,7 @@ orchestration. Those now live behind typed owners including
 `app-inspector-display-runtime.ts`,
 `app-inspector-selection-runtime.ts`, and
 `app-layout-bridge-runtime.ts`. `editor.js` still remains a large coordinator
-at about 2.0k lines, and the callback assembly there still fails the spec's
+at about 1.7k lines, and the callback assembly there still fails the spec's
 literal thin-bootstrap bar, but future engine onboarding no longer needs to widen
 either `editor.js` or `layout-bridge.js`.
 

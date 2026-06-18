@@ -784,6 +784,7 @@ export {
 } from './interaction-hit-testing.js';
 
 export type {
+  CreateLoadPreviewSvgHostOptionsFromRuntimeOptions,
   CreateLoadPreviewSvgHostOptions,
   LoadPreviewSvgOptions,
   PreviewFallbackResponse,
@@ -793,10 +794,13 @@ export type {
   PreviewLoadInvocationOptions,
   PreviewLoadNormalizedOptions,
   PreviewLoadRenderResult,
+  PreviewLoadSvgGridState,
+  PreviewLoadSvgSelectionState,
   PreviewLocalRelayoutStatus,
 } from './app-load.js';
 
 export {
+  createLoadPreviewSvgHostOptionsFromRuntime,
   createLoadPreviewSvgHostOptions,
   createPreviewLoadFailureMarkup,
   createPreviewLoadLoadingMarkup,
@@ -888,7 +892,11 @@ export type {
 export type {
   CreatePreviewRelayoutRuntimeHostOptions,
   CreatePreviewRelayoutRuntimeOptions,
+  CreatePreviewRelayoutRuntimeOptionsFromRuntimeOptions,
+  PreviewRelayoutEditorState,
+  PreviewRelayoutGridState,
   PreviewRelayoutRuntime,
+  PreviewRelayoutSelectionState,
 } from './app-relayout-runtime.js';
 
 export {
@@ -909,6 +917,7 @@ export {
 } from './app-relayout.js';
 
 export {
+  createPreviewRelayoutRuntimeOptionsFromRuntime,
   createPreviewRelayoutRuntimeOptionsFromHost,
   createPreviewRelayoutRuntime,
 } from './app-relayout-runtime.js';

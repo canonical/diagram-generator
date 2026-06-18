@@ -20,6 +20,7 @@ import {
   captureEditorSnapshot,
   createBootstrapPreviewEditorRuntimeOptionsFromHost,
   createBootstrapPreviewEditorHostOptionsFromRuntime,
+  createLoadPreviewSvgHostOptionsFromRuntime,
   createLoadPreviewSvgHostOptions,
   createPreviewBuildStatusUpdater,
   createPreviewEditorRuntimeSetFromHost,
@@ -30,6 +31,7 @@ import {
   createPreviewArrowWaypointRuntime,
   createPreviewElkViewModeRuntime,
   createPreviewOverrideToolbarHostOptions,
+  createPreviewRelayoutRuntimeOptionsFromRuntime,
   createPreviewRelayoutRuntimeOptionsFromHost,
   createPreviewRelayoutRuntimeState,
   createPreviewRelayoutRuntime,
@@ -187,6 +189,8 @@ describe('browser entry contract pilot', () => {
     expect(previewShell.bootstrap.createEditorStateStore).toBe(createEditorStateStore);
     expect(previewShell.bootstrap.cloneEditorSnapshotValue).toBe(cloneEditorSnapshotValue);
     expect(previewShell.bootstrap.captureEditorSnapshot).toBe(captureEditorSnapshot);
+    expect(previewShell.bootstrap.createLoadPreviewSvgHostOptionsFromRuntime)
+      .toBe(createLoadPreviewSvgHostOptionsFromRuntime);
     expect(previewShell.bootstrap.createLoadPreviewSvgHostOptions).toBe(createLoadPreviewSvgHostOptions);
     expect(previewShell.bootstrap.createBootstrapPreviewEditorHostOptionsFromRuntime)
       .toBe(createBootstrapPreviewEditorHostOptionsFromRuntime);
@@ -226,6 +230,8 @@ describe('browser entry contract pilot', () => {
     expect(previewBridge.host.updatePreviewComponentModelFromLayout).toBeTypeOf('function');
     expect(previewBridge.relayout.collectPreviewRelayoutFrameOverrides).toBeTypeOf('function');
     expect(previewBridge.relayout.createPreviewRelayoutRuntime).toBe(createPreviewRelayoutRuntime);
+    expect(previewBridge.relayout.createPreviewRelayoutRuntimeOptionsFromRuntime)
+      .toBe(createPreviewRelayoutRuntimeOptionsFromRuntime);
     expect(previewBridge.relayout.createPreviewRelayoutRuntimeOptionsFromHost)
       .toBe(createPreviewRelayoutRuntimeOptionsFromHost);
     expect(previewBridge.relayout.createPreviewRelayoutRuntimeState).toBe(createPreviewRelayoutRuntimeState);
