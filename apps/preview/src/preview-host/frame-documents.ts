@@ -30,6 +30,29 @@ export interface FramePreviewRenderDeps extends FramePreviewDocumentDeps {
 
 export type ParseYaml = (raw: string) => unknown;
 
+export interface FramePreviewCanonicalState {
+  slug: string;
+  previewDocument: PreviewRenderableDocument;
+  frameTree: unknown;
+  componentTree: unknown;
+  gridInfo: unknown;
+}
+
+interface FrameYamlDocumentKindHandler {
+  readonly kind: PreviewDocumentKind;
+  createPreviewDocument: (slug: string, raw: string, deps: FramePreviewDocumentDeps) => PreviewRenderableDocument | null;
+  buildCanonicalState: (
+    slug: string,
+    deps: FramePreviewDocumentDeps,
+    previewDocument: PreviewRenderableDocument,
+  ) => FramePreviewCanonicalState;
+  renderSvg: (
+    slug: string,
+    deps: FramePreviewRenderDeps,
+    previewDocument: PreviewRenderableDocument,
+  ) => Promise<string>;
+}
+
 export function loadFrameDiagram(slug: string, deps: FramePreviewDocumentDeps) {
   return loadFrameYaml(path.join(deps.framesDir, `${slug}.yaml`));
 }
@@ -56,12 +79,10 @@ function sequencePreviewDocumentForSlug(slug: string, raw: string): PreviewRende
   } as PreviewRenderableDocument;
 }
 
-export function previewDocumentForSlug(slug: string, deps: FramePreviewDocumentDeps) {
-  const raw = readFrameYamlText(slug, deps);
-  const sequencePreviewDocument = sequencePreviewDocumentForSlug(slug, raw);
-  if (sequencePreviewDocument) {
-    return sequencePreviewDocument;
-  }
+function frameDiagramPreviewDocumentForSlug(
+  slug: string,
+  deps: FramePreviewDocumentDeps,
+): PreviewRenderableDocument {
   const diagram = loadFrameDiagram(slug, deps);
   return {
     kind: "frame-diagram",
@@ -70,34 +91,15 @@ export function previewDocumentForSlug(slug: string, deps: FramePreviewDocumentD
     layoutEngine: diagram.layoutEngine ?? null,
     shellMode: "grid",
     frameTree: serializeFrameDiagram(diagram),
-  };
+  } as PreviewRenderableDocument;
 }
 
-export function frameTreeForSlug(slug: string, deps: FramePreviewDocumentDeps) {
-  if (previewDocumentForSlug(slug, deps).kind === "sequence") {
-    return null;
-  }
-  return serializeFrameDiagram(loadFrameDiagram(slug, deps));
-}
-
-export function componentTreeForSlug(slug: string, deps: FramePreviewDocumentDeps) {
-  if (previewDocumentForSlug(slug, deps).kind === "sequence") {
-    return [];
-  }
-  return buildComponentTree(loadFrameDiagram(slug, deps).root);
-}
-
-export function gridInfoForSlug(slug: string, deps: FramePreviewDocumentDeps) {
-  if (previewDocumentForSlug(slug, deps).kind === "sequence") {
-    return null;
-  }
-  const diagram = loadFrameDiagram(slug, deps);
-  return buildGridInfo(diagram, diagram.root);
-}
-
-export function canonicalSavedState(slug: string, deps: FramePreviewDocumentDeps) {
-  const previewDocument = previewDocumentForSlug(slug, deps);
-  if (previewDocument.kind === "sequence") {
+const SEQUENCE_FRAME_YAML_HANDLER: FrameYamlDocumentKindHandler = {
+  kind: "sequence",
+  createPreviewDocument(slug, raw) {
+    return sequencePreviewDocumentForSlug(slug, raw);
+  },
+  buildCanonicalState(slug, _deps, previewDocument) {
     return {
       slug,
       previewDocument,
@@ -105,23 +107,84 @@ export function canonicalSavedState(slug: string, deps: FramePreviewDocumentDeps
       componentTree: [],
       gridInfo: null,
     };
+  },
+  async renderSvg(_slug, _deps, previewDocument) {
+    const rendered = await renderPreviewDocumentToSvg(previewDocument);
+    if (!rendered) {
+      throw new Error(`No preview document SVG renderer is registered for kind '${previewDocument.kind}'`);
+    }
+    return rendered.svgMarkup;
+  },
+};
+
+const FRAME_DIAGRAM_YAML_HANDLER: FrameYamlDocumentKindHandler = {
+  kind: "frame-diagram",
+  createPreviewDocument(slug, _raw, deps) {
+    return frameDiagramPreviewDocumentForSlug(slug, deps);
+  },
+  buildCanonicalState(slug, deps, previewDocument) {
+    const diagram = loadFrameDiagram(slug, deps);
+    return {
+      slug,
+      previewDocument,
+      frameTree: serializeFrameDiagram(diagram),
+      componentTree: buildComponentTree(diagram.root),
+      gridInfo: buildGridInfo(diagram, diagram.root),
+    };
+  },
+  async renderSvg(slug, deps) {
+    const { diagram, layout } = await buildFrameDiagramState(slug, deps);
+    const iconMarkupByName = preloadIconMarkup(deps.iconLoader, collectIconNames(diagram.root));
+    const adapter = await deps.textAdapterPromise;
+    return renderFrameDiagramToSvg(diagram, layout, adapter, { iconMarkupByName });
+  },
+};
+
+const FRAME_YAML_DOCUMENT_KIND_HANDLERS: readonly FrameYamlDocumentKindHandler[] = [
+  SEQUENCE_FRAME_YAML_HANDLER,
+  FRAME_DIAGRAM_YAML_HANDLER,
+];
+
+function resolveFrameYamlDocumentKindHandler(
+  kind: PreviewDocumentKind | null | undefined,
+): FrameYamlDocumentKindHandler {
+  const handler = FRAME_YAML_DOCUMENT_KIND_HANDLERS.find((entry) => entry.kind === kind);
+  if (!handler) {
+    throw new Error(`Unsupported frame preview document kind '${String(kind)}'`);
   }
-  const diagram = loadFrameDiagram(slug, deps);
-  const framePreviewDocument = {
-    kind: "frame-diagram",
+  return handler;
+}
+
+export function previewDocumentForSlug(slug: string, deps: FramePreviewDocumentDeps) {
+  const raw = readFrameYamlText(slug, deps);
+  for (const handler of FRAME_YAML_DOCUMENT_KIND_HANDLERS) {
+    const previewDocument = handler.createPreviewDocument(slug, raw, deps);
+    if (previewDocument) {
+      return previewDocument;
+    }
+  }
+  throw new Error(`Unable to resolve a preview document handler for '${slug}'`);
+}
+
+export function frameTreeForSlug(slug: string, deps: FramePreviewDocumentDeps) {
+  return canonicalSavedState(slug, deps).frameTree;
+}
+
+export function componentTreeForSlug(slug: string, deps: FramePreviewDocumentDeps) {
+  return canonicalSavedState(slug, deps).componentTree;
+}
+
+export function gridInfoForSlug(slug: string, deps: FramePreviewDocumentDeps) {
+  return canonicalSavedState(slug, deps).gridInfo;
+}
+
+export function canonicalSavedState(slug: string, deps: FramePreviewDocumentDeps): FramePreviewCanonicalState {
+  const previewDocument = previewDocumentForSlug(slug, deps);
+  return resolveFrameYamlDocumentKindHandler(previewDocument.kind).buildCanonicalState(
     slug,
-    title: diagram.title,
-    layoutEngine: diagram.layoutEngine ?? null,
-    shellMode: "grid",
-    frameTree: serializeFrameDiagram(diagram),
-  };
-  return {
-    slug,
-    previewDocument: framePreviewDocument,
-    frameTree: framePreviewDocument.frameTree,
-    componentTree: buildComponentTree(diagram.root),
-    gridInfo: buildGridInfo(diagram, diagram.root),
-  };
+    deps,
+    previewDocument,
+  );
 }
 
 export async function buildFrameDiagramState(slug: string, deps: FramePreviewRenderDeps) {
@@ -143,17 +206,7 @@ export async function buildFrameDiagramState(slug: string, deps: FramePreviewRen
 
 export async function renderSvgForSlug(slug: string, deps: FramePreviewRenderDeps): Promise<string> {
   const previewDocument = previewDocumentForSlug(slug, deps);
-  if (previewDocument.kind === "sequence") {
-    const rendered = await renderPreviewDocumentToSvg(previewDocument);
-    if (!rendered) {
-      throw new Error(`No preview document SVG renderer is registered for kind '${previewDocument.kind}'`);
-    }
-    return rendered.svgMarkup;
-  }
-  const { diagram, layout } = await buildFrameDiagramState(slug, deps);
-  const iconMarkupByName = preloadIconMarkup(deps.iconLoader, collectIconNames(diagram.root));
-  const adapter = await deps.textAdapterPromise;
-  return renderFrameDiagramToSvg(diagram, layout, adapter, { iconMarkupByName });
+  return resolveFrameYamlDocumentKindHandler(previewDocument.kind).renderSvg(slug, deps, previewDocument);
 }
 
 /**
