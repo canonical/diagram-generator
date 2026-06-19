@@ -1,6 +1,3 @@
-import { existsSync } from "node:fs";
-import path from "node:path";
-
 import {
   resolvePreviewEngine,
   ARROW_HEAD_HALF_WIDTH,
@@ -9,20 +6,17 @@ import {
   GRID_GUTTER,
   ICON_SIZE,
   INSET,
-  type PreviewEngineManifest,
 } from "@diagram-generator/layout-engine";
 import {
   frameDiagramExists,
-  previewDocumentForSlug,
-  frameTreeForSlug,
-  componentTreeForSlug,
-  gridInfoForSlug,
-  renderSvgForSlug,
   resolveFramePreviewViewerContext,
   type FramePreviewDocumentDeps,
   type FramePreviewRenderDeps,
 } from "./frame-documents.js";
-import { saveFramePreviewDocument } from "./frame-document-actions.js";
+import {
+  createForcePreviewHostDocumentApi,
+  createFramePreviewHostDocumentApi,
+} from "./document-apis.js";
 import { AUTOLAYOUT_HOST_LANE, FORCE_HOST_LANE } from "./lanes.js";
 import {
   buildRegisteredPreviewBrowseSections,
@@ -38,11 +32,10 @@ import {
   buildPreviewViewerHtml,
   buildPreviewWindowConfigScript,
 } from "./viewers.js";
-import type { ForcePreviewDocumentDeps } from "./force-documents.js";
 import {
-  loadForcePreviewDocumentSpec,
-  saveForcePreviewDocument,
-} from "./force-document-actions.js";
+  forcePreviewDocumentExists,
+  type ForcePreviewDocumentDeps,
+} from "./force-documents.js";
 
 export interface BuiltinPreviewHostViewerRouteDeps
   extends PreviewHostViewerScriptResolver {
@@ -284,19 +277,12 @@ export function createAutolayoutPreviewHostViewerRoute(
       });
     },
     describeMissing: (slug: string) => `Unknown diagram: ${slug}`,
-    documentApi: {
-      loadPreviewDocument: (slug: string) => previewDocumentForSlug(slug, deps.framePreviewDocumentDeps),
-      loadFrameTree: (slug: string) => frameTreeForSlug(slug, deps.framePreviewDocumentDeps),
-      loadComponentTree: (slug: string) => componentTreeForSlug(slug, deps.framePreviewDocumentDeps),
-      loadGridInfo: (slug: string) => gridInfoForSlug(slug, deps.framePreviewDocumentDeps),
-      renderSvg: (slug: string) => renderSvgForSlug(slug, deps.framePreviewRenderDeps),
-      saveDocument: (slug: string, payload: unknown) =>
-        saveFramePreviewDocument(slug, payload, {
-          framePreviewDocumentDeps: deps.framePreviewDocumentDeps,
-          parseYaml: deps.parseYaml,
-          normalizeLayoutEngine: deps.normalizeLayoutEngine,
-        }),
-    },
+    documentApi: createFramePreviewHostDocumentApi({
+      framePreviewDocumentDeps: deps.framePreviewDocumentDeps,
+      framePreviewRenderDeps: deps.framePreviewRenderDeps,
+      parseYaml: deps.parseYaml,
+      normalizeLayoutEngine: deps.normalizeLayoutEngine,
+    }),
   };
 }
 
@@ -308,8 +294,7 @@ export function createForcePreviewHostViewerRoute(
     lane: FORCE_HOST_LANE,
     routePrefixes: ["/force/view/"],
     listSlugs: () => deps.listForceExamples(),
-    hasDocument: (slug: string) =>
-      existsSync(path.join(deps.forcePreviewDocumentDeps.forceDefinitionsDir, `${slug}.yaml`)),
+    hasDocument: (slug: string) => forcePreviewDocumentExists(slug, deps.forcePreviewDocumentDeps),
     buildHtml: (slug: string) => {
       const engineManifest = resolvePreviewEngine({ shellMode: "force" });
       const configScript = buildPreviewWindowConfigScript("__DG_FORCE_CONFIG", {
@@ -336,18 +321,10 @@ export function createForcePreviewHostViewerRoute(
       });
     },
     describeMissing: (slug: string) => `Unknown force example: ${slug}`,
-    documentApi: {
-      loadAuthoredSpec: (slug: string) =>
-        loadForcePreviewDocumentSpec(slug, {
-          forcePreviewDocumentDeps: deps.forcePreviewDocumentDeps,
-          parseYaml: deps.parseYaml,
-        }),
-      saveDocument: (slug: string, payload: unknown) =>
-        saveForcePreviewDocument(slug, payload, {
-          forcePreviewDocumentDeps: deps.forcePreviewDocumentDeps,
-          parseYaml: deps.parseYaml,
-        }),
-    },
+    documentApi: createForcePreviewHostDocumentApi({
+      forcePreviewDocumentDeps: deps.forcePreviewDocumentDeps,
+      parseYaml: deps.parseYaml,
+    }),
   };
 }
 
