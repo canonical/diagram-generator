@@ -1,21 +1,127 @@
 import path from "node:path";
 
-import { installPreviewHostApiRoutes } from "./api-routes.js";
 import {
-  createAutolayoutPreviewHostViewerRoute,
-  type BuiltinPreviewHostViewerRouteDeps,
-} from "./builtin-viewer-routes.js";
+  ARROW_HEAD_HALF_WIDTH,
+  ARROW_HEAD_LENGTH,
+  GRID_GUTTER,
+  ICON_SIZE,
+  INSET,
+} from "@diagram-generator/layout-engine";
+
+import { installPreviewHostApiRoutes } from "./api-routes.js";
+import type { BuiltinPreviewHostViewerRouteDeps } from "./builtin-host-deps.js";
 import {
   createPreviewHostDocumentGetBytesRoute,
   createPreviewHostDocumentGetJsonRoute,
   createPreviewHostDocumentPostJsonRoute,
 } from "./document-api-routes.js";
+import {
+  createFramePreviewHostDocumentApi,
+} from "./document-apis.js";
+import {
+  frameDiagramExists,
+  resolveFramePreviewViewerContext,
+} from "./frame-documents.js";
+import { AUTOLAYOUT_HOST_LANE } from "./lanes.js";
 import type { PreviewHostModuleDescriptor } from "./modules.js";
-import { registerPreviewHostViewerRoute } from "./registry.js";
-import type { PreviewHostApiRouteDescriptor } from "./types.js";
+import {
+  buildRegisteredPreviewBrowseSections,
+  registerPreviewHostViewerRoute,
+} from "./registry.js";
+import type {
+  PreviewHostApiRouteDescriptor,
+  PreviewHostViewerPageDefinition,
+  PreviewHostViewerRouteDescriptor,
+} from "./types.js";
+import {
+  buildPreviewModeScriptsHtml,
+  buildPreviewViewerHtml,
+  buildPreviewWindowConfigScript,
+} from "./viewers.js";
 
 export interface BuiltinAutolayoutPreviewHostModuleDeps
   extends BuiltinPreviewHostViewerRouteDeps {}
+
+const AUTOLAYOUT_TEMPLATE_SECTIONS = [
+  "grid-layers-tab",
+  "grid-layers-pane",
+  "grid-engine-switcher",
+  "grid-controls",
+  "grid-elk-layout",
+  "grid-overrides",
+  "grid-constraints",
+  "grid-guide-badge",
+] as const;
+
+const AUTOLAYOUT_PREVIEW_VIEWER_DEFINITION: PreviewHostViewerPageDefinition = {
+  mode: "grid",
+  inspectorEmptyText: "Click a component to inspect it.",
+  alwaysVisibleTemplateSections: AUTOLAYOUT_TEMPLATE_SECTIONS,
+  sectionVisibilityPlaceholders: [
+    {
+      placeholder: "%GRID_LAYERS_TAB_HIDDEN%",
+      section: "grid-layers-tab",
+    },
+    {
+      placeholder: "%GRID_LAYERS_PANE_HIDDEN%",
+      section: "grid-layers-pane",
+    },
+    {
+      placeholder: "%GRID_ENGINE_SWITCHER_HIDDEN%",
+      section: "grid-engine-switcher",
+    },
+    {
+      placeholder: "%GRID_CONTROLS_HIDDEN%",
+      section: "grid-controls",
+    },
+    {
+      placeholder: "%GRID_ELK_LAYOUT_HIDDEN%",
+      section: "grid-elk-layout",
+    },
+    {
+      placeholder: "%GRID_OVERRIDES_HIDDEN%",
+      section: "grid-overrides",
+    },
+    {
+      placeholder: "%GRID_CONSTRAINTS_HIDDEN%",
+      section: "grid-constraints",
+    },
+    {
+      placeholder: "%GRID_GUIDE_BADGE_HIDDEN%",
+      section: "grid-guide-badge",
+    },
+    {
+      placeholder: "%FORCE_NODES_TAB_HIDDEN%",
+      section: "force-nodes-tab",
+    },
+    {
+      placeholder: "%FORCE_NODES_PANE_HIDDEN%",
+      section: "force-nodes-pane",
+    },
+    {
+      placeholder: "%FORCE_SOLVER_HIDDEN%",
+      section: "force-solver",
+    },
+    {
+      placeholder: "%FORCE_SIMULATION_HIDDEN%",
+      section: "force-simulation",
+    },
+    {
+      placeholder: "%FORCE_GUIDANCE_HIDDEN%",
+      section: "force-guidance",
+    },
+    {
+      placeholder: "%ELK_SECTION_HIDDEN%",
+      section: "elk-layout",
+    },
+  ],
+  buildTitle(slug: string): string {
+    return `${slug} – diagram preview`;
+  },
+  buildCurrentPath(slug: string): string {
+    return AUTOLAYOUT_HOST_LANE.buildViewerPath(slug);
+  },
+};
 
 function missingAutolayoutDiagramMessage(slug: string): string {
   return `Unknown diagram: ${slug}`;
@@ -102,12 +208,86 @@ export function installBuiltinAutolayoutPreviewHostApiRoutes(): () => void {
   return installPreviewHostApiRoutes(AUTOLAYOUT_PREVIEW_HOST_API_ROUTES);
 }
 
+export function createAutolayoutPreviewHostViewerRoute(
+  deps: BuiltinAutolayoutPreviewHostModuleDeps,
+): PreviewHostViewerRouteDescriptor {
+  return {
+    key: "autolayout",
+    lane: AUTOLAYOUT_HOST_LANE,
+    routePrefixes: ["/v3/view/", "/view/"],
+    listSlugs: () => deps.listAutolayoutDiagrams(),
+    hasDocument: (slug: string) => frameDiagramExists(slug, deps.framePreviewDocumentDeps),
+    buildHtml: (slug: string) => {
+      const {
+        engineManifest,
+        activeLayoutEngine,
+        compatibleEngines,
+        hasReference,
+      } = resolveFramePreviewViewerContext(
+        slug,
+        deps.framePreviewDocumentDeps,
+        {
+          normalizeLayoutEngine: deps.normalizeLayoutEngine,
+          findReferenceImage: deps.findReferenceImage,
+        },
+      );
+      const configScript = buildPreviewWindowConfigScript("__DG_CONFIG", {
+        slug,
+        engine: engineManifest?.id ?? "v3",
+        shell_mode: "grid",
+        layout_engine: activeLayoutEngine,
+        compatible_engines: compatibleEngines,
+        grid: false,
+        inset: deps.inset ?? INSET,
+        head_len: deps.headLength ?? ARROW_HEAD_LENGTH,
+        head_half: deps.headHalfWidth ?? ARROW_HEAD_HALF_WIDTH,
+        icon_size: deps.iconSize ?? ICON_SIZE,
+        col_gap: deps.gridGutter ?? GRID_GUTTER,
+        has_reference: hasReference,
+      });
+      const modeScripts = buildPreviewModeScriptsHtml({
+        previewAssetUrl: deps.previewAssetUrl,
+        coreScripts: [
+          "layout-engine.js",
+          "layout-bridge.js",
+          "component-model.js",
+          "constraints.js",
+          "editor.js",
+          "engine-switcher.js",
+        ],
+        engineScripts: engineManifest?.scripts ?? [],
+      });
+      return buildPreviewViewerHtml({
+        slug,
+        definition: AUTOLAYOUT_PREVIEW_VIEWER_DEFINITION,
+        configScript,
+        modeScriptsHtml: modeScripts,
+        visibleSidebarSections: engineManifest?.hostView?.sidebarSections ?? [],
+        templateHtml: deps.templateHtml,
+        browseSections: buildRegisteredPreviewBrowseSections(),
+        baselineStylesHtml: deps.baselineStylesHtml,
+      });
+    },
+    describeMissing: missingAutolayoutDiagramMessage,
+    documentApi: createFramePreviewHostDocumentApi({
+      framePreviewDocumentDeps: deps.framePreviewDocumentDeps,
+      framePreviewRenderDeps: deps.framePreviewRenderDeps,
+      parseYaml: deps.parseYaml,
+      normalizeLayoutEngine: deps.normalizeLayoutEngine,
+    }),
+  };
+}
+
+export function installBuiltinAutolayoutPreviewHostViewerRoutes(
+  deps: BuiltinAutolayoutPreviewHostModuleDeps,
+): () => void {
+  return registerPreviewHostViewerRoute(createAutolayoutPreviewHostViewerRoute(deps));
+}
+
 export function installBuiltinAutolayoutPreviewHostModule(
   deps: BuiltinAutolayoutPreviewHostModuleDeps,
 ): () => void {
-  const unregisterViewerRoute = registerPreviewHostViewerRoute(
-    createAutolayoutPreviewHostViewerRoute(deps),
-  );
+  const unregisterViewerRoute = installBuiltinAutolayoutPreviewHostViewerRoutes(deps);
   const unregisterApiRoutes = installBuiltinAutolayoutPreviewHostApiRoutes();
   return () => {
     unregisterApiRoutes();

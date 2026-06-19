@@ -1,4 +1,4 @@
-import type { BuiltinPreviewHostViewerRouteDeps } from "./builtin-viewer-routes.js";
+import type { BuiltinPreviewHostViewerRouteDeps } from "./builtin-host-deps.js";
 
 export interface PreviewHostModuleDescriptor {
   readonly key: string;
