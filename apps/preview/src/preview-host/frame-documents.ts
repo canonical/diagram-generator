@@ -14,6 +14,7 @@ import {
   resolvePreviewEngine,
   serializeFrameDiagram,
   summarizeFrameDiagramCompatibility,
+  type PreviewEngineContext,
   type PreviewDocumentKind,
   type PreviewRenderableDocument,
   type TextMeasureAdapter,
@@ -36,6 +37,13 @@ export interface FramePreviewCanonicalState {
   frameTree: unknown;
   componentTree: unknown;
   gridInfo: unknown;
+}
+
+export interface FramePreviewEngineResolution {
+  previewDocument: PreviewRenderableDocument;
+  compatibleContext: Omit<PreviewEngineContext, "layoutEngine">;
+  previewContext: PreviewEngineContext;
+  authoredLayoutEngine: string;
 }
 
 interface FrameYamlDocumentKindHandler {
@@ -207,6 +215,46 @@ export async function buildFrameDiagramState(slug: string, deps: FramePreviewRen
 export async function renderSvgForSlug(slug: string, deps: FramePreviewRenderDeps): Promise<string> {
   const previewDocument = previewDocumentForSlug(slug, deps);
   return resolveFrameYamlDocumentKindHandler(previewDocument.kind).renderSvg(slug, deps, previewDocument);
+}
+
+export function resolveFramePreviewEngineResolution(
+  slug: string,
+  deps: FramePreviewDocumentDeps,
+  normalizeLayoutEngine: (layoutEngine: string | undefined) => string,
+): FramePreviewEngineResolution {
+  const previewDocument = previewDocumentForSlug(slug, deps);
+  if (previewDocument.kind === "sequence") {
+    const compatibleContext: Omit<PreviewEngineContext, "layoutEngine"> = {
+      shellMode: "grid",
+      previewDocumentKind: "sequence",
+    };
+    return {
+      previewDocument,
+      compatibleContext,
+      previewContext: {
+        layoutEngine: "sequence",
+        ...compatibleContext,
+      },
+      authoredLayoutEngine: "sequence",
+    };
+  }
+
+  const diagram = loadFrameDiagram(slug, deps);
+  const compatibleContext: Omit<PreviewEngineContext, "layoutEngine"> = {
+    shellMode: "grid",
+    previewDocumentKind: "frame-diagram",
+    frameDiagramSummary: summarizeFrameDiagramCompatibility(diagram),
+  };
+  const authoredLayoutEngine = normalizeLayoutEngine(diagram.layoutEngine);
+  return {
+    previewDocument,
+    compatibleContext,
+    previewContext: {
+      layoutEngine: authoredLayoutEngine,
+      ...compatibleContext,
+    },
+    authoredLayoutEngine,
+  };
 }
 
 /**

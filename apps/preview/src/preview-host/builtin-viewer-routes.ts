@@ -10,18 +10,16 @@ import {
   GRID_GUTTER,
   ICON_SIZE,
   INSET,
-  summarizeFrameDiagramCompatibility,
-  type PreviewEngineContext,
   type PreviewEngineManifest,
 } from "@diagram-generator/layout-engine";
 import {
   frameDiagramExists,
-  loadFrameDiagram,
   previewDocumentForSlug,
   frameTreeForSlug,
   componentTreeForSlug,
   gridInfoForSlug,
   renderSvgForSlug,
+  resolveFramePreviewEngineResolution,
   type FramePreviewDocumentDeps,
   type FramePreviewRenderDeps,
 } from "./frame-documents.js";
@@ -240,24 +238,17 @@ export function createAutolayoutPreviewHostViewerRoute(
     listSlugs: () => deps.listAutolayoutDiagrams(),
     hasDocument: (slug: string) => frameDiagramExists(slug, deps.framePreviewDocumentDeps),
     buildHtml: (slug: string) => {
-      const previewDocument = previewDocumentForSlug(slug, deps.framePreviewDocumentDeps);
-      const documentKind = previewDocument.kind === "sequence" ? "sequence" : "frame-diagram";
-      const diagram = documentKind === "frame-diagram"
-        ? loadFrameDiagram(slug, deps.framePreviewDocumentDeps)
-        : null;
-      const frameDiagramSummary = diagram ? summarizeFrameDiagramCompatibility(diagram) : undefined;
-      const authoredLayoutEngine = documentKind === "sequence"
-        ? "sequence"
-        : deps.normalizeLayoutEngine(diagram?.layoutEngine);
-      const compatibleContext: Omit<PreviewEngineContext, "layoutEngine"> = {
-        shellMode: "grid",
-        previewDocumentKind: documentKind,
-        frameDiagramSummary,
-      };
-      const previewContext: PreviewEngineContext = {
-        layoutEngine: authoredLayoutEngine,
-        ...compatibleContext,
-      };
+      const {
+        previewDocument,
+        compatibleContext,
+        previewContext,
+        authoredLayoutEngine,
+      } = resolveFramePreviewEngineResolution(
+        slug,
+        deps.framePreviewDocumentDeps,
+        deps.normalizeLayoutEngine,
+      );
+      const documentKind = compatibleContext.previewDocumentKind;
       const engineManifest = resolvePreviewEngine(previewContext);
       const activeLayoutEngine = engineManifest?.layoutEngineKey ?? authoredLayoutEngine;
       const compatibleEngines = listCompatiblePreviewEngines(compatibleContext)
