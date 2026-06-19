@@ -21,6 +21,12 @@ import {
   type PreviewRenderableDocument,
   type TextMeasureAdapter,
 } from "@diagram-generator/layout-engine";
+import {
+  listFrameYamlDocumentKindHandlers,
+  registerFrameYamlDocumentKindHandler,
+  resolveFrameYamlDocumentKindHandler,
+  type FrameYamlDocumentKindHandler,
+} from "./frame-document-kinds.js";
 
 export interface FramePreviewDocumentDeps {
   readonly framesDir: string;
@@ -59,21 +65,6 @@ export interface FramePreviewViewerContext extends FramePreviewEngineResolution 
   activeLayoutEngine: string;
   compatibleEngines: string[];
   hasReference: boolean;
-}
-
-interface FrameYamlDocumentKindHandler {
-  readonly kind: PreviewDocumentKind;
-  createPreviewDocument: (slug: string, raw: string, deps: FramePreviewDocumentDeps) => PreviewRenderableDocument | null;
-  buildCanonicalState: (
-    slug: string,
-    deps: FramePreviewDocumentDeps,
-    previewDocument: PreviewRenderableDocument,
-  ) => FramePreviewCanonicalState;
-  renderSvg: (
-    slug: string,
-    deps: FramePreviewRenderDeps,
-    previewDocument: PreviewRenderableDocument,
-  ) => Promise<string>;
 }
 
 export function loadFrameDiagram(slug: string, deps: FramePreviewDocumentDeps) {
@@ -117,7 +108,7 @@ function frameDiagramPreviewDocumentForSlug(
   } as PreviewRenderableDocument;
 }
 
-const SEQUENCE_FRAME_YAML_HANDLER: FrameYamlDocumentKindHandler = {
+export const SEQUENCE_FRAME_YAML_HANDLER: FrameYamlDocumentKindHandler = {
   kind: "sequence",
   createPreviewDocument(slug, raw) {
     return sequencePreviewDocumentForSlug(slug, raw);
@@ -140,7 +131,7 @@ const SEQUENCE_FRAME_YAML_HANDLER: FrameYamlDocumentKindHandler = {
   },
 };
 
-const FRAME_DIAGRAM_YAML_HANDLER: FrameYamlDocumentKindHandler = {
+export const FRAME_DIAGRAM_YAML_HANDLER: FrameYamlDocumentKindHandler = {
   kind: "frame-diagram",
   createPreviewDocument(slug, _raw, deps) {
     return frameDiagramPreviewDocumentForSlug(slug, deps);
@@ -163,24 +154,21 @@ const FRAME_DIAGRAM_YAML_HANDLER: FrameYamlDocumentKindHandler = {
   },
 };
 
-const FRAME_YAML_DOCUMENT_KIND_HANDLERS: readonly FrameYamlDocumentKindHandler[] = [
-  SEQUENCE_FRAME_YAML_HANDLER,
-  FRAME_DIAGRAM_YAML_HANDLER,
-];
+let builtinFrameYamlDocumentKindHandlersInstalled = false;
 
-function resolveFrameYamlDocumentKindHandler(
-  kind: PreviewDocumentKind | null | undefined,
-): FrameYamlDocumentKindHandler {
-  const handler = FRAME_YAML_DOCUMENT_KIND_HANDLERS.find((entry) => entry.kind === kind);
-  if (!handler) {
-    throw new Error(`Unsupported frame preview document kind '${String(kind)}'`);
+function ensureBuiltinFrameYamlDocumentKindHandlersInstalled(): void {
+  if (builtinFrameYamlDocumentKindHandlersInstalled) {
+    return;
   }
-  return handler;
+  builtinFrameYamlDocumentKindHandlersInstalled = true;
+  registerFrameYamlDocumentKindHandler(SEQUENCE_FRAME_YAML_HANDLER);
+  registerFrameYamlDocumentKindHandler(FRAME_DIAGRAM_YAML_HANDLER);
 }
 
 export function previewDocumentForSlug(slug: string, deps: FramePreviewDocumentDeps) {
+  ensureBuiltinFrameYamlDocumentKindHandlersInstalled();
   const raw = readFrameYamlText(slug, deps);
-  for (const handler of FRAME_YAML_DOCUMENT_KIND_HANDLERS) {
+  for (const handler of listFrameYamlDocumentKindHandlers()) {
     const previewDocument = handler.createPreviewDocument(slug, raw, deps);
     if (previewDocument) {
       return previewDocument;
@@ -203,7 +191,11 @@ export function gridInfoForSlug(slug: string, deps: FramePreviewDocumentDeps) {
 
 export function canonicalSavedState(slug: string, deps: FramePreviewDocumentDeps): FramePreviewCanonicalState {
   const previewDocument = previewDocumentForSlug(slug, deps);
-  return resolveFrameYamlDocumentKindHandler(previewDocument.kind).buildCanonicalState(
+  const handler = resolveFrameYamlDocumentKindHandler(previewDocument.kind);
+  if (!handler) {
+    throw new Error(`Unsupported frame preview document kind '${String(previewDocument.kind)}'`);
+  }
+  return handler.buildCanonicalState(
     slug,
     deps,
     previewDocument,
@@ -229,7 +221,11 @@ export async function buildFrameDiagramState(slug: string, deps: FramePreviewRen
 
 export async function renderSvgForSlug(slug: string, deps: FramePreviewRenderDeps): Promise<string> {
   const previewDocument = previewDocumentForSlug(slug, deps);
-  return resolveFrameYamlDocumentKindHandler(previewDocument.kind).renderSvg(slug, deps, previewDocument);
+  const handler = resolveFrameYamlDocumentKindHandler(previewDocument.kind);
+  if (!handler) {
+    throw new Error(`Unsupported frame preview document kind '${String(previewDocument.kind)}'`);
+  }
+  return handler.renderSvg(slug, deps, previewDocument);
 }
 
 export function resolveFramePreviewEngineResolution(

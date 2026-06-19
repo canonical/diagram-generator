@@ -27,6 +27,15 @@ import {
   resolveRegisteredPreviewViewerRoute,
 } from "../preview-host/registry.js";
 import {
+  listFrameYamlDocumentKindHandlers,
+  registerFrameYamlDocumentKindHandler,
+} from "../preview-host/frame-document-kinds.js";
+import {
+  previewDocumentForSlug,
+  renderSvgForSlug,
+  type FramePreviewCanonicalState,
+} from "../preview-host/frame-documents.js";
+import {
   installRegisteredPreviewHostModules,
   listPreviewHostModules,
   type PreviewHostModuleDescriptor,
@@ -210,6 +219,68 @@ test("builtin preview host viewer routes install through a host-owned installer"
   }
 
   expectRegisteredRoutes([]);
+});
+
+test("frame YAML preview document kinds register outside the central fallback handler", async () => {
+  const tempDir = mkdtempSync(path.join(os.tmpdir(), "dg-preview-document-kind-"));
+  const framesDir = path.join(tempDir, "frames");
+  const customFramePath = path.join(framesDir, "custom-mindmap.yaml");
+  mkdirSync(framesDir, { recursive: true });
+  writeFileSync(
+    customFramePath,
+    [
+      "schema: author-v1",
+      "title: Custom mindmap",
+      "mindmap:",
+      "  root: Alpha",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+
+  const unregister = registerFrameYamlDocumentKindHandler({
+    kind: "mindmap",
+    createPreviewDocument(slug, raw) {
+      if (!raw.includes("mindmap:")) {
+        return null;
+      }
+      return {
+        kind: "mindmap",
+        slug,
+        title: "Custom mindmap",
+        shellMode: "grid",
+      };
+    },
+    buildCanonicalState(slug, _deps, previewDocument): FramePreviewCanonicalState {
+      return {
+        slug,
+        previewDocument,
+        frameTree: null,
+        componentTree: [{ id: "root", label: "Alpha" }],
+        gridInfo: null,
+      };
+    },
+    async renderSvg() {
+      return '<svg data-kind="mindmap"></svg>';
+    },
+  });
+
+  try {
+    const previewDocument = previewDocumentForSlug("custom-mindmap", { framesDir });
+    assert.equal(previewDocument.kind, "mindmap");
+    assert.equal(
+      await renderSvgForSlug("custom-mindmap", {
+        framesDir,
+        iconLoader: () => null,
+        textAdapterPromise: Promise.resolve(new MockTextAdapter()),
+      }),
+      '<svg data-kind="mindmap"></svg>',
+    );
+    assert.ok(listFrameYamlDocumentKindHandlers().some((handler) => handler.kind === "mindmap"));
+  } finally {
+    unregister();
+    rmSync(tempDir, { recursive: true, force: true });
+  }
 });
 
 test("preview host viewer route registry rejects duplicate keys", () => {
