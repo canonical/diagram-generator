@@ -129,14 +129,11 @@ function _gridEl(id) {
 
 // ---- Guide mode (W key) ----
 const GUIDE_MODES = ["off", "all"];
-let guideMode = "off";
-let gridInfo = null;
-let baseGridInfo = null;
 
 // ---- Alignment snap guides ----
 // Snap primitives (snapEdgeToTarget, collectGridSnapTargets, collectPeerSnapTargets,
 // snapRectToTargets, renderGuideLines, clearGuideLines) are shared via editor-base.js.
-// This file keeps only grid-model-aware wrappers that depend on `model` and `gridInfo`.
+// This file keeps only grid-model-aware wrappers that depend on `model` and the typed grid runtime.
 const GUIDE_COLOR = UI_AUTHORING_ACCENT_LINE;
 const GUIDE_OPACITY = "0.5";
 
@@ -147,7 +144,7 @@ const GUIDE_OPACITY = "0.5";
 function collectSnapTargets(dragCid) {
   return window.__DG_getPreviewShellInteractionContract().collectPreviewSnapTargets({
     dragId: dragCid,
-    gridInfo,
+    gridInfo: _previewGridRuntime.getGridInfo(),
     getNode: (id) => model.get(id),
     getRootNodes: () => model.roots,
     getOwnDelta: (id) => model.getOwnDelta(id),
@@ -180,7 +177,7 @@ function findSnaps(cid, proposedDx, proposedDy, targets) {
  * Delegates to collectGridSnapTargets() from editor-base.js.
  */
 function _gridSnapTargets() {
-  return collectGridSnapTargets(gridInfo);
+  return collectGridSnapTargets(_previewGridRuntime.getGridInfo());
 }
 
 // ---- Dirty tracking + editor state (EditorState / PreviewSaveClient) ----
@@ -210,6 +207,60 @@ function _pruneLinkedRootGridOverrides() {
   }
 }
 
+const _previewGridRuntime = window.__DG_getPreviewShellSceneContract().createPreviewGridRuntimeHost({
+  document,
+  guideModes: GUIDE_MODES,
+  baselineStep: BASELINE_STEP,
+  fetchGridInfo: () => fetch("/api/grid/" + SLUG + "?t=" + Date.now(), { cache: "no-store" }),
+  cloneValue: (value) => EditorState.cloneValue(value),
+  readFallbackMetrics: () => {
+    const rootNode = model.roots[0] || null;
+    const gap = rootNode ? (rootNode.data.layout_gap ?? 24) : 24;
+    const pad = rootNode ? (rootNode.data.padding_top ?? 24) : 24;
+    const svg = document.querySelector("#stage svg");
+    return {
+      gap,
+      pad,
+      canvasWidth: svg ? (svg.viewBox.baseVal.width || parseFloat(svg.getAttribute("width") || 840)) : 840,
+      canvasHeight: svg ? (svg.viewBox.baseVal.height || parseFloat(svg.getAttribute("height") || 840)) : 840,
+      baselineStep: BASELINE_STEP,
+    };
+  },
+  resolvePreviewGridInfo: (options) => window.__DG_getPreviewShellSceneContract().resolvePreviewGridInfo(options),
+  resolvePreviewGridInfoFromRuntimeState: (options) =>
+    window.__DG_getPreviewShellSceneContract().resolvePreviewGridInfoFromRuntimeState(options),
+  createGridOverlayScene: (options) => window.__DG_getPreviewShellSceneContract().createPreviewGridOverlayScene(options),
+  getGridOverrides: () => model.gridOverrides || {},
+  setGridOverrides: (value) => {
+    model.gridOverrides = value;
+  },
+  setDiagramGrid: (value) => model.setDiagramGrid(value),
+  getRootId: () => (model.roots[0] || {}).id || "root",
+  getPendingAction: () => EditorState.getPendingGridAction(),
+  beginPendingAction: () => EditorState.beginUndoableAction("Adjust grid"),
+  setPendingAction: (action) => {
+    EditorState.setPendingGridAction(action);
+  },
+  pruneLinkedRootOverrides: () => {
+    _pruneLinkedRootGridOverrides();
+  },
+  setDirty,
+  requestRelayout: (rootId) => {
+    const requestRelayout = typeof requestLayoutRelayout === "function"
+      ? requestLayoutRelayout
+      : requestV3Relayout;
+    return requestRelayout(rootId);
+  },
+  commitPendingAction: (action) => {
+    EditorState.commitUndoableAction(action);
+  },
+  scheduleRelayout: (callback, delayMs) => setTimeout(callback, delayMs),
+  clearRelayoutTimer: (timerId) => {
+    clearTimeout(timerId);
+  },
+  setTimeoutFn: (callback, delayMs) => setTimeout(callback, delayMs),
+});
+
 function _restoreOverrideEntries(entries) {
   replaceOverrides(window.__DG_getPreviewBridgeRelayoutContract().restorePreviewOverrideEntries({
     currentOverrides: overrides,
@@ -227,10 +278,7 @@ function _snapshotNeedsV3Relayout(snapshot) {
 }
 
 function _clearPendingRestoreRuntime() {
-  if (relayoutTimer) {
-    clearTimeout(relayoutTimer);
-    relayoutTimer = null;
-  }
+  _previewGridRuntime.clearPendingRelayout();
   clearTimeout(_v3RelayoutTimer);
   EditorState.setPendingGridAction(null);
 }
@@ -244,7 +292,7 @@ function _applyLocalRestoreRefresh(syncGridControls = false) {
     updateOverrideSummary,
     refreshTreeColors,
     runConstraints,
-    populateGridControls: syncGridControls && gridInfo ? populateGridControls : null,
+    populateGridControls: syncGridControls && _previewGridRuntime.getGridInfo() ? populateGridControls : null,
   });
 }
 
@@ -286,7 +334,7 @@ async function _restoreEditorState(serializedState) {
     requestRelayout: (triggerId) => requestRelayout(triggerId),
     applyLocalRefresh: ({ syncGridControls }) => _applyLocalRestoreRefresh(syncGridControls),
     syncGridControls: () => {
-      if (gridInfo) populateGridControls();
+      if (_previewGridRuntime.getGridInfo()) populateGridControls();
     },
     syncDirtyFromSerialized: (currentStateStr) => PreviewSaveClient.syncDirtyFromSerialized(currentStateStr),
     serializeDirtyState: () => EditorState.serializeDirtyState(),
@@ -361,7 +409,7 @@ async function loadSVG(options = {}) {
       loadTree,
       loadGridInfo,
       gridState: {
-        getGridInfo: () => gridInfo,
+        getGridInfo: () => _previewGridRuntime.getGridInfo(),
         setDiagramGrid: (nextGridInfo) => model.setDiagramGrid(nextGridInfo),
         getGridOverrides: () => model.gridOverrides,
         pruneLinkedRootGridOverrides: _pruneLinkedRootGridOverrides,
@@ -476,132 +524,32 @@ async function loadTree(canonicalState = null) {
 }
 
 async function loadGridInfo(canonicalState = null) {
-  const loaded = await window.__DG_getPreviewShellBootstrapContract().loadPreviewGridInfo({
-    canonicalState,
-    fetchGridInfo: () => fetch("/api/grid/" + SLUG + "?t=" + Date.now(), { cache: "no-store" }),
-    cloneValue: (value) => EditorState.cloneValue(value),
-    readFallbackMetrics: () => {
-      const rootNode = model.roots[0] || null;
-      const gap = rootNode ? (rootNode.data.layout_gap ?? 24) : 24;
-      const pad = rootNode ? (rootNode.data.padding_top ?? 24) : 24;
-      const svg = document.querySelector("#stage svg");
-      return {
-        gap,
-        pad,
-        canvasWidth: svg ? (svg.viewBox.baseVal.width || parseFloat(svg.getAttribute("width") || 840)) : 840,
-        canvasHeight: svg ? (svg.viewBox.baseVal.height || parseFloat(svg.getAttribute("height") || 840)) : 840,
-        baselineStep: BASELINE_STEP,
-      };
-    },
-    resolvePreviewGridInfo: (options) => window.__DG_getPreviewShellSceneContract().resolvePreviewGridInfo(options),
-  });
-  gridInfo = loaded.gridInfo;
-  baseGridInfo = loaded.baseGridInfo;
+  return _previewGridRuntime.loadGridInfo(canonicalState);
 }
 
 function cycleGuideMode() {
-  window.__DG_getPreviewShellSceneContract().cyclePreviewGuideModeHost({
-    guideMode,
-    guideModes: GUIDE_MODES,
-    document,
-    setGuideMode: (value) => {
-      guideMode = value;
-    },
-    renderGridOverlay,
-  });
+  return _previewGridRuntime.cycleGuideMode();
 }
 
 function renderGridOverlay() {
-  window.__DG_getPreviewShellSceneContract().renderPreviewGridOverlayHost({
-    document,
-    guideMode,
-    gridInfo,
-    baselineStep: BASELINE_STEP,
-    createScene: (options) => window.__DG_getPreviewShellSceneContract().createPreviewGridOverlayScene(options),
-  });
+  return _previewGridRuntime.renderGridOverlay();
 }
 
 function populateGridControls() {
-  window.__DG_getPreviewShellSceneContract().populatePreviewGridControlsHost({
-    document,
-    gridInfo,
-    gridOverrides: model.gridOverrides || {},
-  });
+  return _previewGridRuntime.populateGridControls();
 }
 
-let relayoutTimer = null;
-
 function onGridControlChange() {
-  const requestRelayout = typeof requestLayoutRelayout === "function"
-    ? requestLayoutRelayout
-    : requestV3Relayout;
-  window.__DG_getPreviewShellSceneContract().dispatchPreviewGridControlChangeHost({
-    document,
-    gridInfo,
-    baselineStep: BASELINE_STEP,
-    rootId: (model.roots[0] || {}).id || "root",
-    hasSplitMargins: Boolean(_gridEl("grid-margin-top")),
-    fallbackMargin: GRID_DEFAULTS.margin_top,
-    getPendingAction: () => EditorState.getPendingGridAction(),
-    beginPendingAction: () => EditorState.beginUndoableAction("Adjust grid"),
-    setPendingAction: (action) => {
-      EditorState.setPendingGridAction(action);
-    },
-    setGridOverrides: (value) => {
-      model.gridOverrides = value;
-    },
-    pruneLinkedRootOverrides: () => {
-      _pruneLinkedRootGridOverrides();
-    },
-    setDirty,
-    relayoutTimer,
-    clearRelayoutTimer: (timerId) => {
-      clearTimeout(timerId);
-    },
-    scheduleRelayout: (callback, delayMs) => setTimeout(callback, delayMs),
-    setRelayoutTimer: (timerId) => {
-      relayoutTimer = timerId;
-    },
-    requestRelayout: (rootId) => requestRelayout(rootId),
-    commitPendingAction: (action) => {
-      EditorState.commitUndoableAction(action);
-    },
-    setOverlayGridInfo: (value) => {
-      gridInfo = value;
-    },
-    setRowsControlValue: (value) => {
-      const rowsInput = document.getElementById("grid-rows");
-      if (rowsInput) rowsInput.value = value;
-    },
-    renderGridOverlay,
-  });
+  return _previewGridRuntime.onGridControlChange();
 }
 
 // ---- Column/row span ↔ pixel conversion ----
 
 function refreshV3GridInfoFromLayout() {
-  window.__DG_getPreviewShellSceneContract().refreshPreviewGridInfoFromLayoutHost({
-    document,
-    baselineStep: BASELINE_STEP,
-    gridOverrides: model.gridOverrides || {},
-    fallbackGridInfo: gridInfo || {},
-    baseGridInfo: baseGridInfo || {},
-    resolveGridInfo: (options) => window.__DG_getPreviewShellSceneContract().resolvePreviewGridInfoFromRuntimeState(options),
-    setGridInfo: (value) => {
-      gridInfo = value;
-    },
-    setDiagramGrid: (value) => model.setDiagramGrid(value),
-    populateGridControls,
-  });
+  return _previewGridRuntime.refreshGridInfoFromLayout();
 }
 
-window.__DG_getPreviewShellSceneContract().bindPreviewGridControls({
-  getElementById: (id) => _gridEl(id),
-  onInput: onGridControlChange,
-  onChange: onGridControlChange,
-  getActiveElement: () => document.activeElement,
-  setTimeoutFn: (callback, delayMs) => setTimeout(callback, delayMs),
-});
+_previewGridRuntime.bindControls();
 
 function resetOverrideState() {
   replaceOverrides({});
@@ -1546,7 +1494,7 @@ function _getEditorRuntimeSet() {
     overrides,
     coercedKeys: _coercedKeys,
     gridState: {
-      getGridInfo: () => gridInfo,
+      getGridInfo: () => _previewGridRuntime.getGridInfo(),
       baselineStep: BASELINE_STEP,
       fallbackGap: window.__DG_CONFIG.col_gap || 24,
       snapStep: BASELINE_STEP,

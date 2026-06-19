@@ -1076,30 +1076,9 @@ test("editor grid overlay helper accepts the namespaced previewShell.scene contr
   const capturedCalls: Array<Record<string, unknown>> = [];
   const context = {
     console,
-    guideMode: "grid",
-    gridInfo: { cols: 8 },
-    BASELINE_STEP: 24,
-    document: {},
-    window: {
-      __DG_getPreviewShellSceneContract() {
-        return context.LayoutEngine.previewShell.scene;
-      },
-    },
-    LayoutEngine: {
-      previewShell: {
-        scene: {
-          renderPreviewGridOverlayHost(options: Record<string, unknown>) {
-            capturedCalls.push({
-              guideMode: options.guideMode,
-              gridInfo: options.gridInfo,
-              baselineStep: options.baselineStep,
-              hasCreateScene: typeof options.createScene,
-            });
-          },
-          createPreviewGridOverlayScene() {
-            return { shapes: [] };
-          },
-        },
+    _previewGridRuntime: {
+      renderGridOverlay() {
+        capturedCalls.push({ kind: "renderGridOverlay" });
       },
     },
   };
@@ -1120,137 +1099,33 @@ test("editor grid overlay helper accepts the namespaced previewShell.scene contr
 
   assert.deepEqual(normalizeVmValue(capturedCalls), [
     {
-      guideMode: "grid",
-      gridInfo: { cols: 8 },
-      baselineStep: 24,
-      hasCreateScene: "function",
+      kind: "renderGridOverlay",
     },
   ]);
 });
 
-test("editor grid-control helpers accept the namespaced previewShell.scene contract", () => {
+test("editor grid-control helpers delegate through the typed grid runtime", () => {
   const source = readPreviewScript("editor.js");
   const capturedCalls: Array<Record<string, unknown>> = [];
-  const badge = {
-    className: "",
-    textContent: "",
-  };
-  const gridRowsInput = {
-    value: "",
-  };
-  let pendingAction: unknown = null;
   const context = {
     console,
-    guideMode: "off",
-    GUIDE_MODES: ["off", "all"],
-    gridInfo: { _rows: 2 },
-    BASELINE_STEP: 8,
-    GRID_DEFAULTS: {
-      margin_top: 24,
-    },
-    relayoutTimer: null,
-    model: {
-      gridOverrides: { rows: 3 },
-      roots: [{ id: "root-1" }],
-    },
-    document: {
-      activeElement: null,
-      getElementById(id: string) {
-        if (id === "guide-badge") return badge;
-        if (id === "grid-rows") return gridRowsInput;
-        if (id === "grid-margin-top") return null;
-        return null;
+    _previewGridRuntime: {
+      cycleGuideMode() {
+        capturedCalls.push({ kind: "cycleGuideMode" });
+        return "all";
       },
-    },
-    _gridEl(id: string) {
-      return context.document.getElementById(id);
-    },
-    renderGridOverlay() {
-      capturedCalls.push({ kind: "renderGridOverlay" });
-    },
-    setDirty() {},
-    _pruneLinkedRootGridOverrides() {
-      capturedCalls.push({ kind: "prune" });
-    },
-    requestV3Relayout(id: string) {
-      capturedCalls.push({ kind: "requestV3Relayout", id });
-      return Promise.resolve();
-    },
-    EditorState: {
-      getPendingGridAction() {
-        return pendingAction;
+      populateGridControls() {
+        capturedCalls.push({ kind: "populateGridControls" });
+        return true;
       },
-      beginUndoableAction(label: string) {
-        return { label };
-      },
-      setPendingGridAction(action: unknown) {
-        pendingAction = action;
-        capturedCalls.push({ kind: "setPendingGridAction", action });
-      },
-      commitUndoableAction(action: unknown) {
-        capturedCalls.push({ kind: "commitUndoableAction", action });
-      },
-    },
-    clearTimeout() {},
-    setTimeout() {
-      return 41;
-    },
-    window: {
-      __DG_getPreviewShellSceneContract() {
-        return context.LayoutEngine.previewShell.scene;
-      },
-    },
-    LayoutEngine: {
-      previewShell: {
-        scene: {
-          cyclePreviewGuideModeHost(options: Record<string, unknown>) {
-            capturedCalls.push({
-              kind: "cyclePreviewGuideModeHost",
-              guideMode: options.guideMode,
-              guideModes: options.guideModes,
-              hasSetGuideMode: typeof options.setGuideMode,
-              hasRenderGridOverlay: typeof options.renderGridOverlay,
-            });
-            options.setGuideMode("all");
-            return "all";
-          },
-          populatePreviewGridControlsHost(options: Record<string, unknown>) {
-            capturedCalls.push({
-              kind: "populatePreviewGridControlsHost",
-              gridInfo: options.gridInfo,
-              gridOverrides: options.gridOverrides,
-              hasDocument: typeof options.document,
-            });
-            return true;
-          },
-          dispatchPreviewGridControlChangeHost(options: Record<string, unknown>) {
-            capturedCalls.push({
-              kind: "dispatchPreviewGridControlChangeHost",
-              gridInfo: options.gridInfo,
-              baselineStep: options.baselineStep,
-              rootId: options.rootId,
-              hasDocument: typeof options.document,
-              hasGetPendingAction: typeof options.getPendingAction,
-              hasBeginPendingAction: typeof options.beginPendingAction,
-              hasSetPendingAction: typeof options.setPendingAction,
-              hasSetGridOverrides: typeof options.setGridOverrides,
-              hasPruneLinkedRootOverrides: typeof options.pruneLinkedRootOverrides,
-              hasSetDirty: typeof options.setDirty,
-              hasRequestRelayout: typeof options.requestRelayout,
-              hasCommitPendingAction: typeof options.commitPendingAction,
-              hasSetOverlayGridInfo: typeof options.setOverlayGridInfo,
-              hasSetRowsControlValue: typeof options.setRowsControlValue,
-              hasRenderGridOverlay: typeof options.renderGridOverlay,
-            });
-            return { kind: "applied" };
-          },
-        },
+      onGridControlChange() {
+        capturedCalls.push({ kind: "onGridControlChange" });
+        return { kind: "applied" };
       },
     },
   };
 
   const helperSource = [
-    "let relayoutTimer = null;",
     extractNamedFunctionSource(source, "cycleGuideMode", "()"),
     extractNamedFunctionSource(source, "populateGridControls", "()"),
     extractNamedFunctionSource(source, "onGridControlChange", "()"),
@@ -1270,39 +1145,10 @@ test("editor grid-control helpers accept the namespaced previewShell.scene contr
   loaded.populateGridControls();
   loaded.onGridControlChange();
 
-  assert.equal(context.guideMode, "all");
   assert.deepEqual(normalizeVmValue(capturedCalls), [
-    {
-      kind: "cyclePreviewGuideModeHost",
-      guideMode: "off",
-      guideModes: ["off", "all"],
-      hasSetGuideMode: "function",
-      hasRenderGridOverlay: "function",
-    },
-    {
-      kind: "populatePreviewGridControlsHost",
-      gridInfo: { _rows: 2 },
-      gridOverrides: { rows: 3 },
-      hasDocument: "object",
-    },
-    {
-      kind: "dispatchPreviewGridControlChangeHost",
-      gridInfo: { _rows: 2 },
-      baselineStep: 8,
-      rootId: "root-1",
-      hasDocument: "object",
-      hasGetPendingAction: "function",
-      hasBeginPendingAction: "function",
-      hasSetPendingAction: "function",
-      hasSetGridOverrides: "function",
-      hasPruneLinkedRootOverrides: "function",
-      hasSetDirty: "function",
-      hasRequestRelayout: "function",
-      hasCommitPendingAction: "function",
-      hasSetOverlayGridInfo: "function",
-      hasSetRowsControlValue: "function",
-      hasRenderGridOverlay: "function",
-    },
+    { kind: "cycleGuideMode" },
+    { kind: "populateGridControls" },
+    { kind: "onGridControlChange" },
   ]);
 });
 

@@ -26,6 +26,7 @@ import {
   createPreviewEditorRuntimeSetFromRuntime,
   createPreviewEditorRuntimeSetFromHost,
   createPreviewEditorRuntimeSet,
+  createPreviewGridRuntimeHost,
   createPreviewInspectorDisplayRuntime,
   createPreviewInspectorMutationRuntime,
   createPreviewInspectorSelectionRuntime,
@@ -381,6 +382,7 @@ describe('browser entry contract pilot', () => {
     expect(previewShell.interaction.syncPreviewSelectionUi).toBe(syncPreviewSelectionUi);
     expect(previewShell.interaction.updatePreviewArrowVisualHost).toBe(updatePreviewArrowVisualHost);
     expect(previewShell.scene.applyPreviewWaypointOverridesHost).toBe(applyPreviewWaypointOverridesHost);
+    expect(previewShell.scene.createPreviewGridRuntimeHost).toBe(createPreviewGridRuntimeHost);
     expect(previewShell.scene.cyclePreviewGuideModeHost).toBe(cyclePreviewGuideModeHost);
     expect(previewShell.scene.dispatchPreviewGridControlChangeHost).toBe(dispatchPreviewGridControlChangeHost);
     expect(previewShell.scene.populatePreviewGridControls).toBe(populatePreviewGridControls);

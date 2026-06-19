@@ -633,6 +633,17 @@ export {
 } from './app-artboard.js';
 
 export type {
+  CreatePreviewGridRuntimeHostOptions,
+  LoadedPreviewGridRuntimeState,
+  PreviewGridRuntimeDocumentLike,
+  PreviewGridRuntimeHost,
+} from './app-grid-runtime.js';
+
+export {
+  createPreviewGridRuntimeHost,
+} from './app-grid-runtime.js';
+
+export type {
   BindPreviewGridControlsOptions,
   CyclePreviewGuideModeHostOptions,
   DispatchPreviewGridControlChangeHostOptions,

@@ -238,6 +238,7 @@ export type {
 export {
   captureEditorSnapshot,
   cloneEditorSnapshotValue,
+  createPreviewGridRuntimeHost,
   normalizeGridOverrides,
   parseEditorSnapshot,
   serializeEditorSnapshot,
@@ -260,11 +261,13 @@ export {
 export type {
   EditorSnapshot,
   EditorSnapshotInput,
+  CreatePreviewGridRuntimeHostOptions,
   EditorOverridePatchCommand,
   EditorStatePatchCommand,
   EditorUndoCommand,
   EditorUndoStackOptions,
   PendingUndoableAction,
+  PreviewGridRuntimeHost,
   EditorStateStoreDeps,
   EditorStateStoreOptions,
   PersistFrameKey,

@@ -230,80 +230,16 @@ test("editor tree loader accepts the namespaced previewShell.bootstrap contract"
 
 test("editor grid loader accepts the namespaced previewShell.bootstrap contract", async () => {
   const source = loadEditorSource();
-  const capturedCalls: Array<Record<string, unknown>> = [];
+  const capturedCalls: Array<Record<string, unknown> | null | undefined> = [];
   const context = {
     console,
-    SLUG: "demo",
-    BASELINE_STEP: 8,
-    gridInfo: null as unknown,
-    baseGridInfo: null as unknown,
-    EditorState: {
-      cloneValue(value: unknown) {
-        return { cloned: value };
-      },
-    },
-    model: {
-      roots: [{ data: { layout_gap: 24, padding_top: 32 } }],
-    },
-    document: {
-      querySelector(selector: string) {
-        if (selector !== "#stage svg") return null;
+    _previewGridRuntime: {
+      async loadGridInfo(canonicalState?: Record<string, unknown> | null) {
+        capturedCalls.push(canonicalState);
         return {
-          viewBox: { baseVal: { width: 640, height: 480 } },
-          getAttribute(name: string) {
-            return name === "width" ? "640" : "480";
-          },
+          gridInfo: { cols: 8 },
+          baseGridInfo: { cols: 8 },
         };
-      },
-    },
-    fetch(url: string, init: Record<string, unknown>) {
-      capturedCalls.push({ fetchUrl: url, init });
-      return Promise.resolve({
-        ok: true,
-        async json() {
-          return { cols: 8 };
-        },
-      });
-    },
-    window: {
-      __DG_getPreviewShellBootstrapContract() {
-        return context.LayoutEngine.previewShell.bootstrap;
-      },
-      __DG_getPreviewShellSceneContract() {
-        return context.LayoutEngine.previewShell.scene;
-      },
-    },
-    LayoutEngine: {
-      previewShell: {
-        bootstrap: {
-          async loadPreviewGridInfo(options: Record<string, unknown>) {
-            capturedCalls.push(options);
-            await (options.fetchGridInfo as () => Promise<unknown>)();
-            const resolved = (options.resolvePreviewGridInfo as (value: Record<string, unknown>) => unknown)({
-              canvasWidth: 640,
-              canvasHeight: 480,
-              baselineStep: 8,
-              columnCount: 8,
-              columnGutter: 24,
-              rowGutter: 24,
-              marginTop: 32,
-              marginRight: 32,
-              marginBottom: 32,
-              marginLeft: 32,
-            });
-            assert.deepEqual(normalizeVmValue(resolved), { resolved: true, canvasWidth: 640 });
-            return {
-              mode: "fetched",
-              gridInfo: { cols: 8 },
-              baseGridInfo: { cols: 8 },
-            };
-          },
-        },
-        scene: {
-          resolvePreviewGridInfo(options: Record<string, unknown>) {
-            return { resolved: true, canvasWidth: options.canvasWidth };
-          },
-        },
       },
     },
   };
@@ -322,30 +258,9 @@ test("editor grid loader accepts the namespaced previewShell.bootstrap contract"
 
   await loaded.loadGridInfo({ gridInfo: { cols: 4 } });
 
-  assert.deepEqual(normalizeVmValue({
-    canonicalState: capturedCalls[0]?.canonicalState,
-    hasFetchGridInfo: typeof capturedCalls[0]?.fetchGridInfo,
-    hasCloneValue: typeof capturedCalls[0]?.cloneValue,
-    hasReadFallbackMetrics: typeof capturedCalls[0]?.readFallbackMetrics,
-    hasResolvePreviewGridInfo: typeof capturedCalls[0]?.resolvePreviewGridInfo,
-    fetchUrl: capturedCalls[1]?.fetchUrl,
-    fetchCache: capturedCalls[1]?.init?.cache,
-  }), {
-    canonicalState: { gridInfo: { cols: 4 } },
-    hasFetchGridInfo: "function",
-    hasCloneValue: "function",
-    hasReadFallbackMetrics: "function",
-    hasResolvePreviewGridInfo: "function",
-    fetchUrl: String(capturedCalls[1]?.fetchUrl || ""),
-    fetchCache: "no-store",
-  });
-  assert.deepEqual(normalizeVmValue({
-    gridInfo: context.gridInfo,
-    baseGridInfo: context.baseGridInfo,
-  }), {
-    gridInfo: { cols: 8 },
-    baseGridInfo: { cols: 8 },
-  });
+  assert.deepEqual(normalizeVmValue(capturedCalls), [
+    { gridInfo: { cols: 4 } },
+  ]);
 });
 
 test("editor svg loader accepts the namespaced previewShell.bootstrap contract", async () => {
@@ -408,6 +323,11 @@ test("editor svg loader accepts the namespaced previewShell.bootstrap contract",
       return { ready: true };
     },
     _pruneLinkedRootGridOverrides() {},
+    _previewGridRuntime: {
+      getGridInfo() {
+        return { cols: 4 };
+      },
+    },
     fitSvgToRenderedContent() {},
     PreviewSaveClient: {
       markSaved() {},

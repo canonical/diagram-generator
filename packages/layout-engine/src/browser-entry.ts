@@ -318,6 +318,7 @@ export {
   colSpanToPx,
   createPreviewGridOverrides,
   createPreviewGridOverlayScene,
+  createPreviewGridRuntimeHost,
   PREVIEW_STYLE_SEMANTICS,
   applyPreviewStyleFields,
   applyVisiblePreviewStyleOverride,
@@ -1050,6 +1051,7 @@ export const previewShell = Object.freeze({
   scene: Object.freeze({
     applyPreviewWaypointOverridesHost: previewShellRuntime.applyPreviewWaypointOverridesHost,
     bindPreviewGridControls: previewShellRuntime.bindPreviewGridControls,
+    createPreviewGridRuntimeHost: previewShellRuntime.createPreviewGridRuntimeHost,
     cyclePreviewGuideModeHost: previewShellRuntime.cyclePreviewGuideModeHost,
     createPreviewGridOverlayScene: previewShellRuntime.createPreviewGridOverlayScene,
     dispatchPreviewGridControlChangeHost: previewShellRuntime.dispatchPreviewGridControlChangeHost,
