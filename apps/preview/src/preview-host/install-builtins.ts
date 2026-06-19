@@ -1,10 +1,8 @@
 import {
-  installBuiltinPreviewHostApiRoutes,
-} from "./builtin-api-routes.js";
-import {
-  installBuiltinPreviewHostViewerRoutes,
   type BuiltinPreviewHostViewerRouteDeps,
 } from "./builtin-viewer-routes.js";
+import { installBuiltinAutolayoutPreviewHostModule } from "./builtin-autolayout-host.js";
+import { installBuiltinForcePreviewHostModule } from "./builtin-force-host.js";
 
 export interface BuiltinPreviewHostInstallDeps
   extends BuiltinPreviewHostViewerRouteDeps {}
@@ -12,10 +10,10 @@ export interface BuiltinPreviewHostInstallDeps
 export function installBuiltinPreviewHost(
   deps: BuiltinPreviewHostInstallDeps,
 ): () => void {
-  const uninstallViewerRoutes = installBuiltinPreviewHostViewerRoutes(deps);
-  const uninstallApiRoutes = installBuiltinPreviewHostApiRoutes();
+  const uninstallForceModule = installBuiltinForcePreviewHostModule(deps);
+  const uninstallAutolayoutModule = installBuiltinAutolayoutPreviewHostModule(deps);
   return () => {
-    uninstallApiRoutes();
-    uninstallViewerRoutes();
+    uninstallAutolayoutModule();
+    uninstallForceModule();
   };
 }
