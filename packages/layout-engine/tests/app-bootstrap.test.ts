@@ -46,6 +46,7 @@ describe('preview bootstrap helpers', () => {
       getElkLayoutOverrides: vi.fn(() => ({})),
       setElkLayoutOverrides: vi.fn(),
       getRootId: vi.fn(() => 'root'),
+      requestLayoutRelayout: vi.fn(async () => undefined),
       requestV3Relayout: vi.fn(async () => undefined),
     };
 
@@ -77,7 +78,9 @@ describe('preview bootstrap helpers', () => {
       serializeDirtyState: vi.fn(() => '{}'),
       reloadDiagram: vi.fn(),
       collectEngineSavePayload: vi.fn((payload) => payload),
+      getLayoutRelayoutStatus: vi.fn(),
       getV3RelayoutStatus: vi.fn(),
+      getLayoutRelayoutRuntime: vi.fn(),
       getV3RelayoutRuntime: vi.fn(),
       getConstraintSummary: vi.fn(),
       getConstraintErrorCount: vi.fn(() => 0),
@@ -352,6 +355,9 @@ describe('preview bootstrap helpers', () => {
       getRootId() {
         return 'root';
       },
+      requestLayoutRelayout() {
+        orderedCalls.push('requestLayoutRelayout');
+      },
       requestV3Relayout() {
         orderedCalls.push('requestV3Relayout');
       },
@@ -378,7 +384,13 @@ describe('preview bootstrap helpers', () => {
       reloadDiagram() {
         orderedCalls.push('reloadDiagram');
       },
+      getLayoutRelayoutStatus() {
+        return {};
+      },
       getV3RelayoutStatus() {
+        return {};
+      },
+      getLayoutRelayoutRuntime() {
         return {};
       },
       getV3RelayoutRuntime() {
@@ -500,7 +512,9 @@ describe('preview bootstrap helpers', () => {
       },
       serializeDirtyState: () => '{}',
       reloadDiagram: vi.fn(),
+      getLayoutRelayoutStatus: () => ({ localReady: true }),
       getV3RelayoutStatus: () => ({ localReady: true }),
+      getLayoutRelayoutRuntime: () => ({ sequence: 1 }),
       getV3RelayoutRuntime: () => ({ sequence: 1 }),
       getConstraintSummary: () => ({ errors: 0 }),
       runConstraints: vi.fn(),
@@ -573,7 +587,9 @@ describe('preview bootstrap helpers', () => {
         saveOverrides,
       },
       reloadDiagram: vi.fn(),
+      getLayoutRelayoutStatus: () => ({ localReady: true }),
       getV3RelayoutStatus: () => ({ localReady: true }),
+      getLayoutRelayoutRuntime: () => ({ sequence: 1 }),
       getV3RelayoutRuntime: () => ({ sequence: 1 }),
       constraints: {
         summarise,
@@ -700,11 +716,14 @@ describe('preview bootstrap helpers', () => {
       initNavTabs: vi.fn(),
       getOverrides: () => ({}),
       getFrameTree: () => null,
+      requestLayoutRelayout: vi.fn(async () => undefined),
       requestV3Relayout: vi.fn(async () => undefined),
       previewSaveClient: { init: vi.fn(), isDirty: () => false },
       serializeDirtyState: () => '{}',
       reloadDiagram: vi.fn(),
+      getLayoutRelayoutStatus: () => ({}),
       getV3RelayoutStatus: () => ({}),
+      getLayoutRelayoutRuntime: () => ({}),
       getV3RelayoutRuntime: () => ({}),
       getConstraintSummary: () => ({ errors: 0 }),
       runConstraints: vi.fn(),
@@ -754,6 +773,7 @@ describe('preview bootstrap helpers', () => {
       getElkLayoutOverrides: () => ({}),
       setElkLayoutOverrides: () => {},
       getRootId: () => 'root',
+      requestLayoutRelayout: async () => undefined,
       requestV3Relayout: async () => undefined,
     });
 
@@ -814,6 +834,7 @@ describe('preview bootstrap helpers', () => {
         getElkLayoutOverrides: () => ({}),
         setElkLayoutOverrides: () => {},
         getRootId: () => 'root',
+        requestLayoutRelayout: async () => undefined,
         requestV3Relayout: async () => undefined,
       });
 
@@ -883,12 +904,14 @@ describe('preview bootstrap helpers', () => {
       getLayoutOverrides: () => ({}),
       setLayoutOverrides: () => {},
       getRootId: () => 'root',
+      requestLayoutRelayout: async () => undefined,
       requestV3Relayout: async () => undefined,
     });
     const elkController = ensurePreviewElkPreviewController(previewWindow, {
       getLayoutOverrides: () => ({}),
       setLayoutOverrides: () => {},
       getRootId: () => 'root',
+      requestLayoutRelayout: async () => undefined,
       requestV3Relayout: async () => undefined,
     });
 

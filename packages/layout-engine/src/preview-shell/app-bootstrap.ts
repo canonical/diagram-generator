@@ -107,12 +107,12 @@ export interface PreviewSaveClientInitOptions {
     basePayload: Record<string, unknown>,
     model: PreviewEnginePayloadModelLike,
   ) => Record<string, unknown>;
-  getLayoutRelayoutStatus?: () => unknown;
+  getLayoutRelayoutStatus: () => unknown;
   /** @deprecated Prefer `getLayoutRelayoutStatus`. */
-  getV3RelayoutStatus: () => unknown;
-  getLayoutRelayoutRuntime?: () => unknown;
+  getV3RelayoutStatus?: () => unknown;
+  getLayoutRelayoutRuntime: () => unknown;
   /** @deprecated Prefer `getLayoutRelayoutRuntime`. */
-  getV3RelayoutRuntime: () => unknown;
+  getV3RelayoutRuntime?: () => unknown;
   getConstraintSummary: () => unknown;
   getConstraintErrorCount: () => number;
   runConstraints: () => unknown;
@@ -133,12 +133,12 @@ export interface PreviewSaveClientInitConfig {
     basePayload: Record<string, unknown>,
     model: PreviewEnginePayloadModelLike,
   ) => Record<string, unknown>;
-  getLayoutRelayoutStatus?: () => unknown;
+  getLayoutRelayoutStatus: () => unknown;
   /** @deprecated Prefer `getLayoutRelayoutStatus`. */
-  getV3RelayoutStatus: () => unknown;
-  getLayoutRelayoutRuntime?: () => unknown;
+  getV3RelayoutStatus?: () => unknown;
+  getLayoutRelayoutRuntime: () => unknown;
   /** @deprecated Prefer `getLayoutRelayoutRuntime`. */
-  getV3RelayoutRuntime: () => unknown;
+  getV3RelayoutRuntime?: () => unknown;
   getConstraintSummary: () => unknown;
   getConstraintErrorCount: () => number;
   runConstraints: () => unknown;
@@ -247,12 +247,12 @@ export interface BootstrapPreviewEditorHostOptions {
   restoreSelectionIds: (ids: string[]) => void;
   serializeDirtyState: () => string;
   reloadDiagram: (options?: unknown) => unknown;
-  getLayoutRelayoutStatus?: () => unknown;
+  getLayoutRelayoutStatus: () => unknown;
   /** @deprecated Prefer `getLayoutRelayoutStatus`. */
-  getV3RelayoutStatus: () => unknown;
-  getLayoutRelayoutRuntime?: () => unknown;
+  getV3RelayoutStatus?: () => unknown;
+  getLayoutRelayoutRuntime: () => unknown;
   /** @deprecated Prefer `getLayoutRelayoutRuntime`. */
-  getV3RelayoutRuntime: () => unknown;
+  getV3RelayoutRuntime?: () => unknown;
   getConstraintSummary: () => unknown;
   getConstraintErrorCount: () => number;
   runConstraints: () => unknown;
@@ -315,12 +315,12 @@ export interface BootstrapPreviewEditorRuntimeOptions {
   previewSaveClient: PreviewSaveClientApi;
   serializeDirtyState: () => string;
   reloadDiagram: (options?: unknown) => unknown;
-  getLayoutRelayoutStatus?: () => unknown;
+  getLayoutRelayoutStatus: () => unknown;
   /** @deprecated Prefer `getLayoutRelayoutStatus`. */
-  getV3RelayoutStatus: () => unknown;
-  getLayoutRelayoutRuntime?: () => unknown;
+  getV3RelayoutStatus?: () => unknown;
+  getLayoutRelayoutRuntime: () => unknown;
   /** @deprecated Prefer `getLayoutRelayoutRuntime`. */
-  getV3RelayoutRuntime: () => unknown;
+  getV3RelayoutRuntime?: () => unknown;
   getConstraintSummary: () => unknown;
   getConstraintErrorCount?: (() => number) | null;
   runConstraints: () => unknown;
@@ -380,10 +380,10 @@ export interface CreateBootstrapPreviewEditorRuntimeOptionsFromHostOptions {
   requestV3Relayout?: BootstrapPreviewEditorRuntimeOptions['requestV3Relayout'];
   previewSaveClient: PreviewRuntimeSaveClientApi;
   reloadDiagram: BootstrapPreviewEditorRuntimeOptions['reloadDiagram'];
-  getLayoutRelayoutStatus?: BootstrapPreviewEditorRuntimeOptions['getLayoutRelayoutStatus'];
-  getV3RelayoutStatus: BootstrapPreviewEditorRuntimeOptions['getV3RelayoutStatus'];
-  getLayoutRelayoutRuntime?: BootstrapPreviewEditorRuntimeOptions['getLayoutRelayoutRuntime'];
-  getV3RelayoutRuntime: BootstrapPreviewEditorRuntimeOptions['getV3RelayoutRuntime'];
+  getLayoutRelayoutStatus: BootstrapPreviewEditorRuntimeOptions['getLayoutRelayoutStatus'];
+  getV3RelayoutStatus?: BootstrapPreviewEditorRuntimeOptions['getV3RelayoutStatus'];
+  getLayoutRelayoutRuntime: BootstrapPreviewEditorRuntimeOptions['getLayoutRelayoutRuntime'];
+  getV3RelayoutRuntime?: BootstrapPreviewEditorRuntimeOptions['getV3RelayoutRuntime'];
   constraints: PreviewBootstrapConstraintSummaryHost;
   lastViolations: unknown;
   runConstraints: BootstrapPreviewEditorRuntimeOptions['runConstraints'];
@@ -469,20 +469,20 @@ function resolvePreviewLayoutRelayoutRequest(
 
 function resolvePreviewLayoutRelayoutStatusGetter(
   options: {
-    getLayoutRelayoutStatus?: (() => unknown) | null;
-    getV3RelayoutStatus: () => unknown;
+    getLayoutRelayoutStatus: () => unknown;
+    getV3RelayoutStatus?: (() => unknown) | null;
   },
 ): () => unknown {
-  return options.getLayoutRelayoutStatus ?? options.getV3RelayoutStatus;
+  return options.getLayoutRelayoutStatus ?? options.getV3RelayoutStatus ?? (() => ({}));
 }
 
 function resolvePreviewLayoutRelayoutRuntimeGetter(
   options: {
-    getLayoutRelayoutRuntime?: (() => unknown) | null;
-    getV3RelayoutRuntime: () => unknown;
+    getLayoutRelayoutRuntime: () => unknown;
+    getV3RelayoutRuntime?: (() => unknown) | null;
   },
 ): () => unknown {
-  return options.getLayoutRelayoutRuntime ?? options.getV3RelayoutRuntime;
+  return options.getLayoutRelayoutRuntime ?? options.getV3RelayoutRuntime ?? (() => ({}));
 }
 
 function createPreviewEditorStateFallback(): PreviewEditorStateApi {
