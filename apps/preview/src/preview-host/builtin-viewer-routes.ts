@@ -66,6 +66,12 @@ export interface BuiltinPreviewHostViewerRouteDeps
 const AUTOLAYOUT_PREVIEW_VIEWER_DEFINITION: PreviewHostViewerPageDefinition = {
   mode: "grid",
   inspectorEmptyText: "Click a component to inspect it.",
+  sectionVisibilityPlaceholders: [
+    {
+      placeholder: "%ELK_SECTION_HIDDEN%",
+      section: "elk-layout",
+    },
+  ],
   buildTitle(slug: string): string {
     return `${slug} – diagram preview`;
   },

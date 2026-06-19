@@ -581,6 +581,12 @@ test("preview viewer page HTML is assembled from typed host sections", () => {
     modeScriptsHtml: '<script src="/preview/editor.js"></script>',
     configScript: "window.__DG_CONFIG = {};",
     visibleSidebarSections: ["elk-layout"],
+    sectionVisibilityPlaceholders: [
+      {
+        placeholder: "%ELK_SECTION_HIDDEN%",
+        section: "elk-layout",
+      },
+    ],
     baselineStylesHtml: '<link rel="stylesheet" href="/preview/bf-os.css">',
   });
 

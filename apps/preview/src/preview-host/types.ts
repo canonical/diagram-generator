@@ -78,8 +78,14 @@ export interface PreviewHostDocumentApi {
 export interface PreviewHostViewerPageDefinition {
   readonly mode: PreviewShellMode;
   readonly inspectorEmptyText: string;
+  readonly sectionVisibilityPlaceholders?: readonly PreviewHostTemplateSectionVisibility[];
   buildTitle(slug: string): string;
   buildCurrentPath(slug: string): string;
+}
+
+export interface PreviewHostTemplateSectionVisibility {
+  readonly placeholder: string;
+  readonly section: PreviewViewerSidebarSection;
 }
 
 export interface PreviewHostViewerChrome {
@@ -98,6 +104,7 @@ export interface PreviewViewerPageOptions {
   readonly modeScriptsHtml: string;
   readonly configScript: string;
   readonly visibleSidebarSections: readonly PreviewViewerSidebarSection[];
+  readonly sectionVisibilityPlaceholders: readonly PreviewHostTemplateSectionVisibility[];
   readonly baselineStylesHtml: string;
 }
 

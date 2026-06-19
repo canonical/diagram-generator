@@ -31,6 +31,7 @@ export function buildPreviewViewerHtml(
     modeScriptsHtml: options.modeScriptsHtml,
     configScript: options.configScript,
     visibleSidebarSections,
+    sectionVisibilityPlaceholders: options.definition.sectionVisibilityPlaceholders ?? [],
     baselineStylesHtml: options.baselineStylesHtml,
   });
 }
