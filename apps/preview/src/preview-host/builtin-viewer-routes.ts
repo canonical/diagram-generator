@@ -63,10 +63,82 @@ export interface BuiltinPreviewHostViewerRouteDeps
   readonly gridGutter?: number;
 }
 
+const AUTOLAYOUT_TEMPLATE_SECTIONS = [
+  "grid-layers-tab",
+  "grid-layers-pane",
+  "grid-engine-switcher",
+  "grid-controls",
+  "grid-elk-layout",
+  "grid-overrides",
+  "grid-constraints",
+  "grid-guide-badge",
+] as const;
+
+const FORCE_TEMPLATE_SECTIONS = [
+  "force-nodes-tab",
+  "force-nodes-pane",
+  "force-solver",
+  "force-simulation",
+  "force-guidance",
+] as const;
+
 const AUTOLAYOUT_PREVIEW_VIEWER_DEFINITION: PreviewHostViewerPageDefinition = {
   mode: "grid",
   inspectorEmptyText: "Click a component to inspect it.",
+  alwaysVisibleTemplateSections: AUTOLAYOUT_TEMPLATE_SECTIONS,
   sectionVisibilityPlaceholders: [
+    {
+      placeholder: "%GRID_LAYERS_TAB_HIDDEN%",
+      section: "grid-layers-tab",
+    },
+    {
+      placeholder: "%GRID_LAYERS_PANE_HIDDEN%",
+      section: "grid-layers-pane",
+    },
+    {
+      placeholder: "%GRID_ENGINE_SWITCHER_HIDDEN%",
+      section: "grid-engine-switcher",
+    },
+    {
+      placeholder: "%GRID_CONTROLS_HIDDEN%",
+      section: "grid-controls",
+    },
+    {
+      placeholder: "%GRID_ELK_LAYOUT_HIDDEN%",
+      section: "grid-elk-layout",
+    },
+    {
+      placeholder: "%GRID_OVERRIDES_HIDDEN%",
+      section: "grid-overrides",
+    },
+    {
+      placeholder: "%GRID_CONSTRAINTS_HIDDEN%",
+      section: "grid-constraints",
+    },
+    {
+      placeholder: "%GRID_GUIDE_BADGE_HIDDEN%",
+      section: "grid-guide-badge",
+    },
+    {
+      placeholder: "%FORCE_NODES_TAB_HIDDEN%",
+      section: "force-nodes-tab",
+    },
+    {
+      placeholder: "%FORCE_NODES_PANE_HIDDEN%",
+      section: "force-nodes-pane",
+    },
+    {
+      placeholder: "%FORCE_SOLVER_HIDDEN%",
+      section: "force-solver",
+    },
+    {
+      placeholder: "%FORCE_SIMULATION_HIDDEN%",
+      section: "force-simulation",
+    },
+    {
+      placeholder: "%FORCE_GUIDANCE_HIDDEN%",
+      section: "force-guidance",
+    },
     {
       placeholder: "%ELK_SECTION_HIDDEN%",
       section: "elk-layout",
@@ -83,6 +155,65 @@ const AUTOLAYOUT_PREVIEW_VIEWER_DEFINITION: PreviewHostViewerPageDefinition = {
 const FORCE_PREVIEW_VIEWER_DEFINITION: PreviewHostViewerPageDefinition = {
   mode: "force",
   inspectorEmptyText: "Click a node to select it.",
+  alwaysVisibleTemplateSections: FORCE_TEMPLATE_SECTIONS,
+  sectionVisibilityPlaceholders: [
+    {
+      placeholder: "%GRID_LAYERS_TAB_HIDDEN%",
+      section: "grid-layers-tab",
+    },
+    {
+      placeholder: "%GRID_LAYERS_PANE_HIDDEN%",
+      section: "grid-layers-pane",
+    },
+    {
+      placeholder: "%GRID_ENGINE_SWITCHER_HIDDEN%",
+      section: "grid-engine-switcher",
+    },
+    {
+      placeholder: "%GRID_CONTROLS_HIDDEN%",
+      section: "grid-controls",
+    },
+    {
+      placeholder: "%GRID_ELK_LAYOUT_HIDDEN%",
+      section: "grid-elk-layout",
+    },
+    {
+      placeholder: "%GRID_OVERRIDES_HIDDEN%",
+      section: "grid-overrides",
+    },
+    {
+      placeholder: "%GRID_CONSTRAINTS_HIDDEN%",
+      section: "grid-constraints",
+    },
+    {
+      placeholder: "%GRID_GUIDE_BADGE_HIDDEN%",
+      section: "grid-guide-badge",
+    },
+    {
+      placeholder: "%FORCE_NODES_TAB_HIDDEN%",
+      section: "force-nodes-tab",
+    },
+    {
+      placeholder: "%FORCE_NODES_PANE_HIDDEN%",
+      section: "force-nodes-pane",
+    },
+    {
+      placeholder: "%FORCE_SOLVER_HIDDEN%",
+      section: "force-solver",
+    },
+    {
+      placeholder: "%FORCE_SIMULATION_HIDDEN%",
+      section: "force-simulation",
+    },
+    {
+      placeholder: "%FORCE_GUIDANCE_HIDDEN%",
+      section: "force-guidance",
+    },
+    {
+      placeholder: "%ELK_SECTION_HIDDEN%",
+      section: "elk-layout",
+    },
+  ],
   buildTitle(slug: string): string {
     return `${slug} – force preview`;
   },

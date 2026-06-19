@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import type { PreviewShellMode } from "@diagram-generator/layout-engine";
 
 export type PreviewViewerSidebarSection = "elk-layout" | (string & {});
+export type PreviewHostTemplateSectionKey = string;
 
 export interface PreviewHostLink {
   readonly href: string;
@@ -78,6 +79,7 @@ export interface PreviewHostDocumentApi {
 export interface PreviewHostViewerPageDefinition {
   readonly mode: PreviewShellMode;
   readonly inspectorEmptyText: string;
+  readonly alwaysVisibleTemplateSections?: readonly PreviewHostTemplateSectionKey[];
   readonly sectionVisibilityPlaceholders?: readonly PreviewHostTemplateSectionVisibility[];
   buildTitle(slug: string): string;
   buildCurrentPath(slug: string): string;
@@ -85,7 +87,7 @@ export interface PreviewHostViewerPageDefinition {
 
 export interface PreviewHostTemplateSectionVisibility {
   readonly placeholder: string;
-  readonly section: PreviewViewerSidebarSection;
+  readonly section: PreviewHostTemplateSectionKey;
 }
 
 export interface PreviewHostViewerChrome {
@@ -103,7 +105,7 @@ export interface PreviewViewerPageOptions {
   readonly inspectorEmptyText: string;
   readonly modeScriptsHtml: string;
   readonly configScript: string;
-  readonly visibleSidebarSections: readonly PreviewViewerSidebarSection[];
+  readonly visibleTemplateSections: readonly PreviewHostTemplateSectionKey[];
   readonly sectionVisibilityPlaceholders: readonly PreviewHostTemplateSectionVisibility[];
   readonly baselineStylesHtml: string;
 }

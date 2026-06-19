@@ -17,8 +17,8 @@
           <div class="bf-tabs dg-nav-tabs">
             <ul class="bf-tabs-list" role="tablist" aria-label="Left sidebar view">
               <li class="bf-tabs-item"><button class="bf-tabs-link dg-nav-tab is-active" id="nav-tab-browse" type="button" role="tab" aria-selected="true" aria-controls="nav-pane-browse" tabindex="0">Browse</button></li>
-              <li class="bf-tabs-item dg-grid-only"><button class="bf-tabs-link dg-nav-tab" id="nav-tab-layers" type="button" role="tab" aria-selected="false" aria-controls="nav-pane-layers" tabindex="-1">Layers</button></li>
-              <li class="bf-tabs-item dg-force-only"><button class="bf-tabs-link dg-nav-tab" id="nav-tab-nodes" type="button" role="tab" aria-selected="false" aria-controls="nav-pane-nodes" tabindex="-1">Nodes</button></li>
+              <li class="bf-tabs-item dg-grid-only" %GRID_LAYERS_TAB_HIDDEN%><button class="bf-tabs-link dg-nav-tab" id="nav-tab-layers" type="button" role="tab" aria-selected="false" aria-controls="nav-pane-layers" tabindex="-1">Layers</button></li>
+              <li class="bf-tabs-item dg-force-only" %FORCE_NODES_TAB_HIDDEN%><button class="bf-tabs-link dg-nav-tab" id="nav-tab-nodes" type="button" role="tab" aria-selected="false" aria-controls="nav-pane-nodes" tabindex="-1">Nodes</button></li>
             </ul>
           </div>
         </div>
@@ -28,11 +28,11 @@
             %BROWSE_NAV%
           </div>
           <!-- Grid mode: Layers pane -->
-          <div class="dg-nav-pane dg-grid-only" id="nav-pane-layers" role="tabpanel" aria-labelledby="nav-tab-layers" hidden>
+          <div class="dg-nav-pane dg-grid-only" id="nav-pane-layers" role="tabpanel" aria-labelledby="nav-tab-layers" hidden %GRID_LAYERS_PANE_HIDDEN%>
             <div class="tree dg-component-tree" id="tree"></div>
           </div>
           <!-- Force mode: Nodes pane -->
-          <div class="dg-nav-pane dg-force-only" id="nav-pane-nodes" role="tabpanel" aria-labelledby="nav-tab-nodes" hidden>
+          <div class="dg-nav-pane dg-force-only" id="nav-pane-nodes" role="tabpanel" aria-labelledby="nav-tab-nodes" hidden %FORCE_NODES_PANE_HIDDEN%>
             <div class="tree dg-component-tree" id="tree-force"></div>
           </div>
         </div>
@@ -74,7 +74,7 @@
       <div class="bf-panel-content dg-sidebar-content">
 
         <!-- ── Force mode: Solver ── -->
-        <section class="dg-sidebar-section dg-force-only">
+        <section class="dg-sidebar-section dg-force-only" %FORCE_SOLVER_HIDDEN%>
           <h2 class="dg-section-heading bf-h5">Solver</h2>
           <div class="grid-controls">
             <label class="bf-field dg-grid-field is-full-span" for="ticks-per-frame">
@@ -104,7 +104,7 @@
         </section>
 
         <!-- ── Grid mode: Engine switcher (spec 035) ── -->
-        <section class="dg-sidebar-section dg-grid-only" id="engine-switcher-section" hidden>
+        <section class="dg-sidebar-section dg-grid-only" id="engine-switcher-section" hidden %GRID_ENGINE_SWITCHER_HIDDEN%>
           <h2 class="dg-section-heading bf-h5">Engine</h2>
           <label class="bf-field dg-engine-switcher-field" for="engine-switcher">
             <span class="bf-form-label">Layout engine</span>
@@ -116,7 +116,7 @@
         </section>
 
         <!-- ── Grid mode: Grid controls ── -->
-        <section class="dg-sidebar-section dg-grid-only">
+        <section class="dg-sidebar-section dg-grid-only" %GRID_CONTROLS_HIDDEN%>
           <h2 class="dg-section-heading bf-h5">Layout grid</h2>
           <div class="grid-controls" id="grid-controls">
             <label class="bf-field dg-grid-field" for="grid-cols">
@@ -170,7 +170,7 @@
         </section>
 
         <!-- ── Grid mode: ELK layout (elk-layered diagrams only) ── -->
-        <section class="dg-sidebar-section dg-grid-only" id="elk-layout-section" %ELK_SECTION_HIDDEN%>
+        <section class="dg-sidebar-section dg-grid-only" id="elk-layout-section" %GRID_ELK_LAYOUT_HIDDEN% %ELK_SECTION_HIDDEN%>
           <h2 class="dg-section-heading bf-h5">ELK layout</h2>
           <div class="grid-controls" id="elk-layout-controls"></div>
           <p class="bf-form-help dg-override-summary">Layer spacing and routing options pass through to ELK. Step labels are measured and placed by ELK (not post-hoc). Interactive strategies need ELK layer/order constraints — they do not enable drag-to-move nodes here.</p>
@@ -189,7 +189,7 @@
         </section>
 
         <!-- ── Grid mode: Overrides ── -->
-        <section class="dg-sidebar-section dg-grid-only">
+        <section class="dg-sidebar-section dg-grid-only" %GRID_OVERRIDES_HIDDEN%>
           <h2 class="dg-section-heading bf-h5">Overrides</h2>
           <p class="bf-form-help dg-override-summary" id="override-summary">No overrides.</p>
           <div class="bf-cluster dg-button-row">
@@ -203,13 +203,13 @@
         </section>
 
         <!-- ── Grid mode: Constraints ── -->
-        <section class="dg-sidebar-section dg-grid-only">
+        <section class="dg-sidebar-section dg-grid-only" %GRID_CONSTRAINTS_HIDDEN%>
           <h2 class="dg-section-heading bf-h5">Constraints</h2>
           <div class="build-status build-ok" id="constraint-status">No violations</div>
         </section>
 
         <!-- ── Force mode: Simulation params ── -->
-        <section class="dg-sidebar-section dg-force-only">
+        <section class="dg-sidebar-section dg-force-only" %FORCE_SIMULATION_HIDDEN%>
           <h2 class="dg-section-heading bf-h5">Simulation</h2>
           <div class="inspector" id="force-params">
             <div class="field">
@@ -248,7 +248,7 @@
         </section>
 
         <!-- ── Force mode: Guidance ── -->
-        <section class="dg-sidebar-section dg-force-only">
+        <section class="dg-sidebar-section dg-force-only" %FORCE_GUIDANCE_HIDDEN%>
           <h2 class="dg-section-heading bf-h5">Guidance</h2>
           <p class="bf-form-help dg-override-summary">This force preview must still obey the repo's diagram language: white or grey boxes, at most one black emphasis box, orange connectors only, and top-left aligned live text.</p>
           <p class="bf-form-help dg-override-summary">To pin a node, select it and click Pin here in the Selection panel. Save writes the current node positions and pin state to the YAML source file; browser refresh and Reset reload from that YAML.</p>
@@ -257,7 +257,7 @@
     </section>
   </aside>
 </div>
-<div class="guide-badge dg-grid-only" id="guide-badge"></div>
+<div class="guide-badge dg-grid-only" id="guide-badge" %GRID_GUIDE_BADGE_HIDDEN%></div>
 <script>%CONFIG_SCRIPT%</script>
 <script src="/preview/box-styles.js"></script>
 <script src="/preview/editor-base.js"></script>

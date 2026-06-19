@@ -1,9 +1,9 @@
 import type {
   PreviewHostBrowseSection,
   PreviewIndexPageOptions,
+  PreviewHostTemplateSectionKey,
   PreviewHostTemplateSectionVisibility,
   PreviewViewerPageOptions,
-  PreviewViewerSidebarSection,
 } from "./types.js";
 
 function htmlEscape(value: string): string {
@@ -66,7 +66,7 @@ function buildIndexSection(section: PreviewHostBrowseSection): string {
 
 function applyViewerSectionPlaceholders(
   html: string,
-  visibleSections: readonly PreviewViewerSidebarSection[],
+  visibleSections: readonly PreviewHostTemplateSectionKey[],
   placeholders: readonly PreviewHostTemplateSectionVisibility[],
 ): string {
   const enabled = new Set(visibleSections);
@@ -91,12 +91,12 @@ export function buildViewerPageHtml(options: PreviewViewerPageOptions): string {
     inspectorEmptyText,
     modeScriptsHtml,
     configScript,
-    visibleSidebarSections,
+    visibleTemplateSections,
     sectionVisibilityPlaceholders,
     baselineStylesHtml,
   } = options;
   return stripUnresolvedPlaceholders(
-    applyViewerSectionPlaceholders(templateHtml, visibleSidebarSections, sectionVisibilityPlaceholders)
+    applyViewerSectionPlaceholders(templateHtml, visibleTemplateSections, sectionVisibilityPlaceholders)
       .replace("%TITLE%", title)
       .replace("%BF_STYLES%", baselineStylesHtml)
       .replace("%MODE%", mode)

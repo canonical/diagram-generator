@@ -696,7 +696,7 @@ test("preview viewer page HTML is assembled from typed host sections", () => {
     inspectorEmptyText: "Click a component to inspect it.",
     modeScriptsHtml: '<script src="/preview/editor.js"></script>',
     configScript: "window.__DG_CONFIG = {};",
-    visibleSidebarSections: ["elk-layout"],
+    visibleTemplateSections: ["elk-layout"],
     sectionVisibilityPlaceholders: [
       {
         placeholder: "%ELK_SECTION_HIDDEN%",

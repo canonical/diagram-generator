@@ -20,7 +20,10 @@ export interface BuildPreviewViewerHtmlOptions extends PreviewHostViewerChrome {
 export function buildPreviewViewerHtml(
   options: BuildPreviewViewerHtmlOptions,
 ): string {
-  const visibleSidebarSections = options.visibleSidebarSections ?? [];
+  const visibleTemplateSections = [
+    ...(options.definition.alwaysVisibleTemplateSections ?? []),
+    ...(options.visibleSidebarSections ?? []),
+  ];
   return buildViewerPageHtml({
     title: options.definition.buildTitle(options.slug),
     mode: options.definition.mode,
@@ -30,7 +33,7 @@ export function buildPreviewViewerHtml(
     inspectorEmptyText: options.definition.inspectorEmptyText,
     modeScriptsHtml: options.modeScriptsHtml,
     configScript: options.configScript,
-    visibleSidebarSections,
+    visibleTemplateSections,
     sectionVisibilityPlaceholders: options.definition.sectionVisibilityPlaceholders ?? [],
     baselineStylesHtml: options.baselineStylesHtml,
   });
