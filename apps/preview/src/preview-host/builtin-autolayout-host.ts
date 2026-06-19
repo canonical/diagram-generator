@@ -11,6 +11,7 @@ import {
   createAutolayoutPreviewHostViewerRoute,
   type BuiltinPreviewHostViewerRouteDeps,
 } from "./builtin-viewer-routes.js";
+import type { PreviewHostModuleDescriptor } from "./modules.js";
 import { registerPreviewHostViewerRoute } from "./registry.js";
 
 export interface BuiltinAutolayoutPreviewHostModuleDeps
@@ -50,3 +51,8 @@ export function installBuiltinAutolayoutPreviewHostModule(
     unregisterViewerRoute();
   };
 }
+
+export const BUILTIN_AUTOLAYOUT_PREVIEW_HOST_MODULE: PreviewHostModuleDescriptor = {
+  key: "builtin-autolayout",
+  install: installBuiltinAutolayoutPreviewHostModule,
+};

@@ -10,6 +10,7 @@ import { MockTextAdapter } from "@diagram-generator/layout-engine";
 import { AUTOLAYOUT_HOST_LANE, FORCE_HOST_LANE, buildPreviewBrowseSections } from "../preview-host/lanes.js";
 import { buildIndexPageHtml, buildViewerPageHtml } from "../preview-host/pages.js";
 import { installBuiltinPreviewHostViewerRoutes } from "../preview-host/builtin-viewer-routes.js";
+import { installBuiltinPreviewHost } from "../preview-host/install-builtins.js";
 import {
   listPreviewHostApiRoutes,
   registerPreviewHostApiRoute,
@@ -24,6 +25,12 @@ import {
   resolveRegisteredPreviewDocumentApi,
   resolveRegisteredPreviewViewerRoute,
 } from "../preview-host/registry.js";
+import {
+  installRegisteredPreviewHostModules,
+  listPreviewHostModules,
+  type PreviewHostModuleDescriptor,
+  registerPreviewHostModule,
+} from "../preview-host/modules.js";
 import { buildPreviewBrowseSectionsFromViewerRoutes, resolvePreviewViewerRoute } from "../preview-host/viewers.js";
 import type {
   PreviewHostApiRouteDescriptor,
@@ -233,6 +240,82 @@ test("preview host viewer route registry rejects duplicate keys", () => {
   }
 });
 
+test("preview host modules register and install through a typed registry", () => {
+  const installEvents: string[] = [];
+  const moduleA: PreviewHostModuleDescriptor = {
+    key: "test-module-a",
+    install() {
+      installEvents.push("install-a");
+      return () => {
+        installEvents.push("uninstall-a");
+      };
+    },
+  };
+  const moduleB: PreviewHostModuleDescriptor = {
+    key: "test-module-b",
+    install() {
+      installEvents.push("install-b");
+      return () => {
+        installEvents.push("uninstall-b");
+      };
+    },
+  };
+
+  const unregisterA = registerPreviewHostModule(moduleA);
+  const unregisterB = registerPreviewHostModule(moduleB);
+
+  try {
+    assert.deepEqual(
+      listPreviewHostModules().map((descriptor) => descriptor.key),
+      ["test-module-a", "test-module-b"],
+    );
+    const uninstall = installRegisteredPreviewHostModules({
+      framePreviewDocumentDeps: { framesDir: "/virtual/frames" },
+      framePreviewRenderDeps: {
+        framesDir: "/virtual/frames",
+        iconLoader: () => null,
+        textAdapterPromise: Promise.resolve(new MockTextAdapter()),
+      },
+      forcePreviewDocumentDeps: { forceDefinitionsDir: "/virtual/force" },
+      parseYaml: () => ({}),
+      templateHtml: "%MODE%",
+      baselineStylesHtml: "",
+      previewAssetUrl: (filename: string) => `/preview/${filename}`,
+      listAutolayoutDiagrams: () => [],
+      listForceExamples: () => [],
+      findReferenceImage: () => null,
+      normalizeLayoutEngine: () => "v3",
+    });
+    assert.deepEqual(installEvents, ["install-a", "install-b"]);
+    uninstall();
+    assert.deepEqual(installEvents, ["install-a", "install-b", "uninstall-b", "uninstall-a"]);
+  } finally {
+    unregisterB();
+    unregisterA();
+  }
+
+  assert.deepEqual(listPreviewHostModules().map((descriptor) => descriptor.key), []);
+});
+
+test("preview host module registry rejects duplicate keys", () => {
+  const unregister = registerPreviewHostModule({
+    key: "test-module-duplicate",
+    install() {},
+  });
+  try {
+    assert.throws(
+      () =>
+        registerPreviewHostModule({
+          key: "test-module-duplicate",
+          install() {},
+        }),
+      /already registered/,
+    );
+  } finally {
+    unregister();
+  }
+});
+
 test("preview host api routes resolve through a typed registry", () => {
   const routes: readonly PreviewHostApiRouteDescriptor[] = [
     {
@@ -292,6 +375,39 @@ test("preview host api route registry rejects duplicate keys", () => {
   } finally {
     unregister();
   }
+});
+
+test("builtin preview host installs through registered host modules", () => {
+  const unregister = installBuiltinPreviewHost({
+    framePreviewDocumentDeps: { framesDir: "/virtual/frames" },
+    framePreviewRenderDeps: {
+      framesDir: "/virtual/frames",
+      iconLoader: () => null,
+      textAdapterPromise: Promise.resolve(new MockTextAdapter()),
+    },
+    forcePreviewDocumentDeps: { forceDefinitionsDir: "/virtual/force" },
+    parseYaml: () => ({}),
+    templateHtml: "%MODE%",
+    baselineStylesHtml: "",
+    previewAssetUrl: (filename: string) => `/preview/${filename}`,
+    listAutolayoutDiagrams: () => ["support-engineering-flow"],
+    listForceExamples: () => ["force-stakeholders"],
+    findReferenceImage: () => null,
+    normalizeLayoutEngine: () => "v3",
+  });
+
+  try {
+    expectRegisteredRoutes(["autolayout", "force"]);
+    assert.deepEqual(
+      listPreviewHostApiRoutes().map((route) => route.key).sort(),
+      ["component-tree", "force-save", "force-spec", "frame-overrides", "frame-tree", "grid-info", "preview-document", "svg-export"],
+    );
+  } finally {
+    unregister();
+  }
+
+  expectRegisteredRoutes([]);
+  assert.deepEqual(listPreviewHostApiRoutes().map((route) => route.key), []);
 });
 
 test("builtin preview host api routes install through a host-owned installer", async () => {

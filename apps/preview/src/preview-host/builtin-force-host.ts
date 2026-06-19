@@ -7,6 +7,7 @@ import {
   createForcePreviewHostViewerRoute,
   type BuiltinPreviewHostViewerRouteDeps,
 } from "./builtin-viewer-routes.js";
+import type { PreviewHostModuleDescriptor } from "./modules.js";
 import { registerPreviewHostViewerRoute } from "./registry.js";
 
 export interface BuiltinForcePreviewHostModuleDeps
@@ -30,3 +31,8 @@ export function installBuiltinForcePreviewHostModule(
     unregisterViewerRoute();
   };
 }
+
+export const BUILTIN_FORCE_PREVIEW_HOST_MODULE: PreviewHostModuleDescriptor = {
+  key: "builtin-force",
+  install: installBuiltinForcePreviewHostModule,
+};
