@@ -8,13 +8,7 @@ import { fileURLToPath } from "node:url";
 import {
   createFsIconLoader,
   createHarfBuzzTextAdapter,
-  evaluatePreviewEngineCompatibility,
-  getPreviewEngineByLayoutKey,
-  listCompatiblePreviewEngines,
-  resolvePreviewEngine,
   serializePreviewEngineManifest,
-  summarizeFrameDiagramCompatibility,
-  type PreviewEngineContext,
   type PreviewEngineManifest,
 } from "@diagram-generator/layout-engine";
 import {
@@ -129,15 +123,6 @@ const MIME_TYPES: Record<string, string> = {
 };
 
 const iconLoader = createFsIconLoader(ICONS_DIR);
-const previewEngines = serializePreviewEngineManifest();
-const hostableGridLayoutKeys = new Set(
-  previewEngines
-    .filter(
-      (entry: PreviewEngineManifest): entry is PreviewEngineManifest & { layoutEngineKey: string } =>
-        entry.shellMode === "grid" && typeof entry.layoutEngineKey === "string",
-    )
-    .map((entry) => entry.layoutEngineKey),
-);
 const textAdapterPromise = createHarfBuzzTextAdapter({
   fontData: readFileSync(path.join(REPO_ROOT, "assets", "UbuntuSans[wdth,wght].ttf")).buffer,
 });
@@ -329,6 +314,14 @@ function normalizeFrameSlug(slug: string): string | null {
 function normalizeLayoutEngine(layoutEngine: string | undefined): string {
   const key = layoutEngine?.trim() ?? "";
   if (!key) return "";
+  const hostableGridLayoutKeys = new Set(
+    serializePreviewEngineManifest()
+      .filter(
+        (entry: PreviewEngineManifest): entry is PreviewEngineManifest & { layoutEngineKey: string } =>
+          entry.shellMode === "grid" && typeof entry.layoutEngineKey === "string",
+      )
+      .map((entry) => entry.layoutEngineKey),
+  );
   return hostableGridLayoutKeys.size === 0 || hostableGridLayoutKeys.has(key) ? key : "";
 }
 
@@ -566,7 +559,7 @@ function handleRuntimeIdentity(res: ServerResponse, port: number): void {
 }
 
 function handlePreviewEngines(res: ServerResponse): void {
-  sendJson(res, 200, previewEngines);
+  sendJson(res, 200, serializePreviewEngineManifest());
 }
 
 async function handleRequest(req: IncomingMessage, res: ServerResponse, port: number): Promise<void> {

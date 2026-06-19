@@ -25,6 +25,17 @@ export function listPreviewHostApiRoutes(): PreviewHostApiRouteDescriptor[] {
   return previewHostApiRoutes.map((entry) => entry);
 }
 
+export function installPreviewHostApiRoutes(
+  routes: readonly PreviewHostApiRouteDescriptor[],
+): () => void {
+  const unregisterRoutes = routes.map((route) => registerPreviewHostApiRoute(route));
+  return () => {
+    for (let index = unregisterRoutes.length - 1; index >= 0; index -= 1) {
+      unregisterRoutes[index]?.();
+    }
+  };
+}
+
 export function resolvePreviewHostApiRoute(
   method: PreviewHostApiMethod,
   pathname: string,
