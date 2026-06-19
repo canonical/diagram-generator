@@ -1,7 +1,13 @@
+import './install-builtins.js';
+
 export type {
   CompatibilityResult,
   FrameDiagramCompatibilitySummary,
   PreviewControlKind,
+  PreviewEngineHostView,
+  PreviewPersistNamespace,
+  PreviewRenderFamily,
+  PreviewViewerSidebarSection,
 
   PreviewControlSpec,
   PreviewDocumentKind,
@@ -15,18 +21,32 @@ export type {
 
 export { elkLayeredPreviewControlSpecs, elkParamToPreviewControl } from './elk-controls.js';
 export {
+  BUILTIN_PREVIEW_ENGINES,
+  ELK_LAYERED_PREVIEW_ENGINE,
+  FORCE_PREVIEW_ENGINE,
+  SEQUENCE_PREVIEW_ENGINE,
+  V3_PREVIEW_ENGINE,
+} from './builtins.js';
+export {
+  getPreviewFrameDiagramRenderAdapter,
+  layoutPreviewFrameDiagramForEngine,
+  registerPreviewFrameDiagramRenderAdapter,
+  resolvePreviewRenderFamily,
+  type PreviewFrameDiagramRenderAdapter,
+  type LayoutPreviewFrameDiagramForEngineOptions,
+  type PreviewFrameLayoutResult,
+} from './render.js';
+export {
   renderPreviewElkDebugOverlay,
   renderPreviewElkRawView,
   type RenderPreviewElkOverlayOptions,
   type RenderPreviewElkRawViewOptions,
 } from './elk-debug-view.js';
 export { FORCE_PREVIEW_PARAM_SPECS } from './force-param-registry.js';
+export { installBuiltinPreviewEngineRuntime } from './install-builtins.js';
 export {
-  V3_PREVIEW_ENGINE,
-  ELK_LAYERED_PREVIEW_ENGINE,
-  FORCE_PREVIEW_ENGINE,
-  SEQUENCE_PREVIEW_ENGINE,
   PREVIEW_ENGINE_REGISTRY,
+  registerPreviewEngine,
   evaluatePreviewEngineCompatibility,
   summarizeFrameDiagramCompatibility,
   getPreviewEngine,

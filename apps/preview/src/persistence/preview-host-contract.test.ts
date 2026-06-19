@@ -1,8 +1,37 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import os from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { AUTOLAYOUT_HOST_LANE, FORCE_HOST_LANE, buildPreviewBrowseSections } from "../preview-host/lanes.js";
 import { buildIndexPageHtml, buildViewerPageHtml } from "../preview-host/pages.js";
+import { installBuiltinPreviewHostViewerRoutes } from "../preview-host/builtin-viewer-routes.js";
+import {
+  listPreviewHostApiRoutes,
+  registerPreviewHostApiRoute,
+  resolveRegisteredPreviewHostApiRoute,
+  resolvePreviewHostApiRoute,
+} from "../preview-host/api-routes.js";
+import { installBuiltinPreviewHostApiRoutes } from "../preview-host/builtin-api-routes.js";
+import {
+  buildRegisteredPreviewBrowseSections,
+  listPreviewHostViewerRoutes,
+  registerPreviewHostViewerRoute,
+  resolveRegisteredPreviewViewerRoute,
+} from "../preview-host/registry.js";
+import { buildPreviewBrowseSectionsFromViewerRoutes, resolvePreviewViewerRoute } from "../preview-host/viewers.js";
+import type {
+  PreviewHostApiRouteDescriptor,
+  PreviewHostViewerRouteDescriptor,
+} from "../preview-host/types.js";
+
+const require = createRequire(import.meta.url);
+const { parse: parseYaml } = require("yaml") as { parse: (raw: string) => unknown };
+const PREVIEW_APP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+const REPO_ROOT = path.resolve(PREVIEW_APP_ROOT, "..", "..");
 
 test("preview host lane descriptors build typed browse sections", () => {
   const sections = buildPreviewBrowseSections([
@@ -22,6 +51,356 @@ test("preview host lane descriptors build typed browse sections", () => {
       links: [{ href: "/force/view/force-stakeholders", label: "force-stakeholders" }],
     },
   ]);
+});
+
+test("preview viewer routes resolve aliases and build browse sections without server-local branching", () => {
+  const routes: readonly PreviewHostViewerRouteDescriptor[] = [
+    {
+      key: "autolayout",
+      lane: AUTOLAYOUT_HOST_LANE,
+      routePrefixes: ["/v3/view/", "/view/"],
+      listSlugs: () => ["support-engineering-flow"],
+      hasDocument: () => true,
+      buildHtml: () => "<html></html>",
+      describeMissing: (slug: string) => `Unknown diagram: ${slug}`,
+    },
+    {
+      key: "force",
+      lane: FORCE_HOST_LANE,
+      routePrefixes: ["/force/view/"],
+      listSlugs: () => ["force-stakeholders"],
+      hasDocument: () => true,
+      buildHtml: () => "<html></html>",
+      describeMissing: (slug: string) => `Unknown force example: ${slug}`,
+    },
+  ];
+
+  assert.deepEqual(buildPreviewBrowseSectionsFromViewerRoutes(routes), [
+    {
+      key: "autolayout",
+      label: "Autolayout",
+      links: [{ href: "/view/v3:support-engineering-flow", label: "support-engineering-flow" }],
+    },
+    {
+      key: "force",
+      label: "Force demos",
+      links: [{ href: "/force/view/force-stakeholders", label: "force-stakeholders" }],
+    },
+  ]);
+
+  assert.deepEqual(resolvePreviewViewerRoute("/view/v3:support-engineering-flow", routes, normalizePreviewSlug), {
+    route: routes[0],
+    slug: "support-engineering-flow",
+  });
+  assert.deepEqual(resolvePreviewViewerRoute("/v3/view/support-engineering-flow", routes, normalizePreviewSlug), {
+    route: routes[0],
+    slug: "support-engineering-flow",
+  });
+  assert.deepEqual(resolvePreviewViewerRoute("/force/view/force-stakeholders", routes, normalizePreviewSlug), {
+    route: routes[1],
+    slug: "force-stakeholders",
+  });
+  assert.equal(resolvePreviewViewerRoute("/api/grid/support-engineering-flow", routes, normalizePreviewSlug), null);
+});
+
+test("preview host viewer routes register through a typed registry", () => {
+  const unregisterAutolayout = registerPreviewHostViewerRoute({
+    key: "test-autolayout",
+    lane: AUTOLAYOUT_HOST_LANE,
+    routePrefixes: ["/test/view/"],
+    listSlugs: () => ["support-engineering-flow"],
+    hasDocument: () => true,
+    buildHtml: () => "<html>grid</html>",
+    describeMissing: (slug: string) => `Unknown diagram: ${slug}`,
+  });
+  const unregisterForce = registerPreviewHostViewerRoute({
+    key: "test-force",
+    lane: FORCE_HOST_LANE,
+    routePrefixes: ["/test-force/view/"],
+    listSlugs: () => ["force-stakeholders"],
+    hasDocument: () => true,
+    buildHtml: () => "<html>force</html>",
+    describeMissing: (slug: string) => `Unknown force example: ${slug}`,
+  });
+
+  try {
+    expectRegisteredRoutes(["test-autolayout", "test-force"]);
+    assert.deepEqual(buildRegisteredPreviewBrowseSections(), [
+      {
+        key: "autolayout",
+        label: "Autolayout",
+        links: [{ href: "/view/v3:support-engineering-flow", label: "support-engineering-flow" }],
+      },
+      {
+        key: "force",
+        label: "Force demos",
+        links: [{ href: "/force/view/force-stakeholders", label: "force-stakeholders" }],
+      },
+    ]);
+    assert.deepEqual(
+      resolveRegisteredPreviewViewerRoute("/test/view/support-engineering-flow", normalizePreviewSlug),
+      {
+        route: listPreviewHostViewerRoutes().find((route) => route.key === "test-autolayout"),
+        slug: "support-engineering-flow",
+      },
+    );
+  } finally {
+    unregisterForce();
+    unregisterAutolayout();
+  }
+
+  expectRegisteredRoutes([]);
+});
+
+test("builtin preview host viewer routes install through a host-owned installer", () => {
+  const unregister = installBuiltinPreviewHostViewerRoutes({
+    framePreviewDocumentDeps: { framesDir: "/virtual/frames" },
+    forcePreviewDocumentDeps: { forceDefinitionsDir: "/virtual/force" },
+    parseYaml: () => ({}),
+    templateHtml: "%MODE%",
+    baselineStylesHtml: "",
+    previewAssetUrl: (filename: string) => `/preview/${filename}`,
+    listAutolayoutDiagrams: () => ["support-engineering-flow"],
+    listForceExamples: () => ["force-stakeholders"],
+    findReferenceImage: () => null,
+    normalizeLayoutEngine: () => "v3",
+  });
+
+  try {
+    expectRegisteredRoutes(["autolayout", "force"]);
+    assert.deepEqual(buildRegisteredPreviewBrowseSections(), [
+      {
+        key: "force",
+        label: "Force demos",
+        links: [{ href: "/force/view/force-stakeholders", label: "force-stakeholders" }],
+      },
+      {
+        key: "autolayout",
+        label: "Autolayout",
+        links: [{ href: "/view/v3:support-engineering-flow", label: "support-engineering-flow" }],
+      },
+    ]);
+  } finally {
+    unregister();
+  }
+
+  expectRegisteredRoutes([]);
+});
+
+test("preview host viewer route registry rejects duplicate keys", () => {
+  const unregister = registerPreviewHostViewerRoute({
+    key: "test-duplicate",
+    lane: AUTOLAYOUT_HOST_LANE,
+    routePrefixes: ["/test-dupe/view/"],
+    listSlugs: () => [],
+    hasDocument: () => false,
+    buildHtml: () => "<html></html>",
+    describeMissing: (slug: string) => `Unknown diagram: ${slug}`,
+  });
+  try {
+    assert.throws(
+      () =>
+        registerPreviewHostViewerRoute({
+          key: "test-duplicate",
+          lane: FORCE_HOST_LANE,
+          routePrefixes: ["/elsewhere/"],
+          listSlugs: () => [],
+          hasDocument: () => false,
+          buildHtml: () => "<html></html>",
+          describeMissing: (slug: string) => `Unknown force example: ${slug}`,
+        }),
+      /already registered/,
+    );
+  } finally {
+    unregister();
+  }
+});
+
+test("preview host api routes resolve through a typed registry", () => {
+  const routes: readonly PreviewHostApiRouteDescriptor[] = [
+    {
+      key: "force-spec",
+      method: "GET",
+      routePrefixes: ["/api/force-spec/"],
+      handle() {},
+    },
+    {
+      key: "force-save",
+      method: "POST",
+      routePrefixes: ["/api/force-save/"],
+      handle() {},
+    },
+  ];
+
+  assert.deepEqual(
+    resolvePreviewHostApiRoute("GET", "/api/force-spec/force-stakeholders", routes, normalizePreviewSlug),
+    {
+      route: routes[0],
+      pathname: "/api/force-spec/force-stakeholders",
+      slug: "force-stakeholders",
+    },
+  );
+  assert.deepEqual(
+    resolvePreviewHostApiRoute("POST", "/api/force-save/force-stakeholders", routes, normalizePreviewSlug),
+    {
+      route: routes[1],
+      pathname: "/api/force-save/force-stakeholders",
+      slug: "force-stakeholders",
+    },
+  );
+  assert.equal(
+    resolvePreviewHostApiRoute("GET", "/api/force-save/force-stakeholders", routes, normalizePreviewSlug),
+    null,
+  );
+});
+
+test("preview host api route registry rejects duplicate keys", () => {
+  const unregister = registerPreviewHostApiRoute({
+    key: "test-duplicate-api",
+    method: "GET",
+    routePrefixes: ["/api/test/"],
+    handle() {},
+  });
+  try {
+    assert.throws(
+      () =>
+        registerPreviewHostApiRoute({
+          key: "test-duplicate-api",
+          method: "POST",
+          routePrefixes: ["/api/test-post/"],
+          handle() {},
+        }),
+      /already registered/,
+    );
+  } finally {
+    unregister();
+  }
+});
+
+test("builtin preview host api routes install through a host-owned installer", async () => {
+  const tempDir = mkdtempSync(path.join(os.tmpdir(), "dg-preview-host-api-"));
+  const forceDefinitionsDir = path.join(tempDir, "force");
+  const forceSpecPath = path.join(forceDefinitionsDir, "force-stakeholders.yaml");
+  const framesDir = path.join(tempDir, "frames");
+  const sourceFramePath = path.join(REPO_ROOT, "scripts", "diagrams", "frames", "support-engineering-flow.yaml");
+  const tempFramePath = path.join(framesDir, "support-engineering-flow.yaml");
+  mkdirSync(framesDir, { recursive: true });
+  mkdirSync(forceDefinitionsDir, { recursive: true });
+  copyFileSync(sourceFramePath, tempFramePath);
+  writeFileSync(forceSpecPath, "nodes:\n  - id: alpha\nlinks: []\n", "utf8");
+
+  const unregister = installBuiltinPreviewHostApiRoutes({
+    framePreviewDocumentDeps: { framesDir },
+    forcePreviewDocumentDeps: { forceDefinitionsDir },
+    parseYaml,
+    normalizeLayoutEngine: (layoutEngine: string | undefined) => layoutEngine ?? "",
+  });
+
+  try {
+    assert.deepEqual(
+      listPreviewHostApiRoutes().map((route) => route.key).sort(),
+      ["component-tree", "force-save", "force-spec", "frame-overrides", "frame-tree", "grid-info", "preview-document"],
+    );
+
+    const previewDocumentMatch = resolveRegisteredPreviewHostApiRoute(
+      "GET",
+      "/api/preview-document/support-engineering-flow",
+      normalizePreviewSlug,
+    );
+    assert.ok(previewDocumentMatch);
+    let previewDocumentPayload: unknown = null;
+    await previewDocumentMatch.route.handle(previewDocumentMatch, {
+      req: {} as never,
+      res: {} as never,
+      pathname: previewDocumentMatch.pathname,
+      sendJson: (_statusCode, payload) => {
+        previewDocumentPayload = payload;
+      },
+      sendText: () => {
+        throw new Error("did not expect preview document route to send plain text");
+      },
+      readJsonBody: async () => ({}),
+    });
+    assert.ok(previewDocumentPayload && typeof previewDocumentPayload === "object");
+    assert.equal((previewDocumentPayload as Record<string, unknown>).kind, "frame-diagram");
+    assert.equal((previewDocumentPayload as Record<string, unknown>).slug, "support-engineering-flow");
+
+    const frameOverridesMatch = resolveRegisteredPreviewHostApiRoute(
+      "POST",
+      "/api/overrides/support-engineering-flow",
+      normalizePreviewSlug,
+    );
+    assert.ok(frameOverridesMatch);
+    let frameOverridesPayload: unknown = null;
+    const baselineFrameText = readFileSync(tempFramePath, "utf8");
+    await frameOverridesMatch.route.handle(frameOverridesMatch, {
+      req: {} as never,
+      res: {} as never,
+      pathname: frameOverridesMatch.pathname,
+      sendJson: (_statusCode, payload) => {
+        frameOverridesPayload = payload;
+      },
+      sendText: () => {
+        throw new Error("did not expect frame override route to send plain text");
+      },
+      readJsonBody: async () => ({}),
+    });
+    assert.equal(readFileSync(tempFramePath, "utf8"), baselineFrameText);
+    assert.ok(frameOverridesPayload && typeof frameOverridesPayload === "object");
+    assert.equal((frameOverridesPayload as Record<string, unknown>).ok, true);
+
+    const specMatch = resolveRegisteredPreviewHostApiRoute(
+      "GET",
+      "/api/force-spec/force-stakeholders",
+      normalizePreviewSlug,
+    );
+    assert.ok(specMatch);
+    let specPayload: unknown = null;
+    await specMatch.route.handle(specMatch, {
+      req: {} as never,
+      res: {} as never,
+      pathname: specMatch.pathname,
+      sendJson: (_statusCode, payload) => {
+        specPayload = payload;
+      },
+      sendText: () => {
+        throw new Error("did not expect force spec route to send plain text");
+      },
+      readJsonBody: async () => ({}),
+    });
+    assert.deepEqual(specPayload, { nodes: [{ id: "alpha" }], links: [] });
+
+    const saveMatch = resolveRegisteredPreviewHostApiRoute(
+      "POST",
+      "/api/force-save/force-stakeholders",
+      normalizePreviewSlug,
+    );
+    assert.ok(saveMatch);
+    let savePayload: unknown = null;
+    await saveMatch.route.handle(saveMatch, {
+      req: {} as never,
+      res: {} as never,
+      pathname: saveMatch.pathname,
+      sendJson: (_statusCode, payload) => {
+        savePayload = payload;
+      },
+      sendText: () => {
+        throw new Error("did not expect force save route to send plain text");
+      },
+      readJsonBody: async () => ({ nodes: [{ id: "beta" }], links: [] }),
+    });
+    assert.deepEqual(readFileSync(forceSpecPath, "utf8"), "nodes:\n  - id: beta\nlinks: []\n");
+    assert.deepEqual(savePayload, {
+      ok: true,
+      canonicalState: {
+        slug: "force-stakeholders",
+        authoredSpec: { nodes: [{ id: "beta" }], links: [] },
+      },
+    });
+  } finally {
+    unregister();
+    rmSync(tempDir, { recursive: true, force: true });
+  }
 });
 
 test("preview viewer page HTML is assembled from typed host sections", () => {
@@ -48,7 +427,7 @@ test("preview viewer page HTML is assembled from typed host sections", () => {
     inspectorEmptyText: "Click a component to inspect it.",
     modeScriptsHtml: '<script src="/preview/editor.js"></script>',
     configScript: "window.__DG_CONFIG = {};",
-    includeElkSection: true,
+    visibleSidebarSections: ["elk-layout"],
     baselineStylesHtml: '<link rel="stylesheet" href="/preview/bf-os.css">',
   });
 
@@ -76,3 +455,15 @@ test("preview index page HTML renders browse sections without server-local strin
   assert.match(html, /href="\/view\/v3:alpha"/);
   assert.match(html, /href="\/force\/view\/beta"/);
 });
+
+function normalizePreviewSlug(value: string): string | null {
+  const normalized = decodeURIComponent(value).replace(/^v3:/, "");
+  return /^[A-Za-z0-9._:-]+$/.test(normalized) ? normalized : null;
+}
+
+function expectRegisteredRoutes(keys: string[]): void {
+  assert.deepEqual(
+    listPreviewHostViewerRoutes().map((route) => route.key).sort(),
+    [...keys].sort(),
+  );
+}

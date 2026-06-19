@@ -295,17 +295,22 @@ export type {
 } from './operator-autolayout/facade.js';
 
 export {
+  getPreviewFrameDiagramRenderAdapter,
   V3_PREVIEW_ENGINE,
   ELK_LAYERED_PREVIEW_ENGINE,
   FORCE_PREVIEW_ENGINE,
   FORCE_PREVIEW_PARAM_SPECS,
   PREVIEW_ENGINE_REGISTRY,
+  registerPreviewEngine,
   elkLayeredPreviewControlSpecs,
   evaluatePreviewEngineCompatibility,
   getPreviewEngine,
   getPreviewEngineByLayoutKey,
+  layoutPreviewFrameDiagramForEngine,
   listCompatiblePreviewEngines,
   listPreviewEngines,
+  registerPreviewFrameDiagramRenderAdapter,
+  resolvePreviewRenderFamily,
   resolvePreviewEngine,
   serializePreviewEngineManifest,
   summarizeFrameDiagramCompatibility,
@@ -319,6 +324,10 @@ export type {
   PreviewEngineApiRoutes,
   PreviewEngineCapabilities,
   PreviewEngineContext,
+  PreviewEngineHostView,
   PreviewEngineManifest,
+  PreviewPersistNamespace,
+  PreviewRenderFamily,
+  PreviewViewerSidebarSection,
   PreviewShellMode,
 } from './preview-engine/index.js';

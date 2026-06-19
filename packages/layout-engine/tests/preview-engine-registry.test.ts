@@ -17,6 +17,7 @@ import {
   listHostableLayoutEngineKeys,
   listPreviewEngines,
   listPreviewEnginesWithCompatibility,
+  registerPreviewEngine,
   resolvePreviewEngine,
   serializePreviewEngineManifest,
   summarizeFrameDiagramCompatibility,
@@ -43,6 +44,10 @@ describe('preview-engine registry', () => {
     expect(elk?.controlSpecs.some((spec) => spec.key === 'elk.padding')).toBe(false);
     expect(elk?.controlSpecs.every((spec) => spec.persistNamespace === 'meta.elk')).toBe(true);
     expect(elk?.scripts).toEqual(['elk-layout-controls.js', 'elk-controller.js']);
+    expect(elk?.compatibility.frameDiagramRequirements).toEqual({
+      minArrowCount: 1,
+      rejectUnsupportedCarrierIds: true,
+    });
   });
 
   it('exposes force simulation/render control specs', () => {
@@ -86,7 +91,65 @@ describe('preview-engine registry', () => {
     expect(listPreviewEngines()).toEqual(serialized);
   });
 
+  it('supports typed engine registration without editing a central array', () => {
+    const unregister = registerPreviewEngine({
+      id: 'test-stack',
+      label: 'Test stack layout',
+      layoutEngineKey: 'test-stack',
+      shellMode: 'grid',
+      renderFamily: 'frame-native',
+      hostView: {
+        sidebarSections: ['test-stack'],
+      },
+      capabilities: {
+        layoutControls: false,
+        localRelayout: true,
+        serverRelayout: false,
+        engineBackedSave: false,
+        nodeInspector: true,
+        gridEditing: false,
+        referenceImage: true,
+        simulationControls: false,
+        rawDebugView: false,
+      },
+      controlSpecs: [],
+      scripts: ['test-stack.js'],
+      compatibility: {
+        documentKinds: ['frame-diagram'],
+        requiredLayoutEngineKey: 'test-stack',
+        description: 'Synthetic engine used to verify registration seams',
+      },
+    });
+
+    try {
+      expect(getPreviewEngine('test-stack')?.layoutEngineKey).toBe('test-stack');
+      expect(listHostableLayoutEngineKeys()).toContain('test-stack');
+      expect(listPreviewEngines().map((entry) => entry.id)).toContain('test-stack');
+    } finally {
+      unregister();
+    }
+
+    expect(getPreviewEngine('test-stack')).toBeUndefined();
+    expect(listHostableLayoutEngineKeys()).not.toContain('test-stack');
+  });
+
+  it('rejects duplicate preview-engine registration ids', () => {
+    expect(() =>
+      registerPreviewEngine({
+        ...V3_PREVIEW_ENGINE,
+      }),
+    ).toThrow(/already registered/);
+  });
+
   it('declares expected shell capabilities per engine lane', () => {
+    expect(V3_PREVIEW_ENGINE.renderFamily).toBe('frame-native');
+    expect(ELK_LAYERED_PREVIEW_ENGINE.renderFamily).toBe('frame-elk');
+    expect(FORCE_PREVIEW_ENGINE.renderFamily).toBe('force');
+    expect(SEQUENCE_PREVIEW_ENGINE.renderFamily).toBe('sequence');
+    expect(V3_PREVIEW_ENGINE.hostView?.sidebarSections ?? []).toEqual([]);
+    expect(ELK_LAYERED_PREVIEW_ENGINE.hostView?.sidebarSections ?? []).toEqual(['elk-layout']);
+    expect(FORCE_PREVIEW_ENGINE.hostView?.sidebarSections ?? []).toEqual([]);
+    expect(SEQUENCE_PREVIEW_ENGINE.hostView?.sidebarSections ?? []).toEqual([]);
     expect(V3_PREVIEW_ENGINE.capabilities.localRelayout).toBe(true);
     expect(V3_PREVIEW_ENGINE.capabilities.gridEditing).toBe(true);
     expect(ELK_LAYERED_PREVIEW_ENGINE.capabilities.serverRelayout).toBe(true);

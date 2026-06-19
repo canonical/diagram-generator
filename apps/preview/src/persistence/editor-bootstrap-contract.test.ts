@@ -369,7 +369,7 @@ test("editor svg loader accepts the namespaced previewShell.bootstrap contract",
   const context = {
     console,
     SLUG: "demo",
-    ENGINE: "v3",
+    ACTIVE_ENGINE: "v3",
     GRID: true,
     gridInfo: { cols: 8 },
     selectedIds: new Set(["stale"]),

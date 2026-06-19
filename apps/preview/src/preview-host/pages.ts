@@ -1,4 +1,9 @@
-import type { PreviewHostBrowseSection, PreviewIndexPageOptions, PreviewViewerPageOptions } from "./types.js";
+import type {
+  PreviewHostBrowseSection,
+  PreviewIndexPageOptions,
+  PreviewViewerPageOptions,
+  PreviewViewerSidebarSection,
+} from "./types.js";
 
 function htmlEscape(value: string): string {
   return value
@@ -58,10 +63,20 @@ function buildIndexSection(section: PreviewHostBrowseSection): string {
   return `<section class="dg-browse-group"><h2 class="dg-browse-heading">${htmlEscape(section.label)}</h2>${content}</section>`;
 }
 
-function applyUnifiedElkPlaceholders(html: string, includeElkSection: boolean): string {
-  return html
-    .replace("%ELK_SECTION_HIDDEN%", includeElkSection ? "" : "hidden")
-    .replace("%ELK_LAYOUT_CONTROLS_HTML%", "");
+const VIEWER_SECTION_PLACEHOLDERS: Readonly<Record<string, PreviewViewerSidebarSection>> = Object.freeze({
+  "%ELK_SECTION_HIDDEN%": "elk-layout",
+});
+
+function applyViewerSectionPlaceholders(
+  html: string,
+  visibleSections: readonly PreviewViewerSidebarSection[],
+): string {
+  const enabled = new Set(visibleSections);
+  let nextHtml = html;
+  for (const [placeholder, section] of Object.entries(VIEWER_SECTION_PLACEHOLDERS)) {
+    nextHtml = nextHtml.replace(placeholder, enabled.has(section) ? "" : "hidden");
+  }
+  return nextHtml.replace("%ELK_LAYOUT_CONTROLS_HTML%", "");
 }
 
 function stripUnresolvedPlaceholders(html: string): string {
@@ -78,11 +93,11 @@ export function buildViewerPageHtml(options: PreviewViewerPageOptions): string {
     inspectorEmptyText,
     modeScriptsHtml,
     configScript,
-    includeElkSection,
+    visibleSidebarSections,
     baselineStylesHtml,
   } = options;
   return stripUnresolvedPlaceholders(
-    applyUnifiedElkPlaceholders(templateHtml, includeElkSection)
+    applyViewerSectionPlaceholders(templateHtml, visibleSidebarSections)
       .replace("%TITLE%", title)
       .replace("%BF_STYLES%", baselineStylesHtml)
       .replace("%MODE%", mode)

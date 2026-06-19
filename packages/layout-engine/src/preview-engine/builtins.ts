@@ -1,0 +1,131 @@
+import { elkLayeredPreviewControlSpecs } from './elk-controls.js';
+import { FORCE_PREVIEW_PARAM_SPECS } from './force-param-registry.js';
+import type { PreviewEngineManifest } from './types.js';
+
+export const V3_PREVIEW_ENGINE: PreviewEngineManifest = {
+  id: 'v3',
+  label: 'Native v3 autolayout',
+  layoutEngineKey: 'v3',
+  shellMode: 'grid',
+  renderFamily: 'frame-native',
+  hostView: {
+    sidebarSections: [],
+  },
+  capabilities: {
+    layoutControls: false,
+    localRelayout: true,
+    serverRelayout: false,
+    engineBackedSave: false,
+    nodeInspector: true,
+    gridEditing: true,
+    referenceImage: true,
+    simulationControls: false,
+    rawDebugView: false,
+  },
+  controlSpecs: [],
+  scripts: [],
+  compatibility: {
+    documentKinds: ['frame-diagram'],
+    description: 'Canonical native v3 autolayout for authored frame diagrams',
+  },
+};
+
+export const ELK_LAYERED_PREVIEW_ENGINE: PreviewEngineManifest = {
+  id: 'elk-layered',
+  label: 'ELK layered layout',
+  layoutEngineKey: 'elk-layered',
+  shellMode: 'grid',
+  renderFamily: 'frame-elk',
+  hostView: {
+    sidebarSections: ['elk-layout'],
+  },
+  capabilities: {
+    layoutControls: true,
+    localRelayout: false,
+    serverRelayout: true,
+    engineBackedSave: true,
+    nodeInspector: true,
+    gridEditing: false,
+    referenceImage: true,
+    simulationControls: false,
+    rawDebugView: false,
+  },
+  controlSpecs: elkLayeredPreviewControlSpecs(),
+  scripts: ['elk-layout-controls.js', 'elk-controller.js'],
+  compatibility: {
+    documentKinds: ['frame-diagram'],
+    requiredLayoutEngineKey: 'elk-layered',
+    description: 'Hierarchical layered layout for directed graphs and flowcharts',
+    frameDiagramRequirements: {
+      minArrowCount: 1,
+      rejectUnsupportedCarrierIds: true,
+    },
+  },
+};
+
+export const FORCE_PREVIEW_ENGINE: PreviewEngineManifest = {
+  id: 'force',
+  label: 'Force-directed layout',
+  shellMode: 'force',
+  renderFamily: 'force',
+  hostView: {
+    sidebarSections: [],
+  },
+  capabilities: {
+    layoutControls: false,
+    localRelayout: true,
+    serverRelayout: false,
+    engineBackedSave: true,
+    nodeInspector: true,
+    gridEditing: false,
+    referenceImage: true,
+    simulationControls: true,
+    rawDebugView: false,
+  },
+  controlSpecs: FORCE_PREVIEW_PARAM_SPECS,
+  scripts: ['force.js'],
+  apiRoutes: {
+    save: '/api/force-save/{slug}',
+    spec: '/api/force-spec/{slug}',
+  },
+  compatibility: {
+    documentKinds: ['force-spec'],
+    description: 'Physics-based force-directed layout for organic graph structures',
+  },
+};
+
+export const SEQUENCE_PREVIEW_ENGINE: PreviewEngineManifest = {
+  id: 'sequence',
+  label: 'Sequence layout',
+  layoutEngineKey: 'sequence',
+  shellMode: 'grid',
+  renderFamily: 'sequence',
+  hostView: {
+    sidebarSections: [],
+  },
+  capabilities: {
+    layoutControls: false,
+    localRelayout: true,
+    serverRelayout: false,
+    engineBackedSave: false,
+    nodeInspector: false,
+    gridEditing: false,
+    referenceImage: true,
+    simulationControls: false,
+    rawDebugView: false,
+  },
+  controlSpecs: [],
+  scripts: [],
+  compatibility: {
+    documentKinds: ['sequence'],
+    requiredLayoutEngineKey: 'sequence',
+    description: 'Timeline-based layout for sequence diagrams and message flows',
+  },
+};
+
+export const BUILTIN_PREVIEW_ENGINES: readonly PreviewEngineManifest[] = [
+  V3_PREVIEW_ENGINE,
+  ELK_LAYERED_PREVIEW_ENGINE,
+  FORCE_PREVIEW_ENGINE,
+  SEQUENCE_PREVIEW_ENGINE,
+] as const;

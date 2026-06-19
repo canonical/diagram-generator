@@ -3,12 +3,15 @@ import { createRequire } from "node:module";
 import { EOL } from "node:os";
 
 import {
-  ELK_LAYERED_PARAM_SPECS,
   PERSIST_FRAME_KEYS,
   PERSIST_INT_FRAME_KEYS,
   PERSIST_LOWER_FRAME_KEYS,
   UNSUPPORTED_PERSIST_FRAME_KEYS,
 } from "@diagram-generator/layout-engine";
+import {
+  assertSupportedFrameYamlElkOverrides,
+  getFrameYamlEngineLayoutNamespace,
+} from "./frame-engine-layout-namespaces.js";
 
 const require = createRequire(import.meta.url);
 const yaml = require("yaml") as {
@@ -31,12 +34,18 @@ const IGNORED_GRID_KEYS = new Set(["link_to_root"]);
 const UNSUPPORTED_GRID_KEYS = new Set(["rows", "slack_absorption"]);
 const LOWER_KEYS = new Set<string>(PERSIST_LOWER_FRAME_KEYS);
 const INT_KEYS = new Set<string>(PERSIST_INT_FRAME_KEYS);
-const SUPPORTED_ELK_KEYS = new Set<string>(ELK_LAYERED_PARAM_SPECS.map((spec) => spec.key));
 
 export interface PersistOverridePayload {
   overrides?: Record<string, unknown>;
   removed_ids?: unknown[];
   grid_overrides?: Record<string, unknown>;
+  /**
+   * Namespaced engine-backed overrides keyed by preview-control persistNamespace.
+   * Frame YAML currently supports `meta.elk`; other namespaces must be handled
+   * by their owning host lane before this save path can persist them.
+   */
+  engine_layout_overrides?: Record<string, Record<string, unknown>>;
+  /** @deprecated Prefer `engine_layout_overrides["meta.elk"]`. */
   elk_layout_overrides?: Record<string, unknown>;
   /**
    * Canonical layout engine key to persist (spec 035).
@@ -408,12 +417,7 @@ function applyLayoutEngineChoice(document: Record<string, unknown>, layoutEngine
 }
 
 function assertSupportedElkKeys(elk: Record<string, unknown>, source: string): void {
-  const unsupported = Object.keys(elk)
-    .filter((key) => !SUPPORTED_ELK_KEYS.has(key))
-    .sort();
-  if (unsupported.length > 0) {
-    throw new Error(`${source} contains unsupported ELK keys: ${unsupported.join(", ")}`);
-  }
+  assertSupportedFrameYamlElkOverrides(elk, source);
 }
 
 function assertSupportedPersistedElkMeta(meta: Record<string, unknown>, source: string): void {
@@ -424,25 +428,59 @@ function assertSupportedPersistedElkMeta(meta: Record<string, unknown>, source: 
   }
 }
 
-function applyElkLayoutOverrides(document: Record<string, unknown>, elkOverrides: Record<string, unknown>): void {
-  if (Object.keys(elkOverrides).length === 0) return;
-  const meta = isRecord(document.meta) ? document.meta : {};
-  document.meta = meta;
-  const elk: Record<string, string> = isRecord(meta.elk)
-    ? Object.fromEntries(Object.entries(meta.elk).map(([key, value]) => [String(key), String(value)]))
-    : {};
-  for (const [key, value] of Object.entries(elkOverrides)) {
-    if (value == null || String(value) === "") {
-      delete elk[String(key)];
-    } else {
-      elk[String(key)] = String(value);
+function normalizeEngineLayoutOverrides(
+  payload: PersistOverridePayload,
+): Record<string, Record<string, unknown>> {
+  const normalized: Record<string, Record<string, unknown>> = {};
+  const namespacedOverrides = payload.engine_layout_overrides;
+  if ("engine_layout_overrides" in payload && namespacedOverrides != null && !isRecord(namespacedOverrides)) {
+    throw new Error("engine_layout_overrides must be an object");
+  }
+  if (isRecord(namespacedOverrides)) {
+    for (const [namespace, overrides] of Object.entries(namespacedOverrides)) {
+      if (!isRecord(overrides)) {
+        throw new Error(`engine_layout_overrides.${namespace} must be an object`);
+      }
+      if (Object.keys(overrides).length > 0) {
+        normalized[namespace] = { ...overrides };
+      }
     }
   }
-  assertSupportedElkKeys(elk, "elk_layout_overrides");
-  if (Object.keys(elk).length > 0) {
-    meta.elk = elk;
-  } else {
-    delete meta.elk;
+
+  const elkLayoutOverrides = payload.elk_layout_overrides;
+  if ("elk_layout_overrides" in payload && elkLayoutOverrides != null && !isRecord(elkLayoutOverrides)) {
+    throw new Error("elk_layout_overrides must be an object");
+  }
+  if (isRecord(elkLayoutOverrides) && Object.keys(elkLayoutOverrides).length > 0) {
+    normalized["meta.elk"] = {
+      ...(normalized["meta.elk"] || {}),
+      ...elkLayoutOverrides,
+    };
+  }
+
+  return normalized;
+}
+
+function applyEngineLayoutOverrides(
+  document: Record<string, unknown>,
+  engineLayoutOverrides: Record<string, Record<string, unknown>>,
+): void {
+  const unsupportedNamespaces = Object.keys(engineLayoutOverrides)
+    .filter((namespace) => !getFrameYamlEngineLayoutNamespace(namespace))
+    .sort();
+  if (unsupportedNamespaces.length > 0) {
+    throw new Error(
+      `engine_layout_overrides contains unsupported namespaces for frame YAML: ${unsupportedNamespaces.join(", ")}`,
+    );
+  }
+
+  for (const [namespace, overrides] of Object.entries(engineLayoutOverrides)) {
+    if (Object.keys(overrides).length === 0) continue;
+    const descriptor = getFrameYamlEngineLayoutNamespace(namespace);
+    if (!descriptor) {
+      throw new Error(`engine_layout_overrides contains unsupported namespace: ${namespace}`);
+    }
+    descriptor.applyOverrides(document, overrides);
   }
 }
 
@@ -480,10 +518,16 @@ export function persistFrameDiagramOverridePayloadToYaml(
   }
   const gridOverrides = payload.grid_overrides;
   const hasGridOverrides = isRecord(gridOverrides) && Object.keys(gridOverrides).length > 0;
-  const elkLayoutOverrides = payload.elk_layout_overrides;
-  const hasElkOverrides = isRecord(elkLayoutOverrides) && Object.keys(elkLayoutOverrides).length > 0;
+  const engineLayoutOverrides = normalizeEngineLayoutOverrides(payload);
+  const hasEngineLayoutOverrides = Object.keys(engineLayoutOverrides).length > 0;
   const hasLayoutEngine = "layout_engine" in payload;
-  if (Object.keys(overrides).length === 0 && !hasGridOverrides && removedIds.length === 0 && !hasElkOverrides && !hasLayoutEngine) {
+  if (
+    Object.keys(overrides).length === 0
+    && !hasGridOverrides
+    && removedIds.length === 0
+    && !hasEngineLayoutOverrides
+    && !hasLayoutEngine
+  ) {
     return baselineText;
   }
 
@@ -501,8 +545,8 @@ export function persistFrameDiagramOverridePayloadToYaml(
   if ("grid_overrides" in payload) {
     applyGridOverrides(document, gridOverrides ?? {});
   }
-  if (hasElkOverrides) {
-    applyElkLayoutOverrides(document, elkLayoutOverrides);
+  if (hasEngineLayoutOverrides) {
+    applyEngineLayoutOverrides(document, engineLayoutOverrides);
   }
   if ("layout_engine" in payload) {
     const layoutEngineValue = payload.layout_engine;

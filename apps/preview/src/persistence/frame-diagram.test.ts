@@ -9,6 +9,7 @@ import {
   verifyElkLayoutPersisted,
   type PersistOverridePayload,
 } from "./frame-diagram.js";
+import { registerFrameYamlEngineLayoutNamespace } from "./frame-engine-layout-namespaces.js";
 import {
   loadFrameYaml,
   resolvePreviewEngine,
@@ -97,6 +98,36 @@ test("persist elk layout overrides writes meta.elk", () => {
   });
 });
 
+test("persist engine_layout_overrides routes meta.elk through the namespaced save contract", () => {
+  const baselineText = [
+    "engine: v3",
+    "title: Demo",
+    "meta:",
+    "  layout_engine: elk-layered",
+    "root:",
+    "  id: page",
+    "  direction: vertical",
+    "  children:",
+    "    - id: leaf_a",
+    "      label: [A]",
+    "",
+  ].join("\n");
+  const output = persistToYaml("demo.yaml", baselineText, {
+    overrides: {},
+    engine_layout_overrides: {
+      "meta.elk": {
+        "elk.layered.spacing.nodeNodeBetweenLayers": "144",
+        "elk.spacing.edgeNode": "56",
+      },
+    },
+  });
+
+  verifyElkLayoutPersisted(output, {
+    "elk.layered.spacing.nodeNodeBetweenLayers": "144",
+    "elk.spacing.edgeNode": "56",
+  });
+});
+
 test("persist elk layout overrides replaces meta.elk entries canonically", () => {
   const baselineText = [
     "engine: v3",
@@ -176,6 +207,70 @@ test("persist elk layout overrides rejects unsupported implementation-owned ELK 
     }),
     /elk_layout_overrides contains unsupported ELK keys: elk\.edgeRouting, elk\.padding/,
   );
+});
+
+test("persist engine_layout_overrides rejects unsupported namespaces for frame yaml", () => {
+  const baselineText = [
+    "engine: v3",
+    "title: Demo",
+    "root:",
+    "  id: page",
+    "  direction: vertical",
+    "  children:",
+    "    - id: leaf_a",
+    "      label: [A]",
+    "",
+  ].join("\n");
+
+  assert.throws(
+    () => persistToYaml("demo.yaml", baselineText, {
+      overrides: {},
+      engine_layout_overrides: {
+        simulation: {
+          alpha: "0.8",
+        },
+      },
+    }),
+    /engine_layout_overrides contains unsupported namespaces for frame YAML: simulation/,
+  );
+});
+
+test("persist engine_layout_overrides accepts registered frame-yaml namespaces", () => {
+  const unregister = registerFrameYamlEngineLayoutNamespace({
+    namespace: "meta.custom",
+    applyOverrides(document, overrides) {
+      const meta = typeof document.meta === "object" && document.meta !== null ? document.meta as Record<string, unknown> : {};
+      document.meta = meta;
+      meta.custom = { ...overrides };
+    },
+  });
+
+  try {
+    const baselineText = [
+      "engine: v3",
+      "title: Demo",
+      "root:",
+      "  id: page",
+      "  direction: vertical",
+      "  children:",
+      "    - id: leaf_a",
+      "      label: [A]",
+      "",
+    ].join("\n");
+
+    const output = persistToYaml("demo.yaml", baselineText, {
+      overrides: {},
+      engine_layout_overrides: {
+        "meta.custom": {
+          strategy: "stacked",
+        },
+      },
+    });
+
+    assert.match(output, /meta:\r?\n  custom:\r?\n    strategy: stacked/);
+  } finally {
+    unregister();
+  }
 });
 
 test("persist rejects stale unsupported ELK keys already present in meta.elk", () => {

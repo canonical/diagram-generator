@@ -87,7 +87,8 @@ class ComponentModel {
     this._index = new Map(); // id → ComponentNode
     this.overrides = {};     // id → { dx?, dy?, dw?, dh?, waypoints?, text? }
     this.gridOverrides = {}; // { col_gap?, row_gap?, outer_margin? }
-    this.elkLayoutOverrides = {}; // { "elk.spacing.nodeNode": "48", ... }
+    this.layoutOverrides = {}; // generic engine-layout sidebar state
+    this.elkLayoutOverrides = {}; // legacy alias for ELK-backed layout state
     this.diagramGrid = null; // { col_gap, row_gap, outer_margin, ... } — diagram-level grid
     /** Frame ids removed since last save (persisted as removed_ids on save). */
     this.removedIds = new Set();
@@ -588,10 +589,22 @@ class ComponentModel {
         payload.grid_overrides = persistableGridOverrides;
       }
     }
-    const elkOverrides = this.elkLayoutOverrides && Object.keys(this.elkLayoutOverrides).length > 0
-      ? { ...this.elkLayoutOverrides }
-      : null;
+    const layoutOverrides = this.layoutOverrides && Object.keys(this.layoutOverrides).length > 0
+      ? { ...this.layoutOverrides }
+      : (
+        this.elkLayoutOverrides && Object.keys(this.elkLayoutOverrides).length > 0
+          ? { ...this.elkLayoutOverrides }
+          : null
+      );
+    if (layoutOverrides) {
+      this.layoutOverrides = { ...layoutOverrides };
+      this.elkLayoutOverrides = { ...layoutOverrides };
+    }
+    const elkOverrides = layoutOverrides ? { ...layoutOverrides } : null;
     if (elkOverrides) {
+      payload.engine_layout_overrides = {
+        "meta.elk": { ...elkOverrides },
+      };
       payload.elk_layout_overrides = elkOverrides;
     }
     return payload;

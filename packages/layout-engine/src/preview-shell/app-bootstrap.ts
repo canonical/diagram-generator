@@ -16,7 +16,9 @@ import {
 export interface PreviewEditorStateInitOptions {
   getOverrides: () => unknown;
   getGridOverrides: () => unknown;
-  getElkLayoutOverrides: () => unknown;
+  getLayoutOverrides?: () => unknown;
+  /** @deprecated Prefer `getLayoutOverrides`. */
+  getElkLayoutOverrides?: () => unknown;
   getRemovedIds: () => unknown;
   getFrameTree: () => unknown;
 }
@@ -30,34 +32,21 @@ export interface PreviewEngineShellControllerInitOptions {
   getLayoutOverrides: () => Record<string, unknown>;
   setLayoutOverrides: (value: Record<string, unknown>) => void;
   getRootId: () => string;
-  requestV3Relayout: (cid: string) => Promise<unknown>;
+  requestLayoutRelayout?: (cid: string) => Promise<unknown>;
+  /** @deprecated Prefer `requestLayoutRelayout`. */
+  requestV3Relayout?: (cid: string) => Promise<unknown>;
   /** @deprecated Prefer `getLayoutOverrides`. */
   getElkLayoutOverrides?: () => Record<string, unknown>;
   /** @deprecated Prefer `setLayoutOverrides`. */
   setElkLayoutOverrides?: (value: Record<string, unknown>) => void;
 }
 
-export interface PreviewElkControllerInitOptions extends PreviewEngineShellControllerInitOptions {
-}
-
-export interface PreviewElkControllerApi {
-  init: (options: PreviewElkControllerInitOptions) => void;
-  isElkLayeredDiagram: (frameTreeJson?: unknown) => boolean;
+export interface PreviewEngineShellControllerApi {
+  init: (options: PreviewEngineShellControllerInitOptions) => void;
+  isActiveLayoutEngine?: (frameTreeJson?: unknown) => boolean;
   wirePanel: () => void;
   syncPanel: () => void;
   initPanel: () => void;
-  applyElkLayoutOverrides: (overrides: Record<string, unknown>) => void;
-  requestRelayout: () => Promise<void>;
-  [key: string]: unknown;
-}
-
-export interface PreviewEnginePayloadModelLike {
-  elkLayoutOverrides?: Record<string, unknown>;
-  [key: string]: unknown;
-}
-
-export interface PreviewEngineShellControllerApi extends PreviewElkControllerApi {
-  isActiveLayoutEngine?: (frameTreeJson?: unknown) => boolean;
   initializePanel?: () => void;
   getLayoutOverrides?: () => Record<string, unknown>;
   applyLayoutOverrides?: (overrides: Record<string, unknown>) => void;
@@ -65,6 +54,27 @@ export interface PreviewEngineShellControllerApi extends PreviewElkControllerApi
     basePayload: Record<string, unknown>,
     model: PreviewEnginePayloadModelLike,
   ) => Record<string, unknown>;
+  requestRelayout: () => Promise<void>;
+  /** @deprecated Compatibility alias for the legacy ELK controller name. */
+  isElkLayeredDiagram?: (frameTreeJson?: unknown) => boolean;
+  /** @deprecated Compatibility alias for the legacy ELK override applier. */
+  applyElkLayoutOverrides?: (overrides: Record<string, unknown>) => void;
+  [key: string]: unknown;
+}
+
+export interface PreviewEnginePayloadModelLike {
+  layoutOverrides?: Record<string, unknown>;
+  /** @deprecated Prefer `layoutOverrides`. */
+  elkLayoutOverrides?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export interface PreviewElkControllerInitOptions extends PreviewEngineShellControllerInitOptions {
+}
+
+export interface PreviewElkControllerApi extends PreviewEngineShellControllerApi {
+  isElkLayeredDiagram: (frameTreeJson?: unknown) => boolean;
+  applyElkLayoutOverrides: (overrides: Record<string, unknown>) => void;
 }
 
 export interface PreviewShellCoordinatorInitOptions {
@@ -212,13 +222,17 @@ export interface BootstrapPreviewEditorHostOptions {
   getOverrides: () => Record<string, PreviewOverrideExportEntry>;
   getGridOverrides: () => unknown;
   getLayoutOverrides?: () => Record<string, unknown>;
-  getElkLayoutOverrides: () => Record<string, unknown>;
+  /** @deprecated Prefer `getLayoutOverrides`. */
+  getElkLayoutOverrides?: () => Record<string, unknown>;
   getRemovedIds: () => unknown;
   getFrameTree: () => unknown;
   setLayoutOverrides?: (value: Record<string, unknown>) => void;
-  setElkLayoutOverrides: (value: Record<string, unknown>) => void;
+  /** @deprecated Prefer `setLayoutOverrides`. */
+  setElkLayoutOverrides?: (value: Record<string, unknown>) => void;
   getRootId: () => string;
-  requestV3Relayout: (cid: string) => Promise<unknown> | unknown;
+  requestLayoutRelayout?: (cid: string) => Promise<unknown> | unknown;
+  /** @deprecated Prefer `requestLayoutRelayout`. */
+  requestV3Relayout?: (cid: string) => Promise<unknown> | unknown;
   previewSaveClient: PreviewSaveClientApi;
   getModel: () => unknown;
   getSelectedIds: () => string[];
@@ -246,6 +260,8 @@ export interface BootstrapPreviewEditorHostOptions {
 export interface PreviewBootstrapRuntimeModelLike {
   roots?: Array<{ id?: string | null }>;
   gridOverrides?: unknown;
+  layoutOverrides?: Record<string, unknown>;
+  /** @deprecated Prefer `layoutOverrides`. */
   elkLayoutOverrides?: Record<string, unknown>;
   removedIds?: unknown;
   [key: string]: unknown;
@@ -281,7 +297,9 @@ export interface BootstrapPreviewEditorRuntimeOptions {
   initNavTabs: () => void;
   getOverrides: () => Record<string, PreviewOverrideExportEntry>;
   getFrameTree: () => unknown;
-  requestV3Relayout: (cid: string) => Promise<unknown> | unknown;
+  requestLayoutRelayout?: (cid: string) => Promise<unknown> | unknown;
+  /** @deprecated Prefer `requestLayoutRelayout`. */
+  requestV3Relayout?: (cid: string) => Promise<unknown> | unknown;
   previewSaveClient: PreviewSaveClientApi;
   serializeDirtyState: () => string;
   reloadDiagram: (options?: unknown) => unknown;
@@ -341,7 +359,9 @@ export interface CreateBootstrapPreviewEditorRuntimeOptionsFromHostOptions {
   initNavTabs: BootstrapPreviewEditorRuntimeOptions['initNavTabs'];
   getOverrides: BootstrapPreviewEditorRuntimeOptions['getOverrides'];
   getFrameTree: BootstrapPreviewEditorRuntimeOptions['getFrameTree'];
-  requestV3Relayout: BootstrapPreviewEditorRuntimeOptions['requestV3Relayout'];
+  requestLayoutRelayout?: BootstrapPreviewEditorRuntimeOptions['requestLayoutRelayout'];
+  /** @deprecated Prefer `requestLayoutRelayout`. */
+  requestV3Relayout?: BootstrapPreviewEditorRuntimeOptions['requestV3Relayout'];
   previewSaveClient: PreviewRuntimeSaveClientApi;
   reloadDiagram: BootstrapPreviewEditorRuntimeOptions['reloadDiagram'];
   getV3RelayoutStatus: BootstrapPreviewEditorRuntimeOptions['getV3RelayoutStatus'];
@@ -416,6 +436,19 @@ export function whenPreviewDiagramLoaded(
   });
 }
 
+function resolvePreviewLayoutRelayoutRequest(
+  options: {
+    requestLayoutRelayout?: ((cid: string) => Promise<unknown> | unknown) | null;
+    requestV3Relayout?: ((cid: string) => Promise<unknown> | unknown) | null;
+  },
+): (cid: string) => Promise<unknown> | unknown {
+  const requestRelayout = options.requestLayoutRelayout ?? options.requestV3Relayout;
+  if (typeof requestRelayout !== 'function') {
+    throw new Error('preview shell bootstrap requires a layout relayout callback');
+  }
+  return requestRelayout;
+}
+
 function createPreviewEditorStateFallback(): PreviewEditorStateApi {
   return {
     init() {},
@@ -468,11 +501,8 @@ function createPreviewEditorStateFallback(): PreviewEditorStateApi {
 }
 
 function createPreviewEngineShellControllerFallback(): PreviewEngineShellControllerApi {
-  return {
+  const controller: PreviewEngineShellControllerApi = {
     init() {},
-    isElkLayeredDiagram() {
-      return false;
-    },
     isActiveLayoutEngine() {
       return false;
     },
@@ -484,7 +514,12 @@ function createPreviewEngineShellControllerFallback(): PreviewEngineShellControl
       return {};
     },
     applyLayoutOverrides() {},
-    applyElkLayoutOverrides() {},
+    applyElkLayoutOverrides(overrides: Record<string, unknown>) {
+      controller.applyLayoutOverrides?.(overrides);
+    },
+    isElkLayeredDiagram(frameTreeJson?: unknown) {
+      return Boolean(controller.isActiveLayoutEngine?.(frameTreeJson));
+    },
     collectPersistedPayload(basePayload) {
       return { ...(basePayload || {}) };
     },
@@ -492,10 +527,47 @@ function createPreviewEngineShellControllerFallback(): PreviewEngineShellControl
       return Promise.resolve();
     },
   };
+  return controller;
 }
 
 function createPreviewElkControllerFallback(): PreviewElkControllerApi {
-  return createPreviewEngineShellControllerFallback();
+  return createPreviewElkControllerCompat(createPreviewEngineShellControllerFallback());
+}
+
+function createPreviewElkControllerCompat(
+  controller: PreviewEngineShellControllerApi,
+): PreviewElkControllerApi {
+  return {
+    ...controller,
+    isElkLayeredDiagram(frameTreeJson?: unknown) {
+      if (typeof controller.isElkLayeredDiagram === 'function') {
+        return controller.isElkLayeredDiagram(frameTreeJson);
+      }
+      return Boolean(controller.isActiveLayoutEngine?.(frameTreeJson));
+    },
+    applyElkLayoutOverrides(overrides: Record<string, unknown>) {
+      if (typeof controller.applyElkLayoutOverrides === 'function') {
+        controller.applyElkLayoutOverrides(overrides);
+        return;
+      }
+      controller.applyLayoutOverrides?.(overrides);
+    },
+  };
+}
+
+function readModelLayoutOverrides(
+  model: PreviewEnginePayloadModelLike | PreviewBootstrapRuntimeModelLike,
+): Record<string, unknown> {
+  return model.layoutOverrides || model.elkLayoutOverrides || {};
+}
+
+function writeModelLayoutOverrides(
+  model: PreviewEnginePayloadModelLike | PreviewBootstrapRuntimeModelLike,
+  value: Record<string, unknown>,
+): void {
+  const nextValue = { ...value };
+  model.layoutOverrides = nextValue;
+  model.elkLayoutOverrides = nextValue;
 }
 
 export function restorePreviewSelectionIds(
@@ -567,6 +639,7 @@ async function fetchPreviewBootstrapIndexHtml(): Promise<string | null> {
 export function createBootstrapPreviewEditorRuntimeOptionsFromHost(
   options: CreateBootstrapPreviewEditorRuntimeOptionsFromHostOptions,
 ): BootstrapPreviewEditorRuntimeOptions {
+  const requestLayoutRelayout = resolvePreviewLayoutRelayoutRequest(options);
   return {
     document: options.document,
     previewWindow: options.previewWindow,
@@ -586,7 +659,8 @@ export function createBootstrapPreviewEditorRuntimeOptionsFromHost(
     initNavTabs: options.initNavTabs,
     getOverrides: options.getOverrides,
     getFrameTree: options.getFrameTree,
-    requestV3Relayout: options.requestV3Relayout,
+    requestLayoutRelayout,
+    requestV3Relayout: requestLayoutRelayout,
     previewSaveClient: options.previewSaveClient,
     serializeDirtyState: options.editorState.serializeDirtyState,
     reloadDiagram: options.reloadDiagram,
@@ -612,9 +686,10 @@ export function createBootstrapPreviewEditorRuntimeOptionsFromHost(
 export function createBootstrapPreviewEditorHostOptionsFromRuntime(
   options: BootstrapPreviewEditorRuntimeOptions,
 ): BootstrapPreviewEditorHostOptions {
-  const getLayoutOverrides = () => options.model.elkLayoutOverrides || {};
+  const requestLayoutRelayout = resolvePreviewLayoutRelayoutRequest(options);
+  const getLayoutOverrides = () => readModelLayoutOverrides(options.model);
   const setLayoutOverrides = (value: Record<string, unknown>) => {
-    options.model.elkLayoutOverrides = { ...value };
+    writeModelLayoutOverrides(options.model, value);
   };
   return {
     document: options.document,
@@ -640,7 +715,8 @@ export function createBootstrapPreviewEditorHostOptionsFromRuntime(
     setLayoutOverrides,
     setElkLayoutOverrides: setLayoutOverrides,
     getRootId: () => resolvePreviewBootstrapRootId(options.model),
-    requestV3Relayout: options.requestV3Relayout,
+    requestLayoutRelayout,
+    requestV3Relayout: requestLayoutRelayout,
     previewSaveClient: options.previewSaveClient,
     getModel: () => options.model,
     getSelectedIds: () => [...options.selectedIds],
@@ -747,33 +823,7 @@ export function collectPreviewEngineSavePayload(
   if (typeof controller.collectPersistedPayload === 'function') {
     return controller.collectPersistedPayload(basePayload, model);
   }
-
-  if (!isPreviewEngineShellLayoutActive(previewWindow)) {
-    return basePayload;
-  }
-
-  const collectOverrides = previewWindow.ElkLayoutControls?.collectOverrides;
-  if (typeof collectOverrides !== 'function') {
-    return basePayload;
-  }
-
-  initPreviewEngineShellPanel(previewWindow);
-  const domOverrides = collectOverrides();
-  const layoutOverrides = {
-    ...(model.elkLayoutOverrides || {}),
-    ...(domOverrides || {}),
-  };
-
-  if (typeof controller.applyLayoutOverrides === 'function') {
-    controller.applyLayoutOverrides(layoutOverrides);
-  } else if (typeof controller.applyElkLayoutOverrides === 'function') {
-    controller.applyElkLayoutOverrides(layoutOverrides);
-  }
-
-  return {
-    ...basePayload,
-    elk_layout_overrides: { ...layoutOverrides },
-  };
+  return basePayload;
 }
 
 function isHtmlSelectElement(
@@ -839,7 +889,10 @@ export function ensurePreviewElkPreviewController(
   previewWindow: PreviewGlobalWindow,
   initOptions: PreviewEngineShellControllerInitOptions,
 ): PreviewElkControllerApi {
-  return ensurePreviewEngineShellController(previewWindow, initOptions);
+  const controller = ensurePreviewEngineShellController(previewWindow, initOptions);
+  const elkController = createPreviewElkControllerCompat(controller);
+  previewWindow.ElkPreviewController = elkController;
+  return elkController;
 }
 
 export function ensurePreviewEngineShellController(
@@ -849,7 +902,6 @@ export function ensurePreviewEngineShellController(
   const controller = getPreviewEngineShellController(previewWindow)
     ?? createPreviewEngineShellControllerFallback();
   previewWindow.PreviewEngineShellController = controller;
-  previewWindow.ElkPreviewController = controller;
   controller.init(initOptions);
   return controller;
 }
@@ -972,22 +1024,30 @@ export function bootstrapPreviewEditorHost(
     },
     initNavTabs: options.initNavTabs,
     ensureEditorState: () => {
-      ensurePreviewEditorState(options.previewWindow, {
+    ensurePreviewEditorState(options.previewWindow, {
         getOverrides: options.getOverrides,
         getGridOverrides: options.getGridOverrides,
-        getElkLayoutOverrides: options.getElkLayoutOverrides,
+        getLayoutOverrides: options.getLayoutOverrides ?? options.getElkLayoutOverrides,
+        getElkLayoutOverrides: options.getElkLayoutOverrides ?? options.getLayoutOverrides,
         getRemovedIds: options.getRemovedIds,
         getFrameTree: options.getFrameTree,
       });
     },
     ensureElkPreviewController: () => {
       ensurePreviewEngineShellController(options.previewWindow, {
-        getLayoutOverrides: options.getLayoutOverrides ?? options.getElkLayoutOverrides,
-        setLayoutOverrides: options.setLayoutOverrides ?? options.setElkLayoutOverrides,
-        getElkLayoutOverrides: options.getElkLayoutOverrides,
-        setElkLayoutOverrides: options.setElkLayoutOverrides,
+        getLayoutOverrides: () => (
+          (options.getLayoutOverrides ?? options.getElkLayoutOverrides)?.() ?? {}
+        ),
+        setLayoutOverrides: (value) => {
+          (options.setLayoutOverrides ?? options.setElkLayoutOverrides)?.(value);
+        },
+        getElkLayoutOverrides: options.getElkLayoutOverrides ?? options.getLayoutOverrides,
+        setElkLayoutOverrides: options.setElkLayoutOverrides ?? options.setLayoutOverrides,
         getRootId: options.getRootId,
-        requestV3Relayout: (cid) => Promise.resolve(options.requestV3Relayout(cid)),
+        requestLayoutRelayout: (cid) =>
+          Promise.resolve(resolvePreviewLayoutRelayoutRequest(options)(cid)),
+        requestV3Relayout: (cid) =>
+          Promise.resolve(resolvePreviewLayoutRelayoutRequest(options)(cid)),
       });
     },
     initSaveClient: () => {

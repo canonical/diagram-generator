@@ -1,7 +1,4 @@
 import {
-  layoutElkFrameDiagram,
-  type ElkLayoutOptions,
-  type ElkLayoutOutput,
   type ElkLayoutSnapshot,
 } from '../elk-layout.js';
 import { deserializeFrameDiagramWire } from '../frame-serialize.js';
@@ -11,8 +8,13 @@ import {
   type Frame,
   type FrameDiagram,
 } from '../frame-model.js';
-import { layoutFrameTree, type LayoutOutput } from '../layout.js';
-import { resolveStyles } from '../resolve-styles.js';
+import { type LayoutOutput } from '../layout.js';
+import {
+  layoutPreviewFrameDiagramForEngine,
+  type PreviewFrameLayoutResult,
+  resolvePreviewEngine,
+  summarizeFrameDiagramCompatibility,
+} from '../preview-engine/index.js';
 import { layoutSequenceDiagram } from '../sequence-layout/layout.js';
 import { renderSequenceDiagramToSvg } from '../sequence-layout/render-svg.js';
 import { type TextMeasureAdapter } from '../text-measure.js';
@@ -32,7 +34,7 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 const OVERLAY_PAD = 8;
 const ICON_CACHE = new Map<string, string | null>();
 
-type PreviewLayoutResult = LayoutOutput | ElkLayoutOutput;
+type PreviewLayoutResult = PreviewFrameLayoutResult | LayoutOutput;
 
 export interface RenderPreviewFrameTreeToSvgOptions {
   ownerDocument: Document;
@@ -64,7 +66,8 @@ export interface RenderFreshPreviewSvgOptions<TModel = unknown> {
     gridOverrides?: Record<string, unknown> | null,
   ) => void;
   collectRelayoutFrameOverrides: (overrides: Record<string, unknown>) => Record<string, unknown>;
-  isEngineLayoutDiagramJson: (diagramJson: Record<string, unknown>) => boolean;
+  /** @deprecated Render-family resolution now uses the preview-engine manifest. */
+  isEngineLayoutDiagramJson?: (diagramJson: Record<string, unknown>) => boolean;
   resolveEngineLayoutOptionOverrides: (
     diagram: FrameDiagram,
     model: TModel,
@@ -264,15 +267,6 @@ async function collectPreviewIconElements(
   return iconElements;
 }
 
-function layoutOptionsFromDiagram(diagram: FrameDiagram) {
-  return {
-    gridCols: diagram.gridCols,
-    gridColGap: diagram.gridColGap,
-    gridOuterMargin: diagram.gridOuterMargin,
-    arrows: diagram.arrows,
-  };
-}
-
 export function renderPreviewFrameTreeToSvg(
   options: RenderPreviewFrameTreeToSvgOptions,
 ): SVGSVGElement {
@@ -391,16 +385,18 @@ export async function renderFreshPreviewSvg<TModel = unknown>(
   const allFrameOverrides = options.collectRelayoutFrameOverrides(options.overrides || {});
   options.applyOverridesToFrameTree(diagram, allFrameOverrides, options.gridOverrides || {});
 
-  let result: PreviewLayoutResult;
-  if (options.isEngineLayoutDiagramJson(diagramJson)) {
-    result = await layoutElkFrameDiagram(diagram, options.textAdapter, {
-      diagramType: diagram.diagramType as ElkLayoutOptions['diagramType'],
-      elkOptionOverrides: options.resolveEngineLayoutOptionOverrides(diagram, options.model),
-    });
-  } else {
-    resolveStyles(diagram.root);
-    result = layoutFrameTree(diagram.root, options.textAdapter, layoutOptionsFromDiagram(diagram));
-  }
+  const engineManifest = resolvePreviewEngine({
+    layoutEngine: diagram.layoutEngine ?? null,
+    shellMode: 'grid',
+    previewDocumentKind: 'frame-diagram',
+    frameDiagramSummary: summarizeFrameDiagramCompatibility(diagram),
+  });
+  const result = await layoutPreviewFrameDiagramForEngine({
+    diagram,
+    textAdapter: options.textAdapter,
+    engine: engineManifest,
+    elkOptionOverrides: options.resolveEngineLayoutOptionOverrides(diagram, options.model),
+  });
 
   const iconElements = await collectPreviewIconElements(options.ownerDocument, diagram.root);
   const svg = renderPreviewFrameTreeToSvg({

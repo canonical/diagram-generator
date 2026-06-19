@@ -31,9 +31,12 @@ Guidance for AI agents working in this repo. Goal: correct fixes with minimal to
 - Until the `specs/046-editor-host-endgame/` closeout bar is met, agents should bias toward finishing that decomposition over starting secondary preview-shell polish or unrelated new engine-integration convenience work.
 - A small line-count reduction is **not** completion. The target is a genuinely thin grid-shell entry/bootstrap file that would not block scaling toward dozens of engine lanes.
 - Do **not** mark `specs/046-editor-host-endgame/` complete unless the repo is
-  credibly ready for adding on the order of **150 heterogeneous engines**
-  through typed registration points rather than through `editor.js` or
-  `layout-bridge.js`.
+  credibly ready for adding on the order of **50, 150, and 500 heterogeneous
+  engines** through typed registration points rather than through `editor.js`
+  or `layout-bridge.js`.
+- The closeout question is literal: if the honest answer to "can we port 50,
+  150, or 500 layout engines now?" is anything other than **yes**, spec 046
+  remains open.
 - If a proposed change would widen `editor.js`, stop and route that work through the typed preview-shell owners or the active 046 decomposition plan instead.
 
 ## Spec workflow
@@ -65,7 +68,7 @@ Use [`TODO.md`](TODO.md) for the execution queue and [`INBOX.md`](INBOX.md) for 
 
 - **Product path:** Node preview app + TypeScript layout engine.
 - **Source of truth:** frame YAML in `scripts/diagrams/frames/`.
-- **Active spec (when relevant):** `specs/046-editor-host-endgame/` has met its closeout bar on the current branch and is ready to archive after merge: future engine onboarding no longer needs to widen `editor.js` or `layout-bridge.js`, the remaining runtime-set / relayout callback bags now enter typed owners (`app-editor-runtime-set.ts`, `app-relayout-runtime.ts`), the bootstrap/load entrypoints remain owner-driven (`app-bootstrap.ts`, `app-load.ts`), and `layout-bridge.js` now routes engine relayout through manifest/capability ownership instead of ELK-local branching. The browser-shell onboarding proof is honest and test-backed: a real ELK adapter passes through the generic seam, while representative ported-family and bespoke controllers prove the shared shell contract without claiming those product lanes are launched. Live smoke on `http://127.0.0.1:8100/view/v3:complex-routing-usecase` is green after the browser rebuild. `specs/044-preview-shell-architecture-followup/` remains open for residual compatibility/barrel/harness cleanup around the preview bridge/browser contract, and `specs/045-preview-host-engine-modularity/` owns Node preview-host route/page modularity. `specs/047-render-ir-unification/` is no longer blocked by legacy-JS engine onboarding, but it should still follow the separate host-lane cleanup work. `docs/spec-archive/043-preview-shell-editor-ts-extraction/` is extraction-complete and reopens only for regressions. ELK midpoint-port follow-up remains under `specs/042-implicit-elk-side-ports/`. Otherwise see `TODO.md` / `docs/specs.md`.
+- **Active spec (when relevant):** `specs/046-editor-host-endgame/` is **not closed** on the current branch. Earlier notes overstated the closeout state. The repo has made real extraction progress, but spec 046 remains open until the honest answer is yes for porting **50, 150, and 500 heterogeneous layout engines** without widening `editor.js`, `layout-bridge.js`, or equivalent legacy browser-shell/host integration sinks. `specs/044-preview-shell-architecture-followup/` still owns residual browser contract and bridge cleanup; `specs/045-preview-host-engine-modularity/` owns Node preview-host route/page modularity; `specs/047-render-ir-unification/` should still follow the remaining host/shell cleanup rather than treat 046 as finished. See `AGENT-INBOX.md`, `TODO.md`, and `docs/specs.md`.
 - **Trap files (search, then partial read):** `scripts/preview/editor.js` (~1,702 lines in the current tree), `scripts/preview/layout-bridge.js` (~531 lines), `packages/layout-engine/dist/layout-engine.iife.js`.
 
 ## Flow maps (tier 2 — add on demand)

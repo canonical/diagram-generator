@@ -113,10 +113,20 @@
     const domElk = window.ElkLayoutControls && typeof ElkLayoutControls.collectOverrides === "function"
       ? ElkLayoutControls.collectOverrides()
       : {};
-    const elkOverrides = { ...((model && model.elkLayoutOverrides) || {}), ...domElk };
+    const elkOverrides = {
+      ...((model && (model.layoutOverrides || model.elkLayoutOverrides)) || {}),
+      ...domElk,
+    };
     applyElkLayoutOverrides(elkOverrides);
+    if (model) {
+      model.layoutOverrides = { ...elkOverrides };
+      model.elkLayoutOverrides = { ...elkOverrides };
+    }
     return {
       ...(basePayload || {}),
+      engine_layout_overrides: {
+        "meta.elk": { ...elkOverrides },
+      },
       elk_layout_overrides: { ...elkOverrides },
     };
   }

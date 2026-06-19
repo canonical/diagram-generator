@@ -35,6 +35,7 @@ describe('preview bootstrap helpers', () => {
     const editorInit = {
       getOverrides: vi.fn(),
       getGridOverrides: vi.fn(),
+      getLayoutOverrides: vi.fn(),
       getElkLayoutOverrides: vi.fn(),
       getRemovedIds: vi.fn(),
       getFrameTree: vi.fn(),
@@ -56,8 +57,9 @@ describe('preview bootstrap helpers', () => {
       (previewWindow as Window & typeof globalThis & {
         PreviewEngineShellController?: unknown;
       }).PreviewEngineShellController,
-    ).toBe(elkController);
+    ).not.toBe(elkController);
     expect(previewWindow.ElkPreviewController).toBe(elkController);
+    expect(getPreviewEngineShellController(previewWindow)).toBe(previewWindow.PreviewEngineShellController);
     expect(editorState.init).toBeTypeOf('function');
     expect(elkController.init).toBeTypeOf('function');
   });
@@ -453,9 +455,11 @@ describe('preview bootstrap helpers', () => {
 
   it('derives host bootstrap options from a thinner runtime context', () => {
     const selectedIds = new Set(['alpha', 'beta']);
+    const requestLayoutRelayout = vi.fn(async () => undefined);
     const model = {
       roots: [{ id: 'root' }],
       gridOverrides: { cols: 6 },
+      layoutOverrides: { root: { spacing: 24 } },
       elkLayoutOverrides: { root: { spacing: 24 } },
       removedIds: new Set(['stale']),
     };
@@ -489,7 +493,7 @@ describe('preview bootstrap helpers', () => {
       initNavTabs: vi.fn(),
       getOverrides: () => ({ alpha: { dx: 8 } }),
       getFrameTree: () => ({ frames: [] }),
-      requestV3Relayout: vi.fn(async () => undefined),
+      requestLayoutRelayout,
       previewSaveClient: {
         init: vi.fn(),
         isDirty: () => false,
@@ -520,6 +524,9 @@ describe('preview bootstrap helpers', () => {
     expect(Array.from(options.getRemovedIds() as Set<string>)).toEqual(['stale']);
     expect(options.getRootId()).toBe('root');
     expect(options.getSelectedIds()).toEqual(['alpha', 'beta']);
+    void options.requestLayoutRelayout?.('alpha');
+    void options.requestV3Relayout?.('beta');
+    expect(requestLayoutRelayout).toHaveBeenCalledTimes(2);
     expect(options.overrideToolbar.slug).toBe('demo');
     expect(options.eventSourceFactory('/events')).toBeInstanceOf((options.previewWindow.EventSource as typeof EventSource));
   });
@@ -527,6 +534,7 @@ describe('preview bootstrap helpers', () => {
   it('derives runtime bootstrap options from thinner host-owned editor state', async () => {
     let generation = 3;
     const applyUndoCommand = vi.fn();
+    const requestLayoutRelayout = vi.fn(async () => undefined);
     const fetchIndexHtml = vi.fn(async () => '<html></html>');
     const undo = vi.fn(() => 'undo-result');
     const redo = vi.fn(() => 'redo-result');
@@ -558,7 +566,7 @@ describe('preview bootstrap helpers', () => {
       initNavTabs: vi.fn(),
       getOverrides: () => ({ alpha: { dx: 8 } }),
       getFrameTree: () => ({ frames: [] }),
-      requestV3Relayout: vi.fn(async () => undefined),
+      requestLayoutRelayout,
       previewSaveClient: {
         init: vi.fn(),
         isDirty: () => false,
@@ -607,6 +615,9 @@ describe('preview bootstrap helpers', () => {
     options.setGeneration(4);
     expect(options.getGeneration()).toBe(4);
     expect(await options.fetchIndexHtml()).toBe('<html></html>');
+    await options.requestLayoutRelayout?.('alpha');
+    await options.requestV3Relayout?.('beta');
+    expect(requestLayoutRelayout).toHaveBeenCalledTimes(2);
     expect(Array.from(options.selectedIds)).toEqual(['alpha']);
   });
 
@@ -728,13 +739,9 @@ describe('preview bootstrap helpers', () => {
         initializePanel,
         applyLayoutOverrides,
         collectPersistedPayload,
-        isElkLayeredDiagram() {
-          return true;
-        },
         wirePanel() {},
         syncPanel() {},
         initPanel() {},
-        applyElkLayoutOverrides() {},
         requestRelayout() {
           return Promise.resolve();
         },
@@ -754,7 +761,7 @@ describe('preview bootstrap helpers', () => {
     expect(isPreviewEngineShellLayoutActive(previewWindow)).toBe(true);
     initPreviewEngineShellPanel(previewWindow);
     expect(initializePanel).toHaveBeenCalledTimes(1);
-    expect(collectPreviewEngineSavePayload(previewWindow, { saved: true }, { elkLayoutOverrides: {} })).toEqual({
+    expect(collectPreviewEngineSavePayload(previewWindow, { saved: true }, { layoutOverrides: {} })).toEqual({
       saved: true,
       lane: 'engine',
     });
@@ -795,7 +802,6 @@ describe('preview bootstrap helpers', () => {
           wirePanel() {},
           syncPanel() {},
           initPanel() {},
-          applyElkLayoutOverrides() {},
           requestRelayout() {
             return Promise.resolve();
           },
@@ -815,13 +821,82 @@ describe('preview bootstrap helpers', () => {
       initPreviewEngineShellPanel(previewWindow);
       expect(initializePanel).toHaveBeenCalledTimes(1);
       expect(
-        collectPreviewEngineSavePayload(previewWindow, { saved: true }, { elkLayoutOverrides: {} }),
+        collectPreviewEngineSavePayload(previewWindow, { saved: true }, { layoutOverrides: {} }),
       ).toMatchObject({
         saved: true,
         engine: engineCase.id,
         classLabel: engineCase.classLabel,
       });
     }
+  });
+
+  it('does not read ELK sidebar globals from the generic save path fallback', () => {
+    const applyLayoutOverrides = vi.fn();
+    const collectOverrides = vi.fn(() => ({ laneSpacing: 24 }));
+    const previewWindow = {
+      PreviewEngineShellController: {
+        init() {},
+        isActiveLayoutEngine() {
+          return true;
+        },
+        applyLayoutOverrides,
+        requestRelayout() {
+          return Promise.resolve();
+        },
+        wirePanel() {},
+        syncPanel() {},
+        initPanel() {},
+      },
+      ElkLayoutControls: {
+        collectOverrides,
+      },
+    } as unknown as Window & typeof globalThis;
+
+    const model = { layoutOverrides: { existing: true } };
+    expect(collectPreviewEngineSavePayload(previewWindow, { saved: true }, model)).toEqual({ saved: true });
+    expect(collectOverrides).not.toHaveBeenCalled();
+    expect(applyLayoutOverrides).not.toHaveBeenCalled();
+    expect(model.layoutOverrides).toEqual({ existing: true });
+    expect((model as { elkLayoutOverrides?: Record<string, unknown> }).elkLayoutOverrides).toBeUndefined();
+  });
+
+  it('creates an ELK compatibility adapter without forcing ELK aliases onto the generic controller', () => {
+    const init = vi.fn();
+    const applyLayoutOverrides = vi.fn();
+    const previewWindow = {
+      PreviewEngineShellController: {
+        init,
+        isActiveLayoutEngine() {
+          return true;
+        },
+        applyLayoutOverrides,
+        wirePanel() {},
+        syncPanel() {},
+        initPanel() {},
+        requestRelayout() {
+          return Promise.resolve();
+        },
+      },
+    } as unknown as Window & typeof globalThis;
+
+    const genericController = ensurePreviewEngineShellController(previewWindow, {
+      getLayoutOverrides: () => ({}),
+      setLayoutOverrides: () => {},
+      getRootId: () => 'root',
+      requestV3Relayout: async () => undefined,
+    });
+    const elkController = ensurePreviewElkPreviewController(previewWindow, {
+      getLayoutOverrides: () => ({}),
+      setLayoutOverrides: () => {},
+      getRootId: () => 'root',
+      requestV3Relayout: async () => undefined,
+    });
+
+    expect(genericController).toBe(previewWindow.PreviewEngineShellController);
+    expect(genericController).not.toBe(elkController);
+    expect(elkController.isElkLayeredDiagram()).toBe(true);
+    elkController.applyElkLayoutOverrides({ laneSpacing: 24 });
+    expect(applyLayoutOverrides).toHaveBeenCalledWith({ laneSpacing: 24 });
   });
 
   it('tracks diagram-load generations and resolves waiters when the stage becomes ready', async () => {

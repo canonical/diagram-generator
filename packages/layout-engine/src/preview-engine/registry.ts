@@ -1,5 +1,3 @@
-import { elkLayeredPreviewControlSpecs } from './elk-controls.js';
-import { FORCE_PREVIEW_PARAM_SPECS } from './force-param-registry.js';
 import type { FrameDiagram } from '../frame-model.js';
 import type {
   CompatibilityResult,
@@ -8,116 +6,23 @@ import type {
   PreviewEngineManifest,
 } from './types.js';
 
+const previewEngineRegistry: PreviewEngineManifest[] = [];
 
-export const V3_PREVIEW_ENGINE: PreviewEngineManifest = {
-  id: 'v3',
-  label: 'Native v3 autolayout',
-  layoutEngineKey: 'v3',
-  shellMode: 'grid',
-  capabilities: {
-    layoutControls: false,
-    localRelayout: true,
-    serverRelayout: false,
-    engineBackedSave: false,
-    nodeInspector: true,
-    gridEditing: true,
-    referenceImage: true,
-    simulationControls: false,
-    rawDebugView: false,
-  },
-  controlSpecs: [],
-  scripts: [],
-  compatibility: {
-    documentKinds: ['frame-diagram'],
-    description: 'Canonical native v3 autolayout for authored frame diagrams',
-  },
-};
+/** Registered preview engines. Prefer `registerPreviewEngine(...)` over editing a central list. */
+export const PREVIEW_ENGINE_REGISTRY: readonly PreviewEngineManifest[] = previewEngineRegistry;
 
-
-export const ELK_LAYERED_PREVIEW_ENGINE: PreviewEngineManifest = {
-  id: 'elk-layered',
-  label: 'ELK layered layout',
-  layoutEngineKey: 'elk-layered',
-  shellMode: 'grid',
-  capabilities: {
-    layoutControls: true,
-    localRelayout: false,
-    serverRelayout: true,
-    engineBackedSave: true,
-    nodeInspector: true,
-    gridEditing: false,
-    referenceImage: true,
-    simulationControls: false,
-    rawDebugView: false,
-  },
-  controlSpecs: elkLayeredPreviewControlSpecs(),
-  scripts: ['elk-layout-controls.js', 'elk-controller.js'],
-  compatibility: {
-    documentKinds: ['frame-diagram'],
-    requiredLayoutEngineKey: 'elk-layered',
-    description: 'Hierarchical layered layout for directed graphs and flowcharts',
-  },
-};
-
-export const FORCE_PREVIEW_ENGINE: PreviewEngineManifest = {
-  id: 'force',
-  label: 'Force-directed layout',
-  shellMode: 'force',
-  capabilities: {
-    layoutControls: false,
-    localRelayout: true,
-    serverRelayout: false,
-    engineBackedSave: true,
-    nodeInspector: true,
-    gridEditing: false,
-    referenceImage: true,
-    simulationControls: true,
-    rawDebugView: false,
-  },
-  controlSpecs: FORCE_PREVIEW_PARAM_SPECS,
-  scripts: ['force.js'],
-  apiRoutes: {
-    save: '/api/force-save/{slug}',
-    spec: '/api/force-spec/{slug}',
-  },
-  compatibility: {
-    documentKinds: ['force-spec'],
-    description: 'Physics-based force-directed layout for organic graph structures',
-  },
-};
-
-export const SEQUENCE_PREVIEW_ENGINE: PreviewEngineManifest = {
-  id: 'sequence',
-  label: 'Sequence layout',
-  layoutEngineKey: 'sequence',
-  shellMode: 'grid',
-  capabilities: {
-    layoutControls: false,
-    localRelayout: true,
-    serverRelayout: false,
-    engineBackedSave: false,
-    nodeInspector: false,
-    gridEditing: false,
-    referenceImage: true,
-    simulationControls: false,
-    rawDebugView: false,
-  },
-  controlSpecs: [],
-  scripts: [],
-  compatibility: {
-    documentKinds: ['sequence'],
-    requiredLayoutEngineKey: 'sequence',
-    description: 'Timeline-based layout for sequence diagrams and message flows',
-  },
-};
-
-/** Registered preview engines — extend here when onboarding new packages. */
-export const PREVIEW_ENGINE_REGISTRY: readonly PreviewEngineManifest[] = [
-  V3_PREVIEW_ENGINE,
-  ELK_LAYERED_PREVIEW_ENGINE,
-  FORCE_PREVIEW_ENGINE,
-  SEQUENCE_PREVIEW_ENGINE,
-] as const;
+export function registerPreviewEngine(manifest: PreviewEngineManifest): () => void {
+  if (previewEngineRegistry.some((entry) => entry.id === manifest.id)) {
+    throw new Error(`Preview engine '${manifest.id}' is already registered`);
+  }
+  previewEngineRegistry.push(manifest);
+  return () => {
+    const index = previewEngineRegistry.findIndex((entry) => entry.id === manifest.id);
+    if (index >= 0) {
+      previewEngineRegistry.splice(index, 1);
+    }
+  };
+}
 
 export function listPreviewEngines(): PreviewEngineManifest[] {
   return PREVIEW_ENGINE_REGISTRY.map((entry) => entry);
@@ -207,21 +112,22 @@ export function evaluatePreviewEngineCompatibility(
     };
   }
 
+  const frameDiagramRequirements = engine.compatibility.frameDiagramRequirements;
   if (
-    engine.id === 'elk-layered' &&
     previewDocumentKind === 'frame-diagram' &&
+    frameDiagramRequirements?.minArrowCount &&
     context.frameDiagramSummary &&
-    context.frameDiagramSummary.arrowCount < 1
+    context.frameDiagramSummary.arrowCount < frameDiagramRequirements.minArrowCount
   ) {
     return {
       compatible: false,
-      reason: 'Engine requires at least one authored arrow',
+      reason: `Engine requires at least ${frameDiagramRequirements.minArrowCount} authored arrow${frameDiagramRequirements.minArrowCount === 1 ? '' : 's'}`,
     };
   }
 
   if (
-    engine.id === 'elk-layered' &&
     previewDocumentKind === 'frame-diagram' &&
+    frameDiagramRequirements?.rejectUnsupportedCarrierIds &&
     context.frameDiagramSummary &&
     context.frameDiagramSummary.unsupportedElkCarrierIds.length > 0
   ) {

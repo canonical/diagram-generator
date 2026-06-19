@@ -1,0 +1,85 @@
+import type { ElkLayoutOutput } from '../elk-layout.js';
+import type { FrameDiagram } from '../frame-model.js';
+import type { LayoutOutput } from '../layout.js';
+import type { TextMeasureAdapter } from '../text-measure.js';
+import type {
+  PreviewDocumentKind,
+  PreviewEngineManifest,
+  PreviewRenderFamily,
+} from './types.js';
+
+export type PreviewFrameLayoutResult = LayoutOutput | ElkLayoutOutput;
+export type PreviewFrameDiagramRenderAdapter = (
+  options: LayoutPreviewFrameDiagramForEngineOptions,
+) => Promise<PreviewFrameLayoutResult>;
+
+export function resolvePreviewRenderFamily(
+  engine: Pick<PreviewEngineManifest, 'renderFamily'> | null | undefined,
+  previewDocumentKind?: PreviewDocumentKind | null,
+): PreviewRenderFamily | null {
+  if (engine?.renderFamily) {
+    return engine.renderFamily;
+  }
+  if (previewDocumentKind === 'frame-diagram') {
+    return 'frame-native';
+  }
+  if (previewDocumentKind === 'sequence') {
+    return 'sequence';
+  }
+  if (previewDocumentKind === 'force-spec') {
+    return 'force';
+  }
+  return null;
+}
+
+export interface LayoutPreviewFrameDiagramForEngineOptions {
+  diagram: FrameDiagram;
+  textAdapter: TextMeasureAdapter;
+  engine?: Pick<PreviewEngineManifest, 'renderFamily'> | null;
+  elkOptionOverrides?: Record<string, string>;
+}
+
+const FRAME_DIAGRAM_RENDER_ADAPTERS = new Map<PreviewRenderFamily, PreviewFrameDiagramRenderAdapter>();
+
+export function registerPreviewFrameDiagramRenderAdapter(
+  renderFamily: PreviewRenderFamily,
+  adapter: PreviewFrameDiagramRenderAdapter,
+  options?: { replace?: boolean },
+): () => void {
+  const previous = FRAME_DIAGRAM_RENDER_ADAPTERS.get(renderFamily);
+  if (previous && options?.replace !== true) {
+    throw new Error(`Preview frame-diagram render adapter '${renderFamily}' is already registered`);
+  }
+  FRAME_DIAGRAM_RENDER_ADAPTERS.set(renderFamily, adapter);
+  return () => {
+    const current = FRAME_DIAGRAM_RENDER_ADAPTERS.get(renderFamily);
+    if (current !== adapter) {
+      return;
+    }
+    if (previous) {
+      FRAME_DIAGRAM_RENDER_ADAPTERS.set(renderFamily, previous);
+      return;
+    }
+    FRAME_DIAGRAM_RENDER_ADAPTERS.delete(renderFamily);
+  };
+}
+
+export function getPreviewFrameDiagramRenderAdapter(
+  renderFamily: PreviewRenderFamily,
+): PreviewFrameDiagramRenderAdapter | undefined {
+  return FRAME_DIAGRAM_RENDER_ADAPTERS.get(renderFamily);
+}
+
+export async function layoutPreviewFrameDiagramForEngine(
+  options: LayoutPreviewFrameDiagramForEngineOptions,
+): Promise<PreviewFrameLayoutResult> {
+  const renderFamily = resolvePreviewRenderFamily(options.engine, 'frame-diagram');
+  if (renderFamily == null) {
+    throw new Error('Preview render family is unavailable for frame-diagram layout');
+  }
+  const adapter = getPreviewFrameDiagramRenderAdapter(renderFamily);
+  if (!adapter) {
+    throw new Error(`No frame-diagram render adapter is registered for preview render family '${renderFamily}'`);
+  }
+  return adapter(options);
+}

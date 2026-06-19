@@ -5,8 +5,16 @@
  * `dist/preview-engine-manifest.json` via `/api/preview-engines` — no Python mirrors.
  */
 
-export type PreviewShellMode = 'grid' | 'force';
-export type PreviewDocumentKind = 'frame-diagram' | 'sequence' | 'force-spec';
+export type PreviewShellMode = 'grid' | 'force' | (string & {});
+export type PreviewDocumentKind = 'frame-diagram' | 'sequence' | 'force-spec' | (string & {});
+export type PreviewPersistNamespace = string;
+export type PreviewViewerSidebarSection = 'elk-layout' | (string & {});
+export type PreviewRenderFamily =
+  | 'frame-native'
+  | 'frame-elk'
+  | 'sequence'
+  | 'force'
+  | (string & {});
 
 export type PreviewControlKind = 'number' | 'enum' | 'boolean' | 'text';
 
@@ -21,8 +29,8 @@ export interface PreviewControlSpec {
   max?: number;
   step?: number;
   enumValues?: ReadonlyArray<{ readonly value: string; readonly label: string }>;
-  /** Persisted YAML namespace for engine-backed save flows. */
-  persistNamespace?: 'meta.elk' | 'simulation' | 'render';
+  /** Persisted namespace for engine-backed save flows; host lanes own supported values. */
+  persistNamespace?: PreviewPersistNamespace;
 }
 
 export interface PreviewEngineCapabilities {
@@ -59,6 +67,19 @@ export interface PreviewEngineCompatibility {
    * Shown in the switcher UI as a tooltip or help text.
    */
   description?: string;
+  /**
+   * Optional frame-diagram-specific compatibility rules. These let manifests
+   * declare structural requirements without central engine-id branching.
+   */
+  frameDiagramRequirements?: {
+    /** Minimum number of authored arrows required for this engine to be useful. */
+    readonly minArrowCount?: number;
+    /**
+     * Whether carrier ids reported by `summarizeFrameDiagramCompatibility(...)`
+     * should block compatibility for this engine.
+     */
+    readonly rejectUnsupportedCarrierIds?: boolean;
+  };
 }
 
 export interface FrameDiagramCompatibilitySummary {
@@ -71,6 +92,11 @@ export interface FrameDiagramCompatibilitySummary {
   unsupportedElkCarrierIds: string[];
 }
 
+export interface PreviewEngineHostView {
+  /** Engine-specific sidebar/view sections the host page should expose. */
+  sidebarSections?: ReadonlyArray<PreviewViewerSidebarSection>;
+}
+
 
 /** Serializable manifest consumed by the preview shell and preview server. */
 export interface PreviewEngineManifest {
@@ -79,6 +105,10 @@ export interface PreviewEngineManifest {
   /** `meta.layout_engine` value when this engine backs a frame YAML diagram. */
   layoutEngineKey?: string;
   shellMode: PreviewShellMode;
+  /** Shared render lane used by browser fresh-render and Node preview/SVG flows. */
+  renderFamily?: PreviewRenderFamily;
+  /** Host-page metadata for engine-specific assets/sections. */
+  hostView?: PreviewEngineHostView;
   capabilities: PreviewEngineCapabilities;
   controlSpecs: PreviewControlSpec[];
   /** Relative paths under `/preview/` loaded for this engine lane. */

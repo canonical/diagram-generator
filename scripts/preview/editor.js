@@ -1,12 +1,13 @@
 "use strict";
 const SLUG = window.__DG_CONFIG.slug;
-const ENGINE = window.__DG_CONFIG.engine || "v3";
+const ACTIVE_ENGINE = window.__DG_CONFIG.engine || "v3";
+const SHELL_MODE = window.__DG_CONFIG.shell_mode || "grid";
 const GRID = window.__DG_CONFIG.grid;
 const INSET = window.__DG_CONFIG.inset;
 let generation = 0;
 
-if (ENGINE !== "v3") {
-  throw new Error("preview/editor.js only supports the v3 local renderer");
+if (SHELL_MODE !== "grid") {
+  throw new Error("preview/editor.js only supports the grid preview shell");
 }
 
 // ---- Component model, interaction manager & constraints ----
@@ -249,6 +250,9 @@ function _applyLocalRestoreRefresh(syncGridControls = false) {
 
 /** Serialise the full dirty-trackable state (overrides + grid overrides). */
 async function _restoreEditorState(serializedState) {
+  const requestRelayout = typeof requestLayoutRelayout === "function"
+    ? requestLayoutRelayout
+    : requestV3Relayout;
   await window.__DG_getPreviewBridgeRelayoutContract().restorePreviewSerializedState({
     serializedState,
     currentOverrides: overrides,
@@ -264,6 +268,7 @@ async function _restoreEditorState(serializedState) {
       model.gridOverrides = EditorState.cloneValue(nextGridOverrides);
     },
     setElkLayoutOverrides: (nextElkLayoutOverrides) => {
+      model.layoutOverrides = EditorState.cloneValue(nextElkLayoutOverrides);
       model.elkLayoutOverrides = EditorState.cloneValue(nextElkLayoutOverrides);
     },
     setRemovedIds: (nextRemovedIds) => {
@@ -278,7 +283,7 @@ async function _restoreEditorState(serializedState) {
     pruneLinkedRootOverrides: () => _pruneLinkedRootGridOverrides(),
     clearPendingRuntime: () => _clearPendingRestoreRuntime(),
     rerenderStageFromFrameTree: () => _rerenderStageFromModel(),
-    requestRelayout: (triggerId) => requestV3Relayout(triggerId),
+    requestRelayout: (triggerId) => requestRelayout(triggerId),
     applyLocalRefresh: ({ syncGridControls }) => _applyLocalRestoreRefresh(syncGridControls),
     syncGridControls: () => {
       if (gridInfo) populateGridControls();
@@ -289,6 +294,9 @@ async function _restoreEditorState(serializedState) {
 }
 
 async function _restoreOverridePatch(entries) {
+  const requestRelayout = typeof requestLayoutRelayout === "function"
+    ? requestLayoutRelayout
+    : requestV3Relayout;
   await window.__DG_getPreviewBridgeRelayoutContract().restorePreviewOverridePatch({
     entries,
     currentOverrides: overrides,
@@ -301,7 +309,7 @@ async function _restoreOverridePatch(entries) {
     },
     cleanOverride: (cid) => model.cleanOverride(cid),
     clearPendingRuntime: () => _clearPendingRestoreRuntime(),
-    requestRelayout: (triggerId) => requestV3Relayout(triggerId),
+    requestRelayout: (triggerId) => requestRelayout(triggerId),
     applyLocalRefresh: ({ syncGridControls }) => _applyLocalRestoreRefresh(syncGridControls),
     syncDirtyFromSerialized: (currentStateStr) => PreviewSaveClient.syncDirtyFromSerialized(currentStateStr),
     serializeDirtyState: () => EditorState.serializeDirtyState(),
@@ -341,7 +349,7 @@ async function loadSVG(options = {}) {
       invocation: options,
       stage,
       slug: SLUG,
-      engine: ENGINE,
+      engine: ACTIVE_ENGINE,
       gridEnabled: GRID,
       deselectAll,
       previewBridgeHost: _getPreviewBridgeHostContract(),
@@ -520,6 +528,9 @@ function populateGridControls() {
 let relayoutTimer = null;
 
 function onGridControlChange() {
+  const requestRelayout = typeof requestLayoutRelayout === "function"
+    ? requestLayoutRelayout
+    : requestV3Relayout;
   window.__DG_getPreviewShellSceneContract().dispatchPreviewGridControlChangeHost({
     document,
     gridInfo,
@@ -547,7 +558,7 @@ function onGridControlChange() {
     setRelayoutTimer: (timerId) => {
       relayoutTimer = timerId;
     },
-    requestRelayout: (rootId) => requestV3Relayout(rootId),
+    requestRelayout: (rootId) => requestRelayout(rootId),
     commitPendingAction: (action) => {
       EditorState.commitUndoableAction(action);
     },
@@ -592,6 +603,7 @@ function resetOverrideState() {
   replaceOverrides({});
   model.gridOverrides = {};
   const tree = _readFrameTreeJson();
+  model.layoutOverrides = (tree && tree.elkLayout) ? { ...tree.elkLayout } : {};
   model.elkLayoutOverrides = (tree && tree.elkLayout) ? { ...tree.elkLayout } : {};
   model.removedIds = new Set();
   updateOverrideSummary();
@@ -1284,6 +1296,9 @@ function startTextEdit(cid, e, opts) {
 
 function commitTextEdit() {
   if (!mgr.isMode(InteractionMode.TEXT_EDITING)) return;
+  const requestRelayout = typeof requestLayoutRelayout === "function"
+    ? requestLayoutRelayout
+    : requestV3Relayout;
   window.__DG_getPreviewShellInspectorContract().completePreviewTextEdit({
     state: mgr.state || null,
     getExistingTextOverride: (cid) => (
@@ -1302,7 +1317,7 @@ function commitTextEdit() {
     reapplySelection,
     scheduleRelayout: (cid) => {
       clearTimeout(_v3RelayoutTimer);
-      _v3RelayoutTimer = setTimeout(() => requestV3Relayout(cid), 100);
+      _v3RelayoutTimer = setTimeout(() => requestRelayout(cid), 100);
     },
   });
 }
@@ -1421,7 +1436,7 @@ function _persistResizeToV3(resizeIds, propagatedIds, triggerCid) {
     getOwnDelta,
     setOverride,
     requestRelayout: (cid) => {
-      void requestV3Relayout(cid);
+      void requestLayoutRelayout(cid);
     },
     minSize: 8,
   });
@@ -1485,7 +1500,7 @@ function _scheduleV3Relayout(cid) {
   clearTimeout(_v3RelayoutTimer);
   _v3RelayoutTimer = setTimeout(() => {
     _v3RelayoutTimer = null;
-    requestV3Relayout(cid);
+    requestLayoutRelayout(cid);
   }, 300);
 }
 
@@ -1578,7 +1593,7 @@ function _getEditorRuntimeSet() {
       scheduleRelayout: _scheduleV3Relayout,
       requestRelayoutNow: (cid) => {
         clearTimeout(_v3RelayoutTimer);
-        requestV3Relayout(cid);
+        requestLayoutRelayout(cid);
       },
       applyAllOverrides,
       reapplySelection,
@@ -1704,6 +1719,10 @@ function _getRelayoutRuntime() {
 
 async function requestV3Relayout(triggerCid) {
   return _getRelayoutRuntime().requestRelayout(triggerCid);
+}
+
+function requestLayoutRelayout(triggerCid) {
+  return requestV3Relayout(triggerCid);
 }
 
 window.getV3RelayoutStatus = getV3RelayoutStatus;
@@ -1841,6 +1860,7 @@ function bootstrapPreviewEditor() {
       initNavTabs,
       getOverrides: () => overrides,
       getFrameTree: () => _readFrameTreeJson(),
+      requestLayoutRelayout: (cid) => requestV3Relayout(cid),
       requestV3Relayout,
       previewSaveClient: PreviewSaveClient,
       reloadDiagram: loadSVG,

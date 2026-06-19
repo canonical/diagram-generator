@@ -4,23 +4,13 @@
 
 **Created**: 2026-06-16
 
-**Status**: Complete
+**Status**: In Progress
 
-Closeout note: preview-shell engine onboarding no longer needs to start in
-`editor.js`, and the remaining `layout-bridge.js` runtime now sits behind a
-typed `previewBridge.host` owner instead of acting as the browser-side
-integration sink.
-
-Final checkpoint note: the bridge no longer owns arrow render/patch, frame/SVG
-patch behavior, bootstrap/state ownership, or local-vs-ELK relayout
-orchestration. Those now live behind typed owners including
-`app-inspector-display-runtime.ts`,
-`app-inspector-selection-runtime.ts`, and
-`app-layout-bridge-runtime.ts`. `editor.js` still remains a large coordinator
-at about 1.7k lines, but the spec closeout bar is responsibility-based rather
-than a literal line-count target: future engine onboarding no longer needs to
-widen either `editor.js` or `layout-bridge.js`, and the cold-start answer now
-starts at typed registration points.
+Reopen note: earlier closeout language overstated the actual architecture
+readiness. The repo has made real extraction progress, but spec 046 remains
+open until the honest answer is **yes** for scaling to **50, 150, and 500
+heterogeneous layout engines** without widening `editor.js`,
+`layout-bridge.js`, or equivalent legacy browser-shell integration sinks.
 
 **Priority**: Highest active preview-shell follow-up
 
@@ -41,6 +31,13 @@ For a repo targeting 20-50 engine lanes, the answer must be **no**.
 
 The current `editor.js` is better than the old monolith, but it is still too large and too central to count as finished architecture. Repeated "500 lines smaller" iterations without an explicit endgame simply defer the same problem.
 
+The adversarial review on 2026-06-19 also showed that the remaining problem is
+not only file size. The branch is still too centralized in host onboarding,
+finite lane/page assumptions, server-owned save/export authority, a few
+engine-name compatibility branches, and direct non-frame render wiring. That is
+cleaner than the old state, but it is still not a credible many-engine
+platform.
+
 ## Mission
 
 Finish the editor-host decomposition so `scripts/preview/editor.js` stops being an architectural bottleneck and becomes a genuinely thin entry/bootstrap file for the grid shell.
@@ -50,8 +47,8 @@ the preview shell must stop being a blocker for adding dozens or hundreds of
 future engine lanes.
 
 For this spec, the scaling target is not rhetorical. Closeout must be judged
-against readiness for roughly **150 distinct layout engines / diagram
-algorithms**, including:
+against readiness for roughly **50, 150, and 500 distinct layout engines /
+diagram algorithms**, including:
 
 - external dependencies such as `elkjs`
 - ports of multi-diagram suites such as Mermaid families
@@ -87,6 +84,8 @@ This spec covers:
 - trap-file guardrails so the same monolith does not quietly regrow
 - the browser-shell side of the "can we add many more engines without touching
   the legacy JS sink files?" closeout test
+- the explicit blocker list that prevents false closeout while host, render, or
+  capability centralization still remains elsewhere
 
 This spec does not cover:
 
@@ -100,6 +99,31 @@ This spec does not cover:
 - **Spec 044** owns browser contract shape, bundle boundaries, and `layout-bridge.js`.
 - **Spec 045** owns Node preview-host modularity.
 - **Spec 046** owns the remaining grid-shell entrypoint monolith: `scripts/preview/editor.js`.
+
+Spec 046 therefore has two jobs:
+
+1. finish the browser-shell trap-file cleanup it directly owns
+2. refuse closeout while specs 044/045 or adjacent typed owners still leave the
+   overall onboarding path too centralized to answer the 50/150/500-engine
+   question honestly
+
+## Adversarial blocker list
+
+The 2026-06-19 adversarial review identified these still-open blockers:
+
+1. builtin host onboarding still centralizes in `apps/preview/src/server.ts`
+2. viewer page shape is still finite-lane (`"grid" | "force"`)
+3. document, save, spec, and export authority are still partly server-owned
+4. builtin engine installation is explicit startup glue, not package-owned host
+   discovery or install
+5. central compatibility logic still contains engine-name branching
+6. browser runtime vocabulary is still partly V3/ELK-shaped
+7. non-frame rendering is not adapter-driven end to end
+8. the current proof is shell-contract-level only, not a real end-to-end
+   skeletal engine onboarding proof
+
+This spec must treat that list as closeout-blocking reality, not as optional
+follow-up polish.
 
 ## User Scenarios & Testing
 
@@ -163,8 +187,8 @@ As a reviewer, I want the residual `editor.js` to read as obvious bootstrap/even
   functions as an equivalent browser-side integration sink for new engines,
   even though the extraction work there remains owned by spec 044.
 - **FR-010**: Spec 046 closeout MUST require an explicit engine-scale
-  acceptance gate framed around readiness for approximately 150 engines, not
-  around the current two-engine state.
+  acceptance gate framed around readiness for approximately 50, 150, and 500
+  engines, not around the current two-engine state.
 - **FR-011**: Adding an engine that reuses an existing shell tier MUST require
   only:
   1. preview-engine registration / manifest work
@@ -183,16 +207,43 @@ As a reviewer, I want the residual `editor.js` to read as obvious bootstrap/even
 - **FR-014**: Closing spec 046 MUST be blocked if a reviewer can still
   plausibly say "to add engine X, start by editing `editor.js`" or "add a new
   special case in `layout-bridge.js`."
+- **FR-015**: Closing spec 046 MUST also be blocked while builtin preview-host
+  onboarding still requires central route/page/install changes in
+  `apps/preview/src/server.ts` rather than descriptor-owned or package-owned
+  host modules.
+- **FR-016**: Viewer page assembly MUST be descriptor-driven enough to support
+  shell modes beyond the current builtin set. Finite `"grid" | "force"`
+  unions or equivalent lane-local page builders MUST NOT remain the practical
+  long-term extension point.
+- **FR-017**: Document-kind parsing/normalization, persistence namespace
+  ownership, and save/spec/export endpoint authority MUST move toward typed
+  descriptor or registry ownership rather than remaining server-local branches.
+- **FR-018**: Non-frame render/export families MUST be registered through
+  generic render-adapter authority rather than direct central branches in
+  shared app/bootstrap or host code.
+- **FR-019**: Central engine-name compatibility branches in typed registries or
+  legacy JS owners MUST be treated as many-engine blockers unless they are
+  clearly transitional and shrinking.
+- **FR-020**: The closeout proof MUST include at least one real skeletal
+  non-ELK engine package or equivalent install unit that exercises the full
+  path: document kind, manifest, render/export adapter, host route/page or
+  output-only contract, persistence namespace, refresh/load, and save/export.
+- **FR-021**: A shell-contract-only fake proof does not satisfy the closeout
+  bar, even if representative controller tests exist for external, ported, and
+  bespoke engine classes.
 
 ### Non-Functional Requirements
 
 - **NFR-001**: This work MUST optimize for the true end state, not just incremental line-count reduction.
 - **NFR-002**: The spec SHOULD define a concrete trap-file bar so completion is not ambiguous.
 - **NFR-003**: The resulting architecture SHOULD make `editor.js` materially easier to replace, bundle-split, or adapt for more shell tiers later.
-- **NFR-004**: The closeout bar SHOULD be evaluated against the "50-150 engine"
-  scaling target, not against the current two-engine reality.
+- **NFR-004**: The closeout bar SHOULD be evaluated against the "50-150-500
+  engine" scaling target, not against the current two-engine reality.
 - **NFR-005**: Acceptance criteria SHOULD be strong enough to stop "500 lines
   smaller" from being mistaken for architecture closure.
+- **NFR-006**: The spec SHOULD state cross-spec blockers explicitly so progress
+  in `editor.js` is not mistaken for platform readiness while host or render
+  centralization still remains elsewhere.
 
 ## Success Criteria
 
@@ -207,7 +258,8 @@ As a reviewer, I want the residual `editor.js` to read as obvious bootstrap/even
 - **SC-006**: No remaining preview-shell JS trap file reads like the mandatory
   integration sink for future engine lanes.
 - **SC-007**: A reviewer can articulate the onboarding path for approximately
-  150 heterogeneous engines without requiring repeated browser-shell rewrites.
+  50, 150, and 500 heterogeneous engines without requiring repeated
+  browser-shell rewrites.
 - **SC-008**: At least one representative engine from each major future class
   can pass the onboarding proof:
   1. external dependency-backed engine
@@ -216,6 +268,15 @@ As a reviewer, I want the residual `editor.js` to read as obvious bootstrap/even
 - **SC-009**: Neither `editor.js` nor `layout-bridge.js` remains the default
   place to add engine identity checks, engine-local control wiring, or
   engine-specific render/update branches.
+- **SC-010**: Builtin preview-host route/page install no longer reads as a
+  `server.ts`-local onboarding checklist for every new engine lane.
+- **SC-011**: Viewer page mode and host-page assembly are open enough that a
+  non-grid/non-force lane does not stall on hardcoded unions or page-builder
+  naming.
+- **SC-012**: At least one real skeletal non-ELK engine or diagram family can
+  exercise document kind, route/page or output-only host contract,
+  render/export adapter, persistence namespace, load/refresh, and save/export
+  without widening `editor.js`, `layout-bridge.js`, or `server.ts`.
 
 ## Closeout bar
 
@@ -238,8 +299,17 @@ It is done when all of the following are true:
    - ported diagram family / suite
    - bespoke in-house engine
 7. A reviewer must be able to imagine repeating that onboarding pattern across
-   roughly 150 engines without predicting that `editor.js` or
+   roughly 50, 150, and 500 engines without predicting that `editor.js` or
    `layout-bridge.js` will become the integration sink again.
+8. Builtin host onboarding must no longer require central `server.ts`
+   route/page/save/export edits for each new engine or document kind.
+9. Viewer page mode, document kind, render/export, and persistence authority
+   must be open/descriptor-driven enough that a non-grid/non-force engine does
+   not immediately hit a hardcoded central stop point.
+10. At least one real skeletal non-ELK engine onboarding proof must exercise
+    more than controller compatibility: route/page or explicit output-only
+    contract, render/export adapter, persistence namespace, refresh/load, and
+    save/export.
 
 The exact line count is not the sole goal, but this spec should treat anything still around the current ~2.8k-line scale as unfinished.
 
@@ -257,11 +327,15 @@ Spec 046 cannot close without an explicit sanity check framed like this:
 3. Confirm that onboarding did not require new behavior in `editor.js`.
 4. Confirm that onboarding did not rely on widening `layout-bridge.js` with
    engine-specific branching.
+5. Confirm that onboarding did not require central `server.ts` route/page/save
+   branching beyond typed descriptor or host-module registration.
+6. Confirm that non-frame render/export work entered through registered
+   adapters rather than direct shared branches.
 
 This is a design/ownership proof, not necessarily a full product launch of a
 new engine.
 
-## 150-engine readiness acceptance criteria
+## 50/150/500-engine readiness acceptance criteria
 
 Spec 046 MUST NOT close unless all of the following are true:
 
@@ -286,12 +360,23 @@ Spec 046 MUST NOT close unless all of the following are true:
    typed owners, not as the practical location where future engines would need
    bespoke logic.
 
-5. **Cold-start answer test**
-   If a cold-start reviewer asks "how do I add 150 engines?", the answer must
+5. **Descriptor-driven host answer**
+   The answer for a new engine or document kind must also begin with typed host
+   descriptors/modules rather than with `server.ts` route/page/save/export
+   surgery.
+
+6. **Cold-start answer test**
+   If a cold-start reviewer asks "how do I add 50, 150, or 500 engines?", the answer must
    begin with typed registration points (`preview-engine`, `preview-host`,
    shell-mode/capability owners) rather than with the trap files.
 
-6. **False-closeout veto**
+7. **Real end-to-end skeletal proof**
+   At least one non-ELK engine or diagram family must exercise document kind,
+   render/export adapter, host route/page or output-only host contract,
+   persistence namespace, refresh/load, and save/export through the typed
+   seams.
+
+8. **False-closeout veto**
    Even if the checklist is mostly green, spec 046 remains open whenever the
-   honest answer to the 150-engine question is "we would still have to widen the
-   legacy browser shell."
+   honest answer to the 50/150/500-engine question is "we would still have to
+   widen the legacy browser shell."

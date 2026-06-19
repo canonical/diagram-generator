@@ -4,7 +4,7 @@
 // ---------------------------------------------------------------------------
 // Bridges between the server's serialized Frame tree (JSON) and the
 // LayoutEngine global (IIFE bundle).  Provides performLocalRelayout()
-// which replaces the server round-trip requestV3Relayout().
+// which replaces the server round-trip layout relayout request path.
 // ---------------------------------------------------------------------------
 
 /**
@@ -278,7 +278,7 @@ function _isEngineLayoutDiagramJson(json) {
 
 function _resolveEngineLayoutOptionOverrides(diagram, model) {
   const fromYaml = (diagram && diagram.elkLayout) || {};
-  let session = (model && model.elkLayoutOverrides) || {};
+  let session = (model && (model.layoutOverrides || model.elkLayoutOverrides)) || {};
   const controller = getPreviewEngineShellController();
   if (controller && typeof controller.getLayoutOverrides === "function") {
     session = {
@@ -293,6 +293,7 @@ function _resolveEngineLayoutOptionOverrides(diagram, model) {
     && typeof ElkLayoutControls.collectOverrides === "function") {
     session = ElkLayoutControls.collectOverrides();
     if (model) {
+      model.layoutOverrides = { ...session };
       model.elkLayoutOverrides = { ...session };
     }
   }
@@ -447,7 +448,7 @@ async function initLayoutBridge(slug) {
  * Perform layout locally and patch the SVG DOM.
  * Returns { coerced, width, height } or null on failure.
  *
- * This replaces requestV3Relayout() — no server round-trip needed.
+ * This replaces the server round-trip relayout request path.
  *
  * @param {object} opts
  * @param {boolean} [opts.skipModelUpdate] - When true, the component model

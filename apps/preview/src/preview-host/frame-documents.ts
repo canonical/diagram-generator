@@ -5,11 +5,13 @@ import {
   buildComponentTree,
   buildGridInfo,
   collectIconNames,
-  layoutFrameTree,
+  layoutPreviewFrameDiagramForEngine,
   loadFrameYaml,
   preloadIconMarkup,
   renderFrameDiagramToSvg,
+  resolvePreviewEngine,
   serializeFrameDiagram,
+  summarizeFrameDiagramCompatibility,
   type PreviewDocumentKind,
   type TextMeasureAdapter,
 } from "@diagram-generator/layout-engine";
@@ -49,6 +51,15 @@ export function frameTreeForSlug(slug: string, deps: FramePreviewDocumentDeps) {
   return serializeFrameDiagram(loadFrameDiagram(slug, deps));
 }
 
+export function componentTreeForSlug(slug: string, deps: FramePreviewDocumentDeps) {
+  return buildComponentTree(loadFrameDiagram(slug, deps).root);
+}
+
+export function gridInfoForSlug(slug: string, deps: FramePreviewDocumentDeps) {
+  const diagram = loadFrameDiagram(slug, deps);
+  return buildGridInfo(diagram, diagram.root);
+}
+
 export function canonicalSavedState(slug: string, deps: FramePreviewDocumentDeps) {
   const diagram = loadFrameDiagram(slug, deps);
   const previewDocument = {
@@ -71,11 +82,16 @@ export function canonicalSavedState(slug: string, deps: FramePreviewDocumentDeps
 export async function buildFrameDiagramState(slug: string, deps: FramePreviewRenderDeps) {
   const diagram = loadFrameDiagram(slug, deps);
   const adapter = await deps.textAdapterPromise;
-  const layout = layoutFrameTree(diagram.root, adapter, {
-    gridCols: diagram.gridCols,
-    gridColGap: diagram.gridColGap,
-    gridOuterMargin: diagram.gridOuterMargin,
-    arrows: diagram.arrows,
+  const engineManifest = resolvePreviewEngine({
+    layoutEngine: diagram.layoutEngine ?? null,
+    shellMode: "grid",
+    previewDocumentKind: "frame-diagram",
+    frameDiagramSummary: summarizeFrameDiagramCompatibility(diagram),
+  });
+  const layout = await layoutPreviewFrameDiagramForEngine({
+    diagram,
+    textAdapter: adapter,
+    engine: engineManifest,
   });
   return { diagram, layout };
 }

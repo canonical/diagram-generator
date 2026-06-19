@@ -1,6 +1,15 @@
 # Engine Onboarding Proof
 
-Spec 046 closeout proof for the browser shell.
+Browser-shell proof material for spec 046. This document is evidence for one
+slice of the architecture, not proof that 046 is ready to close.
+
+The adversarial review on 2026-06-19 changed the standard for this file:
+controller compatibility is useful evidence, but it is not enough. The proof
+must now distinguish clearly between:
+
+1. the browser-shell seams that no longer start in `editor.js`
+2. the still-open host/document/render/persistence blockers that prevent honest
+   50/150/500-engine closeout
 
 ## What 046 changed
 
@@ -20,14 +29,28 @@ Spec 046 closeout proof for the browser shell.
 
 ## Typed onboarding path
 
-For an engine that reuses an existing shell tier, the browser-shell answer must start here:
+For an engine that reuses an existing shell tier, the browser-shell answer must
+start here:
 
 1. Add or extend the engine manifest in `packages/layout-engine/src/preview-engine/registry.ts`.
 2. Use manifest capabilities and shell mode to choose an existing lane when possible.
 3. If the engine needs browser-side panel/save hooks, provide an engine-local shell controller adapter rather than editing `editor.js`.
-4. If a new host lane is truly required, register it in the preview-host owners under `apps/preview/src/preview-host/`.
+4. If a new host lane is truly required, register it in the preview-host owners
+   under `apps/preview/src/preview-host/`.
 
 The answer must not start with `scripts/preview/editor.js`.
+
+That is only the browser-shell start point. A credible many-engine answer also
+needs typed ownership for:
+
+1. host route/page installation
+2. viewer-page mode/page assembly
+3. document-kind parse/normalize authority
+4. save/spec/export endpoint registration
+5. render/export adapter registration
+6. persistence namespace ownership
+
+Until those are descriptor-driven enough, this document is a partial proof only.
 
 ## Representative engine classes
 
@@ -56,13 +79,44 @@ Example: Mermaid-derived diagram types.
 - Add engine-local adapters in TypeScript or thin engine-local shell glue only when a tier-specific hook is genuinely required.
 - The same test file now exercises a bespoke representative controller (`bespoke-grid`) through the generic bootstrap/save/panel seam without any `editor.js` changes. This is likewise a shell-contract proof rather than a launched bespoke product lane.
 
-## Test-backed proof
+## Current shell-contract proof
 
 - External dependency-backed class: live ELK adapter in `scripts/preview/elk-controller.js`, covered by `packages/layout-engine/tests/app-bootstrap.test.ts` and `apps/preview/src/persistence/engine-contract-consumers.test.ts`.
 - Ported diagram-family class: representative `mermaid-flowchart` controller exercised in `packages/layout-engine/tests/app-bootstrap.test.ts`.
 - Bespoke in-house class: representative `bespoke-grid` controller exercised in `packages/layout-engine/tests/app-bootstrap.test.ts`.
 
-This is still a browser-shell proof, not a claim that Mermaid or D2 product lanes are fully launched.
+This is still a browser-shell proof, not a claim that Mermaid or D2 product
+lanes are fully launched.
+
+## Still-open blockers
+
+The current branch still fails the full proof standard in these ways:
+
+1. builtin preview-host onboarding still centralizes in `apps/preview/src/server.ts`
+2. viewer page mode/page assembly is still finite-lane in places
+3. document, save, spec, and export authority are still partly central
+4. some compatibility logic still branches on specific engine ids
+5. non-frame render/export wiring is still not fully adapter-driven
+6. browser vocabulary still contains V3/ELK-shaped transitional concepts
+
+These are not side notes. They are the reason the closeout answer is still
+"not yet."
+
+## Required real proof
+
+Spec 046 now requires one skeletal non-ELK engine or diagram-family proof that
+exercises the whole path through typed seams:
+
+1. document kind or document-family registration
+2. preview-engine manifest/descriptor registration
+3. render/export adapter registration
+4. preview-host route/page install or an explicit output-only host contract
+5. persistence namespace ownership
+6. initial preview/load and browser refresh behavior
+7. save/spec/export authority
+
+If that proof needs `editor.js`, `layout-bridge.js`, or central `server.ts`
+branch surgery, the architecture is not ready.
 
 ## Acceptance answers
 
@@ -77,22 +131,26 @@ branches in `editor.js` / `layout-bridge.js`.
 
 ### Can a future engine onboarding start from typed registration points?
 
-Yes for the preview-shell portion, and that is the closeout bar for spec 046.
+Yes for the preview-shell portion, but that is no longer treated as sufficient
+closeout proof for spec 046.
 
 Cold-start answer:
 
 1. `preview-engine/registry.ts`
-2. preview-host lane registration only if needed
+2. preview-host descriptor/module registration only if needed
 3. typed preview-shell owner or engine-local controller adapter
+4. typed document/render/persistence descriptors rather than central server
+   branches
 
 Not:
 
 1. `scripts/preview/editor.js`
 
-The full 150-engine product answer is still broader than spec 046. Dedicated
-host lanes and non-grid shell work remain under spec 045 and later follow-up
-specs, but the browser-shell registration path no longer starts in the legacy
-JS sink files.
+The full 50/150/500-engine answer is broader than this document. Dedicated host
+modules, open viewer-page assembly, descriptor-driven document/save/export
+authority, persistence namespace ownership, and non-grid render registration
+remain open under spec 045 and adjacent follow-up work, even though the
+browser-shell registration path no longer starts in the legacy JS sink files.
 
 ## Honest veto
 
@@ -109,13 +167,13 @@ Spec 046 does **not** get to ignore `layout-bridge.js`.
 
 Honest answer today:
 
-- **Preview-shell / editor path**: structurally green for future engine
-  onboarding. Engine panel/save/bootstrap work should not start in `editor.js`.
-- **Three-class browser-shell proof**: green at the shell-contract level. ELK,
-  representative Mermaid-family, and representative bespoke controllers now
-  pass through the same typed bootstrap/panel/save seam in tests.
-- **Full 150-engine browser answer**: structurally green for engines that reuse
-  an existing shell lane, with additional host-lane work still owned by later
-  specs. The answer now starts in typed registration points (`preview-engine`,
-  preview-host lane registration when needed, and typed shell owners), not in
-  the legacy JS trap files.
+- **Preview-shell / editor path**: materially better than before. Engine
+  panel/save/bootstrap work should no longer start in `editor.js`.
+- **Three-class browser-shell proof**: green only at the shell-contract level.
+  ELK, representative Mermaid-family, and representative bespoke controllers
+  now pass through the same typed bootstrap/panel/save seam in tests.
+- **Full 50/150/500-engine answer**: still **not yet**. Host route/page
+  installation, document/save/export authority, render-adapter registration,
+  persistence namespace handling, compatibility cleanup, and shell vocabulary
+  are still not descriptor-driven enough to count as honest many-engine
+  readiness.

@@ -6,40 +6,44 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
-  ARROW_HEAD_HALF_WIDTH,
-  ARROW_HEAD_LENGTH,
-  BODY_LINE_STEP,
-  GRID_GUTTER,
-  ICON_SIZE,
-  INSET,
-  buildComponentTree,
-  buildGridInfo,
-  collectIconNames,
   createFsIconLoader,
   createHarfBuzzTextAdapter,
   evaluatePreviewEngineCompatibility,
   getPreviewEngineByLayoutKey,
-  layoutFrameTree,
   listCompatiblePreviewEngines,
-  loadFrameYaml,
-  preloadIconMarkup,
-  renderFrameDiagramToSvg,
   resolvePreviewEngine,
-  serializeFrameDiagram,
   serializePreviewEngineManifest,
   summarizeFrameDiagramCompatibility,
-  type PreviewDocumentKind,
   type PreviewEngineContext,
   type PreviewEngineManifest,
 } from "@diagram-generator/layout-engine";
+import {
+  canonicalSavedState as canonicalFrameSavedState,
+  determineFrameYamlKind,
+  frameDiagramExists,
+  loadFrameDiagram,
+  renderSvgForSlug,
+  type FramePreviewDocumentDeps,
+  type FramePreviewRenderDeps,
+} from "./preview-host/frame-documents.js";
+import {
+  buildRegisteredPreviewBrowseSections,
+  resolveRegisteredPreviewViewerRoute,
+} from "./preview-host/registry.js";
+import { resolveRegisteredPreviewHostApiRoute } from "./preview-host/api-routes.js";
+import {
+  canonicalForceSavedState,
+  readForceSpec,
+  type ForcePreviewDocumentDeps,
+} from "./preview-host/force-documents.js";
+import { installBuiltinPreviewHost } from "./preview-host/install-builtins.js";
 import {
   persistForceSpecToYaml,
   persistFrameDiagramOverridePayloadToYaml,
   verifyElkLayoutPersisted,
   type PersistOverridePayload,
 } from "./persistence/index.js";
-import { AUTOLAYOUT_HOST_LANE, FORCE_HOST_LANE, buildPreviewBrowseSections } from "./preview-host/lanes.js";
-import { buildIndexPageHtml, buildViewerPageHtml } from "./preview-host/pages.js";
+import { buildIndexPageHtml } from "./preview-host/pages.js";
 
 const DEFAULT_PORT = 8100;
 const SPEC_HOME = "docs/spec-archive/038-ts-authority-python-removal/";
@@ -138,6 +142,17 @@ const hostableGridLayoutKeys = new Set(
 const textAdapterPromise = createHarfBuzzTextAdapter({
   fontData: readFileSync(path.join(REPO_ROOT, "assets", "UbuntuSans[wdth,wght].ttf")).buffer,
 });
+const framePreviewDocumentDeps: FramePreviewDocumentDeps = {
+  framesDir: FRAMES_DIR,
+};
+const forcePreviewDocumentDeps: ForcePreviewDocumentDeps = {
+  forceDefinitionsDir: FORCE_DEFINITIONS_DIR,
+};
+const framePreviewRenderDeps: FramePreviewRenderDeps = {
+  ...framePreviewDocumentDeps,
+  iconLoader,
+  textAdapterPromise,
+};
 const WATCH_EXTENSIONS = new Set([".yaml", ".yml", ".json", ".html", ".css", ".js", ".svg", ".ttf", ".woff", ".woff2"]);
 const WATCH_PATHS = [FRAMES_DIR, FORCE_DEFINITIONS_DIR, PREVIEW_DIR, BF_VENDOR_ROOT, path.join(REPO_ROOT, "packages", "layout-engine", "dist")];
 let rebuildGeneration = 0;
@@ -493,123 +508,12 @@ function findReferenceImage(slug: string): string | null {
   return null;
 }
 
-function previewEngineScriptTags(
-  entry: PreviewEngineManifest | undefined,
-  fallbackScripts: readonly string[] = [],
-): string {
-  const scripts = Array.isArray(entry?.scripts) && entry.scripts.length > 0 ? entry.scripts : fallbackScripts;
-  return scripts.map((script: string) => `<script src="${previewAssetUrl(script)}"></script>`).join("\n");
-}
-
 function bfStylesLinkHtml(): string {
   return '<link rel="stylesheet" href="/preview/bf-os.css">';
 }
 
 function buildBrowseSections() {
-  return buildPreviewBrowseSections([
-    { lane: AUTOLAYOUT_HOST_LANE, slugs: listAutolayoutDiagrams() },
-    { lane: FORCE_HOST_LANE, slugs: listForceExamples() },
-  ]);
-}
-
-function buildGridViewerHtml(slug: string): string {
-  const currentPath = AUTOLAYOUT_HOST_LANE.buildViewerPath(slug);
-  const template = readFileSync(VIEWER_TEMPLATE, "utf8");
-  const diagram = loadFrameYaml(path.join(FRAMES_DIR, `${slug}.yaml`));
-  const frameDiagramSummary = summarizeFrameDiagramCompatibility(diagram);
-  const authoredLayoutEngine = normalizeLayoutEngine(diagram.layoutEngine);
-  const baselineYaml = readFileSync(path.join(FRAMES_DIR, `${slug}.yaml`), "utf8");
-  const documentKind = determineFrameYamlKind(baselineYaml);
-  const previewContext: PreviewEngineContext = {
-    layoutEngine: authoredLayoutEngine,
-    shellMode: "grid",
-    previewDocumentKind: documentKind,
-    frameDiagramSummary,
-  };
-  const engineManifest = resolvePreviewEngine(previewContext);
-  const activeLayoutEngine = engineManifest?.layoutEngineKey ?? authoredLayoutEngine;
-
-  const compatibleEngines = listCompatiblePreviewEngines({
-    shellMode: "grid",
-    previewDocumentKind: documentKind,
-    frameDiagramSummary,
-  })
-    .map((e) => e.layoutEngineKey)
-    .filter((k) => k !== null) as string[];
-
-  const isElk = engineManifest?.id === "elk-layered";
-  const hasReference = findReferenceImage(slug) !== null;
-  const configScript = [
-    "window.__DG_CONFIG = {",
-    `"slug":"${slug}",`,
-    '"engine":"v3",',
-    `"layout_engine":"${activeLayoutEngine}",`,
-    `"compatible_engines":${JSON.stringify(compatibleEngines)},`,
-    '"grid":false,',
-    `"inset":${INSET},`,
-    `"head_len":${ARROW_HEAD_LENGTH},`,
-    `"head_half":${ARROW_HEAD_HALF_WIDTH},`,
-    `"icon_size":${ICON_SIZE},`,
-    `"col_gap":${GRID_GUTTER},`,
-    `"has_reference":${String(hasReference).toLowerCase()}`,
-    "};",
-  ].join("");
-
-  const engineScripts = previewEngineScriptTags(
-    engineManifest,
-    isElk ? ["elk-layout-controls.js", "elk-controller.js"] : [],
-  );
-  const modeScripts =
-    `<script src="${previewAssetUrl("layout-engine.js")}"></script>\n` +
-    (engineScripts ? `${engineScripts}\n` : "") +
-    `<script src="${previewAssetUrl("layout-bridge.js")}"></script>\n` +
-    `<script src="${previewAssetUrl("component-model.js")}"></script>\n` +
-    `<script src="${previewAssetUrl("constraints.js")}"></script>\n` +
-    `<script src="${previewAssetUrl("editor.js")}"></script>\n` +
-    `<script src="${previewAssetUrl("engine-switcher.js")}"></script>`;
-
-  return buildViewerPageHtml({
-    title: `${slug} – diagram preview`,
-    mode: "grid",
-    currentPath,
-    templateHtml: template,
-    browseSections: buildBrowseSections(),
-    inspectorEmptyText: "Click a component to inspect it.",
-    modeScriptsHtml: modeScripts,
-    configScript,
-    includeElkSection: isElk,
-    baselineStylesHtml: bfStylesLinkHtml(),
-  });
-}
-
-function buildForceViewerHtml(slug: string): string {
-  const currentPath = FORCE_HOST_LANE.buildViewerPath(slug);
-  const template = readFileSync(VIEWER_TEMPLATE, "utf8");
-  const engineManifest = resolvePreviewEngine({ shellMode: "force" });
-  const configScript = [
-    "window.__DG_FORCE_CONFIG = {",
-    `"slug":"${slug}",`,
-    `"inset":${INSET},`,
-    `"body_line_step":${BODY_LINE_STEP},`,
-    `"head_len":${ARROW_HEAD_LENGTH},`,
-    `"head_half":${ARROW_HEAD_HALF_WIDTH}`,
-    "};",
-  ].join("");
-  const engineScripts = previewEngineScriptTags(engineManifest, ["force.js"]);
-  const modeScripts =
-    `<script src="${previewAssetUrl("layout-engine.js")}"></script>\n` + engineScripts;
-  return buildViewerPageHtml({
-    title: `${slug} – force preview`,
-    mode: "force",
-    currentPath,
-    templateHtml: template,
-    browseSections: buildBrowseSections(),
-    inspectorEmptyText: "Click a node to select it.",
-    modeScriptsHtml: modeScripts,
-    configScript,
-    includeElkSection: false,
-    baselineStylesHtml: bfStylesLinkHtml(),
-  });
+  return buildRegisteredPreviewBrowseSections();
 }
 
 function buildIndexHtml(port: number): string {
@@ -621,105 +525,21 @@ function buildIndexHtml(port: number): string {
   });
 }
 
-function readForceSpec(slug: string): unknown {
-  const specPath = path.join(FORCE_DEFINITIONS_DIR, `${slug}.yaml`);
-  if (!existsSync(specPath)) return null;
-  return parseYaml(readFileSync(specPath, "utf8"));
-}
-
-async function buildFrameDiagramState(slug: string) {
-  const yamlPath = path.join(FRAMES_DIR, `${slug}.yaml`);
-  const diagram = loadFrameYaml(yamlPath);
-  const adapter = await textAdapterPromise;
-  const layout = layoutFrameTree(diagram.root, adapter, {
-    gridCols: diagram.gridCols,
-    gridColGap: diagram.gridColGap,
-    gridOuterMargin: diagram.gridOuterMargin,
-    arrows: diagram.arrows,
-  });
-  return { diagram, layout };
-}
-
-async function renderSvgForSlug(slug: string): Promise<string> {
-  const { diagram, layout } = await buildFrameDiagramState(slug);
-  const iconMarkupByName = preloadIconMarkup(iconLoader, collectIconNames(diagram.root));
-  const adapter = await textAdapterPromise;
-  return renderFrameDiagramToSvg(diagram, layout, adapter, { iconMarkupByName });
-}
-
-function previewDocumentForSlug(slug: string) {
-  const diagram = loadFrameYaml(path.join(FRAMES_DIR, `${slug}.yaml`));
-  return {
-    kind: "frame-diagram",
-    slug,
-    title: diagram.title,
-    layoutEngine: diagram.layoutEngine ?? null,
-    shellMode: "grid",
-    frameTree: serializeFrameDiagram(diagram),
-  };
-}
-
-function frameTreeForSlug(slug: string) {
-  return serializeFrameDiagram(loadFrameDiagram(slug));
-}
-
-function loadFrameDiagram(slug: string) {
-  return loadFrameYaml(path.join(FRAMES_DIR, `${slug}.yaml`));
-}
-
-function frameDiagramExists(slug: string): boolean {
-  return existsSync(path.join(FRAMES_DIR, `${slug}.yaml`));
-}
-
-function canonicalSavedState(slug: string) {
-  const diagram = loadFrameDiagram(slug);
-  const previewDocument = {
-    kind: "frame-diagram",
-    slug,
-    title: diagram.title,
-    layoutEngine: diagram.layoutEngine ?? null,
-    shellMode: "grid",
-    frameTree: serializeFrameDiagram(diagram),
-  };
-  return {
-    slug,
-    previewDocument,
-    frameTree: previewDocument.frameTree,
-    componentTree: buildComponentTree(diagram.root),
-    gridInfo: buildGridInfo(diagram, diagram.root),
-  };
-}
-
-function canonicalForceSavedState(slug: string) {
-  const authoredSpec = readForceSpec(slug);
-  if (!authoredSpec) {
-    throw new Error(`Canonical force spec not found after save: ${slug}`);
-  }
-  return {
-    slug,
-    authoredSpec,
-  };
-}
+installBuiltinPreviewHost({
+  framePreviewDocumentDeps,
+  forcePreviewDocumentDeps,
+  parseYaml,
+  templateHtml: readFileSync(VIEWER_TEMPLATE, "utf8"),
+  baselineStylesHtml: bfStylesLinkHtml(),
+  previewAssetUrl,
+  listAutolayoutDiagrams,
+  listForceExamples,
+  findReferenceImage,
+  normalizeLayoutEngine,
+});
 
 function contentTypeForPath(filePath: string): string {
   return MIME_TYPES[path.extname(filePath).toLowerCase()] ?? "application/octet-stream";
-}
-
-/**
- * Determine the preview document kind from a frame YAML file.
- * - If the YAML has a `sequence:` key, it's a sequence document
- * - Otherwise, it's a frame-diagram document
- */
-function determineFrameYamlKind(yamlContent: string): PreviewDocumentKind {
-  try {
-    const parsed = parseYaml(yamlContent);
-    if (parsed && typeof parsed === "object" && "sequence" in parsed) {
-      return "sequence";
-    }
-  } catch {
-    // Fall back to frame-diagram if parsing fails
-  }
-  return "frame-diagram";
 }
 
 function serveFile(res: ServerResponse, filePath: string, cacheControl = "no-store"): void {
@@ -754,133 +574,20 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, port: nu
   const pathname = url.pathname;
 
   if (req.method === "POST") {
-    if (pathname.startsWith("/api/overrides/")) {
-      const slug = normalizeFrameSlug(pathname.slice("/api/overrides/".length));
-      if (!slug) {
-        sendText(res, 400, "Invalid slug");
-        return;
-      }
-      const framePath = path.join(FRAMES_DIR, `${slug}.yaml`);
-      if (!existsSync(framePath)) {
-        sendText(res, 404, `Unknown frame slug: ${slug}`);
-        return;
-      }
-      let payload: unknown;
-      try {
-        payload = await readJsonBody(req);
-      } catch (error) {
-        sendText(res, 400, error instanceof Error ? error.message : String(error));
-        return;
-      }
-
-      // Spec 035: validate engine compatibility before persisting.
-      // The switcher must never write an engine the document kind cannot host.
-      if (payload && typeof payload === "object" && !Array.isArray(payload) && "layout_engine" in payload) {
-        const requested = (payload as Record<string, unknown>).layout_engine;
-        if (requested !== null && requested !== undefined && requested !== "") {
-          if (typeof requested !== "string") {
-            sendText(res, 400, `Invalid layout_engine: must be a string`);
-            return;
-          }
-
-          // Determine the document kind from the YAML
-          let baseline: string;
-          try {
-            baseline = readFileSync(framePath, "utf8");
-          } catch {
-            sendText(res, 400, "Could not read frame file");
-            return;
-          }
-          const documentKind = determineFrameYamlKind(baseline);
-
-          // Resolve the engine by its hostable layoutEngineKey (the persisted
-          // `meta.layout_engine` value), NOT by manifest id. These differ
-          // semantically even where they coincide today.
-          const engine = getPreviewEngineByLayoutKey(normalizeLayoutEngine(requested));
-          if (!engine) {
-            sendText(res, 400, `Unknown layout_engine: '${requested}'`);
-            return;
-          }
-
-          // Evaluate compatibility with the actual document kind
-          const frameDiagramSummary =
-            documentKind === "frame-diagram"
-              ? summarizeFrameDiagramCompatibility(loadFrameYaml(framePath))
-              : undefined;
-          const context: PreviewEngineContext = {
-            layoutEngine: requested.trim(),
-            shellMode: "grid",
-            previewDocumentKind: documentKind,
-            frameDiagramSummary,
-          };
-          const compatibility = evaluatePreviewEngineCompatibility(engine, context);
-          if (!compatibility.compatible) {
-            sendText(
-              res,
-              400,
-              `Cannot use engine '${requested}' with ${documentKind}: ${compatibility.reason ?? "incompatible"}`,
-            );
-            return;
-          }
-        }
-      }
-
-      try {
-        const baseline = readFileSync(framePath, "utf8");
-        const nextText = persistFrameDiagramOverridePayloadToYaml(
-          framePath,
-          baseline,
-          payload as PersistOverridePayload,
-        );
-
-        if (nextText !== baseline) {
-          writeFileSync(framePath, nextText, "utf8");
-        }
-        const elkOverrides =
-          payload && typeof payload === "object" && payload !== null && "elk_layout_overrides" in payload
-            ? (payload as Record<string, unknown>).elk_layout_overrides
-            : null;
-        if (elkOverrides && typeof elkOverrides === "object" && !Array.isArray(elkOverrides)) {
-          verifyElkLayoutPersisted(nextText, elkOverrides as Record<string, unknown>);
-        }
-        sendJson(res, 200, {
-          ok: true,
-          canonicalState: canonicalSavedState(slug),
-        });
-      } catch (error) {
-        sendText(res, 400, error instanceof Error ? error.message : String(error));
-      }
-      return;
-    }
-
-    if (pathname.startsWith("/api/force-save/")) {
-      const slug = normalizeFrameSlug(pathname.slice("/api/force-save/".length));
-      if (!slug) {
-        sendText(res, 400, "Invalid slug");
-        return;
-      }
-      const framePath = path.join(FORCE_DEFINITIONS_DIR, `${slug}.yaml`);
-      if (!existsSync(framePath)) {
-        sendText(res, 404, `Unknown force example: ${slug}`);
-        return;
-      }
-      let payload: unknown;
-      try {
-        payload = await readJsonBody(req);
-      } catch (error) {
-        sendText(res, 400, error instanceof Error ? error.message : String(error));
-        return;
-      }
-      try {
-        const nextText = persistForceSpecToYaml(payload);
-        writeFileSync(framePath, nextText, "utf8");
-        sendJson(res, 200, {
-          ok: true,
-          canonicalState: canonicalForceSavedState(slug),
-        });
-      } catch (error) {
-        sendText(res, 400, error instanceof Error ? error.message : String(error));
-      }
+    const previewHostApiRouteMatch = resolveRegisteredPreviewHostApiRoute(
+      "POST",
+      pathname,
+      normalizeFrameSlug,
+    );
+    if (previewHostApiRouteMatch) {
+      await previewHostApiRouteMatch.route.handle(previewHostApiRouteMatch, {
+        req,
+        res,
+        pathname,
+        sendJson: (statusCode: number, payload: unknown) => sendJson(res, statusCode, payload),
+        sendText: (statusCode: number, text: string) => sendText(res, statusCode, text),
+        readJsonBody,
+      });
       return;
     }
 
@@ -1018,18 +725,20 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, port: nu
     serveFile(res, refPath, "public, max-age=300");
     return;
   }
-  if (pathname.startsWith("/api/force-spec/")) {
-    const slug = normalizeFrameSlug(pathname.slice("/api/force-spec/".length));
-    if (!slug) {
-      sendText(res, 400, "Invalid slug");
-      return;
-    }
-    const spec = readForceSpec(slug);
-    if (!spec) {
-      sendText(res, 404, `Unknown force example: ${slug}`);
-      return;
-    }
-    sendJson(res, 200, spec);
+  const previewHostGetApiRouteMatch = resolveRegisteredPreviewHostApiRoute(
+    "GET",
+    pathname,
+    normalizeFrameSlug,
+  );
+  if (previewHostGetApiRouteMatch) {
+    await previewHostGetApiRouteMatch.route.handle(previewHostGetApiRouteMatch, {
+      req,
+      res,
+      pathname,
+      sendJson: (statusCode: number, payload: unknown) => sendJson(res, statusCode, payload),
+      sendText: (statusCode: number, text: string) => sendText(res, statusCode, text),
+      readJsonBody,
+    });
     return;
   }
   if (
@@ -1041,60 +750,6 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, port: nu
     pathname.startsWith("/api/force-export/")
   ) {
     sendText(res, 404, `Route retired from the Node preview app: ${pathname}`);
-    return;
-  }
-  if (pathname.startsWith("/api/preview-document/")) {
-    const slug = normalizeFrameSlug(pathname.slice("/api/preview-document/".length));
-    if (!slug) {
-      sendText(res, 400, "Invalid slug");
-      return;
-    }
-    if (!frameDiagramExists(slug)) {
-      sendText(res, 404, `Unknown diagram: ${slug}`);
-      return;
-    }
-    sendJson(res, 200, previewDocumentForSlug(slug));
-    return;
-  }
-  if (pathname.startsWith("/api/frame-tree/")) {
-    const slug = normalizeFrameSlug(pathname.slice("/api/frame-tree/".length));
-    if (!slug) {
-      sendText(res, 400, "Invalid slug");
-      return;
-    }
-    if (!frameDiagramExists(slug)) {
-      sendText(res, 404, `Unknown diagram: ${slug}`);
-      return;
-    }
-    sendJson(res, 200, frameTreeForSlug(slug));
-    return;
-  }
-  if (pathname.startsWith("/api/tree/")) {
-    const slug = normalizeFrameSlug(pathname.slice("/api/tree/".length));
-    if (!slug) {
-      sendText(res, 400, "Invalid slug");
-      return;
-    }
-    if (!frameDiagramExists(slug)) {
-      sendText(res, 404, `Unknown diagram: ${slug}`);
-      return;
-    }
-    const diagram = loadFrameDiagram(slug);
-    sendJson(res, 200, buildComponentTree(diagram.root));
-    return;
-  }
-  if (pathname.startsWith("/api/grid/")) {
-    const slug = normalizeFrameSlug(pathname.slice("/api/grid/".length));
-    if (!slug) {
-      sendText(res, 400, "Invalid slug");
-      return;
-    }
-    if (!frameDiagramExists(slug)) {
-      sendText(res, 404, `Unknown diagram: ${slug}`);
-      return;
-    }
-    const diagram = loadFrameDiagram(slug);
-    sendJson(res, 200, buildGridInfo(diagram, diagram.root));
     return;
   }
   if (pathname.startsWith("/svg/") || pathname.startsWith("/v3/svg/")) {
@@ -1109,47 +764,22 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, port: nu
       sendText(res, 400, "Invalid SVG slug");
       return;
     }
-    const svg = await renderSvgForSlug(slug);
+    const svg = await renderSvgForSlug(slug, framePreviewRenderDeps);
     sendBytes(res, 200, "image/svg+xml", Buffer.from(svg, "utf8"));
     return;
   }
-  if (pathname.startsWith("/force/view/")) {
-    const slug = normalizeFrameSlug(pathname.slice("/force/view/".length));
+  const previewViewerRouteMatch = resolveRegisteredPreviewViewerRoute(pathname, normalizeFrameSlug);
+  if (previewViewerRouteMatch) {
+    const { route, slug } = previewViewerRouteMatch;
     if (!slug) {
       sendText(res, 400, "Invalid slug");
       return;
     }
-    if (!existsSync(path.join(FORCE_DEFINITIONS_DIR, `${slug}.yaml`))) {
-      sendText(res, 404, `Unknown force example: ${slug}`);
+    if (!route.hasDocument(slug)) {
+      sendText(res, 404, route.describeMissing(slug));
       return;
     }
-    sendHtml(res, 200, buildForceViewerHtml(slug));
-    return;
-  }
-  if (pathname.startsWith("/v3/view/")) {
-    const slug = normalizeFrameSlug(pathname.slice("/v3/view/".length));
-    if (!slug) {
-      sendText(res, 400, "Invalid slug");
-      return;
-    }
-    if (!existsSync(path.join(FRAMES_DIR, `${slug}.yaml`))) {
-      sendText(res, 404, `Unknown diagram: ${slug}`);
-      return;
-    }
-    sendHtml(res, 200, buildGridViewerHtml(slug));
-    return;
-  }
-  if (pathname.startsWith("/view/")) {
-    const slug = normalizeFrameSlug(pathname.slice("/view/".length));
-    if (!slug) {
-      sendText(res, 400, "Invalid slug");
-      return;
-    }
-    if (!existsSync(path.join(FRAMES_DIR, `${slug}.yaml`))) {
-      sendText(res, 404, `Unknown diagram: ${slug}`);
-      return;
-    }
-    sendHtml(res, 200, buildGridViewerHtml(slug));
+    sendHtml(res, 200, route.buildHtml(slug));
     return;
   }
 
