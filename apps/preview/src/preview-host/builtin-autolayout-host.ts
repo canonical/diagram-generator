@@ -16,7 +16,8 @@ import {
   createPreviewHostDocumentPostJsonRoute,
 } from "./document-api-routes.js";
 import {
-  createFramePreviewHostDocumentApi,
+  createFramePreviewHostDocumentActions,
+  FRAME_PREVIEW_HOST_DOCUMENT_ACTIONS,
 } from "./document-apis.js";
 import {
   frameDiagramExists,
@@ -141,7 +142,7 @@ export function createFrameOverridesPreviewHostApiRoute(): PreviewHostApiRouteDe
   return createPreviewHostDocumentPostJsonRoute({
     key: "frame-overrides",
     routePrefixes: ["/api/overrides/"],
-    documentApiKey: "saveDocument",
+    documentActionKey: FRAME_PREVIEW_HOST_DOCUMENT_ACTIONS.saveDocument,
     routeKey: "autolayout",
     missingMessage: (slug: string) => `Unknown frame slug: ${slug}`,
   });
@@ -151,7 +152,8 @@ export function createPreviewDocumentPreviewHostApiRoute(): PreviewHostApiRouteD
   return createPreviewHostDocumentGetJsonRoute({
     key: "preview-document",
     routePrefixes: ["/api/preview-document/"],
-    documentApiKey: "loadPreviewDocument",
+    documentActionKey: FRAME_PREVIEW_HOST_DOCUMENT_ACTIONS.loadPreviewDocument,
+    routeKey: "autolayout",
     missingMessage: missingAutolayoutDiagramMessage,
   });
 }
@@ -160,7 +162,8 @@ export function createFrameTreePreviewHostApiRoute(): PreviewHostApiRouteDescrip
   return createPreviewHostDocumentGetJsonRoute({
     key: "frame-tree",
     routePrefixes: ["/api/frame-tree/"],
-    documentApiKey: "loadFrameTree",
+    documentActionKey: FRAME_PREVIEW_HOST_DOCUMENT_ACTIONS.loadFrameTree,
+    routeKey: "autolayout",
     missingMessage: missingAutolayoutDiagramMessage,
   });
 }
@@ -169,7 +172,8 @@ export function createComponentTreePreviewHostApiRoute(): PreviewHostApiRouteDes
   return createPreviewHostDocumentGetJsonRoute({
     key: "component-tree",
     routePrefixes: ["/api/tree/"],
-    documentApiKey: "loadComponentTree",
+    documentActionKey: FRAME_PREVIEW_HOST_DOCUMENT_ACTIONS.loadComponentTree,
+    routeKey: "autolayout",
     missingMessage: missingAutolayoutDiagramMessage,
   });
 }
@@ -178,7 +182,8 @@ export function createGridInfoPreviewHostApiRoute(): PreviewHostApiRouteDescript
   return createPreviewHostDocumentGetJsonRoute({
     key: "grid-info",
     routePrefixes: ["/api/grid/"],
-    documentApiKey: "loadGridInfo",
+    documentActionKey: FRAME_PREVIEW_HOST_DOCUMENT_ACTIONS.loadGridInfo,
+    routeKey: "autolayout",
     missingMessage: missingAutolayoutDiagramMessage,
   });
 }
@@ -187,7 +192,8 @@ export function createPreviewSvgHostApiRoute(): PreviewHostApiRouteDescriptor {
   return createPreviewHostDocumentGetBytesRoute({
     key: "svg-export",
     routePrefixes: ["/svg/", "/v3/svg/"],
-    documentApiKey: "renderSvg",
+    documentActionKey: FRAME_PREVIEW_HOST_DOCUMENT_ACTIONS.renderSvg,
+    routeKey: "autolayout",
     missingMessage: missingAutolayoutDiagramMessage,
     contentType: "image/svg+xml",
     resolveSlug: (match) => resolveSvgExportSlug(match.pathname),
@@ -269,7 +275,7 @@ export function createAutolayoutPreviewHostViewerRoute(
       });
     },
     describeMissing: missingAutolayoutDiagramMessage,
-    documentApi: createFramePreviewHostDocumentApi({
+    documentActions: createFramePreviewHostDocumentActions({
       framePreviewDocumentDeps: deps.framePreviewDocumentDeps,
       framePreviewRenderDeps: deps.framePreviewRenderDeps,
       parseYaml: deps.parseYaml,

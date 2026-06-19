@@ -1,9 +1,9 @@
 import type {
   PreviewHostApiRouteDescriptor,
   PreviewHostApiRouteMatch,
-  PreviewHostDocumentApi,
+  PreviewHostDocumentActionHandler,
 } from "./types.js";
-import { resolveRegisteredPreviewDocumentApi } from "./registry.js";
+import { resolveRegisteredPreviewDocumentAction } from "./registry.js";
 
 function requirePreviewHostRouteSlug(
   match: { slug: string | null },
@@ -18,23 +18,23 @@ function requirePreviewHostRouteSlug(
 }
 
 interface ResolvePreviewHostDocumentRouteOptions<
-  TKey extends keyof PreviewHostDocumentApi,
+  THandler extends PreviewHostDocumentActionHandler,
 > {
-  readonly documentApiKey: TKey;
+  readonly documentActionKey: string;
   readonly routeKey?: string;
   readonly missingMessage: (slug: string) => string;
   readonly resolveSlug?: (match: PreviewHostApiRouteMatch) => string | null;
 }
 
 function resolvePreviewHostDocumentRoute<
-  TKey extends keyof PreviewHostDocumentApi,
+  THandler extends PreviewHostDocumentActionHandler,
 >(
   match: PreviewHostApiRouteMatch,
   sendText: (statusCode: number, text: string) => void,
-  options: ResolvePreviewHostDocumentRouteOptions<TKey>,
+  options: ResolvePreviewHostDocumentRouteOptions<THandler>,
 ): {
   slug: string;
-  handler: NonNullable<PreviewHostDocumentApi[TKey]>;
+  handler: THandler;
 } | null {
   const slug = options.resolveSlug
     ? requirePreviewHostRouteSlug(
@@ -45,7 +45,7 @@ function resolvePreviewHostDocumentRoute<
   if (!slug) {
     return null;
   }
-  const owner = resolveRegisteredPreviewDocumentApi(slug, options.documentApiKey, {
+  const owner = resolveRegisteredPreviewDocumentAction<THandler>(slug, options.documentActionKey, {
     routeKey: options.routeKey,
   });
   if (!owner) {
@@ -59,16 +59,16 @@ function resolvePreviewHostDocumentRoute<
 }
 
 export interface CreatePreviewHostDocumentGetJsonRouteOptions<
-  TKey extends keyof PreviewHostDocumentApi,
-> extends ResolvePreviewHostDocumentRouteOptions<TKey> {
+  TResult = unknown,
+> extends ResolvePreviewHostDocumentRouteOptions<(slug: string) => TResult | Promise<TResult>> {
   readonly key: string;
   readonly routePrefixes: readonly string[];
 }
 
 export function createPreviewHostDocumentGetJsonRoute<
-  TKey extends keyof PreviewHostDocumentApi,
+  TResult = unknown,
 >(
-  options: CreatePreviewHostDocumentGetJsonRouteOptions<TKey>,
+  options: CreatePreviewHostDocumentGetJsonRouteOptions<TResult>,
 ): PreviewHostApiRouteDescriptor {
   return {
     key: options.key,
@@ -80,8 +80,7 @@ export function createPreviewHostDocumentGetJsonRoute<
         return;
       }
       try {
-        const handler = resolved.handler as (slug: string) => unknown | Promise<unknown>;
-        context.sendJson(200, await handler(resolved.slug));
+        context.sendJson(200, await resolved.handler(resolved.slug));
       } catch (error) {
         context.sendText(400, error instanceof Error ? error.message : String(error));
       }
@@ -90,16 +89,16 @@ export function createPreviewHostDocumentGetJsonRoute<
 }
 
 export interface CreatePreviewHostDocumentPostJsonRouteOptions<
-  TKey extends keyof PreviewHostDocumentApi,
-> extends ResolvePreviewHostDocumentRouteOptions<TKey> {
+  TResult = unknown,
+> extends ResolvePreviewHostDocumentRouteOptions<(slug: string, payload: unknown) => TResult | Promise<TResult>> {
   readonly key: string;
   readonly routePrefixes: readonly string[];
 }
 
 export function createPreviewHostDocumentPostJsonRoute<
-  TKey extends keyof PreviewHostDocumentApi,
+  TResult = unknown,
 >(
-  options: CreatePreviewHostDocumentPostJsonRouteOptions<TKey>,
+  options: CreatePreviewHostDocumentPostJsonRouteOptions<TResult>,
 ): PreviewHostApiRouteDescriptor {
   return {
     key: options.key,
@@ -118,8 +117,7 @@ export function createPreviewHostDocumentPostJsonRoute<
         return;
       }
       try {
-        const handler = resolved.handler as (slug: string, payload: unknown) => unknown | Promise<unknown>;
-        context.sendJson(200, await handler(resolved.slug, payload));
+        context.sendJson(200, await resolved.handler(resolved.slug, payload));
       } catch (error) {
         context.sendText(400, error instanceof Error ? error.message : String(error));
       }
@@ -128,18 +126,18 @@ export function createPreviewHostDocumentPostJsonRoute<
 }
 
 export interface CreatePreviewHostDocumentGetBytesRouteOptions<
-  TKey extends keyof PreviewHostDocumentApi,
-> extends ResolvePreviewHostDocumentRouteOptions<TKey> {
+  TResult = unknown,
+> extends ResolvePreviewHostDocumentRouteOptions<(slug: string) => TResult | Promise<TResult>> {
   readonly key: string;
   readonly routePrefixes: readonly string[];
   readonly contentType: string;
-  readonly transformResult: (value: Awaited<ReturnType<NonNullable<PreviewHostDocumentApi[TKey]>>>) => Buffer;
+  readonly transformResult: (value: Awaited<TResult>) => Buffer;
 }
 
 export function createPreviewHostDocumentGetBytesRoute<
-  TKey extends keyof PreviewHostDocumentApi,
+  TResult = unknown,
 >(
-  options: CreatePreviewHostDocumentGetBytesRouteOptions<TKey>,
+  options: CreatePreviewHostDocumentGetBytesRouteOptions<TResult>,
 ): PreviewHostApiRouteDescriptor {
   return {
     key: options.key,
@@ -151,13 +149,12 @@ export function createPreviewHostDocumentGetBytesRoute<
         return;
       }
       try {
-        const handler = resolved.handler as (slug: string) => unknown | Promise<unknown>;
-        const result = await handler(resolved.slug);
+        const result = await resolved.handler(resolved.slug);
         context.sendBytes(
           200,
           options.contentType,
           options.transformResult(
-            result as Awaited<ReturnType<NonNullable<PreviewHostDocumentApi[TKey]>>>,
+            result as Awaited<TResult>,
           ),
         );
       } catch (error) {

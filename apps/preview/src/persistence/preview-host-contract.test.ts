@@ -18,11 +18,12 @@ import {
   resolvePreviewHostApiRoute,
 } from "../preview-host/api-routes.js";
 import { installBuiltinPreviewHostApiRoutes } from "../preview-host/builtin-api-routes.js";
+import { createPreviewHostDocumentGetJsonRoute } from "../preview-host/document-api-routes.js";
 import {
   buildRegisteredPreviewBrowseSections,
   listPreviewHostViewerRoutes,
   registerPreviewHostViewerRoute,
-  resolveRegisteredPreviewDocumentApi,
+  resolveRegisteredPreviewDocumentAction,
   resolveRegisteredPreviewViewerRoute,
 } from "../preview-host/registry.js";
 import {
@@ -121,8 +122,8 @@ test("preview host viewer routes register through a typed registry", () => {
     hasDocument: () => true,
     buildHtml: () => "<html>grid</html>",
     describeMissing: (slug: string) => `Unknown diagram: ${slug}`,
-    documentApi: {
-      loadPreviewDocument: (slug: string) => ({ kind: "frame-diagram", slug }),
+    documentActions: {
+      "load-preview-document": (slug: string) => ({ kind: "frame-diagram", slug }),
     },
   });
   const unregisterForce = registerPreviewHostViewerRoute({
@@ -157,10 +158,10 @@ test("preview host viewer routes register through a typed registry", () => {
       },
     );
     assert.deepEqual(
-      resolveRegisteredPreviewDocumentApi("support-engineering-flow", "loadPreviewDocument"),
+      resolveRegisteredPreviewDocumentAction("support-engineering-flow", "load-preview-document"),
       {
         route: listPreviewHostViewerRoutes().find((route) => route.key === "test-autolayout"),
-        handler: listPreviewHostViewerRoutes().find((route) => route.key === "test-autolayout")?.documentApi?.loadPreviewDocument,
+        handler: listPreviewHostViewerRoutes().find((route) => route.key === "test-autolayout")?.documentActions?.["load-preview-document"],
       },
     );
   } finally {
@@ -352,6 +353,62 @@ test("preview host api routes resolve through a typed registry", () => {
     resolvePreviewHostApiRoute("GET", "/api/force-save/force-stakeholders", routes, normalizePreviewSlug),
     null,
   );
+});
+
+test("preview host document routes resolve arbitrary owner-defined action keys", async () => {
+  const unregisterViewerRoute = registerPreviewHostViewerRoute({
+    key: "test-document-actions",
+    lane: AUTOLAYOUT_HOST_LANE,
+    routePrefixes: ["/test-document-actions/view/"],
+    listSlugs: () => ["support-engineering-flow"],
+    hasDocument: () => true,
+    buildHtml: () => "<html></html>",
+    describeMissing: (slug: string) => `Unknown diagram: ${slug}`,
+    documentActions: {
+      "load-outline": (slug: string) => ({ kind: "outline", slug }),
+    },
+  });
+  const unregisterApiRoute = registerPreviewHostApiRoute(
+    createPreviewHostDocumentGetJsonRoute({
+      key: "test-outline",
+      routePrefixes: ["/api/test-outline/"],
+      documentActionKey: "load-outline",
+      routeKey: "test-document-actions",
+      missingMessage: (slug: string) => `Unknown outline: ${slug}`,
+    }),
+  );
+
+  try {
+    const outlineMatch = resolveRegisteredPreviewHostApiRoute(
+      "GET",
+      "/api/test-outline/support-engineering-flow",
+      normalizePreviewSlug,
+    );
+    assert.ok(outlineMatch);
+    let outlinePayload: unknown = null;
+    await outlineMatch.route.handle(outlineMatch, {
+      req: {} as never,
+      res: {} as never,
+      pathname: outlineMatch.pathname,
+      sendJson: (_statusCode, payload) => {
+        outlinePayload = payload;
+      },
+      sendText: () => {
+        throw new Error("did not expect outline route to send plain text");
+      },
+      sendBytes: () => {
+        throw new Error("did not expect outline route to send bytes");
+      },
+      readJsonBody: async () => ({}),
+    });
+    assert.deepEqual(outlinePayload, {
+      kind: "outline",
+      slug: "support-engineering-flow",
+    });
+  } finally {
+    unregisterApiRoute();
+    unregisterViewerRoute();
+  }
 });
 
 test("preview host api route registry rejects duplicate keys", () => {

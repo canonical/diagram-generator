@@ -12,7 +12,10 @@ import {
   createPreviewHostDocumentGetJsonRoute,
   createPreviewHostDocumentPostJsonRoute,
 } from "./document-api-routes.js";
-import { createForcePreviewHostDocumentApi } from "./document-apis.js";
+import {
+  createForcePreviewHostDocumentActions,
+  FORCE_PREVIEW_HOST_DOCUMENT_ACTIONS,
+} from "./document-apis.js";
 import { forcePreviewDocumentExists } from "./force-documents.js";
 import { FORCE_HOST_LANE } from "./lanes.js";
 import type { PreviewHostModuleDescriptor } from "./modules.js";
@@ -120,7 +123,7 @@ export function createForceSavePreviewHostApiRoute(): PreviewHostApiRouteDescrip
   return createPreviewHostDocumentPostJsonRoute({
     key: "force-save",
     routePrefixes: ["/api/force-save/"],
-    documentApiKey: "saveDocument",
+    documentActionKey: FORCE_PREVIEW_HOST_DOCUMENT_ACTIONS.saveDocument,
     routeKey: "force",
     missingMessage: missingForceExampleMessage,
   });
@@ -130,7 +133,7 @@ export function createForceSpecPreviewHostApiRoute(): PreviewHostApiRouteDescrip
   return createPreviewHostDocumentGetJsonRoute({
     key: "force-spec",
     routePrefixes: ["/api/force-spec/"],
-    documentApiKey: "loadAuthoredSpec",
+    documentActionKey: FORCE_PREVIEW_HOST_DOCUMENT_ACTIONS.loadAuthoredSpec,
     routeKey: "force",
     missingMessage: missingForceExampleMessage,
   });
@@ -180,7 +183,7 @@ export function createForcePreviewHostViewerRoute(
       });
     },
     describeMissing: missingForceExampleMessage,
-    documentApi: createForcePreviewHostDocumentApi({
+    documentActions: createForcePreviewHostDocumentActions({
       forcePreviewDocumentDeps: deps.forcePreviewDocumentDeps,
       parseYaml: deps.parseYaml,
     }),

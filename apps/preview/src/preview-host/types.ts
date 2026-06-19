@@ -29,7 +29,7 @@ export interface PreviewHostViewerRouteDescriptor {
   readonly hasDocument: (slug: string) => boolean;
   readonly buildHtml: (slug: string) => string;
   readonly describeMissing: (slug: string) => string;
-  readonly documentApi?: PreviewHostDocumentApi;
+  readonly documentActions?: PreviewHostDocumentActionMap;
 }
 
 export interface PreviewHostViewerRouteMatch {
@@ -66,15 +66,12 @@ export interface PreviewHostViewerScriptResolver {
   readonly previewAssetUrl: (filename: string) => string;
 }
 
-export interface PreviewHostDocumentApi {
-  loadPreviewDocument?: (slug: string) => unknown;
-  loadFrameTree?: (slug: string) => unknown;
-  loadComponentTree?: (slug: string) => unknown;
-  loadGridInfo?: (slug: string) => unknown;
-  renderSvg?: (slug: string) => Promise<string> | string;
-  loadAuthoredSpec?: (slug: string) => unknown;
-  saveDocument?: (slug: string, payload: unknown) => Promise<unknown> | unknown;
-}
+export type PreviewHostDocumentActionHandler =
+  (...args: any[]) => unknown | Promise<unknown>;
+
+export type PreviewHostDocumentActionMap = Readonly<
+  Record<string, PreviewHostDocumentActionHandler>
+>;
 
 export interface PreviewHostViewerPageDefinition {
   readonly mode: PreviewShellMode;
