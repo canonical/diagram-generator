@@ -1,6 +1,5 @@
 import {
   installBuiltinPreviewHostApiRoutes,
-  type BuiltinPreviewHostApiRouteDeps,
 } from "./builtin-api-routes.js";
 import {
   installBuiltinPreviewHostViewerRoutes,
@@ -8,13 +7,13 @@ import {
 } from "./builtin-viewer-routes.js";
 
 export interface BuiltinPreviewHostInstallDeps
-  extends BuiltinPreviewHostViewerRouteDeps, BuiltinPreviewHostApiRouteDeps {}
+  extends BuiltinPreviewHostViewerRouteDeps {}
 
 export function installBuiltinPreviewHost(
   deps: BuiltinPreviewHostInstallDeps,
 ): () => void {
   const uninstallViewerRoutes = installBuiltinPreviewHostViewerRoutes(deps);
-  const uninstallApiRoutes = installBuiltinPreviewHostApiRoutes(deps);
+  const uninstallApiRoutes = installBuiltinPreviewHostApiRoutes();
   return () => {
     uninstallApiRoutes();
     uninstallViewerRoutes();

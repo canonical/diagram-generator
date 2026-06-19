@@ -46,11 +46,17 @@ export function resolveRegisteredPreviewDocumentApi<
 >(
   slug: string,
   key: TKey,
+  options?: {
+    routeKey?: string;
+  },
 ): {
   route: PreviewHostViewerRouteDescriptor;
   handler: NonNullable<PreviewHostDocumentApi[TKey]>;
 } | null {
   for (const route of listPreviewHostViewerRoutes()) {
+    if (options?.routeKey && route.key !== options.routeKey) {
+      continue;
+    }
     if (!route.documentApi) {
       continue;
     }

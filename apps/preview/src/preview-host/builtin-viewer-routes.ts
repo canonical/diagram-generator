@@ -25,6 +25,7 @@ import {
   type FramePreviewDocumentDeps,
   type FramePreviewRenderDeps,
 } from "./frame-documents.js";
+import { saveFramePreviewDocument } from "./frame-document-actions.js";
 import { AUTOLAYOUT_HOST_LANE, FORCE_HOST_LANE } from "./lanes.js";
 import {
   buildRegisteredPreviewBrowseSections,
@@ -37,6 +38,10 @@ import type {
 } from "./types.js";
 import { buildPreviewViewerHtml } from "./viewers.js";
 import type { ForcePreviewDocumentDeps } from "./force-documents.js";
+import {
+  loadForcePreviewDocumentSpec,
+  saveForcePreviewDocument,
+} from "./force-document-actions.js";
 
 export interface BuiltinPreviewHostViewerRouteDeps
   extends PreviewHostViewerScriptResolver {
@@ -164,6 +169,12 @@ export function createAutolayoutPreviewHostViewerRoute(
       loadComponentTree: (slug: string) => componentTreeForSlug(slug, deps.framePreviewDocumentDeps),
       loadGridInfo: (slug: string) => gridInfoForSlug(slug, deps.framePreviewDocumentDeps),
       renderSvg: (slug: string) => renderSvgForSlug(slug, deps.framePreviewRenderDeps),
+      saveDocument: (slug: string, payload: unknown) =>
+        saveFramePreviewDocument(slug, payload, {
+          framePreviewDocumentDeps: deps.framePreviewDocumentDeps,
+          parseYaml: deps.parseYaml,
+          normalizeLayoutEngine: deps.normalizeLayoutEngine,
+        }),
     },
   };
 }
@@ -204,6 +215,18 @@ export function createForcePreviewHostViewerRoute(
       });
     },
     describeMissing: (slug: string) => `Unknown force example: ${slug}`,
+    documentApi: {
+      loadAuthoredSpec: (slug: string) =>
+        loadForcePreviewDocumentSpec(slug, {
+          forcePreviewDocumentDeps: deps.forcePreviewDocumentDeps,
+          parseYaml: deps.parseYaml,
+        }),
+      saveDocument: (slug: string, payload: unknown) =>
+        saveForcePreviewDocument(slug, payload, {
+          forcePreviewDocumentDeps: deps.forcePreviewDocumentDeps,
+          parseYaml: deps.parseYaml,
+        }),
+    },
   };
 }
 

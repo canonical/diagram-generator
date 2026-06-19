@@ -1,50 +1,13 @@
-import { existsSync, writeFileSync } from "node:fs";
-import { readFileSync } from "node:fs";
 import path from "node:path";
 
-import {
-  evaluatePreviewEngineCompatibility,
-  getPreviewEngineByLayoutKey,
-  summarizeFrameDiagramCompatibility,
-  type PreviewEngineContext,
-} from "@diagram-generator/layout-engine";
-import { persistForceSpecToYaml } from "../persistence/index.js";
-import {
-  persistFrameDiagramOverridePayloadToYaml,
-  verifyElkLayoutPersisted,
-  type PersistOverridePayload,
-} from "../persistence/index.js";
-import {
-  canonicalForceSavedState,
-  readForceSpec,
-  type ForcePreviewDocumentDeps,
-  type ParseYaml,
-} from "./force-documents.js";
-import {
-  canonicalSavedState as canonicalFrameSavedState,
-  determineFrameYamlKind,
-  frameDiagramExists,
-  loadFrameDiagram,
-  type FramePreviewDocumentDeps,
-  type FramePreviewRenderDeps,
-} from "./frame-documents.js";
 import {
   registerPreviewHostApiRoute,
 } from "./api-routes.js";
 import { resolveRegisteredPreviewDocumentApi } from "./registry.js";
 import type { PreviewHostApiRouteDescriptor } from "./types.js";
 
-export interface BuiltinPreviewHostApiRouteDeps {
-  readonly framePreviewDocumentDeps: FramePreviewDocumentDeps;
-  readonly forcePreviewDocumentDeps: ForcePreviewDocumentDeps;
-  readonly framePreviewRenderDeps: FramePreviewRenderDeps;
-  readonly parseYaml: ParseYaml;
-  readonly normalizeLayoutEngine: (layoutEngine: string | undefined) => string;
-}
-
-function handleFrameDiagramApiRequest(
+function requireApiSlug(
   match: { slug: string | null },
-  deps: BuiltinPreviewHostApiRouteDeps,
   sendText: (statusCode: number, text: string) => void,
 ): string | null {
   const slug = match.slug;
@@ -52,16 +15,10 @@ function handleFrameDiagramApiRequest(
     sendText(400, "Invalid slug");
     return null;
   }
-  if (!frameDiagramExists(slug, deps.framePreviewDocumentDeps)) {
-    sendText(404, `Unknown diagram: ${slug}`);
-    return null;
-  }
   return slug;
 }
 
-export function createForceSavePreviewHostApiRoute(
-  deps: BuiltinPreviewHostApiRouteDeps,
-): PreviewHostApiRouteDescriptor {
+export function createForceSavePreviewHostApiRoute(): PreviewHostApiRouteDescriptor {
   return {
     key: "force-save",
     method: "POST",
@@ -73,8 +30,10 @@ export function createForceSavePreviewHostApiRoute(
         sendText(400, "Invalid slug");
         return;
       }
-      const framePath = path.join(deps.forcePreviewDocumentDeps.forceDefinitionsDir, `${slug}.yaml`);
-      if (!existsSync(framePath)) {
+      const owner = resolveRegisteredPreviewDocumentApi(slug, "saveDocument", {
+        routeKey: "force",
+      });
+      if (!owner) {
         sendText(404, `Unknown force example: ${slug}`);
         return;
       }
@@ -86,16 +45,7 @@ export function createForceSavePreviewHostApiRoute(
         return;
       }
       try {
-        const nextText = persistForceSpecToYaml(payload);
-        writeFileSync(framePath, nextText, "utf8");
-        sendJson(200, {
-          ok: true,
-          canonicalState: canonicalForceSavedState(
-            slug,
-            deps.forcePreviewDocumentDeps,
-            deps.parseYaml,
-          ),
-        });
+        sendJson(200, await owner.handler(slug, payload));
       } catch (error) {
         sendText(400, error instanceof Error ? error.message : String(error));
       }
@@ -104,7 +54,6 @@ export function createForceSavePreviewHostApiRoute(
 }
 
 export function createFrameOverridesPreviewHostApiRoute(
-  deps: BuiltinPreviewHostApiRouteDeps,
 ): PreviewHostApiRouteDescriptor {
   return {
     key: "frame-overrides",
@@ -117,8 +66,10 @@ export function createFrameOverridesPreviewHostApiRoute(
         sendText(400, "Invalid slug");
         return;
       }
-      const framePath = path.join(deps.framePreviewDocumentDeps.framesDir, `${slug}.yaml`);
-      if (!existsSync(framePath)) {
+      const owner = resolveRegisteredPreviewDocumentApi(slug, "saveDocument", {
+        routeKey: "autolayout",
+      });
+      if (!owner) {
         sendText(404, `Unknown frame slug: ${slug}`);
         return;
       }
@@ -129,90 +80,8 @@ export function createFrameOverridesPreviewHostApiRoute(
         sendText(400, error instanceof Error ? error.message : String(error));
         return;
       }
-
-      if (payload && typeof payload === "object" && !Array.isArray(payload) && "layout_engine" in payload) {
-        const requested = (payload as Record<string, unknown>).layout_engine;
-        if (requested !== null && requested !== undefined && requested !== "") {
-          if (typeof requested !== "string") {
-            sendText(400, "Invalid layout_engine: must be a string");
-            return;
-          }
-
-          let baseline: string;
-          try {
-            baseline = readFileSync(framePath, "utf8");
-          } catch {
-            sendText(400, "Could not read frame file");
-            return;
-          }
-          const documentKind = determineFrameYamlKind(baseline, deps.parseYaml);
-          const engine = getPreviewEngineByLayoutKey(
-            deps.normalizeLayoutEngine(requested),
-          );
-          if (!engine) {
-            sendText(400, `Unknown layout_engine: '${requested}'`);
-            return;
-          }
-
-          const frameDiagramSummary =
-            documentKind === "frame-diagram"
-              ? summarizeFrameDiagramCompatibility(loadFrameDiagram(slug, deps.framePreviewDocumentDeps))
-              : undefined;
-          const contextValue: PreviewEngineContext = {
-            layoutEngine: requested.trim(),
-            shellMode: "grid",
-            previewDocumentKind: documentKind,
-            frameDiagramSummary,
-          };
-          const compatibility = evaluatePreviewEngineCompatibility(engine, contextValue);
-          if (!compatibility.compatible) {
-            sendText(
-              400,
-              `Cannot use engine '${requested}' with ${documentKind}: ${compatibility.reason ?? "incompatible"}`,
-            );
-            return;
-          }
-        }
-      }
-
       try {
-        const baseline = readFileSync(framePath, "utf8");
-        const nextText = persistFrameDiagramOverridePayloadToYaml(
-          framePath,
-          baseline,
-          payload as PersistOverridePayload,
-        );
-
-        if (nextText !== baseline) {
-          writeFileSync(framePath, nextText, "utf8");
-        }
-        const payloadRecord =
-          payload && typeof payload === "object" && payload !== null
-            ? payload as Record<string, unknown>
-            : null;
-        const namespacedEngineOverrides =
-          payloadRecord && "engine_layout_overrides" in payloadRecord && typeof payloadRecord.engine_layout_overrides === "object"
-          && payloadRecord.engine_layout_overrides !== null
-          && !Array.isArray(payloadRecord.engine_layout_overrides)
-            ? payloadRecord.engine_layout_overrides as Record<string, unknown>
-            : null;
-        const elkOverrides = (
-          namespacedEngineOverrides
-          && typeof namespacedEngineOverrides["meta.elk"] === "object"
-          && namespacedEngineOverrides["meta.elk"] !== null
-          && !Array.isArray(namespacedEngineOverrides["meta.elk"])
-            ? namespacedEngineOverrides["meta.elk"]
-            : (payloadRecord && "elk_layout_overrides" in payloadRecord
-                ? payloadRecord.elk_layout_overrides
-                : null)
-        );
-        if (elkOverrides && typeof elkOverrides === "object" && !Array.isArray(elkOverrides)) {
-          verifyElkLayoutPersisted(nextText, elkOverrides as Record<string, unknown>);
-        }
-        sendJson(200, {
-          ok: true,
-          canonicalState: canonicalFrameSavedState(slug, deps.framePreviewDocumentDeps),
-        });
+        sendJson(200, await owner.handler(slug, payload));
       } catch (error) {
         sendText(400, error instanceof Error ? error.message : String(error));
       }
@@ -221,7 +90,6 @@ export function createFrameOverridesPreviewHostApiRoute(
 }
 
 export function createForceSpecPreviewHostApiRoute(
-  deps: BuiltinPreviewHostApiRouteDeps,
 ): PreviewHostApiRouteDescriptor {
   return {
     key: "force-spec",
@@ -234,25 +102,30 @@ export function createForceSpecPreviewHostApiRoute(
         sendText(400, "Invalid slug");
         return;
       }
-      const spec = readForceSpec(slug, deps.forcePreviewDocumentDeps, deps.parseYaml);
-      if (!spec) {
+      const owner = resolveRegisteredPreviewDocumentApi(slug, "loadAuthoredSpec", {
+        routeKey: "force",
+      });
+      if (!owner) {
         sendText(404, `Unknown force example: ${slug}`);
         return;
       }
-      sendJson(200, spec);
+      try {
+        sendJson(200, owner.handler(slug));
+      } catch (error) {
+        sendText(400, error instanceof Error ? error.message : String(error));
+      }
     },
   };
 }
 
 export function createPreviewDocumentPreviewHostApiRoute(
-  deps: BuiltinPreviewHostApiRouteDeps,
 ): PreviewHostApiRouteDescriptor {
   return {
     key: "preview-document",
     method: "GET",
     routePrefixes: ["/api/preview-document/"],
     handle(match, context) {
-      const slug = handleFrameDiagramApiRequest(match, deps, context.sendText);
+      const slug = requireApiSlug(match, context.sendText);
       if (!slug) {
         return;
       }
@@ -267,14 +140,13 @@ export function createPreviewDocumentPreviewHostApiRoute(
 }
 
 export function createFrameTreePreviewHostApiRoute(
-  deps: BuiltinPreviewHostApiRouteDeps,
 ): PreviewHostApiRouteDescriptor {
   return {
     key: "frame-tree",
     method: "GET",
     routePrefixes: ["/api/frame-tree/"],
     handle(match, context) {
-      const slug = handleFrameDiagramApiRequest(match, deps, context.sendText);
+      const slug = requireApiSlug(match, context.sendText);
       if (!slug) {
         return;
       }
@@ -289,14 +161,13 @@ export function createFrameTreePreviewHostApiRoute(
 }
 
 export function createComponentTreePreviewHostApiRoute(
-  deps: BuiltinPreviewHostApiRouteDeps,
 ): PreviewHostApiRouteDescriptor {
   return {
     key: "component-tree",
     method: "GET",
     routePrefixes: ["/api/tree/"],
     handle(match, context) {
-      const slug = handleFrameDiagramApiRequest(match, deps, context.sendText);
+      const slug = requireApiSlug(match, context.sendText);
       if (!slug) {
         return;
       }
@@ -311,14 +182,13 @@ export function createComponentTreePreviewHostApiRoute(
 }
 
 export function createGridInfoPreviewHostApiRoute(
-  deps: BuiltinPreviewHostApiRouteDeps,
 ): PreviewHostApiRouteDescriptor {
   return {
     key: "grid-info",
     method: "GET",
     routePrefixes: ["/api/grid/"],
     handle(match, context) {
-      const slug = handleFrameDiagramApiRequest(match, deps, context.sendText);
+      const slug = requireApiSlug(match, context.sendText);
       if (!slug) {
         return;
       }
@@ -333,7 +203,6 @@ export function createGridInfoPreviewHostApiRoute(
 }
 
 export function createPreviewSvgHostApiRoute(
-  deps: BuiltinPreviewHostApiRouteDeps,
 ): PreviewHostApiRouteDescriptor {
   return {
     key: "svg-export",
@@ -346,11 +215,7 @@ export function createPreviewSvgHostApiRoute(
       const safeName = path.posix.basename(rawName);
       const normalized =
         safeName.replace(/-onbrand-v3-grid\.svg$/i, "").replace(/-onbrand-v3\.svg$/i, "");
-      const slug = handleFrameDiagramApiRequest(
-        { slug: normalized || null },
-        deps,
-        context.sendText,
-      );
+      const slug = requireApiSlug({ slug: normalized || null }, context.sendText);
       if (!slug) {
         return;
       }
@@ -365,32 +230,30 @@ export function createPreviewSvgHostApiRoute(
   };
 }
 
-export function installBuiltinPreviewHostApiRoutes(
-  deps: BuiltinPreviewHostApiRouteDeps,
-): () => void {
+export function installBuiltinPreviewHostApiRoutes(): () => void {
   const unregisterFrameOverrides = registerPreviewHostApiRoute(
-    createFrameOverridesPreviewHostApiRoute(deps),
+    createFrameOverridesPreviewHostApiRoute(),
   );
   const unregisterPreviewDocument = registerPreviewHostApiRoute(
-    createPreviewDocumentPreviewHostApiRoute(deps),
+    createPreviewDocumentPreviewHostApiRoute(),
   );
   const unregisterFrameTree = registerPreviewHostApiRoute(
-    createFrameTreePreviewHostApiRoute(deps),
+    createFrameTreePreviewHostApiRoute(),
   );
   const unregisterComponentTree = registerPreviewHostApiRoute(
-    createComponentTreePreviewHostApiRoute(deps),
+    createComponentTreePreviewHostApiRoute(),
   );
   const unregisterGridInfo = registerPreviewHostApiRoute(
-    createGridInfoPreviewHostApiRoute(deps),
+    createGridInfoPreviewHostApiRoute(),
   );
   const unregisterSvgExport = registerPreviewHostApiRoute(
-    createPreviewSvgHostApiRoute(deps),
+    createPreviewSvgHostApiRoute(),
   );
   const unregisterForceSave = registerPreviewHostApiRoute(
-    createForceSavePreviewHostApiRoute(deps),
+    createForceSavePreviewHostApiRoute(),
   );
   const unregisterForceSpec = registerPreviewHostApiRoute(
-    createForceSpecPreviewHostApiRoute(deps),
+    createForceSpecPreviewHostApiRoute(),
   );
   return () => {
     unregisterForceSpec();

@@ -357,17 +357,7 @@ test("builtin preview host api routes install through a host-owned installer", a
     normalizeLayoutEngine: (layoutEngine: string | undefined) => layoutEngine ?? "",
   });
 
-  const unregisterApiRoutes = installBuiltinPreviewHostApiRoutes({
-    framePreviewDocumentDeps: { framesDir },
-    forcePreviewDocumentDeps: { forceDefinitionsDir },
-    framePreviewRenderDeps: {
-      framesDir,
-      iconLoader: () => null,
-      textAdapterPromise: Promise.resolve(new MockTextAdapter()),
-    },
-    parseYaml,
-    normalizeLayoutEngine: (layoutEngine: string | undefined) => layoutEngine ?? "",
-  });
+  const unregisterApiRoutes = installBuiltinPreviewHostApiRoutes();
 
   try {
     assert.deepEqual(

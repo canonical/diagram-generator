@@ -71,6 +71,8 @@ export interface PreviewHostDocumentApi {
   loadComponentTree?: (slug: string) => unknown;
   loadGridInfo?: (slug: string) => unknown;
   renderSvg?: (slug: string) => Promise<string> | string;
+  loadAuthoredSpec?: (slug: string) => unknown;
+  saveDocument?: (slug: string, payload: unknown) => Promise<unknown> | unknown;
 }
 
 export interface PreviewHostViewerPageDefinition {
