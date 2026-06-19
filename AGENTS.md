@@ -19,8 +19,13 @@ Guidance for AI agents working in this repo. Goal: correct fixes with minimal to
 - Product path is Node + TypeScript.
 - New layout, measure, render, save, and preview behavior belongs in `packages/layout-engine/` or `apps/preview/`.
 - Do not add new Python product-path logic.
-- `scripts/preview/*.js` is shell and glue, not engine authority.
-- If a change needs real diagram semantics, put it in TypeScript first.
+- `scripts/preview/*.js` is a migration-era legacy shell compatibility surface, not a growth surface.
+- Do **not** create new behavior-heavy files under `scripts/preview/`.
+- Do **not** add new architecture-owned logic to existing `scripts/preview/*.js` just because those files already exist.
+- If a preview change needs real diagram semantics, state shaping, engine branching, persistence logic, host routing logic, render logic, or shared controller behavior, put it in TypeScript first.
+- The only acceptable JS-first exception is tiny browser-entry compatibility glue that immediately delegates to typed owners.
+- If JS must be touched, the preferred direction is shrink, wrapper, and delegation into TypeScript owners, not new ownership.
+- "Write JS now, migrate later" is not an acceptable default in this repo.
 - `scripts/diagrams/frames/*.yaml` is the authored source of truth.
 - Read the current YAML from disk before editing it and make minimal diffs.
 
@@ -30,6 +35,7 @@ Guidance for AI agents working in this repo. Goal: correct fixes with minimal to
 - Do **not** assume a 2k-3k-line hand-authored `editor.js` is "good enough" because earlier slices extracted some logic already.
 - Until the `specs/046-editor-host-endgame/` closeout bar is met, agents should bias toward finishing that decomposition over starting secondary preview-shell polish or unrelated new engine-integration convenience work.
 - A small line-count reduction is **not** completion. The target is a genuinely thin grid-shell entry/bootstrap file that would not block scaling toward dozens of engine lanes.
+- The presence of many legacy files under `scripts/preview/` is **not** precedent for adding more. Treat new behavior-heavy JS there as architectural regression against spec 046.
 - Do **not** mark `specs/046-editor-host-endgame/` complete unless the repo is
   credibly ready for adding on the order of **50, 150, and 500 heterogeneous
   engines** through typed registration points rather than through `editor.js`
@@ -37,7 +43,10 @@ Guidance for AI agents working in this repo. Goal: correct fixes with minimal to
 - The closeout question is literal: if the honest answer to "can we port 50,
   150, or 500 layout engines now?" is anything other than **yes**, spec 046
   remains open.
-- If a proposed change would widen `editor.js`, stop and route that work through the typed preview-shell owners or the active 046 decomposition plan instead.
+- If a proposed change would widen `editor.js`, `layout-bridge.js`, or add new
+  behavior-heavy ownership under `scripts/preview/*.js`, stop and route that
+  work through the typed preview-shell owners or the active 046 decomposition
+  plan instead.
 
 ## Spec workflow
 

@@ -44,6 +44,9 @@
 - [ ] T025 Land one real skeletal non-ELK onboarding proof end to end:
   document kind, manifest, render/export adapter, host route/page or explicit
   output-only contract, persistence namespace, refresh/load, and save/export
+- [ ] T026 Keep `scripts/preview/*.js` on a shrink/wrapper/delegation path only;
+  reject any new behavior-heavy JS ownership there and add missing TS seams
+  instead
 
 ## Phase 3 - Trap-file closeout and veto
 - [x] T030 Refresh docs and flow maps with the new owners
@@ -60,4 +63,6 @@
 - [ ] T034 Reject closeout unless the honest answer to "can we add 50, 150, and 500 engines now?" is yes
   Reopened: current repo state does not yet satisfy this bar. Future engine
   onboarding still hits central host/page/document/render/persistence limits
-  even though the legacy JS sink files are no longer the only problem.
+  even though the legacy JS sink files are no longer the only problem. This
+  veto also stays active if new behavior-heavy preview-shell JS is still being
+  introduced under a "migrate later" rationale.

@@ -62,6 +62,24 @@ Small JS host glue is acceptable in a TypeScript-led repo.
 Large, behavior-heavy shell trap files are acceptable only as a migration state.
 This spec exists to end that migration state.
 
+More explicit policy for cold-start maintainers:
+
+- `scripts/preview/*.js` is a migration-era legacy compatibility shell, not a
+  growth surface.
+- The presence of many existing JS files there is not precedent for adding
+  more behavior-heavy JS.
+- Tiny browser-entry compatibility glue may remain JS temporarily, but it
+  should delegate immediately into typed owners.
+- New non-trivial preview behavior must not be added in JS "for now" if it
+  would later need TypeScript migration.
+- New shared preview-shell logic, state shaping, engine branching, persistence
+  behavior, host routing/page behavior, render behavior, or shared controller
+  behavior belongs in TypeScript-owned modules.
+- If legacy JS must be touched, the preferred direction is shrink, wrapper,
+  and delegation, not new ownership.
+- Introducing new behavior-heavy JS under `scripts/preview/` counts as
+  architectural regression against spec 046.
+
 ## Why now
 
 The best time to tackle this is **now**, before more engine lanes are added.
@@ -82,6 +100,8 @@ This spec covers:
 - extraction of browser-edge host/coordinator behavior into typed or narrowly-owned modules
 - explicit closeout criteria for when `editor.js` is actually thin enough
 - trap-file guardrails so the same monolith does not quietly regrow
+- active guardrails that block "write JS now, migrate later" as an acceptable
+  preview-shell strategy
 - the browser-shell side of the "can we add many more engines without touching
   the legacy JS sink files?" closeout test
 - the explicit blocker list that prevents false closeout while host, render, or
@@ -93,6 +113,10 @@ This spec does not cover:
 - Node preview-host/server modularity beyond the work owned by spec 045
 - a framework rewrite
 - changing YAML document semantics
+
+This spec also does **not** authorize new behavior-heavy JS under
+`scripts/preview/` as an interim measure. If a new seam is needed, that seam
+must be created in TypeScript.
 
 ## Architectural position
 
@@ -174,6 +198,15 @@ As a reviewer, I want the residual `editor.js` to read as obvious bootstrap/even
 - **FR-001**: `scripts/preview/editor.js` MUST stop being the default home for new grid-shell behavior.
 - **FR-002**: Remaining concern-heavy regions in `editor.js` MUST be assigned to explicit owners or extraction targets.
 - **FR-003**: New engine-facing shell hooks MUST prefer typed shell tiers/contracts over widening `editor.js`.
+- **FR-003a**: `scripts/preview/*.js` MUST NOT be treated as the default home
+  for new preview behavior just because legacy JS already exists there.
+- **FR-003b**: New non-trivial preview-shell logic MUST be implemented in
+  TypeScript-owned modules even if a legacy JS file appears to be the nearest
+  existing surface.
+- **FR-003c**: The only acceptable new JS under `scripts/preview/` is tiny
+  browser-entry compatibility glue that delegates immediately to typed owners.
+- **FR-003d**: New behavior-heavy JS ownership under `scripts/preview/`
+  counts as regression against this spec and blocks closeout.
 - **FR-004**: The final residual `editor.js` MUST be limited to bootstrap, DOM lookup, event hookup, and thin coordinator glue.
 - **FR-005**: This spec MUST preserve the namespaced browser contract established by spec 044 and MUST NOT reintroduce flat `LayoutEngine.*` consumers.
 - **FR-006**: Closing this spec MUST require that adding a future engine lane
@@ -231,6 +264,12 @@ As a reviewer, I want the residual `editor.js` to read as obvious bootstrap/even
 - **FR-021**: A shell-contract-only fake proof does not satisfy the closeout
   bar, even if representative controller tests exist for external, ported, and
   bespoke engine classes.
+- **FR-022**: Closing spec 046 MUST be blocked if a cold-start maintainer can
+  still plausibly say "there are already many JS files in `scripts/preview/`,
+  so adding another behavior-heavy JS file is fine."
+- **FR-023**: Closing spec 046 MUST be blocked while "write JS now, migrate
+  later" remains a plausible default answer for new shared preview-shell
+  behavior.
 
 ### Non-Functional Requirements
 
@@ -244,6 +283,9 @@ As a reviewer, I want the residual `editor.js` to read as obvious bootstrap/even
 - **NFR-006**: The spec SHOULD state cross-spec blockers explicitly so progress
   in `editor.js` is not mistaken for platform readiness while host or render
   centralization still remains elsewhere.
+- **NFR-007**: Repo guidance SHOULD be crisp enough that a cold-start agent
+  cannot mistake the legacy preview-shell JS surface for an acceptable long-term
+  implementation layer.
 
 ## Success Criteria
 
@@ -310,6 +352,8 @@ It is done when all of the following are true:
     more than controller compatibility: route/page or explicit output-only
     contract, render/export adapter, persistence namespace, refresh/load, and
     save/export.
+11. No new behavior-heavy JS introduced under `scripts/preview/` can remain as
+    architecture-owned logic behind a "migrate later" rationale.
 
 The exact line count is not the sole goal, but this spec should treat anything still around the current ~2.8k-line scale as unfinished.
 
@@ -359,6 +403,11 @@ Spec 046 MUST NOT close unless all of the following are true:
    `editor.js` and `layout-bridge.js` must both read as thin adapters around
    typed owners, not as the practical location where future engines would need
    bespoke logic.
+
+4a. **Legacy JS is not a growth surface**
+   The answer to "where should new shared preview-shell behavior go?" must be
+   TypeScript-owned modules by default, not "put it in `scripts/preview/` for
+   now."
 
 5. **Descriptor-driven host answer**
    The answer for a new engine or document kind must also begin with typed host

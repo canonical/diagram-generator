@@ -8,6 +8,8 @@ Read this before broad repo searches.
 - Source of truth: frame YAML in `scripts/diagrams/frames/`
 - Preview front door: `apps/preview/`
 - Layout/render authority: `packages/layout-engine/`
+- `scripts/preview/*.js` is legacy compatibility shell, not a valid default
+  home for new behavior-heavy preview logic
 - Workflow authority: [`AGENTS.md`](../AGENTS.md) (includes handover — do not read `STATUS.md`)
 
 ## First files
@@ -57,7 +59,7 @@ Add a new row when you land a cross-layer map (UI → server → engine → disk
 | `packages/layout-engine/src/` | TS engine and browser bundle source |
 | `packages/layout-engine/tests/` | Vitest coverage |
 | `apps/preview/src/` | Node preview app |
-| `scripts/preview/` | Browser shell |
+| `scripts/preview/` | Legacy browser-shell compatibility layer; prefer TS owners and delegation, not new ownership |
 | `scripts/diagrams/frames/` | Authored diagrams |
 
 ## Runtime flow
