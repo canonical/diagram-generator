@@ -1,6 +1,7 @@
 import type { ElkLayoutOutput } from '../elk-layout.js';
 import type { FrameDiagram } from '../frame-model.js';
 import type { LayoutOutput } from '../layout.js';
+import type { SequenceDiagramSpec } from '../sequence-layout/model.js';
 import type { TextMeasureAdapter } from '../text-measure.js';
 import type {
   PreviewDocumentKind,
@@ -32,6 +33,22 @@ export function resolvePreviewRenderFamily(
   return null;
 }
 
+export interface PreviewRenderableDocument {
+  kind?: PreviewDocumentKind | null;
+  title?: string | null;
+  sequence?: SequenceDiagramSpec;
+}
+
+export interface PreviewDocumentSvgRenderResult {
+  svgMarkup: string;
+  width: number;
+  height: number;
+}
+
+export type PreviewDocumentSvgRenderer = (
+  document: PreviewRenderableDocument,
+) => PreviewDocumentSvgRenderResult | Promise<PreviewDocumentSvgRenderResult>;
+
 export interface LayoutPreviewFrameDiagramForEngineOptions {
   diagram: FrameDiagram;
   textAdapter: TextMeasureAdapter;
@@ -40,6 +57,7 @@ export interface LayoutPreviewFrameDiagramForEngineOptions {
 }
 
 const FRAME_DIAGRAM_RENDER_ADAPTERS = new Map<PreviewRenderFamily, PreviewFrameDiagramRenderAdapter>();
+const PREVIEW_DOCUMENT_SVG_RENDERERS = new Map<PreviewDocumentKind, PreviewDocumentSvgRenderer>();
 
 export function registerPreviewFrameDiagramRenderAdapter(
   renderFamily: PreviewRenderFamily,
@@ -68,6 +86,49 @@ export function getPreviewFrameDiagramRenderAdapter(
   renderFamily: PreviewRenderFamily,
 ): PreviewFrameDiagramRenderAdapter | undefined {
   return FRAME_DIAGRAM_RENDER_ADAPTERS.get(renderFamily);
+}
+
+export function registerPreviewDocumentSvgRenderer(
+  previewDocumentKind: PreviewDocumentKind,
+  renderer: PreviewDocumentSvgRenderer,
+  options?: { replace?: boolean },
+): () => void {
+  const previous = PREVIEW_DOCUMENT_SVG_RENDERERS.get(previewDocumentKind);
+  if (previous && options?.replace !== true) {
+    throw new Error(`Preview document SVG renderer '${previewDocumentKind}' is already registered`);
+  }
+  PREVIEW_DOCUMENT_SVG_RENDERERS.set(previewDocumentKind, renderer);
+  return () => {
+    const current = PREVIEW_DOCUMENT_SVG_RENDERERS.get(previewDocumentKind);
+    if (current !== renderer) {
+      return;
+    }
+    if (previous) {
+      PREVIEW_DOCUMENT_SVG_RENDERERS.set(previewDocumentKind, previous);
+      return;
+    }
+    PREVIEW_DOCUMENT_SVG_RENDERERS.delete(previewDocumentKind);
+  };
+}
+
+export function getPreviewDocumentSvgRenderer(
+  previewDocumentKind: PreviewDocumentKind,
+): PreviewDocumentSvgRenderer | undefined {
+  return PREVIEW_DOCUMENT_SVG_RENDERERS.get(previewDocumentKind);
+}
+
+export async function renderPreviewDocumentToSvg(
+  document: PreviewRenderableDocument,
+): Promise<PreviewDocumentSvgRenderResult | null> {
+  const kind = document.kind;
+  if (!kind) {
+    return null;
+  }
+  const renderer = getPreviewDocumentSvgRenderer(kind);
+  if (!renderer) {
+    return null;
+  }
+  return renderer(document);
 }
 
 export async function layoutPreviewFrameDiagramForEngine(

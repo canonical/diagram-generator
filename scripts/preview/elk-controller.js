@@ -141,13 +141,18 @@
     }
     const deps = _requireDeps();
     const rootId = typeof deps.getRootId === "function" ? deps.getRootId() : "root";
-    return deps.requestV3Relayout(rootId);
+    const requestLayoutRelayout = deps.requestLayoutRelayout || deps.requestV3Relayout;
+    if (typeof requestLayoutRelayout !== "function") {
+      throw new Error("ELK preview controller requires a layout relayout callback");
+    }
+    return requestLayoutRelayout(rootId);
   }
 
   function init(deps) {
     _deps = deps;
     window.__DG_wireElkLayoutPanel = wirePanel;
     window.__DG_applyElkLayoutOverrides = applyElkLayoutOverrides;
+    window.requestLayoutRelayout = requestRelayout;
     window.requestElkRelayout = requestRelayout;
   }
 

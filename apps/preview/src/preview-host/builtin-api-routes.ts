@@ -29,7 +29,9 @@ import {
   gridInfoForSlug,
   loadFrameDiagram,
   previewDocumentForSlug,
+  renderSvgForSlug,
   type FramePreviewDocumentDeps,
+  type FramePreviewRenderDeps,
 } from "./frame-documents.js";
 import {
   registerPreviewHostApiRoute,
@@ -39,6 +41,7 @@ import type { PreviewHostApiRouteDescriptor } from "./types.js";
 export interface BuiltinPreviewHostApiRouteDeps {
   readonly framePreviewDocumentDeps: FramePreviewDocumentDeps;
   readonly forcePreviewDocumentDeps: ForcePreviewDocumentDeps;
+  readonly framePreviewRenderDeps: FramePreviewRenderDeps;
   readonly parseYaml: ParseYaml;
   readonly normalizeLayoutEngine: (layoutEngine: string | undefined) => string;
 }
@@ -313,6 +316,34 @@ export function createGridInfoPreviewHostApiRoute(
   };
 }
 
+export function createPreviewSvgHostApiRoute(
+  deps: BuiltinPreviewHostApiRouteDeps,
+): PreviewHostApiRouteDescriptor {
+  return {
+    key: "svg-export",
+    method: "GET",
+    routePrefixes: ["/svg/", "/v3/svg/"],
+    async handle(match, context) {
+      const rawName = match.pathname.startsWith("/svg/")
+        ? match.pathname.slice("/svg/".length)
+        : match.pathname.slice("/v3/svg/".length);
+      const safeName = path.posix.basename(rawName);
+      const normalized =
+        safeName.replace(/-onbrand-v3-grid\.svg$/i, "").replace(/-onbrand-v3\.svg$/i, "");
+      const slug = handleFrameDiagramApiRequest(
+        { slug: normalized || null },
+        deps,
+        context.sendText,
+      );
+      if (!slug) {
+        return;
+      }
+      const svg = await renderSvgForSlug(slug, deps.framePreviewRenderDeps);
+      context.sendBytes(200, "image/svg+xml", Buffer.from(svg, "utf8"));
+    },
+  };
+}
+
 export function installBuiltinPreviewHostApiRoutes(
   deps: BuiltinPreviewHostApiRouteDeps,
 ): () => void {
@@ -331,6 +362,9 @@ export function installBuiltinPreviewHostApiRoutes(
   const unregisterGridInfo = registerPreviewHostApiRoute(
     createGridInfoPreviewHostApiRoute(deps),
   );
+  const unregisterSvgExport = registerPreviewHostApiRoute(
+    createPreviewSvgHostApiRoute(deps),
+  );
   const unregisterForceSave = registerPreviewHostApiRoute(
     createForceSavePreviewHostApiRoute(deps),
   );
@@ -340,6 +374,7 @@ export function installBuiltinPreviewHostApiRoutes(
   return () => {
     unregisterForceSpec();
     unregisterForceSave();
+    unregisterSvgExport();
     unregisterGridInfo();
     unregisterComponentTree();
     unregisterFrameTree();

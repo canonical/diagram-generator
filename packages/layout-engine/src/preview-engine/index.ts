@@ -28,12 +28,18 @@ export {
   V3_PREVIEW_ENGINE,
 } from './builtins.js';
 export {
+  getPreviewDocumentSvgRenderer,
   getPreviewFrameDiagramRenderAdapter,
   layoutPreviewFrameDiagramForEngine,
+  renderPreviewDocumentToSvg,
+  registerPreviewDocumentSvgRenderer,
   registerPreviewFrameDiagramRenderAdapter,
   resolvePreviewRenderFamily,
+  type PreviewDocumentSvgRenderResult,
+  type PreviewDocumentSvgRenderer,
   type PreviewFrameDiagramRenderAdapter,
   type LayoutPreviewFrameDiagramForEngineOptions,
+  type PreviewRenderableDocument,
   type PreviewFrameLayoutResult,
 } from './render.js';
 export {

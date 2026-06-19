@@ -178,6 +178,10 @@
         void ElkPreviewController.requestRelayout();
       } else if (typeof window.requestElkRelayout === "function") {
         window.requestElkRelayout();
+      } else if (typeof window.requestLayoutRelayout === "function") {
+        const frameTree = typeof window.getFrameTreeJson === "function" ? window.getFrameTreeJson() : null;
+        const rootId = (frameTree && frameTree.root && frameTree.root.id) || "root";
+        window.requestLayoutRelayout(rootId);
       } else if (typeof window.requestV3Relayout === "function") {
         const frameTree = typeof window.getFrameTreeJson === "function" ? window.getFrameTreeJson() : null;
         const rootId = (frameTree && frameTree.root && frameTree.root.id) || "root";

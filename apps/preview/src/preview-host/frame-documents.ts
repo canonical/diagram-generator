@@ -5,14 +5,17 @@ import {
   buildComponentTree,
   buildGridInfo,
   collectIconNames,
+  compileDiagramYaml,
   layoutPreviewFrameDiagramForEngine,
   loadFrameYaml,
   preloadIconMarkup,
   renderFrameDiagramToSvg,
+  renderPreviewDocumentToSvg,
   resolvePreviewEngine,
   serializeFrameDiagram,
   summarizeFrameDiagramCompatibility,
   type PreviewDocumentKind,
+  type PreviewRenderableDocument,
   type TextMeasureAdapter,
 } from "@diagram-generator/layout-engine";
 
@@ -35,7 +38,30 @@ export function frameDiagramExists(slug: string, deps: FramePreviewDocumentDeps)
   return existsSync(path.join(deps.framesDir, `${slug}.yaml`));
 }
 
+function sequencePreviewDocumentForSlug(slug: string, raw: string): PreviewRenderableDocument | null {
+  const compiled = compileDiagramYaml(raw);
+  if (!compiled.ast.sequence) {
+    return null;
+  }
+  return {
+    kind: "sequence",
+    slug,
+    title:
+      typeof compiled.ast.metadata.title === "string" && compiled.ast.metadata.title.trim().length > 0
+        ? compiled.ast.metadata.title
+        : slug,
+    layoutEngine: "sequence",
+    shellMode: "grid",
+    sequence: compiled.ast.sequence,
+  } as PreviewRenderableDocument;
+}
+
 export function previewDocumentForSlug(slug: string, deps: FramePreviewDocumentDeps) {
+  const raw = readFrameYamlText(slug, deps);
+  const sequencePreviewDocument = sequencePreviewDocumentForSlug(slug, raw);
+  if (sequencePreviewDocument) {
+    return sequencePreviewDocument;
+  }
   const diagram = loadFrameDiagram(slug, deps);
   return {
     kind: "frame-diagram",
@@ -48,21 +74,40 @@ export function previewDocumentForSlug(slug: string, deps: FramePreviewDocumentD
 }
 
 export function frameTreeForSlug(slug: string, deps: FramePreviewDocumentDeps) {
+  if (previewDocumentForSlug(slug, deps).kind === "sequence") {
+    return null;
+  }
   return serializeFrameDiagram(loadFrameDiagram(slug, deps));
 }
 
 export function componentTreeForSlug(slug: string, deps: FramePreviewDocumentDeps) {
+  if (previewDocumentForSlug(slug, deps).kind === "sequence") {
+    return [];
+  }
   return buildComponentTree(loadFrameDiagram(slug, deps).root);
 }
 
 export function gridInfoForSlug(slug: string, deps: FramePreviewDocumentDeps) {
+  if (previewDocumentForSlug(slug, deps).kind === "sequence") {
+    return null;
+  }
   const diagram = loadFrameDiagram(slug, deps);
   return buildGridInfo(diagram, diagram.root);
 }
 
 export function canonicalSavedState(slug: string, deps: FramePreviewDocumentDeps) {
+  const previewDocument = previewDocumentForSlug(slug, deps);
+  if (previewDocument.kind === "sequence") {
+    return {
+      slug,
+      previewDocument,
+      frameTree: null,
+      componentTree: [],
+      gridInfo: null,
+    };
+  }
   const diagram = loadFrameDiagram(slug, deps);
-  const previewDocument = {
+  const framePreviewDocument = {
     kind: "frame-diagram",
     slug,
     title: diagram.title,
@@ -72,8 +117,8 @@ export function canonicalSavedState(slug: string, deps: FramePreviewDocumentDeps
   };
   return {
     slug,
-    previewDocument,
-    frameTree: previewDocument.frameTree,
+    previewDocument: framePreviewDocument,
+    frameTree: framePreviewDocument.frameTree,
     componentTree: buildComponentTree(diagram.root),
     gridInfo: buildGridInfo(diagram, diagram.root),
   };
@@ -97,6 +142,14 @@ export async function buildFrameDiagramState(slug: string, deps: FramePreviewRen
 }
 
 export async function renderSvgForSlug(slug: string, deps: FramePreviewRenderDeps): Promise<string> {
+  const previewDocument = previewDocumentForSlug(slug, deps);
+  if (previewDocument.kind === "sequence") {
+    const rendered = await renderPreviewDocumentToSvg(previewDocument);
+    if (!rendered) {
+      throw new Error(`No preview document SVG renderer is registered for kind '${previewDocument.kind}'`);
+    }
+    return rendered.svgMarkup;
+  }
   const { diagram, layout } = await buildFrameDiagramState(slug, deps);
   const iconMarkupByName = preloadIconMarkup(deps.iconLoader, collectIconNames(diagram.root));
   const adapter = await deps.textAdapterPromise;

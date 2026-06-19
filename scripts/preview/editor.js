@@ -413,6 +413,10 @@ async function _finishV3Relayout(triggerCid, localResult, executionLabel) {
   });
 }
 
+async function _finishLayoutRelayout(triggerCid, localResult, executionLabel) {
+  return _finishV3Relayout(triggerCid, localResult, executionLabel);
+}
+
 /** Monotonic counter + promise hook for tests / navigation (not localReady). */
 const _diagramLoadSignalState = window.__DG_getPreviewShellBootstrapContract().createPreviewDiagramLoadSignalState();
 
@@ -809,7 +813,8 @@ function setMultiFrameSize(dimension, value) {
   _getInspectorSelectionRuntime().setMultiFrameSize(dimension, value);
 }
 
-const _v3RelayoutRuntime = window.__DG_getPreviewBridgeRelayoutContract().createPreviewRelayoutRuntimeState();
+const _layoutRelayoutRuntime = window.__DG_getPreviewBridgeRelayoutContract().createPreviewRelayoutRuntimeState();
+const _v3RelayoutRuntime = _layoutRelayoutRuntime;
 
 function _failV3Relayout(reason, triggerCid) {
   return window.__DG_getPreviewBridgeRelayoutContract().dispatchPreviewRelayoutFailureHost({
@@ -824,11 +829,19 @@ function _failV3Relayout(reason, triggerCid) {
   });
 }
 
+function _failLayoutRelayout(reason, triggerCid) {
+  return _failV3Relayout(reason, triggerCid);
+}
+
 function getV3RelayoutStatus() {
   return window.__DG_getPreviewBridgeRelayoutContract().resolvePreviewV3RelayoutStatus({
     runtimeState: _v3RelayoutRuntime,
     getLocalRelayoutStatus: () => _getLocalBridgeRelayoutStatus(),
   });
+}
+
+function getLayoutRelayoutStatus() {
+  return getV3RelayoutStatus();
 }
 
 function applyAllOverrides() {
@@ -1698,8 +1711,8 @@ function _getRelayoutRuntime() {
     },
     getRelayoutStatus,
     isEngineLayoutActive: () => _isPreviewEngineShellLayoutActive(),
-    failRelayout: (reason, nextTriggerCid) => _failV3Relayout(reason, nextTriggerCid),
-    finishRelayout: (nextTriggerCid, result, executionLabel) => _finishV3Relayout(nextTriggerCid, result, executionLabel),
+    failRelayout: (reason, nextTriggerCid) => _failLayoutRelayout(reason, nextTriggerCid),
+    finishRelayout: (nextTriggerCid, result, executionLabel) => _finishLayoutRelayout(nextTriggerCid, result, executionLabel),
     logError: (message) => console.error(message),
     clearOverride: (cid) => model.clearOverride(cid),
     setDirty: () => setDirty(true),
@@ -1725,7 +1738,9 @@ function requestLayoutRelayout(triggerCid) {
   return requestV3Relayout(triggerCid);
 }
 
+window.getLayoutRelayoutStatus = getLayoutRelayoutStatus;
 window.getV3RelayoutStatus = getV3RelayoutStatus;
+window.requestLayoutRelayout = requestLayoutRelayout;
 
 /**
  * Set an explicit width or height value, converting from the current
@@ -1860,12 +1875,30 @@ function bootstrapPreviewEditor() {
       initNavTabs,
       getOverrides: () => overrides,
       getFrameTree: () => _readFrameTreeJson(),
-      requestLayoutRelayout: (cid) => requestV3Relayout(cid),
+      requestLayoutRelayout: (cid) => (
+        typeof requestLayoutRelayout === "function"
+          ? requestLayoutRelayout(cid)
+          : requestV3Relayout(cid)
+      ),
       requestV3Relayout,
       previewSaveClient: PreviewSaveClient,
       reloadDiagram: loadSVG,
+      getLayoutRelayoutStatus: () => (
+        typeof getLayoutRelayoutStatus === "function"
+          ? getLayoutRelayoutStatus()
+          : getV3RelayoutStatus()
+      ),
       getV3RelayoutStatus,
-      getV3RelayoutRuntime: () => _v3RelayoutRuntime,
+      getLayoutRelayoutRuntime: () => (
+        typeof _layoutRelayoutRuntime !== "undefined"
+          ? _layoutRelayoutRuntime
+          : _v3RelayoutRuntime
+      ),
+      getV3RelayoutRuntime: () => (
+        typeof _layoutRelayoutRuntime !== "undefined"
+          ? _layoutRelayoutRuntime
+          : _v3RelayoutRuntime
+      ),
       constraints,
       lastViolations,
       runConstraints,

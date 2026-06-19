@@ -1,0 +1,25 @@
+schema: author-v1
+title: Service handshake sequence
+engine: v3
+meta:
+  layout_engine: sequence
+root:
+  id: page
+  children: []
+sequence:
+  participants:
+    - id: client
+      kind: actor
+      label: Client
+    - id: api
+      label:
+        - Public
+        - API
+  messages:
+    - from: client
+      to: api
+      label: GET /v1/handshake
+  notes:
+    - target: api
+      placement: right-of
+      label: Auth happens here

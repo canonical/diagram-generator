@@ -5,7 +5,10 @@ import {
 import type { FrameDiagram } from '../frame-model.js';
 import { layoutFrameTree } from '../layout.js';
 import { resolveStyles } from '../resolve-styles.js';
+import { layoutSequenceDiagram } from '../sequence-layout/layout.js';
+import { renderSequenceDiagramToSvg } from '../sequence-layout/render-svg.js';
 import type {
+  PreviewDocumentSvgRenderer,
   PreviewFrameDiagramRenderAdapter,
 } from './render.js';
 import type { PreviewRenderFamily } from './types.js';
@@ -37,4 +40,25 @@ export const BUILTIN_PREVIEW_FRAME_DIAGRAM_RENDER_ADAPTERS: readonly Readonly<{
 }>[] = [
   { renderFamily: 'frame-native', adapter: nativeFrameDiagramRenderAdapter },
   { renderFamily: 'frame-elk', adapter: elkFrameDiagramRenderAdapter },
+] as const;
+
+const sequencePreviewDocumentSvgRenderer: PreviewDocumentSvgRenderer = async (document) => {
+  if (!document.sequence) {
+    throw new Error('Sequence preview document renderer requires a sequence payload');
+  }
+  const layout = layoutSequenceDiagram(document.sequence);
+  return {
+    svgMarkup: renderSequenceDiagramToSvg(document.sequence, layout, {
+      title: document.title || 'Sequence diagram',
+    }),
+    width: layout.width,
+    height: layout.height,
+  };
+};
+
+export const BUILTIN_PREVIEW_DOCUMENT_SVG_RENDERERS: readonly Readonly<{
+  previewDocumentKind: string;
+  renderer: PreviewDocumentSvgRenderer;
+}>[] = [
+  { previewDocumentKind: 'sequence', renderer: sequencePreviewDocumentSvgRenderer },
 ] as const;

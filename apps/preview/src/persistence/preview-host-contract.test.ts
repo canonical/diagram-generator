@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { MockTextAdapter } from "@diagram-generator/layout-engine";
 import { AUTOLAYOUT_HOST_LANE, FORCE_HOST_LANE, buildPreviewBrowseSections } from "../preview-host/lanes.js";
 import { buildIndexPageHtml, buildViewerPageHtml } from "../preview-host/pages.js";
 import { installBuiltinPreviewHostViewerRoutes } from "../preview-host/builtin-viewer-routes.js";
@@ -282,16 +283,54 @@ test("builtin preview host api routes install through a host-owned installer", a
   const forceDefinitionsDir = path.join(tempDir, "force");
   const forceSpecPath = path.join(forceDefinitionsDir, "force-stakeholders.yaml");
   const framesDir = path.join(tempDir, "frames");
-  const sourceFramePath = path.join(REPO_ROOT, "scripts", "diagrams", "frames", "support-engineering-flow.yaml");
-  const tempFramePath = path.join(framesDir, "support-engineering-flow.yaml");
+  const sourceFramePath = path.join(REPO_ROOT, "scripts", "diagrams", "frames", "complex-routing-usecase.yaml");
+  const tempFramePath = path.join(framesDir, "complex-routing-usecase.yaml");
+  const sequenceFramePath = path.join(framesDir, "service-handshake-sequence.yaml");
   mkdirSync(framesDir, { recursive: true });
   mkdirSync(forceDefinitionsDir, { recursive: true });
   copyFileSync(sourceFramePath, tempFramePath);
   writeFileSync(forceSpecPath, "nodes:\n  - id: alpha\nlinks: []\n", "utf8");
+  writeFileSync(
+    sequenceFramePath,
+    [
+      "schema: author-v1",
+      "title: Service handshake sequence",
+      "engine: v3",
+      "meta:",
+      "  layout_engine: sequence",
+      "root:",
+      "  id: page",
+      "  children: []",
+      "sequence:",
+      "  participants:",
+      "    - id: client",
+      "      kind: actor",
+      "      label: Client",
+      "    - id: api",
+      "      label:",
+      "        - Public",
+      "        - API",
+      "  messages:",
+      "    - from: client",
+      "      to: api",
+      "      label: GET /v1/handshake",
+      "  notes:",
+      "    - target: api",
+      "      placement: right-of",
+      "      label: Auth happens here",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
 
   const unregister = installBuiltinPreviewHostApiRoutes({
     framePreviewDocumentDeps: { framesDir },
     forcePreviewDocumentDeps: { forceDefinitionsDir },
+    framePreviewRenderDeps: {
+      framesDir,
+      iconLoader: () => null,
+      textAdapterPromise: Promise.resolve(new MockTextAdapter()),
+    },
     parseYaml,
     normalizeLayoutEngine: (layoutEngine: string | undefined) => layoutEngine ?? "",
   });
@@ -299,12 +338,12 @@ test("builtin preview host api routes install through a host-owned installer", a
   try {
     assert.deepEqual(
       listPreviewHostApiRoutes().map((route) => route.key).sort(),
-      ["component-tree", "force-save", "force-spec", "frame-overrides", "frame-tree", "grid-info", "preview-document"],
+      ["component-tree", "force-save", "force-spec", "frame-overrides", "frame-tree", "grid-info", "preview-document", "svg-export"],
     );
 
     const previewDocumentMatch = resolveRegisteredPreviewHostApiRoute(
       "GET",
-      "/api/preview-document/support-engineering-flow",
+      "/api/preview-document/complex-routing-usecase",
       normalizePreviewSlug,
     );
     assert.ok(previewDocumentMatch);
@@ -319,15 +358,44 @@ test("builtin preview host api routes install through a host-owned installer", a
       sendText: () => {
         throw new Error("did not expect preview document route to send plain text");
       },
+      sendBytes: () => {
+        throw new Error("did not expect preview document route to send bytes");
+      },
       readJsonBody: async () => ({}),
     });
     assert.ok(previewDocumentPayload && typeof previewDocumentPayload === "object");
     assert.equal((previewDocumentPayload as Record<string, unknown>).kind, "frame-diagram");
-    assert.equal((previewDocumentPayload as Record<string, unknown>).slug, "support-engineering-flow");
+    assert.equal((previewDocumentPayload as Record<string, unknown>).slug, "complex-routing-usecase");
+
+    const sequencePreviewDocumentMatch = resolveRegisteredPreviewHostApiRoute(
+      "GET",
+      "/api/preview-document/service-handshake-sequence",
+      normalizePreviewSlug,
+    );
+    assert.ok(sequencePreviewDocumentMatch);
+    let sequencePreviewDocumentPayload: unknown = null;
+    await sequencePreviewDocumentMatch.route.handle(sequencePreviewDocumentMatch, {
+      req: {} as never,
+      res: {} as never,
+      pathname: sequencePreviewDocumentMatch.pathname,
+      sendJson: (_statusCode, payload) => {
+        sequencePreviewDocumentPayload = payload;
+      },
+      sendText: () => {
+        throw new Error("did not expect sequence preview document route to send plain text");
+      },
+      sendBytes: () => {
+        throw new Error("did not expect sequence preview document route to send bytes");
+      },
+      readJsonBody: async () => ({}),
+    });
+    assert.ok(sequencePreviewDocumentPayload && typeof sequencePreviewDocumentPayload === "object");
+    assert.equal((sequencePreviewDocumentPayload as Record<string, unknown>).kind, "sequence");
+    assert.equal((sequencePreviewDocumentPayload as Record<string, unknown>).slug, "service-handshake-sequence");
 
     const frameOverridesMatch = resolveRegisteredPreviewHostApiRoute(
       "POST",
-      "/api/overrides/support-engineering-flow",
+      "/api/overrides/complex-routing-usecase",
       normalizePreviewSlug,
     );
     assert.ok(frameOverridesMatch);
@@ -342,6 +410,9 @@ test("builtin preview host api routes install through a host-owned installer", a
       },
       sendText: () => {
         throw new Error("did not expect frame override route to send plain text");
+      },
+      sendBytes: () => {
+        throw new Error("did not expect frame override route to send bytes");
       },
       readJsonBody: async () => ({}),
     });
@@ -366,6 +437,9 @@ test("builtin preview host api routes install through a host-owned installer", a
       sendText: () => {
         throw new Error("did not expect force spec route to send plain text");
       },
+      sendBytes: () => {
+        throw new Error("did not expect force spec route to send bytes");
+      },
       readJsonBody: async () => ({}),
     });
     assert.deepEqual(specPayload, { nodes: [{ id: "alpha" }], links: [] });
@@ -387,6 +461,9 @@ test("builtin preview host api routes install through a host-owned installer", a
       sendText: () => {
         throw new Error("did not expect force save route to send plain text");
       },
+      sendBytes: () => {
+        throw new Error("did not expect force save route to send bytes");
+      },
       readJsonBody: async () => ({ nodes: [{ id: "beta" }], links: [] }),
     });
     assert.deepEqual(readFileSync(forceSpecPath, "utf8"), "nodes:\n  - id: beta\nlinks: []\n");
@@ -397,6 +474,57 @@ test("builtin preview host api routes install through a host-owned installer", a
         authoredSpec: { nodes: [{ id: "beta" }], links: [] },
       },
     });
+
+    const svgMatch = resolveRegisteredPreviewHostApiRoute(
+      "GET",
+      "/svg/complex-routing-usecase",
+      normalizePreviewSlug,
+    );
+    assert.ok(svgMatch);
+    let svgPayload: Buffer | null = null;
+    let svgContentType = "";
+    await svgMatch.route.handle(svgMatch, {
+      req: {} as never,
+      res: {} as never,
+      pathname: svgMatch.pathname,
+      sendJson: () => {
+        throw new Error("did not expect svg export route to send json");
+      },
+      sendText: () => {
+        throw new Error("did not expect svg export route to send plain text");
+      },
+      sendBytes: (_statusCode, contentType, bytes) => {
+        svgContentType = contentType;
+        svgPayload = bytes;
+      },
+      readJsonBody: async () => ({}),
+    });
+    assert.equal(svgContentType, "image/svg+xml");
+    assert.match(String(svgPayload), /<svg\b/);
+
+    const sequenceSvgMatch = resolveRegisteredPreviewHostApiRoute(
+      "GET",
+      "/svg/service-handshake-sequence",
+      normalizePreviewSlug,
+    );
+    assert.ok(sequenceSvgMatch);
+    let sequenceSvgPayload: Buffer | null = null;
+    await sequenceSvgMatch.route.handle(sequenceSvgMatch, {
+      req: {} as never,
+      res: {} as never,
+      pathname: sequenceSvgMatch.pathname,
+      sendJson: () => {
+        throw new Error("did not expect sequence svg export route to send json");
+      },
+      sendText: () => {
+        throw new Error("did not expect sequence svg export route to send plain text");
+      },
+      sendBytes: (_statusCode, _contentType, bytes) => {
+        sequenceSvgPayload = bytes;
+      },
+      readJsonBody: async () => ({}),
+    });
+    assert.match(String(sequenceSvgPayload), /data-sequence-message-id="m1"/);
   } finally {
     unregister();
     rmSync(tempDir, { recursive: true, force: true });

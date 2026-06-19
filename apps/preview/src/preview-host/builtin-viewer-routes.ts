@@ -15,10 +15,9 @@ import {
   type PreviewEngineManifest,
 } from "@diagram-generator/layout-engine";
 import {
-  determineFrameYamlKind,
   frameDiagramExists,
   loadFrameDiagram,
-  readFrameYamlText,
+  previewDocumentForSlug,
   type FramePreviewDocumentDeps,
 } from "./frame-documents.js";
 import { AUTOLAYOUT_HOST_LANE, FORCE_HOST_LANE } from "./lanes.js";
@@ -93,11 +92,15 @@ export function createAutolayoutPreviewHostViewerRoute(
     listSlugs: () => deps.listAutolayoutDiagrams(),
     hasDocument: (slug: string) => frameDiagramExists(slug, deps.framePreviewDocumentDeps),
     buildHtml: (slug: string) => {
-      const diagram = loadFrameDiagram(slug, deps.framePreviewDocumentDeps);
-      const frameDiagramSummary = summarizeFrameDiagramCompatibility(diagram);
-      const authoredLayoutEngine = deps.normalizeLayoutEngine(diagram.layoutEngine);
-      const baselineYaml = readFrameYamlText(slug, deps.framePreviewDocumentDeps);
-      const documentKind = determineFrameYamlKind(baselineYaml, deps.parseYaml);
+      const previewDocument = previewDocumentForSlug(slug, deps.framePreviewDocumentDeps);
+      const documentKind = previewDocument.kind === "sequence" ? "sequence" : "frame-diagram";
+      const diagram = documentKind === "frame-diagram"
+        ? loadFrameDiagram(slug, deps.framePreviewDocumentDeps)
+        : null;
+      const frameDiagramSummary = diagram ? summarizeFrameDiagramCompatibility(diagram) : undefined;
+      const authoredLayoutEngine = documentKind === "sequence"
+        ? "sequence"
+        : deps.normalizeLayoutEngine(diagram?.layoutEngine);
       const compatibleContext: Omit<PreviewEngineContext, "layoutEngine"> = {
         shellMode: "grid",
         previewDocumentKind: documentKind,
@@ -125,7 +128,7 @@ export function createAutolayoutPreviewHostViewerRoute(
         `"head_half":${deps.headHalfWidth ?? ARROW_HEAD_HALF_WIDTH},`,
         `"icon_size":${deps.iconSize ?? ICON_SIZE},`,
         `"col_gap":${deps.gridGutter ?? GRID_GUTTER},`,
-        `"has_reference":${String(deps.findReferenceImage(slug) !== null).toLowerCase()}`,
+        `"has_reference":${String(documentKind === "frame-diagram" && deps.findReferenceImage(slug) !== null).toLowerCase()}`,
         "};",
       ].join("");
       const engineScripts = previewEngineScriptTags(engineManifest, deps);

@@ -6,8 +6,11 @@ import { MockTextAdapter } from '../src/text-measure.js';
 import {
   ELK_LAYERED_PREVIEW_ENGINE,
   V3_PREVIEW_ENGINE,
+  getPreviewDocumentSvgRenderer,
   getPreviewFrameDiagramRenderAdapter,
   layoutPreviewFrameDiagramForEngine,
+  renderPreviewDocumentToSvg,
+  registerPreviewDocumentSvgRenderer,
   registerPreviewFrameDiagramRenderAdapter,
   resolvePreviewRenderFamily,
 } from '../src/preview-engine/index.js';
@@ -22,6 +25,35 @@ describe('preview-engine render helpers', () => {
     expect(resolvePreviewRenderFamily(null, 'frame-diagram')).toBe('frame-native');
     expect(resolvePreviewRenderFamily(null, 'sequence')).toBe('sequence');
     expect(resolvePreviewRenderFamily(null, 'force-spec')).toBe('force');
+  });
+
+  it('renders registered non-frame preview documents through the shared document seam', async () => {
+    const rendered = await renderPreviewDocumentToSvg({
+      kind: 'sequence',
+      title: 'Handshake',
+      sequence: {
+        participants: [
+          { id: 'client', label: [{ text: 'Client' }], kind: 'participant' },
+          { id: 'server', label: [{ text: 'Server' }], kind: 'participant' },
+        ],
+        messages: [
+          {
+            id: 'm1',
+            from: 'client',
+            to: 'server',
+            label: [{ text: 'Hello' }],
+          },
+        ],
+        notes: [],
+        groups: [],
+      },
+    });
+
+    expect(rendered).toMatchObject({
+      width: expect.any(Number),
+      height: expect.any(Number),
+    });
+    expect(rendered?.svgMarkup).toContain('<svg');
   });
 
   it('layouts native frame diagrams through the shared render-family seam', async () => {
@@ -106,5 +138,29 @@ describe('preview-engine render helpers', () => {
         engine: { renderFamily: 'sequence' },
       }),
     ).rejects.toThrow("No frame-diagram render adapter is registered for preview render family 'sequence'");
+  });
+
+  it('registers custom preview-document renderers without editing the shared helper', async () => {
+    const unregister = registerPreviewDocumentSvgRenderer('bespoke-doc-test', async () => ({
+      svgMarkup: '<svg viewBox="0 0 10 10"></svg>',
+      width: 10,
+      height: 10,
+    }));
+
+    try {
+      expect(getPreviewDocumentSvgRenderer('bespoke-doc-test')).toBeTypeOf('function');
+      await expect(
+        renderPreviewDocumentToSvg({
+          kind: 'bespoke-doc-test',
+        }),
+      ).resolves.toMatchObject({
+        width: 10,
+        height: 10,
+      });
+    } finally {
+      unregister();
+    }
+
+    expect(getPreviewDocumentSvgRenderer('bespoke-doc-test')).toBeUndefined();
   });
 });

@@ -138,11 +138,15 @@
       payload = deps.collectEngineSavePayload(payload, model);
     }
 
-    const relayout = typeof deps.getV3RelayoutStatus === "function"
-      ? deps.getV3RelayoutStatus()
+    const relayout = typeof deps.getLayoutRelayoutStatus === "function"
+      ? deps.getLayoutRelayoutStatus()
+      : typeof deps.getV3RelayoutStatus === "function"
+        ? deps.getV3RelayoutStatus()
       : { localReady: true };
-    const relayoutRuntime = typeof deps.getV3RelayoutRuntime === "function"
-      ? deps.getV3RelayoutRuntime()
+    const relayoutRuntime = typeof deps.getLayoutRelayoutRuntime === "function"
+      ? deps.getLayoutRelayoutRuntime()
+      : typeof deps.getV3RelayoutRuntime === "function"
+        ? deps.getV3RelayoutRuntime()
       : {};
     if (relayoutRuntime.lastMode === "local-error") {
       alert("Cannot save while local relayout is in an error state. Resolve the local relayout error first.");

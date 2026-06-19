@@ -22,7 +22,6 @@ import {
   determineFrameYamlKind,
   frameDiagramExists,
   loadFrameDiagram,
-  renderSvgForSlug,
   type FramePreviewDocumentDeps,
   type FramePreviewRenderDeps,
 } from "./preview-host/frame-documents.js";
@@ -528,6 +527,7 @@ function buildIndexHtml(port: number): string {
 installBuiltinPreviewHost({
   framePreviewDocumentDeps,
   forcePreviewDocumentDeps,
+  framePreviewRenderDeps,
   parseYaml,
   templateHtml: readFileSync(VIEWER_TEMPLATE, "utf8"),
   baselineStylesHtml: bfStylesLinkHtml(),
@@ -586,6 +586,8 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, port: nu
         pathname,
         sendJson: (statusCode: number, payload: unknown) => sendJson(res, statusCode, payload),
         sendText: (statusCode: number, text: string) => sendText(res, statusCode, text),
+        sendBytes: (statusCode: number, contentType: string, bytes: Buffer) =>
+          sendBytes(res, statusCode, contentType, bytes),
         readJsonBody,
       });
       return;
@@ -737,6 +739,8 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, port: nu
       pathname,
       sendJson: (statusCode: number, payload: unknown) => sendJson(res, statusCode, payload),
       sendText: (statusCode: number, text: string) => sendText(res, statusCode, text),
+      sendBytes: (statusCode: number, contentType: string, bytes: Buffer) =>
+        sendBytes(res, statusCode, contentType, bytes),
       readJsonBody,
     });
     return;
@@ -750,22 +754,6 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, port: nu
     pathname.startsWith("/api/force-export/")
   ) {
     sendText(res, 404, `Route retired from the Node preview app: ${pathname}`);
-    return;
-  }
-  if (pathname.startsWith("/svg/") || pathname.startsWith("/v3/svg/")) {
-    const rawName = pathname.startsWith("/svg/")
-      ? pathname.slice("/svg/".length)
-      : pathname.slice("/v3/svg/".length);
-    const safeName = path.posix.basename(rawName);
-    const normalized =
-      safeName.replace(/-onbrand-v3-grid\.svg$/i, "").replace(/-onbrand-v3\.svg$/i, "");
-    const slug = normalizeFrameSlug(normalized);
-    if (!slug) {
-      sendText(res, 400, "Invalid SVG slug");
-      return;
-    }
-    const svg = await renderSvgForSlug(slug, framePreviewRenderDeps);
-    sendBytes(res, 200, "image/svg+xml", Buffer.from(svg, "utf8"));
     return;
   }
   const previewViewerRouteMatch = resolveRegisteredPreviewViewerRoute(pathname, normalizeFrameSlug);

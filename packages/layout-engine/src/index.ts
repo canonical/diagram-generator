@@ -295,6 +295,7 @@ export type {
 } from './operator-autolayout/facade.js';
 
 export {
+  getPreviewDocumentSvgRenderer,
   getPreviewFrameDiagramRenderAdapter,
   V3_PREVIEW_ENGINE,
   ELK_LAYERED_PREVIEW_ENGINE,
@@ -302,6 +303,7 @@ export {
   FORCE_PREVIEW_PARAM_SPECS,
   PREVIEW_ENGINE_REGISTRY,
   registerPreviewEngine,
+  registerPreviewDocumentSvgRenderer,
   elkLayeredPreviewControlSpecs,
   evaluatePreviewEngineCompatibility,
   getPreviewEngine,
@@ -309,6 +311,7 @@ export {
   layoutPreviewFrameDiagramForEngine,
   listCompatiblePreviewEngines,
   listPreviewEngines,
+  renderPreviewDocumentToSvg,
   registerPreviewFrameDiagramRenderAdapter,
   resolvePreviewRenderFamily,
   resolvePreviewEngine,
@@ -324,9 +327,12 @@ export type {
   PreviewEngineApiRoutes,
   PreviewEngineCapabilities,
   PreviewEngineContext,
+  PreviewDocumentSvgRenderResult,
+  PreviewDocumentSvgRenderer,
   PreviewEngineHostView,
   PreviewEngineManifest,
   PreviewPersistNamespace,
+  PreviewRenderableDocument,
   PreviewRenderFamily,
   PreviewViewerSidebarSection,
   PreviewShellMode,

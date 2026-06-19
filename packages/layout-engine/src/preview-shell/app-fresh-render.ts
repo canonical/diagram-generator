@@ -10,13 +10,13 @@ import {
 } from '../frame-model.js';
 import { type LayoutOutput } from '../layout.js';
 import {
+  type PreviewRenderableDocument,
   layoutPreviewFrameDiagramForEngine,
+  renderPreviewDocumentToSvg,
   type PreviewFrameLayoutResult,
   resolvePreviewEngine,
   summarizeFrameDiagramCompatibility,
 } from '../preview-engine/index.js';
-import { layoutSequenceDiagram } from '../sequence-layout/layout.js';
-import { renderSequenceDiagramToSvg } from '../sequence-layout/render-svg.js';
 import { type TextMeasureAdapter } from '../text-measure.js';
 import {
   createPreviewArrowSvgFragment,
@@ -45,11 +45,7 @@ export interface RenderPreviewFrameTreeToSvgOptions {
   overlays?: DiagramOverlay[] | null;
 }
 
-export interface FreshPreviewDocument {
-  kind?: string | null;
-  title?: string | null;
-  sequence?: Parameters<typeof layoutSequenceDiagram>[0];
-}
+export interface FreshPreviewDocument extends PreviewRenderableDocument {}
 
 export interface RenderFreshPreviewSvgOptions<TModel = unknown> {
   ownerDocument: Document;
@@ -355,17 +351,14 @@ export function renderPreviewFrameTreeToSvg(
 export async function renderFreshPreviewSvg<TModel = unknown>(
   options: RenderFreshPreviewSvgOptions<TModel>,
 ): Promise<FreshPreviewSvgRenderResult> {
-  if (options.previewDocumentJson?.kind === 'sequence' && options.previewDocumentJson.sequence) {
-    const layout = layoutSequenceDiagram(options.previewDocumentJson.sequence);
-    const svgMarkup = renderSequenceDiagramToSvg(
-      options.previewDocumentJson.sequence,
-      layout,
-      { title: options.previewDocumentJson.title || 'Sequence diagram' },
-    );
+  const renderedPreviewDocument = options.previewDocumentJson
+    ? await renderPreviewDocumentToSvg(options.previewDocumentJson)
+    : null;
+  if (renderedPreviewDocument) {
     return {
-      svg: parseMarkupDocument(options.ownerDocument, svgMarkup),
-      width: layout.width,
-      height: layout.height,
+      svg: parseMarkupDocument(options.ownerDocument, renderedPreviewDocument.svgMarkup),
+      width: renderedPreviewDocument.width,
+      height: renderedPreviewDocument.height,
       coerced: new Map(),
       elkSnapshot: null,
       elkFrameLabels: null,
