@@ -7,6 +7,7 @@ import {
   collectIconNames,
   compileDiagramYaml,
   layoutPreviewFrameDiagramForEngine,
+  listCompatiblePreviewEngines,
   loadFrameYaml,
   preloadIconMarkup,
   renderFrameDiagramToSvg,
@@ -14,6 +15,7 @@ import {
   resolvePreviewEngine,
   serializeFrameDiagram,
   summarizeFrameDiagramCompatibility,
+  type PreviewEngineManifest,
   type PreviewEngineContext,
   type PreviewDocumentKind,
   type PreviewRenderableDocument,
@@ -44,6 +46,19 @@ export interface FramePreviewEngineResolution {
   compatibleContext: Omit<PreviewEngineContext, "layoutEngine">;
   previewContext: PreviewEngineContext;
   authoredLayoutEngine: string;
+}
+
+export interface ResolveFramePreviewViewerContextOptions {
+  normalizeLayoutEngine: (layoutEngine: string | undefined) => string;
+  findReferenceImage: (slug: string) => string | null;
+}
+
+export interface FramePreviewViewerContext extends FramePreviewEngineResolution {
+  documentKind: PreviewDocumentKind;
+  engineManifest: PreviewEngineManifest | undefined;
+  activeLayoutEngine: string;
+  compatibleEngines: string[];
+  hasReference: boolean;
 }
 
 interface FrameYamlDocumentKindHandler {
@@ -254,6 +269,32 @@ export function resolveFramePreviewEngineResolution(
       ...compatibleContext,
     },
     authoredLayoutEngine,
+  };
+}
+
+export function resolveFramePreviewViewerContext(
+  slug: string,
+  deps: FramePreviewDocumentDeps,
+  options: ResolveFramePreviewViewerContextOptions,
+): FramePreviewViewerContext {
+  const resolution = resolveFramePreviewEngineResolution(
+    slug,
+    deps,
+    options.normalizeLayoutEngine,
+  );
+  const documentKind = resolution.compatibleContext.previewDocumentKind ?? resolution.previewDocument.kind ?? "frame-diagram";
+  const engineManifest = resolvePreviewEngine(resolution.previewContext);
+  const activeLayoutEngine = engineManifest?.layoutEngineKey ?? resolution.authoredLayoutEngine;
+  const compatibleEngines = listCompatiblePreviewEngines(resolution.compatibleContext)
+    .map((entry) => entry.layoutEngineKey)
+    .filter((key): key is string => typeof key === "string" && key.length > 0);
+  return {
+    ...resolution,
+    documentKind,
+    engineManifest,
+    activeLayoutEngine,
+    compatibleEngines,
+    hasReference: documentKind === "frame-diagram" && options.findReferenceImage(slug) !== null,
   };
 }
 

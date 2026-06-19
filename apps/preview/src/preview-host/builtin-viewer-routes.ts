@@ -2,7 +2,6 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 
 import {
-  listCompatiblePreviewEngines,
   resolvePreviewEngine,
   ARROW_HEAD_HALF_WIDTH,
   ARROW_HEAD_LENGTH,
@@ -19,7 +18,7 @@ import {
   componentTreeForSlug,
   gridInfoForSlug,
   renderSvgForSlug,
-  resolveFramePreviewEngineResolution,
+  resolveFramePreviewViewerContext,
   type FramePreviewDocumentDeps,
   type FramePreviewRenderDeps,
 } from "./frame-documents.js";
@@ -34,7 +33,11 @@ import type {
   PreviewHostViewerRouteDescriptor,
   PreviewHostViewerScriptResolver,
 } from "./types.js";
-import { buildPreviewViewerHtml } from "./viewers.js";
+import {
+  buildPreviewModeScriptsHtml,
+  buildPreviewViewerHtml,
+  buildPreviewWindowConfigScript,
+} from "./viewers.js";
 import type { ForcePreviewDocumentDeps } from "./force-documents.js";
 import {
   loadForcePreviewDocumentSpec,
@@ -220,14 +223,6 @@ const FORCE_PREVIEW_VIEWER_DEFINITION: PreviewHostViewerPageDefinition = {
   },
 };
 
-function previewEngineScriptTags(
-  entry: PreviewEngineManifest | undefined,
-  deps: PreviewHostViewerScriptResolver,
-): string {
-  const scripts = Array.isArray(entry?.scripts) ? entry.scripts : [];
-  return scripts.map((script: string) => `<script src="${deps.previewAssetUrl(script)}"></script>`).join("\n");
-}
-
 export function createAutolayoutPreviewHostViewerRoute(
   deps: BuiltinPreviewHostViewerRouteDeps,
 ): PreviewHostViewerRouteDescriptor {
@@ -239,46 +234,44 @@ export function createAutolayoutPreviewHostViewerRoute(
     hasDocument: (slug: string) => frameDiagramExists(slug, deps.framePreviewDocumentDeps),
     buildHtml: (slug: string) => {
       const {
-        previewDocument,
-        compatibleContext,
-        previewContext,
-        authoredLayoutEngine,
-      } = resolveFramePreviewEngineResolution(
+        engineManifest,
+        activeLayoutEngine,
+        compatibleEngines,
+        hasReference,
+      } = resolveFramePreviewViewerContext(
         slug,
         deps.framePreviewDocumentDeps,
-        deps.normalizeLayoutEngine,
+        {
+          normalizeLayoutEngine: deps.normalizeLayoutEngine,
+          findReferenceImage: deps.findReferenceImage,
+        },
       );
-      const documentKind = compatibleContext.previewDocumentKind;
-      const engineManifest = resolvePreviewEngine(previewContext);
-      const activeLayoutEngine = engineManifest?.layoutEngineKey ?? authoredLayoutEngine;
-      const compatibleEngines = listCompatiblePreviewEngines(compatibleContext)
-        .map((entry) => entry.layoutEngineKey)
-        .filter((key): key is string => typeof key === "string" && key.length > 0);
-      const configScript = [
-        "window.__DG_CONFIG = {",
-        `"slug":"${slug}",`,
-        `"engine":"${engineManifest?.id ?? "v3"}",`,
-        '"shell_mode":"grid",',
-        `"layout_engine":"${activeLayoutEngine}",`,
-        `"compatible_engines":${JSON.stringify(compatibleEngines)},`,
-        '"grid":false,',
-        `"inset":${deps.inset ?? INSET},`,
-        `"head_len":${deps.headLength ?? ARROW_HEAD_LENGTH},`,
-        `"head_half":${deps.headHalfWidth ?? ARROW_HEAD_HALF_WIDTH},`,
-        `"icon_size":${deps.iconSize ?? ICON_SIZE},`,
-        `"col_gap":${deps.gridGutter ?? GRID_GUTTER},`,
-        `"has_reference":${String(documentKind === "frame-diagram" && deps.findReferenceImage(slug) !== null).toLowerCase()}`,
-        "};",
-      ].join("");
-      const engineScripts = previewEngineScriptTags(engineManifest, deps);
-      const modeScripts =
-        `<script src="${deps.previewAssetUrl("layout-engine.js")}"></script>\n` +
-        (engineScripts ? `${engineScripts}\n` : "") +
-        `<script src="${deps.previewAssetUrl("layout-bridge.js")}"></script>\n` +
-        `<script src="${deps.previewAssetUrl("component-model.js")}"></script>\n` +
-        `<script src="${deps.previewAssetUrl("constraints.js")}"></script>\n` +
-        `<script src="${deps.previewAssetUrl("editor.js")}"></script>\n` +
-        `<script src="${deps.previewAssetUrl("engine-switcher.js")}"></script>`;
+      const configScript = buildPreviewWindowConfigScript("__DG_CONFIG", {
+        slug,
+        engine: engineManifest?.id ?? "v3",
+        shell_mode: "grid",
+        layout_engine: activeLayoutEngine,
+        compatible_engines: compatibleEngines,
+        grid: false,
+        inset: deps.inset ?? INSET,
+        head_len: deps.headLength ?? ARROW_HEAD_LENGTH,
+        head_half: deps.headHalfWidth ?? ARROW_HEAD_HALF_WIDTH,
+        icon_size: deps.iconSize ?? ICON_SIZE,
+        col_gap: deps.gridGutter ?? GRID_GUTTER,
+        has_reference: hasReference,
+      });
+      const modeScripts = buildPreviewModeScriptsHtml({
+        previewAssetUrl: deps.previewAssetUrl,
+        coreScripts: [
+          "layout-engine.js",
+          "layout-bridge.js",
+          "component-model.js",
+          "constraints.js",
+          "editor.js",
+          "engine-switcher.js",
+        ],
+        engineScripts: engineManifest?.scripts ?? [],
+      });
       return buildPreviewViewerHtml({
         slug,
         definition: AUTOLAYOUT_PREVIEW_VIEWER_DEFINITION,
@@ -319,18 +312,18 @@ export function createForcePreviewHostViewerRoute(
       existsSync(path.join(deps.forcePreviewDocumentDeps.forceDefinitionsDir, `${slug}.yaml`)),
     buildHtml: (slug: string) => {
       const engineManifest = resolvePreviewEngine({ shellMode: "force" });
-      const configScript = [
-        "window.__DG_FORCE_CONFIG = {",
-        `"slug":"${slug}",`,
-        `"inset":${deps.inset ?? INSET},`,
-        `"body_line_step":${deps.bodyLineStep ?? BODY_LINE_STEP},`,
-        `"head_len":${deps.headLength ?? ARROW_HEAD_LENGTH},`,
-        `"head_half":${deps.headHalfWidth ?? ARROW_HEAD_HALF_WIDTH}`,
-        "};",
-      ].join("");
-      const engineScripts = previewEngineScriptTags(engineManifest, deps);
-      const modeScripts =
-        `<script src="${deps.previewAssetUrl("layout-engine.js")}"></script>\n${engineScripts}`;
+      const configScript = buildPreviewWindowConfigScript("__DG_FORCE_CONFIG", {
+        slug,
+        inset: deps.inset ?? INSET,
+        body_line_step: deps.bodyLineStep ?? BODY_LINE_STEP,
+        head_len: deps.headLength ?? ARROW_HEAD_LENGTH,
+        head_half: deps.headHalfWidth ?? ARROW_HEAD_HALF_WIDTH,
+      });
+      const modeScripts = buildPreviewModeScriptsHtml({
+        previewAssetUrl: deps.previewAssetUrl,
+        coreScripts: ["layout-engine.js"],
+        engineScripts: engineManifest?.scripts ?? [],
+      });
       return buildPreviewViewerHtml({
         slug,
         definition: FORCE_PREVIEW_VIEWER_DEFINITION,
