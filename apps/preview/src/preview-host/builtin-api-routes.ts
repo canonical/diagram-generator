@@ -21,21 +21,17 @@ import {
   type ParseYaml,
 } from "./force-documents.js";
 import {
-  componentTreeForSlug,
   canonicalSavedState as canonicalFrameSavedState,
   determineFrameYamlKind,
   frameDiagramExists,
-  frameTreeForSlug,
-  gridInfoForSlug,
   loadFrameDiagram,
-  previewDocumentForSlug,
-  renderSvgForSlug,
   type FramePreviewDocumentDeps,
   type FramePreviewRenderDeps,
 } from "./frame-documents.js";
 import {
   registerPreviewHostApiRoute,
 } from "./api-routes.js";
+import { resolveRegisteredPreviewDocumentApi } from "./registry.js";
 import type { PreviewHostApiRouteDescriptor } from "./types.js";
 
 export interface BuiltinPreviewHostApiRouteDeps {
@@ -260,7 +256,12 @@ export function createPreviewDocumentPreviewHostApiRoute(
       if (!slug) {
         return;
       }
-      context.sendJson(200, previewDocumentForSlug(slug, deps.framePreviewDocumentDeps));
+      const owner = resolveRegisteredPreviewDocumentApi(slug, "loadPreviewDocument");
+      if (!owner) {
+        context.sendText(404, `Unknown diagram: ${slug}`);
+        return;
+      }
+      context.sendJson(200, owner.handler(slug));
     },
   };
 }
@@ -277,7 +278,12 @@ export function createFrameTreePreviewHostApiRoute(
       if (!slug) {
         return;
       }
-      context.sendJson(200, frameTreeForSlug(slug, deps.framePreviewDocumentDeps));
+      const owner = resolveRegisteredPreviewDocumentApi(slug, "loadFrameTree");
+      if (!owner) {
+        context.sendText(404, `Unknown diagram: ${slug}`);
+        return;
+      }
+      context.sendJson(200, owner.handler(slug));
     },
   };
 }
@@ -294,7 +300,12 @@ export function createComponentTreePreviewHostApiRoute(
       if (!slug) {
         return;
       }
-      context.sendJson(200, componentTreeForSlug(slug, deps.framePreviewDocumentDeps));
+      const owner = resolveRegisteredPreviewDocumentApi(slug, "loadComponentTree");
+      if (!owner) {
+        context.sendText(404, `Unknown diagram: ${slug}`);
+        return;
+      }
+      context.sendJson(200, owner.handler(slug));
     },
   };
 }
@@ -311,7 +322,12 @@ export function createGridInfoPreviewHostApiRoute(
       if (!slug) {
         return;
       }
-      context.sendJson(200, gridInfoForSlug(slug, deps.framePreviewDocumentDeps));
+      const owner = resolveRegisteredPreviewDocumentApi(slug, "loadGridInfo");
+      if (!owner) {
+        context.sendText(404, `Unknown diagram: ${slug}`);
+        return;
+      }
+      context.sendJson(200, owner.handler(slug));
     },
   };
 }
@@ -338,7 +354,12 @@ export function createPreviewSvgHostApiRoute(
       if (!slug) {
         return;
       }
-      const svg = await renderSvgForSlug(slug, deps.framePreviewRenderDeps);
+      const owner = resolveRegisteredPreviewDocumentApi(slug, "renderSvg");
+      if (!owner) {
+        context.sendText(404, `Unknown diagram: ${slug}`);
+        return;
+      }
+      const svg = await owner.handler(slug);
       context.sendBytes(200, "image/svg+xml", Buffer.from(svg, "utf8"));
     },
   };

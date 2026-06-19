@@ -18,7 +18,12 @@ import {
   frameDiagramExists,
   loadFrameDiagram,
   previewDocumentForSlug,
+  frameTreeForSlug,
+  componentTreeForSlug,
+  gridInfoForSlug,
+  renderSvgForSlug,
   type FramePreviewDocumentDeps,
+  type FramePreviewRenderDeps,
 } from "./frame-documents.js";
 import { AUTOLAYOUT_HOST_LANE, FORCE_HOST_LANE } from "./lanes.js";
 import {
@@ -36,6 +41,7 @@ import type { ForcePreviewDocumentDeps } from "./force-documents.js";
 export interface BuiltinPreviewHostViewerRouteDeps
   extends PreviewHostViewerScriptResolver {
   readonly framePreviewDocumentDeps: FramePreviewDocumentDeps;
+  readonly framePreviewRenderDeps: FramePreviewRenderDeps;
   readonly forcePreviewDocumentDeps: ForcePreviewDocumentDeps;
   readonly parseYaml: (raw: string) => unknown;
   readonly templateHtml: string;
@@ -152,6 +158,13 @@ export function createAutolayoutPreviewHostViewerRoute(
       });
     },
     describeMissing: (slug: string) => `Unknown diagram: ${slug}`,
+    documentApi: {
+      loadPreviewDocument: (slug: string) => previewDocumentForSlug(slug, deps.framePreviewDocumentDeps),
+      loadFrameTree: (slug: string) => frameTreeForSlug(slug, deps.framePreviewDocumentDeps),
+      loadComponentTree: (slug: string) => componentTreeForSlug(slug, deps.framePreviewDocumentDeps),
+      loadGridInfo: (slug: string) => gridInfoForSlug(slug, deps.framePreviewDocumentDeps),
+      renderSvg: (slug: string) => renderSvgForSlug(slug, deps.framePreviewRenderDeps),
+    },
   };
 }
 

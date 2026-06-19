@@ -21,6 +21,7 @@ import {
   buildRegisteredPreviewBrowseSections,
   listPreviewHostViewerRoutes,
   registerPreviewHostViewerRoute,
+  resolveRegisteredPreviewDocumentApi,
   resolveRegisteredPreviewViewerRoute,
 } from "../preview-host/registry.js";
 import { buildPreviewBrowseSectionsFromViewerRoutes, resolvePreviewViewerRoute } from "../preview-host/viewers.js";
@@ -113,6 +114,9 @@ test("preview host viewer routes register through a typed registry", () => {
     hasDocument: () => true,
     buildHtml: () => "<html>grid</html>",
     describeMissing: (slug: string) => `Unknown diagram: ${slug}`,
+    documentApi: {
+      loadPreviewDocument: (slug: string) => ({ kind: "frame-diagram", slug }),
+    },
   });
   const unregisterForce = registerPreviewHostViewerRoute({
     key: "test-force",
@@ -145,6 +149,13 @@ test("preview host viewer routes register through a typed registry", () => {
         slug: "support-engineering-flow",
       },
     );
+    assert.deepEqual(
+      resolveRegisteredPreviewDocumentApi("support-engineering-flow", "loadPreviewDocument"),
+      {
+        route: listPreviewHostViewerRoutes().find((route) => route.key === "test-autolayout"),
+        handler: listPreviewHostViewerRoutes().find((route) => route.key === "test-autolayout")?.documentApi?.loadPreviewDocument,
+      },
+    );
   } finally {
     unregisterForce();
     unregisterAutolayout();
@@ -156,6 +167,11 @@ test("preview host viewer routes register through a typed registry", () => {
 test("builtin preview host viewer routes install through a host-owned installer", () => {
   const unregister = installBuiltinPreviewHostViewerRoutes({
     framePreviewDocumentDeps: { framesDir: "/virtual/frames" },
+    framePreviewRenderDeps: {
+      framesDir: "/virtual/frames",
+      iconLoader: () => null,
+      textAdapterPromise: Promise.resolve(new MockTextAdapter()),
+    },
     forcePreviewDocumentDeps: { forceDefinitionsDir: "/virtual/force" },
     parseYaml: () => ({}),
     templateHtml: "%MODE%",
@@ -323,7 +339,25 @@ test("builtin preview host api routes install through a host-owned installer", a
     "utf8",
   );
 
-  const unregister = installBuiltinPreviewHostApiRoutes({
+  const unregisterViewers = installBuiltinPreviewHostViewerRoutes({
+    framePreviewDocumentDeps: { framesDir },
+    framePreviewRenderDeps: {
+      framesDir,
+      iconLoader: () => null,
+      textAdapterPromise: Promise.resolve(new MockTextAdapter()),
+    },
+    forcePreviewDocumentDeps: { forceDefinitionsDir },
+    parseYaml,
+    templateHtml: "%MODE%",
+    baselineStylesHtml: "",
+    previewAssetUrl: (filename: string) => `/preview/${filename}`,
+    listAutolayoutDiagrams: () => ["complex-routing-usecase", "service-handshake-sequence"],
+    listForceExamples: () => ["force-stakeholders"],
+    findReferenceImage: () => null,
+    normalizeLayoutEngine: (layoutEngine: string | undefined) => layoutEngine ?? "",
+  });
+
+  const unregisterApiRoutes = installBuiltinPreviewHostApiRoutes({
     framePreviewDocumentDeps: { framesDir },
     forcePreviewDocumentDeps: { forceDefinitionsDir },
     framePreviewRenderDeps: {
@@ -526,7 +560,8 @@ test("builtin preview host api routes install through a host-owned installer", a
     });
     assert.match(String(sequenceSvgPayload), /data-sequence-message-id="m1"/);
   } finally {
-    unregister();
+    unregisterApiRoutes();
+    unregisterViewers();
     rmSync(tempDir, { recursive: true, force: true });
   }
 });

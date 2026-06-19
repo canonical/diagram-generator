@@ -28,6 +28,7 @@ export interface PreviewHostViewerRouteDescriptor {
   readonly hasDocument: (slug: string) => boolean;
   readonly buildHtml: (slug: string) => string;
   readonly describeMissing: (slug: string) => string;
+  readonly documentApi?: PreviewHostDocumentApi;
 }
 
 export interface PreviewHostViewerRouteMatch {
@@ -62,6 +63,14 @@ export interface PreviewHostApiRouteHandlerContext {
 
 export interface PreviewHostViewerScriptResolver {
   readonly previewAssetUrl: (filename: string) => string;
+}
+
+export interface PreviewHostDocumentApi {
+  loadPreviewDocument?: (slug: string) => unknown;
+  loadFrameTree?: (slug: string) => unknown;
+  loadComponentTree?: (slug: string) => unknown;
+  loadGridInfo?: (slug: string) => unknown;
+  renderSvg?: (slug: string) => Promise<string> | string;
 }
 
 export interface PreviewHostViewerPageDefinition {

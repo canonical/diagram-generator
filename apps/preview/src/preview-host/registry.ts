@@ -4,6 +4,7 @@ import {
 } from "./viewers.js";
 import type {
   PreviewHostBrowseSection,
+  PreviewHostDocumentApi,
   PreviewHostViewerRouteDescriptor,
   PreviewHostViewerRouteMatch,
 } from "./types.js";
@@ -38,4 +39,32 @@ export function resolveRegisteredPreviewViewerRoute(
   normalizeSlug: (value: string) => string | null,
 ): PreviewHostViewerRouteMatch | null {
   return resolvePreviewViewerRoute(pathname, listPreviewHostViewerRoutes(), normalizeSlug);
+}
+
+export function resolveRegisteredPreviewDocumentApi<
+  TKey extends keyof PreviewHostDocumentApi,
+>(
+  slug: string,
+  key: TKey,
+): {
+  route: PreviewHostViewerRouteDescriptor;
+  handler: NonNullable<PreviewHostDocumentApi[TKey]>;
+} | null {
+  for (const route of listPreviewHostViewerRoutes()) {
+    if (!route.documentApi) {
+      continue;
+    }
+    const handler = route.documentApi[key];
+    if (typeof handler !== "function") {
+      continue;
+    }
+    if (!route.hasDocument(slug)) {
+      continue;
+    }
+    return {
+      route,
+      handler: handler as NonNullable<PreviewHostDocumentApi[TKey]>,
+    };
+  }
+  return null;
 }
