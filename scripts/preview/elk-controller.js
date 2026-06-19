@@ -28,6 +28,15 @@
     return _deps;
   }
 
+  function _engineSupportsSidebarSection(engine, section) {
+    return Boolean(
+      engine
+      && engine.hostView
+      && Array.isArray(engine.hostView.sidebarSections)
+      && engine.hostView.sidebarSections.includes(section)
+    );
+  }
+
   function _readLayoutOverrides() {
     const deps = _requireDeps();
     if (typeof deps.getLayoutOverrides === "function") {
@@ -62,20 +71,23 @@
     if (
       registry
       && typeof registry.resolvePreviewEngine === "function"
-      && registry.resolvePreviewEngine({ layoutEngine, shellMode: "grid" })?.id === "elk-layered"
+      && _engineSupportsSidebarSection(
+        registry.resolvePreviewEngine({ layoutEngine, shellMode: "grid" }),
+        "elk-layout"
+      )
     ) {
       return true;
     }
     if (
       typeof LayoutEngine !== "undefined"
       && typeof LayoutEngine.resolvePreviewEngine === "function"
-      && LayoutEngine.resolvePreviewEngine({ layoutEngine, shellMode: "grid" })?.id === "elk-layered"
+      && _engineSupportsSidebarSection(
+        LayoutEngine.resolvePreviewEngine({ layoutEngine, shellMode: "grid" }),
+        "elk-layout"
+      )
     ) {
       return true;
     }
-    if (tree && tree.layoutEngine === "elk-layered") return true;
-    const cfg = window.__DG_CONFIG || {};
-    if (cfg.layout_engine === "elk-layered") return true;
     const section = document.getElementById(SECTION_ID);
     if (section && !section.hasAttribute("hidden")) return true;
     return false;

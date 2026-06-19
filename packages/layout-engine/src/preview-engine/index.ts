@@ -56,6 +56,7 @@ export {
   evaluatePreviewEngineCompatibility,
   summarizeFrameDiagramCompatibility,
   getPreviewEngine,
+  listPreviewEnginesBySidebarSection,
   getPreviewEngineByLayoutKey,
   isPreviewEngineCompatible,
   listCompatiblePreviewEngines,

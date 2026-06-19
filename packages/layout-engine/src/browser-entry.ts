@@ -8,6 +8,7 @@ import {
   SEQUENCE_PREVIEW_ENGINE,
   PREVIEW_ENGINE_REGISTRY,
   getPreviewEngine,
+  listPreviewEnginesBySidebarSection,
   listPreviewEngines,
   registerPreviewEngine,
   renderPreviewElkDebugOverlay,
@@ -850,6 +851,7 @@ export {
   PREVIEW_ENGINE_REGISTRY,
   elkLayeredPreviewControlSpecs,
   getPreviewEngine,
+  listPreviewEnginesBySidebarSection,
   listPreviewEngines,
   registerPreviewEngine,
   renderPreviewElkDebugOverlay,
@@ -1180,6 +1182,7 @@ export const previewEngines = Object.freeze({
   registry: Object.freeze({
     PREVIEW_ENGINE_REGISTRY,
     getPreviewEngine,
+    listPreviewEnginesBySidebarSection,
     listPreviewEngines,
     registerPreviewEngine,
     resolvePreviewEngine,

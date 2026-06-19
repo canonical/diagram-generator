@@ -310,6 +310,7 @@ export {
   getPreviewEngineByLayoutKey,
   layoutPreviewFrameDiagramForEngine,
   listCompatiblePreviewEngines,
+  listPreviewEnginesBySidebarSection,
   listPreviewEngines,
   renderPreviewDocumentToSvg,
   registerPreviewFrameDiagramRenderAdapter,

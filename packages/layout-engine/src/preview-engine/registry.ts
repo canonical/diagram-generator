@@ -32,6 +32,14 @@ export function getPreviewEngine(id: string): PreviewEngineManifest | undefined 
   return PREVIEW_ENGINE_REGISTRY.find((entry) => entry.id === id);
 }
 
+export function listPreviewEnginesBySidebarSection(
+  section: string,
+): PreviewEngineManifest[] {
+  return PREVIEW_ENGINE_REGISTRY.filter((entry) => (
+    entry.hostView?.sidebarSections?.includes(section) ?? false
+  ));
+}
+
 /**
  * Look up a preview engine by its hostable `layoutEngineKey` (the value persisted
  * in `meta.layout_engine`), NOT by its `id`. These coincide for some engines today

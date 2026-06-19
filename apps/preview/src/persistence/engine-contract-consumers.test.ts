@@ -89,23 +89,28 @@ test("elk-layout-controls renders from the namespaced previewEngines contract", 
       previewEngines: {
         registry: {
           resolvePreviewEngine({ layoutEngine }: { layoutEngine?: string | null }) {
-            return layoutEngine === "elk-layered" ? { id: "elk-layered" } : null;
+            return layoutEngine === "elk-layered"
+              ? { id: "synthetic-layered", hostView: { sidebarSections: ["elk-layout"] } }
+              : null;
           },
-          getPreviewEngine(id: string) {
-            if (id !== "elk-layered") return null;
-            return {
-              id,
-              controlSpecs: [
-                {
-                  key: "elk.spacing.nodeNode",
-                  label: "Node spacing",
-                  group: "Spacing",
-                  kind: "number",
-                  defaultValue: "24",
-                  step: 8,
-                },
-              ],
-            };
+          listPreviewEnginesBySidebarSection(section: string) {
+            if (section !== "elk-layout") return [];
+            return [
+              {
+                id: "synthetic-layered",
+                hostView: { sidebarSections: ["elk-layout"] },
+                controlSpecs: [
+                  {
+                    key: "elk.spacing.nodeNode",
+                    label: "Node spacing",
+                    group: "Spacing",
+                    kind: "number",
+                    defaultValue: "24",
+                    step: 8,
+                  },
+                ],
+              },
+            ];
           },
         },
         elk: {
@@ -155,7 +160,9 @@ test("elk-controller resolves ELK diagrams from the namespaced previewEngines re
       previewEngines: {
         registry: {
           resolvePreviewEngine({ layoutEngine }: { layoutEngine?: string | null }) {
-            return layoutEngine === "elk-layered" ? { id: "elk-layered" } : null;
+            return layoutEngine === "elk-layered"
+              ? { id: "synthetic-layered", hostView: { sidebarSections: ["elk-layout"] } }
+              : null;
           },
         },
       },

@@ -15,6 +15,7 @@ import {
   isPreviewEngineCompatible,
   listCompatiblePreviewEngines,
   listHostableLayoutEngineKeys,
+  listPreviewEnginesBySidebarSection,
   listPreviewEngines,
   listPreviewEnginesWithCompatibility,
   registerPreviewEngine,
@@ -48,6 +49,7 @@ describe('preview-engine registry', () => {
       minArrowCount: 1,
       rejectUnsupportedCarrierIds: true,
     });
+    expect(listPreviewEnginesBySidebarSection('elk-layout').map((entry) => entry.id)).toEqual(['elk-layered']);
   });
 
   it('exposes force simulation/render control specs', () => {

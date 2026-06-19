@@ -27,15 +27,34 @@
     return null;
   }
 
-  function _elkPreviewEngine() {
+  function _engineSupportsSidebarSection(engine, section) {
+    return Boolean(
+      engine
+      && engine.hostView
+      && Array.isArray(engine.hostView.sidebarSections)
+      && engine.hostView.sidebarSections.includes(section)
+    );
+  }
+
+  function _previewEnginesBySidebarSection(section) {
     const registry = _previewEngines()?.registry;
-    if (registry && typeof registry.getPreviewEngine === "function") {
-      return registry.getPreviewEngine("elk-layered");
+    if (registry && typeof registry.listPreviewEnginesBySidebarSection === "function") {
+      const listed = registry.listPreviewEnginesBySidebarSection(section);
+      if (Array.isArray(listed) && listed.length) {
+        return listed;
+      }
     }
-    if (typeof LayoutEngine !== "undefined" && typeof LayoutEngine.getPreviewEngine === "function") {
-      return LayoutEngine.getPreviewEngine("elk-layered");
+    if (registry && typeof registry.listPreviewEngines === "function") {
+      return registry.listPreviewEngines().filter((engine) => _engineSupportsSidebarSection(engine, section));
     }
-    return null;
+    if (typeof LayoutEngine !== "undefined" && typeof LayoutEngine.listPreviewEngines === "function") {
+      return LayoutEngine.listPreviewEngines().filter((engine) => _engineSupportsSidebarSection(engine, section));
+    }
+    return [];
+  }
+
+  function _elkPreviewEngine() {
+    return _previewEnginesBySidebarSection("elk-layout")[0] || null;
   }
 
   function _isElkDiagram(frameTreeJson) {
@@ -46,10 +65,7 @@
       ?? (window.__DG_CONFIG && window.__DG_CONFIG.layout_engine)
       ?? null;
     const resolved = _resolvePreviewEngine({ layoutEngine, shellMode: "grid" });
-    if (resolved && resolved.id === "elk-layered") return true;
-    if (frameTreeJson && frameTreeJson.layoutEngine === "elk-layered") return true;
-    const cfg = window.__DG_CONFIG || {};
-    if (cfg.layout_engine === "elk-layered") return true;
+    if (_engineSupportsSidebarSection(resolved, "elk-layout")) return true;
     const section = document.getElementById(SECTION_ID);
     if (section && !section.hasAttribute("hidden")) return true;
     return false;
