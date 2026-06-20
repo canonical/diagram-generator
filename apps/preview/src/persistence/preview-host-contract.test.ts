@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { EventEmitter } from "node:events";
 import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import os from "node:os";
@@ -546,6 +547,12 @@ test("builtin preview host installs through registered host modules", () => {
     specHome: "specs/046-editor-host-endgame/",
     currentGitBranch: () => "feat/046-editor-host-endgame",
     buildIndexHtml: (port: number) => `<html data-port="${port}"></html>`,
+    layoutEngineFontPath: "/virtual/layout-font.ttf",
+    baselineOsCssPath: "/virtual/bf-os.css",
+    baselineFontDir: "/virtual/bf-fonts",
+    iconsDir: "/virtual/icons",
+    resolvePreviewAssetPath: (filename: string) => `/virtual/preview/${filename}`,
+    ensureLayoutEngineBrowserAssets: async () => {},
     parseYaml: () => ({}),
     templateHtml: "%MODE%",
     baselineStylesHtml: "",
@@ -553,6 +560,9 @@ test("builtin preview host installs through registered host modules", () => {
     listAutolayoutDiagrams: () => ["support-engineering-flow"],
     listForceExamples: () => ["force-stakeholders"],
     findReferenceImage: () => null,
+    readReloadState: () => ({ generation: 1, error: null }),
+    addSseClient: () => {},
+    removeSseClient: () => {},
     normalizeLayoutEngine: () => "v3",
   });
 
@@ -562,14 +572,22 @@ test("builtin preview host installs through registered host modules", () => {
       listPreviewHostApiRoutes().map((route) => route.key).sort(),
       [
         "component-tree",
+        "events",
+        "favicon",
         "force-save",
         "force-spec",
         "frame-overrides",
         "frame-tree",
         "grid-info",
+        "layout-font",
+        "preview-baseline-css",
+        "preview-baseline-fonts",
         "preview-document",
         "preview-engines",
+        "preview-icon",
         "preview-index",
+        "preview-static-assets",
+        "reference-image",
         "retired-force-api",
         "runtime-identity",
         "svg-export",
@@ -584,6 +602,25 @@ test("builtin preview host installs through registered host modules", () => {
 });
 
 test("builtin preview host server routes install through typed descriptors", async () => {
+  const tempDir = mkdtempSync(path.join(os.tmpdir(), "dg-preview-host-server-"));
+  const previewAssetPath = path.join(tempDir, "layout-engine.js");
+  const baselineOsCssPath = path.join(tempDir, "bf-os.css");
+  const baselineFontDir = path.join(tempDir, "bf-fonts");
+  const layoutEngineFontPath = path.join(tempDir, "UbuntuSans[wdth,wght].ttf");
+  const iconsDir = path.join(tempDir, "icons");
+  const iconPath = path.join(iconsDir, "sample.svg");
+  const referencePath = path.join(tempDir, "reference.png");
+  mkdirSync(baselineFontDir, { recursive: true });
+  mkdirSync(iconsDir, { recursive: true });
+  writeFileSync(previewAssetPath, "console.log('preview');", "utf8");
+  writeFileSync(baselineOsCssPath, "body {}", "utf8");
+  writeFileSync(path.join(baselineFontDir, "foundry.woff2"), "font", "utf8");
+  writeFileSync(layoutEngineFontPath, "font-data", "utf8");
+  writeFileSync(iconPath, "<svg></svg>", "utf8");
+  writeFileSync(referencePath, "png", "utf8");
+
+  const sseClients = new Set<unknown>();
+  let ensuredBrowserAssets = 0;
   const routes = createBuiltinPreviewHostServerRoutes({
     appRoot: "/virtual/app",
     repoRoot: "/virtual/repo",
@@ -591,83 +628,220 @@ test("builtin preview host server routes install through typed descriptors", asy
     specHome: "specs/046-editor-host-endgame/",
     currentGitBranch: () => "feat/046-editor-host-endgame",
     buildIndexHtml: (port: number) => `<html data-port="${port}"></html>`,
+    layoutEngineFontPath,
+    baselineOsCssPath,
+    baselineFontDir,
+    iconsDir,
+    resolvePreviewAssetPath: (filename: string) =>
+      filename === "layout-engine.js" ? previewAssetPath : null,
+    ensureLayoutEngineBrowserAssets: async () => {
+      ensuredBrowserAssets += 1;
+    },
+    findReferenceImage: (slug: string) => (slug === "support-engineering-flow" ? referencePath : null),
+    readReloadState: () => ({ generation: 7, error: null }),
+    addSseClient: (client) => {
+      sseClients.add(client);
+    },
+    removeSseClient: (client) => {
+      sseClients.delete(client);
+    },
   });
 
-  const indexMatch = resolvePreviewHostApiRoute("GET", "/", routes, normalizePreviewSlug);
-  assert.ok(indexMatch);
-  let indexHtml = "";
-  await indexMatch.route.handle(indexMatch, {
-    req: {} as never,
-    res: {} as never,
-    pathname: indexMatch.pathname,
-    port: 8100,
-    sendHtml: (_statusCode, html) => {
-      indexHtml = html;
-    },
-    sendJson: () => {
-      throw new Error("did not expect index route to send json");
-    },
-    sendText: () => {
-      throw new Error("did not expect index route to send plain text");
-    },
-    sendBytes: () => {
-      throw new Error("did not expect index route to send bytes");
-    },
-    readJsonBody: async () => ({}),
-  });
-  assert.equal(indexHtml, '<html data-port="8100"></html>');
+  try {
+    const indexMatch = resolvePreviewHostApiRoute("GET", "/", routes, normalizePreviewSlug);
+    assert.ok(indexMatch);
+    let indexHtml = "";
+    await indexMatch.route.handle(indexMatch, {
+      req: {} as never,
+      res: {} as never,
+      pathname: indexMatch.pathname,
+      port: 8100,
+      sendHtml: (_statusCode, html) => {
+        indexHtml = html;
+      },
+      sendJson: () => {
+        throw new Error("did not expect index route to send json");
+      },
+      sendText: () => {
+        throw new Error("did not expect index route to send plain text");
+      },
+      sendBytes: () => {
+        throw new Error("did not expect index route to send bytes");
+      },
+      readJsonBody: async () => ({}),
+    });
+    assert.equal(indexHtml, '<html data-port="8100"></html>');
 
-  const runtimeIdentityMatch = resolvePreviewHostApiRoute(
-    "GET",
-    "/api/runtime-identity",
-    routes,
-    normalizePreviewSlug,
-  );
-  assert.ok(runtimeIdentityMatch);
-  let runtimeIdentityPayload: unknown = null;
-  await runtimeIdentityMatch.route.handle(runtimeIdentityMatch, {
-    req: {} as never,
-    res: {} as never,
-    pathname: runtimeIdentityMatch.pathname,
-    port: 8100,
-    sendJson: (_statusCode, payload) => {
-      runtimeIdentityPayload = payload;
-    },
-    sendText: () => {
-      throw new Error("did not expect runtime identity route to send plain text");
-    },
-    sendBytes: () => {
-      throw new Error("did not expect runtime identity route to send bytes");
-    },
-    readJsonBody: async () => ({}),
-  });
-  assert.equal((runtimeIdentityPayload as Record<string, unknown>).specHome, "specs/046-editor-host-endgame/");
-  assert.equal((runtimeIdentityPayload as Record<string, unknown>).port, 8100);
+    const runtimeIdentityMatch = resolvePreviewHostApiRoute(
+      "GET",
+      "/api/runtime-identity",
+      routes,
+      normalizePreviewSlug,
+    );
+    assert.ok(runtimeIdentityMatch);
+    let runtimeIdentityPayload: unknown = null;
+    await runtimeIdentityMatch.route.handle(runtimeIdentityMatch, {
+      req: {} as never,
+      res: {} as never,
+      pathname: runtimeIdentityMatch.pathname,
+      port: 8100,
+      sendJson: (_statusCode, payload) => {
+        runtimeIdentityPayload = payload;
+      },
+      sendText: () => {
+        throw new Error("did not expect runtime identity route to send plain text");
+      },
+      sendBytes: () => {
+        throw new Error("did not expect runtime identity route to send bytes");
+      },
+      readJsonBody: async () => ({}),
+    });
+    assert.equal((runtimeIdentityPayload as Record<string, unknown>).specHome, "specs/046-editor-host-endgame/");
+    assert.equal((runtimeIdentityPayload as Record<string, unknown>).port, 8100);
 
-  const retiredForceMatch = resolvePreviewHostApiRoute(
-    "GET",
-    "/api/force-export/demo",
-    routes,
-    normalizePreviewSlug,
-  );
-  assert.ok(retiredForceMatch);
-  let retiredForceText = "";
-  await retiredForceMatch.route.handle(retiredForceMatch, {
-    req: {} as never,
-    res: {} as never,
-    pathname: retiredForceMatch.pathname,
-    sendJson: () => {
-      throw new Error("did not expect retired force route to send json");
-    },
-    sendText: (_statusCode, text) => {
-      retiredForceText = text;
-    },
-    sendBytes: () => {
-      throw new Error("did not expect retired force route to send bytes");
-    },
-    readJsonBody: async () => ({}),
-  });
-  assert.equal(retiredForceText, "Route retired from the Node preview app: /api/force-export/demo");
+    const eventsMatch = resolvePreviewHostApiRoute("GET", "/events", routes, normalizePreviewSlug);
+    assert.ok(eventsMatch);
+    const eventsReq = new EventEmitter() as unknown as Record<string, unknown>;
+    const eventWrites: string[] = [];
+    let ended = false;
+    const eventsRes = {
+      writeHead: () => {},
+      write: (value: string) => {
+        eventWrites.push(value);
+      },
+      end: () => {
+        ended = true;
+      },
+    } as unknown as Record<string, unknown>;
+    await eventsMatch.route.handle(eventsMatch, {
+      req: eventsReq as never,
+      res: eventsRes as never,
+      pathname: eventsMatch.pathname,
+      sendJson: () => {
+        throw new Error("did not expect events route to send json");
+      },
+      sendText: () => {
+        throw new Error("did not expect events route to send plain text");
+      },
+      sendBytes: () => {
+        throw new Error("did not expect events route to send bytes");
+      },
+      readJsonBody: async () => ({}),
+    });
+    assert.match(eventWrites.join(""), /"generation":7/);
+    assert.equal(sseClients.size, 1);
+    (eventsReq as EventEmitter).emit("close");
+    assert.equal(sseClients.size, 0);
+    assert.equal(ended, true);
+
+    let servedFilePath = "";
+    let servedCacheControl = "";
+    const staticAssetMatch = resolvePreviewHostApiRoute(
+      "GET",
+      "/preview/layout-engine.js",
+      routes,
+      normalizePreviewSlug,
+    );
+    assert.ok(staticAssetMatch);
+    await staticAssetMatch.route.handle(staticAssetMatch, {
+      req: {} as never,
+      res: {} as never,
+      pathname: staticAssetMatch.pathname,
+      sendJson: () => {
+        throw new Error("did not expect preview asset route to send json");
+      },
+      sendText: () => {
+        throw new Error("did not expect preview asset route to send plain text");
+      },
+      sendBytes: () => {
+        throw new Error("did not expect preview asset route to send bytes");
+      },
+      serveFile: (filePath: string, cacheControl?: string) => {
+        servedFilePath = filePath;
+        servedCacheControl = cacheControl ?? "";
+      },
+      readJsonBody: async () => ({}),
+    });
+    assert.equal(servedFilePath, previewAssetPath);
+    assert.equal(servedCacheControl, "public, max-age=300");
+    assert.equal(ensuredBrowserAssets, 1);
+
+    const iconMatch = resolvePreviewHostApiRoute("GET", "/api/icon/sample.svg", routes, normalizePreviewSlug);
+    assert.ok(iconMatch);
+    await iconMatch.route.handle(iconMatch, {
+      req: {} as never,
+      res: {} as never,
+      pathname: iconMatch.pathname,
+      sendJson: () => {
+        throw new Error("did not expect icon route to send json");
+      },
+      sendText: () => {
+        throw new Error("did not expect icon route to send plain text");
+      },
+      sendBytes: () => {
+        throw new Error("did not expect icon route to send bytes");
+      },
+      serveFile: (filePath: string) => {
+        servedFilePath = filePath;
+      },
+      readJsonBody: async () => ({}),
+    });
+    assert.equal(servedFilePath, iconPath);
+
+    const referenceMatch = resolvePreviewHostApiRoute(
+      "GET",
+      "/reference/support-engineering-flow",
+      routes,
+      normalizePreviewSlug,
+    );
+    assert.ok(referenceMatch);
+    await referenceMatch.route.handle(referenceMatch, {
+      req: {} as never,
+      res: {} as never,
+      pathname: referenceMatch.pathname,
+      sendJson: () => {
+        throw new Error("did not expect reference route to send json");
+      },
+      sendText: () => {
+        throw new Error("did not expect reference route to send plain text");
+      },
+      sendBytes: () => {
+        throw new Error("did not expect reference route to send bytes");
+      },
+      serveFile: (filePath: string) => {
+        servedFilePath = filePath;
+      },
+      readJsonBody: async () => ({}),
+    });
+    assert.equal(servedFilePath, referencePath);
+
+    const retiredForceMatch = resolvePreviewHostApiRoute(
+      "GET",
+      "/api/force-export/demo",
+      routes,
+      normalizePreviewSlug,
+    );
+    assert.ok(retiredForceMatch);
+    let retiredForceText = "";
+    await retiredForceMatch.route.handle(retiredForceMatch, {
+      req: {} as never,
+      res: {} as never,
+      pathname: retiredForceMatch.pathname,
+      sendJson: () => {
+        throw new Error("did not expect retired force route to send json");
+      },
+      sendText: (_statusCode, text) => {
+        retiredForceText = text;
+      },
+      sendBytes: () => {
+        throw new Error("did not expect retired force route to send bytes");
+      },
+      readJsonBody: async () => ({}),
+    });
+    assert.equal(retiredForceText, "Route retired from the Node preview app: /api/force-export/demo");
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
 });
 
 test("builtin preview host api routes install through a host-owned installer", async () => {

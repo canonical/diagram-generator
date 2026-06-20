@@ -29,4 +29,17 @@ export interface BuiltinPreviewHostServerRouteDeps {
   readonly specHome: string;
   readonly currentGitBranch: () => string | null;
   readonly buildIndexHtml: (port: number) => string;
+  readonly layoutEngineFontPath: string;
+  readonly baselineOsCssPath: string;
+  readonly baselineFontDir: string;
+  readonly iconsDir: string;
+  readonly resolvePreviewAssetPath: (filename: string) => string | null;
+  readonly ensureLayoutEngineBrowserAssets: () => Promise<void>;
+  readonly findReferenceImage: (slug: string) => string | null;
+  readonly readReloadState: () => {
+    generation: number;
+    error: string | null;
+  };
+  readonly addSseClient: (res: import("node:http").ServerResponse) => void;
+  readonly removeSseClient: (res: import("node:http").ServerResponse) => void;
 }

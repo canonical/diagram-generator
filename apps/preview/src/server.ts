@@ -527,6 +527,12 @@ installBuiltinPreviewHost({
   specHome: SPEC_HOME,
   currentGitBranch,
   buildIndexHtml,
+  layoutEngineFontPath: LAYOUT_ENGINE_FONT,
+  baselineOsCssPath: BF_VENDOR_OS_CSS,
+  baselineFontDir: BF_VENDOR_FONT_DIR,
+  iconsDir: ICONS_DIR,
+  resolvePreviewAssetPath,
+  ensureLayoutEngineBrowserAssets,
   parseYaml,
   templateHtml: readFileSync(VIEWER_TEMPLATE, "utf8"),
   baselineStylesHtml: bfStylesLinkHtml(),
@@ -534,6 +540,16 @@ installBuiltinPreviewHost({
   listAutolayoutDiagrams,
   listForceExamples,
   findReferenceImage,
+  readReloadState: () => ({
+    generation: rebuildGeneration,
+    error: lastRebuildError,
+  }),
+  addSseClient: (client) => {
+    sseClients.add(client);
+  },
+  removeSseClient: (client) => {
+    sseClients.delete(client);
+  },
   normalizeLayoutEngine,
 });
 
@@ -570,6 +586,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, port: nu
         sendText: (statusCode: number, text: string) => sendText(res, statusCode, text),
         sendBytes: (statusCode: number, contentType: string, bytes: Buffer) =>
           sendBytes(res, statusCode, contentType, bytes),
+        serveFile: (filePath: string, cacheControl?: string) => serveFile(res, filePath, cacheControl),
         readJsonBody,
       });
       return;
@@ -600,117 +617,9 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, port: nu
       sendText: (statusCode: number, text: string) => sendText(res, statusCode, text),
       sendBytes: (statusCode: number, contentType: string, bytes: Buffer) =>
         sendBytes(res, statusCode, contentType, bytes),
+      serveFile: (filePath: string, cacheControl?: string) => serveFile(res, filePath, cacheControl),
       readJsonBody,
     });
-    return;
-  }
-  if (pathname === "/events") {
-    res.writeHead(200, {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      Connection: "keep-alive",
-      "Access-Control-Allow-Origin": "*",
-    });
-    const payload = JSON.stringify({
-      generation: rebuildGeneration,
-      error: lastRebuildError,
-    });
-    res.write(`data: ${payload}\n\n`);
-    sseClients.add(res);
-    req.on("close", () => {
-      sseClients.delete(res);
-      try {
-        res.end();
-      } catch {
-        // ignore close races
-      }
-    });
-    return;
-  }
-  if (pathname === "/favicon.ico") {
-    sendBytes(res, 204, "image/x-icon", Buffer.alloc(0));
-    return;
-  }
-  if (pathname.startsWith("/assets/fonts/")) {
-    const safeName = path.posix.basename(pathname.slice("/assets/fonts/".length));
-    if (!safeName || safeName.includes("..")) {
-      sendText(res, 400, "Invalid font path");
-      return;
-    }
-    if (safeName === "UbuntuSans[wdth,wght].ttf") {
-      serveFile(res, LAYOUT_ENGINE_FONT, "public, max-age=300");
-      return;
-    }
-    sendText(res, 404, `${safeName} not found`);
-    return;
-  }
-  if (pathname === "/preview/bf-os.css") {
-    if (!existsSync(BF_VENDOR_OS_CSS)) {
-      sendText(
-        res,
-        500,
-        "Baseline Foundry preview assets missing. Run the asset sync before using the Node preview app.",
-      );
-      return;
-    }
-    serveFile(res, BF_VENDOR_OS_CSS, "public, max-age=300");
-    return;
-  }
-  if (pathname.startsWith("/preview/bf-fonts/")) {
-    if (!existsSync(BF_VENDOR_FONT_DIR)) {
-      sendText(
-        res,
-        500,
-        "Baseline Foundry preview fonts missing. Run the asset sync before using the Node preview app.",
-      );
-      return;
-    }
-    const safeName = path.posix.basename(pathname.slice("/preview/bf-fonts/".length));
-    serveFile(res, path.join(BF_VENDOR_FONT_DIR, safeName), "public, max-age=300");
-    return;
-  }
-  if (pathname.startsWith("/preview/")) {
-    const safeName = path.posix.basename(pathname.slice("/preview/".length));
-    const assetPath = resolvePreviewAssetPath(safeName);
-    if (!assetPath) {
-      sendText(res, 400, "Invalid preview asset path");
-      return;
-    }
-    if (
-      safeName === "layout-engine.js" ||
-      safeName === "layout-engine-harfbuzz.js" ||
-      safeName === "harfbuzz.wasm"
-    ) {
-      await ensureLayoutEngineBrowserAssets();
-    }
-    if (!existsSync(assetPath)) {
-      sendText(res, 404, `${safeName} not found`);
-      return;
-    }
-    serveFile(res, assetPath, "public, max-age=300");
-    return;
-  }
-  if (pathname.startsWith("/api/icon/")) {
-    const safeName = path.posix.basename(decodeURIComponent(pathname.slice("/api/icon/".length)));
-    if (!safeName || safeName.includes("..")) {
-      sendText(res, 400, "Invalid icon name");
-      return;
-    }
-    serveFile(res, path.join(ICONS_DIR, safeName), "public, max-age=300");
-    return;
-  }
-  if (pathname.startsWith("/reference/")) {
-    const slug = normalizeFrameSlug(pathname.slice("/reference/".length));
-    if (!slug) {
-      sendText(res, 400, "Invalid slug");
-      return;
-    }
-    const refPath = findReferenceImage(slug);
-    if (!refPath) {
-      sendText(res, 404, `Reference image not found for ${slug}`);
-      return;
-    }
-    serveFile(res, refPath, "public, max-age=300");
     return;
   }
   const previewViewerRouteMatch = resolveRegisteredPreviewViewerRoute(pathname, normalizeFrameSlug);

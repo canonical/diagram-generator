@@ -63,6 +63,7 @@ export interface PreviewHostApiRouteHandlerContext {
   readonly sendJson: (statusCode: number, payload: unknown) => void;
   readonly sendText: (statusCode: number, text: string) => void;
   readonly sendBytes: (statusCode: number, contentType: string, bytes: Buffer) => void;
+  readonly serveFile?: (filePath: string, cacheControl?: string) => void;
   readonly readJsonBody: (req: IncomingMessage) => Promise<unknown>;
 }
 
