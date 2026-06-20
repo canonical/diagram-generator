@@ -4,6 +4,7 @@ import {
   PERSIST_FRAME_KEYS,
   RELAYOUT_FRAME_KEYS,
   UNDO_RELAYOUT_FRAME_KEYS,
+  hasPreviewRelayoutFrameOverride,
   hasV3FrameOverride,
   filterRelayoutOverrideEntry,
 } from '../src/preview-shell/frame-override-manifest.js';
@@ -20,8 +21,9 @@ describe('frame override manifest', () => {
   });
 
   it('detects gap_delta-only overrides for undo relayout', () => {
-    expect(hasV3FrameOverride({ gap_delta: 16 })).toBe(true);
-    expect(hasV3FrameOverride({})).toBe(false);
+    expect(hasPreviewRelayoutFrameOverride({ gap_delta: 16 })).toBe(true);
+    expect(hasPreviewRelayoutFrameOverride({})).toBe(false);
+    expect(hasV3FrameOverride).toBe(hasPreviewRelayoutFrameOverride);
   });
 
   it('filterRelayoutOverrideEntry forwards gap_delta null sentinel', () => {

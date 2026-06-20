@@ -255,6 +255,7 @@ export {
   PERSIST_LOWER_FRAME_KEYS,
   RELAYOUT_FRAME_KEYS,
   UNDO_RELAYOUT_FRAME_KEYS,
+  hasPreviewRelayoutFrameOverride,
   hasV3FrameOverride,
   filterRelayoutOverrideEntry,
 } from './preview-shell/index.js';

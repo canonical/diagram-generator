@@ -14,7 +14,7 @@ describe('preview state restore helpers', () => {
         arrowA: { dx: 10 },
       },
       getNode: (cid) => ({ type: cid === 'arrowA' ? 'arrow' : 'box' }),
-      hasV3FrameOverride: (entry) => Boolean(entry && typeof entry === 'object' && 'gap' in entry),
+      hasRelayoutFrameOverride: (entry) => Boolean(entry && typeof entry === 'object' && 'gap' in entry),
     })).toBe(true);
   });
 
@@ -50,7 +50,7 @@ describe('preview state restore helpers', () => {
       currentRemovedIds: [],
       rootId: 'root',
       getNode: () => ({ type: 'box' }),
-      hasV3FrameOverride: (entry) => Boolean(entry && typeof entry === 'object' && 'gap' in entry),
+      hasRelayoutFrameOverride: (entry) => Boolean(entry && typeof entry === 'object' && 'gap' in entry),
     });
 
     expect(plan.execution).toBe('rerender-stage');
@@ -71,7 +71,7 @@ describe('preview state restore helpers', () => {
       currentRemovedIds: [],
       rootId: 'root',
       getNode: () => ({ type: 'box' }),
-      hasV3FrameOverride: () => false,
+      hasRelayoutFrameOverride: () => false,
     });
     expect(relayoutPlan.execution).toBe('request-relayout');
     expect(relayoutPlan.gridChanged).toBe(true);
@@ -86,7 +86,7 @@ describe('preview state restore helpers', () => {
       currentRemovedIds: [],
       rootId: 'root',
       getNode: () => ({ type: 'box' }),
-      hasV3FrameOverride: () => false,
+      hasRelayoutFrameOverride: () => false,
     });
     expect(localPlan.execution).toBe('local-reapply');
     expect(localPlan.needsRelayout).toBe(false);
@@ -98,7 +98,7 @@ describe('preview state restore helpers', () => {
       beforeEntries: { root: { text: ['before'] } },
       rootId: 'root',
       getNode: () => ({ type: 'box' }),
-      hasV3FrameOverride: (entry) => Boolean(entry && typeof entry === 'object' && 'gap' in entry),
+      hasRelayoutFrameOverride: (entry) => Boolean(entry && typeof entry === 'object' && 'gap' in entry),
     });
     expect(relayoutPlan.needsRelayout).toBe(true);
     expect(relayoutPlan.relayoutTargetId).toBe('root');
@@ -108,7 +108,7 @@ describe('preview state restore helpers', () => {
       beforeEntries: { note: { text: ['before'] } },
       rootId: 'root',
       getNode: () => ({ type: 'box' }),
-      hasV3FrameOverride: () => false,
+      hasRelayoutFrameOverride: () => false,
     });
     expect(localPlan.needsRelayout).toBe(false);
   });

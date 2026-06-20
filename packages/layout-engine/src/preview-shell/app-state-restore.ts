@@ -43,7 +43,9 @@ export interface RestorePreviewSerializedStateOptions {
   currentRemovedIds?: Iterable<string> | null;
   rootId: string;
   getNode: (cid: string) => PreviewRestoreNode | null | undefined;
-  hasV3FrameOverride: (entry: unknown) => boolean;
+  hasRelayoutFrameOverride?: ((entry: unknown) => boolean) | null;
+  /** @deprecated Prefer `hasRelayoutFrameOverride`. */
+  hasV3FrameOverride?: ((entry: unknown) => boolean) | null;
   setOverrides: (nextOverrides: Record<string, unknown>) => void;
   setGridOverrides: (nextGridOverrides: Record<string, unknown>) => void;
   setElkLayoutOverrides: (nextElkLayoutOverrides: Record<string, unknown>) => void;
@@ -64,7 +66,9 @@ export interface RestorePreviewOverridePatchOptions {
   currentOverrides: Record<string, unknown>;
   rootId: string;
   getNode: (cid: string) => PreviewRestoreNode | null | undefined;
-  hasV3FrameOverride: (entry: unknown) => boolean;
+  hasRelayoutFrameOverride?: ((entry: unknown) => boolean) | null;
+  /** @deprecated Prefer `hasRelayoutFrameOverride`. */
+  hasV3FrameOverride?: ((entry: unknown) => boolean) | null;
   captureOverrideEntries: (ids: Iterable<string>) => Record<string, unknown | null>;
   setOverrides: (nextOverrides: Record<string, unknown>) => void;
   cleanOverride?: ((cid: string) => void) | null;
@@ -79,15 +83,25 @@ function setsDiffer(left: Set<string>, right: Set<string>): boolean {
   return left.size !== right.size || [...left].some((id) => !right.has(id));
 }
 
+function resolveHasRelayoutFrameOverride(options: {
+  hasRelayoutFrameOverride?: ((entry: unknown) => boolean) | null;
+  hasV3FrameOverride?: ((entry: unknown) => boolean) | null;
+}): (entry: unknown) => boolean {
+  return options.hasRelayoutFrameOverride ?? options.hasV3FrameOverride ?? (() => false);
+}
+
 export function snapshotNeedsPreviewRelayout(options: {
   snapshot: Record<string, unknown | null> | null | undefined;
   getNode: (cid: string) => PreviewRestoreNode | null | undefined;
-  hasV3FrameOverride: (entry: unknown) => boolean;
+  hasRelayoutFrameOverride?: ((entry: unknown) => boolean) | null;
+  /** @deprecated Prefer `hasRelayoutFrameOverride`. */
+  hasV3FrameOverride?: ((entry: unknown) => boolean) | null;
 }): boolean {
+  const hasRelayoutFrameOverride = resolveHasRelayoutFrameOverride(options);
   for (const [cid, entry] of Object.entries(options.snapshot || {})) {
     const node = options.getNode(cid);
     if (!node || node.type === 'arrow') continue;
-    if (entry == null || options.hasV3FrameOverride(entry)) return true;
+    if (entry == null || hasRelayoutFrameOverride(entry)) return true;
   }
   return false;
 }
@@ -114,8 +128,11 @@ export function resolvePreviewSerializedStateRestorePlan(options: {
   currentRemovedIds?: Iterable<string> | null;
   rootId: string;
   getNode: (cid: string) => PreviewRestoreNode | null | undefined;
-  hasV3FrameOverride: (entry: unknown) => boolean;
+  hasRelayoutFrameOverride?: ((entry: unknown) => boolean) | null;
+  /** @deprecated Prefer `hasRelayoutFrameOverride`. */
+  hasV3FrameOverride?: ((entry: unknown) => boolean) | null;
 }): PreviewSerializedStateRestorePlan {
+  const hasRelayoutFrameOverride = resolveHasRelayoutFrameOverride(options);
   const rawParsed = JSON.parse(options.serializedState || '{}') as Record<string, unknown>;
   const parsed = parseEditorSnapshot(options.serializedState);
   const currentGridOverrides = normalizeGridOverrides(options.currentGridOverrides);
@@ -131,12 +148,12 @@ export function resolvePreviewSerializedStateRestorePlan(options: {
     || snapshotNeedsPreviewRelayout({
       snapshot: options.currentOverrides,
       getNode: options.getNode,
-      hasV3FrameOverride: options.hasV3FrameOverride,
+      hasRelayoutFrameOverride,
     })
     || snapshotNeedsPreviewRelayout({
       snapshot: parsed.o,
       getNode: options.getNode,
-      hasV3FrameOverride: options.hasV3FrameOverride,
+      hasRelayoutFrameOverride,
     });
 
   return {
@@ -162,19 +179,22 @@ export function resolvePreviewOverridePatchRestorePlan(options: {
   beforeEntries: Record<string, unknown | null>;
   rootId: string;
   getNode: (cid: string) => PreviewRestoreNode | null | undefined;
-  hasV3FrameOverride: (entry: unknown) => boolean;
+  hasRelayoutFrameOverride?: ((entry: unknown) => boolean) | null;
+  /** @deprecated Prefer `hasRelayoutFrameOverride`. */
+  hasV3FrameOverride?: ((entry: unknown) => boolean) | null;
 }): PreviewOverridePatchRestorePlan {
+  const hasRelayoutFrameOverride = resolveHasRelayoutFrameOverride(options);
   const touchedIds = Object.keys(options.entries || {});
   return {
     touchedIds,
     needsRelayout: snapshotNeedsPreviewRelayout({
       snapshot: options.beforeEntries,
       getNode: options.getNode,
-      hasV3FrameOverride: options.hasV3FrameOverride,
+      hasRelayoutFrameOverride,
     }) || snapshotNeedsPreviewRelayout({
       snapshot: options.entries,
       getNode: options.getNode,
-      hasV3FrameOverride: options.hasV3FrameOverride,
+      hasRelayoutFrameOverride,
     }),
     relayoutTargetId: touchedIds[0] || options.rootId || 'root',
   };
@@ -192,6 +212,7 @@ export async function restorePreviewSerializedState(
     currentRemovedIds: options.currentRemovedIds,
     rootId: options.rootId,
     getNode: options.getNode,
+    hasRelayoutFrameOverride: options.hasRelayoutFrameOverride,
     hasV3FrameOverride: options.hasV3FrameOverride,
   });
 
@@ -241,6 +262,7 @@ export async function restorePreviewOverridePatch(
     beforeEntries,
     rootId: options.rootId,
     getNode: options.getNode,
+    hasRelayoutFrameOverride: options.hasRelayoutFrameOverride,
     hasV3FrameOverride: options.hasV3FrameOverride,
   });
 

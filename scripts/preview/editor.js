@@ -269,17 +269,21 @@ function _restoreOverrideEntries(entries) {
   Object.keys(entries || {}).forEach((cid) => model.cleanOverride(cid));
 }
 
-function _snapshotNeedsV3Relayout(snapshot) {
+function _snapshotNeedsLayoutRelayout(snapshot) {
   return window.__DG_getPreviewBridgeRelayoutContract().snapshotNeedsPreviewRelayout({
     snapshot,
     getNode: (cid) => model.get(cid),
-    hasV3FrameOverride: (entry) => _hasV3FrameOverride(entry),
+    hasRelayoutFrameOverride: (entry) => _hasLayoutRelayoutFrameOverride(entry),
   });
+}
+
+function _snapshotNeedsV3Relayout(snapshot) {
+  return _snapshotNeedsLayoutRelayout(snapshot);
 }
 
 function _clearPendingRestoreRuntime() {
   _previewGridRuntime.clearPendingRelayout();
-  clearTimeout(_v3RelayoutTimer);
+  clearTimeout(_layoutRelayoutTimer);
   EditorState.setPendingGridAction(null);
 }
 
@@ -308,7 +312,7 @@ async function _restoreEditorState(serializedState) {
     currentRemovedIds: model.removedIds || new Set(),
     rootId: (model.roots[0] || {}).id || "root",
     getNode: (cid) => model.get(cid),
-    hasV3FrameOverride: (entry) => _hasV3FrameOverride(entry),
+    hasRelayoutFrameOverride: (entry) => _hasLayoutRelayoutFrameOverride(entry),
     setOverrides: (nextOverrides) => {
       replaceOverrides(nextOverrides);
     },
@@ -350,7 +354,7 @@ async function _restoreOverridePatch(entries) {
     currentOverrides: overrides,
     rootId: (model.roots[0] || {}).id || "root",
     getNode: (cid) => model.get(cid),
-    hasV3FrameOverride: (entry) => _hasV3FrameOverride(entry),
+    hasRelayoutFrameOverride: (entry) => _hasLayoutRelayoutFrameOverride(entry),
     captureOverrideEntries: (ids) => EditorState.captureOverrideEntries(ids),
     setOverrides: (nextOverrides) => {
       replaceOverrides(nextOverrides);
@@ -372,10 +376,17 @@ async function _applyUndoCommand(command, direction) {
   await _restoreEditorState(direction === "undo" ? command.before : command.after);
 }
 
-function _hasV3FrameOverride(ovr) {
+function _hasLayoutRelayoutFrameOverride(ovr) {
   const relayout = window.__DG_getPreviewBridgeRelayoutContract();
-  return typeof relayout.hasV3FrameOverride === "function"
-    && relayout.hasV3FrameOverride(ovr);
+  const hasRelayoutFrameOverride = typeof relayout.hasPreviewRelayoutFrameOverride === "function"
+    ? relayout.hasPreviewRelayoutFrameOverride
+    : relayout.hasV3FrameOverride;
+  return typeof hasRelayoutFrameOverride === "function"
+    && hasRelayoutFrameOverride(ovr);
+}
+
+function _hasV3FrameOverride(ovr) {
+  return _hasLayoutRelayoutFrameOverride(ovr);
 }
 
 function _isPreviewEngineShellLayoutActive(frameTreeJson) {
@@ -442,9 +453,9 @@ async function _finishV3Relayout(triggerCid, localResult, executionLabel) {
     triggerCid,
     result: localResult,
     executionLabel,
-    runtimeState: _v3RelayoutRuntime,
-    getRelayoutStatus: () => getV3RelayoutStatus(),
-    failRelayout: (reason, nextTriggerCid) => _failV3Relayout(reason, nextTriggerCid),
+    runtimeState: _layoutRelayoutRuntime,
+    getRelayoutStatus: () => getLayoutRelayoutStatus(),
+    failRelayout: (reason, nextTriggerCid) => _failLayoutRelayout(reason, nextTriggerCid),
     overrides,
     buildTreeUi: buildTreeUI,
     applyWaypointOverrides,
@@ -762,11 +773,10 @@ function setMultiFrameSize(dimension, value) {
 }
 
 const _layoutRelayoutRuntime = window.__DG_getPreviewBridgeRelayoutContract().createPreviewRelayoutRuntimeState();
-const _v3RelayoutRuntime = _layoutRelayoutRuntime;
 
-function _failV3Relayout(reason, triggerCid) {
+function _dispatchLayoutRelayoutFailure(reason, triggerCid) {
   return window.__DG_getPreviewBridgeRelayoutContract().dispatchPreviewRelayoutFailureHost({
-    runtimeState: _v3RelayoutRuntime,
+    runtimeState: _layoutRelayoutRuntime,
     reason,
     triggerCid,
     setStatus: typeof setStatus === "function" ? setStatus : null,
@@ -777,23 +787,31 @@ function _failV3Relayout(reason, triggerCid) {
   });
 }
 
-function _failLayoutRelayout(reason, triggerCid) {
-  return _failV3Relayout(reason, triggerCid);
+function _failV3Relayout(reason, triggerCid) {
+  return _dispatchLayoutRelayoutFailure(reason, triggerCid);
 }
 
-function getV3RelayoutStatus() {
-  return window.__DG_getPreviewBridgeRelayoutContract().resolvePreviewV3RelayoutStatus({
-    runtimeState: _v3RelayoutRuntime,
+function _failLayoutRelayout(reason, triggerCid) {
+  return _dispatchLayoutRelayoutFailure(reason, triggerCid);
+}
+
+function getLayoutRelayoutStatus() {
+  const relayout = window.__DG_getPreviewBridgeRelayoutContract();
+  const resolveRelayoutStatus = typeof relayout.resolvePreviewLayoutRelayoutStatus === "function"
+    ? relayout.resolvePreviewLayoutRelayoutStatus
+    : relayout.resolvePreviewV3RelayoutStatus;
+  return resolveRelayoutStatus({
+    runtimeState: _layoutRelayoutRuntime,
     getLocalRelayoutStatus: () => _getLocalBridgeRelayoutStatus(),
   });
 }
 
-function getLayoutRelayoutStatus() {
-  return getV3RelayoutStatus();
+function getV3RelayoutStatus() {
+  return getLayoutRelayoutStatus();
 }
 
 function applyAllOverrides() {
-  const relayoutStatus = getV3RelayoutStatus();
+  const relayoutStatus = getLayoutRelayoutStatus();
   window.__DG_getPreviewBridgeRenderContract().applyPreviewSvgOverridesHost({
     document,
     selectedIds,
@@ -1277,8 +1295,8 @@ function commitTextEdit() {
     endInteraction: () => mgr.endInteraction(),
     reapplySelection,
     scheduleRelayout: (cid) => {
-      clearTimeout(_v3RelayoutTimer);
-      _v3RelayoutTimer = setTimeout(() => requestRelayout(cid), 100);
+      clearTimeout(_layoutRelayoutTimer);
+      _layoutRelayoutTimer = setTimeout(() => requestRelayout(cid), 100);
     },
   });
 }
@@ -1333,7 +1351,7 @@ function _scheduleV3ResizeRelayout(cid, newW, newH, resizedW, resizedH) {
     overrides,
     getGridOverrides: () => model.gridOverrides || {},
     normalizeGridOverrides: (value) => EditorState.normalizeGridOverrides(value),
-    getRelayoutStatus: () => getV3RelayoutStatus(),
+    getRelayoutStatus: () => getLayoutRelayoutStatus(),
     performLocalRelayout: (temporaryOverrides, gridOvr) => (
       previewBridgeHost.performLocalRelayout(
         model,
@@ -1456,13 +1474,17 @@ function _normaliseStyleName(styleName) {
   return window.__DG_getPreviewShellInspectorContract().normalizePreviewStyleName(styleName);
 }
 
-let _v3RelayoutTimer = null;
-function _scheduleV3Relayout(cid) {
-  clearTimeout(_v3RelayoutTimer);
-  _v3RelayoutTimer = setTimeout(() => {
-    _v3RelayoutTimer = null;
+let _layoutRelayoutTimer = null;
+function _scheduleLayoutRelayout(cid) {
+  clearTimeout(_layoutRelayoutTimer);
+  _layoutRelayoutTimer = setTimeout(() => {
+    _layoutRelayoutTimer = null;
     requestLayoutRelayout(cid);
   }, 300);
+}
+
+function _scheduleV3Relayout(cid) {
+  _scheduleLayoutRelayout(cid);
 }
 
 // Track which override keys were set by engine coercion (not user action).
@@ -1551,9 +1573,9 @@ function _getEditorRuntimeSet() {
     relayoutActions: {
       snapToGrid,
       setDirty,
-      scheduleRelayout: _scheduleV3Relayout,
+      scheduleRelayout: _scheduleLayoutRelayout,
       requestRelayoutNow: (cid) => {
-        clearTimeout(_v3RelayoutTimer);
+        clearTimeout(_layoutRelayoutTimer);
         requestLayoutRelayout(cid);
       },
       applyAllOverrides,
@@ -1678,12 +1700,12 @@ function _getRelayoutRuntime() {
   return _relayoutRuntime;
 }
 
-async function requestV3Relayout(triggerCid) {
+async function requestLayoutRelayout(triggerCid) {
   return _getRelayoutRuntime().requestRelayout(triggerCid);
 }
 
-function requestLayoutRelayout(triggerCid) {
-  return requestV3Relayout(triggerCid);
+function requestV3Relayout(triggerCid) {
+  return requestLayoutRelayout(triggerCid);
 }
 
 window.getLayoutRelayoutStatus = getLayoutRelayoutStatus;
@@ -1837,16 +1859,8 @@ function bootstrapPreviewEditor() {
           : getV3RelayoutStatus()
       ),
       getV3RelayoutStatus,
-      getLayoutRelayoutRuntime: () => (
-        typeof _layoutRelayoutRuntime !== "undefined"
-          ? _layoutRelayoutRuntime
-          : _v3RelayoutRuntime
-      ),
-      getV3RelayoutRuntime: () => (
-        typeof _layoutRelayoutRuntime !== "undefined"
-          ? _layoutRelayoutRuntime
-          : _v3RelayoutRuntime
-      ),
+      getLayoutRelayoutRuntime: () => _layoutRelayoutRuntime,
+      getV3RelayoutRuntime: () => _layoutRelayoutRuntime,
       constraints,
       lastViolations,
       runConstraints,

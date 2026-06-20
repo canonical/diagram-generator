@@ -39,6 +39,8 @@ export interface PreviewV3RelayoutRuntimeState {
   sequence: number;
 }
 
+export type PreviewLayoutRelayoutRuntimeState = PreviewV3RelayoutRuntimeState;
+
 export interface PreviewV3RelayoutStatus extends PreviewRelayoutStatus {
   engine: 'v3';
   isV3: true;
@@ -52,6 +54,8 @@ export interface PreviewV3RelayoutStatus extends PreviewRelayoutStatus {
   lastReason: string;
   sequence: number;
 }
+
+export type PreviewLayoutRelayoutStatus = PreviewV3RelayoutStatus;
 
 export interface PreviewRelayoutResult {
   coerced?: Map<string, Record<string, unknown>> | null;
@@ -69,6 +73,9 @@ export interface ResolvePreviewV3RelayoutStatusOptions {
   getLocalRelayoutStatus?: (() => PreviewLocalRelayoutStatus) | null;
   runtimeState: PreviewV3RelayoutRuntimeState;
 }
+
+export type ResolvePreviewLayoutRelayoutStatusOptions =
+  ResolvePreviewV3RelayoutStatusOptions;
 
 export interface PreviewFrameManagedTargetLike {
   closest?: (selector: string) => PreviewFrameManagedGroupLike | null;
@@ -188,9 +195,9 @@ export function formatPreviewRelayoutStatusMessage(reason: string): string {
   }
 }
 
-export function resolvePreviewV3RelayoutStatus(
-  options: ResolvePreviewV3RelayoutStatusOptions,
-): PreviewV3RelayoutStatus {
+export function resolvePreviewLayoutRelayoutStatus(
+  options: ResolvePreviewLayoutRelayoutStatusOptions,
+): PreviewLayoutRelayoutStatus {
   const localStatus = options.getLocalRelayoutStatus
     ? options.getLocalRelayoutStatus()
     : null;
@@ -213,6 +220,9 @@ export function resolvePreviewV3RelayoutStatus(
     sequence: options.runtimeState.sequence,
   };
 }
+
+/** @deprecated Prefer `resolvePreviewLayoutRelayoutStatus`. */
+export const resolvePreviewV3RelayoutStatus = resolvePreviewLayoutRelayoutStatus;
 
 export function isPreviewFrameManagedTarget<TNode extends { type?: unknown }>(
   options: IsPreviewFrameManagedTargetOptions<TNode>,

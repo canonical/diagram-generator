@@ -111,10 +111,15 @@ export const UNDO_RELAYOUT_FRAME_KEYS = [
 export type PersistFrameKey = (typeof PERSIST_FRAME_KEYS)[number];
 export type RelayoutFrameKey = (typeof RELAYOUT_FRAME_KEYS)[number];
 
-export function hasV3FrameOverride(ovr: Record<string, unknown> | null | undefined): boolean {
+export function hasPreviewRelayoutFrameOverride(
+  ovr: Record<string, unknown> | null | undefined,
+): boolean {
   if (!ovr) return false;
   return UNDO_RELAYOUT_FRAME_KEYS.some((key) => ovr[key] !== undefined && ovr[key] !== null);
 }
+
+/** @deprecated Prefer `hasPreviewRelayoutFrameOverride`. */
+export const hasV3FrameOverride = hasPreviewRelayoutFrameOverride;
 
 export function filterRelayoutOverrideEntry(
   ovr: Record<string, unknown>,

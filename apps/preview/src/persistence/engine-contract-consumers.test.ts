@@ -421,12 +421,12 @@ test("editor clear-override helper accepts the namespaced previewBridge.relayout
   });
 });
 
-test("editor relayout status helper accepts the namespaced previewBridge.relayout contract", () => {
+test("editor relayout status helpers accept the namespaced previewBridge.relayout contract", () => {
   const source = readPreviewScript("editor.js");
   const capturedCalls: Array<Record<string, unknown>> = [];
   const context = {
     console,
-    _v3RelayoutRuntime: {
+    _layoutRelayoutRuntime: {
       lastMode: "local",
       lastReason: "ready",
       sequence: 2,
@@ -450,7 +450,7 @@ test("editor relayout status helper accepts the namespaced previewBridge.relayou
           },
         },
         relayout: {
-          resolvePreviewV3RelayoutStatus(options: Record<string, unknown>) {
+          resolvePreviewLayoutRelayoutStatus(options: Record<string, unknown>) {
             capturedCalls.push(options);
             return { localReady: true, local: { reason: "ready" }, frameManaged: true };
           },
@@ -462,22 +462,35 @@ test("editor relayout status helper accepts the namespaced previewBridge.relayou
   const helperSource = [
     extractNamedFunctionSource(source, "_getPreviewBridgeHostContract", "()"),
     extractNamedFunctionSource(source, "_getLocalBridgeRelayoutStatus", "()"),
+    extractNamedFunctionSource(source, "getLayoutRelayoutStatus", "()"),
     extractNamedFunctionSource(source, "getV3RelayoutStatus", "()"),
-    "this.__loaded = { getV3RelayoutStatus };",
+    "this.__loaded = { getLayoutRelayoutStatus, getV3RelayoutStatus };",
   ].join("\n");
 
   vm.runInNewContext(helperSource, context);
   const loaded = (context as {
     __loaded: {
+      getLayoutRelayoutStatus: () => Record<string, unknown>;
       getV3RelayoutStatus: () => Record<string, unknown>;
     };
   }).__loaded;
 
   assert.deepEqual(
+    normalizeVmValue(loaded.getLayoutRelayoutStatus()),
+    { localReady: true, local: { reason: "ready" }, frameManaged: true },
+  );
+  assert.deepEqual(
     normalizeVmValue(loaded.getV3RelayoutStatus()),
     { localReady: true, local: { reason: "ready" }, frameManaged: true },
   );
   assert.deepEqual(normalizeVmValue(capturedCalls), [
+    {
+      runtimeState: {
+        lastMode: "local",
+        lastReason: "ready",
+        sequence: 2,
+      },
+    },
     {
       runtimeState: {
         lastMode: "local",
@@ -509,8 +522,11 @@ test("editor live-resize relayout helper forwards the current v3 relayout status
     requestAnimationFrame() {
       return 17;
     },
-    getV3RelayoutStatus() {
+    getLayoutRelayoutStatus() {
       return { localReady: true, local: { reason: "ready" } };
+    },
+    getV3RelayoutStatus() {
+      return context.getLayoutRelayoutStatus();
     },
     window: {
       __DG_getPreviewBridgeRelayoutContract() {
@@ -600,7 +616,7 @@ test("editor relayout lifecycle helpers accept the namespaced previewBridge.rela
   const capturedCalls: Array<Record<string, unknown>> = [];
   const context = {
     console,
-    _v3RelayoutRuntime: {
+    _layoutRelayoutRuntime: {
       lastMode: "not-run",
       lastReason: "not-run",
       sequence: 0,
@@ -620,11 +636,17 @@ test("editor relayout lifecycle helpers accept the namespaced previewBridge.rela
     refreshTreeColors() {},
     runConstraints() {},
     setStatus() {},
-    getV3RelayoutStatus() {
+    getLayoutRelayoutStatus() {
       return { local: { reason: "ready" } };
     },
-    _failV3Relayout(reason: string, triggerCid: string) {
+    getV3RelayoutStatus() {
+      return context.getLayoutRelayoutStatus();
+    },
+    _failLayoutRelayout(reason: string, triggerCid: string) {
       return { reason, triggerCid };
+    },
+    _failV3Relayout(reason: string, triggerCid: string) {
+      return context._failLayoutRelayout(reason, triggerCid);
     },
     window: {
       __DG_getPreviewBridgeRelayoutContract() {
@@ -774,8 +796,11 @@ test("editor override-application helper accepts the namespaced previewBridge.re
       highlight: { fill: "#000", text: "#fff", icon: "#fff" },
     },
     BASELINE_STEP: 8,
-    getV3RelayoutStatus() {
+    getLayoutRelayoutStatus() {
       return { localReady: true };
+    },
+    getV3RelayoutStatus() {
+      return context.getLayoutRelayoutStatus();
     },
     getOwnDelta() {
       return { dx: 0, dy: 0, dw: 0, dh: 0 };
@@ -1569,11 +1594,16 @@ test("editor runtime-set bootstrap accepts the namespaced previewShell.bootstrap
     snapToGrid(value: number) {
       return value;
     },
+    _scheduleLayoutRelayout() {},
     _scheduleV3Relayout() {},
+    requestLayoutRelayout() {
+      return context.requestV3Relayout();
+    },
     requestV3Relayout() {
       return Promise.resolve(true);
     },
     clearTimeout() {},
+    _layoutRelayoutTimer: null,
     _v3RelayoutTimer: null,
     renderEmptyInspector() {},
     renderSelectionInspector() {},

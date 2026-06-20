@@ -156,11 +156,15 @@ test("commitTextEdit delegates text edit completion through the typed host helpe
       clearTimeout(timer: unknown) {
         clearedTimers.push(timer);
       },
+      _layoutRelayoutTimer: 41,
       _v3RelayoutTimer: 41,
       setTimeout(callback: () => void, delayMs: number) {
         callbackActions.push({ setTimeout: delayMs });
         callback();
         return 99;
+      },
+      requestLayoutRelayout(cid: string) {
+        callbackActions.push({ requestV3Relayout: cid });
       },
       requestV3Relayout(cid: string) {
         callbackActions.push({ requestV3Relayout: cid });

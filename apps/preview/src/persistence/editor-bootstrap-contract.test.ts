@@ -637,9 +637,13 @@ test("editor bootstrap tail accepts the namespaced previewShell.bootstrap contra
     requestV3Relayout() {
       return Promise.resolve();
     },
+    requestLayoutRelayout() {
+      return context.requestV3Relayout();
+    },
     selectedIds: new Set(["alpha", "beta"]),
     reapplySelection() {},
     loadSVG() {},
+    _layoutRelayoutRuntime: { sequence: 1 },
     _v3RelayoutRuntime: { sequence: 1 },
     constraints: {
       summarise() {
@@ -657,8 +661,11 @@ test("editor bootstrap tail accepts the namespaced previewShell.bootstrap contra
     applyAllOverrides() {},
     renderSelectionInspector() {},
     generation: 3,
-    getV3RelayoutStatus() {
+    getLayoutRelayoutStatus() {
       return context.v3RelayoutStatus;
+    },
+    getV3RelayoutStatus() {
+      return context.getLayoutRelayoutStatus();
     },
     v3RelayoutStatus: { localReady: true },
     LayoutEngine: {

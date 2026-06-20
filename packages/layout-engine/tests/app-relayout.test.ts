@@ -13,6 +13,7 @@ import {
   formatPreviewRelayoutStatusMessage,
   isPreviewFrameManagedTarget,
   markPreviewRelayoutExecution,
+  resolvePreviewLayoutRelayoutStatus,
   resolvePreviewV3RelayoutStatus,
   runPreviewRelayout,
 } from '../src/preview-shell/app-relayout.js';
@@ -53,13 +54,13 @@ describe('preview relayout helpers', () => {
     });
   });
 
-  it('creates and resolves v3 relayout runtime status through the shared helpers', () => {
+  it('creates and resolves layout relayout runtime status through the shared helpers', () => {
     const runtimeState = createPreviewRelayoutRuntimeState();
 
     markPreviewRelayoutExecution(runtimeState, 'local', 'ready');
 
     expect(
-      resolvePreviewV3RelayoutStatus({
+      resolvePreviewLayoutRelayoutStatus({
         runtimeState,
         getLocalRelayoutStatus: () => ({
           ready: true,
@@ -92,6 +93,7 @@ describe('preview relayout helpers', () => {
       lastReason: 'ready',
       sequence: 1,
     });
+    expect(resolvePreviewV3RelayoutStatus).toBe(resolvePreviewLayoutRelayoutStatus);
   });
 
   it('dispatches relayout failure and success host callbacks through the shared runtime owner', () => {
@@ -145,7 +147,7 @@ describe('preview relayout helpers', () => {
         result: { coerced: null },
         executionLabel: 'local',
         runtimeState,
-        getRelayoutStatus: () => resolvePreviewV3RelayoutStatus({
+        getRelayoutStatus: () => resolvePreviewLayoutRelayoutStatus({
           runtimeState,
           getLocalRelayoutStatus: () => ({ ready: true, reason: 'ready' }),
         }),

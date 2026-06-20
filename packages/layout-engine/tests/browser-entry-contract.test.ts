@@ -88,6 +88,7 @@ import {
   readPreviewGridControlStateFromDom,
   registerPreviewEditorDocumentBindingsHost,
   restorePreviewSelectionIds,
+  resolvePreviewLayoutRelayoutStatus,
   resolvePreviewV3RelayoutStatus,
   previewBridge,
   previewEngines,
@@ -242,6 +243,7 @@ describe('browser entry contract pilot', () => {
     expect(previewBridge.relayout.createPreviewRelayoutRuntimeOptionsFromHost)
       .toBe(createPreviewRelayoutRuntimeOptionsFromHost);
     expect(previewBridge.relayout.createPreviewRelayoutRuntimeState).toBe(createPreviewRelayoutRuntimeState);
+    expect(previewBridge.relayout.resolvePreviewLayoutRelayoutStatus).toBe(resolvePreviewLayoutRelayoutStatus);
     expect(previewBridge.relayout.resolvePreviewV3RelayoutStatus).toBe(resolvePreviewV3RelayoutStatus);
     expect(previewBridge.relayout.dispatchPreviewClearOverride).toBe(dispatchPreviewClearOverride);
     expect(previewBridge.relayout.dispatchPreviewRelayoutFailureHost).toBe(dispatchPreviewRelayoutFailureHost);
