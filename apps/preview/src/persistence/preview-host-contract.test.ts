@@ -21,6 +21,7 @@ import {
 import { installBuiltinPreviewHostApiRoutes } from "../preview-host/builtin-api-routes.js";
 import { createBuiltinPreviewHostServerRoutes } from "../preview-host/builtin-server-routes.js";
 import { createPreviewHostDocumentGetJsonRoute } from "../preview-host/document-api-routes.js";
+import { routeRegisteredPreviewHostRequest } from "../preview-host/request-router.js";
 import {
   buildRegisteredPreviewBrowseSections,
   listPreviewHostViewerRoutes,
@@ -529,6 +530,124 @@ test("preview host api route registry rejects duplicate keys", () => {
     );
   } finally {
     unregister();
+  }
+});
+
+test("preview host request router dispatches registered API and viewer routes without server-local branching", async () => {
+  const events: Array<Record<string, unknown>> = [];
+  const unregisterApiRoute = registerPreviewHostApiRoute({
+    key: "test-router-post",
+    method: "POST",
+    routePrefixes: ["/api/router/"],
+    handle(match, context) {
+      events.push({
+        kind: "post-route",
+        pathname: match.pathname,
+        slug: match.slug,
+        port: context.port,
+        hasServeFile: typeof context.serveFile,
+      });
+      context.sendJson(201, { ok: true, slug: match.slug });
+    },
+  });
+  const unregisterViewerRoute = registerPreviewHostViewerRoute({
+    key: "test-router-view",
+    lane: AUTOLAYOUT_HOST_LANE,
+    routePrefixes: ["/view/"],
+    listSlugs: () => ["alpha"],
+    hasDocument: (slug: string) => slug === "alpha",
+    buildHtml: (slug: string) => `<html data-slug="${slug}"></html>`,
+    describeMissing: (slug: string) => `Missing ${slug}`,
+  });
+
+  try {
+    const responses: Array<Record<string, unknown>> = [];
+    await routeRegisteredPreviewHostRequest({
+      req: { method: "POST" } as never,
+      res: {} as never,
+      pathname: "/api/router/alpha",
+      port: 8100,
+      normalizeSlug: normalizePreviewSlug,
+      sendHtml: (statusCode: number, html: string) => {
+        responses.push({ kind: "html", statusCode, html });
+      },
+      sendJson: (statusCode: number, payload: unknown) => {
+        responses.push({ kind: "json", statusCode, payload });
+      },
+      sendText: (statusCode: number, text: string) => {
+        responses.push({ kind: "text", statusCode, text });
+      },
+      sendBytes: () => {
+        responses.push({ kind: "bytes" });
+      },
+      serveFile: () => {},
+      readJsonBody: async () => ({}),
+      notImplementedPayload: { ok: false },
+    });
+
+    await routeRegisteredPreviewHostRequest({
+      req: { method: "GET" } as never,
+      res: {} as never,
+      pathname: "/view/alpha",
+      port: 8100,
+      normalizeSlug: normalizePreviewSlug,
+      sendHtml: (statusCode: number, html: string) => {
+        responses.push({ kind: "html", statusCode, html });
+      },
+      sendJson: (statusCode: number, payload: unknown) => {
+        responses.push({ kind: "json", statusCode, payload });
+      },
+      sendText: (statusCode: number, text: string) => {
+        responses.push({ kind: "text", statusCode, text });
+      },
+      sendBytes: () => {
+        responses.push({ kind: "bytes" });
+      },
+      serveFile: () => {},
+      readJsonBody: async () => ({}),
+      notImplementedPayload: { ok: false },
+    });
+
+    await routeRegisteredPreviewHostRequest({
+      req: { method: "GET" } as never,
+      res: {} as never,
+      pathname: "/unknown",
+      port: 8100,
+      normalizeSlug: normalizePreviewSlug,
+      sendHtml: (statusCode: number, html: string) => {
+        responses.push({ kind: "html", statusCode, html });
+      },
+      sendJson: (statusCode: number, payload: unknown) => {
+        responses.push({ kind: "json", statusCode, payload });
+      },
+      sendText: (statusCode: number, text: string) => {
+        responses.push({ kind: "text", statusCode, text });
+      },
+      sendBytes: () => {
+        responses.push({ kind: "bytes" });
+      },
+      serveFile: () => {},
+      readJsonBody: async () => ({}),
+      notImplementedPayload: { ok: false, route: "/unknown" },
+    });
+
+    assert.deepEqual(events, [
+      {
+        kind: "post-route",
+        pathname: "/api/router/alpha",
+        slug: "alpha",
+        port: 8100,
+        hasServeFile: "function",
+      },
+    ]);
+    assert.deepEqual(responses, [
+      { kind: "json", statusCode: 201, payload: { ok: true, slug: "alpha" } },
+      { kind: "html", statusCode: 200, html: '<html data-slug="alpha"></html>' },
+      { kind: "json", statusCode: 501, payload: { ok: false, route: "/unknown" } },
+    ]);
+  } finally {
+    unregisterViewerRoute();
+    unregisterApiRoute();
   }
 });
 

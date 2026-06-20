@@ -12,34 +12,21 @@ import {
   type PreviewEngineManifest,
 } from "@diagram-generator/layout-engine";
 import {
-  canonicalSavedState as canonicalFrameSavedState,
-  determineFrameYamlKind,
-  frameDiagramExists,
-  loadFrameDiagram,
   type FramePreviewDocumentDeps,
   type FramePreviewRenderDeps,
 } from "./preview-host/frame-documents.js";
 import {
   buildRegisteredPreviewBrowseSections,
-  resolveRegisteredPreviewViewerRoute,
 } from "./preview-host/registry.js";
-import { resolveRegisteredPreviewHostApiRoute } from "./preview-host/api-routes.js";
 import {
-  canonicalForceSavedState,
-  readForceSpec,
   type ForcePreviewDocumentDeps,
 } from "./preview-host/force-documents.js";
 import { installBuiltinPreviewHost } from "./preview-host/install-builtins.js";
-import {
-  persistForceSpecToYaml,
-  persistFrameDiagramOverridePayloadToYaml,
-  verifyElkLayoutPersisted,
-  type PersistOverridePayload,
-} from "./persistence/index.js";
 import { buildIndexPageHtml } from "./preview-host/pages.js";
+import { routeRegisteredPreviewHostRequest } from "./preview-host/request-router.js";
 
 const DEFAULT_PORT = 8100;
-const SPEC_HOME = "docs/spec-archive/038-ts-authority-python-removal/";
+const SPEC_HOME = "specs/046-editor-host-endgame/";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
@@ -567,81 +554,25 @@ function serveFile(res: ServerResponse, filePath: string, cacheControl = "no-sto
 
 async function handleRequest(req: IncomingMessage, res: ServerResponse, port: number): Promise<void> {
   const url = requestUrl(req);
-  const pathname = url.pathname;
-
-  if (req.method === "POST") {
-    const previewHostApiRouteMatch = resolveRegisteredPreviewHostApiRoute(
-      "POST",
-      pathname,
-      normalizeFrameSlug,
-    );
-    if (previewHostApiRouteMatch) {
-      await previewHostApiRouteMatch.route.handle(previewHostApiRouteMatch, {
-        req,
-        res,
-        pathname,
-        port,
-        sendHtml: (statusCode: number, html: string) => sendHtml(res, statusCode, html),
-        sendJson: (statusCode: number, payload: unknown) => sendJson(res, statusCode, payload),
-        sendText: (statusCode: number, text: string) => sendText(res, statusCode, text),
-        sendBytes: (statusCode: number, contentType: string, bytes: Buffer) =>
-          sendBytes(res, statusCode, contentType, bytes),
-        serveFile: (filePath: string, cacheControl?: string) => serveFile(res, filePath, cacheControl),
-        readJsonBody,
-      });
-      return;
-    }
-
-    sendJson(res, 405, { ok: false, error: "Method not allowed" });
-    return;
-  }
-
-  if (req.method !== "GET") {
-    sendJson(res, 405, { ok: false, error: "Method not allowed" });
-    return;
-  }
-
-  const previewHostGetApiRouteMatch = resolveRegisteredPreviewHostApiRoute(
-    "GET",
-    pathname,
-    normalizeFrameSlug,
-  );
-  if (previewHostGetApiRouteMatch) {
-    await previewHostGetApiRouteMatch.route.handle(previewHostGetApiRouteMatch, {
-      req,
-      res,
-      pathname,
-      port,
-      sendHtml: (statusCode: number, html: string) => sendHtml(res, statusCode, html),
-      sendJson: (statusCode: number, payload: unknown) => sendJson(res, statusCode, payload),
-      sendText: (statusCode: number, text: string) => sendText(res, statusCode, text),
-      sendBytes: (statusCode: number, contentType: string, bytes: Buffer) =>
-        sendBytes(res, statusCode, contentType, bytes),
-      serveFile: (filePath: string, cacheControl?: string) => serveFile(res, filePath, cacheControl),
-      readJsonBody,
-    });
-    return;
-  }
-  const previewViewerRouteMatch = resolveRegisteredPreviewViewerRoute(pathname, normalizeFrameSlug);
-  if (previewViewerRouteMatch) {
-    const { route, slug } = previewViewerRouteMatch;
-    if (!slug) {
-      sendText(res, 400, "Invalid slug");
-      return;
-    }
-    if (!route.hasDocument(slug)) {
-      sendText(res, 404, route.describeMissing(slug));
-      return;
-    }
-    sendHtml(res, 200, route.buildHtml(slug));
-    return;
-  }
-
-  sendJson(res, 501, {
-    ok: false,
-    error: "Preview route not implemented yet in the Node app scaffold.",
-    route: pathname,
-    specHome: SPEC_HOME,
+  await routeRegisteredPreviewHostRequest({
+    req,
+    res,
+    pathname: url.pathname,
+    port,
+    normalizeSlug: normalizeFrameSlug,
+    sendHtml: (statusCode: number, html: string) => sendHtml(res, statusCode, html),
+    sendJson: (statusCode: number, payload: unknown) => sendJson(res, statusCode, payload),
+    sendText: (statusCode: number, text: string) => sendText(res, statusCode, text),
+    sendBytes: (statusCode: number, contentType: string, bytes: Buffer) =>
+      sendBytes(res, statusCode, contentType, bytes),
+    serveFile: (filePath: string, cacheControl?: string) => serveFile(res, filePath, cacheControl),
+    readJsonBody,
+    notImplementedPayload: {
+      ok: false,
+      error: "Preview route not implemented yet in the Node app scaffold.",
+      route: url.pathname,
+      specHome: SPEC_HOME,
+    },
   });
 }
 
