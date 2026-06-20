@@ -521,6 +521,12 @@ installBuiltinPreviewHost({
   framePreviewDocumentDeps,
   forcePreviewDocumentDeps,
   framePreviewRenderDeps,
+  appRoot: APP_ROOT,
+  repoRoot: REPO_ROOT,
+  framesDir: FRAMES_DIR,
+  specHome: SPEC_HOME,
+  currentGitBranch,
+  buildIndexHtml,
   parseYaml,
   templateHtml: readFileSync(VIEWER_TEMPLATE, "utf8"),
   baselineStylesHtml: bfStylesLinkHtml(),
@@ -543,25 +549,6 @@ function serveFile(res: ServerResponse, filePath: string, cacheControl = "no-sto
   sendBytes(res, 200, contentTypeForPath(filePath), readFileSync(filePath), cacheControl);
 }
 
-function handleRuntimeIdentity(res: ServerResponse, port: number): void {
-  sendJson(res, 200, {
-    ok: true,
-    app: "@diagram-generator/preview-app",
-    repoRoot: REPO_ROOT,
-    appRoot: APP_ROOT,
-    branch: currentGitBranch(),
-    framesDir: FRAMES_DIR,
-    pid: process.pid,
-    port,
-    node: process.version,
-    specHome: SPEC_HOME,
-  });
-}
-
-function handlePreviewEngines(res: ServerResponse): void {
-  sendJson(res, 200, serializePreviewEngineManifest());
-}
-
 async function handleRequest(req: IncomingMessage, res: ServerResponse, port: number): Promise<void> {
   const url = requestUrl(req);
   const pathname = url.pathname;
@@ -577,6 +564,8 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, port: nu
         req,
         res,
         pathname,
+        port,
+        sendHtml: (statusCode: number, html: string) => sendHtml(res, statusCode, html),
         sendJson: (statusCode: number, payload: unknown) => sendJson(res, statusCode, payload),
         sendText: (statusCode: number, text: string) => sendText(res, statusCode, text),
         sendBytes: (statusCode: number, contentType: string, bytes: Buffer) =>
@@ -595,20 +584,24 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, port: nu
     return;
   }
 
-  if (pathname === "/") {
-    sendHtml(res, 200, buildIndexHtml(port));
-    return;
-  }
-  if (pathname === "/force") {
-    sendHtml(res, 200, buildIndexHtml(port));
-    return;
-  }
-  if (pathname === "/api/runtime-identity") {
-    handleRuntimeIdentity(res, port);
-    return;
-  }
-  if (pathname === "/api/preview-engines") {
-    handlePreviewEngines(res);
+  const previewHostGetApiRouteMatch = resolveRegisteredPreviewHostApiRoute(
+    "GET",
+    pathname,
+    normalizeFrameSlug,
+  );
+  if (previewHostGetApiRouteMatch) {
+    await previewHostGetApiRouteMatch.route.handle(previewHostGetApiRouteMatch, {
+      req,
+      res,
+      pathname,
+      port,
+      sendHtml: (statusCode: number, html: string) => sendHtml(res, statusCode, html),
+      sendJson: (statusCode: number, payload: unknown) => sendJson(res, statusCode, payload),
+      sendText: (statusCode: number, text: string) => sendText(res, statusCode, text),
+      sendBytes: (statusCode: number, contentType: string, bytes: Buffer) =>
+        sendBytes(res, statusCode, contentType, bytes),
+      readJsonBody,
+    });
     return;
   }
   if (pathname === "/events") {
@@ -718,35 +711,6 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, port: nu
       return;
     }
     serveFile(res, refPath, "public, max-age=300");
-    return;
-  }
-  const previewHostGetApiRouteMatch = resolveRegisteredPreviewHostApiRoute(
-    "GET",
-    pathname,
-    normalizeFrameSlug,
-  );
-  if (previewHostGetApiRouteMatch) {
-    await previewHostGetApiRouteMatch.route.handle(previewHostGetApiRouteMatch, {
-      req,
-      res,
-      pathname,
-      sendJson: (statusCode: number, payload: unknown) => sendJson(res, statusCode, payload),
-      sendText: (statusCode: number, text: string) => sendText(res, statusCode, text),
-      sendBytes: (statusCode: number, contentType: string, bytes: Buffer) =>
-        sendBytes(res, statusCode, contentType, bytes),
-      readJsonBody,
-    });
-    return;
-  }
-  if (
-    pathname.startsWith("/api/force/") ||
-    pathname.startsWith("/api/force-reset/") ||
-    pathname.startsWith("/api/force-node/") ||
-    pathname.startsWith("/api/force-tick/") ||
-    pathname.startsWith("/api/force-params/") ||
-    pathname.startsWith("/api/force-export/")
-  ) {
-    sendText(res, 404, `Route retired from the Node preview app: ${pathname}`);
     return;
   }
   const previewViewerRouteMatch = resolveRegisteredPreviewViewerRoute(pathname, normalizeFrameSlug);

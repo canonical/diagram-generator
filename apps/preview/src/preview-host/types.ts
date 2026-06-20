@@ -38,11 +38,13 @@ export interface PreviewHostViewerRouteMatch {
 }
 
 export type PreviewHostApiMethod = "GET" | "POST";
+export type PreviewHostApiRouteMatchMode = "prefix" | "exact";
 
 export interface PreviewHostApiRouteDescriptor {
   readonly key: string;
   readonly method: PreviewHostApiMethod;
   readonly routePrefixes: readonly string[];
+  readonly matchMode?: PreviewHostApiRouteMatchMode;
   handle(match: PreviewHostApiRouteMatch, context: PreviewHostApiRouteHandlerContext): Promise<void> | void;
 }
 
@@ -56,6 +58,8 @@ export interface PreviewHostApiRouteHandlerContext {
   readonly req: IncomingMessage;
   readonly res: ServerResponse;
   readonly pathname: string;
+  readonly port?: number;
+  readonly sendHtml?: (statusCode: number, html: string) => void;
   readonly sendJson: (statusCode: number, payload: unknown) => void;
   readonly sendText: (statusCode: number, text: string) => void;
   readonly sendBytes: (statusCode: number, contentType: string, bytes: Buffer) => void;

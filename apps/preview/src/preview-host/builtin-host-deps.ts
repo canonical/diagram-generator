@@ -21,3 +21,12 @@ export interface BuiltinPreviewHostViewerRouteDeps
   readonly iconSize?: number;
   readonly gridGutter?: number;
 }
+
+export interface BuiltinPreviewHostServerRouteDeps {
+  readonly appRoot: string;
+  readonly repoRoot: string;
+  readonly framesDir: string;
+  readonly specHome: string;
+  readonly currentGitBranch: () => string | null;
+  readonly buildIndexHtml: (port: number) => string;
+}

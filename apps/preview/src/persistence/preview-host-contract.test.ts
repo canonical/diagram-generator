@@ -18,6 +18,7 @@ import {
   resolvePreviewHostApiRoute,
 } from "../preview-host/api-routes.js";
 import { installBuiltinPreviewHostApiRoutes } from "../preview-host/builtin-api-routes.js";
+import { createBuiltinPreviewHostServerRoutes } from "../preview-host/builtin-server-routes.js";
 import { createPreviewHostDocumentGetJsonRoute } from "../preview-host/document-api-routes.js";
 import {
   buildRegisteredPreviewBrowseSections,
@@ -349,6 +350,12 @@ test("preview host modules register and install through a typed registry", () =>
         textAdapterPromise: Promise.resolve(new MockTextAdapter()),
       },
       forcePreviewDocumentDeps: { forceDefinitionsDir: "/virtual/force" },
+      appRoot: "/virtual/app",
+      repoRoot: "/virtual/repo",
+      framesDir: "/virtual/frames",
+      specHome: "specs/046-editor-host-endgame/",
+      currentGitBranch: () => "feat/046-editor-host-endgame",
+      buildIndexHtml: (port: number) => `<html data-port="${port}"></html>`,
       parseYaml: () => ({}),
       templateHtml: "%MODE%",
       baselineStylesHtml: "",
@@ -402,6 +409,13 @@ test("preview host api routes resolve through a typed registry", () => {
       routePrefixes: ["/api/force-save/"],
       handle() {},
     },
+    {
+      key: "runtime-identity",
+      method: "GET",
+      matchMode: "exact",
+      routePrefixes: ["/api/runtime-identity"],
+      handle() {},
+    },
   ];
 
   assert.deepEqual(
@@ -422,6 +436,18 @@ test("preview host api routes resolve through a typed registry", () => {
   );
   assert.equal(
     resolvePreviewHostApiRoute("GET", "/api/force-save/force-stakeholders", routes, normalizePreviewSlug),
+    null,
+  );
+  assert.deepEqual(
+    resolvePreviewHostApiRoute("GET", "/api/runtime-identity", routes, normalizePreviewSlug),
+    {
+      route: routes[2],
+      pathname: "/api/runtime-identity",
+      slug: null,
+    },
+  );
+  assert.equal(
+    resolvePreviewHostApiRoute("GET", "/api/runtime-identity/extra", routes, normalizePreviewSlug),
     null,
   );
 });
@@ -514,6 +540,12 @@ test("builtin preview host installs through registered host modules", () => {
       textAdapterPromise: Promise.resolve(new MockTextAdapter()),
     },
     forcePreviewDocumentDeps: { forceDefinitionsDir: "/virtual/force" },
+    appRoot: "/virtual/app",
+    repoRoot: "/virtual/repo",
+    framesDir: "/virtual/frames",
+    specHome: "specs/046-editor-host-endgame/",
+    currentGitBranch: () => "feat/046-editor-host-endgame",
+    buildIndexHtml: (port: number) => `<html data-port="${port}"></html>`,
     parseYaml: () => ({}),
     templateHtml: "%MODE%",
     baselineStylesHtml: "",
@@ -528,7 +560,20 @@ test("builtin preview host installs through registered host modules", () => {
     expectRegisteredRoutes(["autolayout", "force"]);
     assert.deepEqual(
       listPreviewHostApiRoutes().map((route) => route.key).sort(),
-      ["component-tree", "force-save", "force-spec", "frame-overrides", "frame-tree", "grid-info", "preview-document", "svg-export"],
+      [
+        "component-tree",
+        "force-save",
+        "force-spec",
+        "frame-overrides",
+        "frame-tree",
+        "grid-info",
+        "preview-document",
+        "preview-engines",
+        "preview-index",
+        "retired-force-api",
+        "runtime-identity",
+        "svg-export",
+      ],
     );
   } finally {
     unregister();
@@ -536,6 +581,93 @@ test("builtin preview host installs through registered host modules", () => {
 
   expectRegisteredRoutes([]);
   assert.deepEqual(listPreviewHostApiRoutes().map((route) => route.key), []);
+});
+
+test("builtin preview host server routes install through typed descriptors", async () => {
+  const routes = createBuiltinPreviewHostServerRoutes({
+    appRoot: "/virtual/app",
+    repoRoot: "/virtual/repo",
+    framesDir: "/virtual/frames",
+    specHome: "specs/046-editor-host-endgame/",
+    currentGitBranch: () => "feat/046-editor-host-endgame",
+    buildIndexHtml: (port: number) => `<html data-port="${port}"></html>`,
+  });
+
+  const indexMatch = resolvePreviewHostApiRoute("GET", "/", routes, normalizePreviewSlug);
+  assert.ok(indexMatch);
+  let indexHtml = "";
+  await indexMatch.route.handle(indexMatch, {
+    req: {} as never,
+    res: {} as never,
+    pathname: indexMatch.pathname,
+    port: 8100,
+    sendHtml: (_statusCode, html) => {
+      indexHtml = html;
+    },
+    sendJson: () => {
+      throw new Error("did not expect index route to send json");
+    },
+    sendText: () => {
+      throw new Error("did not expect index route to send plain text");
+    },
+    sendBytes: () => {
+      throw new Error("did not expect index route to send bytes");
+    },
+    readJsonBody: async () => ({}),
+  });
+  assert.equal(indexHtml, '<html data-port="8100"></html>');
+
+  const runtimeIdentityMatch = resolvePreviewHostApiRoute(
+    "GET",
+    "/api/runtime-identity",
+    routes,
+    normalizePreviewSlug,
+  );
+  assert.ok(runtimeIdentityMatch);
+  let runtimeIdentityPayload: unknown = null;
+  await runtimeIdentityMatch.route.handle(runtimeIdentityMatch, {
+    req: {} as never,
+    res: {} as never,
+    pathname: runtimeIdentityMatch.pathname,
+    port: 8100,
+    sendJson: (_statusCode, payload) => {
+      runtimeIdentityPayload = payload;
+    },
+    sendText: () => {
+      throw new Error("did not expect runtime identity route to send plain text");
+    },
+    sendBytes: () => {
+      throw new Error("did not expect runtime identity route to send bytes");
+    },
+    readJsonBody: async () => ({}),
+  });
+  assert.equal((runtimeIdentityPayload as Record<string, unknown>).specHome, "specs/046-editor-host-endgame/");
+  assert.equal((runtimeIdentityPayload as Record<string, unknown>).port, 8100);
+
+  const retiredForceMatch = resolvePreviewHostApiRoute(
+    "GET",
+    "/api/force-export/demo",
+    routes,
+    normalizePreviewSlug,
+  );
+  assert.ok(retiredForceMatch);
+  let retiredForceText = "";
+  await retiredForceMatch.route.handle(retiredForceMatch, {
+    req: {} as never,
+    res: {} as never,
+    pathname: retiredForceMatch.pathname,
+    sendJson: () => {
+      throw new Error("did not expect retired force route to send json");
+    },
+    sendText: (_statusCode, text) => {
+      retiredForceText = text;
+    },
+    sendBytes: () => {
+      throw new Error("did not expect retired force route to send bytes");
+    },
+    readJsonBody: async () => ({}),
+  });
+  assert.equal(retiredForceText, "Route retired from the Node preview app: /api/force-export/demo");
 });
 
 test("builtin preview host api routes install through a host-owned installer", async () => {

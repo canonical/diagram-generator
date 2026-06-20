@@ -1,4 +1,7 @@
-import type { BuiltinPreviewHostViewerRouteDeps } from "./builtin-host-deps.js";
+import type {
+  BuiltinPreviewHostServerRouteDeps,
+  BuiltinPreviewHostViewerRouteDeps,
+} from "./builtin-host-deps.js";
 
 export interface PreviewHostModuleDescriptor {
   readonly key: string;
@@ -6,7 +9,8 @@ export interface PreviewHostModuleDescriptor {
 }
 
 export interface PreviewHostModuleInstallDeps
-  extends BuiltinPreviewHostViewerRouteDeps {}
+  extends BuiltinPreviewHostViewerRouteDeps,
+    BuiltinPreviewHostServerRouteDeps {}
 
 const previewHostModuleRegistry: PreviewHostModuleDescriptor[] = [];
 

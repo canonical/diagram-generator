@@ -47,7 +47,10 @@ export function resolvePreviewHostApiRoute(
       continue;
     }
     for (const prefix of route.routePrefixes) {
-      if (!pathname.startsWith(prefix)) {
+      const matches = route.matchMode === "exact"
+        ? pathname === prefix
+        : pathname.startsWith(prefix);
+      if (!matches) {
         continue;
       }
       return {
