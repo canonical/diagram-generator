@@ -21,6 +21,7 @@ let lastViolations = [];
 // Track which override keys were set by engine coercion (not user action).
 // Format: Set of "fid:key" strings, e.g. "root:sizing_h"
 const _coercedKeys = new Set();
+let _layoutRelayoutTimer = null;
 var _previewGridEditorRuntime = null;
 
 function _warnUnknownInspectorAction(kind, action, actionEl) {
@@ -380,8 +381,6 @@ const onGridControlChange = () => _getEditorSceneFacade().onGridControlChange();
 const refreshLayoutGridInfoFromLayout = () => _getEditorSceneFacade().refreshGridInfoFromLayout();
 const refreshV3GridInfoFromLayout = () => refreshLayoutGridInfoFromLayout();
 
-_getEditorSceneFacade().bindGridControls();
-
 const applyWaypointOverrides = () => _getEditorSceneFacade().applyWaypointOverrides();
 
 // ---- Override application ----
@@ -638,6 +637,10 @@ bindInspectorActions();
 // ---- Constraint validation ----
 
 const runConstraints = () => _getEditorSceneFacade().runConstraints();
+
+// Bind grid controls only after the editor compatibility exports they may pull in
+// through eager runtime construction are initialized.
+_getEditorSceneFacade().bindGridControls();
 
 // ---- SSE / bootstrap tail ----
 

@@ -608,6 +608,19 @@ test("editor initializes coerced-key state before eager scene bootstrap", () => 
   );
 });
 
+test("editor defers eager scene bootstrap until resize persistence helpers exist", () => {
+  const source = loadEditorSource();
+  const persistResizeIndex = source.indexOf("const _persistResizeToLayout =");
+  const bindGridControlsIndex = source.indexOf("_getEditorSceneFacade().bindGridControls();");
+
+  assert.notEqual(persistResizeIndex, -1);
+  assert.notEqual(bindGridControlsIndex, -1);
+  assert.ok(
+    persistResizeIndex < bindGridControlsIndex,
+    "grid-control bootstrap must run after resize persistence helpers initialize",
+  );
+});
+
 test("editor grid loader accepts the namespaced previewShell.scene contract", async () => {
   const source = loadEditorSource();
   const capturedCalls: Array<Record<string, unknown> | null | undefined> = [];
