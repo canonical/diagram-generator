@@ -113,6 +113,261 @@ function normalizeVmValue<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
+function createPreviewGridEditorRuntimeContext(options?: {
+  bootstrapFacade?: unknown;
+  interactionFacade?: unknown;
+  relayoutFacade?: unknown;
+  sceneFacade?: unknown;
+}) {
+  let capturedOptions: Record<string, unknown> | null = null;
+  const runtime = {
+    invalidateOverrideBoundFacades() {},
+    getBootstrapFacade() {
+      return options?.bootstrapFacade ?? { kind: "bootstrap-facade" };
+    },
+    getInteractionFacade() {
+      return options?.interactionFacade ?? { kind: "interaction-facade" };
+    },
+    getRelayoutFacade() {
+      return options?.relayoutFacade ?? { kind: "relayout-facade" };
+    },
+    getSceneFacade() {
+      return options?.sceneFacade ?? { kind: "scene-facade" };
+    },
+  };
+
+  const context = {
+    console,
+    SLUG: "demo",
+    ACTIVE_LAYOUT_ENGINE: "v3",
+    GRID: true,
+    GUIDE_MODES: ["off", "all"],
+    BASELINE_STEP: 24,
+    selectionDepth: 2,
+    generation: 3,
+    _allowInternalDirtyNavigation: false,
+    lastViolations: [],
+    overrides: { alpha: { width: 120 } },
+    _coercedKeys: new Set(["coerced"]),
+    selectedIds: new Set(["alpha", "beta"]),
+    multiActionGap: 24,
+    BOX_STYLES: { default: {} },
+    INSET: 8,
+    SHARED_HANDLE_SIZE: 12,
+    SHARED_MIN_NODE_SIZE: 24,
+    InteractionMode: {
+      TEXT_EDITING: "text_editing",
+      WAYPOINT_DRAGGING: "waypoint_dragging",
+    },
+    model: {
+      _roots: [],
+      roots: [{ id: "root" }],
+      gridOverrides: { rows: 2 },
+      removedIds: new Set<string>(),
+      setDiagramGrid() {},
+      clearOverride() {},
+      get() {
+        return { data: { id: "alpha" } };
+      },
+    },
+    mgr: {
+      state: { cid: "alpha" },
+      isMode() {
+        return false;
+      },
+    },
+    EditorState: {
+      captureOverrideEntries() {
+        return {};
+      },
+      beginUndoableAction() {
+        return {};
+      },
+      commitUndoableAction() {},
+      runUndoableAction(_label: string, mutate: () => unknown) {
+        return mutate();
+      },
+      clearUndoHistory() {},
+      serializeDirtyState() {
+        return "{}";
+      },
+      normalizeGridOverrides<T>(value: T) {
+        return value;
+      },
+      commitOverridePatchAction() {},
+      undo() {
+        return Promise.resolve();
+      },
+      redo() {
+        return Promise.resolve();
+      },
+    },
+    PreviewSaveClient: {
+      isDirty() {
+        return true;
+      },
+      trySaveIfDirty() {},
+      syncSaveButton() {},
+      syncDirtyFromSerialized() {},
+      markSaved() {},
+    },
+    constraints: {
+      validate() {
+        return [];
+      },
+      summarise() {
+        return { errors: 0 };
+      },
+    },
+    replaceOverrides() {},
+    _pruneLinkedRootGridOverrides() {},
+    _clearPendingRestoreRuntime() {},
+    _applyLocalRestoreRefresh() {},
+    buildTreeUI() {},
+    bindInteraction() {},
+    deselectAll() {},
+    reapplySelection() {},
+    renderEmptyInspector() {},
+    renderSelectionInspector() {},
+    renderMultiSelectionInspector() {},
+    selectComponent() {},
+    _applySelectionStateSnapshot() {},
+    getPrimarySelectedId() {
+      return "alpha";
+    },
+    async deleteSelectedFrames() {
+      return true;
+    },
+    getOwnDelta() {
+      return { dx: 0, dy: 0, dw: 0, dh: 0 };
+    },
+    getEffectiveDelta() {
+      return { dx: 0, dy: 0, dw: 0, dh: 0 };
+    },
+    getAncestors() {
+      return ["root"];
+    },
+    getParentNode() {
+      return { layout: "horizontal" };
+    },
+    getComponentNode() {
+      return null;
+    },
+    getComponentType() {
+      return "box";
+    },
+    getArrowNode() {
+      return { waypoints: [] };
+    },
+    collectPeerSnapTargets() {
+      return [];
+    },
+    collectGridSnapTargets() {
+      return { xs: [24], ys: [48] };
+    },
+    snapRectToTargets() {
+      return { dx: 0, dy: 0 };
+    },
+    clearGuideLines() {},
+    renderGuideLines() {},
+    clearHandlesByClass() {},
+    renderResizeHandles() {},
+    setOverride() {},
+    _readRenderedStyleFields() {
+      return { fill: "#fff" };
+    },
+    _applyInteractionOverrideEntries() {},
+    cleanOverride() {},
+    setWaypointOverride() {},
+    setFrameProp() {},
+    _scheduleLayoutResizeRelayout() {
+      return false;
+    },
+    _scheduleV3ResizeRelayout() {
+      return false;
+    },
+    _cancelLayoutResizeRelayout() {},
+    _persistResizeToLayout() {},
+    cycleGuideMode() {},
+    requestLayoutRelayout() {
+      return Promise.resolve(true);
+    },
+    requestV3Relayout() {
+      return Promise.resolve(true);
+    },
+    snapToGrid(value: number) {
+      return value;
+    },
+    _hasLayoutChildren() {
+      return false;
+    },
+    _scheduleLayoutRelayout() {},
+    renderBoxStyleOptions() {
+      return "<option>default</option>";
+    },
+    _formatAsDefinedStyleLabel() {
+      return "Defined";
+    },
+    _normaliseStyleName(value: string) {
+      return value;
+    },
+    getInspectorElement() {
+      return { id: "inspector" };
+    },
+    initNavTabs() {},
+    setDirty() {},
+    sanitizeSvgCloneForExport() {},
+    getViolationsForComponent() {
+      return [];
+    },
+    alert() {},
+    requestAnimationFrame(callback: () => void) {
+      callback();
+      return 1;
+    },
+    cancelAnimationFrame() {},
+    navigator: {
+      clipboard: {
+        writeText() {
+          return Promise.resolve();
+        },
+      },
+    },
+    document: {
+      getElementById() {
+        return { id: "stage" };
+      },
+    },
+    window: {
+      __DG_CONFIG: {
+        icon_size: 48,
+        col_gap: 24,
+        head_len: 10,
+        head_half: 5,
+      },
+      getLayoutTextAdapter() {
+        return { name: "adapter" };
+      },
+      __DG_getPreviewShellBootstrapContract() {
+        return {
+          createPreviewGridEditorRuntimeFromBrowserHost(nextOptions: Record<string, unknown>) {
+            capturedOptions = nextOptions;
+            return runtime;
+          },
+        };
+      },
+    },
+  };
+
+  return {
+    context,
+    runtime,
+    getCapturedOptions() {
+      return capturedOptions;
+    },
+  };
+}
+
 test("editor navigation helper delegates through the typed bootstrap facade", () => {
   const source = loadEditorSource();
   const capturedCalls: Array<Record<string, unknown>> = [];
@@ -229,249 +484,22 @@ test("editor tree loader delegates through the typed bootstrap facade", async ()
   ]);
 });
 
-test("editor bootstrap-facade bootstrap accepts the namespaced previewShell.bootstrap contract", () => {
+test("editor bootstrap facade delegates through the typed preview-grid runtime", () => {
   const source = loadEditorSource();
-  let capturedOptions: Record<string, unknown> | null = null;
-  const previewBridgeHost = {
-    initLayoutBridge() {
-      return Promise.resolve();
-    },
-    setFrameTreeJson() {},
-    getPreviewDocumentJson() {
-      return { kind: "frame-diagram" };
-    },
-    getFrameTreeJson() {
-      return { frames: [] };
-    },
-  };
-  const previewBridgeRenderContract = {
-    renderFreshPreviewSvg() {
-      return Promise.resolve({ svg: { tagName: "svg" } });
-    },
-  };
-  const stage = {
-    id: "stage",
-    innerHTML: "",
-    replaceChildren() {},
-  };
-  const context = {
-    console,
-    SLUG: "demo",
-    ACTIVE_LAYOUT_ENGINE: "v3",
-    GRID: true,
-    DIRTY_DIAGRAM_NAV_CONFIRM: "Leave?",
-    _allowInternalDirtyNavigation: false,
-    generation: 3,
-    navigator: {
-      clipboard: {
-        writeText() {},
-      },
-    },
-    alert() {},
-    confirm() {
-      return true;
-    },
-    fetch() {
-      return Promise.resolve({
-        ok: true,
-        async json() {
-          return [];
-        },
-      });
-    },
-    requestLayoutRelayout() {
-      return Promise.resolve(true);
-    },
-    requestV3Relayout() {
-      return Promise.resolve(true);
-    },
-    onDocumentKeyDown() {},
-    _applyUndoCommand() {},
-    initNavTabs() {},
-    loadGridInfo() {
-      return Promise.resolve();
-    },
-    deselectAll() {},
-    resetOverrideState() {},
-    populateGridControls() {},
-    applyWaypointOverrides() {},
-    applyAllOverrides() {},
-    bindInteraction() {},
-    renderGridOverlay() {},
-    reapplySelection() {},
-    runConstraints() {},
-    escapeHtml(value: string) {
-      return value;
-    },
-    fitSvgToRenderedContent() {},
-    _isPreviewEngineShellLayoutActive() {
-      return true;
-    },
-    _initPreviewEngineShellPanel() {},
-    _getLocalBridgeRelayoutStatus() {
-      return { ready: true };
-    },
-    _pruneLinkedRootGridOverrides() {},
-    _getEditorSceneFacade() {
-      return {
-        getGridRuntime() {
-          return {
-            getGridInfo() {
-              return { cols: 4 };
-            },
-          };
-        },
-      };
-    },
-    PreviewSaveClient: {
-      isDirty() {
-        return true;
-      },
-      saveOverrides() {},
-      markSaved() {},
-    },
-    EditorState: {
-      undo() {
-        return Promise.resolve();
-      },
-      redo() {
-        return Promise.resolve();
-      },
-      canUndo() {
-        return true;
-      },
-      canRedo() {
-        return false;
-      },
-      serializeDirtyState() {
-        return "{}";
-      },
-      runUndoableAction(_label: string, mutate: () => void) {
-        mutate();
-      },
-    },
-    overrides: { alpha: { dx: 8 } },
-    model: {
-      gridOverrides: { rows: 2 },
-      elkLayoutOverrides: { root: { spacing: 24 } },
-      removedIds: new Set(["stale"]),
-      roots: [{ id: "root" }],
-      setDiagramGrid() {},
-      loadTree() {},
-      loadArrows() {},
-    },
-    selectedIds: new Set(["alpha", "beta"]),
-    constraints: {
-      summarise() {
-        return { errors: 0 };
-      },
-    },
-    lastViolations: [],
-    _coercedKeys: new Set(["coerced"]),
-    setStatus() {},
-    sanitizeSvgCloneForExport() {},
-    replaceOverrides() {},
-    setDirty() {},
-    renderSelectionInspector() {},
-    getLayoutRelayoutStatus() {
-      return { localReady: true };
-    },
-    getV3RelayoutStatus() {
-      return { localReady: true };
-    },
-    _getEditorRelayoutFacade() {
-      return {
-        layoutRuntimeState: { sequence: 1 },
-      };
-    },
-    _getPreviewBridgeHostContract() {
-      return previewBridgeHost;
-    },
-    _readPreviewDocumentJson() {
-      return previewBridgeHost.getPreviewDocumentJson();
-    },
-    _readFrameTreeJson() {
-      return previewBridgeHost.getFrameTreeJson();
-    },
-    window: {
-      location: {
-        pathname: "/view/v3:demo",
-        origin: "http://127.0.0.1:8100",
-        assign() {},
-      },
-      confirm() {
-        return true;
-      },
-      setTimeout(callback: () => void) {
-        callback();
-        return 0;
-      },
-      __DG_getPreviewShellBootstrapContract() {
-        return context.LayoutEngine.previewShell.bootstrap;
-      },
-      __DG_getPreviewBridgeRenderContract() {
-        return previewBridgeRenderContract;
-      },
-    },
-    document: {
-      getElementById(id: string) {
-        return id === "stage" ? stage : { id };
-      },
-      querySelector() {
-        return null;
-      },
-      querySelectorAll() {
-        return [];
-      },
-    },
-    LayoutEngine: {
-      previewShell: {
-        bootstrap: {
-          createPreviewEditorBootstrapFacadeFromRuntime(options: Record<string, unknown>) {
-            capturedOptions = normalizeVmValue({
-              slug: options.shared?.slug,
-              hasReadPreviewDocument: typeof options.componentTree?.readPreviewDocument,
-              hasFetchTree: typeof options.componentTree?.fetchTree,
-              hasReadFrameTreeJson: typeof options.componentTree?.readFrameTreeJson,
-              hasSyncArrowsInModel: typeof options.componentTree?.syncArrowsInModel,
-              hasArrowComponentId: typeof options.componentTree?.arrowComponentId,
-              stageId: (options.shared?.stage as { id?: string } | null)?.id ?? null,
-              engine: options.shared?.engine,
-              gridEnabled: options.shared?.gridEnabled,
-              previewBridgeHostMatches: options.contracts?.previewBridgeHost === previewBridgeHost,
-              hasLoadGridInfo: typeof options.svgLoad?.loadGridInfo,
-              hasGridStateGet: typeof options.svgLoad?.gridState?.getGridInfo,
-              selectedIds: Array.from(options.shared?.selectedIds as Set<string>),
-              hasReapplySelection: typeof options.svgLoad?.selectionState?.reapplySelection,
-              previewBridgeRenderMatches:
-                options.contracts?.previewBridgeRender === previewBridgeRenderContract,
-              isDirty: (options.navigation?.isDirty as () => boolean)(),
-              dirtyConfirmMessage: options.navigation?.dirtyConfirmMessage,
-              runtimeSelectedIds: Array.from(options.shared?.selectedIds as Set<string>),
-              runtimeFrameTree: (options.shared?.getFrameTree as () => unknown)(),
-              runtimeConstraintSummary:
-                (options.runtimeBootstrap?.constraints as { summarise: (value: unknown) => unknown })
-                  .summarise(options.runtimeBootstrap?.lastViolations),
-              allowInternalDirtyNavigation:
-                (options.runtimeBootstrap?.allowInternalDirtyNavigationState as { get: () => boolean }).get(),
-              generation: (options.runtimeBootstrap?.generationState as { get: () => number }).get(),
-              hasScheduleReconnect: typeof options.runtimeBootstrap?.scheduleReconnect,
-            });
-            return { kind: "facade" };
-          },
-        },
-      },
-    },
-  };
+  const facade = { kind: "facade" };
+  const harness = createPreviewGridEditorRuntimeContext({
+    bootstrapFacade: facade,
+  });
 
   const helperSource = [
-    "let _editorBootstrapFacade = null;",
+    "let _previewGridEditorRuntime = null;",
+    extractNamedFunctionSource(source, "_getPreviewGridEditorRuntime", "()"),
     extractNamedFunctionSource(source, "_getEditorBootstrapFacade", "()"),
     "this.__loaded = { _getEditorBootstrapFacade };",
   ].join("\n");
 
-  vm.runInNewContext(helperSource, context);
-  const loaded = (context as {
+  vm.runInNewContext(helperSource, harness.context);
+  const loaded = (harness.context as {
     __loaded: {
       _getEditorBootstrapFacade: () => { kind: string };
     };
@@ -480,163 +508,54 @@ test("editor bootstrap-facade bootstrap accepts the namespaced previewShell.boot
   assert.deepEqual(normalizeVmValue(loaded._getEditorBootstrapFacade()), {
     kind: "facade",
   });
-  assert.deepEqual(capturedOptions, {
+
+  const capturedOptions = harness.getCapturedOptions();
+  const shared = capturedOptions?.shared as Record<string, unknown> | undefined;
+  const browser = capturedOptions?.browser as Record<string, unknown> | undefined;
+  assert.deepEqual(normalizeVmValue({
+    slug: shared?.slug,
+    engine: shared?.engine,
+    gridEnabled: shared?.gridEnabled,
+    guideModes: Array.from(shared?.guideModes as Iterable<string>),
+    selectedIds: Array.from(shared?.selectedIds as Iterable<string>),
+    allowInternalDirtyNavigation:
+      (shared?.allowInternalDirtyNavigationState as { get?: () => boolean } | undefined)?.get?.(),
+    generation: (shared?.generationState as { get?: () => number } | undefined)?.get?.(),
+    hasBuildTreeUi: typeof browser?.buildTreeUi,
+    hasRenderSelectionInspector: typeof browser?.renderSelectionInspector,
+    hasRequestLayoutRelayout: typeof browser?.requestLayoutRelayout,
+    hasWriteClipboardText: typeof browser?.writeClipboardText,
+  }), {
     slug: "demo",
-    hasReadPreviewDocument: "function",
-    hasFetchTree: "function",
-    hasReadFrameTreeJson: "function",
-    hasSyncArrowsInModel: "object",
-    hasArrowComponentId: "object",
-    stageId: "stage",
     engine: "v3",
     gridEnabled: true,
-    previewBridgeHostMatches: true,
-    hasLoadGridInfo: "function",
-    hasGridStateGet: "function",
+    guideModes: ["off", "all"],
     selectedIds: ["alpha", "beta"],
-    hasReapplySelection: "function",
-    previewBridgeRenderMatches: true,
-    isDirty: true,
-    dirtyConfirmMessage: "Leave?",
-    runtimeSelectedIds: ["alpha", "beta"],
-    runtimeFrameTree: { frames: [] },
-    runtimeConstraintSummary: { errors: 0 },
     allowInternalDirtyNavigation: false,
     generation: 3,
-    hasScheduleReconnect: "function",
+    hasBuildTreeUi: "function",
+    hasRenderSelectionInspector: "function",
+    hasRequestLayoutRelayout: "function",
+    hasWriteClipboardText: "function",
   });
 });
 
-test("editor relayout-facade bootstrap accepts the namespaced previewBridge.relayout contract", () => {
+test("editor relayout facade delegates through the typed preview-grid runtime", () => {
   const source = loadEditorSource();
-  let capturedOptions: Record<string, unknown> | null = null;
-  const previewBridgeHost = {
-    performLocalRelayout() {
-      return { rerendered: true };
-    },
-  };
-  const context = {
-    console,
-    overrides: { alpha: { dx: 8 } },
-    _coercedKeys: new Set(["coerced"]),
-    model: {
-      gridOverrides: { rows: 2 },
-    },
-    EditorState: {
-      normalizeGridOverrides<T>(value: T) {
-        return value;
-      },
-      commitOverridePatchAction() {},
-    },
-    selectedIds: new Set(["alpha", "beta"]),
-    _getPreviewBridgeHostContract() {
-      return previewBridgeHost;
-    },
-    _getLocalBridgeRelayoutStatus() {
-      return { ready: true };
-    },
-    _isPreviewEngineShellLayoutActive() {
-      return true;
-    },
-    _hasLayoutRelayoutFrameOverride() {
-      return false;
-    },
-    replaceOverrides() {},
-    _pruneLinkedRootGridOverrides() {},
-    _clearPendingRestoreRuntime() {},
-    _rerenderStageFromModel() {
-      return Promise.resolve(true);
-    },
-    _applyLocalRestoreRefresh() {},
-    _getEditorSceneFacade() {
-      return {
-        getGridRuntime() {
-          return {
-            getGridInfo() {
-              return { cols: 4 };
-            },
-          };
-        },
-      };
-    },
-    populateGridControls() {},
-    PreviewSaveClient: {
-      syncDirtyFromSerialized() {},
-    },
-    buildTreeUI() {},
-    applyWaypointOverrides() {},
-    bindInteraction() {},
-    applyAllOverrides() {},
-    reapplySelection() {},
-    refreshLayoutGridInfoFromLayout() {},
-    renderGridOverlay() {},
-    renderSelectionInspector() {},
-    updateOverrideSummary() {},
-    refreshTreeColors() {},
-    runConstraints() {},
-    setStatus() {},
-    setDirty() {},
-    updateInspector() {},
-    loadTree() {
-      return Promise.resolve(true);
-    },
-    rebuildArrowSVG() {},
-    getOwnDelta() {
-      return { dx: 0, dy: 0, dw: 0, dh: 0 };
-    },
-    setOverride() {},
-    requestAnimationFrame(callback: () => void) {
-      callback();
-      return 1;
-    },
-    cancelAnimationFrame() {},
-    window: {
-      __DG_getPreviewBridgeRelayoutContract() {
-        return context.LayoutEngine.previewBridge.relayout;
-      },
-    },
-    LayoutEngine: {
-      previewBridge: {
-        relayout: {
-          createPreviewEditorRelayoutFacadeFromRuntime(options: Record<string, unknown>) {
-            capturedOptions = normalizeVmValue({
-              hasGetOverrides: typeof options.shared?.getOverrides,
-              coercedKeys: Array.from(options.shared?.coercedKeys as Set<string>),
-              modelMatches: options.shared?.model === context.model,
-              hasNormalizeGridOverrides: typeof options.shared?.editorState?.normalizeGridOverrides,
-              hasCommitOverridePatchAction: typeof options.shared?.editorState?.commitOverridePatchAction,
-              previewBridgeHostMatches: options.shared?.previewBridgeHost === previewBridgeHost,
-              selectedIds: Array.from(options.shared?.selectedIds as Set<string>),
-              hasGetLocalRelayoutStatus: typeof options.runtime?.getLocalRelayoutStatus,
-              engineLayoutActive: (options.runtime?.isEngineLayoutActive as () => boolean)(),
-              hasRelayoutFrameOverride: typeof options.runtime?.hasRelayoutFrameOverride,
-              hasReplaceOverrides: typeof options.runtime?.replaceOverrides,
-              hasClearPendingRuntime: typeof options.runtime?.clearPendingRuntime,
-              hasApplyLocalRefresh: typeof options.runtime?.applyLocalRefresh,
-              hasSyncGridControls: typeof options.runtime?.syncGridControls,
-              hasSyncDirtyFromSerialized: typeof options.runtime?.syncDirtyFromSerialized,
-              hasBuildTreeUi: typeof options.runtime?.buildTreeUi,
-              hasRefreshGridInfo: typeof options.runtime?.refreshGridInfo,
-              hasRunConstraints: typeof options.runtime?.runConstraints,
-              hasRequestAnimationFrame: typeof options.runtime?.requestAnimationFrameFn,
-              hasCancelAnimationFrame: typeof options.runtime?.cancelAnimationFrameFn,
-              minSize: options.runtime?.minSize,
-            });
-            return { kind: "relayout-facade" };
-          },
-        },
-      },
-    },
-  };
+  const facade = { kind: "relayout-facade" };
+  const harness = createPreviewGridEditorRuntimeContext({
+    relayoutFacade: facade,
+  });
 
   const helperSource = [
-    "let _editorRelayoutFacade = null;",
+    "let _previewGridEditorRuntime = null;",
+    extractNamedFunctionSource(source, "_getPreviewGridEditorRuntime", "()"),
     extractNamedFunctionSource(source, "_getEditorRelayoutFacade", "()"),
     "this.__loaded = { _getEditorRelayoutFacade };",
   ].join("\n");
 
-  vm.runInNewContext(helperSource, context);
-  const loaded = (context as {
+  vm.runInNewContext(helperSource, harness.context);
+  const loaded = (harness.context as {
     __loaded: {
       _getEditorRelayoutFacade: () => { kind: string };
     };
@@ -645,28 +564,34 @@ test("editor relayout-facade bootstrap accepts the namespaced previewBridge.rela
   assert.deepEqual(normalizeVmValue(loaded._getEditorRelayoutFacade()), {
     kind: "relayout-facade",
   });
-  assert.deepEqual(capturedOptions, {
-    hasGetOverrides: "function",
+
+  const capturedOptions = harness.getCapturedOptions();
+  const shared = capturedOptions?.shared as Record<string, unknown> | undefined;
+  const browser = capturedOptions?.browser as Record<string, unknown> | undefined;
+  assert.deepEqual(normalizeVmValue({
+    coercedKeys: Array.from(shared?.coercedKeys as Iterable<string>),
+    hasNormalizeGridOverrides: typeof (
+      shared?.editorState as { normalizeGridOverrides?: (...args: unknown[]) => unknown } | undefined
+    )?.normalizeGridOverrides,
+    hasCommitOverridePatchAction: typeof (
+      shared?.editorState as { commitOverridePatchAction?: (...args: unknown[]) => unknown } | undefined
+    )?.commitOverridePatchAction,
+    selectedIds: Array.from(shared?.selectedIds as Iterable<string>),
+    hasReplaceOverrides: typeof browser?.replaceOverrides,
+    hasApplyLocalRestoreRefresh: typeof browser?.applyLocalRestoreRefresh,
+    hasRunConstraints: typeof browser?.runConstraints,
+    hasRequestAnimationFrame: typeof browser?.requestAnimationFrameFn,
+    hasCancelAnimationFrame: typeof browser?.cancelAnimationFrameFn,
+  }), {
     coercedKeys: ["coerced"],
-    modelMatches: true,
     hasNormalizeGridOverrides: "function",
     hasCommitOverridePatchAction: "function",
-    previewBridgeHostMatches: true,
     selectedIds: ["alpha", "beta"],
-    hasGetLocalRelayoutStatus: "function",
-    engineLayoutActive: true,
-    hasRelayoutFrameOverride: "function",
     hasReplaceOverrides: "function",
-    hasClearPendingRuntime: "function",
-    hasApplyLocalRefresh: "function",
-    hasSyncGridControls: "function",
-    hasSyncDirtyFromSerialized: "function",
-    hasBuildTreeUi: "function",
-    hasRefreshGridInfo: "function",
+    hasApplyLocalRestoreRefresh: "function",
     hasRunConstraints: "function",
     hasRequestAnimationFrame: "function",
     hasCancelAnimationFrame: "function",
-    minSize: 8,
   });
 });
 

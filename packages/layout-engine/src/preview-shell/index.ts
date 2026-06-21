@@ -641,6 +641,42 @@ export {
 } from './app-editor-runtime-set.js';
 
 export type {
+  CreatePreviewGridEditorBrowserStateFromBrowserHostOptions,
+  PreviewGridEditorBrowserState,
+  PreviewGridEditorBrowserStateConstraints,
+  PreviewGridEditorBrowserStateEditorState,
+  PreviewGridEditorBrowserStateInteractionContract,
+  PreviewGridEditorBrowserStateModel,
+  PreviewGridEditorBrowserStatePreviewSaveClient,
+  PreviewGridEditorBrowserStateRelayoutContract,
+  PreviewGridEditorBrowserStateSceneFacade,
+} from './app-grid-editor-browser-state.js';
+
+export {
+  createPreviewGridEditorBrowserStateFromBrowserHost,
+} from './app-grid-editor-browser-state.js';
+
+export type {
+  CreatePreviewGridEditorRuntimeFromBrowserHostOptions,
+  PreviewGridEditorRuntime,
+  PreviewGridEditorRuntimeBooleanState,
+  PreviewGridEditorRuntimeBrowserOptions,
+  PreviewGridEditorRuntimeConstraints,
+  PreviewGridEditorRuntimeEditorState,
+  PreviewGridEditorRuntimeInteractionManager,
+  PreviewGridEditorRuntimeModel,
+  PreviewGridEditorRuntimeNumericState,
+  PreviewGridEditorRuntimePreviewSaveClient,
+  PreviewGridEditorRuntimeSharedOptions,
+  PreviewGridEditorRuntimeValueState,
+  PreviewGridEditorRuntimeWindow,
+} from './app-grid-editor-runtime.js';
+
+export {
+  createPreviewGridEditorRuntimeFromBrowserHost,
+} from './app-grid-editor-runtime.js';
+
+export type {
   CreatePreviewStageBindingRuntimeOptions,
   CreatePreviewStageBindingRuntimeFromHostOptions,
   PreviewStageBindingRuntime,

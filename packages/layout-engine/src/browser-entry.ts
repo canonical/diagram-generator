@@ -368,6 +368,8 @@ export {
   createPreviewEditorInteractionFacadeFromBrowserHost,
   createPreviewEditorInteractionFacadeFromEditorHost,
   createPreviewEditorInteractionFacadeFromRuntime,
+  createPreviewGridEditorBrowserStateFromBrowserHost,
+  createPreviewGridEditorRuntimeFromBrowserHost,
   createPreviewEditorRuntimeSetFromEditorHost,
   createPreviewEditorRuntimeSetFromRuntime,
   createPreviewEditorRuntimeSetFromHost,
@@ -948,6 +950,10 @@ export const previewShell = Object.freeze({
       previewShellRuntime.createPreviewEditorInteractionFacadeFromBrowserHost,
     createPreviewEditorInteractionFacadeFromRuntime:
       previewShellRuntime.createPreviewEditorInteractionFacadeFromRuntime,
+    createPreviewGridEditorBrowserStateFromBrowserHost:
+      previewShellRuntime.createPreviewGridEditorBrowserStateFromBrowserHost,
+    createPreviewGridEditorRuntimeFromBrowserHost:
+      previewShellRuntime.createPreviewGridEditorRuntimeFromBrowserHost,
     createPreviewEditorRuntimeSetFromEditorHost:
       previewShellRuntime.createPreviewEditorRuntimeSetFromEditorHost,
     createPreviewEditorRuntimeSetFromRuntime:
