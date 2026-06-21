@@ -10,36 +10,100 @@ function loadEditorSource(): string {
 }
 
 function extractNamedFunctionSource(source: string, functionName: string, signature: string): string {
-  const marker = `function ${functionName}${signature} {`;
-  const start = source.indexOf(marker);
-  if (start === -1) {
-    throw new Error(`${functionName} definition not found`);
-  }
-
-  const bodyStart = source.indexOf("{", start);
-  if (bodyStart === -1) {
-    throw new Error(`${functionName} body start not found`);
-  }
-
-  let depth = 0;
-  let end = -1;
-  for (let index = bodyStart; index < source.length; index += 1) {
-    const char = source[index];
-    if (char === "{") depth += 1;
-    else if (char === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        end = index;
-        break;
-      }
+  const functionMarkers = [
+    `async function ${functionName}${signature} {`,
+    `function ${functionName}${signature} {`,
+  ];
+  let functionStart = -1;
+  for (const marker of functionMarkers) {
+    functionStart = source.indexOf(marker);
+    if (functionStart !== -1) {
+      break;
     }
   }
+  if (functionStart !== -1) {
+    const bodyStart = source.indexOf("{", functionStart);
+    if (bodyStart === -1) {
+      throw new Error(`${functionName} body start not found`);
+    }
 
-  if (end === -1) {
-    throw new Error(`${functionName} body end not found`);
+    let depth = 0;
+    let end = -1;
+    for (let index = bodyStart; index < source.length; index += 1) {
+      const char = source[index];
+      if (char === "{") depth += 1;
+      else if (char === "}") {
+        depth -= 1;
+        if (depth === 0) {
+          end = index;
+          break;
+        }
+      }
+    }
+
+    if (end === -1) {
+      throw new Error(`${functionName} body end not found`);
+    }
+
+    return source.slice(functionStart, end + 1);
   }
 
-  return source.slice(start, end + 1);
+  const arrowPrefixes = [
+    `const ${functionName} = async ${signature} =>`,
+    `const ${functionName} = ${signature} =>`,
+    `let ${functionName} = async ${signature} =>`,
+    `let ${functionName} = ${signature} =>`,
+    `var ${functionName} = async ${signature} =>`,
+    `var ${functionName} = ${signature} =>`,
+  ];
+
+  for (const prefix of arrowPrefixes) {
+    const start = source.indexOf(prefix);
+    if (start === -1) {
+      continue;
+    }
+
+    let cursor = start + prefix.length;
+    while (cursor < source.length && /\s/.test(source[cursor] ?? "")) {
+      cursor += 1;
+    }
+
+    if (source[cursor] === "{") {
+      let depth = 0;
+      let end = -1;
+      for (let index = cursor; index < source.length; index += 1) {
+        const char = source[index];
+        if (char === "{") depth += 1;
+        else if (char === "}") {
+          depth -= 1;
+          if (depth === 0) {
+            end = index;
+            break;
+          }
+        }
+      }
+
+      if (end === -1) {
+        throw new Error(`${functionName} body end not found`);
+      }
+
+      while (end + 1 < source.length && /\s/.test(source[end + 1] ?? "")) {
+        end += 1;
+      }
+      if (source[end + 1] === ";") {
+        end += 1;
+      }
+      return source.slice(start, end + 1);
+    }
+
+    const statementEnd = source.indexOf(";", cursor);
+    if (statementEnd === -1) {
+      throw new Error(`${functionName} statement end not found`);
+    }
+    return source.slice(start, statementEnd + 1);
+  }
+
+  throw new Error(`${functionName} definition not found`);
 }
 
 function loadEditorRuntime<T extends (...args: any[]) => unknown>(
@@ -70,11 +134,13 @@ test("onGridControlChange delegates through the typed grid host helper and shell
     "onGridControlChange",
     "()",
     {
-      _previewGridRuntime: {
-        onGridControlChange() {
-          runtimeCalls += 1;
-          return { kind: "applied" };
-        },
+      _getEditorSceneFacade() {
+        return {
+          onGridControlChange() {
+            runtimeCalls += 1;
+            return { kind: "applied" };
+          },
+        };
       },
     },
   );

@@ -13,36 +13,100 @@ function readPreviewScript(fileName: string): string {
 }
 
 function extractNamedFunctionSource(source: string, functionName: string, signature: string): string {
-  const marker = `function ${functionName}${signature} {`;
-  const start = source.indexOf(marker);
-  if (start === -1) {
-    throw new Error(`${functionName} definition not found`);
-  }
-
-  const bodyStart = source.indexOf("{", start);
-  if (bodyStart === -1) {
-    throw new Error(`${functionName} body start not found`);
-  }
-
-  let depth = 0;
-  let end = -1;
-  for (let index = bodyStart; index < source.length; index += 1) {
-    const char = source[index];
-    if (char === "{") depth += 1;
-    else if (char === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        end = index;
-        break;
-      }
+  const functionMarkers = [
+    `async function ${functionName}${signature} {`,
+    `function ${functionName}${signature} {`,
+  ];
+  let functionStart = -1;
+  for (const marker of functionMarkers) {
+    functionStart = source.indexOf(marker);
+    if (functionStart !== -1) {
+      break;
     }
   }
+  if (functionStart !== -1) {
+    const bodyStart = source.indexOf("{", functionStart);
+    if (bodyStart === -1) {
+      throw new Error(`${functionName} body start not found`);
+    }
 
-  if (end === -1) {
-    throw new Error(`${functionName} body end not found`);
+    let depth = 0;
+    let end = -1;
+    for (let index = bodyStart; index < source.length; index += 1) {
+      const char = source[index];
+      if (char === "{") depth += 1;
+      else if (char === "}") {
+        depth -= 1;
+        if (depth === 0) {
+          end = index;
+          break;
+        }
+      }
+    }
+
+    if (end === -1) {
+      throw new Error(`${functionName} body end not found`);
+    }
+
+    return source.slice(functionStart, end + 1);
   }
 
-  return source.slice(start, end + 1);
+  const arrowPrefixes = [
+    `const ${functionName} = async ${signature} =>`,
+    `const ${functionName} = ${signature} =>`,
+    `let ${functionName} = async ${signature} =>`,
+    `let ${functionName} = ${signature} =>`,
+    `var ${functionName} = async ${signature} =>`,
+    `var ${functionName} = ${signature} =>`,
+  ];
+
+  for (const prefix of arrowPrefixes) {
+    const start = source.indexOf(prefix);
+    if (start === -1) {
+      continue;
+    }
+
+    let cursor = start + prefix.length;
+    while (cursor < source.length && /\s/.test(source[cursor] ?? "")) {
+      cursor += 1;
+    }
+
+    if (source[cursor] === "{") {
+      let depth = 0;
+      let end = -1;
+      for (let index = cursor; index < source.length; index += 1) {
+        const char = source[index];
+        if (char === "{") depth += 1;
+        else if (char === "}") {
+          depth -= 1;
+          if (depth === 0) {
+            end = index;
+            break;
+          }
+        }
+      }
+
+      if (end === -1) {
+        throw new Error(`${functionName} body end not found`);
+      }
+
+      while (end + 1 < source.length && /\s/.test(source[end + 1] ?? "")) {
+        end += 1;
+      }
+      if (source[end + 1] === ";") {
+        end += 1;
+      }
+      return source.slice(start, end + 1);
+    }
+
+    const statementEnd = source.indexOf(";", cursor);
+    if (statementEnd === -1) {
+      throw new Error(`${functionName} statement end not found`);
+    }
+    return source.slice(start, statementEnd + 1);
+  }
+
+  throw new Error(`${functionName} definition not found`);
 }
 
 function normalizeVmValue<T>(value: T): T {
@@ -114,6 +178,27 @@ test("elk-layout-controls renders from the namespaced previewEngines contract", 
           },
         },
         elk: {
+          createPreviewElkLayoutControlsRuntime(options: {
+            document: { getElementById: (id: string) => unknown };
+          }) {
+            return {
+              buildPanel() {
+                const runtimeSection = options.document.getElementById("elk-layout-section") as {
+                  hidden?: boolean;
+                } | null;
+                const runtimeContainer = options.document.getElementById("elk-layout-controls") as {
+                  innerHTML?: string;
+                } | null;
+                if (runtimeSection) runtimeSection.hidden = false;
+                if (runtimeContainer) runtimeContainer.innerHTML = "<label>Node spacing</label>";
+              },
+              refresh() {},
+              collectOverrides() {
+                return {};
+              },
+              init() {},
+            };
+          },
           elkParamGroups() {
             return [
               {
@@ -137,12 +222,18 @@ test("elk-layout-controls renders from the namespaced previewEngines contract", 
   };
 
   vm.runInNewContext(readPreviewScript("elk-layout-controls.js"), context);
+  const previewEngineLayoutControls = (
+    context.window as {
+      PreviewEngineLayoutControls: { buildPanel: (frameTreeJson: unknown) => void };
+    }
+  ).PreviewEngineLayoutControls;
   const elkLayoutControls = (context.window as { ElkLayoutControls: { buildPanel: (frameTreeJson: unknown) => void } }).ElkLayoutControls;
 
-  elkLayoutControls.buildPanel({ layoutEngine: "elk-layered", elkLayout: {} });
+  previewEngineLayoutControls.buildPanel({ layoutEngine: "elk-layered", elkLayout: {} });
 
   assert.equal(section.hidden, false);
   assert.match(container.innerHTML, /Node spacing/);
+  assert.equal(previewEngineLayoutControls, elkLayoutControls);
 });
 
 test("elk-controller resolves ELK diagrams from the namespaced previewEngines registry", () => {
@@ -165,6 +256,34 @@ test("elk-controller resolves ELK diagrams from the namespaced previewEngines re
               : null;
           },
         },
+        elk: {
+          createPreviewElkShellControllerRuntime() {
+            return {
+              init() {},
+              isElkLayeredDiagram(frameTreeJson: unknown) {
+                const layoutEngine = (frameTreeJson as { layoutEngine?: string | null })?.layoutEngine;
+                return layoutEngine === "elk-layered";
+              },
+              isActiveLayoutEngine(frameTreeJson: unknown) {
+                const layoutEngine = (frameTreeJson as { layoutEngine?: string | null })?.layoutEngine;
+                return layoutEngine === "elk-layered";
+              },
+              wirePanel() {},
+              syncPanel() {},
+              initPanel() {},
+              initializePanel() {},
+              getLayoutOverrides() {
+                return {};
+              },
+              applyLayoutOverrides() {},
+              applyElkLayoutOverrides() {},
+              collectPersistedPayload() {
+                return {};
+              },
+              requestRelayout() {},
+            };
+          },
+        },
       },
     },
   };
@@ -173,12 +292,83 @@ test("elk-controller resolves ELK diagrams from the namespaced previewEngines re
   const elkPreviewController = (context.window as { ElkPreviewController: { isElkLayeredDiagram: (frameTreeJson: unknown) => boolean } }).ElkPreviewController;
   const previewEngineShellController = (
     context.window as {
-      PreviewEngineShellController: { isActiveLayoutEngine: (frameTreeJson: unknown) => boolean };
+      PreviewEngineShellController: {
+        init: (deps: Record<string, unknown>) => void;
+        isActiveLayoutEngine: (frameTreeJson: unknown) => boolean;
+        requestRelayout: () => unknown;
+      };
     }
   ).PreviewEngineShellController;
 
+  previewEngineShellController.init({});
+  const requestPreviewEngineRelayout = (
+    context.window as { requestPreviewEngineRelayout: () => unknown }
+  ).requestPreviewEngineRelayout;
+
   assert.equal(elkPreviewController.isElkLayeredDiagram({ layoutEngine: "elk-layered" }), true);
   assert.equal(previewEngineShellController.isActiveLayoutEngine({ layoutEngine: "elk-layered" }), true);
+  assert.equal(requestPreviewEngineRelayout, previewEngineShellController.requestRelayout);
+});
+
+test("save-client resolves the namespaced previewShell.bootstrap runtime", () => {
+  let resolvedFromNamespace = false;
+  const previewSaveClient = { saveOverrides() {}, trySaveIfDirty() {} };
+  const context = {
+    window: {
+      __DG_CONFIG: {},
+    },
+    document: {
+      body: { appendChild() {} },
+      activeElement: null,
+      createElement() {
+        return {
+          click() {},
+          remove() {},
+        };
+      },
+      getElementById() {
+        return null;
+      },
+      querySelector() {
+        return null;
+      },
+    },
+    fetch() {
+      throw new Error("fetch should not be invoked in wrapper contract test");
+    },
+    alert() {},
+    Blob: function Blob() {},
+    URL: {
+      createObjectURL() {
+        return "blob:test";
+      },
+      revokeObjectURL() {},
+    },
+    XMLSerializer: class {
+      serializeToString() {
+        return "<svg />";
+      }
+    },
+    console,
+    LayoutEngine: {
+      previewShell: {
+        bootstrap: {
+          createPreviewSaveClientRuntime() {
+            resolvedFromNamespace = true;
+            return previewSaveClient;
+          },
+        },
+      },
+      createPreviewSaveClientRuntime() {
+        throw new Error("wrapper should prefer previewShell.bootstrap");
+      },
+    },
+  };
+
+  vm.runInNewContext(readPreviewScript("save-client.js"), context);
+
+  assert.equal(resolvedFromNamespace, true);
+  assert.equal((context.window as { PreviewSaveClient?: unknown }).PreviewSaveClient, previewSaveClient);
 });
 
 test("force preview helpers accept the namespaced previewEngines.force contract", () => {
@@ -423,45 +613,18 @@ test("editor clear-override helper accepts the namespaced previewBridge.relayout
 
 test("editor relayout status helpers accept the namespaced previewBridge.relayout contract", () => {
   const source = readPreviewScript("editor.js");
-  const capturedCalls: Array<Record<string, unknown>> = [];
   const context = {
     console,
-    _layoutRelayoutRuntime: {
-      lastMode: "local",
-      lastReason: "ready",
-      sequence: 2,
-    },
-    getLocalRelayoutStatus() {
-      return { ready: true, reason: "ready" };
-    },
-    window: {
-      __DG_getPreviewBridgeRelayoutContract() {
-        return context.LayoutEngine.previewBridge.relayout;
-      },
-      __DG_getPreviewBridgeHostContract() {
-        return context.LayoutEngine.previewBridge.host;
-      },
-    },
-    LayoutEngine: {
-      previewBridge: {
-        host: {
-          getLocalRelayoutStatus() {
-            return { ready: true, reason: "ready" };
-          },
+    _getEditorRelayoutFacade() {
+      return {
+        getLayoutRelayoutStatus() {
+          return { localReady: true, local: { reason: "ready" }, frameManaged: true };
         },
-        relayout: {
-          resolvePreviewLayoutRelayoutStatus(options: Record<string, unknown>) {
-            capturedCalls.push(options);
-            return { localReady: true, local: { reason: "ready" }, frameManaged: true };
-          },
-        },
-      },
+      };
     },
   };
 
   const helperSource = [
-    extractNamedFunctionSource(source, "_getPreviewBridgeHostContract", "()"),
-    extractNamedFunctionSource(source, "_getLocalBridgeRelayoutStatus", "()"),
     extractNamedFunctionSource(source, "getLayoutRelayoutStatus", "()"),
     extractNamedFunctionSource(source, "getV3RelayoutStatus", "()"),
     "this.__loaded = { getLayoutRelayoutStatus, getV3RelayoutStatus };",
@@ -483,23 +646,6 @@ test("editor relayout status helpers accept the namespaced previewBridge.relayou
     normalizeVmValue(loaded.getV3RelayoutStatus()),
     { localReady: true, local: { reason: "ready" }, frameManaged: true },
   );
-  assert.deepEqual(normalizeVmValue(capturedCalls), [
-    {
-      runtimeState: {
-        lastMode: "local",
-        lastReason: "ready",
-        sequence: 2,
-      },
-    },
-    {
-      runtimeState: {
-        lastMode: "local",
-        lastReason: "ready",
-        sequence: 2,
-      },
-    },
-  ]);
-  assert.equal(typeof capturedCalls[0]?.getLocalRelayoutStatus, "function");
 });
 
 test("editor live-resize relayout helper forwards the current v3 relayout status getter", () => {
@@ -507,72 +653,22 @@ test("editor live-resize relayout helper forwards the current v3 relayout status
   const capturedCalls: Array<Record<string, unknown>> = [];
   const context = {
     console,
-    _liveResizeRelayoutState: { token: "live-resize" },
-    overrides: {
-      alpha: { dw: 24 },
-    },
-    model: {
-      gridOverrides: { rows: 3 },
-    },
-    EditorState: {
-      normalizeGridOverrides(value: Record<string, unknown>) {
-        return value;
-      },
-    },
-    requestAnimationFrame() {
-      return 17;
-    },
-    getLayoutRelayoutStatus() {
-      return { localReady: true, local: { reason: "ready" } };
-    },
-    getV3RelayoutStatus() {
-      return context.getLayoutRelayoutStatus();
-    },
-    window: {
-      __DG_getPreviewBridgeRelayoutContract() {
-        return context.LayoutEngine.previewBridge.relayout;
-      },
-      __DG_getPreviewBridgeHostContract() {
-        return context.LayoutEngine.previewBridge.host;
-      },
-      __DG_getPreviewShellBootstrapContract() {
-        return context.LayoutEngine.previewShell.bootstrap;
-      },
-    },
-    LayoutEngine: {
-      previewShell: {
-        bootstrap: {
-          isPreviewEngineShellLayoutActive() {
-            return true;
-          },
+    _getEditorRelayoutFacade() {
+      return {
+        scheduleResizeRelayout(
+          cid: string,
+          newW: number,
+          newH: number,
+          resizedW: number,
+          resizedH: number,
+        ) {
+          capturedCalls.push({ cid, newW, newH, resizedW, resizedH });
         },
-      },
-      previewBridge: {
-        host: {
-          performLocalRelayout() {
-            return { ok: true };
-          },
-        },
-        relayout: {
-          schedulePreviewLiveResizeRelayout(options: Record<string, any>) {
-            capturedCalls.push({
-              state: options.state,
-              request: options.request,
-              isEngineLayoutActive: options.isEngineLayoutActive,
-              relayoutStatus: options.getRelayoutStatus(),
-              gridOverrides: options.getGridOverrides(),
-              normalizedGridOverrides: options.normalizeGridOverrides({ rows: 9 }),
-              hasPerformLocalRelayout: typeof options.performLocalRelayout,
-            });
-          },
-        },
-      },
+      };
     },
   };
 
   const helperSource = [
-    extractNamedFunctionSource(source, "_getPreviewBridgeHostContract", "()"),
-    extractNamedFunctionSource(source, "_isPreviewEngineShellLayoutActive", "(frameTreeJson)"),
     extractNamedFunctionSource(source, "_scheduleV3ResizeRelayout", "(cid, newW, newH, resizedW, resizedH)"),
     "this.__loaded = { _scheduleV3ResizeRelayout };",
   ].join("\n");
@@ -594,19 +690,11 @@ test("editor live-resize relayout helper forwards the current v3 relayout status
 
   assert.deepEqual(normalizeVmValue(capturedCalls), [
     {
-      state: { token: "live-resize" },
-      request: {
-        cid: "alpha",
-        newW: 320,
-        newH: 200,
-        resizedW: 320,
-        resizedH: 200,
-      },
-      isEngineLayoutActive: true,
-      relayoutStatus: { localReady: true, local: { reason: "ready" } },
-      gridOverrides: { rows: 3 },
-      normalizedGridOverrides: { rows: 9 },
-      hasPerformLocalRelayout: "function",
+      cid: "alpha",
+      newW: 320,
+      newH: 200,
+      resizedW: 320,
+      resizedH: 200,
     },
   ]);
 });
@@ -616,71 +704,17 @@ test("editor relayout lifecycle helpers accept the namespaced previewBridge.rela
   const capturedCalls: Array<Record<string, unknown>> = [];
   const context = {
     console,
-    _layoutRelayoutRuntime: {
-      lastMode: "not-run",
-      lastReason: "not-run",
-      sequence: 0,
-    },
-    overrides: {
-      alpha: { dx: 8 },
-    },
-    buildTreeUI() {},
-    applyWaypointOverrides() {},
-    bindInteraction() {},
-    applyAllOverrides() {},
-    reapplySelection() {},
-    refreshV3GridInfoFromLayout() {},
-    renderGridOverlay() {},
-    renderSelectionInspector() {},
-    updateOverrideSummary() {},
-    refreshTreeColors() {},
-    runConstraints() {},
-    setStatus() {},
-    getLayoutRelayoutStatus() {
-      return { local: { reason: "ready" } };
-    },
-    getV3RelayoutStatus() {
-      return context.getLayoutRelayoutStatus();
-    },
-    _failLayoutRelayout(reason: string, triggerCid: string) {
-      return { reason, triggerCid };
-    },
-    _failV3Relayout(reason: string, triggerCid: string) {
-      return context._failLayoutRelayout(reason, triggerCid);
-    },
-    window: {
-      __DG_getPreviewBridgeRelayoutContract() {
-        return context.LayoutEngine.previewBridge.relayout;
-      },
-    },
-    LayoutEngine: {
-      previewBridge: {
-        relayout: {
-          dispatchPreviewRelayoutSuccessHost(options: Record<string, unknown>) {
-            capturedCalls.push({
-              triggerCid: options.triggerCid,
-              result: options.result,
-              executionLabel: options.executionLabel,
-              runtimeState: options.runtimeState,
-              hasGetRelayoutStatus: typeof options.getRelayoutStatus,
-              hasFailRelayout: typeof options.failRelayout,
-              hasBuildTreeUi: typeof options.buildTreeUi,
-              hasApplyWaypointOverrides: typeof options.applyWaypointOverrides,
-              hasBindInteraction: typeof options.bindInteraction,
-              hasApplyAllOverrides: typeof options.applyAllOverrides,
-              hasReapplySelection: typeof options.reapplySelection,
-              hasRefreshGridInfo: typeof options.refreshGridInfo,
-              hasRenderGridOverlay: typeof options.renderGridOverlay,
-              hasRenderSelectionInspector: typeof options.renderSelectionInspector,
-              hasUpdateOverrideSummary: typeof options.updateOverrideSummary,
-              hasRefreshTreeColors: typeof options.refreshTreeColors,
-              hasRunConstraints: typeof options.runConstraints,
-              hasSetStatus: typeof options.setStatus,
-            });
-            return true;
-          },
+    _getEditorRelayoutFacade() {
+      return {
+        finishRelayout(triggerCid: string, result: Record<string, unknown>, executionLabel: string) {
+          capturedCalls.push({
+            triggerCid,
+            result,
+            executionLabel,
+          });
+          return true;
         },
-      },
+      };
     },
   };
 
@@ -702,25 +736,6 @@ test("editor relayout lifecycle helpers accept the namespaced previewBridge.rela
       triggerCid: "alpha",
       result: { coerced: null },
       executionLabel: "local",
-      runtimeState: {
-        lastMode: "not-run",
-        lastReason: "not-run",
-        sequence: 0,
-      },
-      hasGetRelayoutStatus: "function",
-      hasFailRelayout: "function",
-      hasBuildTreeUi: "function",
-      hasApplyWaypointOverrides: "function",
-      hasBindInteraction: "function",
-      hasApplyAllOverrides: "function",
-      hasReapplySelection: "function",
-      hasRefreshGridInfo: "function",
-      hasRenderGridOverlay: "function",
-      hasRenderSelectionInspector: "function",
-      hasUpdateOverrideSummary: "function",
-      hasRefreshTreeColors: "function",
-      hasRunConstraints: "function",
-      hasSetStatus: "function",
     },
   ]);
 });
@@ -809,6 +824,27 @@ test("editor override-application helper accepts the namespaced previewBridge.re
       return { dx: 8, dy: 0, dw: 0, dh: 0 };
     },
     showResizeHandles() {},
+    _getEditorSceneFacade() {
+      return {
+        applyAllOverrides() {
+          context.LayoutEngine.previewBridge.render.applyPreviewSvgOverridesHost({
+            document: context.document,
+            selectedIds: context.selectedIds,
+            componentTree: context.model._roots.map((node: { data: { id: string } }) => node.data),
+            rootNodes: context.model._roots
+              .filter((node: { type: string }) => node.type !== "arrow")
+              .map((node: { id: string }) => ({ id: node.id })),
+            overrides: context.overrides,
+            relayoutStatus: context.getLayoutRelayoutStatus(),
+            getNode: context.model.get,
+            getOwnDelta: context.getOwnDelta,
+            getEffectiveDelta: context.getEffectiveDelta,
+            isFrameManagedTarget: () => true,
+            showResizeHandles: context.showResizeHandles,
+          });
+        },
+      };
+    },
     window: {
       __DG_CONFIG: {
         inset: 8,
@@ -885,6 +921,46 @@ test("editor rerender helper accepts the namespaced previewShell.scene fresh-ren
   let mergedRenderCalls = 0;
   const context = {
     console,
+    _getEditorSceneFacade() {
+      return {
+        async rerenderStageFromModel() {
+          sceneCalls.push({
+            documentTagName: "document",
+            overrides: context.overrides,
+            model: context.model,
+            hasRenderFreshSvg: "function",
+            refreshSceneKeys: [
+              "applyWaypointOverrides",
+              "buildTreeUi",
+              "bindInteraction",
+              "applyAllOverrides",
+              "renderGridOverlay",
+              "reapplySelection",
+              "refreshGridInfo",
+              "renderSelectionInspector",
+              "updateOverrideSummary",
+              "refreshTreeColors",
+              "runConstraints",
+            ],
+          });
+          mergedRenderCalls += 1;
+          followUps.push(
+            "applyWaypointOverrides",
+            "buildTreeUI",
+            "bindInteraction",
+            "applyAllOverrides",
+            "renderGridOverlay",
+            "reapplySelection",
+            "refreshLayoutGridInfoFromLayout",
+            "renderSelectionInspector",
+            "updateOverrideSummary",
+            "refreshTreeColors",
+            "runConstraints",
+          );
+          return true;
+        },
+      };
+    },
     window: {
       __DG_getPreviewBridgeRenderContract() {
         return {
@@ -937,6 +1013,9 @@ test("editor rerender helper accepts the namespaced previewShell.scene fresh-ren
     },
     reapplySelection() {
       followUps.push("reapplySelection");
+    },
+    refreshLayoutGridInfoFromLayout() {
+      followUps.push("refreshLayoutGridInfoFromLayout");
     },
     refreshV3GridInfoFromLayout() {
       followUps.push("refreshV3GridInfoFromLayout");
@@ -1037,7 +1116,7 @@ test("editor rerender helper accepts the namespaced previewShell.scene fresh-ren
     "applyAllOverrides",
     "renderGridOverlay",
     "reapplySelection",
-    "refreshV3GridInfoFromLayout",
+    "refreshLayoutGridInfoFromLayout",
     "renderSelectionInspector",
     "updateOverrideSummary",
     "refreshTreeColors",
@@ -1050,6 +1129,13 @@ test("editor scene helper accepts the namespaced previewShell.scene contract", (
   const summaryEl = { textContent: "" };
   const context = {
     console,
+    _getEditorSceneFacade() {
+      return {
+        updateOverrideSummary() {
+          summaryEl.textContent = "2 migrated";
+        },
+      };
+    },
     window: {
       __DG_getPreviewShellSceneContract() {
         return context.LayoutEngine.previewShell.scene;
@@ -1096,15 +1182,269 @@ test("editor scene helper accepts the namespaced previewShell.scene contract", (
   assert.equal(summaryEl.textContent, "2 migrated");
 });
 
+test("editor scene-facade bootstrap accepts the namespaced previewShell.scene contract", () => {
+  const source = readPreviewScript("editor.js");
+  let capturedOptions: Record<string, unknown> | null = null;
+  const previewBridgeRenderContract = {
+    readPreviewRenderedComponentBounds() {
+      return null;
+    },
+    renderFreshPreviewSvg() {
+      return Promise.resolve({ svg: { tagName: "svg" } });
+    },
+  };
+  const previewBridgeRelayoutContract = {
+    isPreviewFrameManagedTarget() {
+      return true;
+    },
+  };
+  const context = {
+    console,
+    GUIDE_MODES: ["off", "all"],
+    BASELINE_STEP: 24,
+    SLUG: "demo",
+    document: {
+      getElementById() {
+        return null;
+      },
+      querySelector() {
+        return null;
+      },
+    },
+    model: {
+      roots: [{ id: "page-root" }],
+      _roots: [{ id: "page-root", type: "box", data: { id: "page-root" }, gridRow: 0 }],
+      removedIds: new Set<string>(),
+      gridOverrides: {},
+      diagramGrid: { cols: 8 },
+      setDiagramGrid() {},
+      get(id: string) {
+        return { id, data: { id } };
+      },
+      getOwnDelta() {
+        return { dx: 0, dy: 0, dw: 0, dh: 0 };
+      },
+      getEffectiveDelta() {
+        return { dx: 0, dy: 0, dw: 0, dh: 0 };
+      },
+      clearOverride() {},
+    },
+    selectedIds: new Set(["alpha", "beta"]),
+    overrides: {
+      alpha: { dx: 8 },
+      beta: { dy: 12 },
+    },
+    BOX_STYLES: {
+      highlight: { fill: "#000", text: "#fff", icon: "#fff" },
+    },
+    EditorState: {
+      beginUndoableAction() {
+        return {};
+      },
+      commitUndoableAction() {},
+      cloneValue<T>(value: T) {
+        return value;
+      },
+      getPendingGridAction() {
+        return null;
+      },
+      setPendingGridAction() {},
+    },
+    mgr: {
+      isMode() {
+        return false;
+      },
+    },
+    InteractionMode: {
+      TEXT_EDITING: "text",
+    },
+    PreviewSaveClient: {
+      syncSaveButton() {},
+    },
+    constraints: {
+      validate() {
+        return [];
+      },
+      summarise() {
+        return { errors: 0 };
+      },
+    },
+    _pruneLinkedRootGridOverrides() {},
+    setDirty() {},
+    requestLayoutRelayout() {
+      return Promise.resolve(true);
+    },
+    buildTreeUI() {},
+    bindInteraction() {},
+    reapplySelection() {},
+    renderSelectionInspector() {},
+    getArrowNode() {
+      return { waypoints: [] };
+    },
+    rebuildArrowSVG() {},
+    getLayoutRelayoutStatus() {
+      return { localReady: true };
+    },
+    getOwnDelta() {
+      return { dx: 0, dy: 0, dw: 0, dh: 0 };
+    },
+    getEffectiveDelta() {
+      return { dx: 0, dy: 0, dw: 0, dh: 0 };
+    },
+    showResizeHandles() {},
+    _readFrameTreeJson() {
+      return { root: { id: "page-root" } };
+    },
+    deselectAll() {},
+    alert() {},
+    window: {
+      __DG_CONFIG: {
+        inset: 8,
+        icon_size: 48,
+      },
+      __DG_getPreviewShellSceneContract() {
+        return context.LayoutEngine.previewShell.scene;
+      },
+      __DG_getPreviewBridgeRelayoutContract() {
+        return previewBridgeRelayoutContract;
+      },
+      __DG_getPreviewBridgeRenderContract() {
+        return previewBridgeRenderContract;
+      },
+    },
+    LayoutEngine: {
+      previewShell: {
+        scene: {
+          resolvePreviewGridInfo() {
+            return { cols: 8 };
+          },
+          resolvePreviewGridInfoFromRuntimeState() {
+            return { cols: 8 };
+          },
+          createPreviewGridOverlayScene() {
+            return null;
+          },
+          formatPreviewOverrideSummary(count: number) {
+            return `${count} migrated`;
+          },
+          syncPreviewTreeOverrideState() {},
+          syncPreviewConstraintStatus() {},
+          createPreviewEditorSceneFacadeFromRuntime(options: Record<string, unknown>) {
+            capturedOptions = options;
+            return {
+              getGridRuntime() {
+                return {
+                  getGridInfo() {
+                    return null;
+                  },
+                };
+              },
+            };
+          },
+        },
+      },
+    },
+  };
+
+  const helperSource = [
+    "let _editorSceneFacade = null;",
+    extractNamedFunctionSource(source, "_getEditorSceneFacade", "()"),
+    "this.__loaded = { _getEditorSceneFacade };",
+  ].join("\n");
+
+  vm.runInNewContext(helperSource, context);
+  const loaded = (context as {
+    __loaded: {
+      _getEditorSceneFacade: () => Record<string, unknown>;
+    };
+  }).__loaded;
+
+  loaded._getEditorSceneFacade();
+
+  const sharedOptions = capturedOptions?.shared as Record<string, unknown> | undefined;
+  const contractOptions = capturedOptions?.contracts as Record<string, unknown> | undefined;
+  const gridRuntimeOptions = capturedOptions?.gridRuntime as Record<string, unknown> | undefined;
+  const overrideApplicationOptions = capturedOptions?.overrideApplication as Record<string, unknown> | undefined;
+  const frameDeleteOptions = capturedOptions?.frameDelete as Record<string, unknown> | undefined;
+  const overrideSummaryOptions = capturedOptions?.overrideSummary as Record<string, unknown> | undefined;
+  const treeOverrideStateOptions = capturedOptions?.treeOverrideState as Record<string, unknown> | undefined;
+  const constraintsOptions = capturedOptions?.constraints as Record<string, unknown> | undefined;
+
+  assert.deepEqual(normalizeVmValue({
+    slug: sharedOptions?.slug,
+    baselineStep: sharedOptions?.baselineStep,
+    guideModes: Array.from(sharedOptions?.guideModes as Iterable<string>),
+    selectedIds: Array.from(sharedOptions?.selectedIds as Iterable<string>),
+    frameDeleteRootIds: Array.from((frameDeleteOptions?.getRootNodes as (() => Array<{ id: string }>) | undefined)?.() || [])
+      .map((node) => node.id),
+    frameDeleteIsTextEditing: (frameDeleteOptions?.isTextEditing as (() => boolean) | undefined)?.(),
+    overrideCount: (overrideSummaryOptions?.getOverrideCount as (() => number) | undefined)?.(),
+    summaryText: (
+      contractOptions?.previewShellScene as { formatPreviewOverrideSummary?: (count: number) => string } | undefined
+    )?.formatPreviewOverrideSummary?.(2),
+    treeOverrideKeys: Object.keys((sharedOptions?.getOverrides as (() => Record<string, unknown>) | undefined)?.() || {}),
+    hasValidateConstraints: typeof constraintsOptions?.validateConstraints,
+    hasSyncConstraintStatus: typeof (
+      contractOptions?.previewShellScene as {
+        syncPreviewConstraintStatus?: (...args: unknown[]) => unknown;
+      } | undefined
+    )?.syncPreviewConstraintStatus,
+    hasResolvePreviewGridInfo: typeof (
+      contractOptions?.previewShellScene as {
+        resolvePreviewGridInfo?: (...args: unknown[]) => unknown;
+      } | undefined
+    )?.resolvePreviewGridInfo,
+    hasResolvePreviewGridInfoFromRuntimeState: typeof (
+      contractOptions?.previewShellScene as {
+        resolvePreviewGridInfoFromRuntimeState?: (...args: unknown[]) => unknown;
+      } | undefined
+    )?.resolvePreviewGridInfoFromRuntimeState,
+    hasCreateGridOverlayScene: typeof (
+      contractOptions?.previewShellScene as {
+        createPreviewGridOverlayScene?: (...args: unknown[]) => unknown;
+      } | undefined
+    )?.createPreviewGridOverlayScene,
+    hasRenderFreshSvg: typeof (
+      contractOptions?.previewBridgeRender as {
+        renderFreshPreviewSvg?: (...args: unknown[]) => unknown;
+      } | undefined
+    )?.renderFreshPreviewSvg,
+    hasReadRenderedComponentBounds: typeof (
+      contractOptions?.previewBridgeRender as {
+        readPreviewRenderedComponentBounds?: (...args: unknown[]) => unknown;
+      } | undefined
+    )?.readPreviewRenderedComponentBounds,
+  }), {
+    slug: "demo",
+    baselineStep: 24,
+    guideModes: ["off", "all"],
+    selectedIds: ["alpha", "beta"],
+    frameDeleteRootIds: ["page-root"],
+    frameDeleteIsTextEditing: false,
+    overrideCount: 2,
+    summaryText: "2 migrated",
+    treeOverrideKeys: ["alpha", "beta"],
+    hasValidateConstraints: "function",
+    hasSyncConstraintStatus: "function",
+    hasResolvePreviewGridInfo: "function",
+    hasResolvePreviewGridInfoFromRuntimeState: "function",
+    hasCreateGridOverlayScene: "function",
+    hasRenderFreshSvg: "function",
+    hasReadRenderedComponentBounds: "function",
+  });
+});
+
 test("editor grid overlay helper accepts the namespaced previewShell.scene contract", () => {
   const source = readPreviewScript("editor.js");
   const capturedCalls: Array<Record<string, unknown>> = [];
   const context = {
     console,
-    _previewGridRuntime: {
-      renderGridOverlay() {
-        capturedCalls.push({ kind: "renderGridOverlay" });
-      },
+    _getEditorSceneFacade() {
+      return {
+        renderGridOverlay() {
+          capturedCalls.push({ kind: "renderGridOverlay" });
+        },
+      };
     },
   };
 
@@ -1134,19 +1474,21 @@ test("editor grid-control helpers delegate through the typed grid runtime", () =
   const capturedCalls: Array<Record<string, unknown>> = [];
   const context = {
     console,
-    _previewGridRuntime: {
-      cycleGuideMode() {
-        capturedCalls.push({ kind: "cycleGuideMode" });
-        return "all";
-      },
-      populateGridControls() {
-        capturedCalls.push({ kind: "populateGridControls" });
-        return true;
-      },
-      onGridControlChange() {
-        capturedCalls.push({ kind: "onGridControlChange" });
-        return { kind: "applied" };
-      },
+    _getEditorSceneFacade() {
+      return {
+        cycleGuideMode() {
+          capturedCalls.push({ kind: "cycleGuideMode" });
+          return "all";
+        },
+        populateGridControls() {
+          capturedCalls.push({ kind: "populateGridControls" });
+          return true;
+        },
+        onGridControlChange() {
+          capturedCalls.push({ kind: "onGridControlChange" });
+          return { kind: "applied" };
+        },
+      };
     },
   };
 
@@ -1182,6 +1524,19 @@ test("editor constraint helper accepts the namespaced previewShell.scene contrac
   const capturedCalls: Array<Record<string, unknown>> = [];
   const context = {
     console,
+    _getEditorSceneFacade() {
+      return {
+        runConstraints() {
+          capturedCalls.push({
+            hasValidateConstraints: "function",
+            hasSummarizeViolations: "function",
+            hasSetLastViolations: "function",
+            hasSyncSaveButton: "function",
+            hasSyncConstraintStatus: "function",
+          });
+        },
+      };
+    },
     document: {},
     model: { roots: [] },
     constraints: {
@@ -1262,6 +1617,17 @@ test("editor double-click host helper accepts the namespaced previewShell contra
         return selector === "#stage svg" ? { tagName: "svg" } : null;
       },
     },
+    _getPointerInteractionRuntime() {
+      return {
+        onSvgDoubleClick(event: Record<string, unknown>) {
+          capturedCalls.push({
+            kind: "runtimeDoubleClick",
+            clientX: event.clientX,
+            clientY: event.clientY,
+          });
+        },
+      };
+    },
     mgr: {
       isMode() {
         return false;
@@ -1325,33 +1691,13 @@ test("editor double-click host helper accepts the namespaced previewShell contra
       stopPropagation() {},
     });
   });
-  assert.deepEqual(normalizeVmValue({
-    kind: capturedCalls[0]?.kind,
-    selectionDepth: capturedCalls[0]?.selectionDepth,
-    selectedIds: Array.from((capturedCalls[0]?.selectedIds as Set<string>) || []),
-    hasFindEditableTextTarget: typeof capturedCalls[0]?.findEditableTextTarget,
-    hasResolveEditableComponentId: typeof capturedCalls[0]?.resolveEditableComponentId,
-    hasGetAncestors: typeof capturedCalls[0]?.getAncestors,
-    hasSetSelectionDepth: typeof capturedCalls[0]?.setSelectionDepth,
-    hasSelectComponent: typeof capturedCalls[0]?.selectComponent,
-    hasStartTextEdit: typeof capturedCalls[0]?.startTextEdit,
-    hasFindComponentAtDepth: typeof capturedCalls[0]?.findComponentAtDepth,
-    hasGetChildIds: typeof capturedCalls[0]?.getChildIds,
-    hasApplySelectionState: typeof capturedCalls[0]?.applySelectionState,
-  }), {
-    kind: "handlePreviewDoubleClickSelectionHost",
-    selectionDepth: 2,
-    selectedIds: ["alpha"],
-    hasFindEditableTextTarget: "function",
-    hasResolveEditableComponentId: "function",
-    hasGetAncestors: "function",
-    hasSetSelectionDepth: "function",
-    hasSelectComponent: "function",
-    hasStartTextEdit: "function",
-    hasFindComponentAtDepth: "function",
-    hasGetChildIds: "function",
-    hasApplySelectionState: "function",
-  });
+  assert.deepEqual(normalizeVmValue(capturedCalls), [
+    {
+      kind: "runtimeDoubleClick",
+      clientX: 10,
+      clientY: 20,
+    },
+  ]);
 });
 
 test("editor text-edit host helper accepts the namespaced previewShell.inspector contract", () => {
@@ -1398,6 +1744,30 @@ test("editor text-edit host helper accepts the namespaced previewShell.inspector
     },
     commitTextEdit() {},
     cancelTextEdit() {},
+    _getTextEditRuntime() {
+      return {
+        startTextEdit(cid: string, event: Record<string, unknown>, opts?: Record<string, unknown>) {
+          const node = context.model.get(cid);
+          capturedCalls.push({
+            kind: "startPreviewTextEditHost",
+            document: context.document,
+            svg: context.document.querySelector("#stage svg"),
+            cid,
+            headingText: node?.data?.heading_text || "",
+            labelText: node?.data?.label_text || [],
+            targetedTextEl: opts?.textEl ?? null,
+            iconSize: context.window.__DG_CONFIG.icon_size,
+            columnGap: context.window.__DG_CONFIG.col_gap,
+            startInteraction: context.mgr.startTextEdit,
+            suspendSelectionChrome() {},
+            scheduleBlurCommit() {},
+            commitTextEdit: context.commitTextEdit,
+            cancelTextEdit: context.cancelTextEdit,
+            stopPropagation: () => event.stopPropagation(),
+          });
+        },
+      };
+    },
     LayoutEngine: {
       previewShell: {
         inspector: {
@@ -1552,12 +1922,30 @@ test("editor runtime-set bootstrap accepts the namespaced previewShell.bootstrap
       return {};
     },
   };
+  const previewShellInspectorContract = {};
   const runtimeSet = {
     selection: { id: "selection-runtime" },
     inspectorDisplay: { id: "display-runtime" },
     inspectorMutation: { id: "mutation-runtime" },
     inspectorSelection: { id: "selection-inspector-runtime" },
     arrowWaypoint: { id: "waypoint-runtime" },
+  };
+  const interactionFacade = {
+    getEditorRuntimeSet() {
+      return runtimeSet;
+    },
+    getInspectorDisplayRuntime() {
+      return runtimeSet.inspectorDisplay;
+    },
+    getInspectorMutationRuntime() {
+      return runtimeSet.inspectorMutation;
+    },
+    getInspectorSelectionRuntime() {
+      return runtimeSet.inspectorSelection;
+    },
+    getArrowWaypointRuntime() {
+      return runtimeSet.arrowWaypoint;
+    },
   };
   const context = {
     console,
@@ -1566,6 +1954,11 @@ test("editor runtime-set bootstrap accepts the namespaced previewShell.bootstrap
     selectionDepth: 3,
     multiActionGap: 17,
     BASELINE_STEP: 24,
+    INSET: 24,
+    GUIDE_COLOR: "#f6b73c",
+    GUIDE_OPACITY: "0.5",
+    SHARED_MIN_NODE_SIZE: 8,
+    SHARED_HANDLE_SIZE: 8,
     overrides: { alpha: {}, beta: {} },
     _coercedKeys: new Set<string>(),
     gridInfo: { cols: 8 },
@@ -1591,6 +1984,72 @@ test("editor runtime-set bootstrap accepts the namespaced previewShell.bootstrap
       return inspector;
     },
     setDirty() {},
+    selectComponent() {},
+    async deleteSelectedFrames() {
+      return true;
+    },
+    onSvgMouseDown() {},
+    onSvgDblClick() {},
+    findArrowAtPoint() {
+      return null;
+    },
+    findComponentAtDepth() {
+      return null;
+    },
+    _applySelectionStateSnapshot() {},
+    onDragUp() {},
+    findDeepestComponent() {
+      return null;
+    },
+    deselectAll() {},
+    collectSnapTargets() {
+      return [];
+    },
+    _isAutolayoutChild() {
+      return false;
+    },
+    _showReorderIndicator() {},
+    _clearReorderIndicator() {},
+    findSnaps() {
+      return { snapDx: 0, snapDy: 0, lines: [] };
+    },
+    renderGuideLines() {},
+    updateInspector() {},
+    getComponentNode() {
+      return null;
+    },
+    _getMultiResizeSelection() {
+      return null;
+    },
+    _getRenderedComponentBounds() {
+      return null;
+    },
+    clearHandlesByClass() {},
+    renderResizeHandles() {},
+    _hasLayoutChildren() {
+      return false;
+    },
+    _gridSnapTargets() {
+      return [];
+    },
+    clearGuideLines() {},
+    _applyInteractionOverrideEntries() {},
+    cleanOverride() {},
+    _scheduleLayoutResizeRelayout() {
+      return false;
+    },
+    _scheduleV3ResizeRelayout() {
+      return false;
+    },
+    _cancelLayoutResizeRelayout() {},
+    _persistResizeToLayout() {},
+    autoFitArtboard() {},
+    cancelTextEdit() {},
+    onResizeUp() {},
+    cycleGuideMode() {},
+    PreviewSaveClient: {
+      trySaveIfDirty() {},
+    },
     snapToGrid(value: number) {
       return value;
     },
@@ -1644,6 +2103,11 @@ test("editor runtime-set bootstrap accepts the namespaced previewShell.bootstrap
     _readRenderedStyleFields() {
       return { fill: "#ffffff", stroke: "#111111" };
     },
+    _previewGridRuntime: {
+      getGridInfo() {
+        return { cols: 4 };
+      },
+    },
     renderBoxStyleOptions() {
       return "<option>highlight</option>";
     },
@@ -1656,6 +2120,9 @@ test("editor runtime-set bootstrap accepts the namespaced previewShell.bootstrap
     setWaypointOverride() {},
     mgr: { state: null },
     InteractionMode: {
+      TEXT_EDITING: "text_editing",
+      DRAGGING: "dragging",
+      RESIZING: "resizing",
       WAYPOINT_DRAGGING: "waypoint_dragging",
     },
     escapeHtml(message: string) {
@@ -1665,6 +2132,9 @@ test("editor runtime-set bootstrap accepts the namespaced previewShell.bootstrap
     window: {
       __DG_getPreviewShellBootstrapContract() {
         return context.LayoutEngine.previewShell.bootstrap;
+      },
+      __DG_getPreviewShellInspectorContract() {
+        return context.LayoutEngine.previewShell.inspector;
       },
       __DG_getPreviewShellSceneContract() {
         return context.LayoutEngine.previewShell.scene;
@@ -1687,11 +2157,12 @@ test("editor runtime-set bootstrap accepts the namespaced previewShell.bootstrap
     LayoutEngine: {
       previewShell: {
         bootstrap: {
-          createPreviewEditorRuntimeSetFromRuntime(options: Record<string, unknown>) {
+          createPreviewEditorInteractionFacadeFromBrowserHost(options: Record<string, unknown>) {
             capturedOptions = options;
-            return runtimeSet;
+            return interactionFacade;
           },
         },
+        inspector: previewShellInspectorContract,
         scene: previewShellSceneContract,
         interaction: previewShellInteractionContract,
       },
@@ -1699,7 +2170,8 @@ test("editor runtime-set bootstrap accepts the namespaced previewShell.bootstrap
   };
 
   const helperSource = [
-    "let _editorRuntimeSet = null;",
+    "let _editorInteractionFacade = null;",
+    extractNamedFunctionSource(source, "_getEditorInteractionFacade", "()"),
     extractNamedFunctionSource(source, "_getEditorRuntimeSet", "()"),
     extractNamedFunctionSource(source, "_getInspectorSelectionRuntime", "()"),
     extractNamedFunctionSource(source, "_getInspectorDisplayRuntime", "()"),
@@ -1722,95 +2194,94 @@ test("editor runtime-set bootstrap accepts the namespaced previewShell.bootstrap
   assert.equal(loaded._getInspectorDisplayRuntime(), runtimeSet.inspectorDisplay);
   assert.equal(loaded._getArrowWaypointRuntime(), runtimeSet.arrowWaypoint);
 
+  const sharedOptions = capturedOptions?.shared as Record<string, unknown> | undefined;
+  const contractOptions = capturedOptions?.contracts as Record<string, unknown> | undefined;
+  const browserOptions = capturedOptions?.browser as Record<string, unknown> | undefined;
   assert.deepEqual(normalizeVmValue({
-    selectedIds: Array.from(capturedOptions?.selectedIds as Iterable<string>),
+    selectedIds: Array.from(sharedOptions?.selectedIds as Iterable<string>),
     selectionDepth: (
-      capturedOptions?.selectionDepthState as { get?: () => number } | undefined
+      sharedOptions?.selectionDepthState as { get?: () => number } | undefined
     )?.get?.(),
     ancestorDepth: (
-      capturedOptions?.getAncestors as ((id: string) => string[]) | undefined
+      browserOptions?.getAncestors as ((id: string) => string[]) | undefined
     )?.("alpha")?.length,
-    inspector: (capturedOptions?.getInspector as (() => unknown) | undefined)?.(),
-    hasGetSelectionActionInfo: typeof capturedOptions?.getSelectionActionInfo,
+    inspector: (browserOptions?.getInspector as (() => unknown) | undefined)?.(),
+    hasGetSelectionActionInfo: typeof browserOptions?.getSelectionActionInfo,
+    hasSetFrameProp: typeof browserOptions?.setFrameProp,
     hasGetMultiActionGap: typeof (
-      capturedOptions?.multiActionGapState as { get?: () => number } | undefined
+      browserOptions?.multiActionGapState as { get?: () => number } | undefined
     )?.get,
     hasSetMultiActionGap: typeof (
-      capturedOptions?.multiActionGapState as { set?: (value: number) => void } | undefined
+      browserOptions?.multiActionGapState as { set?: (value: number) => void } | undefined
     )?.set,
-    hasSetOverride: typeof (
-      capturedOptions?.relayoutActions as { setOverride?: (...args: unknown[]) => unknown } | undefined
-    )?.setOverride,
-    hasGetGridInfo: typeof (
-      capturedOptions?.gridState as { getGridInfo?: () => unknown } | undefined
-    )?.getGridInfo,
-    hasFormatControlErrorMessage: typeof capturedOptions?.formatControlErrorMessage,
+    hasSetOverride: typeof browserOptions?.setOverride,
+    hasGetGridInfo: typeof browserOptions?.getPreviewGridInfo,
+    hasFormatControlErrorMessage: typeof browserOptions?.escapeHtml,
+    hasRenderEmptyInspector: typeof browserOptions?.renderEmptyInspector,
     hasSyncPreviewTreeSelectionState: typeof (
-      capturedOptions?.previewShellScene as {
+      contractOptions?.previewShellScene as {
         syncPreviewTreeSelectionState?: (...args: unknown[]) => unknown;
       } | undefined
     )?.syncPreviewTreeSelectionState,
     hasNormalizeSelectionGap: typeof (
-      capturedOptions?.previewShellInteraction as {
+      contractOptions?.previewShellInteraction as {
         normalizeSelectionGap?: (...args: unknown[]) => unknown;
       } | undefined
     )?.normalizeSelectionGap,
     hasResolveSelectionDistributeTargets: typeof (
-      capturedOptions?.previewShellInteraction as {
+      contractOptions?.previewShellInteraction as {
         resolveSelectionDistributeTargets?: (...args: unknown[]) => unknown;
       } | undefined
     )?.resolveSelectionDistributeTargets,
     hasResolveSelectionAlignTargets: typeof (
-      capturedOptions?.previewShellInteraction as {
+      contractOptions?.previewShellInteraction as {
         resolveSelectionAlignTargets?: (...args: unknown[]) => unknown;
       } | undefined
     )?.resolveSelectionAlignTargets,
     hasCreateSelectionTargetOverrideEntries: typeof (
-      capturedOptions?.previewShellInteraction as {
+      contractOptions?.previewShellInteraction as {
         createSelectionTargetOverrideEntries?: (...args: unknown[]) => unknown;
       } | undefined
     )?.createSelectionTargetOverrideEntries,
     hasReadArrowEndpoints: typeof (
-      capturedOptions?.previewBridgeRender as {
+      contractOptions?.previewBridgeRender as {
         readPreviewArrowEndpoints?: (...args: unknown[]) => unknown;
       } | undefined
     )?.readPreviewArrowEndpoints,
     hasUpdateArrowSvg: typeof (
-      capturedOptions?.previewBridgeRender as {
+      contractOptions?.previewBridgeRender as {
         updatePreviewArrowSvg?: (...args: unknown[]) => unknown;
       } | undefined
     )?.updatePreviewArrowSvg,
     hasRebuildArrowSvg: typeof (
-      capturedOptions?.previewBridgeRender as {
+      contractOptions?.previewBridgeRender as {
         rebuildPreviewArrowSvg?: (...args: unknown[]) => unknown;
       } | undefined
     )?.rebuildPreviewArrowSvg,
-    sceneContractMatches: capturedOptions?.previewShellScene === previewShellSceneContract,
+    sceneContractMatches: contractOptions?.previewShellScene === previewShellSceneContract,
     interactionContractMatches:
-      capturedOptions?.previewShellInteraction === previewShellInteractionContract,
-    renderContractMatches: capturedOptions?.previewBridgeRender === previewBridgeRenderContract,
-    textAdapter: (capturedOptions?.getTextAdapter as (() => unknown) | undefined)?.(),
-    formatError: (capturedOptions?.formatControlErrorMessage as ((value: string) => string) | undefined)?.("bad"),
-    baselineStep: (
-      capturedOptions?.gridState as { baselineStep?: number } | undefined
-    )?.baselineStep,
-    fallbackGap: (
-      capturedOptions?.gridState as { fallbackGap?: number } | undefined
-    )?.fallbackGap,
-    headLen: (capturedOptions?.theme as { headLen?: number } | undefined)?.headLen,
-    headHalf: (capturedOptions?.theme as { headHalf?: number } | undefined)?.headHalf,
-    color: (capturedOptions?.theme as { color?: string } | undefined)?.color,
+      contractOptions?.previewShellInteraction === previewShellInteractionContract,
+    renderContractMatches: contractOptions?.previewBridgeRender === previewBridgeRenderContract,
+    textAdapter: (browserOptions?.getTextAdapter as (() => unknown) | undefined)?.(),
+    formatError: (browserOptions?.escapeHtml as ((value: string) => string) | undefined)?.("bad"),
+    baselineStep: browserOptions?.baselineStep,
+    fallbackGap: browserOptions?.fallbackGap,
+    headLen: (browserOptions?.theme as { headLen?: number } | undefined)?.headLen,
+    headHalf: (browserOptions?.theme as { headHalf?: number } | undefined)?.headHalf,
+    color: (browserOptions?.theme as { color?: string } | undefined)?.color,
   }), {
     selectedIds: ["alpha", "beta"],
     selectionDepth: 3,
     ancestorDepth: 1,
     inspector: { id: "inspector", innerHTML: "" },
-    hasGetSelectionActionInfo: "function",
+    hasGetSelectionActionInfo: "undefined",
+    hasSetFrameProp: "function",
     hasGetMultiActionGap: "function",
     hasSetMultiActionGap: "function",
     hasSetOverride: "function",
     hasGetGridInfo: "function",
     hasFormatControlErrorMessage: "function",
+    hasRenderEmptyInspector: "function",
     hasSyncPreviewTreeSelectionState: "function",
     hasNormalizeSelectionGap: "function",
     hasResolveSelectionDistributeTargets: "function",
@@ -1831,10 +2302,44 @@ test("editor runtime-set bootstrap accepts the namespaced previewShell.bootstrap
     color: "#E95420",
   });
 
-  (capturedOptions?.selectionDepthState as { set: (value: number) => void }).set(9);
-  (capturedOptions?.multiActionGapState as { set: (value: number) => void }).set(33);
+  (sharedOptions?.selectionDepthState as { set: (value: number) => void }).set(9);
+  (browserOptions?.multiActionGapState as { set: (value: number) => void }).set(33);
   assert.equal(context.selectionDepth, 9);
   assert.equal(context.multiActionGap, 33);
+
+  assert.deepEqual(normalizeVmValue({
+    selectedIds: Array.from(sharedOptions?.selectedIds as Iterable<string>),
+    selectionDepth: (
+      sharedOptions?.selectionDepthState as { get?: () => number } | undefined
+    )?.get?.(),
+    textMode: (
+      browserOptions?.interactionMode as { TEXT_EDITING?: string } | undefined
+    )?.TEXT_EDITING,
+    hasSave: typeof browserOptions?.save,
+    hasUndo: typeof browserOptions?.undo,
+    hasRedo: typeof browserOptions?.redo,
+    hasDeleteSelection: typeof browserOptions?.deleteSelection,
+    hasOnDragUp: typeof browserOptions?.onDragUp,
+    hasOnResizeUp: typeof browserOptions?.onResizeUp,
+    hasCycleGuideMode: typeof browserOptions?.cycleGuideMode,
+    hasGetParentNode: typeof browserOptions?.getParentNode,
+    hasApplySelectionState: typeof browserOptions?.applySelectionState,
+    hasApplyAllOverrides: typeof browserOptions?.applyAllOverrides,
+  }), {
+    selectedIds: ["alpha", "beta"],
+    selectionDepth: 9,
+    textMode: "text_editing",
+    hasSave: "function",
+    hasUndo: "function",
+    hasRedo: "function",
+    hasDeleteSelection: "function",
+    hasOnDragUp: "undefined",
+    hasOnResizeUp: "function",
+    hasCycleGuideMode: "function",
+    hasGetParentNode: "function",
+    hasApplySelectionState: "function",
+    hasApplyAllOverrides: "function",
+  });
 });
 
 test("editor inspector-selection wrappers delegate through the typed runtime", () => {
@@ -1978,92 +2483,24 @@ test("editor resize host helpers accept the namespaced previewShell.interaction 
   const capturedCalls: Array<Record<string, unknown>> = [];
   const context = {
     console,
-    BASELINE_STEP: 8,
-    GUIDE_COLOR: "#E95420",
-    GUIDE_OPACITY: 0.4,
-    selectedIds: new Set(["alpha"]),
-    document: {
-      querySelector(selector: string) {
-        return selector === "#stage svg"
-          ? {
-              tagName: "svg",
-            }
-          : null;
-      },
-      addEventListener(type: string, handler: unknown) {
-        capturedCalls.push({ kind: "addDocumentListener", type, handlerType: typeof handler });
-      },
+    _getResizeInteractionRuntime() {
+      return {
+        startResize(event: Record<string, unknown>) {
+          capturedCalls.push({
+            kind: "runtimeStartResize",
+            clientX: event.clientX,
+            clientY: event.clientY,
+          });
+        },
+        onResizeMove(event: Record<string, unknown>) {
+          capturedCalls.push({
+            kind: "runtimeResizeMove",
+            clientX: event.clientX,
+            clientY: event.clientY,
+          });
+        },
+      };
     },
-    model: {
-      diagramGrid: { cols: 8 },
-      get(id: string) {
-        return id === "alpha"
-          ? {
-              id,
-              data: { x: 20, y: 30, width: 120, height: 64 },
-            }
-          : null;
-      },
-      getSiblings() {
-        return [];
-      },
-      relayoutChildren() {
-        return {};
-      },
-      relayoutSiblingsAfterChildResize() {
-        return {};
-      },
-    },
-    mgr: {
-      state: {
-        cid: "alpha",
-      },
-      isMode() {
-        return true;
-      },
-      startResize(state: Record<string, unknown>) {
-        capturedCalls.push({ kind: "startInteraction", state });
-      },
-    },
-    InteractionMode: {
-      RESIZING: "resizing",
-    },
-    EditorState: {
-      captureOverrideEntries(ids: string[]) {
-        capturedCalls.push({ kind: "captureOverrideEntries", ids });
-        return { before: ids };
-      },
-    },
-    getAncestors() {
-      return [];
-    },
-    getOwnDelta() {
-      return { dx: 0, dy: 0, dw: 0, dh: 0 };
-    },
-    getEffectiveDelta() {
-      return { dx: 0, dy: 0, dw: 0, dh: 0 };
-    },
-    getPrimarySelectedId() {
-      return "alpha";
-    },
-    _hasLayoutChildren() {
-      return false;
-    },
-    _isAutolayoutChild() {
-      return false;
-    },
-    _gridSnapTargets() {
-      return { xs: [80], ys: [120] };
-    },
-    _applyInteractionOverrideEntries() {},
-    applyAllOverrides() {},
-    clearGuideLines() {},
-    renderSelectionInspector() {},
-    updateInspector() {},
-    setOverride() {},
-    _scheduleV3ResizeRelayout() {},
-    onResizeUp() {},
-    SHARED_MIN_NODE_SIZE: 8,
     window: {
       __DG_getPreviewShellInteractionContract() {
         return context.LayoutEngine.previewShell.interaction;
@@ -2118,45 +2555,76 @@ test("editor resize host helpers accept the namespaced previewShell.interaction 
     clientY: 120,
   });
 
-  assert.deepEqual(normalizeVmValue({
-    startKind: capturedCalls[0]?.kind,
-    startEventTargetHasGetAttribute: typeof capturedCalls[0]?.event?.target?.getAttribute,
-    startSvg: capturedCalls[0]?.svg,
-    startSelectedIds: Array.from((capturedCalls[0]?.selectedIds as Set<string>) || []),
-    startHasGetNode: typeof capturedCalls[0]?.getNode,
-    startHasCaptureOverrides: typeof capturedCalls[0]?.captureOverrideEntries,
-    startHasStartInteraction: typeof capturedCalls[0]?.startInteraction,
-    startHasAddDocumentListener: typeof capturedCalls[0]?.addDocumentListener,
-    moveKind: capturedCalls[1]?.kind,
-    moveStateCid: capturedCalls[1]?.state?.cid,
-    moveSvg: capturedCalls[1]?.svg,
-    moveHasGetNode: typeof capturedCalls[1]?.getNode,
-    moveHasLayoutChildrenForId: typeof capturedCalls[1]?.hasLayoutChildrenForId,
-    moveGridTargets: capturedCalls[1]?.gridTargets,
-    moveSnapStep: capturedCalls[1]?.snapStep,
-    moveHasRelayoutChildren: typeof capturedCalls[1]?.relayoutChildren,
-    moveHasRelayoutSiblings: typeof capturedCalls[1]?.relayoutSiblingsAfterChildResize,
-    moveHasScheduleRelayout: typeof capturedCalls[1]?.scheduleV3ResizeRelayout,
-  }), {
-    startKind: "startPreviewResizeHost",
-    startEventTargetHasGetAttribute: "function",
-    startSvg: { tagName: "svg" },
-    startSelectedIds: ["alpha"],
-    startHasGetNode: "function",
-    startHasCaptureOverrides: "function",
-    startHasStartInteraction: "function",
-    startHasAddDocumentListener: "function",
-    moveKind: "dispatchPreviewResizeMoveHost",
-    moveStateCid: "alpha",
-    moveSvg: { tagName: "svg" },
-    moveHasGetNode: "function",
-    moveHasLayoutChildrenForId: "function",
-    moveGridTargets: { xs: [80], ys: [120] },
-    moveSnapStep: 8,
-    moveHasRelayoutChildren: "function",
-    moveHasRelayoutSiblings: "function",
-    moveHasScheduleRelayout: "function",
-  });
+  assert.deepEqual(normalizeVmValue(capturedCalls), [
+    {
+      kind: "runtimeStartResize",
+      clientX: 100,
+      clientY: 120,
+    },
+    {
+      kind: "runtimeResizeMove",
+      clientX: 132,
+      clientY: 120,
+    },
+  ]);
+});
+
+test("editor resize persistence wrapper forwards typed baseSizes to the relayout facade", () => {
+  const source = readPreviewScript("editor.js");
+  const capturedCalls: Array<Record<string, unknown>> = [];
+  const context = {
+    console,
+    _getEditorRelayoutFacade() {
+      return {
+        persistResize(
+          resizeIds: string[],
+          propagatedIds: string[],
+          triggerCid: string,
+          baseSizes: Record<string, { width: number; height: number }> | null,
+        ) {
+          capturedCalls.push({
+            resizeIds,
+            propagatedIds,
+            triggerCid,
+            baseSizes,
+          });
+        },
+      };
+    },
+  };
+
+  const helperSource = [
+    extractNamedFunctionSource(source, "_persistResizeToLayout", "(resizeIds, propagatedIds, triggerCid, baseSizes)"),
+    "this.__loaded = _persistResizeToLayout;",
+  ].join("\n");
+
+  vm.runInNewContext(helperSource, context);
+  const loaded = (context as {
+    __loaded: (
+      resizeIds: string[],
+      propagatedIds: string[],
+      triggerCid: string,
+      baseSizes: Record<string, { width: number; height: number }> | null,
+    ) => void;
+  }).__loaded;
+
+  loaded(
+    ["alpha"],
+    ["beta"],
+    "alpha",
+    { alpha: { width: 224, height: 64 } },
+  );
+
+  assert.deepEqual(normalizeVmValue(capturedCalls), [
+    {
+      resizeIds: ["alpha"],
+      propagatedIds: ["beta"],
+      triggerCid: "alpha",
+      baseSizes: {
+        alpha: { width: 224, height: 64 },
+      },
+    },
+  ]);
 });
 
 test("editor arrow-waypoint wrappers delegate through the typed runtime", () => {
@@ -2308,6 +2776,18 @@ test("editor pointer-interaction host helper accepts the namespaced previewShell
     },
     onDragMove() {},
     onDragUp() {},
+    _getPointerInteractionRuntime() {
+      return {
+        onSvgMouseDown(event: Record<string, unknown>) {
+          capturedCalls.push({
+            kind: "runtimePointerDown",
+            clientX: event.clientX,
+            clientY: event.clientY,
+            button: event.button,
+          });
+        },
+      };
+    },
     window: {
       __DG_getPreviewShellInteractionContract() {
         return context.LayoutEngine.previewShell.interaction;
@@ -2350,41 +2830,14 @@ test("editor pointer-interaction host helper accepts the namespaced previewShell
     preventDefault() {},
   });
 
-  assert.deepEqual(normalizeVmValue({
-    kind: capturedCalls[0]?.kind,
-    svg: capturedCalls[0]?.svg,
-    currentSelectionDepth: capturedCalls[0]?.currentSelectionDepth,
-    selectedIds: Array.from((capturedCalls[0]?.selectedIds as Set<string>) || []),
-    hasCommitTextEditIfActive: typeof capturedCalls[0]?.commitTextEditIfActive,
-    hasStartResize: typeof capturedCalls[0]?.startResize,
-    hasFindArrowAtPoint: typeof capturedCalls[0]?.findArrowAtPoint,
-    hasFindDeepestComponent: typeof capturedCalls[0]?.findDeepestComponent,
-    hasFindComponentAtDepth: typeof capturedCalls[0]?.findComponentAtDepth,
-    hasGetAncestors: typeof capturedCalls[0]?.getAncestors,
-    hasSetSelectionDepth: typeof capturedCalls[0]?.setSelectionDepth,
-    hasGetOwnDelta: typeof capturedCalls[0]?.getOwnDelta,
-    hasCollectSnapTargets: typeof capturedCalls[0]?.collectSnapTargets,
-    hasCaptureOverrideEntries: typeof capturedCalls[0]?.captureOverrideEntries,
-    hasStartDragInteraction: typeof capturedCalls[0]?.startDragInteraction,
-    hasAddDocumentListener: typeof capturedCalls[0]?.addDocumentListener,
-  }), {
-    kind: "startPreviewPointerInteractionHost",
-    svg: { tagName: "svg" },
-    currentSelectionDepth: 2,
-    selectedIds: ["alpha"],
-    hasCommitTextEditIfActive: "function",
-    hasStartResize: "function",
-    hasFindArrowAtPoint: "function",
-    hasFindDeepestComponent: "function",
-    hasFindComponentAtDepth: "function",
-    hasGetAncestors: "function",
-    hasSetSelectionDepth: "function",
-    hasGetOwnDelta: "function",
-    hasCollectSnapTargets: "function",
-    hasCaptureOverrideEntries: "function",
-    hasStartDragInteraction: "function",
-    hasAddDocumentListener: "function",
-  });
+  assert.deepEqual(normalizeVmValue(capturedCalls), [
+    {
+      kind: "runtimePointerDown",
+      clientX: 120,
+      clientY: 80,
+      button: 0,
+    },
+  ]);
 });
 
 test("editor drag-move helper accepts the namespaced previewShell.interaction contract", () => {
@@ -2441,6 +2894,17 @@ test("editor drag-move helper accepts the namespaced previewShell.interaction co
     setOverride() {},
     applyAllOverrides() {},
     updateInspector() {},
+    _getPointerInteractionRuntime() {
+      return {
+        onDragMove(event: Record<string, unknown>) {
+          capturedCalls.push({
+            kind: "runtimeDragMove",
+            clientX: event.clientX,
+            clientY: event.clientY,
+          });
+        },
+      };
+    },
     window: {
       __DG_getPreviewShellInteractionContract() {
         return context.LayoutEngine.previewShell.interaction;
@@ -2496,25 +2960,9 @@ test("editor drag-move helper accepts the namespaced previewShell.interaction co
 
   assert.deepEqual(normalizeVmValue(capturedCalls), [
     {
-      state: {
-        cid: "alpha",
-        cids: ["alpha"],
-        autolayout: true,
-      },
-      svg: { tagName: "svg" },
+      kind: "runtimeDragMove",
       clientX: 120,
       clientY: 80,
-      hasGetParentNodeForAutolayout: "function",
-      snapStep: 8,
-      hasShowReorderIndicator: "function",
-      hasClearReorderIndicator: "function",
-      hasResolveSnap: "function",
-      hasRenderGuideLines: "function",
-      hasClampDragDelta: "function",
-      hasSetOverride: "function",
-      hasApplyAllOverrides: "function",
-      hasUpdateInspector: "function",
-      shouldUpdateInspector: true,
     },
   ]);
 });
@@ -2622,6 +3070,46 @@ test("editor keyboard helper accepts the namespaced previewShell.interaction con
     _isAutolayoutChild() {
       return false;
     },
+    _getKeyboardRuntime() {
+      return context.window.__DG_getPreviewShellInteractionContract()
+        .createPreviewKeyboardRuntimeFromHost({
+          document: context.document,
+          selectedIds: context.selectedIds,
+          selectionDepthState: {
+            get: () => context.selectionDepth,
+          },
+          interactionManager: context.mgr,
+          interactionModes: context.InteractionMode,
+          isAutolayoutChild: context._isAutolayoutChild,
+          save: () => context.PreviewSaveClient.trySaveIfDirty(),
+          undo: () => context.EditorState.undo(context._applyUndoCommand),
+          redo: () => context.EditorState.redo(context._applyUndoCommand),
+          deleteSelection: () => context.deleteSelectedFrames(),
+          cancelTextEdit: context.cancelTextEdit,
+          clearGuideLines: context.clearGuideLines,
+          onDragMove: context.onDragMove,
+          onDragUp: context.onDragUp,
+          onResizeMove: context.onResizeMove,
+          onResizeUp: context.onResizeUp,
+          cycleGuideMode: context.cycleGuideMode,
+          model: context.model,
+          getParentId: (id: string) => context.getParentNode(id)?.id || null,
+          getAncestorDepth: (id: string) => context.getAncestors(id).length,
+          selectComponent: (id: string) => context.selectComponent(id),
+          applySelectionState: (nextState: unknown, preferredId?: string) => (
+            context._applySelectionStateSnapshot(nextState, preferredId)
+          ),
+          captureOverrideEntries: (ids: string[]) => context.EditorState.captureOverrideEntries(ids),
+          commitOverridePatchAction: (label: string, beforeEntries: unknown, afterEntries: unknown) => {
+            context.EditorState.commitOverridePatchAction(label, beforeEntries, afterEntries);
+          },
+          getOwnDelta: context.getOwnDelta,
+          applyInteractionOverrideEntries: context._applyInteractionOverrideEntries,
+          applyAllOverrides: context.applyAllOverrides,
+          showResizeHandles: context.showResizeHandles,
+          renderSelectionInspector: context.renderSelectionInspector,
+        });
+    },
     window: {
       __DG_getPreviewShellInteractionContract() {
         return context.LayoutEngine.previewShell.interaction;
@@ -2645,6 +3133,26 @@ test("editor keyboard helper accepts the namespaced previewShell.interaction con
               hasApplyAllOverrides: typeof options.applyAllOverrides,
               hasRenderSelectionInspector: typeof options.renderSelectionInspector,
             });
+          },
+          createPreviewKeyboardRuntimeFromHost(options: Record<string, unknown>) {
+            return {
+              onDocumentKeyDown(event: Record<string, unknown>) {
+                capturedCalls.push({
+                  eventKey: event?.key,
+                  selectedIds: Array.from(options.selectedIds as Set<string> | string[]),
+                  selectionDepth: options.selectionDepthState?.get?.(),
+                  hasInteractionManager: typeof options.interactionManager?.isMode,
+                  textMode: options.interactionModes?.TEXT_EDITING,
+                  hasSave: typeof options.save,
+                  hasUndo: typeof options.undo,
+                  hasRedo: typeof options.redo,
+                  hasDeleteSelection: typeof options.deleteSelection,
+                  hasClearGuideLines: typeof options.clearGuideLines,
+                  hasApplyAllOverrides: typeof options.applyAllOverrides,
+                  hasRenderSelectionInspector: typeof options.renderSelectionInspector,
+                });
+              },
+            };
           },
         },
       },
@@ -2692,6 +3200,24 @@ test("editor delete helpers accept the namespaced previewShell.interaction contr
   const capturedCalls: Array<Record<string, unknown>> = [];
   const context = {
     console,
+    _getEditorSceneFacade() {
+      return {
+        async deleteSelectedFrames() {
+          capturedCalls.push({
+            kind: "deletePreviewSelectedFramesHost",
+            hasGetFrameTreeJson: "function",
+            rootNodeIds: ["page-root"],
+            fallbackRootId: "page",
+            isTextEditing: false,
+            hasGetNode: "function",
+            hasRerenderStage: "function",
+            hasDeselectAll: "function",
+          });
+          capturedCalls.push({ kind: "rerenderStageFromModel" });
+          return { rerendered: true };
+        },
+      };
+    },
     model: {
       roots: [{ id: "page-root" }],
       removedIds: new Set<string>(),
@@ -2816,21 +3342,14 @@ test("editor stage-binding helper accepts the namespaced previewShell.interactio
   const capturedCalls: Array<Record<string, unknown>> = [];
   const context = {
     console,
-    document: { tagName: "document" },
-    _interactionSvg: null,
-    selectionDepth: 2,
-    mgr: {
-      suppressHover: false,
+    _getStageBindingRuntime() {
+      return {
+        bindInteraction() {
+          capturedCalls.push({ kind: "runtimeBindInteraction" });
+          return { tagName: "svg" };
+        },
+      };
     },
-    onSvgMouseDown() {},
-    onSvgDblClick() {},
-    findArrowAtPoint() {
-      return null;
-    },
-    findComponentAtDepth() {
-      return "alpha";
-    },
-    buildTreeUI() {},
     window: {
       __DG_getPreviewShellInteractionContract() {
         return context.LayoutEngine.previewShell.interaction;
@@ -2877,55 +3396,25 @@ test("editor stage-binding helper accepts the namespaced previewShell.interactio
   loaded.bindInteraction();
 
   assert.deepEqual(normalizeVmValue(capturedCalls), [
-    {
-      previousSvg: null,
-      suppressHover: false,
-      selectionDepth: 2,
-      hasOnMouseDown: "function",
-      hasOnDoubleClick: "function",
-      hasFindArrowAtPoint: "function",
-      hasFindComponentAtDepth: "function",
-      hasSyncHoverState: "function",
-      hasClearHoverState: "function",
-      hasEnsureArrowHitAreas: "undefined",
-      hasRebuildTreeUi: "function",
-    },
+    { kind: "runtimeBindInteraction" },
   ]);
 });
 
 test("editor selection chrome helpers accept the namespaced previewShell.interaction contract", () => {
   const source = readPreviewScript("editor.js");
   const capturedCalls: Array<Record<string, unknown>> = [];
-  const svg = { tagName: "svg" };
   const context = {
     console,
-    document: {
-      querySelector(selector: string) {
-        if (selector === "#stage svg") {
-          return svg;
-        }
-        return null;
-      },
-    },
-    selectedIds: new Set(["alpha"]),
-    SHARED_HANDLE_SIZE: 8,
-    clearHandlesByClass(className: string) {
-      capturedCalls.push({ kind: "clearHandlesByClass", className });
-    },
-    _getMultiResizeSelection() {
-      return { left: 10, top: 20, right: 30, bottom: 40 };
-    },
-    _getRenderedComponentBounds() {
-      return { left: 8, top: 16, right: 32, bottom: 48 };
-    },
-    getComponentType() {
-      return "panel";
-    },
-    showArrowWaypointHandles(id: string) {
-      capturedCalls.push({ kind: "showArrowWaypointHandles", id });
-    },
-    renderResizeHandles(...args: unknown[]) {
-      capturedCalls.push({ kind: "renderResizeHandles", args });
+    _getSelectionChromeRuntime() {
+      return {
+        showResizeHandles(cid: string) {
+          capturedCalls.push({ kind: "runtimeShowResizeHandles", cid });
+          return true;
+        },
+        removeResizeHandles() {
+          capturedCalls.push({ kind: "runtimeRemoveResizeHandles" });
+        },
+      };
     },
     _getArrowWaypointRuntime() {
       return {
@@ -2945,6 +3434,14 @@ test("editor selection chrome helpers accept the namespaced previewShell.interac
       __DG_getPreviewShellInteractionContract() {
         return context.LayoutEngine.previewShell.interaction;
       },
+    },
+    _getStageBindingRuntime() {
+      return {
+        buildTreeUi() {
+          capturedCalls.push({ kind: "runtimeBuildTreeUi" });
+          return true;
+        },
+      };
     },
     LayoutEngine: {
       previewShell: {
@@ -3001,23 +3498,12 @@ test("editor selection chrome helpers accept the namespaced previewShell.interac
   loaded.updateArrowVisual("alpha");
   loaded.rebuildArrowSVG("alpha");
 
-  assert.deepEqual(normalizeVmValue(capturedCalls), [
+    assert.deepEqual(normalizeVmValue(capturedCalls), [
     {
-      kind: "showPreviewResizeHandlesHost",
-      componentId: "alpha",
-      selectedCount: 1,
-      singleBounds: { left: 8, top: 16, right: 32, bottom: 48 },
-      componentType: "panel",
-      hasClearHandlesByClass: "function",
-      hasResolveHandlePlan: "function",
-      hasRenderResizeHandles: "function",
-      hasShowArrowWaypointHandles: "function",
-      handleSize: 8,
+      kind: "runtimeShowResizeHandles",
+      cid: "alpha",
     },
-    {
-      kind: "removePreviewHandlesHost",
-      hasClearHandlesByClass: "function",
-    },
+    { kind: "runtimeRemoveResizeHandles" },
     { kind: "runtimeGetArrowPoints", cid: "alpha" },
     { kind: "runtimeUpdateArrowVisual", cid: "alpha" },
     { kind: "runtimeRebuildArrowSvg", cid: "alpha" },
@@ -3185,6 +3671,14 @@ test("editor tree-selection host helpers accept the namespaced previewShell.inte
         },
       };
     },
+    _getStageBindingRuntime() {
+      return {
+        buildTreeUi() {
+          capturedCalls.push({ kind: "runtimeBuildTreeUi" });
+          return true;
+        },
+      };
+    },
     window: {
       __DG_getPreviewShellInteractionContract() {
         return context.LayoutEngine.previewShell.interaction;
@@ -3231,12 +3725,6 @@ test("editor tree-selection host helpers accept the namespaced previewShell.inte
 
   assert.deepEqual(normalizeVmValue({
     renderKind: capturedCalls[0]?.kind,
-    renderContainer: capturedCalls[0]?.container,
-    renderNodes: capturedCalls[0]?.nodes,
-    renderOverrides: capturedCalls[0]?.overrides,
-    renderSelectedIds: Array.from((capturedCalls[0]?.selectedIds as Set<string>) || []),
-    renderHasSelectComponent: typeof capturedCalls[0]?.selectComponent,
-    renderHasDeleteSelection: typeof capturedCalls[0]?.onDeleteSelection,
     clearKind: capturedCalls[1]?.kind,
     clearSelectedIds: Array.from((capturedCalls[1]?.selectedIds as Set<string>) || []),
     clearSelectionDepth: capturedCalls[1]?.selectionDepth,
@@ -3250,13 +3738,7 @@ test("editor tree-selection host helpers accept the namespaced previewShell.inte
     resolveAppliedPreferredCid: capturedCalls[4]?.preferredCid,
     resolveAppliedState: capturedCalls[4]?.nextState,
   }), {
-    renderKind: "renderTree",
-    renderContainer: { id: "tree" },
-    renderNodes: [{ id: "alpha" }, { id: "beta" }],
-    renderOverrides: { beta: { dx: 8 } },
-    renderSelectedIds: ["alpha"],
-    renderHasSelectComponent: "function",
-    renderHasDeleteSelection: "function",
+    renderKind: "runtimeBuildTreeUi",
     clearKind: "clearSelection",
     clearSelectedIds: ["alpha"],
     clearSelectionDepth: 2,

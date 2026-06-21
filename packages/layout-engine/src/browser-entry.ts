@@ -319,6 +319,7 @@ export {
   colSpanToPx,
   createPreviewGridOverrides,
   createPreviewGridOverlayScene,
+  createPreviewGridRuntimeFromEditorHost,
   createPreviewGridRuntimeHost,
   PREVIEW_STYLE_SEMANTICS,
   applyPreviewStyleFields,
@@ -334,8 +335,18 @@ export {
   cyclePreviewGuideModeHost,
   bindPreviewArrowSegmentInsertHandles,
   cancelPreviewTextEdit,
+  createPreviewKeyboardRuntime,
+  createPreviewKeyboardRuntimeFromHost,
   createPreviewWaypointDragState,
   cancelPreviewLiveResizeRelayout,
+  createPreviewLiveResizeRuntimeFromHost,
+  createPreviewLiveResizeRuntime,
+  createPreviewPointerInteractionRuntimeFromHost,
+  createPreviewPointerInteractionRuntime,
+  createPreviewResizeInteractionRuntime,
+  createPreviewResizeInteractionRuntimeFromHost,
+  createPreviewTextEditRuntime,
+  createPreviewTextEditRuntimeFromHost,
   collectPreviewArtboardBounds,
   collectPreviewSnapTargets,
   collectPreviewSubtreeRemovalIds,
@@ -350,18 +361,38 @@ export {
   createBootstrapPreviewEditorHostOptionsFromRuntime,
   createLoadPreviewSvgHostOptionsFromRuntime,
   createPreviewBuildStatusUpdater,
+  createPreviewEditorBootstrapFacadeFromEditorHost,
+  createPreviewEditorBootstrapFacadeFromRuntime,
+  createPreviewEditorSceneFacadeFromEditorHost,
+  createPreviewEditorSceneFacadeFromRuntime,
+  createPreviewEditorInteractionFacadeFromBrowserHost,
+  createPreviewEditorInteractionFacadeFromEditorHost,
+  createPreviewEditorInteractionFacadeFromRuntime,
+  createPreviewEditorRuntimeSetFromEditorHost,
   createPreviewEditorRuntimeSetFromRuntime,
   createPreviewEditorRuntimeSetFromHost,
   createPreviewEditorRuntimeSet,
   createPreviewArrowWaypointRuntime,
+  createPreviewSelectionChromeRuntimeFromHost,
+  createPreviewSelectionChromeRuntime,
+  createPreviewElkViewModeRuntimeFromBrowserHost,
   createPreviewElkViewModeRuntime,
   createPreviewInspectorDisplayRuntime,
   createPreviewInspectorMutationRuntime,
   createPreviewInspectorSelectionRuntime,
+  createPreviewEditorRelayoutFacadeFromEditorHost,
+  createPreviewEditorRelayoutFacadeFromRuntime,
   createPreviewLiveResizeRelayoutState,
+  createPreviewLayoutBridgeRuntimeFromBrowserHost,
+  createPreviewStateRestoreRuntime,
+  createPreviewStateRestoreRuntimeFromEditorHost,
+  createPreviewRelayoutRuntimeFromEditorHost,
   createPreviewRelayoutRuntime,
   createPreviewOverrideToolbarHostOptions,
+  createPreviewSaveClientRuntime,
   createPreviewSaveClientInitConfig,
+  createPreviewStageBindingRuntimeFromHost,
+  createPreviewStageBindingRuntime,
   createPreviewSelectionRuntime,
   collectPreviewFramesById,
   collectPreviewPlacedBounds,
@@ -385,6 +416,7 @@ export {
   bootstrapPreviewEditorRuntime,
   bootstrapPreviewEditorHost,
   ensurePreviewEditorState,
+  ensurePreviewEngineShellCompatController,
   ensurePreviewElkPreviewController,
   extractPreviewDiagramOptionEntries,
   findPreviewEditableTextTarget,
@@ -589,6 +621,8 @@ export type {
   EditorStateStoreOptions,
   InitPreviewOverrideToolbarOptions,
   PersistFrameKey,
+  PreviewLayoutRelayoutRuntimeState,
+  PreviewLayoutRelayoutStatus,
   PreviewRelayoutOverrideEntry,
   PreviewRelayoutResult,
   PreviewRelayoutStatus,
@@ -656,6 +690,8 @@ export type {
   CreatePreviewEditorRuntimeSetFromRuntimeOptions,
   PreviewEditorStateApi,
   PreviewEditorStateInitOptions,
+  PreviewEngineShellCompatControllerApi,
+  PreviewEngineShellCompatControllerInitOptions,
   PreviewElkControllerApi,
   PreviewElkControllerInitOptions,
   PreviewEngineShellControllerInitOptions,
@@ -664,6 +700,9 @@ export type {
   PreviewSaveClientApi,
   PreviewSaveClientInitConfig,
   PreviewSaveClientInitOptions,
+  PreviewSaveClientRuntime,
+  PreviewSaveClientRuntimeDeps,
+  PreviewSaveClientRuntimeOptions,
   PreviewShellCoordinatorInitOptions,
   PreviewTextEditCommitResolution,
   PreviewTextEditStartState,
@@ -826,6 +865,7 @@ export type {
   RenderPreviewGridOverlayHostOptions,
   RefreshPreviewGridInfoFromLayoutHostOptions,
   RefreshPreviewSceneHostOptions,
+  ResolvePreviewLayoutRelayoutStatusOptions,
   ResolvePreviewV3RelayoutStatusOptions,
   ResolvePreviewComponentSelectionStateOptions,
   SyncPreviewSelectionUiOptions,
@@ -847,6 +887,8 @@ export {
 } from './frame-serialize.js';
 
 export {
+  createPreviewElkLayoutControlsRuntime,
+  createPreviewElkShellControllerRuntime,
   ELK_LAYERED_PREVIEW_ENGINE,
   FORCE_PREVIEW_ENGINE,
   FORCE_PREVIEW_PARAM_SPECS,
@@ -882,6 +924,10 @@ export type {
 export const previewShell = Object.freeze({
   bootstrap: Object.freeze({
     attemptPreviewDiagramNavigation: previewShellRuntime.attemptPreviewDiagramNavigation,
+    createPreviewEditorBootstrapFacadeFromEditorHost:
+      previewShellRuntime.createPreviewEditorBootstrapFacadeFromEditorHost,
+    createPreviewEditorBootstrapFacadeFromRuntime:
+      previewShellRuntime.createPreviewEditorBootstrapFacadeFromRuntime,
     createLoadPreviewSvgHostOptionsFromRuntime:
       previewShellRuntime.createLoadPreviewSvgHostOptionsFromRuntime,
     createLoadPreviewSvgHostOptions: previewShellRuntime.createLoadPreviewSvgHostOptions,
@@ -896,6 +942,14 @@ export const previewShell = Object.freeze({
     createPreviewDiagramLoadSignalState: previewShellRuntime.createPreviewDiagramLoadSignalState,
     signalPreviewDiagramLoaded: previewShellRuntime.signalPreviewDiagramLoaded,
     whenPreviewDiagramLoaded: previewShellRuntime.whenPreviewDiagramLoaded,
+    createPreviewEditorInteractionFacadeFromEditorHost:
+      previewShellRuntime.createPreviewEditorInteractionFacadeFromEditorHost,
+    createPreviewEditorInteractionFacadeFromBrowserHost:
+      previewShellRuntime.createPreviewEditorInteractionFacadeFromBrowserHost,
+    createPreviewEditorInteractionFacadeFromRuntime:
+      previewShellRuntime.createPreviewEditorInteractionFacadeFromRuntime,
+    createPreviewEditorRuntimeSetFromEditorHost:
+      previewShellRuntime.createPreviewEditorRuntimeSetFromEditorHost,
     createPreviewEditorRuntimeSetFromRuntime:
       previewShellRuntime.createPreviewEditorRuntimeSetFromRuntime,
     createPreviewEditorRuntimeSetFromHost: previewShellRuntime.createPreviewEditorRuntimeSetFromHost,
@@ -907,6 +961,7 @@ export const previewShell = Object.freeze({
     createPreviewBuildStatusUpdater: previewShellRuntime.createPreviewBuildStatusUpdater,
     createPreviewOverrideToolbarHostOptions:
       previewShellRuntime.createPreviewOverrideToolbarHostOptions,
+    createPreviewSaveClientRuntime: previewShellRuntime.createPreviewSaveClientRuntime,
     createPreviewSaveClientInitConfig: previewShellRuntime.createPreviewSaveClientInitConfig,
     collectPreviewEngineSavePayload: previewShellRuntime.collectPreviewEngineSavePayload,
     initPreviewSaveClient: previewShellRuntime.initPreviewSaveClient,
@@ -914,12 +969,16 @@ export const previewShell = Object.freeze({
     bootstrapPreviewEditorRuntime: previewShellRuntime.bootstrapPreviewEditorRuntime,
     bootstrapPreviewEditorHost: previewShellRuntime.bootstrapPreviewEditorHost,
     ensurePreviewEditorState: previewShellRuntime.ensurePreviewEditorState,
+    ensurePreviewEngineShellCompatController:
+      previewShellRuntime.ensurePreviewEngineShellCompatController,
     ensurePreviewEngineShellController: previewShellRuntime.ensurePreviewEngineShellController,
     ensurePreviewElkPreviewController: previewShellRuntime.ensurePreviewElkPreviewController,
     getPreviewEngineShellController: previewShellRuntime.getPreviewEngineShellController,
     initPreviewEngineShellPanel: previewShellRuntime.initPreviewEngineShellPanel,
     isPreviewEngineShellLayoutActive: previewShellRuntime.isPreviewEngineShellLayoutActive,
     connectPreviewSse: previewShellRuntime.connectPreviewSse,
+    createPreviewEditorSceneFacadeFromRuntime:
+      previewShellRuntime.createPreviewEditorSceneFacadeFromRuntime,
     registerPreviewEditorDocumentBindingsHost: previewShellRuntime.registerPreviewEditorDocumentBindingsHost,
     installPreviewEditorTestFacadeHost: previewShellRuntime.installPreviewEditorTestFacadeHost,
     registerPreviewPageshowReload: previewShellRuntime.registerPreviewPageshowReload,
@@ -1012,6 +1071,25 @@ export const previewShell = Object.freeze({
     completePreviewResizeInteraction: previewShellRuntime.completePreviewResizeInteraction,
     completePreviewWaypointDragInteraction: previewShellRuntime.completePreviewWaypointDragInteraction,
     createPreviewArrowWaypointRuntime: previewShellRuntime.createPreviewArrowWaypointRuntime,
+    createPreviewKeyboardRuntime: previewShellRuntime.createPreviewKeyboardRuntime,
+    createPreviewKeyboardRuntimeFromHost:
+      previewShellRuntime.createPreviewKeyboardRuntimeFromHost,
+    createPreviewPointerInteractionRuntimeFromHost:
+      previewShellRuntime.createPreviewPointerInteractionRuntimeFromHost,
+    createPreviewPointerInteractionRuntime: previewShellRuntime.createPreviewPointerInteractionRuntime,
+    createPreviewResizeInteractionRuntime:
+      previewShellRuntime.createPreviewResizeInteractionRuntime,
+    createPreviewResizeInteractionRuntimeFromHost:
+      previewShellRuntime.createPreviewResizeInteractionRuntimeFromHost,
+    createPreviewTextEditRuntime: previewShellRuntime.createPreviewTextEditRuntime,
+    createPreviewTextEditRuntimeFromHost:
+      previewShellRuntime.createPreviewTextEditRuntimeFromHost,
+    createPreviewSelectionChromeRuntimeFromHost:
+      previewShellRuntime.createPreviewSelectionChromeRuntimeFromHost,
+    createPreviewSelectionChromeRuntime: previewShellRuntime.createPreviewSelectionChromeRuntime,
+    createPreviewStageBindingRuntimeFromHost:
+      previewShellRuntime.createPreviewStageBindingRuntimeFromHost,
+    createPreviewStageBindingRuntime: previewShellRuntime.createPreviewStageBindingRuntime,
     createSelectionTargetOverrideEntries: previewShellRuntime.createSelectionTargetOverrideEntries,
     createPreviewDragStartState: previewShellRuntime.createPreviewDragStartState,
     createPreviewWaypointDragState: previewShellRuntime.createPreviewWaypointDragState,
@@ -1053,6 +1131,12 @@ export const previewShell = Object.freeze({
   scene: Object.freeze({
     applyPreviewWaypointOverridesHost: previewShellRuntime.applyPreviewWaypointOverridesHost,
     bindPreviewGridControls: previewShellRuntime.bindPreviewGridControls,
+    createPreviewEditorSceneFacadeFromEditorHost:
+      previewShellRuntime.createPreviewEditorSceneFacadeFromEditorHost,
+    createPreviewEditorSceneFacadeFromRuntime:
+      previewShellRuntime.createPreviewEditorSceneFacadeFromRuntime,
+    createPreviewGridRuntimeFromEditorHost:
+      previewShellRuntime.createPreviewGridRuntimeFromEditorHost,
     createPreviewGridRuntimeHost: previewShellRuntime.createPreviewGridRuntimeHost,
     cyclePreviewGuideModeHost: previewShellRuntime.cyclePreviewGuideModeHost,
     createPreviewGridOverlayScene: previewShellRuntime.createPreviewGridOverlayScene,
@@ -1113,7 +1197,11 @@ export const previewBridge = Object.freeze({
       previewShellRuntime.applyFrameTreeRemovalsToPreviewTreeJson,
     applyPreviewSessionRemovalsToDiagramJson:
       previewShellRuntime.applyPreviewSessionRemovalsToDiagramJson,
+    createPreviewElkViewModeRuntimeFromBrowserHost:
+      previewShellRuntime.createPreviewElkViewModeRuntimeFromBrowserHost,
     createPreviewElkViewModeRuntime: previewShellRuntime.createPreviewElkViewModeRuntime,
+    createPreviewLayoutBridgeRuntimeFromBrowserHost:
+      previewShellRuntime.createPreviewLayoutBridgeRuntimeFromBrowserHost,
     createPreviewLayoutBridgeRuntime: previewShellRuntime.createPreviewLayoutBridgeRuntime,
     createPreviewLayoutBridgeState: previewShellRuntime.createPreviewLayoutBridgeState,
     normalizePreviewLayoutBridgeLocalRelayoutOverrideMode:
@@ -1126,8 +1214,14 @@ export const previewBridge = Object.freeze({
   relayout: Object.freeze({
     applyPreviewOverridesToFrameTree: previewShellRuntime.applyPreviewOverridesToFrameTree,
     collectPreviewRelayoutFrameOverrides: previewShellRuntime.collectPreviewRelayoutFrameOverrides,
+    createPreviewEditorRelayoutFacadeFromEditorHost:
+      previewShellRuntime.createPreviewEditorRelayoutFacadeFromEditorHost,
+    createPreviewEditorRelayoutFacadeFromRuntime:
+      previewShellRuntime.createPreviewEditorRelayoutFacadeFromRuntime,
     createPreviewRelayoutRuntimeFromRuntime:
       previewShellRuntime.createPreviewRelayoutRuntimeFromRuntime,
+    createPreviewRelayoutRuntimeFromEditorHost:
+      previewShellRuntime.createPreviewRelayoutRuntimeFromEditorHost,
     createPreviewRelayoutRuntime: previewShellRuntime.createPreviewRelayoutRuntime,
     createPreviewRelayoutRuntimeOptionsFromRuntime:
       previewShellRuntime.createPreviewRelayoutRuntimeOptionsFromRuntime,
@@ -1145,8 +1239,14 @@ export const previewBridge = Object.freeze({
     restorePreviewOverridePatch: previewShellRuntime.restorePreviewOverridePatch,
     restorePreviewSerializedState: previewShellRuntime.restorePreviewSerializedState,
     createPreviewLiveResizeRelayoutState: previewShellRuntime.createPreviewLiveResizeRelayoutState,
+    createPreviewLiveResizeRuntimeFromHost:
+      previewShellRuntime.createPreviewLiveResizeRuntimeFromHost,
+    createPreviewLiveResizeRuntime: previewShellRuntime.createPreviewLiveResizeRuntime,
     schedulePreviewLiveResizeRelayout: previewShellRuntime.schedulePreviewLiveResizeRelayout,
     cancelPreviewLiveResizeRelayout: previewShellRuntime.cancelPreviewLiveResizeRelayout,
+    createPreviewStateRestoreRuntimeFromEditorHost:
+      previewShellRuntime.createPreviewStateRestoreRuntimeFromEditorHost,
+    createPreviewStateRestoreRuntime: previewShellRuntime.createPreviewStateRestoreRuntime,
     dispatchPreviewClearOverride: previewShellRuntime.dispatchPreviewClearOverride,
     dispatchPreviewRelayoutFailureHost: previewShellRuntime.dispatchPreviewRelayoutFailureHost,
     dispatchPreviewRelayoutSuccessHost: previewShellRuntime.dispatchPreviewRelayoutSuccessHost,
@@ -1197,6 +1297,8 @@ export const previewEngines = Object.freeze({
   }),
   elk: Object.freeze({
     ELK_LAYERED_PREVIEW_ENGINE,
+    createPreviewElkLayoutControlsRuntime: previewEngineRuntime.createPreviewElkLayoutControlsRuntime,
+    createPreviewElkShellControllerRuntime: previewEngineRuntime.createPreviewElkShellControllerRuntime,
     elkLayeredPreviewControlSpecs,
     ELK_LAYERED_PARAM_SPECS,
     elkParamGroups,

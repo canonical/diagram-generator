@@ -10,45 +10,100 @@ function loadEditorSource(): string {
 }
 
 function extractNamedFunctionSource(source: string, functionName: string, signature: string): string {
-  const markers = [
+  const functionMarkers = [
     `async function ${functionName}${signature} {`,
     `function ${functionName}${signature} {`,
   ];
-  let start = -1;
-  for (const marker of markers) {
-    start = source.indexOf(marker);
-    if (start !== -1) {
+  let functionStart = -1;
+  for (const marker of functionMarkers) {
+    functionStart = source.indexOf(marker);
+    if (functionStart !== -1) {
       break;
     }
   }
-  if (start === -1) {
-    throw new Error(`${functionName} definition not found`);
-  }
+  if (functionStart !== -1) {
+    const bodyStart = source.indexOf("{", functionStart);
+    if (bodyStart === -1) {
+      throw new Error(`${functionName} body start not found`);
+    }
 
-  const bodyStart = source.indexOf("{", start);
-  if (bodyStart === -1) {
-    throw new Error(`${functionName} body start not found`);
-  }
-
-  let depth = 0;
-  let end = -1;
-  for (let index = bodyStart; index < source.length; index += 1) {
-    const char = source[index];
-    if (char === "{") depth += 1;
-    else if (char === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        end = index;
-        break;
+    let depth = 0;
+    let end = -1;
+    for (let index = bodyStart; index < source.length; index += 1) {
+      const char = source[index];
+      if (char === "{") depth += 1;
+      else if (char === "}") {
+        depth -= 1;
+        if (depth === 0) {
+          end = index;
+          break;
+        }
       }
     }
+
+    if (end === -1) {
+      throw new Error(`${functionName} body end not found`);
+    }
+
+    return source.slice(functionStart, end + 1);
   }
 
-  if (end === -1) {
-    throw new Error(`${functionName} body end not found`);
+  const arrowPrefixes = [
+    `const ${functionName} = async ${signature} =>`,
+    `const ${functionName} = ${signature} =>`,
+    `let ${functionName} = async ${signature} =>`,
+    `let ${functionName} = ${signature} =>`,
+    `var ${functionName} = async ${signature} =>`,
+    `var ${functionName} = ${signature} =>`,
+  ];
+
+  for (const prefix of arrowPrefixes) {
+    const start = source.indexOf(prefix);
+    if (start === -1) {
+      continue;
+    }
+
+    let cursor = start + prefix.length;
+    while (cursor < source.length && /\s/.test(source[cursor] ?? "")) {
+      cursor += 1;
+    }
+
+    if (source[cursor] === "{") {
+      let depth = 0;
+      let end = -1;
+      for (let index = cursor; index < source.length; index += 1) {
+        const char = source[index];
+        if (char === "{") depth += 1;
+        else if (char === "}") {
+          depth -= 1;
+          if (depth === 0) {
+            end = index;
+            break;
+          }
+        }
+      }
+
+      if (end === -1) {
+        throw new Error(`${functionName} body end not found`);
+      }
+
+      while (end + 1 < source.length && /\s/.test(source[end + 1] ?? "")) {
+        end += 1;
+      }
+      if (source[end + 1] === ";") {
+        end += 1;
+      }
+      return source.slice(start, end + 1);
+    }
+
+    const statementEnd = source.indexOf(";", cursor);
+    if (statementEnd === -1) {
+      throw new Error(`${functionName} statement end not found`);
+    }
+    return source.slice(start, statementEnd + 1);
   }
 
-  return source.slice(start, end + 1);
+  throw new Error(`${functionName} definition not found`);
 }
 
 function loadAsyncEditorFunction<T extends (...args: any[]) => Promise<unknown>>(
@@ -90,73 +145,37 @@ function loadAsyncEditorFunction<T extends (...args: any[]) => Promise<unknown>>
   return loaded;
 }
 
-test("deleteSelectedFrames delegates through the typed delete dispatcher", async () => {
-  let delegatedOptions: Record<string, unknown> | null = null;
-  const removedIds = new Set<string>();
-  const selectedIds = new Set(["alpha", "beta"]);
-  const cleared: string[] = [];
-  let dirtied = false;
-  let deselected = false;
+test("deleteSelectedFrames delegates through the typed editor scene facade", async () => {
+  let delegated = false;
 
   const deleteSelectedFrames = loadAsyncEditorFunction<() => Promise<boolean>>(
     "deleteSelectedFrames",
     "()",
     {
-      selectedIds,
-      mgr: {
-        isMode() {
-          return false;
-        },
-      },
-      InteractionMode: {
-        TEXT_EDITING: "text_editing",
-      },
-      LayoutEngine: {
-        previewBridge: {
-          host: {
-            getFrameTreeJson() {
-              return { root: { id: "root" } };
-            },
+      _getEditorSceneFacade() {
+        return {
+          async deleteSelectedFrames() {
+            delegated = true;
+            return {
+              kind: "deleted",
+              removedIds: ["alpha"],
+              topLevelIds: ["alpha"],
+              rerendered: true,
+            };
           },
-        },
-        async deletePreviewSelectedFramesHost(options: Record<string, any>) {
-          delegatedOptions = {
-            selectedIds: Array.from(options.selectedIds as Iterable<string>),
-            isTextEditing: options.isTextEditing,
-            hasGetFrameTreeJson: typeof options.getFrameTreeJson,
-            rootNodeIds: Array.from(options.rootNodes as Array<{ id: string }>).map((node) => node.id),
-            fallbackRootId: options.fallbackRootId,
-          };
-          options.markRemoved("alpha");
-          options.clearOverride("alpha");
-          options.unselect("beta");
-          options.setDirty(true);
-          options.deselectAll();
-          return {
-            kind: "deleted",
-            removedIds: ["alpha"],
-            topLevelIds: ["alpha"],
-            rerendered: true,
-          };
-        },
+        };
       },
       model: {
-        roots: [{ id: "page-root" }],
-        removedIds,
-        clearOverride(id: string) {
-          cleared.push(id);
-        },
+        roots: [],
+        removedIds: new Set<string>(),
+        clearOverride() {},
         get() {
           return null;
         },
       },
-      setDirty(value: boolean) {
-        dirtied = value;
-      },
+      setDirty() {},
       _rerenderStageFromModel: async () => true,
-      deselectAll() {
-        deselected = true;
-      },
+      deselectAll() {},
       EditorState: {
         beginUndoableAction() {
           throw new Error("editor.js should not begin delete actions inline anymore");
@@ -172,16 +191,5 @@ test("deleteSelectedFrames delegates through the typed delete dispatcher", async
   const result = await deleteSelectedFrames();
 
   assert.equal(result, true);
-  assert.deepEqual(delegatedOptions, {
-    selectedIds: ["alpha", "beta"],
-    isTextEditing: false,
-    hasGetFrameTreeJson: "function",
-    rootNodeIds: ["page-root"],
-    fallbackRootId: "page",
-  });
-  assert.deepEqual([...removedIds], ["alpha"]);
-  assert.deepEqual(cleared, ["alpha"]);
-  assert.deepEqual([...selectedIds], ["alpha"]);
-  assert.equal(dirtied, true);
-  assert.equal(deselected, true);
+  assert.equal(delegated, true);
 });

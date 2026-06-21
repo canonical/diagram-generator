@@ -17,7 +17,9 @@ import {
 export interface EditorStateStoreDeps {
   getOverrides: () => Record<string, unknown>;
   getGridOverrides: () => Record<string, unknown> | null | undefined;
-  getElkLayoutOverrides: () => Record<string, unknown> | null | undefined;
+  getLayoutOverrides?: () => Record<string, unknown> | null | undefined;
+  /** @deprecated Prefer `getLayoutOverrides`. */
+  getElkLayoutOverrides?: () => Record<string, unknown> | null | undefined;
   getRemovedIds: () => Iterable<string> | null | undefined;
   getFrameTree: () => unknown | null | undefined;
 }
@@ -56,7 +58,8 @@ export class EditorStateStore {
     return {
       overrides: this.deps.getOverrides(),
       gridOverrides: this.deps.getGridOverrides(),
-      elkLayoutOverrides: this.deps.getElkLayoutOverrides(),
+      elkLayoutOverrides: this.deps.getLayoutOverrides?.()
+        ?? this.deps.getElkLayoutOverrides?.(),
       removedIds: this.deps.getRemovedIds(),
       frameTree: this.deps.getFrameTree(),
     };

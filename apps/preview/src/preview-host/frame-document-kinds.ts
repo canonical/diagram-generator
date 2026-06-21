@@ -26,6 +26,18 @@ export interface FrameYamlDocumentKindHandler {
     deps: FramePreviewRenderDeps,
     previewDocument: PreviewRenderableDocument,
   ) => Promise<string>;
+  saveDocument?: (
+    slug: string,
+    payload: unknown,
+    deps: FrameYamlDocumentSaveDeps,
+    previewDocument: PreviewRenderableDocument,
+  ) => unknown;
+}
+
+export interface FrameYamlDocumentSaveDeps {
+  readonly framePreviewDocumentDeps: FramePreviewDocumentDeps;
+  readonly parseYaml: (raw: string) => unknown;
+  readonly normalizeLayoutEngine: (layoutEngine: string | undefined) => string;
 }
 
 const frameYamlDocumentKindHandlers: FrameYamlDocumentKindHandler[] = [];

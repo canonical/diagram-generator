@@ -52,9 +52,9 @@ export function resolvePreviewInspectorActionElement(
 ): PreviewInspectorActionElement | null {
   const target = event?.target;
   if (!target || typeof target !== 'object') return null;
-  const closest = (target as PreviewInspectorActionElement).closest;
-  if (typeof closest !== 'function') return null;
-  const match = closest(`[${attrName}]`);
+  const actionTarget = target as PreviewInspectorActionElement;
+  if (typeof actionTarget.closest !== 'function') return null;
+  const match = actionTarget.closest(`[${attrName}]`);
   return match && typeof match === 'object' ? (match as PreviewInspectorActionElement) : null;
 }
 

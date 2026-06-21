@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import {
@@ -25,8 +25,14 @@ import {
   listFrameYamlDocumentKindHandlers,
   registerFrameYamlDocumentKindHandler,
   resolveFrameYamlDocumentKindHandler,
+  type FrameYamlDocumentSaveDeps,
   type FrameYamlDocumentKindHandler,
 } from "./frame-document-kinds.js";
+import {
+  persistFrameDiagramOverridePayloadToYaml,
+  verifyElkLayoutPersisted,
+  type PersistOverridePayload,
+} from "../persistence/index.js";
 
 export interface FramePreviewDocumentDeps {
   readonly framesDir: string;
@@ -129,6 +135,9 @@ export const SEQUENCE_FRAME_YAML_HANDLER: FrameYamlDocumentKindHandler = {
     }
     return rendered.svgMarkup;
   },
+  saveDocument(slug, payload, deps) {
+    return persistFrameYamlDocumentForSlug(slug, payload, deps);
+  },
 };
 
 export const FRAME_DIAGRAM_YAML_HANDLER: FrameYamlDocumentKindHandler = {
@@ -151,6 +160,9 @@ export const FRAME_DIAGRAM_YAML_HANDLER: FrameYamlDocumentKindHandler = {
     const iconMarkupByName = preloadIconMarkup(deps.iconLoader, collectIconNames(diagram.root));
     const adapter = await deps.textAdapterPromise;
     return renderFrameDiagramToSvg(diagram, layout, adapter, { iconMarkupByName });
+  },
+  saveDocument(slug, payload, deps) {
+    return persistFrameYamlDocumentForSlug(slug, payload, deps);
   },
 };
 
@@ -200,6 +212,73 @@ export function canonicalSavedState(slug: string, deps: FramePreviewDocumentDeps
     deps,
     previewDocument,
   );
+}
+
+function verifyPersistedEngineLayoutNamespaces(
+  nextText: string,
+  payload: unknown,
+): void {
+  const payloadRecord =
+    payload && typeof payload === "object" && payload !== null
+      ? payload as Record<string, unknown>
+      : null;
+  const namespacedEngineOverrides =
+    payloadRecord && "engine_layout_overrides" in payloadRecord && typeof payloadRecord.engine_layout_overrides === "object"
+    && payloadRecord.engine_layout_overrides !== null
+    && !Array.isArray(payloadRecord.engine_layout_overrides)
+      ? payloadRecord.engine_layout_overrides as Record<string, unknown>
+      : null;
+  const elkOverrides = (
+    namespacedEngineOverrides
+      && typeof namespacedEngineOverrides["meta.elk"] === "object"
+      && namespacedEngineOverrides["meta.elk"] !== null
+      && !Array.isArray(namespacedEngineOverrides["meta.elk"])
+      ? namespacedEngineOverrides["meta.elk"]
+      : (payloadRecord && "elk_layout_overrides" in payloadRecord
+          ? payloadRecord.elk_layout_overrides
+          : null)
+  );
+  if (elkOverrides && typeof elkOverrides === "object" && !Array.isArray(elkOverrides)) {
+    verifyElkLayoutPersisted(nextText, elkOverrides as Record<string, unknown>);
+  }
+}
+
+function persistFrameYamlDocumentForSlug(
+  slug: string,
+  payload: unknown,
+  deps: FrameYamlDocumentSaveDeps,
+): unknown {
+  const framePath = path.join(deps.framePreviewDocumentDeps.framesDir, `${slug}.yaml`);
+  if (!existsSync(framePath)) {
+    throw new Error(`Unknown frame slug: ${slug}`);
+  }
+  const baseline = readFileSync(framePath, "utf8");
+  const nextText = persistFrameDiagramOverridePayloadToYaml(
+    framePath,
+    baseline,
+    payload as PersistOverridePayload,
+  );
+  if (nextText !== baseline) {
+    writeFileSync(framePath, nextText, "utf8");
+  }
+  verifyPersistedEngineLayoutNamespaces(nextText, payload);
+  return {
+    ok: true,
+    canonicalState: canonicalSavedState(slug, deps.framePreviewDocumentDeps),
+  };
+}
+
+export function saveFrameYamlDocumentForSlug(
+  slug: string,
+  payload: unknown,
+  deps: FrameYamlDocumentSaveDeps,
+): unknown {
+  const previewDocument = previewDocumentForSlug(slug, deps.framePreviewDocumentDeps);
+  const handler = resolveFrameYamlDocumentKindHandler(previewDocument.kind);
+  if (!handler?.saveDocument) {
+    throw new Error(`Unsupported frame preview save kind '${String(previewDocument.kind)}'`);
+  }
+  return handler.saveDocument(slug, payload, deps, previewDocument);
 }
 
 export async function buildFrameDiagramState(slug: string, deps: FramePreviewRenderDeps) {

@@ -13,8 +13,8 @@ import {
   createPreviewHostDocumentPostJsonRoute,
 } from "./document-api-routes.js";
 import {
-  createForcePreviewHostDocumentActions,
-  FORCE_PREVIEW_HOST_DOCUMENT_ACTIONS,
+  createForcePreviewHostDocumentEndpoints,
+  FORCE_PREVIEW_HOST_DOCUMENT_ENDPOINTS,
 } from "./document-apis.js";
 import { forcePreviewDocumentExists } from "./force-documents.js";
 import { FORCE_HOST_LANE } from "./lanes.js";
@@ -123,7 +123,7 @@ export function createForceSavePreviewHostApiRoute(): PreviewHostApiRouteDescrip
   return createPreviewHostDocumentPostJsonRoute({
     key: "force-save",
     routePrefixes: ["/api/force-save/"],
-    documentActionKey: FORCE_PREVIEW_HOST_DOCUMENT_ACTIONS.saveDocument,
+    documentEndpointKind: FORCE_PREVIEW_HOST_DOCUMENT_ENDPOINTS.saveDocument,
     routeKey: "force",
     missingMessage: missingForceExampleMessage,
   });
@@ -133,7 +133,7 @@ export function createForceSpecPreviewHostApiRoute(): PreviewHostApiRouteDescrip
   return createPreviewHostDocumentGetJsonRoute({
     key: "force-spec",
     routePrefixes: ["/api/force-spec/"],
-    documentActionKey: FORCE_PREVIEW_HOST_DOCUMENT_ACTIONS.loadAuthoredSpec,
+    documentEndpointKind: FORCE_PREVIEW_HOST_DOCUMENT_ENDPOINTS.documentSpec,
     routeKey: "force",
     missingMessage: missingForceExampleMessage,
   });
@@ -168,7 +168,7 @@ export function createForcePreviewHostViewerRoute(
       });
       const modeScripts = buildPreviewModeScriptsHtml({
         previewAssetUrl: deps.previewAssetUrl,
-        coreScripts: ["layout-engine.js"],
+        coreScripts: ["layout-engine.js", "save-client.js"],
         engineScripts: engineManifest?.scripts ?? [],
       });
       return buildPreviewViewerHtml({
@@ -183,7 +183,7 @@ export function createForcePreviewHostViewerRoute(
       });
     },
     describeMissing: missingForceExampleMessage,
-    documentActions: createForcePreviewHostDocumentActions({
+    documentEndpoints: createForcePreviewHostDocumentEndpoints({
       forcePreviewDocumentDeps: deps.forcePreviewDocumentDeps,
       parseYaml: deps.parseYaml,
     }),

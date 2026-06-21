@@ -7,9 +7,14 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { MockTextAdapter } from "@diagram-generator/layout-engine";
+import {
+  MockTextAdapter,
+  createLoadPreviewSvgHostOptionsFromRuntime,
+  loadPreviewSvg,
+} from "@diagram-generator/layout-engine";
 import { AUTOLAYOUT_HOST_LANE, FORCE_HOST_LANE, buildPreviewBrowseSections } from "../preview-host/lanes.js";
 import { buildIndexPageHtml, buildViewerPageHtml } from "../preview-host/pages.js";
+import { createAutolayoutPreviewHostViewerRoute } from "../preview-host/builtin-autolayout-host.js";
 import { installBuiltinPreviewHostViewerRoutes } from "../preview-host/builtin-viewer-routes.js";
 import { installBuiltinPreviewHost } from "../preview-host/install-builtins.js";
 import {
@@ -26,7 +31,7 @@ import {
   buildRegisteredPreviewBrowseSections,
   listPreviewHostViewerRoutes,
   registerPreviewHostViewerRoute,
-  resolveRegisteredPreviewDocumentAction,
+  resolveRegisteredPreviewDocumentEndpoint,
   resolveRegisteredPreviewViewerRoute,
 } from "../preview-host/registry.js";
 import {
@@ -134,9 +139,12 @@ test("preview host viewer routes register through a typed registry", () => {
     hasDocument: () => true,
     buildHtml: () => "<html>grid</html>",
     describeMissing: (slug: string) => `Unknown diagram: ${slug}`,
-    documentActions: {
-      "load-preview-document": (slug: string) => ({ kind: "frame-diagram", slug }),
-    },
+    documentEndpoints: [
+      {
+        kind: "preview-document",
+        handler: (slug: string) => ({ kind: "frame-diagram", slug }),
+      },
+    ],
   });
   const unregisterForce = registerPreviewHostViewerRoute({
     key: "test-force",
@@ -170,10 +178,10 @@ test("preview host viewer routes register through a typed registry", () => {
       },
     );
     assert.deepEqual(
-      resolveRegisteredPreviewDocumentAction("support-engineering-flow", "load-preview-document"),
+      resolveRegisteredPreviewDocumentEndpoint("support-engineering-flow", "preview-document"),
       {
         route: listPreviewHostViewerRoutes().find((route) => route.key === "test-autolayout"),
-        handler: listPreviewHostViewerRoutes().find((route) => route.key === "test-autolayout")?.documentActions?.["load-preview-document"],
+        handler: listPreviewHostViewerRoutes().find((route) => route.key === "test-autolayout")?.documentEndpoints?.[0]?.handler,
       },
     );
   } finally {
@@ -222,6 +230,39 @@ test("builtin preview host viewer routes install through a host-owned installer"
   }
 
   expectRegisteredRoutes([]);
+});
+
+test("autolayout viewer loads engine controller scripts before editor bootstrap", () => {
+  const route = createAutolayoutPreviewHostViewerRoute({
+    framePreviewDocumentDeps: {
+      framesDir: path.join(REPO_ROOT, "scripts", "diagrams", "frames"),
+    },
+    framePreviewRenderDeps: {
+      framesDir: path.join(REPO_ROOT, "scripts", "diagrams", "frames"),
+      iconLoader: () => null,
+      textAdapterPromise: Promise.resolve(new MockTextAdapter()),
+    },
+    forcePreviewDocumentDeps: { forceDefinitionsDir: "/virtual/force" },
+    parseYaml: () => ({}),
+    templateHtml: "%MODE_SCRIPTS%",
+    baselineStylesHtml: "",
+    previewAssetUrl: (filename: string) => `/preview/${filename}`,
+    listAutolayoutDiagrams: () => ["support-engineering-flow"],
+    listForceExamples: () => [],
+    findReferenceImage: () => null,
+    normalizeLayoutEngine: () => "elk-layered",
+  });
+
+  const html = route.buildHtml("support-engineering-flow");
+  const controlsIndex = html.indexOf('/preview/elk-layout-controls.js');
+  const controllerIndex = html.indexOf('/preview/elk-controller.js');
+  const editorIndex = html.indexOf('/preview/editor.js');
+
+  assert.notEqual(controlsIndex, -1);
+  assert.notEqual(controllerIndex, -1);
+  assert.notEqual(editorIndex, -1);
+  assert.ok(controlsIndex < editorIndex);
+  assert.ok(controllerIndex < editorIndex);
 });
 
 test("frame YAML preview document kinds register outside the central fallback handler", async () => {
@@ -463,15 +504,18 @@ test("preview host document routes resolve arbitrary owner-defined action keys",
     hasDocument: () => true,
     buildHtml: () => "<html></html>",
     describeMissing: (slug: string) => `Unknown diagram: ${slug}`,
-    documentActions: {
-      "load-outline": (slug: string) => ({ kind: "outline", slug }),
-    },
+    documentEndpoints: [
+      {
+        kind: "load-outline",
+        handler: (slug: string) => ({ kind: "outline", slug }),
+      },
+    ],
   });
   const unregisterApiRoute = registerPreviewHostApiRoute(
     createPreviewHostDocumentGetJsonRoute({
       key: "test-outline",
       routePrefixes: ["/api/test-outline/"],
-      documentActionKey: "load-outline",
+      documentEndpointKind: "load-outline",
       routeKey: "test-document-actions",
       missingMessage: (slug: string) => `Unknown outline: ${slug}`,
     }),
@@ -981,8 +1025,6 @@ test("builtin preview host api routes install through a host-owned installer", a
       "schema: author-v1",
       "title: Service handshake sequence",
       "engine: v3",
-      "meta:",
-      "  layout_engine: sequence",
       "root:",
       "  id: page",
       "  children: []",
@@ -1085,6 +1127,166 @@ test("builtin preview host api routes install through a host-owned installer", a
     assert.ok(sequencePreviewDocumentPayload && typeof sequencePreviewDocumentPayload === "object");
     assert.equal((sequencePreviewDocumentPayload as Record<string, unknown>).kind, "sequence");
     assert.equal((sequencePreviewDocumentPayload as Record<string, unknown>).slug, "service-handshake-sequence");
+
+    const sequenceSaveMatch = resolveRegisteredPreviewHostApiRoute(
+      "POST",
+      "/api/overrides/service-handshake-sequence",
+      normalizePreviewSlug,
+    );
+    assert.ok(sequenceSaveMatch);
+    let sequenceSavePayload: unknown = null;
+    await sequenceSaveMatch.route.handle(sequenceSaveMatch, {
+      req: {} as never,
+      res: {} as never,
+      pathname: sequenceSaveMatch.pathname,
+      sendJson: (_statusCode, payload) => {
+        sequenceSavePayload = payload;
+      },
+      sendText: () => {
+        throw new Error("did not expect sequence save route to send plain text");
+      },
+      sendBytes: () => {
+        throw new Error("did not expect sequence save route to send bytes");
+      },
+      readJsonBody: async () => ({ layout_engine: "sequence" }),
+    });
+    assert.match(readFileSync(sequenceFramePath, "utf8"), /layout_engine: sequence/);
+    assert.ok(sequenceSavePayload && typeof sequenceSavePayload === "object");
+    assert.equal((sequenceSavePayload as Record<string, unknown>).ok, true);
+    const sequenceCanonicalState = (sequenceSavePayload as { canonicalState: Record<string, unknown> }).canonicalState;
+    assert.equal(sequenceCanonicalState.slug, "service-handshake-sequence");
+    assert.equal((sequenceCanonicalState.previewDocument as Record<string, unknown>).kind, "sequence");
+    assert.equal((sequenceCanonicalState.previewDocument as Record<string, unknown>).layoutEngine, "sequence");
+    assert.equal(sequenceCanonicalState.frameTree, null);
+    assert.deepEqual(sequenceCanonicalState.componentTree, []);
+    assert.equal(sequenceCanonicalState.gridInfo, null);
+
+    const browserLoadEvents: string[] = [];
+    const selectedIds = new Set<string>(["stale"]);
+    const loadMode = await loadPreviewSvg(createLoadPreviewSvgHostOptionsFromRuntime({
+      invocation: {
+        canonicalState: sequenceCanonicalState,
+        preserveSelectionIds: ["message:m1"],
+      },
+      stage: {
+        innerHTML: "",
+        replaceChildren(svg: { tagName?: string }) {
+          browserLoadEvents.push(`replace:${String(svg?.tagName || "svg")}`);
+        },
+      },
+      slug: "service-handshake-sequence",
+      engine: "sequence",
+      gridEnabled: true,
+      deselectAll: () => {
+        browserLoadEvents.push("deselectAll");
+      },
+      previewBridgeHost: {
+        async initLayoutBridge(slug: string) {
+          browserLoadEvents.push(`init:${slug}`);
+        },
+        setFrameTreeJson(frameTree: unknown) {
+          browserLoadEvents.push(`frameTree:${String(frameTree)}`);
+        },
+      },
+      isEngineLayoutActive: () => false,
+      resetOverrideState: () => {
+        browserLoadEvents.push("resetOverrideState");
+      },
+      initEnginePanel: () => {
+        browserLoadEvents.push("initEnginePanel");
+      },
+      getLocalRelayoutStatus: () => ({ ready: true, reason: "ready" }),
+      escapeHtml: (value: string) => value,
+      loadTree: async (canonicalState) => {
+        browserLoadEvents.push(`loadTree:${String((canonicalState?.previewDocument as { kind?: string } | null)?.kind || "")}`);
+      },
+      loadGridInfo: async (canonicalState) => {
+        browserLoadEvents.push(`loadGridInfo:${String(canonicalState?.gridInfo)}`);
+      },
+      gridState: {
+        getGridInfo: () => null,
+        setDiagramGrid: () => {
+          browserLoadEvents.push("setDiagramGrid");
+        },
+        getGridOverrides: () => null,
+        pruneLinkedRootGridOverrides: () => {
+          browserLoadEvents.push("pruneLinkedRootGridOverrides");
+        },
+      },
+      populateGridControls: () => {
+        browserLoadEvents.push("populateGridControls");
+      },
+      applyWaypointOverrides: () => {
+        browserLoadEvents.push("applyWaypointOverrides");
+      },
+      applyAllOverrides: () => {
+        browserLoadEvents.push("applyAllOverrides");
+      },
+      bindInteraction: () => {
+        browserLoadEvents.push("bindInteraction");
+      },
+      renderGridOverlay: () => {
+        browserLoadEvents.push("renderGridOverlay");
+      },
+      selectionState: {
+        selectedIds,
+        reapplySelection: () => {
+          browserLoadEvents.push("reapplySelection");
+        },
+      },
+      runConstraints: () => {
+        browserLoadEvents.push("runConstraints");
+      },
+      previewSaveClient: {
+        markSaved: (serializedState: string) => {
+          browserLoadEvents.push(`markSaved:${serializedState}`);
+        },
+      },
+      dirtyStateSerializer: {
+        serializeDirtyState: () => "dirty-state",
+      },
+      signalDiagramLoaded: () => {
+        browserLoadEvents.push("signalDiagramLoaded");
+      },
+      previewBridgeRender: {
+        async renderFreshPreviewSvg(renderOptions) {
+          browserLoadEvents.push(`render:${String((renderOptions.model as { id?: string })?.id || "")}`);
+          return {
+            svg: { tagName: "svg" },
+            width: 640,
+            height: 320,
+          };
+        },
+      },
+      overrides: {},
+      model: { id: "sequence-model" },
+      fitRenderedSvgToContent: (_svg, fitOptions) => {
+        browserLoadEvents.push(`fit:${fitOptions.minWidth}x${fitOptions.minHeight}`);
+      },
+    }));
+
+    assert.equal(loadMode, "client-render");
+    assert.deepEqual([...selectedIds], ["message:m1"]);
+    assert.deepEqual(browserLoadEvents, [
+      "deselectAll",
+      "init:service-handshake-sequence",
+      "frameTree:null",
+      "loadTree:sequence",
+      "loadGridInfo:null",
+      "populateGridControls",
+      "resetOverrideState",
+      "render:sequence-model",
+      "replace:svg",
+      "fit:640x320",
+      "applyWaypointOverrides",
+      "applyAllOverrides",
+      "bindInteraction",
+      "renderGridOverlay",
+      "reapplySelection",
+      "runConstraints",
+      "markSaved:dirty-state",
+      "signalDiagramLoaded",
+    ]);
 
     const frameOverridesMatch = resolveRegisteredPreviewHostApiRoute(
       "POST",

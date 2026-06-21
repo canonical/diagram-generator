@@ -51,11 +51,13 @@ export interface CreatePreviewRelayoutRuntimeHostOptions<TGridOverrides, TModel>
       model: TModel,
       overrides: Record<string, PreviewRelayoutOverrideEntry>,
       normalizedGridOverrides: TGridOverrides,
+      options?: { skipModelUpdate?: boolean },
     ) => Promise<PreviewRelayoutResult | null>) | null;
     performElkRelayout?: ((
       model: TModel,
       overrides: Record<string, PreviewRelayoutOverrideEntry>,
       normalizedGridOverrides: TGridOverrides,
+      options?: { skipModelUpdate?: boolean },
     ) => Promise<PreviewRelayoutResult | null>) | null;
     performLocalRelayout: (
       model: TModel,
@@ -138,6 +140,32 @@ export interface PreviewRelayoutRuntime {
 
 export interface CreatePreviewRelayoutRuntimeFromRuntimeOptions<TGridOverrides, TModel>
   extends CreatePreviewRelayoutRuntimeOptionsFromRuntimeOptions<TGridOverrides, TModel> {
+}
+
+export interface CreatePreviewRelayoutRuntimeFromEditorHostOptions<TGridOverrides, TModel> {
+  getOverrides: () => Record<string, PreviewRelayoutOverrideEntry>;
+  coercedKeys: Set<string>;
+  model: TModel;
+  previewBridgeHost: CreatePreviewRelayoutRuntimeHostOptions<TGridOverrides, TModel>['previewBridgeHost'];
+  getGridOverrides: () => TGridOverrides;
+  normalizeGridOverrides: (value: TGridOverrides) => TGridOverrides;
+  selectedIds: Set<string>;
+  getRelayoutStatus: () => PreviewRelayoutStatus;
+  isEngineLayoutActive: () => boolean;
+  failRelayout: (reason: string, triggerCid: string) => unknown;
+  finishRelayout: (
+    triggerCid: string,
+    result: PreviewRelayoutResult,
+    executionLabel: 'elk' | 'local',
+  ) => unknown;
+  logError?: (message: string) => void;
+  clearOverride: (cid: string) => void;
+  setDirty: () => void;
+  applyAllOverrides: () => void;
+  updateInspector: (cid: string) => void;
+  reloadTreeAfterArrowRestore: () => Promise<unknown> | unknown;
+  rebuildArrowSvg: (cid: string) => void;
+  editorState: PreviewRelayoutEditorState;
 }
 
 export function createPreviewRelayoutRuntimeOptionsFromHost<TGridOverrides, TModel>(
@@ -223,6 +251,36 @@ export function createPreviewRelayoutRuntimeFromRuntime<TGridOverrides, TModel>(
   );
 }
 
+export function createPreviewRelayoutRuntimeFromEditorHost<TGridOverrides, TModel>(
+  options: CreatePreviewRelayoutRuntimeFromEditorHostOptions<TGridOverrides, TModel>,
+): PreviewRelayoutRuntime {
+  return createPreviewRelayoutRuntimeFromRuntime({
+    overrides: options.getOverrides(),
+    coercedKeys: options.coercedKeys,
+    model: options.model,
+    previewBridgeHost: options.previewBridgeHost,
+    gridState: {
+      getGridOverrides: options.getGridOverrides,
+      normalizeGridOverrides: options.normalizeGridOverrides,
+    },
+    selectionState: {
+      selectedIds: options.selectedIds,
+    },
+    getRelayoutStatus: options.getRelayoutStatus,
+    isEngineLayoutActive: options.isEngineLayoutActive,
+    failRelayout: options.failRelayout,
+    finishRelayout: options.finishRelayout,
+    logError: options.logError,
+    clearOverride: options.clearOverride,
+    setDirty: options.setDirty,
+    applyAllOverrides: options.applyAllOverrides,
+    updateInspector: options.updateInspector,
+    reloadTreeAfterArrowRestore: options.reloadTreeAfterArrowRestore,
+    rebuildArrowSvg: options.rebuildArrowSvg,
+    editorState: options.editorState,
+  });
+}
+
 export function createPreviewRelayoutRuntime<TGridOverrides>(
   options: CreatePreviewRelayoutRuntimeOptions<TGridOverrides>,
 ): PreviewRelayoutRuntime {
@@ -243,7 +301,9 @@ export function createPreviewRelayoutRuntime<TGridOverrides>(
         gridOverrides: options.getGridOverrides(),
         normalizeGridOverrides: options.normalizeGridOverrides,
         relayoutStatus,
+        isEngineLayoutActive: isEngineLayoutActive(),
         isElkLayeredDiagram: isEngineLayoutActive(),
+        performEngineRelayout,
         performElkRelayout: performEngineRelayout,
         performLocalRelayout: options.performLocalRelayout,
         failRelayout: options.failRelayout,

@@ -2,8 +2,9 @@ import type {
   PreviewHostApiRouteDescriptor,
   PreviewHostApiRouteMatch,
   PreviewHostDocumentActionHandler,
+  PreviewHostDocumentEndpointKind,
 } from "./types.js";
-import { resolveRegisteredPreviewDocumentAction } from "./registry.js";
+import { resolveRegisteredPreviewDocumentEndpoint } from "./registry.js";
 
 function requirePreviewHostRouteSlug(
   match: { slug: string | null },
@@ -20,7 +21,7 @@ function requirePreviewHostRouteSlug(
 interface ResolvePreviewHostDocumentRouteOptions<
   THandler extends PreviewHostDocumentActionHandler,
 > {
-  readonly documentActionKey: string;
+  readonly documentEndpointKind: PreviewHostDocumentEndpointKind;
   readonly routeKey?: string;
   readonly missingMessage: (slug: string) => string;
   readonly resolveSlug?: (match: PreviewHostApiRouteMatch) => string | null;
@@ -45,7 +46,7 @@ function resolvePreviewHostDocumentRoute<
   if (!slug) {
     return null;
   }
-  const owner = resolveRegisteredPreviewDocumentAction<THandler>(slug, options.documentActionKey, {
+  const owner = resolveRegisteredPreviewDocumentEndpoint<THandler>(slug, options.documentEndpointKind, {
     routeKey: options.routeKey,
   });
   if (!owner) {

@@ -260,8 +260,13 @@ describe('preview interaction host helpers', () => {
         },
         hasMoved: false,
         snapshotRecorded: false,
-        v3BaseW: 80,
-        v3BaseH: 40,
+        baseSizes: {
+          alpha: { width: 80, height: 40 },
+        },
+        baseX: 20,
+        baseY: 30,
+        baseW: 80,
+        baseH: 40,
       },
     });
   });

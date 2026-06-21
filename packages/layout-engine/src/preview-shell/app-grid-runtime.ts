@@ -93,6 +93,127 @@ export interface PreviewGridRuntimeHost<TGridInfo = unknown> {
   bindControls: () => void;
 }
 
+export interface PreviewGridRuntimeEditorHostRootLike {
+  id?: string | null;
+  data?: {
+    layout_gap?: number | null;
+    padding_top?: number | null;
+  } | null;
+}
+
+export interface PreviewGridRuntimeEditorHostModel<TGridInfo = unknown> {
+  roots?: PreviewGridRuntimeEditorHostRootLike[] | null;
+  gridOverrides?: Record<string, unknown> | null;
+  setDiagramGrid: (value: TGridInfo) => void;
+}
+
+export interface PreviewGridRuntimeEditorStateLike {
+  cloneValue: <T>(value: T) => T;
+  getPendingGridAction: () => unknown;
+  beginUndoableAction: (label: string) => unknown;
+  setPendingGridAction: (action: unknown) => void;
+  commitUndoableAction: (action: unknown) => void;
+}
+
+export interface CreatePreviewGridRuntimeFromEditorHostOptions<
+  TGridInfo = unknown,
+  TModel extends PreviewGridRuntimeEditorHostModel<TGridInfo> =
+    PreviewGridRuntimeEditorHostModel<TGridInfo>,
+> {
+  document: PreviewGridRuntimeDocumentLike;
+  guideModes: readonly string[];
+  baselineStep: number;
+  slug: string;
+  model: TModel;
+  editorState: PreviewGridRuntimeEditorStateLike;
+  resolvePreviewGridInfo: CreatePreviewGridRuntimeHostOptions<TGridInfo>['resolvePreviewGridInfo'];
+  resolvePreviewGridInfoFromRuntimeState:
+    CreatePreviewGridRuntimeHostOptions<TGridInfo>['resolvePreviewGridInfoFromRuntimeState'];
+  createGridOverlayScene: CreatePreviewGridRuntimeHostOptions<TGridInfo>['createGridOverlayScene'];
+  pruneLinkedRootOverrides: () => void;
+  setDirty: (dirty: boolean) => void;
+  requestRelayout: (rootId: string) => Promise<void> | void;
+  scheduleRelayout?: CreatePreviewGridRuntimeHostOptions<TGridInfo>['scheduleRelayout'];
+  clearRelayoutTimer?: CreatePreviewGridRuntimeHostOptions<TGridInfo>['clearRelayoutTimer'];
+  setTimeoutFn?: CreatePreviewGridRuntimeHostOptions<TGridInfo>['setTimeoutFn'];
+  fetchGridInfo?: (() => Promise<PreviewJsonFetchResponse<TGridInfo>>) | null;
+}
+
+function readPreviewGridRuntimeSvgMetrics(svg: unknown): {
+  canvasWidth: number;
+  canvasHeight: number;
+} {
+  const hostSvg = svg as {
+    viewBox?: { baseVal?: { width?: number; height?: number } };
+    getAttribute?: (name: string) => string | null;
+  } | null;
+  const canvasWidth = hostSvg?.viewBox?.baseVal?.width
+    || parseFloat(hostSvg?.getAttribute?.('width') || '840')
+    || 840;
+  const canvasHeight = hostSvg?.viewBox?.baseVal?.height
+    || parseFloat(hostSvg?.getAttribute?.('height') || '840')
+    || 840;
+  return {
+    canvasWidth,
+    canvasHeight,
+  };
+}
+
+export function createPreviewGridRuntimeFromEditorHost<
+  TGridInfo = unknown,
+  TModel extends PreviewGridRuntimeEditorHostModel<TGridInfo> =
+    PreviewGridRuntimeEditorHostModel<TGridInfo>,
+>(
+  options: CreatePreviewGridRuntimeFromEditorHostOptions<TGridInfo, TModel>,
+): PreviewGridRuntimeHost<TGridInfo> {
+  return createPreviewGridRuntimeHost({
+    document: options.document,
+    guideModes: options.guideModes,
+    baselineStep: options.baselineStep,
+    fetchGridInfo: options.fetchGridInfo ?? (async () => {
+      const response = await fetch(`/api/grid/${options.slug}?t=${Date.now()}`, {
+        cache: 'no-store',
+      });
+      return response as PreviewJsonFetchResponse<TGridInfo>;
+    }),
+    cloneValue: options.editorState.cloneValue,
+    readFallbackMetrics: () => {
+      const rootNode = options.model.roots?.[0] || null;
+      const gap = rootNode?.data?.layout_gap ?? 24;
+      const pad = rootNode?.data?.padding_top ?? 24;
+      const svgMetrics = readPreviewGridRuntimeSvgMetrics(
+        options.document.querySelector('#stage svg'),
+      );
+      return {
+        gap,
+        pad,
+        canvasWidth: svgMetrics.canvasWidth,
+        canvasHeight: svgMetrics.canvasHeight,
+        baselineStep: options.baselineStep,
+      };
+    },
+    resolvePreviewGridInfo: options.resolvePreviewGridInfo,
+    resolvePreviewGridInfoFromRuntimeState: options.resolvePreviewGridInfoFromRuntimeState,
+    createGridOverlayScene: options.createGridOverlayScene,
+    getGridOverrides: () => options.model.gridOverrides || {},
+    setGridOverrides: (value) => {
+      options.model.gridOverrides = value;
+    },
+    setDiagramGrid: (value) => options.model.setDiagramGrid(value),
+    getRootId: () => options.model.roots?.[0]?.id || 'root',
+    getPendingAction: options.editorState.getPendingGridAction,
+    beginPendingAction: () => options.editorState.beginUndoableAction('Adjust grid'),
+    setPendingAction: options.editorState.setPendingGridAction,
+    pruneLinkedRootOverrides: options.pruneLinkedRootOverrides,
+    setDirty: options.setDirty,
+    requestRelayout: options.requestRelayout,
+    commitPendingAction: options.editorState.commitUndoableAction,
+    scheduleRelayout: options.scheduleRelayout,
+    clearRelayoutTimer: options.clearRelayoutTimer,
+    setTimeoutFn: options.setTimeoutFn,
+  });
+}
+
 export function createPreviewGridRuntimeHost<TGridInfo = unknown>(
   options: CreatePreviewGridRuntimeHostOptions<TGridInfo>,
 ): PreviewGridRuntimeHost<TGridInfo> {

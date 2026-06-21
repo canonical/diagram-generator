@@ -42,6 +42,24 @@ describe('preview inspector action host helpers', () => {
     expect(resolved).toBe(actionEl);
   });
 
+  it('calls closest with the original target as context', () => {
+    const actionEl = { dataset: { dgChangeAction: 'single-style' } };
+    const target = {
+      closest(selector: string) {
+        if (this !== target) {
+          throw new TypeError('Illegal invocation');
+        }
+        return selector === '[data-dg-change-action]' ? actionEl : null;
+      },
+    };
+
+    const resolved = resolvePreviewInspectorActionElement({
+      target,
+    }, 'data-dg-change-action');
+
+    expect(resolved).toBe(actionEl);
+  });
+
   it('reads typed control values from dataset metadata', () => {
     expect(readPreviewInspectorActionValue({ value: '12', dataset: { dgValueType: 'int' } })).toBe(12);
     expect(readPreviewInspectorActionValue({ value: '2.5', dataset: { dgValueType: 'float' } })).toBe(2.5);

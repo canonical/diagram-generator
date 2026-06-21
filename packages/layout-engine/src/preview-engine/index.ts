@@ -21,6 +21,17 @@ export type {
 
 export { elkLayeredPreviewControlSpecs, elkParamToPreviewControl } from './elk-controls.js';
 export {
+  createPreviewElkLayoutControlsRuntime,
+  type PreviewElkLayoutControlsRuntime,
+  type PreviewElkLayoutControlsRuntimeOptions,
+} from './elk-layout-controls.js';
+export {
+  createPreviewElkShellControllerRuntime,
+  type PreviewElkShellControllerRuntime,
+  type PreviewElkShellControllerRuntimeOptions,
+  type PreviewElkShellControllerDeps,
+} from './elk-shell-controller.js';
+export {
   BUILTIN_PREVIEW_ENGINES,
   ELK_LAYERED_PREVIEW_ENGINE,
   FORCE_PREVIEW_ENGINE,

@@ -22,12 +22,14 @@ Spec 043 was successful in one important sense: shared preview behavior moved in
 
 But that closeout left a second problem unresolved:
 
-- `scripts/preview/editor.js` is still about 2.8k lines
+- `scripts/preview/editor.js` is still 1,601 physical lines on the current
+  branch
 - it remains the main browser entrypoint for the grid shell
 - cold-start maintainers still have to reopen one large trap file to understand load, selection, drag, resize, text edit, tree UI, and bootstrap wiring
 - every new engine discussion keeps rediscovering the same concern: "is this really the end state?"
 
-For a repo targeting 20-50 engine lanes, the answer must be **no**.
+For a repo targeting dozens or hundreds of engine lanes, the answer must be
+**no**.
 
 The current `editor.js` is better than the old monolith, but it is still too large and too central to count as finished architecture. Repeated "500 lines smaller" iterations without an explicit endgame simply defer the same problem.
 
@@ -107,12 +109,18 @@ This spec covers:
 - the explicit blocker list that prevents false closeout while host, render, or
   capability centralization still remains elsewhere
 
-This spec does not cover:
+This spec does not supersede:
 
-- `layout-bridge.js` decomposition beyond the work owned by spec 044
-- Node preview-host/server modularity beyond the work owned by spec 045
-- a framework rewrite
-- changing YAML document semantics
+- spec 044's ownership of browser contract shape, bundle boundaries, and
+  `layout-bridge.js`
+- spec 045's ownership of Node preview-host/server modularity
+- future specs for broad framework rewrites or YAML language changes
+
+But spec 046 closeout is still blocked when those adjacent surfaces leave the
+many-engine onboarding path centralized. For that reason, this package tracks
+the remaining `layout-bridge.js`, document-family, host-install, barrel, and
+substrate blockers as closeout requirements even when another spec owns the
+implementation surface.
 
 This spec also does **not** authorize new behavior-heavy JS under
 `scripts/preview/` as an interim measure. If a new seam is needed, that seam
@@ -133,21 +141,70 @@ Spec 046 therefore has two jobs:
 
 ## Adversarial blocker list
 
-The 2026-06-19 adversarial review identified these still-open blockers:
+The 2026-06-20 adversarial review reduced earlier blockers, but the closeout
+veto remains active. The current many-engine blockers are:
 
-1. builtin host onboarding still centralizes in `apps/preview/src/server.ts`
-2. viewer page shape is still finite-lane (`"grid" | "force"`)
-3. document, save, spec, and export authority are still partly server-owned
-4. builtin engine installation is explicit startup glue, not package-owned host
-   discovery or install
-5. central compatibility logic still contains engine-name branching
-6. browser runtime vocabulary is still partly V3/ELK-shaped
-7. non-frame rendering is not adapter-driven end to end
-8. the current proof is shell-contract-level only, not a real end-to-end
-   skeletal engine onboarding proof
+1. `scripts/preview/editor.js` is still a coordinator with large option-bag
+   assembly and too much repo-local callback/runtime wiring
+2. `scripts/preview/layout-bridge.js` is still ELK/debug/global shaped rather
+   than a generic engine capability adapter
+3. `V3` and `ELK` vocabulary still leaks through typed owner interfaces, tests,
+   globals, and compatibility seams more broadly than a final many-engine
+   platform can tolerate
+4. document-family onboarding still hardcodes sequence-versus-frame behavior in
+   central helpers such as `determineFrameYamlKind` and
+   `resolveFramePreviewEngineResolution`
+5. builtin install still reads as central-list startup glue rather than a fully
+   proven install-unit story for arbitrary future packages
+6. `packages/layout-engine/src/browser-entry.ts`,
+   `packages/layout-engine/src/preview-shell/index.ts`, and
+   `apps/preview/src/persistence/engine-contract-consumers.test.ts` are still
+   large enough to become the next monolith if the remaining split does not
+   land
+7. `graph-layout-core` and adjacent substrate contracts still read as too
+   ELK-shaped for Mermaid, D2, Dagre, and other non-ELK families
+8. no real Mermaid-lite, D2-lite, or Dagre-lite skeletal install proof exists
+   yet that traverses document kind, manifest, host contract, browser
+   load/refresh, persistence, save, and export without touching legacy JS sinks
+   or central document-kind conditionals
 
 This spec must treat that list as closeout-blocking reality, not as optional
 follow-up polish.
+
+## Remaining implementation plan
+
+Historical goals and acceptance criteria remain in this spec, but the
+authoritative remaining-work architecture now lives in
+[remaining-implementation-plan.md](./remaining-implementation-plan.md).
+
+That document defines:
+
+- the target install-unit to host to shell to browser-adapter architecture
+- the detailed Workstreams A-F still required for honest closeout
+- the ordered execution batches and post-batch validation expectations
+- the final acceptance checklist and adversarial re-review prompts
+
+## Veto removal plan
+
+The remaining work to remove the honest-closeout veto is captured in
+[veto-removal-plan.md](./veto-removal-plan.md), with the detailed implementation
+architecture and execution sequence in
+[remaining-implementation-plan.md](./remaining-implementation-plan.md).
+
+That plan is intentionally ordered. The next dependency chain is:
+
+1. finish the `editor.js` and `layout-bridge.js` adapter cutover so the legacy
+   JS sink files stop being coordinator surfaces
+2. close the document-family registry so detection, parse, resolve, save, and
+   export stop depending on central document-kind branching
+3. land a real skeletal non-ELK install-unit proof that does not touch legacy
+   JS sinks or central onboarding branches
+4. split the remaining TypeScript barrels and oversized contract harnesses so
+   the repo does not simply move the monolith
+5. make the algorithm substrate engine-open enough for Mermaid, D2, Dagre, and
+   other non-ELK families
+6. rerun the 50/150/500-engine audit and keep the veto unless the answer is
+   honestly yes
 
 ## User Scenarios & Testing
 
@@ -355,7 +412,9 @@ It is done when all of the following are true:
 11. No new behavior-heavy JS introduced under `scripts/preview/` can remain as
     architecture-owned logic behind a "migrate later" rationale.
 
-The exact line count is not the sole goal, but this spec should treat anything still around the current ~2.8k-line scale as unfinished.
+The exact line count is not the sole goal, but this spec should treat the
+current 1,601-line `editor.js` and 395-line `layout-bridge.js` state as
+unfinished.
 
 For practical closeout review, anything where `editor.js` still reads as a
 behavior-bearing coordinator instead of obvious bootstrap glue should be treated

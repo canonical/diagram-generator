@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   applyFrameTreeRemovalsToPreviewTreeJson,
+  createPreviewElkViewModeRuntimeFromBrowserHost,
   createPreviewElkViewModeRuntime,
+  createPreviewLayoutBridgeRuntimeFromBrowserHost,
   createPreviewLayoutBridgeRuntime,
   createPreviewLayoutBridgeState,
   resolvePreviewLayoutBridgeLocalRelayoutStatus,
@@ -140,10 +142,13 @@ describe('preview layout bridge runtime', () => {
 
     const model = {
       allIds: ['root'],
-      get() {
-        return {
+      _index: {
+        root: {
           data: { x: 10, y: 20, width: 30, height: 40 },
-        };
+        },
+      },
+      get(id: 'root') {
+        return this._index[id];
       },
       removedIds: new Set<string>(),
     };
@@ -168,6 +173,24 @@ describe('preview layout bridge runtime', () => {
     expect(refreshElkViewMode).toHaveBeenCalledTimes(1);
     expect(runtime.getLastElkSnapshot()).toEqual({ id: 'elk' });
     expect(runtime.getLastElkFrameLabels()).toEqual({ root: 'Root' });
+
+    updateModelFromLayout.mockClear();
+    syncArrowsInModel.mockClear();
+    replaceChildren.mockClear();
+
+    const liveEngine = await runtime.performEngineRelayout(
+      model,
+      { root: { width: 720 } as never },
+      { cols: 8 },
+      { skipModelUpdate: true },
+    );
+    expect(liveEngine).toMatchObject({
+      width: 640,
+      height: 480,
+    });
+    expect(replaceChildren).toHaveBeenCalledTimes(1);
+    expect(updateModelFromLayout).not.toHaveBeenCalled();
+    expect(syncArrowsInModel).not.toHaveBeenCalled();
   });
 
   it('owns the ELK raw/debug overlay view mode outside layout-bridge.js', () => {
@@ -191,6 +214,8 @@ describe('preview layout bridge runtime', () => {
       appendChild,
     } as unknown as SVGSVGElement;
     const previewWindow = {
+      __DG_previewEngineDebugOverlay: 'truthy' as unknown as boolean,
+      __DG_previewEngineRawView: false,
       __DG_elkDebugOverlay: 'truthy' as unknown as boolean,
       __DG_elkRawView: false,
     };
@@ -211,11 +236,152 @@ describe('preview layout bridge runtime', () => {
     runtime.setDebugOverlay(true);
     runtime.setRawView(true);
 
+    expect(previewWindow.__DG_previewEngineDebugOverlay).toBe(true);
+    expect(previewWindow.__DG_previewEngineRawView).toBe(true);
     expect(previewWindow.__DG_elkDebugOverlay).toBe(true);
     expect(previewWindow.__DG_elkRawView).toBe(true);
     expect(setAttribute).toHaveBeenCalledWith('display', 'none');
     expect(removeRawView).toHaveBeenCalled();
     expect(removeDebugOverlay).toHaveBeenCalled();
     expect(appendChild).toHaveBeenCalledTimes(2);
+  });
+
+  it('builds the browser host bridge runtime without leaving host assembly in layout-bridge.js', async () => {
+    const state = createPreviewLayoutBridgeState<Record<string, unknown>, Record<string, unknown>>();
+    state.previewDocumentJson = { kind: 'frame-diagram' };
+    state.frameTreeJson = {
+      root: { id: 'root', children: [] },
+      arrows: [{ source: 'alpha', target: 'beta' }],
+    };
+    state.textAdapter = { measurementBackend: 'harfbuzz' } as never;
+
+    const patchPreviewSvgFromLayout = vi.fn();
+    const patchPreviewArrowSvg = vi.fn();
+    const syncPreviewArrowsInModel = vi.fn();
+    const fitPreviewSvgToRenderedContent = vi.fn();
+    const renderFreshPreviewSvg = vi.fn(async () => ({
+      svg: { tagName: 'svg' } as never,
+      width: 640,
+      height: 480,
+      coerced: new Map(),
+      elkSnapshot: { id: 'elk' } as never,
+      elkFrameLabels: { root: 'Root' },
+    }));
+
+    const runtime = createPreviewLayoutBridgeRuntimeFromBrowserHost({
+      state,
+      slug: 'demo',
+      ownerDocument: {
+        querySelector() {
+          return { tagName: 'svg' };
+        },
+        getElementById() {
+          return { replaceChildren() {} };
+        },
+      } as never,
+      previewWindow: {
+        __DG_CONFIG: {
+          head_len: 8,
+          head_half: 4,
+        },
+      },
+      previewCore: {
+        deserializeFrameDiagramWire: () => ({
+          root: {
+            id: 'root',
+            label: [],
+            children: [],
+            _layout: { placedX: 1, placedY: 2, placedW: 3, placedH: 4 },
+          },
+          arrows: [{ source: 'alpha', target: 'beta' }],
+          elkLayout: {},
+        }) as never,
+        resolveStyles: vi.fn(),
+        layoutFrameTree: vi.fn(() => ({ coerced: null, width: 320, height: 200 })),
+      },
+      previewBridgeRender: {
+        collectPreviewFramesById: () => ({ root: { id: 'root' } as never }),
+        collectPreviewPlacedBounds: () => ({ root: { x: 1, y: 2, w: 3, h: 4 } }),
+        fitPreviewSvgToRenderedContent,
+        patchPreviewSvgFromLayout,
+        routePreviewArrows: () => [{ componentId: 'alpha->beta' } as never],
+        patchPreviewArrowSvg,
+        syncPreviewArrowsInModel,
+      },
+      previewBridgeBundleRender: {
+        renderFreshPreviewSvg,
+      },
+      previewBridgeRelayout: {
+        collectPreviewRelayoutFrameOverrides: (overrides) => overrides,
+        applyPreviewOverridesToFrameTree: vi.fn(),
+      },
+      previewBridgeHost: {
+        updatePreviewComponentModelFromLayout: vi.fn(),
+      },
+      resolvePreviewEngineManifest: () => ({ capabilities: { serverRelayout: false } }),
+      createTextAdapter: async () => ({ measurementBackend: 'harfbuzz' } as never),
+      getTextAdapterBackend: (adapter) => (
+        adapter && typeof adapter.measurementBackend === 'string'
+          ? adapter.measurementBackend
+          : null
+      ),
+      isAuthoritativeTextAdapter: () => true,
+      refreshElkViewMode: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    });
+
+    const local = runtime.performLocalRelayout({
+      removedIds: new Set<string>(),
+      topLevelRemovalIds: () => [],
+      loadTree() {},
+    }, {}, {}, null);
+    const engine = await runtime.performEngineRelayout({
+      removedIds: new Set<string>(),
+      topLevelRemovalIds: () => [],
+      loadTree() {},
+    }, {}, {});
+
+    expect(local).toMatchObject({ width: 320, height: 200 });
+    expect(engine).toMatchObject({ width: 640, height: 480 });
+    expect(patchPreviewSvgFromLayout).toHaveBeenCalledTimes(1);
+    expect(patchPreviewArrowSvg).toHaveBeenCalledTimes(1);
+    expect(syncPreviewArrowsInModel).toHaveBeenCalledTimes(1);
+    expect(fitPreviewSvgToRenderedContent).toHaveBeenCalledTimes(1);
+    expect(renderFreshPreviewSvg).toHaveBeenCalledTimes(1);
+  });
+
+  it('derives ELK view-mode bindings from the browser host runtime', () => {
+    const runtime = createPreviewElkViewModeRuntimeFromBrowserHost({
+      previewWindow: {
+        __DG_previewEngineDebugOverlay: true,
+        __DG_previewEngineRawView: false,
+      },
+      ownerDocument: {
+        querySelector() {
+          return {
+            querySelector() {
+              return { setAttribute() {}, remove() {} };
+            },
+            appendChild() {},
+          };
+        },
+      } as never,
+      previewWindowConfig: {
+        headLen: 12,
+        headHalf: 6,
+      },
+      getLayoutBridgeRuntime: () => ({
+        getLastElkSnapshot: () => ({ id: 'elk' } as never),
+        getLastElkFrameLabels: () => ({ root: 'Root' }),
+      }),
+      renderPreviewElkRawView: vi.fn(() => ({ id: 'raw' } as never)),
+      renderPreviewElkDebugOverlay: vi.fn(() => ({ id: 'overlay' } as never)),
+    });
+
+    runtime.initializeWindowState();
+    runtime.refreshViewMode();
+
+    expect(runtime).toBeTruthy();
   });
 });

@@ -1,4 +1,4 @@
-import type { PreviewHostDocumentActionMap } from "./types.js";
+import type { PreviewHostDocumentEndpointDescriptor } from "./types.js";
 import {
   componentTreeForSlug,
   frameTreeForSlug,
@@ -24,56 +24,75 @@ export interface CreateForcePreviewHostDocumentApiOptions {
   readonly parseYaml: (raw: string) => unknown;
 }
 
-export const FRAME_PREVIEW_HOST_DOCUMENT_ACTIONS = {
-  loadPreviewDocument: "load-preview-document",
-  loadFrameTree: "load-frame-tree",
-  loadComponentTree: "load-component-tree",
-  loadGridInfo: "load-grid-info",
-  renderSvg: "render-svg",
+export const FRAME_PREVIEW_HOST_DOCUMENT_ENDPOINTS = {
+  previewDocument: "preview-document",
+  frameTree: "frame-tree",
+  componentTree: "component-tree",
+  gridInfo: "grid-info",
+  svgExport: "svg-export",
   saveDocument: "save-document",
 } as const;
 
-export const FORCE_PREVIEW_HOST_DOCUMENT_ACTIONS = {
-  loadAuthoredSpec: "load-authored-spec",
+export const FORCE_PREVIEW_HOST_DOCUMENT_ENDPOINTS = {
+  documentSpec: "document-spec",
   saveDocument: "save-document",
 } as const;
 
-export function createFramePreviewHostDocumentActions(
+export function createFramePreviewHostDocumentEndpoints(
   options: CreateFramePreviewHostDocumentApiOptions,
-): PreviewHostDocumentActionMap {
-  return {
-    [FRAME_PREVIEW_HOST_DOCUMENT_ACTIONS.loadPreviewDocument]: (slug: string) =>
-      previewDocumentForSlug(slug, options.framePreviewDocumentDeps),
-    [FRAME_PREVIEW_HOST_DOCUMENT_ACTIONS.loadFrameTree]: (slug: string) =>
-      frameTreeForSlug(slug, options.framePreviewDocumentDeps),
-    [FRAME_PREVIEW_HOST_DOCUMENT_ACTIONS.loadComponentTree]: (slug: string) =>
-      componentTreeForSlug(slug, options.framePreviewDocumentDeps),
-    [FRAME_PREVIEW_HOST_DOCUMENT_ACTIONS.loadGridInfo]: (slug: string) =>
-      gridInfoForSlug(slug, options.framePreviewDocumentDeps),
-    [FRAME_PREVIEW_HOST_DOCUMENT_ACTIONS.renderSvg]: (slug: string) =>
-      renderSvgForSlug(slug, options.framePreviewRenderDeps),
-    [FRAME_PREVIEW_HOST_DOCUMENT_ACTIONS.saveDocument]: (slug: string, payload: unknown) =>
-      saveFramePreviewDocument(slug, payload, {
-        framePreviewDocumentDeps: options.framePreviewDocumentDeps,
-        parseYaml: options.parseYaml,
-        normalizeLayoutEngine: options.normalizeLayoutEngine,
-      }),
-  };
+): readonly PreviewHostDocumentEndpointDescriptor[] {
+  return [
+    {
+      kind: FRAME_PREVIEW_HOST_DOCUMENT_ENDPOINTS.previewDocument,
+      handler: (slug: string) => previewDocumentForSlug(slug, options.framePreviewDocumentDeps),
+    },
+    {
+      kind: FRAME_PREVIEW_HOST_DOCUMENT_ENDPOINTS.frameTree,
+      handler: (slug: string) => frameTreeForSlug(slug, options.framePreviewDocumentDeps),
+    },
+    {
+      kind: FRAME_PREVIEW_HOST_DOCUMENT_ENDPOINTS.componentTree,
+      handler: (slug: string) => componentTreeForSlug(slug, options.framePreviewDocumentDeps),
+    },
+    {
+      kind: FRAME_PREVIEW_HOST_DOCUMENT_ENDPOINTS.gridInfo,
+      handler: (slug: string) => gridInfoForSlug(slug, options.framePreviewDocumentDeps),
+    },
+    {
+      kind: FRAME_PREVIEW_HOST_DOCUMENT_ENDPOINTS.svgExport,
+      handler: (slug: string) => renderSvgForSlug(slug, options.framePreviewRenderDeps),
+    },
+    {
+      kind: FRAME_PREVIEW_HOST_DOCUMENT_ENDPOINTS.saveDocument,
+      handler: (slug: string, payload: unknown) =>
+        saveFramePreviewDocument(slug, payload, {
+          framePreviewDocumentDeps: options.framePreviewDocumentDeps,
+          parseYaml: options.parseYaml,
+          normalizeLayoutEngine: options.normalizeLayoutEngine,
+        }),
+    },
+  ] as const;
 }
 
-export function createForcePreviewHostDocumentActions(
+export function createForcePreviewHostDocumentEndpoints(
   options: CreateForcePreviewHostDocumentApiOptions,
-): PreviewHostDocumentActionMap {
-  return {
-    [FORCE_PREVIEW_HOST_DOCUMENT_ACTIONS.loadAuthoredSpec]: (slug: string) =>
-      loadForcePreviewDocumentSpec(slug, {
-        forcePreviewDocumentDeps: options.forcePreviewDocumentDeps,
-        parseYaml: options.parseYaml,
-      }),
-    [FORCE_PREVIEW_HOST_DOCUMENT_ACTIONS.saveDocument]: (slug: string, payload: unknown) =>
-      saveForcePreviewDocument(slug, payload, {
-        forcePreviewDocumentDeps: options.forcePreviewDocumentDeps,
-        parseYaml: options.parseYaml,
-      }),
-  };
+): readonly PreviewHostDocumentEndpointDescriptor[] {
+  return [
+    {
+      kind: FORCE_PREVIEW_HOST_DOCUMENT_ENDPOINTS.documentSpec,
+      handler: (slug: string) =>
+        loadForcePreviewDocumentSpec(slug, {
+          forcePreviewDocumentDeps: options.forcePreviewDocumentDeps,
+          parseYaml: options.parseYaml,
+        }),
+    },
+    {
+      kind: FORCE_PREVIEW_HOST_DOCUMENT_ENDPOINTS.saveDocument,
+      handler: (slug: string, payload: unknown) =>
+        saveForcePreviewDocument(slug, payload, {
+          forcePreviewDocumentDeps: options.forcePreviewDocumentDeps,
+          parseYaml: options.parseYaml,
+        }),
+    },
+  ] as const;
 }

@@ -7,18 +7,6 @@
 // which replaces the server round-trip layout relayout request path.
 // ---------------------------------------------------------------------------
 
-/**
- * Reconstruct a LayoutEngine.Frame from a serialized JSON object.
- * The JSON comes from the server's /api/frame-tree/<slug> endpoint.
- */
-function _collectRelayoutFrameOverrides(overrides) {
-  const previewBridgeRelayout = window.__DG_getPreviewBridgeRelayoutContract();
-  if (typeof previewBridgeRelayout.collectPreviewRelayoutFrameOverrides !== "function") {
-    throw new Error("layout-bridge: previewBridge.relayout.collectPreviewRelayoutFrameOverrides is unavailable");
-  }
-  return previewBridgeRelayout.collectPreviewRelayoutFrameOverrides(overrides || {});
-}
-
 function previewCoreContract() {
   const contract = typeof window.__DG_getPreviewCoreContract === "function"
     ? window.__DG_getPreviewCoreContract()
@@ -95,102 +83,11 @@ function getPreviewEngineShellController() {
   return window.PreviewEngineShellController || window.ElkPreviewController || null;
 }
 
-function deserializeFrame(json) {
-  return previewCoreContract().deserializeFrameWire(json);
+function getPreviewEngineLayoutControls() {
+  return window.PreviewEngineLayoutControls || window.ElkLayoutControls || null;
 }
-
-/**
- * Reconstruct a LayoutEngine.FrameDiagram from serialized JSON.
- */
-function deserializeFrameDiagram(json) {
-  const diagram = previewCoreContract().deserializeFrameDiagramWire(json);
-  if (!diagram.layoutEngine && window.__DG_CONFIG && window.__DG_CONFIG.layout_engine) {
-    diagram.layoutEngine = window.__DG_CONFIG.layout_engine;
-  }
-  return diagram;
-}
-
-// ---------------------------------------------------------------------------
-// Override application — delegated to previewBridge.relayout
-// ---------------------------------------------------------------------------
-
-function applyOverridesToFrameTree(diagram, allOverrides, gridOverrides) {
-  const previewBridgeRelayout = window.__DG_getPreviewBridgeRelayoutContract();
-  if (typeof previewBridgeRelayout.applyPreviewOverridesToFrameTree !== "function") {
-    throw new Error("layout-bridge: previewBridge.relayout.applyPreviewOverridesToFrameTree is unavailable");
-  }
-  previewBridgeRelayout.applyPreviewOverridesToFrameTree(
-    diagram,
-    allOverrides || {},
-    gridOverrides || {},
-  );
-}
-
-// ---------------------------------------------------------------------------
-// SVG DOM patching — update SVG elements in-place from layout results
-// ---------------------------------------------------------------------------
 
 const SVG_NS = "http://www.w3.org/2000/svg";
-
-function collectFramesById(frame, out) {
-  const previewBridgeRender = previewBridgeRenderContract();
-  if (typeof previewBridgeRender.collectPreviewFramesById !== "function") {
-    throw new Error("layout-bridge: previewBridge.render.collectPreviewFramesById is unavailable");
-  }
-  return previewBridgeRender.collectPreviewFramesById(frame, out || {});
-}
-
-function collectPlacedBounds(frame, out) {
-  const previewBridgeRender = previewBridgeRenderContract();
-  if (typeof previewBridgeRender.collectPreviewPlacedBounds !== "function") {
-    throw new Error("layout-bridge: previewBridge.render.collectPreviewPlacedBounds is unavailable");
-  }
-  return previewBridgeRender.collectPreviewPlacedBounds(frame, out || {});
-}
-
-function fitSvgToRenderedContent(svgEl, options) {
-  const previewBridgeRender = previewBridgeRenderContract();
-  if (typeof previewBridgeRender.fitPreviewSvgToRenderedContent !== "function") {
-    throw new Error("layout-bridge: previewBridge.render.fitPreviewSvgToRenderedContent is unavailable");
-  }
-  return previewBridgeRender.fitPreviewSvgToRenderedContent({
-    svg: svgEl,
-    padding: options && options.padding,
-    minWidth: options && options.minWidth,
-    minHeight: options && options.minHeight,
-  });
-}
-
-/**
- * Patch SVG DOM elements to reflect new layout positions/sizes.
- * FrameBox groups are rebuilt from the relaid-out frame tree so text,
- * icon anchoring, and rect geometry stay in sync.
- */
-function patchSvgFromLayout(svgEl, oldBounds, newBounds, framesById) {
-  const previewBridgeRender = previewBridgeRenderContract();
-  if (typeof previewBridgeRender.patchPreviewSvgFromLayout !== "function") {
-    throw new Error("layout-bridge: previewBridge.render.patchPreviewSvgFromLayout is unavailable");
-  }
-  previewBridgeRender.patchPreviewSvgFromLayout({
-    svg: svgEl,
-    oldBounds: oldBounds || {},
-    newBounds: newBounds || {},
-    framesById: framesById || {},
-    textAdapter: _layoutBridgeRuntime.getTextAdapter(),
-  });
-}
-
-function updateComponentModelFromLayout(model, frame) {
-  const previewBridgeHost = previewBridgeHostContract();
-  if (typeof previewBridgeHost.updatePreviewComponentModelFromLayout !== "function") {
-    throw new Error("layout-bridge: previewBridge.host.updatePreviewComponentModelFromLayout is unavailable");
-  }
-  return previewBridgeHost.updatePreviewComponentModelFromLayout(model, frame);
-}
-
-// ---------------------------------------------------------------------------
-// Arrow routing bridges serialized preview state to the TS-owned router.
-// ---------------------------------------------------------------------------
 
 function arrowComponentId(arrow) {
   const previewBridgeRender = previewBridgeRenderContract();
@@ -210,32 +107,6 @@ function syncArrowsInModel(model, arrows, routedArrows) {
     Array.isArray(arrows) ? arrows : [],
     Array.isArray(routedArrows) ? routedArrows : [],
   );
-}
-
-function routeArrows(arrows, boundsMap) {
-  const previewBridgeRender = previewBridgeRenderContract();
-  if (typeof previewBridgeRender.routePreviewArrows !== "function") {
-    throw new Error("layout-bridge: previewBridge.render.routePreviewArrows is unavailable");
-  }
-  return previewBridgeRender.routePreviewArrows(
-    Array.isArray(arrows) ? arrows : [],
-    boundsMap || {},
-  );
-}
-
-function patchArrowsSvg(svgEl, routedArrows, boundsMap) {
-  if (!svgEl) return;
-  const previewBridgeRender = previewBridgeRenderContract();
-  if (typeof previewBridgeRender.patchPreviewArrowSvg !== "function") {
-    throw new Error("layout-bridge: previewBridge.render.patchPreviewArrowSvg is unavailable");
-  }
-  previewBridgeRender.patchPreviewArrowSvg({
-    svg: svgEl,
-    routedArrows: Array.isArray(routedArrows) ? routedArrows : [],
-    boundsMap: boundsMap || {},
-    headLen: window.__DG_CONFIG?.head_len,
-    headHalf: window.__DG_CONFIG?.head_half,
-  });
 }
 
 // ---------------------------------------------------------------------------
@@ -271,11 +142,6 @@ function getPreviewDocumentJson() {
   return _layoutBridgeRuntime.getPreviewDocumentJson();
 }
 
-function _isEngineLayoutDiagramJson(json) {
-  const engine = resolvePreviewEngineManifest(json);
-  return Boolean(engine && engine.capabilities && engine.capabilities.serverRelayout);
-}
-
 function _resolveEngineLayoutOptionOverrides(diagram, model) {
   const fromYaml = (diagram && diagram.elkLayout) || {};
   let session = (model && (model.layoutOverrides || model.elkLayoutOverrides)) || {};
@@ -289,9 +155,9 @@ function _resolveEngineLayoutOptionOverrides(diagram, model) {
   // Model is updated on every sidebar input — prefer it over DOM reads so load/reload
   // cannot clobber saved YAML with stale server-rendered sidebar HTML.
   if (Object.keys(session).length === 0
-    && window.ElkLayoutControls
-    && typeof ElkLayoutControls.collectOverrides === "function") {
-    session = ElkLayoutControls.collectOverrides();
+    && getPreviewEngineLayoutControls()
+    && typeof getPreviewEngineLayoutControls().collectOverrides === "function") {
+    session = getPreviewEngineLayoutControls().collectOverrides();
     if (model) {
       model.layoutOverrides = { ...session };
       model.elkLayoutOverrides = { ...session };
@@ -300,20 +166,17 @@ function _resolveEngineLayoutOptionOverrides(diagram, model) {
   return { ...fromYaml, ...session };
 }
 
-const _layoutBridgeRuntime = previewBridgeHostContract().createPreviewLayoutBridgeRuntime({
+const _layoutBridgeRuntime = previewBridgeHostContract().createPreviewLayoutBridgeRuntimeFromBrowserHost({
   state: _layoutBridgeState,
-  fetchPreviewDocument: async (slug) => {
-    const response = await fetch("/api/preview-document/" + slug + "?t=" + Date.now(), { cache: "no-store" });
-    if (!response.ok) {
-      return null;
-    }
-    return response.json();
-  },
-  extractFrameTreeFromPreviewDocument: (previewDocumentJson) => (
-    previewDocumentJson && previewDocumentJson.kind === "frame-diagram"
-      ? (previewDocumentJson.frameTree || null)
-      : null
-  ),
+  slug: window.__DG_CONFIG?.slug || "",
+  ownerDocument: document,
+  previewWindow: window,
+  previewCore: previewCoreContract(),
+  previewBridgeRender: previewBridgeRenderContract(),
+  previewBridgeBundleRender: previewBridgeBundleRenderContract(),
+  previewBridgeRelayout: window.__DG_getPreviewBridgeRelayoutContract(),
+  previewBridgeHost: previewBridgeHostContract(),
+  resolvePreviewEngineManifest,
   createTextAdapter: async () => {
     const hbModule = await import("/preview/layout-engine-harfbuzz.js");
     return hbModule.createDefaultHarfBuzzTextAdapter({
@@ -330,62 +193,22 @@ const _layoutBridgeRuntime = previewBridgeHostContract().createPreviewLayoutBrid
       ? textAdapter.measurementBackend === "harfbuzz"
       : false
   ),
-  isEngineLayoutDiagramJson: _isEngineLayoutDiagramJson,
-  deserializeFrameDiagram,
-  collectRelayoutFrameOverrides: _collectRelayoutFrameOverrides,
-  applyOverridesToFrameTree,
-  layoutLocalDiagram: (diagram, textAdapter) => {
-    previewCoreContract().resolveStyles(diagram.root);
-    return previewCoreContract().layoutFrameTree(
-      diagram.root,
-      textAdapter,
-      _layoutOptionsFromDiagram(diagram),
-    );
-  },
-  collectPlacedBounds: (root) => collectPlacedBounds(root, {}),
-  collectFramesById: (root) => collectFramesById(root, {}),
-  queryStageSvg: () => document.querySelector("#stage svg"),
-  patchSvgFromLayout: (options) => patchSvgFromLayout(
-    options.svg,
-    options.oldBounds,
-    options.newBounds,
-    options.framesById,
-  ),
-  routeArrows,
-  patchArrowsSvg: (options) => patchArrowsSvg(
-    options.svg,
-    options.routedArrows,
-    options.boundsMap,
-  ),
-  updateModelFromLayout: updateComponentModelFromLayout,
-  syncArrowsInModel,
-  renderFreshPreviewSvg: async (options) => {
-    const previewBridgeRender = previewBridgeBundleRenderContract();
-    if (typeof previewBridgeRender.renderFreshPreviewSvg !== "function") {
-      throw new Error("layout-bridge: previewBridge.render.renderFreshPreviewSvg is unavailable");
-    }
-    return previewBridgeRender.renderFreshPreviewSvg(options);
-  },
-  ownerDocument: document,
-  getStageContainer: () => document.getElementById("stage"),
-  fitRenderedSvg: (svg, options) => fitSvgToRenderedContent(svg, options),
   resolveEngineLayoutOptionOverrides: _resolveEngineLayoutOptionOverrides,
   refreshElkViewMode,
   warn: (message, error) => console.warn(message, error),
   error: (message, error) => console.error(message, error),
 });
 
-const _elkViewModeRuntime = previewBridgeHostContract().createPreviewElkViewModeRuntime({
+const _elkViewModeRuntime = previewBridgeHostContract().createPreviewElkViewModeRuntimeFromBrowserHost({
   previewWindow: window,
-  getStageSvg: () => document.querySelector("#stage svg"),
   ownerDocument: document,
-  getLastElkSnapshot: () => _layoutBridgeRuntime.getLastElkSnapshot(),
-  getLastElkFrameLabels: () => _layoutBridgeRuntime.getLastElkFrameLabels(),
+  previewWindowConfig: {
+    headLen: 8,
+    headHalf: 4,
+  },
+  getLayoutBridgeRuntime: () => _layoutBridgeRuntime,
   renderPreviewElkRawView: (options) => previewElkEngineContract().renderPreviewElkRawView(options),
   renderPreviewElkDebugOverlay: (options) => previewElkEngineContract().renderPreviewElkDebugOverlay(options),
-  svgNs: SVG_NS,
-  headLen: 8,
-  headHalf: 4,
 });
 _elkViewModeRuntime.initializeWindowState();
 
@@ -401,7 +224,15 @@ window.__DG_setElkDebugOverlay = function (enabled) {
   _elkViewModeRuntime.setDebugOverlay(enabled);
 };
 
+window.__DG_setPreviewEngineDebugOverlay = function (enabled) {
+  _elkViewModeRuntime.setDebugOverlay(enabled);
+};
+
 window.__DG_setElkRawView = function (enabled) {
+  _elkViewModeRuntime.setRawView(enabled);
+};
+
+window.__DG_setPreviewEngineRawView = function (enabled) {
   _elkViewModeRuntime.setRawView(enabled);
 };
 
@@ -436,32 +267,8 @@ function applySessionRemovalsToDiagramJson(diagramJson, model) {
   return previewBridgeHost.applyPreviewSessionRemovalsToDiagramJson(diagramJson, model);
 }
 
-/**
- * Load the frame tree from the server and create the text adapter.
- * Call once during editor initialization.
- */
 async function initLayoutBridge(slug) {
   return _layoutBridgeRuntime.init(slug);
-}
-
-/**
- * Perform layout locally and patch the SVG DOM.
- * Returns { coerced, width, height } or null on failure.
- *
- * This replaces the server round-trip relayout request path.
- *
- * @param {object} opts
- * @param {boolean} [opts.skipModelUpdate] - When true, the component model
- *   is NOT updated after patching the SVG.  Used during live drag/resize so
- *   snap calculations keep referencing the original positions.
- */
-function _layoutOptionsFromDiagram(diagram) {
-  return {
-    gridCols: diagram.gridCols,
-    gridColGap: diagram.gridColGap,
-    gridOuterMargin: diagram.gridOuterMargin,
-    arrows: diagram.arrows,
-  };
 }
 
 function performLocalRelayout(model, overrides, gridOverrides, opts) {

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  createPreviewStateRestoreRuntimeFromEditorHost,
+  createPreviewStateRestoreRuntime,
   resolvePreviewOverridePatchRestorePlan,
   resolvePreviewSerializedStateRestorePlan,
   restorePreviewOverrideEntries,
@@ -58,6 +60,8 @@ describe('preview state restore helpers', () => {
     expect(plan.removalsChanged).toBe(true);
     expect(plan.frameTreeChanged).toBe(true);
     expect(plan.shouldPruneLinkedRootOverrides).toBe(true);
+    expect(plan.nextLayoutOverrides).toEqual({});
+    expect(plan.nextElkLayoutOverrides).toEqual(plan.nextLayoutOverrides);
   });
 
   it('chooses request-relayout for grid changes and local reapply for cosmetic-only snapshots', () => {
@@ -111,5 +115,159 @@ describe('preview state restore helpers', () => {
       hasRelayoutFrameOverride: () => false,
     });
     expect(localPlan.needsRelayout).toBe(false);
+  });
+
+  it('builds a runtime that routes undoable state and override-patch restores through typed callbacks', async () => {
+    const calls: string[] = [];
+    const runtime = createPreviewStateRestoreRuntime({
+      getCurrentOverrides: () => ({ note: { text: ['before'] } }),
+      getCurrentGridOverrides: () => ({ cols: 4 }),
+      getCurrentRemovedIds: () => [],
+      getRootId: () => 'root',
+      getNode: () => ({ type: 'box' }),
+      hasRelayoutFrameOverride: (entry) => Boolean(entry && typeof entry === 'object' && 'gap' in entry),
+      captureOverrideEntries: () => ({ note: { text: ['before'] } }),
+      setOverrides: () => {
+        calls.push('setOverrides');
+      },
+      setGridOverrides: () => {
+        calls.push('setGridOverrides');
+      },
+      setLayoutOverrides: () => {
+        calls.push('setLayoutOverrides');
+      },
+      setRemovedIds: () => {
+        calls.push('setRemovedIds');
+      },
+      setFrameTree: () => {
+        calls.push('setFrameTree');
+      },
+      cleanOverride: () => {
+        calls.push('cleanOverride');
+      },
+      pruneLinkedRootOverrides: () => {
+        calls.push('pruneLinkedRootOverrides');
+      },
+      clearPendingRuntime: () => {
+        calls.push('clearPendingRuntime');
+      },
+      rerenderStageFromFrameTree: async () => {
+        calls.push('rerenderStageFromFrameTree');
+      },
+      requestRelayout: async () => {
+        calls.push('requestRelayout');
+      },
+      applyLocalRefresh: () => {
+        calls.push('applyLocalRefresh');
+      },
+      syncGridControls: () => {
+        calls.push('syncGridControls');
+      },
+      syncDirtyFromSerialized: () => {
+        calls.push('syncDirtyFromSerialized');
+      },
+      serializeDirtyState: () => '{"ok":true}',
+    });
+
+    await runtime.applyUndoCommand({
+      kind: 'override-patch',
+      beforeEntries: { root: { gap: 12 } },
+      afterEntries: { note: { text: ['after'] } },
+    }, 'redo');
+    await runtime.applyUndoCommand({
+      before: JSON.stringify({ o: {}, g: {}, r: [], f: { id: 'root' } }),
+      after: JSON.stringify({ o: {}, g: {}, r: [], f: { id: 'root' } }),
+    }, 'undo');
+
+    expect(calls).toEqual([
+      'clearPendingRuntime',
+      'setOverrides',
+      'cleanOverride',
+      'applyLocalRefresh',
+      'syncDirtyFromSerialized',
+      'clearPendingRuntime',
+      'setOverrides',
+      'setGridOverrides',
+      'setLayoutOverrides',
+      'setRemovedIds',
+      'setFrameTree',
+      'pruneLinkedRootOverrides',
+      'rerenderStageFromFrameTree',
+      'syncGridControls',
+      'syncDirtyFromSerialized',
+    ]);
+  });
+
+  it('maps editor-host restore state through a durable typed helper', async () => {
+    const events: string[] = [];
+    const model = {
+      roots: [{ id: 'root' }],
+      gridOverrides: { cols: 4 },
+      layoutOverrides: {},
+      elkLayoutOverrides: {},
+      removedIds: new Set<string>(),
+      get() {
+        return { type: 'box' };
+      },
+      cleanOverride() {
+        events.push('cleanOverride');
+      },
+    };
+    const runtime = createPreviewStateRestoreRuntimeFromEditorHost({
+      getOverrides: () => ({ note: { text: ['before'] } }),
+      model,
+      editorState: {
+        cloneValue: <T>(value: T) => value,
+        captureOverrideEntries: () => ({ note: { text: ['before'] } }),
+        serializeDirtyState: () => '{"ok":true}',
+      },
+      previewBridgeHost: {
+        setFrameTreeJson() {
+          events.push('setFrameTreeJson');
+        },
+      },
+      hasRelayoutFrameOverride: () => false,
+      replaceOverrides() {
+        events.push('replaceOverrides');
+      },
+      pruneLinkedRootOverrides() {
+        events.push('pruneLinkedRootOverrides');
+      },
+      clearPendingRuntime() {
+        events.push('clearPendingRuntime');
+      },
+      rerenderStageFromFrameTree: async () => {
+        events.push('rerenderStageFromFrameTree');
+      },
+      requestRelayout: async () => {
+        events.push('requestRelayout');
+      },
+      applyLocalRefresh() {
+        events.push('applyLocalRefresh');
+      },
+      syncGridControls() {
+        events.push('syncGridControls');
+      },
+      syncDirtyFromSerialized() {
+        events.push('syncDirtyFromSerialized');
+      },
+    });
+
+    await runtime.restoreSerializedState(JSON.stringify({
+      o: {},
+      g: {},
+      r: [],
+      f: { id: 'root' },
+    }));
+
+    expect(events).toEqual([
+      'clearPendingRuntime',
+      'replaceOverrides',
+      'setFrameTreeJson',
+      'pruneLinkedRootOverrides',
+      'rerenderStageFromFrameTree',
+      'syncGridControls',
+      'syncDirtyFromSerialized',
+    ]);
   });
 });

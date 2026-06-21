@@ -268,6 +268,65 @@ export interface CreatePreviewEditorRuntimeSetFromRuntimeOptions {
   };
 }
 
+export interface CreatePreviewEditorRuntimeSetFromEditorHostOptions {
+  document: CreatePreviewEditorRuntimeSetFromRuntimeOptions['document'];
+  selectedIds: CreatePreviewEditorRuntimeSetFromRuntimeOptions['selectedIds'];
+  selectionDepthState: CreatePreviewEditorRuntimeSetFromRuntimeOptions['selectionDepthState'];
+  getPrimarySelectedId: CreatePreviewEditorRuntimeSetFromRuntimeOptions['getPrimarySelectedId'];
+  getAncestors: CreatePreviewEditorRuntimeSetFromRuntimeOptions['getAncestors'];
+  previewShellScene: CreatePreviewEditorRuntimeSetFromRuntimeOptions['previewShellScene'];
+  previewShellInteraction: CreatePreviewEditorRuntimeSetFromRuntimeOptions['previewShellInteraction'];
+  previewBridgeRender: CreatePreviewEditorRuntimeSetFromRuntimeOptions['previewBridgeRender'];
+  model: CreatePreviewEditorRuntimeSetFromRuntimeOptions['model'];
+  getOverrides: () => CreatePreviewEditorRuntimeSetHostOptions['overrides'];
+  coercedKeys: CreatePreviewEditorRuntimeSetFromRuntimeOptions['coercedKeys'];
+  previewGridRuntime: {
+    getGridInfo: CreatePreviewEditorRuntimeSetHostOptions['getGridInfo'];
+  };
+  baselineStep: number;
+  fallbackGap: number;
+  multiActionGapState: CreatePreviewEditorRuntimeSetFromRuntimeOptions['multiActionGapState'];
+  getInspector: CreatePreviewEditorRuntimeSetFromRuntimeOptions['getInspector'];
+  getSelectionActionInfo: CreatePreviewEditorRuntimeSetFromRuntimeOptions['getSelectionActionInfo'];
+  getArrowNode: CreatePreviewEditorRuntimeSetFromRuntimeOptions['getArrowNode'];
+  getOwnDelta: CreatePreviewEditorRuntimeSetFromRuntimeOptions['getOwnDelta'];
+  getEffectiveDelta: CreatePreviewEditorRuntimeSetFromRuntimeOptions['getEffectiveDelta'];
+  getComponentType: CreatePreviewEditorRuntimeSetFromRuntimeOptions['getComponentType'];
+  getParentNode: CreatePreviewEditorRuntimeSetFromRuntimeOptions['getParentNode'];
+  getViolations: CreatePreviewEditorRuntimeSetFromRuntimeOptions['getViolations'];
+  readRenderedStyleFields: CreatePreviewEditorRuntimeSetFromRuntimeOptions['readRenderedStyleFields'];
+  getTextAdapter: CreatePreviewEditorRuntimeSetFromRuntimeOptions['getTextAdapter'];
+  escapeHtml?: ((message: string) => string) | null;
+  renderBoxStyleOptions: (
+    selectedValue: string | null | undefined,
+    options?: { originalLabel?: string },
+  ) => string;
+  formatAsDefinedStyleLabel: (styleName: string | null | undefined, mixed?: boolean) => string;
+  editorState: CreatePreviewEditorRuntimeSetFromRuntimeOptions['editorState'];
+  removeResizeHandles: CreatePreviewEditorRuntimeSetHostOptions['removeResizeHandles'];
+  showResizeHandles: CreatePreviewEditorRuntimeSetHostOptions['showResizeHandles'];
+  renderEmptyInspector: CreatePreviewEditorRuntimeSetHostOptions['renderEmptyInspector'];
+  renderSelectionInspector: CreatePreviewEditorRuntimeSetHostOptions['renderSelectionInspector'];
+  renderMultiSelectionInspector:
+    CreatePreviewEditorRuntimeSetHostOptions['renderMultiSelectionInspector'];
+  snapToGrid: CreatePreviewEditorRuntimeSetHostOptions['snapToGrid'];
+  setDirty: CreatePreviewEditorRuntimeSetHostOptions['setDirty'];
+  scheduleRelayout: CreatePreviewEditorRuntimeSetHostOptions['scheduleRelayout'];
+  requestRelayoutNow: CreatePreviewEditorRuntimeSetHostOptions['requestRelayoutNow'];
+  applyAllOverrides: CreatePreviewEditorRuntimeSetHostOptions['applyAllOverrides'];
+  reapplySelection: CreatePreviewEditorRuntimeSetHostOptions['reapplySelection'];
+  updateOverrideSummary: CreatePreviewEditorRuntimeSetHostOptions['updateOverrideSummary'];
+  refreshTreeColors: CreatePreviewEditorRuntimeSetHostOptions['refreshTreeColors'];
+  runConstraints: CreatePreviewEditorRuntimeSetHostOptions['runConstraints'];
+  setOverride: CreatePreviewEditorRuntimeSetHostOptions['setOverride'];
+  alert: CreatePreviewEditorRuntimeSetHostOptions['alert'];
+  normalizeStyleName: CreatePreviewEditorRuntimeSetHostOptions['normalizeStyleName'];
+  interactionManager: CreatePreviewEditorRuntimeSetHostOptions['interactionManager'];
+  waypointDraggingMode: CreatePreviewEditorRuntimeSetHostOptions['waypointDraggingMode'];
+  persistWaypointOverride: CreatePreviewEditorRuntimeSetHostOptions['persistWaypointOverride'];
+  theme: CreatePreviewEditorRuntimeSetFromRuntimeOptions['theme'];
+}
+
 export interface PreviewEditorRuntimeSet {
   selection: PreviewSelectionRuntime;
   inspectorDisplay: PreviewInspectorDisplayRuntime;
@@ -414,6 +473,85 @@ export function createPreviewEditorRuntimeSetFromRuntime(
     headLen: options.theme.headLen,
     headHalf: options.theme.headHalf,
     color: options.theme.color,
+  });
+}
+
+export function createPreviewEditorRuntimeSetFromEditorHost(
+  options: CreatePreviewEditorRuntimeSetFromEditorHostOptions,
+): PreviewEditorRuntimeSet {
+  return createPreviewEditorRuntimeSetFromRuntime({
+    document: options.document,
+    selectedIds: options.selectedIds,
+    selectionDepthState: options.selectionDepthState,
+    getPrimarySelectedId: options.getPrimarySelectedId,
+    getAncestors: options.getAncestors,
+    previewShellScene: options.previewShellScene,
+    previewShellInteraction: options.previewShellInteraction,
+    previewBridgeRender: options.previewBridgeRender,
+    model: options.model,
+    overrides: options.getOverrides(),
+    coercedKeys: options.coercedKeys,
+    gridState: {
+      getGridInfo: options.previewGridRuntime.getGridInfo,
+      baselineStep: options.baselineStep,
+      fallbackGap: options.fallbackGap,
+      snapStep: options.baselineStep,
+    },
+    multiActionGapState: options.multiActionGapState,
+    getInspector: options.getInspector,
+    getSelectionActionInfo: options.getSelectionActionInfo,
+    getArrowNode: options.getArrowNode,
+    getOwnDelta: options.getOwnDelta,
+    getEffectiveDelta: options.getEffectiveDelta,
+    getComponentType: options.getComponentType,
+    getParentNode: options.getParentNode,
+    getViolations: options.getViolations,
+    readRenderedStyleFields: options.readRenderedStyleFields,
+    getTextAdapter: options.getTextAdapter,
+    formatControlErrorMessage: (message) => options.escapeHtml ? options.escapeHtml(message) : message,
+    renderSingleStyleOptions: (currentStyle, originalStyleName) => (
+      options.renderBoxStyleOptions(currentStyle, {
+        originalLabel: options.formatAsDefinedStyleLabel(originalStyleName),
+      })
+    ),
+    renderMultiStyleOptions: (styleInfo) => (
+      options.renderBoxStyleOptions(styleInfo.mixed ? '__nomatch__' : styleInfo.style, {
+        originalLabel: options.formatAsDefinedStyleLabel(
+          styleInfo.originalStyleName,
+          styleInfo.originalStyleMixed,
+        ),
+      })
+    ),
+    editorState: options.editorState,
+    resizeHandles: {
+      removeResizeHandles: options.removeResizeHandles,
+      showResizeHandles: options.showResizeHandles,
+    },
+    inspectorRender: {
+      renderEmptyInspector: options.renderEmptyInspector,
+      renderSelectionInspector: options.renderSelectionInspector,
+      renderMultiSelectionInspector: options.renderMultiSelectionInspector,
+    },
+    relayoutActions: {
+      snapToGrid: options.snapToGrid,
+      setDirty: options.setDirty,
+      scheduleRelayout: options.scheduleRelayout,
+      requestRelayoutNow: options.requestRelayoutNow,
+      applyAllOverrides: options.applyAllOverrides,
+      reapplySelection: options.reapplySelection,
+      updateOverrideSummary: options.updateOverrideSummary,
+      refreshTreeColors: options.refreshTreeColors,
+      runConstraints: options.runConstraints,
+      setOverride: options.setOverride,
+    },
+    interactionState: {
+      alert: options.alert,
+      normalizeStyleName: options.normalizeStyleName,
+      interactionManager: options.interactionManager,
+      waypointDraggingMode: options.waypointDraggingMode,
+      persistWaypointOverride: options.persistWaypointOverride,
+    },
+    theme: options.theme,
   });
 }
 

@@ -10,36 +10,100 @@ function loadEditorSource(): string {
 }
 
 function extractNamedFunctionSource(source: string, functionName: string, signature: string): string {
-  const marker = `function ${functionName}${signature} {`;
-  const start = source.indexOf(marker);
-  if (start === -1) {
-    throw new Error(`${functionName} definition not found`);
-  }
-
-  const bodyStart = source.indexOf("{", start);
-  if (bodyStart === -1) {
-    throw new Error(`${functionName} body start not found`);
-  }
-
-  let depth = 0;
-  let end = -1;
-  for (let index = bodyStart; index < source.length; index += 1) {
-    const char = source[index];
-    if (char === "{") depth += 1;
-    else if (char === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        end = index;
-        break;
-      }
+  const functionMarkers = [
+    `async function ${functionName}${signature} {`,
+    `function ${functionName}${signature} {`,
+  ];
+  let functionStart = -1;
+  for (const marker of functionMarkers) {
+    functionStart = source.indexOf(marker);
+    if (functionStart !== -1) {
+      break;
     }
   }
+  if (functionStart !== -1) {
+    const bodyStart = source.indexOf("{", functionStart);
+    if (bodyStart === -1) {
+      throw new Error(`${functionName} body start not found`);
+    }
 
-  if (end === -1) {
-    throw new Error(`${functionName} body end not found`);
+    let depth = 0;
+    let end = -1;
+    for (let index = bodyStart; index < source.length; index += 1) {
+      const char = source[index];
+      if (char === "{") depth += 1;
+      else if (char === "}") {
+        depth -= 1;
+        if (depth === 0) {
+          end = index;
+          break;
+        }
+      }
+    }
+
+    if (end === -1) {
+      throw new Error(`${functionName} body end not found`);
+    }
+
+    return source.slice(functionStart, end + 1);
   }
 
-  return source.slice(start, end + 1);
+  const arrowPrefixes = [
+    `const ${functionName} = async ${signature} =>`,
+    `const ${functionName} = ${signature} =>`,
+    `let ${functionName} = async ${signature} =>`,
+    `let ${functionName} = ${signature} =>`,
+    `var ${functionName} = async ${signature} =>`,
+    `var ${functionName} = ${signature} =>`,
+  ];
+
+  for (const prefix of arrowPrefixes) {
+    const start = source.indexOf(prefix);
+    if (start === -1) {
+      continue;
+    }
+
+    let cursor = start + prefix.length;
+    while (cursor < source.length && /\s/.test(source[cursor] ?? "")) {
+      cursor += 1;
+    }
+
+    if (source[cursor] === "{") {
+      let depth = 0;
+      let end = -1;
+      for (let index = cursor; index < source.length; index += 1) {
+        const char = source[index];
+        if (char === "{") depth += 1;
+        else if (char === "}") {
+          depth -= 1;
+          if (depth === 0) {
+            end = index;
+            break;
+          }
+        }
+      }
+
+      if (end === -1) {
+        throw new Error(`${functionName} body end not found`);
+      }
+
+      while (end + 1 < source.length && /\s/.test(source[end + 1] ?? "")) {
+        end += 1;
+      }
+      if (source[end + 1] === ";") {
+        end += 1;
+      }
+      return source.slice(start, end + 1);
+    }
+
+    const statementEnd = source.indexOf(";", cursor);
+    if (statementEnd === -1) {
+      throw new Error(`${functionName} statement end not found`);
+    }
+    return source.slice(start, statementEnd + 1);
+  }
+
+  throw new Error(`${functionName} definition not found`);
 }
 
 function loadEditorFunction<T extends (...args: any[]) => unknown>(
@@ -72,122 +136,26 @@ function normalizeVmValue<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
-test("onDragUp delegates drag completion through the typed drag host helper and shell callbacks", () => {
-  const removedListeners: Array<{ type: string; handlerName: string }> = [];
-  const callbackActions: Array<string | Record<string, unknown>> = [];
-  let delegatedState: Record<string, unknown> | null = null;
+test("onDragUp delegates through the typed interaction facade", () => {
+  const callbackActions: string[] = [];
 
   const onDragUp = loadEditorFunction<() => void>(
     "onDragUp",
     "()",
     {
-      document: {
-        removeEventListener(type: string, handler: { name?: string }) {
-          removedListeners.push({ type, handlerName: handler.name ?? "" });
-        },
-      },
-      onDragMove() {},
-      clearGuideLines() {
-        callbackActions.push("clear-guides");
-      },
-      _clearReorderIndicator() {
-        callbackActions.push("clear-reorder");
-      },
-      mgr: {
-        state: {
-          hasMoved: true,
-          autolayout: false,
-          cid: "alpha",
-          cids: ["alpha", "beta"],
-          reorderTarget: null,
-          overrideSnapshotBefore: {
-            alpha: { dx: 24 },
+      _getEditorInteractionFacade() {
+        return {
+          onDragUp() {
+            callbackActions.push("runtime-onDragUp");
           },
-        },
-        endInteraction() {
-          callbackActions.push("end-interaction");
-        },
-      },
-      LayoutEngine: {
-        completePreviewDragInteraction(options: Record<string, any>) {
-          delegatedState = normalizeVmValue(options.interactionManager?.state);
-          options.document.removeEventListener("mousemove", options.onDragMove);
-          options.document.removeEventListener("mouseup", options.onDragUp);
-          options.clearGuideLines();
-          options.clearReorderIndicator();
-          options.cleanOverride("alpha");
-          options.cleanOverride("beta");
-          const after = options.captureOverrideEntries(["alpha", "beta"]);
-          options.reapplySelection();
-          options.commitOverridePatchAction("Move selection", options.interactionManager.state.overrideSnapshotBefore, after);
-          options.interactionManager.endInteraction();
-          options.autoFitArtboard();
-        },
-      },
-      cleanOverride(id: string) {
-        callbackActions.push({ cleanOverride: id });
-      },
-      EditorState: {
-        captureOverrideEntries(ids: string[]) {
-          return ids;
-        },
-        commitOverridePatchAction(label: string, beforeEntries: unknown, afterEntries: unknown) {
-          callbackActions.push({
-            commitOverridePatchAction: {
-              label,
-              beforeEntries,
-              afterEntries,
-            },
-          });
-        },
-      },
-      reapplySelection() {
-        callbackActions.push("reapply-selection");
-      },
-      selectComponent(id: string) {
-        callbackActions.push({ selectComponent: id });
-      },
-      _applyReorder(parentId: string, cid: string, insertIndex: number) {
-        callbackActions.push({ applyReorder: [parentId, cid, insertIndex] });
-      },
-      autoFitArtboard() {
-        callbackActions.push("auto-fit-artboard");
+        };
       },
     },
   );
 
   onDragUp();
 
-  assert.deepEqual(delegatedState, {
-    hasMoved: true,
-    autolayout: false,
-    cid: "alpha",
-    cids: ["alpha", "beta"],
-    reorderTarget: null,
-    overrideSnapshotBefore: {
-      alpha: { dx: 24 },
-    },
-  });
-  assert.deepEqual(removedListeners, [
-    { type: "mousemove", handlerName: "onDragMove" },
-    { type: "mouseup", handlerName: "onDragUp" },
-  ]);
   assert.deepEqual(callbackActions, [
-    "clear-guides",
-    "clear-reorder",
-    { cleanOverride: "alpha" },
-    { cleanOverride: "beta" },
-    "reapply-selection",
-    {
-      commitOverridePatchAction: {
-        label: "Move selection",
-        beforeEntries: {
-          alpha: { dx: 24 },
-        },
-        afterEntries: ["alpha", "beta"],
-      },
-    },
-    "end-interaction",
-    "auto-fit-artboard",
+    "runtime-onDragUp",
   ]);
 });

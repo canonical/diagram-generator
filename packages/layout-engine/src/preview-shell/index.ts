@@ -322,6 +322,17 @@ export {
 } from './interaction-keyboard-dispatch.js';
 
 export type {
+  CreatePreviewKeyboardRuntimeFromHostOptions,
+  CreatePreviewKeyboardRuntimeOptions,
+  PreviewKeyboardRuntime,
+} from './app-keyboard-runtime.js';
+
+export {
+  createPreviewKeyboardRuntime,
+  createPreviewKeyboardRuntimeFromHost,
+} from './app-keyboard-runtime.js';
+
+export type {
   PreviewArrowBoundsMap,
   PreviewArrowFrameBounds,
   PreviewArrowModelLike,
@@ -418,6 +429,8 @@ export type {
   PreviewEditorStateInitOptions,
   PreviewEditorTestFacadeHostOptions,
   PreviewEditorUndoStateApi,
+  PreviewEngineShellCompatControllerApi,
+  PreviewEngineShellCompatControllerInitOptions,
   PreviewElkControllerApi,
   PreviewElkControllerInitOptions,
   PreviewEngineShellControllerInitOptions,
@@ -431,6 +444,12 @@ export type {
   PreviewShellCoordinatorInitOptions,
 } from './app-bootstrap.js';
 
+export type {
+  PreviewSaveClientRuntime,
+  PreviewSaveClientRuntimeDeps,
+  PreviewSaveClientRuntimeOptions,
+} from './app-save-client.js';
+
 export {
   bootstrapPreviewEditorRuntime,
   bootstrapPreviewEditorHost,
@@ -443,6 +462,7 @@ export {
   createPreviewOverrideToolbarHostOptions,
   createPreviewSaveClientInitConfig,
   ensurePreviewEditorState,
+  ensurePreviewEngineShellCompatController,
   ensurePreviewEngineShellController,
   ensurePreviewElkPreviewController,
   getPreviewEngineShellController,
@@ -459,16 +479,25 @@ export {
   whenPreviewDiagramLoaded,
 } from './app-bootstrap.js';
 
+export {
+  createPreviewSaveClientRuntime,
+} from './app-save-client.js';
+
 export type {
+  CreatePreviewLiveResizeRuntimeFromHostOptions,
+  CreatePreviewLiveResizeRuntimeOptions,
   PreviewLiveResizeOverrideEntry,
   PreviewLiveResizeOverrideMap,
   PreviewLiveResizeRelayoutRequest,
   PreviewLiveResizeRelayoutState,
+  PreviewLiveResizeRuntime,
   SchedulePreviewLiveResizeRelayoutOptions,
 } from './app-live-resize.js';
 
 export {
   cancelPreviewLiveResizeRelayout,
+  createPreviewLiveResizeRuntimeFromHost,
+  createPreviewLiveResizeRuntime,
   createPreviewLiveResizeRelayoutState,
   schedulePreviewLiveResizeRelayout,
 } from './app-live-resize.js';
@@ -545,6 +574,58 @@ export {
 } from './app-selection-runtime.js';
 
 export type {
+  CreatePreviewEditorBootstrapFacadeFromEditorHostOptions,
+  CreatePreviewEditorBootstrapFacadeFromRuntimeOptions,
+  PreviewEditorBootstrapFacade,
+  PreviewEditorBootstrapContractOptions,
+  PreviewEditorBootstrapNavigationOptions,
+  PreviewEditorBootstrapSharedOptions,
+} from './app-editor-bootstrap-facade.js';
+
+export {
+  createPreviewEditorBootstrapFacadeFromEditorHost,
+  createPreviewEditorBootstrapFacadeFromRuntime,
+} from './app-editor-bootstrap-facade.js';
+
+export type {
+  CreatePreviewEditorInteractionFacadeFromBrowserHostOptions,
+  CreatePreviewEditorInteractionFacadeFromEditorHostOptions,
+  CreatePreviewEditorInteractionFacadeFromRuntimeOptions,
+  PreviewEditorInteractionBrowserHostOptions,
+  PreviewEditorInteractionContractOptions,
+  PreviewEditorInteractionFacade,
+  PreviewEditorInteractionSharedOptions,
+} from './app-editor-interaction-facade.js';
+
+export {
+  createPreviewEditorInteractionFacadeFromBrowserHost,
+  createPreviewEditorInteractionFacadeFromEditorHost,
+  createPreviewEditorInteractionFacadeFromRuntime,
+} from './app-editor-interaction-facade.js';
+
+export type {
+  CreatePreviewEditorSceneFacadeFromEditorHostOptions,
+  CreatePreviewEditorSceneFacadeFromRuntimeOptions,
+  PreviewEditorSceneArtboardOptions,
+  PreviewEditorSceneContractOptions,
+  PreviewEditorSceneConstraintOptions,
+  PreviewEditorSceneFacade,
+  PreviewEditorSceneOverrideApplicationOptions,
+  PreviewEditorSceneOverrideSummaryOptions,
+  PreviewEditorSceneRefreshCallbacks,
+  PreviewEditorSceneRerenderOptions,
+  PreviewEditorSceneSharedOptions,
+  PreviewEditorSceneTreeOverrideStateOptions,
+  PreviewEditorSceneWaypointOptions,
+} from './app-editor-scene-facade.js';
+
+export {
+  createPreviewEditorSceneFacadeFromEditorHost,
+  createPreviewEditorSceneFacadeFromRuntime,
+} from './app-editor-scene-facade.js';
+
+export type {
+  CreatePreviewEditorRuntimeSetFromEditorHostOptions,
   CreatePreviewEditorRuntimeSetFromRuntimeOptions,
   CreatePreviewEditorRuntimeSetHostOptions,
   CreatePreviewEditorRuntimeSetOptions,
@@ -553,10 +634,44 @@ export type {
 } from './app-editor-runtime-set.js';
 
 export {
+  createPreviewEditorRuntimeSetFromEditorHost,
   createPreviewEditorRuntimeSetFromRuntime,
   createPreviewEditorRuntimeSetFromHost,
   createPreviewEditorRuntimeSet,
 } from './app-editor-runtime-set.js';
+
+export type {
+  CreatePreviewStageBindingRuntimeOptions,
+  CreatePreviewStageBindingRuntimeFromHostOptions,
+  PreviewStageBindingRuntime,
+} from './app-stage-binding-runtime.js';
+
+export {
+  createPreviewStageBindingRuntimeFromHost,
+  createPreviewStageBindingRuntime,
+} from './app-stage-binding-runtime.js';
+
+export type {
+  CreatePreviewPointerInteractionRuntimeOptions,
+  CreatePreviewPointerInteractionRuntimeFromHostOptions,
+  PreviewPointerInteractionRuntime,
+} from './app-pointer-interaction-runtime.js';
+
+export {
+  createPreviewPointerInteractionRuntimeFromHost,
+  createPreviewPointerInteractionRuntime,
+} from './app-pointer-interaction-runtime.js';
+
+export type {
+  CreatePreviewSelectionChromeRuntimeOptions,
+  CreatePreviewSelectionChromeRuntimeFromHostOptions,
+  PreviewSelectionChromeRuntime,
+} from './app-selection-chrome-runtime.js';
+
+export {
+  createPreviewSelectionChromeRuntimeFromHost,
+  createPreviewSelectionChromeRuntime,
+} from './app-selection-chrome-runtime.js';
 
 export type {
   PreviewSelectionChromeArrowNode,
@@ -600,6 +715,17 @@ export {
 } from './app-text-edit.js';
 
 export type {
+  CreatePreviewTextEditRuntimeFromHostOptions,
+  CreatePreviewTextEditRuntimeOptions,
+  PreviewTextEditRuntime,
+} from './app-text-edit-runtime.js';
+
+export {
+  createPreviewTextEditRuntime,
+  createPreviewTextEditRuntimeFromHost,
+} from './app-text-edit-runtime.js';
+
+export type {
   CancelPreviewTextEditOptions,
   CompletePreviewTextEditOptions,
   PreviewTextEditEditorState,
@@ -634,13 +760,17 @@ export {
 } from './app-artboard.js';
 
 export type {
+  CreatePreviewGridRuntimeFromEditorHostOptions,
   CreatePreviewGridRuntimeHostOptions,
   LoadedPreviewGridRuntimeState,
+  PreviewGridRuntimeEditorHostModel,
+  PreviewGridRuntimeEditorStateLike,
   PreviewGridRuntimeDocumentLike,
   PreviewGridRuntimeHost,
 } from './app-grid-runtime.js';
 
 export {
+  createPreviewGridRuntimeFromEditorHost,
   createPreviewGridRuntimeHost,
 } from './app-grid-runtime.js';
 
@@ -740,6 +870,17 @@ export {
   restorePreviewPropagatedResizeOverrides,
   startPreviewResizeHost,
 } from './app-resize-host.js';
+
+export type {
+  CreatePreviewResizeInteractionRuntimeFromHostOptions,
+  CreatePreviewResizeInteractionRuntimeOptions,
+  PreviewResizeInteractionRuntime,
+} from './app-resize-interaction-runtime.js';
+
+export {
+  createPreviewResizeInteractionRuntime,
+  createPreviewResizeInteractionRuntimeFromHost,
+} from './app-resize-interaction-runtime.js';
 
 export type {
   ClampPreviewDragDeltaWithinParentOptions,
@@ -868,9 +1009,12 @@ export {
 } from './app-shell-panels.js';
 
 export type {
+  CreatePreviewElkViewModeRuntimeFromBrowserHostOptions,
   CreatePreviewElkViewModeRuntimeOptions,
+  CreatePreviewLayoutBridgeRuntimeFromBrowserHostOptions,
   CreatePreviewLayoutBridgeRuntimeOptions,
   PreviewElkViewModeRuntime,
+  PreviewLayoutBridgeRelayoutExecutionOptions,
   PreviewLayoutBridgeLocalRelayoutOptions,
   PreviewLayoutBridgeModelTreeLoader,
   PreviewLayoutBridgeOldBoundsEntry,
@@ -883,7 +1027,9 @@ export type {
 export {
   applyFrameTreeRemovalsToPreviewTreeJson,
   applyPreviewSessionRemovalsToDiagramJson,
+  createPreviewElkViewModeRuntimeFromBrowserHost,
   createPreviewElkViewModeRuntime,
+  createPreviewLayoutBridgeRuntimeFromBrowserHost,
   createPreviewLayoutBridgeRuntime,
   createPreviewLayoutBridgeState,
   normalizePreviewLayoutBridgeLocalRelayoutOverrideMode,
@@ -908,6 +1054,7 @@ export type {
 } from './app-relayout.js';
 
 export type {
+  CreatePreviewRelayoutRuntimeFromEditorHostOptions,
   CreatePreviewRelayoutRuntimeHostOptions,
   CreatePreviewRelayoutRuntimeOptions,
   CreatePreviewRelayoutRuntimeOptionsFromRuntimeOptions,
@@ -916,6 +1063,16 @@ export type {
   PreviewRelayoutRuntime,
   PreviewRelayoutSelectionState,
 } from './app-relayout-runtime.js';
+
+export type {
+  CreatePreviewEditorRelayoutFacadeFromEditorHostOptions,
+  CreatePreviewEditorRelayoutFacadeFromRuntimeOptions,
+  PreviewEditorRelayoutFacade,
+  PreviewEditorRelayoutFacadeEditorState,
+  PreviewEditorRelayoutFacadeHost,
+  PreviewEditorRelayoutFacadeModel,
+  PreviewEditorRelayoutSharedOptions,
+} from './app-editor-relayout-facade.js';
 
 export {
   applyPreviewOverridesToFrameTree,
@@ -936,11 +1093,17 @@ export {
 } from './app-relayout.js';
 
 export {
+  createPreviewRelayoutRuntimeFromEditorHost,
   createPreviewRelayoutRuntimeFromRuntime,
   createPreviewRelayoutRuntimeOptionsFromRuntime,
   createPreviewRelayoutRuntimeOptionsFromHost,
   createPreviewRelayoutRuntime,
 } from './app-relayout-runtime.js';
+
+export {
+  createPreviewEditorRelayoutFacadeFromEditorHost,
+  createPreviewEditorRelayoutFacadeFromRuntime,
+} from './app-editor-relayout-facade.js';
 
 export type {
   DispatchPreviewClearOverrideOptions,
@@ -1139,14 +1302,21 @@ export {
 } from './app-fresh-render.js';
 
 export type {
+  CreatePreviewStateRestoreRuntimeFromEditorHostOptions,
+  CreatePreviewStateRestoreRuntimeOptions,
   PreviewOverridePatchRestorePlan,
+  PreviewStateRestoreEditorHostModel,
+  PreviewStateRestoreEditorStateLike,
   PreviewRestoreNode,
   PreviewSerializedStateRestorePlan,
+  PreviewStateRestoreRuntime,
   RestorePreviewOverridePatchOptions,
   RestorePreviewSerializedStateOptions,
 } from './app-state-restore.js';
 
 export {
+  createPreviewStateRestoreRuntimeFromEditorHost,
+  createPreviewStateRestoreRuntime,
   resolvePreviewOverridePatchRestorePlan,
   resolvePreviewSerializedStateRestorePlan,
   restorePreviewOverrideEntries,

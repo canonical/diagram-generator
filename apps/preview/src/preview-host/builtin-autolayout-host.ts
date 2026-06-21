@@ -16,8 +16,8 @@ import {
   createPreviewHostDocumentPostJsonRoute,
 } from "./document-api-routes.js";
 import {
-  createFramePreviewHostDocumentActions,
-  FRAME_PREVIEW_HOST_DOCUMENT_ACTIONS,
+  createFramePreviewHostDocumentEndpoints,
+  FRAME_PREVIEW_HOST_DOCUMENT_ENDPOINTS,
 } from "./document-apis.js";
 import {
   frameDiagramExists,
@@ -142,7 +142,7 @@ export function createFrameOverridesPreviewHostApiRoute(): PreviewHostApiRouteDe
   return createPreviewHostDocumentPostJsonRoute({
     key: "frame-overrides",
     routePrefixes: ["/api/overrides/"],
-    documentActionKey: FRAME_PREVIEW_HOST_DOCUMENT_ACTIONS.saveDocument,
+    documentEndpointKind: FRAME_PREVIEW_HOST_DOCUMENT_ENDPOINTS.saveDocument,
     routeKey: "autolayout",
     missingMessage: (slug: string) => `Unknown frame slug: ${slug}`,
   });
@@ -152,7 +152,7 @@ export function createPreviewDocumentPreviewHostApiRoute(): PreviewHostApiRouteD
   return createPreviewHostDocumentGetJsonRoute({
     key: "preview-document",
     routePrefixes: ["/api/preview-document/"],
-    documentActionKey: FRAME_PREVIEW_HOST_DOCUMENT_ACTIONS.loadPreviewDocument,
+    documentEndpointKind: FRAME_PREVIEW_HOST_DOCUMENT_ENDPOINTS.previewDocument,
     routeKey: "autolayout",
     missingMessage: missingAutolayoutDiagramMessage,
   });
@@ -162,7 +162,7 @@ export function createFrameTreePreviewHostApiRoute(): PreviewHostApiRouteDescrip
   return createPreviewHostDocumentGetJsonRoute({
     key: "frame-tree",
     routePrefixes: ["/api/frame-tree/"],
-    documentActionKey: FRAME_PREVIEW_HOST_DOCUMENT_ACTIONS.loadFrameTree,
+    documentEndpointKind: FRAME_PREVIEW_HOST_DOCUMENT_ENDPOINTS.frameTree,
     routeKey: "autolayout",
     missingMessage: missingAutolayoutDiagramMessage,
   });
@@ -172,7 +172,7 @@ export function createComponentTreePreviewHostApiRoute(): PreviewHostApiRouteDes
   return createPreviewHostDocumentGetJsonRoute({
     key: "component-tree",
     routePrefixes: ["/api/tree/"],
-    documentActionKey: FRAME_PREVIEW_HOST_DOCUMENT_ACTIONS.loadComponentTree,
+    documentEndpointKind: FRAME_PREVIEW_HOST_DOCUMENT_ENDPOINTS.componentTree,
     routeKey: "autolayout",
     missingMessage: missingAutolayoutDiagramMessage,
   });
@@ -182,7 +182,7 @@ export function createGridInfoPreviewHostApiRoute(): PreviewHostApiRouteDescript
   return createPreviewHostDocumentGetJsonRoute({
     key: "grid-info",
     routePrefixes: ["/api/grid/"],
-    documentActionKey: FRAME_PREVIEW_HOST_DOCUMENT_ACTIONS.loadGridInfo,
+    documentEndpointKind: FRAME_PREVIEW_HOST_DOCUMENT_ENDPOINTS.gridInfo,
     routeKey: "autolayout",
     missingMessage: missingAutolayoutDiagramMessage,
   });
@@ -192,7 +192,7 @@ export function createPreviewSvgHostApiRoute(): PreviewHostApiRouteDescriptor {
   return createPreviewHostDocumentGetBytesRoute({
     key: "svg-export",
     routePrefixes: ["/svg/", "/v3/svg/"],
-    documentActionKey: FRAME_PREVIEW_HOST_DOCUMENT_ACTIONS.renderSvg,
+    documentEndpointKind: FRAME_PREVIEW_HOST_DOCUMENT_ENDPOINTS.svgExport,
     routeKey: "autolayout",
     missingMessage: missingAutolayoutDiagramMessage,
     contentType: "image/svg+xml",
@@ -255,13 +255,16 @@ export function createAutolayoutPreviewHostViewerRoute(
         previewAssetUrl: deps.previewAssetUrl,
         coreScripts: [
           "layout-engine.js",
+          "save-client.js",
           "layout-bridge.js",
           "component-model.js",
           "constraints.js",
+        ],
+        engineScripts: [
+          ...(engineManifest?.scripts ?? []),
           "editor.js",
           "engine-switcher.js",
         ],
-        engineScripts: engineManifest?.scripts ?? [],
       });
       return buildPreviewViewerHtml({
         slug,
@@ -275,7 +278,7 @@ export function createAutolayoutPreviewHostViewerRoute(
       });
     },
     describeMissing: missingAutolayoutDiagramMessage,
-    documentActions: createFramePreviewHostDocumentActions({
+    documentEndpoints: createFramePreviewHostDocumentEndpoints({
       framePreviewDocumentDeps: deps.framePreviewDocumentDeps,
       framePreviewRenderDeps: deps.framePreviewRenderDeps,
       parseYaml: deps.parseYaml,

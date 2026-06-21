@@ -125,6 +125,11 @@ export interface CreateLoadPreviewSvgHostOptions<TSvg = unknown, TModel = unknow
       gridOverrides: Record<string, unknown> | null;
       model: TModel;
     }) => Promise<PreviewLoadRenderResult<TSvg>>) | null;
+    fitPreviewSvgToRenderedContent?: ((options: {
+      svg: TSvg;
+      minWidth: number;
+      minHeight: number;
+    }) => unknown) | null;
   };
   overrides: Record<string, unknown>;
   model: TModel;
@@ -250,12 +255,25 @@ export function createPreviewLoadFailureMarkup(status: number): string {
 export function createLoadPreviewSvgHostOptions<TSvg = unknown, TModel = unknown>(
   options: CreateLoadPreviewSvgHostOptions<TSvg, TModel>,
 ): LoadPreviewSvgOptions<TSvg> {
+  const fitRenderedSvgToContent = options.fitRenderedSvgToContent
+    ?? (
+      typeof options.previewBridgeRender.fitPreviewSvgToRenderedContent === 'function'
+        ? (svg: TSvg, fitOptions: { minWidth: number; minHeight: number }) => (
+          options.previewBridgeRender.fitPreviewSvgToRenderedContent?.({
+            svg,
+            minWidth: fitOptions.minWidth,
+            minHeight: fitOptions.minHeight,
+          })
+        )
+        : null
+    );
+
   return {
     invocation: options.invocation,
     deselectAll: options.deselectAll,
     initLayoutBridge: async () => {
       if (typeof options.previewBridgeHost.initLayoutBridge !== 'function') {
-        throw new Error('preview layout bridge is required for the v3 editor');
+        throw new Error('preview layout bridge is required for the interactive grid shell');
       }
       await options.previewBridgeHost.initLayoutBridge(options.slug);
     },
@@ -288,7 +306,7 @@ export function createLoadPreviewSvgHostOptions<TSvg = unknown, TModel = unknown
     pruneLinkedRootGridOverrides: options.pruneLinkedRootGridOverrides,
     renderFreshSvg: async () => {
       if (typeof options.previewBridgeRender.renderFreshPreviewSvg !== 'function') {
-        throw new Error('preview fresh-render bridge is required for the v3 editor');
+        throw new Error('preview fresh-render bridge is required for the interactive grid shell');
       }
       const gridOverrides = options.getGridOverrides();
       return options.previewBridgeRender.renderFreshPreviewSvg({
@@ -302,9 +320,9 @@ export function createLoadPreviewSvgHostOptions<TSvg = unknown, TModel = unknown
     replaceStageWithRenderedSvg: (renderResult) => {
       options.stage.replaceChildren(renderResult.svg);
     },
-    fitRenderedSvg: options.fitRenderedSvgToContent
+    fitRenderedSvg: fitRenderedSvgToContent
       ? (renderResult) => {
-        options.fitRenderedSvgToContent?.(renderResult.svg, {
+        fitRenderedSvgToContent(renderResult.svg, {
           minWidth: renderResult.width,
           minHeight: renderResult.height,
         });

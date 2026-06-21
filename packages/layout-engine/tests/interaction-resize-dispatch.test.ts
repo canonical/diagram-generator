@@ -217,7 +217,7 @@ describe('interaction resize dispatch helpers', () => {
       { ids: ['sibling'], propagated: ['child'] },
     ]);
     expect(options.applyAllOverrides).toHaveBeenCalledTimes(1);
-    expect(options.updateInspector).toHaveBeenCalledWith('box');
+    expect(options.updateInspector).not.toHaveBeenCalled();
     expect(options.scheduled).toEqual([
       { cid: 'box', newW: 116, newH: 96, resizedW: true, resizedH: true },
     ]);

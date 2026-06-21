@@ -19,7 +19,7 @@ describe('createPreviewRelayoutRuntime', () => {
       getGridOverrides: () => ({ cols: 8 }),
       normalizeGridOverrides: (value) => value,
       getRelayoutStatus: () => ({ localReady: true }),
-      isElkLayeredDiagram: () => false,
+      isEngineLayoutActive: () => false,
       performLocalRelayout,
       failRelayout,
       finishRelayout,

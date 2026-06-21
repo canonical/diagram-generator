@@ -10,6 +10,7 @@ import {
   getPreviewFrameDiagramRenderAdapter,
   layoutPreviewFrameDiagramForEngine,
   renderPreviewDocumentToSvg,
+  registerPreviewEngine,
   registerPreviewDocumentSvgRenderer,
   registerPreviewFrameDiagramRenderAdapter,
   resolvePreviewRenderFamily,
@@ -162,5 +163,79 @@ describe('preview-engine render helpers', () => {
     }
 
     expect(getPreviewDocumentSvgRenderer('bespoke-doc-test')).toBeUndefined();
+  });
+
+  it('supports one durable install-unit shape for future preview-engine packages', async () => {
+    const unregisterEngine = registerPreviewEngine({
+      id: 'install-unit-grid',
+      label: 'Install unit grid',
+      layoutEngineKey: 'install-unit-grid',
+      shellMode: 'grid',
+      renderFamily: 'frame-install-unit',
+      hostView: {
+        sidebarSections: ['install-unit'],
+      },
+      capabilities: {
+        layoutControls: false,
+        localRelayout: true,
+        serverRelayout: false,
+        engineBackedSave: false,
+        nodeInspector: true,
+        gridEditing: false,
+        referenceImage: true,
+        simulationControls: false,
+        rawDebugView: false,
+      },
+      controlSpecs: [],
+      scripts: ['install-unit-grid.js'],
+      compatibility: {
+        documentKinds: ['frame-diagram', 'install-unit-doc'],
+        description: 'Synthetic install unit used to lock the 046 onboarding pattern',
+      },
+    });
+    const unregisterFrameAdapter = registerPreviewFrameDiagramRenderAdapter(
+      'frame-install-unit',
+      async () => ({
+        width: 123,
+        height: 45,
+        coerced: new Map(),
+      }),
+    );
+    const unregisterDocumentRenderer = registerPreviewDocumentSvgRenderer(
+      'install-unit-doc',
+      async () => ({
+        svgMarkup: '<svg viewBox="0 0 1 1"></svg>',
+        width: 1,
+        height: 1,
+      }),
+    );
+
+    try {
+      const diagram = loadFrameYaml(join(FRAMES_DIR, 'support-engineering-flow.yaml'));
+      await expect(
+        layoutPreviewFrameDiagramForEngine({
+          diagram,
+          textAdapter: new MockTextAdapter(),
+          engine: { renderFamily: 'frame-install-unit' },
+        }),
+      ).resolves.toMatchObject({
+        width: 123,
+        height: 45,
+      });
+      await expect(
+        renderPreviewDocumentToSvg({
+          kind: 'install-unit-doc',
+        }),
+      ).resolves.toMatchObject({
+        width: 1,
+        height: 1,
+      });
+      expect(resolvePreviewRenderFamily({ renderFamily: 'frame-install-unit' }, 'frame-diagram'))
+        .toBe('frame-install-unit');
+    } finally {
+      unregisterDocumentRenderer();
+      unregisterFrameAdapter();
+      unregisterEngine();
+    }
   });
 });

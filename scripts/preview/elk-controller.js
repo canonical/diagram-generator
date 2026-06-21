@@ -1,189 +1,46 @@
-/**
- * ELK preview controller (spec 026 T011).
- *
- * Orchestrates ELK engine detection, sidebar wiring, override state, and relayout
- * requests. Sidebar DOM lives in elk-layout-controls.js; this module owns shell integration.
- */
 (function () {
   "use strict";
 
-  const SECTION_ID = "elk-layout-section";
-
-  /** @type {object | null} */
-  let _deps = null;
-  let _panelWired = false;
-
-  function _previewEngineRegistry() {
-    return (
-      typeof LayoutEngine !== "undefined"
-      && LayoutEngine.previewEngines
-      && LayoutEngine.previewEngines.registry
-    ) || null;
+  function resolveCreateRuntime() {
+    const elk = window.LayoutEngine?.previewEngines?.elk
+      || (typeof LayoutEngine !== "undefined" ? LayoutEngine.previewEngines?.elk : null);
+    return elk?.createPreviewElkShellControllerRuntime
+      || (typeof LayoutEngine !== "undefined" ? LayoutEngine.createPreviewElkShellControllerRuntime : null);
   }
 
-  function _requireDeps() {
-    if (!_deps) {
-      throw new Error("ElkPreviewController.init() must run before ELK shell operations");
-    }
-    return _deps;
-  }
-
-  function _engineSupportsSidebarSection(engine, section) {
-    return Boolean(
-      engine
-      && engine.hostView
-      && Array.isArray(engine.hostView.sidebarSections)
-      && engine.hostView.sidebarSections.includes(section)
+  const createRuntime = resolveCreateRuntime();
+  if (typeof createRuntime !== "function") {
+    throw new Error(
+      "ELK preview controller runtime is unavailable. Rebuild the browser bundle from packages/layout-engine.",
     );
   }
 
-  function _readLayoutOverrides() {
-    const deps = _requireDeps();
-    if (typeof deps.getLayoutOverrides === "function") {
-      return deps.getLayoutOverrides() || {};
-    }
-    if (typeof deps.getElkLayoutOverrides === "function") {
-      return deps.getElkLayoutOverrides() || {};
-    }
-    return {};
-  }
+  const controller = createRuntime({
+    document,
+    previewWindow: window,
+    layoutEngineRoot: typeof LayoutEngine !== "undefined" ? LayoutEngine : window.LayoutEngine,
+    getFrameTreeJson: typeof getFrameTreeJson === "function" ? () => getFrameTreeJson() : null,
+  });
 
-  function _writeLayoutOverrides(overrides) {
-    const nextOverrides = { ...(overrides || {}) };
-    const deps = _requireDeps();
-    if (typeof deps.setLayoutOverrides === "function") {
-      deps.setLayoutOverrides(nextOverrides);
-      return;
-    }
-    if (typeof deps.setElkLayoutOverrides === "function") {
-      deps.setElkLayoutOverrides(nextOverrides);
-    }
-  }
-
-  function isElkLayeredDiagram(frameTreeJson) {
-    const tree = frameTreeJson !== undefined
-      ? frameTreeJson
-      : (typeof getFrameTreeJson === "function" ? getFrameTreeJson() : null);
-    const layoutEngine = tree?.layoutEngine
-      ?? (window.__DG_CONFIG && window.__DG_CONFIG.layout_engine)
-      ?? null;
-    const registry = _previewEngineRegistry();
-    if (
-      registry
-      && typeof registry.resolvePreviewEngine === "function"
-      && _engineSupportsSidebarSection(
-        registry.resolvePreviewEngine({ layoutEngine, shellMode: "grid" }),
-        "elk-layout"
-      )
-    ) {
-      return true;
-    }
-    if (
-      typeof LayoutEngine !== "undefined"
-      && typeof LayoutEngine.resolvePreviewEngine === "function"
-      && _engineSupportsSidebarSection(
-        LayoutEngine.resolvePreviewEngine({ layoutEngine, shellMode: "grid" }),
-        "elk-layout"
-      )
-    ) {
-      return true;
-    }
-    const section = document.getElementById(SECTION_ID);
-    if (section && !section.hasAttribute("hidden")) return true;
-    return false;
-  }
-
-  function applyElkLayoutOverrides(overrides) {
-    if (!_deps) return;
-    _writeLayoutOverrides(overrides);
-  }
-
-  function wirePanel() {
-    if (!window.ElkLayoutControls) return;
-    if (_panelWired) return;
-    _requireDeps();
-    ElkLayoutControls.init({
-      getOverrides: () => _readLayoutOverrides(),
-      setOverrides: (value) => _writeLayoutOverrides(value),
-    });
-    _panelWired = true;
-  }
-
-  function syncPanel() {
-    wirePanel();
-    if (window.ElkLayoutControls && typeof ElkLayoutControls.refresh === "function") {
-      ElkLayoutControls.refresh();
-    }
-  }
-
-  function initPanel() {
-    syncPanel();
-  }
-
-  function collectPersistedPayload(basePayload, model) {
-    wirePanel();
-    const domElk = window.ElkLayoutControls && typeof ElkLayoutControls.collectOverrides === "function"
-      ? ElkLayoutControls.collectOverrides()
-      : {};
-    const elkOverrides = {
-      ...((model && (model.layoutOverrides || model.elkLayoutOverrides)) || {}),
-      ...domElk,
-    };
-    applyElkLayoutOverrides(elkOverrides);
-    if (model) {
-      model.layoutOverrides = { ...elkOverrides };
-      model.elkLayoutOverrides = { ...elkOverrides };
-    }
-    return {
-      ...(basePayload || {}),
-      engine_layout_overrides: {
-        "meta.elk": { ...elkOverrides },
-      },
-      elk_layout_overrides: { ...elkOverrides },
-    };
-  }
-
-  async function requestRelayout() {
-    wirePanel();
-    if (window.ElkLayoutControls && typeof ElkLayoutControls.collectOverrides === "function") {
-      applyElkLayoutOverrides({
-        ..._readLayoutOverrides(),
-        ...ElkLayoutControls.collectOverrides(),
-      });
-    }
-    const deps = _requireDeps();
-    const rootId = typeof deps.getRootId === "function" ? deps.getRootId() : "root";
-    const requestLayoutRelayout = deps.requestLayoutRelayout || deps.requestV3Relayout;
-    if (typeof requestLayoutRelayout !== "function") {
-      throw new Error("ELK preview controller requires a layout relayout callback");
-    }
-    return requestLayoutRelayout(rootId);
-  }
-
-  function init(deps) {
-    _deps = deps;
-    window.__DG_wireElkLayoutPanel = wirePanel;
-    window.__DG_applyElkLayoutOverrides = applyElkLayoutOverrides;
-    window.requestLayoutRelayout = requestRelayout;
-    window.requestElkRelayout = requestRelayout;
-  }
-
-  const controller = {
-    init,
-    isElkLayeredDiagram,
-    isActiveLayoutEngine: isElkLayeredDiagram,
-    wirePanel,
-    syncPanel,
-    initPanel,
-    initializePanel: initPanel,
-    getLayoutOverrides() {
-      return _deps ? _readLayoutOverrides() : {};
+  const runtime = {
+    ...controller,
+    init(deps) {
+      controller.init(deps);
+      const applyLayoutOverrides = typeof controller.applyLayoutOverrides === "function"
+        ? controller.applyLayoutOverrides.bind(controller)
+        : (typeof controller.applyElkLayoutOverrides === "function"
+          ? controller.applyElkLayoutOverrides.bind(controller)
+          : null);
+      window.__DG_wirePreviewEnginePanel = controller.wirePanel;
+      window.__DG_applyPreviewEngineLayoutOverrides = applyLayoutOverrides;
+      window.__DG_wireElkLayoutPanel = controller.wirePanel;
+      window.__DG_applyElkLayoutOverrides = applyLayoutOverrides;
+      window.requestPreviewEngineRelayout = controller.requestRelayout;
+      window.requestLayoutRelayout = controller.requestRelayout;
+      window.requestElkRelayout = controller.requestRelayout;
     },
-    applyLayoutOverrides: applyElkLayoutOverrides,
-    applyElkLayoutOverrides,
-    collectPersistedPayload,
-    requestRelayout,
   };
-  window.PreviewEngineShellController = controller;
-  window.ElkPreviewController = controller;
+
+  window.PreviewEngineShellController = runtime;
+  window.ElkPreviewController = runtime;
 })();

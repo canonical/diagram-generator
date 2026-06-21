@@ -28,6 +28,7 @@ export interface PreviewResizeCompletionState {
   selectionIds?: string[] | null;
   origOverrideIds: Iterable<string>;
   propagatedIds?: Iterable<string> | null;
+  baseSizes?: Record<string, { width: number; height: number }> | null;
   overrideSnapshotBefore: unknown;
 }
 
@@ -62,6 +63,7 @@ export interface PreviewResizeCompletionDispatchOptions {
     resizedIds: string[],
     propagatedIds: Iterable<string> | null | undefined,
     triggerCid: string,
+    baseSizes?: Record<string, { width: number; height: number }> | null,
   ) => void;
   showHandles: () => void;
   endInteraction: () => void;
@@ -147,7 +149,7 @@ export function dispatchPreviewResizeCompletion(
       state.overrideSnapshotBefore,
       afterOverrides,
     );
-    options.persistResize(plan.resizedIds, state.propagatedIds, state.cid);
+    options.persistResize(plan.resizedIds, state.propagatedIds, state.cid, state.baseSizes ?? null);
   } else if (plan.kind === 'none' && plan.showHandles) {
     options.showHandles();
   }

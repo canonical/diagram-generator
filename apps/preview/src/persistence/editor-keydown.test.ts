@@ -9,37 +9,101 @@ function loadEditorSource(): string {
   return fs.readFileSync(path.join(repoRoot, "scripts", "preview", "editor.js"), "utf8");
 }
 
-function extractNamedFunctionSource(source: string, functionName: string): string {
-  const marker = `function ${functionName}(e) {`;
-  const start = source.indexOf(marker);
-  if (start === -1) {
-    throw new Error(`${functionName} definition not found`);
-  }
-
-  const bodyStart = source.indexOf("{", start);
-  if (bodyStart === -1) {
-    throw new Error(`${functionName} body start not found`);
-  }
-
-  let depth = 0;
-  let end = -1;
-  for (let index = bodyStart; index < source.length; index += 1) {
-    const char = source[index];
-    if (char === "{") depth += 1;
-    else if (char === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        end = index;
-        break;
-      }
+function extractNamedFunctionSource(source: string, functionName: string, signature: string): string {
+  const functionMarkers = [
+    `async function ${functionName}${signature} {`,
+    `function ${functionName}${signature} {`,
+  ];
+  let functionStart = -1;
+  for (const marker of functionMarkers) {
+    functionStart = source.indexOf(marker);
+    if (functionStart !== -1) {
+      break;
     }
   }
+  if (functionStart !== -1) {
+    const bodyStart = source.indexOf("{", functionStart);
+    if (bodyStart === -1) {
+      throw new Error(`${functionName} body start not found`);
+    }
 
-  if (end === -1) {
-    throw new Error(`${functionName} body end not found`);
+    let depth = 0;
+    let end = -1;
+    for (let index = bodyStart; index < source.length; index += 1) {
+      const char = source[index];
+      if (char === "{") depth += 1;
+      else if (char === "}") {
+        depth -= 1;
+        if (depth === 0) {
+          end = index;
+          break;
+        }
+      }
+    }
+
+    if (end === -1) {
+      throw new Error(`${functionName} body end not found`);
+    }
+
+    return source.slice(functionStart, end + 1);
   }
 
-  return source.slice(start, end + 1);
+  const arrowPrefixes = [
+    `const ${functionName} = async ${signature} =>`,
+    `const ${functionName} = ${signature} =>`,
+    `let ${functionName} = async ${signature} =>`,
+    `let ${functionName} = ${signature} =>`,
+    `var ${functionName} = async ${signature} =>`,
+    `var ${functionName} = ${signature} =>`,
+  ];
+
+  for (const prefix of arrowPrefixes) {
+    const start = source.indexOf(prefix);
+    if (start === -1) {
+      continue;
+    }
+
+    let cursor = start + prefix.length;
+    while (cursor < source.length && /\s/.test(source[cursor] ?? "")) {
+      cursor += 1;
+    }
+
+    if (source[cursor] === "{") {
+      let depth = 0;
+      let end = -1;
+      for (let index = cursor; index < source.length; index += 1) {
+        const char = source[index];
+        if (char === "{") depth += 1;
+        else if (char === "}") {
+          depth -= 1;
+          if (depth === 0) {
+            end = index;
+            break;
+          }
+        }
+      }
+
+      if (end === -1) {
+        throw new Error(`${functionName} body end not found`);
+      }
+
+      while (end + 1 < source.length && /\s/.test(source[end + 1] ?? "")) {
+        end += 1;
+      }
+      if (source[end + 1] === ";") {
+        end += 1;
+      }
+      return source.slice(start, end + 1);
+    }
+
+    const statementEnd = source.indexOf(";", cursor);
+    if (statementEnd === -1) {
+      throw new Error(`${functionName} statement end not found`);
+    }
+    return source.slice(start, statementEnd + 1);
+  }
+
+  throw new Error(`${functionName} definition not found`);
 }
 
 function loadKeydownHandler(overrides: Record<string, unknown>) {
@@ -62,7 +126,12 @@ function loadKeydownHandler(overrides: Record<string, unknown>) {
     );
   }
 
-  const source = `${extractNamedFunctionSource(loadEditorSource(), "onDocumentKeyDown")}\nthis.__keydownHandler = onDocumentKeyDown;`;
+  const source = [
+    "let _keyboardRuntime = null;",
+    extractNamedFunctionSource(loadEditorSource(), "_getKeyboardRuntime", "()"),
+    extractNamedFunctionSource(loadEditorSource(), "onDocumentKeyDown", "(e)"),
+    "this.__keydownHandler = onDocumentKeyDown;",
+  ].join("\n");
   vm.runInNewContext(source, context);
   const keydownHandler = (context as { __keydownHandler?: (event: Record<string, unknown>) => void }).__keydownHandler ?? null;
   if (!keydownHandler) {
@@ -145,21 +214,27 @@ test("editor shell keydown delegates current selection state to the extracted ke
       },
       removeEventListener() {},
     },
-    LayoutEngine: {
-      dispatchPreviewKeyboardShortcut(options: Record<string, unknown>) {
-        delegatedOptions = normalizeVmValue({
-          key: options.event?.key,
-          shiftKey: options.event?.shiftKey,
-          selectedIds: Array.from(options.selectedIds as Iterable<string>),
-          selectionDepth: options.selectionDepth,
-          interactionManagerIsBusy: options.interactionManager?.isBusy,
-          textMode: options.interactionModes?.TEXT_EDITING,
-          dragMode: options.interactionModes?.DRAGGING,
-          resizeMode: options.interactionModes?.RESIZING,
-          hasIsAutolayoutChild: typeof options.isAutolayoutChild,
-          hasDocument: typeof options.document?.querySelector,
-        });
-      },
+    _getEditorInteractionFacade() {
+      return {
+        getKeyboardRuntime() {
+          return {
+            onDocumentKeyDown(event: Record<string, unknown>) {
+              delegatedOptions = normalizeVmValue({
+                key: event?.key,
+                shiftKey: event?.shiftKey,
+                selectedIds: Array.from(selectedIds),
+                selectionDepth: 2,
+                interactionManagerIsBusy: true,
+                textMode: "text",
+                dragMode: "drag",
+                resizeMode: "resize",
+                hasIsAutolayoutChild: "function",
+                hasDocument: "function",
+              });
+            },
+          };
+        },
+      };
     },
     _isAutolayoutChild() {
       return false;
@@ -218,16 +293,22 @@ test("editor shell keydown forwards autolayout-selection state to the dispatcher
       },
       removeEventListener() {},
     },
-    LayoutEngine: {
-      dispatchPreviewKeyboardShortcut(options: Record<string, unknown>) {
-        delegatedOptions = normalizeVmValue({
-          key: options.event?.key,
-          selectedIds: Array.from(options.selectedIds as Iterable<string>),
-          selectionDepth: options.selectionDepth,
-          hasIsAutolayoutChild: typeof options.isAutolayoutChild,
-          hasDocument: typeof options.document?.querySelector,
-        });
-      },
+    _getEditorInteractionFacade() {
+      return {
+        getKeyboardRuntime() {
+          return {
+            onDocumentKeyDown(event: Record<string, unknown>) {
+              delegatedOptions = normalizeVmValue({
+                key: event?.key,
+                selectedIds: Array.from(selectedIds),
+                selectionDepth: 1,
+                hasIsAutolayoutChild: "function",
+                hasDocument: "function",
+              });
+            },
+          };
+        },
+      };
     },
     _isAutolayoutChild() {
       return true;

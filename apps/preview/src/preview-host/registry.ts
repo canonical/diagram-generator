@@ -5,6 +5,7 @@ import {
 import type {
   PreviewHostBrowseSection,
   PreviewHostDocumentActionHandler,
+  PreviewHostDocumentEndpointKind,
   PreviewHostViewerRouteDescriptor,
   PreviewHostViewerRouteMatch,
 } from "./types.js";
@@ -41,11 +42,11 @@ export function resolveRegisteredPreviewViewerRoute(
   return resolvePreviewViewerRoute(pathname, listPreviewHostViewerRoutes(), normalizeSlug);
 }
 
-export function resolveRegisteredPreviewDocumentAction<
+export function resolveRegisteredPreviewDocumentEndpoint<
   THandler extends PreviewHostDocumentActionHandler = PreviewHostDocumentActionHandler,
 >(
   slug: string,
-  actionKey: string,
+  endpointKind: PreviewHostDocumentEndpointKind,
   options?: {
     routeKey?: string;
   },
@@ -57,20 +58,18 @@ export function resolveRegisteredPreviewDocumentAction<
     if (options?.routeKey && route.key !== options.routeKey) {
       continue;
     }
-    if (!route.documentActions) {
-      continue;
+    for (const endpoint of route.documentEndpoints ?? []) {
+      if (endpoint.kind !== endpointKind || typeof endpoint.handler !== "function") {
+        continue;
+      }
+      if (!route.hasDocument(slug)) {
+        continue;
+      }
+      return {
+        route,
+        handler: endpoint.handler as THandler,
+      };
     }
-    const handler = route.documentActions[actionKey];
-    if (typeof handler !== "function") {
-      continue;
-    }
-    if (!route.hasDocument(slug)) {
-      continue;
-    }
-    return {
-      route,
-      handler: handler as THandler,
-    };
   }
   return null;
 }

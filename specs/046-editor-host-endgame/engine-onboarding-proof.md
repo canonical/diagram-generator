@@ -3,6 +3,12 @@
 Browser-shell proof material for spec 046. This document is evidence for one
 slice of the architecture, not proof that 046 is ready to close.
 
+The authoritative remaining-work architecture now lives in
+[remaining-implementation-plan.md](./remaining-implementation-plan.md). This
+proof document exists to answer one narrower question: how much of the browser
+shell already starts from typed registration points rather than from the legacy
+JS sink files?
+
 The adversarial review on 2026-06-19 changed the standard for this file:
 controller compatibility is useful evidence, but it is not enough. The proof
 must now distinguish clearly between:
@@ -45,7 +51,7 @@ needs typed ownership for:
 
 1. host route/page installation
 2. viewer-page mode/page assembly
-3. document-kind parse/normalize authority
+3. document-kind detection, parse/normalize, and engine/viewer resolution
 4. save/spec/export endpoint registration
 5. render/export adapter registration
 6. persistence namespace ownership
@@ -88,24 +94,47 @@ Example: Mermaid-derived diagram types.
 This is still a browser-shell proof, not a claim that Mermaid or D2 product
 lanes are fully launched.
 
+## Real non-ELK proof now on branch
+
+The sequence family now has two layers of real proof:
+
+1. host/document/save/export proof in
+   `apps/preview/src/persistence/preview-host-contract.test.ts`
+2. browser refresh/load proof in the same test file by replaying the saved
+   sequence canonical state through
+   `createLoadPreviewSvgHostOptionsFromRuntime(...)` + `loadPreviewSvg(...)`
+
+That matters because the browser leg now proves the typed load seam can accept
+real non-ELK canonical state without reopening `editor.js` or
+`layout-bridge.js`.
+
 ## Still-open blockers
 
 The current branch still fails the full proof standard in these ways:
 
-1. builtin preview-host onboarding still centralizes in `apps/preview/src/server.ts`
-2. viewer page mode/page assembly is still finite-lane in places
-3. document, save, spec, and export authority are still partly central
-4. some compatibility logic still branches on specific engine ids
-5. non-frame render/export wiring is still not fully adapter-driven
-6. browser vocabulary still contains V3/ELK-shaped transitional concepts
+1. the trap files are still too behavior-bearing: `editor.js` and `layout-bridge.js`
+   do not yet read as thin adapters
+2. the browser-shell proof now exists for sequence refresh/load, but it still
+   needs one final rerun after the remaining trap-file thinness pass
+3. the browser edge still carries compatibility aliases and ELK-shaped debug/raw
+   view names alongside the new generic engine-shell facade
+4. document-family onboarding still has central sequence-versus-frame stop
+   points in detection and resolution helpers
+5. the three-class representative proof is still shell-contract-level for the
+   ported-family and bespoke classes, not launched product lanes
+6. the large TypeScript barrels and VM contract harnesses still risk becoming
+   the replacement monolith
+7. the graph/layout substrate is still too ELK-shaped for Mermaid, D2, Dagre,
+   and other foreign algorithm families
 
 These are not side notes. They are the reason the closeout answer is still
 "not yet."
 
 ## Required real proof
 
-Spec 046 now requires one skeletal non-ELK engine or diagram-family proof that
-exercises the whole path through typed seams:
+Spec 046 now requires one skeletal foreign-shaped engine or diagram-family proof
+such as Mermaid-lite, D2-lite, or Dagre-lite that exercises the whole path
+through typed seams:
 
 1. document kind or document-family registration
 2. preview-engine manifest/descriptor registration
@@ -116,7 +145,8 @@ exercises the whole path through typed seams:
 7. save/spec/export authority
 
 If that proof needs `editor.js`, `layout-bridge.js`, or central `server.ts`
-branch surgery, the architecture is not ready.
+branch surgery, or central document-kind conditionals, the architecture is not
+ready.
 
 ## Acceptance answers
 
@@ -147,10 +177,11 @@ Not:
 1. `scripts/preview/editor.js`
 
 The full 50/150/500-engine answer is broader than this document. Dedicated host
-modules, open viewer-page assembly, descriptor-driven document/save/export
-authority, persistence namespace ownership, and non-grid render registration
-remain open under spec 045 and adjacent follow-up work, even though the
-browser-shell registration path no longer starts in the legacy JS sink files.
+modules, documented install-unit conventions, document-family registry closure,
+trap-file thinness, barrel/harness split, substrate readiness, and final
+compatibility cleanup still remain open, even though the browser-shell
+registration path no longer starts in the legacy JS sink files and the real
+non-ELK browser load proof is now green.
 
 ## Honest veto
 
@@ -163,7 +194,7 @@ Spec 046 does **not** get to ignore `layout-bridge.js`.
 - The remaining bridge risk is narrower: compatibility wrappers and the growing
   browser-entry / preview-shell barrel cold-start surface still need cleanup
   under spec 044, but ELK debug/raw-view DOM ownership no longer lives inline
-  in the JS façade.
+  in the JS facade.
 
 Honest answer today:
 
@@ -173,7 +204,9 @@ Honest answer today:
   ELK, representative Mermaid-family, and representative bespoke controllers
   now pass through the same typed bootstrap/panel/save seam in tests.
 - **Full 50/150/500-engine answer**: still **not yet**. Host route/page
-  installation, document/save/export authority, render-adapter registration,
-  persistence namespace handling, compatibility cleanup, and shell vocabulary
-  are still not descriptor-driven enough to count as honest many-engine
+  installation is now materially better, the install-unit pattern is now
+  documented and tested, and the real non-ELK browser refresh/load proof is
+  green, but document-family registry closure, trap-file thinness, barrel/harness
+  split, substrate readiness, compatibility cleanup, and the final adversarial
+  yes/no audit are still not complete enough to count as honest many-engine
   readiness.

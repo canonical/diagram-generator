@@ -1,7 +1,7 @@
 /**
  * Preview relayout coordinator helpers (spec 043 shell coordinator slice K).
  *
- * These helpers own the local-vs-ELK relayout branching and runtime-only
+ * These helpers own the local-vs-engine relayout branching and runtime-only
  * coercion cleanup so editor.js stays focused on browser callback wiring.
  */
 
@@ -33,17 +33,17 @@ export interface PreviewLocalRelayoutStatus {
   textAdapterError?: unknown;
 }
 
-export interface PreviewV3RelayoutRuntimeState {
+export interface PreviewLayoutRelayoutRuntimeState {
   lastMode: string;
   lastReason: string;
   sequence: number;
 }
 
-export type PreviewLayoutRelayoutRuntimeState = PreviewV3RelayoutRuntimeState;
+/** @deprecated Prefer `PreviewLayoutRelayoutRuntimeState`. */
+export type PreviewV3RelayoutRuntimeState = PreviewLayoutRelayoutRuntimeState;
 
-export interface PreviewV3RelayoutStatus extends PreviewRelayoutStatus {
-  engine: 'v3';
-  isV3: true;
+export interface PreviewLayoutRelayoutStatus extends PreviewRelayoutStatus {
+  engine: 'grid';
   interactiveExecutor: 'local-only';
   interactiveFallbackAvailable: false;
   local: PreviewLocalRelayoutStatus;
@@ -55,7 +55,8 @@ export interface PreviewV3RelayoutStatus extends PreviewRelayoutStatus {
   sequence: number;
 }
 
-export type PreviewLayoutRelayoutStatus = PreviewV3RelayoutStatus;
+/** @deprecated Prefer `PreviewLayoutRelayoutStatus`. */
+export type PreviewV3RelayoutStatus = PreviewLayoutRelayoutStatus;
 
 export interface PreviewRelayoutResult {
   coerced?: Map<string, Record<string, unknown>> | null;
@@ -69,13 +70,14 @@ export interface PreviewGridOverrideEntry {
   [key: string]: unknown;
 }
 
-export interface ResolvePreviewV3RelayoutStatusOptions {
+export interface ResolvePreviewLayoutRelayoutStatusOptions {
   getLocalRelayoutStatus?: (() => PreviewLocalRelayoutStatus) | null;
-  runtimeState: PreviewV3RelayoutRuntimeState;
+  runtimeState: PreviewLayoutRelayoutRuntimeState;
 }
 
-export type ResolvePreviewLayoutRelayoutStatusOptions =
-  ResolvePreviewV3RelayoutStatusOptions;
+/** @deprecated Prefer `ResolvePreviewLayoutRelayoutStatusOptions`. */
+export type ResolvePreviewV3RelayoutStatusOptions =
+  ResolvePreviewLayoutRelayoutStatusOptions;
 
 export interface PreviewFrameManagedTargetLike {
   closest?: (selector: string) => PreviewFrameManagedGroupLike | null;
@@ -98,7 +100,7 @@ export interface IsPreviewFrameManagedTargetOptions<TNode = { type?: unknown }> 
 }
 
 export interface DispatchPreviewRelayoutFailureHostOptions {
-  runtimeState: PreviewV3RelayoutRuntimeState;
+  runtimeState: PreviewLayoutRelayoutRuntimeState;
   reason: string;
   triggerCid?: string | null;
   setStatus?: ((message: string, kind: string) => void) | null;
@@ -114,8 +116,8 @@ export interface DispatchPreviewRelayoutSuccessHostOptions<
   triggerCid: string;
   result: TResult | null;
   executionLabel?: string | null;
-  runtimeState: PreviewV3RelayoutRuntimeState;
-  getRelayoutStatus: () => PreviewV3RelayoutStatus;
+  runtimeState: PreviewLayoutRelayoutRuntimeState;
+  getRelayoutStatus: () => PreviewLayoutRelayoutStatus;
   failRelayout: (reason: string, triggerCid: string) => unknown;
   overrides: Record<string, PreviewRelayoutOverrideEntry>;
   buildTreeUi: () => void;
@@ -170,10 +172,10 @@ export function createPreviewRelayoutRuntimeState(): PreviewV3RelayoutRuntimeSta
 }
 
 export function markPreviewRelayoutExecution(
-  runtimeState: PreviewV3RelayoutRuntimeState,
+  runtimeState: PreviewLayoutRelayoutRuntimeState,
   mode: string,
   reason: string | null | undefined,
-): PreviewV3RelayoutRuntimeState {
+): PreviewLayoutRelayoutRuntimeState {
   runtimeState.lastMode = mode;
   runtimeState.lastReason = reason || 'unknown';
   runtimeState.sequence += 1;
@@ -207,8 +209,7 @@ export function resolvePreviewLayoutRelayoutStatus(
   };
 
   return {
-    engine: 'v3',
-    isV3: true,
+    engine: 'grid',
     interactiveExecutor: 'local-only',
     interactiveFallbackAvailable: false,
     local,
@@ -616,7 +617,11 @@ export interface RunPreviewRelayoutOptions<TGridOverrides, TResult extends Previ
   gridOverrides: TGridOverrides;
   normalizeGridOverrides: (value: TGridOverrides) => TGridOverrides;
   relayoutStatus: PreviewRelayoutStatus;
-  isElkLayeredDiagram: boolean;
+  isEngineLayoutActive?: boolean;
+  /** @deprecated Prefer `isEngineLayoutActive`. */
+  isElkLayeredDiagram?: boolean;
+  performEngineRelayout?: ((normalizedGridOverrides: TGridOverrides) => Promise<TResult | null>) | null;
+  /** @deprecated Prefer `performEngineRelayout`. */
   performElkRelayout?: ((normalizedGridOverrides: TGridOverrides) => Promise<TResult | null>) | null;
   performLocalRelayout: (normalizedGridOverrides: TGridOverrides) => TResult | null;
   failRelayout: (reason: string, triggerCid: string) => unknown;
@@ -750,17 +755,19 @@ export async function runPreviewRelayout<TGridOverrides, TResult extends Preview
 ): Promise<unknown> {
   if (!options.relayoutStatus.localReady) {
     const reason = options.relayoutStatus.local?.reason || 'unknown';
-    options.logError?.(`v3 relayout: local bridge not ready (${reason})`);
+    options.logError?.(`layout relayout: local bridge not ready (${reason})`);
     return options.failRelayout(reason, options.triggerCid);
   }
 
   clearPreviewCoercedOverrides(options.overrides, options.coercedKeys);
   const normalizedGridOverrides = options.normalizeGridOverrides(options.gridOverrides);
+  const isEngineLayoutActive = options.isEngineLayoutActive ?? options.isElkLayeredDiagram ?? false;
+  const performEngineRelayout = options.performEngineRelayout ?? options.performElkRelayout;
 
-  if (options.isElkLayeredDiagram && options.performElkRelayout) {
-    const elkResult = await options.performElkRelayout(normalizedGridOverrides);
+  if (isEngineLayoutActive && performEngineRelayout) {
+    const elkResult = await performEngineRelayout(normalizedGridOverrides);
     if (!elkResult) {
-      options.logError?.('v3 relayout: ELK layout failed');
+      options.logError?.('layout relayout: engine-backed layout failed');
       return options.failRelayout('elk-failure', options.triggerCid);
     }
     return options.finishRelayout(options.triggerCid, elkResult, 'elk');
@@ -768,7 +775,7 @@ export async function runPreviewRelayout<TGridOverrides, TResult extends Preview
 
   const localResult = options.performLocalRelayout(normalizedGridOverrides);
   if (!localResult) {
-    options.logError?.('v3 relayout: local layout failed');
+    options.logError?.('layout relayout: local layout failed');
     return options.failRelayout('local-failure', options.triggerCid);
   }
 

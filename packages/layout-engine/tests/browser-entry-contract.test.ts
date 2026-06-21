@@ -23,16 +23,43 @@ import {
   createLoadPreviewSvgHostOptionsFromRuntime,
   createLoadPreviewSvgHostOptions,
   createPreviewBuildStatusUpdater,
+  createPreviewEditorBootstrapFacadeFromEditorHost,
+  createPreviewEditorBootstrapFacadeFromRuntime,
+  createPreviewEditorSceneFacadeFromEditorHost,
+  createPreviewEditorSceneFacadeFromRuntime,
+  createPreviewEditorInteractionFacadeFromBrowserHost,
+  createPreviewEditorInteractionFacadeFromEditorHost,
+  createPreviewEditorInteractionFacadeFromRuntime,
   createPreviewEditorRuntimeSetFromRuntime,
   createPreviewEditorRuntimeSetFromHost,
   createPreviewEditorRuntimeSet,
+  createPreviewEditorRelayoutFacadeFromEditorHost,
+  createPreviewEditorRelayoutFacadeFromRuntime,
+  createPreviewElkLayoutControlsRuntime,
+  createPreviewElkShellControllerRuntime,
+  ensurePreviewEngineShellCompatController,
+  createPreviewGridRuntimeFromEditorHost,
   createPreviewGridRuntimeHost,
   createPreviewInspectorDisplayRuntime,
   createPreviewInspectorMutationRuntime,
   createPreviewInspectorSelectionRuntime,
+  createPreviewKeyboardRuntime,
+  createPreviewKeyboardRuntimeFromHost,
+  createPreviewLiveResizeRuntimeFromHost,
+  createPreviewLiveResizeRuntime,
   createPreviewArrowWaypointRuntime,
+  createPreviewPointerInteractionRuntimeFromHost,
+  createPreviewPointerInteractionRuntime,
+  createPreviewResizeInteractionRuntime,
+  createPreviewResizeInteractionRuntimeFromHost,
+  createPreviewElkViewModeRuntimeFromBrowserHost,
   createPreviewElkViewModeRuntime,
   createPreviewOverrideToolbarHostOptions,
+  createPreviewSaveClientRuntime,
+  createPreviewSelectionChromeRuntimeFromHost,
+  createPreviewSelectionChromeRuntime,
+  createPreviewStateRestoreRuntimeFromEditorHost,
+  createPreviewStateRestoreRuntime,
   createPreviewRelayoutRuntimeFromRuntime,
   createPreviewRelayoutRuntimeOptionsFromRuntime,
   createPreviewRelayoutRuntimeOptionsFromHost,
@@ -45,6 +72,8 @@ import {
   cyclePreviewGuideModeHost,
   createEditorStateStore,
   createPreviewSelectionRuntime,
+  createPreviewStageBindingRuntimeFromHost,
+  createPreviewStageBindingRuntime,
   createLine,
   createPreviewDragStartState,
   createPreviewResizeStartState,
@@ -190,6 +219,10 @@ const CORE_EXPORT_KEYS = [
 describe('browser entry contract pilot', () => {
   it('exposes preview-shell bootstrap aliases under a namespaced contract', () => {
     expect(previewShell.bootstrap.attemptPreviewDiagramNavigation).toBe(attemptPreviewDiagramNavigation);
+    expect(previewShell.bootstrap.createPreviewEditorBootstrapFacadeFromEditorHost)
+      .toBe(createPreviewEditorBootstrapFacadeFromEditorHost);
+    expect(previewShell.bootstrap.createPreviewEditorBootstrapFacadeFromRuntime)
+      .toBe(createPreviewEditorBootstrapFacadeFromRuntime);
     expect(previewShell.bootstrap.createEditorStateStore).toBe(createEditorStateStore);
     expect(previewShell.bootstrap.cloneEditorSnapshotValue).toBe(cloneEditorSnapshotValue);
     expect(previewShell.bootstrap.captureEditorSnapshot).toBe(captureEditorSnapshot);
@@ -199,6 +232,16 @@ describe('browser entry contract pilot', () => {
     expect(previewShell.bootstrap.createBootstrapPreviewEditorHostOptionsFromRuntime)
       .toBe(createBootstrapPreviewEditorHostOptionsFromRuntime);
     expect(previewShell.bootstrap.createPreviewBuildStatusUpdater).toBe(createPreviewBuildStatusUpdater);
+    expect(previewShell.bootstrap.createPreviewEditorInteractionFacadeFromEditorHost)
+      .toBe(createPreviewEditorInteractionFacadeFromEditorHost);
+    expect(previewShell.bootstrap.createPreviewEditorInteractionFacadeFromBrowserHost)
+      .toBe(createPreviewEditorInteractionFacadeFromBrowserHost);
+    expect(previewShell.bootstrap.createPreviewEditorInteractionFacadeFromRuntime)
+      .toBe(createPreviewEditorInteractionFacadeFromRuntime);
+    expect(previewShell.bootstrap.createPreviewEditorSceneFacadeFromRuntime)
+      .toBe(createPreviewEditorSceneFacadeFromRuntime);
+    expect(previewShell.scene.createPreviewEditorSceneFacadeFromRuntime)
+      .toBe(createPreviewEditorSceneFacadeFromRuntime);
     expect(previewShell.bootstrap.createPreviewEditorRuntimeSetFromHost)
       .toBe(createPreviewEditorRuntimeSetFromHost);
     expect(previewShell.bootstrap.createPreviewEditorRuntimeSetFromRuntime)
@@ -208,7 +251,11 @@ describe('browser entry contract pilot', () => {
       .toBe(createBootstrapPreviewEditorRuntimeOptionsFromHost);
     expect(previewShell.bootstrap.createPreviewOverrideToolbarHostOptions)
       .toBe(createPreviewOverrideToolbarHostOptions);
+    expect(previewShell.bootstrap.createPreviewSaveClientRuntime)
+      .toBe(createPreviewSaveClientRuntime);
     expect(previewShell.bootstrap.collectPreviewEngineSavePayload).toBeTypeOf('function');
+    expect(previewShell.bootstrap.ensurePreviewEngineShellCompatController)
+      .toBe(ensurePreviewEngineShellCompatController);
     expect(previewShell.bootstrap.ensurePreviewEngineShellController).toBeTypeOf('function');
     expect(previewShell.bootstrap.ensurePreviewElkPreviewController).toBeTypeOf('function');
     expect(previewShell.bootstrap.getPreviewEngineShellController).toBeTypeOf('function');
@@ -228,13 +275,20 @@ describe('browser entry contract pilot', () => {
   it('exposes preview-bridge relayout/render aliases under a namespaced contract', () => {
     expect(previewBridge.host.applyFrameTreeRemovalsToPreviewTreeJson).toBeTypeOf('function');
     expect(previewBridge.host.applyPreviewSessionRemovalsToDiagramJson).toBeTypeOf('function');
+    expect(previewBridge.host.createPreviewElkViewModeRuntimeFromBrowserHost)
+      .toBe(createPreviewElkViewModeRuntimeFromBrowserHost);
     expect(previewBridge.host.createPreviewElkViewModeRuntime).toBe(createPreviewElkViewModeRuntime);
+    expect(previewBridge.host.createPreviewLayoutBridgeRuntimeFromBrowserHost).toBeTypeOf('function');
     expect(previewBridge.host.createPreviewLayoutBridgeRuntime).toBeTypeOf('function');
     expect(previewBridge.host.createPreviewLayoutBridgeState).toBeTypeOf('function');
     expect(previewBridge.host.normalizePreviewLayoutBridgeLocalRelayoutOverrideMode).toBeTypeOf('function');
     expect(previewBridge.host.resolvePreviewLayoutBridgeLocalRelayoutStatus).toBeTypeOf('function');
     expect(previewBridge.host.updatePreviewComponentModelFromLayout).toBeTypeOf('function');
     expect(previewBridge.relayout.collectPreviewRelayoutFrameOverrides).toBeTypeOf('function');
+    expect(previewBridge.relayout.createPreviewEditorRelayoutFacadeFromEditorHost)
+      .toBe(createPreviewEditorRelayoutFacadeFromEditorHost);
+    expect(previewBridge.relayout.createPreviewEditorRelayoutFacadeFromRuntime)
+      .toBe(createPreviewEditorRelayoutFacadeFromRuntime);
     expect(previewBridge.relayout.createPreviewRelayoutRuntime).toBe(createPreviewRelayoutRuntime);
     expect(previewBridge.relayout.createPreviewRelayoutRuntimeFromRuntime)
       .toBe(createPreviewRelayoutRuntimeFromRuntime);
@@ -251,8 +305,14 @@ describe('browser entry contract pilot', () => {
     expect(previewBridge.relayout.restorePreviewOverrideEntries).toBeTypeOf('function');
     expect(previewBridge.relayout.runPreviewRelayout).toBeTypeOf('function');
     expect(previewBridge.relayout.createPreviewLiveResizeRelayoutState).toBeTypeOf('function');
+    expect(previewBridge.relayout.createPreviewLiveResizeRuntimeFromHost)
+      .toBe(createPreviewLiveResizeRuntimeFromHost);
+    expect(previewBridge.relayout.createPreviewLiveResizeRuntime).toBe(createPreviewLiveResizeRuntime);
     expect(previewBridge.relayout.schedulePreviewLiveResizeRelayout).toBeTypeOf('function');
     expect(previewBridge.relayout.cancelPreviewLiveResizeRelayout).toBeTypeOf('function');
+    expect(previewBridge.relayout.createPreviewStateRestoreRuntimeFromEditorHost)
+      .toBe(createPreviewStateRestoreRuntimeFromEditorHost);
+    expect(previewBridge.relayout.createPreviewStateRestoreRuntime).toBe(createPreviewStateRestoreRuntime);
     expect(previewBridge.relayout.persistPreviewResizeToFrameOverrides).toBeTypeOf('function');
     expect(previewBridge.render.applyPreviewSvgOverrides).toBe(applyPreviewSvgOverrides);
     expect(previewBridge.render.applyPreviewSvgOverridesHost).toBe(applyPreviewSvgOverridesHost);
@@ -277,6 +337,10 @@ describe('browser entry contract pilot', () => {
     expect(previewEngines.registry.listPreviewEngines).toBe(listPreviewEngines);
     expect(previewEngines.registry.resolvePreviewEngine).toBe(resolvePreviewEngine);
     expect(previewEngines.registry.serializePreviewEngineManifest).toBe(serializePreviewEngineManifest);
+    expect(previewEngines.elk.createPreviewElkLayoutControlsRuntime)
+      .toBe(createPreviewElkLayoutControlsRuntime);
+    expect(previewEngines.elk.createPreviewElkShellControllerRuntime)
+      .toBe(createPreviewElkShellControllerRuntime);
     expect(previewEngines.elk.ELK_LAYERED_PREVIEW_ENGINE).toBe(ELK_LAYERED_PREVIEW_ENGINE);
     expect(previewEngines.elk.ELK_LAYERED_PARAM_SPECS).toBe(ELK_LAYERED_PARAM_SPECS);
     expect(previewEngines.elk.elkParamGroups).toBe(elkParamGroups);
@@ -348,7 +412,23 @@ describe('browser entry contract pilot', () => {
     expect(previewShell.interaction.clearPreviewSelectionState).toBe(clearPreviewSelectionState);
     expect(previewShell.interaction.applySelectionStateMutation).toBe(applySelectionStateMutation);
     expect(previewShell.interaction.createPreviewArrowWaypointRuntime).toBe(createPreviewArrowWaypointRuntime);
+    expect(previewShell.interaction.createPreviewPointerInteractionRuntimeFromHost)
+      .toBe(createPreviewPointerInteractionRuntimeFromHost);
+    expect(previewShell.interaction.createPreviewPointerInteractionRuntime)
+      .toBe(createPreviewPointerInteractionRuntime);
+    expect(previewShell.interaction.createPreviewResizeInteractionRuntime)
+      .toBe(createPreviewResizeInteractionRuntime);
+    expect(previewShell.interaction.createPreviewResizeInteractionRuntimeFromHost)
+      .toBe(createPreviewResizeInteractionRuntimeFromHost);
+    expect(previewShell.interaction.createPreviewSelectionChromeRuntimeFromHost)
+      .toBe(createPreviewSelectionChromeRuntimeFromHost);
+    expect(previewShell.interaction.createPreviewSelectionChromeRuntime)
+      .toBe(createPreviewSelectionChromeRuntime);
     expect(previewShell.interaction.createPreviewSelectionRuntime).toBe(createPreviewSelectionRuntime);
+    expect(previewShell.interaction.createPreviewStageBindingRuntimeFromHost)
+      .toBe(createPreviewStageBindingRuntimeFromHost);
+    expect(previewShell.interaction.createPreviewStageBindingRuntime)
+      .toBe(createPreviewStageBindingRuntime);
     expect(previewShell.interaction.bindPreviewStageSvgInteraction).toBe(bindPreviewStageSvgInteraction);
     expect(previewShell.interaction.bindPreviewStageSvgInteractionHost).toBe(bindPreviewStageSvgInteractionHost);
     expect(previewShell.interaction.collectPreviewRecursiveRelayoutEntries).toBe(collectPreviewRecursiveRelayoutEntries);
@@ -360,6 +440,9 @@ describe('browser entry contract pilot', () => {
     expect(previewShell.interaction.dispatchPreviewDeleteFramesHost).toBe(dispatchPreviewDeleteFramesHost);
     expect(previewShell.interaction.dispatchPreviewDragMoveHost).toBe(dispatchPreviewDragMoveHost);
     expect(previewShell.interaction.dispatchPreviewKeyboardShortcut).toBe(dispatchPreviewKeyboardShortcut);
+    expect(previewShell.interaction.createPreviewKeyboardRuntime).toBe(createPreviewKeyboardRuntime);
+    expect(previewShell.interaction.createPreviewKeyboardRuntimeFromHost)
+      .toBe(createPreviewKeyboardRuntimeFromHost);
     expect(previewShell.interaction.dispatchPreviewResizeMove).toBe(dispatchPreviewResizeMove);
     expect(previewShell.interaction.dispatchPreviewResizeMoveHost).toBe(dispatchPreviewResizeMoveHost);
     expect(previewShell.interaction.dispatchPreviewWaypointDragMoveHost).toBe(dispatchPreviewWaypointDragMoveHost);
@@ -384,6 +467,10 @@ describe('browser entry contract pilot', () => {
     expect(previewShell.interaction.syncPreviewSelectionUi).toBe(syncPreviewSelectionUi);
     expect(previewShell.interaction.updatePreviewArrowVisualHost).toBe(updatePreviewArrowVisualHost);
     expect(previewShell.scene.applyPreviewWaypointOverridesHost).toBe(applyPreviewWaypointOverridesHost);
+    expect(previewShell.scene.createPreviewEditorSceneFacadeFromEditorHost)
+      .toBe(createPreviewEditorSceneFacadeFromEditorHost);
+    expect(previewShell.scene.createPreviewGridRuntimeFromEditorHost)
+      .toBe(createPreviewGridRuntimeFromEditorHost);
     expect(previewShell.scene.createPreviewGridRuntimeHost).toBe(createPreviewGridRuntimeHost);
     expect(previewShell.scene.cyclePreviewGuideModeHost).toBe(cyclePreviewGuideModeHost);
     expect(previewShell.scene.dispatchPreviewGridControlChangeHost).toBe(dispatchPreviewGridControlChangeHost);

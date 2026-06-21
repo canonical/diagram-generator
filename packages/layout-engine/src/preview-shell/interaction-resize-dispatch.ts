@@ -42,7 +42,14 @@ export interface PreviewResizeMoveState {
   origDh?: number;
   origOverrides: Record<string, InteractionDeltaPatch | undefined>;
   propagatedIds?: Set<string> | null;
+  baseSizes?: Record<string, { width: number; height: number }> | null;
+  baseX?: number;
+  baseY?: number;
+  baseW?: number;
+  baseH?: number;
+  /** @deprecated Prefer `baseW`. */
   v3BaseW?: number;
+  /** @deprecated Prefer `baseH`. */
   v3BaseH?: number;
 }
 
@@ -87,7 +94,15 @@ export interface PreviewResizeMoveDispatchOptions {
     rightEdgeDelta: number,
     bottomEdgeDelta: number,
   ) => Record<string, InteractionDeltaPatch>;
-  scheduleV3ResizeRelayout: (
+  scheduleLayoutResizeRelayout: (
+    cid: string,
+    newW: number,
+    newH: number,
+    resizedW: boolean,
+    resizedH: boolean,
+  ) => void;
+  /** @deprecated Prefer `scheduleLayoutResizeRelayout`. */
+  scheduleV3ResizeRelayout?: (
     cid: string,
     newW: number,
     newH: number,
@@ -196,10 +211,10 @@ export function dispatchPreviewResizeMove(
     axis: state.axis,
     dx,
     dy,
-    baseX: nodeBounds.x,
-    baseY: nodeBounds.y,
-    baseW: nodeBounds.width,
-    baseH: nodeBounds.height,
+    baseX: Number(state.baseX ?? nodeBounds.x),
+    baseY: Number(state.baseY ?? nodeBounds.y),
+    baseW: Number(state.baseW ?? nodeBounds.width),
+    baseH: Number(state.baseH ?? nodeBounds.height),
     origDx: Number(state.origDx ?? 0),
     origDy: Number(state.origDy ?? 0),
     origDw: Number(state.origDw ?? 0),
@@ -254,17 +269,15 @@ export function dispatchPreviewResizeMove(
   }
 
   options.applyAllOverrides();
-  if (options.isSelected) {
-    options.updateInspector(state.cid);
-  }
 
   const resizedW = singleResize.dw !== 0;
   const resizedH = singleResize.dh !== 0;
   let scheduledRelayout = false;
   if (resizedW || resizedH) {
-    const newW = Math.max(8, Number(state.v3BaseW ?? nodeBounds.width) + singleResize.dw);
-    const newH = Math.max(8, Number(state.v3BaseH ?? nodeBounds.height) + singleResize.dh);
-    options.scheduleV3ResizeRelayout(state.cid, newW, newH, resizedW, resizedH);
+    const newW = Math.max(8, Number(state.baseW ?? state.v3BaseW ?? nodeBounds.width) + singleResize.dw);
+    const newH = Math.max(8, Number(state.baseH ?? state.v3BaseH ?? nodeBounds.height) + singleResize.dh);
+    const scheduleRelayout = options.scheduleLayoutResizeRelayout ?? options.scheduleV3ResizeRelayout;
+    scheduleRelayout?.(state.cid, newW, newH, resizedW, resizedH);
     scheduledRelayout = true;
   }
 

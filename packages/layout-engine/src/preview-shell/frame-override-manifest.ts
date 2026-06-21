@@ -72,10 +72,10 @@ export const PERSIST_LOWER_FRAME_KEYS = [
   'position',
 ] as const;
 
-/** Override keys forwarded into client-side v3 relayout (excludes persist-only style). */
+/** Override keys forwarded into client-side layout relayout (excludes persist-only style). */
 export const RELAYOUT_FRAME_KEYS = PERSIST_FRAME_KEYS.filter((key) => key !== 'style');
 
-/** Override keys that should trigger a v3 relayout after undo/redo restore. */
+/** Override keys that should trigger a layout relayout after undo/redo restore. */
 export const UNDO_RELAYOUT_FRAME_KEYS = [
   'text',
   'direction',

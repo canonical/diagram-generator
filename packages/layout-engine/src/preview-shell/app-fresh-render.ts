@@ -55,6 +55,7 @@ export interface RenderFreshPreviewSvgOptions<TModel = unknown> {
   gridOverrides?: Record<string, unknown> | null;
   model: TModel;
   textAdapter: TextMeasureAdapter;
+  skipModelUpdate?: boolean | null;
   applySessionRemovalsToDiagramJson?: ((diagramJson: Record<string, unknown>, model: TModel) => void) | null;
   applyOverridesToFrameTree: (
     diagram: FrameDiagram,
@@ -401,10 +402,14 @@ export async function renderFreshPreviewSvg<TModel = unknown>(
     overlays: rawOverlays,
   });
 
-  options.updateModelFromLayout(options.model, diagram.root);
-  const boundsMap = collectPreviewPlacedBounds(diagram.root);
-  const routedArrows = diagram.arrows.length > 0 ? routePreviewArrows(diagram.arrows, boundsMap) : [];
-  options.syncArrowsInModel(options.model, diagram.arrows, routedArrows);
+  if (!options.skipModelUpdate) {
+    options.updateModelFromLayout(options.model, diagram.root);
+    const boundsMap = collectPreviewPlacedBounds(diagram.root);
+    const routedArrows = diagram.arrows.length > 0
+      ? routePreviewArrows(diagram.arrows, boundsMap)
+      : [];
+    options.syncArrowsInModel(options.model, diagram.arrows, routedArrows);
+  }
 
   return {
     svg,

@@ -62,6 +62,17 @@ export interface PreviewEngineShellControllerApi {
   [key: string]: unknown;
 }
 
+export interface PreviewEngineLayoutControlsApi {
+  init?: (options?: {
+    getOverrides?: () => Record<string, unknown>;
+    setOverrides?: (value: Record<string, unknown>) => void;
+  } | null) => void;
+  buildPanel?: (frameTreeJson?: unknown) => void;
+  refresh?: () => void;
+  collectOverrides?: () => Record<string, unknown>;
+  [key: string]: unknown;
+}
+
 export interface PreviewEnginePayloadModelLike {
   layoutOverrides?: Record<string, unknown>;
   /** @deprecated Prefer `layoutOverrides`. */
@@ -69,13 +80,19 @@ export interface PreviewEnginePayloadModelLike {
   [key: string]: unknown;
 }
 
-export interface PreviewElkControllerInitOptions extends PreviewEngineShellControllerInitOptions {
+export interface PreviewEngineShellCompatControllerInitOptions extends PreviewEngineShellControllerInitOptions {
 }
 
-export interface PreviewElkControllerApi extends PreviewEngineShellControllerApi {
+export interface PreviewEngineShellCompatControllerApi extends PreviewEngineShellControllerApi {
   isElkLayeredDiagram: (frameTreeJson?: unknown) => boolean;
   applyElkLayoutOverrides: (overrides: Record<string, unknown>) => void;
 }
+
+/** @deprecated Prefer `PreviewEngineShellCompatControllerInitOptions`. */
+export type PreviewElkControllerInitOptions = PreviewEngineShellCompatControllerInitOptions;
+
+/** @deprecated Prefer `PreviewEngineShellCompatControllerApi`. */
+export type PreviewElkControllerApi = PreviewEngineShellCompatControllerApi;
 
 export interface PreviewShellCoordinatorInitOptions {
   document: Document;
@@ -204,7 +221,9 @@ export interface InitPreviewEditorRuntimeHostOptions {
   initShellCoordinator: () => void;
   initNavTabs: () => void;
   ensureEditorState: () => void;
-  ensureElkPreviewController: () => void;
+  ensurePreviewEngineShellController?: (() => void) | null;
+  /** @deprecated Prefer `ensurePreviewEngineShellController`. */
+  ensureElkPreviewController?: (() => void) | null;
   initSaveClient: () => void;
   initOverrideToolbar: () => void;
   registerPageshowReload: () => void;
@@ -407,11 +426,10 @@ export interface PreviewDiagramLoadSignalState {
 
 type PreviewGlobalWindow = Window & typeof globalThis & {
   EditorState?: PreviewEditorStateApi;
-  ElkPreviewController?: PreviewElkControllerApi;
+  PreviewEngineLayoutControls?: PreviewEngineLayoutControlsApi;
+  ElkPreviewController?: PreviewEngineShellCompatControllerApi;
   PreviewEngineShellController?: PreviewEngineShellControllerApi;
-  ElkLayoutControls?: {
-    collectOverrides?: () => Record<string, unknown>;
-  };
+  ElkLayoutControls?: PreviewEngineLayoutControlsApi;
   __DG_DIAGRAM_LOAD_GENERATION?: number;
   whenDiagramLoaded?: () => Promise<number>;
 };
@@ -566,13 +584,13 @@ function createPreviewEngineShellControllerFallback(): PreviewEngineShellControl
   return controller;
 }
 
-function createPreviewElkControllerFallback(): PreviewElkControllerApi {
-  return createPreviewElkControllerCompat(createPreviewEngineShellControllerFallback());
+function createPreviewEngineShellCompatControllerFallback(): PreviewEngineShellCompatControllerApi {
+  return createPreviewEngineShellCompatController(createPreviewEngineShellControllerFallback());
 }
 
-function createPreviewElkControllerCompat(
+function createPreviewEngineShellCompatController(
   controller: PreviewEngineShellControllerApi,
-): PreviewElkControllerApi {
+): PreviewEngineShellCompatControllerApi {
   return {
     ...controller,
     isElkLayeredDiagram(frameTreeJson?: unknown) {
@@ -932,11 +950,18 @@ export function ensurePreviewEditorState(
 export function ensurePreviewElkPreviewController(
   previewWindow: PreviewGlobalWindow,
   initOptions: PreviewEngineShellControllerInitOptions,
-): PreviewElkControllerApi {
+): PreviewEngineShellCompatControllerApi {
+  return ensurePreviewEngineShellCompatController(previewWindow, initOptions);
+}
+
+export function ensurePreviewEngineShellCompatController(
+  previewWindow: PreviewGlobalWindow,
+  initOptions: PreviewEngineShellControllerInitOptions,
+): PreviewEngineShellCompatControllerApi {
   const controller = ensurePreviewEngineShellController(previewWindow, initOptions);
-  const elkController = createPreviewElkControllerCompat(controller);
-  previewWindow.ElkPreviewController = elkController;
-  return elkController;
+  const compatController = createPreviewEngineShellCompatController(controller);
+  previewWindow.ElkPreviewController = compatController;
+  return compatController;
 }
 
 export function ensurePreviewEngineShellController(
@@ -1026,7 +1051,7 @@ export function initPreviewEditorRuntimeHost(
   options.initShellCoordinator();
   options.initNavTabs();
   options.ensureEditorState();
-  options.ensureElkPreviewController();
+  (options.ensurePreviewEngineShellController ?? options.ensureElkPreviewController)?.();
   options.initSaveClient();
   options.initOverrideToolbar();
   options.registerPageshowReload();
@@ -1081,7 +1106,7 @@ export function bootstrapPreviewEditorHost(
         getFrameTree: options.getFrameTree,
       });
     },
-    ensureElkPreviewController: () => {
+    ensurePreviewEngineShellController: () => {
       ensurePreviewEngineShellController(options.previewWindow, {
         getLayoutOverrides: () => (
           (options.getLayoutOverrides ?? options.getElkLayoutOverrides)?.() ?? {}

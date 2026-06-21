@@ -131,6 +131,7 @@ export interface PersistPreviewResizeToFrameOverridesOptions {
   resizeIds: Iterable<string>;
   propagatedIds?: Iterable<string> | null;
   triggerCid: string;
+  baseSizes?: Record<string, { width: number; height: number }> | null;
   getNode: (cid: string) => PreviewResizePersistNode | null | undefined;
   getOwnDelta: (cid: string) => InteractionDeltaPatch | null | undefined;
   setOverride: (
@@ -206,6 +207,7 @@ function normalizePreviewResizeCompletionState(
     selectionIds: state.selection?.ids ?? null,
     origOverrideIds: Object.keys(state.origOverrides || {}),
     propagatedIds: state.propagatedIds,
+    baseSizes: state.baseSizes ?? null,
     overrideSnapshotBefore: state.overrideSnapshotBefore,
   };
 }
@@ -330,8 +332,8 @@ export function persistPreviewResizeToFrameOverrides(
       if (!node) return null;
       return {
         id: cid,
-        baseW: Number(node.data?.width ?? 0),
-        baseH: Number(node.data?.height ?? 0),
+        baseW: Number(options.baseSizes?.[cid]?.width ?? node.data?.width ?? 0),
+        baseH: Number(options.baseSizes?.[cid]?.height ?? node.data?.height ?? 0),
         delta: options.getOwnDelta(cid) ?? {},
       };
     })

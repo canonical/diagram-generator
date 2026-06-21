@@ -235,7 +235,7 @@ describe('preview resize host helpers', () => {
       && Array.isArray((entry as { setOverride: unknown[] }).setOverride)
       && (entry as { setOverride: unknown[] }).setOverride[0] === 'alpha'
     ))).toBe(true);
-    expect(actions).toContainEqual({ updateInspector: 'alpha' });
+    expect(actions).not.toContainEqual({ updateInspector: 'alpha' });
   });
 
   it('persists resize overrides as fixed sizing and resets temporary deltas', () => {
@@ -273,6 +273,41 @@ describe('preview resize host helpers', () => {
       sizing_h: 'FIXED',
     });
     expect(setOverride).toHaveBeenCalledWith('beta', { dx: 0, dy: 0, dw: 0, dh: 0 });
+    expect(requestRelayout).toHaveBeenCalledWith('alpha');
+  });
+
+  it('persists resize overrides from the drag-start baseline when the rendered size differs from model width', () => {
+    const setOverride = vi.fn();
+    const requestRelayout = vi.fn();
+    const nodes = new Map([
+      ['alpha', { data: { width: 288, height: 64 } }],
+    ]);
+
+    persistPreviewResizeToFrameOverrides({
+      resizeIds: ['alpha'],
+      triggerCid: 'alpha',
+      baseSizes: {
+        alpha: { width: 224, height: 64 },
+      },
+      getNode(cid) {
+        return nodes.get(cid) ?? null;
+      },
+      getOwnDelta() {
+        return { dw: 64, dh: 0 };
+      },
+      setOverride,
+      requestRelayout,
+      minSize: 8,
+    });
+
+    expect(setOverride).toHaveBeenCalledWith('alpha', {
+      dx: 0,
+      dy: 0,
+      dw: 0,
+      dh: 0,
+      width: 288,
+      sizing_w: 'FIXED',
+    });
     expect(requestRelayout).toHaveBeenCalledWith('alpha');
   });
 

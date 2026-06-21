@@ -18,6 +18,8 @@ export interface PreviewRestoreNode {
 export interface PreviewSerializedStateRestorePlan {
   nextOverrides: Record<string, unknown>;
   nextGridOverrides: Record<string, unknown>;
+  nextLayoutOverrides: Record<string, unknown>;
+  /** @deprecated Prefer `nextLayoutOverrides`. */
   nextElkLayoutOverrides: Record<string, unknown>;
   nextRemovedIds: Set<string>;
   nextFrameTree?: unknown;
@@ -48,6 +50,8 @@ export interface RestorePreviewSerializedStateOptions {
   hasV3FrameOverride?: ((entry: unknown) => boolean) | null;
   setOverrides: (nextOverrides: Record<string, unknown>) => void;
   setGridOverrides: (nextGridOverrides: Record<string, unknown>) => void;
+  setLayoutOverrides?: ((nextLayoutOverrides: Record<string, unknown>) => void) | null;
+  /** @deprecated Prefer `setLayoutOverrides`. */
   setElkLayoutOverrides: (nextElkLayoutOverrides: Record<string, unknown>) => void;
   setRemovedIds: (nextRemovedIds: Set<string>) => void;
   setFrameTree?: ((frameTree: unknown) => void) | null;
@@ -79,6 +83,85 @@ export interface RestorePreviewOverridePatchOptions {
   serializeDirtyState: () => string;
 }
 
+export interface CreatePreviewStateRestoreRuntimeOptions {
+  getCurrentOverrides: () => Record<string, unknown>;
+  getCurrentGridOverrides: () => Record<string, unknown> | null | undefined;
+  getCurrentRemovedIds: () => Iterable<string> | null | undefined;
+  getRootId: () => string;
+  getNode: (cid: string) => PreviewRestoreNode | null | undefined;
+  hasRelayoutFrameOverride?: ((entry: unknown) => boolean) | null;
+  /** @deprecated Prefer `hasRelayoutFrameOverride`. */
+  hasV3FrameOverride?: ((entry: unknown) => boolean) | null;
+  captureOverrideEntries: (ids: Iterable<string>) => Record<string, unknown | null>;
+  setOverrides: (nextOverrides: Record<string, unknown>) => void;
+  setGridOverrides: (nextGridOverrides: Record<string, unknown>) => void;
+  setLayoutOverrides?: ((nextLayoutOverrides: Record<string, unknown>) => void) | null;
+  /** @deprecated Prefer `setLayoutOverrides`. */
+  setElkLayoutOverrides?: ((nextElkLayoutOverrides: Record<string, unknown>) => void) | null;
+  setRemovedIds: (nextRemovedIds: Set<string>) => void;
+  setFrameTree?: ((frameTree: unknown) => void) | null;
+  cleanOverride?: ((cid: string) => void) | null;
+  pruneLinkedRootOverrides?: (() => void) | null;
+  clearPendingRuntime: () => void;
+  rerenderStageFromFrameTree: () => Promise<void>;
+  requestRelayout: (triggerId: string) => Promise<void>;
+  applyLocalRefresh: (options: { syncGridControls: boolean }) => void | Promise<void>;
+  syncGridControls?: (() => void) | null;
+  syncDirtyFromSerialized: (serializedState: string) => void;
+  serializeDirtyState: () => string;
+}
+
+export interface PreviewStateRestoreEditorStateLike {
+  cloneValue: <T>(value: T) => T;
+  captureOverrideEntries: (ids: Iterable<string>) => Record<string, unknown | null>;
+  serializeDirtyState: () => string;
+}
+
+export interface PreviewStateRestoreEditorHostModel {
+  roots?: Array<{ id?: string | null }> | null;
+  gridOverrides?: Record<string, unknown> | null;
+  layoutOverrides?: Record<string, unknown> | null;
+  elkLayoutOverrides?: Record<string, unknown> | null;
+  removedIds?: Set<string> | null;
+  get: (cid: string) => PreviewRestoreNode | null | undefined;
+  cleanOverride: (cid: string) => void;
+}
+
+export interface CreatePreviewStateRestoreRuntimeFromEditorHostOptions<
+  TModel extends PreviewStateRestoreEditorHostModel = PreviewStateRestoreEditorHostModel,
+> {
+  getOverrides: () => Record<string, unknown>;
+  model: TModel;
+  editorState: PreviewStateRestoreEditorStateLike;
+  previewBridgeHost?: {
+    setFrameTreeJson?: ((frameTree: unknown) => void) | null;
+  } | null;
+  hasRelayoutFrameOverride: (entry: unknown) => boolean;
+  replaceOverrides: (nextOverrides: Record<string, unknown>) => void;
+  pruneLinkedRootOverrides: () => void;
+  clearPendingRuntime: () => void;
+  rerenderStageFromFrameTree: () => Promise<void>;
+  requestRelayout: (triggerId: string) => Promise<void>;
+  applyLocalRefresh: (options: { syncGridControls: boolean }) => void | Promise<void>;
+  syncGridControls?: (() => void) | null;
+  syncDirtyFromSerialized: (serializedState: string) => void;
+}
+
+export interface PreviewStateRestoreRuntime {
+  restoreSerializedState: (serializedState: string) => Promise<void>;
+  restoreOverridePatch: (entries: Record<string, unknown | null> | null | undefined) => Promise<void>;
+  applyUndoCommand: (
+    command: {
+      kind?: string | null;
+      before?: string | null;
+      after?: string | null;
+      beforeEntries?: Record<string, unknown | null> | null;
+      afterEntries?: Record<string, unknown | null> | null;
+    } | null | undefined,
+    direction: 'undo' | 'redo',
+  ) => Promise<void>;
+}
+
 function setsDiffer(left: Set<string>, right: Set<string>): boolean {
   return left.size !== right.size || [...left].some((id) => !right.has(id));
 }
@@ -88,6 +171,13 @@ function resolveHasRelayoutFrameOverride(options: {
   hasV3FrameOverride?: ((entry: unknown) => boolean) | null;
 }): (entry: unknown) => boolean {
   return options.hasRelayoutFrameOverride ?? options.hasV3FrameOverride ?? (() => false);
+}
+
+function resolveSetLayoutOverrides(options: {
+  setLayoutOverrides?: ((nextLayoutOverrides: Record<string, unknown>) => void) | null;
+  setElkLayoutOverrides?: ((nextElkLayoutOverrides: Record<string, unknown>) => void) | null;
+}): (nextLayoutOverrides: Record<string, unknown>) => void {
+  return options.setLayoutOverrides ?? options.setElkLayoutOverrides ?? (() => {});
 }
 
 export function snapshotNeedsPreviewRelayout(options: {
@@ -156,10 +246,12 @@ export function resolvePreviewSerializedStateRestorePlan(options: {
       hasRelayoutFrameOverride,
     });
 
+  const nextLayoutOverrides = cloneEditorSnapshotValue(parsed.e || {});
   return {
     nextOverrides: cloneEditorSnapshotValue(parsed.o),
     nextGridOverrides,
-    nextElkLayoutOverrides: cloneEditorSnapshotValue(parsed.e || {}),
+    nextLayoutOverrides,
+    nextElkLayoutOverrides: cloneEditorSnapshotValue(nextLayoutOverrides),
     nextRemovedIds,
     nextFrameTree: parsed.f,
     frameTreeChanged,
@@ -204,6 +296,7 @@ export async function restorePreviewSerializedState(
   options: RestorePreviewSerializedStateOptions,
 ): Promise<void> {
   options.clearPendingRuntime();
+  const setLayoutOverrides = resolveSetLayoutOverrides(options);
 
   const plan = resolvePreviewSerializedStateRestorePlan({
     serializedState: options.serializedState,
@@ -218,7 +311,7 @@ export async function restorePreviewSerializedState(
 
   options.setOverrides(plan.nextOverrides);
   options.setGridOverrides(cloneEditorSnapshotValue(plan.nextGridOverrides));
-  options.setElkLayoutOverrides(cloneEditorSnapshotValue(plan.nextElkLayoutOverrides));
+  setLayoutOverrides(cloneEditorSnapshotValue(plan.nextLayoutOverrides));
   options.setRemovedIds(plan.nextRemovedIds);
   if (plan.frameTreeChanged && options.setFrameTree) {
     options.setFrameTree(plan.nextFrameTree);
@@ -273,4 +366,114 @@ export async function restorePreviewOverridePatch(
   }
 
   options.syncDirtyFromSerialized(options.serializeDirtyState());
+}
+
+export function createPreviewStateRestoreRuntime(
+  options: CreatePreviewStateRestoreRuntimeOptions,
+): PreviewStateRestoreRuntime {
+  const resolveRootId = (): string => options.getRootId() || 'root';
+  const resolveHasRelayoutFrameOverride = (): ((entry: unknown) => boolean) => (
+    options.hasRelayoutFrameOverride ?? options.hasV3FrameOverride ?? (() => false)
+  );
+  const resolveSetLayoutOverrides = (): ((nextLayoutOverrides: Record<string, unknown>) => void) => (
+    options.setLayoutOverrides ?? options.setElkLayoutOverrides ?? (() => {})
+  );
+
+  return {
+    async restoreSerializedState(serializedState) {
+      await restorePreviewSerializedState({
+        serializedState,
+        currentOverrides: options.getCurrentOverrides(),
+        currentGridOverrides: options.getCurrentGridOverrides(),
+        currentRemovedIds: options.getCurrentRemovedIds(),
+        rootId: resolveRootId(),
+        getNode: options.getNode,
+        hasRelayoutFrameOverride: resolveHasRelayoutFrameOverride(),
+        setOverrides: options.setOverrides,
+        setGridOverrides: options.setGridOverrides,
+        setLayoutOverrides: resolveSetLayoutOverrides(),
+        setElkLayoutOverrides: resolveSetLayoutOverrides(),
+        setRemovedIds: options.setRemovedIds,
+        setFrameTree: options.setFrameTree,
+        pruneLinkedRootOverrides: options.pruneLinkedRootOverrides,
+        clearPendingRuntime: options.clearPendingRuntime,
+        rerenderStageFromFrameTree: options.rerenderStageFromFrameTree,
+        requestRelayout: options.requestRelayout,
+        applyLocalRefresh: options.applyLocalRefresh,
+        syncGridControls: options.syncGridControls,
+        syncDirtyFromSerialized: options.syncDirtyFromSerialized,
+        serializeDirtyState: options.serializeDirtyState,
+      });
+    },
+    async restoreOverridePatch(entries) {
+      await restorePreviewOverridePatch({
+        entries,
+        currentOverrides: options.getCurrentOverrides(),
+        rootId: resolveRootId(),
+        getNode: options.getNode,
+        hasRelayoutFrameOverride: resolveHasRelayoutFrameOverride(),
+        captureOverrideEntries: options.captureOverrideEntries,
+        setOverrides: options.setOverrides,
+        cleanOverride: options.cleanOverride,
+        clearPendingRuntime: options.clearPendingRuntime,
+        requestRelayout: options.requestRelayout,
+        applyLocalRefresh: options.applyLocalRefresh,
+        syncDirtyFromSerialized: options.syncDirtyFromSerialized,
+        serializeDirtyState: options.serializeDirtyState,
+      });
+    },
+    async applyUndoCommand(command, direction) {
+      if (command && command.kind === 'override-patch') {
+        await this.restoreOverridePatch(
+          direction === 'undo' ? command.beforeEntries : command.afterEntries,
+        );
+        return;
+      }
+      await this.restoreSerializedState(
+        direction === 'undo'
+          ? (command?.before ?? '{}')
+          : (command?.after ?? '{}'),
+      );
+    },
+  };
+}
+
+export function createPreviewStateRestoreRuntimeFromEditorHost<
+  TModel extends PreviewStateRestoreEditorHostModel = PreviewStateRestoreEditorHostModel,
+>(
+  options: CreatePreviewStateRestoreRuntimeFromEditorHostOptions<TModel>,
+): PreviewStateRestoreRuntime {
+  return createPreviewStateRestoreRuntime({
+    getCurrentOverrides: options.getOverrides,
+    getCurrentGridOverrides: () => options.model.gridOverrides || {},
+    getCurrentRemovedIds: () => options.model.removedIds || new Set<string>(),
+    getRootId: () => options.model.roots?.[0]?.id || 'root',
+    getNode: (cid) => options.model.get(cid),
+    hasRelayoutFrameOverride: options.hasRelayoutFrameOverride,
+    captureOverrideEntries: options.editorState.captureOverrideEntries,
+    setOverrides: options.replaceOverrides,
+    setGridOverrides: (nextGridOverrides) => {
+      options.model.gridOverrides = options.editorState.cloneValue(nextGridOverrides);
+    },
+    setLayoutOverrides: (nextLayoutOverrides) => {
+      const cloned = options.editorState.cloneValue(nextLayoutOverrides);
+      options.model.layoutOverrides = cloned;
+      options.model.elkLayoutOverrides = options.editorState.cloneValue(nextLayoutOverrides);
+    },
+    setRemovedIds: (nextRemovedIds) => {
+      options.model.removedIds = new Set(nextRemovedIds);
+    },
+    setFrameTree: typeof options.previewBridgeHost?.setFrameTreeJson === 'function'
+      ? (frameTree) => options.previewBridgeHost?.setFrameTreeJson?.(frameTree)
+      : null,
+    cleanOverride: (cid) => options.model.cleanOverride(cid),
+    pruneLinkedRootOverrides: options.pruneLinkedRootOverrides,
+    clearPendingRuntime: options.clearPendingRuntime,
+    rerenderStageFromFrameTree: options.rerenderStageFromFrameTree,
+    requestRelayout: options.requestRelayout,
+    applyLocalRefresh: options.applyLocalRefresh,
+    syncGridControls: options.syncGridControls ?? null,
+    syncDirtyFromSerialized: options.syncDirtyFromSerialized,
+    serializeDirtyState: options.editorState.serializeDirtyState,
+  });
 }

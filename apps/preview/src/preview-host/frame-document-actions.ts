@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 import {
@@ -8,14 +8,9 @@ import {
   type PreviewEngineContext,
 } from "@diagram-generator/layout-engine";
 import {
-  persistFrameDiagramOverridePayloadToYaml,
-  verifyElkLayoutPersisted,
-  type PersistOverridePayload,
-} from "../persistence/index.js";
-import {
-  canonicalSavedState as canonicalFrameSavedState,
   determineFrameYamlKind,
   loadFrameDiagram,
+  saveFrameYamlDocumentForSlug,
   type FramePreviewDocumentDeps,
   type ParseYaml,
 } from "./frame-documents.js";
@@ -75,43 +70,5 @@ export function saveFramePreviewDocument(
     }
   }
 
-  const baseline = readFileSync(framePath, "utf8");
-  const nextText = persistFrameDiagramOverridePayloadToYaml(
-    framePath,
-    baseline,
-    payload as PersistOverridePayload,
-  );
-
-  if (nextText !== baseline) {
-    writeFileSync(framePath, nextText, "utf8");
-  }
-
-  const payloadRecord =
-    payload && typeof payload === "object" && payload !== null
-      ? payload as Record<string, unknown>
-      : null;
-  const namespacedEngineOverrides =
-    payloadRecord && "engine_layout_overrides" in payloadRecord && typeof payloadRecord.engine_layout_overrides === "object"
-    && payloadRecord.engine_layout_overrides !== null
-    && !Array.isArray(payloadRecord.engine_layout_overrides)
-      ? payloadRecord.engine_layout_overrides as Record<string, unknown>
-      : null;
-  const elkOverrides = (
-    namespacedEngineOverrides
-    && typeof namespacedEngineOverrides["meta.elk"] === "object"
-    && namespacedEngineOverrides["meta.elk"] !== null
-    && !Array.isArray(namespacedEngineOverrides["meta.elk"])
-      ? namespacedEngineOverrides["meta.elk"]
-      : (payloadRecord && "elk_layout_overrides" in payloadRecord
-          ? payloadRecord.elk_layout_overrides
-          : null)
-  );
-  if (elkOverrides && typeof elkOverrides === "object" && !Array.isArray(elkOverrides)) {
-    verifyElkLayoutPersisted(nextText, elkOverrides as Record<string, unknown>);
-  }
-
-  return {
-    ok: true,
-    canonicalState: canonicalFrameSavedState(slug, deps.framePreviewDocumentDeps),
-  };
+  return saveFrameYamlDocumentForSlug(slug, payload, deps);
 }

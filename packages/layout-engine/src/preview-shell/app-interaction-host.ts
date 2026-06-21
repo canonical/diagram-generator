@@ -304,15 +304,17 @@ export function collectPreviewMultiResizeSelection(
 
     const own = toDeltaValue(options.getOwnDelta(id));
     const effective = toDeltaValue(options.getEffectiveDelta(id));
+    const ancestorDx = effective.dx - own.dx;
+    const ancestorDy = effective.dy - own.dy;
     members.push({
       id,
       bounds,
-      ancestorDx: effective.dx - own.dx,
-      ancestorDy: effective.dy - own.dy,
-      baseX: node.data.x,
-      baseY: node.data.y,
-      baseW: node.data.width,
-      baseH: node.data.height,
+      ancestorDx,
+      ancestorDy,
+      baseX: bounds.left - own.dx - ancestorDx,
+      baseY: bounds.top - own.dy - ancestorDy,
+      baseW: bounds.width - own.dw,
+      baseH: bounds.height - own.dh,
       hasLayoutChildren: options.hasLayoutChildren(id),
     });
     memberSizes.push({ width: bounds.width, height: bounds.height });
@@ -433,6 +435,12 @@ export function createPreviewResizeStartState(
     for (const member of selection.members) {
       captureSubtree(member.id);
     }
+    const baseSizes = Object.fromEntries(
+      selection.members.map((member) => [
+        member.id,
+        { width: member.baseW, height: member.baseH },
+      ]),
+    );
 
     return {
       kind: 'start',
@@ -445,6 +453,7 @@ export function createPreviewResizeStartState(
         hasMoved: false,
         snapshotRecorded: false,
         selection,
+        baseSizes,
       },
       touchedIds: Object.keys(origOverrides),
     };
@@ -452,6 +461,14 @@ export function createPreviewResizeStartState(
 
   const own = toDeltaValue(options.getOwnDelta(componentId));
   const node = options.getNode(componentId);
+  const renderedBounds = options.svg && componentId
+    ? readPreviewRenderedComponentBounds({
+      svg: options.svg as ParentNode,
+      componentId,
+      fallbackNodeBounds: node?.data,
+      delta: options.getEffectiveDelta(componentId),
+    })
+    : null;
   if (node) {
     captureSubtree(componentId);
     if (node.parent?.id) {
@@ -487,8 +504,16 @@ export function createPreviewResizeStartState(
       origOverrides,
       hasMoved: false,
       snapshotRecorded: false,
-      v3BaseW: node?.data.width ?? 0,
-      v3BaseH: node?.data.height ?? 0,
+      baseSizes: {
+        [componentId]: {
+          width: renderedBounds ? renderedBounds.width - own.dw : (node?.data.width ?? 0),
+          height: renderedBounds ? renderedBounds.height - own.dh : (node?.data.height ?? 0),
+        },
+      },
+      baseX: renderedBounds ? renderedBounds.left - own.dx : (node?.data.x ?? 0),
+      baseY: renderedBounds ? renderedBounds.top - own.dy : (node?.data.y ?? 0),
+      baseW: renderedBounds ? renderedBounds.width - own.dw : (node?.data.width ?? 0),
+      baseH: renderedBounds ? renderedBounds.height - own.dh : (node?.data.height ?? 0),
     },
     touchedIds: Object.keys(origOverrides),
   };

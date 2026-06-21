@@ -29,7 +29,7 @@ export interface PreviewHostViewerRouteDescriptor {
   readonly hasDocument: (slug: string) => boolean;
   readonly buildHtml: (slug: string) => string;
   readonly describeMissing: (slug: string) => string;
-  readonly documentActions?: PreviewHostDocumentActionMap;
+  readonly documentEndpoints?: readonly PreviewHostDocumentEndpointDescriptor[];
 }
 
 export interface PreviewHostViewerRouteMatch {
@@ -74,9 +74,22 @@ export interface PreviewHostViewerScriptResolver {
 export type PreviewHostDocumentActionHandler =
   (...args: any[]) => unknown | Promise<unknown>;
 
-export type PreviewHostDocumentActionMap = Readonly<
-  Record<string, PreviewHostDocumentActionHandler>
->;
+export type PreviewHostDocumentEndpointKind =
+  | "preview-document"
+  | "frame-tree"
+  | "component-tree"
+  | "grid-info"
+  | "svg-export"
+  | "save-document"
+  | "document-spec"
+  | (string & {});
+
+export interface PreviewHostDocumentEndpointDescriptor<
+  THandler extends PreviewHostDocumentActionHandler = PreviewHostDocumentActionHandler,
+> {
+  readonly kind: PreviewHostDocumentEndpointKind;
+  readonly handler: THandler;
+}
 
 export interface PreviewHostViewerPageDefinition {
   readonly mode: PreviewShellMode;

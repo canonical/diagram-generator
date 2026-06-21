@@ -289,6 +289,67 @@ describe('preview load helpers', () => {
     expect(fetchedUrl).toMatch(/^\/svg\/demo-onbrand-mermaid\.svg\?t=\d+$/);
   });
 
+  it('falls back to the typed preview-bridge fit helper when the shell omits a direct fit callback', async () => {
+    const calls: string[] = [];
+    const options = createLoadPreviewSvgHostOptions({
+      stage: {
+        innerHTML: '',
+        replaceChildren() {},
+      },
+      slug: 'demo',
+      engine: 'v3',
+      gridEnabled: true,
+      deselectAll: () => calls.push('deselectAll'),
+      previewBridgeHost: {
+        async initLayoutBridge() {},
+      },
+      isEngineLayoutActive: () => false,
+      resetOverrideState: () => calls.push('resetOverrideState'),
+      initEnginePanel: () => calls.push('initEnginePanel'),
+      getLocalRelayoutStatus: () => ({ ready: true }),
+      escapeHtml: (value) => value,
+      loadTree: async () => {
+        calls.push('loadTree');
+      },
+      loadGridInfo: async () => {
+        calls.push('loadGridInfo');
+      },
+      getGridInfo: () => null,
+      setDiagramGrid: () => calls.push('setDiagramGrid'),
+      populateGridControls: () => calls.push('populateGridControls'),
+      applyWaypointOverrides: () => calls.push('applyWaypointOverrides'),
+      applyAllOverrides: () => calls.push('applyAllOverrides'),
+      bindInteraction: () => calls.push('bindInteraction'),
+      renderGridOverlay: () => calls.push('renderGridOverlay'),
+      restoreSelection: () => calls.push('restoreSelection'),
+      runConstraints: () => calls.push('runConstraints'),
+      markSaved: () => calls.push('markSaved'),
+      serializeDirtyState: () => 'state',
+      signalDiagramLoaded: () => calls.push('signalDiagramLoaded'),
+      getGridOverrides: () => null,
+      pruneLinkedRootGridOverrides: () => calls.push('pruneLinkedRootGridOverrides'),
+      previewBridgeRender: {
+        async renderFreshPreviewSvg() {
+          calls.push('renderFreshPreviewSvg');
+          return { svg: { tag: 'svg' }, width: 568, height: 456 };
+        },
+        fitPreviewSvgToRenderedContent({ minWidth, minHeight }) {
+          calls.push(`fitBridge:${minWidth}x${minHeight}`);
+        },
+      },
+      overrides: {},
+      model: { id: 'model' },
+    });
+
+    await options.renderFreshSvg();
+    options.fitRenderedSvg?.({ svg: { tag: 'svg' }, width: 568, height: 456 });
+
+    expect(calls).toEqual([
+      'renderFreshPreviewSvg',
+      'fitBridge:568x456',
+    ]);
+  });
+
   it('derives typed load options from thinner runtime-owned state', async () => {
     const calls: string[] = [];
     const selectedIds = new Set(['stale']);
