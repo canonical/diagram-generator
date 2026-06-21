@@ -1263,6 +1263,14 @@ export {
 } from './app-inspector-actions.js';
 
 export type {
+  BindPreviewEditorInspectorActionsFromBrowserHostOptions,
+} from './app-editor-inspector-actions.js';
+
+export {
+  bindPreviewEditorInspectorActionsFromBrowserHost,
+} from './app-editor-inspector-actions.js';
+
+export type {
   BindPreviewStageSvgInteractionOptions,
   BindPreviewStageSvgInteractionHostOptions,
   DispatchPreviewStageSvgHoverHostOptions,

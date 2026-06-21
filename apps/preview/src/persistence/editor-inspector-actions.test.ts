@@ -138,6 +138,10 @@ test("bindInspectorActions delegates to the typed previewShell.inspector host bi
             received = options;
             return true;
           },
+          bindPreviewEditorInspectorActionsFromBrowserHost(options: Record<string, unknown>) {
+            received = options;
+            return true;
+          },
         };
       },
     },
@@ -146,9 +150,11 @@ test("bindInspectorActions delegates to the typed previewShell.inspector host bi
     context as {
       _getPreviewShellInspectorContract?: () => {
         bindPreviewInspectorActions: (options: Record<string, unknown>) => boolean;
+        bindPreviewEditorInspectorActionsFromBrowserHost: (options: Record<string, unknown>) => boolean;
       };
       window: { __DG_getPreviewShellInspectorContract: () => {
         bindPreviewInspectorActions: (options: Record<string, unknown>) => boolean;
+        bindPreviewEditorInspectorActionsFromBrowserHost: (options: Record<string, unknown>) => boolean;
       } };
     }
   )._getPreviewShellInspectorContract = () =>
@@ -162,7 +168,9 @@ test("bindInspectorActions delegates to the typed previewShell.inspector host bi
 
   assert.equal((context as { _inspectorActionsBound: boolean })._inspectorActionsBound, true);
   assert.equal(received?.inspector, inspector);
-  assert.equal(typeof received?.setFrameAlign, "function");
-  assert.equal(typeof received?.setFrameProp, "function");
+  assert.equal(typeof received?.bindPreviewInspectorActions, "function");
+  assert.equal(typeof received?.getInspectorDisplayRuntime, "function");
+  assert.equal(typeof received?.getInspectorMutationRuntime, "function");
+  assert.equal(typeof received?.getInspectorSelectionRuntime, "function");
   assert.equal(typeof received?.setMultiActionGap, "function");
 });

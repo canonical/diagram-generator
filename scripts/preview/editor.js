@@ -363,25 +363,17 @@ const getInspectorElement = () => document.getElementById("inspector");
 let _inspectorActionsBound = false;
 
 function bindInspectorActions() {
-  const inspector = getInspectorElement();
-  _inspectorActionsBound = _getPreviewShellInspectorContract().bindPreviewInspectorActions({
-    inspector,
+  const inspectorContract = _getPreviewShellInspectorContract();
+  _inspectorActionsBound = inspectorContract.bindPreviewEditorInspectorActionsFromBrowserHost({
+    bindPreviewInspectorActions: inspectorContract.bindPreviewInspectorActions,
+    inspector: getInspectorElement(),
     alreadyBound: _inspectorActionsBound,
     warnUnknownAction: _warnUnknownInspectorAction,
-    setFrameAlign: (cid, align) => setFrameAlign(cid, align),
     clearOverride: (cid) => clearOverride(cid),
-    alignSelection: (mode) => alignSelection(mode),
-    distributeSelection: (axis) => distributeSelection(axis),
-    setMultiFrameAlign: (align) => setMultiFrameAlign(align),
-    applyStyleOverride: (cid, value) => applyStyleOverride(cid, value),
-    setFrameProp: (cid, prop, value) => setFrameProp(cid, prop, value),
-    setFrameSize: (cid, dimension, value) => setFrameSize(cid, dimension, value),
-    setWidthUnit: (value, cid) => setWidthUnit(value, cid),
-    setHeightUnit: (value, cid) => setHeightUnit(value, cid),
-    applyMultiStyleOverride: (value) => applyMultiStyleOverride(value),
-    setMultiFrameProp: (prop, value) => setMultiFrameProp(prop, value),
-    setMultiFrameSize: (dimension, value) => setMultiFrameSize(dimension, value),
     setMultiActionGap: (value) => setMultiActionGap(value),
+    getInspectorDisplayRuntime: () => _getInspectorDisplayRuntime(),
+    getInspectorMutationRuntime: () => _getInspectorMutationRuntime(),
+    getInspectorSelectionRuntime: () => _getInspectorSelectionRuntime(),
   });
 }
 

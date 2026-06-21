@@ -383,6 +383,7 @@ export {
   createPreviewInspectorDisplayRuntime,
   createPreviewInspectorMutationRuntime,
   createPreviewInspectorSelectionRuntime,
+  bindPreviewEditorInspectorActionsFromBrowserHost,
   createPreviewEditorRelayoutFacadeFromEditorHost,
   createPreviewEditorRelayoutFacadeFromRuntime,
   createPreviewLiveResizeRelayoutState,
@@ -1015,6 +1016,8 @@ export const previewShell = Object.freeze({
     createPreviewInspectorDisplayRuntime: previewShellRuntime.createPreviewInspectorDisplayRuntime,
     createPreviewInspectorMutationRuntime: previewShellRuntime.createPreviewInspectorMutationRuntime,
     createPreviewInspectorSelectionRuntime: previewShellRuntime.createPreviewInspectorSelectionRuntime,
+    bindPreviewEditorInspectorActionsFromBrowserHost:
+      previewShellRuntime.bindPreviewEditorInspectorActionsFromBrowserHost,
     isPreviewStyleableComponentType: previewShellRuntime.isPreviewStyleableComponentType,
     normalizePreviewInspectorWidthUnit: previewShellRuntime.normalizePreviewInspectorWidthUnit,
     normalizePreviewStyleName: previewShellRuntime.normalizePreviewStyleName,

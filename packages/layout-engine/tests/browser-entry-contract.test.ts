@@ -43,6 +43,7 @@ import {
   ensurePreviewEngineShellCompatController,
   createPreviewGridRuntimeFromEditorHost,
   createPreviewGridRuntimeHost,
+  bindPreviewEditorInspectorActionsFromBrowserHost,
   createPreviewInspectorDisplayRuntime,
   createPreviewInspectorMutationRuntime,
   createPreviewInspectorSelectionRuntime,
@@ -395,6 +396,8 @@ describe('browser entry contract pilot', () => {
     expect(previewShell.inspector.createPreviewInspectorDisplayRuntime).toBe(createPreviewInspectorDisplayRuntime);
     expect(previewShell.inspector.createPreviewInspectorMutationRuntime).toBe(createPreviewInspectorMutationRuntime);
     expect(previewShell.inspector.createPreviewInspectorSelectionRuntime).toBe(createPreviewInspectorSelectionRuntime);
+    expect(previewShell.inspector.bindPreviewEditorInspectorActionsFromBrowserHost)
+      .toBe(bindPreviewEditorInspectorActionsFromBrowserHost);
     expect(previewShell.inspector.normalizePreviewStyleName).toBe(normalizePreviewStyleName);
     expect(previewShell.inspector.formatPreviewDefinedStyleLabel).toBe(formatPreviewDefinedStyleLabel);
     expect(previewShell.inspector.dispatchPreviewAlignSelectionHost).toBe(dispatchPreviewAlignSelectionHost);
