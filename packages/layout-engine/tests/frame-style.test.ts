@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   applyVisiblePreviewStyleOverride,
+  formatPreviewDefinedStyleLabel,
   hasPreviewVisibleStylePicker,
   inferPreviewStyleFromFields,
   isPreviewStructuralWrapper,
   isPreviewStyleableComponentType,
+  renderPreviewBoxStyleOptions,
+  resolvePreviewBoxStyleLabel,
   resolveMultiSelectionPreviewStyleState,
   resolveSingleSelectionPreviewStyleState,
 } from '../src/preview-shell/frame-style.js';
@@ -135,5 +138,41 @@ describe('preview-shell frame style helpers', () => {
       styleName: '',
     })).toBe(true);
     expect(overrides.wrapper).toEqual({});
+  });
+
+  it('formats defined-style labels from box-style presets', () => {
+    const boxStyles = {
+      default: { label: 'Child' },
+      parent: { label: 'Parent' },
+    };
+
+    expect(resolvePreviewBoxStyleLabel(boxStyles, 'parent')).toBe('Parent');
+    expect(resolvePreviewBoxStyleLabel(boxStyles, 'missing')).toBe('As defined');
+    expect(formatPreviewDefinedStyleLabel({
+      boxStyles,
+      styleName: 'parent',
+    })).toBe('— as defined (Parent) —');
+    expect(formatPreviewDefinedStyleLabel({
+      boxStyles,
+      styleName: 'default',
+      mixed: true,
+    })).toBe('— as defined (mixed) —');
+  });
+
+  it('renders box-style option html from typed style presets', () => {
+    const boxStyles = {
+      default: { label: 'Child' },
+      highlight: { label: 'Highlight' },
+    };
+
+    expect(renderPreviewBoxStyleOptions({
+      boxStyles,
+      selectedValue: 'highlight',
+      originalLabel: '— as defined (Child) —',
+    })).toBe(
+      '<option value="">— as defined (Child) —</option>'
+      + '<option value="default">Child</option>'
+      + '<option value="highlight" selected>Highlight</option>',
+    );
   });
 });

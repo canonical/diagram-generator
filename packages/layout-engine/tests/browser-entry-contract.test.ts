@@ -112,11 +112,13 @@ import {
   loadPreviewComponentTree,
   loadPreviewGridInfo,
   elkParamGroups,
+  formatPreviewDefinedStyleLabel,
   normalizePreviewStyleName,
   populatePreviewGridControls,
   populatePreviewGridControlsHost,
   readPreviewArrowPointsHost,
   readPreviewGridControlStateFromDom,
+  renderPreviewBoxStyleOptions,
   registerPreviewEditorDocumentBindingsHost,
   restorePreviewSelectionIds,
   resolvePreviewLayoutRelayoutStatus,
@@ -391,6 +393,7 @@ describe('browser entry contract pilot', () => {
     expect(previewShell.inspector.createPreviewInspectorMutationRuntime).toBe(createPreviewInspectorMutationRuntime);
     expect(previewShell.inspector.createPreviewInspectorSelectionRuntime).toBe(createPreviewInspectorSelectionRuntime);
     expect(previewShell.inspector.normalizePreviewStyleName).toBe(normalizePreviewStyleName);
+    expect(previewShell.inspector.formatPreviewDefinedStyleLabel).toBe(formatPreviewDefinedStyleLabel);
     expect(previewShell.inspector.dispatchPreviewAlignSelectionHost).toBe(dispatchPreviewAlignSelectionHost);
     expect(previewShell.inspector.dispatchPreviewApplySelectionTargetsHost).toBe(dispatchPreviewApplySelectionTargetsHost);
     expect(previewShell.inspector.dispatchPreviewDistributeSelectionHost).toBe(dispatchPreviewDistributeSelectionHost);
@@ -402,6 +405,7 @@ describe('browser entry contract pilot', () => {
     expect(previewShell.inspector.dispatchPreviewSingleFramePropHost).toBe(dispatchPreviewSingleFramePropHost);
     expect(previewShell.inspector.dispatchPreviewSingleFrameSizeHost).toBe(dispatchPreviewSingleFrameSizeHost);
     expect(previewShell.inspector.renderPreviewEmptyInspectorHost).toBe(renderPreviewEmptyInspectorHost);
+    expect(previewShell.inspector.renderPreviewBoxStyleOptions).toBe(renderPreviewBoxStyleOptions);
     expect(previewShell.inspector.renderPreviewMultiSelectionInspectorHost).toBe(renderPreviewMultiSelectionInspectorHost);
     expect(previewShell.inspector.renderPreviewMultiSelectionInspectorRuntimeHost).toBe(renderPreviewMultiSelectionInspectorRuntimeHost);
     expect(previewShell.inspector.renderPreviewSelectionInspectorHost).toBe(renderPreviewSelectionInspectorHost);

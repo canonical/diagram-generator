@@ -142,6 +142,17 @@ test("bindInspectorActions delegates to the typed previewShell.inspector host bi
       },
     },
   };
+  (
+    context as {
+      _getPreviewShellInspectorContract?: () => {
+        bindPreviewInspectorActions: (options: Record<string, unknown>) => boolean;
+      };
+      window: { __DG_getPreviewShellInspectorContract: () => {
+        bindPreviewInspectorActions: (options: Record<string, unknown>) => boolean;
+      } };
+    }
+  )._getPreviewShellInspectorContract = () =>
+    context.window.__DG_getPreviewShellInspectorContract();
 
   const source = `${extractNamedFunctionSource(loadEditorSource(), "bindInspectorActions", "()")}\nthis.__loaded = bindInspectorActions;`;
   vm.runInNewContext(source, context);

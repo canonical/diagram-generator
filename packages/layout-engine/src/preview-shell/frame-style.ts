@@ -41,6 +41,12 @@ export interface PreviewRenderedStyleFields {
   stroke?: unknown;
 }
 
+export interface PreviewBoxStylePreset {
+  label?: unknown;
+}
+
+export type PreviewBoxStyleMap = Record<string, PreviewBoxStylePreset | undefined>;
+
 export interface SingleSelectionPreviewStyleState {
   mode: PreviewStyleMode;
   currentStyle: string;
@@ -84,6 +90,45 @@ function isPreviewContainerNode(node: PreviewStyleNode | null | undefined): bool
 
 export function normalizePreviewStyleName(styleName: unknown): string {
   return typeof styleName === 'string' ? styleName : '';
+}
+
+export function resolvePreviewBoxStyleLabel(
+  boxStyles: PreviewBoxStyleMap,
+  styleName: unknown,
+  fallback = 'As defined',
+): string {
+  const canonicalStyle = normalizePreviewStyleName(styleName);
+  const label = boxStyles[canonicalStyle]?.label;
+  return typeof label === 'string' && label ? label : fallback;
+}
+
+export function formatPreviewDefinedStyleLabel(options: {
+  boxStyles: PreviewBoxStyleMap;
+  styleName: unknown;
+  mixed?: boolean;
+}): string {
+  if (options.mixed) {
+    return '— as defined (mixed) —';
+  }
+  const canonicalStyle = normalizePreviewStyleName(options.styleName);
+  if (canonicalStyle && options.boxStyles[canonicalStyle]) {
+    return `— as defined (${resolvePreviewBoxStyleLabel(options.boxStyles, canonicalStyle)}) —`;
+  }
+  return '— as defined —';
+}
+
+export function renderPreviewBoxStyleOptions(options: {
+  boxStyles: PreviewBoxStyleMap;
+  selectedValue: unknown;
+  originalLabel?: string;
+}): string {
+  const current = options.selectedValue == null ? '' : String(options.selectedValue);
+  const resetLabel = options.originalLabel || '— as defined —';
+  let html = `<option value=""${current === '' ? ' selected' : ''}>${resetLabel}</option>`;
+  for (const key of Object.keys(options.boxStyles)) {
+    html += `<option value="${key}"${current === key ? ' selected' : ''}>${resolvePreviewBoxStyleLabel(options.boxStyles, key)}</option>`;
+  }
+  return html;
 }
 
 export function normalizePreviewStyleFill(fill: unknown): string {

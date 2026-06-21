@@ -42,6 +42,10 @@ function _getPreviewBridgeHostContract() {
   return window.__DG_getPreviewBridgeHostContract();
 }
 
+function _getPreviewShellInspectorContract() {
+  return window.__DG_getPreviewShellInspectorContract();
+}
+
 function _readFrameTreeJson() {
   const previewBridgeHost = _getPreviewBridgeHostContract();
   return typeof previewBridgeHost.getFrameTreeJson === "function"
@@ -58,18 +62,12 @@ const BOX_STYLES = window.__DG_BOX_STYLES || {
   annotation: { fill: "transparent", text: "#666666", icon: "#666666", border: "none", label: "Annotation" },
   highlight: { fill: "#000000", text: "#FFFFFF", icon: "#FFFFFF", border: "none", label: "Highlight" },
 };
-const renderBoxStyleOptions = window.__DG_boxStyleOptionsHtml || function renderBoxStyleOptions(selectedValue, options = {}) {
-  const current = selectedValue == null ? "" : String(selectedValue);
-  const resetLabel = options.originalLabel || "— as defined —";
-  let html = `<option value=""${current === "" ? " selected" : ""}>${resetLabel}</option>`;
-  for (const [key, preset] of Object.entries(BOX_STYLES)) {
-    html += `<option value="${key}"${current === key ? " selected" : ""}>${preset.label}</option>`;
-  }
-  return html;
-};
-const boxStyleLabel = window.__DG_boxStyleLabel || function boxStyleLabel(styleName) {
-  return BOX_STYLES[styleName]?.label || "As defined";
-};
+const renderBoxStyleOptions = (selectedValue, options = {}) =>
+  _getPreviewShellInspectorContract().renderPreviewBoxStyleOptions({
+    boxStyles: BOX_STYLES,
+    selectedValue,
+    originalLabel: options.originalLabel,
+  });
 
 function _readRenderedStyleFields(cid) {
   const group = document.querySelector('[data-component-id="' + CSS.escape(cid) + '"]');
@@ -396,7 +394,7 @@ let _inspectorActionsBound = false;
 
 function bindInspectorActions() {
   const inspector = getInspectorElement();
-  _inspectorActionsBound = window.__DG_getPreviewShellInspectorContract().bindPreviewInspectorActions({
+  _inspectorActionsBound = _getPreviewShellInspectorContract().bindPreviewInspectorActions({
     inspector,
     alreadyBound: _inspectorActionsBound,
     warnUnknownAction: _warnUnknownInspectorAction,
@@ -430,12 +428,11 @@ const alignSelection = (mode) => _getInspectorSelectionRuntime().alignSelection(
 const renderMultiSelectionInspector = () => _getInspectorDisplayRuntime().renderMultiSelectionInspector();
 
 function _formatAsDefinedStyleLabel(styleName, mixed = false) {
-  if (mixed) return '— as defined (mixed) —';
-  const canonical = _normaliseStyleName(styleName);
-  if (canonical && BOX_STYLES[canonical]) {
-    return `— as defined (${boxStyleLabel(canonical)}) —`;
-  }
-  return '— as defined —';
+  return _getPreviewShellInspectorContract().formatPreviewDefinedStyleLabel({
+    boxStyles: BOX_STYLES,
+    styleName,
+    mixed,
+  });
 }
 
 /**
@@ -569,7 +566,7 @@ const onResizeUp = () => _getResizeInteractionRuntime().onResizeUp();
 const applyStyleOverride = (cid, styleName) => applyFrameStyle(cid, styleName);
 
 function _normaliseStyleName(styleName) {
-  return window.__DG_getPreviewShellInspectorContract().normalizePreviewStyleName(styleName);
+  return _getPreviewShellInspectorContract().normalizePreviewStyleName(styleName);
 }
 
 const _scheduleV3Relayout = (cid) => _scheduleLayoutRelayout(cid);
