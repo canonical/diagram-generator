@@ -595,6 +595,19 @@ test("editor relayout facade delegates through the typed preview-grid runtime", 
   });
 });
 
+test("editor initializes coerced-key state before eager scene bootstrap", () => {
+  const source = loadEditorSource();
+  const coercedKeysIndex = source.indexOf("const _coercedKeys = new Set();");
+  const bindGridControlsIndex = source.indexOf("_getEditorSceneFacade().bindGridControls();");
+
+  assert.notEqual(coercedKeysIndex, -1);
+  assert.notEqual(bindGridControlsIndex, -1);
+  assert.ok(
+    coercedKeysIndex < bindGridControlsIndex,
+    "_coercedKeys must be initialized before eager scene bootstrap",
+  );
+});
+
 test("editor grid loader accepts the namespaced previewShell.scene contract", async () => {
   const source = loadEditorSource();
   const capturedCalls: Array<Record<string, unknown> | null | undefined> = [];

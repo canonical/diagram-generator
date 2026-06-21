@@ -18,6 +18,9 @@ let selectionDepth = 0;
 let overrides = model.overrides;
 const constraints = createDefaultRegistry();
 let lastViolations = [];
+// Track which override keys were set by engine coercion (not user action).
+// Format: Set of "fid:key" strings, e.g. "root:sizing_h"
+const _coercedKeys = new Set();
 var _previewGridEditorRuntime = null;
 
 function _warnUnknownInspectorAction(kind, action, actionEl) {
@@ -571,10 +574,6 @@ function _normaliseStyleName(styleName) {
 }
 
 const _scheduleV3Relayout = (cid) => _scheduleLayoutRelayout(cid);
-
-// Track which override keys were set by engine coercion (not user action).
-// Format: Set of "fid:key" strings, e.g. "root:sizing_h"
-const _coercedKeys = new Set();
 
 const _getEditorRuntimeSet = () => _getEditorInteractionFacade().getEditorRuntimeSet();
 const _getSelectionRuntime = () => _getEditorInteractionFacade().getSelectionRuntime();
