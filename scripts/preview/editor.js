@@ -22,6 +22,7 @@ let lastViolations = [];
 // Format: Set of "fid:key" strings, e.g. "root:sizing_h"
 const _coercedKeys = new Set();
 let _layoutRelayoutTimer = null;
+var _previewGridEditorInstallUnit = null;
 var _previewGridEditorRuntime = null;
 
 function _warnUnknownInspectorAction(kind, action, actionEl) {
@@ -93,10 +94,9 @@ const GUIDE_MODES = ["off", "all"];
 const GUIDE_COLOR = UI_AUTHORING_ACCENT_LINE;
 const GUIDE_OPACITY = "0.5";
 
-function _getPreviewGridEditorRuntime() {
-  if (_previewGridEditorRuntime) return _previewGridEditorRuntime;
-  _previewGridEditorRuntime = window.__DG_getPreviewShellBootstrapContract()
-    .createPreviewGridEditorRuntimeFromBrowserHost({
+function _createPreviewGridEditorInstallUnit() {
+  return window.__DG_getPreviewShellBootstrapContract()
+    .createPreviewGridEditorInstallUnitFromBrowserHost({
       shared: {
         document,
         previewWindow: window,
@@ -138,13 +138,14 @@ function _getPreviewGridEditorRuntime() {
         },
       },
       browser: {
-        getOverrides: () => overrides,
-        replaceOverrides,
+        overridesState: {
+          get: () => overrides,
+          set: (nextOverrides) => {
+            overrides = nextOverrides;
+          },
+        },
         syncArrowsInModel: typeof syncArrowsInModel === "function" ? syncArrowsInModel : null,
         arrowComponentId: typeof arrowComponentId === "function" ? arrowComponentId : null,
-        pruneLinkedRootGridOverrides: _pruneLinkedRootGridOverrides,
-        clearPendingRestoreRuntime: _clearPendingRestoreRuntime,
-        applyLocalRestoreRefresh: _applyLocalRestoreRefresh,
         buildTreeUi: () => buildTreeUI(),
         bindInteraction: () => bindInteraction(),
         deselectAll: () => deselectAll(),
@@ -160,11 +161,6 @@ function _getPreviewGridEditorRuntime() {
         getOwnDelta: (cid) => getOwnDelta(cid),
         getEffectiveDelta: (cid) => getEffectiveDelta(cid),
         getAncestors: (cid) => getAncestors(cid),
-        getParentNode: (cid) => getParentNode(cid),
-        getComponentNode: (cid) => getComponentNode(cid),
-        getComponentType,
-        getArrowNode: (cid) => getArrowNode(cid),
-        getViolationsForComponent: (cid) => getViolationsForComponent(cid),
         readRenderedStyleFields: _readRenderedStyleFields,
         renderGuideLines: (lines) => renderGuideLines(lines, GUIDE_COLOR, GUIDE_OPACITY),
         clearGuideLines,
@@ -184,13 +180,9 @@ function _getPreviewGridEditorRuntime() {
           : null,
         escapeHtml: typeof escapeHtml === "function" ? escapeHtml : null,
         initNavTabs,
-        setDirty,
         setStatus: typeof setStatus === "function" ? setStatus : null,
         sanitizeSvgCloneForExport,
         applyInteractionOverrideEntries: _applyInteractionOverrideEntries,
-        setOverride,
-        cleanOverride,
-        setWaypointOverride,
         setFrameProp: (cid, prop, value) => setFrameProp(cid, prop, value),
         scheduleTextRelayout: (cid) => {
           clearTimeout(_layoutRelayoutTimer);
@@ -216,7 +208,6 @@ function _getPreviewGridEditorRuntime() {
         handleSize: SHARED_HANDLE_SIZE,
         textEditingMode: InteractionMode.TEXT_EDITING,
         columnGap: window.__DG_CONFIG.col_gap,
-        hasLayoutChildren: _hasLayoutChildren,
         minNodeSize: SHARED_MIN_NODE_SIZE,
         fallbackGap: window.__DG_CONFIG.col_gap || 24,
         multiActionGapState: {
@@ -232,7 +223,6 @@ function _getPreviewGridEditorRuntime() {
         renderBoxStyleOptions,
         formatAsDefinedStyleLabel: _formatAsDefinedStyleLabel,
         snapToGrid: (value) => snapToGrid(value),
-        scheduleRelayout: _scheduleLayoutRelayout,
         requestRelayoutNow: (cid) => {
           clearTimeout(_layoutRelayoutTimer);
           requestLayoutRelayout(cid);
@@ -246,6 +236,9 @@ function _getPreviewGridEditorRuntime() {
         writeClipboardText: (text) => navigator.clipboard.writeText(text),
         requestAnimationFrameFn: requestAnimationFrame,
         cancelAnimationFrameFn: cancelAnimationFrame,
+        getMultiActionGapInput: () => document.getElementById("multi-action-gap"),
+        setTimeoutFn: (callback, delayMs) => setTimeout(callback, delayMs),
+        clearTimeoutFn: (timerId) => clearTimeout(timerId),
         theme: {
           headLen: window.__DG_CONFIG.head_len,
           headHalf: window.__DG_CONFIG.head_half,
@@ -253,6 +246,17 @@ function _getPreviewGridEditorRuntime() {
         },
       },
     });
+}
+
+function _getPreviewGridEditorInstallUnit() {
+  if (_previewGridEditorInstallUnit) return _previewGridEditorInstallUnit;
+  _previewGridEditorInstallUnit = _createPreviewGridEditorInstallUnit();
+  return _previewGridEditorInstallUnit;
+}
+
+function _getPreviewGridEditorRuntime() {
+  if (_previewGridEditorRuntime) return _previewGridEditorRuntime;
+  _previewGridEditorRuntime = _getPreviewGridEditorInstallUnit().getRuntime();
   return _previewGridEditorRuntime;
 }
 
@@ -275,41 +279,7 @@ function _getEditorInteractionFacade() {
   return _getPreviewGridEditorRuntime().getInteractionFacade();
 }
 
-const previewGridEditorBrowserState = window.__DG_getPreviewShellBootstrapContract()
-  .createPreviewGridEditorBrowserStateFromBrowserHost({
-    model,
-    editorState: EditorState,
-    previewSaveClient: PreviewSaveClient,
-    constraints,
-    lastViolationsState: {
-      get: () => lastViolations,
-    },
-    overridesState: {
-      get: () => overrides,
-      set: (nextOverrides) => {
-        overrides = nextOverrides;
-      },
-    },
-    invalidateOverrideBoundFacades: () => {
-      if (_previewGridEditorRuntime) {
-        _previewGridEditorRuntime.invalidateOverrideBoundFacades();
-      }
-    },
-    multiActionGapState: {
-      get: () => multiActionGap,
-      set: (value) => {
-        multiActionGap = value;
-      },
-    },
-    baselineStep: BASELINE_STEP,
-    getPreviewBridgeRelayoutContract: () => window.__DG_getPreviewBridgeRelayoutContract(),
-    getPreviewShellInteractionContract: () => window.__DG_getPreviewShellInteractionContract(),
-    getSceneFacade: () => _getEditorSceneFacade(),
-    getRequestLayoutRelayout: () => requestLayoutRelayout,
-    getMultiActionGapInput: () => document.getElementById("multi-action-gap"),
-    setTimeoutFn: (callback, delayMs) => setTimeout(callback, delayMs),
-    clearTimeoutFn: (timerId) => clearTimeout(timerId),
-  });
+const previewGridEditorBrowserState = _getPreviewGridEditorInstallUnit().getBrowserState();
 
 const {
   replaceOverrides,

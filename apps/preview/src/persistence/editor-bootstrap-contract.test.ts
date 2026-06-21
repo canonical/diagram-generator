@@ -350,9 +350,16 @@ function createPreviewGridEditorRuntimeContext(options?: {
       },
       __DG_getPreviewShellBootstrapContract() {
         return {
-          createPreviewGridEditorRuntimeFromBrowserHost(nextOptions: Record<string, unknown>) {
+          createPreviewGridEditorInstallUnitFromBrowserHost(nextOptions: Record<string, unknown>) {
             capturedOptions = nextOptions;
-            return runtime;
+            return {
+              getRuntime() {
+                return runtime;
+              },
+              getBrowserState() {
+                return { kind: "browser-state" };
+              },
+            };
           },
         };
       },
@@ -492,7 +499,10 @@ test("editor bootstrap facade delegates through the typed preview-grid runtime",
   });
 
   const helperSource = [
+    "let _previewGridEditorInstallUnit = null;",
     "let _previewGridEditorRuntime = null;",
+    extractNamedFunctionSource(source, "_createPreviewGridEditorInstallUnit", "()"),
+    extractNamedFunctionSource(source, "_getPreviewGridEditorInstallUnit", "()"),
     extractNamedFunctionSource(source, "_getPreviewGridEditorRuntime", "()"),
     extractNamedFunctionSource(source, "_getEditorBootstrapFacade", "()"),
     "this.__loaded = { _getEditorBootstrapFacade };",
@@ -548,7 +558,10 @@ test("editor relayout facade delegates through the typed preview-grid runtime", 
   });
 
   const helperSource = [
+    "let _previewGridEditorInstallUnit = null;",
     "let _previewGridEditorRuntime = null;",
+    extractNamedFunctionSource(source, "_createPreviewGridEditorInstallUnit", "()"),
+    extractNamedFunctionSource(source, "_getPreviewGridEditorInstallUnit", "()"),
     extractNamedFunctionSource(source, "_getPreviewGridEditorRuntime", "()"),
     extractNamedFunctionSource(source, "_getEditorRelayoutFacade", "()"),
     "this.__loaded = { _getEditorRelayoutFacade };",
@@ -577,8 +590,12 @@ test("editor relayout facade delegates through the typed preview-grid runtime", 
       shared?.editorState as { commitOverridePatchAction?: (...args: unknown[]) => unknown } | undefined
     )?.commitOverridePatchAction,
     selectedIds: Array.from(shared?.selectedIds as Iterable<string>),
-    hasReplaceOverrides: typeof browser?.replaceOverrides,
-    hasApplyLocalRestoreRefresh: typeof browser?.applyLocalRestoreRefresh,
+    hasOverrideStateGet: typeof (
+      browser?.overridesState as { get?: () => Record<string, unknown> } | undefined
+    )?.get,
+    hasOverrideStateSet: typeof (
+      browser?.overridesState as { set?: (nextOverrides: Record<string, unknown>) => void } | undefined
+    )?.set,
     hasRunConstraints: typeof browser?.runConstraints,
     hasRequestAnimationFrame: typeof browser?.requestAnimationFrameFn,
     hasCancelAnimationFrame: typeof browser?.cancelAnimationFrameFn,
@@ -587,8 +604,8 @@ test("editor relayout facade delegates through the typed preview-grid runtime", 
     hasNormalizeGridOverrides: "function",
     hasCommitOverridePatchAction: "function",
     selectedIds: ["alpha", "beta"],
-    hasReplaceOverrides: "function",
-    hasApplyLocalRestoreRefresh: "function",
+    hasOverrideStateGet: "function",
+    hasOverrideStateSet: "function",
     hasRunConstraints: "function",
     hasRequestAnimationFrame: "function",
     hasCancelAnimationFrame: "function",

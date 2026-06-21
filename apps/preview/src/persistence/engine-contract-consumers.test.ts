@@ -353,9 +353,16 @@ function createPreviewGridEditorRuntimeContext(options?: {
       },
       __DG_getPreviewShellBootstrapContract() {
         return {
-          createPreviewGridEditorRuntimeFromBrowserHost(nextOptions: Record<string, unknown>) {
+          createPreviewGridEditorInstallUnitFromBrowserHost(nextOptions: Record<string, unknown>) {
             capturedOptions = nextOptions;
-            return runtime;
+            return {
+              getRuntime() {
+                return runtime;
+              },
+              getBrowserState() {
+                return { kind: "browser-state" };
+              },
+            };
           },
         };
       },
@@ -1424,7 +1431,10 @@ test("editor scene facade delegates through the typed preview-grid runtime", () 
   });
 
   const helperSource = [
+    "let _previewGridEditorInstallUnit = null;",
     "let _previewGridEditorRuntime = null;",
+    extractNamedFunctionSource(source, "_createPreviewGridEditorInstallUnit", "()"),
+    extractNamedFunctionSource(source, "_getPreviewGridEditorInstallUnit", "()"),
     extractNamedFunctionSource(source, "_getPreviewGridEditorRuntime", "()"),
     extractNamedFunctionSource(source, "_getEditorSceneFacade", "()"),
     "this.__loaded = { _getEditorSceneFacade };",
@@ -1449,8 +1459,12 @@ test("editor scene facade delegates through the typed preview-grid runtime", () 
     baselineStep: shared?.baselineStep,
     guideModes: Array.from(shared?.guideModes as Iterable<string>),
     selectedIds: Array.from(shared?.selectedIds as Iterable<string>),
-    overrideKeys: Object.keys((browser?.getOverrides as (() => Record<string, unknown>) | undefined)?.() || {}),
-    hasPruneLinkedRootGridOverrides: typeof browser?.pruneLinkedRootGridOverrides,
+    overrideKeys: Object.keys((
+      browser?.overridesState as { get?: () => Record<string, unknown> } | undefined
+    )?.get?.() || {}),
+    hasOverrideStateSet: typeof (
+      browser?.overridesState as { set?: (nextOverrides: Record<string, unknown>) => void } | undefined
+    )?.set,
     hasBuildTreeUi: typeof browser?.buildTreeUi,
     hasBindInteraction: typeof browser?.bindInteraction,
     hasRenderSelectionInspector: typeof browser?.renderSelectionInspector,
@@ -1463,7 +1477,7 @@ test("editor scene facade delegates through the typed preview-grid runtime", () 
     guideModes: ["off", "all"],
     selectedIds: ["alpha", "beta"],
     overrideKeys: ["alpha"],
-    hasPruneLinkedRootGridOverrides: "function",
+    hasOverrideStateSet: "function",
     hasBuildTreeUi: "function",
     hasBindInteraction: "function",
     hasRenderSelectionInspector: "function",
@@ -1964,7 +1978,10 @@ test("editor runtime-set bootstrap accepts the namespaced previewShell.bootstrap
   });
 
   const helperSource = [
+    "let _previewGridEditorInstallUnit = null;",
     "let _previewGridEditorRuntime = null;",
+    extractNamedFunctionSource(source, "_createPreviewGridEditorInstallUnit", "()"),
+    extractNamedFunctionSource(source, "_getPreviewGridEditorInstallUnit", "()"),
     extractNamedFunctionSource(source, "_getPreviewGridEditorRuntime", "()"),
     extractNamedFunctionSource(source, "_getEditorInteractionFacade", "()"),
     extractNamedFunctionSource(source, "_getEditorRuntimeSet", "()"),
@@ -2007,7 +2024,9 @@ test("editor runtime-set bootstrap accepts the namespaced previewShell.bootstrap
     hasSetMultiActionGap: typeof (
       browserOptions?.multiActionGapState as { set?: (value: number) => void } | undefined
     )?.set,
-    hasSetOverride: typeof browserOptions?.setOverride,
+    hasOverrideStateSet: typeof (
+      browserOptions?.overridesState as { set?: (nextOverrides: Record<string, unknown>) => void } | undefined
+    )?.set,
     hasGetTextAdapter: typeof browserOptions?.getTextAdapter,
     fallbackGap: browserOptions?.fallbackGap,
     headLen: (browserOptions?.theme as { headLen?: number } | undefined)?.headLen,
@@ -2020,7 +2039,7 @@ test("editor runtime-set bootstrap accepts the namespaced previewShell.bootstrap
     inspector: { id: "inspector", innerHTML: "" },
     hasGetMultiActionGap: "function",
     hasSetMultiActionGap: "function",
-    hasSetOverride: "function",
+    hasOverrideStateSet: "function",
     hasGetTextAdapter: "function",
     fallbackGap: 24,
     headLen: 10,

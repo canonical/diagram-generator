@@ -657,6 +657,15 @@ export {
 } from './app-grid-editor-browser-state.js';
 
 export type {
+  CreatePreviewGridEditorInstallUnitFromBrowserHostOptions,
+  PreviewGridEditorInstallUnit,
+} from './app-grid-editor-install-unit.js';
+
+export {
+  createPreviewGridEditorInstallUnitFromBrowserHost,
+} from './app-grid-editor-install-unit.js';
+
+export type {
   CreatePreviewGridEditorRuntimeFromBrowserHostOptions,
   PreviewGridEditorRuntime,
   PreviewGridEditorRuntimeBooleanState,
