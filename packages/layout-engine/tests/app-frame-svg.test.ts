@@ -163,4 +163,41 @@ describe('preview frame svg helpers', () => {
     expect(narrowLineCount).toBeGreaterThan(1);
     expect(wideLineCount).toBeLessThan(narrowLineCount);
   });
+
+  it('preserves preview text and icon metadata while patching a frame group', () => {
+    const ownerDocument = new FakeDocument();
+    const group = ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'g');
+    const icon = ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'g');
+    icon.setAttribute('class', 'dg-icon');
+
+    const frame = new Frame({
+      id: 'alpha',
+      icon: 'shield',
+      label: [createLine('Preview metadata should survive shared frame planning.')],
+    });
+    frame._layout.placedX = 8;
+    frame._layout.placedY = 16;
+    frame._layout.placedW = 240;
+    frame._layout.placedH = 72;
+
+    patchPreviewFrameGroup({
+      ownerDocument: ownerDocument as unknown as Document,
+      group: group as unknown as SVGGElement,
+      frame,
+      textAdapter: new MockTextAdapter(),
+      iconElement: icon as unknown as Element,
+    });
+
+    const text = group.querySelector('text');
+    const rect = group.querySelector('rect');
+    const renderedIcon = group.querySelector(':scope > .dg-icon');
+
+    expect(text?.getAttribute('data-dg-text-role')).toBe('label');
+    expect(text?.getAttribute('data-dg-text-block-index')).toBe('0');
+    expect(text?.getAttribute('data-orig-inner')).toContain('<tspan');
+    expect(rect?.getAttribute('data-orig-width')).toBe('240');
+    expect(rect?.getAttribute('data-orig-height')).toBe('72');
+    expect(renderedIcon?.getAttribute('data-orig-tx')).toBeTruthy();
+    expect(renderedIcon?.getAttribute('data-orig-ty')).toBeTruthy();
+  });
 });

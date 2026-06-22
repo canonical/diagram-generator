@@ -1,5 +1,4 @@
 import {
-  Border,
   Frame,
   FrameDiagram,
   type Arrow,
@@ -9,23 +8,18 @@ import {
   resolveArrowPolylineGeometry,
   type ResolvedArrowheadGeometry,
 } from "../arrow-geometry.js";
-import { leafIconColumnWidth } from "../spatial.js";
+import { resolveFrameRenderPlan } from "../frame-render-plan.js";
 import {
   ARROW_COLOR,
   ARROW_HEAD_HALF_WIDTH,
   ARROW_HEAD_LENGTH,
   BODY_LINE_STEP,
   BODY_SIZE,
-  GRID_GUTTER,
-  ICON_SIZE,
   sizeToPx,
 } from "../tokens.js";
-import { type TextMeasureAdapter, wrapTextLines } from "../text-measure.js";
-import { effectiveResolvedStrokeWidth } from "../frame-classes.js";
+import { type TextMeasureAdapter } from "../text-measure.js";
 import {
   annotationTextToSpec,
-  frameOwnedTextBlocks,
-  frameOwnedTextBlockGap,
 } from "../resolved-spec-typography.js";
 import { routeArrows } from "../arrow-routing.js";
 import type { LayoutOutput } from "../layout.js";
@@ -35,12 +29,8 @@ import type {
   DisplayListItem,
   GlyphRunItem,
   GroupItem,
-  LineItem,
   Paint,
   PathCommand,
-  PathItem,
-  RectItem,
-  StrokeStyle,
 } from "../render-ir.js";
 import { shapeLineSpec } from "../text-adapter/shape-compatible.js";
 
@@ -68,86 +58,33 @@ function paint(value: string | undefined): Paint | undefined {
   return { color: parseColor(value) };
 }
 
-function lineTopToBaseline(top: number, size: string): number {
-  return top + sizeToPx(size) * ASCENT_RATIO;
-}
-
-interface FrameRenderState {
-  fill?: Paint;
-  stroke?: Paint;
-  strokeWidth: number;
-  strokeStyle?: StrokeStyle;
-  padTop: number;
-  padRight: number;
-  padBottom: number;
-  padLeft: number;
-  iconFill?: Paint;
-}
-
-function frameRenderState(frame: Frame): FrameRenderState {
-  const strokeWidth = effectiveResolvedStrokeWidth(frame);
-  return {
-    fill: paint(frame.resolvedFill ?? "transparent"),
-    stroke: paint(frame.resolvedStroke ?? "none"),
-    strokeWidth,
-    strokeStyle:
-      strokeWidth > 0
-        ? {
-            width: strokeWidth,
-            dashArray: frame.border === Border.DASHED ? [8, 8] : undefined,
-          }
-        : undefined,
-    padTop: frame.paddingTop,
-    padRight: frame.paddingRight,
-    padBottom: frame.paddingBottom,
-    padLeft: frame.paddingLeft,
-    iconFill: paint(frame.resolvedIconFill ?? "#000000"),
-  };
-}
-
-function textRunItems(frame: Frame, adapter: TextMeasureAdapter): GlyphRunItem[] {
-  const state = frameRenderState(frame);
-  const iconCol = leafIconColumnWidth(frame);
-  const textMaxWidth = frame._layout.placedW - state.padLeft - state.padRight - iconCol;
-  let textBlocks = frameOwnedTextBlocks(frame);
-  if (textBlocks.length > 0 && textMaxWidth > 0) {
-    textBlocks = textBlocks
-      .map((block) => wrapTextLines(block, textMaxWidth, adapter))
-      .filter((block) => block.length > 0);
-  }
-  if (textBlocks.length === 0) return [];
-
+function textRunItems(plan: ReturnType<typeof resolveFrameRenderPlan>, adapter: TextMeasureAdapter): GlyphRunItem[] {
   const runs: GlyphRunItem[] = [];
-  let top = frame._layout.placedY + state.padTop;
-  const x = frame._layout.placedX + state.padLeft;
-  for (const [blockIndex, block] of textBlocks.entries()) {
-    for (const spec of block) {
-      const size = String(spec.size ?? BODY_SIZE);
+  for (const block of plan.textBlocks) {
+    for (const line of block.lines) {
       runs.push({
         kind: "glyph-run",
-        x,
-        y: lineTopToBaseline(top, size),
-        run: shapeLineSpec(adapter, spec),
-        fill: paint(spec.fill ?? "#000000"),
+        x: line.x,
+        y: line.y,
+        run: shapeLineSpec(adapter, line.spec),
+        fill: paint(line.fill),
       });
-      top += sizeToPx(spec.lineStep ?? BODY_LINE_STEP);
     }
-    top += frameOwnedTextBlockGap(frame, blockIndex, textBlocks.length);
   }
   return runs;
 }
 
 function emitFrameGroup(frame: Frame, adapter: TextMeasureAdapter): GroupItem {
-  const state = frameRenderState(frame);
+  const plan = resolveFrameRenderPlan(frame, adapter);
   const children: DisplayListItem[] = [];
 
-  if (frame.role === "separator") {
+  if (plan.separator) {
     children.push({
       kind: "line",
-      x1: frame._layout.placedX,
-      y1: frame._layout.placedY,
-      x2: frame._layout.placedX + frame._layout.placedW,
-      y2: frame._layout.placedY,
+      x1: plan.separator.x1,
+      y1: plan.separator.y1,
+      x2: plan.separator.x2,
+      y2: plan.separator.y2,
       stroke: paint("#000000")!,
       strokeStyle: { width: 1, dashArray: [8, 8] },
     });
@@ -155,24 +92,29 @@ function emitFrameGroup(frame: Frame, adapter: TextMeasureAdapter): GroupItem {
 
   children.push({
     kind: "rect",
-    x: frame._layout.placedX,
-    y: frame._layout.placedY,
-    width: frame._layout.placedW,
-    height: frame._layout.placedH,
-    fill: state.fill,
-    stroke: state.stroke,
-    strokeStyle: state.strokeStyle,
+    x: plan.box.x,
+    y: plan.box.y,
+    width: plan.box.width,
+    height: plan.box.height,
+    fill: paint(plan.box.fill),
+    stroke: paint(plan.box.stroke),
+    strokeStyle: plan.box.strokeWidth > 0
+      ? {
+        width: plan.box.strokeWidth,
+        dashArray: plan.box.dashed ? [8, 8] : undefined,
+      }
+      : undefined,
   });
-  children.push(...textRunItems(frame, adapter));
+  children.push(...textRunItems(plan, adapter));
 
-  if (frame.icon) {
+  if (plan.icon) {
     children.push({
       kind: "rect",
-      x: frame._layout.placedX + frame._layout.placedW - state.padRight - ICON_SIZE,
-      y: frame._layout.placedY + state.padTop,
-      width: ICON_SIZE,
-      height: ICON_SIZE,
-      fill: state.iconFill,
+      x: plan.icon.x,
+      y: plan.icon.y,
+      width: plan.icon.width,
+      height: plan.icon.height,
+      fill: paint(plan.icon.fill),
       opacity: 0.15,
     });
   }
@@ -183,7 +125,7 @@ function emitFrameGroup(frame: Frame, adapter: TextMeasureAdapter): GroupItem {
 
   return {
     kind: "group",
-    id: frame.id && !frame.id.startsWith("__") ? frame.id : undefined,
+    id: plan.componentId,
     children,
   };
 }

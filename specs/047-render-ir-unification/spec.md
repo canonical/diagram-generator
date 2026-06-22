@@ -133,4 +133,8 @@ sinks. The first live 047 slice is underway on `feat/047-render-ir-unification`:
 shared frame-arrowhead geometry now lives in a neutral TypeScript helper rather
 than in duplicated preview/export renderers, and render parity coverage now
 compares arrowhead geometry plus short-segment shaft truncation across legacy
-SVG and display-list serializers.
+SVG and display-list serializers. The next landed slice pushes the same
+convergence into frame rendering: frame box, separator, icon, and wrapped text
+layout now flow through one shared frame render plan consumed by preview patch,
+artifact SVG, and display-list emission, while preview-only metadata remains
+owned by the preview serializer.

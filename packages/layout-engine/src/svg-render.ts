@@ -6,39 +6,29 @@
 import {
   Frame,
   FrameDiagram,
-  Border,
   type Arrow,
   type DiagramOverlay,
 } from './frame-model.js';
 import { resolveArrowPolylineGeometry, type ResolvedArrowheadGeometry } from './arrow-geometry.js';
-import { leafIconColumnWidth } from './spatial.js';
+import { lineTopToBaseline, resolveFrameRenderPlan } from './frame-render-plan.js';
 import {
   ICON_SIZE,
   BODY_SIZE,
   BODY_LINE_STEP,
-  GRID_GUTTER,
   ARROW_HEAD_LENGTH,
   ARROW_HEAD_HALF_WIDTH,
   ARROW_COLOR,
   sizeToPx,
 } from './tokens.js';
 import {
-  type LineSpec,
   type TextMeasureAdapter,
-  wrapTextLines,
 } from './text-measure.js';
-import { effectiveResolvedStrokeWidth } from './frame-classes.js';
 import {
   annotationTextToSpec,
-  frameOwnedTextBlocks,
-  frameOwnedTextBlockRole,
-  frameOwnedTextBlockGap,
 } from './resolved-spec-typography.js';
 import type { LayoutOutput } from './layout.js';
 import { tintIconInnerMarkup } from './icon-embed.js';
 import { routeArrows, type RoutedArrow } from './arrow-routing.js';
-
-const ASCENT_RATIO = 0.94;
 
 function esc(s: string): string {
   return s
@@ -51,109 +41,47 @@ function esc(s: string): string {
 function fmt(n: number): string {
   return String(Math.round(n * 100) / 100);
 }
-
-function lineTopToBaseline(top: number, size: string): number {
-  return top + sizeToPx(size) * ASCENT_RATIO;
-}
-
-interface FrameRenderState {
-  fill: string;
-  stroke: string;
-  strokeWidth: number;
-  dashed: boolean;
-  padTop: number;
-  padRight: number;
-  padBottom: number;
-  padLeft: number;
-  textBlocks: LineSpec[][];
-  iconFill: string;
-}
-
-function frameRenderState(frame: Frame, adapter: TextMeasureAdapter): FrameRenderState {
-  const fill = frame.resolvedFill ?? 'transparent';
-  const stroke = frame.resolvedStroke ?? 'none';
-  const padTop = frame.paddingTop;
-  const padRight = frame.paddingRight;
-  const padBottom = frame.paddingBottom;
-  const padLeft = frame.paddingLeft;
-  const iconCol = leafIconColumnWidth(frame);
-  const textMaxWidth = frame._layout.placedW - padLeft - padRight - iconCol;
-
-  let textBlocks = frameOwnedTextBlocks(frame);
-  if (textBlocks.length > 0 && textMaxWidth > 0) {
-    textBlocks = textBlocks
-      .map(block => wrapTextLines(block, textMaxWidth, adapter))
-      .filter(block => block.length > 0);
-  }
-
-  const strokeWidth = effectiveResolvedStrokeWidth(frame);
-
-  return {
-    fill,
-    stroke,
-    strokeWidth,
-    dashed: frame.border === Border.DASHED,
-    padTop,
-    padRight,
-    padBottom,
-    padLeft,
-    textBlocks,
-    iconFill: frame.resolvedIconFill ?? '#000000',
-  };
-}
-
-function renderFrameText(frame: Frame, rs: FrameRenderState): string {
-  if (!rs.textBlocks.length) return '';
+function renderFrameText(plan: ReturnType<typeof resolveFrameRenderPlan>): string {
+  if (!plan.textBlocks.length) return '';
   const parts: string[] = [];
-  let top = frame._layout.placedY + rs.padTop;
-  const x = frame._layout.placedX + rs.padLeft;
-  for (const [blockIndex, block] of rs.textBlocks.entries()) {
+  for (const block of plan.textBlocks) {
     const blockParts: string[] = [];
-    const blockRole = frameOwnedTextBlockRole(frame, blockIndex);
-    for (const spec of block) {
-      const size = String(spec.size ?? BODY_SIZE);
-      const weight = spec.weight ?? '400';
-      const fill = spec.fill ?? '#000000';
-      const lineStep = sizeToPx(spec.lineStep ?? BODY_LINE_STEP);
+    for (const line of block.lines) {
       const attrs = [
-        `x="${fmt(x)}"`,
-        `y="${fmt(lineTopToBaseline(top, size))}"`,
-        `font-size="${esc(size)}"`,
-        `font-weight="${esc(String(weight))}"`,
-        `fill="${esc(fill)}"`,
+        `x="${fmt(line.x)}"`,
+        `y="${fmt(line.y)}"`,
+        `font-size="${esc(line.size)}"`,
+        `font-weight="${esc(line.weight)}"`,
+        `fill="${esc(line.fill)}"`,
       ];
-      if (spec.letterSpacing) attrs.push(`letter-spacing="${esc(String(spec.letterSpacing))}"`);
-      blockParts.push(`<tspan ${attrs.join(' ')}>${esc(spec.content)}</tspan>`);
-      top += lineStep;
+      if (line.spec.letterSpacing) attrs.push(`letter-spacing="${esc(String(line.spec.letterSpacing))}"`);
+      if (line.spec.fontFamily) attrs.push(`font-family="${esc(String(line.spec.fontFamily))}"`);
+      if (line.spec.smallCaps) attrs.push('font-variant-caps="small-caps"');
+      blockParts.push(`<tspan ${attrs.join(' ')}>${esc(line.spec.content)}</tspan>`);
     }
     parts.push(
-      `<text font-family="Ubuntu Sans" data-dg-text-role="${esc(blockRole)}" data-dg-text-block-index="${blockIndex}">` +
+      `<text font-family="Ubuntu Sans" data-dg-text-role="${esc(block.role)}" data-dg-text-block-index="${block.blockIndex}">` +
       `${blockParts.join('')}</text>`,
     );
-    top += frameOwnedTextBlockGap(frame, blockIndex, rs.textBlocks.length);
   }
   return parts.join('');
 }
 
-function renderIconPlaceholder(frame: Frame, rs: FrameRenderState): string {
-  if (!frame.icon) return '';
-  const iconX = frame._layout.placedX + frame._layout.placedW - rs.padRight - ICON_SIZE;
-  const iconY = frame._layout.placedY + rs.padTop;
-  return `<rect class="dg-icon" x="${fmt(iconX)}" y="${fmt(iconY)}" width="${ICON_SIZE}" height="${ICON_SIZE}" fill="${esc(rs.iconFill)}" opacity="0.15"/>`;
+function renderIconPlaceholder(plan: ReturnType<typeof resolveFrameRenderPlan>): string {
+  if (!plan.icon) return '';
+  return `<rect class="dg-icon" x="${fmt(plan.icon.x)}" y="${fmt(plan.icon.y)}" width="${ICON_SIZE}" height="${ICON_SIZE}" fill="${esc(plan.icon.fill)}" opacity="0.15"/>`;
 }
 
 function renderIcon(
+  plan: ReturnType<typeof resolveFrameRenderPlan>,
   frame: Frame,
-  rs: FrameRenderState,
   iconMarkupByName: Map<string, string> | undefined,
 ): string {
-  if (!frame.icon) return '';
-  const iconX = frame._layout.placedX + frame._layout.placedW - rs.padRight - ICON_SIZE;
-  const iconY = frame._layout.placedY + rs.padTop;
+  if (!frame.icon || !plan.icon) return '';
   const inner = iconMarkupByName?.get(frame.icon);
-  if (!inner) return renderIconPlaceholder(frame, rs);
-  const tinted = tintIconInnerMarkup(inner, rs.iconFill);
-  return `<g class="dg-icon" transform="translate(${fmt(iconX)} ${fmt(iconY)})">${tinted}</g>`;
+  if (!inner) return renderIconPlaceholder(plan);
+  const tinted = tintIconInnerMarkup(inner, plan.icon.fill);
+  return `<g class="dg-icon" transform="translate(${fmt(plan.icon.x)} ${fmt(plan.icon.y)})">${tinted}</g>`;
 }
 
 export interface SvgRenderOptions {
@@ -166,34 +94,34 @@ function renderFrameGroup(
   adapter: TextMeasureAdapter,
   iconMarkupByName?: Map<string, string>,
 ): string {
-  const rs = frameRenderState(frame, adapter);
+  const plan = resolveFrameRenderPlan(frame, adapter);
   const parts: string[] = [];
-  const cid = frame.id && !frame.id.startsWith('__') ? ` data-component-id="${esc(frame.id)}"` : '';
+  const cid = plan.componentId ? ` data-component-id="${esc(plan.componentId)}"` : '';
 
-  if (frame.role === 'separator') {
+  if (plan.separator) {
     parts.push(
-      `<line class="dg-separator" x1="${fmt(frame._layout.placedX)}" y1="${fmt(frame._layout.placedY)}"` +
-      ` x2="${fmt(frame._layout.placedX + frame._layout.placedW)}" y2="${fmt(frame._layout.placedY)}"` +
+      `<line class="dg-separator" x1="${fmt(plan.separator.x1)}" y1="${fmt(plan.separator.y1)}"` +
+      ` x2="${fmt(plan.separator.x2)}" y2="${fmt(plan.separator.y2)}"` +
       ` fill="none" stroke="#000000" stroke-width="1" stroke-miterlimit="10" stroke-dasharray="8 8"/>`,
     );
   }
 
   const rectAttrs = [
-    `x="${fmt(frame._layout.placedX)}"`,
-    `y="${fmt(frame._layout.placedY)}"`,
-    `width="${fmt(frame._layout.placedW)}"`,
-    `height="${fmt(frame._layout.placedH)}"`,
-    `fill="${esc(rs.fill)}"`,
-    `stroke="${esc(rs.stroke)}"`,
-    `stroke-width="${rs.strokeWidth}"`,
+    `x="${fmt(plan.box.x)}"`,
+    `y="${fmt(plan.box.y)}"`,
+    `width="${fmt(plan.box.width)}"`,
+    `height="${fmt(plan.box.height)}"`,
+    `fill="${esc(plan.box.fill)}"`,
+    `stroke="${esc(plan.box.stroke)}"`,
+    `stroke-width="${plan.box.strokeWidth}"`,
     'stroke-miterlimit="10"',
   ];
-  if (rs.dashed) rectAttrs.push('stroke-dasharray="8 8"');
+  if (plan.box.dashed) rectAttrs.push('stroke-dasharray="8 8"');
   parts.push(`<rect ${rectAttrs.join(' ')}/>`);
 
-  const text = renderFrameText(frame, rs);
+  const text = renderFrameText(plan);
   if (text) parts.push(text);
-  parts.push(renderIcon(frame, rs, iconMarkupByName));
+  parts.push(renderIcon(plan, frame, iconMarkupByName));
 
   let inner = parts.join('');
   for (const child of frame.children) {

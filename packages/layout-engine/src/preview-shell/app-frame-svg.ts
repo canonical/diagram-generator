@@ -1,12 +1,10 @@
-import { effectiveResolvedStrokeWidth } from '../frame-classes.js';
+import {
+  resolveFrameRenderPlan,
+} from '../frame-render-plan.js';
 import { type Frame } from '../frame-model.js';
-import { frameOwnedTextBlockGap, frameOwnedTextBlockRole, frameOwnedTextBlocks } from '../resolved-spec-typography.js';
-import { BODY_LINE_STEP, BODY_SIZE, ICON_SIZE, INSET, sizeToPx } from '../tokens.js';
-import { type TextMeasureAdapter, wrapTextLines } from '../text-measure.js';
+import { type TextMeasureAdapter } from '../text-measure.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
-const ASCENT_RATIO = 0.94;
-
 export interface PreviewPlacedFrameBounds {
   x: number;
   y: number;
@@ -46,85 +44,46 @@ function hasSvgBBox(value: unknown): value is Element & { getBBox: () => Preview
   return Boolean(value && typeof value === 'object' && 'getBBox' in value);
 }
 
-function lineTopToBaseline(top: number, size: string | number): number {
-  return top + sizeToPx(size) * ASCENT_RATIO;
-}
-
-function frameBoxRenderState(frame: Frame, textAdapter: TextMeasureAdapter) {
-  const fill = frame.resolvedFill ?? 'transparent';
-  const stroke = frame.resolvedStroke ?? 'none';
-  const iconColumn = frame.icon ? ICON_SIZE + INSET : 0;
-  const textMaxWidth = frame._layout.placedW - frame.paddingLeft - frame.paddingRight - iconColumn;
-  let textBlocks = frameOwnedTextBlocks(frame);
-  if (textBlocks.length > 0 && textMaxWidth > 0) {
-    textBlocks = textBlocks
-      .map((block) => wrapTextLines(block, textMaxWidth, textAdapter))
-      .filter((block) => block.length > 0);
-  }
-
-  const strokeWidth = effectiveResolvedStrokeWidth(frame);
-  return {
-    fill,
-    stroke,
-    strokeWidth,
-    dashed: frame.border === 'DASHED',
-    padTop: frame.paddingTop,
-    padRight: frame.paddingRight,
-    padBottom: frame.paddingBottom,
-    padLeft: frame.paddingLeft,
-    textBlocks,
-  };
-}
-
 function buildFrameTextElements(
   ownerDocument: Document,
-  frame: Frame,
-  textAdapter: TextMeasureAdapter,
+  plan: ReturnType<typeof resolveFrameRenderPlan>,
 ) {
-  const renderState = frameBoxRenderState(frame, textAdapter);
-  if (renderState.textBlocks.length === 0) {
-    return { renderState, elements: [] as SVGTextElement[] };
+  if (plan.textBlocks.length === 0) {
+    return { elements: [] as SVGTextElement[] };
   }
 
   const elements: SVGTextElement[] = [];
-  let top = frame._layout.placedY + renderState.padTop;
-  const x = frame._layout.placedX + renderState.padLeft;
-
-  for (const [blockIndex, block] of renderState.textBlocks.entries()) {
+  for (const block of plan.textBlocks) {
     const text = ownerDocument.createElementNS(SVG_NS, 'text');
     text.setAttribute('font-family', 'Ubuntu Sans');
-    text.setAttribute('data-dg-text-role', frameOwnedTextBlockRole(frame, blockIndex));
-    text.setAttribute('data-dg-text-block-index', String(blockIndex));
+    text.setAttribute('data-dg-text-role', block.role);
+    text.setAttribute('data-dg-text-block-index', String(block.blockIndex));
 
-    for (const spec of block) {
-      const size = spec.size ?? BODY_SIZE;
-      const lineStep = sizeToPx(spec.lineStep ?? BODY_LINE_STEP);
+    for (const line of block.lines) {
       const tspan = ownerDocument.createElementNS(SVG_NS, 'tspan');
-      tspan.setAttribute('x', fmtSvgNumber(x));
-      tspan.setAttribute('y', fmtSvgNumber(lineTopToBaseline(top, size)));
-      tspan.setAttribute('font-size', String(size));
-      tspan.setAttribute('font-weight', String(spec.weight ?? '400'));
-      tspan.setAttribute('fill', spec.fill ?? '#000000');
-      if (spec.letterSpacing) {
-        tspan.setAttribute('letter-spacing', String(spec.letterSpacing));
+      tspan.setAttribute('x', fmtSvgNumber(line.x));
+      tspan.setAttribute('y', fmtSvgNumber(line.y));
+      tspan.setAttribute('font-size', line.size);
+      tspan.setAttribute('font-weight', line.weight);
+      tspan.setAttribute('fill', line.fill);
+      if (line.spec.letterSpacing) {
+        tspan.setAttribute('letter-spacing', String(line.spec.letterSpacing));
       }
-      if (spec.fontFamily) {
-        tspan.setAttribute('font-family', spec.fontFamily);
+      if (line.spec.fontFamily) {
+        tspan.setAttribute('font-family', line.spec.fontFamily);
       }
-      if (spec.smallCaps) {
+      if (line.spec.smallCaps) {
         tspan.setAttribute('font-variant-caps', 'small-caps');
       }
-      tspan.textContent = spec.content;
+      tspan.textContent = line.spec.content;
       text.appendChild(tspan);
-      top += lineStep;
     }
 
     text.setAttribute('data-orig-inner', text.innerHTML);
     elements.push(text);
-    top += frameOwnedTextBlockGap(frame, blockIndex, renderState.textBlocks.length);
   }
 
-  return { renderState, elements };
+  return { elements };
 }
 
 export function patchPreviewFrameGroup(options: {
@@ -134,21 +93,18 @@ export function patchPreviewFrameGroup(options: {
   textAdapter: TextMeasureAdapter;
   iconElement?: Element | null;
 }): void {
-  const { renderState, elements } = buildFrameTextElements(
-    options.ownerDocument,
-    options.frame,
-    options.textAdapter,
-  );
+  const plan = resolveFrameRenderPlan(options.frame, options.textAdapter);
+  const { elements } = buildFrameTextElements(options.ownerDocument, plan);
   const existingIcon = options.group.querySelector(':scope > .dg-icon');
   const children: Element[] = [];
 
-  if (options.frame.role === 'separator') {
+  if (plan.separator) {
     const line = options.ownerDocument.createElementNS(SVG_NS, 'line');
     line.setAttribute('class', 'dg-separator');
-    line.setAttribute('x1', fmtSvgNumber(options.frame._layout.placedX));
-    line.setAttribute('y1', fmtSvgNumber(options.frame._layout.placedY));
-    line.setAttribute('x2', fmtSvgNumber(options.frame._layout.placedX + options.frame._layout.placedW));
-    line.setAttribute('y2', fmtSvgNumber(options.frame._layout.placedY));
+    line.setAttribute('x1', fmtSvgNumber(plan.separator.x1));
+    line.setAttribute('y1', fmtSvgNumber(plan.separator.y1));
+    line.setAttribute('x2', fmtSvgNumber(plan.separator.x2));
+    line.setAttribute('y2', fmtSvgNumber(plan.separator.y2));
     line.setAttribute('fill', 'none');
     line.setAttribute('stroke', '#000000');
     line.setAttribute('stroke-width', '1');
@@ -158,32 +114,30 @@ export function patchPreviewFrameGroup(options: {
   }
 
   const rect = options.ownerDocument.createElementNS(SVG_NS, 'rect');
-  rect.setAttribute('x', fmtSvgNumber(options.frame._layout.placedX));
-  rect.setAttribute('y', fmtSvgNumber(options.frame._layout.placedY));
-  rect.setAttribute('width', fmtSvgNumber(options.frame._layout.placedW));
-  rect.setAttribute('height', fmtSvgNumber(options.frame._layout.placedH));
-  rect.setAttribute('fill', renderState.fill);
-  rect.setAttribute('stroke', renderState.stroke);
-  rect.setAttribute('stroke-width', String(renderState.strokeWidth));
+  rect.setAttribute('x', fmtSvgNumber(plan.box.x));
+  rect.setAttribute('y', fmtSvgNumber(plan.box.y));
+  rect.setAttribute('width', fmtSvgNumber(plan.box.width));
+  rect.setAttribute('height', fmtSvgNumber(plan.box.height));
+  rect.setAttribute('fill', plan.box.fill);
+  rect.setAttribute('stroke', plan.box.stroke);
+  rect.setAttribute('stroke-width', String(plan.box.strokeWidth));
   rect.setAttribute('stroke-miterlimit', '10');
-  rect.setAttribute('data-orig-width', fmtSvgNumber(options.frame._layout.placedW));
-  rect.setAttribute('data-orig-height', fmtSvgNumber(options.frame._layout.placedH));
-  if (renderState.dashed) {
+  rect.setAttribute('data-orig-width', fmtSvgNumber(plan.box.width));
+  rect.setAttribute('data-orig-height', fmtSvgNumber(plan.box.height));
+  if (plan.box.dashed) {
     rect.setAttribute('stroke-dasharray', '8 8');
   }
-  if (renderState.fill === 'transparent' && renderState.stroke === 'none' && renderState.textBlocks.length === 0) {
+  if (plan.box.disablePointerEvents) {
     rect.setAttribute('pointer-events', 'none');
   }
   children.push(rect);
   children.push(...elements);
 
-  const iconToUse = (options.frame.icon ? options.iconElement : null) ?? existingIcon;
-  if (options.frame.icon && iconToUse) {
-    const iconX = options.frame._layout.placedX + options.frame._layout.placedW - renderState.padRight - ICON_SIZE;
-    const iconY = options.frame._layout.placedY + renderState.padTop;
-    iconToUse.setAttribute('transform', `translate(${fmtSvgNumber(iconX)} ${fmtSvgNumber(iconY)})`);
-    iconToUse.setAttribute('data-orig-tx', fmtSvgNumber(iconX));
-    iconToUse.setAttribute('data-orig-ty', fmtSvgNumber(iconY));
+  const iconToUse = (plan.icon ? options.iconElement : null) ?? existingIcon;
+  if (plan.icon && iconToUse) {
+    iconToUse.setAttribute('transform', `translate(${fmtSvgNumber(plan.icon.x)} ${fmtSvgNumber(plan.icon.y)})`);
+    iconToUse.setAttribute('data-orig-tx', fmtSvgNumber(plan.icon.x));
+    iconToUse.setAttribute('data-orig-ty', fmtSvgNumber(plan.icon.y));
     children.push(iconToUse);
   }
 
