@@ -201,6 +201,39 @@ describe('preview arrow render helpers', () => {
     expect(polygon?.getAttribute('data-orig-points')).toBe('10,5 20,0 10,-5');
   });
 
+  it('renders authored arrow labels through the shared arrow plan while keeping preview hit lines', () => {
+    const ownerDocument = new FakeDocument();
+
+    const fragment = createPreviewArrowSvgFragment({
+      ownerDocument: ownerDocument as unknown as Document,
+      routedArrows: [{
+        componentId: 'edge-2',
+        points: [[0, 50], [100, 50]],
+        start: [0, 50],
+        end: [100, 50],
+        waypoints: [],
+        color: '#E95420',
+        label: [{ content: 'Fast path' }],
+        labelGap: 24,
+      } as any],
+      boundsMap: {
+        obstacle: { x: 40, y: 0, w: 20, h: 40 },
+      },
+    });
+
+    const group = fragment.firstChild as unknown as FakeElement;
+    const lines = group.querySelectorAll('line');
+    const text = group.querySelector('text');
+    const tspan = text?.childNodes[0] as FakeElement | undefined;
+
+    expect(lines).toHaveLength(2);
+    expect(lines[1]?.getAttribute('stroke')).toBe('transparent');
+    expect(text).not.toBeNull();
+    expect(text?.getAttribute('text-anchor')).toBe('middle');
+    expect(tspan?.getAttribute('fill')).toBe('#666666');
+    expect(Number(tspan?.getAttribute('y') || '0')).toBeGreaterThan(50);
+  });
+
   it('syncs routed arrow payloads back into the preview model with stable ids', () => {
     const loaded: unknown[] = [];
     const model = {

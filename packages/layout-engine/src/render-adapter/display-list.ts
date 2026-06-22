@@ -5,22 +5,15 @@ import {
   type DiagramOverlay,
 } from "../frame-model.js";
 import {
-  resolveArrowPolylineGeometry,
-  type ResolvedArrowheadGeometry,
-} from "../arrow-geometry.js";
+  arrowheadPathCommands,
+  resolveArrowRenderPlan,
+} from "../arrow-render-plan.js";
 import { resolveFrameRenderPlan } from "../frame-render-plan.js";
 import {
-  ARROW_COLOR,
-  ARROW_HEAD_HALF_WIDTH,
-  ARROW_HEAD_LENGTH,
-  BODY_LINE_STEP,
   BODY_SIZE,
   sizeToPx,
 } from "../tokens.js";
 import { type TextMeasureAdapter } from "../text-measure.js";
-import {
-  annotationTextToSpec,
-} from "../resolved-spec-typography.js";
 import { routeArrows } from "../arrow-routing.js";
 import type { LayoutOutput } from "../layout.js";
 import type {
@@ -30,7 +23,6 @@ import type {
   GlyphRunItem,
   GroupItem,
   Paint,
-  PathCommand,
 } from "../render-ir.js";
 import { shapeLineSpec } from "../text-adapter/shape-compatible.js";
 
@@ -146,116 +138,48 @@ function collectBounds(
   return out;
 }
 
-function simplifyPath(points: [number, number][]): [number, number][] {
-  if (points.length <= 2) return points;
-  const result: [number, number][] = [points[0]!];
-  for (let index = 1; index < points.length - 1; index += 1) {
-    const [px, py] = points[index - 1]!;
-    const [cx, cy] = points[index]!;
-    const [nx, ny] = points[index + 1]!;
-    if (!((px === cx && cx === nx) || (py === cy && cy === ny))) {
-      result.push(points[index]!);
-    }
-  }
-  result.push(points[points.length - 1]!);
-  return result;
-}
-
-function arrowheadPathCommands(head: ResolvedArrowheadGeometry): readonly PathCommand[] {
-  return [
-    { kind: "M", x: head.left[0], y: head.left[1] },
-    { kind: "L", x: head.tip[0], y: head.tip[1] },
-    { kind: "L", x: head.right[0], y: head.right[1] },
-    { kind: "Z" },
-  ];
-}
-
-function labelAnchorForSegment(
-  x1: number,
-  y1: number,
-  x2: number,
-  y2: number,
-  labelGap: number,
-): { x: number; y: number } {
-  const mx = (x1 + x2) / 2;
-  const my = (y1 + y2) / 2;
-  const dx = x2 - x1;
-  const dy = y2 - y1;
-  const len = Math.hypot(dx, dy) || 1;
-  return {
-    x: mx + (-dy / len) * labelGap,
-    y: my + (dx / len) * labelGap,
-  };
-}
-
 function emitArrowGroups(arrows: Arrow[], adapter: TextMeasureAdapter, bounds: Record<string, { x: number; y: number; w: number; h: number }>): GroupItem[] {
   return routeArrows(arrows, bounds).map((arrow) => {
-    const children: DisplayListItem[] = [];
-    const { head, shaftPoints } = resolveArrowPolylineGeometry({
-      points: arrow.points,
-      headLength: ARROW_HEAD_LENGTH,
-      headHalfWidth: ARROW_HEAD_HALF_WIDTH,
+    const plan = resolveArrowRenderPlan({
+      arrow,
+      boundsMap: bounds,
     });
-
-    for (let index = 0; index < shaftPoints.length - 1; index += 1) {
-      const [x1, y1] = shaftPoints[index]!;
-      const [x2, y2] = shaftPoints[index + 1]!;
+    const children: DisplayListItem[] = [];
+    for (const segment of plan.shaftSegments) {
       children.push({
         kind: "line",
-        x1,
-        y1,
-        x2,
-        y2,
-        stroke: paint(arrow.color)!,
+        x1: segment.x1,
+        y1: segment.y1,
+        x2: segment.x2,
+        y2: segment.y2,
+        stroke: paint(plan.color)!,
         strokeStyle: { width: 1 },
       });
     }
 
-    if (head) {
+    if (plan.head) {
       children.push({
         kind: "path",
-        commands: arrowheadPathCommands(head),
-        fill: paint(arrow.color),
+        commands: arrowheadPathCommands(plan.head),
+        fill: paint(plan.color),
       });
     }
 
-    if (arrow.label && arrow.label.length > 0) {
-      let bestIndex = 0;
-      let bestLength = 0;
-      for (let index = 0; index < shaftPoints.length - 1; index += 1) {
-        const [x1, y1] = shaftPoints[index]!;
-        const [x2, y2] = shaftPoints[index + 1]!;
-        const length = Math.hypot(x2 - x1, y2 - y1);
-        if (length > bestLength) {
-          bestLength = length;
-          bestIndex = index;
-        }
-      }
-      const [x1, y1] = shaftPoints[bestIndex]!;
-      const [x2, y2] = shaftPoints[bestIndex + 1]!;
-      const anchor = labelAnchorForSegment(x1, y1, x2, y2, arrow.labelGap);
-      const specs = arrow.label.map(annotationTextToSpec);
-      const totalHeight = specs.reduce((sum, spec, index) => {
-        const lineStep = sizeToPx(spec.lineStep ?? BODY_LINE_STEP);
-        return sum + (index === 0 ? 0 : lineStep);
-      }, 0);
-      let top = anchor.y - totalHeight / 2;
-      for (const spec of specs) {
-        const size = String(spec.size ?? BODY_SIZE);
+    if (plan.label) {
+      for (const line of plan.label.lines) {
         children.push({
           kind: "glyph-run",
-          x: anchor.x,
-          y: lineTopToBaseline(top, size),
-          run: shapeLineSpec(adapter, spec),
-          fill: paint(spec.fill ?? "#666666"),
+          x: line.x,
+          y: line.y,
+          run: shapeLineSpec(adapter, line.spec),
+          fill: paint(line.fill),
         });
-        top += sizeToPx(spec.lineStep ?? BODY_LINE_STEP);
       }
     }
 
     return {
       kind: "group",
-      id: arrow.componentId,
+      id: plan.componentId,
       children,
     };
   });
@@ -327,8 +251,8 @@ export function emitFrameDiagramDisplayList(
   return {
     viewport,
     items: [
-      frameGroup,
       ...emitArrowGroups(diagram.arrows, adapter, bounds),
+      frameGroup,
       ...emitOverlayGroups(diagram.overlays, adapter, bounds),
     ],
   };

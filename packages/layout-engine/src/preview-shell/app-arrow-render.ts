@@ -1,3 +1,4 @@
+import { resolveArrowRenderPlan } from '../arrow-render-plan.js';
 import { routeArrows, type RoutedArrow } from '../arrow-routing.js';
 import { type Arrow, createLine } from '../frame-model.js';
 import {
@@ -7,15 +8,13 @@ import {
   ARROW_COLOR,
   ARROW_HEAD_HALF_WIDTH,
   ARROW_HEAD_LENGTH,
-  BODY_LINE_STEP,
   BODY_SIZE,
   GRID_GUTTER,
   sizeToPx,
 } from '../tokens.js';
-import { resolvePreviewArrowhead } from './app-arrow-waypoints.js';
+import { lineTopToBaseline } from '../text-render-geometry.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
-const ASCENT_RATIO = 0.94;
 
 export interface PreviewArrowFrameBounds {
   x: number;
@@ -47,8 +46,15 @@ function fmtSvgNumber(value: number): string {
   return String(Math.round(value * 100) / 100);
 }
 
-function lineTopToBaseline(top: number, size: string | number): number {
-  return top + sizeToPx(size) * ASCENT_RATIO;
+function arrowheadPolygonPoints(plan: ReturnType<typeof resolveArrowRenderPlan>): string | null {
+  if (!plan.head) {
+    return null;
+  }
+  return [
+    `${plan.head.left[0]},${plan.head.left[1]}`,
+    `${plan.head.tip[0]},${plan.head.tip[1]}`,
+    `${plan.head.right[0]},${plan.head.right[1]}`,
+  ].join(' ');
 }
 
 function isArrowGroupElement(element: Element | null | undefined): element is Element {
@@ -71,66 +77,6 @@ function findArrowGroups(root: ParentNode, componentId: string): Element[] {
     .filter((element) => isArrowGroupElement(element));
 }
 
-function arrowLabelLines(arrow: PreviewRoutedArrow) {
-  if (!arrow.label || arrow.label.length === 0) {
-    return [];
-  }
-  return arrow.label.map((line) => {
-    if (typeof line === 'string') {
-      return createLine(line);
-    }
-    return createLine(line.content || '', {
-      size: line.size,
-      weight: line.weight,
-      fill: line.fill,
-      smallCaps: line.smallCaps,
-      letterSpacing: line.letterSpacing,
-      lineStep: line.lineStep,
-    });
-  });
-}
-
-function minDistanceToBounds(x: number, y: number, boundsList: PreviewArrowFrameBounds[]): number {
-  let minDistance = Number.POSITIVE_INFINITY;
-  for (const bounds of boundsList) {
-    const clampedX = Math.max(bounds.x, Math.min(x, bounds.x + bounds.w));
-    const clampedY = Math.max(bounds.y, Math.min(y, bounds.y + bounds.h));
-    minDistance = Math.min(minDistance, Math.hypot(x - clampedX, y - clampedY));
-  }
-  return minDistance;
-}
-
-function labelAnchorForSegment(
-  x1: number,
-  y1: number,
-  x2: number,
-  y2: number,
-  labelGap: number,
-  boundsMap: PreviewArrowBoundsMap,
-): { lx: number; ly: number } {
-  const mx = (x1 + x2) / 2;
-  const my = (y1 + y2) / 2;
-  const dx = x2 - x1;
-  const dy = y2 - y1;
-  const length = Math.hypot(dx, dy) || 1;
-  const nx = -dy / length;
-  const ny = dx / length;
-  const boundsList = Object.values(boundsMap);
-  const candidates = [
-    { lx: mx + nx * labelGap, ly: my + ny * labelGap },
-    { lx: mx - nx * labelGap, ly: my - ny * labelGap },
-  ];
-  let best = candidates[0]!;
-  let bestScore = Number.NEGATIVE_INFINITY;
-  for (const candidate of candidates) {
-    const score = minDistanceToBounds(candidate.lx, candidate.ly, boundsList);
-    if (score > bestScore) {
-      best = candidate;
-      bestScore = score;
-    }
-  }
-  return best;
-}
 
 function buildArrowLabelsFromElk(
   ownerDocument: Document,
@@ -165,66 +111,39 @@ function buildArrowLabelsFromElk(
 function buildArrowLabelElement(
   ownerDocument: Document,
   arrow: PreviewRoutedArrow,
-  shaftPoints: [number, number][],
-  labelGap: number,
-  boundsMap: PreviewArrowBoundsMap,
+  plan: ReturnType<typeof resolveArrowRenderPlan>,
 ): SVGTextElement | DocumentFragment | null {
   const elkLabels = buildArrowLabelsFromElk(ownerDocument, arrow);
   if (elkLabels) {
     return elkLabels;
   }
-
-  const lines = arrowLabelLines(arrow);
-  if (lines.length === 0) {
+  if (!plan.label) {
     return null;
   }
 
-  let bestIndex = 0;
-  let bestLength = 0;
-  for (let index = 0; index < shaftPoints.length - 1; index += 1) {
-    const [x1, y1] = shaftPoints[index]!;
-    const [x2, y2] = shaftPoints[index + 1]!;
-    const length = Math.hypot(x2 - x1, y2 - y1);
-    if (length > bestLength) {
-      bestLength = length;
-      bestIndex = index;
-    }
-  }
-
-  const [sx1, sy1] = shaftPoints[bestIndex]!;
-  const [sx2, sy2] = shaftPoints[bestIndex + 1]!;
-  const { lx, ly } = labelAnchorForSegment(sx1, sy1, sx2, sy2, labelGap, boundsMap);
-
   const text = ownerDocument.createElementNS(SVG_NS, 'text');
   text.setAttribute('font-family', 'Ubuntu Sans');
-  text.setAttribute('text-anchor', 'middle');
-  text.setAttribute('dominant-baseline', 'middle');
+  text.setAttribute('text-anchor', plan.label.textAnchor);
+  text.setAttribute('dominant-baseline', plan.label.dominantBaseline);
 
-  const specs = lines.map((line) => annotationTextToSpec(line));
-  const totalHeight = specs.reduce((sum, spec, index) => {
-    const lineStep = sizeToPx(spec.lineStep ?? BODY_LINE_STEP);
-    return sum + (index === 0 ? 0 : lineStep);
-  }, 0);
-  let top = ly - totalHeight / 2;
-
-  for (const spec of specs) {
-    const size = spec.size ?? BODY_SIZE;
-    const lineStep = sizeToPx(spec.lineStep ?? BODY_LINE_STEP);
+  for (const line of plan.label.lines) {
     const tspan = ownerDocument.createElementNS(SVG_NS, 'tspan');
-    tspan.setAttribute('x', fmtSvgNumber(lx));
-    tspan.setAttribute('y', fmtSvgNumber(lineTopToBaseline(top, size)));
-    tspan.setAttribute('font-size', String(size));
-    tspan.setAttribute('font-weight', String(spec.weight ?? '400'));
-    tspan.setAttribute('fill', spec.fill ?? '#666666');
-    if (spec.letterSpacing) {
-      tspan.setAttribute('letter-spacing', String(spec.letterSpacing));
+    tspan.setAttribute('x', fmtSvgNumber(line.x));
+    tspan.setAttribute('y', fmtSvgNumber(line.y));
+    tspan.setAttribute('font-size', line.size);
+    tspan.setAttribute('font-weight', line.weight);
+    tspan.setAttribute('fill', line.fill);
+    if (line.spec.letterSpacing) {
+      tspan.setAttribute('letter-spacing', String(line.spec.letterSpacing));
     }
-    if (spec.smallCaps) {
+    if (line.spec.fontFamily) {
+      tspan.setAttribute('font-family', line.spec.fontFamily);
+    }
+    if (line.spec.smallCaps) {
       tspan.setAttribute('font-variant-caps', 'small-caps');
     }
-    tspan.textContent = spec.content;
+    tspan.textContent = line.spec.content;
     text.appendChild(tspan);
-    top += lineStep;
   }
 
   return text;
@@ -252,27 +171,15 @@ function replacePreviewArrowLabels(
   options: {
     group: Element;
     arrow: PreviewRoutedArrow;
-    boundsMap: PreviewArrowBoundsMap;
-    headLen: number;
-    headHalf: number;
+    plan: ReturnType<typeof resolveArrowRenderPlan>;
   },
 ): void {
   options.group.querySelectorAll(':scope > text').forEach((element) => element.remove());
-  const replacement = createPreviewArrowSvgFragment({
-    ownerDocument: options.group.ownerDocument,
-    routedArrows: [options.arrow],
-    boundsMap: options.boundsMap,
-    headLen: options.headLen,
-    headHalf: options.headHalf,
-  }).firstChild;
-  if (!replacement) {
+  const labelElement = buildArrowLabelElement(options.group.ownerDocument, options.arrow, options.plan);
+  if (!labelElement) {
     return;
   }
-  Array.from(replacement.childNodes).forEach((child) => {
-    if (child.nodeName.toLowerCase() === 'text') {
-      options.group.appendChild(child);
-    }
-  });
+  options.group.appendChild(labelElement);
 }
 
 export function previewArrowComponentId(
@@ -351,67 +258,46 @@ export function createPreviewArrowSvgFragment(
     const group = options.ownerDocument.createElementNS(SVG_NS, 'g');
     group.setAttribute('data-dg-arrow', 'true');
     group.setAttribute('data-component-id', arrow.componentId || '');
-
-    const points = arrow.points || [];
-    if (points.length < 2) {
-      fragment.appendChild(group);
-      continue;
-    }
-
-    let headPoints: string | null = null;
-    let shaftPoints = points;
-    const head = resolvePreviewArrowhead({
-      tip: points[points.length - 1]!,
-      previous: points[points.length - 2]!,
-      headLen,
-      headHalf,
+    const plan = resolveArrowRenderPlan({
+      arrow,
+      boundsMap: options.boundsMap,
+      headLength: headLen,
+      headHalfWidth: headHalf,
     });
-    if (head) {
-      headPoints = head.points;
-      shaftPoints = [...points.slice(0, -1), head.base];
-    }
 
-    const color = arrow.color || ARROW_COLOR;
-    for (let index = 0; index < shaftPoints.length - 1; index += 1) {
-      const [x1, y1] = shaftPoints[index]!;
-      const [x2, y2] = shaftPoints[index + 1]!;
+    for (const segment of plan.shaftSegments) {
 
       const line = options.ownerDocument.createElementNS(SVG_NS, 'line');
-      line.setAttribute('x1', x1.toFixed(1));
-      line.setAttribute('y1', y1.toFixed(1));
-      line.setAttribute('x2', x2.toFixed(1));
-      line.setAttribute('y2', y2.toFixed(1));
+      line.setAttribute('x1', segment.x1.toFixed(1));
+      line.setAttribute('y1', segment.y1.toFixed(1));
+      line.setAttribute('x2', segment.x2.toFixed(1));
+      line.setAttribute('y2', segment.y2.toFixed(1));
       line.setAttribute('fill', 'none');
-      line.setAttribute('stroke', color);
+      line.setAttribute('stroke', plan.color);
       line.setAttribute('stroke-width', '1');
       line.setAttribute('stroke-miterlimit', '10');
       group.appendChild(line);
 
       const hit = options.ownerDocument.createElementNS(SVG_NS, 'line');
-      hit.setAttribute('x1', x1.toFixed(1));
-      hit.setAttribute('y1', y1.toFixed(1));
-      hit.setAttribute('x2', x2.toFixed(1));
-      hit.setAttribute('y2', y2.toFixed(1));
+      hit.setAttribute('x1', segment.x1.toFixed(1));
+      hit.setAttribute('y1', segment.y1.toFixed(1));
+      hit.setAttribute('x2', segment.x2.toFixed(1));
+      hit.setAttribute('y2', segment.y2.toFixed(1));
       hit.setAttribute('stroke', 'transparent');
       hit.setAttribute('stroke-width', '12');
       hit.style.pointerEvents = 'stroke';
       group.appendChild(hit);
     }
 
+    const headPoints = arrowheadPolygonPoints(plan);
     if (headPoints) {
       const polygon = options.ownerDocument.createElementNS(SVG_NS, 'polygon');
       polygon.setAttribute('points', headPoints);
-      polygon.setAttribute('fill', color);
+      polygon.setAttribute('fill', plan.color);
       group.appendChild(polygon);
     }
 
-    const labelElement = buildArrowLabelElement(
-      options.ownerDocument,
-      arrow,
-      shaftPoints,
-      arrow.labelGap ?? GRID_GUTTER,
-      options.boundsMap,
-    );
+    const labelElement = buildArrowLabelElement(options.ownerDocument, arrow, plan);
     if (labelElement) {
       group.appendChild(labelElement);
     }
@@ -447,8 +333,13 @@ export function patchPreviewArrowSvg(
     const allLines = Array.from(group.querySelectorAll('line'));
     const visibleLines = allLines.filter((line) => line.getAttribute('stroke') !== 'transparent');
     const hitLines = allLines.filter((line) => line.getAttribute('stroke') === 'transparent');
-    const points = [arrow.start, ...arrow.waypoints, arrow.end];
-    const segmentCount = Math.max(0, points.length - 1);
+    const plan = resolveArrowRenderPlan({
+      arrow,
+      boundsMap: options.boundsMap,
+      headLength: headLen,
+      headHalfWidth: headHalf,
+    });
+    const segmentCount = plan.shaftSegments.length;
 
     if (visibleLines.length !== segmentCount || hitLines.length !== segmentCount) {
       const replacement = createPreviewArrowSvgFragment({
@@ -466,28 +357,16 @@ export function patchPreviewArrowSvg(
       continue;
     }
 
-    if (visibleLines.length > 0 && points.length >= 2) {
-      let basePoint: [number, number] | null = null;
-      const head = resolvePreviewArrowhead({
-        tip: points[points.length - 1]!,
-        previous: points[points.length - 2]!,
-        headLen,
-        headHalf,
-      });
-      if (head) {
-        basePoint = head.base;
+    if (visibleLines.length > 0) {
+      for (let index = 0; index < visibleLines.length && index < plan.shaftSegments.length; index += 1) {
+        const segment = plan.shaftSegments[index]!;
+        visibleLines[index]!.setAttribute('x1', segment.x1.toFixed(1));
+        visibleLines[index]!.setAttribute('y1', segment.y1.toFixed(1));
+        visibleLines[index]!.setAttribute('x2', segment.x2.toFixed(1));
+        visibleLines[index]!.setAttribute('y2', segment.y2.toFixed(1));
       }
 
-      for (let index = 0; index < visibleLines.length && index < points.length - 1; index += 1) {
-        visibleLines[index]!.setAttribute('x1', points[index]![0].toFixed(1));
-        visibleLines[index]!.setAttribute('y1', points[index]![1].toFixed(1));
-        const isLastSegment = index === points.length - 2;
-        const endPoint = isLastSegment && basePoint ? basePoint : points[index + 1]!;
-        visibleLines[index]!.setAttribute('x2', endPoint[0].toFixed(1));
-        visibleLines[index]!.setAttribute('y2', endPoint[1].toFixed(1));
-      }
-
-      for (let index = 0; index < hitLines.length && index < visibleLines.length; index += 1) {
+      for (let index = 0; index < hitLines.length && index < plan.shaftSegments.length; index += 1) {
         hitLines[index]!.setAttribute('x1', visibleLines[index]!.getAttribute('x1') || '0');
         hitLines[index]!.setAttribute('y1', visibleLines[index]!.getAttribute('y1') || '0');
         hitLines[index]!.setAttribute('x2', visibleLines[index]!.getAttribute('x2') || '0');
@@ -496,24 +375,15 @@ export function patchPreviewArrowSvg(
     }
 
     const polygon = group.querySelector('polygon');
-    if (polygon && points.length >= 2) {
-      const head = resolvePreviewArrowhead({
-        tip: points[points.length - 1]!,
-        previous: points[points.length - 2]!,
-        headLen,
-        headHalf,
-      });
-      if (head) {
-        polygon.setAttribute('points', head.points);
-      }
+    const headPoints = arrowheadPolygonPoints(plan);
+    if (polygon && headPoints) {
+      polygon.setAttribute('points', headPoints);
     }
 
     replacePreviewArrowLabels({
       group,
       arrow,
-      boundsMap: options.boundsMap,
-      headLen,
-      headHalf,
+      plan,
     });
     syncPreviewArrowOriginGeometry(group);
   }

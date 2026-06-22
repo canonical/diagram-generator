@@ -13,8 +13,9 @@ import {
   sizeToPx,
 } from './tokens.js';
 import { type LineSpec, type TextMeasureAdapter, wrapTextLines } from './text-measure.js';
+import { lineTopToBaseline } from './text-render-geometry.js';
 
-const ASCENT_RATIO = 0.94;
+export { lineTopToBaseline } from './text-render-geometry.js';
 
 export interface FrameRenderBoxPlan {
   x: number;
@@ -64,10 +65,6 @@ export interface FrameRenderPlan {
   separator: FrameRenderSeparatorPlan | null;
   textBlocks: FrameRenderTextBlockPlan[];
   icon: FrameRenderIconPlan | null;
-}
-
-export function lineTopToBaseline(top: number, size: string | number): number {
-  return top + sizeToPx(size) * ASCENT_RATIO;
 }
 
 export function resolveFrameRenderPlan(

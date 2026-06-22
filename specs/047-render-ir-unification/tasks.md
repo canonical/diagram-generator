@@ -7,14 +7,14 @@
 ## Phase 1 - Architecture lock
 
 - [x] T001 Confirm the post-046 start gate and define explicit unblock conditions
-- [ ] T002 Inventory every remaining render geometry owner and serializer boundary
-- [ ] T003 Decide whether bridge arrow patching survives as an optimization or is deleted after parity/perf review
+- [x] T002 Inventory every remaining render geometry owner and serializer boundary
+- [x] T003 Decide whether bridge arrow patching survives as an optimization or is deleted after parity/perf review
 
 ## Phase 2 - Immediate geometry convergence
 
 - [x] T010 Replace legacy arrowhead literals/fallbacks with shared canonical geometry helpers everywhere
 - [x] T011 Add focused parity coverage that proves arrowheads/shaft truncation match across preview/export paths
-- [ ] T012 Document which preview-only layers/metadata are serializer-specific and must never leak into export
+- [x] T012 Document which preview-only layers/metadata are serializer-specific and must never leak into export
 
 ## Phase 3 - Shared IR cutover
 

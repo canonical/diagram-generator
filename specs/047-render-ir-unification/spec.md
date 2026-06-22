@@ -137,4 +137,8 @@ SVG and display-list serializers. The next landed slice pushes the same
 convergence into frame rendering: frame box, separator, icon, and wrapped text
 layout now flow through one shared frame render plan consumed by preview patch,
 artifact SVG, and display-list emission, while preview-only metadata remains
-owned by the preview serializer.
+owned by the preview serializer. A follow-up slice now does the same for
+arrows: shaft truncation, head geometry, authored-label placement, and display
+stacking order are shared across preview DOM, legacy SVG, and display-list
+emission, and the remaining preview-only metadata/layer owners are explicitly
+inventoried under `render-owner-inventory.md`.

@@ -6,26 +6,21 @@
 import {
   Frame,
   FrameDiagram,
-  type Arrow,
   type DiagramOverlay,
 } from './frame-model.js';
-import { resolveArrowPolylineGeometry, type ResolvedArrowheadGeometry } from './arrow-geometry.js';
-import { lineTopToBaseline, resolveFrameRenderPlan } from './frame-render-plan.js';
+import { resolveArrowRenderPlan } from './arrow-render-plan.js';
+import { type ResolvedArrowheadGeometry } from './arrow-geometry.js';
+import { resolveFrameRenderPlan } from './frame-render-plan.js';
 import {
   ICON_SIZE,
   BODY_SIZE,
-  BODY_LINE_STEP,
   ARROW_HEAD_LENGTH,
   ARROW_HEAD_HALF_WIDTH,
-  ARROW_COLOR,
   sizeToPx,
 } from './tokens.js';
 import {
   type TextMeasureAdapter,
 } from './text-measure.js';
-import {
-  annotationTextToSpec,
-} from './resolved-spec-typography.js';
 import type { LayoutOutput } from './layout.js';
 import { tintIconInnerMarkup } from './icon-embed.js';
 import { routeArrows, type RoutedArrow } from './arrow-routing.js';
@@ -138,91 +133,50 @@ function arrowheadPolygonPoints(head: ResolvedArrowheadGeometry): string {
   ].join(' ');
 }
 
-function labelAnchorForSegment(
-  x1: number,
-  y1: number,
-  x2: number,
-  y2: number,
-  labelGap: number,
-): { lx: number; ly: number } {
-  const mx = (x1 + x2) / 2;
-  const my = (y1 + y2) / 2;
-  const dx = x2 - x1;
-  const dy = y2 - y1;
-  const len = Math.hypot(dx, dy) || 1;
-  const nx = -dy / len;
-  const ny = dx / len;
-  return { lx: mx + nx * labelGap, ly: my + ny * labelGap };
-}
-
-function renderArrows(routed: RoutedArrow[], adapter: TextMeasureAdapter): string {
+function renderArrows(
+  routed: RoutedArrow[],
+  adapter: TextMeasureAdapter,
+  bounds: Record<string, { x: number; y: number; w: number; h: number }>,
+): string {
   const parts: string[] = [];
   for (const arrow of routed) {
-    const { points, color, label, labelGap, componentId } = arrow;
-    if (points.length < 2) continue;
-
-    const { head, shaftPoints } = resolveArrowPolylineGeometry({
-      points,
+    const plan = resolveArrowRenderPlan({
+      arrow,
+      boundsMap: bounds,
       headLength: ARROW_HEAD_LENGTH,
       headHalfWidth: ARROW_HEAD_HALF_WIDTH,
     });
+    if (plan.shaftSegments.length === 0 && !plan.head) continue;
 
-    const cid = componentId ? ` data-component-id="${esc(componentId)}"` : '';
+    const cid = plan.componentId ? ` data-component-id="${esc(plan.componentId)}"` : '';
     const inner: string[] = [];
-    for (let i = 0; i < shaftPoints.length - 1; i++) {
-      const [x1, y1] = shaftPoints[i]!;
-      const [x2, y2] = shaftPoints[i + 1]!;
+    for (const segment of plan.shaftSegments) {
       inner.push(
-        `<line x1="${fmt(x1)}" y1="${fmt(y1)}" x2="${fmt(x2)}" y2="${fmt(y2)}"` +
-        ` fill="none" stroke="${esc(color)}" stroke-width="1" stroke-miterlimit="10"/>`,
+        `<line x1="${fmt(segment.x1)}" y1="${fmt(segment.y1)}" x2="${fmt(segment.x2)}" y2="${fmt(segment.y2)}"` +
+        ` fill="none" stroke="${esc(plan.color)}" stroke-width="1" stroke-miterlimit="10"/>`,
       );
     }
-    if (head) inner.push(`<polygon points="${arrowheadPolygonPoints(head)}" fill="${esc(color)}"/>`);
+    if (plan.head) {
+      inner.push(`<polygon points="${arrowheadPolygonPoints(plan.head)}" fill="${esc(plan.color)}"/>`);
+    }
 
-    // Arrow label on longest shaft segment — annotation typography, offset from line.
-    if (label && label.length > 0) {
-      let bestIdx = 0;
-      let bestLen = 0;
-      for (let i = 0; i < shaftPoints.length - 1; i++) {
-        const [x1, y1] = shaftPoints[i]!;
-        const [x2, y2] = shaftPoints[i + 1]!;
-        const len = Math.hypot(x2 - x1, y2 - y1);
-        if (len > bestLen) {
-          bestLen = len;
-          bestIdx = i;
-        }
-      }
-      const [mx1, my1] = shaftPoints[bestIdx]!;
-      const [mx2, my2] = shaftPoints[bestIdx + 1]!;
-      const { lx, ly } = labelAnchorForSegment(mx1, my1, mx2, my2, labelGap);
-      const specs = label.map(annotationTextToSpec);
-      if (specs.length > 0) {
-        const totalHeight = specs.reduce((sum, spec, index) => {
-          const lineStep = sizeToPx(spec.lineStep ?? BODY_LINE_STEP);
-          return sum + (index === 0 ? 0 : lineStep);
-        }, 0);
-        let top = ly - totalHeight / 2;
-        const tspans: string[] = [];
-        for (const spec of specs) {
-          const size = String(spec.size ?? BODY_SIZE);
-          const weight = spec.weight ?? '400';
-          const fill = spec.fill ?? '#666666';
-          const lineStep = sizeToPx(spec.lineStep ?? BODY_LINE_STEP);
-          const attrs = [
-            `x="${fmt(lx)}"`,
-            `y="${fmt(lineTopToBaseline(top, size))}"`,
-            `font-size="${esc(size)}"`,
-            `font-weight="${esc(String(weight))}"`,
-            `fill="${esc(fill)}"`,
-          ];
-          if (spec.letterSpacing) attrs.push(`letter-spacing="${esc(String(spec.letterSpacing))}"`);
-          tspans.push(`<tspan ${attrs.join(' ')}>${esc(spec.content)}</tspan>`);
-          top += lineStep;
-        }
-        inner.push(
-          `<text font-family="Ubuntu Sans" text-anchor="middle" dominant-baseline="middle">${tspans.join('')}</text>`,
-        );
-      }
+    if (plan.label) {
+      const tspans = plan.label.lines.map((line) => {
+        const attrs = [
+          `x="${fmt(line.x)}"`,
+          `y="${fmt(line.y)}"`,
+          `font-size="${esc(line.size)}"`,
+          `font-weight="${esc(line.weight)}"`,
+          `fill="${esc(line.fill)}"`,
+        ];
+        if (line.spec.letterSpacing) attrs.push(`letter-spacing="${esc(String(line.spec.letterSpacing))}"`);
+        if (line.spec.fontFamily) attrs.push(`font-family="${esc(String(line.spec.fontFamily))}"`);
+        if (line.spec.smallCaps) attrs.push('font-variant-caps="small-caps"');
+        return `<tspan ${attrs.join(' ')}>${esc(line.spec.content)}</tspan>`;
+      });
+      inner.push(
+        `<text font-family="Ubuntu Sans" text-anchor="${plan.label.textAnchor}" dominant-baseline="${plan.label.dominantBaseline}">${tspans.join('')}</text>`,
+      );
     }
 
     parts.push(`<g data-dg-arrow="true"${cid}>${inner.join('')}</g>`);
@@ -294,7 +248,7 @@ export function renderFrameDiagramToSvg(
   const body = renderFrameGroup(diagram.root, adapter, options?.iconMarkupByName);
   const bounds = collectBounds(diagram.root);
   const routed = routeArrows(diagram.arrows, bounds);
-  const arrows = renderArrows(routed, adapter);
+  const arrows = renderArrows(routed, adapter, bounds);
   const overlays = renderOverlays(diagram.overlays, bounds);
   return (
     `<?xml version="1.0" encoding="UTF-8"?>\n` +

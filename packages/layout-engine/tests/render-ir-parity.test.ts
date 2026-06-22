@@ -146,4 +146,57 @@ describe("render-ir parity", () => {
 
     expect(normalizeGeometry(displayListSvg)).toEqual(normalizeGeometry(legacySvg));
   });
+
+  it("emits equivalent authored arrow label geometry across display-list and legacy svg serializers", () => {
+    const root = new Frame({
+      id: "page",
+      children: [
+        new Frame({ id: "source", label: [{ content: "Source" }] }),
+        new Frame({ id: "target", label: [{ content: "Target" }] }),
+        new Frame({ id: "obstacle", label: [{ content: "Obstacle" }] }),
+      ],
+    });
+
+    root._layout.placedX = 0;
+    root._layout.placedY = 0;
+    root._layout.placedW = 320;
+    root._layout.placedH = 160;
+
+    const source = root.children[0]!;
+    source._layout.placedX = 0;
+    source._layout.placedY = 40;
+    source._layout.placedW = 60;
+    source._layout.placedH = 40;
+
+    const target = root.children[1]!;
+    target._layout.placedX = 220;
+    target._layout.placedY = 40;
+    target._layout.placedW = 60;
+    target._layout.placedH = 40;
+
+    const obstacle = root.children[2]!;
+    obstacle._layout.placedX = 110;
+    obstacle._layout.placedY = 0;
+    obstacle._layout.placedW = 60;
+    obstacle._layout.placedH = 36;
+
+    const diagram = new FrameDiagram({
+      root,
+      arrows: [
+        createArrow("source.right", "target.left", {
+          id: "labeled-edge",
+          label: [{ content: "Fast path" }],
+          labelGap: 24,
+        }),
+      ],
+    });
+    const layout = { width: 320, height: 160 };
+    const adapter = new MockTextAdapter();
+
+    const displayList = emitFrameDiagramDisplayList(diagram, layout, adapter);
+    const legacySvg = renderFrameDiagramToSvg(diagram, layout, adapter);
+    const displayListSvg = renderDisplayListToSvg(displayList);
+
+    expect(normalizeGeometry(displayListSvg)).toEqual(normalizeGeometry(legacySvg));
+  });
 });
