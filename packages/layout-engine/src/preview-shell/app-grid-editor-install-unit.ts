@@ -8,8 +8,16 @@ import {
   type CreatePreviewGridEditorRuntimeFromBrowserHostOptions,
   type PreviewGridEditorRuntimeBrowserOptions,
   type PreviewGridEditorRuntime,
+  type PreviewGridEditorRuntimeWindow,
   type PreviewGridEditorRuntimeValueState,
 } from './app-grid-editor-runtime.js';
+import {
+  DEFAULT_PREVIEW_BOX_STYLES,
+  formatPreviewDefinedStyleLabel,
+  normalizePreviewStyleName,
+  renderPreviewBoxStyleOptions,
+  type PreviewBoxStyleMap,
+} from './frame-style.js';
 
 type BrowserStateBackedRuntimeBrowserKey =
   | 'getOverrides'
@@ -173,6 +181,100 @@ export interface CreatePreviewGridEditorInstallUnitFromEditorHostOptions {
   };
 }
 
+export interface PreviewGridEditorLegacyConfig {
+  slug: string;
+  engine: string;
+  gridEnabled: boolean;
+  guideModes: string[];
+  baselineStep: number;
+  inset: number;
+  guideColor: string;
+  guideOpacity: string;
+  interactionMode: PreviewGridEditorRuntimeBrowserOptions['interactionMode'];
+  handleSize: number;
+  minNodeSize: number;
+  fallbackGap: number;
+  snapToGrid: PreviewGridEditorRuntimeBrowserOptions['snapToGrid'];
+}
+
+export interface PreviewGridEditorLegacyState {
+  model: CreatePreviewGridEditorInstallUnitFromEditorHostOptions['shared']['model'];
+  interactionManager:
+    CreatePreviewGridEditorInstallUnitFromEditorHostOptions['shared']['interactionManager'];
+  selectedIds: CreatePreviewGridEditorInstallUnitFromEditorHostOptions['shared']['selectedIds'];
+  selectionDepthState:
+    CreatePreviewGridEditorInstallUnitFromEditorHostOptions['shared']['selectionDepthState'];
+  coercedKeys: CreatePreviewGridEditorInstallUnitFromEditorHostOptions['shared']['coercedKeys'];
+  editorState: CreatePreviewGridEditorInstallUnitFromEditorHostOptions['shared']['editorState'];
+  previewSaveClient:
+    CreatePreviewGridEditorInstallUnitFromEditorHostOptions['shared']['previewSaveClient'];
+  generationState:
+    CreatePreviewGridEditorInstallUnitFromEditorHostOptions['shared']['generationState'];
+  allowInternalDirtyNavigationState:
+    CreatePreviewGridEditorInstallUnitFromEditorHostOptions['shared']['allowInternalDirtyNavigationState'];
+  constraints: CreatePreviewGridEditorInstallUnitFromEditorHostOptions['shared']['constraints'];
+  lastViolationsState:
+    CreatePreviewGridEditorInstallUnitFromEditorHostOptions['shared']['lastViolationsState'];
+  overridesState: CreatePreviewGridEditorInstallUnitFromEditorHostOptions['state']['overridesState'];
+  multiActionGapState:
+    CreatePreviewGridEditorInstallUnitFromEditorHostOptions['state']['multiActionGapState'];
+  layoutRelayoutTimerState:
+    CreatePreviewGridEditorInstallUnitFromEditorHostOptions['state']['layoutRelayoutTimerState'];
+}
+
+interface PreviewGridEditorLegacyHelpers {
+  applyInteractionOverrideEntries:
+    PreviewGridEditorRuntimeBrowserOptions['applyInteractionOverrideEntries'];
+}
+
+export type PreviewGridEditorLegacyWindow = PreviewGridEditorRuntimeWindow & {
+  __DG_CONFIG?: {
+    icon_size?: number;
+    col_gap?: number;
+    head_len?: number;
+    head_half?: number;
+  } | null;
+  __DG_BOX_STYLES?: PreviewBoxStyleMap | null;
+  syncArrowsInModel?: PreviewGridEditorRuntimeBrowserOptions['syncArrowsInModel'];
+  arrowComponentId?: PreviewGridEditorRuntimeBrowserOptions['arrowComponentId'];
+  renderGuideLines?: ((lines: unknown, color?: string, opacity?: string) => void) | null;
+  clearGuideLines?: (() => void) | null;
+  clearHandlesByClass?: ((className: string) => void) | null;
+  renderResizeHandles?: ((
+    svg: SVGSVGElement,
+    left: number,
+    top: number,
+    right: number,
+    bottom: number,
+    nodeId: string,
+    options: {
+      handleClass?: string;
+      nodeAttr?: string;
+      dirAttr?: string;
+    },
+  ) => void) | null;
+  collectPeerSnapTargets?: PreviewGridEditorRuntimeBrowserOptions['collectPeerSnapTargets'];
+  collectGridSnapTargets?: PreviewGridEditorRuntimeBrowserOptions['collectGridSnapTargets'];
+  snapRectToTargets?: PreviewGridEditorRuntimeBrowserOptions['snapRectToTargets'];
+  fitSvgToRenderedContent?: PreviewGridEditorRuntimeBrowserOptions['fitRenderedSvgToContent'];
+  escapeHtml?: PreviewGridEditorRuntimeBrowserOptions['escapeHtml'];
+  initNavTabs?: PreviewGridEditorRuntimeBrowserOptions['initNavTabs'];
+  setStatus?: PreviewGridEditorRuntimeBrowserOptions['setStatus'];
+  sanitizeSvgCloneForExport?:
+    PreviewGridEditorRuntimeBrowserOptions['sanitizeSvgCloneForExport'];
+  getLayoutTextAdapter?: (() => unknown) | null;
+};
+
+export interface CreatePreviewGridEditorInstallOptionsFromLegacyEditorHostOptions {
+  document: Document;
+  previewWindow: PreviewGridEditorLegacyWindow;
+  config: PreviewGridEditorLegacyConfig;
+  state: PreviewGridEditorLegacyState;
+  helpers: PreviewGridEditorLegacyHelpers;
+  modelOps: CreatePreviewGridEditorInstallUnitFromEditorHostOptions['modelOps'];
+  facades: CreatePreviewGridEditorInstallUnitFromEditorHostOptions['facades'];
+}
+
 export interface PreviewGridEditorInstallUnit {
   getRuntime: () => PreviewGridEditorRuntime;
   getBrowserState: () => PreviewGridEditorBrowserState;
@@ -279,6 +381,163 @@ export interface PreviewGridEditorCompatFacade {
   runConstraints: PreviewGridEditorSceneFacade['runConstraints'];
   onDocumentKeyDown: PreviewGridEditorInteractionFacade['onDocumentKeyDown'];
   bootstrapEditorRuntime: PreviewGridEditorBootstrapFacade['bootstrapEditorRuntime'];
+}
+
+function readLegacyPreviewRenderedStyleFields(
+  document: Document,
+  cid: string,
+): { fill?: string | null; stroke?: string | null } | null {
+  const group = document.querySelector(`[data-component-id="${CSS.escape(cid)}"]`);
+  const rect = group ? group.querySelector(':scope > rect:first-of-type') : null;
+  if (!rect) {
+    return null;
+  }
+  return {
+    fill: rect.getAttribute('fill'),
+    stroke: rect.getAttribute('stroke'),
+  };
+}
+
+function resolveLegacyPreviewBoxStyles(
+  previewWindow: PreviewGridEditorLegacyWindow,
+): PreviewBoxStyleMap {
+  return previewWindow.__DG_BOX_STYLES ?? DEFAULT_PREVIEW_BOX_STYLES;
+}
+
+function resolveLegacyPreviewClipboardWriter(
+  previewWindow: PreviewGridEditorLegacyWindow,
+): PreviewGridEditorRuntimeBrowserOptions['writeClipboardText'] {
+  return (text) => previewWindow.navigator?.clipboard?.writeText?.(text) ?? Promise.resolve();
+}
+
+function createLegacyPreviewResizeHandleRenderer(
+  previewWindow: PreviewGridEditorLegacyWindow,
+): PreviewGridEditorRuntimeBrowserOptions['renderResizeHandles'] {
+  return ({ svg, left, top, right, bottom, nodeId, options }) => {
+    previewWindow.renderResizeHandles?.(svg, left, top, right, bottom, nodeId, {
+      handleClass: 'dg-handle',
+      nodeAttr: options.nodeAttr,
+      dirAttr: options.dirAttr,
+    });
+  };
+}
+
+function createLegacyPreviewGuideRenderer(
+  previewWindow: PreviewGridEditorLegacyWindow,
+  config: PreviewGridEditorLegacyConfig,
+): PreviewGridEditorRuntimeBrowserOptions['renderGuideLines'] {
+  return (lines) => {
+    previewWindow.renderGuideLines?.(lines, config.guideColor, config.guideOpacity);
+  };
+}
+
+export function createPreviewGridEditorInstallOptionsFromLegacyEditorHost(
+  options: CreatePreviewGridEditorInstallOptionsFromLegacyEditorHostOptions,
+): CreatePreviewGridEditorInstallUnitFromEditorHostOptions {
+  const boxStyles = resolveLegacyPreviewBoxStyles(options.previewWindow);
+  const previewConfig = options.previewWindow.__DG_CONFIG ?? {};
+
+  return {
+    shared: {
+      document: options.document,
+      previewWindow: options.previewWindow,
+      slug: options.config.slug,
+      engine: options.config.engine,
+      gridEnabled: options.config.gridEnabled,
+      guideModes: options.config.guideModes,
+      baselineStep: options.config.baselineStep,
+      model: options.state.model,
+      interactionManager: options.state.interactionManager,
+      selectedIds: options.state.selectedIds,
+      selectionDepthState: options.state.selectionDepthState,
+      coercedKeys: options.state.coercedKeys,
+      editorState: options.state.editorState,
+      previewSaveClient: options.state.previewSaveClient,
+      generationState: options.state.generationState,
+      allowInternalDirtyNavigationState: options.state.allowInternalDirtyNavigationState,
+      constraints: options.state.constraints,
+      lastViolationsState: options.state.lastViolationsState,
+    },
+    state: {
+      overridesState: options.state.overridesState,
+      multiActionGapState: options.state.multiActionGapState,
+      layoutRelayoutTimerState: options.state.layoutRelayoutTimerState,
+      getMultiActionGapInput: () => (
+        options.document.getElementById('multi-action-gap') as { value?: string | number } | null
+      ),
+      setTimeoutFn: (callback, delayMs) => options.previewWindow.setTimeout(callback, delayMs),
+      clearTimeoutFn: (timerId) => options.previewWindow.clearTimeout(timerId as never),
+    },
+    browser: {
+      syncArrowsInModel: options.previewWindow.syncArrowsInModel ?? null,
+      arrowComponentId: options.previewWindow.arrowComponentId ?? null,
+      readRenderedStyleFields: (cid) => readLegacyPreviewRenderedStyleFields(options.document, cid),
+      renderGuideLines: createLegacyPreviewGuideRenderer(options.previewWindow, options.config),
+      clearGuideLines: () => {
+        options.previewWindow.clearGuideLines?.();
+      },
+      clearHandlesByClass: (className) => {
+        options.previewWindow.clearHandlesByClass?.(className);
+      },
+      renderResizeHandles: createLegacyPreviewResizeHandleRenderer(options.previewWindow),
+      collectPeerSnapTargets: ((...args: Parameters<NonNullable<
+        PreviewGridEditorLegacyWindow['collectPeerSnapTargets']
+      >>) => options.previewWindow.collectPeerSnapTargets?.(...args) ?? []) as
+        PreviewGridEditorRuntimeBrowserOptions['collectPeerSnapTargets'],
+      collectGridSnapTargets: ((gridInfo) => (
+        options.previewWindow.collectGridSnapTargets?.(gridInfo) ?? {}
+      )) as PreviewGridEditorRuntimeBrowserOptions['collectGridSnapTargets'],
+      snapRectToTargets: ((...args: Parameters<NonNullable<
+        PreviewGridEditorLegacyWindow['snapRectToTargets']
+      >>) => (
+        options.previewWindow.snapRectToTargets?.(...args)
+        ?? { dx: 0, dy: 0, lines: [] }
+      )) as PreviewGridEditorRuntimeBrowserOptions['snapRectToTargets'],
+      fitRenderedSvgToContent: options.previewWindow.fitSvgToRenderedContent ?? null,
+      escapeHtml: options.previewWindow.escapeHtml ?? null,
+      initNavTabs: options.previewWindow.initNavTabs ?? (() => {}),
+      setStatus: options.previewWindow.setStatus ?? null,
+      sanitizeSvgCloneForExport: options.previewWindow.sanitizeSvgCloneForExport ?? (() => {}),
+      applyInteractionOverrideEntries: options.helpers.applyInteractionOverrideEntries,
+      interactionMode: options.config.interactionMode,
+      boxStyles,
+      inset: options.config.inset,
+      iconSize: previewConfig.icon_size ?? 0,
+      handleSize: options.config.handleSize,
+      textEditingMode: options.config.interactionMode.TEXT_EDITING,
+      columnGap: previewConfig.col_gap ?? 0,
+      minNodeSize: options.config.minNodeSize,
+      fallbackGap: options.config.fallbackGap,
+      getInspector: () => options.document.getElementById('inspector'),
+      getTextAdapter: typeof options.previewWindow.getLayoutTextAdapter === 'function'
+        ? () => options.previewWindow.getLayoutTextAdapter?.()
+        : null,
+      renderBoxStyleOptions: (selectedValue, renderOptions = {}) => renderPreviewBoxStyleOptions({
+        boxStyles,
+        selectedValue,
+        originalLabel: (renderOptions as { originalLabel?: string }).originalLabel,
+      }),
+      formatAsDefinedStyleLabel: (styleName, mixed) => formatPreviewDefinedStyleLabel({
+        boxStyles,
+        styleName,
+        mixed,
+      }),
+      snapToGrid: options.config.snapToGrid,
+      alert: (message) => options.previewWindow.alert(message),
+      normalizeStyleName: normalizePreviewStyleName,
+      waypointDraggingMode: options.config.interactionMode.WAYPOINT_DRAGGING,
+      writeClipboardText: resolveLegacyPreviewClipboardWriter(options.previewWindow),
+      requestAnimationFrameFn: (callback) => options.previewWindow.requestAnimationFrame(callback),
+      cancelAnimationFrameFn: (id) => options.previewWindow.cancelAnimationFrame(id),
+      theme: {
+        headLen: previewConfig.head_len ?? 0,
+        headHalf: previewConfig.head_half ?? 0,
+        color: '#E95420',
+      },
+    },
+    modelOps: options.modelOps,
+    facades: options.facades,
+  };
 }
 
 function requestLayoutRelayoutFromFacade(

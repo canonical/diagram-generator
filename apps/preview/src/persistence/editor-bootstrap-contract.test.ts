@@ -294,7 +294,9 @@ function createPreviewGridEditorRuntimeContext(options?: {
   relayoutFacade?: unknown;
   sceneFacade?: unknown;
 }) {
-  let capturedOptions: Record<string, unknown> | null = null;
+  let capturedLegacyOptions: Record<string, unknown> | null = null;
+  let capturedInstallOptions: Record<string, unknown> | null = null;
+  const derivedInstallOptions = { kind: "derived-install-options" };
   const runtime = {
     invalidateOverrideBoundFacades() {},
     getBootstrapFacade() {
@@ -317,6 +319,8 @@ function createPreviewGridEditorRuntimeContext(options?: {
     ACTIVE_LAYOUT_ENGINE: "v3",
     GRID: true,
     GUIDE_MODES: ["off", "all"],
+    GUIDE_COLOR: "#f00",
+    GUIDE_OPACITY: "0.5",
     BASELINE_STEP: 24,
     selectionDepth: 2,
     generation: 3,
@@ -525,8 +529,14 @@ function createPreviewGridEditorRuntimeContext(options?: {
       },
       __DG_getPreviewShellBootstrapContract() {
         return {
+          createPreviewGridEditorInstallOptionsFromLegacyEditorHost(
+            nextOptions: Record<string, unknown>,
+          ) {
+            capturedLegacyOptions = nextOptions;
+            return derivedInstallOptions;
+          },
           createPreviewGridEditorInstallUnitFromEditorHost(nextOptions: Record<string, unknown>) {
-            capturedOptions = nextOptions;
+            capturedInstallOptions = nextOptions;
             return {
               getRuntime() {
                 return runtime;
@@ -545,7 +555,10 @@ function createPreviewGridEditorRuntimeContext(options?: {
     context,
     runtime,
     getCapturedOptions() {
-      return capturedOptions;
+      return capturedLegacyOptions;
+    },
+    getCapturedInstallOptions() {
+      return capturedInstallOptions;
     },
   };
 }
@@ -695,24 +708,27 @@ test("editor bootstrap facade delegates through the typed preview-grid runtime",
   });
 
   const capturedOptions = harness.getCapturedOptions();
-  const shared = capturedOptions?.shared as Record<string, unknown> | undefined;
+  const capturedInstallOptions = harness.getCapturedInstallOptions();
+  const config = capturedOptions?.config as Record<string, unknown> | undefined;
+  const state = capturedOptions?.state as Record<string, unknown> | undefined;
+  const helpers = capturedOptions?.helpers as Record<string, unknown> | undefined;
   const modelOps = capturedOptions?.modelOps as Record<string, unknown> | undefined;
-  const browser = capturedOptions?.browser as Record<string, unknown> | undefined;
   const facades = capturedOptions?.facades as Record<string, unknown> | undefined;
   assert.deepEqual(normalizeVmValue({
-    slug: shared?.slug,
-    engine: shared?.engine,
-    gridEnabled: shared?.gridEnabled,
-    guideModes: Array.from(shared?.guideModes as Iterable<string>),
-    selectedIds: Array.from(shared?.selectedIds as Iterable<string>),
+    slug: config?.slug,
+    engine: config?.engine,
+    gridEnabled: config?.gridEnabled,
+    guideModes: Array.from(config?.guideModes as Iterable<string>),
+    selectedIds: Array.from(state?.selectedIds as Iterable<string>),
     allowInternalDirtyNavigation:
-      (shared?.allowInternalDirtyNavigationState as { get?: () => boolean } | undefined)?.get?.(),
-    generation: (shared?.generationState as { get?: () => number } | undefined)?.get?.(),
+      (state?.allowInternalDirtyNavigationState as { get?: () => boolean } | undefined)?.get?.(),
+    generation: (state?.generationState as { get?: () => number } | undefined)?.get?.(),
     hasGetOwnDelta: typeof modelOps?.getOwnDelta,
     hasGetEditorInteractionFacade: typeof facades?.getEditorInteractionFacade,
     hasGetEditorSceneFacade: typeof facades?.getEditorSceneFacade,
     hasGetEditorRelayoutFacade: typeof facades?.getEditorRelayoutFacade,
-    hasWriteClipboardText: typeof browser?.writeClipboardText,
+    hasApplyInteractionOverrideEntries: typeof helpers?.applyInteractionOverrideEntries,
+    installOptionsKind: capturedInstallOptions?.kind,
   }), {
     slug: "demo",
     engine: "v3",
@@ -725,7 +741,8 @@ test("editor bootstrap facade delegates through the typed preview-grid runtime",
     hasGetEditorInteractionFacade: "function",
     hasGetEditorSceneFacade: "function",
     hasGetEditorRelayoutFacade: "function",
-    hasWriteClipboardText: "function",
+    hasApplyInteractionOverrideEntries: "function",
+    installOptionsKind: "derived-install-options",
   });
 });
 
@@ -758,19 +775,19 @@ test("editor relayout facade delegates through the typed preview-grid runtime", 
   });
 
   const capturedOptions = harness.getCapturedOptions();
-  const shared = capturedOptions?.shared as Record<string, unknown> | undefined;
+  const capturedInstallOptions = harness.getCapturedInstallOptions();
+  const config = capturedOptions?.config as Record<string, unknown> | undefined;
   const state = capturedOptions?.state as Record<string, unknown> | undefined;
-  const browser = capturedOptions?.browser as Record<string, unknown> | undefined;
   const facades = capturedOptions?.facades as Record<string, unknown> | undefined;
   assert.deepEqual(normalizeVmValue({
-    coercedKeys: Array.from(shared?.coercedKeys as Iterable<string>),
+    coercedKeys: Array.from(state?.coercedKeys as Iterable<string>),
     hasNormalizeGridOverrides: typeof (
-      shared?.editorState as { normalizeGridOverrides?: (...args: unknown[]) => unknown } | undefined
+      state?.editorState as { normalizeGridOverrides?: (...args: unknown[]) => unknown } | undefined
     )?.normalizeGridOverrides,
     hasCommitOverridePatchAction: typeof (
-      shared?.editorState as { commitOverridePatchAction?: (...args: unknown[]) => unknown } | undefined
+      state?.editorState as { commitOverridePatchAction?: (...args: unknown[]) => unknown } | undefined
     )?.commitOverridePatchAction,
-    selectedIds: Array.from(shared?.selectedIds as Iterable<string>),
+    selectedIds: Array.from(state?.selectedIds as Iterable<string>),
     hasOverrideStateGet: typeof (
       state?.overridesState as { get?: () => Record<string, unknown> } | undefined
     )?.get,
@@ -785,8 +802,10 @@ test("editor relayout facade delegates through the typed preview-grid runtime", 
     )?.set,
     hasGetEditorSceneFacade: typeof facades?.getEditorSceneFacade,
     hasGetEditorRelayoutFacade: typeof facades?.getEditorRelayoutFacade,
-    hasRequestAnimationFrame: typeof browser?.requestAnimationFrameFn,
-    hasCancelAnimationFrame: typeof browser?.cancelAnimationFrameFn,
+    hasSnapToGrid: typeof config?.snapToGrid,
+    handleSize: config?.handleSize,
+    guideColor: config?.guideColor,
+    installOptionsKind: capturedInstallOptions?.kind,
   }), {
     coercedKeys: ["coerced"],
     hasNormalizeGridOverrides: "function",
@@ -798,8 +817,10 @@ test("editor relayout facade delegates through the typed preview-grid runtime", 
     hasTimerStateSet: "function",
     hasGetEditorSceneFacade: "function",
     hasGetEditorRelayoutFacade: "function",
-    hasRequestAnimationFrame: "function",
-    hasCancelAnimationFrame: "function",
+    hasSnapToGrid: "function",
+    handleSize: 12,
+    guideColor: "#f00",
+    installOptionsKind: "derived-install-options",
   });
 });
 

@@ -292,7 +292,9 @@ function createPreviewGridEditorRuntimeContext(options?: {
   interactionFacade?: unknown;
   sceneFacade?: unknown;
 }) {
-  let capturedOptions: Record<string, unknown> | null = null;
+  let capturedLegacyOptions: Record<string, unknown> | null = null;
+  let capturedInstallOptions: Record<string, unknown> | null = null;
+  const derivedInstallOptions = { kind: "derived-install-options" };
   const runtime = {
     invalidateOverrideBoundFacades() {},
     getBootstrapFacade() {
@@ -315,6 +317,8 @@ function createPreviewGridEditorRuntimeContext(options?: {
     ACTIVE_LAYOUT_ENGINE: "v3",
     GRID: true,
     GUIDE_MODES: ["off", "all"],
+    GUIDE_COLOR: "#f00",
+    GUIDE_OPACITY: "0.5",
     BASELINE_STEP: 24,
     selectionDepth: 3,
     generation: 3,
@@ -528,8 +532,14 @@ function createPreviewGridEditorRuntimeContext(options?: {
       },
       __DG_getPreviewShellBootstrapContract() {
         return {
+          createPreviewGridEditorInstallOptionsFromLegacyEditorHost(
+            nextOptions: Record<string, unknown>,
+          ) {
+            capturedLegacyOptions = nextOptions;
+            return derivedInstallOptions;
+          },
           createPreviewGridEditorInstallUnitFromEditorHost(nextOptions: Record<string, unknown>) {
-            capturedOptions = nextOptions;
+            capturedInstallOptions = nextOptions;
             return {
               getRuntime() {
                 return runtime;
@@ -548,7 +558,10 @@ function createPreviewGridEditorRuntimeContext(options?: {
     context,
     runtime,
     getCapturedOptions() {
-      return capturedOptions;
+      return capturedLegacyOptions;
+    },
+    getCapturedInstallOptions() {
+      return capturedInstallOptions;
     },
   };
 }
@@ -1627,16 +1640,20 @@ test("editor scene facade delegates through the typed preview-grid runtime", () 
   });
 
   const capturedOptions = harness.getCapturedOptions();
-  const shared = capturedOptions?.shared as Record<string, unknown> | undefined;
+  const capturedInstallOptions = harness.getCapturedInstallOptions();
+  const config = capturedOptions?.config as Record<string, unknown> | undefined;
   const state = capturedOptions?.state as Record<string, unknown> | undefined;
-  const browser = capturedOptions?.browser as Record<string, unknown> | undefined;
+  const previewWindow = capturedOptions?.previewWindow as
+    | { __DG_CONFIG?: { icon_size?: number } | null }
+    | undefined;
+  const helpers = capturedOptions?.helpers as Record<string, unknown> | undefined;
   const modelOps = capturedOptions?.modelOps as Record<string, unknown> | undefined;
   const facades = capturedOptions?.facades as Record<string, unknown> | undefined;
   assert.deepEqual(normalizeVmValue({
-    slug: shared?.slug,
-    baselineStep: shared?.baselineStep,
-    guideModes: Array.from(shared?.guideModes as Iterable<string>),
-    selectedIds: Array.from(shared?.selectedIds as Iterable<string>),
+    slug: config?.slug,
+    baselineStep: config?.baselineStep,
+    guideModes: Array.from(config?.guideModes as Iterable<string>),
+    selectedIds: Array.from(state?.selectedIds as Iterable<string>),
     overrideKeys: Object.keys((
       state?.overridesState as { get?: () => Record<string, unknown> } | undefined
     )?.get?.() || {}),
@@ -1647,9 +1664,10 @@ test("editor scene facade delegates through the typed preview-grid runtime", () 
     hasGetAncestors: typeof modelOps?.getAncestors,
     hasGetEditorInteractionFacade: typeof facades?.getEditorInteractionFacade,
     hasGetEditorSceneFacade: typeof facades?.getEditorSceneFacade,
-    hasBoxStyles: typeof browser?.boxStyles,
-    inset: browser?.inset,
-    iconSize: browser?.iconSize,
+    hasApplyInteractionOverrideEntries: typeof helpers?.applyInteractionOverrideEntries,
+    inset: config?.inset,
+    iconSize: previewWindow?.__DG_CONFIG?.icon_size,
+    installOptionsKind: capturedInstallOptions?.kind,
   }), {
     slug: "demo",
     baselineStep: 24,
@@ -1661,9 +1679,10 @@ test("editor scene facade delegates through the typed preview-grid runtime", () 
     hasGetAncestors: "function",
     hasGetEditorInteractionFacade: "function",
     hasGetEditorSceneFacade: "function",
-    hasBoxStyles: "object",
+    hasApplyInteractionOverrideEntries: "function",
     inset: 8,
     iconSize: 48,
+    installOptionsKind: "derived-install-options",
   });
 });
 
@@ -2187,19 +2206,24 @@ test("editor runtime-set bootstrap accepts the namespaced previewShell.bootstrap
   assert.equal(loaded._getArrowWaypointRuntime(), runtimeSet.arrowWaypoint);
 
   const capturedOptions = harness.getCapturedOptions();
-  const sharedOptions = capturedOptions?.shared as Record<string, unknown> | undefined;
+  const capturedInstallOptions = harness.getCapturedInstallOptions();
+  const config = capturedOptions?.config as Record<string, unknown> | undefined;
   const stateOptions = capturedOptions?.state as Record<string, unknown> | undefined;
-  const browserOptions = capturedOptions?.browser as Record<string, unknown> | undefined;
+  const previewWindow = capturedOptions?.previewWindow as
+    | {
+      __DG_CONFIG?: { head_len?: number; head_half?: number } | null;
+      getLayoutTextAdapter?: unknown;
+    }
+    | undefined;
   const modelOps = capturedOptions?.modelOps as Record<string, unknown> | undefined;
   assert.deepEqual(normalizeVmValue({
-    selectedIds: Array.from(sharedOptions?.selectedIds as Iterable<string>),
+    selectedIds: Array.from(stateOptions?.selectedIds as Iterable<string>),
     selectionDepth: (
-      sharedOptions?.selectionDepthState as { get?: () => number } | undefined
+      stateOptions?.selectionDepthState as { get?: () => number } | undefined
     )?.get?.(),
     ancestorDepth: (
       modelOps?.getAncestors as ((id: string) => string[]) | undefined
     )?.("alpha")?.length,
-    inspector: (browserOptions?.getInspector as (() => unknown) | undefined)?.(),
     hasGetMultiActionGap: typeof (
       stateOptions?.multiActionGapState as { get?: () => number } | undefined
     )?.get,
@@ -2209,27 +2233,30 @@ test("editor runtime-set bootstrap accepts the namespaced previewShell.bootstrap
     hasOverrideStateSet: typeof (
       stateOptions?.overridesState as { set?: (nextOverrides: Record<string, unknown>) => void } | undefined
     )?.set,
-    hasGetTextAdapter: typeof browserOptions?.getTextAdapter,
-    fallbackGap: browserOptions?.fallbackGap,
-    headLen: (browserOptions?.theme as { headLen?: number } | undefined)?.headLen,
-    headHalf: (browserOptions?.theme as { headHalf?: number } | undefined)?.headHalf,
-    color: (browserOptions?.theme as { color?: string } | undefined)?.color,
+    hasGetTextAdapter: typeof previewWindow?.getLayoutTextAdapter,
+    fallbackGap: config?.fallbackGap,
+    handleSize: config?.handleSize,
+    headLen: previewWindow?.__DG_CONFIG?.head_len,
+    headHalf: previewWindow?.__DG_CONFIG?.head_half,
+    guideOpacity: config?.guideOpacity,
+    installOptionsKind: capturedInstallOptions?.kind,
   }), {
     selectedIds: ["alpha", "beta"],
     selectionDepth: 3,
     ancestorDepth: 1,
-    inspector: { id: "inspector", innerHTML: "" },
     hasGetMultiActionGap: "function",
     hasSetMultiActionGap: "function",
     hasOverrideStateSet: "function",
     hasGetTextAdapter: "function",
     fallbackGap: 24,
+    handleSize: 12,
     headLen: 10,
     headHalf: 5,
-    color: "#E95420",
+    guideOpacity: "0.5",
+    installOptionsKind: "derived-install-options",
   });
 
-  (sharedOptions?.selectionDepthState as { set: (value: number) => void }).set(9);
+  (stateOptions?.selectionDepthState as { set: (value: number) => void }).set(9);
   (stateOptions?.multiActionGapState as { set: (value: number) => void }).set(33);
   assert.equal((harness.context as { selectionDepth: number }).selectionDepth, 9);
   assert.equal((harness.context as { multiActionGap: number }).multiActionGap, 33);

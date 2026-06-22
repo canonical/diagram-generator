@@ -47,6 +47,14 @@ export interface PreviewBoxStylePreset {
 
 export type PreviewBoxStyleMap = Record<string, PreviewBoxStylePreset | undefined>;
 
+export const DEFAULT_PREVIEW_BOX_STYLES: PreviewBoxStyleMap = {
+  default: { label: 'Child' },
+  parent: { label: 'Parent' },
+  section: { label: 'Section' },
+  annotation: { label: 'Annotation' },
+  highlight: { label: 'Highlight' },
+};
+
 export interface SingleSelectionPreviewStyleState {
   mode: PreviewStyleMode;
   currentStyle: string;

@@ -55,35 +55,6 @@ function _readFrameTreeJson() {
 }
 const UI_AUTHORING_ACCENT_LINE = getThemeToken("--bf-authoring-accent-line", "rgba(246, 183, 60, 0.9)");
 
-// ---- BoxStyle presets (mirrors diagram_model.py BoxStyle enum) ----
-const BOX_STYLES = window.__DG_BOX_STYLES || {
-  default: { fill: "transparent", text: "#000000", icon: "#000000", border: "solid", label: "Child" },
-  parent:  { fill: "#F3F3F3", text: "#000000", icon: "#000000", border: "none",  label: "Parent" },
-  section: { fill: "transparent", text: "#000000", icon: "#000000", border: "solid", label: "Section" },
-  annotation: { fill: "transparent", text: "#666666", icon: "#666666", border: "none", label: "Annotation" },
-  highlight: { fill: "#000000", text: "#FFFFFF", icon: "#FFFFFF", border: "none", label: "Highlight" },
-};
-const renderBoxStyleOptions = (selectedValue, options = {}) =>
-  _getPreviewShellInspectorContract().renderPreviewBoxStyleOptions({
-    boxStyles: BOX_STYLES,
-    selectedValue,
-    originalLabel: options.originalLabel,
-  });
-
-function _readRenderedStyleFields(cid) {
-  const group = document.querySelector('[data-component-id="' + CSS.escape(cid) + '"]');
-  const rect = group ? group.querySelector(":scope > rect:first-of-type") : null;
-  if (!rect) return null;
-  return {
-    fill: rect.getAttribute("fill"),
-    stroke: rect.getAttribute("stroke"),
-  };
-}
-
-function _gridEl(id) {
-  return document.getElementById(id);
-}
-
 // ---- Guide mode (W key) ----
 const GUIDE_MODES = ["off", "all"];
 
@@ -95,16 +66,27 @@ const GUIDE_COLOR = UI_AUTHORING_ACCENT_LINE;
 const GUIDE_OPACITY = "0.5";
 
 function _createPreviewGridEditorInstallUnit() {
-  return window.__DG_getPreviewShellBootstrapContract()
-    .createPreviewGridEditorInstallUnitFromEditorHost({
-      shared: {
-        document,
-        previewWindow: window,
+  const previewShellBootstrap = window.__DG_getPreviewShellBootstrapContract();
+  return previewShellBootstrap.createPreviewGridEditorInstallUnitFromEditorHost(
+    previewShellBootstrap.createPreviewGridEditorInstallOptionsFromLegacyEditorHost({
+      document,
+      previewWindow: window,
+      config: {
         slug: SLUG,
         engine: ACTIVE_LAYOUT_ENGINE,
         gridEnabled: GRID,
         guideModes: GUIDE_MODES,
         baselineStep: BASELINE_STEP,
+        inset: INSET,
+        guideColor: GUIDE_COLOR,
+        guideOpacity: GUIDE_OPACITY,
+        interactionMode: InteractionMode,
+        handleSize: SHARED_HANDLE_SIZE,
+        minNodeSize: SHARED_MIN_NODE_SIZE,
+        fallbackGap: window.__DG_CONFIG.col_gap || 24,
+        snapToGrid: (value) => snapToGrid(value),
+      },
+      state: {
         model,
         interactionManager: mgr,
         selectedIds,
@@ -136,8 +118,6 @@ function _createPreviewGridEditorInstallUnit() {
             lastViolations = violations;
           },
         },
-      },
-      state: {
         overridesState: {
           get: () => overrides,
           set: (nextOverrides) => {
@@ -156,62 +136,9 @@ function _createPreviewGridEditorInstallUnit() {
             _layoutRelayoutTimer = timerId;
           },
         },
-        getMultiActionGapInput: () => document.getElementById("multi-action-gap"),
-        setTimeoutFn: (callback, delayMs) => setTimeout(callback, delayMs),
-        clearTimeoutFn: (timerId) => clearTimeout(timerId),
       },
-      browser: {
-        syncArrowsInModel: typeof syncArrowsInModel === "function" ? syncArrowsInModel : null,
-        arrowComponentId: typeof arrowComponentId === "function" ? arrowComponentId : null,
-        readRenderedStyleFields: _readRenderedStyleFields,
-        renderGuideLines: (lines) => renderGuideLines(lines, GUIDE_COLOR, GUIDE_OPACITY),
-        clearGuideLines,
-        clearHandlesByClass,
-        renderResizeHandles: ({ svg, left, top, right, bottom, nodeId, options: renderOptions }) => {
-          renderResizeHandles(svg, left, top, right, bottom, nodeId, {
-            handleClass: "dg-handle",
-            nodeAttr: renderOptions.nodeAttr,
-            dirAttr: renderOptions.dirAttr,
-          });
-        },
-        collectPeerSnapTargets,
-        collectGridSnapTargets,
-        snapRectToTargets,
-        fitRenderedSvgToContent: typeof fitSvgToRenderedContent === "function"
-          ? fitSvgToRenderedContent
-          : null,
-        escapeHtml: typeof escapeHtml === "function" ? escapeHtml : null,
-        initNavTabs,
-        setStatus: typeof setStatus === "function" ? setStatus : null,
-        sanitizeSvgCloneForExport,
+      helpers: {
         applyInteractionOverrideEntries: _applyInteractionOverrideEntries,
-        interactionMode: InteractionMode,
-        boxStyles: BOX_STYLES,
-        inset: INSET,
-        iconSize: window.__DG_CONFIG.icon_size,
-        handleSize: SHARED_HANDLE_SIZE,
-        textEditingMode: InteractionMode.TEXT_EDITING,
-        columnGap: window.__DG_CONFIG.col_gap,
-        minNodeSize: SHARED_MIN_NODE_SIZE,
-        fallbackGap: window.__DG_CONFIG.col_gap || 24,
-        getInspector: () => getInspectorElement(),
-        getTextAdapter: typeof window.getLayoutTextAdapter === "function"
-          ? () => window.getLayoutTextAdapter()
-          : null,
-        renderBoxStyleOptions,
-        formatAsDefinedStyleLabel: _formatAsDefinedStyleLabel,
-        snapToGrid: (value) => snapToGrid(value),
-        alert: (message) => alert(message),
-        normalizeStyleName: _normaliseStyleName,
-        waypointDraggingMode: InteractionMode.WAYPOINT_DRAGGING,
-        writeClipboardText: (text) => navigator.clipboard.writeText(text),
-        requestAnimationFrameFn: requestAnimationFrame,
-        cancelAnimationFrameFn: cancelAnimationFrame,
-        theme: {
-          headLen: window.__DG_CONFIG.head_len,
-          headHalf: window.__DG_CONFIG.head_half,
-          color: "#E95420",
-        },
       },
       modelOps: {
         getOwnDelta: (cid) => getOwnDelta(cid),
@@ -223,7 +150,8 @@ function _createPreviewGridEditorInstallUnit() {
         getEditorRelayoutFacade: () => _getEditorRelayoutFacade(),
         getEditorInteractionFacade: () => _getEditorInteractionFacade(),
       },
-    });
+    }),
+  );
 }
 
 function _getPreviewGridEditorInstallUnit() {
@@ -372,14 +300,6 @@ function bindInspectorActions() {
   });
 }
 
-function _formatAsDefinedStyleLabel(styleName, mixed = false) {
-  return _getPreviewShellInspectorContract().formatPreviewDefinedStyleLabel({
-    boxStyles: BOX_STYLES,
-    styleName,
-    mixed,
-  });
-}
-
 /**
  * Check if a component is a child of an autolayout parent (v3 frame with direction).
  */
@@ -399,12 +319,6 @@ function _applyInteractionOverrideEntries(entries, propagatedIds) {
     if (propagatedIds) propagatedIds.add(entry.id);
   }
 }
-
-
-function _normaliseStyleName(styleName) {
-  return _getPreviewShellInspectorContract().normalizePreviewStyleName(styleName);
-}
-
 const _scheduleV3Relayout = (cid) => _scheduleLayoutRelayout(cid);
 const clearSelection = () => _getSelectionRuntime().clearSelection();
 

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { DEFAULT_PREVIEW_BOX_STYLES } from '../src/preview-shell/frame-style.js';
 
 const mocks = vi.hoisted(() => ({
   createBrowserState: vi.fn(),
@@ -14,6 +15,7 @@ vi.mock('../src/preview-shell/app-grid-editor-runtime.js', () => ({
 }));
 
 const {
+  createPreviewGridEditorInstallOptionsFromLegacyEditorHost,
   createPreviewGridEditorInstallUnitFromEditorHost,
   createPreviewGridEditorInstallUnitFromBrowserHost,
 } = await import('../src/preview-shell/app-grid-editor-install-unit.js');
@@ -175,6 +177,169 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
   beforeEach(() => {
     mocks.createBrowserState.mockReset();
     mocks.createRuntime.mockReset();
+  });
+
+  it('derives typed install options from the legacy editor host boundary', async () => {
+    const guideLines = [{ axis: 'x' }];
+    const resizeSvg = { kind: 'svg' } as unknown as SVGSVGElement;
+    const multiActionGapInput = { id: 'multi-action-gap' };
+    const inspector = { id: 'inspector' };
+    const writeText = vi.fn(async () => undefined);
+    const previewWindow = {
+      __DG_CONFIG: {
+        icon_size: 48,
+        col_gap: 24,
+        head_len: 10,
+        head_half: 5,
+      },
+      navigator: {
+        clipboard: {
+          writeText,
+        },
+      },
+      setTimeout: vi.fn((_callback: () => void, _delayMs?: number) => 17),
+      clearTimeout: vi.fn(),
+      syncArrowsInModel: vi.fn(),
+      arrowComponentId: vi.fn(() => 'arrow-alpha'),
+      renderGuideLines: vi.fn(),
+      clearGuideLines: vi.fn(),
+      clearHandlesByClass: vi.fn(),
+      renderResizeHandles: vi.fn(),
+      collectPeerSnapTargets: vi.fn(() => ['peer']),
+      collectGridSnapTargets: vi.fn(() => ({ xs: [24], ys: [48] })),
+      snapRectToTargets: vi.fn(() => ({ dx: 2, dy: 4, lines: guideLines })),
+      fitSvgToRenderedContent: vi.fn(),
+      escapeHtml: vi.fn((value: string) => value),
+      initNavTabs: vi.fn(),
+      setStatus: vi.fn(),
+      sanitizeSvgCloneForExport: vi.fn(),
+      getLayoutTextAdapter: vi.fn(() => ({ name: 'adapter' })),
+      requestAnimationFrame: vi.fn((_callback: FrameRequestCallback) => 21),
+      cancelAnimationFrame: vi.fn(),
+      alert: vi.fn(),
+    } as any;
+    const document = {
+      getElementById: vi.fn((id: string) => {
+        if (id === 'multi-action-gap') return multiActionGapInput;
+        if (id === 'inspector') return inspector;
+        return null;
+      }),
+      querySelector: vi.fn(() => null),
+    } as any;
+
+    const options = createPreviewGridEditorInstallOptionsFromLegacyEditorHost({
+      document,
+      previewWindow,
+      config: {
+        slug: 'demo',
+        engine: 'v3',
+        gridEnabled: true,
+        guideModes: ['off', 'all'],
+        baselineStep: 24,
+        inset: 8,
+        guideColor: '#f00',
+        guideOpacity: '0.5',
+        interactionMode: { TEXT_EDITING: 'text', WAYPOINT_DRAGGING: 'waypoint' } as any,
+        handleSize: 12,
+        minNodeSize: 24,
+        fallbackGap: 24,
+        snapToGrid: (value) => value,
+      },
+      state: {
+        model: { kind: 'model' } as any,
+        interactionManager: { kind: 'manager' } as any,
+        selectedIds: new Set(['alpha', 'beta']),
+        selectionDepthState: { get: vi.fn(() => 3), set: vi.fn() },
+        coercedKeys: new Set(['coerced']),
+        editorState: { kind: 'editor-state' } as any,
+        previewSaveClient: { kind: 'save-client' } as any,
+        generationState: { get: vi.fn(() => 7), set: vi.fn() },
+        allowInternalDirtyNavigationState: { get: vi.fn(() => false), set: vi.fn() },
+        constraints: { kind: 'constraints' } as any,
+        lastViolationsState: { get: vi.fn(() => []) },
+        overridesState: { get: vi.fn(() => ({ alpha: { width: 120 } })), set: vi.fn() },
+        multiActionGapState: { get: vi.fn(() => 24), set: vi.fn() },
+        layoutRelayoutTimerState: { get: vi.fn(() => null), set: vi.fn() },
+      },
+      helpers: {
+        applyInteractionOverrideEntries: vi.fn(),
+      },
+      modelOps: {
+        getOwnDelta: vi.fn(() => ({ dx: 0, dy: 0, dw: 0, dh: 0 })),
+        getEffectiveDelta: vi.fn(() => ({ dx: 4, dy: 8, dw: 0, dh: 0 })),
+        getAncestors: vi.fn(() => ['page']),
+      },
+      facades: {
+        getEditorSceneFacade: vi.fn(),
+        getEditorRelayoutFacade: vi.fn(),
+        getEditorInteractionFacade: vi.fn(),
+      },
+    });
+
+    expect(options.shared.slug).toBe('demo');
+    expect(options.shared.engine).toBe('v3');
+    expect(options.state.getMultiActionGapInput()).toBe(multiActionGapInput);
+    expect(options.browser.boxStyles).toEqual(DEFAULT_PREVIEW_BOX_STYLES);
+    expect(options.browser.iconSize).toBe(48);
+    expect(options.browser.columnGap).toBe(24);
+    expect(options.browser.theme).toEqual({
+      headLen: 10,
+      headHalf: 5,
+      color: '#E95420',
+    });
+    expect(options.browser.getInspector()).toBe(inspector);
+    expect(options.browser.getTextAdapter?.()).toEqual({ name: 'adapter' });
+    expect(options.browser.renderBoxStyleOptions('default')).toContain('value="default" selected');
+    expect(options.browser.formatAsDefinedStyleLabel('parent', false))
+      .toBe('— as defined (Parent) —');
+    expect(options.browser.normalizeStyleName('section')).toBe('section');
+    expect(options.browser.collectPeerSnapTargets()).toEqual(['peer']);
+    expect(options.browser.collectGridSnapTargets({ rows: 2 } as never)).toEqual({
+      xs: [24],
+      ys: [48],
+    });
+    expect(options.browser.snapRectToTargets({} as never)).toEqual({
+      dx: 2,
+      dy: 4,
+      lines: guideLines,
+    });
+
+    const timerId = options.state.setTimeoutFn(() => undefined, 120);
+    expect(previewWindow.setTimeout).toHaveBeenCalledWith(expect.any(Function), 120);
+    expect(timerId).toBe(17);
+    options.state.clearTimeoutFn(timerId);
+    expect(previewWindow.clearTimeout).toHaveBeenCalledWith(17);
+
+    options.browser.renderGuideLines(guideLines as never);
+    expect(previewWindow.renderGuideLines).toHaveBeenCalledWith(guideLines, '#f00', '0.5');
+    options.browser.renderResizeHandles({
+      svg: resizeSvg,
+      left: 1,
+      top: 2,
+      right: 3,
+      bottom: 4,
+      nodeId: 'alpha',
+      options: {
+        nodeAttr: 'data-node',
+        dirAttr: 'data-dir',
+      },
+    });
+    expect(previewWindow.renderResizeHandles).toHaveBeenCalledWith(
+      resizeSvg,
+      1,
+      2,
+      3,
+      4,
+      'alpha',
+      {
+        handleClass: 'dg-handle',
+        nodeAttr: 'data-node',
+        dirAttr: 'data-dir',
+      },
+    );
+
+    await options.browser.writeClipboardText('copied');
+    expect(writeText).toHaveBeenCalledWith('copied');
   });
 
   it('derives runtime callbacks from the compact editor-host contract', async () => {
