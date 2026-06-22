@@ -96,7 +96,7 @@ const GUIDE_OPACITY = "0.5";
 
 function _createPreviewGridEditorInstallUnit() {
   return window.__DG_getPreviewShellBootstrapContract()
-    .createPreviewGridEditorInstallUnitFromBrowserHost({
+    .createPreviewGridEditorInstallUnitFromEditorHost({
       shared: {
         document,
         previewWindow: window,
@@ -137,30 +137,32 @@ function _createPreviewGridEditorInstallUnit() {
           },
         },
       },
-      browser: {
+      state: {
         overridesState: {
           get: () => overrides,
           set: (nextOverrides) => {
             overrides = nextOverrides;
           },
         },
+        multiActionGapState: {
+          get: () => multiActionGap,
+          set: (gap) => {
+            multiActionGap = gap;
+          },
+        },
+        layoutRelayoutTimerState: {
+          get: () => _layoutRelayoutTimer,
+          set: (timerId) => {
+            _layoutRelayoutTimer = timerId;
+          },
+        },
+        getMultiActionGapInput: () => document.getElementById("multi-action-gap"),
+        setTimeoutFn: (callback, delayMs) => setTimeout(callback, delayMs),
+        clearTimeoutFn: (timerId) => clearTimeout(timerId),
+      },
+      browser: {
         syncArrowsInModel: typeof syncArrowsInModel === "function" ? syncArrowsInModel : null,
         arrowComponentId: typeof arrowComponentId === "function" ? arrowComponentId : null,
-        buildTreeUi: () => buildTreeUI(),
-        bindInteraction: () => bindInteraction(),
-        deselectAll: () => deselectAll(),
-        reapplySelection: () => reapplySelection(),
-        renderEmptyInspector: () => renderEmptyInspector(),
-        renderSelectionInspector: (preferredCid) => renderSelectionInspector(preferredCid),
-        renderMultiSelectionInspector: () => renderMultiSelectionInspector(),
-        selectComponent: (cid, additive) => selectComponent(cid, additive),
-        applySelectionStateSnapshot: (nextState, preferredCid) =>
-          _applySelectionStateSnapshot(nextState, preferredCid),
-        getPrimarySelectedId: (preferredCid) => getPrimarySelectedId(preferredCid),
-        deleteSelectedFrames: () => deleteSelectedFrames(),
-        getOwnDelta: (cid) => getOwnDelta(cid),
-        getEffectiveDelta: (cid) => getEffectiveDelta(cid),
-        getAncestors: (cid) => getAncestors(cid),
         readRenderedStyleFields: _readRenderedStyleFields,
         renderGuideLines: (lines) => renderGuideLines(lines, GUIDE_COLOR, GUIDE_OPACITY),
         clearGuideLines,
@@ -183,24 +185,6 @@ function _createPreviewGridEditorInstallUnit() {
         setStatus: typeof setStatus === "function" ? setStatus : null,
         sanitizeSvgCloneForExport,
         applyInteractionOverrideEntries: _applyInteractionOverrideEntries,
-        setFrameProp: (cid, prop, value) => setFrameProp(cid, prop, value),
-        scheduleTextRelayout: (cid) => {
-          clearTimeout(_layoutRelayoutTimer);
-          _layoutRelayoutTimer = setTimeout(() => requestLayoutRelayout(cid), 100);
-        },
-        scheduleLayoutResizeRelayout: (cid, newW, newH, resizedW, resizedH) =>
-          _scheduleLayoutResizeRelayout(cid, newW, newH, resizedW, resizedH),
-        scheduleV3ResizeRelayout: (cid, newW, newH, resizedW, resizedH) =>
-          _scheduleV3ResizeRelayout(cid, newW, newH, resizedW, resizedH),
-        cancelLiveRelayout: () => _cancelLayoutResizeRelayout(),
-        persistResize: _persistResizeToLayout,
-        save: () => PreviewSaveClient.trySaveIfDirty(),
-        undo: () => { void EditorState.undo(_applyUndoCommand); },
-        redo: () => { void EditorState.redo(_applyUndoCommand); },
-        onResizeUp: () => onResizeUp(),
-        cycleGuideMode: () => cycleGuideMode(),
-        requestLayoutRelayout: (triggerCid) => requestLayoutRelayout(triggerCid),
-        requestV3Relayout: (triggerCid) => requestV3Relayout(triggerCid),
         interactionMode: InteractionMode,
         boxStyles: BOX_STYLES,
         inset: INSET,
@@ -210,12 +194,6 @@ function _createPreviewGridEditorInstallUnit() {
         columnGap: window.__DG_CONFIG.col_gap,
         minNodeSize: SHARED_MIN_NODE_SIZE,
         fallbackGap: window.__DG_CONFIG.col_gap || 24,
-        multiActionGapState: {
-          get: () => multiActionGap,
-          set: (gap) => {
-            multiActionGap = gap;
-          },
-        },
         getInspector: () => getInspectorElement(),
         getTextAdapter: typeof window.getLayoutTextAdapter === "function"
           ? () => window.getLayoutTextAdapter()
@@ -223,27 +201,27 @@ function _createPreviewGridEditorInstallUnit() {
         renderBoxStyleOptions,
         formatAsDefinedStyleLabel: _formatAsDefinedStyleLabel,
         snapToGrid: (value) => snapToGrid(value),
-        requestRelayoutNow: (cid) => {
-          clearTimeout(_layoutRelayoutTimer);
-          requestLayoutRelayout(cid);
-        },
-        updateOverrideSummary: () => updateOverrideSummary(),
-        refreshTreeColors: () => refreshTreeColors(),
-        runConstraints: () => runConstraints(),
         alert: (message) => alert(message),
         normalizeStyleName: _normaliseStyleName,
         waypointDraggingMode: InteractionMode.WAYPOINT_DRAGGING,
         writeClipboardText: (text) => navigator.clipboard.writeText(text),
         requestAnimationFrameFn: requestAnimationFrame,
         cancelAnimationFrameFn: cancelAnimationFrame,
-        getMultiActionGapInput: () => document.getElementById("multi-action-gap"),
-        setTimeoutFn: (callback, delayMs) => setTimeout(callback, delayMs),
-        clearTimeoutFn: (timerId) => clearTimeout(timerId),
         theme: {
           headLen: window.__DG_CONFIG.head_len,
           headHalf: window.__DG_CONFIG.head_half,
           color: "#E95420",
         },
+      },
+      modelOps: {
+        getOwnDelta: (cid) => getOwnDelta(cid),
+        getEffectiveDelta: (cid) => getEffectiveDelta(cid),
+        getAncestors: (cid) => getAncestors(cid),
+      },
+      facades: {
+        getEditorSceneFacade: () => _getEditorSceneFacade(),
+        getEditorRelayoutFacade: () => _getEditorRelayoutFacade(),
+        getEditorInteractionFacade: () => _getEditorInteractionFacade(),
       },
     });
 }

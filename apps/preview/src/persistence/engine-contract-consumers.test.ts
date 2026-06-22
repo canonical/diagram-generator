@@ -353,7 +353,7 @@ function createPreviewGridEditorRuntimeContext(options?: {
       },
       __DG_getPreviewShellBootstrapContract() {
         return {
-          createPreviewGridEditorInstallUnitFromBrowserHost(nextOptions: Record<string, unknown>) {
+          createPreviewGridEditorInstallUnitFromEditorHost(nextOptions: Record<string, unknown>) {
             capturedOptions = nextOptions;
             return {
               getRuntime() {
@@ -1453,21 +1453,25 @@ test("editor scene facade delegates through the typed preview-grid runtime", () 
 
   const capturedOptions = harness.getCapturedOptions();
   const shared = capturedOptions?.shared as Record<string, unknown> | undefined;
+  const state = capturedOptions?.state as Record<string, unknown> | undefined;
   const browser = capturedOptions?.browser as Record<string, unknown> | undefined;
+  const modelOps = capturedOptions?.modelOps as Record<string, unknown> | undefined;
+  const facades = capturedOptions?.facades as Record<string, unknown> | undefined;
   assert.deepEqual(normalizeVmValue({
     slug: shared?.slug,
     baselineStep: shared?.baselineStep,
     guideModes: Array.from(shared?.guideModes as Iterable<string>),
     selectedIds: Array.from(shared?.selectedIds as Iterable<string>),
     overrideKeys: Object.keys((
-      browser?.overridesState as { get?: () => Record<string, unknown> } | undefined
+      state?.overridesState as { get?: () => Record<string, unknown> } | undefined
     )?.get?.() || {}),
     hasOverrideStateSet: typeof (
-      browser?.overridesState as { set?: (nextOverrides: Record<string, unknown>) => void } | undefined
+      state?.overridesState as { set?: (nextOverrides: Record<string, unknown>) => void } | undefined
     )?.set,
-    hasBuildTreeUi: typeof browser?.buildTreeUi,
-    hasBindInteraction: typeof browser?.bindInteraction,
-    hasRenderSelectionInspector: typeof browser?.renderSelectionInspector,
+    hasGetOwnDelta: typeof modelOps?.getOwnDelta,
+    hasGetAncestors: typeof modelOps?.getAncestors,
+    hasGetEditorInteractionFacade: typeof facades?.getEditorInteractionFacade,
+    hasGetEditorSceneFacade: typeof facades?.getEditorSceneFacade,
     hasBoxStyles: typeof browser?.boxStyles,
     inset: browser?.inset,
     iconSize: browser?.iconSize,
@@ -1478,9 +1482,10 @@ test("editor scene facade delegates through the typed preview-grid runtime", () 
     selectedIds: ["alpha", "beta"],
     overrideKeys: ["alpha"],
     hasOverrideStateSet: "function",
-    hasBuildTreeUi: "function",
-    hasBindInteraction: "function",
-    hasRenderSelectionInspector: "function",
+    hasGetOwnDelta: "function",
+    hasGetAncestors: "function",
+    hasGetEditorInteractionFacade: "function",
+    hasGetEditorSceneFacade: "function",
     hasBoxStyles: "object",
     inset: 8,
     iconSize: 48,
@@ -2008,24 +2013,26 @@ test("editor runtime-set bootstrap accepts the namespaced previewShell.bootstrap
 
   const capturedOptions = harness.getCapturedOptions();
   const sharedOptions = capturedOptions?.shared as Record<string, unknown> | undefined;
+  const stateOptions = capturedOptions?.state as Record<string, unknown> | undefined;
   const browserOptions = capturedOptions?.browser as Record<string, unknown> | undefined;
+  const modelOps = capturedOptions?.modelOps as Record<string, unknown> | undefined;
   assert.deepEqual(normalizeVmValue({
     selectedIds: Array.from(sharedOptions?.selectedIds as Iterable<string>),
     selectionDepth: (
       sharedOptions?.selectionDepthState as { get?: () => number } | undefined
     )?.get?.(),
     ancestorDepth: (
-      browserOptions?.getAncestors as ((id: string) => string[]) | undefined
+      modelOps?.getAncestors as ((id: string) => string[]) | undefined
     )?.("alpha")?.length,
     inspector: (browserOptions?.getInspector as (() => unknown) | undefined)?.(),
     hasGetMultiActionGap: typeof (
-      browserOptions?.multiActionGapState as { get?: () => number } | undefined
+      stateOptions?.multiActionGapState as { get?: () => number } | undefined
     )?.get,
     hasSetMultiActionGap: typeof (
-      browserOptions?.multiActionGapState as { set?: (value: number) => void } | undefined
+      stateOptions?.multiActionGapState as { set?: (value: number) => void } | undefined
     )?.set,
     hasOverrideStateSet: typeof (
-      browserOptions?.overridesState as { set?: (nextOverrides: Record<string, unknown>) => void } | undefined
+      stateOptions?.overridesState as { set?: (nextOverrides: Record<string, unknown>) => void } | undefined
     )?.set,
     hasGetTextAdapter: typeof browserOptions?.getTextAdapter,
     fallbackGap: browserOptions?.fallbackGap,
@@ -2048,7 +2055,7 @@ test("editor runtime-set bootstrap accepts the namespaced previewShell.bootstrap
   });
 
   (sharedOptions?.selectionDepthState as { set: (value: number) => void }).set(9);
-  (browserOptions?.multiActionGapState as { set: (value: number) => void }).set(33);
+  (stateOptions?.multiActionGapState as { set: (value: number) => void }).set(33);
   assert.equal((harness.context as { selectionDepth: number }).selectionDepth, 9);
   assert.equal((harness.context as { multiActionGap: number }).multiActionGap, 33);
 });

@@ -31,6 +31,7 @@ import {
   createPreviewEditorInteractionFacadeFromEditorHost,
   createPreviewEditorInteractionFacadeFromRuntime,
   createPreviewGridEditorBrowserStateFromBrowserHost,
+  createPreviewGridEditorInstallUnitFromEditorHost,
   createPreviewGridEditorInstallUnitFromBrowserHost,
   createPreviewGridEditorRuntimeFromBrowserHost,
   createPreviewEditorRuntimeSetFromRuntime,
@@ -246,6 +247,8 @@ describe('browser entry contract pilot', () => {
       .toBe(createPreviewEditorInteractionFacadeFromRuntime);
     expect(previewShell.bootstrap.createPreviewGridEditorBrowserStateFromBrowserHost)
       .toBe(createPreviewGridEditorBrowserStateFromBrowserHost);
+    expect(previewShell.bootstrap.createPreviewGridEditorInstallUnitFromEditorHost)
+      .toBe(createPreviewGridEditorInstallUnitFromEditorHost);
     expect(previewShell.bootstrap.createPreviewGridEditorInstallUnitFromBrowserHost)
       .toBe(createPreviewGridEditorInstallUnitFromBrowserHost);
     expect(previewShell.bootstrap.createPreviewGridEditorRuntimeFromBrowserHost)

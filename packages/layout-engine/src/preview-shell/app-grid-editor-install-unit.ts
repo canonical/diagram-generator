@@ -6,7 +6,9 @@ import {
 import {
   createPreviewGridEditorRuntimeFromBrowserHost,
   type CreatePreviewGridEditorRuntimeFromBrowserHostOptions,
+  type PreviewGridEditorRuntimeBrowserOptions,
   type PreviewGridEditorRuntime,
+  type PreviewGridEditorRuntimeValueState,
 } from './app-grid-editor-runtime.js';
 
 type BrowserStateBackedRuntimeBrowserKey =
@@ -48,6 +50,129 @@ export interface CreatePreviewGridEditorInstallUnitFromBrowserHostOptions {
   > & PreviewGridEditorInstallUnitBrowserStateOptions;
 }
 
+type EditorHostDerivedBrowserKey =
+  | BrowserStateBackedRuntimeBrowserKey
+  | 'buildTreeUi'
+  | 'bindInteraction'
+  | 'deselectAll'
+  | 'reapplySelection'
+  | 'renderEmptyInspector'
+  | 'renderSelectionInspector'
+  | 'renderMultiSelectionInspector'
+  | 'selectComponent'
+  | 'applySelectionStateSnapshot'
+  | 'getPrimarySelectedId'
+  | 'deleteSelectedFrames'
+  | 'getOwnDelta'
+  | 'getEffectiveDelta'
+  | 'getAncestors'
+  | 'setFrameProp'
+  | 'scheduleTextRelayout'
+  | 'scheduleLayoutResizeRelayout'
+  | 'scheduleV3ResizeRelayout'
+  | 'cancelLiveRelayout'
+  | 'persistResize'
+  | 'save'
+  | 'undo'
+  | 'redo'
+  | 'onResizeUp'
+  | 'cycleGuideMode'
+  | 'requestLayoutRelayout'
+  | 'requestV3Relayout'
+  | 'requestRelayoutNow'
+  | 'updateOverrideSummary'
+  | 'refreshTreeColors'
+  | 'runConstraints'
+  | 'multiActionGapState';
+
+type PreviewGridEditorInstallUnitRawBrowserOptions = Omit<
+  PreviewGridEditorRuntimeBrowserOptions,
+  EditorHostDerivedBrowserKey
+>;
+
+interface PreviewGridEditorInstallUnitStageBindingRuntime {
+  buildTreeUi: () => unknown;
+  bindInteraction: () => unknown;
+}
+
+interface PreviewGridEditorInstallUnitSelectionRuntime {
+  deselectAll: () => void;
+  reapplySelection: () => void;
+  selectComponent: (cid: string, additive?: boolean) => void;
+  applySelectionStateSnapshot: (nextState: unknown, preferredCid?: string | null) => void;
+}
+
+interface PreviewGridEditorInstallUnitInspectorDisplayRuntime {
+  renderEmptyInspector: () => void;
+  renderSelectionInspector: (preferredCid?: string | null) => void;
+  renderMultiSelectionInspector: () => void;
+}
+
+interface PreviewGridEditorInstallUnitInspectorMutationRuntime {
+  setFrameProp: (cid: string, prop: string, value: unknown) => void;
+}
+
+interface PreviewGridEditorInstallUnitResizeInteractionRuntime {
+  onResizeUp: () => void;
+}
+
+interface PreviewGridEditorInstallUnitRelayoutRuntime {
+  requestRelayout: (triggerCid: string) => Promise<unknown> | unknown;
+}
+
+interface PreviewGridEditorInstallUnitEditorSceneFacade {
+  deleteSelectedFrames: () => Promise<{ rerendered?: boolean } | unknown>;
+  cycleGuideMode: () => unknown;
+  updateOverrideSummary: () => void;
+  refreshTreeColors: () => void;
+  runConstraints: () => unknown;
+}
+
+interface PreviewGridEditorInstallUnitEditorRelayoutFacade {
+  applyUndoCommand: (command: unknown, direction: 'undo' | 'redo') => void;
+  getRelayoutRuntime: () => PreviewGridEditorInstallUnitRelayoutRuntime;
+  scheduleResizeRelayout: (
+    cid: string,
+    newW: number,
+    newH: number,
+    resizedW: boolean,
+    resizedH: boolean,
+  ) => boolean;
+  cancelResizeRelayout: () => void;
+  persistResize: (
+    resizeIds: Iterable<string>,
+    propagatedIds: Iterable<string>,
+    triggerCid: string,
+    baseSizes?: Record<string, { width: number; height: number }> | null,
+  ) => void;
+}
+
+interface PreviewGridEditorInstallUnitEditorInteractionFacade {
+  getStageBindingRuntime: () => PreviewGridEditorInstallUnitStageBindingRuntime;
+  getSelectionRuntime: () => PreviewGridEditorInstallUnitSelectionRuntime;
+  getInspectorDisplayRuntime: () => PreviewGridEditorInstallUnitInspectorDisplayRuntime;
+  getInspectorMutationRuntime: () => PreviewGridEditorInstallUnitInspectorMutationRuntime;
+  getResizeInteractionRuntime: () => PreviewGridEditorInstallUnitResizeInteractionRuntime;
+}
+
+export interface CreatePreviewGridEditorInstallUnitFromEditorHostOptions {
+  shared: CreatePreviewGridEditorRuntimeFromBrowserHostOptions['shared'];
+  state: PreviewGridEditorInstallUnitBrowserStateOptions & {
+    multiActionGapState: PreviewGridEditorRuntimeBrowserOptions['multiActionGapState'];
+    layoutRelayoutTimerState: PreviewGridEditorRuntimeValueState<unknown | null>;
+  };
+  browser: PreviewGridEditorInstallUnitRawBrowserOptions;
+  modelOps: Pick<
+    PreviewGridEditorRuntimeBrowserOptions,
+    'getOwnDelta' | 'getEffectiveDelta' | 'getAncestors'
+  >;
+  facades: {
+    getEditorSceneFacade: () => PreviewGridEditorInstallUnitEditorSceneFacade;
+    getEditorRelayoutFacade: () => PreviewGridEditorInstallUnitEditorRelayoutFacade;
+    getEditorInteractionFacade: () => PreviewGridEditorInstallUnitEditorInteractionFacade;
+  };
+}
+
 export interface PreviewGridEditorInstallUnit {
   getRuntime: () => PreviewGridEditorRuntime;
   getBrowserState: () => PreviewGridEditorBrowserState;
@@ -56,6 +181,136 @@ export interface PreviewGridEditorInstallUnit {
   getRelayoutFacade: () => ReturnType<PreviewGridEditorRuntime['getRelayoutFacade']>;
   getInteractionFacade: () => ReturnType<PreviewGridEditorRuntime['getInteractionFacade']>;
   invalidateOverrideBoundFacades: () => void;
+}
+
+function requestLayoutRelayoutFromFacade(
+  options: CreatePreviewGridEditorInstallUnitFromEditorHostOptions,
+  triggerCid: string,
+): Promise<unknown> | unknown {
+  return options.facades.getEditorRelayoutFacade().getRelayoutRuntime().requestRelayout(triggerCid);
+}
+
+function schedulePreviewTextRelayoutFromEditorHost(
+  options: CreatePreviewGridEditorInstallUnitFromEditorHostOptions,
+  cid: string,
+): void {
+  const currentTimer = options.state.layoutRelayoutTimerState.get();
+  if (currentTimer != null) {
+    options.state.clearTimeoutFn(currentTimer);
+  }
+  const nextTimer = options.state.setTimeoutFn(() => {
+    options.state.layoutRelayoutTimerState.set(null);
+    void requestLayoutRelayoutFromFacade(options, cid);
+  }, 100);
+  options.state.layoutRelayoutTimerState.set(nextTimer);
+}
+
+function requestPreviewRelayoutNowFromEditorHost(
+  options: CreatePreviewGridEditorInstallUnitFromEditorHostOptions,
+  cid: string,
+): void {
+  const currentTimer = options.state.layoutRelayoutTimerState.get();
+  if (currentTimer != null) {
+    options.state.clearTimeoutFn(currentTimer);
+    options.state.layoutRelayoutTimerState.set(null);
+  }
+  void requestLayoutRelayoutFromFacade(options, cid);
+}
+
+function createBrowserHostOptionsFromEditorHost(
+  options: CreatePreviewGridEditorInstallUnitFromEditorHostOptions,
+): CreatePreviewGridEditorInstallUnitFromBrowserHostOptions {
+  return {
+    shared: options.shared,
+    browser: {
+      ...options.browser,
+      overridesState: options.state.overridesState,
+      multiActionGapState: options.state.multiActionGapState,
+      getMultiActionGapInput: options.state.getMultiActionGapInput,
+      setTimeoutFn: options.state.setTimeoutFn,
+      clearTimeoutFn: options.state.clearTimeoutFn,
+      relayoutDelayMs: options.state.relayoutDelayMs,
+      buildTreeUi: () => options.facades.getEditorInteractionFacade().getStageBindingRuntime().buildTreeUi(),
+      bindInteraction: () => options.facades.getEditorInteractionFacade().getStageBindingRuntime().bindInteraction(),
+      deselectAll: () => options.facades.getEditorInteractionFacade().getSelectionRuntime().deselectAll(),
+      reapplySelection: () => options.facades.getEditorInteractionFacade().getSelectionRuntime().reapplySelection(),
+      renderEmptyInspector: () => (
+        options.facades.getEditorInteractionFacade().getInspectorDisplayRuntime().renderEmptyInspector()
+      ),
+      renderSelectionInspector: (preferredCid) => (
+        options.facades.getEditorInteractionFacade()
+          .getInspectorDisplayRuntime()
+          .renderSelectionInspector(preferredCid)
+      ),
+      renderMultiSelectionInspector: () => (
+        options.facades.getEditorInteractionFacade()
+          .getInspectorDisplayRuntime()
+          .renderMultiSelectionInspector()
+      ),
+      selectComponent: (cid, additive) => (
+        options.facades.getEditorInteractionFacade().getSelectionRuntime().selectComponent(cid, additive)
+      ),
+      applySelectionStateSnapshot: (nextState, preferredCid) => (
+        options.facades.getEditorInteractionFacade()
+          .getSelectionRuntime()
+          .applySelectionStateSnapshot(nextState, preferredCid)
+      ),
+      getPrimarySelectedId: (preferredCid) => {
+        const interactionContract = (
+          options.shared.previewWindow.__DG_getPreviewShellInteractionContract() as unknown
+        ) as {
+            resolvePrimarySelectedId: (
+              selectedIds: Set<string>,
+              preferredCid?: string | null,
+            ) => string | null | undefined;
+          };
+        return interactionContract.resolvePrimarySelectedId(options.shared.selectedIds, preferredCid);
+      },
+      deleteSelectedFrames: async () => {
+        const result = await options.facades.getEditorSceneFacade().deleteSelectedFrames();
+        return Boolean((result as { rerendered?: boolean } | null | undefined)?.rerendered);
+      },
+      getOwnDelta: options.modelOps.getOwnDelta,
+      getEffectiveDelta: options.modelOps.getEffectiveDelta,
+      getAncestors: options.modelOps.getAncestors,
+      setFrameProp: (cid, prop, value) => (
+        options.facades.getEditorInteractionFacade().getInspectorMutationRuntime().setFrameProp(cid, prop, value)
+      ),
+      scheduleTextRelayout: (cid) => schedulePreviewTextRelayoutFromEditorHost(options, cid),
+      scheduleLayoutResizeRelayout: (cid, newW, newH, resizedW, resizedH) => (
+        options.facades.getEditorRelayoutFacade()
+          .scheduleResizeRelayout(cid, newW, newH, resizedW, resizedH)
+      ),
+      scheduleV3ResizeRelayout: (cid, newW, newH, resizedW, resizedH) => (
+        options.facades.getEditorRelayoutFacade()
+          .scheduleResizeRelayout(cid, newW, newH, resizedW, resizedH)
+      ),
+      cancelLiveRelayout: () => options.facades.getEditorRelayoutFacade().cancelResizeRelayout(),
+      persistResize: (resizeIds, propagatedIds, triggerCid, baseSizes) => (
+        options.facades.getEditorRelayoutFacade()
+          .persistResize(resizeIds, propagatedIds, triggerCid, baseSizes)
+      ),
+      save: () => options.shared.previewSaveClient.trySaveIfDirty(),
+      undo: () => {
+        void options.shared.editorState.undo(
+          options.facades.getEditorRelayoutFacade().applyUndoCommand,
+        );
+      },
+      redo: () => {
+        void options.shared.editorState.redo(
+          options.facades.getEditorRelayoutFacade().applyUndoCommand,
+        );
+      },
+      onResizeUp: () => options.facades.getEditorInteractionFacade().getResizeInteractionRuntime().onResizeUp(),
+      cycleGuideMode: () => options.facades.getEditorSceneFacade().cycleGuideMode(),
+      requestLayoutRelayout: (triggerCid) => requestLayoutRelayoutFromFacade(options, triggerCid),
+      requestV3Relayout: (triggerCid) => requestLayoutRelayoutFromFacade(options, triggerCid),
+      requestRelayoutNow: (cid) => requestPreviewRelayoutNowFromEditorHost(options, cid),
+      updateOverrideSummary: () => options.facades.getEditorSceneFacade().updateOverrideSummary(),
+      refreshTreeColors: () => options.facades.getEditorSceneFacade().refreshTreeColors(),
+      runConstraints: () => options.facades.getEditorSceneFacade().runConstraints(),
+    },
+  };
 }
 
 function createBrowserStateOptions(
@@ -174,4 +429,12 @@ export function createPreviewGridEditorInstallUnitFromBrowserHost(
       runtimeState.current?.invalidateOverrideBoundFacades();
     },
   };
+}
+
+export function createPreviewGridEditorInstallUnitFromEditorHost(
+  options: CreatePreviewGridEditorInstallUnitFromEditorHostOptions,
+): PreviewGridEditorInstallUnit {
+  return createPreviewGridEditorInstallUnitFromBrowserHost(
+    createBrowserHostOptionsFromEditorHost(options),
+  );
 }

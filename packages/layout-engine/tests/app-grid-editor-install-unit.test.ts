@@ -14,6 +14,7 @@ vi.mock('../src/preview-shell/app-grid-editor-runtime.js', () => ({
 }));
 
 const {
+  createPreviewGridEditorInstallUnitFromEditorHost,
   createPreviewGridEditorInstallUnitFromBrowserHost,
 } = await import('../src/preview-shell/app-grid-editor-install-unit.js');
 
@@ -167,5 +168,258 @@ describe('createPreviewGridEditorInstallUnitFromBrowserHost', () => {
 
     state.replaceOverrides({ beta: { height: 80 } });
     expect(runtime.invalidateOverrideBoundFacades).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
+  beforeEach(() => {
+    mocks.createBrowserState.mockReset();
+    mocks.createRuntime.mockReset();
+  });
+
+  it('derives runtime callbacks from the compact editor-host contract', async () => {
+    let capturedRuntimeOptions: Record<string, unknown> | null = null;
+
+    const browserState = {
+      replaceOverrides: vi.fn((nextOverrides: Record<string, unknown>) => nextOverrides),
+      setDirty: vi.fn(),
+      pruneLinkedRootGridOverrides: vi.fn(),
+      restoreOverrideEntries: vi.fn(),
+      clearPendingRestoreRuntime: vi.fn(),
+      applyLocalRestoreRefresh: vi.fn(),
+      setMultiActionGap: vi.fn(),
+      setOverride: vi.fn(),
+      setWaypointOverride: vi.fn(),
+      cleanOverride: vi.fn(),
+      getParentNode: vi.fn(() => null),
+      getComponentNode: vi.fn(() => null),
+      hasLayoutChildren: vi.fn(() => false),
+      getArrowNode: vi.fn(() => null),
+      getComponentType: vi.fn(() => 'box'),
+      getViolationsForComponent: vi.fn(() => []),
+      scheduleLayoutRelayout: vi.fn(),
+      clearScheduledLayoutRelayout: vi.fn(),
+    };
+    const runtime = {
+      getSceneFacade: vi.fn(() => ({ kind: 'scene-facade' })),
+      getBootstrapFacade: vi.fn(() => ({ kind: 'bootstrap-facade' })),
+      getRelayoutFacade: vi.fn(() => ({ kind: 'relayout-facade' })),
+      getInteractionFacade: vi.fn(() => ({ kind: 'interaction-facade' })),
+      invalidateOverrideBoundFacades: vi.fn(),
+    };
+
+    mocks.createBrowserState.mockReturnValue(browserState);
+    mocks.createRuntime.mockImplementation((options: Record<string, unknown>) => {
+      capturedRuntimeOptions = options;
+      return runtime;
+    });
+
+    const interactionContract = {
+      kind: 'interaction-contract',
+      resolvePrimarySelectedId: vi.fn((_selectedIds: Set<string>, preferredCid?: string | null) => preferredCid || 'alpha'),
+    };
+    const previewWindow = {
+      __DG_getPreviewBridgeRelayoutContract: vi.fn(() => ({ kind: 'relayout-contract' })),
+      __DG_getPreviewShellInteractionContract: vi.fn(() => interactionContract),
+    };
+    const stageBindingRuntime = {
+      buildTreeUi: vi.fn(() => 'tree-ui'),
+      bindInteraction: vi.fn(() => 'bound'),
+    };
+    const selectionRuntime = {
+      deselectAll: vi.fn(),
+      reapplySelection: vi.fn(),
+      selectComponent: vi.fn(),
+      applySelectionStateSnapshot: vi.fn(),
+    };
+    const inspectorDisplayRuntime = {
+      renderEmptyInspector: vi.fn(),
+      renderSelectionInspector: vi.fn(),
+      renderMultiSelectionInspector: vi.fn(),
+    };
+    const inspectorMutationRuntime = {
+      setFrameProp: vi.fn(),
+    };
+    const resizeInteractionRuntime = {
+      onResizeUp: vi.fn(),
+    };
+    const interactionFacade = {
+      getStageBindingRuntime: vi.fn(() => stageBindingRuntime),
+      getSelectionRuntime: vi.fn(() => selectionRuntime),
+      getInspectorDisplayRuntime: vi.fn(() => inspectorDisplayRuntime),
+      getInspectorMutationRuntime: vi.fn(() => inspectorMutationRuntime),
+      getResizeInteractionRuntime: vi.fn(() => resizeInteractionRuntime),
+    };
+    const relayoutRuntime = {
+      requestRelayout: vi.fn(async () => 'relayouted'),
+    };
+    const relayoutFacade = {
+      applyUndoCommand: vi.fn(),
+      getRelayoutRuntime: vi.fn(() => relayoutRuntime),
+      scheduleResizeRelayout: vi.fn(() => true),
+      cancelResizeRelayout: vi.fn(),
+      persistResize: vi.fn(),
+    };
+    const sceneFacade = {
+      deleteSelectedFrames: vi.fn(async () => ({ rerendered: true })),
+      cycleGuideMode: vi.fn(),
+      updateOverrideSummary: vi.fn(),
+      refreshTreeColors: vi.fn(),
+      runConstraints: vi.fn(),
+    };
+    const timerState = {
+      current: null as unknown,
+    };
+    const setTimeoutFn = vi.fn((callback: () => void) => {
+      timerState.current = callback;
+      return callback;
+    });
+
+    const options = {
+      shared: {
+        document: {} as Document,
+        previewWindow,
+        slug: 'demo',
+        engine: 'v3',
+        gridEnabled: true,
+        guideModes: ['off', 'all'],
+        baselineStep: 24,
+        model: { kind: 'model' },
+        interactionManager: { kind: 'manager' },
+        selectedIds: new Set<string>(['alpha', 'beta']),
+        selectionDepthState: { get: vi.fn(() => 3), set: vi.fn() },
+        coercedKeys: new Set<string>(),
+        editorState: {
+          undo: vi.fn(),
+          redo: vi.fn(),
+        },
+        previewSaveClient: {
+          trySaveIfDirty: vi.fn(),
+        },
+        generationState: { get: vi.fn(() => 7), set: vi.fn() },
+        allowInternalDirtyNavigationState: { get: vi.fn(() => false), set: vi.fn() },
+        constraints: { kind: 'constraints' },
+        lastViolationsState: { get: vi.fn(() => []) },
+      },
+      state: {
+        overridesState: {
+          get: vi.fn(() => ({ alpha: { width: 120 } })),
+          set: vi.fn(),
+        },
+        multiActionGapState: { get: vi.fn(() => 24), set: vi.fn() },
+        layoutRelayoutTimerState: {
+          get: vi.fn(() => timerState.current),
+          set: vi.fn((value: unknown) => {
+            timerState.current = value;
+          }),
+        },
+        getMultiActionGapInput: vi.fn(() => null),
+        setTimeoutFn,
+        clearTimeoutFn: vi.fn(),
+      },
+      browser: {
+        syncArrowsInModel: vi.fn(),
+        arrowComponentId: vi.fn(() => 'arrow-alpha'),
+        readRenderedStyleFields: vi.fn(() => ({ fill: '#fff' })),
+        renderGuideLines: vi.fn(),
+        clearGuideLines: vi.fn(),
+        clearHandlesByClass: vi.fn(),
+        renderResizeHandles: vi.fn(),
+        collectPeerSnapTargets: vi.fn(() => []),
+        collectGridSnapTargets: vi.fn(() => ({ xs: [24], ys: [48] })),
+        snapRectToTargets: vi.fn(() => ({ dx: 0, dy: 0 })),
+        fitRenderedSvgToContent: vi.fn(),
+        escapeHtml: vi.fn((value: string) => value),
+        initNavTabs: vi.fn(),
+        setStatus: vi.fn(),
+        sanitizeSvgCloneForExport: vi.fn(),
+        applyInteractionOverrideEntries: vi.fn(),
+        interactionMode: { TEXT_EDITING: 'text', WAYPOINT_DRAGGING: 'waypoint' },
+        boxStyles: { default: { label: 'Default' } },
+        inset: 8,
+        iconSize: 48,
+        handleSize: 12,
+        textEditingMode: 'text',
+        columnGap: 24,
+        minNodeSize: 24,
+        fallbackGap: 24,
+        getInspector: vi.fn(() => ({ id: 'inspector' })),
+        getTextAdapter: vi.fn(() => ({ name: 'adapter' })),
+        renderBoxStyleOptions: vi.fn(() => '<option>default</option>'),
+        formatAsDefinedStyleLabel: vi.fn(() => 'Defined'),
+        snapToGrid: vi.fn((value: number) => value),
+        alert: vi.fn(),
+        normalizeStyleName: vi.fn((value: string) => value),
+        waypointDraggingMode: 'waypoint',
+        writeClipboardText: vi.fn(async () => undefined),
+        requestAnimationFrameFn: vi.fn((callback: () => void) => {
+          callback();
+          return 17;
+        }),
+        cancelAnimationFrameFn: vi.fn(),
+        theme: { headLen: 10, headHalf: 5, color: '#E95420' },
+      },
+      modelOps: {
+        getOwnDelta: vi.fn(() => ({ dx: 0, dy: 0, dw: 0, dh: 0 })),
+        getEffectiveDelta: vi.fn(() => ({ dx: 4, dy: 8, dw: 0, dh: 0 })),
+        getAncestors: vi.fn(() => ['page']),
+      },
+      facades: {
+        getEditorSceneFacade: vi.fn(() => sceneFacade),
+        getEditorRelayoutFacade: vi.fn(() => relayoutFacade),
+        getEditorInteractionFacade: vi.fn(() => interactionFacade),
+      },
+    } as any;
+
+    const installUnit = createPreviewGridEditorInstallUnitFromEditorHost(options);
+    expect(installUnit.getRuntime()).toBe(runtime);
+
+    const runtimeBrowser = (capturedRuntimeOptions as { browser: Record<string, unknown> }).browser;
+    expect(runtimeBrowser.getOwnDelta).toBe(options.modelOps.getOwnDelta);
+    expect(runtimeBrowser.getEffectiveDelta).toBe(options.modelOps.getEffectiveDelta);
+    expect(runtimeBrowser.getAncestors).toBe(options.modelOps.getAncestors);
+
+    expect((runtimeBrowser.buildTreeUi as () => unknown)()).toBe('tree-ui');
+    expect(stageBindingRuntime.buildTreeUi).toHaveBeenCalledTimes(1);
+    (runtimeBrowser.bindInteraction as () => unknown)();
+    expect(stageBindingRuntime.bindInteraction).toHaveBeenCalledTimes(1);
+    (runtimeBrowser.renderSelectionInspector as (preferredCid?: string | null) => void)('alpha');
+    expect(inspectorDisplayRuntime.renderSelectionInspector).toHaveBeenCalledWith('alpha');
+    (runtimeBrowser.setFrameProp as (cid: string, prop: string, value: unknown) => void)('alpha', 'width', 120);
+    expect(inspectorMutationRuntime.setFrameProp).toHaveBeenCalledWith('alpha', 'width', 120);
+    expect(await (runtimeBrowser.deleteSelectedFrames as () => Promise<boolean>)()).toBe(true);
+    expect(sceneFacade.deleteSelectedFrames).toHaveBeenCalledTimes(1);
+    expect((runtimeBrowser.getPrimarySelectedId as (preferredCid?: string | null) => string | null | undefined)('beta'))
+      .toBe('beta');
+    expect(interactionContract.resolvePrimarySelectedId)
+      .toHaveBeenCalledWith(options.shared.selectedIds, 'beta');
+
+    (runtimeBrowser.scheduleTextRelayout as (cid: string) => void)('gamma');
+    expect(setTimeoutFn).toHaveBeenCalledTimes(1);
+    expect(typeof timerState.current).toBe('function');
+    await (timerState.current as (() => Promise<unknown> | unknown))();
+    expect(relayoutRuntime.requestRelayout).toHaveBeenCalledWith('gamma');
+
+    (runtimeBrowser.requestRelayoutNow as (cid: string) => void)('delta');
+    expect(relayoutRuntime.requestRelayout).toHaveBeenCalledWith('delta');
+    (runtimeBrowser.save as () => void)();
+    expect(options.shared.previewSaveClient.trySaveIfDirty).toHaveBeenCalledTimes(1);
+    (runtimeBrowser.undo as () => void)();
+    expect(options.shared.editorState.undo).toHaveBeenCalledWith(relayoutFacade.applyUndoCommand);
+    (runtimeBrowser.redo as () => void)();
+    expect(options.shared.editorState.redo).toHaveBeenCalledWith(relayoutFacade.applyUndoCommand);
+    (runtimeBrowser.cycleGuideMode as () => void)();
+    expect(sceneFacade.cycleGuideMode).toHaveBeenCalledTimes(1);
+    (runtimeBrowser.onResizeUp as () => void)();
+    expect(resizeInteractionRuntime.onResizeUp).toHaveBeenCalledTimes(1);
+    (runtimeBrowser.updateOverrideSummary as () => void)();
+    expect(sceneFacade.updateOverrideSummary).toHaveBeenCalledTimes(1);
+    (runtimeBrowser.refreshTreeColors as () => void)();
+    expect(sceneFacade.refreshTreeColors).toHaveBeenCalledTimes(1);
+    (runtimeBrowser.runConstraints as () => unknown)();
+    expect(sceneFacade.runConstraints).toHaveBeenCalledTimes(1);
+    await expect(
+      (runtimeBrowser.requestLayoutRelayout as (cid: string) => Promise<unknown>)('epsilon'),
+    ).resolves.toBe('relayouted');
   });
 });

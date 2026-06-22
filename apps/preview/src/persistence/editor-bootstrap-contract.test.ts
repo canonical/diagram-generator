@@ -350,7 +350,7 @@ function createPreviewGridEditorRuntimeContext(options?: {
       },
       __DG_getPreviewShellBootstrapContract() {
         return {
-          createPreviewGridEditorInstallUnitFromBrowserHost(nextOptions: Record<string, unknown>) {
+          createPreviewGridEditorInstallUnitFromEditorHost(nextOptions: Record<string, unknown>) {
             capturedOptions = nextOptions;
             return {
               getRuntime() {
@@ -521,7 +521,9 @@ test("editor bootstrap facade delegates through the typed preview-grid runtime",
 
   const capturedOptions = harness.getCapturedOptions();
   const shared = capturedOptions?.shared as Record<string, unknown> | undefined;
+  const modelOps = capturedOptions?.modelOps as Record<string, unknown> | undefined;
   const browser = capturedOptions?.browser as Record<string, unknown> | undefined;
+  const facades = capturedOptions?.facades as Record<string, unknown> | undefined;
   assert.deepEqual(normalizeVmValue({
     slug: shared?.slug,
     engine: shared?.engine,
@@ -531,9 +533,10 @@ test("editor bootstrap facade delegates through the typed preview-grid runtime",
     allowInternalDirtyNavigation:
       (shared?.allowInternalDirtyNavigationState as { get?: () => boolean } | undefined)?.get?.(),
     generation: (shared?.generationState as { get?: () => number } | undefined)?.get?.(),
-    hasBuildTreeUi: typeof browser?.buildTreeUi,
-    hasRenderSelectionInspector: typeof browser?.renderSelectionInspector,
-    hasRequestLayoutRelayout: typeof browser?.requestLayoutRelayout,
+    hasGetOwnDelta: typeof modelOps?.getOwnDelta,
+    hasGetEditorInteractionFacade: typeof facades?.getEditorInteractionFacade,
+    hasGetEditorSceneFacade: typeof facades?.getEditorSceneFacade,
+    hasGetEditorRelayoutFacade: typeof facades?.getEditorRelayoutFacade,
     hasWriteClipboardText: typeof browser?.writeClipboardText,
   }), {
     slug: "demo",
@@ -543,9 +546,10 @@ test("editor bootstrap facade delegates through the typed preview-grid runtime",
     selectedIds: ["alpha", "beta"],
     allowInternalDirtyNavigation: false,
     generation: 3,
-    hasBuildTreeUi: "function",
-    hasRenderSelectionInspector: "function",
-    hasRequestLayoutRelayout: "function",
+    hasGetOwnDelta: "function",
+    hasGetEditorInteractionFacade: "function",
+    hasGetEditorSceneFacade: "function",
+    hasGetEditorRelayoutFacade: "function",
     hasWriteClipboardText: "function",
   });
 });
@@ -580,7 +584,9 @@ test("editor relayout facade delegates through the typed preview-grid runtime", 
 
   const capturedOptions = harness.getCapturedOptions();
   const shared = capturedOptions?.shared as Record<string, unknown> | undefined;
+  const state = capturedOptions?.state as Record<string, unknown> | undefined;
   const browser = capturedOptions?.browser as Record<string, unknown> | undefined;
+  const facades = capturedOptions?.facades as Record<string, unknown> | undefined;
   assert.deepEqual(normalizeVmValue({
     coercedKeys: Array.from(shared?.coercedKeys as Iterable<string>),
     hasNormalizeGridOverrides: typeof (
@@ -591,12 +597,19 @@ test("editor relayout facade delegates through the typed preview-grid runtime", 
     )?.commitOverridePatchAction,
     selectedIds: Array.from(shared?.selectedIds as Iterable<string>),
     hasOverrideStateGet: typeof (
-      browser?.overridesState as { get?: () => Record<string, unknown> } | undefined
+      state?.overridesState as { get?: () => Record<string, unknown> } | undefined
     )?.get,
     hasOverrideStateSet: typeof (
-      browser?.overridesState as { set?: (nextOverrides: Record<string, unknown>) => void } | undefined
+      state?.overridesState as { set?: (nextOverrides: Record<string, unknown>) => void } | undefined
     )?.set,
-    hasRunConstraints: typeof browser?.runConstraints,
+    hasTimerStateGet: typeof (
+      state?.layoutRelayoutTimerState as { get?: () => unknown } | undefined
+    )?.get,
+    hasTimerStateSet: typeof (
+      state?.layoutRelayoutTimerState as { set?: (value: unknown) => void } | undefined
+    )?.set,
+    hasGetEditorSceneFacade: typeof facades?.getEditorSceneFacade,
+    hasGetEditorRelayoutFacade: typeof facades?.getEditorRelayoutFacade,
     hasRequestAnimationFrame: typeof browser?.requestAnimationFrameFn,
     hasCancelAnimationFrame: typeof browser?.cancelAnimationFrameFn,
   }), {
@@ -606,7 +619,10 @@ test("editor relayout facade delegates through the typed preview-grid runtime", 
     selectedIds: ["alpha", "beta"],
     hasOverrideStateGet: "function",
     hasOverrideStateSet: "function",
-    hasRunConstraints: "function",
+    hasTimerStateGet: "function",
+    hasTimerStateSet: "function",
+    hasGetEditorSceneFacade: "function",
+    hasGetEditorRelayoutFacade: "function",
     hasRequestAnimationFrame: "function",
     hasCancelAnimationFrame: "function",
   });
