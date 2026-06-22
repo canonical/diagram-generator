@@ -81,7 +81,23 @@ Measured residual surfaces on the current branch:
   physical lines
 - `packages/layout-engine/src/preview-shell/preview-shell-state-barrel.ts`: 136
   physical lines
-- `apps/preview/src/persistence/engine-contract-consumers.test.ts`: 3,470
+- `apps/preview/src/persistence/preview-script-test-helpers.ts`: 532
+  physical lines
+- `apps/preview/src/persistence/editor-bridge-contract-consumers.test.ts`: 451
+  physical lines
+- `apps/preview/src/persistence/editor-inspector-contract-consumers.test.ts`: 421
+  physical lines
+- `apps/preview/src/persistence/editor-keyboard-contract-consumers.test.ts`: 195
+  physical lines
+- `apps/preview/src/persistence/editor-pointer-contract-consumers.test.ts`: 480
+  physical lines
+- `apps/preview/src/persistence/editor-resize-waypoint-contract-consumers.test.ts`:
+  180 physical lines
+- `apps/preview/src/persistence/editor-scene-contract-consumers.test.ts`: 492
+  physical lines
+- `apps/preview/src/persistence/editor-selection-contract-consumers.test.ts`:
+  486 physical lines
+- `apps/preview/src/persistence/preview-engine-controller-contract.test.ts`: 305
   physical lines
 
 What is still false to claim:
@@ -96,11 +112,9 @@ What is still false to claim:
   whole platform runtime; preview-engine builtins now install through typed
   install units, but preview-host builtin startup still reads more centrally
   than the target end state
-- it is still false to say the remaining large TypeScript contract surfaces
-  have been decomposed enough to avoid becoming the next monolith; the
-  top-level `preview-shell/index.ts` and `browser-entry.ts` barrels are now
-  thin, but the VM harness is still oversized and must not become the next
-  central sink
+- it is still false to say the repo is many-engine ready just because the root
+  barrels and catch-all VM harness are now split; the contract surface is now
+  owner-scoped, but the substantive remaining blocker is the engine substrate
 - it is still false to say the layout substrate is ready for Mermaid, D2, and
   Dagre without forcing them through ELK-shaped contracts
 - it is still false to answer "yes" to the 50/150/500-engine question
@@ -121,13 +135,10 @@ detour:
 That means Workstreams A through D are no longer the primary code blocker. The
 highest leverage remaining blocker order is now:
 
-1. Workstream E: finish the contract-surface split so the VM harness does not
-   become the replacement monolith now that `preview-shell/index.ts` and
-   `browser-entry.ts` are thin owner-barrel fan-outs
-2. Workstream F: make the layout substrate honestly open to Mermaid, D2, Dagre,
-   and other non-ELK families
-3. final adversarial closeout: confirm the 50/150/500-engine answer is
-   actually yes after the remaining barrel and substrate work
+1. Workstream F: make the layout substrate honestly open to Mermaid, D2,
+   Dagre, and other non-ELK families
+2. final adversarial closeout: confirm the 50/150/500-engine answer is
+   actually yes after the remaining substrate work
 
 ## Target architecture
 
@@ -369,8 +380,9 @@ Current state:
   export subset mechanically
 - `preview-shell/index.ts` is now a seven-line top-level fan-out into
   owner-scoped `preview-shell-*-barrel.ts` files
-- the dominant remaining Workstream-E blocker is
-  `apps/preview/src/persistence/engine-contract-consumers.test.ts`
+- the old 3.4k-line `engine-contract-consumers.test.ts` catch-all harness is
+  gone; its coverage now lives in owner-scoped contract suites backed by
+  `preview-script-test-helpers.ts`
 
 Why this is part of 046:
 
@@ -383,7 +395,7 @@ Suggested implementation slices:
    capabilities, document handlers, host adapters
 2. split runtime contracts and installer helpers by owner boundary
 3. replace the single huge engine-contract consumer harness with focused suites
-   per owner or capability family
+   per owner or capability family plus a shared mechanical helper surface
 4. keep one thin top-level re-export surface only if it remains mechanical
 
 ## Workstream F - algorithm substrate readiness
