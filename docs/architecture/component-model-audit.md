@@ -113,4 +113,4 @@ Result: Separators are now fully selectable, inspectable, and participate in all
 
 - Arrows are a legitimate parallel data structure for our use case (edges routed after node placement)
 - The arrow routing algorithm is the real problem, not the data model
-- See the arrow routing research plan (R1–R5) in TODO.md – this is a separate milestone
+- See `specs/006-arrow-routing-redesign/` for arrow routing work; this is a separate milestone

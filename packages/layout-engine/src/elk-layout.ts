@@ -4,6 +4,7 @@
  */
 import type {
   GraphInsetsInput,
+  GraphEdgeInput,
   GraphLayoutInput,
   GraphLayoutResult,
   GraphNodeInput,
@@ -29,6 +30,7 @@ import { INSET, roundUpToGrid, sizeToPx, BODY_LINE_STEP } from './tokens.js';
 export interface ElkLayoutSnapshot extends GraphLayoutResult {
   originX: number;
   originY: number;
+  debug?: ElkLayoutDebugData;
 }
 
 export interface ElkLayoutOptions {
@@ -43,6 +45,24 @@ export interface ElkLayoutOptions {
 export interface ElkLayoutOutput extends LayoutOutput {
   /** Raw ELK node/edge geometry for debug overlay (absolute coordinates). */
   elkSnapshot?: ElkLayoutSnapshot;
+}
+
+export interface ElkAuthoredTreeDebugNode {
+  id: string;
+  kind: 'frame' | 'synthetic-heading' | 'synthetic-body' | 'annotation';
+  status: 'graph-node' | 'flattened' | 'synthetic' | 'annotation' | 'omitted';
+  isEndpoint: boolean;
+  isNativeCompound: boolean;
+  children: ElkAuthoredTreeDebugNode[];
+}
+
+export interface ElkLayoutDebugData {
+  authoredTree: ElkAuthoredTreeDebugNode;
+  inputGraph: {
+    nodes: GraphNodeInput[];
+    edges: GraphEdgeInput[];
+  };
+  flattenedFrameIds: string[];
 }
 
 function elkGraphDirectionFromRoot(root: Frame): LayoutDirection {
@@ -152,6 +172,10 @@ function isElkCompound(frame: Frame, nativeCompoundIds: Set<string>): boolean {
   return Boolean(frame.id) && nativeCompoundIds.has(frame.id);
 }
 
+function compoundNeedsElkChildLayout(frame: Frame, endpoints: Set<string>): boolean {
+  return authoredLayoutChildren(frame).some((child) => hasEndpointDescendant(child, endpoints));
+}
+
 function isElkCarrier(frame: Frame, endpoints: Set<string>): boolean {
   if (frame.isLeaf || frame.children.length === 0) return false;
   if (isSyntheticLayoutFrame(frame)) return false;
@@ -256,6 +280,7 @@ function frameToGraphNode(
   measureSubtree(frame, adapter);
   const semantic = semanticSizes.get(frame.id);
   const compound = isElkCompound(frame, nativeCompoundIds);
+  const includeCompoundChildren = compound && compoundNeedsElkChildLayout(frame, endpoints);
   const padding = semanticCompoundPadding(frame, semanticPlacements);
   const node: GraphNodeInput = {
     id: frame.id,
@@ -270,8 +295,8 @@ function frameToGraphNode(
     nativeCompoundIds,
     semanticSizes,
     semanticPlacements,
-    allowStructuralCarriers || compound,
-    includePassiveLeaves || compound,
+    allowStructuralCarriers || includeCompoundChildren,
+    includePassiveLeaves || includeCompoundChildren,
   );
   if (childNodes.length > 0) {
     node.children = childNodes;
@@ -324,6 +349,66 @@ function collectGraphChildNodes(
     ));
   }
   return nodes;
+}
+
+function collectGraphNodeIds(
+  nodes: GraphNodeInput[],
+  out: Set<string> = new Set<string>(),
+): Set<string> {
+  for (const node of nodes) {
+    out.add(node.id);
+    if (node.children?.length) {
+      collectGraphNodeIds(node.children, out);
+    }
+  }
+  return out;
+}
+
+function cloneElkDebugNodes(nodes: GraphNodeInput[]): GraphNodeInput[] {
+  return nodes.map((node) => ({
+    ...node,
+    padding: node.padding ? { ...node.padding } : undefined,
+    ports: node.ports?.map((port) => ({
+      ...port,
+      anchor: { ...port.anchor },
+    })),
+    children: node.children ? cloneElkDebugNodes(node.children) : undefined,
+  }));
+}
+
+function buildElkAuthoredTreeDebug(
+  frame: Frame,
+  options: {
+    inputNodeIds: Set<string>;
+    endpoints: Set<string>;
+    nativeCompoundIds: Set<string>;
+  },
+): ElkAuthoredTreeDebugNode {
+  const kind = isSyntheticHeadingFrame(frame)
+    ? 'synthetic-heading'
+    : isSyntheticBodyFrame(frame)
+      ? 'synthetic-body'
+      : isAnnotationFrame(frame, options.endpoints)
+        ? 'annotation'
+        : 'frame';
+  const status = isSyntheticLayoutFrame(frame)
+    ? 'synthetic'
+    : isAnnotationFrame(frame, options.endpoints)
+      ? 'annotation'
+      : options.inputNodeIds.has(frame.id)
+        ? 'graph-node'
+        : hasEndpointDescendant(frame, options.endpoints)
+          ? 'flattened'
+          : 'omitted';
+
+  return {
+    id: frame.id,
+    kind,
+    status,
+    isEndpoint: options.endpoints.has(frame.id),
+    isNativeCompound: options.nativeCompoundIds.has(frame.id),
+    children: frame.children.map((child) => buildElkAuthoredTreeDebug(child, options)),
+  };
 }
 
 function buildElkGraphNodes(
@@ -543,12 +628,40 @@ function anchorSyntheticLayoutDescendants(
       }
     : undefined;
   const syntheticBody = frame.children.find((child) => isSyntheticBodyFrame(child));
+  const bodySemantic = syntheticBody?.id ? semanticPlacements.get(syntheticBody.id) : undefined;
+  const padLeft = Math.max(0, Math.round(frame.paddingLeft));
+  const padRight = Math.max(0, Math.round(frame.paddingRight));
+  const padTop = Math.max(0, Math.round(frame.paddingTop));
+  const padBottom = Math.max(0, Math.round(frame.paddingBottom));
+  const bodyTopInset = frameSemantic && bodySemantic
+    ? Math.max(padTop, Math.round(bodySemantic.y - frameSemantic.y))
+    : padTop;
+  const bodyContentBox = selfAnchor && syntheticBody
+    ? {
+        x: frame._layout.placedX + padLeft,
+        y: frame._layout.placedY + bodyTopInset,
+        width: Math.max(0, frame._layout.placedW - padLeft - padRight),
+        height: Math.max(
+          0,
+          frame._layout.placedH - bodyTopInset - padBottom,
+        ),
+      }
+    : null;
   const bodyBox = syntheticBody
     ? bboxOfFrames(syntheticBody.children.filter((child) => hasPlacedGeometry(child, placedIds)))
     : null;
 
   for (const child of frame.children) {
     const childSemantic = child.id ? semanticPlacements.get(child.id) : undefined;
+    if (syntheticBody && child.id === syntheticBody.id && bodyContentBox) {
+      child._layout.placedX = bodyContentBox.x;
+      child._layout.placedY = bodyContentBox.y;
+      child._layout.placedW = bodyContentBox.width;
+      child._layout.placedH = bodyContentBox.height;
+      child._layout.measuredW = child._layout.placedW;
+      child._layout.measuredH = child._layout.placedH;
+      continue;
+    }
     if (syntheticBody && bodyBox && child.id === syntheticBody.id) {
       child._layout.placedX = bodyBox.minX;
       child._layout.placedY = bodyBox.minY;
@@ -558,12 +671,25 @@ function anchorSyntheticLayoutDescendants(
       child._layout.measuredH = child._layout.placedH;
       continue;
     }
+    if (bodyContentBox && isSyntheticHeadingFrame(child)) {
+      const semanticTop = frameSemantic && childSemantic
+        ? Math.max(padTop, Math.round(childSemantic.y - frameSemantic.y))
+        : padTop;
+      const height = childSemantic?.height ?? child._layout.measuredH;
+      const width = Math.max(0, frame._layout.placedW - padLeft - padRight);
+      child._layout.placedX = frame._layout.placedX + padLeft;
+      child._layout.placedY = frame._layout.placedY + semanticTop;
+      child._layout.placedW = width;
+      child._layout.placedH = height;
+      child._layout.measuredW = width;
+      child._layout.measuredH = height;
+      continue;
+    }
     if (bodyBox && isSyntheticHeadingFrame(child)) {
       const height = childSemantic?.height ?? child._layout.measuredH;
       const width = Math.max(bodyBox.maxX - bodyBox.minX, childSemantic?.width ?? child._layout.measuredW);
-      const topGap = Math.max(0, Math.round(frame.paddingTop));
       child._layout.placedX = bodyBox.minX;
-      child._layout.placedY = bodyBox.minY - height - topGap;
+      child._layout.placedY = bodyBox.minY - height;
       child._layout.placedW = width;
       child._layout.placedH = height;
       child._layout.measuredW = width;
@@ -845,6 +971,25 @@ export async function layoutElkFrameDiagram(
     nodes,
     edges: buildGraphEdges(diagram, adapter),
   };
+  const inputNodeIds = collectGraphNodeIds(nodes);
+  const authoredTreeDebug = buildElkAuthoredTreeDebug(diagram.root, {
+    inputNodeIds,
+    endpoints,
+    nativeCompoundIds,
+  });
+  const flattenedIds = (() => {
+    const out: string[] = [];
+    const visit = (node: ElkAuthoredTreeDebugNode): void => {
+      if (node.status === 'flattened') {
+        out.push(node.id);
+      }
+      for (const child of node.children) {
+        visit(child);
+      }
+    };
+    visit(authoredTreeDebug);
+    return out;
+  })();
 
   const family = options.diagramType ?? familyFromDiagram(diagram);
   const elkOverrides = {
@@ -892,6 +1037,7 @@ export async function layoutElkFrameDiagram(
   wrapStructuralContainers(diagram.root, placedIds);
   anchorSyntheticLayoutDescendants(diagram.root, placedIds, semanticLayout.placements);
   wrapStructuralContainers(diagram.root, placedIds);
+  anchorSyntheticLayoutDescendants(diagram.root, placedIds, semanticLayout.placements);
 
   layoutAnnotationsBelow(diagram.root, adapter, elk.height, originX, originY, endpoints);
 
@@ -939,6 +1085,21 @@ export async function layoutElkFrameDiagram(
     width: rootW,
     height: rootH,
     coerced: new Map(),
-    elkSnapshot: { ...elk, originX, originY },
+    elkSnapshot: {
+      ...elk,
+      originX,
+      originY,
+      debug: {
+        authoredTree: authoredTreeDebug,
+        inputGraph: {
+          nodes: cloneElkDebugNodes(input.nodes),
+          edges: input.edges.map((edge) => ({
+            ...edge,
+            labels: edge.labels?.map((label) => ({ ...label })),
+          })),
+        },
+        flattenedFrameIds: flattenedIds,
+      },
+    },
   };
 }

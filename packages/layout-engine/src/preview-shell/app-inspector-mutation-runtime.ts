@@ -25,6 +25,7 @@ export interface CreatePreviewInspectorMutationRuntimeOptions {
   snapToGrid: (value: number) => number;
   setDirty: (dirty: boolean) => void;
   scheduleRelayout: (cid: string) => void;
+  requestRelayoutNow: (cid: string) => void;
   renderSelectionInspector: (cid?: string | null) => void;
   cleanOverride: (cid: string) => void;
   getGridInfo: () => PreviewGridInfo | null | undefined;
@@ -168,7 +169,7 @@ export function createPreviewInspectorMutationRuntime(
         coercedKeys: options.coercedKeys,
         setDirty: options.setDirty,
         commitOverridePatchAction: options.commitOverridePatchAction,
-        scheduleRelayout: options.scheduleRelayout,
+        requestRelayout: options.requestRelayoutNow,
         renderSelectionInspector: options.renderSelectionInspector,
       });
     },

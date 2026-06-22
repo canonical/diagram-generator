@@ -1,6 +1,7 @@
 import type {
-  BuiltinPreviewHostServerRouteDeps,
-  BuiltinPreviewHostViewerRouteDeps,
+  PreviewHostModuleContextReader,
+  PreviewHostSharedServerDeps,
+  PreviewHostSharedViewerDeps,
 } from "./builtin-host-deps.js";
 
 export interface PreviewHostModuleDescriptor {
@@ -9,8 +10,9 @@ export interface PreviewHostModuleDescriptor {
 }
 
 export interface PreviewHostModuleInstallDeps
-  extends BuiltinPreviewHostViewerRouteDeps,
-    BuiltinPreviewHostServerRouteDeps {}
+  extends PreviewHostSharedViewerDeps,
+    PreviewHostSharedServerDeps,
+    PreviewHostModuleContextReader {}
 
 const previewHostModuleRegistry: PreviewHostModuleDescriptor[] = [];
 

@@ -23,6 +23,21 @@ function walkPlacedNodesAbsolute(
   }
 }
 
+function attachElkDebugPayload(
+  group: SVGGElement,
+  snapshot: ElkLayoutSnapshot,
+): void {
+  if (!snapshot.debug) {
+    return;
+  }
+  group.setAttribute('data-dg-elk-authored-tree', JSON.stringify(snapshot.debug.authoredTree));
+  group.setAttribute('data-dg-elk-input-graph', JSON.stringify(snapshot.debug.inputGraph));
+}
+
+function countAuthoredTreeNodes(node: NonNullable<ElkLayoutSnapshot['debug']>['authoredTree']): number {
+  return 1 + node.children.reduce((sum, child) => sum + countAuthoredTreeNodes(child), 0);
+}
+
 export interface RenderPreviewElkOverlayOptions {
   ownerDocument: Document;
   snapshot: ElkLayoutSnapshot;
@@ -42,6 +57,7 @@ export function renderPreviewElkDebugOverlay(
   const group = options.ownerDocument.createElementNS(svgNs, 'g') as SVGGElement;
   group.id = 'dg-elk-debug-overlay';
   group.setAttribute('pointer-events', 'none');
+  attachElkDebugPayload(group, options.snapshot);
 
   const originX = options.snapshot.originX || 0;
   const originY = options.snapshot.originY || 0;
@@ -134,6 +150,7 @@ export function renderPreviewElkRawView(
   const group = options.ownerDocument.createElementNS(svgNs, 'g') as SVGGElement;
   group.id = 'dg-elk-raw-view';
   group.setAttribute('pointer-events', 'none');
+  attachElkDebugPayload(group, options.snapshot);
 
   const originX = options.snapshot.originX || 0;
   const originY = options.snapshot.originY || 0;
@@ -148,6 +165,18 @@ export function renderPreviewElkRawView(
   caption.setAttribute('fill', '#555555');
   caption.textContent = 'ELK raw layout — gray nodes, black routes, ELK label boxes (toggle off for BF styling)';
   group.appendChild(caption);
+
+  if (options.snapshot.debug) {
+    const summary = options.ownerDocument.createElementNS(svgNs, 'text');
+    summary.setAttribute('x', '8');
+    summary.setAttribute('y', '30');
+    summary.setAttribute('font-family', 'sans-serif');
+    summary.setAttribute('font-size', '10');
+    summary.setAttribute('fill', '#555555');
+    const flattenedPreview = options.snapshot.debug.flattenedFrameIds.slice(0, 4).join(', ');
+    summary.textContent = `Authored tree ${countAuthoredTreeNodes(options.snapshot.debug.authoredTree)} nodes; ELK input ${options.snapshot.debug.inputGraph.nodes.length} top-level nodes; flattened: ${flattenedPreview || 'none'}`;
+    group.appendChild(summary);
+  }
 
   walkPlacedNodesAbsolute(options.snapshot.nodes, (node) => {
     const x = node.x + originX;

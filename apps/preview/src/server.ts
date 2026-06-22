@@ -8,25 +8,20 @@ import { fileURLToPath } from "node:url";
 import {
   createFsIconLoader,
   createHarfBuzzTextAdapter,
-  serializePreviewEngineManifest,
-  type PreviewEngineManifest,
 } from "@diagram-generator/layout-engine";
 import {
   type FramePreviewDocumentDeps,
   type FramePreviewRenderDeps,
 } from "./preview-host/frame-documents.js";
 import {
-  buildRegisteredPreviewBrowseSections,
-} from "./preview-host/registry.js";
-import {
   type ForcePreviewDocumentDeps,
 } from "./preview-host/force-documents.js";
+import { createBuiltinPreviewHostInstallDeps } from "./preview-host/builtin-host-runtime.js";
 import { installBuiltinPreviewHost } from "./preview-host/install-builtins.js";
-import { buildIndexPageHtml } from "./preview-host/pages.js";
 import { routeRegisteredPreviewHostRequest } from "./preview-host/request-router.js";
 
 const DEFAULT_PORT = 8100;
-const SPEC_HOME = "specs/046-editor-host-endgame/";
+const SPEC_HOME = "specs/045-preview-host-engine-modularity/";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
@@ -81,17 +76,6 @@ const HARFBUZZ_WASM_SOURCE = path.join(
   "harfbuzz.wasm",
 );
 const VIEWER_TEMPLATE = path.join(PREVIEW_DIR, "viewer-unified.html");
-
-const REFERENCE_MAP: Record<string, string> = {
-  "memory-wall": "redo-this-image-onbrand.png",
-  "attention-qkv": "image 3.png",
-  "logic-data-vram": "image 4.png",
-  "request-to-hardware-stack": "image 6.png",
-  "inference-snaps": "image 7.png",
-  "example-arrow-label-separator": "example-arrow-label-separator-rough.svg",
-  "force-stakeholders": "force/IMG_3229.jpg",
-  "tiered-network-architecture": "maas/tiered-network-architecture.png",
-};
 
 const MIME_TYPES: Record<string, string> = {
   ".css": "text/css; charset=utf-8",
@@ -298,37 +282,6 @@ function normalizeFrameSlug(slug: string): string | null {
   return isSafeSlug(value) ? value : null;
 }
 
-function normalizeLayoutEngine(layoutEngine: string | undefined): string {
-  const key = layoutEngine?.trim() ?? "";
-  if (!key) return "";
-  const hostableGridLayoutKeys = new Set(
-    serializePreviewEngineManifest()
-      .filter(
-        (entry: PreviewEngineManifest): entry is PreviewEngineManifest & { layoutEngineKey: string } =>
-          entry.shellMode === "grid" && typeof entry.layoutEngineKey === "string",
-      )
-      .map((entry) => entry.layoutEngineKey),
-  );
-  return hostableGridLayoutKeys.size === 0 || hostableGridLayoutKeys.has(key) ? key : "";
-}
-
-function listYamlSlugs(dir: string): string[] {
-  if (!existsSync(dir)) return [];
-  return readdirSync(dir, { withFileTypes: true })
-    .filter((entry) => entry.isFile() && entry.name.endsWith(".yaml"))
-    .map((entry) => path.basename(entry.name, ".yaml"))
-    .filter((slug) => isSafeSlug(slug))
-    .sort((a, b) => a.localeCompare(b));
-}
-
-function listAutolayoutDiagrams(): string[] {
-  return listYamlSlugs(FRAMES_DIR);
-}
-
-function listForceExamples(): string[] {
-  return listYamlSlugs(FORCE_DEFINITIONS_DIR);
-}
-
 function resolvePreviewAssetPath(filename: string): string | null {
   if (!filename || filename.includes("..")) return null;
   if (filename === "layout-engine.js") return LAYOUT_ENGINE_BUNDLE;
@@ -453,58 +406,11 @@ function previewAssetUrl(filename: string): string {
   return `/preview/${filename}?v=${version}`;
 }
 
-function findReferenceImage(slug: string): string | null {
-  const corpus = path.join(CORPUS_REF_DIR, `${slug}-source.png`);
-  if (existsSync(corpus)) return corpus;
-
-  const mapped = REFERENCE_MAP[slug];
-  if (mapped) {
-    for (const inputDir of INPUT_DIRS) {
-      const candidate = path.join(inputDir, mapped);
-      if (existsSync(candidate)) return candidate;
-    }
-  }
-
-  const forceSpecPath = path.join(FORCE_DEFINITIONS_DIR, `${slug}.yaml`);
-  if (existsSync(forceSpecPath)) {
-    try {
-      const parsed = parseYaml(readFileSync(forceSpecPath, "utf8"));
-      const filename =
-        parsed && typeof parsed === "object" && "reference_image" in parsed
-          ? Reflect.get(parsed as Record<string, unknown>, "reference_image")
-          : null;
-      if (typeof filename === "string") {
-        for (const inputDir of INPUT_DIRS) {
-          const candidate = path.join(inputDir, filename);
-          if (existsSync(candidate)) return candidate;
-        }
-      }
-    } catch {
-      return null;
-    }
-  }
-
-  return null;
-}
-
 function bfStylesLinkHtml(): string {
   return '<link rel="stylesheet" href="/preview/bf-os.css">';
 }
 
-function buildBrowseSections() {
-  return buildRegisteredPreviewBrowseSections();
-}
-
-function buildIndexHtml(port: number): string {
-  return buildIndexPageHtml({
-    port,
-    specHome: SPEC_HOME,
-    browseSections: buildBrowseSections(),
-    baselineStylesHtml: bfStylesLinkHtml(),
-  });
-}
-
-installBuiltinPreviewHost({
+installBuiltinPreviewHost(createBuiltinPreviewHostInstallDeps({
   framePreviewDocumentDeps,
   forcePreviewDocumentDeps,
   framePreviewRenderDeps,
@@ -513,7 +419,6 @@ installBuiltinPreviewHost({
   framesDir: FRAMES_DIR,
   specHome: SPEC_HOME,
   currentGitBranch,
-  buildIndexHtml,
   layoutEngineFontPath: LAYOUT_ENGINE_FONT,
   baselineOsCssPath: BF_VENDOR_OS_CSS,
   baselineFontDir: BF_VENDOR_FONT_DIR,
@@ -524,9 +429,6 @@ installBuiltinPreviewHost({
   templateHtml: readFileSync(VIEWER_TEMPLATE, "utf8"),
   baselineStylesHtml: bfStylesLinkHtml(),
   previewAssetUrl,
-  listAutolayoutDiagrams,
-  listForceExamples,
-  findReferenceImage,
   readReloadState: () => ({
     generation: rebuildGeneration,
     error: lastRebuildError,
@@ -537,8 +439,9 @@ installBuiltinPreviewHost({
   removeSseClient: (client) => {
     sseClients.delete(client);
   },
-  normalizeLayoutEngine,
-});
+  corpusRefDir: CORPUS_REF_DIR,
+  inputDirs: INPUT_DIRS,
+}));
 
 function contentTypeForPath(filePath: string): string {
   return MIME_TYPES[path.extname(filePath).toLowerCase()] ?? "application/octet-stream";

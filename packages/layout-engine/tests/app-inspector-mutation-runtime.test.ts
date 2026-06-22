@@ -10,6 +10,7 @@ describe('createPreviewInspectorMutationRuntime', () => {
     const commitOverridePatchAction = vi.fn();
     const setDirty = vi.fn();
     const scheduleRelayout = vi.fn();
+    const requestRelayoutNow = vi.fn();
     const renderSelectionInspector = vi.fn();
     const runtime = createPreviewInspectorMutationRuntime({
       captureOverrideEntries,
@@ -20,6 +21,7 @@ describe('createPreviewInspectorMutationRuntime', () => {
       snapToGrid: (value) => value,
       setDirty,
       scheduleRelayout,
+      requestRelayoutNow,
       renderSelectionInspector,
       cleanOverride: vi.fn(),
       getGridInfo: () => null,
@@ -40,5 +42,37 @@ describe('createPreviewInspectorMutationRuntime', () => {
       { root: {} },
       { root: { gap_delta: 24 } },
     );
+    expect(requestRelayoutNow).not.toHaveBeenCalled();
+  });
+
+  it('requests immediate relayout for single-frame size mutations', () => {
+    let overrides: Record<string, Record<string, unknown>> = {};
+    const scheduleRelayout = vi.fn();
+    const requestRelayoutNow = vi.fn();
+
+    const runtime = createPreviewInspectorMutationRuntime({
+      captureOverrideEntries: (ids) => Object.fromEntries(ids.map((id) => [id, { ...(overrides[id] || {}) }])),
+      commitOverridePatchAction: vi.fn(),
+      getOverrides: () => overrides,
+      coercedKeys: new Set<string>(),
+      getNode: () => ({ type: 'box' }),
+      snapToGrid: (value) => value,
+      setDirty: vi.fn(),
+      scheduleRelayout,
+      requestRelayoutNow,
+      renderSelectionInspector: vi.fn(),
+      cleanOverride: vi.fn(),
+      getGridInfo: () => null,
+      getWidthUnit: () => 'px',
+      getHeightUnit: () => 'px',
+      baselineStep: 8,
+    });
+
+    overrides = {};
+    runtime.setFrameSize('alpha', 'width', 120);
+
+    expect(overrides.alpha).toEqual({ sizing_w: 'FIXED', width: 120 });
+    expect(requestRelayoutNow).toHaveBeenCalledWith('alpha');
+    expect(scheduleRelayout).not.toHaveBeenCalled();
   });
 });

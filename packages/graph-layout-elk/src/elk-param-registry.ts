@@ -111,6 +111,7 @@ export const ELK_LAYERED_PARAM_SPECS: ElkParamSpec[] = [
     group: 'Edges',
     kind: 'boolean',
     defaultValue: 'true',
+    description: 'Biases placement toward straighter routed edges when the topology allows it; dense compounds can still force detours.',
   },
   {
     key: 'elk.layered.layering.strategy',
@@ -147,6 +148,7 @@ export const ELK_LAYERED_PARAM_SPECS: ElkParamSpec[] = [
       { value: 'LINEAR_SEGMENTS', label: 'Linear segments' },
       { value: 'SIMPLE', label: 'Simple' },
     ],
+    description: 'Changes layered node placement heuristics after ranking/crossing resolution. Differences are topology-dependent, so compare on real diagrams before keeping the override.',
   },
   {
     key: 'elk.hierarchyHandling',

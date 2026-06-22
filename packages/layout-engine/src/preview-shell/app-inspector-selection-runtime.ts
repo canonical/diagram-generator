@@ -259,7 +259,7 @@ export function createPreviewInspectorSelectionRuntime(
         getNode: (cid) => options.getNode(cid) as PreviewFrameMutationNode | null | undefined,
         setDirty: options.setDirty,
         commitOverridePatchAction: options.commitOverridePatchAction,
-        scheduleRelayout: options.scheduleRelayout,
+        requestRelayout: options.requestRelayoutNow,
         renderMultiSelectionInspector: options.renderMultiSelectionInspector,
       });
     },

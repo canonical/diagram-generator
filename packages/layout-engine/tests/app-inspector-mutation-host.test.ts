@@ -62,7 +62,7 @@ describe('preview inspector mutation host helpers', () => {
       coercedKeys: new Set(),
       setDirty: () => events.push('setDirty'),
       commitOverridePatchAction: (label) => events.push(label),
-      scheduleRelayout: (cid) => events.push(`relayout:${cid}`),
+      requestRelayout: (cid) => events.push(`relayoutNow:${cid}`),
       renderSelectionInspector: (cid) => events.push(`inspector:${cid}`),
     });
 
@@ -77,7 +77,7 @@ describe('preview inspector mutation host helpers', () => {
       'inspector:alpha',
       'setDirty',
       'Set width',
-      'relayout:alpha',
+      'relayoutNow:alpha',
       'inspector:alpha',
     ]);
   });
@@ -149,7 +149,7 @@ describe('preview inspector mutation host helpers', () => {
       getNode: vi.fn(),
       setDirty: () => events.push('setDirty'),
       commitOverridePatchAction: (label) => events.push(label),
-      scheduleRelayout: (cid) => events.push(`relayout:${cid}`),
+      requestRelayout: (cid) => events.push(`relayoutNow:${cid}`),
       renderMultiSelectionInspector: () => events.push('renderMulti'),
     });
 
@@ -170,7 +170,7 @@ describe('preview inspector mutation host helpers', () => {
       'renderSelection',
       'setDirty',
       'Set width (multi)',
-      'relayout:alpha',
+      'relayoutNow:alpha',
       'renderMulti',
     ]);
   });

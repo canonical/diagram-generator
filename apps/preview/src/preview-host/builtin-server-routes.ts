@@ -9,8 +9,12 @@ import {
 } from "@diagram-generator/layout-engine";
 
 import { installPreviewHostApiRoutes } from "./api-routes.js";
-import type { BuiltinPreviewHostServerRouteDeps } from "./builtin-host-deps.js";
-import type { PreviewHostModuleDescriptor } from "./modules.js";
+import {
+  BUILTIN_PREVIEW_HOST_SERVER_MODULE_KEY,
+  requirePreviewHostModuleContext,
+  type BuiltinPreviewHostServerRouteDeps,
+} from "./builtin-host-deps.js";
+import type { PreviewHostModuleDescriptor, PreviewHostModuleInstallDeps } from "./modules.js";
 import type { PreviewHostApiRouteDescriptor } from "./types.js";
 
 export interface BuiltinPreviewHostServerModuleDeps
@@ -325,12 +329,16 @@ export function installBuiltinPreviewHostServerRoutes(
 }
 
 export function installBuiltinPreviewHostServerModule(
-  deps: BuiltinPreviewHostServerModuleDeps,
+  deps: PreviewHostModuleInstallDeps,
 ): () => void {
-  return installBuiltinPreviewHostServerRoutes(deps);
+  const moduleDeps = requirePreviewHostModuleContext<BuiltinPreviewHostServerModuleDeps>(
+    deps,
+    BUILTIN_PREVIEW_HOST_SERVER_MODULE_KEY,
+  );
+  return installBuiltinPreviewHostServerRoutes(moduleDeps);
 }
 
 export const BUILTIN_PREVIEW_HOST_SERVER_MODULE: PreviewHostModuleDescriptor = {
-  key: "builtin-server-routes",
+  key: BUILTIN_PREVIEW_HOST_SERVER_MODULE_KEY,
   install: installBuiltinPreviewHostServerModule,
 };

@@ -4,7 +4,15 @@
 
 **Created**: 2026-06-16
 
-**Status**: In Progress
+**Status**: Closeout Ready
+
+**Progress note**: shared viewer/index page assembly, typed lane descriptors,
+registered viewer/API/server modules, builtin host runtime/dependency
+assembly, module-owned install contexts, and a production-path third-lane
+coexistence proof are now in place. The remaining `server.ts` surface is
+generic app-entry/bootstrap logic rather than the default home for lane/page
+work, while deps-heavy builtin lanes still extend `builtin-host-runtime.ts`
+instead of self-registering their install contexts.
 
 **Depends on**: spec 035 (complete), spec 038 (pivot / relocation seams), spec 043 (complete), spec 044 (in progress)
 
@@ -98,7 +106,21 @@ As a maintainer, I want the preview host to treat engines as registered modules 
 - **SC-002**: Shared viewer-shell HTML assembly is owned by preview-host TS modules.
 - **SC-003**: The current grid and force lanes are represented through typed host descriptors.
 - **SC-004**: A cold-start maintainer can trace preview-host ownership from this package without reverse-engineering the full server file.
-- **SC-005**: A maintainer can describe the minimum preview-host work for a future lane without saying "add another server branch and copy one of the existing page builders."
+- **SC-005**: A maintainer can describe the minimum preview-host route/page/module work for a future lane without saying "add another server branch and copy one of the existing page builders."
+
+## Closeout Bar
+
+This package is ready to close when all of the following are true:
+
+1. `server.ts` may remain the app entrypoint and own generic HTTP/watch/build
+   bootstrap, but new lane/page logic no longer starts there.
+2. A future lane's route/page/viewer/API surface can be onboarded by adding or
+   extending preview-host lane, route, module, and page-builder owners without
+   widening `server.ts`; deps-heavy builtin lanes may still extend
+   `builtin-host-runtime.ts` and the single bootstrap call until module-context
+   self-registration exists.
+3. The preview host records which browser shell tier a lane reuses or selects,
+   while spec 044 remains the owner of browser-shell behavior itself.
 
 ## Out of Scope
 
@@ -112,8 +134,14 @@ As a maintainer, I want the preview host to treat engines as registered modules 
 Adding a future engine lane should converge toward this shape:
 
 1. Extend the TypeScript engine/manifest owner (`packages/layout-engine/src/preview-engine/*`).
-2. Register or extend the preview-host lane/route surface in `apps/preview/src/preview-host/*`.
-3. Load an existing browser shell tier where possible, or declare a distinct browser shell owner when not.
-4. Avoid widening `server.ts` with bespoke page-shell HTML or lane-local browse-nav generation.
+2. Register or extend the preview-host lane/route/module/page surface in
+   `apps/preview/src/preview-host/*`.
+3. If the lane needs builtin-specific install context, extend
+   `builtin-host-runtime.ts` and the single bootstrap call rather than adding
+   server-local route/page branches.
+4. Load an existing browser shell tier where possible, or declare a distinct
+   browser shell owner when not.
+5. Avoid widening `server.ts` with bespoke page-shell HTML or lane-local
+   browse-nav generation.
 
-This spec owns step 2. Spec 044 owns the browser-shell side of step 3.
+This spec owns steps 2-3. Spec 044 owns the browser-shell side of step 4.

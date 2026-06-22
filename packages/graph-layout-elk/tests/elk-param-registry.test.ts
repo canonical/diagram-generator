@@ -13,4 +13,20 @@ describe('ELK layered param registry', () => {
       label: 'Auto (diagram)',
     });
   });
+
+  it('requires non-behavior-covered controls to carry user-facing caveat copy', () => {
+    const behaviorCoveredKeys = new Set([
+      'elk.direction',
+      'elk.layered.spacing.nodeNodeBetweenLayers',
+      'elk.spacing.nodeNode',
+      'elk.layered.layering.strategy',
+    ]);
+
+    for (const spec of ELK_LAYERED_PARAM_SPECS) {
+      if (behaviorCoveredKeys.has(spec.key)) {
+        continue;
+      }
+      expect(spec.description, `missing caveat/usage copy for ${spec.key}`).toBeTruthy();
+    }
+  });
 });
