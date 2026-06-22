@@ -4,10 +4,24 @@ import fs from "node:fs";
 import path from "node:path";
 import vm from "node:vm";
 
-test("editor-state adapter accepts previewShell.bootstrap contract aliases", () => {
+test("editor-state adapter requires the namespaced previewShell.bootstrap contract", () => {
   const repoRoot = path.resolve(process.cwd(), "..", "..");
   const source = fs.readFileSync(path.join(repoRoot, "scripts", "preview", "editor-state.js"), "utf8");
   const calls: Array<Record<string, unknown>> = [];
+  const layoutEngine = {
+    previewShell: {
+      bootstrap: {
+        createEditorStateStore(deps: Record<string, unknown>) {
+          calls.push({ createEditorStateStore: Object.keys(deps).sort() });
+          return fakeStore;
+        },
+        cloneEditorSnapshotValue(value: unknown) {
+          calls.push({ cloneEditorSnapshotValue: value as Record<string, unknown> });
+          return { cloned: value };
+        },
+      },
+    },
+  };
 
   const fakeStore = {
     captureSnapshot() { return { snapshot: true }; },
@@ -29,27 +43,16 @@ test("editor-state adapter accepts previewShell.bootstrap contract aliases", () 
   };
 
   const context = {
-    window: {} as Record<string, unknown>,
+    window: {
+      LayoutEngine: layoutEngine,
+    } as Record<string, unknown>,
     document: {
       getElementById() {
         return null;
       },
     },
     console,
-    LayoutEngine: {
-      previewShell: {
-        bootstrap: {
-          createEditorStateStore(deps: Record<string, unknown>) {
-            calls.push({ createEditorStateStore: Object.keys(deps).sort() });
-            return fakeStore;
-          },
-          cloneEditorSnapshotValue(value: unknown) {
-            calls.push({ cloneEditorSnapshotValue: value as Record<string, unknown> });
-            return { cloned: value };
-          },
-        },
-      },
-    },
+    LayoutEngine: layoutEngine,
   };
 
   vm.runInNewContext(source, context);
@@ -80,4 +83,10 @@ test("editor-state adapter accepts previewShell.bootstrap contract aliases", () 
     },
   ]);
   assert.deepEqual(cloned, { cloned: { alpha: 1 } });
+});
+
+test("editor-state adapter no longer falls back to a flat LayoutEngine root alias", () => {
+  const repoRoot = path.resolve(process.cwd(), "..", "..");
+  const source = fs.readFileSync(path.join(repoRoot, "scripts", "preview", "editor-state.js"), "utf8");
+  assert.equal(source.includes("LayoutEngine.createEditorStateStore"), false);
 });

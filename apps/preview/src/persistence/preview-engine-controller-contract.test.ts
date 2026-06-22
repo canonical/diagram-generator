@@ -29,10 +29,81 @@ test("elk-layout-controls renders from the namespaced previewEngines contract", 
       return [];
     },
   };
+  const layoutEngine = {
+    previewEngines: {
+      registry: {
+        resolvePreviewEngine({ layoutEngine }: { layoutEngine?: string | null }) {
+          return layoutEngine === "elk-layered"
+            ? { id: "synthetic-layered", hostView: { sidebarSections: ["elk-layout"] } }
+            : null;
+        },
+        listPreviewEnginesBySidebarSection(section: string) {
+          if (section !== "elk-layout") return [];
+          return [
+            {
+              id: "synthetic-layered",
+              hostView: { sidebarSections: ["elk-layout"] },
+              controlSpecs: [
+                {
+                  key: "elk.spacing.nodeNode",
+                  label: "Node spacing",
+                  group: "Spacing",
+                  kind: "number",
+                  defaultValue: "24",
+                  step: 8,
+                },
+              ],
+            },
+          ];
+        },
+      },
+      elk: {
+        createPreviewElkLayoutControlsRuntime(options: {
+          document: { getElementById: (id: string) => unknown };
+        }) {
+          return {
+            buildPanel() {
+              const runtimeSection = options.document.getElementById("elk-layout-section") as {
+                hidden?: boolean;
+              } | null;
+              const runtimeContainer = options.document.getElementById("elk-layout-controls") as {
+                innerHTML?: string;
+              } | null;
+              if (runtimeSection) runtimeSection.hidden = false;
+              if (runtimeContainer) runtimeContainer.innerHTML = "<label>Node spacing</label>";
+            },
+            refresh() {},
+            collectOverrides() {
+              return {};
+            },
+            init() {},
+          };
+        },
+        elkParamGroups() {
+          return [
+            {
+              group: "Spacing",
+              specs: [
+                {
+                  key: "elk.spacing.nodeNode",
+                  label: "Node spacing",
+                  group: "Spacing",
+                  kind: "number",
+                  defaultValue: "24",
+                  step: 8,
+                },
+              ],
+            },
+          ];
+        },
+      },
+    },
+  };
 
   const context = {
     window: {
       __DG_CONFIG: {},
+      LayoutEngine: layoutEngine,
     },
     document: {
       getElementById(id: string) {
@@ -44,76 +115,7 @@ test("elk-layout-controls renders from the namespaced previewEngines contract", 
     console,
     setTimeout,
     clearTimeout,
-    LayoutEngine: {
-      previewEngines: {
-        registry: {
-          resolvePreviewEngine({ layoutEngine }: { layoutEngine?: string | null }) {
-            return layoutEngine === "elk-layered"
-              ? { id: "synthetic-layered", hostView: { sidebarSections: ["elk-layout"] } }
-              : null;
-          },
-          listPreviewEnginesBySidebarSection(section: string) {
-            if (section !== "elk-layout") return [];
-            return [
-              {
-                id: "synthetic-layered",
-                hostView: { sidebarSections: ["elk-layout"] },
-                controlSpecs: [
-                  {
-                    key: "elk.spacing.nodeNode",
-                    label: "Node spacing",
-                    group: "Spacing",
-                    kind: "number",
-                    defaultValue: "24",
-                    step: 8,
-                  },
-                ],
-              },
-            ];
-          },
-        },
-        elk: {
-          createPreviewElkLayoutControlsRuntime(options: {
-            document: { getElementById: (id: string) => unknown };
-          }) {
-            return {
-              buildPanel() {
-                const runtimeSection = options.document.getElementById("elk-layout-section") as {
-                  hidden?: boolean;
-                } | null;
-                const runtimeContainer = options.document.getElementById("elk-layout-controls") as {
-                  innerHTML?: string;
-                } | null;
-                if (runtimeSection) runtimeSection.hidden = false;
-                if (runtimeContainer) runtimeContainer.innerHTML = "<label>Node spacing</label>";
-              },
-              refresh() {},
-              collectOverrides() {
-                return {};
-              },
-              init() {},
-            };
-          },
-          elkParamGroups() {
-            return [
-              {
-                group: "Spacing",
-                specs: [
-                  {
-                    key: "elk.spacing.nodeNode",
-                    label: "Node spacing",
-                    group: "Spacing",
-                    kind: "number",
-                    defaultValue: "24",
-                    step: 8,
-                  },
-                ],
-              },
-            ];
-          },
-        },
-      },
-    },
+    LayoutEngine: layoutEngine,
   };
 
   vm.runInNewContext(readPreviewScript("elk-layout-controls.js"), context);
@@ -133,9 +135,50 @@ test("elk-layout-controls renders from the namespaced previewEngines contract", 
 
 
 test("elk-controller resolves ELK diagrams from the namespaced previewEngines registry", () => {
+  const layoutEngine = {
+    previewEngines: {
+      registry: {
+        resolvePreviewEngine({ layoutEngine }: { layoutEngine?: string | null }) {
+          return layoutEngine === "elk-layered"
+            ? { id: "synthetic-layered", hostView: { sidebarSections: ["elk-layout"] } }
+            : null;
+        },
+      },
+      elk: {
+        createPreviewElkShellControllerRuntime() {
+          return {
+            init() {},
+            isElkLayeredDiagram(frameTreeJson: unknown) {
+              const layoutEngine = (frameTreeJson as { layoutEngine?: string | null })?.layoutEngine;
+              return layoutEngine === "elk-layered";
+            },
+            isActiveLayoutEngine(frameTreeJson: unknown) {
+              const layoutEngine = (frameTreeJson as { layoutEngine?: string | null })?.layoutEngine;
+              return layoutEngine === "elk-layered";
+            },
+            wirePanel() {},
+            syncPanel() {},
+            initPanel() {},
+            initializePanel() {},
+            getLayoutOverrides() {
+              return {};
+            },
+            applyLayoutOverrides() {},
+            applyElkLayoutOverrides() {},
+            collectPersistedPayload() {
+              return {};
+            },
+            requestRelayout() {},
+          };
+        },
+      },
+    },
+  };
+
   const context = {
     window: {
       __DG_CONFIG: {},
+      LayoutEngine: layoutEngine,
     },
     document: {
       getElementById() {
@@ -143,45 +186,7 @@ test("elk-controller resolves ELK diagrams from the namespaced previewEngines re
       },
     },
     console,
-    LayoutEngine: {
-      previewEngines: {
-        registry: {
-          resolvePreviewEngine({ layoutEngine }: { layoutEngine?: string | null }) {
-            return layoutEngine === "elk-layered"
-              ? { id: "synthetic-layered", hostView: { sidebarSections: ["elk-layout"] } }
-              : null;
-          },
-        },
-        elk: {
-          createPreviewElkShellControllerRuntime() {
-            return {
-              init() {},
-              isElkLayeredDiagram(frameTreeJson: unknown) {
-                const layoutEngine = (frameTreeJson as { layoutEngine?: string | null })?.layoutEngine;
-                return layoutEngine === "elk-layered";
-              },
-              isActiveLayoutEngine(frameTreeJson: unknown) {
-                const layoutEngine = (frameTreeJson as { layoutEngine?: string | null })?.layoutEngine;
-                return layoutEngine === "elk-layered";
-              },
-              wirePanel() {},
-              syncPanel() {},
-              initPanel() {},
-              initializePanel() {},
-              getLayoutOverrides() {
-                return {};
-              },
-              applyLayoutOverrides() {},
-              applyElkLayoutOverrides() {},
-              collectPersistedPayload() {
-                return {};
-              },
-              requestRelayout() {},
-            };
-          },
-        },
-      },
-    },
+    LayoutEngine: layoutEngine,
   };
 
   vm.runInNewContext(readPreviewScript("elk-controller.js"), context);
@@ -210,9 +215,20 @@ test("elk-controller resolves ELK diagrams from the namespaced previewEngines re
 test("save-client resolves the namespaced previewShell.bootstrap runtime", () => {
   let resolvedFromNamespace = false;
   const previewSaveClient = { saveOverrides() {}, trySaveIfDirty() {} };
+  const layoutEngine = {
+    previewShell: {
+      bootstrap: {
+        createPreviewSaveClientRuntime() {
+          resolvedFromNamespace = true;
+          return previewSaveClient;
+        },
+      },
+    },
+  };
   const context = {
     window: {
       __DG_CONFIG: {},
+      LayoutEngine: layoutEngine,
     },
     document: {
       body: { appendChild() {} },
@@ -247,25 +263,26 @@ test("save-client resolves the namespaced previewShell.bootstrap runtime", () =>
       }
     },
     console,
-    LayoutEngine: {
-      previewShell: {
-        bootstrap: {
-          createPreviewSaveClientRuntime() {
-            resolvedFromNamespace = true;
-            return previewSaveClient;
-          },
-        },
-      },
-      createPreviewSaveClientRuntime() {
-        throw new Error("wrapper should prefer previewShell.bootstrap");
-      },
-    },
+    LayoutEngine: layoutEngine,
   };
 
   vm.runInNewContext(readPreviewScript("save-client.js"), context);
 
   assert.equal(resolvedFromNamespace, true);
   assert.equal((context.window as { PreviewSaveClient?: unknown }).PreviewSaveClient, previewSaveClient);
+});
+
+test("browser preview wrappers no longer fall back to flat browser-entry aliases", () => {
+  assert.equal(readPreviewScript("save-client.js").includes("LayoutEngine.createPreviewSaveClientRuntime"), false);
+  assert.equal(readPreviewScript("elk-layout-controls.js").includes("LayoutEngine.createPreviewElkLayoutControlsRuntime"), false);
+  assert.equal(readPreviewScript("elk-controller.js").includes("LayoutEngine.createPreviewElkShellControllerRuntime"), false);
+  const forceSource = readPreviewScript("force.js");
+  assert.equal(forceSource.includes("window.LayoutEngine?.getPreviewEngine?.("), false);
+  assert.equal(forceSource.includes("window.LayoutEngine?.[methodName]"), false);
+  assert.equal(
+    forceSource.includes("window.LayoutEngine && typeof window.LayoutEngine.updateForceSimulationParams"),
+    false,
+  );
 });
 
 

@@ -2,10 +2,7 @@
   "use strict";
 
   function resolveCreateRuntime() {
-    const elk = window.LayoutEngine?.previewEngines?.elk
-      || (typeof LayoutEngine !== "undefined" ? LayoutEngine.previewEngines?.elk : null);
-    return elk?.createPreviewElkShellControllerRuntime
-      || (typeof LayoutEngine !== "undefined" ? LayoutEngine.createPreviewElkShellControllerRuntime : null);
+    return window.LayoutEngine?.previewEngines?.elk?.createPreviewElkShellControllerRuntime ?? null;
   }
 
   const createRuntime = resolveCreateRuntime();

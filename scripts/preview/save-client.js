@@ -2,10 +2,7 @@
   "use strict";
 
   function resolveCreateRuntime() {
-    const bootstrap = window.LayoutEngine?.previewShell?.bootstrap
-      || (typeof LayoutEngine !== "undefined" ? LayoutEngine.previewShell?.bootstrap : null);
-    return bootstrap?.createPreviewSaveClientRuntime
-      || (typeof LayoutEngine !== "undefined" ? LayoutEngine.createPreviewSaveClientRuntime : null);
+    return window.LayoutEngine?.previewShell?.bootstrap?.createPreviewSaveClientRuntime ?? null;
   }
 
   const createRuntime = resolveCreateRuntime();
