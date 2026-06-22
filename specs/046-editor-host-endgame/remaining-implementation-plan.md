@@ -60,7 +60,19 @@ Measured residual surfaces on the current branch:
 - `scripts/preview/elk-controller.js`: 41 physical lines
 - `scripts/preview/elk-layout-controls.js`: 26 physical lines
 - `packages/layout-engine/src/browser-entry.ts`: 855 physical lines
-- `packages/layout-engine/src/preview-shell/index.ts`: 1,307 physical lines
+- `packages/layout-engine/src/preview-shell/index.ts`: 7 physical lines
+- `packages/layout-engine/src/preview-shell/preview-shell-bootstrap-barrel.ts`: 241
+  physical lines
+- `packages/layout-engine/src/preview-shell/preview-shell-inspector-barrel.ts`: 199
+  physical lines
+- `packages/layout-engine/src/preview-shell/preview-shell-interaction-barrel.ts`: 452
+  physical lines
+- `packages/layout-engine/src/preview-shell/preview-shell-scene-barrel.ts`: 147
+  physical lines
+- `packages/layout-engine/src/preview-shell/preview-shell-relayout-barrel.ts`: 136
+  physical lines
+- `packages/layout-engine/src/preview-shell/preview-shell-state-barrel.ts`: 136
+  physical lines
 - `apps/preview/src/persistence/engine-contract-consumers.test.ts`: 3,470
   physical lines
 
@@ -76,8 +88,10 @@ What is still false to claim:
   whole platform runtime; preview-engine builtins now install through typed
   install units, but preview-host builtin startup still reads more centrally
   than the target end state
-- it is still false to say the large TypeScript barrels and VM harnesses have
-  been decomposed enough to avoid becoming the next monolith
+- it is still false to say the remaining large TypeScript contract surfaces
+  have been decomposed enough to avoid becoming the next monolith; the
+  top-level `preview-shell/index.ts` barrel is now thin, but `browser-entry.ts`
+  and the VM harness are still oversized
 - it is still false to say the layout substrate is ready for Mermaid, D2, and
   Dagre without forcing them through ELK-shaped contracts
 - it is still false to answer "yes" to the 50/150/500-engine question
@@ -98,8 +112,9 @@ detour:
 That means Workstreams A through D are no longer the primary code blocker. The
 highest leverage remaining blocker order is now:
 
-1. Workstream E: stop `browser-entry.ts`, `preview-shell/index.ts`, and the VM
-   harness from becoming the replacement monolith
+1. Workstream E: finish the contract-surface split so `browser-entry.ts` and
+   the VM harness do not become the replacement monolith now that
+   `preview-shell/index.ts` is a thin owner-barrel fan-out
 2. Workstream F: make the layout substrate honestly open to Mermaid, D2, Dagre,
    and other non-ELK families
 3. final adversarial closeout: confirm the 50/150/500-engine answer is
@@ -336,6 +351,15 @@ Required end state:
 - the huge VM contract harness is split into owner-scoped test files or focused
   suites by capability family
 
+Current state:
+
+- `browser-entry.ts` is already split into owner-scoped browser contract
+  modules
+- `preview-shell/index.ts` is now a seven-line top-level fan-out into
+  owner-scoped `preview-shell-*-barrel.ts` files
+- the dominant remaining Workstream-E blocker is
+  `apps/preview/src/persistence/engine-contract-consumers.test.ts`
+
 Why this is part of 046:
 
 - moving behavior out of JS but concentrating it in giant TS barrels would fail
@@ -498,8 +522,9 @@ Do not close spec 046 until all of the following are true:
 - at least one real non-ELK install unit proves document kind, handler,
   manifest, render/export, persistence namespace, host contract, browser
   refresh/load, and save/export
-- `browser-entry.ts`, `preview-shell/index.ts`, and the VM contract harness are
-  split enough that TypeScript has not become the new monolith
+- `browser-entry.ts`, the owner-scoped preview-shell barrels, and the VM
+  contract harness are split enough that TypeScript has not become the new
+  monolith
 - `graph-layout-core` and adjacent substrate contracts are engine-open enough
   that Mermaid, D2, and Dagre do not need ELK-only contortions
 - the final adversarial review can honestly answer "yes" to adding 50, 150,

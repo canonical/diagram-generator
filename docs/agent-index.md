@@ -25,14 +25,14 @@ Read this before broad repo searches.
 
 | File | ~Lines | Instead |
 |------|-------:|---------|
-| `scripts/preview/editor.js` | 1,400 | `rg` symbol, then `Read` with offset/limit |
-| `scripts/preview/layout-bridge.js` | 352 | same |
+| `packages/layout-engine/src/browser-entry.ts` | 855 | `rg` symbol, then `Read` with offset/limit |
+| `apps/preview/src/persistence/engine-contract-consumers.test.ts` | 3,470 | same |
 | `scripts/preview/force.js` | 1,600 | same |
 | `packages/layout-engine/dist/layout-engine.iife.js` | 3.5 MB | edit `packages/layout-engine/src/`; run `build:browser` |
 | `diagrams/**` | binaries | ignored by `.cursorignore`; not product code |
 | `specs/**` (bulk) | 8k+ | open **one** active `specs/<id>-<slug>/` when doing spec work |
 
-Thin shell modules (safe to read whole): `editor-state.js`, `editor-base.js`, `save-client.js`, `undo-manager.js`, `elk-controller.js`.
+Thin shell modules (safe to read whole): `editor.js`, `layout-bridge.js`, `editor-state.js`, `editor-base.js`, `save-client.js`, `undo-manager.js`, `elk-controller.js`.
 
 ## Tier-2 flow maps
 
