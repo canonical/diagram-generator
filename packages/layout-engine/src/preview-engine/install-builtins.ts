@@ -1,13 +1,7 @@
-import { BUILTIN_PREVIEW_ENGINES } from './builtins.js';
 import {
-  BUILTIN_PREVIEW_DOCUMENT_SVG_RENDERERS,
-  BUILTIN_PREVIEW_FRAME_DIAGRAM_RENDER_ADAPTERS,
-} from './builtin-render-adapters.js';
-import { registerPreviewEngine } from './registry.js';
-import {
-  registerPreviewDocumentSvgRenderer,
-  registerPreviewFrameDiagramRenderAdapter,
-} from './render.js';
+  installBuiltinPreviewEngineInstallUnitsRuntime,
+} from './builtin-install-units.js';
+import { installRegisteredPreviewEngineInstallUnits } from './install-units.js';
 
 let builtinPreviewEngineRuntimeInstalled = false;
 
@@ -16,16 +10,8 @@ export function installBuiltinPreviewEngineRuntime(): void {
     return;
   }
   builtinPreviewEngineRuntimeInstalled = true;
-
-  for (const manifest of BUILTIN_PREVIEW_ENGINES) {
-    registerPreviewEngine(manifest);
-  }
-  for (const entry of BUILTIN_PREVIEW_FRAME_DIAGRAM_RENDER_ADAPTERS) {
-    registerPreviewFrameDiagramRenderAdapter(entry.renderFamily, entry.adapter);
-  }
-  for (const entry of BUILTIN_PREVIEW_DOCUMENT_SVG_RENDERERS) {
-    registerPreviewDocumentSvgRenderer(entry.previewDocumentKind, entry.renderer);
-  }
+  installBuiltinPreviewEngineInstallUnitsRuntime();
+  installRegisteredPreviewEngineInstallUnits();
 }
 
 installBuiltinPreviewEngineRuntime();

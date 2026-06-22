@@ -32,11 +32,18 @@ export {
   type PreviewElkShellControllerDeps,
 } from './elk-shell-controller.js';
 export {
-  BUILTIN_PREVIEW_ENGINES,
   ELK_LAYERED_PREVIEW_ENGINE,
   FORCE_PREVIEW_ENGINE,
   SEQUENCE_PREVIEW_ENGINE,
   V3_PREVIEW_ENGINE,
+  BUILTIN_ELK_LAYERED_PREVIEW_ENGINE_INSTALL_UNIT,
+  BUILTIN_FORCE_PREVIEW_ENGINE_INSTALL_UNIT,
+  BUILTIN_SEQUENCE_PREVIEW_ENGINE_INSTALL_UNIT,
+  BUILTIN_V3_PREVIEW_ENGINE_INSTALL_UNIT,
+  installElkLayeredPreviewEngine,
+  installForcePreviewEngine,
+  installSequencePreviewEngine,
+  installV3PreviewEngine,
 } from './builtins.js';
 export {
   installMindmapLitePreviewEngine,
@@ -68,6 +75,14 @@ export {
 } from './elk-debug-view.js';
 export { FORCE_PREVIEW_PARAM_SPECS } from './force-param-registry.js';
 export { installBuiltinPreviewEngineRuntime } from './install-builtins.js';
+export { installBuiltinPreviewEngineInstallUnitsRuntime } from './builtin-install-units.js';
+export {
+  installPreviewEngineInstallUnits,
+  installRegisteredPreviewEngineInstallUnits,
+  listPreviewEngineInstallUnits,
+  registerPreviewEngineInstallUnit,
+  type PreviewEngineInstallUnit,
+} from './install-units.js';
 export {
   PREVIEW_ENGINE_REGISTRY,
   registerPreviewEngine,

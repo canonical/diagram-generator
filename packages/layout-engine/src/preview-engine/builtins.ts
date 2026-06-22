@@ -1,6 +1,13 @@
 import { elkLayeredPreviewControlSpecs } from './elk-controls.js';
 import { FORCE_PREVIEW_PARAM_SPECS } from './force-param-registry.js';
 import type { PreviewEngineManifest } from './types.js';
+import {
+  installElkFramePreviewRenderAdapter,
+  installNativeFramePreviewRenderAdapter,
+  installSequencePreviewDocumentSvgRenderer,
+} from './builtin-render-adapters.js';
+import { registerPreviewEngine } from './registry.js';
+import type { PreviewEngineInstallUnit } from './install-units.js';
 
 export const V3_PREVIEW_ENGINE: PreviewEngineManifest = {
   id: 'v3',
@@ -123,9 +130,68 @@ export const SEQUENCE_PREVIEW_ENGINE: PreviewEngineManifest = {
   },
 };
 
-export const BUILTIN_PREVIEW_ENGINES: readonly PreviewEngineManifest[] = [
-  V3_PREVIEW_ENGINE,
-  ELK_LAYERED_PREVIEW_ENGINE,
-  FORCE_PREVIEW_ENGINE,
-  SEQUENCE_PREVIEW_ENGINE,
-] as const;
+function composePreviewEngineInstallUnit(
+  registerEngine: () => () => void,
+  ...installers: Array<() => (() => void) | void>
+): () => void {
+  const unregisterers: Array<() => void> = [];
+  unregisterers.push(registerEngine());
+  for (const install of installers) {
+    const unregister = install();
+    if (typeof unregister === 'function') {
+      unregisterers.push(unregister);
+    }
+  }
+  return () => {
+    for (let index = unregisterers.length - 1; index >= 0; index -= 1) {
+      unregisterers[index]?.();
+    }
+  };
+}
+
+export function installV3PreviewEngine(): () => void {
+  return composePreviewEngineInstallUnit(
+    () => registerPreviewEngine(V3_PREVIEW_ENGINE),
+    installNativeFramePreviewRenderAdapter,
+  );
+}
+
+export function installElkLayeredPreviewEngine(): () => void {
+  return composePreviewEngineInstallUnit(
+    () => registerPreviewEngine(ELK_LAYERED_PREVIEW_ENGINE),
+    installElkFramePreviewRenderAdapter,
+  );
+}
+
+export function installForcePreviewEngine(): () => void {
+  return composePreviewEngineInstallUnit(
+    () => registerPreviewEngine(FORCE_PREVIEW_ENGINE),
+  );
+}
+
+export function installSequencePreviewEngine(): () => void {
+  return composePreviewEngineInstallUnit(
+    () => registerPreviewEngine(SEQUENCE_PREVIEW_ENGINE),
+    installSequencePreviewDocumentSvgRenderer,
+  );
+}
+
+export const BUILTIN_V3_PREVIEW_ENGINE_INSTALL_UNIT: PreviewEngineInstallUnit = {
+  key: 'v3',
+  install: installV3PreviewEngine,
+};
+
+export const BUILTIN_ELK_LAYERED_PREVIEW_ENGINE_INSTALL_UNIT: PreviewEngineInstallUnit = {
+  key: 'elk-layered',
+  install: installElkLayeredPreviewEngine,
+};
+
+export const BUILTIN_FORCE_PREVIEW_ENGINE_INSTALL_UNIT: PreviewEngineInstallUnit = {
+  key: 'force',
+  install: installForcePreviewEngine,
+};
+
+export const BUILTIN_SEQUENCE_PREVIEW_ENGINE_INSTALL_UNIT: PreviewEngineInstallUnit = {
+  key: 'sequence',
+  install: installSequencePreviewEngine,
+};

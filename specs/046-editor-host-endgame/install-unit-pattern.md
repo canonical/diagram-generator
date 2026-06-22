@@ -49,10 +49,10 @@ If onboarding starts there, 046 still fails.
 
 | Family | Install-unit evidence |
 |--------|-----------------------|
-| `v3` | manifest only; reuses shared frame-native render path and shared autolayout host lane |
-| `elk-layered` | manifest + frame render adapter + engine-local shell controller/layout-controls wrappers |
-| `force` | manifest + force-specific host module/routes + force render/save/spec flows |
-| `sequence` | manifest + non-frame document renderer + shared autolayout host lane + real host/browser proof |
+| `v3` | builtin preview-engine install unit owns manifest registration plus the shared frame-native render adapter |
+| `elk-layered` | builtin preview-engine install unit owns manifest registration plus the shared frame-ELK render adapter; browser shell/controller remains engine-local |
+| `force` | builtin preview-engine install unit owns manifest registration; force-specific host module/routes still own force render/save/spec flows |
+| `sequence` | builtin preview-engine install unit owns manifest registration plus the sequence document renderer; shared autolayout host lane provides the host/browser proof |
 | `mindmap-lite` | manifest + non-frame document renderer + frame-YAML document-kind handler + shared autolayout host lane + custom save namespace + SVG export + browser refresh/load proof |
 
 The important part is not that every builtin has identical pieces. The
@@ -73,6 +73,7 @@ The install-unit pattern is only real if it is locked by tests.
 
 Current proof points:
 
+- `packages/layout-engine/tests/preview-engine-install-units.test.ts`
 - `packages/layout-engine/tests/preview-engine-registry.test.ts`
 - `packages/layout-engine/tests/preview-engine-render.test.ts`
 - `apps/preview/src/persistence/preview-host-contract.test.ts`

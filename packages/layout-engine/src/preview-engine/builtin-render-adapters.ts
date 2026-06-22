@@ -11,7 +11,10 @@ import type {
   PreviewDocumentSvgRenderer,
   PreviewFrameDiagramRenderAdapter,
 } from './render.js';
-import type { PreviewRenderFamily } from './types.js';
+import {
+  registerPreviewDocumentSvgRenderer,
+  registerPreviewFrameDiagramRenderAdapter,
+} from './render.js';
 
 function layoutOptionsFromDiagram(diagram: FrameDiagram) {
   return {
@@ -22,27 +25,27 @@ function layoutOptionsFromDiagram(diagram: FrameDiagram) {
   };
 }
 
-const nativeFrameDiagramRenderAdapter: PreviewFrameDiagramRenderAdapter = async (options) => {
+export const nativeFrameDiagramRenderAdapter: PreviewFrameDiagramRenderAdapter = async (options) => {
   resolveStyles(options.diagram.root);
   return layoutFrameTree(options.diagram.root, options.textAdapter, layoutOptionsFromDiagram(options.diagram));
 };
 
-const elkFrameDiagramRenderAdapter: PreviewFrameDiagramRenderAdapter = async (options) => {
+export const elkFrameDiagramRenderAdapter: PreviewFrameDiagramRenderAdapter = async (options) => {
   return layoutElkFrameDiagram(options.diagram, options.textAdapter, {
     diagramType: options.diagram.diagramType as ElkLayoutOptions['diagramType'],
     elkOptionOverrides: options.elkOptionOverrides,
   });
 };
 
-export const BUILTIN_PREVIEW_FRAME_DIAGRAM_RENDER_ADAPTERS: readonly Readonly<{
-  renderFamily: PreviewRenderFamily;
-  adapter: PreviewFrameDiagramRenderAdapter;
-}>[] = [
-  { renderFamily: 'frame-native', adapter: nativeFrameDiagramRenderAdapter },
-  { renderFamily: 'frame-elk', adapter: elkFrameDiagramRenderAdapter },
-] as const;
+export function installNativeFramePreviewRenderAdapter(): () => void {
+  return registerPreviewFrameDiagramRenderAdapter('frame-native', nativeFrameDiagramRenderAdapter);
+}
 
-const sequencePreviewDocumentSvgRenderer: PreviewDocumentSvgRenderer = async (document) => {
+export function installElkFramePreviewRenderAdapter(): () => void {
+  return registerPreviewFrameDiagramRenderAdapter('frame-elk', elkFrameDiagramRenderAdapter);
+}
+
+export const sequencePreviewDocumentSvgRenderer: PreviewDocumentSvgRenderer = async (document) => {
   if (!document.sequence) {
     throw new Error('Sequence preview document renderer requires a sequence payload');
   }
@@ -56,9 +59,6 @@ const sequencePreviewDocumentSvgRenderer: PreviewDocumentSvgRenderer = async (do
   };
 };
 
-export const BUILTIN_PREVIEW_DOCUMENT_SVG_RENDERERS: readonly Readonly<{
-  previewDocumentKind: string;
-  renderer: PreviewDocumentSvgRenderer;
-}>[] = [
-  { previewDocumentKind: 'sequence', renderer: sequencePreviewDocumentSvgRenderer },
-] as const;
+export function installSequencePreviewDocumentSvgRenderer(): () => void {
+  return registerPreviewDocumentSvgRenderer('sequence', sequencePreviewDocumentSvgRenderer);
+}

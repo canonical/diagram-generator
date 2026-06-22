@@ -35,6 +35,8 @@ Real progress already landed and must be preserved:
 - typed preview-host module, API, and viewer registration is real
 - preview-engine manifest, render-adapter, and document-renderer registration is
   real
+- builtin preview engines now install through typed preview-engine install
+  units instead of one manifest/renderer list walker in `install-builtins.ts`
 - thin JS wrappers already exist for save and ELK control/controller entry
   points
 - sequence host/save/export/browser-load proof is real
@@ -67,8 +69,10 @@ What is still false to claim:
   interface shape
 - it is now false to say preview-host document-family onboarding still depends
   on central sequence-versus-frame detection or engine-resolution helpers
-- it is still false to say builtin install is package-like rather than
-  central-list based across the whole platform runtime
+- it is still false to say builtin install is fully package-like across the
+  whole platform runtime; preview-engine builtins now install through typed
+  install units, but preview-host builtin startup still reads more centrally
+  than the target end state
 - it is still false to say the large TypeScript barrels and VM harnesses have
   been decomposed enough to avoid becoming the next monolith
 - it is still false to say the layout substrate is ready for Mermaid, D2, and
