@@ -4,9 +4,9 @@
 
 **Created**: 2026-06-15
 
-**Status**: In Progress
+**Status**: Closeout Ready
 
-**Phase state**: Design package complete; contract migration and bridge decomposition pilots ongoing.
+**Phase state**: Architecture package complete; browser-entry root aliases retired; future browser consumers must land through owner-scoped namespaces.
 
 Progress note: the bridge pilot work now includes typed arrow render/patch and
 frame/SVG patch owners in
@@ -15,8 +15,21 @@ frame/SVG patch owners in
 `layout-bridge.js` is down to about 499 lines in the current working tree after
 bridge-state/bootstrap and local-vs-ELK relayout orchestration moved behind
 `packages/layout-engine/src/preview-shell/app-layout-bridge-runtime.ts`.
-Spec 044 remains open for the remaining compatibility/barrel cleanup, not for
-core bridge ownership.
+The last transitional flat browser-entry aliases are now retired:
+`packages/layout-engine/src/browser-entry.ts` exports only `core`,
+`previewBridge`, `previewEngines`, and `previewShell`, and the remaining legacy
+browser wrappers resolve only those namespaced owners.
+
+Next implementation steps:
+
+1. Keep new preview browser consumers on owner-scoped seams only:
+   `previewShell.*`, `previewBridge.*`, `previewEngines.*`, or `core`.
+2. Treat any proposal to reintroduce root-level browser-entry aliases or
+   behavior-heavy ownership in `scripts/preview/*.js` as an architectural
+   regression against specs 044 and 046.
+3. Continue future convergence work in later specs where it belongs:
+   preview-host lane growth in spec 045 follow-ons, and render-authority
+   convergence only when spec 047 is explicitly activated.
 
 **Depends on**: spec 043 (complete), spec 038 (pivot / relocation seams), spec 035 (archived complete)
 

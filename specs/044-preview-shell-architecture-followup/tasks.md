@@ -20,7 +20,7 @@
 ## Phase 4 - Execution choice
 
 - [x] T030 Pick one bounded pilot slice if implementation proof is required
-- [ ] T031 Otherwise close the spec as a design/architecture package with explicit next implementation steps
+- [x] T031 Otherwise close the spec as a design/architecture package with explicit next implementation steps
 
 ## Phase 5 - Contract migration pilots
 
@@ -38,6 +38,6 @@
 
 ## Phase 6 - Review follow-up hardening
 
-- [ ] T060 Retire transitional root-level browser-entry aliases once all real consumers are stable on `previewShell.*`, `previewBridge.*`, `previewEngines.*`, and `core`
+- [x] T060 Retire transitional root-level browser-entry aliases once all real consumers are stable on `previewShell.*`, `previewBridge.*`, `previewEngines.*`, and `core`
 - [x] T061 Split the oversized browser contract VM harness into smaller owner-scoped suites so contract coverage does not become a new trap file
 - [x] T062 Continue shrinking `layout-bridge.js` until it no longer reads like the default integration sink for future engine-specific browser work

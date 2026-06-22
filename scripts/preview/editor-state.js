@@ -2,7 +2,8 @@
  * Thin preview editor state adapter (spec 026 T021).
  *
  * DOM wiring and undo apply callbacks stay here; snapshot + undo logic live in
- * LayoutEngine.createEditorStateStore (TS preview-shell modules).
+ * LayoutEngine.previewShell.bootstrap.createEditorStateStore
+ * (TS preview-shell modules).
  */
 (function () {
   "use strict";
@@ -11,13 +12,8 @@
   let _store = null;
 
   function _bootstrapContract() {
-    const bootstrap = LayoutEngine?.previewShell?.bootstrap;
-    if (bootstrap && typeof bootstrap.createEditorStateStore === "function") {
-      return bootstrap;
-    }
-    if (typeof LayoutEngine !== "undefined" && typeof LayoutEngine.createEditorStateStore === "function") {
-      return LayoutEngine;
-    }
+    const bootstrap = window.LayoutEngine?.previewShell?.bootstrap;
+    if (bootstrap && typeof bootstrap.createEditorStateStore === "function") return bootstrap;
     throw new Error("LayoutEngine previewShell.bootstrap.createEditorStateStore is required for EditorState");
   }
 

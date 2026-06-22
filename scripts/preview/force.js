@@ -9,9 +9,7 @@ function forceRuntimeContract() {
 }
 
 function forcePreviewEngine() {
-  return window.LayoutEngine?.previewEngines?.registry?.getPreviewEngine?.("force")
-    ?? window.LayoutEngine?.getPreviewEngine?.("force")
-    ?? null;
+  return window.LayoutEngine?.previewEngines?.registry?.getPreviewEngine?.("force") ?? null;
 }
 
 function forceParamSpec(key) {
@@ -99,9 +97,9 @@ function releaseStagePointer(pointerId) {
 }
 
 function requireForceRuntimeMethod(methodName) {
-  const fn = forceRuntimeContract()?.[methodName] ?? window.LayoutEngine?.[methodName];
+  const fn = forceRuntimeContract()?.[methodName];
   if (typeof fn !== "function") {
-    throw new Error(`${FORCE_RUNTIME_BUILD_HINT} Missing LayoutEngine.${methodName}().`);
+    throw new Error(`${FORCE_RUNTIME_BUILD_HINT} Missing LayoutEngine.previewEngines.force.${methodName}().`);
   }
   return fn;
 }
@@ -138,10 +136,7 @@ function updateLocalRuntimeControls() {
   byId("btn-force-save").disabled = !isForcePersistedStateDirty();
   const container = document.getElementById("force-params");
   if (!container) return;
-  const canEditLocalParams = Boolean(
-    typeof forceRuntimeContract()?.updateForceSimulationParams === "function"
-    || (window.LayoutEngine && typeof window.LayoutEngine.updateForceSimulationParams === "function")
-  );
+  const canEditLocalParams = typeof forceRuntimeContract()?.updateForceSimulationParams === "function";
   for (const input of container.querySelectorAll("input")) {
     input.disabled = !canEditLocalParams;
   }
