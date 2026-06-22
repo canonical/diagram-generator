@@ -5,6 +5,11 @@
  * editor.js only wires pointer events and model mutations.
  */
 
+import {
+  resolveArrowheadGeometry,
+  resolveArrowPolylineGeometry,
+} from '../arrow-geometry.js';
+
 export type PreviewArrowPoint = [number, number];
 
 export interface PreviewArrowEndpoints {
@@ -134,32 +139,25 @@ export function resolvePreviewArrowhead(options: {
   headLen: number;
   headHalf: number;
 }): PreviewArrowhead | null {
-  const dx = options.tip[0] - options.previous[0];
-  const dy = options.tip[1] - options.previous[1];
-  const segmentLength = Math.hypot(dx, dy);
-  if (segmentLength <= 0) {
+  const head = resolveArrowheadGeometry({
+    tip: options.tip,
+    previous: options.previous,
+    headLength: options.headLen,
+    headHalfWidth: options.headHalf,
+  });
+  if (!head) {
     return null;
   }
 
-  const scale = Math.min(1, segmentLength / options.headLen);
-  const scaledHeadLen = options.headLen * scale;
-  const scaledHeadHalf = options.headHalf * scale;
-  const ux = dx / segmentLength;
-  const uy = dy / segmentLength;
-  const baseX = options.tip[0] - ux * scaledHeadLen;
-  const baseY = options.tip[1] - uy * scaledHeadLen;
-  const perpX = -uy * scaledHeadHalf;
-  const perpY = ux * scaledHeadHalf;
-
   return {
-    base: [baseX, baseY],
+    base: head.base,
     points: formatPointPairs([
-      baseX + perpX,
-      baseY + perpY,
-      options.tip[0],
-      options.tip[1],
-      baseX - perpX,
-      baseY - perpY,
+      head.left[0],
+      head.left[1],
+      head.tip[0],
+      head.tip[1],
+      head.right[0],
+      head.right[1],
     ]),
   };
 }
@@ -171,28 +169,17 @@ export function resolvePreviewArrowSvgUpdatePlan(options: {
   headLen: number;
   headHalf: number;
 }): PreviewArrowSvgUpdatePlan {
-  const points = [options.start, ...options.waypoints, options.end];
+  const points = [options.start, ...options.waypoints, options.end] as PreviewArrowPoint[];
   const segments: PreviewArrowSegmentCoordinate[] = [];
-
-  if (points.length < 2) {
-    return {
-      segments,
-      polygonPoints: null,
-    };
-  }
-
-  const head = resolvePreviewArrowhead({
-    tip: points[points.length - 1]!,
-    previous: points[points.length - 2]!,
-    headLen: options.headLen,
-    headHalf: options.headHalf,
+  const geometry = resolveArrowPolylineGeometry({
+    points,
+    headLength: options.headLen,
+    headHalfWidth: options.headHalf,
   });
 
-  for (let index = 0; index < points.length - 1; index += 1) {
-    const start = points[index]!;
-    const next = points[index + 1]!;
-    const isLast = index === points.length - 2;
-    const end = isLast && head ? head.base : next;
+  for (let index = 0; index < geometry.shaftPoints.length - 1; index += 1) {
+    const start = geometry.shaftPoints[index]!;
+    const end = geometry.shaftPoints[index + 1]!;
     segments.push({
       x1: start[0],
       y1: start[1],
@@ -203,7 +190,16 @@ export function resolvePreviewArrowSvgUpdatePlan(options: {
 
   return {
     segments,
-    polygonPoints: head ? head.points : null,
+    polygonPoints: geometry.head
+      ? formatPointPairs([
+        geometry.head.left[0],
+        geometry.head.left[1],
+        geometry.head.tip[0],
+        geometry.head.tip[1],
+        geometry.head.right[0],
+        geometry.head.right[1],
+      ])
+      : null,
   };
 }
 

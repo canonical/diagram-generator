@@ -4,7 +4,7 @@
 
 **Created**: 2026-06-16
 
-**Status**: Draft
+**Status**: In Progress
 
 **Execution Gate**: Do not start implementation until spec 046 closeout bar is met
 
@@ -124,3 +124,13 @@ As a platform maintainer, I want future engine lanes to plug into a shared rende
 3. Converge shared arrow geometry helpers.
 4. Refactor fresh preview render to consume IR rather than hand-building frame/arrow DOM.
 5. Reduce or retire duplicate bridge arrow patch/render code once parity and performance are understood.
+
+## Progress note
+
+The start gate is now satisfied on merged `main`: specs 044 and 045 are archived,
+and spec 046 remains closed unless future work regresses legacy browser-shell
+sinks. The first live 047 slice is underway on `feat/047-render-ir-unification`:
+shared frame-arrowhead geometry now lives in a neutral TypeScript helper rather
+than in duplicated preview/export renderers, and render parity coverage now
+compares arrowhead geometry plus short-segment shaft truncation across legacy
+SVG and display-list serializers.

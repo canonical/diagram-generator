@@ -10,6 +10,7 @@ import {
   type Arrow,
   type DiagramOverlay,
 } from './frame-model.js';
+import { resolveArrowPolylineGeometry, type ResolvedArrowheadGeometry } from './arrow-geometry.js';
 import { leafIconColumnWidth } from './spatial.js';
 import {
   ICON_SIZE,
@@ -201,29 +202,12 @@ function renderFrameGroup(
   return `<g${cid}>${inner}</g>`;
 }
 
-function _arrowheadPoints(
-  tipX: number, tipY: number,
-  prevX: number, prevY: number,
-): { base: [number, number]; polyPoints: string } | null {
-  const dx = tipX - prevX;
-  const dy = tipY - prevY;
-  const len = Math.hypot(dx, dy);
-  if (len === 0) return null;
-  const scale = Math.min(1, len / ARROW_HEAD_LENGTH);
-  const headLength = ARROW_HEAD_LENGTH * scale;
-  const headHalfWidth = ARROW_HEAD_HALF_WIDTH * scale;
-  const ux = dx / len;
-  const uy = dy / len;
-  const bx = tipX - ux * headLength;
-  const by = tipY - uy * headLength;
-  const nx = -uy * headHalfWidth;
-  const ny = ux * headHalfWidth;
-  const pts = [
-    `${fmt(bx + nx)},${fmt(by + ny)}`,
-    `${fmt(tipX)},${fmt(tipY)}`,
-    `${fmt(bx - nx)},${fmt(by - ny)}`,
+function arrowheadPolygonPoints(head: ResolvedArrowheadGeometry): string {
+  return [
+    `${fmt(head.left[0])},${fmt(head.left[1])}`,
+    `${fmt(head.tip[0])},${fmt(head.tip[1])}`,
+    `${fmt(head.right[0])},${fmt(head.right[1])}`,
   ].join(' ');
-  return { base: [bx, by], polyPoints: pts };
 }
 
 function labelAnchorForSegment(
@@ -249,13 +233,11 @@ function renderArrows(routed: RoutedArrow[], adapter: TextMeasureAdapter): strin
     const { points, color, label, labelGap, componentId } = arrow;
     if (points.length < 2) continue;
 
-    const [tx, ty] = points[points.length - 1]!;
-    const [px, py] = points[points.length - 2]!;
-    const head = _arrowheadPoints(tx, ty, px, py);
-
-    // Shaft: all segments, last one shortened to arrowhead base
-    const shaftPoints = [...points] as [number, number][];
-    if (head) shaftPoints[shaftPoints.length - 1] = head.base;
+    const { head, shaftPoints } = resolveArrowPolylineGeometry({
+      points,
+      headLength: ARROW_HEAD_LENGTH,
+      headHalfWidth: ARROW_HEAD_HALF_WIDTH,
+    });
 
     const cid = componentId ? ` data-component-id="${esc(componentId)}"` : '';
     const inner: string[] = [];
@@ -267,7 +249,7 @@ function renderArrows(routed: RoutedArrow[], adapter: TextMeasureAdapter): strin
         ` fill="none" stroke="${esc(color)}" stroke-width="1" stroke-miterlimit="10"/>`,
       );
     }
-    if (head) inner.push(`<polygon points="${head.polyPoints}" fill="${esc(color)}"/>`);
+    if (head) inner.push(`<polygon points="${arrowheadPolygonPoints(head)}" fill="${esc(color)}"/>`);
 
     // Arrow label on longest shaft segment — annotation typography, offset from line.
     if (label && label.length > 0) {

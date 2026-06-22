@@ -5,6 +5,10 @@ import {
   type Arrow,
   type DiagramOverlay,
 } from "../frame-model.js";
+import {
+  resolveArrowPolylineGeometry,
+  type ResolvedArrowheadGeometry,
+} from "../arrow-geometry.js";
 import { leafIconColumnWidth } from "../spatial.js";
 import {
   ARROW_COLOR,
@@ -215,34 +219,13 @@ function simplifyPath(points: [number, number][]): [number, number][] {
   return result;
 }
 
-function arrowheadPath(
-  tipX: number,
-  tipY: number,
-  prevX: number,
-  prevY: number,
-): { base: [number, number]; commands: readonly PathCommand[] } | null {
-  const dx = tipX - prevX;
-  const dy = tipY - prevY;
-  const length = Math.hypot(dx, dy);
-  if (length === 0) return null;
-  const scale = Math.min(1, length / ARROW_HEAD_LENGTH);
-  const headLength = ARROW_HEAD_LENGTH * scale;
-  const headHalfWidth = ARROW_HEAD_HALF_WIDTH * scale;
-  const ux = dx / length;
-  const uy = dy / length;
-  const bx = tipX - ux * headLength;
-  const by = tipY - uy * headLength;
-  const nx = -uy * headHalfWidth;
-  const ny = ux * headHalfWidth;
-  return {
-    base: [bx, by],
-    commands: [
-      { kind: "M", x: bx + nx, y: by + ny },
-      { kind: "L", x: tipX, y: tipY },
-      { kind: "L", x: bx - nx, y: by - ny },
-      { kind: "Z" },
-    ],
-  };
+function arrowheadPathCommands(head: ResolvedArrowheadGeometry): readonly PathCommand[] {
+  return [
+    { kind: "M", x: head.left[0], y: head.left[1] },
+    { kind: "L", x: head.tip[0], y: head.tip[1] },
+    { kind: "L", x: head.right[0], y: head.right[1] },
+    { kind: "Z" },
+  ];
 }
 
 function labelAnchorForSegment(
@@ -266,13 +249,11 @@ function labelAnchorForSegment(
 function emitArrowGroups(arrows: Arrow[], adapter: TextMeasureAdapter, bounds: Record<string, { x: number; y: number; w: number; h: number }>): GroupItem[] {
   return routeArrows(arrows, bounds).map((arrow) => {
     const children: DisplayListItem[] = [];
-    const shaftPoints = [...arrow.points];
-    const tip = shaftPoints[shaftPoints.length - 1]!;
-    const prev = shaftPoints[shaftPoints.length - 2]!;
-    const head = arrowheadPath(tip[0], tip[1], prev[0], prev[1]);
-    if (head) {
-      shaftPoints[shaftPoints.length - 1] = head.base;
-    }
+    const { head, shaftPoints } = resolveArrowPolylineGeometry({
+      points: arrow.points,
+      headLength: ARROW_HEAD_LENGTH,
+      headHalfWidth: ARROW_HEAD_HALF_WIDTH,
+    });
 
     for (let index = 0; index < shaftPoints.length - 1; index += 1) {
       const [x1, y1] = shaftPoints[index]!;
@@ -291,7 +272,7 @@ function emitArrowGroups(arrows: Arrow[], adapter: TextMeasureAdapter, bounds: R
     if (head) {
       children.push({
         kind: "path",
-        commands: head.commands,
+        commands: arrowheadPathCommands(head),
         fill: paint(arrow.color),
       });
     }

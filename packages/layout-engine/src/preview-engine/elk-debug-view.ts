@@ -1,12 +1,18 @@
 import type { PlacedNode } from '@diagram-generator/graph-layout-core';
 
+import { resolveArrowheadGeometry } from '../arrow-geometry.js';
 import type { ElkLayoutSnapshot } from '../elk-layout.js';
-import { resolvePreviewArrowhead } from '../preview-shell/app-arrow-waypoints.js';
 
 const DEFAULT_SVG_NS = 'http://www.w3.org/2000/svg';
 
 function fmtSvgNumber(value: number): string {
   return String(Math.round(value * 100) / 100);
+}
+
+function formatArrowPolygonPoints(points: readonly [number, number][]): string {
+  return points
+    .map(([x, y]) => `${fmtSvgNumber(x)},${fmtSvgNumber(y)}`)
+    .join(' ');
 }
 
 function walkPlacedNodesAbsolute(
@@ -234,15 +240,18 @@ export function renderPreviewElkRawView(
         group.appendChild(line);
 
         if (index === points.length - 2) {
-          const arrowhead = resolvePreviewArrowhead({
+          const arrowhead = resolveArrowheadGeometry({
             tip: [x2, y2],
             previous: [x1, y1],
-            headLen,
-            headHalf,
+            headLength: headLen,
+            headHalfWidth: headHalf,
           });
           if (arrowhead) {
             const polygon = options.ownerDocument.createElementNS(svgNs, 'polygon');
-            polygon.setAttribute('points', arrowhead.points);
+            polygon.setAttribute(
+              'points',
+              formatArrowPolygonPoints([arrowhead.left, arrowhead.tip, arrowhead.right]),
+            );
             polygon.setAttribute('fill', '#000000');
             group.appendChild(polygon);
 
