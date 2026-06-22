@@ -59,7 +59,15 @@ Measured residual surfaces on the current branch:
 - `scripts/preview/save-client.js`: 24 physical lines
 - `scripts/preview/elk-controller.js`: 41 physical lines
 - `scripts/preview/elk-layout-controls.js`: 26 physical lines
-- `packages/layout-engine/src/browser-entry.ts`: 855 physical lines
+- `packages/layout-engine/src/browser-entry.ts`: 8 physical lines
+- `packages/layout-engine/src/browser-entry-flat-core-barrel.ts`: 165 physical
+  lines
+- `packages/layout-engine/src/browser-entry-flat-preview-shell-barrel.ts`: 7
+  physical lines
+- `packages/layout-engine/src/browser-entry-flat-preview-shell-*.ts`: 64-208
+  physical lines across six owner-scoped subset barrels
+- `packages/layout-engine/src/browser-entry-flat-preview-engine-barrel.ts`: 27
+  physical lines
 - `packages/layout-engine/src/preview-shell/index.ts`: 7 physical lines
 - `packages/layout-engine/src/preview-shell/preview-shell-bootstrap-barrel.ts`: 241
   physical lines
@@ -90,8 +98,9 @@ What is still false to claim:
   than the target end state
 - it is still false to say the remaining large TypeScript contract surfaces
   have been decomposed enough to avoid becoming the next monolith; the
-  top-level `preview-shell/index.ts` barrel is now thin, but `browser-entry.ts`
-  and the VM harness are still oversized
+  top-level `preview-shell/index.ts` and `browser-entry.ts` barrels are now
+  thin, but the VM harness is still oversized and must not become the next
+  central sink
 - it is still false to say the layout substrate is ready for Mermaid, D2, and
   Dagre without forcing them through ELK-shaped contracts
 - it is still false to answer "yes" to the 50/150/500-engine question
@@ -112,9 +121,9 @@ detour:
 That means Workstreams A through D are no longer the primary code blocker. The
 highest leverage remaining blocker order is now:
 
-1. Workstream E: finish the contract-surface split so `browser-entry.ts` and
-   the VM harness do not become the replacement monolith now that
-   `preview-shell/index.ts` is a thin owner-barrel fan-out
+1. Workstream E: finish the contract-surface split so the VM harness does not
+   become the replacement monolith now that `preview-shell/index.ts` and
+   `browser-entry.ts` are thin owner-barrel fan-outs
 2. Workstream F: make the layout substrate honestly open to Mermaid, D2, Dagre,
    and other non-ELK families
 3. final adversarial closeout: confirm the 50/150/500-engine answer is
@@ -354,7 +363,10 @@ Required end state:
 Current state:
 
 - `browser-entry.ts` is already split into owner-scoped browser contract
-  modules
+  modules and is now an eight-line top-level fan-out into flat export barrels
+- `browser-entry-flat-preview-shell-barrel.ts` is now a seven-line fan-out
+  into owner-scoped subset barrels that preserve the existing browser root
+  export subset mechanically
 - `preview-shell/index.ts` is now a seven-line top-level fan-out into
   owner-scoped `preview-shell-*-barrel.ts` files
 - the dominant remaining Workstream-E blocker is

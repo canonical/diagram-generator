@@ -25,7 +25,6 @@ Read this before broad repo searches.
 
 | File | ~Lines | Instead |
 |------|-------:|---------|
-| `packages/layout-engine/src/browser-entry.ts` | 855 | `rg` symbol, then `Read` with offset/limit |
 | `apps/preview/src/persistence/engine-contract-consumers.test.ts` | 3,470 | same |
 | `scripts/preview/force.js` | 1,600 | same |
 | `packages/layout-engine/dist/layout-engine.iife.js` | 3.5 MB | edit `packages/layout-engine/src/`; run `build:browser` |
