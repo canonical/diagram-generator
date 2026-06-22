@@ -8,6 +8,7 @@ import type {
   PathCommand,
   PathItem,
   RectItem,
+  TextBlockItem,
 } from "../render-ir.js";
 
 function esc(value: string): string {
@@ -36,6 +37,11 @@ function colorToCss(color: Color): string {
   return `#${r}${g}${b}`.toUpperCase();
 }
 
+function renderAttributes(attributes?: Readonly<Record<string, string>>): string[] {
+  if (!attributes) return [];
+  return Object.entries(attributes).map(([name, value]) => `${name}="${esc(value)}"`);
+}
+
 function renderRect(item: RectItem): string {
   const attrs = [
     `x="${fmt(item.x)}"`,
@@ -44,7 +50,9 @@ function renderRect(item: RectItem): string {
     `height="${fmt(item.height)}"`,
     `fill="${esc(item.fill ? colorToCss(item.fill.color) : "none")}"`,
     `stroke="${esc(item.stroke ? colorToCss(item.stroke.color) : "none")}"`,
+    ...renderAttributes(item.attributes),
   ];
+  if (item.className) attrs.push(`class="${esc(item.className)}"`);
   if (item.strokeStyle) {
     attrs.push(`stroke-width="${item.strokeStyle.width}"`);
     attrs.push(`stroke-miterlimit="10"`);
@@ -66,7 +74,9 @@ function renderLine(item: LineItem): string {
     `y2="${fmt(item.y2)}"`,
     `fill="none"`,
     `stroke="${esc(colorToCss(item.stroke.color))}"`,
+    ...renderAttributes(item.attributes),
   ];
+  if (item.className) attrs.push(`class="${esc(item.className)}"`);
   if (item.strokeStyle) {
     attrs.push(`stroke-width="${item.strokeStyle.width}"`);
     attrs.push(`stroke-miterlimit="10"`);
@@ -95,7 +105,8 @@ function renderPathCommands(commands: readonly PathCommand[]): string {
 }
 
 function renderPath(item: PathItem): string {
-  const attrs = [`d="${renderPathCommands(item.commands)}"`];
+  const attrs = [`d="${renderPathCommands(item.commands)}"`, ...renderAttributes(item.attributes)];
+  if (item.className) attrs.push(`class="${esc(item.className)}"`);
   attrs.push(`fill="${esc(item.fill ? colorToCss(item.fill.color) : "none")}"`);
   attrs.push(`stroke="${esc(item.stroke ? colorToCss(item.stroke.color) : "none")}"`);
   if (item.strokeStyle) {
@@ -126,10 +137,38 @@ function renderGlyphRun(item: GlyphRunItem): string {
   return `<text font-family="${esc(family)}"><tspan ${attrs.join(" ")}>${esc(item.run.text)}</tspan></text>`;
 }
 
+function renderTextBlock(item: TextBlockItem): string {
+  const attrs = [
+    `font-family="${esc(item.fontFamily ?? "Ubuntu Sans")}"`,
+    ...renderAttributes(item.attributes),
+  ];
+  if (item.className) attrs.push(`class="${esc(item.className)}"`);
+  if (item.textAnchor) attrs.push(`text-anchor="${esc(item.textAnchor)}"`);
+  if (item.dominantBaseline) attrs.push(`dominant-baseline="${esc(item.dominantBaseline)}"`);
+  if (item.opacity != null) attrs.push(`opacity="${item.opacity}"`);
+
+  const spans = item.spans.map((span) => {
+    const spanAttrs = [
+      `x="${fmt(span.x)}"`,
+      `y="${fmt(span.y)}"`,
+      `font-size="${span.fontSize}"`,
+      `font-weight="${span.fontWeight ?? 400}"`,
+      `fill="${esc(colorToCss(span.fill?.color ?? { r: 0, g: 0, b: 0, a: 1 }))}"`,
+    ];
+    if (span.letterSpacing) spanAttrs.push(`letter-spacing="${esc(span.letterSpacing)}"`);
+    if (span.fontFamily) spanAttrs.push(`font-family="${esc(span.fontFamily)}"`);
+    if (span.smallCaps) spanAttrs.push(`font-variant-caps="small-caps"`);
+    return `<tspan ${spanAttrs.join(" ")}>${esc(span.text)}</tspan>`;
+  });
+  return `<text ${attrs.join(" ")}>${spans.join("")}</text>`;
+}
+
 function renderGroup(item: GroupItem): string {
   const idAttr = item.id ? ` data-component-id="${esc(item.id)}"` : "";
   const opacityAttr = item.opacity != null ? ` opacity="${item.opacity}"` : "";
-  return `<g${idAttr}${opacityAttr}>${item.children.map(renderItem).join("")}</g>`;
+  const classAttr = item.className ? ` class="${esc(item.className)}"` : "";
+  const extraAttrs = renderAttributes(item.attributes);
+  return `<g${idAttr}${classAttr}${opacityAttr}${extraAttrs.length > 0 ? ` ${extraAttrs.join(" ")}` : ""}>${item.children.map(renderItem).join("")}</g>`;
 }
 
 function renderItem(item: DisplayListItem): string {
@@ -142,6 +181,8 @@ function renderItem(item: DisplayListItem): string {
       return renderPath(item);
     case "glyph-run":
       return renderGlyphRun(item);
+    case "text-block":
+      return renderTextBlock(item);
     case "group":
       return renderGroup(item);
   }

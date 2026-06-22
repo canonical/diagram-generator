@@ -141,4 +141,10 @@ owned by the preview serializer. A follow-up slice now does the same for
 arrows: shaft truncation, head geometry, authored-label placement, and display
 stacking order are shared across preview DOM, legacy SVG, and display-list
 emission, and the remaining preview-only metadata/layer owners are explicitly
-inventoried under `render-owner-inventory.md`.
+inventoried under `render-owner-inventory.md`. The next cutover step now
+exists in code too: shared display-list IR carries layer identity plus grouped
+text blocks, `app-display-list-dom.ts` serializes that IR into preview DOM for
+frame and overlay layers, and `app-fresh-render.ts` now consumes that path
+instead of hand-assembling those layers. The remaining fresh-preview gap is the
+arrow interaction lane, which still stays on preview-specific DOM emission for
+transparent hit targets and origin snapshots.

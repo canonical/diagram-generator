@@ -22,6 +22,10 @@ engine lanes do not reopen bespoke render math.
   arrows, then frames, then overlays.
 - `packages/layout-engine/src/render-adapter/svg.ts`
   Serializes display-list IR to clean artifact SVG.
+- `packages/layout-engine/src/preview-shell/app-display-list-dom.ts`
+  Serializes shared display-list IR into preview DOM for frame and overlay
+  layers while adding preview-only metadata and optional icon element
+  substitution.
 - `packages/layout-engine/src/svg-render.ts`
   Legacy artifact SVG serializer still needed while embedded icon markup and
   direct-export compatibility have not yet fully moved behind IR serializers.
@@ -55,7 +59,7 @@ engine lanes do not reopen bespoke render math.
   `patchPreviewArrowSvg()` is still the owner for DOM reuse, transparent hit
   targets, and origin snapshot refresh during relayout and waypoint editing.
   It now consumes shared arrow planning instead of owning separate geometry.
-- Fresh preview still assembles DOM trees directly instead of consuming emitted
-  display-list IR items.
+- Fresh preview now consumes shared display-list IR for frame and overlay
+  layers, but arrow hit-target DOM still stays on the preview-specific path.
 - ELK edge-label DOM remains preview-specific.
 - Embedded icon markup still bypasses display-list IR on the legacy export path.

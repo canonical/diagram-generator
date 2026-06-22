@@ -19,7 +19,7 @@
 ## Phase 3 - Shared IR cutover
 
 - [ ] T020 Refactor fresh preview render to consume the shared render IR instead of hand-rolled frame/arrow DOM geometry
-- [ ] T021 Define or implement a preview DOM serializer that consumes the same IR as export
+- [x] T021 Define or implement a preview DOM serializer that consumes the same IR as export
 - [ ] T022 Make `svg-render.ts` a thin wrapper over the shared IR path or retire it after parity holds
 
 ## Phase 4 - Duplicate renderer retirement

@@ -14,6 +14,8 @@ export interface StrokeStyle {
   readonly dashArray?: readonly number[];
 }
 
+export type DisplayListLayer = "frame" | "arrow" | "overlay";
+
 export interface AssetRef {
   readonly kind: "font" | "image";
   readonly uri: string;
@@ -47,6 +49,9 @@ export type PathCommand =
 interface DisplayListItemBase {
   readonly id?: string;
   readonly opacity?: number;
+  readonly layer?: DisplayListLayer;
+  readonly className?: string;
+  readonly attributes?: Readonly<Record<string, string>>;
 }
 
 export interface RectItem extends DisplayListItemBase {
@@ -86,12 +91,32 @@ export interface GlyphRunItem extends DisplayListItemBase {
   readonly fill?: Paint;
 }
 
+export interface TextSpanItem {
+  readonly x: number;
+  readonly y: number;
+  readonly text: string;
+  readonly fontSize: number;
+  readonly fontWeight?: number;
+  readonly fill?: Paint;
+  readonly letterSpacing?: string | null;
+  readonly fontFamily?: string | null;
+  readonly smallCaps?: boolean;
+}
+
+export interface TextBlockItem extends DisplayListItemBase {
+  readonly kind: "text-block";
+  readonly fontFamily?: string;
+  readonly textAnchor?: string;
+  readonly dominantBaseline?: string;
+  readonly spans: readonly TextSpanItem[];
+}
+
 export interface GroupItem extends DisplayListItemBase {
   readonly kind: "group";
   readonly children: readonly DisplayListItem[];
 }
 
-export type DisplayListItem = RectItem | LineItem | PathItem | GlyphRunItem | GroupItem;
+export type DisplayListItem = RectItem | LineItem | PathItem | GlyphRunItem | TextBlockItem | GroupItem;
 
 export interface Viewport {
   readonly width: number;

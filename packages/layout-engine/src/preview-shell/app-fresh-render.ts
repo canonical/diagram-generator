@@ -21,17 +21,15 @@ import { type TextMeasureAdapter } from '../text-measure.js';
 import {
   createPreviewArrowSvgFragment,
   routePreviewArrows,
-  type PreviewArrowBoundsMap,
-  type PreviewArrowFrameBounds,
   type PreviewRoutedArrow,
 } from './app-arrow-render.js';
+import { appendPreviewDisplayListItems } from './app-display-list-dom.js';
 import {
   collectPreviewPlacedBounds,
-  patchPreviewFrameGroup,
 } from './app-frame-svg.js';
+import { emitFrameDiagramDisplayList } from '../render-adapter/display-list.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
-const OVERLAY_PAD = 8;
 const ICON_CACHE = new Map<string, string | null>();
 
 type PreviewLayoutResult = PreviewFrameLayoutResult | LayoutOutput;
@@ -80,10 +78,6 @@ export interface FreshPreviewSvgRenderResult<TSvg = SVGSVGElement> {
   coerced: PreviewLayoutResult['coerced'];
   elkSnapshot: ElkLayoutSnapshot | null;
   elkFrameLabels: Record<string, string> | null;
-}
-
-function fmtSvgNumber(value: number): string {
-  return String(Math.round(value * 100) / 100);
 }
 
 function headingTextForFrame(frame: Frame): string {
@@ -176,60 +170,6 @@ function buildPreviewIconElement(
   return group;
 }
 
-function renderOverlaysSvg(
-  ownerDocument: Document,
-  overlays: DiagramOverlay[],
-  boundsMap: PreviewArrowBoundsMap,
-): DocumentFragment {
-  const fragment = ownerDocument.createDocumentFragment();
-  for (const overlay of overlays) {
-    const memberBounds = overlay.members
-      .map((memberId) => boundsMap[memberId])
-      .filter((member): member is PreviewArrowFrameBounds => Boolean(member));
-    if (memberBounds.length === 0) {
-      continue;
-    }
-
-    const minX = Math.min(...memberBounds.map((bounds) => bounds.x));
-    const minY = Math.min(...memberBounds.map((bounds) => bounds.y));
-    const maxX = Math.max(...memberBounds.map((bounds) => bounds.x + bounds.w));
-    const maxY = Math.max(...memberBounds.map((bounds) => bounds.y + bounds.h));
-
-    const group = ownerDocument.createElementNS(SVG_NS, 'g');
-    if (overlay.id) {
-      group.setAttribute('data-component-id', overlay.id);
-    }
-
-    const rect = ownerDocument.createElementNS(SVG_NS, 'rect');
-    rect.setAttribute('x', fmtSvgNumber(minX - OVERLAY_PAD));
-    rect.setAttribute('y', fmtSvgNumber(minY - OVERLAY_PAD));
-    rect.setAttribute('width', fmtSvgNumber(maxX - minX + OVERLAY_PAD * 2));
-    rect.setAttribute('height', fmtSvgNumber(maxY - minY + OVERLAY_PAD * 2));
-    rect.setAttribute('fill', 'transparent');
-    rect.setAttribute('stroke', '#000000');
-    rect.setAttribute('stroke-width', '1');
-    rect.setAttribute('stroke-dasharray', '2 4');
-    group.appendChild(rect);
-
-    if (overlay.label) {
-      const text = ownerDocument.createElementNS(SVG_NS, 'text');
-      text.setAttribute('font-family', 'Ubuntu Sans');
-      text.setAttribute('font-size', '14');
-      text.setAttribute('font-weight', '400');
-      text.setAttribute('fill', '#000000');
-      const tspan = ownerDocument.createElementNS(SVG_NS, 'tspan');
-      tspan.setAttribute('x', fmtSvgNumber(minX));
-      tspan.setAttribute('y', fmtSvgNumber(minY - 12));
-      tspan.textContent = overlay.label;
-      text.appendChild(tspan);
-      group.appendChild(text);
-    }
-
-    fragment.appendChild(group);
-  }
-  return fragment;
-}
-
 async function collectPreviewIconElements(
   ownerDocument: Document,
   root: Frame,
@@ -264,13 +204,39 @@ async function collectPreviewIconElements(
   return iconElements;
 }
 
+function collectFrameIconElementsByComponentId(
+  root: Frame,
+  iconElementsByName: Map<string, Element> | null | undefined,
+): Map<string, Element> {
+  const result = new Map<string, Element>();
+  if (!iconElementsByName) {
+    return result;
+  }
+
+  const walk = (frame: Frame): void => {
+    if (frame.id && frame.icon && iconElementsByName.has(frame.icon)) {
+      const icon = iconElementsByName.get(frame.icon)!.cloneNode(true) as Element;
+      const iconFill = frame.resolvedIconFill ?? frame.iconFill ?? '#000000';
+      icon.querySelectorAll('path, circle, rect, polygon, ellipse').forEach((element) => {
+        element.setAttribute('fill', iconFill);
+      });
+      result.set(frame.id, icon);
+    }
+    for (const child of frame.children) {
+      walk(child);
+    }
+  };
+
+  walk(root);
+  return result;
+}
+
 export function renderPreviewFrameTreeToSvg(
   options: RenderPreviewFrameTreeToSvgOptions,
 ): SVGSVGElement {
   const width = options.result.width || 400;
   const height = options.result.height || 200;
   const iconElements = options.iconElements ?? new Map<string, Element>();
-  const overlays = options.overlays ?? [];
   const svg = options.ownerDocument.createElementNS(SVG_NS, 'svg');
   svg.setAttribute('xmlns', SVG_NS);
   svg.setAttribute('width', String(width));
@@ -300,50 +266,40 @@ export function renderPreviewFrameTreeToSvg(
   if (!options.diagram.root) {
     return svg;
   }
-
-  const renderFrame = (frame: Frame): void => {
-    const group = options.ownerDocument.createElementNS(SVG_NS, 'g');
-    if (frame.id) {
-      group.setAttribute('data-component-id', frame.id);
-    }
-
-    let iconElement: Element | null = null;
-    if (frame.icon && iconElements.has(frame.icon)) {
-      iconElement = iconElements.get(frame.icon)!.cloneNode(true) as Element;
-      const iconFill = frame.resolvedIconFill ?? frame.iconFill ?? '#000000';
-      iconElement.querySelectorAll('path, circle, rect, polygon, ellipse').forEach((element) => {
-        element.setAttribute('fill', iconFill);
-      });
-    }
-
-    patchPreviewFrameGroup({
-      ownerDocument: options.ownerDocument,
-      group,
-      frame,
-      textAdapter: options.textAdapter,
-      iconElement,
-    });
-    frameLayer.appendChild(group);
-
-    for (const child of frame.children) {
-      renderFrame(child);
-    }
-  };
-
-  renderFrame(options.diagram.root);
+  const diagramForDisplay = options.overlays
+    ? ({ ...options.diagram, overlays: options.overlays } as FrameDiagram)
+    : options.diagram;
+  const frameIconsByComponentId = collectFrameIconElementsByComponentId(
+    diagramForDisplay.root,
+    iconElements,
+  );
+  const displayList = emitFrameDiagramDisplayList(
+    diagramForDisplay,
+    options.result,
+    options.textAdapter,
+    { includeLayers: ['frame', 'overlay'] },
+  );
+  appendPreviewDisplayListItems({
+    ownerDocument: options.ownerDocument,
+    parent: frameLayer,
+    items: displayList.items,
+    allowedLayers: ['frame'],
+    frameIconsByComponentId,
+  });
+  appendPreviewDisplayListItems({
+    ownerDocument: options.ownerDocument,
+    parent: overlayLayer,
+    items: displayList.items,
+    allowedLayers: ['overlay'],
+  });
 
   if (options.diagram.arrows.length > 0) {
-    const boundsMap = collectPreviewPlacedBounds(options.diagram.root);
+    const boundsMap = collectPreviewPlacedBounds(diagramForDisplay.root);
     arrowLayer.appendChild(createPreviewArrowSvgFragment({
       ownerDocument: options.ownerDocument,
-      routedArrows: routePreviewArrows(options.diagram.arrows, boundsMap),
+      routedArrows: routePreviewArrows(diagramForDisplay.arrows, boundsMap),
       boundsMap,
     }));
-  }
-
-  if (overlays.length > 0) {
-    const boundsMap = collectPreviewPlacedBounds(options.diagram.root);
-    overlayLayer.appendChild(renderOverlaysSvg(options.ownerDocument, overlays, boundsMap));
   }
 
   return svg;

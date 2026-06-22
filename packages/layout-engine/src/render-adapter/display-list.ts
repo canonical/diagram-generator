@@ -19,12 +19,12 @@ import type { LayoutOutput } from "../layout.js";
 import type {
   Color,
   DisplayList,
+  DisplayListLayer,
   DisplayListItem,
-  GlyphRunItem,
   GroupItem,
   Paint,
+  TextBlockItem,
 } from "../render-ir.js";
-import { shapeLineSpec } from "../text-adapter/shape-compatible.js";
 
 const ASCENT_RATIO = 0.94;
 const WHITE = parseColor("#FFFFFF");
@@ -50,20 +50,54 @@ function paint(value: string | undefined): Paint | undefined {
   return { color: parseColor(value) };
 }
 
-function textRunItems(plan: ReturnType<typeof resolveFrameRenderPlan>, adapter: TextMeasureAdapter): GlyphRunItem[] {
-  const runs: GlyphRunItem[] = [];
-  for (const block of plan.textBlocks) {
-    for (const line of block.lines) {
-      runs.push({
-        kind: "glyph-run",
-        x: line.x,
-        y: line.y,
-        run: shapeLineSpec(adapter, line.spec),
-        fill: paint(line.fill),
-      });
-    }
-  }
-  return runs;
+function textBlockItem(options: {
+  lines: Array<{
+    x: number;
+    y: number;
+    size: string;
+    weight: string;
+    fill: string;
+    spec: {
+      content: string;
+      fontFamily?: string | null;
+      letterSpacing?: string | null;
+      smallCaps?: boolean;
+    };
+  }>;
+  fontFamily?: string;
+  textAnchor?: string;
+  dominantBaseline?: string;
+  attributes?: Record<string, string>;
+}): TextBlockItem {
+  return {
+    kind: "text-block",
+    fontFamily: options.fontFamily,
+    textAnchor: options.textAnchor,
+    dominantBaseline: options.dominantBaseline,
+    attributes: options.attributes,
+    spans: options.lines.map((line) => ({
+      x: line.x,
+      y: line.y,
+      text: line.spec.content,
+      fontSize: sizeToPx(line.size),
+      fontWeight: Number.parseInt(line.weight, 10) || 400,
+      fill: paint(line.fill),
+      letterSpacing: line.spec.letterSpacing ?? null,
+      fontFamily: line.spec.fontFamily ?? null,
+      smallCaps: line.spec.smallCaps ?? false,
+    })),
+  };
+}
+
+function frameTextBlockItems(plan: ReturnType<typeof resolveFrameRenderPlan>): TextBlockItem[] {
+  return plan.textBlocks.map((block) => textBlockItem({
+    lines: block.lines,
+    fontFamily: "Ubuntu Sans",
+    attributes: {
+      "data-dg-text-role": block.role,
+      "data-dg-text-block-index": String(block.blockIndex),
+    },
+  }));
 }
 
 function emitFrameGroup(frame: Frame, adapter: TextMeasureAdapter): GroupItem {
@@ -73,6 +107,7 @@ function emitFrameGroup(frame: Frame, adapter: TextMeasureAdapter): GroupItem {
   if (plan.separator) {
     children.push({
       kind: "line",
+      className: "dg-separator",
       x1: plan.separator.x1,
       y1: plan.separator.y1,
       x2: plan.separator.x2,
@@ -97,11 +132,12 @@ function emitFrameGroup(frame: Frame, adapter: TextMeasureAdapter): GroupItem {
       }
       : undefined,
   });
-  children.push(...textRunItems(plan, adapter));
+  children.push(...frameTextBlockItems(plan));
 
   if (plan.icon) {
     children.push({
       kind: "rect",
+      className: "dg-icon",
       x: plan.icon.x,
       y: plan.icon.y,
       width: plan.icon.width,
@@ -118,6 +154,7 @@ function emitFrameGroup(frame: Frame, adapter: TextMeasureAdapter): GroupItem {
   return {
     kind: "group",
     id: plan.componentId,
+    layer: "frame",
     children,
   };
 }
@@ -138,7 +175,7 @@ function collectBounds(
   return out;
 }
 
-function emitArrowGroups(arrows: Arrow[], adapter: TextMeasureAdapter, bounds: Record<string, { x: number; y: number; w: number; h: number }>): GroupItem[] {
+function emitArrowGroups(arrows: Arrow[], bounds: Record<string, { x: number; y: number; w: number; h: number }>): GroupItem[] {
   return routeArrows(arrows, bounds).map((arrow) => {
     const plan = resolveArrowRenderPlan({
       arrow,
@@ -166,26 +203,24 @@ function emitArrowGroups(arrows: Arrow[], adapter: TextMeasureAdapter, bounds: R
     }
 
     if (plan.label) {
-      for (const line of plan.label.lines) {
-        children.push({
-          kind: "glyph-run",
-          x: line.x,
-          y: line.y,
-          run: shapeLineSpec(adapter, line.spec),
-          fill: paint(line.fill),
-        });
-      }
+      children.push(textBlockItem({
+        lines: plan.label.lines,
+        fontFamily: "Ubuntu Sans",
+        textAnchor: plan.label.textAnchor,
+        dominantBaseline: plan.label.dominantBaseline,
+      }));
     }
 
     return {
       kind: "group",
       id: plan.componentId,
+      layer: "arrow",
       children,
     };
   });
 }
 
-function emitOverlayGroups(overlays: DiagramOverlay[], adapter: TextMeasureAdapter, bounds: Record<string, { x: number; y: number; w: number; h: number }>): GroupItem[] {
+function emitOverlayGroups(overlays: DiagramOverlay[], bounds: Record<string, { x: number; y: number; w: number; h: number }>): GroupItem[] {
   const OVERLAY_PAD = 8;
   const result: GroupItem[] = [];
   for (const overlay of overlays) {
@@ -213,33 +248,41 @@ function emitOverlayGroups(overlays: DiagramOverlay[], adapter: TextMeasureAdapt
       },
     ];
     if (overlay.label) {
-      const spec = {
-        content: overlay.label,
-        size: String(BODY_SIZE),
-        weight: "400",
-        fill: "#000000",
-      };
-      children.push({
-        kind: "glyph-run",
-        x: x + OVERLAY_PAD,
-        y: y - 4 + sizeToPx(BODY_SIZE) * ASCENT_RATIO,
-        run: shapeLineSpec(adapter, spec),
-        fill: paint("#000000"),
-      });
+      children.push(textBlockItem({
+        lines: [{
+          x: x + OVERLAY_PAD,
+          y: y - 4 + sizeToPx(BODY_SIZE) * ASCENT_RATIO,
+          size: String(BODY_SIZE),
+          weight: "400",
+          fill: "#000000",
+          spec: {
+            content: overlay.label,
+          },
+        }],
+        fontFamily: "Ubuntu Sans",
+      }));
     }
     result.push({
       kind: "group",
       id: overlay.id,
+      layer: "overlay",
       children,
     });
   }
   return result;
 }
 
+function shouldIncludeLayer(layer: DisplayListLayer, includeLayers?: readonly DisplayListLayer[]): boolean {
+  return !includeLayers || includeLayers.includes(layer);
+}
+
 export function emitFrameDiagramDisplayList(
   diagram: FrameDiagram,
   result: LayoutOutput,
   adapter: TextMeasureAdapter,
+  options?: {
+    includeLayers?: readonly DisplayListLayer[];
+  },
 ): DisplayList {
   const viewport = {
     width: result.width || 400,
@@ -248,12 +291,18 @@ export function emitFrameDiagramDisplayList(
   };
   const frameGroup = emitFrameGroup(diagram.root, adapter);
   const bounds = collectBounds(diagram.root);
+  const items: DisplayListItem[] = [];
+  if (shouldIncludeLayer("arrow", options?.includeLayers)) {
+    items.push(...emitArrowGroups(diagram.arrows, bounds));
+  }
+  if (shouldIncludeLayer("frame", options?.includeLayers)) {
+    items.push(frameGroup);
+  }
+  if (shouldIncludeLayer("overlay", options?.includeLayers)) {
+    items.push(...emitOverlayGroups(diagram.overlays, bounds));
+  }
   return {
     viewport,
-    items: [
-      ...emitArrowGroups(diagram.arrows, adapter, bounds),
-      frameGroup,
-      ...emitOverlayGroups(diagram.overlays, adapter, bounds),
-    ],
+    items,
   };
 }
