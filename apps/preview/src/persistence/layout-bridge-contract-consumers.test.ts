@@ -106,6 +106,68 @@ function extractNamedFunctionSource(source: string, functionName: string, signat
     return source.slice(start, statementEnd + 1);
   }
 
+  const destructurePrefixes = [
+    "const {",
+    "let {",
+    "var {",
+  ];
+
+  for (const prefix of destructurePrefixes) {
+    let searchIndex = 0;
+    while (true) {
+      const start = source.indexOf(prefix, searchIndex);
+      if (start === -1) {
+        break;
+      }
+
+      const bodyStart = source.indexOf("{", start);
+      if (bodyStart === -1) {
+        break;
+      }
+
+      let depth = 0;
+      let bodyEnd = -1;
+      for (let index = bodyStart; index < source.length; index += 1) {
+        const char = source[index];
+        if (char === "{") depth += 1;
+        else if (char === "}") {
+          depth -= 1;
+          if (depth === 0) {
+            bodyEnd = index;
+            break;
+          }
+        }
+      }
+
+      if (bodyEnd === -1) {
+        throw new Error(`${functionName} destructured body end not found`);
+      }
+
+      const statementEnd = source.indexOf(";", bodyEnd);
+      if (statementEnd === -1) {
+        throw new Error(`${functionName} destructured statement end not found`);
+      }
+
+      const statement = source.slice(start, statementEnd + 1);
+      const aliasPattern = new RegExp(
+        String.raw`(?:^|[,{])\s*(?:[A-Za-z_$][\w$]*\s*:\s*)?${functionName}(?:\s*[=,}])`,
+        "m",
+      );
+      const aliasMatch = statement.match(
+        new RegExp(
+          String.raw`(?:^|[,{])\s*(?:([A-Za-z_$][\w$]*)\s*:\s*)?${functionName}(?:\s*[=,}])`,
+          "m",
+        ),
+      );
+      if (aliasPattern.test(statement)) {
+        const compatKey = aliasMatch?.[1] ?? functionName;
+        return `const ${functionName} = _getPreviewGridEditorCompat().${compatKey};`;
+      }
+
+      searchIndex = statementEnd + 1;
+    }
+  }
+
   throw new Error(`${functionName} definition not found`);
 }
 

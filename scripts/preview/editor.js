@@ -302,41 +302,58 @@ const _isPreviewEngineShellLayoutActive = (frameTreeJson) =>
 const _initPreviewEngineShellPanel = () =>
   window.__DG_getPreviewShellBootstrapContract().initPreviewEngineShellPanel(window);
 
-const loadSVG = (options = {}) => _getEditorBootstrapFacade().loadSvg(options);
-const _finishLayoutRelayout = (triggerCid, localResult, executionLabel) =>
-  _getEditorRelayoutFacade().finishRelayout(triggerCid, localResult, executionLabel);
-const _finishV3Relayout = (triggerCid, localResult, executionLabel) =>
-  _getEditorRelayoutFacade().finishRelayout(triggerCid, localResult, executionLabel);
-const _signalDiagramLoaded = () => _getEditorBootstrapFacade().signalDiagramLoaded();
-const whenDiagramLoaded = () => _getEditorBootstrapFacade().whenDiagramLoaded();
-
-window.whenDiagramLoaded = whenDiagramLoaded;
-
-const _syncBrowseNavToLocation = () => _getEditorBootstrapFacade().syncBrowseNavToLocation();
-const _attemptDiagramNavigation = (nextUrl, syncUi) =>
-  _getEditorBootstrapFacade().attemptDiagramNavigation(nextUrl, syncUi);
-const loadTree = (canonicalState = null) => _getEditorBootstrapFacade().loadTree(canonicalState);
-const loadGridInfo = (canonicalState = null) => _getEditorSceneFacade().loadGridInfo(canonicalState);
-const cycleGuideMode = () => _getEditorSceneFacade().cycleGuideMode();
-const renderGridOverlay = () => _getEditorSceneFacade().renderGridOverlay();
-const populateGridControls = () => _getEditorSceneFacade().populateGridControls();
-const onGridControlChange = () => _getEditorSceneFacade().onGridControlChange();
-
-// ---- Column/row span ↔ pixel conversion ----
-
-const refreshLayoutGridInfoFromLayout = () => _getEditorSceneFacade().refreshGridInfoFromLayout();
-const refreshV3GridInfoFromLayout = () => refreshLayoutGridInfoFromLayout();
-
-const applyWaypointOverrides = () => _getEditorSceneFacade().applyWaypointOverrides();
-
-// ---- Override application ----
-
 const getOwnDelta = (cid) => model.getOwnDelta(cid);
-
 const getAncestors = (cid) => model.getAncestors(cid);
 const getEffectiveDelta = (cid) => model.getEffectiveDelta(cid);
 const snapToGrid = (value) => Math.round(value / 8) * 8;
 const getInspectorElement = () => document.getElementById("inspector");
+const _getPreviewGridEditorCompat = () => _getPreviewGridEditorInstallUnit().getCompatFacade();
+
+const _getEditorRuntimeSet = () => _getEditorInteractionFacade().getEditorRuntimeSet();
+const _getSelectionRuntime = () => _getEditorInteractionFacade().getSelectionRuntime();
+const _getInspectorDisplayRuntime = () => _getEditorInteractionFacade().getInspectorDisplayRuntime();
+const _getInspectorMutationRuntime = () => _getEditorInteractionFacade().getInspectorMutationRuntime();
+const _getInspectorSelectionRuntime = () => _getEditorInteractionFacade().getInspectorSelectionRuntime();
+const _getArrowWaypointRuntime = () => _getEditorInteractionFacade().getArrowWaypointRuntime();
+const _getRelayoutRuntime = () => _getEditorRelayoutFacade().getRelayoutRuntime();
+const _getKeyboardRuntime = () => _getEditorInteractionFacade().getKeyboardRuntime();
+
+const {
+  loadSvg: loadSVG, finishRelayout: _finishLayoutRelayout, finishRelayout: _finishV3Relayout,
+  signalDiagramLoaded: _signalDiagramLoaded, whenDiagramLoaded,
+  syncBrowseNavToLocation: _syncBrowseNavToLocation,
+  attemptDiagramNavigation: _attemptDiagramNavigation, loadTree, loadGridInfo,
+  cycleGuideMode, renderGridOverlay, populateGridControls, onGridControlChange,
+  refreshGridInfoFromLayout: refreshLayoutGridInfoFromLayout,
+  refreshGridInfoFromLayout: refreshV3GridInfoFromLayout, applyWaypointOverrides,
+  renderEmptyInspector, getPrimarySelectedId, renderSelectionInspector,
+  applySelectionTargets, distributeSelection, alignSelection, renderMultiSelectionInspector,
+  setMultiFrameAlign, applyMultiStyleOverride, setMultiFrameProp, setMultiFrameSize,
+  failRelayout: _dispatchLayoutRelayoutFailure, failRelayout: _failLayoutRelayout,
+  failRelayout: _failV3Relayout, getLayoutRelayoutStatus,
+  getLayoutRelayoutStatus: getV3RelayoutStatus, applyAllOverrides, autoFitArtboard,
+  rerenderStageFromModel: _rerenderStageFromModel, deleteSelectedFrames,
+  buildTreeUi: buildTreeUI, bindInteraction, onSvgDoubleClick: onSvgDblClick,
+  onSvgMouseDown, onDragMove, onDragUp, showResizeHandles, removeResizeHandles,
+  showArrowWaypointHandles, startWaypointDrag: startWpDrag, onWaypointDragMove: onWpDragMove,
+  onWaypointDragUp: onWpDragUp, addWaypoint, removeWaypoint, getArrowPoints,
+  updateArrowVisual, rebuildArrowSvg: rebuildArrowSVG, startTextEdit,
+  commitTextEdit, cancelTextEdit, scheduleLayoutResizeRelayout: _scheduleLayoutResizeRelayout,
+  scheduleLayoutResizeRelayout: _scheduleV3ResizeRelayout,
+  cancelLiveRelayout: _cancelLayoutResizeRelayout,
+  cancelLiveRelayout: _cancelV3ResizeRelayout, persistResize: _persistResizeToLayout,
+  persistResize: _persistResizeToV3, startResize, onResizeMove, onResizeUp,
+  applyStyle: applyStyleOverride, applyStyle: applyFrameStyle, applyStyle: applyV3Style,
+  deselectAll, applySelectionStateSnapshot: _applySelectionStateSnapshot,
+  syncSelectionUi: _syncSelectionUi, selectComponent, reapplySelection,
+  setFrameAlign, setFrameProp, requestLayoutRelayout,
+  requestLayoutRelayout: requestV3Relayout, setFrameSize, setWidthUnit, setHeightUnit,
+  updateInspector, clearOverride, updateOverrideSummary, refreshTreeColors,
+  runConstraints, onDocumentKeyDown, bindGridControls,
+  bootstrapEditorRuntime: bootstrapPreviewEditor,
+} = _getPreviewGridEditorCompat();
+
+window.whenDiagramLoaded = whenDiagramLoaded;
 
 let _inspectorActionsBound = false;
 
@@ -355,85 +372,12 @@ function bindInspectorActions() {
   });
 }
 
-const renderEmptyInspector = () => _getInspectorDisplayRuntime().renderEmptyInspector();
-const getPrimarySelectedId = (preferredCid) =>
-  window.__DG_getPreviewShellInteractionContract().resolvePrimarySelectedId(selectedIds, preferredCid);
-const renderSelectionInspector = (preferredCid) =>
-  _getInspectorDisplayRuntime().renderSelectionInspector(preferredCid);
-
-const applySelectionTargets = (items, targets) =>
-  _getInspectorSelectionRuntime().applySelectionTargets(items, targets);
-const distributeSelection = (axis) => _getInspectorSelectionRuntime().distributeSelection(axis);
-const alignSelection = (mode) => _getInspectorSelectionRuntime().alignSelection(mode);
-const renderMultiSelectionInspector = () => _getInspectorDisplayRuntime().renderMultiSelectionInspector();
-
 function _formatAsDefinedStyleLabel(styleName, mixed = false) {
   return _getPreviewShellInspectorContract().formatPreviewDefinedStyleLabel({
     boxStyles: BOX_STYLES,
     styleName,
     mixed,
   });
-}
-
-/**
- * Apply alignment to ALL selected items, then trigger a single relayout.
- */
-const setMultiFrameAlign = (align) => _getInspectorSelectionRuntime().setMultiFrameAlign(align);
-
-/**
- * Apply style override to ALL selected box/panel/terminal items.
- */
-const applyMultiStyleOverride = (styleName) =>
-  _getInspectorSelectionRuntime().applyMultiStyleOverride(styleName);
-
-/**
- * Apply a frame property to ALL selected items, then trigger a single relayout.
- */
-const setMultiFrameProp = (prop, value) => _getInspectorSelectionRuntime().setMultiFrameProp(prop, value);
-
-/**
- * Set an explicit width or height for all selected items, converting from
- * the current inspector unit (px, cols, rows) to pixels.
- */
-const setMultiFrameSize = (dimension, value) =>
-  _getInspectorSelectionRuntime().setMultiFrameSize(dimension, value);
-const _dispatchLayoutRelayoutFailure = (reason, triggerCid) =>
-  _getEditorRelayoutFacade().failRelayout(reason, triggerCid);
-const _failLayoutRelayout = (reason, triggerCid) =>
-  _dispatchLayoutRelayoutFailure(reason, triggerCid);
-const _failV3Relayout = (reason, triggerCid) => _failLayoutRelayout(reason, triggerCid);
-const getLayoutRelayoutStatus = () => _getEditorRelayoutFacade().getLayoutRelayoutStatus();
-const getV3RelayoutStatus = () => getLayoutRelayoutStatus();
-const applyAllOverrides = () => _getEditorSceneFacade().applyAllOverrides();
-
-/**
- * Expand the SVG artboard (viewBox + width/height) if any component's
- * effective bounding box extends past the current canvas edges.
- * Called after drag/resize so content never gets clipped.
- */
-const autoFitArtboard = () => _getEditorSceneFacade().autoFitArtboard();
-
-// ---- Frame delete ----
-
-const _rerenderStageFromModel = () => _getEditorSceneFacade().rerenderStageFromModel();
-const deleteSelectedFrames = () => (
-  _getEditorSceneFacade().deleteSelectedFrames().then((result) => result.rerendered)
-);
-
-// ---- Interaction ----
-
-const _getStageBindingRuntime = () => _getEditorInteractionFacade().getStageBindingRuntime();
-const buildTreeUI = () => _getStageBindingRuntime().buildTreeUi();
-const bindInteraction = () => _getStageBindingRuntime().bindInteraction();
-
-// ---- Drag (move) ----
-
-const _getPointerInteractionRuntime = () => _getEditorInteractionFacade().getPointerInteractionRuntime();
-const onSvgDblClick = (e) => _getPointerInteractionRuntime().onSvgDoubleClick(e);
-const onSvgMouseDown = (e) => _getPointerInteractionRuntime().onSvgMouseDown(e);
-const onDragMove = (e) => _getPointerInteractionRuntime().onDragMove(e);
-function onDragUp() {
-  _getEditorInteractionFacade().onDragUp();
 }
 
 /**
@@ -456,114 +400,18 @@ function _applyInteractionOverrideEntries(entries, propagatedIds) {
   }
 }
 
-// ---- Resize ----
-
-const _getSelectionChromeRuntime = () => _getEditorInteractionFacade().getSelectionChromeRuntime();
-const showResizeHandles = (cid) => _getSelectionChromeRuntime().showResizeHandles(cid);
-const removeResizeHandles = () => _getSelectionChromeRuntime().removeResizeHandles();
-
-// ---- Arrow waypoint handles ----
-
-const showArrowWaypointHandles = (cid) => _getArrowWaypointRuntime().showArrowWaypointHandles(cid);
-const startWpDrag = (e) => _getArrowWaypointRuntime().startWaypointDrag(e);
-const onWpDragMove = (e) => _getArrowWaypointRuntime().onWaypointDragMove(e);
-const onWpDragUp = (e) => _getArrowWaypointRuntime().onWaypointDragUp(e);
-const addWaypoint = (cid, segIdx, x, y) => _getArrowWaypointRuntime().addWaypoint(cid, segIdx, x, y);
-const removeWaypoint = (cid, idx) => _getArrowWaypointRuntime().removeWaypoint(cid, idx);
-const getArrowPoints = (cid) => _getArrowWaypointRuntime().getArrowPoints(cid);
-const updateArrowVisual = (cid) => _getArrowWaypointRuntime().updateArrowVisual(cid);
-const rebuildArrowSVG = (cid) => _getArrowWaypointRuntime().rebuildArrowSvg(cid);
-
-// ---- Inline text editing ----
-
-const _getTextEditRuntime = () => _getEditorInteractionFacade().getTextEditRuntime();
-const startTextEdit = (cid, e, opts) => _getTextEditRuntime().startTextEdit(cid, e, opts);
-const commitTextEdit = () => _getTextEditRuntime().commitTextEdit();
-const cancelTextEdit = () => _getTextEditRuntime().cancelTextEdit();
-
-// ---------------------------------------------------------------------------
-// Live layout resize relayout — runs the TS engine each animation frame so the
-// diagram responds smoothly while the user drags a resize handle.
-// ---------------------------------------------------------------------------
-const _getLiveResizeRuntime = () => _getEditorRelayoutFacade().getLiveResizeRuntime();
-const _scheduleLayoutResizeRelayout = (cid, newW, newH, resizedW, resizedH) =>
-  _getLiveResizeRuntime().scheduleRelayout(cid, newW, newH, resizedW, resizedH);
-const _scheduleV3ResizeRelayout = (cid, newW, newH, resizedW, resizedH) =>
-  _getEditorRelayoutFacade().scheduleResizeRelayout(cid, newW, newH, resizedW, resizedH);
-const _cancelLayoutResizeRelayout = () => _getLiveResizeRuntime().cancelRelayout();
-const _cancelV3ResizeRelayout = () => _cancelLayoutResizeRelayout();
-const _persistResizeToLayout = (resizeIds, propagatedIds, triggerCid, baseSizes) =>
-  _getEditorRelayoutFacade().persistResize(resizeIds, propagatedIds, triggerCid, baseSizes);
-const _persistResizeToV3 = (resizeIds, propagatedIds, triggerCid, baseSizes) =>
-  _persistResizeToLayout(resizeIds, propagatedIds, triggerCid, baseSizes);
-const _getResizeInteractionRuntime = () => _getEditorInteractionFacade().getResizeInteractionRuntime();
-const startResize = (e) => _getResizeInteractionRuntime().startResize(e);
-const onResizeMove = (e) => _getResizeInteractionRuntime().onResizeMove(e);
-const onResizeUp = () => _getResizeInteractionRuntime().onResizeUp();
-
-// ---- Override helpers ----
-
-const applyStyleOverride = (cid, styleName) => applyFrameStyle(cid, styleName);
 
 function _normaliseStyleName(styleName) {
   return _getPreviewShellInspectorContract().normalizePreviewStyleName(styleName);
 }
 
 const _scheduleV3Relayout = (cid) => _scheduleLayoutRelayout(cid);
-
-const _getEditorRuntimeSet = () => _getEditorInteractionFacade().getEditorRuntimeSet();
-const _getSelectionRuntime = () => _getEditorInteractionFacade().getSelectionRuntime();
-const _getInspectorDisplayRuntime = () => _getEditorInteractionFacade().getInspectorDisplayRuntime();
-const _getInspectorMutationRuntime = () => _getEditorInteractionFacade().getInspectorMutationRuntime();
-const _getInspectorSelectionRuntime = () => _getEditorInteractionFacade().getInspectorSelectionRuntime();
-const _getArrowWaypointRuntime = () => _getEditorInteractionFacade().getArrowWaypointRuntime();
-
-/**
- * Style override: applies level/fill/border style fields and triggers relayout.
- */
-const applyFrameStyle = (cid, styleName) => _getInspectorMutationRuntime().applyStyle(cid, styleName);
-const applyV3Style = (cid, styleName) => applyFrameStyle(cid, styleName);
-
-// ---- Selection & Inspector ----
-
-const deselectAll = () => _getSelectionRuntime().deselectAll();
-const _applySelectionStateSnapshot = (nextState, preferredCid) =>
-  _getSelectionRuntime().applySelectionStateSnapshot(nextState, preferredCid);
-const _syncSelectionUi = (preferredCid) => _getSelectionRuntime().syncSelectionUi(preferredCid);
-const selectComponent = (cid, additive) => _getSelectionRuntime().selectComponent(cid, additive);
-const reapplySelection = () => _getSelectionRuntime().reapplySelection();
 const clearSelection = () => _getSelectionRuntime().clearSelection();
-const setFrameAlign = (cid, align) => _getInspectorMutationRuntime().setFrameAlign(cid, align);
-const setFrameProp = (cid, prop, value) => _getInspectorMutationRuntime().setFrameProp(cid, prop, value);
-const _getRelayoutRuntime = () => _getEditorRelayoutFacade().getRelayoutRuntime();
-const requestLayoutRelayout = (triggerCid) => _getRelayoutRuntime().requestRelayout(triggerCid);
-const requestV3Relayout = (triggerCid) => requestLayoutRelayout(triggerCid);
 
 window.getLayoutRelayoutStatus = getLayoutRelayoutStatus;
 window.getV3RelayoutStatus = getV3RelayoutStatus;
 window.requestLayoutRelayout = requestLayoutRelayout;
 window.requestV3Relayout = requestV3Relayout;
-
-/**
- * Set an explicit width or height value, converting from the current
- * inspector unit (px, cols, rows) to pixels.
- */
-const setFrameSize = (cid, dimension, value) =>
-  _getInspectorMutationRuntime().setFrameSize(cid, dimension, value);
-const setWidthUnit = (unit, cid) => _getInspectorDisplayRuntime().setWidthUnit(unit, cid);
-const setHeightUnit = (unit, cid) => _getInspectorDisplayRuntime().setHeightUnit(unit, cid);
-const updateInspector = (cid) => _getInspectorDisplayRuntime().updateInspector(cid);
-
-// ---- Override persistence (save orchestration in save-client.js) ----
-
-const clearOverride = (cid) => _getRelayoutRuntime().clearOverride(cid);
-const updateOverrideSummary = () => _getEditorSceneFacade().updateOverrideSummary();
-const refreshTreeColors = () => _getEditorSceneFacade().refreshTreeColors();
-
-// Keyboard shortcuts: Ctrl+S to save, Ctrl+Z to undo, Ctrl+Shift+Z/Ctrl+Y to redo, arrows to nudge
-
-const _getKeyboardRuntime = () => _getEditorInteractionFacade().getKeyboardRuntime();
-const onDocumentKeyDown = (e) => _getKeyboardRuntime().onDocumentKeyDown(e);
 
 bindInspectorActions();
 
@@ -573,15 +421,9 @@ bindInspectorActions();
 
 // ---- Constraint validation ----
 
-const runConstraints = () => _getEditorSceneFacade().runConstraints();
-
 // Bind grid controls only after the editor compatibility exports they may pull in
 // through eager runtime construction are initialized.
-_getEditorSceneFacade().bindGridControls();
-
-// ---- SSE / bootstrap tail ----
-
-const bootstrapPreviewEditor = () => _getEditorBootstrapFacade().bootstrapEditorRuntime();
+bindGridControls();
 
 bootstrapPreviewEditor();
 

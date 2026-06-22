@@ -106,11 +106,186 @@ function extractNamedFunctionSource(source: string, functionName: string, signat
     return source.slice(start, statementEnd + 1);
   }
 
+  const destructurePrefixes = [
+    "const {",
+    "let {",
+    "var {",
+  ];
+
+  for (const prefix of destructurePrefixes) {
+    let searchIndex = 0;
+    while (true) {
+      const start = source.indexOf(prefix, searchIndex);
+      if (start === -1) {
+        break;
+      }
+
+      const bodyStart = source.indexOf("{", start);
+      if (bodyStart === -1) {
+        break;
+      }
+
+      let depth = 0;
+      let bodyEnd = -1;
+      for (let index = bodyStart; index < source.length; index += 1) {
+        const char = source[index];
+        if (char === "{") depth += 1;
+        else if (char === "}") {
+          depth -= 1;
+          if (depth === 0) {
+            bodyEnd = index;
+            break;
+          }
+        }
+      }
+
+      if (bodyEnd === -1) {
+        throw new Error(`${functionName} destructured body end not found`);
+      }
+
+      const statementEnd = source.indexOf(";", bodyEnd);
+      if (statementEnd === -1) {
+        throw new Error(`${functionName} destructured statement end not found`);
+      }
+
+      const statement = source.slice(start, statementEnd + 1);
+      const aliasPattern = new RegExp(
+        String.raw`(?:^|[,{])\s*(?:[A-Za-z_$][\w$]*\s*:\s*)?${functionName}(?:\s*[=,}])`,
+        "m",
+      );
+      const aliasMatch = statement.match(
+        new RegExp(
+          String.raw`(?:^|[,{])\s*(?:([A-Za-z_$][\w$]*)\s*:\s*)?${functionName}(?:\s*[=,}])`,
+          "m",
+        ),
+      );
+      if (aliasPattern.test(statement)) {
+        const compatKey = aliasMatch?.[1] ?? functionName;
+        return `const ${functionName} = _getPreviewGridEditorCompat().${compatKey};`;
+      }
+
+      searchIndex = statementEnd + 1;
+    }
+  }
+
   throw new Error(`${functionName} definition not found`);
 }
 
 function normalizeVmValue<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function attachPreviewCompat<T extends Record<string, any>>(context: T): T {
+  if (typeof context._getPreviewGridEditorCompat === "function") {
+    return context;
+  }
+  context._getPreviewGridEditorCompat = () => {
+    const bootstrap = typeof context._getEditorBootstrapFacade === "function"
+      ? context._getEditorBootstrapFacade()
+      : {};
+    const scene = typeof context._getEditorSceneFacade === "function"
+      ? context._getEditorSceneFacade()
+      : {};
+    const interaction = typeof context._getEditorInteractionFacade === "function"
+      ? context._getEditorInteractionFacade()
+      : {};
+    const stageBinding = typeof context._getStageBindingRuntime === "function"
+      ? context._getStageBindingRuntime()
+      : interaction.getStageBindingRuntime?.() ?? {};
+    const pointer = typeof context._getPointerInteractionRuntime === "function"
+      ? context._getPointerInteractionRuntime()
+      : interaction.getPointerInteractionRuntime?.() ?? {};
+    const selectionChrome = typeof context._getSelectionChromeRuntime === "function"
+      ? context._getSelectionChromeRuntime()
+      : interaction.getSelectionChromeRuntime?.() ?? {};
+    const selection = typeof context._getSelectionRuntime === "function"
+      ? context._getSelectionRuntime()
+      : interaction.getSelectionRuntime?.() ?? {};
+    const inspectorDisplay = typeof context._getInspectorDisplayRuntime === "function"
+      ? context._getInspectorDisplayRuntime()
+      : interaction.getInspectorDisplayRuntime?.() ?? {};
+    const inspectorMutation = typeof context._getInspectorMutationRuntime === "function"
+      ? context._getInspectorMutationRuntime()
+      : interaction.getInspectorMutationRuntime?.() ?? {};
+    const inspectorSelection = typeof context._getInspectorSelectionRuntime === "function"
+      ? context._getInspectorSelectionRuntime()
+      : interaction.getInspectorSelectionRuntime?.() ?? {};
+    const arrowWaypoint = typeof context._getArrowWaypointRuntime === "function"
+      ? context._getArrowWaypointRuntime()
+      : interaction.getArrowWaypointRuntime?.() ?? {};
+    const textEdit = typeof context._getTextEditRuntime === "function"
+      ? context._getTextEditRuntime()
+      : interaction.getTextEditRuntime?.() ?? {};
+    const resize = typeof context._getResizeInteractionRuntime === "function"
+      ? context._getResizeInteractionRuntime()
+      : interaction.getResizeInteractionRuntime?.() ?? {};
+    const relayoutFacade = typeof context._getEditorRelayoutFacade === "function"
+      ? context._getEditorRelayoutFacade()
+      : {};
+    const relayoutRuntime = typeof context._getRelayoutRuntime === "function"
+      ? context._getRelayoutRuntime()
+      : relayoutFacade.getRelayoutRuntime?.() ?? {};
+    const keyboard = typeof context._getKeyboardRuntime === "function"
+      ? context._getKeyboardRuntime()
+      : interaction.getKeyboardRuntime?.() ?? {};
+    return {
+      ...bootstrap,
+      ...scene,
+      ...interaction,
+      ...stageBinding,
+      ...pointer,
+      ...selectionChrome,
+      ...selection,
+      ...inspectorDisplay,
+      ...inspectorMutation,
+      ...inspectorSelection,
+      ...arrowWaypoint,
+      ...textEdit,
+      ...resize,
+      ...keyboard,
+      buildTreeUi: stageBinding.buildTreeUi ?? interaction.buildTreeUi ?? context.buildTreeUI,
+      bindInteraction: stageBinding.bindInteraction ?? interaction.bindInteraction ?? context.bindInteraction,
+      onSvgDoubleClick: pointer.onSvgDoubleClick ?? interaction.onSvgDoubleClick ?? context.onSvgDblClick,
+      onSvgMouseDown: pointer.onSvgMouseDown ?? interaction.onSvgMouseDown,
+      onDragMove: pointer.onDragMove ?? interaction.onDragMove,
+      showResizeHandles:
+        selectionChrome.showResizeHandles ?? interaction.showResizeHandles ?? context.showResizeHandles,
+      removeResizeHandles:
+        selectionChrome.removeResizeHandles ?? interaction.removeResizeHandles ?? context.removeResizeHandles,
+      startTextEdit: textEdit.startTextEdit ?? interaction.startTextEdit,
+      getPrimarySelectedId: context.getPrimarySelectedId
+        ?? ((preferredCid?: string | null) => (
+          context.window?.__DG_getPreviewShellInteractionContract?.()
+            ?.resolvePrimarySelectedId?.(context.selectedIds, preferredCid)
+        )),
+      requestLayoutRelayout: relayoutRuntime.requestRelayout ?? context.requestLayoutRelayout,
+      clearOverride: relayoutRuntime.clearOverride ?? context.clearOverride,
+      scheduleLayoutResizeRelayout:
+        relayoutFacade.scheduleResizeRelayout ?? context._scheduleLayoutResizeRelayout,
+      cancelLiveRelayout:
+        relayoutFacade.cancelResizeRelayout ?? context._cancelLayoutResizeRelayout,
+      persistResize: relayoutFacade.persistResize ?? context._persistResizeToLayout,
+      getLayoutRelayoutStatus:
+        relayoutFacade.getLayoutRelayoutStatus ?? context.getLayoutRelayoutStatus,
+      finishRelayout: relayoutFacade.finishRelayout ?? context._finishLayoutRelayout,
+      failRelayout: relayoutFacade.failRelayout ?? context._failLayoutRelayout,
+      deleteSelectedFrames: scene.deleteSelectedFrames
+        ? async (...args: unknown[]) => {
+          const result = await scene.deleteSelectedFrames(...args);
+          return result && typeof result === "object" && "rerendered" in result
+            ? Boolean((result as { rerendered?: unknown }).rerendered)
+            : result;
+        }
+        : context.deleteSelectedFrames,
+      refreshGridInfoFromLayout:
+        scene.refreshGridInfoFromLayout
+        ?? context.refreshLayoutGridInfoFromLayout
+        ?? context.refreshV3GridInfoFromLayout,
+      rebuildArrowSvg: arrowWaypoint.rebuildArrowSvg ?? context.rebuildArrowSVG,
+      loadSvg: bootstrap.loadSvg ?? context.loadSVG,
+    };
+  };
+  return context;
 }
 
 function createPreviewGridEditorRuntimeContext(options?: {
@@ -674,7 +849,7 @@ test("force preview helpers accept the namespaced previewEngines.force contract"
     "this.__loaded = { forcePreviewEngine, requireForceRuntimeMethod, snapshotFromCanonicalState };",
   ].join("\n");
 
-  vm.runInNewContext(helperSource, context);
+  vm.runInNewContext(helperSource, attachPreviewCompat(context));
   const loaded = (context as {
     __loaded: {
       forcePreviewEngine: () => { id: string; apiRoutes: { spec: string } };
@@ -708,7 +883,7 @@ test("editor bridge restore helper accepts the namespaced previewBridge.relayout
     "this.__loaded = { _restoreOverrideEntries };",
   ].join("\n");
 
-  vm.runInNewContext(helperSource, context);
+  vm.runInNewContext(helperSource, attachPreviewCompat(context));
   const loaded = (context as {
     __loaded: {
       _restoreOverrideEntries: (entries: Record<string, unknown>) => void;
@@ -812,7 +987,7 @@ test("editor clear-override helper accepts the namespaced previewBridge.relayout
     "this.__loaded = { clearOverride };",
   ].join("\n");
 
-  vm.runInNewContext(helperSource, context);
+  vm.runInNewContext(helperSource, attachPreviewCompat(context));
   const loaded = (context as {
     __loaded: {
       clearOverride: (cid: string) => void;
@@ -871,7 +1046,7 @@ test("editor relayout status helpers accept the namespaced previewBridge.relayou
     "this.__loaded = { getLayoutRelayoutStatus, getV3RelayoutStatus };",
   ].join("\n");
 
-  vm.runInNewContext(helperSource, context);
+  vm.runInNewContext(helperSource, attachPreviewCompat(context));
   const loaded = (context as {
     __loaded: {
       getLayoutRelayoutStatus: () => Record<string, unknown>;
@@ -914,7 +1089,7 @@ test("editor live-resize relayout helper forwards the current v3 relayout status
     "this.__loaded = { _scheduleV3ResizeRelayout };",
   ].join("\n");
 
-  vm.runInNewContext(helperSource, context);
+  vm.runInNewContext(helperSource, attachPreviewCompat(context));
   const loaded = (context as {
     __loaded: {
       _scheduleV3ResizeRelayout: (
@@ -964,7 +1139,7 @@ test("editor relayout lifecycle helpers accept the namespaced previewBridge.rela
     "this.__loaded = { _finishV3Relayout };",
   ].join("\n");
 
-  vm.runInNewContext(helperSource, context);
+  vm.runInNewContext(helperSource, attachPreviewCompat(context));
   const loaded = (context as {
     __loaded: {
       _finishV3Relayout: (triggerCid: string, localResult: Record<string, unknown>, executionLabel: string) => Promise<unknown>;
@@ -1012,7 +1187,7 @@ test("editor arrow-point helper accepts the namespaced previewShell.interaction 
     "this.__loaded = { getArrowPoints };",
   ].join("\n");
 
-  vm.runInNewContext(helperSource, context);
+  vm.runInNewContext(helperSource, attachPreviewCompat(context));
   const loaded = (context as {
     __loaded: {
       getArrowPoints: (cid: string) => unknown[];
@@ -1130,7 +1305,7 @@ test("editor override-application helper accepts the namespaced previewBridge.re
     "this.__loaded = { applyAllOverrides };",
   ].join("\n");
 
-  vm.runInNewContext(helperSource, context);
+  vm.runInNewContext(helperSource, attachPreviewCompat(context));
   const loaded = (context as {
     __loaded: {
       applyAllOverrides: () => void;
@@ -1320,7 +1495,7 @@ test("editor rerender helper accepts the namespaced previewShell.scene fresh-ren
     "this.__loaded = { _rerenderStageFromModel };",
   ].join("\n");
 
-  vm.runInNewContext(helperSource, context);
+  vm.runInNewContext(helperSource, attachPreviewCompat(context));
   const loaded = (context as {
     __loaded: {
       _rerenderStageFromModel: () => Promise<boolean>;
@@ -1411,7 +1586,7 @@ test("editor scene helper accepts the namespaced previewShell.scene contract", (
     "this.__loaded = { updateOverrideSummary };",
   ].join("\n");
 
-  vm.runInNewContext(helperSource, context);
+  vm.runInNewContext(helperSource, attachPreviewCompat(context));
   const loaded = (context as {
     __loaded: {
       updateOverrideSummary: () => void;
@@ -1440,7 +1615,7 @@ test("editor scene facade delegates through the typed preview-grid runtime", () 
     "this.__loaded = { _getEditorSceneFacade };",
   ].join("\n");
 
-  vm.runInNewContext(helperSource, harness.context);
+  vm.runInNewContext(helperSource, attachPreviewCompat(harness.context));
   const loaded = (harness.context as {
     __loaded: {
       _getEditorSceneFacade: () => Record<string, unknown>;
@@ -1511,7 +1686,7 @@ test("editor grid overlay helper accepts the namespaced previewShell.scene contr
     "this.__loaded = { renderGridOverlay };",
   ].join("\n");
 
-  vm.runInNewContext(helperSource, context);
+  vm.runInNewContext(helperSource, attachPreviewCompat(context));
   const loaded = (context as {
     __loaded: {
       renderGridOverlay: () => void;
@@ -1557,7 +1732,7 @@ test("editor grid-control helpers delegate through the typed grid runtime", () =
     "this.__loaded = { cycleGuideMode, populateGridControls, onGridControlChange };",
   ].join("\n");
 
-  vm.runInNewContext(helperSource, context);
+  vm.runInNewContext(helperSource, attachPreviewCompat(context));
   const loaded = (context as {
     __loaded: {
       cycleGuideMode: () => void;
@@ -1637,7 +1812,7 @@ test("editor constraint helper accepts the namespaced previewShell.scene contrac
     "this.__loaded = { runConstraints };",
   ].join("\n");
 
-  vm.runInNewContext(helperSource, context);
+  vm.runInNewContext(helperSource, attachPreviewCompat(context));
   const loaded = (context as {
     __loaded: {
       runConstraints: () => void;
@@ -1734,7 +1909,7 @@ test("editor double-click host helper accepts the namespaced previewShell contra
     "this.__loaded = { onSvgDblClick };",
   ].join("\n");
 
-  vm.runInNewContext(helperSource, context);
+  vm.runInNewContext(helperSource, attachPreviewCompat(context));
   const loaded = (context as {
     __loaded: {
       onSvgDblClick: (event: Record<string, unknown>) => void;
@@ -1842,7 +2017,7 @@ test("editor text-edit host helper accepts the namespaced previewShell.inspector
     "this.__loaded = { startTextEdit };",
   ].join("\n");
 
-  vm.runInNewContext(helperSource, context);
+  vm.runInNewContext(helperSource, attachPreviewCompat(context));
   const loaded = (context as {
     __loaded: {
       startTextEdit: (cid: string, event: Record<string, unknown>, opts?: Record<string, unknown>) => void;
@@ -1926,7 +2101,7 @@ test("editor inspector mutation helpers accept the namespaced previewShell.inspe
     "this.__loaded = { setFrameProp, setMultiFrameSize };",
   ].join("\n");
 
-  vm.runInNewContext(helperSource, context);
+  vm.runInNewContext(helperSource, attachPreviewCompat(context));
   const loaded = (context as {
     __loaded: {
       setFrameProp: (cid: string, prop: string, value: unknown) => void;
@@ -1996,7 +2171,7 @@ test("editor runtime-set bootstrap accepts the namespaced previewShell.bootstrap
     "this.__loaded = { _getEditorRuntimeSet, _getInspectorSelectionRuntime, _getInspectorDisplayRuntime, _getArrowWaypointRuntime };",
   ].join("\n");
 
-  vm.runInNewContext(helperSource, harness.context);
+  vm.runInNewContext(helperSource, attachPreviewCompat(harness.context));
   const loaded = (harness.context as {
     __loaded: {
       _getEditorRuntimeSet: () => Record<string, unknown>;
@@ -2103,7 +2278,7 @@ test("editor inspector-selection wrappers delegate through the typed runtime", (
     "this.__loaded = { applySelectionTargets, distributeSelection, alignSelection, setMultiFrameAlign, applyMultiStyleOverride, setMultiFrameProp, setMultiFrameSize };",
   ].join("\n");
 
-  vm.runInNewContext(helperSource, context);
+  vm.runInNewContext(helperSource, attachPreviewCompat(context));
   const loaded = (context as {
     __loaded: {
       applySelectionTargets: (items: unknown[], targets: Record<string, unknown>) => void;
@@ -2170,7 +2345,7 @@ test("editor inspector-display wrappers delegate through the typed runtime", () 
     "this.__loaded = { renderMultiSelectionInspector, renderSelectionInspector, updateInspector, setWidthUnit, setHeightUnit };",
   ].join("\n");
 
-  vm.runInNewContext(helperSource, context);
+  vm.runInNewContext(helperSource, attachPreviewCompat(context));
   const loaded = (context as {
     __loaded: {
       renderMultiSelectionInspector: () => void;
@@ -2244,7 +2419,7 @@ test("editor resize host helpers accept the namespaced previewShell.interaction 
     "this.__loaded = { startResize, onResizeMove };",
   ].join("\n");
 
-  vm.runInNewContext(helperSource, context);
+  vm.runInNewContext(helperSource, attachPreviewCompat(context));
   const loaded = (context as {
     __loaded: {
       startResize: (event: Record<string, unknown>) => void;
@@ -2316,7 +2491,7 @@ test("editor resize persistence wrapper forwards typed baseSizes to the relayout
     "this.__loaded = _persistResizeToLayout;",
   ].join("\n");
 
-  vm.runInNewContext(helperSource, context);
+  vm.runInNewContext(helperSource, attachPreviewCompat(context));
   const loaded = (context as {
     __loaded: (
       resizeIds: string[],
@@ -2397,7 +2572,7 @@ test("editor arrow-waypoint wrappers delegate through the typed runtime", () => 
     "this.__loaded = { showArrowWaypointHandles, startWpDrag, onWpDragMove, onWpDragUp, addWaypoint, removeWaypoint, getArrowPoints, updateArrowVisual, rebuildArrowSVG };",
   ].join("\n");
 
-  vm.runInNewContext(helperSource, context);
+  vm.runInNewContext(helperSource, attachPreviewCompat(context));
   const loaded = (context as {
     __loaded: {
       showArrowWaypointHandles: (cid: string) => void;
@@ -2527,7 +2702,7 @@ test("editor pointer-interaction host helper accepts the namespaced previewShell
     "this.__loaded = { onSvgMouseDown };",
   ].join("\n");
 
-  vm.runInNewContext(helperSource, context);
+  vm.runInNewContext(helperSource, attachPreviewCompat(context));
   const loaded = (context as {
     __loaded: {
       onSvgMouseDown: (event: Record<string, unknown>) => void;
@@ -2664,7 +2839,7 @@ test("editor drag-move helper accepts the namespaced previewShell.interaction co
     "this.__loaded = { onDragMove };",
   ].join("\n");
 
-  vm.runInNewContext(helperSource, context);
+  vm.runInNewContext(helperSource, attachPreviewCompat(context));
   const loaded = (context as {
     __loaded: {
       onDragMove: (event: Record<string, unknown>) => void;
@@ -2711,7 +2886,7 @@ test("editor interaction helper accepts the namespaced previewShell.interaction 
     "this.__loaded = { getPrimarySelectedId };",
   ].join("\n");
 
-  vm.runInNewContext(helperSource, context);
+  vm.runInNewContext(helperSource, attachPreviewCompat(context));
   const loaded = (context as {
     __loaded: {
       getPrimarySelectedId: (preferredCid?: string | null) => string | null;
@@ -2882,7 +3057,7 @@ test("editor keyboard helper accepts the namespaced previewShell.interaction con
     "this.__loaded = { onDocumentKeyDown };",
   ].join("\n");
 
-  vm.runInNewContext(helperSource, context);
+  vm.runInNewContext(helperSource, attachPreviewCompat(context));
   const loaded = (context as {
     __loaded: {
       onDocumentKeyDown: (event: Record<string, unknown>) => void;
@@ -3030,7 +3205,7 @@ test("editor delete helpers accept the namespaced previewShell.interaction contr
     "this.__loaded = { deleteSelectedFrames };",
   ].join("\n");
 
-  vm.runInNewContext(helperSource, context);
+  vm.runInNewContext(helperSource, attachPreviewCompat(context));
   const loaded = (context as {
     __loaded: {
       deleteSelectedFrames: () => Promise<boolean>;
@@ -3104,7 +3279,7 @@ test("editor stage-binding helper accepts the namespaced previewShell.interactio
     "this.__loaded = { bindInteraction };",
   ].join("\n");
 
-  vm.runInNewContext(helperSource, context);
+  vm.runInNewContext(helperSource, attachPreviewCompat(context));
   const loaded = (context as {
     __loaded: {
       bindInteraction: () => void;
@@ -3199,7 +3374,7 @@ test("editor selection chrome helpers accept the namespaced previewShell.interac
     "this.__loaded = { showResizeHandles, removeResizeHandles, getArrowPoints, updateArrowVisual, rebuildArrowSVG };",
   ].join("\n");
 
-  vm.runInNewContext(helperSource, context);
+  vm.runInNewContext(helperSource, attachPreviewCompat(context));
   const loaded = (context as {
     __loaded: {
       showResizeHandles: (cid: string) => void;
@@ -3296,7 +3471,7 @@ test("editor selection UI helpers accept the namespaced previewShell.interaction
     "this.__loaded = { _applySelectionStateSnapshot, _syncSelectionUi };",
   ].join("\n");
 
-  vm.runInNewContext(helperSource, context);
+  vm.runInNewContext(helperSource, attachPreviewCompat(context));
   const loaded = (context as {
     __loaded: {
       _applySelectionStateSnapshot: (nextState: Record<string, unknown>, preferredCid?: string | null) => void;
@@ -3428,7 +3603,7 @@ test("editor tree-selection host helpers accept the namespaced previewShell.inte
     "this.__loaded = { buildTreeUI, deselectAll, selectComponent };",
   ].join("\n");
 
-  vm.runInNewContext(helperSource, context);
+  vm.runInNewContext(helperSource, attachPreviewCompat(context));
   const loaded = (context as {
     __loaded: {
       buildTreeUI: () => void;
