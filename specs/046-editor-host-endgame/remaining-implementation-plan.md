@@ -46,6 +46,9 @@ Real progress already landed and must be preserved:
 - a real foreign-shaped `mindmap-lite` install unit now proves document kind,
   manifest, document renderer, shared host lane, custom save semantics, SVG
   export, and browser refresh/load traversal through typed seams only
+- `browser-entry.ts` no longer hand-assembles the namespaced `previewShell`,
+  `previewBridge`, `previewEngines`, and `core` browser contracts inline; those
+  now live in owner-scoped `browser-entry-*.ts` modules
 - four editor facades now exist for bootstrap, interaction, relayout, and scene
   coordination
 
@@ -56,7 +59,7 @@ Measured residual surfaces on the current branch:
 - `scripts/preview/save-client.js`: 24 physical lines
 - `scripts/preview/elk-controller.js`: 41 physical lines
 - `scripts/preview/elk-layout-controls.js`: 26 physical lines
-- `packages/layout-engine/src/browser-entry.ts`: 1,324 physical lines
+- `packages/layout-engine/src/browser-entry.ts`: 855 physical lines
 - `packages/layout-engine/src/preview-shell/index.ts`: 1,307 physical lines
 - `apps/preview/src/persistence/engine-contract-consumers.test.ts`: 3,470
   physical lines
