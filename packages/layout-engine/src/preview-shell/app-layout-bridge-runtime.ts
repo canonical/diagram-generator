@@ -1,3 +1,4 @@
+import { resolvePreviewEngine } from '../preview-engine/registry.js';
 import type { ElkLayoutSnapshot } from '../elk-layout.js';
 import type { Arrow, Frame, FrameDiagram } from '../frame-model.js';
 import type { TextMeasureAdapter } from '../text-measure.js';
@@ -373,6 +374,162 @@ export interface PreviewElkViewModeRuntime {
   setRawView: (enabled: boolean) => void;
 }
 
+interface PreviewLayoutBridgeLegacyEngineShellController {
+  getLayoutOverrides?: () => Record<string, unknown>;
+}
+
+interface PreviewLayoutBridgeLegacyLayoutControls {
+  collectOverrides?: () => Record<string, unknown>;
+}
+
+interface PreviewLayoutBridgeLegacyBootstrapContract {
+  getPreviewEngineShellController?: (
+    previewWindow: PreviewLayoutBridgeLegacyWindow,
+  ) => PreviewLayoutBridgeLegacyEngineShellController | null;
+}
+
+interface PreviewLayoutBridgeLegacyRenderContract
+  extends PreviewLayoutBridgeRenderContract {
+  previewArrowComponentId?: (arrow: Arrow) => string;
+  createPreviewArrowSvgFragment?: (options: {
+    ownerDocument: Document;
+    routedArrows: PreviewRoutedArrow[];
+    boundsMap: Record<string, PreviewLayoutBridgeOldBoundsEntry>;
+    headLen?: number;
+    headHalf?: number;
+  }) => DocumentFragment;
+}
+
+interface PreviewLayoutBridgeLegacyBundleRenderContract<
+  TModel extends PreviewLayoutBridgeRemovalModel,
+  TPreviewDocumentJson = Record<string, unknown>,
+  TFrameTreeJson = Record<string, unknown>,
+> extends PreviewLayoutBridgeBundleRenderContract<TModel, TPreviewDocumentJson, TFrameTreeJson> {
+  renderPreviewFrameTreeToSvg?: (options: {
+    ownerDocument: Document;
+    diagram: FrameDiagram;
+    result: PreviewLayoutBridgeRelayoutResult;
+    textAdapter: TextMeasureAdapter | null;
+    iconElements?: unknown;
+    overlays?: unknown;
+  }) => SVGSVGElement | SVGElement | DocumentFragment | null;
+}
+
+interface PreviewLayoutBridgeLegacyElkEngineContract {
+  renderPreviewElkRawView?: CreatePreviewElkViewModeRuntimeOptions['renderPreviewElkRawView'];
+  renderPreviewElkDebugOverlay?: CreatePreviewElkViewModeRuntimeOptions['renderPreviewElkDebugOverlay'];
+}
+
+export interface PreviewLayoutBridgeLegacyWindow extends PreviewElkViewModeWindowLike {
+  __DG_CONFIG?: {
+    slug?: string;
+    head_len?: number;
+    head_half?: number;
+    layout_engine?: string | null;
+  } | null;
+  __DG_getPreviewCoreContract?: (() => PreviewLayoutBridgeCoreContract | null) | null;
+  __DG_getPreviewBridgeRenderContract?: (() => PreviewLayoutBridgeLegacyRenderContract | null) | null;
+  __DG_getPreviewBridgeBundleRenderContract?: ((
+    () => PreviewLayoutBridgeLegacyBundleRenderContract<PreviewLayoutBridgeRemovalModel> | null
+  )) | null;
+  __DG_getPreviewBridgeRelayoutContract?: (() => PreviewLayoutBridgeRelayoutContract | null) | null;
+  __DG_getPreviewElkEngineContract?: (() => PreviewLayoutBridgeLegacyElkEngineContract | null) | null;
+  __DG_getPreviewShellBootstrapContract?: (() => PreviewLayoutBridgeLegacyBootstrapContract | null) | null;
+  PreviewEngineShellController?: PreviewLayoutBridgeLegacyEngineShellController | null;
+  ElkPreviewController?: PreviewLayoutBridgeLegacyEngineShellController | null;
+  PreviewEngineLayoutControls?: PreviewLayoutBridgeLegacyLayoutControls | null;
+  ElkLayoutControls?: PreviewLayoutBridgeLegacyLayoutControls | null;
+}
+
+export interface CreatePreviewLayoutBridgeInstallRuntimeFromLegacyBrowserHostOptions<
+  TModel extends PreviewLayoutBridgeRemovalModel,
+  TPreviewDocumentJson = Record<string, unknown>,
+  TFrameTreeJson = Record<string, unknown>,
+> {
+  ownerDocument: Document;
+  previewWindow: PreviewLayoutBridgeLegacyWindow;
+  slug?: string;
+}
+
+export interface PreviewLayoutBridgeInstallRuntime<
+  TModel extends PreviewLayoutBridgeRemovalModel,
+  TPreviewDocumentJson = Record<string, unknown>,
+  TFrameTreeJson = Record<string, unknown>,
+> {
+  getRuntime: () => PreviewLayoutBridgeRuntime<TModel, TPreviewDocumentJson, TFrameTreeJson>;
+  getElkViewModeRuntime: () => PreviewElkViewModeRuntime;
+  getPreviewBridgeBundleRenderContract: () => PreviewLayoutBridgeLegacyBundleRenderContract<
+    TModel,
+    TPreviewDocumentJson,
+    TFrameTreeJson
+  >;
+  getPreviewElkEngineContract: () => PreviewLayoutBridgeLegacyElkEngineContract;
+  textAdapterBackend: () => string | null;
+  setLocalRelayoutOverrideMode: (
+    mode: string | null | undefined,
+  ) => PreviewLocalRelayoutStatus;
+  getLocalRelayoutStatus: () => PreviewLocalRelayoutStatus;
+  isLocalRelayoutReady: () => boolean;
+  getFrameTreeJson: () => TFrameTreeJson | null;
+  getPreviewDocumentJson: () => TPreviewDocumentJson | null;
+  setFrameTreeJson: (json: TFrameTreeJson | null) => void;
+  applyFrameTreeRemovalsToJson: (
+    treeJson: Record<string, unknown> | null | undefined,
+    frameIds: string[] | null | undefined,
+  ) => string[];
+  applyFrameTreeRemovals: (frameIds: string[]) => string[];
+  applySessionRemovalsToDiagramJson: (
+    diagramJson: Record<string, unknown> | null | undefined,
+    model: TModel | null | undefined,
+  ) => void;
+  initLayoutBridge: (slug: string) => Promise<void>;
+  performLocalRelayout: (
+    model: TModel,
+    overrides: Record<string, PreviewRelayoutOverrideEntry>,
+    gridOverrides: Record<string, unknown>,
+    opts?: PreviewLayoutBridgeRelayoutExecutionOptions | null,
+  ) => PreviewLayoutBridgeRelayoutResult | null;
+  performEngineRelayout: (
+    model: TModel,
+    overrides: Record<string, PreviewRelayoutOverrideEntry>,
+    gridOverrides: Record<string, unknown>,
+    opts?: PreviewLayoutBridgeRelayoutExecutionOptions | null,
+  ) => Promise<PreviewLayoutBridgeRelayoutResult | null>;
+  performElkRelayout: (
+    model: TModel,
+    overrides: Record<string, PreviewRelayoutOverrideEntry>,
+    gridOverrides: Record<string, unknown>,
+    opts?: PreviewLayoutBridgeRelayoutExecutionOptions | null,
+  ) => Promise<PreviewLayoutBridgeRelayoutResult | null>;
+  renderFreshSvg: (
+    overrides: Record<string, PreviewRelayoutOverrideEntry>,
+    gridOverrides: Record<string, unknown> | null,
+    model: TModel,
+    opts?: PreviewLayoutBridgeRelayoutExecutionOptions | null,
+  ) => Promise<PreviewLayoutBridgeRelayoutResult & { svg: SVGSVGElement }>;
+  renderFrameTreeToSvg: (
+    diagram: FrameDiagram,
+    result: PreviewLayoutBridgeRelayoutResult,
+    options?: {
+      iconElements?: unknown;
+      overlays?: unknown;
+    } | null,
+  ) => SVGSVGElement | SVGElement | DocumentFragment | null;
+  createArrowsSvg: (
+    routedArrows: PreviewRoutedArrow[] | null | undefined,
+    boundsMap: Record<string, PreviewLayoutBridgeOldBoundsEntry> | null | undefined,
+  ) => DocumentFragment;
+  arrowComponentId: (arrow: Arrow) => string;
+  syncArrowsInModel: (
+    model: TModel,
+    arrows: Arrow[] | null | undefined,
+    routedArrows: PreviewRoutedArrow[] | null | undefined,
+  ) => void;
+  refreshElkViewMode: () => void;
+  refreshElkDebugOverlay: () => void;
+  installCompatWindowBindings: () => void;
+}
+
 interface PreviewLayoutBridgeTreeNode {
   id?: string | null;
   role?: string | null;
@@ -529,6 +686,423 @@ export function createPreviewElkViewModeRuntimeFromBrowserHost(
     headLen: options.previewWindowConfig?.headLen ?? 8,
     headHalf: options.previewWindowConfig?.headHalf ?? 4,
   });
+}
+
+function requirePreviewLayoutBridgeLegacyContract<TContract>(
+  contract: TContract | null | undefined,
+  message: string,
+): TContract {
+  if (!contract) {
+    throw new Error(message);
+  }
+  return contract;
+}
+
+function readPreviewLayoutBridgeModelLayoutOverrides(
+  model: Record<string, unknown> | null | undefined,
+): Record<string, unknown> {
+  const modelLike = model as {
+    layoutOverrides?: Record<string, unknown>;
+    elkLayoutOverrides?: Record<string, unknown>;
+  } | null | undefined;
+  return modelLike?.layoutOverrides || modelLike?.elkLayoutOverrides || {};
+}
+
+function writePreviewLayoutBridgeModelLayoutOverrides(
+  model: Record<string, unknown> | null | undefined,
+  value: Record<string, unknown>,
+): void {
+  if (!model || typeof model !== 'object') {
+    return;
+  }
+  const nextValue = { ...value };
+  const modelLike = model as {
+    layoutOverrides?: Record<string, unknown>;
+    elkLayoutOverrides?: Record<string, unknown>;
+  };
+  modelLike.layoutOverrides = nextValue;
+  modelLike.elkLayoutOverrides = nextValue;
+}
+
+function resolvePreviewLayoutBridgeShellController(
+  previewWindow: PreviewLayoutBridgeLegacyWindow,
+): PreviewLayoutBridgeLegacyEngineShellController | null {
+  const previewShellBootstrap = previewWindow.__DG_getPreviewShellBootstrapContract?.() ?? null;
+  if (previewShellBootstrap && typeof previewShellBootstrap.getPreviewEngineShellController === 'function') {
+    return previewShellBootstrap.getPreviewEngineShellController(previewWindow) ?? null;
+  }
+  return previewWindow.PreviewEngineShellController
+    ?? previewWindow.ElkPreviewController
+    ?? null;
+}
+
+function resolvePreviewLayoutBridgeLayoutControls(
+  previewWindow: PreviewLayoutBridgeLegacyWindow,
+): PreviewLayoutBridgeLegacyLayoutControls | null {
+  return previewWindow.PreviewEngineLayoutControls
+    ?? previewWindow.ElkLayoutControls
+    ?? null;
+}
+
+export function createPreviewLayoutBridgeInstallRuntimeFromLegacyBrowserHost<
+  TModel extends PreviewLayoutBridgeRemovalModel,
+  TPreviewDocumentJson = Record<string, unknown>,
+  TFrameTreeJson = Record<string, unknown>,
+>(
+  options: CreatePreviewLayoutBridgeInstallRuntimeFromLegacyBrowserHostOptions<
+    TModel,
+    TPreviewDocumentJson,
+    TFrameTreeJson
+  >,
+): PreviewLayoutBridgeInstallRuntime<TModel, TPreviewDocumentJson, TFrameTreeJson> {
+  const previewCore = requirePreviewLayoutBridgeLegacyContract(
+    options.previewWindow.__DG_getPreviewCoreContract?.() as
+      | PreviewLayoutBridgeCoreContract<TPreviewDocumentJson, TFrameTreeJson>
+      | null
+      | undefined,
+    'layout-bridge: preview core contract is unavailable',
+  );
+  const previewBridgeRender = requirePreviewLayoutBridgeLegacyContract(
+    options.previewWindow.__DG_getPreviewBridgeRenderContract?.() as
+      | PreviewLayoutBridgeLegacyRenderContract
+      | null
+      | undefined,
+    'layout-bridge: previewBridge.render contract is unavailable',
+  );
+  const previewBridgeBundleRender = requirePreviewLayoutBridgeLegacyContract(
+    options.previewWindow.__DG_getPreviewBridgeBundleRenderContract?.() as
+      | PreviewLayoutBridgeLegacyBundleRenderContract<TModel, TPreviewDocumentJson, TFrameTreeJson>
+      | null
+      | undefined,
+    'layout-bridge: previewBridge.render bundle contract is unavailable',
+  );
+  const previewBridgeRelayout = requirePreviewLayoutBridgeLegacyContract(
+    options.previewWindow.__DG_getPreviewBridgeRelayoutContract?.() as
+      | PreviewLayoutBridgeRelayoutContract
+      | null
+      | undefined,
+    'layout-bridge: previewBridge.relayout contract is unavailable',
+  );
+  const previewElkEngine = requirePreviewLayoutBridgeLegacyContract(
+    options.previewWindow.__DG_getPreviewElkEngineContract?.() as
+      | PreviewLayoutBridgeLegacyElkEngineContract
+      | null
+      | undefined,
+    'layout-bridge: previewEngines.elk contract is unavailable',
+  );
+
+  const state = createPreviewLayoutBridgeState<TPreviewDocumentJson, TFrameTreeJson>();
+  const slug = options.slug ?? options.previewWindow.__DG_CONFIG?.slug ?? '';
+
+  const runtime = createPreviewLayoutBridgeRuntimeFromBrowserHost<TModel, TPreviewDocumentJson, TFrameTreeJson>({
+    state,
+    slug,
+    ownerDocument: options.ownerDocument,
+    previewWindow: options.previewWindow,
+    previewCore,
+    previewBridgeRender,
+    previewBridgeBundleRender,
+    previewBridgeRelayout,
+    previewBridgeHost: {
+      updatePreviewComponentModelFromLayout: (model, frame) => updatePreviewComponentModelFromLayout(
+        model as TModel & PreviewLayoutBridgeModelTreeLoader,
+        frame,
+      ),
+    },
+    resolvePreviewEngineManifest: (json) => {
+      const layoutEngine = (
+        (json as { layoutEngine?: string | null } | null | undefined)?.layoutEngine
+        ?? options.previewWindow.__DG_CONFIG?.layout_engine
+        ?? null
+      );
+      return resolvePreviewEngine({ layoutEngine, shellMode: 'grid' }) || null;
+    },
+    createTextAdapter: async () => {
+      const harfbuzzModuleUrl = '/preview/layout-engine-harfbuzz.js';
+      const hbModule = await import(harfbuzzModuleUrl);
+      return hbModule.createDefaultHarfBuzzTextAdapter({
+        fontUrl: '/preview/layout-font.ttf',
+      });
+    },
+    getTextAdapterBackend: (textAdapter) => (
+      textAdapter && typeof textAdapter.measurementBackend === 'string'
+        ? textAdapter.measurementBackend
+        : null
+    ),
+    isAuthoritativeTextAdapter: (textAdapter) => (
+      textAdapter && typeof textAdapter.measurementBackend === 'string'
+        ? textAdapter.measurementBackend === 'harfbuzz'
+        : false
+    ),
+    resolveEngineLayoutOptionOverrides: (diagram, model) => {
+      const fromYaml = ((diagram && diagram.elkLayout) || {}) as Record<string, string>;
+      let session = readPreviewLayoutBridgeModelLayoutOverrides(
+        model as Record<string, unknown>,
+      ) as Record<string, string>;
+      const controller = resolvePreviewLayoutBridgeShellController(options.previewWindow);
+      if (controller && typeof controller.getLayoutOverrides === 'function') {
+        session = {
+          ...session,
+          ...((controller.getLayoutOverrides() || {}) as Record<string, string>),
+        };
+      }
+      if (Object.keys(session).length === 0) {
+        const layoutControls = resolvePreviewLayoutBridgeLayoutControls(options.previewWindow);
+        if (layoutControls && typeof layoutControls.collectOverrides === 'function') {
+          session = (layoutControls.collectOverrides() || {}) as Record<string, string>;
+          writePreviewLayoutBridgeModelLayoutOverrides(
+            model as Record<string, unknown>,
+            session,
+          );
+        }
+      }
+      return { ...fromYaml, ...session };
+    },
+    refreshElkViewMode: () => {
+      elkViewModeRuntime.refreshViewMode();
+    },
+    warn: (message, error) => console.warn(message, error),
+    error: (message, error) => console.error(message, error),
+  });
+
+  const elkViewModeRuntime = createPreviewElkViewModeRuntimeFromBrowserHost({
+    previewWindow: options.previewWindow,
+    ownerDocument: options.ownerDocument,
+    previewWindowConfig: {
+      headLen: 8,
+      headHalf: 4,
+    },
+    getLayoutBridgeRuntime: () => runtime,
+    renderPreviewElkRawView: previewElkEngine.renderPreviewElkRawView,
+    renderPreviewElkDebugOverlay: previewElkEngine.renderPreviewElkDebugOverlay,
+  });
+  elkViewModeRuntime.initializeWindowState();
+
+  const renderFrameTreeToSvg: PreviewLayoutBridgeInstallRuntime<
+    TModel,
+    TPreviewDocumentJson,
+    TFrameTreeJson
+  >['renderFrameTreeToSvg'] = (diagram, result, renderOptions = null) => {
+    if (typeof previewBridgeBundleRender.renderPreviewFrameTreeToSvg !== 'function') {
+      throw new Error('layout-bridge: previewBridge.render.renderPreviewFrameTreeToSvg is unavailable');
+    }
+    return previewBridgeBundleRender.renderPreviewFrameTreeToSvg({
+      ownerDocument: options.ownerDocument,
+      diagram,
+      result,
+      textAdapter: runtime.getTextAdapter(),
+      iconElements: renderOptions?.iconElements,
+      overlays: renderOptions?.overlays,
+    });
+  };
+
+  const renderFreshSvg: PreviewLayoutBridgeInstallRuntime<
+    TModel,
+    TPreviewDocumentJson,
+    TFrameTreeJson
+  >['renderFreshSvg'] = (overrides, gridOverrides, model, relayoutOptions = null) => (
+    runtime.renderFreshSvg(
+      overrides || {},
+      gridOverrides || null,
+      model,
+      relayoutOptions,
+    )
+  );
+
+  const arrowComponentId = (arrow: Arrow): string => {
+    if (typeof previewBridgeRender.previewArrowComponentId !== 'function') {
+      throw new Error('layout-bridge: previewBridge.render.previewArrowComponentId is unavailable');
+    }
+    return previewBridgeRender.previewArrowComponentId(arrow);
+  };
+
+  const syncArrowsInModel = (
+    model: TModel,
+    arrows: Arrow[] | null | undefined,
+    routedArrows: PreviewRoutedArrow[] | null | undefined,
+  ): void => {
+    previewBridgeRender.syncPreviewArrowsInModel(
+      model,
+      Array.isArray(arrows) ? arrows : [],
+      Array.isArray(routedArrows) ? routedArrows : [],
+    );
+  };
+
+  const createArrowsSvg = (
+    routedArrows: PreviewRoutedArrow[] | null | undefined,
+    boundsMap: Record<string, PreviewLayoutBridgeOldBoundsEntry> | null | undefined,
+  ): DocumentFragment => {
+    if (typeof previewBridgeRender.createPreviewArrowSvgFragment === 'function') {
+      return previewBridgeRender.createPreviewArrowSvgFragment({
+        ownerDocument: options.ownerDocument,
+        routedArrows: Array.isArray(routedArrows) ? routedArrows : [],
+        boundsMap: boundsMap || {},
+        headLen: options.previewWindow.__DG_CONFIG?.head_len,
+        headHalf: options.previewWindow.__DG_CONFIG?.head_half,
+      });
+    }
+    return options.ownerDocument.createDocumentFragment();
+  };
+
+  const refreshElkViewMode = (): void => {
+    elkViewModeRuntime.refreshViewMode();
+  };
+
+  const refreshElkDebugOverlay = (): void => {
+    elkViewModeRuntime.refreshDebugOverlay();
+  };
+
+  const compatHostRuntime = {
+    initLayoutBridge: (nextSlug: string) => runtime.init(nextSlug),
+    isLocalRelayoutReady: () => runtime.isLocalRelayoutReady(),
+    getLocalRelayoutStatus: () => runtime.getLocalRelayoutStatus(),
+    getPreviewDocumentJson: () => runtime.getPreviewDocumentJson(),
+    getFrameTreeJson: () => runtime.getFrameTreeJson(),
+    setFrameTreeJson: (json: TFrameTreeJson | null) => runtime.setFrameTreeJson(json),
+    applyFrameTreeRemovals: (frameIds: string[]) => runtime.applyFrameTreeRemovals(frameIds),
+    applyFrameTreeRemovalsToJson: (
+      treeJson: Record<string, unknown> | null | undefined,
+      frameIds: string[] | null | undefined,
+    ) => applyFrameTreeRemovalsToPreviewTreeJson(treeJson, frameIds),
+    applySessionRemovalsToDiagramJson: (
+      diagramJson: Record<string, unknown> | null | undefined,
+      model: TModel | null | undefined,
+    ) => applyPreviewSessionRemovalsToDiagramJson(diagramJson, model),
+    performLocalRelayout: (
+      model: TModel,
+      overrides: Record<string, PreviewRelayoutOverrideEntry>,
+      gridOverrides: Record<string, unknown>,
+      opts?: PreviewLayoutBridgeRelayoutExecutionOptions | null,
+    ) => runtime.performLocalRelayout(model, overrides || {}, gridOverrides || {}, opts || null),
+    performElkRelayout: (
+      model: TModel,
+      overrides: Record<string, PreviewRelayoutOverrideEntry>,
+      gridOverrides: Record<string, unknown>,
+      opts?: PreviewLayoutBridgeRelayoutExecutionOptions | null,
+    ) => runtime.performElkRelayout(model, overrides || {}, gridOverrides || {}, opts || null),
+    performEngineRelayout: (
+      model: TModel,
+      overrides: Record<string, PreviewRelayoutOverrideEntry>,
+      gridOverrides: Record<string, unknown>,
+      opts?: PreviewLayoutBridgeRelayoutExecutionOptions | null,
+    ) => runtime.performEngineRelayout(model, overrides || {}, gridOverrides || {}, opts || null),
+    renderFreshSvg: (
+      overrides: Record<string, PreviewRelayoutOverrideEntry>,
+      gridOverrides: Record<string, unknown> | null,
+      model: TModel,
+      opts?: PreviewLayoutBridgeRelayoutExecutionOptions | null,
+    ) => renderFreshSvg(overrides, gridOverrides, model, opts || null),
+    getTextAdapter: () => runtime.getTextAdapter(),
+  };
+
+  const compatRenderHost = {
+    renderPreviewFrameTreeToSvg: (renderOptions: {
+      diagram: FrameDiagram;
+      result: PreviewLayoutBridgeRelayoutResult;
+      iconElements?: unknown;
+      overlays?: unknown;
+    }) => renderFrameTreeToSvg(
+      renderOptions?.diagram,
+      renderOptions?.result,
+      renderOptions,
+    ),
+    renderFreshPreviewSvg: (renderOptions: {
+      overrides: Record<string, PreviewRelayoutOverrideEntry>;
+      gridOverrides: Record<string, unknown> | null;
+      model: TModel;
+    }) => renderFreshSvg(
+      renderOptions?.overrides,
+      renderOptions?.gridOverrides,
+      renderOptions?.model,
+      null,
+    ),
+  };
+
+  const installCompatWindowBindings = (): void => {
+    const previewWindowRecord = options.previewWindow as unknown as Record<string, unknown>;
+    previewWindowRecord.__DG_setElkDebugOverlay = (enabled: boolean) => {
+      elkViewModeRuntime.setDebugOverlay(Boolean(enabled));
+    };
+    previewWindowRecord.__DG_setPreviewEngineDebugOverlay = (enabled: boolean) => {
+      elkViewModeRuntime.setDebugOverlay(Boolean(enabled));
+    };
+    previewWindowRecord.__DG_setElkRawView = (enabled: boolean) => {
+      elkViewModeRuntime.setRawView(Boolean(enabled));
+    };
+    previewWindowRecord.__DG_setPreviewEngineRawView = (enabled: boolean) => {
+      elkViewModeRuntime.setRawView(Boolean(enabled));
+    };
+    previewWindowRecord.isLocalRelayoutReady = () => runtime.isLocalRelayoutReady();
+    previewWindowRecord.getLocalRelayoutStatus = () => runtime.getLocalRelayoutStatus();
+    previewWindowRecord.__DG_TEST_setLocalRelayoutMode = (mode: string | null | undefined) => (
+      runtime.setLocalRelayoutOverrideMode(mode)
+    );
+    previewWindowRecord.__DG_previewBridgeHostRuntime = compatHostRuntime;
+    previewWindowRecord.__DG_previewBridgeRenderHost = compatRenderHost;
+    previewWindowRecord.renderFrameTreeToSvg = renderFrameTreeToSvg;
+    previewWindowRecord.refreshElkDebugOverlay = refreshElkDebugOverlay;
+    previewWindowRecord.refreshElkViewMode = refreshElkViewMode;
+    previewWindowRecord.renderFreshSvg = renderFreshSvg;
+    previewWindowRecord.arrowComponentId = arrowComponentId;
+    previewWindowRecord.syncArrowsInModel = syncArrowsInModel;
+    previewWindowRecord.getLayoutTextAdapter = () => runtime.getTextAdapter();
+    previewWindowRecord.getPreviewDocumentJson = () => runtime.getPreviewDocumentJson();
+    previewWindowRecord.getFrameTreeJson = () => runtime.getFrameTreeJson();
+    previewWindowRecord.setFrameTreeJson = (json: TFrameTreeJson | null) => runtime.setFrameTreeJson(json);
+    previewWindowRecord.applyFrameTreeRemovals = (frameIds: string[]) => runtime.applyFrameTreeRemovals(frameIds);
+    previewWindowRecord.applyFrameTreeRemovalsToJson = (
+      treeJson: Record<string, unknown> | null | undefined,
+      frameIds: string[] | null | undefined,
+    ) => applyFrameTreeRemovalsToPreviewTreeJson(treeJson, frameIds);
+    previewWindowRecord.applySessionRemovalsToDiagramJson = (
+      diagramJson: Record<string, unknown> | null | undefined,
+      model: TModel | null | undefined,
+    ) => applyPreviewSessionRemovalsToDiagramJson(diagramJson, model);
+  };
+
+  return {
+    getRuntime: () => runtime,
+    getElkViewModeRuntime: () => elkViewModeRuntime,
+    getPreviewBridgeBundleRenderContract: () => previewBridgeBundleRender,
+    getPreviewElkEngineContract: () => previewElkEngine,
+    textAdapterBackend: () => {
+      const textAdapter = runtime.getTextAdapter();
+      return textAdapter && typeof textAdapter.measurementBackend === 'string'
+        ? textAdapter.measurementBackend
+        : null;
+    },
+    setLocalRelayoutOverrideMode: (mode) => runtime.setLocalRelayoutOverrideMode(mode),
+    getLocalRelayoutStatus: () => runtime.getLocalRelayoutStatus(),
+    isLocalRelayoutReady: () => runtime.isLocalRelayoutReady(),
+    getFrameTreeJson: () => runtime.getFrameTreeJson(),
+    getPreviewDocumentJson: () => runtime.getPreviewDocumentJson(),
+    setFrameTreeJson: (json) => runtime.setFrameTreeJson(json),
+    applyFrameTreeRemovalsToJson: (treeJson, frameIds) => (
+      applyFrameTreeRemovalsToPreviewTreeJson(treeJson, frameIds)
+    ),
+    applyFrameTreeRemovals: (frameIds) => runtime.applyFrameTreeRemovals(frameIds),
+    applySessionRemovalsToDiagramJson: (diagramJson, model) => (
+      applyPreviewSessionRemovalsToDiagramJson(diagramJson, model)
+    ),
+    initLayoutBridge: (nextSlug) => runtime.init(nextSlug),
+    performLocalRelayout: (model, overrides, gridOverrides, relayoutOptions = null) => (
+      runtime.performLocalRelayout(model, overrides || {}, gridOverrides || {}, relayoutOptions)
+    ),
+    performEngineRelayout: (model, overrides, gridOverrides, relayoutOptions = null) => (
+      runtime.performEngineRelayout(model, overrides || {}, gridOverrides || {}, relayoutOptions)
+    ),
+    performElkRelayout: (model, overrides, gridOverrides, relayoutOptions = null) => (
+      runtime.performElkRelayout(model, overrides || {}, gridOverrides || {}, relayoutOptions)
+    ),
+    renderFreshSvg,
+    renderFrameTreeToSvg,
+    createArrowsSvg,
+    arrowComponentId,
+    syncArrowsInModel,
+    refreshElkViewMode,
+    refreshElkDebugOverlay,
+    installCompatWindowBindings,
+  };
 }
 
 export function normalizePreviewLayoutBridgeLocalRelayoutOverrideMode(

@@ -383,6 +383,7 @@ export {
   createPreviewSelectionChromeRuntime,
   createPreviewElkViewModeRuntimeFromBrowserHost,
   createPreviewElkViewModeRuntime,
+  createPreviewLayoutBridgeInstallRuntimeFromLegacyBrowserHost,
   createPreviewInspectorDisplayRuntime,
   createPreviewInspectorMutationRuntime,
   createPreviewInspectorSelectionRuntime,
@@ -1225,6 +1226,8 @@ export const previewBridge = Object.freeze({
     createPreviewElkViewModeRuntimeFromBrowserHost:
       previewShellRuntime.createPreviewElkViewModeRuntimeFromBrowserHost,
     createPreviewElkViewModeRuntime: previewShellRuntime.createPreviewElkViewModeRuntime,
+    createPreviewLayoutBridgeInstallRuntimeFromLegacyBrowserHost:
+      previewShellRuntime.createPreviewLayoutBridgeInstallRuntimeFromLegacyBrowserHost,
     createPreviewLayoutBridgeRuntimeFromBrowserHost:
       previewShellRuntime.createPreviewLayoutBridgeRuntimeFromBrowserHost,
     createPreviewLayoutBridgeRuntime: previewShellRuntime.createPreviewLayoutBridgeRuntime,

@@ -3,6 +3,7 @@ import {
   applyFrameTreeRemovalsToPreviewTreeJson,
   createPreviewElkViewModeRuntimeFromBrowserHost,
   createPreviewElkViewModeRuntime,
+  createPreviewLayoutBridgeInstallRuntimeFromLegacyBrowserHost,
   createPreviewLayoutBridgeRuntimeFromBrowserHost,
   createPreviewLayoutBridgeRuntime,
   createPreviewLayoutBridgeState,
@@ -383,5 +384,154 @@ describe('preview layout bridge runtime', () => {
     runtime.refreshViewMode();
 
     expect(runtime).toBeTruthy();
+  });
+
+  it('installs the legacy browser bridge through a typed install runtime', async () => {
+    let capturedEngineOverrides: Record<string, unknown> | null = null;
+    const renderPreviewFrameTreeToSvg = vi.fn(() => ({ tagName: 'svg' } as never));
+    const renderFreshPreviewSvg = vi.fn(async (options: Record<string, any>) => {
+      capturedEngineOverrides = options.resolveEngineLayoutOptionOverrides(
+        { elkLayout: { fromYaml: true } },
+        options.model,
+      );
+      return {
+        svg: { tagName: 'svg' } as never,
+        width: 640,
+        height: 480,
+        coerced: new Map(),
+        elkSnapshot: { id: 'elk' } as never,
+        elkFrameLabels: { root: 'Root' },
+      };
+    });
+    const syncPreviewArrowsInModel = vi.fn();
+    const createPreviewArrowSvgFragment = vi.fn(() => ({ kind: 'fragment' } as never));
+    const fitPreviewSvgToRenderedContent = vi.fn();
+    const stage = {
+      replaceChildren: vi.fn(),
+    };
+    const stageSvg = {
+      querySelector() {
+        return null;
+      },
+      appendChild() {},
+    };
+    const ownerDocument = {
+      querySelector() {
+        return stageSvg;
+      },
+      getElementById(id: string) {
+        if (id === 'stage') return stage;
+        return null;
+      },
+      createDocumentFragment() {
+        return { kind: 'document-fragment' } as never;
+      },
+    } as never;
+    const previewWindow = {
+      __DG_CONFIG: {
+        slug: 'demo',
+        head_len: 8,
+        head_half: 4,
+        layout_engine: 'elk-layered',
+      },
+      __DG_getPreviewCoreContract: () => ({
+        deserializeFrameDiagramWire: () => ({
+          root: {
+            id: 'root',
+            label: [],
+            children: [],
+            _layout: { placedX: 1, placedY: 2, placedW: 3, placedH: 4 },
+          },
+          arrows: [],
+          elkLayout: { fromYaml: true },
+        }),
+        resolveStyles: vi.fn(),
+        layoutFrameTree: vi.fn(() => ({ coerced: null, width: 320, height: 200 })),
+      }),
+      __DG_getPreviewBridgeRenderContract: () => ({
+        collectPreviewFramesById: () => ({ root: { id: 'root' } as never }),
+        collectPreviewPlacedBounds: () => ({ root: { x: 1, y: 2, w: 3, h: 4 } }),
+        fitPreviewSvgToRenderedContent,
+        patchPreviewSvgFromLayout: vi.fn(),
+        routePreviewArrows: () => [],
+        patchPreviewArrowSvg: vi.fn(),
+        syncPreviewArrowsInModel,
+        previewArrowComponentId: () => 'arrow-alpha',
+        createPreviewArrowSvgFragment,
+      }),
+      __DG_getPreviewBridgeBundleRenderContract: () => ({
+        renderFreshPreviewSvg,
+        renderPreviewFrameTreeToSvg,
+      }),
+      __DG_getPreviewBridgeRelayoutContract: () => ({
+        collectPreviewRelayoutFrameOverrides: (overrides: Record<string, unknown>) => overrides,
+        applyPreviewOverridesToFrameTree: vi.fn(),
+      }),
+      __DG_getPreviewElkEngineContract: () => ({
+        renderPreviewElkRawView: vi.fn(() => ({ id: 'raw' } as never)),
+        renderPreviewElkDebugOverlay: vi.fn(() => ({ id: 'overlay' } as never)),
+      }),
+      __DG_getPreviewShellBootstrapContract: () => ({
+        getPreviewEngineShellController: () => ({
+          getLayoutOverrides: () => ({ fromController: true }),
+        }),
+      }),
+      __DG_previewEngineDebugOverlay: false,
+      __DG_previewEngineRawView: false,
+    } as never;
+
+    const install = createPreviewLayoutBridgeInstallRuntimeFromLegacyBrowserHost({
+      ownerDocument,
+      previewWindow,
+    });
+    const runtime = install.getRuntime();
+    runtime.state.previewDocumentJson = { kind: 'frame-diagram' };
+    runtime.state.frameTreeJson = {
+      root: { id: 'root', children: [] },
+      arrows: [],
+      layoutEngine: 'elk-layered',
+    };
+    runtime.state.textAdapter = { measurementBackend: 'harfbuzz' } as never;
+
+    const model = {
+      removedIds: new Set<string>(),
+      topLevelRemovalIds: () => [],
+      layoutOverrides: { existing: true },
+      loadTree() {},
+    };
+
+    await install.performEngineRelayout(model as never, {}, {}, { skipModelUpdate: true });
+    expect(capturedEngineOverrides).toEqual({
+      fromYaml: true,
+      existing: true,
+      fromController: true,
+    });
+
+    expect(install.renderFrameTreeToSvg(
+      { root: { id: 'root' }, arrows: [] } as never,
+      { width: 320, height: 200 },
+      { iconElements: [{ id: 'icon' }] },
+    )).toEqual({ tagName: 'svg' });
+    expect(renderPreviewFrameTreeToSvg).toHaveBeenCalledTimes(1);
+
+    expect(install.arrowComponentId({} as never)).toBe('arrow-alpha');
+    expect(install.createArrowsSvg([], {})).toEqual({ kind: 'fragment' });
+    install.syncArrowsInModel(model as never, [], []);
+    expect(syncPreviewArrowsInModel).toHaveBeenCalledTimes(1);
+
+    install.installCompatWindowBindings();
+    expect(typeof (previewWindow as Record<string, unknown>).__DG_setPreviewEngineDebugOverlay)
+      .toBe('function');
+    ((previewWindow as Record<string, (enabled: boolean) => void>).__DG_setPreviewEngineDebugOverlay)(true);
+    ((previewWindow as Record<string, (enabled: boolean) => void>).__DG_setPreviewEngineRawView)(true);
+    expect((previewWindow as { __DG_previewEngineDebugOverlay: boolean }).__DG_previewEngineDebugOverlay)
+      .toBe(true);
+    expect((previewWindow as { __DG_previewEngineRawView: boolean }).__DG_previewEngineRawView)
+      .toBe(true);
+    expect((previewWindow as Record<string, unknown>).__DG_previewBridgeHostRuntime).toBeTruthy();
+    expect((previewWindow as Record<string, unknown>).__DG_previewBridgeRenderHost).toBeTruthy();
+    expect(
+      (previewWindow as Record<string, () => unknown>).getLayoutTextAdapter(),
+    ).toEqual({ measurementBackend: 'harfbuzz' });
   });
 });

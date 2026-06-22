@@ -61,6 +61,7 @@ import {
   createPreviewResizeInteractionRuntimeFromHost,
   createPreviewElkViewModeRuntimeFromBrowserHost,
   createPreviewElkViewModeRuntime,
+  createPreviewLayoutBridgeInstallRuntimeFromLegacyBrowserHost,
   createPreviewOverrideToolbarHostOptions,
   createPreviewSaveClientRuntime,
   createPreviewSelectionChromeRuntimeFromHost,
@@ -299,6 +300,8 @@ describe('browser entry contract pilot', () => {
     expect(previewBridge.host.createPreviewElkViewModeRuntimeFromBrowserHost)
       .toBe(createPreviewElkViewModeRuntimeFromBrowserHost);
     expect(previewBridge.host.createPreviewElkViewModeRuntime).toBe(createPreviewElkViewModeRuntime);
+    expect(previewBridge.host.createPreviewLayoutBridgeInstallRuntimeFromLegacyBrowserHost)
+      .toBe(createPreviewLayoutBridgeInstallRuntimeFromLegacyBrowserHost);
     expect(previewBridge.host.createPreviewLayoutBridgeRuntimeFromBrowserHost).toBeTypeOf('function');
     expect(previewBridge.host.createPreviewLayoutBridgeRuntime).toBeTypeOf('function');
     expect(previewBridge.host.createPreviewLayoutBridgeState).toBeTypeOf('function');

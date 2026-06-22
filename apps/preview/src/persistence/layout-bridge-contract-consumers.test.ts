@@ -175,15 +175,15 @@ function normalizeVmValue<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
-test("layout bridge relayout setup forwards the namespaced previewBridge.relayout contract into the typed host runtime", () => {
+test("layout bridge setup delegates through the typed legacy-browser install helper", () => {
   const source = readPreviewScript("layout-bridge.js");
   assert.match(
     source,
-    /previewBridgeRelayout:\s*window\.__DG_getPreviewBridgeRelayoutContract\(\),/,
+    /createPreviewLayoutBridgeInstallRuntimeFromLegacyBrowserHost\(\{/,
   );
   assert.match(
     source,
-    /createPreviewLayoutBridgeRuntimeFromBrowserHost\(\{/,
+    /installCompatWindowBindings\(\);/,
   );
 });
 
@@ -192,13 +192,14 @@ test("layout bridge fresh-render wrapper accepts the typed layout-bridge runtime
   let captured: Record<string, unknown> | null = null;
   const context = {
     console,
-    _layoutBridgeRuntime: {
+    _previewLayoutBridgeInstallRuntime: {
       async renderFreshSvg(
         overrides: Record<string, unknown>,
         gridOverrides: Record<string, unknown> | null,
         model: Record<string, unknown>,
+        relayoutOptions: unknown,
       ) {
-        captured = { overrides, gridOverrides, model };
+        captured = { overrides, gridOverrides, model, relayoutOptions };
         return {
           svg: { tagName: "svg" },
           width: 320,
@@ -231,6 +232,7 @@ test("layout bridge fresh-render wrapper accepts the typed layout-bridge runtime
     overrides: { alpha: { dx: 8 } },
     gridOverrides: { cols: 8 },
     model: { id: "model" },
+    relayoutOptions: null,
   });
   assert.deepEqual(normalizeVmValue(result), {
     svg: { tagName: "svg" },
@@ -240,54 +242,30 @@ test("layout bridge fresh-render wrapper accepts the typed layout-bridge runtime
   });
 });
 
-test("layout bridge render setup forwards the namespaced previewBridge.render contracts into the typed host runtime", () => {
-  const source = readPreviewScript("layout-bridge.js");
-  assert.match(
-    source,
-    /previewBridgeRender:\s*previewBridgeRenderContract\(\),/,
-  );
-  assert.match(
-    source,
-    /previewBridgeBundleRender:\s*previewBridgeBundleRenderContract\(\),/,
-  );
-});
-
-test("layout bridge frame-tree render helper uses the bundle previewBridge.render contract when host wrappers overlap", () => {
+test("layout bridge frame-tree render helper delegates through the typed install runtime", () => {
   const source = readPreviewScript("layout-bridge.js");
   const capturedCalls: Array<Record<string, unknown>> = [];
   const diagram = { root: { id: "root" } };
   const result = { width: 320, height: 200 };
   const context = {
     console,
-    document: { tagName: "document" },
-    _layoutBridgeRuntime: {
-      getTextAdapter() {
-        return { measurementBackend: "mock" };
-      },
-    },
-    window: {
-      __DG_getPreviewBridgeRenderContract() {
-        return {
-          renderPreviewFrameTreeToSvg() {
-            throw new Error("merged render contract should not shadow the bundle renderer");
-          },
-        };
-      },
-      LayoutEngine: {
-        previewBridge: {
-          render: {
-            renderPreviewFrameTreeToSvg(options: Record<string, unknown>) {
-              capturedCalls.push(options);
-              return { tagName: "svg" };
-            },
-          },
-        },
+    _previewLayoutBridgeInstallRuntime: {
+      renderFrameTreeToSvg(
+        nextDiagram: Record<string, unknown>,
+        nextResult: Record<string, unknown>,
+        nextOptions: Record<string, unknown>,
+      ) {
+        capturedCalls.push({
+          diagram: nextDiagram,
+          result: nextResult,
+          options: nextOptions,
+        });
+        return { tagName: "svg" };
       },
     },
   };
 
   const helperSource = [
-    extractNamedFunctionSource(source, "previewBridgeBundleRenderContract", "()"),
     extractNamedFunctionSource(source, "renderFrameTreeToSvg", "(diagram, result, options)"),
     "this.__loaded = { renderFrameTreeToSvg };",
   ].join("\n");
@@ -312,12 +290,12 @@ test("layout bridge frame-tree render helper uses the bundle previewBridge.rende
   );
   assert.deepEqual(normalizeVmValue(capturedCalls), [
     {
-      ownerDocument: { tagName: "document" },
       diagram,
       result,
-      textAdapter: { measurementBackend: "mock" },
-      iconElements: [{ id: "icon" }],
-      overlays: [{ id: "overlay" }],
+      options: {
+        iconElements: [{ id: "icon" }],
+        overlays: [{ id: "overlay" }],
+      },
     },
   ]);
 });
@@ -327,28 +305,18 @@ test("layout bridge host helpers accept the namespaced previewBridge.host contra
   const capturedCalls: Array<Record<string, unknown>> = [];
   const context = {
     console,
-    window: {
-      __DG_getPreviewBridgeHostContract() {
-        return context.window.LayoutEngine.previewBridge.host;
-      },
-      LayoutEngine: {
-        previewBridge: {
-          host: {
-            applyFrameTreeRemovalsToPreviewTreeJson(
-              treeJson: Record<string, unknown>,
-              frameIds: string[],
-            ) {
-              capturedCalls.push({ kind: "removals", treeJson, frameIds });
-              return ["alpha"];
-            },
-          },
-        },
+    _previewLayoutBridgeInstallRuntime: {
+      applyFrameTreeRemovalsToJson(
+        treeJson: Record<string, unknown>,
+        frameIds: string[],
+      ) {
+        capturedCalls.push({ kind: "removals", treeJson, frameIds });
+        return ["alpha"];
       },
     },
   };
 
   const helperSource = [
-    extractNamedFunctionSource(source, "previewBridgeHostContract", "()"),
     extractNamedFunctionSource(source, "applyFrameTreeRemovalsToJson", "(treeJson, frameIds)"),
     "this.__loaded = { applyFrameTreeRemovalsToJson };",
   ].join("\n");
@@ -374,81 +342,31 @@ test("layout bridge host helpers accept the namespaced previewBridge.host contra
       frameIds: ["alpha"],
     },
   ]);
-  assert.match(source, /previewBridgeHost:\s*previewBridgeHostContract\(\),/);
 });
 
-test("layout bridge core setup accepts the namespaced core contract", () => {
+test("layout bridge setup no longer assembles core/render/elk contracts inline in JS", () => {
   const source = readPreviewScript("layout-bridge.js");
-  assert.match(source, /function previewCoreContract\(\)/);
-  assert.match(source, /previewCore:\s*previewCoreContract\(\),/);
+  assert.doesNotMatch(source, /function previewCoreContract\(\)/);
+  assert.doesNotMatch(source, /function previewBridgeRenderContract\(\)/);
+  assert.doesNotMatch(source, /function previewBridgeBundleRenderContract\(\)/);
+  assert.doesNotMatch(source, /function previewBridgeHostContract\(\)/);
+  assert.doesNotMatch(source, /function previewElkEngineContract\(\)/);
 });
 
-test("layout bridge ELK view helpers accept the namespaced previewEngines.elk contract", () => {
-  const source = readPreviewScript("layout-bridge.js");
-  const context = {
-    console,
-    window: {
-      __DG_getPreviewElkEngineContract() {
-        return context.window.LayoutEngine.previewEngines.elk;
-      },
-      LayoutEngine: {
-        previewEngines: {
-          elk: {
-            renderPreviewElkDebugOverlay() {
-              return { kind: "debug" };
-            },
-            renderPreviewElkRawView() {
-              return { kind: "raw" };
-            },
-          },
-        },
-      },
-    },
-  };
-
-  const helperSource = [
-    extractNamedFunctionSource(source, "previewElkEngineContract", "()"),
-    "this.__loaded = { previewElkEngineContract };",
-  ].join("\n");
-
-  vm.runInNewContext(helperSource, context);
-  const loaded = (context as {
-    __loaded: {
-      previewElkEngineContract: () => Record<string, () => unknown>;
-    };
-  }).__loaded;
-
-  assert.deepEqual(
-    normalizeVmValue(loaded.previewElkEngineContract().renderPreviewElkDebugOverlay()),
-    { kind: "debug" },
-  );
-  assert.deepEqual(
-    normalizeVmValue(loaded.previewElkEngineContract().renderPreviewElkRawView()),
-    { kind: "raw" },
-  );
-});
-
-test("layout bridge runtime setup uses typed browser-host builders instead of JS-local bridge assembly", () => {
+test("layout bridge runtime setup uses the typed install runtime instead of JS-local bridge assembly", () => {
   const source = readPreviewScript("layout-bridge.js");
 
-  assert.match(source, /createPreviewLayoutBridgeRuntimeFromBrowserHost\(\{/);
-  assert.match(source, /createPreviewElkViewModeRuntimeFromBrowserHost\(\{/);
-});
-
-test("layout bridge fresh-render runtime uses the bundle previewBridge.render contract instead of the merged host wrapper", () => {
-  const source = readPreviewScript("layout-bridge.js");
-
-  assert.match(source, /function previewBridgeBundleRenderContract\(\)/);
-  assert.match(source, /previewBridgeBundleRender:\s*previewBridgeBundleRenderContract\(\),/);
+  assert.match(source, /createPreviewLayoutBridgeInstallRuntimeFromLegacyBrowserHost\(\{/);
+  assert.doesNotMatch(source, /createPreviewLayoutBridgeRuntimeFromBrowserHost\(\{/);
+  assert.doesNotMatch(source, /createPreviewElkViewModeRuntimeFromBrowserHost\(\{/);
 });
 
 test("layout bridge routes engine relayout through the manifest/runtime seam instead of ELK-local helpers", () => {
   const source = readPreviewScript("layout-bridge.js");
 
-  assert.match(source, /resolvePreviewEngineManifest,/);
   assert.match(
     source,
-    /async function performEngineRelayout\(model, overrides, gridOverrides\)\s*\{\s*return _layoutBridgeRuntime\.performEngineRelayout\(/s,
+    /async function performEngineRelayout\(model, overrides, gridOverrides\)\s*\{\s*return _previewLayoutBridgeInstallRuntime\.performEngineRelayout\(/s,
   );
   assert.doesNotMatch(source, /function _isElkLayeredDiagramJson\(json\)/);
   assert.doesNotMatch(source, /function _resolveElkOptionOverrides\(diagram, model\)/);
