@@ -43,19 +43,20 @@ Real progress already landed and must be preserved:
 
 Measured residual surfaces on the current branch:
 
-- `scripts/preview/editor.js`: 1,601 physical lines
-- `scripts/preview/layout-bridge.js`: 395 physical lines
-- `scripts/preview/save-client.js`: 27 physical lines
-- `scripts/preview/elk-controller.js`: 46 physical lines
-- `scripts/preview/elk-layout-controls.js`: 30 physical lines
-- `packages/layout-engine/src/browser-entry.ts`: 1,306 physical lines
-- `packages/layout-engine/src/preview-shell/index.ts`: 1,391 physical lines
-- `apps/preview/src/persistence/engine-contract-consumers.test.ts`: 3,593
+- `scripts/preview/editor.js`: 256 physical lines
+- `scripts/preview/layout-bridge.js`: 352 physical lines
+- `scripts/preview/save-client.js`: 24 physical lines
+- `scripts/preview/elk-controller.js`: 41 physical lines
+- `scripts/preview/elk-layout-controls.js`: 26 physical lines
+- `packages/layout-engine/src/browser-entry.ts`: 1,324 physical lines
+- `packages/layout-engine/src/preview-shell/index.ts`: 1,307 physical lines
+- `apps/preview/src/persistence/engine-contract-consumers.test.ts`: 3,470
   physical lines
 
 What is still false to claim:
 
-- it is still false to say `editor.js` is a thin adapter
+- it is now true that `editor.js` is inside the target thin-adapter size band,
+  but it is still false to treat that as spec-046 closeout
 - it is still false to say `layout-bridge.js` is engine-agnostic by primary
   interface shape
 - it is still false to say document-family onboarding is registry-closed
@@ -66,6 +67,30 @@ What is still false to claim:
 - it is still false to say the layout substrate is ready for Mermaid, D2, and
   Dagre without forcing them through ELK-shaped contracts
 - it is still false to answer "yes" to the 50/150/500-engine question
+
+## 2026-06-22 rebaseline
+
+The branch crossed one real threshold after the preview-editor regression
+detour:
+
+- `editor.js` now enters the grid shell through a single typed legacy-host
+  installer
+- mutable install-state wrapper assembly for generation, selection depth,
+  override state, dirty-navigation suppression, multi-action gap, and relayout
+  timers now lives in `app-grid-editor-install-unit.ts`
+- the remaining `editor.js` surface is now primarily thin bootstrap, DOM
+  lookup, legacy globals, and compat alias wiring
+
+That means Workstream A is no longer the primary code blocker. The highest
+leverage remaining blocker order is now:
+
+1. Workstream B: reduce `layout-bridge.js` to the same thin-adapter standard
+2. Workstreams C and D together: close document-family registration and land a
+   foreign-shaped skeletal install-unit proof
+3. Workstream E: stop `browser-entry.ts`, `preview-shell/index.ts`, and the VM
+   harness from becoming the replacement monolith
+4. Workstream F: make the layout substrate honestly open to Mermaid, D2, Dagre,
+   and other non-ELK families
 
 ## Target architecture
 
@@ -106,6 +131,14 @@ That means future engine work must not begin by adding:
 Goal: reduce `scripts/preview/editor.js` to a browser adapter that does setup
 only.
 
+Current state:
+
+- the file is now 256 physical lines
+- the mutable install-state wrapper assembly now lives behind
+  `createPreviewGridEditorInstallUnitFromLegacyEditorHost(...)`
+- the main remaining requirement is regression control: do not let new behavior
+  creep back into the JS shell
+
 Target residual shape:
 
 - read DOM/config/runtime bootstrap inputs
@@ -137,6 +170,14 @@ Target bar:
 - no large inline option-object assembly blocks
 - no inline install choreography for inspector, selection, relayout, grid, or
   bootstrap families beyond a single typed installer call chain
+
+Status:
+
+- size bar: met
+- single typed installer chain: met
+- no engine/document-kind branching in the file: met
+- closeout relevance: still open only because spec 046 is broader than
+  `editor.js` alone
 
 Suggested implementation slices:
 

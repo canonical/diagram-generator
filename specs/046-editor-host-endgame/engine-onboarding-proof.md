@@ -24,6 +24,7 @@ must now distinguish clearly between:
 - The bootstrap tail now enters that owner through `previewShell.bootstrap.createBootstrapPreviewEditorRuntimeOptionsFromHost(...)` plus `previewShell.bootstrap.bootstrapPreviewEditorRuntime(...)`, so `editor.js` no longer hand-assembles host-only save/toolbar/SSE/build-status wiring inline.
 - The diagram load and relayout-runtime entrypoints now enter typed owners through `previewShell.bootstrap.createLoadPreviewSvgHostOptionsFromRuntime(...)` in `app-load.ts` plus `previewBridge.relayout.createPreviewRelayoutRuntimeFromRuntime(...)` in `app-relayout-runtime.ts`, so future shell-lane onboarding no longer starts by widening `loadSVG()` or `_getRelayoutRuntime()` in `editor.js`.
 - The selection / inspector / waypoint runtime-set callback assembly now enters typed owners through `previewShell.bootstrap.createPreviewEditorRuntimeSetFromRuntime(...)` in `app-editor-runtime-set.ts`, so `editor.js` no longer owns that large constructor bag inline.
+- The residual mutable editor-host install state now enters typed owners through `previewShell.bootstrap.createPreviewGridEditorInstallUnitFromLegacyEditorHost(...)` in `app-grid-editor-install-unit.ts`, so `editor.js` no longer owns wrapper assembly for generation, selection depth, override state, dirty-nav suppression, or relayout timers.
 - Engine-local browser hooks now have a generic registration point:
   - `PreviewEngineShellController`
   - `previewShell.bootstrap.ensurePreviewEngineShellController(...)`
@@ -112,8 +113,8 @@ real non-ELK canonical state without reopening `editor.js` or
 
 The current branch still fails the full proof standard in these ways:
 
-1. the trap files are still too behavior-bearing: `editor.js` and `layout-bridge.js`
-   do not yet read as thin adapters
+1. `editor.js` is now materially thinner, but `layout-bridge.js` is still too
+   behavior-bearing to count as a final thin bridge adapter
 2. the browser-shell proof now exists for sequence refresh/load, but it still
    needs one final rerun after the remaining trap-file thinness pass
 3. the browser edge still carries compatibility aliases and ELK-shaped debug/raw
@@ -188,6 +189,8 @@ non-ELK browser load proof is now green.
 Spec 046 does **not** get to ignore `layout-bridge.js`.
 
 - `editor.js` is no longer the default engine-onboarding sink for preview-shell work.
+- `editor.js` is now in the target thin-adapter size band and enters the grid
+  shell through a single typed legacy-host installer.
 - `layout-bridge.js` no longer owns bridge state, text-adapter readiness, or
   local-vs-ELK relayout dispatch; those now enter through
   `previewBridge.host` and `app-layout-bridge-runtime.ts`.
