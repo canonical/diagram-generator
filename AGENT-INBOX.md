@@ -197,3 +197,95 @@ use physical line numbers above for closeout discussion.
    or central document-kind conditionals.
 6. After T043 lands, rerun the sequence proof plus the new install-unit proof,
    then run T046. Close T034 only if the 50/150/500 answer is honestly yes.
+
+## Spec 046 closeout rerun - Codex (2026-06-22)
+
+**Branch:** `feat/046-editor-host-endgame`
+
+**Verification run:**
+
+- `npm --prefix packages/graph-layout-core run build`
+- `npm --prefix packages/graph-layout-core test`
+- `npm --prefix packages/graph-layout-elk run build`
+- `npm --prefix packages/graph-layout-elk test`
+- `npm --prefix packages/layout-engine run build`
+- `npm --prefix packages/layout-engine run build:browser`
+- `npm --prefix packages/layout-engine test`
+- `npm --prefix apps/preview test`
+- `npm --prefix apps/preview run build`
+- `node scripts/check_no_new_python.mjs`
+
+### Verdict
+
+**On this branch, spec 046's closeout bar is now met.** The honest answer to
+"can we start porting Mermaid, D2, Dagre, and other existing algorithms as
+layout engines now?" is now **yes**.
+
+### What changed since the 2026-06-21 merged audit
+
+1. **The JS trap files are now genuinely thin.**
+   - `scripts/preview/editor.js`: **256** physical lines
+   - `scripts/preview/layout-bridge.js`: **88** physical lines
+   Both files now read as browser adapters around typed install/runtime seams,
+   with old V3/ELK names retained only as boundary aliases.
+
+2. **TypeScript did not become the replacement monolith.**
+   - `packages/layout-engine/src/browser-entry.ts`: **8** lines
+   - `packages/layout-engine/src/preview-shell/index.ts`: **7** lines
+   - the old monolithic VM contract harness is gone in favor of owner-scoped
+     suites backed by `preview-script-test-helpers.ts`
+
+3. **The foreign-shaped install proof is real and still green.**
+   `mindmap-lite-install-unit.test.ts` proves manifest registration,
+   document-kind detection, save/export, host seams, and browser refresh/load
+   without widening `editor.js`, `layout-bridge.js`, `server.ts`, or central
+   document-kind branching.
+
+4. **The graph-layout substrate is now engine-open enough to stop forcing ELK
+   vocabulary into shared contracts.**
+   - `GraphLayoutResult.engine` is now a generic string id
+   - `graph-layout-core` now exposes engine capability/descriptor types
+   - compound padding is now `GraphInsetsInput`, not an ELK padding string
+   - ports are now side/point-anchored, not shared-IR `side/x/y` midpoint
+     coordinates
+   - `LayoutDirection` now supports `TB`, `LR`, `BT`, and `RL`
+   - `graph-layout-elk` proves side-anchored ports and object insets traverse
+     the adapter boundary without ELK-only IR distortion
+
+### Final answers to the closeout prompts
+
+1. **If asked to add a Mermaid-like engine tomorrow, where do I start first?**
+   Start at an install unit: preview-engine manifest, renderer/adapter,
+   optional document-kind handler/host module, and any engine-local controller
+   glue. The start point is not `editor.js`, `layout-bridge.js`, or a central
+   document-kind conditional.
+
+2. **If asked to add a Dagre-like engine tomorrow, do I need `editor.js`,
+   `layout-bridge.js`, `server.ts`, or a central document-kind conditional?**
+   No. The typed registries and install seams are sufficient.
+
+3. **Are V3/ELK names still the primary way runtime capabilities are
+   expressed?**
+   No. Generic names are primary. V3/ELK names remain only as compatibility
+   aliases at the boundary.
+
+4. **Can a custom document family own detection, parse, resolve, save, export,
+   and browser load without central branching?**
+   Yes. `mindmap-lite` proves that end to end.
+
+5. **Did TypeScript barrels or contract harnesses merely replace the old JS
+   monolith?**
+   No. The remaining top-level barrels are mechanical fan-outs, and the old VM
+   harness has been split by owner family.
+
+6. **Does the substrate still assume ELK semantics for sizes, ports, labels, or
+   constraints?**
+   Not as the shared contract surface. ELK-specific translation now happens
+   inside `graph-layout-elk`, not in `graph-layout-core`.
+
+### Closeout note
+
+Spec 046 can be treated as complete on `feat/046-editor-host-endgame`. The
+remaining work in adjacent specs should move forward without reopening 046
+unless they reintroduce behavior-heavy legacy JS ownership or ELK-only shared
+substrate contracts.

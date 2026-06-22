@@ -30,6 +30,8 @@ export {
 const DIRECTION: Record<LayoutDirection, string> = {
   TB: 'DOWN',
   LR: 'RIGHT',
+  BT: 'UP',
+  RL: 'LEFT',
 };
 
 /** Between-layer spacing (nodeNodeBetweenLayers) in px. */

@@ -1,5 +1,10 @@
 # Veto Removal Plan
 
+> Execution note (2026-06-22): the veto described in this file has now been
+> removed on `feat/046-editor-host-endgame`. Keep this document as historical
+> context for how the closeout bar was cleared; the current verdict now lives
+> in [tasks.md](./tasks.md) and `AGENT-INBOX.md`.
+
 Execution plan for removing spec 046's honest-closeout veto.
 
 This repo now passes important builtin host/document/render/persistence seams,

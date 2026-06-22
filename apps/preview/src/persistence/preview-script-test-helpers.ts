@@ -173,10 +173,13 @@ export function normalizeVmValue<T>(value: T): T {
 }
 
 export function attachPreviewCompat<T extends Record<string, any>>(context: T): T {
-  if (typeof context._getPreviewGridEditorCompat === "function") {
+  const mutableContext = context as T & {
+    _getPreviewGridEditorCompat?: () => Record<string, unknown>;
+  };
+  if (typeof mutableContext._getPreviewGridEditorCompat === "function") {
     return context;
   }
-  context._getPreviewGridEditorCompat = () => {
+  mutableContext._getPreviewGridEditorCompat = () => {
     const bootstrap = typeof context._getEditorBootstrapFacade === "function"
       ? context._getEditorBootstrapFacade()
       : {};

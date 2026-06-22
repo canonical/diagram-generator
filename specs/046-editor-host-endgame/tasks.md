@@ -104,23 +104,13 @@
   requests, and raw/debug-view toggles now flow through generic preview-engine
   capability names first, with ELK globals retained as aliases rather than as
   the primary shell contract.
-- [ ] T043 Finish the remaining trap-file thinness pass so `editor.js` and
+- [x] T043 Finish the remaining trap-file thinness pass so `editor.js` and
   `layout-bridge.js` read as adapters instead of behavior-bearing coordinators
-  Progress note: the relayout/state-restore/live-resize coordinator cluster now
-  enters through `previewBridge.relayout.createPreviewEditorRelayoutFacadeFromEditorHost(...)`,
-  the stage/pointer/selection-chrome/text-edit/resize/keyboard/runtime-set
-  coordinator cluster now enters through
-  `previewShell.bootstrap.createPreviewEditorInteractionFacadeFromEditorHost(...)`,
-  the residual grid/scene/rerender/delete/status-refresh coordinator cluster
-  now enters through `previewShell.scene.createPreviewEditorSceneFacadeFromEditorHost(...)`,
-  the bootstrap/load/navigation/diagram-loaded/bootstrap-tail coordinator
-  cluster now enters through
-  `previewShell.bootstrap.createPreviewEditorBootstrapFacadeFromEditorHost(...)`,
-  and the measured residual files are still 1,601 physical lines for
-  `editor.js` and 395 physical lines for `layout-bridge.js`, so the JS sinks
-  still carry too much option-bag assembly, drag/reorder glue,
-  selection/inspector callback wiring, and repo-local DOM/runtime glue to
-  count as closeout-quality adapters.
+  Outcome: `editor.js` is now a 256-line browser adapter around the typed grid
+  install/runtime seam, and `layout-bridge.js` is now an 88-line compat bridge
+  around the typed preview-bridge install runtime. The coordinator clusters now
+  live behind typed facades; the legacy JS files keep only browser bootstrap
+  glue, compat aliases, and DOM/runtime hookup.
 - [x] T044 Document and validate the durable preview-engine install-unit
   pattern needed for 50/150/500-engine onboarding
   Outcome: the 046 package now publishes
@@ -128,80 +118,106 @@
   manifest + render-adapter + document-renderer install unit, and
   `preview-host-contract.test.ts` continues to prove the host-module side of
   the same registration story.
-- [ ] T045 Re-run the real non-ELK proof after phases T041-T044 and confirm it
+- [x] T045 Re-run the real non-ELK proof after phases T041-T044 and confirm it
   still works through the typed seams
-  Progress note: the sequence family now replays canonical save state through
-  `loadPreviewSvg(...)` in `preview-host-contract.test.ts`, proving the typed
-  browser refresh/load leg. This task stays open until T043 is done and the
-  proof is re-run against the final thinness state, and it does not by itself
-  satisfy the final Mermaid-lite, D2-lite, or Dagre-lite install-proof bar.
-- [ ] T046 Run one final adversarial closeout audit and close T034 only if the
+  Outcome: the sequence-family browser replay proof remains green through the
+  thin JS adapters, and the `mindmap-lite` install-unit proof continues to
+  cover document-kind detection, manifest registration, save/export, host
+  routing, and browser refresh/load through typed seams.
+- [x] T046 Run one final adversarial closeout audit and close T034 only if the
   honest answer to 50/150/500-engine onboarding is yes
 
 ## Phase 5 - Remaining implementation plan execution
 
-- [ ] T050 Workstream A: define the typed browser-host installer contract that
+- [x] T050 Workstream A: define the typed browser-host installer contract that
   replaces the remaining giant inline `editor.js` option-bag assembly
-- [ ] T051 Workstream A: move residual callback-map shaping, snap/reorder glue,
+- [x] T051 Workstream A: move residual callback-map shaping, snap/reorder glue,
   inspector callback wiring, selection wrappers, undo/restore glue, and grid
   control assembly out of `editor.js` into owner-scoped TypeScript modules
-- [ ] T052 Workstream A: reduce `editor.js` to a compat adapter that reads
+- [x] T052 Workstream A: reduce `editor.js` to a compat adapter that reads
   config, instantiates any required legacy JS classes, calls one typed
   installer, and installs compat globals from the returned adapter
-- [ ] T053 Workstream A validation: re-measure `editor.js` and keep T043 open
+- [x] T053 Workstream A validation: re-measure `editor.js` and keep T043 open
   unless the file is at or below about 350 physical lines with no domain
   behavior or engine-specific branching
+  Outcome: `editor.js` now measures 256 physical lines on disk and reads as
+  adapter glue only.
 
-- [ ] T054 Workstream B: define the generic engine view/debug/raw capability
+- [x] T054 Workstream B: define the generic engine view/debug/raw capability
   runtime so ELK raw/debug behavior is registered capability logic rather than
   bridge-owned shape
-- [ ] T055 Workstream B: demote `performElkRelayout`, `refreshElk*`, and
+- [x] T055 Workstream B: demote `performElkRelayout`, `refreshElk*`, and
   `elkLayoutOverrides` to compat aliases or remove them from primary bridge
   interfaces
-- [ ] T056 Workstream B validation: re-measure `layout-bridge.js` and keep T043
+- [x] T056 Workstream B validation: re-measure `layout-bridge.js` and keep T043
   open unless the file is at or below about 180 physical lines with no primary
   ELK-shaped interface surface
+  Outcome: `layout-bridge.js` now measures 88 physical lines on disk and keeps
+  ELK names only as boundary aliases around the generic install runtime.
 
-- [ ] T057 Workstream C: replace hardcoded sequence-versus-frame detection in
+- [x] T057 Workstream C: replace hardcoded sequence-versus-frame detection in
   `determineFrameYamlKind` and `resolveFramePreviewEngineResolution` with
   handler-owned `match` / `parse` / `resolve` registry methods
-- [ ] T058 Workstream C validation: prove a custom document family can own
+- [x] T058 Workstream C validation: prove a custom document family can own
   preview-document detection, load/parse normalization, save, engine
   compatibility, export, and browser load without central document-kind
   branching
+  Outcome: frame-YAML document kinds now resolve through handler registration,
+  and `mindmap-lite-install-unit.test.ts` proves a custom family can own the
+  full preview/save/export/browser path without central branching.
 
-- [ ] T059 Workstream D: add one real skeletal Mermaid-lite, D2-lite, or
+- [x] T059 Workstream D: add one real skeletal Mermaid-lite, D2-lite, or
   Dagre-lite style install unit that includes document kind, parser/handler,
   manifest, render/export adapter, persistence namespace/save, host route/page
   or output-only contract, refresh/load, and save/export
-- [ ] T060 Workstream D validation: prove the install unit lands without edits
+- [x] T060 Workstream D validation: prove the install unit lands without edits
   to `editor.js`, `layout-bridge.js`, `server.ts`, or central document-kind
   conditionals
+  Outcome: `mindmap-lite` now serves as the real foreign-shaped install proof:
+  manifest + renderer + document-kind handler + save namespace + shared host
+  seams + browser refresh/load, all without widening the legacy JS sinks or
+  central document-kind conditionals.
 
-- [ ] T061 Workstream E: split `packages/layout-engine/src/browser-entry.ts`
+- [x] T061 Workstream E: split `packages/layout-engine/src/browser-entry.ts`
   into owner-scoped browser contract modules
-- [ ] T062 Workstream E: split
+- [x] T062 Workstream E: split
   `packages/layout-engine/src/preview-shell/index.ts` into owner-scoped barrel
   surfaces and keep any top-level re-export mechanical only
-- [ ] T063 Workstream E: split
+- [x] T063 Workstream E: split
   `apps/preview/src/persistence/engine-contract-consumers.test.ts` into
   focused owner-scoped harnesses so TypeScript does not become the new
   monolith
+  Outcome: `browser-entry.ts` is now eight lines, `preview-shell/index.ts` is
+  seven lines, and the old monolithic VM harness has been replaced by
+  owner-scoped contract suites backed by `preview-script-test-helpers.ts`.
 
-- [ ] T064 Workstream F: make `graph-layout-core` result contracts and adjacent
+- [x] T064 Workstream F: make `graph-layout-core` result contracts and adjacent
   substrate semantics engine-open rather than ELK-shaped
-- [ ] T065 Workstream F: clarify size, port, label, and constraint semantics
+- [x] T065 Workstream F: clarify size, port, label, and constraint semantics
   and separate parser-family adapters from layout algorithm contracts
-- [ ] T066 Workstream F validation: prove a non-ELK engine shape can traverse
+- [x] T066 Workstream F validation: prove a non-ELK engine shape can traverse
   the substrate without forced ELK-only IR distortion
+  Outcome: `graph-layout-core` now exposes engine-open capability/descriptor
+  types, generic engine ids, explicit input-vs-output size semantics,
+  `GraphInsetsInput`, side/point-anchored ports, and four-direction support.
+  `graph-layout-elk` now adapts those contracts at the ELK boundary, and the
+  layered tests prove side-anchored ports and object insets traverse the
+  substrate without ELK-only padding strings or explicit midpoint coordinates
+  in the shared IR.
 
 ## Phase 6 - Final closeout audit
 
-- [ ] T067 Re-run the acceptance checklist from
+- [x] T067 Re-run the acceptance checklist from
   [remaining-implementation-plan.md](./remaining-implementation-plan.md) after
   T050-T066 and confirm thin adapters, no central document-kind stops, no
   compatibility vocabulary as the primary surface, real install proof, and
   split TypeScript barrels/harnesses
-- [ ] T068 Run the final adversarial re-review prompts from
+- [x] T068 Run the final adversarial re-review prompts from
   [remaining-implementation-plan.md](./remaining-implementation-plan.md) and
   close T046 only if the honest answer to 50/150/500-engine onboarding is yes
+  Outcome: the closeout rerun on 2026-06-22 confirms all acceptance bars are
+  met on `feat/046-editor-host-endgame`: thin JS adapters, registry-owned
+  document-family seams, a real foreign-shaped install proof, split TypeScript
+  barrels/harnesses, and an engine-open graph-layout substrate. The honest
+  answer to the 50/150/500-engine onboarding question is now yes on this
+  branch.

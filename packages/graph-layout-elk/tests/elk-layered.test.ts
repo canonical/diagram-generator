@@ -21,7 +21,7 @@ import { buildElkGraph } from '../src/elk-graph-builder.js';
 
 const BOX = { width: 192, height: 64 };
 
-function chainInput(direction: 'TB' | 'LR', ids: string[]): GraphLayoutInput {
+function chainInput(direction: GraphLayoutInput['direction'], ids: string[]): GraphLayoutInput {
   return {
     id: 'root',
     direction,
@@ -62,6 +62,22 @@ describe('ELK layered (Sugiyama)', () => {
     expect(nodes.get('service')!.x).toBeLessThan(nodes.get('store')!.x);
   });
 
+  it('lays out a BT chain with monotonic rank (decreasing Y)', async () => {
+    const result = await layoutLayered(chainInput('BT', ['a', 'b', 'c']));
+    const nodes = indexPlacedNodes(result.nodes);
+
+    expect(nodes.get('a')!.y).toBeGreaterThan(nodes.get('b')!.y);
+    expect(nodes.get('b')!.y).toBeGreaterThan(nodes.get('c')!.y);
+  });
+
+  it('lays out an RL chain with monotonic rank (decreasing X)', async () => {
+    const result = await layoutLayered(chainInput('RL', ['ingress', 'service', 'store']));
+    const nodes = indexPlacedNodes(result.nodes);
+
+    expect(nodes.get('ingress')!.x).toBeGreaterThan(nodes.get('service')!.x);
+    expect(nodes.get('service')!.x).toBeGreaterThan(nodes.get('store')!.x);
+  });
+
   it('places fork siblings on the same rank (equal Y for TB)', async () => {
     const result = await layoutLayered({
       id: 'root',
@@ -90,7 +106,7 @@ describe('ELK layered (Sugiyama)', () => {
     expect(edge.sections[0]!.startPoint).toEqual(expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }));
   });
 
-  it('routes explicit port endpoints through true midpoint coordinates', async () => {
+  it('routes explicit side-anchored ports through true midpoint coordinates', async () => {
     const result = await layoutLayered({
       id: 'root',
       direction: 'TB',
@@ -99,20 +115,20 @@ describe('ELK layered (Sugiyama)', () => {
           id: 'a',
           ...BOX,
           ports: [
-            { id: 'a__top', side: 'top', x: BOX.width / 2, y: 0 },
-            { id: 'a__right', side: 'right', x: BOX.width, y: BOX.height / 2 },
-            { id: 'a__bottom', side: 'bottom', x: BOX.width / 2, y: BOX.height },
-            { id: 'a__left', side: 'left', x: 0, y: BOX.height / 2 },
+            { id: 'a__top', anchor: { kind: 'side', side: 'top' } },
+            { id: 'a__right', anchor: { kind: 'side', side: 'right' } },
+            { id: 'a__bottom', anchor: { kind: 'side', side: 'bottom' } },
+            { id: 'a__left', anchor: { kind: 'side', side: 'left' } },
           ],
         },
         {
           id: 'b',
           ...BOX,
           ports: [
-            { id: 'b__top', side: 'top', x: BOX.width / 2, y: 0 },
-            { id: 'b__right', side: 'right', x: BOX.width, y: BOX.height / 2 },
-            { id: 'b__bottom', side: 'bottom', x: BOX.width / 2, y: BOX.height },
-            { id: 'b__left', side: 'left', x: 0, y: BOX.height / 2 },
+            { id: 'b__top', anchor: { kind: 'side', side: 'top' } },
+            { id: 'b__right', anchor: { kind: 'side', side: 'right' } },
+            { id: 'b__bottom', anchor: { kind: 'side', side: 'bottom' } },
+            { id: 'b__left', anchor: { kind: 'side', side: 'left' } },
           ],
         },
       ],
@@ -305,7 +321,7 @@ describe('ELK layered (Sugiyama)', () => {
           id: 'cluster',
           width: 400,
           height: 200,
-          padding: '[top=16,left=16,bottom=16,right=16]',
+          padding: { top: 16, left: 16, bottom: 16, right: 16 },
           children: [{ id: 'a', ...BOX }, { id: 'b', ...BOX }],
         },
       ],

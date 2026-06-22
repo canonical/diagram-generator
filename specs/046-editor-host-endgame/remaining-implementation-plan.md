@@ -1,5 +1,10 @@
 # Remaining Implementation Plan
 
+> Execution note (2026-06-22): this plan has now been executed on
+> `feat/046-editor-host-endgame`. Keep it as the historical implementation
+> plan for spec 046; current closeout status now lives in [tasks.md](./tasks.md)
+> and `AGENT-INBOX.md`.
+
 Detailed implementation architecture and execution plan for the remaining work
 under spec 046.
 

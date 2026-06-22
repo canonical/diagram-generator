@@ -149,7 +149,7 @@ describe('interaction completion dispatch helpers', () => {
       { before: true },
       { after: true },
     );
-    expect(options.persistResize).toHaveBeenCalledWith(['a', 'b'], ['parent'], 'primary');
+    expect(options.persistResize).toHaveBeenCalledWith(['a', 'b'], ['parent'], 'primary', null);
     expect(options.autoFitArtboard).toHaveBeenCalledTimes(1);
   });
 });

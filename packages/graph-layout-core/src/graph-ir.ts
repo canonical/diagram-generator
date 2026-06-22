@@ -1,10 +1,14 @@
 /** Canonical graph layout input/output IR (engine-agnostic). */
 
-export type LayoutDirection = 'TB' | 'LR';
+export type LayoutDirection = 'TB' | 'LR' | 'BT' | 'RL';
 
 export type SpacingProfile = 'compact' | 'normal' | 'loose';
 
 export type GraphPortSide = 'top' | 'right' | 'bottom' | 'left';
+
+export type GraphLabelPlacement = 'center' | 'source' | 'target';
+
+export type GraphConstraintAxis = 'horizontal' | 'vertical';
 
 /** Matches planning `layout_mapping.py` layered families. */
 export type LayeredCorpusFamily =
@@ -19,25 +23,49 @@ export type ForceCorpusFamily =
   | 'data_model_and_relationships'
   | 'concept_and_relationship_mapping';
 
-export interface GraphPortInput {
-  id: string;
+export interface GraphInsetsInput {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+}
+
+export type GraphPortAnchorOffset = number | 'center';
+
+export interface GraphPortSideAnchorInput {
+  kind: 'side';
   side: GraphPortSide;
-  /** Relative to the owning node's top-left corner. */
+  offset?: GraphPortAnchorOffset;
+}
+
+export interface GraphPortPointAnchorInput {
+  kind: 'point';
+  side: GraphPortSide;
   x: number;
   y: number;
+}
+
+export type GraphPortAnchorInput =
+  | GraphPortSideAnchorInput
+  | GraphPortPointAnchorInput;
+
+export interface GraphPortInput {
+  id: string;
+  anchor: GraphPortAnchorInput;
   width?: number;
   height?: number;
 }
 
 export interface GraphNodeInput {
   id: string;
+  /** Input box size before the algorithm runs. */
   width: number;
   height: number;
-  /** Optional compound padding for layout engines that support child insets. */
-  padding?: string;
-  /** Optional explicit ports; ELK builder may also synthesize implicit ports. */
+  /** Optional compound insets for layout engines that support child padding. */
+  padding?: GraphInsetsInput;
+  /** Optional explicit ports; layout adapters may also synthesize implicit ports. */
   ports?: GraphPortInput[];
-  /** Nested compound nodes (ELK hierarchy). */
+  /** Nested compound nodes. */
   children?: GraphNodeInput[];
 }
 
@@ -45,7 +73,26 @@ export interface GraphEdgeLabelInput {
   text: string;
   width: number;
   height: number;
+  placement?: GraphLabelPlacement;
 }
+
+export interface GraphOrderConstraintInput {
+  kind: 'order';
+  axis: GraphConstraintAxis;
+  before: string;
+  after: string;
+}
+
+export interface GraphAlignmentConstraintInput {
+  kind: 'alignment';
+  axis: GraphConstraintAxis;
+  nodeIds: string[];
+  anchor?: 'start' | 'center' | 'end';
+}
+
+export type GraphConstraintInput =
+  | GraphOrderConstraintInput
+  | GraphAlignmentConstraintInput;
 
 export interface GraphEdgeInput {
   id: string;
@@ -65,6 +112,7 @@ export interface GraphLayoutInput {
   spacingProfile?: SpacingProfile;
   nodes: GraphNodeInput[];
   edges: GraphEdgeInput[];
+  constraints?: GraphConstraintInput[];
 }
 
 export interface Point2 {
@@ -72,10 +120,19 @@ export interface Point2 {
   y: number;
 }
 
+export interface GraphPortPlacement {
+  side: GraphPortSide;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export interface PlacedNode {
   id: string;
   x: number;
   y: number;
+  /** Resolved box size after the algorithm runs. */
   width: number;
   height: number;
   children?: PlacedNode[];
@@ -93,6 +150,7 @@ export interface PlacedEdgeLabel {
   y: number;
   width: number;
   height: number;
+  placement?: GraphLabelPlacement;
 }
 
 export interface PlacedEdge {
@@ -108,12 +166,56 @@ export interface PlacedEdge {
   labels?: PlacedEdgeLabel[];
 }
 
+export type GraphLayoutEngineId = string;
+
+export interface GraphLayoutSizingCapabilities {
+  requiresInputNodeSizes: boolean;
+  returnsPlacedNodeSizes: boolean;
+}
+
+export interface GraphLayoutPortCapabilities {
+  explicitPorts: boolean;
+  sideAnchors: boolean;
+  pointAnchors: boolean;
+  implicitEndpointPorts: boolean;
+}
+
+export interface GraphLayoutLabelCapabilities {
+  measuredBoxes: boolean;
+  placementHints: boolean;
+}
+
+export interface GraphLayoutConstraintCapabilities {
+  order: boolean;
+  alignment: boolean;
+}
+
+export interface GraphLayoutCompoundCapabilities {
+  nestedChildren: boolean;
+  paddingInsets: boolean;
+}
+
+export interface GraphLayoutCapabilities {
+  directions: LayoutDirection[];
+  honorsDirectionHints: boolean;
+  sizing: GraphLayoutSizingCapabilities;
+  ports: GraphLayoutPortCapabilities;
+  edgeLabels: GraphLayoutLabelCapabilities;
+  constraints: GraphLayoutConstraintCapabilities;
+  compounds: GraphLayoutCompoundCapabilities;
+}
+
+export interface GraphLayoutEngineDescriptor {
+  id: GraphLayoutEngineId;
+  capabilities: GraphLayoutCapabilities;
+}
+
 export interface GraphLayoutResult {
   width: number;
   height: number;
   nodes: PlacedNode[];
   edges: PlacedEdge[];
-  engine: 'elk-layered' | 'elk-force';
+  engine: GraphLayoutEngineId;
   direction: LayoutDirection;
 }
 
@@ -122,4 +224,58 @@ export const GRID_BASELINE_PX = 8;
 
 export function roundToGrid(value: number, baseline = GRID_BASELINE_PX): number {
   return Math.round(value / baseline) * baseline;
+}
+
+export function resolveGraphPortPlacement(
+  node: Pick<GraphNodeInput, 'width' | 'height'>,
+  port: GraphPortInput,
+): GraphPortPlacement {
+  if (port.anchor.kind === 'point') {
+    return {
+      side: port.anchor.side,
+      x: port.anchor.x,
+      y: port.anchor.y,
+      width: port.width ?? 0,
+      height: port.height ?? 0,
+    };
+  }
+
+  const offset = port.anchor.offset ?? 'center';
+  const centeredX = offset === 'center' ? node.width / 2 : offset;
+  const centeredY = offset === 'center' ? node.height / 2 : offset;
+
+  switch (port.anchor.side) {
+    case 'top':
+      return {
+        side: 'top',
+        x: centeredX,
+        y: 0,
+        width: port.width ?? 0,
+        height: port.height ?? 0,
+      };
+    case 'right':
+      return {
+        side: 'right',
+        x: node.width,
+        y: centeredY,
+        width: port.width ?? 0,
+        height: port.height ?? 0,
+      };
+    case 'bottom':
+      return {
+        side: 'bottom',
+        x: centeredX,
+        y: node.height,
+        width: port.width ?? 0,
+        height: port.height ?? 0,
+      };
+    case 'left':
+      return {
+        side: 'left',
+        x: 0,
+        y: centeredY,
+        width: port.width ?? 0,
+        height: port.height ?? 0,
+      };
+  }
 }

@@ -2,7 +2,15 @@
  * Wire ELK layered positions into FrameDiagram using the same measure + render path
  * as box autolayout. ELK supplies coordinates only — styling comes from resolveStyles().
  */
-import type { GraphLayoutInput, GraphLayoutResult, GraphNodeInput, LayeredCorpusFamily, PlacedEdge, PlacedNode } from '@diagram-generator/graph-layout-core';
+import type {
+  GraphInsetsInput,
+  GraphLayoutInput,
+  GraphLayoutResult,
+  GraphNodeInput,
+  LayeredCorpusFamily,
+  PlacedEdge,
+  PlacedNode,
+} from '@diagram-generator/graph-layout-core';
 import {
   layoutLayeredForFamily,
   stripImplementationOwnedElkLayeredOverrides,
@@ -178,7 +186,7 @@ interface SemanticFramePlacement {
 function semanticCompoundPadding(
   frame: Frame,
   semanticPlacements: Map<string, SemanticFramePlacement>,
-): string | undefined {
+): GraphInsetsInput | undefined {
   if (frame.children.length === 0 || !frame.id) return undefined;
   const framePlacement = semanticPlacements.get(frame.id);
   const body = frame.children.find((child) => isSyntheticBodyFrame(child) && child.id);
@@ -193,7 +201,7 @@ function semanticCompoundPadding(
   );
   const bottom = Math.max(0, Math.round(frame.paddingBottom));
 
-  return `[top=${top},left=${left},bottom=${bottom},right=${right}]`;
+  return { top, left, bottom, right };
 }
 
 function collectSemanticLayoutSnapshot(
@@ -243,13 +251,12 @@ function frameToGraphNode(
   measureSubtree(frame, adapter);
   const semantic = semanticSizes.get(frame.id);
   const compound = isElkCompound(frame, nativeCompoundIds);
+  const padding = semanticCompoundPadding(frame, semanticPlacements);
   const node: GraphNodeInput = {
     id: frame.id,
     width: semantic?.width ?? frame._layout.measuredW,
     height: semantic?.height ?? frame._layout.measuredH,
-    ...(semanticCompoundPadding(frame, semanticPlacements)
-      ? { padding: semanticCompoundPadding(frame, semanticPlacements) }
-      : {}),
+    ...(padding ? { padding } : {}),
   };
   const childNodes = collectGraphChildNodes(
     authoredLayoutChildren(frame),

@@ -1,15 +1,23 @@
 import type {
   GraphEdgeInput,
+  GraphInsetsInput,
   GraphLayoutInput,
   GraphNodeInput,
   GraphPortInput,
   GraphPortSide,
 } from '@diagram-generator/graph-layout-core';
+import { resolveGraphPortPlacement } from '@diagram-generator/graph-layout-core';
 import type { ElkLayoutOptions } from './layered-options.js';
 import { buildLayeredLayoutOptions } from './layered-options.js';
 
 const ELK_PORT_SIDE_KEY = 'org.eclipse.elk.port.side';
 const IMPLICIT_PORT_SIDES: GraphPortSide[] = ['top', 'right', 'bottom', 'left'];
+const ELK_SIDE_BY_PORT_SIDE = {
+  top: 'NORTH',
+  right: 'EAST',
+  bottom: 'SOUTH',
+  left: 'WEST',
+} satisfies Record<GraphPortSide, string>;
 
 type ElkDirection = 'DOWN' | 'RIGHT' | 'UP' | 'LEFT';
 
@@ -66,31 +74,11 @@ function oppositeSide(side: GraphPortSide): GraphPortSide {
   }
 }
 
-function portPointForSide(
-  width: number,
-  height: number,
-  side: GraphPortSide,
-): Pick<GraphPortInput, 'x' | 'y'> {
-  switch (side) {
-    case 'top':
-      return { x: width / 2, y: 0 };
-    case 'right':
-      return { x: width, y: height / 2 };
-    case 'bottom':
-      return { x: width / 2, y: height };
-    case 'left':
-      return { x: 0, y: height / 2 };
-  }
-}
-
 function createImplicitPorts(node: GraphNodeInput): GraphPortInput[] {
   return IMPLICIT_PORT_SIDES.map((side) => {
-    const point = portPointForSide(node.width, node.height, side);
     return {
       id: implicitPortId(node.id, side),
-      side,
-      x: point.x,
-      y: point.y,
+      anchor: { kind: 'side', side },
       width: 0,
       height: 0,
     };
@@ -98,7 +86,7 @@ function createImplicitPorts(node: GraphNodeInput): GraphPortInput[] {
 }
 
 export function portIdForSide(node: GraphNodeInput, side: GraphPortSide): string {
-  const explicit = node.ports?.find((port: GraphPortInput) => port.side === side);
+  const explicit = node.ports?.find((port: GraphPortInput) => port.anchor.side === side);
   if (explicit) return explicit.id;
   return implicitPortId(node.id, side);
 }
@@ -118,31 +106,26 @@ function portsForNode(
   const sides = new Set<GraphPortSide>();
   for (const port of explicit) {
     byId.set(port.id, port);
-    sides.add(port.side);
+    sides.add(port.anchor.side);
   }
   for (const synthesized of createImplicitPorts(node)) {
-    if (sides.has(synthesized.side)) continue;
+    if (sides.has(synthesized.anchor.side)) continue;
     byId.set(synthesized.id, synthesized);
   }
   return [...byId.values()];
 }
 
-function mapPort(port: GraphPortInput): ElkGraphPort {
-  const elkSide = {
-    top: 'NORTH',
-    right: 'EAST',
-    bottom: 'SOUTH',
-    left: 'WEST',
-  } satisfies Record<GraphPortSide, string>;
+function mapPort(node: Pick<GraphNodeInput, 'width' | 'height'>, port: GraphPortInput): ElkGraphPort {
+  const placement = resolveGraphPortPlacement(node, port);
 
   return {
     id: port.id,
-    x: port.x,
-    y: port.y,
-    ...(port.width != null ? { width: port.width } : {}),
-    ...(port.height != null ? { height: port.height } : {}),
+    x: placement.x,
+    y: placement.y,
+    ...(placement.width !== 0 ? { width: placement.width } : {}),
+    ...(placement.height !== 0 ? { height: placement.height } : {}),
     layoutOptions: {
-      [ELK_PORT_SIDE_KEY]: elkSide[port.side],
+      [ELK_PORT_SIDE_KEY]: ELK_SIDE_BY_PORT_SIDE[placement.side],
     },
   };
 }
@@ -165,7 +148,38 @@ function resolveElkDirection(input: GraphLayoutInput, layoutOptions: ElkLayoutOp
   if (raw === 'DOWN' || raw === 'RIGHT' || raw === 'UP' || raw === 'LEFT') {
     return raw;
   }
-  return input.direction === 'LR' ? 'RIGHT' : 'DOWN';
+  switch (input.direction) {
+    case 'LR':
+      return 'RIGHT';
+    case 'BT':
+      return 'UP';
+    case 'RL':
+      return 'LEFT';
+    case 'TB':
+    default:
+      return 'DOWN';
+  }
+}
+
+function formatElkPadding(insets: GraphInsetsInput): string {
+  return `[top=${insets.top},left=${insets.left},bottom=${insets.bottom},right=${insets.right}]`;
+}
+
+function parseElkPadding(value: string | undefined): GraphInsetsInput | undefined {
+  if (!value) return undefined;
+  const match = /^\[top=(?<top>-?\d+(?:\.\d+)?),left=(?<left>-?\d+(?:\.\d+)?),bottom=(?<bottom>-?\d+(?:\.\d+)?),right=(?<right>-?\d+(?:\.\d+)?)\]$/u.exec(
+    value.trim(),
+  );
+  if (!match?.groups) {
+    throw new Error(`Unsupported ELK padding format: ${value}`);
+  }
+
+  return {
+    top: Number(match.groups.top),
+    left: Number(match.groups.left),
+    bottom: Number(match.groups.bottom),
+    right: Number(match.groups.right),
+  };
 }
 
 function collectEndpointNodeIds(edges: GraphEdgeInput[]): Set<string> {
@@ -181,7 +195,7 @@ function mapNode(
   node: GraphNodeInput,
   endpointIds: Set<string>,
   enableImplicitPorts: boolean,
-  compoundPadding?: string,
+  compoundPadding?: GraphInsetsInput,
 ): ElkGraphNode {
   const hasChildren = Boolean(node.children?.length);
   const ports = portsForNode(node, endpointIds, enableImplicitPorts);
@@ -190,7 +204,7 @@ function mapNode(
   if (hasChildren) {
     const resolvedPadding = node.padding ?? compoundPadding;
     if (resolvedPadding) {
-      layoutOptions['elk.padding'] = resolvedPadding;
+      layoutOptions['elk.padding'] = formatElkPadding(resolvedPadding);
     }
   }
   if (ports.length > 0) {
@@ -208,7 +222,7 @@ function mapNode(
           )),
         }
       : {}),
-    ...(ports.length > 0 ? { ports: ports.map(mapPort) } : {}),
+    ...(ports.length > 0 ? { ports: ports.map((port) => mapPort(node, port)) } : {}),
     ...(Object.keys(layoutOptions).length > 0 ? { layoutOptions } : {}),
   };
 }
@@ -232,7 +246,7 @@ export function buildElkGraph(
   layoutOptions: ElkLayoutOptions,
 ): ElkGraphRoot {
   const rootOptions = { ...layoutOptions };
-  const compoundPadding = rootOptions['elk.padding'];
+  const compoundPadding = parseElkPadding(rootOptions['elk.padding']);
   delete rootOptions['elk.padding'];
   delete rootOptions['elk.portConstraints'];
 
