@@ -73,6 +73,10 @@ export function applyHeadingAsChild(
     frame.direction === Direction.HORIZONTAL
       ? Direction.HORIZONTAL
       : Direction.VERTICAL;
+  const bodySizingH =
+    frame.sizingH === Sizing.HUG
+      ? Sizing.HUG
+      : Sizing.FILL;
 
   const body = new Frame({
     id: frame.id ? `${frame.id}__body` : '__body',
@@ -81,7 +85,7 @@ export function applyHeadingAsChild(
     gapIsAuthored: false,
     align: frame.align,
     sizingW: Sizing.FILL,
-    sizingH: Sizing.HUG,
+    sizingH: bodySizingH,
     border: Border.NONE,
     padding: 0,
     children: [...frame.children],

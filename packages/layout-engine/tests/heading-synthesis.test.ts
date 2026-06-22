@@ -17,6 +17,7 @@ describe('applyHeadingAsChild propagation contract', () => {
       direction: Direction.VERTICAL,
       gap: 12,
       align: Align.CENTER,
+      sizingH: Sizing.FIXED,
       justify: Justify.SPACE_BETWEEN,
       wrap: true,
       fillWeight: 3,
@@ -28,6 +29,7 @@ describe('applyHeadingAsChild propagation contract', () => {
     expect(body.direction).toBe(Direction.VERTICAL);
     expect(body.align).toBe(Align.CENTER);
     expect(body.gap).toBe(INSET);
+    expect(body.sizingH).toBe(Sizing.FILL);
     expect(body.wrap).toBe(false);
     expect(body.justify).toBe(Justify.PACKED);
     expect(body.fillWeight).toBe(1);
@@ -93,5 +95,15 @@ describe('applyHeadingAsChild propagation contract', () => {
     const body = findSyntheticBody(panel)!;
     expect(body.justify).toBe(Justify.PACKED);
     expect(body.fillWeight).toBe(1);
+  });
+
+  it('keeps __body hug-height only when the authored parent hugs height', () => {
+    const panel = new Frame({
+      id: 'p',
+      sizingH: Sizing.HUG,
+      children: [new Frame({ id: 'c', label: [createLine('c')] })],
+    });
+    applyHeadingAsChild(panel, createLine('H'));
+    expect(findSyntheticBody(panel)!.sizingH).toBe(Sizing.HUG);
   });
 });

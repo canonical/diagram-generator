@@ -15,6 +15,7 @@ import { BASELINE_UNIT, BLOCK_WIDTH, roundUpToGrid } from '../src/tokens.js';
 import { MockTextAdapter } from '../src/text-measure.js';
 import { applyTextLayoutDefaults, resolveLeafTextWrapWidth } from '../src/text-layout.js';
 import { leafIconColumnWidth } from '../src/spatial.js';
+import { applyHeadingAsChild, findSyntheticBody } from '../src/heading-synthesis.js';
 
 const adapter = new MockTextAdapter();
 
@@ -811,6 +812,37 @@ describe('heading-as-child layout consistency', () => {
     const childBottom = child._layout.placedY + child._layout.placedH;
     const parentBottom = parent._layout.placedY + parent._layout.placedH - 8;
     expect(childBottom).toBeLessThanOrEqual(parentBottom);
+  });
+
+  it('headed fixed-height containers let body children fill the remaining vertical space', () => {
+    const child = new Frame({
+      id: 'leaf',
+      sizingW: Sizing.FILL,
+      sizingH: Sizing.FILL,
+      width: 192,
+      height: 64,
+      label: [createLine('child')],
+    });
+    const parent = new Frame({
+      id: 'parent',
+      direction: Direction.VERTICAL,
+      sizingW: Sizing.FIXED,
+      sizingH: Sizing.FIXED,
+      width: 432,
+      height: 352,
+      align: Align.CENTER,
+      border: Border.SOLID,
+      children: [child],
+    });
+
+    applyHeadingAsChild(parent, createLine('Title', { weight: '700' }));
+    const body = findSyntheticBody(parent)!;
+
+    layoutFrameTree(parent, adapter);
+
+    expect(body.sizingH).toBe(Sizing.FILL);
+    expect(body._layout.placedH).toBeGreaterThan(child._layout.measuredH);
+    expect(child._layout.placedH).toBe(body._layout.placedH);
   });
 });
 

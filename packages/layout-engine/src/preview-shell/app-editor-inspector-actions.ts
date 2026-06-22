@@ -31,26 +31,60 @@ export interface BindPreviewEditorInspectorActionsFromBrowserHostOptions {
 export function bindPreviewEditorInspectorActionsFromBrowserHost(
   options: BindPreviewEditorInspectorActionsFromBrowserHostOptions,
 ): boolean {
-  const inspectorDisplay = options.getInspectorDisplayRuntime();
-  const inspectorMutation = options.getInspectorMutationRuntime();
-  const inspectorSelection = options.getInspectorSelectionRuntime();
+  const setFrameAlign: (cid: string, align: string) => void = (cid, align) => (
+    options.getInspectorMutationRuntime().setFrameAlign(cid, align)
+  );
+  const alignSelection: (mode: string) => void = (mode) => (
+    options.getInspectorSelectionRuntime().alignSelection(mode)
+  );
+  const distributeSelection: (axis: string) => void = (axis) => (
+    options.getInspectorSelectionRuntime().distributeSelection(axis)
+  );
+  const setMultiFrameAlign: (align: string) => void = (align) => (
+    options.getInspectorSelectionRuntime().setMultiFrameAlign(align)
+  );
+  const applyStyleOverride: (cid: string, styleName: string) => void = (cid, styleName) => (
+    options.getInspectorMutationRuntime().applyStyle(cid, styleName)
+  );
+  const setFrameProp: (cid: string, prop: string, value: unknown) => void = (cid, prop, value) => (
+    options.getInspectorMutationRuntime().setFrameProp(cid, prop, value)
+  );
+  const setFrameSize: (cid: string, dimension: string, value: unknown) => void = (cid, dimension, value) => (
+    options.getInspectorMutationRuntime().setFrameSize(cid, dimension, value)
+  );
+  const setWidthUnit: (value: string, cid?: string) => void = (value, cid) => (
+    options.getInspectorDisplayRuntime().setWidthUnit(value, cid)
+  );
+  const setHeightUnit: (value: string, cid?: string) => void = (value, cid) => (
+    options.getInspectorDisplayRuntime().setHeightUnit(value, cid)
+  );
+  const applyMultiStyleOverride: (styleName: string) => void = (styleName) => (
+    options.getInspectorSelectionRuntime().applyMultiStyleOverride(styleName)
+  );
+  const setMultiFrameProp: (prop: string, value: unknown) => void = (prop, value) => (
+    options.getInspectorSelectionRuntime().setMultiFrameProp(prop, value)
+  );
+  const setMultiFrameSize: (dimension: string, value: unknown) => void = (dimension, value) => (
+    options.getInspectorSelectionRuntime().setMultiFrameSize(dimension, value)
+  );
+
   return options.bindPreviewInspectorActions({
     inspector: options.inspector,
     alreadyBound: options.alreadyBound,
     warnUnknownAction: options.warnUnknownAction,
-    setFrameAlign: inspectorMutation.setFrameAlign,
+    setFrameAlign,
     clearOverride: options.clearOverride,
-    alignSelection: inspectorSelection.alignSelection,
-    distributeSelection: inspectorSelection.distributeSelection,
-    setMultiFrameAlign: inspectorSelection.setMultiFrameAlign,
-    applyStyleOverride: inspectorMutation.applyStyle,
-    setFrameProp: inspectorMutation.setFrameProp,
-    setFrameSize: inspectorMutation.setFrameSize,
-    setWidthUnit: inspectorDisplay.setWidthUnit,
-    setHeightUnit: inspectorDisplay.setHeightUnit,
-    applyMultiStyleOverride: inspectorSelection.applyMultiStyleOverride,
-    setMultiFrameProp: inspectorSelection.setMultiFrameProp,
-    setMultiFrameSize: inspectorSelection.setMultiFrameSize,
+    alignSelection,
+    distributeSelection,
+    setMultiFrameAlign,
+    applyStyleOverride,
+    setFrameProp,
+    setFrameSize,
+    setWidthUnit,
+    setHeightUnit,
+    applyMultiStyleOverride,
+    setMultiFrameProp,
+    setMultiFrameSize,
     setMultiActionGap: options.setMultiActionGap,
   });
 }
