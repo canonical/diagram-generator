@@ -7,7 +7,11 @@ import {
 } from "@diagram-generator/layout-engine";
 
 import { installPreviewHostApiRoutes } from "./api-routes.js";
-import type { BuiltinPreviewHostViewerRouteDeps } from "./builtin-host-deps.js";
+import {
+  BUILTIN_FORCE_PREVIEW_HOST_MODULE_KEY,
+  requirePreviewHostModuleContext,
+  type BuiltinForcePreviewHostModuleDeps,
+} from "./builtin-host-deps.js";
 import {
   createPreviewHostDocumentGetJsonRoute,
   createPreviewHostDocumentPostJsonRoute,
@@ -18,7 +22,7 @@ import {
 } from "./document-apis.js";
 import { forcePreviewDocumentExists } from "./force-documents.js";
 import { FORCE_HOST_LANE } from "./lanes.js";
-import type { PreviewHostModuleDescriptor } from "./modules.js";
+import type { PreviewHostModuleDescriptor, PreviewHostModuleInstallDeps } from "./modules.js";
 import {
   buildRegisteredPreviewBrowseSections,
   registerPreviewHostViewerRoute,
@@ -33,9 +37,6 @@ import {
   buildPreviewViewerHtml,
   buildPreviewWindowConfigScript,
 } from "./viewers.js";
-
-export interface BuiltinForcePreviewHostModuleDeps
-  extends BuiltinPreviewHostViewerRouteDeps {}
 
 const FORCE_TEMPLATE_SECTIONS = [
   "force-nodes-tab",
@@ -197,9 +198,13 @@ export function installBuiltinForcePreviewHostViewerRoutes(
 }
 
 export function installBuiltinForcePreviewHostModule(
-  deps: BuiltinForcePreviewHostModuleDeps,
+  deps: PreviewHostModuleInstallDeps,
 ): () => void {
-  const unregisterViewerRoute = installBuiltinForcePreviewHostViewerRoutes(deps);
+  const moduleDeps = requirePreviewHostModuleContext<BuiltinForcePreviewHostModuleDeps>(
+    deps,
+    BUILTIN_FORCE_PREVIEW_HOST_MODULE_KEY,
+  );
+  const unregisterViewerRoute = installBuiltinForcePreviewHostViewerRoutes(moduleDeps);
   const unregisterApiRoutes = installBuiltinForcePreviewHostApiRoutes();
   return () => {
     unregisterApiRoutes();
@@ -208,6 +213,6 @@ export function installBuiltinForcePreviewHostModule(
 }
 
 export const BUILTIN_FORCE_PREVIEW_HOST_MODULE: PreviewHostModuleDescriptor = {
-  key: "builtin-force",
+  key: BUILTIN_FORCE_PREVIEW_HOST_MODULE_KEY,
   install: installBuiltinForcePreviewHostModule,
 };

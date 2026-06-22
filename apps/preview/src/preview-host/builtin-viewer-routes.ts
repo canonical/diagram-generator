@@ -15,6 +15,10 @@ export {
   createForcePreviewHostViewerRoute,
 };
 
+/**
+ * @deprecated Transitional test helper only. Production installs should use
+ * `installBuiltinPreviewHost()` or the lane-specific module installers.
+ */
 export function installBuiltinPreviewHostViewerRoutes(
   deps: BuiltinPreviewHostViewerRouteDeps,
 ): () => void {

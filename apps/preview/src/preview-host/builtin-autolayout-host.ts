@@ -9,7 +9,11 @@ import {
 } from "@diagram-generator/layout-engine";
 
 import { installPreviewHostApiRoutes } from "./api-routes.js";
-import type { BuiltinPreviewHostViewerRouteDeps } from "./builtin-host-deps.js";
+import {
+  BUILTIN_AUTOLAYOUT_PREVIEW_HOST_MODULE_KEY,
+  requirePreviewHostModuleContext,
+  type BuiltinAutolayoutPreviewHostModuleDeps,
+} from "./builtin-host-deps.js";
 import {
   createPreviewHostDocumentGetBytesRoute,
   createPreviewHostDocumentGetJsonRoute,
@@ -24,7 +28,7 @@ import {
   resolveFramePreviewViewerContext,
 } from "./frame-documents.js";
 import { AUTOLAYOUT_HOST_LANE } from "./lanes.js";
-import type { PreviewHostModuleDescriptor } from "./modules.js";
+import type { PreviewHostModuleDescriptor, PreviewHostModuleInstallDeps } from "./modules.js";
 import {
   buildRegisteredPreviewBrowseSections,
   registerPreviewHostViewerRoute,
@@ -39,9 +43,6 @@ import {
   buildPreviewViewerHtml,
   buildPreviewWindowConfigScript,
 } from "./viewers.js";
-
-export interface BuiltinAutolayoutPreviewHostModuleDeps
-  extends BuiltinPreviewHostViewerRouteDeps {}
 
 const AUTOLAYOUT_TEMPLATE_SECTIONS = [
   "grid-layers-tab",
@@ -294,9 +295,13 @@ export function installBuiltinAutolayoutPreviewHostViewerRoutes(
 }
 
 export function installBuiltinAutolayoutPreviewHostModule(
-  deps: BuiltinAutolayoutPreviewHostModuleDeps,
+  deps: PreviewHostModuleInstallDeps,
 ): () => void {
-  const unregisterViewerRoute = installBuiltinAutolayoutPreviewHostViewerRoutes(deps);
+  const moduleDeps = requirePreviewHostModuleContext<BuiltinAutolayoutPreviewHostModuleDeps>(
+    deps,
+    BUILTIN_AUTOLAYOUT_PREVIEW_HOST_MODULE_KEY,
+  );
+  const unregisterViewerRoute = installBuiltinAutolayoutPreviewHostViewerRoutes(moduleDeps);
   const unregisterApiRoutes = installBuiltinAutolayoutPreviewHostApiRoutes();
   return () => {
     unregisterApiRoutes();
@@ -305,6 +310,6 @@ export function installBuiltinAutolayoutPreviewHostModule(
 }
 
 export const BUILTIN_AUTOLAYOUT_PREVIEW_HOST_MODULE: PreviewHostModuleDescriptor = {
-  key: "builtin-autolayout",
+  key: BUILTIN_AUTOLAYOUT_PREVIEW_HOST_MODULE_KEY,
   install: installBuiltinAutolayoutPreviewHostModule,
 };

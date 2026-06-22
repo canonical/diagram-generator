@@ -23,7 +23,15 @@ import {
   resolveRegisteredPreviewHostApiRoute,
   resolvePreviewHostApiRoute,
 } from "../preview-host/api-routes.js";
-import { installBuiltinPreviewHostApiRoutes } from "../preview-host/builtin-api-routes.js";
+import {
+  BUILTIN_AUTOLAYOUT_PREVIEW_HOST_MODULE_KEY,
+  BUILTIN_FORCE_PREVIEW_HOST_MODULE_KEY,
+  BUILTIN_PREVIEW_HOST_SERVER_MODULE_KEY,
+  type BuiltinAutolayoutPreviewHostModuleDeps,
+  type BuiltinForcePreviewHostModuleDeps,
+  type BuiltinPreviewHostServerRouteDeps,
+} from "../preview-host/builtin-host-deps.js";
+import { createBuiltinPreviewHostInstallDeps } from "../preview-host/builtin-host-runtime.js";
 import { createBuiltinPreviewHostServerRoutes } from "../preview-host/builtin-server-routes.js";
 import { createPreviewHostDocumentGetJsonRoute } from "../preview-host/document-api-routes.js";
 import { routeRegisteredPreviewHostRequest } from "../preview-host/request-router.js";
@@ -192,7 +200,7 @@ test("preview host viewer routes register through a typed registry", () => {
   expectRegisteredRoutes([]);
 });
 
-test("builtin preview host viewer routes install through a host-owned installer", () => {
+test("legacy builtin viewer-route helper installs both builtin viewers for narrow contract tests", () => {
   const unregister = installBuiltinPreviewHostViewerRoutes({
     framePreviewDocumentDeps: { framesDir: "/virtual/frames" },
     framePreviewRenderDeps: {
@@ -402,27 +410,27 @@ test("preview host modules register and install through a typed registry", () =>
       ["test-module-a", "test-module-b"],
     );
     const uninstall = installRegisteredPreviewHostModules({
-      framePreviewDocumentDeps: { framesDir: "/virtual/frames" },
-      framePreviewRenderDeps: {
-        framesDir: "/virtual/frames",
-        iconLoader: () => null,
-        textAdapterPromise: Promise.resolve(new MockTextAdapter()),
-      },
-      forcePreviewDocumentDeps: { forceDefinitionsDir: "/virtual/force" },
       appRoot: "/virtual/app",
       repoRoot: "/virtual/repo",
-      framesDir: "/virtual/frames",
       specHome: "specs/046-editor-host-endgame/",
       currentGitBranch: () => "feat/046-editor-host-endgame",
       buildIndexHtml: (port: number) => `<html data-port="${port}"></html>`,
+      layoutEngineFontPath: "/virtual/layout-font.ttf",
+      baselineOsCssPath: "/virtual/bf-os.css",
+      baselineFontDir: "/virtual/bf-fonts",
+      iconsDir: "/virtual/icons",
+      resolvePreviewAssetPath: () => null,
+      ensureLayoutEngineBrowserAssets: async () => {},
       parseYaml: () => ({}),
       templateHtml: "%MODE%",
       baselineStylesHtml: "",
       previewAssetUrl: (filename: string) => `/preview/${filename}`,
-      listAutolayoutDiagrams: () => [],
-      listForceExamples: () => [],
-      findReferenceImage: () => null,
-      normalizeLayoutEngine: () => "v3",
+      readReloadState: () => ({ generation: 1, error: null }),
+      addSseClient: () => {},
+      removeSseClient: () => {},
+      resolvePreviewHostModuleContext: () => {
+        throw new Error("did not expect generic module-registry test to resolve module context");
+      },
     });
     assert.deepEqual(installEvents, ["install-a", "install-b"]);
     uninstall();
@@ -452,6 +460,140 @@ test("preview host module registry rejects duplicate keys", () => {
   } finally {
     unregister();
   }
+});
+
+test("future preview lane onboarding installs through a preview-host module without server changes", async () => {
+  const deps = createBuiltinPreviewHostInstallDeps({
+    framePreviewDocumentDeps: { framesDir: "/virtual/frames" },
+    framePreviewRenderDeps: {
+      framesDir: "/virtual/frames",
+      iconLoader: () => null,
+      textAdapterPromise: Promise.resolve(new MockTextAdapter()),
+    },
+    forcePreviewDocumentDeps: { forceDefinitionsDir: "/virtual/force" },
+    appRoot: "/virtual/app",
+    repoRoot: "/virtual/repo",
+    framesDir: "/virtual/frames",
+    specHome: "specs/045-preview-host-engine-modularity/",
+    currentGitBranch: () => "feat/045-preview-host-engine-modularity",
+    layoutEngineFontPath: "/virtual/layout-font.ttf",
+    baselineOsCssPath: "/virtual/bf-os.css",
+    baselineFontDir: "/virtual/bf-fonts",
+    iconsDir: "/virtual/icons",
+    resolvePreviewAssetPath: () => null,
+    ensureLayoutEngineBrowserAssets: async () => {},
+    parseYaml: () => ({}),
+    templateHtml: "%MODE%",
+    baselineStylesHtml: '<link rel="stylesheet" href="/preview/bf-os.css">',
+    previewAssetUrl: (filename: string) => `/preview/${filename}`,
+    readReloadState: () => ({ generation: 1, error: null }),
+    addSseClient: () => {},
+    removeSseClient: () => {},
+    corpusRefDir: "/virtual/corpus",
+    inputDirs: ["/virtual/input"],
+  });
+
+  const unregisterModule = registerPreviewHostModule({
+    key: "sequence-preview-host",
+    install() {
+      const unregisterViewer = registerPreviewHostViewerRoute({
+        key: "sequence",
+        lane: {
+          key: "sequence",
+          label: "Sequence demos",
+          buildViewerPath(slug: string): string {
+            return `/sequence/view/${slug}`;
+          },
+        },
+        routePrefixes: ["/sequence/view/"],
+        listSlugs: () => ["service-handshake"],
+        hasDocument: () => true,
+        buildHtml: (slug: string) => `<html data-sequence="${slug}"></html>`,
+        describeMissing: (slug: string) => `Unknown sequence example: ${slug}`,
+        documentEndpoints: [
+          {
+            kind: "sequence-outline",
+            handler: (slug: string) => ({ kind: "outline", slug, lane: "sequence" }),
+          },
+        ],
+      });
+      const unregisterApi = registerPreviewHostApiRoute(
+        createPreviewHostDocumentGetJsonRoute({
+          key: "sequence-outline",
+          routePrefixes: ["/api/sequence-outline/"],
+          documentEndpointKind: "sequence-outline",
+          routeKey: "sequence",
+          missingMessage: (slug: string) => `Unknown sequence example: ${slug}`,
+        }),
+      );
+      return () => {
+        unregisterApi();
+        unregisterViewer();
+      };
+    },
+  });
+
+  try {
+    const uninstall = installRegisteredPreviewHostModules(deps);
+    try {
+      assert.deepEqual(buildRegisteredPreviewBrowseSections(), [
+        {
+          key: "sequence",
+          label: "Sequence demos",
+          links: [{ href: "/sequence/view/service-handshake", label: "service-handshake" }],
+        },
+      ]);
+
+      const viewerMatch = resolveRegisteredPreviewViewerRoute(
+        "/sequence/view/service-handshake",
+        normalizePreviewSlug,
+      );
+      assert.ok(viewerMatch);
+      assert.equal(viewerMatch?.route.key, "sequence");
+      assert.equal(
+        viewerMatch?.route.buildHtml("service-handshake"),
+        '<html data-sequence="service-handshake"></html>',
+      );
+
+      const indexHtml = deps.buildIndexHtml(8100);
+      assert.match(indexHtml, /href="\/sequence\/view\/service-handshake"/);
+
+      const apiMatch = resolveRegisteredPreviewHostApiRoute(
+        "GET",
+        "/api/sequence-outline/service-handshake",
+        normalizePreviewSlug,
+      );
+      assert.ok(apiMatch);
+      let outlinePayload: unknown = null;
+      await apiMatch.route.handle(apiMatch, {
+        req: {} as never,
+        res: {} as never,
+        pathname: apiMatch.pathname,
+        sendJson: (_statusCode, payload) => {
+          outlinePayload = payload;
+        },
+        sendText: () => {
+          throw new Error("did not expect sequence-outline route to send plain text");
+        },
+        sendBytes: () => {
+          throw new Error("did not expect sequence-outline route to send bytes");
+        },
+        readJsonBody: async () => ({}),
+      });
+      assert.deepEqual(outlinePayload, {
+        kind: "outline",
+        slug: "service-handshake",
+        lane: "sequence",
+      });
+    } finally {
+      uninstall();
+    }
+  } finally {
+    unregisterModule();
+  }
+
+  expectRegisteredRoutes([]);
+  assert.deepEqual(listPreviewHostApiRoutes().map((route) => route.key), []);
 });
 
 test("preview host api routes resolve through a typed registry", () => {
@@ -711,73 +853,275 @@ test("preview host request router dispatches registered API and viewer routes wi
   }
 });
 
-test("builtin preview host installs through registered host modules", () => {
-  const unregister = installBuiltinPreviewHost({
-    framePreviewDocumentDeps: { framesDir: "/virtual/frames" },
+test("builtin preview host production install coexists with a third registered lane module", async () => {
+  const tempDir = mkdtempSync(path.join(os.tmpdir(), "dg-preview-host-builtins-"));
+  const framesDir = path.join(tempDir, "frames");
+  const forceDefinitionsDir = path.join(tempDir, "force");
+  mkdirSync(framesDir, { recursive: true });
+  mkdirSync(forceDefinitionsDir, { recursive: true });
+  writeFileSync(
+    path.join(framesDir, "alpha.yaml"),
+    ["schema: author-v1", "engine: v3", "root:", "  id: page", "  children: []", ""].join("\n"),
+    "utf8",
+  );
+  writeFileSync(path.join(forceDefinitionsDir, "force-stakeholders.yaml"), "nodes: []\nlinks: []\n", "utf8");
+
+  const unregisterModule = registerPreviewHostModule({
+    key: "sequence-preview-host",
+    install() {
+      const unregisterViewer = registerPreviewHostViewerRoute({
+        key: "sequence",
+        lane: {
+          key: "sequence",
+          label: "Sequence demos",
+          buildViewerPath(slug: string): string {
+            return `/sequence/view/${slug}`;
+          },
+        },
+        routePrefixes: ["/sequence/view/"],
+        listSlugs: () => ["service-handshake"],
+        hasDocument: () => true,
+        buildHtml: (slug: string) => `<html data-sequence="${slug}"></html>`,
+        describeMissing: (slug: string) => `Unknown sequence example: ${slug}`,
+        documentEndpoints: [
+          {
+            kind: "sequence-outline",
+            handler: (slug: string) => ({ kind: "outline", slug, lane: "sequence" }),
+          },
+        ],
+      });
+      const unregisterApi = registerPreviewHostApiRoute(
+        createPreviewHostDocumentGetJsonRoute({
+          key: "sequence-outline",
+          routePrefixes: ["/api/sequence-outline/"],
+          documentEndpointKind: "sequence-outline",
+          routeKey: "sequence",
+          missingMessage: (slug: string) => `Unknown sequence example: ${slug}`,
+        }),
+      );
+      return () => {
+        unregisterApi();
+        unregisterViewer();
+      };
+    },
+  });
+
+  const deps = createBuiltinPreviewHostInstallDeps({
+    framePreviewDocumentDeps: { framesDir },
     framePreviewRenderDeps: {
-      framesDir: "/virtual/frames",
+      framesDir,
       iconLoader: () => null,
       textAdapterPromise: Promise.resolve(new MockTextAdapter()),
     },
-    forcePreviewDocumentDeps: { forceDefinitionsDir: "/virtual/force" },
+    forcePreviewDocumentDeps: { forceDefinitionsDir },
     appRoot: "/virtual/app",
     repoRoot: "/virtual/repo",
-    framesDir: "/virtual/frames",
-    specHome: "specs/046-editor-host-endgame/",
-    currentGitBranch: () => "feat/046-editor-host-endgame",
-    buildIndexHtml: (port: number) => `<html data-port="${port}"></html>`,
+    framesDir,
+    specHome: "specs/045-preview-host-engine-modularity/",
+    currentGitBranch: () => "feat/045-preview-host-engine-modularity",
     layoutEngineFontPath: "/virtual/layout-font.ttf",
     baselineOsCssPath: "/virtual/bf-os.css",
     baselineFontDir: "/virtual/bf-fonts",
     iconsDir: "/virtual/icons",
     resolvePreviewAssetPath: (filename: string) => `/virtual/preview/${filename}`,
     ensureLayoutEngineBrowserAssets: async () => {},
-    parseYaml: () => ({}),
+    parseYaml,
     templateHtml: "%MODE%",
     baselineStylesHtml: "",
     previewAssetUrl: (filename: string) => `/preview/${filename}`,
-    listAutolayoutDiagrams: () => ["support-engineering-flow"],
-    listForceExamples: () => ["force-stakeholders"],
-    findReferenceImage: () => null,
     readReloadState: () => ({ generation: 1, error: null }),
     addSseClient: () => {},
     removeSseClient: () => {},
-    normalizeLayoutEngine: () => "v3",
+    corpusRefDir: "/virtual/corpus",
+    inputDirs: ["/virtual/input"],
   });
 
   try {
-    expectRegisteredRoutes(["autolayout", "force"]);
-    assert.deepEqual(
-      listPreviewHostApiRoutes().map((route) => route.key).sort(),
-      [
+    const unregisterBuiltins = installBuiltinPreviewHost(deps);
+    try {
+      expectRegisteredRoutes(["autolayout", "force", "sequence"]);
+      for (const key of [
         "component-tree",
-        "events",
-        "favicon",
         "force-save",
         "force-spec",
         "frame-overrides",
         "frame-tree",
         "grid-info",
-        "layout-font",
-        "preview-baseline-css",
-        "preview-baseline-fonts",
         "preview-document",
-        "preview-engines",
-        "preview-icon",
-        "preview-index",
-        "preview-static-assets",
-        "reference-image",
-        "retired-force-api",
-        "runtime-identity",
+        "sequence-outline",
         "svg-export",
-      ],
-    );
+      ]) {
+        assert.ok(
+          listPreviewHostApiRoutes().some((route) => route.key === key),
+          `expected api route '${key}' to be registered`,
+        );
+      }
+
+      assert.equal(
+        resolveRegisteredPreviewViewerRoute("/view/v3:alpha", normalizePreviewSlug)?.route.key,
+        "autolayout",
+      );
+      assert.equal(
+        resolveRegisteredPreviewViewerRoute("/force/view/force-stakeholders", normalizePreviewSlug)?.route.key,
+        "force",
+      );
+      assert.equal(
+        resolveRegisteredPreviewViewerRoute("/sequence/view/service-handshake", normalizePreviewSlug)?.route.key,
+        "sequence",
+      );
+
+      const indexHtml = deps.buildIndexHtml(8100);
+      assert.match(indexHtml, /href="\/view\/v3:alpha"/);
+      assert.match(indexHtml, /href="\/force\/view\/force-stakeholders"/);
+      assert.match(indexHtml, /href="\/sequence\/view\/service-handshake"/);
+
+      const sequenceOutlineMatch = resolveRegisteredPreviewHostApiRoute(
+        "GET",
+        "/api/sequence-outline/service-handshake",
+        normalizePreviewSlug,
+      );
+      assert.ok(sequenceOutlineMatch);
+      let outlinePayload: unknown = null;
+      await sequenceOutlineMatch.route.handle(sequenceOutlineMatch, {
+        req: {} as never,
+        res: {} as never,
+        pathname: sequenceOutlineMatch.pathname,
+        sendJson: (_statusCode, payload) => {
+          outlinePayload = payload;
+        },
+        sendText: () => {
+          throw new Error("did not expect sequence outline route to send plain text");
+        },
+        sendBytes: () => {
+          throw new Error("did not expect sequence outline route to send bytes");
+        },
+        readJsonBody: async () => ({}),
+      });
+      assert.deepEqual(outlinePayload, {
+        kind: "outline",
+        slug: "service-handshake",
+        lane: "sequence",
+      });
+    } finally {
+      unregisterBuiltins();
+    }
   } finally {
-    unregister();
+    unregisterModule();
+    rmSync(tempDir, { recursive: true, force: true });
   }
 
   expectRegisteredRoutes([]);
   assert.deepEqual(listPreviewHostApiRoutes().map((route) => route.key), []);
+});
+
+test("builtin preview host runtime assembles browse, reference, and engine helpers outside server.ts", () => {
+  const tempDir = mkdtempSync(path.join(os.tmpdir(), "dg-preview-host-runtime-"));
+  const framesDir = path.join(tempDir, "frames");
+  const forceDefinitionsDir = path.join(tempDir, "force");
+  const corpusRefDir = path.join(tempDir, "corpus");
+  const inputDir = path.join(tempDir, "input");
+  mkdirSync(framesDir, { recursive: true });
+  mkdirSync(forceDefinitionsDir, { recursive: true });
+  mkdirSync(corpusRefDir, { recursive: true });
+  mkdirSync(inputDir, { recursive: true });
+  writeFileSync(path.join(framesDir, "zeta.yaml"), "schema: author-v1\n", "utf8");
+  writeFileSync(path.join(framesDir, "alpha.yaml"), "schema: author-v1\n", "utf8");
+  writeFileSync(path.join(forceDefinitionsDir, "force-stakeholders.yaml"), "nodes: []\nlinks: []\n", "utf8");
+  writeFileSync(
+    path.join(forceDefinitionsDir, "force-reference-example.yaml"),
+    "reference_image: force-ref.png\nnodes: []\nlinks: []\n",
+    "utf8",
+  );
+  writeFileSync(path.join(corpusRefDir, "alpha-source.png"), "png", "utf8");
+  writeFileSync(path.join(inputDir, "force-ref.png"), "png", "utf8");
+
+  const deps = createBuiltinPreviewHostInstallDeps({
+    framePreviewDocumentDeps: { framesDir },
+    framePreviewRenderDeps: {
+      framesDir,
+      iconLoader: () => null,
+      textAdapterPromise: Promise.resolve(new MockTextAdapter()),
+    },
+    forcePreviewDocumentDeps: { forceDefinitionsDir },
+    appRoot: "/virtual/app",
+    repoRoot: "/virtual/repo",
+    framesDir,
+    specHome: "specs/045-preview-host-engine-modularity/",
+    currentGitBranch: () => "feat/045-preview-host-engine-modularity",
+    layoutEngineFontPath: "/virtual/layout-font.ttf",
+    baselineOsCssPath: "/virtual/bf-os.css",
+    baselineFontDir: "/virtual/bf-fonts",
+    iconsDir: "/virtual/icons",
+    resolvePreviewAssetPath: () => null,
+    ensureLayoutEngineBrowserAssets: async () => {},
+    parseYaml,
+    templateHtml: "%MODE%",
+    baselineStylesHtml: '<link rel="stylesheet" href="/preview/bf-os.css">',
+    previewAssetUrl: (filename: string) => `/preview/${filename}`,
+    readReloadState: () => ({ generation: 1, error: null }),
+    addSseClient: () => {},
+    removeSseClient: () => {},
+    corpusRefDir,
+    inputDirs: [inputDir],
+  });
+
+  const unregisterAutolayout = registerPreviewHostViewerRoute({
+    key: "runtime-autolayout",
+    lane: AUTOLAYOUT_HOST_LANE,
+    routePrefixes: ["/runtime/view/"],
+    listSlugs: () =>
+      deps.resolvePreviewHostModuleContext<BuiltinAutolayoutPreviewHostModuleDeps>(
+        BUILTIN_AUTOLAYOUT_PREVIEW_HOST_MODULE_KEY,
+      ).listAutolayoutDiagrams(),
+    hasDocument: () => true,
+    buildHtml: () => "<html>grid</html>",
+    describeMissing: (slug: string) => `Unknown diagram: ${slug}`,
+  });
+  const unregisterForce = registerPreviewHostViewerRoute({
+    key: "runtime-force",
+    lane: FORCE_HOST_LANE,
+    routePrefixes: ["/runtime-force/view/"],
+    listSlugs: () =>
+      deps.resolvePreviewHostModuleContext<BuiltinForcePreviewHostModuleDeps>(
+        BUILTIN_FORCE_PREVIEW_HOST_MODULE_KEY,
+      ).listForceExamples(),
+    hasDocument: () => true,
+    buildHtml: () => "<html>force</html>",
+    describeMissing: (slug: string) => `Unknown force example: ${slug}`,
+  });
+
+  try {
+    const autolayoutDeps = deps.resolvePreviewHostModuleContext<BuiltinAutolayoutPreviewHostModuleDeps>(
+      BUILTIN_AUTOLAYOUT_PREVIEW_HOST_MODULE_KEY,
+    );
+    const forceDeps = deps.resolvePreviewHostModuleContext<BuiltinForcePreviewHostModuleDeps>(
+      BUILTIN_FORCE_PREVIEW_HOST_MODULE_KEY,
+    );
+    const serverDeps = deps.resolvePreviewHostModuleContext<BuiltinPreviewHostServerRouteDeps>(
+      BUILTIN_PREVIEW_HOST_SERVER_MODULE_KEY,
+    );
+
+    assert.equal("listAutolayoutDiagrams" in deps, false);
+    assert.equal("listForceExamples" in deps, false);
+    assert.equal("normalizeLayoutEngine" in deps, false);
+    assert.equal("findReferenceImage" in deps, false);
+
+    assert.deepEqual(autolayoutDeps.listAutolayoutDiagrams(), ["alpha", "zeta"]);
+    assert.deepEqual(forceDeps.listForceExamples(), ["force-reference-example", "force-stakeholders"]);
+    assert.equal(autolayoutDeps.normalizeLayoutEngine(" v3 "), "v3");
+    assert.equal(autolayoutDeps.normalizeLayoutEngine(" definitely-not-real "), "");
+    assert.equal(serverDeps.findReferenceImage("alpha"), path.join(corpusRefDir, "alpha-source.png"));
+    assert.equal(serverDeps.findReferenceImage("force-reference-example"), path.join(inputDir, "force-ref.png"));
+
+    const html = deps.buildIndexHtml(8100);
+    assert.match(html, /specs\/045-preview-host-engine-modularity\//);
+    assert.match(html, /href="\/view\/v3:alpha"/);
+    assert.match(html, /href="\/force\/view\/force-reference-example"/);
+  } finally {
+    unregisterForce();
+    unregisterAutolayout();
+    rmSync(tempDir, { recursive: true, force: true });
+  }
 });
 
 test("builtin preview host server routes install through typed descriptors", async () => {
@@ -1023,7 +1367,7 @@ test("builtin preview host server routes install through typed descriptors", asy
   }
 });
 
-test("builtin preview host api routes install through a host-owned installer", async () => {
+test("builtin preview host install preserves frame-yaml document ownership across preview and save routes", async () => {
   const tempDir = mkdtempSync(path.join(os.tmpdir(), "dg-preview-host-api-"));
   const forceDefinitionsDir = path.join(tempDir, "force");
   const forceSpecPath = path.join(forceDefinitionsDir, "force-stakeholders.yaml");
@@ -1066,7 +1410,7 @@ test("builtin preview host api routes install through a host-owned installer", a
     "utf8",
   );
 
-  const unregisterViewers = installBuiltinPreviewHostViewerRoutes({
+  const unregisterBuiltins = installBuiltinPreviewHost(createBuiltinPreviewHostInstallDeps({
     framePreviewDocumentDeps: { framesDir },
     framePreviewRenderDeps: {
       framesDir,
@@ -1074,23 +1418,44 @@ test("builtin preview host api routes install through a host-owned installer", a
       textAdapterPromise: Promise.resolve(new MockTextAdapter()),
     },
     forcePreviewDocumentDeps: { forceDefinitionsDir },
+    appRoot: "/virtual/app",
+    repoRoot: "/virtual/repo",
+    framesDir,
+    specHome: "specs/045-preview-host-engine-modularity/",
+    currentGitBranch: () => "feat/045-preview-host-engine-modularity",
+    layoutEngineFontPath: "/virtual/layout-font.ttf",
+    baselineOsCssPath: "/virtual/bf-os.css",
+    baselineFontDir: "/virtual/bf-fonts",
+    iconsDir: "/virtual/icons",
+    resolvePreviewAssetPath: () => null,
+    ensureLayoutEngineBrowserAssets: async () => {},
     parseYaml,
     templateHtml: "%MODE%",
     baselineStylesHtml: "",
     previewAssetUrl: (filename: string) => `/preview/${filename}`,
-    listAutolayoutDiagrams: () => ["complex-routing-usecase", "service-handshake-sequence"],
-    listForceExamples: () => ["force-stakeholders"],
-    findReferenceImage: () => null,
-    normalizeLayoutEngine: (layoutEngine: string | undefined) => layoutEngine ?? "",
-  });
-
-  const unregisterApiRoutes = installBuiltinPreviewHostApiRoutes();
+    readReloadState: () => ({ generation: 1, error: null }),
+    addSseClient: () => {},
+    removeSseClient: () => {},
+    corpusRefDir: path.join(tempDir, "corpus"),
+    inputDirs: [path.join(tempDir, "input")],
+  }));
 
   try {
-    assert.deepEqual(
-      listPreviewHostApiRoutes().map((route) => route.key).sort(),
-      ["component-tree", "force-save", "force-spec", "frame-overrides", "frame-tree", "grid-info", "preview-document", "svg-export"],
-    );
+    for (const key of [
+      "component-tree",
+      "force-save",
+      "force-spec",
+      "frame-overrides",
+      "frame-tree",
+      "grid-info",
+      "preview-document",
+      "svg-export",
+    ]) {
+      assert.ok(
+        listPreviewHostApiRoutes().some((route) => route.key === key),
+        `expected api route '${key}' to be registered`,
+      );
+    }
 
     const previewDocumentMatch = resolveRegisteredPreviewHostApiRoute(
       "GET",
@@ -1437,8 +1802,7 @@ test("builtin preview host api routes install through a host-owned installer", a
     });
     assert.match(String(sequenceSvgPayload), /data-sequence-message-id="m1"/);
   } finally {
-    unregisterApiRoutes();
-    unregisterViewers();
+    unregisterBuiltins();
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
