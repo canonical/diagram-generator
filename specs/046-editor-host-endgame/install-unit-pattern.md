@@ -53,6 +53,7 @@ If onboarding starts there, 046 still fails.
 | `elk-layered` | manifest + frame render adapter + engine-local shell controller/layout-controls wrappers |
 | `force` | manifest + force-specific host module/routes + force render/save/spec flows |
 | `sequence` | manifest + non-frame document renderer + shared autolayout host lane + real host/browser proof |
+| `mindmap-lite` | manifest + non-frame document renderer + frame-YAML document-kind handler + shared autolayout host lane + custom save namespace + SVG export + browser refresh/load proof |
 
 The important part is not that every builtin has identical pieces. The
 important part is that each builtin fits the same registration model instead of
@@ -61,9 +62,10 @@ teaching contributors to widen central sinks.
 Current limitation:
 
 - the builtin examples are still close to the current platform's native shapes
-- they do not yet prove arbitrary document-family detection/resolution closure
-- they do not yet prove a foreign algorithm family can install without central
-  document-kind conditionals or compatibility-heavy bridge work
+- `mindmap-lite` now proves document-family detection/resolution closure and a
+  foreign-shaped install unit through typed seams
+- the remaining blocker is no longer install-unit absence; it is the large
+  TypeScript barrel/harness surface plus the ELK-shaped algorithm substrate
 
 ## Validation standard
 
@@ -74,6 +76,7 @@ Current proof points:
 - `packages/layout-engine/tests/preview-engine-registry.test.ts`
 - `packages/layout-engine/tests/preview-engine-render.test.ts`
 - `apps/preview/src/persistence/preview-host-contract.test.ts`
+- `apps/preview/src/persistence/mindmap-lite-install-unit.test.ts`
 
 Minimum expectation for a future engine package:
 
@@ -92,5 +95,7 @@ T044 is only satisfied when a reviewer can answer:
 2. where does it not start?
    Answer: not `editor.js`, `layout-bridge.js`, or central preview-host branching
 
-Spec 046 still remains open until one real foreign-shaped install unit proves
-that this pattern works for more than the current builtin-adjacent families.
+That foreign-shaped proof now exists as `mindmap-lite`.
+
+Spec 046 still remains open because the large TypeScript barrel/harness surfaces
+and the ELK-shaped substrate remain unfinished.

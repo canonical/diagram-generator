@@ -100,8 +100,9 @@ function createLoadHarness(config: HarnessOptions = {}) {
 }
 
 describe('preview load helpers', () => {
-  it('seeds a null frame tree for sequence canonical state', () => {
+  it('seeds an explicit null frame tree for non-frame canonical state', () => {
     expect(resolvePreviewFrameTreeSeed({
+      frameTree: null,
       previewDocument: { kind: 'sequence' },
     })).toEqual({
       shouldSet: true,
@@ -112,6 +113,7 @@ describe('preview load helpers', () => {
   it('falls back to server SVG and replays the shared follow-up path', async () => {
     const harness = createLoadHarness({
       canonicalState: {
+        frameTree: null,
         previewDocument: { kind: 'sequence' },
       },
       fallbackResponse: {

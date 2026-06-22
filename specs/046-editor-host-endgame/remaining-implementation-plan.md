@@ -38,13 +38,19 @@ Real progress already landed and must be preserved:
 - thin JS wrappers already exist for save and ELK control/controller entry
   points
 - sequence host/save/export/browser-load proof is real
+- preview-host document-family detection and engine-resolution ownership now
+  live behind registered frame-YAML document handlers rather than central
+  sequence-versus-frame fallbacks
+- a real foreign-shaped `mindmap-lite` install unit now proves document kind,
+  manifest, document renderer, shared host lane, custom save semantics, SVG
+  export, and browser refresh/load traversal through typed seams only
 - four editor facades now exist for bootstrap, interaction, relayout, and scene
   coordination
 
 Measured residual surfaces on the current branch:
 
 - `scripts/preview/editor.js`: 256 physical lines
-- `scripts/preview/layout-bridge.js`: 352 physical lines
+- `scripts/preview/layout-bridge.js`: 88 physical lines
 - `scripts/preview/save-client.js`: 24 physical lines
 - `scripts/preview/elk-controller.js`: 41 physical lines
 - `scripts/preview/elk-layout-controls.js`: 26 physical lines
@@ -59,9 +65,10 @@ What is still false to claim:
   but it is still false to treat that as spec-046 closeout
 - it is still false to say `layout-bridge.js` is engine-agnostic by primary
   interface shape
-- it is still false to say document-family onboarding is registry-closed
+- it is now false to say preview-host document-family onboarding still depends
+  on central sequence-versus-frame detection or engine-resolution helpers
 - it is still false to say builtin install is package-like rather than
-  central-list based
+  central-list based across the whole platform runtime
 - it is still false to say the large TypeScript barrels and VM harnesses have
   been decomposed enough to avoid becoming the next monolith
 - it is still false to say the layout substrate is ready for Mermaid, D2, and
@@ -81,16 +88,15 @@ detour:
 - the remaining `editor.js` surface is now primarily thin bootstrap, DOM
   lookup, legacy globals, and compat alias wiring
 
-That means Workstream A is no longer the primary code blocker. The highest
-leverage remaining blocker order is now:
+That means Workstreams A through D are no longer the primary code blocker. The
+highest leverage remaining blocker order is now:
 
-1. Workstream B: reduce `layout-bridge.js` to the same thin-adapter standard
-2. Workstreams C and D together: close document-family registration and land a
-   foreign-shaped skeletal install-unit proof
-3. Workstream E: stop `browser-entry.ts`, `preview-shell/index.ts`, and the VM
+1. Workstream E: stop `browser-entry.ts`, `preview-shell/index.ts`, and the VM
    harness from becoming the replacement monolith
-4. Workstream F: make the layout substrate honestly open to Mermaid, D2, Dagre,
+2. Workstream F: make the layout substrate honestly open to Mermaid, D2, Dagre,
    and other non-ELK families
+3. final adversarial closeout: confirm the 50/150/500-engine answer is
+   actually yes after the remaining barrel and substrate work
 
 ## Target architecture
 
@@ -256,6 +262,11 @@ Required proof for closure:
   compatibility resolution, SVG export, and browser load/refresh without
   central document-kind branching
 
+Current branch state:
+
+- met on the preview-host side through handler-owned resolution plus the real
+  `mindmap-lite` install-unit proof
+
 Suggested implementation slices:
 
 1. define handler registry contracts that can answer detection and resolution
@@ -284,6 +295,11 @@ Hard requirement:
 
 - the proof must install without editing `editor.js`, `layout-bridge.js`,
   `server.ts`, or central document-kind conditionals
+
+Current branch state:
+
+- met through the `mindmap-lite` install unit, which installs through
+  registries only and reuses the shared autolayout host lane
 
 Why this matters:
 

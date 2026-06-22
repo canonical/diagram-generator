@@ -109,23 +109,33 @@ That matters because the browser leg now proves the typed load seam can accept
 real non-ELK canonical state without reopening `editor.js` or
 `layout-bridge.js`.
 
+The branch now also has one real foreign-shaped install-unit proof:
+
+1. `packages/layout-engine/src/preview-engine/mindmap-lite.ts`
+2. `apps/preview/src/preview-host/mindmap-lite-install-unit.ts`
+3. `apps/preview/src/persistence/mindmap-lite-install-unit.test.ts`
+
+That proof exercises:
+
+1. document-kind registration
+2. preview-engine manifest registration
+3. preview-document SVG renderer registration
+4. shared autolayout host-route/page reuse
+5. custom save payload ownership under a document-local namespace
+6. SVG export
+7. browser refresh/load through the typed load helper
+
 ## Still-open blockers
 
 The current branch still fails the full proof standard in these ways:
 
-1. `editor.js` is now materially thinner, but `layout-bridge.js` is still too
-   behavior-bearing to count as a final thin bridge adapter
-2. the browser-shell proof now exists for sequence refresh/load, but it still
-   needs one final rerun after the remaining trap-file thinness pass
-3. the browser edge still carries compatibility aliases and ELK-shaped debug/raw
+1. the browser edge still carries compatibility aliases and ELK-shaped debug/raw
    view names alongside the new generic engine-shell facade
-4. document-family onboarding still has central sequence-versus-frame stop
-   points in detection and resolution helpers
-5. the three-class representative proof is still shell-contract-level for the
+2. the three-class representative proof is still shell-contract-level for the
    ported-family and bespoke classes, not launched product lanes
-6. the large TypeScript barrels and VM contract harnesses still risk becoming
+3. the large TypeScript barrels and VM contract harnesses still risk becoming
    the replacement monolith
-7. the graph/layout substrate is still too ELK-shaped for Mermaid, D2, Dagre,
+4. the graph/layout substrate is still too ELK-shaped for Mermaid, D2, Dagre,
    and other foreign algorithm families
 
 These are not side notes. They are the reason the closeout answer is still
@@ -133,7 +143,7 @@ These are not side notes. They are the reason the closeout answer is still
 
 ## Required real proof
 
-Spec 046 now requires one skeletal foreign-shaped engine or diagram-family proof
+Spec 046 required one skeletal foreign-shaped engine or diagram-family proof
 such as Mermaid-lite, D2-lite, or Dagre-lite that exercises the whole path
 through typed seams:
 
@@ -145,9 +155,11 @@ through typed seams:
 6. initial preview/load and browser refresh behavior
 7. save/spec/export authority
 
-If that proof needs `editor.js`, `layout-bridge.js`, or central `server.ts`
-branch surgery, or central document-kind conditionals, the architecture is not
-ready.
+That proof now exists as `mindmap-lite`. It did not require `editor.js`,
+`layout-bridge.js`, `server.ts`, or central document-kind conditionals.
+
+That still does not close 046 by itself because the remaining barrel/harness
+and substrate blockers are real.
 
 ## Acceptance answers
 
@@ -178,9 +190,9 @@ Not:
 1. `scripts/preview/editor.js`
 
 The full 50/150/500-engine answer is broader than this document. Dedicated host
-modules, documented install-unit conventions, document-family registry closure,
-trap-file thinness, barrel/harness split, substrate readiness, and final
-compatibility cleanup still remain open, even though the browser-shell
+modules, documented install-unit conventions, the real foreign-shaped install
+unit proof, trap-file thinness, barrel/harness split, substrate readiness, and
+final compatibility cleanup still remain open, even though the browser-shell
 registration path no longer starts in the legacy JS sink files and the real
 non-ELK browser load proof is now green.
 
@@ -208,8 +220,8 @@ Honest answer today:
   now pass through the same typed bootstrap/panel/save seam in tests.
 - **Full 50/150/500-engine answer**: still **not yet**. Host route/page
   installation is now materially better, the install-unit pattern is now
-  documented and tested, and the real non-ELK browser refresh/load proof is
-  green, but document-family registry closure, trap-file thinness, barrel/harness
-  split, substrate readiness, compatibility cleanup, and the final adversarial
-  yes/no audit are still not complete enough to count as honest many-engine
+  documented and tested, the real non-ELK browser refresh/load proof is green,
+  and one foreign-shaped install unit is real, but barrel/harness split,
+  substrate readiness, compatibility cleanup, and the final adversarial yes/no
+  audit are still not complete enough to count as honest many-engine
   readiness.

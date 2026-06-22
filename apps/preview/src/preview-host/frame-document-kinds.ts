@@ -6,6 +6,7 @@ import type {
 import type {
   FramePreviewCanonicalState,
   FramePreviewDocumentDeps,
+  FramePreviewEngineResolution,
   FramePreviewRenderDeps,
 } from "./frame-documents.js";
 
@@ -26,6 +27,12 @@ export interface FrameYamlDocumentKindHandler {
     deps: FramePreviewRenderDeps,
     previewDocument: PreviewRenderableDocument,
   ) => Promise<string>;
+  resolvePreviewEngineResolution: (
+    slug: string,
+    deps: FramePreviewDocumentDeps,
+    previewDocument: PreviewRenderableDocument,
+    normalizeLayoutEngine: (layoutEngine: string | undefined) => string,
+  ) => FramePreviewEngineResolution;
   saveDocument?: (
     slug: string,
     payload: unknown,

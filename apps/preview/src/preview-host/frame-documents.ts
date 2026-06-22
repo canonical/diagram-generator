@@ -135,6 +135,21 @@ export const SEQUENCE_FRAME_YAML_HANDLER: FrameYamlDocumentKindHandler = {
     }
     return rendered.svgMarkup;
   },
+  resolvePreviewEngineResolution(_slug, _deps, previewDocument) {
+    const compatibleContext: Omit<PreviewEngineContext, "layoutEngine"> = {
+      shellMode: "grid",
+      previewDocumentKind: "sequence",
+    };
+    return {
+      previewDocument,
+      compatibleContext,
+      previewContext: {
+        layoutEngine: "sequence",
+        ...compatibleContext,
+      },
+      authoredLayoutEngine: "sequence",
+    };
+  },
   saveDocument(slug, payload, deps) {
     return persistFrameYamlDocumentForSlug(slug, payload, deps);
   },
@@ -142,7 +157,11 @@ export const SEQUENCE_FRAME_YAML_HANDLER: FrameYamlDocumentKindHandler = {
 
 export const FRAME_DIAGRAM_YAML_HANDLER: FrameYamlDocumentKindHandler = {
   kind: "frame-diagram",
-  createPreviewDocument(slug, _raw, deps) {
+  createPreviewDocument(slug, raw, deps) {
+    const compiled = compileDiagramYaml(raw);
+    if (compiled.raw.engine !== "v3") {
+      return null;
+    }
     return frameDiagramPreviewDocumentForSlug(slug, deps);
   },
   buildCanonicalState(slug, deps, previewDocument) {
@@ -161,6 +180,24 @@ export const FRAME_DIAGRAM_YAML_HANDLER: FrameYamlDocumentKindHandler = {
     const adapter = await deps.textAdapterPromise;
     return renderFrameDiagramToSvg(diagram, layout, adapter, { iconMarkupByName });
   },
+  resolvePreviewEngineResolution(slug, deps, previewDocument, normalizeLayoutEngine) {
+    const diagram = loadFrameDiagram(slug, deps);
+    const compatibleContext: Omit<PreviewEngineContext, "layoutEngine"> = {
+      shellMode: "grid",
+      previewDocumentKind: "frame-diagram",
+      frameDiagramSummary: summarizeFrameDiagramCompatibility(diagram),
+    };
+    const authoredLayoutEngine = normalizeLayoutEngine(diagram.layoutEngine);
+    return {
+      previewDocument,
+      compatibleContext,
+      previewContext: {
+        layoutEngine: authoredLayoutEngine,
+        ...compatibleContext,
+      },
+      authoredLayoutEngine,
+    };
+  },
   saveDocument(slug, payload, deps) {
     return persistFrameYamlDocumentForSlug(slug, payload, deps);
   },
@@ -177,9 +214,22 @@ function ensureBuiltinFrameYamlDocumentKindHandlersInstalled(): void {
   registerFrameYamlDocumentKindHandler(FRAME_DIAGRAM_YAML_HANDLER);
 }
 
-export function previewDocumentForSlug(slug: string, deps: FramePreviewDocumentDeps) {
+function requireFrameYamlDocumentKindHandler(
+  kind: PreviewDocumentKind | null | undefined,
+): FrameYamlDocumentKindHandler {
+  const handler = resolveFrameYamlDocumentKindHandler(kind);
+  if (!handler) {
+    throw new Error(`Unsupported frame preview document kind '${String(kind)}'`);
+  }
+  return handler;
+}
+
+export function previewDocumentForFrameYamlText(
+  slug: string,
+  raw: string,
+  deps: FramePreviewDocumentDeps,
+): PreviewRenderableDocument {
   ensureBuiltinFrameYamlDocumentKindHandlersInstalled();
-  const raw = readFrameYamlText(slug, deps);
   for (const handler of listFrameYamlDocumentKindHandlers()) {
     const previewDocument = handler.createPreviewDocument(slug, raw, deps);
     if (previewDocument) {
@@ -187,6 +237,10 @@ export function previewDocumentForSlug(slug: string, deps: FramePreviewDocumentD
     }
   }
   throw new Error(`Unable to resolve a preview document handler for '${slug}'`);
+}
+
+export function previewDocumentForSlug(slug: string, deps: FramePreviewDocumentDeps) {
+  return previewDocumentForFrameYamlText(slug, readFrameYamlText(slug, deps), deps);
 }
 
 export function frameTreeForSlug(slug: string, deps: FramePreviewDocumentDeps) {
@@ -203,10 +257,7 @@ export function gridInfoForSlug(slug: string, deps: FramePreviewDocumentDeps) {
 
 export function canonicalSavedState(slug: string, deps: FramePreviewDocumentDeps): FramePreviewCanonicalState {
   const previewDocument = previewDocumentForSlug(slug, deps);
-  const handler = resolveFrameYamlDocumentKindHandler(previewDocument.kind);
-  if (!handler) {
-    throw new Error(`Unsupported frame preview document kind '${String(previewDocument.kind)}'`);
-  }
+  const handler = requireFrameYamlDocumentKindHandler(previewDocument.kind);
   return handler.buildCanonicalState(
     slug,
     deps,
@@ -274,8 +325,8 @@ export function saveFrameYamlDocumentForSlug(
   deps: FrameYamlDocumentSaveDeps,
 ): unknown {
   const previewDocument = previewDocumentForSlug(slug, deps.framePreviewDocumentDeps);
-  const handler = resolveFrameYamlDocumentKindHandler(previewDocument.kind);
-  if (!handler?.saveDocument) {
+  const handler = requireFrameYamlDocumentKindHandler(previewDocument.kind);
+  if (!handler.saveDocument) {
     throw new Error(`Unsupported frame preview save kind '${String(previewDocument.kind)}'`);
   }
   return handler.saveDocument(slug, payload, deps, previewDocument);
@@ -300,11 +351,38 @@ export async function buildFrameDiagramState(slug: string, deps: FramePreviewRen
 
 export async function renderSvgForSlug(slug: string, deps: FramePreviewRenderDeps): Promise<string> {
   const previewDocument = previewDocumentForSlug(slug, deps);
-  const handler = resolveFrameYamlDocumentKindHandler(previewDocument.kind);
-  if (!handler) {
-    throw new Error(`Unsupported frame preview document kind '${String(previewDocument.kind)}'`);
-  }
+  const handler = requireFrameYamlDocumentKindHandler(previewDocument.kind);
   return handler.renderSvg(slug, deps, previewDocument);
+}
+
+function resolveFramePreviewEngineResolutionForDocument(
+  slug: string,
+  deps: FramePreviewDocumentDeps,
+  previewDocument: PreviewRenderableDocument,
+  normalizeLayoutEngine: (layoutEngine: string | undefined) => string,
+): FramePreviewEngineResolution {
+  const handler = requireFrameYamlDocumentKindHandler(previewDocument.kind);
+  return handler.resolvePreviewEngineResolution(
+    slug,
+    deps,
+    previewDocument,
+    normalizeLayoutEngine,
+  );
+}
+
+export function resolveFramePreviewEngineResolutionFromYamlText(
+  slug: string,
+  yamlContent: string,
+  deps: FramePreviewDocumentDeps,
+  normalizeLayoutEngine: (layoutEngine: string | undefined) => string,
+): FramePreviewEngineResolution {
+  const previewDocument = previewDocumentForFrameYamlText(slug, yamlContent, deps);
+  return resolveFramePreviewEngineResolutionForDocument(
+    slug,
+    deps,
+    previewDocument,
+    normalizeLayoutEngine,
+  );
 }
 
 export function resolveFramePreviewEngineResolution(
@@ -313,38 +391,12 @@ export function resolveFramePreviewEngineResolution(
   normalizeLayoutEngine: (layoutEngine: string | undefined) => string,
 ): FramePreviewEngineResolution {
   const previewDocument = previewDocumentForSlug(slug, deps);
-  if (previewDocument.kind === "sequence") {
-    const compatibleContext: Omit<PreviewEngineContext, "layoutEngine"> = {
-      shellMode: "grid",
-      previewDocumentKind: "sequence",
-    };
-    return {
-      previewDocument,
-      compatibleContext,
-      previewContext: {
-        layoutEngine: "sequence",
-        ...compatibleContext,
-      },
-      authoredLayoutEngine: "sequence",
-    };
-  }
-
-  const diagram = loadFrameDiagram(slug, deps);
-  const compatibleContext: Omit<PreviewEngineContext, "layoutEngine"> = {
-    shellMode: "grid",
-    previewDocumentKind: "frame-diagram",
-    frameDiagramSummary: summarizeFrameDiagramCompatibility(diagram),
-  };
-  const authoredLayoutEngine = normalizeLayoutEngine(diagram.layoutEngine);
-  return {
+  return resolveFramePreviewEngineResolutionForDocument(
+    slug,
+    deps,
     previewDocument,
-    compatibleContext,
-    previewContext: {
-      layoutEngine: authoredLayoutEngine,
-      ...compatibleContext,
-    },
-    authoredLayoutEngine,
-  };
+    normalizeLayoutEngine,
+  );
 }
 
 export function resolveFramePreviewViewerContext(
@@ -371,23 +423,6 @@ export function resolveFramePreviewViewerContext(
     compatibleEngines,
     hasReference: documentKind === "frame-diagram" && options.findReferenceImage(slug) !== null,
   };
-}
-
-/**
- * Determine the preview document kind from a frame YAML file.
- * - If the YAML has a `sequence:` key, it's a sequence document
- * - Otherwise, it's a frame-diagram document
- */
-export function determineFrameYamlKind(yamlContent: string, parseYaml: ParseYaml): PreviewDocumentKind {
-  try {
-    const parsed = parseYaml(yamlContent);
-    if (parsed && typeof parsed === "object" && "sequence" in parsed) {
-      return "sequence";
-    }
-  } catch {
-    // Fall back to frame-diagram if parsing fails
-  }
-  return "frame-diagram";
 }
 
 export function readFrameYamlText(slug: string, deps: FramePreviewDocumentDeps): string {

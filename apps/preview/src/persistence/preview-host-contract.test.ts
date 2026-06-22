@@ -307,6 +307,22 @@ test("frame YAML preview document kinds register outside the central fallback ha
     async renderSvg() {
       return '<svg data-kind="mindmap"></svg>';
     },
+    resolvePreviewEngineResolution(_slug, _deps, previewDocument, normalizeLayoutEngine) {
+      const authoredLayoutEngine = normalizeLayoutEngine("mindmap-tree");
+      const compatibleContext = {
+        shellMode: "grid" as const,
+        previewDocumentKind: "mindmap" as const,
+      };
+      return {
+        previewDocument,
+        compatibleContext,
+        previewContext: {
+          layoutEngine: authoredLayoutEngine,
+          ...compatibleContext,
+        },
+        authoredLayoutEngine,
+      };
+    },
   });
 
   try {

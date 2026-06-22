@@ -39,6 +39,13 @@ export {
   V3_PREVIEW_ENGINE,
 } from './builtins.js';
 export {
+  installMindmapLitePreviewEngine,
+  MINDMAP_LITE_PREVIEW_ENGINE,
+  mindmapLitePreviewDocumentSvgRenderer,
+  type MindmapLiteDocumentData,
+  type MindmapLitePreviewDocument,
+} from './mindmap-lite.js';
+export {
   getPreviewDocumentSvgRenderer,
   getPreviewFrameDiagramRenderAdapter,
   layoutPreviewFrameDiagramForEngine,

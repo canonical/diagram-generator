@@ -212,17 +212,13 @@ export function normalizePreviewLoadInvocation(
 export function resolvePreviewFrameTreeSeed(
   canonicalState: PreviewLoadCanonicalState | null,
 ): PreviewFrameTreeSeed {
-  if (canonicalState?.frameTree) {
+  if (
+    canonicalState
+    && Object.prototype.hasOwnProperty.call(canonicalState, 'frameTree')
+  ) {
     return {
       shouldSet: true,
       frameTree: canonicalState.frameTree,
-    };
-  }
-
-  if (canonicalState?.previewDocument?.kind === 'sequence') {
-    return {
-      shouldSet: true,
-      frameTree: null,
     };
   }
 

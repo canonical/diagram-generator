@@ -6,13 +6,13 @@ Cold-start map for the remaining `scripts/preview/editor.js` surface.
 
 - `scripts/preview/editor.js`: 256 physical lines in the current working tree
   on the active 046 branch
-- `scripts/preview/layout-bridge.js`: 352 physical lines in the current working
+- `scripts/preview/layout-bridge.js`: 88 physical lines in the current working
   tree on the active 046 branch
 - Closeout status: **still open**. The integration-sink risk is materially
   lower than it was, and `editor.js` is now inside the target thin-adapter
   size band, but the honest answer to the 50/150/500-engine question is still
-  "not yet" because `layout-bridge.js`, document-family closure, install-unit
-  proof, barrel/harness split, and the final adversarial audit remain open.
+  "not yet" because the barrel/harness split, substrate readiness, and the
+  final adversarial audit remain open.
 
 ## Target adapter shape
 
@@ -41,6 +41,12 @@ Cold-start map for the remaining `scripts/preview/editor.js` surface.
 - `editor.js` no longer owns engine panel/save/bootstrap branching directly.
 - Future engine-local browser hooks now enter through `PreviewEngineShellController` instead of direct ELK calls in `editor.js`.
 - `layout-bridge.js` no longer owns bridge state, text-adapter readiness, local-vs-ELK relayout dispatch, or browser view-mode/runtime assembly; those now enter through `previewBridge.host`, `app-layout-bridge-runtime.ts`, `createPreviewLayoutBridgeRuntimeFromBrowserHost(...)`, and `createPreviewElkViewModeRuntimeFromBrowserHost(...)`.
+- preview-host document families now own detection and preview-engine
+  resolution through registered handlers rather than central
+  sequence-versus-frame branches.
+- a real foreign-shaped `mindmap-lite` install unit now proves manifest,
+  renderer, handler, shared host lane, save/export, and browser refresh/load
+  traversal without edits to `editor.js`, `layout-bridge.js`, or `server.ts`.
 - `editor.js` no longer owns the selection/inspector/waypoint runtime constructor bags inline; those now enter through `previewShell.bootstrap.createPreviewEditorInteractionFacadeFromEditorHost(...)`, `previewShell.bootstrap.createPreviewEditorRuntimeSetFromRuntime(...)`, `app-editor-interaction-facade.ts`, and `app-editor-runtime-set.ts`.
 - `editor.js` no longer owns the mutable install-state wrapper assembly for generation, selection depth, override state, last violations, dirty-nav suppression, or relayout timers; those now enter through `previewShell.bootstrap.createPreviewGridEditorInstallUnitFromLegacyEditorHost(...)` in `app-grid-editor-install-unit.ts`.
 - `editor.js` no longer owns the bootstrap-tail runtime option mapping inline; that now enters through `previewShell.bootstrap.createBootstrapPreviewEditorRuntimeOptionsFromHost(...)` and `app-bootstrap.ts`.

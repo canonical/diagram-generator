@@ -4,12 +4,10 @@ import path from "node:path";
 import {
   evaluatePreviewEngineCompatibility,
   getPreviewEngineByLayoutKey,
-  summarizeFrameDiagramCompatibility,
   type PreviewEngineContext,
 } from "@diagram-generator/layout-engine";
 import {
-  determineFrameYamlKind,
-  loadFrameDiagram,
+  resolveFramePreviewEngineResolutionFromYamlText,
   saveFrameYamlDocumentForSlug,
   type FramePreviewDocumentDeps,
   type ParseYaml,
@@ -43,23 +41,26 @@ export function saveFramePreviewDocument(
       }
 
       const baseline = readFileSync(framePath, "utf8");
-      const documentKind = determineFrameYamlKind(baseline, deps.parseYaml);
+      const normalizedRequested = deps.normalizeLayoutEngine(requested);
+      const resolution = resolveFramePreviewEngineResolutionFromYamlText(
+        slug,
+        baseline,
+        deps.framePreviewDocumentDeps,
+        deps.normalizeLayoutEngine,
+      );
+      const documentKind = resolution.previewDocument.kind ?? resolution.compatibleContext.previewDocumentKind ?? "frame-diagram";
       const engine = getPreviewEngineByLayoutKey(
-        deps.normalizeLayoutEngine(requested),
+        normalizedRequested,
       );
       if (!engine) {
         throw new Error(`Unknown layout_engine: '${requested}'`);
       }
 
-      const frameDiagramSummary =
-        documentKind === "frame-diagram"
-          ? summarizeFrameDiagramCompatibility(loadFrameDiagram(slug, deps.framePreviewDocumentDeps))
-          : undefined;
       const contextValue: PreviewEngineContext = {
-        layoutEngine: requested.trim(),
+        layoutEngine: normalizedRequested,
         shellMode: "grid",
         previewDocumentKind: documentKind,
-        frameDiagramSummary,
+        frameDiagramSummary: resolution.compatibleContext.frameDiagramSummary,
       };
       const compatibility = evaluatePreviewEngineCompatibility(engine, contextValue);
       if (!compatibility.compatible) {

@@ -8,6 +8,7 @@ import {
   V3_PREVIEW_ENGINE,
   getPreviewDocumentSvgRenderer,
   getPreviewFrameDiagramRenderAdapter,
+  installMindmapLitePreviewEngine,
   layoutPreviewFrameDiagramForEngine,
   renderPreviewDocumentToSvg,
   registerPreviewEngine,
@@ -237,5 +238,34 @@ describe('preview-engine render helpers', () => {
       unregisterFrameAdapter();
       unregisterEngine();
     }
+  });
+
+  it('installs the foreign-shaped mindmap-lite preview engine without central render branching', async () => {
+    const uninstall = installMindmapLitePreviewEngine();
+
+    try {
+      const renderer = getPreviewDocumentSvgRenderer('mindmap-lite');
+      expect(renderer).toBeTypeOf('function');
+      await expect(
+        renderPreviewDocumentToSvg({
+          kind: 'mindmap-lite',
+          slug: 'mindmap-proof',
+          title: 'Mindmap proof',
+          layoutEngine: 'mindmap-tree',
+          shellMode: 'grid',
+          mindmap: {
+            root: 'Platform',
+            children: ['Preview host', 'Renderer', 'Save flow'],
+          },
+        } as never),
+      ).resolves.toMatchObject({
+        width: expect.any(Number),
+        height: expect.any(Number),
+      });
+    } finally {
+      uninstall();
+    }
+
+    expect(getPreviewDocumentSvgRenderer('mindmap-lite')).toBeUndefined();
   });
 });
