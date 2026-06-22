@@ -19,21 +19,28 @@ export interface ElkParamSpec {
   enumValues?: { value: string; label: string }[];
 }
 
-/** User-facing layered options we intentionally expose — defaults match buildLayeredLayoutOptions(). */
+/**
+ * User-facing layered options we intentionally expose.
+ *
+ * Most defaults mirror buildLayeredLayoutOptions(). `elk.direction` is the
+ * exception: the sidebar defaults to `Auto` so diagram/root direction remains
+ * the source of truth until the user explicitly asks ELK to override it.
+ */
 export const ELK_LAYERED_PARAM_SPECS: ElkParamSpec[] = [
   {
     key: 'elk.direction',
     label: 'Direction',
     group: 'Graph',
     kind: 'enum',
-    defaultValue: 'DOWN',
+    defaultValue: '',
     enumValues: [
+      { value: '', label: 'Auto (diagram)' },
       { value: 'DOWN', label: 'Top → bottom (TB)' },
       { value: 'RIGHT', label: 'Left → right (LR)' },
       { value: 'UP', label: 'Bottom → top' },
       { value: 'LEFT', label: 'Right → left' },
     ],
-    description: 'Primary flow direction for layered layout.',
+    description: 'Primary flow direction override for layered layout. Auto follows the diagram direction.',
   },
   {
     key: 'elk.layered.spacing.nodeNodeBetweenLayers',

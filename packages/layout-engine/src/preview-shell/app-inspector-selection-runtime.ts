@@ -32,7 +32,7 @@ export interface CreatePreviewInspectorSelectionRuntimeOptions {
   setMultiActionGap: (gap: number) => void;
   captureOverrideEntries: (ids: string[]) => unknown;
   commitOverridePatchAction: (label: string, beforeEntries: unknown, afterEntries: unknown) => void;
-  overrides: Record<string, Record<string, unknown>>;
+  getOverrides: () => Record<string, Record<string, unknown>>;
   coercedKeys: Set<string>;
   getNode: (cid: string) => PreviewFrameMutationNode | PreviewStyleNode | null | undefined;
   cleanOverride: (cid: string) => void;
@@ -138,6 +138,7 @@ export function createPreviewInspectorSelectionRuntime(
       });
     },
     setMultiFrameAlign(align) {
+      const overrides = options.getOverrides();
       dispatchPreviewMultiFrameAlignHost({
         selectedIds: options.selectedIds,
         align,
@@ -159,7 +160,7 @@ export function createPreviewInspectorSelectionRuntime(
           }
           return { kind: 'none' as const };
         },
-        overrides: options.overrides,
+        overrides,
         coercedKeys: options.coercedKeys,
         getNode: (cid) => options.getNode(cid) as PreviewFrameMutationNode | null | undefined,
         setDirty: options.setDirty,
@@ -169,6 +170,7 @@ export function createPreviewInspectorSelectionRuntime(
       });
     },
     applyMultiStyleOverride(styleName) {
+      const overrides = options.getOverrides();
       dispatchPreviewMultiStyleOverrideHost({
         selectedIds: options.selectedIds,
         styleName,
@@ -184,7 +186,7 @@ export function createPreviewInspectorSelectionRuntime(
         }),
         cleanOverride: options.cleanOverride,
         getNode: (cid) => options.getNode(cid) as PreviewStyleNode | null | undefined,
-        overrides: options.overrides,
+        overrides,
         setDirty: options.setDirty,
         commitOverridePatchAction: options.commitOverridePatchAction,
         requestRelayout: options.requestRelayoutNow,
@@ -192,6 +194,7 @@ export function createPreviewInspectorSelectionRuntime(
       });
     },
     setMultiFrameProp(prop, value) {
+      const overrides = options.getOverrides();
       dispatchPreviewMultiFramePropHost({
         selectedIds: options.selectedIds,
         prop,
@@ -214,7 +217,7 @@ export function createPreviewInspectorSelectionRuntime(
           }
           return { kind: 'none' as const };
         },
-        overrides: options.overrides,
+        overrides,
         coercedKeys: options.coercedKeys,
         getNode: (cid) => options.getNode(cid) as PreviewFrameMutationNode | null | undefined,
         setDirty: options.setDirty,
@@ -225,6 +228,7 @@ export function createPreviewInspectorSelectionRuntime(
       });
     },
     setMultiFrameSize(dimension, value) {
+      const overrides = options.getOverrides();
       dispatchPreviewMultiFrameSizeHost({
         selectedIds: options.selectedIds,
         dimension,
@@ -250,7 +254,7 @@ export function createPreviewInspectorSelectionRuntime(
           px: hostOptions.px,
           getNode: hostOptions.getNode as (cid: string) => PreviewFrameMutationNode | null | undefined,
         }),
-        overrides: options.overrides,
+        overrides,
         coercedKeys: options.coercedKeys,
         getNode: (cid) => options.getNode(cid) as PreviewFrameMutationNode | null | undefined,
         setDirty: options.setDirty,

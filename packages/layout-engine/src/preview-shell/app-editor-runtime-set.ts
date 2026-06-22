@@ -73,8 +73,8 @@ export interface CreatePreviewEditorRuntimeSetOptions {
   commitOverridePatchAction: CreatePreviewInspectorMutationRuntimeOptions['commitOverridePatchAction']
     & CreatePreviewInspectorSelectionRuntimeOptions['commitOverridePatchAction']
     & CreatePreviewArrowWaypointRuntimeOptions['commitOverridePatchAction'];
-  overrides: CreatePreviewInspectorMutationRuntimeOptions['overrides']
-    & CreatePreviewInspectorSelectionRuntimeOptions['overrides'];
+  getOverrides: CreatePreviewInspectorMutationRuntimeOptions['getOverrides']
+    & CreatePreviewInspectorSelectionRuntimeOptions['getOverrides'];
   coercedKeys: CreatePreviewInspectorMutationRuntimeOptions['coercedKeys']
     & CreatePreviewInspectorSelectionRuntimeOptions['coercedKeys'];
   snapToGrid: CreatePreviewInspectorMutationRuntimeOptions['snapToGrid'];
@@ -155,7 +155,7 @@ export interface CreatePreviewEditorRuntimeSetHostOptions {
   renderMultiStyleOptions: CreatePreviewEditorRuntimeSetOptions['renderMultiStyleOptions'];
   captureOverrideEntries: CreatePreviewEditorRuntimeSetOptions['captureOverrideEntries'];
   commitOverridePatchAction: CreatePreviewEditorRuntimeSetOptions['commitOverridePatchAction'];
-  overrides: CreatePreviewEditorRuntimeSetOptions['overrides'];
+  getOverrides: CreatePreviewEditorRuntimeSetOptions['getOverrides'];
   coercedKeys: CreatePreviewEditorRuntimeSetOptions['coercedKeys'];
   snapToGrid: CreatePreviewEditorRuntimeSetOptions['snapToGrid'];
   setDirty: CreatePreviewEditorRuntimeSetOptions['setDirty'];
@@ -207,7 +207,7 @@ export interface CreatePreviewEditorRuntimeSetFromRuntimeOptions {
     get: CreatePreviewEditorRuntimeSetHostOptions['getNode'];
     cleanOverride: CreatePreviewEditorRuntimeSetHostOptions['cleanOverride'];
   };
-  overrides: CreatePreviewEditorRuntimeSetHostOptions['overrides'];
+  getOverrides: CreatePreviewEditorRuntimeSetHostOptions['getOverrides'];
   coercedKeys: CreatePreviewEditorRuntimeSetHostOptions['coercedKeys'];
   gridState: {
     getGridInfo: CreatePreviewEditorRuntimeSetHostOptions['getGridInfo'];
@@ -278,7 +278,7 @@ export interface CreatePreviewEditorRuntimeSetFromEditorHostOptions {
   previewShellInteraction: CreatePreviewEditorRuntimeSetFromRuntimeOptions['previewShellInteraction'];
   previewBridgeRender: CreatePreviewEditorRuntimeSetFromRuntimeOptions['previewBridgeRender'];
   model: CreatePreviewEditorRuntimeSetFromRuntimeOptions['model'];
-  getOverrides: () => CreatePreviewEditorRuntimeSetHostOptions['overrides'];
+  getOverrides: CreatePreviewEditorRuntimeSetHostOptions['getOverrides'];
   coercedKeys: CreatePreviewEditorRuntimeSetFromRuntimeOptions['coercedKeys'];
   previewGridRuntime: {
     getGridInfo: CreatePreviewEditorRuntimeSetHostOptions['getGridInfo'];
@@ -375,7 +375,7 @@ export function createPreviewEditorRuntimeSetFromHost(
     renderMultiStyleOptions: options.renderMultiStyleOptions,
     captureOverrideEntries: options.captureOverrideEntries,
     commitOverridePatchAction: options.commitOverridePatchAction,
-    overrides: options.overrides,
+    getOverrides: options.getOverrides,
     coercedKeys: options.coercedKeys,
     snapToGrid: options.snapToGrid,
     setDirty: options.setDirty,
@@ -428,7 +428,7 @@ export function createPreviewEditorRuntimeSetFromRuntime(
     getSelectionActionInfo: options.getSelectionActionInfo,
     getNode: (cid) => options.model.get(cid),
     getArrowNode: options.getArrowNode,
-    getOverride: (cid) => options.overrides[cid] || {},
+    getOverride: (cid) => options.getOverrides()[cid] || {},
     getOwnDelta: options.getOwnDelta,
     getEffectiveDelta: options.getEffectiveDelta,
     getComponentType: options.getComponentType,
@@ -448,7 +448,7 @@ export function createPreviewEditorRuntimeSetFromRuntime(
     renderMultiStyleOptions: options.renderMultiStyleOptions,
     captureOverrideEntries: options.editorState.captureOverrideEntries,
     commitOverridePatchAction: options.editorState.commitOverridePatchAction,
-    overrides: options.overrides,
+    getOverrides: options.getOverrides,
     coercedKeys: options.coercedKeys,
     snapToGrid: options.relayoutActions.snapToGrid,
     setDirty: options.relayoutActions.setDirty,
@@ -489,7 +489,7 @@ export function createPreviewEditorRuntimeSetFromEditorHost(
     previewShellInteraction: options.previewShellInteraction,
     previewBridgeRender: options.previewBridgeRender,
     model: options.model,
-    overrides: options.getOverrides(),
+    getOverrides: options.getOverrides,
     coercedKeys: options.coercedKeys,
     gridState: {
       getGridInfo: options.previewGridRuntime.getGridInfo,
@@ -602,7 +602,7 @@ export function createPreviewEditorRuntimeSet(
   const inspectorMutation = createPreviewInspectorMutationRuntime({
     captureOverrideEntries: options.captureOverrideEntries,
     commitOverridePatchAction: options.commitOverridePatchAction,
-    overrides: options.overrides,
+    getOverrides: options.getOverrides,
     coercedKeys: options.coercedKeys,
     getNode: options.getNode,
     snapToGrid: options.snapToGrid,
@@ -623,7 +623,7 @@ export function createPreviewEditorRuntimeSet(
     setMultiActionGap: options.setMultiActionGap,
     captureOverrideEntries: options.captureOverrideEntries,
     commitOverridePatchAction: options.commitOverridePatchAction,
-    overrides: options.overrides,
+    getOverrides: options.getOverrides,
     coercedKeys: options.coercedKeys,
     getNode: options.getNode,
     cleanOverride: options.cleanOverride,

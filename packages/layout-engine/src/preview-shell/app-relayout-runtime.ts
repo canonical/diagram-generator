@@ -7,7 +7,7 @@ import {
 } from './app-relayout.js';
 
 export interface CreatePreviewRelayoutRuntimeOptions<TGridOverrides> {
-  overrides: Record<string, PreviewRelayoutOverrideEntry>;
+  getOverrides: () => Record<string, PreviewRelayoutOverrideEntry>;
   coercedKeys: Set<string>;
   getGridOverrides: () => TGridOverrides;
   normalizeGridOverrides: (value: TGridOverrides) => TGridOverrides;
@@ -42,7 +42,7 @@ export interface CreatePreviewRelayoutRuntimeOptions<TGridOverrides> {
 }
 
 export interface CreatePreviewRelayoutRuntimeHostOptions<TGridOverrides, TModel> {
-  overrides: Record<string, PreviewRelayoutOverrideEntry>;
+  getOverrides: () => Record<string, PreviewRelayoutOverrideEntry>;
   coercedKeys: Set<string>;
   model: TModel;
   selectedIds: Set<string>;
@@ -109,7 +109,7 @@ export interface PreviewRelayoutEditorState {
 }
 
 export interface CreatePreviewRelayoutRuntimeOptionsFromRuntimeOptions<TGridOverrides, TModel> {
-  overrides: Record<string, PreviewRelayoutOverrideEntry>;
+  getOverrides: () => Record<string, PreviewRelayoutOverrideEntry>;
   coercedKeys: Set<string>;
   model: TModel;
   previewBridgeHost: CreatePreviewRelayoutRuntimeHostOptions<TGridOverrides, TModel>['previewBridgeHost'];
@@ -176,7 +176,7 @@ export function createPreviewRelayoutRuntimeOptionsFromHost<TGridOverrides, TMod
     ?? null;
 
   return {
-    overrides: options.overrides,
+    getOverrides: options.getOverrides,
     coercedKeys: options.coercedKeys,
     getGridOverrides: options.getGridOverrides,
     normalizeGridOverrides: options.normalizeGridOverrides,
@@ -185,19 +185,19 @@ export function createPreviewRelayoutRuntimeOptionsFromHost<TGridOverrides, TMod
     performEngineRelayout: performEngineRelayout
       ? async (normalizedGridOverrides) => performEngineRelayout(
         options.model,
-        options.overrides,
+        options.getOverrides(),
         normalizedGridOverrides,
       )
       : null,
     performLocalRelayout: (normalizedGridOverrides) => options.previewBridgeHost.performLocalRelayout(
       options.model,
-      options.overrides,
+      options.getOverrides(),
       normalizedGridOverrides,
     ),
     failRelayout: options.failRelayout,
     finishRelayout: options.finishRelayout,
     logError: options.logError,
-    hasWaypointOverride: (cid) => Boolean(options.overrides[cid]?.waypoints),
+    hasWaypointOverride: (cid) => Boolean(options.getOverrides()[cid]?.waypoints),
     clearOverride: options.clearOverride,
     setDirty: options.setDirty,
     applyAllOverrides: options.applyAllOverrides,
@@ -220,7 +220,7 @@ export function createPreviewRelayoutRuntimeOptionsFromRuntime<TGridOverrides, T
   options: CreatePreviewRelayoutRuntimeOptionsFromRuntimeOptions<TGridOverrides, TModel>,
 ): CreatePreviewRelayoutRuntimeOptions<TGridOverrides> {
   return createPreviewRelayoutRuntimeOptionsFromHost({
-    overrides: options.overrides,
+    getOverrides: options.getOverrides,
     coercedKeys: options.coercedKeys,
     model: options.model,
     selectedIds: options.selectionState.selectedIds,
@@ -255,7 +255,7 @@ export function createPreviewRelayoutRuntimeFromEditorHost<TGridOverrides, TMode
   options: CreatePreviewRelayoutRuntimeFromEditorHostOptions<TGridOverrides, TModel>,
 ): PreviewRelayoutRuntime {
   return createPreviewRelayoutRuntimeFromRuntime({
-    overrides: options.getOverrides(),
+    getOverrides: options.getOverrides,
     coercedKeys: options.coercedKeys,
     model: options.model,
     previewBridgeHost: options.previewBridgeHost,
@@ -293,10 +293,11 @@ export function createPreviewRelayoutRuntime<TGridOverrides>(
 
   return {
     requestRelayout(triggerCid) {
+      const overrides = options.getOverrides();
       const relayoutStatus = options.getRelayoutStatus();
       return runPreviewRelayout({
         triggerCid,
-        overrides: options.overrides,
+        overrides,
         coercedKeys: options.coercedKeys,
         gridOverrides: options.getGridOverrides(),
         normalizeGridOverrides: options.normalizeGridOverrides,

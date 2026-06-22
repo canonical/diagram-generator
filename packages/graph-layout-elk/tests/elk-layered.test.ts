@@ -307,6 +307,23 @@ describe('ELK layered (Sugiyama)', () => {
     expect(nodes.get('source')!.x).toBeLessThan(nodes.get('sink')!.x);
   });
 
+  it('layoutLayeredForFamily accepts caller direction hints over family defaults', async () => {
+    const result = await layoutLayeredForFamily(
+      'process_and_workflow',
+      {
+        id: 'root',
+        nodes: [{ id: 'source', ...BOX }, { id: 'sink', ...BOX }],
+        edges: [{ id: 'flow', source: 'source', target: 'sink' }],
+      },
+      { direction: 'LR' },
+    );
+
+    expect(result.direction).toBe('LR');
+    const nodes = indexPlacedNodes(result.nodes);
+    expect(nodes.get('source')!.x).toBeLessThan(nodes.get('sink')!.x);
+    expect(nodes.get('source')!.y).toBe(nodes.get('sink')!.y);
+  });
+
   it('applies node-owned compound padding without forwarding it to the root graph', () => {
     const layoutOptions = buildLayeredLayoutOptions({
       direction: 'TB',

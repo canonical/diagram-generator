@@ -7,7 +7,7 @@ import { colSpanToPx, resolvePreviewGridInfo } from '../src/preview-shell/grid-r
 
 describe('createPreviewEditorRuntimeSet', () => {
   it('shares inspector display sizing units with the mutation runtime and exposes arrow waypoint helpers', () => {
-    const overrides: Record<string, Record<string, unknown>> = {};
+    let overrides: Record<string, Record<string, unknown>> = {};
     const captureOverrideEntries = vi.fn((ids: string[]) => (
       Object.fromEntries(ids.map((id) => [id, { ...(overrides[id] || {}) }]))
     ));
@@ -105,7 +105,7 @@ describe('createPreviewEditorRuntimeSet', () => {
       renderMultiStyleOptions: () => '<option>styled</option>',
       captureOverrideEntries,
       commitOverridePatchAction,
-      overrides,
+      getOverrides: () => overrides,
       coercedKeys: new Set<string>(),
       snapToGrid: (value) => value,
       setDirty,
@@ -146,6 +146,7 @@ describe('createPreviewEditorRuntimeSet', () => {
       color: '#E95420',
     });
 
+    overrides = {};
     runtimeSet.inspectorDisplay.setWidthUnit('cols');
     runtimeSet.inspectorMutation.setFrameSize('alpha', 'width', 2);
 
@@ -197,7 +198,7 @@ describe('createPreviewEditorRuntimeSet', () => {
         },
         cleanOverride() {},
       },
-      overrides: {},
+      getOverrides: () => ({}),
       coercedKeys: new Set(['alpha:sizing_w']),
       gridState: {
         getGridInfo: () => resolvePreviewGridInfo({

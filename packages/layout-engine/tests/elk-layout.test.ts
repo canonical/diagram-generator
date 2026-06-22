@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { loadFrameYaml } from '../src/frame-yaml-loader.js';
 import { layoutElkFrameDiagram } from '../src/elk-layout.js';
+import { applyPreviewOverridesToFrameTree } from '../src/preview-shell/app-relayout.js';
 import { MockTextAdapter } from '../src/text-measure.js';
 import { layoutFrameTree } from '../src/layout.js';
 import { deserializeFrameDiagramWire, serializeFrameDiagram } from '../src/frame-serialize.js';
@@ -43,6 +44,30 @@ function expectPointInsideHorizontalSpan(
 ) {
   expect(point[0]).toBeGreaterThanOrEqual(frame?._layout.placedX ?? Infinity);
   expect(point[0]).toBeLessThanOrEqual((frame?._layout.placedX ?? -Infinity) + (frame?._layout.placedW ?? 0));
+}
+
+function expectPointInsideVerticalSpan(
+  point: [number, number],
+  frame: { _layout: { placedY: number; placedH: number } } | null,
+) {
+  expect(point[1]).toBeGreaterThanOrEqual(frame?._layout.placedY ?? Infinity);
+  expect(point[1]).toBeLessThanOrEqual((frame?._layout.placedY ?? -Infinity) + (frame?._layout.placedH ?? 0));
+}
+
+function expectRightSideAttachment(
+  point: [number, number],
+  frame: { _layout: { placedX: number; placedY: number; placedW: number; placedH: number } } | null,
+) {
+  expectPointInsideVerticalSpan(point, frame);
+  expect(point[0]).toBeGreaterThan((frame?._layout.placedX ?? 0) + ((frame?._layout.placedW ?? 0) / 2));
+}
+
+function expectLeftSideAttachment(
+  point: [number, number],
+  frame: { _layout: { placedX: number; placedY: number; placedW: number; placedH: number } } | null,
+) {
+  expectPointInsideVerticalSpan(point, frame);
+  expect(point[0]).toBeLessThan((frame?._layout.placedX ?? 0) + ((frame?._layout.placedW ?? 0) / 2));
 }
 
 function expectOrthogonalPath(points: Array<[number, number]>) {
@@ -375,7 +400,7 @@ describe('layoutElkFrameDiagram', () => {
     expect(clientL2?._layout.placedX).toBeGreaterThanOrEqual(clientsLeftTop?._layout.placedX ?? -Infinity);
   });
 
-  it('keeps same-layer gap overrides effective inside headed ELK compounds', async () => {
+  it('keeps same-layer gap overrides effective along the authored horizontal ELK axis', async () => {
     const baseDiagram = loadFrameYaml(join(FRAMES_DIR, 'complex-routing-usecase.yaml'));
     const gapDiagram = loadFrameYaml(join(FRAMES_DIR, 'complex-routing-usecase.yaml'));
     const adapter = new MockTextAdapter();
@@ -411,13 +436,22 @@ describe('layoutElkFrameDiagram', () => {
       gapDiagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
       'implementation',
     );
+    const baseDelivery = findFrameById(
+      baseDiagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'delivery',
+    );
+    const gapDelivery = findFrameById(
+      gapDiagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'delivery',
+    );
 
-    expect(gapPlanning?._layout.placedX).not.toBe(basePlanning?._layout.placedX);
-    expect(gapMeasure?._layout.placedX).not.toBe(baseMeasure?._layout.placedX);
+    expect(gapPlanning?._layout.placedY).toBe(basePlanning?._layout.placedY);
+    expect(gapMeasure?._layout.placedY).toBe(baseMeasure?._layout.placedY);
     expect(gapImplementation?._layout.placedX).toBe(baseImplementation?._layout.placedX);
+    expect(gapDelivery?._layout.placedY).not.toBe(baseDelivery?._layout.placedY);
   });
 
-  it('keeps process edges attached to source bottom and target top across ELK spacing changes', async () => {
+  it('keeps process edges attached to source right and target left across ELK spacing changes', async () => {
     const baseDiagram = loadFrameYaml(join(FRAMES_DIR, 'support-engineering-flow.yaml'));
     const gapDiagram = loadFrameYaml(join(FRAMES_DIR, 'support-engineering-flow.yaml'));
     const adapter = new MockTextAdapter();
@@ -446,28 +480,49 @@ describe('layoutElkFrameDiagram', () => {
       'step_investigation',
     );
 
-    expectPortAttachment(
-      baseDiagram.arrows[0]?.layoutPath ?? [],
-      [
-        (baseSource?._layout.placedX ?? 0) + ((baseSource?._layout.placedW ?? 0) / 2),
-        (baseSource?._layout.placedY ?? 0) + (baseSource?._layout.placedH ?? 0),
-      ],
-      [
-        (baseTarget?._layout.placedX ?? 0) + ((baseTarget?._layout.placedW ?? 0) / 2),
-        baseTarget?._layout.placedY ?? 0,
-      ],
+    const baseStart = baseDiagram.arrows[0]?.layoutPath?.[0];
+    const baseEnd = baseDiagram.arrows[0]?.layoutPath?.[baseDiagram.arrows[0].layoutPath.length - 1];
+    const gapStart = gapDiagram.arrows[0]?.layoutPath?.[0];
+    const gapEnd = gapDiagram.arrows[0]?.layoutPath?.[gapDiagram.arrows[0].layoutPath.length - 1];
+
+    expectRightSideAttachment(baseStart ?? [Infinity, Infinity], baseSource);
+    expectLeftSideAttachment(baseEnd ?? [Infinity, Infinity], baseTarget);
+    expectRightSideAttachment(gapStart ?? [Infinity, Infinity], gapSource);
+    expectLeftSideAttachment(gapEnd ?? [Infinity, Infinity], gapTarget);
+    expectOrthogonalPath(baseDiagram.arrows[0]?.layoutPath ?? []);
+    expectOrthogonalPath(gapDiagram.arrows[0]?.layoutPath ?? []);
+  });
+
+  it('honors horizontal root direction overrides in the ELK lane and reroutes arrows side-to-side', async () => {
+    const diagram = loadFrameYaml(join(FRAMES_DIR, 'example-deployment-pipeline.yaml'));
+    const adapter = new MockTextAdapter();
+
+    applyPreviewOverridesToFrameTree(diagram, {
+      root: {
+        direction: 'HORIZONTAL',
+      },
+    });
+    await layoutElkFrameDiagram(diagram, adapter);
+
+    const commit = findFrameById(
+      diagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'commit',
     );
-    expectPortAttachment(
-      gapDiagram.arrows[0]?.layoutPath ?? [],
-      [
-        (gapSource?._layout.placedX ?? 0) + ((gapSource?._layout.placedW ?? 0) / 2),
-        (gapSource?._layout.placedY ?? 0) + (gapSource?._layout.placedH ?? 0),
-      ],
-      [
-        (gapTarget?._layout.placedX ?? 0) + ((gapTarget?._layout.placedW ?? 0) / 2),
-        gapTarget?._layout.placedY ?? 0,
-      ],
+    const build = findFrameById(
+      diagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'build',
     );
+    const commitToBuild = diagram.arrows.find((arrow) => arrow.source === 'commit' && arrow.target === 'build');
+    const start = commitToBuild?.layoutPath?.[0];
+    const end = commitToBuild?.layoutPath?.[commitToBuild.layoutPath.length - 1];
+
+    expect((commit?._layout.placedX ?? 0) + (commit?._layout.placedW ?? 0))
+      .toBeLessThanOrEqual(build?._layout.placedX ?? -Infinity);
+    expect(Math.abs((commit?._layout.placedY ?? 0) - (build?._layout.placedY ?? 0))).toBeLessThanOrEqual(1e-6);
+
+    expectRightSideAttachment(start ?? [Infinity, Infinity], commit);
+    expectLeftSideAttachment(end ?? [Infinity, Infinity], build);
+    expectOrthogonalPath(commitToBuild?.layoutPath ?? []);
   });
 
   it('treats headed groups as ELK compounds while keeping headings decorative', async () => {
@@ -535,11 +590,13 @@ describe('layoutElkFrameDiagram', () => {
 
     expect((planningHeading?._layout.placedY ?? 0) + (planningHeading?._layout.placedH ?? 0))
       .toBeLessThanOrEqual(planningBody?._layout.placedY ?? Infinity);
-    expect((planning?._layout.placedY ?? 0) + (planning?._layout.placedH ?? 0))
-      .toBeLessThanOrEqual(implementation?._layout.placedY ?? Infinity);
-    expect((planning?._layout.placedY ?? 0) + (planning?._layout.placedH ?? 0))
+    expect((planning?._layout.placedX ?? 0) + (planning?._layout.placedW ?? 0))
+      .toBeLessThanOrEqual(implementation?._layout.placedX ?? Infinity);
+    expect((planning?._layout.placedX ?? 0) + (planning?._layout.placedW ?? 0))
+      .toBeLessThanOrEqual(delivery?._layout.placedX ?? Infinity);
+    expect((implementation?._layout.placedY ?? 0) + (implementation?._layout.placedH ?? 0))
       .toBeLessThanOrEqual(delivery?._layout.placedY ?? Infinity);
-    expect(implementation?._layout.placedX).toBeLessThan(delivery?._layout.placedX ?? Infinity);
+    expect(implementation?._layout.placedX).toBe(delivery?._layout.placedX);
 
     expect(define?._layout.placedY).toBeGreaterThanOrEqual(planningBody?._layout.placedY ?? -Infinity);
     expect(measure?._layout.placedY).toBeGreaterThanOrEqual(planningBody?._layout.placedY ?? -Infinity);
@@ -559,15 +616,11 @@ describe('layoutElkFrameDiagram', () => {
     const measureStart = measureToReview?.layoutPath?.[0];
     const measureEnd = measureToReview?.layoutPath?.[measureToReview.layoutPath.length - 1];
 
-    expect(defineStart?.[1]).toBe((define?._layout.placedY ?? 0) + (define?._layout.placedH ?? 0));
-    expectPointInsideHorizontalSpan(defineStart ?? [Infinity, Infinity], define);
-    expect(defineEnd?.[1]).toBe(implement?._layout.placedY ?? Infinity);
-    expectPointInsideHorizontalSpan(defineEnd ?? [Infinity, Infinity], implement);
+    expectRightSideAttachment(defineStart ?? [Infinity, Infinity], define);
+    expectLeftSideAttachment(defineEnd ?? [Infinity, Infinity], implement);
 
-    expect(measureStart?.[1]).toBe((measure?._layout.placedY ?? 0) + (measure?._layout.placedH ?? 0));
-    expectPointInsideHorizontalSpan(measureStart ?? [Infinity, Infinity], measure);
-    expect(measureEnd?.[1]).toBe(review?._layout.placedY ?? Infinity);
-    expectPointInsideHorizontalSpan(measureEnd ?? [Infinity, Infinity], review);
+    expectRightSideAttachment(measureStart ?? [Infinity, Infinity], measure);
+    expectLeftSideAttachment(measureEnd ?? [Infinity, Infinity], review);
 
     expectOrthogonalPath(defineToImplement?.layoutPath ?? []);
     expectOrthogonalPath(measureToReview?.layoutPath ?? []);

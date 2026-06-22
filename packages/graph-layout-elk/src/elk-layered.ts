@@ -36,6 +36,15 @@ export interface LayoutLayeredOptions {
   optionOverrides?: Record<string, string>;
 }
 
+export interface LayoutLayeredForFamilyOptions {
+  /** Override the family's default flow axis while keeping its other defaults. */
+  direction?: LayeredLayoutConfig['direction'];
+  /** Override the family's default spacing profile. */
+  spacingProfile?: LayeredLayoutConfig['spacingProfile'];
+  /** Merge extra ELK options over the family defaults. */
+  optionOverrides?: Record<string, string>;
+}
+
 type ElkDirection = 'DOWN' | 'RIGHT' | 'UP' | 'LEFT';
 
 function resolveElkDirection(
@@ -220,15 +229,26 @@ export async function layoutLayered(
 export async function layoutLayeredForFamily(
   family: LayeredCorpusFamily,
   input: Omit<GraphLayoutInput, 'direction' | 'spacingProfile'>,
-  optionOverrides?: Record<string, string>,
+  options?: LayoutLayeredForFamilyOptions | Record<string, string>,
 ): Promise<GraphLayoutResult> {
-  const config = layeredConfigForFamily(family);
-  if (optionOverrides) {
-    config.optionOverrides = {
-      ...config.optionOverrides,
-      ...optionOverrides,
-    };
-  }
+  const familyConfig = layeredConfigForFamily(family);
+  const resolvedOptions =
+    options && (
+      'direction' in options
+      || 'spacingProfile' in options
+      || 'optionOverrides' in options
+    )
+      ? options as LayoutLayeredForFamilyOptions
+      : { optionOverrides: options as Record<string, string> | undefined };
+  const config: LayeredLayoutConfig = {
+    ...familyConfig,
+    direction: resolvedOptions.direction ?? familyConfig.direction,
+    spacingProfile: resolvedOptions.spacingProfile ?? familyConfig.spacingProfile,
+    optionOverrides: {
+      ...(familyConfig.optionOverrides ?? {}),
+      ...(resolvedOptions.optionOverrides ?? {}),
+    },
+  };
   return layoutLayered(
     {
       ...input,

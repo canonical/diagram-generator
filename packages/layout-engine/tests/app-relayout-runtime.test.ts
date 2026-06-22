@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   createPreviewRelayoutRuntime,
+  createPreviewRelayoutRuntimeFromEditorHost,
   createPreviewRelayoutRuntimeFromRuntime,
   createPreviewRelayoutRuntimeOptionsFromHost,
   createPreviewRelayoutRuntimeOptionsFromRuntime,
@@ -14,7 +15,7 @@ describe('createPreviewRelayoutRuntime', () => {
     const applyAllOverrides = vi.fn();
     const updateInspector = vi.fn();
     const runtime = createPreviewRelayoutRuntime({
-      overrides: { alpha: { waypoints: [[24, 32]] } },
+      getOverrides: () => ({ alpha: { waypoints: [[24, 32]] } }),
       coercedKeys: new Set<string>(),
       getGridOverrides: () => ({ cols: 8 }),
       normalizeGridOverrides: (value) => value,
@@ -47,8 +48,9 @@ describe('createPreviewRelayoutRuntime', () => {
   });
 
   it('builds typed relayout runtime options from host-owned bridge contracts', async () => {
+    let overrides: Record<string, Record<string, unknown>> = { alpha: { waypoints: [[24, 32]] } };
     const options = createPreviewRelayoutRuntimeOptionsFromHost({
-      overrides: { alpha: { waypoints: [[24, 32]] } },
+      getOverrides: () => overrides,
       coercedKeys: new Set<string>(),
       model: { id: 'model' },
       selectedIds: new Set<string>(['alpha']),
@@ -77,20 +79,23 @@ describe('createPreviewRelayoutRuntime', () => {
       commitOverridePatchAction: vi.fn(),
     });
 
+    overrides = { beta: { direction: 'HORIZONTAL' } };
     const localResult = options.performLocalRelayout({ cols: 8 });
     const engineResult = await options.performEngineRelayout?.({ cols: 4 });
     await options.restoreArrowFromTree('alpha');
 
     expect(localResult).toMatchObject({ width: 320, height: 200 });
     expect(engineResult).toMatchObject({ width: 1, height: 1 });
-    expect(options.hasWaypointOverride('alpha')).toBe(true);
+    expect(options.hasWaypointOverride('alpha')).toBe(false);
+    expect(options.hasWaypointOverride('beta')).toBe(false);
     expect(options.isSelected('alpha')).toBe(true);
     expect(options.restoreArrowFromTree).toBeTypeOf('function');
   });
 
   it('derives typed relayout runtime options from thinner runtime-owned state', async () => {
+    let overrides: Record<string, Record<string, unknown>> = { alpha: { waypoints: [[24, 32]] } };
     const options = createPreviewRelayoutRuntimeOptionsFromRuntime({
-      overrides: { alpha: { waypoints: [[24, 32]] } },
+      getOverrides: () => overrides,
       coercedKeys: new Set<string>(),
       model: { id: 'model' },
       previewBridgeHost: {
@@ -125,13 +130,15 @@ describe('createPreviewRelayoutRuntime', () => {
       },
     });
 
+    overrides = { beta: { direction: 'HORIZONTAL' } };
     const localResult = options.performLocalRelayout({ cols: 8 });
     const engineResult = await options.performEngineRelayout?.({ cols: 4 });
     await options.restoreArrowFromTree('alpha');
 
     expect(localResult).toMatchObject({ width: 320, height: 200 });
     expect(engineResult).toMatchObject({ width: 1, height: 1 });
-    expect(options.hasWaypointOverride('alpha')).toBe(true);
+    expect(options.hasWaypointOverride('alpha')).toBe(false);
+    expect(options.hasWaypointOverride('beta')).toBe(false);
     expect(options.isSelected('alpha')).toBe(true);
     expect(options.restoreArrowFromTree).toBeTypeOf('function');
   });
@@ -139,7 +146,7 @@ describe('createPreviewRelayoutRuntime', () => {
   it('builds a relayout runtime directly from grouped runtime-owned state', async () => {
     const finishRelayout = vi.fn(() => true);
     const runtime = createPreviewRelayoutRuntimeFromRuntime({
-      overrides: { alpha: { waypoints: [[24, 32]] } },
+      getOverrides: () => ({ alpha: { waypoints: [[24, 32]] } }),
       coercedKeys: new Set<string>(),
       model: { id: 'model' },
       previewBridgeHost: {
@@ -173,5 +180,45 @@ describe('createPreviewRelayoutRuntime', () => {
     await runtime.requestRelayout('alpha');
 
     expect(finishRelayout).toHaveBeenCalledWith('alpha', { coerced: null }, 'local');
+  });
+
+  it('resolves live overrides when building a relayout runtime from editor-host getters', async () => {
+    let overrides: Record<string, Record<string, unknown>> = {};
+    const performLocalRelayout = vi.fn(() => ({ coerced: null, width: 320, height: 200 }));
+    const runtime = createPreviewRelayoutRuntimeFromEditorHost({
+      getOverrides: () => overrides,
+      coercedKeys: new Set<string>(),
+      model: { id: 'model' },
+      previewBridgeHost: {
+        performLocalRelayout,
+      },
+      getGridOverrides: () => ({ cols: 8 }),
+      normalizeGridOverrides: (value) => value,
+      selectedIds: new Set<string>(),
+      getRelayoutStatus: () => ({ localReady: true }),
+      isEngineLayoutActive: () => false,
+      failRelayout: vi.fn(),
+      finishRelayout: vi.fn(() => true),
+      logError: vi.fn(),
+      clearOverride: vi.fn(),
+      setDirty: vi.fn(),
+      applyAllOverrides: vi.fn(),
+      updateInspector: vi.fn(),
+      reloadTreeAfterArrowRestore: vi.fn(async () => undefined),
+      rebuildArrowSvg: vi.fn(),
+      editorState: {
+        captureOverrideEntries: vi.fn(() => ({})),
+        commitOverridePatchAction: vi.fn(),
+      },
+    });
+
+    overrides = { page: { direction: 'HORIZONTAL' } };
+    await runtime.requestRelayout('page');
+
+    expect(performLocalRelayout).toHaveBeenCalledWith(
+      { id: 'model' },
+      { page: { direction: 'HORIZONTAL' } },
+      { cols: 8 },
+    );
   });
 });

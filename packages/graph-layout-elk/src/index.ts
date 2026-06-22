@@ -46,6 +46,7 @@ export {
   resolvedElkOptionsForFamily,
   elkParamGroups,
   type LayoutLayeredOptions,
+  type LayoutLayeredForFamilyOptions,
 } from './elk-layered.js';
 
 export {

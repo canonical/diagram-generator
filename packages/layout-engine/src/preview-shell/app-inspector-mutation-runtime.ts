@@ -19,7 +19,7 @@ import type { PreviewGridInfo } from './grid-resolution.js';
 export interface CreatePreviewInspectorMutationRuntimeOptions {
   captureOverrideEntries: (ids: string[]) => unknown;
   commitOverridePatchAction: (label: string, beforeEntries: unknown, afterEntries: unknown) => void;
-  overrides: Record<string, Record<string, unknown>>;
+  getOverrides: () => Record<string, Record<string, unknown>>;
   coercedKeys: Set<string>;
   getNode: (cid: string) => PreviewFrameMutationNode | PreviewStyleNode | null | undefined;
   snapToGrid: (value: number) => number;
@@ -45,10 +45,11 @@ export function createPreviewInspectorMutationRuntime(
 ): PreviewInspectorMutationRuntime {
   return {
     applyStyle(cid, styleName) {
+      const overrides = options.getOverrides();
       const ids = [cid];
       const beforeEntries = options.captureOverrideEntries(ids);
       const changed = applyVisiblePreviewStyleOverride({
-        overrides: options.overrides,
+        overrides,
         cid,
         node: options.getNode(cid) as PreviewStyleNode | null | undefined,
         styleName,
@@ -68,6 +69,7 @@ export function createPreviewInspectorMutationRuntime(
       );
     },
     setFrameAlign(cid, align) {
+      const overrides = options.getOverrides();
       dispatchPreviewSingleFrameAlignHost({
         cid,
         captureOverrideEntries: options.captureOverrideEntries,
@@ -89,7 +91,7 @@ export function createPreviewInspectorMutationRuntime(
           }
           return { kind: 'none' as const };
         },
-        overrides: options.overrides,
+        overrides,
         coercedKeys: options.coercedKeys,
         getNode: (cid) => options.getNode(cid) as PreviewFrameMutationNode | null | undefined,
         align,
@@ -101,6 +103,7 @@ export function createPreviewInspectorMutationRuntime(
       });
     },
     setFrameProp(cid, prop, value) {
+      const overrides = options.getOverrides();
       dispatchPreviewSingleFramePropHost({
         cid,
         prop,
@@ -124,7 +127,7 @@ export function createPreviewInspectorMutationRuntime(
           }
           return { kind: 'none' as const };
         },
-        overrides: options.overrides,
+        overrides,
         coercedKeys: options.coercedKeys,
         getNode: (cid) => options.getNode(cid) as PreviewFrameMutationNode | null | undefined,
         snapToGrid: options.snapToGrid,
@@ -135,6 +138,7 @@ export function createPreviewInspectorMutationRuntime(
       });
     },
     setFrameSize(cid, dimension, value) {
+      const overrides = options.getOverrides();
       const nextDimension = dimension as PreviewFrameSizeDimension;
       dispatchPreviewSingleFrameSizeHost({
         cid,
@@ -160,7 +164,7 @@ export function createPreviewInspectorMutationRuntime(
           dimension: hostOptions.dimension as PreviewFrameSizeDimension,
           px: hostOptions.px,
         }),
-        overrides: options.overrides,
+        overrides,
         coercedKeys: options.coercedKeys,
         setDirty: options.setDirty,
         commitOverridePatchAction: options.commitOverridePatchAction,

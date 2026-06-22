@@ -7,6 +7,7 @@ import type {
   GraphLayoutInput,
   GraphLayoutResult,
   GraphNodeInput,
+  LayoutDirection,
   LayeredCorpusFamily,
   PlacedEdge,
   PlacedNode,
@@ -16,7 +17,7 @@ import {
   stripImplementationOwnedElkLayeredOverrides,
 } from '@diagram-generator/graph-layout-elk';
 
-import { Frame, FrameDiagram, Border, createLine } from './frame-model.js';
+import { Frame, FrameDiagram, Border, Direction, createLine } from './frame-model.js';
 import { measure, place, layoutFrameTree, type LayoutOutput } from './layout.js';
 import { deserializeFrameDiagramWire, serializeFrameDiagram } from './frame-serialize.js';
 import { resolveStyles } from './resolve-styles.js';
@@ -42,6 +43,10 @@ export interface ElkLayoutOptions {
 export interface ElkLayoutOutput extends LayoutOutput {
   /** Raw ELK node/edge geometry for debug overlay (absolute coordinates). */
   elkSnapshot?: ElkLayoutSnapshot;
+}
+
+function elkGraphDirectionFromRoot(root: Frame): LayoutDirection {
+  return root.direction === Direction.HORIZONTAL ? 'LR' : 'TB';
 }
 
 function findFrame(root: Frame, id: string): Frame | null {
@@ -835,10 +840,8 @@ export async function layoutElkFrameDiagram(
     semanticSizes,
     semanticLayout.placements,
   );
-  const input: GraphLayoutInput = {
+  const input: Omit<GraphLayoutInput, 'direction' | 'spacingProfile'> = {
     id: diagram.title || 'diagram',
-    direction: 'TB',
-    spacingProfile: 'normal',
     nodes,
     edges: buildGraphEdges(diagram, adapter),
   };
@@ -851,7 +854,10 @@ export async function layoutElkFrameDiagram(
   const elk = await layoutLayeredForFamily(
     family,
     input,
-    Object.keys(elkOverrides).length > 0 ? elkOverrides : undefined,
+    {
+      direction: elkGraphDirectionFromRoot(diagram.root),
+      optionOverrides: Object.keys(elkOverrides).length > 0 ? elkOverrides : undefined,
+    },
   );
   const placedById = indexPlaced(elk.nodes);
   const edgeBox = bboxOfElkEdges(elk.edges, originX, originY);

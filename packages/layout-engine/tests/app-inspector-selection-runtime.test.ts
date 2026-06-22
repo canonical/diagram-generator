@@ -30,7 +30,7 @@ describe('createPreviewInspectorSelectionRuntime', () => {
       setMultiActionGap() {},
       captureOverrideEntries,
       commitOverridePatchAction,
-      overrides,
+      getOverrides: () => overrides,
       coercedKeys: new Set<string>(),
       getNode: () => ({ type: 'box', data: { width: 120, height: 64 } }),
       cleanOverride() {},
@@ -78,8 +78,8 @@ describe('createPreviewInspectorSelectionRuntime', () => {
     );
   });
 
-  it('applies multi-frame size mutations through typed owners and schedules relayout', () => {
-    const overrides: Record<string, Record<string, unknown>> = {};
+  it('applies multi-frame size mutations through typed owners and schedules relayout against the live override store', () => {
+    let overrides: Record<string, Record<string, unknown>> = {};
     const captureOverrideEntries = vi.fn((ids: string[]) => (
       Object.fromEntries(ids.map((id) => [id, { ...(overrides[id] || {}) }]))
     ));
@@ -100,7 +100,7 @@ describe('createPreviewInspectorSelectionRuntime', () => {
       setMultiActionGap() {},
       captureOverrideEntries,
       commitOverridePatchAction,
-      overrides,
+      getOverrides: () => overrides,
       coercedKeys: new Set<string>(),
       getNode: () => ({ type: 'box', data: { width: 120, height: 64 } }),
       cleanOverride() {},
@@ -128,6 +128,7 @@ describe('createPreviewInspectorSelectionRuntime', () => {
       normalizeStyleName: (styleName) => styleName,
     });
 
+    overrides = {};
     runtime.setMultiFrameSize('width', 96);
 
     expect(overrides.alpha).toEqual({ sizing_w: 'FIXED', width: 96 });

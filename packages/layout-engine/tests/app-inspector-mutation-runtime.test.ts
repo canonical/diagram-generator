@@ -2,8 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { createPreviewInspectorMutationRuntime } from '../src/preview-shell/app-inspector-mutation-runtime.js';
 
 describe('createPreviewInspectorMutationRuntime', () => {
-  it('dispatches single-frame prop mutations through typed owners and schedules relayout', () => {
-    const overrides: Record<string, Record<string, unknown>> = {};
+  it('dispatches single-frame prop mutations through typed owners and schedules relayout against the live override store', () => {
+    let overrides: Record<string, Record<string, unknown>> = {};
     const captureOverrideEntries = vi.fn((ids: string[]) => (
       Object.fromEntries(ids.map((id) => [id, { ...(overrides[id] || {}) }]))
     ));
@@ -14,7 +14,7 @@ describe('createPreviewInspectorMutationRuntime', () => {
     const runtime = createPreviewInspectorMutationRuntime({
       captureOverrideEntries,
       commitOverridePatchAction,
-      overrides,
+      getOverrides: () => overrides,
       coercedKeys: new Set<string>(),
       getNode: () => ({ type: 'box' }),
       snapToGrid: (value) => value,
@@ -28,6 +28,7 @@ describe('createPreviewInspectorMutationRuntime', () => {
       baselineStep: 8,
     });
 
+    overrides = {};
     runtime.setFrameProp('root', 'gap_delta', 24);
 
     expect(overrides.root).toEqual({ gap_delta: 24 });
