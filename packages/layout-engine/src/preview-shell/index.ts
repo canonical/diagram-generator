@@ -658,16 +658,19 @@ export {
 
 export type {
   CreatePreviewGridEditorInstallOptionsFromLegacyEditorHostOptions,
+  CreatePreviewGridEditorInstallUnitFromLegacyEditorHostOptions,
   CreatePreviewGridEditorInstallUnitFromEditorHostOptions,
   CreatePreviewGridEditorInstallUnitFromBrowserHostOptions,
   PreviewGridEditorLegacyConfig,
   PreviewGridEditorLegacyState,
+  PreviewGridEditorLegacyStateSeed,
   PreviewGridEditorLegacyWindow,
   PreviewGridEditorInstallUnit,
 } from './app-grid-editor-install-unit.js';
 
 export {
   createPreviewGridEditorInstallOptionsFromLegacyEditorHost,
+  createPreviewGridEditorInstallUnitFromLegacyEditorHost,
   createPreviewGridEditorInstallUnitFromEditorHost,
   createPreviewGridEditorInstallUnitFromBrowserHost,
 } from './app-grid-editor-install-unit.js';

@@ -295,8 +295,6 @@ function createPreviewGridEditorRuntimeContext(options?: {
   sceneFacade?: unknown;
 }) {
   let capturedLegacyOptions: Record<string, unknown> | null = null;
-  let capturedInstallOptions: Record<string, unknown> | null = null;
-  const derivedInstallOptions = { kind: "derived-install-options" };
   const runtime = {
     invalidateOverrideBoundFacades() {},
     getBootstrapFacade() {
@@ -318,6 +316,7 @@ function createPreviewGridEditorRuntimeContext(options?: {
     SLUG: "demo",
     ACTIVE_LAYOUT_ENGINE: "v3",
     GRID: true,
+    FALLBACK_GAP: 24,
     GUIDE_MODES: ["off", "all"],
     GUIDE_COLOR: "#f00",
     GUIDE_OPACITY: "0.5",
@@ -341,6 +340,7 @@ function createPreviewGridEditorRuntimeContext(options?: {
     model: {
       _roots: [],
       roots: [{ id: "root" }],
+      overrides: { alpha: { width: 120 } },
       gridOverrides: { rows: 2 },
       removedIds: new Set<string>(),
       setDiagramGrid() {},
@@ -529,14 +529,10 @@ function createPreviewGridEditorRuntimeContext(options?: {
       },
       __DG_getPreviewShellBootstrapContract() {
         return {
-          createPreviewGridEditorInstallOptionsFromLegacyEditorHost(
+          createPreviewGridEditorInstallUnitFromLegacyEditorHost(
             nextOptions: Record<string, unknown>,
           ) {
             capturedLegacyOptions = nextOptions;
-            return derivedInstallOptions;
-          },
-          createPreviewGridEditorInstallUnitFromEditorHost(nextOptions: Record<string, unknown>) {
-            capturedInstallOptions = nextOptions;
             return {
               getRuntime() {
                 return runtime;
@@ -556,9 +552,6 @@ function createPreviewGridEditorRuntimeContext(options?: {
     runtime,
     getCapturedOptions() {
       return capturedLegacyOptions;
-    },
-    getCapturedInstallOptions() {
-      return capturedInstallOptions;
     },
   };
 }
@@ -708,7 +701,6 @@ test("editor bootstrap facade delegates through the typed preview-grid runtime",
   });
 
   const capturedOptions = harness.getCapturedOptions();
-  const capturedInstallOptions = harness.getCapturedInstallOptions();
   const config = capturedOptions?.config as Record<string, unknown> | undefined;
   const state = capturedOptions?.state as Record<string, unknown> | undefined;
   const helpers = capturedOptions?.helpers as Record<string, unknown> | undefined;
@@ -720,29 +712,40 @@ test("editor bootstrap facade delegates through the typed preview-grid runtime",
     gridEnabled: config?.gridEnabled,
     guideModes: Array.from(config?.guideModes as Iterable<string>),
     selectedIds: Array.from(state?.selectedIds as Iterable<string>),
-    allowInternalDirtyNavigation:
-      (state?.allowInternalDirtyNavigationState as { get?: () => boolean } | undefined)?.get?.(),
-    generation: (state?.generationState as { get?: () => number } | undefined)?.get?.(),
+    coercedKeys: Array.from(state?.coercedKeys as Iterable<string>),
+    hasInteractionManager: typeof state?.interactionManager,
+    hasEditorUndo: typeof (
+      state?.editorState as { undo?: (...args: unknown[]) => unknown } | undefined
+    )?.undo,
+    hasPreviewSave: typeof (
+      state?.previewSaveClient as { trySaveIfDirty?: (...args: unknown[]) => unknown } | undefined
+    )?.trySaveIfDirty,
+    hasConstraintsValidate: typeof (
+      state?.constraints as { validate?: (...args: unknown[]) => unknown } | undefined
+    )?.validate,
     hasGetOwnDelta: typeof modelOps?.getOwnDelta,
     hasGetEditorInteractionFacade: typeof facades?.getEditorInteractionFacade,
     hasGetEditorSceneFacade: typeof facades?.getEditorSceneFacade,
     hasGetEditorRelayoutFacade: typeof facades?.getEditorRelayoutFacade,
     hasApplyInteractionOverrideEntries: typeof helpers?.applyInteractionOverrideEntries,
-    installOptionsKind: capturedInstallOptions?.kind,
+    fallbackGap: config?.fallbackGap,
   }), {
     slug: "demo",
     engine: "v3",
     gridEnabled: true,
     guideModes: ["off", "all"],
     selectedIds: ["alpha", "beta"],
-    allowInternalDirtyNavigation: false,
-    generation: 3,
+    coercedKeys: ["coerced"],
+    hasInteractionManager: "object",
+    hasEditorUndo: "function",
+    hasPreviewSave: "function",
+    hasConstraintsValidate: "function",
     hasGetOwnDelta: "function",
     hasGetEditorInteractionFacade: "function",
     hasGetEditorSceneFacade: "function",
     hasGetEditorRelayoutFacade: "function",
     hasApplyInteractionOverrideEntries: "function",
-    installOptionsKind: "derived-install-options",
+    fallbackGap: 24,
   });
 });
 
@@ -775,7 +778,6 @@ test("editor relayout facade delegates through the typed preview-grid runtime", 
   });
 
   const capturedOptions = harness.getCapturedOptions();
-  const capturedInstallOptions = harness.getCapturedInstallOptions();
   const config = capturedOptions?.config as Record<string, unknown> | undefined;
   const state = capturedOptions?.state as Record<string, unknown> | undefined;
   const facades = capturedOptions?.facades as Record<string, unknown> | undefined;
@@ -788,39 +790,33 @@ test("editor relayout facade delegates through the typed preview-grid runtime", 
       state?.editorState as { commitOverridePatchAction?: (...args: unknown[]) => unknown } | undefined
     )?.commitOverridePatchAction,
     selectedIds: Array.from(state?.selectedIds as Iterable<string>),
-    hasOverrideStateGet: typeof (
-      state?.overridesState as { get?: () => Record<string, unknown> } | undefined
+    hasModelGet: typeof (
+      state?.model as { get?: (...args: unknown[]) => unknown } | undefined
     )?.get,
-    hasOverrideStateSet: typeof (
-      state?.overridesState as { set?: (nextOverrides: Record<string, unknown>) => void } | undefined
-    )?.set,
-    hasTimerStateGet: typeof (
-      state?.layoutRelayoutTimerState as { get?: () => unknown } | undefined
-    )?.get,
-    hasTimerStateSet: typeof (
-      state?.layoutRelayoutTimerState as { set?: (value: unknown) => void } | undefined
-    )?.set,
+    hasModelClearOverride: typeof (
+      state?.model as { clearOverride?: (...args: unknown[]) => unknown } | undefined
+    )?.clearOverride,
+    hasPreviewSaveSync: typeof (
+      state?.previewSaveClient as { syncSaveButton?: (...args: unknown[]) => unknown } | undefined
+    )?.syncSaveButton,
     hasGetEditorSceneFacade: typeof facades?.getEditorSceneFacade,
     hasGetEditorRelayoutFacade: typeof facades?.getEditorRelayoutFacade,
     hasSnapToGrid: typeof config?.snapToGrid,
     handleSize: config?.handleSize,
     guideColor: config?.guideColor,
-    installOptionsKind: capturedInstallOptions?.kind,
   }), {
     coercedKeys: ["coerced"],
     hasNormalizeGridOverrides: "function",
     hasCommitOverridePatchAction: "function",
     selectedIds: ["alpha", "beta"],
-    hasOverrideStateGet: "function",
-    hasOverrideStateSet: "function",
-    hasTimerStateGet: "function",
-    hasTimerStateSet: "function",
+    hasModelGet: "function",
+    hasModelClearOverride: "function",
+    hasPreviewSaveSync: "function",
     hasGetEditorSceneFacade: "function",
     hasGetEditorRelayoutFacade: "function",
     hasSnapToGrid: "function",
     handleSize: 12,
     guideColor: "#f00",
-    installOptionsKind: "derived-install-options",
   });
 });
 

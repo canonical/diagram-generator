@@ -197,8 +197,31 @@ export interface PreviewGridEditorLegacyConfig {
   snapToGrid: PreviewGridEditorRuntimeBrowserOptions['snapToGrid'];
 }
 
+type PreviewGridEditorLegacyModel =
+  & CreatePreviewGridEditorInstallUnitFromEditorHostOptions['shared']['model']
+  & CreatePreviewGridEditorBrowserStateFromBrowserHostOptions['model'];
+
+export interface PreviewGridEditorLegacyStateSeed {
+  model: PreviewGridEditorLegacyModel;
+  interactionManager:
+    CreatePreviewGridEditorInstallUnitFromEditorHostOptions['shared']['interactionManager'];
+  selectedIds: CreatePreviewGridEditorInstallUnitFromEditorHostOptions['shared']['selectedIds'];
+  coercedKeys: CreatePreviewGridEditorInstallUnitFromEditorHostOptions['shared']['coercedKeys'];
+  editorState: CreatePreviewGridEditorInstallUnitFromEditorHostOptions['shared']['editorState'];
+  previewSaveClient:
+    CreatePreviewGridEditorInstallUnitFromEditorHostOptions['shared']['previewSaveClient'];
+  constraints: CreatePreviewGridEditorInstallUnitFromEditorHostOptions['shared']['constraints'];
+  initialSelectionDepth?: number;
+  initialGeneration?: number;
+  initialAllowInternalDirtyNavigation?: boolean;
+  initialLastViolations?: unknown;
+  initialOverrides?: Record<string, Record<string, unknown>>;
+  initialMultiActionGap?: number;
+  initialLayoutRelayoutTimer?: unknown | null;
+}
+
 export interface PreviewGridEditorLegacyState {
-  model: CreatePreviewGridEditorInstallUnitFromEditorHostOptions['shared']['model'];
+  model: PreviewGridEditorLegacyModel;
   interactionManager:
     CreatePreviewGridEditorInstallUnitFromEditorHostOptions['shared']['interactionManager'];
   selectedIds: CreatePreviewGridEditorInstallUnitFromEditorHostOptions['shared']['selectedIds'];
@@ -270,6 +293,16 @@ export interface CreatePreviewGridEditorInstallOptionsFromLegacyEditorHostOption
   previewWindow: PreviewGridEditorLegacyWindow;
   config: PreviewGridEditorLegacyConfig;
   state: PreviewGridEditorLegacyState;
+  helpers: PreviewGridEditorLegacyHelpers;
+  modelOps: CreatePreviewGridEditorInstallUnitFromEditorHostOptions['modelOps'];
+  facades: CreatePreviewGridEditorInstallUnitFromEditorHostOptions['facades'];
+}
+
+export interface CreatePreviewGridEditorInstallUnitFromLegacyEditorHostOptions {
+  document: Document;
+  previewWindow: PreviewGridEditorLegacyWindow;
+  config: PreviewGridEditorLegacyConfig;
+  state: PreviewGridEditorLegacyStateSeed;
   helpers: PreviewGridEditorLegacyHelpers;
   modelOps: CreatePreviewGridEditorInstallUnitFromEditorHostOptions['modelOps'];
   facades: CreatePreviewGridEditorInstallUnitFromEditorHostOptions['facades'];
@@ -431,6 +464,77 @@ function createLegacyPreviewGuideRenderer(
   };
 }
 
+function createLegacyPreviewMutableState(
+  options: CreatePreviewGridEditorInstallUnitFromLegacyEditorHostOptions,
+): PreviewGridEditorLegacyState {
+  let selectionDepth = options.state.initialSelectionDepth ?? 0;
+  let generation = options.state.initialGeneration ?? 0;
+  let allowInternalDirtyNavigation = options.state.initialAllowInternalDirtyNavigation ?? false;
+  let lastViolations = (
+    options.state.initialLastViolations ?? []
+  ) as ReturnType<PreviewGridEditorLegacyState['lastViolationsState']['get']>;
+  let overrides = options.state.initialOverrides ?? options.state.model.overrides ?? {};
+  let multiActionGap = options.state.initialMultiActionGap ?? options.config.fallbackGap;
+  let layoutRelayoutTimer = (
+    options.state.initialLayoutRelayoutTimer ?? null
+  ) as ReturnType<PreviewGridEditorLegacyState['layoutRelayoutTimerState']['get']>;
+
+  options.state.model.overrides = overrides;
+
+  return {
+    model: options.state.model,
+    interactionManager: options.state.interactionManager,
+    selectedIds: options.state.selectedIds,
+    selectionDepthState: {
+      get: () => selectionDepth,
+      set: (nextDepth) => {
+        selectionDepth = nextDepth;
+      },
+    },
+    coercedKeys: options.state.coercedKeys,
+    editorState: options.state.editorState,
+    previewSaveClient: options.state.previewSaveClient,
+    generationState: {
+      get: () => generation,
+      set: (value) => {
+        generation = value;
+      },
+    },
+    allowInternalDirtyNavigationState: {
+      get: () => allowInternalDirtyNavigation,
+      set: (allowed) => {
+        allowInternalDirtyNavigation = allowed;
+      },
+    },
+    constraints: options.state.constraints,
+    lastViolationsState: {
+      get: () => lastViolations,
+      set: (violations) => {
+        lastViolations = violations;
+      },
+    },
+    overridesState: {
+      get: () => overrides,
+      set: (nextOverrides) => {
+        overrides = nextOverrides;
+        options.state.model.overrides = nextOverrides;
+      },
+    },
+    multiActionGapState: {
+      get: () => multiActionGap,
+      set: (gap) => {
+        multiActionGap = gap;
+      },
+    },
+    layoutRelayoutTimerState: {
+      get: () => layoutRelayoutTimer,
+      set: (timerId) => {
+        layoutRelayoutTimer = timerId;
+      },
+    },
+  };
+}
+
 export function createPreviewGridEditorInstallOptionsFromLegacyEditorHost(
   options: CreatePreviewGridEditorInstallOptionsFromLegacyEditorHostOptions,
 ): CreatePreviewGridEditorInstallUnitFromEditorHostOptions {
@@ -538,6 +642,22 @@ export function createPreviewGridEditorInstallOptionsFromLegacyEditorHost(
     modelOps: options.modelOps,
     facades: options.facades,
   };
+}
+
+export function createPreviewGridEditorInstallUnitFromLegacyEditorHost(
+  options: CreatePreviewGridEditorInstallUnitFromLegacyEditorHostOptions,
+): PreviewGridEditorInstallUnit {
+  return createPreviewGridEditorInstallUnitFromEditorHost(
+    createPreviewGridEditorInstallOptionsFromLegacyEditorHost({
+      document: options.document,
+      previewWindow: options.previewWindow,
+      config: options.config,
+      state: createLegacyPreviewMutableState(options),
+      helpers: options.helpers,
+      modelOps: options.modelOps,
+      facades: options.facades,
+    }),
+  );
 }
 
 function requestLayoutRelayoutFromFacade(

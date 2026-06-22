@@ -4,7 +4,7 @@ const ACTIVE_LAYOUT_ENGINE = window.__DG_CONFIG.engine || "v3";
 const SHELL_MODE = window.__DG_CONFIG.shell_mode || "grid";
 const GRID = window.__DG_CONFIG.grid;
 const INSET = window.__DG_CONFIG.inset;
-let generation = 0;
+const FALLBACK_GAP = window.__DG_CONFIG.col_gap || 24;
 
 if (SHELL_MODE !== "grid") {
   throw new Error("preview/editor.js only supports the grid preview shell");
@@ -14,14 +14,10 @@ if (SHELL_MODE !== "grid") {
 const model = new ComponentModel();
 const mgr = new InteractionManager();
 const selectedIds = mgr.selectedIds;
-let selectionDepth = 0;
-let overrides = model.overrides;
 const constraints = createDefaultRegistry();
-let lastViolations = [];
 // Track which override keys were set by engine coercion (not user action).
 // Format: Set of "fid:key" strings, e.g. "root:sizing_h"
 const _coercedKeys = new Set();
-let _layoutRelayoutTimer = null;
 var _previewGridEditorInstallUnit = null;
 var _previewGridEditorRuntime = null;
 
@@ -30,9 +26,7 @@ function _warnUnknownInspectorAction(kind, action, actionEl) {
   console.warn(`preview inspector: unknown ${kind} action "${action}"`, actionEl);
 }
 
-let _allowInternalDirtyNavigation = false;
 // HANDLE_SIZE now shared via SHARED_HANDLE_SIZE in editor-base.js
-let multiActionGap = window.__DG_CONFIG.col_gap || 24;
 
 function getThemeToken(name, fallback) {
   const value = window.getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -67,91 +61,47 @@ const GUIDE_OPACITY = "0.5";
 
 function _createPreviewGridEditorInstallUnit() {
   const previewShellBootstrap = window.__DG_getPreviewShellBootstrapContract();
-  return previewShellBootstrap.createPreviewGridEditorInstallUnitFromEditorHost(
-    previewShellBootstrap.createPreviewGridEditorInstallOptionsFromLegacyEditorHost({
-      document,
-      previewWindow: window,
-      config: {
-        slug: SLUG,
-        engine: ACTIVE_LAYOUT_ENGINE,
-        gridEnabled: GRID,
-        guideModes: GUIDE_MODES,
-        baselineStep: BASELINE_STEP,
-        inset: INSET,
-        guideColor: GUIDE_COLOR,
-        guideOpacity: GUIDE_OPACITY,
-        interactionMode: InteractionMode,
-        handleSize: SHARED_HANDLE_SIZE,
-        minNodeSize: SHARED_MIN_NODE_SIZE,
-        fallbackGap: window.__DG_CONFIG.col_gap || 24,
-        snapToGrid: (value) => snapToGrid(value),
-      },
-      state: {
-        model,
-        interactionManager: mgr,
-        selectedIds,
-        selectionDepthState: {
-          get: () => selectionDepth,
-          set: (nextDepth) => {
-            selectionDepth = nextDepth;
-          },
-        },
-        coercedKeys: _coercedKeys,
-        editorState: EditorState,
-        previewSaveClient: PreviewSaveClient,
-        generationState: {
-          get: () => generation,
-          set: (value) => {
-            generation = value;
-          },
-        },
-        allowInternalDirtyNavigationState: {
-          get: () => _allowInternalDirtyNavigation,
-          set: (allowed) => {
-            _allowInternalDirtyNavigation = allowed;
-          },
-        },
-        constraints,
-        lastViolationsState: {
-          get: () => lastViolations,
-          set: (violations) => {
-            lastViolations = violations;
-          },
-        },
-        overridesState: {
-          get: () => overrides,
-          set: (nextOverrides) => {
-            overrides = nextOverrides;
-          },
-        },
-        multiActionGapState: {
-          get: () => multiActionGap,
-          set: (gap) => {
-            multiActionGap = gap;
-          },
-        },
-        layoutRelayoutTimerState: {
-          get: () => _layoutRelayoutTimer,
-          set: (timerId) => {
-            _layoutRelayoutTimer = timerId;
-          },
-        },
-      },
-      helpers: {
-        applyInteractionOverrideEntries: _applyInteractionOverrideEntries,
-      },
-      modelOps: {
-        getOwnDelta: (cid) => getOwnDelta(cid),
-        getEffectiveDelta: (cid) => getEffectiveDelta(cid),
-        getAncestors: (cid) => getAncestors(cid),
-      },
-      facades: {
-        getEditorSceneFacade: () => _getEditorSceneFacade(),
-        getEditorRelayoutFacade: () => _getEditorRelayoutFacade(),
-        getEditorInteractionFacade: () => _getEditorInteractionFacade(),
-      },
-    }),
-  );
+  return previewShellBootstrap.createPreviewGridEditorInstallUnitFromLegacyEditorHost({
+    document,
+    previewWindow: window,
+    config: {
+      slug: SLUG,
+      engine: ACTIVE_LAYOUT_ENGINE,
+      gridEnabled: GRID,
+      guideModes: GUIDE_MODES,
+      baselineStep: BASELINE_STEP,
+      inset: INSET,
+      guideColor: GUIDE_COLOR,
+      guideOpacity: GUIDE_OPACITY,
+      interactionMode: InteractionMode,
+      handleSize: SHARED_HANDLE_SIZE,
+      minNodeSize: SHARED_MIN_NODE_SIZE,
+      fallbackGap: FALLBACK_GAP,
+      snapToGrid: (value) => snapToGrid(value),
+    },
+    state: {
+      model,
+      interactionManager: mgr,
+      selectedIds,
+      coercedKeys: _coercedKeys,
+      editorState: EditorState,
+      previewSaveClient: PreviewSaveClient,
+      constraints,
+    },
+    helpers: {
+      applyInteractionOverrideEntries: _applyInteractionOverrideEntries,
+    },
+    modelOps: {
+      getOwnDelta: (cid) => getOwnDelta(cid),
+      getEffectiveDelta: (cid) => getEffectiveDelta(cid),
+      getAncestors: (cid) => getAncestors(cid),
+    },
+    facades: {
+      getEditorSceneFacade: () => _getEditorSceneFacade(),
+      getEditorRelayoutFacade: () => _getEditorRelayoutFacade(),
+      getEditorInteractionFacade: () => _getEditorInteractionFacade(),
+    },
+  });
 }
 
 function _getPreviewGridEditorInstallUnit() {

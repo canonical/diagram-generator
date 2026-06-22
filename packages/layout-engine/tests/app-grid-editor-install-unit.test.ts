@@ -16,6 +16,7 @@ vi.mock('../src/preview-shell/app-grid-editor-runtime.js', () => ({
 
 const {
   createPreviewGridEditorInstallOptionsFromLegacyEditorHost,
+  createPreviewGridEditorInstallUnitFromLegacyEditorHost,
   createPreviewGridEditorInstallUnitFromEditorHost,
   createPreviewGridEditorInstallUnitFromBrowserHost,
 } = await import('../src/preview-shell/app-grid-editor-install-unit.js');
@@ -170,6 +171,261 @@ describe('createPreviewGridEditorInstallUnitFromBrowserHost', () => {
 
     state.replaceOverrides({ beta: { height: 80 } });
     expect(runtime.invalidateOverrideBoundFacades).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('createPreviewGridEditorInstallUnitFromLegacyEditorHost', () => {
+  beforeEach(() => {
+    mocks.createBrowserState.mockReset();
+    mocks.createRuntime.mockReset();
+  });
+
+  it('defaults legacy editor mutable state inside the typed install unit owner', () => {
+    let capturedBrowserStateOptions: Record<string, unknown> | null = null;
+    let capturedRuntimeOptions: Record<string, unknown> | null = null;
+
+    const browserState = {
+      replaceOverrides: vi.fn(),
+      setDirty: vi.fn(),
+      pruneLinkedRootGridOverrides: vi.fn(),
+      restoreOverrideEntries: vi.fn(),
+      clearPendingRestoreRuntime: vi.fn(),
+      applyLocalRestoreRefresh: vi.fn(),
+      setMultiActionGap: vi.fn(),
+      setOverride: vi.fn(),
+      setWaypointOverride: vi.fn(),
+      cleanOverride: vi.fn(),
+      getParentNode: vi.fn(() => null),
+      getComponentNode: vi.fn(() => null),
+      hasLayoutChildren: vi.fn(() => false),
+      getArrowNode: vi.fn(() => null),
+      getComponentType: vi.fn(() => 'box'),
+      getViolationsForComponent: vi.fn(() => []),
+      scheduleLayoutRelayout: vi.fn(),
+      clearScheduledLayoutRelayout: vi.fn(),
+    };
+    const runtime = {
+      getSceneFacade: vi.fn(() => ({ kind: 'scene-facade' })),
+      getBootstrapFacade: vi.fn(() => ({ kind: 'bootstrap-facade' })),
+      getRelayoutFacade: vi.fn(() => ({ kind: 'relayout-facade' })),
+      getInteractionFacade: vi.fn(() => ({ kind: 'interaction-facade' })),
+      invalidateOverrideBoundFacades: vi.fn(),
+    };
+
+    mocks.createBrowserState.mockImplementation((options: Record<string, unknown>) => {
+      capturedBrowserStateOptions = options;
+      return browserState;
+    });
+    mocks.createRuntime.mockImplementation((options: Record<string, unknown>) => {
+      capturedRuntimeOptions = options;
+      return runtime;
+    });
+
+    const model = {
+      _roots: [],
+      roots: [{ id: 'root' }],
+      overrides: { alpha: { width: 120 } },
+      removedIds: new Set<string>(),
+      setDiagramGrid() {},
+      clearOverride() {},
+      get() {
+        return { data: { id: 'alpha' } };
+      },
+      getParent() {
+        return null;
+      },
+      getType() {
+        return 'box';
+      },
+      cleanOverride() {},
+      setOverride() {},
+      setWaypointOverride() {},
+    } as any;
+    const previewWindow = {
+      __DG_CONFIG: {
+        icon_size: 48,
+        col_gap: 24,
+        head_len: 10,
+        head_half: 5,
+      },
+      __DG_getPreviewBridgeRelayoutContract: vi.fn(() => ({ kind: 'relayout-contract' })),
+      __DG_getPreviewShellInteractionContract: vi.fn(() => ({
+        kind: 'interaction-contract',
+        resolvePrimarySelectedId: vi.fn(() => 'alpha'),
+      })),
+      navigator: {
+        clipboard: {
+          writeText: vi.fn(async () => undefined),
+        },
+      },
+      setTimeout: vi.fn((_callback: () => void, _delayMs?: number) => 17),
+      clearTimeout: vi.fn(),
+      requestAnimationFrame: vi.fn((_callback: FrameRequestCallback) => 21),
+      cancelAnimationFrame: vi.fn(),
+      alert: vi.fn(),
+    } as any;
+
+    const installUnit = createPreviewGridEditorInstallUnitFromLegacyEditorHost({
+      document: {
+        getElementById: vi.fn(() => null),
+        querySelector: vi.fn(() => null),
+      } as any,
+      previewWindow,
+      config: {
+        slug: 'demo',
+        engine: 'v3',
+        gridEnabled: true,
+        guideModes: ['off', 'all'],
+        baselineStep: 24,
+        inset: 8,
+        guideColor: '#f00',
+        guideOpacity: '0.5',
+        interactionMode: { TEXT_EDITING: 'text', WAYPOINT_DRAGGING: 'waypoint' } as any,
+        handleSize: 12,
+        minNodeSize: 24,
+        fallbackGap: 24,
+        snapToGrid: (value) => value,
+      },
+      state: {
+        model,
+        interactionManager: { state: { cid: 'alpha' }, isMode: vi.fn(() => false) } as any,
+        selectedIds: new Set(['alpha', 'beta']),
+        coercedKeys: new Set(['coerced']),
+        editorState: {
+          undo: vi.fn(),
+          redo: vi.fn(),
+        } as any,
+        previewSaveClient: {
+          trySaveIfDirty: vi.fn(),
+          setDirty: vi.fn(),
+        } as any,
+        constraints: { kind: 'constraints', forComponent: vi.fn(() => []) } as any,
+      },
+      helpers: {
+        applyInteractionOverrideEntries: vi.fn(),
+      },
+      modelOps: {
+        getOwnDelta: vi.fn(() => ({ dx: 0, dy: 0, dw: 0, dh: 0 })),
+        getEffectiveDelta: vi.fn(() => ({ dx: 4, dy: 8, dw: 0, dh: 0 })),
+        getAncestors: vi.fn(() => ['page']),
+      },
+      facades: {
+        getEditorSceneFacade: vi.fn(() => ({
+          deleteSelectedFrames: vi.fn(async () => ({ rerendered: true })),
+          cycleGuideMode: vi.fn(),
+          updateOverrideSummary: vi.fn(),
+          refreshTreeColors: vi.fn(),
+          runConstraints: vi.fn(),
+        })),
+        getEditorRelayoutFacade: vi.fn(() => ({
+          applyUndoCommand: vi.fn(),
+          getRelayoutRuntime: vi.fn(() => ({
+            requestRelayout: vi.fn(),
+            clearOverride: vi.fn(),
+          })),
+          scheduleResizeRelayout: vi.fn(() => true),
+          cancelResizeRelayout: vi.fn(),
+          persistResize: vi.fn(),
+        })),
+        getEditorInteractionFacade: vi.fn(() => ({
+          getStageBindingRuntime: vi.fn(() => ({
+            buildTreeUi: vi.fn(),
+            bindInteraction: vi.fn(),
+          })),
+          getSelectionRuntime: vi.fn(() => ({
+            deselectAll: vi.fn(),
+            reapplySelection: vi.fn(),
+            selectComponent: vi.fn(),
+            applySelectionStateSnapshot: vi.fn(),
+          })),
+          getInspectorDisplayRuntime: vi.fn(() => ({
+            renderEmptyInspector: vi.fn(),
+            renderSelectionInspector: vi.fn(),
+            renderMultiSelectionInspector: vi.fn(),
+          })),
+          getInspectorMutationRuntime: vi.fn(() => ({
+            setFrameProp: vi.fn(),
+          })),
+          getResizeInteractionRuntime: vi.fn(() => ({
+            onResizeUp: vi.fn(),
+          })),
+        })),
+      },
+    });
+
+    expect(installUnit.getRuntime()).toBe(runtime);
+
+    const shared = (capturedRuntimeOptions as { shared: Record<string, unknown> }).shared;
+    const browserStateOptions = capturedBrowserStateOptions as Record<string, unknown>;
+
+    expect(
+      (shared.selectionDepthState as { get: () => number; set: (value: number) => void }).get(),
+    ).toBe(0);
+    (shared.selectionDepthState as { set: (value: number) => void }).set(5);
+    expect((shared.selectionDepthState as { get: () => number }).get()).toBe(5);
+
+    expect(
+      (shared.generationState as { get: () => number; set: (value: number) => void }).get(),
+    ).toBe(0);
+    (shared.generationState as { set: (value: number) => void }).set(2);
+    expect((shared.generationState as { get: () => number }).get()).toBe(2);
+
+    expect(
+      (
+        shared.allowInternalDirtyNavigationState as {
+          get: () => boolean;
+          set: (value: boolean) => void;
+        }
+      ).get(),
+    ).toBe(false);
+    (
+      shared.allowInternalDirtyNavigationState as {
+        set: (value: boolean) => void;
+      }
+    ).set(true);
+    expect(
+      (shared.allowInternalDirtyNavigationState as { get: () => boolean }).get(),
+    ).toBe(true);
+
+    expect(
+      (shared.lastViolationsState as { get: () => unknown; set: (value: unknown) => void }).get(),
+    ).toEqual([]);
+    (shared.lastViolationsState as { set: (value: unknown) => void }).set(['violation']);
+    expect((shared.lastViolationsState as { get: () => unknown }).get()).toEqual(['violation']);
+
+    expect(
+      (
+        browserStateOptions.overridesState as {
+          get: () => Record<string, unknown>;
+          set: (value: Record<string, unknown>) => void;
+        }
+      ).get(),
+    ).toBe(model.overrides);
+    const nextOverrides = { beta: { height: 80 } };
+    (
+      browserStateOptions.overridesState as {
+        set: (value: Record<string, unknown>) => void;
+      }
+    ).set(nextOverrides);
+    expect(
+      (browserStateOptions.overridesState as { get: () => Record<string, unknown> }).get(),
+    ).toBe(nextOverrides);
+    expect(model.overrides).toBe(nextOverrides);
+
+    expect(
+      (
+        browserStateOptions.multiActionGapState as {
+          get: () => number;
+          set: (value: number) => void;
+        }
+      ).get(),
+    ).toBe(24);
+    (
+      browserStateOptions.multiActionGapState as {
+        set: (value: number) => void;
+      }
+    ).set(40);
+    expect((browserStateOptions.multiActionGapState as { get: () => number }).get()).toBe(40);
   });
 });
 
