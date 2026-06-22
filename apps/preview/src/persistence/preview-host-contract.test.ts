@@ -474,7 +474,7 @@ test("future preview lane onboarding installs through a preview-host module with
     appRoot: "/virtual/app",
     repoRoot: "/virtual/repo",
     framesDir: "/virtual/frames",
-    specHome: "specs/045-preview-host-engine-modularity/",
+    specHome: "docs/spec-archive/045-preview-host-engine-modularity/",
     currentGitBranch: () => "feat/045-preview-host-engine-modularity",
     layoutEngineFontPath: "/virtual/layout-font.ttf",
     baselineOsCssPath: "/virtual/bf-os.css",
@@ -917,7 +917,7 @@ test("builtin preview host production install coexists with a third registered l
     appRoot: "/virtual/app",
     repoRoot: "/virtual/repo",
     framesDir,
-    specHome: "specs/045-preview-host-engine-modularity/",
+    specHome: "docs/spec-archive/045-preview-host-engine-modularity/",
     currentGitBranch: () => "feat/045-preview-host-engine-modularity",
     layoutEngineFontPath: "/virtual/layout-font.ttf",
     baselineOsCssPath: "/virtual/bf-os.css",
@@ -1046,7 +1046,7 @@ test("builtin preview host runtime assembles browse, reference, and engine helpe
     appRoot: "/virtual/app",
     repoRoot: "/virtual/repo",
     framesDir,
-    specHome: "specs/045-preview-host-engine-modularity/",
+    specHome: "docs/spec-archive/045-preview-host-engine-modularity/",
     currentGitBranch: () => "feat/045-preview-host-engine-modularity",
     layoutEngineFontPath: "/virtual/layout-font.ttf",
     baselineOsCssPath: "/virtual/bf-os.css",
@@ -1114,7 +1114,7 @@ test("builtin preview host runtime assembles browse, reference, and engine helpe
     assert.equal(serverDeps.findReferenceImage("force-reference-example"), path.join(inputDir, "force-ref.png"));
 
     const html = deps.buildIndexHtml(8100);
-    assert.match(html, /specs\/045-preview-host-engine-modularity\//);
+    assert.match(html, /docs\/spec-archive\/045-preview-host-engine-modularity\//);
     assert.match(html, /href="\/view\/v3:alpha"/);
     assert.match(html, /href="\/force\/view\/force-reference-example"/);
   } finally {
@@ -1421,7 +1421,7 @@ test("builtin preview host install preserves frame-yaml document ownership acros
     appRoot: "/virtual/app",
     repoRoot: "/virtual/repo",
     framesDir,
-    specHome: "specs/045-preview-host-engine-modularity/",
+    specHome: "docs/spec-archive/045-preview-host-engine-modularity/",
     currentGitBranch: () => "feat/045-preview-host-engine-modularity",
     layoutEngineFontPath: "/virtual/layout-font.ttf",
     baselineOsCssPath: "/virtual/bf-os.css",
@@ -1852,7 +1852,7 @@ test("preview viewer page HTML is assembled from typed host sections", () => {
 test("preview index page HTML renders browse sections without server-local string assembly", () => {
   const html = buildIndexPageHtml({
     port: 8100,
-    specHome: "specs/045-preview-host-engine-modularity/",
+    specHome: "docs/spec-archive/045-preview-host-engine-modularity/",
     browseSections: buildPreviewBrowseSections([
       { lane: AUTOLAYOUT_HOST_LANE, slugs: ["alpha"] },
       { lane: FORCE_HOST_LANE, slugs: ["beta"] },
@@ -1861,7 +1861,7 @@ test("preview index page HTML renders browse sections without server-local strin
   });
 
   assert.match(html, /Node preview app on port 8100/);
-  assert.match(html, /specs\/045-preview-host-engine-modularity\//);
+  assert.match(html, /docs\/spec-archive\/045-preview-host-engine-modularity\//);
   assert.match(html, /href="\/view\/v3:alpha"/);
   assert.match(html, /href="\/force\/view\/beta"/);
 });

@@ -38,6 +38,8 @@ Completed or retired spec packages live here so `specs/` stays focused on curren
 - `039-diagram-typography-token-cleanup`
 - `040-agent-token-slimming`
 - `043-preview-shell-editor-ts-extraction`
+- `044-preview-shell-architecture-followup`
+- `045-preview-host-engine-modularity`
 - `035-compatible-engine-switcher`
 - `036-headingless-wrapper-contract`
 - `037-preview-engine-drift-closeout`

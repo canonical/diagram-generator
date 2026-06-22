@@ -40,11 +40,11 @@ Thin shell modules (safe to read whole): `editor.js`, `layout-bridge.js`, `edito
 | Preview text-block edit / YAML persist | [`specs/041-text-block-inline-editing/text-edit-flow.md`](../specs/041-text-block-inline-editing/text-edit-flow.md) |
 | Shell decomposition boundaries | [`docs/spec-archive/043-preview-shell-editor-ts-extraction/boundaries.md`](./spec-archive/043-preview-shell-editor-ts-extraction/boundaries.md) |
 | Preview shell callback ordering | [`docs/spec-archive/043-preview-shell-editor-ts-extraction/shell-callback-flow.md`](./spec-archive/043-preview-shell-editor-ts-extraction/shell-callback-flow.md) |
-| Post-043 shell surface audit | [`specs/044-preview-shell-architecture-followup/surface-audit.md`](../specs/044-preview-shell-architecture-followup/surface-audit.md) |
-| `layout-bridge.js` decomposition map | [`specs/044-preview-shell-architecture-followup/layout-bridge-decomposition-map.md`](../specs/044-preview-shell-architecture-followup/layout-bridge-decomposition-map.md) |
-| Post-043 shell contract shape | [`specs/044-preview-shell-architecture-followup/contract-shape.md`](../specs/044-preview-shell-architecture-followup/contract-shape.md) |
-| Post-043 bundle strategy | [`specs/044-preview-shell-architecture-followup/bundle-strategy.md`](../specs/044-preview-shell-architecture-followup/bundle-strategy.md) |
-| Preview host lane/page topology | [`specs/045-preview-host-engine-modularity/host-topology.md`](../specs/045-preview-host-engine-modularity/host-topology.md) |
+| Post-043 shell surface audit | [`docs/spec-archive/044-preview-shell-architecture-followup/surface-audit.md`](./spec-archive/044-preview-shell-architecture-followup/surface-audit.md) |
+| `layout-bridge.js` decomposition map | [`docs/spec-archive/044-preview-shell-architecture-followup/layout-bridge-decomposition-map.md`](./spec-archive/044-preview-shell-architecture-followup/layout-bridge-decomposition-map.md) |
+| Post-043 shell contract shape | [`docs/spec-archive/044-preview-shell-architecture-followup/contract-shape.md`](./spec-archive/044-preview-shell-architecture-followup/contract-shape.md) |
+| Post-043 bundle strategy | [`docs/spec-archive/044-preview-shell-architecture-followup/bundle-strategy.md`](./spec-archive/044-preview-shell-architecture-followup/bundle-strategy.md) |
+| Preview host lane/page topology | [`docs/spec-archive/045-preview-host-engine-modularity/host-topology.md`](./spec-archive/045-preview-host-engine-modularity/host-topology.md) |
 | Editor host decomposition map | [`specs/046-editor-host-endgame/decomposition-map.md`](../specs/046-editor-host-endgame/decomposition-map.md) |
 | ELK sizing / live resize / debug | [`specs/048-elk-sizing-interaction-followup/elk-sizing-interaction-flow.md`](../specs/048-elk-sizing-interaction-followup/elk-sizing-interaction-flow.md) |
 | Agent token / workspace slimming | [`docs/spec-archive/040-agent-token-slimming/spec.md`](./spec-archive/040-agent-token-slimming/spec.md) |

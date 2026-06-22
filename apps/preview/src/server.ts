@@ -21,7 +21,7 @@ import { installBuiltinPreviewHost } from "./preview-host/install-builtins.js";
 import { routeRegisteredPreviewHostRequest } from "./preview-host/request-router.js";
 
 const DEFAULT_PORT = 8100;
-const SPEC_HOME = "specs/045-preview-host-engine-modularity/";
+const SPEC_HOME = "docs/spec-archive/045-preview-host-engine-modularity/";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
