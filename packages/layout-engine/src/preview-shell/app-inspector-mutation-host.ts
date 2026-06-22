@@ -85,7 +85,7 @@ export interface DispatchPreviewSingleFrameSizeHostOptions {
   coercedKeys: Set<string>;
   setDirty: (dirty: boolean) => void;
   commitOverridePatchAction: (label: string, beforeEntries: unknown, afterEntries: unknown) => void;
-  scheduleRelayout: (cid: string) => void;
+  requestRelayout: (cid: string) => void;
   renderSelectionInspector: (cid?: string | null) => void;
 }
 
@@ -185,7 +185,7 @@ export interface DispatchPreviewMultiFrameSizeHostOptions {
   getNode: (cid: string) => unknown;
   setDirty: (dirty: boolean) => void;
   commitOverridePatchAction: (label: string, beforeEntries: unknown, afterEntries: unknown) => void;
-  scheduleRelayout: (cid: string) => void;
+  requestRelayout: (cid: string) => void;
   renderMultiSelectionInspector: () => void;
 }
 
@@ -332,7 +332,7 @@ export function dispatchPreviewSingleFrameSizeHost(
     beforeEntries,
     options.captureOverrideEntries(ids),
   );
-  options.scheduleRelayout(options.cid);
+  options.requestRelayout(options.cid);
   options.renderSelectionInspector(options.cid);
 }
 
@@ -466,7 +466,7 @@ export function dispatchPreviewMultiFrameSizeHost(
     options.captureOverrideEntries(ids),
   );
   if (ids.length > 0) {
-    options.scheduleRelayout(ids[0]!);
+    options.requestRelayout(ids[0]!);
   }
   options.renderMultiSelectionInspector();
 }

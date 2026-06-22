@@ -14,6 +14,7 @@ describe('createPreviewEditorRuntimeSet', () => {
     const commitOverridePatchAction = vi.fn();
     const setDirty = vi.fn();
     const scheduleRelayout = vi.fn();
+    const requestRelayoutNow = vi.fn();
     const gridInfo = resolvePreviewGridInfo({
       canvasWidth: 640,
       canvasHeight: 480,
@@ -111,7 +112,7 @@ describe('createPreviewEditorRuntimeSet', () => {
       setDirty,
       scheduleRelayout,
       cleanOverride() {},
-      requestRelayoutNow() {},
+      requestRelayoutNow,
       renderMultiSelectionInspector() {},
       applyAllOverrides() {},
       reapplySelection() {},
@@ -155,7 +156,8 @@ describe('createPreviewEditorRuntimeSet', () => {
       width: colSpanToPx(gridInfo, 2),
     });
     expect(setDirty).toHaveBeenCalledWith(true);
-    expect(scheduleRelayout).toHaveBeenCalledWith('alpha');
+    expect(requestRelayoutNow).toHaveBeenCalledWith('alpha');
+    expect(scheduleRelayout).not.toHaveBeenCalled();
     expect(commitOverridePatchAction).toHaveBeenCalled();
     expect(runtimeSet.arrowWaypoint.getArrowPoints('arrow-1')).toEqual([[4, 8], [20, 24]]);
   });

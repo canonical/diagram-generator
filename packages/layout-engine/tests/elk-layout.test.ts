@@ -100,6 +100,41 @@ function semanticBoundsForSlug(slug: string) {
   return semanticBoundsForDiagram(loadFrameYaml(join(FRAMES_DIR, `${slug}.yaml`)));
 }
 
+function applyFillOverrides(diagram: ReturnType<typeof loadFrameYaml>, ids: string[]) {
+  applyPreviewOverridesToFrameTree(
+    diagram,
+    Object.fromEntries(ids.map((id) => [id, { sizing_w: 'FILL', sizing_h: 'FILL' }])),
+  );
+}
+
+function relativeInset(
+  parent: { _layout: { placedX: number; placedY: number; placedW: number; placedH: number } } | null,
+  child: { _layout: { placedX: number; placedY: number; placedW: number; placedH: number } } | null,
+) {
+  if (!parent || !child) {
+    return null;
+  }
+  return {
+    top: child._layout.placedY - parent._layout.placedY,
+    left: child._layout.placedX - parent._layout.placedX,
+    right: (parent._layout.placedX + parent._layout.placedW)
+      - (child._layout.placedX + child._layout.placedW),
+    bottom: (parent._layout.placedY + parent._layout.placedH)
+      - (child._layout.placedY + child._layout.placedH),
+  };
+}
+
+function expectChromeRhythm(
+  actual: ReturnType<typeof relativeInset> | null,
+  expected: ReturnType<typeof relativeInset> | null,
+) {
+  expect(actual).not.toBeNull();
+  expect(expected).not.toBeNull();
+  expect(actual?.top).toBe(expected?.top);
+  expect(actual?.left).toBe(expected?.left);
+  expect(actual?.right).toBe(expected?.right);
+}
+
 describe('layoutElkFrameDiagram', () => {
   it('lays out frame diagrams whose arrows target container panels', async () => {
     const diagram = loadFrameYaml(join(FRAMES_DIR, 'request-to-hardware-stack.yaml'));
@@ -181,6 +216,62 @@ describe('layoutElkFrameDiagram', () => {
       expect(elkFrame?._layout.placedW).toBe(semanticFrame?._layout.placedW);
       expect(elkFrame?._layout.placedH).toBe(semanticFrame?._layout.placedH);
     }
+  });
+
+  it('preserves native fill sizing semantics for request-to-hardware-stack endpoint compounds', async () => {
+    const ids = ['user', 'orch', 'runtime', 'kernel', 'driver', 'hardware'];
+    const semanticDiagram = loadFrameYaml(join(FRAMES_DIR, 'request-to-hardware-stack.yaml'));
+    const diagram = loadFrameYaml(join(FRAMES_DIR, 'request-to-hardware-stack.yaml'));
+    const adapter = new MockTextAdapter();
+
+    applyFillOverrides(semanticDiagram, ids);
+    applyFillOverrides(diagram, ids);
+
+    const semanticLayout = semanticBoundsForDiagram(semanticDiagram);
+
+    await layoutElkFrameDiagram(diagram, adapter);
+
+    const semanticFirst = findFrameById(
+      semanticLayout.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      ids[0]!,
+    );
+    expect(semanticFirst?._layout.placedW).toBeGreaterThan(0);
+    expect(semanticFirst?._layout.placedH).toBeGreaterThan(0);
+
+    for (const id of ids) {
+      const elkFrame = findFrameById(
+        diagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+        id,
+      );
+      const semanticFrame = findFrameById(
+        semanticLayout.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+        id,
+      );
+      expect(elkFrame?._layout.placedW).toBe(semanticFrame?._layout.placedW);
+      expect(elkFrame?._layout.placedH).toBe(semanticFrame?._layout.placedH);
+    }
+
+    const orch = findFrameById(
+      diagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'orch',
+    );
+    const orchHeading = findFrameById(
+      diagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'orch__heading',
+    );
+    const orchBody = findFrameById(
+      diagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'orch__body',
+    );
+
+    expect(orchHeading?._layout.placedY).toBeGreaterThanOrEqual(orch?._layout.placedY ?? -Infinity);
+    expect((orchHeading?._layout.placedY ?? 0) + (orchHeading?._layout.placedH ?? 0))
+      .toBeLessThanOrEqual(orchBody?._layout.placedY ?? Infinity);
+    expect(orchBody?._layout.placedX).toBeGreaterThanOrEqual(orch?._layout.placedX ?? -Infinity);
+    expect((orchBody?._layout.placedX ?? 0) + (orchBody?._layout.placedW ?? 0))
+      .toBeLessThanOrEqual((orch?._layout.placedX ?? 0) + (orch?._layout.placedW ?? 0));
+    expect((orchBody?._layout.placedY ?? 0) + (orchBody?._layout.placedH ?? 0))
+      .toBeLessThanOrEqual((orch?._layout.placedY ?? 0) + (orch?._layout.placedH ?? 0));
   });
 
   it('preserves native fill sizing semantics for a vertical fill stack', async () => {
@@ -359,6 +450,69 @@ describe('layoutElkFrameDiagram', () => {
     expect(
       (servicesHeading?._layout.placedY ?? 0) + (servicesHeading?._layout.placedH ?? 0),
     ).toBeLessThanOrEqual((services?._layout.placedY ?? 0) + (services?._layout.placedH ?? 0));
+  });
+
+  it('matches semantic headed chrome insets for ELK compounds', async () => {
+    for (const slug of ['example-platform-architecture', 'complex-routing-usecase']) {
+      const semanticDiagram = semanticBoundsForSlug(slug);
+      const elkDiagram = loadFrameYaml(join(FRAMES_DIR, `${slug}.yaml`));
+      const adapter = new MockTextAdapter();
+
+      await layoutElkFrameDiagram(elkDiagram, adapter);
+
+      const walkHeadedIds = (frame: { id: string; children: Array<{ id: string; children: unknown[] }> }): string[] => {
+        const ids: string[] = [];
+        if (frame.children.some((child) => child.id === `${frame.id}__body`)) {
+          ids.push(frame.id);
+        }
+        for (const child of frame.children) {
+          ids.push(...walkHeadedIds(child as { id: string; children: Array<{ id: string; children: unknown[] }> }));
+        }
+        return ids;
+      };
+
+      for (const id of walkHeadedIds(
+        semanticDiagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      )) {
+        const semanticParent = findFrameById(
+          semanticDiagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+          id,
+        );
+        const semanticHeading = findFrameById(
+          semanticDiagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+          `${id}__heading`,
+        );
+        const semanticBody = findFrameById(
+          semanticDiagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+          `${id}__body`,
+        );
+        const elkParent = findFrameById(
+          elkDiagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+          id,
+        );
+        const elkHeading = findFrameById(
+          elkDiagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+          `${id}__heading`,
+        );
+        const elkBody = findFrameById(
+          elkDiagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+          `${id}__body`,
+        );
+
+        expectChromeRhythm(relativeInset(elkParent, elkBody), relativeInset(semanticParent, semanticBody));
+        expectChromeRhythm(
+          relativeInset(elkParent, elkHeading),
+          relativeInset(semanticParent, semanticHeading),
+        );
+        expect((elkBody?._layout.placedY ?? 0) - (
+          (elkHeading?._layout.placedY ?? 0) + (elkHeading?._layout.placedH ?? 0)
+        )).toBe(
+          (semanticBody?._layout.placedY ?? 0) - (
+            (semanticHeading?._layout.placedY ?? 0) + (semanticHeading?._layout.placedH ?? 0)
+          ),
+        );
+      }
+    }
   });
 
   it('lays out nested structural carriers that contain endpoint descendants', async () => {

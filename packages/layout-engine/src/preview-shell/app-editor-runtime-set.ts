@@ -608,6 +608,7 @@ export function createPreviewEditorRuntimeSet(
     snapToGrid: options.snapToGrid,
     setDirty: options.setDirty,
     scheduleRelayout: options.scheduleRelayout,
+    requestRelayoutNow: options.requestRelayoutNow,
     renderSelectionInspector: inspectorDisplay.renderSelectionInspector,
     cleanOverride: options.cleanOverride,
     getGridInfo: options.getGridInfo,

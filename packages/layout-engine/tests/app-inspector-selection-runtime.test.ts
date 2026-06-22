@@ -86,6 +86,7 @@ describe('createPreviewInspectorSelectionRuntime', () => {
     const commitOverridePatchAction = vi.fn();
     const setDirty = vi.fn();
     const scheduleRelayout = vi.fn();
+    const requestRelayoutNow = vi.fn();
     const renderMultiSelectionInspector = vi.fn();
 
     const runtime = createPreviewInspectorSelectionRuntime({
@@ -106,7 +107,7 @@ describe('createPreviewInspectorSelectionRuntime', () => {
       cleanOverride() {},
       setDirty,
       scheduleRelayout,
-      requestRelayoutNow() {},
+      requestRelayoutNow,
       renderSelectionInspector() {},
       renderMultiSelectionInspector,
       applyAllOverrides() {},
@@ -134,7 +135,8 @@ describe('createPreviewInspectorSelectionRuntime', () => {
     expect(overrides.alpha).toEqual({ sizing_w: 'FIXED', width: 96 });
     expect(overrides.beta).toEqual({ sizing_w: 'FIXED', width: 96 });
     expect(setDirty).toHaveBeenCalledWith(true);
-    expect(scheduleRelayout).toHaveBeenCalledWith('alpha');
+    expect(requestRelayoutNow).toHaveBeenCalledWith('alpha');
+    expect(scheduleRelayout).not.toHaveBeenCalled();
     expect(renderMultiSelectionInspector).toHaveBeenCalled();
     expect(commitOverridePatchAction).toHaveBeenCalledWith(
       'Set width (multi)',

@@ -46,6 +46,7 @@ Thin shell modules (safe to read whole): `editor.js`, `layout-bridge.js`, `edito
 | Post-043 bundle strategy | [`specs/044-preview-shell-architecture-followup/bundle-strategy.md`](../specs/044-preview-shell-architecture-followup/bundle-strategy.md) |
 | Preview host lane/page topology | [`specs/045-preview-host-engine-modularity/host-topology.md`](../specs/045-preview-host-engine-modularity/host-topology.md) |
 | Editor host decomposition map | [`specs/046-editor-host-endgame/decomposition-map.md`](../specs/046-editor-host-endgame/decomposition-map.md) |
+| ELK sizing / live resize / debug | [`specs/048-elk-sizing-interaction-followup/elk-sizing-interaction-flow.md`](../specs/048-elk-sizing-interaction-followup/elk-sizing-interaction-flow.md) |
 | Agent token / workspace slimming | [`docs/spec-archive/040-agent-token-slimming/spec.md`](./spec-archive/040-agent-token-slimming/spec.md) |
 
 Add a new row when you land a cross-layer map (UI → server → engine → disk). Keep maps ≤60 lines.
