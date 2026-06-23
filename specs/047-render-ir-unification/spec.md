@@ -4,7 +4,7 @@
 
 **Created**: 2026-06-16
 
-**Status**: In Progress
+**Status**: Closeout Ready
 
 **Execution Gate**: Do not start implementation until spec 046 closeout bar is met
 
@@ -144,7 +144,15 @@ emission, and the remaining preview-only metadata/layer owners are explicitly
 inventoried under `render-owner-inventory.md`. The next cutover step now
 exists in code too: shared display-list IR carries layer identity plus grouped
 text blocks, `app-display-list-dom.ts` serializes that IR into preview DOM for
-frame and overlay layers, and `app-fresh-render.ts` now consumes that path
-instead of hand-assembling those layers. The remaining fresh-preview gap is the
-arrow interaction lane, which still stays on preview-specific DOM emission for
-transparent hit targets and origin snapshots.
+frame, overlay, and fresh-preview arrow layers, and `app-fresh-render.ts` now
+consumes that path instead of hand-assembling those layers. The export side now
+matches the same substrate: `svg-render.ts` is a thin wrapper over
+`emitFrameDiagramDisplayList()` plus `renderDisplayListToSvg()`, including
+embedded icon markup through shared IR items rather than a bespoke export loop.
+The bridge/waypoint mutation lane is now explicitly bounded rather than a
+renderer gap: incremental preview arrow patching remains a preview-only DOM
+reuse optimization, and interactive waypoint edits still mutate DOM after the
+shared geometry pass, but both consume shared arrow geometry primitives rather
+than owning separate render math. At this point the cutover bar is met: new
+engine lanes can enter through layout data plus the shared IR/serializer
+contract without adding another bespoke preview/export renderer.

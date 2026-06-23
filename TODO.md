@@ -14,14 +14,18 @@ are tracked on Jira. Repo execution should route through spec-kit packages.
 
 ## Current Cold-Start Focus
 
-1. `specs/048-elk-sizing-interaction-followup/` is the current next
-   implementation focus. Start with `tasks.md`, especially T001/T002 for ELK
-   Fill sizing on `request-to-hardware-stack`, then use
+1. `specs/047-render-ir-unification/` is now architecturally ready to close on
+   `feat/047-render-ir-unification`. Fresh preview and export SVG both consume
+   the shared display-list IR path; only merge/archive/admin work should remain
+   on that branch.
+2. `specs/048-elk-sizing-interaction-followup/` remains the next product-path
+   implementation focus on its own branch. Start with `tasks.md`, especially
+   T001/T002 for ELK Fill sizing on `request-to-hardware-stack`, then use
    `elk-sizing-interaction-flow.md` for the cross-layer map.
-2. `specs/046-editor-host-endgame/` is architecturally ready to close. It
-   should receive administrative closeout/verification only, unless future work
-   regresses by widening legacy JS sinks or central engine/document branches.
-3. Other open work should be selected from `docs/specs.md`, then executed from
+3. `specs/046-editor-host-endgame/` remains architecturally closed. Reopen only
+   if future work regresses by widening legacy JS sinks or central
+   engine/document branches.
+4. Other open work should be selected from `docs/specs.md`, then executed from
    that spec package's own `tasks.md`.
 
 ## Open Spec Pointers

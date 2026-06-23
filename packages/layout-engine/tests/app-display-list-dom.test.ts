@@ -43,6 +43,7 @@ class FakeElement extends FakeNode {
   tagName: string;
   attrs: Record<string, string> = {};
   textContent = '';
+  style: Record<string, string> = {};
 
   constructor(ownerDocument: FakeDocument, tagName: string) {
     super(ownerDocument, tagName);
@@ -143,7 +144,7 @@ function matchesSelector(element: FakeElement, selector: string): boolean {
   if (componentIdMatch) {
     return element.getAttribute('data-component-id') === componentIdMatch[1];
   }
-  if (selector === 'text' || selector === 'rect' || selector === 'g' || selector === 'tspan') {
+  if (selector === 'text' || selector === 'rect' || selector === 'g' || selector === 'tspan' || selector === 'line' || selector === 'polygon') {
     return element.tagName === selector;
   }
   return false;
@@ -272,6 +273,18 @@ describe('preview display-list dom', () => {
 
     const diagram = new FrameDiagram({
       root,
+      arrows: [{
+        source: 'root.bottom',
+        target: 'child.top',
+        id: 'root-child',
+        elkLabels: [{
+          text: 'ELK label',
+          x: 96,
+          y: 20,
+          width: 48,
+          height: 18,
+        }],
+      }],
       overlays: [{ id: 'focus', label: 'Focus', members: ['child'] }],
     });
 
@@ -285,15 +298,30 @@ describe('preview display-list dom', () => {
 
     const styledLayer = findByAttr(svg, 'id', 'dg-styled-layer');
     const frameLayer = findByAttr(svg, 'id', 'dg-frame-layer');
+    const arrowLayer = findByAttr(svg, 'id', 'dg-arrow-layer');
     const overlayLayer = findByAttr(svg, 'id', 'dg-overlay-layer');
     const childGroup = frameLayer ? findByAttr(frameLayer, 'data-component-id', 'child') : null;
+    const arrowGroup = arrowLayer ? findByAttr(arrowLayer, 'data-component-id', 'root-child') : null;
     const overlayGroup = overlayLayer ? findByAttr(overlayLayer, 'data-component-id', 'focus') : null;
     const frameText = childGroup ? findFirstByTag(childGroup, 'text') : null;
+    const arrowLines = arrowGroup?.querySelectorAll('line') ?? [];
+    const visibleArrowLines = arrowLines.filter((line) => line.getAttribute('stroke') !== 'transparent');
+    const hitArrowLines = arrowLines.filter((line) => line.getAttribute('stroke') === 'transparent');
+    const arrowPolygon = arrowGroup?.querySelector('polygon') ?? null;
+    const arrowText = arrowGroup ? findFirstByTag(arrowGroup, 'text') : null;
     const overlayText = overlayGroup ? findFirstByTag(overlayGroup, 'text') : null;
 
     expect(styledLayer).not.toBeNull();
+    expect(arrowLayer).not.toBeNull();
     expect(frameLayer).not.toBeNull();
     expect(overlayLayer).not.toBeNull();
+    expect(arrowGroup?.getAttribute('data-dg-arrow')).toBe('true');
+    expect(visibleArrowLines.length).toBeGreaterThan(0);
+    expect(hitArrowLines.length).toBe(visibleArrowLines.length);
+    expect(visibleArrowLines[0]?.getAttribute('data-orig-x1')).toBeTruthy();
+    expect(hitArrowLines[0]?.style.pointerEvents).toBe('stroke');
+    expect(arrowPolygon?.getAttribute('data-orig-points')).toBeTruthy();
+    expect(arrowText?.outerHTML).toContain('ELK label');
     expect(childGroup).not.toBeNull();
     expect(frameText?.getAttribute('data-dg-text-role')).toBe('label');
     expect(frameText?.getAttribute('data-orig-inner')).toContain('<tspan');

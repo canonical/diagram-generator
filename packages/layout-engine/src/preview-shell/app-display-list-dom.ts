@@ -6,6 +6,7 @@ import type {
   PathCommand,
   PathItem,
   RectItem,
+  SvgFragmentItem,
   TextBlockItem,
 } from '../render-ir.js';
 
@@ -28,6 +29,10 @@ export interface AppendPreviewDisplayListItemsOptions {
 
 function fmtSvgNumber(value: number): string {
   return String(Math.round(value * 100) / 100);
+}
+
+function fmtPreviewArrowNumber(value: number): string {
+  return value.toFixed(1);
 }
 
 function colorToCss(color: { r: number; g: number; b: number; a: number }): string {
@@ -71,6 +76,21 @@ function renderPathCommands(commands: readonly PathCommand[]): string {
       }
     })
     .join(' ');
+}
+
+function arrowHeadPolygonPoints(commands: readonly PathCommand[]): string | null {
+  if (commands.length !== 4) {
+    return null;
+  }
+  const [first, second, third, fourth] = commands;
+  if (first?.kind !== 'M' || second?.kind !== 'L' || third?.kind !== 'L' || fourth?.kind !== 'Z') {
+    return null;
+  }
+  return [
+    `${first.x},${first.y}`,
+    `${second.x},${second.y}`,
+    `${third.x},${third.y}`,
+  ].join(' ');
 }
 
 function directChildElements(parent: Element): Element[] {
@@ -161,10 +181,11 @@ function renderPreviewRect(
 
 function renderPreviewLine(item: LineItem, context: RenderPreviewDisplayListContext): SVGLineElement {
   const line = context.ownerDocument.createElementNS(SVG_NS, 'line');
-  line.setAttribute('x1', fmtSvgNumber(item.x1));
-  line.setAttribute('y1', fmtSvgNumber(item.y1));
-  line.setAttribute('x2', fmtSvgNumber(item.x2));
-  line.setAttribute('y2', fmtSvgNumber(item.y2));
+  const fmt = context.currentLayer === 'arrow' ? fmtPreviewArrowNumber : fmtSvgNumber;
+  line.setAttribute('x1', fmt(item.x1));
+  line.setAttribute('y1', fmt(item.y1));
+  line.setAttribute('x2', fmt(item.x2));
+  line.setAttribute('y2', fmt(item.y2));
   line.setAttribute('fill', 'none');
   line.setAttribute('stroke', colorToCss(item.stroke.color));
   if (item.strokeStyle) {
@@ -175,6 +196,28 @@ function renderPreviewLine(item: LineItem, context: RenderPreviewDisplayListCont
     }
   }
   setSharedAttributes(line, item);
+  return line;
+}
+
+function renderPreviewArrowHitLine(
+  item: LineItem,
+  context: RenderPreviewDisplayListContext,
+): SVGLineElement {
+  const line = context.ownerDocument.createElementNS(SVG_NS, 'line');
+  line.setAttribute('x1', fmtPreviewArrowNumber(item.x1));
+  line.setAttribute('y1', fmtPreviewArrowNumber(item.y1));
+  line.setAttribute('x2', fmtPreviewArrowNumber(item.x2));
+  line.setAttribute('y2', fmtPreviewArrowNumber(item.y2));
+  line.setAttribute('stroke', 'transparent');
+  line.setAttribute('stroke-width', '12');
+  const maybeStyled = line as SVGElement & { style?: { pointerEvents?: string } };
+  if (maybeStyled.style) {
+    maybeStyled.style.pointerEvents = 'stroke';
+  }
+  line.setAttribute('data-orig-x1', line.getAttribute('x1') || '0');
+  line.setAttribute('data-orig-y1', line.getAttribute('y1') || '0');
+  line.setAttribute('data-orig-x2', line.getAttribute('x2') || '0');
+  line.setAttribute('data-orig-y2', line.getAttribute('y2') || '0');
   return line;
 }
 
@@ -192,6 +235,22 @@ function renderPreviewPath(item: PathItem, context: RenderPreviewDisplayListCont
   }
   setSharedAttributes(path, item);
   return path;
+}
+
+function renderPreviewArrowHead(
+  item: PathItem,
+  context: RenderPreviewDisplayListContext,
+): Element {
+  const points = arrowHeadPolygonPoints(item.commands);
+  if (!points) {
+    return renderPreviewPath(item, context);
+  }
+  const polygon = context.ownerDocument.createElementNS(SVG_NS, 'polygon');
+  polygon.setAttribute('points', points);
+  polygon.setAttribute('fill', item.fill ? colorToCss(item.fill.color) : 'none');
+  polygon.setAttribute('data-orig-points', points);
+  setSharedAttributes(polygon, item);
+  return polygon;
 }
 
 function renderPreviewTextBlock(
@@ -232,6 +291,19 @@ function renderPreviewTextBlock(
   return text;
 }
 
+function renderPreviewSvgFragment(
+  item: SvgFragmentItem,
+  context: RenderPreviewDisplayListContext,
+): SVGGElement {
+  const group = context.ownerDocument.createElementNS(SVG_NS, 'g');
+  setSharedAttributes(group, item);
+  const maybeInnerHtml = group as SVGGElement & { innerHTML?: string };
+  if (typeof maybeInnerHtml.innerHTML === 'string') {
+    maybeInnerHtml.innerHTML = item.markup;
+  }
+  return group;
+}
+
 function renderPreviewGroup(
   item: GroupItem,
   context: RenderPreviewDisplayListContext,
@@ -239,6 +311,9 @@ function renderPreviewGroup(
   const group = context.ownerDocument.createElementNS(SVG_NS, 'g');
   if (item.id) {
     group.setAttribute('data-component-id', item.id);
+  }
+  if ((item.layer ?? context.currentLayer) === 'arrow') {
+    group.setAttribute('data-dg-arrow', 'true');
   }
   setSharedAttributes(group, item);
   const nextContext: RenderPreviewDisplayListContext = {
@@ -248,12 +323,34 @@ function renderPreviewGroup(
     frameIconsByComponentId: context.frameIconsByComponentId,
   };
   for (const child of item.children) {
-    group.appendChild(renderPreviewItem(child, nextContext));
+    appendPreviewGroupChild(group, child, nextContext);
   }
   if (nextContext.currentLayer === 'frame') {
     finalizePreviewFrameGroup(group);
   }
   return group;
+}
+
+function appendPreviewGroupChild(
+  parent: SVGGElement,
+  item: DisplayListItem,
+  context: RenderPreviewDisplayListContext,
+): void {
+  if (context.currentLayer === 'arrow' && item.kind === 'line') {
+    const visible = renderPreviewLine(item, context);
+    visible.setAttribute('data-orig-x1', visible.getAttribute('x1') || '0');
+    visible.setAttribute('data-orig-y1', visible.getAttribute('y1') || '0');
+    visible.setAttribute('data-orig-x2', visible.getAttribute('x2') || '0');
+    visible.setAttribute('data-orig-y2', visible.getAttribute('y2') || '0');
+    parent.appendChild(visible);
+    parent.appendChild(renderPreviewArrowHitLine(item, context));
+    return;
+  }
+  if (context.currentLayer === 'arrow' && item.kind === 'path') {
+    parent.appendChild(renderPreviewArrowHead(item, context));
+    return;
+  }
+  parent.appendChild(renderPreviewItem(item, context));
 }
 
 function renderPreviewItem(
@@ -269,6 +366,8 @@ function renderPreviewItem(
       return renderPreviewPath(item, context);
     case 'text-block':
       return renderPreviewTextBlock(item, context);
+    case 'svg-fragment':
+      return renderPreviewSvgFragment(item, context);
     case 'glyph-run': {
       const textBlock: TextBlockItem = {
         kind: 'text-block',

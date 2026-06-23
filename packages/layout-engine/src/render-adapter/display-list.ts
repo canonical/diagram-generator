@@ -3,6 +3,7 @@ import {
   FrameDiagram,
   type Arrow,
   type DiagramOverlay,
+  createLine,
 } from "../frame-model.js";
 import {
   arrowheadPathCommands,
@@ -14,8 +15,11 @@ import {
   sizeToPx,
 } from "../tokens.js";
 import { type TextMeasureAdapter } from "../text-measure.js";
-import { routeArrows } from "../arrow-routing.js";
+import { annotationTextToSpec } from "../resolved-spec-typography.js";
+import { routeArrows, type RoutedArrow } from "../arrow-routing.js";
+import { lineTopToBaseline } from "../text-render-geometry.js";
 import type { LayoutOutput } from "../layout.js";
+import { tintIconInnerMarkup } from "../icon-markup.js";
 import type {
   Color,
   DisplayList,
@@ -48,6 +52,10 @@ function parseColor(value: string): Color {
 function paint(value: string | undefined): Paint | undefined {
   if (!value || value === "none") return undefined;
   return { color: parseColor(value) };
+}
+
+function fmtSvgNumber(value: number): string {
+  return String(Math.round(value * 100) / 100);
 }
 
 function textBlockItem(options: {
@@ -100,7 +108,11 @@ function frameTextBlockItems(plan: ReturnType<typeof resolveFrameRenderPlan>): T
   }));
 }
 
-function emitFrameGroup(frame: Frame, adapter: TextMeasureAdapter): GroupItem {
+function emitFrameGroup(
+  frame: Frame,
+  adapter: TextMeasureAdapter,
+  iconMarkupByName?: Map<string, string>,
+): GroupItem {
   const plan = resolveFrameRenderPlan(frame, adapter);
   const children: DisplayListItem[] = [];
 
@@ -135,20 +147,32 @@ function emitFrameGroup(frame: Frame, adapter: TextMeasureAdapter): GroupItem {
   children.push(...frameTextBlockItems(plan));
 
   if (plan.icon) {
-    children.push({
-      kind: "rect",
-      className: "dg-icon",
-      x: plan.icon.x,
-      y: plan.icon.y,
-      width: plan.icon.width,
-      height: plan.icon.height,
-      fill: paint(plan.icon.fill),
-      opacity: 0.15,
-    });
+    const embeddedIconMarkup = frame.icon ? iconMarkupByName?.get(frame.icon) ?? null : null;
+    if (embeddedIconMarkup) {
+      children.push({
+        kind: "svg-fragment",
+        className: "dg-icon",
+        attributes: {
+          transform: `translate(${fmtSvgNumber(plan.icon.x)} ${fmtSvgNumber(plan.icon.y)})`,
+        },
+        markup: tintIconInnerMarkup(embeddedIconMarkup, plan.icon.fill),
+      });
+    } else {
+      children.push({
+        kind: "rect",
+        className: "dg-icon",
+        x: plan.icon.x,
+        y: plan.icon.y,
+        width: plan.icon.width,
+        height: plan.icon.height,
+        fill: paint(plan.icon.fill),
+        opacity: 0.15,
+      });
+    }
   }
 
   for (const child of frame.children) {
-    children.push(emitFrameGroup(child, adapter));
+    children.push(emitFrameGroup(child, adapter, iconMarkupByName));
   }
 
   return {
@@ -175,11 +199,24 @@ function collectBounds(
   return out;
 }
 
-function emitArrowGroups(arrows: Arrow[], bounds: Record<string, { x: number; y: number; w: number; h: number }>): GroupItem[] {
-  return routeArrows(arrows, bounds).map((arrow) => {
+type DisplayListRoutedArrow = RoutedArrow & {
+  elkLabels?: Arrow["elkLabels"];
+};
+
+export function emitRoutedArrowDisplayListItems(
+  routedArrows: readonly DisplayListRoutedArrow[],
+  bounds: Record<string, { x: number; y: number; w: number; h: number }>,
+  options?: {
+    headLength?: number;
+    headHalfWidth?: number;
+  },
+): GroupItem[] {
+  return routedArrows.map((arrow) => {
     const plan = resolveArrowRenderPlan({
       arrow,
       boundsMap: bounds,
+      headLength: options?.headLength,
+      headHalfWidth: options?.headHalfWidth,
     });
     const children: DisplayListItem[] = [];
     for (const segment of plan.shaftSegments) {
@@ -202,7 +239,25 @@ function emitArrowGroups(arrows: Arrow[], bounds: Record<string, { x: number; y:
       });
     }
 
-    if (plan.label) {
+    if (arrow.elkLabels && arrow.elkLabels.length > 0) {
+      for (const label of arrow.elkLabels) {
+        const spec = annotationTextToSpec(createLine(label.text));
+        const size = String(spec.size ?? BODY_SIZE);
+        children.push(textBlockItem({
+          lines: [{
+            x: label.x + label.width / 2,
+            y: lineTopToBaseline(label.y + label.height / 2 - sizeToPx(size) / 2, size),
+            size,
+            weight: String(spec.weight ?? "400"),
+            fill: spec.fill ?? "#666666",
+            spec,
+          }],
+          fontFamily: "Ubuntu Sans",
+          textAnchor: "middle",
+          dominantBaseline: "middle",
+        }));
+      }
+    } else if (plan.label) {
       children.push(textBlockItem({
         lines: plan.label.lines,
         fontFamily: "Ubuntu Sans",
@@ -215,6 +270,9 @@ function emitArrowGroups(arrows: Arrow[], bounds: Record<string, { x: number; y:
       kind: "group",
       id: plan.componentId,
       layer: "arrow",
+      attributes: {
+        "data-dg-arrow": "true",
+      },
       children,
     };
   });
@@ -282,6 +340,8 @@ export function emitFrameDiagramDisplayList(
   adapter: TextMeasureAdapter,
   options?: {
     includeLayers?: readonly DisplayListLayer[];
+    previewElkLabels?: boolean;
+    iconMarkupByName?: Map<string, string>;
   },
 ): DisplayList {
   const viewport = {
@@ -289,11 +349,23 @@ export function emitFrameDiagramDisplayList(
     height: result.height || 200,
     background: WHITE,
   };
-  const frameGroup = emitFrameGroup(diagram.root, adapter);
+  const frameGroup = emitFrameGroup(diagram.root, adapter, options?.iconMarkupByName);
   const bounds = collectBounds(diagram.root);
   const items: DisplayListItem[] = [];
   if (shouldIncludeLayer("arrow", options?.includeLayers)) {
-    items.push(...emitArrowGroups(diagram.arrows, bounds));
+    const arrowInputs = options?.previewElkLabels ? diagram.arrows : diagram.arrows.map((arrow) => {
+      if (!arrow.elkLabels) return arrow;
+      const { elkLabels: _discard, ...rest } = arrow;
+      return rest;
+    });
+    const authoredByComponentId = options?.previewElkLabels
+      ? new Map(diagram.arrows.map((arrow) => [arrow.id ?? `${arrow.source}->${arrow.target}`, arrow]))
+      : null;
+    const routedArrows = routeArrows(arrowInputs, bounds).map((arrow) => ({
+      ...arrow,
+      elkLabels: authoredByComponentId?.get(arrow.componentId || "")?.elkLabels,
+    }));
+    items.push(...emitRoutedArrowDisplayListItems(routedArrows, bounds));
   }
   if (shouldIncludeLayer("frame", options?.includeLayers)) {
     items.push(frameGroup);

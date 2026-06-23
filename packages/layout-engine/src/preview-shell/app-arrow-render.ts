@@ -1,6 +1,7 @@
 import { resolveArrowRenderPlan } from '../arrow-render-plan.js';
 import { routeArrows, type RoutedArrow } from '../arrow-routing.js';
 import { type Arrow, createLine } from '../frame-model.js';
+import { emitRoutedArrowDisplayListItems } from '../render-adapter/display-list.js';
 import {
   annotationTextToSpec,
 } from '../resolved-spec-typography.js';
@@ -13,6 +14,7 @@ import {
   sizeToPx,
 } from '../tokens.js';
 import { lineTopToBaseline } from '../text-render-geometry.js';
+import { appendPreviewDisplayListItems } from './app-display-list-dom.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -251,59 +253,15 @@ export function createPreviewArrowSvgFragment(
   },
 ): DocumentFragment {
   const fragment = options.ownerDocument.createDocumentFragment();
-  const headLen = options.headLen ?? ARROW_HEAD_LENGTH;
-  const headHalf = options.headHalf ?? ARROW_HEAD_HALF_WIDTH;
-
-  for (const arrow of options.routedArrows) {
-    const group = options.ownerDocument.createElementNS(SVG_NS, 'g');
-    group.setAttribute('data-dg-arrow', 'true');
-    group.setAttribute('data-component-id', arrow.componentId || '');
-    const plan = resolveArrowRenderPlan({
-      arrow,
-      boundsMap: options.boundsMap,
-      headLength: headLen,
-      headHalfWidth: headHalf,
-    });
-
-    for (const segment of plan.shaftSegments) {
-
-      const line = options.ownerDocument.createElementNS(SVG_NS, 'line');
-      line.setAttribute('x1', segment.x1.toFixed(1));
-      line.setAttribute('y1', segment.y1.toFixed(1));
-      line.setAttribute('x2', segment.x2.toFixed(1));
-      line.setAttribute('y2', segment.y2.toFixed(1));
-      line.setAttribute('fill', 'none');
-      line.setAttribute('stroke', plan.color);
-      line.setAttribute('stroke-width', '1');
-      line.setAttribute('stroke-miterlimit', '10');
-      group.appendChild(line);
-
-      const hit = options.ownerDocument.createElementNS(SVG_NS, 'line');
-      hit.setAttribute('x1', segment.x1.toFixed(1));
-      hit.setAttribute('y1', segment.y1.toFixed(1));
-      hit.setAttribute('x2', segment.x2.toFixed(1));
-      hit.setAttribute('y2', segment.y2.toFixed(1));
-      hit.setAttribute('stroke', 'transparent');
-      hit.setAttribute('stroke-width', '12');
-      hit.style.pointerEvents = 'stroke';
-      group.appendChild(hit);
-    }
-
-    const headPoints = arrowheadPolygonPoints(plan);
-    if (headPoints) {
-      const polygon = options.ownerDocument.createElementNS(SVG_NS, 'polygon');
-      polygon.setAttribute('points', headPoints);
-      polygon.setAttribute('fill', plan.color);
-      group.appendChild(polygon);
-    }
-
-    const labelElement = buildArrowLabelElement(options.ownerDocument, arrow, plan);
-    if (labelElement) {
-      group.appendChild(labelElement);
-    }
-
-    fragment.appendChild(group);
-  }
+  appendPreviewDisplayListItems({
+    ownerDocument: options.ownerDocument,
+    parent: fragment,
+    items: emitRoutedArrowDisplayListItems(options.routedArrows, options.boundsMap, {
+      headLength: options.headLen ?? ARROW_HEAD_LENGTH,
+      headHalfWidth: options.headHalf ?? ARROW_HEAD_HALF_WIDTH,
+    }),
+    allowedLayers: ['arrow'],
+  });
   return fragment;
 }
 

@@ -19,7 +19,6 @@ import {
 } from '../preview-engine/index.js';
 import { type TextMeasureAdapter } from '../text-measure.js';
 import {
-  createPreviewArrowSvgFragment,
   routePreviewArrows,
   type PreviewRoutedArrow,
 } from './app-arrow-render.js';
@@ -277,8 +276,14 @@ export function renderPreviewFrameTreeToSvg(
     diagramForDisplay,
     options.result,
     options.textAdapter,
-    { includeLayers: ['frame', 'overlay'] },
+    { includeLayers: ['frame', 'overlay', 'arrow'], previewElkLabels: true },
   );
+  appendPreviewDisplayListItems({
+    ownerDocument: options.ownerDocument,
+    parent: arrowLayer,
+    items: displayList.items,
+    allowedLayers: ['arrow'],
+  });
   appendPreviewDisplayListItems({
     ownerDocument: options.ownerDocument,
     parent: frameLayer,
@@ -292,15 +297,6 @@ export function renderPreviewFrameTreeToSvg(
     items: displayList.items,
     allowedLayers: ['overlay'],
   });
-
-  if (options.diagram.arrows.length > 0) {
-    const boundsMap = collectPreviewPlacedBounds(diagramForDisplay.root);
-    arrowLayer.appendChild(createPreviewArrowSvgFragment({
-      ownerDocument: options.ownerDocument,
-      routedArrows: routePreviewArrows(diagramForDisplay.arrows, boundsMap),
-      boundsMap,
-    }));
-  }
 
   return svg;
 }

@@ -11,6 +11,8 @@ import {
 } from '../src/icon-embed.js';
 import { Frame, FrameDiagram } from '../src/frame-model.js';
 import { layoutFrameTree } from '../src/layout.js';
+import { emitFrameDiagramDisplayList } from '../src/render-adapter/display-list.js';
+import { renderDisplayListToSvg } from '../src/render-adapter/svg.js';
 import { MockTextAdapter } from '../src/text-measure.js';
 import { renderFrameDiagramToSvg } from '../src/svg-render.js';
 
@@ -75,5 +77,32 @@ describe('icon-embed', () => {
     expect(svg).toContain('class="dg-icon"');
     expect(svg).toContain('<path');
     expect(svg).not.toContain('opacity="0.15"');
+  });
+
+  it('renderFrameDiagramToSvg matches the shared display-list svg path when icons are embedded', () => {
+    const root = new Frame({
+      id: 'box',
+      icon: 'Cloud.svg',
+      label: [{ content: 'Title', size: '16px', weight: '400', fill: '#000' }],
+    });
+    root._layout.placedX = 0;
+    root._layout.placedY = 0;
+    root._layout.placedW = 192;
+    root._layout.placedH = 64;
+    const diagram = new FrameDiagram({ root });
+    const adapter = new MockTextAdapter();
+    const result = layoutFrameTree(root, adapter);
+    const load = createFsIconLoader(iconsDir);
+    const iconMarkupByName = preloadIconMarkup(load, collectIconNames(root));
+
+    const sharedSvg = renderDisplayListToSvg(emitFrameDiagramDisplayList(
+      diagram,
+      result,
+      adapter,
+      { iconMarkupByName },
+    ));
+    const wrappedSvg = renderFrameDiagramToSvg(diagram, result, adapter, { iconMarkupByName });
+
+    expect(wrappedSvg).toBe(sharedSvg);
   });
 });

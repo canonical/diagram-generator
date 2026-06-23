@@ -137,6 +137,7 @@ export type {
   ShapedGlyph,
   ShapedRun,
   StrokeStyle,
+  SvgFragmentItem,
   Viewport,
 } from './render-ir.js';
 export {

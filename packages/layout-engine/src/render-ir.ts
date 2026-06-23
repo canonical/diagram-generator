@@ -111,12 +111,24 @@ export interface TextBlockItem extends DisplayListItemBase {
   readonly spans: readonly TextSpanItem[];
 }
 
+export interface SvgFragmentItem extends DisplayListItemBase {
+  readonly kind: "svg-fragment";
+  readonly markup: string;
+}
+
 export interface GroupItem extends DisplayListItemBase {
   readonly kind: "group";
   readonly children: readonly DisplayListItem[];
 }
 
-export type DisplayListItem = RectItem | LineItem | PathItem | GlyphRunItem | TextBlockItem | GroupItem;
+export type DisplayListItem =
+  | RectItem
+  | LineItem
+  | PathItem
+  | GlyphRunItem
+  | TextBlockItem
+  | SvgFragmentItem
+  | GroupItem;
 
 export interface Viewport {
   readonly width: number;

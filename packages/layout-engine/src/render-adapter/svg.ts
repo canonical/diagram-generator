@@ -8,6 +8,7 @@ import type {
   PathCommand,
   PathItem,
   RectItem,
+  SvgFragmentItem,
   TextBlockItem,
 } from "../render-ir.js";
 
@@ -104,7 +105,40 @@ function renderPathCommands(commands: readonly PathCommand[]): string {
     .join(" ");
 }
 
+function trianglePolygonPoints(commands: readonly PathCommand[]): string | null {
+  if (commands.length !== 4) return null;
+  const [first, second, third, fourth] = commands;
+  if (first?.kind !== "M" || second?.kind !== "L" || third?.kind !== "L" || fourth?.kind !== "Z") {
+    return null;
+  }
+  return [
+    `${fmt(first.x)},${fmt(first.y)}`,
+    `${fmt(second.x)},${fmt(second.y)}`,
+    `${fmt(third.x)},${fmt(third.y)}`,
+  ].join(" ");
+}
+
 function renderPath(item: PathItem): string {
+  const polygonPoints = trianglePolygonPoints(item.commands);
+  if (polygonPoints) {
+    const attrs = [`points="${polygonPoints}"`, ...renderAttributes(item.attributes)];
+    if (item.className) attrs.push(`class="${esc(item.className)}"`);
+    attrs.push(`fill="${esc(item.fill ? colorToCss(item.fill.color) : "none")}"`);
+    if (item.stroke) {
+      attrs.push(`stroke="${esc(colorToCss(item.stroke.color))}"`);
+    }
+    if (item.stroke && item.strokeStyle) {
+      attrs.push(`stroke-width="${item.strokeStyle.width}"`);
+      attrs.push(`stroke-miterlimit="10"`);
+      if (item.strokeStyle.dashArray && item.strokeStyle.dashArray.length > 0) {
+        attrs.push(`stroke-dasharray="${item.strokeStyle.dashArray.join(" ")}"`);
+      }
+    }
+    if (item.opacity != null) {
+      attrs.push(`opacity="${item.opacity}"`);
+    }
+    return `<polygon ${attrs.join(" ")}/>`;
+  }
   const attrs = [`d="${renderPathCommands(item.commands)}"`, ...renderAttributes(item.attributes)];
   if (item.className) attrs.push(`class="${esc(item.className)}"`);
   attrs.push(`fill="${esc(item.fill ? colorToCss(item.fill.color) : "none")}"`);
@@ -163,12 +197,24 @@ function renderTextBlock(item: TextBlockItem): string {
   return `<text ${attrs.join(" ")}>${spans.join("")}</text>`;
 }
 
+function renderSvgFragment(item: SvgFragmentItem): string {
+  const attrs = [
+    ...renderAttributes(item.attributes),
+    ...(item.id ? [`data-component-id="${esc(item.id)}"`] : []),
+    ...(item.className ? [`class="${esc(item.className)}"`] : []),
+    ...(item.opacity != null ? [`opacity="${item.opacity}"`] : []),
+  ];
+  return `<g${attrs.length > 0 ? ` ${attrs.join(" ")}` : ""}>${item.markup}</g>`;
+}
+
 function renderGroup(item: GroupItem): string {
-  const idAttr = item.id ? ` data-component-id="${esc(item.id)}"` : "";
-  const opacityAttr = item.opacity != null ? ` opacity="${item.opacity}"` : "";
-  const classAttr = item.className ? ` class="${esc(item.className)}"` : "";
-  const extraAttrs = renderAttributes(item.attributes);
-  return `<g${idAttr}${classAttr}${opacityAttr}${extraAttrs.length > 0 ? ` ${extraAttrs.join(" ")}` : ""}>${item.children.map(renderItem).join("")}</g>`;
+  const attrs = [
+    ...renderAttributes(item.attributes),
+    ...(item.id ? [`data-component-id="${esc(item.id)}"`] : []),
+    ...(item.className ? [`class="${esc(item.className)}"`] : []),
+    ...(item.opacity != null ? [`opacity="${item.opacity}"`] : []),
+  ];
+  return `<g${attrs.length > 0 ? ` ${attrs.join(" ")}` : ""}>${item.children.map(renderItem).join("")}</g>`;
 }
 
 function renderItem(item: DisplayListItem): string {
@@ -183,6 +229,8 @@ function renderItem(item: DisplayListItem): string {
       return renderGlyphRun(item);
     case "text-block":
       return renderTextBlock(item);
+    case "svg-fragment":
+      return renderSvgFragment(item);
     case "group":
       return renderGroup(item);
   }
