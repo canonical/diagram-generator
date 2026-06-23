@@ -137,12 +137,10 @@ function emitFrameGroup(
     height: plan.box.height,
     fill: paint(plan.box.fill),
     stroke: paint(plan.box.stroke),
-    strokeStyle: plan.box.strokeWidth > 0
-      ? {
-        width: plan.box.strokeWidth,
-        dashArray: plan.box.dashed ? [8, 8] : undefined,
-      }
-      : undefined,
+    strokeStyle: {
+      width: plan.box.strokeWidth,
+      dashArray: plan.box.dashed ? [8, 8] : undefined,
+    },
   });
   children.push(...frameTextBlockItems(plan));
 

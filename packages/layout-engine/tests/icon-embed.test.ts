@@ -79,6 +79,28 @@ describe('icon-embed', () => {
     expect(svg).not.toContain('opacity="0.15"');
   });
 
+  it('renderFrameDiagramToSvg keeps the legacy placeholder icon rect shape when markup is unavailable', () => {
+    const root = new Frame({
+      id: 'box',
+      icon: 'missing-icon.svg',
+      label: [{ content: 'Title', size: '16px', weight: '400', fill: '#000' }],
+    });
+    root._layout.placedX = 0;
+    root._layout.placedY = 0;
+    root._layout.placedW = 192;
+    root._layout.placedH = 64;
+    const diagram = new FrameDiagram({ root });
+    const adapter = new MockTextAdapter();
+    const result = layoutFrameTree(root, adapter);
+
+    const svg = renderFrameDiagramToSvg(diagram, result, adapter, { iconMarkupByName: new Map() });
+    const placeholder = svg.match(/<rect class="dg-icon"[^>]+\/>/)?.[0] ?? '';
+
+    expect(placeholder).toContain('class="dg-icon"');
+    expect(placeholder).toContain('opacity="0.15"');
+    expect(placeholder).not.toContain('stroke=');
+  });
+
   it('renderFrameDiagramToSvg matches the shared display-list svg path when icons are embedded', () => {
     const root = new Frame({
       id: 'box',

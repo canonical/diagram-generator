@@ -44,6 +44,21 @@ function renderAttributes(attributes?: Readonly<Record<string, string>>): string
 }
 
 function renderRect(item: RectItem): string {
+  if (item.className === "dg-icon" && !item.stroke && !item.strokeStyle) {
+    const attrs = [
+      `class="${esc(item.className)}"`,
+      `x="${fmt(item.x)}"`,
+      `y="${fmt(item.y)}"`,
+      `width="${fmt(item.width)}"`,
+      `height="${fmt(item.height)}"`,
+      `fill="${esc(item.fill ? colorToCss(item.fill.color) : "none")}"`,
+      ...renderAttributes(item.attributes),
+    ];
+    if (item.opacity != null) {
+      attrs.push(`opacity="${item.opacity}"`);
+    }
+    return `<rect ${attrs.join(" ")}/>`;
+  }
   const attrs = [
     `x="${fmt(item.x)}"`,
     `y="${fmt(item.y)}"`,
@@ -199,9 +214,9 @@ function renderTextBlock(item: TextBlockItem): string {
 
 function renderSvgFragment(item: SvgFragmentItem): string {
   const attrs = [
-    ...renderAttributes(item.attributes),
     ...(item.id ? [`data-component-id="${esc(item.id)}"`] : []),
     ...(item.className ? [`class="${esc(item.className)}"`] : []),
+    ...renderAttributes(item.attributes),
     ...(item.opacity != null ? [`opacity="${item.opacity}"`] : []),
   ];
   return `<g${attrs.length > 0 ? ` ${attrs.join(" ")}` : ""}>${item.markup}</g>`;
