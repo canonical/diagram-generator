@@ -57,19 +57,27 @@
   }
 
   function commitUndoableAction(action) {
-    return _requireStore().commitUndoableAction(action);
+    const committed = _requireStore().commitUndoableAction(action);
+    if (committed) updateUndoRedoButtons();
+    return committed;
   }
 
   function commitOverridePatchAction(label, beforeEntries, afterEntries) {
-    return _requireStore().commitOverridePatchAction(label, beforeEntries, afterEntries);
+    const committed = _requireStore().commitOverridePatchAction(label, beforeEntries, afterEntries);
+    if (committed) updateUndoRedoButtons();
+    return committed;
   }
 
   function runUndoableAction(label, mutate) {
-    return _requireStore().runUndoableAction(label, mutate);
+    const result = _requireStore().runUndoableAction(label, mutate);
+    updateUndoRedoButtons();
+    return result;
   }
 
   function pushUndoCommand(command) {
-    return _requireStore().pushUndoCommand(command);
+    const pushed = _requireStore().pushUndoCommand(command);
+    if (pushed) updateUndoRedoButtons();
+    return pushed;
   }
 
   function captureOverrideEntries(ids) {

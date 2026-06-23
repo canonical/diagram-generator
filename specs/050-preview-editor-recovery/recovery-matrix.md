@@ -12,7 +12,7 @@ It records the typed owner first; legacy JS should remain thin browser glue.
 | Route alias `/v3/view/<slug>` | `preview-shell/app-diagram-navigation.ts`, thin `scripts/preview/editor-base.js` glue | New `app-diagram-navigation` alias tests plus live probe on `/v3/view/preview-smoke` | Fixed. Picker and browse nav now select canonical `/view/v3:<slug>` instead of blank state. | Watch for other route aliases before adding new shell-local logic. |
 | Diagram picker next/previous and browse links | `preview-shell/app-diagram-navigation.ts` | Unit tests for picker sync, stepped navigation, browse active state | Partially verified. Canonical and alias sync pass; live next/previous stepping not yet exercised. | Add a focused browser smoke if stepping remains suspect. |
 | Stage render and selection | `preview-shell/interaction/*`, `preview-shell/scene/*` | Live probe selected `define` and `mongo_clients` | Pass for single frame selection and inspector population. | Continue with keyboard, drag, resize, and tree synchronization probes. |
-| Single-selection inspector | `preview-shell/inspector/*` | Live probe after selecting child frames | Pass for initial render of sizing/style/layout controls. | Verify mutation, dirty state, undo, save payload. |
+| Single-selection inspector | `preview-shell/inspector/*`, `scripts/preview/editor-state.js` adapter | Live probe after selecting `define`, changing `min_width`, then undoing | Partial. Inspector render, dirty state, undo command, Undo button enablement, and undo restore now pass. Visual SVG selection is still lost after the relayout refresh. | Fix selection chrome restoration after inspector-triggered relayout, then verify save payload. |
 | Engine switcher | `preview-engines/*`, `preview-shell/app-bootstrap.ts`, `scripts/preview/engine-switcher.js` | Live probe checks compatible options on v3 fixtures | Options render (`v3`, `elk-layered`); switching was not re-tested after the alias fix to avoid mutating YAML. | Use a temporary fixture or isolated save harness before validating switching. |
 | Grid controls and overlays | `preview-shell/scene/*` | Existing preview app tests; no live mutation in this audit | Unverified in live editor. | Probe numeric grid edit, overlay toggle, dirty state, undo. |
 | Drag, resize, keyboard nudge, delete, undo/redo | `preview-shell/interaction/*`, `preview-shell/app-bootstrap.ts` | Existing contract tests only | Unverified in live editor after 046. | Highest next interaction group after route/picker. |
@@ -32,3 +32,8 @@ npm --prefix packages/layout-engine run build:browser
 Live probe result: `/v3/view/preview-smoke` now reports picker value,
 selected option, and active browse link as `/view/v3:preview-smoke` with no
 browser console/page errors.
+
+Inspector mutation probe result: changing `define.min_width` to `128` enables
+Save and Undo, reports `1 override`, and Undo restores the empty value and clean
+state. Remaining bug: `.dg-selected` is not restored on the refreshed SVG after
+the inspector-triggered relayout.
