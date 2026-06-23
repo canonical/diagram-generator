@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="640" viewBox="0 0 920 640" xml:space="preserve">
+  <rect width="920" height="640" fill="#FFFFFF" />
+  <text x="32" y="48" font-family="Ubuntu Sans, sans-serif" font-size="24" font-weight="700" fill="#000000">Node network connectivity source table</text>
+  <text x="32" y="88" font-family="Ubuntu Sans, sans-serif" font-size="18" fill="#666666">User-provided network-to-node-role mapping</text>
+  <g font-family="Ubuntu Sans, sans-serif" font-size="16" fill="#000000">
+    <text x="32" y="136" font-weight="700">Networks: BMC, OAM/Provisioning, Storage Access, Storage Replication,</text>
+    <text x="32" y="160" font-weight="700">SDN Underlay, Internal API, Public API, Provider Network</text>
+    <text x="32" y="208" font-weight="700">Infra</text>
+    <text x="32" y="240">BMC, OAM/Provisioning, Internal API (Vault), Public API (routed),</text>
+    <text x="32" y="264">Provider Network (validation tests, routed)</text>
+    <text x="32" y="312" font-weight="700">Control</text>
+    <text x="32" y="344">BMC, OAM/Provisioning, Storage Access, Storage Replication,</text>
+    <text x="32" y="368">SDN Underlay, Internal API, Public API</text>
+    <text x="32" y="416" font-weight="700">Hyperconverged nodes</text>
+    <text x="32" y="448">BMC, OAM/Provisioning, Storage Access, Storage Replication,</text>
+    <text x="32" y="472">SDN Underlay, Internal API, Public API, Provider Network</text>
+    <text x="32" y="528" fill="#666666">BMC = dedicated BMC port; OAM/Provisioning = native VLAN for PXE boot.</text>
+    <text x="32" y="560" fill="#666666">Several infra-node networks can be routed.</text>
+  </g>
+</svg>

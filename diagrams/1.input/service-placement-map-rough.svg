@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="720" viewBox="0 0 920 720" xml:space="preserve">
+  <rect width="920" height="720" fill="#FFFFFF" />
+  <text x="32" y="48" font-family="Ubuntu Sans, sans-serif" font-size="24" font-weight="700" fill="#000000">Service placement source table</text>
+  <text x="32" y="88" font-family="Ubuntu Sans, sans-serif" font-size="18" fill="#666666">User-provided service-to-infrastructure-node mapping</text>
+  <g font-family="Ubuntu Sans, sans-serif" font-size="16" fill="#000000">
+    <text x="32" y="136" font-weight="700">Infra #1</text>
+    <text x="328" y="136" font-weight="700">Infra #2</text>
+    <text x="624" y="136" font-weight="700">Infra #3</text>
+    <text x="32" y="168">Rack 1 / AZ 1</text>
+    <text x="328" y="168">Rack 3 / AZ 2</text>
+    <text x="624" y="168">Rack 5 / AZ 3</text>
+    <text x="32" y="216">MAAS Region API, MAAS Rack, MAAS PostgreSQL</text>
+    <text x="32" y="248">Juju Controller LXD, MAAS HAProxy, MAAS Keepalived</text>
+    <text x="32" y="280">Microceph RGW, Juju Controller MAAS, Landscape Server</text>
+    <text x="32" y="312">Landscape RabbitMQ, Landscape PostgreSQL</text>
+    <text x="32" y="344">Canonical Kubernetes, Vault</text>
+    <text x="32" y="376">Landscape HAProxy, Landscape Keepalived</text>
+    <text x="32" y="424">Common services run on all three infrastructure nodes.</text>
+    <text x="32" y="472">Manual TLS certificates: Infra #1 only</text>
+    <text x="32" y="504">Ceph Proxy: Infra #2 only</text>
+  </g>
+</svg>

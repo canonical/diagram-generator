@@ -1,0 +1,232 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="832" height="984" viewBox="0 0 832 984" xml:space="preserve">
+  <rect width="832" height="984" fill="#FFFFFF" />
+  <text font-family="Ubuntu Sans">
+    <tspan x="32" y="54.56" font-size="24" font-weight="700" fill="#000000">Infrastructure service placement map</tspan>
+  </text>
+  <text font-family="Ubuntu Sans">
+    <tspan x="32" y="88.92" font-size="18" font-weight="400" fill="#666666">Infrastructure services mapped across three infrastructure nodes</tspan>
+  </text>
+  <rect x="32" y="128" width="288" height="96" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <text font-family="Ubuntu Sans">
+    <tspan x="40" y="152.92" font-size="18" font-weight="700" fill="#000000">Service</tspan>
+    <tspan x="40" y="176.92" font-size="18" font-weight="700" fill="#000000">placement</tspan>
+  </text>
+  <rect x="320" y="128" width="160" height="96" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <text font-family="Ubuntu Sans">
+    <tspan x="328" y="152.92" font-size="18" font-weight="700" fill="#000000">Infra #1</tspan>
+    <tspan x="328" y="176.92" font-size="18" font-weight="400" fill="#666666">Rack 1</tspan>
+    <tspan x="328" y="200.92" font-size="18" font-weight="400" fill="#666666">AZ 1</tspan>
+  </text>
+  <g transform="translate(424 136)">
+<path d="M39.5 30C40.6046 30 41.5 30.8954 41.5 32V37C41.5 38.1046 40.6046 39 39.5 39H24.5V40.4277C25.5716 40.6573 26.375 41.6099 26.375 42.75C26.375 44.0617 25.3117 45.125 24 45.125C22.6883 45.125 21.625 44.0617 21.625 42.75C21.625 41.6099 22.4284 40.6574 23.5 40.4277V39H8.5C7.39543 39 6.5 38.1046 6.5 37V32C6.5 30.8954 7.39543 30 8.5 30H39.5ZM24 41.375C23.2406 41.375 22.625 41.9906 22.625 42.75C22.625 43.5094 23.2406 44.125 24 44.125C24.7594 44.125 25.375 43.5094 25.375 42.75C25.375 41.9906 24.7594 41.375 24 41.375ZM8.5 31C7.94772 31 7.5 31.4477 7.5 32V37L7.50488 37.1025C7.55278 37.573 7.92703 37.9472 8.39746 37.9951L8.5 38H39.5L39.6025 37.9951C40.1067 37.9438 40.5 37.5177 40.5 37V32C40.5 31.4477 40.0523 31 39.5 31H8.5ZM12 33.501C12.5523 33.501 13 33.9487 13 34.501C13 35.0533 12.5523 35.501 12 35.501C11.4477 35.501 11 35.0533 11 34.501C11 33.9487 11.4477 33.501 12 33.501ZM39.5 19C40.6046 19 41.5 19.8954 41.5 21V26C41.5 27.1046 40.6046 28 39.5 28H8.5C7.39543 28 6.5 27.1046 6.5 26V21C6.5 19.8954 7.39543 19 8.5 19H39.5ZM8.5 20C7.94772 20 7.5 20.4477 7.5 21V26L7.50488 26.1025C7.55278 26.573 7.92703 26.9472 8.39746 26.9951L8.5 27H39.5L39.6025 26.9951C40.1067 26.9438 40.5 26.5177 40.5 26V21C40.5 20.4477 40.0523 20 39.5 20H8.5ZM12 22.501C12.5523 22.501 13 22.9487 13 23.501C13 24.0533 12.5523 24.501 12 24.501C11.4477 24.501 11 24.0533 11 23.501C11 22.9487 11.4477 22.501 12 22.501ZM39.5 8C40.6046 8 41.5 8.89543 41.5 10V15C41.5 16.1046 40.6046 17 39.5 17H8.5C7.39543 17 6.5 16.1046 6.5 15V10C6.5 8.89543 7.39543 8 8.5 8H39.5ZM8.5 9C7.94772 9 7.5 9.44772 7.5 10V15L7.50488 15.1025C7.55278 15.573 7.92703 15.9472 8.39746 15.9951L8.5 16H39.5L39.6025 15.9951C40.1067 15.9438 40.5 15.5177 40.5 15V10C40.5 9.44772 40.0523 9 39.5 9H8.5ZM12 11.501C12.5523 11.501 13 11.9487 13 12.501C13 13.0533 12.5523 13.501 12 13.501C11.4477 13.501 11 13.0533 11 12.501C11 11.9487 11.4477 11.501 12 11.501Z" fill="#000000" />
+
+<circle cx="16" cy="12.501" r="1" fill="#000000" />
+
+<circle cx="16" cy="23.501" r="1" fill="#000000" />
+
+<circle cx="16" cy="34.501" r="1" fill="#000000" />
+
+  </g>
+  <rect x="480" y="128" width="160" height="96" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <text font-family="Ubuntu Sans">
+    <tspan x="488" y="152.92" font-size="18" font-weight="700" fill="#000000">Infra #2</tspan>
+    <tspan x="488" y="176.92" font-size="18" font-weight="400" fill="#666666">Rack 3</tspan>
+    <tspan x="488" y="200.92" font-size="18" font-weight="400" fill="#666666">AZ 2</tspan>
+  </text>
+  <g transform="translate(584 136)">
+<path d="M39.5 30C40.6046 30 41.5 30.8954 41.5 32V37C41.5 38.1046 40.6046 39 39.5 39H24.5V40.4277C25.5716 40.6573 26.375 41.6099 26.375 42.75C26.375 44.0617 25.3117 45.125 24 45.125C22.6883 45.125 21.625 44.0617 21.625 42.75C21.625 41.6099 22.4284 40.6574 23.5 40.4277V39H8.5C7.39543 39 6.5 38.1046 6.5 37V32C6.5 30.8954 7.39543 30 8.5 30H39.5ZM24 41.375C23.2406 41.375 22.625 41.9906 22.625 42.75C22.625 43.5094 23.2406 44.125 24 44.125C24.7594 44.125 25.375 43.5094 25.375 42.75C25.375 41.9906 24.7594 41.375 24 41.375ZM8.5 31C7.94772 31 7.5 31.4477 7.5 32V37L7.50488 37.1025C7.55278 37.573 7.92703 37.9472 8.39746 37.9951L8.5 38H39.5L39.6025 37.9951C40.1067 37.9438 40.5 37.5177 40.5 37V32C40.5 31.4477 40.0523 31 39.5 31H8.5ZM12 33.501C12.5523 33.501 13 33.9487 13 34.501C13 35.0533 12.5523 35.501 12 35.501C11.4477 35.501 11 35.0533 11 34.501C11 33.9487 11.4477 33.501 12 33.501ZM39.5 19C40.6046 19 41.5 19.8954 41.5 21V26C41.5 27.1046 40.6046 28 39.5 28H8.5C7.39543 28 6.5 27.1046 6.5 26V21C6.5 19.8954 7.39543 19 8.5 19H39.5ZM8.5 20C7.94772 20 7.5 20.4477 7.5 21V26L7.50488 26.1025C7.55278 26.573 7.92703 26.9472 8.39746 26.9951L8.5 27H39.5L39.6025 26.9951C40.1067 26.9438 40.5 26.5177 40.5 26V21C40.5 20.4477 40.0523 20 39.5 20H8.5ZM12 22.501C12.5523 22.501 13 22.9487 13 23.501C13 24.0533 12.5523 24.501 12 24.501C11.4477 24.501 11 24.0533 11 23.501C11 22.9487 11.4477 22.501 12 22.501ZM39.5 8C40.6046 8 41.5 8.89543 41.5 10V15C41.5 16.1046 40.6046 17 39.5 17H8.5C7.39543 17 6.5 16.1046 6.5 15V10C6.5 8.89543 7.39543 8 8.5 8H39.5ZM8.5 9C7.94772 9 7.5 9.44772 7.5 10V15L7.50488 15.1025C7.55278 15.573 7.92703 15.9472 8.39746 15.9951L8.5 16H39.5L39.6025 15.9951C40.1067 15.9438 40.5 15.5177 40.5 15V10C40.5 9.44772 40.0523 9 39.5 9H8.5ZM12 11.501C12.5523 11.501 13 11.9487 13 12.501C13 13.0533 12.5523 13.501 12 13.501C11.4477 13.501 11 13.0533 11 12.501C11 11.9487 11.4477 11.501 12 11.501Z" fill="#000000" />
+
+<circle cx="16" cy="12.501" r="1" fill="#000000" />
+
+<circle cx="16" cy="23.501" r="1" fill="#000000" />
+
+<circle cx="16" cy="34.501" r="1" fill="#000000" />
+
+  </g>
+  <rect x="640" y="128" width="160" height="96" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <text font-family="Ubuntu Sans">
+    <tspan x="648" y="152.92" font-size="18" font-weight="700" fill="#000000">Infra #3</tspan>
+    <tspan x="648" y="176.92" font-size="18" font-weight="400" fill="#666666">Rack 5</tspan>
+    <tspan x="648" y="200.92" font-size="18" font-weight="400" fill="#666666">AZ 3</tspan>
+  </text>
+  <g transform="translate(744 136)">
+<path d="M39.5 30C40.6046 30 41.5 30.8954 41.5 32V37C41.5 38.1046 40.6046 39 39.5 39H24.5V40.4277C25.5716 40.6573 26.375 41.6099 26.375 42.75C26.375 44.0617 25.3117 45.125 24 45.125C22.6883 45.125 21.625 44.0617 21.625 42.75C21.625 41.6099 22.4284 40.6574 23.5 40.4277V39H8.5C7.39543 39 6.5 38.1046 6.5 37V32C6.5 30.8954 7.39543 30 8.5 30H39.5ZM24 41.375C23.2406 41.375 22.625 41.9906 22.625 42.75C22.625 43.5094 23.2406 44.125 24 44.125C24.7594 44.125 25.375 43.5094 25.375 42.75C25.375 41.9906 24.7594 41.375 24 41.375ZM8.5 31C7.94772 31 7.5 31.4477 7.5 32V37L7.50488 37.1025C7.55278 37.573 7.92703 37.9472 8.39746 37.9951L8.5 38H39.5L39.6025 37.9951C40.1067 37.9438 40.5 37.5177 40.5 37V32C40.5 31.4477 40.0523 31 39.5 31H8.5ZM12 33.501C12.5523 33.501 13 33.9487 13 34.501C13 35.0533 12.5523 35.501 12 35.501C11.4477 35.501 11 35.0533 11 34.501C11 33.9487 11.4477 33.501 12 33.501ZM39.5 19C40.6046 19 41.5 19.8954 41.5 21V26C41.5 27.1046 40.6046 28 39.5 28H8.5C7.39543 28 6.5 27.1046 6.5 26V21C6.5 19.8954 7.39543 19 8.5 19H39.5ZM8.5 20C7.94772 20 7.5 20.4477 7.5 21V26L7.50488 26.1025C7.55278 26.573 7.92703 26.9472 8.39746 26.9951L8.5 27H39.5L39.6025 26.9951C40.1067 26.9438 40.5 26.5177 40.5 26V21C40.5 20.4477 40.0523 20 39.5 20H8.5ZM12 22.501C12.5523 22.501 13 22.9487 13 23.501C13 24.0533 12.5523 24.501 12 24.501C11.4477 24.501 11 24.0533 11 23.501C11 22.9487 11.4477 22.501 12 22.501ZM39.5 8C40.6046 8 41.5 8.89543 41.5 10V15C41.5 16.1046 40.6046 17 39.5 17H8.5C7.39543 17 6.5 16.1046 6.5 15V10C6.5 8.89543 7.39543 8 8.5 8H39.5ZM8.5 9C7.94772 9 7.5 9.44772 7.5 10V15L7.50488 15.1025C7.55278 15.573 7.92703 15.9472 8.39746 15.9951L8.5 16H39.5L39.6025 15.9951C40.1067 15.9438 40.5 15.5177 40.5 15V10C40.5 9.44772 40.0523 9 39.5 9H8.5ZM12 11.501C12.5523 11.501 13 11.9487 13 12.501C13 13.0533 12.5523 13.501 12 13.501C11.4477 13.501 11 13.0533 11 12.501C11 11.9487 11.4477 11.501 12 11.501Z" fill="#000000" />
+
+<circle cx="16" cy="12.501" r="1" fill="#000000" />
+
+<circle cx="16" cy="23.501" r="1" fill="#000000" />
+
+<circle cx="16" cy="34.501" r="1" fill="#000000" />
+
+  </g>
+  <rect x="32" y="224" width="288" height="40" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <text font-family="Ubuntu Sans">
+    <tspan x="40" y="248.92" font-size="18" font-weight="400" fill="#000000">MAAS Region API</tspan>
+  </text>
+  <rect x="320" y="224" width="160" height="40" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="400" cy="244" r="5" fill="#000000" />
+  <rect x="480" y="224" width="160" height="40" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="560" cy="244" r="5" fill="#000000" />
+  <rect x="640" y="224" width="160" height="40" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="720" cy="244" r="5" fill="#000000" />
+  <rect x="32" y="264" width="288" height="40" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <text font-family="Ubuntu Sans">
+    <tspan x="40" y="288.92" font-size="18" font-weight="400" fill="#000000">MAAS Rack</tspan>
+  </text>
+  <rect x="320" y="264" width="160" height="40" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="400" cy="284" r="5" fill="#000000" />
+  <rect x="480" y="264" width="160" height="40" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="560" cy="284" r="5" fill="#000000" />
+  <rect x="640" y="264" width="160" height="40" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="720" cy="284" r="5" fill="#000000" />
+  <rect x="32" y="304" width="288" height="40" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <text font-family="Ubuntu Sans">
+    <tspan x="40" y="328.92" font-size="18" font-weight="400" fill="#000000">MAAS PostgreSQL</tspan>
+  </text>
+  <rect x="320" y="304" width="160" height="40" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="400" cy="324" r="5" fill="#000000" />
+  <rect x="480" y="304" width="160" height="40" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="560" cy="324" r="5" fill="#000000" />
+  <rect x="640" y="304" width="160" height="40" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="720" cy="324" r="5" fill="#000000" />
+  <rect x="32" y="344" width="288" height="40" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <text font-family="Ubuntu Sans">
+    <tspan x="40" y="368.92" font-size="18" font-weight="400" fill="#000000">Juju Controller LXD</tspan>
+  </text>
+  <rect x="320" y="344" width="160" height="40" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="400" cy="364" r="5" fill="#000000" />
+  <rect x="480" y="344" width="160" height="40" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="560" cy="364" r="5" fill="#000000" />
+  <rect x="640" y="344" width="160" height="40" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="720" cy="364" r="5" fill="#000000" />
+  <rect x="32" y="384" width="288" height="40" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <text font-family="Ubuntu Sans">
+    <tspan x="40" y="408.92" font-size="18" font-weight="400" fill="#000000">MAAS HAProxy</tspan>
+  </text>
+  <rect x="320" y="384" width="160" height="40" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="400" cy="404" r="5" fill="#000000" />
+  <rect x="480" y="384" width="160" height="40" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="560" cy="404" r="5" fill="#000000" />
+  <rect x="640" y="384" width="160" height="40" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="720" cy="404" r="5" fill="#000000" />
+  <rect x="32" y="424" width="288" height="40" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <text font-family="Ubuntu Sans">
+    <tspan x="40" y="448.92" font-size="18" font-weight="400" fill="#000000">MAAS Keepalived</tspan>
+  </text>
+  <rect x="320" y="424" width="160" height="40" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="400" cy="444" r="5" fill="#000000" />
+  <rect x="480" y="424" width="160" height="40" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="560" cy="444" r="5" fill="#000000" />
+  <rect x="640" y="424" width="160" height="40" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="720" cy="444" r="5" fill="#000000" />
+  <rect x="32" y="464" width="288" height="40" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <text font-family="Ubuntu Sans">
+    <tspan x="40" y="488.92" font-size="18" font-weight="400" fill="#000000">Microceph RGW</tspan>
+  </text>
+  <rect x="320" y="464" width="160" height="40" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="400" cy="484" r="5" fill="#000000" />
+  <rect x="480" y="464" width="160" height="40" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="560" cy="484" r="5" fill="#000000" />
+  <rect x="640" y="464" width="160" height="40" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="720" cy="484" r="5" fill="#000000" />
+  <rect x="32" y="504" width="288" height="40" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <text font-family="Ubuntu Sans">
+    <tspan x="40" y="528.92" font-size="18" font-weight="400" fill="#000000">Juju Controller MAAS</tspan>
+  </text>
+  <rect x="320" y="504" width="160" height="40" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="400" cy="524" r="5" fill="#000000" />
+  <rect x="480" y="504" width="160" height="40" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="560" cy="524" r="5" fill="#000000" />
+  <rect x="640" y="504" width="160" height="40" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="720" cy="524" r="5" fill="#000000" />
+  <rect x="32" y="544" width="288" height="40" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <text font-family="Ubuntu Sans">
+    <tspan x="40" y="568.92" font-size="18" font-weight="400" fill="#000000">Landscape Server</tspan>
+  </text>
+  <rect x="320" y="544" width="160" height="40" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="400" cy="564" r="5" fill="#000000" />
+  <rect x="480" y="544" width="160" height="40" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="560" cy="564" r="5" fill="#000000" />
+  <rect x="640" y="544" width="160" height="40" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="720" cy="564" r="5" fill="#000000" />
+  <rect x="32" y="584" width="288" height="40" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <text font-family="Ubuntu Sans">
+    <tspan x="40" y="608.92" font-size="18" font-weight="400" fill="#000000">Landscape RabbitMQ</tspan>
+  </text>
+  <rect x="320" y="584" width="160" height="40" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="400" cy="604" r="5" fill="#000000" />
+  <rect x="480" y="584" width="160" height="40" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="560" cy="604" r="5" fill="#000000" />
+  <rect x="640" y="584" width="160" height="40" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="720" cy="604" r="5" fill="#000000" />
+  <rect x="32" y="624" width="288" height="40" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <text font-family="Ubuntu Sans">
+    <tspan x="40" y="648.92" font-size="18" font-weight="400" fill="#000000">Landscape PostgreSQL</tspan>
+  </text>
+  <rect x="320" y="624" width="160" height="40" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="400" cy="644" r="5" fill="#000000" />
+  <rect x="480" y="624" width="160" height="40" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="560" cy="644" r="5" fill="#000000" />
+  <rect x="640" y="624" width="160" height="40" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="720" cy="644" r="5" fill="#000000" />
+  <rect x="32" y="664" width="288" height="40" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <text font-family="Ubuntu Sans">
+    <tspan x="40" y="688.92" font-size="18" font-weight="400" fill="#000000">Canonical Kubernetes</tspan>
+  </text>
+  <rect x="320" y="664" width="160" height="40" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="400" cy="684" r="5" fill="#000000" />
+  <rect x="480" y="664" width="160" height="40" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="560" cy="684" r="5" fill="#000000" />
+  <rect x="640" y="664" width="160" height="40" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="720" cy="684" r="5" fill="#000000" />
+  <rect x="32" y="704" width="288" height="40" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <text font-family="Ubuntu Sans">
+    <tspan x="40" y="728.92" font-size="18" font-weight="400" fill="#000000">Vault</tspan>
+  </text>
+  <rect x="320" y="704" width="160" height="40" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="400" cy="724" r="5" fill="#000000" />
+  <rect x="480" y="704" width="160" height="40" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="560" cy="724" r="5" fill="#000000" />
+  <rect x="640" y="704" width="160" height="40" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="720" cy="724" r="5" fill="#000000" />
+  <rect x="32" y="744" width="288" height="40" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <text font-family="Ubuntu Sans">
+    <tspan x="40" y="768.92" font-size="18" font-weight="400" fill="#000000">Landscape HAProxy</tspan>
+  </text>
+  <rect x="320" y="744" width="160" height="40" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="400" cy="764" r="5" fill="#000000" />
+  <rect x="480" y="744" width="160" height="40" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="560" cy="764" r="5" fill="#000000" />
+  <rect x="640" y="744" width="160" height="40" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="720" cy="764" r="5" fill="#000000" />
+  <rect x="32" y="784" width="288" height="40" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <text font-family="Ubuntu Sans">
+    <tspan x="40" y="808.92" font-size="18" font-weight="400" fill="#000000">Landscape Keepalived</tspan>
+  </text>
+  <rect x="320" y="784" width="160" height="40" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="400" cy="804" r="5" fill="#000000" />
+  <rect x="480" y="784" width="160" height="40" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="560" cy="804" r="5" fill="#000000" />
+  <rect x="640" y="784" width="160" height="40" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="720" cy="804" r="5" fill="#000000" />
+  <rect x="32" y="824" width="288" height="40" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <text font-family="Ubuntu Sans">
+    <tspan x="40" y="848.92" font-size="18" font-weight="400" fill="#000000">Manual TLS certificates</tspan>
+  </text>
+  <rect x="320" y="824" width="160" height="40" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="400" cy="844" r="5" fill="#000000" />
+  <rect x="480" y="824" width="160" height="40" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <rect x="640" y="824" width="160" height="40" fill="#F3F3F3" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <rect x="32" y="864" width="288" height="40" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <text font-family="Ubuntu Sans">
+    <tspan x="40" y="888.92" font-size="18" font-weight="400" fill="#000000">Ceph Proxy</tspan>
+  </text>
+  <rect x="320" y="864" width="160" height="40" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <rect x="480" y="864" width="160" height="40" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="560" cy="884" r="5" fill="#000000" />
+  <rect x="640" y="864" width="160" height="40" fill="#FFFFFF" stroke="#000000" stroke-width="1" stroke-miterlimit="10" />
+  <circle cx="37" cy="941" r="5" fill="#000000" />
+  <text font-family="Ubuntu Sans">
+    <tspan x="56" y="945.92" font-size="18" font-weight="400" fill="#666666">Service present on node</tspan>
+  </text>
+</svg>

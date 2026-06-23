@@ -43,6 +43,18 @@ def find_refined(slug: str) -> pathlib.Path:
 
 
 PAIRS = [
+  {
+    "slug": "service-placement-map",
+    "title": "Service placement map",
+    "before": "service-placement-map-rough.svg",
+    "after": "service-placement-map-onbrand.svg",
+  },
+  {
+    "slug": "node-network-connectivity",
+    "title": "Node network connectivity",
+    "before": "node-network-connectivity-rough.svg",
+    "after": "node-network-connectivity-onbrand.svg",
+  },
     {
         "slug": "memory-wall",
         "title": "Memory wall",

@@ -4,6 +4,19 @@ Completed work belongs here so `TODO.md` stays lean.
 
 ## Short-term
 
+### 2026-06-23 – Node network connectivity
+
+- Added a Pipeline 1 node network connectivity diagram from the network-to-node-role table: eight full-width grey network bars feeding three white node boxes (infrastructure, control, hyper-converged) via orange per-network connectors, with the parenthetical source notes preserved as grey footnotes.
+- Connectivity matches the source table: infrastructure node consumes 5 networks (BMC, OAM/provisioning, internal/public API, provider network), control node 7 (all but provider network), hyper-converged node all 8.
+- New outputs `node-network-connectivity-onbrand.svg` + editable `node-network-connectivity-onbrand.drawio` (edges carry source/target ids with per-lane entry/exit anchors), rough source `diagrams/1.input/node-network-connectivity-rough.svg`, and compare page `diagrams/3.compare/html/node-network-connectivity.html`.
+- Validation: rebuilt Pipeline 1 with `python scripts/build_outputs.py --no-visual`, sanitizer dry-run passed, both SVG/draw.io XML parse, and browser-smoke-checked the rendered SVG.
+
+### 2026-06-23 – Service placement map
+
+- Added a Pipeline 1 service placement map from the infrastructure-node table, with `service-placement-map-onbrand.svg`, editable `service-placement-map-onbrand.drawio`, and a rough source asset in `diagrams/1.input/`.
+- Wired the new slug into the compare-page batch so `diagrams/3.compare/html/service-placement-map.html` is generated.
+- Validation: rebuilt Pipeline 1 with `python scripts/build_outputs.py --no-visual`, sanitized the new SVG, parsed the new SVG/draw.io XML, verified key labels and Illustrator-safe SVG constraints, and browser-smoke-checked the rendered SVG.
+
 ### 2026-05-11 â€“ Windows BF preview smoke pass
 
 - Verified the BF-backed preview shell on Windows against the running local server: `/` loaded the diagram index, `/view/example-data-processing` loaded the editor shell, and the desktop layout stayed in the intended single-row `navigation + main + aside` arrangement.

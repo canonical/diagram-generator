@@ -9,6 +9,7 @@ import xml.etree.ElementTree as ET
 import diagram_shared as svg
 import drawio_style_presets as dg_presets
 import drawio_style_tokens as dg_tokens
+import generate_remaining_diagrams as gen
 
 
 FONT_SOURCE = dg_presets.FONT_SOURCE
@@ -632,6 +633,265 @@ def add_command_bar(
         style_tokens=("label-terminal",),
     )
     return bar
+
+
+SERVICE_PLACEMENT_COMMON_SERVICES = [
+    "MAAS Region API",
+    "MAAS Rack",
+    "MAAS PostgreSQL",
+    "Juju Controller LXD",
+    "MAAS HAProxy",
+    "MAAS Keepalived",
+    "Microceph RGW",
+    "Juju Controller MAAS",
+    "Landscape Server",
+    "Landscape RabbitMQ",
+    "Landscape PostgreSQL",
+    "Canonical Kubernetes",
+    "Vault",
+    "Landscape HAProxy",
+    "Landscape Keepalived",
+]
+
+SERVICE_PLACEMENT_SPECIAL_SERVICES = [
+    ("Manual TLS certificates", (True, False, False)),
+    ("Ceph Proxy", (False, True, False)),
+]
+
+
+def service_placement_rows() -> list[tuple[str, tuple[bool, bool, bool]]]:
+    rows = [(service, (True, True, True)) for service in SERVICE_PLACEMENT_COMMON_SERVICES]
+    rows.extend(SERVICE_PLACEMENT_SPECIAL_SERVICES)
+    return rows
+
+
+def add_table_cell(
+    builder: DrawioBuilder,
+    *,
+    x: float,
+    y: float,
+    width: float,
+    height: float,
+    fill: str,
+    lines: list[dict[str, object]],
+    icon_name: str | None = None,
+) -> str:
+    cell = add_plain_rect(builder, x=x, y=y, width=width, height=height, fill=fill)
+    text_width = width - (svg.INSET * 2)
+    if icon_name:
+        text_width -= svg.ICON_SIZE + svg.INSET
+    add_label(
+        builder,
+        x=svg.INSET,
+        y=svg.INSET,
+        width=text_width,
+        height=max(0, height - (svg.INSET * 2)),
+        lines=lines,
+        parent=cell,
+        style_tokens=("label-box",),
+    )
+    if icon_name:
+        add_image(
+            builder,
+            x=width - svg.INSET - svg.ICON_SIZE,
+            y=svg.INSET,
+            width=svg.ICON_SIZE,
+            height=svg.ICON_SIZE,
+            image_uri=icon_uri(icon_name),
+            parent=cell,
+            style_tokens=("icon-image",),
+        )
+    return cell
+
+
+def add_service_marker(builder: DrawioBuilder, *, cx: float, cy: float, parent: str = "1") -> str:
+    return builder.add_vertex(
+        x=cx - 5,
+        y=cy - 5,
+        width=10,
+        height=10,
+        style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#000000;strokeColor=#000000;strokeWidth=1;shadow=0;",
+        parent=parent,
+        connectable=False,
+        metadata=dg_tokens.CellMetadata(role="marker", style_tokens=("service-placement-marker",)),
+    )
+
+
+def export_service_placement_map() -> None:
+    rows = service_placement_rows()
+    service_col_width = 288
+    node_col_width = 160
+    table_x = 32
+    table_y = 128
+    header_height = 96
+    row_height = 40
+    table_width = service_col_width + (node_col_width * 3)
+    table_height = header_height + (len(rows) * row_height)
+    page_width = table_x + table_width + 32
+    page_height = table_y + table_height + 80
+
+    node_headers = [
+        ("Infra #1", "Rack 1", "AZ 1"),
+        ("Infra #2", "Rack 3", "AZ 2"),
+        ("Infra #3", "Rack 5", "AZ 3"),
+    ]
+
+    builder = DrawioBuilder(name="Service placement map", diagram_id="service-placement-map", page_width=page_width, page_height=page_height)
+    add_label(
+        builder,
+        x=table_x,
+        y=32,
+        width=table_width,
+        height=32,
+        lines=[svg.make_line("Infrastructure service placement map", size=svg.TITLE_SIZE, weight="700")],
+        style_tokens=("label-title",),
+    )
+    add_label(
+        builder,
+        x=table_x,
+        y=72,
+        width=table_width,
+        height=32,
+        lines=[svg.make_line("Infrastructure services mapped across three infrastructure nodes", fill=svg.HELPER)],
+        style_tokens=("label-helper",),
+    )
+
+    add_table_cell(
+        builder,
+        x=table_x,
+        y=table_y,
+        width=service_col_width,
+        height=header_height,
+        fill=svg.GREY,
+        lines=[svg.make_line("Service", weight="700"), svg.make_line("placement", weight="700")],
+    )
+    for index, (infra, rack, az) in enumerate(node_headers):
+        x = table_x + service_col_width + (index * node_col_width)
+        add_table_cell(
+            builder,
+            x=x,
+            y=table_y,
+            width=node_col_width,
+            height=header_height,
+            fill=svg.GREY,
+            lines=[svg.make_line(infra, weight="700"), svg.make_line(rack, fill=svg.HELPER), svg.make_line(az, fill=svg.HELPER)],
+            icon_name="Server.svg",
+        )
+
+    for row_index, (service, placements) in enumerate(rows):
+        y = table_y + header_height + (row_index * row_height)
+        fill = svg.WHITE if row_index % 2 == 0 else svg.GREY
+        add_table_cell(builder, x=table_x, y=y, width=service_col_width, height=row_height, fill=fill, lines=[svg.make_line(service)])
+        for node_index, present in enumerate(placements):
+            x = table_x + service_col_width + (node_index * node_col_width)
+            add_plain_rect(builder, x=x, y=y, width=node_col_width, height=row_height, fill=fill)
+            if present:
+                add_service_marker(builder, cx=x + (node_col_width / 2), cy=y + (row_height / 2))
+
+    legend_y = table_y + table_height + 32
+    add_service_marker(builder, cx=table_x + 5, cy=legend_y + 5)
+    add_label(
+        builder,
+        x=table_x + 24,
+        y=legend_y - 7,
+        width=240,
+        height=32,
+        lines=[svg.make_line("Service present on node", fill=svg.HELPER)],
+        style_tokens=("label-helper",),
+    )
+    builder.write(svg.DRAWIO_DIR / "service-placement-map-onbrand.drawio")
+
+
+def export_node_network_connectivity() -> None:
+    g = gen.node_network_geometry()
+    table_x = g["table_x"]
+    node_w = g["node_w"]
+    content_w = g["content_w"]
+    bar_h = g["bar_h"]
+    bar_top = g["bar_top"]
+    nodes_y = g["nodes_y"]
+    node_h = g["node_h"]
+
+    builder = DrawioBuilder(
+        name="Node network connectivity",
+        diagram_id="node-network-connectivity",
+        page_width=g["width"],
+        page_height=g["height"],
+    )
+    add_label(
+        builder,
+        x=table_x,
+        y=32,
+        width=content_w,
+        height=32,
+        lines=[svg.make_line("Node network connectivity", size=svg.TITLE_SIZE, weight="700")],
+        style_tokens=("label-title",),
+    )
+    add_label(
+        builder,
+        x=table_x,
+        y=72,
+        width=content_w,
+        height=32,
+        lines=[svg.make_line("Networks consumed by each OpenStack node role", fill=svg.HELPER)],
+        style_tokens=("label-helper",),
+    )
+
+    bar_ids: list[str] = []
+    for k, name in enumerate(gen.NODE_NETWORK_NETWORKS):
+        bar_ids.append(
+            add_box(
+                builder,
+                x=table_x,
+                y=bar_top(k),
+                width=content_w,
+                height=bar_h,
+                fill=svg.GREY,
+                lines=[svg.make_line(name, weight="600")],
+            )
+        )
+
+    node_ids: list[str] = []
+    for i, (label_lines, icon, _) in enumerate(gen.NODE_NETWORK_ROLES):
+        node_ids.append(
+            add_box(
+                builder,
+                x=g["node_x"](i),
+                y=nodes_y,
+                width=node_w,
+                height=node_h,
+                fill=svg.WHITE,
+                lines=[svg.make_line(text, weight="600") for text in label_lines],
+                icon_name=icon,
+            )
+        )
+
+    # Orange connectors: each network bar feeds the node roles that consume it.
+    for i, (_, _, consumed) in enumerate(gen.NODE_NETWORK_ROLES):
+        node_x_i = g["node_x"](i)
+        for k in sorted(consumed):
+            lx = g["lane_x"](i, k)
+            exit_x = round((lx - table_x) / content_w, 4)
+            entry_x = round((lx - node_x_i) / node_w, 4)
+            builder.add_edge(
+                style=edge_style(svg.ORANGE, exit_x=exit_x, exit_y=1, entry_x=entry_x, entry_y=0),
+                source=bar_ids[k],
+                target=node_ids[i],
+                source_point=(lx, bar_top(k) + bar_h),
+                target_point=(lx, nodes_y),
+            )
+
+    add_label(
+        builder,
+        x=table_x,
+        y=g["notes_top"],
+        width=content_w,
+        height=len(gen.NODE_NETWORK_NOTES) * 24,
+        lines=[svg.make_line(note, fill=svg.HELPER) for note in gen.NODE_NETWORK_NOTES],
+        style_tokens=("label-helper",),
+    )
+
+    builder.write(svg.DRAWIO_DIR / "node-network-connectivity-onbrand.drawio")
 
 
 def export_memory_wall() -> None:
@@ -1574,6 +1834,8 @@ def export_attention_qkv() -> None:
 
 def main() -> None:
     svg.DRAWIO_DIR.mkdir(parents=True, exist_ok=True)
+    export_service_placement_map()
+    export_node_network_connectivity()
     export_memory_wall()
     export_request_to_hardware_stack()
     export_inference_snaps()
