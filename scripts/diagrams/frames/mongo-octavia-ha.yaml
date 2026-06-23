@@ -1,0 +1,166 @@
+schema: author-v1
+engine: v3
+title: MongoDB access through Octavia
+meta:
+  diagram_type: deployment_and_runtime_topology
+  layout_engine: v3
+  source_image: mongo-octavia-ha-source.png
+grid:
+  cols: 3
+  col_gap: 32
+  row_gap: 48
+overlays:
+- id: octavia_cluster_overlay
+  members:
+  - octavia_lb_a
+  - octavia_lb_b
+- id: mongo_ip_overlay
+  members:
+  - mongo_write
+  - mongo_read_az2
+  - mongo_read_az3
+arrows:
+- id: client_to_octavia
+  source: mongo_clients
+  target: octavia_cluster
+  label: 1 IP / 3 ports
+  label_gap: 24
+- id: octavia_to_write
+  source: octavia_cluster
+  target: mongo_write
+- id: octavia_to_read_az2
+  source: octavia_cluster
+  target: mongo_read_az2
+- id: octavia_to_read_az3
+  source: octavia_cluster
+  target: mongo_read_az3
+root:
+  id: page
+  direction: vertical
+  align: top-center
+  gap: 48
+  padding: 32
+  width: 960
+  sizing_w: fixed
+  sizing_h: hug
+  children:
+  - id: mongo_clients
+    width: 224
+    sizing_w: fixed
+    label:
+    - Mongo
+    - clients
+    icon: 3 users.svg
+  - id: octavia_cluster
+    direction: horizontal
+    align: top-center
+    gap: 24
+    padding: 0
+    children:
+    - id: octavia_lb_a
+      level: 2
+      width: 216
+      sizing_w: fixed
+      label:
+      - Octavia LB
+      icon: Gateway.svg
+    - id: octavia_lb_b
+      level: 2
+      width: 216
+      sizing_w: fixed
+      label:
+      - Octavia LB
+      icon: Gateway.svg
+  - id: mongo_ip_label
+    variant: annotation
+    width: 160
+    sizing_w: fixed
+    label:
+    - 3x IPs
+  - id: availability_zones
+    direction: horizontal
+    align: top-center
+    gap: 24
+    sizing_w: fill
+    children:
+    - id: az1
+      direction: vertical
+      align: top-center
+      gap: 12
+      sizing_w: fill
+      children:
+      - id: vm_az1
+        level: 3
+        heading: VM
+        direction: vertical
+        align: top-center
+        padding: 16
+        width: 280
+        sizing_w: fixed
+        children:
+        - id: mongo_write
+          level: 2
+          width: 224
+          sizing_w: fixed
+          label:
+          - Mongo
+          - write
+          icon: Storage node.svg
+      - id: az1_label
+        variant: annotation
+        label:
+        - AZ 1
+    - id: az2
+      direction: vertical
+      align: top-center
+      gap: 12
+      sizing_w: fill
+      children:
+      - id: vm_az2
+        level: 3
+        heading: VM
+        direction: vertical
+        align: top-center
+        padding: 16
+        width: 280
+        sizing_w: fixed
+        children:
+        - id: mongo_read_az2
+          level: 2
+          width: 224
+          sizing_w: fixed
+          label:
+          - Mongo
+          - read-only
+          icon: Storage node.svg
+      - id: az2_label
+        variant: annotation
+        label:
+        - AZ 2
+    - id: az3
+      direction: vertical
+      align: top-center
+      gap: 12
+      sizing_w: fill
+      children:
+      - id: vm_az3
+        level: 3
+        heading: VM
+        direction: vertical
+        align: top-center
+        padding: 16
+        width: 280
+        sizing_w: fixed
+        children:
+        - id: mongo_read_az3
+          level: 2
+          width: 224
+          sizing_w: fixed
+          label:
+          - Mongo
+          - read-only
+          icon: Storage node.svg
+      - id: az3_label
+        variant: annotation
+        label:
+        - AZ 3
