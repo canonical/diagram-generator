@@ -67,6 +67,8 @@ This spec does not cover:
 - changing YAML authoring semantics
 - routing fresh-render DOM directly into export output
 - draw.io serializer implementation unless a later slice explicitly adds it
+- bespoke debug/diagnostic DOM such as `elk-debug-view.ts`, which is not an
+  artifact or interactive diagram renderer
 
 ## Architectural position
 
@@ -113,7 +115,7 @@ As a platform maintainer, I want future engine lanes to plug into a shared rende
 ## Success Criteria
 
 - **SC-001**: Arrowhead geometry cannot drift between preview full-render, bridge patch, interactive arrow edit, and export paths.
-- **SC-002**: Preview load and export SVG share a common geometry emitter.
+- **SC-002**: Fresh preview load and export SVG share a common geometry emitter.
 - **SC-003**: Export SVG retains logical `<g>` grouping without inheriting preview-only editor chrome.
 - **SC-004**: The repo can add future engine lanes without introducing another parallel renderer.
 
@@ -153,6 +155,13 @@ The bridge/waypoint mutation lane is now explicitly bounded rather than a
 renderer gap: incremental preview arrow patching remains a preview-only DOM
 reuse optimization, and interactive waypoint edits still mutate DOM after the
 shared geometry pass, but both consume shared arrow geometry primitives rather
-than owning separate render math. At this point the cutover bar is met: new
-engine lanes can enter through layout data plus the shared IR/serializer
-contract without adding another bespoke preview/export renderer.
+than owning separate render math. Bridge frame relayout is the matching
+preview-only DOM reuse path: `patchPreviewFrameGroup()` rebuilds live frame DOM
+from `resolveFrameRenderPlan()` so inspector relayout can preserve preview
+metadata and nodes without reserializing the full display-list IR, but it is
+not a separate geometry owner. Cross-lane coverage now compares
+`preview-smoke` fresh preview DOM geometry with export SVG geometry after
+normalizing preview-only hit targets, layer wrappers, and metadata. At this
+point the cutover bar is met: new engine lanes can enter through layout data
+plus the shared IR/serializer contract without adding another bespoke
+preview/export renderer.

@@ -6,6 +6,7 @@ import { loadFrameYaml } from "../src/frame-yaml-loader.js";
 import { layoutFrameTree } from "../src/layout.js";
 import { emitFrameDiagramDisplayList } from "../src/render-adapter/display-list.js";
 import { renderDisplayListToSvg } from "../src/render-adapter/svg.js";
+import { renderPreviewFrameTreeToSvg } from "../src/preview-shell/app-fresh-render.js";
 import { renderFrameDiagramToSvg } from "../src/svg-render.js";
 import { MockTextAdapter } from "../src/text-measure.js";
 
@@ -46,42 +47,160 @@ function parsePathTriangle(raw: string): Array<[number, number]> {
   return points;
 }
 
-function normalizeGeometry(svg: string) {
-  const rects = [...svg.matchAll(/<rect ([^>]+?)\/>/g)].map((match) => ({
-    x: Number(match[1]!.match(/\bx="([^"]+)"/)?.[1] ?? "0"),
-    y: Number(match[1]!.match(/\by="([^"]+)"/)?.[1] ?? "0"),
-    width: Number(match[1]!.match(/\bwidth="([^"]+)"/)?.[1] ?? "0"),
-    height: Number(match[1]!.match(/\bheight="([^"]+)"/)?.[1] ?? "0"),
-    fill: match[1]!.match(/\bfill="([^"]+)"/)?.[1] ?? "",
-    stroke: match[1]!.match(/\bstroke="([^"]+)"/)?.[1] ?? "",
+function matchEmptyOrPairedElement(svg: string, tagName: string): RegExpMatchArray[] {
+  return [...svg.matchAll(new RegExp(`<${tagName}\\b([^>]*?)(?:\\/>|><\\/${tagName}>)`, "g"))];
+}
+
+function normalizeNumber(value: string, precision: number): number {
+  const scale = 10 ** precision;
+  return Math.round(Number(value) * scale) / scale;
+}
+
+function normalizeGeometry(svg: string, options: { precision?: number } = {}) {
+  const precision = options.precision ?? 2;
+  const readNumber = (attrs: string, name: string): number => (
+    normalizeNumber(attrs.match(new RegExp(`\\b${name}="([^"]+)"`))?.[1] ?? "0", precision)
+  );
+  const readAttribute = (attrs: string, name: string): string => (
+    attrs.match(new RegExp(`\\b${name}="([^"]+)"`))?.[1] ?? ""
+  );
+
+  const rects = matchEmptyOrPairedElement(svg, "rect").map((match) => ({
+    x: readNumber(match[1]!, "x"),
+    y: readNumber(match[1]!, "y"),
+    width: readNumber(match[1]!, "width"),
+    height: readNumber(match[1]!, "height"),
+    fill: readAttribute(match[1]!, "fill"),
+    stroke: readAttribute(match[1]!, "stroke"),
   }));
-  const lines = [...svg.matchAll(/<line ([^>]+?)\/>/g)].map((match) => ({
-    x1: Number(match[1]!.match(/\bx1="([^"]+)"/)?.[1] ?? "0"),
-    y1: Number(match[1]!.match(/\by1="([^"]+)"/)?.[1] ?? "0"),
-    x2: Number(match[1]!.match(/\bx2="([^"]+)"/)?.[1] ?? "0"),
-    y2: Number(match[1]!.match(/\by2="([^"]+)"/)?.[1] ?? "0"),
-    stroke: match[1]!.match(/\bstroke="([^"]+)"/)?.[1] ?? "",
-    dash: match[1]!.match(/\bstroke-dasharray="([^"]+)"/)?.[1] ?? "",
-  }));
+  const lines = matchEmptyOrPairedElement(svg, "line")
+    .map((match) => ({
+      x1: readNumber(match[1]!, "x1"),
+      y1: readNumber(match[1]!, "y1"),
+      x2: readNumber(match[1]!, "x2"),
+      y2: readNumber(match[1]!, "y2"),
+      stroke: readAttribute(match[1]!, "stroke"),
+      dash: readAttribute(match[1]!, "stroke-dasharray"),
+    }))
+    .filter((line) => line.stroke !== "transparent");
   const tspans = [...svg.matchAll(/<tspan ([^>]+?)>([^<]*)<\/tspan>/g)].map((match) => ({
-    x: Number(match[1]!.match(/\bx="([^"]+)"/)?.[1] ?? "0"),
-    y: Number(match[1]!.match(/\by="([^"]+)"/)?.[1] ?? "0"),
-    size: match[1]!.match(/\bfont-size="([^"]+)"/)?.[1] ?? "",
-    weight: match[1]!.match(/\bfont-weight="([^"]+)"/)?.[1] ?? "",
-    fill: match[1]!.match(/\bfill="([^"]+)"/)?.[1] ?? "",
+    x: readNumber(match[1]!, "x"),
+    y: readNumber(match[1]!, "y"),
+    size: readAttribute(match[1]!, "font-size"),
+    weight: readAttribute(match[1]!, "font-weight"),
+    fill: readAttribute(match[1]!, "fill"),
     text: match[2]!,
   }));
   const arrowheads = [
-    ...[...svg.matchAll(/<polygon ([^>]+?)\/>/g)].map((match) => ({
-      points: parsePointPairs(match[1]!.match(/\bpoints="([^"]+)"/)?.[1] ?? ""),
-      fill: match[1]!.match(/\bfill="([^"]+)"/)?.[1] ?? "",
+    ...matchEmptyOrPairedElement(svg, "polygon").map((match) => ({
+      points: parsePointPairs(readAttribute(match[1]!, "points")).map(([x, y]) => [
+        normalizeNumber(String(x), precision),
+        normalizeNumber(String(y), precision),
+      ]),
+      fill: readAttribute(match[1]!, "fill"),
     })),
-    ...[...svg.matchAll(/<path ([^>]+?)\/>/g)].map((match) => ({
-      points: parsePathTriangle(match[1]!.match(/\bd="([^"]+)"/)?.[1] ?? ""),
-      fill: match[1]!.match(/\bfill="([^"]+)"/)?.[1] ?? "",
+    ...matchEmptyOrPairedElement(svg, "path").map((match) => ({
+      points: parsePathTriangle(readAttribute(match[1]!, "d")).map(([x, y]) => [
+        normalizeNumber(String(x), precision),
+        normalizeNumber(String(y), precision),
+      ]),
+      fill: readAttribute(match[1]!, "fill"),
     })),
   ];
   return { rects, lines, tspans, arrowheads };
+}
+
+class FakeNode {
+  parentNode: FakeNode | null = null;
+  childNodes: FakeNode[] = [];
+  nodeName: string;
+
+  constructor(nodeName: string) {
+    this.nodeName = nodeName;
+  }
+
+  appendChild<TNode extends FakeNode>(node: TNode): TNode {
+    if (node.parentNode) {
+      node.remove();
+    }
+    this.childNodes.push(node);
+    node.parentNode = this;
+    return node;
+  }
+
+  remove(): void {
+    if (!this.parentNode) {
+      return;
+    }
+    const siblings = this.parentNode.childNodes;
+    const index = siblings.indexOf(this);
+    if (index >= 0) {
+      siblings.splice(index, 1);
+    }
+    this.parentNode = null;
+  }
+}
+
+class FakeElement extends FakeNode {
+  tagName: string;
+  attrs: Record<string, string> = {};
+  textContent = "";
+  style: Record<string, string> = {};
+
+  constructor(tagName: string) {
+    super(tagName);
+    this.tagName = tagName;
+  }
+
+  setAttribute(name: string, value: string): void {
+    this.attrs[name] = value;
+  }
+
+  getAttribute(name: string): string | null {
+    return this.attrs[name] ?? null;
+  }
+
+  hasAttribute(name: string): boolean {
+    return name in this.attrs;
+  }
+
+  set id(value: string) {
+    this.setAttribute("id", value);
+  }
+
+  get id(): string {
+    return this.getAttribute("id") || "";
+  }
+
+  get innerHTML(): string {
+    return this.childNodes
+      .map((child) => child instanceof FakeElement ? child.outerHTML : "")
+      .join("");
+  }
+
+  get outerHTML(): string {
+    const attrs = Object.entries(this.attrs)
+      .map(([name, value]) => ` ${name}="${escapeAttribute(value)}"`)
+      .join("");
+    const content = this.childNodes.length > 0
+      ? this.childNodes.map((child) => child instanceof FakeElement ? child.outerHTML : "").join("")
+      : this.textContent;
+    return `<${this.tagName}${attrs}>${content}</${this.tagName}>`;
+  }
+}
+
+function escapeAttribute(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+class FakeDocument {
+  createElementNS(_namespace: string, tagName: string): FakeElement {
+    return new FakeElement(tagName);
+  }
 }
 
 describe("render-ir parity", () => {
@@ -101,6 +220,28 @@ describe("render-ir parity", () => {
       expect(normalizeGeometry(displayListSvg)).toEqual(normalizeGeometry(legacySvg));
     });
   }
+
+  it("emits equivalent geometry across fresh preview DOM and export SVG", () => {
+    const diagram = loadDiagram("preview-smoke");
+    const adapter = new MockTextAdapter();
+    const layout = layoutFrameTree(diagram.root, adapter, {
+      gridCols: diagram.gridCols,
+      gridColGap: diagram.gridColGap,
+      gridOuterMargin: diagram.gridOuterMargin,
+    });
+    const exportSvg = renderFrameDiagramToSvg(diagram, layout, adapter);
+    const previewSvg = renderPreviewFrameTreeToSvg({
+      ownerDocument: new FakeDocument() as unknown as Document,
+      diagram,
+      result: layout,
+      textAdapter: adapter,
+      iconElements: new Map(),
+    }) as unknown as FakeElement;
+
+    expect(normalizeGeometry(previewSvg.outerHTML, { precision: 1 })).toEqual(
+      normalizeGeometry(exportSvg, { precision: 1 }),
+    );
+  });
 
   it("emits equivalent clamped arrowhead geometry for short final segments", () => {
     const root = new Frame({

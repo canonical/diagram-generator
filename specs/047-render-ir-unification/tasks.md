@@ -33,3 +33,4 @@
 - [x] T040 Refresh docs and architecture maps
 - [x] T041 Update `docs/specs.md`, `TODO.md`, and handover notes with the converged renderer state
 - [x] T042 Declare the cutover complete only when no new engine lane would need a new bespoke renderer
+- [x] T043 Add adversarial-review cross-lane parity coverage and document the bridge frame relayout boundary

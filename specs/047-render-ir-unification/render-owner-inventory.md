@@ -35,7 +35,10 @@ engine lanes do not reopen bespoke render math.
   geometry owner.
 - `packages/layout-engine/src/preview-shell/app-frame-svg.ts`
   Preview frame DOM patcher. Owns preview-only `data-*` metadata, pointer-event
-  suppression, and DOM node reuse only.
+  suppression, and DOM node reuse only. It rebuilds patched frame DOM from
+  `resolveFrameRenderPlan()` instead of the display-list serializer by design:
+  the bridge relayout lane is a preview mutation surface, not a fresh-render or
+  artifact serializer.
 - `packages/layout-engine/src/preview-shell/app-arrow-render.ts`
   Preview bridge arrow DOM patcher. Owns DOM reuse during relayout/waypoint
   edits, transparent hit-line refresh, and origin snapshot refresh only.
@@ -64,6 +67,9 @@ engine lanes do not reopen bespoke render math.
   `patchPreviewArrowSvg()` is still the owner for DOM reuse, transparent hit
   targets, and origin snapshot refresh during relayout and waypoint editing.
   It now consumes shared arrow planning instead of owning separate geometry.
+- Bridge frame patching stays as a preview-only optimization.
+  `patchPreviewFrameGroup()` consumes shared frame render planning and owns
+  only live DOM replacement, preview metadata refresh, and icon node reuse.
 - Fresh preview now consumes shared display-list IR for frame, overlay, and
   arrow layers. Preview-only ELK labels flow through the shared IR emitter via
   the preview serializer option instead of a separate fresh-preview builder.
