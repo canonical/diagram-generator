@@ -32,10 +32,19 @@ export function normalizePreviewDiagramPath(
   origin: string,
 ): string {
   try {
-    return new URL(String(nextUrl || ''), origin).pathname;
+    return canonicalizePreviewDiagramPath(new URL(String(nextUrl || ''), origin).pathname);
   } catch {
     return '';
   }
+}
+
+export function canonicalizePreviewDiagramPath(path: string | null | undefined): string {
+  const value = String(path || '');
+  const legacyV3Prefix = '/v3/view/';
+  if (value.startsWith(legacyV3Prefix)) {
+    return `/view/v3:${value.slice(legacyV3Prefix.length)}`;
+  }
+  return value;
 }
 
 export function extractPreviewDiagramOptionEntries(
@@ -65,21 +74,23 @@ export function syncPreviewDiagramPickerToPath(
   currentPath: string,
 ): boolean {
   let matched = false;
+  const canonicalCurrentPath = canonicalizePreviewDiagramPath(currentPath);
   for (let index = 0; index < picker.options.length; index += 1) {
     const option = optionAt(picker, index);
     if (!option) {
       continue;
     }
-    const isMatch = option.value === currentPath;
+    const isMatch = canonicalizePreviewDiagramPath(option.value) === canonicalCurrentPath;
     option.selected = isMatch;
     if (isMatch) {
       picker.selectedIndex = index;
+      picker.value = option.value;
       matched = true;
     }
   }
 
   if (!matched) {
-    picker.value = currentPath;
+    picker.value = canonicalCurrentPath;
   }
 
   return matched;
@@ -101,8 +112,9 @@ export function syncPreviewBrowseLinksToPath(
   browseLinks: Element[],
   currentPath: string,
 ): void {
+  const canonicalCurrentPath = canonicalizePreviewDiagramPath(currentPath);
   browseLinks.forEach((link) => {
-    const active = link.getAttribute('href') === currentPath;
+    const active = canonicalizePreviewDiagramPath(link.getAttribute('href')) === canonicalCurrentPath;
     link.classList.toggle('is-active', active);
     if (active) {
       link.setAttribute('aria-current', 'page');

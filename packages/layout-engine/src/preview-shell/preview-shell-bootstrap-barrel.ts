@@ -101,6 +101,7 @@ export type {
 } from './app-diagram-navigation.js';
 
 export {
+  canonicalizePreviewDiagramPath,
   extractPreviewDiagramOptionEntries,
   initPreviewDiagramNavigation,
   normalizePreviewDiagramPath,

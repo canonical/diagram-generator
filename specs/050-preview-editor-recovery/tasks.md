@@ -4,9 +4,9 @@
 
 ## Phase 1 - Recovery Audit
 
-- [ ] T001 Build an editor recovery matrix from the spec and map each UI
+- [x] T001 Build an editor recovery matrix from the spec and map each UI
       surface to its typed owner, current tests, and observed status.
-- [ ] T002 Run the current targeted preview/editor suites and record the first
+- [x] T002 Run the current targeted preview/editor suites and record the first
       failing owner for each broken surface.
 - [ ] T003 Add or update a focused smoke contract proving the editor route
       bootstraps all required runtime contracts.

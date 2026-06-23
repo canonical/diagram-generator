@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  canonicalizePreviewDiagramPath,
   extractPreviewDiagramOptionEntries,
   normalizePreviewDiagramPath,
   resolveSteppedPreviewDiagramUrl,
@@ -23,6 +24,8 @@ describe('preview diagram navigation helpers', () => {
   it('normalizes absolute and relative diagram urls to paths', () => {
     expect(normalizePreviewDiagramPath('/view/alpha', 'http://127.0.0.1:8100')).toBe('/view/alpha');
     expect(normalizePreviewDiagramPath('http://127.0.0.1:8100/force/view/beta', 'http://127.0.0.1:8100')).toBe('/force/view/beta');
+    expect(normalizePreviewDiagramPath('/v3/view/alpha', 'http://127.0.0.1:8100')).toBe('/view/v3:alpha');
+    expect(canonicalizePreviewDiagramPath('/v3/view/alpha')).toBe('/view/v3:alpha');
   });
 
   it('extracts unique picker options and falls back to slug labels', () => {
@@ -43,6 +46,16 @@ describe('preview diagram navigation helpers', () => {
     expect((picker.options[1] as { selected: boolean }).selected).toBe(true);
     expect(resolveSteppedPreviewDiagramUrl(picker, 1)).toBe('/view/gamma');
     expect(resolveSteppedPreviewDiagramUrl(picker, -2)).toBe('');
+  });
+
+  it('matches canonical picker values when opened through the legacy v3 route alias', () => {
+    const picker = createPicker(['/view/v3:alpha', '/view/v3:beta']);
+
+    expect(syncPreviewDiagramPickerToPath(picker, '/v3/view/beta')).toBe(true);
+
+    expect(picker.selectedIndex).toBe(1);
+    expect(picker.value).toBe('/view/v3:beta');
+    expect((picker.options[1] as { selected: boolean }).selected).toBe(true);
   });
 
   it('toggles browse-link active state and aria-current', () => {
@@ -87,6 +100,33 @@ describe('preview diagram navigation helpers', () => {
       'alpha:aria-current': false,
       'beta:is-active': true,
       'beta:aria-current': true,
+    });
+  });
+
+  it('toggles canonical browse links when opened through the legacy v3 route alias', () => {
+    const states: Record<string, boolean> = {};
+    const link = {
+      getAttribute(name: string) {
+        return name === 'href' ? '/view/v3:beta' : null;
+      },
+      classList: {
+        toggle(name: string, active: boolean) {
+          states[name] = active;
+        },
+      },
+      setAttribute(name: string, value: string) {
+        states[name] = value === 'page';
+      },
+      removeAttribute(name: string) {
+        states[name] = false;
+      },
+    };
+
+    syncPreviewBrowseLinksToPath([link] as unknown as Element[], '/v3/view/beta');
+
+    expect(states).toEqual({
+      'is-active': true,
+      'aria-current': true,
     });
   });
 });
