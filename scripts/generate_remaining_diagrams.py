@@ -343,8 +343,272 @@ def panel_box(
     )
 
 
+SERVICE_PLACEMENT_COMMON_SERVICES = [
+    "MAAS Region API",
+    "MAAS Rack",
+    "MAAS PostgreSQL",
+    "Juju Controller LXD",
+    "MAAS HAProxy",
+    "MAAS Keepalived",
+    "Microceph RGW",
+    "Juju Controller MAAS",
+    "Landscape Server",
+    "Landscape RabbitMQ",
+    "Landscape PostgreSQL",
+    "Canonical Kubernetes",
+    "Vault",
+    "Landscape HAProxy",
+    "Landscape Keepalived",
+]
+
+SERVICE_PLACEMENT_SPECIAL_SERVICES = [
+    ("Manual TLS certificates", (True, False, False)),
+    ("Ceph Proxy", (False, True, False)),
+]
+
+
+def service_placement_rows() -> list[tuple[str, tuple[bool, bool, bool]]]:
+    rows = [(service, (True, True, True)) for service in SERVICE_PLACEMENT_COMMON_SERVICES]
+    rows.extend(SERVICE_PLACEMENT_SPECIAL_SERVICES)
+    return rows
+
+
+def table_cell(
+    x: float,
+    y: float,
+    width: float,
+    height: float,
+    fill: str,
+    lines: list[dict[str, object]],
+    *,
+    icon_name: str | None = None,
+) -> str:
+    text_width = width - (INSET * 2)
+    if icon_name:
+        text_width -= ICON_SIZE + INSET
+    parts = [rect(x, y, width, height, fill=fill)]
+    parts.append(text_block(x + INSET, y + INSET, lines))
+    if icon_name:
+        parts.append(icon_group(x + width - INSET - ICON_SIZE, y + INSET, icon_name))
+    return "\n".join(parts)
+
+
+def service_marker(cx: float, cy: float) -> str:
+    return f'  <circle cx="{fmt(cx)}" cy="{fmt(cy)}" r="5" fill="{BLACK}" />'
+
+
 def write_svg(path: pathlib.Path, parts: list[str]) -> None:
     path.write_text("\n".join(parts + ["</svg>", ""]), encoding="utf-8")
+
+
+def build_service_placement_map() -> None:
+    rows = service_placement_rows()
+    service_col_width = 288
+    node_col_width = 160
+    table_x = 32
+    table_y = 128
+    header_height = 96
+    row_height = 40
+    table_width = service_col_width + (node_col_width * 3)
+    table_height = header_height + (len(rows) * row_height)
+    width = table_x + table_width + 32
+    height = table_y + table_height + 80
+
+    node_headers = [
+        ("Infra #1", "Rack 1", "AZ 1"),
+        ("Infra #2", "Rack 3", "AZ 2"),
+        ("Infra #3", "Rack 5", "AZ 3"),
+    ]
+
+    parts = svg_open(width, height)
+    parts.append(
+        text_block(
+            table_x,
+            32,
+            [make_line("Infrastructure service placement map", size=TITLE_SIZE, weight="700")],
+        )
+    )
+    parts.append(
+        text_block(
+            table_x,
+            72,
+            [make_line("Infrastructure services mapped across three infrastructure nodes", fill=HELPER)],
+        )
+    )
+
+    parts.append(
+        table_cell(
+            table_x,
+            table_y,
+            service_col_width,
+            header_height,
+            GREY,
+            [make_line("Service", weight="700"), make_line("placement", weight="700")],
+        )
+    )
+    for index, (infra, rack, az) in enumerate(node_headers):
+        x = table_x + service_col_width + (index * node_col_width)
+        parts.append(
+            table_cell(
+                x,
+                table_y,
+                node_col_width,
+                header_height,
+                GREY,
+                [make_line(infra, weight="700"), make_line(rack, fill=HELPER), make_line(az, fill=HELPER)],
+                icon_name="Server.svg",
+            )
+        )
+
+    for row_index, (service, placements) in enumerate(rows):
+        y = table_y + header_height + (row_index * row_height)
+        fill = WHITE if row_index % 2 == 0 else GREY
+        parts.append(table_cell(table_x, y, service_col_width, row_height, fill, [make_line(service)]))
+        for node_index, present in enumerate(placements):
+            x = table_x + service_col_width + (node_index * node_col_width)
+            parts.append(rect(x, y, node_col_width, row_height, fill=fill))
+            if present:
+                parts.append(service_marker(x + (node_col_width / 2), y + (row_height / 2)))
+
+    legend_y = table_y + table_height + 32
+    parts.append(service_marker(table_x + 5, legend_y + 5))
+    parts.append(text_block(table_x + 24, legend_y - 7, [make_line("Service present on node", fill=HELPER)]))
+    write_svg(SVG_DIR / "service-placement-map-onbrand.svg", parts)
+
+
+# --- Node network connectivity -------------------------------------------------
+# Networks, top-to-bottom, mapped to the node roles that consume them.
+NODE_NETWORK_NETWORKS = [
+    "BMC",
+    "OAM / provisioning",
+    "Storage access",
+    "Storage replication",
+    "SDN underlay",
+    "Internal API",
+    "Public API",
+    "Provider network",
+]
+
+# (label lines, icon, set of consumed network indices)
+NODE_NETWORK_ROLES = [
+    (["Infrastructure", "node"], "Server.svg", {0, 1, 5, 6, 7}),
+    (["Control node"], "Cluster.svg", {0, 1, 2, 3, 4, 5, 6}),
+    (["Hyper-converged", "node"], "Cloud with node.svg", {0, 1, 2, 3, 4, 5, 6, 7}),
+]
+
+NODE_NETWORK_NOTES = [
+    "BMC \u2014 dedicated BMC port on every node",
+    "OAM / provisioning \u2014 native VLAN for PXE boot",
+    "Internal API \u2014 used for Vault on the infrastructure node",
+    "Public API \u2014 can be routed (infrastructure node)",
+    "Provider network \u2014 can be routed and facilitates validation tests (infrastructure node)",
+]
+
+
+def node_network_geometry() -> dict[str, object]:
+    table_x = 32
+    # Reserve a left strip for the network names so no arrow ever crosses the
+    # bar labels.  The node boxes live in a right-hand cluster, mirroring the
+    # reference layout where every connector drops into clear space above a node.
+    label_zone = 240
+    node_w = 256
+    node_gap = 48
+    node_cluster_w = node_w * 3 + node_gap * 2
+    content_w = label_zone + node_cluster_w
+    nodes_x_start = table_x + content_w - node_cluster_w
+    bar_h = 40
+    bar_gap = 8
+    bars_top = 128
+    n_net = len(NODE_NETWORK_NETWORKS)
+    lane_inset = 16
+    lane_step = (node_w - (lane_inset * 2)) / (n_net - 1)
+
+    def bar_top(k: int) -> float:
+        return bars_top + k * (bar_h + bar_gap)
+
+    stack_bottom = bar_top(n_net - 1) + bar_h
+    arrow_gap = 48
+    nodes_y = stack_bottom + arrow_gap
+    node_h = 64
+    notes_top = nodes_y + node_h + 32
+    width = table_x + content_w + 32
+    height = int(notes_top + len(NODE_NETWORK_NOTES) * 24 + 24)
+
+    def node_x(i: int) -> float:
+        return nodes_x_start + i * (node_w + node_gap)
+
+    def lane_x(i: int, k: int) -> float:
+        return node_x(i) + lane_inset + k * lane_step
+
+    return {
+        "table_x": table_x,
+        "node_w": node_w,
+        "content_w": content_w,
+        "bar_h": bar_h,
+        "bars_top": bars_top,
+        "bar_top": bar_top,
+        "nodes_y": nodes_y,
+        "node_h": node_h,
+        "notes_top": notes_top,
+        "width": width,
+        "height": height,
+        "node_x": node_x,
+        "lane_x": lane_x,
+        "lane_inset": lane_inset,
+        "lane_step": lane_step,
+    }
+
+
+def build_node_network_connectivity() -> None:
+    g = node_network_geometry()
+    table_x = g["table_x"]
+    node_w = g["node_w"]
+    content_w = g["content_w"]
+    bar_h = g["bar_h"]
+    bar_top = g["bar_top"]
+    nodes_y = g["nodes_y"]
+    node_h = g["node_h"]
+
+    parts = svg_open(g["width"], g["height"])
+    parts.append(
+        text_block(table_x, 32, [make_line("Node network connectivity", size=TITLE_SIZE, weight="700")])
+    )
+    parts.append(
+        text_block(table_x, 72, [make_line("Networks consumed by each OpenStack node role", fill=HELPER)])
+    )
+
+    # Network bars (background).
+    for k, name in enumerate(NODE_NETWORK_NETWORKS):
+        y = bar_top(k)
+        parts.append(rect(table_x, y, content_w, bar_h, fill=GREY))
+        parts.append(text_block(table_x + INSET, y + INSET, [make_line(name, weight="600")]))
+
+    # Orange connectors network -> node, drawn before the node boxes so each
+    # node's top edge stays crisp while the arrowheads remain visible above it.
+    for i, (_, _, consumed) in enumerate(NODE_NETWORK_ROLES):
+        for k in sorted(consumed):
+            x = g["lane_x"](i, k)
+            parts.append(polyline_arrow([(x, bar_top(k) + bar_h), (x, nodes_y)]))
+
+    # Node boxes.
+    for i, (label_lines, icon, _) in enumerate(NODE_NETWORK_ROLES):
+        x = g["node_x"](i)
+        parts.append(rect(x, nodes_y, node_w, node_h, fill=WHITE))
+        parts.append(
+            text_block(
+                x + INSET,
+                nodes_y + INSET,
+                [make_line(line_text, weight="600") for line_text in label_lines],
+            )
+        )
+        parts.append(icon_group(x + node_w - INSET - ICON_SIZE, nodes_y + INSET, icon))
+
+    # Footnotes.
+    parts.append(
+        text_block(table_x, g["notes_top"], [make_line(note, fill=HELPER) for note in NODE_NETWORK_NOTES])
+    )
+
+    write_svg(SVG_DIR / "node-network-connectivity-onbrand.svg", parts)
 
 
 def build_memory_wall() -> None:
@@ -1332,6 +1596,8 @@ def build_attention_qkv() -> None:
 def main() -> None:
     SVG_DIR.mkdir(parents=True, exist_ok=True)
     build_attention_qkv()
+    build_service_placement_map()
+    build_node_network_connectivity()
     build_memory_wall()
     build_request_to_hardware_stack()
     build_inference_snaps()
