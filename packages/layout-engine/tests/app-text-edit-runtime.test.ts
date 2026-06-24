@@ -104,4 +104,67 @@ describe('preview text-edit runtime', () => {
       cancelSpy.mockRestore();
     }
   });
+
+  it('preserves the model binding when resolving the edited node (T022 regression)', () => {
+    // The real ComponentModel.get reads `this._index`. If the runtime forwards
+    // `model.get` as an unbound method reference, calling it loses `this` and
+    // throws `Cannot read properties of undefined (reading 'get')` on every
+    // double-click. This guards against that regression.
+    class IndexedModel {
+      private _index = new Map<string, { data: { heading_text: string; label_text: string[] } }>();
+      overrides: Record<string, unknown> = {};
+
+      constructor() {
+        this._index.set('alpha', { data: { heading_text: 'Bound heading', label_text: ['Line'] } });
+      }
+
+      get(id: string) {
+        return this._index.get(id) ?? null;
+      }
+    }
+
+    const captured: Array<Record<string, unknown>> = [];
+    const startSpy = vi.spyOn(textEditHostModule, 'startPreviewTextEditHost')
+      .mockImplementation((options) => {
+        captured.push({ cid: options.cid, headingText: options.headingText });
+        return { kind: 'started', cid: options.cid, changed: false };
+      });
+
+    try {
+      const runtime = createPreviewTextEditRuntimeFromHost({
+        document: {
+          querySelector() {
+            return { tagName: 'svg' } as unknown as SVGSVGElement;
+          },
+          activeElement: null,
+        } as unknown as Document,
+        model: new IndexedModel(),
+        interactionManager: {
+          state: { cid: 'alpha', editor: { ta: null } },
+          isMode() {
+            return false;
+          },
+          startTextEdit() {},
+          endInteraction() {},
+        },
+        textEditingMode: 'TEXT',
+        iconSize: 24,
+        columnGap: 32,
+        removeResizeHandles() {},
+        setTextOverride() {},
+        captureOverrideEntries() {
+          return {};
+        },
+        commitOverridePatchAction() {},
+        reapplySelection() {},
+        scheduleRelayout() {},
+      });
+
+      expect(() => runtime.startTextEdit('alpha', { stopPropagation() {} }, { textEl: null }))
+        .not.toThrow();
+      expect(captured).toEqual([{ cid: 'alpha', headingText: 'Bound heading' }]);
+    } finally {
+      startSpy.mockRestore();
+    }
+  });
 });
