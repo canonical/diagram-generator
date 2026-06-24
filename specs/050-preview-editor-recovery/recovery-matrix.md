@@ -5,8 +5,25 @@
 This matrix tracks the user-visible editor surface after the 046 decomposition.
 It records the typed owner first; legacy JS should remain thin browser glue.
 
+## Engine baseline (Phase 0 gate)
+
+`npm --prefix packages/layout-engine test` currently fails **16 parity tests**
+in `tests/parity.test.ts` (`test-deep-nesting`, `test-alignment-grid`; 100-128px
+deltas). These are **pre-existing**: layout source and parity fixtures are
+identical on `main` and this branch, and no 046/047/050 commit touches
+`src/layout.ts` or the fixtures. They are unacknowledged in any doc. Until
+Phase 0 (T0a/T0b) classifies each failure as stale-golden or real-regression and
+returns the suite to green, "tests pass" is not a valid recovery gate.
+
+Note: the triple `failRelayout:`/`finishRelayout:` destructuring in
+`scripts/preview/editor.js` is **not** a bug. Destructuring with renaming reads
+the same source property into multiple local names (all defined and equal); it
+is redundant migration-era aliasing, not dead code. Do not "fix" it by deleting
+aliases without first confirming no consumer references the extra names.
+
 | Surface | Typed owner | Current coverage / probe | Observed status | Next action |
 | --- | --- | --- | --- | --- |
+| Engine parity baseline | `packages/layout-engine/src/layout.ts`, `tests/parity.test.ts` | `npm --prefix packages/layout-engine test -- parity` | Red. 16 failures (deep-nesting, alignment-grid), pre-existing. | Phase 0 T0a/T0b: classify each as stale golden vs real regression, return suite to green or quarantine explicitly. |
 | Browser bundle exports | `packages/layout-engine/src/browser-entry-preview-shell.ts` | `npm --prefix packages/layout-engine test -- app-diagram-navigation browser-entry app-bootstrap` | Pass. `previewShell.bootstrap` exports route/picker helpers used by the shell. | Keep coverage with each browser export change. |
 | Route bootstrap, canonical path `/view/v3:<slug>` | `apps/preview/src/preview-host/*`, `preview-shell/app-bootstrap.ts` | Live probe on `/view/v3:preview-smoke` and `/view/v3:mongo-octavia-ha` | Pass. SVG renders, build status updates, component selection opens the inspector, no browser errors. | Add durable route smoke if another bootstrap regression appears. |
 | Route alias `/v3/view/<slug>` | `preview-shell/app-diagram-navigation.ts`, thin `scripts/preview/editor-base.js` glue | New `app-diagram-navigation` alias tests plus live probe on `/v3/view/preview-smoke` | Fixed. Picker and browse nav now select canonical `/view/v3:<slug>` instead of blank state. | Watch for other route aliases before adding new shell-local logic. |
@@ -17,7 +34,7 @@ It records the typed owner first; legacy JS should remain thin browser glue.
 | Grid controls and overlays | `preview-shell/scene/*` | Existing preview app tests; no live mutation in this audit | Unverified in live editor. | Probe numeric grid edit, overlay toggle, dirty state, undo. |
 | Drag, resize, keyboard nudge, delete, undo/redo | `preview-shell/interaction/*`, `preview-shell/app-bootstrap.ts` | Existing contract tests only | Unverified in live editor after 046. | Highest next interaction group after route/picker. |
 | Multi-selection inspector | `preview-shell/inspector/*`, `preview-shell/interaction/*` | Existing panel tests only | Unverified in live editor. | Probe shift/meta selection and bulk align/size controls. |
-| Text edit commit/cancel | `preview-shell/inspector/*`, `preview-shell/interaction/*` | Existing text-edit contract tests only | Unverified in live editor. | Probe double-click edit, Enter/Escape, dirty/undo/save state. |
+| Text edit commit/cancel | `preview-shell/inspector/*`, `preview-shell/interaction/*` | `app-text-edit*` + `app-selection-host` contract tests now cover nested text hit-testing and start-state fallback; all suite passes (`browser-entry app-diagram-navigation app-bootstrap app-text-edit* app-selection-host`) | Contract coverage is restored for text target resolution after 046 refactor; live editor probe still pending for Enter/Escape and save/undo/dirty side-effects. | Add a narrow live probe that verifies double-click on nested text and checks dirty state, undo, and save payload. |
 | Arrow/waypoint editing | `preview-shell/interaction/*`, `preview-bridge/*` | Existing waypoint contract tests only | Unverified in live editor. | Probe waypoint insert/drag/remove without saving. |
 | Save/reload/export | `preview-shell/app-save-client.ts`, `apps/preview/src/preview-host/frame-document-actions.ts` | `npm --prefix apps/preview test`; live route probe did not save | Server save/export contracts pass; live editor save flow unverified. | Use a disposable frame fixture before live save/reload testing. |
 

@@ -200,4 +200,44 @@ describe('preview frame svg helpers', () => {
     expect(renderedIcon?.getAttribute('data-orig-tx')).toBeTruthy();
     expect(renderedIcon?.getAttribute('data-orig-ty')).toBeTruthy();
   });
+
+  it('preserves nested child frame groups while patching a parent frame group', () => {
+    const ownerDocument = new FakeDocument();
+    const group = ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'g');
+    group.setAttribute('data-component-id', 'root');
+    const childGroup = ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'g');
+    childGroup.setAttribute('data-component-id', 'child');
+    const childRect = ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    childGroup.appendChild(childRect);
+    group.appendChild(childGroup);
+
+    const child = new Frame({
+      id: 'child',
+      label: [createLine('Child')],
+    });
+    child._layout.placedX = 16;
+    child._layout.placedY = 16;
+    child._layout.placedW = 80;
+    child._layout.placedH = 48;
+    const root = new Frame({
+      id: 'root',
+      children: [child],
+    });
+    root._layout.placedX = 0;
+    root._layout.placedY = 0;
+    root._layout.placedW = 160;
+    root._layout.placedH = 96;
+
+    patchPreviewFrameGroup({
+      ownerDocument: ownerDocument as unknown as Document,
+      group: group as unknown as SVGGElement,
+      frame: root,
+      textAdapter: new MockTextAdapter(),
+    });
+
+    expect(childGroup.parentNode).toBe(group);
+    expect(group.querySelectorAll('g').map((element) => element.getAttribute('data-component-id')))
+      .toContain('child');
+    expect(group.querySelector('rect')?.getAttribute('data-orig-width')).toBe('160');
+  });
 });

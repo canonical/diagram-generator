@@ -43,6 +43,7 @@ describe('preview text-edit host helpers', () => {
         return [];
       },
     } as unknown as SVGSVGElement;
+    let group: { getAttribute?: () => string } | undefined;
     const textEl = {
       style: {
         opacity: '',
@@ -66,12 +67,12 @@ describe('preview text-edit host helpers', () => {
         return { left: 12, top: 30, width: 100, height: 20 };
       },
       closest() {
-        return { getAttribute: () => 'alpha' };
+        return group;
       },
     };
-    const group = {
+    group = {
       querySelectorAll(selector: string) {
-        return selector === ':scope > text' ? [textEl] : [];
+        return selector === 'text' || selector === ':scope > text' ? [textEl] : [];
       },
       querySelector(selector: string) {
         if (selector === ':scope > rect') {

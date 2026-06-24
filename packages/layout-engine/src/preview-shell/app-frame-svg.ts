@@ -44,6 +44,12 @@ function hasSvgBBox(value: unknown): value is Element & { getBBox: () => Preview
   return Boolean(value && typeof value === 'object' && 'getBBox' in value);
 }
 
+function directElementChildren(parent: Element): Element[] {
+  return Array.from(parent.childNodes).filter((child): child is Element => (
+    typeof (child as Element).tagName === 'string'
+  ));
+}
+
 function buildFrameTextElements(
   ownerDocument: Document,
   plan: ReturnType<typeof resolveFrameRenderPlan>,
@@ -96,6 +102,11 @@ export function patchPreviewFrameGroup(options: {
   const plan = resolveFrameRenderPlan(options.frame, options.textAdapter);
   const { elements } = buildFrameTextElements(options.ownerDocument, plan);
   const existingIcon = options.group.querySelector(':scope > .dg-icon');
+  const preservedChildFrameGroups = directElementChildren(options.group).filter((child) => (
+    child !== existingIcon
+    && child.tagName.toLowerCase() === 'g'
+    && child.getAttribute('data-component-id') != null
+  ));
   const children: Element[] = [];
 
   if (plan.separator) {
@@ -141,7 +152,7 @@ export function patchPreviewFrameGroup(options: {
     children.push(iconToUse);
   }
 
-  options.group.replaceChildren(...children);
+  options.group.replaceChildren(...children, ...preservedChildFrameGroups);
 }
 
 export function collectPreviewFramesById(
