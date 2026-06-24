@@ -266,8 +266,9 @@ describe('preview live-resize relayout helpers', () => {
     let callback: (() => void) | null = null;
     const performLocalRelayout = vi.fn();
     const reapplySelection = vi.fn();
+    const state = createPreviewLiveResizeRelayoutState();
     const runtime = createPreviewLiveResizeRuntimeFromHost({
-      state: createPreviewLiveResizeRelayoutState(),
+      state,
       model: {
         gridOverrides: { cols: 4 },
       },
@@ -302,6 +303,7 @@ describe('preview live-resize relayout helpers', () => {
 
     expect(performLocalRelayout).toHaveBeenCalledTimes(1);
     expect(reapplySelection).toHaveBeenCalledTimes(1);
+    expect(state.running).toBe(false);
   });
 
   it('routes active engine live resize through the typed bridge without mutating the committed model', async () => {

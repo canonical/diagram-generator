@@ -222,9 +222,8 @@ function schedulePreviewLiveResizeFrame<TGridOverrides>(
     options.state.running = true;
     void Promise.resolve(
       performRelayout(temporaryOverrides, normalizedGridOverrides),
-    ).then(() => {
+    ).finally(() => {
       options.reapplySelection?.();
-    }).finally(() => {
       options.state.running = false;
       if (options.state.latest) {
         schedulePreviewLiveResizeFrame(options);

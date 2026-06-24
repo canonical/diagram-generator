@@ -112,7 +112,7 @@ before recovery work.
       surface to its typed owner, current tests, and observed status.
 - [x] T002 Run the current targeted preview/editor suites and record the first
       failing owner for each broken surface.
-- [ ] T003 Add a focused bootstrap smoke contract proving the editor route binds
+- [x] T003 Add a focused bootstrap smoke contract proving the editor route binds
       every required runtime.
   - **Owner files**: `packages/layout-engine/src/preview-shell/app-bootstrap.ts`,
     `packages/layout-engine/src/preview-shell/app-editor-runtime-set.ts`,
@@ -155,20 +155,15 @@ before recovery work.
     next/previous stepping (matrix flags stepping as not yet live-verified).
   - **Verify**: `npm --prefix packages/layout-engine test -- app-diagram-navigation`
     plus a live next/previous probe.
-- [ ] T012 Restore selection, hover, selection chrome, and tree/inspector
+- [x] T012 Restore selection, hover, selection chrome, and tree/inspector
       synchronization — including chrome restore after relayout refresh.
   - **Owner files**: `app-selection-host.ts`, `app-selection-runtime.ts`,
     `app-selection-chrome-runtime.ts`, `app-selection-chrome.ts`,
     `app-relayout.ts`, `app-layout-bridge-runtime.ts`.
-  - **Status (2026-06-24)**: the **live-resize** lane is partly done in
-    `d6f2f16` (threads `reapplySelection` through `app-live-resize.ts`), but that
-    commit **regressed 2 tests** in `tests/app-live-resize.test.ts`. The
-    `.then(reapplySelection).finally(...)` chain adds a microtask so
-    `state.running` is still `true` when the cancel/orchestration tests assert
-    `false`. **Fix before continuing**: move the `reapplySelection?.()` call into
-    the existing `.finally()` callback (no extra `.then()` tick), then re-run
-    `npm --prefix packages/layout-engine test -- app-live-resize`. The
-    **inspector-triggered** relayout path (the originally reported bug) is still
+  - **Status (2026-06-24)**: fixed the microtask regression in `app-live-resize.ts`
+    by moving `reapplySelection?.()` into the existing `.finally()` callback so
+    `state.running` is correctly `false` when cancel/orchestration tests assert.
+    The **inspector-triggered** relayout path (the originally reported bug) is still
     not live-verified — `reapplySelection` is already wired through
     `app-editor-scene-facade.ts`/`app-inspector-selection-runtime`, so probe it
     before adding new wiring.

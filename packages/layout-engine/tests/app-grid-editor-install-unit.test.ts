@@ -427,6 +427,259 @@ describe('createPreviewGridEditorInstallUnitFromLegacyEditorHost', () => {
     ).set(40);
     expect((browserStateOptions.multiActionGapState as { get: () => number }).get()).toBe(40);
   });
+
+  it('exposes required legacy bootstrap runtime surfaces through the install unit', async () => {
+    const stage = {
+      innerHTML: '',
+      replaceChildren: vi.fn(),
+    };
+    const document = {
+      getElementById(id: string) {
+        if (id === 'stage') {
+          return stage;
+        }
+        return null;
+      },
+      querySelector: vi.fn(() => null),
+      querySelectorAll: vi.fn(() => []),
+    } as any;
+
+    let capturedRuntimeOptions: Record<string, unknown> | null = null;
+    const relayoutRuntime = { requestRelayout: vi.fn(), clearOverride: vi.fn() };
+    const selectionRuntime = {
+      deselectAll: vi.fn(),
+      reapplySelection: vi.fn(),
+      selectComponent: vi.fn(),
+      applySelectionStateSnapshot: vi.fn(),
+    };
+    const inspectorDisplayRuntime = {
+      renderEmptyInspector: vi.fn(),
+      renderSelectionInspector: vi.fn(),
+      renderMultiSelectionInspector: vi.fn(),
+      updateInspector: vi.fn(),
+    };
+    const inspectorMutationRuntime = {
+      setFrameProp: vi.fn(),
+      setFrameAlign: vi.fn(),
+      setFrameSize: vi.fn(),
+      applyStyle: vi.fn(),
+    };
+    const inspectorSelectionRuntime = {
+      applySelectionTargets: vi.fn(),
+      distributeSelection: vi.fn(),
+      alignSelection: vi.fn(),
+      setMultiFrameAlign: vi.fn(),
+      applyMultiStyleOverride: vi.fn(),
+      setMultiFrameProp: vi.fn(),
+      setMultiFrameSize: vi.fn(),
+    };
+    const arrowWaypointRuntime = {
+      showArrowWaypointHandles: vi.fn(),
+      startWaypointDrag: vi.fn(),
+      onWaypointDragMove: vi.fn(),
+      onWaypointDragUp: vi.fn(),
+      addWaypoint: vi.fn(),
+      removeWaypoint: vi.fn(),
+      getArrowPoints: vi.fn(() => []),
+      updateArrowVisual: vi.fn(),
+      rebuildArrowSvg: vi.fn(),
+    };
+    const keyboardRuntime = {
+      onDocumentKeyDown: vi.fn(),
+    };
+    const resizeInteractionRuntime = {
+      startResize: vi.fn(),
+      onResizeMove: vi.fn(),
+      onResizeUp: vi.fn(),
+    };
+    const stageBindingRuntime = {
+      buildTreeUi: vi.fn(),
+      bindInteraction: vi.fn(),
+    };
+    const relayoutFacade = {
+      applyUndoCommand: vi.fn(),
+      getLayoutRelayoutStatus: vi.fn(() => ({ localReady: true })),
+      getRelayoutRuntime: vi.fn(() => relayoutRuntime),
+      finishRelayout: vi.fn(),
+      failRelayout: vi.fn(),
+      scheduleResizeRelayout: vi.fn(() => true),
+      cancelResizeRelayout: vi.fn(),
+      persistResize: vi.fn(),
+    };
+    const interactionFacade = {
+      getStageBindingRuntime: vi.fn(() => stageBindingRuntime),
+      getSelectionRuntime: vi.fn(() => selectionRuntime),
+      getInspectorDisplayRuntime: vi.fn(() => inspectorDisplayRuntime),
+      getInspectorMutationRuntime: vi.fn(() => inspectorMutationRuntime),
+      getInspectorSelectionRuntime: vi.fn(() => inspectorSelectionRuntime),
+      getArrowWaypointRuntime: vi.fn(() => arrowWaypointRuntime),
+      getTextEditRuntime: vi.fn(),
+      getResizeInteractionRuntime: vi.fn(() => resizeInteractionRuntime),
+      getKeyboardRuntime: vi.fn(() => keyboardRuntime),
+    };
+    const bootstrapFacade = {
+      loadSvg: vi.fn(async () => {
+        stage.replaceChildren({ nodeName: 'svg' });
+        return 'client-render';
+      }),
+      signalDiagramLoaded: vi.fn(() => 11),
+      whenDiagramLoaded: vi.fn(async () => 11),
+      syncBrowseNavToLocation: vi.fn(),
+      attemptDiagramNavigation: vi.fn(() => true),
+      loadTree: vi.fn(async () => 'loaded'),
+      bootstrapEditorRuntime: vi.fn(),
+    };
+    const runtime = {
+      getSceneFacade: vi.fn(() => ({ kind: 'scene-facade' })),
+      getBootstrapFacade: vi.fn(() => bootstrapFacade),
+      getRelayoutFacade: vi.fn(() => relayoutFacade),
+      getInteractionFacade: vi.fn(() => interactionFacade),
+      invalidateOverrideBoundFacades: vi.fn(),
+    };
+    const browserState = {
+      replaceOverrides: vi.fn(),
+      setDirty: vi.fn(),
+      pruneLinkedRootGridOverrides: vi.fn(),
+      restoreOverrideEntries: vi.fn(),
+      clearPendingRestoreRuntime: vi.fn(),
+      applyLocalRestoreRefresh: vi.fn(),
+      setMultiActionGap: vi.fn(),
+      setOverride: vi.fn(),
+      setWaypointOverride: vi.fn(),
+      cleanOverride: vi.fn(),
+      getParentNode: vi.fn(() => null),
+      getComponentNode: vi.fn(() => null),
+      hasLayoutChildren: vi.fn(() => false),
+      getArrowNode: vi.fn(() => null),
+      getComponentType: vi.fn(() => 'box'),
+      getViolationsForComponent: vi.fn(() => []),
+      scheduleLayoutRelayout: vi.fn(),
+      clearScheduledLayoutRelayout: vi.fn(),
+    };
+    mocks.createBrowserState.mockReturnValue(browserState);
+    mocks.createRuntime.mockImplementation((options: Record<string, unknown>) => {
+      capturedRuntimeOptions = options;
+      return runtime;
+    });
+
+    const model = {
+      _roots: [],
+      roots: [{ id: 'root' }],
+      overrides: { alpha: { width: 120 } },
+      removedIds: new Set<string>(),
+      setDiagramGrid() {},
+      clearOverride() {},
+      get() {
+        return { data: { id: 'alpha' } };
+      },
+      getParent() {
+        return null;
+      },
+      getType() {
+        return 'box';
+      },
+      cleanOverride() {},
+      setOverride() {},
+      setWaypointOverride() {},
+    } as any;
+
+    const previewWindow = {
+      __DG_CONFIG: {
+        icon_size: 48,
+        col_gap: 24,
+        head_len: 10,
+        head_half: 5,
+      },
+      __DG_getPreviewBridgeRelayoutContract: vi.fn(() => ({ kind: 'relayout-contract' })),
+      __DG_getPreviewShellInteractionContract: vi.fn(() => ({
+        kind: 'interaction-contract',
+        resolvePrimarySelectedId: vi.fn(() => 'alpha'),
+      })),
+      navigator: {
+        clipboard: {
+          writeText: vi.fn(async () => undefined),
+        },
+      },
+      setTimeout: vi.fn((_callback: () => void, _delayMs?: number) => 17),
+      clearTimeout: vi.fn(),
+      requestAnimationFrame: vi.fn((_callback: FrameRequestCallback) => 21),
+      cancelAnimationFrame: vi.fn(),
+      alert: vi.fn(),
+    } as any;
+
+    const installUnit = createPreviewGridEditorInstallUnitFromLegacyEditorHost({
+      document,
+      previewWindow,
+      config: {
+        slug: 'demo',
+        engine: 'v3',
+        gridEnabled: true,
+        guideModes: ['off', 'all'],
+        baselineStep: 24,
+        inset: 8,
+        guideColor: '#f00',
+        guideOpacity: '0.5',
+        interactionMode: { TEXT_EDITING: 'text', WAYPOINT_DRAGGING: 'waypoint' } as any,
+        handleSize: 12,
+        minNodeSize: 24,
+        fallbackGap: 24,
+        snapToGrid: (value) => value,
+      },
+      state: {
+        model,
+        interactionManager: { state: { cid: 'alpha' }, isMode: vi.fn(() => false) } as any,
+        selectedIds: new Set(['alpha', 'beta']),
+        coercedKeys: new Set(['coerced']),
+        editorState: {
+          undo: vi.fn(),
+          redo: vi.fn(),
+        } as any,
+        previewSaveClient: {
+          trySaveIfDirty: vi.fn(),
+          setDirty: vi.fn(),
+        } as any,
+        constraints: { kind: 'constraints', forComponent: vi.fn(() => []) } as any,
+      },
+      helpers: {
+        applyInteractionOverrideEntries: vi.fn(),
+      },
+      modelOps: {
+        getOwnDelta: vi.fn(() => ({ dx: 0, dy: 0, dw: 0, dh: 0 })),
+        getEffectiveDelta: vi.fn(() => ({ dx: 4, dy: 8, dw: 0, dh: 0 })),
+        getAncestors: vi.fn(() => ['page']),
+      },
+      facades: {
+        getEditorSceneFacade: vi.fn(() => ({})),
+        getEditorRelayoutFacade: vi.fn(() => ({
+          applyUndoCommand: vi.fn(),
+          getRelayoutRuntime: vi.fn(() => relayoutRuntime),
+          scheduleResizeRelayout: vi.fn(() => true),
+          cancelResizeRelayout: vi.fn(),
+          persistResize: vi.fn(),
+        })),
+        getEditorInteractionFacade: vi.fn(() => interactionFacade),
+      },
+    });
+
+    expect(installUnit.getRuntime()).toBe(runtime);
+    expect(capturedRuntimeOptions).not.toBeNull();
+    const sceneFacade = installUnit.getSceneFacade();
+    const relayout = installUnit.getRelayoutFacade();
+    const interaction = installUnit.getInteractionFacade();
+    const compat = installUnit.getCompatFacade();
+
+    expect(sceneFacade).toBeTruthy();
+    expect(relayout.getRelayoutRuntime()).toBe(relayoutRuntime);
+    expect(interaction.getSelectionRuntime()).toBe(selectionRuntime);
+    expect(interaction.getInspectorDisplayRuntime()).toBe(inspectorDisplayRuntime);
+    expect(interaction.getInspectorMutationRuntime()).toBe(inspectorMutationRuntime);
+    expect(interaction.getKeyboardRuntime()).toBe(keyboardRuntime);
+    expect(capturedRuntimeOptions).not.toBeNull();
+    expect(document.getElementById('stage')).toBe(stage);
+
+    await expect(compat.loadSvg()).resolves.toBe('client-render');
+    expect(stage.replaceChildren).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
