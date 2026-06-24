@@ -775,7 +775,15 @@ export async function runPreviewRelayout<TGridOverrides, TResult extends Preview
   const performEngineRelayout = options.performEngineRelayout ?? options.performElkRelayout;
 
   if (isEngineLayoutActive && performEngineRelayout) {
-    const elkResult = await performEngineRelayout(normalizedGridOverrides);
+    let elkResult: TResult | null;
+    try {
+      elkResult = await performEngineRelayout(normalizedGridOverrides);
+    } catch (error) {
+      options.logError?.(
+        `layout relayout: engine-backed layout threw (${error instanceof Error ? error.message : String(error)})`,
+      );
+      return options.failRelayout('elk-failure', options.triggerCid);
+    }
     if (!elkResult) {
       options.logError?.('layout relayout: engine-backed layout failed');
       return options.failRelayout('elk-failure', options.triggerCid);
@@ -783,7 +791,15 @@ export async function runPreviewRelayout<TGridOverrides, TResult extends Preview
     return options.finishRelayout(options.triggerCid, elkResult, 'elk');
   }
 
-  const localResult = options.performLocalRelayout(normalizedGridOverrides);
+  let localResult: TResult | null;
+  try {
+    localResult = options.performLocalRelayout(normalizedGridOverrides);
+  } catch (error) {
+    options.logError?.(
+      `layout relayout: local layout threw (${error instanceof Error ? error.message : String(error)})`,
+    );
+    return options.failRelayout('local-failure', options.triggerCid);
+  }
   if (!localResult) {
     options.logError?.('layout relayout: local layout failed');
     return options.failRelayout('local-failure', options.triggerCid);

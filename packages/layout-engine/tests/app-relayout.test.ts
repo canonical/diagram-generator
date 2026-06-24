@@ -474,6 +474,74 @@ describe('preview relayout helpers', () => {
     expect(failRelayout).toHaveBeenCalledWith('missing-frame-tree', 'alpha');
   });
 
+  it('preserves the last good render when a throwing engine adapter fails (SC-003)', async () => {
+    const failRelayout = vi.fn(() => false);
+    const finishRelayout = vi.fn();
+    const logError = vi.fn();
+    const throwingEngine = vi.fn(async () => {
+      throw new Error('engine adapter exploded');
+    });
+
+    const result = await runPreviewRelayout({
+      triggerCid: 'alpha',
+      overrides: {},
+      coercedKeys: new Set(),
+      gridOverrides: {},
+      normalizeGridOverrides: (value) => value,
+      relayoutStatus: { localReady: true, local: { reason: null } },
+      isEngineLayoutActive: true,
+      isElkLayeredDiagram: true,
+      performEngineRelayout: throwingEngine,
+      performElkRelayout: throwingEngine,
+      performLocalRelayout: vi.fn(() => null),
+      failRelayout,
+      finishRelayout,
+      logError,
+    });
+
+    // The thrown adapter is converted to the graceful failure path: the stage
+    // is never rebuilt (finishRelayout untouched, so the last good render
+    // stays), failRelayout fires so a visible error status is surfaced, and the
+    // rejection does not escape runPreviewRelayout.
+    expect(throwingEngine).toHaveBeenCalledTimes(1);
+    expect(finishRelayout).not.toHaveBeenCalled();
+    expect(failRelayout).toHaveBeenCalledWith('elk-failure', 'alpha');
+    expect(result).toBe(false);
+    expect(logError).toHaveBeenCalledWith(
+      expect.stringContaining('engine adapter exploded'),
+    );
+  });
+
+  it('preserves the last good render when a throwing local relayout fails (SC-003)', async () => {
+    const failRelayout = vi.fn(() => false);
+    const finishRelayout = vi.fn();
+    const logError = vi.fn();
+
+    const result = await runPreviewRelayout({
+      triggerCid: 'beta',
+      overrides: {},
+      coercedKeys: new Set(),
+      gridOverrides: {},
+      normalizeGridOverrides: (value) => value,
+      relayoutStatus: { localReady: true, local: { reason: null } },
+      isEngineLayoutActive: false,
+      isElkLayeredDiagram: false,
+      performLocalRelayout: vi.fn(() => {
+        throw new Error('local layout exploded');
+      }),
+      failRelayout,
+      finishRelayout,
+      logError,
+    });
+
+    expect(finishRelayout).not.toHaveBeenCalled();
+    expect(failRelayout).toHaveBeenCalledWith('local-failure', 'beta');
+    expect(result).toBe(false);
+    expect(logError).toHaveBeenCalledWith(
+      expect.stringContaining('local layout exploded'),
+    );
+  });
+
   it('prefers ELK relayout when the diagram is layered and otherwise records local coercion keys', async () => {
     const finishRelayout = vi.fn((triggerCid, result, label) => ({ triggerCid, result, label }));
     const performElkRelayout = vi.fn(async () => ({ coerced: null }));

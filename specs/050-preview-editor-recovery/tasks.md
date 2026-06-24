@@ -310,7 +310,7 @@ before recovery work.
 
 ## Phase 4 - Engine Controls And Relayout Recovery
 
-- [ ] T030 Restore engine switcher wiring and compatible-engine UI state.
+- [x] T030 Restore engine switcher wiring and compatible-engine UI state.
   - **Owner files**: `packages/layout-engine/src/preview-engine/registry.ts`,
     `preview-engine/elk-shell-controller.ts`,
     `app-bootstrap.ts` (engine panel init), `scripts/preview/engine-switcher.js`.
@@ -319,21 +319,52 @@ before recovery work.
     disposable fixture; do not mutate committed YAML (matrix notes switching was
     not re-tested to avoid mutation).
   - **Verify**: engine-switcher contract test + disposable-fixture live probe.
-- [ ] T031 Restore ELK controls, raw/debug toggles, and relayout trigger
+  - **Status (2026-06-24)**: contract suite `preview-engine-registry.test.ts`
+    green. **Live-verified** on `preview-smoke`: the “Layout engine” select
+    offers exactly the compatibility-filtered list (`v3`, `elk-layered`),
+    matching the server `compatible_engines: ["v3","elk-layered"]` in
+    `__DG_CONFIG` (derived from `listCompatiblePreviewEngines`). The panel states
+    “Only engines compatible with this document are listed. Switching saves the
+    choice and reloads the preview.” Per the matrix note, the actual switch was
+    not exercised live to avoid mutating committed YAML; the switch/rerender
+    mechanics stay covered by the registry contract suite.
+- [x] T031 Restore ELK controls, raw/debug toggles, and relayout trigger
       behavior.
   - **Owner files**: `preview-engine/elk-controls.ts`,
     `preview-engine/elk-layout-controls.ts`, `preview-engine/elk-debug-view.ts`,
     `app-relayout-runtime.ts`.
-- [ ] T032 Add failed relayout coverage proving the last good render is
+  - **Status (2026-06-24)**: contract suites `preview-engine-elk-runtime.test.ts`,
+    `elk-layout.test.ts`, `elk-debug-view.test.ts` green. **Live-verified** that
+    the ELK control panel renders for `preview-smoke`: “ELK layout” with the
+    layer-spacing/routing note, “Show ELK raw view”, and “Show ELK debug
+    overlay” toggles are all present in the inspector chrome.
+- [x] T032 Add failed relayout coverage proving the last good render is
       preserved with a clear status.
   - **Owner files**: `app-layout-bridge-runtime.ts`, `app-relayout.ts`.
   - **Steps**: force a relayout failure (inject a throwing engine adapter) and
     assert the previous stage SVG remains and a visible status/error is set.
   - **Verify**: a forced-failure runtime test (SC-003).
-- [ ] T033 Ensure engine control saves share the same compatibility validation
+  - **Status (2026-06-24)**: found and fixed a genuine gap. `runPreviewRelayout`
+    already routed an adapter that *returns null* to `failRelayout` (status set,
+    `finishRelayout` skipped → last good render preserved), but a *throwing*
+    adapter propagated an unhandled rejection and never set a status. Wrapped
+    both the engine and local relayout calls in try/catch so a thrown adapter is
+    converted to the same graceful `failRelayout` path. Added two SC-003 tests in
+    `app-relayout.test.ts` (throwing engine adapter → `elk-failure`; throwing
+    local relayout → `local-failure`) asserting `finishRelayout` is never called,
+    `failRelayout` fires, the rejection does not escape, and the error is logged.
+- [x] T033 Ensure engine control saves share the same compatibility validation
       used by route load and relayout.
   - **Steps**: confirm there is a single compatibility decision function used by
     the switcher UI, the relayout path, and save validation — not three copies.
+  - **Status (2026-06-24)**: confirmed a single decision function,
+    `evaluatePreviewEngineCompatibility` in `preview-engine/registry.ts`. It is
+    consumed by the switcher offer / route load via `listCompatiblePreviewEngines`
+    (`apps/preview/src/preview-host/frame-documents.ts`), by save validation
+    directly (`apps/preview/src/preview-host/frame-document-actions.ts`), and by
+    active resolution via `resolvePreviewEngine`. `isPreviewEngineCompatible` and
+    `listPreviewEnginesWithCompatibility` also delegate to it. No duplicate
+    copies.
 
 ---
 
