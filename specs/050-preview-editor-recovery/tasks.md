@@ -137,7 +137,7 @@ before recovery work.
 > selection chrome is lost (matrix: Single-selection inspector). The relayout
 > refresh path must reapply selection chrome from model state.
 
-- [ ] T010 Fix missing or miswired browser-entry exports consumed by thin
+- [x] T010 Fix missing or miswired browser-entry exports consumed by thin
       preview wrappers.
   - **Owner files**: `packages/layout-engine/src/browser-entry-preview-shell.ts`,
     `packages/layout-engine/src/browser-entry*.ts`,
@@ -147,7 +147,10 @@ before recovery work.
     expected shape. List any wrapper accessor that resolves to `undefined`.
   - **Verify**: `npm --prefix packages/layout-engine test -- browser-entry` plus
     a console-error-free load on `/view/v3:<smoke-slug>`.
-- [ ] T011 Restore diagram picker/route load and stage binding behavior.
+  - **Status (2026-06-24)**: `browser-entry-contract.test.ts` green (6 tests).
+    Live loads of `mongo-octavia-ha` and `preview-smoke` are console-error-free;
+    no wrapper accessor resolved to `undefined`.
+- [x] T011 Restore diagram picker/route load and stage binding behavior.
   - **Owner files**: `app-diagram-navigation.ts`, `app-load.ts`,
     `app-stage-binding-runtime.ts`.
   - **Steps**: verify canonical `/view/v3:<slug>` and alias `/v3/view/<slug>`
@@ -155,6 +158,10 @@ before recovery work.
     next/previous stepping (matrix flags stepping as not yet live-verified).
   - **Verify**: `npm --prefix packages/layout-engine test -- app-diagram-navigation`
     plus a live next/previous probe.
+  - **Status (2026-06-24)**: `app-diagram-navigation.test.ts` green (7 tests).
+    Live next-step probe stepped `mongo-octavia-ha` → `preview-smoke`: route
+    updated to `/view/v3:preview-smoke`, stage re-rendered (15 components), and
+    the picker value re-synced. No console errors.
 - [x] T012 Restore selection, hover, selection chrome, and tree/inspector
       synchronization — including chrome restore after relayout refresh.
   - **Owner files**: `app-selection-host.ts`, `app-selection-runtime.ts`,
@@ -191,7 +198,15 @@ before recovery work.
   - **Steps**: live-probe each gesture against the smoke slug; after each,
     assert model state, SVG state, and dirty/undo state agree. Record per-gesture
     status in the matrix (these are all currently "Unverified in live editor").
-  - **Verify**: focused contract tests for each gesture group + live probe.
+  - **Status (2026-06-24)**: **delete + undo + redo live-verified** on
+    `preview-smoke` with faithful Playwright mouse/keyboard input. Select leaf
+    `implement` → Delete key removes it (15→14 components), the active toolbar
+    Undo enables and Save flips to `dirty`, Redo stays disabled; Ctrl+Z restores
+    the node (14→15) and Redo enables. Note: the DOM carries two Undo/Redo/Save
+    button sets (editor toolbar + foundry chrome) — the active set is the one with
+    the `dirty` Save class. Keyboard nudge is correctly inert on autolayout
+    (Position: Auto) children. **Still to probe**: drag-reorder, handle resize,
+    live-resize, and nudge on an absolutely-positioned frame.
 - [ ] T014 Add focused behavior coverage for each restored interaction group.
   - **Done when**: each gesture in T013 has at least one durable test at its
     owning layer (not re-tested in three layers).
@@ -285,7 +300,9 @@ before recovery work.
       (line counts should not materially increase).
 - [ ] T056 Update `recovery-matrix.md` so no surface is left Untriaged, then
       update `docs/specs.md`, `AGENTS.md` handover, and this package status.
-- [ ] T057 Repo hygiene: remove the stray `image.png` accidentally committed in
+- [x] T057 Repo hygiene: remove the stray `image.png` accidentally committed in
       `bff309d` (a 19KB binary at repo root, not product code) with `git rm
       image.png`, and confirm no other stray binaries or screenshots are tracked
       on this branch.
+  - **Status (2026-06-24)**: removed in `f2d5742`. `git ls-files "image*.png"`
+    now returns nothing; no other stray root binaries tracked on this branch.
