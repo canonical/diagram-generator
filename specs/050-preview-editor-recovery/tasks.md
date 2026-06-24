@@ -248,7 +248,7 @@ before recovery work.
 
 ## Phase 3 - Inspector And Text Editing
 
-- [ ] T020 Restore single-selection inspector text, style, sizing, layout, and
+- [x] T020 Restore single-selection inspector text, style, sizing, layout, and
       autolayout controls.
   - **Owner files**: `inspector-single*.ts`, `app-inspector-host.ts`,
     `app-inspector-mutation-host.ts`, `app-inspector-mutation-runtime.ts`,
@@ -258,7 +258,19 @@ before recovery work.
     mode, layout gap, autolayout direction) change a value, confirm the stage
     patches or relayouts, and confirm the override summary increments.
   - **Verify**: single-selection inspector contract test + live probe.
-- [ ] T021 Restore multi-selection align, distribute, sizing, and delete
+  - **Status (2026-06-24)**: contract suites present and green
+    (`inspector-single`, `inspector-single-panel`, `inspector-single-options`,
+    `inspector-autolayout-panel/options`, `app-inspector-mutation-host/runtime`,
+    `frame-style`). **Live-verified** on `preview-smoke`: the single-selection
+    inspector renders the full control surface (Alignment 9-way, Sizing
+    Width/Min/Max/Weight/Height + Position Auto/Absolute, Style 6 options, Stack
+    spacing). Exercised live this session: handle-resize flips Sizing to Fixed;
+    Position Auto→Absolute + Offset X moves the frame (x 572→601); Style →
+    Highlight (black) creates `1 override`, then — as defined — clears it back to
+    `No overrides`; Min W relayout keeps selection chrome (T012). Gap is
+    composition-derived (panel notes “use distribute for arrangement”) so it is
+    edited via the multi-select Distribute Gap field, covered under T021.
+- [x] T021 Restore multi-selection align, distribute, sizing, and delete
       controls.
   - **Owner files**: `inspector-multi*.ts`, `selection-actions.ts`,
     `app-inspector-selection-runtime.ts`, `interaction-selection.ts`.
@@ -266,12 +278,33 @@ before recovery work.
     sizing, and bulk delete; confirm every selected frame updates consistently
     and a single undo restores the prior state.
   - **Verify**: multi-selection contract test + live probe.
+  - **Status (2026-06-24)**: contract suites present and green
+    (`inspector-multi`, `inspector-multi-panel`, `inspector-multi-options`,
+    `selection-actions`, `app-inspector-selection-runtime`). **Live-verified**
+    on `preview-smoke`: shift-clicking `define`+`measure` shows the
+    multi-selection panel (“2 components”) with Distribute H/V + Gap field, Align
+    left/center/right/top/middle/bottom, 9-way Alignment, bulk Sizing, and
+    “Style (2 boxes)”. Clicking **Align center** creates `2 overrides` (one per
+    box) and flips Save to `dirty`; a single Ctrl+Z restores `No overrides` and
+    enables Redo. **Bulk delete** of the 2-frame selection removes both frames
+    *and* the connecting `define->measure` arrow (15→12 nodes); a single Ctrl+Z
+    restores all 15.
 - [x] T022 Restore text-block edit commit/cancel behavior.
-- [ ] T023 Prove inspector/text changes update model state, SVG state, dirty
+- [x] T023 Prove inspector/text changes update model state, SVG state, dirty
       state, undo state, and save payloads.
   - **Verify**: an assertion-rich test that, for one representative inspector
     change and one text edit, checks all five outcomes (model, SVG, dirty, undo,
     persisted override payload).
+  - **Status (2026-06-24)**: added
+    `app-inspector-change-roundtrip.test.ts` (green). It drives the real
+    `createPreviewInspectorMutationRuntime` for a `min_width` inspector change
+    and a heading `text` edit, then asserts: the live override store records
+    both (model); each mutation flags dirty and pushes a before/after undo patch
+    (dirty + undo); `applyPreviewOverridesToFrameTree` mutates the rendered frame
+    tree (`minWidth=200`, heading text rewritten) (SVG); and every recorded key
+    is on `PERSIST_FRAME_KEYS`, so the change survives a YAML save with nothing
+    dropped (persist payload). The server-side YAML writer itself stays covered
+    by `apps/preview/src/persistence/frame-diagram.test.ts`.
 
 ---
 
