@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   canonicalizePreviewDiagramPath,
   extractPreviewDiagramOptionEntries,
+  initPreviewDiagramNavigation,
   normalizePreviewDiagramPath,
   resolveSteppedPreviewDiagramUrl,
   syncPreviewBrowseLinksToPath,
@@ -17,7 +18,27 @@ function createPicker(values: string[]) {
     options,
     selectedIndex: 0,
     value: '',
+    listeners: {} as Record<string, (event: { preventDefault?: () => void; defaultPrevented?: boolean }) => void>,
+    addEventListener: function (name: string, listener: (event: { preventDefault?: () => void; defaultPrevented?: boolean }) => void) {
+      this.listeners[name] = listener;
+    },
+    dispatch(name: string, event = {}) {
+      this.listeners[name]?.(event);
+    },
   } as unknown as HTMLSelectElement;
+}
+
+function createButton() {
+  const listeners: Array<() => void> = [];
+  return {
+    listeners,
+    addEventListener: (_name: string, listener: () => void) => {
+      listeners.push(listener);
+    },
+    click() {
+      listeners.forEach((listener) => listener());
+    },
+  };
 }
 
 describe('preview diagram navigation helpers', () => {
@@ -128,5 +149,40 @@ describe('preview diagram navigation helpers', () => {
       'is-active': true,
       'aria-current': true,
     });
+  });
+
+  it('initializes navigation and wires next/prev stepping', () => {
+    const picker = createPicker(['/view/alpha', '/view/beta', '/view/gamma']);
+    const prev = createButton();
+    const next = createButton();
+    const attempts: string[] = [];
+    const syncCalls: string[] = [];
+
+    initPreviewDiagramNavigation({
+      picker,
+      prevButton: prev as unknown as Element,
+      nextButton: next as unknown as Element,
+      browseLinks: [],
+      getCurrentPath: () => '/view/beta',
+      syncBrowseNav: () => syncCalls.push('sync'),
+      fetchIndexHtml: async () => null,
+      attemptNavigation: (nextUrl, syncUi) => {
+        attempts.push(nextUrl || '');
+        syncUi();
+        return true;
+      },
+      requestAnimationFrameFn: (callback) => callback(),
+    } as any);
+
+    expect(picker.selectedIndex).toBe(1);
+
+    picker.value = '/view/gamma';
+    picker.dispatch('change');
+
+    next.click();
+    prev.click();
+
+    expect(attempts).toEqual(['/view/gamma', '/view/gamma', '/view/alpha']);
+    expect(syncCalls).toEqual(['sync', 'sync', 'sync', 'sync', 'sync', 'sync']);
   });
 });
