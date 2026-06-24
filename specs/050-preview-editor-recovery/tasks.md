@@ -163,10 +163,12 @@ before recovery work.
   - **Status (2026-06-24)**: fixed the microtask regression in `app-live-resize.ts`
     by moving `reapplySelection?.()` into the existing `.finally()` callback so
     `state.running` is correctly `false` when cancel/orchestration tests assert.
-    The **inspector-triggered** relayout path (the originally reported bug) is still
-    not live-verified — `reapplySelection` is already wired through
-    `app-editor-scene-facade.ts`/`app-inspector-selection-runtime`, so probe it
-    before adding new wiring.
+    The **inspector-triggered** relayout path (the originally reported bug) is now
+    **live-verified fixed** on `mongo-octavia-ha`: select `mongo_write`, set Min W=160,
+    `.dg-selected` survives the relayout refresh, inspector keeps targeting the box,
+    status returns to `Ready`, and Undo restores the clean state.
+    `dispatchPreviewRelayoutSuccessHost` already calls `reapplySelection()` after
+    `applyAllOverrides()`; no new wiring was needed.
   - **Steps**:
     1. Reproduce: select a frame, change an inspector field that triggers
        relayout, confirm `.dg-selected` is gone on the refreshed SVG.
