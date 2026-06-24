@@ -56,7 +56,7 @@ source and fixtures on `main` and this branch), not caused by 046/047/050. But a
 red engine suite makes "tests pass" meaningless as a recovery gate. Resolve it
 before recovery work.
 
-- [ ] T0a Reproduce and classify the parity failures.
+- [x] T0a Reproduce and classify the parity failures.
   - **Owner files**: `packages/layout-engine/tests/parity.test.ts`,
     `packages/layout-engine/tests/fixtures/parity-fixtures.json`,
     `packages/layout-engine/tests/parity-fixture-builder.ts`,
@@ -78,7 +78,7 @@ before recovery work.
   - **Done when**: every one of the 16 failures is labelled A or B with a
     one-line reason and the responsible source line.
 
-- [ ] T0b Resolve the parity baseline to green.
+- [x] T0b Resolve the parity baseline to green.
   - **If T0a says stale golden (A)**: regenerate the affected fixture
     expectations from the current engine and commit, with a commit body that
     names the intended behaviour change and the commit that introduced it. Do
@@ -94,7 +94,7 @@ before recovery work.
   - **Done when**: the engine suite is green or every remaining red is an
     explicit, documented quarantine.
 
-- [ ] T0c Stand up a disposable-fixture live-probe harness.
+- [x] T0c Stand up a disposable-fixture live-probe harness.
   - **Owner files**: `scripts/diagrams/frames/` (add a `preview-smoke`-class
     throwaway frame if missing), `apps/preview/src/preview-host/*`.
   - **Steps**: create or confirm a small throwaway frame slug used only for live
@@ -125,7 +125,7 @@ before recovery work.
     fake, so the test fails if a real contract is unwired.
   - **Verify**: `npm --prefix packages/layout-engine test -- app-bootstrap`.
   - **Done when**: the smoke test fails if any required runtime is missing.
-- [ ] T004 Mark any intentionally deferred surface in the matrix with a reason,
+- [x] T004 Mark any intentionally deferred surface in the matrix with a reason,
       owner, and follow-up spec pointer.
 
 ---

@@ -4,18 +4,31 @@
 
 This matrix tracks the user-visible editor surface after the 046 decomposition.
 It records the typed owner first; legacy JS should remain thin browser glue.
+No intentionally deferred surfaces remain untriaged at this stage; all gaps are
+listed as concrete next actions in this package’s task plan.
 
 ## Engine baseline (Phase 0 gate)
 
-`npm --prefix packages/layout-engine test` currently fails **16 parity tests**
-in `tests/parity.test.ts` (`test-deep-nesting`, `test-alignment-grid`; 100-128px
-deltas). These are **pre-046 layout drift, not an editor-refactor regression**.
-The parity fixtures were last regenerated at `e45bd18` (2026-06-05); `layout.ts`
-then changed at `1c6e46a` (2026-06-10, arrow-routing) and `ba62301` (2026-06-13,
-author-fixture restore) without regenerating the goldens. The 046 editor
-decomposition landed later and does not touch `layout.ts`. Until Phase 0
-(T0a/T0b) classifies each failure as stale-golden or real-regression and returns
-the suite to green, "tests pass" is not a valid recovery gate.
+`npm --prefix packages/layout-engine test` failed **16 parity checks** in
+`tests/parity.test.ts` (`test-nested-containers`, `test-deep-nesting`,
+`test-alignment-grid`) before fixture regen. These are **pre-046 layout drift**,
+not an editor-refactor regression. Phase 0 classification is complete on
+2026-06-24:
+
+| Test | Class | Reason | Source |
+| --- | --- | --- | --- |
+| `test-nested-containers` | A | Heading-row and nested height placement drift now follows arrow-aware gap promotion behavior. | `packages/layout-engine/src/layout.ts:148`, `:1056` (`1c6e46a`) |
+| `test-deep-nesting` | A | Same arrow-aware gap promotion placement drift path as above, with updated expected y/h profile. | `packages/layout-engine/src/layout.ts:148`, `:1056` (`1c6e46a`) |
+| `test-alignment-grid` | A | Same `layout.ts` layout-path drift in baseline and heading semantics; fixture baseline was stale. | `packages/layout-engine/src/layout.ts:148`, `:1056` (`1c6e46a`) |
+
+`npm --prefix packages/layout-engine test` is now green after regenerating only the
+three stale-golden fixtures listed above.
+
+Note: the triple `failRelayout:`/`finishRelayout:` destructuring in
+`scripts/preview/editor.js` is **not** a bug. Destructuring with renaming reads
+the same source property into multiple local names (all defined and equal); it
+is redundant migration-era aliasing, not dead code. Do not "fix" it by deleting
+aliases without first confirming no consumer references the extra names.
 
 Note: the triple `failRelayout:`/`finishRelayout:` destructuring in
 `scripts/preview/editor.js` is **not** a bug. Destructuring with renaming reads
@@ -25,7 +38,7 @@ aliases without first confirming no consumer references the extra names.
 
 | Surface | Typed owner | Current coverage / probe | Observed status | Next action |
 | --- | --- | --- | --- | --- |
-| Engine parity baseline | `packages/layout-engine/src/layout.ts`, `tests/parity.test.ts` | `npm --prefix packages/layout-engine test -- parity` | Red. 16 failures (deep-nesting, alignment-grid), pre-existing. | Phase 0 T0a/T0b: classify each as stale golden vs real regression, return suite to green or quarantine explicitly. |
+| Engine parity baseline | `packages/layout-engine/src/layout.ts`, `tests/parity.test.ts` | `npm --prefix packages/layout-engine test -- parity` | Fixed. 16 failures (`test-nested-containers`, `test-deep-nesting`, `test-alignment-grid`) are classified A and fixtures regenerated accordingly. | No open baseline gate risk. |
 | Browser bundle exports | `packages/layout-engine/src/browser-entry-preview-shell.ts` | `npm --prefix packages/layout-engine test -- app-diagram-navigation browser-entry app-bootstrap` | Pass. `previewShell.bootstrap` exports route/picker helpers used by the shell. | Keep coverage with each browser export change. |
 | Route bootstrap, canonical path `/view/v3:<slug>` | `apps/preview/src/preview-host/*`, `preview-shell/app-bootstrap.ts` | Live probe on `/view/v3:preview-smoke` and `/view/v3:mongo-octavia-ha` | Pass. SVG renders, build status updates, component selection opens the inspector, no browser errors. `T003` focused install-unit bootstrap smoke added in `app-grid-editor-install-unit.test.ts`. | Add durable route smoke if another bootstrap regression appears. |
 | Route alias `/v3/view/<slug>` | `preview-shell/app-diagram-navigation.ts`, thin `scripts/preview/editor-base.js` glue | New `app-diagram-navigation` alias tests plus live probe on `/v3/view/preview-smoke` | Fixed. Picker and browse nav now select canonical `/view/v3:<slug>` instead of blank state. | Watch for other route aliases before adding new shell-local logic. |
