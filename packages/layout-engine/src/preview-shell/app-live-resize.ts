@@ -52,6 +52,7 @@ export interface SchedulePreviewLiveResizeRelayoutOptions<TGridOverrides> {
     temporaryOverrides: PreviewLiveResizeOverrideMap,
     normalizedGridOverrides: TGridOverrides,
   ) => unknown;
+  reapplySelection?: (() => void) | null;
 }
 
 export interface CreatePreviewLiveResizeRuntimeOptions<TGridOverrides> {
@@ -82,6 +83,7 @@ export interface CreatePreviewLiveResizeRuntimeOptions<TGridOverrides> {
   setOverride: (cid: string, patch: Record<string, unknown>) => void;
   requestRelayout: (cid: string) => unknown;
   minSize?: number;
+  reapplySelection?: (() => void) | null;
 }
 
 export interface CreatePreviewLiveResizeRuntimeFromHostOptions<TGridOverrides, TModel> {
@@ -118,6 +120,7 @@ export interface CreatePreviewLiveResizeRuntimeFromHostOptions<TGridOverrides, T
   setOverride: (cid: string, patch: Record<string, unknown>) => void;
   requestRelayout: (cid: string) => unknown;
   minSize?: number;
+  reapplySelection?: (() => void) | null;
 }
 
 export interface PreviewLiveResizeRuntime {
@@ -219,7 +222,9 @@ function schedulePreviewLiveResizeFrame<TGridOverrides>(
     options.state.running = true;
     void Promise.resolve(
       performRelayout(temporaryOverrides, normalizedGridOverrides),
-    ).finally(() => {
+    ).then(() => {
+      options.reapplySelection?.();
+    }).finally(() => {
       options.state.running = false;
       if (options.state.latest) {
         schedulePreviewLiveResizeFrame(options);
@@ -286,6 +291,7 @@ export function createPreviewLiveResizeRuntime<TGridOverrides>(
         getRelayoutStatus: options.getRelayoutStatus,
         performEngineRelayout: options.performEngineRelayout ?? null,
         performLocalRelayout: options.performLocalRelayout,
+        reapplySelection: options.reapplySelection ?? null,
       });
     },
     cancelRelayout() {
@@ -336,6 +342,7 @@ export function createPreviewLiveResizeRuntimeFromHost<TGridOverrides, TModel>(
         { skipModelUpdate: true },
       )
     ),
+    reapplySelection: options.reapplySelection ?? null,
     requestAnimationFrameFn: options.requestAnimationFrameFn,
     cancelAnimationFrameFn: options.cancelAnimationFrameFn,
     getNode: options.getNode,

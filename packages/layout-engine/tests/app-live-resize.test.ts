@@ -262,6 +262,48 @@ describe('preview live-resize relayout helpers', () => {
     );
   });
 
+  it('reapplies selection after host-based live relayout completes', async () => {
+    let callback: (() => void) | null = null;
+    const performLocalRelayout = vi.fn();
+    const reapplySelection = vi.fn();
+    const runtime = createPreviewLiveResizeRuntimeFromHost({
+      state: createPreviewLiveResizeRelayoutState(),
+      model: {
+        gridOverrides: { cols: 4 },
+      },
+      getOverrides: () => ({
+        alpha: { keep: true },
+      }),
+      normalizeGridOverrides: (value) => value,
+      getRelayoutStatus: () => ({ localReady: true, local: { reason: null } }),
+      isEngineLayoutActive: () => false,
+      previewBridgeHost: {
+        performLocalRelayout,
+      },
+      requestAnimationFrameFn: (nextCallback) => {
+        callback = nextCallback;
+        return 31;
+      },
+      cancelAnimationFrameFn() {},
+      getNode() {
+        return { data: { width: 200, height: 120 } };
+      },
+      getOwnDelta() {
+        return { dw: 0, dh: 0 };
+      },
+      setOverride() {},
+      requestRelayout() {},
+      reapplySelection,
+    });
+
+    expect(runtime.scheduleRelayout('alpha', 280, 160, true, false)).toBe(true);
+    callback?.();
+    await Promise.resolve();
+
+    expect(performLocalRelayout).toHaveBeenCalledTimes(1);
+    expect(reapplySelection).toHaveBeenCalledTimes(1);
+  });
+
   it('routes active engine live resize through the typed bridge without mutating the committed model', async () => {
     let callback: (() => void) | null = null;
     const performEngineRelayout = vi.fn(async () => ({ width: 320, height: 200 }));
