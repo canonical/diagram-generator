@@ -160,6 +160,18 @@ before recovery work.
   - **Owner files**: `app-selection-host.ts`, `app-selection-runtime.ts`,
     `app-selection-chrome-runtime.ts`, `app-selection-chrome.ts`,
     `app-relayout.ts`, `app-layout-bridge-runtime.ts`.
+  - **Status (2026-06-24)**: the **live-resize** lane is partly done in
+    `d6f2f16` (threads `reapplySelection` through `app-live-resize.ts`), but that
+    commit **regressed 2 tests** in `tests/app-live-resize.test.ts`. The
+    `.then(reapplySelection).finally(...)` chain adds a microtask so
+    `state.running` is still `true` when the cancel/orchestration tests assert
+    `false`. **Fix before continuing**: move the `reapplySelection?.()` call into
+    the existing `.finally()` callback (no extra `.then()` tick), then re-run
+    `npm --prefix packages/layout-engine test -- app-live-resize`. The
+    **inspector-triggered** relayout path (the originally reported bug) is still
+    not live-verified — `reapplySelection` is already wired through
+    `app-editor-scene-facade.ts`/`app-inspector-selection-runtime`, so probe it
+    before adding new wiring.
   - **Steps**:
     1. Reproduce: select a frame, change an inspector field that triggers
        relayout, confirm `.dg-selected` is gone on the refreshed SVG.
@@ -171,7 +183,8 @@ before recovery work.
        selection.
   - **Verify**: a focused test that selects, relayouts, and asserts the selected
     id still carries chrome and the inspector still targets it; plus a live
-    probe matching the matrix repro.
+    probe matching the matrix repro. The full `app-live-resize` suite must be
+    green (no leftover `state.running` timing regression).
 - [ ] T013 Restore drag, resize, live resize, keyboard nudge, delete, undo, and
       redo through typed interaction/runtime owners.
   - **Owner files**: `app-interaction-host.ts`, `app-drag-host.ts`,
@@ -275,3 +288,7 @@ before recovery work.
       (line counts should not materially increase).
 - [ ] T056 Update `recovery-matrix.md` so no surface is left Untriaged, then
       update `docs/specs.md`, `AGENTS.md` handover, and this package status.
+- [ ] T057 Repo hygiene: remove the stray `image.png` accidentally committed in
+      `bff309d` (a 19KB binary at repo root, not product code) with `git rm
+      image.png`, and confirm no other stray binaries or screenshots are tracked
+      on this branch.

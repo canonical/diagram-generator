@@ -9,11 +9,13 @@ It records the typed owner first; legacy JS should remain thin browser glue.
 
 `npm --prefix packages/layout-engine test` currently fails **16 parity tests**
 in `tests/parity.test.ts` (`test-deep-nesting`, `test-alignment-grid`; 100-128px
-deltas). These are **pre-existing**: layout source and parity fixtures are
-identical on `main` and this branch, and no 046/047/050 commit touches
-`src/layout.ts` or the fixtures. They are unacknowledged in any doc. Until
-Phase 0 (T0a/T0b) classifies each failure as stale-golden or real-regression and
-returns the suite to green, "tests pass" is not a valid recovery gate.
+deltas). These are **pre-046 layout drift, not an editor-refactor regression**.
+The parity fixtures were last regenerated at `e45bd18` (2026-06-05); `layout.ts`
+then changed at `1c6e46a` (2026-06-10, arrow-routing) and `ba62301` (2026-06-13,
+author-fixture restore) without regenerating the goldens. The 046 editor
+decomposition landed later and does not touch `layout.ts`. Until Phase 0
+(T0a/T0b) classifies each failure as stale-golden or real-regression and returns
+the suite to green, "tests pass" is not a valid recovery gate.
 
 Note: the triple `failRelayout:`/`finishRelayout:` destructuring in
 `scripts/preview/editor.js` is **not** a bug. Destructuring with renaming reads
@@ -29,7 +31,8 @@ aliases without first confirming no consumer references the extra names.
 | Route alias `/v3/view/<slug>` | `preview-shell/app-diagram-navigation.ts`, thin `scripts/preview/editor-base.js` glue | New `app-diagram-navigation` alias tests plus live probe on `/v3/view/preview-smoke` | Fixed. Picker and browse nav now select canonical `/view/v3:<slug>` instead of blank state. | Watch for other route aliases before adding new shell-local logic. |
 | Diagram picker next/previous and browse links | `preview-shell/app-diagram-navigation.ts` | Unit tests for picker sync, stepped navigation, browse active state | Partially verified. Canonical and alias sync pass; live next/previous stepping not yet exercised. | Add a focused browser smoke if stepping remains suspect. |
 | Stage render and selection | `preview-shell/interaction/*`, `preview-shell/scene/*` | Live probe selected `define` and `mongo_clients` | Pass for single frame selection and inspector population. | Continue with keyboard, drag, resize, and tree synchronization probes. |
-| Single-selection inspector | `preview-shell/inspector/*`, `scripts/preview/editor-state.js` adapter | Live probe after selecting `define`, changing `min_width`, then undoing | Partial. Inspector render, dirty state, undo command, Undo button enablement, and undo restore now pass. Visual SVG selection is still lost after the relayout refresh. | Fix selection chrome restoration after inspector-triggered relayout, then verify save payload. |
+| Single-selection inspector | `preview-shell/inspector/*`, `scripts/preview/editor-state.js` adapter | Live probe after selecting `define`, changing `min_width`, then undoing | Partial. Inspector render, dirty state, undo command, Undo button enablement, and undo restore now pass. Selection chrome after **inspector-triggered** relayout is **not yet re-verified** — `d6f2f16` wired `reapplySelection` into the live-resize lane only, not necessarily this path. | Live-probe an inspector field change (e.g. `min_width`) and confirm `.dg-selected` survives the refresh; if not, wire `reapplySelection` through the inspector-mutation/scene-refresh path too, then verify save payload. |
+| Live-resize selection restore | `preview-shell/app-live-resize.ts`, `app-editor-relayout-facade.ts` | `npm --prefix packages/layout-engine test -- app-live-resize` | **Regressed.** `d6f2f16` restores selection after a live-resize relayout but broke 2 existing tests: the new `.then(reapplySelection).finally(...)` chain inserts a microtask, leaving `state.running === true` when the cancel/orchestration tests assert `false`. | Fix without changing timing: call `options.reapplySelection?.()` **inside** the existing `.finally()` (before/after `state.running = false`), not in a separate `.then()`. Re-run `app-live-resize`. |
 | Engine switcher | `preview-engines/*`, `preview-shell/app-bootstrap.ts`, `scripts/preview/engine-switcher.js` | Live probe checks compatible options on v3 fixtures | Options render (`v3`, `elk-layered`); switching was not re-tested after the alias fix to avoid mutating YAML. | Use a temporary fixture or isolated save harness before validating switching. |
 | Grid controls and overlays | `preview-shell/scene/*` | Existing preview app tests; no live mutation in this audit | Unverified in live editor. | Probe numeric grid edit, overlay toggle, dirty state, undo. |
 | Drag, resize, keyboard nudge, delete, undo/redo | `preview-shell/interaction/*`, `preview-shell/app-bootstrap.ts` | Existing contract tests only | Unverified in live editor after 046. | Highest next interaction group after route/picker. |
