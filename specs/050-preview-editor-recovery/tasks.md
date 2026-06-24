@@ -203,10 +203,16 @@ before recovery work.
     `implement` → Delete key removes it (15→14 components), the active toolbar
     Undo enables and Save flips to `dirty`, Redo stays disabled; Ctrl+Z restores
     the node (14→15) and Redo enables. Note: the DOM carries two Undo/Redo/Save
-    button sets (editor toolbar + foundry chrome) — the active set is the one with
-    the `dirty` Save class. Keyboard nudge is correctly inert on autolayout
-    (Position: Auto) children. **Still to probe**: drag-reorder, handle resize,
-    live-resize, and nudge on an absolutely-positioned frame.
+    button set carries the `dirty` Save class. Keyboard nudge is correctly inert
+    on autolayout (Position: Auto) children. **Drag (needs deeper probe)**: a
+    real-mouse vertical drag of `measure` above `define` registered (created
+    `1 override`, dirtied Save, reselected the dragged frame) but did **not**
+    visibly reorder the stack — on an autolayout child this resembles a position
+    override the stack re-flows away rather than a sibling reorder. Either the
+    synthetic drag did not cross the reorder insertion threshold or reorder is
+    not wired for autolayout children; confirm with a dedicated reorder probe or
+    contract test before judging. **Still to probe**: handle resize, live-resize,
+    and nudge on an absolutely-positioned frame.
 - [ ] T014 Add focused behavior coverage for each restored interaction group.
   - **Done when**: each gesture in T013 has at least one durable test at its
     owning layer (not re-tested in three layers).
