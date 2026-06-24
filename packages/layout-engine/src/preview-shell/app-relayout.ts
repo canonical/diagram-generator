@@ -587,16 +587,26 @@ export function applyPreviewOverridesToFrameTree(
     }
     if (Array.isArray(override.children_order)) {
       const childrenOrder = override.children_order.map((childId) => String(childId));
-      const childMap = new Map(target.children.map((child) => [child.id, child] as const));
+      // A children_order override is keyed to the authored parent, but when that
+      // parent has a heading/body split the reorderable children live on the
+      // synthetic body. Redirect to the body when the named children live there.
+      const syntheticBody = previewFindSyntheticBody(target);
+      const reorderTarget = syntheticBody
+        && childrenOrder.some(
+          (childId) => syntheticBody.children.some((child) => child.id === childId),
+        )
+        ? syntheticBody
+        : target;
+      const childMap = new Map(reorderTarget.children.map((child) => [child.id, child] as const));
       const reordered: Frame[] = [];
       for (const childId of childrenOrder) {
         const child = childMap.get(childId);
         if (child) reordered.push(child);
       }
-      const remaining = target.children.filter(
+      const remaining = reorderTarget.children.filter(
         (child) => !childrenOrder.includes(child.id),
       );
-      target.children = [...reordered, ...remaining];
+      reorderTarget.children = [...reordered, ...remaining];
     }
     if (override.text && typeof override.text === 'object') {
       const textOverride = override.text as Record<string, unknown>;

@@ -405,6 +405,54 @@ describe('preview relayout helpers', () => {
     expect(bodyChild.align).toBe(Align.BOTTOM_RIGHT);
   });
 
+  it('reorders synthetic-body children via a children_order override keyed to the body', () => {
+    const define = new Frame({ id: 'define', label: [createLine('Define')] });
+    const measure = new Frame({ id: 'measure', label: [createLine('Measure')] });
+    const headingChild = new Frame({ id: 'planning__heading', role: 'heading' });
+    const bodyChild = new Frame({ id: 'planning__body', children: [define, measure] });
+    const planning = new Frame({
+      id: 'planning',
+      heading: createLine('Planning'),
+      children: [headingChild, bodyChild],
+    });
+    const root = new Frame({ id: 'page', children: [planning] });
+    const diagram = new FrameDiagram({ root });
+
+    applyPreviewOverridesToFrameTree(diagram, {
+      planning__body: { children_order: ['measure', 'define'] },
+    });
+
+    expect(bodyChild.children.map((child) => child.id)).toEqual(['measure', 'define']);
+  });
+
+  it('reorders synthetic-body children when children_order is keyed to the authored parent', () => {
+    // Drag-reorder keys the override to the authored parent (planning), but the
+    // relayout tree has split planning into [heading, body]; the reorderable
+    // children live on the synthetic body. The override must still apply.
+    const define = new Frame({ id: 'define', label: [createLine('Define')] });
+    const measure = new Frame({ id: 'measure', label: [createLine('Measure')] });
+    const headingChild = new Frame({ id: 'planning__heading', role: 'heading' });
+    const bodyChild = new Frame({ id: 'planning__body', children: [define, measure] });
+    const planning = new Frame({
+      id: 'planning',
+      heading: createLine('Planning'),
+      children: [headingChild, bodyChild],
+    });
+    const root = new Frame({ id: 'page', children: [planning] });
+    const diagram = new FrameDiagram({ root });
+
+    applyPreviewOverridesToFrameTree(diagram, {
+      planning: { children_order: ['measure', 'define'] },
+    });
+
+    expect(bodyChild.children.map((child) => child.id)).toEqual(['measure', 'define']);
+    // The synthetic heading/body wrapper order is preserved.
+    expect(planning.children.map((child) => child.id)).toEqual([
+      'planning__heading',
+      'planning__body',
+    ]);
+  });
+
   it('fails fast when local relayout is unavailable', async () => {
     const failRelayout = vi.fn(() => false);
 
