@@ -290,6 +290,18 @@ before recovery work.
     *and* the connecting `define->measure` arrow (15→12 nodes); a single Ctrl+Z
     restores all 15.
 - [x] T022 Restore text-block edit commit/cancel behavior.
+  - **Status (2026-06-24)**: live double-click text editing was **throwing on
+    every attempt** \u2014 `createPreviewTextEditRuntimeFromHost` forwarded
+    `options.model.get` as an unbound method reference, so `getNode` lost its
+    `this` and `component-model.js` raised `Cannot read properties of undefined
+    (reading 'get')` inside `startTextEdit`. Fixed by binding via
+    `(cid) => options.model.get(cid)` (matching the existing pattern in
+    `app-editor-relayout-facade.ts` / `app-editor-runtime-set.ts`). Added a
+    regression in `app-text-edit-runtime.test.ts` that reproduces the
+    unbound-method throw (fails without the fix). Live-verified on
+    `preview-smoke`: double-click the `planning` heading opens the focused
+    `dg-text-editor`, Ctrl+Enter commits `Planning live`, and the editor dirties
+    with `1 override` + Save enabled. Commit `e3d70e4`.
 - [x] T023 Prove inspector/text changes update model state, SVG state, dirty
       state, undo state, and save payloads.
   - **Verify**: an assertion-rich test that, for one representative inspector
@@ -410,17 +422,34 @@ before recovery work.
 
 ## Phase 6 - Verification And Handoff
 
-- [ ] T050 Run targeted layout-engine preview-shell tests for changed owners.
-- [ ] T051 Run targeted apps/preview persistence and host contract tests.
-- [ ] T052 Run `npm --prefix apps/preview test`.
-- [ ] T053 Run `npm --prefix packages/layout-engine test` (full suite must be
+- [x] T050 Run targeted layout-engine preview-shell tests for changed owners.
+  - **Status (2026-06-24)**: `app-relayout`, `app-inspector-change-roundtrip`,
+    `app-text-edit-runtime`, `app-save-client`, and `app-live-resize` all green.
+- [x] T051 Run targeted apps/preview persistence and host contract tests.
+  - **Status (2026-06-24)**: covered by the full `apps/preview` run below
+    (persistence + host contracts included).
+- [x] T052 Run `npm --prefix apps/preview test`.
+  - **Status (2026-06-24)**: 114 passed, 0 failed.
+- [x] T053 Run `npm --prefix packages/layout-engine test` (full suite must be
       green or all reds explicitly quarantined per T0b).
-- [ ] T054 Run `node scripts/check_no_new_python.mjs`.
-- [ ] T055 Confirm `scripts/preview/editor.js` and
+  - **Status (2026-06-24)**: 760 passed (760), 0 failed.
+- [x] T054 Run `node scripts/check_no_new_python.mjs`.
+  - **Status (2026-06-24)**: ratchet ok \u2014 9 Python files scanned, no new
+    product-path files.
+- [x] T055 Confirm `scripts/preview/editor.js` and
       `scripts/preview/layout-bridge.js` did not grow behaviour-heavy ownership
       (line counts should not materially increase).
-- [ ] T056 Update `recovery-matrix.md` so no surface is left Untriaged, then
+  - **Status (2026-06-24)**: `git diff main -- scripts/preview/editor.js
+    scripts/preview/layout-bridge.js` is **empty** \u2014 both files are byte-identical
+    to `main` on this branch. All 050 fixes landed in typed preview-shell owners
+    under `packages/layout-engine/src/preview-shell/*`; no legacy JS widened.
+- [x] T056 Update `recovery-matrix.md` so no surface is left Untriaged, then
       update `docs/specs.md`, `AGENTS.md` handover, and this package status.
+  - **Status (2026-06-24)**: `recovery-matrix.md` updated \u2014 engine switcher,
+    grid controls, multi-selection inspector, text edit, and save/reload/export
+    rows moved to Pass; arrow/waypoint editing triaged as out-of-scope and
+    contract-covered. No surface remains Unverified/Untriaged. `docs/specs.md`
+    and `AGENTS.md` handover updated.
 - [x] T057 Repo hygiene: remove the stray `image.png` accidentally committed in
       `bff309d` (a 19KB binary at repo root, not product code) with `git rm
       image.png`, and confirm no other stray binaries or screenshots are tracked
