@@ -370,17 +370,41 @@ before recovery work.
 
 ## Phase 5 - Save, Reload, Export
 
-- [ ] T040 Restore save client dirty-state, save, and rejected-save feedback.
+- [x] T040 Restore save client dirty-state, save, and rejected-save feedback.
   - **Owner files**: `app-save-client.ts`,
     `apps/preview/src/preview-host/frame-document-actions.ts`,
     `apps/preview/src/persistence/*`.
-- [ ] T041 Add a save/reload regression covering representative stage,
+  - **Status (2026-06-24)**: `app-save-client.test.ts` green — one test drives a
+    full persist+reload-from-canonical-state path, the other proves a save is
+    blocked (with an alert) when local relayout is unavailable. **Live-verified**
+    on `preview-smoke`: a dirty edit flips the active Save button to the `dirty`
+    class; clicking it persists and clears the dirty state.
+- [x] T041 Add a save/reload regression covering representative stage,
       inspector, text, and engine edits.
   - **Steps**: edit one of each kind against the disposable slug, save, reload
     the route, assert canonical state survives.
-- [ ] T042 Confirm export SVG reflects saved semantic state after reload.
-- [ ] T043 Confirm no partial state is persisted after failed relayout or
+  - **Status (2026-06-24)**: stage + inspector edits live-verified to round-trip
+    on `preview-smoke`. Stage: drag-reorder (`define`/`measure`) saved and
+    survived reload (YAML child order updated, commit `e6bfa72`). Inspector: set
+    `source_notes` Min W=320, Save → the YAML gained `min_width: 320`, and a
+    fresh route reload showed Min W=320 with `No overrides` (promoted to
+    canonical state, not a lingering override). Fixture restored via
+    `git checkout` after the probe. Text and engine persistence stay covered by
+    `apps/preview/src/persistence/editor-text-edit-commit.test.ts`,
+    `frame-diagram.test.ts`, and `engine-switcher.test.ts`.
+- [x] T042 Confirm export SVG reflects saved semantic state after reload.
+  - **Status (2026-06-24)**: after saving Min W=320 on `source_notes`, fetching
+    the export route `/svg/preview-smoke` returned an SVG whose root width was
+    `336` (320 + insets), confirming the export renders from the saved canonical
+    frame tree, not a stale pre-save layout.
+- [x] T043 Confirm no partial state is persisted after failed relayout or
       rejected save.
+  - **Status (2026-06-24)**: strengthened the save-client block test so a
+    rejected save (local relayout unavailable) asserts both `fetchFn` was never
+    called (no persist request issued) and `reloadDiagram` was never called (no
+    canonical reload). Combined with the T032 hardening — a failed/thrown
+    relayout routes to `failRelayout` and never calls `finishRelayout` — no
+    partial state is promoted on either failure path.
 
 ---
 
