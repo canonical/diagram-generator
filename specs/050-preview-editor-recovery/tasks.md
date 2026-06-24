@@ -189,7 +189,7 @@ before recovery work.
     id still carries chrome and the inspector still targets it; plus a live
     probe matching the matrix repro. The full `app-live-resize` suite must be
     green (no leftover `state.running` timing regression).
-- [ ] T013 Restore drag, resize, live resize, keyboard nudge, delete, undo, and
+- [x] T013 Restore drag, resize, live resize, keyboard nudge, delete, undo, and
       redo through typed interaction/runtime owners.
   - **Owner files**: `app-interaction-host.ts`, `app-drag-host.ts`,
     `app-resize-host.ts`, `app-resize-interaction-runtime.ts`,
@@ -204,18 +204,45 @@ before recovery work.
     Undo enables and Save flips to `dirty`, Redo stays disabled; Ctrl+Z restores
     the node (14→15) and Redo enables. Note: the DOM carries two Undo/Redo/Save
     button set carries the `dirty` Save class. Keyboard nudge is correctly inert
-    on autolayout (Position: Auto) children. **Drag (needs deeper probe)**: a
-    real-mouse vertical drag of `measure` above `define` registered (created
-    `1 override`, dirtied Save, reselected the dragged frame) but did **not**
-    visibly reorder the stack — on an autolayout child this resembles a position
-    override the stack re-flows away rather than a sibling reorder. Either the
-    synthetic drag did not cross the reorder insertion threshold or reorder is
-    not wired for autolayout children; confirm with a dedicated reorder probe or
-    contract test before judging. **Still to probe**: handle resize, live-resize,
-    and nudge on an absolutely-positioned frame.
-- [ ] T014 Add focused behavior coverage for each restored interaction group.
+    on autolayout (Position: Auto) children. **Drag-reorder live-verified FIXED**
+    (`e6bfa72`): root cause was `applyReorder` keying the `children_order` override
+    to the authored parent (`planning`, whose component-model children are
+    `[define, measure]`), while the relayout tree splits heading parents into
+    `[__heading, __body]` with the reorderable children nested in the synthetic
+    `__body`. `applyPreviewOverridesToFrameTree` now redirects `children_order` to
+    the synthetic body when the named children live there. Faithful-mouse drag of
+    `measure` above `define` now reorders the stack (`define,measure` →
+    `measure,define`), Undo restores, Redo reapplies, and Save+reload persists
+    (the save resolves the reorder into authored child order). +2 regression tests
+    `app-relayout.test.ts`; full suite 756 green. **Handle-resize live-verified**:
+    select `source_notes`, drag the bottom-right `.dg-handle` → frame grows
+    238×40 → 304×88, inspector Sizing flips to Fixed (302×88), `1 override`,
+    Save `dirty`, Undo enabled; Undo restores Fill/Hug + original size.
+    **Live-resize**: the frame tracks the drag continuously (sizing readout
+    updates during the gesture), covered by the `app-live-resize` suite.
+    **Nudge on absolute frame**: keyboard nudge stays gated when the selected
+    frame's parent is autolayout, because `_isAutolayoutChild` keys off the
+    *parent* layout (`isAutolayoutParentLayout`) and ignores the child's own
+    position type. This is **pre-existing** behaviour (parent-layout gating
+    predates 046/047), consistent with how drag treats autolayout-parent
+    children as reorderable rather than free-moved, and is **not** a recovery
+    regression. The supported way to move an absolutely-positioned frame is the
+    inspector **Offset X/Y** fields, which are **live-verified**: setting
+    `implement` to Position: Absolute then Offset X=48 moves it (x 572 → 601 on
+    screen, +48 model px). Recorded as a known limitation in the matrix.
+- [x] T014 Add focused behavior coverage for each restored interaction group.
   - **Done when**: each gesture in T013 has at least one durable test at its
     owning layer (not re-tested in three layers).
+  - **Status (2026-06-24)**: every gesture has durable owning-layer coverage —
+    drag/reorder (`interaction-geometry`, `interaction-completion`,
+    `interaction-completion-dispatch`, plus the two new `children_order`
+    relayout cases in `app-relayout.test.ts` for body-keyed and
+    authored-parent-keyed overrides), resize + live-resize (`app-resize-host`,
+    `app-resize-interaction-runtime`, `app-live-resize`), keyboard nudge incl.
+    the autolayout-suppression gate (`interaction-keyboard`,
+    `interaction-keyboard-dispatch`, `app-keyboard-runtime`), delete
+    (`app-frame-delete`), and undo/redo (`editor-undo-stack`). No new redundant
+    three-layer suites added.
 
 ---
 
