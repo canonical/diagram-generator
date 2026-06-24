@@ -6,6 +6,8 @@
  * target for resize-handle refresh.
  */
 
+import { recolorIconElementShapes } from '../icon-markup.js';
+
 export interface PreviewOverrideDelta {
   dx: number;
   dy: number;
@@ -412,7 +414,8 @@ function applyStyleOverrideToGroup(
     tspan.setAttribute('fill', preset.text);
   });
   group.querySelectorAll('.dg-icon').forEach((icon) => {
-    (icon as HTMLElement).style.filter = preset.icon === '#FFFFFF' ? 'invert(1)' : '';
+    (icon as HTMLElement).style.filter = '';
+    recolorIconElementShapes(icon, preset.icon);
   });
 }
 

@@ -2,6 +2,7 @@ import {
   resolveFrameRenderPlan,
 } from '../frame-render-plan.js';
 import { type Frame } from '../frame-model.js';
+import { recolorIconElementShapes } from '../icon-markup.js';
 import { type TextMeasureAdapter } from '../text-measure.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -149,6 +150,7 @@ export function patchPreviewFrameGroup(options: {
     iconToUse.setAttribute('transform', `translate(${fmtSvgNumber(plan.icon.x)} ${fmtSvgNumber(plan.icon.y)})`);
     iconToUse.setAttribute('data-orig-tx', fmtSvgNumber(plan.icon.x));
     iconToUse.setAttribute('data-orig-ty', fmtSvgNumber(plan.icon.y));
+    recolorIconElementShapes(iconToUse, plan.icon.fill);
     children.push(iconToUse);
   }
 

@@ -201,6 +201,37 @@ describe('preview frame svg helpers', () => {
     expect(renderedIcon?.getAttribute('data-orig-ty')).toBeTruthy();
   });
 
+  it('recolors the icon to the resolved icon fill when patching a highlight frame', () => {
+    const ownerDocument = new FakeDocument();
+    const group = ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'g');
+    const icon = ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'g');
+    icon.setAttribute('class', 'dg-icon');
+    const iconPath = ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'path');
+    iconPath.setAttribute('fill', '#000000');
+    icon.appendChild(iconPath);
+
+    const frame = new Frame({
+      id: 'alpha',
+      icon: 'shield',
+      label: [createLine('Highlight box')],
+    });
+    frame.resolvedIconFill = '#FFFFFF';
+    frame._layout.placedX = 8;
+    frame._layout.placedY = 16;
+    frame._layout.placedW = 240;
+    frame._layout.placedH = 72;
+
+    patchPreviewFrameGroup({
+      ownerDocument: ownerDocument as unknown as Document,
+      group: group as unknown as SVGGElement,
+      frame,
+      textAdapter: new MockTextAdapter(),
+      iconElement: icon as unknown as Element,
+    });
+
+    expect(iconPath.getAttribute('fill')).toBe('#FFFFFF');
+  });
+
   it('preserves nested child frame groups while patching a parent frame group', () => {
     const ownerDocument = new FakeDocument();
     const group = ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'g');

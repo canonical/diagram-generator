@@ -264,7 +264,7 @@ function leafNaturalSize(
     const wrappedSpecs = wrappedBlocks.flat();
     const textH = leafTextHeight(frame, wrappedBlocks, padT, padB);
 
-    if (frame.border !== Border.NONE) {
+    if (frame.border !== Border.NONE || hasIcon) {
       const iconH = padT + ICON_SIZE + padB;
       h = Math.max(textH, iconH);
     } else {

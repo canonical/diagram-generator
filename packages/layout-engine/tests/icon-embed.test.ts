@@ -9,6 +9,7 @@ import {
   tintIconInnerMarkup,
   collectIconNames,
 } from '../src/icon-embed.js';
+import { recolorIconElementShapes } from '../src/icon-markup.js';
 import { Frame, FrameDiagram } from '../src/frame-model.js';
 import { layoutFrameTree } from '../src/layout.js';
 import { emitFrameDiagramDisplayList } from '../src/render-adapter/display-list.js';
@@ -36,6 +37,21 @@ describe('icon-embed', () => {
   it('tintIconInnerMarkup recolors black fills', () => {
     const inner = '<path fill="black" d="M0 0"/>';
     expect(tintIconInnerMarkup(inner, '#FFFFFF')).toContain('fill="#FFFFFF"');
+  });
+
+  it('recolorIconElementShapes drives icon color through fill, not a filter', () => {
+    const shapes = [
+      { fill: 'black', setAttribute(name: string, value: string) { (this as Record<string, string>)[name] = value; } },
+      { fill: 'black', setAttribute(name: string, value: string) { (this as Record<string, string>)[name] = value; } },
+    ];
+    const icon = {
+      querySelectorAll(selector: string) {
+        expect(selector).toBe('path, circle, rect, polygon, ellipse');
+        return shapes;
+      },
+    };
+    recolorIconElementShapes(icon, '#FFFFFF');
+    expect(shapes.every((shape) => shape.fill === '#FFFFFF')).toBe(true);
   });
 
   it('createFsIconLoader reads Cloud.svg', () => {

@@ -24,6 +24,16 @@ not an editor-refactor regression. Phase 0 classification is complete on
 `npm --prefix packages/layout-engine test` is now green after regenerating only the
 three stale-golden fixtures listed above.
 
+**Engine defect found outside the parity fixtures (2026-06-24):** the live
+`mongo-octavia-ha` repro (apply `highlight` to one of two identical icon boxes)
+exposed an icon leaf collapsing 64→40. Root cause was in `leafNaturalSize`
+(`packages/layout-engine/src/layout.ts`): the icon-row height floor was gated on
+`border !== NONE`, so removing the border (as `highlight` does) dropped the icon
+reservation. Fixed by also reserving the icon row when the leaf has an icon. The
+parity fixtures did not cover this because their boxes either keep a border or are
+re-derived through `resolveStyles`; the bug only surfaces on the live override
+relayout path. Tracked as a new "Style picker" surface row below.
+
 Note: the triple `failRelayout:`/`finishRelayout:` destructuring in
 `scripts/preview/editor.js` is **not** a bug. Destructuring with renaming reads
 the same source property into multiple local names (all defined and equal); it
@@ -50,6 +60,8 @@ aliases without first confirming no consumer references the extra names.
 | Grid controls and overlays | `preview-shell/scene/*` | Existing preview app tests; no live mutation in this audit | Unverified in live editor. | Probe numeric grid edit, overlay toggle, dirty state, undo. |
 | Drag, resize, keyboard nudge, delete, undo/redo | `preview-shell/interaction/*`, `preview-shell/app-bootstrap.ts` | Existing contract tests only | Unverified in live editor after 046. | Highest next interaction group after route/picker. |
 | Multi-selection inspector | `preview-shell/inspector/*`, `preview-shell/interaction/*` | Existing panel tests only | Unverified in live editor. | Probe shift/meta selection and bulk align/size controls. |
+| Style picker (highlight / border) | `packages/layout-engine/src/layout.ts` (`leafNaturalSize`), `preview-shell/frame-style.ts`, `app-relayout.ts` | `npm --prefix packages/layout-engine test -- layout` (new "reserves icon-row height" regression) | **Fixed.** Applying `highlight` (which sets `border: NONE`) to an **icon** leaf collapsed it from 64→40 in the live relayout path because `leafNaturalSize` gated the icon-row height floor on `border !== NONE`. Gate now also fires when the leaf has an icon (`|| hasIcon`); browser bundle rebuilt. | Optional follow-up: reconcile `VARIANT_OVERLAYS.highlight` (no border change) vs `PREVIEW_STYLE_SEMANTICS.highlight` (`border: NONE`) so save/reload of a highlighted box stays stable. |
+| Style picker – highlight icon color | `preview-shell/app-override-application.ts` (`applyStyleOverrideToGroup`), `preview-shell/app-fresh-render.ts`, `icon-markup.ts` (`recolorIconElementShapes`) | `npm --prefix packages/layout-engine test -- icon-embed` (new `recolorIconElementShapes` contract) | **Fixed.** Highlight-mode icons in the live override fast-path were recolored with `filter: invert(1)`, which inverted anti-aliased edge pixels into a halo (the "weird glow"). Both the fresh-render path and the override fast-path now drive icon color through `resolvedIconFill`/`preset.icon` via the shared `recolorIconElementShapes` helper (sets `fill` on shape elements), matching the static-export tint semantics. Browser bundle rebuilt; no `invert(1)` remains in `dist`. | Architecture is unified onto the fill-based color path; no further work needed for highlight icon color. |
 | Text edit commit/cancel | `preview-shell/inspector/*`, `preview-shell/interaction/*` | `app-text-edit*` + `app-selection-host` contract tests now cover nested text hit-testing and start-state fallback; all suite passes (`browser-entry app-diagram-navigation app-bootstrap app-text-edit* app-selection-host`) | Contract coverage is restored for text target resolution after 046 refactor; live editor probe still pending for Enter/Escape and save/undo/dirty side-effects. | Add a narrow live probe that verifies double-click on nested text and checks dirty state, undo, and save payload. |
 | Arrow/waypoint editing | `preview-shell/interaction/*`, `preview-bridge/*` | Existing waypoint contract tests only | Unverified in live editor. | Probe waypoint insert/drag/remove without saving. |
 | Save/reload/export | `preview-shell/app-save-client.ts`, `apps/preview/src/preview-host/frame-document-actions.ts` | `npm --prefix apps/preview test`; live route probe did not save | Server save/export contracts pass; live editor save flow unverified. | Use a disposable frame fixture before live save/reload testing. |
