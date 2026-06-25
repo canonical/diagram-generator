@@ -206,6 +206,39 @@ test("persist elk layout overrides replaces meta.elk entries canonically", () =>
   });
 });
 
+test("persist elk layout verification treats empty values as cleared overrides", () => {
+  const baselineText = [
+    "engine: v3",
+    "title: Demo",
+    "meta:",
+    "  layout_engine: elk-layered",
+    "  elk:",
+    "    elk.direction: RIGHT",
+    "    elk.spacing.edgeNode: \"40\"",
+    "root:",
+    "  id: page",
+    "  direction: vertical",
+    "  children:",
+    "    - id: leaf_a",
+    "      label: [A]",
+    "",
+  ].join("\n");
+  const expected = {
+    "elk.direction": "",
+    "elk.spacing.edgeNode": "56",
+  };
+  const output = persistToYaml("demo.yaml", baselineText, {
+    overrides: {},
+    engine_layout_overrides: {
+      "meta.elk": expected,
+    },
+  });
+
+  assert.doesNotMatch(output, /elk\.direction/);
+  assert.match(output, /elk\.spacing\.edgeNode: '56'/);
+  verifyElkLayoutPersisted(output, expected);
+});
+
 test("persist elk layout overrides rejects unsupported implementation-owned ELK keys", () => {
   const baselineText = [
     "engine: v3",

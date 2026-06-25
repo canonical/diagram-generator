@@ -486,14 +486,26 @@ function applyEngineLayoutOverrides(
 }
 
 export function verifyElkLayoutPersisted(documentText: string, expected: Record<string, unknown>): void {
-  if (Object.keys(expected).length === 0) return;
+  const entries = Object.entries(expected);
+  if (entries.length === 0) return;
   const document = yaml.parse(documentText);
   if (!isRecord(document)) throw new Error("expected top-level mapping after save");
-  if (!isRecord(document.meta)) throw new Error("meta missing after ELK save");
-  if (!isRecord(document.meta.elk)) throw new Error("meta.elk missing after ELK save");
-  for (const [key, raw] of Object.entries(expected)) {
+  const requiresPersistedElk = entries.some(([, raw]) => raw != null && String(raw) !== "");
+  const meta = isRecord(document.meta) ? document.meta : null;
+  if (requiresPersistedElk && !meta) throw new Error("meta missing after ELK save");
+  const elkLayout = meta && isRecord(meta.elk)
+    ? meta.elk
+    : {};
+  if (requiresPersistedElk && !isRecord(meta?.elk)) throw new Error("meta.elk missing after ELK save");
+  for (const [key, raw] of entries) {
+    const got = elkLayout[key];
+    if (raw == null || String(raw) === "") {
+      if (got != null) {
+        throw new Error(`meta.elk[${JSON.stringify(key)}] is ${JSON.stringify(got)}, expected cleared after save`);
+      }
+      continue;
+    }
     const want = String(raw);
-    const got = document.meta.elk[key];
     if (got == null) {
       throw new Error(`meta.elk missing key ${JSON.stringify(key)} after save`);
     }
