@@ -78,8 +78,13 @@ export interface PreviewElkLayoutControlsRuntimeOptions {
   setTimeoutFn?: (callback: () => void, delayMs: number) => unknown;
   clearTimeoutFn?: (token: unknown) => void;
   getFrameTreeJson?: (() => unknown) | null;
+  sidebarSectionId?: string;
   sectionId?: string;
   containerId?: string;
+  controlIdPrefix?: string;
+  defaultPersistNamespace?: string;
+  enableElkViewToggles?: boolean;
+  unavailableMessage?: string;
   getDirtySetter?: (() => ((dirty: boolean) => void) | undefined) | null;
 }
 
@@ -93,6 +98,7 @@ export interface PreviewElkLayoutControlsRuntime {
   buildPanel: (frameTreeJson?: unknown) => void;
   refresh: () => void;
   collectOverrides: () => Record<string, unknown>;
+  collectNamespacedOverrides: () => Record<string, Record<string, unknown>>;
 }
 
 interface PreviewEngineShellControllerLike {
@@ -142,8 +148,14 @@ function readPreviewEngineRawView(
 export function createPreviewElkLayoutControlsRuntime(
   options: PreviewElkLayoutControlsRuntimeOptions,
 ): PreviewElkLayoutControlsRuntime {
+  const sidebarSectionId = options.sidebarSectionId ?? 'elk-layout';
   const sectionId = options.sectionId ?? 'elk-layout-section';
   const containerId = options.containerId ?? 'elk-layout-controls';
+  const controlIdPrefix = options.controlIdPrefix ?? 'elk';
+  const defaultPersistNamespace = options.defaultPersistNamespace ?? 'meta.elk';
+  const enableElkViewToggles = options.enableElkViewToggles ?? true;
+  const unavailableMessage = options.unavailableMessage
+    ?? 'Engine parameter registry unavailable. Rebuild the browser bundle from packages/layout-engine.';
   const setTimeoutFn = options.setTimeoutFn ?? ((callback: () => void, delayMs: number) => setTimeout(callback, delayMs));
   const clearTimeoutFn = options.clearTimeoutFn ?? ((token: unknown) => clearTimeout(token as number));
   let relayoutTimer: unknown = null;
@@ -177,16 +189,16 @@ export function createPreviewElkLayoutControlsRuntime(
     return tree?.layoutEngine ?? options.previewWindow.__DG_CONFIG?.layout_engine ?? null;
   }
 
-  function elkPreviewEngine(frameTreeJson?: unknown): PreviewEngineManifest | null {
+  function activePreviewEngine(frameTreeJson?: unknown): PreviewEngineManifest | null {
     const layoutEngine = layoutEngineFromFrameTree(frameTreeJson);
     const active = resolvePreviewEngine({ layoutEngine, shellMode: 'grid' });
-    if (engineSupportsSidebarSection(active, 'elk-layout')) {
+    if (engineSupportsSidebarSection(active, sidebarSectionId)) {
       return active;
     }
-    return previewEnginesBySidebarSection('elk-layout')[0] ?? null;
+    return previewEnginesBySidebarSection(sidebarSectionId)[0] ?? null;
   }
 
-  function isElkDiagram(frameTreeJson?: unknown): boolean {
+  function isActiveLayoutEngine(frameTreeJson?: unknown): boolean {
     const controller = previewEngineShellController(options.previewWindow);
     if (typeof controller?.isActiveLayoutEngine === 'function') {
       return Boolean(controller.isActiveLayoutEngine(frameTreeJson));
@@ -195,7 +207,7 @@ export function createPreviewElkLayoutControlsRuntime(
       return Boolean(controller.isElkLayeredDiagram(frameTreeJson));
     }
     const layoutEngine = layoutEngineFromFrameTree(frameTreeJson);
-    if (engineSupportsSidebarSection(resolvePreviewEngine({ layoutEngine, shellMode: 'grid' }), 'elk-layout')) {
+    if (engineSupportsSidebarSection(resolvePreviewEngine({ layoutEngine, shellMode: 'grid' }), sidebarSectionId)) {
       return true;
     }
     return false;
@@ -254,7 +266,7 @@ export function createPreviewElkLayoutControlsRuntime(
   }
 
   function paramSpecs(frameTreeJson?: unknown): PreviewControlSpec[] {
-    const engine = elkPreviewEngine(frameTreeJson);
+    const engine = activePreviewEngine(frameTreeJson);
     if (engine && Array.isArray(engine.controlSpecs) && engine.controlSpecs.length > 0) {
       return engine.controlSpecs;
     }
@@ -292,7 +304,17 @@ export function createPreviewElkLayoutControlsRuntime(
   }
 
   function controlId(spec: PreviewControlSpec): string {
-    return `elk-${spec.key.replace(/\./g, '-')}`;
+    return `${controlIdPrefix}-${spec.key.replace(/\./g, '-')}`;
+  }
+
+  function persistNamespace(spec: PreviewControlSpec): string {
+    return spec.persistNamespace || defaultPersistNamespace;
+  }
+
+  function controlDataAttrs(spec: PreviewControlSpec): string {
+    const escapedKey = spec.key.replace(/"/g, '&quot;');
+    const escapedNamespace = persistNamespace(spec).replace(/"/g, '&quot;');
+    return ` data-dg-engine-layout-key="${escapedKey}" data-dg-persist-namespace="${escapedNamespace}" data-elk-key="${escapedKey}"`;
   }
 
   function fieldHtml(spec: PreviewControlSpec, value: unknown): string {
@@ -302,7 +324,7 @@ export function createPreviewElkLayoutControlsRuntime(
       const checked = value === 'true' || value === true;
       return (
         `<label class="bf-switch is-full-span"${title}>` +
-        `<input class="bf-switch-input" type="checkbox" id="${id}" data-elk-key="${spec.key}"${checked ? ' checked' : ''}>` +
+        `<input class="bf-switch-input" type="checkbox" id="${id}"${controlDataAttrs(spec)}${checked ? ' checked' : ''}>` +
         '<span class="bf-switch-slider"></span>' +
         `<span class="bf-switch-label">${spec.label}</span>` +
         '</label>'
@@ -318,7 +340,7 @@ export function createPreviewElkLayoutControlsRuntime(
         `<label class="bf-field dg-grid-field is-full-span"${title}>` +
         `<span class="bf-form-label">${spec.label}</span>` +
         '<span class="bf-control dg-grid-control">' +
-        `<select class="bf-input" id="${id}" data-elk-key="${spec.key}">${opts}</select>` +
+        `<select class="bf-input" id="${id}"${controlDataAttrs(spec)}>${opts}</select>` +
         '</span></label>'
       );
     }
@@ -331,7 +353,7 @@ export function createPreviewElkLayoutControlsRuntime(
       `<label class="bf-field dg-grid-field is-full-span"${title}>` +
       `<span class="bf-form-label">${spec.label}</span>` +
       '<span class="bf-control dg-grid-control">' +
-      `<input class="bf-input dg-number-input" type="${type}" id="${id}" data-elk-key="${spec.key}" value="${String(value ?? spec.defaultValue).replace(/"/g, '&quot;')}"${step}${min}${max}>` +
+      `<input class="bf-input dg-number-input" type="${type}" id="${id}"${controlDataAttrs(spec)} value="${String(value ?? spec.defaultValue).replace(/"/g, '&quot;')}"${step}${min}${max}>` +
       `${unit}</span></label>`
     );
   }
@@ -357,15 +379,33 @@ export function createPreviewElkLayoutControlsRuntime(
 
   function collectOverrides(): Record<string, unknown> {
     const frameTreeJson = options.getFrameTreeJson?.();
-    if (!isElkDiagram(frameTreeJson)) {
+    if (!isActiveLayoutEngine(frameTreeJson)) {
       return {};
     }
     return collectOverridesFromDom(frameTreeJson);
   }
 
+  function collectNamespacedOverrides(): Record<string, Record<string, unknown>> {
+    const frameTreeJson = options.getFrameTreeJson?.();
+    if (!isActiveLayoutEngine(frameTreeJson)) {
+      return {};
+    }
+    const next: Record<string, Record<string, unknown>> = {};
+    for (const spec of paramSpecs(frameTreeJson)) {
+      const element = options.document.getElementById(controlId(spec)) as PreviewControlElement | null;
+      if (!element) {
+        continue;
+      }
+      const namespace = persistNamespace(spec);
+      next[namespace] = next[namespace] ?? {};
+      next[namespace]![spec.key] = readControlValue(element, spec);
+    }
+    return next;
+  }
+
   function onControlInput(): void {
     const frameTreeJson = options.getFrameTreeJson?.();
-    if (!isElkDiagram(frameTreeJson)) {
+    if (!isActiveLayoutEngine(frameTreeJson)) {
       return;
     }
     const controller = previewEngineShellController(options.previewWindow);
@@ -409,10 +449,11 @@ export function createPreviewElkLayoutControlsRuntime(
   }
 
   function bindControls(container: { querySelectorAll?: (selector: string) => PreviewControlElement[] }): void {
-    for (const element of container.querySelectorAll?.('[data-elk-key]') || []) {
-      if (element.dataset.elkBound === '1') {
+    for (const element of container.querySelectorAll?.('[data-dg-engine-layout-key], [data-elk-key]') || []) {
+      if (element.dataset.engineLayoutBound === '1' || element.dataset.elkBound === '1') {
         continue;
       }
+      element.dataset.engineLayoutBound = '1';
       element.dataset.elkBound = '1';
       element.addEventListener('input', onControlInput);
       element.addEventListener('change', onControlInput);
@@ -459,6 +500,9 @@ export function createPreviewElkLayoutControlsRuntime(
     const rawToggle = section.querySelector?.('#elk-raw-view-toggle') as (PreviewControlElement & {
       checked?: boolean;
     }) | null | undefined;
+    if (!enableElkViewToggles) {
+      return;
+    }
     if (rawToggle && rawToggle.dataset.elkBound !== '1') {
       rawToggle.dataset.elkBound = '1';
       rawToggle.checked = readPreviewEngineRawView(options.previewWindow);
@@ -504,13 +548,13 @@ export function createPreviewElkLayoutControlsRuntime(
       return;
     }
 
-    const elk = isElkDiagram(frameTreeJson);
-    setElkSectionActive(section as unknown as HTMLElement, elk);
-    if (!elk) {
+    const active = isActiveLayoutEngine(frameTreeJson);
+    setElkSectionActive(section as unknown as HTMLElement, active);
+    if (!active) {
       return;
     }
 
-    const hasServerControls = Boolean(container.querySelector?.('[data-elk-key]'));
+    const hasServerControls = Boolean(container.querySelector?.('[data-dg-engine-layout-key], [data-elk-key]'));
     if (!frameTreeJson && hasServerControls) {
       bindControls(container);
       bindElkViewToggles(section);
@@ -525,18 +569,26 @@ export function createPreviewElkLayoutControlsRuntime(
 
     const specs = paramSpecs(frameTreeJson);
     if (specs.length === 0) {
-      container.innerHTML = '<p class="bf-form-help">ELK parameter registry unavailable. Rebuild the browser bundle from packages/layout-engine.</p>';
+      container.innerHTML = `<p class="bf-form-help">${unavailableMessage}</p>`;
       bindElkViewToggles(section);
       return;
     }
 
-    const tree = frameTreeJson as { elkLayout?: Record<string, unknown> } | null;
-    const yamlElk = tree?.elkLayout || {};
+    const tree = frameTreeJson as {
+      elkLayout?: Record<string, unknown>;
+      engineLayout?: Record<string, Record<string, unknown>>;
+    } | null;
+    const namespaces = [...new Set(specs.map((spec) => persistNamespace(spec)))];
+    const yamlEngine = namespaces.reduce<Record<string, unknown>>((acc, namespace) => ({
+      ...acc,
+      ...(tree?.engineLayout?.[namespace] || {}),
+      ...(namespace === 'meta.elk' ? tree?.elkLayout || {} : {}),
+    }), {});
     const session = getOverrides() || {};
-    const merged = { ...yamlElk, ...session };
+    const merged = { ...yamlEngine, ...session };
     const display = sidebarDisplayValues(merged, specs);
 
-    if (container.querySelector?.('[data-elk-key]')) {
+    if (container.querySelector?.('[data-dg-engine-layout-key], [data-elk-key]')) {
       syncExistingControls(container, display, specs);
       bindElkViewToggles(section);
       return;
@@ -566,5 +618,8 @@ export function createPreviewElkLayoutControlsRuntime(
       buildPanel(options.getFrameTreeJson?.());
     },
     collectOverrides,
+    collectNamespacedOverrides,
   };
 }
+
+export const createPreviewEngineLayoutControlsRuntime = createPreviewElkLayoutControlsRuntime;

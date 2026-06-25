@@ -25,6 +25,10 @@ function assignIfDefined(
   }
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 export function authorNodeToRecord(node: AuthorFrameNode): Record<string, unknown> {
   const record: Record<string, unknown> = {
     id: node.id,
@@ -99,10 +103,22 @@ export function lowerToFrameDiagram(
 
   const grid = (source.grid as Record<string, unknown>) ?? {};
   const meta = (source.meta as Record<string, unknown>) ?? {};
-  const elkRaw = meta.elk as Record<string, unknown> | undefined;
-  const elkLayout: Record<string, string> | undefined = elkRaw
-    ? Object.fromEntries(Object.entries(elkRaw).map(([k, v]) => [k, String(v)]))
-    : undefined;
+  const engineLayout: Record<string, Record<string, string>> = {};
+  for (const [key, value] of Object.entries(meta)) {
+    if (key === 'layout_engine' || key === 'diagram_type' || key === 'source_image') {
+      continue;
+    }
+    if (!isRecord(value)) {
+      continue;
+    }
+    const layoutValues = Object.fromEntries(
+      Object.entries(value).map(([layoutKey, layoutValue]) => [layoutKey, String(layoutValue)]),
+    );
+    if (Object.keys(layoutValues).length > 0) {
+      engineLayout[`meta.${key}`] = layoutValues;
+    }
+  }
+  const elkLayout = engineLayout['meta.elk'];
 
   return new FrameDiagram({
     title: String(source.title ?? ast.metadata.title ?? ''),
@@ -117,5 +133,6 @@ export function lowerToFrameDiagram(
     diagramType: meta.diagram_type != null ? String(meta.diagram_type) : undefined,
     sourceImage: meta.source_image != null ? String(meta.source_image) : undefined,
     elkLayout,
+    engineLayout: Object.keys(engineLayout).length > 0 ? engineLayout : undefined,
   });
 }

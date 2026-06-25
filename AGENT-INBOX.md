@@ -7,3 +7,7 @@ Durable follow-up belongs in `specs/<id>-<slug>/`,
 `TODO.md` is only a pointer to open spec packages.
 
 ---
+
+No open agent inbox items as of 2026-06-25. The prior readiness audit was
+addressed by `specs/052-layout-engine-onboarding-port/tasks.md`; remaining
+right-aside UI cleanup remains tracked under spec 051.

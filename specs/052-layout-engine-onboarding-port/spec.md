@@ -1,7 +1,7 @@
 # Spec 052: Layout Engine Onboarding Factory and Multi-Engine Port
 
 **Feature Branch**: `feat/052-layout-engine-onboarding-port`
-**Status**: Draft
+**Status**: Closeout Ready
 **Created**: 2026-06-25
 **Owner doc**: this file + `tasks.md` + `engine-onboarding-checklist.md` in this folder
 

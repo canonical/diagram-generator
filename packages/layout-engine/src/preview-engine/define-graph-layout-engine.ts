@@ -81,6 +81,7 @@ function buildManifest(def: GraphLayoutPreviewEngineDefinition): PreviewEngineMa
       ...def.capabilities,
     },
     controlSpecs: def.controlSpecs,
+    graphEngine: def.graphEngine,
     scripts: def.scripts ?? [],
     compatibility,
   };

@@ -20,6 +20,10 @@ export type {
 } from './types.js';
 
 export {
+  dagreParamToPreviewControl,
+  dagrePreviewControlSpecs,
+} from './dagre-controls.js';
+export {
   elkForcePreviewControlSpecs,
   elkLayeredPreviewControlSpecs,
   elkMrtreePreviewControlSpecs,
@@ -38,11 +42,13 @@ export {
   type GraphLayoutPreviewEngineDefinition,
 } from './define-graph-layout-engine.js';
 export {
+  createPreviewEngineLayoutControlsRuntime,
   createPreviewElkLayoutControlsRuntime,
   type PreviewElkLayoutControlsRuntime,
   type PreviewElkLayoutControlsRuntimeOptions,
 } from './elk-layout-controls.js';
 export {
+  createPreviewEngineShellControllerRuntime,
   createPreviewElkShellControllerRuntime,
   type PreviewElkShellControllerRuntime,
   type PreviewElkShellControllerRuntimeOptions,
@@ -55,6 +61,7 @@ export {
   ELK_RADIAL_PREVIEW_ENGINE,
   ELK_RECTPACKING_PREVIEW_ENGINE,
   ELK_STRESS_PREVIEW_ENGINE,
+  DAGRE_PREVIEW_ENGINE,
   FORCE_PREVIEW_ENGINE,
   SEQUENCE_PREVIEW_ENGINE,
   V3_PREVIEW_ENGINE,
@@ -64,6 +71,7 @@ export {
   BUILTIN_ELK_RADIAL_PREVIEW_ENGINE_INSTALL_UNIT,
   BUILTIN_ELK_RECTPACKING_PREVIEW_ENGINE_INSTALL_UNIT,
   BUILTIN_ELK_STRESS_PREVIEW_ENGINE_INSTALL_UNIT,
+  BUILTIN_DAGRE_PREVIEW_ENGINE_INSTALL_UNIT,
   BUILTIN_FORCE_PREVIEW_ENGINE_INSTALL_UNIT,
   BUILTIN_SEQUENCE_PREVIEW_ENGINE_INSTALL_UNIT,
   BUILTIN_V3_PREVIEW_ENGINE_INSTALL_UNIT,
@@ -73,6 +81,7 @@ export {
   installElkRadialPreviewEngine,
   installElkRectpackingPreviewEngine,
   installElkStressPreviewEngine,
+  installDagrePreviewEngine,
   installForcePreviewEngine,
   installSequencePreviewEngine,
   installV3PreviewEngine,

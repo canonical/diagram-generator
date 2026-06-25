@@ -128,6 +128,33 @@ test("persist engine_layout_overrides routes meta.elk through the namespaced sav
   });
 });
 
+test("persist engine_layout_overrides routes meta.dagre through the namespaced save contract", () => {
+  const baselineText = [
+    "engine: v3",
+    "title: Demo",
+    "meta:",
+    "  layout_engine: dagre",
+    "root:",
+    "  id: page",
+    "  direction: vertical",
+    "  children:",
+    "    - id: leaf_a",
+    "      label: [A]",
+    "",
+  ].join("\n");
+  const output = persistToYaml("demo.yaml", baselineText, {
+    overrides: {},
+    engine_layout_overrides: {
+      "meta.dagre": {
+        "dagre.rankdir": "LR",
+        "dagre.ranksep": "128",
+      },
+    },
+  });
+
+  assert.match(output, /meta:\r?\n  layout_engine: dagre\r?\n  dagre:\r?\n    dagre\.rankdir: LR\r?\n    dagre\.ranksep: '128'/);
+});
+
 test("persist elk layout overrides replaces meta.elk entries canonically", () => {
   const baselineText = [
     "engine: v3",
@@ -304,6 +331,37 @@ test("persist rejects stale unsupported ELK keys already present in meta.elk", (
       },
     }),
     /demo\.yaml: meta\.elk contains unsupported ELK keys: elk\.edgeRouting, elk\.padding, elk\.portConstraints, elk\.unknown/,
+  );
+});
+
+test("persist rejects stale unsupported Dagre keys already present in meta.dagre", () => {
+  const baselineText = [
+    "engine: v3",
+    "title: Demo",
+    "meta:",
+    "  layout_engine: dagre",
+    "  dagre:",
+    "    dagre.rankdir: LR",
+    "    dagre.unknown: surprise",
+    "root:",
+    "  id: page",
+    "  direction: vertical",
+    "  children:",
+    "    - id: leaf_a",
+    "      label: [A]",
+    "",
+  ].join("\n");
+  assert.throws(
+    () => persistToYaml("demo.yaml", baselineText, {
+      overrides: {
+        leaf_a: {
+          text: {
+            label: ["Updated"],
+          },
+        },
+      },
+    }),
+    /demo\.yaml: meta\.dagre contains unsupported dagre keys: dagre\.unknown/,
   );
 });
 

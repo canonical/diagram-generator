@@ -9,7 +9,7 @@ import {
   UNSUPPORTED_PERSIST_FRAME_KEYS,
 } from "@diagram-generator/layout-engine";
 import {
-  assertSupportedFrameYamlElkOverrides,
+  assertSupportedFrameYamlEngineLayoutOverrides,
   getFrameYamlEngineLayoutNamespace,
 } from "./frame-engine-layout-namespaces.js";
 
@@ -41,8 +41,7 @@ export interface PersistOverridePayload {
   grid_overrides?: Record<string, unknown>;
   /**
    * Namespaced engine-backed overrides keyed by preview-control persistNamespace.
-   * Frame YAML currently supports `meta.elk`; other namespaces must be handled
-   * by their owning host lane before this save path can persist them.
+   * Frame YAML supports registered namespaces such as `meta.elk` and `meta.dagre`.
    */
   engine_layout_overrides?: Record<string, Record<string, unknown>>;
   /** @deprecated Prefer `engine_layout_overrides["meta.elk"]`. */
@@ -416,15 +415,17 @@ function applyLayoutEngineChoice(document: Record<string, unknown>, layoutEngine
   }
 }
 
-function assertSupportedElkKeys(elk: Record<string, unknown>, source: string): void {
-  assertSupportedFrameYamlElkOverrides(elk, source);
-}
-
-function assertSupportedPersistedElkMeta(meta: Record<string, unknown>, source: string): void {
-  if (!isRecord(meta.elk)) return;
-  assertSupportedElkKeys(meta.elk, source);
-  if (Object.keys(meta.elk).length === 0) {
-    delete meta.elk;
+function assertSupportedPersistedEngineLayoutMeta(meta: Record<string, unknown>, source: string): void {
+  for (const [key, value] of Object.entries(meta)) {
+    const namespace = `meta.${key}`;
+    if (!getFrameYamlEngineLayoutNamespace(namespace) || !isRecord(value)) {
+      continue;
+    }
+    const label = namespace === "meta.elk" ? "ELK" : key;
+    assertSupportedFrameYamlEngineLayoutOverrides(namespace, value, `${source}: ${namespace}`, label);
+    if (Object.keys(value).length === 0) {
+      delete meta[key];
+    }
   }
 }
 
@@ -539,7 +540,7 @@ export function persistFrameDiagramOverridePayloadToYaml(
   const rootData = document.root;
   if (!isRecord(rootData)) throw new Error(`${framePath}: root must be a mapping`);
   if (isRecord(document.meta)) {
-    assertSupportedPersistedElkMeta(document.meta, `${framePath}: meta.elk`);
+    assertSupportedPersistedEngineLayoutMeta(document.meta, framePath);
   }
 
   if ("grid_overrides" in payload) {
@@ -572,7 +573,7 @@ export function persistFrameDiagramOverridePayloadToYaml(
     applyFrameOverride(target, override, frameId);
   }
   if (isRecord(document.meta)) {
-    assertSupportedPersistedElkMeta(document.meta, `${framePath}: meta.elk`);
+    assertSupportedPersistedEngineLayoutMeta(document.meta, framePath);
     if (Object.keys(document.meta).length === 0) {
       delete document.meta;
     }

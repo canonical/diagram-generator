@@ -12,6 +12,13 @@ export const ELK_RECTPACKING_PREVIEW_ENGINE_DEFINITION = {
   controlSpecs: elkRectpackingPreviewControlSpecs(),
   renderAdapter: elkRectpackingFrameDiagramRenderAdapter,
   description: 'Rectangle-packing ELK layout for dense frame groups',
+  compatibility: {
+    description: 'Rectangle-packing ELK layout for dense frame groups',
+    frameDiagramRequirements: {
+      minArrowCount: 1,
+      rejectUnsupportedCarrierIds: true,
+    },
+  },
 };
 
 const definedElkRectpackingPreviewEngine = defineElkAlgorithmPreviewEngine(

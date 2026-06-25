@@ -2,6 +2,9 @@ import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
+  DAGRE_PARAM_SPECS,
+} from '@diagram-generator/graph-layout-dagre';
+import {
   ELK_FORCE_PARAM_SPECS,
   ELK_LAYERED_PARAM_SPECS,
   ELK_MRTREE_PARAM_SPECS,
@@ -10,7 +13,9 @@ import {
   ELK_STRESS_PARAM_SPECS,
 } from '@diagram-generator/graph-layout-elk';
 import { loadFrameYaml } from '../src/frame-yaml-loader.js';
+import { Direction, Frame, FrameDiagram, createArrow } from '../src/frame-model.js';
 import {
+  DAGRE_PREVIEW_ENGINE,
   ELK_FORCE_PREVIEW_ENGINE,
   ELK_LAYERED_PREVIEW_ENGINE,
   ELK_MRTREE_PREVIEW_ENGINE,
@@ -46,12 +51,16 @@ const ELK_ENGINE_IDS = [
   'elk-radial',
   'elk-rectpacking',
 ] as const;
+const GRAPH_FRAME_ENGINE_IDS = [
+  ...ELK_ENGINE_IDS,
+  'dagre',
+] as const;
 
 describe('preview-engine registry', () => {
   it('registers native v3, ELK, force, and sequence engines', () => {
     expect(PREVIEW_ENGINE_REGISTRY.map((entry) => entry.id)).toEqual([
       'v3',
-      ...ELK_ENGINE_IDS,
+      ...GRAPH_FRAME_ENGINE_IDS,
       'force',
       'sequence',
     ]);
@@ -112,8 +121,21 @@ describe('preview-engine registry', () => {
     expect(FORCE_PREVIEW_ENGINE.apiRoutes?.params).toBeUndefined();
   });
 
+  it('exposes dagre graph control specs without joining the ELK sidebar', () => {
+    expect(DAGRE_PREVIEW_ENGINE.controlSpecs.map((spec) => spec.key).sort()).toEqual(
+      DAGRE_PARAM_SPECS.map((spec) => spec.key).sort(),
+    );
+    expect(DAGRE_PREVIEW_ENGINE.controlSpecs.every((spec) => spec.persistNamespace === 'meta.dagre')).toBe(true);
+    expect(DAGRE_PREVIEW_ENGINE.renderFamily).toBe('frame-dagre');
+    expect(DAGRE_PREVIEW_ENGINE.hostView?.sidebarSections ?? []).toEqual(['graph-layout']);
+    expect(DAGRE_PREVIEW_ENGINE.capabilities.layoutControls).toBe(true);
+    expect(DAGRE_PREVIEW_ENGINE.scripts).toEqual(['graph-layout-controls.js', 'graph-layout-controller.js']);
+    expect(listPreviewEnginesBySidebarSection('graph-layout').map((entry) => entry.id)).toEqual(['dagre']);
+  });
+
   it('resolves engines by layoutEngine key or shell mode', () => {
     expect(resolvePreviewEngine({ layoutEngine: 'elk-layered' })?.id).toBe('elk-layered');
+    expect(resolvePreviewEngine({ layoutEngine: 'dagre' })?.id).toBe('dagre');
     expect(resolvePreviewEngine({ shellMode: 'force' })?.id).toBe('force');
     expect(resolvePreviewEngine({ shellMode: 'grid', layoutEngine: 'vertical-stack' })).toBeUndefined();
   });
@@ -128,13 +150,13 @@ describe('preview-engine registry', () => {
     expect(resolvePreviewEngine(context)?.id).toBe('v3');
     expect(listCompatiblePreviewEngines(context).map((entry) => entry.id)).toEqual([
       'v3',
-      ...ELK_ENGINE_IDS,
+      ...GRAPH_FRAME_ENGINE_IDS,
     ]);
   });
 
   it('serializes a JSON-safe manifest list for preview-server consumption', () => {
     const serialized = serializePreviewEngineManifest();
-    expect(serialized).toHaveLength(9);
+    expect(serialized).toHaveLength(10);
     const roundTrip = JSON.parse(JSON.stringify(serialized));
     expect(roundTrip[0].id).toBe('v3');
     expect(roundTrip[1].id).toBe('elk-layered');
@@ -143,10 +165,11 @@ describe('preview-engine registry', () => {
     expect(roundTrip[4].id).toBe('elk-mrtree');
     expect(roundTrip[5].id).toBe('elk-radial');
     expect(roundTrip[6].id).toBe('elk-rectpacking');
-    expect(roundTrip[7].capabilities.simulationControls).toBe(true);
-    expect(roundTrip[8].id).toBe('sequence');
+    expect(roundTrip[7].id).toBe('dagre');
+    expect(roundTrip[8].capabilities.simulationControls).toBe(true);
+    expect(roundTrip[9].id).toBe('sequence');
     expect(roundTrip[0].compatibility.documentKinds).toEqual(['frame-diagram']);
-    expect(roundTrip[8].compatibility.requiredLayoutEngineKey).toBe('sequence');
+    expect(roundTrip[9].compatibility.requiredLayoutEngineKey).toBe('sequence');
     expect(listPreviewEngines()).toEqual(serialized);
   });
 
@@ -208,6 +231,7 @@ describe('preview-engine registry', () => {
     expect(ELK_MRTREE_PREVIEW_ENGINE.renderFamily).toBe('frame-elk-mrtree');
     expect(ELK_RADIAL_PREVIEW_ENGINE.renderFamily).toBe('frame-elk-radial');
     expect(ELK_RECTPACKING_PREVIEW_ENGINE.renderFamily).toBe('frame-elk-rectpacking');
+    expect(DAGRE_PREVIEW_ENGINE.renderFamily).toBe('frame-dagre');
     expect(FORCE_PREVIEW_ENGINE.renderFamily).toBe('force');
     expect(SEQUENCE_PREVIEW_ENGINE.renderFamily).toBe('sequence');
     expect(V3_PREVIEW_ENGINE.hostView?.sidebarSections ?? []).toEqual([]);
@@ -217,6 +241,7 @@ describe('preview-engine registry', () => {
     expect(ELK_MRTREE_PREVIEW_ENGINE.hostView?.sidebarSections ?? []).toEqual(['elk-layout']);
     expect(ELK_RADIAL_PREVIEW_ENGINE.hostView?.sidebarSections ?? []).toEqual(['elk-layout']);
     expect(ELK_RECTPACKING_PREVIEW_ENGINE.hostView?.sidebarSections ?? []).toEqual(['elk-layout']);
+    expect(DAGRE_PREVIEW_ENGINE.hostView?.sidebarSections ?? []).toEqual(['graph-layout']);
     expect(FORCE_PREVIEW_ENGINE.hostView?.sidebarSections ?? []).toEqual([]);
     expect(SEQUENCE_PREVIEW_ENGINE.hostView?.sidebarSections ?? []).toEqual([]);
     expect(V3_PREVIEW_ENGINE.capabilities.localRelayout).toBe(true);
@@ -229,6 +254,8 @@ describe('preview-engine registry', () => {
     expect(ELK_MRTREE_PREVIEW_ENGINE.capabilities.serverRelayout).toBe(true);
     expect(ELK_RADIAL_PREVIEW_ENGINE.capabilities.serverRelayout).toBe(true);
     expect(ELK_RECTPACKING_PREVIEW_ENGINE.capabilities.serverRelayout).toBe(true);
+    expect(DAGRE_PREVIEW_ENGINE.capabilities.serverRelayout).toBe(true);
+    expect(DAGRE_PREVIEW_ENGINE.capabilities.localRelayout).toBe(false);
     expect(FORCE_PREVIEW_ENGINE.capabilities.localRelayout).toBe(true);
     expect(FORCE_PREVIEW_ENGINE.capabilities.simulationControls).toBe(true);
     expect(SEQUENCE_PREVIEW_ENGINE.capabilities.localRelayout).toBe(true);
@@ -236,7 +263,7 @@ describe('preview-engine registry', () => {
   });
 
   it('exposes hostable layout-engine keys and typed compatibility helpers', () => {
-    expect(listHostableLayoutEngineKeys()).toEqual(['v3', ...ELK_ENGINE_IDS, 'sequence']);
+    expect(listHostableLayoutEngineKeys()).toEqual(['v3', ...GRAPH_FRAME_ENGINE_IDS, 'sequence']);
     expect(
       isPreviewEngineCompatible(ELK_LAYERED_PREVIEW_ENGINE, {
         previewDocumentKind: 'frame-diagram',
@@ -252,6 +279,13 @@ describe('preview-engine registry', () => {
       }),
     ).toBe(true);
     expect(
+      isPreviewEngineCompatible(DAGRE_PREVIEW_ENGINE, {
+        previewDocumentKind: 'frame-diagram',
+        layoutEngine: 'dagre',
+        frameDiagramSummary: { arrowCount: 2, unsupportedElkCarrierIds: [] },
+      }),
+    ).toBe(true);
+    expect(
       isPreviewEngineCompatible(ELK_LAYERED_PREVIEW_ENGINE, {
         previewDocumentKind: 'sequence',
       }),
@@ -261,7 +295,7 @@ describe('preview-engine registry', () => {
         previewDocumentKind: 'frame-diagram',
         frameDiagramSummary: { arrowCount: 2, unsupportedElkCarrierIds: [] },
       }).map((entry) => entry.id),
-    ).toEqual(['v3', ...ELK_ENGINE_IDS]);
+    ).toEqual(['v3', ...GRAPH_FRAME_ENGINE_IDS]);
     expect(
       listCompatiblePreviewEngines({ previewDocumentKind: 'force-spec' }).map((entry) => entry.id),
     ).toEqual(['force']);
@@ -327,10 +361,10 @@ describe('preview-engine registry', () => {
       layoutEngine: 'elk-layered',
       frameDiagramSummary: { arrowCount: 2, unsupportedElkCarrierIds: [] },
     });
-    expect(results).toHaveLength(9);
+    expect(results).toHaveLength(10);
     expect(results.map((entry) => entry.engine.id)).toEqual([
       'v3',
-      ...ELK_ENGINE_IDS,
+      ...GRAPH_FRAME_ENGINE_IDS,
       'force',
       'sequence',
     ]);
@@ -373,6 +407,9 @@ describe('preview-engine registry', () => {
     const elkStress = results.find((entry) => entry.engine.id === 'elk-stress');
     expect(elkStress?.compatibility.compatible).toBe(false);
     expect(elkStress?.compatibility.reason).toContain('layout engine');
+    const dagre = results.find((entry) => entry.engine.id === 'dagre');
+    expect(dagre?.compatibility.compatible).toBe(false);
+    expect(dagre?.compatibility.reason).toContain('layout engine');
   });
 
   it('exposes engine descriptions for switcher UI', () => {
@@ -386,6 +423,7 @@ describe('preview-engine registry', () => {
     expect(ELK_MRTREE_PREVIEW_ENGINE.compatibility.description).toContain('mrtree');
     expect(ELK_RADIAL_PREVIEW_ENGINE.compatibility.description).toContain('Radial');
     expect(ELK_RECTPACKING_PREVIEW_ENGINE.compatibility.description).toContain('Rectangle');
+    expect(DAGRE_PREVIEW_ENGINE.compatibility.description).toContain('Dagre');
     expect(FORCE_PREVIEW_ENGINE.compatibility.description).toBeDefined();
     expect(FORCE_PREVIEW_ENGINE.compatibility.description).toContain('force');
     expect(SEQUENCE_PREVIEW_ENGINE.compatibility.description).toBeDefined();
@@ -426,6 +464,39 @@ describe('preview-engine registry', () => {
     expect(juju.unsupportedElkCarrierIds).toEqual([]);
   });
 
+  it('reports container arrow endpoints as unsupported carriers for non-compound graph engines', () => {
+    const summary = summarizeFrameDiagramCompatibility(new FrameDiagram({
+      title: 'Container endpoint',
+      root: new Frame({
+        id: 'page',
+        direction: Direction.VERTICAL,
+        children: [
+          new Frame({
+            id: 'group',
+            children: [
+              new Frame({ id: 'child' }),
+            ],
+          }),
+          new Frame({ id: 'target' }),
+        ],
+      }),
+      arrows: [
+        createArrow('group', 'target'),
+      ],
+    }));
+
+    expect(summary.unsupportedCarrierIds).toEqual(['group']);
+    expect(summary.unsupportedElkCarrierIds).toEqual(['group']);
+    expect(evaluatePreviewEngineCompatibility(DAGRE_PREVIEW_ENGINE, {
+      previewDocumentKind: 'frame-diagram',
+      layoutEngine: 'dagre',
+      frameDiagramSummary: summary,
+    })).toMatchObject({
+      compatible: false,
+      reason: expect.stringContaining('group'),
+    });
+  });
+
   it('keeps elk layered available for headed frame diagrams', () => {
     const summary = summarizeFrameDiagramCompatibility(
       loadFrameYaml(join(FRAMES_DIR, 'complex-routing-usecase.yaml')),
@@ -439,7 +510,7 @@ describe('preview-engine registry', () => {
     expect(resolvePreviewEngine(context)?.id).toBe('v3');
     expect(listCompatiblePreviewEngines(context).map((entry) => entry.id)).toEqual([
       'v3',
-      ...ELK_ENGINE_IDS,
+      ...GRAPH_FRAME_ENGINE_IDS,
     ]);
 
     const elkResult = evaluatePreviewEngineCompatibility(ELK_LAYERED_PREVIEW_ENGINE, context);

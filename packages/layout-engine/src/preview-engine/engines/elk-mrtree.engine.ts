@@ -12,6 +12,13 @@ export const ELK_MRTREE_PREVIEW_ENGINE_DEFINITION = {
   controlSpecs: elkMrtreePreviewControlSpecs(),
   renderAdapter: elkMrTreeFrameDiagramRenderAdapter,
   description: 'ELK mrtree layout for tree-shaped frame diagrams',
+  compatibility: {
+    description: 'ELK mrtree layout for tree-shaped frame diagrams',
+    frameDiagramRequirements: {
+      minArrowCount: 1,
+      rejectUnsupportedCarrierIds: true,
+    },
+  },
 };
 
 const definedElkMrtreePreviewEngine = defineElkAlgorithmPreviewEngine(

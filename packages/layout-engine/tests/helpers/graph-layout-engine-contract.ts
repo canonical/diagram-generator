@@ -87,11 +87,15 @@ export function runGraphLayoutPreviewEngineContract(
 
         expect(definition.graphEngine.id).toBe(definition.id);
         expect(definition.graphEngine.capabilities.directions.length).toBeGreaterThan(0);
+        expect(manifest.graphEngine).toEqual(definition.graphEngine);
         expect(manifest.capabilities.serverRelayout).toBe(true);
         expect(manifest.capabilities.engineBackedSave).toBe(true);
         expect(manifest.capabilities.gridEditing).toBe(false);
         expect(manifest.renderFamily).toBe(definition.renderFamily);
         expect(manifest.layoutEngineKey).toBe(definition.layoutEngineKey);
+        if (!definition.graphEngine.capabilities.compounds.nestedChildren) {
+          expect(manifest.compatibility.frameDiagramRequirements?.rejectUnsupportedCarrierIds).toBe(true);
+        }
 
         const layout = await definition.renderAdapter({
           diagram: minimalFrameDiagram(definition.layoutEngineKey),

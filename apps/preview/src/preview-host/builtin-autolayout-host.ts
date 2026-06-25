@@ -102,6 +102,10 @@ const AUTOLAYOUT_PREVIEW_VIEWER_DEFINITION: PreviewHostViewerPageDefinition = {
       placeholder: "%ELK_SECTION_HIDDEN%",
       section: "elk-layout",
     },
+    {
+      placeholder: "%GRAPH_LAYOUT_SECTION_HIDDEN%",
+      section: "graph-layout",
+    },
   ],
   buildTitle(slug: string): string {
     return `${slug} – diagram preview`;

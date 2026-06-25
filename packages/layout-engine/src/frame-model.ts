@@ -438,6 +438,8 @@ export interface FrameDiagramInit {
   sourceImage?: string;
   /** ELK option overrides from YAML meta.elk */
   elkLayout?: Record<string, string>;
+  /** Engine option overrides keyed by YAML namespace, e.g. meta.elk or meta.dagre. */
+  engineLayout?: Record<string, Record<string, string>>;
 }
 
 export class FrameDiagram {
@@ -453,6 +455,7 @@ export class FrameDiagram {
   diagramType?: string;
   sourceImage?: string;
   elkLayout?: Record<string, string>;
+  engineLayout?: Record<string, Record<string, string>>;
 
   constructor(init?: FrameDiagramInit) {
     this.title = init?.title ?? '';
@@ -467,6 +470,7 @@ export class FrameDiagram {
     this.diagramType = init?.diagramType;
     this.sourceImage = init?.sourceImage;
     this.elkLayout = init?.elkLayout;
+    this.engineLayout = init?.engineLayout;
   }
 }
 

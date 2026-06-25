@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DAGRE_PREVIEW_ENGINE,
   ELK_LAYERED_PREVIEW_ENGINE,
   FORCE_PREVIEW_ENGINE,
   SEQUENCE_PREVIEW_ENGINE,
@@ -28,6 +29,7 @@ describe('preview UI context registry', () => {
       'force-nodes-tab',
       'force-simulation',
       'force-solver',
+      'graph-layout',
       'grid-constraints',
       'grid-controls',
       'grid-engine-switcher',
@@ -51,6 +53,7 @@ describe('preview UI context registry', () => {
     const groupsById = new Map(PREVIEW_PANEL_REGISTRY.map((entry) => [entry.id, entry.group]));
     expect(groupsById.get('grid-engine-switcher')).toBe('engine');
     expect(groupsById.get('grid-controls')).toBe('layout');
+    expect(groupsById.get('graph-layout')).toBe('engine');
     expect(groupsById.get('grid-overrides')).toBe('document');
     expect(groupsById.get('grid-constraints')).toBe('diagnostics');
     expect(groupsById.get('force-solver')).toBe('engine');
@@ -73,6 +76,7 @@ describe('preview UI context registry', () => {
     expect(visible.has('grid-constraints')).toBe(false);
     expect(visible.has('grid-guide-badge')).toBe(false);
     expect(visible.has('elk-layout')).toBe(false);
+    expect(visible.has('graph-layout')).toBe(false);
     expect(visible.has('grid-engine-switcher')).toBe(false);
     expect(shouldShowPreviewEngineSwitcher({
       shellMode: 'grid',
@@ -169,6 +173,24 @@ describe('preview UI context registry', () => {
 
     expect(visible.has('grid-layers-tab')).toBe(true);
     expect(visible.has('elk-layout')).toBe(true);
+    expect(visible.has('graph-layout')).toBe(false);
+    expect(visible.has('grid-controls')).toBe(false);
+    expect(visible.has('grid-guide-badge')).toBe(false);
+    expect(visible.has('grid-engine-switcher')).toBe(true);
+  });
+
+  it('shows graph layout controls and hides ELK/native grid controls for Dagre', () => {
+    const visible = visibleSections({
+      shellMode: 'grid',
+      documentKind: 'frame-diagram',
+      activeEngine: DAGRE_PREVIEW_ENGINE,
+      compatibleEngines: ['v3', 'dagre'],
+      persistedLayoutEngine: 'dagre',
+    });
+
+    expect(visible.has('grid-layers-tab')).toBe(true);
+    expect(visible.has('graph-layout')).toBe(true);
+    expect(visible.has('elk-layout')).toBe(false);
     expect(visible.has('grid-controls')).toBe(false);
     expect(visible.has('grid-guide-badge')).toBe(false);
     expect(visible.has('grid-engine-switcher')).toBe(true);
@@ -188,6 +210,7 @@ describe('preview UI context registry', () => {
     expect(visible.has('force-guidance')).toBe(true);
     expect(visible.has('grid-controls')).toBe(false);
     expect(visible.has('elk-layout')).toBe(false);
+    expect(visible.has('graph-layout')).toBe(false);
   });
 
   it('hides frame editing panels for sequence output-only documents', () => {

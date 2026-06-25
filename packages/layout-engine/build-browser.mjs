@@ -8,9 +8,12 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const distDir = path.join(__dirname, 'dist');
 const graphLayoutElkDir = path.join(__dirname, '..', 'graph-layout-elk');
+const graphLayoutDagreDir = path.join(__dirname, '..', 'graph-layout-dagre');
 
-// Browser bundle imports @diagram-generator/graph-layout-elk via package "main" (dist/).
-execSync('npm run build', { cwd: graphLayoutElkDir, stdio: 'inherit' });
+// Browser bundle imports graph layout packages via package "main" (dist/).
+for (const packageDir of [graphLayoutElkDir, graphLayoutDagreDir]) {
+  execSync('npm run build', { cwd: packageDir, stdio: 'inherit' });
+}
 
 await mkdir(distDir, { recursive: true });
 

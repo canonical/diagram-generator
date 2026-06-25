@@ -180,6 +180,8 @@ import {
   BODY_LINE_STEP,
   BODY_SIZE,
   createLine,
+  createPreviewEngineLayoutControlsRuntime,
+  createPreviewEngineShellControllerRuntime,
   createPreviewElkLayoutControlsRuntime,
   createPreviewElkShellControllerRuntime,
   ELK_LAYERED_PARAM_SPECS,
@@ -377,6 +379,10 @@ describe('browser entry contract pilot', () => {
     expect(previewEngines.registry.listPreviewEngines).toBe(listPreviewEngines);
     expect(previewEngines.registry.resolvePreviewEngine).toBe(resolvePreviewEngine);
     expect(previewEngines.registry.serializePreviewEngineManifest).toBe(serializePreviewEngineManifest);
+    expect(previewEngines.graph.createPreviewEngineLayoutControlsRuntime)
+      .toBe(createPreviewEngineLayoutControlsRuntime);
+    expect(previewEngines.graph.createPreviewEngineShellControllerRuntime)
+      .toBe(createPreviewEngineShellControllerRuntime);
     expect(previewEngines.elk.createPreviewElkLayoutControlsRuntime)
       .toBe(createPreviewElkLayoutControlsRuntime);
     expect(previewEngines.elk.createPreviewElkShellControllerRuntime)

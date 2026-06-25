@@ -7,6 +7,12 @@ import {
 import { registerPreviewEngine } from './registry.js';
 import type { PreviewEngineInstallUnit } from './install-units.js';
 export {
+  BUILTIN_DAGRE_PREVIEW_ENGINE_INSTALL_UNIT,
+  DAGRE_PREVIEW_ENGINE,
+  DAGRE_PREVIEW_ENGINE_DEFINITION,
+  installDagrePreviewEngine,
+} from './engines/dagre.engine.js';
+export {
   BUILTIN_ELK_FORCE_PREVIEW_ENGINE_INSTALL_UNIT,
   ELK_FORCE_PREVIEW_ENGINE,
   ELK_FORCE_PREVIEW_ENGINE_DEFINITION,

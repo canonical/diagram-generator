@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { PreviewShellMode } from "@diagram-generator/layout-engine";
 
-export type PreviewViewerSidebarSection = "elk-layout" | (string & {});
+export type PreviewViewerSidebarSection = "elk-layout" | "graph-layout" | (string & {});
 export type PreviewHostTemplateSectionKey = string;
 
 export interface PreviewHostLink {

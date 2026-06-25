@@ -321,11 +321,12 @@ test("autolayout viewer hides ELK controls for a single-engine v3 frame", () => 
   });
 
   try {
-    const html = route.buildHtml("simple");
-    assert.match(html, /id="grid-controls-section" hidden/);
-    assert.match(html, /id="elk-layout-section" hidden/);
-    assert.match(html, /id="force-solver-section" hidden/);
-    assert.equal(html.includes("/preview/engine-switcher.js"), false);
+  const html = route.buildHtml("simple");
+  assert.match(html, /id="grid-controls-section" hidden/);
+  assert.match(html, /id="elk-layout-section" hidden/);
+  assert.match(html, /id="graph-layout-section" hidden/);
+  assert.match(html, /id="force-solver-section" hidden/);
+  assert.equal(html.includes("/preview/engine-switcher.js"), false);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
@@ -363,8 +364,75 @@ test("autolayout viewer hides native grid controls for ELK-family frames", () =>
     const html = route.buildHtml("support-engineering-flow");
     assert.match(html, /id="grid-controls-section" hidden/, layoutEngine);
     assert.match(html, /id="elk-layout-section" >/, layoutEngine);
+    assert.match(html, /id="graph-layout-section" hidden/, layoutEngine);
     assert.match(html, /id="force-solver-section" hidden/, layoutEngine);
     assert.match(html, /\/preview\/engine-switcher\.js/, layoutEngine);
+  }
+});
+
+test("autolayout viewer shows graph layout controls and hides ELK, grid, and force controls for dagre frames", () => {
+  const tempDir = mkdtempSync(path.join(os.tmpdir(), "dg-preview-dagre-ui-"));
+  const framesDir = path.join(tempDir, "frames");
+  mkdirSync(framesDir, { recursive: true });
+  writeFileSync(
+    path.join(framesDir, "dagre-simple.yaml"),
+    [
+      "engine: v3",
+      "title: Dagre simple",
+      "meta:",
+      "  layout_engine: dagre",
+      "root:",
+      "  id: page",
+      "  direction: vertical",
+      "  children:",
+      "    - id: leaf_a",
+      "      label: [A]",
+      "    - id: leaf_b",
+      "      label: [B]",
+      "arrows:",
+      "  - source: leaf_a",
+      "    target: leaf_b",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+  const route = createAutolayoutPreviewHostViewerRoute({
+    framePreviewDocumentDeps: {
+      framesDir,
+    },
+    framePreviewRenderDeps: {
+      framesDir,
+      iconLoader: () => null,
+      textAdapterPromise: Promise.resolve(new MockTextAdapter()),
+    },
+    forcePreviewDocumentDeps: { forceDefinitionsDir: "/virtual/force" },
+    parseYaml: () => ({}),
+    templateHtml: contextualAsideTemplate(),
+    baselineStylesHtml: "",
+    previewAssetUrl: (filename: string) => `/preview/${filename}`,
+    listAutolayoutDiagrams: () => ["support-engineering-flow"],
+    listForceExamples: () => [],
+    findReferenceImage: () => null,
+    normalizeLayoutEngine: () => "dagre",
+  });
+
+  try {
+    const html = route.buildHtml("dagre-simple");
+    const controlsIndex = html.indexOf('/preview/graph-layout-controls.js');
+    const controllerIndex = html.indexOf('/preview/graph-layout-controller.js');
+    const editorIndex = html.indexOf('/preview/editor.js');
+    assert.match(html, /id="grid-controls-section" hidden/);
+    assert.match(html, /id="elk-layout-section" hidden/);
+    assert.match(html, /id="graph-layout-section" >/);
+    assert.match(html, /id="force-solver-section" hidden/);
+    assert.match(html, /\/preview\/engine-switcher\.js/);
+    assert.notEqual(controlsIndex, -1);
+    assert.notEqual(controllerIndex, -1);
+    assert.notEqual(editorIndex, -1);
+    assert.ok(controlsIndex < editorIndex);
+    assert.ok(controllerIndex < editorIndex);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
   }
 });
 
@@ -381,6 +449,7 @@ test("force viewer hides grid and ELK sections", () => {
   const html = route.buildHtml("force-stakeholders");
   assert.match(html, /id="grid-controls-section" hidden/);
   assert.match(html, /id="elk-layout-section" hidden/);
+  assert.match(html, /id="graph-layout-section" hidden/);
   assert.match(html, /id="force-solver-section" >/);
   assert.match(html, /id="force-simulation-section" >/);
 });
@@ -400,6 +469,10 @@ test("static viewer chrome exposes stable right-aside panel groups", () => {
   assert.match(
     template,
     /id="elk-layout-section" data-dg-panel-group="engine" data-dg-panel-id="engine-elk-layout"/,
+  );
+  assert.match(
+    template,
+    /id="graph-layout-section" data-dg-panel-group="engine" data-dg-panel-id="engine-graph-layout"/,
   );
   assert.match(
     template,
@@ -2024,9 +2097,10 @@ test("preview viewer page HTML is assembled from typed host sections", () => {
       "%BROWSE_NAV%",
       "%INSPECTOR_EMPTY%",
       "%MODE_SCRIPTS%",
-      "%CONFIG_SCRIPT%",
-      "%ELK_SECTION_HIDDEN%",
-      "%UNUSED_PLACEHOLDER%",
+    "%CONFIG_SCRIPT%",
+    "%ELK_SECTION_HIDDEN%",
+    "%GRAPH_LAYOUT_SECTION_HIDDEN%",
+    "%UNUSED_PLACEHOLDER%",
     ].join("\n"),
     browseSections: buildPreviewBrowseSections([
       { lane: AUTOLAYOUT_HOST_LANE, slugs: ["support-engineering-flow"] },
@@ -2040,6 +2114,10 @@ test("preview viewer page HTML is assembled from typed host sections", () => {
       {
         placeholder: "%ELK_SECTION_HIDDEN%",
         section: "elk-layout",
+      },
+      {
+        placeholder: "%GRAPH_LAYOUT_SECTION_HIDDEN%",
+        section: "graph-layout",
       },
     ],
     baselineStylesHtml: '<link rel="stylesheet" href="/preview/bf-os.css">',
@@ -2080,6 +2158,7 @@ function contextualAsideTemplate(): string {
     '<section id="engine-switcher-section" %GRID_ENGINE_SWITCHER_HIDDEN%>engine</section>',
     '<section id="grid-controls-section" %GRID_CONTROLS_HIDDEN%><div id="grid-controls"></div></section>',
     '<section id="elk-layout-section" %ELK_SECTION_HIDDEN%><input id="elk-raw-view-toggle"><input id="elk-debug-overlay-toggle"></section>',
+    '<section id="graph-layout-section" %GRAPH_LAYOUT_SECTION_HIDDEN%><div id="graph-layout-controls"></div></section>',
     '<section id="force-solver-section" %FORCE_SOLVER_HIDDEN%>force solver</section>',
     '<section id="force-simulation-section" %FORCE_SIMULATION_HIDDEN%><div id="force-params"></div></section>',
     '%MODE_SCRIPTS%',

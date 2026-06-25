@@ -12,6 +12,13 @@ export const ELK_RADIAL_PREVIEW_ENGINE_DEFINITION = {
   controlSpecs: elkRadialPreviewControlSpecs(),
   renderAdapter: elkRadialFrameDiagramRenderAdapter,
   description: 'Radial ELK layout for hub-and-spoke graph structures',
+  compatibility: {
+    description: 'Radial ELK layout for hub-and-spoke graph structures',
+    frameDiagramRequirements: {
+      minArrowCount: 1,
+      rejectUnsupportedCarrierIds: true,
+    },
+  },
 };
 
 const definedElkRadialPreviewEngine = defineElkAlgorithmPreviewEngine(

@@ -9,6 +9,8 @@ const __dirname = path.dirname(__filename);
 const ROOT = path.resolve(__dirname, "..");
 
 const SOURCE_ROOTS = [
+  path.join(ROOT, "packages", "graph-layout-dagre", "src"),
+  path.join(ROOT, "packages", "graph-layout-elk", "src"),
   path.join(ROOT, "packages", "layout-engine", "src"),
 ];
 

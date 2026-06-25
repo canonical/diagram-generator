@@ -58,6 +58,9 @@ const SYNTHETIC_DEFINITION: GraphLayoutPreviewEngineDefinition = {
   sidebarSections: ['elk-layout'],
   compatibility: {
     description: 'Synthetic graph engine used to test the onboarding factory',
+    frameDiagramRequirements: {
+      rejectUnsupportedCarrierIds: true,
+    },
   },
   renderAdapter: async () => ({
     width: 240,
@@ -106,6 +109,7 @@ describe('defineGraphLayoutPreviewEngine', () => {
     expect(manifest.compatibility.documentKinds).toEqual(['frame-diagram', 'contract-doc']);
     expect(manifest.compatibility.requiredLayoutEngineKey).toBe('contract-layout-key');
     expect(manifest.controlSpecs).toEqual(SYNTHETIC_DEFINITION.controlSpecs);
+    expect(manifest.graphEngine).toEqual(SYNTHETIC_GRAPH_ENGINE);
   });
 });
 

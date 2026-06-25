@@ -1,6 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createPreviewElkLayoutControlsRuntime } from '../src/preview-engine/elk-layout-controls.js';
-import { createPreviewElkShellControllerRuntime } from '../src/preview-engine/elk-shell-controller.js';
+import {
+  createPreviewElkLayoutControlsRuntime,
+  createPreviewEngineLayoutControlsRuntime,
+} from '../src/preview-engine/elk-layout-controls.js';
+import {
+  createPreviewElkShellControllerRuntime,
+  createPreviewEngineShellControllerRuntime,
+} from '../src/preview-engine/elk-shell-controller.js';
 
 describe('elk preview runtimes', () => {
   it('builds the ELK controls panel from registered engine metadata', () => {
@@ -166,6 +172,131 @@ describe('elk preview runtimes', () => {
     expect(container.innerHTML).not.toContain('Layer gap');
   });
 
+  it('builds generic graph controls for Dagre from the active manifest namespace', () => {
+    const section = {
+      hidden: true,
+      querySelector() {
+        return null;
+      },
+    };
+    const controls = new Map<string, {
+      id: string;
+      value: string;
+      checked?: boolean;
+      dataset: Record<string, string>;
+      addEventListener: () => void;
+    }>();
+    const container = {
+      innerHTML: '%ELK_LAYOUT_CONTROLS_HTML%',
+      textContent: '',
+      querySelector() {
+        return null;
+      },
+      querySelectorAll() {
+        return [...controls.values()];
+      },
+    };
+    const runtime = createPreviewEngineLayoutControlsRuntime({
+      document: {
+        getElementById(id: string) {
+          if (id === 'graph-layout-section') return section as never;
+          if (id === 'graph-layout-controls') return container as never;
+          return (controls.get(id) as never) ?? null;
+        },
+      },
+      previewWindow: {
+        __DG_CONFIG: {},
+      },
+      layoutEngineRoot: {
+        previewEngines: {
+          registry: {
+            resolvePreviewEngine({ layoutEngine }) {
+              if (layoutEngine === 'dagre') {
+                return {
+                  id: 'dagre',
+                  hostView: { sidebarSections: ['graph-layout'] },
+                  controlSpecs: [
+                    {
+                      key: 'dagre.rankdir',
+                      label: 'Direction',
+                      group: 'Graph',
+                      kind: 'enum',
+                      defaultValue: 'TB',
+                      persistNamespace: 'meta.dagre',
+                      enumValues: [
+                        { value: 'TB', label: 'Top to bottom' },
+                        { value: 'LR', label: 'Left to right' },
+                      ],
+                    },
+                    {
+                      key: 'dagre.ranksep',
+                      label: 'Rank gap',
+                      group: 'Spacing',
+                      kind: 'number',
+                      defaultValue: '96',
+                      persistNamespace: 'meta.dagre',
+                    },
+                  ],
+                } as never;
+              }
+              return null;
+            },
+            listPreviewEnginesBySidebarSection(sectionName) {
+              if (sectionName !== 'graph-layout') return [];
+              return [];
+            },
+          },
+        },
+      },
+      getFrameTreeJson: () => ({
+        layoutEngine: 'dagre',
+        engineLayout: {
+          'meta.dagre': {
+            'dagre.rankdir': 'LR',
+          },
+        },
+      }),
+      sidebarSectionId: 'graph-layout',
+      sectionId: 'graph-layout-section',
+      containerId: 'graph-layout-controls',
+      controlIdPrefix: 'graph-layout',
+      defaultPersistNamespace: 'meta.dagre',
+      enableElkViewToggles: false,
+    });
+
+    runtime.buildPanel({
+      layoutEngine: 'dagre',
+      engineLayout: {
+        'meta.dagre': {
+          'dagre.rankdir': 'LR',
+        },
+      },
+    });
+    controls.set('graph-layout-dagre-rankdir', {
+      id: 'graph-layout-dagre-rankdir',
+      value: 'LR',
+      dataset: { dgEngineLayoutKey: 'dagre.rankdir', dgPersistNamespace: 'meta.dagre' },
+      addEventListener: () => {},
+    });
+    controls.set('graph-layout-dagre-ranksep', {
+      id: 'graph-layout-dagre-ranksep',
+      value: '128',
+      dataset: { dgEngineLayoutKey: 'dagre.ranksep', dgPersistNamespace: 'meta.dagre' },
+      addEventListener: () => {},
+    });
+
+    expect(section.hidden).toBe(false);
+    expect(container.innerHTML).toContain('Direction');
+    expect(container.innerHTML).toContain('Rank gap');
+    expect(container.innerHTML).not.toContain('elk-raw-view-toggle');
+    expect(runtime.collectNamespacedOverrides()).toEqual({
+      'meta.dagre': {
+        'dagre.rankdir': 'LR',
+        'dagre.ranksep': '128',
+      },
+    });
+  });
+
   it('hides and disables stale ELK controls when the active engine is not ELK', () => {
     const controlAttrs = new Map<string, string>();
     const staleControl = {
@@ -324,5 +455,69 @@ describe('elk preview runtimes', () => {
 
     expect(setLayoutOverrides).toHaveBeenCalled();
     expect(requestLayoutRelayout).toHaveBeenCalledWith('root');
+  });
+
+  it('persists generic graph layout controls under the active engine namespace', () => {
+    const previewEngineLayoutControls = {
+      init() {},
+      refresh() {},
+      collectOverrides: () => ({ 'dagre.rankdir': 'LR' }),
+      collectNamespacedOverrides: () => ({
+        'meta.dagre': { 'dagre.rankdir': 'LR' },
+      }),
+    };
+    const runtime = createPreviewEngineShellControllerRuntime({
+      document: {
+        getElementById() {
+          return { hasAttribute: () => true };
+        },
+      },
+      previewWindow: {
+        __DG_CONFIG: {},
+        PreviewEngineLayoutControls: previewEngineLayoutControls,
+      },
+      layoutEngineRoot: {
+        previewEngines: {
+          registry: {
+            resolvePreviewEngine({ layoutEngine }) {
+              return layoutEngine === 'dagre'
+                ? {
+                    id: 'dagre',
+                    hostView: { sidebarSections: ['graph-layout'] },
+                    controlSpecs: [
+                      {
+                        key: 'dagre.rankdir',
+                        label: 'Direction',
+                        group: 'Graph',
+                        kind: 'enum',
+                        defaultValue: 'TB',
+                        persistNamespace: 'meta.dagre',
+                      },
+                    ],
+                  } as never
+                : null;
+            },
+          },
+        },
+      },
+      getFrameTreeJson: () => ({ layoutEngine: 'dagre' }),
+      sidebarSectionId: 'graph-layout',
+      defaultPersistNamespace: 'meta.dagre',
+    });
+
+    runtime.init({
+      getLayoutOverrides: () => ({}),
+      setLayoutOverrides: () => {},
+      getRootId: () => 'root',
+      requestLayoutRelayout: () => undefined,
+    });
+
+    expect(runtime.isActiveLayoutEngine({ layoutEngine: 'dagre' })).toBe(true);
+    expect(runtime.collectPersistedPayload({ ok: true }, { layoutOverrides: {} })).toEqual({
+      ok: true,
+      engine_layout_overrides: {
+        'meta.dagre': { 'dagre.rankdir': 'LR' },
+      },
+    });
   });
 });

@@ -12,6 +12,7 @@ export type PreviewTemplateSectionKey =
   | 'grid-layers-pane'
   | 'grid-engine-switcher'
   | 'grid-controls'
+  | 'graph-layout'
   | 'grid-overrides'
   | 'grid-constraints'
   | 'grid-guide-badge'
@@ -198,6 +199,12 @@ function elkLayoutVisible(context: PreviewUiContext): boolean {
     && hasCapability(context, 'layoutControls');
 }
 
+function graphLayoutVisible(context: PreviewUiContext): boolean {
+  return isGridShell(context)
+    && previewEngineSupportsSidebarSection(context, 'graph-layout')
+    && hasCapability(context, 'layoutControls');
+}
+
 function gridControlsVisible(context: PreviewUiContext): boolean {
   return isGridShell(context)
     && isFrameDiagram(context)
@@ -275,6 +282,17 @@ export const PREVIEW_PANEL_REGISTRY: readonly PreviewPanelRegistryEntry[] = [
       visible,
       'active engine exposes the elk-layout sidebar section',
       'active engine does not expose the elk-layout sidebar section',
+    ),
+  },
+  {
+    id: 'graph-layout',
+    owner: 'viewer-unified.html#graph-layout-section',
+    group: 'engine',
+    isVisible: graphLayoutVisible,
+    reason: (_context, visible) => visibilityReason(
+      visible,
+      'active engine exposes the graph-layout sidebar section',
+      'active engine does not expose the graph-layout sidebar section',
     ),
   },
   {

@@ -40,6 +40,8 @@ export interface ElkLayoutOptions {
   originY?: number;
   /** Session/YAML ELK option overrides (full elk.* keys). */
   elkOptionOverrides?: Record<string, string>;
+  /** Algorithm-specific option overrides passed to the injected graph-layout lane. */
+  graphOptionOverrides?: Record<string, string>;
   /** Graph-layout lane to run after the frame diagram is converted to graph IR. */
   graphLayout?: ElkFrameGraphLayoutAdapter;
 }
@@ -952,7 +954,7 @@ function applyElkEdgeRoutes(
  * Measure frames, run ELK layered, write absolute placed bounds on endpoint frames.
  * Returns layout output sized to ELK canvas + annotations.
  */
-export async function layoutElkFrameDiagram(
+export async function layoutGraphFrameDiagram(
   diagram: FrameDiagram,
   adapter: TextMeasureAdapter,
   options: ElkLayoutOptions = {},
@@ -1009,6 +1011,7 @@ export async function layoutElkFrameDiagram(
     ...stripImplementationOwnedElkLayeredOverrides(diagram.elkLayout),
     ...stripImplementationOwnedElkLayeredOverrides(options.elkOptionOverrides),
   };
+  const graphOptionOverrides = options.graphOptionOverrides ?? elkOverrides;
   const direction = elkGraphDirectionFromRoot(diagram.root);
   const graphLayout = options.graphLayout ?? ((request: ElkFrameGraphLayoutRequest) => layoutLayeredForFamily(
     request.family,
@@ -1022,7 +1025,7 @@ export async function layoutElkFrameDiagram(
     family,
     input,
     direction,
-    optionOverrides: Object.keys(elkOverrides).length > 0 ? elkOverrides : undefined,
+    optionOverrides: Object.keys(graphOptionOverrides).length > 0 ? graphOptionOverrides : undefined,
   });
   const placedById = indexPlaced(elk.nodes);
   const edgeBox = bboxOfElkEdges(elk.edges, originX, originY);
@@ -1123,3 +1126,5 @@ export async function layoutElkFrameDiagram(
     },
   };
 }
+
+export const layoutElkFrameDiagram = layoutGraphFrameDiagram;

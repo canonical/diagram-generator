@@ -192,6 +192,11 @@ export { renderSequenceDiagramToSvg } from './sequence-layout/render-svg.js';
 export type { SequenceSvgRenderOptions } from './sequence-layout/render-svg.js';
 
 export {
+  DAGRE_PARAM_SPECS,
+  dagreParamDefaults,
+} from '@diagram-generator/graph-layout-dagre';
+
+export {
   ELK_FORCE_PARAM_SPECS,
   ELK_MRTREE_PARAM_SPECS,
   ELK_RADIAL_PARAM_SPECS,
@@ -392,8 +397,11 @@ export type {
 export {
   getPreviewDocumentSvgRenderer,
   getPreviewFrameDiagramRenderAdapter,
+  createPreviewEngineLayoutControlsRuntime,
+  createPreviewEngineShellControllerRuntime,
   createPreviewElkLayoutControlsRuntime,
   createPreviewElkShellControllerRuntime,
+  DAGRE_PREVIEW_ENGINE,
   V3_PREVIEW_ENGINE,
   ELK_LAYERED_PREVIEW_ENGINE,
   ELK_FORCE_PREVIEW_ENGINE,
@@ -409,6 +417,7 @@ export {
   BUILTIN_ELK_RADIAL_PREVIEW_ENGINE_INSTALL_UNIT,
   BUILTIN_ELK_RECTPACKING_PREVIEW_ENGINE_INSTALL_UNIT,
   BUILTIN_ELK_STRESS_PREVIEW_ENGINE_INSTALL_UNIT,
+  BUILTIN_DAGRE_PREVIEW_ENGINE_INSTALL_UNIT,
   BUILTIN_FORCE_PREVIEW_ENGINE_INSTALL_UNIT,
   BUILTIN_SEQUENCE_PREVIEW_ENGINE_INSTALL_UNIT,
   BUILTIN_V3_PREVIEW_ENGINE_INSTALL_UNIT,
@@ -424,11 +433,14 @@ export {
   installElkRadialPreviewEngine,
   installElkRectpackingPreviewEngine,
   installElkStressPreviewEngine,
+  installDagrePreviewEngine,
   installForcePreviewEngine,
   installSequencePreviewEngine,
   installMindmapLitePreviewEngine,
   FORCE_PREVIEW_PARAM_SPECS,
   PREVIEW_ENGINE_REGISTRY,
+  dagreParamToPreviewControl,
+  dagrePreviewControlSpecs,
   registerPreviewEngine,
   registerPreviewDocumentSvgRenderer,
   elkForcePreviewControlSpecs,

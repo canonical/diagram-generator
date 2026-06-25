@@ -12,6 +12,13 @@ export const ELK_STRESS_PREVIEW_ENGINE_DEFINITION = {
   controlSpecs: elkStressPreviewControlSpecs(),
   renderAdapter: elkStressFrameDiagramRenderAdapter,
   description: 'Stress-minimization ELK layout for relationship graphs',
+  compatibility: {
+    description: 'Stress-minimization ELK layout for relationship graphs',
+    frameDiagramRequirements: {
+      minArrowCount: 1,
+      rejectUnsupportedCarrierIds: true,
+    },
+  },
 };
 
 const definedElkStressPreviewEngine = defineElkAlgorithmPreviewEngine(

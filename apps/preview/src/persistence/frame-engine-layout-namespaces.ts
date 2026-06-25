@@ -1,20 +1,4 @@
-import {
-  ELK_FORCE_PARAM_SPECS,
-  ELK_LAYERED_PARAM_SPECS,
-  ELK_MRTREE_PARAM_SPECS,
-  ELK_RADIAL_PARAM_SPECS,
-  ELK_RECTPACKING_PARAM_SPECS,
-  ELK_STRESS_PARAM_SPECS,
-} from "@diagram-generator/layout-engine";
-
-const SUPPORTED_ELK_KEYS = new Set<string>([
-  ...ELK_LAYERED_PARAM_SPECS.map((spec) => spec.key),
-  ...ELK_FORCE_PARAM_SPECS.map((spec) => spec.key),
-  ...ELK_STRESS_PARAM_SPECS.map((spec) => spec.key),
-  ...ELK_MRTREE_PARAM_SPECS.map((spec) => spec.key),
-  ...ELK_RADIAL_PARAM_SPECS.map((spec) => spec.key),
-  ...ELK_RECTPACKING_PARAM_SPECS.map((spec) => spec.key),
-]);
+import { listPreviewEngines } from "@diagram-generator/layout-engine";
 
 export interface FrameYamlEngineLayoutNamespaceDescriptor {
   readonly namespace: string;
@@ -22,6 +6,24 @@ export interface FrameYamlEngineLayoutNamespaceDescriptor {
 }
 
 const frameYamlEngineLayoutNamespaces = new Map<string, FrameYamlEngineLayoutNamespaceDescriptor>();
+
+function supportedKeysByNamespace(): Map<string, Set<string>> {
+  const namespaces = new Map<string, Set<string>>();
+  for (const engine of listPreviewEngines()) {
+    for (const spec of engine.controlSpecs ?? []) {
+      const namespace = spec.persistNamespace?.trim();
+      if (!namespace) continue;
+      const supported = namespaces.get(namespace) ?? new Set<string>();
+      supported.add(spec.key);
+      namespaces.set(namespace, supported);
+    }
+  }
+  return namespaces;
+}
+
+function supportedKeysForNamespace(namespace: string): Set<string> {
+  return supportedKeysByNamespace().get(namespace) ?? new Set<string>();
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -31,34 +33,68 @@ export function assertSupportedFrameYamlElkOverrides(
   overrides: Record<string, unknown>,
   source: string,
 ): void {
+  assertSupportedFrameYamlEngineLayoutOverrides("meta.elk", overrides, source, "ELK");
+}
+
+export function assertSupportedFrameYamlEngineLayoutOverrides(
+  namespace: string,
+  overrides: Record<string, unknown>,
+  source: string,
+  label = namespace,
+): void {
+  const supportedKeys = supportedKeysForNamespace(namespace);
+  if (supportedKeys.size === 0) {
+    return;
+  }
   const unsupported = Object.keys(overrides)
-    .filter((key) => !SUPPORTED_ELK_KEYS.has(key))
+    .filter((key) => !supportedKeys.has(key))
     .sort();
   if (unsupported.length > 0) {
-    throw new Error(`${source} contains unsupported ELK keys: ${unsupported.join(", ")}`);
+    throw new Error(`${source} contains unsupported ${label} keys: ${unsupported.join(", ")}`);
   }
 }
 
-function applyElkLayoutOverrides(document: Record<string, unknown>, elkOverrides: Record<string, unknown>): void {
-  if (Object.keys(elkOverrides).length === 0) return;
+function metaKeyFromNamespace(namespace: string): string {
+  if (!namespace.startsWith("meta.") || namespace.length <= "meta.".length) {
+    throw new Error(`Frame YAML engine layout namespace '${namespace}' cannot be persisted under meta`);
+  }
+  return namespace.slice("meta.".length);
+}
+
+function applyEngineLayoutNamespaceOverrides(
+  namespace: string,
+  document: Record<string, unknown>,
+  overrides: Record<string, unknown>,
+  source: string,
+  label = namespace,
+): void {
+  if (Object.keys(overrides).length === 0) return;
   const meta = isRecord(document.meta) ? document.meta : {};
   document.meta = meta;
-  const elk: Record<string, string> = isRecord(meta.elk)
-    ? Object.fromEntries(Object.entries(meta.elk).map(([key, value]) => [String(key), String(value)]))
+  const metaKey = metaKeyFromNamespace(namespace);
+  const next: Record<string, string> = isRecord(meta[metaKey])
+    ? Object.fromEntries(Object.entries(meta[metaKey]).map(([key, value]) => [String(key), String(value)]))
     : {};
-  for (const [key, value] of Object.entries(elkOverrides)) {
+  for (const [key, value] of Object.entries(overrides)) {
     if (value == null || String(value) === "") {
-      delete elk[String(key)];
+      delete next[String(key)];
     } else {
-      elk[String(key)] = String(value);
+      next[String(key)] = String(value);
     }
   }
-  assertSupportedFrameYamlElkOverrides(elk, "elk_layout_overrides");
-  if (Object.keys(elk).length > 0) {
-    meta.elk = elk;
+  assertSupportedFrameYamlEngineLayoutOverrides(namespace, next, source, label);
+  if (Object.keys(next).length > 0) {
+    meta[metaKey] = next;
   } else {
-    delete meta.elk;
+    delete meta[metaKey];
   }
+}
+
+export function assertSupportedFrameYamlDagreOverrides(
+  overrides: Record<string, unknown>,
+  source: string,
+): void {
+  assertSupportedFrameYamlEngineLayoutOverrides("meta.dagre", overrides, source, "dagre");
 }
 
 export function registerFrameYamlEngineLayoutNamespace(
@@ -79,7 +115,18 @@ export function getFrameYamlEngineLayoutNamespace(
   return frameYamlEngineLayoutNamespaces.get(namespace);
 }
 
-registerFrameYamlEngineLayoutNamespace({
-  namespace: "meta.elk",
-  applyOverrides: applyElkLayoutOverrides,
-});
+for (const namespace of supportedKeysByNamespace().keys()) {
+  if (!namespace.startsWith("meta.")) continue;
+  registerFrameYamlEngineLayoutNamespace({
+    namespace,
+    applyOverrides(document, overrides) {
+      const label = namespace === "meta.elk"
+        ? "ELK"
+        : namespace.slice("meta.".length);
+      const source = namespace === "meta.elk"
+        ? "elk_layout_overrides"
+        : `engine_layout_overrides.${namespace}`;
+      applyEngineLayoutNamespaceOverrides(namespace, document, overrides, source, label);
+    },
+  });
+}

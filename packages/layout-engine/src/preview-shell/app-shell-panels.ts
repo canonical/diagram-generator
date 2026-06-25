@@ -130,6 +130,7 @@ const PANEL_ELEMENT_IDS: Record<string, string> = {
   'grid-engine-switcher': 'engine-switcher-section',
   'grid-controls': 'grid-controls-section',
   'elk-layout': 'elk-layout-section',
+  'graph-layout': 'graph-layout-section',
   'grid-overrides': 'document-actions-section',
   'grid-constraints': 'constraints-section',
   'grid-guide-badge': 'guide-badge',
