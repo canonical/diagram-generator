@@ -1,8 +1,19 @@
-import { ELK_FORCE_PARAM_SPECS, ELK_LAYERED_PARAM_SPECS } from "@diagram-generator/layout-engine";
+import {
+  ELK_FORCE_PARAM_SPECS,
+  ELK_LAYERED_PARAM_SPECS,
+  ELK_MRTREE_PARAM_SPECS,
+  ELK_RADIAL_PARAM_SPECS,
+  ELK_RECTPACKING_PARAM_SPECS,
+  ELK_STRESS_PARAM_SPECS,
+} from "@diagram-generator/layout-engine";
 
 const SUPPORTED_ELK_KEYS = new Set<string>([
   ...ELK_LAYERED_PARAM_SPECS.map((spec) => spec.key),
   ...ELK_FORCE_PARAM_SPECS.map((spec) => spec.key),
+  ...ELK_STRESS_PARAM_SPECS.map((spec) => spec.key),
+  ...ELK_MRTREE_PARAM_SPECS.map((spec) => spec.key),
+  ...ELK_RADIAL_PARAM_SPECS.map((spec) => spec.key),
+  ...ELK_RECTPACKING_PARAM_SPECS.map((spec) => spec.key),
 ]);
 
 export interface FrameYamlEngineLayoutNamespaceDescriptor {

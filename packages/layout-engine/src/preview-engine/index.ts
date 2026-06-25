@@ -19,7 +19,15 @@ export type {
   PreviewShellMode,
 } from './types.js';
 
-export { elkForcePreviewControlSpecs, elkLayeredPreviewControlSpecs, elkParamToPreviewControl } from './elk-controls.js';
+export {
+  elkForcePreviewControlSpecs,
+  elkLayeredPreviewControlSpecs,
+  elkMrtreePreviewControlSpecs,
+  elkRadialPreviewControlSpecs,
+  elkRectpackingPreviewControlSpecs,
+  elkStressPreviewControlSpecs,
+  elkParamToPreviewControl,
+} from './elk-controls.js';
 export {
   paramSpecToPreviewControl,
   type PreviewParamSpec,
@@ -43,16 +51,28 @@ export {
 export {
   ELK_LAYERED_PREVIEW_ENGINE,
   ELK_FORCE_PREVIEW_ENGINE,
+  ELK_MRTREE_PREVIEW_ENGINE,
+  ELK_RADIAL_PREVIEW_ENGINE,
+  ELK_RECTPACKING_PREVIEW_ENGINE,
+  ELK_STRESS_PREVIEW_ENGINE,
   FORCE_PREVIEW_ENGINE,
   SEQUENCE_PREVIEW_ENGINE,
   V3_PREVIEW_ENGINE,
   BUILTIN_ELK_LAYERED_PREVIEW_ENGINE_INSTALL_UNIT,
   BUILTIN_ELK_FORCE_PREVIEW_ENGINE_INSTALL_UNIT,
+  BUILTIN_ELK_MRTREE_PREVIEW_ENGINE_INSTALL_UNIT,
+  BUILTIN_ELK_RADIAL_PREVIEW_ENGINE_INSTALL_UNIT,
+  BUILTIN_ELK_RECTPACKING_PREVIEW_ENGINE_INSTALL_UNIT,
+  BUILTIN_ELK_STRESS_PREVIEW_ENGINE_INSTALL_UNIT,
   BUILTIN_FORCE_PREVIEW_ENGINE_INSTALL_UNIT,
   BUILTIN_SEQUENCE_PREVIEW_ENGINE_INSTALL_UNIT,
   BUILTIN_V3_PREVIEW_ENGINE_INSTALL_UNIT,
   installElkLayeredPreviewEngine,
   installElkForcePreviewEngine,
+  installElkMrtreePreviewEngine,
+  installElkRadialPreviewEngine,
+  installElkRectpackingPreviewEngine,
+  installElkStressPreviewEngine,
   installForcePreviewEngine,
   installSequencePreviewEngine,
   installV3PreviewEngine,

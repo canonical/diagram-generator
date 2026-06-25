@@ -1,11 +1,22 @@
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { ELK_FORCE_PARAM_SPECS, ELK_LAYERED_PARAM_SPECS } from '@diagram-generator/graph-layout-elk';
+import {
+  ELK_FORCE_PARAM_SPECS,
+  ELK_LAYERED_PARAM_SPECS,
+  ELK_MRTREE_PARAM_SPECS,
+  ELK_RADIAL_PARAM_SPECS,
+  ELK_RECTPACKING_PARAM_SPECS,
+  ELK_STRESS_PARAM_SPECS,
+} from '@diagram-generator/graph-layout-elk';
 import { loadFrameYaml } from '../src/frame-yaml-loader.js';
 import {
   ELK_FORCE_PREVIEW_ENGINE,
   ELK_LAYERED_PREVIEW_ENGINE,
+  ELK_MRTREE_PREVIEW_ENGINE,
+  ELK_RADIAL_PREVIEW_ENGINE,
+  ELK_RECTPACKING_PREVIEW_ENGINE,
+  ELK_STRESS_PREVIEW_ENGINE,
   FORCE_PREVIEW_ENGINE,
   FORCE_PREVIEW_PARAM_SPECS,
   PREVIEW_ENGINE_REGISTRY,
@@ -27,13 +38,20 @@ import {
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const FRAMES_DIR = join(__dirname, '../../..', 'scripts/diagrams/frames');
+const ELK_ENGINE_IDS = [
+  'elk-layered',
+  'elk-force',
+  'elk-stress',
+  'elk-mrtree',
+  'elk-radial',
+  'elk-rectpacking',
+] as const;
 
 describe('preview-engine registry', () => {
   it('registers native v3, ELK, force, and sequence engines', () => {
     expect(PREVIEW_ENGINE_REGISTRY.map((entry) => entry.id)).toEqual([
       'v3',
-      'elk-layered',
-      'elk-force',
+      ...ELK_ENGINE_IDS,
       'force',
       'sequence',
     ]);
@@ -57,14 +75,33 @@ describe('preview-engine registry', () => {
       rejectUnsupportedCarrierIds: true,
     });
     expect(listPreviewEnginesBySidebarSection('elk-layout').map((entry) => entry.id)).toEqual([
-      'elk-layered',
-      'elk-force',
+      ...ELK_ENGINE_IDS,
     ]);
     expect(ELK_FORCE_PREVIEW_ENGINE.controlSpecs.map((spec) => spec.key).sort()).toEqual(
       ELK_FORCE_PARAM_SPECS.map((spec) => spec.key).sort(),
     );
     expect(ELK_FORCE_PREVIEW_ENGINE.controlSpecs.every((spec) => spec.persistNamespace === 'meta.elk')).toBe(true);
     expect(ELK_FORCE_PREVIEW_ENGINE.renderFamily).toBe('frame-elk-force');
+    expect(ELK_STRESS_PREVIEW_ENGINE.controlSpecs.map((spec) => spec.key).sort()).toEqual(
+      ELK_STRESS_PARAM_SPECS.map((spec) => spec.key).sort(),
+    );
+    expect(ELK_MRTREE_PREVIEW_ENGINE.controlSpecs.map((spec) => spec.key).sort()).toEqual(
+      ELK_MRTREE_PARAM_SPECS.map((spec) => spec.key).sort(),
+    );
+    expect(ELK_RADIAL_PREVIEW_ENGINE.controlSpecs.map((spec) => spec.key).sort()).toEqual(
+      ELK_RADIAL_PARAM_SPECS.map((spec) => spec.key).sort(),
+    );
+    expect(ELK_RECTPACKING_PREVIEW_ENGINE.controlSpecs.map((spec) => spec.key).sort()).toEqual(
+      ELK_RECTPACKING_PARAM_SPECS.map((spec) => spec.key).sort(),
+    );
+    for (const engine of [
+      ELK_STRESS_PREVIEW_ENGINE,
+      ELK_MRTREE_PREVIEW_ENGINE,
+      ELK_RADIAL_PREVIEW_ENGINE,
+      ELK_RECTPACKING_PREVIEW_ENGINE,
+    ]) {
+      expect(engine.controlSpecs.every((spec) => spec.persistNamespace === 'meta.elk')).toBe(true);
+    }
   });
 
   it('exposes force simulation/render control specs', () => {
@@ -91,22 +128,25 @@ describe('preview-engine registry', () => {
     expect(resolvePreviewEngine(context)?.id).toBe('v3');
     expect(listCompatiblePreviewEngines(context).map((entry) => entry.id)).toEqual([
       'v3',
-      'elk-layered',
-      'elk-force',
+      ...ELK_ENGINE_IDS,
     ]);
   });
 
   it('serializes a JSON-safe manifest list for preview-server consumption', () => {
     const serialized = serializePreviewEngineManifest();
-    expect(serialized).toHaveLength(5);
+    expect(serialized).toHaveLength(9);
     const roundTrip = JSON.parse(JSON.stringify(serialized));
     expect(roundTrip[0].id).toBe('v3');
     expect(roundTrip[1].id).toBe('elk-layered');
     expect(roundTrip[2].id).toBe('elk-force');
-    expect(roundTrip[3].capabilities.simulationControls).toBe(true);
-    expect(roundTrip[4].id).toBe('sequence');
+    expect(roundTrip[3].id).toBe('elk-stress');
+    expect(roundTrip[4].id).toBe('elk-mrtree');
+    expect(roundTrip[5].id).toBe('elk-radial');
+    expect(roundTrip[6].id).toBe('elk-rectpacking');
+    expect(roundTrip[7].capabilities.simulationControls).toBe(true);
+    expect(roundTrip[8].id).toBe('sequence');
     expect(roundTrip[0].compatibility.documentKinds).toEqual(['frame-diagram']);
-    expect(roundTrip[4].compatibility.requiredLayoutEngineKey).toBe('sequence');
+    expect(roundTrip[8].compatibility.requiredLayoutEngineKey).toBe('sequence');
     expect(listPreviewEngines()).toEqual(serialized);
   });
 
@@ -164,11 +204,19 @@ describe('preview-engine registry', () => {
     expect(V3_PREVIEW_ENGINE.renderFamily).toBe('frame-native');
     expect(ELK_LAYERED_PREVIEW_ENGINE.renderFamily).toBe('frame-elk');
     expect(ELK_FORCE_PREVIEW_ENGINE.renderFamily).toBe('frame-elk-force');
+    expect(ELK_STRESS_PREVIEW_ENGINE.renderFamily).toBe('frame-elk-stress');
+    expect(ELK_MRTREE_PREVIEW_ENGINE.renderFamily).toBe('frame-elk-mrtree');
+    expect(ELK_RADIAL_PREVIEW_ENGINE.renderFamily).toBe('frame-elk-radial');
+    expect(ELK_RECTPACKING_PREVIEW_ENGINE.renderFamily).toBe('frame-elk-rectpacking');
     expect(FORCE_PREVIEW_ENGINE.renderFamily).toBe('force');
     expect(SEQUENCE_PREVIEW_ENGINE.renderFamily).toBe('sequence');
     expect(V3_PREVIEW_ENGINE.hostView?.sidebarSections ?? []).toEqual([]);
     expect(ELK_LAYERED_PREVIEW_ENGINE.hostView?.sidebarSections ?? []).toEqual(['elk-layout']);
     expect(ELK_FORCE_PREVIEW_ENGINE.hostView?.sidebarSections ?? []).toEqual(['elk-layout']);
+    expect(ELK_STRESS_PREVIEW_ENGINE.hostView?.sidebarSections ?? []).toEqual(['elk-layout']);
+    expect(ELK_MRTREE_PREVIEW_ENGINE.hostView?.sidebarSections ?? []).toEqual(['elk-layout']);
+    expect(ELK_RADIAL_PREVIEW_ENGINE.hostView?.sidebarSections ?? []).toEqual(['elk-layout']);
+    expect(ELK_RECTPACKING_PREVIEW_ENGINE.hostView?.sidebarSections ?? []).toEqual(['elk-layout']);
     expect(FORCE_PREVIEW_ENGINE.hostView?.sidebarSections ?? []).toEqual([]);
     expect(SEQUENCE_PREVIEW_ENGINE.hostView?.sidebarSections ?? []).toEqual([]);
     expect(V3_PREVIEW_ENGINE.capabilities.localRelayout).toBe(true);
@@ -177,6 +225,10 @@ describe('preview-engine registry', () => {
     expect(ELK_LAYERED_PREVIEW_ENGINE.capabilities.localRelayout).toBe(false);
     expect(ELK_FORCE_PREVIEW_ENGINE.capabilities.serverRelayout).toBe(true);
     expect(ELK_FORCE_PREVIEW_ENGINE.capabilities.localRelayout).toBe(false);
+    expect(ELK_STRESS_PREVIEW_ENGINE.capabilities.serverRelayout).toBe(true);
+    expect(ELK_MRTREE_PREVIEW_ENGINE.capabilities.serverRelayout).toBe(true);
+    expect(ELK_RADIAL_PREVIEW_ENGINE.capabilities.serverRelayout).toBe(true);
+    expect(ELK_RECTPACKING_PREVIEW_ENGINE.capabilities.serverRelayout).toBe(true);
     expect(FORCE_PREVIEW_ENGINE.capabilities.localRelayout).toBe(true);
     expect(FORCE_PREVIEW_ENGINE.capabilities.simulationControls).toBe(true);
     expect(SEQUENCE_PREVIEW_ENGINE.capabilities.localRelayout).toBe(true);
@@ -184,7 +236,7 @@ describe('preview-engine registry', () => {
   });
 
   it('exposes hostable layout-engine keys and typed compatibility helpers', () => {
-    expect(listHostableLayoutEngineKeys()).toEqual(['v3', 'elk-layered', 'elk-force', 'sequence']);
+    expect(listHostableLayoutEngineKeys()).toEqual(['v3', ...ELK_ENGINE_IDS, 'sequence']);
     expect(
       isPreviewEngineCompatible(ELK_LAYERED_PREVIEW_ENGINE, {
         previewDocumentKind: 'frame-diagram',
@@ -209,7 +261,7 @@ describe('preview-engine registry', () => {
         previewDocumentKind: 'frame-diagram',
         frameDiagramSummary: { arrowCount: 2, unsupportedElkCarrierIds: [] },
       }).map((entry) => entry.id),
-    ).toEqual(['v3', 'elk-layered', 'elk-force']);
+    ).toEqual(['v3', ...ELK_ENGINE_IDS]);
     expect(
       listCompatiblePreviewEngines({ previewDocumentKind: 'force-spec' }).map((entry) => entry.id),
     ).toEqual(['force']);
@@ -275,7 +327,13 @@ describe('preview-engine registry', () => {
       layoutEngine: 'elk-layered',
       frameDiagramSummary: { arrowCount: 2, unsupportedElkCarrierIds: [] },
     });
-    expect(results).toHaveLength(5);
+    expect(results).toHaveLength(9);
+    expect(results.map((entry) => entry.engine.id)).toEqual([
+      'v3',
+      ...ELK_ENGINE_IDS,
+      'force',
+      'sequence',
+    ]);
     expect(results[0].engine.id).toBe('v3');
     expect(results[0].compatibility.compatible).toBe(true);
     expect(results[1].engine.id).toBe('elk-layered');
@@ -283,11 +341,10 @@ describe('preview-engine registry', () => {
     expect(results[2].engine.id).toBe('elk-force');
     expect(results[2].compatibility.compatible).toBe(false);
     expect(results[2].compatibility.reason).toBeDefined();
-    expect(results[3].engine.id).toBe('force');
-    expect(results[3].compatibility.compatible).toBe(false);
-    expect(results[3].compatibility.reason).toBeDefined();
-    expect(results[4].engine.id).toBe('sequence');
-    expect(results[4].compatibility.compatible).toBe(false);
+    for (const entry of results.slice(2)) {
+      expect(entry.compatibility.compatible).toBe(false);
+      expect(entry.compatibility.reason).toBeDefined();
+    }
   });
 
   it('lists elk force as compatible when it is the persisted frame engine', () => {
@@ -313,6 +370,9 @@ describe('preview-engine registry', () => {
     const elkForce = results.find((entry) => entry.engine.id === 'elk-force');
     expect(elkForce?.compatibility.compatible).toBe(false);
     expect(elkForce?.compatibility.reason).toContain('layout engine');
+    const elkStress = results.find((entry) => entry.engine.id === 'elk-stress');
+    expect(elkStress?.compatibility.compatible).toBe(false);
+    expect(elkStress?.compatibility.reason).toContain('layout engine');
   });
 
   it('exposes engine descriptions for switcher UI', () => {
@@ -322,6 +382,10 @@ describe('preview-engine registry', () => {
     expect(ELK_LAYERED_PREVIEW_ENGINE.compatibility.description).toContain('layered');
     expect(ELK_FORCE_PREVIEW_ENGINE.compatibility.description).toBeDefined();
     expect(ELK_FORCE_PREVIEW_ENGINE.compatibility.description).toContain('Force');
+    expect(ELK_STRESS_PREVIEW_ENGINE.compatibility.description).toContain('Stress');
+    expect(ELK_MRTREE_PREVIEW_ENGINE.compatibility.description).toContain('mrtree');
+    expect(ELK_RADIAL_PREVIEW_ENGINE.compatibility.description).toContain('Radial');
+    expect(ELK_RECTPACKING_PREVIEW_ENGINE.compatibility.description).toContain('Rectangle');
     expect(FORCE_PREVIEW_ENGINE.compatibility.description).toBeDefined();
     expect(FORCE_PREVIEW_ENGINE.compatibility.description).toContain('force');
     expect(SEQUENCE_PREVIEW_ENGINE.compatibility.description).toBeDefined();
@@ -375,8 +439,7 @@ describe('preview-engine registry', () => {
     expect(resolvePreviewEngine(context)?.id).toBe('v3');
     expect(listCompatiblePreviewEngines(context).map((entry) => entry.id)).toEqual([
       'v3',
-      'elk-layered',
-      'elk-force',
+      ...ELK_ENGINE_IDS,
     ]);
 
     const elkResult = evaluatePreviewEngineCompatibility(ELK_LAYERED_PREVIEW_ENGINE, context);

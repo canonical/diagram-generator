@@ -2,7 +2,11 @@ import {
   layoutElkFrameDiagram,
   type ElkLayoutOptions,
 } from '../elk-layout.js';
-import { layoutForce } from '@diagram-generator/graph-layout-elk';
+import {
+  layoutElkAlgorithm,
+  layoutForce,
+  type ElkPreviewAlgorithm,
+} from '@diagram-generator/graph-layout-elk';
 import type { FrameDiagram } from '../frame-model.js';
 import { layoutFrameTree } from '../layout.js';
 import { resolveStyles } from '../resolve-styles.js';
@@ -52,6 +56,44 @@ export const elkForceFrameDiagramRenderAdapter: PreviewFrameDiagramRenderAdapter
     ),
   });
 };
+
+function createElkAlgorithmFrameDiagramRenderAdapter(
+  algorithm: ElkPreviewAlgorithm,
+  engineId: string,
+): PreviewFrameDiagramRenderAdapter {
+  return async (options) => layoutElkFrameDiagram(options.diagram, options.textAdapter, {
+    diagramType: options.diagram.diagramType as ElkLayoutOptions['diagramType'],
+    elkOptionOverrides: options.elkOptionOverrides,
+    graphLayout: ({ input, direction, optionOverrides }) => layoutElkAlgorithm(
+      {
+        ...input,
+        direction,
+        spacingProfile: 'normal',
+      },
+      { algorithm, engineId, optionOverrides },
+    ),
+  });
+}
+
+export const elkStressFrameDiagramRenderAdapter = createElkAlgorithmFrameDiagramRenderAdapter(
+  'stress',
+  'elk-stress',
+);
+
+export const elkMrTreeFrameDiagramRenderAdapter = createElkAlgorithmFrameDiagramRenderAdapter(
+  'mrtree',
+  'elk-mrtree',
+);
+
+export const elkRadialFrameDiagramRenderAdapter = createElkAlgorithmFrameDiagramRenderAdapter(
+  'radial',
+  'elk-radial',
+);
+
+export const elkRectpackingFrameDiagramRenderAdapter = createElkAlgorithmFrameDiagramRenderAdapter(
+  'rectpacking',
+  'elk-rectpacking',
+);
 
 export function installNativeFramePreviewRenderAdapter(): () => void {
   return registerPreviewFrameDiagramRenderAdapter('frame-native', nativeFrameDiagramRenderAdapter);

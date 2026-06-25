@@ -12,6 +12,10 @@ describe('preview-engine install units', () => {
       'v3',
       'elk-layered',
       'elk-force',
+      'elk-stress',
+      'elk-mrtree',
+      'elk-radial',
+      'elk-rectpacking',
       'force',
       'sequence',
     ]);

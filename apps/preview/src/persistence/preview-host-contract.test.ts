@@ -332,7 +332,14 @@ test("autolayout viewer hides ELK controls for a single-engine v3 frame", () => 
 });
 
 test("autolayout viewer hides native grid controls for ELK-family frames", () => {
-  for (const layoutEngine of ["elk-layered", "elk-force"]) {
+  for (const layoutEngine of [
+    "elk-layered",
+    "elk-force",
+    "elk-stress",
+    "elk-mrtree",
+    "elk-radial",
+    "elk-rectpacking",
+  ]) {
     const route = createAutolayoutPreviewHostViewerRoute({
       framePreviewDocumentDeps: {
         framesDir: path.join(REPO_ROOT, "scripts", "diagrams", "frames"),

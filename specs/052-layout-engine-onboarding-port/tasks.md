@@ -230,7 +230,10 @@
       `frame-elk-stress`, etc.) with thin per-engine adapters, while reusing the
       shared frame-to-graph path by injecting a graph-layout function into
       `layoutElkFrameDiagram`. This avoids a central engine-id branch and keeps
-      each algorithm's behavior owned by its definition/adapter.
+      each algorithm's behavior owned by its definition/adapter. Follow-up
+      probe: `stress`, `mrtree`, `radial`, and `rectpacking` all run on the
+      frame graph fixture; `mrtree` honors `elk.direction`, while `stress`,
+      `radial`, and `rectpacking` ignore direction hints.
 
 - [x] **T301** Add the `elk-force` graph descriptor + param specs.
       **File**: `packages/graph-layout-elk/src/engine-capabilities.ts`,
@@ -269,21 +272,59 @@
       **Result**: added the contract test; layout-engine passed 135 files / 798
       tests.
 
-- [ ] **T305 [P]** Repeat T301–T304 for **elk-stress** (if available per T300).
-- [ ] **T306 [P]** Repeat T301–T304 for **elk-mrtree** (if available).
-- [ ] **T307 [P]** Repeat T301–T304 for **elk-radial** (if available).
-- [ ] **T308 [P]** Repeat T301–T304 for **elk-rectpacking** (if available).
-- [ ] **T309 [P]** Repeat T301–T304 for any remaining T300-confirmed algorithms.
-      For each: follow `engine-onboarding-checklist.md` exactly.
+- [x] **T305 [P]** Repeat T301–T304 for **elk-stress** (if available per T300).
+      **Result**: added `ELK_STRESS_GRAPH_LAYOUT_ENGINE`,
+      `ELK_STRESS_PARAM_SPECS`, shared generic ELK algorithm adapter coverage,
+      `elkStressFrameDiagramRenderAdapter`, `engines/elk-stress.engine.ts`, one
+      install-unit registration line, registry/export wiring, and
+      `tests/engines/elk-stress.contract.test.ts`. `npm --prefix
+      packages/graph-layout-elk test` passed 5 files / 37 tests;
+      `npm --prefix packages/layout-engine test` passed 139 files / 802 tests.
 
-- [ ] **T310** apps/preview host-contract tests for the new engines.
+- [x] **T306 [P]** Repeat T301–T304 for **elk-mrtree** (if available).
+      **Result**: added `ELK_MRTREE_GRAPH_LAYOUT_ENGINE` with
+      `honorsDirectionHints: true`, `ELK_MRTREE_PARAM_SPECS` including the only
+      new direction dropdown among this batch, `elkMrTreeFrameDiagramRenderAdapter`,
+      `engines/elk-mrtree.engine.ts`, install registration, and
+      `tests/engines/elk-mrtree.contract.test.ts`. Same graph/layout validation
+      commands passed.
+
+- [x] **T307 [P]** Repeat T301–T304 for **elk-radial** (if available).
+      **Result**: added `ELK_RADIAL_GRAPH_LAYOUT_ENGINE`,
+      `ELK_RADIAL_PARAM_SPECS`, `elkRadialFrameDiagramRenderAdapter`,
+      `engines/elk-radial.engine.ts`, install registration, and
+      `tests/engines/elk-radial.contract.test.ts`. Same graph/layout validation
+      commands passed.
+
+- [x] **T308 [P]** Repeat T301–T304 for **elk-rectpacking** (if available).
+      **Result**: added `ELK_RECTPACKING_GRAPH_LAYOUT_ENGINE`,
+      `ELK_RECTPACKING_PARAM_SPECS`, `elkRectpackingFrameDiagramRenderAdapter`,
+      `engines/elk-rectpacking.engine.ts`, install registration, and
+      `tests/engines/elk-rectpacking.contract.test.ts`. Same graph/layout
+      validation commands passed.
+
+- [x] **T309 [P]** Repeat T301–T304 for any remaining T300-confirmed algorithms.
+      For each: follow `engine-onboarding-checklist.md` exactly.
+      **Result**: remaining runtime entries were explicitly triaged rather than
+      exposed as misleading UI engines. `fixed` returns all frame-IR nodes at
+      `0,0` because the frame graph supplies no initial coordinates.
+      `sporeCompaction` likewise collapses the probe nodes without a prior
+      position field. `sporeOverlap` is an overlap-removal utility that depends
+      on existing coordinates, not a standalone authored-frame layout lane.
+      `random` is an initializer/debug lane, not stable authoring behavior.
+      `box` duplicates the packing use case now covered by `elk-rectpacking`
+      and carries no arrow semantics. Decision: do not surface these utility
+      algorithms in the product engine switcher under spec 052; add a separate
+      diagnostic/algorithm-gallery spec if they become useful.
+
+- [x] **T310** apps/preview host-contract tests for the new engines.
       **File**: mirror existing host-contract tests in `apps/preview` that assert
       "v3 lacks ELK controls" etc. Add: each new ELK engine shows the ELK section
       and hides grid/force sections.
       **Verify**: `npm --prefix apps/preview test`
-      **Partial Result**: `elk-force` is covered by the ELK-family host-contract
-      test; `apps/preview` passed 120 tests. Leave unchecked until every
-      additional Phase 3 algorithm has matching host coverage.
+      **Result**: ELK-family host-contract test now covers `elk-layered`,
+      `elk-force`, `elk-stress`, `elk-mrtree`, `elk-radial`, and
+      `elk-rectpacking`; `apps/preview` passed 120 tests.
 
 - [x] **T311** Rebuild bundle + live DOM probe one new ELK algorithm end-to-end.
       **Verify**: `npm --prefix packages/layout-engine run build:browser` + DOM
@@ -295,11 +336,24 @@
       `meta.layout_engine: elk-force`; active engine was `elk-force`, ELK
       section was visible, force-specific `Random seed` control rendered, native
       grid and force-shell controls were hidden/inert, and SVG rendered
-      (`outerHTML` length 12100).
+      (`outerHTML` length 12100). After the full Phase 3 batch, repeated a live
+      DOM probe for `elk-stress`: active engine was `elk-stress`, ELK section
+      was visible, `Node gap` and `Random seed` rendered, layered-only `Layer
+      gap` did not render, native grid/force/simulation sections were
+      hidden/inert, and SVG rendered (`outerHTML` length 12101).
 
-- [ ] **T312** Phase 3 DoD: every confirmed elkjs algorithm has descriptor +
-      adapter + engine + contract test; all four validation commands pass; one
-      algorithm live-probed.
+- [x] **T312** Phase 3 DoD: every product-suitable confirmed elkjs algorithm has
+      descriptor + adapter + engine + contract test; runtime utility algorithms
+      are explicitly triaged; all four validation commands pass; one algorithm
+      live-probed.
+      **Result**: product-suitable ELK preview engines are now
+      `elk-layered`, `elk-force`, `elk-stress`, `elk-mrtree`, `elk-radial`, and
+      `elk-rectpacking`; remaining ELK runtime utility algorithms are triaged in
+      T309 and intentionally not exposed. Validation passed:
+      `graph-layout-elk` 5 files / 37 tests, `layout-engine` 139 files / 802
+      tests, `apps/preview` 120 tests, `node scripts/check_no_new_python.mjs`,
+      `npm --prefix packages/layout-engine run build:browser`, and
+      `node scripts/check-browser-bundle-fresh.mjs`.
 
 ---
 

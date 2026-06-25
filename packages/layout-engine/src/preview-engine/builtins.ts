@@ -13,11 +13,35 @@ export {
   installElkForcePreviewEngine,
 } from './engines/elk-force.engine.js';
 export {
+  BUILTIN_ELK_MRTREE_PREVIEW_ENGINE_INSTALL_UNIT,
+  ELK_MRTREE_PREVIEW_ENGINE,
+  ELK_MRTREE_PREVIEW_ENGINE_DEFINITION,
+  installElkMrtreePreviewEngine,
+} from './engines/elk-mrtree.engine.js';
+export {
   BUILTIN_ELK_LAYERED_PREVIEW_ENGINE_INSTALL_UNIT,
   ELK_LAYERED_PREVIEW_ENGINE,
   ELK_LAYERED_PREVIEW_ENGINE_DEFINITION,
   installElkLayeredPreviewEngine,
 } from './engines/elk-layered.engine.js';
+export {
+  BUILTIN_ELK_RADIAL_PREVIEW_ENGINE_INSTALL_UNIT,
+  ELK_RADIAL_PREVIEW_ENGINE,
+  ELK_RADIAL_PREVIEW_ENGINE_DEFINITION,
+  installElkRadialPreviewEngine,
+} from './engines/elk-radial.engine.js';
+export {
+  BUILTIN_ELK_RECTPACKING_PREVIEW_ENGINE_INSTALL_UNIT,
+  ELK_RECTPACKING_PREVIEW_ENGINE,
+  ELK_RECTPACKING_PREVIEW_ENGINE_DEFINITION,
+  installElkRectpackingPreviewEngine,
+} from './engines/elk-rectpacking.engine.js';
+export {
+  BUILTIN_ELK_STRESS_PREVIEW_ENGINE_INSTALL_UNIT,
+  ELK_STRESS_PREVIEW_ENGINE,
+  ELK_STRESS_PREVIEW_ENGINE_DEFINITION,
+  installElkStressPreviewEngine,
+} from './engines/elk-stress.engine.js';
 
 export const V3_PREVIEW_ENGINE: PreviewEngineManifest = {
   id: 'v3',
