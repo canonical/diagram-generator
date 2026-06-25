@@ -115,7 +115,7 @@
 - [x] T064 Run `npm --prefix packages/layout-engine test`.
 - [x] T065 Run `npm --prefix apps/preview test`.
 - [x] T066 Run `node scripts/check_no_new_python.mjs`.
-- [ ] T067 If browser verification is needed, use no-screenshot Playwright DOM
+- [x] T067 If browser verification is needed, use no-screenshot Playwright DOM
       probes by default; do not capture screenshots unless explicitly asked.
 
 ## Ordered Improvement Plan
