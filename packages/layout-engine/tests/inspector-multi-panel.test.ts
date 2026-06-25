@@ -24,7 +24,7 @@ describe('multi-selection inspector panel renderer', () => {
     expect(html).not.toContain('oninput=');
   });
 
-  it('renders mixed align/container/sizing states and bulk style picker', () => {
+  it('renders mixed align/container/sizing states and read-only variant state', () => {
     const html = renderMultiSelectionInspectorPanel({
       selectedCount: 2,
       multiActionGap: 16,
@@ -70,8 +70,10 @@ describe('multi-selection inspector panel renderer', () => {
     expect(html).toContain('Fixed (auto)');
     expect(html).toContain('<option value="cols" selected>cols</option>');
     expect(html).toContain('<option value="rows" selected>rows</option>');
-    expect(html).toContain('<option value="__mixed__" selected>Mixed</option>');
-    expect(html).toContain('<option value="panel">Panel</option>');
+    expect(html).toContain('Variant (2 boxes)');
+    expect(html).toContain('Mixed variants');
+    expect(html).not.toContain('data-dg-change-action="multi-style"');
+    expect(html).not.toContain('<option value="panel">Panel</option>');
   });
 
   it('renders horizontal wrap and fixed-height placeholder controls', () => {

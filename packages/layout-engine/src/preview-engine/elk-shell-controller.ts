@@ -90,7 +90,6 @@ function resolvePreviewEngineLayoutControls(
 export function createPreviewElkShellControllerRuntime(
   options: PreviewElkShellControllerRuntimeOptions,
 ): PreviewElkShellControllerRuntime {
-  const sectionId = options.sectionId ?? 'elk-layout-section';
   let deps: PreviewElkShellControllerDeps | null = null;
   let panelWired = false;
 
@@ -136,8 +135,7 @@ export function createPreviewElkShellControllerRuntime(
     if (engineSupportsSidebarSection(resolvePreviewEngine({ layoutEngine, shellMode: 'grid' }), 'elk-layout')) {
       return true;
     }
-    const section = options.document.getElementById(sectionId);
-    return Boolean(section && !section.hasAttribute('hidden'));
+    return false;
   }
 
   function applyElkLayoutOverrides(overrides: Record<string, unknown>): void {

@@ -255,6 +255,7 @@ export interface PreviewEditorInteractionBrowserHostOptions {
   escapeHtml?: ((value: string) => string) | null;
   renderBoxStyleOptions: PreviewEditorInteractionBrowserHostCallback;
   formatAsDefinedStyleLabel: PreviewEditorInteractionBrowserHostCallback;
+  syncPanelVisibility: RuntimeEditorRuntimeSetOptions['syncPanelVisibility'];
   coercedKeys: RuntimeEditorRuntimeSetOptions['coercedKeys'];
   snapToGrid: PreviewEditorInteractionBrowserHostCallback;
   setDirty: (dirty: boolean) => void;
@@ -861,6 +862,7 @@ export function createPreviewEditorInteractionFacadeFromBrowserHost(
         browser.renderBoxStyleOptions as RuntimeEditorRuntimeSetOptions['renderBoxStyleOptions'],
       formatAsDefinedStyleLabel:
         browser.formatAsDefinedStyleLabel as RuntimeEditorRuntimeSetOptions['formatAsDefinedStyleLabel'],
+      syncPanelVisibility: browser.syncPanelVisibility ?? null,
       editorState: {
         captureOverrideEntries: browser.captureOverrideEntries,
         commitOverridePatchAction:

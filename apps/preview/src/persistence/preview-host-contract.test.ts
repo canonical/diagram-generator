@@ -314,7 +314,7 @@ test("autolayout viewer hides ELK controls for a single-engine v3 frame", () => 
 
   try {
     const html = route.buildHtml("simple");
-    assert.match(html, /id="grid-controls-section" >/);
+    assert.match(html, /id="grid-controls-section" hidden/);
     assert.match(html, /id="elk-layout-section" hidden hidden/);
     assert.match(html, /id="force-solver-section" hidden/);
     assert.equal(html.includes("/preview/engine-switcher.js"), false);

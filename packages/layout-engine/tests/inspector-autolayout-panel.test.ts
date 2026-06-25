@@ -19,7 +19,6 @@ describe('inspector autolayout panel renderer', () => {
         showWidthFixedInput: true,
         showWidthMinMax: true,
         showWidthTextMeasure: false,
-        showWidthFillWeight: false,
         showHeightFixedInput: false,
         showHeightMinMax: false,
         showPositionType: false,
@@ -43,6 +42,8 @@ describe('inspector autolayout panel renderer', () => {
     expect(html).toContain('Effective gap 40px = auto 24px + delta 16px');
     expect(html).toContain('<option value="cols" selected>cols</option>');
     expect(html).toContain('data-dg-prop="min_width"');
+    expect(html).not.toContain('data-dg-prop="fill_weight"');
+    expect(html).not.toContain('<span class="label">Weight</span>');
     expect(html).not.toContain('onchange=');
     expect(html).not.toContain('onkeydown=');
   });
@@ -64,7 +65,6 @@ describe('inspector autolayout panel renderer', () => {
         showWidthFixedInput: false,
         showWidthMinMax: false,
         showWidthTextMeasure: true,
-        showWidthFillWeight: false,
         showHeightFixedInput: false,
         showHeightMinMax: false,
         showPositionType: false,
@@ -103,7 +103,6 @@ describe('inspector autolayout panel renderer', () => {
         showWidthFixedInput: false,
         showWidthMinMax: false,
         showWidthTextMeasure: false,
-        showWidthFillWeight: false,
         showHeightFixedInput: true,
         showHeightMinMax: true,
         showPositionType: true,

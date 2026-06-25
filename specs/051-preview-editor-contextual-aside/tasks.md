@@ -120,37 +120,37 @@
 
 ## Phase 7: Follow-Up Live UI Audit
 
-- [ ] T070 Reproduce reported ELK-control leakage on a non-ELK selected engine
+- [x] T070 Reproduce reported ELK-control leakage on a non-ELK selected engine
       with a no-screenshot DOM probe. Capture route, active manifest id,
       persisted `meta.layout_engine`, server-rendered section visibility,
       runtime DOM `hidden` state, and focusability for `#elk-layout-section`,
       `#elk-raw-view-toggle`, `#elk-debug-overlay-toggle`, and nested ELK inputs.
-- [ ] T071 Fix the owning layer for ELK leakage once reproduced. Do not just
+- [x] T071 Fix the owning layer for ELK leakage once reproduced. Do not just
       hide the outer section if nested controls remain visible or focusable.
       Add regression coverage for fresh page load and engine-switch reload.
-- [ ] T072 Remove redundant single-selection identity chrome from the right
+- [x] T072 Remove redundant single-selection identity chrome from the right
       aside: duplicate `Selection` heading, selected id text such as
       `global_server`, and type text such as `Frame`.
-- [ ] T073 Audit the `weight` parameter. Prove the exact supported layout case
+- [x] T073 Audit the `weight` parameter. Prove the exact supported layout case
       where changing weight has an observable effect, or remove the control as
       a no-op.
-- [ ] T074 Remove user-tamperable stroke/style internals from Appearance unless
+- [x] T074 Remove user-tamperable stroke/style internals from Appearance unless
       a variant-selection product decision explicitly reintroduces them.
-- [ ] T075 Replace `as defined` style display with concrete effective variant
+- [x] T075 Replace `as defined` style display with concrete effective variant
       names such as `child`, `parent`, `section`, `highlight`, and
       `annotation`, with a clear fallback for unknown authored variants.
-- [ ] T076 Gate Layout grid controls on top-level page/root selection plus
+- [x] T076 Gate Layout grid controls on top-level page/root selection plus
       `capabilities.gridEditing === true`; hide the grid section for non-root
       frame, arrow, multi, and empty selection states.
-- [ ] T077 Add inspector/render tests proving grid controls appear for root
+- [x] T077 Add inspector/render tests proving grid controls appear for root
       selection only and remain hidden for non-root v3 selections.
-- [ ] T078 Redesign constraint diagnostics so counts like `31 warnings` expose
+- [x] T078 Redesign constraint diagnostics so counts like `31 warnings` expose
       inspectable details: severity, affected frame id, rule name, and
       actionable hint.
-- [ ] T079 Add tests for constraint diagnostics: no diagnostics for zero
+- [x] T079 Add tests for constraint diagnostics: no diagnostics for zero
       violations, summary plus details for warnings/errors, and selected-frame
       linkage when a selected element has violations.
-- [ ] T080 Run the full validation set and a no-screenshot browser DOM probe
+- [x] T080 Run the full validation set and a no-screenshot browser DOM probe
       covering v3, ELK, root selection, non-root selection, and diagnostics.
 
 ## Ordered Improvement Plan

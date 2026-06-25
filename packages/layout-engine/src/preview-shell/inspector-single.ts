@@ -62,7 +62,6 @@ export interface SingleSelectionAutolayoutState {
   showWidthFixedInput: boolean;
   showWidthMinMax: boolean;
   showWidthTextMeasure: boolean;
-  showWidthFillWeight: boolean;
   showHeightFixedInput: boolean;
   showHeightMinMax: boolean;
   showPositionType: boolean;
@@ -199,7 +198,6 @@ export function createSingleSelectionAutolayoutState(options: {
     showWidthFixedInput: sizingW === 'FIXED',
     showWidthMinMax: sizingW === 'FILL' || sizingW === 'FIXED',
     showWidthTextMeasure: sizingW === 'HUG' && Boolean(options.hasTextContent),
-    showWidthFillWeight: sizingW === 'FILL',
     showHeightFixedInput: sizingH === 'FIXED',
     showHeightMinMax: sizingH === 'FILL' || sizingH === 'FIXED',
     showPositionType: Boolean(options.hasParent),

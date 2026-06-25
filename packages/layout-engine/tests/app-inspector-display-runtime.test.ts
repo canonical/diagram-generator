@@ -5,6 +5,7 @@ describe('createPreviewInspectorDisplayRuntime', () => {
   it('renders multi-selection inspector state and updates inferred gap', () => {
     const inspector = { innerHTML: '' };
     const setMultiActionGap = vi.fn();
+    const syncPanelVisibility = vi.fn();
     const runtime = createPreviewInspectorDisplayRuntime({
       getInspector: () => inspector,
       selectedIds: new Set(['alpha', 'beta']),
@@ -86,6 +87,7 @@ describe('createPreviewInspectorDisplayRuntime', () => {
       renderMultiStyleOptions: (styleState) => (
         `<option>${styleState.style}|${styleState.originalStyleName}</option>`
       ),
+      syncPanelVisibility,
     });
 
     runtime.setWidthUnit('cols');
@@ -94,11 +96,20 @@ describe('createPreviewInspectorDisplayRuntime', () => {
     expect(runtime.getWidthUnit()).toBe('cols');
     expect(setMultiActionGap).toHaveBeenCalledWith(24);
     expect(inspector.innerHTML).toContain('Selection');
-    expect(inspector.innerHTML).toContain('data-dg-change-action="multi-style"');
+    expect(inspector.innerHTML).toContain('Variant (2 boxes)');
+    expect(inspector.innerHTML).not.toContain('data-dg-change-action="multi-style"');
+    expect(syncPanelVisibility).toHaveBeenCalledWith({
+      count: 2,
+      kind: 'multi',
+      allBounded: true,
+      sameParent: true,
+      hasUnsupported: false,
+    });
   });
 
   it('normalizes width and height units and rerenders single-selection inspector', () => {
     const inspector = { innerHTML: '' };
+    const syncPanelVisibility = vi.fn();
     const runtime = createPreviewInspectorDisplayRuntime({
       getInspector: () => inspector,
       selectedIds: new Set(['alpha']),
@@ -138,6 +149,7 @@ describe('createPreviewInspectorDisplayRuntime', () => {
       formatControlErrorMessage: (message) => `escaped:${message}`,
       renderSingleStyleOptions: () => '<option>styled</option>',
       renderMultiStyleOptions: () => '<option>unused</option>',
+      syncPanelVisibility,
     });
 
     runtime.setWidthUnit('cols', 'alpha');
@@ -145,7 +157,54 @@ describe('createPreviewInspectorDisplayRuntime', () => {
 
     expect(runtime.getWidthUnit()).toBe('px');
     expect(runtime.getHeightUnit()).toBe('rows');
-    expect(inspector.innerHTML).toContain('data-dg-change-action="single-style"');
-    expect(inspector.innerHTML).toContain('styled');
+    expect(inspector.innerHTML).toContain('<span class="label">Variant</span>');
+    expect(inspector.innerHTML).toContain('Highlight');
+    expect(inspector.innerHTML).not.toContain('data-dg-change-action="single-style"');
+    expect(syncPanelVisibility).toHaveBeenCalledWith({ count: 1, kind: 'frame' });
+  });
+
+  it('classifies parentless page selections as root for panel gating', () => {
+    const inspector = { innerHTML: '' };
+    const syncPanelVisibility = vi.fn();
+    const runtime = createPreviewInspectorDisplayRuntime({
+      getInspector: () => inspector,
+      selectedIds: new Set(['page']),
+      getPrimarySelectedId: (preferredId) => preferredId ?? 'page',
+      getSelectionActionInfo: () => ({
+        items: [],
+        hasUnsupported: false,
+        sameParent: true,
+        parentId: null,
+      }),
+      getNode: () => ({
+        id: 'page',
+        parent: null,
+        children: [{}],
+        data: { id: 'page' },
+      }),
+      getArrowNode: () => null,
+      getOverride: () => ({}),
+      getOwnDelta: () => ({ dx: 0, dy: 0, dw: 0, dh: 0 }),
+      getEffectiveDelta: () => ({ dx: 0, dy: 0, dw: 0, dh: 0 }),
+      getComponentType: () => 'panel',
+      getParentLayout: () => null,
+      getRenderedStyle: () => null,
+      getViolations: () => [],
+      isWidthCoerced: () => false,
+      isHeightCoerced: () => false,
+      getGridInfo: () => null,
+      baselineStep: 8,
+      fallbackGap: 24,
+      snapStep: 8,
+      setMultiActionGap() {},
+      renderSingleStyleOptions: () => '',
+      renderMultiStyleOptions: () => '',
+      syncPanelVisibility,
+    });
+
+    runtime.renderSelectionInspector('page');
+
+    expect(syncPanelVisibility).toHaveBeenCalledWith({ count: 1, kind: 'root' });
+    expect(inspector.innerHTML).not.toContain('data-dg-panel-id="single-selection"');
   });
 });

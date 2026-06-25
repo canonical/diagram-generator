@@ -54,6 +54,7 @@ export interface SingleSelectionInspectorPanelRenderOptions {
   controlsErrorMessage?: string | null;
   styleMode?: 'picker' | 'structural' | 'none';
   styleOptionsHtml?: string;
+  styleLabel?: string;
   violations?: SingleSelectionInspectorViolation[];
 }
 
@@ -73,27 +74,6 @@ function renderAlignWidget(cid: string, currentAlign: string): string {
   html += `<span class="value">${ALIGN_LABELS[currentAlign] ?? currentAlign}</span>`;
   html += '</div></div>';
   return html;
-}
-
-function renderSingleSelectionIdentityGroup(
-  options: SingleSelectionInspectorPanelRenderOptions,
-): string {
-  const kindLabel = {
-    root: 'Root',
-    arrow: 'Arrow',
-    'container-frame': 'Container',
-    'structural-wrapper': 'Structural wrapper',
-    'text-frame': 'Text frame',
-    'frame-leaf': 'Frame',
-  }[options.viewModel.selectionKind];
-
-  return renderPreviewPanelGroup(
-    'selection',
-    'single-selection',
-    '<div class="field"><span class="label">Selection</span><br>'
-      + `<span class="value">${escapePreviewHtml(options.cid)}</span>`
-      + `<span class="hint">${kindLabel}</span></div>`,
-  );
 }
 
 function renderSingleSelectionLayoutGroup(
@@ -182,15 +162,10 @@ function renderSingleSelectionAppearanceGroup(
 
   let html = '';
   if (options.styleMode === 'picker') {
-    html += '<div class="field" style="margin-top:6px"><span class="label">Style</span><br>';
-    html += `<select class="style-picker bf-input"${renderPreviewDataAttrs({
-      'data-dg-change-action': 'single-style',
-      'data-dg-cid': options.cid,
-    })}>`;
-    html += options.styleOptionsHtml || '';
-    html += '</select></div>';
+    html += '<div class="field" style="margin-top:6px"><span class="label">Variant</span><br>';
+    html += `<span class="value">${escapePreviewHtml(options.styleLabel || 'Unknown variant')}</span></div>`;
   } else if (options.styleMode === 'structural') {
-    html += '<div class="field" style="margin-top:6px"><span class="label">Style</span><div class="hint">Structural wrapper — no box style or default panel padding.</div></div>';
+    html += '<div class="field" style="margin-top:6px"><span class="label">Variant</span><div class="hint">Structural wrapper: no visible box variant.</div></div>';
   }
 
   return renderPreviewPanelGroup('appearance', 'single-appearance', html);
@@ -230,8 +205,7 @@ function renderSingleSelectionDiagnosticsGroup(
 export function renderSingleSelectionInspectorPanel(
   options: SingleSelectionInspectorPanelRenderOptions,
 ): string {
-  return renderSingleSelectionIdentityGroup(options)
-    + renderSingleSelectionLayoutGroup(options)
+  return renderSingleSelectionLayoutGroup(options)
     + renderSingleSelectionPositionGroup(options)
     + renderSingleSelectionAppearanceGroup(options)
     + renderSingleSelectionDiagnosticsGroup(options);

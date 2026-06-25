@@ -124,6 +124,10 @@ export interface PreviewEditorSceneConstraintOptions<
   syncConstraintStatus: (
     element: PreviewSceneHostTextElementLike,
     summary: TSummary,
+    options?: {
+      violations?: unknown;
+      selectedIds?: Iterable<string> | null;
+    },
   ) => void;
 }
 
@@ -421,6 +425,7 @@ export function createPreviewEditorSceneFacadeFromEditorHost<
         validateConstraints: options.constraints.validateConstraints,
         summarizeViolations: options.constraints.summarizeViolations,
         setLastViolations: options.constraints.setLastViolations,
+        selectedIds: options.overrideApplication.getSelectedIds(),
         syncSaveButton: options.constraints.syncSaveButton,
         syncConstraintStatus: options.constraints.syncConstraintStatus,
       });

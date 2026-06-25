@@ -162,10 +162,16 @@ export interface UpdatePreviewConstraintStatusHostOptions<TSummary> {
   summary: TSummary & {
     errors?: number;
   };
+  violations?: unknown;
+  selectedIds?: Iterable<string> | null;
   syncSaveButton: (errorCount: number) => void;
   syncConstraintStatus: (
     element: PreviewSceneHostTextElementLike,
     summary: TSummary,
+    options?: {
+      violations?: unknown;
+      selectedIds?: Iterable<string> | null;
+    },
   ) => void;
 }
 
@@ -181,7 +187,12 @@ export interface RunPreviewConstraintValidationHostOptions<TViolations, TSummary
   syncConstraintStatus: (
     element: PreviewSceneHostTextElementLike,
     summary: TSummary,
+    options?: {
+      violations?: unknown;
+      selectedIds?: Iterable<string> | null;
+    },
   ) => void;
+  selectedIds?: Iterable<string> | null;
 }
 
 export interface RefreshPreviewSceneHostOptions {
@@ -401,7 +412,10 @@ export function updatePreviewConstraintStatusHost<TSummary>(
   if (!element) {
     return false;
   }
-  options.syncConstraintStatus(element, options.summary);
+  options.syncConstraintStatus(element, options.summary, {
+    violations: options.violations,
+    selectedIds: options.selectedIds ?? null,
+  });
   return true;
 }
 
@@ -414,6 +428,8 @@ export function runPreviewConstraintValidationHost<TViolations, TSummary>(
   updatePreviewConstraintStatusHost({
     document: options.document,
     summary: options.summarizeViolations(violations),
+    violations,
+    selectedIds: options.selectedIds ?? null,
     syncSaveButton: options.syncSaveButton,
     syncConstraintStatus: options.syncConstraintStatus,
   });

@@ -5,8 +5,11 @@ import {
   formatPreviewOverrideSummary,
   previewTreeHasFrameId,
   resolvePreviewConstraintStatus,
+  resolvePreviewConstraintViolationDetails,
   resolvePreviewDocumentActionState,
+  syncPreviewConstraintStatus,
   syncPreviewDocumentActionControls,
+  syncPreviewPanelVisibility,
 } from '../src/preview-shell/app-shell-panels.js';
 
 describe('preview shell panel helpers', () => {
@@ -66,6 +69,41 @@ describe('preview shell panel helpers', () => {
       color: '',
       hidden: false,
     });
+  });
+
+  it('normalizes constraint diagnostics into inspectable details', () => {
+    expect(resolvePreviewConstraintViolationDetails([
+      {
+        constraintId: 'grid-align',
+        componentId: 'page',
+        message: 'width=333 is not on 8px grid',
+        severity: 'warning',
+      },
+      {
+        rule: 'no-orange-fill',
+        frameId: 'child',
+        message: 'Orange fill',
+        severity: 'error',
+      },
+      { message: '' },
+    ], ['page'])).toEqual([
+      {
+        constraintId: 'grid-align',
+        componentId: 'page',
+        message: 'width=333 is not on 8px grid',
+        severity: 'warning',
+        selected: true,
+        hint: 'Snap position and size to the 8px baseline.',
+      },
+      {
+        constraintId: 'no-orange-fill',
+        componentId: 'child',
+        message: 'Orange fill',
+        severity: 'error',
+        selected: false,
+        hint: 'Use the arrow color only for connectors.',
+      },
+    ]);
   });
 
   it('resolves document action visibility from all clearable override state', () => {
@@ -161,6 +199,187 @@ describe('preview shell panel helpers', () => {
     expect(exportButton.hidden).toBe(false);
     expect(attrs.has('tabindex')).toBe(false);
     expect(attrs.has('aria-hidden')).toBe(false);
+  });
+
+  it('syncs panel visibility to hidden, aria-hidden, and nested focus state', () => {
+    const sectionAttrs = new Map<string, string>();
+    const controlAttrs = new Map<string, string>();
+    const control = {
+      disabled: false,
+      hasAttribute(name: string) {
+        return controlAttrs.has(name);
+      },
+      getAttribute(name: string) {
+        return controlAttrs.get(name) ?? null;
+      },
+      setAttribute(name: string, value: string) {
+        controlAttrs.set(name, value);
+      },
+      removeAttribute(name: string) {
+        controlAttrs.delete(name);
+      },
+    };
+    const section = {
+      hidden: false,
+      inert: false,
+      setAttribute(name: string, value: string) {
+        sectionAttrs.set(name, value);
+      },
+      removeAttribute(name: string) {
+        sectionAttrs.delete(name);
+      },
+      querySelectorAll() {
+        return [control];
+      },
+    };
+    const document = {
+      getElementById(id: string) {
+        return id === 'elk-layout-section' ? section : null;
+      },
+    } as unknown as Document;
+
+    syncPreviewPanelVisibility({
+      document,
+      visibility: [{
+        id: 'grid-elk-layout',
+        owner: '',
+        visible: false,
+        disabled: false,
+        reason: '',
+      }],
+    });
+    expect(section.hidden).toBe(true);
+    expect(section.inert).toBe(true);
+    expect(sectionAttrs.get('aria-hidden')).toBe('true');
+    expect(control.disabled).toBe(true);
+    expect(controlAttrs.get('tabindex')).toBe('-1');
+
+    syncPreviewPanelVisibility({
+      document,
+      visibility: [{
+        id: 'grid-elk-layout',
+        owner: '',
+        visible: true,
+        disabled: false,
+        reason: '',
+      }],
+    });
+    expect(section.hidden).toBe(false);
+    expect(section.inert).toBe(false);
+    expect(sectionAttrs.has('aria-hidden')).toBe(false);
+    expect(control.disabled).toBe(false);
+    expect(controlAttrs.has('tabindex')).toBe(false);
+  });
+
+  it('syncs constraint diagnostics with section hidden and focus state', () => {
+    class FakeElement {
+      id = '';
+      hidden = false;
+      inert = false;
+      disabled = false;
+      textContent = '';
+      className = '';
+      style: Record<string, string> = {};
+      outerHTML = '';
+      removed = false;
+      attrs = new Map<string, string>();
+      controls: FakeElement[] = [];
+      details: FakeElement | null = null;
+      closestTarget: FakeElement | null = null;
+      ownerDocument = {
+        createElement: () => new FakeElement(),
+      };
+
+      hasAttribute(name: string) {
+        return this.attrs.has(name);
+      }
+
+      getAttribute(name: string) {
+        return this.attrs.get(name) ?? null;
+      }
+
+      setAttribute(name: string, value: string) {
+        this.attrs.set(name, value);
+      }
+
+      removeAttribute(name: string) {
+        this.attrs.delete(name);
+      }
+
+      querySelector(selector: string) {
+        return selector === '#constraint-details' ? this.details : null;
+      }
+
+      querySelectorAll() {
+        return this.controls;
+      }
+
+      closest() {
+        return this.closestTarget;
+      }
+
+      appendChild(child: FakeElement) {
+        this.details = child;
+        return child;
+      }
+
+      remove() {
+        this.removed = true;
+      }
+    }
+
+    const originalHTMLElement = (globalThis as { HTMLElement?: unknown }).HTMLElement;
+    (globalThis as { HTMLElement?: unknown }).HTMLElement = FakeElement;
+
+    try {
+      const status = new FakeElement();
+      const section = new FakeElement();
+      const control = new FakeElement();
+      status.closestTarget = section;
+      section.hidden = true;
+      section.inert = true;
+      section.attrs.set('aria-hidden', 'true');
+      section.controls = [control];
+      control.disabled = true;
+      control.attrs.set('tabindex', '-1');
+      control.attrs.set('data-dg-prev-tabindex', '');
+      control.attrs.set('data-dg-panel-disabled', '1');
+
+      syncPreviewConstraintStatus(
+        status as unknown as HTMLElement,
+        { total: 1, errors: 0, warnings: 1 },
+        {
+          selectedIds: ['page'],
+          violations: [{
+            constraintId: 'grid-align',
+            componentId: 'page',
+            message: 'width is not on grid',
+            severity: 'warning',
+          }],
+        },
+      );
+
+      expect(section.hidden).toBe(false);
+      expect(section.inert).toBe(false);
+      expect(section.attrs.has('aria-hidden')).toBe(false);
+      expect(control.disabled).toBe(false);
+      expect(control.attrs.has('tabindex')).toBe(false);
+      expect(section.details?.outerHTML).toContain('data-dg-component-id="page"');
+      expect(section.details?.outerHTML).toContain('selected');
+
+      syncPreviewConstraintStatus(status as unknown as HTMLElement, { total: 0, errors: 0, warnings: 0 });
+
+      expect(section.hidden).toBe(true);
+      expect(section.inert).toBe(true);
+      expect(section.attrs.get('aria-hidden')).toBe('true');
+      expect(section.details?.removed).toBe(true);
+    } finally {
+      if (originalHTMLElement) {
+        (globalThis as { HTMLElement?: unknown }).HTMLElement = originalHTMLElement;
+      } else {
+        delete (globalThis as { HTMLElement?: unknown }).HTMLElement;
+      }
+    }
   });
 
   it('detects frame ids from rendered tree-item datasets', () => {

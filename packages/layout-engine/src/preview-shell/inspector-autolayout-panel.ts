@@ -23,7 +23,6 @@ export interface SingleSelectionAutolayoutPanelRenderOptions {
   widthMaxValue?: string | number | null;
   widthMaxCharsValue?: string | number | null;
   widthMaxCharsDisabled?: boolean;
-  widthFillWeightValue?: string | number | null;
   heightFixedValue?: string | number | null;
   heightFixedStep?: number;
   heightUnit?: 'px' | 'rows';
@@ -155,18 +154,6 @@ function renderSingleSelectionAutolayoutSizingGroup(
       'data-dg-enter-commit': '1',
     })}>`;
     html += '<span class="label" style="margin-left:4px;font-size:11px;color:#666">0=off</span>';
-    html += '</div>';
-  }
-
-  if (panelState.showWidthFillWeight) {
-    html += '<div class="field"><span class="label">Weight</span>';
-    html += `<input class="bf-input" type="number" min="0" step="0.5" value="${valueText(options.widthFillWeightValue)}" style="width:52px"${renderPreviewDataAttrs({
-      'data-dg-change-action': 'single-prop',
-      'data-dg-cid': cid,
-      'data-dg-prop': 'fill_weight',
-      'data-dg-value-type': 'float',
-      'data-dg-enter-commit': '1',
-    })}>`;
     html += '</div>';
   }
 

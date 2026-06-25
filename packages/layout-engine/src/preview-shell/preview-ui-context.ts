@@ -188,6 +188,11 @@ function constraintDiagnosticsVisible(context: PreviewUiContext): boolean {
     && (context.documentState.violationCount ?? 0) > 0;
 }
 
+function rootSelectionVisible(context: PreviewUiContext): boolean {
+  const selection = context.selection;
+  return selection?.kind === 'root' && (selection.count ?? 1) === 1;
+}
+
 function elkLayoutVisible(context: PreviewUiContext): boolean {
   return isGridShell(context)
     && previewEngineSupportsSidebarSection(context, 'elk-layout')
@@ -195,7 +200,10 @@ function elkLayoutVisible(context: PreviewUiContext): boolean {
 }
 
 function gridControlsVisible(context: PreviewUiContext): boolean {
-  return isGridShell(context) && isFrameDiagram(context) && hasCapability(context, 'gridEditing');
+  return isGridShell(context)
+    && isFrameDiagram(context)
+    && hasCapability(context, 'gridEditing')
+    && rootSelectionVisible(context);
 }
 
 function forceNodesVisible(context: PreviewUiContext): boolean {
@@ -255,8 +263,8 @@ export const PREVIEW_PANEL_REGISTRY: readonly PreviewPanelRegistryEntry[] = [
     isVisible: gridControlsVisible,
     reason: (_context, visible) => visibilityReason(
       visible,
-      'active engine supports native grid editing',
-      'active engine does not support native grid editing',
+      'root selection exposes native grid editing',
+      'native grid editing requires root selection and engine support',
     ),
   },
   {
@@ -309,8 +317,8 @@ export const PREVIEW_PANEL_REGISTRY: readonly PreviewPanelRegistryEntry[] = [
     isVisible: gridControlsVisible,
     reason: (_context, visible) => visibilityReason(
       visible,
-      'active engine supports native grid guides',
-      'active engine does not support native grid guides',
+      'root selection exposes native grid guides',
+      'native grid guides require root selection and engine support',
     ),
   },
   {

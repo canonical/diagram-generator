@@ -102,7 +102,6 @@ describe('single-selection inspector helpers', () => {
     expect(state.automaticGap).toBe(16);
     expect(state.effectiveGap).toBe(24);
     expect(state.showGapDeltaControls).toBe(true);
-    expect(state.showWidthFillWeight).toBe(true);
     expect(state.showWidthMinMax).toBe(true);
     expect(state.showHeightFixedInput).toBe(true);
     expect(state.showHeightMinMax).toBe(true);

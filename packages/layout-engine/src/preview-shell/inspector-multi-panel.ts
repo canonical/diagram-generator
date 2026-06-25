@@ -4,6 +4,7 @@ import type {
   MultiSelectionSizingState,
 } from './inspector-multi.js';
 import {
+  escapePreviewHtml,
   renderPreviewDataAttrs,
   renderPreviewPanelGroup,
 } from './inline-actions.js';
@@ -248,17 +249,6 @@ function renderMultiSelectionSizingGroup(
     html += '</div>';
   }
 
-  if (options.sizingState.sizingW === 'FILL') {
-    html += '<div class="field"><span class="label">Weight</span>';
-    html += `<input class="bf-input" type="number" min="0" step="0.5" value="" placeholder="—" style="width:52px"${renderPreviewDataAttrs({
-      'data-dg-change-action': 'multi-prop',
-      'data-dg-prop': 'fill_weight',
-      'data-dg-value-type': 'float',
-      'data-dg-enter-commit': '1',
-    })}>`;
-    html += '</div>';
-  }
-
   html += '<div class="field"><span class="label">Height</span>';
   html += `<select class="bf-input${options.sizingState.hCoerced ? ' dg-coerced' : ''}"${renderPreviewDataAttrs({
     'data-dg-change-action': 'multi-prop',
@@ -315,15 +305,19 @@ function renderMultiSelectionAppearanceGroup(
     return '';
   }
 
-  let html = `<div class="field" style="margin-top:6px"><span class="label">Style (${options.styleState.count} boxes)</span><br>`;
-  html += `<select class="style-picker bf-input"${renderPreviewDataAttrs({
-    'data-dg-change-action': 'multi-style',
-  })}>`;
-  if (options.styleState.mixed) {
-    html += '<option value="__mixed__" selected>Mixed</option>';
-  }
-  html += options.styleOptionsHtml || '';
-  html += '</select></div>';
+  const styleLabel = options.styleState.mixed
+    ? 'Mixed variants'
+    : (
+      {
+        default: 'Child',
+        parent: 'Parent',
+        section: 'Section',
+        highlight: 'Highlight',
+        annotation: 'Annotation',
+      }[options.styleState.style] ?? (options.styleState.style || 'Unknown variant')
+    );
+  let html = `<div class="field" style="margin-top:6px"><span class="label">Variant (${options.styleState.count} boxes)</span><br>`;
+  html += `<span class="value">${escapePreviewHtml(styleLabel)}</span></div>`;
 
   return renderPreviewPanelGroup('appearance', 'multi-appearance', html);
 }

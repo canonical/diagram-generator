@@ -189,8 +189,55 @@ export function createPreviewElkLayoutControlsRuntime(
     if (engineSupportsSidebarSection(resolvePreviewEngine({ layoutEngine, shellMode: 'grid' }), 'elk-layout')) {
       return true;
     }
-    const section = options.document.getElementById(sectionId);
-    return Boolean(section && section.hidden !== true);
+    return false;
+  }
+
+  function setElkSectionActive(
+    section: HTMLElement,
+    active: boolean,
+  ): void {
+    section.hidden = !active;
+    if ('inert' in section) {
+      (section as HTMLElement & { inert: boolean }).inert = !active;
+    }
+    if (active) {
+      section.removeAttribute?.('aria-hidden');
+    } else {
+      section.setAttribute?.('aria-hidden', 'true');
+    }
+    section
+      .querySelectorAll?.<HTMLElement>('button, input, select, textarea, [tabindex]')
+      .forEach((control) => {
+        if (!active) {
+          if (!control.hasAttribute('data-dg-elk-prev-tabindex')) {
+            control.setAttribute(
+              'data-dg-elk-prev-tabindex',
+              control.getAttribute('tabindex') ?? '',
+            );
+          }
+          control.setAttribute('tabindex', '-1');
+          if ('disabled' in control && !(control as HTMLButtonElement).disabled) {
+            control.setAttribute('data-dg-elk-disabled', '1');
+            (control as HTMLButtonElement).disabled = true;
+          }
+          return;
+        }
+        if (control.hasAttribute('data-dg-elk-prev-tabindex')) {
+          const previous = control.getAttribute('data-dg-elk-prev-tabindex');
+          if (previous) {
+            control.setAttribute('tabindex', previous);
+          } else {
+            control.removeAttribute('tabindex');
+          }
+          control.removeAttribute('data-dg-elk-prev-tabindex');
+        }
+        if (control.getAttribute('data-dg-elk-disabled') === '1') {
+          if ('disabled' in control) {
+            (control as HTMLButtonElement).disabled = false;
+          }
+          control.removeAttribute('data-dg-elk-disabled');
+        }
+      });
   }
 
   function containerHasPlaceholder(container: { innerHTML?: string | null }): boolean {
@@ -293,10 +340,16 @@ export function createPreviewElkLayoutControlsRuntime(
   }
 
   function collectOverrides(): Record<string, unknown> {
+    if (!isElkDiagram(options.getFrameTreeJson?.())) {
+      return {};
+    }
     return collectOverridesFromDom();
   }
 
   function onControlInput(): void {
+    if (!isElkDiagram(options.getFrameTreeJson?.())) {
+      return;
+    }
     const controller = previewEngineShellController(options.previewWindow);
     controller?.wirePanel?.();
     const next = collectOverridesFromDom();
@@ -415,6 +468,9 @@ export function createPreviewElkLayoutControlsRuntime(
     const section = options.document.getElementById(sectionId) as {
       hidden?: boolean;
       querySelector?: (selector: string) => unknown;
+      setAttribute?: (name: string, value: string) => void;
+      removeAttribute?: (name: string) => void;
+      querySelectorAll?: (selector: string) => PreviewControlElement[];
     } | null;
     const container = options.document.getElementById(containerId) as {
       innerHTML?: string;
@@ -427,7 +483,7 @@ export function createPreviewElkLayoutControlsRuntime(
     }
 
     const elk = isElkDiagram(frameTreeJson);
-    section.hidden = !elk;
+    setElkSectionActive(section as unknown as HTMLElement, elk);
     if (!elk) {
       return;
     }

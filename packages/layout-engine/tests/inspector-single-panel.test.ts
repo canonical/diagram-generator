@@ -29,6 +29,7 @@ describe('single-selection inspector panel renderer', () => {
       autolayoutPanelHtml: '<div class="auto-panel">Sizing</div>',
       styleMode: 'picker',
       styleOptionsHtml: '<option value="panel" selected>Panel</option>',
+      styleLabel: 'Child',
       violations: [
         { message: 'Width exceeded', severity: 'error' },
         { message: 'Gap coerced', severity: 'warning' },
@@ -48,7 +49,9 @@ describe('single-selection inspector panel renderer', () => {
     expect(html).toContain('dw=24  dh=0');
     expect(html).toContain('dx=32  dy=0');
     expect(html).toContain('data-dg-click-action="clear-override"');
-    expect(html).toContain('data-dg-change-action="single-style"');
+    expect(html).toContain('<span class="label">Variant</span>');
+    expect(html).toContain('<span class="value">Child</span>');
+    expect(html).not.toContain('data-dg-change-action="single-style"');
     expect(html).toContain('Width exceeded');
     expect(html).toContain('Gap coerced');
     expect(html).toContain('Drag to move');
