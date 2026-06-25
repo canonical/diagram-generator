@@ -368,6 +368,46 @@ test("force viewer hides grid and ELK sections", () => {
   assert.match(html, /id="force-simulation-section" >/);
 });
 
+test("static viewer chrome exposes stable right-aside panel groups", () => {
+  const template = readFileSync(path.join(REPO_ROOT, "scripts", "preview", "viewer-unified.html"), "utf8");
+
+  assert.match(template, /data-dg-panel-group="selection" data-dg-panel-id="selection"/);
+  assert.match(
+    template,
+    /id="engine-switcher-section" data-dg-panel-group="engine" data-dg-panel-id="engine-switcher"/,
+  );
+  assert.match(
+    template,
+    /id="grid-controls-section" data-dg-panel-group="layout" data-dg-panel-id="layout-grid"/,
+  );
+  assert.match(
+    template,
+    /id="elk-layout-section" data-dg-panel-group="engine" data-dg-panel-id="engine-elk-layout"/,
+  );
+  assert.match(
+    template,
+    /id="document-actions-section" data-dg-panel-group="document" data-dg-panel-id="document-actions"/,
+  );
+  assert.match(template, /<h2 class="dg-section-heading bf-h5">Document<\/h2>/);
+  assert.doesNotMatch(template, /<h2 class="dg-section-heading bf-h5">Overrides<\/h2>/);
+  assert.match(
+    template,
+    /id="constraints-section" data-dg-panel-group="diagnostics" data-dg-panel-id="diagnostics-constraints"/,
+  );
+  assert.match(
+    template,
+    /id="force-solver-section" data-dg-panel-group="engine" data-dg-panel-id="force-solver"/,
+  );
+  assert.match(
+    template,
+    /id="force-simulation-section" data-dg-panel-group="engine" data-dg-panel-id="force-simulation"/,
+  );
+  assert.match(
+    template,
+    /id="force-guidance-section" data-dg-panel-group="diagnostics" data-dg-panel-id="force-guidance"/,
+  );
+});
+
 test("frame YAML preview document kinds register outside the central fallback handler", async () => {
   const tempDir = mkdtempSync(path.join(os.tmpdir(), "dg-preview-document-kind-"));
   const framesDir = path.join(tempDir, "frames");

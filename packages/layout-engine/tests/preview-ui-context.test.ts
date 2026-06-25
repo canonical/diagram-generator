@@ -6,6 +6,7 @@ import {
   V3_PREVIEW_ENGINE,
 } from '../src/preview-engine/builtins.js';
 import {
+  PREVIEW_ASIDE_PANEL_GROUPS,
   PREVIEW_PANEL_REGISTRY,
   hasInvalidPreviewPersistedLayoutEngine,
   resolvePreviewPanelVisibility,
@@ -37,6 +38,23 @@ describe('preview UI context registry', () => {
       'grid-overrides',
     ]);
     expect(PREVIEW_PANEL_REGISTRY.every((entry) => entry.owner.length > 0)).toBe(true);
+    expect(PREVIEW_ASIDE_PANEL_GROUPS).toEqual([
+      'selection',
+      'layout',
+      'position',
+      'appearance',
+      'engine',
+      'document',
+      'diagnostics',
+    ]);
+    const groupsById = new Map(PREVIEW_PANEL_REGISTRY.map((entry) => [entry.id, entry.group]));
+    expect(groupsById.get('grid-engine-switcher')).toBe('engine');
+    expect(groupsById.get('grid-controls')).toBe('layout');
+    expect(groupsById.get('grid-overrides')).toBe('document');
+    expect(groupsById.get('grid-constraints')).toBe('diagnostics');
+    expect(groupsById.get('force-solver')).toBe('engine');
+    expect(groupsById.get('force-simulation')).toBe('engine');
+    expect(groupsById.get('force-guidance')).toBe('diagnostics');
   });
 
   it('shows native v3 frame controls without ELK controls for a single-engine diagram', () => {

@@ -24,6 +24,25 @@ export type PreviewTemplateSectionKey =
   | PreviewViewerSidebarSection
   | (string & {});
 
+export type PreviewAsidePanelGroup =
+  | 'selection'
+  | 'layout'
+  | 'position'
+  | 'appearance'
+  | 'engine'
+  | 'document'
+  | 'diagnostics';
+
+export const PREVIEW_ASIDE_PANEL_GROUPS = [
+  'selection',
+  'layout',
+  'position',
+  'appearance',
+  'engine',
+  'document',
+  'diagnostics',
+] as const satisfies readonly PreviewAsidePanelGroup[];
+
 export type PreviewSelectionKind =
   | 'empty'
   | 'frame'
@@ -68,6 +87,7 @@ export interface PreviewUiContext {
 export interface PreviewPanelVisibility {
   readonly id: PreviewTemplateSectionKey;
   readonly owner: string;
+  readonly group?: PreviewAsidePanelGroup;
   readonly visible: boolean;
   readonly disabled: boolean;
   readonly reason: string;
@@ -76,6 +96,7 @@ export interface PreviewPanelVisibility {
 export interface PreviewPanelRegistryEntry {
   readonly id: PreviewTemplateSectionKey;
   readonly owner: string;
+  readonly group?: PreviewAsidePanelGroup;
   isVisible(context: PreviewUiContext): boolean;
   isDisabled?: (context: PreviewUiContext) => boolean;
   reason(context: PreviewUiContext, visible: boolean, disabled: boolean): string;
@@ -207,6 +228,7 @@ export const PREVIEW_PANEL_REGISTRY: readonly PreviewPanelRegistryEntry[] = [
   {
     id: 'grid-engine-switcher',
     owner: 'viewer-unified.html#engine-switcher-section',
+    group: 'engine',
     isVisible: shouldShowPreviewEngineSwitcher,
     reason: (context, visible) => visibilityReason(
       visible,
@@ -218,7 +240,8 @@ export const PREVIEW_PANEL_REGISTRY: readonly PreviewPanelRegistryEntry[] = [
   },
   {
     id: 'grid-controls',
-    owner: 'viewer-unified.html#grid-controls',
+    owner: 'viewer-unified.html#grid-controls-section',
+    group: 'layout',
     isVisible: gridControlsVisible,
     reason: (_context, visible) => visibilityReason(
       visible,
@@ -229,6 +252,7 @@ export const PREVIEW_PANEL_REGISTRY: readonly PreviewPanelRegistryEntry[] = [
   {
     id: 'grid-elk-layout',
     owner: 'viewer-unified.html#elk-layout-section',
+    group: 'engine',
     isVisible: elkLayoutVisible,
     reason: (_context, visible) => visibilityReason(
       visible,
@@ -239,6 +263,7 @@ export const PREVIEW_PANEL_REGISTRY: readonly PreviewPanelRegistryEntry[] = [
   {
     id: 'elk-layout',
     owner: 'viewer-unified.html#elk-layout-section',
+    group: 'engine',
     isVisible: elkLayoutVisible,
     reason: (_context, visible) => visibilityReason(
       visible,
@@ -248,7 +273,8 @@ export const PREVIEW_PANEL_REGISTRY: readonly PreviewPanelRegistryEntry[] = [
   },
   {
     id: 'grid-overrides',
-    owner: 'viewer-unified.html#override-summary',
+    owner: 'viewer-unified.html#document-actions-section',
+    group: 'document',
     isVisible: frameDocumentActionsVisible,
     reason: (_context, visible) => visibilityReason(
       visible,
@@ -258,7 +284,8 @@ export const PREVIEW_PANEL_REGISTRY: readonly PreviewPanelRegistryEntry[] = [
   },
   {
     id: 'grid-constraints',
-    owner: 'viewer-unified.html#constraint-status',
+    owner: 'viewer-unified.html#constraints-section',
+    group: 'diagnostics',
     isVisible: frameDocumentActionsVisible,
     reason: (_context, visible) => visibilityReason(
       visible,
@@ -298,7 +325,8 @@ export const PREVIEW_PANEL_REGISTRY: readonly PreviewPanelRegistryEntry[] = [
   },
   {
     id: 'force-solver',
-    owner: 'viewer-unified.html#force-solver',
+    owner: 'viewer-unified.html#force-solver-section',
+    group: 'engine',
     isVisible: forceSimulationVisible,
     reason: (_context, visible) => visibilityReason(
       visible,
@@ -308,7 +336,8 @@ export const PREVIEW_PANEL_REGISTRY: readonly PreviewPanelRegistryEntry[] = [
   },
   {
     id: 'force-simulation',
-    owner: 'viewer-unified.html#force-params',
+    owner: 'viewer-unified.html#force-simulation-section',
+    group: 'engine',
     isVisible: forceSimulationVisible,
     reason: (_context, visible) => visibilityReason(
       visible,
@@ -318,7 +347,8 @@ export const PREVIEW_PANEL_REGISTRY: readonly PreviewPanelRegistryEntry[] = [
   },
   {
     id: 'force-guidance',
-    owner: 'viewer-unified.html#force-guidance',
+    owner: 'viewer-unified.html#force-guidance-section',
+    group: 'diagnostics',
     isVisible: isForceShell,
     reason: (_context, visible) => visibilityReason(
       visible,
@@ -338,6 +368,7 @@ export function resolvePreviewPanelVisibility(
     return {
       id: entry.id,
       owner: entry.owner,
+      ...(entry.group ? { group: entry.group } : {}),
       visible,
       disabled,
       reason: entry.reason(context, visible, disabled),

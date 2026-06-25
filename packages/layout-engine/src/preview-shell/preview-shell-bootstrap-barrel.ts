@@ -239,6 +239,7 @@ export {
 } from './app-shell-resize.js';
 
 export type {
+  PreviewAsidePanelGroup,
   PreviewPanelRegistryEntry,
   PreviewPanelVisibility,
   PreviewSelectionKind,
@@ -249,6 +250,7 @@ export type {
 } from './preview-ui-context.js';
 
 export {
+  PREVIEW_ASIDE_PANEL_GROUPS,
   PREVIEW_PANEL_REGISTRY,
   hasInvalidPreviewPersistedLayoutEngine,
   previewEngineSupportsSidebarSection,
