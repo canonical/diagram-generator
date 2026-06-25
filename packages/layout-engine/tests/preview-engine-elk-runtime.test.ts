@@ -36,7 +36,20 @@ describe('elk preview runtimes', () => {
           registry: {
             resolvePreviewEngine({ layoutEngine }) {
               return layoutEngine === 'elk-layered'
-                ? { id: 'synthetic-layered', hostView: { sidebarSections: ['elk-layout'] } } as never
+                ? {
+                    id: 'synthetic-layered',
+                    hostView: { sidebarSections: ['elk-layout'] },
+                    controlSpecs: [
+                      {
+                        key: 'elk.spacing.nodeNode',
+                        label: 'Node spacing',
+                        group: 'Spacing',
+                        kind: 'number',
+                        defaultValue: '24',
+                        step: 8,
+                      },
+                    ],
+                  } as never
                 : null;
             },
             listPreviewEnginesBySidebarSection(sectionName) {
@@ -86,6 +99,71 @@ describe('elk preview runtimes', () => {
 
     expect(section.hidden).toBe(false);
     expect(container.innerHTML).toContain('Node spacing');
+  });
+
+  it('builds controls from the active ELK-family engine', () => {
+    const section = {
+      hidden: true,
+      querySelector() {
+        return null;
+      },
+    };
+    const container = {
+      innerHTML: '%ELK_LAYOUT_CONTROLS_HTML%',
+      textContent: '',
+      querySelector() {
+        return null;
+      },
+      querySelectorAll() {
+        return [];
+      },
+    };
+    const runtime = createPreviewElkLayoutControlsRuntime({
+      document: {
+        getElementById(id: string) {
+          if (id === 'elk-layout-section') return section as never;
+          if (id === 'elk-layout-controls') return container as never;
+          return null;
+        },
+      },
+      previewWindow: {
+        __DG_CONFIG: {},
+      },
+      layoutEngineRoot: {
+        previewEngines: {
+          registry: {
+            resolvePreviewEngine({ layoutEngine }) {
+              if (layoutEngine === 'elk-force') {
+                return {
+                  id: 'elk-force',
+                  hostView: { sidebarSections: ['elk-layout'] },
+                  controlSpecs: [
+                    {
+                      key: 'elk.randomSeed',
+                      label: 'Random seed',
+                      group: 'Graph',
+                      kind: 'number',
+                      defaultValue: '0',
+                    },
+                  ],
+                } as never;
+              }
+              return null;
+            },
+            listPreviewEnginesBySidebarSection(sectionName) {
+              if (sectionName !== 'elk-layout') return [];
+              return [];
+            },
+          },
+        },
+      },
+    });
+
+    runtime.buildPanel({ layoutEngine: 'elk-force', elkLayout: {} });
+
+    expect(section.hidden).toBe(false);
+    expect(container.innerHTML).toContain('Random seed');
+    expect(container.innerHTML).not.toContain('Layer gap');
   });
 
   it('hides and disables stale ELK controls when the active engine is not ELK', () => {

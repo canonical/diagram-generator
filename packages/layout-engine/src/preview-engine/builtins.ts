@@ -7,6 +7,12 @@ import {
 import { registerPreviewEngine } from './registry.js';
 import type { PreviewEngineInstallUnit } from './install-units.js';
 export {
+  BUILTIN_ELK_FORCE_PREVIEW_ENGINE_INSTALL_UNIT,
+  ELK_FORCE_PREVIEW_ENGINE,
+  ELK_FORCE_PREVIEW_ENGINE_DEFINITION,
+  installElkForcePreviewEngine,
+} from './engines/elk-force.engine.js';
+export {
   BUILTIN_ELK_LAYERED_PREVIEW_ENGINE_INSTALL_UNIT,
   ELK_LAYERED_PREVIEW_ENGINE,
   ELK_LAYERED_PREVIEW_ENGINE_DEFINITION,

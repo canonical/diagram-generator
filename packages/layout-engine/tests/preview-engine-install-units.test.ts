@@ -11,6 +11,7 @@ describe('preview-engine install units', () => {
     expect(listPreviewEngineInstallUnits().map((entry) => entry.key)).toEqual([
       'v3',
       'elk-layered',
+      'elk-force',
       'force',
       'sequence',
     ]);

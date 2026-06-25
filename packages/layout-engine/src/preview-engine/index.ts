@@ -19,7 +19,7 @@ export type {
   PreviewShellMode,
 } from './types.js';
 
-export { elkLayeredPreviewControlSpecs, elkParamToPreviewControl } from './elk-controls.js';
+export { elkForcePreviewControlSpecs, elkLayeredPreviewControlSpecs, elkParamToPreviewControl } from './elk-controls.js';
 export {
   paramSpecToPreviewControl,
   type PreviewParamSpec,
@@ -42,14 +42,17 @@ export {
 } from './elk-shell-controller.js';
 export {
   ELK_LAYERED_PREVIEW_ENGINE,
+  ELK_FORCE_PREVIEW_ENGINE,
   FORCE_PREVIEW_ENGINE,
   SEQUENCE_PREVIEW_ENGINE,
   V3_PREVIEW_ENGINE,
   BUILTIN_ELK_LAYERED_PREVIEW_ENGINE_INSTALL_UNIT,
+  BUILTIN_ELK_FORCE_PREVIEW_ENGINE_INSTALL_UNIT,
   BUILTIN_FORCE_PREVIEW_ENGINE_INSTALL_UNIT,
   BUILTIN_SEQUENCE_PREVIEW_ENGINE_INSTALL_UNIT,
   BUILTIN_V3_PREVIEW_ENGINE_INSTALL_UNIT,
   installElkLayeredPreviewEngine,
+  installElkForcePreviewEngine,
   installForcePreviewEngine,
   installSequencePreviewEngine,
   installV3PreviewEngine,

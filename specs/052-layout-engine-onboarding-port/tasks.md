@@ -214,7 +214,7 @@
 
 ## Phase 3: Port the full elkjs algorithm family
 
-- [ ] **T300** *(Investigation — do before porting)* Enumerate the algorithms the
+- [x] **T300** *(Investigation — do before porting)* Enumerate the algorithms the
       installed `elkjs` actually supports and choose the render-lane strategy
       (shared `frame-elk` with an `elkAlgorithm` selector in `layoutElkFrameDiagram`,
       vs one renderFamily per algorithm — spec §6.4).
@@ -223,8 +223,16 @@
       **Accept**: a written decision + the confirmed algorithm list under this
       task. **Do not** port an algorithm the bundled elkjs cannot run.
       **Verify**: `Select-String -Path packages/graph-layout-elk/src/*.ts -Pattern "elk.algorithm|algorithm"`
+      **Result**: runtime enumeration via `elk.knownLayoutAlgorithms()` returned
+      `fixed`, `box`, `random`, `layered`, `stress`, `mrtree`, `radial`,
+      `force`, `sporeOverlap`, `sporeCompaction`, and `rectpacking`. Decision:
+      use one render family per preview engine (`frame-elk-force`,
+      `frame-elk-stress`, etc.) with thin per-engine adapters, while reusing the
+      shared frame-to-graph path by injecting a graph-layout function into
+      `layoutElkFrameDiagram`. This avoids a central engine-id branch and keeps
+      each algorithm's behavior owned by its definition/adapter.
 
-- [ ] **T301** Add the `elk-force` graph descriptor + param specs.
+- [x] **T301** Add the `elk-force` graph descriptor + param specs.
       **File**: `packages/graph-layout-elk/src/engine-capabilities.ts`,
       `force-options.ts`, a new `force-param-registry.ts` mirroring
       `elk-param-registry.ts`.
@@ -232,24 +240,34 @@
       **Accept**: descriptor capabilities are honest for force (no hierarchical
       layering, etc.).
       **Verify**: `npm --prefix packages/graph-layout-elk test`
+      **Result**: exported `ELK_FORCE_GRAPH_LAYOUT_ENGINE` and
+      `ELK_FORCE_PARAM_SPECS`; graph-layout-elk passed 4 files / 29 tests.
 
-- [ ] **T302** Add the `elk-force` render adapter + algorithm wiring per the
+- [x] **T302** Add the `elk-force` render adapter + algorithm wiring per the
       T300 decision.
       **File**: `builtin-render-adapters.ts` (or per-algorithm adapter module),
       `elk-layout.ts` if a selector is added.
       **Accept**: adapter returns a valid layout for the contract fixture.
       **Verify**: `npm --prefix packages/layout-engine test`
+      **Result**: added `elkForceFrameDiagramRenderAdapter` with render family
+      `frame-elk-force`; `layoutElkFrameDiagram` now accepts an injected
+      graph-layout function so no engine-id branch is needed.
 
-- [ ] **T303** Define + register the `elk-force` preview engine via the factory.
+- [x] **T303** Define + register the `elk-force` preview engine via the factory.
       **File**: `engines/elk-force.engine.ts` (new), `builtin-install-units.ts`.
       **Accept**: `getPreviewEngineByLayoutKey('elk-force')` resolves; engine
       switcher offers it when compatible.
       **Verify**: `npm --prefix packages/layout-engine test`
+      **Result**: added `engines/elk-force.engine.ts`, registered the install
+      unit, exposed `elk-force` in hostable layout-engine keys, and updated
+      registry/runtime assertions.
 
-- [ ] **T304** Add the `elk-force` contract test.
+- [x] **T304** Add the `elk-force` contract test.
       **File**: `tests/engines/elk-force.contract.test.ts` (new) calling
       `runGraphLayoutPreviewEngineContract`.
       **Verify**: `npm --prefix packages/layout-engine test`
+      **Result**: added the contract test; layout-engine passed 135 files / 798
+      tests.
 
 - [ ] **T305 [P]** Repeat T301–T304 for **elk-stress** (if available per T300).
 - [ ] **T306 [P]** Repeat T301–T304 for **elk-mrtree** (if available).
@@ -263,12 +281,21 @@
       "v3 lacks ELK controls" etc. Add: each new ELK engine shows the ELK section
       and hides grid/force sections.
       **Verify**: `npm --prefix apps/preview test`
+      **Partial Result**: `elk-force` is covered by the ELK-family host-contract
+      test; `apps/preview` passed 120 tests. Leave unchecked until every
+      additional Phase 3 algorithm has matching host coverage.
 
-- [ ] **T311** Rebuild bundle + live DOM probe one new ELK algorithm end-to-end.
+- [x] **T311** Rebuild bundle + live DOM probe one new ELK algorithm end-to-end.
       **Verify**: `npm --prefix packages/layout-engine run build:browser` + DOM
       probe on a diagram with `meta.layout_engine: elk-force` (or chosen algo).
       **Accept**: only that engine's controls render; switching engines reloads
       and re-gates correctly.
+      **Result**: `build:browser` and `node scripts/check-browser-bundle-fresh.mjs`
+      passed. Live DOM probe used a temporary frame directory with
+      `meta.layout_engine: elk-force`; active engine was `elk-force`, ELK
+      section was visible, force-specific `Random seed` control rendered, native
+      grid and force-shell controls were hidden/inert, and SVG rendered
+      (`outerHTML` length 12100).
 
 - [ ] **T312** Phase 3 DoD: every confirmed elkjs algorithm has descriptor +
       adapter + engine + contract test; all four validation commands pass; one

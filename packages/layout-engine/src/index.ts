@@ -192,6 +192,7 @@ export { renderSequenceDiagramToSvg } from './sequence-layout/render-svg.js';
 export type { SequenceSvgRenderOptions } from './sequence-layout/render-svg.js';
 
 export {
+  ELK_FORCE_PARAM_SPECS,
   ELK_LAYERED_PARAM_SPECS,
   elkParamGroups,
   resolvedElkOptionsForFamily,
@@ -391,9 +392,11 @@ export {
   createPreviewElkShellControllerRuntime,
   V3_PREVIEW_ENGINE,
   ELK_LAYERED_PREVIEW_ENGINE,
+  ELK_FORCE_PREVIEW_ENGINE,
   FORCE_PREVIEW_ENGINE,
   MINDMAP_LITE_PREVIEW_ENGINE,
   BUILTIN_ELK_LAYERED_PREVIEW_ENGINE_INSTALL_UNIT,
+  BUILTIN_ELK_FORCE_PREVIEW_ENGINE_INSTALL_UNIT,
   BUILTIN_FORCE_PREVIEW_ENGINE_INSTALL_UNIT,
   BUILTIN_SEQUENCE_PREVIEW_ENGINE_INSTALL_UNIT,
   BUILTIN_V3_PREVIEW_ENGINE_INSTALL_UNIT,
@@ -404,6 +407,7 @@ export {
   registerPreviewEngineInstallUnit,
   installV3PreviewEngine,
   installElkLayeredPreviewEngine,
+  installElkForcePreviewEngine,
   installForcePreviewEngine,
   installSequencePreviewEngine,
   installMindmapLitePreviewEngine,
@@ -411,6 +415,7 @@ export {
   PREVIEW_ENGINE_REGISTRY,
   registerPreviewEngine,
   registerPreviewDocumentSvgRenderer,
+  elkForcePreviewControlSpecs,
   elkLayeredPreviewControlSpecs,
   paramSpecToPreviewControl,
   defineGraphLayoutPreviewEngine,

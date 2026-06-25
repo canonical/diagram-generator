@@ -1,11 +1,13 @@
 import * as previewShellRuntime from './preview-shell/index.js';
 import * as previewEngineRuntime from './preview-engine/index.js';
 import {
+  ELK_FORCE_PREVIEW_ENGINE,
   ELK_LAYERED_PREVIEW_ENGINE,
   FORCE_PREVIEW_PARAM_SPECS,
   FORCE_PREVIEW_ENGINE,
   PREVIEW_ENGINE_REGISTRY,
   SEQUENCE_PREVIEW_ENGINE,
+  elkForcePreviewControlSpecs,
   elkLayeredPreviewControlSpecs,
   getPreviewEngine,
   listPreviewEngines,
@@ -16,6 +18,7 @@ import {
 } from './preview-engine/index.js';
 import {
   ELK_LAYERED_PARAM_SPECS,
+  ELK_FORCE_PARAM_SPECS,
   elkParamGroups,
 } from '@diagram-generator/graph-layout-elk';
 import {
@@ -40,10 +43,13 @@ export const previewEngines = Object.freeze({
   }),
   elk: Object.freeze({
     ELK_LAYERED_PREVIEW_ENGINE,
+    ELK_FORCE_PREVIEW_ENGINE,
     createPreviewElkLayoutControlsRuntime: previewEngineRuntime.createPreviewElkLayoutControlsRuntime,
     createPreviewElkShellControllerRuntime: previewEngineRuntime.createPreviewElkShellControllerRuntime,
+    elkForcePreviewControlSpecs,
     elkLayeredPreviewControlSpecs,
     ELK_LAYERED_PARAM_SPECS,
+    ELK_FORCE_PARAM_SPECS,
     elkParamGroups,
     renderPreviewElkDebugOverlay: previewEngineRuntime.renderPreviewElkDebugOverlay,
     renderPreviewElkRawView: previewEngineRuntime.renderPreviewElkRawView,

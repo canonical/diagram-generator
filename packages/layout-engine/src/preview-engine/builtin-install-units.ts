@@ -1,4 +1,5 @@
 import {
+  BUILTIN_ELK_FORCE_PREVIEW_ENGINE_INSTALL_UNIT,
   BUILTIN_ELK_LAYERED_PREVIEW_ENGINE_INSTALL_UNIT,
   BUILTIN_FORCE_PREVIEW_ENGINE_INSTALL_UNIT,
   BUILTIN_SEQUENCE_PREVIEW_ENGINE_INSTALL_UNIT,
@@ -15,6 +16,7 @@ export function installBuiltinPreviewEngineInstallUnitsRuntime(): void {
   builtinPreviewEngineInstallUnitsRuntimeInstalled = true;
   registerPreviewEngineInstallUnit(BUILTIN_V3_PREVIEW_ENGINE_INSTALL_UNIT);
   registerPreviewEngineInstallUnit(BUILTIN_ELK_LAYERED_PREVIEW_ENGINE_INSTALL_UNIT);
+  registerPreviewEngineInstallUnit(BUILTIN_ELK_FORCE_PREVIEW_ENGINE_INSTALL_UNIT);
   registerPreviewEngineInstallUnit(BUILTIN_FORCE_PREVIEW_ENGINE_INSTALL_UNIT);
   registerPreviewEngineInstallUnit(BUILTIN_SEQUENCE_PREVIEW_ENGINE_INSTALL_UNIT);
 }

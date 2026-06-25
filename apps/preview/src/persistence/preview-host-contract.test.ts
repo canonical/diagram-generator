@@ -331,32 +331,34 @@ test("autolayout viewer hides ELK controls for a single-engine v3 frame", () => 
   }
 });
 
-test("autolayout viewer hides native grid controls for ELK frames", () => {
-  const route = createAutolayoutPreviewHostViewerRoute({
-    framePreviewDocumentDeps: {
-      framesDir: path.join(REPO_ROOT, "scripts", "diagrams", "frames"),
-    },
-    framePreviewRenderDeps: {
-      framesDir: path.join(REPO_ROOT, "scripts", "diagrams", "frames"),
-      iconLoader: () => null,
-      textAdapterPromise: Promise.resolve(new MockTextAdapter()),
-    },
-    forcePreviewDocumentDeps: { forceDefinitionsDir: "/virtual/force" },
-    parseYaml: () => ({}),
-    templateHtml: contextualAsideTemplate(),
-    baselineStylesHtml: "",
-    previewAssetUrl: (filename: string) => `/preview/${filename}`,
-    listAutolayoutDiagrams: () => ["support-engineering-flow"],
-    listForceExamples: () => [],
-    findReferenceImage: () => null,
-    normalizeLayoutEngine: () => "elk-layered",
-  });
+test("autolayout viewer hides native grid controls for ELK-family frames", () => {
+  for (const layoutEngine of ["elk-layered", "elk-force"]) {
+    const route = createAutolayoutPreviewHostViewerRoute({
+      framePreviewDocumentDeps: {
+        framesDir: path.join(REPO_ROOT, "scripts", "diagrams", "frames"),
+      },
+      framePreviewRenderDeps: {
+        framesDir: path.join(REPO_ROOT, "scripts", "diagrams", "frames"),
+        iconLoader: () => null,
+        textAdapterPromise: Promise.resolve(new MockTextAdapter()),
+      },
+      forcePreviewDocumentDeps: { forceDefinitionsDir: "/virtual/force" },
+      parseYaml: () => ({}),
+      templateHtml: contextualAsideTemplate(),
+      baselineStylesHtml: "",
+      previewAssetUrl: (filename: string) => `/preview/${filename}`,
+      listAutolayoutDiagrams: () => ["support-engineering-flow"],
+      listForceExamples: () => [],
+      findReferenceImage: () => null,
+      normalizeLayoutEngine: () => layoutEngine,
+    });
 
-  const html = route.buildHtml("support-engineering-flow");
-  assert.match(html, /id="grid-controls-section" hidden/);
-  assert.match(html, /id="elk-layout-section" >/);
-  assert.match(html, /id="force-solver-section" hidden/);
-  assert.match(html, /\/preview\/engine-switcher\.js/);
+    const html = route.buildHtml("support-engineering-flow");
+    assert.match(html, /id="grid-controls-section" hidden/, layoutEngine);
+    assert.match(html, /id="elk-layout-section" >/, layoutEngine);
+    assert.match(html, /id="force-solver-section" hidden/, layoutEngine);
+    assert.match(html, /\/preview\/engine-switcher\.js/, layoutEngine);
+  }
 });
 
 test("force viewer hides grid and ELK sections", () => {

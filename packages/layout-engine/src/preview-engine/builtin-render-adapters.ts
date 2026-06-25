@@ -2,6 +2,7 @@ import {
   layoutElkFrameDiagram,
   type ElkLayoutOptions,
 } from '../elk-layout.js';
+import { layoutForce } from '@diagram-generator/graph-layout-elk';
 import type { FrameDiagram } from '../frame-model.js';
 import { layoutFrameTree } from '../layout.js';
 import { resolveStyles } from '../resolve-styles.js';
@@ -37,12 +38,31 @@ export const elkFrameDiagramRenderAdapter: PreviewFrameDiagramRenderAdapter = as
   });
 };
 
+export const elkForceFrameDiagramRenderAdapter: PreviewFrameDiagramRenderAdapter = async (options) => {
+  return layoutElkFrameDiagram(options.diagram, options.textAdapter, {
+    diagramType: options.diagram.diagramType as ElkLayoutOptions['diagramType'],
+    elkOptionOverrides: options.elkOptionOverrides,
+    graphLayout: ({ input, direction, optionOverrides }) => layoutForce(
+      {
+        ...input,
+        direction,
+        spacingProfile: 'normal',
+      },
+      { optionOverrides },
+    ),
+  });
+};
+
 export function installNativeFramePreviewRenderAdapter(): () => void {
   return registerPreviewFrameDiagramRenderAdapter('frame-native', nativeFrameDiagramRenderAdapter);
 }
 
 export function installElkFramePreviewRenderAdapter(): () => void {
   return registerPreviewFrameDiagramRenderAdapter('frame-elk', elkFrameDiagramRenderAdapter);
+}
+
+export function installElkForceFramePreviewRenderAdapter(): () => void {
+  return registerPreviewFrameDiagramRenderAdapter('frame-elk-force', elkForceFrameDiagramRenderAdapter);
 }
 
 export const sequencePreviewDocumentSvgRenderer: PreviewDocumentSvgRenderer = async (document) => {

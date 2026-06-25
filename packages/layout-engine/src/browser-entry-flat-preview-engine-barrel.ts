@@ -1,11 +1,13 @@
 export {
   createPreviewElkLayoutControlsRuntime,
   createPreviewElkShellControllerRuntime,
+  ELK_FORCE_PREVIEW_ENGINE,
   ELK_LAYERED_PREVIEW_ENGINE,
   FORCE_PREVIEW_ENGINE,
   FORCE_PREVIEW_PARAM_SPECS,
   SEQUENCE_PREVIEW_ENGINE,
   PREVIEW_ENGINE_REGISTRY,
+  elkForcePreviewControlSpecs,
   elkLayeredPreviewControlSpecs,
   getPreviewEngine,
   listPreviewEnginesBySidebarSection,

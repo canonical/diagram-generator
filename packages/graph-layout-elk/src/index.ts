@@ -35,7 +35,7 @@ export {
   resolveGraphPortPlacement,
 } from '@diagram-generator/graph-layout-core';
 
-export { ELK_LAYERED_GRAPH_LAYOUT_ENGINE } from './engine-capabilities.js';
+export { ELK_FORCE_GRAPH_LAYOUT_ENGINE, ELK_LAYERED_GRAPH_LAYOUT_ENGINE } from './engine-capabilities.js';
 
 export {
   layoutLayered,
@@ -76,3 +76,7 @@ export {
   resolveElkLayoutOptions,
   stripImplementationOwnedElkLayeredOverrides,
 } from './elk-param-registry.js';
+export {
+  ELK_FORCE_PARAM_SPECS,
+  elkForceParamDefaults,
+} from './force-param-registry.js';
