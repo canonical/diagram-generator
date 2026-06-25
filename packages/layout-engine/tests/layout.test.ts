@@ -226,6 +226,27 @@ describe('measure', () => {
     expect(leaf._layout.measuredW).toBe(roundUpToGrid(300));
     expect(leaf._layout.measuredH).toBe(roundUpToGrid(200));
   });
+
+  it('reserves icon-row height for an icon leaf even when border is NONE', () => {
+    // Regression: the live editor "highlight" style sets border: NONE. An icon
+    // box must keep room for its icon and not collapse to text-only height when
+    // the border is removed (icon-height was previously gated on border).
+    const bordered = new Frame({
+      id: 'bordered-icon',
+      label: [createLine('Octavia LB')],
+      icon: 'Gateway.svg',
+      border: Border.SOLID,
+    });
+    const borderless = new Frame({
+      id: 'borderless-icon',
+      label: [createLine('Octavia LB')],
+      icon: 'Gateway.svg',
+      border: Border.NONE,
+    });
+    measure(bordered, adapter);
+    measure(borderless, adapter);
+    expect(borderless._layout.measuredH).toBe(bordered._layout.measuredH);
+  });
 });
 
 // ---------------------------------------------------------------------------

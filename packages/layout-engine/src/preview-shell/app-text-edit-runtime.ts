@@ -153,7 +153,7 @@ export function createPreviewTextEditRuntimeFromHost(
   return createPreviewTextEditRuntime({
     document: options.document,
     getSvg: () => options.document.querySelector('#stage svg') as SVGSVGElement | null,
-    getNode: options.model.get,
+    getNode: (cid) => options.model.get(cid),
     iconSize: options.iconSize,
     columnGap: options.columnGap,
     interactionManager: options.interactionManager,

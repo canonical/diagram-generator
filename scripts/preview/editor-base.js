@@ -120,10 +120,23 @@ window.__DG_getPreviewShellBootstrapContract = getPreviewShellBootstrapContract;
 
 function _normaliseDiagramPath(nextUrl) {
   try {
-    return new URL(String(nextUrl || ""), window.location.origin).pathname;
+    const pathname = new URL(String(nextUrl || ""), window.location.origin).pathname;
+    const bootstrap = getPreviewShellBootstrapContract();
+    if (bootstrap && typeof bootstrap.normalizePreviewDiagramPath === "function") {
+      return bootstrap.normalizePreviewDiagramPath(pathname, window.location.origin) || pathname;
+    }
+    return pathname;
   } catch {
     return "";
   }
+}
+
+function _canonicaliseDiagramPath(pathname) {
+  const bootstrap = getPreviewShellBootstrapContract();
+  if (bootstrap && typeof bootstrap.canonicalizePreviewDiagramPath === "function") {
+    return bootstrap.canonicalizePreviewDiagramPath(pathname);
+  }
+  return String(pathname || "");
 }
 
 function _attemptShellDiagramNavigation(nextUrl, syncUi) {
@@ -147,20 +160,35 @@ function initDiagramPicker() {
   const picker = byId("diagram-picker");
   if (!(picker instanceof HTMLSelectElement)) return;
 
-  function syncBrowseNavToLocation() {
-    const currentPath = window.location.pathname;
-    document.querySelectorAll(".dg-browse-link").forEach((link) => {
-      const href = link.getAttribute("href") || "";
-      const active = href === currentPath;
+  function syncBrowseNavToLocation(currentPath) {
+    const normalizedPath = currentPath || _canonicaliseDiagramPath(window.location.pathname);
+    const links = Array.from(document.querySelectorAll(".dg-browse-link"));
+    const bootstrap = getPreviewShellBootstrapContract();
+    if (bootstrap && typeof bootstrap.syncPreviewBrowseLinksToPath === "function") {
+      bootstrap.syncPreviewBrowseLinksToPath(links, normalizedPath);
+      return;
+    }
+    links.forEach((link) => {
+      const href = _canonicaliseDiagramPath(link.getAttribute("href") || "");
+      const active = href === normalizedPath;
       link.classList.toggle("is-active", active);
-      link.setAttribute("aria-current", active ? "page" : "false");
+      if (active) {
+        link.setAttribute("aria-current", "page");
+      } else {
+        link.removeAttribute("aria-current");
+      }
     });
   }
 
   function syncNavToLocation() {
-    const currentPath = window.location.pathname;
-    picker.value = currentPath;
-    syncBrowseNavToLocation();
+    const currentPath = _canonicaliseDiagramPath(window.location.pathname);
+    const bootstrap = getPreviewShellBootstrapContract();
+    if (bootstrap && typeof bootstrap.syncPreviewDiagramPickerToPath === "function") {
+      bootstrap.syncPreviewDiagramPickerToPath(picker, currentPath);
+    } else {
+      picker.value = currentPath;
+    }
+    syncBrowseNavToLocation(currentPath);
   }
 
   picker.addEventListener("change", () => {

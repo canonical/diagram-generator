@@ -264,7 +264,7 @@ function leafNaturalSize(
     const wrappedSpecs = wrappedBlocks.flat();
     const textH = leafTextHeight(frame, wrappedBlocks, padT, padB);
 
-    if (frame.border !== Border.NONE) {
+    if (frame.border !== Border.NONE || hasIcon) {
       const iconH = padT + ICON_SIZE + padB;
       h = Math.max(textH, iconH);
     } else {
@@ -608,7 +608,11 @@ function resolveChildWidths(frame: Frame, frameW: number, adapter: TextMeasureAd
       }
       let w: number;
       if (child.sizingW === Sizing.FILL) {
-        w = roundUpToGrid(fillSizes[fillIdx++]!);
+        // Match place(): FILL widths are distributed continuously and are NOT
+        // grid-snapped. Snapping here would re-measure leaf hug heights at a
+        // wider width than the leaf is finally placed at, so wrapped text could
+        // need more lines than the (too-short) measured height accounts for.
+        w = fillSizes[fillIdx++]!;
       } else if (child.sizingW === Sizing.FIXED && child.width != null) {
         w = roundUpToGrid(child.width);
       } else {
@@ -629,7 +633,10 @@ function resolveChildWidths(frame: Frame, frameW: number, adapter: TextMeasureAd
       }
       let w: number;
       if (child.sizingW === Sizing.FILL) {
-        w = roundUpToGrid(crossW);
+        // Match place(): a counter-axis FILL child fills the exact inner cross
+        // width (unsnapped). Grid-snapping here would re-measure leaf hug
+        // heights at a wider width than the final placed width and overflow.
+        w = crossW;
       } else if (child.sizingW === Sizing.FIXED && child.width != null) {
         w = roundUpToGrid(child.width);
       } else {

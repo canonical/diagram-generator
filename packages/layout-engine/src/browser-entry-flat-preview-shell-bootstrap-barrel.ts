@@ -39,6 +39,7 @@ export {
   ensurePreviewEditorState,
   ensurePreviewEngineShellCompatController,
   ensurePreviewElkPreviewController,
+  canonicalizePreviewDiagramPath,
   extractPreviewDiagramOptionEntries,
   initPreviewDiagramNavigation,
   initPreviewEditorRuntimeHost,

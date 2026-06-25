@@ -78,6 +78,31 @@ function rectContainsPoint(rect: RectLike, clientX: number, clientY: number, pad
     && clientY <= bottom + pad;
 }
 
+function isTextOwnedByGroup(text: Element, group: Element): boolean {
+  const owner = text.closest?.('[data-component-id]');
+  return owner === group;
+}
+
+function collectTextElementsForGroup(group: Element): Element[] {
+  return Array.from(group.querySelectorAll('text')).filter((text) => isTextOwnedByGroup(text, group));
+}
+
+function collectPreviewTextElements(groups: Iterable<Element>): Element[] {
+  const seen = new Set<Element>();
+  const textElements: Element[] = [];
+
+  for (const group of groups) {
+    for (const text of collectTextElementsForGroup(group)) {
+      if (!seen.has(text)) {
+        seen.add(text);
+        textElements.push(text);
+      }
+    }
+  }
+
+  return textElements;
+}
+
 export function resolvePreviewTextEditorBlockStyle(textEl: Element | null | undefined): PreviewTextEditorBlockStyle {
   const tspans = Array.from(textEl?.querySelectorAll?.('tspan') || []);
   const first = tspans[0] || null;
@@ -157,7 +182,7 @@ export function findPreviewEditableTextTarget(
     return null;
   }
 
-  const directTextElements = Array.from(owner.querySelectorAll(':scope > text'));
+  const directTextElements = collectTextElementsForGroup(owner);
   return findPreviewTextBlockAtPoint(directTextElements, clientX, clientY);
 }
 
@@ -240,7 +265,7 @@ export function resolvePreviewTextEditStartState(options: {
   insetPx?: number;
   svgScale: number;
 }): PreviewTextEditStartState | null {
-  const textElements = options.groups.flatMap((group) => Array.from(group.querySelectorAll(':scope > text')));
+  const textElements = collectPreviewTextElements(options.groups);
   if (textElements.length === 0) {
     return null;
   }

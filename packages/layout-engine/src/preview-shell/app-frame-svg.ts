@@ -2,6 +2,7 @@ import {
   resolveFrameRenderPlan,
 } from '../frame-render-plan.js';
 import { type Frame } from '../frame-model.js';
+import { recolorIconElementShapes } from '../icon-markup.js';
 import { type TextMeasureAdapter } from '../text-measure.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -42,6 +43,12 @@ function fmtSvgNumber(value: number): string {
 
 function hasSvgBBox(value: unknown): value is Element & { getBBox: () => PreviewSvgBbox } {
   return Boolean(value && typeof value === 'object' && 'getBBox' in value);
+}
+
+function directElementChildren(parent: Element): Element[] {
+  return Array.from(parent.childNodes).filter((child): child is Element => (
+    typeof (child as Element).tagName === 'string'
+  ));
 }
 
 function buildFrameTextElements(
@@ -96,6 +103,11 @@ export function patchPreviewFrameGroup(options: {
   const plan = resolveFrameRenderPlan(options.frame, options.textAdapter);
   const { elements } = buildFrameTextElements(options.ownerDocument, plan);
   const existingIcon = options.group.querySelector(':scope > .dg-icon');
+  const preservedChildFrameGroups = directElementChildren(options.group).filter((child) => (
+    child !== existingIcon
+    && child.tagName.toLowerCase() === 'g'
+    && child.getAttribute('data-component-id') != null
+  ));
   const children: Element[] = [];
 
   if (plan.separator) {
@@ -138,10 +150,11 @@ export function patchPreviewFrameGroup(options: {
     iconToUse.setAttribute('transform', `translate(${fmtSvgNumber(plan.icon.x)} ${fmtSvgNumber(plan.icon.y)})`);
     iconToUse.setAttribute('data-orig-tx', fmtSvgNumber(plan.icon.x));
     iconToUse.setAttribute('data-orig-ty', fmtSvgNumber(plan.icon.y));
+    recolorIconElementShapes(iconToUse, plan.icon.fill);
     children.push(iconToUse);
   }
 
-  options.group.replaceChildren(...children);
+  options.group.replaceChildren(...children, ...preservedChildFrameGroups);
 }
 
 export function collectPreviewFramesById(

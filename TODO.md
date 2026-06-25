@@ -14,18 +14,20 @@ are tracked on Jira. Repo execution should route through spec-kit packages.
 
 ## Current Cold-Start Focus
 
-1. `specs/047-render-ir-unification/` is now architecturally ready to close on
+1. `specs/050-preview-editor-recovery/` is the highest-priority active repair
+   package on `feat/050-preview-editor-recovery`. Start with `tasks.md` T001
+   to build the UI recovery matrix, then use
+   `preview-editor-recovery-flow.md` for the cross-layer map.
+2. `specs/047-render-ir-unification/` is architecturally ready to close on
    `feat/047-render-ir-unification`. Fresh preview and export SVG both consume
    the shared display-list IR path; only merge/archive/admin work should remain
    on that branch.
-2. `specs/048-elk-sizing-interaction-followup/` remains the next product-path
-   implementation focus on its own branch. Start with `tasks.md`, especially
-   T001/T002 for ELK Fill sizing on `request-to-hardware-stack`, then use
-   `elk-sizing-interaction-flow.md` for the cross-layer map.
-3. `specs/046-editor-host-endgame/` remains architecturally closed. Reopen only
+3. `specs/048-elk-sizing-interaction-followup/` is Closeout Ready; reopen only
+   for fallout that directly affects the ELK sizing/interaction contracts.
+4. `specs/046-editor-host-endgame/` remains architecturally closed. Reopen only
    if future work regresses by widening legacy JS sinks or central
    engine/document branches.
-4. Other open work should be selected from `docs/specs.md`, then executed from
+5. Other open work should be selected from `docs/specs.md`, then executed from
    that spec package's own `tasks.md`.
 
 ## Open Spec Pointers
@@ -47,7 +49,10 @@ activate a spec-kit package before doing product work on them:
   Foundry-owned styling.
 - Frame authoring polish: top-level container sizing defaults, root sizing and
   direction-change behavior, layers reordering, absolute left-edge resize, and
-  parent wrapped-heading styling.
+  parent wrapped-heading styling. Also harden the cold-start authoring rule so a
+  new agent makes children nested inside a parent box use autolayout **fill**
+  (not fixed width), preventing the gaps seen on freshly generated diagrams vs
+  the iteratively authored example set (INBOX 2026-06-24).
 - Contract hardening: canonical arrow clearance, invalid enum diagnostics,
   preview JSON schema freshness, parser negatives, constrained remeasurement,
   and layout idempotency coverage.

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { Align, Border, Fill, Frame, FrameDiagram, createLine } from '../src/frame-model.js';
+import { Align, Border, Direction, Fill, Frame, FrameDiagram, createLine } from '../src/frame-model.js';
 import {
   applyPreviewOverridesToFrameTree,
   clearPreviewTransientLayoutOverrides,
@@ -391,7 +391,11 @@ describe('preview relayout helpers', () => {
     });
 
     expect(diagram.root.children.map((child) => child.id)).toEqual(['beta', 'alpha', 'gamma']);
-    expect(gamma.direction).toBe('HORIZONTAL');
+    // Direction overrides on a headed container route to the synthetic body and
+    // keep the outer frame vertical (heading stacked above the body), matching
+    // what heading synthesis re-derives on reload.
+    expect(gamma.direction).toBe(Direction.VERTICAL);
+    expect(bodyChild.direction).toBe(Direction.HORIZONTAL);
     expect(gamma.gap).toBe(24);
     expect(gamma.gapDelta).toBeUndefined();
     expect(gamma.fill).toBe(Fill.GREY);
@@ -403,6 +407,54 @@ describe('preview relayout helpers', () => {
     expect(gamma.label.map((line) => line.content)).toEqual(['One', 'Two']);
     expect(headingChild.label.map((line) => line.content)).toEqual(['Fresh heading']);
     expect(bodyChild.align).toBe(Align.BOTTOM_RIGHT);
+  });
+
+  it('reorders synthetic-body children via a children_order override keyed to the body', () => {
+    const define = new Frame({ id: 'define', label: [createLine('Define')] });
+    const measure = new Frame({ id: 'measure', label: [createLine('Measure')] });
+    const headingChild = new Frame({ id: 'planning__heading', role: 'heading' });
+    const bodyChild = new Frame({ id: 'planning__body', children: [define, measure] });
+    const planning = new Frame({
+      id: 'planning',
+      heading: createLine('Planning'),
+      children: [headingChild, bodyChild],
+    });
+    const root = new Frame({ id: 'page', children: [planning] });
+    const diagram = new FrameDiagram({ root });
+
+    applyPreviewOverridesToFrameTree(diagram, {
+      planning__body: { children_order: ['measure', 'define'] },
+    });
+
+    expect(bodyChild.children.map((child) => child.id)).toEqual(['measure', 'define']);
+  });
+
+  it('reorders synthetic-body children when children_order is keyed to the authored parent', () => {
+    // Drag-reorder keys the override to the authored parent (planning), but the
+    // relayout tree has split planning into [heading, body]; the reorderable
+    // children live on the synthetic body. The override must still apply.
+    const define = new Frame({ id: 'define', label: [createLine('Define')] });
+    const measure = new Frame({ id: 'measure', label: [createLine('Measure')] });
+    const headingChild = new Frame({ id: 'planning__heading', role: 'heading' });
+    const bodyChild = new Frame({ id: 'planning__body', children: [define, measure] });
+    const planning = new Frame({
+      id: 'planning',
+      heading: createLine('Planning'),
+      children: [headingChild, bodyChild],
+    });
+    const root = new Frame({ id: 'page', children: [planning] });
+    const diagram = new FrameDiagram({ root });
+
+    applyPreviewOverridesToFrameTree(diagram, {
+      planning: { children_order: ['measure', 'define'] },
+    });
+
+    expect(bodyChild.children.map((child) => child.id)).toEqual(['measure', 'define']);
+    // The synthetic heading/body wrapper order is preserved.
+    expect(planning.children.map((child) => child.id)).toEqual([
+      'planning__heading',
+      'planning__body',
+    ]);
   });
 
   it('fails fast when local relayout is unavailable', async () => {
@@ -424,6 +476,74 @@ describe('preview relayout helpers', () => {
     });
 
     expect(failRelayout).toHaveBeenCalledWith('missing-frame-tree', 'alpha');
+  });
+
+  it('preserves the last good render when a throwing engine adapter fails (SC-003)', async () => {
+    const failRelayout = vi.fn(() => false);
+    const finishRelayout = vi.fn();
+    const logError = vi.fn();
+    const throwingEngine = vi.fn(async () => {
+      throw new Error('engine adapter exploded');
+    });
+
+    const result = await runPreviewRelayout({
+      triggerCid: 'alpha',
+      overrides: {},
+      coercedKeys: new Set(),
+      gridOverrides: {},
+      normalizeGridOverrides: (value) => value,
+      relayoutStatus: { localReady: true, local: { reason: null } },
+      isEngineLayoutActive: true,
+      isElkLayeredDiagram: true,
+      performEngineRelayout: throwingEngine,
+      performElkRelayout: throwingEngine,
+      performLocalRelayout: vi.fn(() => null),
+      failRelayout,
+      finishRelayout,
+      logError,
+    });
+
+    // The thrown adapter is converted to the graceful failure path: the stage
+    // is never rebuilt (finishRelayout untouched, so the last good render
+    // stays), failRelayout fires so a visible error status is surfaced, and the
+    // rejection does not escape runPreviewRelayout.
+    expect(throwingEngine).toHaveBeenCalledTimes(1);
+    expect(finishRelayout).not.toHaveBeenCalled();
+    expect(failRelayout).toHaveBeenCalledWith('elk-failure', 'alpha');
+    expect(result).toBe(false);
+    expect(logError).toHaveBeenCalledWith(
+      expect.stringContaining('engine adapter exploded'),
+    );
+  });
+
+  it('preserves the last good render when a throwing local relayout fails (SC-003)', async () => {
+    const failRelayout = vi.fn(() => false);
+    const finishRelayout = vi.fn();
+    const logError = vi.fn();
+
+    const result = await runPreviewRelayout({
+      triggerCid: 'beta',
+      overrides: {},
+      coercedKeys: new Set(),
+      gridOverrides: {},
+      normalizeGridOverrides: (value) => value,
+      relayoutStatus: { localReady: true, local: { reason: null } },
+      isEngineLayoutActive: false,
+      isElkLayeredDiagram: false,
+      performLocalRelayout: vi.fn(() => {
+        throw new Error('local layout exploded');
+      }),
+      failRelayout,
+      finishRelayout,
+      logError,
+    });
+
+    expect(finishRelayout).not.toHaveBeenCalled();
+    expect(failRelayout).toHaveBeenCalledWith('local-failure', 'beta');
+    expect(result).toBe(false);
+    expect(logError).toHaveBeenCalledWith(
+      expect.stringContaining('local layout exploded'),
+    );
   });
 
   it('prefers ELK relayout when the diagram is layered and otherwise records local coercion keys', async () => {

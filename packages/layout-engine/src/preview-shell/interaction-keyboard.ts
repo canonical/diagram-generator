@@ -57,6 +57,8 @@ export function resolveKeyboardShortcutAction(options: {
   const shiftKey = Boolean(options.shiftKey);
   const metaKey = Boolean(options.metaKey);
   const altKey = Boolean(options.altKey);
+  const shortcutKey = options.key.toLowerCase();
+  const primaryShortcutKey = ctrlKey || metaKey;
 
   if (altKey && (options.key === '1' || options.key === '2') && !ctrlKey && !metaKey) {
     return {
@@ -65,13 +67,13 @@ export function resolveKeyboardShortcutAction(options: {
     };
   }
 
-  if (ctrlKey && options.key === 's') {
+  if (primaryShortcutKey && shortcutKey === 's') {
     return { kind: 'save' };
   }
-  if (ctrlKey && options.key === 'z' && !shiftKey) {
+  if (primaryShortcutKey && shortcutKey === 'z' && !shiftKey) {
     return { kind: 'undo' };
   }
-  if ((ctrlKey && shiftKey && options.key === 'Z') || (ctrlKey && options.key === 'y')) {
+  if ((primaryShortcutKey && shiftKey && shortcutKey === 'z') || (primaryShortcutKey && shortcutKey === 'y')) {
     return { kind: 'redo' };
   }
   if ((options.key === 'Delete' || options.key === 'Backspace') && !ctrlKey && !metaKey && !altKey) {

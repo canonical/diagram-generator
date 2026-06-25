@@ -34,6 +34,10 @@ describe('interaction keyboard helpers', () => {
     expect(resolveKeyboardShortcutAction({ key: 's', ctrlKey: true })).toEqual({ kind: 'save' });
     expect(resolveKeyboardShortcutAction({ key: 'z', ctrlKey: true })).toEqual({ kind: 'undo' });
     expect(resolveKeyboardShortcutAction({ key: 'Z', ctrlKey: true, shiftKey: true })).toEqual({ kind: 'redo' });
+    expect(resolveKeyboardShortcutAction({ key: 'S', ctrlKey: true })).toEqual({ kind: 'save' });
+    expect(resolveKeyboardShortcutAction({ key: 'Z', ctrlKey: true })).toEqual({ kind: 'undo' });
+    expect(resolveKeyboardShortcutAction({ key: 'Y', ctrlKey: true })).toEqual({ kind: 'redo' });
+    expect(resolveKeyboardShortcutAction({ key: 'Z', metaKey: true })).toEqual({ kind: 'undo' });
   });
 
   it('resolves selection-oriented keyboard actions and blocks autolayout nudges', () => {

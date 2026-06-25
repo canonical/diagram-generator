@@ -322,6 +322,7 @@ export function createPreviewEditorRelayoutFacadeFromEditorHost<
       getNode: (cid) => options.model.get(cid),
       getOwnDelta: options.getOwnDelta,
       setOverride: options.setOverride,
+      reapplySelection: options.reapplySelection,
       requestRelayout: (cid) => {
         void requestRelayout(cid);
       },

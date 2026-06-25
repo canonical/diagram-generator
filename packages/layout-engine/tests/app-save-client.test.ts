@@ -107,6 +107,8 @@ describe('preview save client runtime', () => {
 
   it('blocks saves when local relayout is unavailable and there are pending overrides', async () => {
     const alertFn = vi.fn();
+    const fetchFn = vi.fn();
+    const reloadDiagram = vi.fn(async () => undefined);
     const runtime = createPreviewSaveClientRuntime({
       document: {
         body: { appendChild() {} },
@@ -122,7 +124,7 @@ describe('preview save client runtime', () => {
         },
       },
       previewWindow: {},
-      fetchFn: vi.fn(),
+      fetchFn,
       alertFn,
     });
 
@@ -136,7 +138,7 @@ describe('preview save client runtime', () => {
       getSelectedIds: () => [],
       restoreSelectionIds() {},
       serializeDirtyState: () => '{}',
-      reloadDiagram: async () => undefined,
+      reloadDiagram,
       getLayoutRelayoutStatus: () => ({ localReady: false }),
       getLayoutRelayoutRuntime: () => ({ lastMode: 'local-ready' }),
       getConstraintSummary: () => ({ errors: 0 }),
@@ -145,5 +147,9 @@ describe('preview save client runtime', () => {
     await runtime.saveOverrides();
 
     expect(alertFn).toHaveBeenCalledWith('Cannot save while local relayout is unavailable.');
+    // No partial persist: the rejected save must not issue a persist request and
+    // must not trigger a canonical-state reload (T043 / SC).
+    expect(fetchFn).not.toHaveBeenCalled();
+    expect(reloadDiagram).not.toHaveBeenCalled();
   });
 });

@@ -140,6 +140,42 @@ describe('preview-shell frame style helpers', () => {
     expect(overrides.wrapper).toEqual({});
   });
 
+  it('styles highlight as a bordered black leaf so it keeps box height (design parity)', () => {
+    // DIAGRAM.md / frame-classes.md: highlight = black fill + black 1px border +
+    // white text, i.e. a bordered leaf that reserves the 64px box minimum. The
+    // editor picker previously set border NONE, which collapsed highlight to
+    // bare-text height. Annotation is the only intentionally borderless style.
+    const overrides: Record<string, Record<string, unknown> | undefined> = {};
+    expect(applyVisiblePreviewStyleOverride({
+      overrides,
+      cid: 'box',
+      node: { data: {} },
+      styleName: 'highlight',
+    })).toBe(true);
+    expect(overrides.box).toEqual({
+      fill: 'BLACK',
+      border: 'SOLID',
+      style: 'highlight',
+    });
+
+    const annotationOverrides: Record<string, Record<string, unknown> | undefined> = {};
+    expect(applyVisiblePreviewStyleOverride({
+      overrides: annotationOverrides,
+      cid: 'note',
+      node: { data: {} },
+      styleName: 'annotation',
+    })).toBe(true);
+    expect(annotationOverrides.note).toEqual({
+      fill: 'WHITE',
+      border: 'NONE',
+      style: 'annotation',
+    });
+
+    // Round-trip: a bordered black box still infers as highlight (detected by
+    // black fill, not by borderlessness), so the picker stays stable on reload.
+    expect(inferPreviewStyleFromFields(1, '#000000', '#000000')).toBe('highlight');
+  });
+
   it('formats defined-style labels from box-style presets', () => {
     const boxStyles = {
       default: { label: 'Child' },

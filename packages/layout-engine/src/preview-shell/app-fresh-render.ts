@@ -27,6 +27,7 @@ import {
   collectPreviewPlacedBounds,
 } from './app-frame-svg.js';
 import { emitFrameDiagramDisplayList } from '../render-adapter/display-list.js';
+import { recolorIconElementShapes } from '../icon-markup.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const ICON_CACHE = new Map<string, string | null>();
@@ -216,9 +217,7 @@ function collectFrameIconElementsByComponentId(
     if (frame.id && frame.icon && iconElementsByName.has(frame.icon)) {
       const icon = iconElementsByName.get(frame.icon)!.cloneNode(true) as Element;
       const iconFill = frame.resolvedIconFill ?? frame.iconFill ?? '#000000';
-      icon.querySelectorAll('path, circle, rect, polygon, ellipse').forEach((element) => {
-        element.setAttribute('fill', iconFill);
-      });
+      recolorIconElementShapes(icon, iconFill);
       result.set(frame.id, icon);
     }
     for (const child of frame.children) {
@@ -252,12 +251,15 @@ export function renderPreviewFrameTreeToSvg(
   const styledLayer = options.ownerDocument.createElementNS(SVG_NS, 'g');
   styledLayer.id = 'dg-styled-layer';
   svg.appendChild(styledLayer);
-  const arrowLayer = options.ownerDocument.createElementNS(SVG_NS, 'g');
-  arrowLayer.id = 'dg-arrow-layer';
-  styledLayer.appendChild(arrowLayer);
+  // Paint order (back to front): frames, then arrows, then overlays. Arrows must
+  // sit above frame fills so a connector into a nested box stays visible where it
+  // crosses opaque container backgrounds (matches DisplayListLayer ordering).
   const frameLayer = options.ownerDocument.createElementNS(SVG_NS, 'g');
   frameLayer.id = 'dg-frame-layer';
   styledLayer.appendChild(frameLayer);
+  const arrowLayer = options.ownerDocument.createElementNS(SVG_NS, 'g');
+  arrowLayer.id = 'dg-arrow-layer';
+  styledLayer.appendChild(arrowLayer);
   const overlayLayer = options.ownerDocument.createElementNS(SVG_NS, 'g');
   overlayLayer.id = 'dg-overlay-layer';
   styledLayer.appendChild(overlayLayer);

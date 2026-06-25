@@ -90,3 +90,74 @@ test("editor-state adapter no longer falls back to a flat LayoutEngine root alia
   const source = fs.readFileSync(path.join(repoRoot, "scripts", "preview", "editor-state.js"), "utf8");
   assert.equal(source.includes("LayoutEngine.createEditorStateStore"), false);
 });
+
+test("editor-state adapter refreshes undo buttons after override commits", () => {
+  const repoRoot = path.resolve(process.cwd(), "..", "..");
+  const source = fs.readFileSync(path.join(repoRoot, "scripts", "preview", "editor-state.js"), "utf8");
+  const buttons = {
+    "btn-undo": { disabled: true },
+    "btn-redo": { disabled: false },
+  };
+  let canUndo = false;
+  let canRedo = false;
+  const layoutEngine = {
+    previewShell: {
+      bootstrap: {
+        createEditorStateStore() {
+          return fakeStore;
+        },
+        cloneEditorSnapshotValue(value: unknown) {
+          return value;
+        },
+      },
+    },
+  };
+  const fakeStore = {
+    captureSnapshot() { return { snapshot: true }; },
+    serializeDirtyState() { return "{}"; },
+    normalizeGridOverrides(value: unknown) { return value; },
+    beginUndoableAction(label: string) { return { label }; },
+    commitUndoableAction() { return false; },
+    commitOverridePatchAction() {
+      canUndo = true;
+      canRedo = false;
+      return true;
+    },
+    runUndoableAction() {},
+    pushUndoCommand() { return false; },
+    captureOverrideEntries(ids: string[]) { return ids; },
+    canUndo() { return canUndo; },
+    canRedo() { return canRedo; },
+    popUndoCommand() { return null; },
+    popRedoCommand() { return null; },
+    clearUndoHistory() {},
+    getPendingGridAction() { return null; },
+    setPendingGridAction() {},
+  };
+  const context = {
+    window: {
+      LayoutEngine: layoutEngine,
+    } as Record<string, unknown>,
+    document: {
+      getElementById(id: string) {
+        return buttons[id as keyof typeof buttons] ?? null;
+      },
+    },
+    console,
+    LayoutEngine: layoutEngine,
+  };
+
+  vm.runInNewContext(source, context);
+  const editorState = (context.window as { EditorState: Record<string, (...args: any[]) => unknown> }).EditorState;
+  editorState.init({
+    getOverrides: () => ({}),
+    getGridOverrides: () => ({}),
+    getElkLayoutOverrides: () => ({}),
+    getRemovedIds: () => new Set(),
+    getFrameTree: () => null,
+  });
+
+  assert.equal(editorState.commitOverridePatchAction("Change min_width", {}, { alpha: { min_width: 128 } }), true);
+  assert.equal(buttons["btn-undo"].disabled, false);
+  assert.equal(buttons["btn-redo"].disabled, true);
+});

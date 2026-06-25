@@ -6,12 +6,26 @@
  * longer owns the shared style heuristics.
  */
 
+// Box-style semantics for the editor style picker. These MUST match the
+// canonical design (DIAGRAM.md / docs/frame-classes.md) and the authored
+// `variant:` semantics in frame-record-parser.ts, otherwise a box styled in
+// the editor renders differently from the same box authored in YAML.
+//
+// Height rule (single source of truth): bordered leaves reserve the 64px
+// box minimum (default, parent, section, highlight). `annotation` is the only
+// intentionally borderless style, so it collapses to bare-text height. This is
+// why some styles "maintain a height" and annotation does not — it is a
+// borderless text label by design, not a box.
+//
+// Highlight is a black box with a 1px black border (invisible against the black
+// fill, but structurally a bordered leaf). It must NOT be borderless, or it
+// collapses to text height and clips its contents.
 export const PREVIEW_STYLE_SEMANTICS = {
   default: { level: 1, fill: 'WHITE', border: 'SOLID', style: 'default' },
   parent: { level: 2, fill: 'GREY', border: 'SOLID', style: 'parent' },
   section: { level: 3, fill: 'WHITE', border: 'SOLID', style: 'section' },
   annotation: { fill: 'WHITE', border: 'NONE', style: 'annotation' },
-  highlight: { fill: 'BLACK', border: 'NONE', style: 'highlight' },
+  highlight: { fill: 'BLACK', border: 'SOLID', style: 'highlight' },
 } as const;
 
 const STYLEABLE_COMPONENT_TYPES = new Set(['box', 'panel', 'terminal']);

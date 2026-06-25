@@ -487,7 +487,23 @@ export function applyPreviewOverridesToFrameTree(
     if (!target) continue;
 
     if (typeof override.direction === 'string' && override.direction in DIRECTION_MAP) {
-      target.direction = DIRECTION_MAP[override.direction as keyof typeof DIRECTION_MAP];
+      const nextDirection = DIRECTION_MAP[override.direction as keyof typeof DIRECTION_MAP];
+      const body = previewHasHeadingBodyLayout(target)
+        ? previewFindSyntheticBody(target)
+        : null;
+      if (body) {
+        // Headed containers always keep the outer frame VERTICAL (heading
+        // stacked above the body); the authored direction belongs to the body.
+        // Heading synthesis re-derives this on reload, so routing the override
+        // to the body, instead of the outer frame, keeps the live view
+        // consistent with the persisted/reloaded result. Without this, setting
+        // a headed container to horizontal would lay the heading beside the
+        // body live, then "revert to vertical" after save+reload.
+        body.direction = nextDirection;
+        target.direction = Direction.VERTICAL;
+      } else {
+        target.direction = nextDirection;
+      }
       syncPreviewSyntheticBodyFromParent(target);
     }
     if (override.gap != null) {
@@ -587,16 +603,26 @@ export function applyPreviewOverridesToFrameTree(
     }
     if (Array.isArray(override.children_order)) {
       const childrenOrder = override.children_order.map((childId) => String(childId));
-      const childMap = new Map(target.children.map((child) => [child.id, child] as const));
+      // A children_order override is keyed to the authored parent, but when that
+      // parent has a heading/body split the reorderable children live on the
+      // synthetic body. Redirect to the body when the named children live there.
+      const syntheticBody = previewFindSyntheticBody(target);
+      const reorderTarget = syntheticBody
+        && childrenOrder.some(
+          (childId) => syntheticBody.children.some((child) => child.id === childId),
+        )
+        ? syntheticBody
+        : target;
+      const childMap = new Map(reorderTarget.children.map((child) => [child.id, child] as const));
       const reordered: Frame[] = [];
       for (const childId of childrenOrder) {
         const child = childMap.get(childId);
         if (child) reordered.push(child);
       }
-      const remaining = target.children.filter(
+      const remaining = reorderTarget.children.filter(
         (child) => !childrenOrder.includes(child.id),
       );
-      target.children = [...reordered, ...remaining];
+      reorderTarget.children = [...reordered, ...remaining];
     }
     if (override.text && typeof override.text === 'object') {
       const textOverride = override.text as Record<string, unknown>;
@@ -765,7 +791,15 @@ export async function runPreviewRelayout<TGridOverrides, TResult extends Preview
   const performEngineRelayout = options.performEngineRelayout ?? options.performElkRelayout;
 
   if (isEngineLayoutActive && performEngineRelayout) {
-    const elkResult = await performEngineRelayout(normalizedGridOverrides);
+    let elkResult: TResult | null;
+    try {
+      elkResult = await performEngineRelayout(normalizedGridOverrides);
+    } catch (error) {
+      options.logError?.(
+        `layout relayout: engine-backed layout threw (${error instanceof Error ? error.message : String(error)})`,
+      );
+      return options.failRelayout('elk-failure', options.triggerCid);
+    }
     if (!elkResult) {
       options.logError?.('layout relayout: engine-backed layout failed');
       return options.failRelayout('elk-failure', options.triggerCid);
@@ -773,7 +807,15 @@ export async function runPreviewRelayout<TGridOverrides, TResult extends Preview
     return options.finishRelayout(options.triggerCid, elkResult, 'elk');
   }
 
-  const localResult = options.performLocalRelayout(normalizedGridOverrides);
+  let localResult: TResult | null;
+  try {
+    localResult = options.performLocalRelayout(normalizedGridOverrides);
+  } catch (error) {
+    options.logError?.(
+      `layout relayout: local layout threw (${error instanceof Error ? error.message : String(error)})`,
+    );
+    return options.failRelayout('local-failure', options.triggerCid);
+  }
   if (!localResult) {
     options.logError?.('layout relayout: local layout failed');
     return options.failRelayout('local-failure', options.triggerCid);
