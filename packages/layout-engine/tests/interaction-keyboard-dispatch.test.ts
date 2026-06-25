@@ -125,7 +125,7 @@ describe('interaction keyboard dispatch helper', () => {
 
     const action = dispatchPreviewKeyboardShortcut({
       event: {
-        key: 's',
+        key: 'S',
         ctrlKey: true,
         preventDefault: vi.fn(),
         target: { tagName: 'DIV', isContentEditable: false },
