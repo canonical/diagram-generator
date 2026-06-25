@@ -129,10 +129,11 @@ export function renderSequenceDiagramToSvg(
 
   const noteSvg = layout.notes.map((note) => (
     `<g data-sequence-note-id="${escapeXml(note.id)}">` +
+    `<rect x="${fmt(note.x)}" y="${fmt(note.y)}" width="${fmt(note.width)}" height="${fmt(note.height)}" fill="${annotationFrameClass.fill}" stroke="${annotationFrameClass.stroke}" stroke-width="${annotationFrameClass.strokeWidth ?? DEFAULT_FRAME_STROKE_WIDTH}" stroke-miterlimit="10"/>` +
     renderTextLines(
       note.note.label,
-      note.x,
-      note.y,
+      note.x + 12,
+      note.y + 12,
       annotationTextStyle,
     ) +
     `</g>`

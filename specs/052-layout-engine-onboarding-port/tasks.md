@@ -561,3 +561,120 @@
 4. Port the full elkjs family, one engine per checklist pass (Phase 3).
 5. Add dagre to prove non-ELK reuse (Phase 4).
 6. Add the anti-regression guard, docs, and SC-007 proof (Phase 5).
+
+---
+
+## Phase 6: Live engine-switch regressions
+
+**Status: Complete.** The 2026-06-25 live regressions were traced to silent
+engine fallback, overly strict ELK-layered compatibility for compound-capable
+layouts, stale namespace validation during save, and sequence layout sizing. The
+fixes below are covered by host-resolution tests, registry tests, sequence render
+tests, full suites, and a no-screenshot live probe against the reported diagrams.
+
+- [x] **T600** *(Investigation)* Confirm the silent-fallback mechanism.
+      **File**: `packages/layout-engine/src/preview-engine/registry.ts`
+      (`resolvePreviewEngine`, ~line 70: `return listCompatiblePreviewEngines(context)[0]`).
+      **Accept**: a written note proving that an explicitly-chosen-but-incompatible
+      engine returns v3 with no signal to the caller/UI.
+      **Result**: confirmed in the 2026-06-25 review and fixed by returning
+      `undefined` for incompatible explicit engine choices instead of substituting
+      the first compatible engine.
+
+- [x] **T601** Make incompatibility visible instead of silently degrading.
+      **Do**: when an explicit `layout_engine` is incompatible, do NOT substitute
+      a different engine silently. Either keep the chosen engine and surface the
+      compatibility reason to the UI, or return a typed "incompatible" result the
+      host renders as a visible notice. The active engine the user sees must equal
+      the one they chose, or they must be told why not.
+      **File**: `registry.ts`, `apps/preview/src/preview-host/frame-documents.ts`,
+      the engine-switcher render path.
+      **Accept**: choosing ELK on an ELK-incompatible diagram no longer shows v3
+      silently.
+      **Verify**: `npm --prefix packages/layout-engine test` + new T605 test.
+      **Result**: `resolvePreviewEngine` no longer silently degrades explicit
+      incompatible choices; the host config now preserves the requested engine key
+      when no manifest resolves, instead of reporting `v3`.
+
+- [x] **T602** Re-examine ELK `frameDiagramRequirements`.
+      **File**: `packages/layout-engine/src/preview-engine/engines/elk-layered.engine.ts`
+      and the other ELK engine defs; `summarizeFrameDiagramCompatibility` /
+      `collectUnsupportedCarrierIds` in `registry.ts`.
+      **Do**: decide whether `rejectUnsupportedCarrierIds` + `minArrowCount: 1`
+      should block diagrams like `example-platform-architecture` /
+      `request-to-hardware-stack` (arrows attached to container frames). If the
+      restriction stays, the switcher must display ELK as **disabled with the
+      reason**, not omit it silently.
+      **Accept**: ELK availability on container-endpoint diagrams is intentional
+      and explained in the UI.
+      **Result**: `elk-layered` now allows container endpoints because the layered
+      adapter supports compound layout. Non-compound graph engines still reject
+      unsupported carriers. Real fixtures `example-platform-architecture` and
+      `request-to-hardware-stack` now resolve to `elk-layered`.
+
+- [x] **T603** Fix the v3↔elk switch persistence (bug #2).
+      **File**: `scripts/preview/engine-switcher.js` (delegation only),
+      `apps/preview/src/preview-host/frame-document-actions.ts`,
+      `apps/preview/src/persistence/frame-diagram.ts` (`applyLayoutEngineChoice`).
+      **Repro**: `juju-bootstrap-machines-process` (authored `elk-layered`):
+      selecting v3 reverts to elk after reload.
+      **Accept**: selecting v3 persists and resolves to v3 on reload.
+      **Verify**: new persistence round-trip test (authored elk → select v3 →
+      reload resolves v3).
+      **Result**: save validation now rejects unsupported incoming override keys
+      while preserving legacy implementation-owned `meta.elk` / `meta.dagre`
+      keys already present in a file. A regression test and isolated live probe
+      confirm authored ELK -> v3 persists and reloads as v3.
+
+- [x] **T604** Fix sequence routing + sizing (bug #4).
+      **Repro**: `service-handshake-sequence` (`layout_engine: sequence`) at
+      `/view/v3:service-handshake-sequence` renders via v3 with clipped text
+      ("Aut…") and wrong box sizing.
+      **Do**: (a) ensure `layout_engine: sequence` documents resolve to the
+      sequence engine / sequence lane, not the v3 autolayout lane (route /
+      document-kind detection in the autolayout host + `frame-documents.ts`);
+      (b) once routed correctly, fix sequence layout text-measurement / box
+      sizing / canvas width so text is not clipped.
+      **File**: `apps/preview/src/preview-host/builtin-autolayout-host.ts`,
+      `frame-documents.ts`, `packages/layout-engine/src/sequence-layout/*`.
+      **Accept**: the sequence diagram renders with the sequence engine, correct
+      box sizing, and no clipped text.
+      **Result**: `service-handshake-sequence` resolves as a `sequence` document,
+      renders through the sequence engine, sizes participant/note boxes from text,
+      and expands the canvas to include right-side notes.
+
+- [x] **T605** Add live engine-resolution regression tests (the missing layer).
+      **Do**: for each diagram class — v3 (no engine), ELK-compatible, ELK
+      container-endpoint (incompatible), authored-elk, sequence — assert the
+      authored `layout_engine` resolves to the **expected active engine** through
+      the real host resolution path, and that an incompatible explicit choice does
+      NOT silently become v3. Use the real frame fixtures named in AGENT-INBOX.md.
+      **File**: `apps/preview/src/persistence/` (new test) +
+      `packages/layout-engine/tests/`.
+      **Accept**: tests fail against current `main` of this branch and pass after
+      T601–T604.
+      **Verify**: `npm --prefix packages/layout-engine test` ;
+      `npm --prefix apps/preview test`
+      **Result**: added real-fixture host contract tests for ELK-layered
+      container-endpoint fixtures, authored ELK -> v3 persistence, and sequence
+      document/render resolution; added registry coverage for explicit
+      incompatible choices and container-endpoint compatibility.
+
+- [x] **T606** Re-run the full validation set AND a real per-diagram live probe
+      (not just control-visibility) for the four reported diagrams. Record actual
+      active-engine + rendered-result per diagram.
+      **Result**:
+      `npm --prefix packages/layout-engine test` -> 141 files / 811 tests passed.
+      `npm --prefix apps/preview test` -> 129 tests passed.
+      `node scripts/check_no_new_python.mjs` -> ok.
+      `node scripts/check-browser-bundle-fresh.mjs` -> ok.
+      Live probe on port 8137: `example-platform-architecture` -> `elk-layered`;
+      `request-to-hardware-stack` -> `elk-layered`;
+      `juju-bootstrap-machines-process` -> `elk-layered`;
+      `service-handshake-sequence` -> `sequence`, SVG width 728, sequence note
+      present, `Auth happens here` present. Isolated temp-frame save probe on
+      port 8138: `juju-bootstrap-machines-process` starts `elk-layered`, POST
+      `{ layout_engine: "v3" }`, reload resolves `v3`.
+
+- [x] **T607** Status: only after T601–T606 pass, restore "Closeout Ready" in
+      `docs/specs.md` / `spec.md`. Until then they must read Draft / In progress.

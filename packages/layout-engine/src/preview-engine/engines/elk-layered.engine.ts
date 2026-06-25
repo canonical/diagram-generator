@@ -15,7 +15,6 @@ export const ELK_LAYERED_PREVIEW_ENGINE_DEFINITION: GraphLayoutPreviewEngineDefi
     description: 'Hierarchical layered layout for directed graphs and flowcharts',
     frameDiagramRequirements: {
       minArrowCount: 1,
-      rejectUnsupportedCarrierIds: true,
     },
   },
   renderAdapter: elkFrameDiagramRenderAdapter,

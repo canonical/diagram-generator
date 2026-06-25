@@ -50,9 +50,11 @@ import {
 } from "../preview-host/frame-document-kinds.js";
 import {
   previewDocumentForSlug,
+  resolveFramePreviewViewerContext,
   renderSvgForSlug,
   type FramePreviewCanonicalState,
 } from "../preview-host/frame-documents.js";
+import { saveFramePreviewDocument } from "../preview-host/frame-document-actions.js";
 import {
   installRegisteredPreviewHostModules,
   listPreviewHostModules,
@@ -434,6 +436,97 @@ test("autolayout viewer shows graph layout controls and hides ELK, grid, and for
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
+});
+
+test("real frame fixtures resolve authored layout engines without silent v3 fallback", () => {
+  const framesDir = path.join(REPO_ROOT, "scripts", "diagrams", "frames");
+  for (const slug of ["example-platform-architecture", "request-to-hardware-stack"]) {
+    const context = resolveFramePreviewViewerContext(
+      slug,
+      { framesDir },
+      {
+        normalizeLayoutEngine: (layoutEngine: string | undefined) => layoutEngine?.trim() ?? "",
+        findReferenceImage: () => null,
+      },
+    );
+
+    assert.equal(context.documentKind, "frame-diagram", slug);
+    assert.equal(context.authoredLayoutEngine, "elk-layered", slug);
+    assert.equal(context.engineManifest?.id, "elk-layered", slug);
+    assert.equal(context.activeLayoutEngine, "elk-layered", slug);
+    assert.ok(context.compatibleEngines.includes("elk-layered"), slug);
+  }
+});
+
+test("switching an authored ELK frame fixture to v3 persists and resolves v3", () => {
+  const tempDir = mkdtempSync(path.join(os.tmpdir(), "dg-preview-engine-switch-"));
+  const framesDir = path.join(tempDir, "frames");
+  mkdirSync(framesDir, { recursive: true });
+  copyFileSync(
+    path.join(REPO_ROOT, "scripts", "diagrams", "frames", "juju-bootstrap-machines-process.yaml"),
+    path.join(framesDir, "juju-bootstrap-machines-process.yaml"),
+  );
+  const normalizeLayoutEngine = (layoutEngine: string | undefined) => layoutEngine?.trim() ?? "";
+
+  try {
+    const before = resolveFramePreviewViewerContext(
+      "juju-bootstrap-machines-process",
+      { framesDir },
+      { normalizeLayoutEngine, findReferenceImage: () => null },
+    );
+    assert.equal(before.engineManifest?.id, "elk-layered");
+
+    saveFramePreviewDocument(
+      "juju-bootstrap-machines-process",
+      { layout_engine: "v3" },
+      {
+        framePreviewDocumentDeps: { framesDir },
+        parseYaml,
+        normalizeLayoutEngine,
+      },
+    );
+
+    const saved = readFileSync(path.join(framesDir, "juju-bootstrap-machines-process.yaml"), "utf8");
+    assert.match(saved, /layout_engine: v3/);
+    const after = resolveFramePreviewViewerContext(
+      "juju-bootstrap-machines-process",
+      { framesDir },
+      { normalizeLayoutEngine, findReferenceImage: () => null },
+    );
+    assert.equal(after.authoredLayoutEngine, "v3");
+    assert.equal(after.engineManifest?.id, "v3");
+    assert.equal(after.activeLayoutEngine, "v3");
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("sequence frame fixture resolves and renders through the sequence document path", async () => {
+  const framesDir = path.join(REPO_ROOT, "scripts", "diagrams", "frames");
+  const context = resolveFramePreviewViewerContext(
+    "service-handshake-sequence",
+    { framesDir },
+    {
+      normalizeLayoutEngine: (layoutEngine: string | undefined) => layoutEngine?.trim() ?? "",
+      findReferenceImage: () => null,
+    },
+  );
+
+  assert.equal(context.documentKind, "sequence");
+  assert.equal(context.engineManifest?.id, "sequence");
+  assert.equal(context.activeLayoutEngine, "sequence");
+
+  const svg = await renderSvgForSlug("service-handshake-sequence", {
+    framesDir,
+    iconLoader: () => null,
+    textAdapterPromise: Promise.resolve(new MockTextAdapter()),
+  });
+  assert.match(svg, /data-sequence-note-id="note/);
+  assert.match(svg, /Auth happens here/);
+  assert.doesNotMatch(svg, /data-component-id="api"/);
+  const widthMatch = svg.match(/<svg[^>]+width="([0-9.]+)"/);
+  assert.ok(widthMatch);
+  assert.ok(Number(widthMatch[1]) > 680);
 });
 
 test("force viewer hides grid and ELK sections", () => {

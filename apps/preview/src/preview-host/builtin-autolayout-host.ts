@@ -242,7 +242,7 @@ export function createAutolayoutPreviewHostViewerRoute(
       const showEngineSwitcher = shouldShowPreviewEngineSwitcher(previewUiContext);
       const configScript = buildPreviewWindowConfigScript("__DG_CONFIG", {
         slug,
-        engine: engineManifest?.id ?? "v3",
+        engine: engineManifest?.id ?? (activeLayoutEngine || "v3"),
         shell_mode: "grid",
         layout_engine: activeLayoutEngine,
         compatible_engines: compatibleEngines,

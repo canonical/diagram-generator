@@ -81,7 +81,6 @@ describe('preview-engine registry', () => {
     expect(elk?.scripts).toEqual(['elk-layout-controls.js', 'elk-controller.js']);
     expect(elk?.compatibility.frameDiagramRequirements).toEqual({
       minArrowCount: 1,
-      rejectUnsupportedCarrierIds: true,
     });
     expect(listPreviewEnginesBySidebarSection('elk-layout').map((entry) => entry.id)).toEqual([
       ...ELK_ENGINE_IDS,
@@ -441,15 +440,15 @@ describe('preview-engine registry', () => {
     expect(listCompatiblePreviewEngines(context).map((entry) => entry.id)).toEqual(['v3']);
   });
 
-  it('falls back from an explicitly persisted incompatible elk choice', () => {
+  it('does not silently fall back from an explicitly persisted incompatible elk choice', () => {
     expect(
       resolvePreviewEngine({
         layoutEngine: 'elk-layered',
         shellMode: 'grid',
         previewDocumentKind: 'frame-diagram',
         frameDiagramSummary: { arrowCount: 0, unsupportedElkCarrierIds: [] },
-      })?.id,
-    ).toBe('v3');
+      }),
+    ).toBeUndefined();
   });
 
   it('keeps headed groups ELK-compatible when their headings stay decorative', () => {
@@ -464,7 +463,7 @@ describe('preview-engine registry', () => {
     expect(juju.unsupportedElkCarrierIds).toEqual([]);
   });
 
-  it('reports container arrow endpoints as unsupported carriers for non-compound graph engines', () => {
+  it('keeps compound-aware elk layered compatible for container arrow endpoints while rejecting non-compound engines', () => {
     const summary = summarizeFrameDiagramCompatibility(new FrameDiagram({
       title: 'Container endpoint',
       root: new Frame({
@@ -487,6 +486,11 @@ describe('preview-engine registry', () => {
 
     expect(summary.unsupportedCarrierIds).toEqual(['group']);
     expect(summary.unsupportedElkCarrierIds).toEqual(['group']);
+    expect(evaluatePreviewEngineCompatibility(ELK_LAYERED_PREVIEW_ENGINE, {
+      previewDocumentKind: 'frame-diagram',
+      layoutEngine: 'elk-layered',
+      frameDiagramSummary: summary,
+    })).toEqual({ compatible: true });
     expect(evaluatePreviewEngineCompatibility(DAGRE_PREVIEW_ENGINE, {
       previewDocumentKind: 'frame-diagram',
       layoutEngine: 'dagre',
@@ -495,6 +499,21 @@ describe('preview-engine registry', () => {
       compatible: false,
       reason: expect.stringContaining('group'),
     });
+  });
+
+  it('resolves real container-endpoint authored diagrams to elk-layered', () => {
+    for (const slug of ['example-platform-architecture', 'request-to-hardware-stack']) {
+      const diagram = loadFrameYaml(join(FRAMES_DIR, `${slug}.yaml`));
+      const context = {
+        layoutEngine: diagram.layoutEngine,
+        shellMode: 'grid' as const,
+        previewDocumentKind: 'frame-diagram' as const,
+        frameDiagramSummary: summarizeFrameDiagramCompatibility(diagram),
+      };
+
+      expect(context.frameDiagramSummary.unsupportedCarrierIds.length, slug).toBeGreaterThan(0);
+      expect(resolvePreviewEngine(context)?.id, slug).toBe('elk-layered');
+    }
   });
 
   it('keeps elk layered available for headed frame diagrams', () => {

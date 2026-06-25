@@ -67,7 +67,7 @@ export function resolvePreviewEngine(
       if (evaluatePreviewEngineCompatibility(explicit, context).compatible) {
         return explicit;
       }
-      return listCompatiblePreviewEngines(context)[0];
+      return undefined;
     }
     return undefined;
   }

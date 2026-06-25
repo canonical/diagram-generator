@@ -69,6 +69,7 @@ function applyEngineLayoutNamespaceOverrides(
   label = namespace,
 ): void {
   if (Object.keys(overrides).length === 0) return;
+  assertSupportedFrameYamlEngineLayoutOverrides(namespace, overrides, source, label);
   const meta = isRecord(document.meta) ? document.meta : {};
   document.meta = meta;
   const metaKey = metaKeyFromNamespace(namespace);
@@ -82,7 +83,6 @@ function applyEngineLayoutNamespaceOverrides(
       next[String(key)] = String(value);
     }
   }
-  assertSupportedFrameYamlEngineLayoutOverrides(namespace, next, source, label);
   if (Object.keys(next).length > 0) {
     meta[metaKey] = next;
   } else {

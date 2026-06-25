@@ -333,7 +333,7 @@ test("persist engine_layout_overrides accepts registered frame-yaml namespaces",
   }
 });
 
-test("persist rejects stale unsupported ELK keys already present in meta.elk", () => {
+test("persist preserves legacy unsupported ELK keys already present in meta.elk", () => {
   const baselineText = [
     "engine: v3",
     "title: Demo",
@@ -353,21 +353,23 @@ test("persist rejects stale unsupported ELK keys already present in meta.elk", (
     "      label: [A]",
     "",
   ].join("\n");
-  assert.throws(
-    () => persistToYaml("demo.yaml", baselineText, {
-      overrides: {
-        leaf_a: {
-          text: {
-            label: ["Updated"],
-          },
+  const output = persistToYaml("demo.yaml", baselineText, {
+    overrides: {
+      leaf_a: {
+        text: {
+          label: ["Updated"],
         },
       },
-    }),
-    /demo\.yaml: meta\.elk contains unsupported ELK keys: elk\.edgeRouting, elk\.padding, elk\.portConstraints, elk\.unknown/,
-  );
+    },
+  });
+
+  assert.match(output, /elk\.portConstraints: FREE/);
+  assert.match(output, /elk\.edgeRouting: SPLINES/);
+  assert.match(output, /elk\.padding: '\[top=8,left=8,bottom=8,right=8\]'/);
+  assert.match(output, /elk\.unknown: surprise/);
 });
 
-test("persist rejects stale unsupported Dagre keys already present in meta.dagre", () => {
+test("persist preserves legacy unsupported Dagre keys already present in meta.dagre", () => {
   const baselineText = [
     "engine: v3",
     "title: Demo",
@@ -384,18 +386,17 @@ test("persist rejects stale unsupported Dagre keys already present in meta.dagre
     "      label: [A]",
     "",
   ].join("\n");
-  assert.throws(
-    () => persistToYaml("demo.yaml", baselineText, {
-      overrides: {
-        leaf_a: {
-          text: {
-            label: ["Updated"],
-          },
+  const output = persistToYaml("demo.yaml", baselineText, {
+    overrides: {
+      leaf_a: {
+        text: {
+          label: ["Updated"],
         },
       },
-    }),
-    /demo\.yaml: meta\.dagre contains unsupported dagre keys: dagre\.unknown/,
-  );
+    },
+  });
+
+  assert.match(output, /dagre\.unknown: surprise/);
 });
 
 test("persist removed ids prunes frames and arrows", () => {

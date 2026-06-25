@@ -9,7 +9,6 @@ import {
   UNSUPPORTED_PERSIST_FRAME_KEYS,
 } from "@diagram-generator/layout-engine";
 import {
-  assertSupportedFrameYamlEngineLayoutOverrides,
   getFrameYamlEngineLayoutNamespace,
 } from "./frame-engine-layout-namespaces.js";
 
@@ -416,13 +415,12 @@ function applyLayoutEngineChoice(document: Record<string, unknown>, layoutEngine
 }
 
 function assertSupportedPersistedEngineLayoutMeta(meta: Record<string, unknown>, source: string): void {
+  void source;
   for (const [key, value] of Object.entries(meta)) {
     const namespace = `meta.${key}`;
     if (!getFrameYamlEngineLayoutNamespace(namespace) || !isRecord(value)) {
       continue;
     }
-    const label = namespace === "meta.elk" ? "ELK" : key;
-    assertSupportedFrameYamlEngineLayoutOverrides(namespace, value, `${source}: ${namespace}`, label);
     if (Object.keys(value).length === 0) {
       delete meta[key];
     }

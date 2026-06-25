@@ -8,19 +8,19 @@ Durable follow-up belongs in `specs/<id>-<slug>/`,
 
 ---
 
-No open agent inbox items as of 2026-06-25.
+## 2026-06-26 - Spec 052 live engine-switch regressions resolved
 
-The spec 052 re-review residuals were addressed after `d91a72c`:
+The 2026-06-25 deeper review item is complete. Phase 6 in
+`specs/052-layout-engine-onboarding-port/tasks.md` now records the fixes and
+verification:
 
-- A real no-screenshot browser DOM matrix was rerun for `v3`, `elk-layered`,
-  `elk-stress`, and `dagre`; results are recorded in
-  `specs/052-layout-engine-onboarding-port/tasks.md`.
-- `spec.md` now says product-suitable ELK algorithms and explicitly documents
-  omitted installed utility/debug algorithms.
-- The unrelated `scripts/diagrams/frames/tiered-network-architecture.yaml`
-  edit was preserved in stash
-  `codex-preserve-tiered-network-frame-before-052-closeout`; do not include it
-  in spec 052.
-- `docs/specs.md` already lists 052 as Closeout Ready.
+- explicit incompatible engine choices no longer silently degrade to v3;
+- `elk-layered` is compatible with compound/container-endpoint frame fixtures;
+- authored ELK -> v3 save/reload persists for `juju-bootstrap-machines-process`;
+- `service-handshake-sequence` resolves/renders through the sequence engine and
+  sizes notes/participants from text;
+- full layout-engine and preview-app suites, no-new-Python, browser-bundle
+  freshness, and a no-screenshot live probe are green.
 
-Spec 051 right-aside UI cleanup remains separately tracked.
+No open agent-inbox items remain. Spec 051 right-aside UI cleanup remains
+separately tracked in `docs/specs.md`.
