@@ -34,6 +34,7 @@ For spec-driven implementation, keep git aligned to the spec package:
 | 046 Editor host endgame | `specs/046-editor-host-endgame/` | Closeout Ready | Preview-shell closeout package: the architecture bar is met; only administrative closeout/verification should remain unless future work regresses by widening legacy browser-shell integration sinks or central engine/document branches. |
 | 047 Render IR unification | `specs/047-render-ir-unification/` | Closeout Ready | Render-convergence package: preview fresh render and export SVG now consume the shared display-list IR path, `svg-render.ts` is a thin compatibility wrapper, and bridge/waypoint lanes are reduced to preview-only mutation owners over shared geometry primitives. |
 | 048 ELK sizing and interaction follow-up | `specs/048-elk-sizing-interaction-followup/` | Closeout Ready | Current ELK product follow-up: preserve Fill/Hug/Fixed semantics, rerun text measurement on width changes, add live resize feedback, align parent text insets, and harden ELK option/debug surfaces without reopening 046. |
+| 051 Preview editor contextual aside | `specs/051-preview-editor-contextual-aside/` | Draft | Figma-like right-aside cleanup: engine and selection driven visibility for Browse/Layers, Selection, Engine, Grid, ELK, Document, Diagnostics, and force-only controls. |
 | — | `specs/ADVERSARIAL_REVIEW_PROMPT.md` | Template | Copy-paste prompt for post-session adversarial reviews. |
 
 Archived completed packages: [`docs/spec-archive/README.md`](./spec-archive/README.md)
