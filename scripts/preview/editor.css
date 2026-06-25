@@ -320,6 +320,11 @@ body.dg-preview {
        gap: 8px;
 }
 
+.dg-inspector-group {
+       display: grid;
+       gap: 8px;
+}
+
 .inspector .field {
        display: grid;
        gap: 2px;

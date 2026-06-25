@@ -19,3 +19,25 @@ export function renderPreviewDataAttrs(
     .map(([name, value]) => ` ${name}="${escapePreviewHtml(value)}"`)
     .join('');
 }
+
+export interface RenderPreviewPanelGroupOptions {
+  className?: string;
+}
+
+export function renderPreviewPanelGroup(
+  group: string,
+  panelId: string,
+  html: string,
+  options: RenderPreviewPanelGroupOptions = {},
+): string {
+  if (!html) {
+    return '';
+  }
+  const className = ['dg-inspector-group', options.className]
+    .filter(Boolean)
+    .join(' ');
+  return `<div class="${className}"${renderPreviewDataAttrs({
+    'data-dg-panel-group': group,
+    'data-dg-panel-id': panelId,
+  })}>${html}</div>`;
+}

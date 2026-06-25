@@ -26,7 +26,9 @@ export type PreviewTemplateSectionKey =
 
 export type PreviewAsidePanelGroup =
   | 'selection'
+  | 'arrangement'
   | 'layout'
+  | 'sizing'
   | 'position'
   | 'appearance'
   | 'engine'
@@ -35,7 +37,9 @@ export type PreviewAsidePanelGroup =
 
 export const PREVIEW_ASIDE_PANEL_GROUPS = [
   'selection',
+  'arrangement',
   'layout',
+  'sizing',
   'position',
   'appearance',
   'engine',

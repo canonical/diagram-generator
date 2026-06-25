@@ -34,6 +34,8 @@ describe('inspector autolayout panel renderer', () => {
       widthMaxValue: 240,
     });
 
+    expect(html).toContain('data-dg-panel-group="layout" data-dg-panel-id="single-autolayout-layout"');
+    expect(html).toContain('data-dg-panel-group="sizing" data-dg-panel-id="single-autolayout-sizing"');
     expect(html).toContain('Auto-layout · frame-1');
     expect(html).toContain('data-dg-change-action="single-prop"');
     expect(html).toContain('data-dg-cid="frame-1"');
@@ -76,6 +78,8 @@ describe('inspector autolayout panel renderer', () => {
     });
 
     expect(html).toContain('Sizing</span>');
+    expect(html).toContain('data-dg-panel-group="sizing" data-dg-panel-id="single-autolayout-sizing"');
+    expect(html).not.toContain('data-dg-panel-id="single-autolayout-layout"');
     expect(html).toContain('dg-coerced');
     expect(html).toContain('Max chars');
     expect(html).toContain('disabled title="Clear Max W (px) to edit character measure"');
@@ -116,6 +120,7 @@ describe('inspector autolayout panel renderer', () => {
     });
 
     expect(html).toContain('<option value="ABSOLUTE" selected>Absolute</option>');
+    expect(html).toContain('data-dg-panel-group="position" data-dg-panel-id="single-autolayout-position"');
     expect(html).toContain('data-dg-prop="x"');
     expect(html).toContain('data-dg-prop="y"');
     expect(html).toContain('data-dg-value-type="int"');

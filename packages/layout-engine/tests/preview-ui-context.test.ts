@@ -40,7 +40,9 @@ describe('preview UI context registry', () => {
     expect(PREVIEW_PANEL_REGISTRY.every((entry) => entry.owner.length > 0)).toBe(true);
     expect(PREVIEW_ASIDE_PANEL_GROUPS).toEqual([
       'selection',
+      'arrangement',
       'layout',
+      'sizing',
       'position',
       'appearance',
       'engine',

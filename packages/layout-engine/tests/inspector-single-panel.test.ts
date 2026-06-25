@@ -29,6 +29,10 @@ describe('single-selection inspector panel renderer', () => {
       ],
     });
 
+    expect(html).toContain('data-dg-panel-group="layout" data-dg-panel-id="single-layout"');
+    expect(html).toContain('data-dg-panel-group="position" data-dg-panel-id="single-position"');
+    expect(html).toContain('data-dg-panel-group="appearance" data-dg-panel-id="single-appearance"');
+    expect(html).toContain('data-dg-panel-group="diagnostics" data-dg-panel-id="single-diagnostics"');
     expect(html).toContain('data-dg-click-action="single-align"');
     expect(html).toContain('data-dg-cid="box-1"');
     expect(html).toContain('data-dg-align="CENTER"');
@@ -99,6 +103,7 @@ describe('single-selection inspector panel renderer', () => {
     });
 
     expect(html).toContain('Inspector controls failed: boom');
+    expect(html).toContain('data-dg-panel-id="single-controls-error"');
     expect(html).not.toContain('ignored');
     expect(html).not.toContain('data-dg-click-action="single-align"');
   });

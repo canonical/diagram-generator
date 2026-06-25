@@ -46,13 +46,13 @@
 
 ## Phase 3: Figma-Like Right Aside Structure
 
-- [x] T020 Define stable right-aside groups: Selection, Layout, Position,
-      Appearance, Engine, Document, Diagnostics.
-- [ ] T021 Split current `inspector-single-panel.ts` output into group-level
+- [x] T020 Define stable right-aside groups: Selection, Arrangement, Layout,
+      Sizing, Position, Appearance, Engine, Document, Diagnostics.
+- [x] T021 Split current `inspector-single-panel.ts` output into group-level
       render helpers without changing behavior yet.
-- [ ] T022 Split current `inspector-autolayout-panel.ts` output into Layout,
+- [x] T022 Split current `inspector-autolayout-panel.ts` output into Layout,
       Sizing, and Position groups.
-- [ ] T023 Split current `inspector-multi-panel.ts` output into Selection,
+- [x] T023 Split current `inspector-multi-panel.ts` output into Selection,
       Arrangement, Layout, Sizing, and Appearance groups.
 - [x] T024 Move save/export/undo/redo/clear/copy controls into one typed
       Document action group while preserving existing button ids for browser

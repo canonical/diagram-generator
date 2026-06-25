@@ -6,6 +6,7 @@ import type {
 import {
   escapePreviewHtml,
   renderPreviewDataAttrs,
+  renderPreviewPanelGroup,
 } from './inline-actions.js';
 
 /**
@@ -74,19 +75,30 @@ function renderAlignWidget(cid: string, currentAlign: string): string {
   return html;
 }
 
-export function renderSingleSelectionInspectorPanel(
+function renderSingleSelectionLayoutGroup(
+  options: SingleSelectionInspectorPanelRenderOptions,
+): string {
+  if (options.controlsErrorMessage) {
+    return renderPreviewPanelGroup(
+      'diagnostics',
+      'single-controls-error',
+      '<p class="bf-form-help" style="color:#c66">Inspector controls failed: '
+        + escapePreviewHtml(options.controlsErrorMessage)
+        + '</p>',
+    );
+  }
+
+  return renderPreviewPanelGroup(
+    'layout',
+    'single-layout',
+    renderAlignWidget(options.cid, options.viewModel.currentAlign),
+  ) + (options.autolayoutPanelHtml || '');
+}
+
+function renderSingleSelectionPositionGroup(
   options: SingleSelectionInspectorPanelRenderOptions,
 ): string {
   let html = '';
-  if (options.controlsErrorMessage) {
-    html += '<p class="bf-form-help" style="color:#c66">Inspector controls failed: '
-      + escapePreviewHtml(options.controlsErrorMessage)
-      + '</p>';
-  } else {
-    html += renderAlignWidget(options.cid, options.viewModel.currentAlign);
-    html += options.autolayoutPanelHtml || '';
-  }
-
   if (options.viewModel.hasMoveOverride) {
     html += '<div class="field"><span class="label">Position override</span><br>'
       + `<span class="value override">dx=${options.ownDelta.dx}  dy=${options.ownDelta.dy}</span></div>`;
@@ -114,6 +126,13 @@ export function renderSingleSelectionInspectorPanel(
     })}>Clear override</button>`;
   }
 
+  return renderPreviewPanelGroup('position', 'single-position', html);
+}
+
+function renderSingleSelectionAppearanceGroup(
+  options: SingleSelectionInspectorPanelRenderOptions,
+): string {
+  let html = '';
   if (options.styleMode === 'picker') {
     html += '<div class="field" style="margin-top:6px"><span class="label">Style</span><br>';
     html += `<select class="style-picker bf-input"${renderPreviewDataAttrs({
@@ -126,6 +145,13 @@ export function renderSingleSelectionInspectorPanel(
     html += '<div class="field" style="margin-top:6px"><span class="label">Style</span><div class="hint">Structural wrapper — no box style or default panel padding.</div></div>';
   }
 
+  return renderPreviewPanelGroup('appearance', 'single-appearance', html);
+}
+
+function renderSingleSelectionDiagnosticsGroup(
+  options: SingleSelectionInspectorPanelRenderOptions,
+): string {
+  let html = '';
   if (options.viewModel.showStackSpacingHint) {
     html += '<div class="dg-autolayout-section" style="margin-top:8px">';
     html += '<span class="label" style="margin-bottom:4px;display:block">Stack spacing</span>';
@@ -149,5 +175,14 @@ export function renderSingleSelectionInspectorPanel(
     html += '<p class="dg-inspector-note">Drag to move &#xb7; handles to resize (8px grid) &#xb7; W to toggle grid overlay.</p>';
   }
 
-  return html;
+  return renderPreviewPanelGroup('diagnostics', 'single-diagnostics', html);
+}
+
+export function renderSingleSelectionInspectorPanel(
+  options: SingleSelectionInspectorPanelRenderOptions,
+): string {
+  return renderSingleSelectionLayoutGroup(options)
+    + renderSingleSelectionPositionGroup(options)
+    + renderSingleSelectionAppearanceGroup(options)
+    + renderSingleSelectionDiagnosticsGroup(options);
 }

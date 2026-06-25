@@ -2,6 +2,7 @@ import type { SingleSelectionAutolayoutState } from './inspector-single.js';
 import {
   escapePreviewHtml,
   renderPreviewDataAttrs,
+  renderPreviewPanelGroup,
 } from './inline-actions.js';
 
 /**
@@ -36,37 +37,46 @@ function valueText(value: unknown): string {
   return value == null ? '' : String(value);
 }
 
-export function renderSingleSelectionAutolayoutPanel(
+function renderSingleSelectionAutolayoutLayoutGroup(
   options: SingleSelectionAutolayoutPanelRenderOptions,
 ): string {
   const { cid, panelState } = options;
-  let html = '<div class="dg-autolayout-section">';
-
-  if (panelState.isContainer) {
-    html += `<span class="label" style="margin-bottom:4px;display:block">Auto-layout · ${escapePreviewHtml(cid)}</span>`;
-    html += '<div class="field"><span class="label">Direction</span>';
-    html += `<select class="bf-input"${renderPreviewDataAttrs({
-      'data-dg-change-action': 'single-prop',
-      'data-dg-cid': cid,
-      'data-dg-prop': 'direction',
-    })}>`;
-    html += `<option value="VERTICAL"${panelState.direction === 'VERTICAL' ? ' selected' : ''}>Vertical</option>`;
-    html += `<option value="HORIZONTAL"${panelState.direction === 'HORIZONTAL' ? ' selected' : ''}>Horizontal</option>`;
-    html += '</select></div>';
-
-    html += '<div class="field"><span class="label">Gap bump</span>';
-    html += `<input class="bf-input" type="number" step="8" value="${panelState.currentGapDelta}" style="width:64px;margin-left:4px"${renderPreviewDataAttrs({
-      'data-dg-change-action': 'single-prop',
-      'data-dg-cid': cid,
-      'data-dg-prop': 'gap_delta',
-      'data-dg-enter-commit': '1',
-    })}>`;
-    html += '<span class="label" style="margin-left:4px">px</span></div>';
-    html += `<div class="hint">Effective gap ${panelState.effectiveGap}px = auto ${panelState.automaticGap}px + delta ${panelState.currentGapDelta}px. Set 0 to clear the manual bump.</div>`;
-    html += '<div class="hint">Padding now derives from frame defaults: 8px for non-root frames, with annotation side padding collapsed to 0.</div>';
-  } else {
-    html += '<span class="label" style="margin-bottom:4px;display:block">Sizing</span>';
+  if (!panelState.isContainer) {
+    return '';
   }
+
+  let html = `<span class="label" style="margin-bottom:4px;display:block">Auto-layout · ${escapePreviewHtml(cid)}</span>`;
+  html += '<div class="field"><span class="label">Direction</span>';
+  html += `<select class="bf-input"${renderPreviewDataAttrs({
+    'data-dg-change-action': 'single-prop',
+    'data-dg-cid': cid,
+    'data-dg-prop': 'direction',
+  })}>`;
+  html += `<option value="VERTICAL"${panelState.direction === 'VERTICAL' ? ' selected' : ''}>Vertical</option>`;
+  html += `<option value="HORIZONTAL"${panelState.direction === 'HORIZONTAL' ? ' selected' : ''}>Horizontal</option>`;
+  html += '</select></div>';
+
+  html += '<div class="field"><span class="label">Gap bump</span>';
+  html += `<input class="bf-input" type="number" step="8" value="${panelState.currentGapDelta}" style="width:64px;margin-left:4px"${renderPreviewDataAttrs({
+    'data-dg-change-action': 'single-prop',
+    'data-dg-cid': cid,
+    'data-dg-prop': 'gap_delta',
+    'data-dg-enter-commit': '1',
+  })}>`;
+  html += '<span class="label" style="margin-left:4px">px</span></div>';
+  html += `<div class="hint">Effective gap ${panelState.effectiveGap}px = auto ${panelState.automaticGap}px + delta ${panelState.currentGapDelta}px. Set 0 to clear the manual bump.</div>`;
+  html += '<div class="hint">Padding now derives from frame defaults: 8px for non-root frames, with annotation side padding collapsed to 0.</div>';
+
+  return renderPreviewPanelGroup('layout', 'single-autolayout-layout', html, {
+    className: 'dg-autolayout-section',
+  });
+}
+
+function renderSingleSelectionAutolayoutSizingGroup(
+  options: SingleSelectionAutolayoutPanelRenderOptions,
+): string {
+  const { cid, panelState } = options;
+  let html = '<span class="label" style="margin-bottom:4px;display:block">Sizing</span>';
 
   html += '<div class="field"><span class="label">Width</span>';
   html += `<select class="bf-input${panelState.wCoerced ? ' dg-coerced' : ''}"${renderPreviewDataAttrs({
@@ -207,38 +217,58 @@ export function renderSingleSelectionAutolayoutPanel(
     html += '</div>';
   }
 
-  if (panelState.showPositionType) {
-    html += '<div class="field"><span class="label">Position</span>';
-    html += `<select class="bf-input"${renderPreviewDataAttrs({
-      'data-dg-change-action': 'single-prop',
-      'data-dg-cid': cid,
-      'data-dg-prop': 'position',
-    })}>`;
-    html += `<option value="AUTO"${panelState.positionType !== 'ABSOLUTE' ? ' selected' : ''}>Auto</option>`;
-    html += `<option value="ABSOLUTE"${panelState.positionType === 'ABSOLUTE' ? ' selected' : ''}>Absolute</option>`;
-    html += '</select></div>';
-    if (panelState.showAbsoluteOffsetControls) {
-      html += '<div class="field"><span class="label">Offset</span>';
-      html += '<span style="color:#888;font-size:11px">X</span>';
-      html += `<input class="bf-input" type="number" step="8" value="${valueText(options.positionXValue)}" style="width:52px"${renderPreviewDataAttrs({
-        'data-dg-change-action': 'single-prop',
-        'data-dg-cid': cid,
-        'data-dg-prop': 'x',
-        'data-dg-value-type': 'int',
-        'data-dg-enter-commit': '1',
-      })}>`;
-      html += '<span style="color:#888;font-size:11px;margin-left:4px">Y</span>';
-      html += `<input class="bf-input" type="number" step="8" value="${valueText(options.positionYValue)}" style="width:52px"${renderPreviewDataAttrs({
-        'data-dg-change-action': 'single-prop',
-        'data-dg-cid': cid,
-        'data-dg-prop': 'y',
-        'data-dg-value-type': 'int',
-        'data-dg-enter-commit': '1',
-      })}>`;
-      html += '</div>';
-    }
+  return renderPreviewPanelGroup('sizing', 'single-autolayout-sizing', html, {
+    className: 'dg-autolayout-section',
+  });
+}
+
+function renderSingleSelectionAutolayoutPositionGroup(
+  options: SingleSelectionAutolayoutPanelRenderOptions,
+): string {
+  const { cid, panelState } = options;
+  if (!panelState.showPositionType) {
+    return '';
   }
 
-  html += '</div>';
-  return html;
+  let html = '<div class="field"><span class="label">Position</span>';
+  html += `<select class="bf-input"${renderPreviewDataAttrs({
+    'data-dg-change-action': 'single-prop',
+    'data-dg-cid': cid,
+    'data-dg-prop': 'position',
+  })}>`;
+  html += `<option value="AUTO"${panelState.positionType !== 'ABSOLUTE' ? ' selected' : ''}>Auto</option>`;
+  html += `<option value="ABSOLUTE"${panelState.positionType === 'ABSOLUTE' ? ' selected' : ''}>Absolute</option>`;
+  html += '</select></div>';
+  if (panelState.showAbsoluteOffsetControls) {
+    html += '<div class="field"><span class="label">Offset</span>';
+    html += '<span style="color:#888;font-size:11px">X</span>';
+    html += `<input class="bf-input" type="number" step="8" value="${valueText(options.positionXValue)}" style="width:52px"${renderPreviewDataAttrs({
+      'data-dg-change-action': 'single-prop',
+      'data-dg-cid': cid,
+      'data-dg-prop': 'x',
+      'data-dg-value-type': 'int',
+      'data-dg-enter-commit': '1',
+    })}>`;
+    html += '<span style="color:#888;font-size:11px;margin-left:4px">Y</span>';
+    html += `<input class="bf-input" type="number" step="8" value="${valueText(options.positionYValue)}" style="width:52px"${renderPreviewDataAttrs({
+      'data-dg-change-action': 'single-prop',
+      'data-dg-cid': cid,
+      'data-dg-prop': 'y',
+      'data-dg-value-type': 'int',
+      'data-dg-enter-commit': '1',
+    })}>`;
+    html += '</div>';
+  }
+
+  return renderPreviewPanelGroup('position', 'single-autolayout-position', html, {
+    className: 'dg-autolayout-section',
+  });
+}
+
+export function renderSingleSelectionAutolayoutPanel(
+  options: SingleSelectionAutolayoutPanelRenderOptions,
+): string {
+  return renderSingleSelectionAutolayoutLayoutGroup(options)
+    + renderSingleSelectionAutolayoutSizingGroup(options)
+    + renderSingleSelectionAutolayoutPositionGroup(options);
 }
