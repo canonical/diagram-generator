@@ -182,6 +182,12 @@ function frameDocumentActionsVisible(context: PreviewUiContext): boolean {
   return isGridShell(context) && isFrameDiagram(context) && hasCapability(context, 'nodeInspector');
 }
 
+function constraintDiagnosticsVisible(context: PreviewUiContext): boolean {
+  return frameDocumentActionsVisible(context)
+    && context.documentState?.hasConstraintRegistry === true
+    && (context.documentState.violationCount ?? 0) > 0;
+}
+
 function elkLayoutVisible(context: PreviewUiContext): boolean {
   return isGridShell(context)
     && previewEngineSupportsSidebarSection(context, 'elk-layout')
@@ -290,11 +296,11 @@ export const PREVIEW_PANEL_REGISTRY: readonly PreviewPanelRegistryEntry[] = [
     id: 'grid-constraints',
     owner: 'viewer-unified.html#constraints-section',
     group: 'diagnostics',
-    isVisible: frameDocumentActionsVisible,
+    isVisible: constraintDiagnosticsVisible,
     reason: (_context, visible) => visibilityReason(
       visible,
-      'interactive frame editor exposes constraint status',
-      'active document is not an interactive frame editor',
+      'active constraint registry has violations to report',
+      'no active constraint violations to report',
     ),
   },
   {

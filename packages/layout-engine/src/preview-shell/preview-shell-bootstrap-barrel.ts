@@ -61,13 +61,18 @@ export {
 } from './app-bootstrap.js';
 
 export type {
+  PreviewButtonState,
+  PreviewSaveButtonStateOptions,
   PreviewSaveClientRuntime,
   PreviewSaveClientRuntimeDeps,
   PreviewSaveClientRuntimeOptions,
+  PreviewSaveSvgButtonStateOptions,
 } from './app-save-client.js';
 
 export {
   createPreviewSaveClientRuntime,
+  resolvePreviewSaveButtonState,
+  resolvePreviewSaveSvgButtonState,
 } from './app-save-client.js';
 
 export type {
@@ -263,6 +268,8 @@ export type {
   InitPreviewOverrideToolbarOptions,
   PreviewConstraintStatus,
   PreviewConstraintSummary,
+  PreviewDocumentActionState,
+  PreviewDocumentActionStateSource,
   PreviewOverrideExportEntry,
   PreviewShellTreeEntry,
   PreviewShellTreeNode,
@@ -278,8 +285,10 @@ export {
   initPreviewOverrideToolbar,
   previewTreeHasFrameId,
   renderPreviewTreePanel,
+  resolvePreviewDocumentActionState,
   resolvePreviewConstraintStatus,
   showPreviewContextMenu,
+  syncPreviewDocumentActionControls,
   syncPreviewConstraintStatus,
   syncPreviewTreeOverrideState,
   syncPreviewTreeSelectionState,

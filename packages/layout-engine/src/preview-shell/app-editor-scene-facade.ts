@@ -38,6 +38,7 @@ import {
   type PreviewWaypointNode,
   type PreviewWaypointOverrideEntry,
 } from './app-scene-host.js';
+import type { PreviewDocumentActionStateSource } from './app-shell-panels.js';
 
 export interface PreviewEditorSceneRefreshCallbacks {
   buildTreeUi?: (() => void) | null;
@@ -98,6 +99,7 @@ export interface PreviewEditorSceneOverrideSummaryOptions {
   document: Pick<PreviewSceneHostDocumentLike, 'getElementById'>;
   getOverrideCount: () => number;
   formatSummary: (count: number) => string;
+  documentActions?: (() => Omit<PreviewDocumentActionStateSource, 'frameOverrideCount'>) | null;
 }
 
 export interface PreviewEditorSceneTreeOverrideStateOptions {
@@ -402,6 +404,7 @@ export function createPreviewEditorSceneFacadeFromEditorHost<
         document: options.overrideSummary.document,
         overrideCount: options.overrideSummary.getOverrideCount(),
         formatSummary: options.overrideSummary.formatSummary,
+        documentActions: options.overrideSummary.documentActions?.() ?? null,
       });
     },
     refreshTreeColors() {

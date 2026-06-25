@@ -71,6 +71,7 @@ describe('preview UI context registry', () => {
     expect(visible.has('grid-layers-tab')).toBe(true);
     expect(visible.has('grid-controls')).toBe(true);
     expect(visible.has('grid-overrides')).toBe(true);
+    expect(visible.has('grid-constraints')).toBe(false);
     expect(visible.has('grid-guide-badge')).toBe(true);
     expect(visible.has('grid-elk-layout')).toBe(false);
     expect(visible.has('elk-layout')).toBe(false);
@@ -82,6 +83,47 @@ describe('preview UI context registry', () => {
       compatibleEngines: ['v3'],
       persistedLayoutEngine: 'v3',
     })).toBe(false);
+  });
+
+  it('shows constraint diagnostics only when a registry has violations', () => {
+    const clean = visibleSections({
+      shellMode: 'grid',
+      documentKind: 'frame-diagram',
+      activeEngine: V3_PREVIEW_ENGINE,
+      compatibleEngines: ['v3'],
+      persistedLayoutEngine: 'v3',
+      documentState: {
+        hasConstraintRegistry: true,
+        violationCount: 0,
+      },
+    });
+    expect(clean.has('grid-constraints')).toBe(false);
+
+    const violated = visibleSections({
+      shellMode: 'grid',
+      documentKind: 'frame-diagram',
+      activeEngine: V3_PREVIEW_ENGINE,
+      compatibleEngines: ['v3'],
+      persistedLayoutEngine: 'v3',
+      documentState: {
+        hasConstraintRegistry: true,
+        violationCount: 2,
+      },
+    });
+    expect(violated.has('grid-constraints')).toBe(true);
+    expect(
+      resolvePreviewPanelVisibility({
+        shellMode: 'grid',
+        documentKind: 'frame-diagram',
+        activeEngine: V3_PREVIEW_ENGINE,
+        compatibleEngines: ['v3'],
+        persistedLayoutEngine: 'v3',
+        documentState: {
+          hasConstraintRegistry: true,
+          violationCount: 2,
+        },
+      }).find((entry) => entry.id === 'grid-constraints')?.reason,
+    ).toBe('active constraint registry has violations to report');
   });
 
   it('shows the engine switcher when multiple compatible frame engines are available', () => {

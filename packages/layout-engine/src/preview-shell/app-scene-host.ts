@@ -5,6 +5,11 @@
  * `editor.js` stays closer to entry/bootstrap glue.
  */
 
+import {
+  syncPreviewDocumentActionControls,
+  type PreviewDocumentActionStateSource,
+} from './app-shell-panels.js';
+
 export interface PreviewSceneHostDocumentLike {
   querySelector: (selector: string) => PreviewSceneHostSvgLike | null;
   createElementNS: (namespace: string, tagName: string) => PreviewSceneHostElementLike;
@@ -143,6 +148,7 @@ export interface UpdatePreviewOverrideSummaryHostOptions {
   document: Pick<PreviewSceneHostDocumentLike, 'getElementById'>;
   overrideCount: number;
   formatSummary: (count: number) => string;
+  documentActions?: Omit<PreviewDocumentActionStateSource, 'frameOverrideCount'> | null;
 }
 
 export interface RefreshPreviewTreeOverrideStateHostOptions {
@@ -364,9 +370,18 @@ export function applyPreviewWaypointOverridesHost(
 export function updatePreviewOverrideSummaryHost(
   options: UpdatePreviewOverrideSummaryHostOptions,
 ): boolean {
+  if (options.documentActions) {
+    syncPreviewDocumentActionControls({
+      document: options.document as Pick<Document, 'getElementById'>,
+      source: {
+        ...options.documentActions,
+        frameOverrideCount: options.overrideCount,
+      },
+    });
+  }
   const element = options.document.getElementById('override-summary');
   if (!element) {
-    return false;
+    return Boolean(options.documentActions);
   }
   element.textContent = options.formatSummary(options.overrideCount);
   return true;

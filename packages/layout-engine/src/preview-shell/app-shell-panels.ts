@@ -36,6 +36,7 @@ export interface PreviewConstraintStatus {
   text: string;
   backgroundColor: string;
   color: string;
+  hidden: boolean;
 }
 
 export interface RenderPreviewTreePanelOptions {
@@ -67,13 +68,36 @@ export interface InitPreviewOverrideToolbarOptions {
   clearAllButton?: HTMLElement | null;
   slug: string;
   getOverrides: () => Record<string, PreviewOverrideExportEntry>;
+  getGridOverrides?: (() => Record<string, unknown> | null | undefined) | null;
+  getLayoutOverrides?: (() => Record<string, unknown> | null | undefined) | null;
+  getRemovedIds?: (() => Iterable<string> | { size?: number } | null | undefined) | null;
+  isDiagnosticsMode?: (() => boolean) | null;
   writeClipboardText: (text: string) => Promise<unknown>;
   alert: (message: string) => void;
   confirmClearAll: (message: string) => boolean;
   confirmClearAllMessage: string;
-  onClearAll: () => void;
+  onClearAll: () => void | Promise<void>;
   emptyExportMessage?: string;
   copiedExportMessage?: string;
+}
+
+export interface PreviewDocumentActionStateSource {
+  frameOverrideCount?: number | null;
+  gridOverrides?: Record<string, unknown> | null;
+  layoutOverrides?: Record<string, unknown> | null;
+  removedIds?: Iterable<string> | { size?: number } | null;
+  diagnosticsMode?: boolean | null;
+}
+
+export interface PreviewDocumentActionState {
+  hasFrameOverrides: boolean;
+  hasGridOverrides: boolean;
+  hasLayoutOverrides: boolean;
+  hasRemovedFrames: boolean;
+  hasClearableState: boolean;
+  showCopyOverrides: boolean;
+  disableClearAll: boolean;
+  disableCopyOverrides: boolean;
 }
 
 function hasOwnOverride(overrides: Record<string, unknown>, id: string): boolean {
@@ -259,11 +283,122 @@ export function createPreviewOverrideExportText(
   return lines.join('\n');
 }
 
+function recordEntryCount(value: Record<string, unknown> | null | undefined): number {
+  return value ? Object.keys(value).length : 0;
+}
+
+function removedIdCount(value: Iterable<string> | { size?: number } | null | undefined): number {
+  if (!value) {
+    return 0;
+  }
+  if (typeof (value as { size?: unknown }).size === 'number') {
+    return Math.max(0, (value as { size: number }).size);
+  }
+  if (typeof (value as Iterable<string>)[Symbol.iterator] === 'function') {
+    return Array.from(value as Iterable<string>).length;
+  }
+  return 0;
+}
+
+export function resolvePreviewDocumentActionState(
+  source: PreviewDocumentActionStateSource,
+): PreviewDocumentActionState {
+  const hasFrameOverrides = (source.frameOverrideCount ?? 0) > 0;
+  const hasGridOverrides = recordEntryCount(source.gridOverrides) > 0;
+  const hasLayoutOverrides = recordEntryCount(source.layoutOverrides) > 0;
+  const hasRemovedFrames = removedIdCount(source.removedIds) > 0;
+  const hasClearableState = hasFrameOverrides
+    || hasGridOverrides
+    || hasLayoutOverrides
+    || hasRemovedFrames;
+  const showCopyOverrides = Boolean(source.diagnosticsMode) || hasFrameOverrides;
+
+  return {
+    hasFrameOverrides,
+    hasGridOverrides,
+    hasLayoutOverrides,
+    hasRemovedFrames,
+    hasClearableState,
+    showCopyOverrides,
+    disableClearAll: !hasClearableState,
+    disableCopyOverrides: !hasFrameOverrides,
+  };
+}
+
+function setElementHiddenFromDocumentActionState(
+  element: HTMLElement,
+  hidden: boolean,
+): void {
+  element.hidden = hidden;
+  if (hidden) {
+    element.setAttribute?.('aria-hidden', 'true');
+    element.setAttribute?.('tabindex', '-1');
+    return;
+  }
+  element.removeAttribute?.('aria-hidden');
+  element.removeAttribute?.('tabindex');
+}
+
+function setButtonDisabled(
+  element: HTMLElement | null | undefined,
+  disabled: boolean,
+): void {
+  if (element && 'disabled' in element) {
+    (element as HTMLButtonElement).disabled = disabled;
+  }
+}
+
+export function syncPreviewDocumentActionControls(options: {
+  document: Pick<Document, 'getElementById'>;
+  source: PreviewDocumentActionStateSource;
+}): PreviewDocumentActionState {
+  const state = resolvePreviewDocumentActionState(options.source);
+  const clearAllButton = options.document.getElementById('btn-clear-all') as HTMLElement | null;
+  const exportButton = options.document.getElementById('btn-export') as HTMLElement | null;
+
+  setButtonDisabled(clearAllButton, state.disableClearAll);
+  if (exportButton) {
+    setButtonDisabled(exportButton, state.disableCopyOverrides);
+    setElementHiddenFromDocumentActionState(exportButton, !state.showCopyOverrides);
+  }
+
+  return state;
+}
+
+function resolveToolbarDocumentActionStateSource(
+  options: InitPreviewOverrideToolbarOptions,
+): PreviewDocumentActionStateSource {
+  return {
+    frameOverrideCount: Object.keys(options.getOverrides()).length,
+    gridOverrides: options.getGridOverrides?.() ?? null,
+    layoutOverrides: options.getLayoutOverrides?.() ?? null,
+    removedIds: options.getRemovedIds?.() ?? null,
+    diagnosticsMode: options.isDiagnosticsMode?.() ?? false,
+  };
+}
+
 export function initPreviewOverrideToolbar(
   options: InitPreviewOverrideToolbarOptions,
 ): void {
   const emptyExportMessage = options.emptyExportMessage || 'No overrides to export.';
   const copiedExportMessage = options.copiedExportMessage || 'Copied to clipboard.';
+  const syncDocumentActions = () => {
+    if (!options.exportButton && !options.clearAllButton) {
+      return;
+    }
+    syncPreviewDocumentActionControls({
+      document: {
+        getElementById(id: string) {
+          if (id === 'btn-export') return options.exportButton ?? null;
+          if (id === 'btn-clear-all') return options.clearAllButton ?? null;
+          return null;
+        },
+      } as Pick<Document, 'getElementById'>,
+      source: resolveToolbarDocumentActionStateSource(options),
+    });
+  };
+
+  syncDocumentActions();
 
   options.exportButton?.addEventListener('click', () => {
     const text = createPreviewOverrideExportText(options.slug, options.getOverrides());
@@ -278,13 +413,15 @@ export function initPreviewOverrideToolbar(
   });
 
   options.clearAllButton?.addEventListener('click', () => {
-    if (Object.keys(options.getOverrides()).length === 0) {
+    const actionState = resolvePreviewDocumentActionState(resolveToolbarDocumentActionStateSource(options));
+    if (!actionState.hasClearableState) {
+      syncDocumentActions();
       return;
     }
     if (!options.confirmClearAll(options.confirmClearAllMessage)) {
       return;
     }
-    options.onClearAll();
+    void Promise.resolve(options.onClearAll()).finally(syncDocumentActions);
   });
 }
 
@@ -297,6 +434,7 @@ export function resolvePreviewConstraintStatus(
       text: 'No violations',
       backgroundColor: '',
       color: '',
+      hidden: true,
     };
   }
 
@@ -306,6 +444,7 @@ export function resolvePreviewConstraintStatus(
       text: `${summary.errors} error(s), ${summary.warnings} warning(s)`,
       backgroundColor: '',
       color: '',
+      hidden: false,
     };
   }
 
@@ -314,6 +453,7 @@ export function resolvePreviewConstraintStatus(
     text: `${summary.warnings} warning(s)`,
     backgroundColor: '#3a3a1a',
     color: '#cc6',
+    hidden: false,
   };
 }
 
@@ -326,4 +466,9 @@ export function syncPreviewConstraintStatus(
   element.className = status.className;
   element.style.background = status.backgroundColor;
   element.style.color = status.color;
+  element.hidden = status.hidden;
+  const section = element.closest?.('#constraints-section, [data-dg-panel-id="diagnostics-constraints"]');
+  if (typeof HTMLElement !== 'undefined' && section instanceof HTMLElement) {
+    section.hidden = status.hidden;
+  }
 }

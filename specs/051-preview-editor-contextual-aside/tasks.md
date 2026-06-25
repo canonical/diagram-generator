@@ -85,23 +85,23 @@
 - [x] T039 Multi-select: show bulk style/sizing/direction only when all
       actionable selected items support the group; show mixed values when
       values differ.
-- [ ] T040 Root selection: block delete and parent-position controls; root grid
+- [x] T040 Root selection: block delete and parent-position controls; root grid
       controls remain in Document/Layout only when native grid editing applies.
 
 ## Phase 5: Diagnostics And Document Actions
 
-- [ ] T050 Hide constraints/violations when there is no active registry or no
+- [x] T050 Hide constraints/violations when there is no active registry or no
       violations to report.
-- [ ] T051 Keep build status always visible and driven by relayout/save state.
-- [ ] T052 Save button: disable when clean, saving, relayout blocked, or errors
+- [x] T051 Keep build status always visible and driven by relayout/save state.
+- [x] T052 Save button: disable when clean, saving, relayout blocked, or errors
       block persistence.
-- [ ] T053 Save SVG: disable when current render is unavailable or export is in
+- [x] T053 Save SVG: disable when current render is unavailable or export is in
       flight.
-- [ ] T054 Undo/Redo: preserve current ids and keyboard contracts while moving
+- [x] T054 Undo/Redo: preserve current ids and keyboard contracts while moving
       visual placement into the Document group.
-- [ ] T055 Clear all: show or enable only when there are clearable overrides,
+- [x] T055 Clear all: show or enable only when there are clearable overrides,
       removals, grid overrides, or engine layout overrides.
-- [ ] T056 Copy overrides: hide by default unless diagnostics mode is active or
+- [x] T056 Copy overrides: hide by default unless diagnostics mode is active or
       there are overrides; retain an explicit debug path if users rely on it.
 
 ## Phase 6: Tests And Verification
@@ -111,7 +111,7 @@
       root, same-parent multi, mixed-parent multi, and mixed unsupported multi.
 - [x] T062 Add apps/preview contract tests for static host HTML visibility for
       v3, ELK, force, and sequence/mindmap-like engine proofs.
-- [ ] T063 Add keyboard/focus tests proving hidden controls are not focusable.
+- [x] T063 Add keyboard/focus tests proving hidden controls are not focusable.
 - [x] T064 Run `npm --prefix packages/layout-engine test`.
 - [x] T065 Run `npm --prefix apps/preview test`.
 - [x] T066 Run `node scripts/check_no_new_python.mjs`.

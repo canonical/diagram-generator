@@ -80,9 +80,28 @@ export interface PreviewSaveClientRuntime {
   syncDirtyFromSerialized: (serializedState: string) => void;
   getLastSavedState: () => string | null;
   syncSaveButton: (errorCount?: number | null) => void;
+  syncSaveSvgButton: () => void;
   saveOverrides: () => Promise<void>;
   saveCurrentSvg: () => void;
   trySaveIfDirty: () => void;
+}
+
+export interface PreviewSaveButtonStateOptions {
+  dirty: boolean;
+  saving?: boolean | null;
+  errorCount?: number | null;
+  relayoutLocalReady?: boolean | null;
+  relayoutLastMode?: string | null;
+}
+
+export interface PreviewSaveSvgButtonStateOptions {
+  hasRenderedSvg: boolean;
+  exporting?: boolean | null;
+}
+
+export interface PreviewButtonState {
+  disabled: boolean;
+  reason: string;
 }
 
 function resolveLayoutRelayoutStatus(
@@ -106,11 +125,50 @@ function currentSvgFilename(slug: string): string {
   return `${baseSlug}-onbrand-v3.svg`;
 }
 
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' ? value as Record<string, unknown> : {};
+}
+
+export function resolvePreviewSaveButtonState(
+  options: PreviewSaveButtonStateOptions,
+): PreviewButtonState {
+  if (!options.dirty) {
+    return { disabled: true, reason: 'clean' };
+  }
+  if (options.saving) {
+    return { disabled: true, reason: 'saving' };
+  }
+  if ((options.errorCount ?? 0) > 0) {
+    return { disabled: true, reason: 'constraint-errors' };
+  }
+  if (options.relayoutLastMode === 'local-error') {
+    return { disabled: true, reason: 'relayout-error' };
+  }
+  if (options.relayoutLocalReady === false) {
+    return { disabled: true, reason: 'relayout-unavailable' };
+  }
+  return { disabled: false, reason: 'ready' };
+}
+
+export function resolvePreviewSaveSvgButtonState(
+  options: PreviewSaveSvgButtonStateOptions,
+): PreviewButtonState {
+  if (options.exporting) {
+    return { disabled: true, reason: 'exporting' };
+  }
+  if (!options.hasRenderedSvg) {
+    return { disabled: true, reason: 'missing-render' };
+  }
+  return { disabled: false, reason: 'ready' };
+}
+
 export function createPreviewSaveClientRuntime(
   options: PreviewSaveClientRuntimeOptions,
 ): PreviewSaveClientRuntime {
   let deps: PreviewSaveClientRuntimeDeps | null = null;
   let dirty = false;
+  let saving = false;
+  let svgExporting = false;
   let lastSavedState: string | null = null;
   let initialized = false;
 
@@ -138,12 +196,32 @@ export function createPreviewSaveClientRuntime(
       return;
     }
     const errors = errorCount ?? getConstraintErrorCount();
-    saveButton.disabled = !dirty || errors > 0;
+    const relayoutStatus = asRecord(deps ? resolveLayoutRelayoutStatus(deps) : null) as { localReady?: boolean };
+    const relayoutRuntime = asRecord(deps ? resolveLayoutRelayoutRuntime(deps) : null) as { lastMode?: string };
+    saveButton.disabled = resolvePreviewSaveButtonState({
+      dirty,
+      saving,
+      errorCount: errors,
+      relayoutLocalReady: relayoutStatus.localReady ?? null,
+      relayoutLastMode: relayoutRuntime.lastMode ?? null,
+    }).disabled;
     if (dirty) {
       saveButton.classList?.add('dirty');
     } else {
       saveButton.classList?.remove('dirty');
     }
+  }
+
+  function syncSaveSvgButton(): void {
+    const saveSvgButton = options.document.getElementById('btn-save-svg');
+    if (!saveSvgButton) {
+      return;
+    }
+    const svg = options.document.querySelector('#stage svg');
+    saveSvgButton.disabled = resolvePreviewSaveSvgButtonState({
+      hasRenderedSvg: Boolean(svg),
+      exporting: svgExporting,
+    }).disabled;
   }
 
   function setDirty(nextDirty: boolean): void {
@@ -157,6 +235,7 @@ export function createPreviewSaveClientRuntime(
   function markSaved(serializedState: string | null): void {
     lastSavedState = serializedState;
     setDirty(false);
+    syncSaveSvgButton();
   }
 
   function syncDirtyFromSerialized(serializedState: string): void {
@@ -188,38 +267,51 @@ export function createPreviewSaveClientRuntime(
 
   function saveCurrentSvg(): void {
     const runtimeDeps = requireDeps();
-    const svg = options.document.querySelector('#stage svg');
-    if (!svg) {
-      alertFn('No SVG is loaded.');
+    if (svgExporting) {
       return;
     }
-    if (!options.xmlSerializerFactory) {
-      throw new Error('Preview save client requires XMLSerializer for SVG export');
+    svgExporting = true;
+    syncSaveSvgButton();
+    try {
+      const svg = options.document.querySelector('#stage svg');
+      if (!svg) {
+        alertFn('No SVG is loaded.');
+        return;
+      }
+      if (!options.xmlSerializerFactory) {
+        throw new Error('Preview save client requires XMLSerializer for SVG export');
+      }
+      const clone = svg.cloneNode(true) as {
+        getAttribute: (name: string) => string | null;
+        setAttribute: (name: string, value: string) => void;
+      };
+      runtimeDeps.sanitizeSvgCloneForExport?.(clone);
+      if (!clone.getAttribute('xmlns')) {
+        clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      }
+      if (!clone.getAttribute('xmlns:xlink')) {
+        clone.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
+      }
+      const serialized = options.xmlSerializerFactory().serializeToString(clone);
+      const prolog = serialized.startsWith('<?xml')
+        ? ''
+        : '<?xml version="1.0" encoding="UTF-8"?>\n';
+      downloadTextFile(
+        currentSvgFilename(runtimeDeps.slug),
+        `${prolog}${serialized}\n`,
+        'image/svg+xml;charset=utf-8',
+      );
+    } finally {
+      svgExporting = false;
+      syncSaveSvgButton();
     }
-    const clone = svg.cloneNode(true) as {
-      getAttribute: (name: string) => string | null;
-      setAttribute: (name: string, value: string) => void;
-    };
-    runtimeDeps.sanitizeSvgCloneForExport?.(clone);
-    if (!clone.getAttribute('xmlns')) {
-      clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-    }
-    if (!clone.getAttribute('xmlns:xlink')) {
-      clone.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
-    }
-    const serialized = options.xmlSerializerFactory().serializeToString(clone);
-    const prolog = serialized.startsWith('<?xml')
-      ? ''
-      : '<?xml version="1.0" encoding="UTF-8"?>\n';
-    downloadTextFile(
-      currentSvgFilename(runtimeDeps.slug),
-      `${prolog}${serialized}\n`,
-      'image/svg+xml;charset=utf-8',
-    );
   }
 
   async function saveOverrides(): Promise<void> {
     const runtimeDeps = requireDeps();
+    if (saving) {
+      return;
+    }
     commitFocusedControl();
 
     const summary = runtimeDeps.getConstraintSummary?.() ?? { errors: 0 };
@@ -243,10 +335,10 @@ export function createPreviewSaveClientRuntime(
       payload = runtimeDeps.collectEngineSavePayload(payload, model as Record<string, unknown>);
     }
 
-    const relayoutStatus = resolveLayoutRelayoutStatus(runtimeDeps) as {
+    const relayoutStatus = asRecord(resolveLayoutRelayoutStatus(runtimeDeps)) as {
       localReady?: boolean;
     };
-    const relayoutRuntime = resolveLayoutRelayoutRuntime(runtimeDeps) as {
+    const relayoutRuntime = asRecord(resolveLayoutRelayoutRuntime(runtimeDeps)) as {
       lastMode?: string;
     };
     if (relayoutRuntime.lastMode === 'local-error') {
@@ -268,6 +360,8 @@ export function createPreviewSaveClientRuntime(
     const preservedSelectionIds = runtimeDeps.getSelectedIds?.() ?? [];
     let canonicalState: unknown = null;
 
+    saving = true;
+    syncSaveButton(summary.errors ?? 0);
     try {
       const response = await options.fetchFn(`/api/overrides/${runtimeDeps.slug}`, {
         method: 'POST',
@@ -287,18 +381,21 @@ export function createPreviewSaveClientRuntime(
       } catch {
         // Best-effort canonical-state decode only.
       }
+
+      runtimeDeps.clearCoercedKeys?.();
+      model.removedIds = new Set();
+      await runtimeDeps.reloadDiagram({ preserveSelectionIds: preservedSelectionIds, canonicalState });
+      if (preservedSelectionIds.length > 0) {
+        runtimeDeps.restoreSelectionIds?.(preservedSelectionIds);
+      }
+      runtimeDeps.setStatus?.('Ready', 'ok');
     } catch (error) {
       alertFn(`Save failed: ${String(error)}`);
       return;
+    } finally {
+      saving = false;
+      syncSaveButton(summary.errors ?? 0);
     }
-
-    runtimeDeps.clearCoercedKeys?.();
-    model.removedIds = new Set();
-    await runtimeDeps.reloadDiagram({ preserveSelectionIds: preservedSelectionIds, canonicalState });
-    if (preservedSelectionIds.length > 0) {
-      runtimeDeps.restoreSelectionIds?.(preservedSelectionIds);
-    }
-    runtimeDeps.setStatus?.('Ready', 'ok');
   }
 
   function trySaveIfDirty(): void {
@@ -322,6 +419,8 @@ export function createPreviewSaveClientRuntime(
     options.document.getElementById('btn-save-svg')?.addEventListener?.('click', () => {
       saveCurrentSvg();
     });
+    syncSaveButton();
+    syncSaveSvgButton();
     if (typeof runtimeDeps.onBeforeUnload === 'function') {
       options.previewWindow.addEventListener?.('beforeunload', runtimeDeps.onBeforeUnload);
     }
@@ -335,6 +434,7 @@ export function createPreviewSaveClientRuntime(
     syncDirtyFromSerialized,
     getLastSavedState: () => lastSavedState,
     syncSaveButton,
+    syncSaveSvgButton,
     saveOverrides,
     saveCurrentSvg,
     trySaveIfDirty,

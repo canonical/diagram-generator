@@ -47,6 +47,58 @@ describe('preview frame-delete helpers', () => {
     expect(alert).toHaveBeenCalledWith('Cannot delete the diagram root.');
   });
 
+  it('blocks mixed root deletes before deleting other selected frames', async () => {
+    const alert = vi.fn();
+    const markRemoved = vi.fn();
+
+    await expect(dispatchPreviewDeleteFrames({
+      selectedIds: ['root', 'child'],
+      rootId: 'root',
+      getNode,
+      beginUndoableAction: vi.fn(),
+      markRemoved,
+      clearOverride: vi.fn(),
+      unselect: vi.fn(),
+      setDirty: vi.fn(),
+      rerenderStage: vi.fn(),
+      deselectAll: vi.fn(),
+      commitUndoableAction: vi.fn(),
+      alert,
+    })).resolves.toEqual({
+      kind: 'blocked-root',
+      removedIds: [],
+      topLevelIds: [],
+      rerendered: false,
+    });
+    expect(alert).toHaveBeenCalledWith('Cannot delete the diagram root.');
+    expect(markRemoved).not.toHaveBeenCalled();
+  });
+
+  it('ignores arrow-only deletes without reporting a root-delete error', async () => {
+    const alert = vi.fn();
+
+    await expect(dispatchPreviewDeleteFrames({
+      selectedIds: ['arrow'],
+      rootId: 'root',
+      getNode,
+      beginUndoableAction: vi.fn(),
+      markRemoved: vi.fn(),
+      clearOverride: vi.fn(),
+      unselect: vi.fn(),
+      setDirty: vi.fn(),
+      rerenderStage: vi.fn(),
+      deselectAll: vi.fn(),
+      commitUndoableAction: vi.fn(),
+      alert,
+    })).resolves.toEqual({
+      kind: 'none',
+      removedIds: [],
+      topLevelIds: [],
+      rerendered: false,
+    });
+    expect(alert).not.toHaveBeenCalled();
+  });
+
   it('removes top-level frame subtrees, rerenders, and commits the undo action', async () => {
     const removed: string[] = [];
     const cleared: string[] = [];

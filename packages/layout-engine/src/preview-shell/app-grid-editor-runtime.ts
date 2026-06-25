@@ -432,6 +432,13 @@ export function createPreviewGridEditorRuntimeFromBrowserHost(
         },
         overrideSummary: {
           getOverrideCount: () => Object.keys(options.browser.getOverrides()).length,
+          documentActions: () => ({
+            gridOverrides: options.shared.model.gridOverrides ?? null,
+            layoutOverrides: options.shared.model.layoutOverrides
+              ?? options.shared.model.elkLayoutOverrides
+              ?? null,
+            removedIds: options.shared.model.removedIds,
+          }),
         },
         treeOverrideState: {},
         constraints: {
@@ -566,11 +573,14 @@ export function createPreviewGridEditorRuntimeFromBrowserHost(
           onClearAllOverrides: () => {
             options.shared.editorState.runUndoableAction('Clear all overrides', () => {
               options.browser.replaceOverrides({});
+              options.shared.model.gridOverrides = {};
+              options.shared.model.layoutOverrides = {};
+              options.shared.model.elkLayoutOverrides = {};
+              options.shared.model.removedIds = new Set<string>();
               options.shared.coercedKeys.clear();
               options.browser.setDirty(true);
             });
-            runtime.getSceneFacade().applyAllOverrides();
-            options.browser.renderSelectionInspector();
+            return runtime.getSceneFacade().rerenderStageFromModel().then(() => undefined);
           },
           generationState: options.shared.generationState,
           scheduleReconnect: (callback, delayMs) => (

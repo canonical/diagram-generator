@@ -302,10 +302,14 @@ export interface CreatePreviewOverrideToolbarHostOptions {
   document: Pick<Document, 'getElementById'>;
   slug: string;
   getOverrides: () => Record<string, PreviewOverrideExportEntry>;
+  getGridOverrides?: (() => Record<string, unknown> | null | undefined) | null;
+  getLayoutOverrides?: (() => Record<string, unknown> | null | undefined) | null;
+  getRemovedIds?: (() => Iterable<string> | { size?: number } | null | undefined) | null;
+  isDiagnosticsMode?: (() => boolean) | null;
   writeClipboardText: (text: string) => Promise<unknown>;
   alert: (message: string) => void;
   confirmClearAll: (message: string) => boolean;
-  onClearAllOverrides: () => void;
+  onClearAllOverrides: () => void | Promise<void>;
   confirmClearAllMessage?: string;
 }
 
@@ -350,7 +354,7 @@ export interface BootstrapPreviewEditorRuntimeOptions {
   writeClipboardText: (text: string) => Promise<unknown>;
   alert: (message: string) => void;
   confirmClearAll: (message: string) => boolean;
-  onClearAllOverrides: () => void;
+  onClearAllOverrides: () => void | Promise<void>;
   getGeneration: () => number;
   setGeneration: (value: number) => void;
   scheduleReconnect?: (callback: () => void, delayMs: number) => unknown;
@@ -655,6 +659,10 @@ export function createPreviewOverrideToolbarHostOptions(
     clearAllButton: options.document.getElementById('btn-clear-all'),
     slug: options.slug,
     getOverrides: options.getOverrides,
+    getGridOverrides: options.getGridOverrides,
+    getLayoutOverrides: options.getLayoutOverrides,
+    getRemovedIds: options.getRemovedIds,
+    isDiagnosticsMode: options.isDiagnosticsMode,
     writeClipboardText: options.writeClipboardText,
     alert: options.alert,
     confirmClearAll: options.confirmClearAll,
@@ -804,6 +812,13 @@ export function createBootstrapPreviewEditorHostOptionsFromRuntime(
       document: options.document,
       slug: options.slug,
       getOverrides: options.getOverrides,
+      getGridOverrides: () => (
+        options.model.gridOverrides && typeof options.model.gridOverrides === 'object'
+          ? options.model.gridOverrides as Record<string, unknown>
+          : null
+      ),
+      getLayoutOverrides,
+      getRemovedIds: () => options.model.removedIds ?? null,
       writeClipboardText: options.writeClipboardText,
       alert: options.alert,
       confirmClearAll: options.confirmClearAll,

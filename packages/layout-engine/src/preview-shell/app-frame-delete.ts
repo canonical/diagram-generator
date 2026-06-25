@@ -166,15 +166,24 @@ export async function dispatchPreviewDeleteFrames<TAction = unknown>(
     };
   }
 
+  if (selectedIds.includes(options.rootId)) {
+    options.alert?.('Cannot delete the diagram root.');
+    return {
+      kind: 'blocked-root',
+      removedIds: [],
+      topLevelIds: [],
+      rerendered: false,
+    };
+  }
+
   const candidates = resolvePreviewDeleteCandidates({
     selectedIds,
     rootId: options.rootId,
     getNode: options.getNode,
   });
   if (candidates.length === 0) {
-    options.alert?.('Cannot delete the diagram root.');
     return {
-      kind: 'blocked-root',
+      kind: 'none',
       removedIds: [],
       topLevelIds: [],
       rerendered: false,

@@ -5,6 +5,8 @@ import {
   formatPreviewOverrideSummary,
   previewTreeHasFrameId,
   resolvePreviewConstraintStatus,
+  resolvePreviewDocumentActionState,
+  syncPreviewDocumentActionControls,
 } from '../src/preview-shell/app-shell-panels.js';
 
 describe('preview shell panel helpers', () => {
@@ -48,19 +50,117 @@ describe('preview shell panel helpers', () => {
       text: 'No violations',
       backgroundColor: '',
       color: '',
+      hidden: true,
     });
     expect(resolvePreviewConstraintStatus({ total: 2, errors: 0, warnings: 2 })).toEqual({
       className: 'build-status',
       text: '2 warning(s)',
       backgroundColor: '#3a3a1a',
       color: '#cc6',
+      hidden: false,
     });
     expect(resolvePreviewConstraintStatus({ total: 3, errors: 1, warnings: 2 })).toEqual({
       className: 'build-status build-err',
       text: '1 error(s), 2 warning(s)',
       backgroundColor: '',
       color: '',
+      hidden: false,
     });
+  });
+
+  it('resolves document action visibility from all clearable override state', () => {
+    expect(resolvePreviewDocumentActionState({
+      frameOverrideCount: 0,
+      gridOverrides: {},
+      layoutOverrides: {},
+      removedIds: [],
+      diagnosticsMode: false,
+    })).toMatchObject({
+      hasClearableState: false,
+      showCopyOverrides: false,
+      disableClearAll: true,
+      disableCopyOverrides: true,
+    });
+
+    expect(resolvePreviewDocumentActionState({
+      frameOverrideCount: 0,
+      gridOverrides: { cols: 8 },
+      layoutOverrides: {},
+      removedIds: new Set<string>(),
+      diagnosticsMode: false,
+    })).toMatchObject({
+      hasGridOverrides: true,
+      hasClearableState: true,
+      showCopyOverrides: false,
+      disableClearAll: false,
+      disableCopyOverrides: true,
+    });
+
+    expect(resolvePreviewDocumentActionState({
+      frameOverrideCount: 1,
+      removedIds: new Set(['alpha']),
+    })).toMatchObject({
+      hasFrameOverrides: true,
+      hasRemovedFrames: true,
+      hasClearableState: true,
+      showCopyOverrides: true,
+      disableClearAll: false,
+      disableCopyOverrides: false,
+    });
+  });
+
+  it('hides copy overrides from focus order until frame overrides or diagnostics exist', () => {
+    const attrs = new Map<string, string>();
+    const exportButton = {
+      disabled: false,
+      hidden: false,
+      setAttribute(name: string, value: string) {
+        attrs.set(name, value);
+      },
+      removeAttribute(name: string) {
+        attrs.delete(name);
+      },
+    };
+    const clearAllButton = {
+      disabled: false,
+    };
+    const document = {
+      getElementById(id: string) {
+        if (id === 'btn-export') return exportButton;
+        if (id === 'btn-clear-all') return clearAllButton;
+        return null;
+      },
+    } as unknown as Document;
+
+    syncPreviewDocumentActionControls({
+      document,
+      source: {
+        frameOverrideCount: 0,
+        gridOverrides: {},
+        layoutOverrides: {},
+        removedIds: [],
+      },
+    });
+    expect(clearAllButton.disabled).toBe(true);
+    expect(exportButton.disabled).toBe(true);
+    expect(exportButton.hidden).toBe(true);
+    expect(attrs.get('tabindex')).toBe('-1');
+    expect(attrs.get('aria-hidden')).toBe('true');
+
+    syncPreviewDocumentActionControls({
+      document,
+      source: {
+        frameOverrideCount: 2,
+        gridOverrides: {},
+        layoutOverrides: {},
+        removedIds: [],
+      },
+    });
+    expect(clearAllButton.disabled).toBe(false);
+    expect(exportButton.disabled).toBe(false);
+    expect(exportButton.hidden).toBe(false);
+    expect(attrs.has('tabindex')).toBe(false);
+    expect(attrs.has('aria-hidden')).toBe(false);
   });
 
   it('detects frame ids from rendered tree-item datasets', () => {
