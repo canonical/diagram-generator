@@ -67,10 +67,6 @@ const AUTOLAYOUT_PREVIEW_VIEWER_DEFINITION: PreviewHostViewerPageDefinition = {
       section: "grid-controls",
     },
     {
-      placeholder: "%GRID_ELK_LAYOUT_HIDDEN%",
-      section: "grid-elk-layout",
-    },
-    {
       placeholder: "%GRID_OVERRIDES_HIDDEN%",
       section: "grid-overrides",
     },

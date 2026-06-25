@@ -241,7 +241,7 @@ describe('preview shell panel helpers', () => {
     syncPreviewPanelVisibility({
       document,
       visibility: [{
-        id: 'grid-elk-layout',
+        id: 'elk-layout',
         owner: '',
         visible: false,
         disabled: false,
@@ -257,7 +257,7 @@ describe('preview shell panel helpers', () => {
     syncPreviewPanelVisibility({
       document,
       visibility: [{
-        id: 'grid-elk-layout',
+        id: 'elk-layout',
         owner: '',
         visible: true,
         disabled: false,

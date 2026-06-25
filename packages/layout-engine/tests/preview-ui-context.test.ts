@@ -30,7 +30,6 @@ describe('preview UI context registry', () => {
       'force-solver',
       'grid-constraints',
       'grid-controls',
-      'grid-elk-layout',
       'grid-engine-switcher',
       'grid-guide-badge',
       'grid-layers-pane',
@@ -73,7 +72,6 @@ describe('preview UI context registry', () => {
     expect(visible.has('grid-overrides')).toBe(true);
     expect(visible.has('grid-constraints')).toBe(false);
     expect(visible.has('grid-guide-badge')).toBe(false);
-    expect(visible.has('grid-elk-layout')).toBe(false);
     expect(visible.has('elk-layout')).toBe(false);
     expect(visible.has('grid-engine-switcher')).toBe(false);
     expect(shouldShowPreviewEngineSwitcher({
@@ -170,7 +168,6 @@ describe('preview UI context registry', () => {
     });
 
     expect(visible.has('grid-layers-tab')).toBe(true);
-    expect(visible.has('grid-elk-layout')).toBe(true);
     expect(visible.has('elk-layout')).toBe(true);
     expect(visible.has('grid-controls')).toBe(false);
     expect(visible.has('grid-guide-badge')).toBe(false);
@@ -190,7 +187,6 @@ describe('preview UI context registry', () => {
     expect(visible.has('force-simulation')).toBe(true);
     expect(visible.has('force-guidance')).toBe(true);
     expect(visible.has('grid-controls')).toBe(false);
-    expect(visible.has('grid-elk-layout')).toBe(false);
     expect(visible.has('elk-layout')).toBe(false);
   });
 

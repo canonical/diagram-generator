@@ -12,7 +12,6 @@ export type PreviewTemplateSectionKey =
   | 'grid-layers-pane'
   | 'grid-engine-switcher'
   | 'grid-controls'
-  | 'grid-elk-layout'
   | 'grid-overrides'
   | 'grid-constraints'
   | 'grid-guide-badge'
@@ -265,17 +264,6 @@ export const PREVIEW_PANEL_REGISTRY: readonly PreviewPanelRegistryEntry[] = [
       visible,
       'root selection exposes native grid editing',
       'native grid editing requires root selection and engine support',
-    ),
-  },
-  {
-    id: 'grid-elk-layout',
-    owner: 'viewer-unified.html#elk-layout-section',
-    group: 'engine',
-    isVisible: elkLayoutVisible,
-    reason: (_context, visible) => visibilityReason(
-      visible,
-      'active engine exposes the elk-layout sidebar section',
-      'active engine does not expose the elk-layout sidebar section',
     ),
   },
   {

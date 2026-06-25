@@ -315,7 +315,7 @@ test("autolayout viewer hides ELK controls for a single-engine v3 frame", () => 
   try {
     const html = route.buildHtml("simple");
     assert.match(html, /id="grid-controls-section" hidden/);
-    assert.match(html, /id="elk-layout-section" hidden hidden/);
+    assert.match(html, /id="elk-layout-section" hidden/);
     assert.match(html, /id="force-solver-section" hidden/);
     assert.equal(html.includes("/preview/engine-switcher.js"), false);
   } finally {
@@ -346,7 +346,7 @@ test("autolayout viewer hides native grid controls for ELK frames", () => {
 
   const html = route.buildHtml("support-engineering-flow");
   assert.match(html, /id="grid-controls-section" hidden/);
-  assert.match(html, /id="elk-layout-section"  >/);
+  assert.match(html, /id="elk-layout-section" >/);
   assert.match(html, /id="force-solver-section" hidden/);
   assert.match(html, /\/preview\/engine-switcher\.js/);
 });
@@ -363,7 +363,7 @@ test("force viewer hides grid and ELK sections", () => {
 
   const html = route.buildHtml("force-stakeholders");
   assert.match(html, /id="grid-controls-section" hidden/);
-  assert.match(html, /id="elk-layout-section" hidden hidden/);
+  assert.match(html, /id="elk-layout-section" hidden/);
   assert.match(html, /id="force-solver-section" >/);
   assert.match(html, /id="force-simulation-section" >/);
 });
@@ -985,6 +985,58 @@ test("preview host request router dispatches registered API and viewer routes wi
   } finally {
     unregisterViewerRoute();
     unregisterApiRoute();
+  }
+});
+
+test("preview viewer requests refresh browser assets before building cache-busted html", async () => {
+  let browserAssetVersion = "stale";
+  const events: string[] = [];
+  const unregisterViewerRoute = registerPreviewHostViewerRoute({
+    key: "test-router-fresh-browser-assets",
+    lane: AUTOLAYOUT_HOST_LANE,
+    routePrefixes: ["/fresh/view/"],
+    listSlugs: () => ["alpha"],
+    hasDocument: (slug: string) => slug === "alpha",
+    buildHtml: (slug: string) => {
+      events.push(`build:${browserAssetVersion}`);
+      return `<script src="/preview/layout-engine.js?v=${browserAssetVersion}"></script><main>${slug}</main>`;
+    },
+    describeMissing: (slug: string) => `Missing ${slug}`,
+  });
+
+  try {
+    await routeRegisteredPreviewHostRequest({
+      req: { method: "GET" } as never,
+      res: {} as never,
+      pathname: "/fresh/view/alpha",
+      normalizeSlug: normalizePreviewSlug,
+      ensureViewerBrowserAssets: async () => {
+        events.push("ensure");
+        browserAssetVersion = "fresh";
+      },
+      sendHtml: (_statusCode: number, html: string) => {
+        events.push(html);
+      },
+      sendJson: () => {
+        throw new Error("did not expect json");
+      },
+      sendText: () => {
+        throw new Error("did not expect text");
+      },
+      sendBytes: () => {
+        throw new Error("did not expect bytes");
+      },
+      readJsonBody: async () => ({}),
+      notImplementedPayload: { ok: false },
+    });
+
+    assert.deepEqual(events, [
+      "ensure",
+      "build:fresh",
+      '<script src="/preview/layout-engine.js?v=fresh"></script><main>alpha</main>',
+    ]);
+  } finally {
+    unregisterViewerRoute();
   }
 });
 
@@ -2010,7 +2062,7 @@ function contextualAsideTemplate(): string {
   return [
     '<section id="engine-switcher-section" %GRID_ENGINE_SWITCHER_HIDDEN%>engine</section>',
     '<section id="grid-controls-section" %GRID_CONTROLS_HIDDEN%><div id="grid-controls"></div></section>',
-    '<section id="elk-layout-section" %GRID_ELK_LAYOUT_HIDDEN% %ELK_SECTION_HIDDEN%><input id="elk-raw-view-toggle"><input id="elk-debug-overlay-toggle"></section>',
+    '<section id="elk-layout-section" %ELK_SECTION_HIDDEN%><input id="elk-raw-view-toggle"><input id="elk-debug-overlay-toggle"></section>',
     '<section id="force-solver-section" %FORCE_SOLVER_HIDDEN%>force solver</section>',
     '<section id="force-simulation-section" %FORCE_SIMULATION_HIDDEN%><div id="force-params"></div></section>',
     '%MODE_SCRIPTS%',

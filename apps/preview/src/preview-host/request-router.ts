@@ -15,6 +15,7 @@ export interface RouteRegisteredPreviewHostRequestOptions {
   readonly sendText: (statusCode: number, text: string) => void;
   readonly sendBytes: (statusCode: number, contentType: string, bytes: Buffer) => void;
   readonly serveFile?: (filePath: string, cacheControl?: string) => void;
+  readonly ensureViewerBrowserAssets?: () => Promise<void>;
   readonly readJsonBody: (req: IncomingMessage) => Promise<unknown>;
   readonly notImplementedPayload: unknown;
 }
@@ -85,6 +86,7 @@ export async function routeRegisteredPreviewHostRequest(
       options.sendText(404, route.describeMissing(slug));
       return;
     }
+    await options.ensureViewerBrowserAssets?.();
     options.sendHtml(200, route.buildHtml(slug));
     return;
   }

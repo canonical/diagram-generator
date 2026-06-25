@@ -469,6 +469,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, port: nu
     sendBytes: (statusCode: number, contentType: string, bytes: Buffer) =>
       sendBytes(res, statusCode, contentType, bytes),
     serveFile: (filePath: string, cacheControl?: string) => serveFile(res, filePath, cacheControl),
+    ensureViewerBrowserAssets: ensureLayoutEngineBrowserAssets,
     readJsonBody,
     notImplementedPayload: {
       ok: false,
