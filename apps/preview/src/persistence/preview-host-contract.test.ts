@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { EventEmitter } from "node:events";
 import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -68,6 +69,13 @@ const require = createRequire(import.meta.url);
 const { parse: parseYaml } = require("yaml") as { parse: (raw: string) => unknown };
 const PREVIEW_APP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const REPO_ROOT = path.resolve(PREVIEW_APP_ROOT, "..", "..");
+
+test("served layout-engine browser bundle is fresh", () => {
+  execFileSync(process.execPath, [path.join(REPO_ROOT, "scripts", "check-browser-bundle-fresh.mjs")], {
+    cwd: REPO_ROOT,
+    stdio: "pipe",
+  });
+});
 
 test("preview host lane descriptors build typed browse sections", () => {
   const sections = buildPreviewBrowseSections([

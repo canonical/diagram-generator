@@ -18,12 +18,13 @@
 
 ## Phase 0: Branch, baseline, and bundle-freshness gate
 
-- [ ] **T000** Create and switch to the feature branch.
+- [x] **T000** Create and switch to the feature branch.
       **Do**: `git switch -c feat/052-layout-engine-onboarding-port`
       **Accept**: `git branch --show-current` prints the branch name.
       **Verify**: `git branch --show-current`
+      **Result**: `feat/052-layout-engine-onboarding-port`.
 
-- [ ] **T001** Capture the green baseline before any change.
+- [x] **T001** Capture the green baseline before any change.
       **Do**: run all four validation commands and record pass counts in a note
       under this task.
       **Verify**:
@@ -32,22 +33,41 @@
       `npm --prefix apps/preview test` ;
       `node scripts/check_no_new_python.mjs`
       **Accept**: all pass. If any fail on a clean checkout, STOP and report.
+      **Result**: `graph-layout-elk` 4 files / 27 tests passed;
+      `layout-engine` 133 files / 792 tests passed; `apps/preview` 119 tests
+      passed before adding the freshness test; no-new-Python guard passed.
 
-- [ ] **T002** Enumerate the current preview engine registrations as a
+- [x] **T002** Enumerate the current preview engine registrations as a
       reference table (id, layoutEngineKey, renderFamily, sidebarSections).
       **File**: read `packages/layout-engine/src/preview-engine/builtins.ts`,
       `builtin-render-adapters.ts`, `builtin-install-units.ts`.
       **Accept**: a table written under this task listing v3, elk-layered,
       force, sequence with their keys.
       **Verify**: `Select-String -Path packages/layout-engine/src/preview-engine/builtin-install-units.ts -Pattern registerPreviewEngineInstallUnit`
+      **Result**:
+      | id | layoutEngineKey | renderFamily | sidebarSections |
+      |---|---|---|---|
+      | `v3` | `v3` | `frame-native` | `[]` |
+      | `elk-layered` | `elk-layered` | `frame-elk` | `['elk-layout']` |
+      | `force` | n/a | `force` | `[]` |
+      | `sequence` | `sequence` | `sequence` | `[]` |
+      Install-unit registry lines confirmed for all four builtins.
 
-- [ ] **T003** Confirm how the browser bundle is built and served.
+- [x] **T003** Confirm how the browser bundle is built and served.
       **File**: `packages/layout-engine/package.json` (look for `build:browser`),
       `scripts/preview/` served file, `apps/preview` prestart/predev.
       **Accept**: note the exact build command and the served artifact path(s).
       **Verify**: `Select-String -Path packages/layout-engine/package.json -Pattern build:browser`
+      **Result**: build command is `npm --prefix packages/layout-engine run
+      build:browser` -> `node build-browser.mjs`. `apps/preview` `predev` and
+      `prestart` run that command. Preview serves
+      `packages/layout-engine/dist/layout-engine.iife.js` as
+      `/preview/layout-engine.js` and
+      `packages/layout-engine/dist/layout-engine-harfbuzz.js` as
+      `/preview/layout-engine-harfbuzz.js`; the preview engine manifest is
+      generated at `packages/layout-engine/dist/preview-engine-manifest.json`.
 
-- [ ] **T004** Add a **bundle-freshness guard** so green unit tests can never
+- [x] **T004** Add a **bundle-freshness guard** so green unit tests can never
       again mask a stale served bundle.
       **Do**: add a small Node check script `scripts/check-browser-bundle-fresh.mjs`
       that fails if the built bundle is older than any file under
@@ -57,9 +77,18 @@
       **Accept**: editing a `src` file and not rebuilding makes the guard fail;
       rebuilding makes it pass.
       **Verify**: `node scripts/check-browser-bundle-fresh.mjs` (after a build)
+      **Result**: added `scripts/check-browser-bundle-fresh.mjs` and wired it
+      into `apps/preview/src/persistence/preview-host-contract.test.ts`.
+      Negative probe with a temporary
+      `packages/layout-engine/src/__bundle_freshness_probe__.tmp` failed with
+      all three artifacts stale; after deleting the probe and running
+      `npm --prefix packages/layout-engine run build:browser`,
+      `node scripts/check-browser-bundle-fresh.mjs` passed.
 
-- [ ] **T005** Phase 0 Definition of Done: baseline green recorded, build
+- [x] **T005** Phase 0 Definition of Done: baseline green recorded, build
       command documented, freshness guard works. Do not proceed otherwise.
+      **Result**: Phase 0 gate passed. Post-guard `apps/preview` suite passed
+      120 tests and `node scripts/check-browser-bundle-fresh.mjs` passed.
 
 ---
 
