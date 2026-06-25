@@ -74,9 +74,11 @@ that adding a graph layout algorithm is one small file + one registration line +
 one generated contract test, with **no** central branching and **no** legacy
 shell edits. Prove it by:
 
-1. Porting the **complete elkjs algorithm family** the bundled `elkjs` build
-   supports (layered, force, stress, mrtree, radial, rectpacking, and any others
-   the installed `elkjs` exposes — confirm the list in Phase 3).
+1. Porting the **product-suitable elkjs layout algorithms** the bundled `elkjs`
+   build supports for authored frame diagrams: layered, force, stress, mrtree,
+   radial, and rectpacking. Utility/debug algorithms exposed by the installed
+   build are explicitly triaged in Phase 3 instead of surfaced as product
+   engines.
 2. Adding **dagre** as the first non-ELK graph engine (dagre is mermaid's core
    flowchart layout algorithm), proving the factory is not ELK-specific.
 
@@ -92,6 +94,13 @@ shell edits. Prove it by:
   permitted `meta.layout_engine` values.
 - **Not** touching `scripts/preview/force.js` internals (force-shell migration
   is separate).
+- **Not** exposing every installed `elkjs` utility algorithm as a product engine.
+  The installed build exposes `fixed`, `box`, `random`, `sporeOverlap`, and
+  `sporeCompaction`; these are omitted because they require prior coordinates,
+  duplicate rectangle-packing behavior, randomize layout, or perform
+  post-processing rather than standalone authored-frame layout. This installed
+  build does not expose `disco`; if a future build does, it must be triaged
+  before being added to the switcher.
 
 ## 4. Definitions
 
@@ -230,10 +239,11 @@ Every ported engine adds **one** test file that calls this helper. This is the
 - **FR-002**: `elk-layered` is refactored to be produced by the factory with
   **zero behavior change** (all existing tests still pass, byte-stable layout on
   the parity fixtures).
-- **FR-003**: Every ELK algorithm the installed `elkjs` build supports is ported
+- **FR-003**: Every product-suitable ELK algorithm selected in Phase 3 is ported
   as a preview engine via the factory, each with: a graph engine descriptor in
   `graph-layout-elk`, param specs, a render adapter, a manifest, an install unit
-  registration, and a contract test.
+  registration, and a contract test. Installed utility/debug algorithms are
+  documented as excluded instead of silently omitted.
 - **FR-004**: `dagre` is added as a new `packages/graph-layout-dagre` package
   with a `GraphLayoutEngineDescriptor` and a `GraphLayoutInput → GraphLayoutResult`
   adapter, then onboarded via the factory as preview engine `dagre`.

@@ -535,14 +535,21 @@
       both graph-layout and ELK sections hidden; `elk-layered` and `elk-stress`
       had ELK visible and graph-layout hidden. ELK and dagre had
       `#grid-controls-section`, `#force-solver-section`, and
-      `#force-simulation-section` hidden/inert/aria-hidden.
+      `#force-simulation-section` hidden/inert/aria-hidden. Post-review rerun on
+      2026-06-25 with temporary authored frame YAML produced SVG for all four
+      routes and confirmed: `v3` (`elkHidden=true`, `graphHidden=true`),
+      `elk-layered` (`elkHidden=false`, `graphHidden=true`), `elk-stress`
+      (`elkHidden=false`, `graphHidden=true`), and `dagre` (`elkHidden=true`,
+      `graphHidden=false`); all had grid and force sections hidden/inert.
 
 - [x] **T506** Spec 052 closeout: update `AGENT-INBOX.md` handover, set
       `docs/specs.md` status, and (on merge) archive per `AGENTS.md` workflow.
       **Result**: `docs/specs.md` and `spec.md` now mark 052 Closeout Ready,
       `AGENT-INBOX.md` has no open completed audit items, and `AGENTS.md`
-      records the current 052 handoff. Archive remains a merge-time action per
-      repo workflow.
+      records the current 052 handoff. A post-review unrelated
+      `tiered-network-architecture.yaml` edit was preserved in stash
+      `codex-preserve-tiered-network-frame-before-052-closeout`, not committed
+      to 052. Archive remains a merge-time action per repo workflow.
 
 ---
 
