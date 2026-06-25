@@ -47,7 +47,8 @@ Thin shell modules (safe to read whole): `editor.js`, `layout-bridge.js`, `edito
 | Preview host lane/page topology | [`docs/spec-archive/045-preview-host-engine-modularity/host-topology.md`](./spec-archive/045-preview-host-engine-modularity/host-topology.md) |
 | Editor host decomposition map | [`specs/046-editor-host-endgame/decomposition-map.md`](../specs/046-editor-host-endgame/decomposition-map.md) |
 | ELK sizing / live resize / debug | [`specs/048-elk-sizing-interaction-followup/elk-sizing-interaction-flow.md`](../specs/048-elk-sizing-interaction-followup/elk-sizing-interaction-flow.md) |
-| Preview editor recovery | [`specs/050-preview-editor-recovery/preview-editor-recovery-flow.md`](../specs/050-preview-editor-recovery/preview-editor-recovery-flow.md) |
+| Preview editor recovery | [`docs/spec-archive/050-preview-editor-recovery/preview-editor-recovery-flow.md`](./spec-archive/050-preview-editor-recovery/preview-editor-recovery-flow.md) |
+| Preview contextual aside | [`specs/051-preview-editor-contextual-aside/preview-contextual-aside-flow.md`](../specs/051-preview-editor-contextual-aside/preview-contextual-aside-flow.md) |
 | Agent token / workspace slimming | [`docs/spec-archive/040-agent-token-slimming/spec.md`](./spec-archive/040-agent-token-slimming/spec.md) |
 
 Add a new row when you land a cross-layer map (UI → server → engine → disk). Keep maps ≤60 lines.

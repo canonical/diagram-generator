@@ -18,12 +18,14 @@ are tracked on Jira. Repo execution should route through spec-kit packages.
    `feat/047-render-ir-unification`. Fresh preview and export SVG both consume
    the shared display-list IR path; only merge/archive/admin work should remain
    on that branch.
-2. `specs/048-elk-sizing-interaction-followup/` is Closeout Ready; reopen only
+2. `specs/051-preview-editor-contextual-aside/` is the active UI cleanup draft
+   for engine/selection-driven right-aside visibility and grouping.
+3. `specs/048-elk-sizing-interaction-followup/` is Closeout Ready; reopen only
    for fallout that directly affects the ELK sizing/interaction contracts.
-3. `specs/046-editor-host-endgame/` remains architecturally closed. Reopen only
+4. `specs/046-editor-host-endgame/` remains architecturally closed. Reopen only
    if future work regresses by widening legacy JS sinks or central
    engine/document branches.
-4. Other open work should be selected from `docs/specs.md`, then executed from
+5. Other open work should be selected from `docs/specs.md`, then executed from
    that spec package's own `tasks.md`.
 
 ## Open Spec Pointers
