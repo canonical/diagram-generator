@@ -6,6 +6,8 @@ import {
   GRID_GUTTER,
   ICON_SIZE,
   INSET,
+  resolvePreviewVisibleTemplateSections,
+  shouldShowPreviewEngineSwitcher,
 } from "@diagram-generator/layout-engine";
 
 import { installPreviewHostApiRoutes } from "./api-routes.js";
@@ -44,21 +46,9 @@ import {
   buildPreviewWindowConfigScript,
 } from "./viewers.js";
 
-const AUTOLAYOUT_TEMPLATE_SECTIONS = [
-  "grid-layers-tab",
-  "grid-layers-pane",
-  "grid-engine-switcher",
-  "grid-controls",
-  "grid-elk-layout",
-  "grid-overrides",
-  "grid-constraints",
-  "grid-guide-badge",
-] as const;
-
 const AUTOLAYOUT_PREVIEW_VIEWER_DEFINITION: PreviewHostViewerPageDefinition = {
   mode: "grid",
   inspectorEmptyText: "Click a component to inspect it.",
-  alwaysVisibleTemplateSections: AUTOLAYOUT_TEMPLATE_SECTIONS,
   sectionVisibilityPlaceholders: [
     {
       placeholder: "%GRID_LAYERS_TAB_HIDDEN%",
@@ -226,6 +216,8 @@ export function createAutolayoutPreviewHostViewerRoute(
     hasDocument: (slug: string) => frameDiagramExists(slug, deps.framePreviewDocumentDeps),
     buildHtml: (slug: string) => {
       const {
+        authoredLayoutEngine,
+        documentKind,
         engineManifest,
         activeLayoutEngine,
         compatibleEngines,
@@ -238,6 +230,16 @@ export function createAutolayoutPreviewHostViewerRoute(
           findReferenceImage: deps.findReferenceImage,
         },
       );
+      const previewUiContext = {
+        shellMode: "grid" as const,
+        documentKind,
+        activeEngine: engineManifest ?? null,
+        compatibleEngines,
+        persistedLayoutEngine: authoredLayoutEngine,
+        documentState: { hasReference },
+      };
+      const visibleTemplateSections = resolvePreviewVisibleTemplateSections(previewUiContext);
+      const showEngineSwitcher = shouldShowPreviewEngineSwitcher(previewUiContext);
       const configScript = buildPreviewWindowConfigScript("__DG_CONFIG", {
         slug,
         engine: engineManifest?.id ?? "v3",
@@ -264,7 +266,7 @@ export function createAutolayoutPreviewHostViewerRoute(
         engineScripts: [
           ...(engineManifest?.scripts ?? []),
           "editor.js",
-          "engine-switcher.js",
+          ...(showEngineSwitcher ? ["engine-switcher.js"] : []),
         ],
       });
       return buildPreviewViewerHtml({
@@ -272,7 +274,7 @@ export function createAutolayoutPreviewHostViewerRoute(
         definition: AUTOLAYOUT_PREVIEW_VIEWER_DEFINITION,
         configScript,
         modeScriptsHtml: modeScripts,
-        visibleSidebarSections: engineManifest?.hostView?.sidebarSections ?? [],
+        visibleSidebarSections: visibleTemplateSections,
         templateHtml: deps.templateHtml,
         browseSections: buildRegisteredPreviewBrowseSections(),
         baselineStylesHtml: deps.baselineStylesHtml,

@@ -5,43 +5,43 @@
 
 ## Phase 1: Inventory And Contract
 
-- [ ] T001 Confirm the static chrome inventory in `scripts/preview/viewer-unified.html`:
+- [x] T001 Confirm the static chrome inventory in `scripts/preview/viewer-unified.html`:
       browse, layers, nodes, output, header, selection, engine switcher, grid,
       ELK, overrides, constraints, force solver, force simulation, force
       guidance, guide badge.
-- [ ] T002 Confirm current manifest facts in
+- [x] T002 Confirm current manifest facts in
       `packages/layout-engine/src/preview-engine/builtins.ts`: v3 grid editing,
       ELK layout controls, force simulation controls, sequence output-only.
-- [ ] T003 Add a typed `PreviewUiContext` model under
+- [x] T003 Add a typed `PreviewUiContext` model under
       `packages/layout-engine/src/preview-shell/` that accepts engine manifest,
       document kind, shell mode, compatible engines, selection summary, dirty
       state, undo/redo state, constraint state, and reference availability.
-- [ ] T004 Add a typed `PreviewPanelRegistry` with entries for every current
+- [x] T004 Add a typed `PreviewPanelRegistry` with entries for every current
       static section and control group. Each entry must include id, owner,
       visible predicate, disabled predicate where applicable, and reason.
-- [ ] T005 Add pure unit tests for the registry covering v3, ELK, force,
+- [x] T005 Add pure unit tests for the registry covering v3, ELK, force,
       sequence, invalid persisted engine, and no-manifest fallback.
 
 ## Phase 2: Engine And Document Visibility
 
-- [ ] T010 Replace always-visible autolayout template sections in
+- [x] T010 Replace always-visible autolayout template sections in
       `apps/preview/src/preview-host/builtin-autolayout-host.ts` with
       manifest/capability-driven section selection.
-- [ ] T011 Ensure ELK layout controls are visible only when
+- [x] T011 Ensure ELK layout controls are visible only when
       `hostView.sidebarSections` includes `elk-layout`.
-- [ ] T012 Ensure ELK raw/debug toggles are separately gated by explicit
+- [x] T012 Ensure ELK raw/debug toggles are separately gated by explicit
       capability or typed ELK debug support; do not show them for v3.
-- [ ] T013 Ensure grid controls are visible only when
+- [x] T013 Ensure grid controls are visible only when
       `capabilities.gridEditing === true`.
-- [ ] T014 Ensure force solver/simulation/guidance sections are visible only
+- [x] T014 Ensure force solver/simulation/guidance sections are visible only
       when the active shell mode is force and the manifest exposes the matching
       capabilities.
-- [ ] T015 Move engine switcher visibility into typed logic: show for multiple
+- [x] T015 Move engine switcher visibility into typed logic: show for multiple
       compatible engines or invalid persisted engine repair; hide for a single
       valid compatible engine.
-- [ ] T016 Update engine switcher help text to state that engine switching
+- [x] T016 Update engine switcher help text to state that engine switching
       persists `meta.layout_engine` and reloads the page.
-- [ ] T017 Add apps/preview host-contract tests asserting v3 lacks ELK controls,
+- [x] T017 Add apps/preview host-contract tests asserting v3 lacks ELK controls,
       ELK lacks native grid controls, and force lacks grid/ELK controls.
 
 ## Phase 3: Figma-Like Right Aside Structure
@@ -106,15 +106,15 @@
 
 ## Phase 6: Tests And Verification
 
-- [ ] T060 Add panel-registry unit tests in `packages/layout-engine/tests/`.
+- [x] T060 Add panel-registry unit tests in `packages/layout-engine/tests/`.
 - [ ] T061 Add inspector render tests for empty, frame leaf, container, arrow,
       root, same-parent multi, mixed-parent multi, and mixed unsupported multi.
-- [ ] T062 Add apps/preview contract tests for static host HTML visibility for
+- [x] T062 Add apps/preview contract tests for static host HTML visibility for
       v3, ELK, force, and sequence/mindmap-like engine proofs.
 - [ ] T063 Add keyboard/focus tests proving hidden controls are not focusable.
-- [ ] T064 Run `npm --prefix packages/layout-engine test`.
-- [ ] T065 Run `npm --prefix apps/preview test`.
-- [ ] T066 Run `node scripts/check_no_new_python.mjs`.
+- [x] T064 Run `npm --prefix packages/layout-engine test`.
+- [x] T065 Run `npm --prefix apps/preview test`.
+- [x] T066 Run `node scripts/check_no_new_python.mjs`.
 - [ ] T067 If browser verification is needed, use no-screenshot Playwright DOM
       probes by default; do not capture screenshots unless explicitly asked.
 

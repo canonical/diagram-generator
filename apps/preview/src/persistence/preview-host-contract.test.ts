@@ -15,6 +15,7 @@ import {
 import { AUTOLAYOUT_HOST_LANE, FORCE_HOST_LANE, buildPreviewBrowseSections } from "../preview-host/lanes.js";
 import { buildIndexPageHtml, buildViewerPageHtml } from "../preview-host/pages.js";
 import { createAutolayoutPreviewHostViewerRoute } from "../preview-host/builtin-autolayout-host.js";
+import { createForcePreviewHostViewerRoute } from "../preview-host/builtin-force-host.js";
 import { installBuiltinPreviewHostViewerRoutes } from "../preview-host/builtin-viewer-routes.js";
 import { installBuiltinPreviewHost } from "../preview-host/install-builtins.js";
 import {
@@ -271,6 +272,100 @@ test("autolayout viewer loads engine controller scripts before editor bootstrap"
   assert.notEqual(editorIndex, -1);
   assert.ok(controlsIndex < editorIndex);
   assert.ok(controllerIndex < editorIndex);
+});
+
+test("autolayout viewer hides ELK controls for a single-engine v3 frame", () => {
+  const tempDir = mkdtempSync(path.join(os.tmpdir(), "dg-preview-v3-ui-"));
+  const framesDir = path.join(tempDir, "frames");
+  mkdirSync(framesDir, { recursive: true });
+  writeFileSync(
+    path.join(framesDir, "simple.yaml"),
+    [
+      "engine: v3",
+      "title: Simple",
+      "root:",
+      "  id: page",
+      "  children:",
+      "    - id: alpha",
+      "      label:",
+      "        - Alpha",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+
+  const route = createAutolayoutPreviewHostViewerRoute({
+    framePreviewDocumentDeps: { framesDir },
+    framePreviewRenderDeps: {
+      framesDir,
+      iconLoader: () => null,
+      textAdapterPromise: Promise.resolve(new MockTextAdapter()),
+    },
+    forcePreviewDocumentDeps: { forceDefinitionsDir: "/virtual/force" },
+    parseYaml: () => ({}),
+    templateHtml: contextualAsideTemplate(),
+    baselineStylesHtml: "",
+    previewAssetUrl: (filename: string) => `/preview/${filename}`,
+    listAutolayoutDiagrams: () => ["simple"],
+    listForceExamples: () => [],
+    findReferenceImage: () => null,
+    normalizeLayoutEngine: (layoutEngine: string | undefined) => layoutEngine?.trim() ?? "",
+  });
+
+  try {
+    const html = route.buildHtml("simple");
+    assert.match(html, /id="grid-controls-section" >/);
+    assert.match(html, /id="elk-layout-section" hidden hidden/);
+    assert.match(html, /id="force-solver-section" hidden/);
+    assert.equal(html.includes("/preview/engine-switcher.js"), false);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("autolayout viewer hides native grid controls for ELK frames", () => {
+  const route = createAutolayoutPreviewHostViewerRoute({
+    framePreviewDocumentDeps: {
+      framesDir: path.join(REPO_ROOT, "scripts", "diagrams", "frames"),
+    },
+    framePreviewRenderDeps: {
+      framesDir: path.join(REPO_ROOT, "scripts", "diagrams", "frames"),
+      iconLoader: () => null,
+      textAdapterPromise: Promise.resolve(new MockTextAdapter()),
+    },
+    forcePreviewDocumentDeps: { forceDefinitionsDir: "/virtual/force" },
+    parseYaml: () => ({}),
+    templateHtml: contextualAsideTemplate(),
+    baselineStylesHtml: "",
+    previewAssetUrl: (filename: string) => `/preview/${filename}`,
+    listAutolayoutDiagrams: () => ["support-engineering-flow"],
+    listForceExamples: () => [],
+    findReferenceImage: () => null,
+    normalizeLayoutEngine: () => "elk-layered",
+  });
+
+  const html = route.buildHtml("support-engineering-flow");
+  assert.match(html, /id="grid-controls-section" hidden/);
+  assert.match(html, /id="elk-layout-section"  >/);
+  assert.match(html, /id="force-solver-section" hidden/);
+  assert.match(html, /\/preview\/engine-switcher\.js/);
+});
+
+test("force viewer hides grid and ELK sections", () => {
+  const route = createForcePreviewHostViewerRoute({
+    forcePreviewDocumentDeps: { forceDefinitionsDir: "/virtual/force" },
+    parseYaml: () => ({}),
+    templateHtml: contextualAsideTemplate(),
+    baselineStylesHtml: "",
+    previewAssetUrl: (filename: string) => `/preview/${filename}`,
+    listForceExamples: () => ["force-stakeholders"],
+  });
+
+  const html = route.buildHtml("force-stakeholders");
+  assert.match(html, /id="grid-controls-section" hidden/);
+  assert.match(html, /id="elk-layout-section" hidden hidden/);
+  assert.match(html, /id="force-solver-section" >/);
+  assert.match(html, /id="force-simulation-section" >/);
 });
 
 test("frame YAML preview document kinds register outside the central fallback handler", async () => {
@@ -1869,6 +1964,17 @@ test("preview index page HTML renders browse sections without server-local strin
 function normalizePreviewSlug(value: string): string | null {
   const normalized = decodeURIComponent(value).replace(/^v3:/, "");
   return /^[A-Za-z0-9._:-]+$/.test(normalized) ? normalized : null;
+}
+
+function contextualAsideTemplate(): string {
+  return [
+    '<section id="engine-switcher-section" %GRID_ENGINE_SWITCHER_HIDDEN%>engine</section>',
+    '<section id="grid-controls-section" %GRID_CONTROLS_HIDDEN%><div id="grid-controls"></div></section>',
+    '<section id="elk-layout-section" %GRID_ELK_LAYOUT_HIDDEN% %ELK_SECTION_HIDDEN%><input id="elk-raw-view-toggle"><input id="elk-debug-overlay-toggle"></section>',
+    '<section id="force-solver-section" %FORCE_SOLVER_HIDDEN%>force solver</section>',
+    '<section id="force-simulation-section" %FORCE_SIMULATION_HIDDEN%><div id="force-params"></div></section>',
+    '%MODE_SCRIPTS%',
+  ].join('\n');
 }
 
 function expectRegisteredRoutes(keys: string[]): void {

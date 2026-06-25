@@ -239,6 +239,25 @@ export {
 } from './app-shell-resize.js';
 
 export type {
+  PreviewPanelRegistryEntry,
+  PreviewPanelVisibility,
+  PreviewSelectionKind,
+  PreviewTemplateSectionKey,
+  PreviewUiContext,
+  PreviewUiDocumentState,
+  PreviewUiSelectionContext,
+} from './preview-ui-context.js';
+
+export {
+  PREVIEW_PANEL_REGISTRY,
+  hasInvalidPreviewPersistedLayoutEngine,
+  previewEngineSupportsSidebarSection,
+  resolvePreviewPanelVisibility,
+  resolvePreviewVisibleTemplateSections,
+  shouldShowPreviewEngineSwitcher,
+} from './preview-ui-context.js';
+
+export type {
   InitPreviewOverrideToolbarOptions,
   PreviewConstraintStatus,
   PreviewConstraintSummary,
