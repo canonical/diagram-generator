@@ -159,7 +159,7 @@
 
 ## Phase 2: Refactor `elk-layered` onto the factory (zero behavior change)
 
-- [ ] **T200** Move the `elk-layered` manifest to a definition file.
+- [x] **T200** Move the `elk-layered` manifest to a definition file.
       **File**: `packages/layout-engine/src/preview-engine/engines/elk-layered.engine.ts` (new)
       **Do**: produce the `elk-layered` manifest + install unit via
       `defineGraphLayoutPreviewEngine`, using `ELK_LAYERED_GRAPH_LAYOUT_ENGINE`,
@@ -168,28 +168,47 @@
       **Accept**: identical manifest fields to the current `builtins.ts`
       `elk-layered` entry (diff them field by field).
       **Verify**: `npm --prefix packages/layout-engine test`
+      **Result**: added `engines/elk-layered.engine.ts` with the factory
+      definition. Manifest identity, label, layout key, shell mode, render
+      family, sections, capabilities, control specs, scripts, compatibility
+      description, and frame requirements match the prior hand-written entry.
 
-- [ ] **T201** Switch registration to the new definition.
+- [x] **T201** Switch registration to the new definition.
       **File**: `builtin-install-units.ts`, `builtins.ts`
       **Do**: register the factory-produced `elk-layered` install unit; remove the
       old hand-written one. Keep `v3`, `force`, `sequence` untouched for now.
       **Accept**: `getPreviewEngineByLayoutKey('elk-layered')` still resolves.
       **Verify**: `npm --prefix packages/layout-engine test`
+      **Result**: `builtins.ts` now re-exports the factory-produced
+      `ELK_LAYERED_PREVIEW_ENGINE` and install unit; existing registry tests
+      still resolve `elk-layered` by layout key.
 
-- [ ] **T202** Prove byte-stable layout.
+- [x] **T202** Prove byte-stable layout.
       **File**: existing parity fixtures (`tests/regenerate-parity-fixtures.test.ts`,
       `tests/elk-layout.test.ts`).
       **Accept**: no fixture diffs; all elk tests pass unchanged.
       **Verify**: `npm --prefix packages/layout-engine test`
+      **Result**: `npm --prefix packages/layout-engine test` passed 134 files /
+      794 tests, including `tests/regenerate-parity-fixtures.test.ts` and
+      `tests/elk-layout.test.ts`; no frame fixture diffs were produced.
 
-- [ ] **T203** Rebuild bundle + live probe `elk-layered` still works.
+- [x] **T203** Rebuild bundle + live probe `elk-layered` still works.
       **Verify**: `npm --prefix packages/layout-engine run build:browser` then the
       Phase 0 freshness guard, then a no-screenshot DOM probe on an elk-layered
       diagram route asserting `#elk-layout-section` is visible.
       **Accept**: ELK section visible for elk-layered; v3 still hides it.
+      **Result**: `build:browser` passed and
+      `node scripts/check-browser-bundle-fresh.mjs` passed. Live DOM probe on
+      `support-engineering-flow` showed `#elk-layout-section hidden=false`,
+      `engineValue='elk-layered'`, and grid controls hidden/inert. Probe on
+      `mongo-octavia-ha` showed `#elk-layout-section hidden=true inert=true`
+      with `engineValue='v3'`.
 
-- [ ] **T204** Phase 2 DoD: elk-layered is factory-produced with zero behavior
+- [x] **T204** Phase 2 DoD: elk-layered is factory-produced with zero behavior
       change; all four validation commands pass.
+      **Result**: Phase 2 gate passed. `graph-layout-elk` 4 files / 27 tests
+      passed; `layout-engine` 134 files / 794 tests passed; `apps/preview` 120
+      tests passed; no-new-Python guard passed.
 
 ---
 
