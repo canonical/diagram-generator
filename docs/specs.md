@@ -35,7 +35,9 @@ For spec-driven implementation, keep git aligned to the spec package:
 | 047 Render IR unification | `specs/047-render-ir-unification/` | Closeout Ready | Render-convergence package: preview fresh render and export SVG now consume the shared display-list IR path, `svg-render.ts` is a thin compatibility wrapper, and bridge/waypoint lanes are reduced to preview-only mutation owners over shared geometry primitives. |
 | 048 ELK sizing and interaction follow-up | `specs/048-elk-sizing-interaction-followup/` | Closeout Ready | Current ELK product follow-up: preserve Fill/Hug/Fixed semantics, rerun text measurement on width changes, add live resize feedback, align parent text insets, and harden ELK option/debug surfaces without reopening 046. |
 | 051 Preview editor contextual aside | `specs/051-preview-editor-contextual-aside/` | Draft | Figma-like right-aside cleanup: engine and selection driven visibility for Browse/Layers, Selection, Engine, Grid, ELK, Document, Diagnostics, and force-only controls. |
+| 052 Layout engine onboarding factory and multi-engine port | `specs/052-layout-engine-onboarding-port/` | Draft | Declarative `defineGraphLayoutPreviewEngine` factory + per-engine contract-test generator + bundle-freshness gate; ports the full elkjs algorithm family and adds dagre (mermaid's layout core) to prove "engine N+1 is cheap." Includes `engine-onboarding-checklist.md`. |
 | — | `specs/ADVERSARIAL_REVIEW_PROMPT.md` | Template | Copy-paste prompt for post-session adversarial reviews. |
+
 
 Archived completed packages: [`docs/spec-archive/README.md`](./spec-archive/README.md)
 
