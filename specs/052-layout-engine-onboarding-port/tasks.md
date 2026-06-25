@@ -94,7 +94,7 @@
 
 ## Phase 1: The onboarding factory + generic control adapter
 
-- [ ] **T100** Generalize the param→control adapter.
+- [x] **T100** Generalize the param→control adapter.
       **File**: `packages/layout-engine/src/preview-engine/control-specs.ts` (new)
       or extend `elk-controls.ts`.
       **Do**: add `paramSpecToPreviewControl(spec, persistNamespace)` that does
@@ -103,8 +103,11 @@
       **Accept**: `elkLayeredPreviewControlSpecs()` returns identical output to
       before (same keys, labels, defaults).
       **Verify**: `npm --prefix packages/layout-engine test`
+      **Result**: added `control-specs.ts`; `elkParamToPreviewControl()` now
+      delegates to `paramSpecToPreviewControl(spec, 'meta.elk')`. Existing ELK
+      registry assertions still pass.
 
-- [ ] **T101** Create the factory file with types only (no logic yet).
+- [x] **T101** Create the factory file with types only (no logic yet).
       **File**: `packages/layout-engine/src/preview-engine/define-graph-layout-engine.ts` (new)
       **Do**: add `GraphLayoutPreviewEngineDefinition` interface exactly as in
       spec §6.2 and a stub `defineGraphLayoutPreviewEngine` that throws
@@ -112,8 +115,11 @@
       **Accept**: file typechecks.
       **Verify**: `npm --prefix packages/layout-engine run build` (or the
       package's typecheck script; confirm the script name from package.json)
+      **Result**: implemented the interface in
+      `define-graph-layout-engine.ts`; `npm --prefix packages/layout-engine run
+      build` passed.
 
-- [ ] **T102** Implement `defineGraphLayoutPreviewEngine`.
+- [x] **T102** Implement `defineGraphLayoutPreviewEngine`.
       **File**: `define-graph-layout-engine.ts`
       **Do**: build the manifest with capability defaults (server-relayout,
       engine-backed-save, node-inspector, layout-controls, reference-image; no
@@ -127,8 +133,11 @@
       **Accept**: mirrors `composePreviewEngineInstallUnit` shape in `builtins.ts`;
       no import-time side effects.
       **Verify**: `npm --prefix packages/layout-engine test`
+      **Result**: factory returns `{ manifest, installUnit }`, registers engine
+      + render adapter only during `install()`, and unwinds partial installs on
+      failure. `npm --prefix packages/layout-engine test` passed.
 
-- [ ] **T103** Add the contract-test generator helper.
+- [x] **T103** Add the contract-test generator helper.
       **File**: `packages/layout-engine/tests/helpers/graph-layout-engine-contract.ts` (new)
       **Do**: export `runGraphLayoutPreviewEngineContract(definition)` asserting
       the 5 checks in spec §6.5 (registry discoverability, compatibility match,
@@ -137,9 +146,14 @@
       **Accept**: helper compiles and is importable from a test.
       **Verify**: write a temporary throwaway test calling it on a fake engine,
       run `npm --prefix packages/layout-engine test`, then delete the throwaway.
+      **Result**: added the helper plus a durable synthetic-engine test in
+      `tests/define-graph-layout-engine.test.ts` so the helper remains covered.
+      `npm --prefix packages/layout-engine test` passed.
 
-- [ ] **T104** Phase 1 DoD: factory + helper exist, all baseline tests still
+- [x] **T104** Phase 1 DoD: factory + helper exist, all baseline tests still
       pass. `npm --prefix packages/layout-engine test`.
+      **Result**: Phase 1 gate passed; layout-engine suite is now 134 files /
+      794 tests passed.
 
 ---
 

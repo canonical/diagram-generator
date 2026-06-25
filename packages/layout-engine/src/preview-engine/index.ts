@@ -21,6 +21,15 @@ export type {
 
 export { elkLayeredPreviewControlSpecs, elkParamToPreviewControl } from './elk-controls.js';
 export {
+  paramSpecToPreviewControl,
+  type PreviewParamSpec,
+} from './control-specs.js';
+export {
+  defineGraphLayoutPreviewEngine,
+  type DefinedGraphLayoutPreviewEngine,
+  type GraphLayoutPreviewEngineDefinition,
+} from './define-graph-layout-engine.js';
+export {
   createPreviewElkLayoutControlsRuntime,
   type PreviewElkLayoutControlsRuntime,
   type PreviewElkLayoutControlsRuntimeOptions,

@@ -412,6 +412,8 @@ export {
   registerPreviewEngine,
   registerPreviewDocumentSvgRenderer,
   elkLayeredPreviewControlSpecs,
+  paramSpecToPreviewControl,
+  defineGraphLayoutPreviewEngine,
   evaluatePreviewEngineCompatibility,
   getPreviewEngine,
   getPreviewEngineByLayoutKey,
@@ -452,4 +454,7 @@ export type {
   PreviewRenderFamily,
   PreviewViewerSidebarSection,
   PreviewShellMode,
+  PreviewParamSpec,
+  DefinedGraphLayoutPreviewEngine,
+  GraphLayoutPreviewEngineDefinition,
 } from './preview-engine/index.js';
