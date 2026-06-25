@@ -487,7 +487,23 @@ export function applyPreviewOverridesToFrameTree(
     if (!target) continue;
 
     if (typeof override.direction === 'string' && override.direction in DIRECTION_MAP) {
-      target.direction = DIRECTION_MAP[override.direction as keyof typeof DIRECTION_MAP];
+      const nextDirection = DIRECTION_MAP[override.direction as keyof typeof DIRECTION_MAP];
+      const body = previewHasHeadingBodyLayout(target)
+        ? previewFindSyntheticBody(target)
+        : null;
+      if (body) {
+        // Headed containers always keep the outer frame VERTICAL (heading
+        // stacked above the body); the authored direction belongs to the body.
+        // Heading synthesis re-derives this on reload, so routing the override
+        // to the body, instead of the outer frame, keeps the live view
+        // consistent with the persisted/reloaded result. Without this, setting
+        // a headed container to horizontal would lay the heading beside the
+        // body live, then "revert to vertical" after save+reload.
+        body.direction = nextDirection;
+        target.direction = Direction.VERTICAL;
+      } else {
+        target.direction = nextDirection;
+      }
       syncPreviewSyntheticBodyFromParent(target);
     }
     if (override.gap != null) {

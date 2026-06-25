@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { Align, Border, Fill, Frame, FrameDiagram, createLine } from '../src/frame-model.js';
+import { Align, Border, Direction, Fill, Frame, FrameDiagram, createLine } from '../src/frame-model.js';
 import {
   applyPreviewOverridesToFrameTree,
   clearPreviewTransientLayoutOverrides,
@@ -391,7 +391,11 @@ describe('preview relayout helpers', () => {
     });
 
     expect(diagram.root.children.map((child) => child.id)).toEqual(['beta', 'alpha', 'gamma']);
-    expect(gamma.direction).toBe('HORIZONTAL');
+    // Direction overrides on a headed container route to the synthetic body and
+    // keep the outer frame vertical (heading stacked above the body), matching
+    // what heading synthesis re-derives on reload.
+    expect(gamma.direction).toBe(Direction.VERTICAL);
+    expect(bodyChild.direction).toBe(Direction.HORIZONTAL);
     expect(gamma.gap).toBe(24);
     expect(gamma.gapDelta).toBeUndefined();
     expect(gamma.fill).toBe(Fill.GREY);

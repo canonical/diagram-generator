@@ -100,7 +100,13 @@ describe('renderFrameDiagramToSvg resolved style snapshot', () => {
     expect(svg).not.toContain('fill="#FF00FF"');
   });
 
-  it('renders arrow groups beneath frame groups so border-hugging routes do not paint over boxes', () => {
+  it('renders arrow groups above frame groups so connectors stay visible across nested container fills', () => {
+    // Arrows paint ABOVE the frame layer. A connector that targets a nested box
+    // must cross its ancestor containers' opaque fills; rendering arrows beneath
+    // the frame layer hid those connectors entirely (reported regression).
+    // ELK channel routing keeps connector segments in the gutters between boxes
+    // and lands arrowheads at box borders, so painting arrows on top does not
+    // smear them across box interiors.
     const root = new Frame({
       id: 'page',
       direction: 'VERTICAL',
@@ -125,6 +131,6 @@ describe('renderFrameDiagramToSvg resolved style snapshot', () => {
     const pageIndex = svg.indexOf('data-component-id="page"');
     expect(arrowIndex).toBeGreaterThan(-1);
     expect(pageIndex).toBeGreaterThan(-1);
-    expect(arrowIndex).toBeLessThan(pageIndex);
+    expect(arrowIndex).toBeGreaterThan(pageIndex);
   });
 });

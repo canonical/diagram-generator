@@ -350,6 +350,12 @@ export function emitFrameDiagramDisplayList(
   const frameGroup = emitFrameGroup(diagram.root, adapter, options?.iconMarkupByName);
   const bounds = collectBounds(diagram.root);
   const items: DisplayListItem[] = [];
+  // Paint order (back to front) follows DisplayListLayer: frame, then arrow,
+  // then overlay. Arrows must render ABOVE frame fills so a connector targeting
+  // a nested box stays visible where it crosses opaque container backgrounds.
+  if (shouldIncludeLayer("frame", options?.includeLayers)) {
+    items.push(frameGroup);
+  }
   if (shouldIncludeLayer("arrow", options?.includeLayers)) {
     const arrowInputs = options?.previewElkLabels ? diagram.arrows : diagram.arrows.map((arrow) => {
       if (!arrow.elkLabels) return arrow;
@@ -364,9 +370,6 @@ export function emitFrameDiagramDisplayList(
       elkLabels: authoredByComponentId?.get(arrow.componentId || "")?.elkLabels,
     }));
     items.push(...emitRoutedArrowDisplayListItems(routedArrows, bounds));
-  }
-  if (shouldIncludeLayer("frame", options?.includeLayers)) {
-    items.push(frameGroup);
   }
   if (shouldIncludeLayer("overlay", options?.includeLayers)) {
     items.push(...emitOverlayGroups(diagram.overlays, bounds));
