@@ -17,10 +17,12 @@ describe('single-selection inspector panel renderer', () => {
         isArrowComponent: false,
         isRoot: false,
         isContainerFrame: false,
+        isAutolayoutContainer: false,
         isFrameLeaf: true,
         isStructuralWrapper: false,
         hasTextContent: false,
         isAutolayoutChild: false,
+        showAlignmentControls: true,
         showStackSpacingHint: false,
         noteKind: 'move-resize',
       },
@@ -74,10 +76,12 @@ describe('single-selection inspector panel renderer', () => {
         isArrowComponent: true,
         isRoot: false,
         isContainerFrame: false,
+        isAutolayoutContainer: false,
         isFrameLeaf: false,
         isStructuralWrapper: false,
         hasTextContent: false,
         isAutolayoutChild: true,
+        showAlignmentControls: false,
         showStackSpacingHint: true,
         noteKind: 'reorder-child',
       },
@@ -111,10 +115,12 @@ describe('single-selection inspector panel renderer', () => {
         isArrowComponent: false,
         isRoot: false,
         isContainerFrame: false,
+        isAutolayoutContainer: false,
         isFrameLeaf: true,
         isStructuralWrapper: false,
         hasTextContent: false,
         isAutolayoutChild: false,
+        showAlignmentControls: true,
         showStackSpacingHint: false,
         noteKind: 'move-resize',
       },
@@ -146,10 +152,12 @@ describe('single-selection inspector panel renderer', () => {
         isArrowComponent: false,
         isRoot: false,
         isContainerFrame: false,
+        isAutolayoutContainer: false,
         isFrameLeaf: true,
         isStructuralWrapper: false,
         hasTextContent: false,
         isAutolayoutChild: false,
+        showAlignmentControls: true,
         showStackSpacingHint: false,
         noteKind: 'move-resize',
       },
@@ -163,5 +171,44 @@ describe('single-selection inspector panel renderer', () => {
     expect(html).toContain('boom &lt;bad&gt;');
     expect(html).toContain('warn &quot;quoted&quot;');
     expect(html).toContain('data-dg-cid="box&#39;&quot;&lt;&amp;"');
+  });
+
+  it('renders root autolayout alignment controls without parent-position controls', () => {
+    const html = renderSingleSelectionInspectorPanel({
+      cid: 'page',
+      viewModel: {
+        selectionKind: 'root',
+        currentAlign: 'BOTTOM_CENTER',
+        hasMoveOverride: false,
+        hasSizeOverride: false,
+        hasWaypointOverride: false,
+        hasAnyOverride: false,
+        hasParentOverride: false,
+        waypointCount: 0,
+        isArrowComponent: false,
+        isRoot: true,
+        isContainerFrame: false,
+        isAutolayoutContainer: true,
+        isFrameLeaf: false,
+        isStructuralWrapper: false,
+        hasTextContent: false,
+        isAutolayoutChild: false,
+        showAlignmentControls: true,
+        showStackSpacingHint: false,
+        noteKind: 'move-resize',
+      },
+      ownDelta: { dx: 0, dy: 0, dw: 0, dh: 0 },
+      effectiveDelta: { dx: 0, dy: 0 },
+      autolayoutPanelHtml: '<div data-dg-panel-id="single-autolayout-layout">Auto-layout</div>',
+      styleMode: 'none',
+      violations: [],
+    });
+
+    expect(html).toContain('data-dg-panel-id="single-layout"');
+    expect(html).toContain('data-dg-click-action="single-align"');
+    expect(html).toContain('data-dg-align="BOTTOM_CENTER"');
+    expect(html).toContain('single-autolayout-layout');
+    expect(html).not.toContain('data-dg-panel-id="single-position"');
+    expect(html).not.toContain('Drag to move');
   });
 });

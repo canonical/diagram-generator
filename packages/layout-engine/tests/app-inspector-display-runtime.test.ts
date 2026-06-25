@@ -163,7 +163,7 @@ describe('createPreviewInspectorDisplayRuntime', () => {
     expect(syncPanelVisibility).toHaveBeenCalledWith({ count: 1, kind: 'frame' });
   });
 
-  it('classifies parentless page selections as root for panel gating', () => {
+  it('classifies parentless page selections as root while exposing autolayout alignment', () => {
     const inspector = { innerHTML: '' };
     const syncPanelVisibility = vi.fn();
     const runtime = createPreviewInspectorDisplayRuntime({
@@ -205,6 +205,10 @@ describe('createPreviewInspectorDisplayRuntime', () => {
     runtime.renderSelectionInspector('page');
 
     expect(syncPanelVisibility).toHaveBeenCalledWith({ count: 1, kind: 'root' });
+    expect(inspector.innerHTML).toContain('data-dg-click-action="single-align"');
+    expect(inspector.innerHTML).toContain('data-dg-panel-id="single-layout"');
+    expect(inspector.innerHTML).toContain('data-dg-panel-id="single-autolayout-layout"');
+    expect(inspector.innerHTML).not.toContain('data-dg-panel-id="single-autolayout-position"');
     expect(inspector.innerHTML).not.toContain('data-dg-panel-id="single-selection"');
   });
 });

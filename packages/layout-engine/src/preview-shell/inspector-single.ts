@@ -40,10 +40,12 @@ export interface SingleSelectionInspectorViewModel {
   isArrowComponent: boolean;
   isRoot: boolean;
   isContainerFrame: boolean;
+  isAutolayoutContainer: boolean;
   isFrameLeaf: boolean;
   isStructuralWrapper: boolean;
   hasTextContent: boolean;
   isAutolayoutChild: boolean;
+  showAlignmentControls: boolean;
   showStackSpacingHint: boolean;
   noteKind: 'reorder-child' | 'move-resize';
 }
@@ -100,9 +102,10 @@ export function createSingleSelectionInspectorViewModel(options: {
   const hasWaypointOverride = Boolean(options.hasWaypointOverride);
   const isArrowComponent = String(options.componentType || '').toLowerCase() === 'arrow';
   const isRoot = Boolean(options.isRoot) && !isArrowComponent;
-  const isContainerFrame = !isArrowComponent && !isRoot && Boolean(
+  const isAutolayoutContainer = !isArrowComponent && Boolean(
     options.nodeLayout || ((options.childCount ?? 0) > 0),
   );
+  const isContainerFrame = !isRoot && isAutolayoutContainer;
   const hasTextContent = !isArrowComponent && Boolean(options.hasTextContent);
   const isStructuralWrapper = !isArrowComponent && Boolean(options.isStructuralWrapper);
   const isFrameLeaf = !isArrowComponent && !isRoot && !isContainerFrame && !isStructuralWrapper;
@@ -134,10 +137,12 @@ export function createSingleSelectionInspectorViewModel(options: {
     isArrowComponent,
     isRoot,
     isContainerFrame,
+    isAutolayoutContainer,
     isFrameLeaf,
     isStructuralWrapper,
     hasTextContent,
     isAutolayoutChild,
+    showAlignmentControls: !isArrowComponent && (!isRoot || isAutolayoutContainer),
     showStackSpacingHint: isAutolayoutChild,
     noteKind: isAutolayoutChild ? 'reorder-child' : 'move-resize',
   };

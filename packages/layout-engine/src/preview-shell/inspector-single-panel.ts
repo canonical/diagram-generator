@@ -88,15 +88,25 @@ function renderSingleSelectionLayoutGroup(
         + '</p>',
     );
   }
-  if (options.viewModel.isArrowComponent || options.viewModel.isRoot) {
+  if (options.viewModel.isArrowComponent) {
     return '';
   }
 
-  return renderPreviewPanelGroup(
-    'layout',
-    'single-layout',
-    renderAlignWidget(options.cid, options.viewModel.currentAlign),
-  ) + (options.autolayoutPanelHtml || '');
+  const alignmentHtml = options.viewModel.showAlignmentControls
+    ? renderAlignWidget(options.cid, options.viewModel.currentAlign)
+    : '';
+  const autolayoutHtml = (!options.viewModel.isRoot || options.viewModel.isAutolayoutContainer)
+    ? (options.autolayoutPanelHtml || '')
+    : '';
+  if (!alignmentHtml && !autolayoutHtml) {
+    return '';
+  }
+
+  return (
+    alignmentHtml
+      ? renderPreviewPanelGroup('layout', 'single-layout', alignmentHtml)
+      : ''
+  ) + autolayoutHtml;
 }
 
 function renderSingleSelectionPositionGroup(

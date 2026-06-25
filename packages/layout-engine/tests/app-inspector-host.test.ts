@@ -101,7 +101,7 @@ describe('preview inspector host helpers', () => {
     expect(html).not.toContain('dx=16');
   });
 
-  it('renders root selection without frame layout or parent-position controls', () => {
+  it('renders root autolayout alignment without parent-position controls', () => {
     const html = renderPreviewSingleSelectionInspector({
       cid: 'root',
       node: {
@@ -119,8 +119,11 @@ describe('preview inspector host helpers', () => {
     });
 
     expect(html).not.toContain('data-dg-panel-id="single-selection"');
-    expect(html).not.toContain('data-dg-panel-id="single-layout"');
+    expect(html).toContain('data-dg-panel-id="single-layout"');
+    expect(html).toContain('data-dg-click-action="single-align"');
+    expect(html).toContain('data-dg-panel-id="single-autolayout-layout"');
     expect(html).not.toContain('data-dg-panel-id="single-position"');
+    expect(html).not.toContain('data-dg-panel-id="single-autolayout-position"');
     expect(html).not.toContain('Drag to move');
   });
 
