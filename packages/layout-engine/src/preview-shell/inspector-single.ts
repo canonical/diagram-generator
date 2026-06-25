@@ -20,8 +20,16 @@ export interface InspectorEffectiveDeltaState {
 export type InspectorSizingMode = 'HUG' | 'FILL' | 'FIXED';
 export type InspectorDirection = 'HORIZONTAL' | 'VERTICAL';
 export type InspectorPositionType = 'AUTO' | 'ABSOLUTE';
+export type SingleSelectionInspectorKind =
+  | 'root'
+  | 'arrow'
+  | 'container-frame'
+  | 'structural-wrapper'
+  | 'text-frame'
+  | 'frame-leaf';
 
 export interface SingleSelectionInspectorViewModel {
+  selectionKind: SingleSelectionInspectorKind;
   currentAlign: string;
   hasMoveOverride: boolean;
   hasSizeOverride: boolean;
@@ -30,6 +38,11 @@ export interface SingleSelectionInspectorViewModel {
   hasParentOverride: boolean;
   waypointCount: number;
   isArrowComponent: boolean;
+  isRoot: boolean;
+  isContainerFrame: boolean;
+  isFrameLeaf: boolean;
+  isStructuralWrapper: boolean;
+  hasTextContent: boolean;
   isAutolayoutChild: boolean;
   showStackSpacingHint: boolean;
   noteKind: 'reorder-child' | 'move-resize';
@@ -77,14 +90,39 @@ export function createSingleSelectionInspectorViewModel(options: {
   waypointCount?: number;
   componentType?: string | null;
   parentLayout?: string | null;
+  isRoot?: boolean;
+  nodeLayout?: string | null;
+  childCount?: number | null;
+  hasTextContent?: boolean;
+  isStructuralWrapper?: boolean;
 }): SingleSelectionInspectorViewModel {
   const hasMoveOverride = options.ownDelta.dx !== 0 || options.ownDelta.dy !== 0;
   const hasSizeOverride = options.ownDelta.dw !== 0 || options.ownDelta.dh !== 0;
   const hasWaypointOverride = Boolean(options.hasWaypointOverride);
+  const isArrowComponent = String(options.componentType || '').toLowerCase() === 'arrow';
+  const isRoot = Boolean(options.isRoot) && !isArrowComponent;
+  const isContainerFrame = !isArrowComponent && !isRoot && Boolean(
+    options.nodeLayout || ((options.childCount ?? 0) > 0),
+  );
+  const hasTextContent = !isArrowComponent && Boolean(options.hasTextContent);
+  const isStructuralWrapper = !isArrowComponent && Boolean(options.isStructuralWrapper);
+  const isFrameLeaf = !isArrowComponent && !isRoot && !isContainerFrame && !isStructuralWrapper;
+  const selectionKind: SingleSelectionInspectorKind = isArrowComponent
+    ? 'arrow'
+    : isRoot
+      ? 'root'
+      : isStructuralWrapper
+        ? 'structural-wrapper'
+        : isContainerFrame
+          ? 'container-frame'
+          : hasTextContent
+            ? 'text-frame'
+            : 'frame-leaf';
   const isAutolayoutChild =
     options.parentLayout === 'vertical' || options.parentLayout === 'horizontal';
 
   return {
+    selectionKind,
     currentAlign: options.align || 'TOP_LEFT',
     hasMoveOverride,
     hasSizeOverride,
@@ -94,7 +132,12 @@ export function createSingleSelectionInspectorViewModel(options: {
       options.effectiveDelta.dx !== options.ownDelta.dx
       || options.effectiveDelta.dy !== options.ownDelta.dy,
     waypointCount: Math.max(0, options.waypointCount ?? 0),
-    isArrowComponent: String(options.componentType || '').toLowerCase() === 'arrow',
+    isArrowComponent,
+    isRoot,
+    isContainerFrame,
+    isFrameLeaf,
+    isStructuralWrapper,
+    hasTextContent,
     isAutolayoutChild,
     showStackSpacingHint: isAutolayoutChild,
     noteKind: isAutolayoutChild ? 'reorder-child' : 'move-resize',

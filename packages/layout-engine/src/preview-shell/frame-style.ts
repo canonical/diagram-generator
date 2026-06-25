@@ -283,12 +283,14 @@ export function resolveMultiSelectionPreviewStyleState(
   let first: string | null = null;
   let mixed = false;
   let count = 0;
+  let total = 0;
   let firstOriginal: string | null = null;
   let originalMixed = false;
 
   for (const item of items) {
-    if (!isPreviewStyleableComponentType(item.componentType)) continue;
-    if (!hasPreviewVisibleStylePicker(item.node)) continue;
+    total += 1;
+    if (!isPreviewStyleableComponentType(item.componentType)) return null;
+    if (!hasPreviewVisibleStylePicker(item.node)) return null;
     count += 1;
     const style = resolveEffectivePreviewStyleName({
       node: item.node,
@@ -310,7 +312,7 @@ export function resolveMultiSelectionPreviewStyleState(
     }
   }
 
-  if (count === 0) return null;
+  if (count === 0 || count !== total) return null;
   return {
     style: mixed ? '__mixed__' : (first || ''),
     mixed,

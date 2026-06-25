@@ -75,6 +75,27 @@ function renderAlignWidget(cid: string, currentAlign: string): string {
   return html;
 }
 
+function renderSingleSelectionIdentityGroup(
+  options: SingleSelectionInspectorPanelRenderOptions,
+): string {
+  const kindLabel = {
+    root: 'Root',
+    arrow: 'Arrow',
+    'container-frame': 'Container',
+    'structural-wrapper': 'Structural wrapper',
+    'text-frame': 'Text frame',
+    'frame-leaf': 'Frame',
+  }[options.viewModel.selectionKind];
+
+  return renderPreviewPanelGroup(
+    'selection',
+    'single-selection',
+    '<div class="field"><span class="label">Selection</span><br>'
+      + `<span class="value">${escapePreviewHtml(options.cid)}</span>`
+      + `<span class="hint">${kindLabel}</span></div>`,
+  );
+}
+
 function renderSingleSelectionLayoutGroup(
   options: SingleSelectionInspectorPanelRenderOptions,
 ): string {
@@ -87,6 +108,9 @@ function renderSingleSelectionLayoutGroup(
         + '</p>',
     );
   }
+  if (options.viewModel.isArrowComponent || options.viewModel.isRoot) {
+    return '';
+  }
 
   return renderPreviewPanelGroup(
     'layout',
@@ -98,7 +122,27 @@ function renderSingleSelectionLayoutGroup(
 function renderSingleSelectionPositionGroup(
   options: SingleSelectionInspectorPanelRenderOptions,
 ): string {
+  if (options.viewModel.isRoot) {
+    return '';
+  }
+
   let html = '';
+  if (options.viewModel.isArrowComponent) {
+    html += '<div class="field"><span class="label">Waypoints</span><br>';
+    html += `<span class="value${options.viewModel.hasWaypointOverride ? ' override' : ''}">${options.viewModel.waypointCount}`;
+    if (options.viewModel.hasWaypointOverride) {
+      html += ' (overridden)';
+    }
+    html += '</span></div>';
+    if (options.viewModel.hasAnyOverride) {
+      html += `<button class="bf-button is-base danger" type="button"${renderPreviewDataAttrs({
+        'data-dg-click-action': 'clear-override',
+        'data-dg-cid': options.cid,
+      })}>Clear override</button>`;
+    }
+    return renderPreviewPanelGroup('position', 'single-arrow', html);
+  }
+
   if (options.viewModel.hasMoveOverride) {
     html += '<div class="field"><span class="label">Position override</span><br>'
       + `<span class="value override">dx=${options.ownDelta.dx}  dy=${options.ownDelta.dy}</span></div>`;
@@ -132,6 +176,10 @@ function renderSingleSelectionPositionGroup(
 function renderSingleSelectionAppearanceGroup(
   options: SingleSelectionInspectorPanelRenderOptions,
 ): string {
+  if (options.viewModel.isArrowComponent) {
+    return '';
+  }
+
   let html = '';
   if (options.styleMode === 'picker') {
     html += '<div class="field" style="margin-top:6px"><span class="label">Style</span><br>';
@@ -152,7 +200,8 @@ function renderSingleSelectionDiagnosticsGroup(
   options: SingleSelectionInspectorPanelRenderOptions,
 ): string {
   let html = '';
-  if (options.viewModel.showStackSpacingHint) {
+  const showFrameInteractionNote = !options.viewModel.isArrowComponent && !options.viewModel.isRoot;
+  if (showFrameInteractionNote && options.viewModel.showStackSpacingHint) {
     html += '<div class="dg-autolayout-section" style="margin-top:8px">';
     html += '<span class="label" style="margin-bottom:4px;display:block">Stack spacing</span>';
     html += '<div class="hint">Frame gap now derives from composition. Use distribute for arrangement, or edit YAML only for true structural exceptions.</div>';
@@ -169,9 +218,9 @@ function renderSingleSelectionDiagnosticsGroup(
     html += '</div>';
   }
 
-  if (options.viewModel.noteKind === 'reorder-child') {
+  if (showFrameInteractionNote && options.viewModel.noteKind === 'reorder-child') {
     html += '<p class="dg-inspector-note">Drag to reorder &#xb7; Shift+Enter to select parent &#xb7; W to toggle grid overlay.</p>';
-  } else {
+  } else if (showFrameInteractionNote) {
     html += '<p class="dg-inspector-note">Drag to move &#xb7; handles to resize (8px grid) &#xb7; W to toggle grid overlay.</p>';
   }
 
@@ -181,7 +230,8 @@ function renderSingleSelectionDiagnosticsGroup(
 export function renderSingleSelectionInspectorPanel(
   options: SingleSelectionInspectorPanelRenderOptions,
 ): string {
-  return renderSingleSelectionLayoutGroup(options)
+  return renderSingleSelectionIdentityGroup(options)
+    + renderSingleSelectionLayoutGroup(options)
     + renderSingleSelectionPositionGroup(options)
     + renderSingleSelectionAppearanceGroup(options)
     + renderSingleSelectionDiagnosticsGroup(options);

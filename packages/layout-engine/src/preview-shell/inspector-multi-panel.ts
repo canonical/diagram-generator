@@ -49,6 +49,7 @@ export interface MultiSelectionInspectorPanelRenderOptions {
   selectedCount: number;
   multiActionGap: number;
   showStackSpacingHint: boolean;
+  showDistributeControls?: boolean;
   showAlignOnlyHint: boolean;
   hasUnsupported: boolean;
   alignState?: MultiSelectionAlignState | null;
@@ -112,12 +113,13 @@ function renderMultiSelectionArrangementGroup(
     html += '</div>';
   }
 
+  const showDistributeControls = options.showDistributeControls ?? !options.showAlignOnlyHint;
   if (options.showAlignOnlyHint) {
     html += '<div class="field" style="margin-top:8px"><span class="label">Actions</span><br>';
     html += '<div class="hint">Distribute is limited to sibling components under the same parent. Align still works across the current selection.</div>';
     html += renderAlignActionGrid();
     html += '</div>';
-  } else {
+  } else if (showDistributeControls) {
     html += '<div class="field" style="margin-top:8px"><span class="label">Distribute</span>';
     html += '<div class="multi-action-row">';
     html += '<span class="value">Gap</span>';
@@ -150,7 +152,9 @@ function renderMultiSelectionArrangementGroup(
     html += '</div></div>';
   }
 
-  html += '<p class="dg-selection-note">All actions snap to the 8px baseline and remain undoable.</p>';
+  if (html) {
+    html += '<p class="dg-selection-note">All actions snap to the 8px baseline and remain undoable.</p>';
+  }
   return renderPreviewPanelGroup('arrangement', 'multi-arrangement', html);
 }
 

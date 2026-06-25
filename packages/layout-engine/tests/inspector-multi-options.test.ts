@@ -78,12 +78,7 @@ describe('inspector multi option helpers', () => {
       align: '',
       mixed: true,
     });
-    expect(result.containerState).toEqual({
-      containerCount: 2,
-      direction: '',
-      dirMixed: true,
-      wrap: true,
-    });
+    expect(result.containerState).toBeNull();
     expect(result.sizingState).toEqual({
       sizingW: '',
       sizingH: '',

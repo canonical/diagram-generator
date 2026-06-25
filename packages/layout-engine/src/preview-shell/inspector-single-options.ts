@@ -9,9 +9,13 @@ import type {
 } from './inspector-single-panel.js';
 import {
   resolveSingleSelectionPreviewStyleState,
+  isPreviewStructuralWrapper,
   type PreviewRenderedStyleFields,
   type PreviewStyleNode,
 } from './frame-style.js';
+import {
+  hasPreviewNodeTextContent,
+} from './inspector-autolayout-options.js';
 
 /**
  * Single-selection inspector option helpers (spec 043 slice Q).
@@ -23,6 +27,7 @@ import {
 export interface PreviewSingleSelectionInspectorNode extends PreviewStyleNode {
   align?: string | null;
   layout?: string | null;
+  parent?: unknown;
 }
 
 function normalizeInspectorErrorMessage(error: unknown): string {
@@ -47,6 +52,8 @@ export function resolveSingleSelectionInspectorPanelRenderOptions(options: {
   renderStyleOptions?: ((currentStyle: string, originalStyleName: string) => string) | null;
 }): SingleSelectionInspectorPanelRenderOptions {
   const override = options.override ?? {};
+  const isArrowComponent = String(options.componentType || '').toLowerCase() === 'arrow';
+  const nodeId = String(options.node?.id ?? options.node?.data?.id ?? options.cid);
   const viewModel = createSingleSelectionInspectorViewModel({
     align: (override.align as string | null | undefined) || options.node?.align || 'TOP_LEFT',
     ownDelta: options.ownDelta,
@@ -55,6 +62,11 @@ export function resolveSingleSelectionInspectorPanelRenderOptions(options: {
     waypointCount: options.waypointCount,
     componentType: options.componentType,
     parentLayout: options.parentLayout,
+    isRoot: Boolean(options.node && !options.node.parent && !isArrowComponent && nodeId === 'root'),
+    nodeLayout: options.node?.layout,
+    childCount: options.node?.children?.length ?? 0,
+    hasTextContent: hasPreviewNodeTextContent(options.node),
+    isStructuralWrapper: isPreviewStructuralWrapper(options.node),
   });
 
   let autolayoutPanelHtml = '';

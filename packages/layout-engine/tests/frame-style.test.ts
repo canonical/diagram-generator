@@ -74,12 +74,6 @@ describe('preview-shell frame style helpers', () => {
         renderedFill: '#f3f3f3',
         renderedStroke: '#111111',
       },
-      {
-        componentType: 'arrow',
-        node: {
-          data: {},
-        },
-      },
     ]);
 
     expect(result).toEqual({
@@ -91,6 +85,48 @@ describe('preview-shell frame style helpers', () => {
     });
     expect(isPreviewStyleableComponentType('terminal')).toBe(true);
     expect(isPreviewStyleableComponentType('arrow')).toBe(false);
+  });
+
+  it('hides multi-selection style state when any actionable item lacks style support', () => {
+    expect(resolveMultiSelectionPreviewStyleState([
+      {
+        componentType: 'box',
+        node: {
+          level: 1,
+          fill: 'WHITE',
+          border: 'SOLID',
+          data: {},
+        },
+      },
+      {
+        componentType: 'arrow',
+        node: {
+          data: {},
+        },
+      },
+    ])).toBeNull();
+
+    expect(resolveMultiSelectionPreviewStyleState([
+      {
+        componentType: 'box',
+        node: {
+          level: 1,
+          fill: 'WHITE',
+          border: 'SOLID',
+          data: {},
+        },
+      },
+      {
+        componentType: 'box',
+        node: {
+          children: [{}],
+          data: {
+            fill: 'WHITE',
+            border: 'NONE',
+          },
+        },
+      },
+    ])).toBeNull();
   });
 
   it('applies visible style overrides while rejecting non-empty styles on structural wrappers', () => {

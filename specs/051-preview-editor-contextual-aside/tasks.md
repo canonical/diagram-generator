@@ -65,24 +65,24 @@
 
 ## Phase 4: Selection-Specific Predicates
 
-- [ ] T030 Extend selection summary helpers in `inspector-selection.ts` and
+- [x] T030 Extend selection summary helpers in `inspector-selection.ts` and
       `inspector-single.ts` to classify root, frame leaf, container frame,
       structural wrapper, arrow, text-bearing frame, and mixed selection.
-- [ ] T031 Empty selection: render only the compact empty state.
-- [ ] T032 Single frame: show identity, alignment, sizing, position,
+- [x] T031 Empty selection: render only the compact empty state.
+- [x] T032 Single frame: show identity, alignment, sizing, position,
       appearance, overrides, and violations as applicable.
-- [ ] T033 Container frame: show direction and gap delta only for containers.
-- [ ] T034 Text-bearing hug-width frame: show min/max width and max chars; hide
+- [x] T033 Container frame: show direction and gap delta only for containers.
+- [x] T034 Text-bearing hug-width frame: show min/max width and max chars; hide
       max chars when fixed pixel max width owns measurement.
-- [ ] T035 Absolute positioning: show X/Y offset only when selected frame has a
+- [x] T035 Absolute positioning: show X/Y offset only when selected frame has a
       parent and position is `ABSOLUTE`.
-- [ ] T036 Structural wrapper: hide style picker and show read-only structural
+- [x] T036 Structural wrapper: hide style picker and show read-only structural
       status only if needed.
-- [ ] T037 Single arrow: show waypoint/arrow details only; hide frame layout,
+- [x] T037 Single arrow: show waypoint/arrow details only; hide frame layout,
       sizing, style, and position controls.
-- [ ] T038 Multi-select: show align for bounded items; show distribute/gap only
+- [x] T038 Multi-select: show align for bounded items; show distribute/gap only
       for same-parent actionable siblings.
-- [ ] T039 Multi-select: show bulk style/sizing/direction only when all
+- [x] T039 Multi-select: show bulk style/sizing/direction only when all
       actionable selected items support the group; show mixed values when
       values differ.
 - [ ] T040 Root selection: block delete and parent-position controls; root grid
@@ -107,7 +107,7 @@
 ## Phase 6: Tests And Verification
 
 - [x] T060 Add panel-registry unit tests in `packages/layout-engine/tests/`.
-- [ ] T061 Add inspector render tests for empty, frame leaf, container, arrow,
+- [x] T061 Add inspector render tests for empty, frame leaf, container, arrow,
       root, same-parent multi, mixed-parent multi, and mixed unsupported multi.
 - [x] T062 Add apps/preview contract tests for static host HTML visibility for
       v3, ELK, force, and sequence/mindmap-like engine proofs.

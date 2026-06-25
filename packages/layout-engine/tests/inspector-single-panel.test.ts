@@ -6,6 +6,7 @@ describe('single-selection inspector panel renderer', () => {
     const html = renderSingleSelectionInspectorPanel({
       cid: 'box-1',
       viewModel: {
+        selectionKind: 'frame-leaf',
         currentAlign: 'CENTER',
         hasMoveOverride: true,
         hasSizeOverride: true,
@@ -14,6 +15,11 @@ describe('single-selection inspector panel renderer', () => {
         hasParentOverride: true,
         waypointCount: 0,
         isArrowComponent: false,
+        isRoot: false,
+        isContainerFrame: false,
+        isFrameLeaf: true,
+        isStructuralWrapper: false,
+        hasTextContent: false,
         isAutolayoutChild: false,
         showStackSpacingHint: false,
         noteKind: 'move-resize',
@@ -54,6 +60,7 @@ describe('single-selection inspector panel renderer', () => {
     const html = renderSingleSelectionInspectorPanel({
       cid: 'arrow-1',
       viewModel: {
+        selectionKind: 'arrow',
         currentAlign: 'TOP_LEFT',
         hasMoveOverride: false,
         hasSizeOverride: false,
@@ -62,6 +69,11 @@ describe('single-selection inspector panel renderer', () => {
         hasParentOverride: false,
         waypointCount: 3,
         isArrowComponent: true,
+        isRoot: false,
+        isContainerFrame: false,
+        isFrameLeaf: false,
+        isStructuralWrapper: false,
+        hasTextContent: false,
         isAutolayoutChild: true,
         showStackSpacingHint: true,
         noteKind: 'reorder-child',
@@ -74,15 +86,18 @@ describe('single-selection inspector panel renderer', () => {
 
     expect(html).toContain('Waypoints');
     expect(html).toContain('3 (overridden)');
-    expect(html).toContain('Structural wrapper');
-    expect(html).toContain('Stack spacing');
-    expect(html).toContain('Drag to reorder');
+    expect(html).toContain('data-dg-panel-id="single-arrow"');
+    expect(html).not.toContain('Structural wrapper');
+    expect(html).not.toContain('Stack spacing');
+    expect(html).not.toContain('Drag to reorder');
+    expect(html).not.toContain('data-dg-click-action="single-align"');
   });
 
   it('renders the controls error fallback instead of control markup', () => {
     const html = renderSingleSelectionInspectorPanel({
       cid: 'box-2',
       viewModel: {
+        selectionKind: 'frame-leaf',
         currentAlign: 'TOP_RIGHT',
         hasMoveOverride: false,
         hasSizeOverride: false,
@@ -91,6 +106,11 @@ describe('single-selection inspector panel renderer', () => {
         hasParentOverride: false,
         waypointCount: 0,
         isArrowComponent: false,
+        isRoot: false,
+        isContainerFrame: false,
+        isFrameLeaf: true,
+        isStructuralWrapper: false,
+        hasTextContent: false,
         isAutolayoutChild: false,
         showStackSpacingHint: false,
         noteKind: 'move-resize',
@@ -112,6 +132,7 @@ describe('single-selection inspector panel renderer', () => {
     const html = renderSingleSelectionInspectorPanel({
       cid: `box'"<&`,
       viewModel: {
+        selectionKind: 'frame-leaf',
         currentAlign: 'CENTER',
         hasMoveOverride: false,
         hasSizeOverride: false,
@@ -120,6 +141,11 @@ describe('single-selection inspector panel renderer', () => {
         hasParentOverride: false,
         waypointCount: 0,
         isArrowComponent: false,
+        isRoot: false,
+        isContainerFrame: false,
+        isFrameLeaf: true,
+        isStructuralWrapper: false,
+        hasTextContent: false,
         isAutolayoutChild: false,
         showStackSpacingHint: false,
         noteKind: 'move-resize',

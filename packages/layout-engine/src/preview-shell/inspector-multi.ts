@@ -53,11 +53,17 @@ export function createMultiSelectionSizingState(
   let allHCoerced = true;
   let anyW = false;
   let anyH = false;
+  let total = 0;
+  let unsupported = false;
 
   for (const item of items) {
+    total += 1;
     const sw = item.sizingW || null;
     const sh = item.sizingH || null;
-    if (!sw && !sh) continue;
+    if (!sw && !sh) {
+      unsupported = true;
+      continue;
+    }
     hasAny = true;
     if (firstW === null) firstW = sw || 'HUG';
     else if (firstW !== (sw || 'HUG')) wMixed = true;
@@ -73,7 +79,7 @@ export function createMultiSelectionSizingState(
     }
   }
 
-  if (!hasAny) return null;
+  if (!hasAny || unsupported || total === 0) return null;
   return {
     sizingW: wMixed ? '' : (firstW || 'HUG'),
     sizingH: hMixed ? '' : (firstH || 'HUG'),
@@ -91,8 +97,10 @@ export function createMultiSelectionContainerState(
   let dirMixed = false;
   let containerCount = 0;
   let firstWrap = false;
+  let total = 0;
 
   for (const item of items) {
+    total += 1;
     if (!item.isContainer) continue;
     containerCount += 1;
     const dir = item.direction || 'VERTICAL';
@@ -101,7 +109,7 @@ export function createMultiSelectionContainerState(
     if (containerCount === 1) firstWrap = Boolean(item.wrap);
   }
 
-  if (containerCount === 0) return null;
+  if (containerCount === 0 || containerCount !== total) return null;
   return {
     containerCount,
     direction: dirMixed ? '' : (firstDir || 'VERTICAL'),
@@ -116,16 +124,22 @@ export function createMultiSelectionAlignState(
   let first: string | null = null;
   let mixed = false;
   let hasAny = false;
+  let unsupported = false;
+  let total = 0;
 
   for (const item of items) {
-    if (!item.hasFrameAlignment) continue;
+    total += 1;
+    if (!item.hasFrameAlignment) {
+      unsupported = true;
+      continue;
+    }
     hasAny = true;
     const align = item.align || 'TOP_LEFT';
     if (first === null) first = align;
     else if (first !== align) mixed = true;
   }
 
-  if (!hasAny) return null;
+  if (!hasAny || unsupported || total === 0) return null;
   return {
     align: mixed ? '' : (first || 'TOP_LEFT'),
     mixed,

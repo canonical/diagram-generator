@@ -65,4 +65,23 @@ describe('inspector selection helpers', () => {
     expect(viewModel.showAlignOnlyHint).toBe(true);
     expect(viewModel.showStackSpacingHint).toBe(false);
   });
+
+  it('keeps mixed unsupported selections compact when fewer than two actionable frames remain', () => {
+    const info = createSelectionActionInfo([
+      { id: 'a', parentId: 'root', x: 0, y: 0, width: 40, height: 20 },
+    ], true);
+
+    const viewModel = createMultiSelectionInspectorViewModel({
+      selectedCount: 2,
+      info,
+      fallbackGap: 24,
+      snapStep: 8,
+    });
+
+    expect(viewModel.actionableCount).toBe(1);
+    expect(viewModel.hasUnsupported).toBe(true);
+    expect(viewModel.showDistributeControls).toBe(false);
+    expect(viewModel.showAlignOnlyHint).toBe(false);
+    expect(viewModel.showStackSpacingHint).toBe(false);
+  });
 });

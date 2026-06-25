@@ -21,6 +21,7 @@ describe('single-selection inspector helpers', () => {
     expect(viewModel.hasSizeOverride).toBe(true);
     expect(viewModel.hasAnyOverride).toBe(true);
     expect(viewModel.hasParentOverride).toBe(true);
+    expect(viewModel.selectionKind).toBe('frame-leaf');
     expect(viewModel.isAutolayoutChild).toBe(true);
     expect(viewModel.showStackSpacingHint).toBe(true);
     expect(viewModel.noteKind).toBe('reorder-child');
@@ -36,10 +37,46 @@ describe('single-selection inspector helpers', () => {
     });
 
     expect(viewModel.isArrowComponent).toBe(true);
+    expect(viewModel.selectionKind).toBe('arrow');
     expect(viewModel.hasWaypointOverride).toBe(true);
     expect(viewModel.hasAnyOverride).toBe(true);
     expect(viewModel.waypointCount).toBe(3);
     expect(viewModel.noteKind).toBe('move-resize');
+  });
+
+  it('classifies root, container, structural, and text-bearing frames', () => {
+    const root = createSingleSelectionInspectorViewModel({
+      ownDelta: { dx: 0, dy: 0, dw: 0, dh: 0 },
+      effectiveDelta: { dx: 0, dy: 0 },
+      isRoot: true,
+      childCount: 2,
+    });
+    const container = createSingleSelectionInspectorViewModel({
+      ownDelta: { dx: 0, dy: 0, dw: 0, dh: 0 },
+      effectiveDelta: { dx: 0, dy: 0 },
+      nodeLayout: 'horizontal',
+      childCount: 2,
+    });
+    const structural = createSingleSelectionInspectorViewModel({
+      ownDelta: { dx: 0, dy: 0, dw: 0, dh: 0 },
+      effectiveDelta: { dx: 0, dy: 0 },
+      isStructuralWrapper: true,
+      childCount: 1,
+    });
+    const text = createSingleSelectionInspectorViewModel({
+      ownDelta: { dx: 0, dy: 0, dw: 0, dh: 0 },
+      effectiveDelta: { dx: 0, dy: 0 },
+      hasTextContent: true,
+    });
+
+    expect(root.selectionKind).toBe('root');
+    expect(root.isRoot).toBe(true);
+    expect(container.selectionKind).toBe('container-frame');
+    expect(container.isContainerFrame).toBe(true);
+    expect(structural.selectionKind).toBe('structural-wrapper');
+    expect(structural.isStructuralWrapper).toBe(true);
+    expect(text.selectionKind).toBe('text-frame');
+    expect(text.hasTextContent).toBe(true);
   });
 
   it('resolves container autolayout state and fixed/fill inspector branches', () => {
