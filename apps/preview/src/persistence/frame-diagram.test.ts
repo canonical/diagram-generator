@@ -679,6 +679,31 @@ test("persist style preserves explicit visible headingless group", () => {
   assertYamlEqual(output, expected);
 });
 
+test("persist highlight style round-trips as a bordered black box", () => {
+  const baselineText = [
+    "engine: v3",
+    "title: Highlight",
+    "root:",
+    "  id: page",
+    "  direction: vertical",
+    "  children:",
+    "    - id: callout",
+    "      label: [Important]",
+    "",
+  ].join("\n");
+
+  const output = persistToYaml("highlight.yaml", baselineText, {
+    overrides: { callout: { style: "highlight" } },
+  });
+
+  assert.match(output, /id: callout[\s\S]*fill: black[\s\S]*border: solid/);
+  const reloaded = loadFrameYaml(writeTempFrame("highlight-reloaded.yaml", output));
+  const callout = reloaded.root.children.find((child) => child.id === "callout");
+  assert.ok(callout, "highlighted frame must survive save + reload");
+  assert.strictEqual(callout?.fill, "#000000");
+  assert.strictEqual(callout?.border, "SOLID");
+});
+
 test("persist layout_engine writes meta.layout_engine (spec 035)", () => {
   const baselineText = [
     "engine: v3",

@@ -18,12 +18,14 @@ const yaml = require("yaml") as {
   stringify: (value: unknown, options?: Record<string, unknown>) => string;
 };
 
+// Keep these semantics aligned with the preview-shell style contract so a
+// picker-applied variant persists and reloads as the same authored box class.
 const STYLE_SEMANTICS: Record<string, { level: number | null; fill: string; border: string }> = {
   default: { level: 1, fill: "white", border: "solid" },
   parent: { level: 2, fill: "grey", border: "solid" },
   section: { level: 3, fill: "white", border: "solid" },
   annotation: { level: null, fill: "white", border: "none" },
-  highlight: { level: null, fill: "black", border: "none" },
+  highlight: { level: null, fill: "black", border: "solid" },
 };
 
 const SUPPORTED_FRAME_KEYS = new Set<string>(PERSIST_FRAME_KEYS);
