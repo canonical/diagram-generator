@@ -1,3 +1,8 @@
+import {
+  normalizePreviewSavePayload,
+  type PreviewSavePayloadModelLike,
+} from './app-save-payload.js';
+
 export interface PreviewSaveClientRuntimeWindow {
   addEventListener?: (type: string, listener: (event: unknown) => unknown) => void;
 }
@@ -325,6 +330,7 @@ export function createPreviewSaveClientRuntime(
       overrides?: Record<string, unknown>;
       gridOverrides?: Record<string, unknown>;
       removedIds?: Set<string>;
+      get?: (id: string) => unknown;
     } | null;
     if (!model || typeof model.toOverridePayload !== 'function') {
       throw new Error('PreviewSaveClient requires a component model with toOverridePayload()');
@@ -334,7 +340,6 @@ export function createPreviewSaveClientRuntime(
     if (typeof runtimeDeps.collectEngineSavePayload === 'function') {
       payload = runtimeDeps.collectEngineSavePayload(payload, model as Record<string, unknown>);
     }
-
     const relayoutStatus = asRecord(resolveLayoutRelayoutStatus(runtimeDeps)) as {
       localReady?: boolean;
     };
@@ -353,12 +358,22 @@ export function createPreviewSaveClientRuntime(
       return;
     }
 
+    const normalized = normalizePreviewSavePayload(payload, model as PreviewSavePayloadModelLike);
+    if (normalized.errors.length > 0) {
+      alertFn(`Cannot save: ${normalized.errors.join('; ')}`);
+      return;
+    }
+    payload = normalized.payload;
+
     if (typeof options.fetchFn !== 'function') {
       throw new Error('Preview save client requires fetch() support');
     }
 
     const preservedSelectionIds = runtimeDeps.getSelectedIds?.() ?? [];
     let canonicalState: unknown = null;
+    const removedIdsBeforeSave = model.removedIds instanceof Set
+      ? model.removedIds
+      : null;
 
     saving = true;
     syncSaveButton(summary.errors ?? 0);
@@ -382,9 +397,20 @@ export function createPreviewSaveClientRuntime(
         // Best-effort canonical-state decode only.
       }
 
+      try {
+        if (removedIdsBeforeSave) {
+          model.removedIds = new Set();
+        }
+        await runtimeDeps.reloadDiagram({ preserveSelectionIds: preservedSelectionIds, canonicalState });
+      } catch (error) {
+        if (removedIdsBeforeSave) {
+          model.removedIds = removedIdsBeforeSave;
+        }
+        alertFn(`Save succeeded, but reload failed: ${String(error)}`);
+        return;
+      }
+
       runtimeDeps.clearCoercedKeys?.();
-      model.removedIds = new Set();
-      await runtimeDeps.reloadDiagram({ preserveSelectionIds: preservedSelectionIds, canonicalState });
       if (preservedSelectionIds.length > 0) {
         runtimeDeps.restoreSelectionIds?.(preservedSelectionIds);
       }

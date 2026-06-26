@@ -3,10 +3,13 @@ import { createRequire } from "node:module";
 import { EOL } from "node:os";
 
 import {
+  PERSIST_ARROW_KEYS,
   PERSIST_FRAME_KEYS,
   PERSIST_INT_FRAME_KEYS,
   PERSIST_LOWER_FRAME_KEYS,
   UNSUPPORTED_PERSIST_FRAME_KEYS,
+  parsePreviewArrowComponentId,
+  resolvePreviewArrowComponentId,
 } from "@diagram-generator/layout-engine";
 import {
   getFrameYamlEngineLayoutNamespace,
@@ -35,6 +38,8 @@ const IGNORED_GRID_KEYS = new Set(["link_to_root"]);
 const UNSUPPORTED_GRID_KEYS = new Set(["rows", "slack_absorption"]);
 const LOWER_KEYS = new Set<string>(PERSIST_LOWER_FRAME_KEYS);
 const INT_KEYS = new Set<string>(PERSIST_INT_FRAME_KEYS);
+const SUPPORTED_ARROW_KEYS = new Set<string>(PERSIST_ARROW_KEYS);
+const ARROW_SHORTHAND_PATTERN = /^\s*(.+?)\s*->\s*(.+?)\s*$/;
 
 export interface PersistOverridePayload {
   overrides?: Record<string, unknown>;
@@ -247,6 +252,57 @@ function applyDirectField(frameData: Record<string, unknown>, key: string, value
   throw new Error(`Unsupported canonical field: ${key}`);
 }
 
+function parseArrowShorthandForPersistence(value: string): { source: string; target: string } | null {
+  const match = value.match(ARROW_SHORTHAND_PATTERN);
+  const source = match?.[1]?.trim();
+  const target = match?.[2]?.trim();
+  if (!source || !target) {
+    return null;
+  }
+  return { source, target };
+}
+
+function legacyArrowComponentId(arrowData: unknown): string | null {
+  if (typeof arrowData === "string") {
+    const parsed = parseArrowShorthandForPersistence(arrowData);
+    return parsed ? `${parsed.source}->${parsed.target}` : null;
+  }
+  if (!isRecord(arrowData)) return null;
+  const source = typeof arrowData.source === "string" ? arrowData.source.trim() : "";
+  const target = typeof arrowData.target === "string" ? arrowData.target.trim() : "";
+  if (!source || !target) return null;
+  const explicitId = typeof arrowData.id === "string" ? arrowData.id.trim() : "";
+  return explicitId || `${source}->${target}`;
+}
+
+function persistableArrowData(arrowData: unknown): { id?: string; source: string; target: string } | null {
+  if (typeof arrowData === "string") {
+    return parseArrowShorthandForPersistence(arrowData) ?? null;
+  }
+  if (!isRecord(arrowData)) return null;
+  const source = typeof arrowData.source === "string" ? arrowData.source.trim() : "";
+  const target = typeof arrowData.target === "string" ? arrowData.target.trim() : "";
+  if (!source || !target) return null;
+  const explicitId = typeof arrowData.id === "string" ? arrowData.id.trim() : "";
+  return explicitId ? { id: explicitId, source, target } : { source, target };
+}
+
+function coerceArrowWaypoint(value: unknown, fieldName: string): [number, number] {
+  if (Array.isArray(value) && value.length === 2) {
+    return [
+      Math.round(coerceFloat(value[0], `${fieldName}[0]`)),
+      Math.round(coerceFloat(value[1], `${fieldName}[1]`)),
+    ];
+  }
+  if (isRecord(value) && "x" in value && "y" in value) {
+    return [
+      Math.round(coerceFloat(value.x, `${fieldName}.x`)),
+      Math.round(coerceFloat(value.y, `${fieldName}.y`)),
+    ];
+  }
+  throw new Error(`${fieldName} must be a [x, y] pair`);
+}
+
 function removeFrameFromTree(frameData: Record<string, unknown>, frameId: string): boolean {
   const children = frameData.children;
   if (!Array.isArray(children)) return false;
@@ -278,10 +334,14 @@ function applyRemovedFrameIds(document: Record<string, unknown>, removedIds: str
   }
   if (Array.isArray(document.arrows)) {
     document.arrows = document.arrows.filter(
-      (arrow) =>
-        isRecord(arrow) &&
-        !removed.has(String(arrow.source ?? "")) &&
-        !removed.has(String(arrow.target ?? "")),
+      (arrow) => {
+        const parsed = persistableArrowData(arrow);
+        return Boolean(
+          parsed
+          && !removed.has(parsed.source)
+          && !removed.has(parsed.target),
+        );
+      },
     );
   }
 }
@@ -294,6 +354,39 @@ function findFrameData(frameData: Record<string, unknown>, frameId: string): Rec
     if (!isRecord(child)) continue;
     const found = findFrameData(child, frameId);
     if (found) return found;
+  }
+  return null;
+}
+
+function findArrowData(document: Record<string, unknown>, componentId: string): Record<string, unknown> | null {
+  const arrows = document.arrows;
+  if (!Array.isArray(arrows)) return null;
+  const parsedComponentId = parsePreviewArrowComponentId(componentId);
+  const matchedPreviewArrow = parsedComponentId
+    ? resolvePreviewArrowComponentId(parsedComponentId, arrows, (arrowEntry) => persistableArrowData(arrowEntry))
+    : null;
+
+  for (let index = 0; index < arrows.length; index += 1) {
+    const arrowEntry = arrows[index];
+    const legacyComponentId = legacyArrowComponentId(arrowEntry);
+    const matchesPreviewComponentId = matchedPreviewArrow?.index === index;
+    const matchesLegacyComponentId = !parsedComponentId && legacyComponentId === componentId;
+    if (!matchesPreviewComponentId && !matchesLegacyComponentId) continue;
+    if (isRecord(arrowEntry)) {
+      return arrowEntry;
+    }
+    if (typeof arrowEntry === "string") {
+      const parsed = parseArrowShorthandForPersistence(arrowEntry);
+      if (!parsed) {
+        return null;
+      }
+      const normalizedArrow = {
+        source: parsed.source,
+        target: parsed.target,
+      };
+      arrows[index] = normalizedArrow;
+      return normalizedArrow;
+    }
   }
   return null;
 }
@@ -395,6 +488,34 @@ function applyFrameOverride(frameData: Record<string, unknown>, override: unknow
   }
 }
 
+function applyArrowOverride(arrowData: Record<string, unknown>, override: unknown, arrowId: string): void {
+  if (!isRecord(override)) {
+    throw new Error(`Override for ${arrowId} must be an object`);
+  }
+  for (const [key, value] of Object.entries(override)) {
+    if (!SUPPORTED_ARROW_KEYS.has(key)) {
+      throw new Error(`Unknown override key for ${arrowId}: ${key}`);
+    }
+    if (key === "waypoints") {
+      if (value == null) {
+        delete arrowData.waypoints;
+        continue;
+      }
+      if (!Array.isArray(value)) {
+        throw new Error(`${arrowId}.waypoints must be a list`);
+      }
+      const authoredWaypoints = value.map((point, index) =>
+        coerceArrowWaypoint(point, `${arrowId}.waypoints[${index}]`),
+      );
+      if (authoredWaypoints.length === 0) {
+        delete arrowData.waypoints;
+      } else {
+        arrowData.waypoints = authoredWaypoints;
+      }
+    }
+  }
+}
+
 /**
  * Apply layout engine choice to the document's meta section (spec 035).
  * The layout engine is persisted as `meta.layout_engine` in the frame YAML.
@@ -490,7 +611,7 @@ export function verifyElkLayoutPersisted(documentText: string, expected: Record<
   if (entries.length === 0) return;
   const document = yaml.parse(documentText);
   if (!isRecord(document)) throw new Error("expected top-level mapping after save");
-  const requiresPersistedElk = entries.some(([, raw]) => raw != null && String(raw) !== "");
+  const requiresPersistedElk = entries.some(([, raw]) => raw != null && raw !== "");
   const meta = isRecord(document.meta) ? document.meta : null;
   if (requiresPersistedElk && !meta) throw new Error("meta missing after ELK save");
   const elkLayout = meta && isRecord(meta.elk)
@@ -499,18 +620,17 @@ export function verifyElkLayoutPersisted(documentText: string, expected: Record<
   if (requiresPersistedElk && !isRecord(meta?.elk)) throw new Error("meta.elk missing after ELK save");
   for (const [key, raw] of entries) {
     const got = elkLayout[key];
-    if (raw == null || String(raw) === "") {
+    if (raw == null || raw === "") {
       if (got != null) {
         throw new Error(`meta.elk[${JSON.stringify(key)}] is ${JSON.stringify(got)}, expected cleared after save`);
       }
       continue;
     }
-    const want = String(raw);
     if (got == null) {
       throw new Error(`meta.elk missing key ${JSON.stringify(key)} after save`);
     }
-    if (String(got) !== want) {
-      throw new Error(`meta.elk[${JSON.stringify(key)}] is ${JSON.stringify(got)}, expected ${JSON.stringify(want)} after save`);
+    if (!Object.is(got, raw)) {
+      throw new Error(`meta.elk[${JSON.stringify(key)}] is ${JSON.stringify(got)}, expected ${JSON.stringify(raw)} after save`);
     }
   }
 }
@@ -577,12 +697,18 @@ export function persistFrameDiagramOverridePayloadToYaml(
       removedIds.filter((frameId): frameId is string => typeof frameId === "string"),
     );
   }
-  for (const [frameId, override] of Object.entries(overrides)) {
-    const target = findFrameData(rootData, frameId);
-    if (!target) {
-      throw new Error(`Unknown component id in overrides: ${frameId}`);
+  for (const [componentId, override] of Object.entries(overrides)) {
+    const frameTarget = findFrameData(rootData, componentId);
+    if (frameTarget) {
+      applyFrameOverride(frameTarget, override, componentId);
+      continue;
     }
-    applyFrameOverride(target, override, frameId);
+    const arrowTarget = findArrowData(document, componentId);
+    if (arrowTarget) {
+      applyArrowOverride(arrowTarget, override, componentId);
+      continue;
+    }
+    throw new Error(`Unknown component id in overrides: ${componentId}`);
   }
   if (isRecord(document.meta)) {
     assertSupportedPersistedEngineLayoutMeta(document.meta, framePath);

@@ -7,6 +7,15 @@ arrows:
   target: implement
 - source: measure
   target: review
+  waypoints:
+  - - 200
+    - 160
+  - - 200
+    - -8
+  - - 416
+    - -8
+  - - 416
+    - 96
 root:
   id: page
   direction: horizontal

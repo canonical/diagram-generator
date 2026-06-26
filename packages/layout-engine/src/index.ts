@@ -304,9 +304,12 @@ export {
   createPreviewStageBindingRuntime,
   createPreviewStateRestoreRuntimeFromEditorHost,
   createPreviewStateRestoreRuntime,
+  PERSIST_ARROW_KEYS,
   hasPreviewRelayoutFrameOverride,
   hasV3FrameOverride,
   filterRelayoutOverrideEntry,
+  RELAYOUT_ARROW_KEYS,
+  UNDO_RELAYOUT_ARROW_KEYS,
 } from './preview-shell/index.js';
 export type {
   CreatePreviewEditorInteractionFacadeFromEditorHostOptions,
@@ -368,8 +371,18 @@ export type {
   PreviewStateRestoreEditorHostModel,
   PreviewStateRestoreEditorStateLike,
   PreviewStateRestoreRuntime,
+  PersistArrowKey,
   RelayoutFrameKey,
 } from './preview-shell/index.js';
+
+export {
+  PREVIEW_ARROW_COMPONENT_PREFIX,
+  collectPreviewArrowComponentEntries,
+  createPreviewArrowComponentId,
+  isPreviewArrowComponentId,
+  parsePreviewArrowComponentId,
+  resolvePreviewArrowComponentId,
+} from './preview-arrow-component-ids.js';
 
 export {
   AUTOLAYOUT_DOCUMENT_KIND,

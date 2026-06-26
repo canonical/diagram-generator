@@ -537,6 +537,9 @@ interface PreviewLayoutBridgeTreeNode {
   gap?: number | null;
   gapDelta?: number | null;
   border?: string | null;
+  positionType?: string | null;
+  x?: number | null;
+  y?: number | null;
   paddingTop?: number | null;
   paddingRight?: number | null;
   paddingBottom?: number | null;
@@ -1399,6 +1402,9 @@ export function updatePreviewComponentModelFromLayout<
       sizing_w: node.sizingW || null,
       sizing_h: node.sizingH || null,
       fill_weight: node.fillWeight ?? null,
+      position: node.positionType ?? null,
+      authored_x: node.x ?? null,
+      authored_y: node.y ?? null,
       min_width: node.minWidth ?? null,
       max_width: node.maxWidth ?? null,
       max_width_chars: node.maxWidthChars ?? null,

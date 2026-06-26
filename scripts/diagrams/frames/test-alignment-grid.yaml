@@ -1,23 +1,32 @@
 engine: v3
-title: "Alignment grid — centered child"
+title: Alignment grid — centered child
 root:
   id: page
-  direction: vertical
+  direction: horizontal
   sizing: fixed
   width: 480
   height: 400
   children:
-    - id: container
-      direction: vertical
+  - id: container
+    direction: vertical
+    sizing: fixed
+    width: 432
+    height: 208
+    align: bottom-right
+    border: solid
+    heading: Alignment test
+    children:
+    - id: small_box
+      label:
+      - Small box — change alignment
       sizing: fixed
-      width: 432
-      height: 352
-      align: center
+      width: 192
+      height: 64
+      level: 1
+      fill: white
       border: solid
-      heading: Alignment test
-      children:
-        - id: small_box
-          label: [Small box — change alignment]
-          sizing: fixed
-          width: 192
-          height: 64
+    level: 2
+    fill: grey
+    sizing_w: fill
+    sizing_h: fixed
+  sizing_h: hug

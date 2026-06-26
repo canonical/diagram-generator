@@ -95,17 +95,34 @@ describe('preview save client runtime', () => {
       alertFn: vi.fn(),
     });
 
-    const reloadDiagram = vi.fn(async () => undefined);
-    const restoreSelectionIds = vi.fn();
-    const setStatus = vi.fn();
-    const clearCoercedKeys = vi.fn();
-    const runConstraints = vi.fn();
     const model = {
       overrides: { alpha: { dx: 8 } },
       gridOverrides: {},
       removedIds: new Set(['stale']),
       toOverridePayload: () => ({ overrides: { alpha: { dx: 8 } } }),
+      get(id: string) {
+        if (id === 'alpha') {
+          return {
+            type: 'box',
+            data: {
+              position: 'ABSOLUTE',
+              authored_x: 24,
+              authored_y: 32,
+              width: 120,
+              height: 64,
+            },
+          };
+        }
+        return null;
+      },
     };
+    const reloadDiagram = vi.fn(async () => {
+      expect(model.removedIds.size).toBe(0);
+    });
+    const restoreSelectionIds = vi.fn();
+    const setStatus = vi.fn();
+    const clearCoercedKeys = vi.fn();
+    const runConstraints = vi.fn();
 
     runtime.init({
       slug: 'demo',
@@ -142,6 +159,211 @@ describe('preview save client runtime', () => {
     expect(setStatus).toHaveBeenCalledWith('Ready', 'ok');
     expect(model.removedIds.size).toBe(0);
     expect(runConstraints).toHaveBeenCalled();
+  });
+
+  it('normalizes transient frame overrides before POST and strips synthetic ids', async () => {
+    const fetchFn = vi.fn(async (_input, init) => ({
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      text: async () => '',
+      json: async () => ({}),
+    }));
+    const runtime = createPreviewSaveClientRuntime({
+      document: {
+        body: { appendChild() {} },
+        activeElement: null,
+        createElement() {
+          return { click() {}, remove() {} };
+        },
+        getElementById() {
+          return null;
+        },
+        querySelector() {
+          return null;
+        },
+      },
+      previewWindow: {},
+      fetchFn,
+      alertFn: vi.fn(),
+    });
+
+    const model = {
+      overrides: {
+        floating: { dx: 8, dy: -8 },
+        resizable: { dw: 24, dh: 16 },
+        panel__body: { align: 'BOTTOM_RIGHT' },
+        panel__heading: { text: { heading: 'Ignored synthetic heading' } },
+      },
+      gridOverrides: {},
+      removedIds: new Set<string>(),
+      toOverridePayload: () => ({
+        overrides: {
+          floating: { dx: 8, dy: -8 },
+          resizable: { dw: 24, dh: 16 },
+          panel__body: { align: 'BOTTOM_RIGHT' },
+          panel__heading: { text: { heading: 'Ignored synthetic heading' } },
+        },
+      }),
+      get(id: string) {
+        if (id === 'floating') {
+          return {
+            type: 'box',
+            data: {
+              position: 'ABSOLUTE',
+              authored_x: 32,
+              authored_y: 48,
+              width: 120,
+              height: 64,
+            },
+          };
+        }
+        if (id === 'resizable') {
+          return {
+            type: 'panel',
+            data: {
+              width: 160,
+              height: 96,
+            },
+          };
+        }
+        return null;
+      },
+    };
+
+    runtime.init({
+      slug: 'demo',
+      getModel: () => model,
+      getSelectedIds: () => [],
+      restoreSelectionIds: vi.fn(),
+      serializeDirtyState: () => '{"dirty":true}',
+      reloadDiagram: vi.fn(async () => undefined),
+      getLayoutRelayoutStatus: () => ({ localReady: true }),
+      getLayoutRelayoutRuntime: () => ({ lastMode: 'local-ready' }),
+      getConstraintSummary: () => ({ errors: 0 }),
+    });
+
+    await runtime.saveOverrides();
+
+    const request = fetchFn.mock.calls[0]?.[1] as { body?: string } | undefined;
+    expect(request?.body).toBeTruthy();
+    expect(JSON.parse(String(request?.body))).toEqual({
+      overrides: {
+        floating: {
+          position: 'ABSOLUTE',
+          x: 40,
+          y: 40,
+        },
+        resizable: {
+          width: 184,
+          height: 112,
+          sizing_w: 'FIXED',
+          sizing_h: 'FIXED',
+        },
+      },
+    });
+  });
+
+  it('drops unsupported arrow save keys without aborting frame persistence', async () => {
+    const alertFn = vi.fn();
+    const fetchFn = vi.fn(async (_input, init) => ({
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      text: async () => '',
+      json: async () => ({}),
+    }));
+    const runtime = createPreviewSaveClientRuntime({
+      document: {
+        body: { appendChild() {} },
+        activeElement: null,
+        createElement() {
+          return { click() {}, remove() {} };
+        },
+        getElementById() {
+          return null;
+        },
+        querySelector() {
+          return null;
+        },
+      },
+      previewWindow: {},
+      fetchFn,
+      alertFn,
+    });
+
+    const model = {
+      overrides: {
+        alpha: { dx: 8 },
+        'arrow:id:edge-1': {
+          waypoints: [[24, 32]],
+          color: '#E95420',
+          selected: true,
+        },
+      },
+      gridOverrides: {},
+      removedIds: new Set<string>(),
+      toOverridePayload: () => ({
+        overrides: {
+          alpha: { dx: 8 },
+          'arrow:id:edge-1': {
+            waypoints: [[24, 32]],
+            color: '#E95420',
+            selected: true,
+          },
+        },
+      }),
+      get(id: string) {
+        if (id === 'alpha') {
+          return {
+            type: 'box',
+            data: {
+              position: 'ABSOLUTE',
+              authored_x: 32,
+              authored_y: 48,
+              width: 120,
+              height: 64,
+            },
+          };
+        }
+        if (id === 'arrow:id:edge-1') {
+          return {
+            type: 'arrow',
+            data: {},
+          };
+        }
+        return null;
+      },
+    };
+
+    runtime.init({
+      slug: 'demo',
+      getModel: () => model,
+      getSelectedIds: () => [],
+      restoreSelectionIds: vi.fn(),
+      serializeDirtyState: () => '{"dirty":true}',
+      reloadDiagram: vi.fn(async () => undefined),
+      getLayoutRelayoutStatus: () => ({ localReady: true }),
+      getLayoutRelayoutRuntime: () => ({ lastMode: 'local-ready' }),
+      getConstraintSummary: () => ({ errors: 0 }),
+    });
+
+    await runtime.saveOverrides();
+
+    expect(alertFn).not.toHaveBeenCalled();
+    const request = fetchFn.mock.calls[0]?.[1] as { body?: string } | undefined;
+    expect(JSON.parse(String(request?.body))).toEqual({
+      overrides: {
+        alpha: {
+          position: 'ABSOLUTE',
+          x: 40,
+          y: 48,
+        },
+        'arrow:id:edge-1': {
+          waypoints: [[24, 32]],
+        },
+      },
+    });
   });
 
   it('blocks saves when local relayout is unavailable and there are pending overrides', async () => {
@@ -260,6 +482,21 @@ describe('preview save client runtime', () => {
       gridOverrides: {},
       removedIds: new Set<string>(),
       toOverridePayload: () => ({ overrides: { alpha: { dx: 8 } } }),
+      get(id: string) {
+        if (id === 'alpha') {
+          return {
+            type: 'box',
+            data: {
+              position: 'ABSOLUTE',
+              authored_x: 16,
+              authored_y: 24,
+              width: 120,
+              height: 64,
+            },
+          };
+        }
+        return null;
+      },
     };
     let relayoutReady = false;
 
@@ -293,5 +530,71 @@ describe('preview save client runtime', () => {
     });
     await savePromise;
     expect(saveButton.disabled).toBe(false);
+  });
+
+  it('keeps removal state and reports reload failures after a successful persist', async () => {
+    const alertFn = vi.fn();
+    const clearCoercedKeys = vi.fn();
+    const runtime = createPreviewSaveClientRuntime({
+      document: {
+        body: { appendChild() {} },
+        activeElement: null,
+        createElement() {
+          return { click() {}, remove() {} };
+        },
+        getElementById() {
+          return null;
+        },
+        querySelector() {
+          return null;
+        },
+      },
+      previewWindow: {},
+      fetchFn: vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        text: async () => '',
+        json: async () => ({}),
+      })),
+      alertFn,
+    });
+
+    const removedIds = new Set(['alpha']);
+    const model = {
+      overrides: {},
+      gridOverrides: {},
+      removedIds,
+      toOverridePayload: () => ({ overrides: {}, removed_ids: ['alpha'] }),
+      get() {
+        return null;
+      },
+    };
+    const reloadDiagram = vi.fn(async () => {
+      expect(model.removedIds.size).toBe(0);
+      throw new Error('reload exploded');
+    });
+
+    runtime.init({
+      slug: 'demo',
+      getModel: () => model,
+      getSelectedIds: () => [],
+      restoreSelectionIds: vi.fn(),
+      serializeDirtyState: () => '{"dirty":true}',
+      reloadDiagram,
+      getLayoutRelayoutStatus: () => ({ localReady: true }),
+      getLayoutRelayoutRuntime: () => ({ lastMode: 'local-ready' }),
+      getConstraintSummary: () => ({ errors: 0 }),
+      clearCoercedKeys,
+      setStatus: vi.fn(),
+    });
+
+    await runtime.saveOverrides();
+
+    expect(alertFn).toHaveBeenCalledWith(
+      'Save succeeded, but reload failed: Error: reload exploded',
+    );
+    expect(model.removedIds).toBe(removedIds);
+    expect(clearCoercedKeys).not.toHaveBeenCalled();
   });
 });
