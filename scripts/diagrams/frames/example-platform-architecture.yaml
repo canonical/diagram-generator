@@ -77,4 +77,4 @@ root:
       icon: Operations.svg
   gap_delta: 16
 meta:
-  layout_engine: v3
+  layout_engine: elk-layered
