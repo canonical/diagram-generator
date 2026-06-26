@@ -72,6 +72,10 @@ function toDeltaValue(patch?: InteractionDeltaPatch | null): InteractionDeltaVal
   };
 }
 
+function normalizePersistedResizeDimension(value: number, minSize: number): number {
+  return Math.round(Math.max(minSize, value));
+}
+
 export function createOriginalOverrideEntries(
   ids: Iterable<string>,
   origOverrides: Record<string, InteractionDeltaPatch | undefined>,
@@ -195,8 +199,12 @@ export function createResizePersistencePlan(options: {
 
     entries.push({
       id: item.id,
-      width: sizingWFixed ? Math.max(minSize, item.baseW + delta.dw) : undefined,
-      height: sizingHFixed ? Math.max(minSize, item.baseH + delta.dh) : undefined,
+      width: sizingWFixed
+        ? normalizePersistedResizeDimension(item.baseW + delta.dw, minSize)
+        : undefined,
+      height: sizingHFixed
+        ? normalizePersistedResizeDimension(item.baseH + delta.dh, minSize)
+        : undefined,
       sizingWFixed,
       sizingHFixed,
     });

@@ -311,6 +311,43 @@ describe('preview resize host helpers', () => {
     expect(requestRelayout).toHaveBeenCalledWith('alpha');
   });
 
+  it('rounds persisted fixed sizes back to integer pixels when rendered baselines are fractional', () => {
+    const setOverride = vi.fn();
+    const requestRelayout = vi.fn();
+    const nodes = new Map([
+      ['alpha', { data: { width: 288, height: 80 } }],
+    ]);
+
+    persistPreviewResizeToFrameOverrides({
+      resizeIds: ['alpha'],
+      triggerCid: 'alpha',
+      baseSizes: {
+        alpha: { width: 223.5, height: 63.5 },
+      },
+      getNode(cid) {
+        return nodes.get(cid) ?? null;
+      },
+      getOwnDelta() {
+        return { dw: 64, dh: 16 };
+      },
+      setOverride,
+      requestRelayout,
+      minSize: 8,
+    });
+
+    expect(setOverride).toHaveBeenCalledWith('alpha', {
+      dx: 0,
+      dy: 0,
+      dw: 0,
+      dh: 0,
+      width: 288,
+      height: 80,
+      sizing_w: 'FIXED',
+      sizing_h: 'FIXED',
+    });
+    expect(requestRelayout).toHaveBeenCalledWith('alpha');
+  });
+
   it('runs resize teardown before dispatching completion callbacks', () => {
     const actions: unknown[] = [];
     const onResizeMove = () => {};

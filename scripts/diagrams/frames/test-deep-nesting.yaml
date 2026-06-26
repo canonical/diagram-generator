@@ -25,6 +25,11 @@ root:
         label:
         - VM Instance A
         icon: Server.svg
+        level: 2
+        fill: grey
+        border: solid
+        sizing_w: fixed
+        width: 192
       - id: vm_2
         label:
         - VM Instance B
