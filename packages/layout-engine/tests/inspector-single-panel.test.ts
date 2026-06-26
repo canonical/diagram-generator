@@ -5,6 +5,7 @@ describe('single-selection inspector panel renderer', () => {
   it('renders controls, overrides, picker, violations, and move/resize note', () => {
     const html = renderSingleSelectionInspectorPanel({
       cid: 'box-1',
+      alignTargetCid: 'parent-1',
       viewModel: {
         selectionKind: 'frame-leaf',
         currentAlign: 'CENTER',
@@ -43,7 +44,7 @@ describe('single-selection inspector panel renderer', () => {
     expect(html).toContain('data-dg-panel-group="appearance" data-dg-panel-id="single-appearance"');
     expect(html).toContain('data-dg-panel-group="diagnostics" data-dg-panel-id="single-diagnostics"');
     expect(html).toContain('data-dg-click-action="single-align"');
-    expect(html).toContain('data-dg-cid="box-1"');
+    expect(html).toContain('data-dg-cid="parent-1"');
     expect(html).toContain('data-dg-align="CENTER"');
     expect(html).toContain('<span class="value">Center</span>');
     expect(html).toContain('<div class="auto-panel">Sizing</div>');
@@ -52,8 +53,8 @@ describe('single-selection inspector panel renderer', () => {
     expect(html).toContain('dx=32  dy=0');
     expect(html).toContain('data-dg-click-action="clear-override"');
     expect(html).toContain('<span class="label">Variant</span>');
-    expect(html).toContain('<span class="value">Child</span>');
-    expect(html).not.toContain('data-dg-change-action="single-style"');
+    expect(html).toContain('data-dg-change-action="single-style"');
+    expect(html).toContain('<option value="panel" selected>Panel</option>');
     expect(html).toContain('Width exceeded');
     expect(html).toContain('Gap coerced');
     expect(html).toContain('Drag to move');

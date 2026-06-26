@@ -1,7 +1,7 @@
 # Spec 053: Preview Editor Post-Refactor Correctness
 
 **Feature Branch**: `feat/053-preview-editor-post-refactor-correctness`
-**Status**: Draft
+**Status**: Closeout Ready
 **Created**: 2026-06-26
 **Owner doc**: this file + `tasks.md` + `preview-editor-post-refactor-flow.md`
 

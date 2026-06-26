@@ -89,6 +89,7 @@ describe('createPreviewEditorRuntimeSet', () => {
       getOwnDelta: () => ({ dx: 0, dy: 0, dw: 0, dh: 0 }),
       getEffectiveDelta: () => ({ dx: 4, dy: 8, dw: 0, dh: 0 }),
       getComponentType: () => 'panel',
+      getParentNode: () => null,
       getParentLayout: () => null,
       getRenderedStyle: () => ({ fill: '#ffffff', stroke: '#111111' }),
       getViolations: () => [],

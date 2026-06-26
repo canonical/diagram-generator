@@ -295,6 +295,7 @@ test("autolayout viewer hides ELK controls for a single-engine v3 frame", () => 
       "title: Simple",
       "root:",
       "  id: page",
+      "  direction: vertical",
       "  children:",
       "    - id: alpha",
       "      label:",

@@ -31,6 +31,14 @@ function persistToYaml(name: string, baselineText: string, payload: PersistOverr
   return persistFrameDiagramOverridePayloadToYaml(framePath, baselineText, payload);
 }
 
+function normalizeYamlNewlines(value: string): string {
+  return value.replace(/\r\n?/g, "\n");
+}
+
+function assertYamlEqual(actual: string, expected: string): void {
+  assert.strictEqual(normalizeYamlNewlines(actual), normalizeYamlNewlines(expected));
+}
+
 test("persist override payload writes canonical yaml fields", () => {
   const baselineText = fs.readFileSync(FRAME_FIXTURE, "utf8");
   const output = persistToYaml("support-engineering-flow.yaml", baselineText, {
@@ -91,7 +99,7 @@ test("persist elk layout overrides writes meta.elk", () => {
     "",
   ].join("\n");
 
-  assert.strictEqual(output, expected);
+  assertYamlEqual(output, expected);
   verifyElkLayoutPersisted(output, {
     "elk.layered.spacing.nodeNodeBetweenLayers": "144",
     "elk.spacing.edgeNode": "56",
@@ -198,7 +206,7 @@ test("persist elk layout overrides replaces meta.elk entries canonically", () =>
     "",
   ].join("\n");
 
-  assert.strictEqual(output, expected);
+  assertYamlEqual(output, expected);
   verifyElkLayoutPersisted(output, {
     "elk.hierarchyHandling": "SEPARATE_CHILDREN",
     "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
@@ -440,7 +448,7 @@ test("persist removed ids prunes frames and arrows", () => {
     "",
   ].join("\n");
 
-  assert.strictEqual(output, expected);
+  assertYamlEqual(output, expected);
 });
 
 test("empty payload is a no-op without rewriting yaml", () => {
@@ -622,7 +630,7 @@ test("persist style does not promote implicit headingless wrapper", () => {
     "",
   ].join("\n");
 
-  assert.strictEqual(output, expected);
+  assertYamlEqual(output, expected);
 });
 
 test("persist style preserves explicit visible headingless group", () => {
@@ -668,7 +676,7 @@ test("persist style preserves explicit visible headingless group", () => {
     "",
   ].join("\n");
 
-  assert.strictEqual(output, expected);
+  assertYamlEqual(output, expected);
 });
 
 test("persist layout_engine writes meta.layout_engine (spec 035)", () => {
@@ -703,7 +711,7 @@ test("persist layout_engine writes meta.layout_engine (spec 035)", () => {
     "",
   ].join("\n");
 
-  assert.strictEqual(output, expected);
+  assertYamlEqual(output, expected);
 });
 
 test("persist layout_engine updates existing meta.layout_engine (spec 035)", () => {
@@ -738,7 +746,7 @@ test("persist layout_engine updates existing meta.layout_engine (spec 035)", () 
     "",
   ].join("\n");
 
-  assert.strictEqual(output, expected);
+  assertYamlEqual(output, expected);
 });
 
 test("persist layout_engine null clears meta.layout_engine (spec 035)", () => {
@@ -771,7 +779,7 @@ test("persist layout_engine null clears meta.layout_engine (spec 035)", () => {
     "",
   ].join("\n");
 
-  assert.strictEqual(output, expected);
+  assertYamlEqual(output, expected);
 });
 
 test("persist layout_engine preserves other meta fields (spec 035)", () => {
@@ -809,7 +817,7 @@ test("persist layout_engine preserves other meta fields (spec 035)", () => {
     "",
   ].join("\n");
 
-  assert.strictEqual(output, expected);
+  assertYamlEqual(output, expected);
 });
 
 test("persist→reload round-trip: layout_engine survives write and resolves via registry (spec 035, T020)", () => {

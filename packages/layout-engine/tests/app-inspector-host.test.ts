@@ -30,7 +30,7 @@ describe('preview inspector host helpers', () => {
     })).toContain('not found');
   });
 
-  it('renders a single-selection panel with autolayout and read-only variant display', () => {
+  it('renders a single-selection panel with autolayout and editable variant display', () => {
     const html = renderPreviewSingleSelectionInspector({
       cid: 'frame-1',
       node: {
@@ -64,9 +64,8 @@ describe('preview inspector host helpers', () => {
     expect(html).toContain('data-dg-click-action="single-align"');
     expect(html).toContain('Sizing');
     expect(html).toContain('<span class="label">Variant</span>');
-    expect(html).toContain('Highlight');
-    expect(html).not.toContain('data-dg-change-action="single-style"');
-    expect(html).not.toContain('highlight|parent');
+    expect(html).toContain('data-dg-change-action="single-style"');
+    expect(html).toContain('highlight|parent');
   });
 
   it('renders single-arrow details without frame layout, sizing, style, or drag notes', () => {
@@ -157,8 +156,8 @@ describe('preview inspector host helpers', () => {
       renderStyleOptions: () => '<option>styled</option>',
     })).toBe(true);
     expect(inspector.innerHTML).toContain('Variant');
-    expect(inspector.innerHTML).toContain('Highlight');
-    expect(inspector.innerHTML).not.toContain('data-dg-change-action="single-style"');
+    expect(inspector.innerHTML).toContain('data-dg-change-action="single-style"');
+    expect(inspector.innerHTML).toContain('styled');
   });
 
   it('renders the multi-selection host panel and returns the inferred gap', () => {
@@ -383,6 +382,9 @@ describe('preview inspector host helpers', () => {
       getComponentType() {
         return 'panel';
       },
+      getParentNode() {
+        return null;
+      },
       getParentLayout() {
         return null;
       },
@@ -400,7 +402,7 @@ describe('preview inspector host helpers', () => {
       },
     })).toBe(true);
     expect(inspector.innerHTML).toContain('Variant');
-    expect(inspector.innerHTML).toContain('Highlight');
-    expect(inspector.innerHTML).not.toContain('data-dg-change-action="single-style"');
+    expect(inspector.innerHTML).toContain('data-dg-change-action="single-style"');
+    expect(inspector.innerHTML).toContain('styled');
   });
 });

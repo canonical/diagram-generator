@@ -552,6 +552,7 @@ export function applyPreviewOverridesToFrameTree(
     }
     if (typeof override.align === 'string') {
       target.align = override.align as Frame['align'];
+      syncPreviewSyntheticBodyFromParent(target);
     }
     if (override.wrap != null) {
       target.wrap = Boolean(override.wrap);
