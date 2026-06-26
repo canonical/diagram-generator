@@ -135,3 +135,17 @@ test("engine switcher keeps a single compatible engine visible", () => {
   assert.equal(select.children[0]?.selected, true);
   assert.equal(select.disabled, true);
 });
+
+test("engine switcher falls back to config engine for implicit v3 documents", () => {
+  const { section, select } = runEngineSwitcher({
+    slug: "test-deep-nesting",
+    engine: "v3",
+    compatible_engines: ["v3"],
+  });
+
+  assert.equal(section.hidden, false);
+  assert.equal(select.children.length, 1);
+  assert.equal(select.children[0]?.value, "v3");
+  assert.equal(select.children[0]?.selected, true);
+  assert.equal(select.disabled, true);
+});

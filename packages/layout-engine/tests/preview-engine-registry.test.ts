@@ -501,8 +501,12 @@ describe('preview-engine registry', () => {
     });
   });
 
-  it('resolves real container-endpoint authored diagrams to elk-layered', () => {
-    for (const slug of ['example-platform-architecture', 'request-to-hardware-stack']) {
+  it('resolves real container-endpoint authored diagrams to their authored engine', () => {
+    const expectedEngines = new Map([
+      ['example-platform-architecture', 'elk-layered'],
+      ['request-to-hardware-stack', 'v3'],
+    ]);
+    for (const [slug, expectedEngine] of expectedEngines) {
       const diagram = loadFrameYaml(join(FRAMES_DIR, `${slug}.yaml`));
       const context = {
         layoutEngine: diagram.layoutEngine,
@@ -512,7 +516,7 @@ describe('preview-engine registry', () => {
       };
 
       expect(context.frameDiagramSummary.unsupportedCarrierIds.length, slug).toBeGreaterThan(0);
-      expect(resolvePreviewEngine(context)?.id, slug).toBe('elk-layered');
+      expect(resolvePreviewEngine(context)?.id, slug).toBe(expectedEngine);
     }
   });
 

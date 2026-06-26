@@ -328,7 +328,8 @@ test("autolayout viewer hides ELK controls for a single-engine v3 frame", () => 
   assert.match(html, /id="elk-layout-section" hidden/);
   assert.match(html, /id="graph-layout-section" hidden/);
   assert.match(html, /id="force-solver-section" hidden/);
-  assert.equal(html.includes("/preview/engine-switcher.js"), false);
+  assert.match(html, /id="engine-switcher-section" >/);
+  assert.match(html, /\/preview\/engine-switcher\.js/);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
@@ -440,7 +441,11 @@ test("autolayout viewer shows graph layout controls and hides ELK, grid, and for
 
 test("real frame fixtures resolve authored layout engines without silent v3 fallback", () => {
   const framesDir = path.join(REPO_ROOT, "scripts", "diagrams", "frames");
-  for (const slug of ["example-platform-architecture", "request-to-hardware-stack"]) {
+  const expectedLayoutEngines = new Map([
+    ["example-platform-architecture", "elk-layered"],
+    ["request-to-hardware-stack", "v3"],
+  ]);
+  for (const [slug, expectedLayoutEngine] of expectedLayoutEngines) {
     const context = resolveFramePreviewViewerContext(
       slug,
       { framesDir },
@@ -451,10 +456,10 @@ test("real frame fixtures resolve authored layout engines without silent v3 fall
     );
 
     assert.equal(context.documentKind, "frame-diagram", slug);
-    assert.equal(context.authoredLayoutEngine, "elk-layered", slug);
-    assert.equal(context.engineManifest?.id, "elk-layered", slug);
-    assert.equal(context.activeLayoutEngine, "elk-layered", slug);
-    assert.ok(context.compatibleEngines.includes("elk-layered"), slug);
+    assert.equal(context.authoredLayoutEngine, expectedLayoutEngine, slug);
+    assert.equal(context.engineManifest?.id, expectedLayoutEngine, slug);
+    assert.equal(context.activeLayoutEngine, expectedLayoutEngine, slug);
+    assert.ok(context.compatibleEngines.includes(expectedLayoutEngine), slug);
   }
 });
 
@@ -496,6 +501,52 @@ test("switching an authored ELK frame fixture to v3 persists and resolves v3", (
     assert.equal(after.authoredLayoutEngine, "v3");
     assert.equal(after.engineManifest?.id, "v3");
     assert.equal(after.activeLayoutEngine, "v3");
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("frame viewer compatibility excludes and rejects graph engines for no-arrow frames", () => {
+  const tempDir = mkdtempSync(path.join(os.tmpdir(), "dg-preview-engine-compat-"));
+  const framesDir = path.join(tempDir, "frames");
+  mkdirSync(framesDir, { recursive: true });
+  const framePath = path.join(framesDir, "no-arrow-frame.yaml");
+  const normalizeLayoutEngine = (layoutEngine: string | undefined) => layoutEngine?.trim() ?? "";
+  writeFileSync(
+    framePath,
+    [
+      "engine: v3",
+      "title: No arrow frame",
+      "root:",
+      "  id: page",
+      "  direction: vertical",
+      "  children:",
+      "    - id: child",
+      "      label: Child",
+      "",
+    ].join("\n"),
+  );
+
+  try {
+    const context = resolveFramePreviewViewerContext(
+      "no-arrow-frame",
+      { framesDir },
+      { normalizeLayoutEngine, findReferenceImage: () => null },
+    );
+
+    assert.deepEqual(context.compatibleEngines, ["v3"]);
+    assert.throws(
+      () => saveFramePreviewDocument(
+        "no-arrow-frame",
+        { layout_engine: "elk-layered" },
+        {
+          framePreviewDocumentDeps: { framesDir },
+          parseYaml,
+          normalizeLayoutEngine,
+        },
+      ),
+      /Cannot use engine 'elk-layered' with frame-diagram: Engine requires at least 1 authored arrow/,
+    );
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }

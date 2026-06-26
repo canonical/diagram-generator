@@ -15,10 +15,10 @@
 (function initEngineSwitcher() {
   const config = window.__DG_CONFIG || {};
   const slug = config.slug;
-  const current = config.layout_engine || "";
   const compatible = Array.isArray(config.compatible_engines)
     ? config.compatible_engines.filter((key) => typeof key === "string" && key.length > 0)
     : [];
+  const current = config.layout_engine || config.engine || (compatible.length === 1 ? compatible[0] : "");
 
   const section = document.getElementById("engine-switcher-section");
   const select = document.getElementById("engine-switcher");

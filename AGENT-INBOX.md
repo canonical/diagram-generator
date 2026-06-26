@@ -8,6 +8,48 @@ Durable follow-up belongs in `specs/<id>-<slug>/`,
 
 ---
 
+## 2026-06-26 - Spec 053 preview editor correctness implemented
+
+Active branch: `feat/053-preview-editor-post-refactor-correctness`.
+
+Implemented and ready to continue from another machine:
+
+- `single-align`, `direction`, sizing, wrapping, and justification inspector
+  mutations now request immediate typed relayout, fixing stale visual state after
+  alignment and v3 horizontal/vertical changes.
+- The engine switcher now falls back from `layout_engine` to `engine` and the
+  typed preview UI policy shows a disabled populated engine field even for
+  single-compatible v3 frame diagrams.
+- ELK layout controls no longer fall back to `elk-layered` defaults when an
+  explicit active engine cannot be resolved for that sidebar section.
+- Preview-host compatibility coverage now proves no-arrow frame documents expose
+  only `v3` and reject incompatible graph engines with the registry reason.
+- Stale fixture expectations for `request-to-hardware-stack` now reflect its
+  authored `v3` engine, and frame YAML newline expectations are normalized.
+
+Validation completed on this branch:
+
+- `npm --prefix packages/layout-engine test`
+- `npm --prefix apps/preview test`
+- `npm --prefix packages/layout-engine run build`
+- `npm --prefix packages/layout-engine run build:browser`
+- `node scripts/check-browser-bundle-fresh.mjs`
+- `node scripts/check_no_new_python.mjs`
+- Local text probe against `http://127.0.0.1:8123/view/test-alignment-grid` and
+  `http://127.0.0.1:8123/view/tiered-network-architecture.author-v1`
+
+Caveats:
+
+- The VS Code integrated-browser connector was requested but unavailable to the
+  agent runtime (`iab` backend missing), so final browser verification used the
+  local preview server and text/DOM-style probes instead of screenshots.
+- Two pre-existing local fixture edits remain intentionally uncommitted and are
+  not part of the pushed handover unless a future agent explicitly decides they
+  are product changes: `scripts/diagrams/frames/test-alignment-grid.yaml` and
+  `scripts/diagrams/frames/tiered-network-architecture.author-v1.yaml`.
+
+---
+
 ## 2026-06-26 - Spec 052 live engine-switch regressions resolved
 
 The 2026-06-25 deeper review item is complete. Phase 6 in

@@ -195,6 +195,9 @@ export function createPreviewElkLayoutControlsRuntime(
     if (engineSupportsSidebarSection(active, sidebarSectionId)) {
       return active;
     }
+    if (layoutEngine && layoutEngine.trim().length > 0) {
+      return null;
+    }
     return previewEnginesBySidebarSection(sidebarSectionId)[0] ?? null;
   }
 

@@ -89,7 +89,7 @@ test("persist elk layout overrides writes meta.elk", () => {
     "    label:",
     "    - A",
     "",
-  ].join("\r\n");
+  ].join("\n");
 
   assert.strictEqual(output, expected);
   verifyElkLayoutPersisted(output, {
@@ -196,7 +196,7 @@ test("persist elk layout overrides replaces meta.elk entries canonically", () =>
     "    label:",
     "    - A",
     "",
-  ].join("\r\n");
+  ].join("\n");
 
   assert.strictEqual(output, expected);
   verifyElkLayoutPersisted(output, {
@@ -438,7 +438,7 @@ test("persist removed ids prunes frames and arrows", () => {
     "      label:",
     "      - B",
     "",
-  ].join("\r\n");
+  ].join("\n");
 
   assert.strictEqual(output, expected);
 });
@@ -620,7 +620,7 @@ test("persist style does not promote implicit headingless wrapper", () => {
     "      label:",
     "      - B",
     "",
-  ].join("\r\n");
+  ].join("\n");
 
   assert.strictEqual(output, expected);
 });
@@ -666,7 +666,7 @@ test("persist style preserves explicit visible headingless group", () => {
     "    fill: white",
     "    border: solid",
     "",
-  ].join("\r\n");
+  ].join("\n");
 
   assert.strictEqual(output, expected);
 });
@@ -701,7 +701,7 @@ test("persist layout_engine writes meta.layout_engine (spec 035)", () => {
     "meta:",
     "  layout_engine: elk-layered",
     "",
-  ].join("\r\n");
+  ].join("\n");
 
   assert.strictEqual(output, expected);
 });
@@ -736,7 +736,7 @@ test("persist layout_engine updates existing meta.layout_engine (spec 035)", () 
     "    label:",
     "    - A",
     "",
-  ].join("\r\n");
+  ].join("\n");
 
   assert.strictEqual(output, expected);
 });
@@ -769,7 +769,7 @@ test("persist layout_engine null clears meta.layout_engine (spec 035)", () => {
     "    label:",
     "    - A",
     "",
-  ].join("\r\n");
+  ].join("\n");
 
   assert.strictEqual(output, expected);
 });
@@ -807,7 +807,7 @@ test("persist layout_engine preserves other meta fields (spec 035)", () => {
     "    label:",
     "    - A",
     "",
-  ].join("\r\n");
+  ].join("\n");
 
   assert.strictEqual(output, expected);
 });
