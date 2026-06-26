@@ -101,7 +101,7 @@ root:
         - id: mongo_write
           level: 2
           width: 224
-          sizing_w: fixed
+          sizing_w: fill
           label:
           - Mongo
           - write
@@ -128,7 +128,7 @@ root:
         - id: mongo_read_az2
           level: 2
           width: 224
-          sizing_w: fixed
+          sizing_w: fill
           label:
           - Mongo
           - read-only
@@ -155,7 +155,7 @@ root:
         - id: mongo_read_az3
           level: 2
           width: 224
-          sizing_w: fixed
+          sizing_w: fill
           label:
           - Mongo
           - read-only

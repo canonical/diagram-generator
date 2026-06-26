@@ -34,13 +34,13 @@ root:
     - Public
     - repository
     icon: Cloud.svg
-    sizing_w: fill
+    sizing_w: hug
   - id: global_server
     label:
     - Tier 1
     - Global server
     icon: Server.svg
-    sizing_w: fill
+    sizing_w: hug
   - id: tier2_row
     direction: horizontal
     children:
@@ -91,3 +91,15 @@ root:
         use: client
 meta:
   layout_engine: elk-layered
+  elk:
+    elk.layered.spacing.nodeNodeBetweenLayers: '24'
+    elk.spacing.nodeNode: '24'
+    elk.spacing.edgeNode: '24'
+    elk.spacing.edgeEdge: '24'
+    elk.layered.spacing.edgeEdgeBetweenLayers: '24'
+    elk.layered.unnecessaryBendpoints: 'true'
+    elk.layered.nodePlacement.favorStraightEdges: 'true'
+    elk.layered.layering.strategy: NETWORK_SIMPLEX
+    elk.layered.crossingMinimization.strategy: LAYER_SWEEP
+    elk.layered.nodePlacement.strategy: BRANDES_KOEPF
+    elk.hierarchyHandling: INCLUDE_CHILDREN
