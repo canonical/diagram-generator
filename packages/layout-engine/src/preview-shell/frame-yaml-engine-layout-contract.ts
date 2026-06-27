@@ -3,14 +3,22 @@ import { listPreviewEngines } from '../preview-engine/registry.js';
 import type { PreviewControlKind } from '../preview-engine/types.js';
 
 export const DEFAULT_FRAME_YAML_ENGINE_LAYOUT_NAMESPACE = 'meta.elk' as const;
+export const FRAME_YAML_ENGINE_LAYOUT_NAMESPACE_PREFIX = 'meta.' as const;
 
 export interface FrameYamlPersistedControlSpec {
   readonly key: string;
   readonly kind?: PreviewControlKind;
 }
 
-function isFrameYamlEngineLayoutNamespace(namespace: string): boolean {
-  return namespace.startsWith('meta.') && namespace.length > 'meta.'.length;
+/**
+ * Frame-diagram YAML persists engine-backed controls under `document.meta.<engine>`.
+ * Spec 052 requires frame-YAML persist namespaces to stay inside that `meta.*`
+ * lane; non-`meta.*` namespaces remain session-only and must not flow through
+ * the frame-YAML save path.
+ */
+export function isFrameYamlEngineLayoutNamespace(namespace: string): boolean {
+  return namespace.startsWith(FRAME_YAML_ENGINE_LAYOUT_NAMESPACE_PREFIX)
+    && namespace.length > FRAME_YAML_ENGINE_LAYOUT_NAMESPACE_PREFIX.length;
 }
 
 function supportedFrameYamlControlSpecsByNamespace(): Map<string, Map<string, FrameYamlPersistedControlSpec>> {
@@ -63,6 +71,19 @@ export function filterSupportedFrameYamlEngineLayoutOverrides(
     }
   }
   return filtered;
+}
+
+export function collectUnsupportedFrameYamlEngineLayoutOverrideKeys(
+  namespace: string,
+  overrides: Record<string, unknown>,
+): string[] {
+  const supported = getSupportedFrameYamlControlSpecsForNamespace(namespace);
+  if (supported.size === 0) {
+    return Object.keys(overrides).sort();
+  }
+  return Object.keys(overrides)
+    .filter((key) => !supported.has(key))
+    .sort();
 }
 
 export function resolveFrameYamlEngineLayoutNamespaceForOverrides(

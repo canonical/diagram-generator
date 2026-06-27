@@ -580,6 +580,8 @@ class ComponentModel {
 
   /** Serialise overrides for saving. */
   toOverridePayload() {
+    // Legacy browser-shell compatibility only: the live save runtime calls the
+    // typed preview payload owner directly and no longer relies on this method.
     const createPreviewOverridePayload = getPreviewOverridePayloadFactory();
     if (typeof createPreviewOverridePayload !== "function") {
       throw new Error(

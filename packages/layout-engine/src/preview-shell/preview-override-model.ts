@@ -197,21 +197,6 @@ function readPreviewPersistedLayoutOverrides(
   return { namespace, overrides };
 }
 
-function syncPreviewLayoutOverrideAliases(
-  model: PreviewOverrideModelLike | null | undefined,
-  layoutOverrideState: { namespace: string; overrides: Record<string, unknown> } | null,
-): void {
-  if (!model || !layoutOverrideState) {
-    return;
-  }
-  const { namespace, overrides } = layoutOverrideState;
-  model.layoutOverrides = { ...overrides };
-  model.layoutOverrideNamespace = namespace;
-  model.elkLayoutOverrides = namespace === DEFAULT_FRAME_YAML_ENGINE_LAYOUT_NAMESPACE
-    ? { ...overrides }
-    : {};
-}
-
 export function collectPreviewTopLevelRemovalIds(
   model: PreviewOverrideModelLike | null | undefined,
 ): string[] {
@@ -254,7 +239,6 @@ export function createPreviewOverridePayload(
   }
 
   const layoutOverrideState = readPreviewPersistedLayoutOverrides(model);
-  syncPreviewLayoutOverrideAliases(model, layoutOverrideState);
   if (layoutOverrideState) {
     const { namespace, overrides } = layoutOverrideState;
     payload.engine_layout_overrides = {

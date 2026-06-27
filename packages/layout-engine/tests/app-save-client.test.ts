@@ -398,6 +398,117 @@ describe('preview save client runtime', () => {
     });
   });
 
+  it('blocks saves when layout overrides use a non-frame-YAML persist namespace', async () => {
+    const alertFn = vi.fn();
+    const fetchFn = vi.fn();
+    const runtime = createPreviewSaveClientRuntime({
+      document: {
+        body: { appendChild() {} },
+        activeElement: null,
+        createElement() {
+          return { click() {}, remove() {} };
+        },
+        getElementById() {
+          return null;
+        },
+        querySelector() {
+          return null;
+        },
+      },
+      previewWindow: {},
+      fetchFn,
+      alertFn,
+    });
+
+    const model = {
+      overrides: {},
+      gridOverrides: {},
+      layoutOverrides: {
+        alpha: 0.8,
+      },
+      layoutOverrideNamespace: 'simulation',
+      removedIds: new Set<string>(),
+      get() {
+        return null;
+      },
+    };
+
+    runtime.init({
+      slug: 'demo',
+      getModel: () => model,
+      getSelectedIds: () => [],
+      restoreSelectionIds: vi.fn(),
+      serializeDirtyState: () => '{"dirty":true}',
+      reloadDiagram: vi.fn(async () => undefined),
+      getLayoutRelayoutStatus: () => ({ localReady: true }),
+      getLayoutRelayoutRuntime: () => ({ lastMode: 'local-ready' }),
+      getConstraintSummary: () => ({ errors: 0 }),
+    });
+
+    await runtime.saveOverrides();
+
+    expect(alertFn).toHaveBeenCalledWith(
+      "Cannot save: model.layoutOverrides uses non-frame-YAML persist namespace 'simulation' (expected meta.<engine>)",
+    );
+    expect(fetchFn).not.toHaveBeenCalled();
+  });
+
+  it('blocks saves when layout overrides contain unsupported frame-YAML keys', async () => {
+    const alertFn = vi.fn();
+    const fetchFn = vi.fn();
+    const runtime = createPreviewSaveClientRuntime({
+      document: {
+        body: { appendChild() {} },
+        activeElement: null,
+        createElement() {
+          return { click() {}, remove() {} };
+        },
+        getElementById() {
+          return null;
+        },
+        querySelector() {
+          return null;
+        },
+      },
+      previewWindow: {},
+      fetchFn,
+      alertFn,
+    });
+
+    const model = {
+      overrides: {},
+      gridOverrides: {},
+      layoutOverrides: {
+        'dagre.rankdir': 'LR',
+        transient: 'ignored',
+      },
+      layoutOverrideNamespace: 'meta.dagre',
+      removedIds: new Set<string>(),
+      get() {
+        return null;
+      },
+    };
+
+    runtime.init({
+      slug: 'demo',
+      getModel: () => model,
+      getSelectedIds: () => [],
+      restoreSelectionIds: vi.fn(),
+      serializeDirtyState: () => '{"dirty":true}',
+      reloadDiagram: vi.fn(async () => undefined),
+      getLayoutRelayoutStatus: () => ({ localReady: true }),
+      getLayoutRelayoutRuntime: () => ({ lastMode: 'local-ready' }),
+      getConstraintSummary: () => ({ errors: 0 }),
+    });
+
+    await runtime.saveOverrides();
+
+    expect(alertFn).toHaveBeenCalledWith(
+      "Cannot save: model.layoutOverrides contains unsupported frame-YAML engine layout keys: transient",
+    );
+    expect(fetchFn).not.toHaveBeenCalled();
+  });
+
   it('blocks saves when local relayout is unavailable and there are pending overrides', async () => {
     const alertFn = vi.fn();
     const fetchFn = vi.fn();

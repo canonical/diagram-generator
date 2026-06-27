@@ -48,7 +48,7 @@ describe('preview override payload model', () => {
     });
   });
 
-  it('syncs legacy ELK aliases and prefers the generic layout override owner', () => {
+  it('prefers the generic layout override owner without mutating model aliases', () => {
     const model = {
       overrides: {},
       layoutOverrides: {
@@ -76,11 +76,11 @@ describe('preview override payload model', () => {
       'elk.direction': 'RIGHT',
     });
     expect(model.elkLayoutOverrides).toEqual({
-      'elk.direction': 'RIGHT',
+      'elk.direction': 'DOWN',
     });
   });
 
-  it('hydrates generic layout overrides from the legacy ELK alias when needed', () => {
+  it('reads the legacy ELK alias when the generic override owner is empty', () => {
     const model = {
       overrides: {},
       layoutOverrides: {},
@@ -95,7 +95,8 @@ describe('preview override payload model', () => {
         'elk.layered.spacing.nodeNodeBetweenLayers': 48,
       },
     });
-    expect(model.layoutOverrides).toEqual({
+    expect(model.layoutOverrides).toEqual({});
+    expect(model.elkLayoutOverrides).toEqual({
       'elk.layered.spacing.nodeNodeBetweenLayers': 48,
     });
   });
@@ -126,7 +127,10 @@ describe('preview override payload model', () => {
     expect(model.layoutOverrideNamespace).toBe('meta.dagre');
     expect(model.layoutOverrides).toEqual({
       'dagre.rankdir': 'LR',
+      transient: 'ignored',
     });
-    expect(model.elkLayoutOverrides).toEqual({});
+    expect(model.elkLayoutOverrides).toEqual({
+      stale: true,
+    });
   });
 });

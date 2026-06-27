@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import vm from "node:vm";
 import { readPreviewScript } from "./preview-script-test-helpers.js";
 
-test("component-model delegates save payload assembly to the namespaced previewShell bootstrap contract", () => {
+test("component-model keeps a compatibility shim that delegates save payload assembly to the namespaced previewShell bootstrap contract", () => {
   const source = readPreviewScript("component-model.js");
   let delegatedModel: unknown = null;
   const expectedPayload = {

@@ -539,6 +539,11 @@ test("persist removed ids prunes frames and arrows", () => {
   ].join("\n");
 
   assertYamlEqual(output, expected);
+  const reloaded = loadFrameYaml(writeTempFrame("removed-ids-reloaded.yaml", output));
+  assert.deepStrictEqual(reloaded.arrows, []);
+  const panel = reloaded.root.children.find((child) => child.id === "panel");
+  assert.ok(panel, "panel must survive save + reload");
+  assert.deepStrictEqual(panel?.children.map((child) => child.id), ["leaf_b"]);
 });
 
 test("persist arrow waypoint overrides for complex-routing-usecase arrows", () => {
