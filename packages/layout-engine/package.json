@@ -6,11 +6,12 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
+    "prebuild": "npm --prefix ../graph-layout-core run build && npm --prefix ../graph-layout-dagre run build && npm --prefix ../graph-layout-elk run build",
     "build": "tsc",
     "build:browser": "node build-browser.mjs",
     "export:sequence-svg": "node scripts/export-sequence-svg.mjs",
     "export:svg": "node scripts/export-frame-svg.mjs",
-    "pretest": "npm --prefix ../.. run clean:src-artifacts",
+    "pretest": "npm --prefix ../graph-layout-core run build && npm --prefix ../graph-layout-dagre run build && npm --prefix ../graph-layout-elk run build && npm --prefix ../.. run clean:src-artifacts",
     "test": "vitest run",
     "test:watch": "vitest"
   },

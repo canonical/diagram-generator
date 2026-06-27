@@ -268,7 +268,10 @@ export type PreviewGridEditorLegacyWindow = PreviewGridEditorRuntimeWindow & {
   __DG_CONFIG?: {
     engine?: string;
     layout_engine?: string;
+    active_engine_id?: string;
+    persisted_layout_engine?: string;
     shell_mode?: string;
+    document_kind?: string;
     compatible_engines?: string[];
     has_reference?: boolean;
     icon_size?: number;
@@ -276,6 +279,7 @@ export type PreviewGridEditorLegacyWindow = PreviewGridEditorRuntimeWindow & {
     head_len?: number;
     head_half?: number;
   } | null;
+  __DG_syncPreviewEngineWorkspacePanels?: (() => void) | null;
   __DG_BOX_STYLES?: PreviewBoxStyleMap | null;
   syncArrowsInModel?: PreviewGridEditorRuntimeBrowserOptions['syncArrowsInModel'];
   arrowComponentId?: PreviewGridEditorRuntimeBrowserOptions['arrowComponentId'];
@@ -594,32 +598,47 @@ export function createPreviewGridEditorInstallOptionsFromLegacyEditorHost(
 ): CreatePreviewGridEditorInstallUnitFromEditorHostOptions {
   const boxStyles = resolveLegacyPreviewBoxStyles(options.previewWindow);
   const previewConfig = options.previewWindow.__DG_CONFIG ?? {};
+  let lastSelectionContext: PreviewUiSelectionContext = { count: 0, kind: 'empty' };
   const syncPanelVisibility = (selection: PreviewUiSelectionContext) => {
+    lastSelectionContext = selection;
     const shellMode = previewConfig.shell_mode || 'grid';
-    const layoutEngine = previewConfig.layout_engine || options.config.engine || previewConfig.engine || null;
+    const activeLayoutEngine = previewConfig.active_engine_id
+      || previewConfig.layout_engine
+      || options.config.engine
+      || previewConfig.engine
+      || null;
+    const persistedLayoutEngine = previewConfig.persisted_layout_engine
+      || previewConfig.layout_engine
+      || options.config.engine
+      || previewConfig.engine
+      || null;
+    const documentKind = previewConfig.document_kind || 'frame-diagram';
     const activeEngine = resolvePreviewEngine({
-      layoutEngine,
+      layoutEngine: activeLayoutEngine,
       shellMode,
-      previewDocumentKind: 'frame-diagram',
+      previewDocumentKind: documentKind,
     }) ?? null;
     syncPreviewPanelVisibilityFromContext({
       document: options.document,
       context: {
         shellMode,
-        documentKind: 'frame-diagram',
-      engineWorkspace: createPreviewEngineWorkspaceState({
+        documentKind,
+        engineWorkspace: createPreviewEngineWorkspaceState({
+          activeEngineId: activeLayoutEngine,
+          compatibleEngineIds: normalizeCompatibleEngines(previewConfig.compatible_engines),
+          getEngineById: (engineId) => getPreviewEngineByLayoutKey(engineId) ?? null,
+          persistedEngineId: persistedLayoutEngine,
+        }),
         activeEngine,
-        compatibleEngineIds: normalizeCompatibleEngines(previewConfig.compatible_engines),
-        getEngineById: (engineId) => getPreviewEngineByLayoutKey(engineId) ?? null,
-        persistedEngineId: layoutEngine,
-      }),
-      activeEngine,
-      compatibleEngines: normalizeCompatibleEngines(previewConfig.compatible_engines),
-      persistedLayoutEngine: layoutEngine,
+        compatibleEngines: normalizeCompatibleEngines(previewConfig.compatible_engines),
+        persistedLayoutEngine,
         selection,
         documentState: resolvePreviewDocumentStateForPanelSync(options.state, previewConfig),
       },
     });
+  };
+  options.previewWindow.__DG_syncPreviewEngineWorkspacePanels = () => {
+    syncPanelVisibility(lastSelectionContext);
   };
 
   return {

@@ -296,30 +296,25 @@ Caveat:
 
 ---
 
-## 2026-06-27 - Spec 055 adversarial review (`feat/055-preview-engine-workspace-navigation`, HEAD `55ad3f5`)
+## 2026-06-27 - Spec 055 adversarial review follow-up resolved
 
-Reviewer pass over the current spec-055 branch after implementation.
+The spec-055 review findings from the earlier adversarial pass are now closed on
+this worktree:
 
-| Severity | Area | Finding | Evidence (file:line or command) | Recommended fix |
-|----------|------|---------|----------------------------------|-----------------|
-| P1 | Engine workspace semantics | Engine tab changes still persist `meta.layout_engine` immediately and reload the page, so FR-004/FR-005 are not actually implemented. The typed reopen/session helpers exist only as pure-state utilities and tests; the live browser path never uses them. | `packages/layout-engine/src/preview-shell/preview-engine-workspace-chrome.ts:94-98,179-193`; `apps/preview/src/preview-host/frame-document-actions.ts:26-75`; `packages/layout-engine/src/preview-shell/preview-engine-workspace.ts:210-260`; `rg "setPreviewEngineWorkspaceSessionState|persistPreviewEngineWorkspaceActiveEngine|reopenPreviewEngineWorkspace"` over `packages/layout-engine/src`, `apps/preview/src`, `scripts/preview` shows exports/tests only | Keep engine-tab selection browser-local until explicit Save, snapshot unsaved per-engine state in the preview shell, and persist `layout_engine` only through the document save path. |
-| P2 | Validation / closeout claim | The spec's "T030 validation is green" claim is not reproducible from a clean worktree. With no local installs, the listed commands fail because `vitest`/`tsx` are missing. After installing local package deps, `npm --prefix apps/preview test` still fails because `@diagram-generator/layout-engine` resolves to a missing `dist/index.js`. | `specs/055-preview-engine-workspace-navigation/spec.md:75-77`; `packages/layout-engine/package.json:13-15`; `apps/preview/package.json:13-14`; `C:\Users\lyubo\AppData\Local\Temp\copilot-tool-output-1782582974917-zbju8x.txt:10-45`; `C:\Users\lyubo\AppData\Local\Temp\copilot-tool-output-1782583000587-or05j6.txt:423-618` | Document the required bootstrap/build order for reviewers, or make the advertised validation commands self-sufficient with deterministic local installs and a pretest build of `packages/layout-engine`. |
-| P3 | Runtime context plumbing | The runtime panel-visibility sync still hard-codes `documentKind: 'frame-diagram'`. That leaves the workspace model partially generalized while the live browser sync path stays frame-specific. | `packages/layout-engine/src/preview-shell/app-grid-editor-install-unit.ts:600-620`; `specs/055-preview-engine-workspace-navigation/engine-workspace-flow.md:25-32` | Plumb the actual preview document kind from host config into runtime visibility sync before another non-frame grid document reuses this path. |
+- **P1 fixed:** `preview-engine-workspace-chrome.ts` now keeps engine-tab changes
+  browser-local, stores the live active engine in typed workspace runtime state,
+  syncs panel visibility through the runtime hook, and persists
+  `layout_engine` only through the save-client path.
+- **P2 fixed:** validation bootstrap now prebuilds graph-layout package deps
+  before `packages/layout-engine` compiles/tests, and `apps/preview` pretest now
+  builds both the node `dist/index.js` artifact and the browser
+  `dist/layout-engine.iife.js` bundle before preview-app tests run.
+- **P3 fixed:** preview-host HTML now emits `document_kind`, and the runtime
+  panel-visibility sync consumes `document_kind`, `active_engine_id`, and
+  `persisted_layout_engine` from host config instead of hard-coding
+  `frame-diagram`.
 
-### Top 3 risks before merge
+Residual explicit defer:
 
-1. Reviewer-visible semantics mismatch: engine "navigation" is still a save+reload operation, not unsaved per-engine workspace state.
-2. Closeout-ready status currently depends on a non-reproducible local environment.
-3. Compatibility/fidelity still comes straight from the registry, so poor-fit engines like `elk-rectpacking` on `support-engineering-flow` remain exposed pending spec 057.
-
-### Open questions for the author
-
-- Was immediate persist-on-switch intentionally kept from spec 035 as a temporary carry-over, or was FR-004/FR-006 meant to land in this spec?
-- What is the intended one-command bootstrap for reviewers on a fresh worktree before they run the advertised validation commands?
-
-### What I verified
-
-- `npm --prefix packages/layout-engine test -- svg-golden` -> pass (after installing local package deps)
-- `npm --prefix packages/layout-engine test -- arrow-render` -> pass (after installing local package deps)
-- `npm --prefix apps/preview test` -> fail in clean worktree; after local installs it still fails because `@diagram-generator/layout-engine/dist/index.js` is missing
-- `node scripts/check_no_new_python.mjs` -> pass
+- Engine-fidelity filtering for examples like `support-engineering-flow` remains
+  tracked by spec 057; spec 055 still only consumes the registry-compatible set.

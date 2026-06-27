@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { SEQUENCE_PREVIEW_ENGINE } from '../src/preview-engine/builtins.js';
-import { initPreviewEngineWorkspaceChrome } from '../src/preview-shell/preview-engine-workspace-chrome.js';
+import {
+  collectPreviewEngineWorkspaceSavePayload,
+  hasUnsavedPreviewEngineWorkspaceChange,
+  initPreviewEngineWorkspaceChrome,
+  persistPreviewEngineWorkspaceRuntimeState,
+} from '../src/preview-shell/preview-engine-workspace-chrome.js';
 
 class FakeClassList {
   private readonly names = new Set<string>();
@@ -119,37 +124,45 @@ function createChromeHarness() {
   const prev = document.register(new FakeElement('button', 'engine-switcher-prev', document));
   const next = document.register(new FakeElement('button', 'engine-switcher-next', document));
   const tabs = document.register(new FakeElement('div', 'engine-switcher-tabs', document));
-  const reloads: string[] = [];
-  const fetchCalls: Array<{ url: string; body: string }> = [];
+  const panelSyncCalls: string[] = [];
+  const saveButtonSyncCalls: string[] = [];
   const previewWindow = {
     __DG_CONFIG: null as Record<string, unknown> | null,
-    location: {
-      reload() {
-        reloads.push('reload');
-      },
-    },
+   __DG_syncPreviewEngineWorkspacePanels() {
+     panelSyncCalls.push('sync');
+   },
+   PreviewSaveClient: {
+     syncSaveButton() {
+       saveButtonSyncCalls.push('sync');
+     },
+   },
   } as Window & typeof globalThis & {
-    __DG_CONFIG?: Record<string, unknown> | null;
+   __DG_CONFIG?: Record<string, unknown> | null;
+   __DG_syncPreviewEngineWorkspacePanels?: (() => void) | null;
+   PreviewSaveClient?: {
+     syncSaveButton?: () => void;
+   };
   };
-  const fetchFn: typeof fetch = async (input, init) => {
-    fetchCalls.push({
-      url: String(input),
-      body: String(init?.body ?? ''),
-    });
-    return {
-      ok: true,
-      text: async () => '',
-      statusText: 'OK',
-    } as Response;
+  return {
+   document,
+   section,
+   help,
+   label,
+   select,
+   prev,
+   next,
+   tabs,
+   previewWindow,
+   panelSyncCalls,
+   saveButtonSyncCalls,
   };
-  return { document, section, help, label, select, prev, next, tabs, previewWindow, fetchFn, fetchCalls, reloads };
 }
 
 describe('preview engine workspace chrome', () => {
-  it('renders navigation controls for compatible frame engines and switches with prev/next', async () => {
-    const harness = createChromeHarness();
-    harness.previewWindow.__DG_CONFIG = {
-      slug: 'support-engineering-flow',
+  it('switches engines browser-locally until save persists the active tab', () => {
+   const harness = createChromeHarness();
+   harness.previewWindow.__DG_CONFIG = {
+     slug: 'support-engineering-flow',
       active_engine_id: 'elk-layered',
       active_engine_label: 'ELK layered layout',
       persisted_layout_engine: 'elk-layered',
@@ -160,7 +173,6 @@ describe('preview engine workspace chrome', () => {
     const workspace = initPreviewEngineWorkspaceChrome({
       document: harness.document as unknown as Document,
       previewWindow: harness.previewWindow,
-      fetchFn: harness.fetchFn,
     });
 
     expect(workspace.activeEngineId).toBe('elk-layered');
@@ -173,16 +185,27 @@ describe('preview engine workspace chrome', () => {
     expect(harness.next.disabled).toBe(false);
 
     harness.next.click();
-    await Promise.resolve();
-    await Promise.resolve();
+    expect(harness.previewWindow.__DG_CONFIG?.active_engine_id).toBe('dagre');
+    expect(harness.help.textContent).toBe('Selected engine is unsaved until you save this document.');
+    expect(harness.panelSyncCalls).toEqual(['sync', 'sync']);
+    expect(harness.saveButtonSyncCalls).toEqual(['sync', 'sync']);
+    expect(hasUnsavedPreviewEngineWorkspaceChange(harness.previewWindow as never)).toBe(true);
+    expect(
+      collectPreviewEngineWorkspaceSavePayload(
+        harness.previewWindow as never,
+        { overrides: { alpha: { dx: 8 } } },
+      ),
+    ).toEqual({
+      overrides: { alpha: { dx: 8 } },
+      layout_engine: 'dagre',
+    });
 
-    expect(harness.fetchCalls).toEqual([
-      {
-        url: '/api/overrides/support-engineering-flow',
-        body: JSON.stringify({ layout_engine: 'dagre' }),
-      },
-    ]);
-    expect(harness.reloads).toEqual(['reload']);
+    persistPreviewEngineWorkspaceRuntimeState(harness.previewWindow as never);
+    expect(harness.previewWindow.__DG_CONFIG?.persisted_layout_engine).toBe('dagre');
+    expect(harness.panelSyncCalls).toEqual(['sync', 'sync', 'sync']);
+    expect(harness.saveButtonSyncCalls).toEqual(['sync', 'sync', 'sync']);
+    expect(harness.help.textContent).toBe('Only engines compatible with this document are listed.');
+    expect(hasUnsavedPreviewEngineWorkspaceChange(harness.previewWindow as never)).toBe(false);
   });
 
   it('keeps the switcher hidden for sequence documents while still surfacing engine identity', () => {
@@ -199,13 +222,11 @@ describe('preview engine workspace chrome', () => {
     const workspace = initPreviewEngineWorkspaceChrome({
       document: harness.document as unknown as Document,
       previewWindow: harness.previewWindow,
-      fetchFn: harness.fetchFn,
     });
 
     expect(workspace.activeEngineId).toBe('sequence');
     expect(harness.section.hidden).toBe(true);
     expect(harness.label.hidden).toBe(false);
     expect(harness.label.textContent).toBe(`Engine: ${SEQUENCE_PREVIEW_ENGINE.label}`);
-    expect(harness.fetchCalls).toEqual([]);
   });
 });

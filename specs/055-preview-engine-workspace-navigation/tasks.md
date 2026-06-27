@@ -49,3 +49,23 @@
       `npm --prefix packages/layout-engine test`;
       `npm --prefix apps/preview test`;
       `node scripts/check_no_new_python.mjs`
+
+## Phase 4: Review Follow-up
+
+- [x] **T031** Wire browser-local engine workspace semantics into the live shell.
+      **Do**: keep engine-tab selection browser-local until Save, surface the
+      active engine through the runtime workspace state, and persist
+      `layout_engine` only through the document save path.
+      **Verify**: focused workspace chrome + save-client tests.
+
+- [x] **T032** Plumb runtime document kind into engine-owned panel visibility sync.
+      **Do**: use preview-host config for active engine, persisted engine, and
+      document kind instead of hard-coded frame defaults.
+      **Verify**: focused grid install + preview host tests.
+
+- [x] **T033** Make the advertised validation bootstrap reproducible after local installs.
+      **Do**: build graph-layout package deps before layout-engine compile/test,
+      and build both node + browser layout-engine artifacts before preview-app
+      tests.
+      **Verify**: `npm --prefix packages/layout-engine test`;
+      `npm --prefix apps/preview test`

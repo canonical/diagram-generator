@@ -254,6 +254,7 @@ export function createAutolayoutPreviewHostViewerRoute(
         slug,
         engine: engineWorkspace.activeEngine?.id ?? (engineManifest?.id ?? (activeLayoutEngine || "v3")),
         shell_mode: "grid",
+        document_kind: documentKind,
         layout_engine: activeLayoutEngine,
         active_engine_id: engineWorkspace.activeEngineId,
         active_engine_label: engineWorkspace.activeEngine?.label ?? null,

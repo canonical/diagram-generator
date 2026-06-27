@@ -851,6 +851,24 @@ describe('preview bootstrap helpers', () => {
     }
   });
 
+  it('adds the active preview workspace engine to the persisted save payload', () => {
+    const previewWindow = {
+      __DG_CONFIG: {
+        active_engine_id: 'dagre',
+        persisted_layout_engine: 'elk-layered',
+        layout_engine: 'elk-layered',
+        compatible_engines: ['elk-layered', 'dagre'],
+      },
+    } as unknown as Window & typeof globalThis;
+
+    expect(
+      collectPreviewEngineSavePayload(previewWindow, { saved: true }, { layoutOverrides: {} }),
+    ).toEqual({
+      saved: true,
+      layout_engine: 'dagre',
+    });
+  });
+
   it('does not read ELK sidebar globals from the generic save path fallback', () => {
     const applyLayoutOverrides = vi.fn();
     const collectOverrides = vi.fn(() => ({ laneSpacing: 24 }));

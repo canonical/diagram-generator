@@ -76,6 +76,13 @@ This needs an explicit workspace model, not more ad hoc switcher glue.
   `npm --prefix apps/preview test`, and `node scripts/check_no_new_python.mjs`
   all pass with the typed engine-workspace model and chrome wired through the
   preview host.
+- 2026-06-27: Review follow-up T031-T033 wired the live browser path back into
+  the typed workspace model. Engine tab changes now stay browser-local until
+  Save, the save path persists the active workspace engine instead of rewriting
+  YAML on tab click, runtime panel-visibility sync reads host-provided
+  `document_kind` / active-engine config instead of a hard-coded frame default,
+  and validation bootstrap now prebuilds the graph-layout deps plus the
+  layout-engine node/browser artifacts before the advertised test commands run.
 
 ## Grouped Inbox Notes
 

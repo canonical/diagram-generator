@@ -12,6 +12,11 @@ import {
   type InitPreviewOverrideToolbarOptions,
   type PreviewOverrideExportEntry,
 } from './app-shell-panels.js';
+import {
+  collectPreviewEngineWorkspaceSavePayload,
+  hasUnsavedPreviewEngineWorkspaceChange,
+  persistPreviewEngineWorkspaceRuntimeState,
+} from './preview-engine-workspace-chrome.js';
 
 export interface PreviewEditorStateInitOptions {
   getOverrides: () => unknown;
@@ -137,6 +142,8 @@ export interface PreviewSaveClientInitOptions {
   setStatus: (message: string, kind?: string) => void;
   sanitizeSvgCloneForExport: (clone: SVGElement) => void;
   allowInternalDirtyNavigation: () => boolean;
+  hasExternalDirtyState?: () => boolean;
+  onSaveSuccess?: () => void;
 }
 
 export interface PreviewSaveClientInitConfig {
@@ -163,6 +170,8 @@ export interface PreviewSaveClientInitConfig {
   setStatus: (message: string, kind?: string) => void;
   sanitizeSvgCloneForExport: (clone: SVGElement) => void;
   onBeforeUnload: (event: BeforeUnloadEvent) => string | void;
+  hasExternalDirtyState?: () => boolean;
+  onSaveSuccess?: () => void;
 }
 
 export interface PreviewPageshowReloadOptions {
@@ -893,14 +902,11 @@ export function collectPreviewEngineSavePayload(
   model: PreviewEnginePayloadModelLike,
 ): Record<string, unknown> {
   const controller = getPreviewEngineShellController(previewWindow);
-  if (!controller) {
-    return basePayload;
+  let payload = { ...(basePayload || {}) };
+  if (controller && typeof controller.collectPersistedPayload === 'function') {
+    payload = controller.collectPersistedPayload(payload, model);
   }
-
-  if (typeof controller.collectPersistedPayload === 'function') {
-    return controller.collectPersistedPayload(basePayload, model);
-  }
-  return basePayload;
+  return collectPreviewEngineWorkspaceSavePayload(previewWindow, payload);
 }
 
 function isHtmlSelectElement(
@@ -1013,6 +1019,8 @@ export function createPreviewSaveClientInitConfig(
     clearCoercedKeys: options.clearCoercedKeys,
     setStatus: options.setStatus,
     sanitizeSvgCloneForExport: options.sanitizeSvgCloneForExport,
+    hasExternalDirtyState: options.hasExternalDirtyState,
+    onSaveSuccess: options.onSaveSuccess,
     onBeforeUnload: (event) => {
       if (options.previewSaveClient.isDirty() && !options.allowInternalDirtyNavigation()) {
         event.preventDefault();
@@ -1161,6 +1169,10 @@ export function bootstrapPreviewEditorHost(
         setStatus: options.setStatus,
         sanitizeSvgCloneForExport: options.sanitizeSvgCloneForExport,
         allowInternalDirtyNavigation: options.allowInternalDirtyNavigation,
+        hasExternalDirtyState: () => hasUnsavedPreviewEngineWorkspaceChange(options.previewWindow),
+        onSaveSuccess: () => {
+          persistPreviewEngineWorkspaceRuntimeState(options.previewWindow);
+        },
       });
     },
     initOverrideToolbar: () => {

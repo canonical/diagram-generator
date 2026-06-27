@@ -1,24 +1,40 @@
 import { getPreviewEngineByLayoutKey } from '../preview-engine/registry.js';
 import {
   createPreviewEngineWorkspaceState,
+  persistPreviewEngineWorkspaceActiveEngine,
+  setPreviewEngineWorkspaceActiveEngine,
   type PreviewEngineWorkspaceState,
 } from './preview-engine-workspace.js';
 
 export interface PreviewEngineWorkspaceChromeConfig {
-  readonly slug?: string | null;
-  readonly layout_engine?: string | null;
-  readonly active_engine_id?: string | null;
-  readonly active_engine_label?: string | null;
-  readonly persisted_layout_engine?: string | null;
-  readonly compatible_engines?: readonly string[] | null;
-  readonly show_engine_switcher?: boolean | null;
+  slug?: string | null;
+  document_kind?: string | null;
+  layout_engine?: string | null;
+  active_engine_id?: string | null;
+  active_engine_label?: string | null;
+  persisted_layout_engine?: string | null;
+  compatible_engines?: readonly string[] | null;
+  show_engine_switcher?: boolean | null;
 }
+
+export interface PreviewEngineWorkspaceRuntimeState {
+  readonly workspace: PreviewEngineWorkspaceState;
+}
+
+export type PreviewEngineWorkspaceRuntimeWindow = Window & typeof globalThis & {
+  __DG_CONFIG?: PreviewEngineWorkspaceChromeConfig | null;
+  __DG_previewEngineWorkspaceState?: PreviewEngineWorkspaceRuntimeState | null;
+  __DG_syncPreviewEngineWorkspaceChrome?: (() => void) | null;
+  __DG_syncPreviewEngineWorkspacePanels?: (() => void) | null;
+  PreviewSaveClient?: {
+    isDirty?: () => boolean;
+    syncSaveButton?: () => void;
+  } | null;
+};
 
 export interface InitPreviewEngineWorkspaceChromeOptions {
   readonly document: Document;
-  readonly previewWindow: Window & typeof globalThis & {
-    __DG_CONFIG?: PreviewEngineWorkspaceChromeConfig | null;
-  };
+  readonly previewWindow: PreviewEngineWorkspaceRuntimeWindow;
   readonly fetchFn?: typeof fetch;
 }
 
@@ -56,6 +72,76 @@ function resolveWorkspace(
   });
 }
 
+function setRuntimeWorkspaceState(
+  previewWindow: PreviewEngineWorkspaceRuntimeWindow,
+  workspace: PreviewEngineWorkspaceState,
+): PreviewEngineWorkspaceState {
+  const config = previewWindow.__DG_CONFIG ?? {};
+  const existingLabel = typeof config.active_engine_label === 'string'
+    ? config.active_engine_label.trim()
+    : '';
+  const nextLabel = existingLabel && config.active_engine_id === workspace.activeEngineId
+    ? existingLabel
+    : (workspace.activeEngine?.label ?? workspace.activeEngineId ?? null);
+  config.active_engine_id = workspace.activeEngineId;
+  config.active_engine_label = nextLabel;
+  config.persisted_layout_engine = workspace.persistedEngineId;
+  config.layout_engine = workspace.persistedEngineId;
+  previewWindow.__DG_CONFIG = config;
+  previewWindow.__DG_previewEngineWorkspaceState = { workspace };
+  return workspace;
+}
+
+export function getPreviewEngineWorkspaceRuntimeState(
+  previewWindow: PreviewEngineWorkspaceRuntimeWindow,
+): PreviewEngineWorkspaceState | null {
+  const current = previewWindow.__DG_previewEngineWorkspaceState?.workspace;
+  if (current) {
+    return current;
+  }
+  const config = previewWindow.__DG_CONFIG ?? null;
+  if (!config) {
+    return null;
+  }
+  return setRuntimeWorkspaceState(previewWindow, resolveWorkspace(config));
+}
+
+export function hasUnsavedPreviewEngineWorkspaceChange(
+  previewWindow: PreviewEngineWorkspaceRuntimeWindow,
+): boolean {
+  const workspace = getPreviewEngineWorkspaceRuntimeState(previewWindow);
+  return Boolean(workspace && workspace.activeEngineId !== workspace.persistedEngineId);
+}
+
+export function collectPreviewEngineWorkspaceSavePayload(
+  previewWindow: PreviewEngineWorkspaceRuntimeWindow,
+  basePayload: Record<string, unknown>,
+): Record<string, unknown> {
+  const workspace = getPreviewEngineWorkspaceRuntimeState(previewWindow);
+  if (!workspace?.activeEngineId) {
+    return { ...basePayload };
+  }
+  return {
+    ...basePayload,
+    layout_engine: workspace.activeEngineId,
+  };
+}
+
+export function persistPreviewEngineWorkspaceRuntimeState(
+  previewWindow: PreviewEngineWorkspaceRuntimeWindow,
+): PreviewEngineWorkspaceState | null {
+  const workspace = getPreviewEngineWorkspaceRuntimeState(previewWindow);
+  if (!workspace) {
+    return null;
+  }
+  const nextWorkspace = setRuntimeWorkspaceState(
+    previewWindow,
+    persistPreviewEngineWorkspaceActiveEngine(workspace),
+  );
+  previewWindow.__DG_syncPreviewEngineWorkspaceChrome?.();
+  return nextWorkspace;
+}
+
 function setControlDisabled(control: HTMLElement | null, disabled: boolean): void {
   if (control && 'disabled' in control) {
     (control as HTMLButtonElement | HTMLSelectElement).disabled = disabled;
@@ -86,27 +172,11 @@ function setActiveEngineLabel(
   labelEl.hidden = !label;
 }
 
-async function postLayoutEngineChoice(options: {
-  slug: string;
-  engineId: string;
-  fetchFn: typeof fetch;
-}): Promise<void> {
-  const response = await options.fetchFn(`/api/overrides/${encodeURIComponent(options.slug)}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ layout_engine: options.engineId }),
-  });
-  if (!response.ok) {
-    const message = await response.text();
-    throw new Error(message || response.statusText || 'Unknown error');
-  }
-}
-
 export function initPreviewEngineWorkspaceChrome(
   options: InitPreviewEngineWorkspaceChromeOptions,
 ): PreviewEngineWorkspaceState {
   const config = options.previewWindow.__DG_CONFIG ?? null;
-  const workspace = resolveWorkspace(config);
+  let workspace = setRuntimeWorkspaceState(options.previewWindow, resolveWorkspace(config));
   const section = options.document.getElementById('engine-switcher-section');
   const help = options.document.getElementById('engine-switcher-help');
   const labelEl = options.document.getElementById('active-engine-label');
@@ -120,7 +190,6 @@ export function initPreviewEngineWorkspaceChrome(
     options.document.getElementById('engine-switcher-next'),
   );
   const tabs = options.document.getElementById('engine-switcher-tabs');
-
   setActiveEngineLabel(labelEl, workspace, config?.active_engine_label);
 
   if (!section || !select) {
@@ -135,9 +204,72 @@ export function initPreviewEngineWorkspaceChrome(
   }
 
   section.hidden = false;
+  const controls = [
+    select,
+    prevButton,
+    nextButton,
+    ...Array.from(tabs?.querySelectorAll?.('button[data-engine-id]') ?? []),
+  ].filter((value): value is HTMLElement => Boolean(value));
+  const setPending = (pending: boolean) => {
+    controls.forEach((control) => setControlDisabled(control, pending));
+  };
+  const defaultHelp = help?.textContent ?? '';
+  const updateNavigation = () => {
+    setActiveEngineLabel(
+      labelEl,
+      workspace,
+      options.previewWindow.__DG_CONFIG?.active_engine_label ?? config?.active_engine_label,
+    );
+    setControlDisabled(prevButton, workspace.navigation.prevEngineId == null);
+    setControlDisabled(nextButton, workspace.navigation.nextEngineId == null);
+    if (tabs) {
+      tabs.querySelectorAll('button[data-engine-id]').forEach((button) => {
+        const engineId = button.getAttribute('data-engine-id') ?? '';
+        const active = engineId === workspace.activeEngineId;
+        button.className = `bf-button is-base${active ? ' is-active' : ''}`;
+        button.setAttribute('aria-pressed', active ? 'true' : 'false');
+      });
+    }
+    select.value = workspace.activeEngineId ?? '';
+    if (workspace.compatibleEngineIds.length === 1) {
+      setHelpText(help, 'This document has a single compatible engine.', false);
+      setControlDisabled(select, true);
+    } else if (workspace.activeEngineId !== workspace.persistedEngineId) {
+      setHelpText(help, 'Selected engine is unsaved until you save this document.', false);
+    } else if (defaultHelp) {
+      setHelpText(help, defaultHelp, false);
+    }
+  };
+  const syncWorkspaceUi = () => {
+    setRuntimeWorkspaceState(options.previewWindow, workspace);
+    options.previewWindow.__DG_syncPreviewEngineWorkspacePanels?.();
+    options.previewWindow.PreviewSaveClient?.syncSaveButton?.();
+    updateNavigation();
+  };
+  options.previewWindow.__DG_syncPreviewEngineWorkspaceChrome = () => {
+    const nextWorkspace = getPreviewEngineWorkspaceRuntimeState(options.previewWindow);
+    if (!nextWorkspace) {
+      return;
+    }
+    workspace = nextWorkspace;
+    syncWorkspaceUi();
+  };
+  const switchTo = (engineId: string) => {
+    const nextEngineId = String(engineId || '').trim();
+    if (!nextEngineId || nextEngineId === workspace.activeEngineId) {
+      return;
+    }
+    setPending(true);
+    try {
+      workspace = setPreviewEngineWorkspaceActiveEngine(workspace, nextEngineId);
+      syncWorkspaceUi();
+    } finally {
+      setPending(false);
+    }
+  };
+
   select.replaceChildren();
   tabs?.replaceChildren();
-
   for (const tab of workspace.tabs) {
     const option = options.document.createElement('option');
     option.value = tab.engineId;
@@ -155,69 +287,24 @@ export function initPreviewEngineWorkspaceChrome(
       tabs.appendChild(tabButton);
     }
   }
-
-  const controls = [
-    select,
-    prevButton,
-    nextButton,
-    ...Array.from(tabs?.querySelectorAll?.('button[data-engine-id]') ?? []),
-  ].filter((value): value is HTMLElement => Boolean(value));
-  const setPending = (pending: boolean) => {
-    controls.forEach((control) => setControlDisabled(control, pending));
-  };
-  const defaultHelp = help?.textContent ?? '';
-  const updateNavigation = () => {
-    setControlDisabled(prevButton, workspace.navigation.prevEngineId == null);
-    setControlDisabled(nextButton, workspace.navigation.nextEngineId == null);
-    if (workspace.compatibleEngineIds.length === 1) {
-      setHelpText(help, 'This document has a single compatible engine.', false);
-      setControlDisabled(select, true);
-    } else if (defaultHelp) {
-      setHelpText(help, defaultHelp, false);
-    }
-  };
-  const switchTo = async (engineId: string) => {
-    const nextEngineId = String(engineId || '').trim();
-    if (!nextEngineId || nextEngineId === workspace.activeEngineId) {
-      return;
-    }
-    setPending(true);
-    setHelpText(help, 'Switching engine...', false);
-    try {
-      await postLayoutEngineChoice({
-        slug: String(config?.slug ?? ''),
-        engineId: nextEngineId,
-        fetchFn: options.fetchFn ?? options.previewWindow.fetch.bind(options.previewWindow),
-      });
-      options.previewWindow.location.reload();
-    } catch (error) {
-      select.value = workspace.activeEngineId ?? '';
-      updateNavigation();
-      setHelpText(help, `Switch failed: ${String(error)}`, true);
-    } finally {
-      setPending(false);
-    }
-  };
-
-  updateNavigation();
-  select.value = workspace.activeEngineId ?? '';
+  syncWorkspaceUi();
   select.addEventListener('change', () => {
-    void switchTo(select.value);
+    switchTo(select.value);
   });
   prevButton?.addEventListener('click', () => {
     if (workspace.navigation.prevEngineId) {
-      void switchTo(workspace.navigation.prevEngineId);
+      switchTo(workspace.navigation.prevEngineId);
     }
   });
   nextButton?.addEventListener('click', () => {
     if (workspace.navigation.nextEngineId) {
-      void switchTo(workspace.navigation.nextEngineId);
+      switchTo(workspace.navigation.nextEngineId);
     }
   });
   tabs?.querySelectorAll('button[data-engine-id]').forEach((button) => {
     button.addEventListener('click', () => {
       const engineId = button.getAttribute('data-engine-id') ?? '';
-      void switchTo(engineId);
+      switchTo(engineId);
     });
   });
 

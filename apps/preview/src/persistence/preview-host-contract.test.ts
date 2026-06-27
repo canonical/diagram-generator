@@ -587,6 +587,7 @@ test("sequence frame fixture resolves and renders through the sequence document 
   const html = route.buildHtml("service-handshake-sequence");
   assert.match(html, /id="active-engine-label" hidden><\/span>/);
   assert.match(html, /\/preview\/engine-switcher\.js/);
+  assert.match(html, /"document_kind":"sequence"/);
   assert.match(html, /"active_engine_id":"sequence"/);
   assert.match(html, /"show_engine_switcher":false/);
 
