@@ -197,14 +197,6 @@ describe('preview save client runtime', () => {
       },
       gridOverrides: {},
       removedIds: new Set<string>(),
-      toOverridePayload: () => ({
-        overrides: {
-          floating: { dx: 8, dy: -8 },
-          resizable: { dw: 24, dh: 16 },
-          panel__body: { align: 'BOTTOM_RIGHT' },
-          panel__heading: { text: { heading: 'Ignored synthetic heading' } },
-        },
-      }),
       get(id: string) {
         if (id === 'floating') {
           return {
@@ -248,6 +240,7 @@ describe('preview save client runtime', () => {
     const request = fetchFn.mock.calls[0]?.[1] as { body?: string } | undefined;
     expect(request?.body).toBeTruthy();
     expect(JSON.parse(String(request?.body))).toEqual({
+      format_version: 1,
       overrides: {
         floating: {
           position: 'ABSOLUTE',
@@ -303,16 +296,6 @@ describe('preview save client runtime', () => {
       },
       gridOverrides: {},
       removedIds: new Set<string>(),
-      toOverridePayload: () => ({
-        overrides: {
-          alpha: { dx: 8 },
-          'arrow:id:edge-1': {
-            waypoints: [[24, 32]],
-            color: '#E95420',
-            selected: true,
-          },
-        },
-      }),
       get(id: string) {
         if (id === 'alpha') {
           return {
@@ -353,6 +336,7 @@ describe('preview save client runtime', () => {
     expect(alertFn).not.toHaveBeenCalled();
     const request = fetchFn.mock.calls[0]?.[1] as { body?: string } | undefined;
     expect(JSON.parse(String(request?.body))).toEqual({
+      format_version: 1,
       overrides: {
         alpha: {
           position: 'ABSOLUTE',

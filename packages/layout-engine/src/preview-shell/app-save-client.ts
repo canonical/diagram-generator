@@ -2,6 +2,7 @@ import {
   normalizePreviewSavePayload,
   type PreviewSavePayloadModelLike,
 } from './app-save-payload.js';
+import { createPreviewOverridePayload } from './preview-override-model.js';
 
 export interface PreviewSaveClientRuntimeWindow {
   addEventListener?: (type: string, listener: (event: unknown) => unknown) => void;
@@ -325,18 +326,18 @@ export function createPreviewSaveClientRuntime(
       return;
     }
 
-    const model = runtimeDeps.getModel() as {
-      toOverridePayload?: () => Record<string, unknown>;
+    const model = runtimeDeps.getModel() as (PreviewSavePayloadModelLike & {
       overrides?: Record<string, unknown>;
       gridOverrides?: Record<string, unknown>;
       removedIds?: Set<string>;
-      get?: (id: string) => unknown;
-    } | null;
-    if (!model || typeof model.toOverridePayload !== 'function') {
-      throw new Error('PreviewSaveClient requires a component model with toOverridePayload()');
+      layoutOverrides?: Record<string, unknown>;
+      elkLayoutOverrides?: Record<string, unknown>;
+    }) | null;
+    if (!model || typeof model !== 'object') {
+      throw new Error('PreviewSaveClient requires a component model');
     }
 
-    let payload = model.toOverridePayload();
+    let payload: Record<string, unknown> = createPreviewOverridePayload(model);
     if (typeof runtimeDeps.collectEngineSavePayload === 'function') {
       payload = runtimeDeps.collectEngineSavePayload(payload, model as Record<string, unknown>);
     }
@@ -358,7 +359,7 @@ export function createPreviewSaveClientRuntime(
       return;
     }
 
-    const normalized = normalizePreviewSavePayload(payload, model as PreviewSavePayloadModelLike);
+    const normalized = normalizePreviewSavePayload(payload, model);
     if (normalized.errors.length > 0) {
       alertFn(`Cannot save: ${normalized.errors.join('; ')}`);
       return;

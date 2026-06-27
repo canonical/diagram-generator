@@ -65,6 +65,7 @@ import {
   createPreviewLayoutBridgeInstallRuntimeFromLegacyBrowserHost,
   createPreviewLiveResizeRuntime,
   createPreviewLiveResizeRuntimeFromHost,
+  createPreviewOverridePayload,
   createPreviewOverrideToolbarHostOptions,
   createPreviewPointerInteractionRuntime,
   createPreviewPointerInteractionRuntimeFromHost,
@@ -289,6 +290,7 @@ describe('browser entry contract pilot', () => {
     expect(previewShell.bootstrap.createPreviewEditorRuntimeSet).toBe(createPreviewEditorRuntimeSet);
     expect(previewShell.bootstrap.createBootstrapPreviewEditorRuntimeOptionsFromHost)
       .toBe(createBootstrapPreviewEditorRuntimeOptionsFromHost);
+    expect(previewShell.bootstrap.createPreviewOverridePayload).toBe(createPreviewOverridePayload);
     expect(previewShell.bootstrap.createPreviewOverrideToolbarHostOptions)
       .toBe(createPreviewOverrideToolbarHostOptions);
     expect(previewShell.bootstrap.createPreviewSaveClientRuntime)

@@ -3,15 +3,15 @@ import {
   PERSIST_ARROW_KEYS,
   UNSUPPORTED_PERSIST_FRAME_KEYS,
 } from './frame-override-manifest.js';
+import type {
+  PreviewOverrideModelLike as PreviewSavePayloadModelLike,
+  PreviewOverrideModelNode as PreviewSavePayloadModelNode,
+} from './preview-override-model.js';
 
-export interface PreviewSavePayloadModelNode {
-  type?: string | null;
-  data?: Record<string, unknown> | null;
-}
-
-export interface PreviewSavePayloadModelLike {
-  get?: ((id: string) => PreviewSavePayloadModelNode | null | undefined) | null;
-}
+export type {
+  PreviewOverrideModelLike as PreviewSavePayloadModelLike,
+  PreviewOverrideModelNode as PreviewSavePayloadModelNode,
+} from './preview-override-model.js';
 
 export interface NormalizePreviewSavePayloadResult {
   payload: Record<string, unknown>;

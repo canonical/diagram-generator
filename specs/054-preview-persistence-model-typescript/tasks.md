@@ -5,14 +5,14 @@
 
 ## Phase 0: Bound the Migration
 
-- [ ] **T000** Confirm branch and local-state scope.
+- [x] **T000** Confirm branch and local-state scope.
       **Do**: verify the active branch and list pre-existing dirty files that are
       not part of this spec package.
       **Verify**: `git branch --show-current`; `git status --short`
       **Accept**: branch is `feat/054-preview-persistence-model-typescript` and
       non-spec dirt is clearly bounded before implementation starts.
 
-- [ ] **T001** Inventory the current preview save path.
+- [x] **T001** Inventory the current preview save path.
       **Do**: map the cross-layer path from preview mutations to
       `component-model.js::toOverridePayload()`, `app-save-payload.ts`,
       `app-save-client.ts`, and `frame-diagram.ts`.
@@ -27,7 +27,7 @@
 
 ## Phase 1: Typed Override Model Design
 
-- [ ] **T010** Define the typed preview override model.
+- [x] **T010** Define the typed preview override model.
       **Do**: introduce a TS owner that models frame, arrow, grid, removal, and
       engine-layout override state explicitly instead of a loose JS bag.
       **Files**: `packages/layout-engine/src/preview-shell/*override*`,
@@ -50,7 +50,7 @@
 
 ## Phase 2: Replace JS-Owned Payload Assembly
 
-- [ ] **T020** Delegate frame payload assembly out of `component-model.js`.
+- [x] **T020** Delegate frame payload assembly out of `component-model.js`.
       **Do**: move frame payload assembly into the typed override model and
       reduce JS ownership to thin delegation.
       **Files**: `scripts/preview/component-model.js`,
@@ -59,7 +59,7 @@
       **Accept**: frame payload emission is TS-owned and emitted payloads are
       already canonical.
 
-- [ ] **T021** Delegate arrow/grid/removal/engine-layout payload assembly out of
+- [x] **T021** Delegate arrow/grid/removal/engine-layout payload assembly out of
       JS.
       **Do**: move the remaining save-bearing payload categories behind the same
       typed owner so `toOverridePayload()` no longer owns persistence behavior.
