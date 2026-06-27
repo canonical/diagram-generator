@@ -1,7 +1,7 @@
 # Spec 056: Arrow Reroute Structural Mutations
 
 **Feature Branch**: `feat/056-arrow-reroute-structural-mutations`  
-**Status**: Draft  
+**Status**: Closeout Ready  
 **Created**: 2026-06-27
 
 ## Problem
@@ -72,3 +72,15 @@ override changes must invalidate and recompute routed arrow geometry.
 
 - Spec 006 for the routing substrate.
 - Spec 054 rules if any save-path contract changes are required.
+
+## Status Notes
+
+- 2026-06-27: Reproduced the direction-change and resize failures against the
+  preview relayout path and traced them to stale authored arrow waypoint reuse.
+- 2026-06-27: Added typed reroute invalidation for route-bearing frame overrides
+  in local relayout and fresh render owners.
+- 2026-06-27: Added save/reload coverage that clears stale authored waypoint
+  geometry while preserving arrow ids and `arrow:<id>` attachment targets.
+- 2026-06-27: Full validation is green across `packages/layout-engine`,
+  `packages/layout-engine` browser bundle, `apps/preview`, and the no-new-Python
+  guard.

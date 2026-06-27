@@ -138,6 +138,9 @@ class ComponentModel {
         waypoints: raw.waypoints
           ? JSON.parse(JSON.stringify(raw.waypoints))
           : [],
+        authoredWaypoints: raw.authoredWaypoints
+          ? JSON.parse(JSON.stringify(raw.authoredWaypoints))
+          : [],
         x: 0,
         y: 0,
         width: 0,

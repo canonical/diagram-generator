@@ -257,6 +257,7 @@ describe('preview arrow render helpers', () => {
         target: 'beta',
         color: '#f60',
         waypoints: [[8, 16]],
+        authoredWaypoints: [],
       },
     ]]);
   });

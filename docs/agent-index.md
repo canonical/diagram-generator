@@ -54,6 +54,7 @@ Not thin: `component-model.js` is still a persistence-critical save-path hotspot
 | Preview contextual aside | [`specs/051-preview-editor-contextual-aside/preview-contextual-aside-flow.md`](../specs/051-preview-editor-contextual-aside/preview-contextual-aside-flow.md) |
 | Layout engine onboarding | [`specs/052-layout-engine-onboarding-port/engine-onboarding-checklist.md`](../specs/052-layout-engine-onboarding-port/engine-onboarding-checklist.md) |
 | Preview editor post-refactor correctness | [`docs/spec-archive/053-preview-editor-post-refactor-correctness/preview-editor-post-refactor-flow.md`](./spec-archive/053-preview-editor-post-refactor-correctness/preview-editor-post-refactor-flow.md) |
+| Preview arrow reroute invalidation | [`specs/056-arrow-reroute-structural-mutations/preview-reroute-flow.md`](../specs/056-arrow-reroute-structural-mutations/preview-reroute-flow.md) |
 | Agent token / workspace slimming | [`docs/spec-archive/040-agent-token-slimming/spec.md`](./spec-archive/040-agent-token-slimming/spec.md) |
 
 Add a new row when you land a cross-layer map (UI → server → engine → disk). Keep maps ≤60 lines.

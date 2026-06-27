@@ -133,4 +133,87 @@ describe('preview override payload model', () => {
       stale: true,
     });
   });
+
+  it('synthesizes arrow waypoint clears for authored arrows after reroute-bearing frame edits', () => {
+    const model = {
+      overrides: {
+        root: {
+          direction: 'right',
+        },
+      },
+      removedIds: new Set<string>(),
+      allIds: ['root', 'arrow:id:edge-1'],
+      get(id: string) {
+        if (id === 'root') {
+          return {
+            type: 'frame',
+            data: {},
+          };
+        }
+        if (id === 'arrow:id:edge-1') {
+          return {
+            type: 'arrow',
+            data: {
+              authoredWaypoints: [[480, 192], [640, 192]],
+            },
+          };
+        }
+        return null;
+      },
+    };
+
+    expect(createPreviewOverridePayload(model)).toEqual({
+      overrides: {
+        root: {
+          direction: 'right',
+        },
+        'arrow:id:edge-1': {
+          waypoints: [],
+        },
+      },
+      format_version: 1,
+    });
+  });
+
+  it('clears persisted arrow waypoint overrides when reroute-bearing frame edits are pending', () => {
+    const model = {
+      overrides: {
+        root: {
+          width: 480,
+        },
+        'arrow:id:edge-1': {
+          waypoints: [[24, 32]],
+        },
+      },
+      removedIds: new Set<string>(),
+      allIds: ['root', 'arrow:id:edge-1'],
+      get(id: string) {
+        if (id === 'root') {
+          return {
+            type: 'frame',
+            data: {},
+          };
+        }
+        if (id === 'arrow:id:edge-1') {
+          return {
+            type: 'arrow',
+            data: {},
+          };
+        }
+        return null;
+      },
+    };
+
+    expect(createPreviewOverridePayload(model)).toEqual({
+      overrides: {
+        root: {
+          width: 480,
+        },
+        'arrow:id:edge-1': {
+          waypoints: [],
+        },
+      },
+      format_version: 1,
+    });
+  });
 });

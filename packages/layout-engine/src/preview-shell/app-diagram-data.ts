@@ -154,6 +154,7 @@ export function syncPreviewArrowModelFromFrameTree(
   target: string;
   color?: string | null;
   waypoints: unknown[];
+  authoredWaypoints: unknown[];
 }> {
   const arrows = Array.isArray(options.frameTreeJson?.arrows)
     ? options.frameTreeJson!.arrows!
@@ -168,6 +169,7 @@ export function syncPreviewArrowModelFromFrameTree(
       target: arrow.target,
       color: arrow.color,
       waypoints: Array.isArray(arrow.waypoints) ? arrow.waypoints : [],
+      authoredWaypoints: Array.isArray(arrow.waypoints) ? arrow.waypoints : [],
     }));
   }
 
@@ -177,6 +179,7 @@ export function syncPreviewArrowModelFromFrameTree(
     target: arrow.target,
     color: arrow.color,
     waypoints: Array.isArray(arrow.waypoints) ? arrow.waypoints : [],
+    authoredWaypoints: Array.isArray(arrow.waypoints) ? arrow.waypoints : [],
   }));
   options.model.loadArrows?.(payload);
   return payload;

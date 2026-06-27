@@ -566,6 +566,32 @@ test("persist arrow waypoint overrides for complex-routing-usecase arrows", () =
   assert.deepStrictEqual(measureToReview?.waypoints, [[480, 192], [640, 192]]);
 });
 
+test("persist→reload clears authored arrow waypoints after reroute-bearing structural edits", () => {
+  const baselineText = fs.readFileSync(COMPLEX_ROUTING_FIXTURE, "utf8");
+  const output = persistToYaml("complex-routing-usecase.yaml", baselineText, {
+    overrides: {
+      page: {
+        direction: "vertical",
+      },
+      "measure->review": {
+        waypoints: [],
+      },
+    },
+  });
+
+  assert.match(output, /root:\r?\n  id: page\r?\n  direction: vertical/);
+  assert.doesNotMatch(output, /source: measure\r?\n  target: review[\s\S]*waypoints:/);
+
+  const reloaded = loadFrameYaml(writeTempFrame("complex-routing-usecase-reroute-reloaded.yaml", output));
+  assert.strictEqual(reloaded.root.direction, "VERTICAL");
+  const measureToReview = reloaded.arrows.find((arrow) => arrow.source === "measure" && arrow.target === "review");
+  assert.ok(measureToReview, "measure->review must survive save + reload");
+  assert.strictEqual(measureToReview?.id ?? null, null);
+  assert.strictEqual(measureToReview?.source, "measure");
+  assert.strictEqual(measureToReview?.target, "review");
+  assert.ok(!measureToReview?.waypoints?.length, "reroute-bearing save must clear authored waypoint geometry");
+});
+
 test("persist arrow waypoint overrides upgrades shorthand arrows to mappings", () => {
   const baselineText = [
     "engine: v3",
@@ -721,6 +747,54 @@ test("persist arrow waypoint overrides preserve arrow:<id> branch attachments", 
   assert.strictEqual(reloaded.arrows[1]?.source, "arrow:stem");
   assert.strictEqual(reloaded.arrows[1]?.target, "branch.left");
   assert.deepStrictEqual(reloaded.arrows[1]?.waypoints, [[180, 80]]);
+});
+
+test("persist→reload reroute-bearing edits preserve explicit arrow ids and arrow:<id> attachments", () => {
+  const baselineText = [
+    "engine: v3",
+    "title: Arrow branch refs",
+    "arrows:",
+    "  - id: stem",
+    "    source: source.bottom",
+    "    target: target.top",
+    "  - source: arrow:stem",
+    "    target: branch.left",
+    "    waypoints:",
+    "      - [180, 80]",
+    "root:",
+    "  id: page",
+    "  direction: horizontal",
+    "  children:",
+    "    - id: source",
+    "      label: [Source]",
+    "    - id: target",
+    "      label: [Target]",
+    "    - id: branch",
+    "      label: [Branch]",
+    "",
+  ].join("\n");
+  const [, branchArrow] = collectPreviewArrowComponentEntries([
+    { id: "stem", source: "source.bottom", target: "target.top" },
+    { source: "arrow:stem", target: "branch.left" },
+  ]);
+
+  const output = persistToYaml("arrow-branch-refs-reroute.yaml", baselineText, {
+    overrides: {
+      page: {
+        direction: "vertical",
+      },
+      [branchArrow!.componentId]: {
+        waypoints: [],
+      },
+    },
+  });
+
+  const reloaded = loadFrameYaml(writeTempFrame("arrow-branch-refs-reroute-reloaded.yaml", output));
+  assert.strictEqual(reloaded.root.direction, "VERTICAL");
+  assert.strictEqual(reloaded.arrows[0]?.id, "stem");
+  assert.strictEqual(reloaded.arrows[1]?.source, "arrow:stem");
+  assert.strictEqual(reloaded.arrows[1]?.target, "branch.left");
+  assert.ok(!reloaded.arrows[1]?.waypoints?.length, "reroute-bearing save must preserve attachments without stale waypoints");
 });
 
 test("persist arrow waypoint overrides round-trip explicit arrow ids", () => {
