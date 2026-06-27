@@ -257,7 +257,7 @@ export function renderPreviewMultiSelectionInspectorHost(
     };
   }
 
-  if (options.info.items.length < 2) {
+  if (options.selectedCount < 2 || options.info.items.length === 0) {
     renderPreviewEmptyInspectorHost(options.inspector);
     return {
       kind: 'empty',
@@ -278,12 +278,13 @@ export function renderPreviewMultiSelectionInspectorHost(
     selectedCount: panelState.viewModel.selectedCount,
     multiActionGap: panelState.viewModel.inferredGap,
     showStackSpacingHint: panelState.viewModel.showStackSpacingHint,
+    showDistributeControls: panelState.viewModel.showDistributeControls,
     showAlignOnlyHint: panelState.viewModel.showAlignOnlyHint,
     hasUnsupported: panelState.viewModel.hasUnsupported,
     alignState: panelState.alignState,
     containerState: panelState.containerState,
     sizingState: panelState.sizingState,
-    styleState: options.styleState ?? null,
+    styleState: options.info.hasUnsupported ? null : options.styleState ?? null,
     widthUnit: options.widthUnit,
     heightUnit: options.heightUnit,
     showWidthColsOption: options.showWidthColsOption,

@@ -9,7 +9,6 @@ import {
   UNSUPPORTED_PERSIST_FRAME_KEYS,
 } from "@diagram-generator/layout-engine";
 import {
-  assertSupportedFrameYamlElkOverrides,
   getFrameYamlEngineLayoutNamespace,
 } from "./frame-engine-layout-namespaces.js";
 
@@ -41,8 +40,7 @@ export interface PersistOverridePayload {
   grid_overrides?: Record<string, unknown>;
   /**
    * Namespaced engine-backed overrides keyed by preview-control persistNamespace.
-   * Frame YAML currently supports `meta.elk`; other namespaces must be handled
-   * by their owning host lane before this save path can persist them.
+   * Frame YAML supports registered namespaces such as `meta.elk` and `meta.dagre`.
    */
   engine_layout_overrides?: Record<string, Record<string, unknown>>;
   /** @deprecated Prefer `engine_layout_overrides["meta.elk"]`. */
@@ -416,15 +414,16 @@ function applyLayoutEngineChoice(document: Record<string, unknown>, layoutEngine
   }
 }
 
-function assertSupportedElkKeys(elk: Record<string, unknown>, source: string): void {
-  assertSupportedFrameYamlElkOverrides(elk, source);
-}
-
-function assertSupportedPersistedElkMeta(meta: Record<string, unknown>, source: string): void {
-  if (!isRecord(meta.elk)) return;
-  assertSupportedElkKeys(meta.elk, source);
-  if (Object.keys(meta.elk).length === 0) {
-    delete meta.elk;
+function assertSupportedPersistedEngineLayoutMeta(meta: Record<string, unknown>, source: string): void {
+  void source;
+  for (const [key, value] of Object.entries(meta)) {
+    const namespace = `meta.${key}`;
+    if (!getFrameYamlEngineLayoutNamespace(namespace) || !isRecord(value)) {
+      continue;
+    }
+    if (Object.keys(value).length === 0) {
+      delete meta[key];
+    }
   }
 }
 
@@ -485,14 +484,26 @@ function applyEngineLayoutOverrides(
 }
 
 export function verifyElkLayoutPersisted(documentText: string, expected: Record<string, unknown>): void {
-  if (Object.keys(expected).length === 0) return;
+  const entries = Object.entries(expected);
+  if (entries.length === 0) return;
   const document = yaml.parse(documentText);
   if (!isRecord(document)) throw new Error("expected top-level mapping after save");
-  if (!isRecord(document.meta)) throw new Error("meta missing after ELK save");
-  if (!isRecord(document.meta.elk)) throw new Error("meta.elk missing after ELK save");
-  for (const [key, raw] of Object.entries(expected)) {
+  const requiresPersistedElk = entries.some(([, raw]) => raw != null && String(raw) !== "");
+  const meta = isRecord(document.meta) ? document.meta : null;
+  if (requiresPersistedElk && !meta) throw new Error("meta missing after ELK save");
+  const elkLayout = meta && isRecord(meta.elk)
+    ? meta.elk
+    : {};
+  if (requiresPersistedElk && !isRecord(meta?.elk)) throw new Error("meta.elk missing after ELK save");
+  for (const [key, raw] of entries) {
+    const got = elkLayout[key];
+    if (raw == null || String(raw) === "") {
+      if (got != null) {
+        throw new Error(`meta.elk[${JSON.stringify(key)}] is ${JSON.stringify(got)}, expected cleared after save`);
+      }
+      continue;
+    }
     const want = String(raw);
-    const got = document.meta.elk[key];
     if (got == null) {
       throw new Error(`meta.elk missing key ${JSON.stringify(key)} after save`);
     }
@@ -539,7 +550,7 @@ export function persistFrameDiagramOverridePayloadToYaml(
   const rootData = document.root;
   if (!isRecord(rootData)) throw new Error(`${framePath}: root must be a mapping`);
   if (isRecord(document.meta)) {
-    assertSupportedPersistedElkMeta(document.meta, `${framePath}: meta.elk`);
+    assertSupportedPersistedEngineLayoutMeta(document.meta, framePath);
   }
 
   if ("grid_overrides" in payload) {
@@ -572,7 +583,7 @@ export function persistFrameDiagramOverridePayloadToYaml(
     applyFrameOverride(target, override, frameId);
   }
   if (isRecord(document.meta)) {
-    assertSupportedPersistedElkMeta(document.meta, `${framePath}: meta.elk`);
+    assertSupportedPersistedEngineLayoutMeta(document.meta, framePath);
     if (Object.keys(document.meta).length === 0) {
       delete document.meta;
     }

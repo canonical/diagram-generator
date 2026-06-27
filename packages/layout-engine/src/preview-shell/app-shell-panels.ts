@@ -1,3 +1,9 @@
+import {
+  resolvePreviewPanelVisibility,
+  type PreviewPanelVisibility,
+  type PreviewUiContext,
+} from './preview-ui-context.js';
+
 /**
  * Preview shell panel helpers (spec 043 shell coordinator slice J).
  *
@@ -31,11 +37,21 @@ export interface PreviewConstraintSummary {
   warnings: number;
 }
 
+export interface PreviewConstraintViolationDetail {
+  constraintId: string;
+  componentId: string;
+  message: string;
+  severity: string;
+  selected: boolean;
+  hint: string;
+}
+
 export interface PreviewConstraintStatus {
   className: string;
   text: string;
   backgroundColor: string;
   color: string;
+  hidden: boolean;
 }
 
 export interface RenderPreviewTreePanelOptions {
@@ -67,14 +83,63 @@ export interface InitPreviewOverrideToolbarOptions {
   clearAllButton?: HTMLElement | null;
   slug: string;
   getOverrides: () => Record<string, PreviewOverrideExportEntry>;
+  getGridOverrides?: (() => Record<string, unknown> | null | undefined) | null;
+  getLayoutOverrides?: (() => Record<string, unknown> | null | undefined) | null;
+  getRemovedIds?: (() => Iterable<string> | { size?: number } | null | undefined) | null;
+  isDiagnosticsMode?: (() => boolean) | null;
   writeClipboardText: (text: string) => Promise<unknown>;
   alert: (message: string) => void;
   confirmClearAll: (message: string) => boolean;
   confirmClearAllMessage: string;
-  onClearAll: () => void;
+  onClearAll: () => void | Promise<void>;
   emptyExportMessage?: string;
   copiedExportMessage?: string;
 }
+
+export interface PreviewDocumentActionStateSource {
+  frameOverrideCount?: number | null;
+  gridOverrides?: Record<string, unknown> | null;
+  layoutOverrides?: Record<string, unknown> | null;
+  removedIds?: Iterable<string> | { size?: number } | null;
+  diagnosticsMode?: boolean | null;
+}
+
+export interface PreviewDocumentActionState {
+  hasFrameOverrides: boolean;
+  hasGridOverrides: boolean;
+  hasLayoutOverrides: boolean;
+  hasRemovedFrames: boolean;
+  hasClearableState: boolean;
+  showCopyOverrides: boolean;
+  disableClearAll: boolean;
+  disableCopyOverrides: boolean;
+}
+
+export interface SyncPreviewConstraintStatusOptions {
+  violations?: unknown;
+  selectedIds?: Iterable<string> | null;
+}
+
+export interface PreviewPanelVisibilityDocumentLike {
+  getElementById: (id: string) => HTMLElement | null;
+}
+
+const PANEL_ELEMENT_IDS: Record<string, string> = {
+  'grid-layers-tab': 'nav-tab-layers',
+  'grid-layers-pane': 'nav-pane-layers',
+  'grid-engine-switcher': 'engine-switcher-section',
+  'grid-controls': 'grid-controls-section',
+  'elk-layout': 'elk-layout-section',
+  'graph-layout': 'graph-layout-section',
+  'grid-overrides': 'document-actions-section',
+  'grid-constraints': 'constraints-section',
+  'grid-guide-badge': 'guide-badge',
+  'force-nodes-tab': 'nav-tab-nodes',
+  'force-nodes-pane': 'nav-pane-nodes',
+  'force-solver': 'force-solver-section',
+  'force-simulation': 'force-simulation-section',
+  'force-guidance': 'force-guidance-section',
+};
 
 function hasOwnOverride(overrides: Record<string, unknown>, id: string): boolean {
   return Object.prototype.hasOwnProperty.call(overrides, id) && Boolean(overrides[id]);
@@ -259,11 +324,203 @@ export function createPreviewOverrideExportText(
   return lines.join('\n');
 }
 
+function recordEntryCount(value: Record<string, unknown> | null | undefined): number {
+  return value ? Object.keys(value).length : 0;
+}
+
+function removedIdCount(value: Iterable<string> | { size?: number } | null | undefined): number {
+  if (!value) {
+    return 0;
+  }
+  if (typeof (value as { size?: unknown }).size === 'number') {
+    return Math.max(0, (value as { size: number }).size);
+  }
+  if (typeof (value as Iterable<string>)[Symbol.iterator] === 'function') {
+    return Array.from(value as Iterable<string>).length;
+  }
+  return 0;
+}
+
+export function resolvePreviewDocumentActionState(
+  source: PreviewDocumentActionStateSource,
+): PreviewDocumentActionState {
+  const hasFrameOverrides = (source.frameOverrideCount ?? 0) > 0;
+  const hasGridOverrides = recordEntryCount(source.gridOverrides) > 0;
+  const hasLayoutOverrides = recordEntryCount(source.layoutOverrides) > 0;
+  const hasRemovedFrames = removedIdCount(source.removedIds) > 0;
+  const hasClearableState = hasFrameOverrides
+    || hasGridOverrides
+    || hasLayoutOverrides
+    || hasRemovedFrames;
+  const showCopyOverrides = Boolean(source.diagnosticsMode) || hasFrameOverrides;
+
+  return {
+    hasFrameOverrides,
+    hasGridOverrides,
+    hasLayoutOverrides,
+    hasRemovedFrames,
+    hasClearableState,
+    showCopyOverrides,
+    disableClearAll: !hasClearableState,
+    disableCopyOverrides: !hasFrameOverrides,
+  };
+}
+
+function setElementHiddenFromDocumentActionState(
+  element: HTMLElement,
+  hidden: boolean,
+): void {
+  element.hidden = hidden;
+  if (hidden) {
+    element.setAttribute?.('aria-hidden', 'true');
+    element.setAttribute?.('tabindex', '-1');
+    return;
+  }
+  element.removeAttribute?.('aria-hidden');
+  element.removeAttribute?.('tabindex');
+}
+
+function setPanelElementHidden(
+  element: HTMLElement,
+  hidden: boolean,
+): void {
+  element.hidden = hidden;
+  if ('inert' in element) {
+    (element as HTMLElement & { inert: boolean }).inert = hidden;
+  }
+  if (hidden) {
+    element.setAttribute('aria-hidden', 'true');
+  } else {
+    element.removeAttribute('aria-hidden');
+  }
+
+  element
+    .querySelectorAll<HTMLElement>('button, input, select, textarea, a[href], [tabindex]')
+    .forEach((control) => {
+      if (hidden) {
+        if (!control.hasAttribute('data-dg-prev-tabindex')) {
+          control.setAttribute(
+            'data-dg-prev-tabindex',
+            control.getAttribute('tabindex') ?? '',
+          );
+        }
+        control.setAttribute('tabindex', '-1');
+        if ('disabled' in control && !(control as HTMLButtonElement).disabled) {
+          control.setAttribute('data-dg-panel-disabled', '1');
+          (control as HTMLButtonElement).disabled = true;
+        }
+        return;
+      }
+
+      if (control.hasAttribute('data-dg-prev-tabindex')) {
+        const previous = control.getAttribute('data-dg-prev-tabindex');
+        if (previous) {
+          control.setAttribute('tabindex', previous);
+        } else {
+          control.removeAttribute('tabindex');
+        }
+        control.removeAttribute('data-dg-prev-tabindex');
+      }
+      if (control.getAttribute('data-dg-panel-disabled') === '1') {
+        if ('disabled' in control) {
+          (control as HTMLButtonElement).disabled = false;
+        }
+        control.removeAttribute('data-dg-panel-disabled');
+      }
+    });
+}
+
+export function syncPreviewPanelVisibility(options: {
+  document: PreviewPanelVisibilityDocumentLike;
+  visibility: Iterable<PreviewPanelVisibility>;
+}): void {
+  const applied = new Set<string>();
+  for (const entry of options.visibility) {
+    const elementId = PANEL_ELEMENT_IDS[entry.id];
+    if (!elementId || applied.has(elementId)) {
+      continue;
+    }
+    const element = options.document.getElementById(elementId);
+    if (!element) {
+      continue;
+    }
+    applied.add(elementId);
+    setPanelElementHidden(element, !entry.visible);
+  }
+}
+
+export function syncPreviewPanelVisibilityFromContext(options: {
+  document: PreviewPanelVisibilityDocumentLike;
+  context: PreviewUiContext;
+}): PreviewPanelVisibility[] {
+  const visibility = resolvePreviewPanelVisibility(options.context);
+  syncPreviewPanelVisibility({
+    document: options.document,
+    visibility,
+  });
+  return visibility;
+}
+
+function setButtonDisabled(
+  element: HTMLElement | null | undefined,
+  disabled: boolean,
+): void {
+  if (element && 'disabled' in element) {
+    (element as HTMLButtonElement).disabled = disabled;
+  }
+}
+
+export function syncPreviewDocumentActionControls(options: {
+  document: Pick<Document, 'getElementById'>;
+  source: PreviewDocumentActionStateSource;
+}): PreviewDocumentActionState {
+  const state = resolvePreviewDocumentActionState(options.source);
+  const clearAllButton = options.document.getElementById('btn-clear-all') as HTMLElement | null;
+  const exportButton = options.document.getElementById('btn-export') as HTMLElement | null;
+
+  setButtonDisabled(clearAllButton, state.disableClearAll);
+  if (exportButton) {
+    setButtonDisabled(exportButton, state.disableCopyOverrides);
+    setElementHiddenFromDocumentActionState(exportButton, !state.showCopyOverrides);
+  }
+
+  return state;
+}
+
+function resolveToolbarDocumentActionStateSource(
+  options: InitPreviewOverrideToolbarOptions,
+): PreviewDocumentActionStateSource {
+  return {
+    frameOverrideCount: Object.keys(options.getOverrides()).length,
+    gridOverrides: options.getGridOverrides?.() ?? null,
+    layoutOverrides: options.getLayoutOverrides?.() ?? null,
+    removedIds: options.getRemovedIds?.() ?? null,
+    diagnosticsMode: options.isDiagnosticsMode?.() ?? false,
+  };
+}
+
 export function initPreviewOverrideToolbar(
   options: InitPreviewOverrideToolbarOptions,
 ): void {
   const emptyExportMessage = options.emptyExportMessage || 'No overrides to export.';
   const copiedExportMessage = options.copiedExportMessage || 'Copied to clipboard.';
+  const syncDocumentActions = () => {
+    if (!options.exportButton && !options.clearAllButton) {
+      return;
+    }
+    syncPreviewDocumentActionControls({
+      document: {
+        getElementById(id: string) {
+          if (id === 'btn-export') return options.exportButton ?? null;
+          if (id === 'btn-clear-all') return options.clearAllButton ?? null;
+          return null;
+        },
+      } as Pick<Document, 'getElementById'>,
+      source: resolveToolbarDocumentActionStateSource(options),
+    });
+  };
+
+  syncDocumentActions();
 
   options.exportButton?.addEventListener('click', () => {
     const text = createPreviewOverrideExportText(options.slug, options.getOverrides());
@@ -278,13 +535,15 @@ export function initPreviewOverrideToolbar(
   });
 
   options.clearAllButton?.addEventListener('click', () => {
-    if (Object.keys(options.getOverrides()).length === 0) {
+    const actionState = resolvePreviewDocumentActionState(resolveToolbarDocumentActionStateSource(options));
+    if (!actionState.hasClearableState) {
+      syncDocumentActions();
       return;
     }
     if (!options.confirmClearAll(options.confirmClearAllMessage)) {
       return;
     }
-    options.onClearAll();
+    void Promise.resolve(options.onClearAll()).finally(syncDocumentActions);
   });
 }
 
@@ -297,6 +556,7 @@ export function resolvePreviewConstraintStatus(
       text: 'No violations',
       backgroundColor: '',
       color: '',
+      hidden: true,
     };
   }
 
@@ -306,6 +566,7 @@ export function resolvePreviewConstraintStatus(
       text: `${summary.errors} error(s), ${summary.warnings} warning(s)`,
       backgroundColor: '',
       color: '',
+      hidden: false,
     };
   }
 
@@ -314,16 +575,125 @@ export function resolvePreviewConstraintStatus(
     text: `${summary.warnings} warning(s)`,
     backgroundColor: '#3a3a1a',
     color: '#cc6',
+    hidden: false,
   };
+}
+
+function escapePreviewText(value: unknown): string {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function normalizedSeverity(value: unknown): string {
+  const severity = String(value || 'warning').toLowerCase();
+  return severity === 'error' ? 'error' : 'warning';
+}
+
+function constraintHintForRule(rule: string): string {
+  if (rule === 'grid-align') return 'Snap position and size to the 8px baseline.';
+  if (rule === 'override-grid') return 'Adjust overrides to 8px increments or clear the override.';
+  if (rule === 'approved-fill') return 'Use a supported box variant instead of a custom fill.';
+  if (rule === 'highlight-limit') return 'Keep only one highlight variant in the diagram.';
+  if (rule === 'no-orange-fill') return 'Use the arrow color only for connectors.';
+  if (rule === 'containment') return 'Move or resize the child back within its parent.';
+  return 'Inspect the affected frame and adjust authored values or overrides.';
+}
+
+export function resolvePreviewConstraintViolationDetails(
+  violations: unknown,
+  selectedIds: Iterable<string> | null = null,
+): PreviewConstraintViolationDetail[] {
+  const selectedIdSet = new Set(selectedIds ?? []);
+  if (!Array.isArray(violations)) {
+    return [];
+  }
+  return violations
+    .map((violation): PreviewConstraintViolationDetail | null => {
+      if (!violation || typeof violation !== 'object') {
+        return null;
+      }
+      const record = violation as Record<string, unknown>;
+      const message = String(record.message ?? '').trim();
+      if (!message) {
+        return null;
+      }
+      const constraintId = String(record.constraintId ?? record.rule ?? 'constraint').trim();
+      const componentId = String(record.componentId ?? record.frameId ?? record.id ?? 'diagram').trim();
+      return {
+        constraintId,
+        componentId,
+        message,
+        severity: normalizedSeverity(record.severity),
+        selected: selectedIdSet.has(componentId),
+        hint: constraintHintForRule(constraintId),
+      };
+    })
+    .filter((detail): detail is PreviewConstraintViolationDetail => detail !== null);
+}
+
+function renderPreviewConstraintDetailsHtml(details: readonly PreviewConstraintViolationDetail[]): string {
+  if (details.length === 0) {
+    return '';
+  }
+  const visibleDetails = details.slice(0, 12);
+  let html = '<div class="dg-constraint-details" id="constraint-details">';
+  for (const detail of visibleDetails) {
+    const selectedClass = detail.selected ? ' is-selected' : '';
+    html += `<div class="dg-constraint-detail${selectedClass}" data-dg-constraint-severity="${escapePreviewText(detail.severity)}" data-dg-component-id="${escapePreviewText(detail.componentId)}">`;
+    html += '<div class="dg-constraint-detail__meta">';
+    html += `<span class="dg-constraint-detail__severity">${escapePreviewText(detail.severity)}</span>`;
+    html += `<span class="dg-constraint-detail__component">${escapePreviewText(detail.componentId)}</span>`;
+    html += `<span class="dg-constraint-detail__rule">${escapePreviewText(detail.constraintId)}</span>`;
+    if (detail.selected) {
+      html += '<span class="dg-constraint-detail__selected">selected</span>';
+    }
+    html += '</div>';
+    html += `<div class="dg-constraint-detail__message">${escapePreviewText(detail.message)}</div>`;
+    html += `<div class="dg-constraint-detail__hint">${escapePreviewText(detail.hint)}</div>`;
+    html += '</div>';
+  }
+  if (details.length > visibleDetails.length) {
+    html += `<div class="dg-constraint-detail__more">${details.length - visibleDetails.length} more violation(s)</div>`;
+  }
+  html += '</div>';
+  return html;
 }
 
 export function syncPreviewConstraintStatus(
   element: HTMLElement,
   summary: PreviewConstraintSummary,
+  options: SyncPreviewConstraintStatusOptions = {},
 ): void {
   const status = resolvePreviewConstraintStatus(summary);
   element.textContent = status.text;
   element.className = status.className;
   element.style.background = status.backgroundColor;
   element.style.color = status.color;
+  element.hidden = status.hidden;
+  const section = element.closest?.('#constraints-section, [data-dg-panel-id="diagnostics-constraints"]');
+  if (typeof HTMLElement !== 'undefined' && section instanceof HTMLElement) {
+    setPanelElementHidden(section, status.hidden);
+    let details = section.querySelector<HTMLElement>('#constraint-details');
+    if (status.hidden) {
+      details?.remove();
+      return;
+    }
+    const detailHtml = renderPreviewConstraintDetailsHtml(
+      resolvePreviewConstraintViolationDetails(options.violations, options.selectedIds ?? null),
+    );
+    if (!detailHtml) {
+      details?.remove();
+      return;
+    }
+    if (!details) {
+      details = section.ownerDocument.createElement('div');
+      details.id = 'constraint-details';
+      section.appendChild(details);
+    }
+    details.outerHTML = detailHtml;
+  }
 }

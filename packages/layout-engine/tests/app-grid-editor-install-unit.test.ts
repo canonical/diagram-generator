@@ -800,7 +800,7 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
     expect(options.browser.getTextAdapter?.()).toEqual({ name: 'adapter' });
     expect(options.browser.renderBoxStyleOptions('default')).toContain('value="default" selected');
     expect(options.browser.formatAsDefinedStyleLabel('parent', false))
-      .toBe('— as defined (Parent) —');
+      .toBe('Parent');
     expect(options.browser.normalizeStyleName('section')).toBe('section');
     expect(options.browser.collectPeerSnapTargets()).toEqual(['peer']);
     expect(options.browser.collectGridSnapTargets({ rows: 2 } as never)).toEqual({

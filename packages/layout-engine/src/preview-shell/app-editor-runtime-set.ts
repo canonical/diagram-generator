@@ -67,6 +67,7 @@ export interface CreatePreviewEditorRuntimeSetOptions {
   formatControlErrorMessage: CreatePreviewInspectorDisplayRuntimeOptions['formatControlErrorMessage'];
   renderSingleStyleOptions: CreatePreviewInspectorDisplayRuntimeOptions['renderSingleStyleOptions'];
   renderMultiStyleOptions: CreatePreviewInspectorDisplayRuntimeOptions['renderMultiStyleOptions'];
+  syncPanelVisibility?: CreatePreviewInspectorDisplayRuntimeOptions['syncPanelVisibility'];
   captureOverrideEntries: CreatePreviewInspectorMutationRuntimeOptions['captureOverrideEntries']
     & CreatePreviewInspectorSelectionRuntimeOptions['captureOverrideEntries']
     & CreatePreviewArrowWaypointRuntimeOptions['captureOverrideEntries'];
@@ -153,6 +154,7 @@ export interface CreatePreviewEditorRuntimeSetHostOptions {
   formatControlErrorMessage: CreatePreviewEditorRuntimeSetOptions['formatControlErrorMessage'];
   renderSingleStyleOptions: CreatePreviewEditorRuntimeSetOptions['renderSingleStyleOptions'];
   renderMultiStyleOptions: CreatePreviewEditorRuntimeSetOptions['renderMultiStyleOptions'];
+  syncPanelVisibility?: CreatePreviewEditorRuntimeSetOptions['syncPanelVisibility'];
   captureOverrideEntries: CreatePreviewEditorRuntimeSetOptions['captureOverrideEntries'];
   commitOverridePatchAction: CreatePreviewEditorRuntimeSetOptions['commitOverridePatchAction'];
   getOverrides: CreatePreviewEditorRuntimeSetOptions['getOverrides'];
@@ -229,6 +231,7 @@ export interface CreatePreviewEditorRuntimeSetFromRuntimeOptions {
   formatControlErrorMessage: CreatePreviewEditorRuntimeSetHostOptions['formatControlErrorMessage'];
   renderSingleStyleOptions: CreatePreviewEditorRuntimeSetHostOptions['renderSingleStyleOptions'];
   renderMultiStyleOptions: CreatePreviewEditorRuntimeSetHostOptions['renderMultiStyleOptions'];
+  syncPanelVisibility?: CreatePreviewEditorRuntimeSetHostOptions['syncPanelVisibility'];
   editorState: {
     captureOverrideEntries: CreatePreviewEditorRuntimeSetHostOptions['captureOverrideEntries'];
     commitOverridePatchAction: CreatePreviewEditorRuntimeSetHostOptions['commitOverridePatchAction'];
@@ -302,6 +305,7 @@ export interface CreatePreviewEditorRuntimeSetFromEditorHostOptions {
     options?: { originalLabel?: string },
   ) => string;
   formatAsDefinedStyleLabel: (styleName: string | null | undefined, mixed?: boolean) => string;
+  syncPanelVisibility?: CreatePreviewEditorRuntimeSetFromRuntimeOptions['syncPanelVisibility'];
   editorState: CreatePreviewEditorRuntimeSetFromRuntimeOptions['editorState'];
   removeResizeHandles: CreatePreviewEditorRuntimeSetHostOptions['removeResizeHandles'];
   showResizeHandles: CreatePreviewEditorRuntimeSetHostOptions['showResizeHandles'];
@@ -373,6 +377,7 @@ export function createPreviewEditorRuntimeSetFromHost(
     formatControlErrorMessage: options.formatControlErrorMessage,
     renderSingleStyleOptions: options.renderSingleStyleOptions,
     renderMultiStyleOptions: options.renderMultiStyleOptions,
+    syncPanelVisibility: options.syncPanelVisibility ?? null,
     captureOverrideEntries: options.captureOverrideEntries,
     commitOverridePatchAction: options.commitOverridePatchAction,
     getOverrides: options.getOverrides,
@@ -446,6 +451,7 @@ export function createPreviewEditorRuntimeSetFromRuntime(
     formatControlErrorMessage: options.formatControlErrorMessage,
     renderSingleStyleOptions: options.renderSingleStyleOptions,
     renderMultiStyleOptions: options.renderMultiStyleOptions,
+    syncPanelVisibility: options.syncPanelVisibility ?? null,
     captureOverrideEntries: options.editorState.captureOverrideEntries,
     commitOverridePatchAction: options.editorState.commitOverridePatchAction,
     getOverrides: options.getOverrides,
@@ -522,6 +528,7 @@ export function createPreviewEditorRuntimeSetFromEditorHost(
         ),
       })
     ),
+    syncPanelVisibility: options.syncPanelVisibility ?? null,
     editorState: options.editorState,
     resizeHandles: {
       removeResizeHandles: options.removeResizeHandles,
@@ -597,6 +604,7 @@ export function createPreviewEditorRuntimeSet(
     formatControlErrorMessage: options.formatControlErrorMessage,
     renderSingleStyleOptions: options.renderSingleStyleOptions,
     renderMultiStyleOptions: options.renderMultiStyleOptions,
+    syncPanelVisibility: options.syncPanelVisibility ?? null,
   });
 
   const inspectorMutation = createPreviewInspectorMutationRuntime({

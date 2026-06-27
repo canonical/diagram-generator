@@ -55,20 +55,20 @@ export function resolveMultiSelectionInspectorState(options: {
     snapStep: options.snapStep,
   });
 
-  const alignState = createMultiSelectionAlignState(options.items.map((item) => {
+  const alignState = options.info.hasUnsupported ? null : createMultiSelectionAlignState(options.items.map((item) => {
     const node = item.node;
     if (!node) return { hasFrameAlignment: false };
     const overrideAlign = item.override?.align;
     const nodeAlign = typeof node.align === 'string' ? node.align : null;
     return {
-      hasFrameAlignment: Boolean(node.sizing_w || node.sizing_h || node.align),
+      hasFrameAlignment: true,
       align: typeof overrideAlign === 'string'
         ? overrideAlign
         : (nodeAlign || 'TOP_LEFT'),
     };
   }));
 
-  const containerState = createMultiSelectionContainerState(options.items.map((item) => {
+  const containerState = options.info.hasUnsupported ? null : createMultiSelectionContainerState(options.items.map((item) => {
     const node = item.node;
     if (!node) return { isContainer: false };
     const override = item.override || {};
@@ -80,7 +80,7 @@ export function resolveMultiSelectionInspectorState(options: {
     };
   }));
 
-  const sizingState = createMultiSelectionSizingState(options.items.map((item) => {
+  const sizingState = options.info.hasUnsupported ? null : createMultiSelectionSizingState(options.items.map((item) => {
     const node = item.node;
     if (!node) return {};
     return {
@@ -90,14 +90,14 @@ export function resolveMultiSelectionInspectorState(options: {
         override: item.override,
         node,
         isCoerced: item.widthCoerced,
-      }),
+      }) || 'HUG',
       sizingH: resolvePreviewRuntimeSizingValue({
         cid: item.id,
         axis: 'h',
         override: item.override,
         node,
         isCoerced: item.heightCoerced,
-      }),
+      }) || 'HUG',
       wCoerced: Boolean(item.widthCoerced),
       hCoerced: Boolean(item.heightCoerced),
     };

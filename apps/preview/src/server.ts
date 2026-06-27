@@ -66,6 +66,7 @@ const LAYOUT_ENGINE_HARFBUZZ_ENTRY = path.join(
 );
 const GRAPH_LAYOUT_CORE_ENTRY = path.join(REPO_ROOT, "packages", "graph-layout-core", "src", "index.ts");
 const GRAPH_LAYOUT_ELK_ENTRY = path.join(REPO_ROOT, "packages", "graph-layout-elk", "src", "index.ts");
+const GRAPH_LAYOUT_DAGRE_ENTRY = path.join(REPO_ROOT, "packages", "graph-layout-dagre", "src", "index.ts");
 const HARFBUZZ_WASM_SOURCE = path.join(
   REPO_ROOT,
   "packages",
@@ -308,11 +309,16 @@ function maxSourceMtimeMs(rootDir: string): number {
 }
 
 function layoutEngineBrowserSourceIsNewerThanBundle(): boolean {
-  const srcRoot = path.join(REPO_ROOT, "packages", "layout-engine", "src");
-  if (!existsSync(LAYOUT_ENGINE_BUNDLE) || !existsSync(srcRoot)) {
+  const sourceRoots = [
+    path.join(REPO_ROOT, "packages", "layout-engine", "src"),
+    path.join(REPO_ROOT, "packages", "graph-layout-elk", "src"),
+    path.join(REPO_ROOT, "packages", "graph-layout-dagre", "src"),
+  ];
+  if (!existsSync(LAYOUT_ENGINE_BUNDLE) || sourceRoots.some((srcRoot) => !existsSync(srcRoot))) {
     return true;
   }
-  return maxSourceMtimeMs(srcRoot) > statSync(LAYOUT_ENGINE_BUNDLE).mtimeMs;
+  const bundleMtime = statSync(LAYOUT_ENGINE_BUNDLE).mtimeMs;
+  return sourceRoots.some((srcRoot) => maxSourceMtimeMs(srcRoot) > bundleMtime);
 }
 
 async function ensureLayoutEngineBrowserAssets(): Promise<void> {
@@ -364,6 +370,7 @@ async function ensureLayoutEngineBrowserAssets(): Promise<void> {
       }) {
         build.onResolve({ filter: /^@diagram-generator\/graph-layout-core$/ }, () => ({ path: GRAPH_LAYOUT_CORE_ENTRY }));
         build.onResolve({ filter: /^@diagram-generator\/graph-layout-elk$/ }, () => ({ path: GRAPH_LAYOUT_ELK_ENTRY }));
+        build.onResolve({ filter: /^@diagram-generator\/graph-layout-dagre$/ }, () => ({ path: GRAPH_LAYOUT_DAGRE_ENTRY }));
       },
     };
 
@@ -469,6 +476,7 @@ async function handleRequest(req: IncomingMessage, res: ServerResponse, port: nu
     sendBytes: (statusCode: number, contentType: string, bytes: Buffer) =>
       sendBytes(res, statusCode, contentType, bytes),
     serveFile: (filePath: string, cacheControl?: string) => serveFile(res, filePath, cacheControl),
+    ensureViewerBrowserAssets: ensureLayoutEngineBrowserAssets,
     readJsonBody,
     notImplementedPayload: {
       ok: false,

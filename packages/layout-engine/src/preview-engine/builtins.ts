@@ -1,13 +1,53 @@
-import { elkLayeredPreviewControlSpecs } from './elk-controls.js';
 import { FORCE_PREVIEW_PARAM_SPECS } from './force-param-registry.js';
 import type { PreviewEngineManifest } from './types.js';
 import {
-  installElkFramePreviewRenderAdapter,
   installNativeFramePreviewRenderAdapter,
   installSequencePreviewDocumentSvgRenderer,
 } from './builtin-render-adapters.js';
 import { registerPreviewEngine } from './registry.js';
 import type { PreviewEngineInstallUnit } from './install-units.js';
+export {
+  BUILTIN_DAGRE_PREVIEW_ENGINE_INSTALL_UNIT,
+  DAGRE_PREVIEW_ENGINE,
+  DAGRE_PREVIEW_ENGINE_DEFINITION,
+  installDagrePreviewEngine,
+} from './engines/dagre.engine.js';
+export {
+  BUILTIN_ELK_FORCE_PREVIEW_ENGINE_INSTALL_UNIT,
+  ELK_FORCE_PREVIEW_ENGINE,
+  ELK_FORCE_PREVIEW_ENGINE_DEFINITION,
+  installElkForcePreviewEngine,
+} from './engines/elk-force.engine.js';
+export {
+  BUILTIN_ELK_MRTREE_PREVIEW_ENGINE_INSTALL_UNIT,
+  ELK_MRTREE_PREVIEW_ENGINE,
+  ELK_MRTREE_PREVIEW_ENGINE_DEFINITION,
+  installElkMrtreePreviewEngine,
+} from './engines/elk-mrtree.engine.js';
+export {
+  BUILTIN_ELK_LAYERED_PREVIEW_ENGINE_INSTALL_UNIT,
+  ELK_LAYERED_PREVIEW_ENGINE,
+  ELK_LAYERED_PREVIEW_ENGINE_DEFINITION,
+  installElkLayeredPreviewEngine,
+} from './engines/elk-layered.engine.js';
+export {
+  BUILTIN_ELK_RADIAL_PREVIEW_ENGINE_INSTALL_UNIT,
+  ELK_RADIAL_PREVIEW_ENGINE,
+  ELK_RADIAL_PREVIEW_ENGINE_DEFINITION,
+  installElkRadialPreviewEngine,
+} from './engines/elk-radial.engine.js';
+export {
+  BUILTIN_ELK_RECTPACKING_PREVIEW_ENGINE_INSTALL_UNIT,
+  ELK_RECTPACKING_PREVIEW_ENGINE,
+  ELK_RECTPACKING_PREVIEW_ENGINE_DEFINITION,
+  installElkRectpackingPreviewEngine,
+} from './engines/elk-rectpacking.engine.js';
+export {
+  BUILTIN_ELK_STRESS_PREVIEW_ENGINE_INSTALL_UNIT,
+  ELK_STRESS_PREVIEW_ENGINE,
+  ELK_STRESS_PREVIEW_ENGINE_DEFINITION,
+  installElkStressPreviewEngine,
+} from './engines/elk-stress.engine.js';
 
 export const V3_PREVIEW_ENGINE: PreviewEngineManifest = {
   id: 'v3',
@@ -34,39 +74,6 @@ export const V3_PREVIEW_ENGINE: PreviewEngineManifest = {
   compatibility: {
     documentKinds: ['frame-diagram'],
     description: 'Canonical native v3 autolayout for authored frame diagrams',
-  },
-};
-
-export const ELK_LAYERED_PREVIEW_ENGINE: PreviewEngineManifest = {
-  id: 'elk-layered',
-  label: 'ELK layered layout',
-  layoutEngineKey: 'elk-layered',
-  shellMode: 'grid',
-  renderFamily: 'frame-elk',
-  hostView: {
-    sidebarSections: ['elk-layout'],
-  },
-  capabilities: {
-    layoutControls: true,
-    localRelayout: false,
-    serverRelayout: true,
-    engineBackedSave: true,
-    nodeInspector: true,
-    gridEditing: false,
-    referenceImage: true,
-    simulationControls: false,
-    rawDebugView: false,
-  },
-  controlSpecs: elkLayeredPreviewControlSpecs(),
-  scripts: ['elk-layout-controls.js', 'elk-controller.js'],
-  compatibility: {
-    documentKinds: ['frame-diagram'],
-    requiredLayoutEngineKey: 'elk-layered',
-    description: 'Hierarchical layered layout for directed graphs and flowcharts',
-    frameDiagramRequirements: {
-      minArrowCount: 1,
-      rejectUnsupportedCarrierIds: true,
-    },
   },
 };
 
@@ -156,13 +163,6 @@ export function installV3PreviewEngine(): () => void {
   );
 }
 
-export function installElkLayeredPreviewEngine(): () => void {
-  return composePreviewEngineInstallUnit(
-    () => registerPreviewEngine(ELK_LAYERED_PREVIEW_ENGINE),
-    installElkFramePreviewRenderAdapter,
-  );
-}
-
 export function installForcePreviewEngine(): () => void {
   return composePreviewEngineInstallUnit(
     () => registerPreviewEngine(FORCE_PREVIEW_ENGINE),
@@ -179,11 +179,6 @@ export function installSequencePreviewEngine(): () => void {
 export const BUILTIN_V3_PREVIEW_ENGINE_INSTALL_UNIT: PreviewEngineInstallUnit = {
   key: 'v3',
   install: installV3PreviewEngine,
-};
-
-export const BUILTIN_ELK_LAYERED_PREVIEW_ENGINE_INSTALL_UNIT: PreviewEngineInstallUnit = {
-  key: 'elk-layered',
-  install: installElkLayeredPreviewEngine,
 };
 
 export const BUILTIN_FORCE_PREVIEW_ENGINE_INSTALL_UNIT: PreviewEngineInstallUnit = {

@@ -74,7 +74,7 @@
       <div class="bf-panel-content dg-sidebar-content">
 
         <!-- ── Force mode: Solver ── -->
-        <section class="dg-sidebar-section dg-force-only" %FORCE_SOLVER_HIDDEN%>
+        <section class="dg-sidebar-section dg-force-only" id="force-solver-section" data-dg-panel-group="engine" data-dg-panel-id="force-solver" %FORCE_SOLVER_HIDDEN%>
           <h2 class="dg-section-heading bf-h5">Solver</h2>
           <div class="grid-controls">
             <label class="bf-field dg-grid-field is-full-span" for="ticks-per-frame">
@@ -96,7 +96,7 @@
         </section>
 
         <!-- ── Shared: Inspector / Selection ── -->
-        <section class="dg-sidebar-section">
+        <section class="dg-sidebar-section" data-dg-panel-group="selection" data-dg-panel-id="selection">
           <h2 class="dg-section-heading bf-h5">Selection</h2>
           <div class="inspector" id="inspector">
             <p class="dg-empty-message bf-form-help">%INSPECTOR_EMPTY%</p>
@@ -104,7 +104,7 @@
         </section>
 
         <!-- ── Grid mode: Engine switcher (spec 035) ── -->
-        <section class="dg-sidebar-section dg-grid-only" id="engine-switcher-section" hidden %GRID_ENGINE_SWITCHER_HIDDEN%>
+        <section class="dg-sidebar-section dg-grid-only" id="engine-switcher-section" data-dg-panel-group="engine" data-dg-panel-id="engine-switcher" hidden %GRID_ENGINE_SWITCHER_HIDDEN%>
           <h2 class="dg-section-heading bf-h5">Engine</h2>
           <label class="bf-field dg-engine-switcher-field" for="engine-switcher">
             <span class="bf-form-label">Layout engine</span>
@@ -112,11 +112,11 @@
               <select class="bf-input dg-engine-switcher" id="engine-switcher" aria-label="Layout engine"></select>
             </span>
           </label>
-          <p class="bf-form-help dg-engine-switcher-help" id="engine-switcher-help">Only engines compatible with this document are listed. Switching saves the choice and reloads the preview.</p>
+          <p class="bf-form-help dg-engine-switcher-help" id="engine-switcher-help">Only engines compatible with this document are listed. Switching writes meta.layout_engine and reloads the preview.</p>
         </section>
 
         <!-- ── Grid mode: Grid controls ── -->
-        <section class="dg-sidebar-section dg-grid-only" %GRID_CONTROLS_HIDDEN%>
+        <section class="dg-sidebar-section dg-grid-only" id="grid-controls-section" data-dg-panel-group="layout" data-dg-panel-id="layout-grid" %GRID_CONTROLS_HIDDEN%>
           <h2 class="dg-section-heading bf-h5">Layout grid</h2>
           <div class="grid-controls" id="grid-controls">
             <label class="bf-field dg-grid-field" for="grid-cols">
@@ -170,7 +170,7 @@
         </section>
 
         <!-- ── Grid mode: ELK layout (elk-layered diagrams only) ── -->
-        <section class="dg-sidebar-section dg-grid-only" id="elk-layout-section" %GRID_ELK_LAYOUT_HIDDEN% %ELK_SECTION_HIDDEN%>
+        <section class="dg-sidebar-section dg-grid-only" id="elk-layout-section" data-dg-panel-group="engine" data-dg-panel-id="engine-elk-layout" %ELK_SECTION_HIDDEN%>
           <h2 class="dg-section-heading bf-h5">ELK layout</h2>
           <div class="grid-controls" id="elk-layout-controls"></div>
           <p class="bf-form-help dg-override-summary">Layer spacing and routing options pass through to ELK. Step labels are measured and placed by ELK (not post-hoc). Interactive strategies need ELK layer/order constraints — they do not enable drag-to-move nodes here.</p>
@@ -188,9 +188,16 @@
           <p class="bf-form-help">Overlay on styled view: dashed blue rects = node boxes, green = routes, amber = label bounds.</p>
         </section>
 
-        <!-- ── Grid mode: Overrides ── -->
-        <section class="dg-sidebar-section dg-grid-only" %GRID_OVERRIDES_HIDDEN%>
-          <h2 class="dg-section-heading bf-h5">Overrides</h2>
+        <!-- ── Grid mode: generic graph layout controls ── -->
+        <section class="dg-sidebar-section dg-grid-only" id="graph-layout-section" data-dg-panel-group="engine" data-dg-panel-id="engine-graph-layout" hidden %GRAPH_LAYOUT_SECTION_HIDDEN%>
+          <h2 class="dg-section-heading bf-h5">Graph layout</h2>
+          <div class="grid-controls" id="graph-layout-controls"></div>
+          <p class="bf-form-help dg-override-summary">Engine-specific graph layout parameters persist under that engine's metadata namespace.</p>
+        </section>
+
+        <!-- ── Grid mode: Document actions ── -->
+        <section class="dg-sidebar-section dg-grid-only" id="document-actions-section" data-dg-panel-group="document" data-dg-panel-id="document-actions" %GRID_OVERRIDES_HIDDEN%>
+          <h2 class="dg-section-heading bf-h5">Document</h2>
           <p class="bf-form-help dg-override-summary" id="override-summary">No overrides.</p>
           <div class="bf-cluster dg-button-row">
             <button class="btn bf-button" id="btn-save" disabled>Save</button>
@@ -203,13 +210,13 @@
         </section>
 
         <!-- ── Grid mode: Constraints ── -->
-        <section class="dg-sidebar-section dg-grid-only" %GRID_CONSTRAINTS_HIDDEN%>
+        <section class="dg-sidebar-section dg-grid-only" id="constraints-section" data-dg-panel-group="diagnostics" data-dg-panel-id="diagnostics-constraints" %GRID_CONSTRAINTS_HIDDEN%>
           <h2 class="dg-section-heading bf-h5">Constraints</h2>
           <div class="build-status build-ok" id="constraint-status">No violations</div>
         </section>
 
         <!-- ── Force mode: Simulation params ── -->
-        <section class="dg-sidebar-section dg-force-only" %FORCE_SIMULATION_HIDDEN%>
+        <section class="dg-sidebar-section dg-force-only" id="force-simulation-section" data-dg-panel-group="engine" data-dg-panel-id="force-simulation" %FORCE_SIMULATION_HIDDEN%>
           <h2 class="dg-section-heading bf-h5">Simulation</h2>
           <div class="inspector" id="force-params">
             <div class="field">
@@ -248,7 +255,7 @@
         </section>
 
         <!-- ── Force mode: Guidance ── -->
-        <section class="dg-sidebar-section dg-force-only" %FORCE_GUIDANCE_HIDDEN%>
+        <section class="dg-sidebar-section dg-force-only" id="force-guidance-section" data-dg-panel-group="diagnostics" data-dg-panel-id="force-guidance" %FORCE_GUIDANCE_HIDDEN%>
           <h2 class="dg-section-heading bf-h5">Guidance</h2>
           <p class="bf-form-help dg-override-summary">This force preview must still obey the repo's diagram language: white or grey boxes, at most one black emphasis box, orange connectors only, and top-left aligned live text.</p>
           <p class="bf-form-help dg-override-summary">To pin a node, select it and click Pin here in the Selection panel. Save writes the current node positions and pin state to the YAML source file; browser refresh and Reset reload from that YAML.</p>

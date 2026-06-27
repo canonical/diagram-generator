@@ -1,12 +1,24 @@
 import * as previewShellRuntime from './preview-shell/index.js';
 import * as previewEngineRuntime from './preview-engine/index.js';
 import {
+  DAGRE_PREVIEW_ENGINE,
+  ELK_FORCE_PREVIEW_ENGINE,
   ELK_LAYERED_PREVIEW_ENGINE,
+  ELK_MRTREE_PREVIEW_ENGINE,
+  ELK_RADIAL_PREVIEW_ENGINE,
+  ELK_RECTPACKING_PREVIEW_ENGINE,
+  ELK_STRESS_PREVIEW_ENGINE,
   FORCE_PREVIEW_PARAM_SPECS,
   FORCE_PREVIEW_ENGINE,
   PREVIEW_ENGINE_REGISTRY,
   SEQUENCE_PREVIEW_ENGINE,
+  dagrePreviewControlSpecs,
+  elkForcePreviewControlSpecs,
   elkLayeredPreviewControlSpecs,
+  elkMrtreePreviewControlSpecs,
+  elkRadialPreviewControlSpecs,
+  elkRectpackingPreviewControlSpecs,
+  elkStressPreviewControlSpecs,
   getPreviewEngine,
   listPreviewEngines,
   listPreviewEnginesBySidebarSection,
@@ -15,7 +27,15 @@ import {
   serializePreviewEngineManifest,
 } from './preview-engine/index.js';
 import {
+  DAGRE_PARAM_SPECS,
+} from '@diagram-generator/graph-layout-dagre';
+import {
   ELK_LAYERED_PARAM_SPECS,
+  ELK_FORCE_PARAM_SPECS,
+  ELK_MRTREE_PARAM_SPECS,
+  ELK_RADIAL_PARAM_SPECS,
+  ELK_RECTPACKING_PARAM_SPECS,
+  ELK_STRESS_PARAM_SPECS,
   elkParamGroups,
 } from '@diagram-generator/graph-layout-elk';
 import {
@@ -38,17 +58,41 @@ export const previewEngines = Object.freeze({
     serializePreviewEngineManifest,
     runtime: previewEngineRuntime,
   }),
+  graph: Object.freeze({
+    createPreviewEngineLayoutControlsRuntime: previewEngineRuntime.createPreviewEngineLayoutControlsRuntime,
+    createPreviewEngineShellControllerRuntime: previewEngineRuntime.createPreviewEngineShellControllerRuntime,
+  }),
   elk: Object.freeze({
     ELK_LAYERED_PREVIEW_ENGINE,
+    ELK_FORCE_PREVIEW_ENGINE,
+    ELK_STRESS_PREVIEW_ENGINE,
+    ELK_MRTREE_PREVIEW_ENGINE,
+    ELK_RADIAL_PREVIEW_ENGINE,
+    ELK_RECTPACKING_PREVIEW_ENGINE,
     createPreviewElkLayoutControlsRuntime: previewEngineRuntime.createPreviewElkLayoutControlsRuntime,
     createPreviewElkShellControllerRuntime: previewEngineRuntime.createPreviewElkShellControllerRuntime,
+    elkForcePreviewControlSpecs,
     elkLayeredPreviewControlSpecs,
+    elkStressPreviewControlSpecs,
+    elkMrtreePreviewControlSpecs,
+    elkRadialPreviewControlSpecs,
+    elkRectpackingPreviewControlSpecs,
     ELK_LAYERED_PARAM_SPECS,
+    ELK_FORCE_PARAM_SPECS,
+    ELK_STRESS_PARAM_SPECS,
+    ELK_MRTREE_PARAM_SPECS,
+    ELK_RADIAL_PARAM_SPECS,
+    ELK_RECTPACKING_PARAM_SPECS,
     elkParamGroups,
     renderPreviewElkDebugOverlay: previewEngineRuntime.renderPreviewElkDebugOverlay,
     renderPreviewElkRawView: previewEngineRuntime.renderPreviewElkRawView,
     ensurePreviewEngineShellController: previewShellRuntime.ensurePreviewEngineShellController,
     ensurePreviewElkPreviewController: previewShellRuntime.ensurePreviewElkPreviewController,
+  }),
+  dagre: Object.freeze({
+    DAGRE_PREVIEW_ENGINE,
+    DAGRE_PARAM_SPECS,
+    dagrePreviewControlSpecs,
   }),
   force: Object.freeze({
     FORCE_PREVIEW_ENGINE,

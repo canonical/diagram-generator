@@ -117,11 +117,19 @@ export function normalizePreviewStyleName(styleName: unknown): string {
 export function resolvePreviewBoxStyleLabel(
   boxStyles: PreviewBoxStyleMap,
   styleName: unknown,
-  fallback = 'As defined',
+  fallback = 'Unknown variant',
 ): string {
   const canonicalStyle = normalizePreviewStyleName(styleName);
   const label = boxStyles[canonicalStyle]?.label;
   return typeof label === 'string' && label ? label : fallback;
+}
+
+export function formatPreviewVariantName(
+  boxStyles: PreviewBoxStyleMap,
+  styleName: unknown,
+  fallback = 'Unknown variant',
+): string {
+  return resolvePreviewBoxStyleLabel(boxStyles, styleName, fallback);
 }
 
 export function formatPreviewDefinedStyleLabel(options: {
@@ -130,13 +138,13 @@ export function formatPreviewDefinedStyleLabel(options: {
   mixed?: boolean;
 }): string {
   if (options.mixed) {
-    return '— as defined (mixed) —';
+    return 'Mixed variants';
   }
   const canonicalStyle = normalizePreviewStyleName(options.styleName);
   if (canonicalStyle && options.boxStyles[canonicalStyle]) {
-    return `— as defined (${resolvePreviewBoxStyleLabel(options.boxStyles, canonicalStyle)}) —`;
+    return resolvePreviewBoxStyleLabel(options.boxStyles, canonicalStyle);
   }
-  return '— as defined —';
+  return 'Unknown variant';
 }
 
 export function renderPreviewBoxStyleOptions(options: {
@@ -145,7 +153,7 @@ export function renderPreviewBoxStyleOptions(options: {
   originalLabel?: string;
 }): string {
   const current = options.selectedValue == null ? '' : String(options.selectedValue);
-  const resetLabel = options.originalLabel || '— as defined —';
+  const resetLabel = options.originalLabel || 'Authored variant';
   let html = `<option value=""${current === '' ? ' selected' : ''}>${resetLabel}</option>`;
   for (const key of Object.keys(options.boxStyles)) {
     html += `<option value="${key}"${current === key ? ' selected' : ''}>${resolvePreviewBoxStyleLabel(options.boxStyles, key)}</option>`;
@@ -283,12 +291,14 @@ export function resolveMultiSelectionPreviewStyleState(
   let first: string | null = null;
   let mixed = false;
   let count = 0;
+  let total = 0;
   let firstOriginal: string | null = null;
   let originalMixed = false;
 
   for (const item of items) {
-    if (!isPreviewStyleableComponentType(item.componentType)) continue;
-    if (!hasPreviewVisibleStylePicker(item.node)) continue;
+    total += 1;
+    if (!isPreviewStyleableComponentType(item.componentType)) return null;
+    if (!hasPreviewVisibleStylePicker(item.node)) return null;
     count += 1;
     const style = resolveEffectivePreviewStyleName({
       node: item.node,
@@ -310,7 +320,7 @@ export function resolveMultiSelectionPreviewStyleState(
     }
   }
 
-  if (count === 0) return null;
+  if (count === 0 || count !== total) return null;
   return {
     style: mixed ? '__mixed__' : (first || ''),
     mixed,

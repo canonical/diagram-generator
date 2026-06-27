@@ -1,7 +1,46 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createPreviewSaveClientRuntime } from '../src/preview-shell/app-save-client.js';
+import {
+  createPreviewSaveClientRuntime,
+  resolvePreviewSaveButtonState,
+  resolvePreviewSaveSvgButtonState,
+} from '../src/preview-shell/app-save-client.js';
 
 describe('preview save client runtime', () => {
+  it('resolves save and svg export button disabled states', () => {
+    expect(resolvePreviewSaveButtonState({ dirty: false })).toEqual({
+      disabled: true,
+      reason: 'clean',
+    });
+    expect(resolvePreviewSaveButtonState({ dirty: true, saving: true })).toEqual({
+      disabled: true,
+      reason: 'saving',
+    });
+    expect(resolvePreviewSaveButtonState({ dirty: true, errorCount: 1 })).toEqual({
+      disabled: true,
+      reason: 'constraint-errors',
+    });
+    expect(resolvePreviewSaveButtonState({ dirty: true, relayoutLastMode: 'local-error' })).toEqual({
+      disabled: true,
+      reason: 'relayout-error',
+    });
+    expect(resolvePreviewSaveButtonState({ dirty: true, relayoutLocalReady: false })).toEqual({
+      disabled: true,
+      reason: 'relayout-unavailable',
+    });
+    expect(resolvePreviewSaveButtonState({ dirty: true, relayoutLocalReady: true })).toEqual({
+      disabled: false,
+      reason: 'ready',
+    });
+    expect(resolvePreviewSaveSvgButtonState({ hasRenderedSvg: false })).toEqual({
+      disabled: true,
+      reason: 'missing-render',
+    });
+    expect(resolvePreviewSaveSvgButtonState({ hasRenderedSvg: true, exporting: true })).toEqual({
+      disabled: true,
+      reason: 'exporting',
+    });
+  });
+
   it('persists through generic relayout/runtime getters and reloads from canonical state', async () => {
     const saveButton = {
       disabled: false,
@@ -151,5 +190,108 @@ describe('preview save client runtime', () => {
     // must not trigger a canonical-state reload (T043 / SC).
     expect(fetchFn).not.toHaveBeenCalled();
     expect(reloadDiagram).not.toHaveBeenCalled();
+  });
+
+  it('syncs save and svg button disabled state from relayout and in-flight work', async () => {
+    const saveButton = {
+      disabled: false,
+      classList: {
+        add: vi.fn(),
+        remove: vi.fn(),
+      },
+      addEventListener: vi.fn(),
+    };
+    const saveSvgButton = {
+      disabled: false,
+      addEventListener: vi.fn(),
+    };
+    const svg = {
+      cloneNode: () => ({
+        getAttribute: () => 'set',
+        setAttribute: vi.fn(),
+      }),
+    };
+    let resolveFetch: ((value: {
+      ok: boolean;
+      status: number;
+      statusText: string;
+      text: () => Promise<string>;
+      json: () => Promise<unknown>;
+    }) => void) | null = null;
+    const fetchFn = vi.fn(() => new Promise<{
+      ok: boolean;
+      status: number;
+      statusText: string;
+      text: () => Promise<string>;
+      json: () => Promise<unknown>;
+    }>((resolve) => {
+      resolveFetch = resolve;
+    }));
+    const runtime = createPreviewSaveClientRuntime({
+      document: {
+        body: { appendChild() {} },
+        activeElement: null,
+        createElement() {
+          return { click() {}, remove() {} };
+        },
+        getElementById(id: string) {
+          if (id === 'btn-save') return saveButton;
+          if (id === 'btn-save-svg') return saveSvgButton;
+          return null;
+        },
+        querySelector(selector: string) {
+          return selector === '#stage svg' ? svg : null;
+        },
+      },
+      previewWindow: {},
+      fetchFn,
+      alertFn: vi.fn(),
+      blobCtor: class FakeBlob {},
+      urlApi: {
+        createObjectURL: () => 'blob:demo',
+        revokeObjectURL: vi.fn(),
+      },
+      xmlSerializerFactory: () => ({
+        serializeToString: () => '<svg />',
+      }),
+    });
+    const model = {
+      overrides: { alpha: { dx: 8 } },
+      gridOverrides: {},
+      removedIds: new Set<string>(),
+      toOverridePayload: () => ({ overrides: { alpha: { dx: 8 } } }),
+    };
+    let relayoutReady = false;
+
+    runtime.init({
+      slug: 'demo',
+      getModel: () => model,
+      getSelectedIds: () => [],
+      restoreSelectionIds: vi.fn(),
+      serializeDirtyState: () => '{"dirty":true}',
+      reloadDiagram: vi.fn(async () => undefined),
+      getLayoutRelayoutStatus: () => ({ localReady: relayoutReady }),
+      getLayoutRelayoutRuntime: () => ({ lastMode: 'local-ready' }),
+      getConstraintSummary: () => ({ errors: 0 }),
+    });
+    runtime.setDirty(true);
+    expect(saveButton.disabled).toBe(true);
+    expect(saveSvgButton.disabled).toBe(false);
+
+    relayoutReady = true;
+    runtime.syncSaveButton();
+    expect(saveButton.disabled).toBe(false);
+
+    const savePromise = runtime.saveOverrides();
+    expect(saveButton.disabled).toBe(true);
+    resolveFetch?.({
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      text: async () => '',
+      json: async () => ({}),
+    });
+    await savePromise;
+    expect(saveButton.disabled).toBe(false);
   });
 });

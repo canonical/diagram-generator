@@ -35,7 +35,21 @@ export {
   resolveGraphPortPlacement,
 } from '@diagram-generator/graph-layout-core';
 
-export { ELK_LAYERED_GRAPH_LAYOUT_ENGINE } from './engine-capabilities.js';
+export {
+  ELK_FORCE_GRAPH_LAYOUT_ENGINE,
+  ELK_LAYERED_GRAPH_LAYOUT_ENGINE,
+  ELK_MRTREE_GRAPH_LAYOUT_ENGINE,
+  ELK_RADIAL_GRAPH_LAYOUT_ENGINE,
+  ELK_RECTPACKING_GRAPH_LAYOUT_ENGINE,
+  ELK_STRESS_GRAPH_LAYOUT_ENGINE,
+} from './engine-capabilities.js';
+
+export {
+  buildElkAlgorithmLayoutOptions,
+  layoutElkAlgorithm,
+  type ElkPreviewAlgorithm,
+  type LayoutElkAlgorithmOptions,
+} from './elk-algorithm.js';
 
 export {
   layoutLayered,
@@ -76,3 +90,14 @@ export {
   resolveElkLayoutOptions,
   stripImplementationOwnedElkLayeredOverrides,
 } from './elk-param-registry.js';
+export {
+  ELK_FORCE_PARAM_SPECS,
+  elkForceParamDefaults,
+} from './force-param-registry.js';
+export {
+  ELK_ADDITIONAL_ALGORITHM_PARAM_SPECS,
+  ELK_MRTREE_PARAM_SPECS,
+  ELK_RADIAL_PARAM_SPECS,
+  ELK_RECTPACKING_PARAM_SPECS,
+  ELK_STRESS_PARAM_SPECS,
+} from './elk-algorithm-param-registry.js';

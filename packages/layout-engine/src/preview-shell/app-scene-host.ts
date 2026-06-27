@@ -5,6 +5,11 @@
  * `editor.js` stays closer to entry/bootstrap glue.
  */
 
+import {
+  syncPreviewDocumentActionControls,
+  type PreviewDocumentActionStateSource,
+} from './app-shell-panels.js';
+
 export interface PreviewSceneHostDocumentLike {
   querySelector: (selector: string) => PreviewSceneHostSvgLike | null;
   createElementNS: (namespace: string, tagName: string) => PreviewSceneHostElementLike;
@@ -143,6 +148,7 @@ export interface UpdatePreviewOverrideSummaryHostOptions {
   document: Pick<PreviewSceneHostDocumentLike, 'getElementById'>;
   overrideCount: number;
   formatSummary: (count: number) => string;
+  documentActions?: Omit<PreviewDocumentActionStateSource, 'frameOverrideCount'> | null;
 }
 
 export interface RefreshPreviewTreeOverrideStateHostOptions {
@@ -156,10 +162,16 @@ export interface UpdatePreviewConstraintStatusHostOptions<TSummary> {
   summary: TSummary & {
     errors?: number;
   };
+  violations?: unknown;
+  selectedIds?: Iterable<string> | null;
   syncSaveButton: (errorCount: number) => void;
   syncConstraintStatus: (
     element: PreviewSceneHostTextElementLike,
     summary: TSummary,
+    options?: {
+      violations?: unknown;
+      selectedIds?: Iterable<string> | null;
+    },
   ) => void;
 }
 
@@ -175,7 +187,12 @@ export interface RunPreviewConstraintValidationHostOptions<TViolations, TSummary
   syncConstraintStatus: (
     element: PreviewSceneHostTextElementLike,
     summary: TSummary,
+    options?: {
+      violations?: unknown;
+      selectedIds?: Iterable<string> | null;
+    },
   ) => void;
+  selectedIds?: Iterable<string> | null;
 }
 
 export interface RefreshPreviewSceneHostOptions {
@@ -364,9 +381,18 @@ export function applyPreviewWaypointOverridesHost(
 export function updatePreviewOverrideSummaryHost(
   options: UpdatePreviewOverrideSummaryHostOptions,
 ): boolean {
+  if (options.documentActions) {
+    syncPreviewDocumentActionControls({
+      document: options.document as Pick<Document, 'getElementById'>,
+      source: {
+        ...options.documentActions,
+        frameOverrideCount: options.overrideCount,
+      },
+    });
+  }
   const element = options.document.getElementById('override-summary');
   if (!element) {
-    return false;
+    return Boolean(options.documentActions);
   }
   element.textContent = options.formatSummary(options.overrideCount);
   return true;
@@ -386,7 +412,10 @@ export function updatePreviewConstraintStatusHost<TSummary>(
   if (!element) {
     return false;
   }
-  options.syncConstraintStatus(element, options.summary);
+  options.syncConstraintStatus(element, options.summary, {
+    violations: options.violations,
+    selectedIds: options.selectedIds ?? null,
+  });
   return true;
 }
 
@@ -399,6 +428,8 @@ export function runPreviewConstraintValidationHost<TViolations, TSummary>(
   updatePreviewConstraintStatusHost({
     document: options.document,
     summary: options.summarizeViolations(violations),
+    violations,
+    selectedIds: options.selectedIds ?? null,
     syncSaveButton: options.syncSaveButton,
     syncConstraintStatus: options.syncConstraintStatus,
   });

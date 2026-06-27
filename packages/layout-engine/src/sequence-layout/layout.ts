@@ -71,19 +71,43 @@ const DEFAULT_CONFIG: Required<SequenceLayoutConfig> = {
   noteHeight: 56,
 };
 
+function estimateTextWidth(lines: readonly { text: string }[], fontSize = 16): number {
+  return Math.max(
+    0,
+    ...lines.map((line) => line.text.length * fontSize * 0.56),
+  );
+}
+
+function estimateTextHeight(lines: readonly { text: string }[], lineStep = 20): number {
+  return Math.max(lineStep, lines.length * lineStep);
+}
+
 export function layoutSequenceDiagram(
   spec: SequenceDiagramSpec,
   config: SequenceLayoutConfig = {},
 ): SequenceLayoutResult {
   const resolved = { ...DEFAULT_CONFIG, ...config };
-  const participants = spec.participants.map((participant, index) => ({
-    id: participant.id,
-    x: resolved.sidePadding + index * (resolved.participantWidth + resolved.participantGap),
-    y: resolved.topPadding,
-    width: resolved.participantWidth,
-    height: resolved.participantHeight,
-    participant,
-  }));
+  let nextParticipantX = resolved.sidePadding;
+  const participants = spec.participants.map((participant) => {
+    const width = Math.max(
+      resolved.participantWidth,
+      Math.ceil(estimateTextWidth(participant.label, 16) + 32),
+    );
+    const height = Math.max(
+      resolved.participantHeight,
+      Math.ceil(estimateTextHeight(participant.label, 20) + 32),
+    );
+    const box = {
+      id: participant.id,
+      x: nextParticipantX,
+      y: resolved.topPadding,
+      width,
+      height,
+      participant,
+    };
+    nextParticipantX += width + resolved.participantGap;
+    return box;
+  });
 
   const participantCenters = new Map(participants.map((participant) => [
     participant.id,
@@ -104,18 +128,27 @@ export function layoutSequenceDiagram(
   const notes = spec.notes.map((note, index) => {
     const participant = participants.find((entry) => entry.id === note.target);
     const anchorX = participant?.x ?? resolved.sidePadding;
+    const participantWidth = participant?.width ?? resolved.participantWidth;
     const anchorY = resolved.messageStartY + index * resolved.messageRowGap;
+    const noteWidth = Math.max(
+      resolved.noteWidth,
+      Math.ceil(estimateTextWidth(note.label, 14) + 24),
+    );
+    const noteHeight = Math.max(
+      resolved.noteHeight,
+      Math.ceil(estimateTextHeight(note.label, 18) + 24),
+    );
     const x = note.placement === 'left-of'
-      ? anchorX - resolved.noteWidth - 24
+      ? anchorX - noteWidth - 24
       : note.placement === 'right-of'
-        ? anchorX + resolved.participantWidth + 24
-        : anchorX + (resolved.participantWidth - resolved.noteWidth) / 2;
+        ? anchorX + participantWidth + 24
+        : anchorX + (participantWidth - noteWidth) / 2;
     return {
       id: note.id,
       x,
       y: anchorY,
-      width: resolved.noteWidth,
-      height: resolved.noteHeight,
+      width: noteWidth,
+      height: noteHeight,
       targetParticipantId: note.target,
       placement: note.placement,
       note,
@@ -131,9 +164,13 @@ export function layoutSequenceDiagram(
   }));
 
   const rightMostParticipant = participants[participants.length - 1];
-  const width = rightMostParticipant
+  const participantWidth = rightMostParticipant
     ? rightMostParticipant.x + rightMostParticipant.width + resolved.sidePadding
     : resolved.sidePadding * 2;
+  const noteWidth = notes.length > 0
+    ? Math.max(...notes.map((note) => note.x + note.width + resolved.sidePadding))
+    : 0;
+  const width = Math.max(participantWidth, noteWidth);
   const lastMessage = messages[messages.length - 1];
   const lastNote = notes[notes.length - 1];
   const height = Math.max(

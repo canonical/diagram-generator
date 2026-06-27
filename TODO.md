@@ -42,7 +42,9 @@ The old TODO contained implementation bullets for the areas below. Draft or
 activate a spec-kit package before doing product work on them:
 
 - Additional layout engines: state/lifecycle, tree/mindmap, swimlane workflow,
-  ER/class orthogonal, and an additive `elk-force` preview lane.
+  ER/class orthogonal, an additive `elk-force` preview lane, and a generic
+  graph-layout-engine -> preview-engine registration factory so engine N+1 does
+  not require bespoke render-adapter/install wiring.
 - Editor workflow: folder-backed app navigation, cross-engine multi-select
   align/distribute, and bulk pin/unpin.
 - Preview shell polish: output-only shell chrome consistency and Baseline

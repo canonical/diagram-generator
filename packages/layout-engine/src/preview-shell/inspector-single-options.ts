@@ -8,10 +8,16 @@ import type {
   SingleSelectionInspectorViolation,
 } from './inspector-single-panel.js';
 import {
+  DEFAULT_PREVIEW_BOX_STYLES,
+  formatPreviewVariantName,
   resolveSingleSelectionPreviewStyleState,
+  isPreviewStructuralWrapper,
   type PreviewRenderedStyleFields,
   type PreviewStyleNode,
 } from './frame-style.js';
+import {
+  hasPreviewNodeTextContent,
+} from './inspector-autolayout-options.js';
 
 /**
  * Single-selection inspector option helpers (spec 043 slice Q).
@@ -23,6 +29,7 @@ import {
 export interface PreviewSingleSelectionInspectorNode extends PreviewStyleNode {
   align?: string | null;
   layout?: string | null;
+  parent?: unknown;
 }
 
 function normalizeInspectorErrorMessage(error: unknown): string {
@@ -47,6 +54,20 @@ export function resolveSingleSelectionInspectorPanelRenderOptions(options: {
   renderStyleOptions?: ((currentStyle: string, originalStyleName: string) => string) | null;
 }): SingleSelectionInspectorPanelRenderOptions {
   const override = options.override ?? {};
+  const isArrowComponent = String(options.componentType || '').toLowerCase() === 'arrow';
+  const nodeId = String(options.node?.id ?? options.node?.data?.id ?? options.cid);
+  const hasParentField = Boolean(
+    options.node && Object.prototype.hasOwnProperty.call(options.node, 'parent'),
+  );
+  const isTopLevelFrame = Boolean(
+    options.node
+      && !isArrowComponent
+      && (
+        (hasParentField && !options.node.parent)
+        || nodeId === 'root'
+        || nodeId === 'page'
+      ),
+  );
   const viewModel = createSingleSelectionInspectorViewModel({
     align: (override.align as string | null | undefined) || options.node?.align || 'TOP_LEFT',
     ownDelta: options.ownDelta,
@@ -55,6 +76,11 @@ export function resolveSingleSelectionInspectorPanelRenderOptions(options: {
     waypointCount: options.waypointCount,
     componentType: options.componentType,
     parentLayout: options.parentLayout,
+    isRoot: isTopLevelFrame,
+    nodeLayout: options.node?.layout,
+    childCount: options.node?.children?.length ?? 0,
+    hasTextContent: hasPreviewNodeTextContent(options.node),
+    isStructuralWrapper: isPreviewStructuralWrapper(options.node),
   });
 
   let autolayoutPanelHtml = '';
@@ -81,6 +107,9 @@ export function resolveSingleSelectionInspectorPanelRenderOptions(options: {
   const styleOptionsHtml = styleState.mode === 'picker' && options.renderStyleOptions
     ? options.renderStyleOptions(styleState.currentStyle, styleState.originalStyleName)
     : '';
+  const styleLabel = styleState.mode === 'picker'
+    ? formatPreviewVariantName(DEFAULT_PREVIEW_BOX_STYLES, styleState.currentStyle)
+    : '';
 
   return {
     cid: options.cid,
@@ -91,6 +120,7 @@ export function resolveSingleSelectionInspectorPanelRenderOptions(options: {
     controlsErrorMessage,
     styleMode: styleState.mode,
     styleOptionsHtml,
+    styleLabel,
     violations: options.violations ?? [],
   };
 }

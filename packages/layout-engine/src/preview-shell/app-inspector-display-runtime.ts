@@ -27,6 +27,9 @@ import type {
   InspectorDeltaState,
   InspectorEffectiveDeltaState,
 } from './inspector-single.js';
+import type {
+  PreviewUiSelectionContext,
+} from './preview-ui-context.js';
 import {
   resolveMultiSelectionPreviewStyleState,
   type MultiSelectionPreviewStyleItem,
@@ -62,6 +65,7 @@ export interface CreatePreviewInspectorDisplayRuntimeOptions {
   formatControlErrorMessage?: ((message: string) => string) | null;
   renderSingleStyleOptions?: ((currentStyle: string, originalStyleName: string) => string) | null;
   renderMultiStyleOptions: (styleState: MultiSelectionPreviewStyleState) => string;
+  syncPanelVisibility?: ((selection: PreviewUiSelectionContext) => void) | null;
 }
 
 export interface PreviewInspectorDisplayRuntime {
@@ -79,6 +83,46 @@ function normalizePreviewInspectorHeightUnit(
   unit: 'px' | 'rows' | string | null | undefined,
 ): 'px' | 'rows' {
   return unit === 'rows' ? 'rows' : 'px';
+}
+
+function hasOwnProp(value: unknown, key: string): boolean {
+  return Boolean(value && typeof value === 'object' && Object.prototype.hasOwnProperty.call(value, key));
+}
+
+function resolveSingleInspectorSelectionContext(options: {
+  cid: string;
+  node?: PreviewInspectorDisplayRuntimeNode | null;
+  arrowNode?: PreviewInspectorArrowNode | null;
+  componentType?: string | null;
+}): PreviewUiSelectionContext {
+  const isArrow = String(options.componentType || '').toLowerCase() === 'arrow'
+    || Boolean(options.arrowNode);
+  if (isArrow) {
+    return { count: 1, kind: 'arrow' };
+  }
+  const nodeId = String(
+    (options.node as { id?: unknown } | null | undefined)?.id
+      ?? (options.node as { data?: { id?: unknown } } | null | undefined)?.data?.id
+      ?? options.cid,
+  );
+  const parent = (options.node as { parent?: unknown } | null | undefined)?.parent;
+  const isTopLevel = Boolean(
+    options.node
+      && (
+        (hasOwnProp(options.node, 'parent') && !parent)
+        || nodeId === 'root'
+        || nodeId === 'page'
+      ),
+  );
+  if (isTopLevel) {
+    return { count: 1, kind: 'root' };
+  }
+  const children = (options.node as { children?: unknown[] | null } | null | undefined)?.children;
+  const layout = (options.node as { layout?: unknown } | null | undefined)?.layout;
+  if (layout || (Array.isArray(children) && children.length > 0)) {
+    return { count: 1, kind: 'container' };
+  }
+  return { count: 1, kind: 'frame' };
 }
 
 export function createPreviewInspectorDisplayRuntime(
@@ -104,21 +148,43 @@ export function createPreviewInspectorDisplayRuntime(
   );
 
   const renderEmptyInspector = (): void => {
+    options.syncPanelVisibility?.({ count: 0, kind: 'empty' });
     renderPreviewEmptyInspectorHost(options.getInspector() ?? null);
   };
 
   const updateInspector = (cid: string): void => {
+    const node = options.getNode(cid) ?? null;
+    const arrowNode = options.getArrowNode(cid) ?? null;
+    const componentType = options.getComponentType(cid) ?? null;
+    options.syncPanelVisibility?.(resolveSingleInspectorSelectionContext({
+      cid,
+      node,
+      arrowNode,
+      componentType,
+    }));
     renderPreviewSingleSelectionInspectorRuntimeHost({
       inspector: options.getInspector() ?? null,
       cid,
-      getNode: options.getNode as (cid: string) => (
+      getNode: ((nextCid: string) => (
+        nextCid === cid
+          ? node
+          : options.getNode(nextCid)
+      )) as (cid: string) => (
         PreviewSingleSelectionInspectorNode & PreviewAutolayoutInspectorNode
       ) | null | undefined,
-      getArrowNode: options.getArrowNode,
+      getArrowNode: ((nextCid: string) => (
+        nextCid === cid
+          ? arrowNode
+          : options.getArrowNode(nextCid)
+      )),
       getOverride: options.getOverride,
       getOwnDelta: options.getOwnDelta,
       getEffectiveDelta: options.getEffectiveDelta,
-      getComponentType: options.getComponentType,
+      getComponentType: ((nextCid: string) => (
+        nextCid === cid
+          ? componentType
+          : options.getComponentType(nextCid)
+      )),
       getParentLayout: options.getParentLayout,
       getRenderedStyle: options.getRenderedStyle,
       getViolations: options.getViolations,
@@ -136,6 +202,13 @@ export function createPreviewInspectorDisplayRuntime(
 
   const renderMultiSelectionInspector = (): void => {
     const info = options.getSelectionActionInfo();
+    options.syncPanelVisibility?.({
+      count: options.selectedIds.size,
+      kind: 'multi',
+      allBounded: info.items.length === options.selectedIds.size,
+      sameParent: info.sameParent,
+      hasUnsupported: info.hasUnsupported,
+    });
     const items = info.items.map((item) => ({
       id: item.id,
       node: item.node,

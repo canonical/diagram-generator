@@ -31,6 +31,7 @@ export interface SelectionActionInfo {
 
 export interface MultiSelectionInspectorViewModel {
   selectedCount: number;
+  actionableCount: number;
   hasUnsupported: boolean;
   sameParent: boolean;
   parentId: string | null;
@@ -124,17 +125,20 @@ export function createMultiSelectionInspectorViewModel(options: {
     parentLayout: options.parentLayout,
     snapStep: options.snapStep,
   });
+  const actionableCount = options.info.items.length;
+  const hasBulkActionTarget = actionableCount >= 2;
 
   return {
     selectedCount: options.selectedCount,
+    actionableCount,
     hasUnsupported: options.info.hasUnsupported,
     sameParent: options.info.sameParent,
     parentId: options.info.parentId,
     inferredGap,
-    showDistributeControls: options.info.sameParent,
-    showAlignOnlyHint: !options.info.sameParent,
+    showDistributeControls: hasBulkActionTarget && options.info.sameParent,
+    showAlignOnlyHint: hasBulkActionTarget && !options.info.sameParent,
     showStackSpacingHint: Boolean(
-      options.info.sameParent && options.info.parentId && options.parentLayout?.layout,
+      hasBulkActionTarget && options.info.sameParent && options.info.parentId && options.parentLayout?.layout,
     ),
   };
 }

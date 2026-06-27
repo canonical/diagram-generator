@@ -6,6 +6,7 @@ import type {
 import {
   escapePreviewHtml,
   renderPreviewDataAttrs,
+  renderPreviewPanelGroup,
 } from './inline-actions.js';
 
 /**
@@ -53,6 +54,7 @@ export interface SingleSelectionInspectorPanelRenderOptions {
   controlsErrorMessage?: string | null;
   styleMode?: 'picker' | 'structural' | 'none';
   styleOptionsHtml?: string;
+  styleLabel?: string;
   violations?: SingleSelectionInspectorViolation[];
 }
 
@@ -74,17 +76,61 @@ function renderAlignWidget(cid: string, currentAlign: string): string {
   return html;
 }
 
-export function renderSingleSelectionInspectorPanel(
+function renderSingleSelectionLayoutGroup(
   options: SingleSelectionInspectorPanelRenderOptions,
 ): string {
-  let html = '';
   if (options.controlsErrorMessage) {
-    html += '<p class="bf-form-help" style="color:#c66">Inspector controls failed: '
-      + escapePreviewHtml(options.controlsErrorMessage)
-      + '</p>';
-  } else {
-    html += renderAlignWidget(options.cid, options.viewModel.currentAlign);
-    html += options.autolayoutPanelHtml || '';
+    return renderPreviewPanelGroup(
+      'diagnostics',
+      'single-controls-error',
+      '<p class="bf-form-help" style="color:#c66">Inspector controls failed: '
+        + escapePreviewHtml(options.controlsErrorMessage)
+        + '</p>',
+    );
+  }
+  if (options.viewModel.isArrowComponent) {
+    return '';
+  }
+
+  const alignmentHtml = options.viewModel.showAlignmentControls
+    ? renderAlignWidget(options.cid, options.viewModel.currentAlign)
+    : '';
+  const autolayoutHtml = (!options.viewModel.isRoot || options.viewModel.isAutolayoutContainer)
+    ? (options.autolayoutPanelHtml || '')
+    : '';
+  if (!alignmentHtml && !autolayoutHtml) {
+    return '';
+  }
+
+  return (
+    alignmentHtml
+      ? renderPreviewPanelGroup('layout', 'single-layout', alignmentHtml)
+      : ''
+  ) + autolayoutHtml;
+}
+
+function renderSingleSelectionPositionGroup(
+  options: SingleSelectionInspectorPanelRenderOptions,
+): string {
+  if (options.viewModel.isRoot) {
+    return '';
+  }
+
+  let html = '';
+  if (options.viewModel.isArrowComponent) {
+    html += '<div class="field"><span class="label">Waypoints</span><br>';
+    html += `<span class="value${options.viewModel.hasWaypointOverride ? ' override' : ''}">${options.viewModel.waypointCount}`;
+    if (options.viewModel.hasWaypointOverride) {
+      html += ' (overridden)';
+    }
+    html += '</span></div>';
+    if (options.viewModel.hasAnyOverride) {
+      html += `<button class="bf-button is-base danger" type="button"${renderPreviewDataAttrs({
+        'data-dg-click-action': 'clear-override',
+        'data-dg-cid': options.cid,
+      })}>Clear override</button>`;
+    }
+    return renderPreviewPanelGroup('position', 'single-arrow', html);
   }
 
   if (options.viewModel.hasMoveOverride) {
@@ -114,19 +160,33 @@ export function renderSingleSelectionInspectorPanel(
     })}>Clear override</button>`;
   }
 
-  if (options.styleMode === 'picker') {
-    html += '<div class="field" style="margin-top:6px"><span class="label">Style</span><br>';
-    html += `<select class="style-picker bf-input"${renderPreviewDataAttrs({
-      'data-dg-change-action': 'single-style',
-      'data-dg-cid': options.cid,
-    })}>`;
-    html += options.styleOptionsHtml || '';
-    html += '</select></div>';
-  } else if (options.styleMode === 'structural') {
-    html += '<div class="field" style="margin-top:6px"><span class="label">Style</span><div class="hint">Structural wrapper — no box style or default panel padding.</div></div>';
+  return renderPreviewPanelGroup('position', 'single-position', html);
+}
+
+function renderSingleSelectionAppearanceGroup(
+  options: SingleSelectionInspectorPanelRenderOptions,
+): string {
+  if (options.viewModel.isArrowComponent) {
+    return '';
   }
 
-  if (options.viewModel.showStackSpacingHint) {
+  let html = '';
+  if (options.styleMode === 'picker') {
+    html += '<div class="field" style="margin-top:6px"><span class="label">Variant</span><br>';
+    html += `<span class="value">${escapePreviewHtml(options.styleLabel || 'Unknown variant')}</span></div>`;
+  } else if (options.styleMode === 'structural') {
+    html += '<div class="field" style="margin-top:6px"><span class="label">Variant</span><div class="hint">Structural wrapper: no visible box variant.</div></div>';
+  }
+
+  return renderPreviewPanelGroup('appearance', 'single-appearance', html);
+}
+
+function renderSingleSelectionDiagnosticsGroup(
+  options: SingleSelectionInspectorPanelRenderOptions,
+): string {
+  let html = '';
+  const showFrameInteractionNote = !options.viewModel.isArrowComponent && !options.viewModel.isRoot;
+  if (showFrameInteractionNote && options.viewModel.showStackSpacingHint) {
     html += '<div class="dg-autolayout-section" style="margin-top:8px">';
     html += '<span class="label" style="margin-bottom:4px;display:block">Stack spacing</span>';
     html += '<div class="hint">Frame gap now derives from composition. Use distribute for arrangement, or edit YAML only for true structural exceptions.</div>';
@@ -143,11 +203,20 @@ export function renderSingleSelectionInspectorPanel(
     html += '</div>';
   }
 
-  if (options.viewModel.noteKind === 'reorder-child') {
+  if (showFrameInteractionNote && options.viewModel.noteKind === 'reorder-child') {
     html += '<p class="dg-inspector-note">Drag to reorder &#xb7; Shift+Enter to select parent &#xb7; W to toggle grid overlay.</p>';
-  } else {
+  } else if (showFrameInteractionNote) {
     html += '<p class="dg-inspector-note">Drag to move &#xb7; handles to resize (8px grid) &#xb7; W to toggle grid overlay.</p>';
   }
 
-  return html;
+  return renderPreviewPanelGroup('diagnostics', 'single-diagnostics', html);
+}
+
+export function renderSingleSelectionInspectorPanel(
+  options: SingleSelectionInspectorPanelRenderOptions,
+): string {
+  return renderSingleSelectionLayoutGroup(options)
+    + renderSingleSelectionPositionGroup(options)
+    + renderSingleSelectionAppearanceGroup(options)
+    + renderSingleSelectionDiagnosticsGroup(options);
 }

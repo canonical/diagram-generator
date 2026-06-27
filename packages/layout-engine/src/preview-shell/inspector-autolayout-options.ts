@@ -213,13 +213,6 @@ export function resolveSingleSelectionAutolayoutPanelOptions(options: {
     widthMaxCharsDisabled = hasExplicitMaxWidthPx(options.node, override);
   }
 
-  let widthFillWeightValue: string | number = 1;
-  if (panelState.showWidthFillWeight) {
-    widthFillWeightValue = override.fill_weight !== undefined
-      ? override.fill_weight as string | number
-      : (readNodeProp(options.node, 'fill_weight') as string | number ?? 1);
-  }
-
   let heightFixedValue: string | number = '';
   const heightFixedStep = options.heightUnit === 'rows' ? 1 : options.baselineStep;
   if (panelState.showHeightFixedInput) {
@@ -254,7 +247,6 @@ export function resolveSingleSelectionAutolayoutPanelOptions(options: {
     widthMaxValue,
     widthMaxCharsValue,
     widthMaxCharsDisabled,
-    widthFillWeightValue,
     heightFixedValue,
     heightFixedStep,
     heightUnit: options.heightUnit ?? 'px',

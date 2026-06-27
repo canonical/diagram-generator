@@ -61,13 +61,18 @@ export {
 } from './app-bootstrap.js';
 
 export type {
+  PreviewButtonState,
+  PreviewSaveButtonStateOptions,
   PreviewSaveClientRuntime,
   PreviewSaveClientRuntimeDeps,
   PreviewSaveClientRuntimeOptions,
+  PreviewSaveSvgButtonStateOptions,
 } from './app-save-client.js';
 
 export {
   createPreviewSaveClientRuntime,
+  resolvePreviewSaveButtonState,
+  resolvePreviewSaveSvgButtonState,
 } from './app-save-client.js';
 
 export type {
@@ -239,15 +244,41 @@ export {
 } from './app-shell-resize.js';
 
 export type {
+  PreviewAsidePanelGroup,
+  PreviewPanelRegistryEntry,
+  PreviewPanelVisibility,
+  PreviewSelectionKind,
+  PreviewTemplateSectionKey,
+  PreviewUiContext,
+  PreviewUiDocumentState,
+  PreviewUiSelectionContext,
+} from './preview-ui-context.js';
+
+export {
+  PREVIEW_ASIDE_PANEL_GROUPS,
+  PREVIEW_PANEL_REGISTRY,
+  hasInvalidPreviewPersistedLayoutEngine,
+  previewEngineSupportsSidebarSection,
+  resolvePreviewPanelVisibility,
+  resolvePreviewVisibleTemplateSections,
+  shouldShowPreviewEngineSwitcher,
+} from './preview-ui-context.js';
+
+export type {
   InitPreviewOverrideToolbarOptions,
   PreviewConstraintStatus,
   PreviewConstraintSummary,
+  PreviewConstraintViolationDetail,
+  PreviewDocumentActionState,
+  PreviewDocumentActionStateSource,
   PreviewOverrideExportEntry,
+  PreviewPanelVisibilityDocumentLike,
   PreviewShellTreeEntry,
   PreviewShellTreeNode,
   RenderPreviewTreePanelOptions,
   ShowPreviewContextMenuAction,
   ShowPreviewContextMenuOptions,
+  SyncPreviewConstraintStatusOptions,
 } from './app-shell-panels.js';
 
 export {
@@ -257,8 +288,13 @@ export {
   initPreviewOverrideToolbar,
   previewTreeHasFrameId,
   renderPreviewTreePanel,
+  resolvePreviewConstraintViolationDetails,
+  resolvePreviewDocumentActionState,
   resolvePreviewConstraintStatus,
   showPreviewContextMenu,
+  syncPreviewDocumentActionControls,
+  syncPreviewPanelVisibility,
+  syncPreviewPanelVisibilityFromContext,
   syncPreviewConstraintStatus,
   syncPreviewTreeOverrideState,
   syncPreviewTreeSelectionState,

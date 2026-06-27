@@ -3,6 +3,7 @@ import {
   ARROW_HEAD_LENGTH,
   BODY_LINE_STEP,
   INSET,
+  resolvePreviewVisibleTemplateSections,
   resolvePreviewEngine,
 } from "@diagram-generator/layout-engine";
 
@@ -38,18 +39,9 @@ import {
   buildPreviewWindowConfigScript,
 } from "./viewers.js";
 
-const FORCE_TEMPLATE_SECTIONS = [
-  "force-nodes-tab",
-  "force-nodes-pane",
-  "force-solver",
-  "force-simulation",
-  "force-guidance",
-] as const;
-
 const FORCE_PREVIEW_VIEWER_DEFINITION: PreviewHostViewerPageDefinition = {
   mode: "force",
   inspectorEmptyText: "Click a node to select it.",
-  alwaysVisibleTemplateSections: FORCE_TEMPLATE_SECTIONS,
   sectionVisibilityPlaceholders: [
     {
       placeholder: "%GRID_LAYERS_TAB_HIDDEN%",
@@ -66,10 +58,6 @@ const FORCE_PREVIEW_VIEWER_DEFINITION: PreviewHostViewerPageDefinition = {
     {
       placeholder: "%GRID_CONTROLS_HIDDEN%",
       section: "grid-controls",
-    },
-    {
-      placeholder: "%GRID_ELK_LAYOUT_HIDDEN%",
-      section: "grid-elk-layout",
     },
     {
       placeholder: "%GRID_OVERRIDES_HIDDEN%",
@@ -106,6 +94,10 @@ const FORCE_PREVIEW_VIEWER_DEFINITION: PreviewHostViewerPageDefinition = {
     {
       placeholder: "%ELK_SECTION_HIDDEN%",
       section: "elk-layout",
+    },
+    {
+      placeholder: "%GRAPH_LAYOUT_SECTION_HIDDEN%",
+      section: "graph-layout",
     },
   ],
   buildTitle(slug: string): string {
@@ -160,6 +152,11 @@ export function createForcePreviewHostViewerRoute(
     hasDocument: (slug: string) => forcePreviewDocumentExists(slug, deps.forcePreviewDocumentDeps),
     buildHtml: (slug: string) => {
       const engineManifest = resolvePreviewEngine({ shellMode: "force" });
+      const visibleTemplateSections = resolvePreviewVisibleTemplateSections({
+        shellMode: "force",
+        documentKind: "force-spec",
+        activeEngine: engineManifest ?? null,
+      });
       const configScript = buildPreviewWindowConfigScript("__DG_FORCE_CONFIG", {
         slug,
         inset: deps.inset ?? INSET,
@@ -177,7 +174,7 @@ export function createForcePreviewHostViewerRoute(
         definition: FORCE_PREVIEW_VIEWER_DEFINITION,
         configScript,
         modeScriptsHtml: modeScripts,
-        visibleSidebarSections: engineManifest?.hostView?.sidebarSections ?? [],
+        visibleSidebarSections: visibleTemplateSections,
         templateHtml: deps.templateHtml,
         browseSections: buildRegisteredPreviewBrowseSections(),
         baselineStylesHtml: deps.baselineStylesHtml,

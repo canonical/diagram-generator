@@ -67,7 +67,7 @@ export function resolvePreviewEngine(
       if (evaluatePreviewEngineCompatibility(explicit, context).compatible) {
         return explicit;
       }
-      return listCompatiblePreviewEngines(context)[0];
+      return undefined;
     }
     return undefined;
   }
@@ -84,10 +84,43 @@ export function resolvePreviewEngine(
 export function summarizeFrameDiagramCompatibility(
   diagram: FrameDiagram,
 ): FrameDiagramCompatibilitySummary {
+  const unsupportedCarrierIds = collectUnsupportedCarrierIds(diagram);
   return {
     arrowCount: diagram.arrows.length,
-    unsupportedElkCarrierIds: [],
+    unsupportedCarrierIds,
+    unsupportedElkCarrierIds: unsupportedCarrierIds,
   };
+}
+
+function collectEndpointIds(diagram: FrameDiagram): Set<string> {
+  const ids = new Set<string>();
+  for (const arrow of diagram.arrows) {
+    if (arrow.source) ids.add(arrow.source.split('.')[0]!);
+    if (arrow.target) ids.add(arrow.target.split('.')[0]!);
+  }
+  return ids;
+}
+
+function collectUnsupportedCarrierIds(diagram: FrameDiagram): string[] {
+  const endpoints = collectEndpointIds(diagram);
+  const unsupported = new Set<string>();
+
+  function visit(frame: FrameDiagram['root'], isRoot: boolean): void {
+    if (
+      !isRoot &&
+      frame.children.length > 0 &&
+      endpoints.has(frame.id) &&
+      frame.id
+    ) {
+      unsupported.add(frame.id);
+    }
+    for (const child of frame.children) {
+      visit(child, false);
+    }
+  }
+
+  visit(diagram.root, true);
+  return [...unsupported].sort();
 }
 
 export function listHostableLayoutEngineKeys(): string[] {
@@ -137,13 +170,15 @@ export function evaluatePreviewEngineCompatibility(
     previewDocumentKind === 'frame-diagram' &&
     frameDiagramRequirements?.rejectUnsupportedCarrierIds &&
     context.frameDiagramSummary &&
-    context.frameDiagramSummary.unsupportedElkCarrierIds.length > 0
+    (context.frameDiagramSummary.unsupportedCarrierIds ?? context.frameDiagramSummary.unsupportedElkCarrierIds).length > 0
   ) {
+    const unsupportedCarrierIds = context.frameDiagramSummary.unsupportedCarrierIds
+      ?? context.frameDiagramSummary.unsupportedElkCarrierIds;
     return {
       compatible: false,
       reason:
         `Engine cannot natively represent the current frame structure: ` +
-        context.frameDiagramSummary.unsupportedElkCarrierIds.slice(0, 3).join(', '),
+        unsupportedCarrierIds.slice(0, 3).join(', '),
     };
   }
 

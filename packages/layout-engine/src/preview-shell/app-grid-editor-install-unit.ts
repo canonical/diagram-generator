@@ -18,6 +18,16 @@ import {
   renderPreviewBoxStyleOptions,
   type PreviewBoxStyleMap,
 } from './frame-style.js';
+import {
+  syncPreviewPanelVisibilityFromContext,
+} from './app-shell-panels.js';
+import type {
+  PreviewUiDocumentState,
+  PreviewUiSelectionContext,
+} from './preview-ui-context.js';
+import {
+  resolvePreviewEngine,
+} from '../preview-engine/registry.js';
 
 type BrowserStateBackedRuntimeBrowserKey =
   | 'getOverrides'
@@ -252,6 +262,11 @@ interface PreviewGridEditorLegacyHelpers {
 
 export type PreviewGridEditorLegacyWindow = PreviewGridEditorRuntimeWindow & {
   __DG_CONFIG?: {
+    engine?: string;
+    layout_engine?: string;
+    shell_mode?: string;
+    compatible_engines?: string[];
+    has_reference?: boolean;
     icon_size?: number;
     col_gap?: number;
     head_len?: number;
@@ -443,6 +458,41 @@ function resolveLegacyPreviewClipboardWriter(
   return (text) => previewWindow.navigator?.clipboard?.writeText?.(text) ?? Promise.resolve();
 }
 
+function finiteViolationCount(summary: unknown): number {
+  if (!summary || typeof summary !== 'object') {
+    return 0;
+  }
+  const record = summary as Record<string, unknown>;
+  const total = Number(record.total);
+  if (Number.isFinite(total)) {
+    return Math.max(0, total);
+  }
+  const errors = Number(record.errors);
+  const warnings = Number(record.warnings);
+  return Math.max(
+    0,
+    (Number.isFinite(errors) ? errors : 0) + (Number.isFinite(warnings) ? warnings : 0),
+  );
+}
+
+function resolvePreviewDocumentStateForPanelSync(
+  state: PreviewGridEditorLegacyState,
+  previewConfig: NonNullable<PreviewGridEditorLegacyWindow['__DG_CONFIG']>,
+): PreviewUiDocumentState {
+  const lastViolations = state.lastViolationsState.get();
+  return {
+    hasConstraintRegistry: true,
+    violationCount: finiteViolationCount(state.constraints.summarise(lastViolations)),
+    hasReference: Boolean(previewConfig.has_reference),
+  };
+}
+
+function normalizeCompatibleEngines(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.map((entry) => String(entry || '').trim()).filter(Boolean)
+    : [];
+}
+
 function createLegacyPreviewResizeHandleRenderer(
   previewWindow: PreviewGridEditorLegacyWindow,
 ): PreviewGridEditorRuntimeBrowserOptions['renderResizeHandles'] {
@@ -540,6 +590,27 @@ export function createPreviewGridEditorInstallOptionsFromLegacyEditorHost(
 ): CreatePreviewGridEditorInstallUnitFromEditorHostOptions {
   const boxStyles = resolveLegacyPreviewBoxStyles(options.previewWindow);
   const previewConfig = options.previewWindow.__DG_CONFIG ?? {};
+  const syncPanelVisibility = (selection: PreviewUiSelectionContext) => {
+    const shellMode = previewConfig.shell_mode || 'grid';
+    const layoutEngine = previewConfig.layout_engine || options.config.engine || previewConfig.engine || null;
+    const activeEngine = resolvePreviewEngine({
+      layoutEngine,
+      shellMode,
+      previewDocumentKind: 'frame-diagram',
+    }) ?? null;
+    syncPreviewPanelVisibilityFromContext({
+      document: options.document,
+      context: {
+        shellMode,
+        documentKind: 'frame-diagram',
+        activeEngine,
+        compatibleEngines: normalizeCompatibleEngines(previewConfig.compatible_engines),
+        persistedLayoutEngine: layoutEngine,
+        selection,
+        documentState: resolvePreviewDocumentStateForPanelSync(options.state, previewConfig),
+      },
+    });
+  };
 
   return {
     shared: {
@@ -626,6 +697,7 @@ export function createPreviewGridEditorInstallOptionsFromLegacyEditorHost(
         styleName,
         mixed,
       }),
+      syncPanelVisibility,
       snapToGrid: options.config.snapToGrid,
       alert: (message) => options.previewWindow.alert(message),
       normalizeStyleName: normalizePreviewStyleName,

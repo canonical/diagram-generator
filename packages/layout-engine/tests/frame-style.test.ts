@@ -74,12 +74,6 @@ describe('preview-shell frame style helpers', () => {
         renderedFill: '#f3f3f3',
         renderedStroke: '#111111',
       },
-      {
-        componentType: 'arrow',
-        node: {
-          data: {},
-        },
-      },
     ]);
 
     expect(result).toEqual({
@@ -91,6 +85,48 @@ describe('preview-shell frame style helpers', () => {
     });
     expect(isPreviewStyleableComponentType('terminal')).toBe(true);
     expect(isPreviewStyleableComponentType('arrow')).toBe(false);
+  });
+
+  it('hides multi-selection style state when any actionable item lacks style support', () => {
+    expect(resolveMultiSelectionPreviewStyleState([
+      {
+        componentType: 'box',
+        node: {
+          level: 1,
+          fill: 'WHITE',
+          border: 'SOLID',
+          data: {},
+        },
+      },
+      {
+        componentType: 'arrow',
+        node: {
+          data: {},
+        },
+      },
+    ])).toBeNull();
+
+    expect(resolveMultiSelectionPreviewStyleState([
+      {
+        componentType: 'box',
+        node: {
+          level: 1,
+          fill: 'WHITE',
+          border: 'SOLID',
+          data: {},
+        },
+      },
+      {
+        componentType: 'box',
+        node: {
+          children: [{}],
+          data: {
+            fill: 'WHITE',
+            border: 'NONE',
+          },
+        },
+      },
+    ])).toBeNull();
   });
 
   it('applies visible style overrides while rejecting non-empty styles on structural wrappers', () => {
@@ -183,16 +219,16 @@ describe('preview-shell frame style helpers', () => {
     };
 
     expect(resolvePreviewBoxStyleLabel(boxStyles, 'parent')).toBe('Parent');
-    expect(resolvePreviewBoxStyleLabel(boxStyles, 'missing')).toBe('As defined');
+    expect(resolvePreviewBoxStyleLabel(boxStyles, 'missing')).toBe('Unknown variant');
     expect(formatPreviewDefinedStyleLabel({
       boxStyles,
       styleName: 'parent',
-    })).toBe('— as defined (Parent) —');
+    })).toBe('Parent');
     expect(formatPreviewDefinedStyleLabel({
       boxStyles,
       styleName: 'default',
       mixed: true,
-    })).toBe('— as defined (mixed) —');
+    })).toBe('Mixed variants');
   });
 
   it('renders box-style option html from typed style presets', () => {
@@ -204,11 +240,15 @@ describe('preview-shell frame style helpers', () => {
     expect(renderPreviewBoxStyleOptions({
       boxStyles,
       selectedValue: 'highlight',
-      originalLabel: '— as defined (Child) —',
+      originalLabel: 'Child',
     })).toBe(
-      '<option value="">— as defined (Child) —</option>'
+      '<option value="">Child</option>'
       + '<option value="default">Child</option>'
       + '<option value="highlight" selected>Highlight</option>',
     );
+    expect(renderPreviewBoxStyleOptions({
+      boxStyles,
+      selectedValue: '',
+    })).toContain('Authored variant');
   });
 });

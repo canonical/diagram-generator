@@ -11,6 +11,8 @@ describe('multi-selection inspector panel renderer', () => {
       hasUnsupported: false,
     });
 
+    expect(html).toContain('data-dg-panel-group="selection" data-dg-panel-id="multi-selection"');
+    expect(html).toContain('data-dg-panel-group="arrangement" data-dg-panel-id="multi-arrangement"');
     expect(html).toContain('3 components');
     expect(html).toContain('Stack spacing');
     expect(html).toContain('id="multi-action-gap"');
@@ -22,7 +24,7 @@ describe('multi-selection inspector panel renderer', () => {
     expect(html).not.toContain('oninput=');
   });
 
-  it('renders mixed align/container/sizing states and bulk style picker', () => {
+  it('renders mixed align/container/sizing states and read-only variant state', () => {
     const html = renderMultiSelectionInspectorPanel({
       selectedCount: 2,
       multiActionGap: 16,
@@ -58,6 +60,9 @@ describe('multi-selection inspector panel renderer', () => {
       styleOptionsHtml: '<option value="panel">Panel</option>',
     });
 
+    expect(html).toContain('data-dg-panel-group="layout" data-dg-panel-id="multi-layout"');
+    expect(html).toContain('data-dg-panel-group="sizing" data-dg-panel-id="multi-sizing"');
+    expect(html).toContain('data-dg-panel-group="appearance" data-dg-panel-id="multi-appearance"');
     expect(html).toContain('Distribute is limited to sibling components');
     expect(html).toContain('Arrow selections are ignored by these actions.');
     expect(html).toContain('<option value="" selected>Mixed</option>');
@@ -65,8 +70,10 @@ describe('multi-selection inspector panel renderer', () => {
     expect(html).toContain('Fixed (auto)');
     expect(html).toContain('<option value="cols" selected>cols</option>');
     expect(html).toContain('<option value="rows" selected>rows</option>');
-    expect(html).toContain('<option value="__mixed__" selected>Mixed</option>');
-    expect(html).toContain('<option value="panel">Panel</option>');
+    expect(html).toContain('Variant (2 boxes)');
+    expect(html).toContain('Mixed variants');
+    expect(html).not.toContain('data-dg-change-action="multi-style"');
+    expect(html).not.toContain('<option value="panel">Panel</option>');
   });
 
   it('renders horizontal wrap and fixed-height placeholder controls', () => {
@@ -95,6 +102,8 @@ describe('multi-selection inspector panel renderer', () => {
       showWidthColsOption: false,
     });
 
+    expect(html).toContain('data-dg-panel-group="layout" data-dg-panel-id="multi-layout"');
+    expect(html).toContain('data-dg-panel-group="sizing" data-dg-panel-id="multi-sizing"');
     expect(html).toContain('data-dg-change-action="multi-prop"');
     expect(html).toContain('data-dg-prop="wrap"');
     expect(html).toContain('type="checkbox" checked');

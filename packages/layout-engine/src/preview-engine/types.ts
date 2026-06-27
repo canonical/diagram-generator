@@ -5,10 +5,12 @@
  * `dist/preview-engine-manifest.json` via `/api/preview-engines` — no Python mirrors.
  */
 
+import type { GraphLayoutEngineDescriptor } from '@diagram-generator/graph-layout-core';
+
 export type PreviewShellMode = 'grid' | 'force' | (string & {});
 export type PreviewDocumentKind = 'frame-diagram' | 'sequence' | 'force-spec' | (string & {});
 export type PreviewPersistNamespace = string;
-export type PreviewViewerSidebarSection = 'elk-layout' | (string & {});
+export type PreviewViewerSidebarSection = 'elk-layout' | 'graph-layout' | (string & {});
 export type PreviewRenderFamily =
   | 'frame-native'
   | 'frame-elk'
@@ -86,9 +88,11 @@ export interface FrameDiagramCompatibilitySummary {
   /** ELK layered is only meaningful when the authored frame diagram has connectors. */
   arrowCount: number;
   /**
-   * Reserved hook for future native-ELK compatibility gaps that cannot be
-   * expressed through the current graph input model.
+   * Structural carriers that the current graph input cannot safely hand to a
+   * non-compound layout engine.
    */
+  unsupportedCarrierIds?: string[];
+  /** @deprecated Prefer `unsupportedCarrierIds`. */
   unsupportedElkCarrierIds: string[];
 }
 
@@ -111,6 +115,8 @@ export interface PreviewEngineManifest {
   hostView?: PreviewEngineHostView;
   capabilities: PreviewEngineCapabilities;
   controlSpecs: PreviewControlSpec[];
+  /** Graph layout descriptor behind factory-produced graph-layout engines. */
+  graphEngine?: GraphLayoutEngineDescriptor;
   /** Relative paths under `/preview/` loaded for this engine lane. */
   scripts: string[];
   apiRoutes?: PreviewEngineApiRoutes;

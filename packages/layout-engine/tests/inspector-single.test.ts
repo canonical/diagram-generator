@@ -21,6 +21,8 @@ describe('single-selection inspector helpers', () => {
     expect(viewModel.hasSizeOverride).toBe(true);
     expect(viewModel.hasAnyOverride).toBe(true);
     expect(viewModel.hasParentOverride).toBe(true);
+    expect(viewModel.selectionKind).toBe('frame-leaf');
+    expect(viewModel.showAlignmentControls).toBe(true);
     expect(viewModel.isAutolayoutChild).toBe(true);
     expect(viewModel.showStackSpacingHint).toBe(true);
     expect(viewModel.noteKind).toBe('reorder-child');
@@ -36,10 +38,66 @@ describe('single-selection inspector helpers', () => {
     });
 
     expect(viewModel.isArrowComponent).toBe(true);
+    expect(viewModel.selectionKind).toBe('arrow');
     expect(viewModel.hasWaypointOverride).toBe(true);
     expect(viewModel.hasAnyOverride).toBe(true);
     expect(viewModel.waypointCount).toBe(3);
+    expect(viewModel.showAlignmentControls).toBe(false);
     expect(viewModel.noteKind).toBe('move-resize');
+  });
+
+  it('classifies root, container, structural, and text-bearing frames', () => {
+    const root = createSingleSelectionInspectorViewModel({
+      ownDelta: { dx: 0, dy: 0, dw: 0, dh: 0 },
+      effectiveDelta: { dx: 0, dy: 0 },
+      isRoot: true,
+      childCount: 2,
+    });
+    const container = createSingleSelectionInspectorViewModel({
+      ownDelta: { dx: 0, dy: 0, dw: 0, dh: 0 },
+      effectiveDelta: { dx: 0, dy: 0 },
+      nodeLayout: 'horizontal',
+      childCount: 2,
+    });
+    const structural = createSingleSelectionInspectorViewModel({
+      ownDelta: { dx: 0, dy: 0, dw: 0, dh: 0 },
+      effectiveDelta: { dx: 0, dy: 0 },
+      isStructuralWrapper: true,
+      childCount: 1,
+    });
+    const text = createSingleSelectionInspectorViewModel({
+      ownDelta: { dx: 0, dy: 0, dw: 0, dh: 0 },
+      effectiveDelta: { dx: 0, dy: 0 },
+      hasTextContent: true,
+    });
+
+    expect(root.selectionKind).toBe('root');
+    expect(root.isRoot).toBe(true);
+    expect(root.isAutolayoutContainer).toBe(true);
+    expect(root.isContainerFrame).toBe(false);
+    expect(root.showAlignmentControls).toBe(true);
+    expect(container.selectionKind).toBe('container-frame');
+    expect(container.isContainerFrame).toBe(true);
+    expect(container.isAutolayoutContainer).toBe(true);
+    expect(container.showAlignmentControls).toBe(true);
+    expect(structural.selectionKind).toBe('structural-wrapper');
+    expect(structural.isStructuralWrapper).toBe(true);
+    expect(text.selectionKind).toBe('text-frame');
+    expect(text.hasTextContent).toBe(true);
+    expect(text.showAlignmentControls).toBe(true);
+  });
+
+  it('keeps non-autolayout root selections protected from frame layout controls', () => {
+    const viewModel = createSingleSelectionInspectorViewModel({
+      ownDelta: { dx: 0, dy: 0, dw: 0, dh: 0 },
+      effectiveDelta: { dx: 0, dy: 0 },
+      isRoot: true,
+      childCount: 0,
+    });
+
+    expect(viewModel.selectionKind).toBe('root');
+    expect(viewModel.isAutolayoutContainer).toBe(false);
+    expect(viewModel.showAlignmentControls).toBe(false);
   });
 
   it('resolves container autolayout state and fixed/fill inspector branches', () => {
@@ -65,7 +123,6 @@ describe('single-selection inspector helpers', () => {
     expect(state.automaticGap).toBe(16);
     expect(state.effectiveGap).toBe(24);
     expect(state.showGapDeltaControls).toBe(true);
-    expect(state.showWidthFillWeight).toBe(true);
     expect(state.showWidthMinMax).toBe(true);
     expect(state.showHeightFixedInput).toBe(true);
     expect(state.showHeightMinMax).toBe(true);

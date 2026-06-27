@@ -146,4 +146,4 @@ root:
         - VRAM
         icon: Memory.svg
 meta:
-  layout_engine: elk-layered
+  layout_engine: v3

@@ -30,7 +30,7 @@ describe('preview inspector host helpers', () => {
     })).toContain('not found');
   });
 
-  it('renders a single-selection panel with autolayout and style controls', () => {
+  it('renders a single-selection panel with autolayout and read-only variant display', () => {
     const html = renderPreviewSingleSelectionInspector({
       cid: 'frame-1',
       node: {
@@ -63,8 +63,68 @@ describe('preview inspector host helpers', () => {
 
     expect(html).toContain('data-dg-click-action="single-align"');
     expect(html).toContain('Sizing');
-    expect(html).toContain('data-dg-change-action="single-style"');
-    expect(html).toContain('highlight|parent');
+    expect(html).toContain('<span class="label">Variant</span>');
+    expect(html).toContain('Highlight');
+    expect(html).not.toContain('data-dg-change-action="single-style"');
+    expect(html).not.toContain('highlight|parent');
+  });
+
+  it('renders single-arrow details without frame layout, sizing, style, or drag notes', () => {
+    const html = renderPreviewSingleSelectionInspector({
+      cid: 'arrow-1',
+      node: {
+        data: {
+          id: 'arrow-1',
+          width: 0,
+          height: 0,
+        },
+        parent: null,
+      },
+      arrowNode: {
+        waypoints: [{ x: 10, y: 20 }, { x: 30, y: 40 }],
+      },
+      override: {
+        waypoints: [[10, 20], [30, 40]],
+      },
+      ownDelta: { dx: 16, dy: 8, dw: 12, dh: 4 },
+      effectiveDelta: { dx: 16, dy: 8 },
+      componentType: 'arrow',
+      renderStyleOptions: () => '<option>unexpected</option>',
+    });
+
+    expect(html).toContain('data-dg-panel-id="single-arrow"');
+    expect(html).toContain('2 (overridden)');
+    expect(html).not.toContain('data-dg-panel-id="single-layout"');
+    expect(html).not.toContain('data-dg-panel-id="single-autolayout-sizing"');
+    expect(html).not.toContain('data-dg-change-action="single-style"');
+    expect(html).not.toContain('Drag to move');
+    expect(html).not.toContain('dx=16');
+  });
+
+  it('renders root autolayout alignment without parent-position controls', () => {
+    const html = renderPreviewSingleSelectionInspector({
+      cid: 'root',
+      node: {
+        id: 'root',
+        data: {
+          id: 'root',
+        },
+        children: [{}],
+        parent: null,
+      },
+      ownDelta: { dx: 8, dy: 8, dw: 0, dh: 0 },
+      effectiveDelta: { dx: 8, dy: 8 },
+      componentType: 'panel',
+      renderStyleOptions: () => '<option>unexpected</option>',
+    });
+
+    expect(html).not.toContain('data-dg-panel-id="single-selection"');
+    expect(html).toContain('data-dg-panel-id="single-layout"');
+    expect(html).toContain('data-dg-click-action="single-align"');
+    expect(html).toContain('data-dg-panel-id="single-autolayout-layout"');
+    expect(html).not.toContain('data-dg-panel-id="single-position"');
+    expect(html).not.toContain('data-dg-panel-id="single-autolayout-position"');
+    expect(html).not.toContain('Drag to move');
   });
 
   it('renders host markup into the provided inspector container', () => {
@@ -96,7 +156,9 @@ describe('preview inspector host helpers', () => {
       },
       renderStyleOptions: () => '<option>styled</option>',
     })).toBe(true);
-    expect(inspector.innerHTML).toContain('data-dg-change-action="single-style"');
+    expect(inspector.innerHTML).toContain('Variant');
+    expect(inspector.innerHTML).toContain('Highlight');
+    expect(inspector.innerHTML).not.toContain('data-dg-change-action="single-style"');
   });
 
   it('renders the multi-selection host panel and returns the inferred gap', () => {
@@ -136,7 +198,42 @@ describe('preview inspector host helpers', () => {
       inferredGap: 40,
     });
     expect(inspector.innerHTML).toContain('Selection');
-    expect(inspector.innerHTML).toContain('highlight');
+    expect(inspector.innerHTML).toContain('Highlight');
+  });
+
+  it('renders mixed unsupported multi-selection as a compact summary without bulk controls', () => {
+    const inspector = { innerHTML: '' };
+    const result = renderPreviewMultiSelectionInspectorHost({
+      inspector,
+      selectedCount: 2,
+      info: {
+        items: [
+          { id: 'alpha', parentId: 'root', x: 0, y: 0, width: 80, height: 40 },
+        ],
+        hasUnsupported: true,
+        sameParent: true,
+        parentId: 'root',
+      },
+      parentLayout: null,
+      fallbackGap: 24,
+      snapStep: 8,
+      items: [
+        { id: 'alpha', node: { layout: null, data: { width: 80, height: 40 } }, override: {} },
+      ],
+      styleState: {
+        count: 1,
+        mixed: false,
+        style: 'highlight',
+      },
+      styleOptionsHtml: '<option>highlight</option>',
+    });
+
+    expect(result.kind).toBe('rendered');
+    expect(inspector.innerHTML).toContain('2 components');
+    expect(inspector.innerHTML).toContain('Arrow selections are ignored by these actions.');
+    expect(inspector.innerHTML).not.toContain('data-dg-panel-id="multi-arrangement"');
+    expect(inspector.innerHTML).not.toContain('data-dg-panel-id="multi-sizing"');
+    expect(inspector.innerHTML).not.toContain('data-dg-panel-id="multi-appearance"');
   });
 
   it('routes selection inspector rendering to empty, single, or multi owners', () => {
@@ -249,7 +346,8 @@ describe('preview inspector host helpers', () => {
       kind: 'rendered',
       inferredGap: 40,
     });
-    expect(inspector.innerHTML).toContain('highlight|parent');
+    expect(inspector.innerHTML).toContain('Highlight');
+    expect(inspector.innerHTML).not.toContain('highlight|parent');
   });
 
   it('builds single-selection runtime state through the inspector host wrapper', () => {
@@ -301,6 +399,8 @@ describe('preview inspector host helpers', () => {
         return '<option>styled</option>';
       },
     })).toBe(true);
-    expect(inspector.innerHTML).toContain('data-dg-change-action="single-style"');
+    expect(inspector.innerHTML).toContain('Variant');
+    expect(inspector.innerHTML).toContain('Highlight');
+    expect(inspector.innerHTML).not.toContain('data-dg-change-action="single-style"');
   });
 });

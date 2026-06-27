@@ -38,6 +38,7 @@ import {
   type PreviewWaypointNode,
   type PreviewWaypointOverrideEntry,
 } from './app-scene-host.js';
+import type { PreviewDocumentActionStateSource } from './app-shell-panels.js';
 
 export interface PreviewEditorSceneRefreshCallbacks {
   buildTreeUi?: (() => void) | null;
@@ -98,6 +99,7 @@ export interface PreviewEditorSceneOverrideSummaryOptions {
   document: Pick<PreviewSceneHostDocumentLike, 'getElementById'>;
   getOverrideCount: () => number;
   formatSummary: (count: number) => string;
+  documentActions?: (() => Omit<PreviewDocumentActionStateSource, 'frameOverrideCount'>) | null;
 }
 
 export interface PreviewEditorSceneTreeOverrideStateOptions {
@@ -122,6 +124,10 @@ export interface PreviewEditorSceneConstraintOptions<
   syncConstraintStatus: (
     element: PreviewSceneHostTextElementLike,
     summary: TSummary,
+    options?: {
+      violations?: unknown;
+      selectedIds?: Iterable<string> | null;
+    },
   ) => void;
 }
 
@@ -402,6 +408,7 @@ export function createPreviewEditorSceneFacadeFromEditorHost<
         document: options.overrideSummary.document,
         overrideCount: options.overrideSummary.getOverrideCount(),
         formatSummary: options.overrideSummary.formatSummary,
+        documentActions: options.overrideSummary.documentActions?.() ?? null,
       });
     },
     refreshTreeColors() {
@@ -418,6 +425,7 @@ export function createPreviewEditorSceneFacadeFromEditorHost<
         validateConstraints: options.constraints.validateConstraints,
         summarizeViolations: options.constraints.summarizeViolations,
         setLastViolations: options.constraints.setLastViolations,
+        selectedIds: options.overrideApplication.getSelectedIds(),
         syncSaveButton: options.constraints.syncSaveButton,
         syncConstraintStatus: options.constraints.syncConstraintStatus,
       });

@@ -1,7 +1,13 @@
 import {
-  layoutElkFrameDiagram,
+  layoutGraphFrameDiagram,
   type ElkLayoutOptions,
 } from '../elk-layout.js';
+import {
+  layoutElkAlgorithm,
+  layoutForce,
+  type ElkPreviewAlgorithm,
+} from '@diagram-generator/graph-layout-elk';
+import { layoutDagre } from '@diagram-generator/graph-layout-dagre';
 import type { FrameDiagram } from '../frame-model.js';
 import { layoutFrameTree } from '../layout.js';
 import { resolveStyles } from '../resolve-styles.js';
@@ -31,9 +37,81 @@ export const nativeFrameDiagramRenderAdapter: PreviewFrameDiagramRenderAdapter =
 };
 
 export const elkFrameDiagramRenderAdapter: PreviewFrameDiagramRenderAdapter = async (options) => {
-  return layoutElkFrameDiagram(options.diagram, options.textAdapter, {
+  return layoutGraphFrameDiagram(options.diagram, options.textAdapter, {
     diagramType: options.diagram.diagramType as ElkLayoutOptions['diagramType'],
     elkOptionOverrides: options.elkOptionOverrides,
+  });
+};
+
+export const elkForceFrameDiagramRenderAdapter: PreviewFrameDiagramRenderAdapter = async (options) => {
+  return layoutGraphFrameDiagram(options.diagram, options.textAdapter, {
+    diagramType: options.diagram.diagramType as ElkLayoutOptions['diagramType'],
+    elkOptionOverrides: options.elkOptionOverrides,
+    graphLayout: ({ input, direction, optionOverrides }) => layoutForce(
+      {
+        ...input,
+        direction,
+        spacingProfile: 'normal',
+      },
+      { optionOverrides },
+    ),
+  });
+};
+
+function createElkAlgorithmFrameDiagramRenderAdapter(
+  algorithm: ElkPreviewAlgorithm,
+  engineId: string,
+): PreviewFrameDiagramRenderAdapter {
+  return async (options) => layoutGraphFrameDiagram(options.diagram, options.textAdapter, {
+    diagramType: options.diagram.diagramType as ElkLayoutOptions['diagramType'],
+    elkOptionOverrides: options.elkOptionOverrides,
+    graphLayout: ({ input, direction, optionOverrides }) => layoutElkAlgorithm(
+      {
+        ...input,
+        direction,
+        spacingProfile: 'normal',
+      },
+      { algorithm, engineId, optionOverrides },
+    ),
+  });
+}
+
+export const elkStressFrameDiagramRenderAdapter = createElkAlgorithmFrameDiagramRenderAdapter(
+  'stress',
+  'elk-stress',
+);
+
+export const elkMrTreeFrameDiagramRenderAdapter = createElkAlgorithmFrameDiagramRenderAdapter(
+  'mrtree',
+  'elk-mrtree',
+);
+
+export const elkRadialFrameDiagramRenderAdapter = createElkAlgorithmFrameDiagramRenderAdapter(
+  'radial',
+  'elk-radial',
+);
+
+export const elkRectpackingFrameDiagramRenderAdapter = createElkAlgorithmFrameDiagramRenderAdapter(
+  'rectpacking',
+  'elk-rectpacking',
+);
+
+export const dagreFrameDiagramRenderAdapter: PreviewFrameDiagramRenderAdapter = async (options) => {
+  const dagreOptionOverrides = {
+    ...(options.diagram.engineLayout?.['meta.dagre'] ?? {}),
+    ...(options.elkOptionOverrides ?? {}),
+  };
+  return layoutGraphFrameDiagram(options.diagram, options.textAdapter, {
+    diagramType: options.diagram.diagramType as ElkLayoutOptions['diagramType'],
+    graphOptionOverrides: dagreOptionOverrides,
+    graphLayout: async ({ input, direction, optionOverrides }) => layoutDagre(
+      {
+        ...input,
+        direction,
+        spacingProfile: 'normal',
+      },
+      { optionOverrides },
+    ),
   });
 };
 
@@ -43,6 +121,10 @@ export function installNativeFramePreviewRenderAdapter(): () => void {
 
 export function installElkFramePreviewRenderAdapter(): () => void {
   return registerPreviewFrameDiagramRenderAdapter('frame-elk', elkFrameDiagramRenderAdapter);
+}
+
+export function installElkForceFramePreviewRenderAdapter(): () => void {
+  return registerPreviewFrameDiagramRenderAdapter('frame-elk-force', elkForceFrameDiagramRenderAdapter);
 }
 
 export const sequencePreviewDocumentSvgRenderer: PreviewDocumentSvgRenderer = async (document) => {

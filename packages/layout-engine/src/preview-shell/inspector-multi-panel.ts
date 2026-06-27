@@ -3,7 +3,11 @@ import type {
   MultiSelectionContainerState,
   MultiSelectionSizingState,
 } from './inspector-multi.js';
-import { renderPreviewDataAttrs } from './inline-actions.js';
+import {
+  escapePreviewHtml,
+  renderPreviewDataAttrs,
+  renderPreviewPanelGroup,
+} from './inline-actions.js';
 
 /**
  * Multi-selection inspector renderer (spec 043 slice L).
@@ -46,6 +50,7 @@ export interface MultiSelectionInspectorPanelRenderOptions {
   selectedCount: number;
   multiActionGap: number;
   showStackSpacingHint: boolean;
+  showDistributeControls?: boolean;
   showAlignOnlyHint: boolean;
   hasUnsupported: boolean;
   alignState?: MultiSelectionAlignState | null;
@@ -85,15 +90,23 @@ function renderAlignActionGrid(): string {
     + '</div>';
 }
 
-export function renderMultiSelectionInspectorPanel(
+function renderMultiSelectionSummaryGroup(
   options: MultiSelectionInspectorPanelRenderOptions,
 ): string {
-  const widthUnit = options.widthUnit === 'cols' ? 'cols' : 'px';
-  const heightUnit = options.heightUnit === 'rows' ? 'rows' : 'px';
   let html = '<div class="field"><span class="label">Selection</span><br>'
     + `<span class="value">${options.selectedCount} components</span></div>`;
   html += '<div class="hint">Shift+click adds to the selection. Drag still moves the group together.</div>';
+  if (options.hasUnsupported) {
+    html += '<div class="field"><div class="hint">Arrow selections are ignored by these actions.</div></div>';
+  }
 
+  return renderPreviewPanelGroup('selection', 'multi-selection', html);
+}
+
+function renderMultiSelectionArrangementGroup(
+  options: MultiSelectionInspectorPanelRenderOptions,
+): string {
+  let html = '';
   if (options.showStackSpacingHint) {
     html += '<div class="dg-autolayout-section" style="margin-top:8px">';
     html += '<span class="label" style="margin-bottom:4px;display:block">Stack spacing</span>';
@@ -101,12 +114,13 @@ export function renderMultiSelectionInspectorPanel(
     html += '</div>';
   }
 
+  const showDistributeControls = options.showDistributeControls ?? !options.showAlignOnlyHint;
   if (options.showAlignOnlyHint) {
     html += '<div class="field" style="margin-top:8px"><span class="label">Actions</span><br>';
     html += '<div class="hint">Distribute is limited to sibling components under the same parent. Align still works across the current selection.</div>';
     html += renderAlignActionGrid();
     html += '</div>';
-  } else {
+  } else if (showDistributeControls) {
     html += '<div class="field" style="margin-top:8px"><span class="label">Distribute</span>';
     html += '<div class="multi-action-row">';
     html += '<span class="value">Gap</span>';
@@ -128,10 +142,6 @@ export function renderMultiSelectionInspectorPanel(
     html += '</div></div>';
   }
 
-  if (options.hasUnsupported) {
-    html += '<div class="field"><div class="hint">Arrow selections are ignored by these actions.</div></div>';
-  }
-
   if (options.alignState) {
     html += '<div class="field"><span class="label">Alignment</span>';
     html += '<div class="dg-align-field">';
@@ -143,9 +153,17 @@ export function renderMultiSelectionInspectorPanel(
     html += '</div></div>';
   }
 
+  if (html) {
+    html += '<p class="dg-selection-note">All actions snap to the 8px baseline and remain undoable.</p>';
+  }
+  return renderPreviewPanelGroup('arrangement', 'multi-arrangement', html);
+}
+
+function renderMultiSelectionLayoutGroup(
+  options: MultiSelectionInspectorPanelRenderOptions,
+): string {
   if (options.containerState) {
-    html += '<div class="dg-autolayout-section" style="margin-top:8px">';
-    html += `<span class="label" style="margin-bottom:4px;display:block">Auto-layout (${options.containerState.containerCount} containers)</span>`;
+    let html = `<span class="label" style="margin-bottom:4px;display:block">Auto-layout (${options.containerState.containerCount} containers)</span>`;
     html += '<div class="field"><span class="label">Direction</span>';
     html += `<select class="bf-input"${renderPreviewDataAttrs({
       'data-dg-change-action': 'multi-prop',
@@ -167,128 +185,149 @@ export function renderMultiSelectionInspectorPanel(
       html += '</div>';
     }
     html += '<div class="hint">Padding now derives from frame defaults: 8px for non-root frames, with annotation side padding collapsed to 0.</div>';
-    html += '</div>';
+    return renderPreviewPanelGroup('layout', 'multi-layout', html, {
+      className: 'dg-autolayout-section',
+    });
   }
 
-  if (options.sizingState) {
-    html += '<div class="dg-autolayout-section" style="margin-top:8px">';
-    html += '<span class="label" style="margin-bottom:4px;display:block">Sizing</span>';
-    html += '<div class="field"><span class="label">Width</span>';
-    html += `<select class="bf-input${options.sizingState.wCoerced ? ' dg-coerced' : ''}"${renderPreviewDataAttrs({
-      'data-dg-change-action': 'multi-prop',
-      'data-dg-prop': 'sizing_w',
+  return '';
+}
+
+function renderMultiSelectionSizingGroup(
+  options: MultiSelectionInspectorPanelRenderOptions,
+): string {
+  if (!options.sizingState) {
+    return '';
+  }
+
+  const widthUnit = options.widthUnit === 'cols' ? 'cols' : 'px';
+  const heightUnit = options.heightUnit === 'rows' ? 'rows' : 'px';
+  let html = '<span class="label" style="margin-bottom:4px;display:block">Sizing</span>';
+  html += '<div class="field"><span class="label">Width</span>';
+  html += `<select class="bf-input${options.sizingState.wCoerced ? ' dg-coerced' : ''}"${renderPreviewDataAttrs({
+    'data-dg-change-action': 'multi-prop',
+    'data-dg-prop': 'sizing_w',
+  })}>`;
+  if (options.sizingState.wMixed) {
+    html += '<option value="" selected>Mixed</option>';
+  }
+  html += `<option value="HUG"${options.sizingState.sizingW === 'HUG' ? ' selected' : ''}>Hug</option>`;
+  html += `<option value="FILL"${options.sizingState.sizingW === 'FILL' ? ' selected' : ''}>Fill</option>`;
+  html += `<option value="FIXED"${options.sizingState.sizingW === 'FIXED' ? ' selected' : ''}>${options.sizingState.wCoerced ? 'Fixed (auto)' : 'Fixed'}</option>`;
+  html += '</select>';
+  if (options.sizingState.sizingW === 'FIXED' && !options.sizingState.wMixed) {
+    html += `<input class="bf-input" type="number" min="0" step="${widthUnit === 'cols' ? 1 : 8}" value="" placeholder="${widthUnit}" style="width:60px;margin-left:4px"${renderPreviewDataAttrs({
+      'data-dg-change-action': 'multi-size',
+      'data-dg-dimension': 'width',
+      'data-dg-value-type': 'float',
+      'data-dg-enter-commit': '1',
     })}>`;
-    if (options.sizingState.wMixed) {
-      html += '<option value="" selected>Mixed</option>';
+    html += `<select class="bf-input" style="width:50px;margin-left:2px"${renderPreviewDataAttrs({
+      'data-dg-change-action': 'multi-width-unit',
+    })}>`;
+    html += `<option value="px"${widthUnit === 'px' ? ' selected' : ''}>px</option>`;
+    if (options.showWidthColsOption) {
+      html += `<option value="cols"${widthUnit === 'cols' ? ' selected' : ''}>cols</option>`;
     }
-    html += `<option value="HUG"${options.sizingState.sizingW === 'HUG' ? ' selected' : ''}>Hug</option>`;
-    html += `<option value="FILL"${options.sizingState.sizingW === 'FILL' ? ' selected' : ''}>Fill</option>`;
-    html += `<option value="FIXED"${options.sizingState.sizingW === 'FIXED' ? ' selected' : ''}>${options.sizingState.wCoerced ? 'Fixed (auto)' : 'Fixed'}</option>`;
     html += '</select>';
-    if (options.sizingState.sizingW === 'FIXED' && !options.sizingState.wMixed) {
-      html += `<input class="bf-input" type="number" min="0" step="${widthUnit === 'cols' ? 1 : 8}" value="" placeholder="${widthUnit}" style="width:60px;margin-left:4px"${renderPreviewDataAttrs({
-        'data-dg-change-action': 'multi-size',
-        'data-dg-dimension': 'width',
-        'data-dg-value-type': 'float',
-        'data-dg-enter-commit': '1',
-      })}>`;
-      html += `<select class="bf-input" style="width:50px;margin-left:2px"${renderPreviewDataAttrs({
-        'data-dg-change-action': 'multi-width-unit',
-      })}>`;
-      html += `<option value="px"${widthUnit === 'px' ? ' selected' : ''}>px</option>`;
-      if (options.showWidthColsOption) {
-        html += `<option value="cols"${widthUnit === 'cols' ? ' selected' : ''}>cols</option>`;
-      }
-      html += '</select>';
-    }
-    html += '</div>';
+  }
+  html += '</div>';
 
-    if (options.sizingState.sizingW === 'FILL' || options.sizingState.sizingW === 'FIXED') {
-      html += '<div class="field dg-constraint-row"><span class="label">Min W</span>';
-      html += `<input class="bf-input" type="number" min="0" step="8" value="" placeholder="—" style="width:52px"${renderPreviewDataAttrs({
-        'data-dg-change-action': 'multi-prop',
-        'data-dg-prop': 'min_width',
-        'data-dg-enter-commit': '1',
-      })}>`;
-      html += '<span class="label" style="margin-left:4px">Max W</span>';
-      html += `<input class="bf-input" type="number" min="0" step="8" value="" placeholder="—" style="width:52px"${renderPreviewDataAttrs({
-        'data-dg-change-action': 'multi-prop',
-        'data-dg-prop': 'max_width',
-        'data-dg-enter-commit': '1',
-      })}>`;
-      html += '</div>';
-    }
-
-    if (options.sizingState.sizingW === 'FILL') {
-      html += '<div class="field"><span class="label">Weight</span>';
-      html += `<input class="bf-input" type="number" min="0" step="0.5" value="" placeholder="—" style="width:52px"${renderPreviewDataAttrs({
-        'data-dg-change-action': 'multi-prop',
-        'data-dg-prop': 'fill_weight',
-        'data-dg-value-type': 'float',
-        'data-dg-enter-commit': '1',
-      })}>`;
-      html += '</div>';
-    }
-
-    html += '<div class="field"><span class="label">Height</span>';
-    html += `<select class="bf-input${options.sizingState.hCoerced ? ' dg-coerced' : ''}"${renderPreviewDataAttrs({
+  if (options.sizingState.sizingW === 'FILL' || options.sizingState.sizingW === 'FIXED') {
+    html += '<div class="field dg-constraint-row"><span class="label">Min W</span>';
+    html += `<input class="bf-input" type="number" min="0" step="8" value="" placeholder="—" style="width:52px"${renderPreviewDataAttrs({
       'data-dg-change-action': 'multi-prop',
-      'data-dg-prop': 'sizing_h',
+      'data-dg-prop': 'min_width',
+      'data-dg-enter-commit': '1',
     })}>`;
-    if (options.sizingState.hMixed) {
-      html += '<option value="" selected>Mixed</option>';
-    }
-    html += `<option value="HUG"${options.sizingState.sizingH === 'HUG' ? ' selected' : ''}>Hug</option>`;
-    html += `<option value="FILL"${options.sizingState.sizingH === 'FILL' ? ' selected' : ''}>Fill</option>`;
-    html += `<option value="FIXED"${options.sizingState.sizingH === 'FIXED' ? ' selected' : ''}>${options.sizingState.hCoerced ? 'Fixed (auto)' : 'Fixed'}</option>`;
+    html += '<span class="label" style="margin-left:4px">Max W</span>';
+    html += `<input class="bf-input" type="number" min="0" step="8" value="" placeholder="—" style="width:52px"${renderPreviewDataAttrs({
+      'data-dg-change-action': 'multi-prop',
+      'data-dg-prop': 'max_width',
+      'data-dg-enter-commit': '1',
+    })}>`;
+    html += '</div>';
+  }
+
+  html += '<div class="field"><span class="label">Height</span>';
+  html += `<select class="bf-input${options.sizingState.hCoerced ? ' dg-coerced' : ''}"${renderPreviewDataAttrs({
+    'data-dg-change-action': 'multi-prop',
+    'data-dg-prop': 'sizing_h',
+  })}>`;
+  if (options.sizingState.hMixed) {
+    html += '<option value="" selected>Mixed</option>';
+  }
+  html += `<option value="HUG"${options.sizingState.sizingH === 'HUG' ? ' selected' : ''}>Hug</option>`;
+  html += `<option value="FILL"${options.sizingState.sizingH === 'FILL' ? ' selected' : ''}>Fill</option>`;
+  html += `<option value="FIXED"${options.sizingState.sizingH === 'FIXED' ? ' selected' : ''}>${options.sizingState.hCoerced ? 'Fixed (auto)' : 'Fixed'}</option>`;
+  html += '</select>';
+  if (options.sizingState.sizingH === 'FIXED' && !options.sizingState.hMixed) {
+    html += `<input class="bf-input" type="number" min="0" step="${heightUnit === 'rows' ? 1 : 8}" value="" placeholder="${heightUnit}" style="width:60px;margin-left:4px"${renderPreviewDataAttrs({
+      'data-dg-change-action': 'multi-size',
+      'data-dg-dimension': 'height',
+      'data-dg-value-type': 'float',
+      'data-dg-enter-commit': '1',
+    })}>`;
+    html += `<select class="bf-input" style="width:50px;margin-left:2px"${renderPreviewDataAttrs({
+      'data-dg-change-action': 'multi-height-unit',
+    })}>`;
+    html += `<option value="px"${heightUnit === 'px' ? ' selected' : ''}>px</option>`;
+    html += `<option value="rows"${heightUnit === 'rows' ? ' selected' : ''}>rows</option>`;
     html += '</select>';
-    if (options.sizingState.sizingH === 'FIXED' && !options.sizingState.hMixed) {
-      html += `<input class="bf-input" type="number" min="0" step="${heightUnit === 'rows' ? 1 : 8}" value="" placeholder="${heightUnit}" style="width:60px;margin-left:4px"${renderPreviewDataAttrs({
-        'data-dg-change-action': 'multi-size',
-        'data-dg-dimension': 'height',
-        'data-dg-value-type': 'float',
-        'data-dg-enter-commit': '1',
-      })}>`;
-      html += `<select class="bf-input" style="width:50px;margin-left:2px"${renderPreviewDataAttrs({
-        'data-dg-change-action': 'multi-height-unit',
-      })}>`;
-      html += `<option value="px"${heightUnit === 'px' ? ' selected' : ''}>px</option>`;
-      html += `<option value="rows"${heightUnit === 'rows' ? ' selected' : ''}>rows</option>`;
-      html += '</select>';
-    }
-    html += '</div>';
-
-    if (options.sizingState.sizingH === 'FILL' || options.sizingState.sizingH === 'FIXED') {
-      html += '<div class="field dg-constraint-row"><span class="label">Min H</span>';
-      html += `<input class="bf-input" type="number" min="0" step="8" value="" placeholder="—" style="width:52px"${renderPreviewDataAttrs({
-        'data-dg-change-action': 'multi-prop',
-        'data-dg-prop': 'min_height',
-        'data-dg-enter-commit': '1',
-      })}>`;
-      html += '<span class="label" style="margin-left:4px">Max H</span>';
-      html += `<input class="bf-input" type="number" min="0" step="8" value="" placeholder="—" style="width:52px"${renderPreviewDataAttrs({
-        'data-dg-change-action': 'multi-prop',
-        'data-dg-prop': 'max_height',
-        'data-dg-enter-commit': '1',
-      })}>`;
-      html += '</div>';
-    }
-
-    html += '</div>';
   }
+  html += '</div>';
 
-  if (options.styleState) {
-    html += `<div class="field" style="margin-top:6px"><span class="label">Style (${options.styleState.count} boxes)</span><br>`;
-    html += `<select class="style-picker bf-input"${renderPreviewDataAttrs({
-      'data-dg-change-action': 'multi-style',
+  if (options.sizingState.sizingH === 'FILL' || options.sizingState.sizingH === 'FIXED') {
+    html += '<div class="field dg-constraint-row"><span class="label">Min H</span>';
+    html += `<input class="bf-input" type="number" min="0" step="8" value="" placeholder="—" style="width:52px"${renderPreviewDataAttrs({
+      'data-dg-change-action': 'multi-prop',
+      'data-dg-prop': 'min_height',
+      'data-dg-enter-commit': '1',
     })}>`;
-    if (options.styleState.mixed) {
-      html += '<option value="__mixed__" selected>Mixed</option>';
-    }
-    html += options.styleOptionsHtml || '';
-    html += '</select></div>';
+    html += '<span class="label" style="margin-left:4px">Max H</span>';
+    html += `<input class="bf-input" type="number" min="0" step="8" value="" placeholder="—" style="width:52px"${renderPreviewDataAttrs({
+      'data-dg-change-action': 'multi-prop',
+      'data-dg-prop': 'max_height',
+      'data-dg-enter-commit': '1',
+    })}>`;
+    html += '</div>';
   }
 
-  html += '<p class="dg-selection-note">All actions snap to the 8px baseline and remain undoable.</p>';
-  return html;
+  return renderPreviewPanelGroup('sizing', 'multi-sizing', html, {
+    className: 'dg-autolayout-section',
+  });
+}
+
+function renderMultiSelectionAppearanceGroup(
+  options: MultiSelectionInspectorPanelRenderOptions,
+): string {
+  if (!options.styleState) {
+    return '';
+  }
+
+  const styleLabel = options.styleState.mixed
+    ? 'Mixed variants'
+    : (
+      {
+        default: 'Child',
+        parent: 'Parent',
+        section: 'Section',
+        highlight: 'Highlight',
+        annotation: 'Annotation',
+      }[options.styleState.style] ?? (options.styleState.style || 'Unknown variant')
+    );
+  let html = `<div class="field" style="margin-top:6px"><span class="label">Variant (${options.styleState.count} boxes)</span><br>`;
+  html += `<span class="value">${escapePreviewHtml(styleLabel)}</span></div>`;
+
+  return renderPreviewPanelGroup('appearance', 'multi-appearance', html);
+}
+
+export function renderMultiSelectionInspectorPanel(
+  options: MultiSelectionInspectorPanelRenderOptions,
+): string {
+  return renderMultiSelectionSummaryGroup(options)
+    + renderMultiSelectionArrangementGroup(options)
+    + renderMultiSelectionLayoutGroup(options)
+    + renderMultiSelectionSizingGroup(options)
+    + renderMultiSelectionAppearanceGroup(options);
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { buildElkGraph } from '../src/elk-graph-builder.js';
+import { ELK_FORCE_PARAM_SPECS, elkForceParamDefaults } from '../src/force-param-registry.js';
 import { buildForceLayoutOptions } from '../src/force-options.js';
 import { indexPlacedNodes } from '../src/node-bounds.js';
 import { layoutForceForFamily } from '../src/index.js';
@@ -8,6 +9,20 @@ import { layoutForceForFamily } from '../src/index.js';
 const BOX = { width: 192, height: 64 };
 
 describe('ELK force', () => {
+  it('publishes force parameter specs for preview controls', () => {
+    expect(ELK_FORCE_PARAM_SPECS.map((spec) => spec.key)).toEqual([
+      'elk.spacing.nodeNode',
+      'elk.separateConnectedComponents',
+      'elk.randomSeed',
+    ]);
+    expect(elkForceParamDefaults()).toMatchObject({
+      'elk.algorithm': 'force',
+      'elk.spacing.nodeNode': '72',
+      'elk.separateConnectedComponents': 'false',
+      'elk.randomSeed': '0',
+    });
+  });
+
   it('keeps force graphs on node endpoints when implicit layered ports are disabled', () => {
     const graph = buildElkGraph({
       id: 'root',

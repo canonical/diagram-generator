@@ -30,6 +30,7 @@ describe('renderSequenceDiagramToSvg', () => {
     expect(svg).toContain('data-sequence-participant-id="api"');
     expect(svg).toContain('data-sequence-message-id="m-request"');
     expect(svg).toContain('data-sequence-note-id="note-auth"');
+    expect(svg).toContain('<rect x="520" y="152" width="160" height="56"');
     expect(svg).toContain('GET /v1/things');
     expect(svg).toContain('Auth happens here');
     expect(svg).toContain('#E95420');
@@ -37,6 +38,29 @@ describe('renderSequenceDiagramToSvg', () => {
     expect(svg).toContain('stroke="#000000"');
     expect(svg).not.toContain('fill="#111111"');
     expect(svg).not.toContain('#C7162B');
+  });
+
+  it('expands the canvas to include right-of notes', () => {
+    const normalized = normalizeSequenceDiagram({
+      participants: [
+        { id: 'client', kind: 'actor', label: 'Client' },
+        { id: 'api', label: ['Public', 'API'] },
+      ],
+      messages: [
+        { id: 'm-request', from: 'client', to: 'api', label: 'GET /v1/handshake' },
+      ],
+      notes: [
+        { id: 'note-auth', target: 'api', placement: 'right-of', label: 'Auth happens here' },
+      ],
+    });
+
+    const layout = layoutSequenceDiagram(normalized.spec);
+    const rightMostNote = Math.max(...layout.notes.map((note) => note.x + note.width));
+    const svg = renderSequenceDiagramToSvg(normalized.spec, layout, { title: 'Service handshake sequence' });
+
+    expect(layout.width).toBeGreaterThan(rightMostNote);
+    expect(svg).toContain(`width="${layout.width}"`);
+    expect(svg).toContain('Auth happens here');
   });
 
   it('orients arrowheads toward the target for leftward return messages', () => {

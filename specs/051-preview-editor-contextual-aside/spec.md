@@ -216,3 +216,78 @@ constraints, missing renderer, or active relayout.
   move model/visibility logic into TypeScript.
 - Force controls still live in `scripts/preview/force.js`. This spec can gate
   force shell visibility, but force-internal migration remains separate.
+
+## Follow-Up Audit: Live UI Regressions
+
+User review after the first implementation pass reported that some controls are
+still visible or unclear in real editing flows. Treat these as open follow-up
+requirements before closing spec 051.
+
+### Reported Issues
+
+- ELK controls are still visible when the selected/active engine is not ELK.
+  The next pass must reproduce this live, including after engine switching and
+  reload, and must verify raw/debug ELK controls and nested ELK inputs are not
+  visible or focusable for v3 or any non-ELK engine.
+- The single-selection inspector currently shows redundant identity chrome such
+  as `Selection`, repeated `Selection`, selected id text like `global_server`,
+  and type text like `Frame`. This does not add useful editing value and should
+  be removed from the right aside.
+- The `weight` parameter appears to be a no-op when changed from 1 to 2. Since
+  stroke and visual styling are defined by box variants and are not meant to be
+  user-tamperable, the inspector must either prove `weight` has a real layout
+  effect in a supported case or remove it.
+- The style input currently shows `as defined`, which is not actionable. If a
+  style/variant value is displayed, it must spell out the effective variant
+  such as `child`, `parent`, `section`, `highlight`, or `annotation`, with a
+  clear fallback for unknown authored variants.
+- Layout grid controls must not be globally visible for any v3 selection. They
+  should be visible only when the top-level page/root is selected and the active
+  engine supports native grid editing.
+- Constraint diagnostics can show counts like `31 warnings` without explaining
+  what the warnings mean or where to inspect them. The Diagnostics group needs
+  an actionable details model, not just a count.
+
+### Proposed Fix Direction
+
+- Add a live DOM reproduction for the ELK leakage before patching. Assert the
+  active engine id, persisted `meta.layout_engine`, server-rendered hidden
+  placeholders, runtime DOM state, and tab order. Fix whichever layer owns the
+  mismatch, not just the visible symptom.
+- Simplify single-selection rendering by removing the identity group from the
+  right aside. Use the Layers palette and selected element chrome as the source
+  of object identity instead of duplicating id/type text in the inspector.
+- Audit fill-weight semantics. If weight is meaningful only for `FILL` siblings,
+  hide it outside that exact case and add a regression proving layout changes.
+  If no supported engine observes it, remove the control.
+- Treat Appearance as variant-driven. Do not expose stroke/weight controls as
+  user-editable style tampering. Display resolved variant names explicitly, and
+  only offer changes if the product intentionally supports variant selection.
+- Gate Layout grid controls on both engine capability and selection kind:
+  `capabilities.gridEditing === true` and `selectionKind === root/page`.
+- Replace the opaque constraint count with a compact summary and expandable or
+  selectable details: severity, affected frame id, rule name, and actionable
+  hint. Selection-specific violations should also be reachable from the selected
+  frame inspector.
+
+### Additional Functional Requirements
+
+- **FR-021**: ELK sections, raw/debug toggles, and nested ELK controls must be
+  absent, hidden, inert, and unfocusable whenever the current active engine does
+  not expose the `elk-layout` sidebar section. This must hold after engine
+  switch reloads and with a freshly rebuilt browser bundle.
+- **FR-022**: Single-selection inspector chrome must not duplicate selection
+  identity. Remove redundant headings and id/type rows such as `global_server`
+  / `Frame` from the right aside.
+- **FR-023**: Layout grid controls must be visible only for top-level page/root
+  selection when the active engine supports native grid editing.
+- **FR-024**: `weight` controls must be hidden unless they have a tested,
+  observable layout effect for the selected element. No-op controls must be
+  removed.
+- **FR-025**: Appearance must be variant-driven. Labels must show concrete
+  effective variant names instead of `as defined`; stroke and style internals
+  must not be user-tamperable unless explicitly reintroduced as product
+  behavior.
+- **FR-026**: Constraint diagnostics must explain warning/error counts with
+  inspectable details that identify the affected element, rule, severity, and
+  recommended action.
