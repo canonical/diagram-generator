@@ -15,6 +15,7 @@ import {
   shouldShowPreviewEngineSwitcher,
   type PreviewUiContext,
 } from '../src/preview-shell/preview-ui-context.js';
+import { createPreviewEngineWorkspaceState } from '../src/preview-shell/preview-engine-workspace.js';
 
 function visibleSections(context: PreviewUiContext): Set<string> {
   return new Set(resolvePreviewVisibleTemplateSections(context));
@@ -159,6 +160,22 @@ describe('preview UI context registry', () => {
     };
 
     expect(shouldShowPreviewEngineSwitcher(context)).toBe(true);
+    expect(visibleSections(context).has('grid-engine-switcher')).toBe(true);
+  });
+
+  it('accepts the typed engine workspace as the engine source of truth', () => {
+    const context: PreviewUiContext = {
+      shellMode: 'grid',
+      documentKind: 'frame-diagram',
+      engineWorkspace: createPreviewEngineWorkspaceState({
+        activeEngine: ELK_LAYERED_PREVIEW_ENGINE,
+        compatibleEngines: [V3_PREVIEW_ENGINE, ELK_LAYERED_PREVIEW_ENGINE],
+        persistedEngineId: 'elk-layered',
+      }),
+    };
+
+    expect(shouldShowPreviewEngineSwitcher(context)).toBe(true);
+    expect(visibleSections(context).has('elk-layout')).toBe(true);
     expect(visibleSections(context).has('grid-engine-switcher')).toBe(true);
   });
 

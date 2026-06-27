@@ -47,6 +47,7 @@
         <section class="dg-preview-pane dg-output-pane" id="output-pane" aria-label="Generated output">
           <div class="dg-preview-pane-header">
             <span class="dg-preview-pane-label">Output</span>
+            <span class="bf-badge is-neutral" id="active-engine-label" hidden></span>
           </div>
           <div class="stage" id="stage"></div>
         </section>
@@ -106,6 +107,11 @@
         <!-- ── Grid mode: Engine switcher (spec 035) ── -->
         <section class="dg-sidebar-section dg-grid-only" id="engine-switcher-section" data-dg-panel-group="engine" data-dg-panel-id="engine-switcher" hidden %GRID_ENGINE_SWITCHER_HIDDEN%>
           <h2 class="dg-section-heading bf-h5">Engine</h2>
+          <div class="bf-cluster dg-button-row" style="margin-bottom:0.5rem">
+            <button class="bf-button is-base is-icon" id="engine-switcher-prev" type="button" aria-label="Previous compatible engine" title="Previous compatible engine"><span class="bf-icon is-chevron-left" aria-hidden="true"></span></button>
+            <button class="bf-button is-base is-icon" id="engine-switcher-next" type="button" aria-label="Next compatible engine" title="Next compatible engine"><span class="bf-icon is-chevron-right" aria-hidden="true"></span></button>
+          </div>
+          <div class="bf-cluster dg-button-row" id="engine-switcher-tabs" role="tablist" aria-label="Compatible engines"></div>
           <label class="bf-field dg-engine-switcher-field" for="engine-switcher">
             <span class="bf-form-label">Layout engine</span>
             <span class="bf-control">

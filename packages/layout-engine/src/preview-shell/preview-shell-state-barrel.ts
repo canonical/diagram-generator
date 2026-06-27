@@ -74,6 +74,23 @@ export type {
   PreviewGridInfoState,
 } from './grid-controls.js';
 
+export type {
+  CreatePreviewEngineWorkspaceStateOptions,
+  PreviewEngineWorkspaceEngine,
+  PreviewEngineWorkspaceNavigation,
+  PreviewEngineWorkspaceState,
+  PreviewEngineWorkspaceTab,
+} from './preview-engine-workspace.js';
+
+export {
+  clearPreviewEngineWorkspaceSessionState,
+  createPreviewEngineWorkspaceState,
+  persistPreviewEngineWorkspaceActiveEngine,
+  reopenPreviewEngineWorkspace,
+  setPreviewEngineWorkspaceActiveEngine,
+  setPreviewEngineWorkspaceSessionState,
+} from './preview-engine-workspace.js';
+
 export {
   createPreviewGridOverrides,
   isGridControlInputId,

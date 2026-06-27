@@ -76,6 +76,8 @@ export interface PreviewSaveClientRuntimeDeps {
   setStatus?: (message: string, kind?: string) => void;
   sanitizeSvgCloneForExport?: (clone: unknown) => void;
   onBeforeUnload?: (event: unknown) => unknown;
+  hasExternalDirtyState?: () => boolean;
+  onSaveSuccess?: () => void;
 }
 
 export interface PreviewSaveClientRuntime {
@@ -196,6 +198,10 @@ export function createPreviewSaveClientRuntime(
       ?? 0;
   }
 
+  function hasPendingDirtyState(): boolean {
+    return dirty || Boolean(deps?.hasExternalDirtyState?.());
+  }
+
   function syncSaveButton(errorCount?: number | null): void {
     const saveButton = options.document.getElementById('btn-save');
     if (!saveButton) {
@@ -205,7 +211,7 @@ export function createPreviewSaveClientRuntime(
     const relayoutStatus = asRecord(deps ? resolveLayoutRelayoutStatus(deps) : null) as { localReady?: boolean };
     const relayoutRuntime = asRecord(deps ? resolveLayoutRelayoutRuntime(deps) : null) as { lastMode?: string };
     saveButton.disabled = resolvePreviewSaveButtonState({
-      dirty,
+      dirty: hasPendingDirtyState(),
       saving,
       errorCount: errors,
       relayoutLocalReady: relayoutStatus.localReady ?? null,
@@ -412,6 +418,7 @@ export function createPreviewSaveClientRuntime(
       }
 
       runtimeDeps.clearCoercedKeys?.();
+      runtimeDeps.onSaveSuccess?.();
       if (preservedSelectionIds.length > 0) {
         runtimeDeps.restoreSelectionIds?.(preservedSelectionIds);
       }
@@ -426,7 +433,7 @@ export function createPreviewSaveClientRuntime(
   }
 
   function trySaveIfDirty(): void {
-    if (dirty) {
+    if (hasPendingDirtyState()) {
       void saveOverrides();
     }
   }
@@ -439,7 +446,7 @@ export function createPreviewSaveClientRuntime(
     initialized = true;
 
     options.document.getElementById('btn-save')?.addEventListener?.('click', () => {
-      if (dirty) {
+      if (hasPendingDirtyState()) {
         void saveOverrides();
       }
     });
@@ -455,7 +462,7 @@ export function createPreviewSaveClientRuntime(
 
   return {
     init,
-    isDirty: () => dirty,
+    isDirty: () => hasPendingDirtyState(),
     setDirty,
     markSaved,
     syncDirtyFromSerialized,

@@ -567,6 +567,29 @@ test("sequence frame fixture resolves and renders through the sequence document 
   assert.equal(context.documentKind, "sequence");
   assert.equal(context.engineManifest?.id, "sequence");
   assert.equal(context.activeLayoutEngine, "sequence");
+  const route = createAutolayoutPreviewHostViewerRoute({
+    framePreviewDocumentDeps: { framesDir },
+    framePreviewRenderDeps: {
+      framesDir,
+      iconLoader: () => null,
+      textAdapterPromise: Promise.resolve(new MockTextAdapter()),
+    },
+    forcePreviewDocumentDeps: { forceDefinitionsDir: "/virtual/force" },
+    parseYaml: () => ({}),
+    templateHtml: readFileSync(path.join(REPO_ROOT, "scripts", "preview", "viewer-unified.html"), "utf8"),
+    baselineStylesHtml: "",
+    previewAssetUrl: (filename: string) => `/preview/${filename}`,
+    listAutolayoutDiagrams: () => ["service-handshake-sequence"],
+    listForceExamples: () => [],
+    findReferenceImage: () => null,
+    normalizeLayoutEngine: (layoutEngine: string | undefined) => layoutEngine?.trim() ?? "",
+  });
+  const html = route.buildHtml("service-handshake-sequence");
+  assert.match(html, /id="active-engine-label" hidden><\/span>/);
+  assert.match(html, /\/preview\/engine-switcher\.js/);
+  assert.match(html, /"document_kind":"sequence"/);
+  assert.match(html, /"active_engine_id":"sequence"/);
+  assert.match(html, /"show_engine_switcher":false/);
 
   const svg = await renderSvgForSlug("service-handshake-sequence", {
     framesDir,
@@ -607,6 +630,7 @@ test("static viewer chrome exposes stable right-aside panel groups", () => {
     template,
     /id="engine-switcher-section" data-dg-panel-group="engine" data-dg-panel-id="engine-switcher"/,
   );
+  assert.match(template, /id="active-engine-label" hidden/);
   assert.match(
     template,
     /id="grid-controls-section" data-dg-panel-group="layout" data-dg-panel-id="layout-grid"/,

@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_PREVIEW_BOX_STYLES } from '../src/preview-shell/frame-style.js';
+import {
+  installDagrePreviewEngine,
+  installElkLayeredPreviewEngine,
+  installV3PreviewEngine,
+} from '../src/preview-engine/builtins.js';
+import { installMindmapLitePreviewEngine } from '../src/preview-engine/mindmap-lite.js';
 
 const mocks = vi.hoisted(() => ({
   createBrowserState: vi.fn(),
@@ -764,7 +770,7 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
         previewSaveClient: { kind: 'save-client' } as any,
         generationState: { get: vi.fn(() => 7), set: vi.fn() },
         allowInternalDirtyNavigationState: { get: vi.fn(() => false), set: vi.fn() },
-        constraints: { kind: 'constraints' } as any,
+        constraints: { summarise: vi.fn(() => ({ total: 0 })) } as any,
         lastViolationsState: { get: vi.fn(() => []) },
         overridesState: { get: vi.fn(() => ({ alpha: { width: 120 } })), set: vi.fn() },
         multiActionGapState: { get: vi.fn(() => 24), set: vi.fn() },
@@ -849,6 +855,233 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
 
     await options.browser.writeClipboardText('copied');
     expect(writeText).toHaveBeenCalledWith('copied');
+  });
+
+  it('syncs panel visibility from the runtime document kind and active engine config', () => {
+    const createPanel = () => ({
+      hidden: false,
+      setAttribute: vi.fn(),
+      removeAttribute: vi.fn(),
+      querySelectorAll: vi.fn(() => []),
+    });
+    const engineSwitcherSection = createPanel();
+    const graphLayoutSection = createPanel();
+    const elkLayoutSection = createPanel();
+    const previewWindow = {
+      __DG_CONFIG: {
+        engine: 'mindmap-tree',
+        layout_engine: 'mindmap-tree',
+        active_engine_id: 'mindmap-tree',
+        persisted_layout_engine: 'mindmap-tree',
+        shell_mode: 'grid',
+        document_kind: 'mindmap-lite',
+        compatible_engines: ['mindmap-tree'],
+      },
+      navigator: {
+        clipboard: {
+          writeText: vi.fn(async () => undefined),
+        },
+      },
+      setTimeout: vi.fn((_callback: () => void, _delayMs?: number) => 17),
+      clearTimeout: vi.fn(),
+      requestAnimationFrame: vi.fn((_callback: FrameRequestCallback) => 21),
+      cancelAnimationFrame: vi.fn(),
+      alert: vi.fn(),
+    } as any;
+    const document = {
+      getElementById: vi.fn((id: string) => {
+        if (id === 'engine-switcher-section') return engineSwitcherSection;
+        if (id === 'graph-layout-section') return graphLayoutSection;
+        if (id === 'elk-layout-section') return elkLayoutSection;
+        return null;
+      }),
+      querySelector: vi.fn(() => null),
+    } as any;
+
+    const options = createPreviewGridEditorInstallOptionsFromLegacyEditorHost({
+      document,
+      previewWindow,
+      config: {
+        slug: 'demo',
+        engine: 'v3',
+        gridEnabled: true,
+        guideModes: ['off', 'all'],
+        baselineStep: 24,
+        inset: 8,
+        guideColor: '#f00',
+        guideOpacity: '0.5',
+        interactionMode: { TEXT_EDITING: 'text', WAYPOINT_DRAGGING: 'waypoint' } as any,
+        handleSize: 12,
+        minNodeSize: 24,
+        fallbackGap: 24,
+        snapToGrid: (value) => value,
+      },
+      state: {
+        model: { kind: 'model' } as any,
+        interactionManager: { kind: 'manager' } as any,
+        selectedIds: new Set<string>(),
+        selectionDepthState: { get: vi.fn(() => 0), set: vi.fn() },
+        coercedKeys: new Set<string>(),
+        editorState: { kind: 'editor-state' } as any,
+        previewSaveClient: { kind: 'save-client' } as any,
+        generationState: { get: vi.fn(() => 7), set: vi.fn() },
+        allowInternalDirtyNavigationState: { get: vi.fn(() => false), set: vi.fn() },
+        constraints: { summarise: vi.fn(() => ({ total: 0 })) } as any,
+        lastViolationsState: { get: vi.fn(() => []) },
+        overridesState: { get: vi.fn(() => ({})), set: vi.fn() },
+        multiActionGapState: { get: vi.fn(() => 24), set: vi.fn() },
+        layoutRelayoutTimerState: { get: vi.fn(() => null), set: vi.fn() },
+      },
+      helpers: {
+        applyInteractionOverrideEntries: vi.fn(),
+      },
+      modelOps: {
+        getOwnDelta: vi.fn(() => ({ dx: 0, dy: 0, dw: 0, dh: 0 })),
+        getEffectiveDelta: vi.fn(() => ({ dx: 0, dy: 0, dw: 0, dh: 0 })),
+        getAncestors: vi.fn(() => []),
+      },
+      facades: {
+        getEditorSceneFacade: vi.fn(),
+        getEditorRelayoutFacade: vi.fn(),
+        getEditorInteractionFacade: vi.fn(),
+      },
+    });
+
+    options.browser.syncPanelVisibility({ count: 0, kind: 'empty' });
+    expect(previewWindow.__DG_syncPreviewEngineWorkspacePanels).toBeTypeOf('function');
+    previewWindow.__DG_syncPreviewEngineWorkspacePanels();
+
+    expect(engineSwitcherSection.hidden).toBe(true);
+    expect(graphLayoutSection.hidden).toBe(true);
+    expect(elkLayoutSection.hidden).toBe(true);
+  });
+
+  it('re-syncs engine switcher visibility from the live workspace config', () => {
+    const unregisterers = [
+      installV3PreviewEngine(),
+      installElkLayeredPreviewEngine(),
+      installDagrePreviewEngine(),
+      installMindmapLitePreviewEngine(),
+    ];
+    const createPanel = () => ({
+      hidden: false,
+      setAttribute: vi.fn(),
+      removeAttribute: vi.fn(),
+      querySelectorAll: vi.fn(() => []),
+    });
+    const engineSwitcherSection = createPanel();
+    const graphLayoutSection = createPanel();
+    const elkLayoutSection = createPanel();
+    const previewWindow = {
+      __DG_CONFIG: {
+        engine: 'v3',
+        layout_engine: 'v3',
+        active_engine_id: 'v3',
+        persisted_layout_engine: 'missing-engine',
+        shell_mode: 'grid',
+        document_kind: 'frame-diagram',
+        compatible_engines: ['v3'],
+      },
+      navigator: {
+        clipboard: {
+          writeText: vi.fn(async () => undefined),
+        },
+      },
+      setTimeout: vi.fn((_callback: () => void, _delayMs?: number) => 17),
+      clearTimeout: vi.fn(),
+      requestAnimationFrame: vi.fn((_callback: FrameRequestCallback) => 21),
+      cancelAnimationFrame: vi.fn(),
+      alert: vi.fn(),
+    } as any;
+    const document = {
+      getElementById: vi.fn((id: string) => {
+        if (id === 'engine-switcher-section') return engineSwitcherSection;
+        if (id === 'graph-layout-section') return graphLayoutSection;
+        if (id === 'elk-layout-section') return elkLayoutSection;
+        return null;
+      }),
+      querySelector: vi.fn(() => null),
+    } as any;
+
+    try {
+      const options = createPreviewGridEditorInstallOptionsFromLegacyEditorHost({
+        document,
+        previewWindow,
+        config: {
+          slug: 'support-engineering-flow',
+          engine: 'v3',
+          gridEnabled: true,
+          guideModes: ['off', 'all'],
+          baselineStep: 24,
+          inset: 8,
+          guideColor: '#f00',
+          guideOpacity: '0.5',
+          interactionMode: { TEXT_EDITING: 'text', WAYPOINT_DRAGGING: 'waypoint' } as any,
+          handleSize: 12,
+          minNodeSize: 24,
+          fallbackGap: 24,
+          snapToGrid: (value) => value,
+        },
+        state: {
+          model: { kind: 'model' } as any,
+          interactionManager: { kind: 'manager' } as any,
+          selectedIds: new Set<string>(),
+          selectionDepthState: { get: vi.fn(() => 0), set: vi.fn() },
+          coercedKeys: new Set<string>(),
+          editorState: { kind: 'editor-state' } as any,
+          previewSaveClient: { kind: 'save-client' } as any,
+          generationState: { get: vi.fn(() => 7), set: vi.fn() },
+          allowInternalDirtyNavigationState: { get: vi.fn(() => false), set: vi.fn() },
+          constraints: { summarise: vi.fn(() => ({ total: 0 })) } as any,
+          lastViolationsState: { get: vi.fn(() => []) },
+          overridesState: { get: vi.fn(() => ({})), set: vi.fn() },
+          multiActionGapState: { get: vi.fn(() => 24), set: vi.fn() },
+          layoutRelayoutTimerState: { get: vi.fn(() => null), set: vi.fn() },
+        },
+        helpers: {
+          applyInteractionOverrideEntries: vi.fn(),
+        },
+        modelOps: {
+          getOwnDelta: vi.fn(() => ({ dx: 0, dy: 0, dw: 0, dh: 0 })),
+          getEffectiveDelta: vi.fn(() => ({ dx: 0, dy: 0, dw: 0, dh: 0 })),
+          getAncestors: vi.fn(() => []),
+        },
+        facades: {
+          getEditorSceneFacade: vi.fn(),
+          getEditorRelayoutFacade: vi.fn(),
+          getEditorInteractionFacade: vi.fn(),
+        },
+      });
+
+      options.browser.syncPanelVisibility({ count: 0, kind: 'empty' });
+      expect(previewWindow.__DG_syncPreviewEngineWorkspacePanels).toBeTypeOf('function');
+      expect(engineSwitcherSection.hidden).toBe(false);
+      expect(graphLayoutSection.hidden).toBe(true);
+      expect(elkLayoutSection.hidden).toBe(true);
+
+      previewWindow.__DG_CONFIG.active_engine_id = 'dagre';
+      previewWindow.__DG_CONFIG.persisted_layout_engine = 'v3';
+      previewWindow.__DG_CONFIG.compatible_engines = ['v3', 'dagre'];
+      previewWindow.__DG_syncPreviewEngineWorkspacePanels();
+
+      expect(engineSwitcherSection.hidden).toBe(false);
+      expect(graphLayoutSection.hidden).toBe(false);
+      expect(elkLayoutSection.hidden).toBe(true);
+
+      previewWindow.__DG_CONFIG.document_kind = 'mindmap-lite';
+      previewWindow.__DG_CONFIG.active_engine_id = 'mindmap-tree';
+      previewWindow.__DG_CONFIG.persisted_layout_engine = 'mindmap-tree';
+      previewWindow.__DG_CONFIG.compatible_engines = ['mindmap-tree'];
+      previewWindow.__DG_syncPreviewEngineWorkspacePanels();
+
+      expect(engineSwitcherSection.hidden).toBe(true);
+      expect(graphLayoutSection.hidden).toBe(true);
+      expect(elkLayoutSection.hidden).toBe(true);
+    } finally {
+      for (const unregister of unregisterers.reverse()) {
+        unregister();
+      }
+    }
   });
 
   it('derives runtime callbacks from the compact editor-host contract', async () => {

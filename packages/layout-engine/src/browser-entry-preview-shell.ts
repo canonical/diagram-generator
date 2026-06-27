@@ -20,6 +20,7 @@ export const previewShell = Object.freeze({
     loadPreviewGridInfo: previewShellRuntime.loadPreviewGridInfo,
     initPreviewShellCoordinator: previewShellRuntime.initPreviewShellCoordinator,
     initPreviewOverrideToolbar: previewShellRuntime.initPreviewOverrideToolbar,
+    initPreviewEngineWorkspaceChrome: previewShellRuntime.initPreviewEngineWorkspaceChrome,
     canonicalizePreviewDiagramPath: previewShellRuntime.canonicalizePreviewDiagramPath,
     normalizePreviewDiagramPath: previewShellRuntime.normalizePreviewDiagramPath,
     syncPreviewDiagramPickerToPath: previewShellRuntime.syncPreviewDiagramPickerToPath,

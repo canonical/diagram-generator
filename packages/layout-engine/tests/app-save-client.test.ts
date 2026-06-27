@@ -123,6 +123,7 @@ describe('preview save client runtime', () => {
     const setStatus = vi.fn();
     const clearCoercedKeys = vi.fn();
     const runConstraints = vi.fn();
+    const onSaveSuccess = vi.fn();
 
     runtime.init({
       slug: 'demo',
@@ -139,6 +140,7 @@ describe('preview save client runtime', () => {
       runConstraints,
       clearCoercedKeys,
       setStatus,
+      onSaveSuccess,
     });
 
     runtime.setDirty(true);
@@ -156,9 +158,87 @@ describe('preview save client runtime', () => {
     });
     expect(restoreSelectionIds).toHaveBeenCalledWith(['alpha']);
     expect(clearCoercedKeys).toHaveBeenCalledTimes(1);
+    expect(onSaveSuccess).toHaveBeenCalledTimes(1);
     expect(setStatus).toHaveBeenCalledWith('Ready', 'ok');
     expect(model.removedIds.size).toBe(0);
     expect(runConstraints).toHaveBeenCalled();
+  });
+
+  it('treats external workspace changes as dirty save state', async () => {
+    const saveButton = {
+      disabled: true,
+      classList: {
+        add: vi.fn(),
+        remove: vi.fn(),
+      },
+      addEventListener: vi.fn(),
+    };
+    const document = {
+      body: {
+        appendChild() {},
+      },
+      activeElement: null,
+      createElement() {
+        return {
+          click() {},
+          remove() {},
+        };
+      },
+      getElementById(id: string) {
+        if (id === 'btn-save') return saveButton;
+        return null;
+      },
+      querySelector() {
+        return null;
+      },
+    };
+    const fetchFn = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      text: async () => '',
+      json: async () => ({}),
+    }));
+    const runtime = createPreviewSaveClientRuntime({
+      document,
+      previewWindow: {},
+      fetchFn,
+      alertFn: vi.fn(),
+    });
+    const externalDirtyState = { dirty: true };
+
+    runtime.init({
+      slug: 'demo',
+      getModel: () => ({
+        overrides: {},
+        gridOverrides: {},
+        removedIds: new Set<string>(),
+        get() {
+          return null;
+        },
+      }),
+      getSelectedIds: () => [],
+      restoreSelectionIds: vi.fn(),
+      serializeDirtyState: () => '{}',
+      reloadDiagram: vi.fn(async () => undefined),
+      getLayoutRelayoutStatus: () => ({ localReady: true }),
+      getLayoutRelayoutRuntime: () => ({ lastMode: 'local-ready' }),
+      getConstraintSummary: () => ({ errors: 0 }),
+      getConstraintErrorCount: () => 0,
+      runConstraints: vi.fn(),
+      clearCoercedKeys: vi.fn(),
+      setStatus: vi.fn(),
+      hasExternalDirtyState: () => externalDirtyState.dirty,
+    });
+
+    expect(runtime.isDirty()).toBe(true);
+    runtime.syncSaveButton();
+    expect(saveButton.disabled).toBe(false);
+
+    externalDirtyState.dirty = false;
+    runtime.syncSaveButton();
+    expect(runtime.isDirty()).toBe(false);
+    expect(saveButton.disabled).toBe(true);
   });
 
   it('emits canonical drag, nudge, multi-select, and resize overrides before POST', async () => {

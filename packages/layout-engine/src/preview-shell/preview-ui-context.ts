@@ -6,6 +6,7 @@ import type {
   PreviewShellMode,
   PreviewViewerSidebarSection,
 } from '../preview-engine/types.js';
+import type { PreviewEngineWorkspaceState } from './preview-engine-workspace.js';
 
 export type PreviewTemplateSectionKey =
   | 'grid-layers-tab'
@@ -77,6 +78,7 @@ export interface PreviewUiDocumentState {
 export interface PreviewUiContext {
   readonly shellMode?: PreviewShellMode | null;
   readonly documentKind?: PreviewDocumentKind | null;
+  readonly engineWorkspace?: PreviewEngineWorkspaceState | null;
   readonly activeEngine?: Pick<
     PreviewEngineManifest,
     'id' | 'shellMode' | 'layoutEngineKey' | 'capabilities' | 'hostView'
@@ -87,6 +89,11 @@ export interface PreviewUiContext {
   readonly selection?: PreviewUiSelectionContext | null;
   readonly documentState?: PreviewUiDocumentState | null;
 }
+
+type PreviewUiActiveEngineDescriptor = Pick<
+  PreviewEngineManifest,
+  'id' | 'shellMode' | 'layoutEngineKey' | 'capabilities' | 'hostView'
+>;
 
 export interface PreviewPanelVisibility {
   readonly id: PreviewTemplateSectionKey;
@@ -106,16 +113,32 @@ export interface PreviewPanelRegistryEntry {
   reason(context: PreviewUiContext, visible: boolean, disabled: boolean): string;
 }
 
+function workspace(context: PreviewUiContext): PreviewEngineWorkspaceState | null {
+  return context.engineWorkspace ?? null;
+}
+
+function activeEngine(context: PreviewUiContext): PreviewUiActiveEngineDescriptor | null {
+  return workspace(context)?.activeEngine ?? context.activeEngine ?? null;
+}
+
+function compatibleEngineIds(context: PreviewUiContext): readonly string[] {
+  return workspace(context)?.compatibleEngineIds ?? context.compatibleEngines ?? [];
+}
+
+function persistedLayoutEngine(context: PreviewUiContext): string | null {
+  return workspace(context)?.persistedEngineId ?? context.persistedLayoutEngine ?? null;
+}
+
 function capabilities(context: PreviewUiContext): Partial<PreviewEngineCapabilities> {
-  return context.activeEngine?.capabilities ?? {};
+  return activeEngine(context)?.capabilities ?? {};
 }
 
 function hostView(context: PreviewUiContext): PreviewEngineHostView | undefined {
-  return context.activeEngine?.hostView;
+  return activeEngine(context)?.hostView;
 }
 
 function shellMode(context: PreviewUiContext): string {
-  return String(context.shellMode ?? context.activeEngine?.shellMode ?? '');
+  return String(context.shellMode ?? activeEngine(context)?.shellMode ?? '');
 }
 
 function documentKind(context: PreviewUiContext): string {
@@ -150,7 +173,7 @@ export function previewEngineSupportsSidebarSection(
 
 function hasCompatibleEngines(context: PreviewUiContext): boolean {
   const keys = new Set(
-    (context.compatibleEngines ?? [])
+    compatibleEngineIds(context)
       .map((key) => String(key || '').trim())
       .filter(Boolean),
   );
@@ -160,12 +183,16 @@ function hasCompatibleEngines(context: PreviewUiContext): boolean {
 export function hasInvalidPreviewPersistedLayoutEngine(
   context: PreviewUiContext,
 ): boolean {
+  const workspaceState = workspace(context);
+  if (workspaceState) {
+    return workspaceState.invalidPersistedEngine;
+  }
   if (typeof context.invalidPersistedLayoutEngine === 'boolean') {
     return context.invalidPersistedLayoutEngine;
   }
-  const persisted = String(context.persistedLayoutEngine ?? '').trim();
+  const persisted = String(persistedLayoutEngine(context) ?? '').trim();
   if (!persisted) return false;
-  return !(context.compatibleEngines ?? []).includes(persisted);
+  return !compatibleEngineIds(context).includes(persisted);
 }
 
 export function shouldShowPreviewEngineSwitcher(context: PreviewUiContext): boolean {
