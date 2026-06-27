@@ -1,5 +1,6 @@
 import type { FrameDiagram } from '../frame-model.js';
 import type {
+  CompatibilityEvaluationOptions,
   CompatibilityResult,
   FrameDiagramCompatibilitySummary,
   PreviewEngineContext,
@@ -64,7 +65,7 @@ export function resolvePreviewEngine(
       (entry) => entry.layoutEngineKey === layoutEngine,
     );
     if (explicit) {
-      if (evaluatePreviewEngineCompatibility(explicit, context).compatible) {
+      if (evaluatePreviewEngineCompatibility(explicit, context, { mode: 'resolve' }).compatible) {
         return explicit;
       }
       return undefined;
@@ -87,6 +88,8 @@ export function summarizeFrameDiagramCompatibility(
   const unsupportedCarrierIds = collectUnsupportedCarrierIds(diagram);
   return {
     arrowCount: diagram.arrows.length,
+    diagramType: diagram.diagramType ?? null,
+    fillCarrierIds: collectFillCarrierIds(diagram),
     unsupportedCarrierIds,
     unsupportedElkCarrierIds: unsupportedCarrierIds,
   };
@@ -123,6 +126,49 @@ function collectUnsupportedCarrierIds(diagram: FrameDiagram): string[] {
   return [...unsupported].sort();
 }
 
+function collectFillCarrierIds(diagram: FrameDiagram): string[] {
+  const endpoints = collectEndpointIds(diagram);
+  const carriers = new Set<string>();
+
+  function isSyntheticOrHeadedFrame(frame: FrameDiagram['root']): boolean {
+    if (!frame.id) return false;
+    if (frame.id.endsWith('__body') || frame.id.endsWith('__heading') || frame.role === 'heading') {
+      return true;
+    }
+    return frame.children.some((child) => (
+      child.role === 'heading'
+      || child.id?.endsWith('__body')
+      || child.id?.endsWith('__heading')
+    ));
+  }
+
+  function visit(frame: FrameDiagram['root'], isRoot: boolean): boolean {
+    let childHasEndpoint = false;
+    for (const child of frame.children) {
+      if (visit(child, false)) {
+        childHasEndpoint = true;
+      }
+    }
+    const selfHasEndpoint = Boolean(frame.id) && endpoints.has(frame.id);
+    const descendantHasEndpoint = selfHasEndpoint || childHasEndpoint;
+    if (
+      !isRoot &&
+      frame.id &&
+      frame.children.length > 0 &&
+      !isSyntheticOrHeadedFrame(frame) &&
+      !selfHasEndpoint &&
+      descendantHasEndpoint &&
+      (frame.sizingW === 'FILL' || frame.sizingH === 'FILL')
+    ) {
+      carriers.add(frame.id);
+    }
+    return descendantHasEndpoint;
+  }
+
+  visit(diagram.root, true);
+  return [...carriers].sort();
+}
+
 export function listHostableLayoutEngineKeys(): string[] {
   return PREVIEW_ENGINE_REGISTRY
     .map((entry) => entry.layoutEngineKey)
@@ -136,7 +182,9 @@ export function listHostableLayoutEngineKeys(): string[] {
 export function evaluatePreviewEngineCompatibility(
   engine: PreviewEngineManifest,
   context: PreviewEngineContext,
+  options: CompatibilityEvaluationOptions = {},
 ): CompatibilityResult {
+  const mode = options.mode ?? 'offer';
   const shellMode = context.shellMode ?? null;
   if (shellMode && engine.shellMode !== shellMode) {
     return {
@@ -163,6 +211,37 @@ export function evaluatePreviewEngineCompatibility(
     return {
       compatible: false,
       reason: `Engine requires at least ${frameDiagramRequirements.minArrowCount} authored arrow${frameDiagramRequirements.minArrowCount === 1 ? '' : 's'}`,
+    };
+  }
+
+  if (
+    mode !== 'resolve' &&
+    previewDocumentKind === 'frame-diagram' &&
+    frameDiagramRequirements?.offerDiagramTypes?.length &&
+    context.frameDiagramSummary?.diagramType &&
+    !frameDiagramRequirements.offerDiagramTypes.includes(
+      context.frameDiagramSummary.diagramType as typeof frameDiagramRequirements.offerDiagramTypes[number],
+    )
+  ) {
+    return {
+      compatible: false,
+      reason:
+        `Engine is not a recommended fit for authored diagram type ` +
+        `'${context.frameDiagramSummary.diagramType}'`,
+    };
+  }
+
+  if (
+    previewDocumentKind === 'frame-diagram' &&
+    frameDiagramRequirements?.rejectFillCarrierIdsWithoutDiagramType &&
+    (context.frameDiagramSummary?.fillCarrierIds?.length ?? 0) > 0 &&
+    !context.frameDiagramSummary?.diagramType
+  ) {
+    return {
+      compatible: false,
+      reason:
+        `Engine requires an authored diagram type when fill-sized structural carriers are present: ` +
+        context.frameDiagramSummary?.fillCarrierIds?.slice(0, 3).join(', '),
     };
   }
 

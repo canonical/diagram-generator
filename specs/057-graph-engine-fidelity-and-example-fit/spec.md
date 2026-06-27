@@ -1,7 +1,7 @@
 # Spec 057: Graph Engine Fidelity And Example Fit
 
 **Feature Branch**: `feat/057-graph-engine-fidelity-and-example-fit`  
-**Status**: Draft  
+**Status**: Closeout Ready  
 **Created**: 2026-06-27
 
 ## Problem
@@ -76,3 +76,21 @@ semantic fidelity once an engine is exposed.
 
 - Spec 052 for multi-engine onboarding substrate and compatibility predicates.
 - Spec 048 for ELK sizing/interaction follow-up ownership.
+
+## Status Notes
+
+### 2026-06-28 implementation closeout
+
+- **T000 findings**
+  - `support-engineering-flow` exposed `elk-rectpacking` even though the engine wrapped the authored left-to-right process into a two-row packing result. Classified as an **example-fit / compatibility** failure, not YAML authorship.
+  - `tiered-network-architecture.author-v1` lost parent-direction `FILL` semantics once fill-sized structural carriers were pushed through the ELK lane without an authored `diagram_type`. Classified as an **ELK fidelity / translation-contract** failure, not YAML authorship.
+  - `mongo-octavia-ha` detached AZ labels from their owning wrappers because nested annotation leaves were being spilled below the whole diagram instead of remaining attached to their structural carriers. Classified as an **ELK render / post-layout restoration** failure, not YAML authorship.
+- **T001 owner inventory**
+  - Example-fit contract owners: `packages/layout-engine/src/preview-engine/types.ts`, `registry.ts`, `define-graph-layout-engine.ts`, `engines/elk-*.engine.ts`.
+  - Host/workspace owners that consume the contract: `apps/preview/src/preview-host/frame-documents.ts`, `apps/preview/src/preview-host/builtin-autolayout-host.ts`, `packages/layout-engine/src/preview-shell/preview-engine-workspace.ts`.
+  - ELK fidelity owners: `packages/layout-engine/src/elk-layout.ts`, `packages/graph-layout-elk/src/layered-options.ts`.
+- **Implemented bar**
+  - Preview-engine compatibility now distinguishes **explicit technical resolution** from **offer-list example fit**.
+  - `elk-rectpacking` remains technically resolvable when explicitly chosen, but it is no longer offered for authored process-flow examples like `support-engineering-flow`.
+  - ELK-family engines now hard-block diagrams that introduce fill-sized structural carriers without an authored `meta.diagram_type`, explicitly bounding the unsupported `tiered-network-architecture.author-v1` ELK fill case instead of silently offering a misleading lane.
+  - Nested annotation restoration now keeps `mongo-octavia-ha` AZ labels attached to their owning wrappers instead of stacking them below the whole page.

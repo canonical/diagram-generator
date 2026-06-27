@@ -234,7 +234,9 @@ export function createAutolayoutPreviewHostViewerRoute(
       );
       const engineWorkspace = createPreviewEngineWorkspaceState({
         activeEngine: engineManifest ?? null,
-        compatibleEngineIds: compatibleEngines,
+        compatibleEngineIds: engineManifest?.layoutEngineKey && !compatibleEngines.includes(engineManifest.layoutEngineKey)
+          ? [...compatibleEngines, engineManifest.layoutEngineKey]
+          : compatibleEngines,
         getEngineById: (engineId) => getPreviewEngineByLayoutKey(engineId) ?? null,
         persistedEngineId: authoredLayoutEngine,
       });

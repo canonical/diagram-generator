@@ -5,7 +5,10 @@
  * `dist/preview-engine-manifest.json` via `/api/preview-engines` — no Python mirrors.
  */
 
-import type { GraphLayoutEngineDescriptor } from '@diagram-generator/graph-layout-core';
+import type {
+  GraphLayoutEngineDescriptor,
+  LayeredCorpusFamily,
+} from '@diagram-generator/graph-layout-core';
 
 export type PreviewShellMode = 'grid' | 'force' | (string & {});
 export type PreviewDocumentKind = 'frame-diagram' | 'sequence' | 'force-spec' | (string & {});
@@ -77,6 +80,20 @@ export interface PreviewEngineCompatibility {
     /** Minimum number of authored arrows required for this engine to be useful. */
     readonly minArrowCount?: number;
     /**
+     * Diagram families this engine should be offered for when the authored frame
+     * diagram declares a recognized `meta.diagram_type`.
+     *
+     * This is an example-fit filter for offer lists and disabled-state messaging,
+     * not a hard block on explicitly persisted engine selection.
+     */
+    readonly offerDiagramTypes?: ReadonlyArray<LayeredCorpusFamily>;
+    /**
+     * Whether explicit/potential ELK-family selection should be rejected when a
+     * fill-sized structural carrier depends on fallback family inference instead
+     * of a recognized authored `meta.diagram_type`.
+     */
+    readonly rejectFillCarrierIdsWithoutDiagramType?: boolean;
+    /**
      * Whether carrier ids reported by `summarizeFrameDiagramCompatibility(...)`
      * should block compatibility for this engine.
      */
@@ -87,6 +104,13 @@ export interface PreviewEngineCompatibility {
 export interface FrameDiagramCompatibilitySummary {
   /** ELK layered is only meaningful when the authored frame diagram has connectors. */
   arrowCount: number;
+  /** Authored `meta.diagram_type`, when recognized by the frame-YAML loader. */
+  diagramType?: string | null;
+  /**
+   * Non-endpoint structural carriers with endpoint descendants that currently
+   * rely on fill sizing semantics.
+   */
+  fillCarrierIds?: string[];
   /**
    * Structural carriers that the current graph input cannot safely hand to a
    * non-compound layout engine.
@@ -128,6 +152,15 @@ export interface PreviewEngineContext {
   shellMode?: PreviewShellMode | null;
   previewDocumentKind?: PreviewDocumentKind | null;
   frameDiagramSummary?: FrameDiagramCompatibilitySummary | null;
+}
+
+export interface CompatibilityEvaluationOptions {
+  /**
+   * `offer` enforces product-facing example-fit rules for switchers and
+   * compatibility lists. `resolve` keeps explicitly selected engines hostable
+   * when the engine can still render the document technically.
+   */
+  mode?: 'offer' | 'resolve';
 }
 
 /**

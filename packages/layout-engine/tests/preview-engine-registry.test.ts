@@ -14,6 +14,7 @@ import {
 } from '@diagram-generator/graph-layout-elk';
 import { loadFrameYaml } from '../src/frame-yaml-loader.js';
 import { Direction, Frame, FrameDiagram, createArrow } from '../src/frame-model.js';
+import { applyPreviewOverridesToFrameTree } from '../src/preview-shell/app-relayout.js';
 import {
   DAGRE_PREVIEW_ENGINE,
   ELK_FORCE_PREVIEW_ENGINE,
@@ -81,6 +82,7 @@ describe('preview-engine registry', () => {
     expect(elk?.scripts).toEqual(['elk-layout-controls.js', 'elk-controller.js']);
     expect(elk?.compatibility.frameDiagramRequirements).toEqual({
       minArrowCount: 1,
+      rejectFillCarrierIdsWithoutDiagramType: true,
     });
     expect(listPreviewEnginesBySidebarSection('elk-layout').map((entry) => entry.id)).toEqual([
       ...ELK_ENGINE_IDS,
@@ -392,6 +394,88 @@ describe('preview-engine registry', () => {
       layoutEngine: 'elk-force',
       frameDiagramSummary: { arrowCount: 2, unsupportedElkCarrierIds: [] },
     })?.id).toBe('elk-force');
+  });
+
+  it('distinguishes explicit engine resolution from offer-list example fit', () => {
+    const diagram = loadFrameYaml(join(FRAMES_DIR, 'support-engineering-flow.yaml'));
+    const summary = summarizeFrameDiagramCompatibility(diagram);
+    const context = {
+      shellMode: 'grid' as const,
+      previewDocumentKind: 'frame-diagram' as const,
+      frameDiagramSummary: summary,
+    };
+
+    expect(summary.diagramType).toBe('process_and_workflow');
+    expect(listCompatiblePreviewEngines(context).map((entry) => entry.id)).toEqual([
+      'v3',
+      'elk-layered',
+      'elk-force',
+      'elk-stress',
+      'elk-mrtree',
+      'elk-radial',
+      'dagre',
+    ]);
+    expect(evaluatePreviewEngineCompatibility(ELK_RECTPACKING_PREVIEW_ENGINE, context)).toMatchObject({
+      compatible: false,
+      reason: expect.stringContaining('process_and_workflow'),
+    });
+    expect(resolvePreviewEngine({
+      ...context,
+      layoutEngine: 'elk-rectpacking',
+    })?.id).toBe('elk-rectpacking');
+  });
+
+  it('blocks ELK-family compatibility when fill-sized structural carriers lack an authored diagram type', () => {
+    const diagram = loadFrameYaml(join(FRAMES_DIR, 'tiered-network-architecture.author-v1.yaml'));
+    applyPreviewOverridesToFrameTree(
+      diagram,
+      Object.fromEntries([
+        'tier2_row',
+        'group_left',
+        'group_center',
+        'group_right',
+        'clients_left_top',
+        'clients_center_top',
+        'clients_right_top',
+        'tier2_left',
+        'tier2_center',
+        'tier2_right',
+      ].map((id) => [id, { sizing_w: 'FILL', sizing_h: 'FILL' }])),
+    );
+    const summary = summarizeFrameDiagramCompatibility(diagram);
+    const context = {
+      shellMode: 'grid' as const,
+      previewDocumentKind: 'frame-diagram' as const,
+      frameDiagramSummary: summary,
+    };
+
+    expect(summary.diagramType).toBeNull();
+    expect(summary.fillCarrierIds).toEqual([
+      'clients_center_top',
+      'clients_left_top',
+      'clients_right_top',
+      'group_center',
+      'group_left',
+      'group_right',
+      'tier2_row',
+    ]);
+    for (const engine of [
+      ELK_LAYERED_PREVIEW_ENGINE,
+      ELK_FORCE_PREVIEW_ENGINE,
+      ELK_STRESS_PREVIEW_ENGINE,
+      ELK_MRTREE_PREVIEW_ENGINE,
+      ELK_RADIAL_PREVIEW_ENGINE,
+      ELK_RECTPACKING_PREVIEW_ENGINE,
+    ]) {
+      expect(evaluatePreviewEngineCompatibility(engine, context)).toMatchObject({
+        compatible: false,
+        reason: expect.stringContaining('fill-sized structural carriers'),
+      });
+      expect(resolvePreviewEngine({
+        ...context,
+        layoutEngine: engine.layoutEngineKey,
+      })).toBeUndefined();
+    }
   });
 
   it('marks conflicting elk-family engines incompatible by layout key', () => {
