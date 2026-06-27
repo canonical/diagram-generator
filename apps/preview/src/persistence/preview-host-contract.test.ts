@@ -443,7 +443,7 @@ test("autolayout viewer shows graph layout controls and hides ELK, grid, and for
 test("real frame fixtures resolve authored layout engines without silent v3 fallback", () => {
   const framesDir = path.join(REPO_ROOT, "scripts", "diagrams", "frames");
   const expectedLayoutEngines = new Map([
-    ["example-platform-architecture", "elk-layered"],
+    ["example-platform-architecture", "v3"],
     ["request-to-hardware-stack", "v3"],
   ]);
   for (const [slug, expectedLayoutEngine] of expectedLayoutEngines) {

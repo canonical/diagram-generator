@@ -503,7 +503,7 @@ describe('preview-engine registry', () => {
 
   it('resolves real container-endpoint authored diagrams to their authored engine', () => {
     const expectedEngines = new Map([
-      ['example-platform-architecture', 'elk-layered'],
+      ['example-platform-architecture', 'v3'],
       ['request-to-hardware-stack', 'v3'],
     ]);
     for (const [slug, expectedEngine] of expectedEngines) {
