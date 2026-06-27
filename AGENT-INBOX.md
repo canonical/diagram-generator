@@ -7,7 +7,27 @@ Durable follow-up belongs in `specs/<id>-<slug>/`,
 `TODO.md` is only a pointer to open spec packages.
 
 ---
-## 2026-06-27 - Adversarial review of specs 055 + 056 (local-only, pre-push)
+## 2026-06-27 - 055/056 pre-push blockers resolved
+
+The earlier local-only review findings for specs 055 and 056 are now resolved.
+
+- Stopped the live preview / render-corpus background writers that were mutating
+  authored frame YAML during validation.
+- Restored the churned authored YAML files to branch HEAD before rerunning
+  gates.
+- Revalidated both spec branches cleanly:
+  - `feat/055-preview-engine-workspace-navigation` -> layout-engine tests,
+    apps/preview tests, and `check_no_new_python` all green.
+  - `feat/056-arrow-reroute-structural-mutations` -> layout-engine tests,
+    apps/preview tests, `check-browser-bundle-fresh`, and
+    `check_no_new_python` all green.
+- Pushed both feature branches to origin and merged them into `main`.
+
+The next overnight queue should start at specs 057-059. The historical
+pre-push review below is retained for audit context only.
+
+---
+## Historical note - 2026-06-27 adversarial review of specs 055 + 056 (local-only, pre-push)
 
 Reviewer pass over both overnight feature branches before they are pushed.
 Reviewed committed code on each branch plus the current dirty worktree on
@@ -191,16 +211,15 @@ apps/preview suite green).
 
 ### Findings (severity-ordered)
 
-**S3 (low) - Stale caveat in this same file is now misleading.**
-`AGENT-INBOX.md` lines ~173-177 (the 2026-06-26 routing-identity note) still claim
-the `example-platform-architecture` flip to `v3` "breaks
-`preview-host-contract.test.ts`". That is no longer true: the merge updated the
-fixture expectation map to `["example-platform-architecture", "v3"]`, and the
-full apps/preview suite passes. The caveat reads as an open breakage but is
-resolved. Recommend trimming or annotating that note so future agents do not
-chase a non-bug.
+**S3 (resolved) - Historical routing caveat needed trimming.**
+The older 2026-06-26 routing-identity note read like an open
+`example-platform-architecture` / `preview-host-contract.test.ts` breakage even
+though the merge updated the fixture expectation map to
+`["example-platform-architecture", "v3"]` and the full apps/preview suite now
+passes. Resolved by annotating that note below as historical-only context so
+future agents do not chase a non-bug.
 
-**S3 (low) - Authored engine flips have no render-fidelity gate.**
+**S3 (deferred to spec 057) - Authored engine flips have no render-fidelity gate.**
 `mongo-octavia-ha` and `preview-smoke` (`v3 -> elk-layered`) and
 `support-engineering-flow` (`elk-rectpacking -> elk-force`) are committed as
 authored choices. They re-parse/resolve correctly (registry + load tests cover
@@ -208,7 +227,7 @@ identity), but there is no committed visual/structural regression asserting thes
 engines actually lay these specific compound/container fixtures out acceptably.
 This is a known-tracked risk: draft spec 057 explicitly calls out
 `support-engineering-flow` engine fit and ELK-family fidelity / compound-child
-dropping. Acceptable to defer to 057; flagged so the gap is explicit.
+dropping. No spec 056 action required; keep this deferred to spec 057.
 
 **S4 (residual) - Producer/guard duplication risk.**
 `preview-override-model.ts` and `app-save-payload.ts` independently define
@@ -375,7 +394,7 @@ a fixture with one malformed arrow if you want certainty.
 
 ---
 
-## 2026-06-26 - Preview arrow-routing identity split fixed for v3 branch routing
+## 2026-06-26 - Historical note: preview arrow-routing identity split fixed for v3 branch routing
 
 Follow-up after re-checking `INBOX.md` for the report:
 
@@ -412,10 +431,48 @@ Validation completed:
 - `npm --prefix packages/layout-engine run build:browser`
 - `node scripts/check-browser-bundle-fresh.mjs`
 
-Caveat:
+Follow-up:
 
-- A broader `apps/preview` test sweep is currently noisy because local working
-  tree fixture edits changed `scripts/diagrams/frames/example-platform-architecture.yaml`
-  from `elk-layered` to `v3`; this breaks the existing
-  `preview-host-contract.test.ts` expectation for that fixture. That mismatch is
-  local fixture state, not a result of the routing-identity fix.
+- Resolved on 2026-06-27. The authored `example-platform-architecture` engine
+  change and `preview-host-contract.test.ts` expectation map now agree on `v3`,
+  and the full `apps/preview` suite passes on current `main`. This note is
+  historical context only; there is no active
+  `example-platform-architecture`/`preview-host-contract.test.ts` mismatch.
+
+---
+
+## 2026-06-27 - Adversarial review of `feat/056-arrow-reroute-structural-mutations`
+
+Reviewer pass over spec 056 implementation commits `3018f05` + `bb2eb3c`.
+
+### Verdict
+
+No P0/P1 product-correctness regressions surfaced in the reroute invalidation
+work itself. The live relayout path, save payload synthesis, and persist/reload
+coverage all behave as intended once the local package/browser artifacts are
+built. I did find one real validation/workflow issue plus two lower-severity
+closeout gaps that should be recorded before this branch is treated as fully
+closed.
+
+### Resolved follow-up
+
+| Severity | Area | Finding | Resolution |
+|----------|------|---------|------------|
+| P2 | Validation workflow | `npm --prefix apps/preview test` was not self-contained on a clean checkout because the suite asserted browser-bundle freshness before the bundle was built. | Resolved by making `apps/preview` pretest build the layout-engine browser bundle before the Node test run (`apps/preview/package.json`). |
+| P3 | Review coverage | The fresh-render lane changed in spec 056 had no focused regression proving reroute invalidation on the real `renderFreshPreviewSvg(...)` path. | Resolved with focused `app-fresh-render` coverage that seeds stale authored arrow geometry and asserts route-bearing overrides clear `waypoints` and `layoutPath` before reroute (`packages/layout-engine/tests/app-fresh-render.test.ts`). |
+| P3 | Spec bookkeeping | `docs/specs.md` still listed spec 056 as **In Progress** while the branch-local spec package and `AGENTS.md` already said **Closeout Ready**. | Resolved by aligning `docs/specs.md` to **Closeout Ready** and recording the review follow-up tasks under the spec package (`specs/056-arrow-reroute-structural-mutations/tasks.md`). |
+
+### Remaining notes
+
+- No active spec 056 findings remain in this review pass.
+
+### What I verified
+
+- `rg -n diagram_render_svg scripts packages apps` -> **pass** (no importable runtime refs)
+- `npm --prefix packages/layout-engine test -- svg-golden` -> **pass** (6 tests)
+- `npm --prefix packages/layout-engine test -- arrow-render` -> **pass** (22 tests)
+- `npm --prefix packages/layout-engine test -- preview-override-model.test.ts app-layout-bridge-runtime.test.ts app-live-resize.test.ts app-relayout-runtime.test.ts app-editor-relayout-facade.test.ts` -> **pass** (31 tests)
+- `npm --prefix packages/layout-engine test` -> **pass** (143 files / 838 tests)
+- `node scripts/check_no_new_python.mjs` -> **pass**
+- `npm --prefix apps/preview test` -> **initial fail** on missing browser artifacts; **pass after** `npm --prefix packages/layout-engine run build:browser`
+- `node scripts/check-browser-bundle-fresh.mjs` -> **initial fail** before browser build; **pass after** browser build

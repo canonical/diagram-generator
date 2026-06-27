@@ -172,6 +172,7 @@ describe('preview diagram bootstrap/data helpers', () => {
         target: 'beta',
         color: undefined,
         waypoints: [{ x: 1, y: 2 }],
+        authoredWaypoints: [{ x: 1, y: 2 }],
       },
     ]);
     expect(loadedArrows).toEqual([payload]);

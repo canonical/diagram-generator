@@ -24,6 +24,10 @@ import {
 } from './app-arrow-render.js';
 import { appendPreviewDisplayListItems } from './app-display-list-dom.js';
 import {
+  invalidatePreviewArrowWaypointGeometry,
+  shouldInvalidatePreviewArrowWaypointGeometry,
+} from './preview-arrow-reroute-invalidation.js';
+import {
   collectPreviewPlacedBounds,
 } from './app-frame-svg.js';
 import { emitFrameDiagramDisplayList } from '../render-adapter/display-list.js';
@@ -332,6 +336,9 @@ export async function renderFreshPreviewSvg<TModel = unknown>(
   const diagram = deserializeFrameDiagramWire(diagramJson);
   const allFrameOverrides = options.collectRelayoutFrameOverrides(options.overrides || {});
   options.applyOverridesToFrameTree(diagram, allFrameOverrides, options.gridOverrides || {});
+  if (shouldInvalidatePreviewArrowWaypointGeometry(allFrameOverrides)) {
+    invalidatePreviewArrowWaypointGeometry(diagram.arrows);
+  }
 
   const engineManifest = resolvePreviewEngine({
     layoutEngine: diagram.layoutEngine ?? null,

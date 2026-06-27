@@ -46,6 +46,7 @@ export interface PreviewArrowModelLike {
     target: string;
     color?: string | null;
     waypoints: Array<[number, number]>;
+    authoredWaypoints?: Array<[number, number]>;
   }>) => void) | null;
 }
 
@@ -221,6 +222,7 @@ export function syncPreviewArrowsInModel<TModel extends PreviewArrowModelLike>(
         target: arrow.target,
         color: arrow.color,
         waypoints: routedArrow ? routedArrow.waypoints : (arrow.waypoints || []),
+        authoredWaypoints: Array.isArray(arrow.waypoints) ? arrow.waypoints : [],
       };
     }),
   );

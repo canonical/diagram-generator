@@ -2,6 +2,10 @@ import { resolvePreviewEngine } from '../preview-engine/registry.js';
 import type { ElkLayoutSnapshot } from '../elk-layout.js';
 import type { Arrow, Frame, FrameDiagram } from '../frame-model.js';
 import type { TextMeasureAdapter } from '../text-measure.js';
+import {
+  invalidatePreviewArrowWaypointGeometry,
+  shouldInvalidatePreviewArrowWaypointGeometry,
+} from './preview-arrow-reroute-invalidation.js';
 import type { PreviewRoutedArrow } from './app-arrow-render.js';
 import type { FreshPreviewSvgRenderResult } from './app-fresh-render.js';
 import type { PreviewLocalRelayoutStatus, PreviewRelayoutOverrideEntry } from './app-relayout.js';
@@ -1681,6 +1685,9 @@ export function createPreviewLayoutBridgeRuntime<
         const diagram = options.deserializeFrameDiagram(diagramJson);
         const allFrameOverrides = options.collectRelayoutFrameOverrides(overrides || {});
         options.applyOverridesToFrameTree(diagram, allFrameOverrides, gridOverrides || {});
+        if (shouldInvalidatePreviewArrowWaypointGeometry(allFrameOverrides)) {
+          invalidatePreviewArrowWaypointGeometry(diagram.arrows);
+        }
 
         const oldBounds: Record<string, PreviewLayoutBridgeOldBoundsEntry> = {};
         const modelIds = (model as { allIds?: Iterable<string> }).allIds;

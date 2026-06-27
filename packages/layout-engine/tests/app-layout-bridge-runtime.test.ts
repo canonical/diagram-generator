@@ -194,6 +194,207 @@ describe('preview layout bridge runtime', () => {
     expect(syncArrowsInModel).not.toHaveBeenCalled();
   });
 
+  it('invalidates authored arrow waypoint geometry before local reroute on direction changes', () => {
+    const state = createPreviewLayoutBridgeState<Record<string, unknown>, Record<string, unknown>>();
+    state.frameTreeJson = {
+      root: { id: 'root', children: [] },
+      arrows: [{ source: 'alpha', target: 'beta', waypoints: [[200, 160], [200, -8]] }],
+    };
+    state.textAdapter = { measurementBackend: 'harfbuzz' } as never;
+
+    const routeArrows = vi.fn(() => []);
+    const runtime = createPreviewLayoutBridgeRuntime({
+      state,
+      fetchPreviewDocument: async () => null,
+      extractFrameTreeFromPreviewDocument: () => null,
+      createTextAdapter: async () => ({ measurementBackend: 'harfbuzz' } as never),
+      getTextAdapterBackend: () => 'harfbuzz',
+      isAuthoritativeTextAdapter: () => true,
+      isEngineLayoutDiagramJson: () => false,
+      deserializeFrameDiagram: () => ({
+        root: {
+          id: 'root',
+          label: [],
+          children: [],
+          _layout: { placedX: 0, placedY: 0, placedW: 100, placedH: 100 },
+        },
+        arrows: [{ source: 'alpha', target: 'beta', waypoints: [[200, 160], [200, -8]] }],
+      }) as never,
+      collectRelayoutFrameOverrides: (overrides) => overrides,
+      applyOverridesToFrameTree: vi.fn(),
+      layoutLocalDiagram: () => ({ coerced: new Map(), width: 320, height: 180 }),
+      collectPlacedBounds: () => ({ root: { x: 0, y: 0, w: 100, h: 100 } }),
+      collectFramesById: () => ({ root: { id: 'root' } as never }),
+      queryStageSvg: () => null,
+      patchSvgFromLayout: vi.fn(),
+      routeArrows,
+      patchArrowsSvg: vi.fn(),
+      updateModelFromLayout: vi.fn(),
+      syncArrowsInModel: vi.fn(),
+      renderFreshPreviewSvg: async () => ({
+        svg: { tagName: 'svg' } as never,
+        width: 640,
+        height: 480,
+        coerced: new Map(),
+        elkSnapshot: null,
+        elkFrameLabels: null,
+      }),
+      ownerDocument: { tagName: 'document' } as never,
+      getStageContainer: () => null,
+      fitRenderedSvg: vi.fn(),
+      resolveEngineLayoutOptionOverrides: () => ({}),
+      refreshElkViewMode: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    });
+
+    runtime.performLocalRelayout(
+      { removedIds: new Set<string>() },
+      { root: { direction: 'VERTICAL' } },
+      {},
+      null,
+    );
+
+    const routedArrowInput = routeArrows.mock.calls[0]?.[0]?.[0];
+    expect(routedArrowInput?.source).toBe('alpha');
+    expect(routedArrowInput?.target).toBe('beta');
+    expect(routedArrowInput?.waypoints).toBeUndefined();
+    expect(routedArrowInput?.layoutPath).toBeUndefined();
+  });
+
+  it('invalidates authored arrow waypoint geometry before local reroute on size changes', () => {
+    const state = createPreviewLayoutBridgeState<Record<string, unknown>, Record<string, unknown>>();
+    state.frameTreeJson = {
+      root: { id: 'root', children: [] },
+      arrows: [{ source: 'alpha', target: 'beta', waypoints: [[200, 160], [200, -8]] }],
+    };
+    state.textAdapter = { measurementBackend: 'harfbuzz' } as never;
+
+    const routeArrows = vi.fn(() => []);
+    const runtime = createPreviewLayoutBridgeRuntime({
+      state,
+      fetchPreviewDocument: async () => null,
+      extractFrameTreeFromPreviewDocument: () => null,
+      createTextAdapter: async () => ({ measurementBackend: 'harfbuzz' } as never),
+      getTextAdapterBackend: () => 'harfbuzz',
+      isAuthoritativeTextAdapter: () => true,
+      isEngineLayoutDiagramJson: () => false,
+      deserializeFrameDiagram: () => ({
+        root: {
+          id: 'root',
+          label: [],
+          children: [],
+          _layout: { placedX: 0, placedY: 0, placedW: 100, placedH: 100 },
+        },
+        arrows: [{ source: 'alpha', target: 'beta', waypoints: [[200, 160], [200, -8]] }],
+      }) as never,
+      collectRelayoutFrameOverrides: (overrides) => overrides,
+      applyOverridesToFrameTree: vi.fn(),
+      layoutLocalDiagram: () => ({ coerced: new Map(), width: 320, height: 180 }),
+      collectPlacedBounds: () => ({ root: { x: 0, y: 0, w: 100, h: 100 } }),
+      collectFramesById: () => ({ root: { id: 'root' } as never }),
+      queryStageSvg: () => null,
+      patchSvgFromLayout: vi.fn(),
+      routeArrows,
+      patchArrowsSvg: vi.fn(),
+      updateModelFromLayout: vi.fn(),
+      syncArrowsInModel: vi.fn(),
+      renderFreshPreviewSvg: async () => ({
+        svg: { tagName: 'svg' } as never,
+        width: 640,
+        height: 480,
+        coerced: new Map(),
+        elkSnapshot: null,
+        elkFrameLabels: null,
+      }),
+      ownerDocument: { tagName: 'document' } as never,
+      getStageContainer: () => null,
+      fitRenderedSvg: vi.fn(),
+      resolveEngineLayoutOptionOverrides: () => ({}),
+      refreshElkViewMode: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    });
+
+    runtime.performLocalRelayout(
+      { removedIds: new Set<string>() },
+      { panel: { sizing_w: 'FIXED', width: 480 } },
+      {},
+      null,
+    );
+
+    const routedArrowInput = routeArrows.mock.calls[0]?.[0]?.[0];
+    expect(routedArrowInput?.source).toBe('alpha');
+    expect(routedArrowInput?.target).toBe('beta');
+    expect(routedArrowInput?.waypoints).toBeUndefined();
+    expect(routedArrowInput?.layoutPath).toBeUndefined();
+  });
+
+  it('keeps authored arrow waypoint geometry for non-route-bearing style relayouts', () => {
+    const state = createPreviewLayoutBridgeState<Record<string, unknown>, Record<string, unknown>>();
+    state.frameTreeJson = {
+      root: { id: 'root', children: [] },
+      arrows: [{ source: 'alpha', target: 'beta', waypoints: [[200, 160], [200, -8]] }],
+    };
+    state.textAdapter = { measurementBackend: 'harfbuzz' } as never;
+
+    const routeArrows = vi.fn(() => []);
+    const runtime = createPreviewLayoutBridgeRuntime({
+      state,
+      fetchPreviewDocument: async () => null,
+      extractFrameTreeFromPreviewDocument: () => null,
+      createTextAdapter: async () => ({ measurementBackend: 'harfbuzz' } as never),
+      getTextAdapterBackend: () => 'harfbuzz',
+      isAuthoritativeTextAdapter: () => true,
+      isEngineLayoutDiagramJson: () => false,
+      deserializeFrameDiagram: () => ({
+        root: {
+          id: 'root',
+          label: [],
+          children: [],
+          _layout: { placedX: 0, placedY: 0, placedW: 100, placedH: 100 },
+        },
+        arrows: [{ source: 'alpha', target: 'beta', waypoints: [[200, 160], [200, -8]] }],
+      }) as never,
+      collectRelayoutFrameOverrides: (overrides) => overrides,
+      applyOverridesToFrameTree: vi.fn(),
+      layoutLocalDiagram: () => ({ coerced: new Map(), width: 320, height: 180 }),
+      collectPlacedBounds: () => ({ root: { x: 0, y: 0, w: 100, h: 100 } }),
+      collectFramesById: () => ({ root: { id: 'root' } as never }),
+      queryStageSvg: () => null,
+      patchSvgFromLayout: vi.fn(),
+      routeArrows,
+      patchArrowsSvg: vi.fn(),
+      updateModelFromLayout: vi.fn(),
+      syncArrowsInModel: vi.fn(),
+      renderFreshPreviewSvg: async () => ({
+        svg: { tagName: 'svg' } as never,
+        width: 640,
+        height: 480,
+        coerced: new Map(),
+        elkSnapshot: null,
+        elkFrameLabels: null,
+      }),
+      ownerDocument: { tagName: 'document' } as never,
+      getStageContainer: () => null,
+      fitRenderedSvg: vi.fn(),
+      resolveEngineLayoutOptionOverrides: () => ({}),
+      refreshElkViewMode: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    });
+
+    runtime.performLocalRelayout(
+      { removedIds: new Set<string>() },
+      { panel: { fill: 'BLACK' } },
+      {},
+      null,
+    );
+
+    const routedArrowInput = routeArrows.mock.calls[0]?.[0]?.[0];
+    expect(routedArrowInput?.waypoints).toEqual([[200, 160], [200, -8]]);
+  });
+
   it('owns the ELK raw/debug overlay view mode outside layout-bridge.js', () => {
     const appendChild = vi.fn();
     const setAttribute = vi.fn();

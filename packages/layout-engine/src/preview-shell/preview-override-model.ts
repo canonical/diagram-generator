@@ -1,5 +1,6 @@
 import { isPreviewArrowComponentId } from '../preview-arrow-component-ids.js';
 import {
+  hasPreviewRerouteInvalidationFrameOverride,
   PERSIST_ARROW_KEYS,
   PERSIST_FRAME_KEYS,
   UNSUPPORTED_PERSIST_FRAME_KEYS,
@@ -23,6 +24,7 @@ export interface PreviewOverrideModelLike {
   elkLayoutOverrides?: Record<string, unknown> | null;
   layoutOverrideNamespace?: string | null;
   removedIds?: Iterable<string> | null;
+  allIds?: Iterable<string> | null;
   get?: ((id: string) => PreviewOverrideModelNode | null | undefined) | null;
 }
 
@@ -176,6 +178,55 @@ function collectPersistableOverrides(
   return persisted;
 }
 
+function hasPendingArrowRerouteInvalidation(
+  model: PreviewOverrideModelLike | null | undefined,
+): boolean {
+  const overrides = isRecord(model?.overrides) ? model!.overrides! : null;
+  if (!overrides) {
+    return false;
+  }
+  for (const [componentId, override] of Object.entries(overrides)) {
+    const node = model?.get?.(componentId) ?? null;
+    if (previewArrowComponent(componentId, node)) {
+      continue;
+    }
+    if (isRecord(override) && hasPreviewRerouteInvalidationFrameOverride(override)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function applyPendingArrowRerouteWaypointClears(
+  model: PreviewOverrideModelLike | null | undefined,
+  persisted: Record<string, unknown>,
+): void {
+  if (!hasPendingArrowRerouteInvalidation(model)) {
+    return;
+  }
+  const allIds = model?.allIds ? [...model.allIds] : [];
+  for (const componentId of allIds) {
+    if (typeof componentId !== 'string' || componentId.length === 0) {
+      continue;
+    }
+    const node = model?.get?.(componentId) ?? null;
+    if (!previewArrowComponent(componentId, node)) {
+      continue;
+    }
+    const existing = isRecord(persisted[componentId]) ? persisted[componentId] : null;
+    const authoredWaypoints = Array.isArray(node?.data?.authoredWaypoints)
+      ? node.data.authoredWaypoints
+      : [];
+    if (!existing && authoredWaypoints.length === 0) {
+      continue;
+    }
+    persisted[componentId] = {
+      ...(existing || {}),
+      waypoints: [],
+    };
+  }
+}
+
 function readPreviewPersistedLayoutOverrides(
   model: PreviewOverrideModelLike | null | undefined,
 ): { namespace: string; overrides: Record<string, unknown> } | null {
@@ -218,8 +269,10 @@ export function collectPreviewTopLevelRemovalIds(
 export function createPreviewOverridePayload(
   model: PreviewOverrideModelLike | null | undefined,
 ): PreviewOverridePayload {
+  const overrides = collectPersistableOverrides(model);
+  applyPendingArrowRerouteWaypointClears(model, overrides);
   const payload: PreviewOverridePayload = {
-    overrides: collectPersistableOverrides(model),
+    overrides,
     format_version: 1,
   };
 
