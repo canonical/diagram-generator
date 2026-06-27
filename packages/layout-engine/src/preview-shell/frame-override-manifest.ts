@@ -75,6 +75,40 @@ export const PERSIST_LOWER_FRAME_KEYS = [
 /** Override keys forwarded into client-side layout relayout (excludes persist-only style). */
 export const RELAYOUT_FRAME_KEYS = PERSIST_FRAME_KEYS.filter((key) => key !== 'style');
 
+/**
+ * Frame override keys that invalidate persisted/authored routed arrow geometry.
+ * These mutations change route inputs, so stale arrow waypoints must not be
+ * carried forward through the next relayout.
+ */
+export const REROUTE_INVALIDATION_FRAME_KEYS = [
+  'text',
+  'direction',
+  'gap',
+  'gap_delta',
+  'padding',
+  'padding_top',
+  'padding_right',
+  'padding_bottom',
+  'padding_left',
+  'sizing',
+  'sizing_w',
+  'sizing_h',
+  'fill_weight',
+  'align',
+  'wrap',
+  'width',
+  'height',
+  'min_width',
+  'max_width',
+  'max_width_chars',
+  'min_height',
+  'max_height',
+  'position',
+  'x',
+  'y',
+  'children_order',
+] as const;
+
 /** Override keys that should trigger a layout relayout after undo/redo restore. */
 export const UNDO_RELAYOUT_FRAME_KEYS = [
   'text',
@@ -126,6 +160,13 @@ export function hasPreviewRelayoutFrameOverride(
 ): boolean {
   if (!ovr) return false;
   return UNDO_RELAYOUT_FRAME_KEYS.some((key) => ovr[key] !== undefined && ovr[key] !== null);
+}
+
+export function hasPreviewRerouteInvalidationFrameOverride(
+  ovr: Record<string, unknown> | null | undefined,
+): boolean {
+  if (!ovr) return false;
+  return REROUTE_INVALIDATION_FRAME_KEYS.some((key) => ovr[key] !== undefined && ovr[key] !== null);
 }
 
 /** @deprecated Prefer `hasPreviewRelayoutFrameOverride`. */
