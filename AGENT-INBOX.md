@@ -8,31 +8,6 @@ Durable follow-up belongs in `specs/<id>-<slug>/`,
 
 ---
 
-## 2026-06-27 - Spec 055 branch handoff blocker
-
-Spec 055 implementation is committed in this temp worktree as:
-
-- `fdf8a9f` — `docs: capture spec 055 engine workspace baseline`
-- `e1d5809` — `feat: add preview engine workspace chrome`
-
-The code and spec tasks are complete, but the local branch ref
-`feat/055-preview-engine-workspace-navigation` could not be advanced from this
-worktree because Git reports that branch is already checked out in another
-worktree:
-
-- `H:/WSL_dev_projects/diagram-generator` at commit `4cca998`
-
-Attempted commands failed with:
-
-- `fatal: cannot force update the branch 'feat/055-preview-engine-workspace-navigation' used by worktree at 'H:/WSL_dev_projects/diagram-generator'`
-- `fatal: 'feat/055-preview-engine-workspace-navigation' is already used by worktree at 'H:/WSL_dev_projects/diagram-generator'`
-
-Next operator action: move the branch tip from the owning worktree, or free that
-worktree's branch checkout and then fast-forward/reset the branch to
-`e1d5809`.
-
----
-
 ## 2026-06-27 - Post-merge adversarial review of `8baea34..bee91b9` (spec 054 + 055-059 drafts)
 
 Reviewer pass over the explicit pre-merge..main range, not a single-commit diff.
@@ -71,7 +46,8 @@ the `example-platform-architecture` flip to `v3` "breaks
 `preview-host-contract.test.ts`". That is no longer true: the merge updated the
 fixture expectation map to `["example-platform-architecture", "v3"]`, and the
 full apps/preview suite passes. The caveat reads as an open breakage but is
-resolved. Recommend trimming or annotating that note so future agents do not
+resolved. **Resolved 2026-06-27 in this inbox cleanup:** the stale caveat below
+was trimmed so future agents do not
 chase a non-bug.
 
 **S3 (low) - Authored engine flips have no render-fidelity gate.**
@@ -286,13 +262,12 @@ Validation completed:
 - `npm --prefix packages/layout-engine run build:browser`
 - `node scripts/check-browser-bundle-fresh.mjs`
 
-Caveat:
+Resolved follow-up:
 
-- A broader `apps/preview` test sweep is currently noisy because local working
-  tree fixture edits changed `scripts/diagrams/frames/example-platform-architecture.yaml`
-  from `elk-layered` to `v3`; this breaks the existing
-  `preview-host-contract.test.ts` expectation for that fixture. That mismatch is
-  local fixture state, not a result of the routing-identity fix.
+- The temporary `example-platform-architecture` expectation mismatch described
+  during the 2026-06-26 routing pass is no longer current. The authored engine
+  choice and `preview-host-contract.test.ts` expectation now agree on `v3`, and
+  the broader `apps/preview` suite passes with that fixture state.
 
 ---
 
