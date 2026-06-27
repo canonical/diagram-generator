@@ -98,6 +98,18 @@ consistent with the "implement only from matching feature branch" rule.
   yet exist (expected for drafts).
 - `image.png` remains untracked at repo root (pre-existing, ignored here).
 
+### Spec 055 review-phase disposition
+
+- No spec-055 correctness blockers remain in this review queue.
+- The branch now has a focused runtime regression that proves panel visibility
+  follows the live `document_kind`, `active_engine_id`, and
+  `persisted_layout_engine` config during browser-local engine switches.
+- `specs/055-preview-engine-workspace-navigation/engine-workspace-flow.md` now
+  matches the typed workspace/runtime owners on this branch instead of the
+  pre-fix legacy flow.
+- The remaining authored-engine fidelity gap is explicitly deferred to spec 057
+  and is not actionable inside spec 055.
+
 ---
 
 

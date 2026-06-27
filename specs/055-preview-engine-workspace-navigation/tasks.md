@@ -69,3 +69,10 @@
       tests.
       **Verify**: `npm --prefix packages/layout-engine test`;
       `npm --prefix apps/preview test`
+
+- [x] **T034** Refresh the review follow-up contract around live workspace sync.
+      **Do**: tighten the runtime panel-visibility regression so it exercises
+      browser-local active-engine switches against the live
+      `document_kind` / persisted-engine config, and refresh the spec flow map
+      so it matches the typed workspace owner now shipping on this branch.
+      **Verify**: `npm --prefix packages/layout-engine test -- app-grid-editor-install-unit.test.ts`
