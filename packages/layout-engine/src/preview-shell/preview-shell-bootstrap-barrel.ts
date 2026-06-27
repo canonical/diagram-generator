@@ -126,6 +126,15 @@ export {
 } from './app-diagram-navigation.js';
 
 export type {
+  InitPreviewEngineWorkspaceChromeOptions,
+  PreviewEngineWorkspaceChromeConfig,
+} from './preview-engine-workspace-chrome.js';
+
+export {
+  initPreviewEngineWorkspaceChrome,
+} from './preview-engine-workspace-chrome.js';
+
+export type {
   CreatePreviewEditorBootstrapFacadeFromEditorHostOptions,
   CreatePreviewEditorBootstrapFacadeFromRuntimeOptions,
   PreviewEditorBootstrapFacade,

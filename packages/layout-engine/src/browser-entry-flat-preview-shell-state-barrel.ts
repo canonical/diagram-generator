@@ -10,7 +10,9 @@ export {
   overridePatchChanged,
   EditorStateStore,
   captureOverrideEntries,
+  clearPreviewEngineWorkspaceSessionState,
   createEditorStateStore,
+  createPreviewEngineWorkspaceState,
   PERSIST_FRAME_KEYS,
   UNSUPPORTED_PERSIST_FRAME_KEYS,
   PERSIST_INT_FRAME_KEYS,
@@ -58,6 +60,10 @@ export {
   resolveSingleSelectionPreviewStyleState,
   resolvePreviewFrameSizePx,
   rowSpanToPx,
+  persistPreviewEngineWorkspaceActiveEngine,
+  reopenPreviewEngineWorkspace,
+  setPreviewEngineWorkspaceActiveEngine,
+  setPreviewEngineWorkspaceSessionState,
 } from './preview-shell/preview-shell-state-barrel.js';
 
 export type {
@@ -70,7 +76,12 @@ export type {
   PendingUndoableAction,
   EditorStateStoreDeps,
   EditorStateStoreOptions,
+  CreatePreviewEngineWorkspaceStateOptions,
   PersistFrameKey,
+  PreviewEngineWorkspaceEngine,
+  PreviewEngineWorkspaceNavigation,
+  PreviewEngineWorkspaceState,
+  PreviewEngineWorkspaceTab,
   RelayoutFrameKey,
   PreviewGridControlState,
   PreviewGridControlInputState,

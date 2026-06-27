@@ -1,7 +1,7 @@
 # Spec 055: Preview Engine Workspace Navigation
 
 **Feature Branch**: `feat/055-preview-engine-workspace-navigation`  
-**Status**: In Progress  
+**Status**: Closeout Ready  
 **Created**: 2026-06-27
 
 ## Problem
@@ -61,6 +61,21 @@ This needs an explicit workspace model, not more ad hoc switcher glue.
   `service-handshake-sequence` has a compatible `sequence` engine with no visible
   engine-identity surface because the switcher is frame-only and the output
   header remains static.
+- 2026-06-27: T010/T011 introduced a typed engine-workspace owner in
+  `packages/layout-engine/src/preview-shell/preview-engine-workspace.ts`.
+  Preview-shell and preview-host callers now derive active engine, compatible
+  engine ids, persisted reopen defaults, invalid persisted-engine state, and
+  per-engine unsaved session state from the same TypeScript model.
+- 2026-06-27: T020/T021/T022 moved engine-workspace chrome into
+  `packages/layout-engine/src/preview-shell/preview-engine-workspace-chrome.ts`
+  and reduced `scripts/preview/engine-switcher.js` to a thin bootstrap wrapper.
+  The output header now exposes active-engine identity plus compatible-engine
+  prev/next and tab-rail controls, while the preview shell hides inactive
+  engine chrome and still shows engine identity for sequence documents.
+- 2026-06-27: T030 validation is green. `npm --prefix packages/layout-engine test`,
+  `npm --prefix apps/preview test`, and `node scripts/check_no_new_python.mjs`
+  all pass with the typed engine-workspace model and chrome wired through the
+  preview host.
 
 ## Grouped Inbox Notes
 

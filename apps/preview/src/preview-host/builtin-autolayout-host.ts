@@ -3,6 +3,8 @@ import path from "node:path";
 import {
   ARROW_HEAD_HALF_WIDTH,
   ARROW_HEAD_LENGTH,
+  createPreviewEngineWorkspaceState,
+  getPreviewEngineByLayoutKey,
   GRID_GUTTER,
   ICON_SIZE,
   INSET,
@@ -230,22 +232,34 @@ export function createAutolayoutPreviewHostViewerRoute(
           findReferenceImage: deps.findReferenceImage,
         },
       );
+      const engineWorkspace = createPreviewEngineWorkspaceState({
+        activeEngine: engineManifest ?? null,
+        compatibleEngineIds: compatibleEngines,
+        getEngineById: (engineId) => getPreviewEngineByLayoutKey(engineId) ?? null,
+        persistedEngineId: authoredLayoutEngine,
+      });
       const previewUiContext = {
         shellMode: "grid" as const,
         documentKind,
-        activeEngine: engineManifest ?? null,
-        compatibleEngines,
-        persistedLayoutEngine: authoredLayoutEngine,
+        engineWorkspace,
+        activeEngine: engineWorkspace.activeEngine ?? engineManifest ?? null,
+        compatibleEngines: engineWorkspace.compatibleEngineIds,
+        persistedLayoutEngine: engineWorkspace.persistedEngineId,
         documentState: { hasReference },
       };
       const visibleTemplateSections = resolvePreviewVisibleTemplateSections(previewUiContext);
       const showEngineSwitcher = shouldShowPreviewEngineSwitcher(previewUiContext);
+      const showEngineWorkspaceChrome = showEngineSwitcher || Boolean(engineWorkspace.activeEngineId);
       const configScript = buildPreviewWindowConfigScript("__DG_CONFIG", {
         slug,
-        engine: engineManifest?.id ?? (activeLayoutEngine || "v3"),
+        engine: engineWorkspace.activeEngine?.id ?? (engineManifest?.id ?? (activeLayoutEngine || "v3")),
         shell_mode: "grid",
         layout_engine: activeLayoutEngine,
-        compatible_engines: compatibleEngines,
+        active_engine_id: engineWorkspace.activeEngineId,
+        active_engine_label: engineWorkspace.activeEngine?.label ?? null,
+        persisted_layout_engine: engineWorkspace.persistedEngineId,
+        compatible_engines: engineWorkspace.compatibleEngineIds,
+        show_engine_switcher: showEngineSwitcher,
         grid: false,
         inset: deps.inset ?? INSET,
         head_len: deps.headLength ?? ARROW_HEAD_LENGTH,
@@ -266,7 +280,7 @@ export function createAutolayoutPreviewHostViewerRoute(
         engineScripts: [
           ...(engineManifest?.scripts ?? []),
           "editor.js",
-          ...(showEngineSwitcher ? ["engine-switcher.js"] : []),
+          ...(showEngineWorkspaceChrome ? ["engine-switcher.js"] : []),
         ],
       });
       return buildPreviewViewerHtml({

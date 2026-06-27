@@ -19,6 +19,9 @@ import {
   type PreviewBoxStyleMap,
 } from './frame-style.js';
 import {
+  createPreviewEngineWorkspaceState,
+} from './preview-engine-workspace.js';
+import {
   syncPreviewPanelVisibilityFromContext,
 } from './app-shell-panels.js';
 import type {
@@ -26,6 +29,7 @@ import type {
   PreviewUiSelectionContext,
 } from './preview-ui-context.js';
 import {
+  getPreviewEngineByLayoutKey,
   resolvePreviewEngine,
 } from '../preview-engine/registry.js';
 
@@ -603,9 +607,15 @@ export function createPreviewGridEditorInstallOptionsFromLegacyEditorHost(
       context: {
         shellMode,
         documentKind: 'frame-diagram',
+      engineWorkspace: createPreviewEngineWorkspaceState({
         activeEngine,
-        compatibleEngines: normalizeCompatibleEngines(previewConfig.compatible_engines),
-        persistedLayoutEngine: layoutEngine,
+        compatibleEngineIds: normalizeCompatibleEngines(previewConfig.compatible_engines),
+        getEngineById: (engineId) => getPreviewEngineByLayoutKey(engineId) ?? null,
+        persistedEngineId: layoutEngine,
+      }),
+      activeEngine,
+      compatibleEngines: normalizeCompatibleEngines(previewConfig.compatible_engines),
+      persistedLayoutEngine: layoutEngine,
         selection,
         documentState: resolvePreviewDocumentStateForPanelSync(options.state, previewConfig),
       },
