@@ -1,7 +1,7 @@
 # Spec 057: Graph Engine Fidelity And Example Fit
 
 **Feature Branch**: `feat/057-graph-engine-fidelity-and-example-fit`  
-**Status**: Closeout Ready  
+**Status**: In Progress  
 **Created**: 2026-06-27
 
 ## Problem
@@ -94,3 +94,15 @@ semantic fidelity once an engine is exposed.
   - `elk-rectpacking` remains technically resolvable when explicitly chosen, but it is no longer offered for authored process-flow examples like `support-engineering-flow`.
   - ELK-family engines now hard-block diagrams that introduce fill-sized structural carriers without an authored `meta.diagram_type`, explicitly bounding the unsupported `tiered-network-architecture.author-v1` ELK fill case instead of silently offering a misleading lane.
   - Nested annotation restoration now keeps `mongo-octavia-ha` AZ labels attached to their owning wrappers instead of stacking them below the whole page.
+
+### 2026-06-28 adversarial review
+
+- Full validation stayed green, but closeout is blocked on two remaining
+  compatibility gaps:
+  - metadata-less arrow fixtures (`complex-routing-usecase`,
+    `example-deployment-pipeline`, and `preview-smoke`) still offer
+    `elk-rectpacking`, so the example-fit gate still depends on authored
+    `meta.diagram_type` being present.
+  - the fill-carrier summary currently skips fill-sized structural carriers that
+    are themselves arrow endpoints, so an explicit ELK selection can still
+    resolve without authored `meta.diagram_type` for that shape.

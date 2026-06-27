@@ -476,3 +476,48 @@ closed.
 - `node scripts/check_no_new_python.mjs` -> **pass**
 - `npm --prefix apps/preview test` -> **initial fail** on missing browser artifacts; **pass after** `npm --prefix packages/layout-engine run build:browser`
 - `node scripts/check-browser-bundle-fresh.mjs` -> **initial fail** before browser build; **pass after** browser build
+
+---
+
+## 2026-06-28 - Adversarial review of `feat/057-graph-engine-fidelity-and-example-fit`
+
+Reviewer pass over spec 057 implementation commit `667d251`.
+
+### Verdict
+
+Spec 057 is **not** closeout-ready yet. The branch is clean and the full test
+gates are green, but the new compatibility contract still misses two important
+cases: real metadata-less fixtures can still offer `elk-rectpacking`, and the
+new fill-carrier guard skips endpoint containers entirely.
+
+### Findings (severity-ordered)
+
+| Severity | Area | Finding | Evidence (file:line or command) | Recommended fix |
+|----------|------|---------|----------------------------------|-----------------|
+| S2 | Example-fit contract | `elk-rectpacking` is still offered on real arrow-bearing fixtures that do not declare `meta.diagram_type`, so the new offer-list bar only works on metadata-rich documents. | `packages/layout-engine/src/preview-engine/registry.ts:217-231` only applies `offerDiagramTypes` when `diagramType` is present; `packages/layout-engine/src/preview-engine/engines/elk-rectpacking.engine.ts:15-21` narrows rectpacking to `deployment_and_runtime_topology`; `scripts/diagrams/frames/complex-routing-usecase.yaml:1-60`, `scripts/diagrams/frames/example-deployment-pipeline.yaml:1-52`, and `scripts/diagrams/frames/preview-smoke.yaml:1-39` all have arrows but no `meta.diagram_type`; probe: `node --input-type=module` over `loadFrameYaml(...)`, `summarizeFrameDiagramCompatibility(...)`, and `listCompatiblePreviewEngines(...)` reported all three slugs with `compatible` including `elk-rectpacking`. | Either backfill `meta.diagram_type` on real authored fixtures that should participate in example-fit gating, or add a fallback shape heuristic / contract rule so workflow-like arrow fixtures without metadata do not surface `elk-rectpacking`. Add a regression test around one metadata-less real fixture. |
+| S2 | Fill-carrier guard | `rejectFillCarrierIdsWithoutDiagramType` misses fill-sized structural carriers that are themselves arrow endpoints, so an explicit ELK selection can still resolve even though the spec says fill-sized structural carriers without authored `diagram_type` should be hard-blocked. | `packages/layout-engine/src/preview-engine/registry.ts:145-166` excludes `selfHasEndpoint` from `fillCarrierIds`; probe: a synthetic `group -> target` diagram with `group` as a `FILL` container yielded `fillCarrierIds: []`, `unsupportedCarrierIds: ['group']`, and `evaluatePreviewEngineCompatibility(ELK_LAYERED_PREVIEW_ENGINE, ...) => { compatible: true }`; existing coverage at `packages/layout-engine/tests/preview-engine-registry.test.ts:428-479` only exercises non-endpoint descendant carriers. | Include endpoint containers in the fill-carrier summary, or add a parallel guard for endpoint carriers, and extend registry coverage with an endpoint-container reproducer. |
+
+### Top 3 risks before merge
+
+1. Metadata-less workflow fixtures can still expose a layout lane this spec was
+   meant to de-offer.
+2. The ELK fill-safety bar is not actually shape-complete; endpoint containers
+   are a contract hole.
+3. Leaving `specs/057-graph-engine-fidelity-and-example-fit/spec.md` at
+   **Closeout Ready** would overstate the current bar until the two
+   compatibility gaps are closed.
+
+### Open questions for the author
+
+- Should metadata-less arrow fixtures default to the stricter "not a safe
+  rectpacking offer" posture, or do you want to backfill `meta.diagram_type`
+  on the affected YAML instead?
+- For fill-sized endpoint containers, should the no-`diagram_type` hard block
+  apply to all ELK-family lanes, or only to the layered/compound-aware subset?
+
+### What I verified
+
+- `npm --prefix packages/layout-engine test` -> **pass** (146 files / 853 tests)
+- `npm --prefix apps/preview test` -> **pass** (145 tests)
+- `node scripts/check_no_new_python.mjs` -> **pass**
+- `rg -n diagram_render_svg scripts packages apps` -> **pass** (no importable runtime refs)
