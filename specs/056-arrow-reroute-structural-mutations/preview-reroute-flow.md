@@ -33,7 +33,7 @@
 
 ## Tests to run
 
-- `npm --prefix packages/layout-engine test -- preview-override-model.test.ts app-layout-bridge-runtime.test.ts app-live-resize.test.ts app-relayout-runtime.test.ts app-editor-relayout-facade.test.ts`
+- `npm --prefix packages/layout-engine test -- app-fresh-render.test.ts preview-override-model.test.ts app-layout-bridge-runtime.test.ts app-live-resize.test.ts app-relayout-runtime.test.ts app-editor-relayout-facade.test.ts`
 - `npm --prefix packages/layout-engine run build`
 - `node --import ./node_modules/tsx/dist/loader.mjs --test ./src/persistence/frame-diagram.test.ts` (from `apps/preview/`)
 - `node scripts/check_no_new_python.mjs`

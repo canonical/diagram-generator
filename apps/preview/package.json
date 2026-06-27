@@ -10,7 +10,7 @@
     "dev": "tsx watch src/server.ts",
     "prestart": "npm --prefix ../../packages/layout-engine run build:browser",
     "start": "tsx src/server.ts",
-    "pretest": "npm --prefix ../.. run clean:src-artifacts",
+    "pretest": "npm --prefix ../.. run clean:src-artifacts && npm --prefix ../../packages/layout-engine run build:browser",
     "test": "node --import tsx --test src/persistence/*.test.ts"
   },
   "dependencies": {

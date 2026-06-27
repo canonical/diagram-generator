@@ -36,3 +36,14 @@
       `npm --prefix packages/layout-engine test`;
       `npm --prefix apps/preview test`;
       `node scripts/check_no_new_python.mjs`
+
+## Phase 4: Review Follow-up
+
+- [x] **T040** Make `npm --prefix apps/preview test` self-contained for browser-bundle prerequisites.
+      **Verify**: `npm --prefix apps/preview test`
+
+- [x] **T041** Add fresh-render reroute invalidation coverage for the real `renderFreshPreviewSvg(...)` lane.
+      **Verify**: `npm --prefix packages/layout-engine test -- app-fresh-render.test.ts`
+
+- [x] **T042** Align spec 056 status surfaces and clear resolved review findings from `AGENT-INBOX.md`.
+      **Verify**: `docs/specs.md`; `AGENT-INBOX.md`
