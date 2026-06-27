@@ -100,6 +100,27 @@ describe('single-selection inspector option helpers', () => {
     expect(options.viewModel.isAutolayoutContainer).toBe(false);
     expect(options.viewModel.currentAlign).toBe('CENTER_LEFT');
     expect(options.alignTargetCid).toBe('parent');
-    expect(options.styleOptionsHtml).toBe('annotation');
+    expect(options.styleOptionsHtml).toBe('parent');
+  });
+
+  it('resolves a default child variant from rendered box styling when the node has no authored style fields', () => {
+    const options = resolveSingleSelectionInspectorPanelRenderOptions({
+      cid: 'child',
+      node: {
+        id: 'child',
+        data: { id: 'child' },
+      },
+      ownDelta: { dx: 0, dy: 0, dw: 0, dh: 0 },
+      effectiveDelta: { dx: 0, dy: 0 },
+      componentType: 'box',
+      renderedStyle: {
+        fill: '#ffffff',
+        stroke: '#111111',
+      },
+      renderStyleOptions: (currentStyle) => currentStyle,
+    });
+
+    expect(options.styleMode).toBe('picker');
+    expect(options.styleOptionsHtml).toBe('default');
   });
 });

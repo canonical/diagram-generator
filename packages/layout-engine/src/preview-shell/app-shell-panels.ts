@@ -154,6 +154,20 @@ function isHtmlElementWithDataset(
   return Boolean(value && typeof value === 'object' && 'dataset' in value);
 }
 
+type PreviewTreeRowLike = HTMLElement & {
+  focus?: () => void;
+  tabIndex: number;
+};
+
+function setPreviewTreeTabStop(
+  items: PreviewTreeRowLike[],
+  activeIndex: number,
+): void {
+  items.forEach((item, index) => {
+    item.tabIndex = index === activeIndex ? 0 : -1;
+  });
+}
+
 export function flattenPreviewTreeEntries(
   nodes: PreviewShellTreeNode[],
   overrides: Record<string, unknown>,
@@ -189,15 +203,23 @@ export function renderPreviewTreePanel(
     options.selectedIds,
   );
   options.container.replaceChildren();
+  const items: PreviewTreeRowLike[] = [];
+  let activeIndex = entries.findIndex((entry) => entry.isSelected);
+  if (activeIndex < 0) {
+    activeIndex = 0;
+  }
 
-  for (const entry of entries) {
+  entries.forEach((entry, index) => {
     const item = options.container.ownerDocument.createElement('div');
     item.className = `tree-item${entry.isSelected ? ' selected' : ''}${entry.isOverridden ? ' overridden' : ''}`;
     item.style.paddingLeft = `${8 + (entry.depth * 12)}px`;
     item.textContent = entry.id;
     item.dataset.nodeId = entry.id;
+    item.tabIndex = index === activeIndex ? 0 : -1;
     item.addEventListener('click', (event) => {
       event.stopPropagation();
+      setPreviewTreeTabStop(items, index);
+      item.focus?.();
       options.onSelect(entry.id, event.shiftKey);
     });
     item.addEventListener('contextmenu', (event) => {
@@ -205,8 +227,27 @@ export function renderPreviewTreePanel(
       event.stopPropagation();
       options.onContextMenu(event, entry.id);
     });
+    item.addEventListener('focus', () => {
+      setPreviewTreeTabStop(items, index);
+    });
+    item.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter') {
+        return;
+      }
+      const nextIndex = index + (event.shiftKey ? -1 : 1);
+      const target = items[nextIndex];
+      if (!target) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      setPreviewTreeTabStop(items, nextIndex);
+      target.focus?.();
+      options.onSelect(entries[nextIndex]!.id, false);
+    });
     options.container.appendChild(item);
-  }
+    items.push(item as PreviewTreeRowLike);
+  });
 }
 
 export function syncPreviewTreeSelectionState(
