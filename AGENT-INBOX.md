@@ -7,6 +7,32 @@ Durable follow-up belongs in `specs/<id>-<slug>/`,
 `TODO.md` is only a pointer to open spec packages.
 
 ---
+
+## 2026-06-27 - Spec 055 branch handoff blocker
+
+Spec 055 implementation is committed in this temp worktree as:
+
+- `fdf8a9f` — `docs: capture spec 055 engine workspace baseline`
+- `e1d5809` — `feat: add preview engine workspace chrome`
+
+The code and spec tasks are complete, but the local branch ref
+`feat/055-preview-engine-workspace-navigation` could not be advanced from this
+worktree because Git reports that branch is already checked out in another
+worktree:
+
+- `H:/WSL_dev_projects/diagram-generator` at commit `4cca998`
+
+Attempted commands failed with:
+
+- `fatal: cannot force update the branch 'feat/055-preview-engine-workspace-navigation' used by worktree at 'H:/WSL_dev_projects/diagram-generator'`
+- `fatal: 'feat/055-preview-engine-workspace-navigation' is already used by worktree at 'H:/WSL_dev_projects/diagram-generator'`
+
+Next operator action: move the branch tip from the owning worktree, or free that
+worktree's branch checkout and then fast-forward/reset the branch to
+`e1d5809`.
+
+---
+
 ## 2026-06-27 - Post-merge adversarial review of `8baea34..bee91b9` (spec 054 + 055-059 drafts)
 
 Reviewer pass over the explicit pre-merge..main range, not a single-commit diff.
