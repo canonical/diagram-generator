@@ -71,7 +71,7 @@
       **Accept**: JS no longer owns persistence branching or save-payload shape
       decisions.
 
-- [ ] **T022** Demote `app-save-payload.ts` from converter to assertion layer.
+- [x] **T022** Demote `app-save-payload.ts` from converter to assertion layer.
       **Do**: keep the normalizer as a guard for impossible or legacy states,
       but remove its responsibility for routine payload conversion.
       **Files**: `app-save-payload.ts`, `app-save-client.ts`
@@ -81,7 +81,7 @@
 
 ## Phase 3: Save Round-Trip Contract Matrix
 
-- [ ] **T030** Add round-trip coverage for canonical frame saves.
+- [x] **T030** Add round-trip coverage for canonical frame saves.
       **Do**: add or extend repo-owned tests for drag, resize, keyboard nudge,
       and multi-select drag so each asserts `persist -> reload` with canonical
       payload/YAML output.
@@ -92,7 +92,7 @@
       **Accept**: repeated edits do not accumulate transient deltas and reload
       matches the saved canonical state.
 
-- [ ] **T031** Add round-trip coverage for arrow/removal saves.
+- [x] **T031** Add round-trip coverage for arrow/removal saves.
       **Do**: cover duplicate edges, explicit arrow ids, `arrow:<id>` branch
       attachments, waypoint saves, and removal-state save/reload behavior.
       **Files**: `frame-diagram.test.ts`,
@@ -105,7 +105,7 @@
 
 ## Phase 4: Documentation and Closeout Gate
 
-- [ ] **T040** Fix agent guidance for persistence work.
+- [x] **T040** Fix agent guidance for persistence work.
       **Do**: update `docs/agent-index.md` and any related handoff text so
       `component-model.js` is marked persistence-critical and `dist/**` search
       hygiene is explicit.
@@ -114,7 +114,7 @@
       **Accept**: agents are routed to the right owners and warned away from the
       persistence hotspot.
 
-- [ ] **T041** Encode the save round-trip closeout gate.
+- [x] **T041** Encode the save round-trip closeout gate.
       **Do**: update the repo’s spec guidance so persistence-touching specs
       cannot claim closeout without a repo-owned save round-trip regression.
       **Files**: `docs/specs.md`, `AGENTS.md`
@@ -122,7 +122,7 @@
       **Accept**: the closeout gate is explicit and matches the failure class
       that spec 053 exposed.
 
-- [ ] **T042** Full validation and branch closeout.
+- [x] **T042** Full validation and branch closeout.
       **Verify**:
       `npm --prefix packages/layout-engine test`;
       `npm --prefix apps/preview test`;

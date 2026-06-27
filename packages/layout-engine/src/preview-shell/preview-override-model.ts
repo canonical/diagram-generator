@@ -49,6 +49,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+function numericValue(value: unknown): number | null {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
+function roundPersistedValue(value: number): number {
+  return Math.round(value);
+}
+
 function cloneRecord(value: Record<string, unknown> | null | undefined): Record<string, unknown> | null {
   if (!isRecord(value)) {
     return null;
@@ -56,11 +65,70 @@ function cloneRecord(value: Record<string, unknown> | null | undefined): Record<
   return Object.keys(value).length > 0 ? { ...value } : null;
 }
 
+function syntheticComponentId(componentId: string): boolean {
+  return componentId === '__body'
+    || componentId.endsWith('__body')
+    || componentId === '__heading'
+    || componentId.endsWith('__heading');
+}
+
 function previewArrowComponent(
   componentId: string,
   node: PreviewOverrideModelNode | null | undefined,
 ): boolean {
   return node?.type === 'arrow' || isPreviewArrowComponentId(componentId);
+}
+
+function canonicalizeFrameOverrideEntry(
+  override: Record<string, unknown>,
+  node: PreviewOverrideModelNode | null | undefined,
+): Record<string, unknown> {
+  const normalized: Record<string, unknown> = { ...override };
+  const nodeData = isRecord(node?.data) ? node.data : {};
+
+  const dx = numericValue(override.dx) ?? 0;
+  const dy = numericValue(override.dy) ?? 0;
+  const dw = numericValue(override.dw) ?? 0;
+  const dh = numericValue(override.dh) ?? 0;
+
+  if (dx !== 0 || dy !== 0) {
+    const baseX = numericValue(override.x) ?? numericValue(nodeData.authored_x) ?? numericValue(nodeData.x);
+    const baseY = numericValue(override.y) ?? numericValue(nodeData.authored_y) ?? numericValue(nodeData.y);
+    if (baseX != null && baseY != null) {
+      normalized.position = 'ABSOLUTE';
+      normalized.x = roundPersistedValue(baseX + dx);
+      normalized.y = roundPersistedValue(baseY + dy);
+      delete normalized.dx;
+      delete normalized.dy;
+    }
+  } else {
+    delete normalized.dx;
+    delete normalized.dy;
+  }
+
+  if (dw !== 0) {
+    const baseWidth = numericValue(override.width) ?? numericValue(nodeData.width);
+    if (baseWidth != null) {
+      normalized.width = roundPersistedValue(baseWidth + dw);
+      normalized.sizing_w = 'FIXED';
+      delete normalized.dw;
+    }
+  } else {
+    delete normalized.dw;
+  }
+
+  if (dh !== 0) {
+    const baseHeight = numericValue(override.height) ?? numericValue(nodeData.height);
+    if (baseHeight != null) {
+      normalized.height = roundPersistedValue(baseHeight + dh);
+      normalized.sizing_h = 'FIXED';
+      delete normalized.dh;
+    }
+  } else {
+    delete normalized.dh;
+  }
+
+  return normalized;
 }
 
 function filterOverrideEntry(
@@ -73,16 +141,18 @@ function filterOverrideEntry(
   }
 
   const node = model?.get?.(componentId) ?? null;
-  const allowedKeys = previewArrowComponent(componentId, node)
-    ? PERSISTABLE_ARROW_KEYS
-    : PERSISTABLE_FRAME_KEYS;
+  const isArrowOverride = previewArrowComponent(componentId, node);
+  const allowedKeys = isArrowOverride ? PERSISTABLE_ARROW_KEYS : PERSISTABLE_FRAME_KEYS;
   const filtered: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(override)) {
     if (allowedKeys.has(key)) {
       filtered[key] = value;
     }
   }
-  return Object.keys(filtered).length > 0 ? filtered : null;
+  const normalized = isArrowOverride
+    ? filtered
+    : canonicalizeFrameOverrideEntry(filtered, node);
+  return Object.keys(normalized).length > 0 ? normalized : null;
 }
 
 function collectPersistableOverrides(
@@ -95,6 +165,9 @@ function collectPersistableOverrides(
 
   const persisted: Record<string, unknown> = {};
   for (const [componentId, override] of Object.entries(overrides)) {
+    if (syntheticComponentId(componentId)) {
+      continue;
+    }
     const filtered = filterOverrideEntry(componentId, override, model);
     if (filtered) {
       persisted[componentId] = filtered;

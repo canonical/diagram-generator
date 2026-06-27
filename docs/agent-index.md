@@ -25,7 +25,7 @@ Read this before broad repo searches.
 
 | File | ~Lines | Instead |
 |------|-------:|---------|
-| `scripts/preview/component-model.js` | 740 | persistence hotspot; search `loadArrows` / `toOverridePayload`, then move ownership into TS |
+| `scripts/preview/component-model.js` | 740 | persistence-critical hotspot; search `loadArrows` / `toOverridePayload`, then move ownership into TS |
 | `scripts/preview/force.js` | 1,599 | same |
 | `packages/layout-engine/dist/layout-engine.iife.js` | 4.4 MB | edit `packages/layout-engine/src/`; run `build:browser` |
 | `diagrams/**` | binaries | ignored by `.cursorignore`; not product code |
@@ -33,7 +33,7 @@ Read this before broad repo searches.
 
 Thin shell modules (safe to read whole): `editor.js`, `layout-bridge.js`, `editor-state.js`, `save-client.js`, `undo-manager.js`, `elk-controller.js`.
 
-Not thin: `component-model.js` owns save-payload assembly and `editor-base.js` still owns substantial legacy interaction state; search first, then read bounded slices.
+Not thin: `component-model.js` is still a persistence-critical save-path hotspot and `editor-base.js` still owns substantial legacy interaction state; search first, then read bounded slices.
 
 ## Tier-2 flow maps
 
@@ -97,7 +97,7 @@ node scripts/check_no_new_python.mjs
 
 - Locate before loading: narrow `rg` / `Glob` first; then `Read` only the hit region (`offset`/`limit` on trap files). Whole-file reads are fine for thin modules listed above.
 - Prefer narrow `rg` scoped to one directory.
-- Exclude generated browser bundles from search unless the task is bundle freshness or emitted-output triage: `rg pattern packages/layout-engine/src -g "!packages/layout-engine/dist/**"`.
+- Exclude generated browser bundles and other `dist/**` outputs from broad searches unless the task is bundle freshness or emitted-output triage: `rg pattern packages/layout-engine/src -g "!packages/layout-engine/dist/**"`.
 - Read one targeted file after search hits.
 - Avoid repo-wide sweeps unless the task is genuinely cross-cutting.
 - Do not load `.github/agents/speckit.*` unless the user asked for spec-kit work.

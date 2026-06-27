@@ -26,15 +26,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function numericValue(value: unknown): number | null {
-  const numeric = Number(value);
-  return Number.isFinite(numeric) ? numeric : null;
-}
-
-function roundPersistedValue(value: number): number {
-  return Math.round(value);
-}
-
 function syntheticComponentId(componentId: string): boolean {
   // Heading synthesis reserves these ids across the preview/runtime pipeline.
   return componentId === '__body'
@@ -68,55 +59,9 @@ function normalizeArrowOverride(
 function normalizeFrameOverride(
   componentId: string,
   override: Record<string, unknown>,
-  node: PreviewSavePayloadModelNode | null | undefined,
   errors: string[],
 ): Record<string, unknown> {
   const normalized: Record<string, unknown> = { ...override };
-  const nodeData = isRecord(node?.data) ? node!.data! : {};
-
-  const dx = numericValue(override.dx) ?? 0;
-  const dy = numericValue(override.dy) ?? 0;
-  const dw = numericValue(override.dw) ?? 0;
-  const dh = numericValue(override.dh) ?? 0;
-
-  if (dx !== 0 || dy !== 0) {
-    const baseX = numericValue(override.x) ?? numericValue(nodeData.authored_x) ?? numericValue(nodeData.x);
-    const baseY = numericValue(override.y) ?? numericValue(nodeData.authored_y) ?? numericValue(nodeData.y);
-    if (baseX == null || baseY == null) {
-      errors.push(`${componentId} still has transient move deltas and no canonical x/y base`);
-    } else {
-      normalized.position = 'ABSOLUTE';
-      normalized.x = roundPersistedValue(baseX + dx);
-      normalized.y = roundPersistedValue(baseY + dy);
-    }
-  }
-
-  if (dw !== 0 || dh !== 0) {
-    const baseWidth = numericValue(override.width) ?? numericValue(nodeData.width);
-    const baseHeight = numericValue(override.height) ?? numericValue(nodeData.height);
-    if (dw !== 0) {
-      if (baseWidth == null) {
-        errors.push(`${componentId} still has transient width deltas and no canonical width base`);
-      } else {
-        normalized.width = roundPersistedValue(baseWidth + dw);
-        normalized.sizing_w = 'FIXED';
-      }
-    }
-    if (dh !== 0) {
-      if (baseHeight == null) {
-        errors.push(`${componentId} still has transient height deltas and no canonical height base`);
-      } else {
-        normalized.height = roundPersistedValue(baseHeight + dh);
-        normalized.sizing_h = 'FIXED';
-      }
-    }
-  }
-
-  delete normalized.dx;
-  delete normalized.dy;
-  delete normalized.dw;
-  delete normalized.dh;
-
   const remainingTransientKeys = Object.keys(normalized)
     .filter((key) => TRANSIENT_FRAME_KEYS.has(key))
     .sort();
@@ -157,7 +102,7 @@ export function normalizePreviewSavePayload(
     const node = model?.get?.(componentId) ?? null;
     const normalizedOverride = arrowComponent(componentId, node)
       ? normalizeArrowOverride(componentId, rawOverride, warnings)
-      : normalizeFrameOverride(componentId, rawOverride, node, errors);
+      : normalizeFrameOverride(componentId, rawOverride, errors);
 
     if (Object.keys(normalizedOverride).length > 0) {
       normalizedOverrides[componentId] = normalizedOverride;

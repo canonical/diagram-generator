@@ -161,7 +161,7 @@ describe('preview save client runtime', () => {
     expect(runConstraints).toHaveBeenCalled();
   });
 
-  it('normalizes transient frame overrides before POST and strips synthetic ids', async () => {
+  it('emits canonical drag, nudge, multi-select, and resize overrides before POST', async () => {
     const fetchFn = vi.fn(async (_input, init) => ({
       ok: true,
       status: 200,
@@ -191,6 +191,9 @@ describe('preview save client runtime', () => {
     const model = {
       overrides: {
         floating: { dx: 8, dy: -8 },
+        nudged: { dx: 1, dy: -1 },
+        multi_left: { dx: 16, dy: 8 },
+        multi_right: { dx: 16, dy: 8 },
         resizable: { dw: 24, dh: 16 },
         panel__body: { align: 'BOTTOM_RIGHT' },
         panel__heading: { text: { heading: 'Ignored synthetic heading' } },
@@ -216,6 +219,36 @@ describe('preview save client runtime', () => {
             data: {
               width: 160,
               height: 96,
+            },
+          };
+        }
+        if (id === 'nudged') {
+          return {
+            type: 'box',
+            data: {
+              position: 'ABSOLUTE',
+              authored_x: 96,
+              authored_y: 32,
+            },
+          };
+        }
+        if (id === 'multi_left') {
+          return {
+            type: 'box',
+            data: {
+              position: 'ABSOLUTE',
+              authored_x: 160,
+              authored_y: 80,
+            },
+          };
+        }
+        if (id === 'multi_right') {
+          return {
+            type: 'box',
+            data: {
+              position: 'ABSOLUTE',
+              authored_x: 240,
+              authored_y: 80,
             },
           };
         }
@@ -246,6 +279,21 @@ describe('preview save client runtime', () => {
           position: 'ABSOLUTE',
           x: 40,
           y: 40,
+        },
+        nudged: {
+          position: 'ABSOLUTE',
+          x: 97,
+          y: 31,
+        },
+        multi_left: {
+          position: 'ABSOLUTE',
+          x: 176,
+          y: 88,
+        },
+        multi_right: {
+          position: 'ABSOLUTE',
+          x: 256,
+          y: 88,
         },
         resizable: {
           width: 184,
