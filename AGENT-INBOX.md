@@ -39,16 +39,15 @@ apps/preview suite green).
 
 ### Findings (severity-ordered)
 
-**S3 (low) - Stale caveat in this same file is now misleading.**
-`AGENT-INBOX.md` lines ~173-177 (the 2026-06-26 routing-identity note) still claim
-the `example-platform-architecture` flip to `v3` "breaks
-`preview-host-contract.test.ts`". That is no longer true: the merge updated the
-fixture expectation map to `["example-platform-architecture", "v3"]`, and the
-full apps/preview suite passes. The caveat reads as an open breakage but is
-resolved. Recommend trimming or annotating that note so future agents do not
-chase a non-bug.
+**S3 (resolved) - Historical routing caveat needed trimming.**
+The older 2026-06-26 routing-identity note read like an open
+`example-platform-architecture` / `preview-host-contract.test.ts` breakage even
+though the merge updated the fixture expectation map to
+`["example-platform-architecture", "v3"]` and the full apps/preview suite now
+passes. Resolved by annotating that note below as historical-only context so
+future agents do not chase a non-bug.
 
-**S3 (low) - Authored engine flips have no render-fidelity gate.**
+**S3 (deferred to spec 057) - Authored engine flips have no render-fidelity gate.**
 `mongo-octavia-ha` and `preview-smoke` (`v3 -> elk-layered`) and
 `support-engineering-flow` (`elk-rectpacking -> elk-force`) are committed as
 authored choices. They re-parse/resolve correctly (registry + load tests cover
@@ -56,7 +55,7 @@ identity), but there is no committed visual/structural regression asserting thes
 engines actually lay these specific compound/container fixtures out acceptably.
 This is a known-tracked risk: draft spec 057 explicitly calls out
 `support-engineering-flow` engine fit and ELK-family fidelity / compound-child
-dropping. Acceptable to defer to 057; flagged so the gap is explicit.
+dropping. No spec 056 action required; keep this deferred to spec 057.
 
 **S4 (residual) - Producer/guard duplication risk.**
 `preview-override-model.ts` and `app-save-payload.ts` independently define
@@ -223,7 +222,7 @@ a fixture with one malformed arrow if you want certainty.
 
 ---
 
-## 2026-06-26 - Preview arrow-routing identity split fixed for v3 branch routing
+## 2026-06-26 - Historical note: preview arrow-routing identity split fixed for v3 branch routing
 
 Follow-up after re-checking `INBOX.md` for the report:
 
@@ -264,8 +263,9 @@ Follow-up:
 
 - Resolved on 2026-06-27. The authored `example-platform-architecture` engine
   change and `preview-host-contract.test.ts` expectation map now agree on `v3`,
-  and the full `apps/preview` suite passes on current `main`. This note remains
-  only as historical context for the earlier local-fixture mismatch.
+  and the full `apps/preview` suite passes on current `main`. This note is
+  historical context only; there is no active
+  `example-platform-architecture`/`preview-host-contract.test.ts` mismatch.
 
 ---
 
