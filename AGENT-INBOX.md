@@ -267,3 +267,48 @@ Caveat:
   from `elk-layered` to `v3`; this breaks the existing
   `preview-host-contract.test.ts` expectation for that fixture. That mismatch is
   local fixture state, not a result of the routing-identity fix.
+
+---
+
+## 2026-06-27 - Adversarial review of `feat/056-arrow-reroute-structural-mutations`
+
+Reviewer pass over spec 056 implementation commits `3018f05` + `bb2eb3c`.
+
+### Verdict
+
+No P0/P1 product-correctness regressions surfaced in the reroute invalidation
+work itself. The live relayout path, save payload synthesis, and persist/reload
+coverage all behave as intended once the local package/browser artifacts are
+built. I did find one real validation/workflow issue plus two lower-severity
+closeout gaps that should be recorded before this branch is treated as fully
+closed.
+
+### Findings
+
+| Severity | Area | Finding | Evidence (file:line or command) | Recommended fix |
+|----------|------|---------|----------------------------------|-----------------|
+| P2 | Validation workflow | `npm --prefix apps/preview test` is **not self-contained on a fresh install**. The test script only runs `clean:src-artifacts`, but the suite asserts browser-bundle freshness and fails until `packages/layout-engine/dist/layout-engine.iife.js` and `layout-engine-harfbuzz.js` are built manually. That means spec 056's claimed validation command can fail in a clean environment even when the branch logic is fine. | `apps/preview/package.json:7-15`; `apps/preview/src/persistence/preview-host-contract.test.ts:76`; observed failure from `npm --prefix apps/preview test` -> `Missing browser artifact: packages/layout-engine/dist/layout-engine-harfbuzz.js`; observed pass only after `npm --prefix packages/layout-engine run build:browser` + `node scripts/check-browser-bundle-fresh.mjs`. | Make `apps/preview test` own its prerequisite bundle build (for example via `pretest` or a narrower freshness prep step) so the documented validation command matches reality on a clean checkout. |
+| P3 | Review coverage | The fresh-render lane that actually changed in spec 056 (`app-fresh-render.ts`) has no focused regression proving authored waypoint invalidation happens on the real full-rerender path. Current new coverage hits local relayout (`app-layout-bridge-runtime.test.ts`) and persist/reload (`frame-diagram.test.ts`), but not the concrete `renderFreshPreviewSvg(...)` implementation that now calls `shouldInvalidatePreviewArrowWaypointGeometry(...)`. | Changed code in `packages/layout-engine/src/preview-shell/app-fresh-render.ts:336-338`; search over `packages/layout-engine/tests` shows no direct `app-fresh-render` reroute-invalidation assertion. | Add one focused `app-fresh-render` test that seeds authored waypoints plus a direction/size override and asserts routed render input no longer carries stale `waypoints`/`layoutPath`. |
+| P3 | Spec bookkeeping | Spec state is inconsistent on this branch: `spec.md` and `AGENTS.md` both say spec 056 is **Closeout Ready**, but `docs/specs.md` still lists 056 as **In Progress**. That leaves the active-spec index out of sync with the handover and branch-local spec package. | `specs/056-arrow-reroute-structural-mutations/spec.md:4`; `AGENTS.md:81-84`; `docs/specs.md:42-44`. | When the branch is updated after review, move all three surfaces to the same status in one commit so closeout state is unambiguous. |
+
+### Top 3 risks before merge
+
+1. A clean reviewer/CI environment can report a false-red `apps/preview` validation result unless the browser bundle is built first.
+2. The engine/fresh-render reroute lane is protected only indirectly; a future edit could regress `app-fresh-render.ts` without tripping the new 056-focused tests.
+3. Status drift between `docs/specs.md`, `spec.md`, and `AGENTS.md` can cause the next agent to either reopen work unnecessarily or merge without updating the canonical active-spec index.
+
+### Open questions for the author
+
+- Should `apps/preview test` always build the browser bundle itself, or is there an intentional repo-level expectation that reviewers run `npm --prefix packages/layout-engine run build:browser` separately first?
+- Do you want spec 056 treated as still **In Progress** until the review findings are addressed, or should `docs/specs.md` be updated now to match the current **Closeout Ready** claim elsewhere?
+
+### What I verified
+
+- `rg -n diagram_render_svg scripts packages apps` -> **pass** (no importable runtime refs)
+- `npm --prefix packages/layout-engine test -- svg-golden` -> **pass** (6 tests)
+- `npm --prefix packages/layout-engine test -- arrow-render` -> **pass** (22 tests)
+- `npm --prefix packages/layout-engine test -- preview-override-model.test.ts app-layout-bridge-runtime.test.ts app-live-resize.test.ts app-relayout-runtime.test.ts app-editor-relayout-facade.test.ts` -> **pass** (31 tests)
+- `npm --prefix packages/layout-engine test` -> **pass** (143 files / 838 tests)
+- `node scripts/check_no_new_python.mjs` -> **pass**
+- `npm --prefix apps/preview test` -> **initial fail** on missing browser artifacts; **pass after** `npm --prefix packages/layout-engine run build:browser`
+- `node scripts/check-browser-bundle-fresh.mjs` -> **initial fail** before browser build; **pass after** browser build
