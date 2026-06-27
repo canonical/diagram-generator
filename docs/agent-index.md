@@ -53,7 +53,7 @@ Not thin: `component-model.js` owns save-payload assembly and `editor-base.js` s
 | Preview editor recovery | [`docs/spec-archive/050-preview-editor-recovery/preview-editor-recovery-flow.md`](./spec-archive/050-preview-editor-recovery/preview-editor-recovery-flow.md) |
 | Preview contextual aside | [`specs/051-preview-editor-contextual-aside/preview-contextual-aside-flow.md`](../specs/051-preview-editor-contextual-aside/preview-contextual-aside-flow.md) |
 | Layout engine onboarding | [`specs/052-layout-engine-onboarding-port/engine-onboarding-checklist.md`](../specs/052-layout-engine-onboarding-port/engine-onboarding-checklist.md) |
-| Preview editor post-refactor correctness | [`specs/053-preview-editor-post-refactor-correctness/preview-editor-post-refactor-flow.md`](../specs/053-preview-editor-post-refactor-correctness/preview-editor-post-refactor-flow.md) |
+| Preview editor post-refactor correctness | [`docs/spec-archive/053-preview-editor-post-refactor-correctness/preview-editor-post-refactor-flow.md`](./spec-archive/053-preview-editor-post-refactor-correctness/preview-editor-post-refactor-flow.md) |
 | Agent token / workspace slimming | [`docs/spec-archive/040-agent-token-slimming/spec.md`](./spec-archive/040-agent-token-slimming/spec.md) |
 
 Add a new row when you land a cross-layer map (UI → server → engine → disk). Keep maps ≤60 lines.

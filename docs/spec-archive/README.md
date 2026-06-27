@@ -41,6 +41,7 @@ Completed or retired spec packages live here so `specs/` stays focused on curren
 - `044-preview-shell-architecture-followup`
 - `045-preview-host-engine-modularity`
 - `050-preview-editor-recovery`
+- `053-preview-editor-post-refactor-correctness`
 - `035-compatible-engine-switcher`
 - `036-headingless-wrapper-contract`
 - `037-preview-engine-drift-closeout`
