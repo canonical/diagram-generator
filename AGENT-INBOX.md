@@ -485,39 +485,25 @@ Reviewer pass over spec 057 implementation commit `667d251`.
 
 ### Verdict
 
-Spec 057 is **not** closeout-ready yet. The branch is clean and the full test
-gates are green, but the new compatibility contract still misses two important
-cases: real metadata-less fixtures can still offer `elk-rectpacking`, and the
-new fill-carrier guard skips endpoint containers entirely.
+The two compatibility gaps from commit `667d251` are now resolved. The review
+reopened spec 057, but the follow-up tightened the registry contract and closed
+the remaining holes without changing authored YAML.
 
-### Findings (severity-ordered)
+### Resolved follow-up
 
-| Severity | Area | Finding | Evidence (file:line or command) | Recommended fix |
-|----------|------|---------|----------------------------------|-----------------|
-| S2 | Example-fit contract | `elk-rectpacking` is still offered on real arrow-bearing fixtures that do not declare `meta.diagram_type`, so the new offer-list bar only works on metadata-rich documents. | `packages/layout-engine/src/preview-engine/registry.ts:217-231` only applies `offerDiagramTypes` when `diagramType` is present; `packages/layout-engine/src/preview-engine/engines/elk-rectpacking.engine.ts:15-21` narrows rectpacking to `deployment_and_runtime_topology`; `scripts/diagrams/frames/complex-routing-usecase.yaml:1-60`, `scripts/diagrams/frames/example-deployment-pipeline.yaml:1-52`, and `scripts/diagrams/frames/preview-smoke.yaml:1-39` all have arrows but no `meta.diagram_type`; probe: `node --input-type=module` over `loadFrameYaml(...)`, `summarizeFrameDiagramCompatibility(...)`, and `listCompatiblePreviewEngines(...)` reported all three slugs with `compatible` including `elk-rectpacking`. | Either backfill `meta.diagram_type` on real authored fixtures that should participate in example-fit gating, or add a fallback shape heuristic / contract rule so workflow-like arrow fixtures without metadata do not surface `elk-rectpacking`. Add a regression test around one metadata-less real fixture. |
-| S2 | Fill-carrier guard | `rejectFillCarrierIdsWithoutDiagramType` misses fill-sized structural carriers that are themselves arrow endpoints, so an explicit ELK selection can still resolve even though the spec says fill-sized structural carriers without authored `diagram_type` should be hard-blocked. | `packages/layout-engine/src/preview-engine/registry.ts:145-166` excludes `selfHasEndpoint` from `fillCarrierIds`; probe: a synthetic `group -> target` diagram with `group` as a `FILL` container yielded `fillCarrierIds: []`, `unsupportedCarrierIds: ['group']`, and `evaluatePreviewEngineCompatibility(ELK_LAYERED_PREVIEW_ENGINE, ...) => { compatible: true }`; existing coverage at `packages/layout-engine/tests/preview-engine-registry.test.ts:428-479` only exercises non-endpoint descendant carriers. | Include endpoint containers in the fill-carrier summary, or add a parallel guard for endpoint carriers, and extend registry coverage with an endpoint-container reproducer. |
+| Severity | Area | Finding | Resolution |
+|----------|------|---------|------------|
+| S2 | Example-fit contract | `elk-rectpacking` was still offered on real arrow-bearing fixtures that omit `meta.diagram_type`, so the example-fit bar only held on metadata-rich documents. | `packages/layout-engine/src/preview-engine/registry.ts` now treats `offerDiagramTypes` as an offer-list allowlist: in offer mode, manifests that require authored diagram families are withheld until `frameDiagramSummary.diagramType` is present. Focused coverage in `packages/layout-engine/tests/preview-engine-registry.test.ts` now proves `complex-routing-usecase`, `example-deployment-pipeline`, and `preview-smoke` no longer offer `elk-rectpacking` while explicit `layout_engine: elk-rectpacking` resolution stays technically available. |
+| S2 | Fill-carrier guard | `rejectFillCarrierIdsWithoutDiagramType` skipped fill-sized structural carriers that were themselves arrow endpoints, so explicit ELK selection could still resolve for that unsupported shape. | `collectFillCarrierIds(...)` now includes endpoint containers as well as descendant carriers, and the same registry test file now covers a synthetic `group -> target` endpoint-container reproducer. Offer-mode compatibility stays blocked, and explicit `resolvePreviewEngine(...)` attempts now return `undefined` for the ELK-family lanes until authored `meta.diagram_type` is present. |
 
-### Top 3 risks before merge
+### Remaining notes
 
-1. Metadata-less workflow fixtures can still expose a layout lane this spec was
-   meant to de-offer.
-2. The ELK fill-safety bar is not actually shape-complete; endpoint containers
-   are a contract hole.
-3. Leaving `specs/057-graph-engine-fidelity-and-example-fit/spec.md` at
-   **Closeout Ready** would overstate the current bar until the two
-   compatibility gaps are closed.
-
-### Open questions for the author
-
-- Should metadata-less arrow fixtures default to the stricter "not a safe
-  rectpacking offer" posture, or do you want to backfill `meta.diagram_type`
-  on the affected YAML instead?
-- For fill-sized endpoint containers, should the no-`diagram_type` hard block
-  apply to all ELK-family lanes, or only to the layered/compound-aware subset?
+- No active spec 057 findings remain in this review pass.
 
 ### What I verified
 
-- `npm --prefix packages/layout-engine test` -> **pass** (146 files / 853 tests)
-- `npm --prefix apps/preview test` -> **pass** (145 tests)
+- `npm --prefix packages/layout-engine test -- preview-engine-registry.test.ts`
+  -> **pass** (27 tests)
+- `npm --prefix apps/preview test -- src/persistence/preview-host-contract.test.ts`
+  -> **pass**
 - `node scripts/check_no_new_python.mjs` -> **pass**
-- `rg -n diagram_render_svg scripts packages apps` -> **pass** (no importable runtime refs)

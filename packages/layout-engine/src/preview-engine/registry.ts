@@ -156,7 +156,6 @@ function collectFillCarrierIds(diagram: FrameDiagram): string[] {
       frame.id &&
       frame.children.length > 0 &&
       !isSyntheticOrHeadedFrame(frame) &&
-      !selfHasEndpoint &&
       descendantHasEndpoint &&
       (frame.sizingW === 'FILL' || frame.sizingH === 'FILL')
     ) {
@@ -218,17 +217,26 @@ export function evaluatePreviewEngineCompatibility(
     mode !== 'resolve' &&
     previewDocumentKind === 'frame-diagram' &&
     frameDiagramRequirements?.offerDiagramTypes?.length &&
-    context.frameDiagramSummary?.diagramType &&
-    !frameDiagramRequirements.offerDiagramTypes.includes(
-      context.frameDiagramSummary.diagramType as typeof frameDiagramRequirements.offerDiagramTypes[number],
-    )
+    context.frameDiagramSummary
   ) {
-    return {
-      compatible: false,
-      reason:
-        `Engine is not a recommended fit for authored diagram type ` +
-        `'${context.frameDiagramSummary.diagramType}'`,
-    };
+    if (!context.frameDiagramSummary.diagramType) {
+      return {
+        compatible: false,
+        reason: 'Engine requires an authored diagram type before it can be offered as a recommended fit',
+      };
+    }
+    if (
+      !frameDiagramRequirements.offerDiagramTypes.includes(
+        context.frameDiagramSummary.diagramType as typeof frameDiagramRequirements.offerDiagramTypes[number],
+      )
+    ) {
+      return {
+        compatible: false,
+        reason:
+          `Engine is not a recommended fit for authored diagram type ` +
+          `'${context.frameDiagramSummary.diagramType}'`,
+      };
+    }
   }
 
   if (

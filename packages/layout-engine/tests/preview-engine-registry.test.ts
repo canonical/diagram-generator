@@ -56,6 +56,14 @@ const GRAPH_FRAME_ENGINE_IDS = [
   ...ELK_ENGINE_IDS,
   'dagre',
 ] as const;
+const GRAPH_FRAME_OFFER_ENGINE_IDS = [
+  'elk-layered',
+  'elk-force',
+  'elk-stress',
+  'elk-mrtree',
+  'elk-radial',
+  'dagre',
+] as const;
 
 describe('preview-engine registry', () => {
   it('registers native v3, ELK, force, and sequence engines', () => {
@@ -141,7 +149,7 @@ describe('preview-engine registry', () => {
     expect(resolvePreviewEngine({ shellMode: 'grid', layoutEngine: 'vertical-stack' })).toBeUndefined();
   });
 
-  it('defaults blank frame-diagram docs to native v3 and offers elk as an alternative', () => {
+  it('defaults blank frame-diagram docs to native v3 and offers non-rectpacking graph engines as alternatives', () => {
     const context = {
       shellMode: 'grid' as const,
       previewDocumentKind: 'frame-diagram' as const,
@@ -151,7 +159,7 @@ describe('preview-engine registry', () => {
     expect(resolvePreviewEngine(context)?.id).toBe('v3');
     expect(listCompatiblePreviewEngines(context).map((entry) => entry.id)).toEqual([
       'v3',
-      ...GRAPH_FRAME_ENGINE_IDS,
+      ...GRAPH_FRAME_OFFER_ENGINE_IDS,
     ]);
   });
 
@@ -296,7 +304,7 @@ describe('preview-engine registry', () => {
         previewDocumentKind: 'frame-diagram',
         frameDiagramSummary: { arrowCount: 2, unsupportedElkCarrierIds: [] },
       }).map((entry) => entry.id),
-    ).toEqual(['v3', ...GRAPH_FRAME_ENGINE_IDS]);
+    ).toEqual(['v3', ...GRAPH_FRAME_OFFER_ENGINE_IDS]);
     expect(
       listCompatiblePreviewEngines({ previewDocumentKind: 'force-spec' }).map((entry) => entry.id),
     ).toEqual(['force']);
@@ -425,6 +433,39 @@ describe('preview-engine registry', () => {
     })?.id).toBe('elk-rectpacking');
   });
 
+  it('withholds rectpacking from metadata-less arrow fixtures in offer lists', () => {
+    for (const slug of [
+      'complex-routing-usecase',
+      'example-deployment-pipeline',
+      'preview-smoke',
+    ]) {
+      const diagram = loadFrameYaml(join(FRAMES_DIR, `${slug}.yaml`));
+      const summary = summarizeFrameDiagramCompatibility(diagram);
+      const context = {
+        shellMode: 'grid' as const,
+        previewDocumentKind: 'frame-diagram' as const,
+        frameDiagramSummary: summary,
+      };
+
+      expect(summary.arrowCount, slug).toBeGreaterThan(0);
+      expect(summary.diagramType, slug).toBeNull();
+      expect(listCompatiblePreviewEngines(context).map((entry) => entry.id), slug).not.toContain(
+        'elk-rectpacking',
+      );
+      expect(
+        evaluatePreviewEngineCompatibility(ELK_RECTPACKING_PREVIEW_ENGINE, context),
+        slug,
+      ).toMatchObject({
+        compatible: false,
+        reason: expect.stringContaining('authored diagram type'),
+      });
+      expect(resolvePreviewEngine({
+        ...context,
+        layoutEngine: 'elk-rectpacking',
+      })?.id, slug).toBe('elk-rectpacking');
+    }
+  });
+
   it('blocks ELK-family compatibility when fill-sized structural carriers lack an authored diagram type', () => {
     const diagram = loadFrameYaml(join(FRAMES_DIR, 'tiered-network-architecture.author-v1.yaml'));
     applyPreviewOverridesToFrameTree(
@@ -465,12 +506,85 @@ describe('preview-engine registry', () => {
       ELK_STRESS_PREVIEW_ENGINE,
       ELK_MRTREE_PREVIEW_ENGINE,
       ELK_RADIAL_PREVIEW_ENGINE,
-      ELK_RECTPACKING_PREVIEW_ENGINE,
     ]) {
       expect(evaluatePreviewEngineCompatibility(engine, context)).toMatchObject({
         compatible: false,
         reason: expect.stringContaining('fill-sized structural carriers'),
       });
+    }
+    expect(evaluatePreviewEngineCompatibility(ELK_RECTPACKING_PREVIEW_ENGINE, context)).toMatchObject({
+      compatible: false,
+      reason: expect.stringContaining('authored diagram type'),
+    });
+    for (const engine of [
+      ELK_LAYERED_PREVIEW_ENGINE,
+      ELK_FORCE_PREVIEW_ENGINE,
+      ELK_STRESS_PREVIEW_ENGINE,
+      ELK_MRTREE_PREVIEW_ENGINE,
+      ELK_RADIAL_PREVIEW_ENGINE,
+      ELK_RECTPACKING_PREVIEW_ENGINE,
+    ]) {
+      expect(resolvePreviewEngine({
+        ...context,
+        layoutEngine: engine.layoutEngineKey,
+      })).toBeUndefined();
+    }
+  });
+
+  it('blocks fill-sized endpoint carriers without an authored diagram type', () => {
+    const summary = summarizeFrameDiagramCompatibility(new FrameDiagram({
+      title: 'Fill endpoint container',
+      root: new Frame({
+        id: 'page',
+        direction: Direction.VERTICAL,
+        children: [
+          new Frame({
+            id: 'group',
+            sizingW: 'FILL',
+            sizingH: 'FILL',
+            children: [
+              new Frame({ id: 'child' }),
+            ],
+          }),
+          new Frame({ id: 'target' }),
+        ],
+      }),
+      arrows: [
+        createArrow('group', 'target'),
+      ],
+    }));
+    const context = {
+      shellMode: 'grid' as const,
+      previewDocumentKind: 'frame-diagram' as const,
+      frameDiagramSummary: summary,
+    };
+
+    expect(summary.diagramType).toBeNull();
+    expect(summary.fillCarrierIds).toEqual(['group']);
+    for (const engine of [
+      ELK_LAYERED_PREVIEW_ENGINE,
+      ELK_FORCE_PREVIEW_ENGINE,
+      ELK_STRESS_PREVIEW_ENGINE,
+      ELK_MRTREE_PREVIEW_ENGINE,
+      ELK_RADIAL_PREVIEW_ENGINE,
+    ]) {
+      expect(evaluatePreviewEngineCompatibility(engine, context)).toMatchObject({
+        compatible: false,
+        reason: expect.stringContaining('fill-sized structural carriers'),
+      });
+    }
+    expect(evaluatePreviewEngineCompatibility(ELK_RECTPACKING_PREVIEW_ENGINE, context)).toMatchObject({
+      compatible: false,
+      reason: expect.stringContaining('authored diagram type'),
+    });
+    for (const engine of [
+      ELK_LAYERED_PREVIEW_ENGINE,
+      ELK_FORCE_PREVIEW_ENGINE,
+      ELK_STRESS_PREVIEW_ENGINE,
+      ELK_MRTREE_PREVIEW_ENGINE,
+      ELK_RADIAL_PREVIEW_ENGINE,
+      ELK_RECTPACKING_PREVIEW_ENGINE,
+    ]) {
       expect(resolvePreviewEngine({
         ...context,
         layoutEngine: engine.layoutEngineKey,
@@ -617,7 +731,7 @@ describe('preview-engine registry', () => {
     expect(resolvePreviewEngine(context)?.id).toBe('v3');
     expect(listCompatiblePreviewEngines(context).map((entry) => entry.id)).toEqual([
       'v3',
-      ...GRAPH_FRAME_ENGINE_IDS,
+      ...GRAPH_FRAME_OFFER_ENGINE_IDS,
     ]);
 
     const elkResult = evaluatePreviewEngineCompatibility(ELK_LAYERED_PREVIEW_ENGINE, context);

@@ -81,7 +81,9 @@ export interface PreviewEngineCompatibility {
     readonly minArrowCount?: number;
     /**
      * Diagram families this engine should be offered for when the authored frame
-     * diagram declares a recognized `meta.diagram_type`.
+     * diagram declares a recognized `meta.diagram_type`. When a manifest uses
+     * this allowlist and the diagram omits `meta.diagram_type`, the engine stays
+     * technically resolvable but is withheld from offer lists.
      *
      * This is an example-fit filter for offer lists and disabled-state messaging,
      * not a hard block on explicitly persisted engine selection.
@@ -107,8 +109,8 @@ export interface FrameDiagramCompatibilitySummary {
   /** Authored `meta.diagram_type`, when recognized by the frame-YAML loader. */
   diagramType?: string | null;
   /**
-   * Non-endpoint structural carriers with endpoint descendants that currently
-   * rely on fill sizing semantics.
+   * Structural carriers with endpoint participation (directly or via
+   * descendants) that currently rely on fill sizing semantics.
    */
   fillCarrierIds?: string[];
   /**

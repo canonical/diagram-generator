@@ -32,6 +32,12 @@
 
 ## Phase 3: Validation
 
+- [x] **T031** Address adversarial-review compatibility reopeners.
+      **Verify**:
+      `npm --prefix packages/layout-engine test -- preview-engine-registry.test.ts`;
+      `npm --prefix apps/preview test -- src/persistence/preview-host-contract.test.ts`;
+      `node scripts/check_no_new_python.mjs`
+
 - [x] **T030** Full validation.
       **Verify**:
       `npm --prefix packages/layout-engine test`;

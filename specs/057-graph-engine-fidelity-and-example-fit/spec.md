@@ -95,14 +95,19 @@ semantic fidelity once an engine is exposed.
   - ELK-family engines now hard-block diagrams that introduce fill-sized structural carriers without an authored `meta.diagram_type`, explicitly bounding the unsupported `tiered-network-architecture.author-v1` ELK fill case instead of silently offering a misleading lane.
   - Nested annotation restoration now keeps `mongo-octavia-ha` AZ labels attached to their owning wrappers instead of stacking them below the whole page.
 
-### 2026-06-28 adversarial review
+### 2026-06-28 adversarial review follow-up
 
-- Full validation stayed green, but closeout is blocked on two remaining
-  compatibility gaps:
-  - metadata-less arrow fixtures (`complex-routing-usecase`,
-    `example-deployment-pipeline`, and `preview-smoke`) still offer
-    `elk-rectpacking`, so the example-fit gate still depends on authored
-    `meta.diagram_type` being present.
-  - the fill-carrier summary currently skips fill-sized structural carriers that
-    are themselves arrow endpoints, so an explicit ELK selection can still
-    resolve without authored `meta.diagram_type` for that shape.
+- Metadata-less arrow fixtures now default to the stricter offer-list posture:
+  manifests with `offerDiagramTypes` stay technically resolvable when
+  explicitly selected, but they are not offered until an authored
+  `meta.diagram_type` is present.
+- The fill-carrier summary now includes fill-sized structural endpoint
+  containers, so the no-`diagram_type` ELK hard block applies to both endpoint
+  carriers and descendant-carrier shapes.
+- Focused regressions cover the three real metadata-less fixtures
+  (`complex-routing-usecase`, `example-deployment-pipeline`, and
+  `preview-smoke`) plus a synthetic fill-endpoint reproducer.
+- Targeted validation for the reopened review work:
+  `npm --prefix packages/layout-engine test -- preview-engine-registry.test.ts`;
+  `npm --prefix apps/preview test -- src/persistence/preview-host-contract.test.ts`;
+  `node scripts/check_no_new_python.mjs`.
