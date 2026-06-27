@@ -1,4 +1,5 @@
 import { normalizePreviewDiagramPath } from './app-diagram-navigation.js';
+import { collectPreviewArrowComponentEntries } from '../preview-arrow-component-ids.js';
 
 /**
  * Preview diagram bootstrap/data helpers (spec 046 slice A).
@@ -157,11 +158,12 @@ export function syncPreviewArrowModelFromFrameTree(
   const arrows = Array.isArray(options.frameTreeJson?.arrows)
     ? options.frameTreeJson!.arrows!
     : [];
+  const arrowEntries = collectPreviewArrowComponentEntries(arrows);
 
   if (options.syncArrowsInModel) {
     options.syncArrowsInModel(options.model, arrows, []);
-    return arrows.map((arrow) => ({
-      id: options.arrowComponentId?.(arrow) || arrow.id || `${arrow.source}->${arrow.target}`,
+    return arrowEntries.map(({ arrow, componentId }) => ({
+      id: options.arrowComponentId?.(arrow) || componentId,
       source: arrow.source,
       target: arrow.target,
       color: arrow.color,
@@ -169,8 +171,8 @@ export function syncPreviewArrowModelFromFrameTree(
     }));
   }
 
-  const payload = arrows.map((arrow) => ({
-    id: options.arrowComponentId?.(arrow) || arrow.id || `${arrow.source}->${arrow.target}`,
+  const payload = arrowEntries.map(({ arrow, componentId }) => ({
+    id: options.arrowComponentId?.(arrow) || componentId,
     source: arrow.source,
     target: arrow.target,
     color: arrow.color,

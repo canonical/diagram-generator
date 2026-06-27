@@ -74,6 +74,7 @@ describe('createPreviewInspectorDisplayRuntime', () => {
       getOwnDelta: () => ({ dx: 0, dy: 0, dw: 0, dh: 0 }),
       getEffectiveDelta: () => ({ dx: 0, dy: 0, dw: 0, dh: 0 }),
       getComponentType: () => 'panel',
+      getParentNode: () => ({ id: 'root' }),
       getParentLayout: () => 'horizontal',
       getRenderedStyle: () => ({ fill: '#ffffff', stroke: '#111111' }),
       getViolations: () => [],
@@ -136,6 +137,7 @@ describe('createPreviewInspectorDisplayRuntime', () => {
       getOwnDelta: () => ({ dx: 0, dy: 0, dw: 0, dh: 0 }),
       getEffectiveDelta: () => ({ dx: 0, dy: 0, dw: 0, dh: 0 }),
       getComponentType: () => 'panel',
+      getParentNode: () => null,
       getParentLayout: () => null,
       getRenderedStyle: () => ({ fill: '#000000', stroke: 'none' }),
       getViolations: () => [],
@@ -158,8 +160,8 @@ describe('createPreviewInspectorDisplayRuntime', () => {
     expect(runtime.getWidthUnit()).toBe('px');
     expect(runtime.getHeightUnit()).toBe('rows');
     expect(inspector.innerHTML).toContain('<span class="label">Variant</span>');
-    expect(inspector.innerHTML).toContain('Highlight');
-    expect(inspector.innerHTML).not.toContain('data-dg-change-action="single-style"');
+    expect(inspector.innerHTML).toContain('data-dg-change-action="single-style"');
+    expect(inspector.innerHTML).toContain('<option>styled</option>');
     expect(syncPanelVisibility).toHaveBeenCalledWith({ count: 1, kind: 'frame' });
   });
 
@@ -187,6 +189,7 @@ describe('createPreviewInspectorDisplayRuntime', () => {
       getOwnDelta: () => ({ dx: 0, dy: 0, dw: 0, dh: 0 }),
       getEffectiveDelta: () => ({ dx: 0, dy: 0, dw: 0, dh: 0 }),
       getComponentType: () => 'panel',
+      getParentNode: () => null,
       getParentLayout: () => null,
       getRenderedStyle: () => null,
       getViolations: () => [],
@@ -210,5 +213,65 @@ describe('createPreviewInspectorDisplayRuntime', () => {
     expect(inspector.innerHTML).toContain('data-dg-panel-id="single-autolayout-layout"');
     expect(inspector.innerHTML).not.toContain('data-dg-panel-id="single-autolayout-position"');
     expect(inspector.innerHTML).not.toContain('data-dg-panel-id="single-selection"');
+  });
+
+  it('binds single-selection alignment controls to the parent container for autolayout leaf children', () => {
+    const inspector = { innerHTML: '' };
+    const runtime = createPreviewInspectorDisplayRuntime({
+      getInspector: () => inspector,
+      selectedIds: new Set(['child']),
+      getPrimarySelectedId: (preferredId) => preferredId ?? 'child',
+      getSelectionActionInfo: () => ({
+        items: [],
+        hasUnsupported: false,
+        sameParent: true,
+        parentId: 'parent',
+      }),
+      getNode: (cid) => (
+        cid === 'child'
+          ? {
+              id: 'child',
+              align: 'TOP_LEFT',
+              data: { id: 'child', width: 120, height: 64, level: 1, fill: 'WHITE', border: 'SOLID' },
+            }
+          : {
+              id: 'parent',
+              align: 'BOTTOM_RIGHT',
+              layout: 'vertical',
+              children: [{ id: 'child' }],
+              data: { id: 'parent' },
+            }
+      ),
+      getArrowNode: () => null,
+      getOverride: (cid) => (cid === 'parent' ? { align: 'CENTER_LEFT' } : { style: '' }),
+      getOwnDelta: () => ({ dx: 0, dy: 0, dw: 0, dh: 0 }),
+      getEffectiveDelta: () => ({ dx: 0, dy: 0, dw: 0, dh: 0 }),
+      getComponentType: () => 'panel',
+      getParentNode: () => ({
+        id: 'parent',
+        align: 'BOTTOM_RIGHT',
+        layout: 'vertical',
+        children: [{ id: 'child' }],
+        data: { id: 'parent' },
+      }),
+      getParentLayout: () => 'vertical',
+      getRenderedStyle: () => ({ fill: '#ffffff', stroke: '#111111' }),
+      getViolations: () => [],
+      isWidthCoerced: () => false,
+      isHeightCoerced: () => false,
+      getGridInfo: () => null,
+      baselineStep: 8,
+      fallbackGap: 24,
+      snapStep: 8,
+      setMultiActionGap() {},
+      renderSingleStyleOptions: () => '<option>styled</option>',
+      renderMultiStyleOptions: () => '',
+    });
+
+    runtime.renderSelectionInspector('child');
+
+    expect(inspector.innerHTML).toContain('data-dg-click-action="single-align"');
+    expect(inspector.innerHTML).toContain('data-dg-cid="parent"');
+    expect(inspector.innerHTML).toContain('Center Left');
   });
 });

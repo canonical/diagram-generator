@@ -18,6 +18,10 @@ export interface RoutedArrow {
   componentId?: string;
 }
 
+type RouteableArrow = Arrow & {
+  componentId?: string;
+};
+
 interface ParsedArrow {
   arrow: Arrow;
   sourceRef: EndpointRef;
@@ -32,12 +36,20 @@ interface FanPlan {
   branchAxis: number;
 }
 
-function arrowComponentId(arrow: Arrow): string {
+function authoredArrowRoutingId(arrow: Arrow): string {
   return arrow.id ?? `${arrow.source}->${arrow.target}`;
 }
 
 function warnSkippedArrow(arrow: Arrow, reason: string): void {
-  console.warn(`routeArrows: skipped ${arrowComponentId(arrow)} (${reason})`);
+  console.warn(`routeArrows: skipped ${authoredArrowRoutingId(arrow)} (${reason})`);
+}
+
+function arrowComponentId(arrow: Arrow): string {
+  const componentId = (arrow as RouteableArrow).componentId;
+  if (typeof componentId === 'string' && componentId.trim()) {
+    return componentId;
+  }
+  return authoredArrowRoutingId(arrow);
 }
 
 function simplifyPath(points: [number, number][]): [number, number][] {

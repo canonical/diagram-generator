@@ -27,9 +27,54 @@ import {
  */
 
 export interface PreviewSingleSelectionInspectorNode extends PreviewStyleNode {
+  id?: string | null;
   align?: string | null;
   layout?: string | null;
   parent?: unknown;
+  data?: {
+    id?: string | null;
+    [key: string]: unknown;
+  } | null;
+}
+
+function previewNodeId(
+  node: PreviewSingleSelectionInspectorNode | null | undefined,
+): string {
+  const nodeId = node?.id ?? node?.data?.id;
+  return typeof nodeId === 'string' ? nodeId : '';
+}
+
+function resolveSingleSelectionAlignOwner(options: {
+  cid: string;
+  node?: PreviewSingleSelectionInspectorNode | null;
+  parentNode?: PreviewSingleSelectionInspectorNode | null;
+  override?: Record<string, unknown> | null;
+  parentOverride?: Record<string, unknown> | null;
+  isAutolayoutChild: boolean;
+  isAutolayoutContainer: boolean;
+}): { currentAlign: string; targetCid: string } {
+  if (options.isAutolayoutChild && !options.isAutolayoutContainer) {
+    const parentId = previewNodeId(options.parentNode);
+    if (parentId) {
+      const parentAlign = typeof options.parentOverride?.align === 'string'
+        ? options.parentOverride.align
+        : options.parentNode?.align;
+      return {
+        currentAlign: parentAlign || 'TOP_LEFT',
+        targetCid: parentId,
+      };
+    }
+  }
+
+  const currentAlign = (
+    typeof options.override?.align === 'string'
+      ? options.override.align
+      : options.node?.align
+  ) || 'TOP_LEFT';
+  return {
+    currentAlign,
+    targetCid: options.cid,
+  };
 }
 
 function normalizeInspectorErrorMessage(error: unknown): string {
@@ -40,7 +85,9 @@ function normalizeInspectorErrorMessage(error: unknown): string {
 export function resolveSingleSelectionInspectorPanelRenderOptions(options: {
   cid: string;
   node?: PreviewSingleSelectionInspectorNode | null;
+  parentNode?: PreviewSingleSelectionInspectorNode | null;
   override?: Record<string, unknown> | null;
+  parentOverride?: Record<string, unknown> | null;
   ownDelta: InspectorDeltaState;
   effectiveDelta: InspectorEffectiveDeltaState;
   hasWaypointOverride?: boolean;
@@ -110,9 +157,20 @@ export function resolveSingleSelectionInspectorPanelRenderOptions(options: {
   const styleLabel = styleState.mode === 'picker'
     ? formatPreviewVariantName(DEFAULT_PREVIEW_BOX_STYLES, styleState.currentStyle)
     : '';
+  const alignOwner = resolveSingleSelectionAlignOwner({
+    cid: options.cid,
+    node: options.node,
+    parentNode: options.parentNode,
+    override,
+    parentOverride: options.parentOverride ?? {},
+    isAutolayoutChild: viewModel.isAutolayoutChild,
+    isAutolayoutContainer: viewModel.isAutolayoutContainer,
+  });
+  viewModel.currentAlign = alignOwner.currentAlign;
 
   return {
     cid: options.cid,
+    alignTargetCid: alignOwner.targetCid,
     viewModel,
     ownDelta: options.ownDelta,
     effectiveDelta: options.effectiveDelta,

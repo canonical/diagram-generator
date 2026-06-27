@@ -1,4 +1,9 @@
 import { resolveArrowRenderPlan } from '../arrow-render-plan.js';
+import {
+  collectPreviewArrowComponentEntries,
+  createPreviewArrowComponentId,
+  isPreviewArrowComponentId,
+} from '../preview-arrow-component-ids.js';
 import { routeArrows, type RoutedArrow } from '../arrow-routing.js';
 import { type Arrow, createLine } from '../frame-model.js';
 import { emitRoutedArrowDisplayListItems } from '../render-adapter/display-list.js';
@@ -187,7 +192,10 @@ function replacePreviewArrowLabels(
 export function previewArrowComponentId(
   arrow: Pick<Arrow, 'id' | 'source' | 'target'>,
 ): string {
-  return arrow.id ?? `${arrow.source}->${arrow.target}`;
+  if (isPreviewArrowComponentId(arrow.id)) {
+    return arrow.id;
+  }
+  return createPreviewArrowComponentId(arrow);
 }
 
 export function syncPreviewArrowsInModel<TModel extends PreviewArrowModelLike>(
@@ -205,8 +213,7 @@ export function syncPreviewArrowsInModel<TModel extends PreviewArrowModelLike>(
   }
 
   model.loadArrows(
-    arrows.map((arrow) => {
-      const componentId = previewArrowComponentId(arrow);
+    collectPreviewArrowComponentEntries(arrows).map(({ arrow, componentId }) => {
       const routedArrow = routedById.get(componentId);
       return {
         id: componentId,
@@ -223,8 +230,16 @@ export function routePreviewArrows(
   arrows: Arrow[],
   boundsMap: PreviewArrowBoundsMap,
 ): PreviewRoutedArrow[] {
-  const authoredByComponentId = new Map(arrows.map((arrow) => [previewArrowComponentId(arrow), arrow]));
-  return routeArrows(arrows, boundsMap)
+  const authoredEntries = collectPreviewArrowComponentEntries(arrows);
+  const authoredByComponentId = new Map(authoredEntries.map(({ arrow, componentId }) => [componentId, arrow]));
+  const normalizedArrows = authoredEntries.map(({ arrow, componentId }) => ({
+    ...arrow,
+    // Keep authored arrow ids intact so arrow:<id> / @id refs still route
+    // correctly; preview selection/save ids travel separately.
+    componentId,
+  }));
+
+  return routeArrows(normalizedArrows, boundsMap)
     .map((routed) => {
       const points = routed.points || [];
       const authored = authoredByComponentId.get(routed.componentId || '') || null;

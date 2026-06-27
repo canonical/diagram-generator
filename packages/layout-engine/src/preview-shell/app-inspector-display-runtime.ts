@@ -51,6 +51,7 @@ export interface CreatePreviewInspectorDisplayRuntimeOptions {
   getOwnDelta: (cid: string) => InspectorDeltaState;
   getEffectiveDelta: (cid: string) => InspectorEffectiveDeltaState;
   getComponentType: (cid: string) => string | null | undefined;
+  getParentNode: (cid: string) => PreviewInspectorDisplayRuntimeNode | null | undefined;
   getParentLayout: (cid: string) => string | null;
   getRenderedStyle: (cid: string) => PreviewRenderedStyleFields | null;
   getViolations: (cid: string) => SingleSelectionInspectorViolation[] | null | undefined;
@@ -185,6 +186,9 @@ export function createPreviewInspectorDisplayRuntime(
           ? componentType
           : options.getComponentType(nextCid)
       )),
+      getParentNode: options.getParentNode as (cid: string) => (
+        PreviewSingleSelectionInspectorNode & PreviewAutolayoutInspectorNode
+      ) | null | undefined,
       getParentLayout: options.getParentLayout,
       getRenderedStyle: options.getRenderedStyle,
       getViolations: options.getViolations,

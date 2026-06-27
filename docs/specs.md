@@ -22,6 +22,8 @@ For spec-driven implementation, keep git aligned to the spec package:
 - merge and delete the feature branch when the spec closes
 - archive the completed package under `docs/spec-archive/`
 
+`Closeout Ready` is a verification gate, not an aspirational label. Specs that touch the preview override/save path must have at least one repo-owned save round-trip regression (`persist -> reload`) before moving to `Closeout Ready`.
+
 ### Active packages
 
 | Spec | Path | Status | Summary |
@@ -36,6 +38,7 @@ For spec-driven implementation, keep git aligned to the spec package:
 | 048 ELK sizing and interaction follow-up | `specs/048-elk-sizing-interaction-followup/` | Closeout Ready | Current ELK product follow-up: preserve Fill/Hug/Fixed semantics, rerun text measurement on width changes, add live resize feedback, align parent text insets, and harden ELK option/debug surfaces without reopening 046. |
 | 051 Preview editor contextual aside | `specs/051-preview-editor-contextual-aside/` | Draft | Figma-like right-aside cleanup: engine and selection driven visibility for Browse/Layers, Selection, Engine, Grid, ELK, Document, Diagnostics, and force-only controls. |
 | 052 Layout engine onboarding factory and multi-engine port | `specs/052-layout-engine-onboarding-port/` | Closeout Ready | Onboarding substrate is done (`defineGraphLayoutPreviewEngine` factory, per-engine contract tests, bundle-freshness/no-central-branching gates, product-suitable elkjs algorithms + dagre). Phase 6 fixed the live runtime regressions: explicit incompatible engines no longer silently degrade to v3, ELK layered works on compound/container-endpoint fixtures, authored ELK -> v3 save/reload persists, and sequence documents route/render through the sequence engine without clipped notes. |
+| 053 Preview editor post-refactor correctness | `specs/053-preview-editor-post-refactor-correctness/` | Closeout Ready | Triage package for UI regressions after the editor/engine refactor: reliable alignment controls, v3 direction/stage resize, explicit v3 engine display, registry-filtered compatible engines, active-engine control panels, and the preview save/routing hardening needed to keep frame + arrow edits round-tripping cleanly. |
 | — | `specs/ADVERSARIAL_REVIEW_PROMPT.md` | Template | Copy-paste prompt for post-session adversarial reviews. |
 
 

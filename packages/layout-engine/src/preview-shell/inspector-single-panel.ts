@@ -47,6 +47,7 @@ export interface SingleSelectionInspectorViolation {
 
 export interface SingleSelectionInspectorPanelRenderOptions {
   cid: string;
+  alignTargetCid?: string;
   viewModel: SingleSelectionInspectorViewModel;
   ownDelta: InspectorDeltaState;
   effectiveDelta: InspectorEffectiveDeltaState;
@@ -93,7 +94,7 @@ function renderSingleSelectionLayoutGroup(
   }
 
   const alignmentHtml = options.viewModel.showAlignmentControls
-    ? renderAlignWidget(options.cid, options.viewModel.currentAlign)
+    ? renderAlignWidget(options.alignTargetCid || options.cid, options.viewModel.currentAlign)
     : '';
   const autolayoutHtml = (!options.viewModel.isRoot || options.viewModel.isAutolayoutContainer)
     ? (options.autolayoutPanelHtml || '')
@@ -173,7 +174,15 @@ function renderSingleSelectionAppearanceGroup(
   let html = '';
   if (options.styleMode === 'picker') {
     html += '<div class="field" style="margin-top:6px"><span class="label">Variant</span><br>';
-    html += `<span class="value">${escapePreviewHtml(options.styleLabel || 'Unknown variant')}</span></div>`;
+    if (options.styleOptionsHtml) {
+      html += `<select class="bf-input"${renderPreviewDataAttrs({
+        'data-dg-change-action': 'single-style',
+        'data-dg-cid': options.cid,
+      })}>${options.styleOptionsHtml}</select>`;
+    } else {
+      html += `<span class="value">${escapePreviewHtml(options.styleLabel || 'Unknown variant')}</span>`;
+    }
+    html += '</div>';
   } else if (options.styleMode === 'structural') {
     html += '<div class="field" style="margin-top:6px"><span class="label">Variant</span><div class="hint">Structural wrapper: no visible box variant.</div></div>';
   }

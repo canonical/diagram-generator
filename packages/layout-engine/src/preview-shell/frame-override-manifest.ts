@@ -108,7 +108,17 @@ export const UNDO_RELAYOUT_FRAME_KEYS = [
   'children_order',
 ] as const;
 
+/** Keys that may be written to arrow YAML entries via persistFrameDiagramOverridePayloadToYaml. */
+export const PERSIST_ARROW_KEYS = ['waypoints'] as const;
+
+/** Arrow override keys forwarded into client-side relayout. Waypoints do not trigger relayout. */
+export const RELAYOUT_ARROW_KEYS = [] as const;
+
+/** Arrow override keys that should trigger relayout after undo/redo restore. */
+export const UNDO_RELAYOUT_ARROW_KEYS = [] as const;
+
 export type PersistFrameKey = (typeof PERSIST_FRAME_KEYS)[number];
+export type PersistArrowKey = (typeof PERSIST_ARROW_KEYS)[number];
 export type RelayoutFrameKey = (typeof RELAYOUT_FRAME_KEYS)[number];
 
 export function hasPreviewRelayoutFrameOverride(

@@ -29,6 +29,7 @@ describe('single-selection inspector option helpers', () => {
     });
 
     expect(options.viewModel.currentAlign).toBe('CENTER');
+    expect(options.alignTargetCid).toBe('frame-1');
     expect(options.viewModel.hasMoveOverride).toBe(true);
     expect(options.viewModel.hasParentOverride).toBe(true);
     expect(options.autolayoutPanelHtml).toBe('<div>auto</div>');
@@ -65,5 +66,40 @@ describe('single-selection inspector option helpers', () => {
     expect(options.autolayoutPanelHtml).toBe('');
     expect(options.styleMode).toBe('structural');
     expect(options.styleOptionsHtml).toBe('');
+  });
+
+  it('targets parent alignment for autolayout leaf children while keeping style edits on the selected node', () => {
+    const options = resolveSingleSelectionInspectorPanelRenderOptions({
+      cid: 'child',
+      node: {
+        id: 'child',
+        align: 'TOP_LEFT',
+        data: { id: 'child' },
+      },
+      parentNode: {
+        id: 'parent',
+        align: 'BOTTOM_RIGHT',
+        layout: 'vertical',
+        data: { id: 'parent' },
+      },
+      parentOverride: {
+        align: 'CENTER_LEFT',
+      },
+      ownDelta: { dx: 0, dy: 0, dw: 0, dh: 0 },
+      effectiveDelta: { dx: 0, dy: 0 },
+      componentType: 'panel',
+      parentLayout: 'vertical',
+      renderedStyle: {
+        fill: '#F3F3F3',
+        stroke: '#111111',
+      },
+      renderStyleOptions: (currentStyle) => currentStyle,
+    });
+
+    expect(options.viewModel.isAutolayoutChild).toBe(true);
+    expect(options.viewModel.isAutolayoutContainer).toBe(false);
+    expect(options.viewModel.currentAlign).toBe('CENTER_LEFT');
+    expect(options.alignTargetCid).toBe('parent');
+    expect(options.styleOptionsHtml).toBe('annotation');
   });
 });

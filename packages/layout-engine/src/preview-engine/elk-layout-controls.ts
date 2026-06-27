@@ -195,6 +195,9 @@ export function createPreviewElkLayoutControlsRuntime(
     if (engineSupportsSidebarSection(active, sidebarSectionId)) {
       return active;
     }
+    if (layoutEngine && layoutEngine.trim().length > 0) {
+      return null;
+    }
     return previewEnginesBySidebarSection(sidebarSectionId)[0] ?? null;
   }
 
@@ -358,11 +361,19 @@ export function createPreviewElkLayoutControlsRuntime(
     );
   }
 
-  function readControlValue(element: PreviewControlElement, spec: PreviewControlSpec): string {
+  function readControlValue(element: PreviewControlElement, spec: PreviewControlSpec): string | number | boolean {
     if (spec.kind === 'boolean') {
-      return element.checked ? 'true' : 'false';
+      return Boolean(element.checked);
     }
-    return String(element.value ?? '').trim();
+    const trimmed = String(element.value ?? '').trim();
+    if (spec.kind === 'number') {
+      if (!trimmed) {
+        return '';
+      }
+      const numeric = Number(trimmed);
+      return Number.isFinite(numeric) ? numeric : trimmed;
+    }
+    return trimmed;
   }
 
   function collectOverridesFromDom(frameTreeJson?: unknown): Record<string, unknown> {

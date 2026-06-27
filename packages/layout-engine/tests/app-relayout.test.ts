@@ -409,6 +409,40 @@ describe('preview relayout helpers', () => {
     expect(bodyChild.align).toBe(Align.BOTTOM_RIGHT);
   });
 
+  it('syncs headed-container body alignment when the parent align override changes', () => {
+    const headingChild = new Frame({
+      id: 'gamma__heading',
+      role: 'heading',
+      label: [createLine('Before')],
+    });
+    const bodyChild = new Frame({
+      id: 'gamma__body',
+      align: Align.CENTER,
+      children: [new Frame({ id: 'small_box' })],
+    });
+    const gamma = new Frame({
+      id: 'gamma',
+      align: Align.CENTER,
+      heading: createLine('Old heading'),
+      children: [headingChild, bodyChild],
+    });
+    const diagram = new FrameDiagram({
+      root: new Frame({
+        id: 'root',
+        children: [gamma],
+      }),
+    });
+
+    applyPreviewOverridesToFrameTree(diagram, {
+      gamma: {
+        align: 'BOTTOM_RIGHT',
+      },
+    });
+
+    expect(gamma.align).toBe(Align.BOTTOM_RIGHT);
+    expect(bodyChild.align).toBe(Align.BOTTOM_RIGHT);
+  });
+
   it('reorders synthetic-body children via a children_order override keyed to the body', () => {
     const define = new Frame({ id: 'define', label: [createLine('Define')] });
     const measure = new Frame({ id: 'measure', label: [createLine('Measure')] });

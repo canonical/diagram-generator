@@ -7,22 +7,31 @@ export interface FrameYamlEngineLayoutNamespaceDescriptor {
 
 const frameYamlEngineLayoutNamespaces = new Map<string, FrameYamlEngineLayoutNamespaceDescriptor>();
 
-function supportedKeysByNamespace(): Map<string, Set<string>> {
-  const namespaces = new Map<string, Set<string>>();
+type FrameYamlPersistedControlSpec = {
+  key: string;
+  kind?: string;
+};
+
+function supportedSpecsByNamespace(): Map<string, Map<string, FrameYamlPersistedControlSpec>> {
+  const namespaces = new Map<string, Map<string, FrameYamlPersistedControlSpec>>();
   for (const engine of listPreviewEngines()) {
     for (const spec of engine.controlSpecs ?? []) {
       const namespace = spec.persistNamespace?.trim();
       if (!namespace) continue;
-      const supported = namespaces.get(namespace) ?? new Set<string>();
-      supported.add(spec.key);
+      const supported = namespaces.get(namespace) ?? new Map<string, FrameYamlPersistedControlSpec>();
+      supported.set(spec.key, { key: spec.key, kind: spec.kind });
       namespaces.set(namespace, supported);
     }
   }
   return namespaces;
 }
 
+function supportedSpecsForNamespace(namespace: string): Map<string, FrameYamlPersistedControlSpec> {
+  return supportedSpecsByNamespace().get(namespace) ?? new Map<string, FrameYamlPersistedControlSpec>();
+}
+
 function supportedKeysForNamespace(namespace: string): Set<string> {
-  return supportedKeysByNamespace().get(namespace) ?? new Set<string>();
+  return new Set(supportedSpecsForNamespace(namespace).keys());
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -61,6 +70,59 @@ function metaKeyFromNamespace(namespace: string): string {
   return namespace.slice("meta.".length);
 }
 
+function coercePersistedControlValue(
+  value: unknown,
+  kind: string | undefined,
+): unknown {
+  if (kind === "boolean") {
+    if (typeof value === "boolean") {
+      return value;
+    }
+    const trimmed = String(value).trim().toLowerCase();
+    if (trimmed === "true") return true;
+    if (trimmed === "false") return false;
+    return Boolean(value);
+  }
+
+  if (kind === "number") {
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+    const trimmed = String(value).trim();
+    if (!trimmed) {
+      return "";
+    }
+    const numeric = Number(trimmed);
+    return Number.isFinite(numeric) ? numeric : trimmed;
+  }
+
+  return typeof value === "string" ? value.trim() : value;
+}
+
+function createBuiltInNamespaceDescriptor(
+  namespace: string,
+): FrameYamlEngineLayoutNamespaceDescriptor | undefined {
+  if (!namespace.startsWith("meta.")) {
+    return undefined;
+  }
+  if (supportedKeysForNamespace(namespace).size === 0) {
+    return undefined;
+  }
+
+  return {
+    namespace,
+    applyOverrides(document, overrides) {
+      const label = namespace === "meta.elk"
+        ? "ELK"
+        : namespace.slice("meta.".length);
+      const source = namespace === "meta.elk"
+        ? "elk_layout_overrides"
+        : `engine_layout_overrides.${namespace}`;
+      applyEngineLayoutNamespaceOverrides(namespace, document, overrides, source, label);
+    },
+  };
+}
+
 function applyEngineLayoutNamespaceOverrides(
   namespace: string,
   document: Record<string, unknown>,
@@ -73,14 +135,17 @@ function applyEngineLayoutNamespaceOverrides(
   const meta = isRecord(document.meta) ? document.meta : {};
   document.meta = meta;
   const metaKey = metaKeyFromNamespace(namespace);
-  const next: Record<string, string> = isRecord(meta[metaKey])
-    ? Object.fromEntries(Object.entries(meta[metaKey]).map(([key, value]) => [String(key), String(value)]))
+  const supportedSpecs = supportedSpecsForNamespace(namespace);
+  const next: Record<string, unknown> = isRecord(meta[metaKey])
+    ? Object.fromEntries(Object.entries(meta[metaKey]).map(([key, value]) => [String(key), value]))
     : {};
   for (const [key, value] of Object.entries(overrides)) {
-    if (value == null || String(value) === "") {
+    const spec = supportedSpecs.get(key);
+    const coerced = coercePersistedControlValue(value, spec?.kind);
+    if (coerced == null || coerced === "") {
       delete next[String(key)];
     } else {
-      next[String(key)] = String(value);
+      next[String(key)] = coerced;
     }
   }
   if (Object.keys(next).length > 0) {
@@ -112,21 +177,9 @@ export function registerFrameYamlEngineLayoutNamespace(
 export function getFrameYamlEngineLayoutNamespace(
   namespace: string,
 ): FrameYamlEngineLayoutNamespaceDescriptor | undefined {
-  return frameYamlEngineLayoutNamespaces.get(namespace);
-}
-
-for (const namespace of supportedKeysByNamespace().keys()) {
-  if (!namespace.startsWith("meta.")) continue;
-  registerFrameYamlEngineLayoutNamespace({
-    namespace,
-    applyOverrides(document, overrides) {
-      const label = namespace === "meta.elk"
-        ? "ELK"
-        : namespace.slice("meta.".length);
-      const source = namespace === "meta.elk"
-        ? "elk_layout_overrides"
-        : `engine_layout_overrides.${namespace}`;
-      applyEngineLayoutNamespaceOverrides(namespace, document, overrides, source, label);
-    },
-  });
+  const registered = frameYamlEngineLayoutNamespaces.get(namespace);
+  if (registered) {
+    return registered;
+  }
+  return createBuiltInNamespaceDescriptor(namespace);
 }

@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import vm from "node:vm";
 
+import { createPreviewElkLayoutControlsRuntime } from "@diagram-generator/layout-engine";
+
 import {
   attachPreviewCompat,
   extractNamedFunctionSource,
@@ -131,6 +133,99 @@ test("elk-layout-controls renders from the namespaced previewEngines contract", 
   assert.equal(section.hidden, false);
   assert.match(container.innerHTML, /Node spacing/);
   assert.equal(previewEngineLayoutControls, elkLayoutControls);
+});
+
+test("elk-layout-controls does not fall back to layered controls for unresolved explicit engines", () => {
+  const section = {
+    hidden: false,
+    attrs: new Map<string, string>(),
+    hasAttribute(name: string) {
+      return name === "hidden" ? this.hidden : this.attrs.has(name);
+    },
+    setAttribute(name: string, value: string) {
+      this.attrs.set(name, value);
+    },
+    removeAttribute(name: string) {
+      this.attrs.delete(name);
+    },
+    querySelector() {
+      return null;
+    },
+    querySelectorAll() {
+      return [];
+    },
+  };
+  const container = {
+    innerHTML: "%ELK_LAYOUT_CONTROLS_HTML%",
+    textContent: "",
+    querySelector() {
+      return null;
+    },
+    querySelectorAll() {
+      return [];
+    },
+  };
+  const layoutEngine = {
+    previewEngines: {
+      registry: {
+        resolvePreviewEngine() {
+          return null;
+        },
+        listPreviewEnginesBySidebarSection(sectionName: string) {
+          if (sectionName !== "elk-layout") return [];
+          return [
+            {
+              id: "elk-layered",
+              hostView: { sidebarSections: ["elk-layout"] },
+              controlSpecs: [
+                {
+                  key: "elk.layered.spacing.nodeNodeBetweenLayers",
+                  label: "Layer gap",
+                  group: "Layering",
+                  kind: "number",
+                  defaultValue: "64",
+                },
+              ],
+            },
+          ];
+        },
+      },
+      elk: {
+        createPreviewElkLayoutControlsRuntime,
+      },
+    },
+  };
+
+  const context = {
+    window: {
+      __DG_CONFIG: { layout_engine: "elk-stress" },
+      LayoutEngine: layoutEngine,
+    },
+    document: {
+      getElementById(id: string) {
+        if (id === "elk-layout-section") return section;
+        if (id === "elk-layout-controls") return container;
+        return null;
+      },
+    },
+    console,
+    setTimeout,
+    clearTimeout,
+    LayoutEngine: layoutEngine,
+  };
+
+  attachPreviewCompat(context);
+  vm.runInNewContext(readPreviewScript("elk-layout-controls.js"), context);
+  const previewEngineLayoutControls = (
+    context.window as {
+      PreviewEngineLayoutControls: { buildPanel: (frameTreeJson: unknown) => void };
+    }
+  ).PreviewEngineLayoutControls;
+
+  previewEngineLayoutControls.buildPanel({ layoutEngine: "elk-stress", elkLayout: {} });
+
+  assert.equal(section.hidden, true);
+  assert.doesNotMatch(container.innerHTML, /Layer gap/);
 });
 
 
@@ -452,4 +547,3 @@ test("force preview helpers accept the namespaced previewEngines.force contract"
     { bootstrapped: { nodes: [] } },
   );
 });
-

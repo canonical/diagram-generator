@@ -75,4 +75,36 @@ describe('createPreviewInspectorMutationRuntime', () => {
     expect(requestRelayoutNow).toHaveBeenCalledWith('alpha');
     expect(scheduleRelayout).not.toHaveBeenCalled();
   });
+
+  it('requests immediate relayout for visual layout properties', () => {
+    let overrides: Record<string, Record<string, unknown>> = {};
+    const scheduleRelayout = vi.fn();
+    const requestRelayoutNow = vi.fn();
+
+    const runtime = createPreviewInspectorMutationRuntime({
+      captureOverrideEntries: (ids) => Object.fromEntries(ids.map((id) => [id, { ...(overrides[id] || {}) }])),
+      commitOverridePatchAction: vi.fn(),
+      getOverrides: () => overrides,
+      coercedKeys: new Set<string>(),
+      getNode: () => ({ type: 'box', children: [{ id: 'child' }] }),
+      snapToGrid: (value) => value,
+      setDirty: vi.fn(),
+      scheduleRelayout,
+      requestRelayoutNow,
+      renderSelectionInspector: vi.fn(),
+      cleanOverride: vi.fn(),
+      getGridInfo: () => null,
+      getWidthUnit: () => 'px',
+      getHeightUnit: () => 'px',
+      baselineStep: 8,
+    });
+
+    runtime.setFrameAlign('panel', 'BOTTOM_LEFT');
+    runtime.setFrameProp('panel', 'direction', 'HORIZONTAL');
+
+    expect(overrides.panel).toEqual({ align: 'BOTTOM_LEFT', direction: 'HORIZONTAL' });
+    expect(requestRelayoutNow).toHaveBeenCalledWith('panel');
+    expect(requestRelayoutNow).toHaveBeenCalledTimes(2);
+    expect(scheduleRelayout).not.toHaveBeenCalled();
+  });
 });

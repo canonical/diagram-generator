@@ -16,6 +16,22 @@ import {
 } from './frame-style.js';
 import type { PreviewGridInfo } from './grid-resolution.js';
 
+const IMMEDIATE_RELAYOUT_PROPS = new Set([
+  'align',
+  'direction',
+  'wrap',
+  'justify',
+  'sizing',
+  'sizing_w',
+  'sizing_h',
+  'width',
+  'height',
+  'min_width',
+  'max_width',
+  'min_height',
+  'max_height',
+]);
+
 export interface CreatePreviewInspectorMutationRuntimeOptions {
   captureOverrideEntries: (ids: string[]) => unknown;
   commitOverridePatchAction: (label: string, beforeEntries: unknown, afterEntries: unknown) => void;
@@ -99,7 +115,7 @@ export function createPreviewInspectorMutationRuntime(
         snapToGrid: options.snapToGrid,
         setDirty: options.setDirty,
         commitOverridePatchAction: options.commitOverridePatchAction,
-        scheduleRelayout: options.scheduleRelayout,
+        scheduleRelayout: options.requestRelayoutNow,
         renderSelectionInspector: options.renderSelectionInspector,
       });
     },
@@ -134,7 +150,9 @@ export function createPreviewInspectorMutationRuntime(
         snapToGrid: options.snapToGrid,
         setDirty: options.setDirty,
         commitOverridePatchAction: options.commitOverridePatchAction,
-        scheduleRelayout: options.scheduleRelayout,
+        scheduleRelayout: IMMEDIATE_RELAYOUT_PROPS.has(prop)
+          ? options.requestRelayoutNow
+          : options.scheduleRelayout,
         renderSelectionInspector: options.renderSelectionInspector,
       });
     },

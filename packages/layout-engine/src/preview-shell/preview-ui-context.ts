@@ -148,13 +148,13 @@ export function previewEngineSupportsSidebarSection(
   return hostView(context)?.sidebarSections?.includes(section) ?? false;
 }
 
-function hasMultipleCompatibleEngines(context: PreviewUiContext): boolean {
+function hasCompatibleEngines(context: PreviewUiContext): boolean {
   const keys = new Set(
     (context.compatibleEngines ?? [])
       .map((key) => String(key || '').trim())
       .filter(Boolean),
   );
-  return keys.size > 1;
+  return keys.size > 0;
 }
 
 export function hasInvalidPreviewPersistedLayoutEngine(
@@ -171,7 +171,7 @@ export function hasInvalidPreviewPersistedLayoutEngine(
 export function shouldShowPreviewEngineSwitcher(context: PreviewUiContext): boolean {
   return isGridShell(context)
     && isFrameDiagram(context)
-    && (hasMultipleCompatibleEngines(context) || hasInvalidPreviewPersistedLayoutEngine(context));
+    && (hasCompatibleEngines(context) || hasInvalidPreviewPersistedLayoutEngine(context));
 }
 
 function frameTreeVisible(context: PreviewUiContext): boolean {
@@ -258,8 +258,8 @@ export const PREVIEW_PANEL_REGISTRY: readonly PreviewPanelRegistryEntry[] = [
       visible,
       hasInvalidPreviewPersistedLayoutEngine(context)
         ? 'persisted layout engine needs repair'
-        : 'multiple compatible frame engines are available',
-      'current frame document has a single valid compatible engine',
+        : 'compatible frame engines are available',
+      'current frame document has no compatible engines',
     ),
   },
   {

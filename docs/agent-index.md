@@ -25,12 +25,15 @@ Read this before broad repo searches.
 
 | File | ~Lines | Instead |
 |------|-------:|---------|
-| `scripts/preview/force.js` | 1,600 | same |
-| `packages/layout-engine/dist/layout-engine.iife.js` | 3.5 MB | edit `packages/layout-engine/src/`; run `build:browser` |
+| `scripts/preview/component-model.js` | 740 | persistence hotspot; search `loadArrows` / `toOverridePayload`, then move ownership into TS |
+| `scripts/preview/force.js` | 1,599 | same |
+| `packages/layout-engine/dist/layout-engine.iife.js` | 4.4 MB | edit `packages/layout-engine/src/`; run `build:browser` |
 | `diagrams/**` | binaries | ignored by `.cursorignore`; not product code |
 | `specs/**` (bulk) | 8k+ | open **one** active `specs/<id>-<slug>/` when doing spec work |
 
-Thin shell modules (safe to read whole): `editor.js`, `layout-bridge.js`, `editor-state.js`, `editor-base.js`, `save-client.js`, `undo-manager.js`, `elk-controller.js`.
+Thin shell modules (safe to read whole): `editor.js`, `layout-bridge.js`, `editor-state.js`, `save-client.js`, `undo-manager.js`, `elk-controller.js`.
+
+Not thin: `component-model.js` owns save-payload assembly and `editor-base.js` still owns substantial legacy interaction state; search first, then read bounded slices.
 
 ## Tier-2 flow maps
 
@@ -50,6 +53,7 @@ Thin shell modules (safe to read whole): `editor.js`, `layout-bridge.js`, `edito
 | Preview editor recovery | [`docs/spec-archive/050-preview-editor-recovery/preview-editor-recovery-flow.md`](./spec-archive/050-preview-editor-recovery/preview-editor-recovery-flow.md) |
 | Preview contextual aside | [`specs/051-preview-editor-contextual-aside/preview-contextual-aside-flow.md`](../specs/051-preview-editor-contextual-aside/preview-contextual-aside-flow.md) |
 | Layout engine onboarding | [`specs/052-layout-engine-onboarding-port/engine-onboarding-checklist.md`](../specs/052-layout-engine-onboarding-port/engine-onboarding-checklist.md) |
+| Preview editor post-refactor correctness | [`specs/053-preview-editor-post-refactor-correctness/preview-editor-post-refactor-flow.md`](../specs/053-preview-editor-post-refactor-correctness/preview-editor-post-refactor-flow.md) |
 | Agent token / workspace slimming | [`docs/spec-archive/040-agent-token-slimming/spec.md`](./spec-archive/040-agent-token-slimming/spec.md) |
 
 Add a new row when you land a cross-layer map (UI → server → engine → disk). Keep maps ≤60 lines.
@@ -93,6 +97,7 @@ node scripts/check_no_new_python.mjs
 
 - Locate before loading: narrow `rg` / `Glob` first; then `Read` only the hit region (`offset`/`limit` on trap files). Whole-file reads are fine for thin modules listed above.
 - Prefer narrow `rg` scoped to one directory.
+- Exclude generated browser bundles from search unless the task is bundle freshness or emitted-output triage: `rg pattern packages/layout-engine/src -g "!packages/layout-engine/dist/**"`.
 - Read one targeted file after search hits.
 - Avoid repo-wide sweeps unless the task is genuinely cross-cutting.
 - Do not load `.github/agents/speckit.*` unless the user asked for spec-kit work.

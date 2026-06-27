@@ -77,14 +77,14 @@ describe('preview UI context registry', () => {
     expect(visible.has('grid-guide-badge')).toBe(false);
     expect(visible.has('elk-layout')).toBe(false);
     expect(visible.has('graph-layout')).toBe(false);
-    expect(visible.has('grid-engine-switcher')).toBe(false);
+    expect(visible.has('grid-engine-switcher')).toBe(true);
     expect(shouldShowPreviewEngineSwitcher({
       shellMode: 'grid',
       documentKind: 'frame-diagram',
       activeEngine: V3_PREVIEW_ENGINE,
       compatibleEngines: ['v3'],
       persistedLayoutEngine: 'v3',
-    })).toBe(false);
+    })).toBe(true);
 
     const rootVisible = visibleSections({
       shellMode: 'grid',

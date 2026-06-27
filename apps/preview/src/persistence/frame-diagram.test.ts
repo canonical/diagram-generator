@@ -9,15 +9,21 @@ import {
   verifyElkLayoutPersisted,
   type PersistOverridePayload,
 } from "./frame-diagram.js";
-import { registerFrameYamlEngineLayoutNamespace } from "./frame-engine-layout-namespaces.js";
 import {
+  getFrameYamlEngineLayoutNamespace,
+  registerFrameYamlEngineLayoutNamespace,
+} from "./frame-engine-layout-namespaces.js";
+import {
+  collectPreviewArrowComponentEntries,
   loadFrameYaml,
+  registerPreviewEngine,
   resolvePreviewEngine,
   type PreviewEngineContext,
 } from "@diagram-generator/layout-engine";
 
 const REPO_ROOT = path.resolve(process.cwd(), "..", "..");
 const FRAME_FIXTURE = path.join(REPO_ROOT, "scripts", "diagrams", "frames", "support-engineering-flow.yaml");
+const COMPLEX_ROUTING_FIXTURE = path.join(REPO_ROOT, "scripts", "diagrams", "frames", "complex-routing-usecase.yaml");
 
 function writeTempFrame(name: string, content: string): string {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "dg-frame-yaml-"));
@@ -29,6 +35,14 @@ function writeTempFrame(name: string, content: string): string {
 function persistToYaml(name: string, baselineText: string, payload: PersistOverridePayload): string {
   const framePath = writeTempFrame(name, baselineText);
   return persistFrameDiagramOverridePayloadToYaml(framePath, baselineText, payload);
+}
+
+function normalizeYamlNewlines(value: string): string {
+  return value.replace(/\r\n?/g, "\n");
+}
+
+function assertYamlEqual(actual: string, expected: string): void {
+  assert.strictEqual(normalizeYamlNewlines(actual), normalizeYamlNewlines(expected));
 }
 
 test("persist override payload writes canonical yaml fields", () => {
@@ -79,8 +93,8 @@ test("persist elk layout overrides writes meta.elk", () => {
     "meta:",
     "  layout_engine: elk-layered",
     "  elk:",
-    "    elk.layered.spacing.nodeNodeBetweenLayers: '144'",
-    "    elk.spacing.edgeNode: '56'",
+    "    elk.layered.spacing.nodeNodeBetweenLayers: 144",
+    "    elk.spacing.edgeNode: 56",
     "root:",
     "  id: page",
     "  direction: vertical",
@@ -89,12 +103,12 @@ test("persist elk layout overrides writes meta.elk", () => {
     "    label:",
     "    - A",
     "",
-  ].join("\r\n");
+  ].join("\n");
 
-  assert.strictEqual(output, expected);
+  assertYamlEqual(output, expected);
   verifyElkLayoutPersisted(output, {
-    "elk.layered.spacing.nodeNodeBetweenLayers": "144",
-    "elk.spacing.edgeNode": "56",
+    "elk.layered.spacing.nodeNodeBetweenLayers": 144,
+    "elk.spacing.edgeNode": 56,
   });
 });
 
@@ -123,8 +137,37 @@ test("persist engine_layout_overrides routes meta.elk through the namespaced sav
   });
 
   verifyElkLayoutPersisted(output, {
-    "elk.layered.spacing.nodeNodeBetweenLayers": "144",
-    "elk.spacing.edgeNode": "56",
+    "elk.layered.spacing.nodeNodeBetweenLayers": 144,
+    "elk.spacing.edgeNode": 56,
+  });
+});
+
+test("persist engine_layout_overrides preserves numeric control values", () => {
+  const baselineText = [
+    "engine: v3",
+    "title: Demo",
+    "meta:",
+    "  layout_engine: elk-layered",
+    "root:",
+    "  id: page",
+    "  direction: vertical",
+    "  children:",
+    "    - id: leaf_a",
+    "      label: [A]",
+    "",
+  ].join("\n");
+  const output = persistToYaml("demo.yaml", baselineText, {
+    overrides: {},
+    engine_layout_overrides: {
+      "meta.elk": {
+        "elk.spacing.edgeNode": 56,
+      },
+    },
+  });
+
+  assert.match(output, /elk\.spacing\.edgeNode: 56/);
+  verifyElkLayoutPersisted(output, {
+    "elk.spacing.edgeNode": 56,
   });
 });
 
@@ -152,7 +195,7 @@ test("persist engine_layout_overrides routes meta.dagre through the namespaced s
     },
   });
 
-  assert.match(output, /meta:\r?\n  layout_engine: dagre\r?\n  dagre:\r?\n    dagre\.rankdir: LR\r?\n    dagre\.ranksep: '128'/);
+  assert.match(output, /meta:\r?\n  layout_engine: dagre\r?\n  dagre:\r?\n    dagre\.rankdir: LR\r?\n    dagre\.ranksep: 128/);
 });
 
 test("persist elk layout overrides replaces meta.elk entries canonically", () => {
@@ -196,9 +239,9 @@ test("persist elk layout overrides replaces meta.elk entries canonically", () =>
     "    label:",
     "    - A",
     "",
-  ].join("\r\n");
+  ].join("\n");
 
-  assert.strictEqual(output, expected);
+  assertYamlEqual(output, expected);
   verifyElkLayoutPersisted(output, {
     "elk.hierarchyHandling": "SEPARATE_CHILDREN",
     "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
@@ -225,7 +268,7 @@ test("persist elk layout verification treats empty values as cleared overrides",
   ].join("\n");
   const expected = {
     "elk.direction": "",
-    "elk.spacing.edgeNode": "56",
+    "elk.spacing.edgeNode": 56,
   };
   const output = persistToYaml("demo.yaml", baselineText, {
     overrides: {},
@@ -235,7 +278,7 @@ test("persist elk layout verification treats empty values as cleared overrides",
   });
 
   assert.doesNotMatch(output, /elk\.direction/);
-  assert.match(output, /elk\.spacing\.edgeNode: '56'/);
+  assert.match(output, /elk\.spacing\.edgeNode: 56/);
   verifyElkLayoutPersisted(output, expected);
 });
 
@@ -328,6 +371,60 @@ test("persist engine_layout_overrides accepts registered frame-yaml namespaces",
     });
 
     assert.match(output, /meta:\r?\n  custom:\r?\n    strategy: stacked/);
+  } finally {
+    unregister();
+  }
+});
+
+test("frame-yaml engine namespaces resolve preview-engine registrations after module init", () => {
+  const unregister = registerPreviewEngine({
+    id: "unit-late-frame-yaml-namespace",
+    label: "Late namespace",
+    layoutEngineKey: "unit-late-frame-yaml-namespace",
+    shellMode: "grid",
+    renderFamily: "frame-native",
+    hostView: { sidebarSections: ["graph-layout"] },
+    capabilities: {
+      layoutControls: true,
+      localRelayout: true,
+      serverRelayout: false,
+      engineBackedSave: true,
+      nodeInspector: false,
+      gridEditing: false,
+      referenceImage: false,
+      simulationControls: false,
+      rawDebugView: false,
+    },
+    controlSpecs: [
+      {
+        key: "late.spacing",
+        label: "Late spacing",
+        group: "Late",
+        kind: "number",
+        defaultValue: "24",
+        persistNamespace: "meta.late",
+      },
+    ],
+    scripts: [],
+    compatibility: {
+      documentKinds: ["frame-diagram"],
+    },
+  });
+
+  try {
+    const descriptor = getFrameYamlEngineLayoutNamespace("meta.late");
+    assert.ok(descriptor);
+    const document: Record<string, unknown> = {};
+    descriptor.applyOverrides(document, {
+      "late.spacing": 72,
+    });
+    assert.deepStrictEqual(document, {
+      meta: {
+        late: {
+          "late.spacing": 72,
+        },
+      },
+    });
   } finally {
     unregister();
   }
@@ -438,9 +535,186 @@ test("persist removed ids prunes frames and arrows", () => {
     "      label:",
     "      - B",
     "",
-  ].join("\r\n");
+  ].join("\n");
 
-  assert.strictEqual(output, expected);
+  assertYamlEqual(output, expected);
+});
+
+test("persist arrow waypoint overrides for complex-routing-usecase arrows", () => {
+  const baselineText = fs.readFileSync(COMPLEX_ROUTING_FIXTURE, "utf8");
+  const output = persistToYaml("complex-routing-usecase.yaml", baselineText, {
+    overrides: {
+      "measure->review": {
+        waypoints: [[480, 192], [640, 192]],
+      },
+    },
+  });
+
+  assert.match(
+    output,
+    /source: measure\r?\n  target: review\r?\n  waypoints:\r?\n  - - 480\r?\n    - 192\r?\n  - - 640\r?\n    - 192/,
+  );
+
+  const reloaded = loadFrameYaml(writeTempFrame("complex-routing-usecase-reloaded.yaml", output));
+  const measureToReview = reloaded.arrows.find((arrow) => arrow.source === "measure" && arrow.target === "review");
+  assert.deepStrictEqual(measureToReview?.waypoints, [[480, 192], [640, 192]]);
+});
+
+test("persist arrow waypoint overrides upgrades shorthand arrows to mappings", () => {
+  const baselineText = [
+    "engine: v3",
+    "title: Demo",
+    "arrows:",
+    "  - leaf_a -> leaf_b",
+    "root:",
+    "  id: page",
+    "  direction: vertical",
+    "  children:",
+    "    - id: leaf_a",
+    "      label: [A]",
+    "    - id: leaf_b",
+    "      label: [B]",
+    "",
+  ].join("\n");
+  const output = persistToYaml("arrow-waypoints-shorthand.yaml", baselineText, {
+    overrides: {
+      "leaf_a->leaf_b": {
+        waypoints: [[24, 32]],
+      },
+    },
+  });
+
+  assert.match(
+    output,
+    /arrows:\r?\n- source: leaf_a\r?\n  target: leaf_b\r?\n  waypoints:\r?\n  - - 24\r?\n    - 32/,
+  );
+
+  const reloaded = loadFrameYaml(writeTempFrame("arrow-waypoints-shorthand-reloaded.yaml", output));
+  assert.deepStrictEqual(reloaded.arrows[0]?.waypoints, [[24, 32]]);
+});
+
+test("persist arrow waypoint overrides disambiguates duplicate authored edges", () => {
+  const baselineText = [
+    "engine: v3",
+    "title: Duplicate arrows",
+    "arrows:",
+    "  - source: leaf_a",
+    "    target: leaf_b",
+    "  - source: leaf_a",
+    "    target: leaf_b",
+    "root:",
+    "  id: page",
+    "  direction: vertical",
+    "  children:",
+    "    - id: leaf_a",
+    "      label: [A]",
+    "    - id: leaf_b",
+    "      label: [B]",
+    "",
+  ].join("\n");
+  const [, secondArrow] = collectPreviewArrowComponentEntries([
+    { source: "leaf_a", target: "leaf_b" },
+    { source: "leaf_a", target: "leaf_b" },
+  ]);
+
+  const output = persistToYaml("duplicate-arrows.yaml", baselineText, {
+    overrides: {
+      [secondArrow!.componentId]: {
+        waypoints: [[88, 40]],
+      },
+    },
+  });
+
+  const reloaded = loadFrameYaml(writeTempFrame("duplicate-arrows-reloaded.yaml", output));
+  assert.deepStrictEqual(reloaded.arrows[0]?.waypoints ?? [], []);
+  assert.deepStrictEqual(reloaded.arrows[1]?.waypoints, [[88, 40]]);
+});
+
+test("persist arrow waypoint overrides match preview edge ids against the authored arrow sequence", () => {
+  const baselineText = [
+    "engine: v3",
+    "title: Mixed duplicate arrows",
+    "arrows:",
+    "  - id: named_edge",
+    "    source: leaf_a",
+    "    target: leaf_b",
+    "  - source: leaf_a",
+    "    target: leaf_b",
+    "  - source: leaf_a",
+    "    target: leaf_b",
+    "root:",
+    "  id: page",
+    "  direction: vertical",
+    "  children:",
+    "    - id: leaf_a",
+    "      label: [A]",
+    "    - id: leaf_b",
+    "      label: [B]",
+    "",
+  ].join("\n");
+  const [, , secondImplicitArrow] = collectPreviewArrowComponentEntries([
+    { id: "named_edge", source: "leaf_a", target: "leaf_b" },
+    { source: "leaf_a", target: "leaf_b" },
+    { source: "leaf_a", target: "leaf_b" },
+  ]);
+
+  const output = persistToYaml("mixed-duplicate-arrows.yaml", baselineText, {
+    overrides: {
+      [secondImplicitArrow!.componentId]: {
+        waypoints: [[112, 48]],
+      },
+    },
+  });
+
+  const reloaded = loadFrameYaml(writeTempFrame("mixed-duplicate-arrows-reloaded.yaml", output));
+  assert.deepStrictEqual(reloaded.arrows[0]?.waypoints ?? [], []);
+  assert.deepStrictEqual(reloaded.arrows[1]?.waypoints ?? [], []);
+  assert.deepStrictEqual(reloaded.arrows[2]?.waypoints, [[112, 48]]);
+});
+
+test("persist arrow waypoint overrides preserve arrow:<id> branch attachments", () => {
+  const baselineText = [
+    "engine: v3",
+    "title: Arrow branch refs",
+    "arrows:",
+    "  - id: stem",
+    "    source: source.bottom",
+    "    target: target.top",
+    "  - source: arrow:stem",
+    "    target: branch.left",
+    "root:",
+    "  id: page",
+    "  children:",
+    "    - id: source",
+    "      label: [Source]",
+    "    - id: target",
+    "      label: [Target]",
+    "    - id: branch",
+    "      label: [Branch]",
+    "",
+  ].join("\n");
+  const [, branchArrow] = collectPreviewArrowComponentEntries([
+    { id: "stem", source: "source.bottom", target: "target.top" },
+    { source: "arrow:stem", target: "branch.left" },
+  ]);
+
+  const output = persistToYaml("arrow-branch-refs.yaml", baselineText, {
+    overrides: {
+      [branchArrow!.componentId]: {
+        waypoints: [[180, 80]],
+      },
+    },
+  });
+
+  assert.match(
+    output,
+    /- source: arrow:stem\r?\n  target: branch.left\r?\n  waypoints:\r?\n  - - 180\r?\n    - 80/,
+  );
+
+  const reloaded = loadFrameYaml(writeTempFrame("arrow-branch-refs-reloaded.yaml", output));
+  assert.strictEqual(reloaded.arrows[1]?.source, "arrow:stem");
+  assert.strictEqual(reloaded.arrows[1]?.target, "branch.left");
+  assert.deepStrictEqual(reloaded.arrows[1]?.waypoints, [[180, 80]]);
 });
 
 test("empty payload is a no-op without rewriting yaml", () => {
@@ -620,9 +894,9 @@ test("persist style does not promote implicit headingless wrapper", () => {
     "      label:",
     "      - B",
     "",
-  ].join("\r\n");
+  ].join("\n");
 
-  assert.strictEqual(output, expected);
+  assertYamlEqual(output, expected);
 });
 
 test("persist style preserves explicit visible headingless group", () => {
@@ -666,9 +940,34 @@ test("persist style preserves explicit visible headingless group", () => {
     "    fill: white",
     "    border: solid",
     "",
-  ].join("\r\n");
+  ].join("\n");
 
-  assert.strictEqual(output, expected);
+  assertYamlEqual(output, expected);
+});
+
+test("persist highlight style round-trips as a bordered black box", () => {
+  const baselineText = [
+    "engine: v3",
+    "title: Highlight",
+    "root:",
+    "  id: page",
+    "  direction: vertical",
+    "  children:",
+    "    - id: callout",
+    "      label: [Important]",
+    "",
+  ].join("\n");
+
+  const output = persistToYaml("highlight.yaml", baselineText, {
+    overrides: { callout: { style: "highlight" } },
+  });
+
+  assert.match(output, /id: callout[\s\S]*fill: black[\s\S]*border: solid/);
+  const reloaded = loadFrameYaml(writeTempFrame("highlight-reloaded.yaml", output));
+  const callout = reloaded.root.children.find((child) => child.id === "callout");
+  assert.ok(callout, "highlighted frame must survive save + reload");
+  assert.strictEqual(callout?.fill, "#000000");
+  assert.strictEqual(callout?.border, "SOLID");
 });
 
 test("persist layout_engine writes meta.layout_engine (spec 035)", () => {
@@ -701,9 +1000,9 @@ test("persist layout_engine writes meta.layout_engine (spec 035)", () => {
     "meta:",
     "  layout_engine: elk-layered",
     "",
-  ].join("\r\n");
+  ].join("\n");
 
-  assert.strictEqual(output, expected);
+  assertYamlEqual(output, expected);
 });
 
 test("persist layout_engine updates existing meta.layout_engine (spec 035)", () => {
@@ -736,9 +1035,9 @@ test("persist layout_engine updates existing meta.layout_engine (spec 035)", () 
     "    label:",
     "    - A",
     "",
-  ].join("\r\n");
+  ].join("\n");
 
-  assert.strictEqual(output, expected);
+  assertYamlEqual(output, expected);
 });
 
 test("persist layout_engine null clears meta.layout_engine (spec 035)", () => {
@@ -769,9 +1068,9 @@ test("persist layout_engine null clears meta.layout_engine (spec 035)", () => {
     "    label:",
     "    - A",
     "",
-  ].join("\r\n");
+  ].join("\n");
 
-  assert.strictEqual(output, expected);
+  assertYamlEqual(output, expected);
 });
 
 test("persist layout_engine preserves other meta fields (spec 035)", () => {
@@ -807,9 +1106,9 @@ test("persist layout_engine preserves other meta fields (spec 035)", () => {
     "    label:",
     "    - A",
     "",
-  ].join("\r\n");
+  ].join("\n");
 
-  assert.strictEqual(output, expected);
+  assertYamlEqual(output, expected);
 });
 
 test("persist→reload round-trip: layout_engine survives write and resolves via registry (spec 035, T020)", () => {

@@ -292,7 +292,7 @@ describe('elk preview runtimes', () => {
     expect(runtime.collectNamespacedOverrides()).toEqual({
       'meta.dagre': {
         'dagre.rankdir': 'LR',
-        'dagre.ranksep': '128',
+        'dagre.ranksep': 128,
       },
     });
   });

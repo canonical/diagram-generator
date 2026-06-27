@@ -1,9 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   createPreviewArrowSvgFragment,
   patchPreviewArrowSvg,
+  routePreviewArrows,
   syncPreviewArrowsInModel,
 } from '../src/preview-shell/app-arrow-render.js';
+import { createArrow } from '../src/frame-model.js';
 
 class FakeNode {
   ownerDocument: FakeDocument;
@@ -245,17 +247,44 @@ describe('preview arrow render helpers', () => {
     syncPreviewArrowsInModel(
       model,
       [{ source: 'alpha', target: 'beta', color: '#f60' }] as any,
-      [{ componentId: 'alpha->beta', waypoints: [[8, 16]] }] as any,
+      [{ componentId: 'arrow:edge:alpha->beta', waypoints: [[8, 16]] }] as any,
     );
 
     expect(loaded).toEqual([[
       {
-        id: 'alpha->beta',
+        id: 'arrow:edge:alpha->beta',
         source: 'alpha',
         target: 'beta',
         color: '#f60',
         waypoints: [[8, 16]],
       },
     ]]);
+  });
+
+  it('routes arrow:<id> preview attachments without clobbering authored arrow ids', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    try {
+      const routed = routePreviewArrows(
+        [
+          createArrow('source.bottom', 'target.top', { id: 'stem' }),
+          createArrow('arrow:stem', 'branch.left'),
+        ],
+        {
+          source: { x: 100, y: 0, w: 60, h: 40 },
+          target: { x: 100, y: 140, w: 60, h: 40 },
+          branch: { x: 220, y: 60, w: 60, h: 40 },
+        },
+      );
+
+      expect(warn).not.toHaveBeenCalled();
+      expect(routed).toHaveLength(2);
+      expect(routed[0]?.componentId).toBe('arrow:id:stem');
+      expect(routed[1]?.componentId).toBe('arrow:edge:arrow%3Astem->branch.left');
+      expect(routed[1]?.start).toEqual([130, 80]);
+      expect(routed[1]?.end).toEqual([220, 80]);
+    } finally {
+      warn.mockRestore();
+    }
   });
 });

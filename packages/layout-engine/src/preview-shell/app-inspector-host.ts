@@ -61,8 +61,10 @@ export type PreviewInspectorGridInfo =
 export interface RenderPreviewSingleSelectionInspectorOptions {
   cid: string;
   node?: (PreviewSingleSelectionInspectorNode & PreviewAutolayoutInspectorNode) | null;
+  parentNode?: PreviewSingleSelectionInspectorNode | null;
   arrowNode?: PreviewInspectorArrowNode | null;
   override?: Record<string, unknown> | null;
+  parentOverride?: Record<string, unknown> | null;
   ownDelta: InspectorDeltaState;
   effectiveDelta: InspectorEffectiveDeltaState;
   componentType?: string | null;
@@ -143,6 +145,9 @@ export interface RenderPreviewSingleSelectionInspectorRuntimeHostOptions {
     cid: string,
   ) => (PreviewSingleSelectionInspectorNode & PreviewAutolayoutInspectorNode) | null | undefined;
   getArrowNode: (cid: string) => PreviewInspectorArrowNode | null | undefined;
+  getParentNode: (
+    cid: string,
+  ) => (PreviewSingleSelectionInspectorNode & PreviewAutolayoutInspectorNode) | null | undefined;
   getOverride: (cid: string) => Record<string, unknown> | null | undefined;
   getOwnDelta: (cid: string) => InspectorDeltaState;
   getEffectiveDelta: (cid: string) => InspectorEffectiveDeltaState;
@@ -221,7 +226,9 @@ export function renderPreviewSingleSelectionInspector(
   const panelOptions = resolveSingleSelectionInspectorPanelRenderOptions({
     cid: options.cid,
     node: options.node,
+    parentNode: options.parentNode ?? null,
     override: options.override ?? {},
+    parentOverride: options.parentOverride ?? {},
     ownDelta: options.ownDelta,
     effectiveDelta: options.effectiveDelta,
     hasWaypointOverride: Boolean((options.override ?? {}).waypoints),
@@ -348,12 +355,16 @@ export function renderPreviewMultiSelectionInspectorRuntimeHost(
 export function renderPreviewSingleSelectionInspectorRuntimeHost(
   options: RenderPreviewSingleSelectionInspectorRuntimeHostOptions,
 ): boolean {
+  const parentNode = options.getParentNode(options.cid) ?? null;
+  const parentId = String(parentNode?.id ?? parentNode?.data?.id ?? '');
   return renderPreviewSingleSelectionInspectorHost({
     inspector: options.inspector,
     cid: options.cid,
     node: options.getNode(options.cid) ?? null,
+    parentNode,
     arrowNode: options.getArrowNode(options.cid) ?? null,
     override: options.getOverride(options.cid) ?? {},
+    parentOverride: parentId ? (options.getOverride(parentId) ?? {}) : {},
     ownDelta: options.getOwnDelta(options.cid),
     effectiveDelta: options.getEffectiveDelta(options.cid),
     componentType: options.getComponentType(options.cid) ?? null,

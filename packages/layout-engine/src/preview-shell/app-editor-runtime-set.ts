@@ -47,6 +47,7 @@ export interface CreatePreviewEditorRuntimeSetOptions {
     & CreatePreviewArrowWaypointRuntimeOptions['getEffectiveDelta'];
   getComponentType: CreatePreviewInspectorDisplayRuntimeOptions['getComponentType']
     & CreatePreviewInspectorSelectionRuntimeOptions['getComponentType'];
+  getParentNode: CreatePreviewInspectorDisplayRuntimeOptions['getParentNode'];
   getParentLayout: CreatePreviewInspectorDisplayRuntimeOptions['getParentLayout'];
   getRenderedStyle: CreatePreviewInspectorDisplayRuntimeOptions['getRenderedStyle'];
   getViolations: CreatePreviewInspectorDisplayRuntimeOptions['getViolations'];
@@ -140,6 +141,7 @@ export interface CreatePreviewEditorRuntimeSetHostOptions {
   getOwnDelta: CreatePreviewEditorRuntimeSetOptions['getOwnDelta'];
   getEffectiveDelta: CreatePreviewEditorRuntimeSetOptions['getEffectiveDelta'];
   getComponentType: CreatePreviewEditorRuntimeSetOptions['getComponentType'];
+  getParentNode: CreatePreviewEditorRuntimeSetOptions['getParentNode'];
   getParentLayout: CreatePreviewEditorRuntimeSetOptions['getParentLayout'];
   getRenderedStyle: CreatePreviewEditorRuntimeSetOptions['getRenderedStyle'];
   getViolations: CreatePreviewEditorRuntimeSetOptions['getViolations'];
@@ -362,6 +364,7 @@ export function createPreviewEditorRuntimeSetFromHost(
     getOwnDelta: options.getOwnDelta,
     getEffectiveDelta: options.getEffectiveDelta,
     getComponentType: options.getComponentType,
+    getParentNode: options.getParentNode,
     getParentLayout: options.getParentLayout,
     getRenderedStyle: options.getRenderedStyle,
     getViolations: options.getViolations,
@@ -437,6 +440,7 @@ export function createPreviewEditorRuntimeSetFromRuntime(
     getOwnDelta: options.getOwnDelta,
     getEffectiveDelta: options.getEffectiveDelta,
     getComponentType: options.getComponentType,
+    getParentNode: options.getParentNode,
     getParentLayout: (cid) => options.getParentNode(cid)?.layout || null,
     getRenderedStyle: options.readRenderedStyleFields,
     getViolations: options.getViolations,
@@ -590,6 +594,7 @@ export function createPreviewEditorRuntimeSet(
     getOwnDelta: options.getOwnDelta,
     getEffectiveDelta: options.getEffectiveDelta,
     getComponentType: options.getComponentType,
+    getParentNode: options.getParentNode,
     getParentLayout: options.getParentLayout,
     getRenderedStyle: options.getRenderedStyle,
     getViolations: options.getViolations,

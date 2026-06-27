@@ -12,12 +12,12 @@ root:
     fill: white
     border: solid
   - id: main_panel
-    direction: horizontal
+    direction: vertical
     border: solid
     heading: Infrastructure
     children:
     - id: col_left
-      direction: vertical
+      direction: horizontal
       border: solid
       heading: Compute
       children:
@@ -25,6 +25,11 @@ root:
         label:
         - VM Instance A
         icon: Server.svg
+        level: 2
+        fill: grey
+        border: solid
+        sizing_w: fill
+        width: 192
       - id: vm_2
         label:
         - VM Instance B
@@ -35,7 +40,7 @@ root:
       level: 2
       fill: grey
     - id: col_right
-      direction: vertical
+      direction: horizontal
       border: solid
       heading: Storage
       children:
