@@ -8,7 +8,12 @@ describe('preview override payload model', () => {
   it('collects top-level removals and drops transient grid keys', () => {
     const model = {
       overrides: {
-        alpha: { dx: 8 },
+        alpha: { dx: 8, debug: true },
+        'arrow:id:edge-1': {
+          waypoints: [[24, 32]],
+          color: '#E95420',
+          selected: true,
+        },
       },
       gridOverrides: {
         col_gap: 24,
@@ -31,6 +36,9 @@ describe('preview override payload model', () => {
     expect(createPreviewOverridePayload(model)).toEqual({
       overrides: {
         alpha: { dx: 8 },
+        'arrow:id:edge-1': {
+          waypoints: [[24, 32]],
+        },
       },
       format_version: 1,
       removed_ids: ['root', 'orphan'],
@@ -90,5 +98,35 @@ describe('preview override payload model', () => {
     expect(model.layoutOverrides).toEqual({
       'elk.layered.spacing.nodeNodeBetweenLayers': 48,
     });
+  });
+
+  it('routes explicit non-ELK layout namespaces through the shared persistence contract', () => {
+    const model = {
+      overrides: {},
+      layoutOverrides: {
+        'dagre.rankdir': 'LR',
+        transient: 'ignored',
+      },
+      layoutOverrideNamespace: 'meta.dagre',
+      elkLayoutOverrides: {
+        stale: true,
+      },
+      removedIds: new Set<string>(),
+    };
+
+    expect(createPreviewOverridePayload(model)).toEqual({
+      overrides: {},
+      format_version: 1,
+      engine_layout_overrides: {
+        'meta.dagre': {
+          'dagre.rankdir': 'LR',
+        },
+      },
+    });
+    expect(model.layoutOverrideNamespace).toBe('meta.dagre');
+    expect(model.layoutOverrides).toEqual({
+      'dagre.rankdir': 'LR',
+    });
+    expect(model.elkLayoutOverrides).toEqual({});
   });
 });

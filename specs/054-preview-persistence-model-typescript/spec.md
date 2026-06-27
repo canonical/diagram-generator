@@ -1,7 +1,7 @@
 # Spec 054: Preview Persistence Model TypeScript Migration
 
 **Feature Branch**: `feat/054-preview-persistence-model-typescript`  
-**Status**: Draft  
+**Status**: Draft — T011 landed; T022 is the next unchecked save-path owner task.  
 **Created**: 2026-06-27  
 **Owner doc**: this file + `tasks.md`
 

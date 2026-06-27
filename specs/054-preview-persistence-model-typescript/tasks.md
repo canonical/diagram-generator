@@ -36,7 +36,7 @@
       **Accept**: the model has typed entry shapes and a canonical emitted
       payload contract.
 
-- [ ] **T011** Link emitted payload keys to the persistence allowlists.
+- [x] **T011** Link emitted payload keys to the persistence allowlists.
       **Do**: ensure the typed owner imports and uses
       `frame-override-manifest.ts`, namespace persistence contracts, and arrow
       identity helpers rather than re-declaring save keys.

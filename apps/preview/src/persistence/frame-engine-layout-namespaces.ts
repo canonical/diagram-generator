@@ -1,4 +1,9 @@
-import { listPreviewEngines } from "@diagram-generator/layout-engine";
+import {
+  DEFAULT_FRAME_YAML_ENGINE_LAYOUT_NAMESPACE,
+  getSupportedFrameYamlControlSpecsForNamespace,
+  isSupportedFrameYamlEngineLayoutNamespace,
+  type FrameYamlPersistedControlSpec,
+} from "@diagram-generator/layout-engine";
 
 export interface FrameYamlEngineLayoutNamespaceDescriptor {
   readonly namespace: string;
@@ -7,27 +12,8 @@ export interface FrameYamlEngineLayoutNamespaceDescriptor {
 
 const frameYamlEngineLayoutNamespaces = new Map<string, FrameYamlEngineLayoutNamespaceDescriptor>();
 
-type FrameYamlPersistedControlSpec = {
-  key: string;
-  kind?: string;
-};
-
-function supportedSpecsByNamespace(): Map<string, Map<string, FrameYamlPersistedControlSpec>> {
-  const namespaces = new Map<string, Map<string, FrameYamlPersistedControlSpec>>();
-  for (const engine of listPreviewEngines()) {
-    for (const spec of engine.controlSpecs ?? []) {
-      const namespace = spec.persistNamespace?.trim();
-      if (!namespace) continue;
-      const supported = namespaces.get(namespace) ?? new Map<string, FrameYamlPersistedControlSpec>();
-      supported.set(spec.key, { key: spec.key, kind: spec.kind });
-      namespaces.set(namespace, supported);
-    }
-  }
-  return namespaces;
-}
-
 function supportedSpecsForNamespace(namespace: string): Map<string, FrameYamlPersistedControlSpec> {
-  return supportedSpecsByNamespace().get(namespace) ?? new Map<string, FrameYamlPersistedControlSpec>();
+  return getSupportedFrameYamlControlSpecsForNamespace(namespace);
 }
 
 function supportedKeysForNamespace(namespace: string): Set<string> {
@@ -42,7 +28,12 @@ export function assertSupportedFrameYamlElkOverrides(
   overrides: Record<string, unknown>,
   source: string,
 ): void {
-  assertSupportedFrameYamlEngineLayoutOverrides("meta.elk", overrides, source, "ELK");
+  assertSupportedFrameYamlEngineLayoutOverrides(
+    DEFAULT_FRAME_YAML_ENGINE_LAYOUT_NAMESPACE,
+    overrides,
+    source,
+    "ELK",
+  );
 }
 
 export function assertSupportedFrameYamlEngineLayoutOverrides(
@@ -105,17 +96,17 @@ function createBuiltInNamespaceDescriptor(
   if (!namespace.startsWith("meta.")) {
     return undefined;
   }
-  if (supportedKeysForNamespace(namespace).size === 0) {
+  if (!isSupportedFrameYamlEngineLayoutNamespace(namespace)) {
     return undefined;
   }
 
   return {
     namespace,
     applyOverrides(document, overrides) {
-      const label = namespace === "meta.elk"
+      const label = namespace === DEFAULT_FRAME_YAML_ENGINE_LAYOUT_NAMESPACE
         ? "ELK"
         : namespace.slice("meta.".length);
-      const source = namespace === "meta.elk"
+      const source = namespace === DEFAULT_FRAME_YAML_ENGINE_LAYOUT_NAMESPACE
         ? "elk_layout_overrides"
         : `engine_layout_overrides.${namespace}`;
       applyEngineLayoutNamespaceOverrides(namespace, document, overrides, source, label);

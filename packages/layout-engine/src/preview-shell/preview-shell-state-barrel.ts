@@ -55,6 +55,15 @@ export {
   type RelayoutFrameKey,
 } from './frame-override-manifest.js';
 
+export {
+  DEFAULT_FRAME_YAML_ENGINE_LAYOUT_NAMESPACE,
+  filterSupportedFrameYamlEngineLayoutOverrides,
+  getSupportedFrameYamlControlSpecsForNamespace,
+  isSupportedFrameYamlEngineLayoutNamespace,
+  resolveFrameYamlEngineLayoutNamespaceForOverrides,
+  type FrameYamlPersistedControlSpec,
+} from './frame-yaml-engine-layout-contract.js';
+
 export type {
   PreviewGridControlInputState,
   PreviewGridControlDomPatch,
