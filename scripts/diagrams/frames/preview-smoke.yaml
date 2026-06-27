@@ -35,4 +35,4 @@ root:
       - Measure current
       - Performance
 meta:
-  layout_engine: v3
+  layout_engine: elk-layered

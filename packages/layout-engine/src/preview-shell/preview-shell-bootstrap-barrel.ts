@@ -31,6 +31,12 @@ export type {
   PreviewShellCoordinatorInitOptions,
 } from './app-bootstrap.js';
 
+export type {
+  PreviewOverrideModelLike,
+  PreviewOverrideModelNode,
+  PreviewOverridePayload,
+} from './preview-override-model.js';
+
 export {
   bootstrapPreviewEditorRuntime,
   bootstrapPreviewEditorHost,
@@ -59,6 +65,10 @@ export {
   signalPreviewDiagramLoaded,
   whenPreviewDiagramLoaded,
 } from './app-bootstrap.js';
+
+export {
+  createPreviewOverridePayload,
+} from './preview-override-model.js';
 
 export type {
   PreviewButtonState,

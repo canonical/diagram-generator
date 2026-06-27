@@ -3,15 +3,22 @@ import {
   PERSIST_ARROW_KEYS,
   UNSUPPORTED_PERSIST_FRAME_KEYS,
 } from './frame-override-manifest.js';
+import {
+  DEFAULT_FRAME_YAML_ENGINE_LAYOUT_NAMESPACE,
+  collectUnsupportedFrameYamlEngineLayoutOverrideKeys,
+  isFrameYamlEngineLayoutNamespace,
+  isSupportedFrameYamlEngineLayoutNamespace,
+  resolveFrameYamlEngineLayoutNamespaceForOverrides,
+} from './frame-yaml-engine-layout-contract.js';
+import type {
+  PreviewOverrideModelLike as PreviewSavePayloadModelLike,
+  PreviewOverrideModelNode as PreviewSavePayloadModelNode,
+} from './preview-override-model.js';
 
-export interface PreviewSavePayloadModelNode {
-  type?: string | null;
-  data?: Record<string, unknown> | null;
-}
-
-export interface PreviewSavePayloadModelLike {
-  get?: ((id: string) => PreviewSavePayloadModelNode | null | undefined) | null;
-}
+export type {
+  PreviewOverrideModelLike as PreviewSavePayloadModelLike,
+  PreviewOverrideModelNode as PreviewSavePayloadModelNode,
+} from './preview-override-model.js';
 
 export interface NormalizePreviewSavePayloadResult {
   payload: Record<string, unknown>;
@@ -26,13 +33,19 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function numericValue(value: unknown): number | null {
-  const numeric = Number(value);
-  return Number.isFinite(numeric) ? numeric : null;
+function nonEmptyRecord(value: unknown): Record<string, unknown> | null {
+  return isRecord(value) && Object.keys(value).length > 0 ? value : null;
 }
 
-function roundPersistedValue(value: number): number {
-  return Math.round(value);
+function normalizeNamespaceValue(value: unknown): string | null {
+  const trimmed = typeof value === 'string' ? value.trim() : '';
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function pushUniqueIssue(issues: string[], message: string): void {
+  if (!issues.includes(message)) {
+    issues.push(message);
+  }
 }
 
 function syntheticComponentId(componentId: string): boolean {
@@ -68,55 +81,9 @@ function normalizeArrowOverride(
 function normalizeFrameOverride(
   componentId: string,
   override: Record<string, unknown>,
-  node: PreviewSavePayloadModelNode | null | undefined,
   errors: string[],
 ): Record<string, unknown> {
   const normalized: Record<string, unknown> = { ...override };
-  const nodeData = isRecord(node?.data) ? node!.data! : {};
-
-  const dx = numericValue(override.dx) ?? 0;
-  const dy = numericValue(override.dy) ?? 0;
-  const dw = numericValue(override.dw) ?? 0;
-  const dh = numericValue(override.dh) ?? 0;
-
-  if (dx !== 0 || dy !== 0) {
-    const baseX = numericValue(override.x) ?? numericValue(nodeData.authored_x) ?? numericValue(nodeData.x);
-    const baseY = numericValue(override.y) ?? numericValue(nodeData.authored_y) ?? numericValue(nodeData.y);
-    if (baseX == null || baseY == null) {
-      errors.push(`${componentId} still has transient move deltas and no canonical x/y base`);
-    } else {
-      normalized.position = 'ABSOLUTE';
-      normalized.x = roundPersistedValue(baseX + dx);
-      normalized.y = roundPersistedValue(baseY + dy);
-    }
-  }
-
-  if (dw !== 0 || dh !== 0) {
-    const baseWidth = numericValue(override.width) ?? numericValue(nodeData.width);
-    const baseHeight = numericValue(override.height) ?? numericValue(nodeData.height);
-    if (dw !== 0) {
-      if (baseWidth == null) {
-        errors.push(`${componentId} still has transient width deltas and no canonical width base`);
-      } else {
-        normalized.width = roundPersistedValue(baseWidth + dw);
-        normalized.sizing_w = 'FIXED';
-      }
-    }
-    if (dh !== 0) {
-      if (baseHeight == null) {
-        errors.push(`${componentId} still has transient height deltas and no canonical height base`);
-      } else {
-        normalized.height = roundPersistedValue(baseHeight + dh);
-        normalized.sizing_h = 'FIXED';
-      }
-    }
-  }
-
-  delete normalized.dx;
-  delete normalized.dy;
-  delete normalized.dw;
-  delete normalized.dh;
-
   const remainingTransientKeys = Object.keys(normalized)
     .filter((key) => TRANSIENT_FRAME_KEYS.has(key))
     .sort();
@@ -129,6 +96,92 @@ function normalizeFrameOverride(
   return normalized;
 }
 
+function validateFrameYamlEngineLayoutOverrideEntry(
+  namespace: string,
+  overrides: Record<string, unknown>,
+  source: string,
+  errors: string[],
+): void {
+  if (!isFrameYamlEngineLayoutNamespace(namespace)) {
+    pushUniqueIssue(
+      errors,
+      `${source} uses non-frame-YAML persist namespace '${namespace}' (expected meta.<engine>)`,
+    );
+    return;
+  }
+  if (!isSupportedFrameYamlEngineLayoutNamespace(namespace)) {
+    pushUniqueIssue(
+      errors,
+      `${source} uses unsupported frame-YAML engine layout namespace '${namespace}'`,
+    );
+    return;
+  }
+  const unsupportedKeys = collectUnsupportedFrameYamlEngineLayoutOverrideKeys(namespace, overrides);
+  if (unsupportedKeys.length > 0) {
+    pushUniqueIssue(
+      errors,
+      `${source} contains unsupported frame-YAML engine layout keys: ${unsupportedKeys.join(', ')}`,
+    );
+  }
+}
+
+function validateFrameYamlEngineLayoutOverrides(
+  payload: Record<string, unknown>,
+  model: PreviewSavePayloadModelLike | null | undefined,
+  errors: string[],
+): void {
+  const modelLayoutOverrides = nonEmptyRecord(model?.layoutOverrides);
+  const legacyLayoutOverrides = nonEmptyRecord(model?.elkLayoutOverrides);
+  const rawLayoutOverrides = modelLayoutOverrides ?? legacyLayoutOverrides;
+  if (rawLayoutOverrides) {
+    const preferredNamespace = normalizeNamespaceValue(
+      (model as (PreviewSavePayloadModelLike & { layoutOverrideNamespace?: unknown }) | null | undefined)
+        ?.layoutOverrideNamespace,
+    );
+    const namespace = preferredNamespace
+      ?? (
+        legacyLayoutOverrides && !modelLayoutOverrides
+          ? DEFAULT_FRAME_YAML_ENGINE_LAYOUT_NAMESPACE
+          : resolveFrameYamlEngineLayoutNamespaceForOverrides(rawLayoutOverrides, null)
+      );
+    validateFrameYamlEngineLayoutOverrideEntry(namespace, rawLayoutOverrides, 'model.layoutOverrides', errors);
+  }
+
+  const namespacedOverrides = payload.engine_layout_overrides;
+  if (namespacedOverrides != null) {
+    if (!isRecord(namespacedOverrides)) {
+      pushUniqueIssue(errors, 'engine_layout_overrides must be an object');
+    } else {
+      for (const [namespace, value] of Object.entries(namespacedOverrides)) {
+        if (!isRecord(value)) {
+          pushUniqueIssue(errors, `engine_layout_overrides.${namespace} must be an object`);
+          continue;
+        }
+        validateFrameYamlEngineLayoutOverrideEntry(
+          namespace,
+          value,
+          `engine_layout_overrides.${namespace}`,
+          errors,
+        );
+      }
+    }
+  }
+
+  const legacyElkOverrides = payload.elk_layout_overrides;
+  if (legacyElkOverrides != null) {
+    if (!isRecord(legacyElkOverrides)) {
+      pushUniqueIssue(errors, 'elk_layout_overrides must be an object');
+    } else {
+      validateFrameYamlEngineLayoutOverrideEntry(
+        DEFAULT_FRAME_YAML_ENGINE_LAYOUT_NAMESPACE,
+        legacyElkOverrides,
+        'elk_layout_overrides',
+        errors,
+      );
+    }
+  }
+}
+
 export function normalizePreviewSavePayload(
   payload: Record<string, unknown>,
   model: PreviewSavePayloadModelLike | null | undefined,
@@ -136,6 +189,7 @@ export function normalizePreviewSavePayload(
   const normalizedPayload: Record<string, unknown> = { ...payload };
   const errors: string[] = [];
   const warnings: string[] = [];
+  validateFrameYamlEngineLayoutOverrides(payload, model, errors);
   const overrides = isRecord(payload.overrides) ? payload.overrides : null;
 
   if (!overrides) {
@@ -157,7 +211,7 @@ export function normalizePreviewSavePayload(
     const node = model?.get?.(componentId) ?? null;
     const normalizedOverride = arrowComponent(componentId, node)
       ? normalizeArrowOverride(componentId, rawOverride, warnings)
-      : normalizeFrameOverride(componentId, rawOverride, node, errors);
+      : normalizeFrameOverride(componentId, rawOverride, errors);
 
     if (Object.keys(normalizedOverride).length > 0) {
       normalizedOverrides[componentId] = normalizedOverride;

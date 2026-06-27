@@ -3,7 +3,7 @@ engine: v3
 title: MongoDB access through Octavia
 meta:
   diagram_type: deployment_and_runtime_topology
-  layout_engine: v3
+  layout_engine: elk-layered
   source_image: mongo-octavia-ha-source.png
 grid:
   cols: 3

@@ -161,7 +161,7 @@ describe('preview save client runtime', () => {
     expect(runConstraints).toHaveBeenCalled();
   });
 
-  it('normalizes transient frame overrides before POST and strips synthetic ids', async () => {
+  it('emits canonical drag, nudge, multi-select, and resize overrides before POST', async () => {
     const fetchFn = vi.fn(async (_input, init) => ({
       ok: true,
       status: 200,
@@ -191,20 +191,15 @@ describe('preview save client runtime', () => {
     const model = {
       overrides: {
         floating: { dx: 8, dy: -8 },
+        nudged: { dx: 1, dy: -1 },
+        multi_left: { dx: 16, dy: 8 },
+        multi_right: { dx: 16, dy: 8 },
         resizable: { dw: 24, dh: 16 },
         panel__body: { align: 'BOTTOM_RIGHT' },
         panel__heading: { text: { heading: 'Ignored synthetic heading' } },
       },
       gridOverrides: {},
       removedIds: new Set<string>(),
-      toOverridePayload: () => ({
-        overrides: {
-          floating: { dx: 8, dy: -8 },
-          resizable: { dw: 24, dh: 16 },
-          panel__body: { align: 'BOTTOM_RIGHT' },
-          panel__heading: { text: { heading: 'Ignored synthetic heading' } },
-        },
-      }),
       get(id: string) {
         if (id === 'floating') {
           return {
@@ -224,6 +219,36 @@ describe('preview save client runtime', () => {
             data: {
               width: 160,
               height: 96,
+            },
+          };
+        }
+        if (id === 'nudged') {
+          return {
+            type: 'box',
+            data: {
+              position: 'ABSOLUTE',
+              authored_x: 96,
+              authored_y: 32,
+            },
+          };
+        }
+        if (id === 'multi_left') {
+          return {
+            type: 'box',
+            data: {
+              position: 'ABSOLUTE',
+              authored_x: 160,
+              authored_y: 80,
+            },
+          };
+        }
+        if (id === 'multi_right') {
+          return {
+            type: 'box',
+            data: {
+              position: 'ABSOLUTE',
+              authored_x: 240,
+              authored_y: 80,
             },
           };
         }
@@ -248,11 +273,27 @@ describe('preview save client runtime', () => {
     const request = fetchFn.mock.calls[0]?.[1] as { body?: string } | undefined;
     expect(request?.body).toBeTruthy();
     expect(JSON.parse(String(request?.body))).toEqual({
+      format_version: 1,
       overrides: {
         floating: {
           position: 'ABSOLUTE',
           x: 40,
           y: 40,
+        },
+        nudged: {
+          position: 'ABSOLUTE',
+          x: 97,
+          y: 31,
+        },
+        multi_left: {
+          position: 'ABSOLUTE',
+          x: 176,
+          y: 88,
+        },
+        multi_right: {
+          position: 'ABSOLUTE',
+          x: 256,
+          y: 88,
         },
         resizable: {
           width: 184,
@@ -303,16 +344,6 @@ describe('preview save client runtime', () => {
       },
       gridOverrides: {},
       removedIds: new Set<string>(),
-      toOverridePayload: () => ({
-        overrides: {
-          alpha: { dx: 8 },
-          'arrow:id:edge-1': {
-            waypoints: [[24, 32]],
-            color: '#E95420',
-            selected: true,
-          },
-        },
-      }),
       get(id: string) {
         if (id === 'alpha') {
           return {
@@ -353,6 +384,7 @@ describe('preview save client runtime', () => {
     expect(alertFn).not.toHaveBeenCalled();
     const request = fetchFn.mock.calls[0]?.[1] as { body?: string } | undefined;
     expect(JSON.parse(String(request?.body))).toEqual({
+      format_version: 1,
       overrides: {
         alpha: {
           position: 'ABSOLUTE',
@@ -364,6 +396,117 @@ describe('preview save client runtime', () => {
         },
       },
     });
+  });
+
+  it('blocks saves when layout overrides use a non-frame-YAML persist namespace', async () => {
+    const alertFn = vi.fn();
+    const fetchFn = vi.fn();
+    const runtime = createPreviewSaveClientRuntime({
+      document: {
+        body: { appendChild() {} },
+        activeElement: null,
+        createElement() {
+          return { click() {}, remove() {} };
+        },
+        getElementById() {
+          return null;
+        },
+        querySelector() {
+          return null;
+        },
+      },
+      previewWindow: {},
+      fetchFn,
+      alertFn,
+    });
+
+    const model = {
+      overrides: {},
+      gridOverrides: {},
+      layoutOverrides: {
+        alpha: 0.8,
+      },
+      layoutOverrideNamespace: 'simulation',
+      removedIds: new Set<string>(),
+      get() {
+        return null;
+      },
+    };
+
+    runtime.init({
+      slug: 'demo',
+      getModel: () => model,
+      getSelectedIds: () => [],
+      restoreSelectionIds: vi.fn(),
+      serializeDirtyState: () => '{"dirty":true}',
+      reloadDiagram: vi.fn(async () => undefined),
+      getLayoutRelayoutStatus: () => ({ localReady: true }),
+      getLayoutRelayoutRuntime: () => ({ lastMode: 'local-ready' }),
+      getConstraintSummary: () => ({ errors: 0 }),
+    });
+
+    await runtime.saveOverrides();
+
+    expect(alertFn).toHaveBeenCalledWith(
+      "Cannot save: model.layoutOverrides uses non-frame-YAML persist namespace 'simulation' (expected meta.<engine>)",
+    );
+    expect(fetchFn).not.toHaveBeenCalled();
+  });
+
+  it('blocks saves when layout overrides contain unsupported frame-YAML keys', async () => {
+    const alertFn = vi.fn();
+    const fetchFn = vi.fn();
+    const runtime = createPreviewSaveClientRuntime({
+      document: {
+        body: { appendChild() {} },
+        activeElement: null,
+        createElement() {
+          return { click() {}, remove() {} };
+        },
+        getElementById() {
+          return null;
+        },
+        querySelector() {
+          return null;
+        },
+      },
+      previewWindow: {},
+      fetchFn,
+      alertFn,
+    });
+
+    const model = {
+      overrides: {},
+      gridOverrides: {},
+      layoutOverrides: {
+        'dagre.rankdir': 'LR',
+        transient: 'ignored',
+      },
+      layoutOverrideNamespace: 'meta.dagre',
+      removedIds: new Set<string>(),
+      get() {
+        return null;
+      },
+    };
+
+    runtime.init({
+      slug: 'demo',
+      getModel: () => model,
+      getSelectedIds: () => [],
+      restoreSelectionIds: vi.fn(),
+      serializeDirtyState: () => '{"dirty":true}',
+      reloadDiagram: vi.fn(async () => undefined),
+      getLayoutRelayoutStatus: () => ({ localReady: true }),
+      getLayoutRelayoutRuntime: () => ({ lastMode: 'local-ready' }),
+      getConstraintSummary: () => ({ errors: 0 }),
+    });
+
+    await runtime.saveOverrides();
+
+    expect(alertFn).toHaveBeenCalledWith(
+      "Cannot save: model.layoutOverrides contains unsupported frame-YAML engine layout keys: transient",
+    );
+    expect(fetchFn).not.toHaveBeenCalled();
   });
 
   it('blocks saves when local relayout is unavailable and there are pending overrides', async () => {

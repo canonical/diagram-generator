@@ -57,6 +57,7 @@ export const previewShell = Object.freeze({
     createBootstrapPreviewEditorHostOptionsFromRuntime:
       previewShellRuntime.createBootstrapPreviewEditorHostOptionsFromRuntime,
     createPreviewBuildStatusUpdater: previewShellRuntime.createPreviewBuildStatusUpdater,
+    createPreviewOverridePayload: previewShellRuntime.createPreviewOverridePayload,
     createPreviewOverrideToolbarHostOptions:
       previewShellRuntime.createPreviewOverrideToolbarHostOptions,
     createPreviewSaveClientRuntime: previewShellRuntime.createPreviewSaveClientRuntime,

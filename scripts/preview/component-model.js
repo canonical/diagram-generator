@@ -80,6 +80,13 @@ class ComponentNode {
   }
 }
 
+function getPreviewOverridePayloadFactory() {
+  const bootstrap = window.__DG_getPreviewShellBootstrapContract?.()
+    ?? window.LayoutEngine?.previewShell?.bootstrap
+    ?? null;
+  return bootstrap?.createPreviewOverridePayload ?? null;
+}
+
 
 class ComponentModel {
   constructor() {
@@ -573,41 +580,15 @@ class ComponentModel {
 
   /** Serialise overrides for saving. */
   toOverridePayload() {
-    const payload = {
-      overrides: this.overrides,
-      format_version: 1,
-    };
-    const removed = this.topLevelRemovalIds();
-    if (removed.length > 0) {
-      payload.removed_ids = removed;
-    }
-    if (this.gridOverrides && Object.keys(this.gridOverrides).length > 0) {
-      const persistableGridOverrides = { ...this.gridOverrides };
-      delete persistableGridOverrides.rows;
-      delete persistableGridOverrides.slack_absorption;
-      if (Object.keys(persistableGridOverrides).length > 0) {
-        payload.grid_overrides = persistableGridOverrides;
-      }
-    }
-    const layoutOverrides = this.layoutOverrides && Object.keys(this.layoutOverrides).length > 0
-      ? { ...this.layoutOverrides }
-      : (
-        this.elkLayoutOverrides && Object.keys(this.elkLayoutOverrides).length > 0
-          ? { ...this.elkLayoutOverrides }
-          : null
+    // Legacy browser-shell compatibility only: the live save runtime calls the
+    // typed preview payload owner directly and no longer relies on this method.
+    const createPreviewOverridePayload = getPreviewOverridePayloadFactory();
+    if (typeof createPreviewOverridePayload !== "function") {
+      throw new Error(
+        "LayoutEngine previewShell.bootstrap.createPreviewOverridePayload is required for ComponentModel.toOverridePayload()",
       );
-    if (layoutOverrides) {
-      this.layoutOverrides = { ...layoutOverrides };
-      this.elkLayoutOverrides = { ...layoutOverrides };
     }
-    const elkOverrides = layoutOverrides ? { ...layoutOverrides } : null;
-    if (elkOverrides) {
-      payload.engine_layout_overrides = {
-        "meta.elk": { ...elkOverrides },
-      };
-      payload.elk_layout_overrides = elkOverrides;
-    }
-    return payload;
+    return createPreviewOverridePayload(this);
   }
 }
 

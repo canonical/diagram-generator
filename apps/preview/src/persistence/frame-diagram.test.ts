@@ -15,6 +15,7 @@ import {
 } from "./frame-engine-layout-namespaces.js";
 import {
   collectPreviewArrowComponentEntries,
+  createPreviewArrowComponentId,
   loadFrameYaml,
   registerPreviewEngine,
   resolvePreviewEngine,
@@ -538,6 +539,11 @@ test("persist removed ids prunes frames and arrows", () => {
   ].join("\n");
 
   assertYamlEqual(output, expected);
+  const reloaded = loadFrameYaml(writeTempFrame("removed-ids-reloaded.yaml", output));
+  assert.deepStrictEqual(reloaded.arrows, []);
+  const panel = reloaded.root.children.find((child) => child.id === "panel");
+  assert.ok(panel, "panel must survive save + reload");
+  assert.deepStrictEqual(panel?.children.map((child) => child.id), ["leaf_b"]);
 });
 
 test("persist arrow waypoint overrides for complex-routing-usecase arrows", () => {
@@ -717,6 +723,45 @@ test("persist arrow waypoint overrides preserve arrow:<id> branch attachments", 
   assert.deepStrictEqual(reloaded.arrows[1]?.waypoints, [[180, 80]]);
 });
 
+test("persist arrow waypoint overrides round-trip explicit arrow ids", () => {
+  const baselineText = [
+    "engine: v3",
+    "title: Explicit arrow ids",
+    "arrows:",
+    "  - id: stem",
+    "    source: source.bottom",
+    "    target: target.top",
+    "root:",
+    "  id: page",
+    "  children:",
+    "    - id: source",
+    "      label: [Source]",
+    "    - id: target",
+    "      label: [Target]",
+    "",
+  ].join("\n");
+  const output = persistToYaml("explicit-arrow-id.yaml", baselineText, {
+    overrides: {
+      [createPreviewArrowComponentId({
+        id: "stem",
+        source: "source.bottom",
+        target: "target.top",
+      })]: {
+        waypoints: [[132, 72]],
+      },
+    },
+  });
+
+  assert.match(
+    output,
+    /- id: stem\r?\n  source: source\.bottom\r?\n  target: target\.top\r?\n  waypoints:\r?\n  - - 132\r?\n    - 72/,
+  );
+
+  const reloaded = loadFrameYaml(writeTempFrame("explicit-arrow-id-reloaded.yaml", output));
+  assert.strictEqual(reloaded.arrows[0]?.id, "stem");
+  assert.deepStrictEqual(reloaded.arrows[0]?.waypoints, [[132, 72]]);
+});
+
 test("empty payload is a no-op without rewriting yaml", () => {
   const baselineText = fs.readFileSync(FRAME_FIXTURE, "utf8");
   const output = persistToYaml("support-engineering-flow.yaml", baselineText, {
@@ -787,6 +832,73 @@ test("persist fixed sizing overrides canonically for multiple frames", () => {
   assert.equal(result?.sizingH, "FIXED");
   assert.equal(result?.width, 480);
   assert.equal(result?.height, 160);
+});
+
+test("persist→reload round-trip: absolute positions survive drag, nudge, and multi-select saves", () => {
+  const baselineText = [
+    "engine: v3",
+    "title: Absolute positioning",
+    "root:",
+    "  id: page",
+    "  direction: vertical",
+    "  children:",
+    "    - id: dragged",
+    "      label: [Dragged]",
+    "    - id: nudged",
+    "      label: [Nudged]",
+    "    - id: multi_left",
+    "      label: [Multi Left]",
+    "    - id: multi_right",
+    "      label: [Multi Right]",
+    "",
+  ].join("\n");
+
+  const persistent = persistToYaml("absolute-position-roundtrip.yaml", baselineText, {
+    overrides: {
+      dragged: {
+        position: "ABSOLUTE",
+        x: 40,
+        y: 56,
+      },
+      nudged: {
+        position: "ABSOLUTE",
+        x: 97,
+        y: 31,
+      },
+      multi_left: {
+        position: "ABSOLUTE",
+        x: 176,
+        y: 88,
+      },
+      multi_right: {
+        position: "ABSOLUTE",
+        x: 256,
+        y: 88,
+      },
+    },
+  });
+
+  assert.match(persistent, /id: dragged[\s\S]*position: absolute[\s\S]*x: 40[\s\S]*y: 56/);
+  assert.match(persistent, /id: nudged[\s\S]*position: absolute[\s\S]*x: 97[\s\S]*y: 31/);
+  assert.match(persistent, /id: multi_left[\s\S]*position: absolute[\s\S]*x: 176[\s\S]*y: 88/);
+  assert.match(persistent, /id: multi_right[\s\S]*position: absolute[\s\S]*x: 256[\s\S]*y: 88/);
+
+  const reloaded = loadFrameYaml(writeTempFrame("absolute-position-reloaded.yaml", persistent));
+  const rootChildren = Array.isArray(reloaded.root.children) ? reloaded.root.children : [];
+  const byId = new Map(rootChildren.map((child) => [child.id, child]));
+
+  assert.equal(byId.get("dragged")?.positionType, "ABSOLUTE");
+  assert.equal(byId.get("dragged")?.x, 40);
+  assert.equal(byId.get("dragged")?.y, 56);
+  assert.equal(byId.get("nudged")?.positionType, "ABSOLUTE");
+  assert.equal(byId.get("nudged")?.x, 97);
+  assert.equal(byId.get("nudged")?.y, 31);
+  assert.equal(byId.get("multi_left")?.positionType, "ABSOLUTE");
+  assert.equal(byId.get("multi_left")?.x, 176);
+  assert.equal(byId.get("multi_left")?.y, 88);
+  assert.equal(byId.get("multi_right")?.positionType, "ABSOLUTE");
+  assert.equal(byId.get("multi_right")?.x, 256);
+  assert.equal(byId.get("multi_right")?.y, 88);
 });
 
 test("persist→reload round-trip: page gap_delta survives write without emitting absolute gap", () => {
