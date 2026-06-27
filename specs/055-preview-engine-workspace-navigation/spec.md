@@ -1,7 +1,7 @@
 # Spec 055: Preview Engine Workspace Navigation
 
 **Feature Branch**: `feat/055-preview-engine-workspace-navigation`  
-**Status**: Draft  
+**Status**: In Progress  
 **Created**: 2026-06-27
 
 ## Problem
@@ -44,6 +44,23 @@ This needs an explicit workspace model, not more ad hoc switcher glue.
 - No reopening of spec 046 by widening legacy JS ownership.
 - No fixture-specific compatibility allowlists.
 - No persistence-schema redesign beyond what engine switching needs.
+
+## Status Notes
+
+- 2026-06-27: T000 inventoried the current engine-workspace owner chain in
+  [`engine-workspace-flow.md`](./engine-workspace-flow.md). The active path is:
+  frame-YAML handler -> preview-engine registry compatibility -> preview-host
+  viewer context -> preview-shell panel registry -> legacy `engine-switcher.js`
+  save/reload glue.
+- 2026-06-27: T001 recorded the current failure matrix in
+  [`engine-workspace-flow.md`](./engine-workspace-flow.md). The current baseline
+  confirms three gaps before implementation work:
+  `support-engineering-flow` still offers `elk-rectpacking` because the registry
+  is the only compatibility filter, `preview-smoke` is a valid multi-engine
+  frame baseline but still uses dropdown-only navigation, and
+  `service-handshake-sequence` has a compatible `sequence` engine with no visible
+  engine-identity surface because the switcher is frame-only and the output
+  header remains static.
 
 ## Grouped Inbox Notes
 

@@ -5,13 +5,13 @@
 
 ## Phase 0: Scope the Workspace Model
 
-- [ ] **T000** Inventory the current engine-switch path and compatibility source.
+- [x] **T000** Inventory the current engine-switch path and compatibility source.
       **Do**: trace engine selection, active-engine display, compatible-engine
       filtering, and active sidebar-section visibility through the preview host
       and preview-shell owners.
       **Verify**: capture the current owner list before changing UI.
 
-- [ ] **T001** Reproduce the reported engine-workspace failures.
+- [x] **T001** Reproduce the reported engine-workspace failures.
       **Do**: verify the current behavior for `support-engineering-flow`,
       `service-handshake-sequence`, and one multi-engine frame example.
       **Verify**: record the failure matrix in implementation notes or tests.
