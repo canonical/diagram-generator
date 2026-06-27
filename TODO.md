@@ -27,7 +27,9 @@ are tracked on Jira. Repo execution should route through spec-kit packages.
 5. `specs/046-editor-host-endgame/` remains architecturally closed. Reopen only
    if future work regresses by widening legacy JS sinks or central
    engine/document branches.
-6. Other open work should be selected from `docs/specs.md`, then executed from
+6. Inbox triage on 2026-06-27 drafted `specs/055-059`; use
+   `docs/specs.md` to choose among those new packages before starting code.
+7. Other open work should be selected from `docs/specs.md`, then executed from
    that spec package's own `tasks.md`.
 
 ## Open Spec Pointers
