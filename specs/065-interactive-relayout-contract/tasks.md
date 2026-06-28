@@ -67,7 +67,7 @@
 
 ## Phase 3: Save / reopen on the intent surface
 
-- [ ] **T030** `persist → reload` regression: commit a new engine + direction via
+- [x] **T030** `persist → reload` regression: commit a new engine + direction via
       real gestures, Save, reload the viewer context, assert the saved
       `meta.layout_engine` + direction match the committed intent.
       **Verify**: `npm --prefix apps/preview test` (spec-owned round-trip).

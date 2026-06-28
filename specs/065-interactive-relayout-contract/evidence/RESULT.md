@@ -59,3 +59,6 @@ Final T040 validation:
 - Fresh server restarted with `PREVIEW_PORT=8120 npm run preview`; prestart rebuilt the browser bundle
 - `PREVIEW_BASE_URL=http://127.0.0.1:8120 node specs/065-interactive-relayout-contract/evidence/post-load-mutations.mjs` -> `ok: true`
 - `node scripts/check-browser-bundle-fresh.mjs` -> ok, 3 artifacts checked
+
+Incremental T030 validation:
+- `npm --prefix apps/preview test -- src/persistence/frame-diagram.test.ts` -> 146 tests passed, including `persist layout engine and root direction survive frame yaml reload`

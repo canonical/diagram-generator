@@ -19,6 +19,7 @@ import {
   loadFrameYaml,
   registerPreviewEngine,
   resolvePreviewEngine,
+  Direction,
   type PreviewEngineContext,
 } from "@diagram-generator/layout-engine";
 
@@ -197,6 +198,37 @@ test("persist engine_layout_overrides routes meta.dagre through the namespaced s
   });
 
   assert.match(output, /meta:\r?\n  layout_engine: dagre\r?\n  dagre:\r?\n    dagre\.rankdir: LR\r?\n    dagre\.ranksep: 128/);
+});
+
+test("persist layout engine and root direction survive frame yaml reload", () => {
+  const baselineText = [
+    "engine: v3",
+    "title: Demo",
+    "meta:",
+    "  layout_engine: elk-layered",
+    "root:",
+    "  id: page",
+    "  direction: vertical",
+    "  children:",
+    "    - id: leaf_a",
+    "      label: [A]",
+    "",
+  ].join("\n");
+  const framePath = writeTempFrame("demo.yaml", baselineText);
+  const output = persistFrameDiagramOverridePayloadToYaml(framePath, baselineText, {
+    layout_engine: "dagre",
+    overrides: {
+      page: {
+        direction: "HORIZONTAL",
+      },
+    },
+  });
+  fs.writeFileSync(framePath, output, "utf8");
+
+  const reloaded = loadFrameYaml(framePath);
+
+  assert.equal(reloaded.layoutEngine, "dagre");
+  assert.equal(reloaded.root.direction, Direction.HORIZONTAL);
 });
 
 test("persist elk layout overrides replaces meta.elk entries canonically", () => {
