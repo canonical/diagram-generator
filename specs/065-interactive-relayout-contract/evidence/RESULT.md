@@ -18,7 +18,7 @@ Single `PreviewRenderIntent` path (no new parallel lane): confirmed by implement
 
 Evidence artifact:
 - `post-load-mutations.mjs`
-- `post-load-mutations-result.json` with `ok: true`, generated `2026-06-28T23:27:23.663Z`
+- `post-load-mutations-result.json` with `ok: true`, generated `2026-06-28T23:29:20.709Z`
 - `diagnostics/support-flow-elk-aside-before-next.png`
 - `diagnostics/support-flow-elk-aside-after-hidden-fix.png`
 
@@ -36,3 +36,7 @@ Incremental T012 validation:
 - `npm --prefix packages/layout-engine test -- app-grid-editor-install-unit.test.ts app-shell-panels.test.ts preview-engine-elk-runtime.test.ts preview-ui-context.test.ts` -> 4 files passed, 36 tests passed
 - `PREVIEW_BASE_URL=http://127.0.0.1:8120 node specs/065-interactive-relayout-contract/evidence/post-load-mutations.mjs` -> ok with stricter unpainted hidden-control assertions
 - `node scripts/check-browser-bundle-fresh.mjs` -> ok, 3 artifacts checked
+
+Incremental T020 validation:
+- `npm --prefix packages/layout-engine test -- preview-engine-workspace-chrome.test.ts app-grid-editor-install-unit.test.ts preview-render-intent.test.ts` -> 3 files passed, 13 tests passed; tab click and keyboard activation assert `__DG_previewRenderIntent.engineId`
+- `PREVIEW_BASE_URL=http://127.0.0.1:8120 node specs/065-interactive-relayout-contract/evidence/post-load-mutations.mjs` -> ok with real `page.click` engine-tab switches on `mongo-octavia-ha` and `juju-bootstrap-machines-process`

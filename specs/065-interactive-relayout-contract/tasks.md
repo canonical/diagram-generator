@@ -42,7 +42,7 @@
 
 ## Phase 2: Gestures commit intent, render reads it
 
-- [ ] **T020** Engine tab switch commits intent then rerenders (already partly
+- [x] **T020** Engine tab switch commits intent then rerenders (already partly
       done in 060 — fold it onto the intent committer, do not keep a parallel
       setter path).
       **Verify**: protocol §2 "Engine tab switch" via real `page.click` on
