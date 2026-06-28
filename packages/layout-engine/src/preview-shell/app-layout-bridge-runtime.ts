@@ -6,6 +6,9 @@ import {
   invalidatePreviewArrowWaypointGeometry,
   shouldInvalidatePreviewArrowWaypointGeometry,
 } from './preview-arrow-reroute-invalidation.js';
+import {
+  normalizePreviewWorkspaceEngineId,
+} from './preview-engine-workspace.js';
 import type { PreviewRoutedArrow } from './app-arrow-render.js';
 import type { FreshPreviewSvgRenderResult } from './app-fresh-render.js';
 import type { PreviewLocalRelayoutStatus, PreviewRelayoutOverrideEntry } from './app-relayout.js';
@@ -308,6 +311,7 @@ export interface PreviewLayoutBridgeRuntime<
   getPreviewDocumentJson: () => TPreviewDocumentJson | null;
   getFrameTreeJson: () => TFrameTreeJson | null;
   setFrameTreeJson: (json: TFrameTreeJson | null) => void;
+  setFrameTreeLayoutEngine: (layoutEngine: string | null | undefined) => string | null;
   getTextAdapter: () => TextMeasureAdapter | null;
   getLastElkSnapshot: () => ElkLayoutSnapshot | null;
   getLastElkFrameLabels: () => Record<string, string> | null;
@@ -431,6 +435,7 @@ export interface PreviewLayoutBridgeLegacyWindow extends PreviewElkViewModeWindo
     head_half?: number;
     layout_engine?: string | null;
   } | null;
+  setFrameTreeLayoutEngine?: ((layoutEngine: string | null | undefined) => string | null) | null;
   __DG_getPreviewCoreContract?: (() => PreviewLayoutBridgeCoreContract | null) | null;
   __DG_getPreviewBridgeRenderContract?: (() => PreviewLayoutBridgeLegacyRenderContract | null) | null;
   __DG_getPreviewBridgeBundleRenderContract?: ((
@@ -477,6 +482,7 @@ export interface PreviewLayoutBridgeInstallRuntime<
   getFrameTreeJson: () => TFrameTreeJson | null;
   getPreviewDocumentJson: () => TPreviewDocumentJson | null;
   setFrameTreeJson: (json: TFrameTreeJson | null) => void;
+  setFrameTreeLayoutEngine: (layoutEngine: string | null | undefined) => string | null;
   applyFrameTreeRemovalsToJson: (
     treeJson: Record<string, unknown> | null | undefined,
     frameIds: string[] | null | undefined,
@@ -576,6 +582,53 @@ function clonePreviewLayoutBridgeValue<T>(value: T): T {
     return value;
   }
   return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function isPreviewLayoutBridgeRecord(value: unknown): value is Record<string, unknown> {
+  return value != null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function writePreviewLayoutEngine(
+  record: Record<string, unknown>,
+  layoutEngine: string | null,
+): void {
+  if (layoutEngine) {
+    record.layoutEngine = layoutEngine;
+    return;
+  }
+  delete record.layoutEngine;
+}
+
+function setFrameTreeJsonLayoutEngine<TFrameTreeJson>(
+  frameTreeJson: TFrameTreeJson | null,
+  layoutEngine: string | null,
+): TFrameTreeJson | null {
+  if (!isPreviewLayoutBridgeRecord(frameTreeJson)) {
+    return frameTreeJson;
+  }
+  const nextFrameTreeJson = clonePreviewLayoutBridgeValue(frameTreeJson) as Record<string, unknown>;
+  writePreviewLayoutEngine(nextFrameTreeJson, layoutEngine);
+  return nextFrameTreeJson as TFrameTreeJson;
+}
+
+function setPreviewDocumentFrameTreeLayoutEngine<TPreviewDocumentJson>(
+  previewDocumentJson: TPreviewDocumentJson | null,
+  layoutEngine: string | null,
+): TPreviewDocumentJson | null {
+  if (!isPreviewLayoutBridgeRecord(previewDocumentJson)) {
+    return previewDocumentJson;
+  }
+  const nextPreviewDocumentJson = clonePreviewLayoutBridgeValue(
+    previewDocumentJson,
+  ) as Record<string, unknown>;
+  if (String(nextPreviewDocumentJson.kind || '') === 'frame-diagram') {
+    writePreviewLayoutEngine(nextPreviewDocumentJson, layoutEngine);
+    const frameTree = nextPreviewDocumentJson.frameTree;
+    if (isPreviewLayoutBridgeRecord(frameTree)) {
+      writePreviewLayoutEngine(frameTree, layoutEngine);
+    }
+  }
+  return nextPreviewDocumentJson as TPreviewDocumentJson;
 }
 
 function isPreviewElkDebugEnabled(
@@ -966,6 +1019,9 @@ export function createPreviewLayoutBridgeInstallRuntimeFromLegacyBrowserHost<
     getPreviewDocumentJson: () => runtime.getPreviewDocumentJson(),
     getFrameTreeJson: () => runtime.getFrameTreeJson(),
     setFrameTreeJson: (json: TFrameTreeJson | null) => runtime.setFrameTreeJson(json),
+    setFrameTreeLayoutEngine: (layoutEngine: string | null | undefined) => (
+      runtime.setFrameTreeLayoutEngine(layoutEngine)
+    ),
     applyFrameTreeRemovals: (frameIds: string[]) => runtime.applyFrameTreeRemovals(frameIds),
     applyFrameTreeRemovalsToJson: (
       treeJson: Record<string, unknown> | null | undefined,
@@ -1056,6 +1112,9 @@ export function createPreviewLayoutBridgeInstallRuntimeFromLegacyBrowserHost<
     previewWindowRecord.getPreviewDocumentJson = () => runtime.getPreviewDocumentJson();
     previewWindowRecord.getFrameTreeJson = () => runtime.getFrameTreeJson();
     previewWindowRecord.setFrameTreeJson = (json: TFrameTreeJson | null) => runtime.setFrameTreeJson(json);
+    previewWindowRecord.setFrameTreeLayoutEngine = (
+      layoutEngine: string | null | undefined,
+    ) => runtime.setFrameTreeLayoutEngine(layoutEngine);
     previewWindowRecord.applyFrameTreeRemovals = (frameIds: string[]) => runtime.applyFrameTreeRemovals(frameIds);
     previewWindowRecord.applyFrameTreeRemovalsToJson = (
       treeJson: Record<string, unknown> | null | undefined,
@@ -1084,6 +1143,7 @@ export function createPreviewLayoutBridgeInstallRuntimeFromLegacyBrowserHost<
     getFrameTreeJson: () => runtime.getFrameTreeJson(),
     getPreviewDocumentJson: () => runtime.getPreviewDocumentJson(),
     setFrameTreeJson: (json) => runtime.setFrameTreeJson(json),
+    setFrameTreeLayoutEngine: (layoutEngine) => runtime.setFrameTreeLayoutEngine(layoutEngine),
     applyFrameTreeRemovalsToJson: (treeJson, frameIds) => (
       applyFrameTreeRemovalsToPreviewTreeJson(treeJson, frameIds)
     ),
@@ -1639,6 +1699,21 @@ export function createPreviewLayoutBridgeRuntime<
     },
     setFrameTreeJson(json) {
       options.state.frameTreeJson = clonePreviewLayoutBridgeValue(json);
+    },
+    setFrameTreeLayoutEngine(layoutEngine) {
+      if (!isPreviewLayoutBridgeRecord(options.state.frameTreeJson)) {
+        return null;
+      }
+      const normalizedLayoutEngine = normalizePreviewWorkspaceEngineId(layoutEngine ?? null);
+      options.state.frameTreeJson = setFrameTreeJsonLayoutEngine(
+        options.state.frameTreeJson,
+        normalizedLayoutEngine,
+      );
+      options.state.previewDocumentJson = setPreviewDocumentFrameTreeLayoutEngine(
+        options.state.previewDocumentJson,
+        normalizedLayoutEngine,
+      );
+      return normalizedLayoutEngine;
     },
     getTextAdapter() {
       return options.state.textAdapter;

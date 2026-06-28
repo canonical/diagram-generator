@@ -1088,6 +1088,7 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
 
   it('exposes a live engine-workspace rerender callback through the legacy host window', async () => {
     const rerenderStageCalls: string[] = [];
+    const committedLayoutEngines: string[] = [];
     mocks.createBrowserState.mockReturnValue({
       replaceOverrides: vi.fn((nextOverrides: Record<string, unknown>) => nextOverrides),
       setDirty: vi.fn(),
@@ -1140,6 +1141,13 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
       requestAnimationFrame: vi.fn((_callback: FrameRequestCallback) => 21),
       cancelAnimationFrame: vi.fn(),
       alert: vi.fn(),
+      setFrameTreeLayoutEngine: vi.fn((layoutEngine: string | null | undefined) => {
+        if (layoutEngine) {
+          committedLayoutEngines.push(layoutEngine);
+          return layoutEngine;
+        }
+        return null;
+      }),
     } as any;
     const document = {
       getElementById: vi.fn(() => null),
@@ -1247,6 +1255,7 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
 
     expect(previewWindow.__DG_rerenderPreviewEngineWorkspaceStage).toBeTypeOf('function');
     await previewWindow.__DG_rerenderPreviewEngineWorkspaceStage();
+    expect(committedLayoutEngines).toEqual(['v3']);
     expect(rerenderStageCalls).toEqual(['rerender']);
   });
 

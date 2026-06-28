@@ -2335,7 +2335,6 @@ function contextualAsideTemplate(): string {
     '    <div class="bf-tabs dg-output-engine-tabs" aria-label="Compatible engines">',
     '      <ul class="bf-tabs-list" id="engine-switcher-tabs" role="tablist" aria-label="Compatible engines"></ul>',
     '    </div>',
-    '    <p id="engine-switcher-help">Only engines compatible with this document are listed. Switching tabs rerenders the preview immediately and remains unsaved until you save.</p>',
     '  </section>',
     '</div>',
     '<section id="grid-controls-section" %GRID_CONTROLS_HIDDEN%><div id="grid-controls"></div></section>',

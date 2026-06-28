@@ -670,15 +670,13 @@ body.dg-preview {
 
 .dg-output-engine-tabs .bf-tabs-list {
        flex-wrap: wrap;
+       margin-bottom: 0;
        row-gap: 4px;
 }
 
 .dg-output-engine-tabs .bf-tabs-link {
+       margin-bottom: 0;
        white-space: nowrap;
-}
-
-.dg-engine-switcher-help {
-       margin: 0;
 }
 
 .stage {

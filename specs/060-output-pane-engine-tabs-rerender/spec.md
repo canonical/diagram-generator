@@ -51,24 +51,65 @@ HTML placement, workspace chrome rendering, and the live preview rerender path.
 - **FR-002**: The engine tab rail must use baseline-foundry tab semantics and
   active/inactive state, not plain text buttons.
 - **FR-003**: Selecting a compatible engine must rerender the live previewed
-  graph immediately without a full page reload.
+  graph **with that engine actually driving layout** — not merely re-render the
+  existing geometry. The chosen engine must be committed into the frame-tree the
+  render path reads (`state.frameTreeJson.layoutEngine`) before render, and the
+  rendered root SVG must carry `data-layout-engine` equal to the chosen engine.
+  This must hold for documents with an authored `meta.layout_engine`.
 - **FR-004**: Engine-specific right-aside panels must resync to the newly active
   engine after the rerender.
 - **FR-005**: Save must persist the currently active tab’s engine id through the
   typed save path, and reopen must restore the persisted engine.
 - **FR-006**: Sequence documents and single-engine cases must not render a dead
   or misleading tab rail.
+- **FR-007**: A top-level page-direction change (autolayout horizontal↔vertical)
+  must re-run layout and reroute arrows through the same engine-intent commit, so
+  arrow attachments survive the change on `tiered-network-architecture`.
+- **FR-008**: Chrome cleanup the author requested (INBOX): remove the stale
+  `active-engine-label` "Engine: Native v3 autolayout" text and stray `elk-radial`
+  tab markup; remove tab-button `margin-bottom` (use the baseline-foundry
+  utility); remove the "Only engines compatible with this document are listed…"
+  help paragraph; rename "Native v3 autolayout" → "Autolayout"
+  (`builtins.ts:54`); keep output-pane padding when switching autolayout↔ELK.
 
-## Closeout Gate
+## Root cause (verified 2026-06-28 adversarial review)
 
-Do not mark this spec complete until all of the following are true:
+The prior closeout was false. Switching the engine tab updates
+`__DG_CONFIG.layout_engine` and workspace state, then calls
+`rerenderStageFromModel`. But the real render path
+(`renderFreshPreviewSvg`, `app-fresh-render.ts:343`) resolves the engine from
+`diagram.layoutEngine` = `state.frameTreeJson.layoutEngine`, which the switch
+path **never updates**. On any document with an authored `meta.layout_engine`
+(`mongo-octavia-ha`, `support-engineering-flow`, `juju-bootstrap-machines-process`)
+clicking a tab cannot change the rendered engine. The earlier tests passed because
+they mock `rerenderStageFromModel`, and the Playwright "proof" asserted an `svgHash`
+change between two ELK engines — never engine identity, never the failing
+authored-ELK → v3 case.
 
-1. Repo tests covering host HTML placement, workspace chrome behavior,
-   rerender-on-switch, and save/reopen semantics are green.
-2. A real browser verification proves the graph itself changes when a tab is
-   clicked on at least one multi-engine frame fixture.
-3. The browser verification uses Playwright or an equivalent scripted browser
-   assertion, not a visual guess or DOM-only check.
+See `docs/spec-reviews/branch-060.md` and `docs/spec-reviews/README.md` §1.
+
+## Closeout Gate (hardened — supersedes the previous gate)
+
+Do not mark this spec complete until ALL are true:
+
+1. The rendered root SVG exposes the engine it was laid out with
+   (`data-layout-engine` on `#stage svg`, stamped in `renderFreshPreviewSvg`).
+2. The active engine is the single source the render path reads: tab switch
+   commits the chosen engine into the frame-tree the render consumes
+   (`state.frameTreeJson.layoutEngine` via a typed setter), browser-local until
+   Save. `__DG_CONFIG` and the render path must not be able to drift.
+3. A test that runs the **real** `renderFreshPreviewSvg` (not a mock) asserts
+   `data-layout-engine` equals the selected engine after a switch, on an
+   **authored-engine** fixture (`mongo-octavia-ha`).
+4. A Playwright self-check (per `docs/spec-reviews/README.md` §4) asserts engine
+   **identity** (not hash) for authored-ELK → v3, v3 → elk-layered, and a
+   sequence document (no dead rail). Script + JSON result committed under
+   `evidence/`.
+5. Direction-flip arrow reroute verified on `tiered-network-architecture`
+   (horizontal→vertical keeps arrow attachments) — see FR-007.
+6. The browser server was restarted fresh before verification (stale bootstrap
+   cache invalidates any prior run).
+7. Mock-only proof is not accepted for any user-visible behavior claim.
 
 ## Initial Owner Map
 
