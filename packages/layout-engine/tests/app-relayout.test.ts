@@ -105,6 +105,7 @@ describe('preview relayout helpers', () => {
     };
 
     expect(formatPreviewRelayoutStatusMessage('missing-frame-tree')).toContain('frame tree');
+    expect(formatPreviewRelayoutStatusMessage('engine-failure')).toBe('Engine relayout failed');
     expect(
       dispatchPreviewRelayoutFailureHost({
         runtimeState,
@@ -548,6 +549,36 @@ describe('preview relayout helpers', () => {
     expect(logError).toHaveBeenCalledWith(
       expect.stringContaining('engine adapter exploded'),
     );
+  });
+
+  it('surfaces engine failure without rebuilding when an engine adapter returns null (SC-003)', async () => {
+    const failRelayout = vi.fn(() => false);
+    const finishRelayout = vi.fn();
+    const logError = vi.fn();
+    const nullEngine = vi.fn(async () => null);
+
+    const result = await runPreviewRelayout({
+      triggerCid: 'alpha',
+      overrides: {},
+      coercedKeys: new Set(),
+      gridOverrides: {},
+      normalizeGridOverrides: (value) => value,
+      relayoutStatus: { localReady: true, local: { reason: null } },
+      isEngineLayoutActive: true,
+      isElkLayeredDiagram: true,
+      performEngineRelayout: nullEngine,
+      performElkRelayout: nullEngine,
+      performLocalRelayout: vi.fn(() => null),
+      failRelayout,
+      finishRelayout,
+      logError,
+    });
+
+    expect(nullEngine).toHaveBeenCalledTimes(1);
+    expect(finishRelayout).not.toHaveBeenCalled();
+    expect(failRelayout).toHaveBeenCalledWith('engine-failure', 'alpha');
+    expect(result).toBe(false);
+    expect(logError).toHaveBeenCalledWith('layout relayout: engine-backed layout failed');
   });
 
   it('preserves the last good render when a throwing local relayout fails (SC-003)', async () => {

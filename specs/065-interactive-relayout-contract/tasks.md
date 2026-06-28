@@ -54,7 +54,7 @@
       `page.selectOption` on `tiered-network-architecture`: spread axis flips,
       every arrow endpoint on a node perimeter (SC-002).
 
-- [ ] **T022** ELK live resize uses an engine-backed relayout that resolves and
+- [x] **T022** ELK live resize uses an engine-backed relayout that resolves and
       never emits "relayout failed" for a valid resize (FR-005). Fix the null
       path and `formatPreviewRelayoutStatusMessage` for the elk-failure case.
       **Verify**: protocol §2 "ELK live resize" via real pointer drag on an

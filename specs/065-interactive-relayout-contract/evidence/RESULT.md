@@ -18,7 +18,7 @@ Single `PreviewRenderIntent` path (no new parallel lane): confirmed by implement
 
 Evidence artifact:
 - `post-load-mutations.mjs`
-- `post-load-mutations-result.json` with `ok: true`, generated `2026-06-28T23:29:20.709Z`
+- `post-load-mutations-result.json` with `ok: true`, generated `2026-06-28T23:31:13.151Z`
 - `diagnostics/support-flow-elk-aside-before-next.png`
 - `diagnostics/support-flow-elk-aside-after-hidden-fix.png`
 
@@ -40,3 +40,7 @@ Incremental T012 validation:
 Incremental T020 validation:
 - `npm --prefix packages/layout-engine test -- preview-engine-workspace-chrome.test.ts app-grid-editor-install-unit.test.ts preview-render-intent.test.ts` -> 3 files passed, 13 tests passed; tab click and keyboard activation assert `__DG_previewRenderIntent.engineId`
 - `PREVIEW_BASE_URL=http://127.0.0.1:8120 node specs/065-interactive-relayout-contract/evidence/post-load-mutations.mjs` -> ok with real `page.click` engine-tab switches on `mongo-octavia-ha` and `juju-bootstrap-machines-process`
+
+Incremental T022 validation:
+- `npm --prefix packages/layout-engine test -- app-relayout.test.ts app-live-resize.test.ts` -> 2 files passed, 25 tests passed; null engine result maps to `engine-failure` and `formatPreviewRelayoutStatusMessage('engine-failure') === 'Engine relayout failed'`
+- `PREVIEW_BASE_URL=http://127.0.0.1:8120 node specs/065-interactive-relayout-contract/evidence/post-load-mutations.mjs` -> ok with real mouse drag on `mongo-octavia-ha` (`mongo_clients` width 224 -> 304, status `Ready`)
