@@ -593,9 +593,7 @@ function anchorSemanticDescendants(
       }
     : undefined;
   const subtreeAnchor = selfAnchor ?? inheritedAnchor;
-
   for (const child of frame.children) {
-    if (isAnnotationFrame(child, endpoints)) continue;
     const childSemantic = child.id ? semanticPlacements.get(child.id) : undefined;
     const childAnchor = findSubtreeAnchor(child) ?? subtreeAnchor;
     if (!childSemantic) {
@@ -773,6 +771,9 @@ function layoutAnnotationsBelow(
 
   function placeAnnotation(frame: Frame): void {
     if (isAnnotationFrame(frame, endpoints)) {
+      if (frame._layout.placedW > 0 || frame._layout.placedH > 0) {
+        return;
+      }
       measureSubtree(frame, adapter);
       frame._layout.placedX = originX + frame.paddingLeft;
       frame._layout.placedY = cursorY;

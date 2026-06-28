@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { routePreviewArrowsMock } = vi.hoisted(() => ({
@@ -15,7 +17,12 @@ vi.mock('../src/preview-shell/app-arrow-render.js', async () => {
 });
 
 import { renderFreshPreviewSvg } from '../src/preview-shell/app-fresh-render.js';
+import { loadFrameYaml } from '../src/frame-yaml-loader.js';
+import { serializeFrameDiagram } from '../src/frame-serialize.js';
 import { MockTextAdapter } from '../src/text-measure.js';
+
+const __dirname = fileURLToPath(new URL('.', import.meta.url));
+const FRAMES_DIR = join(__dirname, '../../..', 'scripts/diagrams/frames');
 
 class FakeNode {
   ownerDocument: FakeDocument;
@@ -211,5 +218,53 @@ describe('renderFreshPreviewSvg', () => {
     expect(routedArrowInput?.target).toBe('beta');
     expect(routedArrowInput?.waypoints).toBeUndefined();
     expect(routedArrowInput?.layoutPath).toBeUndefined();
+  });
+
+  it('stamps the engine that actually drives an authored-engine fresh render', async () => {
+    const ownerDocument = new FakeDocument();
+    const diagram = loadFrameYaml(join(FRAMES_DIR, 'mongo-octavia-ha.yaml'));
+    expect(diagram.layoutEngine).toBe('elk-layered');
+    const frameTreeJson = serializeFrameDiagram(diagram);
+    frameTreeJson.layoutEngine = 'v3';
+
+    const result = await renderFreshPreviewSvg({
+      ownerDocument: ownerDocument as unknown as Document,
+      frameTreeJson,
+      overrides: {},
+      gridOverrides: {},
+      model: {},
+      textAdapter: new MockTextAdapter(),
+      applySessionRemovalsToDiagramJson: null,
+      applyOverridesToFrameTree: vi.fn(),
+      collectRelayoutFrameOverrides: (overrides) => overrides,
+      resolveEngineLayoutOptionOverrides: () => ({}),
+      updateModelFromLayout: vi.fn(),
+      syncArrowsInModel: vi.fn(),
+    });
+
+    expect(result.svg.getAttribute('data-layout-engine')).toBe('v3');
+  });
+
+  it('stamps native v3 when an incompatible authored engine is withheld from render resolution', async () => {
+    const ownerDocument = new FakeDocument();
+    const diagram = loadFrameYaml(join(FRAMES_DIR, 'tiered-network-architecture.author-v1.yaml'));
+    expect(diagram.layoutEngine).toBe('elk-layered');
+
+    const result = await renderFreshPreviewSvg({
+      ownerDocument: ownerDocument as unknown as Document,
+      frameTreeJson: serializeFrameDiagram(diagram),
+      overrides: {},
+      gridOverrides: {},
+      model: {},
+      textAdapter: new MockTextAdapter(),
+      applySessionRemovalsToDiagramJson: null,
+      applyOverridesToFrameTree: vi.fn(),
+      collectRelayoutFrameOverrides: (overrides) => overrides,
+      resolveEngineLayoutOptionOverrides: () => ({}),
+      updateModelFromLayout: vi.fn(),
+      syncArrowsInModel: vi.fn(),
+    });
+
+    expect(result.svg.getAttribute('data-layout-engine')).toBe('v3');
   });
 });

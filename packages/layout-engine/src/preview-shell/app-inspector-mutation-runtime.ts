@@ -12,6 +12,7 @@ import {
 } from './frame-prop-actions.js';
 import {
   applyVisiblePreviewStyleOverride,
+  previewStyleChangeRequiresRelayout,
   type PreviewStyleNode,
 } from './frame-style.js';
 import type { PreviewGridInfo } from './grid-resolution.js';
@@ -65,10 +66,15 @@ export function createPreviewInspectorMutationRuntime(
       const overrides = options.getOverrides();
       const ids = [cid];
       const beforeEntries = options.captureOverrideEntries(ids);
+      const node = options.getNode(cid) as PreviewStyleNode | null | undefined;
+      const requiresRelayout = previewStyleChangeRequiresRelayout({
+        node,
+        styleName,
+      });
       const changed = applyVisiblePreviewStyleOverride({
         overrides,
         cid,
-        node: options.getNode(cid) as PreviewStyleNode | null | undefined,
+        node,
         styleName,
       });
       if (!changed) {
@@ -77,7 +83,9 @@ export function createPreviewInspectorMutationRuntime(
       }
       options.cleanOverride(cid);
       options.setDirty(true);
-      options.scheduleRelayout(cid);
+      if (requiresRelayout) {
+        options.scheduleRelayout(cid);
+      }
       options.renderSelectionInspector(cid);
       options.commitOverridePatchAction(
         'Change style',

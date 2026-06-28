@@ -28,6 +28,9 @@ import {
   shouldInvalidatePreviewArrowWaypointGeometry,
 } from './preview-arrow-reroute-invalidation.js';
 import {
+  resolveActivePreviewLayoutEngine,
+} from './preview-engine-workspace.js';
+import {
   collectPreviewPlacedBounds,
 } from './app-frame-svg.js';
 import { emitFrameDiagramDisplayList } from '../render-adapter/display-list.js';
@@ -314,8 +317,16 @@ export async function renderFreshPreviewSvg<TModel = unknown>(
     ? await renderPreviewDocumentToSvg(options.previewDocumentJson)
     : null;
   if (renderedPreviewDocument) {
+    const svg = parseMarkupDocument(options.ownerDocument, renderedPreviewDocument.svgMarkup);
+    const previewDocumentLayoutEngine = resolveActivePreviewLayoutEngine({
+      layoutEngine: options.previewDocumentJson?.layoutEngine ?? null,
+      fallbackEngineId: options.previewDocumentJson?.kind === 'sequence' ? 'sequence' : null,
+    });
+    if (previewDocumentLayoutEngine) {
+      svg.setAttribute('data-layout-engine', previewDocumentLayoutEngine);
+    }
     return {
-      svg: parseMarkupDocument(options.ownerDocument, renderedPreviewDocument.svgMarkup),
+      svg,
       width: renderedPreviewDocument.width,
       height: renderedPreviewDocument.height,
       coerced: new Map(),
@@ -340,8 +351,12 @@ export async function renderFreshPreviewSvg<TModel = unknown>(
     invalidatePreviewArrowWaypointGeometry(diagram.arrows);
   }
 
-  const engineManifest = resolvePreviewEngine({
+  const activeLayoutEngine = resolveActivePreviewLayoutEngine({
+    frameTreeJson: diagramJson as { layoutEngine?: string | null },
     layoutEngine: diagram.layoutEngine ?? null,
+  });
+  const engineManifest = resolvePreviewEngine({
+    layoutEngine: activeLayoutEngine,
     shellMode: 'grid',
     previewDocumentKind: 'frame-diagram',
     frameDiagramSummary: summarizeFrameDiagramCompatibility(diagram),
@@ -362,6 +377,12 @@ export async function renderFreshPreviewSvg<TModel = unknown>(
     iconElements,
     overlays: rawOverlays,
   });
+  const renderedLayoutEngine = engineManifest?.layoutEngineKey
+    ?? engineManifest?.id
+    ?? 'v3';
+  if (renderedLayoutEngine) {
+    svg.setAttribute('data-layout-engine', renderedLayoutEngine);
+  }
 
   if (!options.skipModelUpdate) {
     options.updateModelFromLayout(options.model, diagram.root);

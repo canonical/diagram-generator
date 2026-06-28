@@ -356,6 +356,27 @@ export function applyPreviewStyleFields(
   return true;
 }
 
+export function previewStyleChangeRequiresRelayout(options: {
+  node?: PreviewStyleNode | null;
+  styleName: unknown;
+}): boolean {
+  const nextStyle = normalizePreviewStyleName(options.styleName);
+  const nextSemantic = PREVIEW_STYLE_SEMANTICS[
+    nextStyle as keyof typeof PREVIEW_STYLE_SEMANTICS
+  ];
+  if (!nextSemantic) {
+    return true;
+  }
+  const currentStyle = resolveBasePreviewStyleName(options.node);
+  const currentSemantic = PREVIEW_STYLE_SEMANTICS[
+    currentStyle as keyof typeof PREVIEW_STYLE_SEMANTICS
+  ];
+  if (!currentSemantic) {
+    return true;
+  }
+  return currentSemantic.border !== nextSemantic.border;
+}
+
 export function applyVisiblePreviewStyleOverride(options: {
   overrides: PreviewStyleOverrideMap;
   cid: string;

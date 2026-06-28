@@ -1,0 +1,54 @@
+{
+  "startedAt": "2026-06-28T15:05:45.709Z",
+  "baseUrl": "http://127.0.0.1:8100",
+  "checks": [
+    {
+      "slug": "mongo-octavia-ha",
+      "before": "elk-layered",
+      "steps": [
+        {
+          "selectedEngine": "v3",
+          "renderedEngine": "v3"
+        },
+        {
+          "selectedEngine": "elk-layered",
+          "renderedEngine": "elk-layered"
+        }
+      ]
+    },
+    {
+      "slug": "service-handshake-sequence",
+      "renderedEngine": "sequence",
+      "sectionHidden": true,
+      "tabCount": 0
+    },
+    {
+      "slug": "tiered-network-architecture",
+      "renderedEngine": "v3",
+      "relayout": {
+        "coerced": {},
+        "width": 792,
+        "height": 416
+      },
+      "beforeCount": 13,
+      "afterCount": 13,
+      "finite": true
+    },
+    {
+      "slug": "juju-bootstrap-machines-process",
+      "before": "elk-layered",
+      "steps": [
+        {
+          "selectedEngine": "v3",
+          "renderedEngine": "v3"
+        },
+        {
+          "selectedEngine": "elk-layered",
+          "renderedEngine": "elk-layered"
+        }
+      ]
+    }
+  ],
+  "ok": true,
+  "finishedAt": "2026-06-28T15:05:46.830Z"
+}

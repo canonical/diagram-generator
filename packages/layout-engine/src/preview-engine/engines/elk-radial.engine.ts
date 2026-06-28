@@ -16,6 +16,7 @@ export const ELK_RADIAL_PREVIEW_ENGINE_DEFINITION = {
     description: 'Radial ELK layout for hub-and-spoke graph structures',
     frameDiagramRequirements: {
       minArrowCount: 1,
+      requiresTree: true,
       rejectUnsupportedCarrierIds: true,
     },
   },

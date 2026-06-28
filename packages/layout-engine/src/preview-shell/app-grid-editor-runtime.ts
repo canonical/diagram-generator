@@ -139,6 +139,7 @@ export type PreviewGridEditorRuntimeWindow = Window & typeof globalThis & {
   __DG_getPreviewShellSceneContract: () => PreviewGridEditorShellSceneContract;
   __DG_getPreviewShellInspectorContract: () => PreviewGridEditorShellInspectorContract;
   __DG_getPreviewShellInteractionContract: () => PreviewGridEditorShellInteractionContract;
+  __DG_rerenderPreviewEngineWorkspaceStage?: (() => Promise<void>) | null;
 };
 
 export interface PreviewGridEditorRuntimeSharedOptions {

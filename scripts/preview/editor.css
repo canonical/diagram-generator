@@ -643,10 +643,16 @@ body.dg-preview {
 }
 
 .dg-preview-pane-header {
+       display: grid;
+       gap: 8px;
+       padding: 0 0 8px;
+}
+
+.dg-preview-pane-heading {
        align-items: center;
        display: flex;
+       gap: 12px;
        justify-content: space-between;
-       padding: 0 0 8px;
 }
 
 .dg-preview-pane-label {
@@ -655,6 +661,22 @@ body.dg-preview {
        font-weight: 600;
        letter-spacing: 0.04em;
        text-transform: uppercase;
+}
+
+.dg-output-engine-workspace {
+       display: grid;
+       gap: 6px;
+}
+
+.dg-output-engine-tabs .bf-tabs-list {
+       flex-wrap: wrap;
+       margin-bottom: 0;
+       row-gap: 4px;
+}
+
+.dg-output-engine-tabs .bf-tabs-link {
+       margin-bottom: 0;
+       white-space: nowrap;
 }
 
 .stage {

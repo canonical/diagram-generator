@@ -686,7 +686,15 @@ describe('preview layout bridge runtime', () => {
       previewWindow,
     });
     const runtime = install.getRuntime();
-    runtime.state.previewDocumentJson = { kind: 'frame-diagram' };
+    runtime.state.previewDocumentJson = {
+      kind: 'frame-diagram',
+      layoutEngine: 'elk-layered',
+      frameTree: {
+        root: { id: 'root', children: [] },
+        arrows: [],
+        layoutEngine: 'elk-layered',
+      },
+    };
     runtime.state.frameTreeJson = {
       root: { id: 'root', children: [] },
       arrows: [],
@@ -731,6 +739,17 @@ describe('preview layout bridge runtime', () => {
       .toBe(true);
     expect((previewWindow as Record<string, unknown>).__DG_previewBridgeHostRuntime).toBeTruthy();
     expect((previewWindow as Record<string, unknown>).__DG_previewBridgeRenderHost).toBeTruthy();
+    expect(install.setFrameTreeLayoutEngine('v3')).toBe('v3');
+    expect(install.getFrameTreeJson()).toMatchObject({ layoutEngine: 'v3' });
+    expect(runtime.state.previewDocumentJson).toMatchObject({
+      layoutEngine: 'v3',
+      frameTree: { layoutEngine: 'v3' },
+    });
+    expect(
+      (previewWindow as Record<string, (layoutEngine: string) => string | null>)
+        .setFrameTreeLayoutEngine('dagre'),
+    ).toBe('dagre');
+    expect(install.getFrameTreeJson()).toMatchObject({ layoutEngine: 'dagre' });
     expect(
       (previewWindow as Record<string, () => unknown>).getLayoutTextAdapter(),
     ).toEqual({ measurementBackend: 'harfbuzz' });

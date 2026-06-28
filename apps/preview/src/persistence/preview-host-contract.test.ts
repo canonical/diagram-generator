@@ -329,7 +329,10 @@ test("autolayout viewer hides ELK controls for a single-engine v3 frame", () => 
   assert.match(html, /id="elk-layout-section" hidden/);
   assert.match(html, /id="graph-layout-section" hidden/);
   assert.match(html, /id="force-solver-section" hidden/);
-  assert.match(html, /id="engine-switcher-section" >/);
+  assert.match(html, /<div class="dg-preview-pane-header">[\s\S]*id="engine-switcher-section"/);
+  assert.match(html, /id="engine-switcher-tabs" role="tablist"/);
+  assert.doesNotMatch(html, /id="engine-switcher-prev"/);
+  assert.doesNotMatch(html, /id="engine-switcher-next"/);
   assert.match(html, /\/preview\/engine-switcher\.js/);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
@@ -630,6 +633,9 @@ test("static viewer chrome exposes stable right-aside panel groups", () => {
     template,
     /id="engine-switcher-section" data-dg-panel-group="engine" data-dg-panel-id="engine-switcher"/,
   );
+  assert.match(template, /id="engine-switcher-tabs" role="tablist"/);
+  assert.doesNotMatch(template, /id="engine-switcher-prev"/);
+  assert.doesNotMatch(template, /id="engine-switcher-next"/);
   assert.match(template, /id="active-engine-label" hidden/);
   assert.match(
     template,
@@ -2324,7 +2330,13 @@ function normalizePreviewSlug(value: string): string | null {
 
 function contextualAsideTemplate(): string {
   return [
-    '<section id="engine-switcher-section" %GRID_ENGINE_SWITCHER_HIDDEN%>engine</section>',
+    '<div class="dg-preview-pane-header">',
+    '  <section id="engine-switcher-section" %GRID_ENGINE_SWITCHER_HIDDEN%>',
+    '    <div class="bf-tabs dg-output-engine-tabs" aria-label="Compatible engines">',
+    '      <ul class="bf-tabs-list" id="engine-switcher-tabs" role="tablist" aria-label="Compatible engines"></ul>',
+    '    </div>',
+    '  </section>',
+    '</div>',
     '<section id="grid-controls-section" %GRID_CONTROLS_HIDDEN%><div id="grid-controls"></div></section>',
     '<section id="elk-layout-section" %ELK_SECTION_HIDDEN%><input id="elk-raw-view-toggle"><input id="elk-debug-overlay-toggle"></section>',
     '<section id="graph-layout-section" %GRAPH_LAYOUT_SECTION_HIDDEN%><div id="graph-layout-controls"></div></section>',

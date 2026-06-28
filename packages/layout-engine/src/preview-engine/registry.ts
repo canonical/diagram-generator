@@ -1,5 +1,6 @@
 import type { FrameDiagram } from '../frame-model.js';
 import type {
+  CompatibilityEvaluationOptions,
   CompatibilityResult,
   FrameDiagramCompatibilitySummary,
   PreviewEngineContext,
@@ -64,7 +65,7 @@ export function resolvePreviewEngine(
       (entry) => entry.layoutEngineKey === layoutEngine,
     );
     if (explicit) {
-      if (evaluatePreviewEngineCompatibility(explicit, context).compatible) {
+      if (evaluatePreviewEngineCompatibility(explicit, context, { mode: 'resolve' }).compatible) {
         return explicit;
       }
       return undefined;
@@ -87,6 +88,9 @@ export function summarizeFrameDiagramCompatibility(
   const unsupportedCarrierIds = collectUnsupportedCarrierIds(diagram);
   return {
     arrowCount: diagram.arrows.length,
+    diagramType: diagram.diagramType ?? null,
+    fillCarrierIds: collectFillCarrierIds(diagram),
+    isArrowGraphTree: isArrowGraphTree(diagram),
     unsupportedCarrierIds,
     unsupportedElkCarrierIds: unsupportedCarrierIds,
   };
@@ -99,6 +103,54 @@ function collectEndpointIds(diagram: FrameDiagram): Set<string> {
     if (arrow.target) ids.add(arrow.target.split('.')[0]!);
   }
   return ids;
+}
+
+function isArrowGraphTree(diagram: FrameDiagram): boolean {
+  if (diagram.arrows.length === 0) {
+    return false;
+  }
+  const adjacency = new Map<string, Set<string>>();
+  const addNode = (id: string): void => {
+    if (!adjacency.has(id)) {
+      adjacency.set(id, new Set<string>());
+    }
+  };
+
+  for (const arrow of diagram.arrows) {
+    const source = arrow.source?.split('.')[0] ?? '';
+    const target = arrow.target?.split('.')[0] ?? '';
+    if (!source || !target || source === target) {
+      return false;
+    }
+    addNode(source);
+    addNode(target);
+    adjacency.get(source)!.add(target);
+    adjacency.get(target)!.add(source);
+  }
+
+  if (diagram.arrows.length !== adjacency.size - 1) {
+    return false;
+  }
+
+  const first = adjacency.keys().next().value as string | undefined;
+  if (!first) {
+    return false;
+  }
+  const visited = new Set<string>();
+  const queue = [first];
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    if (visited.has(current)) {
+      continue;
+    }
+    visited.add(current);
+    for (const next of adjacency.get(current) ?? []) {
+      if (!visited.has(next)) {
+        queue.push(next);
+      }
+    }
+  }
+  return visited.size === adjacency.size;
 }
 
 function collectUnsupportedCarrierIds(diagram: FrameDiagram): string[] {
@@ -123,6 +175,48 @@ function collectUnsupportedCarrierIds(diagram: FrameDiagram): string[] {
   return [...unsupported].sort();
 }
 
+function collectFillCarrierIds(diagram: FrameDiagram): string[] {
+  const endpoints = collectEndpointIds(diagram);
+  const carriers = new Set<string>();
+
+  function isSyntheticOrHeadedFrame(frame: FrameDiagram['root']): boolean {
+    if (!frame.id) return false;
+    if (frame.id.endsWith('__body') || frame.id.endsWith('__heading') || frame.role === 'heading') {
+      return true;
+    }
+    return frame.children.some((child) => (
+      child.role === 'heading'
+      || child.id?.endsWith('__body')
+      || child.id?.endsWith('__heading')
+    ));
+  }
+
+  function visit(frame: FrameDiagram['root'], isRoot: boolean): boolean {
+    let childHasEndpoint = false;
+    for (const child of frame.children) {
+      if (visit(child, false)) {
+        childHasEndpoint = true;
+      }
+    }
+    const selfHasEndpoint = Boolean(frame.id) && endpoints.has(frame.id);
+    const descendantHasEndpoint = selfHasEndpoint || childHasEndpoint;
+    if (
+      !isRoot &&
+      frame.id &&
+      frame.children.length > 0 &&
+      !isSyntheticOrHeadedFrame(frame) &&
+      descendantHasEndpoint &&
+      (frame.sizingW === 'FILL' || frame.sizingH === 'FILL')
+    ) {
+      carriers.add(frame.id);
+    }
+    return descendantHasEndpoint;
+  }
+
+  visit(diagram.root, true);
+  return [...carriers].sort();
+}
+
 export function listHostableLayoutEngineKeys(): string[] {
   return PREVIEW_ENGINE_REGISTRY
     .map((entry) => entry.layoutEngineKey)
@@ -136,7 +230,9 @@ export function listHostableLayoutEngineKeys(): string[] {
 export function evaluatePreviewEngineCompatibility(
   engine: PreviewEngineManifest,
   context: PreviewEngineContext,
+  options: CompatibilityEvaluationOptions = {},
 ): CompatibilityResult {
+  const mode = options.mode ?? 'offer';
   const shellMode = context.shellMode ?? null;
   if (shellMode && engine.shellMode !== shellMode) {
     return {
@@ -167,6 +263,46 @@ export function evaluatePreviewEngineCompatibility(
   }
 
   if (
+    mode !== 'resolve' &&
+    previewDocumentKind === 'frame-diagram' &&
+    frameDiagramRequirements?.offerDiagramTypes?.length &&
+    context.frameDiagramSummary
+  ) {
+    if (!context.frameDiagramSummary.diagramType) {
+      return {
+        compatible: false,
+        reason: 'Engine requires an authored diagram type before it can be offered as a recommended fit',
+      };
+    }
+    if (
+      !frameDiagramRequirements.offerDiagramTypes.includes(
+        context.frameDiagramSummary.diagramType as typeof frameDiagramRequirements.offerDiagramTypes[number],
+      )
+    ) {
+      return {
+        compatible: false,
+        reason:
+          `Engine is not a recommended fit for authored diagram type ` +
+          `'${context.frameDiagramSummary.diagramType}'`,
+      };
+    }
+  }
+
+  if (
+    previewDocumentKind === 'frame-diagram' &&
+    frameDiagramRequirements?.rejectFillCarrierIdsWithoutDiagramType &&
+    (context.frameDiagramSummary?.fillCarrierIds?.length ?? 0) > 0 &&
+    !context.frameDiagramSummary?.diagramType
+  ) {
+    return {
+      compatible: false,
+      reason:
+        `Engine requires an authored diagram type when fill-sized structural carriers are present: ` +
+        context.frameDiagramSummary?.fillCarrierIds?.slice(0, 3).join(', '),
+    };
+  }
+
+  if (
     previewDocumentKind === 'frame-diagram' &&
     frameDiagramRequirements?.rejectUnsupportedCarrierIds &&
     context.frameDiagramSummary &&
@@ -179,6 +315,18 @@ export function evaluatePreviewEngineCompatibility(
       reason:
         `Engine cannot natively represent the current frame structure: ` +
         unsupportedCarrierIds.slice(0, 3).join(', '),
+    };
+  }
+
+  if (
+    previewDocumentKind === 'frame-diagram' &&
+    frameDiagramRequirements?.requiresTree &&
+    context.frameDiagramSummary &&
+    context.frameDiagramSummary.isArrowGraphTree === false
+  ) {
+    return {
+      compatible: false,
+      reason: 'Engine requires authored arrows to form a connected tree',
     };
   }
 

@@ -1,6 +1,7 @@
 import './install-builtins.js';
 
 export type {
+  CompatibilityEvaluationOptions,
   CompatibilityResult,
   FrameDiagramCompatibilitySummary,
   PreviewControlKind,

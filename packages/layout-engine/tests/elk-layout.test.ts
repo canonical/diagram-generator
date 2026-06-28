@@ -554,6 +554,51 @@ describe('layoutElkFrameDiagram', () => {
     expect(clientL2?._layout.placedX).toBeGreaterThanOrEqual(clientsLeftTop?._layout.placedX ?? -Infinity);
   });
 
+  it('keeps mongo-octavia-ha availability-zone wrappers and labels attached to their compounds', async () => {
+    const diagram = loadFrameYaml(join(FRAMES_DIR, 'mongo-octavia-ha.yaml'));
+    const semanticDiagram = semanticBoundsForDiagram(diagram);
+    const adapter = new MockTextAdapter();
+
+    await layoutElkFrameDiagram(diagram, adapter);
+
+    const availabilityZones = findFrameById(
+      diagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'availability_zones',
+    );
+    const semanticAvailabilityZones = findFrameById(
+      semanticDiagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'availability_zones',
+    );
+    expect(availabilityZones?._layout.placedH).toBeGreaterThanOrEqual(
+      (semanticAvailabilityZones?._layout.placedH ?? 0) - 8,
+    );
+    const zoneIds = ['az1', 'az2', 'az3'] as const;
+    for (const zoneId of zoneIds) {
+      const zone = findFrameById(
+        diagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+        zoneId,
+      );
+      const vm = findFrameById(
+        diagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+        `vm_${zoneId}`,
+      );
+      const label = findFrameById(
+        diagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+        `${zoneId}_label`,
+      );
+
+      expect(zone?._layout.placedH).toBeGreaterThan(vm?._layout.placedH ?? Infinity);
+      expect(label?._layout.placedX).toBeGreaterThanOrEqual(zone?._layout.placedX ?? Infinity);
+      expect((label?._layout.placedX ?? 0) + (label?._layout.placedW ?? 0))
+        .toBeLessThanOrEqual((zone?._layout.placedX ?? -Infinity) + (zone?._layout.placedW ?? 0));
+      expect(label?._layout.placedY).toBeGreaterThanOrEqual(
+        (vm?._layout.placedY ?? 0) + (vm?._layout.placedH ?? 0),
+      );
+      expect((label?._layout.placedY ?? 0) + (label?._layout.placedH ?? 0))
+        .toBeLessThanOrEqual((zone?._layout.placedY ?? -Infinity) + (zone?._layout.placedH ?? 0));
+    }
+  });
+
   it('keeps same-layer gap overrides effective along the authored horizontal ELK axis', async () => {
     const baseDiagram = loadFrameYaml(join(FRAMES_DIR, 'complex-routing-usecase.yaml'));
     const gapDiagram = loadFrameYaml(join(FRAMES_DIR, 'complex-routing-usecase.yaml'));

@@ -15,6 +15,7 @@ export const ELK_FORCE_PREVIEW_ENGINE_DEFINITION: GraphLayoutPreviewEngineDefini
     description: 'Force-directed ELK layout for organic graph structures',
     frameDiagramRequirements: {
       minArrowCount: 1,
+      rejectFillCarrierIdsWithoutDiagramType: true,
       rejectUnsupportedCarrierIds: true,
     },
   },

@@ -2,6 +2,75 @@ import { describe, expect, it, vi } from 'vitest';
 import { createPreviewInspectorMutationRuntime } from '../src/preview-shell/app-inspector-mutation-runtime.js';
 
 describe('createPreviewInspectorMutationRuntime', () => {
+  it('applies boxed style changes without requesting relayout when geometry class is unchanged', () => {
+    let overrides: Record<string, Record<string, unknown>> = {};
+    const scheduleRelayout = vi.fn();
+    const requestRelayoutNow = vi.fn();
+    const renderSelectionInspector = vi.fn();
+
+    const runtime = createPreviewInspectorMutationRuntime({
+      captureOverrideEntries: (ids) => Object.fromEntries(ids.map((id) => [id, { ...(overrides[id] || {}) }])),
+      commitOverridePatchAction: vi.fn(),
+      getOverrides: () => overrides,
+      coercedKeys: new Set<string>(),
+      getNode: () => ({ type: 'box', level: 1, fill: 'WHITE', border: 'SOLID' }),
+      snapToGrid: (value) => value,
+      setDirty: vi.fn(),
+      scheduleRelayout,
+      requestRelayoutNow,
+      renderSelectionInspector,
+      cleanOverride: vi.fn(),
+      getGridInfo: () => null,
+      getWidthUnit: () => 'px',
+      getHeightUnit: () => 'px',
+      baselineStep: 8,
+    });
+
+    runtime.applyStyle('alpha', 'parent');
+
+    expect(overrides.alpha).toEqual({
+      level: 2,
+      fill: 'GREY',
+      border: 'SOLID',
+      style: 'parent',
+    });
+    expect(scheduleRelayout).not.toHaveBeenCalled();
+    expect(requestRelayoutNow).not.toHaveBeenCalled();
+    expect(renderSelectionInspector).toHaveBeenCalledWith('alpha');
+  });
+
+  it('keeps requesting relayout for style changes that alter measured geometry class', () => {
+    let overrides: Record<string, Record<string, unknown>> = {};
+    const scheduleRelayout = vi.fn();
+
+    const runtime = createPreviewInspectorMutationRuntime({
+      captureOverrideEntries: (ids) => Object.fromEntries(ids.map((id) => [id, { ...(overrides[id] || {}) }])),
+      commitOverridePatchAction: vi.fn(),
+      getOverrides: () => overrides,
+      coercedKeys: new Set<string>(),
+      getNode: () => ({ type: 'box', level: 1, fill: 'WHITE', border: 'SOLID' }),
+      snapToGrid: (value) => value,
+      setDirty: vi.fn(),
+      scheduleRelayout,
+      requestRelayoutNow: vi.fn(),
+      renderSelectionInspector: vi.fn(),
+      cleanOverride: vi.fn(),
+      getGridInfo: () => null,
+      getWidthUnit: () => 'px',
+      getHeightUnit: () => 'px',
+      baselineStep: 8,
+    });
+
+    runtime.applyStyle('alpha', 'annotation');
+
+    expect(overrides.alpha).toEqual({
+      fill: 'WHITE',
+      border: 'NONE',
+      style: 'annotation',
+    });
+    expect(scheduleRelayout).toHaveBeenCalledWith('alpha');
+  });
+
   it('dispatches single-frame prop mutations through typed owners and schedules relayout against the live override store', () => {
     let overrides: Record<string, Record<string, unknown>> = {};
     const captureOverrideEntries = vi.fn((ids: string[]) => (

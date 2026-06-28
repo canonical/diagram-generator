@@ -16,6 +16,7 @@ export const ELK_RECTPACKING_PREVIEW_ENGINE_DEFINITION = {
     description: 'Rectangle-packing ELK layout for dense frame groups',
     frameDiagramRequirements: {
       minArrowCount: 1,
+      offerDiagramTypes: ['deployment_and_runtime_topology'] as const,
       rejectUnsupportedCarrierIds: true,
     },
   },
