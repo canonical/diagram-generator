@@ -74,7 +74,7 @@
 
 ## Phase 4: Browser-proven verification (the gate)
 
-- [ ] **T040** Finalize `evidence/post-load-mutations.mjs` to assert all SC-001..
+- [x] **T040** Finalize `evidence/post-load-mutations.mjs` to assert all SC-001..
       SC-005 invariants and commit a passing `post-load-mutations-result.json`
       (`ok: true`) after a **fresh** `build:browser` + server restart.
       **Verify**: protocol §0 + §2 all green; `RESULT.md` sign-off (§3) committed.
