@@ -208,13 +208,13 @@ export function inferPreviewStyleFromFields(
   if (resolvedFill === 'BLACK') {
     return 'highlight';
   }
-  if (level === 2 && resolvedFill === 'GREY') {
+  if (resolvedFill === 'GREY' && resolvedStroke !== 'NONE') {
     return 'parent';
   }
   if (level === 3 && resolvedStroke !== 'NONE') {
     return 'section';
   }
-  if (level === 1 && resolvedStroke !== 'NONE') {
+  if (resolvedFill === 'WHITE' && resolvedStroke !== 'NONE') {
     return 'default';
   }
   if (resolvedStroke === 'NONE') {

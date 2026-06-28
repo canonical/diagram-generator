@@ -1,7 +1,7 @@
 # Spec 058: Layer Tree And Inspector Selection Ergonomics
 
 **Feature Branch**: `feat/058-layer-tree-inspector-selection-ergonomics`  
-**Status**: Draft  
+**Status**: Closeout Ready  
 **Created**: 2026-06-27
 
 ## Problem
@@ -33,6 +33,26 @@ contracts for selection ergonomics and effective-variant display.
 
 - `Enter` / `Shift+Enter` to move up/down the layer tree no longer works.
 - The variant field says `unknown` whenever a child box is selected.
+
+## Implementation Notes
+
+- Reproduced tree traversal through the typed `app-stage-binding-runtime ->
+  app-selection-host -> app-shell-panels` path: tree rows rendered click and
+  context-menu handlers only, so focused rows had no `Enter` / `Shift+Enter`
+  traversal contract.
+- Reproduced variant fallback through the typed `app-inspector-display-runtime
+  -> app-inspector-host -> inspector-single-options -> frame-style` path:
+  rendered child boxes with solid visible styling but no authored level/fill/
+  border fields fell back to `annotation`/`unknown` instead of their effective
+  visible variant.
+- Landed typed fixes in `app-shell-panels.ts` (row traversal + roving tab stop)
+  and `frame-style.ts` (rendered-style inference for supported white/grey box
+  variants).
+- Closeout evidence now includes a fixture-backed assertion for unstyled
+  `test-deep-nesting` child boxes and
+  `evidence/layer-tree-inspector-browser-check.mjs`, which dispatches keyboard
+  events in a real browser DOM and verifies `vm_2` shows the default variant
+  with no `Unknown variant` text.
 
 ## Functional Requirements
 

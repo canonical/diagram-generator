@@ -295,6 +295,101 @@ describe('preview selection host helpers', () => {
     expect(deleteCalls).toEqual(['delete']);
   });
 
+  it('moves tree selection up and down from the focused row on Enter and Shift+Enter', () => {
+    const selectCalls: Array<[string, boolean]> = [];
+    const createdTreeItems: Array<{
+      dataset: Record<string, string>;
+      tabIndex?: number;
+      focusCalls: number;
+      click?: (event: { stopPropagation: () => void; shiftKey: boolean }) => void;
+      keydown?: (event: {
+        key: string;
+        shiftKey: boolean;
+        preventDefault: () => void;
+        stopPropagation: () => void;
+      }) => void;
+      focus: () => void;
+    }> = [];
+
+    const ownerDocument = {
+      createElement(tag: string) {
+        const element = {
+          dataset: {} as Record<string, string>,
+          style: {} as Record<string, string>,
+          className: '',
+          textContent: '',
+          tabIndex: -1,
+          focusCalls: 0,
+          addEventListener(type: string, handler: (...args: any[]) => void) {
+            (this as Record<string, unknown>)[type] = handler;
+          },
+          appendChild() {},
+          remove() {},
+          contains() {
+            return false;
+          },
+          focus() {
+            this.focusCalls += 1;
+          },
+        };
+        if (tag === 'div') {
+          createdTreeItems.push(element as unknown as typeof createdTreeItems[number]);
+        }
+        return element;
+      },
+      body: {
+        appendChild() {},
+      },
+      getElementById() {
+        return null;
+      },
+      addEventListener() {},
+      removeEventListener() {},
+    } as unknown as Document;
+
+    const container = {
+      ownerDocument,
+      replaceChildren() {},
+      appendChild() {},
+    } as unknown as HTMLElement;
+
+    expect(renderPreviewTreeSelectionHost({
+      document: ownerDocument,
+      container,
+      nodes: [{ id: 'alpha' }, { id: 'beta' }, { id: 'gamma' }],
+      overrides: {},
+      selectedIds: ['alpha'],
+      selectComponent(cid, additive) {
+        selectCalls.push([cid, additive]);
+      },
+      onDeleteSelection() {},
+    })).toBe(true);
+
+    const preventDefault = vi.fn();
+    const stopPropagation = vi.fn();
+    createdTreeItems[0]?.keydown?.({
+      key: 'Enter',
+      shiftKey: false,
+      preventDefault,
+      stopPropagation,
+    });
+    createdTreeItems[1]?.keydown?.({
+      key: 'Enter',
+      shiftKey: true,
+      preventDefault,
+      stopPropagation,
+    });
+
+    expect(selectCalls).toEqual([
+      ['beta', false],
+      ['alpha', false],
+    ]);
+    expect(createdTreeItems[0]?.tabIndex).toBe(0);
+    expect(createdTreeItems[1]?.tabIndex).toBe(-1);
+    expect(preventDefault).toHaveBeenCalledTimes(2);
+    expect(stopPropagation).toHaveBeenCalledTimes(2);
+  });
+
   it('syncs svg classes, tree selection, resize handles, and inspector state', () => {
     const alphaEl = { classList: { add: vi.fn(), remove: vi.fn() } };
     const staleEl = { classList: { add: vi.fn(), remove: vi.fn() } };

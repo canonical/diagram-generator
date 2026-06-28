@@ -1,0 +1,49 @@
+{
+  "startedAt": "2026-06-28T15:35:03.843Z",
+  "baseUrl": "http://127.0.0.1:8100",
+  "checks": [
+    {
+      "name": "typed-tree-dom-keyboard",
+      "calls": [
+        {
+          "id": "beta",
+          "additive": false,
+          "activeElementId": "beta"
+        },
+        {
+          "id": "alpha",
+          "additive": false,
+          "activeElementId": "alpha"
+        }
+      ],
+      "activeAfterEnter": "beta",
+      "activeAfterShiftEnter": "alpha",
+      "tabIndexes": [
+        {
+          "id": "alpha",
+          "tabIndex": 0
+        },
+        {
+          "id": "beta",
+          "tabIndex": -1
+        },
+        {
+          "id": "gamma",
+          "tabIndex": -1
+        }
+      ],
+      "enterDefaultPrevented": true,
+      "shiftEnterDefaultPrevented": true
+    },
+    {
+      "name": "test-deep-nesting-layer-tree-and-inspector",
+      "selectedNodeId": "vm_2",
+      "activeElementId": "vm_2",
+      "styleSelectValue": "default",
+      "inspectorText": "AlignmentTop LeftSizingWidthHugFillFixedMin WMax WHeightHugFillFixedPositionAutoAbsoluteVariantChild (stroke)Child (stroke)Parent (grey)Section (outline)AnnotationHighlight (black)Stack spacingFrame gap now derives from composition. Use distribute for arrangement, or edit YAML only for true structural exceptions.Violations⚠ x=214.66666666666666 is not on 8px grid⚠ width=190.66666666666666 is not on 8px gridDrag to reorder · Shift+Enter to select parent · W to toggle grid overlay.",
+      "hasUnknownVariant": false
+    }
+  ],
+  "ok": true,
+  "finishedAt": "2026-06-28T15:35:04.309Z"
+}
