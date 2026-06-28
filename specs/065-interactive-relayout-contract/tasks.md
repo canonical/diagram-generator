@@ -60,7 +60,7 @@
       **Verify**: protocol §2 "ELK live resize" via real pointer drag on an
       `elk-layered` doc (SC-003).
 
-- [ ] **T023** Box-type / variant change is appearance-only: it must not commit
+- [x] **T023** Box-type / variant change is appearance-only: it must not commit
       a geometry-changing intent and must not trigger relayout (FR-006).
       **Verify**: protocol §2 "Box-type change" on `support-engineering-flow`:
       node bounds byte-identical, engine unchanged (SC-004).

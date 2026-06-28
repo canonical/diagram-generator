@@ -39,6 +39,41 @@ describe('createPreviewInspectorMutationRuntime', () => {
     expect(renderSelectionInspector).toHaveBeenCalledWith('alpha');
   });
 
+  it('treats section-to-default box type changes as appearance-only', () => {
+    let overrides: Record<string, Record<string, unknown>> = {};
+    const scheduleRelayout = vi.fn();
+    const requestRelayoutNow = vi.fn();
+
+    const runtime = createPreviewInspectorMutationRuntime({
+      captureOverrideEntries: (ids) => Object.fromEntries(ids.map((id) => [id, { ...(overrides[id] || {}) }])),
+      commitOverridePatchAction: vi.fn(),
+      getOverrides: () => overrides,
+      coercedKeys: new Set<string>(),
+      getNode: () => ({ type: 'box', level: 3, fill: 'WHITE', border: 'SOLID' }),
+      snapToGrid: (value) => value,
+      setDirty: vi.fn(),
+      scheduleRelayout,
+      requestRelayoutNow,
+      renderSelectionInspector: vi.fn(),
+      cleanOverride: vi.fn(),
+      getGridInfo: () => null,
+      getWidthUnit: () => 'px',
+      getHeightUnit: () => 'px',
+      baselineStep: 8,
+    });
+
+    runtime.applyStyle('step_problem', 'default');
+
+    expect(overrides.step_problem).toEqual({
+      level: 1,
+      fill: 'WHITE',
+      border: 'SOLID',
+      style: 'default',
+    });
+    expect(scheduleRelayout).not.toHaveBeenCalled();
+    expect(requestRelayoutNow).not.toHaveBeenCalled();
+  });
+
   it('keeps requesting relayout for style changes that alter measured geometry class', () => {
     let overrides: Record<string, Record<string, unknown>> = {};
     const scheduleRelayout = vi.fn();
