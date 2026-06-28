@@ -75,6 +75,17 @@ function endpointOnAnyPerimeter(endpoint, bounds, tolerance = 2.5) {
   });
 }
 
+function endpointOnBoxPerimeter(endpoint, box, tolerance = 2.5) {
+  if (!box) return false;
+  const withinX = endpoint.x >= box.x - tolerance && endpoint.x <= box.x + box.w + tolerance;
+  const withinY = endpoint.y >= box.y - tolerance && endpoint.y <= box.y + box.h + tolerance;
+  const onVertical = withinY
+    && (Math.abs(endpoint.x - box.x) <= tolerance || Math.abs(endpoint.x - (box.x + box.w)) <= tolerance);
+  const onHorizontal = withinX
+    && (Math.abs(endpoint.y - box.y) <= tolerance || Math.abs(endpoint.y - (box.y + box.h)) <= tolerance);
+  return onVertical || onHorizontal;
+}
+
 async function openPreviewPage(browser, slug) {
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   await page.goto(`${base}/view/v3:${slug}`, {
@@ -148,6 +159,17 @@ async function arrowEndpoints(page) {
     }
 
     return groups.map((group) => {
+      const id = group.getAttribute('data-component-id') || '';
+      const edgeMatch = id.startsWith('arrow:edge:')
+        ? id.slice('arrow:edge:'.length)
+        : id;
+      const separatorIndex = edgeMatch.indexOf('->');
+      const sourceId = separatorIndex >= 0
+        ? decodeURIComponent(edgeMatch.slice(0, separatorIndex))
+        : null;
+      const targetId = separatorIndex >= 0
+        ? decodeURIComponent(edgeMatch.slice(separatorIndex + 2).replace(/#\d+$/, ''))
+        : null;
       const lines = Array.from(group.querySelectorAll('line'))
         .filter((line) => line.getAttribute('stroke') !== 'transparent');
       if (lines.length > 0) {
@@ -169,7 +191,9 @@ async function arrowEndpoints(page) {
           }) || target;
         }
         return {
-          id: group.getAttribute('data-component-id'),
+          id,
+          sourceId,
+          targetId,
           source,
           target,
         };
@@ -181,7 +205,9 @@ async function arrowEndpoints(page) {
         const source = path.getPointAtLength(0);
         const target = path.getPointAtLength(length);
         return {
-          id: group.getAttribute('data-component-id'),
+          id,
+          sourceId,
+          targetId,
           source: { x: source.x, y: source.y },
           target: { x: target.x, y: target.y },
         };
@@ -190,6 +216,30 @@ async function arrowEndpoints(page) {
       return null;
     }).filter(Boolean);
   });
+}
+
+async function arrowLineSignatures(page) {
+  return page.locator('#dg-arrow-layer [data-dg-arrow="true"]').evaluateAll((groups) => groups.map((group) => ({
+    id: group.getAttribute('data-component-id'),
+    lines: Array.from(group.querySelectorAll('line'))
+      .filter((line) => line.getAttribute('stroke') !== 'transparent')
+      .map((line) => [
+        line.getAttribute('x1'),
+        line.getAttribute('y1'),
+        line.getAttribute('x2'),
+        line.getAttribute('y2'),
+      ]),
+  })));
+}
+
+function changedArrowLineIds(before, after) {
+  const afterById = new Map(after.map((entry) => [entry.id, entry]));
+  return before
+    .filter((entry) => {
+      const next = afterById.get(entry.id);
+      return next && JSON.stringify(next.lines) !== JSON.stringify(entry.lines);
+    })
+    .map((entry) => entry.id);
 }
 
 async function controlState(page, selector) {
@@ -291,6 +341,7 @@ async function proveDirectionFlip(browser) {
   try {
     await page.click('#nav-tab-layers');
     await page.click('.tree-item[data-node-id="page"]');
+    const verticalBeforeLines = await arrowLineSignatures(page);
     await page.selectOption('select[data-dg-cid="page"][data-dg-prop="direction"]', 'HORIZONTAL');
     await page.waitForFunction(() => {
       const children = Array.from(
@@ -309,6 +360,35 @@ async function proveDirectionFlip(browser) {
     const horizontalChildren = await nodeBounds(
       page,
       '#dg-frame-layer > [data-component-id="page"] > [data-component-id]',
+    );
+    const horizontalLines = await arrowLineSignatures(page);
+    const changedArrowIds = changedArrowLineIds(verticalBeforeLines, horizontalLines);
+    assert(
+      changedArrowIds.length === verticalBeforeLines.length,
+      'all arrow line signatures must change after horizontal direction relayout',
+      {
+        changedArrowIds,
+        beforeCount: verticalBeforeLines.length,
+        afterCount: horizontalLines.length,
+      },
+    );
+    const horizontalBounds = boundsById(await nodeBounds(page));
+    const horizontalEndpoints = await arrowEndpoints(page);
+    const horizontalDetached = horizontalEndpoints.filter((arrow) => (
+      arrow.sourceId && arrow.targetId
+        ? (
+          !endpointOnBoxPerimeter(arrow.source, horizontalBounds.get(arrow.sourceId))
+          || !endpointOnBoxPerimeter(arrow.target, horizontalBounds.get(arrow.targetId))
+        )
+        : (
+          !endpointOnAnyPerimeter(arrow.source, [...horizontalBounds.values()])
+          || !endpointOnAnyPerimeter(arrow.target, [...horizontalBounds.values()])
+        )
+    ));
+    assert(
+      horizontalDetached.length === 0,
+      'horizontal direction relayout must attach arrow endpoints to their own source/target boxes',
+      horizontalDetached,
     );
 
     await page.selectOption('select[data-dg-cid="page"][data-dg-prop="direction"]', 'VERTICAL');
@@ -345,6 +425,7 @@ async function proveDirectionFlip(browser) {
       renderedEngine: await engineOf(page),
       horizontalRootChildSpread: centerSpread(horizontalChildren),
       verticalRootChildSpread: centerSpread(verticalChildren),
+      changedHorizontalArrowCount: changedArrowIds.length,
       arrowCount: endpoints.length,
     };
   } finally {

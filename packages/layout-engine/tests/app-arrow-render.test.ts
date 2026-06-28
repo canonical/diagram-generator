@@ -203,6 +203,50 @@ describe('preview arrow render helpers', () => {
     expect(polygon?.getAttribute('data-orig-points')).toBe('10,5 20,0 10,-5');
   });
 
+  it('patches legacy-rendered arrow groups when routed arrows use canonical preview ids', () => {
+    const ownerDocument = new FakeDocument();
+    const svg = ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    const initialGroup = createPreviewArrowSvgFragment({
+      ownerDocument: ownerDocument as unknown as Document,
+      routedArrows: [{
+        componentId: 'public_repo->global_server',
+        points: [[396, 64], [396, 88]],
+        start: [396, 64],
+        end: [396, 88],
+        waypoints: [],
+        color: '#E95420',
+      } as any],
+      boundsMap: {},
+      headLen: 10,
+      headHalf: 5,
+    }).firstChild as FakeElement;
+    svg.appendChild(initialGroup);
+
+    patchPreviewArrowSvg({
+      svg: svg as unknown as ParentNode,
+      routedArrows: [{
+        componentId: 'arrow:edge:public_repo->global_server',
+        legacyComponentId: 'public_repo->global_server',
+        points: [[378.67, 144], [402.67, 144]],
+        start: [378.67, 144],
+        end: [402.67, 144],
+        waypoints: [],
+        color: '#E95420',
+      } as any],
+      boundsMap: {},
+      headLen: 10,
+      headHalf: 5,
+    });
+
+    const line = initialGroup.querySelectorAll('line')[0];
+    expect(line?.getAttribute('x1')).toBe('378.7');
+    expect(line?.getAttribute('y1')).toBe('144.0');
+    expect(line?.getAttribute('x2')).toBe('392.7');
+    expect(line?.getAttribute('y2')).toBe('144.0');
+    expect(line?.getAttribute('data-orig-x1')).toBe('378.7');
+    expect(line?.getAttribute('data-orig-y1')).toBe('144.0');
+  });
+
   it('renders authored arrow labels through the shared arrow plan while keeping preview hit lines', () => {
     const ownerDocument = new FakeDocument();
 
