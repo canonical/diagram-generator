@@ -84,7 +84,6 @@ export const previewEngines = Object.freeze({
     ELK_RADIAL_PARAM_SPECS,
     ELK_RECTPACKING_PARAM_SPECS,
     elkParamGroups,
-    renderPreviewElkDebugOverlay: previewEngineRuntime.renderPreviewElkDebugOverlay,
     renderPreviewElkRawView: previewEngineRuntime.renderPreviewElkRawView,
     ensurePreviewEngineShellController: previewShellRuntime.ensurePreviewEngineShellController,
     ensurePreviewElkPreviewController: previewShellRuntime.ensurePreviewElkPreviewController,

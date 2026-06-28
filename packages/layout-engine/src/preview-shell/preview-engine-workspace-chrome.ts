@@ -2,10 +2,15 @@ import { getPreviewEngineByLayoutKey } from '../preview-engine/registry.js';
 import {
   createPreviewEngineWorkspaceState,
   persistPreviewEngineWorkspaceActiveEngine,
-  resolveActivePreviewLayoutEngine,
   setPreviewEngineWorkspaceActiveEngine,
   type PreviewEngineWorkspaceState,
 } from './preview-engine-workspace.js';
+import {
+  commitPreviewRenderIntentToWindow,
+  resolvePreviewRenderIntentLayoutEngine,
+  type PreviewRenderIntent,
+  type PreviewRenderIntentFrameTree,
+} from './preview-render-intent.js';
 
 export interface PreviewEngineWorkspaceChromeConfig {
   slug?: string | null;
@@ -24,6 +29,7 @@ export interface PreviewEngineWorkspaceRuntimeState {
 
 export type PreviewEngineWorkspaceRuntimeWindow = Window & typeof globalThis & {
   __DG_CONFIG?: PreviewEngineWorkspaceChromeConfig | null;
+  __DG_previewRenderIntent?: PreviewRenderIntent | null;
   __DG_previewEngineWorkspaceState?: PreviewEngineWorkspaceRuntimeState | null;
   __DG_previewBridgeHostRuntime?: {
     getFrameTreeJson?: (() => unknown) | null;
@@ -90,6 +96,11 @@ function setRuntimeWorkspaceState(
   config.persisted_layout_engine = workspace.persistedEngineId;
   config.layout_engine = workspace.activeEngineId ?? workspace.persistedEngineId ?? null;
   previewWindow.__DG_CONFIG = config;
+  commitPreviewRenderIntentToWindow(previewWindow, {
+    activeEngineId: workspace.activeEngineId,
+    persistedEngineId: workspace.persistedEngineId,
+    fallbackEngineId: workspace.activeEngineId ?? workspace.persistedEngineId ?? null,
+  });
   previewWindow.__DG_previewEngineWorkspaceState = { workspace };
   return workspace;
 }
@@ -115,8 +126,11 @@ function readFrameTreeLayoutEngine(
     previewWindow.getFrameTreeJson?.()
     ?? previewWindow.__DG_previewBridgeHostRuntime?.getFrameTreeJson?.()
     ?? null
-  ) as { layoutEngine?: string | null } | null;
-  return resolveActivePreviewLayoutEngine({ frameTreeJson });
+  ) as PreviewRenderIntentFrameTree | null;
+  return resolvePreviewRenderIntentLayoutEngine({
+    intent: previewWindow.__DG_previewRenderIntent ?? null,
+    frameTreeJson,
+  });
 }
 
 function commitFrameTreeLayoutEngine(
@@ -126,7 +140,12 @@ function commitFrameTreeLayoutEngine(
   const setter = previewWindow.setFrameTreeLayoutEngine
     ?? previewWindow.__DG_previewBridgeHostRuntime?.setFrameTreeLayoutEngine
     ?? null;
-  return typeof setter === 'function' ? setter(layoutEngine) : null;
+  const committed = typeof setter === 'function' ? setter(layoutEngine) : null;
+  commitPreviewRenderIntentToWindow(previewWindow, {
+    current: previewWindow.__DG_previewRenderIntent ?? null,
+    activeEngineId: committed,
+  });
+  return committed;
 }
 
 export function hasUnsavedPreviewEngineWorkspaceChange(
@@ -299,6 +318,7 @@ export function initPreviewEngineWorkspaceChrome(
   };
   const switchTo = async (engineId: string) => {
     const nextEngineId = String(engineId || '').trim();
+    workspace = getPreviewEngineWorkspaceRuntimeState(options.previewWindow) ?? workspace;
     if (!nextEngineId || nextEngineId === workspace.activeEngineId) {
       return;
     }

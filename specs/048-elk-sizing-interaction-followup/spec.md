@@ -4,7 +4,12 @@
 
 **Created**: 2026-06-22
 
-**Status**: Closeout Ready
+**Status**: REOPENED 2026-06-28 — ELK live-resize "relayout failed" is a live P0
+the author still reports; no real-gesture proof exists. The resize fix lands via
+spec 065 (`PreviewRenderIntent` + engine-backed resize lane). Closing gate:
+[`specs/065-interactive-relayout-contract/verification-protocol.md`](../065-interactive-relayout-contract/verification-protocol.md).
+See [`docs/spec-reviews/CLINE-VERDICT-2026-06-28.md`](../../docs/spec-reviews/CLINE-VERDICT-2026-06-28.md).
+(was: Closeout Ready)
 
 **Priority**: Highest active ELK/product follow-up
 

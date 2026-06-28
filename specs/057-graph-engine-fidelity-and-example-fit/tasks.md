@@ -64,7 +64,12 @@
       (give FR-002 teeth).
       **Verify**: registry/exposure test.
 
-- [x] **T044** Browser re-verification of the two fixtures recorded under
+> 2026-06-28 REOPENED (authority verdict): T040–T043 real-layout probes may
+> stand, but T044 browser re-verification must be a **real UI gesture** under
+> spec 065 protocol §2, not a `layoutPreviewFrameDiagramForEngine` probe. Switch
+> engines and change box type via real Playwright clicks; assert mongo AZ-beside-
+> VM geometry and box-type-no-relayout (bounds byte-identical). Depends on 065.
+- [ ] **T044** Browser re-verification of the two fixtures recorded under
       `evidence/` (per `docs/spec-reviews/README.md` §4). Depends on spec 060
       having landed engine-intent threading.
 

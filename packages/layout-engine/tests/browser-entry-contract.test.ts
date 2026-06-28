@@ -172,7 +172,6 @@ import {
   updatePreviewOverrideSummaryHost,
 } from '../src/preview-shell/index.js';
 import {
-  renderPreviewElkDebugOverlay,
   renderPreviewElkRawView,
 } from '../src/preview-engine/index.js';
 import { routeArrows } from '../src/arrow-routing.js';
@@ -399,7 +398,6 @@ describe('browser entry contract pilot', () => {
     expect(previewEngines.elk.ELK_LAYERED_PARAM_SPECS).toBe(ELK_LAYERED_PARAM_SPECS);
     expect(previewEngines.elk.elkParamGroups).toBe(elkParamGroups);
     expect(previewEngines.elk.ensurePreviewEngineShellController).toBeTypeOf('function');
-    expect(previewEngines.elk.renderPreviewElkDebugOverlay).toBe(renderPreviewElkDebugOverlay);
     expect(previewEngines.elk.renderPreviewElkRawView).toBe(renderPreviewElkRawView);
     expect(previewEngines.force.FORCE_PREVIEW_PARAM_SPECS).toBe(FORCE_PREVIEW_PARAM_SPECS);
     expect(previewEngines.force.applyForceNodePatch).toBe(applyForceNodePatch);

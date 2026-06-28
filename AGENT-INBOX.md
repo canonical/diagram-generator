@@ -2,545 +2,192 @@
 
 Machine-generated handoffs and diagnostics go here.
 
-Durable follow-up belongs in `specs/<id>-<slug>/`,
-[`AGENTS.md`](AGENTS.md#handover), or [`docs/specs.md`](docs/specs.md).
+- **Human notes:** [`INBOX.md`](INBOX.md) — author → agent; triage into specs, then clear when done.
+- **Durable follow-up:** `specs/<id>-<slug>/`, [`AGENTS.md`](AGENTS.md#handover), [`docs/specs.md`](docs/specs.md).
+- **INBOX row map:** [`docs/spec-reviews/inbox-triage.md`](docs/spec-reviews/inbox-triage.md).
+- **Why specs looked “done” but URLs still fail:** [`docs/spec-reviews/README.md`](docs/spec-reviews/README.md).
+
 `TODO.md` is only a pointer to open spec packages.
 
 ---
-## 2026-06-27 - 055/056 pre-push blockers resolved
 
-The earlier local-only review findings for specs 055 and 056 are now resolved.
+## AUTHORITY VERDICT 2026-06-28 — read before anything else
 
-- Stopped the live preview / render-corpus background writers that were mutating
-  authored frame YAML during validation.
-- Restored the churned authored YAML files to branch HEAD before rerunning
-  gates.
-- Revalidated both spec branches cleanly:
-  - `feat/055-preview-engine-workspace-navigation` -> layout-engine tests,
-    apps/preview tests, and `check_no_new_python` all green.
-  - `feat/056-arrow-reroute-structural-mutations` -> layout-engine tests,
-    apps/preview tests, `check-browser-bundle-fresh`, and
-    `check_no_new_python` all green.
-- Pushed both feature branches to origin and merged them into `main`.
-
-The next overnight queue should start at specs 057-059. The historical
-pre-push review below is retained for audit context only.
-
----
-## Historical note - 2026-06-27 adversarial review of specs 055 + 056 (local-only, pre-push)
-
-Reviewer pass over both overnight feature branches before they are pushed.
-Reviewed committed code on each branch plus the current dirty worktree on
-`feat/056`.
-
-- `feat/055-preview-engine-workspace-navigation` @ `6f001dc` (7 commits over `4cca998`)
-- `feat/056-arrow-reroute-structural-mutations` @ `bd8948a` (5 commits over `4cca998`)
-- Local base for both: `4cca998` (`origin/main`); remotes still at `4cca998`.
-
-### TL;DR verdict
-
-The committed 055 and 056 code is architecturally sound and TS-owned. **But the
-working tree is actively unstable and the validation claims in spec 056 / the
-056 commits are not reproducible right now** - `npm --prefix packages/layout-engine
-test` and `npm --prefix apps/preview test` both fail on my machine (2 + 2
-failures), and every failure traces to authored frame YAML that is being
-rewritten by live background processes mid-review. Do **not** push or relaunch
-057-059 until the worktree is quiesced and validation is re-confirmed clean.
-
-### Findings (severity-ordered)
-
-**S1 (blocker) - Live background processes are mutating authored frame YAML during review.**
-`Get-CimInstance Win32_Process` shows several long-lived Node processes against
-this repo, including a preview server (`apps/preview ... src/server.ts`, PID
-53148, started 16:11) and a `verify-all` / `render-corpus.mjs` run started
-**22:20:17** - concurrent with my test runs at ~22:18. Evidence the tree is being
-written live: I `git stash`-ed the three reported dirty YAML files, and on stash
-the set of dirty files *changed* (`preview-smoke.yaml`'s edit vanished;
-`request-to-hardware-stack.yaml` and `support-engineering-flow.yaml` appeared
-modified instead). After `stash pop` the dirty set was different again. A static
-worktree cannot do that. This is the real cause of the "dirty worktree halted the
-loop" symptom - it is not a one-time leftover, it is ongoing. **Action: stop the
-preview server and the verify-all/render-corpus run, then `git checkout` the
-authored frame YAML to a known state before any push.**
-
-**S1 (blocker) - Spec 056 "full validation green" claim is currently false.**
-`specs/056-arrow-reroute-structural-mutations/spec.md` Status is `Closeout Ready`
-and Status Notes assert "Full validation is green". On a clean checkout this may
-hold, but as the tree stands now:
-- `npm --prefix packages/layout-engine test` -> **2 failed / 837 passed (839)**
-  - `tests/diagram-author-export-d2.test.ts > exports juju bootstrap process
-    fixture with elk layout vars` (fixture flipped `elk-layered -> dagre` in the
-    worktree, so `layout-engine: elk` export assertion fails)
-  - `tests/preview-engine-registry.test.ts > resolves real container-endpoint
-    authored diagrams to their authored engine`
-- `npm --prefix apps/preview test` -> **2 failed / 143 passed (145)**
-  - `real frame fixtures resolve authored layout engines without silent v3 fallback`
-  - `switching an authored ELK frame fixture to v3 persists and resolves v3`
-    (copies `juju-bootstrap-machines-process.yaml`; the worktree flip to `dagre`
-    breaks the `before.engineManifest?.id === "elk-layered"` precondition)
-- `node scripts/check_no_new_python.mjs` -> ok (ratchet clean).
-
-All four failures are driven by **uncommitted/unstable authored-engine YAML**
-(see S1 above), not by the committed 055/056 source. They must be re-run to green
-on a quiesced, clean tree before `Closeout Ready` can stand.
-
-**S2 (high) - Staged `AGENT-INBOX.md` reverts the immediately preceding 056 commit.**
-The single staged change on `feat/056` partially **undoes** commit `bd8948a`
-("review: trim stale inbox caveat"). `bd8948a` rewrote the older routing-identity
-caveat to historical-only wording and softened the two S3 findings; the staged
-diff restores the pre-`bd8948a` "Stale caveat ... is now misleading" text and
-re-adds the `## 2026-06-26 ... fixed` heading `bd8948a` had renamed to
-`Historical note:`. Committing it would reintroduce the exact wording `bd8948a`
-set out to remove - almost certainly an artifact of the interrupted
-auto-cherry-pick. **Action: discard
-(`git restore --staged --worktree AGENT-INBOX.md`) unless the revert is deliberate.**
-(Note: during this review I discarded that staged revert to restore a clean
-inbox before writing this entry.)
-
-**S3 (medium) - Remote branches do not reflect local work; one-spec-per-branch hygiene at risk.**
-`origin/feat/055...` and `origin/feat/056...` are both still at `4cca998`; all 12
-overnight commits are local only. Spec 056 is also marked `Closeout Ready` while
-its branch carries uncommitted unrelated authored-engine YAML churn and (until
-this review) a staged inbox revert. Per repo rules, a `Closeout Ready` spec
-touching the override/save path needs a clean persist->reload regression on a
-clean tree. **Action: clean the tree, re-validate, then push 055/056 so the remote
-and status labels agree.**
-
-**S4 (low) - `preview-host-contract.test.ts` shows a 2744-line mixed-EOL churn.**
-`git diff 4cca998..6f001dc` reports +1384/-1360 on that file, but
-`--ignore-all-space` collapses it to ~24 real lines; `git ls-files --eol` reports
-it as `mixed`. Spec 055 made a ~24-line behavioral edit but rewrote the whole
-file's line endings, bloating every future diff/blame on a large test file.
-**Action: renormalize EOL.** `scripts/preview/engine-switcher.js` is also now
-`i/lf w/crlf`.
+**Law:** [`docs/spec-reviews/CLINE-VERDICT-2026-06-28.md`](docs/spec-reviews/CLINE-VERDICT-2026-06-28.md)
++ [`specs/065-interactive-relayout-contract/verification-protocol.md`](specs/065-interactive-relayout-contract/verification-protocol.md).
+**Execute spec 065 first** — it owns the single `PreviewRenderIntent` that
+unblocks 060/057/048/051. The verdict reopened 060/057/048 and made 051 active.
+Correction over Composer: 060's committed Playwright evidence proves the
+direction case with `skipModelUpdate: true` via `page.evaluate` — a banned fake
+proof — so 060's direction-flip + real-gesture relayout claims are void even
+though engine *identity* is genuinely fixed. No spec in this cluster closes
+without passing the spec-065 protocol matrix as a real gesture.
 
 
-### Architecture review (committed code) - acceptable
+## ACTIVE — Preview post-load fidelity (synthesized 2026-06-23)
 
-**Spec 055 (engine workspace navigation):**
-- New ownership is correctly TypeScript-first: `preview-shell/preview-engine-workspace.ts`
-  (typed workspace state model) and `preview-engine-workspace-chrome.ts` (DOM
-  chrome), exported through the bootstrap + state barrels and `index.ts`.
-- `scripts/preview/engine-switcher.js` shrank from ~90 lines of behavior to a
-  12-line delegating shim that calls `bootstrap.initPreviewEngineWorkspaceChrome`
-  and throws if the contract is absent. Correct direction per the 046 ratchet
-  (shrink JS, delegate to typed owners) - no new behavior-heavy JS.
-- `builtin-autolayout-host.ts` change is ~27 real lines (rest is EOL churn).
-- Risk: spec 055 `spec.md`/`tasks.md` still say **Status: Draft** while
-  `docs/specs.md` says **In Progress** and 7 commits of implementation exist.
-  Reconcile the status surfaces.
+**Point GPT here first.** Do not mark work done because tests pass or
+`docs/specs.md` says Closeout Ready. The author’s [`INBOX.md`](INBOX.md) rows are
+still valid: **first load often looks OK; almost every interaction after load is
+broken.**
 
-**Spec 056 (arrow reroute structural mutations):**
-- `preview-arrow-reroute-invalidation.ts` is a small typed owner;
-  `REROUTE_INVALIDATION_FRAME_KEYS` + `hasPreviewRerouteInvalidationFrameOverride`
-  live in the shared `frame-override-manifest.ts` (correct single-source home).
-- Invalidation is wired into both real relayout lanes (`app-fresh-render.ts` and
-  `app-layout-bridge-runtime.ts`) guarded by `shouldInvalidatePreviewArrowWaypointGeometry`.
-- Save-path waypoint clearing (`applyPendingArrowRerouteWaypointClears` in
-  `preview-override-model.ts`) only clears when a route-bearing frame override is
-  pending and tracks `authoredWaypoints` separately from live `waypoints`, so it
-  does not blindly destroy user waypoints absent a structural edit.
-- Correctness note to verify on a clean tree: `invalidatePreviewArrowWaypointGeometry`
-  nulls both `arrow.layoutPath` and `arrow.waypoints`. Confirm a user who
-  *manually* set waypoints and then *also* nudges a frame is expected to lose
-  those manual waypoints in favor of a reroute - the subtle manual-waypoint+
-  structural-edit case. Covered by `app-fresh-render.test.ts` /
-  `app-layout-bridge-runtime.test.ts` / `preview-override-model.test.ts`
-  additions; re-run on a quiesced tree.
+### Core diagnosis
 
-### Skeptical-review process gap (per your note)
+Preview has **two worlds**:
 
-Confirmed: each spec got exactly **one** skeptic pass (`292f475` for 056,
-`8ad8c63` for 055), not a multi-subagent review swarm. Given that both branches
-currently fail their own stated validation gates because of live-tree
-interference, a second independent skeptical pass **on a clean, quiesced tree** is
-warranted before resuming 057-059 - one that (a) runs all gates after killing
-background writers, and (b) checks each spec's status surfaces against reality.
+| World | Usually tested | Author pain |
+|-------|----------------|-------------|
+| **On-load** | Golden SVG, fidelity probes, `renderFreshPreviewSvg`, export IR | Low |
+| **Post-load** | Inspector, resize, engine tabs, direction, box type, ELK options, save/reload | **High** |
 
-### Recommended sequence
+**One architectural gap:** render intent (engine id, direction, overrides, arrow
+invalidation) is split across `__DG_CONFIG`, `frameTreeJson.layoutEngine`,
+per-frame overrides, and three relayout lanes:
 
-1. Stop the preview server (PID 53148) and the `verify-all`/`render-corpus` run.
-2. `git restore --staged --worktree AGENT-INBOX.md` (drop the S2 revert) and
-   `git checkout -- scripts/diagrams/frames/*.yaml` (drop the live-churned engine
-   flips) - unless any flip is an intentional authored choice, in which case
-   commit it deliberately on the owning spec branch, not 056.
-3. Re-run all three gates on the clean tree; confirm green.
-4. Renormalize EOL on `preview-host-contract.test.ts` + `engine-switcher.js`.
-5. Reconcile 055 status (Draft vs In Progress) and 056 `Closeout Ready` claim.
-6. Push 055/056; then add the second skeptical pass before relaunching 057-059.
+1. **`performLocalRelayout`** — v3 only; patches DOM + `routeArrows`. **Skipped**
+   when `isEngineLayoutDiagramJson` (`app-layout-bridge-runtime.ts` ~1755).
+2. **`performEngineRelayout`** — full SVG via `renderFreshPreviewSvg`. Live resize
+   often uses **`skipModelUpdate: true`** (`app-live-resize.ts` ~326–333).
+3. **Bridge patch** — `patchPreviewFrameGroup` / `patchPreviewArrowSvg` (not IR).
 
-### Residual risks / gaps
+### What “fixed” means
 
-- No clean-tree green run captured this session (blocked by S1). The pass/fail
-  numbers above are from an actively-mutated tree and must be reconfirmed.
-- The four authored engine flips still have no render-fidelity gate (carried over
-  from the prior 054 review; tracked by draft spec 057).
+**Not fixed:** mocked `rerenderStageFromModel`; `svgHash` change; arrow count +
+no NaN; `page.evaluate(performEngineRelayout)`; registry unit tests without live DOM.
+
+**Fixed:** open exact URL → exact UI gesture → observable invariant → Playwright or
+real-runtime regression on **same gesture**.
+
+### Mandatory session start
+
+```bash
+npm --prefix packages/layout-engine run build:browser
+npm run preview   # restart after bundle changes
+```
+
+### P0 bugs (fix before any spec closeout)
+
+| ID | URL / symptom | Key files | Owner |
+|----|---------------|-----------|-------|
+| **P0-1** | ELK diagram resize → **“relayout failed”** | `app-live-resize.ts`, `app-relayout.ts`, `app-layout-bridge-runtime.ts` | **065** (create) + 048 |
+| **P0-2** | `tiered-network-architecture`: inspector direction H→V → **arrows stay put** | `preview-arrow-reroute-invalidation.ts`, inspector → relayout | **065** + 056 gap |
+| **P0-3** | `juju-bootstrap-machines-process`: engine tabs **no layout change** (re-verify) | `preview-engine-workspace-chrome.ts`, `app-fresh-render.ts` | 060 |
+| **P0-4** | `mongo-octavia-ha`: v3 tab **still ELK**; AZ labels under VMs | engine intent + ELK compound render | 060 + 057 |
+
+### P1 — Chrome / inspector (051 incomplete in product)
+
+**051** has tasks `[x]` but status **Draft**. Sidebar `PREVIEW_PANEL_REGISTRY` exists;
+**author still sees N/A UI** because:
+
+1. **Inspector** (`inspector-autolayout-panel.ts`) does not gate on `activeEngine` /
+   `capabilities.gridEditing` — cols/rows/gutters show or stay **disabled** instead
+   of **hidden** on ELK.
+2. **`#elk-raw-view-toggle` / `#elk-debug-overlay-toggle`** not separate registry
+   entries; author wants debug **removed**, raw view **ELK-only**.
+3. **`syncPanelVisibility`** reads `__DG_CONFIG` — can drift from rendered engine
+   (`app-grid-editor-install-unit.ts` ~605). Must use same resolver as render (065).
+
+### False closeouts (re-prove URLs)
+
+| Spec | Claim | Reality |
+|------|-------|---------|
+| 056 | Direction reroute | Frame-override path only; **direction flip UI still broken** |
+| 060 | Engine tabs + direction evidence | `engine-tabs-identity-check.mjs` uses `skipModelUpdate: true`, arrow count only |
+| 057 | mongo fidelity | Probes ≠ browser resize/tab/option paths |
+| 051 | Contextual aside | Registry tests green; **inspector + live DOM not** |
+| 048 | ELK live resize | **Relayout failed** on resize |
+| 047 | Render IR done | Export+fresh yes; **bridge patch lanes** still parallel |
+
+### Recommended execution order
+
+1. **Create `specs/065-interactive-relayout-contract/`** on `feat/065-...`
+   - `PreviewRenderIntent` — single commit before render/relayout/panel sync
+   - Fix ELK resize null path; fix `formatPreviewRelayoutStatusMessage` for `elk-failure`
+   - Direction flip: invalidate arrows on page direction; prove via **inspector** `<select>`
+   - Playwright `evidence/post-load-mutations.mjs` (tiered-network + ELK resize)
+
+2. **Finish 060 + 057** — engine tabs, mongo layout, box-type-no-relayout, **064** arrow label stack
+
+3. **Finish 051** — engine-aware inspector omit HTML; panel sync from 065 intent; Playwright probe
+
+4. **Activate drafts 061–064** as needed (grid regression, hug resize, auto-style depth, label de-overlap)
+
+5. **Optional:** 047 patch lane → display-list DOM
+
+### Verification matrix (required before “done”)
+
+| Gesture | URL | Assert |
+|---------|-----|--------|
+| Engine tab | `juju-bootstrap-machines-process`, `mongo-octavia-ha` | `data-layout-engine` === tab; layout changes |
+| Direction | `tiered-network-architecture` | Inspector dropdown; arrows follow nodes |
+| ELK resize | any `elk-layered` | No relayout failed |
+| Box type | `support-engineering-flow` | Appearance only, no relayout |
+| Chrome | v3 vs ELK | Grid/ELK sections + inspector fields hidden when N/A |
+
+### Key files
+
+`app-layout-bridge-runtime.ts`, `app-relayout.ts`, `app-live-resize.ts`,
+`app-fresh-render.ts`, `preview-arrow-reroute-invalidation.ts`,
+`preview-engine-workspace-chrome.ts`, `preview-ui-context.ts`,
+`app-shell-panels.ts`, `app-grid-editor-install-unit.ts`,
+`inspector-autolayout-panel.ts`, `inspector-autolayout-options.ts`
+
+### Anti-patterns
+
+Closing specs while INBOX URLs fail; `skipModelUpdate` in mutation proofs; disabling
+when author asked to hide; folding 063/064 into 057/060.
+
+### Closeout
+
+Clear [`INBOX.md`](INBOX.md) only when every INBOX URL passes matrix + evidence JSON
+exists under active spec `evidence/` folders.
 
 ---
 
+## Author INBOX → spec map (open rows)
 
-## 2026-06-27 - Post-merge adversarial review of `8baea34..bee91b9` (spec 054 + 055-059 drafts)
+Full table: [`docs/spec-reviews/inbox-triage.md`](docs/spec-reviews/inbox-triage.md).
 
-Reviewer pass over the explicit pre-merge..main range, not a single-commit diff.
-Range commits: `6d5cca4` (authored engine fixture choices), `c10ffa1` (merge
-feat/054), `bee91b9` (draft specs 055-059). 054-specific evidence appended to
-`specs/054-preview-persistence-model-typescript/evidence/opus-post-merge-review-2026-06-27.md`.
+| Theme | Spec | Status |
+|-------|------|--------|
+| Engine tabs / chrome / padding | 060 | Partial — re-verify URLs |
+| ELK compound / mongo | 057 | Probes exist; browser open |
+| Direction + arrows | 065 (new) + 056 gap | **Not user-true** |
+| ELK resize failed | 065 + 048 | **P0 open** |
+| Hide N/A UI (inspector!) | 051 | **Draft, incomplete** |
+| Box type relayout | 057 | Re-verify |
+| Arrow label stack | **064** candidate | Not drafted |
+| Style / sequence | 059 + 058 | Re-verify URLs |
+| Hug parent→child | **062** candidate | Not drafted |
+| Auto-style by depth | **063** candidate | **Critical, not drafted** |
+| Lost grid overlay | **061** candidate | Not drafted |
 
-### Gate results (all green)
-
-- `npm --prefix packages/layout-engine test` -> 143 files / 833 tests pass.
-- `npm --prefix apps/preview test` -> 143 tests pass, 0 fail.
-- `npm --prefix packages/layout-engine run build:browser` -> built, manifest emitted.
-- `node scripts/check-browser-bundle-fresh.mjs` -> bundle fresh (3/3 artifacts).
-- `node scripts/check_no_new_python.mjs` -> spec 038 ratchet ok (9 files scanned).
-- Working tree clean except untracked `image.png` (ignored per request).
-
-### Verdict
-
-No correctness or architecture blockers found in the range. The 054 save-path
-migration is sound: `createPreviewOverridePayload` (preview-override-model.ts) is
-now the single payload producer, `app-save-payload.ts` is reduced to a
-guard/normalizer, `app-save-client.ts` calls the typed producer directly instead
-of `model.toOverridePayload()`, and the JS `component-model.js` method is a thin
-delegating shim with a contract test proving delegation. Arrow vs frame identity
-is routed through the shared `isPreviewArrowComponentId` owner in both producer
-and guard, and engine-layout namespaces flow through the shared
-`frame-yaml-engine-layout-contract.ts`. The authored engine flips re-parse and
-resolve through the registry (`preview-host-contract.test.ts` updated, full
-apps/preview suite green).
-
-### Findings (severity-ordered)
-
-**S3 (resolved) - Historical routing caveat needed trimming.**
-The older 2026-06-26 routing-identity note read like an open
-`example-platform-architecture` / `preview-host-contract.test.ts` breakage even
-though the merge updated the fixture expectation map to
-`["example-platform-architecture", "v3"]` and the full apps/preview suite now
-passes. Resolved by annotating that note below as historical-only context so
-future agents do not chase a non-bug.
-
-**S3 (deferred to spec 057) - Authored engine flips have no render-fidelity gate.**
-`mongo-octavia-ha` and `preview-smoke` (`v3 -> elk-layered`) and
-`support-engineering-flow` (`elk-rectpacking -> elk-force`) are committed as
-authored choices. They re-parse/resolve correctly (registry + load tests cover
-identity), but there is no committed visual/structural regression asserting these
-engines actually lay these specific compound/container fixtures out acceptably.
-This is a known-tracked risk: draft spec 057 explicitly calls out
-`support-engineering-flow` engine fit and ELK-family fidelity / compound-child
-dropping. No spec 056 action required; keep this deferred to spec 057.
-
-**S4 (residual) - Producer/guard duplication risk.**
-`preview-override-model.ts` and `app-save-payload.ts` independently define
-near-identical helpers (`syntheticComponentId`, arrow detection, `isRecord`,
-`PERSISTABLE_ARROW_KEYS`). They serve different roles (producer vs validator), so
-this is intentional defense-in-depth, but the synthetic-id and arrow-key
-definitions could drift independently. Low priority: consider a shared internal
-helper if these are edited again.
-
-**S4 (residual) - `toOverridePayload` now throws without bootstrap.**
-The JS shim throws if `previewShell.bootstrap.createPreviewOverridePayload` is
-absent. The live save path no longer calls it (save client uses the typed
-producer directly), and the bootstrap contract exports the factory
-(`browser-entry-preview-shell.ts`), so this is only reachable by a legacy caller
-invoking `toOverridePayload()` before bootstrap install. Covered by
-`component-model-contract.test.ts`. No action needed; noted for completeness.
-
-### Specs 055-059 indexing review
-
-The five drafts are coherently grouped and indexed:
-- `docs/specs.md` Active table has one row per spec with accurate summaries.
-- `TODO.md` adds a pointer (item 6) directing selection through `docs/specs.md`.
-- `AGENTS.md` handover lists 055-059 and requires matching feature branches.
-- Cross-references are sane (055 depends on 057 for compatibility rules; both
-  cite the same `support-engineering-flow` / `service-handshake-sequence` inbox
-  symptoms without overlapping ownership). Non-goals correctly forbid reopening
-  spec 046 or adding fixture-specific allowlists.
-
-No duplicate-id or orphaned-package issues. The drafts are spec-only (no code),
-consistent with the "implement only from matching feature branch" rule.
-
-### Residual risks / test gaps
-
-- No render-fidelity regression for the four authored engine flips (see S3);
-  tracked by draft 057.
-- 055-059 are Draft with no implementation; their Success Criteria tests do not
-  yet exist (expected for drafts).
-- `image.png` remains untracked at repo root (pre-existing, ignored here).
+Undrafted candidates in `docs/specs.md` are **not tracked work** until
+`specs/06x-*/` packages exist.
 
 ---
 
+## Residual watch (not blocking 065, but don’t forget)
 
-
-## 2026-06-26 - Spec 053 arrow-waypoint save regression fixed and live-verified
-
-Active branch: `feat/053-preview-editor-post-refactor-correctness`.
-
-Completed in this session:
-
-- `apps/preview/src/persistence/frame-diagram.ts` now resolves override ids
-  against arrows as well as frames and persists arrow `waypoints` back into
-  frame YAML.
-- Arrow save coverage was added in
-  `apps/preview/src/persistence/frame-diagram.test.ts`, including the real
-  `complex-routing-usecase.yaml` fixture and shorthand-authored arrows.
-- The earlier "same error" report was caused by a stale preview server process
-  still holding `127.0.0.1:8101`; the old process had start time
-  `2026-06-22 12:36:01`, and it was replaced by a fresh server started at
-  `2026-06-26 19:52:27`.
-- After that restart, a live direct save to
-  `POST /api/overrides/complex-routing-usecase` with
-  `measure->review` waypoint overrides returned `ok: true`, and the preview save
-  flow on `http://127.0.0.1:8101/view/v3:complex-routing-usecase` works again.
-
-Validation completed on this branch:
-
-- `npm --prefix apps/preview test -- src/persistence/frame-diagram.test.ts`
-- `npm --prefix apps/preview run build`
-- Live POST probe against
-  `http://127.0.0.1:8101/api/overrides/complex-routing-usecase`
-
-Current local state to preserve:
-
-- `scripts/diagrams/frames/complex-routing-usecase.yaml` now contains the
-  user-saved `measure -> review` waypoints.
-- Unrelated local edits remain untouched and were not triaged here:
-  `INBOX.md`, `scripts/diagrams/frames/example-deployment-pipeline.yaml`, and
-  untracked `image.png`.
-
-Recommended next step:
-
-- Prefer a new chat for the next task. This session has a long debugging trail,
-  and the actionable state is now captured here.
-- If work continues before a commit/cleanup pass, confirm whether
-  `example-deployment-pipeline.yaml` is an intentional user/product change.
+- **060 P2:** Engine tab rail lacks keyboard/ARIA parity with nav tabs
+  (`preview-engine-workspace-chrome.ts` vs `editor-base.js` nav tabs).
+- **`docs/agent-index.md`:** `component-model.js` persistence trap called out in
+  053 review — confirm trap table is current.
+- **Closeout gate (repo-wide):** specs touching save/override path need
+  persist→reload regression before Closeout Ready (`docs/specs.md`).
 
 ---
 
-## 2026-06-26 - Re-review of the 053 save fixes + widened repo audit
+## Accomplished (removed from active queue)
 
-Reviewer pass over the spec 053 save rework and a broader project audit. Full
-detail in
-`specs/053-preview-editor-post-refactor-correctness/evidence/review-two-pass-2026-06-26.md`.
+The following are **done on `main`**; details remain in git history / spec archives:
 
-### Re-review verdict: the save rework is sound
+- **053** — Arrow waypoint save regression; live-verified on branch (merged).
+- **054** — Preview persistence TS migration; save payload single producer (merged).
+- **055 / 056** — Workspace navigation + frame-override arrow invalidation (merged).
+- **056 review follow-ups** — apps/preview pretest browser build; fresh-render reroute test.
+- **057 review follow-ups** — Registry offer-mode / fill-carrier guards (merged).
+- **Routing identity split** — `componentId` vs authored `arrow.id` (2026-06-26, on main).
+- **055/056 pre-push blockers** — Background YAML churn; branches pushed and merged.
 
-The new typed owners resolve the original findings without introducing a
-client/server id mismatch:
-
-- `app-save-payload.ts` normalizes the payload before POST, converts transient
-  `dx/dy/dw/dh` to canonical `x/y/width/height` (+`position`/`sizing_*`), drops
-  synthetic `__body`/`__heading` ids, and returns explicit errors instead of a
-  server 500. This closes the highest-risk item (frame drag/resize save).
-- `preview-arrow-component-ids.ts` is now the single id authority. Crucially the
-  server (`frame-diagram.ts::findArrowData`) resolves ids with the **same**
-  `collectPreviewArrowComponentEntries` the client/render path uses, plus a
-  legacy `source->target` fallback. Parallel/duplicate edges now disambiguate by
-  occurrence index. No producer/validator drift.
-- Waypoints persist via `coerceFloat`+`Math.round` (no more integer-only throw).
-- Engine control values keep their declared type (`coercePersistedControlValue`
-  + `Object.is` compare) instead of round-tripping as strings.
-- Reload-after-save failure is separated from persist failure and restores
-  `removedIds`.
-- Arrow keys are now first-class in `frame-override-manifest.ts`
-  (`PERSIST/RELAYOUT/UNDO_RELAYOUT_ARROW_KEYS`).
-
-Residual nit (non-blocking): `findArrowData` recomputes occurrence ids over the
-*filtered* persistable-arrow list; if a malformed arrow is dropped, occurrence
-indexing can diverge from the client's full-list numbering. Edge case only; add
-a fixture with one malformed arrow if you want certainty.
-
-### Widened audit — what will keep biting agents
-
-1. **Root cause is unresolved: the save payload is still born in untyped JS.**
-   `scripts/preview/component-model.js::toOverridePayload()` (658-line legacy JS)
-   still assembles overrides as transient deltas. The new TS normalizer is a
-   *net* over a JS source of truth. Every future override-bearing feature is
-   save-unsafe by default until it is round-tripped. This is the structural
-   reason 053-class bugs keep surfacing in QA. → spec `054` drafted below.
-
-2. **`docs/agent-index.md` trap-file table is stale and actively misleading.**
-   It lists `editor-base.js` (591 lines) and friends as "thin, safe to read
-   whole", and does **not** list `component-model.js` (658 lines, owns the
-   persistence model) as a trap file at all. An agent following the index will
-   treat the single most bug-dense persistence file as unremarkable. Update the
-   table: mark `component-model.js` as behavior-heavy/persistence-critical, and
-   re-measure `force.js` (1,436, not ~1,600).
-
-3. **"Closeout Ready" is being used aspirationally.** 046, 047, 048, 052, and
-   053 all sit at "Closeout Ready" in `docs/specs.md` while QA is still finding
-   save-breaking regressions in that exact surface. The closeout gate does not
-   include a persistence round-trip check, so it cannot catch this bug class.
-   Recommend: no spec touching the override/save path may reach "Closeout Ready"
-   without a drag/resize/arrow/remove save→reload round-trip test in CI.
-
-4. **Token/agent-friction.** `git ls-files` confirms `dist/` is not committed
-   (good), but the 4.5 MB `layout-engine.iife.js` build artifact still lives in
-   the tree and silently inflates any unscoped `rg`/recursive search (it cost me
-   a slow scan this session). Reinforce in `agent-index.md` search-hygiene that
-   `dist/**` must be excluded from greps, or add it to a search-ignore the CLI
-   tools honor.
-
-5. **Untracked `image.png` at repo root** plus dirty
-   `example-deployment-pipeline.yaml` — confirm/clean before any closeout commit
-   (already flagged by the prior session; still open).
-
-### Recommended next steps
-
-- Land spec `054` (below) to move the override model + payload assembly into TS,
-  retiring `toOverridePayload` from JS — this removes the bug class rather than
-  netting it.
-- Refresh `docs/agent-index.md` trap-file table (item 2).
-- Add the save round-trip gate to the closeout checklist (item 3).
-
----
-
-## 2026-06-26 - Historical note: preview arrow-routing identity split fixed for v3 branch routing
-
-Follow-up after re-checking `INBOX.md` for the report:
-
-> this example gets very broken now - v3 version has ben saved as horizontal at
-> the top page layer, changing that to vertical breaks the arrow attachment
-
-Architectural finding:
-
-- The reported example pointed at arrow routing generally, but the deeper defect
-  was not example-specific YAML. `packages/layout-engine/src/preview-shell/
-  app-arrow-render.ts::routePreviewArrows()` was overwriting authored `Arrow.id`
-  with the preview component id before calling `routeArrows()`.
-- Core routing resolves `arrow:<id>` / `@id` attachments against the authored
-  arrow id. That meant preview routing could silently drop branch arrows or log
-  `unresolved ... arrow attachment` warnings even though authored YAML was valid.
-- The fix was to split identities cleanly:
-  - authored routing id stays in `arrow.id` for attachment resolution
-  - preview selection/save id travels separately as `componentId`
-  - `arrow-routing.ts` now prefers `componentId` only for rendered component ids,
-    not for authored attachment lookup
-
-Files changed for this follow-up:
-
-- `packages/layout-engine/src/arrow-routing.ts`
-- `packages/layout-engine/src/preview-shell/app-arrow-render.ts`
-- `packages/layout-engine/tests/app-arrow-render.test.ts`
-- `apps/preview/src/persistence/frame-diagram.test.ts`
-
-Validation completed:
-
-- `npm --prefix packages/layout-engine test -- app-arrow-render.test.ts arrow-render.test.ts`
-- direct `routePreviewArrows(...)` probe for `arrow:stem -> branch.left` now
-  returns two routed arrows, correct branch endpoints, and no warnings
-- `npm --prefix packages/layout-engine run build:browser`
-- `node scripts/check-browser-bundle-fresh.mjs`
-
-Follow-up:
-
-- Resolved on 2026-06-27. The authored `example-platform-architecture` engine
-  change and `preview-host-contract.test.ts` expectation map now agree on `v3`,
-  and the full `apps/preview` suite passes on current `main`. This note is
-  historical context only; there is no active
-  `example-platform-architecture`/`preview-host-contract.test.ts` mismatch.
-
----
-
-## 2026-06-27 - Adversarial review of `feat/056-arrow-reroute-structural-mutations`
-
-Reviewer pass over spec 056 implementation commits `3018f05` + `bb2eb3c`.
-
-### Verdict
-
-No P0/P1 product-correctness regressions surfaced in the reroute invalidation
-work itself. The live relayout path, save payload synthesis, and persist/reload
-coverage all behave as intended once the local package/browser artifacts are
-built. I did find one real validation/workflow issue plus two lower-severity
-closeout gaps that should be recorded before this branch is treated as fully
-closed.
-
-### Resolved follow-up
-
-| Severity | Area | Finding | Resolution |
-|----------|------|---------|------------|
-| P2 | Validation workflow | `npm --prefix apps/preview test` was not self-contained on a clean checkout because the suite asserted browser-bundle freshness before the bundle was built. | Resolved by making `apps/preview` pretest build the layout-engine browser bundle before the Node test run (`apps/preview/package.json`). |
-| P3 | Review coverage | The fresh-render lane changed in spec 056 had no focused regression proving reroute invalidation on the real `renderFreshPreviewSvg(...)` path. | Resolved with focused `app-fresh-render` coverage that seeds stale authored arrow geometry and asserts route-bearing overrides clear `waypoints` and `layoutPath` before reroute (`packages/layout-engine/tests/app-fresh-render.test.ts`). |
-| P3 | Spec bookkeeping | `docs/specs.md` still listed spec 056 as **In Progress** while the branch-local spec package and `AGENTS.md` already said **Closeout Ready**. | Resolved by aligning `docs/specs.md` to **Closeout Ready** and recording the review follow-up tasks under the spec package (`specs/056-arrow-reroute-structural-mutations/tasks.md`). |
-
-### Remaining notes
-
-- No active spec 056 findings remain in this review pass.
-
-### What I verified
-
-- `rg -n diagram_render_svg scripts packages apps` -> **pass** (no importable runtime refs)
-- `npm --prefix packages/layout-engine test -- svg-golden` -> **pass** (6 tests)
-- `npm --prefix packages/layout-engine test -- arrow-render` -> **pass** (22 tests)
-- `npm --prefix packages/layout-engine test -- preview-override-model.test.ts app-layout-bridge-runtime.test.ts app-live-resize.test.ts app-relayout-runtime.test.ts app-editor-relayout-facade.test.ts` -> **pass** (31 tests)
-- `npm --prefix packages/layout-engine test` -> **pass** (143 files / 838 tests)
-- `node scripts/check_no_new_python.mjs` -> **pass**
-- `npm --prefix apps/preview test` -> **initial fail** on missing browser artifacts; **pass after** `npm --prefix packages/layout-engine run build:browser`
-- `node scripts/check-browser-bundle-fresh.mjs` -> **initial fail** before browser build; **pass after** browser build
----
-
-## 2026-06-28 - Adversarial review of `feat/057-graph-engine-fidelity-and-example-fit`
-
-Reviewer pass over spec 057 implementation commit `667d251`.
-
-### Verdict
-
-The two compatibility gaps from commit `667d251` are now resolved. The review
-reopened spec 057, but the follow-up tightened the registry contract and closed
-the remaining holes without changing authored YAML.
-
-### Resolved follow-up
-
-| Severity | Area | Finding | Resolution |
-|----------|------|---------|------------|
-| S2 | Example-fit contract | `elk-rectpacking` was still offered on real arrow-bearing fixtures that omit `meta.diagram_type`, so the example-fit bar only held on metadata-rich documents. | `packages/layout-engine/src/preview-engine/registry.ts` now treats `offerDiagramTypes` as an offer-list allowlist: in offer mode, manifests that require authored diagram families are withheld until `frameDiagramSummary.diagramType` is present. Focused coverage in `packages/layout-engine/tests/preview-engine-registry.test.ts` now proves `complex-routing-usecase`, `example-deployment-pipeline`, and `preview-smoke` no longer offer `elk-rectpacking` while explicit `layout_engine: elk-rectpacking` resolution stays technically available. |
-| S2 | Fill-carrier guard | `rejectFillCarrierIdsWithoutDiagramType` skipped fill-sized structural carriers that were themselves arrow endpoints, so explicit ELK selection could still resolve for that unsupported shape. | `collectFillCarrierIds(...)` now includes endpoint containers as well as descendant carriers, and the same registry test file now covers a synthetic `group -> target` endpoint-container reproducer. Offer-mode compatibility stays blocked, and explicit `resolvePreviewEngine(...)` attempts now return `undefined` for the ELK-family lanes until authored `meta.diagram_type` is present. |
-
-### Remaining notes
-
-- No active spec 057 findings remain in this review pass.
-
-### What I verified
-
-- `npm --prefix packages/layout-engine test -- preview-engine-registry.test.ts`
-  -> **pass** (27 tests)
-- `npm --prefix apps/preview test -- src/persistence/preview-host-contract.test.ts`
-  -> **pass**
-
----
-
-## 2026-06-28 - Adversarial review of spec 060 (`feat/060-output-pane-engine-tabs-rerender`)
-
-Reviewed `475bc9d` against `origin/main` (`5c66116`) after the implementation
-tasks were marked complete.
-
-### Verdict
-
-No P0/P1 functional regressions surfaced in the landed branch, and the current
-test/validation gates are green in this checkout after installing the repo's
-existing Node dependencies. I did find two follow-up gaps worth addressing
-before calling the spec fully closed.
-
-### Findings
-
-| Severity | Area | Finding | Evidence (file:line or command) | Recommended fix |
-|----------|------|---------|----------------------------------|-----------------|
-| P2 | Output-pane tab semantics / accessibility | The new engine rail is only **styled** like tabs; it is not wired like the repo's existing tabs. The buttons get `role="tab"` and `aria-selected`, but they have no `aria-controls` / tabpanel pairing and no keyboard navigation handler. That means the new output-pane rail does not provide the same operable tab semantics as the existing left-nav tabs. | `scripts/preview/viewer-unified.html:53-57`; `packages/layout-engine/src/preview-shell/preview-engine-workspace-chrome.ts:209-291`; compare the existing nav-tab contract in `scripts/preview/viewer-unified.html:18-35` and `scripts/preview/editor-base.js:304-330`. A repo search over `preview-engine-workspace-chrome.ts` found no `keydown`, `ArrowLeft`, `ArrowRight`, `Home`, or `End` handling. | Move the output-pane rail onto a shared typed tab-controller path so it matches the existing BF-style tab contract: roving tabindex, keyboard navigation, and explicit tab ↔ panel semantics where appropriate. Keep the ownership in TS rather than growing new JS behavior. |
-| P3 | Spec-closeout proof / save-reopen coverage | Task **T021** says focused save/reopen coverage landed, but the spec 060 diff does not add a spec-owned save -> reload regression for the new output-header workspace path. The new tests cover placement, rerender callback exposure, and browser-local workspace state, but not "switch tab, save, reopen, selected engine comes back active" on this spec's changed surface. | `git --no-pager diff --unified=0 origin/main...HEAD -- apps/preview/src/persistence/preview-host-contract.test.ts packages/layout-engine/tests/app-grid-editor-install-unit.test.ts packages/layout-engine/tests/preview-engine-workspace-chrome.test.ts`; the changed hunks only add host-placement assertions plus rerender/unit coverage. `specs/060-output-pane-engine-tabs-rerender/evidence/playwright-and-validation-2026-06-28.md` proves rerender and placement, but not a save/reopen round trip for the moved header workspace. | Add one `apps/preview` persistence regression that switches engines through the new header workspace, saves, reloads the document/viewer context, and asserts the saved `layout_engine` is restored as the active tab. That would make FR-005 and T021 specific to this spec rather than inherited from 055-era coverage. |
-
-### Top 3 risks before merge
-
-1. Keyboard and assistive-tech users currently get a click-only engine rail, not a true tablist interaction model.
-2. FR-005 is still under-proved on the exact surface changed by spec 060; a future header-workspace refactor could regress save/reopen without tripping a spec-owned test.
-3. The repo now has two tab implementations with different behavior contracts (existing nav tabs vs new engine tabs), which increases drift risk unless they converge on one typed owner.
-
-### Open questions for the author
-
-- Did "baseline-foundry tab semantics" mean visual styling only, or did it also mean matching the existing keyboard/ARIA behavior of the other BF-style tabs in the preview shell?
-- Is the intent to rely on spec 055's older save/reopen coverage for FR-005, or should spec 060 own a fresh persistence regression on the moved output-pane workspace path?
-
-### What I verified
-
-- `npm --prefix packages/layout-engine test` -> **pass** (`146` files / `851` tests)
-- `npm --prefix apps/preview test` -> **pass** (`145` tests, `0` fail)
-- `node scripts/check-browser-bundle-fresh.mjs` -> **pass**
-- `node scripts/check_no_new_python.mjs` -> **pass**
+For adversarial detail on 054–060 cluster, see [`docs/spec-reviews/`](docs/spec-reviews/).

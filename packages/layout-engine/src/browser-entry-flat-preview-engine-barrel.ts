@@ -25,7 +25,6 @@ export {
   listPreviewEnginesBySidebarSection,
   listPreviewEngines,
   registerPreviewEngine,
-  renderPreviewElkDebugOverlay,
   renderPreviewElkRawView,
   resolvePreviewEngine,
   serializePreviewEngineManifest,

@@ -85,6 +85,7 @@ describe('preview layout bridge runtime', () => {
     const updateModelFromLayout = vi.fn();
     const syncArrowsInModel = vi.fn();
     const refreshElkViewMode = vi.fn();
+    const refreshLayoutControls = vi.fn();
     const fitRenderedSvg = vi.fn();
     const replaceChildren = vi.fn();
 
@@ -137,6 +138,7 @@ describe('preview layout bridge runtime', () => {
       fitRenderedSvg,
       resolveEngineLayoutOptionOverrides: () => ({}),
       refreshElkViewMode,
+      refreshLayoutControls,
       warn: vi.fn(),
       error: vi.fn(),
     });
@@ -172,6 +174,7 @@ describe('preview layout bridge runtime', () => {
     expect(replaceChildren).toHaveBeenCalledTimes(1);
     expect(fitRenderedSvg).toHaveBeenCalledTimes(1);
     expect(refreshElkViewMode).toHaveBeenCalledTimes(1);
+    expect(refreshLayoutControls).toHaveBeenCalledTimes(1);
     expect(runtime.getLastElkSnapshot()).toEqual({ id: 'elk' });
     expect(runtime.getLastElkFrameLabels()).toEqual({ root: 'Root' });
 
@@ -190,6 +193,7 @@ describe('preview layout bridge runtime', () => {
       height: 480,
     });
     expect(replaceChildren).toHaveBeenCalledTimes(1);
+    expect(refreshLayoutControls).toHaveBeenCalledTimes(2);
     expect(updateModelFromLayout).not.toHaveBeenCalled();
     expect(syncArrowsInModel).not.toHaveBeenCalled();
   });
@@ -395,11 +399,10 @@ describe('preview layout bridge runtime', () => {
     expect(routedArrowInput?.waypoints).toEqual([[200, 160], [200, -8]]);
   });
 
-  it('owns the ELK raw/debug overlay view mode outside layout-bridge.js', () => {
+  it('owns the ELK raw view mode outside layout-bridge.js', () => {
     const appendChild = vi.fn();
     const setAttribute = vi.fn();
     const removeRawView = vi.fn();
-    const removeDebugOverlay = vi.fn();
     const svg = {
       querySelector(selector: string) {
         if (selector === '#dg-styled-layer') {
@@ -408,17 +411,12 @@ describe('preview layout bridge runtime', () => {
         if (selector === '#dg-elk-raw-view') {
           return { remove: removeRawView };
         }
-        if (selector === '#dg-elk-debug-overlay') {
-          return { remove: removeDebugOverlay };
-        }
         return null;
       },
       appendChild,
     } as unknown as SVGSVGElement;
     const previewWindow = {
-      __DG_previewEngineDebugOverlay: 'truthy' as unknown as boolean,
       __DG_previewEngineRawView: false,
-      __DG_elkDebugOverlay: 'truthy' as unknown as boolean,
       __DG_elkRawView: false,
     };
     const runtime = createPreviewElkViewModeRuntime({
@@ -428,24 +426,19 @@ describe('preview layout bridge runtime', () => {
       getLastElkSnapshot: () => ({ id: 'elk' } as never),
       getLastElkFrameLabels: () => ({ root: 'Root' }),
       renderPreviewElkRawView: vi.fn(() => ({ id: 'raw' } as never)),
-      renderPreviewElkDebugOverlay: vi.fn(() => ({ id: 'overlay' } as never)),
       svgNs: 'http://www.w3.org/2000/svg',
       headLen: 8,
       headHalf: 4,
     });
 
     runtime.initializeWindowState();
-    runtime.setDebugOverlay(true);
     runtime.setRawView(true);
 
-    expect(previewWindow.__DG_previewEngineDebugOverlay).toBe(true);
     expect(previewWindow.__DG_previewEngineRawView).toBe(true);
-    expect(previewWindow.__DG_elkDebugOverlay).toBe(true);
     expect(previewWindow.__DG_elkRawView).toBe(true);
     expect(setAttribute).toHaveBeenCalledWith('display', 'none');
     expect(removeRawView).toHaveBeenCalled();
-    expect(removeDebugOverlay).toHaveBeenCalled();
-    expect(appendChild).toHaveBeenCalledTimes(2);
+    expect(appendChild).toHaveBeenCalledTimes(1);
   });
 
   it('builds the browser host bridge runtime without leaving host assembly in layout-bridge.js', async () => {
@@ -556,7 +549,6 @@ describe('preview layout bridge runtime', () => {
   it('derives ELK view-mode bindings from the browser host runtime', () => {
     const runtime = createPreviewElkViewModeRuntimeFromBrowserHost({
       previewWindow: {
-        __DG_previewEngineDebugOverlay: true,
         __DG_previewEngineRawView: false,
       },
       ownerDocument: {
@@ -578,7 +570,6 @@ describe('preview layout bridge runtime', () => {
         getLastElkFrameLabels: () => ({ root: 'Root' }),
       }),
       renderPreviewElkRawView: vi.fn(() => ({ id: 'raw' } as never)),
-      renderPreviewElkDebugOverlay: vi.fn(() => ({ id: 'overlay' } as never)),
     });
 
     runtime.initializeWindowState();
@@ -607,6 +598,7 @@ describe('preview layout bridge runtime', () => {
     const syncPreviewArrowsInModel = vi.fn();
     const createPreviewArrowSvgFragment = vi.fn(() => ({ kind: 'fragment' } as never));
     const fitPreviewSvgToRenderedContent = vi.fn();
+    const layoutControlsRefresh = vi.fn();
     const stage = {
       replaceChildren: vi.fn(),
     };
@@ -670,15 +662,16 @@ describe('preview layout bridge runtime', () => {
       }),
       __DG_getPreviewElkEngineContract: () => ({
         renderPreviewElkRawView: vi.fn(() => ({ id: 'raw' } as never)),
-        renderPreviewElkDebugOverlay: vi.fn(() => ({ id: 'overlay' } as never)),
       }),
       __DG_getPreviewShellBootstrapContract: () => ({
         getPreviewEngineShellController: () => ({
           getLayoutOverrides: () => ({ fromController: true }),
         }),
       }),
-      __DG_previewEngineDebugOverlay: false,
       __DG_previewEngineRawView: false,
+      PreviewEngineLayoutControls: {
+        refresh: layoutControlsRefresh,
+      },
     } as never;
 
     const install = createPreviewLayoutBridgeInstallRuntimeFromLegacyBrowserHost({
@@ -715,6 +708,7 @@ describe('preview layout bridge runtime', () => {
       existing: true,
       fromController: true,
     });
+    expect(layoutControlsRefresh).toHaveBeenCalledTimes(1);
 
     expect(install.renderFrameTreeToSvg(
       { root: { id: 'root' }, arrows: [] } as never,
@@ -729,12 +723,7 @@ describe('preview layout bridge runtime', () => {
     expect(syncPreviewArrowsInModel).toHaveBeenCalledTimes(1);
 
     install.installCompatWindowBindings();
-    expect(typeof (previewWindow as Record<string, unknown>).__DG_setPreviewEngineDebugOverlay)
-      .toBe('function');
-    ((previewWindow as Record<string, (enabled: boolean) => void>).__DG_setPreviewEngineDebugOverlay)(true);
     ((previewWindow as Record<string, (enabled: boolean) => void>).__DG_setPreviewEngineRawView)(true);
-    expect((previewWindow as { __DG_previewEngineDebugOverlay: boolean }).__DG_previewEngineDebugOverlay)
-      .toBe(true);
     expect((previewWindow as { __DG_previewEngineRawView: boolean }).__DG_previewEngineRawView)
       .toBe(true);
     expect((previewWindow as Record<string, unknown>).__DG_previewBridgeHostRuntime).toBeTruthy();

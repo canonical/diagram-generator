@@ -1064,6 +1064,13 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
       previewWindow.__DG_CONFIG.active_engine_id = 'dagre';
       previewWindow.__DG_CONFIG.persisted_layout_engine = 'v3';
       previewWindow.__DG_CONFIG.compatible_engines = ['v3', 'dagre'];
+      previewWindow.__DG_previewRenderIntent = {
+        engineId: 'dagre',
+        pageDirection: null,
+        frameOverrides: {},
+        engineOverrides: {},
+        gridOverrides: {},
+      };
       previewWindow.__DG_syncPreviewEngineWorkspacePanels();
 
       expect(engineSwitcherSection.hidden).toBe(false);
@@ -1074,6 +1081,13 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
       previewWindow.__DG_CONFIG.active_engine_id = 'mindmap-tree';
       previewWindow.__DG_CONFIG.persisted_layout_engine = 'mindmap-tree';
       previewWindow.__DG_CONFIG.compatible_engines = ['mindmap-tree'];
+      previewWindow.__DG_previewRenderIntent = {
+        engineId: 'mindmap-tree',
+        pageDirection: null,
+        frameOverrides: {},
+        engineOverrides: {},
+        gridOverrides: {},
+      };
       previewWindow.__DG_syncPreviewEngineWorkspacePanels();
 
       expect(engineSwitcherSection.hidden).toBe(true);

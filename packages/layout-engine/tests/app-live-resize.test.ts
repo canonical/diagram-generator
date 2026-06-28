@@ -306,7 +306,7 @@ describe('preview live-resize relayout helpers', () => {
     expect(state.running).toBe(false);
   });
 
-  it('routes active engine live resize through the typed bridge without mutating the committed model', async () => {
+  it('routes active engine live resize through the typed bridge and updates the committed model', async () => {
     let callback: (() => void) | null = null;
     const performEngineRelayout = vi.fn(async () => ({ width: 320, height: 200 }));
     const runtime = createPreviewLiveResizeRuntimeFromHost({
@@ -355,7 +355,7 @@ describe('preview live-resize relayout helpers', () => {
         },
       },
       { cols: 4 },
-      { skipModelUpdate: true },
+      undefined,
     );
   });
 });

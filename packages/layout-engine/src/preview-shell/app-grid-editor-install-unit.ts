@@ -20,8 +20,12 @@ import {
 } from './frame-style.js';
 import {
   createPreviewEngineWorkspaceState,
-  resolveActivePreviewLayoutEngine,
 } from './preview-engine-workspace.js';
+import {
+  commitPreviewRenderIntentToWindow,
+  resolvePreviewRenderIntentLayoutEngine,
+  type PreviewRenderIntent,
+} from './preview-render-intent.js';
 import {
   syncPreviewPanelVisibilityFromContext,
 } from './app-shell-panels.js';
@@ -280,6 +284,7 @@ export type PreviewGridEditorLegacyWindow = PreviewGridEditorRuntimeWindow & {
     head_len?: number;
     head_half?: number;
   } | null;
+  __DG_previewRenderIntent?: PreviewRenderIntent | null;
   __DG_syncPreviewEngineWorkspacePanels?: (() => void) | null;
   __DG_rerenderPreviewEngineWorkspaceStage?: (() => Promise<void>) | null;
   setFrameTreeLayoutEngine?: ((layoutEngine: string | null | undefined) => string | null) | null;
@@ -601,15 +606,28 @@ export function createPreviewGridEditorInstallOptionsFromLegacyEditorHost(
 ): CreatePreviewGridEditorInstallUnitFromEditorHostOptions {
   const boxStyles = resolveLegacyPreviewBoxStyles(options.previewWindow);
   const previewConfig = options.previewWindow.__DG_CONFIG ?? {};
+  commitPreviewRenderIntentToWindow(options.previewWindow, {
+    activeEngineId: previewConfig.active_engine_id
+      ?? previewConfig.layout_engine
+      ?? options.config.engine
+      ?? previewConfig.engine
+      ?? null,
+    persistedEngineId: previewConfig.persisted_layout_engine
+      ?? previewConfig.layout_engine
+      ?? options.config.engine
+      ?? previewConfig.engine
+      ?? null,
+    fallbackEngineId: options.config.engine ?? null,
+  });
   let lastSelectionContext: PreviewUiSelectionContext = { count: 0, kind: 'empty' };
   const syncPanelVisibility = (selection: PreviewUiSelectionContext) => {
     lastSelectionContext = selection;
     const shellMode = previewConfig.shell_mode || 'grid';
-    const activeLayoutEngine = previewConfig.active_engine_id
-      || previewConfig.layout_engine
-      || options.config.engine
-      || previewConfig.engine
-      || null;
+    const activeLayoutEngine = resolvePreviewRenderIntentLayoutEngine({
+      intent: options.previewWindow.__DG_previewRenderIntent ?? null,
+      activeEngineId: previewConfig.active_engine_id ?? null,
+      fallbackEngineId: options.config.engine ?? previewConfig.engine ?? null,
+    });
     const persistedLayoutEngine = previewConfig.persisted_layout_engine
       || previewConfig.layout_engine
       || options.config.engine
@@ -1156,10 +1174,9 @@ export function createPreviewGridEditorInstallUnitFromBrowserHost(
   options.shared.previewWindow.__DG_rerenderPreviewEngineWorkspaceStage = async () => {
     const previewWindow = options.shared.previewWindow as PreviewGridEditorLegacyWindow;
     const previewConfig = previewWindow.__DG_CONFIG ?? null;
-    const activeLayoutEngine = resolveActivePreviewLayoutEngine({
+    const activeLayoutEngine = resolvePreviewRenderIntentLayoutEngine({
+      intent: previewWindow.__DG_previewRenderIntent ?? null,
       activeEngineId: previewConfig?.active_engine_id ?? null,
-      layoutEngine: previewConfig?.layout_engine ?? null,
-      persistedEngineId: previewConfig?.persisted_layout_engine ?? null,
       fallbackEngineId: options.shared.engine ?? null,
     });
     if (activeLayoutEngine) {
@@ -1169,6 +1186,12 @@ export function createPreviewGridEditorInstallUnitFromBrowserHost(
       if (committedLayoutEngine !== activeLayoutEngine) {
         throw new Error(`Unable to commit preview layout engine '${activeLayoutEngine}' before render.`);
       }
+      commitPreviewRenderIntentToWindow(previewWindow, {
+        current: previewWindow.__DG_previewRenderIntent ?? null,
+        activeEngineId: committedLayoutEngine,
+        persistedEngineId: previewConfig?.persisted_layout_engine ?? null,
+        fallbackEngineId: options.shared.engine ?? null,
+      });
     }
     await getCompatFacade().rerenderStageFromModel();
   };

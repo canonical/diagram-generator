@@ -47,7 +47,7 @@ export interface ElkLayoutOptions {
 }
 
 export interface ElkLayoutOutput extends LayoutOutput {
-  /** Raw ELK node/edge geometry for debug overlay (absolute coordinates). */
+  /** Raw ELK node/edge geometry for the raw-view inspector (absolute coordinates). */
   elkSnapshot?: ElkLayoutSnapshot;
 }
 

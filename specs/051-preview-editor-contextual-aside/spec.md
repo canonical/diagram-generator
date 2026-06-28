@@ -1,7 +1,14 @@
 # Spec 051: Preview Editor Contextual Aside
 
 **Feature Branch**: `feat/051-preview-editor-contextual-aside`
-**Status**: Draft
+**Status**: ACTIVE 2026-06-28 — author still sees N/A controls disabled (not
+hidden), ELK options not contextually surfaced per algorithm, and the debug
+overlay present. Registry/unit tests pass but the live inspector + ELK option
+surface were never proven. Closing gate:
+[`specs/065-interactive-relayout-contract/verification-protocol.md`](../065-interactive-relayout-contract/verification-protocol.md)
+(§2 "Inspector / ELK option contextual surfacing").
+See [`docs/spec-reviews/CLINE-VERDICT-2026-06-28.md`](../../docs/spec-reviews/CLINE-VERDICT-2026-06-28.md).
+(was: Draft)
 **Created**: 2026-06-25
 
 ## Problem

@@ -153,6 +153,54 @@
 - [x] T080 Run the full validation set and a no-screenshot browser DOM probe
       covering v3, ELK, root selection, non-root selection, and diagnostics.
 
+## Phase 8: Contextual surfacing — author-reported, NOT resolved (2026-06-28)
+
+> The Phase 1–7 `[x]` items proved registry/DOM-visibility *unit* facts. The
+> author still reports the live editor wrong. These tasks close the gap and are
+> gated by spec 065 `verification-protocol.md` §2 "Inspector / ELK option
+> contextual surfacing" — proven by **real Playwright** on a live server, no
+> mocks, controls asserted `hidden` AND non-focusable (not `disabled`).
+
+- [ ] **T090** Gate the single-selection autolayout inspector
+      (`inspector-autolayout-panel.ts` / `inspector-autolayout-options.ts`) on
+      `activeEngine` + `capabilities.gridEditing`. When the active engine is ELK
+      (or any non-grid engine), cols/rows/gutters/margins and other N/A fields
+      must be **removed/hidden and skipped in Tab order**, never merely disabled.
+      **Verify**: protocol §2 — `v3` doc shows grid fields; `elk-layered` doc has
+      them absent + unfocusable, proven by real DOM probe + Tab traversal.
+
+- [ ] **T091** Make ELK option surfacing **algorithm-contextual**. Today
+      `elk-layout-controls.ts::paramSpecs` renders one flat per-engine
+      `controlSpecs` list. Only options relevant to the active ELK algorithm may
+      render; switching algorithm (e.g. layered → radial) must hide the now-
+      irrelevant `elk-layered`-only inputs, not grey them.
+      **Verify**: protocol §2 — real `selectOption` of the algorithm control on
+      an `elk-layered` doc; assert layered-only inputs disappear for radial.
+
+- [ ] **T092** Remove the ELK debug overlay entirely (control + code):
+      `#elk-debug-overlay-toggle`, its handler in `elk-layout-controls.ts`
+      (`bindElkViewToggles`/`readPreviewEngineDebugOverlay`/setter), and the
+      `viewer-unified.html` markup + help text. Author asked for it gone.
+      **Verify**: grep shows no `elk-debug-overlay` / `DebugOverlay` symbols
+      remain in source; protocol §2 asserts the element is absent on every engine.
+
+- [ ] **T093** Make "Show ELK raw view" ELK-only: the raw-view toggle must be
+      present only when the active engine is an ELK-family engine, hidden +
+      unfocusable otherwise.
+      **Verify**: protocol §2 — `v3` doc has no raw-view toggle in DOM/Tab order;
+      `elk-layered` doc shows it.
+
+- [ ] **T094** Remove the "Only engines compatible with this document are
+      listed…" help paragraph (`viewer-unified.html`); tab presence is enough.
+      **Verify**: template test asserts the paragraph is gone; DOM probe confirms.
+
+- [ ] **T095** Source the panel/inspector visibility resolver from the SAME
+      `PreviewRenderIntent`/engine resolver spec 065 introduces, so the aside
+      cannot drift from the rendered engine (FR-007 of 065).
+      **Verify**: focused test that panel engine === rendered engine from one
+      source; protocol §2 confirms post-switch the aside matches the new engine.
+
+
 ## Ordered Improvement Plan
 
 1. Build the typed UI context and registry first, with pure tests.

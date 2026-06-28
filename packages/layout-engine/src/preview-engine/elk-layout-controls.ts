@@ -1,4 +1,9 @@
 import type { PreviewControlSpec, PreviewEngineManifest } from './types.js';
+import {
+  resolvePreviewRenderIntentLayoutEngine,
+  type PreviewRenderIntent,
+  type PreviewRenderIntentFrameTree,
+} from '../preview-shell/preview-render-intent.js';
 
 type PreviewEngineSidebarGroup = {
   group: string;
@@ -26,14 +31,11 @@ export interface PreviewElkLayoutControlsDocumentLike {
 
 export interface PreviewElkLayoutControlsWindowLike {
   __DG_CONFIG?: { layout_engine?: string };
+  __DG_previewRenderIntent?: PreviewRenderIntent | null;
   __DG_previewEngineRawView?: boolean;
-  __DG_previewEngineDebugOverlay?: boolean;
   __DG_setPreviewEngineRawView?: (enabled: boolean) => void;
-  __DG_setPreviewEngineDebugOverlay?: (enabled: boolean) => void;
   __DG_elkRawView?: boolean;
-  __DG_elkDebugOverlay?: boolean;
   __DG_setElkRawView?: (enabled: boolean) => void;
-  __DG_setElkDebugOverlay?: (enabled: boolean) => void;
   PreviewEngineShellController?: {
     wirePanel?: () => void;
     applyLayoutOverrides?: (value: Record<string, unknown>) => void;
@@ -127,15 +129,6 @@ function previewEngineShellController(
     ?? null) as PreviewEngineShellControllerLike | null;
 }
 
-function readPreviewEngineDebugOverlay(
-  previewWindow: PreviewElkLayoutControlsWindowLike,
-): boolean {
-  if (typeof previewWindow.__DG_previewEngineDebugOverlay === 'boolean') {
-    return previewWindow.__DG_previewEngineDebugOverlay;
-  }
-  return previewWindow.__DG_elkDebugOverlay === true;
-}
-
 function readPreviewEngineRawView(
   previewWindow: PreviewElkLayoutControlsWindowLike,
 ): boolean {
@@ -185,8 +178,11 @@ export function createPreviewElkLayoutControlsRuntime(
   }
 
   function layoutEngineFromFrameTree(frameTreeJson?: unknown): string | null {
-    const tree = frameTreeJson as { layoutEngine?: string | null } | null | undefined;
-    return tree?.layoutEngine ?? options.previewWindow.__DG_CONFIG?.layout_engine ?? null;
+    const tree = frameTreeJson as PreviewRenderIntentFrameTree | null | undefined;
+    return resolvePreviewRenderIntentLayoutEngine({
+      intent: options.previewWindow.__DG_previewRenderIntent ?? null,
+      frameTreeJson: tree ?? null,
+    });
   }
 
   function activePreviewEngine(frameTreeJson?: unknown): PreviewEngineManifest | null {
@@ -292,7 +288,15 @@ export function createPreviewElkLayoutControlsRuntime(
       contractGroups.length > 0 &&
       specs.every((spec) => contractGroupKeys.has(spec.key))
     ) {
-      return contractGroups;
+      const activeSpecs = new Map(specs.map((spec) => [spec.key, spec]));
+      return contractGroups
+        .map((group) => ({
+          group: group.group,
+          specs: group.specs
+            .map((spec) => activeSpecs.get(spec.key))
+            .filter((spec): spec is PreviewControlSpec => Boolean(spec)),
+        }))
+        .filter((group) => group.specs.length > 0);
     }
     const buckets = new Map<string, PreviewControlSpec[]>();
     for (const spec of specs) {
@@ -358,6 +362,20 @@ export function createPreviewElkLayoutControlsRuntime(
       '<span class="bf-control dg-grid-control">' +
       `<input class="bf-input dg-number-input" type="${type}" id="${id}"${controlDataAttrs(spec)} value="${String(value ?? spec.defaultValue).replace(/"/g, '&quot;')}"${step}${min}${max}>` +
       `${unit}</span></label>`
+    );
+  }
+
+  function rawViewToggleHtml(): string {
+    if (!enableElkViewToggles) {
+      return '';
+    }
+    return (
+      '<label class="bf-switch is-full-span dg-elk-only">' +
+      '<input class="bf-switch-input" type="checkbox" id="elk-raw-view-toggle">' +
+      '<span class="bf-switch-slider"></span>' +
+      '<span class="bf-switch-label">Show ELK raw view</span>' +
+      '</label>' +
+      '<p class="bf-form-help">Replaces BF styling with ELK’s default look: gray boxes, black orthogonal edges, ELK-placed labels.</p>'
     );
   }
 
@@ -525,23 +543,27 @@ export function createPreviewElkLayoutControlsRuntime(
         options.previewWindow.__DG_setElkRawView?.(Boolean(rawToggle.checked));
       });
     }
-    const debugToggle = section.querySelector?.('#elk-debug-overlay-toggle') as (PreviewControlElement & {
-      checked?: boolean;
-    }) | null | undefined;
-    if (debugToggle && debugToggle.dataset.elkBound !== '1') {
-      debugToggle.dataset.elkBound = '1';
-      debugToggle.checked = readPreviewEngineDebugOverlay(options.previewWindow);
-      debugToggle.addEventListener('change', () => {
-        if (typeof options.previewWindow.__DG_setPreviewEngineDebugOverlay === 'function') {
-          options.previewWindow.__DG_setPreviewEngineDebugOverlay(Boolean(debugToggle.checked));
-          return;
-        }
-        options.previewWindow.__DG_setElkDebugOverlay?.(Boolean(debugToggle.checked));
-      });
-    }
+  }
+
+  function renderedControlKeys(
+    container: { querySelectorAll?: (selector: string) => PreviewControlElement[] },
+  ): string[] {
+    return Array.from(container.querySelectorAll?.('[data-dg-engine-layout-key], [data-elk-key]') || [])
+      .map((element) => element.dataset.dgEngineLayoutKey || element.dataset.elkKey || '')
+      .filter((key) => key.length > 0)
+      .sort();
+  }
+
+  function specKeys(specs: readonly PreviewControlSpec[]): string[] {
+    return specs.map((spec) => spec.key).sort();
+  }
+
+  function sameKeys(left: readonly string[], right: readonly string[]): boolean {
+    return left.length === right.length && left.every((key, index) => key === right[index]);
   }
 
   function buildPanel(frameTreeJson?: unknown): void {
+    const activeFrameTreeJson = frameTreeJson ?? options.getFrameTreeJson?.();
     const section = options.document.getElementById(sectionId) as {
       hidden?: boolean;
       querySelector?: (selector: string) => unknown;
@@ -559,33 +581,33 @@ export function createPreviewElkLayoutControlsRuntime(
       return;
     }
 
-    const active = isActiveLayoutEngine(frameTreeJson);
+    const active = isActiveLayoutEngine(activeFrameTreeJson);
     setElkSectionActive(section as unknown as HTMLElement, active);
     if (!active) {
+      container.innerHTML = '';
       return;
     }
 
+    const specs = paramSpecs(activeFrameTreeJson);
     const hasServerControls = Boolean(container.querySelector?.('[data-dg-engine-layout-key], [data-elk-key]'));
-    if (!frameTreeJson && hasServerControls) {
-      bindControls(container);
-      bindElkViewToggles(section);
-      return;
-    }
-    if (!frameTreeJson) {
+    if (!activeFrameTreeJson) {
+      if (hasServerControls) {
+        bindControls(container);
+        bindElkViewToggles(container);
+      }
       return;
     }
     if (containerHasPlaceholder(container)) {
       container.textContent = '';
     }
 
-    const specs = paramSpecs(frameTreeJson);
     if (specs.length === 0) {
-      container.innerHTML = `<p class="bf-form-help">${unavailableMessage}</p>`;
-      bindElkViewToggles(section);
+      container.innerHTML = `<p class="bf-form-help">${unavailableMessage}</p>${rawViewToggleHtml()}`;
+      bindElkViewToggles(container);
       return;
     }
 
-    const tree = frameTreeJson as {
+    const tree = activeFrameTreeJson as {
       elkLayout?: Record<string, unknown>;
       engineLayout?: Record<string, Record<string, unknown>>;
     } | null;
@@ -599,9 +621,12 @@ export function createPreviewElkLayoutControlsRuntime(
     const merged = { ...yamlEngine, ...session };
     const display = sidebarDisplayValues(merged, specs);
 
-    if (container.querySelector?.('[data-dg-engine-layout-key], [data-elk-key]')) {
+    if (
+      container.querySelector?.('[data-dg-engine-layout-key], [data-elk-key]')
+      && sameKeys(renderedControlKeys(container), specKeys(specs))
+    ) {
       syncExistingControls(container, display, specs);
-      bindElkViewToggles(section);
+      bindElkViewToggles(container);
       return;
     }
 
@@ -614,9 +639,10 @@ export function createPreviewElkLayoutControlsRuntime(
       }
       parts.push('</div>');
     }
+    parts.push(rawViewToggleHtml());
     container.innerHTML = parts.join('');
     bindControls(container);
-    bindElkViewToggles(section);
+    bindElkViewToggles(container);
   }
 
   return {

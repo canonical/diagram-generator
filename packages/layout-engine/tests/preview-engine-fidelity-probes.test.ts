@@ -112,7 +112,7 @@ describe('preview-engine fidelity probes', () => {
       expectInside(availabilityZones, zone, zoneId);
       expectInside(zone, vm, `vm_${zoneId}`);
       expectInside(zone, label, `${zoneId}_label`);
-      expect(label._layout.placedY).toBeGreaterThanOrEqual(vm._layout.placedY + vm._layout.placedH);
+      expect(label._layout.placedX).toBeGreaterThanOrEqual(vm._layout.placedX + vm._layout.placedW);
     }
   });
 

@@ -250,6 +250,7 @@ export function resolveSingleSelectionAutolayoutPanelOptions(options: {
     heightFixedValue,
     heightFixedStep,
     heightUnit: options.heightUnit ?? 'px',
+    showHeightRowsOption: Boolean(options.gridInfo?.row_heights?.length),
     heightMinValue,
     heightMaxValue,
     positionXValue,

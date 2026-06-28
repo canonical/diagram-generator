@@ -16,7 +16,10 @@ vi.mock('../src/preview-shell/app-arrow-render.js', async () => {
   };
 });
 
-import { renderFreshPreviewSvg } from '../src/preview-shell/app-fresh-render.js';
+import {
+  filterPreviewEngineLayoutOptionOverrides,
+  renderFreshPreviewSvg,
+} from '../src/preview-shell/app-fresh-render.js';
 import { loadFrameYaml } from '../src/frame-yaml-loader.js';
 import { serializeFrameDiagram } from '../src/frame-serialize.js';
 import { MockTextAdapter } from '../src/text-measure.js';
@@ -155,6 +158,40 @@ function matchesSelector(element: FakeElement, selector: string): boolean {
 describe('renderFreshPreviewSvg', () => {
   beforeEach(() => {
     routePreviewArrowsMock.mockClear();
+  });
+
+  it('filters persisted layout overrides to the active engine control manifest', () => {
+    const filtered = filterPreviewEngineLayoutOptionOverrides(
+      {
+        'elk.algorithm': 'layered',
+        'elk.direction': 'RIGHT',
+        'elk.randomSeed': '17',
+        'elk.separateConnectedComponents': 'true',
+      },
+      {
+        controlSpecs: [
+          {
+            key: 'elk.algorithm',
+            label: 'Algorithm',
+            group: 'ELK',
+            kind: 'text',
+            defaultValue: 'layered',
+          },
+          {
+            key: 'elk.direction',
+            label: 'Direction',
+            group: 'ELK',
+            kind: 'text',
+            defaultValue: 'RIGHT',
+          },
+        ],
+      },
+    );
+
+    expect(filtered).toEqual({
+      'elk.algorithm': 'layered',
+      'elk.direction': 'RIGHT',
+    });
   });
 
   it('clears stale authored arrow geometry before reroute-bearing fresh renders', async () => {

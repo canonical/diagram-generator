@@ -110,7 +110,6 @@ export {
   type PreviewFrameLayoutResult,
 } from './render.js';
 export {
-  renderPreviewElkDebugOverlay,
   renderPreviewElkRawView,
   type RenderPreviewElkOverlayOptions,
   type RenderPreviewElkRawViewOptions,

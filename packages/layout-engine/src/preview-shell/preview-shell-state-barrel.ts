@@ -87,9 +87,25 @@ export {
   createPreviewEngineWorkspaceState,
   persistPreviewEngineWorkspaceActiveEngine,
   reopenPreviewEngineWorkspace,
+  resolveActivePreviewLayoutEngine,
   setPreviewEngineWorkspaceActiveEngine,
   setPreviewEngineWorkspaceSessionState,
 } from './preview-engine-workspace.js';
+
+export type {
+  CreatePreviewRenderIntentOptions,
+  PreviewRenderIntent,
+  PreviewRenderIntentFrameTree,
+  PreviewRenderIntentWindowLike,
+  ResolvePreviewRenderIntentLayoutEngineOptions,
+} from './preview-render-intent.js';
+
+export {
+  applyPreviewRenderIntentToFrameTreeJson,
+  commitPreviewRenderIntentToWindow,
+  createPreviewRenderIntent,
+  resolvePreviewRenderIntentLayoutEngine,
+} from './preview-render-intent.js';
 
 export {
   createPreviewGridOverrides,

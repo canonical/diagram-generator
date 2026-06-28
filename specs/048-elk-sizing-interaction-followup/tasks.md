@@ -1,6 +1,18 @@
 # Tasks: ELK sizing and interaction follow-up
 
 **Input**: Design documents from `/specs/048-elk-sizing-interaction-followup/`
+> 2026-06-28 REOPENED (authority verdict
+> `docs/spec-reviews/CLINE-VERDICT-2026-06-28.md`). The live ELK-resize
+> "relayout failed" P0 is NOT proven fixed on the real UI. The actual fix
+> (engine-backed resize lane + `formatPreviewRelayoutStatusMessage` for the
+> elk-failure case) is owned by spec 065 **T022**. 048 cannot return to Closeout
+> Ready until spec 065's `evidence/post-load-mutations.mjs` proves a **real
+> pointer-drag resize** on an `elk-layered` doc shows no `/failed/i` status and
+> the node reaches the dragged size (protocol §2 "ELK live resize"). Earlier
+> resize-feedback tasks that used `skipModelUpdate` proofs do not satisfy this
+> gate.
+
+
 
 ## Phase 1 - ELK Fill Sizing
 

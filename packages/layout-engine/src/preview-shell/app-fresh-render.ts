@@ -14,6 +14,7 @@ import {
   layoutPreviewFrameDiagramForEngine,
   renderPreviewDocumentToSvg,
   type PreviewFrameLayoutResult,
+  type PreviewEngineManifest,
   resolvePreviewEngine,
   summarizeFrameDiagramCompatibility,
 } from '../preview-engine/index.js';
@@ -28,8 +29,10 @@ import {
   shouldInvalidatePreviewArrowWaypointGeometry,
 } from './preview-arrow-reroute-invalidation.js';
 import {
-  resolveActivePreviewLayoutEngine,
-} from './preview-engine-workspace.js';
+  applyPreviewRenderIntentToFrameTreeJson,
+  resolvePreviewRenderIntentLayoutEngine,
+  type PreviewRenderIntent,
+} from './preview-render-intent.js';
 import {
   collectPreviewPlacedBounds,
 } from './app-frame-svg.js';
@@ -58,6 +61,7 @@ export interface RenderFreshPreviewSvgOptions<TModel = unknown> {
   frameTreeJson: Record<string, unknown> | null;
   overrides?: Record<string, unknown> | null;
   gridOverrides?: Record<string, unknown> | null;
+  renderIntent?: PreviewRenderIntent | null;
   model: TModel;
   textAdapter: TextMeasureAdapter;
   skipModelUpdate?: boolean | null;
@@ -131,6 +135,23 @@ function parseMarkupDocument(ownerDocument: Document, markup: string): SVGSVGEle
   const parser = new parserCtor();
   const parsed = parser.parseFromString(markup, 'image/svg+xml');
   return ownerDocument.importNode(parsed.documentElement, true) as unknown as SVGSVGElement;
+}
+
+export function filterPreviewEngineLayoutOptionOverrides(
+  overrides: Record<string, string> | null | undefined,
+  engine: Pick<PreviewEngineManifest, 'controlSpecs'> | null | undefined,
+): Record<string, string> {
+  if (!overrides) {
+    return {};
+  }
+  const specs = engine?.controlSpecs ?? [];
+  if (specs.length === 0) {
+    return { ...overrides };
+  }
+  const allowedKeys = new Set(specs.map((spec) => spec.key));
+  return Object.fromEntries(
+    Object.entries(overrides).filter(([key]) => allowedKeys.has(key)),
+  );
 }
 
 async function fetchPreviewIconSvg(name: string): Promise<string | null> {
@@ -318,7 +339,8 @@ export async function renderFreshPreviewSvg<TModel = unknown>(
     : null;
   if (renderedPreviewDocument) {
     const svg = parseMarkupDocument(options.ownerDocument, renderedPreviewDocument.svgMarkup);
-    const previewDocumentLayoutEngine = resolveActivePreviewLayoutEngine({
+    const previewDocumentLayoutEngine = resolvePreviewRenderIntentLayoutEngine({
+      intent: options.renderIntent ?? null,
       layoutEngine: options.previewDocumentJson?.layoutEngine ?? null,
       fallbackEngineId: options.previewDocumentJson?.kind === 'sequence' ? 'sequence' : null,
     });
@@ -340,6 +362,7 @@ export async function renderFreshPreviewSvg<TModel = unknown>(
   }
 
   const diagramJson = JSON.parse(JSON.stringify(options.frameTreeJson)) as Record<string, unknown>;
+  applyPreviewRenderIntentToFrameTreeJson(diagramJson, options.renderIntent ?? null);
   options.applySessionRemovalsToDiagramJson?.(diagramJson, options.model);
   const rawOverlays = Array.isArray(diagramJson.overlays)
     ? (diagramJson.overlays as DiagramOverlay[])
@@ -351,7 +374,8 @@ export async function renderFreshPreviewSvg<TModel = unknown>(
     invalidatePreviewArrowWaypointGeometry(diagram.arrows);
   }
 
-  const activeLayoutEngine = resolveActivePreviewLayoutEngine({
+  const activeLayoutEngine = resolvePreviewRenderIntentLayoutEngine({
+    intent: options.renderIntent ?? null,
     frameTreeJson: diagramJson as { layoutEngine?: string | null },
     layoutEngine: diagram.layoutEngine ?? null,
   });
@@ -365,7 +389,10 @@ export async function renderFreshPreviewSvg<TModel = unknown>(
     diagram,
     textAdapter: options.textAdapter,
     engine: engineManifest,
-    elkOptionOverrides: options.resolveEngineLayoutOptionOverrides(diagram, options.model),
+    elkOptionOverrides: filterPreviewEngineLayoutOptionOverrides(
+      options.resolveEngineLayoutOptionOverrides(diagram, options.model),
+      engineManifest,
+    ),
   });
 
   const iconElements = await collectPreviewIconElements(options.ownerDocument, diagram.root);

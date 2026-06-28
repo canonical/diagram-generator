@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  renderPreviewElkDebugOverlay,
   renderPreviewElkRawView,
 } from '../src/preview-engine/elk-debug-view.js';
 
@@ -113,16 +112,6 @@ describe('ELK debug view helpers', () => {
       flattenedFrameIds: ['wrapper'],
     },
   } as const;
-
-  it('attaches structured authored-tree and input-graph data to the debug overlay', () => {
-    const group = renderPreviewElkDebugOverlay({
-      ownerDocument: new FakeDocument() as unknown as Document,
-      snapshot: snapshot as never,
-    }) as unknown as FakeElement;
-
-    expect(group.getAttribute('data-dg-elk-authored-tree')).toContain('"wrapper"');
-    expect(group.getAttribute('data-dg-elk-input-graph')).toContain('"alpha"');
-  });
 
   it('surfaces the structured debug payload through the raw ELK view toggle', () => {
     const group = renderPreviewElkRawView({

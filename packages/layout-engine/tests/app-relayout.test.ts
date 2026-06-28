@@ -543,7 +543,7 @@ describe('preview relayout helpers', () => {
     // rejection does not escape runPreviewRelayout.
     expect(throwingEngine).toHaveBeenCalledTimes(1);
     expect(finishRelayout).not.toHaveBeenCalled();
-    expect(failRelayout).toHaveBeenCalledWith('elk-failure', 'alpha');
+    expect(failRelayout).toHaveBeenCalledWith('engine-failure', 'alpha');
     expect(result).toBe(false);
     expect(logError).toHaveBeenCalledWith(
       expect.stringContaining('engine adapter exploded'),

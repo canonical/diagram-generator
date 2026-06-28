@@ -84,7 +84,7 @@ root:
     sizing_w: fill
     children:
     - id: az1
-      direction: vertical
+      direction: horizontal
       align: top-center
       gap: 12
       sizing_w: fill
@@ -108,10 +108,11 @@ root:
           icon: Storage node.svg
       - id: az1_label
         variant: annotation
+        sizing_w: hug
         label:
         - AZ 1
     - id: az2
-      direction: vertical
+      direction: horizontal
       align: top-center
       gap: 12
       sizing_w: fill
@@ -135,10 +136,11 @@ root:
           icon: Storage node.svg
       - id: az2_label
         variant: annotation
+        sizing_w: hug
         label:
         - AZ 2
     - id: az3
-      direction: vertical
+      direction: horizontal
       align: top-center
       gap: 12
       sizing_w: fill
@@ -162,5 +164,6 @@ root:
           icon: Storage node.svg
       - id: az3_label
         variant: annotation
+        sizing_w: hug
         label:
         - AZ 3

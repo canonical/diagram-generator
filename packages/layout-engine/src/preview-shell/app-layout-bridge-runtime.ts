@@ -9,6 +9,14 @@ import {
 import {
   normalizePreviewWorkspaceEngineId,
 } from './preview-engine-workspace.js';
+import {
+  applyPreviewRenderIntentToFrameTreeJson,
+  commitPreviewRenderIntentToWindow,
+  createPreviewRenderIntent,
+  resolvePreviewRenderIntentLayoutEngine,
+  type PreviewRenderIntent,
+  type PreviewRenderIntentFrameTree,
+} from './preview-render-intent.js';
 import type { PreviewRoutedArrow } from './app-arrow-render.js';
 import type { FreshPreviewSvgRenderResult } from './app-fresh-render.js';
 import type { PreviewLocalRelayoutStatus, PreviewRelayoutOverrideEntry } from './app-relayout.js';
@@ -23,6 +31,7 @@ export interface PreviewLayoutBridgeState<
   frameTreeJson: TFrameTreeJson | null;
   lastElkSnapshot: ElkLayoutSnapshot | null;
   lastElkFrameLabels: Record<string, string> | null;
+  renderIntent: PreviewRenderIntent | null;
   textAdapter: TextMeasureAdapter | null;
   textAdapterError: string | null;
   localRelayoutOverrideMode: PreviewLocalRelayoutOverrideMode;
@@ -185,6 +194,7 @@ export interface CreatePreviewLayoutBridgeRuntimeFromBrowserHostOptions<
     model: TModel,
   ) => Record<string, string>) | null;
   refreshElkViewMode: () => void;
+  refreshLayoutControls?: (() => void) | null;
   warn: (message: string, error?: unknown) => void;
   error: (message: string, error?: unknown) => void;
   fetchPreviewDocument?: ((slug: string) => Promise<TPreviewDocumentJson | null>) | null;
@@ -202,7 +212,6 @@ export interface CreatePreviewElkViewModeRuntimeFromBrowserHostOptions {
     getLastElkFrameLabels: () => Record<string, string> | null;
   };
   renderPreviewElkRawView?: CreatePreviewElkViewModeRuntimeOptions['renderPreviewElkRawView'];
-  renderPreviewElkDebugOverlay?: CreatePreviewElkViewModeRuntimeOptions['renderPreviewElkDebugOverlay'];
 }
 
 export interface CreatePreviewLayoutBridgeRuntimeOptions<
@@ -260,6 +269,7 @@ export interface CreatePreviewLayoutBridgeRuntimeOptions<
     frameTreeJson: TFrameTreeJson | null;
     overrides: Record<string, PreviewRelayoutOverrideEntry>;
     gridOverrides: Record<string, unknown> | null;
+    renderIntent?: PreviewRenderIntent | null;
     model: TModel;
     textAdapter: TextMeasureAdapter;
     skipModelUpdate?: boolean | null;
@@ -294,6 +304,7 @@ export interface CreatePreviewLayoutBridgeRuntimeOptions<
     model: TModel,
   ) => Record<string, string>;
   refreshElkViewMode: () => void;
+  refreshLayoutControls?: (() => void) | null;
   warn: (message: string, error?: unknown) => void;
   error: (message: string, error?: unknown) => void;
 }
@@ -344,9 +355,7 @@ export interface PreviewLayoutBridgeRuntime<
 }
 
 export interface PreviewElkViewModeWindowLike {
-  __DG_previewEngineDebugOverlay?: boolean;
   __DG_previewEngineRawView?: boolean;
-  __DG_elkDebugOverlay?: boolean;
   __DG_elkRawView?: boolean;
 }
 
@@ -364,11 +373,6 @@ export interface CreatePreviewElkViewModeRuntimeOptions {
     headLen: number;
     headHalf: number;
   }) => SVGElement | SVGGElement | null) | null;
-  renderPreviewElkDebugOverlay?: ((options: {
-    ownerDocument: Document;
-    snapshot: ElkLayoutSnapshot;
-    svgNs: string;
-  }) => SVGElement | SVGGElement | null) | null;
   svgNs: string;
   headLen: number;
   headHalf: number;
@@ -377,8 +381,6 @@ export interface CreatePreviewElkViewModeRuntimeOptions {
 export interface PreviewElkViewModeRuntime {
   initializeWindowState: () => void;
   refreshViewMode: () => void;
-  refreshDebugOverlay: () => void;
-  setDebugOverlay: (enabled: boolean) => void;
   setRawView: (enabled: boolean) => void;
 }
 
@@ -387,6 +389,7 @@ interface PreviewLayoutBridgeLegacyEngineShellController {
 }
 
 interface PreviewLayoutBridgeLegacyLayoutControls {
+  refresh?: () => void;
   collectOverrides?: () => Record<string, unknown>;
 }
 
@@ -425,7 +428,6 @@ interface PreviewLayoutBridgeLegacyBundleRenderContract<
 
 interface PreviewLayoutBridgeLegacyElkEngineContract {
   renderPreviewElkRawView?: CreatePreviewElkViewModeRuntimeOptions['renderPreviewElkRawView'];
-  renderPreviewElkDebugOverlay?: CreatePreviewElkViewModeRuntimeOptions['renderPreviewElkDebugOverlay'];
 }
 
 export interface PreviewLayoutBridgeLegacyWindow extends PreviewElkViewModeWindowLike {
@@ -435,6 +437,7 @@ export interface PreviewLayoutBridgeLegacyWindow extends PreviewElkViewModeWindo
     head_half?: number;
     layout_engine?: string | null;
   } | null;
+  __DG_previewRenderIntent?: PreviewRenderIntent | null;
   setFrameTreeLayoutEngine?: ((layoutEngine: string | null | undefined) => string | null) | null;
   __DG_getPreviewCoreContract?: (() => PreviewLayoutBridgeCoreContract | null) | null;
   __DG_getPreviewBridgeRenderContract?: (() => PreviewLayoutBridgeLegacyRenderContract | null) | null;
@@ -536,7 +539,6 @@ export interface PreviewLayoutBridgeInstallRuntime<
     routedArrows: PreviewRoutedArrow[] | null | undefined,
   ) => void;
   refreshElkViewMode: () => void;
-  refreshElkDebugOverlay: () => void;
   installCompatWindowBindings: () => void;
 }
 
@@ -631,16 +633,46 @@ function setPreviewDocumentFrameTreeLayoutEngine<TPreviewDocumentJson>(
   return nextPreviewDocumentJson as TPreviewDocumentJson;
 }
 
-function isPreviewElkDebugEnabled(
-  previewWindow: PreviewElkViewModeWindowLike,
-): boolean {
-  const debugEnabled = typeof previewWindow.__DG_previewEngineDebugOverlay === 'boolean'
-    ? previewWindow.__DG_previewEngineDebugOverlay
-    : previewWindow.__DG_elkDebugOverlay === true;
-  const rawViewEnabled = typeof previewWindow.__DG_previewEngineRawView === 'boolean'
-    ? previewWindow.__DG_previewEngineRawView
-    : previewWindow.__DG_elkRawView === true;
-  return debugEnabled === true && rawViewEnabled !== true;
+function frameTreeJsonFromPreviewDocument(
+  previewDocumentJson: unknown,
+): PreviewRenderIntentFrameTree | null {
+  if (!isPreviewLayoutBridgeRecord(previewDocumentJson)) {
+    return null;
+  }
+  if (String(previewDocumentJson.kind || '') === 'frame-diagram') {
+    const frameTree = previewDocumentJson.frameTree;
+    return isPreviewLayoutBridgeRecord(frameTree)
+      ? frameTree as PreviewRenderIntentFrameTree
+      : previewDocumentJson as PreviewRenderIntentFrameTree;
+  }
+  return previewDocumentJson as PreviewRenderIntentFrameTree;
+}
+
+function commitPreviewLayoutBridgeRenderIntent<
+  TPreviewDocumentJson,
+  TFrameTreeJson,
+>(
+  state: PreviewLayoutBridgeState<TPreviewDocumentJson, TFrameTreeJson>,
+  options: {
+    activeEngineId?: string | null;
+    frameOverrides?: Record<string, unknown> | null;
+    engineOverrides?: Record<string, unknown> | null;
+    gridOverrides?: Record<string, unknown> | null;
+  } = {},
+): PreviewRenderIntent {
+  const frameTreeJson = isPreviewLayoutBridgeRecord(state.frameTreeJson)
+    ? state.frameTreeJson as PreviewRenderIntentFrameTree
+    : frameTreeJsonFromPreviewDocument(state.previewDocumentJson);
+  const intent = createPreviewRenderIntent({
+    current: state.renderIntent,
+    activeEngineId: options.activeEngineId,
+    frameTreeJson,
+    frameOverrides: options.frameOverrides ?? null,
+    engineOverrides: options.engineOverrides ?? null,
+    gridOverrides: options.gridOverrides ?? null,
+  });
+  state.renderIntent = intent;
+  return intent;
 }
 
 function isPreviewElkRawViewEnabled(
@@ -668,7 +700,6 @@ export function createPreviewElkViewModeRuntime(
 
     styledLayer?.setAttribute('display', rawViewEnabled ? 'none' : 'inline');
     svg.querySelector('#dg-elk-raw-view')?.remove();
-    svg.querySelector('#dg-elk-debug-overlay')?.remove();
 
     if (rawViewEnabled && elkSnapshot && options.renderPreviewElkRawView) {
       const rawView = options.renderPreviewElkRawView({
@@ -684,44 +715,17 @@ export function createPreviewElkViewModeRuntime(
       }
       return;
     }
-
-    if (isPreviewElkDebugEnabled(options.previewWindow)
-      && elkSnapshot
-      && options.renderPreviewElkDebugOverlay) {
-      const overlay = options.renderPreviewElkDebugOverlay({
-        ownerDocument: options.ownerDocument,
-        snapshot: elkSnapshot,
-        svgNs: options.svgNs,
-      });
-      if (overlay) {
-        svg.appendChild(overlay);
-      }
-    }
   };
 
   return {
     initializeWindowState() {
-      const debugEnabled = typeof options.previewWindow.__DG_previewEngineDebugOverlay === 'boolean'
-        ? options.previewWindow.__DG_previewEngineDebugOverlay
-        : options.previewWindow.__DG_elkDebugOverlay === true;
       const rawViewEnabled = typeof options.previewWindow.__DG_previewEngineRawView === 'boolean'
         ? options.previewWindow.__DG_previewEngineRawView
         : options.previewWindow.__DG_elkRawView === true;
-      options.previewWindow.__DG_previewEngineDebugOverlay = debugEnabled;
       options.previewWindow.__DG_previewEngineRawView = rawViewEnabled;
-      options.previewWindow.__DG_elkDebugOverlay = debugEnabled;
       options.previewWindow.__DG_elkRawView = rawViewEnabled;
     },
     refreshViewMode,
-    refreshDebugOverlay() {
-      refreshViewMode();
-    },
-    setDebugOverlay(enabled) {
-      const nextEnabled = Boolean(enabled);
-      options.previewWindow.__DG_previewEngineDebugOverlay = nextEnabled;
-      options.previewWindow.__DG_elkDebugOverlay = nextEnabled;
-      refreshViewMode();
-    },
     setRawView(enabled) {
       const nextEnabled = Boolean(enabled);
       options.previewWindow.__DG_previewEngineRawView = nextEnabled;
@@ -741,7 +745,6 @@ export function createPreviewElkViewModeRuntimeFromBrowserHost(
     getLastElkSnapshot: () => options.getLayoutBridgeRuntime().getLastElkSnapshot(),
     getLastElkFrameLabels: () => options.getLayoutBridgeRuntime().getLastElkFrameLabels(),
     renderPreviewElkRawView: options.renderPreviewElkRawView ?? null,
-    renderPreviewElkDebugOverlay: options.renderPreviewElkDebugOverlay ?? null,
     svgNs: 'http://www.w3.org/2000/svg',
     headLen: options.previewWindowConfig?.headLen ?? 8,
     headHalf: options.previewWindowConfig?.headHalf ?? 4,
@@ -870,11 +873,11 @@ export function createPreviewLayoutBridgeInstallRuntimeFromLegacyBrowserHost<
       ),
     },
     resolvePreviewEngineManifest: (json) => {
-      const layoutEngine = (
-        (json as { layoutEngine?: string | null } | null | undefined)?.layoutEngine
-        ?? options.previewWindow.__DG_CONFIG?.layout_engine
-        ?? null
-      );
+      const layoutEngine = resolvePreviewRenderIntentLayoutEngine({
+        intent: state.renderIntent,
+        frameTreeJson: json as PreviewRenderIntentFrameTree | null | undefined,
+        layoutEngine: (json as { layoutEngine?: string | null } | null | undefined)?.layoutEngine ?? null,
+      });
       return resolvePreviewEngine({ layoutEngine, shellMode: 'grid' }) || null;
     },
     createTextAdapter: async () => {
@@ -921,6 +924,9 @@ export function createPreviewLayoutBridgeInstallRuntimeFromLegacyBrowserHost<
     refreshElkViewMode: () => {
       elkViewModeRuntime.refreshViewMode();
     },
+    refreshLayoutControls: () => {
+      resolvePreviewLayoutBridgeLayoutControls(options.previewWindow)?.refresh?.();
+    },
     warn: (message, error) => console.warn(message, error),
     error: (message, error) => console.error(message, error),
   });
@@ -934,7 +940,6 @@ export function createPreviewLayoutBridgeInstallRuntimeFromLegacyBrowserHost<
     },
     getLayoutBridgeRuntime: () => runtime,
     renderPreviewElkRawView: previewElkEngine.renderPreviewElkRawView,
-    renderPreviewElkDebugOverlay: previewElkEngine.renderPreviewElkDebugOverlay,
   });
   elkViewModeRuntime.initializeWindowState();
 
@@ -1008,10 +1013,6 @@ export function createPreviewLayoutBridgeInstallRuntimeFromLegacyBrowserHost<
     elkViewModeRuntime.refreshViewMode();
   };
 
-  const refreshElkDebugOverlay = (): void => {
-    elkViewModeRuntime.refreshDebugOverlay();
-  };
-
   const compatHostRuntime = {
     initLayoutBridge: (nextSlug: string) => runtime.init(nextSlug),
     isLocalRelayoutReady: () => runtime.isLocalRelayoutReady(),
@@ -1019,9 +1020,15 @@ export function createPreviewLayoutBridgeInstallRuntimeFromLegacyBrowserHost<
     getPreviewDocumentJson: () => runtime.getPreviewDocumentJson(),
     getFrameTreeJson: () => runtime.getFrameTreeJson(),
     setFrameTreeJson: (json: TFrameTreeJson | null) => runtime.setFrameTreeJson(json),
-    setFrameTreeLayoutEngine: (layoutEngine: string | null | undefined) => (
-      runtime.setFrameTreeLayoutEngine(layoutEngine)
-    ),
+    setFrameTreeLayoutEngine: (layoutEngine: string | null | undefined) => {
+      const committed = runtime.setFrameTreeLayoutEngine(layoutEngine);
+      commitPreviewRenderIntentToWindow(options.previewWindow, {
+        current: runtime.state.renderIntent,
+        activeEngineId: committed,
+        frameTreeJson: runtime.state.frameTreeJson as PreviewRenderIntentFrameTree | null,
+      });
+      return committed;
+    },
     applyFrameTreeRemovals: (frameIds: string[]) => runtime.applyFrameTreeRemovals(frameIds),
     applyFrameTreeRemovalsToJson: (
       treeJson: Record<string, unknown> | null | undefined,
@@ -1083,12 +1090,6 @@ export function createPreviewLayoutBridgeInstallRuntimeFromLegacyBrowserHost<
 
   const installCompatWindowBindings = (): void => {
     const previewWindowRecord = options.previewWindow as unknown as Record<string, unknown>;
-    previewWindowRecord.__DG_setElkDebugOverlay = (enabled: boolean) => {
-      elkViewModeRuntime.setDebugOverlay(Boolean(enabled));
-    };
-    previewWindowRecord.__DG_setPreviewEngineDebugOverlay = (enabled: boolean) => {
-      elkViewModeRuntime.setDebugOverlay(Boolean(enabled));
-    };
     previewWindowRecord.__DG_setElkRawView = (enabled: boolean) => {
       elkViewModeRuntime.setRawView(Boolean(enabled));
     };
@@ -1103,7 +1104,6 @@ export function createPreviewLayoutBridgeInstallRuntimeFromLegacyBrowserHost<
     previewWindowRecord.__DG_previewBridgeHostRuntime = compatHostRuntime;
     previewWindowRecord.__DG_previewBridgeRenderHost = compatRenderHost;
     previewWindowRecord.renderFrameTreeToSvg = renderFrameTreeToSvg;
-    previewWindowRecord.refreshElkDebugOverlay = refreshElkDebugOverlay;
     previewWindowRecord.refreshElkViewMode = refreshElkViewMode;
     previewWindowRecord.renderFreshSvg = renderFreshSvg;
     previewWindowRecord.arrowComponentId = arrowComponentId;
@@ -1111,10 +1111,24 @@ export function createPreviewLayoutBridgeInstallRuntimeFromLegacyBrowserHost<
     previewWindowRecord.getLayoutTextAdapter = () => runtime.getTextAdapter();
     previewWindowRecord.getPreviewDocumentJson = () => runtime.getPreviewDocumentJson();
     previewWindowRecord.getFrameTreeJson = () => runtime.getFrameTreeJson();
-    previewWindowRecord.setFrameTreeJson = (json: TFrameTreeJson | null) => runtime.setFrameTreeJson(json);
+    previewWindowRecord.setFrameTreeJson = (json: TFrameTreeJson | null) => {
+      runtime.setFrameTreeJson(json);
+      commitPreviewRenderIntentToWindow(options.previewWindow, {
+        current: runtime.state.renderIntent,
+        frameTreeJson: runtime.state.frameTreeJson as PreviewRenderIntentFrameTree | null,
+      });
+    };
     previewWindowRecord.setFrameTreeLayoutEngine = (
       layoutEngine: string | null | undefined,
-    ) => runtime.setFrameTreeLayoutEngine(layoutEngine);
+    ) => {
+      const committed = runtime.setFrameTreeLayoutEngine(layoutEngine);
+      commitPreviewRenderIntentToWindow(options.previewWindow, {
+        current: runtime.state.renderIntent,
+        activeEngineId: committed,
+        frameTreeJson: runtime.state.frameTreeJson as PreviewRenderIntentFrameTree | null,
+      });
+      return committed;
+    };
     previewWindowRecord.applyFrameTreeRemovals = (frameIds: string[]) => runtime.applyFrameTreeRemovals(frameIds);
     previewWindowRecord.applyFrameTreeRemovalsToJson = (
       treeJson: Record<string, unknown> | null | undefined,
@@ -1142,8 +1156,22 @@ export function createPreviewLayoutBridgeInstallRuntimeFromLegacyBrowserHost<
     isLocalRelayoutReady: () => runtime.isLocalRelayoutReady(),
     getFrameTreeJson: () => runtime.getFrameTreeJson(),
     getPreviewDocumentJson: () => runtime.getPreviewDocumentJson(),
-    setFrameTreeJson: (json) => runtime.setFrameTreeJson(json),
-    setFrameTreeLayoutEngine: (layoutEngine) => runtime.setFrameTreeLayoutEngine(layoutEngine),
+    setFrameTreeJson: (json) => {
+      runtime.setFrameTreeJson(json);
+      commitPreviewRenderIntentToWindow(options.previewWindow, {
+        current: runtime.state.renderIntent,
+        frameTreeJson: runtime.state.frameTreeJson as PreviewRenderIntentFrameTree | null,
+      });
+    },
+    setFrameTreeLayoutEngine: (layoutEngine) => {
+      const committed = runtime.setFrameTreeLayoutEngine(layoutEngine);
+      commitPreviewRenderIntentToWindow(options.previewWindow, {
+        current: runtime.state.renderIntent,
+        activeEngineId: committed,
+        frameTreeJson: runtime.state.frameTreeJson as PreviewRenderIntentFrameTree | null,
+      });
+      return committed;
+    },
     applyFrameTreeRemovalsToJson: (treeJson, frameIds) => (
       applyFrameTreeRemovalsToPreviewTreeJson(treeJson, frameIds)
     ),
@@ -1167,7 +1195,6 @@ export function createPreviewLayoutBridgeInstallRuntimeFromLegacyBrowserHost<
     arrowComponentId,
     syncArrowsInModel,
     refreshElkViewMode,
-    refreshElkDebugOverlay,
     installCompatWindowBindings,
   };
 }
@@ -1187,6 +1214,7 @@ export function createPreviewLayoutBridgeState<
     frameTreeJson: null,
     lastElkSnapshot: null,
     lastElkFrameLabels: null,
+    renderIntent: null,
     textAdapter: null,
     textAdapterError: null,
     localRelayoutOverrideMode: 'auto',
@@ -1629,6 +1657,7 @@ export function createPreviewLayoutBridgeRuntimeFromBrowserHost<
       };
     }),
     refreshElkViewMode: options.refreshElkViewMode,
+    refreshLayoutControls: options.refreshLayoutControls,
     warn: options.warn,
     error: options.error,
   });
@@ -1651,6 +1680,7 @@ export function createPreviewLayoutBridgeRuntime<
       options.state.textAdapterError = null;
       options.state.lastElkSnapshot = null;
       options.state.lastElkFrameLabels = null;
+      options.state.renderIntent = null;
 
       try {
         const previewDocumentJson = await options.fetchPreviewDocument(slug);
@@ -1658,6 +1688,7 @@ export function createPreviewLayoutBridgeRuntime<
         options.state.frameTreeJson = clonePreviewLayoutBridgeValue(
           options.extractFrameTreeFromPreviewDocument(previewDocumentJson),
         );
+        commitPreviewLayoutBridgeRenderIntent(options.state);
       } catch (error) {
         options.warn('layout-bridge: failed to load preview document', error);
       }
@@ -1699,6 +1730,7 @@ export function createPreviewLayoutBridgeRuntime<
     },
     setFrameTreeJson(json) {
       options.state.frameTreeJson = clonePreviewLayoutBridgeValue(json);
+      commitPreviewLayoutBridgeRenderIntent(options.state);
     },
     setFrameTreeLayoutEngine(layoutEngine) {
       if (!isPreviewLayoutBridgeRecord(options.state.frameTreeJson)) {
@@ -1713,6 +1745,9 @@ export function createPreviewLayoutBridgeRuntime<
         options.state.previewDocumentJson,
         normalizedLayoutEngine,
       );
+      commitPreviewLayoutBridgeRenderIntent(options.state, {
+        activeEngineId: normalizedLayoutEngine,
+      });
       return normalizedLayoutEngine;
     },
     getTextAdapter() {
@@ -1751,6 +1786,11 @@ export function createPreviewLayoutBridgeRuntime<
         const diagramJson = clonePreviewLayoutBridgeValue(
           options.state.frameTreeJson,
         ) as Record<string, unknown>;
+        const renderIntent = commitPreviewLayoutBridgeRenderIntent(options.state, {
+          frameOverrides: overrides || {},
+          gridOverrides: gridOverrides || {},
+        });
+        applyPreviewRenderIntentToFrameTreeJson(diagramJson, renderIntent);
         applyPreviewSessionRemovalsToDiagramJson(diagramJson, model);
         if (options.isEngineLayoutDiagramJson(diagramJson)) {
           options.warn('layout-bridge: performLocalRelayout skipped for engine-backed diagram');
@@ -1828,6 +1868,10 @@ export function createPreviewLayoutBridgeRuntime<
         frameTreeJson: options.state.frameTreeJson,
         overrides: overrides || {},
         gridOverrides: gridOverrides || null,
+        renderIntent: commitPreviewLayoutBridgeRenderIntent(options.state, {
+          frameOverrides: overrides || {},
+          gridOverrides: gridOverrides || {},
+        }),
         model,
         textAdapter: options.state.textAdapter,
         skipModelUpdate: relayoutOptions?.skipModelUpdate ?? false,
@@ -1844,6 +1888,7 @@ export function createPreviewLayoutBridgeRuntime<
       options.state.lastElkSnapshot = renderResult.elkSnapshot || null;
       options.state.lastElkFrameLabels = renderResult.elkFrameLabels || null;
       options.refreshElkViewMode();
+      options.refreshLayoutControls?.();
       return {
         svg: renderResult.svg,
         width: renderResult.width,

@@ -26,6 +26,7 @@ export interface SingleSelectionAutolayoutPanelRenderOptions {
   heightFixedValue?: string | number | null;
   heightFixedStep?: number;
   heightUnit?: 'px' | 'rows';
+  showHeightRowsOption?: boolean;
   heightMinValue?: string | number | null;
   heightMaxValue?: string | number | null;
   positionXValue?: string | number | null;
@@ -181,7 +182,9 @@ function renderSingleSelectionAutolayoutSizingGroup(
       'data-dg-cid': cid,
     })}>`;
     html += `<option value="px"${options.heightUnit !== 'rows' ? ' selected' : ''}>px</option>`;
-    html += `<option value="rows"${options.heightUnit === 'rows' ? ' selected' : ''}>rows</option>`;
+    if (options.showHeightRowsOption) {
+      html += `<option value="rows"${options.heightUnit === 'rows' ? ' selected' : ''}>rows</option>`;
+    }
     html += '</select>';
   }
   html += '</div>';

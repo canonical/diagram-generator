@@ -2339,7 +2339,7 @@ function contextualAsideTemplate(): string {
     '  </section>',
     '</div>',
     '<section id="grid-controls-section" %GRID_CONTROLS_HIDDEN%><div id="grid-controls"></div></section>',
-    '<section id="elk-layout-section" %ELK_SECTION_HIDDEN%><input id="elk-raw-view-toggle"><input id="elk-debug-overlay-toggle"></section>',
+    '<section id="elk-layout-section" %ELK_SECTION_HIDDEN%><div id="elk-layout-controls"></div></section>',
     '<section id="graph-layout-section" %GRAPH_LAYOUT_SECTION_HIDDEN%><div id="graph-layout-controls"></div></section>',
     '<section id="force-solver-section" %FORCE_SOLVER_HIDDEN%>force solver</section>',
     '<section id="force-simulation-section" %FORCE_SIMULATION_HIDDEN%><div id="force-params"></div></section>',

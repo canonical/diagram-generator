@@ -105,6 +105,7 @@ describe('elk preview runtimes', () => {
 
     expect(section.hidden).toBe(false);
     expect(container.innerHTML).toContain('Node spacing');
+    expect(container.innerHTML).toContain('elk-raw-view-toggle');
   });
 
   it('builds controls from the active ELK-family engine', () => {
@@ -170,6 +171,178 @@ describe('elk preview runtimes', () => {
     expect(section.hidden).toBe(false);
     expect(container.innerHTML).toContain('Random seed');
     expect(container.innerHTML).not.toContain('Layer gap');
+  });
+
+  it('rebuilds existing controls against the current active ELK-family engine', () => {
+    const section = {
+      hidden: true,
+      querySelector() {
+        return null;
+      },
+    };
+    const forceControl = {
+      id: 'elk-elk-randomSeed',
+      value: '12',
+      dataset: { dgEngineLayoutKey: 'elk.randomSeed', dgPersistNamespace: 'meta.elk' },
+      addEventListener: () => {},
+    };
+    const container = {
+      innerHTML: '<input id="elk-elk-randomSeed" data-dg-engine-layout-key="elk.randomSeed">',
+      textContent: '',
+      querySelector(selector: string) {
+        return selector === '[data-dg-engine-layout-key], [data-elk-key]' ? forceControl : null;
+      },
+      querySelectorAll() {
+        return [forceControl];
+      },
+    };
+    const runtime = createPreviewElkLayoutControlsRuntime({
+      document: {
+        getElementById(id: string) {
+          if (id === 'elk-layout-section') return section as never;
+          if (id === 'elk-layout-controls') return container as never;
+          return null;
+        },
+      },
+      previewWindow: {
+        __DG_CONFIG: {},
+      },
+      layoutEngineRoot: {
+        previewEngines: {
+          registry: {
+            resolvePreviewEngine({ layoutEngine }) {
+              if (layoutEngine === 'elk-layered') {
+                return {
+                  id: 'elk-layered',
+                  hostView: { sidebarSections: ['elk-layout'] },
+                  controlSpecs: [
+                    {
+                      key: 'elk.layered.layering.strategy',
+                      label: 'Layering strategy',
+                      group: 'Layering',
+                      kind: 'enum',
+                      defaultValue: 'NETWORK_SIMPLEX',
+                      enumValues: [{ value: 'NETWORK_SIMPLEX', label: 'Network simplex' }],
+                    },
+                  ],
+                } as never;
+              }
+              return null;
+            },
+            listPreviewEnginesBySidebarSection() {
+              return [];
+            },
+          },
+        },
+      },
+      getFrameTreeJson: () => ({
+        layoutEngine: 'elk-layered',
+        elkLayout: {},
+      }),
+    });
+
+    runtime.buildPanel();
+
+    expect(section.hidden).toBe(false);
+    expect(container.innerHTML).toContain('Layering strategy');
+    expect(container.innerHTML).toContain('elk-elk-layered-layering-strategy');
+    expect(container.innerHTML).not.toContain('elk.randomSeed');
+  });
+
+  it('filters shared ELK grouping metadata to the active algorithm specs', () => {
+    const section = {
+      hidden: true,
+      querySelector() {
+        return null;
+      },
+    };
+    const container = {
+      innerHTML: '%ELK_LAYOUT_CONTROLS_HTML%',
+      textContent: '',
+      querySelector() {
+        return null;
+      },
+      querySelectorAll() {
+        return [];
+      },
+    };
+    const runtime = createPreviewElkLayoutControlsRuntime({
+      document: {
+        getElementById(id: string) {
+          if (id === 'elk-layout-section') return section as never;
+          if (id === 'elk-layout-controls') return container as never;
+          return null;
+        },
+      },
+      previewWindow: {
+        __DG_CONFIG: {},
+      },
+      layoutEngineRoot: {
+        previewEngines: {
+          registry: {
+            resolvePreviewEngine({ layoutEngine }) {
+              if (layoutEngine === 'elk-radial') {
+                return {
+                  id: 'elk-radial',
+                  hostView: { sidebarSections: ['elk-layout'] },
+                  controlSpecs: [
+                    {
+                      key: 'elk.spacing.nodeNode',
+                      label: 'Node spacing',
+                      group: 'Spacing',
+                      kind: 'number',
+                      defaultValue: '24',
+                    },
+                  ],
+                } as never;
+              }
+              return null;
+            },
+            listPreviewEnginesBySidebarSection() {
+              return [];
+            },
+          },
+          elk: {
+            elkParamGroups() {
+              return [
+                {
+                  group: 'Spacing',
+                  specs: [
+                    {
+                      key: 'elk.spacing.nodeNode',
+                      label: 'Node spacing',
+                      group: 'Spacing',
+                      kind: 'number',
+                      defaultValue: '24',
+                    },
+                  ],
+                },
+                {
+                  group: 'Layering',
+                  specs: [
+                    {
+                      key: 'elk.layered.layering.strategy',
+                      label: 'Layering strategy',
+                      group: 'Layering',
+                      kind: 'enum',
+                      defaultValue: 'NETWORK_SIMPLEX',
+                      enumValues: [{ value: 'NETWORK_SIMPLEX', label: 'Network simplex' }],
+                    },
+                  ],
+                },
+              ];
+            },
+          },
+        },
+      },
+    });
+
+    runtime.buildPanel({ layoutEngine: 'elk-radial', elkLayout: {} });
+
+    expect(section.hidden).toBe(false);
+    expect(container.innerHTML).toContain('Node spacing');
+    expect(container.innerHTML).not.toContain('Layering strategy');
+    expect(container.innerHTML).not.toContain('elk-elk-layered-layering-strategy');
   });
 
   it('builds generic graph controls for Dagre from the active manifest namespace', () => {
@@ -297,7 +470,7 @@ describe('elk preview runtimes', () => {
     });
   });
 
-  it('hides and disables stale ELK controls when the active engine is not ELK', () => {
+  it('hides and clears stale ELK controls when the active engine is not ELK', () => {
     const controlAttrs = new Map<string, string>();
     const staleControl = {
       id: 'elk-spacing-nodeNode',
@@ -396,8 +569,7 @@ describe('elk preview runtimes', () => {
     expect(section.hidden).toBe(true);
     expect(section.inert).toBe(true);
     expect(sectionAttrs.get('aria-hidden')).toBe('true');
-    expect(staleControl.disabled).toBe(true);
-    expect(controlAttrs.get('tabindex')).toBe('-1');
+    expect(container.innerHTML).toBe('');
     expect(runtime.collectOverrides()).toEqual({});
   });
 

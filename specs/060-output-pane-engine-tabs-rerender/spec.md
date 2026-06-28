@@ -1,7 +1,11 @@
 # Spec 060: Output Pane Engine Tabs And Live Rerender
 
 **Feature Branch**: `feat/060-output-pane-engine-tabs-rerender`  
-**Status**: Closeout Ready
+**Status**: REOPENED 2026-06-28 — engine identity is real; direction-flip +
+real-gesture relayout proof was fake (`skipModelUpdate` evidence). Depends on
+spec 065. Closing gate:
+[`specs/065-interactive-relayout-contract/verification-protocol.md`](../065-interactive-relayout-contract/verification-protocol.md).
+See [`docs/spec-reviews/CLINE-VERDICT-2026-06-28.md`](../../docs/spec-reviews/CLINE-VERDICT-2026-06-28.md).
 **Created**: 2026-06-28
 
 ## Problem

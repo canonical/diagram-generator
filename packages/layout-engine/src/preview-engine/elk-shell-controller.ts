@@ -1,4 +1,9 @@
 import type { PreviewEngineManifest } from './types.js';
+import {
+  resolvePreviewRenderIntentLayoutEngine,
+  type PreviewRenderIntent,
+  type PreviewRenderIntentFrameTree,
+} from '../preview-shell/preview-render-intent.js';
 
 export interface PreviewElkShellControllerDeps {
   getLayoutOverrides?: () => Record<string, unknown>;
@@ -15,6 +20,7 @@ export interface PreviewElkShellControllerDeps {
 
 export interface PreviewElkShellControllerWindowLike {
   __DG_CONFIG?: { layout_engine?: string };
+  __DG_previewRenderIntent?: PreviewRenderIntent | null;
   PreviewEngineLayoutControls?: {
     init?: (options: {
       getOverrides: () => Record<string, unknown>;
@@ -120,7 +126,10 @@ export function createPreviewElkShellControllerRuntime(
     const tree = frameTreeJson !== undefined
       ? frameTreeJson as { layoutEngine?: string | null } | null
       : (options.getFrameTreeJson?.() as { layoutEngine?: string | null } | null | undefined) ?? null;
-    const layoutEngine = tree?.layoutEngine ?? options.previewWindow.__DG_CONFIG?.layout_engine ?? null;
+    const layoutEngine = resolvePreviewRenderIntentLayoutEngine({
+      intent: options.previewWindow.__DG_previewRenderIntent ?? null,
+      frameTreeJson: tree as PreviewRenderIntentFrameTree | null,
+    });
     const engine = resolvePreviewEngine({ layoutEngine, shellMode: 'grid' });
     return engineSupportsSidebarSection(engine, sidebarSectionId) ? engine : null;
   }
@@ -152,7 +161,10 @@ export function createPreviewElkShellControllerRuntime(
     const tree = frameTreeJson !== undefined
       ? frameTreeJson as { layoutEngine?: string | null } | null
       : (options.getFrameTreeJson?.() as { layoutEngine?: string | null } | null | undefined) ?? null;
-    const layoutEngine = tree?.layoutEngine ?? options.previewWindow.__DG_CONFIG?.layout_engine ?? null;
+    const layoutEngine = resolvePreviewRenderIntentLayoutEngine({
+      intent: options.previewWindow.__DG_previewRenderIntent ?? null,
+      frameTreeJson: tree as PreviewRenderIntentFrameTree | null,
+    });
     if (engineSupportsSidebarSection(resolvePreviewEngine({ layoutEngine, shellMode: 'grid' }), sidebarSectionId)) {
       return true;
     }
