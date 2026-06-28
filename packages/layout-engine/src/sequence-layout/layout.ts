@@ -1,4 +1,9 @@
 import type { SequenceDiagramSpec, SequenceGroup, SequenceMessage, SequenceNote, SequenceParticipant } from './model.js';
+import {
+  estimateSharedBoxTextHeight,
+  estimateSharedBoxTextWidth,
+  SHARED_BOX_RHYTHM,
+} from '../shared-box-rhythm.js';
 
 export interface SequenceLayoutParticipantBox {
   id: string;
@@ -61,26 +66,15 @@ export interface SequenceLayoutConfig {
 
 const DEFAULT_CONFIG: Required<SequenceLayoutConfig> = {
   participantWidth: 176,
-  participantHeight: 56,
+  participantHeight: SHARED_BOX_RHYTHM.minBoxHeight,
   participantGap: 96,
   topPadding: 48,
   sidePadding: 48,
   messageStartY: 152,
   messageRowGap: 88,
   noteWidth: 160,
-  noteHeight: 56,
+  noteHeight: SHARED_BOX_RHYTHM.minBoxHeight,
 };
-
-function estimateTextWidth(lines: readonly { text: string }[], fontSize = 16): number {
-  return Math.max(
-    0,
-    ...lines.map((line) => line.text.length * fontSize * 0.56),
-  );
-}
-
-function estimateTextHeight(lines: readonly { text: string }[], lineStep = 20): number {
-  return Math.max(lineStep, lines.length * lineStep);
-}
 
 export function layoutSequenceDiagram(
   spec: SequenceDiagramSpec,
@@ -91,11 +85,11 @@ export function layoutSequenceDiagram(
   const participants = spec.participants.map((participant) => {
     const width = Math.max(
       resolved.participantWidth,
-      Math.ceil(estimateTextWidth(participant.label, 16) + 32),
+      Math.ceil(estimateSharedBoxTextWidth(participant.label) + (SHARED_BOX_RHYTHM.textInset * 2)),
     );
     const height = Math.max(
       resolved.participantHeight,
-      Math.ceil(estimateTextHeight(participant.label, 20) + 32),
+      Math.ceil(estimateSharedBoxTextHeight(participant.label) + (SHARED_BOX_RHYTHM.textInset * 2)),
     );
     const box = {
       id: participant.id,
@@ -132,11 +126,11 @@ export function layoutSequenceDiagram(
     const anchorY = resolved.messageStartY + index * resolved.messageRowGap;
     const noteWidth = Math.max(
       resolved.noteWidth,
-      Math.ceil(estimateTextWidth(note.label, 14) + 24),
+      Math.ceil(estimateSharedBoxTextWidth(note.label) + (SHARED_BOX_RHYTHM.textInset * 2)),
     );
     const noteHeight = Math.max(
       resolved.noteHeight,
-      Math.ceil(estimateTextHeight(note.label, 18) + 24),
+      Math.ceil(estimateSharedBoxTextHeight(note.label) + (SHARED_BOX_RHYTHM.textInset * 2)),
     );
     const x = note.placement === 'left-of'
       ? anchorX - noteWidth - 24

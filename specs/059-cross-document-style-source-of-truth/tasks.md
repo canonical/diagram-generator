@@ -5,33 +5,41 @@
 
 ## Phase 0: Audit
 
-- [ ] **T000** Audit the current style-token ownership for frame and sequence
+- [x] **T000** Audit the current style-token ownership for frame and sequence
       box chrome.
-      **Verify**: owner list and current divergence points are captured.
+      **Verify**: frame rhythm was owned by `tokens.ts`/frame render plans while
+      sequence copied separate participant/note text sizing and insets in
+      `sequence-layout/layout.ts` and `sequence-layout/render-svg.ts`.
 
-- [ ] **T001** Reproduce the `service-handshake-sequence` spacing and engine
+- [x] **T001** Reproduce the `service-handshake-sequence` spacing and engine
       display issues.
-      **Verify**: bounded repro notes exist before edits.
+      **Verify**: `preview-host-contract.test.ts` covered the sequence lane and
+      was missing a visible `active_engine_label`; browser evidence now records
+      the live sequence engine label and SVG rhythm.
 
 ## Phase 1: Shared Style Contract
 
-- [ ] **T010** Define or extract the shared box-rhythm source of truth.
+- [x] **T010** Define or extract the shared box-rhythm source of truth.
       **Verify**: `npm --prefix packages/layout-engine test`
 
-- [ ] **T011** Route sequence and relevant frame renderers through that shared
+- [x] **T011** Route sequence and relevant frame renderers through that shared
       contract.
-      **Verify**: focused parity tests.
+      **Verify**:
+      `npm --prefix packages/layout-engine test -- cross-document-style-contract.test.ts sequence-layout-render-svg.test.ts sequence-layout-layout.test.ts arrow-render.test.ts frame-render-plan.test.ts`
 
 ## Phase 2: Host Chrome
 
-- [ ] **T020** Add or restore engine identity display where the sequence lane
+- [x] **T020** Add or restore engine identity display where the sequence lane
       needs it.
-      **Verify**: focused preview-host tests.
+      **Verify**: `npm --prefix apps/preview test`; browser evidence at
+      `specs/059-cross-document-style-source-of-truth/evidence/style-source-browser-result.json`
 
 ## Phase 3: Validation
 
-- [ ] **T030** Full validation.
+- [x] **T030** Full validation.
       **Verify**:
       `npm --prefix packages/layout-engine test`;
       `npm --prefix apps/preview test`;
-      `node scripts/check_no_new_python.mjs`
+      `node scripts/check-browser-bundle-fresh.mjs`;
+      `node scripts/check_no_new_python.mjs`;
+      `node specs/059-cross-document-style-source-of-truth/evidence/style-source-browser-check.mjs`

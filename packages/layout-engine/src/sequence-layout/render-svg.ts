@@ -5,11 +5,9 @@ import {
   ARROW_COLOR,
   ARROW_HEAD_HALF_WIDTH,
   ARROW_HEAD_LENGTH,
-  BODY_LINE_STEP,
-  BODY_SIZE,
   DEFAULT_FRAME_STROKE_WIDTH,
-  defaultLineStep,
 } from '../tokens.js';
+import { SHARED_BOX_RHYTHM } from '../shared-box-rhythm.js';
 
 export interface SequenceSvgRenderOptions {
   title?: string;
@@ -31,8 +29,8 @@ const annotationFrameClass = FRAME_CLASS_DEFS.annotation;
 const participantTextStyle: SequenceTextStyle = {
   fill: participantFrameClass.textFill ?? '#000000',
   weight: participantFrameClass.headingText?.weight ?? '400',
-  size: BODY_SIZE,
-  lineStep: BODY_LINE_STEP,
+  size: SHARED_BOX_RHYTHM.bodyFontSize,
+  lineStep: SHARED_BOX_RHYTHM.bodyLineStep,
   letterSpacing: participantFrameClass.headingText?.letterSpacing ?? null,
   textAnchor: 'start',
 };
@@ -40,8 +38,8 @@ const participantTextStyle: SequenceTextStyle = {
 const annotationTextStyle: SequenceTextStyle = {
   fill: annotationFrameClass.textFill ?? '#666666',
   weight: annotationFrameClass.leafLeadText?.weight ?? '400',
-  size: 14,
-  lineStep: defaultLineStep(14),
+  size: SHARED_BOX_RHYTHM.bodyFontSize,
+  lineStep: SHARED_BOX_RHYTHM.bodyLineStep,
   letterSpacing: annotationFrameClass.leafLeadText?.letterSpacing ?? null,
   textAnchor: 'start',
 };
@@ -105,8 +103,8 @@ export function renderSequenceDiagramToSvg(
       `<rect x="${fmt(participant.x)}" y="${fmt(participant.y)}" width="${fmt(participant.width)}" height="${fmt(participant.height)}" fill="${participantFrameClass.fill}" stroke="${participantFrameClass.stroke}" stroke-width="${participantFrameClass.strokeWidth ?? DEFAULT_FRAME_STROKE_WIDTH}" stroke-miterlimit="10"/>` +
       renderTextLines(
         participant.participant.label,
-        participant.x + 16,
-        participant.y + 16,
+        participant.x + SHARED_BOX_RHYTHM.textInset,
+        participant.y + SHARED_BOX_RHYTHM.textInset,
         participantTextStyle,
       ) +
       `<line x1="${fmt(centerX)}" y1="${fmt(participant.y + participant.height)}" x2="${fmt(centerX)}" y2="${fmt(layout.height - 32)}" stroke="${annotationTextStyle.fill}" stroke-width="${DEFAULT_FRAME_STROKE_WIDTH}" stroke-dasharray="8 8"/>` +
@@ -132,8 +130,8 @@ export function renderSequenceDiagramToSvg(
     `<rect x="${fmt(note.x)}" y="${fmt(note.y)}" width="${fmt(note.width)}" height="${fmt(note.height)}" fill="${annotationFrameClass.fill}" stroke="${annotationFrameClass.stroke}" stroke-width="${annotationFrameClass.strokeWidth ?? DEFAULT_FRAME_STROKE_WIDTH}" stroke-miterlimit="10"/>` +
     renderTextLines(
       note.note.label,
-      note.x + 12,
-      note.y + 12,
+      note.x + SHARED_BOX_RHYTHM.textInset,
+      note.y + SHARED_BOX_RHYTHM.textInset,
       annotationTextStyle,
     ) +
     `</g>`

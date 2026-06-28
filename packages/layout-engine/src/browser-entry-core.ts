@@ -7,6 +7,11 @@ import {
   INSET,
   sizeToPx,
 } from './tokens.js';
+import {
+  SHARED_BOX_RHYTHM,
+  estimateSharedBoxTextHeight,
+  estimateSharedBoxTextWidth,
+} from './shared-box-rhythm.js';
 import { wrapTextLines } from './text-measure.js';
 import { layoutFrameTree } from './layout.js';
 import { resolveStyles } from './resolve-styles.js';
@@ -34,6 +39,8 @@ export const core = Object.freeze({
   deserializeFrameDiagramWire,
   deserializeFrameWire,
   effectiveResolvedStrokeWidth,
+  estimateSharedBoxTextHeight,
+  estimateSharedBoxTextWidth,
   frameOwnedTextBlockGap,
   frameOwnedTextBlockRole,
   frameOwnedTextBlocks,
@@ -43,6 +50,7 @@ export const core = Object.freeze({
   renderSequenceDiagramToSvg,
   resolveStyles,
   routeArrows,
+  SHARED_BOX_RHYTHM,
   sizeToPx,
   wrapTextLines,
 });

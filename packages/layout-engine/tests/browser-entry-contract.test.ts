@@ -195,6 +195,9 @@ import {
   listPreviewEngines,
   resolvePreviewEngine,
   serializePreviewEngineManifest,
+  SHARED_BOX_RHYTHM,
+  estimateSharedBoxTextHeight,
+  estimateSharedBoxTextWidth,
 } from '../src/index.js';
 import { deserializeFrameDiagramWire, deserializeFrameWire } from '../src/frame-serialize.js';
 import { effectiveResolvedStrokeWidth } from '../src/frame-classes.js';
@@ -218,11 +221,14 @@ const CORE_EXPORT_KEYS = [
   'GRID_GUTTER',
   'ICON_SIZE',
   'INSET',
+  'SHARED_BOX_RHYTHM',
   'annotationTextToSpec',
   'createLine',
   'deserializeFrameDiagramWire',
   'deserializeFrameWire',
   'effectiveResolvedStrokeWidth',
+  'estimateSharedBoxTextHeight',
+  'estimateSharedBoxTextWidth',
   'frameOwnedTextBlockGap',
   'frameOwnedTextBlockRole',
   'frameOwnedTextBlocks',
@@ -411,6 +417,8 @@ describe('browser entry contract pilot', () => {
     expect(core.deserializeFrameDiagramWire).toBe(deserializeFrameDiagramWire);
     expect(core.deserializeFrameWire).toBe(deserializeFrameWire);
     expect(core.effectiveResolvedStrokeWidth).toBe(effectiveResolvedStrokeWidth);
+    expect(core.estimateSharedBoxTextHeight).toBe(estimateSharedBoxTextHeight);
+    expect(core.estimateSharedBoxTextWidth).toBe(estimateSharedBoxTextWidth);
     expect(core.frameOwnedTextBlockGap).toBe(frameOwnedTextBlockGap);
     expect(core.frameOwnedTextBlockRole).toBe(frameOwnedTextBlockRole);
     expect(core.frameOwnedTextBlocks).toBe(frameOwnedTextBlocks);
@@ -420,6 +428,7 @@ describe('browser entry contract pilot', () => {
     expect(core.renderSequenceDiagramToSvg).toBe(renderSequenceDiagramToSvg);
     expect(core.resolveStyles).toBe(resolveStyles);
     expect(core.routeArrows).toBe(routeArrows);
+    expect(core.SHARED_BOX_RHYTHM).toBe(SHARED_BOX_RHYTHM);
     expect(core.sizeToPx).toBe(sizeToPx);
     expect(core.wrapTextLines).toBe(wrapTextLines);
   });

@@ -1,7 +1,7 @@
 # Spec 059: Cross-Document Style Source Of Truth
 
 **Feature Branch**: `feat/059-cross-document-style-source-of-truth`  
-**Status**: Draft  
+**Status**: Closeout Ready
 **Created**: 2026-06-27
 
 ## Problem
@@ -69,3 +69,14 @@ This is a style-contract problem, not a one-fixture tuning task.
 - Spec 047 render IR unification for shared renderer ownership.
 - Spec 055 if engine-identity display work shares host chrome with engine
   workspace navigation.
+
+## Closeout Notes
+
+- `SHARED_BOX_RHYTHM` is the reusable TypeScript contract for shared box body
+  font size, line step, text inset, minimum box height, and headed-frame bottom
+  spacing.
+- Frame render plans and the sequence layout/SVG renderer consume the shared
+  contract; the sequence lane no longer carries a separate annotation font size.
+- Browser evidence records `service-handshake-sequence` rendering through
+  `data-layout-engine="sequence"`, showing `Engine: Sequence layout`, and
+  emitting one 18px text size with 8px text insets.

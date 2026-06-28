@@ -11,6 +11,8 @@
  *   3. Place (top-down): distribute space to children, assign positions.
  */
 
+import { SHARED_BOX_RHYTHM } from './shared-box-rhythm.js';
+
 // ---------------------------------------------------------------------------
 // Text & appearance types (from diagram_model.py)
 // ---------------------------------------------------------------------------
@@ -339,7 +341,7 @@ export class Frame {
     this.gap = init?.gap ?? 24;
     this.gapDelta = init?.gapDelta;
     this.gapIsAuthored = init?.gapIsAuthored ?? false;
-    this.padding = init?.padding ?? 8;
+    this.padding = init?.padding ?? SHARED_BOX_RHYTHM.textInset;
     this.align = init?.align ?? Align.TOP_LEFT;
     this.justify = init?.justify ?? Justify.PACKED;
     this.wrap = init?.wrap ?? false;

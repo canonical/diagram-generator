@@ -7,11 +7,10 @@ import {
 } from './resolved-spec-typography.js';
 import { leafIconColumnWidth } from './spatial.js';
 import {
-  BODY_LINE_STEP,
-  BODY_SIZE,
   ICON_SIZE,
   sizeToPx,
 } from './tokens.js';
+import { SHARED_BOX_RHYTHM } from './shared-box-rhythm.js';
 import { type LineSpec, type TextMeasureAdapter, wrapTextLines } from './text-measure.js';
 import { lineTopToBaseline } from './text-render-geometry.js';
 
@@ -90,8 +89,8 @@ export function resolveFrameRenderPlan(
   for (const [blockIndex, block] of textBlocks.entries()) {
     const lines: FrameRenderTextLinePlan[] = [];
     for (const spec of block) {
-      const size = String(spec.size ?? BODY_SIZE);
-      const lineStep = sizeToPx(spec.lineStep ?? BODY_LINE_STEP);
+      const size = String(spec.size ?? SHARED_BOX_RHYTHM.bodyFontSize);
+      const lineStep = sizeToPx(spec.lineStep ?? SHARED_BOX_RHYTHM.bodyLineStep);
       lines.push({
         x,
         y: lineTopToBaseline(top, size),

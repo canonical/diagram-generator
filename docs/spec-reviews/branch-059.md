@@ -1,12 +1,11 @@
 # Review: spec 059 — Cross-document style source of truth
 
 **Branch:** `feat/059-cross-document-style-source-of-truth`
-**Claimed status:** In Progress.
-**Real status:** **zero commits.** `git log main..feat/059` is empty. The branch
-is "In Progress" in `docs/specs.md` but no work exists. This is the clearest case
-of status drift in the cluster — it must read **Draft / Not started**.
+**Review status:** Closeout addressed on the matching feature branch.
 
-Treat this file as the design brief, not a review of work.
+The original review found status drift: `feat/059` had no product commits while
+the index called it In Progress. The branch was reset from current `main`, then
+implemented and validated against the gate below.
 
 ## What 059 must actually do (INBOX #11, #14)
 
@@ -52,13 +51,21 @@ source so a single change updates the whole set, and stop per-document drift.
 
 README §3 plus:
 
-- A style-parity test asserting v3 and sequence boxes resolve identical
+- [x] A style-parity test asserting v3 and sequence boxes resolve identical
   rhythm/font tokens from one source (SC-001).
-- A single-font-size invariant test over rendered text.
-- The +8px heading-bottom change reflected in the shared token and a test that
+- [x] A single-font-size invariant test over rendered text.
+- [x] The +8px heading-bottom change reflected in the shared token and a test that
   catches regressions.
-- Browser check on `service-handshake-sequence` recorded under `evidence/`.
+- [x] Browser check on `service-handshake-sequence` recorded under `evidence/`.
 
-**First action on this branch:** fix the status drift — set `docs/specs.md` and
-the spec header to Draft/Not-started until real commits exist, so nobody else
-assumes 059 is underway.
+## Closeout evidence
+
+- Shared source: `packages/layout-engine/src/shared-box-rhythm.ts`
+- Contract test: `packages/layout-engine/tests/cross-document-style-contract.test.ts`
+- Browser proof:
+  `specs/059-cross-document-style-source-of-truth/evidence/style-source-browser-result.json`
+- Validation commands:
+  `npm --prefix packages/layout-engine test`;
+  `npm --prefix apps/preview test`;
+  `node scripts/check-browser-bundle-fresh.mjs`;
+  `node scripts/check_no_new_python.mjs`
