@@ -51,7 +51,7 @@ export {
 
 export const V3_PREVIEW_ENGINE: PreviewEngineManifest = {
   id: 'v3',
-  label: 'Native v3 autolayout',
+  label: 'Autolayout',
   layoutEngineKey: 'v3',
   shellMode: 'grid',
   renderFamily: 'frame-native',
