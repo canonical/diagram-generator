@@ -7,7 +7,6 @@ Durable follow-up belongs in `specs/<id>-<slug>/`,
 `TODO.md` is only a pointer to open spec packages.
 
 ---
-
 ## 2026-06-27 - 055/056 pre-push blockers resolved
 
 The earlier local-only review findings for specs 055 and 056 are now resolved.
@@ -477,6 +476,35 @@ closed.
 - `node scripts/check_no_new_python.mjs` -> **pass**
 - `npm --prefix apps/preview test` -> **initial fail** on missing browser artifacts; **pass after** `npm --prefix packages/layout-engine run build:browser`
 - `node scripts/check-browser-bundle-fresh.mjs` -> **initial fail** before browser build; **pass after** browser build
+---
+
+## 2026-06-28 - Adversarial review of `feat/057-graph-engine-fidelity-and-example-fit`
+
+Reviewer pass over spec 057 implementation commit `667d251`.
+
+### Verdict
+
+The two compatibility gaps from commit `667d251` are now resolved. The review
+reopened spec 057, but the follow-up tightened the registry contract and closed
+the remaining holes without changing authored YAML.
+
+### Resolved follow-up
+
+| Severity | Area | Finding | Resolution |
+|----------|------|---------|------------|
+| S2 | Example-fit contract | `elk-rectpacking` was still offered on real arrow-bearing fixtures that omit `meta.diagram_type`, so the example-fit bar only held on metadata-rich documents. | `packages/layout-engine/src/preview-engine/registry.ts` now treats `offerDiagramTypes` as an offer-list allowlist: in offer mode, manifests that require authored diagram families are withheld until `frameDiagramSummary.diagramType` is present. Focused coverage in `packages/layout-engine/tests/preview-engine-registry.test.ts` now proves `complex-routing-usecase`, `example-deployment-pipeline`, and `preview-smoke` no longer offer `elk-rectpacking` while explicit `layout_engine: elk-rectpacking` resolution stays technically available. |
+| S2 | Fill-carrier guard | `rejectFillCarrierIdsWithoutDiagramType` skipped fill-sized structural carriers that were themselves arrow endpoints, so explicit ELK selection could still resolve for that unsupported shape. | `collectFillCarrierIds(...)` now includes endpoint containers as well as descendant carriers, and the same registry test file now covers a synthetic `group -> target` endpoint-container reproducer. Offer-mode compatibility stays blocked, and explicit `resolvePreviewEngine(...)` attempts now return `undefined` for the ELK-family lanes until authored `meta.diagram_type` is present. |
+
+### Remaining notes
+
+- No active spec 057 findings remain in this review pass.
+
+### What I verified
+
+- `npm --prefix packages/layout-engine test -- preview-engine-registry.test.ts`
+  -> **pass** (27 tests)
+- `npm --prefix apps/preview test -- src/persistence/preview-host-contract.test.ts`
+  -> **pass**
 
 ---
 

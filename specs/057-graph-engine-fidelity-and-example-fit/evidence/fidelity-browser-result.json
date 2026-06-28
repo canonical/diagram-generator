@@ -1,0 +1,111 @@
+{
+  "startedAt": "2026-06-28T15:21:21.779Z",
+  "baseUrl": "http://127.0.0.1:8100",
+  "checks": [
+    {
+      "slug": "mongo-octavia-ha",
+      "engine": "elk-layered",
+      "availabilityZones": {
+        "x": 742,
+        "y": 169,
+        "width": 102,
+        "height": 196,
+        "right": 844,
+        "bottom": 365
+      },
+      "zones": [
+        {
+          "zoneId": "az1",
+          "zone": {
+            "x": 742,
+            "y": 232,
+            "width": 102,
+            "height": 70,
+            "right": 844,
+            "bottom": 302
+          },
+          "vm": {
+            "x": 744,
+            "y": 232,
+            "width": 100,
+            "height": 55,
+            "right": 844,
+            "bottom": 287
+          },
+          "label": {
+            "x": 742,
+            "y": 288,
+            "width": 102,
+            "height": 14,
+            "right": 844,
+            "bottom": 302
+          }
+        },
+        {
+          "zoneId": "az2",
+          "zone": {
+            "x": 742,
+            "y": 295,
+            "width": 102,
+            "height": 70,
+            "right": 844,
+            "bottom": 365
+          },
+          "vm": {
+            "x": 744,
+            "y": 295,
+            "width": 100,
+            "height": 55,
+            "right": 844,
+            "bottom": 350
+          },
+          "label": {
+            "x": 742,
+            "y": 351,
+            "width": 102,
+            "height": 14,
+            "right": 844,
+            "bottom": 365
+          }
+        },
+        {
+          "zoneId": "az3",
+          "zone": {
+            "x": 742,
+            "y": 169,
+            "width": 102,
+            "height": 70,
+            "right": 844,
+            "bottom": 239
+          },
+          "vm": {
+            "x": 744,
+            "y": 169,
+            "width": 100,
+            "height": 55,
+            "right": 844,
+            "bottom": 224
+          },
+          "label": {
+            "x": 742,
+            "y": 225,
+            "width": 102,
+            "height": 14,
+            "right": 844,
+            "bottom": 239
+          }
+        }
+      ]
+    },
+    {
+      "slug": "tiered-network-architecture.author-v1",
+      "engine": "v3",
+      "tabIds": [
+        "v3",
+        "dagre"
+      ]
+    }
+  ],
+  "ok": true,
+  "finishedAt": "2026-06-28T15:21:22.352Z"
+}

@@ -17,6 +17,7 @@ import {
 import {
   applyVisiblePreviewStyleOverride,
   isPreviewStyleableComponentType,
+  previewStyleChangeRequiresRelayout,
   type PreviewStyleNode,
 } from './frame-style.js';
 import type { PreviewGridInfo } from './grid-resolution.js';
@@ -181,6 +182,10 @@ export function createPreviewInspectorSelectionRuntime(
         applyVisibleStyleOverride: (hostOptions) => applyVisiblePreviewStyleOverride({
           overrides: hostOptions.overrides,
           cid: hostOptions.cid,
+          node: hostOptions.node as PreviewStyleNode | null | undefined,
+          styleName: hostOptions.styleName,
+        }),
+        styleChangeRequiresRelayout: (hostOptions) => previewStyleChangeRequiresRelayout({
           node: hostOptions.node as PreviewStyleNode | null | undefined,
           styleName: hostOptions.styleName,
         }),

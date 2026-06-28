@@ -379,7 +379,7 @@ export async function renderFreshPreviewSvg<TModel = unknown>(
   });
   const renderedLayoutEngine = engineManifest?.layoutEngineKey
     ?? engineManifest?.id
-    ?? activeLayoutEngine;
+    ?? 'v3';
   if (renderedLayoutEngine) {
     svg.setAttribute('data-layout-engine', renderedLayoutEngine);
   }

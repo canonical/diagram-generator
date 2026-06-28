@@ -244,4 +244,27 @@ describe('renderFreshPreviewSvg', () => {
 
     expect(result.svg.getAttribute('data-layout-engine')).toBe('v3');
   });
+
+  it('stamps native v3 when an incompatible authored engine is withheld from render resolution', async () => {
+    const ownerDocument = new FakeDocument();
+    const diagram = loadFrameYaml(join(FRAMES_DIR, 'tiered-network-architecture.author-v1.yaml'));
+    expect(diagram.layoutEngine).toBe('elk-layered');
+
+    const result = await renderFreshPreviewSvg({
+      ownerDocument: ownerDocument as unknown as Document,
+      frameTreeJson: serializeFrameDiagram(diagram),
+      overrides: {},
+      gridOverrides: {},
+      model: {},
+      textAdapter: new MockTextAdapter(),
+      applySessionRemovalsToDiagramJson: null,
+      applyOverridesToFrameTree: vi.fn(),
+      collectRelayoutFrameOverrides: (overrides) => overrides,
+      resolveEngineLayoutOptionOverrides: () => ({}),
+      updateModelFromLayout: vi.fn(),
+      syncArrowsInModel: vi.fn(),
+    });
+
+    expect(result.svg.getAttribute('data-layout-engine')).toBe('v3');
+  });
 });
