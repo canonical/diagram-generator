@@ -48,6 +48,11 @@ contracts for selection ergonomics and effective-variant display.
 - Landed typed fixes in `app-shell-panels.ts` (row traversal + roving tab stop)
   and `frame-style.ts` (rendered-style inference for supported white/grey box
   variants).
+- Closeout evidence now includes a fixture-backed assertion for unstyled
+  `test-deep-nesting` child boxes and
+  `evidence/layer-tree-inspector-browser-check.mjs`, which dispatches keyboard
+  events in a real browser DOM and verifies `vm_2` shows the default variant
+  with no `Unknown variant` text.
 
 ## Functional Requirements
 

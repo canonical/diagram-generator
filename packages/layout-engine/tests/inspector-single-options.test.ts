@@ -1,5 +1,40 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
+import { compileDiagramYaml } from '../src/diagram-author/compile.js';
+import { type AuthorFrameNode } from '../src/diagram-author/types.js';
+import { type Frame } from '../src/frame-model.js';
+import { loadFrameYaml } from '../src/frame-yaml-loader.js';
+import { layoutFrameTree } from '../src/layout.js';
+import { resolveFrameRenderPlan } from '../src/frame-render-plan.js';
+import { MockTextAdapter } from '../src/text-measure.js';
 import { resolveSingleSelectionInspectorPanelRenderOptions } from '../src/preview-shell/inspector-single-options.js';
+
+const __dirname = fileURLToPath(new URL('.', import.meta.url));
+const FRAMES_DIR = join(__dirname, '../../..', 'scripts/diagrams/frames');
+
+function findAuthorFrame(
+  node: AuthorFrameNode | null | undefined,
+  id: string,
+): AuthorFrameNode | null {
+  if (!node) return null;
+  if (node.id === id) return node;
+  for (const child of node.children) {
+    const found = findAuthorFrame(child, id);
+    if (found) return found;
+  }
+  return null;
+}
+
+function findFrame(frame: Frame, id: string): Frame | null {
+  if (frame.id === id) return frame;
+  for (const child of frame.children) {
+    const found = findFrame(child, id);
+    if (found) return found;
+  }
+  return null;
+}
 
 describe('single-selection inspector option helpers', () => {
   it('builds panel render options from node, style, and callback-owned HTML', () => {
@@ -122,5 +157,52 @@ describe('single-selection inspector option helpers', () => {
 
     expect(options.styleMode).toBe('picker');
     expect(options.styleOptionsHtml).toBe('default');
+  });
+
+  it('resolves concrete variants for unstyled child boxes in the test-deep-nesting fixture', () => {
+    const fixturePath = join(FRAMES_DIR, 'test-deep-nesting.yaml');
+    const raw = readFileSync(fixturePath, 'utf8');
+    const compiled = compileDiagramYaml(raw, { sourcePath: fixturePath });
+    expect(compiled.errors).toEqual([]);
+
+    const diagram = loadFrameYaml(fixturePath);
+    const adapter = new MockTextAdapter();
+    layoutFrameTree(diagram.root, adapter, { arrows: diagram.arrows });
+
+    const cases: Array<[string, string]> = [
+      ['vm_2', 'default'],
+      ['vm_3', 'default'],
+      ['disk_1', 'default'],
+      ['disk_2', 'default'],
+    ];
+
+    for (const [id, expectedStyle] of cases) {
+      const authorFrame = findAuthorFrame(compiled.ast.root, id);
+      expect(authorFrame, `${id} should exist in authored fixture`).toBeTruthy();
+      expect(authorFrame?.variant, `${id} must not author a variant`).toBeUndefined();
+      expect(authorFrame?.level, `${id} must not author a level`).toBeUndefined();
+      expect(authorFrame?.fill, `${id} must not author a fill`).toBeUndefined();
+      expect(authorFrame?.border, `${id} must not author a border`).toBeUndefined();
+
+      const frame = findFrame(diagram.root, id);
+      expect(frame, `${id} should exist in loaded fixture`).toBeTruthy();
+      const plan = resolveFrameRenderPlan(frame!, adapter);
+      const options = resolveSingleSelectionInspectorPanelRenderOptions({
+        cid: id,
+        node: frame!,
+        ownDelta: { dx: 0, dy: 0, dw: 0, dh: 0 },
+        effectiveDelta: { dx: 0, dy: 0 },
+        componentType: 'Box',
+        renderedStyle: {
+          fill: plan.box.fill,
+          stroke: plan.box.stroke,
+        },
+        renderStyleOptions: (currentStyle) => currentStyle,
+      });
+
+      expect(options.styleMode, id).toBe('picker');
+      expect(options.styleOptionsHtml, id).toBe(expectedStyle);
+      expect(options.styleLabel, id).not.toBe('Unknown variant');
+    }
   });
 });
