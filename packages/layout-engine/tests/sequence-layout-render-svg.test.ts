@@ -30,7 +30,7 @@ describe('renderSequenceDiagramToSvg', () => {
     expect(svg).toContain('data-sequence-participant-id="api"');
     expect(svg).toContain('data-sequence-message-id="m-request"');
     expect(svg).toContain('data-sequence-note-id="note-auth"');
-    expect(svg).toContain('<rect x="520" y="152" width="160" height="56"');
+    expect(svg).toContain('<rect x="520" y="152" width="188" height="64"');
     expect(svg).toContain('GET /v1/things');
     expect(svg).toContain('Auth happens here');
     expect(svg).toContain('#E95420');

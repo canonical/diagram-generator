@@ -396,7 +396,7 @@ describe('arrow rendering parity', () => {
     }
   });
 
-  it('derives headed title gap 0 and body gap 24 when body contains a container', () => {
+  it('derives shared headed title gap and body gap 24 when body contains a container', () => {
     const tempDir = mkdtempSync(join(tmpdir(), 'dg-heading-gap-test-'));
     const yamlPath = join(tempDir, 'heading-gap.yaml');
 
@@ -425,7 +425,7 @@ describe('arrow rendering parity', () => {
       const panel = diagram.root.children[0]!;
       const body = panel.children.find(child => child.id.endsWith('__body'))!;
 
-      expect(panel.gap).toBe(0);
+      expect(panel.gap).toBe(8);
       expect(body.gap).toBe(24);
     } finally {
       rmSync(tempDir, { recursive: true, force: true });

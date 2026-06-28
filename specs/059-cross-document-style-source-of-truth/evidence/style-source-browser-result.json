@@ -1,0 +1,36 @@
+{
+  "startedAt": "2026-06-28T15:48:37.726Z",
+  "baseUrl": "http://127.0.0.1:8100",
+  "checks": [
+    {
+      "name": "service-handshake-sequence-style-source",
+      "renderedEngine": "sequence",
+      "engineLabel": "Engine: Sequence layout",
+      "fontSizes": [
+        18,
+        18,
+        18,
+        18
+      ],
+      "uniqueFontSizes": [
+        18
+      ],
+      "participant": {
+        "x": 48,
+        "y": 48,
+        "height": 64,
+        "textX": 56,
+        "textY": 72.92
+      },
+      "note": {
+        "x": 520,
+        "y": 152,
+        "height": 64,
+        "textX": 528,
+        "textY": 176.92
+      }
+    }
+  ],
+  "ok": true,
+  "finishedAt": "2026-06-28T15:48:37.898Z"
+}

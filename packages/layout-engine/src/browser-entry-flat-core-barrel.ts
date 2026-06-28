@@ -41,6 +41,13 @@ export {
 } from './tokens.js';
 
 export {
+  SHARED_BOX_RHYTHM,
+  estimateSharedBoxTextHeight,
+  estimateSharedBoxTextWidth,
+  type SharedBoxRhythm,
+} from './shared-box-rhythm.js';
+
+export {
   type LineSpec,
   type TextMeasureRequest,
   type TextMeasureAdapter,

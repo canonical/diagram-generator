@@ -29,6 +29,11 @@ import {
   type Line,
 } from './frame-model.js';
 import { GRID_GUTTER, ICON_SIZE, INSET } from './tokens.js';
+import { SHARED_BOX_RHYTHM } from './shared-box-rhythm.js';
+
+export function defaultHeadingBottomGap(): number {
+  return SHARED_BOX_RHYTHM.headingBottomGap;
+}
 
 export function deriveContentGap(children: Frame[], options?: { isRoot?: boolean }): number {
   if (children.length === 0) return 0;

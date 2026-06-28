@@ -14,7 +14,11 @@ import {
   type Line,
 } from './frame-model.js';
 import { INSET } from './tokens.js';
-import { applyHeadingAsChild, deriveContentGap } from './heading-synthesis.js';
+import {
+  applyHeadingAsChild,
+  defaultHeadingBottomGap,
+  deriveContentGap,
+} from './heading-synthesis.js';
 
 const DIRECTION: Record<string, Direction> = {
   vertical: Direction.VERTICAL,
@@ -105,7 +109,7 @@ export function parseFrameRecord(data: Record<string, unknown>, isRoot = false):
   const border = BORDER[borderKey] ?? defaultBorder;
   const isPanel = border !== Border.NONE || hasHeading;
   const isAnnotation = border === Border.NONE && !isContainer;
-  const defaultGap = hasHeading ? 0 : deriveContentGap(children, { isRoot });
+  const defaultGap = hasHeading ? defaultHeadingBottomGap() : deriveContentGap(children, { isRoot });
   const gapDelta = data.gap_delta != null ? Number(data.gap_delta) : undefined;
   const resolvedGap = data.gap != null ? Number(data.gap) : defaultGap + (gapDelta ?? 0);
 
