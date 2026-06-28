@@ -1279,6 +1279,24 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
     await previewWindow.__DG_rerenderPreviewEngineWorkspaceStage();
     expect(committedLayoutEngines).toEqual(['v3']);
     expect(rerenderStageCalls).toEqual(['rerender']);
+
+    committedLayoutEngines.length = 0;
+    rerenderStageCalls.length = 0;
+    previewWindow.__DG_CONFIG.active_engine_id = 'v3';
+    previewWindow.__DG_CONFIG.layout_engine = 'v3';
+    previewWindow.__DG_previewRenderIntent = {
+      engineId: 'dagre',
+      pageDirection: null,
+      frameOverrides: {},
+      engineOverrides: {},
+      gridOverrides: {},
+    };
+
+    await previewWindow.__DG_rerenderPreviewEngineWorkspaceStage();
+    expect(committedLayoutEngines).toEqual(['dagre']);
+    expect(previewWindow.__DG_CONFIG.active_engine_id).toBe('dagre');
+    expect(previewWindow.__DG_previewRenderIntent?.engineId).toBe('dagre');
+    expect(rerenderStageCalls).toEqual(['rerender']);
   });
 
   it('derives runtime callbacks from the compact editor-host contract', async () => {

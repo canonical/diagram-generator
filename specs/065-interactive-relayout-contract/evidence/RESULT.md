@@ -1,7 +1,7 @@
 # Spec 065 Evidence Result
 
 Spec: 065-interactive-relayout-contract
-Bundle rebuilt: 2026-06-29T00:27+01:00 via `npm --prefix packages/layout-engine run build:browser`
+Bundle rebuilt: 2026-06-29T00:35+01:00 via `npm --prefix packages/layout-engine run build:browser`
 Server restarted fresh: yes, `http://127.0.0.1:8120`
 
 Gestures proven (real click/select/drag, no `skipModelUpdate` proof calls):
@@ -18,7 +18,7 @@ Single `PreviewRenderIntent` path (no new parallel lane): confirmed by implement
 
 Evidence artifact:
 - `post-load-mutations.mjs`
-- `post-load-mutations-result.json` with `ok: true`, generated `2026-06-28T23:32:44.394Z`
+- `post-load-mutations-result.json` with `ok: true`, generated `2026-06-28T23:35:39.896Z`
 - `diagnostics/support-flow-elk-aside-before-next.png`
 - `diagnostics/support-flow-elk-aside-after-hidden-fix.png`
 
@@ -48,3 +48,9 @@ Incremental T022 validation:
 Incremental T023 validation:
 - `npm --prefix packages/layout-engine test -- app-inspector-mutation-runtime.test.ts frame-style.test.ts` -> 2 files passed, 14 tests passed; `section -> default` style change does not schedule/request relayout
 - `PREVIEW_BASE_URL=http://127.0.0.1:8120 node specs/065-interactive-relayout-contract/evidence/post-load-mutations.mjs` -> ok with real `selectOption` on `support-engineering-flow`; engine stayed `elk-force` and node bounds stayed byte-identical
+
+Incremental T010/T011 validation:
+- `npm --prefix packages/layout-engine test -- app-fresh-render.test.ts preview-render-intent.test.ts app-grid-editor-install-unit.test.ts app-layout-bridge-runtime.test.ts` -> 4 files passed, 25 tests passed; committed `PreviewRenderIntent` drives `renderFreshPreviewSvg` over an authored `elk-layered` frame tree
+- `rg -n '__DG_CONFIG\\??\\.(active_engine_id|layout_engine)' packages/layout-engine/src/preview-shell/app-fresh-render.ts packages/layout-engine/src/preview-shell/app-layout-bridge-runtime.ts packages/layout-engine/src/preview-shell/app-relayout-runtime.ts packages/layout-engine/src/preview-shell/app-grid-editor-install-unit.ts packages/layout-engine/src/preview-shell/preview-render-intent.ts` -> no matches
+- `PREVIEW_BASE_URL=http://127.0.0.1:8120 node specs/065-interactive-relayout-contract/evidence/post-load-mutations.mjs` -> ok after fresh browser rebuild
+- `node scripts/check-browser-bundle-fresh.mjs` -> ok, 3 artifacts checked

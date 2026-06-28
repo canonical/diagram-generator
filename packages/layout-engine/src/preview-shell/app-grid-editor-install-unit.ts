@@ -1176,7 +1176,7 @@ export function createPreviewGridEditorInstallUnitFromBrowserHost(
     const previewConfig = previewWindow.__DG_CONFIG ?? null;
     const activeLayoutEngine = resolvePreviewRenderIntentLayoutEngine({
       intent: previewWindow.__DG_previewRenderIntent ?? null,
-      activeEngineId: previewConfig?.active_engine_id ?? null,
+    }) ?? resolvePreviewRenderIntentLayoutEngine({
       fallbackEngineId: options.shared.engine ?? null,
     });
     if (activeLayoutEngine) {

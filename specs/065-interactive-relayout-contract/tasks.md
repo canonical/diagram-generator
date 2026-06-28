@@ -21,12 +21,12 @@
 
 ## Phase 1: PreviewRenderIntent (the single source)
 
-- [ ] **T010** Define `PreviewRenderIntent` and a typed committer in a new
+- [x] **T010** Define `PreviewRenderIntent` and a typed committer in a new
       preview-shell owner (e.g. `preview-render-intent.ts`). Fields per FR-001.
       **Verify**: unit test that a committed intent is the value the render
       entry point reads back; no `__DG_CONFIG` read in the resolve path.
 
-- [ ] **T011** Route `renderFreshPreviewSvg` and all relayout lanes
+- [x] **T011** Route `renderFreshPreviewSvg` and all relayout lanes
       (`performLocalRelayout`, `performEngineRelayout`, bridge patch) to resolve
       engine + direction from the intent / frame-tree only. Remove any
       `__DG_CONFIG`-as-render-source reads.

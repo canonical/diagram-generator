@@ -20,6 +20,7 @@ import {
   filterPreviewEngineLayoutOptionOverrides,
   renderFreshPreviewSvg,
 } from '../src/preview-shell/app-fresh-render.js';
+import { commitPreviewRenderIntentToWindow } from '../src/preview-shell/preview-render-intent.js';
 import { loadFrameYaml } from '../src/frame-yaml-loader.js';
 import { serializeFrameDiagram } from '../src/frame-serialize.js';
 import { MockTextAdapter } from '../src/text-measure.js';
@@ -279,6 +280,42 @@ describe('renderFreshPreviewSvg', () => {
       syncArrowsInModel: vi.fn(),
     });
 
+    expect(result.svg.getAttribute('data-layout-engine')).toBe('v3');
+  });
+
+  it('reads a committed render intent over the authored frame-tree engine', async () => {
+    const ownerDocument = new FakeDocument();
+    const diagram = loadFrameYaml(join(FRAMES_DIR, 'mongo-octavia-ha.yaml'));
+    expect(diagram.layoutEngine).toBe('elk-layered');
+    const frameTreeJson = serializeFrameDiagram(diagram);
+    const previewWindow = {
+      __DG_CONFIG: {
+        active_engine_id: 'elk-layered',
+        layout_engine: 'elk-layered',
+      },
+    };
+    commitPreviewRenderIntentToWindow(previewWindow, {
+      activeEngineId: 'v3',
+      frameTreeJson,
+    });
+
+    const result = await renderFreshPreviewSvg({
+      ownerDocument: ownerDocument as unknown as Document,
+      frameTreeJson,
+      renderIntent: previewWindow.__DG_previewRenderIntent,
+      overrides: {},
+      gridOverrides: {},
+      model: {},
+      textAdapter: new MockTextAdapter(),
+      applySessionRemovalsToDiagramJson: null,
+      applyOverridesToFrameTree: vi.fn(),
+      collectRelayoutFrameOverrides: (overrides) => overrides,
+      resolveEngineLayoutOptionOverrides: () => ({}),
+      updateModelFromLayout: vi.fn(),
+      syncArrowsInModel: vi.fn(),
+    });
+
+    expect(previewWindow.__DG_previewRenderIntent?.engineId).toBe('v3');
     expect(result.svg.getAttribute('data-layout-engine')).toBe('v3');
   });
 
