@@ -16,6 +16,7 @@ import {
   resolvePreviewRenderIntentLayoutEngine,
   type PreviewRenderIntent,
   type PreviewRenderIntentFrameTree,
+  type PreviewRenderIntentWindowLike,
 } from './preview-render-intent.js';
 import type { PreviewRoutedArrow } from './app-arrow-render.js';
 import type { FreshPreviewSvgRenderResult } from './app-fresh-render.js';
@@ -1661,7 +1662,50 @@ export function createPreviewLayoutBridgeRuntimeFromBrowserHost<
     warn: options.warn,
     error: options.error,
   });
-  return runtime;
+
+  const publishRenderIntentToWindow = (): PreviewRenderIntent => (
+    commitPreviewRenderIntentToWindow(options.previewWindow as PreviewRenderIntentWindowLike, {
+      current: runtime.state.renderIntent,
+      frameTreeJson: runtime.state.frameTreeJson as PreviewRenderIntentFrameTree | null,
+    })
+  );
+
+  return {
+    ...runtime,
+    async init(slug) {
+      await runtime.init(slug);
+      publishRenderIntentToWindow();
+    },
+    setFrameTreeJson(json) {
+      runtime.setFrameTreeJson(json);
+      publishRenderIntentToWindow();
+    },
+    setFrameTreeLayoutEngine(layoutEngine) {
+      const committed = runtime.setFrameTreeLayoutEngine(layoutEngine);
+      publishRenderIntentToWindow();
+      return committed;
+    },
+    performLocalRelayout(model, overrides, gridOverrides, opts = null) {
+      const result = runtime.performLocalRelayout(model, overrides, gridOverrides, opts);
+      publishRenderIntentToWindow();
+      return result;
+    },
+    async renderFreshSvg(overrides, gridOverrides, model, renderOptions = null) {
+      const result = await runtime.renderFreshSvg(overrides, gridOverrides, model, renderOptions);
+      publishRenderIntentToWindow();
+      return result;
+    },
+    async performEngineRelayout(model, overrides, gridOverrides, relayoutOptions = null) {
+      const result = await runtime.performEngineRelayout(model, overrides, gridOverrides, relayoutOptions);
+      publishRenderIntentToWindow();
+      return result;
+    },
+    async performElkRelayout(model, overrides, gridOverrides, relayoutOptions = null) {
+      const result = await runtime.performElkRelayout(model, overrides, gridOverrides, relayoutOptions);
+      publishRenderIntentToWindow();
+      return result;
+    },
+  };
 }
 
 export function createPreviewLayoutBridgeRuntime<

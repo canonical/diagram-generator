@@ -1,7 +1,7 @@
 {
   "ok": true,
   "base": "http://127.0.0.1:8120",
-  "generatedAt": "2026-06-28T23:01:21.224Z",
+  "generatedAt": "2026-06-28T23:17:47.239Z",
   "notes": [
     "Real gestures only for mutations: page.click, page.selectOption, page.mouse drag.",
     "DOM evaluation is used only to read geometry/control state."
@@ -10,8 +10,8 @@
     {
       "name": "engine-tab-switch:mongo-octavia-ha",
       "ok": true,
-      "startedAt": "2026-06-28T23:01:21.283Z",
-      "finishedAt": "2026-06-28T23:01:22.761Z",
+      "startedAt": "2026-06-28T23:17:47.294Z",
+      "finishedAt": "2026-06-28T23:17:48.762Z",
       "details": {
         "slug": "mongo-octavia-ha",
         "steps": [
@@ -33,8 +33,8 @@
     {
       "name": "engine-tab-switch:juju-bootstrap-machines-process",
       "ok": true,
-      "startedAt": "2026-06-28T23:01:22.761Z",
-      "finishedAt": "2026-06-28T23:01:27.047Z",
+      "startedAt": "2026-06-28T23:17:48.762Z",
+      "finishedAt": "2026-06-28T23:17:53.016Z",
       "details": {
         "slug": "juju-bootstrap-machines-process",
         "steps": [
@@ -116,8 +116,8 @@
     {
       "name": "page-direction-flip:tiered-network-architecture",
       "ok": true,
-      "startedAt": "2026-06-28T23:01:27.047Z",
-      "finishedAt": "2026-06-28T23:01:28.933Z",
+      "startedAt": "2026-06-28T23:17:53.016Z",
+      "finishedAt": "2026-06-28T23:17:54.861Z",
       "details": {
         "slug": "tiered-network-architecture",
         "renderedEngine": "v3",
@@ -130,14 +130,22 @@
           "y": 264
         },
         "changedHorizontalArrowCount": 13,
-        "arrowCount": 13
+        "arrowCount": 13,
+        "horizontalIntent": {
+          "engineId": "v3",
+          "pageDirection": "HORIZONTAL"
+        },
+        "verticalIntent": {
+          "engineId": "v3",
+          "pageDirection": "VERTICAL"
+        }
       }
     },
     {
       "name": "elk-live-resize:mongo-octavia-ha",
       "ok": true,
-      "startedAt": "2026-06-28T23:01:28.933Z",
-      "finishedAt": "2026-06-28T23:01:32.557Z",
+      "startedAt": "2026-06-28T23:17:54.861Z",
+      "finishedAt": "2026-06-28T23:17:58.461Z",
       "details": {
         "slug": "mongo-octavia-ha",
         "renderedEngine": "elk-layered",
@@ -161,8 +169,8 @@
     {
       "name": "box-type-change:support-engineering-flow",
       "ok": true,
-      "startedAt": "2026-06-28T23:01:32.557Z",
-      "finishedAt": "2026-06-28T23:01:35.288Z",
+      "startedAt": "2026-06-28T23:17:58.461Z",
+      "finishedAt": "2026-06-28T23:18:01.094Z",
       "details": {
         "slug": "support-engineering-flow",
         "engine": "elk-force",
@@ -177,8 +185,8 @@
     {
       "name": "contextual-controls",
       "ok": true,
-      "startedAt": "2026-06-28T23:01:35.288Z",
-      "finishedAt": "2026-06-28T23:01:38.062Z",
+      "startedAt": "2026-06-28T23:18:01.094Z",
+      "finishedAt": "2026-06-28T23:18:03.785Z",
       "details": {
         "v3": {
           "engine": "v3",

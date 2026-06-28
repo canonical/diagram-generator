@@ -106,6 +106,10 @@ async function engineOf(page) {
   return page.locator('#stage svg').getAttribute('data-layout-engine');
 }
 
+async function renderIntentOf(page) {
+  return page.evaluate(() => window.__DG_previewRenderIntent ?? null);
+}
+
 async function waitForEngine(page, engineId) {
   await page.waitForFunction(
     (expected) => document.querySelector('#stage svg')?.getAttribute('data-layout-engine') === expected,
@@ -390,6 +394,12 @@ async function proveDirectionFlip(browser) {
       'horizontal direction relayout must attach arrow endpoints to their own source/target boxes',
       horizontalDetached,
     );
+    const horizontalIntent = await renderIntentOf(page);
+    assert(
+      horizontalIntent?.pageDirection === 'HORIZONTAL',
+      'direction select must commit the PreviewRenderIntent pageDirection before/after relayout',
+      horizontalIntent,
+    );
 
     await page.selectOption('select[data-dg-cid="page"][data-dg-prop="direction"]', 'VERTICAL');
     await page.waitForFunction(() => {
@@ -411,6 +421,12 @@ async function proveDirectionFlip(browser) {
       page,
       '#dg-frame-layer > [data-component-id="page"] > [data-component-id]',
     );
+    const verticalIntent = await renderIntentOf(page);
+    assert(
+      verticalIntent?.pageDirection === 'VERTICAL',
+      'direction select back to vertical must commit the PreviewRenderIntent pageDirection',
+      verticalIntent,
+    );
     const allBounds = await nodeBounds(page);
     const endpoints = await arrowEndpoints(page);
     const detached = endpoints.filter((arrow) => (
@@ -427,6 +443,14 @@ async function proveDirectionFlip(browser) {
       verticalRootChildSpread: centerSpread(verticalChildren),
       changedHorizontalArrowCount: changedArrowIds.length,
       arrowCount: endpoints.length,
+      horizontalIntent: {
+        engineId: horizontalIntent.engineId,
+        pageDirection: horizontalIntent.pageDirection,
+      },
+      verticalIntent: {
+        engineId: verticalIntent.engineId,
+        pageDirection: verticalIntent.pageDirection,
+      },
     };
   } finally {
     await page.close();

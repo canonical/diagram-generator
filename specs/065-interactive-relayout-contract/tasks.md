@@ -48,7 +48,7 @@
       **Verify**: protocol §2 "Engine tab switch" via real `page.click` on
       `mongo-octavia-ha` + `juju-bootstrap-machines-process` (SC-001).
 
-- [ ] **T021** Page-direction change is an intent field; the inspector direction
+- [x] **T021** Page-direction change is an intent field; the inspector direction
       `<select>` commits it and triggers recompute + arrow reroute (FR-004).
       **Verify**: protocol §2 "Page-direction flip" via real
       `page.selectOption` on `tiered-network-architecture`: spread axis flips,
@@ -93,6 +93,3 @@
 - T000 baseline failure JSON was not captured before implementation began in
   this session. The final harness now proves the fixed behavior, but there is
   no truthful `baseline-fail.json` artifact to check T000.
-- Task checkboxes remain unchecked until the protocol's committed-evidence gate
-  is satisfied. Current working tree has passing `evidence/` artifacts but no
-  commit yet.

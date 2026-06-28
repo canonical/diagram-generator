@@ -445,6 +445,7 @@ describe('preview layout bridge runtime', () => {
     const state = createPreviewLayoutBridgeState<Record<string, unknown>, Record<string, unknown>>();
     state.previewDocumentJson = { kind: 'frame-diagram' };
     state.frameTreeJson = {
+      layoutEngine: 'v3',
       root: { id: 'root', children: [] },
       arrows: [{ source: 'alpha', target: 'beta' }],
     };
@@ -462,6 +463,13 @@ describe('preview layout bridge runtime', () => {
       elkSnapshot: { id: 'elk' } as never,
       elkFrameLabels: { root: 'Root' },
     }));
+    const previewWindow = {
+      __DG_CONFIG: {
+        head_len: 8,
+        head_half: 4,
+      },
+      __DG_previewRenderIntent: null,
+    };
 
     const runtime = createPreviewLayoutBridgeRuntimeFromBrowserHost({
       state,
@@ -474,12 +482,7 @@ describe('preview layout bridge runtime', () => {
           return { replaceChildren() {} };
         },
       } as never,
-      previewWindow: {
-        __DG_CONFIG: {
-          head_len: 8,
-          head_half: 4,
-        },
-      },
+      previewWindow,
       previewCore: {
         deserializeFrameDiagramWire: () => ({
           root: {
@@ -530,7 +533,7 @@ describe('preview layout bridge runtime', () => {
       removedIds: new Set<string>(),
       topLevelRemovalIds: () => [],
       loadTree() {},
-    }, {}, {}, null);
+    }, { root: { direction: 'HORIZONTAL' } }, {}, null);
     const engine = await runtime.performEngineRelayout({
       removedIds: new Set<string>(),
       topLevelRemovalIds: () => [],
@@ -544,6 +547,10 @@ describe('preview layout bridge runtime', () => {
     expect(syncPreviewArrowsInModel).toHaveBeenCalledTimes(1);
     expect(fitPreviewSvgToRenderedContent).toHaveBeenCalledTimes(1);
     expect(renderFreshPreviewSvg).toHaveBeenCalledTimes(1);
+    expect(previewWindow.__DG_previewRenderIntent).toMatchObject({
+      engineId: 'v3',
+      pageDirection: 'HORIZONTAL',
+    });
   });
 
   it('derives ELK view-mode bindings from the browser host runtime', () => {
