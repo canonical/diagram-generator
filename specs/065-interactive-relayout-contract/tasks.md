@@ -35,7 +35,7 @@
       `data-layout-engine === 'v3'`. Grep proof: no relayout lane reads
       `__DG_CONFIG.active_engine_id` / `.layout_engine` for engine identity.
 
-- [ ] **T012** Make panel/chrome visibility sync (`syncPanelVisibility` /
+- [x] **T012** Make panel/chrome visibility sync (`syncPanelVisibility` /
       grid-editor install) use the same resolver as render (FR-007).
       **Verify**: focused test that panel engine and rendered engine cannot
       diverge from one source.

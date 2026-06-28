@@ -426,6 +426,9 @@ function setPanelElementHidden(
   hidden: boolean,
 ): void {
   element.hidden = hidden;
+  if ('style' in element && element.style) {
+    element.style.display = hidden ? 'none' : '';
+  }
   if ('inert' in element) {
     (element as HTMLElement & { inert: boolean }).inert = hidden;
   }

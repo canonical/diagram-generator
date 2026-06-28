@@ -860,11 +860,13 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
   it('syncs panel visibility from the runtime document kind and active engine config', () => {
     const createPanel = () => ({
       hidden: false,
+      style: { display: '' },
       setAttribute: vi.fn(),
       removeAttribute: vi.fn(),
       querySelectorAll: vi.fn(() => []),
     });
     const engineSwitcherSection = createPanel();
+    const gridControlsSection = createPanel();
     const graphLayoutSection = createPanel();
     const elkLayoutSection = createPanel();
     const previewWindow = {
@@ -891,6 +893,7 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
     const document = {
       getElementById: vi.fn((id: string) => {
         if (id === 'engine-switcher-section') return engineSwitcherSection;
+        if (id === 'grid-controls-section') return gridControlsSection;
         if (id === 'graph-layout-section') return graphLayoutSection;
         if (id === 'elk-layout-section') return elkLayoutSection;
         return null;
@@ -956,7 +959,7 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
     expect(elkLayoutSection.hidden).toBe(true);
   });
 
-  it('re-syncs engine switcher visibility from the live workspace config', () => {
+  it('syncs panel visibility from the live render intent when config is stale', () => {
     const unregisterers = [
       installV3PreviewEngine(),
       installElkLayeredPreviewEngine(),
@@ -965,11 +968,13 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
     ];
     const createPanel = () => ({
       hidden: false,
+      style: { display: '' },
       setAttribute: vi.fn(),
       removeAttribute: vi.fn(),
       querySelectorAll: vi.fn(() => []),
     });
     const engineSwitcherSection = createPanel();
+    const gridControlsSection = createPanel();
     const graphLayoutSection = createPanel();
     const elkLayoutSection = createPanel();
     const previewWindow = {
@@ -996,6 +1001,7 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
     const document = {
       getElementById: vi.fn((id: string) => {
         if (id === 'engine-switcher-section') return engineSwitcherSection;
+        if (id === 'grid-controls-section') return gridControlsSection;
         if (id === 'graph-layout-section') return graphLayoutSection;
         if (id === 'elk-layout-section') return elkLayoutSection;
         return null;
@@ -1058,10 +1064,10 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
       expect(previewWindow.__DG_syncPreviewEngineWorkspacePanels).toBeTypeOf('function');
       expect(previewWindow.__DG_rerenderPreviewEngineWorkspaceStage).toBeTypeOf('function');
       expect(engineSwitcherSection.hidden).toBe(false);
+      expect(gridControlsSection.hidden).toBe(true);
       expect(graphLayoutSection.hidden).toBe(true);
       expect(elkLayoutSection.hidden).toBe(true);
 
-      previewWindow.__DG_CONFIG.active_engine_id = 'dagre';
       previewWindow.__DG_CONFIG.persisted_layout_engine = 'v3';
       previewWindow.__DG_CONFIG.compatible_engines = ['v3', 'dagre'];
       previewWindow.__DG_previewRenderIntent = {
@@ -1071,9 +1077,11 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
         engineOverrides: {},
         gridOverrides: {},
       };
-      previewWindow.__DG_syncPreviewEngineWorkspacePanels();
+      options.browser.syncPanelVisibility({ count: 1, kind: 'root' });
 
+      expect(previewWindow.__DG_CONFIG.active_engine_id).toBe('v3');
       expect(engineSwitcherSection.hidden).toBe(false);
+      expect(gridControlsSection.hidden).toBe(true);
       expect(graphLayoutSection.hidden).toBe(false);
       expect(elkLayoutSection.hidden).toBe(true);
 

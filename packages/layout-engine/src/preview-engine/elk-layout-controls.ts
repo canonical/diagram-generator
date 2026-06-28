@@ -217,6 +217,9 @@ export function createPreviewElkLayoutControlsRuntime(
     active: boolean,
   ): void {
     section.hidden = !active;
+    if ('style' in section && section.style) {
+      section.style.display = active ? '' : 'none';
+    }
     if ('inert' in section) {
       (section as HTMLElement & { inert: boolean }).inert = !active;
     }
@@ -374,8 +377,7 @@ export function createPreviewElkLayoutControlsRuntime(
       '<input class="bf-switch-input" type="checkbox" id="elk-raw-view-toggle">' +
       '<span class="bf-switch-slider"></span>' +
       '<span class="bf-switch-label">Show ELK raw view</span>' +
-      '</label>' +
-      '<p class="bf-form-help">Replaces BF styling with ELK’s default look: gray boxes, black orthogonal edges, ELK-placed labels.</p>'
+      '</label>'
     );
   }
 

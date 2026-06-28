@@ -249,6 +249,11 @@ function changedArrowLineIds(before, after) {
 async function controlState(page, selector) {
   return page.locator(selector).evaluateAll((elements, currentSelector) => elements.map((element) => {
     const style = window.getComputedStyle(element);
+    const rect = element.getBoundingClientRect();
+    const painted = style.display !== 'none'
+      && style.visibility !== 'hidden'
+      && rect.width > 0
+      && rect.height > 0;
     const hidden = Boolean(
       element.hidden
       || element.closest('[hidden]')
@@ -263,8 +268,15 @@ async function controlState(page, selector) {
       selector: currentSelector,
       exists: true,
       hidden,
+      painted,
       focusable,
       disabled: Boolean(element.disabled),
+      display: style.display,
+      visibility: style.visibility,
+      rect: {
+        width: Math.round(rect.width),
+        height: Math.round(rect.height),
+      },
       tabIndex: element.tabIndex,
       id: element.id || null,
     };
@@ -274,8 +286,8 @@ async function controlState(page, selector) {
 async function expectAbsentOrHiddenUnfocusable(page, selector) {
   const states = await controlState(page, selector);
   assert(
-    states.length === 0 || states.every((state) => state.hidden && !state.focusable),
-    `${selector} must be absent or hidden and unfocusable`,
+    states.length === 0 || states.every((state) => state.hidden && !state.painted && !state.focusable),
+    `${selector} must be absent or hidden, unpainted, and unfocusable`,
     states,
   );
   return states;
@@ -284,11 +296,16 @@ async function expectAbsentOrHiddenUnfocusable(page, selector) {
 async function expectVisible(page, selector) {
   const states = await controlState(page, selector);
   assert(
-    states.length > 0 && states.some((state) => !state.hidden),
+    states.length > 0 && states.some((state) => !state.hidden && state.painted),
     `${selector} must be visible`,
     states,
   );
   return states;
+}
+
+async function expectTextAbsent(page, text) {
+  const found = await page.locator(`text=${text}`).count();
+  assert(found === 0, `text must be absent: ${text}`, { text, found });
 }
 
 async function selectBySvgComponent(page, componentId) {
@@ -564,6 +581,22 @@ async function proveContextualControls(browser) {
     await expectVisible(elkPage, '#elk-layout-section');
     await expectVisible(elkPage, '#elk-raw-view-toggle');
     await expectAbsentOrHiddenUnfocusable(elkPage, '#elk-debug-overlay-toggle');
+    await expectTextAbsent(elkPage, 'Replaces BF styling');
+    for (const selector of [
+      '#grid-controls-section',
+      '#grid-cols',
+      '#grid-rows',
+      '#grid-col-gap',
+      '#grid-row-gap',
+      '#grid-margin-top',
+      '#grid-margin-right',
+      '#grid-margin-bottom',
+      '#grid-margin-left',
+      '#grid-link-root',
+      '#grid-slack',
+    ]) {
+      await expectAbsentOrHiddenUnfocusable(elkPage, selector);
+    }
     await elkPage.click('#engine-switcher-tabs [data-engine-id="elk-layered"]');
     await waitForEngine(elkPage, 'elk-layered');
     const layeredOnly = await expectVisible(elkPage, '#elk-elk-layered-layering-strategy');

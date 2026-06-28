@@ -106,6 +106,7 @@ describe('elk preview runtimes', () => {
     expect(section.hidden).toBe(false);
     expect(container.innerHTML).toContain('Node spacing');
     expect(container.innerHTML).toContain('elk-raw-view-toggle');
+    expect(container.innerHTML).not.toContain('Replaces BF styling');
   });
 
   it('builds controls from the active ELK-family engine', () => {
@@ -493,6 +494,7 @@ describe('elk preview runtimes', () => {
     const section = {
       hidden: false,
       inert: false,
+      style: { display: '' },
       setAttribute(name: string, value: string) {
         sectionAttrs.set(name, value);
       },
@@ -568,6 +570,7 @@ describe('elk preview runtimes', () => {
 
     expect(section.hidden).toBe(true);
     expect(section.inert).toBe(true);
+    expect(section.style.display).toBe('none');
     expect(sectionAttrs.get('aria-hidden')).toBe('true');
     expect(container.innerHTML).toBe('');
     expect(runtime.collectOverrides()).toEqual({});

@@ -1,7 +1,7 @@
 {
   "ok": true,
   "base": "http://127.0.0.1:8120",
-  "generatedAt": "2026-06-28T23:17:47.239Z",
+  "generatedAt": "2026-06-28T23:27:23.663Z",
   "notes": [
     "Real gestures only for mutations: page.click, page.selectOption, page.mouse drag.",
     "DOM evaluation is used only to read geometry/control state."
@@ -10,8 +10,8 @@
     {
       "name": "engine-tab-switch:mongo-octavia-ha",
       "ok": true,
-      "startedAt": "2026-06-28T23:17:47.294Z",
-      "finishedAt": "2026-06-28T23:17:48.762Z",
+      "startedAt": "2026-06-28T23:27:23.731Z",
+      "finishedAt": "2026-06-28T23:27:25.261Z",
       "details": {
         "slug": "mongo-octavia-ha",
         "steps": [
@@ -33,8 +33,8 @@
     {
       "name": "engine-tab-switch:juju-bootstrap-machines-process",
       "ok": true,
-      "startedAt": "2026-06-28T23:17:48.762Z",
-      "finishedAt": "2026-06-28T23:17:53.016Z",
+      "startedAt": "2026-06-28T23:27:25.261Z",
+      "finishedAt": "2026-06-28T23:27:29.613Z",
       "details": {
         "slug": "juju-bootstrap-machines-process",
         "steps": [
@@ -116,8 +116,8 @@
     {
       "name": "page-direction-flip:tiered-network-architecture",
       "ok": true,
-      "startedAt": "2026-06-28T23:17:53.016Z",
-      "finishedAt": "2026-06-28T23:17:54.861Z",
+      "startedAt": "2026-06-28T23:27:29.613Z",
+      "finishedAt": "2026-06-28T23:27:31.475Z",
       "details": {
         "slug": "tiered-network-architecture",
         "renderedEngine": "v3",
@@ -144,8 +144,8 @@
     {
       "name": "elk-live-resize:mongo-octavia-ha",
       "ok": true,
-      "startedAt": "2026-06-28T23:17:54.861Z",
-      "finishedAt": "2026-06-28T23:17:58.461Z",
+      "startedAt": "2026-06-28T23:27:31.475Z",
+      "finishedAt": "2026-06-28T23:27:35.070Z",
       "details": {
         "slug": "mongo-octavia-ha",
         "renderedEngine": "elk-layered",
@@ -169,8 +169,8 @@
     {
       "name": "box-type-change:support-engineering-flow",
       "ok": true,
-      "startedAt": "2026-06-28T23:17:58.461Z",
-      "finishedAt": "2026-06-28T23:18:01.094Z",
+      "startedAt": "2026-06-28T23:27:35.070Z",
+      "finishedAt": "2026-06-28T23:27:37.793Z",
       "details": {
         "slug": "support-engineering-flow",
         "engine": "elk-force",
@@ -185,8 +185,8 @@
     {
       "name": "contextual-controls",
       "ok": true,
-      "startedAt": "2026-06-28T23:18:01.094Z",
-      "finishedAt": "2026-06-28T23:18:03.785Z",
+      "startedAt": "2026-06-28T23:27:37.793Z",
+      "finishedAt": "2026-06-28T23:27:40.478Z",
       "details": {
         "v3": {
           "engine": "v3",
@@ -195,8 +195,15 @@
               "selector": "#elk-layout-section",
               "exists": true,
               "hidden": true,
+              "painted": false,
               "focusable": false,
               "disabled": false,
+              "display": "none",
+              "visibility": "visible",
+              "rect": {
+                "width": 0,
+                "height": 0
+              },
               "tabIndex": -1,
               "id": "elk-layout-section"
             }
@@ -211,8 +218,15 @@
               "selector": "#elk-elk-layered-layering-strategy",
               "exists": true,
               "hidden": false,
+              "painted": true,
               "focusable": true,
               "disabled": false,
+              "display": "block",
+              "visibility": "visible",
+              "rect": {
+                "width": 148,
+                "height": 24
+              },
               "tabIndex": 0,
               "id": "elk-elk-layered-layering-strategy"
             }

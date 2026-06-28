@@ -625,7 +625,7 @@ export function createPreviewGridEditorInstallOptionsFromLegacyEditorHost(
     const shellMode = previewConfig.shell_mode || 'grid';
     const activeLayoutEngine = resolvePreviewRenderIntentLayoutEngine({
       intent: options.previewWindow.__DG_previewRenderIntent ?? null,
-      activeEngineId: previewConfig.active_engine_id ?? null,
+    }) ?? resolvePreviewRenderIntentLayoutEngine({
       fallbackEngineId: options.config.engine ?? previewConfig.engine ?? null,
     });
     const persistedLayoutEngine = previewConfig.persisted_layout_engine
