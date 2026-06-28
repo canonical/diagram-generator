@@ -79,6 +79,8 @@ export interface PreviewEngineCompatibility {
   frameDiagramRequirements?: {
     /** Minimum number of authored arrows required for this engine to be useful. */
     readonly minArrowCount?: number;
+    /** Whether the authored arrow graph must be a connected tree. */
+    readonly requiresTree?: boolean;
     /**
      * Diagram families this engine should be offered for when the authored frame
      * diagram declares a recognized `meta.diagram_type`. When a manifest uses
@@ -113,6 +115,8 @@ export interface FrameDiagramCompatibilitySummary {
    * descendants) that currently rely on fill sizing semantics.
    */
   fillCarrierIds?: string[];
+  /** True when the authored arrow endpoints form one connected acyclic graph. */
+  isArrowGraphTree?: boolean;
   /**
    * Structural carriers that the current graph input cannot safely hand to a
    * non-compound layout engine.

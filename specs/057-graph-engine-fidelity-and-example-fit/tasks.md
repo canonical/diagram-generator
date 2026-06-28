@@ -42,4 +42,30 @@
       **Verify**:
       `npm --prefix packages/layout-engine test`;
       `npm --prefix apps/preview test`;
-      `node scripts/check_no_new_python.mjs`
+
+## Phase 4: Fidelity Probes (added 2026-06-28 — required for closeout)
+
+- [x] **T040** Add a real-layout fidelity-probe harness (no mocks).
+      **Do**: per (engine, fixture), run `layoutPreviewFrameDiagramForEngine` and
+      assert: every authored leaf has placed bounds (no dropped nodes); compound
+      children stay within the parent band; fill children fill the parent main
+      axis.
+      **Verify**: `npm --prefix packages/layout-engine test -- <probe>.test.ts`.
+
+- [x] **T041** Prove `mongo-octavia-ha` AZ1–3 sit beside the VM boxes, not below
+      (INBOX). Prove `tiered-network-architecture.author-v1` direction-aware FILL.
+      **Verify**: probe assertions above on the real fixtures.
+
+- [x] **T042** Prove a variant/box-type change triggers no relayout when geometry
+      is unchanged (INBOX line 56).
+      **Verify**: focused interaction test.
+
+- [x] **T043** Block engine exposure on a fixture class unless its probe passes
+      (give FR-002 teeth).
+      **Verify**: registry/exposure test.
+
+- [x] **T044** Browser re-verification of the two fixtures recorded under
+      `evidence/` (per `docs/spec-reviews/README.md` §4). Depends on spec 060
+      having landed engine-intent threading.
+
+      **Verify**: `node specs/057-graph-engine-fidelity-and-example-fit/evidence/fidelity-browser-check.mjs`.

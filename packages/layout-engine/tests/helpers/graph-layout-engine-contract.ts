@@ -4,7 +4,7 @@ import { MockTextAdapter } from '../../src/text-measure.js';
 import { defineGraphLayoutPreviewEngine, type GraphLayoutPreviewEngineDefinition } from '../../src/preview-engine/define-graph-layout-engine.js';
 import { evaluatePreviewEngineCompatibility, getPreviewEngine, getPreviewEngineByLayoutKey } from '../../src/preview-engine/registry.js';
 import { getPreviewFrameDiagramRenderAdapter } from '../../src/preview-engine/render.js';
-import type { PreviewDocumentKind } from '../../src/preview-engine/types.js';
+import type { FrameDiagramCompatibilitySummary, PreviewDocumentKind } from '../../src/preview-engine/types.js';
 
 function minimalFrameDiagram(layoutEngineKey: string): FrameDiagram {
   return new FrameDiagram({
@@ -47,6 +47,19 @@ function incompatibleDocumentKind(documentKinds: readonly PreviewDocumentKind[])
   return 'contract-incompatible-document-kind';
 }
 
+function compatibleFrameDiagramSummary(
+  definition: GraphLayoutPreviewEngineDefinition,
+): FrameDiagramCompatibilitySummary {
+  return {
+    arrowCount: 1,
+    diagramType: definition.compatibility.frameDiagramRequirements?.offerDiagramTypes?.[0] ?? null,
+    fillCarrierIds: [],
+    isArrowGraphTree: definition.compatibility.frameDiagramRequirements?.requiresTree ? true : undefined,
+    unsupportedCarrierIds: [],
+    unsupportedElkCarrierIds: [],
+  };
+}
+
 export function runGraphLayoutPreviewEngineContract(
   definition: GraphLayoutPreviewEngineDefinition,
 ): void {
@@ -65,7 +78,7 @@ export function runGraphLayoutPreviewEngineContract(
             evaluatePreviewEngineCompatibility(manifest, {
               previewDocumentKind: documentKind,
               layoutEngine: definition.layoutEngineKey,
-              frameDiagramSummary: { arrowCount: 1, unsupportedElkCarrierIds: [] },
+              frameDiagramSummary: compatibleFrameDiagramSummary(definition),
             }),
           ).toEqual({ compatible: true });
         }

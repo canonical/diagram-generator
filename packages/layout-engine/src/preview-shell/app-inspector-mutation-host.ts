@@ -123,6 +123,11 @@ export interface DispatchPreviewMultiStyleOverrideHostOptions {
     node: unknown;
     styleName: string;
   }) => boolean;
+  styleChangeRequiresRelayout?: (options: {
+    cid: string;
+    node: unknown;
+    styleName: string;
+  }) => boolean;
   cleanOverride: (cid: string) => void;
   getNode: (cid: string) => unknown;
   overrides: Record<string, Record<string, unknown>>;
@@ -371,19 +376,27 @@ export function dispatchPreviewMultiStyleOverrideHost(
   const ids = selectionIds(options.selectedIds);
   const beforeEntries = options.captureOverrideEntries(ids);
   let changedAny = false;
+  let relayoutCid: string | null = null;
   for (const cid of ids) {
     if (!options.isStyleableComponentType(options.getComponentType(cid))) {
       continue;
     }
+    const node = options.getNode(cid);
+    const requiresRelayout = options.styleChangeRequiresRelayout
+      ? options.styleChangeRequiresRelayout({ cid, node, styleName })
+      : true;
     const changed = options.applyVisibleStyleOverride({
       overrides: options.overrides,
       cid,
-      node: options.getNode(cid),
+      node,
       styleName,
     });
     if (changed) {
       options.cleanOverride(cid);
       changedAny = true;
+      if (requiresRelayout && !relayoutCid) {
+        relayoutCid = cid;
+      }
     }
   }
   if (!changedAny) {
@@ -396,8 +409,8 @@ export function dispatchPreviewMultiStyleOverrideHost(
     beforeEntries,
     options.captureOverrideEntries(ids),
   );
-  if (ids.length > 0) {
-    options.requestRelayout(ids[0]!);
+  if (relayoutCid) {
+    options.requestRelayout(relayoutCid);
   }
   options.renderMultiSelectionInspector();
 }

@@ -111,3 +111,44 @@ semantic fidelity once an engine is exposed.
   `npm --prefix packages/layout-engine test -- preview-engine-registry.test.ts`;
   `npm --prefix apps/preview test -- src/persistence/preview-host-contract.test.ts`;
   `node scripts/check_no_new_python.mjs`.
+
+### 2026-06-28 fidelity closeout follow-up
+
+- `preview-engine-fidelity-probes.test.ts` runs the real
+  `layoutPreviewFrameDiagramForEngine` seam for the reported fixtures.
+- `mongo-octavia-ha` now has a probe and browser evidence proving AZ wrappers,
+  VM boxes, and AZ labels stay inside their availability-zone compound band.
+- `tiered-network-architecture.author-v1` is bounded as unsupported for ELK
+  exposure because it has fill-sized structural carriers without an authored
+  `meta.diagram_type`; the browser evidence records only `v3`/`dagre` tabs and
+  a truthful `data-layout-engine="v3"` render.
+- Boxed style changes no longer request relayout when their geometry class is
+  unchanged; borderless annotation changes still request relayout.
+
+## Closeout Gate (added 2026-06-28 adversarial review)
+
+See `docs/spec-reviews/branch-057.md` and `docs/spec-reviews/README.md` §3. This
+spec advanced *exposure* gating but not *fidelity*. It may not close until:
+
+1. A fidelity-probe harness runs the **real** layout
+   (`layoutPreviewFrameDiagramForEngine`, not mocks) per (engine, fixture) and
+   asserts engine-appropriate invariants:
+   - no dropped nodes: every authored leaf has placed bounds;
+   - compound children stay in the parent band — proves INBOX `mongo-octavia-ha`
+     AZ1–3 sit beside (not below) the VM boxes;
+   - fill children fill the parent main axis — proves INBOX
+     `tiered-network-architecture.author-v1` direction-aware FILL.
+2. A variant/box-type change produces no relayout request when geometry is
+   unchanged (INBOX line 56), proven by a focused test.
+3. Exposure of an engine on a fixture class is blocked unless its probe passes.
+4. Browser re-verification of the two fixtures recorded under `evidence/`.
+5. No mock-only proof for any fidelity claim.
+
+Sequencing: land spec 060 first (engine intent threaded to render) so v3-vs-ELK
+output is observable; the `mongo-octavia-ha` "v3 still shows ELK" half is a 060
+problem, the ELK compound-placement half is this spec. Out of scope: arrow label
+de-overlap (INBOX line 26) → new spec 064; ELK debug/raw-view chrome (INBOX
+42–47) → 051/048.
+
+- Spec 060 for engine-intent → render threading (must land first).
+

@@ -90,6 +90,7 @@ export function summarizeFrameDiagramCompatibility(
     arrowCount: diagram.arrows.length,
     diagramType: diagram.diagramType ?? null,
     fillCarrierIds: collectFillCarrierIds(diagram),
+    isArrowGraphTree: isArrowGraphTree(diagram),
     unsupportedCarrierIds,
     unsupportedElkCarrierIds: unsupportedCarrierIds,
   };
@@ -102,6 +103,54 @@ function collectEndpointIds(diagram: FrameDiagram): Set<string> {
     if (arrow.target) ids.add(arrow.target.split('.')[0]!);
   }
   return ids;
+}
+
+function isArrowGraphTree(diagram: FrameDiagram): boolean {
+  if (diagram.arrows.length === 0) {
+    return false;
+  }
+  const adjacency = new Map<string, Set<string>>();
+  const addNode = (id: string): void => {
+    if (!adjacency.has(id)) {
+      adjacency.set(id, new Set<string>());
+    }
+  };
+
+  for (const arrow of diagram.arrows) {
+    const source = arrow.source?.split('.')[0] ?? '';
+    const target = arrow.target?.split('.')[0] ?? '';
+    if (!source || !target || source === target) {
+      return false;
+    }
+    addNode(source);
+    addNode(target);
+    adjacency.get(source)!.add(target);
+    adjacency.get(target)!.add(source);
+  }
+
+  if (diagram.arrows.length !== adjacency.size - 1) {
+    return false;
+  }
+
+  const first = adjacency.keys().next().value as string | undefined;
+  if (!first) {
+    return false;
+  }
+  const visited = new Set<string>();
+  const queue = [first];
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    if (visited.has(current)) {
+      continue;
+    }
+    visited.add(current);
+    for (const next of adjacency.get(current) ?? []) {
+      if (!visited.has(next)) {
+        queue.push(next);
+      }
+    }
+  }
+  return visited.size === adjacency.size;
 }
 
 function collectUnsupportedCarrierIds(diagram: FrameDiagram): string[] {
@@ -266,6 +315,18 @@ export function evaluatePreviewEngineCompatibility(
       reason:
         `Engine cannot natively represent the current frame structure: ` +
         unsupportedCarrierIds.slice(0, 3).join(', '),
+    };
+  }
+
+  if (
+    previewDocumentKind === 'frame-diagram' &&
+    frameDiagramRequirements?.requiresTree &&
+    context.frameDiagramSummary &&
+    context.frameDiagramSummary.isArrowGraphTree === false
+  ) {
+    return {
+      compatible: false,
+      reason: 'Engine requires authored arrows to form a connected tree',
     };
   }
 

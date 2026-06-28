@@ -661,6 +661,41 @@ describe('preview-engine registry', () => {
     expect(juju.unsupportedElkCarrierIds).toEqual([]);
   });
 
+  it('offers elk radial only for tree-shaped authored arrow graphs', () => {
+    const jujuSummary = summarizeFrameDiagramCompatibility(
+      loadFrameYaml(join(FRAMES_DIR, 'juju-bootstrap-machines-process.yaml')),
+    );
+    expect(jujuSummary.isArrowGraphTree).toBe(false);
+    expect(listCompatiblePreviewEngines({
+      shellMode: 'grid',
+      previewDocumentKind: 'frame-diagram',
+      frameDiagramSummary: jujuSummary,
+    }).map((entry) => entry.id)).not.toContain('elk-radial');
+
+    const treeSummary = summarizeFrameDiagramCompatibility(new FrameDiagram({
+      title: 'Tree graph',
+      root: new Frame({
+        id: 'page',
+        direction: Direction.VERTICAL,
+        children: [
+          new Frame({ id: 'alpha' }),
+          new Frame({ id: 'beta' }),
+          new Frame({ id: 'gamma' }),
+        ],
+      }),
+      arrows: [
+        createArrow('alpha', 'beta'),
+        createArrow('beta', 'gamma'),
+      ],
+    }));
+    expect(treeSummary.isArrowGraphTree).toBe(true);
+    expect(evaluatePreviewEngineCompatibility(ELK_RADIAL_PREVIEW_ENGINE, {
+      shellMode: 'grid',
+      previewDocumentKind: 'frame-diagram',
+      frameDiagramSummary: treeSummary,
+    })).toEqual({ compatible: true });
+  });
+
   it('keeps compound-aware elk layered compatible for container arrow endpoints while rejecting non-compound engines', () => {
     const summary = summarizeFrameDiagramCompatibility(new FrameDiagram({
       title: 'Container endpoint',
@@ -731,7 +766,11 @@ describe('preview-engine registry', () => {
     expect(resolvePreviewEngine(context)?.id).toBe('v3');
     expect(listCompatiblePreviewEngines(context).map((entry) => entry.id)).toEqual([
       'v3',
-      ...GRAPH_FRAME_OFFER_ENGINE_IDS,
+      'elk-layered',
+      'elk-force',
+      'elk-stress',
+      'elk-mrtree',
+      'dagre',
     ]);
 
     const elkResult = evaluatePreviewEngineCompatibility(ELK_LAYERED_PREVIEW_ENGINE, context);

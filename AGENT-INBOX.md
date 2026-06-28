@@ -7,7 +7,6 @@ Durable follow-up belongs in `specs/<id>-<slug>/`,
 `TODO.md` is only a pointer to open spec packages.
 
 ---
-
 ## 2026-06-27 - 055/056 pre-push blockers resolved
 
 The earlier local-only review findings for specs 055 and 056 are now resolved.
@@ -477,7 +476,6 @@ closed.
 - `node scripts/check_no_new_python.mjs` -> **pass**
 - `npm --prefix apps/preview test` -> **initial fail** on missing browser artifacts; **pass after** `npm --prefix packages/layout-engine run build:browser`
 - `node scripts/check-browser-bundle-fresh.mjs` -> **initial fail** before browser build; **pass after** browser build
-
 ---
 
 ## 2026-06-28 - Adversarial review of `feat/057-graph-engine-fidelity-and-example-fit`
