@@ -7,6 +7,7 @@ Durable follow-up belongs in `specs/<id>-<slug>/`,
 `TODO.md` is only a pointer to open spec packages.
 
 ---
+
 ## 2026-06-27 - 055/056 pre-push blockers resolved
 
 The earlier local-only review findings for specs 055 and 056 are now resolved.
@@ -476,3 +477,42 @@ closed.
 - `node scripts/check_no_new_python.mjs` -> **pass**
 - `npm --prefix apps/preview test` -> **initial fail** on missing browser artifacts; **pass after** `npm --prefix packages/layout-engine run build:browser`
 - `node scripts/check-browser-bundle-fresh.mjs` -> **initial fail** before browser build; **pass after** browser build
+
+---
+
+## 2026-06-28 - Adversarial review of spec 060 (`feat/060-output-pane-engine-tabs-rerender`)
+
+Reviewed `475bc9d` against `origin/main` (`5c66116`) after the implementation
+tasks were marked complete.
+
+### Verdict
+
+No P0/P1 functional regressions surfaced in the landed branch, and the current
+test/validation gates are green in this checkout after installing the repo's
+existing Node dependencies. I did find two follow-up gaps worth addressing
+before calling the spec fully closed.
+
+### Findings
+
+| Severity | Area | Finding | Evidence (file:line or command) | Recommended fix |
+|----------|------|---------|----------------------------------|-----------------|
+| P2 | Output-pane tab semantics / accessibility | The new engine rail is only **styled** like tabs; it is not wired like the repo's existing tabs. The buttons get `role="tab"` and `aria-selected`, but they have no `aria-controls` / tabpanel pairing and no keyboard navigation handler. That means the new output-pane rail does not provide the same operable tab semantics as the existing left-nav tabs. | `scripts/preview/viewer-unified.html:53-57`; `packages/layout-engine/src/preview-shell/preview-engine-workspace-chrome.ts:209-291`; compare the existing nav-tab contract in `scripts/preview/viewer-unified.html:18-35` and `scripts/preview/editor-base.js:304-330`. A repo search over `preview-engine-workspace-chrome.ts` found no `keydown`, `ArrowLeft`, `ArrowRight`, `Home`, or `End` handling. | Move the output-pane rail onto a shared typed tab-controller path so it matches the existing BF-style tab contract: roving tabindex, keyboard navigation, and explicit tab ↔ panel semantics where appropriate. Keep the ownership in TS rather than growing new JS behavior. |
+| P3 | Spec-closeout proof / save-reopen coverage | Task **T021** says focused save/reopen coverage landed, but the spec 060 diff does not add a spec-owned save -> reload regression for the new output-header workspace path. The new tests cover placement, rerender callback exposure, and browser-local workspace state, but not "switch tab, save, reopen, selected engine comes back active" on this spec's changed surface. | `git --no-pager diff --unified=0 origin/main...HEAD -- apps/preview/src/persistence/preview-host-contract.test.ts packages/layout-engine/tests/app-grid-editor-install-unit.test.ts packages/layout-engine/tests/preview-engine-workspace-chrome.test.ts`; the changed hunks only add host-placement assertions plus rerender/unit coverage. `specs/060-output-pane-engine-tabs-rerender/evidence/playwright-and-validation-2026-06-28.md` proves rerender and placement, but not a save/reopen round trip for the moved header workspace. | Add one `apps/preview` persistence regression that switches engines through the new header workspace, saves, reloads the document/viewer context, and asserts the saved `layout_engine` is restored as the active tab. That would make FR-005 and T021 specific to this spec rather than inherited from 055-era coverage. |
+
+### Top 3 risks before merge
+
+1. Keyboard and assistive-tech users currently get a click-only engine rail, not a true tablist interaction model.
+2. FR-005 is still under-proved on the exact surface changed by spec 060; a future header-workspace refactor could regress save/reopen without tripping a spec-owned test.
+3. The repo now has two tab implementations with different behavior contracts (existing nav tabs vs new engine tabs), which increases drift risk unless they converge on one typed owner.
+
+### Open questions for the author
+
+- Did "baseline-foundry tab semantics" mean visual styling only, or did it also mean matching the existing keyboard/ARIA behavior of the other BF-style tabs in the preview shell?
+- Is the intent to rely on spec 055's older save/reopen coverage for FR-005, or should spec 060 own a fresh persistence regression on the moved output-pane workspace path?
+
+### What I verified
+
+- `npm --prefix packages/layout-engine test` -> **pass** (`146` files / `851` tests)
+- `npm --prefix apps/preview test` -> **pass** (`145` tests, `0` fail)
+- `node scripts/check-browser-bundle-fresh.mjs` -> **pass**
+- `node scripts/check_no_new_python.mjs` -> **pass**

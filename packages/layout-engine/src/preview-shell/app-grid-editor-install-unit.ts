@@ -20,6 +20,7 @@ import {
 } from './frame-style.js';
 import {
   createPreviewEngineWorkspaceState,
+  resolveActivePreviewLayoutEngine,
 } from './preview-engine-workspace.js';
 import {
   syncPreviewPanelVisibilityFromContext,
@@ -280,6 +281,8 @@ export type PreviewGridEditorLegacyWindow = PreviewGridEditorRuntimeWindow & {
     head_half?: number;
   } | null;
   __DG_syncPreviewEngineWorkspacePanels?: (() => void) | null;
+  __DG_rerenderPreviewEngineWorkspaceStage?: (() => Promise<void>) | null;
+  setFrameTreeLayoutEngine?: ((layoutEngine: string | null | undefined) => string | null) | null;
   __DG_BOX_STYLES?: PreviewBoxStyleMap | null;
   syncArrowsInModel?: PreviewGridEditorRuntimeBrowserOptions['syncArrowsInModel'];
   arrowComponentId?: PreviewGridEditorRuntimeBrowserOptions['arrowComponentId'];
@@ -1149,6 +1152,25 @@ export function createPreviewGridEditorInstallUnitFromBrowserHost(
       bootstrapEditorRuntime: () => getBootstrapFacade().bootstrapEditorRuntime(),
     };
     return compatFacadeState.current!;
+  };
+  options.shared.previewWindow.__DG_rerenderPreviewEngineWorkspaceStage = async () => {
+    const previewWindow = options.shared.previewWindow as PreviewGridEditorLegacyWindow;
+    const previewConfig = previewWindow.__DG_CONFIG ?? null;
+    const activeLayoutEngine = resolveActivePreviewLayoutEngine({
+      activeEngineId: previewConfig?.active_engine_id ?? null,
+      layoutEngine: previewConfig?.layout_engine ?? null,
+      persistedEngineId: previewConfig?.persisted_layout_engine ?? null,
+      fallbackEngineId: options.shared.engine ?? null,
+    });
+    if (activeLayoutEngine) {
+      const committedLayoutEngine = previewWindow.setFrameTreeLayoutEngine?.(
+        activeLayoutEngine,
+      );
+      if (committedLayoutEngine !== activeLayoutEngine) {
+        throw new Error(`Unable to commit preview layout engine '${activeLayoutEngine}' before render.`);
+      }
+    }
+    await getCompatFacade().rerenderStageFromModel();
   };
 
   return {

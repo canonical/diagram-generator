@@ -45,9 +45,31 @@ export interface CreatePreviewEngineWorkspaceStateOptions<TSession = unknown> {
   readonly sessionStateByEngine?: Readonly<Record<string, TSession>> | null;
 }
 
-function normalizeEngineId(value: string | null | undefined): string | null {
+export interface ResolveActivePreviewLayoutEngineOptions {
+  readonly activeEngineId?: string | null;
+  readonly frameTreeJson?: { layoutEngine?: string | null } | null | undefined;
+  readonly layoutEngine?: string | null;
+  readonly persistedEngineId?: string | null;
+  readonly fallbackEngineId?: string | null;
+}
+
+export function normalizePreviewWorkspaceEngineId(value: string | null | undefined): string | null {
   const normalized = typeof value === 'string' ? value.trim() : '';
   return normalized.length > 0 ? normalized : null;
+}
+
+export function resolveActivePreviewLayoutEngine(
+  options: ResolveActivePreviewLayoutEngineOptions,
+): string | null {
+  return normalizePreviewWorkspaceEngineId(options.activeEngineId)
+    ?? normalizePreviewWorkspaceEngineId(options.frameTreeJson?.layoutEngine)
+    ?? normalizePreviewWorkspaceEngineId(options.layoutEngine)
+    ?? normalizePreviewWorkspaceEngineId(options.persistedEngineId)
+    ?? normalizePreviewWorkspaceEngineId(options.fallbackEngineId);
+}
+
+function normalizeEngineId(value: string | null | undefined): string | null {
+  return normalizePreviewWorkspaceEngineId(value);
 }
 
 function workspaceEngineId(engine: PreviewEngineWorkspaceEngine | null | undefined): string | null {

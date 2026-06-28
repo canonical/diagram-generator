@@ -35,6 +35,7 @@ export function resolvePreviewRenderFamily(
 
 export interface PreviewRenderableDocument {
   kind?: PreviewDocumentKind | null;
+  layoutEngine?: string | null;
   title?: string | null;
   sequence?: SequenceDiagramSpec;
 }
