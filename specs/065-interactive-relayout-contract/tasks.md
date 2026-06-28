@@ -81,7 +81,7 @@
 
 ## Phase 5: Full validation
 
-- [ ] **T050** Run and record:
+- [x] **T050** Run and record:
       `npm --prefix packages/layout-engine run build:browser`;
       `npm --prefix packages/layout-engine test`;
       `npm --prefix apps/preview test`;

@@ -23,10 +23,11 @@ Evidence artifact:
 - `diagnostics/support-flow-elk-aside-after-hidden-fix.png`
 
 Validation:
-- `npm --prefix packages/layout-engine test` -> 149 files passed, 874 tests passed
-- `npm --prefix apps/preview test` -> 145 tests passed
+- `npm --prefix packages/layout-engine run build:browser` -> passed
+- `npm --prefix packages/layout-engine test` -> 149 files passed, 878 tests passed
+- `npm --prefix apps/preview test` -> 146 tests passed
 - `node scripts/check-browser-bundle-fresh.mjs` -> ok, 3 artifacts checked
-- `node scripts/check_no_new_python.mjs` -> ok, no new product-path Python files
+- `node scripts/check_no_new_python.mjs` -> ok, 9 Python files scanned, no new product-path files
 
 Incremental T021 validation:
 - `npm --prefix packages/layout-engine test -- app-layout-bridge-runtime.test.ts preview-render-intent.test.ts` -> 2 files passed, 12 tests passed
