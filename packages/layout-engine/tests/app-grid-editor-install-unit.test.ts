@@ -1052,9 +1052,11 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
           getEditorInteractionFacade: vi.fn(),
         },
       });
+      createPreviewGridEditorInstallUnitFromEditorHost(options);
 
       options.browser.syncPanelVisibility({ count: 0, kind: 'empty' });
       expect(previewWindow.__DG_syncPreviewEngineWorkspacePanels).toBeTypeOf('function');
+      expect(previewWindow.__DG_rerenderPreviewEngineWorkspaceStage).toBeTypeOf('function');
       expect(engineSwitcherSection.hidden).toBe(false);
       expect(graphLayoutSection.hidden).toBe(true);
       expect(elkLayoutSection.hidden).toBe(true);
@@ -1082,6 +1084,170 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
         unregister();
       }
     }
+  });
+
+  it('exposes a live engine-workspace rerender callback through the legacy host window', async () => {
+    const rerenderStageCalls: string[] = [];
+    mocks.createBrowserState.mockReturnValue({
+      replaceOverrides: vi.fn((nextOverrides: Record<string, unknown>) => nextOverrides),
+      setDirty: vi.fn(),
+      pruneLinkedRootGridOverrides: vi.fn(),
+      restoreOverrideEntries: vi.fn(),
+      clearPendingRestoreRuntime: vi.fn(),
+      applyLocalRestoreRefresh: vi.fn(),
+      setMultiActionGap: vi.fn(),
+      setOverride: vi.fn(),
+      setWaypointOverride: vi.fn(),
+      cleanOverride: vi.fn(),
+      getParentNode: vi.fn(() => null),
+      getComponentNode: vi.fn(() => null),
+      hasLayoutChildren: vi.fn(() => false),
+      getArrowNode: vi.fn(() => null),
+      getComponentType: vi.fn(() => 'box'),
+      getViolationsForComponent: vi.fn(() => []),
+      scheduleLayoutRelayout: vi.fn(),
+      clearScheduledLayoutRelayout: vi.fn(),
+    });
+    mocks.createRuntime.mockReturnValue({
+      getSceneFacade: vi.fn(() => ({
+        rerenderStageFromModel: vi.fn(async () => {
+          rerenderStageCalls.push('rerender');
+          return true;
+        }),
+      })),
+      getBootstrapFacade: vi.fn(() => ({})),
+      getRelayoutFacade: vi.fn(() => ({})),
+      getInteractionFacade: vi.fn(() => ({})),
+      invalidateOverrideBoundFacades: vi.fn(),
+    });
+    const previewWindow = {
+      __DG_CONFIG: {
+        engine: 'v3',
+        layout_engine: 'v3',
+        active_engine_id: 'v3',
+        persisted_layout_engine: 'v3',
+        shell_mode: 'grid',
+        document_kind: 'frame-diagram',
+        compatible_engines: ['v3', 'dagre'],
+      },
+      navigator: {
+        clipboard: {
+          writeText: vi.fn(async () => undefined),
+        },
+      },
+      setTimeout: vi.fn((_callback: () => void, _delayMs?: number) => 17),
+      clearTimeout: vi.fn(),
+      requestAnimationFrame: vi.fn((_callback: FrameRequestCallback) => 21),
+      cancelAnimationFrame: vi.fn(),
+      alert: vi.fn(),
+    } as any;
+    const document = {
+      getElementById: vi.fn(() => null),
+      querySelector: vi.fn(() => null),
+    } as any;
+
+    const options = createPreviewGridEditorInstallOptionsFromLegacyEditorHost({
+      document,
+      previewWindow,
+      config: {
+        slug: 'support-engineering-flow',
+        engine: 'v3',
+        gridEnabled: true,
+        guideModes: ['off', 'all'],
+        baselineStep: 24,
+        inset: 8,
+        guideColor: '#f00',
+        guideOpacity: '0.5',
+        interactionMode: { TEXT_EDITING: 'text', WAYPOINT_DRAGGING: 'waypoint' } as any,
+        handleSize: 12,
+        minNodeSize: 24,
+        fallbackGap: 24,
+        snapToGrid: (value) => value,
+      },
+      state: {
+        model: { kind: 'model' } as any,
+        interactionManager: { kind: 'manager' } as any,
+        selectedIds: new Set<string>(),
+        selectionDepthState: { get: vi.fn(() => 0), set: vi.fn() },
+        coercedKeys: new Set<string>(),
+        editorState: { kind: 'editor-state' } as any,
+        previewSaveClient: { kind: 'save-client' } as any,
+        generationState: { get: vi.fn(() => 7), set: vi.fn() },
+        allowInternalDirtyNavigationState: { get: vi.fn(() => false), set: vi.fn() },
+        constraints: { summarise: vi.fn(() => ({ total: 0 })) } as any,
+        lastViolationsState: { get: vi.fn(() => []) },
+        overridesState: { get: vi.fn(() => ({})), set: vi.fn() },
+        multiActionGapState: { get: vi.fn(() => 24), set: vi.fn() },
+        layoutRelayoutTimerState: { get: vi.fn(() => null), set: vi.fn() },
+      },
+      helpers: {
+        applyInteractionOverrideEntries: vi.fn(),
+      },
+      modelOps: {
+        getOwnDelta: vi.fn(() => ({ dx: 0, dy: 0, dw: 0, dh: 0 })),
+        getEffectiveDelta: vi.fn(() => ({ dx: 0, dy: 0, dw: 0, dh: 0 })),
+        getAncestors: vi.fn(() => []),
+      },
+      facades: {
+        getEditorSceneFacade: vi.fn(() => ({
+          deleteSelectedFrames: vi.fn(async () => ({ rerendered: true })),
+          cycleGuideMode: vi.fn(),
+          updateOverrideSummary: vi.fn(),
+          refreshTreeColors: vi.fn(),
+          runConstraints: vi.fn(),
+          rerenderStageFromModel: vi.fn(async () => true),
+        })),
+        getEditorRelayoutFacade: vi.fn(() => ({
+          applyUndoCommand: vi.fn(),
+          getRelayoutRuntime: vi.fn(() => ({ requestRelayout: vi.fn() })),
+          scheduleResizeRelayout: vi.fn(() => false),
+          cancelResizeRelayout: vi.fn(),
+          persistResize: vi.fn(),
+          getLayoutRelayoutStatus: vi.fn(() => ({})),
+        })),
+        getEditorInteractionFacade: vi.fn(() => ({
+          getStageBindingRuntime: vi.fn(() => ({ buildTreeUi: vi.fn(), bindInteraction: vi.fn() })),
+          getSelectionRuntime: vi.fn(() => ({
+            deselectAll: vi.fn(),
+            reapplySelection: vi.fn(),
+            selectComponent: vi.fn(),
+            applySelectionStateSnapshot: vi.fn(),
+          })),
+          getInspectorDisplayRuntime: vi.fn(() => ({
+            renderEmptyInspector: vi.fn(),
+            renderSelectionInspector: vi.fn(),
+            renderMultiSelectionInspector: vi.fn(),
+          })),
+          getInspectorMutationRuntime: vi.fn(() => ({ setFrameProp: vi.fn() })),
+          getResizeInteractionRuntime: vi.fn(() => ({ onResizeUp: vi.fn() })),
+          getInspectorSelectionRuntime: vi.fn(() => ({
+            applySelectionTargets: vi.fn(),
+            distributeSelection: vi.fn(),
+            alignSelection: vi.fn(),
+            setMultiFrameAlign: vi.fn(),
+            applyMultiStyleOverride: vi.fn(),
+            setMultiFrameProp: vi.fn(),
+            setMultiFrameSize: vi.fn(),
+          })),
+          getArrowWaypointRuntime: vi.fn(() => ({
+            showArrowWaypointHandles: vi.fn(),
+            startWaypointDrag: vi.fn(),
+            onWaypointDragMove: vi.fn(),
+            onWaypointDragUp: vi.fn(),
+            addWaypoint: vi.fn(),
+            removeWaypoint: vi.fn(),
+            getArrowPoints: vi.fn(),
+            updateArrowVisual: vi.fn(),
+            rebuildArrowSvg: vi.fn(),
+          })),
+        })),
+      },
+    });
+    createPreviewGridEditorInstallUnitFromEditorHost(options);
+
+    expect(previewWindow.__DG_rerenderPreviewEngineWorkspaceStage).toBeTypeOf('function');
+    await previewWindow.__DG_rerenderPreviewEngineWorkspaceStage();
+    expect(rerenderStageCalls).toEqual(['rerender']);
   });
 
   it('derives runtime callbacks from the compact editor-host contract', async () => {

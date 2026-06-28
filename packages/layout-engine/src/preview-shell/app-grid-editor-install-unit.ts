@@ -280,6 +280,7 @@ export type PreviewGridEditorLegacyWindow = PreviewGridEditorRuntimeWindow & {
     head_half?: number;
   } | null;
   __DG_syncPreviewEngineWorkspacePanels?: (() => void) | null;
+  __DG_rerenderPreviewEngineWorkspaceStage?: (() => Promise<void>) | null;
   __DG_BOX_STYLES?: PreviewBoxStyleMap | null;
   syncArrowsInModel?: PreviewGridEditorRuntimeBrowserOptions['syncArrowsInModel'];
   arrowComponentId?: PreviewGridEditorRuntimeBrowserOptions['arrowComponentId'];
@@ -1149,6 +1150,9 @@ export function createPreviewGridEditorInstallUnitFromBrowserHost(
       bootstrapEditorRuntime: () => getBootstrapFacade().bootstrapEditorRuntime(),
     };
     return compatFacadeState.current!;
+  };
+  options.shared.previewWindow.__DG_rerenderPreviewEngineWorkspaceStage = async () => {
+    await getCompatFacade().rerenderStageFromModel();
   };
 
   return {

@@ -37,7 +37,7 @@ class FakeElement {
   readonly children: FakeElement[] = [];
   readonly classList = new FakeClassList();
   private readonly attributes = new Map<string, string>();
-  private readonly listeners = new Map<string, Array<() => void>>();
+  private readonly listeners = new Map<string, Array<() => void | Promise<void>>>();
 
   constructor(
     readonly tagName: string,
@@ -59,21 +59,21 @@ class FakeElement {
     this.children.push(...children);
   }
 
-  addEventListener(type: string, listener: () => void): void {
+  addEventListener(type: string, listener: () => void | Promise<void>): void {
     const existing = this.listeners.get(type) ?? [];
     existing.push(listener);
     this.listeners.set(type, existing);
   }
 
-  click(): void {
+  async click(): Promise<void> {
     for (const listener of this.listeners.get('click') ?? []) {
-      listener();
+      await listener();
     }
   }
 
-  dispatchChange(): void {
+  async dispatchChange(): Promise<void> {
     for (const listener of this.listeners.get('change') ?? []) {
-      listener();
+      await listener();
     }
   }
 
@@ -87,9 +87,17 @@ class FakeElement {
 
   querySelectorAll(selector: string): FakeElement[] {
     if (selector === 'button[data-engine-id]') {
-      return this.children.filter((child) => (
-        child.tagName.toLowerCase() === 'button' && child.getAttribute('data-engine-id')
-      ));
+      const matches: FakeElement[] = [];
+      const walk = (element: FakeElement) => {
+        for (const child of element.children) {
+          if (child.tagName.toLowerCase() === 'button' && child.getAttribute('data-engine-id')) {
+            matches.push(child);
+          }
+          walk(child);
+        }
+      };
+      walk(this);
+      return matches;
     }
     return [];
   }
@@ -120,16 +128,17 @@ function createChromeHarness() {
   const help = document.register(new FakeElement('p', 'engine-switcher-help', document));
   help.textContent = 'Only engines compatible with this document are listed.';
   const label = document.register(new FakeElement('span', 'active-engine-label', document));
-  const select = document.register(new FakeElement('select', 'engine-switcher', document));
-  const prev = document.register(new FakeElement('button', 'engine-switcher-prev', document));
-  const next = document.register(new FakeElement('button', 'engine-switcher-next', document));
-  const tabs = document.register(new FakeElement('div', 'engine-switcher-tabs', document));
+  const tabs = document.register(new FakeElement('ul', 'engine-switcher-tabs', document));
   const panelSyncCalls: string[] = [];
   const saveButtonSyncCalls: string[] = [];
+  const rerenderCalls: string[] = [];
   const previewWindow = {
     __DG_CONFIG: null as Record<string, unknown> | null,
    __DG_syncPreviewEngineWorkspacePanels() {
      panelSyncCalls.push('sync');
+   },
+   async __DG_rerenderPreviewEngineWorkspaceStage() {
+     rerenderCalls.push('rerender');
    },
    PreviewSaveClient: {
      syncSaveButton() {
@@ -148,18 +157,16 @@ function createChromeHarness() {
    section,
    help,
    label,
-   select,
-   prev,
-   next,
    tabs,
    previewWindow,
    panelSyncCalls,
    saveButtonSyncCalls,
+   rerenderCalls,
   };
 }
 
 describe('preview engine workspace chrome', () => {
-  it('switches engines browser-locally until save persists the active tab', () => {
+  it('switches engines browser-locally until save persists the active tab', async () => {
    const harness = createChromeHarness();
    harness.previewWindow.__DG_CONFIG = {
      slug: 'support-engineering-flow',
@@ -179,16 +186,18 @@ describe('preview engine workspace chrome', () => {
     expect(harness.section.hidden).toBe(false);
     expect(harness.label.hidden).toBe(false);
     expect(harness.label.textContent).toBe('Engine: ELK layered layout');
-    expect(harness.select.children).toHaveLength(3);
     expect(harness.tabs.children).toHaveLength(3);
-    expect(harness.prev.disabled).toBe(false);
-    expect(harness.next.disabled).toBe(false);
+    const tabButtons = harness.tabs.querySelectorAll('button[data-engine-id]');
+    expect(tabButtons).toHaveLength(3);
+    expect(tabButtons[0]?.getAttribute('role')).toBe('tab');
 
-    harness.next.click();
+    await tabButtons[2]?.click();
     expect(harness.previewWindow.__DG_CONFIG?.active_engine_id).toBe('dagre');
+    expect(harness.previewWindow.__DG_CONFIG?.layout_engine).toBe('dagre');
     expect(harness.help.textContent).toBe('Selected engine is unsaved until you save this document.');
-    expect(harness.panelSyncCalls).toEqual(['sync', 'sync']);
-    expect(harness.saveButtonSyncCalls).toEqual(['sync', 'sync']);
+    expect(harness.panelSyncCalls).toEqual(['sync', 'sync', 'sync']);
+    expect(harness.saveButtonSyncCalls).toEqual(['sync', 'sync', 'sync']);
+    expect(harness.rerenderCalls).toEqual(['rerender']);
     expect(hasUnsavedPreviewEngineWorkspaceChange(harness.previewWindow as never)).toBe(true);
     expect(
       collectPreviewEngineWorkspaceSavePayload(
@@ -202,8 +211,8 @@ describe('preview engine workspace chrome', () => {
 
     persistPreviewEngineWorkspaceRuntimeState(harness.previewWindow as never);
     expect(harness.previewWindow.__DG_CONFIG?.persisted_layout_engine).toBe('dagre');
-    expect(harness.panelSyncCalls).toEqual(['sync', 'sync', 'sync']);
-    expect(harness.saveButtonSyncCalls).toEqual(['sync', 'sync', 'sync']);
+    expect(harness.panelSyncCalls).toEqual(['sync', 'sync', 'sync', 'sync']);
+    expect(harness.saveButtonSyncCalls).toEqual(['sync', 'sync', 'sync', 'sync']);
     expect(harness.help.textContent).toBe('Only engines compatible with this document are listed.');
     expect(hasUnsavedPreviewEngineWorkspaceChange(harness.previewWindow as never)).toBe(false);
   });

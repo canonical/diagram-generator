@@ -44,6 +44,7 @@ For spec-driven implementation, keep git aligned to the spec package:
 | 057 Graph engine fidelity and example fit | `specs/057-graph-engine-fidelity-and-example-fit/` | In Progress | Tighten engine/example fit and ELK-family fidelity: only expose product-suitable engines, preserve direction-aware fill semantics, and stop compound child nodes from visually dropping or stranding on representative examples. |
 | 058 Layer tree and inspector selection ergonomics | `specs/058-layer-tree-inspector-selection-ergonomics/` | In Progress | Restore layer-tree keyboard traversal and make the inspector resolve effective child-box variants cleanly instead of showing `unknown` for ordinary selections. |
 | 059 Cross-document style source of truth | `specs/059-cross-document-style-source-of-truth/` | In Progress | Unify shared box rhythm and engine identity across document kinds so sequence and frame examples consume one reusable style contract instead of drifting through renderer-local spacing logic. |
+| 060 Output pane engine tabs and live rerender | `specs/060-output-pane-engine-tabs-rerender/` | In Progress | Replace the sidebar-local engine switcher with output-pane baseline-foundry tabs that rerender the live graph immediately, while preserving browser-local save/reopen semantics for multi-engine frame previews. |
 | — | `specs/ADVERSARIAL_REVIEW_PROMPT.md` | Template | Copy-paste prompt for post-session adversarial reviews. |
 
 

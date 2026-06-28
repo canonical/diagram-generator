@@ -26,6 +26,7 @@ export type PreviewEngineWorkspaceRuntimeWindow = Window & typeof globalThis & {
   __DG_previewEngineWorkspaceState?: PreviewEngineWorkspaceRuntimeState | null;
   __DG_syncPreviewEngineWorkspaceChrome?: (() => void) | null;
   __DG_syncPreviewEngineWorkspacePanels?: (() => void) | null;
+  __DG_rerenderPreviewEngineWorkspaceStage?: (() => Promise<unknown> | unknown) | null;
   PreviewSaveClient?: {
     isDirty?: () => boolean;
     syncSaveButton?: () => void;
@@ -42,12 +43,6 @@ function asHtmlButtonElement(
   value: HTMLElement | null,
 ): HTMLButtonElement | null {
   return value && value.tagName.toLowerCase() === 'button' ? value as HTMLButtonElement : null;
-}
-
-function asHtmlSelectElement(
-  value: HTMLElement | null,
-): HTMLSelectElement | null {
-  return value && value.tagName.toLowerCase() === 'select' ? value as HTMLSelectElement : null;
 }
 
 function normalizeEngineIds(value: readonly string[] | null | undefined): string[] {
@@ -86,7 +81,7 @@ function setRuntimeWorkspaceState(
   config.active_engine_id = workspace.activeEngineId;
   config.active_engine_label = nextLabel;
   config.persisted_layout_engine = workspace.persistedEngineId;
-  config.layout_engine = workspace.persistedEngineId;
+  config.layout_engine = workspace.activeEngineId ?? workspace.persistedEngineId ?? null;
   previewWindow.__DG_CONFIG = config;
   previewWindow.__DG_previewEngineWorkspaceState = { workspace };
   return workspace;
@@ -148,6 +143,18 @@ function setControlDisabled(control: HTMLElement | null, disabled: boolean): voi
   }
 }
 
+function getTabButtons(tabs: HTMLElement | null): HTMLButtonElement[] {
+  return (tabs
+    ? Array.from(tabs.querySelectorAll('button[data-engine-id]'))
+    : []
+  ).filter(
+    (value): value is HTMLButtonElement =>
+      Boolean(value)
+      && typeof (value as { tagName?: unknown }).tagName === 'string'
+      && String((value as { tagName: string }).tagName).toLowerCase() === 'button',
+  );
+}
+
 function setHelpText(help: HTMLElement | null, message: string, isError: boolean): void {
   if (!help) {
     return;
@@ -180,38 +187,23 @@ export function initPreviewEngineWorkspaceChrome(
   const section = options.document.getElementById('engine-switcher-section');
   const help = options.document.getElementById('engine-switcher-help');
   const labelEl = options.document.getElementById('active-engine-label');
-  const select = asHtmlSelectElement(
-    options.document.getElementById('engine-switcher'),
-  );
-  const prevButton = asHtmlButtonElement(
-    options.document.getElementById('engine-switcher-prev'),
-  );
-  const nextButton = asHtmlButtonElement(
-    options.document.getElementById('engine-switcher-next'),
-  );
   const tabs = options.document.getElementById('engine-switcher-tabs');
   setActiveEngineLabel(labelEl, workspace, config?.active_engine_label);
 
-  if (!section || !select) {
+  if (!section || !tabs) {
     return workspace;
   }
 
   const shouldShowSwitcher = Boolean(config?.show_engine_switcher)
     || workspace.invalidPersistedEngine;
-  if (!shouldShowSwitcher || workspace.compatibleEngineIds.length === 0) {
+  if (!shouldShowSwitcher || workspace.compatibleEngineIds.length <= 1) {
     section.hidden = true;
     return workspace;
   }
 
   section.hidden = false;
-  const controls = [
-    select,
-    prevButton,
-    nextButton,
-    ...Array.from(tabs?.querySelectorAll?.('button[data-engine-id]') ?? []),
-  ].filter((value): value is HTMLElement => Boolean(value));
   const setPending = (pending: boolean) => {
-    controls.forEach((control) => setControlDisabled(control, pending));
+    getTabButtons(tabs).forEach((control) => setControlDisabled(control, pending));
   };
   const defaultHelp = help?.textContent ?? '';
   const updateNavigation = () => {
@@ -220,21 +212,16 @@ export function initPreviewEngineWorkspaceChrome(
       workspace,
       options.previewWindow.__DG_CONFIG?.active_engine_label ?? config?.active_engine_label,
     );
-    setControlDisabled(prevButton, workspace.navigation.prevEngineId == null);
-    setControlDisabled(nextButton, workspace.navigation.nextEngineId == null);
     if (tabs) {
-      tabs.querySelectorAll('button[data-engine-id]').forEach((button) => {
+      getTabButtons(tabs).forEach((button) => {
         const engineId = button.getAttribute('data-engine-id') ?? '';
         const active = engineId === workspace.activeEngineId;
-        button.className = `bf-button is-base${active ? ' is-active' : ''}`;
-        button.setAttribute('aria-pressed', active ? 'true' : 'false');
+        button.className = `bf-tabs-link${active ? ' is-active' : ''}`;
+        button.setAttribute('aria-selected', active ? 'true' : 'false');
+        button.tabIndex = active ? 0 : -1;
       });
     }
-    select.value = workspace.activeEngineId ?? '';
-    if (workspace.compatibleEngineIds.length === 1) {
-      setHelpText(help, 'This document has a single compatible engine.', false);
-      setControlDisabled(select, true);
-    } else if (workspace.activeEngineId !== workspace.persistedEngineId) {
+    if (workspace.activeEngineId !== workspace.persistedEngineId) {
       setHelpText(help, 'Selected engine is unsaved until you save this document.', false);
     } else if (defaultHelp) {
       setHelpText(help, defaultHelp, false);
@@ -254,57 +241,52 @@ export function initPreviewEngineWorkspaceChrome(
     workspace = nextWorkspace;
     syncWorkspaceUi();
   };
-  const switchTo = (engineId: string) => {
+  const switchTo = async (engineId: string) => {
     const nextEngineId = String(engineId || '').trim();
     if (!nextEngineId || nextEngineId === workspace.activeEngineId) {
       return;
     }
     setPending(true);
+    const previousWorkspace = workspace;
     try {
       workspace = setPreviewEngineWorkspaceActiveEngine(workspace, nextEngineId);
       syncWorkspaceUi();
+      await options.previewWindow.__DG_rerenderPreviewEngineWorkspaceStage?.();
+      options.previewWindow.__DG_syncPreviewEngineWorkspacePanels?.();
+      options.previewWindow.PreviewSaveClient?.syncSaveButton?.();
+    } catch (error) {
+      workspace = previousWorkspace;
+      syncWorkspaceUi();
+      setHelpText(
+        help,
+        error instanceof Error ? error.message : 'Failed to switch preview engine.',
+        true,
+      );
     } finally {
       setPending(false);
     }
   };
 
-  select.replaceChildren();
-  tabs?.replaceChildren();
+  tabs.replaceChildren();
   for (const tab of workspace.tabs) {
-    const option = options.document.createElement('option');
-    option.value = tab.engineId;
-    option.textContent = tab.engine.label;
-    option.selected = tab.active;
-    select.append(option);
-
-    if (tabs) {
-      const tabButton = options.document.createElement('button');
-      tabButton.type = 'button';
-      tabButton.className = `bf-button is-base${tab.active ? ' is-active' : ''}`;
-      tabButton.textContent = tab.engine.label;
-      tabButton.setAttribute('data-engine-id', tab.engineId);
-      tabButton.setAttribute('aria-pressed', tab.active ? 'true' : 'false');
-      tabs.appendChild(tabButton);
-    }
+    const tabItem = options.document.createElement('li');
+    tabItem.className = 'bf-tabs-item';
+    const tabButton = options.document.createElement('button');
+    tabButton.type = 'button';
+    tabButton.className = `bf-tabs-link${tab.active ? ' is-active' : ''}`;
+    tabButton.textContent = tab.engine.label;
+    tabButton.setAttribute('data-engine-id', tab.engineId);
+    tabButton.setAttribute('role', 'tab');
+    tabButton.setAttribute('aria-selected', tab.active ? 'true' : 'false');
+    tabButton.tabIndex = tab.active ? 0 : -1;
+    tabItem.appendChild(tabButton);
+    tabs.appendChild(tabItem);
   }
   syncWorkspaceUi();
-  select.addEventListener('change', () => {
-    switchTo(select.value);
-  });
-  prevButton?.addEventListener('click', () => {
-    if (workspace.navigation.prevEngineId) {
-      switchTo(workspace.navigation.prevEngineId);
-    }
-  });
-  nextButton?.addEventListener('click', () => {
-    if (workspace.navigation.nextEngineId) {
-      switchTo(workspace.navigation.nextEngineId);
-    }
-  });
-  tabs?.querySelectorAll('button[data-engine-id]').forEach((button) => {
-    button.addEventListener('click', () => {
+  getTabButtons(tabs).forEach((button) => {
+    button.addEventListener('click', async () => {
       const engineId = button.getAttribute('data-engine-id') ?? '';
-      switchTo(engineId);
+      await switchTo(engineId);
     });
   });
 
