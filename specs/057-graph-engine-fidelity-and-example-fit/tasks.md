@@ -69,8 +69,10 @@
 > spec 065 protocol §2, not a `layoutPreviewFrameDiagramForEngine` probe. Switch
 > engines and change box type via real Playwright clicks; assert mongo AZ-beside-
 > VM geometry and box-type-no-relayout (bounds byte-identical). Depends on 065.
-- [ ] **T044** Browser re-verification of the two fixtures recorded under
+- [x] **T044** Browser re-verification of the two fixtures recorded under
       `evidence/` (per `docs/spec-reviews/README.md` §4). Depends on spec 060
       having landed engine-intent threading.
 
-      **Verify**: `node specs/057-graph-engine-fidelity-and-example-fit/evidence/fidelity-browser-check.mjs`.
+      **Verify**: `PREVIEW_BASE_URL=http://127.0.0.1:8120 node --experimental-default-type=module specs/057-graph-engine-fidelity-and-example-fit/evidence/fidelity-browser-check.ts`
+      after fresh `npm run preview`; committed `fidelity-browser-result.json`
+      is `ok: true`.

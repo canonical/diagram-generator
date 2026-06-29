@@ -1,7 +1,8 @@
 > **AUTHORITY OVERRIDE 2026-06-28** — see
 > [`CLINE-VERDICT-2026-06-28.md`](./CLINE-VERDICT-2026-06-28.md). This README's
 > RE-REVIEW declaring spec 060 "genuinely fixed" is **partly wrong**: 060's
-> committed Playwright evidence (`engine-tabs-identity-check.mjs`) proves the
+> old committed Playwright evidence (`engine-tabs-identity-check.mjs`, since
+> superseded by `engine-tabs-identity-check.ts`) proved the
 > direction-flip case with `runtime.performEngineRelayout(..., { skipModelUpdate: true })`
 > via `page.evaluate` and arrow-count-only — the exact anti-pattern §3/§4 ban.
 > 060's engine **identity** fix stands; its direction-flip + real-gesture

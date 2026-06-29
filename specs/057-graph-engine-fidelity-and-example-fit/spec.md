@@ -1,9 +1,9 @@
 # Spec 057: Graph Engine Fidelity And Example Fit
 
 **Feature Branch**: `feat/057-graph-engine-fidelity-and-example-fit`  
-**Status**: REOPENED 2026-06-28 — fidelity probes are real-layout, but the
-mongo/tiered browser re-verification was never proven on the real UI gesture
-(depends on spec 065). Closing gate:
+**Status**: Closeout Ready — reopened browser re-verification was re-earned
+2026-06-29 by `evidence/fidelity-browser-check.ts` using real engine-tab and
+inspector/style gestures under the spec 065 protocol. Closing gate:
 [`specs/065-interactive-relayout-contract/verification-protocol.md`](../065-interactive-relayout-contract/verification-protocol.md).
 See [`docs/spec-reviews/CLINE-VERDICT-2026-06-28.md`](../../docs/spec-reviews/CLINE-VERDICT-2026-06-28.md).
 **Created**: 2026-06-27

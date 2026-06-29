@@ -70,9 +70,9 @@ npm run preview   # restart after bundle changes
 | ID | URL / symptom | Key files | Owner |
 |----|---------------|-----------|-------|
 | **P0-1** | ELK diagram resize → **“relayout failed”** | `app-live-resize.ts`, `app-relayout.ts`, `app-layout-bridge-runtime.ts` | **065** (create) + 048 |
-| **P0-2** | `tiered-network-architecture`: inspector direction H→V → **arrows stay put** | `preview-arrow-reroute-invalidation.ts`, inspector → relayout | **065** + 056 gap |
-| **P0-3** | `juju-bootstrap-machines-process`: engine tabs **no layout change** (re-verify) | `preview-engine-workspace-chrome.ts`, `app-fresh-render.ts` | 060 |
-| **P0-4** | `mongo-octavia-ha`: v3 tab **still ELK**; AZ labels under VMs | engine intent + ELK compound render | 060 + 057 |
+| **P0-2** | `tiered-network-architecture`: inspector direction H→V → **arrows stay put** | `preview-arrow-reroute-invalidation.ts`, inspector → relayout | Reverified 2026-06-29 by 065 + 060 TS evidence |
+| **P0-3** | `juju-bootstrap-machines-process`: engine tabs **no layout change** (re-verify) | `preview-engine-workspace-chrome.ts`, `app-fresh-render.ts` | Reverified 2026-06-29 by 060 TS evidence |
+| **P0-4** | `mongo-octavia-ha`: v3 tab **still ELK**; AZ labels under VMs | engine intent + ELK compound render | Reverified 2026-06-29 by 060 + 057 TS evidence |
 
 ### P1 — Chrome / inspector (051 incomplete in product)
 
@@ -91,9 +91,9 @@ npm run preview   # restart after bundle changes
 
 | Spec | Claim | Reality |
 |------|-------|---------|
-| 056 | Direction reroute | Frame-override path only; **direction flip UI still broken** |
-| 060 | Engine tabs + direction evidence | `engine-tabs-identity-check.mjs` uses `skipModelUpdate: true`, arrow count only |
-| 057 | mongo fidelity | Probes ≠ browser resize/tab/option paths |
+| 056 | Direction reroute | Frame-override gap was reverified through 065/060 real inspector direction evidence |
+| 060 | Engine tabs + direction evidence | Old `.mjs` fake proof replaced by `engine-tabs-identity-check.ts` real gestures |
+| 057 | mongo fidelity | Probe-only gap replaced by `fidelity-browser-check.ts` real gestures |
 | 051 | Contextual aside | Registry tests green; **inspector + live DOM not** |
 | 048 | ELK live resize | **Relayout failed** on resize |
 | 047 | Render IR done | Export+fresh yes; **bridge patch lanes** still parallel |
@@ -150,12 +150,12 @@ Full table: [`docs/spec-reviews/inbox-triage.md`](docs/spec-reviews/inbox-triage
 
 | Theme | Spec | Status |
 |-------|------|--------|
-| Engine tabs / chrome / padding | 060 | Partial — re-verify URLs |
-| ELK compound / mongo | 057 | Probes exist; browser open |
-| Direction + arrows | 065 (new) + 056 gap | **Not user-true** |
+| Engine tabs / chrome / padding | 060 | Engine-tab URLs reverified; unrelated chrome copy/padding rows remain tracked below |
+| ELK compound / mongo | 057 | Browser evidence reverified; arrow label stack remains 064 |
+| Direction + arrows | 065 + 060 | Real-gesture evidence committed 2026-06-29 |
 | ELK resize failed | 065 + 048 | **P0 open** |
 | Hide N/A UI (inspector!) | 051 | **Draft, incomplete** |
-| Box type relayout | 057 | Re-verify |
+| Box type relayout | 057 | Real-gesture evidence committed 2026-06-29 |
 | Arrow label stack | **064** candidate | Not drafted |
 | Style / sequence | 059 + 058 | Re-verify URLs |
 | Hug parent→child | **062** candidate | Not drafted |
