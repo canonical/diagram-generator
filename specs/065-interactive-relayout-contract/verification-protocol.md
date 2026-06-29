@@ -50,16 +50,16 @@ A task or spec may NOT be checked `[x]` / marked Closeout Ready unless ALL hold.
    A stale cached bootstrap is exactly why 060 "only worked after a restart".
 
 7. **Evidence is committed and runnable.** Each spec keeps under `evidence/`:
-   the `.mjs` Playwright script (no screenshots), its JSON result with
+   the `.ts` Playwright script (no screenshots), its JSON result with
    `ok: true`, and the exact commands run with their pass lines.
 
 ## §1. The canonical Playwright harness
 
-Each reopened spec adds (or extends) `evidence/post-load-mutations.mjs`. It must
+Each reopened spec adds (or extends) `evidence/post-load-mutations.ts`. It must
 import `playwright` (already a dependency), launch chromium headless, and export
 a single JSON result. Use this skeleton; do not weaken the assertions.
 
-```js
+```ts
 import { chromium } from 'playwright';
 const base = process.env.PREVIEW_BASE_URL || 'http://127.0.0.1:8100';
 

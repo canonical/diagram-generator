@@ -2,6 +2,82 @@ import { writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
+import type { Browser, Page } from 'playwright';
+
+type Point = {
+  x: number;
+  y: number;
+};
+
+type Bounds = Point & {
+  id: string;
+  w: number;
+  h: number;
+};
+
+type ArrowEndpoint = {
+  id: string;
+  sourceId: string | null;
+  targetId: string | null;
+  source: Point;
+  target: Point;
+};
+
+type ArrowLineSignature = {
+  id: string;
+  lines: Array<[string | null, string | null, string | null, string | null]>;
+};
+
+type ControlState = {
+  selector: string;
+  exists: true;
+  hidden: boolean;
+  painted: boolean;
+  focusable: boolean;
+  disabled: boolean;
+  display: string;
+  visibility: string;
+  rect: {
+    width: number;
+    height: number;
+  };
+  tabIndex: number;
+  id: string | null;
+};
+
+type PreviewRenderIntent = {
+  engineId?: string;
+  pageDirection?: string;
+  [key: string]: unknown;
+};
+
+type EvidenceCase = {
+  name: string;
+  ok: boolean;
+  startedAt: string;
+  finishedAt: string;
+  details?: unknown;
+  error?: string;
+  stack?: string;
+};
+
+type EvidenceResults = {
+  ok: boolean;
+  base: string;
+  generatedAt: string;
+  notes: string[];
+  cases: EvidenceCase[];
+};
+
+type DetailError = Error & {
+  details?: unknown;
+};
+
+declare global {
+  interface Window {
+    __DG_previewRenderIntent?: PreviewRenderIntent;
+  }
+}
 
 const base = process.env.PREVIEW_BASE_URL || 'http://127.0.0.1:8100';
 const evidenceDir = dirname(fileURLToPath(import.meta.url));
@@ -10,23 +86,23 @@ const resultPath = resolve(
   process.env.DG_EVIDENCE_RESULT || 'post-load-mutations-result.json',
 );
 
-function round(value) {
+function round(value: number): number {
   return Math.round(Number(value) * 1000) / 1000;
 }
 
-function assert(condition, message, details = undefined) {
+function assert(condition: unknown, message: string, details: unknown = undefined): asserts condition {
   if (!condition) {
-    const error = new Error(message);
+    const error = new Error(message) as DetailError;
     error.details = details;
     throw error;
   }
 }
 
-function boundsById(bounds) {
+function boundsById(bounds: Bounds[]): Map<string, Bounds> {
   return new Map(bounds.map((entry) => [entry.id, entry]));
 }
 
-function changedBounds(before, after, tolerance = 1) {
+function changedBounds(before: Bounds[], after: Bounds[], tolerance = 1): Bounds[] {
   const afterById = boundsById(after);
   return before.filter((entry) => {
     const next = afterById.get(entry.id);
@@ -39,7 +115,7 @@ function changedBounds(before, after, tolerance = 1) {
   });
 }
 
-function boundsSignature(bounds) {
+function boundsSignature(bounds: Bounds[]): string {
   return JSON.stringify(
     [...bounds]
       .sort((a, b) => a.id.localeCompare(b.id))
@@ -47,7 +123,7 @@ function boundsSignature(bounds) {
   );
 }
 
-function centerSpread(bounds) {
+function centerSpread(bounds: Bounds[]): Point {
   const centers = bounds.map((entry) => ({
     x: entry.x + entry.w / 2,
     y: entry.y + entry.h / 2,
@@ -58,11 +134,11 @@ function centerSpread(bounds) {
   };
 }
 
-function rangesOverlap(a1, a2, b1, b2, tolerance = 2) {
+function rangesOverlap(a1: number, a2: number, b1: number, b2: number, tolerance = 2): boolean {
   return Math.max(a1, b1) <= Math.min(a2, b2) + tolerance;
 }
 
-function endpointOnAnyPerimeter(endpoint, bounds, tolerance = 2.5) {
+function endpointOnAnyPerimeter(endpoint: Point, bounds: Bounds[], tolerance = 2.5): boolean {
   return bounds.some((box) => {
     if (box.id === 'page') return false;
     const withinX = endpoint.x >= box.x - tolerance && endpoint.x <= box.x + box.w + tolerance;
@@ -75,7 +151,7 @@ function endpointOnAnyPerimeter(endpoint, bounds, tolerance = 2.5) {
   });
 }
 
-function endpointOnBoxPerimeter(endpoint, box, tolerance = 2.5) {
+function endpointOnBoxPerimeter(endpoint: Point, box: Bounds | undefined, tolerance = 2.5): boolean {
   if (!box) return false;
   const withinX = endpoint.x >= box.x - tolerance && endpoint.x <= box.x + box.w + tolerance;
   const withinY = endpoint.y >= box.y - tolerance && endpoint.y <= box.y + box.h + tolerance;
@@ -86,7 +162,7 @@ function endpointOnBoxPerimeter(endpoint, box, tolerance = 2.5) {
   return onVertical || onHorizontal;
 }
 
-async function openPreviewPage(browser, slug) {
+async function openPreviewPage(browser: Browser, slug: string): Promise<Page> {
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   await page.goto(`${base}/view/v3:${slug}`, {
     waitUntil: 'domcontentloaded',
@@ -97,20 +173,20 @@ async function openPreviewPage(browser, slug) {
   return page;
 }
 
-async function settle(page) {
+async function settle(page: Page): Promise<void> {
   await page.waitForSelector('#stage svg', { timeout: 30000 });
   await page.waitForTimeout(500);
 }
 
-async function engineOf(page) {
+async function engineOf(page: Page): Promise<string | null> {
   return page.locator('#stage svg').getAttribute('data-layout-engine');
 }
 
-async function renderIntentOf(page) {
+async function renderIntentOf(page: Page): Promise<PreviewRenderIntent | null> {
   return page.evaluate(() => window.__DG_previewRenderIntent ?? null);
 }
 
-async function waitForEngine(page, engineId) {
+async function waitForEngine(page: Page, engineId: string): Promise<void> {
   await page.waitForFunction(
     (expected) => document.querySelector('#stage svg')?.getAttribute('data-layout-engine') === expected,
     engineId,
@@ -119,37 +195,45 @@ async function waitForEngine(page, engineId) {
   await settle(page);
 }
 
-async function nodeBounds(page, selector = '#dg-frame-layer [data-component-id]') {
+async function nodeBounds(
+  page: Page,
+  selector = '#dg-frame-layer [data-component-id]',
+): Promise<Bounds[]> {
   return page.locator(selector).evaluateAll((elements) => elements
     .map((element) => {
-      const box = element.getBBox();
+      const box = (element as SVGGraphicsElement).getBBox();
       return {
-        id: element.getAttribute('data-component-id'),
+        id: element.getAttribute('data-component-id') || '',
         x: Math.round(box.x * 1000) / 1000,
         y: Math.round(box.y * 1000) / 1000,
         w: Math.round(box.width * 1000) / 1000,
         h: Math.round(box.height * 1000) / 1000,
       };
     })
-    .filter((entry) => entry.id && entry.w > 0 && entry.h > 0));
+    .filter((entry): entry is Bounds => Boolean(entry.id) && entry.w > 0 && entry.h > 0));
 }
 
-async function arrowEndpoints(page) {
+async function arrowEndpoints(page: Page): Promise<ArrowEndpoint[]> {
   return page.locator('#dg-arrow-layer [data-dg-arrow="true"]').evaluateAll((groups) => {
-    function numericAttr(element, name) {
+    function numericAttr(element: Element, name: string): number {
       return Number.parseFloat(element.getAttribute(name) || '0');
     }
 
-    function parsePoints(value) {
+    function parsePoints(value: string | null): Point[] {
       return String(value || '')
         .trim()
         .split(/\s+/)
-        .map((pair) => pair.split(',').map((part) => Number.parseFloat(part)))
-        .filter((point) => point.length === 2 && point.every(Number.isFinite))
-        .map(([x, y]) => ({ x, y }));
+        .map((pair) => {
+          const [xRaw, yRaw] = pair.split(',');
+          return {
+            x: Number.parseFloat(xRaw || ''),
+            y: Number.parseFloat(yRaw || ''),
+          };
+        })
+        .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y));
     }
 
-    function farthest(points, origin) {
+    function farthest(points: Point[], origin: Point): Point | null {
       let selected = points[0] || null;
       let selectedDistance = -1;
       for (const point of points) {
@@ -177,8 +261,8 @@ async function arrowEndpoints(page) {
       const lines = Array.from(group.querySelectorAll('line'))
         .filter((line) => line.getAttribute('stroke') !== 'transparent');
       if (lines.length > 0) {
-        const first = lines[0];
-        const last = lines[lines.length - 1];
+        const first = lines[0]!;
+        const last = lines[lines.length - 1]!;
         const source = {
           x: numericAttr(first, 'x1'),
           y: numericAttr(first, 'y1'),
@@ -187,7 +271,7 @@ async function arrowEndpoints(page) {
           x: numericAttr(last, 'x2'),
           y: numericAttr(last, 'y2'),
         };
-        const polygon = Array.from(group.querySelectorAll('polygon')).at(-1);
+        const polygon = Array.from(group.querySelectorAll('polygon')).at(-1) || null;
         if (polygon) {
           target = farthest(parsePoints(polygon.getAttribute('points')), {
             x: numericAttr(last, 'x1'),
@@ -203,7 +287,7 @@ async function arrowEndpoints(page) {
         };
       }
 
-      const path = group.querySelector('path');
+      const path = group.querySelector('path') as SVGPathElement | null;
       if (path && typeof path.getTotalLength === 'function') {
         const length = path.getTotalLength();
         const source = path.getPointAtLength(0);
@@ -218,13 +302,13 @@ async function arrowEndpoints(page) {
       }
 
       return null;
-    }).filter(Boolean);
+    }).filter((entry): entry is ArrowEndpoint => Boolean(entry));
   });
 }
 
-async function arrowLineSignatures(page) {
+async function arrowLineSignatures(page: Page): Promise<ArrowLineSignature[]> {
   return page.locator('#dg-arrow-layer [data-dg-arrow="true"]').evaluateAll((groups) => groups.map((group) => ({
-    id: group.getAttribute('data-component-id'),
+    id: group.getAttribute('data-component-id') || '',
     lines: Array.from(group.querySelectorAll('line'))
       .filter((line) => line.getAttribute('stroke') !== 'transparent')
       .map((line) => [
@@ -236,7 +320,7 @@ async function arrowLineSignatures(page) {
   })));
 }
 
-function changedArrowLineIds(before, after) {
+function changedArrowLineIds(before: ArrowLineSignature[], after: ArrowLineSignature[]): string[] {
   const afterById = new Map(after.map((entry) => [entry.id, entry]));
   return before
     .filter((entry) => {
@@ -246,8 +330,9 @@ function changedArrowLineIds(before, after) {
     .map((entry) => entry.id);
 }
 
-async function controlState(page, selector) {
+async function controlState(page: Page, selector: string): Promise<ControlState[]> {
   return page.locator(selector).evaluateAll((elements, currentSelector) => elements.map((element) => {
+    const control = element as HTMLElement & { disabled?: boolean };
     const style = window.getComputedStyle(element);
     const rect = element.getBoundingClientRect();
     const painted = style.display !== 'none'
@@ -255,35 +340,35 @@ async function controlState(page, selector) {
       && rect.width > 0
       && rect.height > 0;
     const hidden = Boolean(
-      element.hidden
+      control.hidden
       || element.closest('[hidden]')
       || style.display === 'none'
       || style.visibility === 'hidden',
     );
     const focusable = !hidden
-      && !element.disabled
+      && !control.disabled
       && element.getAttribute('aria-hidden') !== 'true'
-      && element.tabIndex >= 0;
+      && control.tabIndex >= 0;
     return {
       selector: currentSelector,
       exists: true,
       hidden,
       painted,
       focusable,
-      disabled: Boolean(element.disabled),
+      disabled: Boolean(control.disabled),
       display: style.display,
       visibility: style.visibility,
       rect: {
         width: Math.round(rect.width),
         height: Math.round(rect.height),
       },
-      tabIndex: element.tabIndex,
+      tabIndex: control.tabIndex,
       id: element.id || null,
     };
   }), selector);
 }
 
-async function expectAbsentOrHiddenUnfocusable(page, selector) {
+async function expectAbsentOrHiddenUnfocusable(page: Page, selector: string): Promise<ControlState[]> {
   const states = await controlState(page, selector);
   assert(
     states.length === 0 || states.every((state) => state.hidden && !state.painted && !state.focusable),
@@ -293,7 +378,7 @@ async function expectAbsentOrHiddenUnfocusable(page, selector) {
   return states;
 }
 
-async function expectVisible(page, selector) {
+async function expectVisible(page: Page, selector: string): Promise<ControlState[]> {
   const states = await controlState(page, selector);
   assert(
     states.length > 0 && states.some((state) => !state.hidden && state.painted),
@@ -303,21 +388,25 @@ async function expectVisible(page, selector) {
   return states;
 }
 
-async function expectTextAbsent(page, text) {
+async function expectTextAbsent(page: Page, text: string): Promise<void> {
   const found = await page.locator(`text=${text}`).count();
   assert(found === 0, `text must be absent: ${text}`, { text, found });
 }
 
-async function selectBySvgComponent(page, componentId) {
+async function selectBySvgComponent(page: Page, componentId: string): Promise<void> {
   const box = await page.locator(`#dg-frame-layer [data-component-id="${componentId}"]`).first().boundingBox();
   assert(box, `component ${componentId} must have a visible SVG box`);
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
   await settle(page);
 }
 
-async function proveEngineTabSwitch(browser, slug, targets) {
+async function proveEngineTabSwitch(
+  browser: Browser,
+  slug: string,
+  targets: string[],
+): Promise<Record<string, unknown>> {
   const page = await openPreviewPage(browser, slug);
-  const steps = [];
+  const steps: Array<Record<string, unknown>> = [];
   try {
     for (const target of targets) {
       const before = await nodeBounds(page);
@@ -342,7 +431,8 @@ async function proveEngineTabSwitch(browser, slug, targets) {
       for (const index of [1, 2, 3]) {
         const azLabel = after.get(`az${index}_label`);
         const vm = after.get(`vm_az${index}`);
-        assert(azLabel && vm, `mongo-octavia-ha v3 must expose az${index} label and vm_az${index}`);
+        assert(azLabel, `mongo-octavia-ha v3 must expose az${index} label`);
+        assert(vm, `mongo-octavia-ha v3 must expose vm_az${index}`);
         assert(
           rangesOverlap(azLabel.y, azLabel.y + azLabel.h, vm.y, vm.y + vm.h),
           `az${index} label must sit beside its VM band after v3 switch`,
@@ -357,7 +447,7 @@ async function proveEngineTabSwitch(browser, slug, targets) {
   }
 }
 
-async function proveDirectionFlip(browser) {
+async function proveDirectionFlip(browser: Browser): Promise<Record<string, unknown>> {
   const page = await openPreviewPage(browser, 'tiered-network-architecture');
   try {
     await page.click('#nav-tab-layers');
@@ -370,7 +460,7 @@ async function proveDirectionFlip(browser) {
       );
       if (children.length < 2) return false;
       const centers = children.map((element) => {
-        const box = element.getBBox();
+        const box = (element as SVGGraphicsElement).getBBox();
         return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
       });
       const spreadX = Math.max(...centers.map((entry) => entry.x)) - Math.min(...centers.map((entry) => entry.x));
@@ -425,7 +515,7 @@ async function proveDirectionFlip(browser) {
       );
       if (children.length < 2) return false;
       const centers = children.map((element) => {
-        const box = element.getBBox();
+        const box = (element as SVGGraphicsElement).getBBox();
         return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
       });
       const spreadX = Math.max(...centers.map((entry) => entry.x)) - Math.min(...centers.map((entry) => entry.x));
@@ -474,7 +564,7 @@ async function proveDirectionFlip(browser) {
   }
 }
 
-async function proveElkLiveResize(browser) {
+async function proveElkLiveResize(browser: Browser): Promise<Record<string, unknown>> {
   const page = await openPreviewPage(browser, 'mongo-octavia-ha');
   try {
     await selectBySvgComponent(page, 'mongo_clients');
@@ -515,7 +605,7 @@ async function proveElkLiveResize(browser) {
   }
 }
 
-async function proveBoxTypeAppearanceOnly(browser) {
+async function proveBoxTypeAppearanceOnly(browser: Browser): Promise<Record<string, unknown>> {
   const page = await openPreviewPage(browser, 'support-engineering-flow');
   try {
     await selectBySvgComponent(page, 'step_problem');
@@ -551,9 +641,9 @@ async function proveBoxTypeAppearanceOnly(browser) {
   }
 }
 
-async function proveContextualControls(browser) {
+async function proveContextualControls(browser: Browser): Promise<Record<string, unknown>> {
   const v3Page = await openPreviewPage(browser, 'tiered-network-architecture');
-  const v3 = {};
+  const v3: Record<string, unknown> = {};
   try {
     v3.engine = await engineOf(v3Page);
     v3.elkSection = await expectAbsentOrHiddenUnfocusable(v3Page, '#elk-layout-section');
@@ -576,7 +666,7 @@ async function proveContextualControls(browser) {
   }
 
   const elkPage = await openPreviewPage(browser, 'support-engineering-flow');
-  const elk = {};
+  const elk: Record<string, unknown> = {};
   try {
     await expectVisible(elkPage, '#elk-layout-section');
     await expectVisible(elkPage, '#elk-raw-view-toggle');
@@ -613,7 +703,11 @@ async function proveContextualControls(browser) {
   return { v3, elk };
 }
 
-async function runCase(results, name, fn) {
+async function runCase(
+  results: EvidenceResults,
+  name: string,
+  fn: () => Promise<unknown>,
+): Promise<void> {
   const startedAt = new Date().toISOString();
   try {
     const details = await fn();
@@ -625,6 +719,7 @@ async function runCase(results, name, fn) {
       details,
     });
   } catch (error) {
+    const detailError = error as Partial<DetailError>;
     results.ok = false;
     results.cases.push({
       name,
@@ -632,13 +727,13 @@ async function runCase(results, name, fn) {
       startedAt,
       finishedAt: new Date().toISOString(),
       error: error instanceof Error ? error.message : String(error),
-      details: error?.details,
+      details: detailError.details,
       stack: error instanceof Error ? error.stack : undefined,
     });
   }
 }
 
-const results = {
+const results: EvidenceResults = {
   ok: true,
   base,
   generatedAt: new Date().toISOString(),
@@ -649,39 +744,46 @@ const results = {
   cases: [],
 };
 
-const browser = await chromium.launch({ headless: true });
-try {
-  await runCase(results, 'engine-tab-switch:mongo-octavia-ha', () => (
-    proveEngineTabSwitch(browser, 'mongo-octavia-ha', ['v3'])
-  ));
-  await runCase(results, 'engine-tab-switch:juju-bootstrap-machines-process', () => (
-    proveEngineTabSwitch(browser, 'juju-bootstrap-machines-process', [
-      'v3',
-      'elk-layered',
-      'elk-force',
-      'elk-stress',
-      'elk-mrtree',
-      'dagre',
-    ])
-  ));
-  await runCase(results, 'page-direction-flip:tiered-network-architecture', () => (
-    proveDirectionFlip(browser)
-  ));
-  await runCase(results, 'elk-live-resize:mongo-octavia-ha', () => (
-    proveElkLiveResize(browser)
-  ));
-  await runCase(results, 'box-type-change:support-engineering-flow', () => (
-    proveBoxTypeAppearanceOnly(browser)
-  ));
-  await runCase(results, 'contextual-controls', () => (
-    proveContextualControls(browser)
-  ));
-} finally {
-  await browser.close();
+async function main(): Promise<void> {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    await runCase(results, 'engine-tab-switch:mongo-octavia-ha', () => (
+      proveEngineTabSwitch(browser, 'mongo-octavia-ha', ['v3'])
+    ));
+    await runCase(results, 'engine-tab-switch:juju-bootstrap-machines-process', () => (
+      proveEngineTabSwitch(browser, 'juju-bootstrap-machines-process', [
+        'v3',
+        'elk-layered',
+        'elk-force',
+        'elk-stress',
+        'elk-mrtree',
+        'dagre',
+      ])
+    ));
+    await runCase(results, 'page-direction-flip:tiered-network-architecture', () => (
+      proveDirectionFlip(browser)
+    ));
+    await runCase(results, 'elk-live-resize:mongo-octavia-ha', () => (
+      proveElkLiveResize(browser)
+    ));
+    await runCase(results, 'box-type-change:support-engineering-flow', () => (
+      proveBoxTypeAppearanceOnly(browser)
+    ));
+    await runCase(results, 'contextual-controls', () => (
+      proveContextualControls(browser)
+    ));
+  } finally {
+    await browser.close();
+  }
+
+  writeFileSync(resultPath, `${JSON.stringify(results, null, 2)}\n`);
+  process.stdout.write(`${JSON.stringify(results, null, 2)}\n`);
+  if (!results.ok) {
+    process.exitCode = 1;
+  }
 }
 
-writeFileSync(resultPath, `${JSON.stringify(results, null, 2)}\n`);
-process.stdout.write(`${JSON.stringify(results, null, 2)}\n`);
-if (!results.ok) {
+void main().catch((error: unknown) => {
+  process.stderr.write(`${error instanceof Error ? error.stack || error.message : String(error)}\n`);
   process.exitCode = 1;
-}
+});

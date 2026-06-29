@@ -1,7 +1,7 @@
 {
   "ok": true,
   "base": "http://127.0.0.1:8120",
-  "generatedAt": "2026-06-28T23:37:20.183Z",
+  "generatedAt": "2026-06-29T08:01:50.990Z",
   "notes": [
     "Real gestures only for mutations: page.click, page.selectOption, page.mouse drag.",
     "DOM evaluation is used only to read geometry/control state."
@@ -10,8 +10,8 @@
     {
       "name": "engine-tab-switch:mongo-octavia-ha",
       "ok": true,
-      "startedAt": "2026-06-28T23:37:20.240Z",
-      "finishedAt": "2026-06-28T23:37:21.732Z",
+      "startedAt": "2026-06-29T08:01:51.048Z",
+      "finishedAt": "2026-06-29T08:01:52.566Z",
       "details": {
         "slug": "mongo-octavia-ha",
         "steps": [
@@ -33,8 +33,8 @@
     {
       "name": "engine-tab-switch:juju-bootstrap-machines-process",
       "ok": true,
-      "startedAt": "2026-06-28T23:37:21.732Z",
-      "finishedAt": "2026-06-28T23:37:25.925Z",
+      "startedAt": "2026-06-29T08:01:52.566Z",
+      "finishedAt": "2026-06-29T08:01:56.892Z",
       "details": {
         "slug": "juju-bootstrap-machines-process",
         "steps": [
@@ -116,8 +116,8 @@
     {
       "name": "page-direction-flip:tiered-network-architecture",
       "ok": true,
-      "startedAt": "2026-06-28T23:37:25.925Z",
-      "finishedAt": "2026-06-28T23:37:27.785Z",
+      "startedAt": "2026-06-29T08:01:56.892Z",
+      "finishedAt": "2026-06-29T08:01:58.846Z",
       "details": {
         "slug": "tiered-network-architecture",
         "renderedEngine": "v3",
@@ -144,8 +144,8 @@
     {
       "name": "elk-live-resize:mongo-octavia-ha",
       "ok": true,
-      "startedAt": "2026-06-28T23:37:27.785Z",
-      "finishedAt": "2026-06-28T23:37:31.383Z",
+      "startedAt": "2026-06-29T08:01:58.846Z",
+      "finishedAt": "2026-06-29T08:02:02.510Z",
       "details": {
         "slug": "mongo-octavia-ha",
         "renderedEngine": "elk-layered",
@@ -169,8 +169,8 @@
     {
       "name": "box-type-change:support-engineering-flow",
       "ok": true,
-      "startedAt": "2026-06-28T23:37:31.383Z",
-      "finishedAt": "2026-06-28T23:37:34.046Z",
+      "startedAt": "2026-06-29T08:02:02.510Z",
+      "finishedAt": "2026-06-29T08:02:05.177Z",
       "details": {
         "slug": "support-engineering-flow",
         "engine": "elk-force",
@@ -185,8 +185,8 @@
     {
       "name": "contextual-controls",
       "ok": true,
-      "startedAt": "2026-06-28T23:37:34.046Z",
-      "finishedAt": "2026-06-28T23:37:36.755Z",
+      "startedAt": "2026-06-29T08:02:05.177Z",
+      "finishedAt": "2026-06-29T08:02:07.939Z",
       "details": {
         "v3": {
           "engine": "v3",

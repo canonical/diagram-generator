@@ -104,7 +104,7 @@ npm run preview   # restart after bundle changes
    - `PreviewRenderIntent` — single commit before render/relayout/panel sync
    - Fix ELK resize null path; fix `formatPreviewRelayoutStatusMessage` for `elk-failure`
    - Direction flip: invalidate arrows on page direction; prove via **inspector** `<select>`
-   - Playwright `evidence/post-load-mutations.mjs` (tiered-network + ELK resize)
+   - Playwright `evidence/post-load-mutations.ts` (tiered-network + ELK resize)
 
 2. **Finish 060 + 057** — engine tabs, mongo layout, box-type-no-relayout, **064** arrow label stack
 

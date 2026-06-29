@@ -86,7 +86,7 @@ geometry assertion, fresh bundle/server. No mocks, no hashes, no
   byte-identical and does not change engine.
 - **SC-005**: a `v3` doc exposes no ELK/grid N/A controls (hidden + unfocusable),
   proving the panel resolver shares the render resolver.
-- **SC-006**: `evidence/post-load-mutations.mjs` + JSON + `RESULT.md` committed,
+- **SC-006**: `evidence/post-load-mutations.ts` + JSON + `RESULT.md` committed,
   `ok: true`, plus the standard validation trio green.
 
 ## Non-goals

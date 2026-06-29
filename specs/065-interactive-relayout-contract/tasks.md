@@ -12,7 +12,7 @@
 
 ## Phase 0: Reproduce on the real UI (no fix yet)
 
-- [ ] **T000** Write `evidence/post-load-mutations.mjs` from the protocol §1
+- [ ] **T000** Write `evidence/post-load-mutations.ts` from the protocol §1
       skeleton and run it against the current build to **capture the failures**:
       engine tab no-op, direction-flip stranded arrows, ELK resize failure,
       box-type relayout. Commit the failing JSON as `baseline-fail.json`.
@@ -74,7 +74,7 @@
 
 ## Phase 4: Browser-proven verification (the gate)
 
-- [x] **T040** Finalize `evidence/post-load-mutations.mjs` to assert all SC-001..
+- [x] **T040** Finalize `evidence/post-load-mutations.ts` to assert all SC-001..
       SC-005 invariants and commit a passing `post-load-mutations-result.json`
       (`ok: true`) after a **fresh** `build:browser` + server restart.
       **Verify**: protocol §0 + §2 all green; `RESULT.md` sign-off (§3) committed.
