@@ -93,3 +93,7 @@
 - T000 baseline failure JSON was not captured before implementation began in
   this session. The final harness now proves the fixed behavior, but there is
   no truthful `baseline-fail.json` artifact to check T000.
+- 2026-06-29 `/overnight` dry-run confirms the SpecKit queue contains only
+  this unchecked T000 item. Do not run unattended implementation against 065
+  again unless the authority explicitly waives/replaces the historical baseline
+  requirement; otherwise the scheduler will spin on an impossible artifact.

@@ -120,6 +120,15 @@ is ELK-only; debug overlay and compatibility help text are absent.
 
 5. **Optional:** 047 patch lane → display-list DOM
 
+### Overnight queue status 2026-06-29
+
+`pwsh -NoLogo -NoProfile -File ..\agent-workflow-kit\agent-loop.ps1 -Workflow SpecKit -RepoRoot . -DryRun`
+reports exactly one queued item: spec 065 T000. That task requires a pre-fix
+`baseline-fail.json`, but implementation already happened and the real-gesture
+harness now passes. Do not run `/overnight` against 065 again unless the
+authority explicitly waives or replaces T000; otherwise the scheduler will keep
+trying to produce an impossible historical artifact.
+
 ### Verification matrix (required before “done”)
 
 | Gesture | URL | Assert |

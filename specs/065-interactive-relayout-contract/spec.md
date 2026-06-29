@@ -1,7 +1,11 @@
 # Spec 065: Interactive Relayout Contract (single render intent)
 
 **Feature Branch**: `feat/065-interactive-relayout-contract`
-**Status**: Active — blocking 060/057/048/051
+**Status**: Active / administratively blocked 2026-06-29 — behavior tasks
+T010–T050 are real-gesture proven and downstream 060/057/048/051 have been
+reverified. Only T000 remains unchecked because the required pre-fix
+`baseline-fail.json` was not captured before implementation began, so it cannot
+be produced truthfully after the fixes.
 **Created**: 2026-06-28
 **Authority**: [`docs/spec-reviews/CLINE-VERDICT-2026-06-28.md`](../../docs/spec-reviews/CLINE-VERDICT-2026-06-28.md)
 **Closing gate**: [`verification-protocol.md`](./verification-protocol.md) (mandatory, every clause)
