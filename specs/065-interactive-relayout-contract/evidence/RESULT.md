@@ -1,7 +1,7 @@
 # Spec 065 Evidence Result
 
 Spec: 065-interactive-relayout-contract
-Bundle rebuilt: 2026-06-29T00:37+01:00 via `npm run preview` prestart (`npm --prefix packages/layout-engine run build:browser`)
+Bundle rebuilt: 2026-06-29T10:40+01:00 via `npm run preview` prestart (`npm --prefix packages/layout-engine run build:browser`)
 Server restarted fresh: yes, `http://127.0.0.1:8120`
 
 Gestures proven (real click/select/drag, no `skipModelUpdate` proof calls):
@@ -18,13 +18,13 @@ Single `PreviewRenderIntent` path (no new parallel lane): confirmed by implement
 
 Evidence artifact:
 - `post-load-mutations.ts`
-- `post-load-mutations-result.json` with `ok: true`, generated `2026-06-29T08:01:50.990Z`
+- `post-load-mutations-result.json` with `ok: true`, generated `2026-06-29T09:40:16.256Z`
 - `diagnostics/support-flow-elk-aside-before-next.png`
 - `diagnostics/support-flow-elk-aside-after-hidden-fix.png`
 
 Validation:
 - `npm --prefix packages/layout-engine run build:browser` -> passed
-- `npm --prefix packages/layout-engine test` -> 149 files passed, 878 tests passed
+- `npm --prefix packages/layout-engine test` -> 149 files passed, 879 tests passed
 - `npm --prefix apps/preview test` -> 146 tests passed
 - `node apps/preview/node_modules/typescript/bin/tsc --noEmit --target ES2022 --module ES2022 --moduleResolution bundler --strict --skipLibCheck --types node --typeRoots apps/preview/node_modules/@types --lib ES2022,DOM specs/065-interactive-relayout-contract/evidence/post-load-mutations.ts` -> passed
 - `node scripts/check-browser-bundle-fresh.mjs` -> ok, 3 artifacts checked
@@ -61,6 +61,11 @@ Final T040 validation:
 - Fresh server restarted with `PREVIEW_PORT=8120 npm run preview`; prestart rebuilt the browser bundle
 - `PREVIEW_BASE_URL=http://127.0.0.1:8120 node --experimental-default-type=module specs/065-interactive-relayout-contract/evidence/post-load-mutations.ts` -> `ok: true`
 - `node scripts/check-browser-bundle-fresh.mjs` -> ok, 3 artifacts checked
+
+Revalidation 2026-06-29T10:40+01:00:
+- Fresh server restarted with `PREVIEW_PORT=8120 npm run preview`; prestart rebuilt the browser bundle
+- `PREVIEW_BASE_URL=http://127.0.0.1:8120 node --experimental-default-type=module specs/065-interactive-relayout-contract/evidence/post-load-mutations.ts` -> `ok: true`
+- ELK live resize remained green: `mongo_clients` width 224 -> 304 and status `Ready`
 
 Incremental T030 validation:
 - `npm --prefix apps/preview test -- src/persistence/frame-diagram.test.ts` -> 146 tests passed, including `persist layout engine and root direction survive frame yaml reload`

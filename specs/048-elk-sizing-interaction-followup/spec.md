@@ -4,9 +4,12 @@
 
 **Created**: 2026-06-22
 
-**Status**: REOPENED 2026-06-28 — ELK live-resize "relayout failed" is a live P0
-the author still reports; no real-gesture proof exists. The resize fix lands via
-spec 065 (`PreviewRenderIntent` + engine-backed resize lane). Closing gate:
+**Status**: Closeout Ready 2026-06-29 — ELK live-resize was re-proven through
+spec 065's real-gesture harness. The resize fix lands via spec 065
+(`PreviewRenderIntent` + engine-backed resize lane), and
+`specs/065-interactive-relayout-contract/evidence/post-load-mutations-result.json`
+now shows `ok: true` with `mongo_clients` resized from 224px to 304px and status
+remaining `Ready`. Closing gate:
 [`specs/065-interactive-relayout-contract/verification-protocol.md`](../065-interactive-relayout-contract/verification-protocol.md).
 See [`docs/spec-reviews/CLINE-VERDICT-2026-06-28.md`](../../docs/spec-reviews/CLINE-VERDICT-2026-06-28.md).
 (was: Closeout Ready)

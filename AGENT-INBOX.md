@@ -69,7 +69,7 @@ npm run preview   # restart after bundle changes
 
 | ID | URL / symptom | Key files | Owner |
 |----|---------------|-----------|-------|
-| **P0-1** | ELK diagram resize → **“relayout failed”** | `app-live-resize.ts`, `app-relayout.ts`, `app-layout-bridge-runtime.ts` | **065** (create) + 048 |
+| **P0-1** | ELK diagram resize → **“relayout failed”** | `app-live-resize.ts`, `app-relayout.ts`, `app-layout-bridge-runtime.ts` | Reverified 2026-06-29 by 065 T022 real pointer-drag evidence; 048 Closeout Ready |
 | **P0-2** | `tiered-network-architecture`: inspector direction H→V → **arrows stay put** | `preview-arrow-reroute-invalidation.ts`, inspector → relayout | Reverified 2026-06-29 by 065 + 060 TS evidence |
 | **P0-3** | `juju-bootstrap-machines-process`: engine tabs **no layout change** (re-verify) | `preview-engine-workspace-chrome.ts`, `app-fresh-render.ts` | Reverified 2026-06-29 by 060 TS evidence |
 | **P0-4** | `mongo-octavia-ha`: v3 tab **still ELK**; AZ labels under VMs | engine intent + ELK compound render | Reverified 2026-06-29 by 060 + 057 TS evidence |
@@ -101,14 +101,14 @@ is ELK-only; debug overlay and compatibility help text are absent.
 | 060 | Engine tabs + direction evidence | Old `.mjs` fake proof replaced by `engine-tabs-identity-check.ts` real gestures |
 | 057 | mongo fidelity | Probe-only gap replaced by `fidelity-browser-check.ts` real gestures |
 | 051 | Contextual aside | Phase 8 live DOM + screenshots reverified 2026-06-29 |
-| 048 | ELK live resize | **Relayout failed** on resize |
+| 048 | ELK live resize | Real pointer-drag proof reverified 2026-06-29 by 065 T022 |
 | 047 | Render IR done | Export+fresh yes; **bridge patch lanes** still parallel |
 
 ### Recommended execution order
 
 1. **Create `specs/065-interactive-relayout-contract/`** on `feat/065-...`
    - `PreviewRenderIntent` — single commit before render/relayout/panel sync
-   - Fix ELK resize null path; fix `formatPreviewRelayoutStatusMessage` for `elk-failure`
+   - ELK resize null path + `formatPreviewRelayoutStatusMessage` reverified by 065 T022
    - Direction flip: invalidate arrows on page direction; prove via **inspector** `<select>`
    - Playwright `evidence/post-load-mutations.ts` (tiered-network + ELK resize)
 
@@ -159,7 +159,7 @@ Full table: [`docs/spec-reviews/inbox-triage.md`](docs/spec-reviews/inbox-triage
 | Engine tabs / chrome / padding | 060 | Engine-tab URLs reverified; unrelated chrome copy/padding rows remain tracked below |
 | ELK compound / mongo | 057 | Browser evidence reverified; arrow label stack remains 064 |
 | Direction + arrows | 065 + 060 | Real-gesture evidence committed 2026-06-29 |
-| ELK resize failed | 065 + 048 | **P0 open** |
+| ELK resize failed | 065 + 048 | Resolved by real pointer-drag evidence 2026-06-29 |
 | Hide N/A UI (inspector!) | 051 | Closeout Ready; live evidence committed 2026-06-29 |
 | Box type relayout | 057 | Real-gesture evidence committed 2026-06-29 |
 | Arrow label stack | **064** candidate | Not drafted |
