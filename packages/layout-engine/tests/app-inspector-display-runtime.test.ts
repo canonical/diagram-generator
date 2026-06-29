@@ -215,6 +215,57 @@ describe('createPreviewInspectorDisplayRuntime', () => {
     expect(inspector.innerHTML).not.toContain('data-dg-panel-id="single-selection"');
   });
 
+  it('hides single-selection autolayout controls when the active engine is not grid-editable', () => {
+    const inspector = { innerHTML: '' };
+    const syncPanelVisibility = vi.fn();
+    const runtime = createPreviewInspectorDisplayRuntime({
+      getInspector: () => inspector,
+      selectedIds: new Set(['page']),
+      getPrimarySelectedId: (preferredId) => preferredId ?? 'page',
+      getSelectionActionInfo: () => ({
+        items: [],
+        hasUnsupported: false,
+        sameParent: true,
+        parentId: null,
+      }),
+      getNode: () => ({
+        id: 'page',
+        parent: null,
+        children: [{}],
+        data: { id: 'page' },
+      }),
+      getArrowNode: () => null,
+      getOverride: () => ({}),
+      getOwnDelta: () => ({ dx: 0, dy: 0, dw: 0, dh: 0 }),
+      getEffectiveDelta: () => ({ dx: 0, dy: 0, dw: 0, dh: 0 }),
+      getComponentType: () => 'panel',
+      getParentNode: () => null,
+      getParentLayout: () => null,
+      getRenderedStyle: () => null,
+      getViolations: () => [],
+      isWidthCoerced: () => false,
+      isHeightCoerced: () => false,
+      getGridInfo: () => null,
+      shouldShowAutolayoutInspector: () => false,
+      baselineStep: 8,
+      fallbackGap: 24,
+      snapStep: 8,
+      setMultiActionGap() {},
+      renderSingleStyleOptions: () => '',
+      renderMultiStyleOptions: () => '',
+      syncPanelVisibility,
+    });
+
+    runtime.renderSelectionInspector('page');
+
+    expect(syncPanelVisibility).toHaveBeenCalledWith({ count: 1, kind: 'root' });
+    expect(inspector.innerHTML).toContain('data-dg-panel-id="single-layout"');
+    expect(inspector.innerHTML).not.toContain('data-dg-panel-id="single-autolayout-layout"');
+    expect(inspector.innerHTML).not.toContain('data-dg-panel-id="single-autolayout-sizing"');
+    expect(inspector.innerHTML).not.toContain('data-dg-prop="direction"');
+    expect(inspector.innerHTML).not.toContain('data-dg-prop="gap_delta"');
+  });
+
   it('binds single-selection alignment controls to the parent container for autolayout leaf children', () => {
     const inspector = { innerHTML: '' };
     const runtime = createPreviewInspectorDisplayRuntime({

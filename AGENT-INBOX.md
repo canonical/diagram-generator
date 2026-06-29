@@ -74,10 +74,10 @@ npm run preview   # restart after bundle changes
 | **P0-3** | `juju-bootstrap-machines-process`: engine tabs **no layout change** (re-verify) | `preview-engine-workspace-chrome.ts`, `app-fresh-render.ts` | Reverified 2026-06-29 by 060 TS evidence |
 | **P0-4** | `mongo-octavia-ha`: v3 tab **still ELK**; AZ labels under VMs | engine intent + ELK compound render | Reverified 2026-06-29 by 060 + 057 TS evidence |
 
-### P1 — Chrome / inspector (051 incomplete in product)
+### P1 — Chrome / inspector (051 Phase 8 reverified 2026-06-29)
 
-**051** has tasks `[x]` but status **Draft**. Sidebar `PREVIEW_PANEL_REGISTRY` exists;
-**author still sees N/A UI** because:
+**051 was reopened** because the sidebar `PREVIEW_PANEL_REGISTRY` existed but
+the author still saw N/A UI in the live editor:
 
 1. **Inspector** (`inspector-autolayout-panel.ts`) does not gate on `activeEngine` /
    `capabilities.gridEditing` — cols/rows/gutters show or stay **disabled** instead
@@ -87,6 +87,12 @@ npm run preview   # restart after bundle changes
 3. **`syncPanelVisibility`** reads `__DG_CONFIG` — can drift from rendered engine
    (`app-grid-editor-install-unit.ts` ~605). Must use same resolver as render (065).
 
+**Resolved 2026-06-29 for 051 Phase 8:** `contextual-aside-check.ts` now proves
+with real Playwright layer-tree clicks, engine-tab clicks, Tab traversal, DOM
+state, and cropped screenshots that v3 shows native controls; ELK hides native
+autolayout/grid controls; ELK layered-only options disappear on radial; raw view
+is ELK-only; debug overlay and compatibility help text are absent.
+
 ### False closeouts (re-prove URLs)
 
 | Spec | Claim | Reality |
@@ -94,7 +100,7 @@ npm run preview   # restart after bundle changes
 | 056 | Direction reroute | Frame-override gap was reverified through 065/060 real inspector direction evidence |
 | 060 | Engine tabs + direction evidence | Old `.mjs` fake proof replaced by `engine-tabs-identity-check.ts` real gestures |
 | 057 | mongo fidelity | Probe-only gap replaced by `fidelity-browser-check.ts` real gestures |
-| 051 | Contextual aside | Registry tests green; **inspector + live DOM not** |
+| 051 | Contextual aside | Phase 8 live DOM + screenshots reverified 2026-06-29 |
 | 048 | ELK live resize | **Relayout failed** on resize |
 | 047 | Render IR done | Export+fresh yes; **bridge patch lanes** still parallel |
 
@@ -108,7 +114,7 @@ npm run preview   # restart after bundle changes
 
 2. **Finish 060 + 057** — engine tabs, mongo layout, box-type-no-relayout, **064** arrow label stack
 
-3. **Finish 051** — engine-aware inspector omit HTML; panel sync from 065 intent; Playwright probe
+3. **051 completed 2026-06-29** — engine-aware inspector omits N/A HTML; panel sync uses 065 intent resolver; Playwright probe + screenshots committed
 
 4. **Activate drafts 061–064** as needed (grid regression, hug resize, auto-style depth, label de-overlap)
 
@@ -154,7 +160,7 @@ Full table: [`docs/spec-reviews/inbox-triage.md`](docs/spec-reviews/inbox-triage
 | ELK compound / mongo | 057 | Browser evidence reverified; arrow label stack remains 064 |
 | Direction + arrows | 065 + 060 | Real-gesture evidence committed 2026-06-29 |
 | ELK resize failed | 065 + 048 | **P0 open** |
-| Hide N/A UI (inspector!) | 051 | **Draft, incomplete** |
+| Hide N/A UI (inspector!) | 051 | Closeout Ready; live evidence committed 2026-06-29 |
 | Box type relayout | 057 | Real-gesture evidence committed 2026-06-29 |
 | Arrow label stack | **064** candidate | Not drafted |
 | Style / sequence | 059 + 058 | Re-verify URLs |

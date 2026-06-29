@@ -58,6 +58,7 @@ export interface CreatePreviewInspectorDisplayRuntimeOptions {
   isWidthCoerced: (cid: string) => boolean;
   isHeightCoerced: (cid: string) => boolean;
   getGridInfo: () => PreviewInspectorGridInfo | null | undefined;
+  shouldShowAutolayoutInspector?: (() => boolean) | null;
   baselineStep?: number;
   fallbackGap: number;
   snapStep?: number;
@@ -197,6 +198,7 @@ export function createPreviewInspectorDisplayRuntime(
       widthUnit,
       heightUnit,
       gridInfo: options.getGridInfo() ?? null,
+      showAutolayoutInspector: options.shouldShowAutolayoutInspector?.() ?? true,
       baselineStep: options.baselineStep,
       textAdapter: options.getTextAdapter?.() ?? null,
       formatControlErrorMessage: options.formatControlErrorMessage ?? null,

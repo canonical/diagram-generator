@@ -620,25 +620,38 @@ export function createPreviewGridEditorInstallOptionsFromLegacyEditorHost(
     fallbackEngineId: options.config.engine ?? null,
   });
   let lastSelectionContext: PreviewUiSelectionContext = { count: 0, kind: 'empty' };
+  const resolveCurrentDocumentKind = () => previewConfig.document_kind || 'frame-diagram';
+  const resolveCurrentShellMode = () => previewConfig.shell_mode || 'grid';
+  const resolveCurrentConfiguredLayoutEngine = () => resolvePreviewRenderIntentLayoutEngine({
+    activeEngineId: previewConfig.active_engine_id ?? null,
+    layoutEngine: previewConfig.layout_engine ?? null,
+    persistedEngineId: previewConfig.persisted_layout_engine ?? null,
+    fallbackEngineId: options.config.engine ?? previewConfig.engine ?? null,
+  });
+  const resolveCurrentActiveLayoutEngine = () => (
+    resolvePreviewRenderIntentLayoutEngine({
+      intent: options.previewWindow.__DG_previewRenderIntent ?? null,
+    }) ?? resolveCurrentConfiguredLayoutEngine()
+  );
+  const resolveCurrentActiveEngine = () => resolvePreviewEngine({
+    layoutEngine: resolveCurrentActiveLayoutEngine(),
+    shellMode: resolveCurrentShellMode(),
+    previewDocumentKind: resolveCurrentDocumentKind(),
+  }) ?? null;
+  const shouldShowAutolayoutInspector = () => Boolean(
+    resolveCurrentActiveEngine()?.capabilities?.gridEditing,
+  );
   const syncPanelVisibility = (selection: PreviewUiSelectionContext) => {
     lastSelectionContext = selection;
-    const shellMode = previewConfig.shell_mode || 'grid';
-    const activeLayoutEngine = resolvePreviewRenderIntentLayoutEngine({
-      intent: options.previewWindow.__DG_previewRenderIntent ?? null,
-    }) ?? resolvePreviewRenderIntentLayoutEngine({
-      fallbackEngineId: options.config.engine ?? previewConfig.engine ?? null,
-    });
+    const shellMode = resolveCurrentShellMode();
+    const activeLayoutEngine = resolveCurrentActiveLayoutEngine();
     const persistedLayoutEngine = previewConfig.persisted_layout_engine
-      || previewConfig.layout_engine
-      || options.config.engine
-      || previewConfig.engine
-      || null;
-    const documentKind = previewConfig.document_kind || 'frame-diagram';
-    const activeEngine = resolvePreviewEngine({
-      layoutEngine: activeLayoutEngine,
-      shellMode,
-      previewDocumentKind: documentKind,
-    }) ?? null;
+      ?? previewConfig.layout_engine
+      ?? options.config.engine
+      ?? previewConfig.engine
+      ?? null;
+    const documentKind = resolveCurrentDocumentKind();
+    const activeEngine = resolveCurrentActiveEngine();
     syncPreviewPanelVisibilityFromContext({
       document: options.document,
       context: {
@@ -748,6 +761,7 @@ export function createPreviewGridEditorInstallOptionsFromLegacyEditorHost(
         mixed,
       }),
       syncPanelVisibility,
+      shouldShowAutolayoutInspector,
       snapToGrid: options.config.snapToGrid,
       alert: (message) => options.previewWindow.alert(message),
       normalizeStyleName: normalizePreviewStyleName,

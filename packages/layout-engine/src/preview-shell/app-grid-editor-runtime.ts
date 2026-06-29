@@ -256,6 +256,7 @@ export interface PreviewGridEditorRuntimeBrowserOptions {
   renderBoxStyleOptions: (selectedValue: unknown, options?: unknown) => string;
   formatAsDefinedStyleLabel: (styleName?: string | null, mixed?: boolean) => string;
   syncPanelVisibility?: CreatePreviewEditorInteractionFacadeFromBrowserHostOptions['browser']['syncPanelVisibility'];
+  shouldShowAutolayoutInspector?: CreatePreviewEditorInteractionFacadeFromBrowserHostOptions['browser']['shouldShowAutolayoutInspector'];
   snapToGrid: (value: number) => number;
   scheduleRelayout: (cid: string) => void;
   requestRelayoutNow: (cid: string) => void;
@@ -811,6 +812,7 @@ export function createPreviewGridEditorRuntimeFromBrowserHost(
           renderBoxStyleOptions: options.browser.renderBoxStyleOptions,
           formatAsDefinedStyleLabel: options.browser.formatAsDefinedStyleLabel,
           syncPanelVisibility: options.browser.syncPanelVisibility ?? null,
+          shouldShowAutolayoutInspector: options.browser.shouldShowAutolayoutInspector ?? null,
           snapToGrid: options.browser.snapToGrid,
           setDirty: options.browser.setDirty,
           scheduleRelayout: options.browser.scheduleRelayout,

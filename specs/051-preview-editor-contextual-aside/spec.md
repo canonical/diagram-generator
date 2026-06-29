@@ -1,10 +1,13 @@
 # Spec 051: Preview Editor Contextual Aside
 
 **Feature Branch**: `feat/051-preview-editor-contextual-aside`
-**Status**: ACTIVE 2026-06-28 — author still sees N/A controls disabled (not
-hidden), ELK options not contextually surfaced per algorithm, and the debug
-overlay present. Registry/unit tests pass but the live inspector + ELK option
-surface were never proven. Closing gate:
+**Status**: Closeout Ready 2026-06-29 — Phase 8 live UI audit is now proven by
+real Playwright gestures, Tab traversal, DOM state, and cropped screenshots in
+`evidence/contextual-aside-result.json` plus `evidence/screenshots/`. The
+single-selection autolayout inspector is gated by active-engine grid-editing
+capability, ELK algorithm controls are active-manifest contextual, raw view is
+ELK-only, and the debug overlay / compatibility help text are absent. Closing
+gate:
 [`specs/065-interactive-relayout-contract/verification-protocol.md`](../065-interactive-relayout-contract/verification-protocol.md)
 (§2 "Inspector / ELK option contextual surfacing").
 See [`docs/spec-reviews/CLINE-VERDICT-2026-06-28.md`](../../docs/spec-reviews/CLINE-VERDICT-2026-06-28.md).

@@ -76,6 +76,7 @@ export interface RenderPreviewSingleSelectionInspectorOptions {
   widthUnit?: 'px' | 'cols';
   heightUnit?: 'px' | 'rows';
   gridInfo?: PreviewInspectorGridInfo | null;
+  showAutolayoutInspector?: boolean | null;
   baselineStep?: number;
   textAdapter?: TextMeasureAdapter | null;
   formatControlErrorMessage?: ((message: string) => string) | null;
@@ -160,6 +161,7 @@ export interface RenderPreviewSingleSelectionInspectorRuntimeHostOptions {
   widthUnit?: 'px' | 'cols';
   heightUnit?: 'px' | 'rows';
   gridInfo?: PreviewInspectorGridInfo | null;
+  showAutolayoutInspector?: boolean | null;
   baselineStep?: number;
   textAdapter?: TextMeasureAdapter | null;
   formatControlErrorMessage?: ((message: string) => string) | null;
@@ -196,6 +198,9 @@ export function normalizePreviewInspectorWidthUnit(
 export function resolvePreviewAutolayoutPanelHtml(
   options: RenderPreviewSingleSelectionInspectorOptions,
 ): string {
+  if (options.showAutolayoutInspector === false) {
+    return '';
+  }
   if (!options.node) {
     return '';
   }
@@ -376,6 +381,7 @@ export function renderPreviewSingleSelectionInspectorRuntimeHost(
     widthUnit: options.widthUnit,
     heightUnit: options.heightUnit,
     gridInfo: options.gridInfo ?? null,
+    showAutolayoutInspector: options.showAutolayoutInspector ?? true,
     baselineStep: options.baselineStep,
     textAdapter: options.textAdapter ?? null,
     formatControlErrorMessage: options.formatControlErrorMessage ?? null,

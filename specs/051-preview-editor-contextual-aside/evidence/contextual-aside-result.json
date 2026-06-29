@@ -1,0 +1,2444 @@
+{
+  "ok": true,
+  "startedAt": "2026-06-29T09:37:52.513Z",
+  "baseUrl": "http://127.0.0.1:8120",
+  "screenshotDir": "H:\\WSL_dev_projects\\diagram-generator\\specs\\051-preview-editor-contextual-aside\\evidence\\screenshots",
+  "notes": [
+    "Real browser gestures only: layer-tree clicks, engine-tab clicks, and Tab traversal.",
+    "Hidden controls must be absent or hidden, unpainted, unfocusable, and skipped in Tab order.",
+    "ELK algorithms are selected through engine tabs in this UI; rendered control keys must match the active manifest."
+  ],
+  "checks": [
+    {
+      "name": "v3 root exposes native autolayout inspector controls",
+      "ok": true,
+      "details": {
+        "slug": "tiered-network-architecture",
+        "engine": "v3",
+        "direction": [
+          {
+            "selector": "select[data-dg-cid=\"page\"][data-dg-prop=\"direction\"]",
+            "exists": true,
+            "hidden": false,
+            "painted": true,
+            "focusable": true,
+            "disabled": false,
+            "display": "block",
+            "visibility": "visible",
+            "tabIndex": 0,
+            "id": null
+          }
+        ],
+        "gridSection": [
+          {
+            "selector": "#grid-controls-section",
+            "exists": true,
+            "hidden": false,
+            "painted": true,
+            "focusable": false,
+            "disabled": false,
+            "display": "grid",
+            "visibility": "visible",
+            "tabIndex": -1,
+            "id": "grid-controls-section"
+          }
+        ],
+        "screenshot": {
+          "name": "v3-tiered-network-root-aside",
+          "path": "H:\\WSL_dev_projects\\diagram-generator\\specs\\051-preview-editor-contextual-aside\\evidence\\screenshots\\v3-tiered-network-root-aside.png",
+          "selector": "#dg-preview-aside",
+          "note": "V3 root selection: native autolayout controls visible; ELK controls absent."
+        }
+      }
+    },
+    {
+      "name": "ELK root hides native autolayout and grid controls",
+      "ok": true,
+      "details": {
+        "slug": "support-engineering-flow",
+        "engine": "elk-force",
+        "direction": [],
+        "gap": [],
+        "raw": [
+          {
+            "selector": "#elk-raw-view-toggle",
+            "exists": true,
+            "hidden": false,
+            "painted": true,
+            "focusable": true,
+            "disabled": false,
+            "display": "block",
+            "visibility": "visible",
+            "tabIndex": 0,
+            "id": "elk-raw-view-toggle"
+          }
+        ],
+        "gridFields": {
+          "#grid-controls-section": [
+            {
+              "selector": "#grid-controls-section",
+              "exists": true,
+              "hidden": true,
+              "painted": false,
+              "focusable": false,
+              "disabled": false,
+              "display": "none",
+              "visibility": "visible",
+              "tabIndex": -1,
+              "id": "grid-controls-section"
+            }
+          ],
+          "#grid-cols": [
+            {
+              "selector": "#grid-cols",
+              "exists": true,
+              "hidden": true,
+              "painted": false,
+              "focusable": false,
+              "disabled": true,
+              "display": "block",
+              "visibility": "visible",
+              "tabIndex": -1,
+              "id": "grid-cols"
+            }
+          ],
+          "#grid-rows": [
+            {
+              "selector": "#grid-rows",
+              "exists": true,
+              "hidden": true,
+              "painted": false,
+              "focusable": false,
+              "disabled": true,
+              "display": "block",
+              "visibility": "visible",
+              "tabIndex": -1,
+              "id": "grid-rows"
+            }
+          ],
+          "#grid-col-gap": [
+            {
+              "selector": "#grid-col-gap",
+              "exists": true,
+              "hidden": true,
+              "painted": false,
+              "focusable": false,
+              "disabled": true,
+              "display": "block",
+              "visibility": "visible",
+              "tabIndex": -1,
+              "id": "grid-col-gap"
+            }
+          ],
+          "#grid-row-gap": [
+            {
+              "selector": "#grid-row-gap",
+              "exists": true,
+              "hidden": true,
+              "painted": false,
+              "focusable": false,
+              "disabled": true,
+              "display": "block",
+              "visibility": "visible",
+              "tabIndex": -1,
+              "id": "grid-row-gap"
+            }
+          ],
+          "#grid-margin-top": [
+            {
+              "selector": "#grid-margin-top",
+              "exists": true,
+              "hidden": true,
+              "painted": false,
+              "focusable": false,
+              "disabled": true,
+              "display": "block",
+              "visibility": "visible",
+              "tabIndex": -1,
+              "id": "grid-margin-top"
+            }
+          ],
+          "#grid-margin-right": [
+            {
+              "selector": "#grid-margin-right",
+              "exists": true,
+              "hidden": true,
+              "painted": false,
+              "focusable": false,
+              "disabled": true,
+              "display": "block",
+              "visibility": "visible",
+              "tabIndex": -1,
+              "id": "grid-margin-right"
+            }
+          ],
+          "#grid-margin-bottom": [
+            {
+              "selector": "#grid-margin-bottom",
+              "exists": true,
+              "hidden": true,
+              "painted": false,
+              "focusable": false,
+              "disabled": true,
+              "display": "block",
+              "visibility": "visible",
+              "tabIndex": -1,
+              "id": "grid-margin-bottom"
+            }
+          ],
+          "#grid-margin-left": [
+            {
+              "selector": "#grid-margin-left",
+              "exists": true,
+              "hidden": true,
+              "painted": false,
+              "focusable": false,
+              "disabled": true,
+              "display": "block",
+              "visibility": "visible",
+              "tabIndex": -1,
+              "id": "grid-margin-left"
+            }
+          ]
+        },
+        "tabSequence": [
+          {
+            "tagName": "button",
+            "id": "nav-tab-layers",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "Layers"
+          },
+          {
+            "tagName": "div",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "page"
+          },
+          {
+            "tagName": "div",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "ELK force layout"
+          },
+          {
+            "tagName": "div",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "← all previews"
+          },
+          {
+            "tagName": "select",
+            "id": "diagram-picker",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "force-juju-landing-pagesforce-stakeholdersforce-support-case-lifecyclecomplex-ro"
+          },
+          {
+            "tagName": "button",
+            "id": "diagram-prev",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": "diagram-next",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": "page",
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": "page",
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": "page",
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": "page",
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": "page",
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": "page",
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": "page",
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": "page",
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": "page",
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "input",
+            "id": "elk-elk-separateConnectedComponents",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": "elk.separateConnectedComponents",
+            "engineLayoutKey": "elk.separateConnectedComponents",
+            "text": null
+          },
+          {
+            "tagName": "input",
+            "id": "elk-elk-randomSeed",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": "elk.randomSeed",
+            "engineLayoutKey": "elk.randomSeed",
+            "text": null
+          },
+          {
+            "tagName": "input",
+            "id": "elk-elk-spacing-nodeNode",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": "elk.spacing.nodeNode",
+            "engineLayoutKey": "elk.spacing.nodeNode",
+            "text": null
+          },
+          {
+            "tagName": "input",
+            "id": "elk-raw-view-toggle",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": "btn-save-svg",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "Save SVG"
+          },
+          {
+            "tagName": "body",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "Browse Layers Nodes Force demosforce-juju-landing-pagesforce-stakeholdersforce-s"
+          },
+          {
+            "tagName": "button",
+            "id": "nav-tab-layers",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "Layers"
+          },
+          {
+            "tagName": "div",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "page"
+          },
+          {
+            "tagName": "div",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "ELK force layout"
+          },
+          {
+            "tagName": "div",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "← all previews"
+          },
+          {
+            "tagName": "select",
+            "id": "diagram-picker",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "force-juju-landing-pagesforce-stakeholdersforce-support-case-lifecyclecomplex-ro"
+          },
+          {
+            "tagName": "button",
+            "id": "diagram-prev",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": "diagram-next",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": "page",
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": "page",
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": "page",
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": "page",
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": "page",
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": "page",
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": "page",
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": "page",
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": "page",
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "input",
+            "id": "elk-elk-separateConnectedComponents",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": "elk.separateConnectedComponents",
+            "engineLayoutKey": "elk.separateConnectedComponents",
+            "text": null
+          },
+          {
+            "tagName": "input",
+            "id": "elk-elk-randomSeed",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": "elk.randomSeed",
+            "engineLayoutKey": "elk.randomSeed",
+            "text": null
+          },
+          {
+            "tagName": "input",
+            "id": "elk-elk-spacing-nodeNode",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": "elk.spacing.nodeNode",
+            "engineLayoutKey": "elk.spacing.nodeNode",
+            "text": null
+          },
+          {
+            "tagName": "input",
+            "id": "elk-raw-view-toggle",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": "btn-save-svg",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "Save SVG"
+          },
+          {
+            "tagName": "body",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "Browse Layers Nodes Force demosforce-juju-landing-pagesforce-stakeholdersforce-s"
+          },
+          {
+            "tagName": "button",
+            "id": "nav-tab-layers",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "Layers"
+          },
+          {
+            "tagName": "div",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "page"
+          },
+          {
+            "tagName": "div",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "ELK force layout"
+          },
+          {
+            "tagName": "div",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "← all previews"
+          },
+          {
+            "tagName": "select",
+            "id": "diagram-picker",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "force-juju-landing-pagesforce-stakeholdersforce-support-case-lifecyclecomplex-ro"
+          },
+          {
+            "tagName": "button",
+            "id": "diagram-prev",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": "diagram-next",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": "page",
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": "page",
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": "page",
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": "page",
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": "page",
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": "page",
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": "page",
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": "page",
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": "page",
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "input",
+            "id": "elk-elk-separateConnectedComponents",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": "elk.separateConnectedComponents",
+            "engineLayoutKey": "elk.separateConnectedComponents",
+            "text": null
+          },
+          {
+            "tagName": "input",
+            "id": "elk-elk-randomSeed",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": "elk.randomSeed",
+            "engineLayoutKey": "elk.randomSeed",
+            "text": null
+          },
+          {
+            "tagName": "input",
+            "id": "elk-elk-spacing-nodeNode",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": "elk.spacing.nodeNode",
+            "engineLayoutKey": "elk.spacing.nodeNode",
+            "text": null
+          },
+          {
+            "tagName": "input",
+            "id": "elk-raw-view-toggle",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": "btn-save-svg",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "Save SVG"
+          },
+          {
+            "tagName": "body",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "Browse Layers Nodes Force demosforce-juju-landing-pagesforce-stakeholdersforce-s"
+          },
+          {
+            "tagName": "button",
+            "id": "nav-tab-layers",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "Layers"
+          },
+          {
+            "tagName": "div",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "page"
+          },
+          {
+            "tagName": "div",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "ELK force layout"
+          },
+          {
+            "tagName": "div",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "← all previews"
+          },
+          {
+            "tagName": "select",
+            "id": "diagram-picker",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "force-juju-landing-pagesforce-stakeholdersforce-support-case-lifecyclecomplex-ro"
+          },
+          {
+            "tagName": "button",
+            "id": "diagram-prev",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": "diagram-next",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": "page",
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": "page",
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": "page",
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": "page",
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": "page",
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": "page",
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": "page",
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": "page",
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": "page",
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "input",
+            "id": "elk-elk-separateConnectedComponents",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": "elk.separateConnectedComponents",
+            "engineLayoutKey": "elk.separateConnectedComponents",
+            "text": null
+          },
+          {
+            "tagName": "input",
+            "id": "elk-elk-randomSeed",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": "elk.randomSeed",
+            "engineLayoutKey": "elk.randomSeed",
+            "text": null
+          },
+          {
+            "tagName": "input",
+            "id": "elk-elk-spacing-nodeNode",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": "elk.spacing.nodeNode",
+            "engineLayoutKey": "elk.spacing.nodeNode",
+            "text": null
+          },
+          {
+            "tagName": "input",
+            "id": "elk-raw-view-toggle",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": "btn-save-svg",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "Save SVG"
+          },
+          {
+            "tagName": "body",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "Browse Layers Nodes Force demosforce-juju-landing-pagesforce-stakeholdersforce-s"
+          },
+          {
+            "tagName": "button",
+            "id": "nav-tab-layers",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "Layers"
+          },
+          {
+            "tagName": "div",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "page"
+          },
+          {
+            "tagName": "div",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "ELK force layout"
+          },
+          {
+            "tagName": "div",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "← all previews"
+          },
+          {
+            "tagName": "select",
+            "id": "diagram-picker",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "force-juju-landing-pagesforce-stakeholdersforce-support-case-lifecyclecomplex-ro"
+          },
+          {
+            "tagName": "button",
+            "id": "diagram-prev",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": "diagram-next",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": "page",
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": "page",
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": "page",
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": "page",
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": "page",
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": "page",
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": "page",
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": "page",
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": "page",
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "input",
+            "id": "elk-elk-separateConnectedComponents",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": "elk.separateConnectedComponents",
+            "engineLayoutKey": "elk.separateConnectedComponents",
+            "text": null
+          },
+          {
+            "tagName": "input",
+            "id": "elk-elk-randomSeed",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": "elk.randomSeed",
+            "engineLayoutKey": "elk.randomSeed",
+            "text": null
+          },
+          {
+            "tagName": "input",
+            "id": "elk-elk-spacing-nodeNode",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": "elk.spacing.nodeNode",
+            "engineLayoutKey": "elk.spacing.nodeNode",
+            "text": null
+          },
+          {
+            "tagName": "input",
+            "id": "elk-raw-view-toggle",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": "btn-save-svg",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "Save SVG"
+          },
+          {
+            "tagName": "body",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "Browse Layers Nodes Force demosforce-juju-landing-pagesforce-stakeholdersforce-s"
+          }
+        ],
+        "screenshot": {
+          "name": "elk-support-root-aside",
+          "path": "H:\\WSL_dev_projects\\diagram-generator\\specs\\051-preview-editor-contextual-aside\\evidence\\screenshots\\elk-support-root-aside.png",
+          "selector": "#dg-preview-aside",
+          "note": "ELK root selection: native autolayout/grid fields hidden and skipped in Tab order."
+        }
+      }
+    },
+    {
+      "name": "ELK options are active-algorithm contextual",
+      "ok": true,
+      "details": {
+        "slug": "support-engineering-flow",
+        "engine": "elk-radial",
+        "layeredOnly": [
+          {
+            "selector": "#elk-elk-layered-layering-strategy",
+            "exists": true,
+            "hidden": false,
+            "painted": true,
+            "focusable": true,
+            "disabled": false,
+            "display": "block",
+            "visibility": "visible",
+            "tabIndex": 0,
+            "id": "elk-elk-layered-layering-strategy"
+          }
+        ],
+        "layeredKeys": [
+          "elk.direction",
+          "elk.hierarchyHandling",
+          "elk.layered.crossingMinimization.strategy",
+          "elk.layered.layering.strategy",
+          "elk.layered.nodePlacement.favorStraightEdges",
+          "elk.layered.nodePlacement.strategy",
+          "elk.layered.spacing.edgeEdgeBetweenLayers",
+          "elk.layered.spacing.nodeNodeBetweenLayers",
+          "elk.layered.unnecessaryBendpoints",
+          "elk.spacing.edgeEdge",
+          "elk.spacing.edgeNode",
+          "elk.spacing.nodeNode"
+        ],
+        "layeredScreenshot": {
+          "name": "elk-layered-controls-aside",
+          "path": "H:\\WSL_dev_projects\\diagram-generator\\specs\\051-preview-editor-contextual-aside\\evidence\\screenshots\\elk-layered-controls-aside.png",
+          "selector": "#dg-preview-aside",
+          "note": "ELK layered active: layered-only controls are visible."
+        },
+        "radialLayeredOnly": [],
+        "radialKeys": [
+          "elk.spacing.nodeNode"
+        ],
+        "raw": [
+          {
+            "selector": "#elk-raw-view-toggle",
+            "exists": true,
+            "hidden": false,
+            "painted": true,
+            "focusable": true,
+            "disabled": false,
+            "display": "block",
+            "visibility": "visible",
+            "tabIndex": 0,
+            "id": "elk-raw-view-toggle"
+          }
+        ],
+        "tabSequence": [
+          {
+            "tagName": "button",
+            "id": "nav-tab-browse",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "Browse"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "force-juju-landing-pages"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "force-stakeholders"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "force-support-case-lifecycle"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "complex-routing-usecase"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "example-deployment-pipeline"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "example-platform-architecture"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "juju-bootstrap-machines-process"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "mongo-octavia-ha"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "preview-smoke"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "request-to-hardware-stack"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "service-handshake-sequence"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "support-engineering-flow"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "test-alignment-grid"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "test-box-styles"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "test-deep-nesting"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "test-nested-containers"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "tiered-network-architecture"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "tiered-network-architecture.author-v1"
+          },
+          {
+            "tagName": "div",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "ELK radial layout"
+          },
+          {
+            "tagName": "div",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "← all previews"
+          },
+          {
+            "tagName": "select",
+            "id": "diagram-picker",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "force-juju-landing-pagesforce-stakeholdersforce-support-case-lifecyclecomplex-ro"
+          },
+          {
+            "tagName": "button",
+            "id": "diagram-prev",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": "diagram-next",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "input",
+            "id": "elk-elk-spacing-nodeNode",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": "elk.spacing.nodeNode",
+            "engineLayoutKey": "elk.spacing.nodeNode",
+            "text": null
+          },
+          {
+            "tagName": "input",
+            "id": "elk-raw-view-toggle",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": "btn-save",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "Save"
+          },
+          {
+            "tagName": "button",
+            "id": "btn-save-svg",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "Save SVG"
+          },
+          {
+            "tagName": "button",
+            "id": "btn-clear-all",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "Clear all"
+          },
+          {
+            "tagName": "body",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "Browse Layers Nodes Force demosforce-juju-landing-pagesforce-stakeholdersforce-s"
+          },
+          {
+            "tagName": "button",
+            "id": "nav-tab-browse",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "Browse"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "force-juju-landing-pages"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "force-stakeholders"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "force-support-case-lifecycle"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "complex-routing-usecase"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "example-deployment-pipeline"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "example-platform-architecture"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "juju-bootstrap-machines-process"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "mongo-octavia-ha"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "preview-smoke"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "request-to-hardware-stack"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "service-handshake-sequence"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "support-engineering-flow"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "test-alignment-grid"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "test-box-styles"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "test-deep-nesting"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "test-nested-containers"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "tiered-network-architecture"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "tiered-network-architecture.author-v1"
+          },
+          {
+            "tagName": "div",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "ELK radial layout"
+          },
+          {
+            "tagName": "div",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "← all previews"
+          },
+          {
+            "tagName": "select",
+            "id": "diagram-picker",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "force-juju-landing-pagesforce-stakeholdersforce-support-case-lifecyclecomplex-ro"
+          },
+          {
+            "tagName": "button",
+            "id": "diagram-prev",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": "diagram-next",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "input",
+            "id": "elk-elk-spacing-nodeNode",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": "elk.spacing.nodeNode",
+            "engineLayoutKey": "elk.spacing.nodeNode",
+            "text": null
+          },
+          {
+            "tagName": "input",
+            "id": "elk-raw-view-toggle",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": "btn-save",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "Save"
+          },
+          {
+            "tagName": "button",
+            "id": "btn-save-svg",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "Save SVG"
+          },
+          {
+            "tagName": "button",
+            "id": "btn-clear-all",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "Clear all"
+          },
+          {
+            "tagName": "body",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "Browse Layers Nodes Force demosforce-juju-landing-pagesforce-stakeholdersforce-s"
+          },
+          {
+            "tagName": "button",
+            "id": "nav-tab-browse",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "Browse"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "force-juju-landing-pages"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "force-stakeholders"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "force-support-case-lifecycle"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "complex-routing-usecase"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "example-deployment-pipeline"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "example-platform-architecture"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "juju-bootstrap-machines-process"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "mongo-octavia-ha"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "preview-smoke"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "request-to-hardware-stack"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "service-handshake-sequence"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "support-engineering-flow"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "test-alignment-grid"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "test-box-styles"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "test-deep-nesting"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "test-nested-containers"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "tiered-network-architecture"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "tiered-network-architecture.author-v1"
+          },
+          {
+            "tagName": "div",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "ELK radial layout"
+          },
+          {
+            "tagName": "div",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "← all previews"
+          },
+          {
+            "tagName": "select",
+            "id": "diagram-picker",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "force-juju-landing-pagesforce-stakeholdersforce-support-case-lifecyclecomplex-ro"
+          },
+          {
+            "tagName": "button",
+            "id": "diagram-prev",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": "diagram-next",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "input",
+            "id": "elk-elk-spacing-nodeNode",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": "elk.spacing.nodeNode",
+            "engineLayoutKey": "elk.spacing.nodeNode",
+            "text": null
+          },
+          {
+            "tagName": "input",
+            "id": "elk-raw-view-toggle",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": "btn-save",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "Save"
+          },
+          {
+            "tagName": "button",
+            "id": "btn-save-svg",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "Save SVG"
+          },
+          {
+            "tagName": "button",
+            "id": "btn-clear-all",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "Clear all"
+          },
+          {
+            "tagName": "body",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "Browse Layers Nodes Force demosforce-juju-landing-pagesforce-stakeholdersforce-s"
+          },
+          {
+            "tagName": "button",
+            "id": "nav-tab-browse",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "Browse"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "force-juju-landing-pages"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "force-stakeholders"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "force-support-case-lifecycle"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "complex-routing-usecase"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "example-deployment-pipeline"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "example-platform-architecture"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "juju-bootstrap-machines-process"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "mongo-octavia-ha"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "preview-smoke"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "request-to-hardware-stack"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "service-handshake-sequence"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "support-engineering-flow"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "test-alignment-grid"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "test-box-styles"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "test-deep-nesting"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "test-nested-containers"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "tiered-network-architecture"
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "tiered-network-architecture.author-v1"
+          },
+          {
+            "tagName": "div",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "button",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "ELK radial layout"
+          },
+          {
+            "tagName": "div",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": null
+          },
+          {
+            "tagName": "a",
+            "id": null,
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "← all previews"
+          },
+          {
+            "tagName": "select",
+            "id": "diagram-picker",
+            "dgProp": null,
+            "dgCid": null,
+            "elkKey": null,
+            "engineLayoutKey": null,
+            "text": "force-juju-landing-pagesforce-stakeholdersforce-support-case-lifecyclecomplex-ro"
+          }
+        ],
+        "radialScreenshot": {
+          "name": "elk-radial-controls-aside",
+          "path": "H:\\WSL_dev_projects\\diagram-generator\\specs\\051-preview-editor-contextual-aside\\evidence\\screenshots\\elk-radial-controls-aside.png",
+          "selector": "#dg-preview-aside",
+          "note": "ELK radial active: layered-only controls are absent; raw toggle remains ELK-only."
+        }
+      }
+    }
+  ],
+  "finishedAt": "2026-06-29T09:37:57.968Z"
+}
