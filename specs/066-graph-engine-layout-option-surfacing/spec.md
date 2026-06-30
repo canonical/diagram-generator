@@ -1,7 +1,7 @@
 # Spec 066: Graph Engine Layout Option Surfacing
 
 **Feature Branch**: `feat/066-graph-engine-layout-option-surfacing`  
-**Status**: Draft  
+**Status**: Closeout Ready  
 **Created**: 2026-06-29  
 **Research inventory**: [`official-option-inventory.md`](./official-option-inventory.md)
 

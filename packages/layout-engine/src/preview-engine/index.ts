@@ -48,14 +48,14 @@ export {
   createPreviewElkLayoutControlsRuntime,
   type PreviewElkLayoutControlsRuntime,
   type PreviewElkLayoutControlsRuntimeOptions,
-} from './elk-layout-controls.js';
+} from './layout-params-controls.js';
 export {
   createPreviewEngineShellControllerRuntime,
   createPreviewElkShellControllerRuntime,
   type PreviewElkShellControllerRuntime,
   type PreviewElkShellControllerRuntimeOptions,
   type PreviewElkShellControllerDeps,
-} from './elk-shell-controller.js';
+} from './layout-params-controller.js';
 export {
   ELK_LAYERED_PREVIEW_ENGINE,
   ELK_FORCE_PREVIEW_ENGINE,

@@ -302,117 +302,6 @@ test("layout-params-controller resolves graph-engine diagrams from the namespace
   assert.equal(requestPreviewEngineRelayout, previewEngineShellController.requestRelayout);
 });
 
-test("graph-layout-controls resolves the generic previewEngines.graph runtime", () => {
-  let receivedOptions: Record<string, unknown> | null = null;
-  const graphRuntime = {
-    buildPanel() {},
-    refresh() {},
-    collectOverrides() {
-      return {};
-    },
-    collectNamespacedOverrides() {
-      return {};
-    },
-    init() {},
-  };
-  const layoutEngine = {
-    previewEngines: {
-      graph: {
-        createPreviewEngineLayoutControlsRuntime(options: Record<string, unknown>) {
-          receivedOptions = options;
-          return graphRuntime;
-        },
-      },
-    },
-  };
-
-  const context = {
-    window: {
-      __DG_CONFIG: {},
-      LayoutEngine: layoutEngine,
-    },
-    document: {
-      getElementById() {
-        return null;
-      },
-    },
-    console,
-    setTimeout,
-    clearTimeout,
-    LayoutEngine: layoutEngine,
-  };
-
-  vm.runInNewContext(readPreviewScript("graph-layout-controls.js"), context);
-
-  assert.equal((context.window as { PreviewEngineLayoutControls?: unknown }).PreviewEngineLayoutControls, graphRuntime);
-  assert.equal(receivedOptions?.sidebarSectionId, "layout-params");
-  assert.equal(receivedOptions?.containerId, "layout-params-controls");
-  assert.equal(receivedOptions?.defaultPersistNamespace, "meta.dagre");
-  assert.equal(receivedOptions?.enableRawViewToggles, false);
-});
-
-test("graph-layout-controller resolves the generic previewEngines.graph runtime", () => {
-  const graphController = {
-    init() {},
-    isActiveLayoutEngine() {
-      return true;
-    },
-    wirePanel() {},
-    syncPanel() {},
-    initPanel() {},
-    initializePanel() {},
-    getLayoutOverrides() {
-      return {};
-    },
-    applyLayoutOverrides() {},
-    applyElkLayoutOverrides() {},
-    collectPersistedPayload() {
-      return {};
-    },
-    requestRelayout() {},
-  };
-  const layoutEngine = {
-    previewEngines: {
-      graph: {
-        createPreviewEngineShellControllerRuntime() {
-          return graphController;
-        },
-      },
-    },
-  };
-  const context = {
-    window: {
-      __DG_CONFIG: {},
-      LayoutEngine: layoutEngine,
-    },
-    document: {
-      getElementById() {
-        return { hasAttribute: () => true };
-      },
-    },
-    console,
-    LayoutEngine: layoutEngine,
-  };
-
-  vm.runInNewContext(readPreviewScript("graph-layout-controller.js"), context);
-  const previewEngineShellController = (
-    context.window as {
-      PreviewEngineShellController: {
-        init: (deps: Record<string, unknown>) => void;
-        isActiveLayoutEngine: (frameTreeJson: unknown) => boolean;
-        requestRelayout: () => unknown;
-      };
-    }
-  ).PreviewEngineShellController;
-
-  previewEngineShellController.init({});
-
-  assert.equal(previewEngineShellController.isActiveLayoutEngine({ layoutEngine: "dagre" }), true);
-  assert.equal((context.window as { requestPreviewEngineRelayout?: unknown }).requestPreviewEngineRelayout, graphController.requestRelayout);
-  assert.equal((context.window as { requestLayoutRelayout?: unknown }).requestLayoutRelayout, graphController.requestRelayout);
-});
-
-
 test("save-client resolves the namespaced previewShell.bootstrap runtime", () => {
   let resolvedFromNamespace = false;
   const previewSaveClient = { saveOverrides() {}, trySaveIfDirty() {} };
@@ -477,10 +366,6 @@ test("browser preview wrappers no longer fall back to flat browser-entry aliases
   assert.equal(readPreviewScript("save-client.js").includes("LayoutEngine.createPreviewSaveClientRuntime"), false);
   assert.equal(readPreviewScript("layout-params-controls.js").includes("LayoutEngine.createPreviewEngineLayoutControlsRuntime"), false);
   assert.equal(readPreviewScript("layout-params-controller.js").includes("LayoutEngine.createPreviewEngineShellControllerRuntime"), false);
-  assert.equal(readPreviewScript("elk-layout-controls.js").includes("LayoutEngine.createPreviewElkLayoutControlsRuntime"), false);
-  assert.equal(readPreviewScript("elk-controller.js").includes("LayoutEngine.createPreviewElkShellControllerRuntime"), false);
-  assert.equal(readPreviewScript("graph-layout-controls.js").includes("LayoutEngine.createPreviewEngineLayoutControlsRuntime"), false);
-  assert.equal(readPreviewScript("graph-layout-controller.js").includes("LayoutEngine.createPreviewEngineShellControllerRuntime"), false);
   const forceSource = readPreviewScript("force.js");
   assert.equal(forceSource.includes("window.LayoutEngine?.getPreviewEngine?.("), false);
   assert.equal(forceSource.includes("window.LayoutEngine?.[methodName]"), false);

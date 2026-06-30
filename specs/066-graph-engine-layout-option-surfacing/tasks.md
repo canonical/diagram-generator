@@ -82,7 +82,7 @@
 - [x] T032 Collapse graph-engine parameter hosting onto one canonical
       `layout-params`-style sidebar section / runtime path so Dagre and ELK do
       not remain separate first-class pane hosts in typed preview-shell code.
-- [ ] T033 Confine any remaining ELK-named browser compatibility aliases to one
+- [x] T033 Confine any remaining ELK-named browser compatibility aliases to one
       explicit shim boundary; remove them from typed internal ownership and
       shared host contracts.
 - [x] T034 Add focused contract coverage proving the unified graph-engine layout
