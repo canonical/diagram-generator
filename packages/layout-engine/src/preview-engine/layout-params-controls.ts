@@ -64,7 +64,6 @@ export interface PreviewElkLayoutControlsWindowLike {
     isElkLayeredDiagram?: (frameTreeJson?: unknown) => boolean;
   };
   requestPreviewEngineRelayout?: () => unknown;
-  requestElkRelayout?: () => unknown;
   requestLayoutRelayout?: (rootId: string) => unknown;
   requestV3Relayout?: (rootId: string) => unknown;
   setDirty?: (dirty: boolean) => void;
@@ -554,10 +553,6 @@ export function createPreviewEngineLayoutControlsRuntime(
       }
       if (typeof options.previewWindow.requestPreviewEngineRelayout === 'function') {
         options.previewWindow.requestPreviewEngineRelayout();
-        return;
-      }
-      if (typeof options.previewWindow.requestElkRelayout === 'function') {
-        options.previewWindow.requestElkRelayout();
         return;
       }
       if (typeof options.previewWindow.requestLayoutRelayout === 'function') {

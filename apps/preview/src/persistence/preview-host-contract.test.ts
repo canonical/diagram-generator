@@ -360,7 +360,7 @@ test("autolayout viewer preloads graph layout scripts for switchable v3 frames",
   const controllerIndex = html.indexOf('/preview/layout-params-controller.js');
   const editorIndex = html.indexOf('/preview/editor.js');
 
-  assert.match(html, /id="layout-params-section" hidden/);
+  assert.doesNotMatch(html, /id="layout-params-section" hidden/);
   assert.match(html, /\/preview\/engine-switcher\.js/);
   assert.notEqual(controlsIndex, -1);
   assert.notEqual(controllerIndex, -1);
