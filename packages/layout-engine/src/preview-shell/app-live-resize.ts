@@ -329,7 +329,7 @@ export function createPreviewLiveResizeRuntimeFromHost<TGridOverrides, TModel>(
           options.model,
           temporaryOverrides,
           normalizedGridOverrides,
-          { skipModelUpdate: true },
+          undefined,
         )
       )
       : null,

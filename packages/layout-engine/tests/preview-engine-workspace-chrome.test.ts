@@ -234,6 +234,7 @@ describe('preview engine workspace chrome', () => {
     expect(workspace.activeEngineId).toBe('elk-layered');
     expect(harness.section.hidden).toBe(false);
     expect(harness.label.hidden).toBe(true);
+    expect((harness.previewWindow as any).__DG_previewRenderIntent?.engineId).toBe('elk-layered');
     expect(harness.tabs.children).toHaveLength(3);
     const tabButtons = harness.tabs.querySelectorAll('button[data-engine-id]');
     expect(tabButtons).toHaveLength(3);
@@ -244,6 +245,7 @@ describe('preview engine workspace chrome', () => {
     await tabButtons[2]?.click();
     expect(harness.previewWindow.__DG_CONFIG?.active_engine_id).toBe('dagre');
     expect(harness.previewWindow.__DG_CONFIG?.layout_engine).toBe('dagre');
+    expect((harness.previewWindow as any).__DG_previewRenderIntent?.engineId).toBe('dagre');
     expect(harness.frameTreeJson.layoutEngine).toBe('dagre');
     expect(harness.panelSyncCalls).toEqual(['sync', 'sync', 'sync']);
     expect(harness.saveButtonSyncCalls).toEqual(['sync', 'sync', 'sync']);
@@ -294,6 +296,7 @@ describe('preview engine workspace chrome', () => {
     expect(enterEvent?.defaultPrevented).toBe(true);
     expect(harness.frameTreeJson.layoutEngine).toBe('dagre');
     expect(harness.previewWindow.__DG_CONFIG?.active_engine_id).toBe('dagre');
+    expect((harness.previewWindow as any).__DG_previewRenderIntent?.engineId).toBe('dagre');
     expect(tabButtons.map((button) => button.tabIndex)).toEqual([-1, -1, 0]);
     expect(tabButtons.map((button) => button.getAttribute('aria-selected'))).toEqual(['false', 'false', 'true']);
     expect(harness.rerenderCalls).toEqual(['rerender']);

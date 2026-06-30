@@ -222,6 +222,7 @@ describe('preview shell panel helpers', () => {
     const section = {
       hidden: false,
       inert: false,
+      style: { display: '' },
       setAttribute(name: string, value: string) {
         sectionAttrs.set(name, value);
       },
@@ -234,7 +235,7 @@ describe('preview shell panel helpers', () => {
     };
     const document = {
       getElementById(id: string) {
-        return id === 'elk-layout-section' ? section : null;
+        return id === 'layout-params-section' ? section : null;
       },
     } as unknown as Document;
 
@@ -250,6 +251,7 @@ describe('preview shell panel helpers', () => {
     });
     expect(section.hidden).toBe(true);
     expect(section.inert).toBe(true);
+    expect(section.style.display).toBe('none');
     expect(sectionAttrs.get('aria-hidden')).toBe('true');
     expect(control.disabled).toBe(true);
     expect(controlAttrs.get('tabindex')).toBe('-1');
@@ -266,6 +268,7 @@ describe('preview shell panel helpers', () => {
     });
     expect(section.hidden).toBe(false);
     expect(section.inert).toBe(false);
+    expect(section.style.display).toBe('');
     expect(sectionAttrs.has('aria-hidden')).toBe(false);
     expect(control.disabled).toBe(false);
     expect(controlAttrs.has('tabindex')).toBe(false);

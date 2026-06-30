@@ -3,6 +3,7 @@ import {
   type PreviewPanelVisibility,
   type PreviewUiContext,
 } from './preview-ui-context.js';
+import { LAYOUT_PARAMS_SIDEBAR_SECTION_ALIASES } from '../preview-engine/sidebar-sections.js';
 
 /**
  * Preview shell panel helpers (spec 043 shell coordinator slice J).
@@ -124,13 +125,16 @@ export interface PreviewPanelVisibilityDocumentLike {
   getElementById: (id: string) => HTMLElement | null;
 }
 
+const LAYOUT_PARAMS_PANEL_IDS = Object.fromEntries(
+  LAYOUT_PARAMS_SIDEBAR_SECTION_ALIASES.map((section) => [section, 'layout-params-section']),
+) as Record<string, string>;
+
 const PANEL_ELEMENT_IDS: Record<string, string> = {
   'grid-layers-tab': 'nav-tab-layers',
   'grid-layers-pane': 'nav-pane-layers',
   'grid-engine-switcher': 'engine-switcher-section',
   'grid-controls': 'grid-controls-section',
-  'elk-layout': 'elk-layout-section',
-  'graph-layout': 'graph-layout-section',
+  ...LAYOUT_PARAMS_PANEL_IDS,
   'grid-overrides': 'document-actions-section',
   'grid-constraints': 'constraints-section',
   'grid-guide-badge': 'guide-badge',
@@ -426,6 +430,9 @@ function setPanelElementHidden(
   hidden: boolean,
 ): void {
   element.hidden = hidden;
+  if ('style' in element && element.style) {
+    element.style.display = hidden ? 'none' : '';
+  }
   if ('inert' in element) {
     (element as HTMLElement & { inert: boolean }).inert = hidden;
   }

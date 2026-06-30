@@ -58,6 +58,7 @@ export interface CreatePreviewInspectorDisplayRuntimeOptions {
   isWidthCoerced: (cid: string) => boolean;
   isHeightCoerced: (cid: string) => boolean;
   getGridInfo: () => PreviewInspectorGridInfo | null | undefined;
+  shouldShowAutolayoutInspector?: (() => boolean) | null;
   baselineStep?: number;
   fallbackGap: number;
   snapStep?: number;
@@ -163,6 +164,7 @@ export function createPreviewInspectorDisplayRuntime(
       arrowNode,
       componentType,
     }));
+    const showLayoutEditingControls = options.shouldShowAutolayoutInspector?.() ?? true;
     renderPreviewSingleSelectionInspectorRuntimeHost({
       inspector: options.getInspector() ?? null,
       cid,
@@ -197,6 +199,8 @@ export function createPreviewInspectorDisplayRuntime(
       widthUnit,
       heightUnit,
       gridInfo: options.getGridInfo() ?? null,
+      showAutolayoutInspector: showLayoutEditingControls,
+      showLayoutEditingControls,
       baselineStep: options.baselineStep,
       textAdapter: options.getTextAdapter?.() ?? null,
       formatControlErrorMessage: options.formatControlErrorMessage ?? null,
@@ -206,6 +210,7 @@ export function createPreviewInspectorDisplayRuntime(
 
   const renderMultiSelectionInspector = (): void => {
     const info = options.getSelectionActionInfo();
+    const showLayoutEditingControls = options.shouldShowAutolayoutInspector?.() ?? true;
     options.syncPanelVisibility?.({
       count: options.selectedIds.size,
       kind: 'multi',
@@ -235,12 +240,13 @@ export function createPreviewInspectorDisplayRuntime(
       widthUnit,
       heightUnit,
       showWidthColsOption: Boolean(nextGridInfo?.col_widths?.length),
+      showLayoutEditingControls,
       resolveMultiStyleState: (items) => resolveMultiStyleState(
         items as unknown as PreviewSelectionActionInfo['items'],
       ),
       renderStyleOptions: options.renderMultiStyleOptions,
     });
-    if (result.inferredGap != null) {
+    if (showLayoutEditingControls && result.inferredGap != null) {
       options.setMultiActionGap(result.inferredGap);
     }
   };

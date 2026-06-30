@@ -2,13 +2,13 @@
   "use strict";
 
   function resolveCreateRuntime() {
-    return window.LayoutEngine?.previewEngines?.elk?.createPreviewElkLayoutControlsRuntime ?? null;
+    return window.LayoutEngine?.previewEngines?.graph?.createPreviewEngineLayoutControlsRuntime ?? null;
   }
 
   const createRuntime = resolveCreateRuntime();
   if (typeof createRuntime !== "function") {
     throw new Error(
-      "preview engine layout controls runtime is unavailable. Rebuild the browser bundle from packages/layout-engine.",
+      "preview engine layout parameter runtime is unavailable. Rebuild the browser bundle from packages/layout-engine.",
     );
   }
 
@@ -20,8 +20,13 @@
     clearTimeoutFn: (token) => clearTimeout(token),
     getFrameTreeJson: typeof getFrameTreeJson === "function" ? () => getFrameTreeJson() : null,
     getDirtySetter: () => window.setDirty,
+    sidebarSectionId: "layout-params",
+    sectionId: "layout-params-section",
+    containerId: "layout-params-controls",
+    controlIdPrefix: "layout-params",
+    enableRawViewToggles: Boolean(window.__DG_previewRenderIntent || window.__DG_CONFIG),
+    unavailableMessage: "Graph layout parameter registry unavailable. Rebuild the browser bundle from packages/layout-engine.",
   });
 
   window.PreviewEngineLayoutControls = runtime;
-  window.ElkLayoutControls = runtime;
 })();

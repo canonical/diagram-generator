@@ -7,6 +7,18 @@
 > evidence while the headline bug (engine switch does nothing on authored-engine
 > docs) remained. Tasks below are re-opened against the hardened closeout gate.
 > See `docs/spec-reviews/branch-060.md`.
+>
+> 2026-06-28 RE-REOPENED by authority review
+> (`docs/spec-reviews/CLINE-VERDICT-2026-06-28.md`). Engine-tab **identity**
+> (T020/T021) is genuinely fixed and may stand. But T022 (direction flip) and
+> T040 (Playwright self-check) were closed on a FAKE proof:
+> the old `evidence/engine-tabs-identity-check.mjs` drove the direction case with
+> `runtime.performEngineRelayout(..., { skipModelUpdate: true })` via
+> `page.evaluate` and asserts only arrow count + no-NaN — the exact anti-pattern
+> the review banned. T022 and T040 are unchecked and must be re-earned through a
+> **real inspector `selectOption` gesture** under spec 065's
+> `verification-protocol.md`. Depends on spec 065's single `PreviewRenderIntent`;
+> do not re-fix direction with a fourth parallel relayout lane.
 
 ## Phase 0: Reproduce And Trace (kept — was correct)
 
@@ -43,6 +55,11 @@
       (authored `elk-layered`): after switching to `v3`, root SVG
       `data-layout-engine === 'v3'`.
 
+> T022 VOID — re-earn via spec 065 protocol §2 "Page-direction flip": real
+> `page.selectOption` on the inspector direction control of
+> `tiered-network-architecture`, assert spread-axis flip AND arrow endpoints on
+> node perimeters. Banned: `skipModelUpdate`, `page.evaluate(performEngineRelayout)`,
+> arrow-count-only, svgHash.
 - [x] **T022** Route page-direction changes through the same engine-intent
       commit so layout re-runs and arrows reroute (FR-007).
       **Verify**: real-layout/runtime test on `tiered-network-architecture`
@@ -60,6 +77,10 @@
 
 ## Phase 4: Browser-Proven Verification (no mock, no hash)
 
+> T040 VOID — the old committed `engine-tabs-identity-check.mjs` proved direction
+> with `skipModelUpdate: true` via `page.evaluate`. Replace it (or add
+> `evidence/post-load-mutations.ts`) so EVERY gesture is a real
+> click/select/drag and geometry is asserted per spec 065 protocol §0–§3.
 - [x] **T040** Playwright self-check per `docs/spec-reviews/README.md` §4.
       **Do**: restart the server fresh; assert engine **identity** (not svgHash)
       via `#stage svg[data-layout-engine]` for: authored-ELK → v3
@@ -67,8 +88,9 @@
       Also verify an authored `juju-bootstrap-machines-process` engine switch.
       Full compatible-engine exposure/fidelity for Juju-class examples belongs to
       spec 057.
-      **Verify**: commit script + JSON result under `evidence/` (replace the old
-      hash-based evidence file).
+      **Verify**: `PREVIEW_BASE_URL=http://127.0.0.1:8120 node --experimental-default-type=module specs/060-output-pane-engine-tabs-rerender/evidence/engine-tabs-identity-check.ts`
+      after fresh `npm run preview`; committed `engine-tabs-identity-result.json`
+      is `ok: true`.
 
 ## Phase 5: Full Validation
 

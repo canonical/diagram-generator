@@ -56,6 +56,7 @@ export interface CreatePreviewEditorRuntimeSetOptions {
   getGridInfo: CreatePreviewInspectorDisplayRuntimeOptions['getGridInfo']
     & CreatePreviewInspectorMutationRuntimeOptions['getGridInfo']
     & CreatePreviewInspectorSelectionRuntimeOptions['getGridInfo'];
+  shouldShowAutolayoutInspector?: CreatePreviewInspectorDisplayRuntimeOptions['shouldShowAutolayoutInspector'];
   baselineStep: CreatePreviewInspectorDisplayRuntimeOptions['baselineStep']
     & CreatePreviewInspectorMutationRuntimeOptions['baselineStep']
     & CreatePreviewInspectorSelectionRuntimeOptions['baselineStep'];
@@ -148,6 +149,7 @@ export interface CreatePreviewEditorRuntimeSetHostOptions {
   isWidthCoerced: CreatePreviewEditorRuntimeSetOptions['isWidthCoerced'];
   isHeightCoerced: CreatePreviewEditorRuntimeSetOptions['isHeightCoerced'];
   getGridInfo: CreatePreviewEditorRuntimeSetOptions['getGridInfo'];
+  shouldShowAutolayoutInspector?: CreatePreviewEditorRuntimeSetOptions['shouldShowAutolayoutInspector'];
   baselineStep: CreatePreviewEditorRuntimeSetOptions['baselineStep'];
   fallbackGap: CreatePreviewEditorRuntimeSetOptions['fallbackGap'];
   snapStep: CreatePreviewEditorRuntimeSetOptions['snapStep'];
@@ -234,6 +236,7 @@ export interface CreatePreviewEditorRuntimeSetFromRuntimeOptions {
   renderSingleStyleOptions: CreatePreviewEditorRuntimeSetHostOptions['renderSingleStyleOptions'];
   renderMultiStyleOptions: CreatePreviewEditorRuntimeSetHostOptions['renderMultiStyleOptions'];
   syncPanelVisibility?: CreatePreviewEditorRuntimeSetHostOptions['syncPanelVisibility'];
+  shouldShowAutolayoutInspector?: CreatePreviewEditorRuntimeSetHostOptions['shouldShowAutolayoutInspector'];
   editorState: {
     captureOverrideEntries: CreatePreviewEditorRuntimeSetHostOptions['captureOverrideEntries'];
     commitOverridePatchAction: CreatePreviewEditorRuntimeSetHostOptions['commitOverridePatchAction'];
@@ -308,6 +311,7 @@ export interface CreatePreviewEditorRuntimeSetFromEditorHostOptions {
   ) => string;
   formatAsDefinedStyleLabel: (styleName: string | null | undefined, mixed?: boolean) => string;
   syncPanelVisibility?: CreatePreviewEditorRuntimeSetFromRuntimeOptions['syncPanelVisibility'];
+  shouldShowAutolayoutInspector?: CreatePreviewEditorRuntimeSetFromRuntimeOptions['shouldShowAutolayoutInspector'];
   editorState: CreatePreviewEditorRuntimeSetFromRuntimeOptions['editorState'];
   removeResizeHandles: CreatePreviewEditorRuntimeSetHostOptions['removeResizeHandles'];
   showResizeHandles: CreatePreviewEditorRuntimeSetHostOptions['showResizeHandles'];
@@ -371,6 +375,7 @@ export function createPreviewEditorRuntimeSetFromHost(
     isWidthCoerced: options.isWidthCoerced,
     isHeightCoerced: options.isHeightCoerced,
     getGridInfo: options.getGridInfo,
+    shouldShowAutolayoutInspector: options.shouldShowAutolayoutInspector ?? null,
     baselineStep: options.baselineStep,
     fallbackGap: options.fallbackGap,
     snapStep: options.snapStep,
@@ -456,6 +461,7 @@ export function createPreviewEditorRuntimeSetFromRuntime(
     renderSingleStyleOptions: options.renderSingleStyleOptions,
     renderMultiStyleOptions: options.renderMultiStyleOptions,
     syncPanelVisibility: options.syncPanelVisibility ?? null,
+    shouldShowAutolayoutInspector: options.shouldShowAutolayoutInspector ?? null,
     captureOverrideEntries: options.editorState.captureOverrideEntries,
     commitOverridePatchAction: options.editorState.commitOverridePatchAction,
     getOverrides: options.getOverrides,
@@ -533,6 +539,7 @@ export function createPreviewEditorRuntimeSetFromEditorHost(
       })
     ),
     syncPanelVisibility: options.syncPanelVisibility ?? null,
+    shouldShowAutolayoutInspector: options.shouldShowAutolayoutInspector ?? null,
     editorState: options.editorState,
     resizeHandles: {
       removeResizeHandles: options.removeResizeHandles,
@@ -601,6 +608,7 @@ export function createPreviewEditorRuntimeSet(
     isWidthCoerced: options.isWidthCoerced,
     isHeightCoerced: options.isHeightCoerced,
     getGridInfo: options.getGridInfo,
+    shouldShowAutolayoutInspector: options.shouldShowAutolayoutInspector ?? null,
     baselineStep: options.baselineStep,
     fallbackGap: options.fallbackGap,
     snapStep: options.snapStep,
@@ -628,6 +636,7 @@ export function createPreviewEditorRuntimeSet(
     getWidthUnit: inspectorDisplay.getWidthUnit,
     getHeightUnit: inspectorDisplay.getHeightUnit,
     baselineStep: options.baselineStep,
+    shouldShowAutolayoutInspector: options.shouldShowAutolayoutInspector ?? null,
   });
 
   const inspectorSelection = createPreviewInspectorSelectionRuntime({
@@ -663,6 +672,7 @@ export function createPreviewEditorRuntimeSet(
     alert: options.alert,
     getComponentType: options.getComponentType,
     normalizeStyleName: options.normalizeStyleName,
+    shouldShowAutolayoutInspector: options.shouldShowAutolayoutInspector ?? null,
   });
 
   const arrowWaypoint = createPreviewArrowWaypointRuntime({

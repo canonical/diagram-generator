@@ -2,10 +2,13 @@
  * Serializable editor snapshot helpers for the preview shell (spec 026 T012).
  */
 
+import type { LayoutOperatorOverrideState } from './layout-operator-overrides.js';
+
 export interface EditorSnapshot {
   o: Record<string, unknown>;
   g: Record<string, unknown>;
   e?: Record<string, unknown>;
+  ep?: LayoutOperatorOverrideState;
   r?: string[];
   f?: unknown;
 }
@@ -13,7 +16,8 @@ export interface EditorSnapshot {
 export interface EditorSnapshotInput {
   overrides: Record<string, unknown>;
   gridOverrides?: Record<string, unknown> | null;
-  elkLayoutOverrides?: Record<string, unknown> | null;
+  layoutOverrides?: Record<string, unknown> | null;
+  layoutOperatorOverrides?: LayoutOperatorOverrideState | null;
   removedIds?: Iterable<string> | null;
   frameTree?: unknown | null;
 }
@@ -57,8 +61,12 @@ export function captureEditorSnapshot(input: EditorSnapshotInput): EditorSnapsho
     g: cloneEditorSnapshotValue(input.gridOverrides || {}),
   };
 
-  if (input.elkLayoutOverrides && Object.keys(input.elkLayoutOverrides).length > 0) {
-    snapshot.e = cloneEditorSnapshotValue(input.elkLayoutOverrides);
+  if (input.layoutOverrides && Object.keys(input.layoutOverrides).length > 0) {
+    snapshot.e = cloneEditorSnapshotValue(input.layoutOverrides);
+  }
+
+  if (input.layoutOperatorOverrides) {
+    snapshot.ep = cloneEditorSnapshotValue(input.layoutOperatorOverrides);
   }
 
   if (input.removedIds) {
@@ -81,6 +89,7 @@ export function parseEditorSnapshot(serialized: string | null | undefined): Edit
     o: cloneEditorSnapshotValue(parsed.o || {}),
     g: cloneEditorSnapshotValue(parsed.g || {}),
     e: parsed.e ? cloneEditorSnapshotValue(parsed.e) : undefined,
+    ep: parsed.ep ? cloneEditorSnapshotValue(parsed.ep) : undefined,
     r: Array.isArray(parsed.r) ? [...parsed.r] : undefined,
     f: parsed.f,
   };

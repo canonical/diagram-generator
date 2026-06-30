@@ -10,7 +10,7 @@ export const DAGRE_PREVIEW_ENGINE_DEFINITION: GraphLayoutPreviewEngineDefinition
   renderFamily: 'frame-dagre',
   graphEngine: DAGRE_GRAPH_LAYOUT_ENGINE,
   controlSpecs: dagrePreviewControlSpecs(),
-  sidebarSections: ['graph-layout'],
+  sidebarSections: ['layout-params'],
   compatibility: {
     description: 'Dagre rank-based layout for Mermaid-style directed graphs',
     frameDiagramRequirements: {
@@ -19,7 +19,7 @@ export const DAGRE_PREVIEW_ENGINE_DEFINITION: GraphLayoutPreviewEngineDefinition
     },
   },
   renderAdapter: dagreFrameDiagramRenderAdapter,
-  scripts: ['graph-layout-controls.js', 'graph-layout-controller.js'],
+  scripts: ['layout-params-controls.js', 'layout-params-controller.js'],
 };
 
 const definedDagrePreviewEngine = defineGraphLayoutPreviewEngine(

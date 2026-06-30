@@ -1,6 +1,20 @@
 # Tasks: ELK sizing and interaction follow-up
 
 **Input**: Design documents from `/specs/048-elk-sizing-interaction-followup/`
+> 2026-06-28 REOPENED (authority verdict
+> `docs/spec-reviews/CLINE-VERDICT-2026-06-28.md`). The live ELK-resize
+> "relayout failed" P0 required proof on the real UI. The actual fix
+> (engine-backed resize lane + `formatPreviewRelayoutStatusMessage` for the
+> elk-failure case) is owned by spec 065 **T022**.
+>
+> **Closed 2026-06-29**: spec 065's
+> `evidence/post-load-mutations.ts` proves a **real pointer-drag resize** on an
+> ELK-authored doc shows no `/failed/i` status and the node reaches the dragged
+> size (protocol §2 "ELK live resize"). Latest result:
+> `specs/065-interactive-relayout-contract/evidence/post-load-mutations-result.json`
+> (`ok: true`, `mongo_clients` 224px -> 304px, status `Ready`).
+
+
 
 ## Phase 1 - ELK Fill Sizing
 

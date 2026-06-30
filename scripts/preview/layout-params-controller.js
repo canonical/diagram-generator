@@ -2,13 +2,13 @@
   "use strict";
 
   function resolveCreateRuntime() {
-    return window.LayoutEngine?.previewEngines?.elk?.createPreviewElkShellControllerRuntime ?? null;
+    return window.LayoutEngine?.previewEngines?.graph?.createPreviewEngineShellControllerRuntime ?? null;
   }
 
   const createRuntime = resolveCreateRuntime();
   if (typeof createRuntime !== "function") {
     throw new Error(
-      "ELK preview controller runtime is unavailable. Rebuild the browser bundle from packages/layout-engine.",
+      "preview engine layout parameter controller runtime is unavailable. Rebuild the browser bundle from packages/layout-engine.",
     );
   }
 
@@ -17,6 +17,7 @@
     previewWindow: window,
     layoutEngineRoot: typeof LayoutEngine !== "undefined" ? LayoutEngine : window.LayoutEngine,
     getFrameTreeJson: typeof getFrameTreeJson === "function" ? () => getFrameTreeJson() : null,
+    sidebarSectionId: "layout-params",
   });
 
   const runtime = {
@@ -30,14 +31,10 @@
           : null);
       window.__DG_wirePreviewEnginePanel = controller.wirePanel;
       window.__DG_applyPreviewEngineLayoutOverrides = applyLayoutOverrides;
-      window.__DG_wireElkLayoutPanel = controller.wirePanel;
-      window.__DG_applyElkLayoutOverrides = applyLayoutOverrides;
       window.requestPreviewEngineRelayout = controller.requestRelayout;
       window.requestLayoutRelayout = controller.requestRelayout;
-      window.requestElkRelayout = controller.requestRelayout;
     },
   };
 
   window.PreviewEngineShellController = runtime;
-  window.ElkPreviewController = runtime;
 })();

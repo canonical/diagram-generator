@@ -24,13 +24,11 @@ function visibleSections(context: PreviewUiContext): Set<string> {
 describe('preview UI context registry', () => {
   it('covers every static template section with a typed owner', () => {
     expect(PREVIEW_PANEL_REGISTRY.map((entry) => entry.id).sort()).toEqual([
-      'elk-layout',
       'force-guidance',
       'force-nodes-pane',
       'force-nodes-tab',
       'force-simulation',
       'force-solver',
-      'graph-layout',
       'grid-constraints',
       'grid-controls',
       'grid-engine-switcher',
@@ -38,6 +36,7 @@ describe('preview UI context registry', () => {
       'grid-layers-pane',
       'grid-layers-tab',
       'grid-overrides',
+      'layout-params',
     ]);
     expect(PREVIEW_PANEL_REGISTRY.every((entry) => entry.owner.length > 0)).toBe(true);
     expect(PREVIEW_ASIDE_PANEL_GROUPS).toEqual([
@@ -54,7 +53,7 @@ describe('preview UI context registry', () => {
     const groupsById = new Map(PREVIEW_PANEL_REGISTRY.map((entry) => [entry.id, entry.group]));
     expect(groupsById.get('grid-engine-switcher')).toBe('engine');
     expect(groupsById.get('grid-controls')).toBe('layout');
-    expect(groupsById.get('graph-layout')).toBe('engine');
+    expect(groupsById.get('layout-params')).toBe('engine');
     expect(groupsById.get('grid-overrides')).toBe('document');
     expect(groupsById.get('grid-constraints')).toBe('diagnostics');
     expect(groupsById.get('force-solver')).toBe('engine');
@@ -76,8 +75,7 @@ describe('preview UI context registry', () => {
     expect(visible.has('grid-overrides')).toBe(true);
     expect(visible.has('grid-constraints')).toBe(false);
     expect(visible.has('grid-guide-badge')).toBe(false);
-    expect(visible.has('elk-layout')).toBe(false);
-    expect(visible.has('graph-layout')).toBe(false);
+    expect(visible.has('layout-params')).toBe(false);
     expect(visible.has('grid-engine-switcher')).toBe(true);
     expect(shouldShowPreviewEngineSwitcher({
       shellMode: 'grid',
@@ -175,7 +173,7 @@ describe('preview UI context registry', () => {
     };
 
     expect(shouldShowPreviewEngineSwitcher(context)).toBe(true);
-    expect(visibleSections(context).has('elk-layout')).toBe(true);
+    expect(visibleSections(context).has('layout-params')).toBe(true);
     expect(visibleSections(context).has('grid-engine-switcher')).toBe(true);
   });
 
@@ -189,8 +187,7 @@ describe('preview UI context registry', () => {
     });
 
     expect(visible.has('grid-layers-tab')).toBe(true);
-    expect(visible.has('elk-layout')).toBe(true);
-    expect(visible.has('graph-layout')).toBe(false);
+    expect(visible.has('layout-params')).toBe(true);
     expect(visible.has('grid-controls')).toBe(false);
     expect(visible.has('grid-guide-badge')).toBe(false);
     expect(visible.has('grid-engine-switcher')).toBe(true);
@@ -206,8 +203,7 @@ describe('preview UI context registry', () => {
     });
 
     expect(visible.has('grid-layers-tab')).toBe(true);
-    expect(visible.has('graph-layout')).toBe(true);
-    expect(visible.has('elk-layout')).toBe(false);
+    expect(visible.has('layout-params')).toBe(true);
     expect(visible.has('grid-controls')).toBe(false);
     expect(visible.has('grid-guide-badge')).toBe(false);
     expect(visible.has('grid-engine-switcher')).toBe(true);
@@ -226,8 +222,7 @@ describe('preview UI context registry', () => {
     expect(visible.has('force-simulation')).toBe(true);
     expect(visible.has('force-guidance')).toBe(true);
     expect(visible.has('grid-controls')).toBe(false);
-    expect(visible.has('elk-layout')).toBe(false);
-    expect(visible.has('graph-layout')).toBe(false);
+    expect(visible.has('layout-params')).toBe(false);
   });
 
   it('hides frame editing panels for sequence output-only documents', () => {

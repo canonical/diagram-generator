@@ -49,6 +49,7 @@ export interface CreatePreviewInspectorMutationRuntimeOptions {
   getWidthUnit: () => string;
   getHeightUnit: () => string;
   baselineStep: number;
+  shouldShowAutolayoutInspector?: (() => boolean) | null;
 }
 
 export interface PreviewInspectorMutationRuntime {
@@ -61,6 +62,7 @@ export interface PreviewInspectorMutationRuntime {
 export function createPreviewInspectorMutationRuntime(
   options: CreatePreviewInspectorMutationRuntimeOptions,
 ): PreviewInspectorMutationRuntime {
+  const layoutEditingEnabled = (): boolean => options.shouldShowAutolayoutInspector?.() ?? true;
   return {
     applyStyle(cid, styleName) {
       const overrides = options.getOverrides();
@@ -94,6 +96,10 @@ export function createPreviewInspectorMutationRuntime(
       );
     },
     setFrameAlign(cid, align) {
+      if (!layoutEditingEnabled()) {
+        options.renderSelectionInspector(cid);
+        return;
+      }
       const overrides = options.getOverrides();
       dispatchPreviewSingleFrameAlignHost({
         cid,
@@ -128,6 +134,10 @@ export function createPreviewInspectorMutationRuntime(
       });
     },
     setFrameProp(cid, prop, value) {
+      if (!layoutEditingEnabled()) {
+        options.renderSelectionInspector(cid);
+        return;
+      }
       const overrides = options.getOverrides();
       dispatchPreviewSingleFramePropHost({
         cid,
@@ -165,6 +175,10 @@ export function createPreviewInspectorMutationRuntime(
       });
     },
     setFrameSize(cid, dimension, value) {
+      if (!layoutEditingEnabled()) {
+        options.renderSelectionInspector(cid);
+        return;
+      }
       const overrides = options.getOverrides();
       const nextDimension = dimension as PreviewFrameSizeDimension;
       dispatchPreviewSingleFrameSizeHost({

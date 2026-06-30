@@ -172,7 +172,6 @@ import {
   updatePreviewOverrideSummaryHost,
 } from '../src/preview-shell/index.js';
 import {
-  renderPreviewElkDebugOverlay,
   renderPreviewElkRawView,
 } from '../src/preview-engine/index.js';
 import { routeArrows } from '../src/arrow-routing.js';
@@ -183,8 +182,6 @@ import {
   createLine,
   createPreviewEngineLayoutControlsRuntime,
   createPreviewEngineShellControllerRuntime,
-  createPreviewElkLayoutControlsRuntime,
-  createPreviewElkShellControllerRuntime,
   ELK_LAYERED_PARAM_SPECS,
   ELK_LAYERED_PREVIEW_ENGINE,
   elkParamGroups,
@@ -382,7 +379,7 @@ describe('browser entry contract pilot', () => {
     expect(previewBridge.render.updatePreviewArrowSvg).toBeTypeOf('function');
   });
 
-  it('exposes preview-engine registry and elk aliases under a namespaced contract', () => {
+  it('exposes preview-engine registry with graph runtime ownership and elk metadata helpers', () => {
     expect(previewEngines.registry.getPreviewEngine).toBe(getPreviewEngine);
     expect(previewEngines.registry.listPreviewEngines).toBe(listPreviewEngines);
     expect(previewEngines.registry.resolvePreviewEngine).toBe(resolvePreviewEngine);
@@ -391,15 +388,9 @@ describe('browser entry contract pilot', () => {
       .toBe(createPreviewEngineLayoutControlsRuntime);
     expect(previewEngines.graph.createPreviewEngineShellControllerRuntime)
       .toBe(createPreviewEngineShellControllerRuntime);
-    expect(previewEngines.elk.createPreviewElkLayoutControlsRuntime)
-      .toBe(createPreviewElkLayoutControlsRuntime);
-    expect(previewEngines.elk.createPreviewElkShellControllerRuntime)
-      .toBe(createPreviewElkShellControllerRuntime);
     expect(previewEngines.elk.ELK_LAYERED_PREVIEW_ENGINE).toBe(ELK_LAYERED_PREVIEW_ENGINE);
     expect(previewEngines.elk.ELK_LAYERED_PARAM_SPECS).toBe(ELK_LAYERED_PARAM_SPECS);
     expect(previewEngines.elk.elkParamGroups).toBe(elkParamGroups);
-    expect(previewEngines.elk.ensurePreviewEngineShellController).toBeTypeOf('function');
-    expect(previewEngines.elk.renderPreviewElkDebugOverlay).toBe(renderPreviewElkDebugOverlay);
     expect(previewEngines.elk.renderPreviewElkRawView).toBe(renderPreviewElkRawView);
     expect(previewEngines.force.FORCE_PREVIEW_PARAM_SPECS).toBe(FORCE_PREVIEW_PARAM_SPECS);
     expect(previewEngines.force.applyForceNodePatch).toBe(applyForceNodePatch);

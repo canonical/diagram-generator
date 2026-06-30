@@ -1,3 +1,15 @@
+> **AUTHORITY OVERRIDE 2026-06-28** — see
+> [`CLINE-VERDICT-2026-06-28.md`](./CLINE-VERDICT-2026-06-28.md). This README's
+> RE-REVIEW declaring spec 060 "genuinely fixed" is **partly wrong**: 060's
+> old committed Playwright evidence (`engine-tabs-identity-check.mjs`, since
+> superseded by `engine-tabs-identity-check.ts`) proved the
+> direction-flip case with `runtime.performEngineRelayout(..., { skipModelUpdate: true })`
+> via `page.evaluate` and arrow-count-only — the exact anti-pattern §3/§4 ban.
+> 060's engine **identity** fix stands; its direction-flip + real-gesture
+> relayout claims are void. The single fix is now owned by spec 065
+> (`PreviewRenderIntent`) with `verification-protocol.md` as the closing gate.
+> Where this README conflicts with the verdict, the verdict wins.
+
 # Spec reviews 054–060 — adversarial pass + inbox reconciliation
 
 **Date:** 2026-06-28 (re-reviewed same day after GPT's 060 fix)

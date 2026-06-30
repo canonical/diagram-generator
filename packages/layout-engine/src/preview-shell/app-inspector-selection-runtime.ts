@@ -72,6 +72,7 @@ export interface CreatePreviewInspectorSelectionRuntimeOptions {
   alert: (message: string) => void;
   getComponentType: (cid: string) => string | null | undefined;
   normalizeStyleName: (styleName: string) => string;
+  shouldShowAutolayoutInspector?: (() => boolean) | null;
 }
 
 export interface PreviewInspectorSelectionRuntime {
@@ -90,10 +91,15 @@ export interface PreviewInspectorSelectionRuntime {
 export function createPreviewInspectorSelectionRuntime(
   options: CreatePreviewInspectorSelectionRuntimeOptions,
 ): PreviewInspectorSelectionRuntime {
+  const layoutEditingEnabled = (): boolean => options.shouldShowAutolayoutInspector?.() ?? true;
   const applySelectionTargets = (
     items: PreviewSelectionActionItem[],
     targets: Record<string, unknown>,
   ): void => {
+    if (!layoutEditingEnabled()) {
+      options.renderSelectionInspector();
+      return;
+    }
     dispatchPreviewApplySelectionTargetsHost({
       items,
       targets,
@@ -114,6 +120,10 @@ export function createPreviewInspectorSelectionRuntime(
   return {
     applySelectionTargets,
     distributeSelection(axis) {
+      if (!layoutEditingEnabled()) {
+        options.renderMultiSelectionInspector();
+        return;
+      }
       const info = options.getSelectionActionInfo();
       dispatchPreviewDistributeSelectionHost({
         info,
@@ -128,6 +138,10 @@ export function createPreviewInspectorSelectionRuntime(
       });
     },
     alignSelection(mode) {
+      if (!layoutEditingEnabled()) {
+        options.renderMultiSelectionInspector();
+        return;
+      }
       const info = options.getSelectionActionInfo();
       dispatchPreviewAlignSelectionHost({
         info,
@@ -139,6 +153,10 @@ export function createPreviewInspectorSelectionRuntime(
       });
     },
     setMultiFrameAlign(align) {
+      if (!layoutEditingEnabled()) {
+        options.renderMultiSelectionInspector();
+        return;
+      }
       const overrides = options.getOverrides();
       dispatchPreviewMultiFrameAlignHost({
         selectedIds: options.selectedIds,
@@ -199,6 +217,10 @@ export function createPreviewInspectorSelectionRuntime(
       });
     },
     setMultiFrameProp(prop, value) {
+      if (!layoutEditingEnabled()) {
+        options.renderMultiSelectionInspector();
+        return;
+      }
       const overrides = options.getOverrides();
       dispatchPreviewMultiFramePropHost({
         selectedIds: options.selectedIds,
@@ -233,6 +255,10 @@ export function createPreviewInspectorSelectionRuntime(
       });
     },
     setMultiFrameSize(dimension, value) {
+      if (!layoutEditingEnabled()) {
+        options.renderMultiSelectionInspector();
+        return;
+      }
       const overrides = options.getOverrides();
       dispatchPreviewMultiFrameSizeHost({
         selectedIds: options.selectedIds,

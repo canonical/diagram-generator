@@ -10,6 +10,8 @@ import {
   normalizeGridOverrides,
   parseEditorSnapshot,
 } from './editor-snapshot.js';
+import { writeLayoutOperatorOverrideState } from './layout-operator-overrides.js';
+import type { LayoutOperatorOverrideState } from './layout-operator-overrides.js';
 
 export interface PreviewRestoreNode {
   type?: string | null;
@@ -19,8 +21,7 @@ export interface PreviewSerializedStateRestorePlan {
   nextOverrides: Record<string, unknown>;
   nextGridOverrides: Record<string, unknown>;
   nextLayoutOverrides: Record<string, unknown>;
-  /** @deprecated Prefer `nextLayoutOverrides`. */
-  nextElkLayoutOverrides: Record<string, unknown>;
+  nextLayoutOperatorOverrides: LayoutOperatorOverrideState | null;
   nextRemovedIds: Set<string>;
   nextFrameTree?: unknown;
   frameTreeChanged: boolean;
@@ -51,8 +52,7 @@ export interface RestorePreviewSerializedStateOptions {
   setOverrides: (nextOverrides: Record<string, unknown>) => void;
   setGridOverrides: (nextGridOverrides: Record<string, unknown>) => void;
   setLayoutOverrides?: ((nextLayoutOverrides: Record<string, unknown>) => void) | null;
-  /** @deprecated Prefer `setLayoutOverrides`. */
-  setElkLayoutOverrides: (nextElkLayoutOverrides: Record<string, unknown>) => void;
+  setLayoutOperatorOverridesState?: ((nextState: LayoutOperatorOverrideState | null) => void) | null;
   setRemovedIds: (nextRemovedIds: Set<string>) => void;
   setFrameTree?: ((frameTree: unknown) => void) | null;
   pruneLinkedRootOverrides?: (() => void) | null;
@@ -96,8 +96,7 @@ export interface CreatePreviewStateRestoreRuntimeOptions {
   setOverrides: (nextOverrides: Record<string, unknown>) => void;
   setGridOverrides: (nextGridOverrides: Record<string, unknown>) => void;
   setLayoutOverrides?: ((nextLayoutOverrides: Record<string, unknown>) => void) | null;
-  /** @deprecated Prefer `setLayoutOverrides`. */
-  setElkLayoutOverrides?: ((nextElkLayoutOverrides: Record<string, unknown>) => void) | null;
+  setLayoutOperatorOverridesState?: ((nextState: LayoutOperatorOverrideState | null) => void) | null;
   setRemovedIds: (nextRemovedIds: Set<string>) => void;
   setFrameTree?: ((frameTree: unknown) => void) | null;
   cleanOverride?: ((cid: string) => void) | null;
@@ -121,10 +120,24 @@ export interface PreviewStateRestoreEditorHostModel {
   roots?: Array<{ id?: string | null }> | null;
   gridOverrides?: Record<string, unknown> | null;
   layoutOverrides?: Record<string, unknown> | null;
-  elkLayoutOverrides?: Record<string, unknown> | null;
+  layoutOverrideNamespace?: string | null;
+  layoutOperatorOverrides?: LayoutOperatorOverrideState | null;
   removedIds?: Set<string> | null;
   get: (cid: string) => PreviewRestoreNode | null | undefined;
   cleanOverride: (cid: string) => void;
+}
+
+function resolveSnapshotActiveLayoutOverrides(
+  state: LayoutOperatorOverrideState | null | undefined,
+): Record<string, unknown> {
+  const activeKey = state?.activeOperatorKey;
+  if (!activeKey) {
+    return {};
+  }
+  const bucket = state.byOperator?.[activeKey];
+  return bucket && typeof bucket === 'object' && !Array.isArray(bucket)
+    ? cloneEditorSnapshotValue(bucket)
+    : {};
 }
 
 export interface CreatePreviewStateRestoreRuntimeFromEditorHostOptions<
@@ -175,9 +188,8 @@ function resolveHasRelayoutFrameOverride(options: {
 
 function resolveSetLayoutOverrides(options: {
   setLayoutOverrides?: ((nextLayoutOverrides: Record<string, unknown>) => void) | null;
-  setElkLayoutOverrides?: ((nextElkLayoutOverrides: Record<string, unknown>) => void) | null;
 }): (nextLayoutOverrides: Record<string, unknown>) => void {
-  return options.setLayoutOverrides ?? options.setElkLayoutOverrides ?? (() => {});
+  return options.setLayoutOverrides ?? (() => {});
 }
 
 export function snapshotNeedsPreviewRelayout(options: {
@@ -246,12 +258,15 @@ export function resolvePreviewSerializedStateRestorePlan(options: {
       hasRelayoutFrameOverride,
     });
 
-  const nextLayoutOverrides = cloneEditorSnapshotValue(parsed.e || {});
+  const nextLayoutOperatorOverrides = parsed.ep ? cloneEditorSnapshotValue(parsed.ep) : null;
+  const nextLayoutOverrides = Object.keys(parsed.e || {}).length > 0
+    ? cloneEditorSnapshotValue(parsed.e || {})
+    : resolveSnapshotActiveLayoutOverrides(nextLayoutOperatorOverrides);
   return {
     nextOverrides: cloneEditorSnapshotValue(parsed.o),
     nextGridOverrides,
     nextLayoutOverrides,
-    nextElkLayoutOverrides: cloneEditorSnapshotValue(nextLayoutOverrides),
+    nextLayoutOperatorOverrides,
     nextRemovedIds,
     nextFrameTree: parsed.f,
     frameTreeChanged,
@@ -311,6 +326,11 @@ export async function restorePreviewSerializedState(
 
   options.setOverrides(plan.nextOverrides);
   options.setGridOverrides(cloneEditorSnapshotValue(plan.nextGridOverrides));
+  options.setLayoutOperatorOverridesState?.(
+    plan.nextLayoutOperatorOverrides
+      ? cloneEditorSnapshotValue(plan.nextLayoutOperatorOverrides)
+      : null,
+  );
   setLayoutOverrides(cloneEditorSnapshotValue(plan.nextLayoutOverrides));
   options.setRemovedIds(plan.nextRemovedIds);
   if (plan.frameTreeChanged && options.setFrameTree) {
@@ -376,7 +396,7 @@ export function createPreviewStateRestoreRuntime(
     options.hasRelayoutFrameOverride ?? options.hasV3FrameOverride ?? (() => false)
   );
   const resolveSetLayoutOverrides = (): ((nextLayoutOverrides: Record<string, unknown>) => void) => (
-    options.setLayoutOverrides ?? options.setElkLayoutOverrides ?? (() => {})
+    options.setLayoutOverrides ?? (() => {})
   );
 
   return {
@@ -392,7 +412,7 @@ export function createPreviewStateRestoreRuntime(
         setOverrides: options.setOverrides,
         setGridOverrides: options.setGridOverrides,
         setLayoutOverrides: resolveSetLayoutOverrides(),
-        setElkLayoutOverrides: resolveSetLayoutOverrides(),
+        setLayoutOperatorOverridesState: options.setLayoutOperatorOverridesState,
         setRemovedIds: options.setRemovedIds,
         setFrameTree: options.setFrameTree,
         pruneLinkedRootOverrides: options.pruneLinkedRootOverrides,
@@ -456,9 +476,14 @@ export function createPreviewStateRestoreRuntimeFromEditorHost<
       options.model.gridOverrides = options.editorState.cloneValue(nextGridOverrides);
     },
     setLayoutOverrides: (nextLayoutOverrides) => {
-      const cloned = options.editorState.cloneValue(nextLayoutOverrides);
-      options.model.layoutOverrides = cloned;
-      options.model.elkLayoutOverrides = options.editorState.cloneValue(nextLayoutOverrides);
+      options.model.layoutOverrides = options.editorState.cloneValue(nextLayoutOverrides);
+    },
+    setLayoutOperatorOverridesState: (nextState) => {
+      writeLayoutOperatorOverrideState(
+        options.model,
+        nextState ?? { activeOperatorKey: null, byOperator: {} },
+        options.model.layoutOverrideNamespace ?? null,
+      );
     },
     setRemovedIds: (nextRemovedIds) => {
       options.model.removedIds = new Set(nextRemovedIds);

@@ -1,6 +1,13 @@
 import '../preview-engine/install-builtins.js';
-import { listPreviewEngines } from '../preview-engine/registry.js';
-import type { PreviewControlKind } from '../preview-engine/types.js';
+import {
+  listPreviewEngines,
+  resolvePreviewEngine,
+} from '../preview-engine/registry.js';
+import type {
+  PreviewControlKind,
+  PreviewControlSpec,
+  PreviewEngineManifest,
+} from '../preview-engine/types.js';
 
 export const DEFAULT_FRAME_YAML_ENGINE_LAYOUT_NAMESPACE = 'meta.elk' as const;
 export const FRAME_YAML_ENGINE_LAYOUT_NAMESPACE_PREFIX = 'meta.' as const;
@@ -8,6 +15,13 @@ export const FRAME_YAML_ENGINE_LAYOUT_NAMESPACE_PREFIX = 'meta.' as const;
 export interface FrameYamlPersistedControlSpec {
   readonly key: string;
   readonly kind?: PreviewControlKind;
+}
+
+interface FrameYamlEngineControlManifest {
+  readonly engineId: string;
+  readonly layoutEngineKey: string | null;
+  readonly namespace: string;
+  readonly supported: Map<string, FrameYamlPersistedControlSpec>;
 }
 
 /**
@@ -24,22 +38,111 @@ export function isFrameYamlEngineLayoutNamespace(namespace: string): boolean {
 function supportedFrameYamlControlSpecsByNamespace(): Map<string, Map<string, FrameYamlPersistedControlSpec>> {
   const namespaces = new Map<string, Map<string, FrameYamlPersistedControlSpec>>();
   for (const engine of listPreviewEngines()) {
-    for (const spec of engine.controlSpecs ?? []) {
-      const namespace = spec.persistNamespace?.trim();
-      if (!namespace || !isFrameYamlEngineLayoutNamespace(namespace)) {
-        continue;
-      }
+    for (const [namespace, spec] of supportedFrameYamlControlSpecsByEngine(engine)) {
       const supported = namespaces.get(namespace) ?? new Map<string, FrameYamlPersistedControlSpec>();
-      supported.set(spec.key, { key: spec.key, kind: spec.kind });
+      for (const [key, value] of spec.entries()) {
+        supported.set(key, value);
+      }
       namespaces.set(namespace, supported);
     }
   }
   return namespaces;
 }
 
+function supportedFrameYamlControlSpecsByEngine(
+  engine: Pick<PreviewEngineManifest, 'controlSpecs'> | null | undefined,
+): Map<string, Map<string, FrameYamlPersistedControlSpec>> {
+  const namespaces = new Map<string, Map<string, FrameYamlPersistedControlSpec>>();
+  for (const spec of engine?.controlSpecs ?? []) {
+    const namespace = spec.persistNamespace?.trim();
+    if (!namespace || !isFrameYamlEngineLayoutNamespace(namespace)) {
+      continue;
+    }
+    const supported = namespaces.get(namespace) ?? new Map<string, FrameYamlPersistedControlSpec>();
+    supported.set(spec.key, { key: spec.key, kind: spec.kind });
+    namespaces.set(namespace, supported);
+  }
+  return namespaces;
+}
+
+function frameYamlEngineControlManifestsByNamespace(): Map<string, FrameYamlEngineControlManifest[]> {
+  const manifests = new Map<string, FrameYamlEngineControlManifest[]>();
+  for (const engine of listPreviewEngines()) {
+    for (const [namespace, supported] of supportedFrameYamlControlSpecsByEngine(engine)) {
+      const list = manifests.get(namespace) ?? [];
+      list.push({
+        engineId: engine.id,
+        layoutEngineKey: engine.layoutEngineKey ?? null,
+        namespace,
+        supported,
+      });
+      manifests.set(namespace, list);
+    }
+  }
+  return manifests;
+}
+
 function normalizeNamespace(namespace: string | null | undefined): string | null {
   const trimmed = typeof namespace === 'string' ? namespace.trim() : '';
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function normalizeLayoutEngineKey(layoutEngine: string | null | undefined): string | null {
+  const trimmed = typeof layoutEngine === 'string' ? layoutEngine.trim() : '';
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function filterOverridesToSupportedSpecs(
+  overrides: Record<string, unknown>,
+  supported: Map<string, FrameYamlPersistedControlSpec>,
+): Record<string, unknown> {
+  const filtered: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(overrides)) {
+    if (supported.has(key)) {
+      filtered[key] = value;
+    }
+  }
+  return filtered;
+}
+
+function resolveFrameYamlPersistNamespaceForEngine(
+  engine: Pick<PreviewEngineManifest, 'controlSpecs'> | null | undefined,
+): string | null {
+  for (const spec of engine?.controlSpecs ?? []) {
+    const namespace = spec.persistNamespace?.trim();
+    if (namespace && isFrameYamlEngineLayoutNamespace(namespace)) {
+      return namespace;
+    }
+  }
+  return null;
+}
+
+function resolveFrameYamlEngineControlManifest(
+  layoutEngine: string | null | undefined,
+  shellMode: string | null | undefined = 'grid',
+): FrameYamlEngineControlManifest | null {
+  const normalizedLayoutEngine = normalizeLayoutEngineKey(layoutEngine);
+  if (!normalizedLayoutEngine) {
+    return null;
+  }
+  const engine = resolvePreviewEngine({ layoutEngine: normalizedLayoutEngine, shellMode: shellMode ?? 'grid' });
+  if (!engine) {
+    return null;
+  }
+  const namespace = resolveFrameYamlPersistNamespaceForEngine(engine);
+  if (!namespace) {
+    return null;
+  }
+  const supported = supportedFrameYamlControlSpecsByEngine(engine).get(namespace);
+  if (!supported || supported.size === 0) {
+    return null;
+  }
+  return {
+    engineId: engine.id,
+    layoutEngineKey: engine.layoutEngineKey ?? null,
+    namespace,
+    supported,
+  };
 }
 
 export function getSupportedFrameYamlControlSpecsForNamespace(
@@ -64,13 +167,7 @@ export function filterSupportedFrameYamlEngineLayoutOverrides(
   if (supported.size === 0) {
     return {};
   }
-  const filtered: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(overrides)) {
-    if (supported.has(key)) {
-      filtered[key] = value;
-    }
-  }
-  return filtered;
+  return filterOverridesToSupportedSpecs(overrides, supported);
 }
 
 export function collectUnsupportedFrameYamlEngineLayoutOverrideKeys(
@@ -109,4 +206,66 @@ export function resolveFrameYamlEngineLayoutNamespaceForOverrides(
     return DEFAULT_FRAME_YAML_ENGINE_LAYOUT_NAMESPACE;
   }
   return candidates[0] ?? DEFAULT_FRAME_YAML_ENGINE_LAYOUT_NAMESPACE;
+}
+
+export function readFrameYamlEngineLayoutOverridesForLayoutEngine(
+  diagram: {
+    layoutEngine?: string | null;
+    elkLayout?: Record<string, unknown> | null;
+    engineLayout?: Record<string, Record<string, unknown>> | null;
+  } | null | undefined,
+  shellMode: string | null | undefined = 'grid',
+): { namespace: string; overrides: Record<string, unknown> } | null {
+  const manifest = resolveFrameYamlEngineControlManifest(diagram?.layoutEngine, shellMode);
+  if (!manifest) {
+    return null;
+  }
+  const raw = {
+    ...(diagram?.engineLayout?.[manifest.namespace] ?? {}),
+    ...(manifest.namespace === DEFAULT_FRAME_YAML_ENGINE_LAYOUT_NAMESPACE
+      ? (diagram?.elkLayout ?? {})
+      : {}),
+  };
+  const overrides = filterOverridesToSupportedSpecs(raw, manifest.supported);
+  if (Object.keys(overrides).length === 0) {
+    return null;
+  }
+  return { namespace: manifest.namespace, overrides };
+}
+
+export function listFrameYamlEngineLayoutCandidateIds(
+  namespace: string,
+  overrides: Record<string, unknown>,
+): string[] {
+  const normalized = normalizeNamespace(namespace);
+  if (!normalized) {
+    return [];
+  }
+  const keys = Object.keys(overrides);
+  if (keys.length === 0) {
+    return [];
+  }
+  return (frameYamlEngineControlManifestsByNamespace().get(normalized) ?? [])
+    .filter((manifest) => keys.every((key) => manifest.supported.has(key)))
+    .map((manifest) => manifest.layoutEngineKey ?? manifest.engineId)
+    .sort();
+}
+
+export function resolveFrameYamlEngineLayoutCandidateId(
+  namespace: string,
+  overrides: Record<string, unknown>,
+  preferredLayoutEngine?: string | null,
+): string | null {
+  const matches = listFrameYamlEngineLayoutCandidateIds(namespace, overrides);
+  if (matches.length === 0) {
+    return null;
+  }
+  if (matches.length === 1) {
+    return matches[0] ?? null;
+  }
+  const preferred = normalizeLayoutEngineKey(preferredLayoutEngine);
+  if (preferred && matches.includes(preferred)) {
+    return preferred;
+  }
+  return null;
 }

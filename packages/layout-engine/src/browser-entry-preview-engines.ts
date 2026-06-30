@@ -1,4 +1,3 @@
-import * as previewShellRuntime from './preview-shell/index.js';
 import * as previewEngineRuntime from './preview-engine/index.js';
 import {
   DAGRE_PREVIEW_ENGINE,
@@ -69,8 +68,6 @@ export const previewEngines = Object.freeze({
     ELK_MRTREE_PREVIEW_ENGINE,
     ELK_RADIAL_PREVIEW_ENGINE,
     ELK_RECTPACKING_PREVIEW_ENGINE,
-    createPreviewElkLayoutControlsRuntime: previewEngineRuntime.createPreviewElkLayoutControlsRuntime,
-    createPreviewElkShellControllerRuntime: previewEngineRuntime.createPreviewElkShellControllerRuntime,
     elkForcePreviewControlSpecs,
     elkLayeredPreviewControlSpecs,
     elkStressPreviewControlSpecs,
@@ -84,10 +81,7 @@ export const previewEngines = Object.freeze({
     ELK_RADIAL_PARAM_SPECS,
     ELK_RECTPACKING_PARAM_SPECS,
     elkParamGroups,
-    renderPreviewElkDebugOverlay: previewEngineRuntime.renderPreviewElkDebugOverlay,
     renderPreviewElkRawView: previewEngineRuntime.renderPreviewElkRawView,
-    ensurePreviewEngineShellController: previewShellRuntime.ensurePreviewEngineShellController,
-    ensurePreviewElkPreviewController: previewShellRuntime.ensurePreviewElkPreviewController,
   }),
   dagre: Object.freeze({
     DAGRE_PREVIEW_ENGINE,

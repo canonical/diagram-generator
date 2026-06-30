@@ -112,6 +112,7 @@ describe('inspector autolayout panel renderer', () => {
       heightFixedValue: 64,
       heightFixedStep: 8,
       heightUnit: 'rows',
+      showHeightRowsOption: true,
       heightMinValue: 32,
       heightMaxValue: 128,
       positionXValue: 24,

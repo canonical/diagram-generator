@@ -55,7 +55,7 @@ const SYNTHETIC_DEFINITION: GraphLayoutPreviewEngineDefinition = {
       step: 8,
     }, 'meta.contract-graph'),
   ],
-  sidebarSections: ['elk-layout'],
+  sidebarSections: ['layout-params'],
   compatibility: {
     description: 'Synthetic graph engine used to test the onboarding factory',
     frameDiagramRequirements: {
@@ -91,7 +91,7 @@ describe('defineGraphLayoutPreviewEngine', () => {
       shellMode: 'grid',
       renderFamily: 'frame-contract-graph',
       hostView: {
-        sidebarSections: ['elk-layout'],
+        sidebarSections: ['layout-params'],
       },
       capabilities: {
         layoutControls: true,

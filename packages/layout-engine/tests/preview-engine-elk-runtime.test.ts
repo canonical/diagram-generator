@@ -29,8 +29,8 @@ describe('elk preview runtimes', () => {
     const runtime = createPreviewElkLayoutControlsRuntime({
       document: {
         getElementById(id: string) {
-          if (id === 'elk-layout-section') return section as never;
-          if (id === 'elk-layout-controls') return container as never;
+          if (id === 'layout-params-section') return section as never;
+          if (id === 'layout-params-controls') return container as never;
           return null;
         },
       },
@@ -44,7 +44,8 @@ describe('elk preview runtimes', () => {
               return layoutEngine === 'elk-layered'
                 ? {
                     id: 'synthetic-layered',
-                    hostView: { sidebarSections: ['elk-layout'] },
+                    hostView: { sidebarSections: ['layout-params'] },
+                    capabilities: { rawDebugView: true },
                     controlSpecs: [
                       {
                         key: 'elk.spacing.nodeNode',
@@ -59,11 +60,12 @@ describe('elk preview runtimes', () => {
                 : null;
             },
             listPreviewEnginesBySidebarSection(sectionName) {
-              if (sectionName !== 'elk-layout') return [];
+              if (sectionName !== 'layout-params') return [];
               return [
                 {
                   id: 'synthetic-layered',
-                  hostView: { sidebarSections: ['elk-layout'] },
+                  hostView: { sidebarSections: ['layout-params'] },
+                  capabilities: { rawDebugView: true },
                   controlSpecs: [
                     {
                       key: 'elk.spacing.nodeNode',
@@ -105,6 +107,8 @@ describe('elk preview runtimes', () => {
 
     expect(section.hidden).toBe(false);
     expect(container.innerHTML).toContain('Node spacing');
+    expect(container.innerHTML).toContain('elk-raw-view-toggle');
+    expect(container.innerHTML).not.toContain('Replaces BF styling');
   });
 
   it('builds controls from the active ELK-family engine', () => {
@@ -127,8 +131,8 @@ describe('elk preview runtimes', () => {
     const runtime = createPreviewElkLayoutControlsRuntime({
       document: {
         getElementById(id: string) {
-          if (id === 'elk-layout-section') return section as never;
-          if (id === 'elk-layout-controls') return container as never;
+          if (id === 'layout-params-section') return section as never;
+          if (id === 'layout-params-controls') return container as never;
           return null;
         },
       },
@@ -142,7 +146,7 @@ describe('elk preview runtimes', () => {
               if (layoutEngine === 'elk-force') {
                 return {
                   id: 'elk-force',
-                  hostView: { sidebarSections: ['elk-layout'] },
+                  hostView: { sidebarSections: ['layout-params'] },
                   controlSpecs: [
                     {
                       key: 'elk.randomSeed',
@@ -157,7 +161,7 @@ describe('elk preview runtimes', () => {
               return null;
             },
             listPreviewEnginesBySidebarSection(sectionName) {
-              if (sectionName !== 'elk-layout') return [];
+              if (sectionName !== 'layout-params') return [];
               return [];
             },
           },
@@ -170,6 +174,413 @@ describe('elk preview runtimes', () => {
     expect(section.hidden).toBe(false);
     expect(container.innerHTML).toContain('Random seed');
     expect(container.innerHTML).not.toContain('Layer gap');
+  });
+
+  it('rebuilds existing controls against the current active ELK-family engine', () => {
+    const section = {
+      hidden: true,
+      querySelector() {
+        return null;
+      },
+    };
+    const forceControl = {
+      id: 'layout-params-elk-randomSeed',
+      value: '12',
+      dataset: { dgEngineLayoutKey: 'elk.randomSeed', dgPersistNamespace: 'meta.elk' },
+      addEventListener: () => {},
+    };
+    const container = {
+      innerHTML: '<input id="layout-params-elk-randomSeed" data-dg-engine-layout-key="elk.randomSeed">',
+      textContent: '',
+      querySelector(selector: string) {
+        return selector === '[data-dg-engine-layout-key], [data-elk-key]' ? forceControl : null;
+      },
+      querySelectorAll() {
+        return [forceControl];
+      },
+    };
+    const runtime = createPreviewElkLayoutControlsRuntime({
+      document: {
+        getElementById(id: string) {
+          if (id === 'layout-params-section') return section as never;
+          if (id === 'layout-params-controls') return container as never;
+          return null;
+        },
+      },
+      previewWindow: {
+        __DG_CONFIG: {},
+      },
+      layoutEngineRoot: {
+        previewEngines: {
+          registry: {
+            resolvePreviewEngine({ layoutEngine }) {
+              if (layoutEngine === 'elk-layered') {
+                return {
+                  id: 'elk-layered',
+                    hostView: { sidebarSections: ['layout-params'] },
+                  controlSpecs: [
+                    {
+                      key: 'elk.layered.layering.strategy',
+                      label: 'Layering strategy',
+                      group: 'Layering',
+                      kind: 'enum',
+                      defaultValue: 'NETWORK_SIMPLEX',
+                      enumValues: [{ value: 'NETWORK_SIMPLEX', label: 'Network simplex' }],
+                    },
+                  ],
+                } as never;
+              }
+              return null;
+            },
+            listPreviewEnginesBySidebarSection() {
+              return [];
+            },
+          },
+        },
+      },
+      getFrameTreeJson: () => ({
+        layoutEngine: 'elk-layered',
+        elkLayout: {},
+      }),
+    });
+
+    runtime.buildPanel();
+
+    expect(section.hidden).toBe(false);
+    expect(container.innerHTML).toContain('Layering strategy');
+    expect(container.innerHTML).toContain('layout-params-elk-layered-layering-strategy');
+    expect(container.innerHTML).not.toContain('elk.randomSeed');
+  });
+
+  it('filters shared ELK grouping metadata to the active algorithm specs', () => {
+    const section = {
+      hidden: true,
+      querySelector() {
+        return null;
+      },
+    };
+    const container = {
+      innerHTML: '%ELK_LAYOUT_CONTROLS_HTML%',
+      textContent: '',
+      querySelector() {
+        return null;
+      },
+      querySelectorAll() {
+        return [];
+      },
+    };
+    const runtime = createPreviewElkLayoutControlsRuntime({
+      document: {
+        getElementById(id: string) {
+          if (id === 'layout-params-section') return section as never;
+          if (id === 'layout-params-controls') return container as never;
+          return null;
+        },
+      },
+      previewWindow: {
+        __DG_CONFIG: {},
+      },
+      layoutEngineRoot: {
+        previewEngines: {
+          registry: {
+            resolvePreviewEngine({ layoutEngine }) {
+              if (layoutEngine === 'elk-radial') {
+                return {
+                  id: 'elk-radial',
+                  hostView: { sidebarSections: ['layout-params'] },
+                  controlSpecs: [
+                    {
+                      key: 'elk.spacing.nodeNode',
+                      label: 'Node spacing',
+                      group: 'Spacing',
+                      kind: 'number',
+                      defaultValue: '24',
+                    },
+                  ],
+                } as never;
+              }
+              return null;
+            },
+            listPreviewEnginesBySidebarSection() {
+              return [];
+            },
+          },
+          elk: {
+            elkParamGroups() {
+              return [
+                {
+                  group: 'Spacing',
+                  specs: [
+                    {
+                      key: 'elk.spacing.nodeNode',
+                      label: 'Node spacing',
+                      group: 'Spacing',
+                      kind: 'number',
+                      defaultValue: '24',
+                    },
+                  ],
+                },
+                {
+                  group: 'Layering',
+                  specs: [
+                    {
+                      key: 'elk.layered.layering.strategy',
+                      label: 'Layering strategy',
+                      group: 'Layering',
+                      kind: 'enum',
+                      defaultValue: 'NETWORK_SIMPLEX',
+                      enumValues: [{ value: 'NETWORK_SIMPLEX', label: 'Network simplex' }],
+                    },
+                  ],
+                },
+              ];
+            },
+          },
+        },
+      },
+    });
+
+    runtime.buildPanel({ layoutEngine: 'elk-radial', elkLayout: {} });
+
+    expect(section.hidden).toBe(false);
+    expect(container.innerHTML).toContain('Node spacing');
+    expect(container.innerHTML).not.toContain('Layering strategy');
+    expect(container.innerHTML).not.toContain('elk-elk-layered-layering-strategy');
+  });
+
+  it('filters dependency-gated controls from registry metadata without engine-specific UI branching', () => {
+    const section = {
+      hidden: true,
+      querySelector() {
+        return null;
+      },
+    };
+    const container = {
+      innerHTML: '%ELK_LAYOUT_CONTROLS_HTML%',
+      textContent: '',
+      querySelector() {
+        return null;
+      },
+      querySelectorAll() {
+        return [];
+      },
+    };
+    let sessionOverrides: Record<string, unknown> = {};
+    const runtime = createPreviewElkLayoutControlsRuntime({
+      document: {
+        getElementById(id: string) {
+          if (id === 'layout-params-section') return section as never;
+          if (id === 'layout-params-controls') return container as never;
+          return null;
+        },
+      },
+      previewWindow: {
+        __DG_CONFIG: {},
+      },
+      layoutEngineRoot: {
+        previewEngines: {
+          registry: {
+            resolvePreviewEngine({ layoutEngine }) {
+              if (layoutEngine === 'elk-force') {
+                return {
+                  id: 'elk-force',
+                  hostView: { sidebarSections: ['layout-params'] },
+                  controlSpecs: [
+                    {
+                      key: 'elk.force.model',
+                      label: 'Force model',
+                      group: 'Graph',
+                      kind: 'enum',
+                      defaultValue: 'FRUCHTERMAN_REINGOLD',
+                      enumValues: [
+                        { value: 'FRUCHTERMAN_REINGOLD', label: 'Fruchterman-Reingold' },
+                        { value: 'EADES', label: 'Eades' },
+                      ],
+                    },
+                    {
+                      key: 'elk.force.temperature',
+                      label: 'FR temperature',
+                      group: 'Graph',
+                      kind: 'number',
+                      defaultValue: '0.001',
+                      visibleWhen: [{ key: 'elk.force.model', equals: 'FRUCHTERMAN_REINGOLD' }],
+                    },
+                    {
+                      key: 'elk.force.repulsion',
+                      label: 'Eades repulsion',
+                      group: 'Graph',
+                      kind: 'number',
+                      defaultValue: '5',
+                      visibleWhen: [{ key: 'elk.force.model', equals: 'EADES' }],
+                    },
+                  ],
+                } as never;
+              }
+              return null;
+            },
+            listPreviewEnginesBySidebarSection() {
+              return [];
+            },
+          },
+        },
+      },
+      getFrameTreeJson: () => ({
+        layoutEngine: 'elk-force',
+        engineLayout: {
+          'meta.elk': {},
+        },
+      }),
+    });
+
+    runtime.init({
+      getOverrides: () => sessionOverrides,
+      setOverrides: (next) => {
+        sessionOverrides = next;
+      },
+    });
+
+    runtime.buildPanel({ layoutEngine: 'elk-force', engineLayout: { 'meta.elk': {} } });
+    expect(container.innerHTML).toContain('FR temperature');
+    expect(container.innerHTML).not.toContain('Eades repulsion');
+
+    sessionOverrides = { 'elk.force.model': 'EADES' };
+    runtime.buildPanel({ layoutEngine: 'elk-force', engineLayout: { 'meta.elk': {} } });
+    expect(container.innerHTML).not.toContain('FR temperature');
+    expect(container.innerHTML).toContain('Eades repulsion');
+  });
+
+  it('prunes hidden dependency-gated overrides from session state when the driver control changes', () => {
+    const section = {
+      hidden: true,
+      querySelector() {
+        return null;
+      },
+    };
+    const listeners = new Map<string, () => void>();
+    const controls = new Map<string, {
+      id: string;
+      value: string;
+      checked?: boolean;
+      dataset: Record<string, string>;
+      addEventListener: (type: string, listener: () => void) => void;
+    }>();
+    const container = {
+      innerHTML: '%ELK_LAYOUT_CONTROLS_HTML%',
+      textContent: '',
+      querySelector(selector: string) {
+        return selector === '[data-dg-engine-layout-key], [data-elk-key]'
+          ? controls.values().next().value ?? null
+          : null;
+      },
+      querySelectorAll() {
+        return [...controls.values()];
+      },
+    };
+    let sessionOverrides: Record<string, unknown> = {
+      'elk.force.model': 'FRUCHTERMAN_REINGOLD',
+      'elk.force.temperature': 0.02,
+    };
+    const runtime = createPreviewElkLayoutControlsRuntime({
+      document: {
+        getElementById(id: string) {
+          if (id === 'layout-params-section') return section as never;
+          if (id === 'layout-params-controls') return container as never;
+          return (controls.get(id) as never) ?? null;
+        },
+      },
+      previewWindow: {
+        __DG_CONFIG: {},
+      },
+      layoutEngineRoot: {
+        previewEngines: {
+          registry: {
+            resolvePreviewEngine({ layoutEngine }) {
+              if (layoutEngine === 'elk-force') {
+                return {
+                  id: 'elk-force',
+                  hostView: { sidebarSections: ['layout-params'] },
+                  controlSpecs: [
+                    {
+                      key: 'elk.force.model',
+                      label: 'Force model',
+                      group: 'Graph',
+                      kind: 'enum',
+                      defaultValue: 'FRUCHTERMAN_REINGOLD',
+                      enumValues: [
+                        { value: 'FRUCHTERMAN_REINGOLD', label: 'Fruchterman-Reingold' },
+                        { value: 'EADES', label: 'Eades' },
+                      ],
+                    },
+                    {
+                      key: 'elk.force.temperature',
+                      label: 'FR temperature',
+                      group: 'Graph',
+                      kind: 'number',
+                      defaultValue: '0.001',
+                      visibleWhen: [{ key: 'elk.force.model', equals: 'FRUCHTERMAN_REINGOLD' }],
+                    },
+                    {
+                      key: 'elk.force.repulsion',
+                      label: 'Eades repulsion',
+                      group: 'Graph',
+                      kind: 'number',
+                      defaultValue: '5',
+                      visibleWhen: [{ key: 'elk.force.model', equals: 'EADES' }],
+                    },
+                  ],
+                } as never;
+              }
+              return null;
+            },
+            listPreviewEnginesBySidebarSection() {
+              return [];
+            },
+          },
+        },
+      },
+      getFrameTreeJson: () => ({
+        layoutEngine: 'elk-force',
+        engineLayout: {
+          'meta.elk': {},
+        },
+      }),
+    });
+
+    runtime.init({
+      getOverrides: () => sessionOverrides,
+      setOverrides: (next) => {
+        sessionOverrides = next;
+      },
+    });
+
+    controls.set('layout-params-elk-force-model', {
+      id: 'layout-params-elk-force-model',
+      value: 'FRUCHTERMAN_REINGOLD',
+      dataset: { dgEngineLayoutKey: 'elk.force.model', dgPersistNamespace: 'meta.elk' },
+      addEventListener(type, listener) {
+        listeners.set(`elk.force.model:${type}`, listener);
+      },
+    });
+    controls.set('layout-params-elk-force-temperature', {
+      id: 'layout-params-elk-force-temperature',
+      value: '0.02',
+      dataset: { dgEngineLayoutKey: 'elk.force.temperature', dgPersistNamespace: 'meta.elk' },
+      addEventListener(type, listener) {
+        listeners.set(`elk.force.temperature:${type}`, listener);
+      },
+    });
+
+    runtime.buildPanel({ layoutEngine: 'elk-force', engineLayout: { 'meta.elk': {} } });
+
+    controls.get('layout-params-elk-force-model')!.value = 'EADES';
+    listeners.get('elk.force.model:change')?.();
+
+    expect(sessionOverrides).toEqual({
+      'elk.force.model': 'EADES',
+    });
+    expect(runtime.collectOverrides()).toEqual({
+      'elk.force.model': 'EADES',
+    });
   });
 
   it('builds generic graph controls for Dagre from the active manifest namespace', () => {
@@ -199,8 +610,8 @@ describe('elk preview runtimes', () => {
     const runtime = createPreviewEngineLayoutControlsRuntime({
       document: {
         getElementById(id: string) {
-          if (id === 'graph-layout-section') return section as never;
-          if (id === 'graph-layout-controls') return container as never;
+          if (id === 'layout-params-section') return section as never;
+          if (id === 'layout-params-controls') return container as never;
           return (controls.get(id) as never) ?? null;
         },
       },
@@ -214,7 +625,7 @@ describe('elk preview runtimes', () => {
               if (layoutEngine === 'dagre') {
                 return {
                   id: 'dagre',
-                  hostView: { sidebarSections: ['graph-layout'] },
+                  hostView: { sidebarSections: ['layout-params'] },
                   controlSpecs: [
                     {
                       key: 'dagre.rankdir',
@@ -242,7 +653,7 @@ describe('elk preview runtimes', () => {
               return null;
             },
             listPreviewEnginesBySidebarSection(sectionName) {
-              if (sectionName !== 'graph-layout') return [];
+              if (sectionName !== 'layout-params') return [];
               return [];
             },
           },
@@ -256,12 +667,12 @@ describe('elk preview runtimes', () => {
           },
         },
       }),
-      sidebarSectionId: 'graph-layout',
-      sectionId: 'graph-layout-section',
-      containerId: 'graph-layout-controls',
-      controlIdPrefix: 'graph-layout',
+      sidebarSectionId: 'layout-params',
+      sectionId: 'layout-params-section',
+      containerId: 'layout-params-controls',
+      controlIdPrefix: 'layout-params',
       defaultPersistNamespace: 'meta.dagre',
-      enableElkViewToggles: false,
+      enableRawViewToggles: false,
     });
 
     runtime.buildPanel({
@@ -272,14 +683,14 @@ describe('elk preview runtimes', () => {
         },
       },
     });
-    controls.set('graph-layout-dagre-rankdir', {
-      id: 'graph-layout-dagre-rankdir',
+    controls.set('layout-params-dagre-rankdir', {
+      id: 'layout-params-dagre-rankdir',
       value: 'LR',
       dataset: { dgEngineLayoutKey: 'dagre.rankdir', dgPersistNamespace: 'meta.dagre' },
       addEventListener: () => {},
     });
-    controls.set('graph-layout-dagre-ranksep', {
-      id: 'graph-layout-dagre-ranksep',
+    controls.set('layout-params-dagre-ranksep', {
+      id: 'layout-params-dagre-ranksep',
       value: '128',
       dataset: { dgEngineLayoutKey: 'dagre.ranksep', dgPersistNamespace: 'meta.dagre' },
       addEventListener: () => {},
@@ -297,7 +708,7 @@ describe('elk preview runtimes', () => {
     });
   });
 
-  it('hides and disables stale ELK controls when the active engine is not ELK', () => {
+  it('hides and clears stale ELK controls when the active engine is not ELK', () => {
     const controlAttrs = new Map<string, string>();
     const staleControl = {
       id: 'elk-spacing-nodeNode',
@@ -320,6 +731,7 @@ describe('elk preview runtimes', () => {
     const section = {
       hidden: false,
       inert: false,
+      style: { display: '' },
       setAttribute(name: string, value: string) {
         sectionAttrs.set(name, value);
       },
@@ -346,8 +758,8 @@ describe('elk preview runtimes', () => {
     const runtime = createPreviewElkLayoutControlsRuntime({
       document: {
         getElementById(id: string) {
-          if (id === 'elk-layout-section') return section as never;
-          if (id === 'elk-layout-controls') return container as never;
+          if (id === 'layout-params-section') return section as never;
+          if (id === 'layout-params-controls') return container as never;
           if (id === 'elk-spacing-nodeNode') return staleControl as never;
           return null;
         },
@@ -360,7 +772,7 @@ describe('elk preview runtimes', () => {
           registry: {
             resolvePreviewEngine({ layoutEngine }) {
               return layoutEngine === 'elk-layered'
-                ? { id: 'synthetic-layered', hostView: { sidebarSections: ['elk-layout'] } } as never
+                ? { id: 'synthetic-layered', hostView: { sidebarSections: ['layout-params'] } } as never
                 : { id: 'v3', hostView: { sidebarSections: [] } } as never;
             },
             listPreviewEnginesBySidebarSection() {
@@ -395,9 +807,9 @@ describe('elk preview runtimes', () => {
 
     expect(section.hidden).toBe(true);
     expect(section.inert).toBe(true);
+    expect(section.style.display).toBe('none');
     expect(sectionAttrs.get('aria-hidden')).toBe('true');
-    expect(staleControl.disabled).toBe(true);
-    expect(controlAttrs.get('tabindex')).toBe('-1');
+    expect(container.innerHTML).toBe('');
     expect(runtime.collectOverrides()).toEqual({});
   });
 
@@ -424,7 +836,7 @@ describe('elk preview runtimes', () => {
           registry: {
             resolvePreviewEngine({ layoutEngine }) {
               return layoutEngine === 'elk-layered'
-                ? { id: 'synthetic-layered', hostView: { sidebarSections: ['elk-layout'] } } as never
+                ? { id: 'synthetic-layered', hostView: { sidebarSections: ['layout-params'] } } as never
                 : null;
             },
           },
@@ -448,7 +860,6 @@ describe('elk preview runtimes', () => {
       engine_layout_overrides: {
         'meta.elk': { 'elk.spacing.nodeNode': '32' },
       },
-      elk_layout_overrides: { 'elk.spacing.nodeNode': '32' },
     });
 
     await runtime.requestRelayout();
@@ -483,7 +894,7 @@ describe('elk preview runtimes', () => {
               return layoutEngine === 'dagre'
                 ? {
                     id: 'dagre',
-                    hostView: { sidebarSections: ['graph-layout'] },
+                    hostView: { sidebarSections: ['layout-params'] },
                     controlSpecs: [
                       {
                         key: 'dagre.rankdir',
@@ -501,7 +912,7 @@ describe('elk preview runtimes', () => {
         },
       },
       getFrameTreeJson: () => ({ layoutEngine: 'dagre' }),
-      sidebarSectionId: 'graph-layout',
+      sidebarSectionId: 'layout-params',
       defaultPersistNamespace: 'meta.dagre',
     });
 
@@ -517,6 +928,83 @@ describe('elk preview runtimes', () => {
       ok: true,
       engine_layout_overrides: {
         'meta.dagre': { 'dagre.rankdir': 'LR' },
+      },
+    });
+  });
+
+  it('does not re-merge stale flat override keys into persisted engine namespaces', () => {
+    const previewEngineLayoutControls = {
+      init() {},
+      refresh() {},
+      collectOverrides: () => ({ 'dagre.rankdir': 'LR' }),
+      collectNamespacedOverrides: () => ({
+        'meta.dagre': { 'dagre.rankdir': 'LR' },
+      }),
+    };
+    const runtime = createPreviewEngineShellControllerRuntime({
+      document: {
+        getElementById() {
+          return { hasAttribute: () => true };
+        },
+      },
+      previewWindow: {
+        __DG_CONFIG: {},
+        PreviewEngineLayoutControls: previewEngineLayoutControls,
+      },
+      layoutEngineRoot: {
+        previewEngines: {
+          registry: {
+            resolvePreviewEngine({ layoutEngine }) {
+              return layoutEngine === 'dagre'
+                ? {
+                    id: 'dagre',
+                    hostView: { sidebarSections: ['layout-params'] },
+                    controlSpecs: [
+                      {
+                        key: 'dagre.rankdir',
+                        label: 'Direction',
+                        group: 'Graph',
+                        kind: 'enum',
+                        defaultValue: 'TB',
+                        persistNamespace: 'meta.dagre',
+                      },
+                    ],
+                  } as never
+                : null;
+            },
+          },
+        },
+      },
+      getFrameTreeJson: () => ({ layoutEngine: 'dagre' }),
+      sidebarSectionId: 'layout-params',
+      defaultPersistNamespace: 'meta.dagre',
+    });
+
+    runtime.init({
+      getLayoutOverrides: () => ({ stale: true }),
+      setLayoutOverrides: () => {},
+      getRootId: () => 'root',
+      requestLayoutRelayout: () => undefined,
+    });
+
+    const model = {
+      layoutOverrides: { stale: true },
+      layoutOverrideNamespace: 'meta.dagre',
+    };
+    expect(runtime.collectPersistedPayload({ ok: true }, model)).toEqual({
+      ok: true,
+      engine_layout_overrides: {
+        'meta.dagre': { 'dagre.rankdir': 'LR' },
+      },
+    });
+    expect(model).toEqual({
+      layoutOverrides: { 'dagre.rankdir': 'LR' },
+      layoutOverrideNamespace: 'meta.dagre',
+      layoutOperatorOverrides: {
+        activeOperatorKey: 'dagre',
+        byOperator: {
+          dagre: { 'dagre.rankdir': 'LR' },
+        },
       },
     });
   });

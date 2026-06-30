@@ -192,6 +192,8 @@ export function formatPreviewRelayoutStatusMessage(reason: string): string {
       return 'Local relayout intentionally disabled';
     case 'local-failure':
       return 'Local relayout failed';
+    case 'engine-failure':
+      return 'Engine relayout failed';
     default:
       return 'Local relayout unavailable';
   }
@@ -799,11 +801,11 @@ export async function runPreviewRelayout<TGridOverrides, TResult extends Preview
       options.logError?.(
         `layout relayout: engine-backed layout threw (${error instanceof Error ? error.message : String(error)})`,
       );
-      return options.failRelayout('elk-failure', options.triggerCid);
+      return options.failRelayout('engine-failure', options.triggerCid);
     }
     if (!elkResult) {
       options.logError?.('layout relayout: engine-backed layout failed');
-      return options.failRelayout('elk-failure', options.triggerCid);
+      return options.failRelayout('engine-failure', options.triggerCid);
     }
     return options.finishRelayout(options.triggerCid, elkResult, 'elk');
   }

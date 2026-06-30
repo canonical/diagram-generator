@@ -1,111 +1,96 @@
 {
-  "startedAt": "2026-06-28T15:21:21.779Z",
-  "baseUrl": "http://127.0.0.1:8100",
+  "ok": true,
+  "startedAt": "2026-06-29T09:13:55.092Z",
+  "baseUrl": "http://127.0.0.1:8120",
+  "notes": [
+    "Real gestures only: page.click engine tab and mouse/select interaction for box type.",
+    "No layoutPreviewFrameDiagramForEngine probe is used as proof."
+  ],
   "checks": [
     {
-      "slug": "mongo-octavia-ha",
-      "engine": "elk-layered",
-      "availabilityZones": {
-        "x": 742,
-        "y": 169,
-        "width": 102,
-        "height": 196,
-        "right": 844,
-        "bottom": 365
-      },
-      "zones": [
-        {
-          "zoneId": "az1",
-          "zone": {
-            "x": 742,
-            "y": 232,
-            "width": 102,
-            "height": 70,
-            "right": 844,
-            "bottom": 302
+      "name": "mongo v3 tab keeps AZ labels beside VM bands",
+      "ok": true,
+      "details": {
+        "slug": "mongo-octavia-ha",
+        "initialEngine": "elk-layered",
+        "renderedEngine": "v3",
+        "changedNodeCount": 25,
+        "changedNodeSample": [
+          "page",
+          "mongo_clients",
+          "octavia_cluster",
+          "octavia_lb_a",
+          "octavia_lb_b"
+        ],
+        "zones": [
+          {
+            "zone": "az1",
+            "label": {
+              "id": "az1_label",
+              "x": 322.75,
+              "y": 344,
+              "w": 41.25,
+              "h": 40
+            },
+            "vm": {
+              "id": "vm_az1",
+              "x": 32,
+              "y": 344,
+              "w": 280,
+              "h": 152
+            }
           },
-          "vm": {
-            "x": 744,
-            "y": 232,
-            "width": 100,
-            "height": 55,
-            "right": 844,
-            "bottom": 287
+          {
+            "zone": "az2",
+            "label": {
+              "id": "az2_label",
+              "x": 629.42,
+              "y": 344,
+              "w": 41.25,
+              "h": 40
+            },
+            "vm": {
+              "id": "vm_az2",
+              "x": 338.67,
+              "y": 344,
+              "w": 280,
+              "h": 152
+            }
           },
-          "label": {
-            "x": 742,
-            "y": 288,
-            "width": 102,
-            "height": 14,
-            "right": 844,
-            "bottom": 302
+          {
+            "zone": "az3",
+            "label": {
+              "id": "az3_label",
+              "x": 936.08,
+              "y": 344,
+              "w": 41.25,
+              "h": 40
+            },
+            "vm": {
+              "id": "vm_az3",
+              "x": 645.33,
+              "y": 344,
+              "w": 280,
+              "h": 152
+            }
           }
-        },
-        {
-          "zoneId": "az2",
-          "zone": {
-            "x": 742,
-            "y": 295,
-            "width": 102,
-            "height": 70,
-            "right": 844,
-            "bottom": 365
-          },
-          "vm": {
-            "x": 744,
-            "y": 295,
-            "width": 100,
-            "height": 55,
-            "right": 844,
-            "bottom": 350
-          },
-          "label": {
-            "x": 742,
-            "y": 351,
-            "width": 102,
-            "height": 14,
-            "right": 844,
-            "bottom": 365
-          }
-        },
-        {
-          "zoneId": "az3",
-          "zone": {
-            "x": 742,
-            "y": 169,
-            "width": 102,
-            "height": 70,
-            "right": 844,
-            "bottom": 239
-          },
-          "vm": {
-            "x": 744,
-            "y": 169,
-            "width": 100,
-            "height": 55,
-            "right": 844,
-            "bottom": 224
-          },
-          "label": {
-            "x": 742,
-            "y": 225,
-            "width": 102,
-            "height": 14,
-            "right": 844,
-            "bottom": 239
-          }
-        }
-      ]
+        ]
+      }
     },
     {
-      "slug": "tiered-network-architecture.author-v1",
-      "engine": "v3",
-      "tabIds": [
-        "v3",
-        "dagre"
-      ]
+      "name": "box-type change stays appearance-only",
+      "ok": true,
+      "details": {
+        "slug": "support-engineering-flow",
+        "engine": "elk-force",
+        "selectedNode": "step_problem",
+        "changedStyle": {
+          "from": "section",
+          "to": "default"
+        },
+        "nodeCount": 6
+      }
     }
   ],
-  "ok": true,
-  "finishedAt": "2026-06-28T15:21:22.352Z"
+  "finishedAt": "2026-06-29T09:13:59.335Z"
 }

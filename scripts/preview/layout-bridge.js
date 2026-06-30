@@ -100,8 +100,4 @@ function refreshElkViewMode() {
   return _previewLayoutBridgeInstallRuntime.refreshElkViewMode();
 }
 
-function refreshElkDebugOverlay() {
-  return _previewLayoutBridgeInstallRuntime.refreshElkDebugOverlay();
-}
-
 _previewLayoutBridgeInstallRuntime.installCompatWindowBindings();

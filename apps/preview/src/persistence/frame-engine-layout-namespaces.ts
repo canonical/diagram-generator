@@ -2,6 +2,8 @@ import {
   DEFAULT_FRAME_YAML_ENGINE_LAYOUT_NAMESPACE,
   getSupportedFrameYamlControlSpecsForNamespace,
   isSupportedFrameYamlEngineLayoutNamespace,
+  listFrameYamlEngineLayoutCandidateIds,
+  resolveFrameYamlEngineLayoutCandidateId,
   type FrameYamlPersistedControlSpec,
 } from "@diagram-generator/layout-engine";
 
@@ -41,6 +43,7 @@ export function assertSupportedFrameYamlEngineLayoutOverrides(
   overrides: Record<string, unknown>,
   source: string,
   label = namespace,
+  preferredLayoutEngine?: string | null,
 ): void {
   const supportedKeys = supportedKeysForNamespace(namespace);
   if (supportedKeys.size === 0) {
@@ -51,6 +54,24 @@ export function assertSupportedFrameYamlEngineLayoutOverrides(
     .sort();
   if (unsupported.length > 0) {
     throw new Error(`${source} contains unsupported ${label} keys: ${unsupported.join(", ")}`);
+  }
+  const keys = Object.keys(overrides);
+  if (keys.length === 0) {
+    return;
+  }
+  const candidateEngines = listFrameYamlEngineLayoutCandidateIds(namespace, overrides);
+  if (candidateEngines.length === 0) {
+    throw new Error(
+      `${source} mixes ${label} keys that do not belong to any single supported engine in '${namespace}'`,
+    );
+  }
+  if (
+    candidateEngines.length > 1
+    && !resolveFrameYamlEngineLayoutCandidateId(namespace, overrides, preferredLayoutEngine)
+  ) {
+    throw new Error(
+      `${source} is ambiguous across supported engines in '${namespace}'; set meta.layout_engine before saving`,
+    );
   }
 }
 
@@ -122,9 +143,12 @@ function applyEngineLayoutNamespaceOverrides(
   label = namespace,
 ): void {
   if (Object.keys(overrides).length === 0) return;
-  assertSupportedFrameYamlEngineLayoutOverrides(namespace, overrides, source, label);
   const meta = isRecord(document.meta) ? document.meta : {};
   document.meta = meta;
+  const preferredLayoutEngine = typeof meta.layout_engine === "string"
+    ? meta.layout_engine.trim()
+    : null;
+  assertSupportedFrameYamlEngineLayoutOverrides(namespace, overrides, source, label, preferredLayoutEngine);
   const metaKey = metaKeyFromNamespace(namespace);
   const supportedSpecs = supportedSpecsForNamespace(namespace);
   const next: Record<string, unknown> = isRecord(meta[metaKey])

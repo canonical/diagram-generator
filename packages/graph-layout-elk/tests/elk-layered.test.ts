@@ -462,12 +462,18 @@ describe('ELK layered (Sugiyama)', () => {
   it('exposes only batch-safe layering controls in the preview registry', () => {
     const layering = ELK_LAYERED_PARAM_SPECS.find((spec) => spec.key === 'elk.layered.layering.strategy');
     const crossing = ELK_LAYERED_PARAM_SPECS.find((spec) => spec.key === 'elk.layered.crossingMinimization.strategy');
+    const nodePlacement = ELK_LAYERED_PARAM_SPECS.find((spec) => spec.key === 'elk.layered.nodePlacement.strategy');
     const portConstraints = ELK_LAYERED_PARAM_SPECS.find((spec) => spec.key === 'elk.portConstraints');
     const edgeRouting = ELK_LAYERED_PARAM_SPECS.find((spec) => spec.key === 'elk.edgeRouting');
     const padding = ELK_LAYERED_PARAM_SPECS.find((spec) => spec.key === 'elk.padding');
 
     expect(layering?.enumValues?.map((value) => value.value)).toEqual(['NETWORK_SIMPLEX', 'LONGEST_PATH']);
     expect(crossing?.enumValues?.map((value) => value.value)).toEqual(['LAYER_SWEEP']);
+    expect(nodePlacement?.enumValues?.map((value) => value.value)).toEqual([
+      'BRANDES_KOEPF',
+      'LINEAR_SEGMENTS',
+      'SIMPLE',
+    ]);
     expect(portConstraints).toBeUndefined();
     expect(edgeRouting).toBeUndefined();
     expect(padding).toBeUndefined();

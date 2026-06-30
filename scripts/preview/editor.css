@@ -10,6 +10,10 @@ body.dg-preview {
        overflow: hidden;
 }
 
+[hidden] {
+       display: none !important;
+}
+
 body.dg-preview {
        margin: 0;
        --dg-selection-accent: #F6B73C;

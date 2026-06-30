@@ -16,7 +16,11 @@ vi.mock('../src/preview-shell/app-arrow-render.js', async () => {
   };
 });
 
-import { renderFreshPreviewSvg } from '../src/preview-shell/app-fresh-render.js';
+import {
+  filterPreviewEngineLayoutOptionOverrides,
+  renderFreshPreviewSvg,
+} from '../src/preview-shell/app-fresh-render.js';
+import { commitPreviewRenderIntentToWindow } from '../src/preview-shell/preview-render-intent.js';
 import { loadFrameYaml } from '../src/frame-yaml-loader.js';
 import { serializeFrameDiagram } from '../src/frame-serialize.js';
 import { MockTextAdapter } from '../src/text-measure.js';
@@ -157,6 +161,86 @@ describe('renderFreshPreviewSvg', () => {
     routePreviewArrowsMock.mockClear();
   });
 
+  it('filters persisted layout overrides to the active engine control manifest', () => {
+    const filtered = filterPreviewEngineLayoutOptionOverrides(
+      {
+        'elk.algorithm': 'layered',
+        'elk.direction': 'RIGHT',
+        'elk.randomSeed': '17',
+        'elk.separateConnectedComponents': 'true',
+      },
+      {
+        controlSpecs: [
+          {
+            key: 'elk.algorithm',
+            label: 'Algorithm',
+            group: 'ELK',
+            kind: 'text',
+            defaultValue: 'layered',
+          },
+          {
+            key: 'elk.direction',
+            label: 'Direction',
+            group: 'ELK',
+            kind: 'text',
+            defaultValue: 'RIGHT',
+          },
+        ],
+      },
+    );
+
+    expect(filtered).toEqual({
+      'elk.algorithm': 'layered',
+      'elk.direction': 'RIGHT',
+    });
+  });
+
+  it('drops hidden dependency-gated overrides from the active engine control manifest', () => {
+    const filtered = filterPreviewEngineLayoutOptionOverrides(
+      {
+        'elk.force.model': 'EADES',
+        'elk.force.temperature': '0.02',
+        'elk.force.repulsion': '7',
+      },
+      {
+        controlSpecs: [
+          {
+            key: 'elk.force.model',
+            label: 'Force model',
+            group: 'Graph',
+            kind: 'enum',
+            defaultValue: 'FRUCHTERMAN_REINGOLD',
+            enumValues: [
+              { value: 'FRUCHTERMAN_REINGOLD', label: 'Fruchterman-Reingold' },
+              { value: 'EADES', label: 'Eades' },
+            ],
+          },
+          {
+            key: 'elk.force.temperature',
+            label: 'FR temperature',
+            group: 'Graph',
+            kind: 'number',
+            defaultValue: '0.001',
+            visibleWhen: [{ key: 'elk.force.model', equals: 'FRUCHTERMAN_REINGOLD' }],
+          },
+          {
+            key: 'elk.force.repulsion',
+            label: 'Eades repulsion',
+            group: 'Graph',
+            kind: 'number',
+            defaultValue: '5',
+            visibleWhen: [{ key: 'elk.force.model', equals: 'EADES' }],
+          },
+        ],
+      },
+    );
+
+    expect(filtered).toEqual({
+      'elk.force.model': 'EADES',
+      'elk.force.repulsion': '7',
+    });
+  });
+
   it('clears stale authored arrow geometry before reroute-bearing fresh renders', async () => {
     const ownerDocument = new FakeDocument();
     const model = {};
@@ -242,6 +326,42 @@ describe('renderFreshPreviewSvg', () => {
       syncArrowsInModel: vi.fn(),
     });
 
+    expect(result.svg.getAttribute('data-layout-engine')).toBe('v3');
+  });
+
+  it('reads a committed render intent over the authored frame-tree engine', async () => {
+    const ownerDocument = new FakeDocument();
+    const diagram = loadFrameYaml(join(FRAMES_DIR, 'mongo-octavia-ha.yaml'));
+    expect(diagram.layoutEngine).toBe('elk-layered');
+    const frameTreeJson = serializeFrameDiagram(diagram);
+    const previewWindow = {
+      __DG_CONFIG: {
+        active_engine_id: 'elk-layered',
+        layout_engine: 'elk-layered',
+      },
+    };
+    commitPreviewRenderIntentToWindow(previewWindow, {
+      activeEngineId: 'v3',
+      frameTreeJson,
+    });
+
+    const result = await renderFreshPreviewSvg({
+      ownerDocument: ownerDocument as unknown as Document,
+      frameTreeJson,
+      renderIntent: previewWindow.__DG_previewRenderIntent,
+      overrides: {},
+      gridOverrides: {},
+      model: {},
+      textAdapter: new MockTextAdapter(),
+      applySessionRemovalsToDiagramJson: null,
+      applyOverridesToFrameTree: vi.fn(),
+      collectRelayoutFrameOverrides: (overrides) => overrides,
+      resolveEngineLayoutOptionOverrides: () => ({}),
+      updateModelFromLayout: vi.fn(),
+      syncArrowsInModel: vi.fn(),
+    });
+
+    expect(previewWindow.__DG_previewRenderIntent?.engineId).toBe('v3');
     expect(result.svg.getAttribute('data-layout-engine')).toBe('v3');
   });
 

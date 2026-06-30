@@ -589,6 +589,62 @@ describe('preview save client runtime', () => {
     expect(fetchFn).not.toHaveBeenCalled();
   });
 
+  it('blocks saves when shared meta.elk overrides mix keys from incompatible engines', async () => {
+    const alertFn = vi.fn();
+    const fetchFn = vi.fn();
+    const runtime = createPreviewSaveClientRuntime({
+      document: {
+        body: { appendChild() {} },
+        activeElement: null,
+        createElement() {
+          return { click() {}, remove() {} };
+        },
+        getElementById() {
+          return null;
+        },
+        querySelector() {
+          return null;
+        },
+      },
+      previewWindow: {},
+      fetchFn,
+      alertFn,
+    });
+
+    const model = {
+      overrides: {},
+      gridOverrides: {},
+      layoutOverrides: {
+        'elk.layered.layering.strategy': 'LONGEST_PATH',
+        'elk.force.iterations': 400,
+      },
+      layoutOverrideNamespace: 'meta.elk',
+      removedIds: new Set<string>(),
+      get() {
+        return null;
+      },
+    };
+
+    runtime.init({
+      slug: 'demo',
+      getModel: () => model,
+      getSelectedIds: () => [],
+      restoreSelectionIds: vi.fn(),
+      serializeDirtyState: () => '{"dirty":true}',
+      reloadDiagram: vi.fn(async () => undefined),
+      getLayoutRelayoutStatus: () => ({ localReady: true }),
+      getLayoutRelayoutRuntime: () => ({ lastMode: 'local-ready' }),
+      getConstraintSummary: () => ({ errors: 0 }),
+    });
+
+    await runtime.saveOverrides();
+
+    expect(alertFn).toHaveBeenCalledWith(
+      "Cannot save: model.layoutOverrides mixes frame-YAML engine layout keys that do not belong to any single supported engine in 'meta.elk'",
+    );
+    expect(fetchFn).not.toHaveBeenCalled();
+  });
+
   it('blocks saves when local relayout is unavailable and there are pending overrides', async () => {
     const alertFn = vi.fn();
     const fetchFn = vi.fn();

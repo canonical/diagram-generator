@@ -1,0 +1,239 @@
+{
+  "ok": true,
+  "base": "http://127.0.0.1:8120",
+  "generatedAt": "2026-06-29T09:40:16.256Z",
+  "notes": [
+    "Real gestures only for mutations: page.click, page.selectOption, page.mouse drag.",
+    "DOM evaluation is used only to read geometry/control state."
+  ],
+  "cases": [
+    {
+      "name": "engine-tab-switch:mongo-octavia-ha",
+      "ok": true,
+      "startedAt": "2026-06-29T09:40:16.316Z",
+      "finishedAt": "2026-06-29T09:40:17.825Z",
+      "details": {
+        "slug": "mongo-octavia-ha",
+        "steps": [
+          {
+            "target": "v3",
+            "renderedEngine": "v3",
+            "changedNodeCount": 25,
+            "changedNodeSample": [
+              "page",
+              "mongo_clients",
+              "octavia_cluster",
+              "octavia_lb_a",
+              "octavia_lb_b"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "engine-tab-switch:juju-bootstrap-machines-process",
+      "ok": true,
+      "startedAt": "2026-06-29T09:40:17.825Z",
+      "finishedAt": "2026-06-29T09:40:22.066Z",
+      "details": {
+        "slug": "juju-bootstrap-machines-process",
+        "steps": [
+          {
+            "target": "v3",
+            "renderedEngine": "v3",
+            "changedNodeCount": 14,
+            "changedNodeSample": [
+              "page",
+              "row_main",
+              "juju_system",
+              "juju_system__heading",
+              "juju_system__body"
+            ]
+          },
+          {
+            "target": "elk-layered",
+            "renderedEngine": "elk-layered",
+            "changedNodeCount": 14,
+            "changedNodeSample": [
+              "page",
+              "row_main",
+              "juju_system",
+              "juju_system__heading",
+              "juju_system__body"
+            ]
+          },
+          {
+            "target": "elk-force",
+            "renderedEngine": "elk-force",
+            "changedNodeCount": 14,
+            "changedNodeSample": [
+              "page",
+              "row_main",
+              "juju_system",
+              "juju_system__heading",
+              "juju_system__body"
+            ]
+          },
+          {
+            "target": "elk-stress",
+            "renderedEngine": "elk-stress",
+            "changedNodeCount": 14,
+            "changedNodeSample": [
+              "page",
+              "row_main",
+              "juju_system",
+              "juju_system__heading",
+              "juju_system__body"
+            ]
+          },
+          {
+            "target": "elk-mrtree",
+            "renderedEngine": "elk-mrtree",
+            "changedNodeCount": 14,
+            "changedNodeSample": [
+              "page",
+              "row_main",
+              "juju_system",
+              "juju_system__heading",
+              "juju_system__body"
+            ]
+          },
+          {
+            "target": "dagre",
+            "renderedEngine": "dagre",
+            "changedNodeCount": 14,
+            "changedNodeSample": [
+              "page",
+              "row_main",
+              "juju_system",
+              "juju_system__heading",
+              "juju_system__body"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "page-direction-flip:tiered-network-architecture",
+      "ok": true,
+      "startedAt": "2026-06-29T09:40:22.066Z",
+      "finishedAt": "2026-06-29T09:40:23.985Z",
+      "details": {
+        "slug": "tiered-network-architecture",
+        "renderedEngine": "v3",
+        "horizontalRootChildSpread": {
+          "x": 805.266,
+          "y": 0
+        },
+        "verticalRootChildSpread": {
+          "x": 0,
+          "y": 264
+        },
+        "changedHorizontalArrowCount": 13,
+        "arrowCount": 13,
+        "horizontalIntent": {
+          "engineId": "v3",
+          "pageDirection": "HORIZONTAL"
+        },
+        "verticalIntent": {
+          "engineId": "v3",
+          "pageDirection": "VERTICAL"
+        }
+      }
+    },
+    {
+      "name": "elk-live-resize:mongo-octavia-ha",
+      "ok": true,
+      "startedAt": "2026-06-29T09:40:23.985Z",
+      "finishedAt": "2026-06-29T09:40:27.616Z",
+      "details": {
+        "slug": "mongo-octavia-ha",
+        "renderedEngine": "elk-layered",
+        "before": {
+          "id": "mongo_clients",
+          "x": 32,
+          "y": 88,
+          "w": 224,
+          "h": 64
+        },
+        "after": {
+          "id": "mongo_clients",
+          "x": 32,
+          "y": 88,
+          "w": 304,
+          "h": 64
+        },
+        "statusText": "Ready"
+      }
+    },
+    {
+      "name": "box-type-change:support-engineering-flow",
+      "ok": true,
+      "startedAt": "2026-06-29T09:40:27.616Z",
+      "finishedAt": "2026-06-29T09:40:30.285Z",
+      "details": {
+        "slug": "support-engineering-flow",
+        "engine": "elk-force",
+        "selectedNode": "step_problem",
+        "changedStyle": {
+          "from": "section",
+          "to": "default"
+        },
+        "nodeCount": 6
+      }
+    },
+    {
+      "name": "contextual-controls",
+      "ok": true,
+      "startedAt": "2026-06-29T09:40:30.285Z",
+      "finishedAt": "2026-06-29T09:40:33.005Z",
+      "details": {
+        "v3": {
+          "engine": "v3",
+          "elkSection": [
+            {
+              "selector": "#elk-layout-section",
+              "exists": true,
+              "hidden": true,
+              "painted": false,
+              "focusable": false,
+              "disabled": false,
+              "display": "none",
+              "visibility": "visible",
+              "rect": {
+                "width": 0,
+                "height": 0
+              },
+              "tabIndex": -1,
+              "id": "elk-layout-section"
+            }
+          ],
+          "rawToggle": [],
+          "debugToggle": []
+        },
+        "elk": {
+          "engine": "elk-radial",
+          "layeredOnlyBefore": [
+            {
+              "selector": "#elk-elk-layered-layering-strategy",
+              "exists": true,
+              "hidden": false,
+              "painted": true,
+              "focusable": true,
+              "disabled": false,
+              "display": "block",
+              "visibility": "visible",
+              "rect": {
+                "width": 148,
+                "height": 24
+              },
+              "tabIndex": 0,
+              "id": "elk-elk-layered-layering-strategy"
+            }
+          ],
+          "layeredOnlyAfter": []
+        }
+      }
+    }
+  ]
+}

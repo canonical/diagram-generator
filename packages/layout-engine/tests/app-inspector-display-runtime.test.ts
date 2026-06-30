@@ -215,6 +215,157 @@ describe('createPreviewInspectorDisplayRuntime', () => {
     expect(inspector.innerHTML).not.toContain('data-dg-panel-id="single-selection"');
   });
 
+  it('hides single-selection autolayout controls when the active engine is not grid-editable', () => {
+    const inspector = { innerHTML: '' };
+    const syncPanelVisibility = vi.fn();
+    const runtime = createPreviewInspectorDisplayRuntime({
+      getInspector: () => inspector,
+      selectedIds: new Set(['page']),
+      getPrimarySelectedId: (preferredId) => preferredId ?? 'page',
+      getSelectionActionInfo: () => ({
+        items: [],
+        hasUnsupported: false,
+        sameParent: true,
+        parentId: null,
+      }),
+      getNode: () => ({
+        id: 'page',
+        parent: null,
+        children: [{}],
+        data: { id: 'page' },
+      }),
+      getArrowNode: () => null,
+      getOverride: () => ({}),
+      getOwnDelta: () => ({ dx: 0, dy: 0, dw: 0, dh: 0 }),
+      getEffectiveDelta: () => ({ dx: 0, dy: 0, dw: 0, dh: 0 }),
+      getComponentType: () => 'panel',
+      getParentNode: () => null,
+      getParentLayout: () => null,
+      getRenderedStyle: () => null,
+      getViolations: () => [],
+      isWidthCoerced: () => false,
+      isHeightCoerced: () => false,
+      getGridInfo: () => null,
+      shouldShowAutolayoutInspector: () => false,
+      baselineStep: 8,
+      fallbackGap: 24,
+      snapStep: 8,
+      setMultiActionGap() {},
+      renderSingleStyleOptions: () => '',
+      renderMultiStyleOptions: () => '',
+      syncPanelVisibility,
+    });
+
+    runtime.renderSelectionInspector('page');
+
+    expect(syncPanelVisibility).toHaveBeenCalledWith({ count: 1, kind: 'root' });
+    expect(inspector.innerHTML).not.toContain('data-dg-panel-id="single-layout"');
+    expect(inspector.innerHTML).not.toContain('data-dg-click-action="single-align"');
+    expect(inspector.innerHTML).not.toContain('data-dg-panel-id="single-autolayout-layout"');
+    expect(inspector.innerHTML).not.toContain('data-dg-panel-id="single-autolayout-sizing"');
+    expect(inspector.innerHTML).not.toContain('data-dg-prop="direction"');
+    expect(inspector.innerHTML).not.toContain('data-dg-prop="gap_delta"');
+    expect(inspector.innerHTML).not.toContain('Drag to move');
+  });
+
+  it('hides multi-selection layout controls when the active engine is not grid-editable', () => {
+    const inspector = { innerHTML: '' };
+    const setMultiActionGap = vi.fn();
+    const runtime = createPreviewInspectorDisplayRuntime({
+      getInspector: () => inspector,
+      selectedIds: new Set(['alpha', 'beta']),
+      getPrimarySelectedId: (preferredId) => preferredId ?? 'beta',
+      getSelectionActionInfo: () => ({
+        items: [
+          {
+            id: 'alpha',
+            node: {
+              id: 'alpha',
+              data: { id: 'alpha', x: 0, y: 0, width: 80, height: 40 },
+              parent: { id: 'root' },
+            },
+            parentId: 'root',
+            own: { dx: 0, dy: 0, dw: 0, dh: 0 },
+            eff: { dx: 0, dy: 0, dw: 0, dh: 0 },
+            baseX: 0,
+            baseY: 0,
+            ancestorDx: 0,
+            ancestorDy: 0,
+            x: 0,
+            y: 0,
+            width: 80,
+            height: 40,
+          },
+          {
+            id: 'beta',
+            node: {
+              id: 'beta',
+              data: { id: 'beta', x: 120, y: 0, width: 80, height: 40 },
+              parent: { id: 'root' },
+            },
+            parentId: 'root',
+            own: { dx: 0, dy: 0, dw: 0, dh: 0 },
+            eff: { dx: 0, dy: 0, dw: 0, dh: 0 },
+            baseX: 120,
+            baseY: 0,
+            ancestorDx: 0,
+            ancestorDy: 0,
+            x: 120,
+            y: 0,
+            width: 80,
+            height: 40,
+          },
+        ],
+        hasUnsupported: false,
+        sameParent: true,
+        parentId: 'root',
+      }),
+      getNode: (cid) => {
+        if (cid === 'root') {
+          return {
+            layout: 'horizontal',
+            layoutGap: 24,
+            layoutRowGap: 24,
+            layoutColGap: 24,
+          };
+        }
+        return {
+          data: { width: 80, height: 40, level: 2, fill: 'GREY', border: 'SOLID' },
+          layout: null,
+        };
+      },
+      getArrowNode: () => null,
+      getOverride: () => ({ style: '' }),
+      getOwnDelta: () => ({ dx: 0, dy: 0, dw: 0, dh: 0 }),
+      getEffectiveDelta: () => ({ dx: 0, dy: 0, dw: 0, dh: 0 }),
+      getComponentType: () => 'panel',
+      getParentNode: () => ({ id: 'root' }),
+      getParentLayout: () => 'horizontal',
+      getRenderedStyle: () => ({ fill: '#ffffff', stroke: '#111111' }),
+      getViolations: () => [],
+      isWidthCoerced: () => false,
+      isHeightCoerced: () => false,
+      getGridInfo: () => ({ col_widths: [120], col_gap: 24, row_heights: [40], row_gap: 24 }),
+      shouldShowAutolayoutInspector: () => false,
+      baselineStep: 8,
+      fallbackGap: 24,
+      snapStep: 8,
+      setMultiActionGap,
+      renderMultiStyleOptions: (styleState) => (
+        `<option>${styleState.style}|${styleState.originalStyleName}</option>`
+      ),
+    });
+
+    runtime.renderMultiSelectionInspector();
+
+    expect(setMultiActionGap).not.toHaveBeenCalled();
+    expect(inspector.innerHTML).toContain('Selection');
+    expect(inspector.innerHTML).toContain('Layout is engine-driven in this view.');
+    expect(inspector.innerHTML).not.toContain('data-dg-panel-id="multi-arrangement"');
+    expect(inspector.innerHTML).not.toContain('data-dg-panel-id="multi-layout"');
+    expect(inspector.innerHTML).not.toContain('data-dg-panel-id="multi-sizing"');
+  });
+
   it('binds single-selection alignment controls to the parent container for autolayout leaf children', () => {
     const inspector = { innerHTML: '' };
     const runtime = createPreviewInspectorDisplayRuntime({

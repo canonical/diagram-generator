@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import vm from "node:vm";
 
-import { createPreviewElkLayoutControlsRuntime } from "@diagram-generator/layout-engine";
+import { createPreviewEngineLayoutControlsRuntime } from "@diagram-generator/layout-engine";
 
 import {
   attachPreviewCompat,
@@ -10,7 +10,7 @@ import {
   readPreviewScript,
 } from "./preview-script-test-helpers.js";
 
-test("elk-layout-controls renders from the namespaced previewEngines contract", () => {
+test("layout-params-controls renders from the namespaced previewEngines contract", () => {
   const section = {
     hidden: true,
     hasAttribute(name: string) {
@@ -36,15 +36,15 @@ test("elk-layout-controls renders from the namespaced previewEngines contract", 
       registry: {
         resolvePreviewEngine({ layoutEngine }: { layoutEngine?: string | null }) {
           return layoutEngine === "elk-layered"
-            ? { id: "synthetic-layered", hostView: { sidebarSections: ["elk-layout"] } }
+            ? { id: "synthetic-layered", hostView: { sidebarSections: ["layout-params"] } }
             : null;
         },
         listPreviewEnginesBySidebarSection(section: string) {
-          if (section !== "elk-layout") return [];
+          if (section !== "layout-params") return [];
           return [
             {
               id: "synthetic-layered",
-              hostView: { sidebarSections: ["elk-layout"] },
+              hostView: { sidebarSections: ["layout-params"] },
               controlSpecs: [
                 {
                   key: "elk.spacing.nodeNode",
@@ -59,16 +59,16 @@ test("elk-layout-controls renders from the namespaced previewEngines contract", 
           ];
         },
       },
-      elk: {
-        createPreviewElkLayoutControlsRuntime(options: {
+      graph: {
+        createPreviewEngineLayoutControlsRuntime(options: {
           document: { getElementById: (id: string) => unknown };
         }) {
           return {
             buildPanel() {
-              const runtimeSection = options.document.getElementById("elk-layout-section") as {
+              const runtimeSection = options.document.getElementById("layout-params-section") as {
                 hidden?: boolean;
               } | null;
-              const runtimeContainer = options.document.getElementById("elk-layout-controls") as {
+              const runtimeContainer = options.document.getElementById("layout-params-controls") as {
                 innerHTML?: string;
               } | null;
               if (runtimeSection) runtimeSection.hidden = false;
@@ -109,8 +109,8 @@ test("elk-layout-controls renders from the namespaced previewEngines contract", 
     },
     document: {
       getElementById(id: string) {
-        if (id === "elk-layout-section") return section;
-        if (id === "elk-layout-controls") return container;
+        if (id === "layout-params-section") return section;
+        if (id === "layout-params-controls") return container;
         return null;
       },
     },
@@ -120,22 +120,20 @@ test("elk-layout-controls renders from the namespaced previewEngines contract", 
     LayoutEngine: layoutEngine,
   };
 
-  vm.runInNewContext(readPreviewScript("elk-layout-controls.js"), context);
+  vm.runInNewContext(readPreviewScript("layout-params-controls.js"), context);
   const previewEngineLayoutControls = (
     context.window as {
       PreviewEngineLayoutControls: { buildPanel: (frameTreeJson: unknown) => void };
     }
   ).PreviewEngineLayoutControls;
-  const elkLayoutControls = (context.window as { ElkLayoutControls: { buildPanel: (frameTreeJson: unknown) => void } }).ElkLayoutControls;
 
   previewEngineLayoutControls.buildPanel({ layoutEngine: "elk-layered", elkLayout: {} });
 
   assert.equal(section.hidden, false);
   assert.match(container.innerHTML, /Node spacing/);
-  assert.equal(previewEngineLayoutControls, elkLayoutControls);
 });
 
-test("elk-layout-controls does not fall back to layered controls for unresolved explicit engines", () => {
+test("layout-params-controls does not fall back to layered controls for unresolved explicit engines", () => {
   const section = {
     hidden: false,
     attrs: new Map<string, string>(),
@@ -172,11 +170,11 @@ test("elk-layout-controls does not fall back to layered controls for unresolved 
           return null;
         },
         listPreviewEnginesBySidebarSection(sectionName: string) {
-          if (sectionName !== "elk-layout") return [];
+          if (sectionName !== "layout-params") return [];
           return [
             {
               id: "elk-layered",
-              hostView: { sidebarSections: ["elk-layout"] },
+              hostView: { sidebarSections: ["layout-params"] },
               controlSpecs: [
                 {
                   key: "elk.layered.spacing.nodeNodeBetweenLayers",
@@ -190,8 +188,8 @@ test("elk-layout-controls does not fall back to layered controls for unresolved 
           ];
         },
       },
-      elk: {
-        createPreviewElkLayoutControlsRuntime,
+      graph: {
+        createPreviewEngineLayoutControlsRuntime,
       },
     },
   };
@@ -203,8 +201,8 @@ test("elk-layout-controls does not fall back to layered controls for unresolved 
     },
     document: {
       getElementById(id: string) {
-        if (id === "elk-layout-section") return section;
-        if (id === "elk-layout-controls") return container;
+        if (id === "layout-params-section") return section;
+        if (id === "layout-params-controls") return container;
         return null;
       },
     },
@@ -215,7 +213,7 @@ test("elk-layout-controls does not fall back to layered controls for unresolved 
   };
 
   attachPreviewCompat(context);
-  vm.runInNewContext(readPreviewScript("elk-layout-controls.js"), context);
+  vm.runInNewContext(readPreviewScript("layout-params-controls.js"), context);
   const previewEngineLayoutControls = (
     context.window as {
       PreviewEngineLayoutControls: { buildPanel: (frameTreeJson: unknown) => void };
@@ -229,18 +227,18 @@ test("elk-layout-controls does not fall back to layered controls for unresolved 
 });
 
 
-test("elk-controller resolves ELK diagrams from the namespaced previewEngines registry", () => {
+test("layout-params-controller resolves graph-engine diagrams from the namespaced previewEngines registry", () => {
   const layoutEngine = {
     previewEngines: {
       registry: {
         resolvePreviewEngine({ layoutEngine }: { layoutEngine?: string | null }) {
           return layoutEngine === "elk-layered"
-            ? { id: "synthetic-layered", hostView: { sidebarSections: ["elk-layout"] } }
+            ? { id: "synthetic-layered", hostView: { sidebarSections: ["layout-params"] } }
             : null;
         },
       },
-      elk: {
-        createPreviewElkShellControllerRuntime() {
+      graph: {
+        createPreviewEngineShellControllerRuntime() {
           return {
             init() {},
             isElkLayeredDiagram(frameTreeJson: unknown) {
@@ -284,8 +282,7 @@ test("elk-controller resolves ELK diagrams from the namespaced previewEngines re
     LayoutEngine: layoutEngine,
   };
 
-  vm.runInNewContext(readPreviewScript("elk-controller.js"), context);
-  const elkPreviewController = (context.window as { ElkPreviewController: { isElkLayeredDiagram: (frameTreeJson: unknown) => boolean } }).ElkPreviewController;
+  vm.runInNewContext(readPreviewScript("layout-params-controller.js"), context);
   const previewEngineShellController = (
     context.window as {
       PreviewEngineShellController: {
@@ -301,121 +298,9 @@ test("elk-controller resolves ELK diagrams from the namespaced previewEngines re
     context.window as { requestPreviewEngineRelayout: () => unknown }
   ).requestPreviewEngineRelayout;
 
-  assert.equal(elkPreviewController.isElkLayeredDiagram({ layoutEngine: "elk-layered" }), true);
   assert.equal(previewEngineShellController.isActiveLayoutEngine({ layoutEngine: "elk-layered" }), true);
   assert.equal(requestPreviewEngineRelayout, previewEngineShellController.requestRelayout);
 });
-
-test("graph-layout-controls resolves the generic previewEngines.graph runtime", () => {
-  let receivedOptions: Record<string, unknown> | null = null;
-  const graphRuntime = {
-    buildPanel() {},
-    refresh() {},
-    collectOverrides() {
-      return {};
-    },
-    collectNamespacedOverrides() {
-      return {};
-    },
-    init() {},
-  };
-  const layoutEngine = {
-    previewEngines: {
-      graph: {
-        createPreviewEngineLayoutControlsRuntime(options: Record<string, unknown>) {
-          receivedOptions = options;
-          return graphRuntime;
-        },
-      },
-    },
-  };
-
-  const context = {
-    window: {
-      __DG_CONFIG: {},
-      LayoutEngine: layoutEngine,
-    },
-    document: {
-      getElementById() {
-        return null;
-      },
-    },
-    console,
-    setTimeout,
-    clearTimeout,
-    LayoutEngine: layoutEngine,
-  };
-
-  vm.runInNewContext(readPreviewScript("graph-layout-controls.js"), context);
-
-  assert.equal((context.window as { PreviewEngineLayoutControls?: unknown }).PreviewEngineLayoutControls, graphRuntime);
-  assert.equal(receivedOptions?.sidebarSectionId, "graph-layout");
-  assert.equal(receivedOptions?.containerId, "graph-layout-controls");
-  assert.equal(receivedOptions?.defaultPersistNamespace, "meta.dagre");
-  assert.equal(receivedOptions?.enableElkViewToggles, false);
-});
-
-test("graph-layout-controller resolves the generic previewEngines.graph runtime", () => {
-  const graphController = {
-    init() {},
-    isActiveLayoutEngine() {
-      return true;
-    },
-    wirePanel() {},
-    syncPanel() {},
-    initPanel() {},
-    initializePanel() {},
-    getLayoutOverrides() {
-      return {};
-    },
-    applyLayoutOverrides() {},
-    applyElkLayoutOverrides() {},
-    collectPersistedPayload() {
-      return {};
-    },
-    requestRelayout() {},
-  };
-  const layoutEngine = {
-    previewEngines: {
-      graph: {
-        createPreviewEngineShellControllerRuntime() {
-          return graphController;
-        },
-      },
-    },
-  };
-  const context = {
-    window: {
-      __DG_CONFIG: {},
-      LayoutEngine: layoutEngine,
-    },
-    document: {
-      getElementById() {
-        return { hasAttribute: () => true };
-      },
-    },
-    console,
-    LayoutEngine: layoutEngine,
-  };
-
-  vm.runInNewContext(readPreviewScript("graph-layout-controller.js"), context);
-  const previewEngineShellController = (
-    context.window as {
-      PreviewEngineShellController: {
-        init: (deps: Record<string, unknown>) => void;
-        isActiveLayoutEngine: (frameTreeJson: unknown) => boolean;
-        requestRelayout: () => unknown;
-      };
-    }
-  ).PreviewEngineShellController;
-
-  previewEngineShellController.init({});
-
-  assert.equal(previewEngineShellController.isActiveLayoutEngine({ layoutEngine: "dagre" }), true);
-  assert.equal((context.window as { requestPreviewEngineRelayout?: unknown }).requestPreviewEngineRelayout, graphController.requestRelayout);
-  assert.equal((context.window as { requestLayoutRelayout?: unknown }).requestLayoutRelayout, graphController.requestRelayout);
-});
-
 
 test("save-client resolves the namespaced previewShell.bootstrap runtime", () => {
   let resolvedFromNamespace = false;
@@ -479,10 +364,8 @@ test("save-client resolves the namespaced previewShell.bootstrap runtime", () =>
 
 test("browser preview wrappers no longer fall back to flat browser-entry aliases", () => {
   assert.equal(readPreviewScript("save-client.js").includes("LayoutEngine.createPreviewSaveClientRuntime"), false);
-  assert.equal(readPreviewScript("elk-layout-controls.js").includes("LayoutEngine.createPreviewElkLayoutControlsRuntime"), false);
-  assert.equal(readPreviewScript("elk-controller.js").includes("LayoutEngine.createPreviewElkShellControllerRuntime"), false);
-  assert.equal(readPreviewScript("graph-layout-controls.js").includes("LayoutEngine.createPreviewEngineLayoutControlsRuntime"), false);
-  assert.equal(readPreviewScript("graph-layout-controller.js").includes("LayoutEngine.createPreviewEngineShellControllerRuntime"), false);
+  assert.equal(readPreviewScript("layout-params-controls.js").includes("LayoutEngine.createPreviewEngineLayoutControlsRuntime"), false);
+  assert.equal(readPreviewScript("layout-params-controller.js").includes("LayoutEngine.createPreviewEngineShellControllerRuntime"), false);
   const forceSource = readPreviewScript("force.js");
   assert.equal(forceSource.includes("window.LayoutEngine?.getPreviewEngine?.("), false);
   assert.equal(forceSource.includes("window.LayoutEngine?.[methodName]"), false);

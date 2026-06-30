@@ -76,6 +76,8 @@ export interface RenderPreviewSingleSelectionInspectorOptions {
   widthUnit?: 'px' | 'cols';
   heightUnit?: 'px' | 'rows';
   gridInfo?: PreviewInspectorGridInfo | null;
+  showAutolayoutInspector?: boolean | null;
+  showLayoutEditingControls?: boolean | null;
   baselineStep?: number;
   textAdapter?: TextMeasureAdapter | null;
   formatControlErrorMessage?: ((message: string) => string) | null;
@@ -99,6 +101,7 @@ export interface RenderPreviewMultiSelectionInspectorHostOptions {
   widthUnit?: MultiSelectionInspectorPanelRenderOptions['widthUnit'];
   heightUnit?: MultiSelectionInspectorPanelRenderOptions['heightUnit'];
   showWidthColsOption?: boolean;
+  showLayoutEditingControls?: boolean | null;
   styleOptionsHtml?: string;
 }
 
@@ -135,6 +138,7 @@ export interface RenderPreviewMultiSelectionInspectorRuntimeHostOptions {
   widthUnit?: MultiSelectionInspectorPanelRenderOptions['widthUnit'];
   heightUnit?: MultiSelectionInspectorPanelRenderOptions['heightUnit'];
   showWidthColsOption?: boolean;
+  showLayoutEditingControls?: boolean | null;
   renderStyleOptions: (styleState: MultiSelectionPreviewStyleState) => string;
 }
 
@@ -160,6 +164,8 @@ export interface RenderPreviewSingleSelectionInspectorRuntimeHostOptions {
   widthUnit?: 'px' | 'cols';
   heightUnit?: 'px' | 'rows';
   gridInfo?: PreviewInspectorGridInfo | null;
+  showAutolayoutInspector?: boolean | null;
+  showLayoutEditingControls?: boolean | null;
   baselineStep?: number;
   textAdapter?: TextMeasureAdapter | null;
   formatControlErrorMessage?: ((message: string) => string) | null;
@@ -196,6 +202,12 @@ export function normalizePreviewInspectorWidthUnit(
 export function resolvePreviewAutolayoutPanelHtml(
   options: RenderPreviewSingleSelectionInspectorOptions,
 ): string {
+  if (options.showLayoutEditingControls === false) {
+    return '';
+  }
+  if (options.showAutolayoutInspector === false) {
+    return '';
+  }
   if (!options.node) {
     return '';
   }
@@ -240,6 +252,7 @@ export function renderPreviewSingleSelectionInspector(
     renderAutolayoutPanel: () => resolvePreviewAutolayoutPanelHtml(options),
     formatControlErrorMessage: options.formatControlErrorMessage ?? null,
     renderStyleOptions: options.renderStyleOptions ?? null,
+    showLayoutEditingControls: options.showLayoutEditingControls ?? true,
   });
   return renderSingleSelectionInspectorPanel(panelOptions);
 }
@@ -295,6 +308,7 @@ export function renderPreviewMultiSelectionInspectorHost(
     widthUnit: options.widthUnit,
     heightUnit: options.heightUnit,
     showWidthColsOption: options.showWidthColsOption,
+    showLayoutEditingControls: options.showLayoutEditingControls ?? true,
     styleOptionsHtml: options.styleOptionsHtml,
   });
 
@@ -346,6 +360,7 @@ export function renderPreviewMultiSelectionInspectorRuntimeHost(
     widthUnit: options.widthUnit,
     heightUnit: options.heightUnit,
     showWidthColsOption: options.showWidthColsOption,
+    showLayoutEditingControls: options.showLayoutEditingControls ?? true,
     styleOptionsHtml: styleState
       ? options.renderStyleOptions(styleState)
       : '',
@@ -376,6 +391,8 @@ export function renderPreviewSingleSelectionInspectorRuntimeHost(
     widthUnit: options.widthUnit,
     heightUnit: options.heightUnit,
     gridInfo: options.gridInfo ?? null,
+    showAutolayoutInspector: options.showAutolayoutInspector ?? true,
+    showLayoutEditingControls: options.showLayoutEditingControls ?? true,
     baselineStep: options.baselineStep,
     textAdapter: options.textAdapter ?? null,
     formatControlErrorMessage: options.formatControlErrorMessage ?? null,

@@ -1,8 +1,6 @@
 export {
   createPreviewEngineLayoutControlsRuntime,
   createPreviewEngineShellControllerRuntime,
-  createPreviewElkLayoutControlsRuntime,
-  createPreviewElkShellControllerRuntime,
   DAGRE_PREVIEW_ENGINE,
   ELK_FORCE_PREVIEW_ENGINE,
   ELK_LAYERED_PREVIEW_ENGINE,
@@ -25,7 +23,6 @@ export {
   listPreviewEnginesBySidebarSection,
   listPreviewEngines,
   registerPreviewEngine,
-  renderPreviewElkDebugOverlay,
   renderPreviewElkRawView,
   resolvePreviewEngine,
   serializePreviewEngineManifest,

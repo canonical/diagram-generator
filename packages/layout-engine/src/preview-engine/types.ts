@@ -13,7 +13,11 @@ import type {
 export type PreviewShellMode = 'grid' | 'force' | (string & {});
 export type PreviewDocumentKind = 'frame-diagram' | 'sequence' | 'force-spec' | (string & {});
 export type PreviewPersistNamespace = string;
-export type PreviewViewerSidebarSection = 'elk-layout' | 'graph-layout' | (string & {});
+export type PreviewViewerSidebarSection =
+  | 'layout-params'
+  | 'elk-layout'
+  | 'graph-layout'
+  | (string & {});
 export type PreviewRenderFamily =
   | 'frame-native'
   | 'frame-elk'
@@ -22,6 +26,12 @@ export type PreviewRenderFamily =
   | (string & {});
 
 export type PreviewControlKind = 'number' | 'enum' | 'boolean' | 'text';
+
+export interface PreviewControlVisibilityRule {
+  key: string;
+  equals?: string | ReadonlyArray<string>;
+  notEquals?: string | ReadonlyArray<string>;
+}
 
 export interface PreviewControlSpec {
   key: string;
@@ -34,6 +44,7 @@ export interface PreviewControlSpec {
   max?: number;
   step?: number;
   enumValues?: ReadonlyArray<{ readonly value: string; readonly label: string }>;
+  visibleWhen?: ReadonlyArray<PreviewControlVisibilityRule>;
   /** Persisted namespace for engine-backed save flows; host lanes own supported values. */
   persistNamespace?: PreviewPersistNamespace;
 }

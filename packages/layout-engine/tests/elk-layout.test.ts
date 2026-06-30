@@ -587,12 +587,15 @@ describe('layoutElkFrameDiagram', () => {
         `${zoneId}_label`,
       );
 
-      expect(zone?._layout.placedH).toBeGreaterThan(vm?._layout.placedH ?? Infinity);
+      expect(zone?._layout.placedW).toBeGreaterThan(vm?._layout.placedW ?? Infinity);
       expect(label?._layout.placedX).toBeGreaterThanOrEqual(zone?._layout.placedX ?? Infinity);
       expect((label?._layout.placedX ?? 0) + (label?._layout.placedW ?? 0))
         .toBeLessThanOrEqual((zone?._layout.placedX ?? -Infinity) + (zone?._layout.placedW ?? 0));
+      expect(label?._layout.placedX).toBeGreaterThanOrEqual(
+        (vm?._layout.placedX ?? 0) + (vm?._layout.placedW ?? 0),
+      );
       expect(label?._layout.placedY).toBeGreaterThanOrEqual(
-        (vm?._layout.placedY ?? 0) + (vm?._layout.placedH ?? 0),
+        zone?._layout.placedY ?? Infinity,
       );
       expect((label?._layout.placedY ?? 0) + (label?._layout.placedH ?? 0))
         .toBeLessThanOrEqual((zone?._layout.placedY ?? -Infinity) + (zone?._layout.placedH ?? 0));

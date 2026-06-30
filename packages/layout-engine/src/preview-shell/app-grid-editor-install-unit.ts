@@ -20,8 +20,12 @@ import {
 } from './frame-style.js';
 import {
   createPreviewEngineWorkspaceState,
-  resolveActivePreviewLayoutEngine,
 } from './preview-engine-workspace.js';
+import {
+  commitPreviewRenderIntentToWindow,
+  resolvePreviewRenderIntentLayoutEngine,
+  type PreviewRenderIntent,
+} from './preview-render-intent.js';
 import {
   syncPreviewPanelVisibilityFromContext,
 } from './app-shell-panels.js';
@@ -33,6 +37,15 @@ import {
   getPreviewEngineByLayoutKey,
   resolvePreviewEngine,
 } from '../preview-engine/registry.js';
+import { sidebarSectionsUseLayoutParams } from '../preview-engine/sidebar-sections.js';
+import type { PreviewEngineManifest } from '../preview-engine/types.js';
+import {
+  activateLayoutOperatorOverrideBucket,
+  readLayoutOperatorOverrideBucketForManifest,
+  resolveEffectiveLayoutOperatorOverrides,
+  writeLayoutOperatorOverrideBucketForManifest,
+  type LayoutOperatorOverrideState,
+} from './layout-operator-overrides.js';
 
 type BrowserStateBackedRuntimeBrowserKey =
   | 'getOverrides'
@@ -280,6 +293,7 @@ export type PreviewGridEditorLegacyWindow = PreviewGridEditorRuntimeWindow & {
     head_len?: number;
     head_half?: number;
   } | null;
+  __DG_previewRenderIntent?: PreviewRenderIntent | null;
   __DG_syncPreviewEngineWorkspacePanels?: (() => void) | null;
   __DG_rerenderPreviewEngineWorkspaceStage?: (() => Promise<void>) | null;
   setFrameTreeLayoutEngine?: ((layoutEngine: string | null | undefined) => string | null) | null;
@@ -504,6 +518,167 @@ function normalizeCompatibleEngines(value: unknown): string[] {
     : [];
 }
 
+type PreviewEngineRuntimeInstallerLayoutEngineRoot = {
+  previewEngines?: {
+    registry?: {
+      resolvePreviewEngine?: (context: {
+        layoutEngine?: string | null;
+        shellMode?: string | null;
+      }) => {
+        hostView?: { sidebarSections?: string[] };
+        controlSpecs?: Array<{ persistNamespace?: string | null }>;
+      } | null;
+    };
+    graph?: {
+      createPreviewEngineLayoutControlsRuntime?: (options: Record<string, unknown>) => unknown;
+      createPreviewEngineShellControllerRuntime?: (options: Record<string, unknown>) => unknown;
+    };
+  };
+};
+
+type PreviewEngineRuntimeInstallerWindow = PreviewGridEditorLegacyWindow & {
+  LayoutEngine?: PreviewEngineRuntimeInstallerLayoutEngineRoot | null;
+  getFrameTreeJson?: (() => unknown) | null;
+  setDirty?: ((dirty: boolean) => void) | null;
+  PreviewEngineLayoutControls?: unknown;
+  ElkLayoutControls?: unknown;
+  PreviewEngineShellController?: {
+    init?: (options: Record<string, unknown>) => void;
+    syncPanel?: () => void;
+  } | null;
+  ElkPreviewController?: unknown;
+};
+
+type PreviewEngineRuntimeInstallerModel = {
+  roots?: Array<{ id?: string | null }> | null;
+  layoutOverrides?: Record<string, unknown> | null;
+  layoutOverrideNamespace?: string | null;
+  layoutOperatorOverrides?: LayoutOperatorOverrideState | null;
+};
+
+function installActivePreviewEngineRuntime(options: {
+  document: Document;
+  previewWindow: PreviewEngineRuntimeInstallerWindow;
+  model: PreviewEngineRuntimeInstallerModel;
+  fallbackEngineId: string | null;
+  requestLayoutRelayout: (cid: string) => Promise<unknown> | unknown;
+}): void {
+  const previewConfig = options.previewWindow.__DG_CONFIG ?? null;
+  const activeLayoutEngine = resolvePreviewRenderIntentLayoutEngine({
+    intent: options.previewWindow.__DG_previewRenderIntent ?? null,
+    activeEngineId: previewConfig?.active_engine_id ?? null,
+    layoutEngine: previewConfig?.layout_engine ?? null,
+    persistedEngineId: previewConfig?.persisted_layout_engine ?? null,
+    fallbackEngineId: options.fallbackEngineId,
+  });
+  if (!activeLayoutEngine) {
+    return;
+  }
+
+  const layoutEngineRoot = options.previewWindow.LayoutEngine ?? null;
+  const resolveRootPreviewEngine = layoutEngineRoot?.previewEngines?.registry?.resolvePreviewEngine;
+  const activeEngine: PreviewEngineManifest | null = typeof resolveRootPreviewEngine === 'function'
+    ? (resolveRootPreviewEngine({
+      layoutEngine: activeLayoutEngine,
+      shellMode: previewConfig?.shell_mode ?? 'grid',
+    }) as PreviewEngineManifest | null | undefined) ?? null
+    : (resolvePreviewEngine({
+      layoutEngine: activeLayoutEngine,
+      shellMode: previewConfig?.shell_mode ?? 'grid',
+      previewDocumentKind: previewConfig?.document_kind ?? 'frame-diagram',
+    }) as PreviewEngineManifest | undefined) ?? null;
+  if (!activeEngine || !layoutEngineRoot?.previewEngines) {
+    return;
+  }
+
+  const sidebarSections = activeEngine.hostView?.sidebarSections ?? [];
+  const usesLayoutParamsSection = sidebarSectionsUseLayoutParams(sidebarSections);
+  if (!usesLayoutParamsSection) {
+    return;
+  }
+
+  const defaultPersistNamespace = activeEngine.controlSpecs?.find(
+    (spec: { persistNamespace?: string | null }) => spec.persistNamespace,
+  )
+    ?.persistNamespace ?? options.model.layoutOverrideNamespace ?? 'meta.elk';
+  const frameTreeJson = typeof options.previewWindow.getFrameTreeJson === 'function'
+    ? (options.previewWindow.getFrameTreeJson?.() as {
+      elkLayout?: Record<string, unknown>;
+      engineLayout?: Record<string, Record<string, unknown>>;
+    } | null | undefined)
+    : null;
+  const persistedOverrides = resolveEffectiveLayoutOperatorOverrides({
+    manifest: activeEngine,
+    engineLayout: frameTreeJson?.engineLayout ?? null,
+    elkLayout: frameTreeJson?.elkLayout ?? null,
+    sessionOverrides: {},
+    persistNamespace: defaultPersistNamespace,
+  });
+  activateLayoutOperatorOverrideBucket(options.model, activeEngine, {
+    fallbackOverrides: persistedOverrides,
+    persistNamespace: defaultPersistNamespace,
+  });
+  const controlsFactory = layoutEngineRoot.previewEngines.graph?.createPreviewEngineLayoutControlsRuntime;
+  const controllerFactory = layoutEngineRoot.previewEngines.graph?.createPreviewEngineShellControllerRuntime;
+  if (typeof controlsFactory !== 'function' || typeof controllerFactory !== 'function') {
+    return;
+  }
+
+  const controlsRuntime = controlsFactory({
+    document: options.document,
+    previewWindow: options.previewWindow,
+    layoutEngineRoot,
+    setTimeoutFn: (callback: () => void, delayMs: number) => (
+      options.previewWindow.setTimeout(callback, delayMs)
+    ),
+    clearTimeoutFn: (token: unknown) => options.previewWindow.clearTimeout(token as never),
+    getFrameTreeJson: typeof options.previewWindow.getFrameTreeJson === 'function'
+      ? () => options.previewWindow.getFrameTreeJson?.()
+      : null,
+    getDirtySetter: () => options.previewWindow.setDirty,
+    sidebarSectionId: 'layout-params',
+    sectionId: 'layout-params-section',
+    containerId: 'layout-params-controls',
+    controlIdPrefix: 'layout-params',
+    defaultPersistNamespace,
+    enableRawViewToggles: activeEngine.capabilities?.rawDebugView === true,
+    unavailableMessage: 'Graph layout parameter registry unavailable. Rebuild the browser bundle from packages/layout-engine.',
+  });
+
+  options.previewWindow.PreviewEngineLayoutControls = controlsRuntime;
+  options.previewWindow.ElkLayoutControls = null;
+
+  const controllerRuntime = controllerFactory({
+    document: options.document,
+    previewWindow: options.previewWindow,
+    layoutEngineRoot,
+    getFrameTreeJson: typeof options.previewWindow.getFrameTreeJson === 'function'
+      ? () => options.previewWindow.getFrameTreeJson?.()
+      : null,
+    sidebarSectionId: 'layout-params',
+    defaultPersistNamespace,
+  }) as PreviewEngineRuntimeInstallerWindow['PreviewEngineShellController'];
+
+  options.previewWindow.PreviewEngineShellController = controllerRuntime ?? null;
+  options.previewWindow.ElkPreviewController = null;
+
+  controllerRuntime?.init?.({
+    getLayoutOverrides: () => readLayoutOperatorOverrideBucketForManifest(options.model, activeEngine),
+    setLayoutOverrides: (value: Record<string, unknown>) => {
+      writeLayoutOperatorOverrideBucketForManifest(
+        options.model,
+        activeEngine,
+        value,
+        defaultPersistNamespace,
+      );
+    },
+    getRootId: () => options.model.roots?.[0]?.id || 'root',
+    requestLayoutRelayout: options.requestLayoutRelayout,
+    requestV3Relayout: options.requestLayoutRelayout,
+  });
+  controllerRuntime?.syncPanel?.();
+}
+
 function createLegacyPreviewResizeHandleRenderer(
   previewWindow: PreviewGridEditorLegacyWindow,
 ): PreviewGridEditorRuntimeBrowserOptions['renderResizeHandles'] {
@@ -601,26 +776,52 @@ export function createPreviewGridEditorInstallOptionsFromLegacyEditorHost(
 ): CreatePreviewGridEditorInstallUnitFromEditorHostOptions {
   const boxStyles = resolveLegacyPreviewBoxStyles(options.previewWindow);
   const previewConfig = options.previewWindow.__DG_CONFIG ?? {};
+  commitPreviewRenderIntentToWindow(options.previewWindow, {
+    activeEngineId: previewConfig.active_engine_id
+      ?? previewConfig.layout_engine
+      ?? options.config.engine
+      ?? previewConfig.engine
+      ?? null,
+    persistedEngineId: previewConfig.persisted_layout_engine
+      ?? previewConfig.layout_engine
+      ?? options.config.engine
+      ?? previewConfig.engine
+      ?? null,
+    fallbackEngineId: options.config.engine ?? null,
+  });
   let lastSelectionContext: PreviewUiSelectionContext = { count: 0, kind: 'empty' };
+  const resolveCurrentDocumentKind = () => previewConfig.document_kind || 'frame-diagram';
+  const resolveCurrentShellMode = () => previewConfig.shell_mode || 'grid';
+  const resolveCurrentConfiguredLayoutEngine = () => resolvePreviewRenderIntentLayoutEngine({
+    activeEngineId: previewConfig.active_engine_id ?? null,
+    layoutEngine: previewConfig.layout_engine ?? null,
+    persistedEngineId: previewConfig.persisted_layout_engine ?? null,
+    fallbackEngineId: options.config.engine ?? previewConfig.engine ?? null,
+  });
+  const resolveCurrentActiveLayoutEngine = () => (
+    resolvePreviewRenderIntentLayoutEngine({
+      intent: options.previewWindow.__DG_previewRenderIntent ?? null,
+    }) ?? resolveCurrentConfiguredLayoutEngine()
+  );
+  const resolveCurrentActiveEngine = () => resolvePreviewEngine({
+    layoutEngine: resolveCurrentActiveLayoutEngine(),
+    shellMode: resolveCurrentShellMode(),
+    previewDocumentKind: resolveCurrentDocumentKind(),
+  }) ?? null;
+  const shouldShowAutolayoutInspector = () => Boolean(
+    resolveCurrentActiveEngine()?.capabilities?.gridEditing,
+  );
   const syncPanelVisibility = (selection: PreviewUiSelectionContext) => {
     lastSelectionContext = selection;
-    const shellMode = previewConfig.shell_mode || 'grid';
-    const activeLayoutEngine = previewConfig.active_engine_id
-      || previewConfig.layout_engine
-      || options.config.engine
-      || previewConfig.engine
-      || null;
+    const shellMode = resolveCurrentShellMode();
+    const activeLayoutEngine = resolveCurrentActiveLayoutEngine();
     const persistedLayoutEngine = previewConfig.persisted_layout_engine
-      || previewConfig.layout_engine
-      || options.config.engine
-      || previewConfig.engine
-      || null;
-    const documentKind = previewConfig.document_kind || 'frame-diagram';
-    const activeEngine = resolvePreviewEngine({
-      layoutEngine: activeLayoutEngine,
-      shellMode,
-      previewDocumentKind: documentKind,
-    }) ?? null;
+      ?? previewConfig.layout_engine
+      ?? options.config.engine
+      ?? previewConfig.engine
+      ?? null;
+    const documentKind = resolveCurrentDocumentKind();
+    const activeEngine = resolveCurrentActiveEngine();
     syncPreviewPanelVisibilityFromContext({
       document: options.document,
       context: {
@@ -730,6 +931,7 @@ export function createPreviewGridEditorInstallOptionsFromLegacyEditorHost(
         mixed,
       }),
       syncPanelVisibility,
+      shouldShowAutolayoutInspector,
       snapToGrid: options.config.snapToGrid,
       alert: (message) => options.previewWindow.alert(message),
       normalizeStyleName: normalizePreviewStyleName,
@@ -1156,10 +1358,9 @@ export function createPreviewGridEditorInstallUnitFromBrowserHost(
   options.shared.previewWindow.__DG_rerenderPreviewEngineWorkspaceStage = async () => {
     const previewWindow = options.shared.previewWindow as PreviewGridEditorLegacyWindow;
     const previewConfig = previewWindow.__DG_CONFIG ?? null;
-    const activeLayoutEngine = resolveActivePreviewLayoutEngine({
-      activeEngineId: previewConfig?.active_engine_id ?? null,
-      layoutEngine: previewConfig?.layout_engine ?? null,
-      persistedEngineId: previewConfig?.persisted_layout_engine ?? null,
+    const activeLayoutEngine = resolvePreviewRenderIntentLayoutEngine({
+      intent: previewWindow.__DG_previewRenderIntent ?? null,
+    }) ?? resolvePreviewRenderIntentLayoutEngine({
       fallbackEngineId: options.shared.engine ?? null,
     });
     if (activeLayoutEngine) {
@@ -1169,7 +1370,20 @@ export function createPreviewGridEditorInstallUnitFromBrowserHost(
       if (committedLayoutEngine !== activeLayoutEngine) {
         throw new Error(`Unable to commit preview layout engine '${activeLayoutEngine}' before render.`);
       }
+      commitPreviewRenderIntentToWindow(previewWindow, {
+        current: previewWindow.__DG_previewRenderIntent ?? null,
+        activeEngineId: committedLayoutEngine,
+        persistedEngineId: previewConfig?.persisted_layout_engine ?? null,
+        fallbackEngineId: options.shared.engine ?? null,
+      });
     }
+    installActivePreviewEngineRuntime({
+      document: options.shared.document,
+      previewWindow: previewWindow as PreviewEngineRuntimeInstallerWindow,
+      model: options.shared.model,
+      fallbackEngineId: options.shared.engine ?? null,
+      requestLayoutRelayout: (cid) => getCompatFacade().requestLayoutRelayout(cid),
+    });
     await getCompatFacade().rerenderStageFromModel();
   };
 

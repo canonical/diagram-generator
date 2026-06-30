@@ -30,7 +30,8 @@
     _store = bootstrap.createEditorStateStore({
       getOverrides: () => deps.getOverrides(),
       getGridOverrides: () => deps.getGridOverrides(),
-      getElkLayoutOverrides: () => deps.getElkLayoutOverrides(),
+      getLayoutOverrides: () => deps.getLayoutOverrides(),
+      getLayoutOperatorOverridesState: () => deps.getLayoutOperatorOverridesState?.(),
       getRemovedIds: () => deps.getRemovedIds(),
       getFrameTree: () => deps.getFrameTree(),
     });

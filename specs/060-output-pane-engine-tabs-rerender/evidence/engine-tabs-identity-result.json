@@ -1,54 +1,135 @@
 {
-  "startedAt": "2026-06-28T15:05:45.709Z",
-  "baseUrl": "http://127.0.0.1:8100",
+  "ok": true,
+  "startedAt": "2026-06-29T09:13:42.751Z",
+  "baseUrl": "http://127.0.0.1:8120",
+  "notes": [
+    "Real gestures only: page.click engine tabs and page.selectOption inspector direction control.",
+    "No skipModelUpdate, no page.evaluate performEngineRelayout, no hash-only assertions."
+  ],
   "checks": [
     {
-      "slug": "mongo-octavia-ha",
-      "before": "elk-layered",
-      "steps": [
-        {
-          "selectedEngine": "v3",
-          "renderedEngine": "v3"
+      "name": "mongo authored-elk to v3 and elk-layered",
+      "ok": true,
+      "details": {
+        "slug": "mongo-octavia-ha",
+        "before": "elk-layered",
+        "steps": [
+          {
+            "selectedEngine": "v3",
+            "renderedEngine": "v3",
+            "changedNodeCount": 25,
+            "changedNodeSample": [
+              "page",
+              "mongo_clients",
+              "octavia_cluster",
+              "octavia_lb_a",
+              "octavia_lb_b"
+            ]
+          },
+          {
+            "selectedEngine": "elk-layered",
+            "renderedEngine": "elk-layered",
+            "changedNodeCount": 25,
+            "changedNodeSample": [
+              "page",
+              "mongo_clients",
+              "octavia_cluster",
+              "octavia_lb_a",
+              "octavia_lb_b"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "sequence document has no dead engine rail",
+      "ok": true,
+      "details": {
+        "slug": "service-handshake-sequence",
+        "renderedEngine": "sequence",
+        "sectionState": [
+          {
+            "hidden": true,
+            "display": "none"
+          }
+        ],
+        "tabCount": 0
+      }
+    },
+    {
+      "name": "tiered inspector direction flip reroutes arrows",
+      "ok": true,
+      "details": {
+        "slug": "tiered-network-architecture",
+        "renderedEngine": "v3",
+        "horizontalRootChildSpread": {
+          "x": 805.266,
+          "y": 0
         },
-        {
-          "selectedEngine": "elk-layered",
-          "renderedEngine": "elk-layered"
-        }
-      ]
-    },
-    {
-      "slug": "service-handshake-sequence",
-      "renderedEngine": "sequence",
-      "sectionHidden": true,
-      "tabCount": 0
-    },
-    {
-      "slug": "tiered-network-architecture",
-      "renderedEngine": "v3",
-      "relayout": {
-        "coerced": {},
-        "width": 792,
-        "height": 416
-      },
-      "beforeCount": 13,
-      "afterCount": 13,
-      "finite": true
-    },
-    {
-      "slug": "juju-bootstrap-machines-process",
-      "before": "elk-layered",
-      "steps": [
-        {
-          "selectedEngine": "v3",
-          "renderedEngine": "v3"
+        "verticalRootChildSpread": {
+          "x": 0,
+          "y": 264
         },
-        {
-          "selectedEngine": "elk-layered",
-          "renderedEngine": "elk-layered"
+        "horizontalArrowCount": 13,
+        "verticalArrowCount": 13,
+        "horizontalIntent": {
+          "engineId": "v3",
+          "pageDirection": "HORIZONTAL",
+          "frameOverrides": {
+            "page": {
+              "direction": "HORIZONTAL"
+            }
+          },
+          "engineOverrides": {},
+          "gridOverrides": {}
+        },
+        "verticalIntent": {
+          "engineId": "v3",
+          "pageDirection": "VERTICAL",
+          "frameOverrides": {
+            "page": {
+              "direction": "VERTICAL"
+            }
+          },
+          "engineOverrides": {},
+          "gridOverrides": {}
         }
-      ]
+      }
+    },
+    {
+      "name": "juju engine switch changes rendered engine and layout",
+      "ok": true,
+      "details": {
+        "slug": "juju-bootstrap-machines-process",
+        "before": "elk-layered",
+        "steps": [
+          {
+            "selectedEngine": "v3",
+            "renderedEngine": "v3",
+            "changedNodeCount": 14,
+            "changedNodeSample": [
+              "page",
+              "row_main",
+              "juju_system",
+              "juju_system__heading",
+              "juju_system__body"
+            ]
+          },
+          {
+            "selectedEngine": "elk-layered",
+            "renderedEngine": "elk-layered",
+            "changedNodeCount": 14,
+            "changedNodeSample": [
+              "page",
+              "row_main",
+              "juju_system",
+              "juju_system__heading",
+              "juju_system__body"
+            ]
+          }
+        ]
+      }
     }
   ],
-  "ok": true,
-  "finishedAt": "2026-06-28T15:05:46.830Z"
+  "finishedAt": "2026-06-29T09:13:49.935Z"
 }

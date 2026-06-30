@@ -60,9 +60,33 @@ export {
   filterSupportedFrameYamlEngineLayoutOverrides,
   getSupportedFrameYamlControlSpecsForNamespace,
   isSupportedFrameYamlEngineLayoutNamespace,
+  listFrameYamlEngineLayoutCandidateIds,
+  resolveFrameYamlEngineLayoutCandidateId,
   resolveFrameYamlEngineLayoutNamespaceForOverrides,
   type FrameYamlPersistedControlSpec,
 } from './frame-yaml-engine-layout-contract.js';
+
+export type {
+  LayoutOperatorOverrideModelLike,
+  LayoutOperatorOverrideState,
+  ResolveLayoutOperatorOverrideViewModelOptions,
+  ResolvedLayoutOperatorOverrideViewModel,
+} from './layout-operator-overrides.js';
+
+export {
+  activateLayoutOperatorOverrideBucket,
+  cloneLayoutOperatorOverrideState,
+  collectNamespacedLayoutOperatorOverrides,
+  layoutOperatorKeyForManifest,
+  pruneSessionBucketForManifest,
+  readActiveLayoutOperatorOverrideBucket,
+  readLayoutOperatorOverrideBucketForManifest,
+  readLayoutOperatorOverrideState,
+  resolveEffectiveLayoutOperatorOverrides,
+  resolveLayoutOperatorOverrideViewModel,
+  writeLayoutOperatorOverrideBucketForManifest,
+  writeLayoutOperatorOverrideState,
+} from './layout-operator-overrides.js';
 
 export type {
   PreviewGridControlInputState,
@@ -87,9 +111,25 @@ export {
   createPreviewEngineWorkspaceState,
   persistPreviewEngineWorkspaceActiveEngine,
   reopenPreviewEngineWorkspace,
+  resolveActivePreviewLayoutEngine,
   setPreviewEngineWorkspaceActiveEngine,
   setPreviewEngineWorkspaceSessionState,
 } from './preview-engine-workspace.js';
+
+export type {
+  CreatePreviewRenderIntentOptions,
+  PreviewRenderIntent,
+  PreviewRenderIntentFrameTree,
+  PreviewRenderIntentWindowLike,
+  ResolvePreviewRenderIntentLayoutEngineOptions,
+} from './preview-render-intent.js';
+
+export {
+  applyPreviewRenderIntentToFrameTreeJson,
+  commitPreviewRenderIntentToWindow,
+  createPreviewRenderIntent,
+  resolvePreviewRenderIntentLayoutEngine,
+} from './preview-render-intent.js';
 
 export {
   createPreviewGridOverrides,

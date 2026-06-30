@@ -36,6 +36,7 @@ export interface PreviewRoutedArrow extends RoutedArrow {
   start: [number, number];
   end: [number, number];
   waypoints: [number, number][];
+  legacyComponentId?: string;
   elkLabels?: Arrow['elkLabels'];
 }
 
@@ -75,13 +76,14 @@ function isArrowGroupElement(element: Element | null | undefined): element is El
   );
 }
 
-function findArrowGroups(root: ParentNode, componentId: string): Element[] {
+function findArrowGroups(root: ParentNode, componentIds: string[]): Element[] {
+  const ids = new Set(componentIds.filter((componentId) => componentId.trim().length > 0));
   return Array.from(root.querySelectorAll('[data-component-id]'))
     .filter((element): element is Element => (
       (typeof Element !== 'undefined' && element instanceof Element)
       || typeof element?.getAttribute === 'function'
     ))
-    .filter((element) => element.getAttribute('data-component-id') === componentId)
+    .filter((element) => ids.has(element.getAttribute('data-component-id') || ''))
     .filter((element) => isArrowGroupElement(element));
 }
 
@@ -199,6 +201,12 @@ export function previewArrowComponentId(
   return createPreviewArrowComponentId(arrow);
 }
 
+function legacyPreviewArrowComponentId(
+  arrow: Pick<Arrow, 'id' | 'source' | 'target'>,
+): string {
+  return arrow.id || `${arrow.source}->${arrow.target}`;
+}
+
 export function syncPreviewArrowsInModel<TModel extends PreviewArrowModelLike>(
   model: TModel | null | undefined,
   arrows: Arrow[],
@@ -251,6 +259,7 @@ export function routePreviewArrows(
         end: points[points.length - 1]!,
         waypoints: points.slice(1, -1),
         componentId: routed.componentId || (authored ? previewArrowComponentId(authored) : undefined),
+        legacyComponentId: authored ? legacyPreviewArrowComponentId(authored) : undefined,
         color: routed.color || authored?.color || ARROW_COLOR,
         label: routed.label ?? authored?.label,
         labelGap: routed.labelGap ?? authored?.labelGap ?? GRID_GUTTER,
@@ -300,7 +309,10 @@ export function patchPreviewArrowSvg(
 
   for (const arrow of options.routedArrows) {
     const componentId = arrow.componentId || '';
-    const group = findArrowGroups(options.svg, componentId)[0] || null;
+    const group = findArrowGroups(options.svg, [
+      componentId,
+      arrow.legacyComponentId || '',
+    ])[0] || null;
     if (!group) {
       continue;
     }

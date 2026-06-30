@@ -31,12 +31,12 @@
 >   `mongo-octavia-ha` fixture, sets `frameTreeJson.layoutEngine='v3'`, runs the
 >   **real** `renderFreshPreviewSvg`, and asserts the root SVG resolves to `v3`.
 >   This is a genuine contract test (no mocked rerender).
-> - New Playwright evidence `evidence/engine-tabs-identity-check.mjs` +
+> - Superseding Playwright evidence `evidence/engine-tabs-identity-check.ts` +
 >   `engine-tabs-identity-result.json` asserts **engine identity** via
 >   `#stage svg[data-layout-engine]` (not svgHash) for: `mongo-octavia-ha`
 >   authored-ELK→v3→elk-layered, sequence (hidden rail, 0 tabs), an authored
 >   `juju-bootstrap-machines-process` engine switch, and a direction-flip arrow
->   check on `tiered-network-architecture`.
+>   check on `tiered-network-architecture`, all through real browser gestures.
 > - Validation I ran myself: `npm --prefix packages/layout-engine test` →
 >   **853 passed / 146 files**; `npm --prefix apps/preview test` → **145 passed**;
 >   `node scripts/check_no_new_python.mjs` → ok.

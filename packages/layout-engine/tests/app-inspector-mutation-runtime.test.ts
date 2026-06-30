@@ -39,6 +39,41 @@ describe('createPreviewInspectorMutationRuntime', () => {
     expect(renderSelectionInspector).toHaveBeenCalledWith('alpha');
   });
 
+  it('treats section-to-default box type changes as appearance-only', () => {
+    let overrides: Record<string, Record<string, unknown>> = {};
+    const scheduleRelayout = vi.fn();
+    const requestRelayoutNow = vi.fn();
+
+    const runtime = createPreviewInspectorMutationRuntime({
+      captureOverrideEntries: (ids) => Object.fromEntries(ids.map((id) => [id, { ...(overrides[id] || {}) }])),
+      commitOverridePatchAction: vi.fn(),
+      getOverrides: () => overrides,
+      coercedKeys: new Set<string>(),
+      getNode: () => ({ type: 'box', level: 3, fill: 'WHITE', border: 'SOLID' }),
+      snapToGrid: (value) => value,
+      setDirty: vi.fn(),
+      scheduleRelayout,
+      requestRelayoutNow,
+      renderSelectionInspector: vi.fn(),
+      cleanOverride: vi.fn(),
+      getGridInfo: () => null,
+      getWidthUnit: () => 'px',
+      getHeightUnit: () => 'px',
+      baselineStep: 8,
+    });
+
+    runtime.applyStyle('step_problem', 'default');
+
+    expect(overrides.step_problem).toEqual({
+      level: 1,
+      fill: 'WHITE',
+      border: 'SOLID',
+      style: 'default',
+    });
+    expect(scheduleRelayout).not.toHaveBeenCalled();
+    expect(requestRelayoutNow).not.toHaveBeenCalled();
+  });
+
   it('keeps requesting relayout for style changes that alter measured geometry class', () => {
     let overrides: Record<string, Record<string, unknown>> = {};
     const scheduleRelayout = vi.fn();
@@ -175,5 +210,38 @@ describe('createPreviewInspectorMutationRuntime', () => {
     expect(requestRelayoutNow).toHaveBeenCalledWith('panel');
     expect(requestRelayoutNow).toHaveBeenCalledTimes(2);
     expect(scheduleRelayout).not.toHaveBeenCalled();
+  });
+
+  it('blocks native layout mutations when the active engine is not grid-editable', () => {
+    let overrides: Record<string, Record<string, unknown>> = {};
+    const requestRelayoutNow = vi.fn();
+    const renderSelectionInspector = vi.fn();
+    const runtime = createPreviewInspectorMutationRuntime({
+      captureOverrideEntries: (ids) => Object.fromEntries(ids.map((id) => [id, { ...(overrides[id] || {}) }])),
+      commitOverridePatchAction: vi.fn(),
+      getOverrides: () => overrides,
+      coercedKeys: new Set<string>(),
+      getNode: () => ({ type: 'box', children: [{ id: 'child' }] }),
+      snapToGrid: (value) => value,
+      setDirty: vi.fn(),
+      scheduleRelayout: vi.fn(),
+      requestRelayoutNow,
+      renderSelectionInspector,
+      cleanOverride: vi.fn(),
+      getGridInfo: () => null,
+      getWidthUnit: () => 'px',
+      getHeightUnit: () => 'px',
+      baselineStep: 8,
+      shouldShowAutolayoutInspector: () => false,
+    });
+
+    runtime.setFrameAlign('panel', 'BOTTOM_LEFT');
+    runtime.setFrameProp('panel', 'direction', 'HORIZONTAL');
+    runtime.setFrameSize('panel', 'width', 120);
+
+    expect(overrides).toEqual({});
+    expect(requestRelayoutNow).not.toHaveBeenCalled();
+    expect(renderSelectionInspector).toHaveBeenCalledTimes(3);
+    expect(renderSelectionInspector).toHaveBeenCalledWith('panel');
   });
 });

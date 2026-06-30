@@ -29,6 +29,20 @@ interface DagreEdgeValue {
   points?: Point2[];
 }
 
+type DagreGraphOptionValue = string | number;
+
+function stringOption(
+  overrides: Record<string, string> | undefined,
+  key: string,
+): string | undefined {
+  const raw = overrides?.[key];
+  if (raw == null) {
+    return undefined;
+  }
+  const trimmed = raw.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
 function numberOption(
   overrides: Record<string, string> | undefined,
   key: string,
@@ -44,6 +58,32 @@ function rankDirection(input: GraphLayoutInput, overrides?: Record<string, strin
   const raw = overrides?.['dagre.rankdir'];
   if (raw === 'TB' || raw === 'LR' || raw === 'BT' || raw === 'RL') return raw;
   return input.direction;
+}
+
+function graphOptions(
+  input: GraphLayoutInput,
+  overrides?: Record<string, string>,
+): Record<string, DagreGraphOptionValue> {
+  const options: Record<string, DagreGraphOptionValue> = {
+    rankdir: rankDirection(input, overrides),
+    nodesep: numberOption(overrides, 'dagre.nodesep', 72),
+    ranksep: numberOption(overrides, 'dagre.ranksep', 96),
+    edgesep: numberOption(overrides, 'dagre.edgesep', 24),
+    marginx: numberOption(overrides, 'dagre.marginx', 0),
+    marginy: numberOption(overrides, 'dagre.marginy', 0),
+    ranker: stringOption(overrides, 'dagre.ranker') ?? 'network-simplex',
+    rankalign: stringOption(overrides, 'dagre.rankalign') ?? 'center',
+  };
+
+  const align = stringOption(overrides, 'dagre.align');
+  if (align) {
+    options.align = align;
+  }
+  const acyclicer = stringOption(overrides, 'dagre.acyclicer');
+  if (acyclicer) {
+    options.acyclicer = acyclicer;
+  }
+  return options;
 }
 
 function flattenNodes(nodes: readonly GraphNodeInput[], out: GraphNodeInput[] = []): GraphNodeInput[] {
@@ -174,14 +214,7 @@ export function layoutDagre(
 ): GraphLayoutResult {
   const flatNodes = flattenNodes(input.nodes);
   const graph = new graphlib.Graph({ directed: true, multigraph: true });
-  graph.setGraph({
-    rankdir: rankDirection(input, options.optionOverrides),
-    nodesep: numberOption(options.optionOverrides, 'dagre.nodesep', 72),
-    ranksep: numberOption(options.optionOverrides, 'dagre.ranksep', 96),
-    edgesep: numberOption(options.optionOverrides, 'dagre.edgesep', 24),
-    marginx: 0,
-    marginy: 0,
-  });
+  graph.setGraph(graphOptions(input, options.optionOverrides));
   graph.setDefaultEdgeLabel(() => ({}));
 
   for (const node of flatNodes) {
