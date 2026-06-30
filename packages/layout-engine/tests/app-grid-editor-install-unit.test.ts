@@ -107,7 +107,6 @@ describe('createPreviewGridEditorInstallUnitFromBrowserHost', () => {
           set: vi.fn(),
         },
         requestLayoutRelayout: vi.fn(),
-        requestV3Relayout: vi.fn(),
         getMultiActionGapInput: vi.fn(() => null),
         setTimeoutFn: vi.fn((callback: () => void) => callback()),
         clearTimeoutFn: vi.fn(),
@@ -670,11 +669,12 @@ describe('createPreviewGridEditorInstallUnitFromLegacyEditorHost', () => {
 
     expect(installUnit.getRuntime()).toBe(runtime);
     expect(capturedRuntimeOptions).not.toBeNull();
+    const bootstrap = installUnit.getBootstrapFacade();
     const sceneFacade = installUnit.getSceneFacade();
     const relayout = installUnit.getRelayoutFacade();
     const interaction = installUnit.getInteractionFacade();
-    const compat = installUnit.getCompatFacade();
 
+    expect(bootstrap).toBeTruthy();
     expect(sceneFacade).toBeTruthy();
     expect(relayout.getRelayoutRuntime()).toBe(relayoutRuntime);
     expect(interaction.getSelectionRuntime()).toBe(selectionRuntime);
@@ -684,7 +684,7 @@ describe('createPreviewGridEditorInstallUnitFromLegacyEditorHost', () => {
     expect(capturedRuntimeOptions).not.toBeNull();
     expect(document.getElementById('stage')).toBe(stage);
 
-    await expect(compat.loadSvg()).resolves.toBe('client-render');
+    await expect(bootstrap.loadSvg()).resolves.toBe('client-render');
     expect(stage.replaceChildren).toHaveBeenCalledTimes(1);
   });
 });
@@ -1374,9 +1374,7 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
     expect(createGraphControlsRuntime).toHaveBeenCalledTimes(2);
     expect(createGraphControllerRuntime).toHaveBeenCalledTimes(2);
     expect(previewWindow.PreviewEngineLayoutControls).toBe(graphControlsRuntime);
-    expect(previewWindow.ElkLayoutControls).toBeNull();
     expect(previewWindow.PreviewEngineShellController).toBe(graphControllerRuntime);
-    expect(previewWindow.ElkPreviewController).toBeNull();
     expect(graphControllerInit).toHaveBeenCalledTimes(2);
     expect(graphControllerInit.mock.calls[1]?.[0]?.getLayoutOverrides()).toEqual({
       'elk.spacing.nodeNode': 96,
@@ -1720,24 +1718,28 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
       (runtimeBrowser.requestLayoutRelayout as (cid: string) => Promise<unknown>)('epsilon'),
     ).resolves.toBe('relayouted');
 
-    const compat = installUnit.getCompatFacade();
-    await expect(compat.loadSvg({ preserveSelectionIds: ['alpha'] } as never)).resolves.toBe('loaded');
-    expect(compat.getLayoutRelayoutStatus()).toEqual({ lastMode: 'local' });
-    await expect(compat.finishRelayout('alpha', null, 'local')).resolves.toBe('finished');
-    expect(compat.failRelayout('broken', 'alpha')).toBe('failed');
-    expect(await compat.deleteSelectedFrames()).toBe(true);
-    expect(compat.buildTreeUi()).toBe('tree-ui');
-    compat.onSvgDoubleClick({ kind: 'dbl' } as never);
+    const bootstrap = installUnit.getBootstrapFacade();
+    const scene = installUnit.getSceneFacade();
+    const relayout = installUnit.getRelayoutFacade();
+    const interaction = installUnit.getInteractionFacade();
+    const directRelayoutRuntime = relayout.getRelayoutRuntime();
+    await expect(bootstrap.loadSvg({ preserveSelectionIds: ['alpha'] } as never)).resolves.toBe('loaded');
+    expect(relayout.getLayoutRelayoutStatus()).toEqual({ lastMode: 'local' });
+    await expect(relayout.finishRelayout('alpha', null, 'local')).resolves.toBe('finished');
+    expect(relayout.failRelayout('broken', 'alpha')).toBe('failed');
+    expect(await scene.deleteSelectedFrames()).toEqual({ rerendered: true });
+    expect(interaction.getStageBindingRuntime().buildTreeUi()).toBe('tree-ui');
+    interaction.onSvgDoubleClick({ kind: 'dbl' } as never);
     expect(interactionFacade.onSvgDoubleClick).toHaveBeenCalledTimes(1);
-    compat.startTextEdit('alpha', { kind: 'event' } as never, { textEl: null } as never);
+    interaction.startTextEdit('alpha', { kind: 'event' } as never, { textEl: null } as never);
     expect(interactionFacade.startTextEdit).toHaveBeenCalledTimes(1);
-    compat.showResizeHandles('alpha');
+    interaction.showResizeHandles('alpha');
     expect(interactionFacade.showResizeHandles).toHaveBeenCalledWith('alpha');
-    compat.requestLayoutRelayout('zeta');
+    directRelayoutRuntime.requestRelayout('zeta');
     expect(relayoutRuntime.requestRelayout).toHaveBeenCalledWith('zeta');
-    compat.clearOverride('alpha');
+    directRelayoutRuntime.clearOverride('alpha');
     expect(relayoutRuntime.clearOverride).toHaveBeenCalledWith('alpha');
-    compat.getPrimarySelectedId('beta');
+    interactionContract.resolvePrimarySelectedId(options.shared.selectedIds, 'beta');
     expect(interactionContract.resolvePrimarySelectedId)
       .toHaveBeenCalledWith(options.shared.selectedIds, 'beta');
   });

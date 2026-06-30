@@ -103,6 +103,21 @@ export function extractNamedFunctionSource(source: string, functionName: string,
     return source.slice(start, statementEnd + 1);
   }
 
+  const assignmentPrefixes = [
+    `const ${functionName} =`,
+    `let ${functionName} =`,
+    `var ${functionName} =`,
+  ];
+  for (const prefix of assignmentPrefixes) {
+    const start = source.indexOf(prefix);
+    if (start === -1) continue;
+    const statementEnd = source.indexOf(";", start + prefix.length);
+    if (statementEnd === -1) {
+      throw new Error(`${functionName} assignment statement end not found`);
+    }
+    return source.slice(start, statementEnd + 1);
+  }
+
   const destructurePrefixes = [
     "const {",
     "let {",
@@ -150,15 +165,8 @@ export function extractNamedFunctionSource(source: string, functionName: string,
         String.raw`(?:^|[,{])\s*(?:[A-Za-z_$][\w$]*\s*:\s*)?${functionName}(?:\s*[=,}])`,
         "m",
       );
-      const aliasMatch = statement.match(
-        new RegExp(
-          String.raw`(?:^|[,{])\s*(?:([A-Za-z_$][\w$]*)\s*:\s*)?${functionName}(?:\s*[=,}])`,
-          "m",
-        ),
-      );
       if (aliasPattern.test(statement)) {
-        const compatKey = aliasMatch?.[1] ?? functionName;
-        return `const ${functionName} = _getPreviewGridEditorCompat().${compatKey};`;
+        throw new Error(`${functionName} is still read from the deleted preview grid editor facade`);
       }
 
       searchIndex = statementEnd + 1;
@@ -173,65 +181,150 @@ export function normalizeVmValue<T>(value: T): T {
 }
 
 export function attachPreviewCompat<T extends Record<string, any>>(context: T): T {
-  const mutableContext = context as T & {
-    _getPreviewGridEditorCompat?: () => Record<string, unknown>;
-  };
-  if (typeof mutableContext._getPreviewGridEditorCompat === "function") {
-    return context;
-  }
-  mutableContext._getPreviewGridEditorCompat = () => {
-    const bootstrap = typeof context._getEditorBootstrapFacade === "function"
-      ? context._getEditorBootstrapFacade()
+  const mutableContext = context as Record<string, any>;
+  const existingGetEditorBootstrapFacade = context._getEditorBootstrapFacade;
+  const existingGetEditorSceneFacade = context._getEditorSceneFacade;
+  const existingGetEditorInteractionFacade = context._getEditorInteractionFacade;
+  const existingGetStageBindingRuntime = context._getStageBindingRuntime;
+  const existingGetPointerInteractionRuntime = context._getPointerInteractionRuntime;
+  const existingGetSelectionChromeRuntime = context._getSelectionChromeRuntime;
+  const existingGetSelectionRuntime = context._getSelectionRuntime;
+  const existingGetInspectorDisplayRuntime = context._getInspectorDisplayRuntime;
+  const existingGetInspectorMutationRuntime = context._getInspectorMutationRuntime;
+  const existingGetInspectorSelectionRuntime = context._getInspectorSelectionRuntime;
+  const existingGetArrowWaypointRuntime = context._getArrowWaypointRuntime;
+  const existingGetTextEditRuntime = context._getTextEditRuntime;
+  const existingGetResizeInteractionRuntime = context._getResizeInteractionRuntime;
+  const existingGetEditorRelayoutFacade = context._getEditorRelayoutFacade;
+  const existingGetRelayoutRuntime = context._getRelayoutRuntime;
+  const existingGetKeyboardRuntime = context._getKeyboardRuntime;
+  const readRuntimeParts = () => {
+    const bootstrap = typeof existingGetEditorBootstrapFacade === "function"
+      ? existingGetEditorBootstrapFacade()
       : {};
-    const scene = typeof context._getEditorSceneFacade === "function"
-      ? context._getEditorSceneFacade()
+    const scene = typeof existingGetEditorSceneFacade === "function"
+      ? existingGetEditorSceneFacade()
       : {};
-    const interaction = typeof context._getEditorInteractionFacade === "function"
-      ? context._getEditorInteractionFacade()
+    const interaction = typeof existingGetEditorInteractionFacade === "function"
+      ? existingGetEditorInteractionFacade()
       : {};
-    const stageBinding = typeof context._getStageBindingRuntime === "function"
-      ? context._getStageBindingRuntime()
+    const stageBinding = typeof existingGetStageBindingRuntime === "function"
+      ? existingGetStageBindingRuntime()
       : interaction.getStageBindingRuntime?.() ?? {};
-    const pointer = typeof context._getPointerInteractionRuntime === "function"
-      ? context._getPointerInteractionRuntime()
+    const pointer = typeof existingGetPointerInteractionRuntime === "function"
+      ? existingGetPointerInteractionRuntime()
       : interaction.getPointerInteractionRuntime?.() ?? {};
-    const selectionChrome = typeof context._getSelectionChromeRuntime === "function"
-      ? context._getSelectionChromeRuntime()
+    const selectionChrome = typeof existingGetSelectionChromeRuntime === "function"
+      ? existingGetSelectionChromeRuntime()
       : interaction.getSelectionChromeRuntime?.() ?? {};
-    const selection = typeof context._getSelectionRuntime === "function"
-      ? context._getSelectionRuntime()
+    const selection = typeof existingGetSelectionRuntime === "function"
+      ? existingGetSelectionRuntime()
       : interaction.getSelectionRuntime?.() ?? {};
-    const inspectorDisplay = typeof context._getInspectorDisplayRuntime === "function"
-      ? context._getInspectorDisplayRuntime()
+    const inspectorDisplay = typeof existingGetInspectorDisplayRuntime === "function"
+      ? existingGetInspectorDisplayRuntime()
       : interaction.getInspectorDisplayRuntime?.() ?? {};
-    const inspectorMutation = typeof context._getInspectorMutationRuntime === "function"
-      ? context._getInspectorMutationRuntime()
+    const inspectorMutation = typeof existingGetInspectorMutationRuntime === "function"
+      ? existingGetInspectorMutationRuntime()
       : interaction.getInspectorMutationRuntime?.() ?? {};
-    const inspectorSelection = typeof context._getInspectorSelectionRuntime === "function"
-      ? context._getInspectorSelectionRuntime()
+    const inspectorSelection = typeof existingGetInspectorSelectionRuntime === "function"
+      ? existingGetInspectorSelectionRuntime()
       : interaction.getInspectorSelectionRuntime?.() ?? {};
-    const arrowWaypoint = typeof context._getArrowWaypointRuntime === "function"
-      ? context._getArrowWaypointRuntime()
+    const arrowWaypoint = typeof existingGetArrowWaypointRuntime === "function"
+      ? existingGetArrowWaypointRuntime()
       : interaction.getArrowWaypointRuntime?.() ?? {};
-    const textEdit = typeof context._getTextEditRuntime === "function"
-      ? context._getTextEditRuntime()
+    const textEdit = typeof existingGetTextEditRuntime === "function"
+      ? existingGetTextEditRuntime()
       : interaction.getTextEditRuntime?.() ?? {};
-    const resize = typeof context._getResizeInteractionRuntime === "function"
-      ? context._getResizeInteractionRuntime()
+    const resize = typeof existingGetResizeInteractionRuntime === "function"
+      ? existingGetResizeInteractionRuntime()
       : interaction.getResizeInteractionRuntime?.() ?? {};
-    const relayoutFacade = typeof context._getEditorRelayoutFacade === "function"
-      ? context._getEditorRelayoutFacade()
+    const relayoutFacade = typeof existingGetEditorRelayoutFacade === "function"
+      ? existingGetEditorRelayoutFacade()
       : {};
-    const relayoutRuntime = typeof context._getRelayoutRuntime === "function"
-      ? context._getRelayoutRuntime()
+    const relayoutRuntime = typeof existingGetRelayoutRuntime === "function"
+      ? existingGetRelayoutRuntime()
       : relayoutFacade.getRelayoutRuntime?.() ?? {};
-    const keyboard = typeof context._getKeyboardRuntime === "function"
-      ? context._getKeyboardRuntime()
+    const keyboard = typeof existingGetKeyboardRuntime === "function"
+      ? existingGetKeyboardRuntime()
       : interaction.getKeyboardRuntime?.() ?? {};
-    return {
-      ...bootstrap,
-      ...scene,
+    const interactionFacade = {
       ...interaction,
+      buildTreeUi: stageBinding.buildTreeUi ?? interaction.buildTreeUi ?? context.buildTreeUI,
+      bindInteraction: stageBinding.bindInteraction ?? interaction.bindInteraction ?? context.bindInteraction,
+      onSvgDoubleClick: pointer.onSvgDoubleClick ?? interaction.onSvgDoubleClick ?? context.onSvgDblClick,
+      onSvgMouseDown: pointer.onSvgMouseDown ?? interaction.onSvgMouseDown,
+      onDragMove: pointer.onDragMove ?? interaction.onDragMove,
+      onDragUp: pointer.onDragUp ?? interaction.onDragUp,
+      showResizeHandles:
+        selectionChrome.showResizeHandles ?? interaction.showResizeHandles ?? context.showResizeHandles,
+      removeResizeHandles:
+        selectionChrome.removeResizeHandles ?? interaction.removeResizeHandles ?? context.removeResizeHandles,
+      startTextEdit: textEdit.startTextEdit ?? interaction.startTextEdit,
+      commitTextEdit: textEdit.commitTextEdit ?? interaction.commitTextEdit,
+      cancelTextEdit: textEdit.cancelTextEdit ?? interaction.cancelTextEdit,
+      startResize: resize.startResize ?? interaction.startResize,
+      onResizeMove: resize.onResizeMove ?? interaction.onResizeMove,
+      onResizeUp: resize.onResizeUp ?? interaction.onResizeUp,
+      onDocumentKeyDown: keyboard.onDocumentKeyDown ?? interaction.onDocumentKeyDown,
+      getStageBindingRuntime: interaction.getStageBindingRuntime ?? (() => stageBinding),
+      getPointerInteractionRuntime: interaction.getPointerInteractionRuntime ?? (() => pointer),
+      getSelectionChromeRuntime: interaction.getSelectionChromeRuntime ?? (() => selectionChrome),
+      getSelectionRuntime: interaction.getSelectionRuntime ?? (() => selection),
+      getInspectorDisplayRuntime: interaction.getInspectorDisplayRuntime ?? (() => inspectorDisplay),
+      getInspectorMutationRuntime: interaction.getInspectorMutationRuntime ?? (() => inspectorMutation),
+      getInspectorSelectionRuntime: interaction.getInspectorSelectionRuntime ?? (() => inspectorSelection),
+      getArrowWaypointRuntime: interaction.getArrowWaypointRuntime ?? (() => arrowWaypoint),
+      getTextEditRuntime: interaction.getTextEditRuntime ?? (() => textEdit),
+      getResizeInteractionRuntime: interaction.getResizeInteractionRuntime ?? (() => resize),
+      getKeyboardRuntime: interaction.getKeyboardRuntime ?? (() => keyboard),
+    };
+    return { bootstrap, scene, interaction: interactionFacade, stageBinding, pointer, selectionChrome, selection, inspectorDisplay, inspectorMutation, inspectorSelection, arrowWaypoint, textEdit, resize, keyboard, relayoutFacade, relayoutRuntime };
+  };
+  mutableContext._getEditorBootstrapFacade ??= () => readRuntimeParts().bootstrap;
+  mutableContext._getEditorSceneFacade ??= () => readRuntimeParts().scene;
+  mutableContext._getEditorRelayoutFacade ??= () => readRuntimeParts().relayoutFacade;
+  mutableContext._getEditorInteractionFacade ??= () => readRuntimeParts().interaction;
+  mutableContext._getStageBindingRuntime ??= () => readRuntimeParts().stageBinding;
+  mutableContext._getPointerInteractionRuntime ??= () => readRuntimeParts().pointer;
+  mutableContext._getSelectionChromeRuntime ??= () => readRuntimeParts().selectionChrome;
+  mutableContext._getRelayoutRuntime ??= () => readRuntimeParts().relayoutRuntime;
+  mutableContext._getKeyboardRuntime ??= () => readRuntimeParts().keyboard;
+  mutableContext._getSelectionRuntime ??= () => readRuntimeParts().selection;
+  mutableContext._getInspectorDisplayRuntime ??= () => readRuntimeParts().inspectorDisplay;
+  mutableContext._getInspectorMutationRuntime ??= () => readRuntimeParts().inspectorMutation;
+  mutableContext._getInspectorSelectionRuntime ??= () => readRuntimeParts().inspectorSelection;
+  mutableContext._getArrowWaypointRuntime ??= () => readRuntimeParts().arrowWaypoint;
+  mutableContext._getTextEditRuntime ??= () => readRuntimeParts().textEdit;
+  mutableContext._getResizeInteractionRuntime ??= () => readRuntimeParts().resize;
+  mutableContext._resolvePrimarySelectedId ??= (preferredCid?: string | null) => (
+    context.window?.__DG_getPreviewShellInteractionContract?.()
+      ?.resolvePrimarySelectedId?.(context.selectedIds, preferredCid)
+  );
+  return context;
+}
+
+export function createPreviewRuntimeFacade<T extends Record<string, any>>(context: T): Record<string, unknown> {
+  attachPreviewCompat(context);
+  const bootstrap = context._getEditorBootstrapFacade?.() ?? {};
+  const scene = context._getEditorSceneFacade?.() ?? {};
+  const interaction = context._getEditorInteractionFacade?.() ?? {};
+  const relayoutFacade = context._getEditorRelayoutFacade?.() ?? {};
+  const stageBinding = context._getStageBindingRuntime?.() ?? interaction.getStageBindingRuntime?.() ?? {};
+  const pointer = context._getPointerInteractionRuntime?.() ?? interaction.getPointerInteractionRuntime?.() ?? {};
+  const selectionChrome = context._getSelectionChromeRuntime?.() ?? interaction.getSelectionChromeRuntime?.() ?? {};
+  const selection = context._getSelectionRuntime?.() ?? interaction.getSelectionRuntime?.() ?? {};
+  const inspectorDisplay = context._getInspectorDisplayRuntime?.() ?? interaction.getInspectorDisplayRuntime?.() ?? {};
+  const inspectorMutation = context._getInspectorMutationRuntime?.() ?? interaction.getInspectorMutationRuntime?.() ?? {};
+  const inspectorSelection = context._getInspectorSelectionRuntime?.() ?? interaction.getInspectorSelectionRuntime?.() ?? {};
+  const arrowWaypoint = context._getArrowWaypointRuntime?.() ?? interaction.getArrowWaypointRuntime?.() ?? {};
+  const textEdit = context._getTextEditRuntime?.() ?? interaction.getTextEditRuntime?.() ?? {};
+  const resize = context._getResizeInteractionRuntime?.() ?? interaction.getResizeInteractionRuntime?.() ?? {};
+  const relayoutRuntime = context._getRelayoutRuntime?.() ?? relayoutFacade.getRelayoutRuntime?.() ?? {};
+  const keyboard = context._getKeyboardRuntime?.() ?? interaction.getKeyboardRuntime?.() ?? {};
+  return {
+    ...bootstrap,
+    ...scene,
+    ...interaction,
       ...stageBinding,
       ...pointer,
       ...selectionChrome,
@@ -279,13 +372,10 @@ export function attachPreviewCompat<T extends Record<string, any>>(context: T): 
         : context.deleteSelectedFrames,
       refreshGridInfoFromLayout:
         scene.refreshGridInfoFromLayout
-        ?? context.refreshLayoutGridInfoFromLayout
-        ?? context.refreshV3GridInfoFromLayout,
+        ?? context.refreshLayoutGridInfoFromLayout,
       rebuildArrowSvg: arrowWaypoint.rebuildArrowSvg ?? context.rebuildArrowSVG,
       loadSvg: bootstrap.loadSvg ?? context.loadSVG,
-    };
   };
-  return context;
 }
 
 export function createPreviewGridEditorRuntimeContext(options?: {
@@ -467,16 +557,10 @@ export function createPreviewGridEditorRuntimeContext(options?: {
     _scheduleLayoutResizeRelayout() {
       return false;
     },
-    _scheduleV3ResizeRelayout() {
-      return false;
-    },
     _cancelLayoutResizeRelayout() {},
     _persistResizeToLayout() {},
     cycleGuideMode() {},
     requestLayoutRelayout() {
-      return Promise.resolve(true);
-    },
-    requestV3Relayout() {
       return Promise.resolve(true);
     },
     snapToGrid(value: number) {

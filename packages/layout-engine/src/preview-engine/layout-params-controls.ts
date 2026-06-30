@@ -31,7 +31,7 @@ type PreviewControlElement = {
   addEventListener: (type: string, listener: () => void) => void;
 };
 
-export interface PreviewElkLayoutControlsDocumentLike {
+export interface PreviewEngineLayoutControlsDocumentLike {
   getElementById: (id: string) => (PreviewControlElement & {
     hidden?: boolean;
     textContent?: string;
@@ -42,7 +42,7 @@ export interface PreviewElkLayoutControlsDocumentLike {
   }) | null;
 }
 
-export interface PreviewElkLayoutControlsWindowLike {
+export interface PreviewEngineLayoutControlsWindowLike {
   __DG_CONFIG?: { layout_engine?: string };
   __DG_previewRenderIntent?: PreviewRenderIntent | null;
   __DG_previewEngineRawView?: boolean;
@@ -52,26 +52,17 @@ export interface PreviewElkLayoutControlsWindowLike {
   PreviewEngineShellController?: {
     wirePanel?: () => void;
     applyLayoutOverrides?: (value: Record<string, unknown>) => void;
-    applyElkLayoutOverrides?: (value: Record<string, unknown>) => void;
     requestRelayout?: () => Promise<unknown> | unknown;
     isActiveLayoutEngine?: (frameTreeJson?: unknown) => boolean;
-    isElkLayeredDiagram?: (frameTreeJson?: unknown) => boolean;
-  };
-  ElkPreviewController?: {
-    wirePanel?: () => void;
-    applyElkLayoutOverrides?: (value: Record<string, unknown>) => void;
-    requestRelayout?: () => Promise<unknown> | unknown;
-    isElkLayeredDiagram?: (frameTreeJson?: unknown) => boolean;
   };
   requestPreviewEngineRelayout?: () => unknown;
   requestLayoutRelayout?: (rootId: string) => unknown;
-  requestV3Relayout?: (rootId: string) => unknown;
   setDirty?: (dirty: boolean) => void;
 }
 
-export interface PreviewElkLayoutControlsRuntimeOptions {
-  document: PreviewElkLayoutControlsDocumentLike;
-  previewWindow: PreviewElkLayoutControlsWindowLike;
+export interface PreviewEngineLayoutControlsRuntimeOptions {
+  document: PreviewEngineLayoutControlsDocumentLike;
+  previewWindow: PreviewEngineLayoutControlsWindowLike;
   layoutEngineRoot?: {
     previewEngines?: {
       registry?: {
@@ -79,15 +70,9 @@ export interface PreviewElkLayoutControlsRuntimeOptions {
         listPreviewEnginesBySidebarSection?: (section: string) => PreviewEngineManifest[];
         listPreviewEngines?: () => PreviewEngineManifest[];
       };
-      elk?: {
-        elkParamGroups?: () => PreviewEngineSidebarGroup[];
-        ELK_LAYERED_PARAM_SPECS?: PreviewControlSpec[];
-      };
     };
     listPreviewEngines?: () => PreviewEngineManifest[];
     resolvePreviewEngine?: (context: { layoutEngine?: string | null; shellMode?: string | null }) => PreviewEngineManifest | null;
-    elkParamGroups?: () => PreviewEngineSidebarGroup[];
-    ELK_LAYERED_PARAM_SPECS?: PreviewControlSpec[];
   } | null;
   setTimeoutFn?: (callback: () => void, delayMs: number) => unknown;
   clearTimeoutFn?: (token: unknown) => void;
@@ -104,13 +89,13 @@ export interface PreviewElkLayoutControlsRuntimeOptions {
   getDirtySetter?: (() => ((dirty: boolean) => void) | undefined) | null;
 }
 
-export interface PreviewElkLayoutControlsRuntimeInitOptions {
+export interface PreviewEngineLayoutControlsRuntimeInitOptions {
   getOverrides?: () => Record<string, unknown>;
   setOverrides?: (value: Record<string, unknown>) => void;
 }
 
-export interface PreviewElkLayoutControlsRuntime {
-  init: (options?: PreviewElkLayoutControlsRuntimeInitOptions | null) => void;
+export interface PreviewEngineLayoutControlsRuntime {
+  init: (options?: PreviewEngineLayoutControlsRuntimeInitOptions | null) => void;
   buildPanel: (frameTreeJson?: unknown) => void;
   refresh: () => void;
   collectOverrides: () => Record<string, unknown>;
@@ -120,10 +105,8 @@ export interface PreviewElkLayoutControlsRuntime {
 interface PreviewEngineShellControllerLike {
   wirePanel?: () => void;
   applyLayoutOverrides?: (value: Record<string, unknown>) => void;
-  applyElkLayoutOverrides?: (value: Record<string, unknown>) => void;
   requestRelayout?: () => Promise<unknown> | unknown;
   isActiveLayoutEngine?: (frameTreeJson?: unknown) => boolean;
-  isElkLayeredDiagram?: (frameTreeJson?: unknown) => boolean;
 }
 
 function engineSupportsSidebarSection(engine: PreviewEngineManifest | null | undefined, section: string): boolean {
@@ -136,15 +119,13 @@ function engineSupportsSidebarSection(engine: PreviewEngineManifest | null | und
 }
 
 function previewEngineShellController(
-  previewWindow: PreviewElkLayoutControlsWindowLike,
+  previewWindow: PreviewEngineLayoutControlsWindowLike,
 ): PreviewEngineShellControllerLike | null {
-  return (previewWindow.PreviewEngineShellController
-    ?? previewWindow.ElkPreviewController
-    ?? null) as PreviewEngineShellControllerLike | null;
+  return (previewWindow.PreviewEngineShellController ?? null) as PreviewEngineShellControllerLike | null;
 }
 
 function readPreviewEngineRawView(
-  previewWindow: PreviewElkLayoutControlsWindowLike,
+  previewWindow: PreviewEngineLayoutControlsWindowLike,
 ): boolean {
   if (typeof previewWindow.__DG_previewEngineRawView === 'boolean') {
     return previewWindow.__DG_previewEngineRawView;
@@ -153,8 +134,8 @@ function readPreviewEngineRawView(
 }
 
 export function createPreviewEngineLayoutControlsRuntime(
-  options: PreviewElkLayoutControlsRuntimeOptions,
-): PreviewElkLayoutControlsRuntime {
+  options: PreviewEngineLayoutControlsRuntimeOptions,
+): PreviewEngineLayoutControlsRuntime {
   const sidebarSectionId = options.sidebarSectionId ?? 'layout-params';
   const sectionId = options.sectionId ?? 'layout-params-section';
   const containerId = options.containerId ?? 'layout-params-controls';
@@ -220,9 +201,6 @@ export function createPreviewEngineLayoutControlsRuntime(
     const controller = previewEngineShellController(options.previewWindow);
     if (typeof controller?.isActiveLayoutEngine === 'function') {
       return Boolean(controller.isActiveLayoutEngine(frameTreeJson));
-    }
-    if (typeof controller?.isElkLayeredDiagram === 'function') {
-      return Boolean(controller.isElkLayeredDiagram(frameTreeJson));
     }
     const layoutEngine = layoutEngineFromFrameTree(frameTreeJson);
     if (engineSupportsSidebarSection(resolvePreviewEngine({ layoutEngine, shellMode: 'grid' }), sidebarSectionId)) {
@@ -291,35 +269,10 @@ export function createPreviewEngineLayoutControlsRuntime(
     if (engine && Array.isArray(engine.controlSpecs) && engine.controlSpecs.length > 0) {
       return engine.controlSpecs;
     }
-    const contract = options.layoutEngineRoot?.previewEngines?.elk?.ELK_LAYERED_PARAM_SPECS;
-    if (Array.isArray(contract) && contract.length > 0) {
-      return contract;
-    }
-    const legacy = options.layoutEngineRoot?.ELK_LAYERED_PARAM_SPECS;
-    return Array.isArray(legacy) ? legacy : [];
+    return [];
   }
 
   function groups(specs = paramSpecs()): PreviewEngineSidebarGroup[] {
-    const contractGroups = options.layoutEngineRoot?.previewEngines?.elk?.elkParamGroups?.()
-      ?? options.layoutEngineRoot?.elkParamGroups?.();
-    const contractGroupKeys = new Set(
-      (contractGroups ?? []).flatMap((group) => group.specs.map((spec) => spec.key)),
-    );
-    if (
-      Array.isArray(contractGroups) &&
-      contractGroups.length > 0 &&
-      specs.every((spec) => contractGroupKeys.has(spec.key))
-    ) {
-      const activeSpecs = new Map(specs.map((spec) => [spec.key, spec]));
-      return contractGroups
-        .map((group) => ({
-          group: group.group,
-          specs: group.specs
-            .map((spec) => activeSpecs.get(spec.key))
-            .filter((spec): spec is PreviewControlSpec => Boolean(spec)),
-        }))
-        .filter((group) => group.specs.length > 0);
-    }
     const buckets = new Map<string, PreviewControlSpec[]>();
     for (const spec of specs) {
       const list = buckets.get(spec.group) || [];
@@ -537,8 +490,6 @@ export function createPreviewEngineLayoutControlsRuntime(
     buildPanel(frameTreeJson);
     if (typeof controller?.applyLayoutOverrides === 'function') {
       controller.applyLayoutOverrides(next);
-    } else {
-      controller?.applyElkLayoutOverrides?.(next);
     }
     const dirtySetter = options.getDirtySetter?.() ?? options.previewWindow.setDirty;
     dirtySetter?.(true);
@@ -558,11 +509,6 @@ export function createPreviewEngineLayoutControlsRuntime(
       if (typeof options.previewWindow.requestLayoutRelayout === 'function') {
         const frameTree = options.getFrameTreeJson?.() as { root?: { id?: string } } | null | undefined;
         options.previewWindow.requestLayoutRelayout(frameTree?.root?.id || 'root');
-        return;
-      }
-      if (typeof options.previewWindow.requestV3Relayout === 'function') {
-        const frameTree = options.getFrameTreeJson?.() as { root?: { id?: string } } | null | undefined;
-        options.previewWindow.requestV3Relayout(frameTree?.root?.id || 'root');
       }
     }, 250);
   }
@@ -725,5 +671,3 @@ export function createPreviewEngineLayoutControlsRuntime(
     collectNamespacedOverrides,
   };
 }
-
-export const createPreviewElkLayoutControlsRuntime = createPreviewEngineLayoutControlsRuntime;

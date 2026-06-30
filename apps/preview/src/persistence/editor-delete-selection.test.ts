@@ -103,6 +103,21 @@ function extractNamedFunctionSource(source: string, functionName: string, signat
     return source.slice(start, statementEnd + 1);
   }
 
+  const assignmentPrefixes = [
+    `const ${functionName} =`,
+    `let ${functionName} =`,
+    `var ${functionName} =`,
+  ];
+  for (const prefix of assignmentPrefixes) {
+    const start = source.indexOf(prefix);
+    if (start === -1) continue;
+    const statementEnd = source.indexOf(";", start + prefix.length);
+    if (statementEnd === -1) {
+      throw new Error(`${functionName} assignment statement end not found`);
+    }
+    return source.slice(start, statementEnd + 1);
+  }
+
   const destructurePrefixes = [
     "const {",
     "let {",
@@ -150,15 +165,8 @@ function extractNamedFunctionSource(source: string, functionName: string, signat
         String.raw`(?:^|[,{])\s*(?:[A-Za-z_$][\w$]*\s*:\s*)?${functionName}(?:\s*[=,}])`,
         "m",
       );
-      const aliasMatch = statement.match(
-        new RegExp(
-          String.raw`(?:^|[,{])\s*(?:([A-Za-z_$][\w$]*)\s*:\s*)?${functionName}(?:\s*[=,}])`,
-          "m",
-        ),
-      );
       if (aliasPattern.test(statement)) {
-        const compatKey = aliasMatch?.[1] ?? functionName;
-        return `const ${functionName} = _getPreviewGridEditorCompat().${compatKey};`;
+        throw new Error(`${functionName} is still read from the deleted preview grid editor facade`);
       }
 
       searchIndex = statementEnd + 1;
@@ -192,24 +200,7 @@ function loadAsyncEditorFunction<T extends (...args: any[]) => Promise<unknown>>
       ?? null
     );
   }
-  if (typeof context._getPreviewGridEditorCompat !== "function") {
-    context._getPreviewGridEditorCompat = () => {
-      const scene = typeof context._getEditorSceneFacade === "function"
-        ? context._getEditorSceneFacade()
-        : {};
-      return {
-        ...scene,
-        deleteSelectedFrames: scene.deleteSelectedFrames
-          ? async (...args: unknown[]) => {
-            const result = await scene.deleteSelectedFrames(...args);
-            return result && typeof result === "object" && "rerendered" in result
-              ? Boolean((result as { rerendered?: unknown }).rerendered)
-              : result;
-          }
-          : undefined,
-      };
-    };
-  }
+  context._getEditorSceneFacade ??= () => ({});
   const editorSource = loadEditorSource();
   const source = [
     extractNamedFunctionSource(editorSource, "_getPreviewBridgeHostContract", "()"),

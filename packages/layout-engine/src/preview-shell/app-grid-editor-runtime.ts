@@ -249,7 +249,6 @@ export interface PreviewGridEditorRuntimeBrowserOptions {
   onResizeUp: () => void;
   cycleGuideMode: () => void;
   requestLayoutRelayout: (triggerCid: string) => Promise<unknown> | unknown;
-  requestV3Relayout: (triggerCid: string) => Promise<unknown> | unknown;
   interactionMode: Record<string, unknown>;
   boxStyles: Record<string, unknown>;
   inset: number;
@@ -581,11 +580,8 @@ export function createPreviewGridEditorRuntimeFromBrowserHost(
           ),
           initNavTabs: options.browser.initNavTabs,
           requestLayoutRelayout: (triggerCid) => options.browser.requestLayoutRelayout(triggerCid),
-          requestV3Relayout: (triggerCid) => options.browser.requestV3Relayout(triggerCid),
           getLayoutRelayoutStatus: () => runtime.getRelayoutFacade().getLayoutRelayoutStatus(),
-          getV3RelayoutStatus: () => runtime.getRelayoutFacade().getLayoutRelayoutStatus(),
           getLayoutRelayoutRuntime: () => runtime.getRelayoutFacade().layoutRuntimeState,
-          getV3RelayoutRuntime: () => runtime.getRelayoutFacade().layoutRuntimeState,
           constraints: options.shared.constraints as never,
           lastViolations: options.shared.lastViolationsState.get(),
           runConstraints: () => options.browser.runConstraints(),

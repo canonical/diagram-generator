@@ -26,9 +26,7 @@
       controller.init(deps);
       const applyLayoutOverrides = typeof controller.applyLayoutOverrides === "function"
         ? controller.applyLayoutOverrides.bind(controller)
-        : (typeof controller.applyElkLayoutOverrides === "function"
-          ? controller.applyElkLayoutOverrides.bind(controller)
-          : null);
+        : null;
       window.__DG_wirePreviewEnginePanel = controller.wirePanel;
       window.__DG_applyPreviewEngineLayoutOverrides = applyLayoutOverrides;
       window.requestPreviewEngineRelayout = controller.requestRelayout;

@@ -20,14 +20,14 @@
 
 ## Phase 2: Browser Runtime Deletion
 
-- [ ] **T010** Remove `_getPreviewGridEditorCompat` from active product code and
+- [x] **T010** Remove `_getPreviewGridEditorCompat` from active product code and
       rewrite preview-script helpers/tests to bind directly to the canonical
       typed preview-shell contract.
-- [ ] **T011** Remove duplicate repo-owned relayout/status browser globals so
+- [x] **T011** Remove duplicate repo-owned relayout/status browser globals so
       one canonical preview-shell entry point remains.
-- [ ] **T012** Delete ELK-era browser/type aliases from generic graph-layout
+- [x] **T012** Delete ELK-era browser/type aliases from generic graph-layout
       pane/controller owners and update all repo-owned callers/imports.
-- [ ] **T013** Re-run focused contract tests proving `editor.js` and
+- [x] **T013** Re-run focused contract tests proving `editor.js` and
       `layout-bridge.js` are still thin adapters over typed owners after the
       alias deletion.
 
@@ -38,23 +38,26 @@
 - [x] **T021** Delete repo-owned route/schema aliases whose callers can be
       migrated in-spec, starting with the superseded viewer route prefix and any
       obsolete grid/schema spellings still kept alive only for history.
-- [ ] **T022** Migrate or rewrite affected fixtures/tests so active product code
+- [x] **T022** Migrate or rewrite affected fixtures/tests so active product code
       no longer needs the deleted aliases at runtime.
 
 ## Phase 4: Public Surface and Documentation
 
-- [ ] **T030** Remove repo-owned public/package export aliases that duplicate the
+- [x] **T030** Remove repo-owned public/package export aliases that duplicate the
       canonical preview-shell or graph-layout API under old names.
-- [ ] **T031** Update active docs/comments so they stop presenting internal dual
+- [x] **T031** Update active docs/comments so they stop presenting internal dual
       support as an accepted architecture. Keep historical wording only in
       archived specs if needed.
-- [ ] **T032** Commit `search-evidence.md` with the banned-alias grep proof and
+- [x] **T032** Commit `search-evidence.md` with the banned-alias grep proof and
       any explicit external-contract exceptions.
 
 ## Phase 5: Validation
 
-- [ ] **T040** Run `npm --prefix packages/layout-engine run build:browser`.
-- [ ] **T041** Run `npm --prefix packages/layout-engine test`.
-- [ ] **T042** Run `npm --prefix apps/preview test`.
-- [ ] **T043** Run `node scripts/check-browser-bundle-fresh.mjs`.
-- [ ] **T044** Run `node scripts/check_no_new_python.mjs`.
+- [x] **T040** Run `npm --prefix packages/layout-engine run build:browser`.
+- [x] **T041** Run `npm --prefix packages/layout-engine test`.
+      Passed 2026-06-30 after isolating the layered regression test from
+      mutable radial/Dagre fixture metadata; see
+      `fixture-engine-option-isolation-plan.md`.
+- [x] **T042** Run `npm --prefix apps/preview test`.
+- [x] **T043** Run `node scripts/check-browser-bundle-fresh.mjs`.
+- [x] **T044** Run `node scripts/check_no_new_python.mjs`.

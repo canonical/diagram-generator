@@ -64,11 +64,7 @@ export interface PreviewSaveClientRuntimeDeps {
     model: Record<string, unknown>,
   ) => Record<string, unknown>;
   getLayoutRelayoutStatus?: () => Record<string, unknown>;
-  /** @deprecated Prefer `getLayoutRelayoutStatus`. */
-  getV3RelayoutStatus?: () => Record<string, unknown>;
   getLayoutRelayoutRuntime?: () => Record<string, unknown>;
-  /** @deprecated Prefer `getLayoutRelayoutRuntime`. */
-  getV3RelayoutRuntime?: () => Record<string, unknown>;
   getConstraintSummary?: () => { errors?: number };
   getConstraintErrorCount?: () => number;
   runConstraints?: () => void;
@@ -115,17 +111,13 @@ export interface PreviewButtonState {
 function resolveLayoutRelayoutStatus(
   deps: PreviewSaveClientRuntimeDeps,
 ): Record<string, unknown> {
-  return deps.getLayoutRelayoutStatus?.()
-    ?? deps.getV3RelayoutStatus?.()
-    ?? { localReady: true };
+  return deps.getLayoutRelayoutStatus?.() ?? { localReady: true };
 }
 
 function resolveLayoutRelayoutRuntime(
   deps: PreviewSaveClientRuntimeDeps,
 ): Record<string, unknown> {
-  return deps.getLayoutRelayoutRuntime?.()
-    ?? deps.getV3RelayoutRuntime?.()
-    ?? {};
+  return deps.getLayoutRelayoutRuntime?.() ?? {};
 }
 
 function currentSvgFilename(slug: string): string {

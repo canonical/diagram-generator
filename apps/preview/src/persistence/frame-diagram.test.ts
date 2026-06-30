@@ -651,7 +651,7 @@ test("persist arrow waypoint overrides for complex-routing-usecase arrows", () =
   const baselineText = fs.readFileSync(COMPLEX_ROUTING_FIXTURE, "utf8");
   const output = persistToYaml("complex-routing-usecase.yaml", baselineText, {
     overrides: {
-      "measure->review": {
+      "arrow:edge:measure->review": {
         waypoints: [[480, 192], [640, 192]],
       },
     },
@@ -674,7 +674,7 @@ test("persist→reload clears authored arrow waypoints after reroute-bearing str
       page: {
         direction: "vertical",
       },
-      "measure->review": {
+      "arrow:edge:measure->review": {
         waypoints: [],
       },
     },
@@ -711,7 +711,7 @@ test("persist arrow waypoint overrides upgrades shorthand arrows to mappings", (
   ].join("\n");
   const output = persistToYaml("arrow-waypoints-shorthand.yaml", baselineText, {
     overrides: {
-      "leaf_a->leaf_b": {
+      "arrow:edge:leaf_a->leaf_b": {
         waypoints: [[24, 32]],
       },
     },

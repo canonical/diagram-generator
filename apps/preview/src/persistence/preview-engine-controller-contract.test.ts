@@ -241,7 +241,7 @@ test("layout-params-controller resolves graph-engine diagrams from the namespace
         createPreviewEngineShellControllerRuntime() {
           return {
             init() {},
-            isElkLayeredDiagram(frameTreeJson: unknown) {
+            isActiveLayoutEngine(frameTreeJson: unknown) {
               const layoutEngine = (frameTreeJson as { layoutEngine?: string | null })?.layoutEngine;
               return layoutEngine === "elk-layered";
             },
@@ -257,7 +257,7 @@ test("layout-params-controller resolves graph-engine diagrams from the namespace
               return {};
             },
             applyLayoutOverrides() {},
-            applyElkLayoutOverrides() {},
+            applyLayoutOverrides() {},
             collectPersistedPayload() {
               return {};
             },

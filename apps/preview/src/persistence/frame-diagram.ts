@@ -263,19 +263,6 @@ function parseArrowShorthandForPersistence(value: string): { source: string; tar
   return { source, target };
 }
 
-function legacyArrowComponentId(arrowData: unknown): string | null {
-  if (typeof arrowData === "string") {
-    const parsed = parseArrowShorthandForPersistence(arrowData);
-    return parsed ? `${parsed.source}->${parsed.target}` : null;
-  }
-  if (!isRecord(arrowData)) return null;
-  const source = typeof arrowData.source === "string" ? arrowData.source.trim() : "";
-  const target = typeof arrowData.target === "string" ? arrowData.target.trim() : "";
-  if (!source || !target) return null;
-  const explicitId = typeof arrowData.id === "string" ? arrowData.id.trim() : "";
-  return explicitId || `${source}->${target}`;
-}
-
 function persistableArrowData(arrowData: unknown): { id?: string; source: string; target: string } | null {
   if (typeof arrowData === "string") {
     return parseArrowShorthandForPersistence(arrowData) ?? null;
@@ -369,10 +356,8 @@ function findArrowData(document: Record<string, unknown>, componentId: string): 
 
   for (let index = 0; index < arrows.length; index += 1) {
     const arrowEntry = arrows[index];
-    const legacyComponentId = legacyArrowComponentId(arrowEntry);
     const matchesPreviewComponentId = matchedPreviewArrow?.index === index;
-    const matchesLegacyComponentId = !parsedComponentId && legacyComponentId === componentId;
-    if (!matchesPreviewComponentId && !matchesLegacyComponentId) continue;
+    if (!matchesPreviewComponentId) continue;
     if (isRecord(arrowEntry)) {
       return arrowEntry;
     }

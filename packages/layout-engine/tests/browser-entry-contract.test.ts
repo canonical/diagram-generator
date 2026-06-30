@@ -108,7 +108,6 @@ import {
   dispatchPreviewSingleFramePropHost,
   dispatchPreviewSingleFrameSizeHost,
   dispatchPreviewWaypointDragMoveHost,
-  ensurePreviewEngineShellCompatController,
   findDeepestPreviewComponent,
   findPreviewArrowAtPoint,
   findPreviewComponentAtDepth,
@@ -299,10 +298,7 @@ describe('browser entry contract pilot', () => {
     expect(previewShell.bootstrap.createPreviewSaveClientRuntime)
       .toBe(createPreviewSaveClientRuntime);
     expect(previewShell.bootstrap.collectPreviewEngineSavePayload).toBeTypeOf('function');
-    expect(previewShell.bootstrap.ensurePreviewEngineShellCompatController)
-      .toBe(ensurePreviewEngineShellCompatController);
     expect(previewShell.bootstrap.ensurePreviewEngineShellController).toBeTypeOf('function');
-    expect(previewShell.bootstrap.ensurePreviewElkPreviewController).toBeTypeOf('function');
     expect(previewShell.bootstrap.getPreviewEngineShellController).toBeTypeOf('function');
     expect(previewShell.bootstrap.initPreviewEngineShellPanel).toBeTypeOf('function');
     expect(previewShell.bootstrap.initPreviewEditorRuntimeHost).toBe(initPreviewEditorRuntimeHost);

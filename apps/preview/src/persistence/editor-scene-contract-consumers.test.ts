@@ -113,9 +113,6 @@ test("editor rerender helper accepts the namespaced previewShell.scene fresh-ren
     refreshLayoutGridInfoFromLayout() {
       followUps.push("refreshLayoutGridInfoFromLayout");
     },
-    refreshV3GridInfoFromLayout() {
-      followUps.push("refreshV3GridInfoFromLayout");
-    },
     renderSelectionInspector() {
       followUps.push("renderSelectionInspector");
     },

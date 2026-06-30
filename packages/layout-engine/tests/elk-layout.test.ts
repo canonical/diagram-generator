@@ -697,6 +697,10 @@ describe('layoutElkFrameDiagram', () => {
 
   it('honors horizontal root direction overrides in the ELK lane and reroutes arrows side-to-side', async () => {
     const diagram = loadFrameYaml(join(FRAMES_DIR, 'example-deployment-pipeline.yaml'));
+    Object.assign(diagram as { layoutEngine?: string; elkLayout?: Record<string, unknown> }, {
+      layoutEngine: 'elk-layered',
+      elkLayout: {},
+    });
     const adapter = new MockTextAdapter();
 
     applyPreviewOverridesToFrameTree(diagram, {

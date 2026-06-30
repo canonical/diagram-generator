@@ -62,15 +62,6 @@ async function performEngineRelayout(model, overrides, gridOverrides) {
   );
 }
 
-async function performElkRelayout(model, overrides, gridOverrides) {
-  return _previewLayoutBridgeInstallRuntime.performElkRelayout(
-    model,
-    overrides || {},
-    gridOverrides || {},
-    null,
-  );
-}
-
 function arrowComponentId(arrow) {
   return _previewLayoutBridgeInstallRuntime.arrowComponentId(arrow);
 }

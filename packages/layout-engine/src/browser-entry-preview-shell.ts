@@ -69,10 +69,7 @@ export const previewShell = Object.freeze({
     bootstrapPreviewEditorRuntime: previewShellRuntime.bootstrapPreviewEditorRuntime,
     bootstrapPreviewEditorHost: previewShellRuntime.bootstrapPreviewEditorHost,
     ensurePreviewEditorState: previewShellRuntime.ensurePreviewEditorState,
-    ensurePreviewEngineShellCompatController:
-      previewShellRuntime.ensurePreviewEngineShellCompatController,
     ensurePreviewEngineShellController: previewShellRuntime.ensurePreviewEngineShellController,
-    ensurePreviewElkPreviewController: previewShellRuntime.ensurePreviewElkPreviewController,
     getPreviewEngineShellController: previewShellRuntime.getPreviewEngineShellController,
     initPreviewEngineShellPanel: previewShellRuntime.initPreviewEngineShellPanel,
     isPreviewEngineShellLayoutActive: previewShellRuntime.isPreviewEngineShellLayoutActive,

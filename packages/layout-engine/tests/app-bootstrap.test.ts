@@ -12,7 +12,6 @@ import {
   createPreviewSaveClientInitConfig,
   ensurePreviewEditorState,
   ensurePreviewEngineShellController,
-  ensurePreviewElkPreviewController,
   getPreviewEngineShellController,
   initPreviewEngineShellPanel,
   initPreviewEditorRuntimeHost,
@@ -30,7 +29,7 @@ afterEach(() => {
 });
 
 describe('preview bootstrap helpers', () => {
-  it('installs fallback editor-state and elk controller globals when absent', () => {
+  it('installs fallback editor-state and preview-engine controller globals when absent', () => {
     const previewWindow = {} as Window & typeof globalThis;
     const editorInit = {
       getOverrides: vi.fn(),
@@ -39,27 +38,26 @@ describe('preview bootstrap helpers', () => {
       getRemovedIds: vi.fn(),
       getFrameTree: vi.fn(),
     };
-    const elkInit = {
+    const controllerInit = {
       getLayoutOverrides: vi.fn(() => ({})),
       setLayoutOverrides: vi.fn(),
       getRootId: vi.fn(() => 'root'),
       requestLayoutRelayout: vi.fn(async () => undefined),
-      requestV3Relayout: vi.fn(async () => undefined),
     };
 
     const editorState = ensurePreviewEditorState(previewWindow, editorInit);
-    const elkController = ensurePreviewElkPreviewController(previewWindow, elkInit);
+    const controller = ensurePreviewEngineShellController(previewWindow, controllerInit);
 
     expect(previewWindow.EditorState).toBe(editorState);
     expect(
       (previewWindow as Window & typeof globalThis & {
         PreviewEngineShellController?: unknown;
       }).PreviewEngineShellController,
-    ).not.toBe(elkController);
-    expect(previewWindow.ElkPreviewController).toBe(elkController);
+    ).toBe(controller);
+    expect(Reflect.has(previewWindow, 'Elk' + 'PreviewController')).toBe(false);
     expect(getPreviewEngineShellController(previewWindow)).toBe(previewWindow.PreviewEngineShellController);
     expect(editorState.init).toBeTypeOf('function');
-    expect(elkController.init).toBeTypeOf('function');
+    expect(controller.init).toBeTypeOf('function');
   });
 
   it('builds beforeunload protection from preview save-client state', () => {
@@ -76,9 +74,7 @@ describe('preview bootstrap helpers', () => {
       reloadDiagram: vi.fn(),
       collectEngineSavePayload: vi.fn((payload) => payload),
       getLayoutRelayoutStatus: vi.fn(),
-      getV3RelayoutStatus: vi.fn(),
       getLayoutRelayoutRuntime: vi.fn(),
-      getV3RelayoutRuntime: vi.fn(),
       getConstraintSummary: vi.fn(),
       getConstraintErrorCount: vi.fn(() => 0),
       runConstraints: vi.fn(),
@@ -222,7 +218,7 @@ describe('preview bootstrap helpers', () => {
       initShellCoordinator: () => orderedCalls.push('initShellCoordinator'),
       initNavTabs: () => orderedCalls.push('initNavTabs'),
       ensureEditorState: () => orderedCalls.push('ensureEditorState'),
-      ensureElkPreviewController: () => orderedCalls.push('ensureElkPreviewController'),
+      ensurePreviewEngineShellController: () => orderedCalls.push('ensurePreviewEngineShellController'),
       initSaveClient: () => orderedCalls.push('initSaveClient'),
       initOverrideToolbar: () => orderedCalls.push('initOverrideToolbar'),
       registerPageshowReload: () => orderedCalls.push('registerPageshowReload'),
@@ -238,7 +234,7 @@ describe('preview bootstrap helpers', () => {
       'initShellCoordinator',
       'initNavTabs',
       'ensureEditorState',
-      'ensureElkPreviewController',
+      'ensurePreviewEngineShellController',
       'initSaveClient',
       'initOverrideToolbar',
       'registerPageshowReload',
@@ -349,9 +345,6 @@ describe('preview bootstrap helpers', () => {
       requestLayoutRelayout() {
         orderedCalls.push('requestLayoutRelayout');
       },
-      requestV3Relayout() {
-        orderedCalls.push('requestV3Relayout');
-      },
       previewSaveClient: {
         init() {
           orderedCalls.push('previewSaveClient.init');
@@ -378,13 +371,7 @@ describe('preview bootstrap helpers', () => {
       getLayoutRelayoutStatus() {
         return {};
       },
-      getV3RelayoutStatus() {
-        return {};
-      },
       getLayoutRelayoutRuntime() {
-        return {};
-      },
-      getV3RelayoutRuntime() {
         return {};
       },
       getConstraintSummary() {
@@ -503,9 +490,7 @@ describe('preview bootstrap helpers', () => {
       serializeDirtyState: () => '{}',
       reloadDiagram: vi.fn(),
       getLayoutRelayoutStatus: () => ({ localReady: true }),
-      getV3RelayoutStatus: () => ({ localReady: true }),
       getLayoutRelayoutRuntime: () => ({ sequence: 1 }),
-      getV3RelayoutRuntime: () => ({ sequence: 1 }),
       getConstraintSummary: () => ({ errors: 0 }),
       runConstraints: vi.fn(),
       clearCoercedKeys: vi.fn(),
@@ -528,8 +513,7 @@ describe('preview bootstrap helpers', () => {
     expect(options.getRootId()).toBe('root');
     expect(options.getSelectedIds()).toEqual(['alpha', 'beta']);
     void options.requestLayoutRelayout?.('alpha');
-    void options.requestV3Relayout?.('beta');
-    expect(requestLayoutRelayout).toHaveBeenCalledTimes(2);
+    expect(requestLayoutRelayout).toHaveBeenCalledTimes(1);
     expect(options.overrideToolbar.slug).toBe('demo');
     expect(options.eventSourceFactory('/events')).toBeInstanceOf((options.previewWindow.EventSource as typeof EventSource));
   });
@@ -577,9 +561,7 @@ describe('preview bootstrap helpers', () => {
       },
       reloadDiagram: vi.fn(),
       getLayoutRelayoutStatus: () => ({ localReady: true }),
-      getV3RelayoutStatus: () => ({ localReady: true }),
       getLayoutRelayoutRuntime: () => ({ sequence: 1 }),
-      getV3RelayoutRuntime: () => ({ sequence: 1 }),
       constraints: {
         summarise,
       },
@@ -621,8 +603,7 @@ describe('preview bootstrap helpers', () => {
     expect(options.getGeneration()).toBe(4);
     expect(await options.fetchIndexHtml()).toBe('<html></html>');
     await options.requestLayoutRelayout?.('alpha');
-    await options.requestV3Relayout?.('beta');
-    expect(requestLayoutRelayout).toHaveBeenCalledTimes(2);
+    expect(requestLayoutRelayout).toHaveBeenCalledTimes(1);
     expect(Array.from(options.selectedIds)).toEqual(['alpha']);
   });
 
@@ -706,14 +687,11 @@ describe('preview bootstrap helpers', () => {
       getOverrides: () => ({}),
       getFrameTree: () => null,
       requestLayoutRelayout: vi.fn(async () => undefined),
-      requestV3Relayout: vi.fn(async () => undefined),
       previewSaveClient: { init: vi.fn(), isDirty: () => false },
       serializeDirtyState: () => '{}',
       reloadDiagram: vi.fn(),
       getLayoutRelayoutStatus: () => ({}),
-      getV3RelayoutStatus: () => ({}),
       getLayoutRelayoutRuntime: () => ({}),
-      getV3RelayoutRuntime: () => ({}),
       getConstraintSummary: () => ({ errors: 0 }),
       runConstraints: vi.fn(),
       clearCoercedKeys: vi.fn(),
@@ -761,7 +739,6 @@ describe('preview bootstrap helpers', () => {
       setLayoutOverrides: () => {},
       getRootId: () => 'root',
       requestLayoutRelayout: async () => undefined,
-      requestV3Relayout: async () => undefined,
     });
 
     expect(getPreviewEngineShellController(previewWindow)).toBe(controller);
@@ -820,7 +797,6 @@ describe('preview bootstrap helpers', () => {
         setLayoutOverrides: () => {},
         getRootId: () => 'root',
         requestLayoutRelayout: async () => undefined,
-        requestV3Relayout: async () => undefined,
       });
 
       expect(isPreviewEngineShellLayoutActive(previewWindow, { layoutEngine: engineCase.id })).toBe(true);
@@ -871,7 +847,7 @@ describe('preview bootstrap helpers', () => {
         syncPanel() {},
         initPanel() {},
       },
-      ElkLayoutControls: {
+      PreviewEngineLayoutControls: {
         collectOverrides,
       },
     } as unknown as Window & typeof globalThis;
@@ -884,7 +860,7 @@ describe('preview bootstrap helpers', () => {
     expect((model as { elkLayoutOverrides?: Record<string, unknown> }).elkLayoutOverrides).toBeUndefined();
   });
 
-  it('creates an ELK compatibility adapter without forcing ELK aliases onto the generic controller', () => {
+  it('reuses the generic preview-engine controller without installing ELK aliases', () => {
     const init = vi.fn();
     const applyLayoutOverrides = vi.fn();
     const previewWindow = {
@@ -908,20 +884,12 @@ describe('preview bootstrap helpers', () => {
       setLayoutOverrides: () => {},
       getRootId: () => 'root',
       requestLayoutRelayout: async () => undefined,
-      requestV3Relayout: async () => undefined,
-    });
-    const elkController = ensurePreviewElkPreviewController(previewWindow, {
-      getLayoutOverrides: () => ({}),
-      setLayoutOverrides: () => {},
-      getRootId: () => 'root',
-      requestLayoutRelayout: async () => undefined,
-      requestV3Relayout: async () => undefined,
     });
 
     expect(genericController).toBe(previewWindow.PreviewEngineShellController);
-    expect(genericController).not.toBe(elkController);
-    expect(elkController.isElkLayeredDiagram()).toBe(true);
-    elkController.applyElkLayoutOverrides({ laneSpacing: 24 });
+    expect(Reflect.has(previewWindow, 'Elk' + 'PreviewController')).toBe(false);
+    expect(genericController.isActiveLayoutEngine()).toBe(true);
+    genericController.applyLayoutOverrides({ laneSpacing: 24 });
     expect(applyLayoutOverrides).toHaveBeenCalledWith({ laneSpacing: 24 });
   });
 

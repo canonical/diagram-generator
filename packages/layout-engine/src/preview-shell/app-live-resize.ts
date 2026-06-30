@@ -36,8 +36,6 @@ export interface SchedulePreviewLiveResizeRelayoutOptions<TGridOverrides> {
   state: PreviewLiveResizeRelayoutState;
   request: PreviewLiveResizeRelayoutRequest;
   isEngineLayoutActive?: boolean;
-  /** @deprecated Prefer `isEngineLayoutActive`. */
-  isElkLayeredDiagram?: boolean;
   requestAnimationFrameFn: (callback: () => void) => number;
   getOverrides?: (() => PreviewLiveResizeOverrideMap) | null;
   overrides: PreviewLiveResizeOverrideMap;
@@ -64,8 +62,6 @@ export interface CreatePreviewLiveResizeRuntimeOptions<TGridOverrides> {
   normalizeGridOverrides: (value: TGridOverrides) => TGridOverrides;
   getRelayoutStatus: () => PreviewRelayoutStatus;
   isEngineLayoutActive?: (() => boolean) | null;
-  /** @deprecated Prefer `isEngineLayoutActive`. */
-  isElkLayeredDiagram?: (() => boolean) | null;
   performEngineRelayout?: ((
     temporaryOverrides: PreviewLiveResizeOverrideMap,
     normalizedGridOverrides: TGridOverrides,
@@ -95,8 +91,6 @@ export interface CreatePreviewLiveResizeRuntimeFromHostOptions<TGridOverrides, T
   normalizeGridOverrides: (value: TGridOverrides) => TGridOverrides;
   getRelayoutStatus: () => PreviewRelayoutStatus;
   isEngineLayoutActive?: (() => boolean) | null;
-  /** @deprecated Prefer `isEngineLayoutActive`. */
-  isElkLayeredDiagram?: (() => boolean) | null;
   previewBridgeHost: {
     performEngineRelayout?: ((
       model: TModel,
@@ -211,7 +205,7 @@ function schedulePreviewLiveResizeFrame<TGridOverrides>(
     const normalizedGridOverrides = options.normalizeGridOverrides(
       options.getGridOverrides(),
     );
-    const isEngineLayoutActive = options.isEngineLayoutActive ?? options.isElkLayeredDiagram ?? false;
+    const isEngineLayoutActive = options.isEngineLayoutActive ?? false;
     const performRelayout = isEngineLayoutActive
       ? options.performEngineRelayout
       : options.performLocalRelayout;
@@ -243,7 +237,7 @@ export function createPreviewLiveResizeRelayoutState(): PreviewLiveResizeRelayou
 export function schedulePreviewLiveResizeRelayout<TGridOverrides>(
   options: SchedulePreviewLiveResizeRelayoutOptions<TGridOverrides>,
 ): boolean {
-  const isEngineLayoutActive = options.isEngineLayoutActive ?? options.isElkLayeredDiagram ?? false;
+  const isEngineLayoutActive = options.isEngineLayoutActive ?? false;
   if (isEngineLayoutActive && !options.performEngineRelayout) {
     return false;
   }
@@ -271,9 +265,7 @@ export function cancelPreviewLiveResizeRelayout(
 export function createPreviewLiveResizeRuntime<TGridOverrides>(
   options: CreatePreviewLiveResizeRuntimeOptions<TGridOverrides>,
 ): PreviewLiveResizeRuntime {
-  const isEngineLayoutActive = options.isEngineLayoutActive
-    ?? options.isElkLayeredDiagram
-    ?? (() => false);
+  const isEngineLayoutActive = options.isEngineLayoutActive ?? (() => false);
 
   return {
     scheduleRelayout(cid, newW, newH, resizedW, resizedH) {
@@ -281,7 +273,6 @@ export function createPreviewLiveResizeRuntime<TGridOverrides>(
         state: options.state,
         request: { cid, newW, newH, resizedW, resizedH },
         isEngineLayoutActive: isEngineLayoutActive(),
-        isElkLayeredDiagram: isEngineLayoutActive(),
         requestAnimationFrameFn: options.requestAnimationFrameFn,
         getOverrides: options.getOverrides ?? null,
         overrides: resolvePreviewLiveResizeOverrides(options),
@@ -321,8 +312,7 @@ export function createPreviewLiveResizeRuntimeFromHost<TGridOverrides, TModel>(
     getGridOverrides: () => options.model.gridOverrides ?? ({} as TGridOverrides),
     normalizeGridOverrides: options.normalizeGridOverrides,
     getRelayoutStatus: options.getRelayoutStatus,
-    isEngineLayoutActive: options.isEngineLayoutActive ?? options.isElkLayeredDiagram ?? null,
-    isElkLayeredDiagram: options.isElkLayeredDiagram ?? options.isEngineLayoutActive ?? null,
+    isEngineLayoutActive: options.isEngineLayoutActive ?? null,
     performEngineRelayout: options.previewBridgeHost.performEngineRelayout
       ? (temporaryOverrides, normalizedGridOverrides) => (
         options.previewBridgeHost.performEngineRelayout?.(

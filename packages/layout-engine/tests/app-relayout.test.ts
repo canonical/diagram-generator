@@ -503,7 +503,6 @@ describe('preview relayout helpers', () => {
       normalizeGridOverrides: vi.fn((value) => value),
       relayoutStatus: { localReady: false, local: { reason: 'missing-frame-tree' } },
       isEngineLayoutActive: false,
-      isElkLayeredDiagram: false,
       performLocalRelayout: vi.fn(() => null),
       failRelayout,
       finishRelayout: vi.fn(),
@@ -529,9 +528,7 @@ describe('preview relayout helpers', () => {
       normalizeGridOverrides: (value) => value,
       relayoutStatus: { localReady: true, local: { reason: null } },
       isEngineLayoutActive: true,
-      isElkLayeredDiagram: true,
       performEngineRelayout: throwingEngine,
-      performElkRelayout: throwingEngine,
       performLocalRelayout: vi.fn(() => null),
       failRelayout,
       finishRelayout,
@@ -565,9 +562,7 @@ describe('preview relayout helpers', () => {
       normalizeGridOverrides: (value) => value,
       relayoutStatus: { localReady: true, local: { reason: null } },
       isEngineLayoutActive: true,
-      isElkLayeredDiagram: true,
       performEngineRelayout: nullEngine,
-      performElkRelayout: nullEngine,
       performLocalRelayout: vi.fn(() => null),
       failRelayout,
       finishRelayout,
@@ -594,7 +589,6 @@ describe('preview relayout helpers', () => {
       normalizeGridOverrides: (value) => value,
       relayoutStatus: { localReady: true, local: { reason: null } },
       isEngineLayoutActive: false,
-      isElkLayeredDiagram: false,
       performLocalRelayout: vi.fn(() => {
         throw new Error('local layout exploded');
       }),
@@ -613,7 +607,7 @@ describe('preview relayout helpers', () => {
 
   it('prefers ELK relayout when the diagram is layered and otherwise records local coercion keys', async () => {
     const finishRelayout = vi.fn((triggerCid, result, label) => ({ triggerCid, result, label }));
-    const performElkRelayout = vi.fn(async () => ({ coerced: null }));
+    const performEngineRelayout = vi.fn(async () => ({ coerced: null }));
     const performLocalRelayout = vi.fn(() => ({
       coerced: new Map([
         ['root', { sizingW: true }],
@@ -630,9 +624,7 @@ describe('preview relayout helpers', () => {
       normalizeGridOverrides: vi.fn((value) => value),
       relayoutStatus: { localReady: true, local: { reason: null } },
       isEngineLayoutActive: true,
-      isElkLayeredDiagram: true,
-      performEngineRelayout: performElkRelayout,
-      performElkRelayout,
+      performEngineRelayout,
       performLocalRelayout,
       failRelayout: vi.fn(),
       finishRelayout,
@@ -646,14 +638,13 @@ describe('preview relayout helpers', () => {
       normalizeGridOverrides: vi.fn((value) => value),
       relayoutStatus: { localReady: true, local: { reason: null } },
       isEngineLayoutActive: false,
-      isElkLayeredDiagram: false,
       performLocalRelayout,
       failRelayout: vi.fn(),
       finishRelayout,
       logError: vi.fn(),
     });
 
-    expect(performElkRelayout).toHaveBeenCalledTimes(1);
+    expect(performEngineRelayout).toHaveBeenCalledTimes(1);
     expect(elkResult).toEqual({
       triggerCid: 'root',
       result: { coerced: null },

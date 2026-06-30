@@ -916,9 +916,13 @@ describe('preview layout bridge runtime', () => {
         collectPreviewRelayoutFrameOverrides: (overrides: Record<string, unknown>) => overrides,
         applyPreviewOverridesToFrameTree: vi.fn(),
       }),
-      __DG_getPreviewElkEngineContract: () => ({
-        renderPreviewElkRawView: vi.fn(() => ({ id: 'raw' } as never)),
-      }),
+      LayoutEngine: {
+        previewEngines: {
+          elk: {
+            renderPreviewElkRawView: vi.fn(() => ({ id: 'raw' } as never)),
+          },
+        },
+      },
       __DG_getPreviewShellBootstrapContract: () => ({
         getPreviewEngineShellController: () => ({
           getLayoutOverrides: () => ({ fromController: true }),
