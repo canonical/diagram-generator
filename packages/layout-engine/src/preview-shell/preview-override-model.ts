@@ -8,8 +8,16 @@ import {
 import {
   DEFAULT_FRAME_YAML_ENGINE_LAYOUT_NAMESPACE,
   filterSupportedFrameYamlEngineLayoutOverrides,
+  resolveFrameYamlEngineLayoutCandidateId,
   resolveFrameYamlEngineLayoutNamespaceForOverrides,
 } from './frame-yaml-engine-layout-contract.js';
+import {
+  collectNamespacedLayoutOperatorOverrides,
+  readActiveLayoutOperatorOverrideBucket,
+  resolveActiveLayoutOperatorManifest,
+  type LayoutOperatorOverrideState,
+} from './layout-operator-overrides.js';
+import { getPreviewEngineByLayoutKey } from '../preview-engine/registry.js';
 
 export interface PreviewOverrideModelNode {
   type?: string | null;
@@ -21,8 +29,8 @@ export interface PreviewOverrideModelLike {
   overrides?: Record<string, unknown> | null;
   gridOverrides?: Record<string, unknown> | null;
   layoutOverrides?: Record<string, unknown> | null;
-  elkLayoutOverrides?: Record<string, unknown> | null;
   layoutOverrideNamespace?: string | null;
+  layoutOperatorOverrides?: LayoutOperatorOverrideState | null;
   removedIds?: Iterable<string> | null;
   allIds?: Iterable<string> | null;
   get?: ((id: string) => PreviewOverrideModelNode | null | undefined) | null;
@@ -34,7 +42,6 @@ export interface PreviewOverridePayload extends Record<string, unknown> {
   removed_ids?: string[];
   grid_overrides?: Record<string, unknown>;
   engine_layout_overrides?: Record<string, Record<string, unknown>>;
-  elk_layout_overrides?: Record<string, unknown>;
 }
 
 const NON_PERSISTABLE_GRID_KEYS = new Set<string>([
@@ -229,23 +236,60 @@ function applyPendingArrowRerouteWaypointClears(
 
 function readPreviewPersistedLayoutOverrides(
   model: PreviewOverrideModelLike | null | undefined,
-): { namespace: string; overrides: Record<string, unknown> } | null {
+): Record<string, Record<string, unknown>> | null {
   const layoutOverrides = cloneRecord(model?.layoutOverrides);
-  const legacyLayoutOverrides = cloneRecord(model?.elkLayoutOverrides);
-  const rawLayoutOverrides = layoutOverrides ?? legacyLayoutOverrides;
+  const activeOperatorOverrides = cloneRecord(readActiveLayoutOperatorOverrideBucket(model));
+  const rawLayoutOverrides = layoutOverrides ?? activeOperatorOverrides;
   if (!rawLayoutOverrides) {
     return null;
+  }
+
+  const activeManifest = resolveActiveLayoutOperatorManifest(model);
+  if (activeManifest) {
+    const namespacedOverrides = collectNamespacedLayoutOperatorOverrides({
+      manifest: activeManifest,
+      sessionState: model?.layoutOperatorOverrides ?? null,
+      sessionOverrides: activeOperatorOverrides,
+      persistNamespace: model?.layoutOverrideNamespace,
+    });
+    const populatedEntries = Object.entries(namespacedOverrides)
+      .filter(([, overrides]) => Object.keys(overrides).length > 0);
+    if (populatedEntries.length === 0) {
+      return null;
+    }
+    return Object.fromEntries(populatedEntries);
   }
 
   const namespace = resolveFrameYamlEngineLayoutNamespaceForOverrides(
     rawLayoutOverrides,
     model?.layoutOverrideNamespace,
   );
+  const candidateLayoutEngine = resolveFrameYamlEngineLayoutCandidateId(
+    namespace,
+    rawLayoutOverrides,
+    null,
+  );
+  const candidateManifest = candidateLayoutEngine
+    ? getPreviewEngineByLayoutKey(candidateLayoutEngine) ?? null
+    : null;
+  if (candidateManifest) {
+    const namespacedOverrides = collectNamespacedLayoutOperatorOverrides({
+      manifest: candidateManifest,
+      sessionOverrides: rawLayoutOverrides,
+      persistNamespace: namespace,
+    });
+    const populatedEntries = Object.entries(namespacedOverrides)
+      .filter(([, overrides]) => Object.keys(overrides).length > 0);
+    if (populatedEntries.length > 0) {
+      return Object.fromEntries(populatedEntries);
+    }
+  }
+
   const overrides = filterSupportedFrameYamlEngineLayoutOverrides(namespace, rawLayoutOverrides);
   if (Object.keys(overrides).length === 0) {
     return null;
   }
-  return { namespace, overrides };
+  return { [namespace]: overrides };
 }
 
 export function collectPreviewTopLevelRemovalIds(
@@ -293,13 +337,7 @@ export function createPreviewOverridePayload(
 
   const layoutOverrideState = readPreviewPersistedLayoutOverrides(model);
   if (layoutOverrideState) {
-    const { namespace, overrides } = layoutOverrideState;
-    payload.engine_layout_overrides = {
-      [namespace]: { ...overrides },
-    };
-    if (namespace === DEFAULT_FRAME_YAML_ENGINE_LAYOUT_NAMESPACE) {
-      payload.elk_layout_overrides = { ...overrides };
-    }
+    payload.engine_layout_overrides = layoutOverrideState;
   }
 
   return payload;

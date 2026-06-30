@@ -12,7 +12,6 @@ describe('preview editor relayout facade', () => {
       roots: [{ id: 'root' }],
       gridOverrides: { cols: 4 },
       layoutOverrides: {},
-      elkLayoutOverrides: {},
       removedIds: new Set<string>(),
       get() {
         return {
@@ -183,7 +182,6 @@ describe('preview editor relayout facade', () => {
       roots: [{ id: 'root' }],
       gridOverrides: { cols: 4 },
       layoutOverrides: {},
-      elkLayoutOverrides: {},
       removedIds: new Set<string>(),
       get() {
         return {

@@ -636,6 +636,7 @@ export function createPreviewEditorRuntimeSet(
     getWidthUnit: inspectorDisplay.getWidthUnit,
     getHeightUnit: inspectorDisplay.getHeightUnit,
     baselineStep: options.baselineStep,
+    shouldShowAutolayoutInspector: options.shouldShowAutolayoutInspector ?? null,
   });
 
   const inspectorSelection = createPreviewInspectorSelectionRuntime({
@@ -671,6 +672,7 @@ export function createPreviewEditorRuntimeSet(
     alert: options.alert,
     getComponentType: options.getComponentType,
     normalizeStyleName: options.normalizeStyleName,
+    shouldShowAutolayoutInspector: options.shouldShowAutolayoutInspector ?? null,
   });
 
   const arrowWaypoint = createPreviewArrowWaypointRuntime({

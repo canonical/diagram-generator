@@ -20,12 +20,12 @@
     clearTimeoutFn: (token) => clearTimeout(token),
     getFrameTreeJson: typeof getFrameTreeJson === "function" ? () => getFrameTreeJson() : null,
     getDirtySetter: () => window.setDirty,
-    sidebarSectionId: "graph-layout",
-    sectionId: "graph-layout-section",
-    containerId: "graph-layout-controls",
-    controlIdPrefix: "graph-layout",
+    sidebarSectionId: "layout-params",
+    sectionId: "layout-params-section",
+    containerId: "layout-params-controls",
+    controlIdPrefix: "layout-params",
     defaultPersistNamespace: "meta.dagre",
-    enableElkViewToggles: false,
+    enableRawViewToggles: false,
     unavailableMessage: "Graph layout parameter registry unavailable. Rebuild the browser bundle from packages/layout-engine.",
   });
 

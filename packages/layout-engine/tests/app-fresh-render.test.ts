@@ -195,6 +195,52 @@ describe('renderFreshPreviewSvg', () => {
     });
   });
 
+  it('drops hidden dependency-gated overrides from the active engine control manifest', () => {
+    const filtered = filterPreviewEngineLayoutOptionOverrides(
+      {
+        'elk.force.model': 'EADES',
+        'elk.force.temperature': '0.02',
+        'elk.force.repulsion': '7',
+      },
+      {
+        controlSpecs: [
+          {
+            key: 'elk.force.model',
+            label: 'Force model',
+            group: 'Graph',
+            kind: 'enum',
+            defaultValue: 'FRUCHTERMAN_REINGOLD',
+            enumValues: [
+              { value: 'FRUCHTERMAN_REINGOLD', label: 'Fruchterman-Reingold' },
+              { value: 'EADES', label: 'Eades' },
+            ],
+          },
+          {
+            key: 'elk.force.temperature',
+            label: 'FR temperature',
+            group: 'Graph',
+            kind: 'number',
+            defaultValue: '0.001',
+            visibleWhen: [{ key: 'elk.force.model', equals: 'FRUCHTERMAN_REINGOLD' }],
+          },
+          {
+            key: 'elk.force.repulsion',
+            label: 'Eades repulsion',
+            group: 'Graph',
+            kind: 'number',
+            defaultValue: '5',
+            visibleWhen: [{ key: 'elk.force.model', equals: 'EADES' }],
+          },
+        ],
+      },
+    );
+
+    expect(filtered).toEqual({
+      'elk.force.model': 'EADES',
+      'elk.force.repulsion': '7',
+    });
+  });
+
   it('clears stale authored arrow geometry before reroute-bearing fresh renders', async () => {
     const ownerDocument = new FakeDocument();
     const model = {};

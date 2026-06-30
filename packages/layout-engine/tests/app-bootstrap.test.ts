@@ -36,15 +36,12 @@ describe('preview bootstrap helpers', () => {
       getOverrides: vi.fn(),
       getGridOverrides: vi.fn(),
       getLayoutOverrides: vi.fn(),
-      getElkLayoutOverrides: vi.fn(),
       getRemovedIds: vi.fn(),
       getFrameTree: vi.fn(),
     };
     const elkInit = {
       getLayoutOverrides: vi.fn(() => ({})),
       setLayoutOverrides: vi.fn(),
-      getElkLayoutOverrides: vi.fn(() => ({})),
-      setElkLayoutOverrides: vi.fn(),
       getRootId: vi.fn(() => 'root'),
       requestLayoutRelayout: vi.fn(async () => undefined),
       requestV3Relayout: vi.fn(async () => undefined),
@@ -337,9 +334,6 @@ describe('preview bootstrap helpers', () => {
       getLayoutOverrides() {
         return {};
       },
-      getElkLayoutOverrides() {
-        return {};
-      },
       getRemovedIds() {
         return new Set();
       },
@@ -348,9 +342,6 @@ describe('preview bootstrap helpers', () => {
       },
       setLayoutOverrides() {
         orderedCalls.push('setLayoutOverrides');
-      },
-      setElkLayoutOverrides() {
-        orderedCalls.push('setElkLayoutOverrides');
       },
       getRootId() {
         return 'root';
@@ -472,7 +463,6 @@ describe('preview bootstrap helpers', () => {
       roots: [{ id: 'root' }],
       gridOverrides: { cols: 6 },
       layoutOverrides: { root: { spacing: 24 } },
-      elkLayoutOverrides: { root: { spacing: 24 } },
       removedIds: new Set(['stale']),
     };
     const options = createBootstrapPreviewEditorHostOptionsFromRuntime({
@@ -534,7 +524,6 @@ describe('preview bootstrap helpers', () => {
     expect(options.getCurrentPath()).toBe('/view/v3:demo');
     expect(options.getGridOverrides()).toEqual({ cols: 6 });
     expect(options.getLayoutOverrides?.()).toEqual({ root: { spacing: 24 } });
-    expect(options.getElkLayoutOverrides()).toEqual({ root: { spacing: 24 } });
     expect(Array.from(options.getRemovedIds() as Set<string>)).toEqual(['stale']);
     expect(options.getRootId()).toBe('root');
     expect(options.getSelectedIds()).toEqual(['alpha', 'beta']);
@@ -770,8 +759,6 @@ describe('preview bootstrap helpers', () => {
     const controller = ensurePreviewEngineShellController(previewWindow, {
       getLayoutOverrides: () => ({}),
       setLayoutOverrides: () => {},
-      getElkLayoutOverrides: () => ({}),
-      setElkLayoutOverrides: () => {},
       getRootId: () => 'root',
       requestLayoutRelayout: async () => undefined,
       requestV3Relayout: async () => undefined,
@@ -831,8 +818,6 @@ describe('preview bootstrap helpers', () => {
       ensurePreviewEngineShellController(previewWindow, {
         getLayoutOverrides: () => ({}),
         setLayoutOverrides: () => {},
-        getElkLayoutOverrides: () => ({}),
-        setElkLayoutOverrides: () => {},
         getRootId: () => 'root',
         requestLayoutRelayout: async () => undefined,
         requestV3Relayout: async () => undefined,

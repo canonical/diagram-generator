@@ -8,6 +8,8 @@ import {
   collectUnsupportedFrameYamlEngineLayoutOverrideKeys,
   isFrameYamlEngineLayoutNamespace,
   isSupportedFrameYamlEngineLayoutNamespace,
+  listFrameYamlEngineLayoutCandidateIds,
+  resolveFrameYamlEngineLayoutCandidateId,
   resolveFrameYamlEngineLayoutNamespaceForOverrides,
 } from './frame-yaml-engine-layout-contract.js';
 import type {
@@ -46,6 +48,16 @@ function pushUniqueIssue(issues: string[], message: string): void {
   if (!issues.includes(message)) {
     issues.push(message);
   }
+}
+
+function engineLayoutOverrideSignature(
+  namespace: string,
+  overrides: Record<string, unknown>,
+): string {
+  const entries = Object.entries(overrides)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, value]) => `${key}:${JSON.stringify(value)}`);
+  return `${namespace}|${entries.join(',')}`;
 }
 
 function syntheticComponentId(componentId: string): boolean {
@@ -101,6 +113,7 @@ function validateFrameYamlEngineLayoutOverrideEntry(
   overrides: Record<string, unknown>,
   source: string,
   errors: string[],
+  preferredLayoutEngine?: string | null,
 ): void {
   if (!isFrameYamlEngineLayoutNamespace(namespace)) {
     pushUniqueIssue(
@@ -122,6 +135,25 @@ function validateFrameYamlEngineLayoutOverrideEntry(
       errors,
       `${source} contains unsupported frame-YAML engine layout keys: ${unsupportedKeys.join(', ')}`,
     );
+    return;
+  }
+  const candidateEngines = listFrameYamlEngineLayoutCandidateIds(namespace, overrides);
+  if (Object.keys(overrides).length > 0 && candidateEngines.length === 0) {
+    pushUniqueIssue(
+      errors,
+      `${source} mixes frame-YAML engine layout keys that do not belong to any single supported engine in '${namespace}'`,
+    );
+    return;
+  }
+  if (
+    Object.keys(overrides).length > 0
+    && candidateEngines.length > 1
+    && !resolveFrameYamlEngineLayoutCandidateId(namespace, overrides, preferredLayoutEngine)
+  ) {
+    pushUniqueIssue(
+      errors,
+      `${source} is ambiguous across supported engines in '${namespace}'; set the active layout engine before saving`,
+    );
   }
 }
 
@@ -130,21 +162,34 @@ function validateFrameYamlEngineLayoutOverrides(
   model: PreviewSavePayloadModelLike | null | undefined,
   errors: string[],
 ): void {
+  const validatedEntries = new Set<string>();
+  const validateUniqueEntry = (
+    namespace: string,
+    overrides: Record<string, unknown>,
+    source: string,
+    preferredLayoutEngine?: string | null,
+  ): void => {
+    const signature = engineLayoutOverrideSignature(namespace, overrides);
+    if (validatedEntries.has(signature)) {
+      return;
+    }
+    validatedEntries.add(signature);
+    validateFrameYamlEngineLayoutOverrideEntry(namespace, overrides, source, errors, preferredLayoutEngine);
+  };
   const modelLayoutOverrides = nonEmptyRecord(model?.layoutOverrides);
-  const legacyLayoutOverrides = nonEmptyRecord(model?.elkLayoutOverrides);
-  const rawLayoutOverrides = modelLayoutOverrides ?? legacyLayoutOverrides;
+  const rawLayoutOverrides = modelLayoutOverrides;
   if (rawLayoutOverrides) {
+    const preferredLayoutEngine = normalizeNamespaceValue(
+      (model as ({ layoutOperatorOverrides?: { activeOperatorKey?: unknown } } & PreviewSavePayloadModelLike) | null | undefined)
+        ?.layoutOperatorOverrides?.activeOperatorKey,
+    );
     const preferredNamespace = normalizeNamespaceValue(
       (model as (PreviewSavePayloadModelLike & { layoutOverrideNamespace?: unknown }) | null | undefined)
         ?.layoutOverrideNamespace,
     );
     const namespace = preferredNamespace
-      ?? (
-        legacyLayoutOverrides && !modelLayoutOverrides
-          ? DEFAULT_FRAME_YAML_ENGINE_LAYOUT_NAMESPACE
-          : resolveFrameYamlEngineLayoutNamespaceForOverrides(rawLayoutOverrides, null)
-      );
-    validateFrameYamlEngineLayoutOverrideEntry(namespace, rawLayoutOverrides, 'model.layoutOverrides', errors);
+      ?? resolveFrameYamlEngineLayoutNamespaceForOverrides(rawLayoutOverrides, null);
+    validateUniqueEntry(namespace, rawLayoutOverrides, 'model.layoutOverrides', preferredLayoutEngine);
   }
 
   const namespacedOverrides = payload.engine_layout_overrides;
@@ -157,27 +202,13 @@ function validateFrameYamlEngineLayoutOverrides(
           pushUniqueIssue(errors, `engine_layout_overrides.${namespace} must be an object`);
           continue;
         }
-        validateFrameYamlEngineLayoutOverrideEntry(
+        validateUniqueEntry(
           namespace,
           value,
           `engine_layout_overrides.${namespace}`,
-          errors,
+          null,
         );
       }
-    }
-  }
-
-  const legacyElkOverrides = payload.elk_layout_overrides;
-  if (legacyElkOverrides != null) {
-    if (!isRecord(legacyElkOverrides)) {
-      pushUniqueIssue(errors, 'elk_layout_overrides must be an object');
-    } else {
-      validateFrameYamlEngineLayoutOverrideEntry(
-        DEFAULT_FRAME_YAML_ENGINE_LAYOUT_NAMESPACE,
-        legacyElkOverrides,
-        'elk_layout_overrides',
-        errors,
-      );
     }
   }
 }

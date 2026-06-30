@@ -18,6 +18,15 @@ import {
   type CreatePreviewEditorSceneFacadeFromRuntimeOptions,
   type PreviewEditorSceneFacade,
 } from './app-editor-scene-facade.js';
+import {
+  readFrameYamlEngineLayoutOverridesForLayoutEngine,
+} from './frame-yaml-engine-layout-contract.js';
+import {
+  activateLayoutOperatorOverrideBucket,
+  writeLayoutOperatorOverrideState,
+  type LayoutOperatorOverrideState,
+} from './layout-operator-overrides.js';
+import { resolvePreviewEngine } from '../preview-engine/registry.js';
 
 export interface PreviewGridEditorRuntimeNumericState {
   get: () => number;
@@ -61,7 +70,8 @@ export interface PreviewGridEditorRuntimeModel {
   diagramGrid?: unknown;
   gridOverrides?: Record<string, unknown> | null;
   layoutOverrides?: Record<string, unknown> | null;
-  elkLayoutOverrides?: Record<string, unknown> | null;
+  layoutOverrideNamespace?: string | null;
+  layoutOperatorOverrides?: LayoutOperatorOverrideState | null;
   removedIds: Set<string>;
   setDiagramGrid: (value: unknown) => void;
   clearOverride: (cid: string) => void;
@@ -437,9 +447,7 @@ export function createPreviewGridEditorRuntimeFromBrowserHost(
           getOverrideCount: () => Object.keys(options.browser.getOverrides()).length,
           documentActions: () => ({
             gridOverrides: options.shared.model.gridOverrides ?? null,
-            layoutOverrides: options.shared.model.layoutOverrides
-              ?? options.shared.model.elkLayoutOverrides
-              ?? null,
+            layoutOverrides: options.shared.model.layoutOverrides ?? null,
             removedIds: options.shared.model.removedIds,
           }),
         },
@@ -503,11 +511,28 @@ export function createPreviewGridEditorRuntimeFromBrowserHost(
             options.browser.replaceOverrides({});
             options.shared.model.gridOverrides = {};
             const tree = readFrameTreeJson() as {
+              layoutEngine?: string | null;
               elkLayout?: Record<string, unknown>;
+              engineLayout?: Record<string, Record<string, unknown>>;
             } | null;
-            const nextLayoutOverrides = tree?.elkLayout ? { ...tree.elkLayout } : {};
-            options.shared.model.layoutOverrides = nextLayoutOverrides;
-            options.shared.model.elkLayoutOverrides = nextLayoutOverrides;
+            const engineLayoutState = readFrameYamlEngineLayoutOverridesForLayoutEngine(tree);
+            const nextLayoutOverrides = engineLayoutState?.overrides
+              ? { ...engineLayoutState.overrides }
+              : {};
+            const manifest = resolvePreviewEngine({
+              layoutEngine: tree?.layoutEngine ?? null,
+              shellMode: 'grid',
+            });
+            if (manifest) {
+              activateLayoutOperatorOverrideBucket(options.shared.model, manifest, {
+                fallbackOverrides: nextLayoutOverrides,
+                persistNamespace: engineLayoutState?.namespace ?? null,
+              });
+            } else {
+              options.shared.model.layoutOverrides = nextLayoutOverrides;
+              options.shared.model.layoutOverrideNamespace = engineLayoutState?.namespace ?? null;
+              options.shared.model.layoutOperatorOverrides = null;
+            }
             options.shared.model.removedIds = new Set<string>();
             options.browser.updateOverrideSummary();
             options.shared.editorState.clearUndoHistory();
@@ -578,7 +603,10 @@ export function createPreviewGridEditorRuntimeFromBrowserHost(
               options.browser.replaceOverrides({});
               options.shared.model.gridOverrides = {};
               options.shared.model.layoutOverrides = {};
-              options.shared.model.elkLayoutOverrides = {};
+              writeLayoutOperatorOverrideState(options.shared.model, {
+                activeOperatorKey: options.shared.model.layoutOperatorOverrides?.activeOperatorKey ?? null,
+                byOperator: {},
+              }, null);
               options.shared.model.removedIds = new Set<string>();
               options.shared.coercedKeys.clear();
               options.browser.setDirty(true);

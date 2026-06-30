@@ -61,7 +61,8 @@ test("editor-state adapter requires the namespaced previewShell.bootstrap contra
   editorState.init({
     getOverrides: () => ({}),
     getGridOverrides: () => ({}),
-    getElkLayoutOverrides: () => ({}),
+    getLayoutOverrides: () => ({}),
+    getLayoutOperatorOverridesState: () => null,
     getRemovedIds: () => new Set(),
     getFrameTree: () => null,
   });
@@ -71,9 +72,10 @@ test("editor-state adapter requires the namespaced previewShell.bootstrap contra
   assert.deepEqual(calls, [
     {
       createEditorStateStore: [
-        "getElkLayoutOverrides",
         "getFrameTree",
         "getGridOverrides",
+        "getLayoutOperatorOverridesState",
+        "getLayoutOverrides",
         "getOverrides",
         "getRemovedIds",
       ],
@@ -152,7 +154,7 @@ test("editor-state adapter refreshes undo buttons after override commits", () =>
   editorState.init({
     getOverrides: () => ({}),
     getGridOverrides: () => ({}),
-    getElkLayoutOverrides: () => ({}),
+    getLayoutOverrides: () => ({}),
     getRemovedIds: () => new Set(),
     getFrameTree: () => null,
   });

@@ -48,14 +48,11 @@ describe('preview override payload model', () => {
     });
   });
 
-  it('prefers the generic layout override owner without mutating model aliases', () => {
+  it('persists the active layout override owner without emitting a duplicate ELK alias payload', () => {
     const model = {
       overrides: {},
       layoutOverrides: {
         'elk.direction': 'RIGHT',
-      },
-      elkLayoutOverrides: {
-        'elk.direction': 'DOWN',
       },
       removedIds: new Set<string>(),
     };
@@ -68,37 +65,21 @@ describe('preview override payload model', () => {
           'elk.direction': 'RIGHT',
         },
       },
-      elk_layout_overrides: {
-        'elk.direction': 'RIGHT',
-      },
     });
     expect(model.layoutOverrides).toEqual({
       'elk.direction': 'RIGHT',
     });
-    expect(model.elkLayoutOverrides).toEqual({
-      'elk.direction': 'DOWN',
-    });
   });
 
-  it('reads the legacy ELK alias when the generic override owner is empty', () => {
+  it('does not fall back to a removed ELK-only alias lane', () => {
     const model = {
       overrides: {},
       layoutOverrides: {},
-      elkLayoutOverrides: {
-        'elk.layered.spacing.nodeNodeBetweenLayers': 48,
-      },
       removedIds: new Set<string>(),
     };
 
-    expect(createPreviewOverridePayload(model).engine_layout_overrides).toEqual({
-      'meta.elk': {
-        'elk.layered.spacing.nodeNodeBetweenLayers': 48,
-      },
-    });
+    expect(createPreviewOverridePayload(model).engine_layout_overrides).toBeUndefined();
     expect(model.layoutOverrides).toEqual({});
-    expect(model.elkLayoutOverrides).toEqual({
-      'elk.layered.spacing.nodeNodeBetweenLayers': 48,
-    });
   });
 
   it('routes explicit non-ELK layout namespaces through the shared persistence contract', () => {
@@ -109,9 +90,6 @@ describe('preview override payload model', () => {
         transient: 'ignored',
       },
       layoutOverrideNamespace: 'meta.dagre',
-      elkLayoutOverrides: {
-        stale: true,
-      },
       removedIds: new Set<string>(),
     };
 
@@ -129,8 +107,36 @@ describe('preview override payload model', () => {
       'dagre.rankdir': 'LR',
       transient: 'ignored',
     });
-    expect(model.elkLayoutOverrides).toEqual({
-      stale: true,
+  });
+
+  it('persists only the active operator manifest keys instead of a shared namespace union', () => {
+    const model = {
+      overrides: {},
+      layoutOverrides: {
+        'elk.spacing.nodeNode': 96,
+        'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
+      },
+      layoutOverrideNamespace: 'meta.elk',
+      layoutOperatorOverrides: {
+        activeOperatorKey: 'elk-force',
+        byOperator: {
+          'elk-force': {
+            'elk.spacing.nodeNode': 96,
+            'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
+          },
+        },
+      },
+      removedIds: new Set<string>(),
+    };
+
+    expect(createPreviewOverridePayload(model)).toEqual({
+      overrides: {},
+      format_version: 1,
+      engine_layout_overrides: {
+        'meta.elk': {
+          'elk.spacing.nodeNode': 96,
+        },
+      },
     });
   });
 

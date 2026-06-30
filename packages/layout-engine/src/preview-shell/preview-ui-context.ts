@@ -6,6 +6,7 @@ import type {
   PreviewShellMode,
   PreviewViewerSidebarSection,
 } from '../preview-engine/types.js';
+import { hostViewUsesLayoutParamsSection } from '../preview-engine/sidebar-sections.js';
 import type { PreviewEngineWorkspaceState } from './preview-engine-workspace.js';
 
 export type PreviewTemplateSectionKey =
@@ -13,7 +14,7 @@ export type PreviewTemplateSectionKey =
   | 'grid-layers-pane'
   | 'grid-engine-switcher'
   | 'grid-controls'
-  | 'graph-layout'
+  | 'layout-params'
   | 'grid-overrides'
   | 'grid-constraints'
   | 'grid-guide-badge'
@@ -220,15 +221,9 @@ function rootSelectionVisible(context: PreviewUiContext): boolean {
   return selection?.kind === 'root' && (selection.count ?? 1) === 1;
 }
 
-function elkLayoutVisible(context: PreviewUiContext): boolean {
+function layoutParamsVisible(context: PreviewUiContext): boolean {
   return isGridShell(context)
-    && previewEngineSupportsSidebarSection(context, 'elk-layout')
-    && hasCapability(context, 'layoutControls');
-}
-
-function graphLayoutVisible(context: PreviewUiContext): boolean {
-  return isGridShell(context)
-    && previewEngineSupportsSidebarSection(context, 'graph-layout')
+    && hostViewUsesLayoutParamsSection(hostView(context) ?? null)
     && hasCapability(context, 'layoutControls');
 }
 
@@ -301,25 +296,14 @@ export const PREVIEW_PANEL_REGISTRY: readonly PreviewPanelRegistryEntry[] = [
     ),
   },
   {
-    id: 'elk-layout',
-    owner: 'viewer-unified.html#elk-layout-section',
+    id: 'layout-params',
+    owner: 'viewer-unified.html#layout-params-section',
     group: 'engine',
-    isVisible: elkLayoutVisible,
+    isVisible: layoutParamsVisible,
     reason: (_context, visible) => visibilityReason(
       visible,
-      'active engine exposes the elk-layout sidebar section',
-      'active engine does not expose the elk-layout sidebar section',
-    ),
-  },
-  {
-    id: 'graph-layout',
-    owner: 'viewer-unified.html#graph-layout-section',
-    group: 'engine',
-    isVisible: graphLayoutVisible,
-    reason: (_context, visible) => visibilityReason(
-      visible,
-      'active engine exposes the graph-layout sidebar section',
-      'active engine does not expose the graph-layout sidebar section',
+      'active engine exposes graph layout parameters',
+      'active engine does not expose graph layout parameters',
     ),
   },
   {

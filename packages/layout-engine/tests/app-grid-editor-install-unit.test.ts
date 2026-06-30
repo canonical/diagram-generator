@@ -6,6 +6,7 @@ import {
   installV3PreviewEngine,
 } from '../src/preview-engine/builtins.js';
 import { installMindmapLitePreviewEngine } from '../src/preview-engine/mindmap-lite.js';
+import { getPreviewEngine } from '../src/preview-engine/registry.js';
 
 const mocks = vi.hoisted(() => ({
   createBrowserState: vi.fn(),
@@ -867,8 +868,7 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
     });
     const engineSwitcherSection = createPanel();
     const gridControlsSection = createPanel();
-    const graphLayoutSection = createPanel();
-    const elkLayoutSection = createPanel();
+    const layoutParamsSection = createPanel();
     const previewWindow = {
       __DG_CONFIG: {
         engine: 'mindmap-tree',
@@ -894,8 +894,7 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
       getElementById: vi.fn((id: string) => {
         if (id === 'engine-switcher-section') return engineSwitcherSection;
         if (id === 'grid-controls-section') return gridControlsSection;
-        if (id === 'graph-layout-section') return graphLayoutSection;
-        if (id === 'elk-layout-section') return elkLayoutSection;
+        if (id === 'layout-params-section') return layoutParamsSection;
         return null;
       }),
       querySelector: vi.fn(() => null),
@@ -955,17 +954,16 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
     previewWindow.__DG_syncPreviewEngineWorkspacePanels();
 
     expect(engineSwitcherSection.hidden).toBe(true);
-    expect(graphLayoutSection.hidden).toBe(true);
-    expect(elkLayoutSection.hidden).toBe(true);
+    expect(layoutParamsSection.hidden).toBe(true);
   });
 
   it('syncs panel visibility from the live render intent when config is stale', () => {
     const unregisterers = [
-      installV3PreviewEngine(),
-      installElkLayeredPreviewEngine(),
-      installDagrePreviewEngine(),
-      installMindmapLitePreviewEngine(),
-    ];
+      getPreviewEngine('v3') ? null : installV3PreviewEngine(),
+      getPreviewEngine('elk-layered') ? null : installElkLayeredPreviewEngine(),
+      getPreviewEngine('dagre') ? null : installDagrePreviewEngine(),
+      getPreviewEngine('mindmap-tree') ? null : installMindmapLitePreviewEngine(),
+    ].filter((value): value is () => void => typeof value === 'function');
     const createPanel = () => ({
       hidden: false,
       style: { display: '' },
@@ -975,8 +973,7 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
     });
     const engineSwitcherSection = createPanel();
     const gridControlsSection = createPanel();
-    const graphLayoutSection = createPanel();
-    const elkLayoutSection = createPanel();
+    const layoutParamsSection = createPanel();
     const previewWindow = {
       __DG_CONFIG: {
         engine: 'v3',
@@ -1002,8 +999,7 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
       getElementById: vi.fn((id: string) => {
         if (id === 'engine-switcher-section') return engineSwitcherSection;
         if (id === 'grid-controls-section') return gridControlsSection;
-        if (id === 'graph-layout-section') return graphLayoutSection;
-        if (id === 'elk-layout-section') return elkLayoutSection;
+        if (id === 'layout-params-section') return layoutParamsSection;
         return null;
       }),
       querySelector: vi.fn(() => null),
@@ -1065,8 +1061,7 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
       expect(previewWindow.__DG_rerenderPreviewEngineWorkspaceStage).toBeTypeOf('function');
       expect(engineSwitcherSection.hidden).toBe(false);
       expect(gridControlsSection.hidden).toBe(true);
-      expect(graphLayoutSection.hidden).toBe(true);
-      expect(elkLayoutSection.hidden).toBe(true);
+      expect(layoutParamsSection.hidden).toBe(true);
 
       previewWindow.__DG_CONFIG.persisted_layout_engine = 'v3';
       previewWindow.__DG_CONFIG.compatible_engines = ['v3', 'dagre'];
@@ -1082,8 +1077,7 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
       expect(previewWindow.__DG_CONFIG.active_engine_id).toBe('v3');
       expect(engineSwitcherSection.hidden).toBe(false);
       expect(gridControlsSection.hidden).toBe(true);
-      expect(graphLayoutSection.hidden).toBe(false);
-      expect(elkLayoutSection.hidden).toBe(true);
+      expect(layoutParamsSection.hidden).toBe(false);
 
       previewWindow.__DG_CONFIG.document_kind = 'mindmap-lite';
       previewWindow.__DG_CONFIG.active_engine_id = 'mindmap-tree';
@@ -1099,8 +1093,7 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
       previewWindow.__DG_syncPreviewEngineWorkspacePanels();
 
       expect(engineSwitcherSection.hidden).toBe(true);
-      expect(graphLayoutSection.hidden).toBe(true);
-      expect(elkLayoutSection.hidden).toBe(true);
+      expect(layoutParamsSection.hidden).toBe(true);
     } finally {
       for (const unregister of unregisterers.reverse()) {
         unregister();
@@ -1111,6 +1104,27 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
   it('exposes a live engine-workspace rerender callback through the legacy host window', async () => {
     const rerenderStageCalls: string[] = [];
     const committedLayoutEngines: string[] = [];
+    const graphControlsRuntime = { kind: 'graph-controls' };
+    const graphControllerInit = vi.fn();
+    const graphControllerSyncPanel = vi.fn();
+    const graphControllerRuntime = {
+      init: graphControllerInit,
+      syncPanel: graphControllerSyncPanel,
+    };
+    const createGraphControlsRuntime = vi.fn(() => graphControlsRuntime);
+    const createGraphControllerRuntime = vi.fn(() => graphControllerRuntime);
+    const model = {
+      kind: 'model',
+      layoutOverrides: { 'dagre.ranksep': 128 },
+      layoutOverrideNamespace: 'meta.dagre',
+      layoutOperatorOverrides: {
+        activeOperatorKey: 'dagre',
+        byOperator: {
+          dagre: { 'dagre.ranksep': 128 },
+          'elk-force': { 'elk.spacing.nodeNode': 96 },
+        },
+      },
+    };
     mocks.createBrowserState.mockReturnValue({
       replaceOverrides: vi.fn((nextOverrides: Record<string, unknown>) => nextOverrides),
       setDirty: vi.fn(),
@@ -1170,6 +1184,40 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
         }
         return null;
       }),
+      LayoutEngine: {
+        previewEngines: {
+          registry: {
+            resolvePreviewEngine: vi.fn(({ layoutEngine }: { layoutEngine?: string | null }) => {
+              if (layoutEngine === 'dagre') {
+                return {
+                  id: 'dagre',
+                  hostView: { sidebarSections: ['layout-params'] },
+                  controlSpecs: [{ key: 'dagre.ranksep', persistNamespace: 'meta.dagre' }],
+                  capabilities: { rawDebugView: false },
+                };
+              }
+              if (layoutEngine === 'elk-force') {
+                return {
+                  id: 'elk-force',
+                  hostView: { sidebarSections: ['layout-params'] },
+                  controlSpecs: [{ key: 'elk.spacing.nodeNode', persistNamespace: 'meta.elk' }],
+                  capabilities: { rawDebugView: true },
+                };
+              }
+              return {
+                id: String(layoutEngine || 'v3'),
+                hostView: { sidebarSections: [] },
+                controlSpecs: [],
+                capabilities: { rawDebugView: false },
+              };
+            }),
+          },
+          graph: {
+            createPreviewEngineLayoutControlsRuntime: createGraphControlsRuntime,
+            createPreviewEngineShellControllerRuntime: createGraphControllerRuntime,
+          },
+        },
+      },
     } as any;
     const document = {
       getElementById: vi.fn(() => null),
@@ -1195,7 +1243,7 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
         snapToGrid: (value) => value,
       },
       state: {
-        model: { kind: 'model' } as any,
+        model: model as any,
         interactionManager: { kind: 'manager' } as any,
         selectedIds: new Set<string>(),
         selectionDepthState: { get: vi.fn(() => 0), set: vi.fn() },
@@ -1279,6 +1327,7 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
     await previewWindow.__DG_rerenderPreviewEngineWorkspaceStage();
     expect(committedLayoutEngines).toEqual(['v3']);
     expect(rerenderStageCalls).toEqual(['rerender']);
+    expect(createGraphControlsRuntime).not.toHaveBeenCalled();
 
     committedLayoutEngines.length = 0;
     rerenderStageCalls.length = 0;
@@ -1297,6 +1346,53 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
     expect(previewWindow.__DG_CONFIG.active_engine_id).toBe('dagre');
     expect(previewWindow.__DG_previewRenderIntent?.engineId).toBe('dagre');
     expect(rerenderStageCalls).toEqual(['rerender']);
+    expect(createGraphControlsRuntime).toHaveBeenCalledTimes(1);
+    expect(createGraphControllerRuntime).toHaveBeenCalledTimes(1);
+    expect(previewWindow.PreviewEngineLayoutControls).toBe(graphControlsRuntime);
+    expect(previewWindow.PreviewEngineShellController).toBe(graphControllerRuntime);
+    expect(graphControllerInit).toHaveBeenCalledTimes(1);
+    expect(graphControllerInit.mock.calls[0]?.[0]?.getLayoutOverrides()).toEqual({
+      'dagre.ranksep': 128,
+    });
+    expect(graphControllerSyncPanel).toHaveBeenCalledTimes(1);
+
+    committedLayoutEngines.length = 0;
+    rerenderStageCalls.length = 0;
+    previewWindow.__DG_previewRenderIntent = {
+      engineId: 'elk-force',
+      pageDirection: null,
+      frameOverrides: {},
+      engineOverrides: {},
+      gridOverrides: {},
+    };
+
+    await previewWindow.__DG_rerenderPreviewEngineWorkspaceStage();
+    expect(committedLayoutEngines).toEqual(['elk-force']);
+    expect(previewWindow.__DG_CONFIG.active_engine_id).toBe('elk-force');
+    expect(previewWindow.__DG_previewRenderIntent?.engineId).toBe('elk-force');
+    expect(rerenderStageCalls).toEqual(['rerender']);
+    expect(createGraphControlsRuntime).toHaveBeenCalledTimes(2);
+    expect(createGraphControllerRuntime).toHaveBeenCalledTimes(2);
+    expect(previewWindow.PreviewEngineLayoutControls).toBe(graphControlsRuntime);
+    expect(previewWindow.ElkLayoutControls).toBeNull();
+    expect(previewWindow.PreviewEngineShellController).toBe(graphControllerRuntime);
+    expect(previewWindow.ElkPreviewController).toBeNull();
+    expect(graphControllerInit).toHaveBeenCalledTimes(2);
+    expect(graphControllerInit.mock.calls[1]?.[0]?.getLayoutOverrides()).toEqual({
+      'elk.spacing.nodeNode': 96,
+    });
+    expect(model.layoutOperatorOverrides).toEqual({
+      activeOperatorKey: 'elk-force',
+      byOperator: {
+        dagre: { 'dagre.ranksep': 128 },
+        'elk-force': { 'elk.spacing.nodeNode': 96 },
+      },
+    });
+    expect(model.layoutOverrides).toEqual({
+      'elk.spacing.nodeNode': 96,
+    });
+    expect(model.layoutOverrideNamespace).toBe('meta.elk');
+    expect(graphControllerSyncPanel).toHaveBeenCalledTimes(2);
   });
 
   it('derives runtime callbacks from the compact editor-host contract', async () => {

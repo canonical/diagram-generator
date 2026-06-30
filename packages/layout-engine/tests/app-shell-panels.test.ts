@@ -235,7 +235,7 @@ describe('preview shell panel helpers', () => {
     };
     const document = {
       getElementById(id: string) {
-        return id === 'elk-layout-section' ? section : null;
+        return id === 'layout-params-section' ? section : null;
       },
     } as unknown as Document;
 

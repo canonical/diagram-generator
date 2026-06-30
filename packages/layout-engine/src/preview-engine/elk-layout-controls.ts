@@ -1,9 +1,22 @@
-import type { PreviewControlSpec, PreviewEngineManifest } from './types.js';
+import type {
+  PreviewControlSpec,
+  PreviewEngineManifest,
+} from './types.js';
+import {
+  previewControlDisplayValues,
+  visiblePreviewControlSpecs,
+} from './control-specs.js';
 import {
   resolvePreviewRenderIntentLayoutEngine,
   type PreviewRenderIntent,
   type PreviewRenderIntentFrameTree,
 } from '../preview-shell/preview-render-intent.js';
+import {
+  collectNamespacedLayoutOperatorOverrides,
+  pruneSessionBucketForManifest,
+  resolveEffectiveLayoutOperatorOverrides,
+  resolveLayoutOperatorOverrideViewModel,
+} from '../preview-shell/layout-operator-overrides.js';
 
 type PreviewEngineSidebarGroup = {
   group: string;
@@ -85,6 +98,8 @@ export interface PreviewElkLayoutControlsRuntimeOptions {
   containerId?: string;
   controlIdPrefix?: string;
   defaultPersistNamespace?: string;
+  enableRawViewToggles?: boolean;
+  /** @deprecated Prefer `enableRawViewToggles`. */
   enableElkViewToggles?: boolean;
   unavailableMessage?: string;
   getDirtySetter?: (() => ((dirty: boolean) => void) | undefined) | null;
@@ -141,12 +156,12 @@ function readPreviewEngineRawView(
 export function createPreviewElkLayoutControlsRuntime(
   options: PreviewElkLayoutControlsRuntimeOptions,
 ): PreviewElkLayoutControlsRuntime {
-  const sidebarSectionId = options.sidebarSectionId ?? 'elk-layout';
-  const sectionId = options.sectionId ?? 'elk-layout-section';
-  const containerId = options.containerId ?? 'elk-layout-controls';
-  const controlIdPrefix = options.controlIdPrefix ?? 'elk';
+  const sidebarSectionId = options.sidebarSectionId ?? 'layout-params';
+  const sectionId = options.sectionId ?? 'layout-params-section';
+  const containerId = options.containerId ?? 'layout-params-controls';
+  const controlIdPrefix = options.controlIdPrefix ?? 'layout-params';
   const defaultPersistNamespace = options.defaultPersistNamespace ?? 'meta.elk';
-  const enableElkViewToggles = options.enableElkViewToggles ?? true;
+  const enableRawViewToggles = options.enableRawViewToggles ?? options.enableElkViewToggles ?? true;
   const unavailableMessage = options.unavailableMessage
     ?? 'Engine parameter registry unavailable. Rebuild the browser bundle from packages/layout-engine.';
   const setTimeoutFn = options.setTimeoutFn ?? ((callback: () => void, delayMs: number) => setTimeout(callback, delayMs));
@@ -195,6 +210,11 @@ export function createPreviewElkLayoutControlsRuntime(
       return null;
     }
     return previewEnginesBySidebarSection(sidebarSectionId)[0] ?? null;
+  }
+
+  function activeRawViewEnabled(frameTreeJson?: unknown): boolean {
+    return enableRawViewToggles
+      && activePreviewEngine(frameTreeJson)?.capabilities?.rawDebugView === true;
   }
 
   function isActiveLayoutEngine(frameTreeJson?: unknown): boolean {
@@ -308,8 +328,11 @@ export function createPreviewElkLayoutControlsRuntime(
       buckets.set(spec.group, list);
     }
     const order = ['Graph', 'Spacing', 'Edges', 'Layering', 'Compound'];
-    return order
-      .filter((group) => buckets.has(group))
+    const orderedGroups = [
+      ...order.filter((group) => buckets.has(group)),
+      ...Array.from(buckets.keys()).filter((group) => !order.includes(group)),
+    ];
+    return orderedGroups
       .map((group) => ({ group, specs: buckets.get(group) || [] }));
   }
 
@@ -369,7 +392,7 @@ export function createPreviewElkLayoutControlsRuntime(
   }
 
   function rawViewToggleHtml(): string {
-    if (!enableElkViewToggles) {
+    if (!activeRawViewEnabled(options.getFrameTreeJson?.())) {
       return '';
     }
     return (
@@ -396,10 +419,46 @@ export function createPreviewElkLayoutControlsRuntime(
     return trimmed;
   }
 
-  function collectOverridesFromDom(frameTreeJson?: unknown): Record<string, unknown> {
+  function displayValueMap(
+    frameTreeJson?: unknown,
+  ): { specs: PreviewControlSpec[]; display: Record<string, unknown> } {
+    const manifest = activePreviewEngine(frameTreeJson);
+    const specs = paramSpecs(frameTreeJson);
+    if (!manifest) {
+      return {
+        specs,
+        display: previewControlDisplayValues(getOverrides() || {}, specs),
+      };
+    }
+    const tree = (frameTreeJson ?? options.getFrameTreeJson?.()) as {
+      elkLayout?: Record<string, unknown>;
+      engineLayout?: Record<string, Record<string, unknown>>;
+    } | null;
+    const view = resolveLayoutOperatorOverrideViewModel({
+      manifest,
+      engineLayout: tree?.engineLayout ?? null,
+      elkLayout: tree?.elkLayout ?? null,
+      sessionOverrides: getOverrides() || {},
+      persistNamespace: defaultPersistNamespace,
+    });
+    return {
+      specs: view.specs,
+      display: view.display,
+    };
+  }
+
+  function collectOverridesFromDom(
+    frameTreeJson?: unknown,
+    specs = paramSpecs(frameTreeJson),
+  ): Record<string, unknown> {
+    const current: Record<string, unknown> = getOverrides() || {};
     const next: Record<string, unknown> = {};
-    for (const spec of paramSpecs(frameTreeJson)) {
+    for (const spec of specs) {
       const element = options.document.getElementById(controlId(spec)) as PreviewControlElement | null;
+      if (!element && spec.key in current) {
+        next[spec.key] = current[spec.key];
+        continue;
+      }
       if (!element) {
         continue;
       }
@@ -413,7 +472,22 @@ export function createPreviewElkLayoutControlsRuntime(
     if (!isActiveLayoutEngine(frameTreeJson)) {
       return {};
     }
-    return collectOverridesFromDom(frameTreeJson);
+    const manifest = activePreviewEngine(frameTreeJson);
+    if (!manifest) {
+      return {};
+    }
+    const tree = frameTreeJson as {
+      elkLayout?: Record<string, unknown>;
+      engineLayout?: Record<string, Record<string, unknown>>;
+    } | null;
+    const session = collectOverridesFromDom(frameTreeJson, paramSpecs(frameTreeJson));
+    return resolveEffectiveLayoutOperatorOverrides({
+      manifest,
+      engineLayout: tree?.engineLayout ?? null,
+      elkLayout: tree?.elkLayout ?? null,
+      sessionOverrides: session,
+      persistNamespace: defaultPersistNamespace,
+    });
   }
 
   function collectNamespacedOverrides(): Record<string, Record<string, unknown>> {
@@ -421,17 +495,22 @@ export function createPreviewElkLayoutControlsRuntime(
     if (!isActiveLayoutEngine(frameTreeJson)) {
       return {};
     }
-    const next: Record<string, Record<string, unknown>> = {};
-    for (const spec of paramSpecs(frameTreeJson)) {
-      const element = options.document.getElementById(controlId(spec)) as PreviewControlElement | null;
-      if (!element) {
-        continue;
-      }
-      const namespace = persistNamespace(spec);
-      next[namespace] = next[namespace] ?? {};
-      next[namespace]![spec.key] = readControlValue(element, spec);
+    const manifest = activePreviewEngine(frameTreeJson);
+    if (!manifest) {
+      return {};
     }
-    return next;
+    const tree = frameTreeJson as {
+      elkLayout?: Record<string, unknown>;
+      engineLayout?: Record<string, Record<string, unknown>>;
+    } | null;
+    const session = collectOverridesFromDom(frameTreeJson, paramSpecs(frameTreeJson));
+    return collectNamespacedLayoutOperatorOverrides({
+      manifest,
+      engineLayout: tree?.engineLayout ?? null,
+      elkLayout: tree?.elkLayout ?? null,
+      sessionOverrides: session,
+      persistNamespace: defaultPersistNamespace,
+    });
   }
 
   function onControlInput(): void {
@@ -441,8 +520,22 @@ export function createPreviewElkLayoutControlsRuntime(
     }
     const controller = previewEngineShellController(options.previewWindow);
     controller?.wirePanel?.();
-    const next = collectOverridesFromDom(frameTreeJson);
+    const manifest = activePreviewEngine(frameTreeJson);
+    if (!manifest) {
+      return;
+    }
+    const tree = frameTreeJson as {
+      elkLayout?: Record<string, unknown>;
+      engineLayout?: Record<string, Record<string, unknown>>;
+    } | null;
+    const provisionalOverrides = collectOverridesFromDom(frameTreeJson, paramSpecs(frameTreeJson));
+    const next = pruneSessionBucketForManifest(manifest, provisionalOverrides, {
+      engineLayout: tree?.engineLayout ?? null,
+      elkLayout: tree?.elkLayout ?? null,
+      persistNamespace: defaultPersistNamespace,
+    });
     setOverrides(next);
+    buildPanel(frameTreeJson);
     if (typeof controller?.applyLayoutOverrides === 'function') {
       controller.applyLayoutOverrides(next);
     } else {
@@ -513,25 +606,13 @@ export function createPreviewElkLayoutControlsRuntime(
     bindControls(container);
   }
 
-  function sidebarDisplayValues(
-    merged: Record<string, unknown>,
-    specs = paramSpecs(options.getFrameTreeJson?.()),
-  ): Record<string, unknown> {
-    const out: Record<string, unknown> = {};
-    for (const spec of specs) {
-      const raw = merged[spec.key];
-      out[spec.key] = raw != null && String(raw) !== '' ? String(raw) : spec.defaultValue;
-    }
-    return out;
-  }
-
   function bindElkViewToggles(section: {
     querySelector?: (selector: string) => unknown;
   }): void {
     const rawToggle = section.querySelector?.('#elk-raw-view-toggle') as (PreviewControlElement & {
       checked?: boolean;
     }) | null | undefined;
-    if (!enableElkViewToggles) {
+    if (!activeRawViewEnabled(options.getFrameTreeJson?.())) {
       return;
     }
     if (rawToggle && rawToggle.dataset.elkBound !== '1') {
@@ -590,7 +671,7 @@ export function createPreviewElkLayoutControlsRuntime(
       return;
     }
 
-    const specs = paramSpecs(activeFrameTreeJson);
+    const allSpecs = paramSpecs(activeFrameTreeJson);
     const hasServerControls = Boolean(container.querySelector?.('[data-dg-engine-layout-key], [data-elk-key]'));
     if (!activeFrameTreeJson) {
       if (hasServerControls) {
@@ -603,25 +684,14 @@ export function createPreviewElkLayoutControlsRuntime(
       container.textContent = '';
     }
 
-    if (specs.length === 0) {
+    if (allSpecs.length === 0) {
       container.innerHTML = `<p class="bf-form-help">${unavailableMessage}</p>${rawViewToggleHtml()}`;
       bindElkViewToggles(container);
       return;
     }
 
-    const tree = activeFrameTreeJson as {
-      elkLayout?: Record<string, unknown>;
-      engineLayout?: Record<string, Record<string, unknown>>;
-    } | null;
-    const namespaces = [...new Set(specs.map((spec) => persistNamespace(spec)))];
-    const yamlEngine = namespaces.reduce<Record<string, unknown>>((acc, namespace) => ({
-      ...acc,
-      ...(tree?.engineLayout?.[namespace] || {}),
-      ...(namespace === 'meta.elk' ? tree?.elkLayout || {} : {}),
-    }), {});
-    const session = getOverrides() || {};
-    const merged = { ...yamlEngine, ...session };
-    const display = sidebarDisplayValues(merged, specs);
+    const { specs: resolvedSpecs, display } = displayValueMap(activeFrameTreeJson);
+    const specs = visiblePreviewControlSpecs(resolvedSpecs, display);
 
     if (
       container.querySelector?.('[data-dg-engine-layout-key], [data-elk-key]')

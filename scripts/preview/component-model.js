@@ -94,8 +94,7 @@ class ComponentModel {
     this._index = new Map(); // id → ComponentNode
     this.overrides = {};     // id → { dx?, dy?, dw?, dh?, waypoints?, text? }
     this.gridOverrides = {}; // { col_gap?, row_gap?, outer_margin? }
-    this.layoutOverrides = {}; // generic engine-layout sidebar state
-    this.elkLayoutOverrides = {}; // legacy alias for ELK-backed layout state
+    this.layoutOverrides = {}; // active engine-layout sidebar state
     this.diagramGrid = null; // { col_gap, row_gap, outer_margin, ... } — diagram-level grid
     /** Frame ids removed since last save (persisted as removed_ids on save). */
     this.removedIds = new Set();

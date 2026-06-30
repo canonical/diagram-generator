@@ -10,7 +10,10 @@ export const ELK_FORCE_PREVIEW_ENGINE_DEFINITION: GraphLayoutPreviewEngineDefini
   renderFamily: 'frame-elk-force',
   graphEngine: ELK_FORCE_GRAPH_LAYOUT_ENGINE,
   controlSpecs: elkForcePreviewControlSpecs(),
-  sidebarSections: ['elk-layout'],
+  sidebarSections: ['layout-params'],
+  capabilities: {
+    rawDebugView: true,
+  },
   compatibility: {
     description: 'Force-directed ELK layout for organic graph structures',
     frameDiagramRequirements: {
@@ -20,7 +23,7 @@ export const ELK_FORCE_PREVIEW_ENGINE_DEFINITION: GraphLayoutPreviewEngineDefini
     },
   },
   renderAdapter: elkForceFrameDiagramRenderAdapter,
-  scripts: ['elk-layout-controls.js', 'elk-controller.js'],
+  scripts: ['layout-params-controls.js', 'layout-params-controller.js'],
 };
 
 const definedElkForcePreviewEngine = defineGraphLayoutPreviewEngine(

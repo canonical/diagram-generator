@@ -18,6 +18,9 @@ import {
   resolvePreviewEngine,
   summarizeFrameDiagramCompatibility,
 } from '../preview-engine/index.js';
+import {
+  resolveEffectiveLayoutOperatorOverrides,
+} from './layout-operator-overrides.js';
 import { type TextMeasureAdapter } from '../text-measure.js';
 import {
   routePreviewArrows,
@@ -144,14 +147,16 @@ export function filterPreviewEngineLayoutOptionOverrides(
   if (!overrides) {
     return {};
   }
-  const specs = engine?.controlSpecs ?? [];
-  if (specs.length === 0) {
+  if (!engine) {
     return { ...overrides };
   }
-  const allowedKeys = new Set(specs.map((spec) => spec.key));
-  return Object.fromEntries(
-    Object.entries(overrides).filter(([key]) => allowedKeys.has(key)),
-  );
+  return resolveEffectiveLayoutOperatorOverrides({
+    manifest: {
+      id: 'active-preview-engine',
+      controlSpecs: engine.controlSpecs ?? [],
+    },
+    sessionOverrides: overrides,
+  }) as Record<string, string>;
 }
 
 async function fetchPreviewIconSvg(name: string): Promise<string | null> {

@@ -39,17 +39,29 @@ describe('editor snapshot helpers', () => {
     expect(normalized).not.toHaveProperty('ignored');
   });
 
-  it('captures optional elk, removed, and frame tree fields', () => {
+  it('captures optional layout-operator, layout, removed, and frame tree fields', () => {
     const snapshot = captureEditorSnapshot({
       overrides: { root: { gap: 4 } },
       gridOverrides: { cols: 6 },
-      elkLayoutOverrides: { direction: 'RIGHT' },
+      layoutOverrides: { direction: 'RIGHT' },
+      layoutOperatorOverrides: {
+        activeOperatorKey: 'dagre',
+        byOperator: {
+          dagre: { 'dagre.rankdir': 'LR' },
+        },
+      },
       removedIds: ['a', 'b'],
       frameTree: { id: 'root', children: [] },
     });
     expect(snapshot.o).toEqual({ root: { gap: 4 } });
     expect(snapshot.g).toEqual({ cols: 6 });
     expect(snapshot.e).toEqual({ direction: 'RIGHT' });
+    expect(snapshot.ep).toEqual({
+      activeOperatorKey: 'dagre',
+      byOperator: {
+        dagre: { 'dagre.rankdir': 'LR' },
+      },
+    });
     expect(snapshot.r).toEqual(['a', 'b']);
     expect(snapshot.f).toEqual({ id: 'root', children: [] });
   });

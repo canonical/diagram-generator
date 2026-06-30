@@ -17,7 +17,7 @@
     previewWindow: window,
     layoutEngineRoot: typeof LayoutEngine !== "undefined" ? LayoutEngine : window.LayoutEngine,
     getFrameTreeJson: typeof getFrameTreeJson === "function" ? () => getFrameTreeJson() : null,
-    sidebarSectionId: "graph-layout",
+    sidebarSectionId: "layout-params",
     defaultPersistNamespace: "meta.dagre",
   });
 

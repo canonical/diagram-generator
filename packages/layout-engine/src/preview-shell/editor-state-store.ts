@@ -9,6 +9,7 @@ import {
   serializeEditorSnapshot,
 } from './editor-snapshot.js';
 import type { EditorSnapshot, EditorSnapshotInput } from './editor-snapshot.js';
+import type { LayoutOperatorOverrideState } from './layout-operator-overrides.js';
 import {
   EditorUndoStack,
   type PendingUndoableAction,
@@ -18,8 +19,7 @@ export interface EditorStateStoreDeps {
   getOverrides: () => Record<string, unknown>;
   getGridOverrides: () => Record<string, unknown> | null | undefined;
   getLayoutOverrides?: () => Record<string, unknown> | null | undefined;
-  /** @deprecated Prefer `getLayoutOverrides`. */
-  getElkLayoutOverrides?: () => Record<string, unknown> | null | undefined;
+  getLayoutOperatorOverridesState?: () => LayoutOperatorOverrideState | null | undefined;
   getRemovedIds: () => Iterable<string> | null | undefined;
   getFrameTree: () => unknown | null | undefined;
 }
@@ -58,8 +58,8 @@ export class EditorStateStore {
     return {
       overrides: this.deps.getOverrides(),
       gridOverrides: this.deps.getGridOverrides(),
-      elkLayoutOverrides: this.deps.getLayoutOverrides?.()
-        ?? this.deps.getElkLayoutOverrides?.(),
+      layoutOverrides: this.deps.getLayoutOverrides?.(),
+      layoutOperatorOverrides: this.deps.getLayoutOperatorOverridesState?.(),
       removedIds: this.deps.getRemovedIds(),
       frameTree: this.deps.getFrameTree(),
     };

@@ -92,12 +92,8 @@ const FORCE_PREVIEW_VIEWER_DEFINITION: PreviewHostViewerPageDefinition = {
       section: "force-guidance",
     },
     {
-      placeholder: "%ELK_SECTION_HIDDEN%",
-      section: "elk-layout",
-    },
-    {
-      placeholder: "%GRAPH_LAYOUT_SECTION_HIDDEN%",
-      section: "graph-layout",
+      placeholder: "%LAYOUT_PARAMS_SECTION_HIDDEN%",
+      section: "layout-params",
     },
   ],
   buildTitle(slug: string): string {

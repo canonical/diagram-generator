@@ -82,3 +82,11 @@ e.g. if 1 node has 3 2 levels of nexting, and 2 nodes have none but are on the l
 
 
 ![alt text](image-9.png) http://127.0.0.1:8100/view/v3:tiered-network-architecture - switching autolaout from horizontal to verticla breaks arrow placement - this used to work, refactor regression
+
+
+changing box styling doesnt work any more - i select child/annotaiton/parent/section, nothing changes. investigate pls;
+
+
+![alt text](image.png) all elk parameters gone even when on elk now
+
+Local relayout failed on http://127.0.0.1:8100/view/v3:example-deployment-pipeline when I change the 9 dot alignment grid; it should not be present on elk; but all options elkjs provides should be surfaced on each elk node; you cheated - instead of contextually surfaceing what options exist for each layout, you simply hids all elk related options, neglected to remove all autolayout options that are not contextually relevant to elk, and interacting with them genertes errors.

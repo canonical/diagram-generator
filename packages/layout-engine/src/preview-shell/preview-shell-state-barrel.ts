@@ -60,9 +60,33 @@ export {
   filterSupportedFrameYamlEngineLayoutOverrides,
   getSupportedFrameYamlControlSpecsForNamespace,
   isSupportedFrameYamlEngineLayoutNamespace,
+  listFrameYamlEngineLayoutCandidateIds,
+  resolveFrameYamlEngineLayoutCandidateId,
   resolveFrameYamlEngineLayoutNamespaceForOverrides,
   type FrameYamlPersistedControlSpec,
 } from './frame-yaml-engine-layout-contract.js';
+
+export type {
+  LayoutOperatorOverrideModelLike,
+  LayoutOperatorOverrideState,
+  ResolveLayoutOperatorOverrideViewModelOptions,
+  ResolvedLayoutOperatorOverrideViewModel,
+} from './layout-operator-overrides.js';
+
+export {
+  activateLayoutOperatorOverrideBucket,
+  cloneLayoutOperatorOverrideState,
+  collectNamespacedLayoutOperatorOverrides,
+  layoutOperatorKeyForManifest,
+  pruneSessionBucketForManifest,
+  readActiveLayoutOperatorOverrideBucket,
+  readLayoutOperatorOverrideBucketForManifest,
+  readLayoutOperatorOverrideState,
+  resolveEffectiveLayoutOperatorOverrides,
+  resolveLayoutOperatorOverrideViewModel,
+  writeLayoutOperatorOverrideBucketForManifest,
+  writeLayoutOperatorOverrideState,
+} from './layout-operator-overrides.js';
 
 export type {
   PreviewGridControlInputState,

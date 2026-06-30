@@ -24,15 +24,27 @@ describe('dagre layout', () => {
   it('publishes dagre parameter specs for preview controls', () => {
     expect(DAGRE_PARAM_SPECS.map((spec) => spec.key)).toEqual([
       'dagre.rankdir',
+      'dagre.align',
+      'dagre.acyclicer',
+      'dagre.ranker',
+      'dagre.rankalign',
       'dagre.nodesep',
       'dagre.ranksep',
       'dagre.edgesep',
+      'dagre.marginx',
+      'dagre.marginy',
     ]);
     expect(dagreParamDefaults()).toMatchObject({
       'dagre.rankdir': '',
+      'dagre.align': '',
+      'dagre.acyclicer': '',
+      'dagre.ranker': 'network-simplex',
+      'dagre.rankalign': 'center',
       'dagre.nodesep': '72',
       'dagre.ranksep': '96',
       'dagre.edgesep': '24',
+      'dagre.marginx': '0',
+      'dagre.marginy': '0',
     });
   });
 
@@ -61,12 +73,20 @@ describe('dagre layout', () => {
     const result = layoutDagre(chain('TB'), {
       optionOverrides: {
         'dagre.rankdir': 'LR',
+        'dagre.align': 'UL',
+        'dagre.acyclicer': 'greedy',
+        'dagre.ranker': 'tight-tree',
+        'dagre.rankalign': 'top',
         'dagre.ranksep': '160',
+        'dagre.marginx': '32',
+        'dagre.marginy': '48',
       },
     });
     const nodes = new Map(result.nodes.map((node) => [node.id, node]));
 
     expect(result.direction).toBe('LR');
     expect(nodes.get('a')!.x).toBeLessThan(nodes.get('b')!.x);
+    expect(result.width).toBeGreaterThan(0);
+    expect(result.height).toBeGreaterThan(0);
   });
 });

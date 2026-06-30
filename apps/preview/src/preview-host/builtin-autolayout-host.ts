@@ -101,12 +101,8 @@ const AUTOLAYOUT_PREVIEW_VIEWER_DEFINITION: PreviewHostViewerPageDefinition = {
       section: "force-guidance",
     },
     {
-      placeholder: "%ELK_SECTION_HIDDEN%",
-      section: "elk-layout",
-    },
-    {
-      placeholder: "%GRAPH_LAYOUT_SECTION_HIDDEN%",
-      section: "graph-layout",
+      placeholder: "%LAYOUT_PARAMS_SECTION_HIDDEN%",
+      section: "layout-params",
     },
   ],
   buildTitle(slug: string): string {
@@ -129,6 +125,41 @@ function resolveSvgExportSlug(pathname: string): string | null {
   return safeName
     .replace(/-onbrand-v3-grid\.svg$/i, "")
     .replace(/-onbrand-v3\.svg$/i, "");
+}
+
+function collectWorkspaceEngineScripts(
+  compatibleEngineIds: readonly string[],
+  activeEngineId: string | null,
+): string[] {
+  const orderedEngineIds = [
+    ...(activeEngineId ? [activeEngineId] : []),
+    ...compatibleEngineIds,
+  ];
+  const seenEngineIds = new Set<string>();
+  const seenScripts = new Set<string>();
+  const scripts: string[] = [];
+
+  for (const engineId of orderedEngineIds) {
+    const key = String(engineId ?? "").trim();
+    if (!key || seenEngineIds.has(key)) {
+      continue;
+    }
+    seenEngineIds.add(key);
+    const engine = getPreviewEngineByLayoutKey(key);
+    if (!engine) {
+      continue;
+    }
+    for (const script of engine.scripts ?? []) {
+      const name = String(script ?? "").trim();
+      if (!name || seenScripts.has(name)) {
+        continue;
+      }
+      seenScripts.add(name);
+      scripts.push(name);
+    }
+  }
+
+  return scripts;
 }
 
 export function createFrameOverridesPreviewHostApiRoute(): PreviewHostApiRouteDescriptor {
@@ -281,7 +312,10 @@ export function createAutolayoutPreviewHostViewerRoute(
           "constraints.js",
         ],
         engineScripts: [
-          ...(engineManifest?.scripts ?? []),
+          ...collectWorkspaceEngineScripts(
+            engineWorkspace.compatibleEngineIds,
+            engineWorkspace.activeEngineId,
+          ),
           "editor.js",
           ...(showEngineWorkspaceChrome ? ["engine-switcher.js"] : []),
         ],

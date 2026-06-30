@@ -87,13 +87,14 @@ describe('preview-engine registry', () => {
     expect(elk?.controlSpecs.some((spec) => spec.key === 'elk.edgeRouting')).toBe(false);
     expect(elk?.controlSpecs.some((spec) => spec.key === 'elk.padding')).toBe(false);
     expect(elk?.controlSpecs.every((spec) => spec.persistNamespace === 'meta.elk')).toBe(true);
-    expect(elk?.scripts).toEqual(['elk-layout-controls.js', 'elk-controller.js']);
+    expect(elk?.scripts).toEqual(['layout-params-controls.js', 'layout-params-controller.js']);
     expect(elk?.compatibility.frameDiagramRequirements).toEqual({
       minArrowCount: 1,
       rejectFillCarrierIdsWithoutDiagramType: true,
     });
-    expect(listPreviewEnginesBySidebarSection('elk-layout').map((entry) => entry.id)).toEqual([
+    expect(listPreviewEnginesBySidebarSection('layout-params').map((entry) => entry.id)).toEqual([
       ...ELK_ENGINE_IDS,
+      'dagre',
     ]);
     expect(ELK_FORCE_PREVIEW_ENGINE.controlSpecs.map((spec) => spec.key).sort()).toEqual(
       ELK_FORCE_PARAM_SPECS.map((spec) => spec.key).sort(),
@@ -136,10 +137,10 @@ describe('preview-engine registry', () => {
     );
     expect(DAGRE_PREVIEW_ENGINE.controlSpecs.every((spec) => spec.persistNamespace === 'meta.dagre')).toBe(true);
     expect(DAGRE_PREVIEW_ENGINE.renderFamily).toBe('frame-dagre');
-    expect(DAGRE_PREVIEW_ENGINE.hostView?.sidebarSections ?? []).toEqual(['graph-layout']);
+    expect(DAGRE_PREVIEW_ENGINE.hostView?.sidebarSections ?? []).toEqual(['layout-params']);
     expect(DAGRE_PREVIEW_ENGINE.capabilities.layoutControls).toBe(true);
-    expect(DAGRE_PREVIEW_ENGINE.scripts).toEqual(['graph-layout-controls.js', 'graph-layout-controller.js']);
-    expect(listPreviewEnginesBySidebarSection('graph-layout').map((entry) => entry.id)).toEqual(['dagre']);
+    expect(DAGRE_PREVIEW_ENGINE.scripts).toEqual(['layout-params-controls.js', 'layout-params-controller.js']);
+    expect(listPreviewEnginesBySidebarSection('layout-params').map((entry) => entry.id)).toContain('dagre');
   });
 
   it('resolves engines by layoutEngine key or shell mode', () => {
@@ -244,13 +245,13 @@ describe('preview-engine registry', () => {
     expect(FORCE_PREVIEW_ENGINE.renderFamily).toBe('force');
     expect(SEQUENCE_PREVIEW_ENGINE.renderFamily).toBe('sequence');
     expect(V3_PREVIEW_ENGINE.hostView?.sidebarSections ?? []).toEqual([]);
-    expect(ELK_LAYERED_PREVIEW_ENGINE.hostView?.sidebarSections ?? []).toEqual(['elk-layout']);
-    expect(ELK_FORCE_PREVIEW_ENGINE.hostView?.sidebarSections ?? []).toEqual(['elk-layout']);
-    expect(ELK_STRESS_PREVIEW_ENGINE.hostView?.sidebarSections ?? []).toEqual(['elk-layout']);
-    expect(ELK_MRTREE_PREVIEW_ENGINE.hostView?.sidebarSections ?? []).toEqual(['elk-layout']);
-    expect(ELK_RADIAL_PREVIEW_ENGINE.hostView?.sidebarSections ?? []).toEqual(['elk-layout']);
-    expect(ELK_RECTPACKING_PREVIEW_ENGINE.hostView?.sidebarSections ?? []).toEqual(['elk-layout']);
-    expect(DAGRE_PREVIEW_ENGINE.hostView?.sidebarSections ?? []).toEqual(['graph-layout']);
+    expect(ELK_LAYERED_PREVIEW_ENGINE.hostView?.sidebarSections ?? []).toEqual(['layout-params']);
+    expect(ELK_FORCE_PREVIEW_ENGINE.hostView?.sidebarSections ?? []).toEqual(['layout-params']);
+    expect(ELK_STRESS_PREVIEW_ENGINE.hostView?.sidebarSections ?? []).toEqual(['layout-params']);
+    expect(ELK_MRTREE_PREVIEW_ENGINE.hostView?.sidebarSections ?? []).toEqual(['layout-params']);
+    expect(ELK_RADIAL_PREVIEW_ENGINE.hostView?.sidebarSections ?? []).toEqual(['layout-params']);
+    expect(ELK_RECTPACKING_PREVIEW_ENGINE.hostView?.sidebarSections ?? []).toEqual(['layout-params']);
+    expect(DAGRE_PREVIEW_ENGINE.hostView?.sidebarSections ?? []).toEqual(['layout-params']);
     expect(FORCE_PREVIEW_ENGINE.hostView?.sidebarSections ?? []).toEqual([]);
     expect(SEQUENCE_PREVIEW_ENGINE.hostView?.sidebarSections ?? []).toEqual([]);
     expect(V3_PREVIEW_ENGINE.capabilities.localRelayout).toBe(true);

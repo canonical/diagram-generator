@@ -10,6 +10,19 @@ import {
   normalizePreviewWorkspaceEngineId,
 } from './preview-engine-workspace.js';
 import {
+  readFrameYamlEngineLayoutOverridesForLayoutEngine,
+} from './frame-yaml-engine-layout-contract.js';
+import {
+  activateLayoutOperatorOverrideBucket,
+  readActiveLayoutOperatorOverrideBucket,
+  readLayoutOperatorOverrideBucketForManifest,
+  resolveActiveLayoutOperatorManifest,
+  resolveEffectiveLayoutOperatorOverrides,
+  writeActiveLayoutOperatorOverrides,
+  writeLayoutOperatorOverrideBucketForManifest,
+} from './layout-operator-overrides.js';
+import type { LayoutOperatorOverrideState } from './layout-operator-overrides.js';
+import {
   applyPreviewRenderIntentToFrameTreeJson,
   commitPreviewRenderIntentToWindow,
   createPreviewRenderIntent,
@@ -765,27 +778,48 @@ function requirePreviewLayoutBridgeLegacyContract<TContract>(
 function readPreviewLayoutBridgeModelLayoutOverrides(
   model: Record<string, unknown> | null | undefined,
 ): Record<string, unknown> {
-  const modelLike = model as {
+  return readActiveLayoutOperatorOverrideBucket(model as {
     layoutOverrides?: Record<string, unknown>;
-    elkLayoutOverrides?: Record<string, unknown>;
-  } | null | undefined;
-  return modelLike?.layoutOverrides || modelLike?.elkLayoutOverrides || {};
+    layoutOperatorOverrides?: LayoutOperatorOverrideState | null;
+  } | null | undefined);
 }
 
 function writePreviewLayoutBridgeModelLayoutOverrides(
   model: Record<string, unknown> | null | undefined,
   value: Record<string, unknown>,
+  namespace?: string | null,
 ): void {
   if (!model || typeof model !== 'object') {
     return;
   }
-  const nextValue = { ...value };
   const modelLike = model as {
     layoutOverrides?: Record<string, unknown>;
-    elkLayoutOverrides?: Record<string, unknown>;
+    layoutOverrideNamespace?: string | null;
+    layoutOperatorOverrides?: LayoutOperatorOverrideState | null;
   };
-  modelLike.layoutOverrides = nextValue;
-  modelLike.elkLayoutOverrides = nextValue;
+  writeActiveLayoutOperatorOverrides(modelLike, value, namespace);
+}
+
+function resolvePreviewLayoutBridgeManifest(
+  diagram: {
+    layoutEngine?: string | null;
+  } | null | undefined,
+  model: Record<string, unknown> | null | undefined,
+): ReturnType<typeof resolvePreviewEngine> | null {
+  const manifest = diagram?.layoutEngine
+    ? resolvePreviewEngine({
+      layoutEngine: diagram.layoutEngine,
+      shellMode: 'grid',
+    }) ?? null
+    : null;
+  if (manifest) {
+    return manifest;
+  }
+  return resolveActiveLayoutOperatorManifest(model as {
+    layoutOverrides?: Record<string, unknown>;
+    layoutOverrideNamespace?: string | null;
+    layoutOperatorOverrides?: LayoutOperatorOverrideState | null;
+  } | null | undefined);
 }
 
 function resolvePreviewLayoutBridgeShellController(
@@ -899,27 +933,73 @@ export function createPreviewLayoutBridgeInstallRuntimeFromLegacyBrowserHost<
         : false
     ),
     resolveEngineLayoutOptionOverrides: (diagram, model) => {
-      const fromYaml = ((diagram && diagram.elkLayout) || {}) as Record<string, string>;
-      let session = readPreviewLayoutBridgeModelLayoutOverrides(
-        model as Record<string, unknown>,
-      ) as Record<string, string>;
+      const modelLike = model as {
+        layoutOverrides?: Record<string, string>;
+        layoutOverrideNamespace?: string | null;
+        layoutOperatorOverrides?: LayoutOperatorOverrideState | null;
+      } | null;
+      const manifest = resolvePreviewLayoutBridgeManifest(diagram, modelLike);
+      const fromYamlState = readFrameYamlEngineLayoutOverridesForLayoutEngine({
+        layoutEngine: diagram?.layoutEngine ?? null,
+        elkLayout: diagram?.elkLayout as Record<string, unknown> | null | undefined,
+        engineLayout: diagram?.engineLayout as Record<string, Record<string, unknown>> | null | undefined,
+      });
+      let session = manifest
+        ? readLayoutOperatorOverrideBucketForManifest(modelLike as never, manifest) as Record<string, string>
+        : readPreviewLayoutBridgeModelLayoutOverrides(modelLike) as Record<string, string>;
       const controller = resolvePreviewLayoutBridgeShellController(options.previewWindow);
       if (controller && typeof controller.getLayoutOverrides === 'function') {
         session = {
           ...session,
           ...((controller.getLayoutOverrides() || {}) as Record<string, string>),
         };
+        if (manifest) {
+          writeLayoutOperatorOverrideBucketForManifest(
+            modelLike as never,
+            manifest,
+            session,
+            fromYamlState?.namespace ?? modelLike?.layoutOverrideNamespace ?? null,
+          );
+        }
       }
       if (Object.keys(session).length === 0) {
         const layoutControls = resolvePreviewLayoutBridgeLayoutControls(options.previewWindow);
         if (layoutControls && typeof layoutControls.collectOverrides === 'function') {
           session = (layoutControls.collectOverrides() || {}) as Record<string, string>;
-          writePreviewLayoutBridgeModelLayoutOverrides(
-            model as Record<string, unknown>,
-            session,
-          );
+          if (manifest) {
+            writeLayoutOperatorOverrideBucketForManifest(
+              modelLike as never,
+              manifest,
+              session,
+              fromYamlState?.namespace ?? modelLike?.layoutOverrideNamespace ?? null,
+            );
+          } else {
+            writePreviewLayoutBridgeModelLayoutOverrides(
+              modelLike,
+              session,
+              fromYamlState?.namespace ?? null,
+            );
+          }
         }
       }
+      if (manifest) {
+        activateLayoutOperatorOverrideBucket(modelLike as never, manifest, {
+          fallbackOverrides: fromYamlState?.overrides ?? {},
+          persistNamespace: fromYamlState?.namespace ?? modelLike?.layoutOverrideNamespace ?? null,
+        });
+        return resolveEffectiveLayoutOperatorOverrides({
+          manifest,
+          engineLayout: diagram?.engineLayout as Record<string, Record<string, unknown>> | null | undefined,
+          elkLayout: diagram?.elkLayout as Record<string, unknown> | null | undefined,
+          sessionOverrides: session,
+          persistNamespace: fromYamlState?.namespace ?? modelLike?.layoutOverrideNamespace ?? null,
+        }) as Record<string, string>;
+      }
+      const fromYaml = (
+        fromYamlState?.overrides
+        ?? diagram?.elkLayout
+        ?? {}
+      ) as Record<string, string>;
       return { ...fromYaml, ...session };
     },
     refreshElkViewMode: () => {
@@ -1648,10 +1728,31 @@ export function createPreviewLayoutBridgeRuntimeFromBrowserHost<
     resolveEngineLayoutOptionOverrides: options.resolveEngineLayoutOptionOverrides ?? ((diagram, model) => {
       const modelLike = model as {
         layoutOverrides?: Record<string, string>;
-        elkLayoutOverrides?: Record<string, string>;
+        layoutOverrideNamespace?: string | null;
+        layoutOperatorOverrides?: LayoutOperatorOverrideState | null;
       } | null;
-      const fromYaml = diagram.elkLayout || {};
-      const session = modelLike?.layoutOverrides || modelLike?.elkLayoutOverrides || {};
+      const manifest = resolvePreviewLayoutBridgeManifest(diagram, modelLike);
+      const fromYamlState = readFrameYamlEngineLayoutOverridesForLayoutEngine({
+        layoutEngine: diagram?.layoutEngine ?? null,
+        elkLayout: diagram?.elkLayout as Record<string, unknown> | null | undefined,
+        engineLayout: diagram?.engineLayout as Record<string, Record<string, unknown>> | null | undefined,
+      });
+      if (manifest) {
+        const session = readLayoutOperatorOverrideBucketForManifest(modelLike as never, manifest);
+        return resolveEffectiveLayoutOperatorOverrides({
+          manifest,
+          engineLayout: diagram?.engineLayout as Record<string, Record<string, unknown>> | null | undefined,
+          elkLayout: diagram?.elkLayout as Record<string, unknown> | null | undefined,
+          sessionOverrides: session,
+          persistNamespace: fromYamlState?.namespace ?? modelLike?.layoutOverrideNamespace ?? null,
+        }) as Record<string, string>;
+      }
+      const fromYaml = (
+        fromYamlState?.overrides
+        ?? diagram?.elkLayout
+        ?? {}
+      ) as Record<string, string>;
+      const session = modelLike?.layoutOverrides || {};
       return {
         ...fromYaml,
         ...session,

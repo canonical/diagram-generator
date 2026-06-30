@@ -14,7 +14,11 @@ export function defineElkAlgorithmPreviewEngine(
   const compatibility = options.compatibility ?? {};
   return defineGraphLayoutPreviewEngine({
     ...options,
-    sidebarSections: ['elk-layout'],
+    sidebarSections: ['layout-params'],
+    capabilities: {
+      ...(options.capabilities ?? {}),
+      rawDebugView: options.capabilities?.rawDebugView ?? true,
+    },
     compatibility: {
       ...compatibility,
       description: options.description,
@@ -25,6 +29,6 @@ export function defineElkAlgorithmPreviewEngine(
         ...(compatibility.frameDiagramRequirements ?? {}),
       },
     },
-    scripts: ['elk-layout-controls.js', 'elk-controller.js'],
+    scripts: ['layout-params-controls.js', 'layout-params-controller.js'],
   });
 }

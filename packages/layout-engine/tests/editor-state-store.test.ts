@@ -11,9 +11,6 @@ describe('editor state store', () => {
       getOverrides: () => ({ root: { gap: 8 } }),
       getGridOverrides: () => ({ cols: 12 }),
       getLayoutOverrides: () => ({ direction: 'RIGHT' }),
-      getElkLayoutOverrides: () => {
-        throw new Error('legacy layout override getter should not be used when generic getter is present');
-      },
       getRemovedIds: () => ['a'],
       getFrameTree: () => ({ id: 'root' }),
     });
@@ -43,7 +40,6 @@ describe('editor state store', () => {
       getOverrides: () => ({ root: { gap } }),
       getGridOverrides: () => ({}),
       getLayoutOverrides: () => ({}),
-      getElkLayoutOverrides: () => ({}),
       getRemovedIds: () => null,
       getFrameTree: () => null,
     });
@@ -66,7 +62,6 @@ describe('editor state store', () => {
       getOverrides: () => ({}),
       getGridOverrides: () => ({}),
       getLayoutOverrides: () => ({}),
-      getElkLayoutOverrides: () => ({}),
       getRemovedIds: () => null,
       getFrameTree: () => null,
     });

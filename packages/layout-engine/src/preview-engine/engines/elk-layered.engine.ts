@@ -10,7 +10,10 @@ export const ELK_LAYERED_PREVIEW_ENGINE_DEFINITION: GraphLayoutPreviewEngineDefi
   renderFamily: 'frame-elk',
   graphEngine: ELK_LAYERED_GRAPH_LAYOUT_ENGINE,
   controlSpecs: elkLayeredPreviewControlSpecs(),
-  sidebarSections: ['elk-layout'],
+  sidebarSections: ['layout-params'],
+  capabilities: {
+    rawDebugView: true,
+  },
   compatibility: {
     description: 'Hierarchical layered layout for directed graphs and flowcharts',
     frameDiagramRequirements: {
@@ -19,7 +22,7 @@ export const ELK_LAYERED_PREVIEW_ENGINE_DEFINITION: GraphLayoutPreviewEngineDefi
     },
   },
   renderAdapter: elkFrameDiagramRenderAdapter,
-  scripts: ['elk-layout-controls.js', 'elk-controller.js'],
+  scripts: ['layout-params-controls.js', 'layout-params-controller.js'],
 };
 
 const definedElkLayeredPreviewEngine = defineGraphLayoutPreviewEngine(

@@ -247,7 +247,6 @@ describe('createPreviewGridEditorRuntimeFromBrowserHost', () => {
           diagramGrid: null,
           gridOverrides: { cols: 8 },
           layoutOverrides: {},
-          elkLayoutOverrides: {},
           removedIds: new Set<string>(),
           setDiagramGrid: vi.fn(),
           clearOverride: vi.fn(),
@@ -402,5 +401,41 @@ describe('createPreviewGridEditorRuntimeFromBrowserHost', () => {
 
     await bootstrapOptions.runtimeBootstrap.writeClipboardText('copy');
     expect(options.browser.writeClipboardText).toHaveBeenCalledWith('copy');
+  });
+
+  it('hydrates active-engine layout overrides from namespaced frame YAML on reset', () => {
+    const options = createOptions();
+    options.shared.model.layoutOverrides = { stale: true };
+    options.shared.previewWindow.__DG_getPreviewBridgeHostContract = () => ({
+      ...previewBridgeHostContract,
+      getFrameTreeJson: () => ({
+        layoutEngine: 'dagre',
+        elkLayout: {
+          'elk.spacing.nodeNode': 64,
+        },
+        engineLayout: {
+          'meta.dagre': {
+            'dagre.rankdir': 'LR',
+            'dagre.ranksep': 128,
+          },
+          'meta.elk': {
+            'elk.spacing.nodeNode': 64,
+          },
+        },
+      }),
+    });
+
+    const runtime = createPreviewGridEditorRuntimeFromBrowserHost(options);
+    runtime.getBootstrapFacade();
+
+    const bootstrapOptions = mocks.createBootstrapFacade.mock.calls[0]?.[0] as any;
+    bootstrapOptions.svgLoad.resetOverrideState();
+
+    expect(options.browser.replaceOverrides).toHaveBeenCalledWith({});
+    expect(options.shared.model.layoutOverrides).toEqual({
+      'dagre.rankdir': 'LR',
+      'dagre.ranksep': 128,
+    });
+    expect(options.shared.model.layoutOverrideNamespace).toBe('meta.dagre');
   });
 });

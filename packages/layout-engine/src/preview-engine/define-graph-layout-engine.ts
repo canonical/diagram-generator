@@ -24,7 +24,7 @@ export interface GraphLayoutPreviewEngineDefinition {
   graphEngine: GraphLayoutEngineDescriptor;
   /** Engine-specific tunable params, already in PreviewControlSpec shape. */
   controlSpecs: PreviewControlSpec[];
-  /** Sidebar sections this engine exposes (e.g. ['elk-layout']). */
+  /** Sidebar sections this engine exposes (e.g. ['layout-params']). */
   sidebarSections?: PreviewViewerSidebarSection[];
   /** Capability flags for preview chrome gating (defaults provided). */
   capabilities?: Partial<PreviewEngineCapabilities>;

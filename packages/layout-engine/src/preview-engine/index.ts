@@ -5,6 +5,7 @@ export type {
   CompatibilityResult,
   FrameDiagramCompatibilitySummary,
   PreviewControlKind,
+  PreviewControlVisibilityRule,
   PreviewEngineHostView,
   PreviewPersistNamespace,
   PreviewRenderFamily,

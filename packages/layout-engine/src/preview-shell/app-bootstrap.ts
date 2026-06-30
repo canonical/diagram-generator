@@ -17,13 +17,19 @@ import {
   hasUnsavedPreviewEngineWorkspaceChange,
   persistPreviewEngineWorkspaceRuntimeState,
 } from './preview-engine-workspace-chrome.js';
+import {
+  readActiveLayoutOperatorOverrideBucket,
+  readLayoutOperatorOverrideState,
+  writeActiveLayoutOperatorOverrides,
+  writeLayoutOperatorOverrideState,
+  type LayoutOperatorOverrideState,
+} from './layout-operator-overrides.js';
 
 export interface PreviewEditorStateInitOptions {
   getOverrides: () => unknown;
   getGridOverrides: () => unknown;
   getLayoutOverrides?: () => unknown;
-  /** @deprecated Prefer `getLayoutOverrides`. */
-  getElkLayoutOverrides?: () => unknown;
+  getLayoutOperatorOverridesState?: () => LayoutOperatorOverrideState | null | undefined;
   getRemovedIds: () => unknown;
   getFrameTree: () => unknown;
 }
@@ -40,10 +46,6 @@ export interface PreviewEngineShellControllerInitOptions {
   requestLayoutRelayout?: (cid: string) => Promise<unknown>;
   /** @deprecated Prefer `requestLayoutRelayout`. */
   requestV3Relayout?: (cid: string) => Promise<unknown>;
-  /** @deprecated Prefer `getLayoutOverrides`. */
-  getElkLayoutOverrides?: () => Record<string, unknown>;
-  /** @deprecated Prefer `setLayoutOverrides`. */
-  setElkLayoutOverrides?: (value: Record<string, unknown>) => void;
 }
 
 export interface PreviewEngineShellControllerApi {
@@ -80,8 +82,7 @@ export interface PreviewEngineLayoutControlsApi {
 
 export interface PreviewEnginePayloadModelLike {
   layoutOverrides?: Record<string, unknown>;
-  /** @deprecated Prefer `layoutOverrides`. */
-  elkLayoutOverrides?: Record<string, unknown>;
+  layoutOperatorOverrides?: LayoutOperatorOverrideState | null;
   [key: string]: unknown;
 }
 
@@ -258,13 +259,10 @@ export interface BootstrapPreviewEditorHostOptions {
   getOverrides: () => Record<string, PreviewOverrideExportEntry>;
   getGridOverrides: () => unknown;
   getLayoutOverrides?: () => Record<string, unknown>;
-  /** @deprecated Prefer `getLayoutOverrides`. */
-  getElkLayoutOverrides?: () => Record<string, unknown>;
+  getLayoutOperatorOverridesState?: () => LayoutOperatorOverrideState | null | undefined;
   getRemovedIds: () => unknown;
   getFrameTree: () => unknown;
   setLayoutOverrides?: (value: Record<string, unknown>) => void;
-  /** @deprecated Prefer `setLayoutOverrides`. */
-  setElkLayoutOverrides?: (value: Record<string, unknown>) => void;
   getRootId: () => string;
   requestLayoutRelayout?: (cid: string) => Promise<unknown> | unknown;
   /** @deprecated Prefer `requestLayoutRelayout`. */
@@ -301,8 +299,7 @@ export interface PreviewBootstrapRuntimeModelLike {
   roots?: Array<{ id?: string | null }>;
   gridOverrides?: unknown;
   layoutOverrides?: Record<string, unknown>;
-  /** @deprecated Prefer `layoutOverrides`. */
-  elkLayoutOverrides?: Record<string, unknown>;
+  layoutOperatorOverrides?: LayoutOperatorOverrideState | null;
   removedIds?: unknown;
   [key: string]: unknown;
 }
@@ -625,16 +622,14 @@ function createPreviewEngineShellCompatController(
 function readModelLayoutOverrides(
   model: PreviewEnginePayloadModelLike | PreviewBootstrapRuntimeModelLike,
 ): Record<string, unknown> {
-  return model.layoutOverrides || model.elkLayoutOverrides || {};
+  return readActiveLayoutOperatorOverrideBucket(model);
 }
 
 function writeModelLayoutOverrides(
   model: PreviewEnginePayloadModelLike | PreviewBootstrapRuntimeModelLike,
   value: Record<string, unknown>,
 ): void {
-  const nextValue = { ...value };
-  model.layoutOverrides = nextValue;
-  model.elkLayoutOverrides = nextValue;
+  writeActiveLayoutOperatorOverrides(model, value);
 }
 
 export function restorePreviewSelectionIds(
@@ -786,11 +781,12 @@ export function createBootstrapPreviewEditorHostOptionsFromRuntime(
     getOverrides: options.getOverrides,
     getGridOverrides: () => options.model.gridOverrides,
     getLayoutOverrides,
-    getElkLayoutOverrides: getLayoutOverrides,
+    getLayoutOperatorOverridesState: () => (
+      readLayoutOperatorOverrideState(options.model)
+    ),
     getRemovedIds: () => options.model.removedIds,
     getFrameTree: options.getFrameTree,
     setLayoutOverrides,
-    setElkLayoutOverrides: setLayoutOverrides,
     getRootId: () => resolvePreviewBootstrapRootId(options.model),
     requestLayoutRelayout,
     requestV3Relayout: requestLayoutRelayout,
@@ -1123,22 +1119,18 @@ export function bootstrapPreviewEditorHost(
     ensurePreviewEditorState(options.previewWindow, {
         getOverrides: options.getOverrides,
         getGridOverrides: options.getGridOverrides,
-        getLayoutOverrides: options.getLayoutOverrides ?? options.getElkLayoutOverrides,
-        getElkLayoutOverrides: options.getElkLayoutOverrides ?? options.getLayoutOverrides,
+        getLayoutOverrides: options.getLayoutOverrides,
+        getLayoutOperatorOverridesState: options.getLayoutOperatorOverridesState,
         getRemovedIds: options.getRemovedIds,
         getFrameTree: options.getFrameTree,
       });
     },
     ensurePreviewEngineShellController: () => {
       ensurePreviewEngineShellController(options.previewWindow, {
-        getLayoutOverrides: () => (
-          (options.getLayoutOverrides ?? options.getElkLayoutOverrides)?.() ?? {}
-        ),
+        getLayoutOverrides: () => options.getLayoutOverrides?.() ?? {},
         setLayoutOverrides: (value) => {
-          (options.setLayoutOverrides ?? options.setElkLayoutOverrides)?.(value);
+          options.setLayoutOverrides?.(value);
         },
-        getElkLayoutOverrides: options.getElkLayoutOverrides ?? options.getLayoutOverrides,
-        setElkLayoutOverrides: options.setElkLayoutOverrides ?? options.setLayoutOverrides,
         getRootId: options.getRootId,
         requestLayoutRelayout: (cid) =>
           Promise.resolve(resolvePreviewLayoutRelayoutRequest(options)(cid)),

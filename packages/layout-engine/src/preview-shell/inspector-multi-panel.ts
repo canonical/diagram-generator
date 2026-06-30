@@ -61,6 +61,7 @@ export interface MultiSelectionInspectorPanelRenderOptions {
   heightUnit?: 'px' | 'rows';
   showWidthColsOption?: boolean;
   styleOptionsHtml?: string;
+  showLayoutEditingControls?: boolean;
 }
 
 function renderAlignmentButtons(
@@ -95,7 +96,9 @@ function renderMultiSelectionSummaryGroup(
 ): string {
   let html = '<div class="field"><span class="label">Selection</span><br>'
     + `<span class="value">${options.selectedCount} components</span></div>`;
-  html += '<div class="hint">Shift+click adds to the selection. Drag still moves the group together.</div>';
+  html += options.showLayoutEditingControls === false
+    ? '<div class="hint">Layout is engine-driven in this view. Use engine parameters instead of native grid controls.</div>'
+    : '<div class="hint">Shift+click adds to the selection. Drag still moves the group together.</div>';
   if (options.hasUnsupported) {
     html += '<div class="field"><div class="hint">Arrow selections are ignored by these actions.</div></div>';
   }
@@ -106,6 +109,9 @@ function renderMultiSelectionSummaryGroup(
 function renderMultiSelectionArrangementGroup(
   options: MultiSelectionInspectorPanelRenderOptions,
 ): string {
+  if (options.showLayoutEditingControls === false) {
+    return '';
+  }
   let html = '';
   if (options.showStackSpacingHint) {
     html += '<div class="dg-autolayout-section" style="margin-top:8px">';
@@ -162,6 +168,9 @@ function renderMultiSelectionArrangementGroup(
 function renderMultiSelectionLayoutGroup(
   options: MultiSelectionInspectorPanelRenderOptions,
 ): string {
+  if (options.showLayoutEditingControls === false) {
+    return '';
+  }
   if (options.containerState) {
     let html = `<span class="label" style="margin-bottom:4px;display:block">Auto-layout (${options.containerState.containerCount} containers)</span>`;
     html += '<div class="field"><span class="label">Direction</span>';
@@ -196,6 +205,9 @@ function renderMultiSelectionLayoutGroup(
 function renderMultiSelectionSizingGroup(
   options: MultiSelectionInspectorPanelRenderOptions,
 ): string {
+  if (options.showLayoutEditingControls === false) {
+    return '';
+  }
   if (!options.sizingState) {
     return '';
   }

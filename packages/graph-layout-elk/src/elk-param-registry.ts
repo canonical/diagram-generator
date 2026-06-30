@@ -5,6 +5,12 @@
 
 export type ElkParamKind = 'number' | 'enum' | 'boolean' | 'text';
 
+export interface ElkParamVisibilityRule {
+  key: string;
+  equals?: string | readonly string[];
+  notEquals?: string | readonly string[];
+}
+
 export interface ElkParamSpec {
   /** Full ELK option key, e.g. elk.spacing.nodeNode */
   key: string;
@@ -17,6 +23,7 @@ export interface ElkParamSpec {
   max?: number;
   step?: number;
   enumValues?: { value: string; label: string }[];
+  visibleWhen?: readonly ElkParamVisibilityRule[];
 }
 
 /**
@@ -143,7 +150,6 @@ export const ELK_LAYERED_PARAM_SPECS: ElkParamSpec[] = [
     kind: 'enum',
     defaultValue: 'BRANDES_KOEPF',
     enumValues: [
-      { value: 'NETWORK_SIMPLEX', label: 'Network simplex' },
       { value: 'BRANDES_KOEPF', label: 'Brandes-Köpf' },
       { value: 'LINEAR_SEGMENTS', label: 'Linear segments' },
       { value: 'SIMPLE', label: 'Simple' },

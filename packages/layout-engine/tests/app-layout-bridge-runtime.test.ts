@@ -399,6 +399,255 @@ describe('preview layout bridge runtime', () => {
     expect(routedArrowInput?.waypoints).toEqual([[200, 160], [200, -8]]);
   });
 
+  it('reads Dagre YAML overrides from the active engine namespace during engine relayout', async () => {
+    const state = createPreviewLayoutBridgeState<Record<string, unknown>, Record<string, unknown>>();
+    state.previewDocumentJson = { kind: 'frame-diagram' };
+    state.frameTreeJson = {
+      layoutEngine: 'dagre',
+      root: { id: 'root', children: [] },
+      arrows: [],
+    };
+    state.textAdapter = { measurementBackend: 'harfbuzz' } as never;
+
+    let capturedEngineOverrides: Record<string, unknown> | null = null;
+    const runtime = createPreviewLayoutBridgeRuntimeFromBrowserHost({
+      state,
+      slug: 'demo',
+      ownerDocument: {
+        querySelector() {
+          return { tagName: 'svg' };
+        },
+        getElementById() {
+          return { replaceChildren() {} };
+        },
+      } as never,
+      previewWindow: {
+        __DG_CONFIG: {
+          head_len: 8,
+          head_half: 4,
+        },
+        __DG_previewRenderIntent: null,
+      },
+      previewCore: {
+        deserializeFrameDiagramWire: () => ({
+          root: {
+            id: 'root',
+            label: [],
+            children: [],
+            _layout: { placedX: 1, placedY: 2, placedW: 3, placedH: 4 },
+          },
+          arrows: [],
+          layoutEngine: 'dagre',
+          elkLayout: {
+            'elk.spacing.nodeNode': '64',
+          },
+          engineLayout: {
+            'meta.dagre': {
+              'dagre.rankdir': 'LR',
+              'dagre.ranksep': '128',
+            },
+          },
+        }) as never,
+        resolveStyles: vi.fn(),
+        layoutFrameTree: vi.fn(() => ({ coerced: null, width: 320, height: 200 })),
+      },
+      previewBridgeRender: {
+        collectPreviewFramesById: () => ({ root: { id: 'root' } as never }),
+        collectPreviewPlacedBounds: () => ({ root: { x: 1, y: 2, w: 3, h: 4 } }),
+        fitPreviewSvgToRenderedContent: vi.fn(),
+        patchPreviewSvgFromLayout: vi.fn(),
+        routePreviewArrows: () => [],
+        patchPreviewArrowSvg: vi.fn(),
+        syncPreviewArrowsInModel: vi.fn(),
+      },
+      previewBridgeBundleRender: {
+        renderFreshPreviewSvg: vi.fn(async (options: Record<string, any>) => {
+          capturedEngineOverrides = options.resolveEngineLayoutOptionOverrides(
+            {
+              layoutEngine: 'dagre',
+              elkLayout: { 'elk.spacing.nodeNode': '64' },
+              engineLayout: {
+                'meta.dagre': {
+                  'dagre.rankdir': 'LR',
+                  'dagre.ranksep': '128',
+                },
+              },
+            },
+            options.model,
+          );
+          return {
+            svg: { tagName: 'svg' } as never,
+            width: 640,
+            height: 480,
+            coerced: new Map(),
+            elkSnapshot: null,
+            elkFrameLabels: null,
+          };
+        }),
+      },
+      previewBridgeRelayout: {
+        collectPreviewRelayoutFrameOverrides: (overrides) => overrides,
+        applyPreviewOverridesToFrameTree: vi.fn(),
+      },
+      previewBridgeHost: {
+        updatePreviewComponentModelFromLayout: vi.fn(),
+      },
+      resolvePreviewEngineManifest: () => ({ capabilities: { serverRelayout: false } }),
+      createTextAdapter: async () => ({ measurementBackend: 'harfbuzz' } as never),
+      getTextAdapterBackend: () => 'harfbuzz',
+      isAuthoritativeTextAdapter: () => true,
+      refreshElkViewMode: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    });
+
+    await runtime.performEngineRelayout(
+      {
+        removedIds: new Set<string>(),
+        topLevelRemovalIds: () => [],
+        layoutOverrides: {},
+        loadTree() {},
+      } as never,
+      {},
+      {},
+      { skipModelUpdate: true },
+    );
+
+    expect(capturedEngineOverrides).toEqual({
+      'dagre.rankdir': 'LR',
+      'dagre.ranksep': '128',
+    });
+  });
+
+  it('falls back to the active operator manifest instead of flat-merging YAML and session overrides', async () => {
+    const state = createPreviewLayoutBridgeState<Record<string, unknown>, Record<string, unknown>>();
+    state.previewDocumentJson = { kind: 'frame-diagram' };
+    state.frameTreeJson = {
+      layoutEngine: null,
+      root: { id: 'root', children: [] },
+      arrows: [],
+      engineLayout: {
+        'meta.dagre': {
+          'dagre.rankdir': 'LR',
+        },
+      },
+    };
+    state.textAdapter = { measurementBackend: 'harfbuzz' } as never;
+
+    let capturedEngineOverrides: Record<string, unknown> | null = null;
+    const runtime = createPreviewLayoutBridgeRuntimeFromBrowserHost({
+      state,
+      slug: 'demo',
+      ownerDocument: {
+        querySelector() {
+          return { tagName: 'svg' };
+        },
+        getElementById() {
+          return { replaceChildren() {} };
+        },
+      } as never,
+      previewWindow: {
+        __DG_CONFIG: {
+          head_len: 8,
+          head_half: 4,
+        },
+        __DG_previewRenderIntent: null,
+      },
+      previewCore: {
+        deserializeFrameDiagramWire: () => ({
+          root: {
+            id: 'root',
+            label: [],
+            children: [],
+            _layout: { placedX: 1, placedY: 2, placedW: 3, placedH: 4 },
+          },
+          arrows: [],
+          layoutEngine: null,
+          engineLayout: {
+            'meta.dagre': {
+              'dagre.rankdir': 'LR',
+            },
+          },
+        }) as never,
+        resolveStyles: vi.fn(),
+        layoutFrameTree: vi.fn(() => ({ coerced: null, width: 320, height: 200 })),
+      },
+      previewBridgeRender: {
+        collectPreviewFramesById: () => ({ root: { id: 'root' } as never }),
+        collectPreviewPlacedBounds: () => ({ root: { x: 1, y: 2, w: 3, h: 4 } }),
+        fitPreviewSvgToRenderedContent: vi.fn(),
+        patchPreviewSvgFromLayout: vi.fn(),
+        routePreviewArrows: () => [],
+        patchPreviewArrowSvg: vi.fn(),
+        syncPreviewArrowsInModel: vi.fn(),
+      },
+      previewBridgeBundleRender: {
+        renderFreshPreviewSvg: vi.fn(async (options: Record<string, any>) => {
+          capturedEngineOverrides = options.resolveEngineLayoutOptionOverrides(
+            {
+              layoutEngine: null,
+              engineLayout: {
+                'meta.dagre': {
+                  'dagre.rankdir': 'LR',
+                },
+              },
+            },
+            options.model,
+          );
+          return {
+            svg: { tagName: 'svg' } as never,
+            width: 640,
+            height: 480,
+            coerced: new Map(),
+            elkSnapshot: null,
+            elkFrameLabels: null,
+          };
+        }),
+      },
+      previewBridgeRelayout: {
+        collectPreviewRelayoutFrameOverrides: (overrides) => overrides,
+        applyPreviewOverridesToFrameTree: vi.fn(),
+      },
+      previewBridgeHost: {
+        updatePreviewComponentModelFromLayout: vi.fn(),
+      },
+      resolvePreviewEngineManifest: () => ({ capabilities: { serverRelayout: false } }),
+      createTextAdapter: async () => ({ measurementBackend: 'harfbuzz' } as never),
+      getTextAdapterBackend: () => 'harfbuzz',
+      isAuthoritativeTextAdapter: () => true,
+      refreshElkViewMode: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    });
+
+    await runtime.performEngineRelayout(
+      {
+        removedIds: new Set<string>(),
+        topLevelRemovalIds: () => [],
+        layoutOverrides: { stale: true },
+        layoutOverrideNamespace: 'meta.dagre',
+        layoutOperatorOverrides: {
+          activeOperatorKey: 'dagre',
+          byOperator: {
+            dagre: {
+              'dagre.ranksep': '128',
+              'elk.spacing.nodeNode': '64',
+            },
+          },
+        },
+        loadTree() {},
+      } as never,
+      {},
+      {},
+      { skipModelUpdate: true },
+    );
+
+    expect(capturedEngineOverrides).toEqual({
+      'dagre.rankdir': 'LR',
+      'dagre.ranksep': '128',
+    });
+  });
+
   it('owns the ELK raw view mode outside layout-bridge.js', () => {
     const appendChild = vi.fn();
     const setAttribute = vi.fn();

@@ -99,6 +99,7 @@ export function resolveSingleSelectionInspectorPanelRenderOptions(options: {
   renderAutolayoutPanel?: (() => string) | null;
   formatControlErrorMessage?: ((message: string) => string) | null;
   renderStyleOptions?: ((currentStyle: string, originalStyleName: string) => string) | null;
+  showLayoutEditingControls?: boolean | null;
 }): SingleSelectionInspectorPanelRenderOptions {
   const override = options.override ?? {};
   const isArrowComponent = String(options.componentType || '').toLowerCase() === 'arrow';
@@ -180,5 +181,6 @@ export function resolveSingleSelectionInspectorPanelRenderOptions(options: {
     styleOptionsHtml,
     styleLabel,
     violations: options.violations ?? [],
+    showLayoutEditingControls: options.showLayoutEditingControls ?? true,
   };
 }

@@ -57,6 +57,7 @@ export interface SingleSelectionInspectorPanelRenderOptions {
   styleOptionsHtml?: string;
   styleLabel?: string;
   violations?: SingleSelectionInspectorViolation[];
+  showLayoutEditingControls?: boolean;
 }
 
 function renderAlignWidget(cid: string, currentAlign: string): string {
@@ -93,10 +94,13 @@ function renderSingleSelectionLayoutGroup(
     return '';
   }
 
+  const showLayoutEditingControls = options.showLayoutEditingControls !== false;
   const alignmentHtml = options.viewModel.showAlignmentControls
+    && showLayoutEditingControls
     ? renderAlignWidget(options.alignTargetCid || options.cid, options.viewModel.currentAlign)
     : '';
-  const autolayoutHtml = (!options.viewModel.isRoot || options.viewModel.isAutolayoutContainer)
+  const autolayoutHtml = showLayoutEditingControls
+    && (!options.viewModel.isRoot || options.viewModel.isAutolayoutContainer)
     ? (options.autolayoutPanelHtml || '')
     : '';
   if (!alignmentHtml && !autolayoutHtml) {
@@ -194,7 +198,9 @@ function renderSingleSelectionDiagnosticsGroup(
   options: SingleSelectionInspectorPanelRenderOptions,
 ): string {
   let html = '';
-  const showFrameInteractionNote = !options.viewModel.isArrowComponent && !options.viewModel.isRoot;
+  const showFrameInteractionNote = options.showLayoutEditingControls !== false
+    && !options.viewModel.isArrowComponent
+    && !options.viewModel.isRoot;
   if (showFrameInteractionNote && options.viewModel.showStackSpacingHint) {
     html += '<div class="dg-autolayout-section" style="margin-top:8px">';
     html += '<span class="label" style="margin-bottom:4px;display:block">Stack spacing</span>';

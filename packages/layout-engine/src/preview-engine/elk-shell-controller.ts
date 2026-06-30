@@ -4,14 +4,15 @@ import {
   type PreviewRenderIntent,
   type PreviewRenderIntentFrameTree,
 } from '../preview-shell/preview-render-intent.js';
+import {
+  writeActiveLayoutOperatorOverrides,
+  writeLayoutOperatorOverrideBucketForManifest,
+} from '../preview-shell/layout-operator-overrides.js';
+import type { LayoutOperatorOverrideState } from '../preview-shell/layout-operator-overrides.js';
 
 export interface PreviewElkShellControllerDeps {
   getLayoutOverrides?: () => Record<string, unknown>;
-  /** @deprecated Prefer `getLayoutOverrides`. */
-  getElkLayoutOverrides?: () => Record<string, unknown>;
   setLayoutOverrides?: (value: Record<string, unknown>) => void;
-  /** @deprecated Prefer `setLayoutOverrides`. */
-  setElkLayoutOverrides?: (value: Record<string, unknown>) => void;
   getRootId?: () => string;
   requestLayoutRelayout?: (cid: string) => Promise<unknown> | unknown;
   /** @deprecated Prefer `requestLayoutRelayout`. */
@@ -75,7 +76,11 @@ export interface PreviewElkShellControllerRuntime {
   applyElkLayoutOverrides: (overrides: Record<string, unknown>) => void;
   collectPersistedPayload: (
     basePayload: Record<string, unknown>,
-    model?: { layoutOverrides?: Record<string, unknown>; elkLayoutOverrides?: Record<string, unknown> } | null,
+    model?: {
+      layoutOverrides?: Record<string, unknown>;
+      layoutOverrideNamespace?: string | null;
+      layoutOperatorOverrides?: LayoutOperatorOverrideState | null;
+    } | null,
   ) => Record<string, unknown>;
   requestRelayout: () => Promise<unknown> | unknown;
 }
@@ -100,7 +105,7 @@ function resolvePreviewEngineLayoutControls(
 export function createPreviewElkShellControllerRuntime(
   options: PreviewElkShellControllerRuntimeOptions,
 ): PreviewElkShellControllerRuntime {
-  const sidebarSectionId = options.sidebarSectionId ?? 'elk-layout';
+  const sidebarSectionId = options.sidebarSectionId ?? 'layout-params';
   const defaultPersistNamespace = options.defaultPersistNamespace ?? 'meta.elk';
   let deps: PreviewElkShellControllerDeps | null = null;
   let panelWired = false;
@@ -142,9 +147,7 @@ export function createPreviewElkShellControllerRuntime(
 
   function readLayoutOverrides(): Record<string, unknown> {
     const runtimeDeps = requireDeps();
-    return runtimeDeps.getLayoutOverrides?.()
-      ?? runtimeDeps.getElkLayoutOverrides?.()
-      ?? {};
+    return runtimeDeps.getLayoutOverrides?.() ?? {};
   }
 
   function writeLayoutOverrides(overrides: Record<string, unknown>): void {
@@ -152,9 +155,7 @@ export function createPreviewElkShellControllerRuntime(
     const runtimeDeps = requireDeps();
     if (typeof runtimeDeps.setLayoutOverrides === 'function') {
       runtimeDeps.setLayoutOverrides(nextOverrides);
-      return;
     }
-    runtimeDeps.setElkLayoutOverrides?.(nextOverrides);
   }
 
   function isElkLayeredDiagram(frameTreeJson?: unknown): boolean {
@@ -198,32 +199,38 @@ export function createPreviewElkShellControllerRuntime(
 
   function collectPersistedPayload(
     basePayload: Record<string, unknown>,
-    model?: { layoutOverrides?: Record<string, unknown>; elkLayoutOverrides?: Record<string, unknown> } | null,
+    model?: {
+      layoutOverrides?: Record<string, unknown>;
+      layoutOverrideNamespace?: string | null;
+      layoutOperatorOverrides?: LayoutOperatorOverrideState | null;
+    } | null,
   ): Record<string, unknown> {
     wirePanel();
     const controls = resolvePreviewEngineLayoutControls(options.previewWindow);
-    const domOverrides = controls?.collectOverrides?.() ?? {};
+    const frameTreeJson = options.getFrameTreeJson?.();
+    const engine = activePreviewEngine(frameTreeJson);
+    const namespace = activePersistNamespace(frameTreeJson);
+    const namespacedOverrides = {
+      ...(controls?.collectNamespacedOverrides?.() ?? {}),
+    };
     const layoutOverrides = {
-      ...((model && (model.layoutOverrides || model.elkLayoutOverrides)) || {}),
-      ...domOverrides,
+      ...(namespacedOverrides[namespace] ?? controls?.collectOverrides?.() ?? {}),
     };
     applyElkLayoutOverrides(layoutOverrides);
     if (model) {
-      model.layoutOverrides = { ...layoutOverrides };
-      model.elkLayoutOverrides = { ...layoutOverrides };
+      if (engine) {
+        writeLayoutOperatorOverrideBucketForManifest(model, engine, layoutOverrides, namespace);
+      } else {
+        writeActiveLayoutOperatorOverrides(model, layoutOverrides, namespace);
+      }
     }
-    const namespace = activePersistNamespace();
-    const namespacedOverrides = controls?.collectNamespacedOverrides?.() ?? {};
-    if (Object.keys(layoutOverrides).length > 0) {
+    if (Object.keys(namespacedOverrides).length === 0 && Object.keys(layoutOverrides).length > 0) {
       namespacedOverrides[namespace] = { ...layoutOverrides };
     }
     const payload: Record<string, unknown> = {
       ...(basePayload || {}),
       engine_layout_overrides: namespacedOverrides,
     };
-    if (namespacedOverrides['meta.elk']) {
-      payload.elk_layout_overrides = { ...namespacedOverrides['meta.elk'] };
-    }
     return {
       ...payload,
     };
@@ -233,10 +240,7 @@ export function createPreviewElkShellControllerRuntime(
     wirePanel();
     const domOverrides = resolvePreviewEngineLayoutControls(options.previewWindow)?.collectOverrides?.();
     if (domOverrides) {
-      applyElkLayoutOverrides({
-        ...readLayoutOverrides(),
-        ...domOverrides,
-      });
+      applyElkLayoutOverrides({ ...domOverrides });
     }
     const runtimeDeps = requireDeps();
     const rootId = runtimeDeps.getRootId?.() ?? 'root';

@@ -176,9 +176,72 @@ Full table: [`docs/spec-reviews/inbox-triage.md`](docs/spec-reviews/inbox-triage
 | Hug parent→child | **062** candidate | Not drafted |
 | Auto-style by depth | **063** candidate | **Critical, not drafted** |
 | Lost grid overlay | **061** candidate | Not drafted |
+| Graph layout option surfacing + parameter pane | **066** | **Draft** — P0 closed on branch; see **066-P1/P2** before closeout |
 
 Undrafted candidates in `docs/specs.md` are **not tracked work** until
 `specs/06x-*/` packages exist.
+
+---
+
+## ACTIVE — Spec 066 closeout gaps (re-audit 2026-06-29)
+
+**Branch:** `feat/066-graph-engine-layout-option-surfacing`  
+**Spec:** [`specs/066-graph-engine-layout-option-surfacing/spec.md`](specs/066-graph-engine-layout-option-surfacing/spec.md)  
+**Folded architecture:** spec 067 parameter-pane work is on this branch (not a separate branch).
+
+**Verdict:** GPT closed the earlier **P0** blockers on branch since the first adversarial pass. **Do not mark Closeout Ready** until **066-P1-5** and the remaining P1/P2 hygiene items below are closed or explicitly deferred in `tasks.md`.
+
+### Closed since first review (do not re-litigate)
+
+| Was | Evidence on branch |
+|-----|-------------------|
+| **066-P0-1 / T023** | Radial relabeled to `Radial spacing` in `elk-algorithm-param-registry.ts`; geometry proof in `elk-algorithm.test.ts` (`treats radial spacing as a graph-wide separation control…`). |
+| **066-P0-2 / T024** | `frame-diagram.test.ts` — `persist→reload round-trip: graph-engine namespaces survive frame yaml reload` exercises `loadFrameYaml` for `meta.dagre` + `meta.elk`. Session seed covered separately in `app-grid-editor-runtime.test.ts`. |
+| **066-P1-2** | `readPreviewPersistedLayoutOverrides` routes through `resolveActiveLayoutOperatorManifest` + `collectNamespacedLayoutOperatorOverrides`; force-bucket strips layered keys in `preview-override-model.test.ts`. |
+| **066-P2-3** | `spec.md` scope summary now lists Rectpacking in scope. |
+| **T022 (partial)** | Measurable layout tests in `elk-force.test.ts`, `elk-algorithm.test.ts` (stress, mrtree, radial). |
+
+### P1 — still open before closeout
+
+| ID | Area | Problem | Fix direction |
+|----|------|---------|---------------|
+| **066-P1-1** | T022 `[ ]` | Rectpacking (and not every surfaced control individually) still lacks measurable layout proof — only option-map forward + adapter smoke in `elk-algorithm.test.ts`. | One rectpacking geometry assertion **or** document per-control exceptions in inventory; check T022 when done. |
+| **066-P1-3** | `layoutOverrides` alias | `writeLayoutOperatorOverrideState` still mirrors active bucket into flat `layoutOverrides`. Direct writes can desync `layoutOperatorOverrides`. | Single write API; stop direct flat mutation in product paths. |
+| **066-P1-4** | `app-layout-bridge-runtime.ts` | When `manifest` is null, fallback still flat-merges `fromYaml` + session (~998–1003). | Route through resolver or delete dead path for graph engines. |
+| **066-P1-5** | Engine tab switch | `installActivePreviewEngineRuntime` activates buckets on commit, but **no** integration test that force→layered leaves relayout clean (SC-011). | Workspace-switch regression beyond `layout-operator-overrides.test.ts`. |
+
+### P2 — hygiene (T033 still open)
+
+| ID | Area | Problem | Fix direction |
+|----|------|---------|---------------|
+| **066-P2-1** | T033 `[ ]` | T032/T034 marked done; `elk-layout-controls.ts` filename remains; duplicate shim `scripts/preview/graph-layout-controls.js` still exists beside `layout-params-controls.js`. | Finish shim boundary per T033 or keep task open in closeout prose. |
+| **066-P2-2** | `pruneSessionBucketForManifest` | If `visibleSpecs.length === 0`, returns bucket unpruned (`layout-operator-overrides.ts` ~353–354). | Guard empty-manifest engines explicitly. |
+
+### Closeout bar (066)
+
+**066-P1-5** integration test plus honest **T022** disposition (check or document rectpacking exception). **066-P1-3/4** may ship as documented follow-ups if spec prose stops claiming “sole source of truth” for buckets. **T033** should stay open until legacy shim is gone or explicitly bounded.
+
+### Key files (066)
+
+`packages/layout-engine/src/preview-shell/layout-operator-overrides.ts`,
+`packages/layout-engine/src/preview-engine/elk-layout-controls.ts`,
+`packages/layout-engine/src/preview-engine/elk-shell-controller.ts`,
+`packages/layout-engine/src/preview-shell/frame-yaml-engine-layout-contract.ts`,
+`packages/layout-engine/src/preview-shell/preview-override-model.ts`,
+`packages/layout-engine/src/preview-shell/app-layout-bridge-runtime.ts`,
+`packages/layout-engine/src/preview-shell/app-grid-editor-runtime.ts`,
+`apps/preview/src/persistence/frame-diagram.test.ts`
+
+### Validation (066)
+
+```bash
+npm --prefix packages/layout-engine test
+npm --prefix packages/graph-layout-elk test
+npm --prefix packages/graph-layout-dagre test
+npm --prefix apps/preview test
+npm --prefix packages/layout-engine run build:browser
+node scripts/check_no_new_python.mjs
+```
 
 ---
 
@@ -196,6 +259,25 @@ Undrafted candidates in `docs/specs.md` are **not tracked work** until
 ## Accomplished (removed from active queue)
 
 The following are **done on `main`**; details remain in git history / spec archives:
+
+### Spec 066 — satisfactorily implemented on `feat/066-*` (do not re-litigate)
+
+Parameter-pane / option-surfacing slice — **landed enough to remove from active review**:
+
+- **Inventory** — `official-option-inventory.md`; T001–T004 registry parity via `preview-engine-graph-control-inventory.test.ts`.
+- **Registries** — Dagre full graph options plumbed; stress `nodeNode`/`randomSeed` removed; force/radial/mrtree/rectpacking manifests match registries; `elk.layered.nodePlacement.strategy` enum corrected (no `NETWORK_SIMPLEX` on node placement).
+- **Resolver** — `layout-operator-overrides.ts` + `resolveEffectiveLayoutOperatorOverrides` wired through pane collection, fresh render, layout bridge; `onControlInput` prunes via `pruneSessionBucketForManifest` (runtime test in `preview-engine-elk-runtime.test.ts`).
+- **Save validation** — ambiguous `meta.elk` cross-algorithm mixes rejected (`app-save-client.test.ts`); candidate-engine disambiguation with active `layout_engine` on save (`frame-yaml-engine-layout-contract.ts`).
+- **Reload seed** — `resetOverrideState` hydrates from `readFrameYamlEngineLayoutOverridesForLayoutEngine` + `activateLayoutOperatorOverrideBucket` (`app-grid-editor-runtime.test.ts`).
+- **Sidebar** — graph engines on canonical `layout-params` section; manifests/scripts updated.
+- **Engine switch** — `installActivePreviewEngineRuntime` calls `activateLayoutOperatorOverrideBucket` before rerender (`app-grid-editor-install-unit.ts`).
+- **Snapshot** — `layoutOperatorOverrides` in editor snapshot / restore path.
+- **Phase 5** — layout-engine + apps/preview tests green on branch (spot-checked 2026-06-29).
+- **T023 radial** — relabeled `Radial spacing` + star-graph geometry proof (`elk-algorithm.test.ts`).
+- **T024 persist→reload** — `meta.dagre` + `meta.elk` round-trip via `loadFrameYaml` (`frame-diagram.test.ts`).
+- **T022 behavioral (partial)** — force/stress/mrtree/radial measurable separation tests in `graph-layout-elk`.
+- **Payload assembly** — manifest-aware `readPreviewPersistedLayoutOverrides` (`preview-override-model.test.ts`).
+- **T032/T034** — unified `layout-params` pane host; Dagre + ELK through same runtime (`preview-engine-elk-runtime.test.ts`, registry tests).
 
 - **053** — Arrow waypoint save regression; live-verified on branch (merged).
 - **054** — Preview persistence TS migration; save payload single producer (merged).

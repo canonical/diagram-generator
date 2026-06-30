@@ -337,7 +337,6 @@ export function createPreviewSaveClientRuntime(
       gridOverrides?: Record<string, unknown>;
       removedIds?: Set<string>;
       layoutOverrides?: Record<string, unknown>;
-      elkLayoutOverrides?: Record<string, unknown>;
     }) | null;
     if (!model || typeof model !== 'object') {
       throw new Error('PreviewSaveClient requires a component model');

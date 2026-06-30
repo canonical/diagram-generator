@@ -147,4 +147,62 @@ describe('createPreviewInspectorSelectionRuntime', () => {
       },
     );
   });
+
+  it('blocks multi-selection layout mutations when the active engine is not grid-editable', () => {
+    let overrides: Record<string, Record<string, unknown>> = {};
+    const requestRelayoutNow = vi.fn();
+    const renderMultiSelectionInspector = vi.fn();
+    const runtime = createPreviewInspectorSelectionRuntime({
+      selectedIds: new Set(['alpha', 'beta']),
+      getSelectionActionInfo: () => ({
+        items: [],
+        hasUnsupported: false,
+        sameParent: true,
+        parentId: 'root',
+      }),
+      getMultiActionGap: () => 24,
+      setMultiActionGap() {},
+      captureOverrideEntries: vi.fn((ids: string[]) => (
+        Object.fromEntries(ids.map((id) => [id, { ...(overrides[id] || {}) }]))
+      )),
+      commitOverridePatchAction: vi.fn(),
+      getOverrides: () => overrides,
+      coercedKeys: new Set<string>(),
+      getNode: () => ({ type: 'box', data: { width: 120, height: 64 } }),
+      cleanOverride() {},
+      setDirty: vi.fn(),
+      scheduleRelayout: vi.fn(),
+      requestRelayoutNow,
+      renderSelectionInspector: vi.fn(),
+      renderMultiSelectionInspector,
+      applyAllOverrides: vi.fn(),
+      reapplySelection: vi.fn(),
+      updateOverrideSummary: vi.fn(),
+      refreshTreeColors: vi.fn(),
+      runConstraints: vi.fn(),
+      setOverride: vi.fn(),
+      getGridInfo: () => null,
+      getWidthUnit: () => 'px',
+      getHeightUnit: () => 'px',
+      baselineStep: 8,
+      normalizeSelectionGap: (gap) => gap,
+      resolveSelectionDistributeTargets: () => ({}),
+      resolveSelectionAlignTargets: () => ({}),
+      createSelectionTargetOverrideEntries: () => [],
+      alert: vi.fn(),
+      getComponentType: () => 'box',
+      normalizeStyleName: (styleName) => styleName,
+      shouldShowAutolayoutInspector: () => false,
+    });
+
+    runtime.alignSelection('left');
+    runtime.distributeSelection('x');
+    runtime.setMultiFrameAlign('CENTER');
+    runtime.setMultiFrameProp('direction', 'HORIZONTAL');
+    runtime.setMultiFrameSize('width', 96);
+
+    expect(overrides).toEqual({});
+    expect(requestRelayoutNow).not.toHaveBeenCalled();
+    expect(renderMultiSelectionInspector).toHaveBeenCalledTimes(5);
+  });
 });

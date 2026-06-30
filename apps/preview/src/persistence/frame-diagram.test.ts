@@ -231,6 +231,73 @@ test("persist layout engine and root direction survive frame yaml reload", () =>
   assert.equal(reloaded.root.direction, Direction.HORIZONTAL);
 });
 
+test("persist→reload round-trip: graph-engine namespaces survive frame yaml reload", () => {
+  const dagreBaseline = [
+    "engine: v3",
+    "title: Demo",
+    "meta:",
+    "  layout_engine: dagre",
+    "root:",
+    "  id: page",
+    "  direction: vertical",
+    "  children:",
+    "    - id: leaf_a",
+    "      label: [A]",
+    "",
+  ].join("\n");
+  const dagrePath = writeTempFrame("dagre-roundtrip.yaml", dagreBaseline);
+  const dagreOutput = persistFrameDiagramOverridePayloadToYaml(dagrePath, dagreBaseline, {
+    overrides: {},
+    engine_layout_overrides: {
+      "meta.dagre": {
+        "dagre.rankdir": "LR",
+        "dagre.ranksep": "128",
+      },
+    },
+  });
+  fs.writeFileSync(dagrePath, dagreOutput, "utf8");
+
+  const reloadedDagre = loadFrameYaml(dagrePath);
+  assert.equal(reloadedDagre.layoutEngine, "dagre");
+  assert.deepEqual(reloadedDagre.engineLayout?.["meta.dagre"], {
+    "dagre.rankdir": "LR",
+    "dagre.ranksep": "128",
+  });
+
+  const elkBaseline = [
+    "engine: v3",
+    "title: Demo",
+    "meta:",
+    "  layout_engine: elk-layered",
+    "root:",
+    "  id: page",
+    "  direction: vertical",
+    "  children:",
+    "    - id: leaf_a",
+    "      label: [A]",
+    "",
+  ].join("\n");
+  const elkPath = writeTempFrame("elk-roundtrip.yaml", elkBaseline);
+  const elkOutput = persistFrameDiagramOverridePayloadToYaml(elkPath, elkBaseline, {
+    overrides: {},
+    engine_layout_overrides: {
+      "meta.elk": {
+        "elk.spacing.edgeNode": 56,
+      },
+    },
+  });
+  fs.writeFileSync(elkPath, elkOutput, "utf8");
+
+  const reloadedElk = loadFrameYaml(elkPath);
+  assert.equal(reloadedElk.layoutEngine, "elk-layered");
+  assert.deepEqual(reloadedElk.engineLayout?.["meta.elk"], {
+    "elk.spacing.edgeNode": "56",
+  });
+  assert.deepEqual(reloadedElk.elkLayout, {
+    "elk.spacing.edgeNode": "56",
+  });
+});
+
 test("persist elk layout overrides replaces meta.elk entries canonically", () => {
   const baselineText = [
     "engine: v3",

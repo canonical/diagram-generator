@@ -61,7 +61,6 @@ describe('preview state restore helpers', () => {
     expect(plan.frameTreeChanged).toBe(true);
     expect(plan.shouldPruneLinkedRootOverrides).toBe(true);
     expect(plan.nextLayoutOverrides).toEqual({});
-    expect(plan.nextElkLayoutOverrides).toEqual(plan.nextLayoutOverrides);
   });
 
   it('chooses request-relayout for grid changes and local reapply for cosmetic-only snapshots', () => {
@@ -204,7 +203,7 @@ describe('preview state restore helpers', () => {
       roots: [{ id: 'root' }],
       gridOverrides: { cols: 4 },
       layoutOverrides: {},
-      elkLayoutOverrides: {},
+      layoutOverrideNamespace: 'meta.dagre',
       removedIds: new Set<string>(),
       get() {
         return { type: 'box' };
@@ -256,6 +255,12 @@ describe('preview state restore helpers', () => {
     await runtime.restoreSerializedState(JSON.stringify({
       o: {},
       g: {},
+      ep: {
+        activeOperatorKey: 'dagre',
+        byOperator: {
+          dagre: { 'dagre.rankdir': 'LR' },
+        },
+      },
       r: [],
       f: { id: 'root' },
     }));
@@ -269,5 +274,12 @@ describe('preview state restore helpers', () => {
       'syncGridControls',
       'syncDirtyFromSerialized',
     ]);
+    expect(model.layoutOverrides).toEqual({ 'dagre.rankdir': 'LR' });
+    expect(model.layoutOperatorOverrides).toEqual({
+      activeOperatorKey: 'dagre',
+      byOperator: {
+        dagre: { 'dagre.rankdir': 'LR' },
+      },
+    });
   });
 });
