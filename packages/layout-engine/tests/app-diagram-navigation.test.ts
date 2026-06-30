@@ -45,8 +45,8 @@ describe('preview diagram navigation helpers', () => {
   it('normalizes absolute and relative diagram urls to paths', () => {
     expect(normalizePreviewDiagramPath('/view/alpha', 'http://127.0.0.1:8100')).toBe('/view/alpha');
     expect(normalizePreviewDiagramPath('http://127.0.0.1:8100/force/view/beta', 'http://127.0.0.1:8100')).toBe('/force/view/beta');
-    expect(normalizePreviewDiagramPath('/v3/view/alpha', 'http://127.0.0.1:8100')).toBe('/view/v3:alpha');
-    expect(canonicalizePreviewDiagramPath('/v3/view/alpha')).toBe('/view/v3:alpha');
+    expect(normalizePreviewDiagramPath('http://127.0.0.1:8100/view/v3:alpha', 'http://127.0.0.1:8100')).toBe('/view/v3:alpha');
+    expect(canonicalizePreviewDiagramPath('/view/v3:alpha')).toBe('/view/v3:alpha');
   });
 
   it('extracts unique picker options and falls back to slug labels', () => {
@@ -69,10 +69,10 @@ describe('preview diagram navigation helpers', () => {
     expect(resolveSteppedPreviewDiagramUrl(picker, -2)).toBe('');
   });
 
-  it('matches canonical picker values when opened through the legacy v3 route alias', () => {
+  it('matches canonical picker values when opened through the canonical v3 route', () => {
     const picker = createPicker(['/view/v3:alpha', '/view/v3:beta']);
 
-    expect(syncPreviewDiagramPickerToPath(picker, '/v3/view/beta')).toBe(true);
+    expect(syncPreviewDiagramPickerToPath(picker, '/view/v3:beta')).toBe(true);
 
     expect(picker.selectedIndex).toBe(1);
     expect(picker.value).toBe('/view/v3:beta');
@@ -124,7 +124,7 @@ describe('preview diagram navigation helpers', () => {
     });
   });
 
-  it('toggles canonical browse links when opened through the legacy v3 route alias', () => {
+  it('toggles canonical browse links when opened through the canonical v3 route', () => {
     const states: Record<string, boolean> = {};
     const link = {
       getAttribute(name: string) {
@@ -143,7 +143,7 @@ describe('preview diagram navigation helpers', () => {
       },
     };
 
-    syncPreviewBrowseLinksToPath([link] as unknown as Element[], '/v3/view/beta');
+    syncPreviewBrowseLinksToPath([link] as unknown as Element[], '/view/v3:beta');
 
     expect(states).toEqual({
       'is-active': true,

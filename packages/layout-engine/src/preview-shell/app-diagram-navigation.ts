@@ -39,12 +39,7 @@ export function normalizePreviewDiagramPath(
 }
 
 export function canonicalizePreviewDiagramPath(path: string | null | undefined): string {
-  const value = String(path || '');
-  const legacyV3Prefix = '/v3/view/';
-  if (value.startsWith(legacyV3Prefix)) {
-    return `/view/v3:${value.slice(legacyV3Prefix.length)}`;
-  }
-  return value;
+  return String(path || '');
 }
 
 export function extractPreviewDiagramOptionEntries(

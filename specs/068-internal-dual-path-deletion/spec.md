@@ -154,6 +154,6 @@ These are the first items the deletion inventory should confirm or remove:
 - ELK-era typed/public aliases such as `ElkPreviewController`,
   `ElkLayoutControls`, and similar names in generic graph-layout code
 - save-time preservation of unsupported `meta.elk` and `meta.dagre` keys
-- route or schema aliases such as `/v3/view/` and `outer_margin` if all
-  repo-owned callers can be migrated
-
+- route aliases such as `/v3/view/` if all repo-owned callers can be migrated
+- arrow-id fallbacks such as `legacyArrowComponentId` if fixture/corpus audit
+  proves the repo no longer needs them

@@ -75,6 +75,38 @@ export function assertSupportedFrameYamlEngineLayoutOverrides(
   }
 }
 
+export function sanitizeSupportedFrameYamlEngineLayoutOverrides(
+  namespace: string,
+  overrides: Record<string, unknown>,
+  source: string,
+  label = namespace,
+  preferredLayoutEngine?: string | null,
+): Record<string, unknown> {
+  const supportedSpecs = supportedSpecsForNamespace(namespace);
+  if (supportedSpecs.size === 0) {
+    return { ...overrides };
+  }
+
+  const next: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(overrides)) {
+    const spec = supportedSpecs.get(key);
+    if (!spec) {
+      continue;
+    }
+    if (value == null || value === "") {
+      continue;
+    }
+    next[String(key)] = value;
+  }
+
+  if (Object.keys(next).length === 0) {
+    return {};
+  }
+
+  assertSupportedFrameYamlEngineLayoutOverrides(namespace, next, source, label, preferredLayoutEngine);
+  return next;
+}
+
 function metaKeyFromNamespace(namespace: string): string {
   if (!namespace.startsWith("meta.") || namespace.length <= "meta.".length) {
     throw new Error(`Frame YAML engine layout namespace '${namespace}' cannot be persisted under meta`);
@@ -152,7 +184,13 @@ function applyEngineLayoutNamespaceOverrides(
   const metaKey = metaKeyFromNamespace(namespace);
   const supportedSpecs = supportedSpecsForNamespace(namespace);
   const next: Record<string, unknown> = isRecord(meta[metaKey])
-    ? Object.fromEntries(Object.entries(meta[metaKey]).map(([key, value]) => [String(key), value]))
+    ? sanitizeSupportedFrameYamlEngineLayoutOverrides(
+      namespace,
+      meta[metaKey],
+      `${source} existing`,
+      label,
+      preferredLayoutEngine,
+    )
     : {};
   for (const [key, value] of Object.entries(overrides)) {
     const spec = supportedSpecs.get(key);
@@ -163,8 +201,15 @@ function applyEngineLayoutNamespaceOverrides(
       next[String(key)] = coerced;
     }
   }
-  if (Object.keys(next).length > 0) {
-    meta[metaKey] = next;
+  const sanitizedNext = sanitizeSupportedFrameYamlEngineLayoutOverrides(
+    namespace,
+    next,
+    source,
+    label,
+    preferredLayoutEngine,
+  );
+  if (Object.keys(sanitizedNext).length > 0) {
+    meta[metaKey] = sanitizedNext;
   } else {
     delete meta[metaKey];
   }

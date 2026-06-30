@@ -13,6 +13,7 @@ import {
 } from "@diagram-generator/layout-engine";
 import {
   getFrameYamlEngineLayoutNamespace,
+  sanitizeSupportedFrameYamlEngineLayoutOverrides,
 } from "./frame-engine-layout-namespaces.js";
 
 const require = createRequire(import.meta.url);
@@ -537,16 +538,34 @@ function applyLayoutEngineChoice(document: Record<string, unknown>, layoutEngine
   }
 }
 
-function assertSupportedPersistedEngineLayoutMeta(meta: Record<string, unknown>, source: string): void {
-  void source;
+function assertSupportedPersistedEngineLayoutMeta(
+  meta: Record<string, unknown>,
+  source: string,
+  preferredLayoutEngineOverride?: string | null,
+): void {
+  const preferredLayoutEngine = preferredLayoutEngineOverride ?? (
+    typeof meta.layout_engine === "string"
+      ? meta.layout_engine.trim()
+      : null
+  );
   for (const [key, value] of Object.entries(meta)) {
     const namespace = `meta.${key}`;
     if (!getFrameYamlEngineLayoutNamespace(namespace) || !isRecord(value)) {
       continue;
     }
-    if (Object.keys(value).length === 0) {
+    const label = namespace === "meta.elk" ? "ELK" : key;
+    const sanitized = sanitizeSupportedFrameYamlEngineLayoutOverrides(
+      namespace,
+      value,
+      `${source} ${namespace}`,
+      label,
+      preferredLayoutEngine,
+    );
+    if (Object.keys(sanitized).length === 0) {
       delete meta[key];
+      continue;
     }
+    meta[key] = sanitized;
   }
 }
 
@@ -672,7 +691,11 @@ export function persistFrameDiagramOverridePayloadToYaml(
   const rootData = document.root;
   if (!isRecord(rootData)) throw new Error(`${framePath}: root must be a mapping`);
   if (isRecord(document.meta)) {
-    assertSupportedPersistedEngineLayoutMeta(document.meta, framePath);
+    assertSupportedPersistedEngineLayoutMeta(
+      document.meta,
+      framePath,
+      typeof payload.layout_engine === "string" ? payload.layout_engine : undefined,
+    );
   }
 
   if ("grid_overrides" in payload) {

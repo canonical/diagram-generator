@@ -99,12 +99,12 @@ test("preview host lane descriptors build typed browse sections", () => {
   ]);
 });
 
-test("preview viewer routes resolve aliases and build browse sections without server-local branching", () => {
+test("preview viewer routes resolve canonical paths and build browse sections without server-local branching", () => {
   const routes: readonly PreviewHostViewerRouteDescriptor[] = [
     {
       key: "autolayout",
       lane: AUTOLAYOUT_HOST_LANE,
-      routePrefixes: ["/v3/view/", "/view/"],
+      routePrefixes: ["/view/"],
       listSlugs: () => ["support-engineering-flow"],
       hasDocument: () => true,
       buildHtml: () => "<html></html>",
@@ -135,10 +135,6 @@ test("preview viewer routes resolve aliases and build browse sections without se
   ]);
 
   assert.deepEqual(resolvePreviewViewerRoute("/view/v3:support-engineering-flow", routes, normalizePreviewSlug), {
-    route: routes[0],
-    slug: "support-engineering-flow",
-  });
-  assert.deepEqual(resolvePreviewViewerRoute("/v3/view/support-engineering-flow", routes, normalizePreviewSlug), {
     route: routes[0],
     slug: "support-engineering-flow",
   });

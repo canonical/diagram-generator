@@ -8,14 +8,14 @@
 
 ## Phase 1: Deletion Inventory
 
-- [ ] **T001** Write `deletion-inventory.md` listing every remaining internal
+- [x] **T001** Write `deletion-inventory.md` listing every remaining internal
       dual path in active preview-shell, persistence, route, and browser-entry
       code. Include canonical owner, alias name, current callers, delete plan,
       and whether the alias is purely repo-owned.
-- [ ] **T002** Define the banned internal alias list used by closeout search
+- [x] **T002** Define the banned internal alias list used by closeout search
       evidence. Be explicit about what is *not* banned because it is real
       product compatibility logic rather than migration debt.
-- [ ] **T003** Decide the canonical names for graph-layout pane/runtime owners,
+- [x] **T003** Decide the canonical names for graph-layout pane/runtime owners,
       relayout browser entry points, save/load schema fields, and viewer routes.
 
 ## Phase 2: Browser Runtime Deletion
@@ -33,9 +33,9 @@
 
 ## Phase 3: Persistence and Route Deletion
 
-- [ ] **T020** Stop preserving unsupported or foreign `meta.elk` / `meta.dagre`
+- [x] **T020** Stop preserving unsupported or foreign `meta.elk` / `meta.dagre`
       keys on save. Replace preservation tests with strip-or-reject tests.
-- [ ] **T021** Delete repo-owned route/schema aliases whose callers can be
+- [x] **T021** Delete repo-owned route/schema aliases whose callers can be
       migrated in-spec, starting with the superseded viewer route prefix and any
       obsolete grid/schema spellings still kept alive only for history.
 - [ ] **T022** Migrate or rewrite affected fixtures/tests so active product code
