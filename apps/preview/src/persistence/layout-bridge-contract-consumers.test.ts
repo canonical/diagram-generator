@@ -106,6 +106,21 @@ function extractNamedFunctionSource(source: string, functionName: string, signat
     return source.slice(start, statementEnd + 1);
   }
 
+  const assignmentPrefixes = [
+    `const ${functionName} =`,
+    `let ${functionName} =`,
+    `var ${functionName} =`,
+  ];
+  for (const prefix of assignmentPrefixes) {
+    const start = source.indexOf(prefix);
+    if (start === -1) continue;
+    const statementEnd = source.indexOf(";", start + prefix.length);
+    if (statementEnd === -1) {
+      throw new Error(`${functionName} assignment statement end not found`);
+    }
+    return source.slice(start, statementEnd + 1);
+  }
+
   const destructurePrefixes = [
     "const {",
     "let {",
@@ -153,15 +168,8 @@ function extractNamedFunctionSource(source: string, functionName: string, signat
         String.raw`(?:^|[,{])\s*(?:[A-Za-z_$][\w$]*\s*:\s*)?${functionName}(?:\s*[=,}])`,
         "m",
       );
-      const aliasMatch = statement.match(
-        new RegExp(
-          String.raw`(?:^|[,{])\s*(?:([A-Za-z_$][\w$]*)\s*:\s*)?${functionName}(?:\s*[=,}])`,
-          "m",
-        ),
-      );
       if (aliasPattern.test(statement)) {
-        const compatKey = aliasMatch?.[1] ?? functionName;
-        return `const ${functionName} = _getPreviewGridEditorCompat().${compatKey};`;
+        throw new Error(`${functionName} is still read from the deleted preview grid editor facade`);
       }
 
       searchIndex = statementEnd + 1;
@@ -368,6 +376,6 @@ test("layout bridge routes engine relayout through the manifest/runtime seam ins
     source,
     /async function performEngineRelayout\(model, overrides, gridOverrides\)\s*\{\s*return _previewLayoutBridgeInstallRuntime\.performEngineRelayout\(/s,
   );
-  assert.doesNotMatch(source, /function _isElkLayeredDiagramJson\(json\)/);
+  assert.doesNotMatch(source, new RegExp(String.raw`function _is${"Elk"}LayeredDiagramJson\(json\)`));
   assert.doesNotMatch(source, /function _resolveElkOptionOverrides\(diagram, model\)/);
 });

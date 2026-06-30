@@ -11,7 +11,7 @@ type HarnessOptions = {
   canonicalState?: { frameTree?: unknown; previewDocument?: { kind?: string | null } | null } | null;
   preservedSelectionIds?: string[] | null;
   readiness?: { ready: boolean; reason?: string | null; textAdapterError?: string | null };
-  isElkLayeredDiagram?: boolean;
+  isEngineLayoutActive?: boolean;
   gridInfo?: unknown;
   gridOverrides?: Record<string, unknown> | null | undefined;
   fallbackResponse?: {
@@ -41,7 +41,7 @@ function createLoadHarness(config: HarnessOptions = {}) {
       calls.push('setFrameTreeJson');
       frameTreeValues.push(frameTree);
     },
-    isElkLayeredDiagram: () => Boolean(config.isElkLayeredDiagram),
+    isEngineLayoutActive: () => Boolean(config.isEngineLayoutActive),
     resetOverrideState: () => calls.push('resetOverrideState'),
     initElkPanel: () => calls.push('initElkPanel'),
     getLocalRelayoutStatus: () => config.readiness ?? { ready: true },
@@ -122,7 +122,7 @@ describe('preview load helpers', () => {
         markup: '<svg id="fallback" />',
       },
       gridInfo: { cols: 6 },
-      isElkLayeredDiagram: true,
+      isEngineLayoutActive: true,
       preservedSelectionIds: ['a', 'b'],
       readiness: {
         ready: false,
@@ -168,7 +168,7 @@ describe('preview load helpers', () => {
     const harness = createLoadHarness({
       gridInfo: { cols: 8 },
       gridOverrides: { cols: 8 },
-      isElkLayeredDiagram: true,
+      isEngineLayoutActive: true,
     });
 
     const mode = await loadPreviewSvg(harness.options);
@@ -185,7 +185,7 @@ describe('preview load helpers', () => {
   it('resets overrides after grid load for non-ELK client renders', async () => {
     const harness = createLoadHarness({
       gridOverrides: null,
-      isElkLayeredDiagram: false,
+      isEngineLayoutActive: false,
     });
 
     const mode = await loadPreviewSvg(harness.options);

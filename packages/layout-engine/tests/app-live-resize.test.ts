@@ -15,7 +15,7 @@ describe('preview live-resize relayout helpers', () => {
     expect(schedulePreviewLiveResizeRelayout({
       state: createPreviewLiveResizeRelayoutState(),
       request: { cid: 'alpha', newW: 200, newH: 120, resizedW: true, resizedH: false },
-      isElkLayeredDiagram: true,
+      isEngineLayoutActive: true,
       requestAnimationFrameFn,
       overrides: {},
       getGridOverrides: () => ({}),
@@ -45,7 +45,7 @@ describe('preview live-resize relayout helpers', () => {
     expect(schedulePreviewLiveResizeRelayout({
       state: createPreviewLiveResizeRelayoutState(),
       request: { cid: 'alpha', newW: 200, newH: 120, resizedW: true, resizedH: false },
-      isElkLayeredDiagram: true,
+      isEngineLayoutActive: true,
       requestAnimationFrameFn,
       overrides: {},
       getGridOverrides: () => ({}),
@@ -76,7 +76,7 @@ describe('preview live-resize relayout helpers', () => {
     schedulePreviewLiveResizeRelayout({
       state,
       request: { cid: 'alpha', newW: 240, newH: 160, resizedW: true, resizedH: false },
-      isElkLayeredDiagram: false,
+      isEngineLayoutActive: false,
       requestAnimationFrameFn,
       overrides,
       getGridOverrides: () => ({ cols: 4 }),
@@ -87,7 +87,7 @@ describe('preview live-resize relayout helpers', () => {
     schedulePreviewLiveResizeRelayout({
       state,
       request: { cid: 'alpha', newW: 320, newH: 192, resizedW: true, resizedH: true },
-      isElkLayeredDiagram: false,
+      isEngineLayoutActive: false,
       requestAnimationFrameFn,
       overrides,
       getGridOverrides: () => ({ cols: 4 }),

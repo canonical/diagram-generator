@@ -1,12 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
-  createPreviewElkLayoutControlsRuntime,
   createPreviewEngineLayoutControlsRuntime,
-} from '../src/preview-engine/elk-layout-controls.js';
-import {
-  createPreviewElkShellControllerRuntime,
   createPreviewEngineShellControllerRuntime,
-} from '../src/preview-engine/elk-shell-controller.js';
+} from '../src/preview-engine/index.js';
 
 describe('elk preview runtimes', () => {
   it('builds the ELK controls panel from registered engine metadata', () => {
@@ -26,7 +22,7 @@ describe('elk preview runtimes', () => {
         return [];
       },
     };
-    const runtime = createPreviewElkLayoutControlsRuntime({
+    const runtime = createPreviewEngineLayoutControlsRuntime({
       document: {
         getElementById(id: string) {
           if (id === 'layout-params-section') return section as never;
@@ -128,7 +124,7 @@ describe('elk preview runtimes', () => {
         return [];
       },
     };
-    const runtime = createPreviewElkLayoutControlsRuntime({
+    const runtime = createPreviewEngineLayoutControlsRuntime({
       document: {
         getElementById(id: string) {
           if (id === 'layout-params-section') return section as never;
@@ -199,7 +195,7 @@ describe('elk preview runtimes', () => {
         return [forceControl];
       },
     };
-    const runtime = createPreviewElkLayoutControlsRuntime({
+    const runtime = createPreviewEngineLayoutControlsRuntime({
       document: {
         getElementById(id: string) {
           if (id === 'layout-params-section') return section as never;
@@ -269,7 +265,7 @@ describe('elk preview runtimes', () => {
         return [];
       },
     };
-    const runtime = createPreviewElkLayoutControlsRuntime({
+    const runtime = createPreviewEngineLayoutControlsRuntime({
       document: {
         getElementById(id: string) {
           if (id === 'layout-params-section') return section as never;
@@ -366,7 +362,7 @@ describe('elk preview runtimes', () => {
       },
     };
     let sessionOverrides: Record<string, unknown> = {};
-    const runtime = createPreviewElkLayoutControlsRuntime({
+    const runtime = createPreviewEngineLayoutControlsRuntime({
       document: {
         getElementById(id: string) {
           if (id === 'layout-params-section') return section as never;
@@ -480,7 +476,7 @@ describe('elk preview runtimes', () => {
       'elk.force.model': 'FRUCHTERMAN_REINGOLD',
       'elk.force.temperature': 0.02,
     };
-    const runtime = createPreviewElkLayoutControlsRuntime({
+    const runtime = createPreviewEngineLayoutControlsRuntime({
       document: {
         getElementById(id: string) {
           if (id === 'layout-params-section') return section as never;
@@ -755,7 +751,7 @@ describe('elk preview runtimes', () => {
         return [staleControl];
       },
     };
-    const runtime = createPreviewElkLayoutControlsRuntime({
+    const runtime = createPreviewEngineLayoutControlsRuntime({
       document: {
         getElementById(id: string) {
           if (id === 'layout-params-section') return section as never;
@@ -820,7 +816,7 @@ describe('elk preview runtimes', () => {
       refresh() {},
       collectOverrides: () => ({ 'elk.spacing.nodeNode': '32' }),
     };
-    const runtime = createPreviewElkShellControllerRuntime({
+    const runtime = createPreviewEngineShellControllerRuntime({
       document: {
         getElementById() {
           return { hasAttribute: () => true };
@@ -829,7 +825,6 @@ describe('elk preview runtimes', () => {
       previewWindow: {
         __DG_CONFIG: {},
         PreviewEngineLayoutControls: previewEngineLayoutControls,
-        ElkLayoutControls: previewEngineLayoutControls,
       },
       layoutEngineRoot: {
         previewEngines: {
@@ -853,7 +848,7 @@ describe('elk preview runtimes', () => {
       requestLayoutRelayout,
     });
 
-    expect(runtime.isElkLayeredDiagram({ layoutEngine: 'elk-layered' })).toBe(true);
+    expect(runtime.isActiveLayoutEngine({ layoutEngine: 'elk-layered' })).toBe(true);
     runtime.wirePanel();
     expect(runtime.collectPersistedPayload({ ok: true }, { layoutOverrides: {} })).toEqual({
       ok: true,

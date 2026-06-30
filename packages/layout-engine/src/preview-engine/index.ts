@@ -45,16 +45,19 @@ export {
 } from './define-graph-layout-engine.js';
 export {
   createPreviewEngineLayoutControlsRuntime,
-  createPreviewElkLayoutControlsRuntime,
-  type PreviewElkLayoutControlsRuntime,
-  type PreviewElkLayoutControlsRuntimeOptions,
+  type PreviewEngineLayoutControlsDocumentLike,
+  type PreviewEngineLayoutControlsRuntime,
+  type PreviewEngineLayoutControlsRuntimeInitOptions,
+  type PreviewEngineLayoutControlsRuntimeOptions,
+  type PreviewEngineLayoutControlsWindowLike,
 } from './layout-params-controls.js';
 export {
   createPreviewEngineShellControllerRuntime,
-  createPreviewElkShellControllerRuntime,
-  type PreviewElkShellControllerRuntime,
-  type PreviewElkShellControllerRuntimeOptions,
-  type PreviewElkShellControllerDeps,
+  type PreviewEngineShellControllerDeps,
+  type PreviewEngineShellControllerDocumentLike,
+  type PreviewEngineShellControllerRuntime,
+  type PreviewEngineShellControllerRuntimeOptions,
+  type PreviewEngineShellControllerWindowLike,
 } from './layout-params-controller.js';
 export {
   ELK_LAYERED_PREVIEW_ENGINE,

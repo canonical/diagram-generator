@@ -111,7 +111,6 @@ describe('createPreviewGridEditorRuntimeFromBrowserHost', () => {
 
   function createOptions() {
     const requestLayoutRelayout = vi.fn(async () => undefined);
-    const requestV3Relayout = vi.fn(async () => undefined);
     const browser = {
       getOverrides: vi.fn(() => ({ alpha: { dx: 8 } })),
       replaceOverrides: vi.fn(),
@@ -169,7 +168,6 @@ describe('createPreviewGridEditorRuntimeFromBrowserHost', () => {
       onResizeUp: vi.fn(),
       cycleGuideMode: vi.fn(),
       requestLayoutRelayout,
-      requestV3Relayout,
       interactionMode: {
         TEXT_EDITING: 'text',
         DRAGGING: 'drag',

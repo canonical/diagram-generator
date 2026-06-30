@@ -244,7 +244,7 @@ export function createAutolayoutPreviewHostViewerRoute(
   return {
     key: "autolayout",
     lane: AUTOLAYOUT_HOST_LANE,
-    routePrefixes: ["/v3/view/", "/view/"],
+    routePrefixes: ["/view/"],
     listSlugs: () => deps.listAutolayoutDiagrams(),
     hasDocument: (slug: string) => frameDiagramExists(slug, deps.framePreviewDocumentDeps),
     buildHtml: (slug: string) => {

@@ -13,6 +13,7 @@ import {
 } from "@diagram-generator/layout-engine";
 import {
   getFrameYamlEngineLayoutNamespace,
+  sanitizeSupportedFrameYamlEngineLayoutOverrides,
 } from "./frame-engine-layout-namespaces.js";
 
 const require = createRequire(import.meta.url);
@@ -262,19 +263,6 @@ function parseArrowShorthandForPersistence(value: string): { source: string; tar
   return { source, target };
 }
 
-function legacyArrowComponentId(arrowData: unknown): string | null {
-  if (typeof arrowData === "string") {
-    const parsed = parseArrowShorthandForPersistence(arrowData);
-    return parsed ? `${parsed.source}->${parsed.target}` : null;
-  }
-  if (!isRecord(arrowData)) return null;
-  const source = typeof arrowData.source === "string" ? arrowData.source.trim() : "";
-  const target = typeof arrowData.target === "string" ? arrowData.target.trim() : "";
-  if (!source || !target) return null;
-  const explicitId = typeof arrowData.id === "string" ? arrowData.id.trim() : "";
-  return explicitId || `${source}->${target}`;
-}
-
 function persistableArrowData(arrowData: unknown): { id?: string; source: string; target: string } | null {
   if (typeof arrowData === "string") {
     return parseArrowShorthandForPersistence(arrowData) ?? null;
@@ -368,10 +356,8 @@ function findArrowData(document: Record<string, unknown>, componentId: string): 
 
   for (let index = 0; index < arrows.length; index += 1) {
     const arrowEntry = arrows[index];
-    const legacyComponentId = legacyArrowComponentId(arrowEntry);
     const matchesPreviewComponentId = matchedPreviewArrow?.index === index;
-    const matchesLegacyComponentId = !parsedComponentId && legacyComponentId === componentId;
-    if (!matchesPreviewComponentId && !matchesLegacyComponentId) continue;
+    if (!matchesPreviewComponentId) continue;
     if (isRecord(arrowEntry)) {
       return arrowEntry;
     }
@@ -537,16 +523,34 @@ function applyLayoutEngineChoice(document: Record<string, unknown>, layoutEngine
   }
 }
 
-function assertSupportedPersistedEngineLayoutMeta(meta: Record<string, unknown>, source: string): void {
-  void source;
+function assertSupportedPersistedEngineLayoutMeta(
+  meta: Record<string, unknown>,
+  source: string,
+  preferredLayoutEngineOverride?: string | null,
+): void {
+  const preferredLayoutEngine = preferredLayoutEngineOverride ?? (
+    typeof meta.layout_engine === "string"
+      ? meta.layout_engine.trim()
+      : null
+  );
   for (const [key, value] of Object.entries(meta)) {
     const namespace = `meta.${key}`;
     if (!getFrameYamlEngineLayoutNamespace(namespace) || !isRecord(value)) {
       continue;
     }
-    if (Object.keys(value).length === 0) {
+    const label = namespace === "meta.elk" ? "ELK" : key;
+    const sanitized = sanitizeSupportedFrameYamlEngineLayoutOverrides(
+      namespace,
+      value,
+      `${source} ${namespace}`,
+      label,
+      preferredLayoutEngine,
+    );
+    if (Object.keys(sanitized).length === 0) {
       delete meta[key];
+      continue;
     }
+    meta[key] = sanitized;
   }
 }
 
@@ -672,7 +676,11 @@ export function persistFrameDiagramOverridePayloadToYaml(
   const rootData = document.root;
   if (!isRecord(rootData)) throw new Error(`${framePath}: root must be a mapping`);
   if (isRecord(document.meta)) {
-    assertSupportedPersistedEngineLayoutMeta(document.meta, framePath);
+    assertSupportedPersistedEngineLayoutMeta(
+      document.meta,
+      framePath,
+      typeof payload.layout_engine === "string" ? payload.layout_engine : undefined,
+    );
   }
 
   if ("grid_overrides" in payload) {

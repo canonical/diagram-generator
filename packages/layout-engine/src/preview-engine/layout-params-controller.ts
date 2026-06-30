@@ -10,16 +10,14 @@ import {
 } from '../preview-shell/layout-operator-overrides.js';
 import type { LayoutOperatorOverrideState } from '../preview-shell/layout-operator-overrides.js';
 
-export interface PreviewElkShellControllerDeps {
+export interface PreviewEngineShellControllerDeps {
   getLayoutOverrides?: () => Record<string, unknown>;
   setLayoutOverrides?: (value: Record<string, unknown>) => void;
   getRootId?: () => string;
   requestLayoutRelayout?: (cid: string) => Promise<unknown> | unknown;
-  /** @deprecated Prefer `requestLayoutRelayout`. */
-  requestV3Relayout?: (cid: string) => Promise<unknown> | unknown;
 }
 
-export interface PreviewElkShellControllerWindowLike {
+export interface PreviewEngineShellControllerWindowLike {
   __DG_CONFIG?: { layout_engine?: string };
   __DG_previewRenderIntent?: PreviewRenderIntent | null;
   PreviewEngineLayoutControls?: {
@@ -31,24 +29,15 @@ export interface PreviewElkShellControllerWindowLike {
     collectOverrides?: () => Record<string, unknown>;
     collectNamespacedOverrides?: () => Record<string, Record<string, unknown>>;
   };
-  ElkLayoutControls?: {
-    init?: (options: {
-      getOverrides: () => Record<string, unknown>;
-      setOverrides: (value: Record<string, unknown>) => void;
-    }) => void;
-    refresh?: () => void;
-    collectOverrides?: () => Record<string, unknown>;
-    collectNamespacedOverrides?: () => Record<string, Record<string, unknown>>;
-  };
 }
 
-export interface PreviewElkShellControllerDocumentLike {
+export interface PreviewEngineShellControllerDocumentLike {
   getElementById: (id: string) => { hasAttribute: (name: string) => boolean } | null;
 }
 
-export interface PreviewElkShellControllerRuntimeOptions {
-  document: PreviewElkShellControllerDocumentLike;
-  previewWindow: PreviewElkShellControllerWindowLike;
+export interface PreviewEngineShellControllerRuntimeOptions {
+  document: PreviewEngineShellControllerDocumentLike;
+  previewWindow: PreviewEngineShellControllerWindowLike;
   layoutEngineRoot?: {
     previewEngines?: {
       registry?: {
@@ -63,9 +52,8 @@ export interface PreviewElkShellControllerRuntimeOptions {
   sectionId?: string;
 }
 
-export interface PreviewElkShellControllerRuntime {
-  init: (deps: PreviewElkShellControllerDeps) => void;
-  isElkLayeredDiagram: (frameTreeJson?: unknown) => boolean;
+export interface PreviewEngineShellControllerRuntime {
+  init: (deps: PreviewEngineShellControllerDeps) => void;
   isActiveLayoutEngine: (frameTreeJson?: unknown) => boolean;
   wirePanel: () => void;
   syncPanel: () => void;
@@ -73,7 +61,6 @@ export interface PreviewElkShellControllerRuntime {
   initializePanel: () => void;
   getLayoutOverrides: () => Record<string, unknown>;
   applyLayoutOverrides: (overrides: Record<string, unknown>) => void;
-  applyElkLayoutOverrides: (overrides: Record<string, unknown>) => void;
   collectPersistedPayload: (
     basePayload: Record<string, unknown>,
     model?: {
@@ -95,22 +82,20 @@ function engineSupportsSidebarSection(engine: PreviewEngineManifest | null | und
 }
 
 function resolvePreviewEngineLayoutControls(
-  previewWindow: PreviewElkShellControllerWindowLike,
-): PreviewElkShellControllerWindowLike['ElkLayoutControls'] | null {
-  return previewWindow.PreviewEngineLayoutControls
-    ?? previewWindow.ElkLayoutControls
-    ?? null;
+  previewWindow: PreviewEngineShellControllerWindowLike,
+): PreviewEngineShellControllerWindowLike['PreviewEngineLayoutControls'] | null {
+  return previewWindow.PreviewEngineLayoutControls ?? null;
 }
 
 export function createPreviewEngineShellControllerRuntime(
-  options: PreviewElkShellControllerRuntimeOptions,
-): PreviewElkShellControllerRuntime {
+  options: PreviewEngineShellControllerRuntimeOptions,
+): PreviewEngineShellControllerRuntime {
   const sidebarSectionId = options.sidebarSectionId ?? 'layout-params';
   const defaultPersistNamespace = options.defaultPersistNamespace ?? 'meta.elk';
-  let deps: PreviewElkShellControllerDeps | null = null;
+  let deps: PreviewEngineShellControllerDeps | null = null;
   let panelWired = false;
 
-  function requireDeps(): PreviewElkShellControllerDeps {
+  function requireDeps(): PreviewEngineShellControllerDeps {
     if (!deps) {
       throw new Error('PreviewEngineShellController.init() must run before engine shell operations');
     }
@@ -158,7 +143,7 @@ export function createPreviewEngineShellControllerRuntime(
     }
   }
 
-  function isElkLayeredDiagram(frameTreeJson?: unknown): boolean {
+  function isActiveLayoutEngine(frameTreeJson?: unknown): boolean {
     const tree = frameTreeJson !== undefined
       ? frameTreeJson as { layoutEngine?: string | null } | null
       : (options.getFrameTreeJson?.() as { layoutEngine?: string | null } | null | undefined) ?? null;
@@ -172,7 +157,7 @@ export function createPreviewEngineShellControllerRuntime(
     return false;
   }
 
-  function applyElkLayoutOverrides(overrides: Record<string, unknown>): void {
+  function applyLayoutOverrides(overrides: Record<string, unknown>): void {
     if (!deps) {
       return;
     }
@@ -216,7 +201,7 @@ export function createPreviewEngineShellControllerRuntime(
     const layoutOverrides = {
       ...(namespacedOverrides[namespace] ?? controls?.collectOverrides?.() ?? {}),
     };
-    applyElkLayoutOverrides(layoutOverrides);
+    applyLayoutOverrides(layoutOverrides);
     if (model) {
       if (engine) {
         writeLayoutOperatorOverrideBucketForManifest(model, engine, layoutOverrides, namespace);
@@ -240,11 +225,11 @@ export function createPreviewEngineShellControllerRuntime(
     wirePanel();
     const domOverrides = resolvePreviewEngineLayoutControls(options.previewWindow)?.collectOverrides?.();
     if (domOverrides) {
-      applyElkLayoutOverrides({ ...domOverrides });
+      applyLayoutOverrides({ ...domOverrides });
     }
     const runtimeDeps = requireDeps();
     const rootId = runtimeDeps.getRootId?.() ?? 'root';
-    const requestLayoutRelayout = runtimeDeps.requestLayoutRelayout ?? runtimeDeps.requestV3Relayout;
+    const requestLayoutRelayout = runtimeDeps.requestLayoutRelayout;
     if (typeof requestLayoutRelayout !== 'function') {
       throw new Error('preview engine shell controller requires a layout relayout callback');
     }
@@ -255,8 +240,7 @@ export function createPreviewEngineShellControllerRuntime(
     init(nextDeps) {
       deps = nextDeps;
     },
-    isElkLayeredDiagram,
-    isActiveLayoutEngine: isElkLayeredDiagram,
+    isActiveLayoutEngine,
     wirePanel,
     syncPanel,
     initPanel: syncPanel,
@@ -264,11 +248,8 @@ export function createPreviewEngineShellControllerRuntime(
     getLayoutOverrides() {
       return deps ? readLayoutOverrides() : {};
     },
-    applyLayoutOverrides: applyElkLayoutOverrides,
-    applyElkLayoutOverrides,
+    applyLayoutOverrides,
     collectPersistedPayload,
     requestRelayout,
   };
 }
-
-export const createPreviewElkShellControllerRuntime = createPreviewEngineShellControllerRuntime;

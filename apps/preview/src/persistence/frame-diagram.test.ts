@@ -530,7 +530,7 @@ test("frame-yaml engine namespaces resolve preview-engine registrations after mo
   }
 });
 
-test("persist preserves legacy unsupported ELK keys already present in meta.elk", () => {
+test("persist strips unsupported ELK keys already present in meta.elk", () => {
   const baselineText = [
     "engine: v3",
     "title: Demo",
@@ -560,13 +560,14 @@ test("persist preserves legacy unsupported ELK keys already present in meta.elk"
     },
   });
 
-  assert.match(output, /elk\.portConstraints: FREE/);
-  assert.match(output, /elk\.edgeRouting: SPLINES/);
-  assert.match(output, /elk\.padding: '\[top=8,left=8,bottom=8,right=8\]'/);
-  assert.match(output, /elk\.unknown: surprise/);
+  assert.match(output, /elk\.spacing\.nodeNode: 48|elk\.spacing\.nodeNode: '48'/);
+  assert.doesNotMatch(output, /elk\.portConstraints: FREE/);
+  assert.doesNotMatch(output, /elk\.edgeRouting: SPLINES/);
+  assert.doesNotMatch(output, /elk\.padding: '\[top=8,left=8,bottom=8,right=8\]'/);
+  assert.doesNotMatch(output, /elk\.unknown: surprise/);
 });
 
-test("persist preserves legacy unsupported Dagre keys already present in meta.dagre", () => {
+test("persist strips unsupported Dagre keys already present in meta.dagre", () => {
   const baselineText = [
     "engine: v3",
     "title: Demo",
@@ -593,7 +594,8 @@ test("persist preserves legacy unsupported Dagre keys already present in meta.da
     },
   });
 
-  assert.match(output, /dagre\.unknown: surprise/);
+  assert.match(output, /dagre\.rankdir: LR/);
+  assert.doesNotMatch(output, /dagre\.unknown: surprise/);
 });
 
 test("persist removed ids prunes frames and arrows", () => {
@@ -649,7 +651,7 @@ test("persist arrow waypoint overrides for complex-routing-usecase arrows", () =
   const baselineText = fs.readFileSync(COMPLEX_ROUTING_FIXTURE, "utf8");
   const output = persistToYaml("complex-routing-usecase.yaml", baselineText, {
     overrides: {
-      "measure->review": {
+      "arrow:edge:measure->review": {
         waypoints: [[480, 192], [640, 192]],
       },
     },
@@ -672,7 +674,7 @@ test("persist→reload clears authored arrow waypoints after reroute-bearing str
       page: {
         direction: "vertical",
       },
-      "measure->review": {
+      "arrow:edge:measure->review": {
         waypoints: [],
       },
     },
@@ -709,7 +711,7 @@ test("persist arrow waypoint overrides upgrades shorthand arrows to mappings", (
   ].join("\n");
   const output = persistToYaml("arrow-waypoints-shorthand.yaml", baselineText, {
     overrides: {
-      "leaf_a->leaf_b": {
+      "arrow:edge:leaf_a->leaf_b": {
         waypoints: [[24, 32]],
       },
     },

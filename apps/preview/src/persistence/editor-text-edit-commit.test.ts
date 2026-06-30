@@ -103,6 +103,21 @@ function extractNamedFunctionSource(source: string, functionName: string, signat
     return source.slice(start, statementEnd + 1);
   }
 
+  const assignmentPrefixes = [
+    `const ${functionName} =`,
+    `let ${functionName} =`,
+    `var ${functionName} =`,
+  ];
+  for (const prefix of assignmentPrefixes) {
+    const start = source.indexOf(prefix);
+    if (start === -1) continue;
+    const statementEnd = source.indexOf(";", start + prefix.length);
+    if (statementEnd === -1) {
+      throw new Error(`${functionName} assignment statement end not found`);
+    }
+    return source.slice(start, statementEnd + 1);
+  }
+
   const destructurePrefixes = [
     "const {",
     "let {",
@@ -150,15 +165,8 @@ function extractNamedFunctionSource(source: string, functionName: string, signat
         String.raw`(?:^|[,{])\s*(?:[A-Za-z_$][\w$]*\s*:\s*)?${functionName}(?:\s*[=,}])`,
         "m",
       );
-      const aliasMatch = statement.match(
-        new RegExp(
-          String.raw`(?:^|[,{])\s*(?:([A-Za-z_$][\w$]*)\s*:\s*)?${functionName}(?:\s*[=,}])`,
-          "m",
-        ),
-      );
       if (aliasPattern.test(statement)) {
-        const compatKey = aliasMatch?.[1] ?? functionName;
-        return `const ${functionName} = _getPreviewGridEditorCompat().${compatKey};`;
+        throw new Error(`${functionName} is still read from the deleted preview grid editor facade`);
       }
 
       searchIndex = statementEnd + 1;
@@ -177,18 +185,8 @@ function loadEditorFunction<T extends (...args: any[]) => unknown>(
     console,
     ...overrides,
   };
-  (context as Record<string, any>)._getPreviewGridEditorCompat ??= () => {
-    const interaction = typeof (context as Record<string, any>)._getEditorInteractionFacade === "function"
-      ? (context as Record<string, any>)._getEditorInteractionFacade()
-      : {};
-    const textEdit = typeof (context as Record<string, any>)._getTextEditRuntime === "function"
-      ? (context as Record<string, any>)._getTextEditRuntime()
-      : {};
-    return {
-      ...interaction,
-      ...textEdit,
-    };
-  };
+  (context as Record<string, any>)._getEditorInteractionFacade ??= () => ({});
+  (context as Record<string, any>)._getTextEditRuntime ??= () => ({});
   const source = `${extractNamedFunctionSource(loadEditorSource(), functionName, signature)}\nthis.__loaded = ${functionName};`;
   vm.runInNewContext(source, context);
   const loaded = (context as { __loaded?: T }).__loaded;
@@ -299,10 +297,7 @@ test("commitTextEdit delegates text edit completion through the typed host helpe
         return 99;
       },
       requestLayoutRelayout(cid: string) {
-        callbackActions.push({ requestV3Relayout: cid });
-      },
-      requestV3Relayout(cid: string) {
-        callbackActions.push({ requestV3Relayout: cid });
+        callbackActions.push({ requestLayoutRelayout: cid });
       },
       LayoutEngine: {
         previewShell: {
@@ -310,7 +305,7 @@ test("commitTextEdit delegates text edit completion through the typed host helpe
         },
       },
     };
-  context._getTextEditRuntime = () => ({
+  const textEditRuntime = {
     commitTextEdit() {
       delegatedState = normalizeVmValue(context.mgr.state);
       context.setOverride("alpha", { text: { heading: "After", label: ["keep"] } });
@@ -324,7 +319,9 @@ test("commitTextEdit delegates text edit completion through the typed host helpe
       context.clearTimeout(context._layoutRelayoutTimer);
       context._layoutRelayoutTimer = context.setTimeout(() => context.requestLayoutRelayout("alpha"), 100);
     },
-  });
+  };
+  context._getEditorInteractionFacade = () => textEditRuntime;
+  context._getTextEditRuntime = () => textEditRuntime;
 
   const commitTextEdit = loadEditorFunction<() => void>(
     "commitTextEdit",
@@ -362,6 +359,6 @@ test("commitTextEdit delegates text edit completion through the typed host helpe
     "endInteraction",
     "reapplySelection",
     { setTimeout: 100 },
-    { requestV3Relayout: "alpha" },
+    { requestLayoutRelayout: "alpha" },
   ]);
 });

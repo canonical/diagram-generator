@@ -60,11 +60,8 @@ test("editor clear-override helper accepts the namespaced previewBridge.relayout
     setDirty(value: boolean) {
       capturedCalls.push({ kind: "setDirty", value });
     },
-    getV3RelayoutStatus() {
-      return { localReady: true };
-    },
-    requestV3Relayout(id: string) {
-      capturedCalls.push({ kind: "requestV3Relayout", id });
+    requestLayoutRelayout(id: string) {
+      capturedCalls.push({ kind: "requestLayoutRelayout", id });
       return Promise.resolve(true);
     },
     loadTree() {
@@ -185,32 +182,21 @@ test("editor relayout status helpers accept the namespaced previewBridge.relayou
     },
   };
 
-  const helperSource = [
-    extractNamedFunctionSource(source, "getLayoutRelayoutStatus", "()"),
-    extractNamedFunctionSource(source, "getV3RelayoutStatus", "()"),
-    "this.__loaded = { getLayoutRelayoutStatus, getV3RelayoutStatus };",
-  ].join("\n");
+  const helperSource = `${extractNamedFunctionSource(source, "getLayoutRelayoutStatus", "()")}\nthis.__loaded = getLayoutRelayoutStatus;`;
 
   vm.runInNewContext(helperSource, attachPreviewCompat(context));
   const loaded = (context as {
-    __loaded: {
-      getLayoutRelayoutStatus: () => Record<string, unknown>;
-      getV3RelayoutStatus: () => Record<string, unknown>;
-    };
+    __loaded: () => Record<string, unknown>;
   }).__loaded;
 
   assert.deepEqual(
-    normalizeVmValue(loaded.getLayoutRelayoutStatus()),
-    { localReady: true, local: { reason: "ready" }, frameManaged: true },
-  );
-  assert.deepEqual(
-    normalizeVmValue(loaded.getV3RelayoutStatus()),
+    normalizeVmValue(loaded()),
     { localReady: true, local: { reason: "ready" }, frameManaged: true },
   );
 });
 
 
-test("editor live-resize relayout helper forwards the current v3 relayout status getter", () => {
+test("editor live-resize relayout helper forwards through the layout relayout facade", () => {
   const source = readPreviewScript("editor.js");
   const capturedCalls: Array<Record<string, unknown>> = [];
   const context = {
@@ -231,14 +217,14 @@ test("editor live-resize relayout helper forwards the current v3 relayout status
   };
 
   const helperSource = [
-    extractNamedFunctionSource(source, "_scheduleV3ResizeRelayout", "(cid, newW, newH, resizedW, resizedH)"),
-    "this.__loaded = { _scheduleV3ResizeRelayout };",
+    extractNamedFunctionSource(source, "_scheduleLayoutResizeRelayout", "(cid, newW, newH, resizedW, resizedH)"),
+    "this.__loaded = { _scheduleLayoutResizeRelayout };",
   ].join("\n");
 
   vm.runInNewContext(helperSource, attachPreviewCompat(context));
   const loaded = (context as {
     __loaded: {
-      _scheduleV3ResizeRelayout: (
+      _scheduleLayoutResizeRelayout: (
         cid: string,
         newW: number,
         newH: number,
@@ -248,7 +234,7 @@ test("editor live-resize relayout helper forwards the current v3 relayout status
     };
   }).__loaded;
 
-  loaded._scheduleV3ResizeRelayout("alpha", 320, 200, 320, 200);
+  loaded._scheduleLayoutResizeRelayout("alpha", 320, 200, 320, 200);
 
   assert.deepEqual(normalizeVmValue(capturedCalls), [
     {
@@ -282,18 +268,18 @@ test("editor relayout lifecycle helpers accept the namespaced previewBridge.rela
   };
 
   const helperSource = [
-    extractNamedFunctionSource(source, "_finishV3Relayout", "(triggerCid, localResult, executionLabel)"),
-    "this.__loaded = { _finishV3Relayout };",
+    extractNamedFunctionSource(source, "_finishLayoutRelayout", "(triggerCid, result, executionLabel)"),
+    "this.__loaded = { _finishLayoutRelayout };",
   ].join("\n");
 
   vm.runInNewContext(helperSource, attachPreviewCompat(context));
   const loaded = (context as {
     __loaded: {
-      _finishV3Relayout: (triggerCid: string, localResult: Record<string, unknown>, executionLabel: string) => Promise<unknown>;
+      _finishLayoutRelayout: (triggerCid: string, localResult: Record<string, unknown>, executionLabel: string) => Promise<unknown>;
     };
   }).__loaded;
 
-  assert.equal(await loaded._finishV3Relayout("alpha", { coerced: null }, "local"), true);
+  assert.equal(await loaded._finishLayoutRelayout("alpha", { coerced: null }, "local"), true);
   assert.deepEqual(normalizeVmValue(capturedCalls), [
     {
       triggerCid: "alpha",
@@ -330,9 +316,6 @@ test("editor override-application helper accepts the namespaced previewBridge.re
     BASELINE_STEP: 8,
     getLayoutRelayoutStatus() {
       return { localReady: true };
-    },
-    getV3RelayoutStatus() {
-      return context.getLayoutRelayoutStatus();
     },
     getOwnDelta() {
       return { dx: 0, dy: 0, dw: 0, dh: 0 };

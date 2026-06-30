@@ -359,13 +359,6 @@ export interface PreviewLayoutBridgeRuntime<
     gridOverrides: Record<string, unknown>,
     options?: PreviewLayoutBridgeRelayoutExecutionOptions | null,
   ) => Promise<PreviewLayoutBridgeRelayoutResult | null>;
-  /** @deprecated Prefer `performEngineRelayout`. */
-  performElkRelayout: (
-    model: TModel,
-    overrides: Record<string, PreviewRelayoutOverrideEntry>,
-    gridOverrides: Record<string, unknown>,
-    options?: PreviewLayoutBridgeRelayoutExecutionOptions | null,
-  ) => Promise<PreviewLayoutBridgeRelayoutResult | null>;
 }
 
 export interface PreviewElkViewModeWindowLike {
@@ -445,6 +438,11 @@ interface PreviewLayoutBridgeLegacyElkEngineContract {
 }
 
 export interface PreviewLayoutBridgeLegacyWindow extends PreviewElkViewModeWindowLike {
+  LayoutEngine?: {
+    previewEngines?: {
+      elk?: PreviewLayoutBridgeLegacyElkEngineContract | null;
+    } | null;
+  } | null;
   __DG_CONFIG?: {
     slug?: string;
     head_len?: number;
@@ -459,12 +457,9 @@ export interface PreviewLayoutBridgeLegacyWindow extends PreviewElkViewModeWindo
     () => PreviewLayoutBridgeLegacyBundleRenderContract<PreviewLayoutBridgeRemovalModel> | null
   )) | null;
   __DG_getPreviewBridgeRelayoutContract?: (() => PreviewLayoutBridgeRelayoutContract | null) | null;
-  __DG_getPreviewElkEngineContract?: (() => PreviewLayoutBridgeLegacyElkEngineContract | null) | null;
   __DG_getPreviewShellBootstrapContract?: (() => PreviewLayoutBridgeLegacyBootstrapContract | null) | null;
   PreviewEngineShellController?: PreviewLayoutBridgeLegacyEngineShellController | null;
-  ElkPreviewController?: PreviewLayoutBridgeLegacyEngineShellController | null;
   PreviewEngineLayoutControls?: PreviewLayoutBridgeLegacyLayoutControls | null;
-  ElkLayoutControls?: PreviewLayoutBridgeLegacyLayoutControls | null;
 }
 
 export interface CreatePreviewLayoutBridgeInstallRuntimeFromLegacyBrowserHostOptions<
@@ -489,7 +484,7 @@ export interface PreviewLayoutBridgeInstallRuntime<
     TPreviewDocumentJson,
     TFrameTreeJson
   >;
-  getPreviewElkEngineContract: () => PreviewLayoutBridgeLegacyElkEngineContract;
+  getPreviewRawViewEngineContract: () => PreviewLayoutBridgeLegacyElkEngineContract;
   textAdapterBackend: () => string | null;
   setLocalRelayoutOverrideMode: (
     mode: string | null | undefined,
@@ -517,12 +512,6 @@ export interface PreviewLayoutBridgeInstallRuntime<
     opts?: PreviewLayoutBridgeRelayoutExecutionOptions | null,
   ) => PreviewLayoutBridgeRelayoutResult | null;
   performEngineRelayout: (
-    model: TModel,
-    overrides: Record<string, PreviewRelayoutOverrideEntry>,
-    gridOverrides: Record<string, unknown>,
-    opts?: PreviewLayoutBridgeRelayoutExecutionOptions | null,
-  ) => Promise<PreviewLayoutBridgeRelayoutResult | null>;
-  performElkRelayout: (
     model: TModel,
     overrides: Record<string, PreviewRelayoutOverrideEntry>,
     gridOverrides: Record<string, unknown>,
@@ -829,17 +818,13 @@ function resolvePreviewLayoutBridgeShellController(
   if (previewShellBootstrap && typeof previewShellBootstrap.getPreviewEngineShellController === 'function') {
     return previewShellBootstrap.getPreviewEngineShellController(previewWindow) ?? null;
   }
-  return previewWindow.PreviewEngineShellController
-    ?? previewWindow.ElkPreviewController
-    ?? null;
+  return previewWindow.PreviewEngineShellController ?? null;
 }
 
 function resolvePreviewLayoutBridgeLayoutControls(
   previewWindow: PreviewLayoutBridgeLegacyWindow,
 ): PreviewLayoutBridgeLegacyLayoutControls | null {
-  return previewWindow.PreviewEngineLayoutControls
-    ?? previewWindow.ElkLayoutControls
-    ?? null;
+  return previewWindow.PreviewEngineLayoutControls ?? null;
 }
 
 export function createPreviewLayoutBridgeInstallRuntimeFromLegacyBrowserHost<
@@ -882,7 +867,7 @@ export function createPreviewLayoutBridgeInstallRuntimeFromLegacyBrowserHost<
     'layout-bridge: previewBridge.relayout contract is unavailable',
   );
   const previewElkEngine = requirePreviewLayoutBridgeLegacyContract(
-    options.previewWindow.__DG_getPreviewElkEngineContract?.() as
+    options.previewWindow.LayoutEngine?.previewEngines?.elk as
       | PreviewLayoutBridgeLegacyElkEngineContract
       | null
       | undefined,
@@ -1125,12 +1110,6 @@ export function createPreviewLayoutBridgeInstallRuntimeFromLegacyBrowserHost<
       gridOverrides: Record<string, unknown>,
       opts?: PreviewLayoutBridgeRelayoutExecutionOptions | null,
     ) => runtime.performLocalRelayout(model, overrides || {}, gridOverrides || {}, opts || null),
-    performElkRelayout: (
-      model: TModel,
-      overrides: Record<string, PreviewRelayoutOverrideEntry>,
-      gridOverrides: Record<string, unknown>,
-      opts?: PreviewLayoutBridgeRelayoutExecutionOptions | null,
-    ) => runtime.performElkRelayout(model, overrides || {}, gridOverrides || {}, opts || null),
     performEngineRelayout: (
       model: TModel,
       overrides: Record<string, PreviewRelayoutOverrideEntry>,
@@ -1225,7 +1204,7 @@ export function createPreviewLayoutBridgeInstallRuntimeFromLegacyBrowserHost<
     getRuntime: () => runtime,
     getElkViewModeRuntime: () => elkViewModeRuntime,
     getPreviewBridgeBundleRenderContract: () => previewBridgeBundleRender,
-    getPreviewElkEngineContract: () => previewElkEngine,
+    getPreviewRawViewEngineContract: () => previewElkEngine,
     textAdapterBackend: () => {
       const textAdapter = runtime.getTextAdapter();
       return textAdapter && typeof textAdapter.measurementBackend === 'string'
@@ -1266,9 +1245,6 @@ export function createPreviewLayoutBridgeInstallRuntimeFromLegacyBrowserHost<
     ),
     performEngineRelayout: (model, overrides, gridOverrides, relayoutOptions = null) => (
       runtime.performEngineRelayout(model, overrides || {}, gridOverrides || {}, relayoutOptions)
-    ),
-    performElkRelayout: (model, overrides, gridOverrides, relayoutOptions = null) => (
-      runtime.performElkRelayout(model, overrides || {}, gridOverrides || {}, relayoutOptions)
     ),
     renderFreshSvg,
     renderFrameTreeToSvg,
@@ -1801,11 +1777,6 @@ export function createPreviewLayoutBridgeRuntimeFromBrowserHost<
       publishRenderIntentToWindow();
       return result;
     },
-    async performElkRelayout(model, overrides, gridOverrides, relayoutOptions = null) {
-      const result = await runtime.performElkRelayout(model, overrides, gridOverrides, relayoutOptions);
-      publishRenderIntentToWindow();
-      return result;
-    },
   };
 }
 
@@ -2073,9 +2044,6 @@ export function createPreviewLayoutBridgeRuntime<
         options.error('layout-bridge: engine relayout failed', error);
         return null;
       }
-    },
-    async performElkRelayout(model, overrides, gridOverrides, relayoutOptions) {
-      return runtime.performEngineRelayout(model, overrides, gridOverrides, relayoutOptions);
     },
   };
 

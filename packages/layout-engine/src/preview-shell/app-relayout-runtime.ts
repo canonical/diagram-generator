@@ -13,11 +13,7 @@ export interface CreatePreviewRelayoutRuntimeOptions<TGridOverrides> {
   normalizeGridOverrides: (value: TGridOverrides) => TGridOverrides;
   getRelayoutStatus: () => PreviewRelayoutStatus;
   isEngineLayoutActive?: (() => boolean) | null;
-  /** @deprecated Prefer `isEngineLayoutActive`. */
-  isElkLayeredDiagram?: (() => boolean) | null;
   performEngineRelayout?: ((normalizedGridOverrides: TGridOverrides) => Promise<PreviewRelayoutResult | null>) | null;
-  /** @deprecated Prefer `performEngineRelayout`. */
-  performElkRelayout?: ((normalizedGridOverrides: TGridOverrides) => Promise<PreviewRelayoutResult | null>) | null;
   performLocalRelayout: (normalizedGridOverrides: TGridOverrides) => PreviewRelayoutResult | null;
   failRelayout: (reason: string, triggerCid: string) => unknown;
   finishRelayout: (
@@ -48,12 +44,6 @@ export interface CreatePreviewRelayoutRuntimeHostOptions<TGridOverrides, TModel>
   selectedIds: Set<string>;
   previewBridgeHost: {
     performEngineRelayout?: ((
-      model: TModel,
-      overrides: Record<string, PreviewRelayoutOverrideEntry>,
-      normalizedGridOverrides: TGridOverrides,
-      options?: { skipModelUpdate?: boolean },
-    ) => Promise<PreviewRelayoutResult | null>) | null;
-    performElkRelayout?: ((
       model: TModel,
       overrides: Record<string, PreviewRelayoutOverrideEntry>,
       normalizedGridOverrides: TGridOverrides,
@@ -171,9 +161,7 @@ export interface CreatePreviewRelayoutRuntimeFromEditorHostOptions<TGridOverride
 export function createPreviewRelayoutRuntimeOptionsFromHost<TGridOverrides, TModel>(
   options: CreatePreviewRelayoutRuntimeHostOptions<TGridOverrides, TModel>,
 ): CreatePreviewRelayoutRuntimeOptions<TGridOverrides> {
-  const performEngineRelayout = options.previewBridgeHost.performEngineRelayout
-    ?? options.previewBridgeHost.performElkRelayout
-    ?? null;
+  const performEngineRelayout = options.previewBridgeHost.performEngineRelayout ?? null;
 
   return {
     getOverrides: options.getOverrides,
@@ -284,12 +272,8 @@ export function createPreviewRelayoutRuntimeFromEditorHost<TGridOverrides, TMode
 export function createPreviewRelayoutRuntime<TGridOverrides>(
   options: CreatePreviewRelayoutRuntimeOptions<TGridOverrides>,
 ): PreviewRelayoutRuntime {
-  const isEngineLayoutActive = options.isEngineLayoutActive
-    ?? options.isElkLayeredDiagram
-    ?? (() => false);
-  const performEngineRelayout = options.performEngineRelayout
-    ?? options.performElkRelayout
-    ?? null;
+  const isEngineLayoutActive = options.isEngineLayoutActive ?? (() => false);
+  const performEngineRelayout = options.performEngineRelayout ?? null;
 
   return {
     requestRelayout(triggerCid) {
@@ -303,9 +287,7 @@ export function createPreviewRelayoutRuntime<TGridOverrides>(
         normalizeGridOverrides: options.normalizeGridOverrides,
         relayoutStatus,
         isEngineLayoutActive: isEngineLayoutActive(),
-        isElkLayeredDiagram: isEngineLayoutActive(),
         performEngineRelayout,
-        performElkRelayout: performEngineRelayout,
         performLocalRelayout: options.performLocalRelayout,
         failRelayout: options.failRelayout,
         finishRelayout: options.finishRelayout,

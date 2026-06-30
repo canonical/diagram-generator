@@ -85,10 +85,6 @@ function getPreviewCoreContract() {
   return window.LayoutEngine?.core ?? null;
 }
 
-function getPreviewElkEngineContract() {
-  return window.LayoutEngine?.previewEngines?.elk ?? null;
-}
-
 function getPreviewShellSceneContract() {
   return window.LayoutEngine?.previewShell?.scene ?? null;
 }
@@ -110,7 +106,6 @@ window.__DG_getPreviewBridgeBundleRenderContract = getPreviewBridgeBundleRenderC
 window.__DG_getPreviewBridgeRenderContract = getPreviewBridgeRenderContract;
 window.__DG_getPreviewBridgeHostContract = getPreviewBridgeHostContract;
 window.__DG_getPreviewCoreContract = getPreviewCoreContract;
-window.__DG_getPreviewElkEngineContract = getPreviewElkEngineContract;
 window.__DG_getPreviewShellSceneContract = getPreviewShellSceneContract;
 window.__DG_getPreviewShellInspectorContract = getPreviewShellInspectorContract;
 window.__DG_getPreviewShellInteractionContract = getPreviewShellInteractionContract;

@@ -647,11 +647,7 @@ export interface RunPreviewRelayoutOptions<TGridOverrides, TResult extends Previ
   normalizeGridOverrides: (value: TGridOverrides) => TGridOverrides;
   relayoutStatus: PreviewRelayoutStatus;
   isEngineLayoutActive?: boolean;
-  /** @deprecated Prefer `isEngineLayoutActive`. */
-  isElkLayeredDiagram?: boolean;
   performEngineRelayout?: ((normalizedGridOverrides: TGridOverrides) => Promise<TResult | null>) | null;
-  /** @deprecated Prefer `performEngineRelayout`. */
-  performElkRelayout?: ((normalizedGridOverrides: TGridOverrides) => Promise<TResult | null>) | null;
   performLocalRelayout: (normalizedGridOverrides: TGridOverrides) => TResult | null;
   failRelayout: (reason: string, triggerCid: string) => unknown;
   finishRelayout: (triggerCid: string, result: TResult, executionLabel: 'elk' | 'local') => unknown;
@@ -790,8 +786,8 @@ export async function runPreviewRelayout<TGridOverrides, TResult extends Preview
 
   clearPreviewCoercedOverrides(options.overrides, options.coercedKeys);
   const normalizedGridOverrides = options.normalizeGridOverrides(options.gridOverrides);
-  const isEngineLayoutActive = options.isEngineLayoutActive ?? options.isElkLayeredDiagram ?? false;
-  const performEngineRelayout = options.performEngineRelayout ?? options.performElkRelayout;
+  const isEngineLayoutActive = options.isEngineLayoutActive ?? false;
+  const performEngineRelayout = options.performEngineRelayout;
 
   if (isEngineLayoutActive && performEngineRelayout) {
     let elkResult: TResult | null;

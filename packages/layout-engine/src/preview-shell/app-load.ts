@@ -53,8 +53,6 @@ export interface LoadPreviewSvgOptions<TSvg = unknown> {
   initLayoutBridge: () => Promise<void>;
   setFrameTreeJson?: ((frameTree: unknown) => void) | null;
   isEngineLayoutActive?: (() => boolean) | null;
-  /** @deprecated Prefer `isEngineLayoutActive`. */
-  isElkLayeredDiagram?: (() => boolean) | null;
   resetOverrideState: () => void;
   initEnginePanel?: (() => void) | null;
   /** @deprecated Prefer `initEnginePanel`. */
@@ -429,9 +427,7 @@ export async function loadPreviewSvg<TSvg = unknown>(
     options.setFrameTreeJson(frameTreeSeed.frameTree);
   }
 
-  const isEngineLayoutActive = options.isEngineLayoutActive
-    ?? options.isElkLayeredDiagram
-    ?? (() => false);
+  const isEngineLayoutActive = options.isEngineLayoutActive ?? (() => false);
   const initEnginePanel = options.initEnginePanel
     ?? options.initElkPanel
     ?? (() => {});

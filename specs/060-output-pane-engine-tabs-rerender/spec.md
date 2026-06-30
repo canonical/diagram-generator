@@ -115,6 +115,29 @@ Do not mark this spec complete until ALL are true:
    cache invalidates any prior run).
 7. Mock-only proof is not accepted for any user-visible behavior claim.
 
+## Post-Closeout Follow-Up: Visible Tab Changes
+
+2026-06-30 user report: clicking the `ELK layered layout` tab can appear to do
+nothing on an authored example, even though prior evidence asserted engine
+identity changes. This must be treated as a follow-up in the engine-tab/rerender
+spec area, not as a 068 alias-deletion issue.
+
+Important nuance: not every engine switch is guaranteed to create a large visual
+change for every diagram. The required contract is:
+
+- the selected tab commits the active engine intent before render
+- the rendered SVG reports the selected engine via `data-layout-engine`
+- engine-specific option buckets are filtered to the active engine
+- fixtures where engines are expected to differ have geometry assertions, not
+  only identity assertions
+- cases where two engines legitimately produce equivalent geometry are recorded
+  as such, so "no visible change" is not mistaken for a broken rerender path
+
+Follow-up work should reproduce the reported `ELK layered layout` no-op with a
+fresh server, capture `data-layout-engine`, active option bucket, and node
+bounds before/after the tab click, then decide whether this is a rerender bug,
+an option-bucket carryover bug, or an expected equivalent-layout case.
+
 ## Initial Owner Map
 
 - Host HTML placement:

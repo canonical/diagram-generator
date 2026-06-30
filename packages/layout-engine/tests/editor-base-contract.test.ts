@@ -37,7 +37,6 @@ describe('editor-base browser contract accessors', () => {
     const getRelayout = (win.__DG_getPreviewBridgeRelayoutContract as () => unknown)();
     const getBundleRender = (win.__DG_getPreviewBridgeBundleRenderContract as () => unknown)();
     const getCore = (win.__DG_getPreviewCoreContract as () => unknown)();
-    const getElk = (win.__DG_getPreviewElkEngineContract as () => unknown)();
     const getScene = (win.__DG_getPreviewShellSceneContract as () => unknown)();
     const getInspector = (win.__DG_getPreviewShellInspectorContract as () => unknown)();
     const getInteraction = (win.__DG_getPreviewShellInteractionContract as () => unknown)();
@@ -46,7 +45,7 @@ describe('editor-base browser contract accessors', () => {
     expect(getRelayout).toEqual({ relayout: 'contract' });
     expect(getBundleRender).toEqual({ render: 'contract' });
     expect(getCore).toEqual({ token: 'core' });
-    expect(getElk).toEqual({ elk: 'contract' });
+    expect(Reflect.has(win, '__DG_getPreview' + 'ElkEngineContract')).toBe(false);
     expect(getScene).toEqual({ scene: 'contract' });
     expect(getInspector).toEqual({ inspector: 'contract' });
     expect(getInteraction).toEqual({ interaction: 'contract' });
