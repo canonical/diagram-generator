@@ -44,6 +44,7 @@ Completed or retired spec packages live here so `specs/` stays focused on curren
 - `053-preview-editor-post-refactor-correctness`
 - `066-graph-engine-layout-option-surfacing`
 - `067-layout-engine-parameter-pane`
+- `068-internal-dual-path-deletion`
 - `035-compatible-engine-switcher`
 - `036-headingless-wrapper-contract`
 - `037-preview-engine-drift-closeout`

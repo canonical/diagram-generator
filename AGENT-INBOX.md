@@ -14,7 +14,7 @@ Machine-generated handoffs and diagnostics go here.
 
 ### Resolved Repo / branch state
 
-- **Current branch:** `feat/068-internal-dual-path-deletion`
+- **Current branch:** `main`
 - **Uncommitted user change:** [`scripts/diagrams/frames/example-deployment-pipeline.yaml`](scripts/diagrams/frames/example-deployment-pipeline.yaml)
 - Do **not** touch that YAML unless the next task explicitly asks for it.
 
@@ -23,18 +23,18 @@ Machine-generated handoffs and diagnostics go here.
 - **Spec 066** was merged to `main`, then archived under:
   - `docs/spec-archive/066-graph-engine-layout-option-surfacing/`
   - `docs/spec-archive/067-layout-engine-parameter-pane/`
-- **Spec 068** was drafted on `main`, then work started on
-  `feat/068-internal-dual-path-deletion`.
+- **Spec 068** was merged to `main` and archived under:
+  - `docs/spec-archive/068-internal-dual-path-deletion/`
 
 ### Resolved 068 status
 
 Spec files:
 
-- [`specs/068-internal-dual-path-deletion/spec.md`](specs/068-internal-dual-path-deletion/spec.md)
-- [`specs/068-internal-dual-path-deletion/tasks.md`](specs/068-internal-dual-path-deletion/tasks.md)
-- [`specs/068-internal-dual-path-deletion/deletion-inventory.md`](specs/068-internal-dual-path-deletion/deletion-inventory.md)
-- [`specs/068-internal-dual-path-deletion/search-evidence.md`](specs/068-internal-dual-path-deletion/search-evidence.md)
-- [`specs/068-internal-dual-path-deletion/fixture-engine-option-isolation-plan.md`](specs/068-internal-dual-path-deletion/fixture-engine-option-isolation-plan.md)
+- [`docs/spec-archive/068-internal-dual-path-deletion/spec.md`](docs/spec-archive/068-internal-dual-path-deletion/spec.md)
+- [`docs/spec-archive/068-internal-dual-path-deletion/tasks.md`](docs/spec-archive/068-internal-dual-path-deletion/tasks.md)
+- [`docs/spec-archive/068-internal-dual-path-deletion/deletion-inventory.md`](docs/spec-archive/068-internal-dual-path-deletion/deletion-inventory.md)
+- [`docs/spec-archive/068-internal-dual-path-deletion/search-evidence.md`](docs/spec-archive/068-internal-dual-path-deletion/search-evidence.md)
+- [`docs/spec-archive/068-internal-dual-path-deletion/fixture-engine-option-isolation-plan.md`](docs/spec-archive/068-internal-dual-path-deletion/fixture-engine-option-isolation-plan.md)
 - [`docs/spec-reviews/branch-068.md`](docs/spec-reviews/branch-068.md)
 - New draft follow-up: [`specs/069-editor-mutation-state-determinism/spec.md`](specs/069-editor-mutation-state-determinism/spec.md)
 - New flow map: [`specs/069-editor-mutation-state-determinism/editor-mutation-state-flow.md`](specs/069-editor-mutation-state-determinism/editor-mutation-state-flow.md)
@@ -76,9 +76,8 @@ Validation note:
 
 ### Resolved Next recommended slice
 
-068 is now validation-complete. If preparing the merge, keep the dirty YAML
-fixture out of the 068 commit unless the user explicitly wants to commit that
-authoring experiment.
+068 is merged and archived. Keep the dirty YAML fixture out of unrelated commits
+unless the user explicitly wants to commit that authoring experiment.
 
 Workflow-kit dry-run previously reported one remaining item (`T041`); after the
 test-isolation fix and full validation, `T041` is closed.
@@ -106,7 +105,7 @@ otherwise separated.
 ### Resolved Current grep baseline
 
 The banned-alias grep in
-[`specs/068-internal-dual-path-deletion/search-evidence.md`](specs/068-internal-dual-path-deletion/search-evidence.md)
+[`docs/spec-archive/068-internal-dual-path-deletion/search-evidence.md`](docs/spec-archive/068-internal-dual-path-deletion/search-evidence.md)
 has zero active source/test hits.
 
 ### Resolved Cold-start instruction
@@ -115,9 +114,8 @@ For a new chat, start with:
 
 1. [`AGENTS.md`](AGENTS.md)
 2. [`docs/specs.md`](docs/specs.md)
-3. [`specs/068-internal-dual-path-deletion/spec.md`](specs/068-internal-dual-path-deletion/spec.md)
-4. [`specs/068-internal-dual-path-deletion/tasks.md`](specs/068-internal-dual-path-deletion/tasks.md)
-5. [`specs/068-internal-dual-path-deletion/deletion-inventory.md`](specs/068-internal-dual-path-deletion/deletion-inventory.md)
+3. [`specs/069-editor-mutation-state-determinism/spec.md`](specs/069-editor-mutation-state-determinism/spec.md)
+4. [`specs/069-editor-mutation-state-determinism/tasks.md`](specs/069-editor-mutation-state-determinism/tasks.md)
+5. [`specs/069-editor-mutation-state-determinism/editor-mutation-state-flow.md`](specs/069-editor-mutation-state-determinism/editor-mutation-state-flow.md)
 
-Then prepare/merge 068. Do not implement 069 until switching to
-`feat/069-editor-mutation-state-determinism`.
+Then continue 069 on `feat/069-editor-mutation-state-determinism`.
