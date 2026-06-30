@@ -8,7 +8,7 @@
 
 ## Phase 0: Baseline And State Vector
 
-- [ ] **T000** Create `evidence/editor-mutation-state-probe.ts`.
+- [x] **T000** Create `evidence/editor-mutation-state-probe.ts`.
       **Do**: capture pre/post state vectors for real browser gestures on the
       fixture matrix in SC-001. Include active tab, render intent,
       `frameTreeJson.layoutEngine`, layout-operator active bucket, rendered
@@ -19,50 +19,71 @@
       using mocked rerender, SVG hash-only checks, or direct `page.evaluate`
       mutation calls. The probe must use sanitized temporary fixtures or
       record/enforce source fixture hashes before running.
+      **Evidence**: `evidence/editor-mutation-state-probe.ts` and
+      `evidence/editor-mutation-state-result.json`; fixture hashes are unchanged
+      before/after the run.
 
-- [ ] **T001** Add a focused owner map for current mutation paths.
+- [x] **T001** Add a focused owner map for current mutation paths.
       **Do**: inventory engine tab, engine option, grid/alignment, inspector,
       resize/drag, waypoint, text edit, clear, undo/redo, save, and reload paths.
       **Verify**: each path names its current state writers and render/relayout
       trigger, and is classified as migrate, inert/read-only, or deferred to a
       named follow-up spec id.
+      **Evidence**: `mutation-owner-map.md`.
 
 ## Phase 1: Transaction Contract
 
-- [ ] **T010** Define `EditorMutationTransaction` and result types in a typed
+- [x] **T010** Define `EditorMutationTransaction` and result types in a typed
       preview-shell owner.
       **Do**: include capability gate, render intent delta, persistence delta,
       relayout policy, dirty policy, undo policy, reason codes, and diagnostics.
       **Verify**: unit tests for valid, no-op, inert, rejected, and relayout
       transaction results.
+      **Evidence**: `packages/layout-engine/tests/editor-mutation-transaction.test.ts`;
+      `npm --prefix packages/layout-engine test -- editor-mutation-transaction`;
+      `npm --prefix packages/layout-engine exec tsc -- --noEmit -p packages/layout-engine/tsconfig.json`.
 
-- [ ] **T011** Add a state-vector diagnostic helper.
+- [x] **T011** Add a state-vector diagnostic helper.
       **Do**: compare active tab, `PreviewRenderIntent`, frame-tree engine,
       active option bucket, rendered `data-layout-engine`, selection id/type,
       inspector target, focused control, control applicability reason,
       dirty/undo state, and visible controls after a transaction.
       **Verify**: test that deliberate drift produces a structured violation.
+      **Evidence**: `packages/layout-engine/tests/editor-mutation-transaction.test.ts`;
+      focused Vitest and package `tsc` above.
 
 ## Phase 2: Engine And Option Mutations
 
-- [ ] **T020** Route engine tab clicks through the transaction owner.
+- [x] **T020** Route engine tab clicks through the transaction owner.
       **Do**: commit active engine, frame-tree engine, render intent, active
       option bucket, visible controls, and rerender as one transaction.
       **Verify**: real runtime test plus browser probe: `data-layout-engine`,
       active tab, option bucket, and geometry/equivalence record agree.
+      **Evidence**: `npm --prefix packages/layout-engine test -- preview-engine-workspace-chrome editor-mutation-transaction`;
+      `npm --prefix packages/layout-engine exec tsc -- --noEmit -p packages/layout-engine/tsconfig.json`;
+      `npm --prefix packages/layout-engine run build:browser`;
+      `PREVIEW_BASE_URL=http://127.0.0.1:8100 node --experimental-default-type=module specs/069-editor-mutation-state-determinism/evidence/editor-mutation-state-probe.ts`.
 
-- [ ] **T021** Route engine option edits through active manifest buckets only.
+- [x] **T021** Route engine option edits through active manifest buckets only.
       **Do**: reject or ignore option keys not visible/applicable for the active
       engine. Switching engines must not carry inactive keys into layout input.
       **Verify**: ELK layered -> radial -> layered sequence proves buckets do
       not leak.
+      **Evidence**: `npm --prefix packages/layout-engine test -- layout-operator-overrides preview-engine-elk-runtime editor-mutation-transaction`;
+      `npm --prefix packages/layout-engine exec tsc -- --noEmit -p packages/layout-engine/tsconfig.json`;
+      `npm --prefix packages/layout-engine run build:browser`;
+      `PREVIEW_BASE_URL=http://127.0.0.1:8100 node --experimental-default-type=module specs/069-editor-mutation-state-determinism/evidence/editor-mutation-state-probe.ts`.
 
-- [ ] **T022** Make irrelevant autolayout/grid/alignment controls inert for
+- [x] **T022** Make irrelevant autolayout/grid/alignment controls inert for
       engine-backed diagrams.
       **Do**: hidden controls must also be programmatically inert if stale DOM
       dispatches an event.
       **Verify**: no dirty flag, no undo entry, no save payload delta, no
       relayout failure.
+      **Evidence**: `npm --prefix packages/layout-engine test -- app-grid-host app-inspector-mutation-runtime preview-ui-context`;
+      `npm --prefix packages/layout-engine exec tsc -- --noEmit -p packages/layout-engine/tsconfig.json`;
+      `npm --prefix packages/layout-engine run build:browser`;
+      `PREVIEW_BASE_URL=http://127.0.0.1:8100 node --experimental-default-type=module specs/069-editor-mutation-state-determinism/evidence/editor-mutation-state-probe.ts`.
 
 ## Phase 3: Inspector, Geometry, Undo, Save
 

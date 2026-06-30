@@ -250,6 +250,17 @@ describe('preview engine workspace chrome', () => {
     expect(harness.panelSyncCalls).toEqual(['sync', 'sync', 'sync']);
     expect(harness.saveButtonSyncCalls).toEqual(['sync', 'sync', 'sync']);
     expect(harness.rerenderCalls).toEqual(['rerender']);
+    expect((harness.previewWindow as any).__DG_lastEditorMutationTransactionResult).toEqual(
+      expect.objectContaining({
+        kind: 'committed',
+        mutationKind: 'engine-tab',
+        sourceControl: 'engine-switcher-tabs',
+        relayoutPolicy: 'fresh-render',
+        dirtyPolicy: 'mark-dirty',
+        undoPolicy: 'none',
+      }),
+    );
+    expect((harness.previewWindow as any).__DG_lastEditorMutationStateViolations).toEqual([]);
     expect(hasUnsavedPreviewEngineWorkspaceChange(harness.previewWindow as never)).toBe(true);
     expect(
       collectPreviewEngineWorkspaceSavePayload(

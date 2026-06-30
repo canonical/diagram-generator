@@ -12,6 +12,10 @@ import {
   type PreviewRenderIntentFrameTree,
 } from '../preview-shell/preview-render-intent.js';
 import {
+  resolveEditorMutationTransaction,
+  type EditorMutationTransactionResult,
+} from '../preview-shell/editor-mutation-transaction.js';
+import {
   collectNamespacedLayoutOperatorOverrides,
   pruneSessionBucketForManifest,
   resolveEffectiveLayoutOperatorOverrides,
@@ -46,6 +50,7 @@ export interface PreviewEngineLayoutControlsWindowLike {
   __DG_CONFIG?: { layout_engine?: string };
   __DG_previewRenderIntent?: PreviewRenderIntent | null;
   __DG_previewEngineRawView?: boolean;
+  __DG_lastEditorMutationTransactionResult?: EditorMutationTransactionResult | null;
   __DG_setPreviewEngineRawView?: (enabled: boolean) => void;
   __DG_elkRawView?: boolean;
   __DG_setElkRawView?: (enabled: boolean) => void;
@@ -468,6 +473,24 @@ export function createPreviewEngineLayoutControlsRuntime(
   function onControlInput(): void {
     const frameTreeJson = options.getFrameTreeJson?.();
     if (!isActiveLayoutEngine(frameTreeJson)) {
+      options.previewWindow.__DG_lastEditorMutationTransactionResult = resolveEditorMutationTransaction({
+        kind: 'engine-option',
+        sourceControl: 'layout-params-controls',
+        activeEngineId: layoutEngineFromFrameTree(frameTreeJson),
+        documentKind: 'frame-diagram',
+        capabilityGate: {
+          applicable: false,
+          reason: 'engine layout controls are not applicable for the active preview engine',
+          capability: 'layoutParams',
+        },
+        relayoutPolicy: 'engine',
+        dirtyPolicy: 'mark-dirty',
+        undoPolicy: 'none',
+        persistenceDelta: {
+          layoutOverridesChanged: true,
+          savePayloadChanged: true,
+        },
+      });
       return;
     }
     const controller = previewEngineShellController(options.previewWindow);
@@ -486,6 +509,32 @@ export function createPreviewEngineLayoutControlsRuntime(
       elkLayout: tree?.elkLayout ?? null,
       persistNamespace: defaultPersistNamespace,
     });
+    const currentOverrides = getOverrides() || {};
+    const changed = JSON.stringify(currentOverrides) !== JSON.stringify(next);
+    options.previewWindow.__DG_lastEditorMutationTransactionResult = resolveEditorMutationTransaction({
+      kind: 'engine-option',
+      sourceControl: 'layout-params-controls',
+      activeEngineId: layoutEngineFromFrameTree(frameTreeJson),
+      documentKind: 'frame-diagram',
+      capabilityGate: {
+        applicable: true,
+        reason: 'engine option belongs to the active manifest bucket',
+        capability: 'layoutParams',
+      },
+      relayoutPolicy: changed ? 'engine' : 'none',
+      dirtyPolicy: changed ? 'mark-dirty' : 'preserve',
+      undoPolicy: 'none',
+      persistenceDelta: changed
+        ? {
+          layoutOverridesChanged: true,
+          savePayloadChanged: true,
+        }
+        : null,
+    });
+    if (!changed) {
+      buildPanel(frameTreeJson);
+      return;
+    }
     setOverrides(next);
     buildPanel(frameTreeJson);
     if (typeof controller?.applyLayoutOverrides === 'function') {

@@ -360,6 +360,15 @@ export function createPreviewGridEditorRuntimeFromBrowserHost(
           previewBridgeRender: getPreviewBridgeRenderContract() as never,
         },
         gridRuntime: {
+          canEditGridControls: () => {
+            const applicable = options.browser.shouldShowAutolayoutInspector?.() ?? true;
+            return {
+              applicable,
+              reason: applicable
+                ? 'native grid controls are applicable for the active preview state'
+                : 'native grid controls require an active grid-editing engine',
+            };
+          },
           pruneLinkedRootOverrides: options.browser.pruneLinkedRootGridOverrides,
           setDirty: () => {
             options.browser.setDirty(true);

@@ -63,6 +63,7 @@ export interface CreatePreviewGridRuntimeHostOptions<TGridInfo = unknown> {
   getPendingAction: () => unknown;
   beginPendingAction: () => unknown;
   setPendingAction: (action: unknown) => void;
+  canEditGridControls?: (() => { applicable: boolean; reason: string }) | null;
   pruneLinkedRootOverrides: () => void;
   setDirty: (dirty: boolean) => void;
   requestRelayout: (rootId: string) => Promise<void> | void;
@@ -132,6 +133,7 @@ export interface CreatePreviewGridRuntimeFromEditorHostOptions<
   createGridOverlayScene: CreatePreviewGridRuntimeHostOptions<TGridInfo>['createGridOverlayScene'];
   pruneLinkedRootOverrides: () => void;
   setDirty: (dirty: boolean) => void;
+  canEditGridControls?: CreatePreviewGridRuntimeHostOptions<TGridInfo>['canEditGridControls'];
   requestRelayout: (rootId: string) => Promise<void> | void;
   scheduleRelayout?: CreatePreviewGridRuntimeHostOptions<TGridInfo>['scheduleRelayout'];
   clearRelayoutTimer?: CreatePreviewGridRuntimeHostOptions<TGridInfo>['clearRelayoutTimer'];
@@ -204,6 +206,7 @@ export function createPreviewGridRuntimeFromEditorHost<
     getPendingAction: options.editorState.getPendingGridAction,
     beginPendingAction: () => options.editorState.beginUndoableAction('Adjust grid'),
     setPendingAction: options.editorState.setPendingGridAction,
+    canEditGridControls: options.canEditGridControls,
     pruneLinkedRootOverrides: options.pruneLinkedRootOverrides,
     setDirty: options.setDirty,
     requestRelayout: options.requestRelayout,
@@ -293,6 +296,7 @@ export function createPreviewGridRuntimeHost<TGridInfo = unknown>(
         getPendingAction: options.getPendingAction,
         beginPendingAction: options.beginPendingAction,
         setPendingAction: options.setPendingAction,
+        capabilityGate: options.canEditGridControls,
         setGridOverrides: options.setGridOverrides,
         pruneLinkedRootOverrides: options.pruneLinkedRootOverrides,
         setDirty: options.setDirty,

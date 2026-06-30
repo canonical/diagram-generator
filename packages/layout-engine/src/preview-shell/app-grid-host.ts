@@ -90,6 +90,7 @@ export interface ReadPreviewGridControlStateFromDomOptions {
 
 export interface DispatchPreviewGridControlChangeOptions {
   gridInfo?: PreviewGridInfo | null;
+  capabilityGate?: (() => { applicable: boolean; reason: string }) | null;
   resolveRuntimeUpdate: () => PreviewGridControlRuntimeUpdate | null;
   getPendingAction: () => unknown;
   beginPendingAction: () => unknown;
@@ -136,7 +137,8 @@ export interface CyclePreviewGuideModeHostOptions {
 }
 
 export interface PreviewGridControlChangeDispatchResult {
-  kind: 'noop' | 'applied';
+  kind: 'noop' | 'inert' | 'applied';
+  reason?: string;
   runtimeUpdate?: PreviewGridControlRuntimeUpdate;
 }
 
@@ -297,6 +299,11 @@ export function resolvePreviewGridControlRuntimeUpdateHost(
 export function dispatchPreviewGridControlChange(
   options: DispatchPreviewGridControlChangeOptions,
 ): PreviewGridControlChangeDispatchResult {
+  const capability = options.capabilityGate?.() ?? { applicable: true, reason: 'grid controls are applicable' };
+  if (!capability.applicable) {
+    return { kind: 'inert', reason: capability.reason };
+  }
+
   if (!options.gridInfo) {
     return { kind: 'noop' };
   }

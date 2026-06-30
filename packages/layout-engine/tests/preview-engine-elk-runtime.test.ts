@@ -476,6 +476,12 @@ describe('elk preview runtimes', () => {
       'elk.force.model': 'FRUCHTERMAN_REINGOLD',
       'elk.force.temperature': 0.02,
     };
+    const previewWindow: {
+      __DG_CONFIG: Record<string, unknown>;
+      __DG_lastEditorMutationTransactionResult?: unknown;
+    } = {
+      __DG_CONFIG: {},
+    };
     const runtime = createPreviewEngineLayoutControlsRuntime({
       document: {
         getElementById(id: string) {
@@ -484,9 +490,7 @@ describe('elk preview runtimes', () => {
           return (controls.get(id) as never) ?? null;
         },
       },
-      previewWindow: {
-        __DG_CONFIG: {},
-      },
+      previewWindow,
       layoutEngineRoot: {
         previewEngines: {
           registry: {
@@ -574,6 +578,20 @@ describe('elk preview runtimes', () => {
     expect(sessionOverrides).toEqual({
       'elk.force.model': 'EADES',
     });
+    expect(previewWindow.__DG_lastEditorMutationTransactionResult).toEqual(
+      expect.objectContaining({
+        kind: 'committed',
+        mutationKind: 'engine-option',
+        sourceControl: 'layout-params-controls',
+        relayoutPolicy: 'engine',
+        dirtyPolicy: 'mark-dirty',
+        undoPolicy: 'none',
+        persistenceDelta: {
+          layoutOverridesChanged: true,
+          savePayloadChanged: true,
+        },
+      }),
+    );
     expect(runtime.collectOverrides()).toEqual({
       'elk.force.model': 'EADES',
     });

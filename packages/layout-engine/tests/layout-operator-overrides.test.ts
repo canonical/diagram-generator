@@ -61,6 +61,21 @@ describe('layout operator overrides', () => {
     ],
   };
 
+  const radialManifest = {
+    id: 'elk-radial',
+    layoutEngineKey: 'elk-radial',
+    controlSpecs: [
+      {
+        key: 'elk.radial.radius',
+        label: 'Radius',
+        group: 'Spacing',
+        kind: 'number' as const,
+        defaultValue: '120',
+        persistNamespace: 'meta.elk',
+      },
+    ],
+  };
+
   it('merges YAML and session overrides through the active manifest and prunes hidden branches', () => {
     expect(resolveEffectiveLayoutOperatorOverrides({
       manifest: forceManifest,
@@ -123,6 +138,49 @@ describe('layout operator overrides', () => {
       },
       layoutOperatorOverrides: {
         activeOperatorKey: 'elk-layered',
+      },
+    });
+  });
+
+  it('does not leak option buckets across layered to radial to layered switches', () => {
+    const model = {};
+
+    writeLayoutOperatorOverrideBucketForManifest(model, layeredManifest, {
+      'elk.layered.spacing.nodeNodeBetweenLayers': 72,
+    }, 'meta.elk');
+    writeLayoutOperatorOverrideBucketForManifest(model, radialManifest, {
+      'elk.radial.radius': 160,
+    }, 'meta.elk');
+    activateLayoutOperatorOverrideBucket(model, layeredManifest, {
+      persistNamespace: 'meta.elk',
+    });
+
+    expect(readLayoutOperatorOverrideBucketForManifest(model, layeredManifest)).toEqual({
+      'elk.layered.spacing.nodeNodeBetweenLayers': 72,
+    });
+    expect(readLayoutOperatorOverrideBucketForManifest(model, radialManifest)).toEqual({
+      'elk.radial.radius': 160,
+    });
+    expect(model).toMatchObject({
+      layoutOverrideNamespace: 'meta.elk',
+      layoutOverrides: {
+        'elk.layered.spacing.nodeNodeBetweenLayers': 72,
+      },
+      layoutOperatorOverrides: {
+        activeOperatorKey: 'elk-layered',
+        byOperator: {
+          'elk-layered': {
+            'elk.layered.spacing.nodeNodeBetweenLayers': 72,
+          },
+          'elk-radial': {
+            'elk.radial.radius': 160,
+          },
+        },
+      },
+    });
+    expect(model).not.toMatchObject({
+      layoutOverrides: {
+        'elk.radial.radius': 160,
       },
     });
   });

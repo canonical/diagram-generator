@@ -14,7 +14,7 @@ Machine-generated handoffs and diagnostics go here.
 
 ### Resolved Repo / branch state
 
-- **Current branch:** `main`
+- **Current branch:** `feat/069-editor-mutation-state-determinism`
 - **Uncommitted user change:** [`scripts/diagrams/frames/example-deployment-pipeline.yaml`](scripts/diagrams/frames/example-deployment-pipeline.yaml)
 - Do **not** touch that YAML unless the next task explicitly asks for it.
 
@@ -118,4 +118,4 @@ For a new chat, start with:
 4. [`specs/069-editor-mutation-state-determinism/tasks.md`](specs/069-editor-mutation-state-determinism/tasks.md)
 5. [`specs/069-editor-mutation-state-determinism/editor-mutation-state-flow.md`](specs/069-editor-mutation-state-determinism/editor-mutation-state-flow.md)
 
-Then continue 069 on `feat/069-editor-mutation-state-determinism`.
+Continue 069 on `feat/069-editor-mutation-state-determinism`.
