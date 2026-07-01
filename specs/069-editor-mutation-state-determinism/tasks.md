@@ -151,6 +151,14 @@
       overrides, rendered engine, visible controls, dirty state, and geometry.
       **Verify**: browser probe covers undo/redo after engine option + variant
       edits.
+      **Progress evidence (restore sync sub-slice)**:
+      `npm --prefix packages/layout-engine test -- app-state-restore app-grid-editor-runtime app-editor-relayout-facade editor-snapshot`;
+      `npm --prefix packages/layout-engine exec tsc -- --noEmit -p packages/layout-engine/tsconfig.json`.
+      Serialized undo/redo snapshot restore now syncs restored frame-tree engine
+      state into preview render intent, `__DG_CONFIG.active_engine_id`,
+      `__DG_CONFIG.layout_engine`, workspace chrome, and workspace panels before
+      rerendering. Remaining T032 work: browser probe coverage for undo/redo
+      after engine option + variant edits and any resulting defects.
 
 - [ ] **T033** Add `persist -> reload` regression for committed state vector.
       **Do**: save active engine + supported option bucket + frame overrides,

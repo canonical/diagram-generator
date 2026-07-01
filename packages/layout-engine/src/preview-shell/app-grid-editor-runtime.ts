@@ -27,6 +27,7 @@ import {
   type LayoutOperatorOverrideState,
 } from './layout-operator-overrides.js';
 import { resolvePreviewEngine } from '../preview-engine/registry.js';
+import { commitPreviewRenderIntentToWindow } from './preview-render-intent.js';
 
 export interface PreviewGridEditorRuntimeNumericState {
   get: () => number;
@@ -145,7 +146,9 @@ export type PreviewGridEditorRuntimeWindow = Window & typeof globalThis & {
   __DG_CONFIG?: {
     active_engine_id?: string | null;
     layout_engine?: string | null;
+    persisted_layout_engine?: string | null;
     document_kind?: string | null;
+    shell_mode?: string | null;
   } | null;
   __DG_getPreviewBridgeHostContract: () => PreviewGridEditorBridgeHostContract;
   __DG_getPreviewBridgeRenderContract: () => PreviewGridEditorBridgeRenderContract;
@@ -155,6 +158,8 @@ export type PreviewGridEditorRuntimeWindow = Window & typeof globalThis & {
   __DG_getPreviewShellInspectorContract: () => PreviewGridEditorShellInspectorContract;
   __DG_getPreviewShellInteractionContract: () => PreviewGridEditorShellInteractionContract;
   __DG_rerenderPreviewEngineWorkspaceStage?: (() => Promise<void>) | null;
+  __DG_syncPreviewEngineWorkspaceChrome?: (() => void) | null;
+  __DG_syncPreviewEngineWorkspacePanels?: (() => void) | null;
 };
 
 export interface PreviewGridEditorRuntimeSharedOptions {
@@ -341,6 +346,26 @@ export function createPreviewGridEditorRuntimeFromBrowserHost(
   const readLocalRelayoutStatus = (): unknown => (
     getPreviewBridgeHostContract().getLocalRelayoutStatus?.() ?? null
   );
+  const syncRestoredFrameTreeState = (frameTree: unknown): void => {
+    const restoredFrameTree = (
+      frameTree && typeof frameTree === 'object' && !Array.isArray(frameTree)
+        ? frameTree as { layoutEngine?: string | null; root?: { direction?: string | null } | null }
+        : null
+    );
+    const config = options.shared.previewWindow.__DG_CONFIG ?? {};
+    commitPreviewRenderIntentToWindow(options.shared.previewWindow, {
+      activeEngineId: restoredFrameTree?.layoutEngine ?? null,
+      frameTreeJson: restoredFrameTree,
+      layoutEngine: restoredFrameTree?.layoutEngine ?? null,
+      persistedEngineId: config.persisted_layout_engine ?? config.layout_engine ?? options.shared.engine ?? null,
+      fallbackEngineId: options.shared.engine ?? null,
+      frameOverrides: options.browser.getOverrides(),
+      engineOverrides: options.shared.model.layoutOverrides ?? {},
+      gridOverrides: options.shared.model.gridOverrides ?? {},
+    });
+    options.shared.previewWindow.__DG_syncPreviewEngineWorkspaceChrome?.();
+    options.shared.previewWindow.__DG_syncPreviewEngineWorkspacePanels?.();
+  };
 
   const runtime: PreviewGridEditorRuntime = {
     getSceneFacade() {
@@ -692,6 +717,7 @@ export function createPreviewGridEditorRuntimeFromBrowserHost(
               runtime.getSceneFacade().populateGridControls();
             }
           },
+          syncRestoredFrameTreeState,
           syncDirtyFromSerialized: (currentStateStr) => (
             options.shared.previewSaveClient.syncDirtyFromSerialized(currentStateStr)
           ),

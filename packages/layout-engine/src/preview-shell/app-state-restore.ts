@@ -55,6 +55,7 @@ export interface RestorePreviewSerializedStateOptions {
   setLayoutOperatorOverridesState?: ((nextState: LayoutOperatorOverrideState | null) => void) | null;
   setRemovedIds: (nextRemovedIds: Set<string>) => void;
   setFrameTree?: ((frameTree: unknown) => void) | null;
+  syncRestoredFrameTreeState?: ((frameTree: unknown) => void) | null;
   pruneLinkedRootOverrides?: (() => void) | null;
   clearPendingRuntime: () => void;
   rerenderStageFromFrameTree: () => Promise<void>;
@@ -99,6 +100,7 @@ export interface CreatePreviewStateRestoreRuntimeOptions {
   setLayoutOperatorOverridesState?: ((nextState: LayoutOperatorOverrideState | null) => void) | null;
   setRemovedIds: (nextRemovedIds: Set<string>) => void;
   setFrameTree?: ((frameTree: unknown) => void) | null;
+  syncRestoredFrameTreeState?: ((frameTree: unknown) => void) | null;
   cleanOverride?: ((cid: string) => void) | null;
   pruneLinkedRootOverrides?: (() => void) | null;
   clearPendingRuntime: () => void;
@@ -149,6 +151,7 @@ export interface CreatePreviewStateRestoreRuntimeFromEditorHostOptions<
   previewBridgeHost?: {
     setFrameTreeJson?: ((frameTree: unknown) => void) | null;
   } | null;
+  syncRestoredFrameTreeState?: ((frameTree: unknown) => void) | null;
   hasRelayoutFrameOverride: (entry: unknown) => boolean;
   replaceOverrides: (nextOverrides: Record<string, unknown>) => void;
   pruneLinkedRootOverrides: () => void;
@@ -336,6 +339,9 @@ export async function restorePreviewSerializedState(
   if (plan.frameTreeChanged && options.setFrameTree) {
     options.setFrameTree(plan.nextFrameTree);
   }
+  if (plan.frameTreeChanged) {
+    options.syncRestoredFrameTreeState?.(plan.nextFrameTree);
+  }
   if (plan.shouldPruneLinkedRootOverrides && options.pruneLinkedRootOverrides) {
     options.pruneLinkedRootOverrides();
   }
@@ -415,6 +421,7 @@ export function createPreviewStateRestoreRuntime(
         setLayoutOperatorOverridesState: options.setLayoutOperatorOverridesState,
         setRemovedIds: options.setRemovedIds,
         setFrameTree: options.setFrameTree,
+        syncRestoredFrameTreeState: options.syncRestoredFrameTreeState,
         pruneLinkedRootOverrides: options.pruneLinkedRootOverrides,
         clearPendingRuntime: options.clearPendingRuntime,
         rerenderStageFromFrameTree: options.rerenderStageFromFrameTree,
@@ -491,6 +498,7 @@ export function createPreviewStateRestoreRuntimeFromEditorHost<
     setFrameTree: typeof options.previewBridgeHost?.setFrameTreeJson === 'function'
       ? (frameTree) => options.previewBridgeHost?.setFrameTreeJson?.(frameTree)
       : null,
+    syncRestoredFrameTreeState: options.syncRestoredFrameTreeState ?? null,
     cleanOverride: (cid) => options.model.cleanOverride(cid),
     pruneLinkedRootOverrides: options.pruneLinkedRootOverrides,
     clearPendingRuntime: options.clearPendingRuntime,

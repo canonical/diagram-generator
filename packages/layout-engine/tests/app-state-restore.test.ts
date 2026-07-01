@@ -197,6 +197,70 @@ describe('preview state restore helpers', () => {
     ]);
   });
 
+  it('syncs restored frame-tree state before rerendering a serialized undo snapshot', async () => {
+    const calls: string[] = [];
+    const runtime = createPreviewStateRestoreRuntime({
+      getCurrentOverrides: () => ({}),
+      getCurrentGridOverrides: () => ({}),
+      getCurrentRemovedIds: () => [],
+      getRootId: () => 'root',
+      getNode: () => ({ type: 'box' }),
+      hasRelayoutFrameOverride: () => false,
+      captureOverrideEntries: () => ({}),
+      setOverrides: () => {
+        calls.push('setOverrides');
+      },
+      setGridOverrides: () => {
+        calls.push('setGridOverrides');
+      },
+      setLayoutOverrides: () => {
+        calls.push('setLayoutOverrides');
+      },
+      setRemovedIds: () => {
+        calls.push('setRemovedIds');
+      },
+      setFrameTree: () => {
+        calls.push('setFrameTree');
+      },
+      syncRestoredFrameTreeState: () => {
+        calls.push('syncRestoredFrameTreeState');
+      },
+      clearPendingRuntime: () => {
+        calls.push('clearPendingRuntime');
+      },
+      rerenderStageFromFrameTree: async () => {
+        calls.push('rerenderStageFromFrameTree');
+      },
+      requestRelayout: async () => {
+        calls.push('requestRelayout');
+      },
+      applyLocalRefresh: () => {
+        calls.push('applyLocalRefresh');
+      },
+      syncDirtyFromSerialized: () => {
+        calls.push('syncDirtyFromSerialized');
+      },
+      serializeDirtyState: () => '{"ok":true}',
+    });
+
+    await runtime.applyUndoCommand({
+      before: JSON.stringify({ o: {}, g: {}, r: [], f: { layoutEngine: 'dagre', root: { id: 'root' } } }),
+      after: JSON.stringify({ o: {}, g: {}, r: [], f: { layoutEngine: 'elk-force', root: { id: 'root' } } }),
+    }, 'undo');
+
+    expect(calls).toEqual([
+      'clearPendingRuntime',
+      'setOverrides',
+      'setGridOverrides',
+      'setLayoutOverrides',
+      'setRemovedIds',
+      'setFrameTree',
+      'syncRestoredFrameTreeState',
+      'rerenderStageFromFrameTree',
+      'syncDirtyFromSerialized',
+    ]);
+  });
+
   it('maps editor-host restore state through a durable typed helper', async () => {
     const events: string[] = [];
     const model = {

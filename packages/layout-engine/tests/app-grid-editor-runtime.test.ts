@@ -436,4 +436,43 @@ describe('createPreviewGridEditorRuntimeFromBrowserHost', () => {
     });
     expect(options.shared.model.layoutOverrideNamespace).toBe('meta.dagre');
   });
+
+  it('syncs render intent and workspace chrome from restored undo frame-tree state', () => {
+    const options = createOptions();
+    const syncChrome = vi.fn();
+    const syncPanels = vi.fn();
+    options.shared.previewWindow.__DG_CONFIG = {
+      active_engine_id: 'elk-force',
+      layout_engine: 'elk-force',
+      persisted_layout_engine: 'elk-force',
+      document_kind: 'frame-diagram',
+    };
+    options.shared.previewWindow.__DG_syncPreviewEngineWorkspaceChrome = syncChrome;
+    options.shared.previewWindow.__DG_syncPreviewEngineWorkspacePanels = syncPanels;
+    options.shared.model.layoutOverrides = { 'dagre.rankdir': 'LR' };
+    options.shared.model.gridOverrides = { cols: 5 };
+
+    const runtime = createPreviewGridEditorRuntimeFromBrowserHost(options);
+    runtime.getRelayoutFacade();
+
+    const relayoutOptions = mocks.createRelayoutFacade.mock.calls[0]?.[0] as any;
+    relayoutOptions.runtime.syncRestoredFrameTreeState({
+      layoutEngine: 'dagre',
+      root: { id: 'root', direction: 'HORIZONTAL' },
+    });
+
+    expect(options.shared.previewWindow.__DG_CONFIG).toEqual(expect.objectContaining({
+      active_engine_id: 'dagre',
+      layout_engine: 'dagre',
+      persisted_layout_engine: 'elk-force',
+    }));
+    expect(options.shared.previewWindow.__DG_previewRenderIntent).toEqual(expect.objectContaining({
+      engineId: 'dagre',
+      pageDirection: 'HORIZONTAL',
+      engineOverrides: { 'dagre.rankdir': 'LR' },
+      gridOverrides: { cols: 5 },
+    }));
+    expect(syncChrome).toHaveBeenCalledTimes(1);
+    expect(syncPanels).toHaveBeenCalledTimes(1);
+  });
 });
