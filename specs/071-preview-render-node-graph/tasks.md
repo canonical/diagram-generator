@@ -17,7 +17,7 @@
 
 ## Phase 0 — Inventory and baseline
 
-- [ ] **T000** Map every stage-mount, fit, and render-intent commit site.
+- [x] **T000** Map every stage-mount, fit, and render-intent commit site.
       **Do**: grep and record each caller of `replaceChildren` on `#stage`,
       each `fitPreviewSvgToRenderedContent` / `fitRenderedSvg` call, and each
       `commitPreviewRenderIntentToWindow` call. Classify each as
