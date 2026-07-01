@@ -36,9 +36,14 @@
       vs others padded).
       **Evidence**: `evidence/canvas-parity-baseline.json`.
 
+      Branch note: the Phase 1 render-node splice was already in progress before
+      this branch-local baseline capture. The evidence file now records the
+      post-unification parity baseline that SC-001 enforces on this branch; the
+      earlier tab-switch divergence is no longer directly reproducible here.
+
 ## Phase 1 — Render node + canvas in state vector
 
-- [ ] **T010** Add the typed render node.
+- [x] **T010** Add the typed render node.
       **Do**: create `preview-render-node.ts` exposing one
       `mountPreviewStage({ cooked | frameTree+intent }) => FittedStage` that runs
       render → fit → mount → `refreshPreviewSceneHost` atomically and idempotently.
@@ -47,33 +52,33 @@
       **Evidence**: `packages/layout-engine/tests/preview-render-node.test.ts`;
       `npm --prefix packages/layout-engine test -- preview-render-node`.
 
-- [ ] **T011** Route `rerenderPreviewStageHost` / `rerenderPreviewStageFromModelHost`
+- [x] **T011** Route `rerenderPreviewStageHost` / `rerenderPreviewStageFromModelHost`
       through the render node so the engine-tab path fits.
       **Do**: replace the un-fitted `replaceChildren` mount with a render-node
       call.
       **Verify**: engine-tab rerender now yields the same fitted viewBox as load.
       **Evidence**: focused test + `app-scene-host` suite green.
 
-- [ ] **T012** Route the load / save→reload path (`app-load.ts`) and the bridge
+- [x] **T012** Route the load / save→reload path (`app-load.ts`) and the bridge
       relayout path (`app-layout-bridge-runtime.ts`) through the render node.
       **Verify**: no caller mounts stage children without the render node.
       **Evidence**: a test that fails if `replaceChildren('#stage', …)` appears
       outside `preview-render-node.ts`.
 
-- [ ] **T013** Unify fit: make `patchPreviewSvgFromLayout` use the single fit
+- [x] **T013** Unify fit: make `patchPreviewSvgFromLayout` use the single fit
       function; remove the `0 0 w h`-reset origin divergence.
       **Verify**: local relayout and full render produce the same origin/padding
       rule.
       **Evidence**: `app-frame-svg` fit tests.
 
-- [ ] **T014** Extend the spec 069 state vector with `fittedViewBox` +
+- [x] **T014** Extend the spec 069 state vector with `fittedViewBox` +
       `activeNodeId` and add a canvas-divergence violation.
       **Do**: update `editor-mutation-transaction.ts` +
       `preview-engine-workspace-chrome.ts` violation computation.
       **Verify**: a deliberate un-fitted mount produces a structured violation.
       **Evidence**: `editor-mutation-transaction.test.ts` additions.
 
-- [ ] **T015** SC-001 canvas-parity regression (Phase 1 slice).
+- [x] **T015** SC-001 canvas-parity regression (Phase 1 slice).
       **Do**: assert load, save→reload, tab switch, param edit, container resize
       yield byte-identical fitted viewBox per fixture/engine.
       **Verify**: passes on all three fixtures.

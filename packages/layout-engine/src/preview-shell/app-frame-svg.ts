@@ -289,9 +289,6 @@ export function patchPreviewSvgFromLayout(
 
   const rootBounds = options.newBounds.root || Object.values(options.newBounds)[0];
   if (rootBounds) {
-    options.svg.setAttribute('viewBox', `0 0 ${rootBounds.w} ${rootBounds.h}`);
-    options.svg.setAttribute('width', String(rootBounds.w));
-    options.svg.setAttribute('height', String(rootBounds.h));
     fitPreviewSvgToRenderedContent({
       svg: options.svg,
       minWidth: rootBounds.w,

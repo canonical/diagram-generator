@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  fitPreviewSvgToRenderedContent,
   patchPreviewFrameGroup,
+  patchPreviewSvgFromLayout,
 } from '../src/preview-shell/app-frame-svg.js';
 import { Frame, createLine } from '../src/frame-model.js';
 import { MockTextAdapter } from '../src/text-measure.js';
@@ -127,6 +129,52 @@ class FakeDocument {
 
 function tspanCount(group: FakeElement): number {
   return group.querySelectorAll('tspan').length;
+}
+
+function createFitSvgHarness() {
+  const svgAttributes: Record<string, string> = {};
+  const backgroundAttributes: Record<string, string> = {};
+  const background = {
+    setAttribute(name: string, value: string) {
+      backgroundAttributes[name] = value;
+    },
+  };
+  const styledLayer = {
+    getBBox() {
+      return {
+        x: -12.4,
+        y: 18.2,
+        width: 116.1,
+        height: 44.3,
+      };
+    },
+  };
+  const svg = {
+    ownerDocument: new FakeDocument() as unknown as Document,
+    querySelector(selector: string) {
+      if (selector === '#dg-styled-layer') {
+        return styledLayer;
+      }
+      if (selector === ':scope > rect:first-of-type') {
+        return background;
+      }
+      return null;
+    },
+    querySelectorAll() {
+      return [];
+    },
+    setAttribute(name: string, value: string) {
+      svgAttributes[name] = value;
+    },
+    getAttribute(name: string) {
+      return svgAttributes[name] ?? null;
+    },
+  };
+  return {
+    svg,
+    svgAttributes,
+    backgroundAttributes,
+  };
 }
 
 describe('preview frame svg helpers', () => {
@@ -270,5 +318,43 @@ describe('preview frame svg helpers', () => {
     expect(group.querySelectorAll('g').map((element) => element.getAttribute('data-component-id')))
       .toContain('child');
     expect(group.querySelector('rect')?.getAttribute('data-orig-width')).toBe('160');
+  });
+
+  it('fits preview svg content with deterministic negative-origin padding', () => {
+    const harness = createFitSvgHarness();
+
+    const fitted = fitPreviewSvgToRenderedContent({
+      svg: harness.svg as never,
+      minWidth: 90,
+      minHeight: 40,
+    });
+
+    expect(fitted).toEqual({
+      x: -37,
+      y: -6,
+      width: 165,
+      height: 93,
+    });
+    expect(harness.svgAttributes.viewBox).toBe('-37 -6 165 93');
+    expect(harness.backgroundAttributes.x).toBe('-37');
+    expect(harness.backgroundAttributes.y).toBe('-6');
+  });
+
+  it('reuses the shared fit path when patching preview svg from layout', () => {
+    const harness = createFitSvgHarness();
+
+    patchPreviewSvgFromLayout({
+      svg: harness.svg as never,
+      oldBounds: {},
+      newBounds: {
+        root: { x: 0, y: 0, w: 90, h: 40 },
+      },
+      framesById: {},
+      textAdapter: new MockTextAdapter(),
+    });
+
+    expect(harness.svgAttributes.viewBox).toBe('-37 -6 165 93');
+    expect(harness.svgAttributes.width).toBe('165');
+    expect(harness.svgAttributes.height).toBe('93');
   });
 });

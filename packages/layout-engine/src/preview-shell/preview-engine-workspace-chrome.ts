@@ -149,6 +149,18 @@ function renderedStageLayoutEngine(document: Document): string | null {
   return querySelector?.call(document, '#stage svg')?.getAttribute('data-layout-engine') ?? null;
 }
 
+function fittedStageViewBox(document: Document): string | null {
+  const querySelector = (document as Document & {
+    querySelector?: (selector: string) => Element | null;
+  }).querySelector;
+  const value = querySelector?.call(document, '#stage svg')?.getAttribute('viewBox') ?? null;
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const normalized = value.trim().replace(/\s+/g, ' ');
+  return normalized.length > 0 ? normalized : null;
+}
+
 function stageGeometrySignature(document: Document): string | null {
   const querySelectorAll = (document as Document & {
     querySelectorAll?: (selector: string) => ArrayLike<Element>;
@@ -431,6 +443,7 @@ export function initPreviewEngineWorkspaceChrome(
       ?? previousWorkspace.activeEngineId;
     const previousActiveOptionBucket = options.previewWindow.__DG_activeLayoutOperatorKey ?? null;
     const previousGeometrySignature = stageGeometrySignature(options.document);
+    const previousFittedViewBox = fittedStageViewBox(options.document);
     try {
       workspace = setPreviewEngineWorkspaceActiveEngine(workspace, nextEngineId);
       keyboardFocusEngineId = nextEngineId;
@@ -443,21 +456,32 @@ export function initPreviewEngineWorkspaceChrome(
       options.previewWindow.__DG_syncPreviewEngineWorkspacePanels?.();
       options.previewWindow.PreviewSaveClient?.syncSaveButton?.();
       options.previewWindow.__DG_lastEditorMutationTransactionResult = transaction;
+      const nextGeometrySignature = stageGeometrySignature(options.document);
+      const nextRenderedEngine = renderedStageLayoutEngine(options.document);
       options.previewWindow.__DG_lastEditorMutationStateViolations = compareEditorMutationStateVector({
         transaction,
+        before: {
+          activeNodeId: previousWorkspace.activeEngineId,
+          fittedViewBox: previousFittedViewBox,
+        },
         after: {
           activeTab: selectedEngineTab(tabs),
+          activeNodeId: workspace.activeEngineId,
           renderIntentEngineId: resolvePreviewRenderIntentLayoutEngine({
             intent: options.previewWindow.__DG_previewRenderIntent ?? null,
           }),
           frameTreeLayoutEngine: readFrameTreeLayoutEngine(options.previewWindow),
           activeOptionBucket: options.previewWindow.__DG_activeLayoutOperatorKey ?? null,
-          renderedEngine: renderedStageLayoutEngine(options.document),
+          renderedEngine: nextRenderedEngine,
+          fittedViewBox: fittedStageViewBox(options.document),
           dirty: options.previewWindow.PreviewSaveClient?.isDirty?.() ?? null,
         },
+        expectStableCanvas: Boolean(
+          previousGeometrySignature
+          && nextGeometrySignature
+          && previousGeometrySignature === nextGeometrySignature,
+        ),
       });
-      const nextGeometrySignature = stageGeometrySignature(options.document);
-      const nextRenderedEngine = renderedStageLayoutEngine(options.document);
       if (
         previousGeometrySignature
         && nextGeometrySignature

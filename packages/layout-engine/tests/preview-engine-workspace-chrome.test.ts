@@ -135,6 +135,7 @@ class FakeDocument {
   private readonly elements = new Map<string, FakeElement>();
   activeElement: FakeElement | null = null;
   renderedEngine: string | null = null;
+  renderedViewBox: string | null = null;
   stageGeometry: Array<{ id: string; x: number; y: number; w: number; h: number }> = [];
 
   register(element: FakeElement): FakeElement {
@@ -155,7 +156,15 @@ class FakeDocument {
   querySelector(selector: string): { getAttribute: (name: string) => string | null } | null {
     if (selector === '#stage svg' && this.renderedEngine) {
       return {
-        getAttribute: (name: string) => (name === 'data-layout-engine' ? this.renderedEngine : null),
+        getAttribute: (name: string) => {
+          if (name === 'data-layout-engine') {
+            return this.renderedEngine;
+          }
+          if (name === 'viewBox') {
+            return this.renderedViewBox;
+          }
+          return null;
+        },
       };
     }
     return null;
@@ -207,10 +216,16 @@ function createChromeHarness() {
       { id: 'beta', x: 0, y: 80, w: 100, h: 40 },
     ],
   };
+  const viewBoxByEngine: Record<string, string> = {
+    'elk-layered': '-24 -24 148 168',
+    dagre: '-24 -24 288 88',
+    v3: '-24 -24 148 168',
+  };
   const frameTreeJson = {
     layoutEngine: 'elk-layered' as string | undefined,
   };
   document.renderedEngine = frameTreeJson.layoutEngine;
+  document.renderedViewBox = viewBoxByEngine[frameTreeJson.layoutEngine] ?? null;
   document.stageGeometry = geometryByEngine[frameTreeJson.layoutEngine] ?? [];
   const previewWindow = {
     __DG_CONFIG: null as Record<string, unknown> | null,
@@ -232,6 +247,7 @@ function createChromeHarness() {
      rerenderCalls.push('rerender');
      previewWindow.__DG_activeLayoutOperatorKey = frameTreeJson.layoutEngine ?? null;
       document.renderedEngine = frameTreeJson.layoutEngine ?? null;
+      document.renderedViewBox = viewBoxByEngine[frameTreeJson.layoutEngine ?? ''] ?? null;
       document.stageGeometry = geometryByEngine[frameTreeJson.layoutEngine ?? ''] ?? [];
    },
    PreviewSaveClient: {
@@ -261,6 +277,7 @@ function createChromeHarness() {
    rerenderCalls,
    frameTreeJson,
    geometryByEngine,
+   viewBoxByEngine,
   };
 }
 
@@ -380,6 +397,7 @@ describe('preview engine workspace chrome', () => {
     harness.geometryByEngine['elk-layered'] = [...equivalentGeometry];
     harness.previewWindow.__DG_activeLayoutOperatorKey = null;
     harness.document.renderedEngine = 'v3';
+    harness.document.renderedViewBox = '-24 -24 272 200';
     harness.document.stageGeometry = harness.geometryByEngine.v3;
     harness.previewWindow.__DG_CONFIG = {
       slug: 'example-deployment-pipeline',
@@ -402,6 +420,52 @@ describe('preview engine workspace chrome', () => {
     expect(harness.document.renderedEngine).toBe('elk-layered');
     expect(harness.help.textContent).toContain('Geometry matches');
     expect(harness.help.textContent).toContain('adjust engine parameters to force divergence.');
+  });
+
+  it('records a canvas-divergence violation when equivalent geometry rerenders without the fitted canvas', async () => {
+    const harness = createChromeHarness();
+    const equivalentGeometry = [
+      { id: 'alpha', x: 0, y: 0, w: 100, h: 40 },
+      { id: 'beta', x: 0, y: 80, w: 100, h: 40 },
+    ];
+    harness.geometryByEngine['elk-layered'] = equivalentGeometry;
+    harness.geometryByEngine.v3 = [...equivalentGeometry];
+    harness.viewBoxByEngine['elk-layered'] = '-24 -24 148 168';
+    harness.viewBoxByEngine.v3 = '0 0 100 120';
+    harness.frameTreeJson.layoutEngine = 'v3';
+    harness.document.renderedEngine = 'v3';
+    harness.document.renderedViewBox = harness.viewBoxByEngine.v3;
+    harness.document.stageGeometry = harness.geometryByEngine.v3;
+    harness.previewWindow.__DG_CONFIG = {
+      slug: 'example-deployment-pipeline',
+      active_engine_id: 'v3',
+      active_engine_label: 'Autolayout',
+      persisted_layout_engine: 'v3',
+      compatible_engines: ['v3', 'elk-layered'],
+      show_engine_switcher: true,
+    };
+
+    initPreviewEngineWorkspaceChrome({
+      document: harness.document as unknown as Document,
+      previewWindow: harness.previewWindow,
+    });
+
+    const tabButtons = harness.tabs.querySelectorAll('button[data-engine-id]');
+    await tabButtons[1]?.click();
+
+    expect((harness.previewWindow as any).__DG_lastEditorMutationStateViolations).toEqual([
+      expect.objectContaining({
+        code: 'canvas-divergence',
+        expected: {
+          activeNodeId: 'v3',
+          fittedViewBox: '0 0 100 120',
+        },
+        actual: {
+          activeNodeId: 'elk-layered',
+          fittedViewBox: '-24 -24 148 168',
+        },
+      }),
+    ]);
   });
 
   it('supports roving tab focus and keyboard activation', async () => {

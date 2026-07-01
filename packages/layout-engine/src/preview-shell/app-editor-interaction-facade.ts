@@ -101,6 +101,15 @@ function readInteractionRenderedEngine(document: Document): string | null {
   return document.querySelector('#stage svg')?.getAttribute('data-layout-engine') ?? null;
 }
 
+function readInteractionFittedViewBox(document: Document): string | null {
+  const value = document.querySelector('#stage svg')?.getAttribute('viewBox') ?? null;
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const normalized = value.trim().replace(/\s+/g, ' ');
+  return normalized.length > 0 ? normalized : null;
+}
+
 function readSelectedInteractionEngineTab(document: Document): string | null {
   const selected = document.querySelector('[data-engine-id][aria-selected="true"]');
   return selected?.getAttribute('data-engine-id') ?? null;
@@ -734,6 +743,10 @@ export function createPreviewEditorInteractionFacadeFromBrowserHost(
       transaction: result as EditorMutationTransactionResult,
       after: {
         activeTab: readSelectedInteractionEngineTab(document),
+        activeNodeId: previewWindow?.__DG_previewRenderIntent?.engineId
+          ?? previewWindow?.__DG_CONFIG?.active_engine_id
+          ?? previewWindow?.__DG_activeLayoutOperatorKey
+          ?? null,
         renderIntentEngineId: resolvePreviewRenderIntentLayoutEngine({
           intent: previewWindow.__DG_previewRenderIntent ?? null,
           activeEngineId: previewWindow.__DG_CONFIG?.active_engine_id ?? null,
@@ -743,6 +756,7 @@ export function createPreviewEditorInteractionFacadeFromBrowserHost(
         frameTreeLayoutEngine: readInteractionFrameTreeLayoutEngine(previewWindow),
         activeOptionBucket: previewWindow.__DG_activeLayoutOperatorKey ?? null,
         renderedEngine: readInteractionRenderedEngine(document),
+        fittedViewBox: readInteractionFittedViewBox(document),
         dirty: previewWindow.PreviewSaveClient?.isDirty?.() ?? null,
         canUndo: readUndoAvailability(document),
         canRedo: readRedoAvailability(document),

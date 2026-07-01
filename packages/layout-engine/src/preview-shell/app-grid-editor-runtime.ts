@@ -346,6 +346,25 @@ export function createPreviewGridEditorRuntimeFromBrowserHost(
   const readLocalRelayoutStatus = (): unknown => (
     getPreviewBridgeHostContract().getLocalRelayoutStatus?.() ?? null
   );
+  const fitRenderedSvgToContent = (
+    options.browser.fitRenderedSvgToContent
+    ?? ((svg: SVGSVGElement, fitOptions?: unknown) => {
+      const normalized = (
+        fitOptions && typeof fitOptions === 'object'
+          ? fitOptions as { minWidth?: number; minHeight?: number }
+          : {}
+      );
+      const fitPreviewSvgToRenderedContent = getPreviewBridgeRenderContract().fitPreviewSvgToRenderedContent;
+      if (typeof fitPreviewSvgToRenderedContent !== 'function') {
+        return null;
+      }
+      return fitPreviewSvgToRenderedContent({
+        svg,
+        minWidth: normalized.minWidth ?? 0,
+        minHeight: normalized.minHeight ?? 0,
+      });
+    })
+  );
   const syncRestoredFrameTreeState = (frameTree: unknown): void => {
     const restoredFrameTree = (
       frameTree && typeof frameTree === 'object' && !Array.isArray(frameTree)
@@ -470,7 +489,7 @@ export function createPreviewGridEditorRuntimeFromBrowserHost(
           showResizeHandles: (cid) => runtime.getInteractionFacade().showResizeHandles(cid),
         },
         rerenderStageFromModel: {
-          fitRenderedSvgToContent: options.browser.fitRenderedSvgToContent ?? null,
+          fitRenderedSvgToContent,
         },
         frameDelete: {
           selectedIds: options.shared.selectedIds,
@@ -619,7 +638,7 @@ export function createPreviewGridEditorRuntimeFromBrowserHost(
             reapplySelection: options.browser.reapplySelection,
           },
           runConstraints: () => options.browser.runConstraints(),
-          fitRenderedSvgToContent: options.browser.fitRenderedSvgToContent ?? null,
+          fitRenderedSvgToContent,
         },
         navigation: {
           isDirty: () => options.shared.previewSaveClient.isDirty(),

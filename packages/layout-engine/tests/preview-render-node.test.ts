@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
 import {
   fitPreviewRenderNodeSvg,
   mountPreviewRenderNode,
@@ -120,5 +122,25 @@ describe('preview render node', () => {
     expect(harness.attributes.height).toBe(firstHeight);
     expect(harness.backgroundAttributes.width).toBe(firstWidth);
     expect(harness.backgroundAttributes.height).toBe(firstHeight);
+  });
+
+  it('keeps stage replaceChildren ownership inside the render node for the migrated paths', () => {
+    const repoRoot = path.resolve(import.meta.dirname, '..');
+    const migratedOwners = [
+      path.join(repoRoot, 'src', 'preview-shell', 'app-load.ts'),
+      path.join(repoRoot, 'src', 'preview-shell', 'app-scene-host.ts'),
+      path.join(repoRoot, 'src', 'preview-shell', 'app-layout-bridge-runtime.ts'),
+    ];
+
+    for (const sourceFile of migratedOwners) {
+      const source = fs.readFileSync(sourceFile, 'utf8');
+      expect(source).not.toContain('.replaceChildren(');
+    }
+
+    const renderNodeSource = fs.readFileSync(
+      path.join(repoRoot, 'src', 'preview-shell', 'preview-render-node.ts'),
+      'utf8',
+    );
+    expect(renderNodeSource).toContain('options.stage.replaceChildren(options.renderResult.svg);');
   });
 });

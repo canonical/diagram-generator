@@ -98,10 +98,12 @@ export interface EditorMutationTransactionResult {
 
 export interface EditorMutationStateVector {
   readonly activeTab?: string | null;
+  readonly activeNodeId?: string | null;
   readonly renderIntentEngineId?: string | null;
   readonly frameTreeLayoutEngine?: string | null;
   readonly activeOptionBucket?: string | null;
   readonly renderedEngine?: string | null;
+  readonly fittedViewBox?: string | null;
   readonly selectionId?: string | null;
   readonly selectionType?: string | null;
   readonly inspectorTarget?: string | null;
@@ -125,6 +127,7 @@ export interface CompareEditorMutationStateVectorOptions {
   readonly before?: EditorMutationStateVector | null;
   readonly after: EditorMutationStateVector;
   readonly transaction?: EditorMutationTransactionResult | null;
+  readonly expectStableCanvas?: boolean;
 }
 
 function hasPersistenceDelta(delta: EditorMutationPersistenceDelta | null | undefined): boolean {
@@ -229,6 +232,15 @@ function orderedList(value: readonly string[] | null | undefined): string[] {
   return [...(value ?? [])].sort();
 }
 
+function normalizeViewBox(value: string | null | undefined): string | null {
+  const normalized = typeof value === 'string'
+    ? value
+      .trim()
+      .replace(/\s+/g, ' ')
+    : '';
+  return normalized.length > 0 ? normalized : null;
+}
+
 export function compareEditorMutationStateVector(
   options: CompareEditorMutationStateVectorOptions,
 ): EditorMutationStateVectorViolation[] {
@@ -265,6 +277,43 @@ export function compareEditorMutationStateVector(
       fields: ['activeOptionBucket', 'renderIntentEngineId'],
       expected: after.renderIntentEngineId,
       actual: after.activeOptionBucket,
+    });
+  }
+
+  if (
+    present(after.activeNodeId)
+    && present(after.renderIntentEngineId)
+    && after.activeNodeId !== after.renderIntentEngineId
+  ) {
+    violations.push({
+      code: 'active-node-drift',
+      message: 'Active interpreter node id must match the committed render-intent engine.',
+      fields: ['activeNodeId', 'renderIntentEngineId'],
+      expected: after.renderIntentEngineId,
+      actual: after.activeNodeId,
+    });
+  }
+
+  const beforeViewBox = normalizeViewBox(options.before?.fittedViewBox);
+  const afterViewBox = normalizeViewBox(after.fittedViewBox);
+  if (
+    options.expectStableCanvas
+    && beforeViewBox
+    && afterViewBox
+    && beforeViewBox !== afterViewBox
+  ) {
+    violations.push({
+      code: 'canvas-divergence',
+      message: 'Equivalent-geometry mutations must preserve the fitted stage viewBox.',
+      fields: ['fittedViewBox', 'activeNodeId'],
+      expected: {
+        activeNodeId: options.before?.activeNodeId ?? null,
+        fittedViewBox: beforeViewBox,
+      },
+      actual: {
+        activeNodeId: after.activeNodeId ?? null,
+        fittedViewBox: afterViewBox,
+      },
     });
   }
 

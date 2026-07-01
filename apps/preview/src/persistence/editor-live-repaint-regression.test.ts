@@ -180,6 +180,184 @@ async function activeOptionBucket(page: Page): Promise<string | null> {
   });
 }
 
+async function fittedViewBox(page: Page): Promise<string> {
+  const viewBox = await page.locator("#stage svg").getAttribute("viewBox");
+  assert.ok(viewBox, "expected the rendered stage to expose a fitted viewBox");
+  return viewBox.trim().replace(/\s+/g, " ");
+}
+
+async function currentEngineTabs(page: Page): Promise<string[]> {
+  return page.locator("#engine-switcher-tabs [data-engine-id]").evaluateAll((elements) => (
+    elements
+      .map((element) => element.getAttribute("data-engine-id") ?? "")
+      .filter((engineId) => engineId.length > 0)
+  ));
+}
+
+async function selectedEngineId(page: Page): Promise<string | null> {
+  return page.locator('#engine-switcher-tabs [aria-selected="true"]').getAttribute("data-engine-id");
+}
+
+async function selectEngine(page: Page, engineId: string): Promise<void> {
+  if ((await selectedEngineId(page)) === engineId) {
+    return;
+  }
+  await page.locator(`#engine-switcher-tabs [data-engine-id="${engineId}"]`).click();
+  await page.waitForFunction(
+    (expected) => document.querySelector("#stage svg")?.getAttribute("data-layout-engine") === expected,
+    engineId,
+    { timeout: 20_000 },
+  );
+  await settle(page);
+}
+
+async function firstVisibleLayoutControlId(page: Page): Promise<string> {
+  const controlId = await page.evaluate(() => {
+    const controls = Array.from(
+      document.querySelectorAll<HTMLElement>(
+        '#layout-params-section [data-dg-engine-layout-key], #layout-params-section [data-elk-key]',
+      ),
+    );
+    const control = controls.find((element) => {
+      const disabled = "disabled" in element && Boolean((element as HTMLInputElement | HTMLSelectElement).disabled);
+      return !disabled && element.offsetParent !== null && typeof element.id === "string" && element.id.length > 0;
+    });
+    return control?.id ?? null;
+  });
+  assert.ok(controlId, "expected a visible enabled engine layout control");
+  return controlId;
+}
+
+async function hasVisibleLayoutControls(page: Page): Promise<boolean> {
+  return page.evaluate(() => Array.from(
+    document.querySelectorAll<HTMLElement>(
+      '#layout-params-section [data-dg-engine-layout-key], #layout-params-section [data-elk-key]',
+    ),
+  ).some((element) => {
+    const disabled = "disabled" in element && Boolean((element as HTMLInputElement | HTMLSelectElement).disabled);
+    return !disabled && element.offsetParent !== null;
+  }));
+}
+
+async function chooseTargetEngineWithLayoutControls(page: Page): Promise<string> {
+  const available = await currentEngineTabs(page);
+  assert.ok(available.length >= 2, "expected at least two compatible engine tabs");
+  const preferredOrder = ["dagre", "elk-layered", "elk-force", "elk-radial", "elk-stress", "elk-mrtree", "elk-rectpacking"];
+  const candidates = [...preferredOrder, ...available];
+  const attempted = new Set<string>();
+
+  for (const candidate of candidates) {
+    if (!available.includes(candidate) || attempted.has(candidate)) {
+      continue;
+    }
+    attempted.add(candidate);
+    await selectEngine(page, candidate);
+    if (await hasVisibleLayoutControls(page)) {
+      return candidate;
+    }
+  }
+
+  throw new Error("No compatible engine with surfaced layout controls was found");
+}
+
+async function mutateAndRestoreFirstLayoutControl(page: Page): Promise<void> {
+  const controlId = await firstVisibleLayoutControlId(page);
+  const control = page.locator(`#${controlId}`);
+  const descriptor = await control.evaluate((element) => {
+    if (element instanceof HTMLSelectElement) {
+      return {
+        tagName: "select",
+        value: element.value,
+        options: Array.from(element.options).map((option) => option.value),
+      };
+    }
+    if (element instanceof HTMLInputElement) {
+      return {
+        tagName: "input",
+        type: element.type || "text",
+        value: element.type === "checkbox" ? String(element.checked) : element.value,
+        step: element.step,
+        min: element.min,
+        max: element.max,
+      };
+    }
+    throw new Error(`Unsupported layout control tag ${(element as HTMLElement).tagName}`);
+  });
+
+  if (descriptor.tagName === "select") {
+    const alternate = descriptor.options.find((value) => value && value !== descriptor.value);
+    assert.ok(alternate, `expected an alternate option for layout control ${controlId}`);
+    await control.selectOption(alternate);
+    await settle(page);
+    await control.selectOption(descriptor.value);
+    await settle(page);
+    return;
+  }
+
+  if (descriptor.type === "checkbox") {
+    const original = descriptor.value === "true";
+    await control.evaluate((element, checked) => {
+      const input = element as HTMLInputElement;
+      input.checked = checked as boolean;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    }, !original);
+    await settle(page);
+    await control.evaluate((element, checked) => {
+      const input = element as HTMLInputElement;
+      input.checked = checked as boolean;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    }, original);
+    await settle(page);
+    return;
+  }
+
+  const original = Number(descriptor.value);
+  assert.ok(Number.isFinite(original), `expected numeric layout control ${controlId}`);
+  const step = Number(descriptor.step || "1") || 1;
+  const min = descriptor.min ? Number(descriptor.min) : Number.NEGATIVE_INFINITY;
+  const max = descriptor.max ? Number(descriptor.max) : Number.POSITIVE_INFINITY;
+  let alternate = original + step;
+  if (alternate > max || !Number.isFinite(alternate)) {
+    alternate = original - step;
+  }
+  if (alternate < min || alternate === original || !Number.isFinite(alternate)) {
+    alternate = original + 1;
+  }
+  if (alternate > max || alternate < min || alternate === original) {
+    throw new Error(`Unable to derive alternate numeric value for layout control ${controlId}`);
+  }
+  const writeValue = async (nextValue: number) => {
+    await control.evaluate((element, value) => {
+      const input = element as HTMLInputElement;
+      input.value = String(value);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    }, nextValue);
+  };
+  await writeValue(alternate);
+  await settle(page);
+  await writeValue(original);
+  await settle(page);
+}
+
+async function triggerSaveReload(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    const previewWindow = window as Window & typeof globalThis & {
+      PreviewSaveClient?: {
+        saveOverrides?: (() => Promise<void>) | null;
+      } | null;
+    };
+    const saveOverrides = previewWindow.PreviewSaveClient?.saveOverrides;
+    if (typeof saveOverrides !== "function") {
+      throw new Error("PreviewSaveClient.saveOverrides is unavailable");
+    }
+    await saveOverrides();
+  });
+  await settle(page);
+}
+
 async function alternateEngineId(page: Page): Promise<string> {
   const tabs = page.locator("#engine-switcher-tabs [data-engine-id]");
   const count = await tabs.count();
@@ -192,6 +370,46 @@ async function alternateEngineId(page: Page): Promise<string> {
     }
   }
   throw new Error("No alternate engine tab found");
+}
+
+async function collectCanvasParityViewBoxes(page: Page): Promise<{
+  targetEngine: string;
+  load: string;
+  saveReload: string;
+  tabSwitch: string;
+  paramEdit: string;
+  containerResize: string;
+}> {
+  const targetEngine = await chooseTargetEngineWithLayoutControls(page);
+  const load = await fittedViewBox(page);
+  const alternateEngine = (await currentEngineTabs(page)).find((engineId) => engineId !== targetEngine);
+  assert.ok(alternateEngine, "expected an alternate engine for the parity switch check");
+
+  await selectEngine(page, alternateEngine);
+  await selectEngine(page, targetEngine);
+  const tabSwitch = await fittedViewBox(page);
+
+  await mutateAndRestoreFirstLayoutControl(page);
+  const paramEdit = await fittedViewBox(page);
+
+  await page.setViewportSize({ width: 1180, height: 900 });
+  await settle(page);
+  const containerResize = await fittedViewBox(page);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await settle(page);
+
+  await triggerSaveReload(page);
+  const saveReload = await fittedViewBox(page);
+  assert.equal(await renderedEngine(page), targetEngine, "save→reload should preserve the selected engine");
+
+  return {
+    targetEngine,
+    load,
+    saveReload,
+    tabSwitch,
+    paramEdit,
+    containerResize,
+  };
 }
 
 async function chooseAlternateStyleVariant(page: Page): Promise<string> {
@@ -312,6 +530,37 @@ test("engine tab switches classify visible changes while syncing engine and opti
       );
     } finally {
       await page.close();
+    }
+  } finally {
+    await browser.close();
+    await stopPreviewServer(server.process);
+    fs.rmSync(framesDir, { recursive: true, force: true });
+  }
+});
+
+test("phase 1 canvas parity holds across load, save→reload, engine-tab switch, param edit, and container resize", { timeout: 180_000 }, async () => {
+  const slugs = ["example-deployment-pipeline", "mongo-octavia-ha", "support-engineering-flow"] as const;
+  const framesDir = copyFixtureFrames(slugs);
+  const port = await allocatePort();
+  const baseUrl = `http://127.0.0.1:${port}`;
+  const server = startPreviewServer(framesDir, port);
+  const browser = await chromium.launch();
+
+  try {
+    await server.ready;
+
+    for (const slug of slugs) {
+      const page = await openPreviewPage(browser, baseUrl, slug);
+      try {
+        const parity = await collectCanvasParityViewBoxes(page);
+        const expected = parity.load;
+        assert.equal(parity.saveReload, expected, `${slug}: save→reload should preserve the fitted viewBox for ${parity.targetEngine}`);
+        assert.equal(parity.tabSwitch, expected, `${slug}: engine-tab switch should preserve the fitted viewBox for ${parity.targetEngine}`);
+        assert.equal(parity.paramEdit, expected, `${slug}: param edit round-trip should preserve the fitted viewBox for ${parity.targetEngine}`);
+        assert.equal(parity.containerResize, expected, `${slug}: container resize should preserve the fitted viewBox for ${parity.targetEngine}`);
+      } finally {
+        await page.close();
+      }
     }
   } finally {
     await browser.close();
