@@ -1010,12 +1010,18 @@ describe('elk preview runtimes', () => {
         'meta.dagre': { 'dagre.rankdir': 'LR' },
       },
     });
-    expect(model).toEqual({
+    expect(model).toMatchObject({
       layoutOverrides: { 'dagre.rankdir': 'LR' },
       layoutOverrideNamespace: 'meta.dagre',
       layoutOperatorOverrides: {
         activeOperatorKey: 'dagre',
         byOperator: {
+          dagre: { 'dagre.rankdir': 'LR' },
+        },
+      },
+      previewInterpreterActiveNodeId: 'dagre',
+      previewInterpreterNodeRegistry: {
+        paramsByNodeId: {
           dagre: { 'dagre.rankdir': 'LR' },
         },
       },

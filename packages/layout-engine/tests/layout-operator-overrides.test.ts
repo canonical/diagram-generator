@@ -140,6 +140,20 @@ describe('layout operator overrides', () => {
         activeOperatorKey: 'elk-layered',
       },
     });
+    expect(model).toMatchObject({
+      previewInterpreterActiveNodeId: 'elk-layered',
+      previewInterpreterNodeRegistry: {
+        paramsByNodeId: {
+          'elk-force': {
+            'elk.force.model': 'EADES',
+            'elk.force.repulsion': 9,
+          },
+          'elk-layered': {
+            'elk.layered.spacing.nodeNodeBetweenLayers': 72,
+          },
+        },
+      },
+    });
   });
 
   it('does not leak option buckets across layered to radial to layered switches', () => {
@@ -181,6 +195,67 @@ describe('layout operator overrides', () => {
     expect(model).not.toMatchObject({
       layoutOverrides: {
         'elk.radial.radius': 160,
+      },
+    });
+    expect(model).toMatchObject({
+      previewInterpreterNodeRegistry: {
+        paramsByNodeId: {
+          'elk-layered': {
+            'elk.layered.spacing.nodeNodeBetweenLayers': 72,
+          },
+          'elk-radial': {
+            'elk.radial.radius': 160,
+          },
+        },
+      },
+    });
+  });
+
+  it('derives legacy aliases from node-owned interpreter params', () => {
+    const model = {
+      layoutOperatorOverrides: {
+        activeOperatorKey: 'elk-layered',
+        byOperator: {
+          'elk-layered': {
+            'elk.layered.spacing.nodeNodeBetweenLayers': 64,
+          },
+        },
+      },
+      layoutOverrideNamespace: 'meta.elk',
+    };
+
+    writeLayoutOperatorOverrideBucketForManifest(model, radialManifest, {
+      'elk.radial.radius': 180,
+    }, 'meta.elk');
+    activateLayoutOperatorOverrideBucket(model, layeredManifest, {
+      persistNamespace: 'meta.elk',
+    });
+
+    expect(model).toMatchObject({
+      previewInterpreterActiveNodeId: 'elk-layered',
+      previewInterpreterNodeRegistry: {
+        paramsByNodeId: {
+          'elk-layered': {
+            'elk.layered.spacing.nodeNodeBetweenLayers': 64,
+          },
+          'elk-radial': {
+            'elk.radial.radius': 180,
+          },
+        },
+      },
+      layoutOperatorOverrides: {
+        activeOperatorKey: 'elk-layered',
+        byOperator: {
+          'elk-layered': {
+            'elk.layered.spacing.nodeNodeBetweenLayers': 64,
+          },
+          'elk-radial': {
+            'elk.radial.radius': 180,
+          },
+        },
+      },
+      layoutOverrides: {
+        'elk.layered.spacing.nodeNodeBetweenLayers': 64,
       },
     });
   });

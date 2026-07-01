@@ -10,6 +10,14 @@ import type {
   PreviewControlSpec,
   PreviewEngineManifest,
 } from '../preview-engine/types.js';
+import {
+  createPreviewInterpreterNodeRegistry,
+  getPreviewInterpreterNode,
+  getPreviewInterpreterNodeParams,
+  setPreviewInterpreterNodeParams,
+  type PreviewInterpreterNodeRegistry,
+  type PreviewInterpreterNodeRegistration,
+} from './preview-interpreter-node.js';
 import { resolveFrameYamlEngineLayoutCandidateId } from './frame-yaml-engine-layout-contract.js';
 
 export interface LayoutOperatorOverrideState {
@@ -21,6 +29,8 @@ export interface LayoutOperatorOverrideModelLike {
   layoutOverrides?: Record<string, unknown> | null;
   layoutOverrideNamespace?: string | null;
   layoutOperatorOverrides?: LayoutOperatorOverrideState | null;
+  previewInterpreterNodeRegistry?: PreviewInterpreterNodeRegistry<Record<string, unknown>> | null;
+  previewInterpreterActiveNodeId?: string | null;
 }
 
 export interface ResolveLayoutOperatorOverrideViewModelOptions {
@@ -78,6 +88,159 @@ function activeAliasOverrides(
   return cloneRecord(model?.layoutOverrides);
 }
 
+function deriveLegacyLayoutOperatorOverrideStateFromRegistry(
+  registry: PreviewInterpreterNodeRegistry<Record<string, unknown>>,
+  activeNodeId: string | null,
+): LayoutOperatorOverrideState {
+  const byOperator: Record<string, Record<string, unknown>> = {};
+  for (const node of registry.nodes) {
+    const bucket = cloneRecord(node.params);
+    if (!bucket) {
+      continue;
+    }
+    byOperator[node.nodeId] = bucket;
+  }
+  return {
+    activeOperatorKey: normalizeOperatorKey(activeNodeId) ?? null,
+    byOperator,
+  };
+}
+
+function syncLegacyLayoutOperatorAliases(
+  model: LayoutOperatorOverrideModelLike | null | undefined,
+  state: LayoutOperatorOverrideState,
+  preferredNamespace?: string | null,
+): void {
+  if (!model) {
+    return;
+  }
+  const nextState = cloneLayoutOperatorOverrideState(state);
+  model.layoutOperatorOverrides = nextState;
+  const activeKey = nextState.activeOperatorKey;
+  const activeBucket = activeKey
+    ? cloneRecord(nextState.byOperator[activeKey]) ?? {}
+    : {};
+  model.layoutOverrides = { ...activeBucket };
+  if (preferredNamespace !== undefined) {
+    model.layoutOverrideNamespace = preferredNamespace;
+  }
+}
+
+function readPreviewInterpreterNodeRegistry(
+  model: LayoutOperatorOverrideModelLike | null | undefined,
+): PreviewInterpreterNodeRegistry<Record<string, unknown>> | null {
+  return model?.previewInterpreterNodeRegistry ?? null;
+}
+
+function legacyRegistrationsFromState(
+  state: LayoutOperatorOverrideState,
+): PreviewInterpreterNodeRegistration[] {
+  const registrations: PreviewInterpreterNodeRegistration[] = [];
+  for (const operatorKey of Object.keys(state.byOperator)) {
+    const manifest = resolveLayoutOperatorManifestForOperatorKey(operatorKey);
+    if (!manifest) {
+      continue;
+    }
+    registrations.push({
+      manifest,
+      nodeId: operatorKey,
+    });
+  }
+  return registrations;
+}
+
+function createInterpreterRegistryFromLegacyState(
+  state: LayoutOperatorOverrideState,
+  existingRegistry?: PreviewInterpreterNodeRegistry<Record<string, unknown>> | null,
+): PreviewInterpreterNodeRegistry<Record<string, unknown>> | null {
+  const registrationMap = new Map<string, PreviewInterpreterNodeRegistration>();
+  for (const node of existingRegistry?.nodes ?? []) {
+    registrationMap.set(node.nodeId, {
+      manifest: node.manifest,
+      nodeId: node.nodeId,
+    });
+  }
+  for (const registration of legacyRegistrationsFromState(state)) {
+    registrationMap.set(registration.nodeId ?? registration.manifest.id, registration);
+  }
+  if (registrationMap.size === 0) {
+    return existingRegistry ?? null;
+  }
+  const paramsByNodeId: Record<string, Record<string, unknown>> = {};
+  for (const nodeId of registrationMap.keys()) {
+    const bucket = cloneRecord(state.byOperator[nodeId]);
+    if (bucket) {
+      paramsByNodeId[nodeId] = bucket;
+    }
+  }
+  return createPreviewInterpreterNodeRegistry({
+    registrations: [...registrationMap.values()],
+    paramsByNodeId,
+  });
+}
+
+function writePreviewInterpreterNodeRegistry(
+  model: LayoutOperatorOverrideModelLike | null | undefined,
+  registry: PreviewInterpreterNodeRegistry<Record<string, unknown>> | null,
+  activeNodeId: string | null,
+  preferredNamespace?: string | null,
+): void {
+  if (!model) {
+    return;
+  }
+  model.previewInterpreterNodeRegistry = registry;
+  model.previewInterpreterActiveNodeId = normalizeOperatorKey(activeNodeId) ?? null;
+  if (registry) {
+    syncLegacyLayoutOperatorAliases(
+      model,
+      deriveLegacyLayoutOperatorOverrideStateFromRegistry(
+        registry,
+        model.previewInterpreterActiveNodeId ?? null,
+      ),
+      preferredNamespace,
+    );
+    return;
+  }
+  syncLegacyLayoutOperatorAliases(model, {
+    activeOperatorKey: normalizeOperatorKey(activeNodeId) ?? null,
+    byOperator: {},
+  }, preferredNamespace);
+}
+
+function ensurePreviewInterpreterNodeRegistryForManifest(
+  model: LayoutOperatorOverrideModelLike | null | undefined,
+  manifest: Pick<PreviewEngineManifest, 'id' | 'layoutEngineKey' | 'controlSpecs'>,
+): PreviewInterpreterNodeRegistry<Record<string, unknown>> | null {
+  if (!model) {
+    return null;
+  }
+  const operatorKey = layoutOperatorKeyForManifest(manifest);
+  let registry = readPreviewInterpreterNodeRegistry(model);
+  if (!registry) {
+    registry = createInterpreterRegistryFromLegacyState(
+      cloneLayoutOperatorOverrideState(model.layoutOperatorOverrides ?? null),
+      null,
+    );
+  }
+  if (registry && getPreviewInterpreterNode(registry, operatorKey)) {
+    return registry;
+  }
+  const manifestRegistration = resolveLayoutOperatorManifestForOperatorKey(operatorKey);
+  if (!manifestRegistration) {
+    return registry;
+  }
+  return createPreviewInterpreterNodeRegistry({
+    registrations: [
+      ...(registry?.nodes.map((node) => ({
+        manifest: node.manifest,
+        nodeId: node.nodeId,
+      })) ?? []),
+      { manifest: manifestRegistration, nodeId: operatorKey },
+    ],
+    paramsByNodeId: registry?.paramsByNodeId ?? {},
+  });
+}
+
 export function resolveLayoutOperatorManifestForOperatorKey(
   operatorKey: string | null | undefined,
 ): PreviewEngineManifest | null {
@@ -117,6 +280,13 @@ export function layoutOperatorKeyForManifest(
 export function readLayoutOperatorOverrideState(
   model: LayoutOperatorOverrideModelLike | null | undefined,
 ): LayoutOperatorOverrideState {
+  const registry = readPreviewInterpreterNodeRegistry(model);
+  if (registry) {
+    return deriveLegacyLayoutOperatorOverrideStateFromRegistry(
+      registry,
+      normalizeOperatorKey(model?.previewInterpreterActiveNodeId) ?? null,
+    );
+  }
   return cloneLayoutOperatorOverrideState(model?.layoutOperatorOverrides ?? null);
 }
 
@@ -182,15 +352,18 @@ export function writeLayoutOperatorOverrideState(
     return;
   }
   const nextState = cloneLayoutOperatorOverrideState(state);
-  model.layoutOperatorOverrides = nextState;
-  const activeKey = nextState.activeOperatorKey;
-  const activeBucket = activeKey
-    ? cloneRecord(nextState.byOperator[activeKey]) ?? {}
-    : {};
-  model.layoutOverrides = { ...activeBucket };
-  if (preferredNamespace !== undefined) {
-    model.layoutOverrideNamespace = preferredNamespace;
+  const currentRegistry = readPreviewInterpreterNodeRegistry(model);
+  const nextRegistry = createInterpreterRegistryFromLegacyState(nextState, currentRegistry);
+  if (nextRegistry || currentRegistry) {
+    writePreviewInterpreterNodeRegistry(
+      model,
+      nextRegistry,
+      nextState.activeOperatorKey ?? null,
+      preferredNamespace,
+    );
+    return;
   }
+  syncLegacyLayoutOperatorAliases(model, nextState, preferredNamespace);
 }
 
 export function writeActiveLayoutOperatorOverrides(
@@ -231,6 +404,32 @@ export function activateLayoutOperatorOverrideBucket(
   }
   const operatorKey = layoutOperatorKeyForManifest(manifest);
   const namespace = manifestPersistNamespace(manifest, options.persistNamespace);
+  const registry = ensurePreviewInterpreterNodeRegistryForManifest(model, manifest);
+  if (registry && getPreviewInterpreterNode(registry, operatorKey)) {
+    let bucket = getPreviewInterpreterNodeParams(registry, operatorKey);
+    if (!bucket) {
+      const fallbackBucket = (
+        normalizeOperatorKey(model.previewInterpreterActiveNodeId) === operatorKey
+        ? activeAliasOverrides(model)
+        : null
+      ) ?? cloneRecord(options.fallbackOverrides) ?? {};
+      const nextRegistry = setPreviewInterpreterNodeParams(registry, operatorKey, fallbackBucket);
+      writePreviewInterpreterNodeRegistry(
+        model,
+        nextRegistry,
+        operatorKey,
+        namespace ?? model.layoutOverrideNamespace ?? null,
+      );
+      return cloneRecord(fallbackBucket) ?? {};
+    }
+    writePreviewInterpreterNodeRegistry(
+      model,
+      registry,
+      operatorKey,
+      namespace ?? model.layoutOverrideNamespace ?? null,
+    );
+    return bucket;
+  }
   const state = readLayoutOperatorOverrideState(model);
   let bucket = cloneRecord(state.byOperator[operatorKey]);
   if (!bucket) {
@@ -258,6 +457,11 @@ export function deactivateLayoutOperatorOverrideBucket(
   if (!model) {
     return;
   }
+  const registry = readPreviewInterpreterNodeRegistry(model);
+  if (registry) {
+    writePreviewInterpreterNodeRegistry(model, registry, null, preferredNamespace ?? null);
+    return;
+  }
   const state = readLayoutOperatorOverrideState(model);
   state.activeOperatorKey = null;
   writeLayoutOperatorOverrideState(model, state, preferredNamespace ?? null);
@@ -273,6 +477,22 @@ export function writeLayoutOperatorOverrideBucketForManifest(
     return;
   }
   const operatorKey = layoutOperatorKeyForManifest(manifest);
+  const registry = ensurePreviewInterpreterNodeRegistryForManifest(model, manifest);
+  if (registry && getPreviewInterpreterNode(registry, operatorKey)) {
+    const nextRegistry = setPreviewInterpreterNodeParams(
+      registry,
+      operatorKey,
+      { ...(overrides || {}) },
+    );
+    const namespace = manifestPersistNamespace(manifest, preferredNamespace);
+    writePreviewInterpreterNodeRegistry(
+      model,
+      nextRegistry,
+      operatorKey,
+      namespace ?? model.layoutOverrideNamespace ?? null,
+    );
+    return;
+  }
   const state = readLayoutOperatorOverrideState(model);
   state.activeOperatorKey = operatorKey;
   state.byOperator[operatorKey] = { ...(overrides || {}) };

@@ -117,6 +117,24 @@ export {
 } from './preview-engine-workspace.js';
 
 export type {
+  CreatePreviewInterpreterNodeRegistryOptions,
+  PreviewInterpreterNode,
+  PreviewInterpreterNodeRegistration,
+  PreviewInterpreterNodeRegistry,
+} from './preview-interpreter-node.js';
+
+export {
+  clearPreviewInterpreterNodeParams,
+  createPreviewInterpreterNodeRegistry,
+  createRegisteredPreviewInterpreterNodeRegistry,
+  getPreviewInterpreterNode,
+  getPreviewInterpreterNodeParams,
+  listPreviewInterpreterNodes,
+  resolvePreviewInterpreterNodeId,
+  setPreviewInterpreterNodeParams,
+} from './preview-interpreter-node.js';
+
+export type {
   CreatePreviewRenderIntentOptions,
   PreviewRenderIntent,
   PreviewRenderIntentFrameTree,

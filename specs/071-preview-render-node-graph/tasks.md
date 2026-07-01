@@ -87,7 +87,7 @@
 
 ## Phase 2 — Interpreter node state isolation
 
-- [ ] **T020** Add `preview-interpreter-node.ts` + a node registry wrapping
+- [x] **T020** Add `preview-interpreter-node.ts` + a node registry wrapping
       existing `registerPreviewEngine` manifests; each node owns a typed param
       container keyed by node id.
       **Verify**: unit test that node A's params are unreadable from node B.
@@ -100,6 +100,9 @@
       param leak; each layout request carries only the active node's params.
       **Evidence**: `layout-operator-overrides` + `preview-engine-elk-runtime`
       tests; browser SC-003 sequence.
+      Note: manifest-aware override reads/writes now route through the node
+      registry and keep legacy aliases derived; full global removal and browser
+      SC-003 remain open.
 
 - [ ] **T022** Per-node persistence: save/reload each node's params under its own
       namespace; reject foreign keys at the node boundary (not global filtering).
