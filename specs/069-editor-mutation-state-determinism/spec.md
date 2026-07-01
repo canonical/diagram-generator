@@ -1,7 +1,7 @@
 # Spec 069: Editor Mutation State Determinism
 
 **Feature Branch**: `feat/069-editor-mutation-state-determinism`  
-**Status**: Draft — do not implement on `feat/068-internal-dual-path-deletion`  
+**Status**: Closeout Ready
 **Created**: 2026-07-01  
 **Owner Map**: [`editor-mutation-state-flow.md`](./editor-mutation-state-flow.md)
 

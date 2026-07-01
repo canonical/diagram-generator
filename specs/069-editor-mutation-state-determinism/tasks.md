@@ -173,44 +173,81 @@
       save payload and geometry within a 0.25px render tolerance. Authored
       fixture hashes are unchanged.
 
-- [ ] **T033** Add `persist -> reload` regression for committed state vector.
+- [x] **T033** Add `persist -> reload` regression for committed state vector.
       **Do**: save active engine + supported option bucket + frame overrides,
       reload, and assert reloaded state vector matches the saved clean state.
       Use a temp copy or hash-guarded fixture; never write evidence back to
       authored `scripts/diagrams/frames/*.yaml`.
       **Verify**: repo-owned apps/preview persistence test.
+      **Evidence**: `node --import tsx --test src/persistence/frame-diagram.test.ts`
+      from `apps/preview`; the new temp-frame regression saves `layout_engine:
+      dagre`, a supported `meta.dagre` option bucket, and a frame override,
+      then reloads with matching engine, bucket, min width, and normalized
+      style tokens. It also rejects an unsupported Dagre key before save and
+      proves a second empty payload save is a no-op against the reloaded clean
+      YAML text.
 
 ## Phase 4: Fixture And Test Isolation
 
-- [ ] **T039** Add fixture hygiene helpers for browser probes and persistence
+- [x] **T039** Add fixture hygiene helpers for browser probes and persistence
       regressions.
       **Do**: provide temp-copy or source-hash guard utilities so evidence can
       prove it did not mutate authored frame YAML.
       **Verify**: helper tests fail on unexpected source fixture dirt and pass
       when using a sanitized temp fixture.
+      **Evidence**:
+      `specs/069-editor-mutation-state-determinism/evidence/fixture-hygiene.ts`;
+      `node --import tsx --test ../../specs/069-editor-mutation-state-determinism/evidence/fixture-hygiene.test.ts`
+      from `apps/preview`;
+      `node apps/preview/node_modules/typescript/bin/tsc --noEmit --allowImportingTsExtensions --target ES2022 --module ES2022 --moduleResolution bundler --strict --skipLibCheck --types node --typeRoots apps/preview/node_modules/@types --lib ES2022,DOM specs/069-editor-mutation-state-determinism/evidence/editor-mutation-state-probe.ts specs/069-editor-mutation-state-determinism/evidence/fixture-hygiene.ts specs/069-editor-mutation-state-determinism/evidence/fixture-hygiene.test.ts`.
+      Helper coverage includes source hash drift, sanitized temp-copy mutation,
+      and pre-existing git-dirty authored fixture detection.
 
-- [ ] **T040** Add a test helper for engine-specific fixture normalization.
+- [x] **T040** Add a test helper for engine-specific fixture normalization.
       **Do**: direct layout tests can load authored frame YAML while explicitly
       selecting target engine and clearing unrelated option metadata.
       **Verify**: convert at least one existing direct layout test to the helper.
+      **Evidence**:
+      `packages/layout-engine/tests/helpers/frame-fixture-normalization.ts`;
+      `packages/layout-engine/tests/frame-fixture-normalization.test.ts`;
+      `packages/layout-engine/tests/app-fresh-render.test.ts` converts the
+      committed render-intent test to `loadNormalizedFrameFixture`;
+      `npm --prefix packages/layout-engine test -- app-fresh-render frame-fixture-normalization`.
 
-- [ ] **T041** Audit direct layout tests for mutable authored fixture reads.
+- [x] **T041** Audit direct layout tests for mutable authored fixture reads.
       **Do**: normalize or replace tests that assume a specific engine while
       loading mutable source-of-truth frames.
       **Verify**: grep/list evidence in this spec package.
+      **Evidence**:
+      `specs/069-editor-mutation-state-determinism/direct-layout-fixture-audit.md`
+      records the grep command, remaining authored-fixture readers, converted
+      coverage, and when future tests should normalize versus preserve authored
+      metadata.
 
 ## Phase 5: Evidence And Validation
 
-- [ ] **T050** Commit passing browser evidence.
+- [x] **T050** Commit passing browser evidence.
       **Do**: `evidence/editor-mutation-state-result.json` reports `ok: true`
       and classifies any no-visible-change engine switches as equivalent
       geometry or defects.
       **Verify**: fresh browser bundle/server, real gestures only.
+      **Evidence**:
+      `npm --prefix packages/layout-engine run build:browser`;
+      `node apps/preview/node_modules/typescript/bin/tsc --noEmit --allowImportingTsExtensions --target ES2022 --module ES2022 --moduleResolution bundler --strict --skipLibCheck --types node --typeRoots apps/preview/node_modules/@types --lib ES2022,DOM specs/069-editor-mutation-state-determinism/evidence/editor-mutation-state-probe.ts specs/069-editor-mutation-state-determinism/evidence/fixture-hygiene.ts specs/069-editor-mutation-state-determinism/evidence/fixture-hygiene.test.ts`;
+      `PREVIEW_BASE_URL=http://127.0.0.1:8100 node --experimental-default-type=module specs/069-editor-mutation-state-determinism/evidence/editor-mutation-state-probe.ts`.
+      Regenerated result at `2026-07-01T01:03:49.564Z` reports `ok: true`;
+      all five fixture cases pass, authored fixture hashes are unchanged, SC-001
+      source fixtures must be git-clean before the run, and any captured
+      state-vector violation now fails the step/probe.
 
-- [ ] **T051** Run full validation.
+- [x] **T051** Run full validation.
       **Verify**:
       `npm --prefix packages/layout-engine run build:browser`;
       `npm --prefix packages/layout-engine test`;
       `npm --prefix apps/preview test`;
       `node scripts/check-browser-bundle-fresh.mjs`;
       `node scripts/check_no_new_python.mjs`.
+      **Evidence**: all commands passed on 2026-07-01 after the adversarial
+      review fixes. `packages/layout-engine` reported 153 files / 922 tests
+      passed; `apps/preview` reported 147 tests passed; browser bundle
+      freshness and no-new-Python checks passed.

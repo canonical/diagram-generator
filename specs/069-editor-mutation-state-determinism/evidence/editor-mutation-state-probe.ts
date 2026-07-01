@@ -1,9 +1,14 @@
-import { createHash } from 'node:crypto';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import type { Browser, Page } from 'playwright';
+import {
+  assertFrameFixturesGitClean,
+  assertFixtureHashesUnchanged,
+  readFixtureHashes as readFrameFixtureHashes,
+  type FixtureHash,
+} from './fixture-hygiene.ts';
 
 type Bounds = {
   id: string;
@@ -11,12 +16,6 @@ type Bounds = {
   y: number;
   w: number;
   h: number;
-};
-
-type FixtureHash = {
-  slug: string;
-  path: string;
-  sha256: string;
 };
 
 type DomControlState = {
@@ -151,38 +150,8 @@ function round(value: number): number {
   return Math.round(value * 1000) / 1000;
 }
 
-function fixturePath(slug: string): string {
-  return resolve(repoRoot, 'scripts', 'diagrams', 'frames', `${slug}.yaml`);
-}
-
-function sha256(path: string): string {
-  return createHash('sha256').update(readFileSync(path)).digest('hex');
-}
-
 function readFixtureHashes(): FixtureHash[] {
-  return fixtureSlugs.map((slug) => {
-    const path = fixturePath(slug);
-    if (!existsSync(path)) {
-      throw new Error(`Missing fixture ${path}`);
-    }
-    return {
-      slug,
-      path,
-      sha256: sha256(path),
-    };
-  });
-}
-
-function assertFixtureHashesUnchanged(before: FixtureHash[], after: FixtureHash[]): void {
-  const afterBySlug = new Map(after.map((entry) => [entry.slug, entry]));
-  for (const entry of before) {
-    const next = afterBySlug.get(entry.slug);
-    if (!next || next.sha256 !== entry.sha256) {
-      const error = new Error(`Fixture ${entry.slug} changed during evidence run`) as DetailError;
-      error.details = { before: entry, after: next ?? null };
-      throw error;
-    }
-  }
+  return readFrameFixtureHashes(repoRoot, fixtureSlugs);
 }
 
 function boundsSignature(bounds: readonly Bounds[]): string {
@@ -417,6 +386,12 @@ async function runStep(
     const details = await action();
     await settle(page);
     const after = await captureStateVector(page, `${name}:after`);
+    const violations = [...before.violations, ...after.violations];
+    if (violations.length > 0) {
+      const error = new Error(`state-vector violations after ${name}: ${violations.join('; ')}`) as DetailError;
+      error.details = { violations, details };
+      throw error;
+    }
     return {
       name,
       ok: true,
@@ -818,6 +793,7 @@ async function runCase(browser: Browser, slug: string): Promise<EvidenceCase> {
 }
 
 async function main(): Promise<void> {
+  assertFrameFixturesGitClean(repoRoot, fixtureSlugs);
   const fixtureHashesBefore = readFixtureHashes();
   let fixtureHashesAfter: FixtureHash[] = [];
   const result: EvidenceResult = {
@@ -827,9 +803,9 @@ async function main(): Promise<void> {
     fixtureHashesBefore,
     fixtureHashesAfter,
     notes: [
-      'Baseline evidence only: drift is recorded in state-vector violations and follow-up tasks decide whether it is expected, equivalent geometry, or a product defect.',
+      'Closeout evidence: state-vector drift is a probe failure unless a step explicitly classifies an equivalent-geometry case in its details.',
       'The probe uses real browser gestures for mutation attempts and read-only page evaluation for state capture.',
-      'Authored frame YAML hashes are checked before and after the run; this script must not mutate scripts/diagrams/frames/*.yaml.',
+      'Authored frame YAML must be git-clean before the run and hashes are checked before and after the run.',
     ],
     cases: [],
   };
