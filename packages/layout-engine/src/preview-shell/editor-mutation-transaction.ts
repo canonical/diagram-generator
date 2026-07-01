@@ -220,8 +220,8 @@ function present(value: string | null | undefined): value is string {
   return typeof value === 'string' && value.length > 0;
 }
 
-function sameOrMissing(left: string | null | undefined, right: string | null | undefined): boolean {
-  return !present(left) || !present(right) || left === right;
+function orderedList(value: readonly string[] | null | undefined): string[] {
+  return [...(value ?? [])].sort();
 }
 
 export function compareEditorMutationStateVector(
@@ -266,7 +266,7 @@ export function compareEditorMutationStateVector(
   if (
     after.selectionType === 'single'
     && present(after.selectionId)
-    && !sameOrMissing(after.selectionId, after.inspectorTarget)
+    && after.selectionId !== after.inspectorTarget
   ) {
     violations.push({
       code: 'inspector-selection-drift',
@@ -285,24 +285,55 @@ export function compareEditorMutationStateVector(
       || after.canUndo !== options.before.canUndo
       || after.canRedo !== options.before.canRedo
       || after.renderedEngine !== options.before.renderedEngine
+      || JSON.stringify(orderedList(after.visibleControls)) !== JSON.stringify(orderedList(options.before.visibleControls))
     )
   ) {
     violations.push({
       code: 'inert-mutation-changed-state',
       message: 'Inert mutations must not change dirty, undo, redo, or rendered-engine state.',
-      fields: ['dirty', 'canUndo', 'canRedo', 'renderedEngine'],
+      fields: ['dirty', 'canUndo', 'canRedo', 'renderedEngine', 'visibleControls'],
       expected: {
         dirty: options.before.dirty,
         canUndo: options.before.canUndo,
         canRedo: options.before.canRedo,
         renderedEngine: options.before.renderedEngine,
+        visibleControls: orderedList(options.before.visibleControls),
       },
       actual: {
         dirty: after.dirty,
         canUndo: after.canUndo,
         canRedo: after.canRedo,
         renderedEngine: after.renderedEngine,
+        visibleControls: orderedList(after.visibleControls),
       },
+    });
+  }
+
+  if (
+    options.transaction?.kind === 'committed'
+    && options.transaction.dirtyPolicy === 'mark-dirty'
+    && after.dirty === false
+  ) {
+    violations.push({
+      code: 'dirty-policy-not-applied',
+      message: 'Committed mutation declared mark-dirty, but dirty is false after mutation.',
+      fields: ['dirtyPolicy', 'dirty'],
+      expected: true,
+      actual: false,
+    });
+  }
+
+  if (
+    options.transaction?.kind === 'committed'
+    && options.transaction.dirtyPolicy === 'clean'
+    && after.dirty === true
+  ) {
+    violations.push({
+      code: 'clean-policy-not-applied',
+      message: 'Committed mutation declared clean, but dirty is true after mutation.',
+      fields: ['dirtyPolicy', 'dirty'],
+      expected: false,
+      actual: true,
     });
   }
 
@@ -317,6 +348,19 @@ export function compareEditorMutationStateVector(
       fields: ['undoPolicy', 'canUndo'],
       expected: true,
       actual: false,
+    });
+  }
+
+  if (
+    present(after.focusedControl)
+    && (after.controlApplicabilityReason === 'hidden' || after.controlApplicabilityReason === 'disabled')
+  ) {
+    violations.push({
+      code: 'focused-inapplicable-control',
+      message: 'Focused control must be applicable; hidden or disabled controls cannot retain focus after mutation.',
+      fields: ['focusedControl', 'controlApplicabilityReason'],
+      expected: 'applicable',
+      actual: after.controlApplicabilityReason,
     });
   }
 

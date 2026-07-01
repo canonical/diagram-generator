@@ -142,6 +142,11 @@ interface PreviewGridEditorShellBootstrapContract {
 }
 
 export type PreviewGridEditorRuntimeWindow = Window & typeof globalThis & {
+  __DG_CONFIG?: {
+    active_engine_id?: string | null;
+    layout_engine?: string | null;
+    document_kind?: string | null;
+  } | null;
   __DG_getPreviewBridgeHostContract: () => PreviewGridEditorBridgeHostContract;
   __DG_getPreviewBridgeRenderContract: () => PreviewGridEditorBridgeRenderContract;
   __DG_getPreviewBridgeRelayoutContract: () => PreviewGridEditorBridgeRelayoutContract;
@@ -360,13 +365,28 @@ export function createPreviewGridEditorRuntimeFromBrowserHost(
           previewBridgeRender: getPreviewBridgeRenderContract() as never,
         },
         gridRuntime: {
+          getTransactionContext: () => {
+            const frameTree = readFrameTreeJson() as { layoutEngine?: string | null } | null;
+            return {
+              activeEngineId: frameTree?.layoutEngine
+                ?? options.shared.previewWindow.__DG_CONFIG?.active_engine_id
+                ?? options.shared.previewWindow.__DG_CONFIG?.layout_engine
+                ?? null,
+              documentKind: options.shared.previewWindow.__DG_CONFIG?.document_kind ?? 'frame-diagram',
+              sourceControl: 'grid-controls',
+            };
+          },
           canEditGridControls: () => {
-            const applicable = options.browser.shouldShowAutolayoutInspector?.() ?? true;
+            const gridEngineApplicable = options.browser.shouldShowAutolayoutInspector?.() ?? true;
+            const rootId = options.shared.model.roots?.[0]?.id ?? 'root';
+            const rootSelected = options.shared.selectedIds.size === 1
+              && options.shared.selectedIds.has(String(rootId));
+            const applicable = gridEngineApplicable && rootSelected;
             return {
               applicable,
               reason: applicable
                 ? 'native grid controls are applicable for the active preview state'
-                : 'native grid controls require an active grid-editing engine',
+                : 'native grid controls require an active grid-editing engine and selected root frame',
             };
           },
           pruneLinkedRootOverrides: options.browser.pruneLinkedRootGridOverrides,

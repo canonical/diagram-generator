@@ -295,6 +295,7 @@ export type PreviewGridEditorLegacyWindow = PreviewGridEditorRuntimeWindow & {
   __DG_previewRenderIntent?: PreviewRenderIntent | null;
   __DG_syncPreviewEngineWorkspacePanels?: (() => void) | null;
   __DG_rerenderPreviewEngineWorkspaceStage?: (() => Promise<void>) | null;
+  __DG_activeLayoutOperatorKey?: string | null;
   setFrameTreeLayoutEngine?: ((layoutEngine: string | null | undefined) => string | null) | null;
   __DG_BOX_STYLES?: PreviewBoxStyleMap | null;
   syncArrowsInModel?: PreviewGridEditorRuntimeBrowserOptions['syncArrowsInModel'];
@@ -517,6 +518,8 @@ function installActivePreviewEngineRuntime(options: {
     fallbackOverrides: persistedOverrides,
     persistNamespace: defaultPersistNamespace,
   });
+  options.previewWindow.__DG_activeLayoutOperatorKey =
+    options.model.layoutOperatorOverrides?.activeOperatorKey ?? null;
   const controlsFactory = layoutEngineRoot.previewEngines.graph?.createPreviewEngineLayoutControlsRuntime;
   const controllerFactory = layoutEngineRoot.previewEngines.graph?.createPreviewEngineShellControllerRuntime;
   if (typeof controlsFactory !== 'function' || typeof controllerFactory !== 'function') {

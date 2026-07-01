@@ -39,6 +39,7 @@ export type PreviewEngineWorkspaceRuntimeWindow = Window & typeof globalThis & {
   __DG_previewEngineWorkspaceState?: PreviewEngineWorkspaceRuntimeState | null;
   __DG_lastEditorMutationTransactionResult?: EditorMutationTransactionResult | null;
   __DG_lastEditorMutationStateViolations?: readonly EditorMutationStateVectorViolation[] | null;
+  __DG_activeLayoutOperatorKey?: string | null;
   __DG_previewBridgeHostRuntime?: {
     getFrameTreeJson?: (() => unknown) | null;
     setFrameTreeLayoutEngine?: ((layoutEngine: string | null | undefined) => string | null) | null;
@@ -369,9 +370,9 @@ export function initPreviewEngineWorkspaceChrome(
       dirtyPolicy: 'mark-dirty',
       undoPolicy: 'none',
     });
-    options.previewWindow.__DG_lastEditorMutationTransactionResult = transaction;
     options.previewWindow.__DG_lastEditorMutationStateViolations = [];
     if (transaction.kind !== 'committed') {
+      options.previewWindow.__DG_lastEditorMutationTransactionResult = transaction;
       setHelpText(help, transaction.reason, transaction.kind === 'rejected');
       return;
     }
@@ -390,6 +391,7 @@ export function initPreviewEngineWorkspaceChrome(
       await options.previewWindow.__DG_rerenderPreviewEngineWorkspaceStage?.();
       options.previewWindow.__DG_syncPreviewEngineWorkspacePanels?.();
       options.previewWindow.PreviewSaveClient?.syncSaveButton?.();
+      options.previewWindow.__DG_lastEditorMutationTransactionResult = transaction;
       options.previewWindow.__DG_lastEditorMutationStateViolations = compareEditorMutationStateVector({
         transaction,
         after: {
@@ -398,7 +400,7 @@ export function initPreviewEngineWorkspaceChrome(
             intent: options.previewWindow.__DG_previewRenderIntent ?? null,
           }),
           frameTreeLayoutEngine: readFrameTreeLayoutEngine(options.previewWindow),
-          activeOptionBucket: nextEngineId,
+          activeOptionBucket: options.previewWindow.__DG_activeLayoutOperatorKey ?? null,
           renderedEngine: renderedStageLayoutEngine(options.document),
           dirty: options.previewWindow.PreviewSaveClient?.isDirty?.() ?? null,
         },
@@ -413,6 +415,22 @@ export function initPreviewEngineWorkspaceChrome(
         error instanceof Error ? error.message : 'Failed to switch preview engine.',
         true,
       );
+      options.previewWindow.__DG_lastEditorMutationTransactionResult = resolveEditorMutationTransaction({
+        kind: 'engine-tab',
+        sourceControl: 'engine-switcher-tabs',
+        activeEngineId: previousWorkspace.activeEngineId,
+        documentKind: options.previewWindow.__DG_CONFIG?.document_kind ?? null,
+        capabilityGate: {
+          applicable: true,
+          reason: 'engine switch rolled back after commit failure',
+          capability: 'layoutEngine',
+        },
+        relayoutPolicy: 'fresh-render',
+        dirtyPolicy: 'preserve',
+        undoPolicy: 'none',
+        rejectReason: error instanceof Error ? error.message : 'Failed to switch preview engine.',
+      });
+      options.previewWindow.__DG_lastEditorMutationStateViolations = [];
     } finally {
       setPending(false);
     }

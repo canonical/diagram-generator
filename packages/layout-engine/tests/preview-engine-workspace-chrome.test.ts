@@ -185,6 +185,7 @@ function createChromeHarness() {
    },
    async __DG_rerenderPreviewEngineWorkspaceStage() {
      rerenderCalls.push('rerender');
+     previewWindow.__DG_activeLayoutOperatorKey = frameTreeJson.layoutEngine ?? null;
    },
    PreviewSaveClient: {
      syncSaveButton() {
@@ -196,6 +197,7 @@ function createChromeHarness() {
    getFrameTreeJson?: (() => unknown) | null;
    setFrameTreeLayoutEngine?: ((layoutEngine: string | null | undefined) => string | null) | null;
    __DG_syncPreviewEngineWorkspacePanels?: (() => void) | null;
+   __DG_activeLayoutOperatorKey?: string | null;
    PreviewSaveClient?: {
      syncSaveButton?: () => void;
    };
@@ -247,6 +249,7 @@ describe('preview engine workspace chrome', () => {
     expect(harness.previewWindow.__DG_CONFIG?.layout_engine).toBe('dagre');
     expect((harness.previewWindow as any).__DG_previewRenderIntent?.engineId).toBe('dagre');
     expect(harness.frameTreeJson.layoutEngine).toBe('dagre');
+    expect(harness.previewWindow.__DG_activeLayoutOperatorKey).toBe('dagre');
     expect(harness.panelSyncCalls).toEqual(['sync', 'sync', 'sync']);
     expect(harness.saveButtonSyncCalls).toEqual(['sync', 'sync', 'sync']);
     expect(harness.rerenderCalls).toEqual(['rerender']);
@@ -277,6 +280,41 @@ describe('preview engine workspace chrome', () => {
     expect(harness.panelSyncCalls).toEqual(['sync', 'sync', 'sync', 'sync']);
     expect(harness.saveButtonSyncCalls).toEqual(['sync', 'sync', 'sync', 'sync']);
     expect(hasUnsavedPreviewEngineWorkspaceChange(harness.previewWindow as never)).toBe(false);
+  });
+
+  it('reports rejected transaction state when engine rerender fails and rolls back', async () => {
+    const harness = createChromeHarness();
+    harness.previewWindow.__DG_CONFIG = {
+      slug: 'support-engineering-flow',
+      active_engine_id: 'elk-layered',
+      active_engine_label: 'ELK layered layout',
+      persisted_layout_engine: 'elk-layered',
+      compatible_engines: ['v3', 'elk-layered', 'dagre'],
+      show_engine_switcher: true,
+    };
+    harness.previewWindow.__DG_rerenderPreviewEngineWorkspaceStage = async () => {
+      harness.rerenderCalls.push('rerender');
+      throw new Error('rerender failed');
+    };
+
+    initPreviewEngineWorkspaceChrome({
+      document: harness.document as unknown as Document,
+      previewWindow: harness.previewWindow,
+    });
+
+    const tabButtons = harness.tabs.querySelectorAll('button[data-engine-id]');
+    await tabButtons[2]?.click();
+
+    expect(harness.previewWindow.__DG_CONFIG?.active_engine_id).toBe('elk-layered');
+    expect(harness.frameTreeJson.layoutEngine).toBe('elk-layered');
+    expect((harness.previewWindow as any).__DG_lastEditorMutationTransactionResult).toEqual(
+      expect.objectContaining({
+        kind: 'rejected',
+        mutationKind: 'engine-tab',
+        reason: 'rerender failed',
+      }),
+    );
+    expect((harness.previewWindow as any).__DG_lastEditorMutationStateViolations).toEqual([]);
   });
 
   it('supports roving tab focus and keyboard activation', async () => {

@@ -280,6 +280,14 @@ describe('preview grid host helpers', () => {
     expect(result).toEqual({
       kind: 'inert',
       reason: 'native grid controls require an active grid-editing engine',
+      transactionResult: expect.objectContaining({
+        kind: 'inert',
+        mutationKind: 'grid-control',
+        sourceControl: 'grid-controls',
+        relayoutPolicy: 'none',
+        dirtyPolicy: 'preserve',
+        undoPolicy: 'none',
+      }),
     });
   });
 

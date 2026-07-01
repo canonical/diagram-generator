@@ -1,7 +1,7 @@
 {
   "ok": true,
   "baseUrl": "http://127.0.0.1:8100",
-  "generatedAt": "2026-06-30T23:53:06.222Z",
+  "generatedAt": "2026-07-01T00:05:50.471Z",
   "fixtureHashesBefore": [
     {
       "slug": "example-deployment-pipeline",
@@ -1682,7 +1682,7 @@
                 "hidden": true,
                 "disabled": true,
                 "focused": false,
-                "value": "1",
+                "value": "2",
                 "checked": false,
                 "reason": "hidden"
               },
@@ -1871,10 +1871,26 @@
             "violations": []
           },
           "details": {
-            "attempted": false,
-            "reason": "hidden",
+            "attempted": true,
+            "staleDomEvent": true,
             "visible": false,
-            "enabled": false
+            "enabled": false,
+            "before": {
+              "dirty": true,
+              "canUndo": false,
+              "canRedo": false,
+              "payload": "{\"overrides\":{},\"gridOverrides\":{},\"layoutOverrides\":{\"elk.direction\":\"DOWN\",\"elk.layered.spacing.nodeNodeBetweenLayers\":24,\"elk.spacing.nodeNode\":24,\"elk.spacing.edgeNode\":24,\"elk.spacing.edgeEdge\":24,\"elk.layered.spacing.edgeEdgeBetweenLayers\":24,\"elk.layered.unnecessaryBendpoints\":true,\"elk.layered.nodePlacement.favorStraightEdges\":true,\"elk.layered.layering.strategy\":\"NETWORK_SIMPLEX\",\"elk.layered.crossingMinimization.strategy\":\"LAYER_SWEEP\",\"elk.layered.nodePlacement.strategy\":\"BRANDES_KOEPF\",\"elk.hierarchyHandling\":\"INCLUDE_CHILDREN\"},\"layoutOperatorOverrides\":{\"activeOperatorKey\":\"elk-layered\",\"byOperator\":{\"v3\":{},\"elk-layered\":{\"elk.direction\":\"DOWN\",\"elk.layered.spacing.nodeNodeBetweenLayers\":24,\"elk.spacing.nodeNode\":24,\"elk.spacing.edgeNode\":24,\"elk.spacing.edgeEdge\":24,\"elk.layered.spacing.edgeEdgeBetweenLayers\":24,\"elk.layered.unnecessaryBendpoints\":true,\"elk.layered.nodePlacement.favorStraightEdges\":true,\"elk.layered.layering.strategy\":\"NETWORK_SIMPLEX\",\"elk.layered.crossingMinimization.strategy\":\"LAYER_SWEEP\",\"elk.layered.nodePlacement.strategy\":\"BRANDES_KOEPF\",\"elk.hierarchyHandling\":\"INCLUDE_CHILDREN\"}}}}",
+              "value": "1",
+              "visible": false,
+              "enabled": false
+            },
+            "after": {
+              "dirty": true,
+              "canUndo": false,
+              "canRedo": false,
+              "payload": "{\"overrides\":{},\"gridOverrides\":{},\"layoutOverrides\":{\"elk.direction\":\"DOWN\",\"elk.layered.spacing.nodeNodeBetweenLayers\":24,\"elk.spacing.nodeNode\":24,\"elk.spacing.edgeNode\":24,\"elk.spacing.edgeEdge\":24,\"elk.layered.spacing.edgeEdgeBetweenLayers\":24,\"elk.layered.unnecessaryBendpoints\":true,\"elk.layered.nodePlacement.favorStraightEdges\":true,\"elk.layered.layering.strategy\":\"NETWORK_SIMPLEX\",\"elk.layered.crossingMinimization.strategy\":\"LAYER_SWEEP\",\"elk.layered.nodePlacement.strategy\":\"BRANDES_KOEPF\",\"elk.hierarchyHandling\":\"INCLUDE_CHILDREN\"},\"layoutOperatorOverrides\":{\"activeOperatorKey\":\"elk-layered\",\"byOperator\":{\"v3\":{},\"elk-layered\":{\"elk.direction\":\"DOWN\",\"elk.layered.spacing.nodeNodeBetweenLayers\":24,\"elk.spacing.nodeNode\":24,\"elk.spacing.edgeNode\":24,\"elk.spacing.edgeEdge\":24,\"elk.layered.spacing.edgeEdgeBetweenLayers\":24,\"elk.layered.unnecessaryBendpoints\":true,\"elk.layered.nodePlacement.favorStraightEdges\":true,\"elk.layered.layering.strategy\":\"NETWORK_SIMPLEX\",\"elk.layered.crossingMinimization.strategy\":\"LAYER_SWEEP\",\"elk.layered.nodePlacement.strategy\":\"BRANDES_KOEPF\",\"elk.hierarchyHandling\":\"INCLUDE_CHILDREN\"}}}}",
+              "value": "2"
+            }
           }
         }
       ]
@@ -4803,7 +4819,7 @@
                 "hidden": true,
                 "disabled": true,
                 "focused": false,
-                "value": "3",
+                "value": "4",
                 "checked": false,
                 "reason": "hidden"
               },
@@ -5131,10 +5147,26 @@
             "violations": []
           },
           "details": {
-            "attempted": false,
-            "reason": "hidden",
+            "attempted": true,
+            "staleDomEvent": true,
             "visible": false,
-            "enabled": false
+            "enabled": false,
+            "before": {
+              "dirty": true,
+              "canUndo": false,
+              "canRedo": false,
+              "payload": "{\"overrides\":{},\"gridOverrides\":{},\"layoutOverrides\":{\"elk.direction\":\"\",\"elk.layered.spacing.nodeNodeBetweenLayers\":24,\"elk.spacing.nodeNode\":24,\"elk.spacing.edgeNode\":24,\"elk.spacing.edgeEdge\":24,\"elk.layered.spacing.edgeEdgeBetweenLayers\":24,\"elk.layered.unnecessaryBendpoints\":true,\"elk.layered.nodePlacement.favorStraightEdges\":true,\"elk.layered.layering.strategy\":\"NETWORK_SIMPLEX\",\"elk.layered.crossingMinimization.strategy\":\"LAYER_SWEEP\",\"elk.layered.nodePlacement.strategy\":\"BRANDES_KOEPF\",\"elk.hierarchyHandling\":\"INCLUDE_CHILDREN\"},\"layoutOperatorOverrides\":{\"activeOperatorKey\":\"v3\",\"byOperator\":{\"elk-layered\":{\"elk.direction\":\"\",\"elk.layered.spacing.nodeNodeBetweenLayers\":24,\"elk.spacing.nodeNode\":24,\"elk.spacing.edgeNode\":24,\"elk.spacing.edgeEdge\":24,\"elk.layered.spacing.edgeEdgeBetweenLayers\":24,\"elk.layered.unnecessaryBendpoints\":true,\"elk.layered.nodePlacement.favorStraightEdges\":true,\"elk.layered.layering.strategy\":\"NETWORK_SIMPLEX\",\"elk.layered.crossingMinimization.strategy\":\"LAYER_SWEEP\",\"elk.layered.nodePlacement.strategy\":\"BRANDES_KOEPF\",\"elk.hierarchyHandling\":\"INCLUDE_CHILDREN\"},\"v3\":{\"elk.direction\":\"\",\"elk.layered.spacing.nodeNodeBetweenLayers\":24,\"elk.spacing.nodeNode\":24,\"elk.spacing.edgeNode\":24,\"elk.spacing.edgeEdge\":24,\"elk.layered.spacing.edgeEdgeBetweenLayers\":24,\"elk.layered.unnecessaryBendpoints\":true,\"elk.layered.nodePlacement.favorStraightEdges\":true,\"elk.layered.layering.strategy\":\"NETWORK_SIMPLEX\",\"elk.layered.crossingMinimization.strategy\":\"LAYER_SWEEP\",\"elk.layered.nodePlacement.strategy\":\"BRANDES_KOEPF\",\"elk.hierarchyHandling\":\"INCLUDE_CHILDREN\"}}}}",
+              "value": "3",
+              "visible": false,
+              "enabled": false
+            },
+            "after": {
+              "dirty": true,
+              "canUndo": false,
+              "canRedo": false,
+              "payload": "{\"overrides\":{},\"gridOverrides\":{},\"layoutOverrides\":{\"elk.direction\":\"\",\"elk.layered.spacing.nodeNodeBetweenLayers\":24,\"elk.spacing.nodeNode\":24,\"elk.spacing.edgeNode\":24,\"elk.spacing.edgeEdge\":24,\"elk.layered.spacing.edgeEdgeBetweenLayers\":24,\"elk.layered.unnecessaryBendpoints\":true,\"elk.layered.nodePlacement.favorStraightEdges\":true,\"elk.layered.layering.strategy\":\"NETWORK_SIMPLEX\",\"elk.layered.crossingMinimization.strategy\":\"LAYER_SWEEP\",\"elk.layered.nodePlacement.strategy\":\"BRANDES_KOEPF\",\"elk.hierarchyHandling\":\"INCLUDE_CHILDREN\"},\"layoutOperatorOverrides\":{\"activeOperatorKey\":\"v3\",\"byOperator\":{\"elk-layered\":{\"elk.direction\":\"\",\"elk.layered.spacing.nodeNodeBetweenLayers\":24,\"elk.spacing.nodeNode\":24,\"elk.spacing.edgeNode\":24,\"elk.spacing.edgeEdge\":24,\"elk.layered.spacing.edgeEdgeBetweenLayers\":24,\"elk.layered.unnecessaryBendpoints\":true,\"elk.layered.nodePlacement.favorStraightEdges\":true,\"elk.layered.layering.strategy\":\"NETWORK_SIMPLEX\",\"elk.layered.crossingMinimization.strategy\":\"LAYER_SWEEP\",\"elk.layered.nodePlacement.strategy\":\"BRANDES_KOEPF\",\"elk.hierarchyHandling\":\"INCLUDE_CHILDREN\"},\"v3\":{\"elk.direction\":\"\",\"elk.layered.spacing.nodeNodeBetweenLayers\":24,\"elk.spacing.nodeNode\":24,\"elk.spacing.edgeNode\":24,\"elk.spacing.edgeEdge\":24,\"elk.layered.spacing.edgeEdgeBetweenLayers\":24,\"elk.layered.unnecessaryBendpoints\":true,\"elk.layered.nodePlacement.favorStraightEdges\":true,\"elk.layered.layering.strategy\":\"NETWORK_SIMPLEX\",\"elk.layered.crossingMinimization.strategy\":\"LAYER_SWEEP\",\"elk.layered.nodePlacement.strategy\":\"BRANDES_KOEPF\",\"elk.hierarchyHandling\":\"INCLUDE_CHILDREN\"}}}}",
+              "value": "4"
+            }
           }
         }
       ]
@@ -6326,45 +6358,45 @@
                 "x": 0,
                 "y": 0,
                 "w": 1440,
-                "h": 1248
+                "h": 1008
               },
               {
                 "id": "step_problem",
-                "x": 1112,
-                "y": 1040,
+                "x": 456,
+                "y": 584,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_investigation",
-                "x": 992,
-                "y": 344,
+                "x": 912,
+                "y": 800,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_analysis",
-                "x": 544,
-                "y": 608,
-                "w": 272,
-                "h": 208
-              },
-              {
-                "id": "step_fix",
-                "x": 472,
+                "x": 448,
                 "y": 0,
                 "w": 272,
                 "h": 208
               },
               {
-                "id": "step_result",
+                "id": "step_fix",
                 "x": 0,
-                "y": 512,
+                "y": 384,
+                "w": 272,
+                "h": 208
+              },
+              {
+                "id": "step_result",
+                "x": 824,
+                "y": 208,
                 "w": 272,
                 "h": 208
               }
             ],
-            "boundsSignature": "[[\"page\",0,0,1440,1248],[\"step_analysis\",544,608,272,208],[\"step_fix\",472,0,272,208],[\"step_investigation\",992,344,272,208],[\"step_problem\",1112,1040,272,208],[\"step_result\",0,512,272,208]]",
+            "boundsSignature": "[[\"page\",0,0,1440,1008],[\"step_analysis\",448,0,272,208],[\"step_fix\",0,384,272,208],[\"step_investigation\",912,800,272,208],[\"step_problem\",456,584,272,208],[\"step_result\",824,208,272,208]]",
             "violations": []
           }
         },
@@ -6571,45 +6603,45 @@
                 "x": 0,
                 "y": 0,
                 "w": 1440,
-                "h": 1248
+                "h": 1008
               },
               {
                 "id": "step_problem",
-                "x": 1112,
-                "y": 1040,
+                "x": 456,
+                "y": 584,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_investigation",
-                "x": 992,
-                "y": 344,
+                "x": 912,
+                "y": 800,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_analysis",
-                "x": 544,
-                "y": 608,
-                "w": 272,
-                "h": 208
-              },
-              {
-                "id": "step_fix",
-                "x": 472,
+                "x": 448,
                 "y": 0,
                 "w": 272,
                 "h": 208
               },
               {
-                "id": "step_result",
+                "id": "step_fix",
                 "x": 0,
-                "y": 512,
+                "y": 384,
+                "w": 272,
+                "h": 208
+              },
+              {
+                "id": "step_result",
+                "x": 824,
+                "y": 208,
                 "w": 272,
                 "h": 208
               }
             ],
-            "boundsSignature": "[[\"page\",0,0,1440,1248],[\"step_analysis\",544,608,272,208],[\"step_fix\",472,0,272,208],[\"step_investigation\",992,344,272,208],[\"step_problem\",1112,1040,272,208],[\"step_result\",0,512,272,208]]",
+            "boundsSignature": "[[\"page\",0,0,1440,1008],[\"step_analysis\",448,0,272,208],[\"step_fix\",0,384,272,208],[\"step_investigation\",912,800,272,208],[\"step_problem\",456,584,272,208],[\"step_result\",824,208,272,208]]",
             "violations": []
           },
           "after": {
@@ -6816,45 +6848,45 @@
                 "x": 0,
                 "y": 0,
                 "w": 1440,
-                "h": 1248
+                "h": 1008
               },
               {
                 "id": "step_problem",
-                "x": 1112,
-                "y": 1040,
+                "x": 456,
+                "y": 584,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_investigation",
-                "x": 992,
-                "y": 344,
+                "x": 912,
+                "y": 800,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_analysis",
-                "x": 544,
-                "y": 608,
-                "w": 272,
-                "h": 208
-              },
-              {
-                "id": "step_fix",
-                "x": 472,
+                "x": 448,
                 "y": 0,
                 "w": 272,
                 "h": 208
               },
               {
-                "id": "step_result",
+                "id": "step_fix",
                 "x": 0,
-                "y": 512,
+                "y": 384,
+                "w": 272,
+                "h": 208
+              },
+              {
+                "id": "step_result",
+                "x": 824,
+                "y": 208,
                 "w": 272,
                 "h": 208
               }
             ],
-            "boundsSignature": "[[\"page\",0,0,1440,1248],[\"step_analysis\",544,608,272,208],[\"step_fix\",472,0,272,208],[\"step_investigation\",992,344,272,208],[\"step_problem\",1112,1040,272,208],[\"step_result\",0,512,272,208]]",
+            "boundsSignature": "[[\"page\",0,0,1440,1008],[\"step_analysis\",448,0,272,208],[\"step_fix\",0,384,272,208],[\"step_investigation\",912,800,272,208],[\"step_problem\",456,584,272,208],[\"step_result\",824,208,272,208]]",
             "violations": []
           },
           "details": {
@@ -7068,45 +7100,45 @@
                 "x": 0,
                 "y": 0,
                 "w": 1440,
-                "h": 1248
+                "h": 1008
               },
               {
                 "id": "step_problem",
-                "x": 1112,
-                "y": 1040,
+                "x": 456,
+                "y": 584,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_investigation",
-                "x": 992,
-                "y": 344,
+                "x": 912,
+                "y": 800,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_analysis",
-                "x": 544,
-                "y": 608,
-                "w": 272,
-                "h": 208
-              },
-              {
-                "id": "step_fix",
-                "x": 472,
+                "x": 448,
                 "y": 0,
                 "w": 272,
                 "h": 208
               },
               {
-                "id": "step_result",
+                "id": "step_fix",
                 "x": 0,
-                "y": 512,
+                "y": 384,
+                "w": 272,
+                "h": 208
+              },
+              {
+                "id": "step_result",
+                "x": 824,
+                "y": 208,
                 "w": 272,
                 "h": 208
               }
             ],
-            "boundsSignature": "[[\"page\",0,0,1440,1248],[\"step_analysis\",544,608,272,208],[\"step_fix\",472,0,272,208],[\"step_investigation\",992,344,272,208],[\"step_problem\",1112,1040,272,208],[\"step_result\",0,512,272,208]]",
+            "boundsSignature": "[[\"page\",0,0,1440,1008],[\"step_analysis\",448,0,272,208],[\"step_fix\",0,384,272,208],[\"step_investigation\",912,800,272,208],[\"step_problem\",456,584,272,208],[\"step_result\",824,208,272,208]]",
             "violations": []
           },
           "after": {
@@ -7204,7 +7236,7 @@
                 "hidden": false,
                 "disabled": false,
                 "focused": false,
-                "value": "section",
+                "value": "default",
                 "checked": null,
                 "reason": "applicable"
               },
@@ -7212,21 +7244,21 @@
                 "selector": "#btn-save",
                 "exists": true,
                 "hidden": false,
-                "disabled": true,
+                "disabled": false,
                 "focused": false,
                 "value": "",
                 "checked": null,
-                "reason": "disabled"
+                "reason": "applicable"
               },
               "undo": {
                 "selector": "#btn-undo",
                 "exists": true,
                 "hidden": false,
-                "disabled": true,
+                "disabled": false,
                 "focused": false,
                 "value": "",
                 "checked": null,
-                "reason": "disabled"
+                "reason": "applicable"
               },
               "redo": {
                 "selector": "#btn-redo",
@@ -7239,9 +7271,9 @@
                 "reason": "disabled"
               }
             },
-            "dirty": false,
+            "dirty": true,
             "undo": {
-              "canUndo": false,
+              "canUndo": true,
               "canRedo": false
             },
             "visibleControls": [
@@ -7275,7 +7307,14 @@
               }
             ],
             "savePayload": {
-              "overrides": {},
+              "overrides": {
+                "step_problem": {
+                  "level": 1,
+                  "fill": "WHITE",
+                  "border": "SOLID",
+                  "style": "default"
+                }
+              },
               "grid_overrides": {},
               "layout_overrides": {
                 "elk.spacing.nodeNode": 72,
@@ -7313,50 +7352,49 @@
                 "x": 0,
                 "y": 0,
                 "w": 1440,
-                "h": 1248
+                "h": 1008
               },
               {
                 "id": "step_problem",
-                "x": 1112,
-                "y": 1040,
+                "x": 456,
+                "y": 584,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_investigation",
-                "x": 992,
-                "y": 344,
+                "x": 912,
+                "y": 800,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_analysis",
-                "x": 544,
-                "y": 608,
-                "w": 272,
-                "h": 208
-              },
-              {
-                "id": "step_fix",
-                "x": 472,
+                "x": 448,
                 "y": 0,
                 "w": 272,
                 "h": 208
               },
               {
-                "id": "step_result",
+                "id": "step_fix",
                 "x": 0,
-                "y": 512,
+                "y": 384,
+                "w": 272,
+                "h": 208
+              },
+              {
+                "id": "step_result",
+                "x": 824,
+                "y": 208,
                 "w": 272,
                 "h": 208
               }
             ],
-            "boundsSignature": "[[\"page\",0,0,1440,1248],[\"step_analysis\",544,608,272,208],[\"step_fix\",472,0,272,208],[\"step_investigation\",992,344,272,208],[\"step_problem\",1112,1040,272,208],[\"step_result\",0,512,272,208]]",
+            "boundsSignature": "[[\"page\",0,0,1440,1008],[\"step_analysis\",448,0,272,208],[\"step_fix\",0,384,272,208],[\"step_investigation\",912,800,272,208],[\"step_problem\",456,584,272,208],[\"step_result\",824,208,272,208]]",
             "violations": []
           },
           "details": {
-            "skipped": true,
-            "reason": "style variant select has no alternate option"
+            "target": "default"
           }
         },
         {
@@ -7457,7 +7495,7 @@
                 "hidden": false,
                 "disabled": false,
                 "focused": false,
-                "value": "section",
+                "value": "default",
                 "checked": null,
                 "reason": "applicable"
               },
@@ -7465,21 +7503,21 @@
                 "selector": "#btn-save",
                 "exists": true,
                 "hidden": false,
-                "disabled": true,
+                "disabled": false,
                 "focused": false,
                 "value": "",
                 "checked": null,
-                "reason": "disabled"
+                "reason": "applicable"
               },
               "undo": {
                 "selector": "#btn-undo",
                 "exists": true,
                 "hidden": false,
-                "disabled": true,
+                "disabled": false,
                 "focused": false,
                 "value": "",
                 "checked": null,
-                "reason": "disabled"
+                "reason": "applicable"
               },
               "redo": {
                 "selector": "#btn-redo",
@@ -7492,9 +7530,9 @@
                 "reason": "disabled"
               }
             },
-            "dirty": false,
+            "dirty": true,
             "undo": {
-              "canUndo": false,
+              "canUndo": true,
               "canRedo": false
             },
             "visibleControls": [
@@ -7528,7 +7566,14 @@
               }
             ],
             "savePayload": {
-              "overrides": {},
+              "overrides": {
+                "step_problem": {
+                  "level": 1,
+                  "fill": "WHITE",
+                  "border": "SOLID",
+                  "style": "default"
+                }
+              },
               "grid_overrides": {},
               "layout_overrides": {
                 "elk.spacing.nodeNode": 72,
@@ -7566,45 +7611,45 @@
                 "x": 0,
                 "y": 0,
                 "w": 1440,
-                "h": 1248
+                "h": 1008
               },
               {
                 "id": "step_problem",
-                "x": 1112,
-                "y": 1040,
+                "x": 456,
+                "y": 584,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_investigation",
-                "x": 992,
-                "y": 344,
+                "x": 912,
+                "y": 800,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_analysis",
-                "x": 544,
-                "y": 608,
-                "w": 272,
-                "h": 208
-              },
-              {
-                "id": "step_fix",
-                "x": 472,
+                "x": 448,
                 "y": 0,
                 "w": 272,
                 "h": 208
               },
               {
-                "id": "step_result",
+                "id": "step_fix",
                 "x": 0,
-                "y": 512,
+                "y": 384,
+                "w": 272,
+                "h": 208
+              },
+              {
+                "id": "step_result",
+                "x": 824,
+                "y": 208,
                 "w": 272,
                 "h": 208
               }
             ],
-            "boundsSignature": "[[\"page\",0,0,1440,1248],[\"step_analysis\",544,608,272,208],[\"step_fix\",472,0,272,208],[\"step_investigation\",992,344,272,208],[\"step_problem\",1112,1040,272,208],[\"step_result\",0,512,272,208]]",
+            "boundsSignature": "[[\"page\",0,0,1440,1008],[\"step_analysis\",448,0,272,208],[\"step_fix\",0,384,272,208],[\"step_investigation\",912,800,272,208],[\"step_problem\",456,584,272,208],[\"step_result\",824,208,272,208]]",
             "violations": []
           },
           "after": {
@@ -7614,7 +7659,14 @@
             "renderIntent": {
               "engineId": "elk-force",
               "pageDirection": "HORIZONTAL",
-              "frameOverrides": {},
+              "frameOverrides": {
+                "step_problem": {
+                  "level": 1,
+                  "fill": "WHITE",
+                  "border": "SOLID",
+                  "style": "default"
+                }
+              },
               "engineOverrides": {},
               "gridOverrides": {}
             },
@@ -7692,7 +7744,7 @@
                 "hidden": true,
                 "disabled": true,
                 "focused": false,
-                "value": "1",
+                "value": "7",
                 "checked": false,
                 "reason": "hidden"
               },
@@ -7702,7 +7754,7 @@
                 "hidden": false,
                 "disabled": false,
                 "focused": false,
-                "value": "section",
+                "value": "default",
                 "checked": null,
                 "reason": "applicable"
               },
@@ -7710,21 +7762,21 @@
                 "selector": "#btn-save",
                 "exists": true,
                 "hidden": false,
-                "disabled": true,
+                "disabled": false,
                 "focused": false,
                 "value": "",
                 "checked": null,
-                "reason": "disabled"
+                "reason": "applicable"
               },
               "undo": {
                 "selector": "#btn-undo",
                 "exists": true,
                 "hidden": false,
-                "disabled": true,
+                "disabled": false,
                 "focused": false,
                 "value": "",
                 "checked": null,
-                "reason": "disabled"
+                "reason": "applicable"
               },
               "redo": {
                 "selector": "#btn-redo",
@@ -7737,9 +7789,9 @@
                 "reason": "disabled"
               }
             },
-            "dirty": false,
+            "dirty": true,
             "undo": {
-              "canUndo": false,
+              "canUndo": true,
               "canRedo": false
             },
             "visibleControls": [
@@ -7773,7 +7825,14 @@
               }
             ],
             "savePayload": {
-              "overrides": {},
+              "overrides": {
+                "step_problem": {
+                  "level": 1,
+                  "fill": "WHITE",
+                  "border": "SOLID",
+                  "style": "default"
+                }
+              },
               "grid_overrides": {},
               "layout_overrides": {
                 "elk.spacing.nodeNode": 72,
@@ -7811,50 +7870,50 @@
                 "x": 0,
                 "y": 0,
                 "w": 1440,
-                "h": 1248
+                "h": 1016
               },
               {
                 "id": "step_problem",
-                "x": 1112,
-                "y": 1040,
+                "x": 840,
+                "y": 808,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_investigation",
-                "x": 992,
-                "y": 344,
+                "x": 160,
+                "y": 736,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_analysis",
-                "x": 544,
-                "y": 608,
-                "w": 272,
-                "h": 208
-              },
-              {
-                "id": "step_fix",
-                "x": 472,
+                "x": 0,
                 "y": 0,
                 "w": 272,
                 "h": 208
               },
               {
+                "id": "step_fix",
+                "x": 464,
+                "y": 352,
+                "w": 272,
+                "h": 208
+              },
+              {
                 "id": "step_result",
-                "x": 0,
-                "y": 512,
+                "x": 896,
+                "y": 80,
                 "w": 272,
                 "h": 208
               }
             ],
-            "boundsSignature": "[[\"page\",0,0,1440,1248],[\"step_analysis\",544,608,272,208],[\"step_fix\",472,0,272,208],[\"step_investigation\",992,344,272,208],[\"step_problem\",1112,1040,272,208],[\"step_result\",0,512,272,208]]",
+            "boundsSignature": "[[\"page\",0,0,1440,1016],[\"step_analysis\",0,0,272,208],[\"step_fix\",464,352,272,208],[\"step_investigation\",160,736,272,208],[\"step_problem\",840,808,272,208],[\"step_result\",896,80,272,208]]",
             "violations": []
           },
           "details": {
-            "undoClicked": false,
-            "redoClicked": false
+            "undoClicked": true,
+            "redoClicked": true
           }
         }
       ]

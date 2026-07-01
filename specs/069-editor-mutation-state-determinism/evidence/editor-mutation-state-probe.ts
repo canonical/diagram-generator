@@ -501,16 +501,82 @@ async function irrelevantGridControlStep(page: Page): Promise<unknown> {
   if (await gridCols.count() === 0) {
     return { skipped: true, reason: 'grid control missing' };
   }
-  const visible = await gridCols.isVisible().catch(() => false);
-  const enabled = await gridCols.isEnabled().catch(() => false);
-  if (!visible || !enabled) {
-    return { attempted: false, reason: visible ? 'disabled' : 'hidden', visible, enabled };
-  }
-  const current = Number.parseInt(await gridCols.inputValue(), 10);
-  const next = Number.isFinite(current) ? String(current + 1) : '2';
-  await gridCols.fill(next);
-  await gridCols.press('Tab');
-  return { attempted: true, next };
+  return gridCols.evaluate((control) => {
+    function clone(value: unknown): unknown {
+      try {
+        return JSON.parse(JSON.stringify(value));
+      } catch {
+        return value == null ? value : String(value);
+      }
+    }
+
+    function globalEval<T>(expr: string, fallback: T): T {
+      try {
+        return (0, eval)(expr) as T;
+      } catch {
+        return fallback;
+      }
+    }
+
+    function payloadSignature(): string {
+      const model = globalEval<Record<string, unknown> | null>('model', null);
+      const payload = model && window.LayoutEngine?.previewShell?.createPreviewOverridePayload
+        ? window.LayoutEngine.previewShell.createPreviewOverridePayload(model)
+        : {
+          overrides: clone(model?.overrides),
+          gridOverrides: clone(model?.gridOverrides),
+          layoutOverrides: clone(model?.layoutOverrides),
+          layoutOperatorOverrides: clone(model?.layoutOperatorOverrides),
+        };
+      return JSON.stringify(payload);
+    }
+
+    const input = control as HTMLInputElement;
+    const style = getComputedStyle(input);
+    const visible = !(
+      input.hidden
+      || input.closest('[hidden], [aria-hidden="true"]')
+      || style.display === 'none'
+      || style.visibility === 'hidden'
+    );
+    const enabled = !input.disabled;
+    const before = {
+      dirty: window.PreviewSaveClient?.isDirty?.() ?? null,
+      canUndo: window.__DG_TEST_preview?.canUndo?.() ?? null,
+      canRedo: window.__DG_TEST_preview?.canRedo?.() ?? null,
+      payload: payloadSignature(),
+      value: input.value,
+      visible,
+      enabled,
+    };
+    const parsed = Number.parseInt(input.value || '', 10);
+    input.value = String(Number.isFinite(parsed) ? parsed + 1 : 2);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    const after = {
+      dirty: window.PreviewSaveClient?.isDirty?.() ?? null,
+      canUndo: window.__DG_TEST_preview?.canUndo?.() ?? null,
+      canRedo: window.__DG_TEST_preview?.canRedo?.() ?? null,
+      payload: payloadSignature(),
+      value: input.value,
+    };
+    if (
+      before.dirty !== after.dirty
+      || before.canUndo !== after.canUndo
+      || before.canRedo !== after.canRedo
+      || before.payload !== after.payload
+    ) {
+      throw new Error(`stale grid control event mutated state: ${JSON.stringify({ before, after })}`);
+    }
+    return {
+      attempted: true,
+      staleDomEvent: true,
+      visible,
+      enabled,
+      before,
+      after,
+    };
+  });
 }
 
 async function selectFirstFrameStep(page: Page): Promise<unknown> {
@@ -538,11 +604,16 @@ async function editStyleVariantStep(page: Page): Promise<unknown> {
   if (!(await select.isVisible()) || !(await select.isEnabled())) {
     return { skipped: true, reason: 'style variant select not interactable' };
   }
-  const options = await select.locator('option').evaluateAll((nodes) => nodes.map((node) => (node as HTMLOptionElement).value));
+  const options = await select.evaluate((node) => (
+    Array.from((node as HTMLSelectElement).options).map((option) => option.value)
+  ));
   const current = await select.inputValue();
-  const target = options.find((value) => value !== current && value !== '__original__') ?? options.find((value) => value !== current);
-  if (!target) {
-    return { skipped: true, reason: 'style variant select has no alternate option' };
+  const preferred = current === 'default' ? 'section' : 'default';
+  const target = options.includes(preferred)
+    ? preferred
+    : options.find((value) => value !== current);
+  if (target === undefined) {
+    return { skipped: true, reason: 'style variant select has no alternate option', current, options };
   }
   await select.selectOption(target);
   return { target };

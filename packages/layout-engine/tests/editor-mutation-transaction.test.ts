@@ -148,7 +148,7 @@ describe('editor mutation transaction', () => {
     expect(violations).toEqual([
       expect.objectContaining({
         code: 'inert-mutation-changed-state',
-        fields: ['dirty', 'canUndo', 'canRedo', 'renderedEngine'],
+        fields: ['dirty', 'canUndo', 'canRedo', 'renderedEngine', 'visibleControls'],
       }),
     ]);
   });
@@ -167,6 +167,62 @@ describe('editor mutation transaction', () => {
         code: 'inspector-selection-drift',
         expected: 'step_problem',
         actual: 'step_solution',
+      }),
+    ]);
+  });
+
+  it('reports missing inspector target for a single selection', () => {
+    const violations = compareEditorMutationStateVector({
+      after: {
+        selectionType: 'single',
+        selectionId: 'step_problem',
+        inspectorTarget: null,
+      },
+    });
+
+    expect(violations).toEqual([
+      expect.objectContaining({
+        code: 'inspector-selection-drift',
+        expected: 'step_problem',
+        actual: null,
+      }),
+    ]);
+  });
+
+  it('reports committed dirty-policy drift', () => {
+    const committed = resolveEditorMutationTransaction(transaction({
+      dirtyPolicy: 'mark-dirty',
+    }));
+
+    const violations = compareEditorMutationStateVector({
+      transaction: committed,
+      after: {
+        dirty: false,
+      },
+    });
+
+    expect(violations).toEqual([
+      expect.objectContaining({
+        code: 'dirty-policy-not-applied',
+        expected: true,
+        actual: false,
+      }),
+    ]);
+  });
+
+  it('reports focused hidden or disabled controls', () => {
+    const violations = compareEditorMutationStateVector({
+      after: {
+        focusedControl: 'grid-cols',
+        controlApplicabilityReason: 'hidden',
+      },
+    });
+
+    expect(violations).toEqual([
+      expect.objectContaining({
+        code: 'focused-inapplicable-control',
+        expected: 'applicable',
+        actual: 'hidden',
       }),
     ]);
   });

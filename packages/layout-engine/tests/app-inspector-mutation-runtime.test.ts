@@ -7,6 +7,7 @@ describe('createPreviewInspectorMutationRuntime', () => {
     const scheduleRelayout = vi.fn();
     const requestRelayoutNow = vi.fn();
     const renderSelectionInspector = vi.fn();
+    const mutationResults: unknown[] = [];
 
     const runtime = createPreviewInspectorMutationRuntime({
       captureOverrideEntries: (ids) => Object.fromEntries(ids.map((id) => [id, { ...(overrides[id] || {}) }])),
@@ -24,6 +25,7 @@ describe('createPreviewInspectorMutationRuntime', () => {
       getWidthUnit: () => 'px',
       getHeightUnit: () => 'px',
       baselineStep: 8,
+      onMutationTransaction: (result) => mutationResults.push(result),
     });
 
     runtime.applyStyle('alpha', 'parent');
@@ -37,6 +39,19 @@ describe('createPreviewInspectorMutationRuntime', () => {
     expect(scheduleRelayout).not.toHaveBeenCalled();
     expect(requestRelayoutNow).not.toHaveBeenCalled();
     expect(renderSelectionInspector).toHaveBeenCalledWith('alpha');
+    expect(mutationResults).toEqual([
+      expect.objectContaining({
+        kind: 'committed',
+        mutationKind: 'inspector-appearance',
+        relayoutPolicy: 'none',
+        dirtyPolicy: 'mark-dirty',
+        undoPolicy: 'record',
+        persistenceDelta: {
+          frameOverridesChanged: true,
+          savePayloadChanged: true,
+        },
+      }),
+    ]);
   });
 
   it('treats section-to-default box type changes as appearance-only', () => {

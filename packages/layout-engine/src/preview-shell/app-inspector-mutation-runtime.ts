@@ -15,6 +15,10 @@ import {
   previewStyleChangeRequiresRelayout,
   type PreviewStyleNode,
 } from './frame-style.js';
+import {
+  resolveEditorMutationTransaction,
+  type EditorMutationTransactionResult,
+} from './editor-mutation-transaction.js';
 import type { PreviewGridInfo } from './grid-resolution.js';
 
 const IMMEDIATE_RELAYOUT_PROPS = new Set([
@@ -50,6 +54,7 @@ export interface CreatePreviewInspectorMutationRuntimeOptions {
   getHeightUnit: () => string;
   baselineStep: number;
   shouldShowAutolayoutInspector?: (() => boolean) | null;
+  onMutationTransaction?: ((result: EditorMutationTransactionResult) => void) | null;
 }
 
 export interface PreviewInspectorMutationRuntime {
@@ -79,6 +84,26 @@ export function createPreviewInspectorMutationRuntime(
         node,
         styleName,
       });
+      options.onMutationTransaction?.(resolveEditorMutationTransaction({
+        kind: 'inspector-appearance',
+        sourceControl: 'single-style',
+        activeEngineId: null,
+        documentKind: 'frame-diagram',
+        capabilityGate: {
+          applicable: true,
+          reason: changed ? 'style change is applicable to the selected frame' : 'style already matches selected frame',
+          capability: 'appearance',
+        },
+        relayoutPolicy: changed && requiresRelayout ? 'engine' : 'none',
+        dirtyPolicy: changed ? 'mark-dirty' : 'preserve',
+        undoPolicy: changed ? 'record' : 'none',
+        persistenceDelta: changed
+          ? {
+            frameOverridesChanged: true,
+            savePayloadChanged: true,
+          }
+          : null,
+      }));
       if (!changed) {
         options.renderSelectionInspector(cid);
         return;

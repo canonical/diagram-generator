@@ -63,6 +63,9 @@
       `npm --prefix packages/layout-engine exec tsc -- --noEmit -p packages/layout-engine/tsconfig.json`;
       `npm --prefix packages/layout-engine run build:browser`;
       `PREVIEW_BASE_URL=http://127.0.0.1:8100 node --experimental-default-type=module specs/069-editor-mutation-state-determinism/evidence/editor-mutation-state-probe.ts`.
+      **Adversarial follow-up**: rerender failure now records a rejected
+      engine-tab transaction after rollback, and diagnostics compare the active
+      layout-operator bucket instead of echoing the clicked engine id.
 
 - [x] **T021** Route engine option edits through active manifest buckets only.
       **Do**: reject or ignore option keys not visible/applicable for the active
@@ -84,14 +87,26 @@
       `npm --prefix packages/layout-engine exec tsc -- --noEmit -p packages/layout-engine/tsconfig.json`;
       `npm --prefix packages/layout-engine run build:browser`;
       `PREVIEW_BASE_URL=http://127.0.0.1:8100 node --experimental-default-type=module specs/069-editor-mutation-state-determinism/evidence/editor-mutation-state-probe.ts`.
+      **Adversarial follow-up**: hidden grid controls now dispatch through the
+      transaction owner, require the root frame selection before applying, and
+      the browser probe dispatches stale `input`/`change` DOM events to verify
+      no dirty, undo, save payload, or relayout side effect.
 
 ## Phase 3: Inspector, Geometry, Undo, Save
 
-- [ ] **T030** Route appearance-only inspector edits through no-relayout
+- [x] **T030** Route appearance-only inspector edits through no-relayout
       transactions.
       **Do**: box variant/style changes must not relayout when measured geometry
       is unchanged.
       **Verify**: `support-engineering-flow` bounds byte-identical before/after.
+      **Evidence**: `npm --prefix packages/layout-engine test -- app-inspector-mutation-runtime editor-mutation-transaction`;
+      `npm --prefix packages/layout-engine exec tsc -- --noEmit -p packages/layout-engine/tsconfig.json`;
+      `npm --prefix packages/layout-engine run build:browser`;
+      `PREVIEW_BASE_URL=http://127.0.0.1:8100 node --experimental-default-type=module specs/069-editor-mutation-state-determinism/evidence/editor-mutation-state-probe.ts`.
+      The regenerated evidence records `support-engineering-flow`
+      `appearance-style-edit` with `elk-force` before/after, unchanged bounds
+      signature, dirty `false -> true`, undo `false -> true`, and no
+      transaction violations.
 
 - [ ] **T031** Route geometry-changing edits through explicit relayout policies.
       **Do**: resize/drag/direction/waypoint/text edits must declare whether
