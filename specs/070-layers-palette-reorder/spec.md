@@ -1,6 +1,6 @@
-# Spec 052: Layers Palette Reorder
+# Spec 070: Layers Palette Reorder
 
-**Feature Branch**: `feat/052-layers-palette-reorder`
+**Feature Branch**: `feat/070-layers-palette-reorder`
 **Status**: Draft
 **Created**: 2026-06-25
 

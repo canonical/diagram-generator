@@ -1,7 +1,7 @@
-# Tasks: Spec 052 Layers Palette Reorder
+# Tasks: Spec 070 Layers Palette Reorder
 
-**Input**: `specs/052-layers-palette-reorder/spec.md`
-**Branch**: `feat/052-layers-palette-reorder`
+**Input**: `specs/070-layers-palette-reorder/spec.md`
+**Branch**: `feat/070-layers-palette-reorder`
 
 ## Phase 1: Model And Reuse Points
 

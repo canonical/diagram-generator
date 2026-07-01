@@ -48,4 +48,12 @@ root:
     variant: highlight
     icon: Server.svg
 meta:
-  layout_engine: v3
+  layout_engine: dagre
+  dagre:
+    dagre.ranker: network-simplex
+    dagre.rankalign: center
+    dagre.nodesep: 24
+    dagre.ranksep: 24
+    dagre.edgesep: 24
+    dagre.marginx: 0
+    dagre.marginy: 0

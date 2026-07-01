@@ -6,6 +6,7 @@ describe('createPreviewInspectorMutationRuntime', () => {
     let overrides: Record<string, Record<string, unknown>> = {};
     const scheduleRelayout = vi.fn();
     const requestRelayoutNow = vi.fn();
+    const applyAllOverrides = vi.fn();
     const renderSelectionInspector = vi.fn();
     const mutationResults: unknown[] = [];
 
@@ -19,6 +20,7 @@ describe('createPreviewInspectorMutationRuntime', () => {
       setDirty: vi.fn(),
       scheduleRelayout,
       requestRelayoutNow,
+      applyAllOverrides,
       renderSelectionInspector,
       cleanOverride: vi.fn(),
       getGridInfo: () => null,
@@ -39,6 +41,7 @@ describe('createPreviewInspectorMutationRuntime', () => {
     });
     expect(scheduleRelayout).not.toHaveBeenCalled();
     expect(requestRelayoutNow).not.toHaveBeenCalled();
+    expect(applyAllOverrides).toHaveBeenCalledTimes(1);
     expect(renderSelectionInspector).toHaveBeenCalledWith('alpha');
     expect(mutationResults).toEqual([
       expect.objectContaining({
@@ -61,6 +64,7 @@ describe('createPreviewInspectorMutationRuntime', () => {
     let overrides: Record<string, Record<string, unknown>> = {};
     const scheduleRelayout = vi.fn();
     const requestRelayoutNow = vi.fn();
+    const applyAllOverrides = vi.fn();
 
     const runtime = createPreviewInspectorMutationRuntime({
       captureOverrideEntries: (ids) => Object.fromEntries(ids.map((id) => [id, { ...(overrides[id] || {}) }])),
@@ -72,6 +76,7 @@ describe('createPreviewInspectorMutationRuntime', () => {
       setDirty: vi.fn(),
       scheduleRelayout,
       requestRelayoutNow,
+      applyAllOverrides,
       renderSelectionInspector: vi.fn(),
       cleanOverride: vi.fn(),
       getGridInfo: () => null,
@@ -90,6 +95,7 @@ describe('createPreviewInspectorMutationRuntime', () => {
     });
     expect(scheduleRelayout).not.toHaveBeenCalled();
     expect(requestRelayoutNow).not.toHaveBeenCalled();
+    expect(applyAllOverrides).toHaveBeenCalledTimes(1);
   });
 
   it('keeps requesting relayout for style changes that alter measured geometry class', () => {
@@ -106,6 +112,7 @@ describe('createPreviewInspectorMutationRuntime', () => {
       setDirty: vi.fn(),
       scheduleRelayout,
       requestRelayoutNow: vi.fn(),
+      applyAllOverrides: vi.fn(),
       renderSelectionInspector: vi.fn(),
       cleanOverride: vi.fn(),
       getGridInfo: () => null,
@@ -149,6 +156,7 @@ describe('createPreviewInspectorMutationRuntime', () => {
       setDirty,
       scheduleRelayout,
       requestRelayoutNow,
+      applyAllOverrides: vi.fn(),
       renderSelectionInspector,
       cleanOverride: vi.fn(),
       getGridInfo: () => null,
@@ -208,6 +216,7 @@ describe('createPreviewInspectorMutationRuntime', () => {
       setDirty: vi.fn(),
       scheduleRelayout,
       requestRelayoutNow,
+      applyAllOverrides: vi.fn(),
       renderSelectionInspector: vi.fn(),
       cleanOverride: vi.fn(),
       getGridInfo: () => null,
@@ -253,6 +262,7 @@ describe('createPreviewInspectorMutationRuntime', () => {
       setDirty: vi.fn(),
       scheduleRelayout,
       requestRelayoutNow,
+      applyAllOverrides: vi.fn(),
       renderSelectionInspector: vi.fn(),
       cleanOverride: vi.fn(),
       getGridInfo: () => null,
@@ -285,6 +295,7 @@ describe('createPreviewInspectorMutationRuntime', () => {
       setDirty: vi.fn(),
       scheduleRelayout: vi.fn(),
       requestRelayoutNow,
+      applyAllOverrides: vi.fn(),
       renderSelectionInspector,
       cleanOverride: vi.fn(),
       getGridInfo: () => null,

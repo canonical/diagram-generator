@@ -644,6 +644,7 @@ export function createPreviewEditorRuntimeSet(
     setDirty: options.setDirty,
     scheduleRelayout: options.scheduleRelayout,
     requestRelayoutNow: options.requestRelayoutNow,
+    applyAllOverrides: options.applyAllOverrides,
     renderSelectionInspector: inspectorDisplay.renderSelectionInspector,
     cleanOverride: options.cleanOverride,
     getGridInfo: options.getGridInfo,

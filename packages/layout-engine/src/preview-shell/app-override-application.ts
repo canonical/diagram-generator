@@ -542,7 +542,9 @@ export function applyPreviewSvgOverrides(options: ApplyPreviewSvgOverridesOption
         applyTextOverrideToGroup(group, override.text.map((line) => String(line)));
       }
 
-      if (!frameManaged && typeof override?.style === 'string' && options.boxStyles[override.style]) {
+      // Style-only overrides are safe to patch onto frame-managed SVG groups:
+      // they recolor/reborder existing markup without mutating geometry.
+      if (typeof override?.style === 'string' && options.boxStyles[override.style]) {
         applyStyleOverrideToGroup(group, options.boxStyles[override.style]!);
       }
 

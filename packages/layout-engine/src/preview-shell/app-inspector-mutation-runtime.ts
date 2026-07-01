@@ -69,6 +69,7 @@ export interface CreatePreviewInspectorMutationRuntimeOptions {
   setDirty: (dirty: boolean) => void;
   scheduleRelayout: (cid: string) => void;
   requestRelayoutNow: (cid: string) => void;
+  applyAllOverrides?: (() => void) | null;
   renderSelectionInspector: (cid?: string | null) => void;
   cleanOverride: (cid: string) => void;
   getGridInfo: () => PreviewGridInfo | null | undefined;
@@ -172,6 +173,8 @@ export function createPreviewInspectorMutationRuntime(
       options.setDirty(true);
       if (requiresRelayout) {
         options.scheduleRelayout(cid);
+      } else {
+        options.applyAllOverrides?.();
       }
       options.renderSelectionInspector(cid);
       options.commitOverridePatchAction(
