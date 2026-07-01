@@ -245,7 +245,6 @@ function createChromeHarness() {
    },
    async __DG_rerenderPreviewEngineWorkspaceStage() {
      rerenderCalls.push('rerender');
-     previewWindow.__DG_activeLayoutOperatorKey = frameTreeJson.layoutEngine ?? null;
       document.renderedEngine = frameTreeJson.layoutEngine ?? null;
       document.renderedViewBox = viewBoxByEngine[frameTreeJson.layoutEngine ?? ''] ?? null;
       document.stageGeometry = geometryByEngine[frameTreeJson.layoutEngine ?? ''] ?? [];
@@ -260,7 +259,6 @@ function createChromeHarness() {
    getFrameTreeJson?: (() => unknown) | null;
    setFrameTreeLayoutEngine?: ((layoutEngine: string | null | undefined) => string | null) | null;
    __DG_syncPreviewEngineWorkspacePanels?: (() => void) | null;
-   __DG_activeLayoutOperatorKey?: string | null;
    PreviewSaveClient?: {
      syncSaveButton?: () => void;
    };
@@ -314,7 +312,6 @@ describe('preview engine workspace chrome', () => {
     expect(harness.previewWindow.__DG_CONFIG?.layout_engine).toBe('dagre');
     expect((harness.previewWindow as any).__DG_previewRenderIntent?.engineId).toBe('dagre');
     expect(harness.frameTreeJson.layoutEngine).toBe('dagre');
-    expect(harness.previewWindow.__DG_activeLayoutOperatorKey).toBe('dagre');
     expect(harness.help.textContent).toBe('Selected engine is unsaved until you save this document.');
     expect(harness.panelSyncCalls).toEqual(['sync', 'sync', 'sync']);
     expect(harness.saveButtonSyncCalls).toEqual(['sync', 'sync', 'sync']);
@@ -358,10 +355,8 @@ describe('preview engine workspace chrome', () => {
       compatible_engines: ['v3', 'elk-layered', 'dagre'],
       show_engine_switcher: true,
     };
-    harness.previewWindow.__DG_activeLayoutOperatorKey = 'elk-layered';
     harness.previewWindow.__DG_rerenderPreviewEngineWorkspaceStage = async () => {
       harness.rerenderCalls.push('rerender');
-      harness.previewWindow.__DG_activeLayoutOperatorKey = 'dagre';
       throw new Error('rerender failed');
     };
 
@@ -375,7 +370,6 @@ describe('preview engine workspace chrome', () => {
 
     expect(harness.previewWindow.__DG_CONFIG?.active_engine_id).toBe('elk-layered');
     expect(harness.frameTreeJson.layoutEngine).toBe('elk-layered');
-    expect(harness.previewWindow.__DG_activeLayoutOperatorKey).toBe('elk-layered');
     expect((harness.previewWindow as any).__DG_lastEditorMutationTransactionResult).toEqual(
       expect.objectContaining({
         kind: 'rejected',
@@ -395,7 +389,6 @@ describe('preview engine workspace chrome', () => {
     ];
     harness.geometryByEngine.v3 = equivalentGeometry;
     harness.geometryByEngine['elk-layered'] = [...equivalentGeometry];
-    harness.previewWindow.__DG_activeLayoutOperatorKey = null;
     harness.document.renderedEngine = 'v3';
     harness.document.renderedViewBox = '-24 -24 272 200';
     harness.document.stageGeometry = harness.geometryByEngine.v3;

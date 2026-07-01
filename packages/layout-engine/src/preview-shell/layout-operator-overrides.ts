@@ -115,7 +115,6 @@ function syncLegacyLayoutOperatorAliases(
     return;
   }
   const nextState = cloneLayoutOperatorOverrideState(state);
-  model.layoutOperatorOverrides = nextState;
   const activeKey = nextState.activeOperatorKey;
   const activeBucket = activeKey
     ? cloneRecord(nextState.byOperator[activeKey]) ?? {}
@@ -288,6 +287,12 @@ export function readLayoutOperatorOverrideState(
     );
   }
   return cloneLayoutOperatorOverrideState(model?.layoutOperatorOverrides ?? null);
+}
+
+export function readActiveLayoutOperatorKey(
+  model: LayoutOperatorOverrideModelLike | null | undefined,
+): string | null {
+  return readLayoutOperatorOverrideState(model).activeOperatorKey ?? null;
 }
 
 export function resolveActiveLayoutOperatorManifest(

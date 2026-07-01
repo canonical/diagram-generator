@@ -174,9 +174,15 @@ async function renderedEngine(page: Page): Promise<string | null> {
 async function activeOptionBucket(page: Page): Promise<string | null> {
   return page.evaluate(() => {
     const previewWindow = window as Window & typeof globalThis & {
-      __DG_activeLayoutOperatorKey?: string | null;
+      EditorState?: {
+        captureSnapshot?: () => {
+          ep?: {
+            activeOperatorKey?: string | null;
+          };
+        };
+      } | null;
     };
-    return previewWindow.__DG_activeLayoutOperatorKey ?? null;
+    return previewWindow.EditorState?.captureSnapshot?.()?.ep?.activeOperatorKey ?? null;
   });
 }
 

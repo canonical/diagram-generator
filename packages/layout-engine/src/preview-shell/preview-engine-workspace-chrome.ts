@@ -39,7 +39,6 @@ export type PreviewEngineWorkspaceRuntimeWindow = Window & typeof globalThis & {
   __DG_previewEngineWorkspaceState?: PreviewEngineWorkspaceRuntimeState | null;
   __DG_lastEditorMutationTransactionResult?: EditorMutationTransactionResult | null;
   __DG_lastEditorMutationStateViolations?: readonly EditorMutationStateVectorViolation[] | null;
-  __DG_activeLayoutOperatorKey?: string | null;
   __DG_previewBridgeHostRuntime?: {
     getFrameTreeJson?: (() => unknown) | null;
     setFrameTreeLayoutEngine?: ((layoutEngine: string | null | undefined) => string | null) | null;
@@ -441,7 +440,6 @@ export function initPreviewEngineWorkspaceChrome(
     const previousWorkspace = workspace;
     const previousFrameTreeLayoutEngine = readFrameTreeLayoutEngine(options.previewWindow)
       ?? previousWorkspace.activeEngineId;
-    const previousActiveOptionBucket = options.previewWindow.__DG_activeLayoutOperatorKey ?? null;
     const previousGeometrySignature = stageGeometrySignature(options.document);
     const previousFittedViewBox = fittedStageViewBox(options.document);
     try {
@@ -471,7 +469,9 @@ export function initPreviewEngineWorkspaceChrome(
             intent: options.previewWindow.__DG_previewRenderIntent ?? null,
           }),
           frameTreeLayoutEngine: readFrameTreeLayoutEngine(options.previewWindow),
-          activeOptionBucket: options.previewWindow.__DG_activeLayoutOperatorKey ?? null,
+          activeOptionBucket: resolvePreviewRenderIntentLayoutEngine({
+            intent: options.previewWindow.__DG_previewRenderIntent ?? null,
+          }),
           renderedEngine: nextRenderedEngine,
           fittedViewBox: fittedStageViewBox(options.document),
           dirty: options.previewWindow.PreviewSaveClient?.isDirty?.() ?? null,
@@ -494,7 +494,6 @@ export function initPreviewEngineWorkspaceChrome(
       workspace = previousWorkspace;
       keyboardFocusEngineId = previousWorkspace.activeEngineId;
       commitFrameTreeLayoutEngine(options.previewWindow, previousFrameTreeLayoutEngine);
-      options.previewWindow.__DG_activeLayoutOperatorKey = previousActiveOptionBucket;
       syncWorkspaceUi();
       setHelpText(
         help,

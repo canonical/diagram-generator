@@ -95,7 +95,7 @@
       **Verify**: unit test that node A's params are unreadable from node B.
       **Evidence**: `packages/layout-engine/tests/preview-interpreter-node.test.ts`.
 
-- [ ] **T021** Move param ownership off global state
+- [x] **T021** Move param ownership off global state
       (`layoutOperatorOverrides`, `__DG_activeLayoutOperatorKey`) onto the node
       container; make the globals derived read-through, then remove them.
       **Verify**: ELK layered→radial→layered and layered→dagre→layered prove no
@@ -103,10 +103,11 @@
       **Evidence**: `layout-operator-overrides` + `preview-engine-elk-runtime`
       tests; browser SC-003 sequence.
       Note: manifest-aware override reads/writes now route through the node
-      registry and keep legacy aliases derived. Unit coverage now proves both
-      layered→radial→layered and layered→dagre→layered bucket isolation, and
-      `editor-live-repaint-regression.test.ts` now carries the real browser
-      SC-003 sequence; full global removal remains open.
+      registry; source-side `layoutOperatorOverrides` / `__DG_activeLayoutOperatorKey`
+      ownership is removed, focused unit coverage proves both layered→radial→layered
+      and layered→dagre→layered bucket isolation, and
+      `editor-live-repaint-regression.test.ts` keeps the real browser SC-003
+      sequence green by reading node-owned state through the editor snapshot.
 
 - [ ] **T022** Per-node persistence: save/reload each node's params under its own
       namespace; reject foreign keys at the node boundary (not global filtering).

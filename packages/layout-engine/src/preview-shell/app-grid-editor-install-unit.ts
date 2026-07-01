@@ -41,10 +41,11 @@ import { sidebarSectionsUseLayoutParams } from '../preview-engine/sidebar-sectio
 import type { PreviewEngineManifest } from '../preview-engine/types.js';
 import {
   activateLayoutOperatorOverrideBucket,
-  cloneLayoutOperatorOverrideState,
   deactivateLayoutOperatorOverrideBucket,
+  readLayoutOperatorOverrideState,
   readLayoutOperatorOverrideBucketForManifest,
   resolveEffectiveLayoutOperatorOverrides,
+  writeLayoutOperatorOverrideState,
   writeLayoutOperatorOverrideBucketForManifest,
   type LayoutOperatorOverrideState,
 } from './layout-operator-overrides.js';
@@ -297,7 +298,6 @@ export type PreviewGridEditorLegacyWindow = PreviewGridEditorRuntimeWindow & {
   __DG_previewRenderIntent?: PreviewRenderIntent | null;
   __DG_syncPreviewEngineWorkspacePanels?: (() => void) | null;
   __DG_rerenderPreviewEngineWorkspaceStage?: (() => Promise<void>) | null;
-  __DG_activeLayoutOperatorKey?: string | null;
   setFrameTreeLayoutEngine?: ((layoutEngine: string | null | undefined) => string | null) | null;
   __DG_BOX_STYLES?: PreviewBoxStyleMap | null;
   syncArrowsInModel?: PreviewGridEditorRuntimeBrowserOptions['syncArrowsInModel'];
@@ -467,7 +467,6 @@ function installActivePreviewEngineRuntime(options: {
 }): void {
   const clearActiveLayoutOperatorRuntime = () => {
     deactivateLayoutOperatorOverrideBucket(options.model, null);
-    options.previewWindow.__DG_activeLayoutOperatorKey = null;
     options.previewWindow.PreviewEngineLayoutControls = null;
     options.previewWindow.PreviewEngineShellController = null;
   };
@@ -528,8 +527,6 @@ function installActivePreviewEngineRuntime(options: {
     fallbackOverrides: persistedOverrides,
     persistNamespace: defaultPersistNamespace,
   });
-  options.previewWindow.__DG_activeLayoutOperatorKey =
-    options.model.layoutOperatorOverrides?.activeOperatorKey ?? null;
   const controlsFactory = layoutEngineRoot.previewEngines.graph?.createPreviewEngineLayoutControlsRuntime;
   const controllerFactory = layoutEngineRoot.previewEngines.graph?.createPreviewEngineShellControllerRuntime;
   if (typeof controlsFactory !== 'function' || typeof controllerFactory !== 'function') {
@@ -1112,14 +1109,8 @@ export function createPreviewGridEditorInstallUnitFromBrowserHost(
     const previewWindow = options.shared.previewWindow as PreviewGridEditorLegacyWindow;
     const previewEngineWindow = previewWindow as PreviewEngineRuntimeInstallerWindow;
     const previewConfig = previewWindow.__DG_CONFIG ?? null;
-    const previousLayoutOverrides = options.shared.model.layoutOverrides
-      ? { ...options.shared.model.layoutOverrides }
-      : null;
     const previousLayoutOverrideNamespace = options.shared.model.layoutOverrideNamespace ?? null;
-    const previousLayoutOperatorOverrides = cloneLayoutOperatorOverrideState(
-      options.shared.model.layoutOperatorOverrides ?? null,
-    );
-    const previousActiveLayoutOperatorKey = previewWindow.__DG_activeLayoutOperatorKey ?? null;
+    const previousLayoutOverrideState = readLayoutOperatorOverrideState(options.shared.model);
     const previousLayoutControls = previewEngineWindow.PreviewEngineLayoutControls ?? null;
     const previousShellController = previewEngineWindow.PreviewEngineShellController ?? null;
     const activeLayoutEngine = resolvePreviewRenderIntentLayoutEngine({
@@ -1153,10 +1144,11 @@ export function createPreviewGridEditorInstallUnitFromBrowserHost(
       });
       await getRuntime().getSceneFacade().rerenderStageFromModel();
     } catch (error) {
-      options.shared.model.layoutOverrides = previousLayoutOverrides;
-      options.shared.model.layoutOverrideNamespace = previousLayoutOverrideNamespace;
-      options.shared.model.layoutOperatorOverrides = previousLayoutOperatorOverrides;
-      previewWindow.__DG_activeLayoutOperatorKey = previousActiveLayoutOperatorKey;
+      writeLayoutOperatorOverrideState(
+        options.shared.model,
+        previousLayoutOverrideState,
+        previousLayoutOverrideNamespace,
+      );
       previewEngineWindow.PreviewEngineLayoutControls = previousLayoutControls;
       previewEngineWindow.PreviewEngineShellController = previousShellController;
       throw error;

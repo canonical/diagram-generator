@@ -3,6 +3,7 @@ import {
   activateLayoutOperatorOverrideBucket,
   collectNamespacedLayoutOperatorOverrides,
   pruneSessionBucketForManifest,
+  readLayoutOperatorOverrideState,
   readLayoutOperatorOverrideBucketForManifest,
   resolveEffectiveLayoutOperatorOverrides,
   writeLayoutOperatorOverrideBucketForManifest,
@@ -151,8 +152,17 @@ describe('layout operator overrides', () => {
       layoutOverrides: {
         'elk.layered.spacing.nodeNodeBetweenLayers': 72,
       },
-      layoutOperatorOverrides: {
-        activeOperatorKey: 'elk-layered',
+    });
+    expect(readLayoutOperatorOverrideState(model)).toEqual({
+      activeOperatorKey: 'elk-layered',
+      byOperator: {
+        'elk-force': {
+          'elk.force.model': 'EADES',
+          'elk.force.repulsion': 9,
+        },
+        'elk-layered': {
+          'elk.layered.spacing.nodeNodeBetweenLayers': 72,
+        },
       },
     });
     expect(model).toMatchObject({
@@ -195,15 +205,15 @@ describe('layout operator overrides', () => {
       layoutOverrides: {
         'elk.layered.spacing.nodeNodeBetweenLayers': 72,
       },
-      layoutOperatorOverrides: {
-        activeOperatorKey: 'elk-layered',
-        byOperator: {
-          'elk-layered': {
-            'elk.layered.spacing.nodeNodeBetweenLayers': 72,
-          },
-          'elk-radial': {
-            'elk.radial.radius': 160,
-          },
+    });
+    expect(readLayoutOperatorOverrideState(model)).toEqual({
+      activeOperatorKey: 'elk-layered',
+      byOperator: {
+        'elk-layered': {
+          'elk.layered.spacing.nodeNodeBetweenLayers': 72,
+        },
+        'elk-radial': {
+          'elk.radial.radius': 160,
         },
       },
     });
@@ -250,17 +260,6 @@ describe('layout operator overrides', () => {
       layoutOverrides: {
         'elk.layered.spacing.nodeNodeBetweenLayers': 72,
       },
-      layoutOperatorOverrides: {
-        activeOperatorKey: 'elk-layered',
-        byOperator: {
-          'elk-layered': {
-            'elk.layered.spacing.nodeNodeBetweenLayers': 72,
-          },
-          dagre: {
-            'dagre.ranksep': 144,
-          },
-        },
-      },
       previewInterpreterActiveNodeId: 'elk-layered',
       previewInterpreterNodeRegistry: {
         paramsByNodeId: {
@@ -270,6 +269,17 @@ describe('layout operator overrides', () => {
           dagre: {
             'dagre.ranksep': 144,
           },
+        },
+      },
+    });
+    expect(readLayoutOperatorOverrideState(model)).toEqual({
+      activeOperatorKey: 'elk-layered',
+      byOperator: {
+        'elk-layered': {
+          'elk.layered.spacing.nodeNodeBetweenLayers': 72,
+        },
+        dagre: {
+          'dagre.ranksep': 144,
         },
       },
     });
@@ -312,19 +322,19 @@ describe('layout operator overrides', () => {
           },
         },
       },
-      layoutOperatorOverrides: {
-        activeOperatorKey: 'elk-layered',
-        byOperator: {
-          'elk-layered': {
-            'elk.layered.spacing.nodeNodeBetweenLayers': 64,
-          },
-          'elk-radial': {
-            'elk.radial.radius': 180,
-          },
-        },
-      },
       layoutOverrides: {
         'elk.layered.spacing.nodeNodeBetweenLayers': 64,
+      },
+    });
+    expect(readLayoutOperatorOverrideState(model)).toEqual({
+      activeOperatorKey: 'elk-layered',
+      byOperator: {
+        'elk-layered': {
+          'elk.layered.spacing.nodeNodeBetweenLayers': 64,
+        },
+        'elk-radial': {
+          'elk.radial.radius': 180,
+        },
       },
     });
   });

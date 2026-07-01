@@ -74,7 +74,6 @@ type InteractionMutationPreviewWindow = Window & typeof globalThis & {
     layout_engine?: string | null;
     document_kind?: string | null;
   } | null;
-  __DG_activeLayoutOperatorKey?: string | null;
   __DG_lastEditorMutationTransactionResult?: unknown;
   __DG_lastEditorMutationStateViolations?: readonly unknown[] | null;
   __DG_getPreviewBridgeHostContract?: (() => {
@@ -745,7 +744,6 @@ export function createPreviewEditorInteractionFacadeFromBrowserHost(
         activeTab: readSelectedInteractionEngineTab(document),
         activeNodeId: previewWindow?.__DG_previewRenderIntent?.engineId
           ?? previewWindow?.__DG_CONFIG?.active_engine_id
-          ?? previewWindow?.__DG_activeLayoutOperatorKey
           ?? null,
         renderIntentEngineId: resolvePreviewRenderIntentLayoutEngine({
           intent: previewWindow.__DG_previewRenderIntent ?? null,
@@ -754,7 +752,9 @@ export function createPreviewEditorInteractionFacadeFromBrowserHost(
           frameTreeJson: previewWindow.__DG_getPreviewBridgeHostContract?.()?.getFrameTreeJson?.() ?? null,
         }),
         frameTreeLayoutEngine: readInteractionFrameTreeLayoutEngine(previewWindow),
-        activeOptionBucket: previewWindow.__DG_activeLayoutOperatorKey ?? null,
+        activeOptionBucket: previewWindow?.__DG_previewRenderIntent?.engineId
+          ?? previewWindow?.__DG_CONFIG?.active_engine_id
+          ?? null,
         renderedEngine: readInteractionRenderedEngine(document),
         fittedViewBox: readInteractionFittedViewBox(document),
         dirty: previewWindow.PreviewSaveClient?.isDirty?.() ?? null,

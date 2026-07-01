@@ -3,6 +3,7 @@ import {
   createPreviewEngineLayoutControlsRuntime,
   createPreviewEngineShellControllerRuntime,
 } from '../src/preview-engine/index.js';
+import { readLayoutOperatorOverrideState } from '../src/preview-shell/layout-operator-overrides.js';
 
 describe('elk preview runtimes', () => {
   it('builds the ELK controls panel from registered engine metadata', () => {
@@ -1013,17 +1014,17 @@ describe('elk preview runtimes', () => {
     expect(model).toMatchObject({
       layoutOverrides: { 'dagre.rankdir': 'LR' },
       layoutOverrideNamespace: 'meta.dagre',
-      layoutOperatorOverrides: {
-        activeOperatorKey: 'dagre',
-        byOperator: {
-          dagre: { 'dagre.rankdir': 'LR' },
-        },
-      },
       previewInterpreterActiveNodeId: 'dagre',
       previewInterpreterNodeRegistry: {
         paramsByNodeId: {
           dagre: { 'dagre.rankdir': 'LR' },
         },
+      },
+    });
+    expect(readLayoutOperatorOverrideState(model)).toEqual({
+      activeOperatorKey: 'dagre',
+      byOperator: {
+        dagre: { 'dagre.rankdir': 'LR' },
       },
     });
   });

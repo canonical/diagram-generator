@@ -12,6 +12,7 @@ import {
   resolveFrameYamlEngineLayoutCandidateId,
   resolveFrameYamlEngineLayoutNamespaceForOverrides,
 } from './frame-yaml-engine-layout-contract.js';
+import { readActiveLayoutOperatorKey } from './layout-operator-overrides.js';
 import type {
   PreviewOverrideModelLike as PreviewSavePayloadModelLike,
   PreviewOverrideModelNode as PreviewSavePayloadModelNode,
@@ -179,10 +180,7 @@ function validateFrameYamlEngineLayoutOverrides(
   const modelLayoutOverrides = nonEmptyRecord(model?.layoutOverrides);
   const rawLayoutOverrides = modelLayoutOverrides;
   if (rawLayoutOverrides) {
-    const preferredLayoutEngine = normalizeNamespaceValue(
-      (model as ({ layoutOperatorOverrides?: { activeOperatorKey?: unknown } } & PreviewSavePayloadModelLike) | null | undefined)
-        ?.layoutOperatorOverrides?.activeOperatorKey,
-    );
+    const preferredLayoutEngine = normalizeNamespaceValue(readActiveLayoutOperatorKey(model));
     const preferredNamespace = normalizeNamespaceValue(
       (model as (PreviewSavePayloadModelLike & { layoutOverrideNamespace?: unknown }) | null | undefined)
         ?.layoutOverrideNamespace,

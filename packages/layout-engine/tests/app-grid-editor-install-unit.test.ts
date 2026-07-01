@@ -7,6 +7,7 @@ import {
 } from '../src/preview-engine/builtins.js';
 import { installMindmapLitePreviewEngine } from '../src/preview-engine/mindmap-lite.js';
 import { getPreviewEngine } from '../src/preview-engine/registry.js';
+import { readLayoutOperatorOverrideState } from '../src/preview-shell/layout-operator-overrides.js';
 
 const mocks = vi.hoisted(() => ({
   createBrowserState: vi.fn(),
@@ -1379,7 +1380,7 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
     expect(graphControllerInit.mock.calls[1]?.[0]?.getLayoutOverrides()).toEqual({
       'elk.spacing.nodeNode': 96,
     });
-    expect(model.layoutOperatorOverrides).toEqual({
+    expect(readLayoutOperatorOverrideState(model)).toEqual({
       activeOperatorKey: 'elk-force',
       byOperator: {
         dagre: { 'dagre.ranksep': 128 },
@@ -1407,10 +1408,9 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
     expect(previewWindow.__DG_CONFIG.active_engine_id).toBe('v3');
     expect(previewWindow.__DG_previewRenderIntent?.engineId).toBe('v3');
     expect(rerenderStageCalls).toEqual(['rerender']);
-    expect(previewWindow.__DG_activeLayoutOperatorKey).toBeNull();
     expect(previewWindow.PreviewEngineLayoutControls).toBeNull();
     expect(previewWindow.PreviewEngineShellController).toBeNull();
-    expect(model.layoutOperatorOverrides).toEqual({
+    expect(readLayoutOperatorOverrideState(model)).toEqual({
       activeOperatorKey: null,
       byOperator: {
         dagre: { 'dagre.ranksep': 128 },
@@ -1654,7 +1654,7 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
     expect(committedLayoutEngines).toEqual(['elk-layered']);
     expect(createGraphControlsRuntime).toHaveBeenCalledTimes(1);
     expect(createGraphControllerRuntime).toHaveBeenCalledTimes(1);
-    expect(model.layoutOperatorOverrides).toEqual({
+    expect(readLayoutOperatorOverrideState(model)).toEqual({
       activeOperatorKey: 'v3',
       byOperator: {
         v3: { gap: 24 },
@@ -1662,7 +1662,6 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
     });
     expect(model.layoutOverrides).toEqual({ gap: 24 });
     expect(model.layoutOverrideNamespace).toBe('meta.v3');
-    expect(previewWindow.__DG_activeLayoutOperatorKey).toBe('v3');
     expect(previewWindow.PreviewEngineLayoutControls).toBe(previousControlsRuntime);
     expect(previewWindow.PreviewEngineShellController).toBe(previousShellController);
   });

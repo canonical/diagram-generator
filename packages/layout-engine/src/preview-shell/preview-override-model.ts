@@ -14,6 +14,7 @@ import {
 import {
   collectNamespacedLayoutOperatorOverrides,
   readActiveLayoutOperatorOverrideBucket,
+  readLayoutOperatorOverrideState,
   resolveActiveLayoutOperatorManifest,
   type LayoutOperatorOverrideState,
 } from './layout-operator-overrides.js';
@@ -248,7 +249,7 @@ function readPreviewPersistedLayoutOverrides(
   if (activeManifest) {
     const namespacedOverrides = collectNamespacedLayoutOperatorOverrides({
       manifest: activeManifest,
-      sessionState: model?.layoutOperatorOverrides ?? null,
+      sessionState: readLayoutOperatorOverrideState(model),
       sessionOverrides: activeOperatorOverrides,
       persistNamespace: model?.layoutOverrideNamespace,
     });

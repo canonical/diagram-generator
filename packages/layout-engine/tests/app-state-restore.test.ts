@@ -7,6 +7,7 @@ import {
   restorePreviewOverrideEntries,
   snapshotNeedsPreviewRelayout,
 } from '../src/preview-shell/app-state-restore.js';
+import { readLayoutOperatorOverrideState } from '../src/preview-shell/layout-operator-overrides.js';
 
 describe('preview state restore helpers', () => {
   it('flags snapshots that contain relayout-owned frame overrides', () => {
@@ -339,7 +340,7 @@ describe('preview state restore helpers', () => {
       'syncDirtyFromSerialized',
     ]);
     expect(model.layoutOverrides).toEqual({ 'dagre.rankdir': 'LR' });
-    expect(model.layoutOperatorOverrides).toEqual({
+    expect(readLayoutOperatorOverrideState(model)).toEqual({
       activeOperatorKey: 'dagre',
       byOperator: {
         dagre: { 'dagre.rankdir': 'LR' },

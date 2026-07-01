@@ -23,6 +23,7 @@ import {
 } from './frame-yaml-engine-layout-contract.js';
 import {
   activateLayoutOperatorOverrideBucket,
+  readLayoutOperatorOverrideState,
   writeLayoutOperatorOverrideState,
   type LayoutOperatorOverrideState,
 } from './layout-operator-overrides.js';
@@ -605,7 +606,10 @@ export function createPreviewGridEditorRuntimeFromBrowserHost(
             } else {
               options.shared.model.layoutOverrides = nextLayoutOverrides;
               options.shared.model.layoutOverrideNamespace = engineLayoutState?.namespace ?? null;
-              options.shared.model.layoutOperatorOverrides = null;
+              writeLayoutOperatorOverrideState(options.shared.model, {
+                activeOperatorKey: null,
+                byOperator: {},
+              }, engineLayoutState?.namespace ?? null);
             }
             options.shared.model.removedIds = new Set<string>();
             options.browser.updateOverrideSummary();
@@ -675,7 +679,7 @@ export function createPreviewGridEditorRuntimeFromBrowserHost(
               options.shared.model.gridOverrides = {};
               options.shared.model.layoutOverrides = {};
               writeLayoutOperatorOverrideState(options.shared.model, {
-                activeOperatorKey: options.shared.model.layoutOperatorOverrides?.activeOperatorKey ?? null,
+                activeOperatorKey: readLayoutOperatorOverrideState(options.shared.model).activeOperatorKey,
                 byOperator: {},
               }, null);
               options.shared.model.removedIds = new Set<string>();

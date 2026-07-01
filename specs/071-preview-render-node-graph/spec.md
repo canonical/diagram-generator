@@ -8,10 +8,11 @@
 `docs/spec-reviews/README.md` (engine-identity source-of-truth review), and the
 2026-07-01 render-path fragmentation review in `AGENT-INBOX.md`.
 **Status Note (2026-07-02)**: Phase 0's branch-local canvas-parity baseline is
-captured in `evidence/canvas-parity-baseline.json`, and Phase 2 now has both
-unit and real-browser proof that layered, radial, and dagre buckets stay
-isolated in-session. Remaining open work is legacy alias removal,
-per-node save/reload, and the switch/cook consolidation phases.
+captured in `evidence/canvas-parity-baseline.json`, Phase 2 now has both unit
+and real-browser proof that layered, radial, and dagre buckets stay isolated
+in-session, and layout-parameter ownership no longer lives on
+`layoutOperatorOverrides` / `__DG_activeLayoutOperatorKey`. Remaining open work
+is per-node save/reload and the switch/cook consolidation phases.
 
 ## North star
 
