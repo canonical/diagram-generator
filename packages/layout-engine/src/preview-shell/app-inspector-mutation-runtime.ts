@@ -143,11 +143,12 @@ export function createPreviewInspectorMutationRuntime(
         node,
         styleName,
       });
+      const context = options.getMutationContext?.() ?? null;
       options.onMutationTransaction?.(resolveEditorMutationTransaction({
         kind: 'inspector-appearance',
         sourceControl: 'single-style',
-        activeEngineId: null,
-        documentKind: 'frame-diagram',
+        activeEngineId: context?.activeEngineId ?? null,
+        documentKind: context?.documentKind ?? 'frame-diagram',
         capabilityGate: {
           applicable: true,
           reason: changed ? 'style change is applicable to the selected frame' : 'style already matches selected frame',

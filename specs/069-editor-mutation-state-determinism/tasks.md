@@ -122,14 +122,16 @@
       `geometry-prop-edit` as `inspector-layout` from
       `single-prop:min_width`, `relayoutPolicy: engine`, dirty
       `false -> true`, undo `false -> true`, changed bounds signature, and no
-      local state-vector violations. Remaining T031 work: resize/drag policy
-      transactions.
+      local state-vector violations.
       **Progress evidence (waypoint sub-slice)**:
       `npm --prefix packages/layout-engine test -- app-waypoint-host app-arrow-waypoint-runtime app-editor-runtime-set browser-entry-contract`;
       `npm --prefix packages/layout-engine exec tsc -- --noEmit -p packages/layout-engine/tsconfig.json`.
       Waypoint add/move/remove commits emit a `waypoint` transaction before
       persistence/undo callbacks with `relayoutPolicy: local`, dirty
-      `mark-dirty`, undo `record`, and active document context.
+      `mark-dirty`, undo `record`, and active document context. Waypoint drag
+      emits an additional live `waypoint-drag-live` transaction before the
+      transient coordinate write with `relayoutPolicy: local`, dirty
+      `preserve`, and undo `none`.
       **Progress evidence (text-edit sub-slice)**:
       `npm --prefix packages/layout-engine test -- app-text-edit-host app-text-edit-runtime app-waypoint-host app-arrow-waypoint-runtime app-editor-runtime-set browser-entry-contract`;
       `npm --prefix packages/layout-engine exec tsc -- --noEmit -p packages/layout-engine/tsconfig.json`.
@@ -137,14 +139,17 @@
       writes with `relayoutPolicy: engine`, dirty `mark-dirty`, undo `record`,
       and active document context.
       **Progress evidence (resize/drag sub-slice)**:
-      `npm --prefix packages/layout-engine test -- interaction-completion-dispatch app-resize-interaction-runtime app-resize-host app-drag-host editor-mutation-transaction`;
+      `npm --prefix packages/layout-engine test -- interaction-completion-dispatch app-resize-interaction-runtime app-grid-editor-runtime app-inspector-mutation-runtime app-waypoint-host app-arrow-waypoint-runtime app-state-restore app-editor-relayout-facade editor-mutation-transaction`;
       `npm --prefix packages/layout-engine exec tsc -- --noEmit -p packages/layout-engine/tsconfig.json`.
-      Resize handle, free-drag, and autolayout reorder completions emit
-      committed `geometry` transactions before undo/persistence/reorder writes
-      with `relayoutPolicy: local`, dirty `mark-dirty`, undo `record`, active
-      document context, and save-payload deltas. Direction edits are covered by
-      the inspector layout transaction path as `single-prop:direction` with
-      `relayoutPolicy: engine`.
+      Resize handle and free-drag completions emit committed `geometry`
+      transactions before undo/persistence writes with active document context,
+      dirty `mark-dirty`, undo `record`, and save-payload deltas. Resize
+      completion declares `relayoutPolicy: engine` when the active preview shell
+      uses engine relayout and `local` otherwise. Autolayout reorder is not a
+      separate dispatcher geometry transaction; it is covered by the real
+      `single-prop:children_order` inspector layout transaction. Direction
+      edits are covered by the inspector layout transaction path as
+      `single-prop:direction` with `relayoutPolicy: engine`.
 
 - [ ] **T032** Make undo/redo restore complete state vectors.
       **Do**: undo/redo must restore engine intent, option bucket, frame

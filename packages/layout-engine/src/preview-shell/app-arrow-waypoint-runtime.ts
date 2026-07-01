@@ -180,6 +180,7 @@ export function createPreviewArrowWaypointRuntime(
       getNode: options.getArrowNode,
       readEndpoints: readArrowEndpoints,
       updateArrowVisual,
+      transaction: waypointTransaction('waypoint-drag-live'),
     });
     if (result.kind !== 'moved') {
       return;

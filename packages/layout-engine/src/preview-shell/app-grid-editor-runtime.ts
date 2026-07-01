@@ -861,6 +861,14 @@ export function createPreviewGridEditorRuntimeFromBrowserHost(
           renderMultiSelectionInspector: options.browser.renderMultiSelectionInspector,
           scheduleLayoutResizeRelayout: options.browser.scheduleLayoutResizeRelayout,
           scheduleV3ResizeRelayout: options.browser.scheduleV3ResizeRelayout,
+          getResizeCompletionRelayoutPolicy: () => (
+            getPreviewShellBootstrapContract().isPreviewEngineShellLayoutActive(
+              options.shared.previewWindow,
+              readFrameTreeJson(),
+            )
+              ? 'engine'
+              : 'local'
+          ),
           cancelLiveRelayout: options.browser.cancelLiveRelayout,
           cleanOverride: options.browser.cleanOverride,
           persistResize: options.browser.persistResize,

@@ -125,6 +125,9 @@ describe('createPreviewResizeInteractionRuntime', () => {
           };
         },
         onMutationTransaction() {},
+        getResizeCompletionRelayoutPolicy() {
+          return 'engine';
+        },
       });
 
       runtime.startResize({} as MouseEvent);
@@ -151,6 +154,7 @@ describe('createPreviewResizeInteractionRuntime', () => {
           transaction: {
             activeEngineId: 'elk-force',
             documentKind: 'frame-diagram',
+            relayoutPolicy: 'engine',
             onMutationTransaction: expect.any(Function),
           },
         },

@@ -99,11 +99,6 @@ describe('interaction completion dispatch helpers', () => {
       documentKind: 'frame-diagram',
       onMutationTransaction(result) {
         actions.push(`${result.mutationKind}:${result.sourceControl}:${result.relayoutPolicy}`);
-        expect(result.persistenceDelta).toEqual({
-          frameOverridesChanged: false,
-          frameTreeChanged: true,
-          savePayloadChanged: true,
-        });
       },
     };
 
@@ -119,7 +114,7 @@ describe('interaction completion dispatch helpers', () => {
     expect(options.applyReorder).toHaveBeenCalledWith('stack', 'leaf', 3);
     expect(options.selectComponent).toHaveBeenCalledWith('leaf');
     expect(options.commitOverridePatchAction).not.toHaveBeenCalled();
-    expect(actions).toEqual(['geometry:drag-reorder:local', 'apply-reorder']);
+    expect(actions).toEqual(['apply-reorder']);
     expect(options.autoFitArtboard).not.toHaveBeenCalled();
   });
 
@@ -166,6 +161,7 @@ describe('interaction completion dispatch helpers', () => {
     options.transaction = {
       activeEngineId: 'v3',
       documentKind: 'frame-diagram',
+      relayoutPolicy: 'engine',
       onMutationTransaction(result) {
         actions.push(`${result.mutationKind}:${result.sourceControl}:${result.relayoutPolicy}`);
         expect(result.dirtyPolicy).toBe('mark-dirty');
@@ -195,7 +191,7 @@ describe('interaction completion dispatch helpers', () => {
       { after: true },
     );
     expect(options.persistResize).toHaveBeenCalledWith(['a', 'b'], ['parent'], 'primary', null);
-    expect(actions).toEqual(['geometry:resize-handle:local', 'commit', 'persist']);
+    expect(actions).toEqual(['geometry:resize-handle:engine', 'commit', 'persist']);
     expect(options.autoFitArtboard).toHaveBeenCalledTimes(1);
   });
 });

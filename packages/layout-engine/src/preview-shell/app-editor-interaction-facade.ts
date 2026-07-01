@@ -230,6 +230,8 @@ export interface PreviewEditorInteractionBrowserHostOptions {
   renderMultiSelectionInspector: () => void;
   scheduleLayoutResizeRelayout: PreviewEditorInteractionBrowserHostCallback;
   scheduleV3ResizeRelayout: PreviewEditorInteractionBrowserHostCallback;
+  getResizeCompletionRelayoutPolicy?:
+    RuntimeResizeInteractionOptions['getResizeCompletionRelayoutPolicy'];
   cancelLiveRelayout: () => void;
   cleanOverride: (cid: string) => void;
   persistResize: PreviewEditorInteractionBrowserHostCallback;
@@ -830,6 +832,7 @@ export function createPreviewEditorInteractionFacadeFromBrowserHost(
         browser.scheduleLayoutResizeRelayout as RuntimeResizeInteractionOptions['scheduleLayoutResizeRelayout'],
       scheduleV3ResizeRelayout:
         browser.scheduleV3ResizeRelayout as RuntimeResizeInteractionOptions['scheduleV3ResizeRelayout'],
+      getResizeCompletionRelayoutPolicy: browser.getResizeCompletionRelayoutPolicy ?? null,
       cancelLiveRelayout: browser.cancelLiveRelayout,
       clearPreviewSvgHoverState:
         options.contracts.previewShellInteraction.clearPreviewSvgHoverState as RuntimeResizeInteractionOptions['clearPreviewSvgHoverState'],

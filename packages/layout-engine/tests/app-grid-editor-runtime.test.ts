@@ -396,6 +396,9 @@ describe('createPreviewGridEditorRuntimeFromBrowserHost', () => {
       interactionOptions.contracts.previewShellScene.syncPreviewTreeSelectionState,
     ).toBe(previewShellSceneContract.syncPreviewTreeSelectionState);
     expect(interactionOptions.browser.getPreviewGridInfo()).toEqual({ cols: 8 });
+    expect(interactionOptions.browser.getResizeCompletionRelayoutPolicy()).toBe('engine');
+    previewShellBootstrapContract.isPreviewEngineShellLayoutActive.mockReturnValueOnce(false);
+    expect(interactionOptions.browser.getResizeCompletionRelayoutPolicy()).toBe('local');
 
     await bootstrapOptions.runtimeBootstrap.writeClipboardText('copy');
     expect(options.browser.writeClipboardText).toHaveBeenCalledWith('copy');

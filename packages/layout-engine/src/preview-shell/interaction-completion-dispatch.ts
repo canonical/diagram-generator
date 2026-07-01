@@ -40,6 +40,7 @@ export interface PreviewResizeCompletionState {
 export interface PreviewGeometryMutationTransactionOptions {
   activeEngineId?: string | null;
   documentKind?: string | null;
+  relayoutPolicy?: EditorMutationRelayoutPolicy | null;
   onMutationTransaction?: ((result: EditorMutationTransactionResult) => void) | null;
 }
 
@@ -130,12 +131,6 @@ export function dispatchPreviewDragCompletion(
     : { kind: 'none', autoFit: false };
 
   if (plan.kind === 'apply-reorder') {
-    emitGeometryMutationTransaction(options.transaction, {
-      sourceControl: 'drag-reorder',
-      reason: 'drag reordered an autolayout child',
-      relayoutPolicy: 'local',
-      frameTreeChanged: true,
-    });
     options.applyReorder(
       plan.parentId,
       state?.cids[0] ?? plan.selectedId,
@@ -203,7 +198,7 @@ export function dispatchPreviewResizeCompletion(
     emitGeometryMutationTransaction(options.transaction, {
       sourceControl: 'resize-handle',
       reason: 'resize changed component geometry overrides',
-      relayoutPolicy: 'local',
+      relayoutPolicy: options.transaction?.relayoutPolicy ?? 'local',
     });
     options.commitOverridePatchAction(
       plan.actionLabel,

@@ -25,6 +25,7 @@ describe('createPreviewInspectorMutationRuntime', () => {
       getWidthUnit: () => 'px',
       getHeightUnit: () => 'px',
       baselineStep: 8,
+      getMutationContext: () => ({ activeEngineId: 'elk-force', documentKind: 'frame-diagram' }),
       onMutationTransaction: (result) => mutationResults.push(result),
     });
 
@@ -43,6 +44,8 @@ describe('createPreviewInspectorMutationRuntime', () => {
       expect.objectContaining({
         kind: 'committed',
         mutationKind: 'inspector-appearance',
+        activeEngineId: 'elk-force',
+        documentKind: 'frame-diagram',
         relayoutPolicy: 'none',
         dirtyPolicy: 'mark-dirty',
         undoPolicy: 'record',

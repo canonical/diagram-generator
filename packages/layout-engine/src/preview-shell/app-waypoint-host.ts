@@ -14,6 +14,8 @@ import {
 } from './app-arrow-waypoints.js';
 import {
   resolveEditorMutationTransaction,
+  type EditorMutationDirtyPolicy,
+  type EditorMutationUndoPolicy,
   type EditorMutationTransactionResult,
 } from './editor-mutation-transaction.js';
 
@@ -83,6 +85,7 @@ export interface DispatchPreviewWaypointDragMoveHostOptions {
   getNode: (cid: string) => PreviewWaypointHostNode | null | undefined;
   readEndpoints: (cid: string) => PreviewArrowEndpoints | null;
   updateArrowVisual: (cid: string) => void;
+  transaction?: PreviewWaypointMutationTransactionOptions | null;
 }
 
 export interface CompletePreviewWaypointDragInteractionOptions {
@@ -184,7 +187,15 @@ function cloneWaypoints(waypoints: PreviewArrowPoint[] | null | undefined): Prev
 function emitWaypointMutationTransaction(
   options: PreviewWaypointMutationTransactionOptions | null | undefined,
   sourceControl: string,
+  policies: {
+    dirtyPolicy?: EditorMutationDirtyPolicy;
+    undoPolicy?: EditorMutationUndoPolicy;
+    frameOverridesChanged?: boolean;
+    savePayloadChanged?: boolean;
+  } = {},
 ): EditorMutationTransactionResult | null {
+  const dirtyPolicy = policies.dirtyPolicy ?? 'mark-dirty';
+  const undoPolicy = policies.undoPolicy ?? 'record';
   const result = resolveEditorMutationTransaction({
     kind: 'waypoint',
     sourceControl: options?.sourceControl ?? sourceControl,
@@ -196,12 +207,14 @@ function emitWaypointMutationTransaction(
       capability: 'waypointEditing',
     },
     relayoutPolicy: 'local',
-    dirtyPolicy: 'mark-dirty',
-    undoPolicy: 'record',
-    persistenceDelta: {
-      frameOverridesChanged: true,
-      savePayloadChanged: true,
-    },
+    dirtyPolicy,
+    undoPolicy,
+    persistenceDelta: dirtyPolicy === 'mark-dirty' || policies.frameOverridesChanged || policies.savePayloadChanged
+      ? {
+        frameOverridesChanged: policies.frameOverridesChanged ?? true,
+        savePayloadChanged: policies.savePayloadChanged ?? true,
+      }
+      : null,
   });
   options?.onMutationTransaction?.(result);
   return result;
@@ -301,6 +314,7 @@ export function dispatchPreviewWaypointDragMoveHost(
     endpoints: options.readEndpoints(state.cid),
     waypoints: node.waypoints,
   });
+  const wasMoved = state.hasMoved;
   state.hasMoved = move.hasMoved;
   state.axis = move.axis;
   if (!move.hasMoved || !move.waypoint) {
@@ -310,6 +324,14 @@ export function dispatchPreviewWaypointDragMoveHost(
     };
   }
 
+  if (!wasMoved) {
+    emitWaypointMutationTransaction(options.transaction, 'waypoint-drag-live', {
+      dirtyPolicy: 'preserve',
+      undoPolicy: 'none',
+      frameOverridesChanged: false,
+      savePayloadChanged: false,
+    });
+  }
   node.waypoints[state.idx] = move.waypoint;
   options.updateArrowVisual(state.cid);
   return {

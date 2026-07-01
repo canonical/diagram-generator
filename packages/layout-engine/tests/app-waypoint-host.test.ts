@@ -105,6 +105,7 @@ describe('preview waypoint host helpers', () => {
 
   it('updates waypoint drag state and arrow visuals through the host wrapper', () => {
     const actions: unknown[] = [];
+    const transactions: unknown[] = [];
     const state = {
       cid: 'arrow-1',
       idx: 0,
@@ -133,13 +134,34 @@ describe('preview waypoint host helpers', () => {
         };
       },
       updateArrowVisual(cid) {
+        expect(transactions).toHaveLength(1);
         actions.push({ updateArrowVisual: cid, waypoints: [...node.waypoints] });
+      },
+      transaction: {
+        activeEngineId: 'v3',
+        documentKind: 'frame-diagram',
+        onMutationTransaction(result) {
+          transactions.push(result);
+        },
       },
     })).toEqual({
       kind: 'moved',
       cid: 'arrow-1',
     });
     expect(node.waypoints).toEqual([[32, 8]]);
+    expect(transactions).toEqual([
+      expect.objectContaining({
+        kind: 'committed',
+        mutationKind: 'waypoint',
+        sourceControl: 'waypoint-drag-live',
+        activeEngineId: 'v3',
+        documentKind: 'frame-diagram',
+        relayoutPolicy: 'local',
+        dirtyPolicy: 'preserve',
+        undoPolicy: 'none',
+        persistenceDelta: null,
+      }),
+    ]);
     expect(actions).toEqual([
       { updateArrowVisual: 'arrow-1', waypoints: [[32, 8]] },
     ]);
