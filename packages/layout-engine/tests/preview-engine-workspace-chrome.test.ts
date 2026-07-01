@@ -134,6 +134,8 @@ class FakeElement {
 class FakeDocument {
   private readonly elements = new Map<string, FakeElement>();
   activeElement: FakeElement | null = null;
+  renderedEngine: string | null = null;
+  stageGeometry: Array<{ id: string; x: number; y: number; w: number; h: number }> = [];
 
   register(element: FakeElement): FakeElement {
     if (element.id) {
@@ -150,6 +152,33 @@ class FakeDocument {
     return new FakeElement(tagName, '', this);
   }
 
+  querySelector(selector: string): { getAttribute: (name: string) => string | null } | null {
+    if (selector === '#stage svg' && this.renderedEngine) {
+      return {
+        getAttribute: (name: string) => (name === 'data-layout-engine' ? this.renderedEngine : null),
+      };
+    }
+    return null;
+  }
+
+  querySelectorAll(selector: string): Array<{
+    getAttribute: (name: string) => string | null;
+    getBBox: () => { x: number; y: number; width: number; height: number };
+  }> {
+    if (selector === '#dg-frame-layer [data-component-id]') {
+      return this.stageGeometry.map((entry) => ({
+        getAttribute: (name: string) => (name === 'data-component-id' ? entry.id : null),
+        getBBox: () => ({
+          x: entry.x,
+          y: entry.y,
+          width: entry.w,
+          height: entry.h,
+        }),
+      }));
+    }
+    return [];
+  }
+
   setActiveElement(element: FakeElement): void {
     this.activeElement = element;
   }
@@ -158,15 +187,31 @@ class FakeDocument {
 function createChromeHarness() {
   const document = new FakeDocument();
   const section = document.register(new FakeElement('section', 'engine-switcher-section', document));
-  const help = null as FakeElement | null;
+  const help = document.register(new FakeElement('p', 'engine-switcher-help', document));
   const label = document.register(new FakeElement('span', 'active-engine-label', document));
   const tabs = document.register(new FakeElement('ul', 'engine-switcher-tabs', document));
   const panelSyncCalls: string[] = [];
   const saveButtonSyncCalls: string[] = [];
   const rerenderCalls: string[] = [];
+  const geometryByEngine: Record<string, Array<{ id: string; x: number; y: number; w: number; h: number }>> = {
+    'elk-layered': [
+      { id: 'alpha', x: 0, y: 0, w: 100, h: 40 },
+      { id: 'beta', x: 0, y: 80, w: 100, h: 40 },
+    ],
+    dagre: [
+      { id: 'alpha', x: 0, y: 0, w: 100, h: 40 },
+      { id: 'beta', x: 140, y: 0, w: 100, h: 40 },
+    ],
+    v3: [
+      { id: 'alpha', x: 0, y: 0, w: 100, h: 40 },
+      { id: 'beta', x: 0, y: 80, w: 100, h: 40 },
+    ],
+  };
   const frameTreeJson = {
     layoutEngine: 'elk-layered' as string | undefined,
   };
+  document.renderedEngine = frameTreeJson.layoutEngine;
+  document.stageGeometry = geometryByEngine[frameTreeJson.layoutEngine] ?? [];
   const previewWindow = {
     __DG_CONFIG: null as Record<string, unknown> | null,
    getFrameTreeJson() {
@@ -186,6 +231,8 @@ function createChromeHarness() {
    async __DG_rerenderPreviewEngineWorkspaceStage() {
      rerenderCalls.push('rerender');
      previewWindow.__DG_activeLayoutOperatorKey = frameTreeJson.layoutEngine ?? null;
+      document.renderedEngine = frameTreeJson.layoutEngine ?? null;
+      document.stageGeometry = geometryByEngine[frameTreeJson.layoutEngine ?? ''] ?? [];
    },
    PreviewSaveClient: {
      syncSaveButton() {
@@ -213,6 +260,7 @@ function createChromeHarness() {
    saveButtonSyncCalls,
    rerenderCalls,
    frameTreeJson,
+   geometryByEngine,
   };
 }
 
@@ -250,6 +298,7 @@ describe('preview engine workspace chrome', () => {
     expect((harness.previewWindow as any).__DG_previewRenderIntent?.engineId).toBe('dagre');
     expect(harness.frameTreeJson.layoutEngine).toBe('dagre');
     expect(harness.previewWindow.__DG_activeLayoutOperatorKey).toBe('dagre');
+    expect(harness.help.textContent).toBe('Selected engine is unsaved until you save this document.');
     expect(harness.panelSyncCalls).toEqual(['sync', 'sync', 'sync']);
     expect(harness.saveButtonSyncCalls).toEqual(['sync', 'sync', 'sync']);
     expect(harness.rerenderCalls).toEqual(['rerender']);
@@ -292,8 +341,10 @@ describe('preview engine workspace chrome', () => {
       compatible_engines: ['v3', 'elk-layered', 'dagre'],
       show_engine_switcher: true,
     };
+    harness.previewWindow.__DG_activeLayoutOperatorKey = 'elk-layered';
     harness.previewWindow.__DG_rerenderPreviewEngineWorkspaceStage = async () => {
       harness.rerenderCalls.push('rerender');
+      harness.previewWindow.__DG_activeLayoutOperatorKey = 'dagre';
       throw new Error('rerender failed');
     };
 
@@ -307,6 +358,7 @@ describe('preview engine workspace chrome', () => {
 
     expect(harness.previewWindow.__DG_CONFIG?.active_engine_id).toBe('elk-layered');
     expect(harness.frameTreeJson.layoutEngine).toBe('elk-layered');
+    expect(harness.previewWindow.__DG_activeLayoutOperatorKey).toBe('elk-layered');
     expect((harness.previewWindow as any).__DG_lastEditorMutationTransactionResult).toEqual(
       expect.objectContaining({
         kind: 'rejected',
@@ -315,6 +367,41 @@ describe('preview engine workspace chrome', () => {
       }),
     );
     expect((harness.previewWindow as any).__DG_lastEditorMutationStateViolations).toEqual([]);
+  });
+
+  it('surfaces a help hint when the selected engine commits but keeps equivalent geometry', async () => {
+    const harness = createChromeHarness();
+    harness.frameTreeJson.layoutEngine = 'v3';
+    const equivalentGeometry = [
+      { id: 'commit', x: 0, y: 0, w: 224, h: 64 },
+      { id: 'build', x: 0, y: 88, w: 224, h: 64 },
+    ];
+    harness.geometryByEngine.v3 = equivalentGeometry;
+    harness.geometryByEngine['elk-layered'] = [...equivalentGeometry];
+    harness.previewWindow.__DG_activeLayoutOperatorKey = null;
+    harness.document.renderedEngine = 'v3';
+    harness.document.stageGeometry = harness.geometryByEngine.v3;
+    harness.previewWindow.__DG_CONFIG = {
+      slug: 'example-deployment-pipeline',
+      active_engine_id: 'v3',
+      active_engine_label: 'Autolayout',
+      persisted_layout_engine: 'v3',
+      compatible_engines: ['v3', 'elk-layered'],
+      show_engine_switcher: true,
+    };
+
+    initPreviewEngineWorkspaceChrome({
+      document: harness.document as unknown as Document,
+      previewWindow: harness.previewWindow,
+    });
+
+    const tabButtons = harness.tabs.querySelectorAll('button[data-engine-id]');
+    await tabButtons[1]?.click();
+
+    expect(harness.previewWindow.__DG_CONFIG?.active_engine_id).toBe('elk-layered');
+    expect(harness.document.renderedEngine).toBe('elk-layered');
+    expect(harness.help.textContent).toContain('Geometry matches');
+    expect(harness.help.textContent).toContain('adjust engine parameters to force divergence.');
   });
 
   it('supports roving tab focus and keyboard activation', async () => {

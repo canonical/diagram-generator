@@ -333,6 +333,7 @@ test("autolayout viewer hides ELK controls for a single-engine v3 frame", () => 
   assert.match(html, /id="force-solver-section" hidden/);
   assert.match(html, /<div class="dg-preview-pane-header">[\s\S]*id="engine-switcher-section"/);
   assert.match(html, /id="engine-switcher-tabs" role="tablist"/);
+  assert.match(html, /id="engine-switcher-help"/);
   assert.doesNotMatch(html, /id="engine-switcher-prev"/);
   assert.doesNotMatch(html, /id="engine-switcher-next"/);
   assert.match(html, /\/preview\/engine-switcher\.js/);
@@ -356,13 +357,13 @@ test("autolayout viewer preloads graph layout scripts for switchable v3 frames",
     templateHtml: contextualAsideTemplate(),
     baselineStylesHtml: "",
     previewAssetUrl: (filename: string) => `/preview/${filename}`,
-    listAutolayoutDiagrams: () => ["example-deployment-pipeline"],
+    listAutolayoutDiagrams: () => ["support-engineering-flow"],
     listForceExamples: () => [],
     findReferenceImage: () => null,
     normalizeLayoutEngine: (layoutEngine: string | undefined) => layoutEngine?.trim() ?? "",
   });
 
-  const html = route.buildHtml("example-deployment-pipeline");
+  const html = route.buildHtml("support-engineering-flow");
   const controlsIndex = html.indexOf('/preview/layout-params-controls.js');
   const controllerIndex = html.indexOf('/preview/layout-params-controller.js');
   const editorIndex = html.indexOf('/preview/editor.js');
@@ -2361,6 +2362,7 @@ function contextualAsideTemplate(): string {
     '    <div class="bf-tabs dg-output-engine-tabs" aria-label="Compatible engines">',
     '      <ul class="bf-tabs-list" id="engine-switcher-tabs" role="tablist" aria-label="Compatible engines"></ul>',
     '    </div>',
+    '    <p class="bf-form-help dg-engine-switcher-help" id="engine-switcher-help"></p>',
     '  </section>',
     '</div>',
     '<section id="grid-controls-section" %GRID_CONTROLS_HIDDEN%><div id="grid-controls"></div></section>',

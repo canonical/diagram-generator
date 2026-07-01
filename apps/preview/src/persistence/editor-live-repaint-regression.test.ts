@@ -171,6 +171,15 @@ async function renderedEngine(page: Page): Promise<string | null> {
   return page.locator("#stage svg").getAttribute("data-layout-engine");
 }
 
+async function activeOptionBucket(page: Page): Promise<string | null> {
+  return page.evaluate(() => {
+    const previewWindow = window as Window & typeof globalThis & {
+      __DG_activeLayoutOperatorKey?: string | null;
+    };
+    return previewWindow.__DG_activeLayoutOperatorKey ?? null;
+  });
+}
+
 async function alternateEngineId(page: Page): Promise<string> {
   const tabs = page.locator("#engine-switcher-tabs [data-engine-id]");
   const count = await tabs.count();
@@ -253,6 +262,56 @@ test("preview gestures repaint the live stage for engine tabs and appearance-onl
       assert.notEqual(afterFragment, beforeFragment, "appearance-only role change should repaint the selected SVG fragment");
     } finally {
       await appearancePage.close();
+    }
+  } finally {
+    await browser.close();
+    await stopPreviewServer(server.process);
+    fs.rmSync(framesDir, { recursive: true, force: true });
+  }
+});
+
+test("engine tab switches classify visible changes while syncing engine and option-bucket state", { timeout: 120_000 }, async () => {
+  const framesDir = copyFixtureFrames(["support-engineering-flow"]);
+  const port = await allocatePort();
+  const baseUrl = `http://127.0.0.1:${port}`;
+  const server = startPreviewServer(framesDir, port);
+  const browser = await chromium.launch();
+
+  try {
+    await server.ready;
+
+    const page = await openPreviewPage(browser, baseUrl, "support-engineering-flow");
+    try {
+      const beforeSignature = await boundsSignature(page);
+      const beforeEngine = await renderedEngine(page);
+      const beforeBucket = await activeOptionBucket(page);
+      const targetEngine = beforeEngine === "elk-layered" ? await alternateEngineId(page) : "elk-layered";
+
+      await page.locator(`#engine-switcher-tabs [data-engine-id="${targetEngine}"]`).click();
+      await page.waitForFunction(
+        (expected) => document.querySelector("#stage svg")?.getAttribute("data-layout-engine") === expected,
+        targetEngine,
+        { timeout: 20_000 },
+      );
+      await settle(page);
+
+      const afterSignature = await boundsSignature(page);
+      const afterEngine = await renderedEngine(page);
+      const afterBucket = await activeOptionBucket(page);
+      const classification = beforeSignature === afterSignature
+        ? "equivalent-geometry"
+        : "distinct-geometry";
+
+      assert.notEqual(afterEngine, beforeEngine, "engine switch should commit a different rendered engine");
+      assert.equal(afterEngine, targetEngine, "rendered engine should match the selected tab");
+      assert.equal(afterBucket, targetEngine, "active option bucket should sync to the selected engine");
+      assert.notEqual(afterBucket, beforeBucket, "active option bucket should change with the selected engine");
+      assert.ok(
+        classification === "distinct-geometry" || classification === "equivalent-geometry",
+        "engine switch classification should be explicit",
+      );
+    } finally {
+      await page.close();
     }
   } finally {
     await browser.close();

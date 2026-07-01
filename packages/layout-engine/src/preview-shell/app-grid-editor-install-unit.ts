@@ -41,6 +41,8 @@ import { sidebarSectionsUseLayoutParams } from '../preview-engine/sidebar-sectio
 import type { PreviewEngineManifest } from '../preview-engine/types.js';
 import {
   activateLayoutOperatorOverrideBucket,
+  cloneLayoutOperatorOverrideState,
+  deactivateLayoutOperatorOverrideBucket,
   readLayoutOperatorOverrideBucketForManifest,
   resolveEffectiveLayoutOperatorOverrides,
   writeLayoutOperatorOverrideBucketForManifest,
@@ -463,6 +465,12 @@ function installActivePreviewEngineRuntime(options: {
   fallbackEngineId: string | null;
   requestLayoutRelayout: (cid: string) => Promise<unknown> | unknown;
 }): void {
+  const clearActiveLayoutOperatorRuntime = () => {
+    deactivateLayoutOperatorOverrideBucket(options.model, null);
+    options.previewWindow.__DG_activeLayoutOperatorKey = null;
+    options.previewWindow.PreviewEngineLayoutControls = null;
+    options.previewWindow.PreviewEngineShellController = null;
+  };
   const previewConfig = options.previewWindow.__DG_CONFIG ?? null;
   const activeLayoutEngine = resolvePreviewRenderIntentLayoutEngine({
     intent: options.previewWindow.__DG_previewRenderIntent ?? null,
@@ -488,12 +496,14 @@ function installActivePreviewEngineRuntime(options: {
       previewDocumentKind: previewConfig?.document_kind ?? 'frame-diagram',
     }) as PreviewEngineManifest | undefined) ?? null;
   if (!activeEngine || !layoutEngineRoot?.previewEngines) {
+    clearActiveLayoutOperatorRuntime();
     return;
   }
 
   const sidebarSections = activeEngine.hostView?.sidebarSections ?? [];
   const usesLayoutParamsSection = sidebarSectionsUseLayoutParams(sidebarSections);
   if (!usesLayoutParamsSection) {
+    clearActiveLayoutOperatorRuntime();
     return;
   }
 
@@ -1100,36 +1110,57 @@ export function createPreviewGridEditorInstallUnitFromBrowserHost(
   };
   options.shared.previewWindow.__DG_rerenderPreviewEngineWorkspaceStage = async () => {
     const previewWindow = options.shared.previewWindow as PreviewGridEditorLegacyWindow;
+    const previewEngineWindow = previewWindow as PreviewEngineRuntimeInstallerWindow;
     const previewConfig = previewWindow.__DG_CONFIG ?? null;
+    const previousLayoutOverrides = options.shared.model.layoutOverrides
+      ? { ...options.shared.model.layoutOverrides }
+      : null;
+    const previousLayoutOverrideNamespace = options.shared.model.layoutOverrideNamespace ?? null;
+    const previousLayoutOperatorOverrides = cloneLayoutOperatorOverrideState(
+      options.shared.model.layoutOperatorOverrides ?? null,
+    );
+    const previousActiveLayoutOperatorKey = previewWindow.__DG_activeLayoutOperatorKey ?? null;
+    const previousLayoutControls = previewEngineWindow.PreviewEngineLayoutControls ?? null;
+    const previousShellController = previewEngineWindow.PreviewEngineShellController ?? null;
     const activeLayoutEngine = resolvePreviewRenderIntentLayoutEngine({
       intent: previewWindow.__DG_previewRenderIntent ?? null,
     }) ?? resolvePreviewRenderIntentLayoutEngine({
       fallbackEngineId: options.shared.engine ?? null,
     });
-    if (activeLayoutEngine) {
-      const committedLayoutEngine = previewWindow.setFrameTreeLayoutEngine?.(
-        activeLayoutEngine,
-      );
-      if (committedLayoutEngine !== activeLayoutEngine) {
-        throw new Error(`Unable to commit preview layout engine '${activeLayoutEngine}' before render.`);
+    try {
+      if (activeLayoutEngine) {
+        const committedLayoutEngine = previewWindow.setFrameTreeLayoutEngine?.(
+          activeLayoutEngine,
+        );
+        if (committedLayoutEngine !== activeLayoutEngine) {
+          throw new Error(`Unable to commit preview layout engine '${activeLayoutEngine}' before render.`);
+        }
+        commitPreviewRenderIntentToWindow(previewWindow, {
+          current: previewWindow.__DG_previewRenderIntent ?? null,
+          activeEngineId: committedLayoutEngine,
+          persistedEngineId: previewConfig?.persisted_layout_engine ?? null,
+          fallbackEngineId: options.shared.engine ?? null,
+        });
       }
-      commitPreviewRenderIntentToWindow(previewWindow, {
-        current: previewWindow.__DG_previewRenderIntent ?? null,
-        activeEngineId: committedLayoutEngine,
-        persistedEngineId: previewConfig?.persisted_layout_engine ?? null,
+      installActivePreviewEngineRuntime({
+        document: options.shared.document,
+        previewWindow: previewEngineWindow,
+        model: options.shared.model,
         fallbackEngineId: options.shared.engine ?? null,
+        requestLayoutRelayout: (cid) => (
+          getRuntime().getRelayoutFacade().getRelayoutRuntime().requestRelayout(cid)
+        ),
       });
+      await getRuntime().getSceneFacade().rerenderStageFromModel();
+    } catch (error) {
+      options.shared.model.layoutOverrides = previousLayoutOverrides;
+      options.shared.model.layoutOverrideNamespace = previousLayoutOverrideNamespace;
+      options.shared.model.layoutOperatorOverrides = previousLayoutOperatorOverrides;
+      previewWindow.__DG_activeLayoutOperatorKey = previousActiveLayoutOperatorKey;
+      previewEngineWindow.PreviewEngineLayoutControls = previousLayoutControls;
+      previewEngineWindow.PreviewEngineShellController = previousShellController;
+      throw error;
     }
-    installActivePreviewEngineRuntime({
-      document: options.shared.document,
-      previewWindow: previewWindow as PreviewEngineRuntimeInstallerWindow,
-      model: options.shared.model,
-      fallbackEngineId: options.shared.engine ?? null,
-      requestLayoutRelayout: (cid) => (
-        getRuntime().getRelayoutFacade().getRelayoutRuntime().requestRelayout(cid)
-      ),
-    });
-    await getRuntime().getSceneFacade().rerenderStageFromModel();
   };
 
   return {

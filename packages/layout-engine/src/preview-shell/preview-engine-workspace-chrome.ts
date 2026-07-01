@@ -149,6 +149,42 @@ function renderedStageLayoutEngine(document: Document): string | null {
   return querySelector?.call(document, '#stage svg')?.getAttribute('data-layout-engine') ?? null;
 }
 
+function stageGeometrySignature(document: Document): string | null {
+  const querySelectorAll = (document as Document & {
+    querySelectorAll?: (selector: string) => ArrayLike<Element>;
+  }).querySelectorAll;
+  const elements = querySelectorAll?.call(document, '#dg-frame-layer [data-component-id]');
+  if (!elements || elements.length === 0) {
+    return null;
+  }
+  const signature = Array.from(elements)
+    .map((element) => {
+      const graphicsElement = element as Element & {
+        getBBox?: () => { x: number; y: number; width: number; height: number };
+      };
+      if (typeof graphicsElement.getBBox !== 'function') {
+        return null;
+      }
+      const box = graphicsElement.getBBox();
+      const round = (value: number) => Math.round(value * 1000) / 1000;
+      return {
+        id: element.getAttribute('data-component-id') ?? '',
+        x: round(box.x),
+        y: round(box.y),
+        w: round(box.width),
+        h: round(box.height),
+      };
+    })
+    .filter((entry): entry is { id: string; x: number; y: number; w: number; h: number } => {
+      if (!entry) {
+        return false;
+      }
+      return Boolean(entry.id) && entry.w > 0 && entry.h > 0;
+    })
+    .sort((left, right) => left.id.localeCompare(right.id));
+  return signature.length > 0 ? JSON.stringify(signature) : null;
+}
+
 function selectedEngineTab(tabs: HTMLElement | null): string | null {
   const selected = getTabButtons(tabs)
     .find((button) => button.getAttribute('aria-selected') === 'true');
@@ -246,6 +282,19 @@ function setHelpText(help: HTMLElement | null, message: string, isError: boolean
   }
   help.textContent = message;
   help.classList.toggle('is-error', isError);
+}
+
+function equivalentGeometryHelpMessage(
+  previousWorkspace: PreviewEngineWorkspaceState,
+  nextWorkspace: PreviewEngineWorkspaceState,
+): string {
+  const previousLabel = previousWorkspace.activeEngine?.label
+    ?? previousWorkspace.activeEngineId
+    ?? 'the previous engine';
+  const nextLabel = nextWorkspace.activeEngine?.label
+    ?? nextWorkspace.activeEngineId
+    ?? 'the selected engine';
+  return `Switched to ${nextLabel}. Geometry matches ${previousLabel} at current settings; adjust engine parameters to force divergence.`;
 }
 
 function setActiveEngineLabel(
@@ -380,6 +429,8 @@ export function initPreviewEngineWorkspaceChrome(
     const previousWorkspace = workspace;
     const previousFrameTreeLayoutEngine = readFrameTreeLayoutEngine(options.previewWindow)
       ?? previousWorkspace.activeEngineId;
+    const previousActiveOptionBucket = options.previewWindow.__DG_activeLayoutOperatorKey ?? null;
+    const previousGeometrySignature = stageGeometrySignature(options.document);
     try {
       workspace = setPreviewEngineWorkspaceActiveEngine(workspace, nextEngineId);
       keyboardFocusEngineId = nextEngineId;
@@ -405,10 +456,21 @@ export function initPreviewEngineWorkspaceChrome(
           dirty: options.previewWindow.PreviewSaveClient?.isDirty?.() ?? null,
         },
       });
+      const nextGeometrySignature = stageGeometrySignature(options.document);
+      const nextRenderedEngine = renderedStageLayoutEngine(options.document);
+      if (
+        previousGeometrySignature
+        && nextGeometrySignature
+        && previousGeometrySignature === nextGeometrySignature
+        && nextRenderedEngine === nextEngineId
+      ) {
+        setHelpText(help, equivalentGeometryHelpMessage(previousWorkspace, workspace), false);
+      }
     } catch (error) {
       workspace = previousWorkspace;
       keyboardFocusEngineId = previousWorkspace.activeEngineId;
       commitFrameTreeLayoutEngine(options.previewWindow, previousFrameTreeLayoutEngine);
+      options.previewWindow.__DG_activeLayoutOperatorKey = previousActiveOptionBucket;
       syncWorkspaceUi();
       setHelpText(
         help,

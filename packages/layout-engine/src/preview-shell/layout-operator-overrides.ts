@@ -251,6 +251,18 @@ export function activateLayoutOperatorOverrideBucket(
   return cloneRecord(state.byOperator[operatorKey]) ?? {};
 }
 
+export function deactivateLayoutOperatorOverrideBucket(
+  model: LayoutOperatorOverrideModelLike | null | undefined,
+  preferredNamespace?: string | null,
+): void {
+  if (!model) {
+    return;
+  }
+  const state = readLayoutOperatorOverrideState(model);
+  state.activeOperatorKey = null;
+  writeLayoutOperatorOverrideState(model, state, preferredNamespace ?? null);
+}
+
 export function writeLayoutOperatorOverrideBucketForManifest(
   model: LayoutOperatorOverrideModelLike | null | undefined,
   manifest: Pick<PreviewEngineManifest, 'id' | 'layoutEngineKey' | 'controlSpecs'>,
