@@ -864,6 +864,30 @@ export function createPreviewEditorInteractionFacadeFromBrowserHost(
       formatAsDefinedStyleLabel:
         browser.formatAsDefinedStyleLabel as RuntimeEditorRuntimeSetOptions['formatAsDefinedStyleLabel'],
       syncPanelVisibility: browser.syncPanelVisibility ?? null,
+      getMutationContext: () => {
+        const previewWindow = options.shared.document.defaultView as (
+          Window & typeof globalThis & {
+            __DG_previewRenderIntent?: { engineId?: string | null } | null;
+            __DG_CONFIG?: {
+              active_engine_id?: string | null;
+              layout_engine?: string | null;
+              document_kind?: string | null;
+            } | null;
+            __DG_getPreviewBridgeHostContract?: (() => {
+              getFrameTreeJson?: (() => { layoutEngine?: string | null } | null) | null;
+            }) | null;
+          }
+        ) | null;
+        const frameTree = previewWindow?.__DG_getPreviewBridgeHostContract?.()?.getFrameTreeJson?.() ?? null;
+        return {
+          activeEngineId: previewWindow?.__DG_previewRenderIntent?.engineId
+            ?? frameTree?.layoutEngine
+            ?? previewWindow?.__DG_CONFIG?.active_engine_id
+            ?? previewWindow?.__DG_CONFIG?.layout_engine
+            ?? null,
+          documentKind: previewWindow?.__DG_CONFIG?.document_kind ?? 'frame-diagram',
+        };
+      },
       onMutationTransaction: (result) => {
         const previewWindow = options.shared.document.defaultView as (
           Window & typeof globalThis & {
@@ -873,7 +897,7 @@ export function createPreviewEditorInteractionFacadeFromBrowserHost(
         ) | null;
         if (!previewWindow) return;
         previewWindow.__DG_lastEditorMutationTransactionResult = result;
-        previewWindow.__DG_lastEditorMutationStateViolations = [];
+        previewWindow.__DG_lastEditorMutationStateViolations = null;
       },
       shouldShowAutolayoutInspector: browser.shouldShowAutolayoutInspector ?? null,
       editorState: {

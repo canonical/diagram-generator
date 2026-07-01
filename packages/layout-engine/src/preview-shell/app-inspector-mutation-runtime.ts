@@ -38,8 +38,25 @@ const IMMEDIATE_RELAYOUT_PROPS = new Set([
   'max_height',
 ]);
 
+const ALIGN_VALUES = new Set([
+  'TOP_LEFT',
+  'TOP_CENTER',
+  'TOP_RIGHT',
+  'CENTER_LEFT',
+  'CENTER',
+  'CENTER_RIGHT',
+  'BOTTOM_LEFT',
+  'BOTTOM_CENTER',
+  'BOTTOM_RIGHT',
+]);
+
 function changedMutation(result: PreviewMutationHostResult): boolean {
   return result.kind === 'changed' || result.kind === 'clear';
+}
+
+export interface PreviewInspectorMutationContext {
+  activeEngineId?: string | null;
+  documentKind?: string | null;
 }
 
 export interface CreatePreviewInspectorMutationRuntimeOptions {
@@ -59,6 +76,7 @@ export interface CreatePreviewInspectorMutationRuntimeOptions {
   getHeightUnit: () => string;
   baselineStep: number;
   shouldShowAutolayoutInspector?: (() => boolean) | null;
+  getMutationContext?: (() => PreviewInspectorMutationContext | null | undefined) | null;
   onMutationTransaction?: ((result: EditorMutationTransactionResult) => void) | null;
 }
 
@@ -73,19 +91,20 @@ export function createPreviewInspectorMutationRuntime(
   options: CreatePreviewInspectorMutationRuntimeOptions,
 ): PreviewInspectorMutationRuntime {
   const layoutEditingEnabled = (): boolean => options.shouldShowAutolayoutInspector?.() ?? true;
-  const emitLayoutTransaction = (settings: {
+  const resolveLayoutTransaction = (settings: {
     mutationKind?: 'inspector-layout' | 'geometry';
     sourceControl: string;
     capability: { applicable: boolean; reason: string };
     result?: PreviewMutationHostResult | null;
     relayoutPolicy: 'none' | 'local' | 'engine' | 'fresh-render';
-  }): void => {
+  }): EditorMutationTransactionResult => {
     const changed = settings.result ? changedMutation(settings.result) : true;
-    options.onMutationTransaction?.(resolveEditorMutationTransaction({
+    const context = options.getMutationContext?.() ?? null;
+    return resolveEditorMutationTransaction({
       kind: settings.mutationKind ?? 'inspector-layout',
       sourceControl: settings.sourceControl,
-      activeEngineId: null,
-      documentKind: 'frame-diagram',
+      activeEngineId: context?.activeEngineId ?? null,
+      documentKind: context?.documentKind ?? 'frame-diagram',
       capabilityGate: {
         applicable: settings.capability.applicable,
         reason: settings.capability.reason,
@@ -100,7 +119,12 @@ export function createPreviewInspectorMutationRuntime(
           savePayloadChanged: true,
         }
         : null,
-    }));
+    });
+  };
+  const emitLayoutTransaction = (settings: Parameters<typeof resolveLayoutTransaction>[0]): EditorMutationTransactionResult => {
+    const result = resolveLayoutTransaction(settings);
+    options.onMutationTransaction?.(result);
+    return result;
   };
 
   return {
@@ -168,7 +192,29 @@ export function createPreviewInspectorMutationRuntime(
         options.renderSelectionInspector(cid);
         return;
       }
+      if (!ALIGN_VALUES.has(align)) {
+        emitLayoutTransaction({
+          sourceControl: 'single-align',
+          capability: {
+            applicable: true,
+            reason: 'alignment value produced no layout change',
+          },
+          result: { kind: 'none' },
+          relayoutPolicy: 'engine',
+        });
+        options.renderSelectionInspector(cid);
+        return;
+      }
       const overrides = options.getOverrides();
+      emitLayoutTransaction({
+        sourceControl: 'single-align',
+        capability: {
+          applicable: true,
+          reason: 'alignment change is applicable to the selected frame',
+        },
+        result: { kind: 'changed' },
+        relayoutPolicy: 'engine',
+      });
       const result = dispatchPreviewSingleFrameAlignHost({
         cid,
         captureOverrideEntries: options.captureOverrideEntries,
@@ -200,17 +246,7 @@ export function createPreviewInspectorMutationRuntime(
         scheduleRelayout: options.requestRelayoutNow,
         renderSelectionInspector: options.renderSelectionInspector,
       });
-      emitLayoutTransaction({
-        sourceControl: 'single-align',
-        capability: {
-          applicable: true,
-          reason: result.kind === 'none'
-            ? 'alignment value produced no layout change'
-            : 'alignment change is applicable to the selected frame',
-        },
-        result,
-        relayoutPolicy: 'engine',
-      });
+      void result;
     },
     setFrameProp(cid, prop, value) {
       if (!layoutEditingEnabled()) {
@@ -226,6 +262,15 @@ export function createPreviewInspectorMutationRuntime(
         return;
       }
       const overrides = options.getOverrides();
+      emitLayoutTransaction({
+        sourceControl: `single-prop:${prop}`,
+        capability: {
+          applicable: true,
+          reason: `${prop} change is applicable to the selected frame`,
+        },
+        result: { kind: 'changed' },
+        relayoutPolicy: 'engine',
+      });
       const result = dispatchPreviewSingleFramePropHost({
         cid,
         prop,
@@ -260,17 +305,7 @@ export function createPreviewInspectorMutationRuntime(
           : options.scheduleRelayout,
         renderSelectionInspector: options.renderSelectionInspector,
       });
-      emitLayoutTransaction({
-        sourceControl: `single-prop:${prop}`,
-        capability: {
-          applicable: true,
-          reason: result.kind === 'none'
-            ? `${prop} value produced no layout change`
-            : `${prop} change is applicable to the selected frame`,
-        },
-        result,
-        relayoutPolicy: 'engine',
-      });
+      void result;
     },
     setFrameSize(cid, dimension, value) {
       if (!layoutEditingEnabled()) {
@@ -288,6 +323,38 @@ export function createPreviewInspectorMutationRuntime(
       }
       const overrides = options.getOverrides();
       const nextDimension = dimension as PreviewFrameSizeDimension;
+      const px = resolvePreviewFrameSizePx({
+        dimension: nextDimension,
+        value: value as number,
+        gridInfo: options.getGridInfo(),
+        widthUnit: options.getWidthUnit() as 'px' | 'cols',
+        heightUnit: options.getHeightUnit() as 'px' | 'rows',
+        baselineStep: options.baselineStep,
+      });
+      if (px == null) {
+        emitLayoutTransaction({
+          mutationKind: 'geometry',
+          sourceControl: `single-size:${nextDimension}`,
+          capability: {
+            applicable: true,
+            reason: `${nextDimension} value produced no size change`,
+          },
+          result: { kind: 'none' },
+          relayoutPolicy: 'engine',
+        });
+        options.renderSelectionInspector(cid);
+        return;
+      }
+      emitLayoutTransaction({
+        mutationKind: 'geometry',
+        sourceControl: `single-size:${nextDimension}`,
+        capability: {
+          applicable: true,
+          reason: `${nextDimension} change is applicable to the selected frame`,
+        },
+        result: { kind: 'changed' },
+        relayoutPolicy: 'engine',
+      });
       const result = dispatchPreviewSingleFrameSizeHost({
         cid,
         dimension: nextDimension,
@@ -321,18 +388,7 @@ export function createPreviewInspectorMutationRuntime(
         requestRelayout: options.requestRelayoutNow,
         renderSelectionInspector: options.renderSelectionInspector,
       });
-      emitLayoutTransaction({
-        mutationKind: 'geometry',
-        sourceControl: `single-size:${nextDimension}`,
-        capability: {
-          applicable: true,
-          reason: result.kind === 'none'
-            ? `${nextDimension} value produced no size change`
-            : `${nextDimension} change is applicable to the selected frame`,
-        },
-        result,
-        relayoutPolicy: 'engine',
-      });
+      void result;
     },
   };
 }

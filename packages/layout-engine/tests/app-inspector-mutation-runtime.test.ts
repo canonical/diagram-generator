@@ -127,11 +127,15 @@ describe('createPreviewInspectorMutationRuntime', () => {
       Object.fromEntries(ids.map((id) => [id, { ...(overrides[id] || {}) }]))
     ));
     const commitOverridePatchAction = vi.fn();
-    const setDirty = vi.fn();
-    const scheduleRelayout = vi.fn();
+    const mutationResults: unknown[] = [];
+    const setDirty = vi.fn(() => {
+      expect(mutationResults).toHaveLength(1);
+    });
+    const scheduleRelayout = vi.fn(() => {
+      expect(mutationResults).toHaveLength(1);
+    });
     const requestRelayoutNow = vi.fn();
     const renderSelectionInspector = vi.fn();
-    const mutationResults: unknown[] = [];
     const runtime = createPreviewInspectorMutationRuntime({
       captureOverrideEntries,
       commitOverridePatchAction,
@@ -148,6 +152,7 @@ describe('createPreviewInspectorMutationRuntime', () => {
       getWidthUnit: () => 'px',
       getHeightUnit: () => 'px',
       baselineStep: 8,
+      getMutationContext: () => ({ activeEngineId: 'v3', documentKind: 'frame-diagram' }),
       onMutationTransaction: (result) => mutationResults.push(result),
     });
 
@@ -169,6 +174,8 @@ describe('createPreviewInspectorMutationRuntime', () => {
         kind: 'committed',
         mutationKind: 'inspector-layout',
         sourceControl: 'single-prop:gap_delta',
+        activeEngineId: 'v3',
+        documentKind: 'frame-diagram',
         relayoutPolicy: 'engine',
         dirtyPolicy: 'mark-dirty',
         undoPolicy: 'record',
@@ -183,8 +190,10 @@ describe('createPreviewInspectorMutationRuntime', () => {
   it('requests immediate relayout for single-frame size mutations', () => {
     let overrides: Record<string, Record<string, unknown>> = {};
     const scheduleRelayout = vi.fn();
-    const requestRelayoutNow = vi.fn();
     const mutationResults: unknown[] = [];
+    const requestRelayoutNow = vi.fn(() => {
+      expect(mutationResults).toHaveLength(1);
+    });
 
     const runtime = createPreviewInspectorMutationRuntime({
       captureOverrideEntries: (ids) => Object.fromEntries(ids.map((id) => [id, { ...(overrides[id] || {}) }])),
@@ -202,6 +211,7 @@ describe('createPreviewInspectorMutationRuntime', () => {
       getWidthUnit: () => 'px',
       getHeightUnit: () => 'px',
       baselineStep: 8,
+      getMutationContext: () => ({ activeEngineId: 'v3', documentKind: 'frame-diagram' }),
       onMutationTransaction: (result) => mutationResults.push(result),
     });
 
@@ -216,6 +226,8 @@ describe('createPreviewInspectorMutationRuntime', () => {
         kind: 'committed',
         mutationKind: 'geometry',
         sourceControl: 'single-size:width',
+        activeEngineId: 'v3',
+        documentKind: 'frame-diagram',
         relayoutPolicy: 'engine',
         dirtyPolicy: 'mark-dirty',
         undoPolicy: 'record',
@@ -277,6 +289,7 @@ describe('createPreviewInspectorMutationRuntime', () => {
       getHeightUnit: () => 'px',
       baselineStep: 8,
       shouldShowAutolayoutInspector: () => false,
+      getMutationContext: () => ({ activeEngineId: 'elk-layered', documentKind: 'frame-diagram' }),
       onMutationTransaction: (result) => mutationResults.push(result),
     });
 
@@ -293,6 +306,8 @@ describe('createPreviewInspectorMutationRuntime', () => {
         kind: 'inert',
         mutationKind: 'inspector-layout',
         sourceControl: 'single-align',
+        activeEngineId: 'elk-layered',
+        documentKind: 'frame-diagram',
         relayoutPolicy: 'none',
         dirtyPolicy: 'preserve',
         undoPolicy: 'none',

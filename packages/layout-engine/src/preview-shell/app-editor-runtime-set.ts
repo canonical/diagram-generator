@@ -70,6 +70,7 @@ export interface CreatePreviewEditorRuntimeSetOptions {
   renderSingleStyleOptions: CreatePreviewInspectorDisplayRuntimeOptions['renderSingleStyleOptions'];
   renderMultiStyleOptions: CreatePreviewInspectorDisplayRuntimeOptions['renderMultiStyleOptions'];
   syncPanelVisibility?: CreatePreviewInspectorDisplayRuntimeOptions['syncPanelVisibility'];
+  getMutationContext?: CreatePreviewInspectorMutationRuntimeOptions['getMutationContext'];
   onMutationTransaction?: CreatePreviewInspectorMutationRuntimeOptions['onMutationTransaction'];
   captureOverrideEntries: CreatePreviewInspectorMutationRuntimeOptions['captureOverrideEntries']
     & CreatePreviewInspectorSelectionRuntimeOptions['captureOverrideEntries']
@@ -160,6 +161,7 @@ export interface CreatePreviewEditorRuntimeSetHostOptions {
   renderSingleStyleOptions: CreatePreviewEditorRuntimeSetOptions['renderSingleStyleOptions'];
   renderMultiStyleOptions: CreatePreviewEditorRuntimeSetOptions['renderMultiStyleOptions'];
   syncPanelVisibility?: CreatePreviewEditorRuntimeSetOptions['syncPanelVisibility'];
+  getMutationContext?: CreatePreviewEditorRuntimeSetOptions['getMutationContext'];
   onMutationTransaction?: CreatePreviewEditorRuntimeSetOptions['onMutationTransaction'];
   captureOverrideEntries: CreatePreviewEditorRuntimeSetOptions['captureOverrideEntries'];
   commitOverridePatchAction: CreatePreviewEditorRuntimeSetOptions['commitOverridePatchAction'];
@@ -238,6 +240,7 @@ export interface CreatePreviewEditorRuntimeSetFromRuntimeOptions {
   renderSingleStyleOptions: CreatePreviewEditorRuntimeSetHostOptions['renderSingleStyleOptions'];
   renderMultiStyleOptions: CreatePreviewEditorRuntimeSetHostOptions['renderMultiStyleOptions'];
   syncPanelVisibility?: CreatePreviewEditorRuntimeSetHostOptions['syncPanelVisibility'];
+  getMutationContext?: CreatePreviewEditorRuntimeSetHostOptions['getMutationContext'];
   onMutationTransaction?: CreatePreviewEditorRuntimeSetHostOptions['onMutationTransaction'];
   shouldShowAutolayoutInspector?: CreatePreviewEditorRuntimeSetHostOptions['shouldShowAutolayoutInspector'];
   editorState: {
@@ -314,6 +317,7 @@ export interface CreatePreviewEditorRuntimeSetFromEditorHostOptions {
   ) => string;
   formatAsDefinedStyleLabel: (styleName: string | null | undefined, mixed?: boolean) => string;
   syncPanelVisibility?: CreatePreviewEditorRuntimeSetFromRuntimeOptions['syncPanelVisibility'];
+  getMutationContext?: CreatePreviewEditorRuntimeSetFromRuntimeOptions['getMutationContext'];
   onMutationTransaction?: CreatePreviewEditorRuntimeSetFromRuntimeOptions['onMutationTransaction'];
   shouldShowAutolayoutInspector?: CreatePreviewEditorRuntimeSetFromRuntimeOptions['shouldShowAutolayoutInspector'];
   editorState: CreatePreviewEditorRuntimeSetFromRuntimeOptions['editorState'];
@@ -390,6 +394,7 @@ export function createPreviewEditorRuntimeSetFromHost(
     renderSingleStyleOptions: options.renderSingleStyleOptions,
     renderMultiStyleOptions: options.renderMultiStyleOptions,
     syncPanelVisibility: options.syncPanelVisibility ?? null,
+    getMutationContext: options.getMutationContext ?? null,
     onMutationTransaction: options.onMutationTransaction ?? null,
     captureOverrideEntries: options.captureOverrideEntries,
     commitOverridePatchAction: options.commitOverridePatchAction,
@@ -466,6 +471,7 @@ export function createPreviewEditorRuntimeSetFromRuntime(
     renderSingleStyleOptions: options.renderSingleStyleOptions,
     renderMultiStyleOptions: options.renderMultiStyleOptions,
     syncPanelVisibility: options.syncPanelVisibility ?? null,
+    getMutationContext: options.getMutationContext ?? null,
     onMutationTransaction: options.onMutationTransaction ?? null,
     shouldShowAutolayoutInspector: options.shouldShowAutolayoutInspector ?? null,
     captureOverrideEntries: options.editorState.captureOverrideEntries,
@@ -545,6 +551,7 @@ export function createPreviewEditorRuntimeSetFromEditorHost(
       })
     ),
     syncPanelVisibility: options.syncPanelVisibility ?? null,
+    getMutationContext: options.getMutationContext ?? null,
     onMutationTransaction: options.onMutationTransaction ?? null,
     shouldShowAutolayoutInspector: options.shouldShowAutolayoutInspector ?? null,
     editorState: options.editorState,
@@ -644,6 +651,7 @@ export function createPreviewEditorRuntimeSet(
     getHeightUnit: inspectorDisplay.getHeightUnit,
     baselineStep: options.baselineStep,
     shouldShowAutolayoutInspector: options.shouldShowAutolayoutInspector ?? null,
+    getMutationContext: options.getMutationContext ?? null,
     onMutationTransaction: options.onMutationTransaction ?? null,
   });
 

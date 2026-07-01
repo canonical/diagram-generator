@@ -108,11 +108,12 @@
       signature, dirty `false -> true`, undo `false -> true`, and no
       transaction violations.
 
-- [x] **T031** Route geometry-changing edits through explicit relayout policies.
+- [ ] **T031** Route geometry-changing edits through explicit relayout policies.
       **Do**: resize/drag/direction/waypoint/text edits must declare whether
       they need local relayout, engine relayout, fresh render, or no relayout.
       **Verify**: tests assert policy choice and final state vector.
-      **Evidence**: `npm --prefix packages/layout-engine test -- app-inspector-mutation-host app-inspector-mutation-runtime app-editor-runtime-set`;
+      **Progress evidence (inspector layout/size sub-slice)**:
+      `npm --prefix packages/layout-engine test -- app-inspector-mutation-host app-inspector-mutation-runtime app-editor-runtime-set`;
       `npm --prefix packages/layout-engine exec tsc -- --noEmit -p packages/layout-engine/tsconfig.json`;
       `npm --prefix packages/layout-engine run build:browser`;
       `node apps/preview/node_modules/typescript/bin/tsc --noEmit --target ES2022 --module ES2022 --moduleResolution bundler --strict --skipLibCheck --types node --typeRoots apps/preview/node_modules/@types --lib ES2022,DOM specs/069-editor-mutation-state-determinism/evidence/editor-mutation-state-probe.ts`;
@@ -121,7 +122,8 @@
       `geometry-prop-edit` as `inspector-layout` from
       `single-prop:min_width`, `relayoutPolicy: engine`, dirty
       `false -> true`, undo `false -> true`, changed bounds signature, and no
-      transaction violations.
+      local state-vector violations. Remaining T031 work: resize/drag,
+      waypoint, and text-edit policy transactions.
 
 - [ ] **T032** Make undo/redo restore complete state vectors.
       **Do**: undo/redo must restore engine intent, option bucket, frame

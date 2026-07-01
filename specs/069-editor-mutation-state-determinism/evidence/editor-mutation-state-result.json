@@ -1,7 +1,7 @@
 {
   "ok": true,
   "baseUrl": "http://127.0.0.1:8100",
-  "generatedAt": "2026-07-01T00:18:29.635Z",
+  "generatedAt": "2026-07-01T00:27:29.996Z",
   "fixtureHashesBefore": [
     {
       "slug": "example-deployment-pipeline",
@@ -685,7 +685,8 @@
               "kind": "committed",
               "mutationKind": "inspector-layout",
               "sourceControl": "single-prop:min_width",
-              "activeEngineId": null,
+              "activeEngineId": "v3",
+              "documentKind": "frame-diagram",
               "reason": "min_width change is applicable to the selected frame",
               "relayoutPolicy": "engine",
               "dirtyPolicy": "mark-dirty",
@@ -758,7 +759,8 @@
               "kind": "committed",
               "mutationKind": "inspector-layout",
               "sourceControl": "single-prop:min_width",
-              "activeEngineId": null,
+              "activeEngineId": "v3",
+              "documentKind": "frame-diagram",
               "reason": "min_width change is applicable to the selected frame",
               "relayoutPolicy": "engine",
               "dirtyPolicy": "mark-dirty",
@@ -953,7 +955,8 @@
               "kind": "committed",
               "mutationKind": "inspector-layout",
               "sourceControl": "single-prop:min_width",
-              "activeEngineId": null,
+              "activeEngineId": "v3",
+              "documentKind": "frame-diagram",
               "reason": "min_width change is applicable to the selected frame",
               "relayoutPolicy": "engine",
               "dirtyPolicy": "mark-dirty",
@@ -1252,6 +1255,7 @@
               "mutationKind": "engine-tab",
               "sourceControl": "engine-switcher-tabs",
               "activeEngineId": "v3",
+              "documentKind": "frame-diagram",
               "reason": "engine is compatible with this preview document",
               "relayoutPolicy": "fresh-render",
               "dirtyPolicy": "mark-dirty",
@@ -1560,6 +1564,7 @@
               "mutationKind": "engine-tab",
               "sourceControl": "engine-switcher-tabs",
               "activeEngineId": "v3",
+              "documentKind": "frame-diagram",
               "reason": "engine is compatible with this preview document",
               "relayoutPolicy": "fresh-render",
               "dirtyPolicy": "mark-dirty",
@@ -1861,6 +1866,7 @@
               "mutationKind": "engine-option",
               "sourceControl": "layout-params-controls",
               "activeEngineId": "elk-layered",
+              "documentKind": "frame-diagram",
               "reason": "engine option belongs to the active manifest bucket",
               "relayoutPolicy": "none",
               "dirtyPolicy": "preserve",
@@ -2164,6 +2170,7 @@
               "mutationKind": "engine-option",
               "sourceControl": "layout-params-controls",
               "activeEngineId": "elk-layered",
+              "documentKind": "frame-diagram",
               "reason": "engine option belongs to the active manifest bucket",
               "relayoutPolicy": "none",
               "dirtyPolicy": "preserve",
@@ -2459,6 +2466,7 @@
               "mutationKind": "engine-option",
               "sourceControl": "layout-params-controls",
               "activeEngineId": "elk-layered",
+              "documentKind": "frame-diagram",
               "reason": "engine option belongs to the active manifest bucket",
               "relayoutPolicy": "none",
               "dirtyPolicy": "preserve",
@@ -3922,6 +3930,7 @@
               "mutationKind": "engine-tab",
               "sourceControl": "engine-switcher-tabs",
               "activeEngineId": "elk-layered",
+              "documentKind": "frame-diagram",
               "reason": "engine is compatible with this preview document",
               "relayoutPolicy": "fresh-render",
               "dirtyPolicy": "mark-dirty",
@@ -4370,6 +4379,7 @@
               "mutationKind": "engine-tab",
               "sourceControl": "engine-switcher-tabs",
               "activeEngineId": "elk-layered",
+              "documentKind": "frame-diagram",
               "reason": "engine is compatible with this preview document",
               "relayoutPolicy": "fresh-render",
               "dirtyPolicy": "mark-dirty",
@@ -4811,6 +4821,7 @@
               "mutationKind": "engine-tab",
               "sourceControl": "engine-switcher-tabs",
               "activeEngineId": "elk-layered",
+              "documentKind": "frame-diagram",
               "reason": "engine is compatible with this preview document",
               "relayoutPolicy": "fresh-render",
               "dirtyPolicy": "mark-dirty",
@@ -5260,6 +5271,7 @@
               "mutationKind": "engine-tab",
               "sourceControl": "engine-switcher-tabs",
               "activeEngineId": "elk-layered",
+              "documentKind": "frame-diagram",
               "reason": "engine is compatible with this preview document",
               "relayoutPolicy": "fresh-render",
               "dirtyPolicy": "mark-dirty",
@@ -5701,6 +5713,7 @@
               "mutationKind": "engine-tab",
               "sourceControl": "engine-switcher-tabs",
               "activeEngineId": "elk-layered",
+              "documentKind": "frame-diagram",
               "reason": "engine is compatible with this preview document",
               "relayoutPolicy": "fresh-render",
               "dirtyPolicy": "mark-dirty",
@@ -7111,45 +7124,45 @@
                 "x": 0,
                 "y": 0,
                 "w": 1440,
-                "h": 1008
+                "h": 952
               },
               {
                 "id": "step_problem",
-                "x": 0,
-                "y": 800,
+                "x": 424,
+                "y": 424,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_investigation",
-                "x": 296,
-                "y": 368,
+                "x": 736,
+                "y": 744,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_analysis",
-                "x": 680,
-                "y": 24,
+                "x": 80,
+                "y": 96,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_fix",
-                "x": 16,
-                "y": 0,
+                "x": 0,
+                "y": 608,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_result",
-                "x": 632,
-                "y": 664,
+                "x": 624,
+                "y": 0,
                 "w": 272,
                 "h": 208
               }
             ],
-            "boundsSignature": "[[\"page\",0,0,1440,1008],[\"step_analysis\",680,24,272,208],[\"step_fix\",16,0,272,208],[\"step_investigation\",296,368,272,208],[\"step_problem\",0,800,272,208],[\"step_result\",632,664,272,208]]",
+            "boundsSignature": "[[\"page\",0,0,1440,952],[\"step_analysis\",80,96,272,208],[\"step_fix\",0,608,272,208],[\"step_investigation\",736,744,272,208],[\"step_problem\",424,424,272,208],[\"step_result\",624,0,272,208]]",
             "violations": []
           }
         },
@@ -7357,45 +7370,45 @@
                 "x": 0,
                 "y": 0,
                 "w": 1440,
-                "h": 1008
+                "h": 952
               },
               {
                 "id": "step_problem",
-                "x": 0,
-                "y": 800,
+                "x": 424,
+                "y": 424,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_investigation",
-                "x": 296,
-                "y": 368,
+                "x": 736,
+                "y": 744,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_analysis",
-                "x": 680,
-                "y": 24,
+                "x": 80,
+                "y": 96,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_fix",
-                "x": 16,
-                "y": 0,
+                "x": 0,
+                "y": 608,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_result",
-                "x": 632,
-                "y": 664,
+                "x": 624,
+                "y": 0,
                 "w": 272,
                 "h": 208
               }
             ],
-            "boundsSignature": "[[\"page\",0,0,1440,1008],[\"step_analysis\",680,24,272,208],[\"step_fix\",16,0,272,208],[\"step_investigation\",296,368,272,208],[\"step_problem\",0,800,272,208],[\"step_result\",632,664,272,208]]",
+            "boundsSignature": "[[\"page\",0,0,1440,952],[\"step_analysis\",80,96,272,208],[\"step_fix\",0,608,272,208],[\"step_investigation\",736,744,272,208],[\"step_problem\",424,424,272,208],[\"step_result\",624,0,272,208]]",
             "violations": []
           },
           "after": {
@@ -7603,45 +7616,45 @@
                 "x": 0,
                 "y": 0,
                 "w": 1440,
-                "h": 1008
+                "h": 952
               },
               {
                 "id": "step_problem",
-                "x": 0,
-                "y": 800,
+                "x": 424,
+                "y": 424,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_investigation",
-                "x": 296,
-                "y": 368,
+                "x": 736,
+                "y": 744,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_analysis",
-                "x": 680,
-                "y": 24,
+                "x": 80,
+                "y": 96,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_fix",
-                "x": 16,
-                "y": 0,
+                "x": 0,
+                "y": 608,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_result",
-                "x": 632,
-                "y": 664,
+                "x": 624,
+                "y": 0,
                 "w": 272,
                 "h": 208
               }
             ],
-            "boundsSignature": "[[\"page\",0,0,1440,1008],[\"step_analysis\",680,24,272,208],[\"step_fix\",16,0,272,208],[\"step_investigation\",296,368,272,208],[\"step_problem\",0,800,272,208],[\"step_result\",632,664,272,208]]",
+            "boundsSignature": "[[\"page\",0,0,1440,952],[\"step_analysis\",80,96,272,208],[\"step_fix\",0,608,272,208],[\"step_investigation\",736,744,272,208],[\"step_problem\",424,424,272,208],[\"step_result\",624,0,272,208]]",
             "violations": []
           },
           "details": {
@@ -7856,45 +7869,45 @@
                 "x": 0,
                 "y": 0,
                 "w": 1440,
-                "h": 1008
+                "h": 952
               },
               {
                 "id": "step_problem",
-                "x": 0,
-                "y": 800,
+                "x": 424,
+                "y": 424,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_investigation",
-                "x": 296,
-                "y": 368,
+                "x": 736,
+                "y": 744,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_analysis",
-                "x": 680,
-                "y": 24,
+                "x": 80,
+                "y": 96,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_fix",
-                "x": 16,
-                "y": 0,
+                "x": 0,
+                "y": 608,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_result",
-                "x": 632,
-                "y": 664,
+                "x": 624,
+                "y": 0,
                 "w": 272,
                 "h": 208
               }
             ],
-            "boundsSignature": "[[\"page\",0,0,1440,1008],[\"step_analysis\",680,24,272,208],[\"step_fix\",16,0,272,208],[\"step_investigation\",296,368,272,208],[\"step_problem\",0,800,272,208],[\"step_result\",632,664,272,208]]",
+            "boundsSignature": "[[\"page\",0,0,1440,952],[\"step_analysis\",80,96,272,208],[\"step_fix\",0,608,272,208],[\"step_investigation\",736,744,272,208],[\"step_problem\",424,424,272,208],[\"step_result\",624,0,272,208]]",
             "violations": []
           },
           "after": {
@@ -8107,6 +8120,7 @@
               "mutationKind": "inspector-appearance",
               "sourceControl": "single-style",
               "activeEngineId": null,
+              "documentKind": "frame-diagram",
               "reason": "style change is applicable to the selected frame",
               "relayoutPolicy": "none",
               "dirtyPolicy": "mark-dirty",
@@ -8124,45 +8138,45 @@
                 "x": 0,
                 "y": 0,
                 "w": 1440,
-                "h": 1008
+                "h": 952
               },
               {
                 "id": "step_problem",
-                "x": 0,
-                "y": 800,
+                "x": 424,
+                "y": 424,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_investigation",
-                "x": 296,
-                "y": 368,
+                "x": 736,
+                "y": 744,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_analysis",
-                "x": 680,
-                "y": 24,
+                "x": 80,
+                "y": 96,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_fix",
-                "x": 16,
-                "y": 0,
+                "x": 0,
+                "y": 608,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_result",
-                "x": 632,
-                "y": 664,
+                "x": 624,
+                "y": 0,
                 "w": 272,
                 "h": 208
               }
             ],
-            "boundsSignature": "[[\"page\",0,0,1440,1008],[\"step_analysis\",680,24,272,208],[\"step_fix\",16,0,272,208],[\"step_investigation\",296,368,272,208],[\"step_problem\",0,800,272,208],[\"step_result\",632,664,272,208]]",
+            "boundsSignature": "[[\"page\",0,0,1440,952],[\"step_analysis\",80,96,272,208],[\"step_fix\",0,608,272,208],[\"step_investigation\",736,744,272,208],[\"step_problem\",424,424,272,208],[\"step_result\",624,0,272,208]]",
             "violations": []
           },
           "details": {
@@ -8382,6 +8396,7 @@
               "mutationKind": "inspector-appearance",
               "sourceControl": "single-style",
               "activeEngineId": null,
+              "documentKind": "frame-diagram",
               "reason": "style change is applicable to the selected frame",
               "relayoutPolicy": "none",
               "dirtyPolicy": "mark-dirty",
@@ -8399,45 +8414,45 @@
                 "x": 0,
                 "y": 0,
                 "w": 1440,
-                "h": 1008
+                "h": 952
               },
               {
                 "id": "step_problem",
-                "x": 0,
-                "y": 800,
+                "x": 424,
+                "y": 424,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_investigation",
-                "x": 296,
-                "y": 368,
+                "x": 736,
+                "y": 744,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_analysis",
-                "x": 680,
-                "y": 24,
+                "x": 80,
+                "y": 96,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_fix",
-                "x": 16,
-                "y": 0,
+                "x": 0,
+                "y": 608,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_result",
-                "x": 632,
-                "y": 664,
+                "x": 624,
+                "y": 0,
                 "w": 272,
                 "h": 208
               }
             ],
-            "boundsSignature": "[[\"page\",0,0,1440,1008],[\"step_analysis\",680,24,272,208],[\"step_fix\",16,0,272,208],[\"step_investigation\",296,368,272,208],[\"step_problem\",0,800,272,208],[\"step_result\",632,664,272,208]]",
+            "boundsSignature": "[[\"page\",0,0,1440,952],[\"step_analysis\",80,96,272,208],[\"step_fix\",0,608,272,208],[\"step_investigation\",736,744,272,208],[\"step_problem\",424,424,272,208],[\"step_result\",624,0,272,208]]",
             "violations": []
           },
           "after": {
@@ -8532,7 +8547,7 @@
                 "hidden": true,
                 "disabled": true,
                 "focused": false,
-                "value": "8",
+                "value": "7",
                 "checked": false,
                 "reason": "hidden"
               },
@@ -8657,6 +8672,7 @@
               "mutationKind": "inspector-appearance",
               "sourceControl": "single-style",
               "activeEngineId": null,
+              "documentKind": "frame-diagram",
               "reason": "style change is applicable to the selected frame",
               "relayoutPolicy": "none",
               "dirtyPolicy": "mark-dirty",
@@ -8674,45 +8690,45 @@
                 "x": 0,
                 "y": 0,
                 "w": 1440,
-                "h": 1032
+                "h": 1016
               },
               {
                 "id": "step_problem",
-                "x": 872,
-                "y": 480,
+                "x": 928,
+                "y": 320,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_investigation",
-                "x": 0,
-                "y": 560,
-                "w": 272,
-                "h": 208
-              },
-              {
-                "id": "step_analysis",
-                "x": 544,
+                "x": 152,
                 "y": 0,
                 "w": 272,
                 "h": 208
               },
               {
+                "id": "step_analysis",
+                "x": 608,
+                "y": 24,
+                "w": 272,
+                "h": 208
+              },
+              {
                 "id": "step_fix",
-                "x": 456,
-                "y": 824,
+                "x": 464,
+                "y": 808,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_result",
-                "x": 168,
-                "y": 184,
+                "x": 0,
+                "y": 568,
                 "w": 272,
                 "h": 208
               }
             ],
-            "boundsSignature": "[[\"page\",0,0,1440,1032],[\"step_analysis\",544,0,272,208],[\"step_fix\",456,824,272,208],[\"step_investigation\",0,560,272,208],[\"step_problem\",872,480,272,208],[\"step_result\",168,184,272,208]]",
+            "boundsSignature": "[[\"page\",0,0,1440,1016],[\"step_analysis\",608,24,272,208],[\"step_fix\",464,808,272,208],[\"step_investigation\",152,0,272,208],[\"step_problem\",928,320,272,208],[\"step_result\",0,568,272,208]]",
             "violations": []
           },
           "details": {

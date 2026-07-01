@@ -86,6 +86,7 @@ export interface EditorMutationTransactionResult {
   readonly mutationKind: EditorMutationKind;
   readonly sourceControl: string;
   readonly activeEngineId: string | null;
+  readonly documentKind: string | null;
   readonly reason: string;
   readonly relayoutPolicy: EditorMutationRelayoutPolicy;
   readonly dirtyPolicy: EditorMutationDirtyPolicy;
@@ -159,6 +160,7 @@ export function resolveEditorMutationTransaction(
       mutationKind: transaction.kind,
       sourceControl: transaction.sourceControl,
       activeEngineId: transaction.activeEngineId,
+      documentKind: transaction.documentKind,
       reason: transaction.rejectReason,
       relayoutPolicy: 'none',
       dirtyPolicy: 'preserve',
@@ -175,6 +177,7 @@ export function resolveEditorMutationTransaction(
       mutationKind: transaction.kind,
       sourceControl: transaction.sourceControl,
       activeEngineId: transaction.activeEngineId,
+      documentKind: transaction.documentKind,
       reason: transaction.capabilityGate.reason,
       relayoutPolicy: 'none',
       dirtyPolicy: 'preserve',
@@ -191,6 +194,7 @@ export function resolveEditorMutationTransaction(
       mutationKind: transaction.kind,
       sourceControl: transaction.sourceControl,
       activeEngineId: transaction.activeEngineId,
+      documentKind: transaction.documentKind,
       reason: transaction.capabilityGate.reason || 'no state change',
       relayoutPolicy: 'none',
       dirtyPolicy: 'preserve',
@@ -206,6 +210,7 @@ export function resolveEditorMutationTransaction(
     mutationKind: transaction.kind,
     sourceControl: transaction.sourceControl,
     activeEngineId: transaction.activeEngineId,
+    documentKind: transaction.documentKind,
     reason: transaction.capabilityGate.reason,
     relayoutPolicy: transaction.relayoutPolicy,
     dirtyPolicy: transaction.dirtyPolicy,

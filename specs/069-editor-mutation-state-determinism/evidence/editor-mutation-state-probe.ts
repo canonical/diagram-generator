@@ -643,6 +643,8 @@ async function editGeometryPropStep(page: Page): Promise<unknown> {
     kind: 'committed',
     mutationKind: 'inspector-layout',
     sourceControl: 'single-prop:min_width',
+    activeEngineId: 'v3',
+    documentKind: 'frame-diagram',
     relayoutPolicy: 'engine',
     dirtyPolicy: 'mark-dirty',
     undoPolicy: 'record',
