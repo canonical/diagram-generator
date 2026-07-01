@@ -138,12 +138,8 @@ describe('createPreviewInspectorMutationRuntime', () => {
     ));
     const commitOverridePatchAction = vi.fn();
     const mutationResults: unknown[] = [];
-    const setDirty = vi.fn(() => {
-      expect(mutationResults).toHaveLength(1);
-    });
-    const scheduleRelayout = vi.fn(() => {
-      expect(mutationResults).toHaveLength(1);
-    });
+    const setDirty = vi.fn();
+    const scheduleRelayout = vi.fn();
     const requestRelayoutNow = vi.fn();
     const renderSelectionInspector = vi.fn();
     const runtime = createPreviewInspectorMutationRuntime({
@@ -202,9 +198,7 @@ describe('createPreviewInspectorMutationRuntime', () => {
     let overrides: Record<string, Record<string, unknown>> = {};
     const scheduleRelayout = vi.fn();
     const mutationResults: unknown[] = [];
-    const requestRelayoutNow = vi.fn(() => {
-      expect(mutationResults).toHaveLength(1);
-    });
+    const requestRelayoutNow = vi.fn();
 
     const runtime = createPreviewInspectorMutationRuntime({
       captureOverrideEntries: (ids) => Object.fromEntries(ids.map((id) => [id, { ...(overrides[id] || {}) }])),
@@ -278,6 +272,51 @@ describe('createPreviewInspectorMutationRuntime', () => {
     expect(requestRelayoutNow).toHaveBeenCalledWith('panel');
     expect(requestRelayoutNow).toHaveBeenCalledTimes(2);
     expect(scheduleRelayout).not.toHaveBeenCalled();
+  });
+
+  it('emits inspector layout transactions after the mutation side effects have run', () => {
+    let overrides: Record<string, Record<string, unknown>> = {};
+    const mutationResults: unknown[] = [];
+    const setDirty = vi.fn(() => {
+      expect(mutationResults).toHaveLength(0);
+    });
+    const scheduleRelayout = vi.fn(() => {
+      expect(mutationResults).toHaveLength(0);
+    });
+
+    const runtime = createPreviewInspectorMutationRuntime({
+      captureOverrideEntries: (ids) => Object.fromEntries(ids.map((id) => [id, { ...(overrides[id] || {}) }])),
+      commitOverridePatchAction: vi.fn(),
+      getOverrides: () => overrides,
+      coercedKeys: new Set<string>(),
+      getNode: () => ({ type: 'box' }),
+      snapToGrid: (value) => value,
+      setDirty,
+      scheduleRelayout,
+      requestRelayoutNow: vi.fn(),
+      applyAllOverrides: vi.fn(),
+      renderSelectionInspector: vi.fn(),
+      cleanOverride: vi.fn(),
+      getGridInfo: () => null,
+      getWidthUnit: () => 'px',
+      getHeightUnit: () => 'px',
+      baselineStep: 8,
+      getMutationContext: () => ({ activeEngineId: 'v3', documentKind: 'frame-diagram' }),
+      onMutationTransaction: (result) => mutationResults.push(result),
+    });
+
+    runtime.setFrameProp('root', 'gap_delta', 24);
+
+    expect(mutationResults).toEqual([
+      expect.objectContaining({
+        kind: 'committed',
+        mutationKind: 'inspector-layout',
+        sourceControl: 'single-prop:gap_delta',
+        relayoutPolicy: 'engine',
+        dirtyPolicy: 'mark-dirty',
+        undoPolicy: 'record',
+      }),
+    ]);
   });
 
   it('blocks native layout mutations when the active engine is not grid-editable', () => {

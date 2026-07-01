@@ -24,6 +24,4 @@ here — those belong in the relevant `specs/<id>-<slug>/` package.
   `tmp/` debug screenshots.
 - **Next slice:** land spec 069 to `main` with a real gesture→repaint product
   check (TODO priority #1), then the 060/062/063 correctness backlog.
-- **Known stale:** `AGENTS.md` handover line-counts for `editor.js` (says 256,
-  actual 316) and `layout-bridge.js` (says 88, actual 77) need updating.
 

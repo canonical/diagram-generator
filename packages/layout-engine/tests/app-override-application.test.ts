@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  applyPreviewSvgOverrides,
   applyPreviewSvgOverridesHost,
   resolvePreviewArrowShiftedSegments,
   resolvePreviewArrowSideShift,
@@ -139,5 +140,118 @@ describe('preview override application helpers', () => {
         showResizeHandles: expect.any(Function),
       },
     ]);
+  });
+
+  it('applies style overrides to frame-managed svg groups without mutating geometry', () => {
+    const OriginalSvgElement = globalThis.SVGElement;
+    class FakeSvgElement {
+      private readonly attrs = new Map<string, string>();
+      style = {};
+      innerHTML = '';
+
+      constructor(
+        private readonly queries: Record<string, FakeSvgElement | null> = {},
+        private readonly queryLists: Record<string, FakeSvgElement[]> = {},
+      ) {}
+
+      getAttribute(name: string) {
+        return this.attrs.get(name) ?? null;
+      }
+
+      setAttribute(name: string, value: string) {
+        this.attrs.set(name, value);
+      }
+
+      hasAttribute(name: string) {
+        return this.attrs.has(name);
+      }
+
+      querySelector(selector: string) {
+        return this.queries[selector] ?? null;
+      }
+
+      querySelectorAll(selector: string) {
+        return this.queryLists[selector] ?? [];
+      }
+    }
+    (globalThis as { SVGElement?: typeof FakeSvgElement }).SVGElement = FakeSvgElement;
+
+    try {
+      const tspan = new FakeSvgElement();
+      tspan.setAttribute('fill', '#111111');
+      const text = new FakeSvgElement({}, {
+        tspan: [tspan],
+      });
+      const rect = new FakeSvgElement();
+      rect.setAttribute('width', '120');
+      rect.setAttribute('height', '80');
+      rect.setAttribute('fill', '#ffffff');
+      const group = new FakeSvgElement({
+        ':scope > rect:first-of-type': rect,
+        text,
+      }, {
+        'text tspan': [tspan],
+        '.dg-icon': [],
+      });
+      group.setAttribute('data-component-id', 'alpha');
+      group.setAttribute('data-frame-managed', 'true');
+      group.setAttribute('transform', 'translate(10 20)');
+      const ownerDocument = {
+        createElement() {
+          return {
+            getContext() {
+              return null;
+            },
+          };
+        },
+      };
+      const svg = new FakeSvgElement({}, {
+        '[data-component-id] text': [text],
+        '[data-component-id="alpha"]': [group],
+      }) as unknown as SVGSVGElement & { ownerDocument: typeof ownerDocument };
+      Object.assign(svg, { ownerDocument });
+
+      applyPreviewSvgOverrides({
+        svg,
+        componentTree: [{ id: 'alpha' }],
+        rootNodes: [{ id: 'alpha', gridRow: 0 }],
+        overrides: { alpha: { style: 'parent' } },
+        relayoutStatus: { frameManaged: true },
+        boxStyles: {
+          parent: {
+            fill: '#eeeeee',
+            text: '#222222',
+            icon: '#333333',
+          },
+        },
+        inset: 8,
+        iconSize: 48,
+        gridStep: 8,
+        hasDiagramGrid: true,
+        getNode() {
+          return { id: 'alpha', gridRow: 0 };
+        },
+        getOwnDelta() {
+          return { dx: 0, dy: 0, dw: 24, dh: 12 };
+        },
+        getEffectiveDelta() {
+          return { dx: 5, dy: 7, dw: 24, dh: 12 };
+        },
+        isFrameManagedTarget(element) {
+          return element instanceof FakeSvgElement
+            && element.getAttribute('data-frame-managed') === 'true';
+        },
+        selectedId: null,
+        showResizeHandles() {},
+      });
+
+      expect(rect.getAttribute('fill')).toBe('#eeeeee');
+      expect(rect.getAttribute('width')).toBe('120');
+      expect(rect.getAttribute('height')).toBe('80');
+      expect(group.getAttribute('style') ?? '').not.toContain('translate');
+      expect(tspan.getAttribute('fill')).toBe('#222222');
+    } finally {
+      (globalThis as { SVGElement?: typeof FakeSvgElement }).SVGElement = OriginalSvgElement;
+    }
   });
 });
