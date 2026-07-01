@@ -17,22 +17,15 @@ active-spec index is `docs/specs.md`; if this file disagrees with it, trust
 Fix the "silently broken after refactor" correctness class **before** new
 engine breadth. Ordered for a cold-start agent:
 
-1. **Merge + product-verify spec 069 (editor mutation determinism).**
-   069 is `Closeout Ready` but lives only on `feat/069-editor-mutation-state-determinism`
-   (11 commits ahead of `main`, **not merged**). Its spec text targets the exact
-   reported bugs: "clicking an engine tab can appear to do nothing" and "controls
-   leave stale option state". Landing it is the highest-leverage fix. Before
-   merge, add a **real product-level** (not unit-only) check that a tab switch
-   and a leaf role change both repaint the canvas.
-2. **Spec 060 follow-up** — output-pane engine-tab switch that visually no-ops.
+1. **Spec 060 follow-up** — output-pane engine-tab switch that visually no-ops.
    Distinguish a true rerender bug from two engines producing equivalent
    geometry. See `docs/spec-reviews/branch-060.md`.
-3. **Spec 062 (draft) — parent/child hug resize propagation** and
+2. **Spec 062 (draft) — parent/child hug resize propagation** and
    **Spec 063 (draft) — auto-style by nesting depth.** Together these cover the
    reported "change a leaf box role (child→parent) → no visual change until a
    top-level node changes" invalidation/restyle bug.
-4. **Spec 061 (draft) — grid regression investigation.**
-5. **Spec 064 (draft) — arrow annotation label de-overlap.**
+3. **Spec 061 (draft) — grid regression investigation.**
+4. **Spec 064 (draft) — arrow annotation label de-overlap.**
 
 Only after the correctness backlog is drained, resume engine-breadth work
 (the `defineGraphLayoutPreviewEngine` factory + per-engine `engines/*.engine.ts`

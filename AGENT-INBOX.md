@@ -14,14 +14,11 @@ here — those belong in the relevant `specs/<id>-<slug>/` package.
 
 ## Handoff — 2026-07-01
 
-- **Branch:** `feat/069-editor-mutation-state-determinism` (11 commits ahead of
-  `main`, unmerged). Spec 069 is `Closeout Ready` but **not on `main`**.
-- **Uncommitted:** `scripts/diagrams/frames/example-deployment-pipeline.yaml`
-  (authoring experiment — do not commit unless the task asks). `AGENTS.md` and
-  this file also have pending edits.
-- **This session:** ran a full repo audit; results + prioritized next-spec
-  order are in [`TODO.md`](TODO.md). Culled the tracked root `image.png` and two
-  `tmp/` debug screenshots.
-- **Next slice:** land spec 069 to `main` with a real gesture→repaint product
-  check (TODO priority #1), then the 060/062/063 correctness backlog.
+- **Branch:** `main`. Spec 069 is merged and archived under
+  `docs/spec-archive/069-editor-mutation-state-determinism/`.
+- **This session:** landed the spec 069 transaction/state-vector work to
+  `main`, including the repo-owned live repaint regression and runtime drift
+  diagnostics.
+- **Next slice:** spec 060 follow-up for visually no-op engine-tab switches,
+  then the 062/063 correctness backlog.
 
