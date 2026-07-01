@@ -74,3 +74,19 @@ Required stance:
 - Assume the branch can still hide a second unfitted mount path until you can
   rule it out concretely.
 
+## Handoff — 2026-07-02
+
+- **Spec 071 / T021 landed:** commit `9b08d21` (`Complete spec 071 task T021`)
+  removes source-side ownership of `layoutOperatorOverrides` and
+  `__DG_activeLayoutOperatorKey`, updates the focused layout-engine suites, and
+  keeps the real browser SC-003 regression green via snapshot-derived active
+  bucket reads.
+- **T022 blocker:** the current save path still only persists the active
+  manifest bucket. Finishing per-node persistence cleanly needs an explicit
+  packing rule for how multiple interpreter nodes rehydrate and co-persist under
+  the unchanged frame-YAML `meta.<engineFamily>` shape, especially for shared
+  namespaces like `meta.elk`. The active spec/plan says the on-disk shape must
+  stay unchanged, but does not yet pin down how multiple node-local buckets map
+  into that shared namespace without ambiguity. Do not guess; resolve that
+  mapping rule before implementing T022.
+
