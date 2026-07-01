@@ -1,7 +1,7 @@
 {
   "ok": true,
   "baseUrl": "http://127.0.0.1:8100",
-  "generatedAt": "2026-07-01T00:27:29.996Z",
+  "generatedAt": "2026-07-01T00:49:40.230Z",
   "fixtureHashesBefore": [
     {
       "slug": "example-deployment-pipeline",
@@ -5930,6 +5930,3223 @@
               "value": "4"
             }
           }
+        },
+        {
+          "name": "engine-option-plus-style-select",
+          "ok": true,
+          "before": {
+            "label": "engine-option-plus-style-select:before",
+            "url": "http://127.0.0.1:8100/view/v3:mongo-octavia-ha",
+            "activeTab": "v3",
+            "renderIntent": {
+              "engineId": "v3",
+              "pageDirection": "VERTICAL",
+              "frameOverrides": {},
+              "engineOverrides": {},
+              "gridOverrides": {}
+            },
+            "frameTreeLayoutEngine": "v3",
+            "layoutOperator": {
+              "activeOperatorKey": "v3",
+              "byOperator": {
+                "elk-layered": {
+                  "elk.direction": "",
+                  "elk.layered.spacing.nodeNodeBetweenLayers": 24,
+                  "elk.spacing.nodeNode": 24,
+                  "elk.spacing.edgeNode": 24,
+                  "elk.spacing.edgeEdge": 24,
+                  "elk.layered.spacing.edgeEdgeBetweenLayers": 24,
+                  "elk.layered.unnecessaryBendpoints": true,
+                  "elk.layered.nodePlacement.favorStraightEdges": true,
+                  "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
+                  "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+                  "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+                  "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+                },
+                "v3": {
+                  "elk.direction": "",
+                  "elk.layered.spacing.nodeNodeBetweenLayers": 24,
+                  "elk.spacing.nodeNode": 24,
+                  "elk.spacing.edgeNode": 24,
+                  "elk.spacing.edgeEdge": 24,
+                  "elk.layered.spacing.edgeEdgeBetweenLayers": 24,
+                  "elk.layered.unnecessaryBendpoints": true,
+                  "elk.layered.nodePlacement.favorStraightEdges": true,
+                  "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
+                  "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+                  "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+                  "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+                }
+              },
+              "layoutOverrides": {
+                "elk.direction": "",
+                "elk.layered.spacing.nodeNodeBetweenLayers": 24,
+                "elk.spacing.nodeNode": 24,
+                "elk.spacing.edgeNode": 24,
+                "elk.spacing.edgeEdge": 24,
+                "elk.layered.spacing.edgeEdgeBetweenLayers": 24,
+                "elk.layered.unnecessaryBendpoints": true,
+                "elk.layered.nodePlacement.favorStraightEdges": true,
+                "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
+                "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+                "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+                "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+              },
+              "layoutOverrideNamespace": "meta.elk"
+            },
+            "renderedEngine": "v3",
+            "selection": {
+              "ids": [],
+              "domIds": [],
+              "type": "empty"
+            },
+            "inspectorTarget": null,
+            "focusedControl": null,
+            "controlApplicability": {
+              "engineTab": {
+                "selector": "#engine-switcher-tabs [data-engine-id]",
+                "exists": true,
+                "hidden": false,
+                "disabled": false,
+                "focused": false,
+                "value": "",
+                "checked": null,
+                "reason": "applicable"
+              },
+              "engineOption": {
+                "selector": "#layout-params-controls [data-dg-engine-layout-key], #layout-params-controls [data-elk-key]",
+                "exists": false,
+                "hidden": null,
+                "disabled": null,
+                "focused": false,
+                "value": null,
+                "checked": null,
+                "reason": "missing"
+              },
+              "gridCols": {
+                "selector": "#grid-cols",
+                "exists": true,
+                "hidden": true,
+                "disabled": true,
+                "focused": false,
+                "value": "4",
+                "checked": false,
+                "reason": "hidden"
+              },
+              "gridRows": {
+                "selector": "#grid-rows",
+                "exists": true,
+                "hidden": true,
+                "disabled": true,
+                "focused": false,
+                "value": "4",
+                "checked": false,
+                "reason": "hidden"
+              },
+              "styleVariant": {
+                "selector": "#inspector [data-dg-change-action=\"single-style\"]",
+                "exists": false,
+                "hidden": null,
+                "disabled": null,
+                "focused": false,
+                "value": null,
+                "checked": null,
+                "reason": "missing"
+              },
+              "save": {
+                "selector": "#btn-save",
+                "exists": true,
+                "hidden": false,
+                "disabled": false,
+                "focused": false,
+                "value": "",
+                "checked": null,
+                "reason": "applicable"
+              },
+              "undo": {
+                "selector": "#btn-undo",
+                "exists": true,
+                "hidden": false,
+                "disabled": true,
+                "focused": false,
+                "value": "",
+                "checked": null,
+                "reason": "disabled"
+              },
+              "redo": {
+                "selector": "#btn-redo",
+                "exists": true,
+                "hidden": false,
+                "disabled": true,
+                "focused": false,
+                "value": "",
+                "checked": null,
+                "reason": "disabled"
+              }
+            },
+            "dirty": true,
+            "undo": {
+              "canUndo": false,
+              "canRedo": false
+            },
+            "visibleControls": [
+              {
+                "id": "engine-switcher-section",
+                "hidden": false,
+                "inert": false,
+                "disabledControlCount": 0,
+                "enabledControlCount": 2
+              },
+              {
+                "id": "layout-params-section",
+                "hidden": true,
+                "inert": true,
+                "disabledControlCount": 0,
+                "enabledControlCount": 0
+              },
+              {
+                "id": "grid-controls-section",
+                "hidden": true,
+                "inert": true,
+                "disabledControlCount": 10,
+                "enabledControlCount": 0
+              },
+              {
+                "id": "inspector",
+                "hidden": false,
+                "inert": false,
+                "disabledControlCount": 0,
+                "enabledControlCount": 0
+              }
+            ],
+            "savePayload": {
+              "overrides": {},
+              "grid_overrides": {},
+              "layout_overrides": {
+                "elk.direction": "",
+                "elk.layered.spacing.nodeNodeBetweenLayers": 24,
+                "elk.spacing.nodeNode": 24,
+                "elk.spacing.edgeNode": 24,
+                "elk.spacing.edgeEdge": 24,
+                "elk.layered.spacing.edgeEdgeBetweenLayers": 24,
+                "elk.layered.unnecessaryBendpoints": true,
+                "elk.layered.nodePlacement.favorStraightEdges": true,
+                "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
+                "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+                "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+                "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+              },
+              "layout_operator_overrides": {
+                "activeOperatorKey": "v3",
+                "byOperator": {
+                  "elk-layered": {
+                    "elk.direction": "",
+                    "elk.layered.spacing.nodeNodeBetweenLayers": 24,
+                    "elk.spacing.nodeNode": 24,
+                    "elk.spacing.edgeNode": 24,
+                    "elk.spacing.edgeEdge": 24,
+                    "elk.layered.spacing.edgeEdgeBetweenLayers": 24,
+                    "elk.layered.unnecessaryBendpoints": true,
+                    "elk.layered.nodePlacement.favorStraightEdges": true,
+                    "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
+                    "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+                    "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+                    "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+                  },
+                  "v3": {
+                    "elk.direction": "",
+                    "elk.layered.spacing.nodeNodeBetweenLayers": 24,
+                    "elk.spacing.nodeNode": 24,
+                    "elk.spacing.edgeNode": 24,
+                    "elk.spacing.edgeEdge": 24,
+                    "elk.layered.spacing.edgeEdgeBetweenLayers": 24,
+                    "elk.layered.unnecessaryBendpoints": true,
+                    "elk.layered.nodePlacement.favorStraightEdges": true,
+                    "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
+                    "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+                    "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+                    "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+                  }
+                }
+              },
+              "removed_ids": []
+            },
+            "reloadParse": {
+              "configSlug": "mongo-octavia-ha",
+              "documentKind": "frame-diagram",
+              "layoutEngine": "v3"
+            },
+            "lastEditorMutationTransaction": {
+              "kind": "committed",
+              "mutationKind": "engine-tab",
+              "sourceControl": "engine-switcher-tabs",
+              "activeEngineId": "elk-layered",
+              "documentKind": "frame-diagram",
+              "reason": "engine is compatible with this preview document",
+              "relayoutPolicy": "fresh-render",
+              "dirtyPolicy": "mark-dirty",
+              "undoPolicy": "none",
+              "renderIntentDelta": {
+                "engineId": "v3",
+                "changed": true
+              },
+              "persistenceDelta": {
+                "frameTreeChanged": true,
+                "savePayloadChanged": true
+              },
+              "diagnostics": []
+            },
+            "bounds": [
+              {
+                "id": "page",
+                "x": 0,
+                "y": 0,
+                "w": 977.33,
+                "h": 528
+              },
+              {
+                "id": "mongo_clients",
+                "x": 368,
+                "y": 32,
+                "w": 224,
+                "h": 64
+              },
+              {
+                "id": "octavia_cluster",
+                "x": 32,
+                "y": 144,
+                "w": 896,
+                "h": 64
+              },
+              {
+                "id": "octavia_lb_a",
+                "x": 252,
+                "y": 144,
+                "w": 216,
+                "h": 64
+              },
+              {
+                "id": "octavia_lb_b",
+                "x": 492,
+                "y": 144,
+                "w": 216,
+                "h": 64
+              },
+              {
+                "id": "mongo_ip_label",
+                "x": 400,
+                "y": 256,
+                "w": 160,
+                "h": 40
+              },
+              {
+                "id": "availability_zones",
+                "x": 32,
+                "y": 344,
+                "w": 945.33,
+                "h": 152
+              },
+              {
+                "id": "az1",
+                "x": 32,
+                "y": 344,
+                "w": 332,
+                "h": 152
+              },
+              {
+                "id": "vm_az1",
+                "x": 32,
+                "y": 344,
+                "w": 280,
+                "h": 152
+              },
+              {
+                "id": "vm_az1__heading",
+                "x": 46.75,
+                "y": 359.42,
+                "w": 247.25,
+                "h": 48.58
+              },
+              {
+                "id": "vm_az1__body",
+                "x": 48,
+                "y": 416,
+                "w": 246,
+                "h": 64
+              },
+              {
+                "id": "mongo_write",
+                "x": 48,
+                "y": 416,
+                "w": 246,
+                "h": 64
+              },
+              {
+                "id": "az1_label",
+                "x": 322.75,
+                "y": 344,
+                "w": 41.25,
+                "h": 40
+              },
+              {
+                "id": "az2",
+                "x": 338.67,
+                "y": 344,
+                "w": 332,
+                "h": 152
+              },
+              {
+                "id": "vm_az2",
+                "x": 338.67,
+                "y": 344,
+                "w": 280,
+                "h": 152
+              },
+              {
+                "id": "vm_az2__heading",
+                "x": 353.42,
+                "y": 359.42,
+                "w": 247.25,
+                "h": 48.58
+              },
+              {
+                "id": "vm_az2__body",
+                "x": 354.67,
+                "y": 416,
+                "w": 246,
+                "h": 64
+              },
+              {
+                "id": "mongo_read_az2",
+                "x": 354.67,
+                "y": 416,
+                "w": 246,
+                "h": 64
+              },
+              {
+                "id": "az2_label",
+                "x": 629.42,
+                "y": 344,
+                "w": 41.25,
+                "h": 40
+              },
+              {
+                "id": "az3",
+                "x": 645.33,
+                "y": 344,
+                "w": 332,
+                "h": 152
+              },
+              {
+                "id": "vm_az3",
+                "x": 645.33,
+                "y": 344,
+                "w": 280,
+                "h": 152
+              },
+              {
+                "id": "vm_az3__heading",
+                "x": 660.08,
+                "y": 359.42,
+                "w": 247.25,
+                "h": 48.58
+              },
+              {
+                "id": "vm_az3__body",
+                "x": 661.33,
+                "y": 416,
+                "w": 246,
+                "h": 64
+              },
+              {
+                "id": "mongo_read_az3",
+                "x": 661.33,
+                "y": 416,
+                "w": 246,
+                "h": 64
+              },
+              {
+                "id": "az3_label",
+                "x": 936.08,
+                "y": 344,
+                "w": 41.25,
+                "h": 40
+              }
+            ],
+            "boundsSignature": "[[\"availability_zones\",32,344,945.33,152],[\"az1\",32,344,332,152],[\"az1_label\",322.75,344,41.25,40],[\"az2\",338.67,344,332,152],[\"az2_label\",629.42,344,41.25,40],[\"az3\",645.33,344,332,152],[\"az3_label\",936.08,344,41.25,40],[\"mongo_clients\",368,32,224,64],[\"mongo_ip_label\",400,256,160,40],[\"mongo_read_az2\",354.67,416,246,64],[\"mongo_read_az3\",661.33,416,246,64],[\"mongo_write\",48,416,246,64],[\"octavia_cluster\",32,144,896,64],[\"octavia_lb_a\",252,144,216,64],[\"octavia_lb_b\",492,144,216,64],[\"page\",0,0,977.33,528],[\"vm_az1\",32,344,280,152],[\"vm_az1__body\",48,416,246,64],[\"vm_az1__heading\",46.75,359.42,247.25,48.58],[\"vm_az2\",338.67,344,280,152],[\"vm_az2__body\",354.67,416,246,64],[\"vm_az2__heading\",353.42,359.42,247.25,48.58],[\"vm_az3\",645.33,344,280,152],[\"vm_az3__body\",661.33,416,246,64],[\"vm_az3__heading\",660.08,359.42,247.25,48.58]]",
+            "violations": []
+          },
+          "after": {
+            "label": "engine-option-plus-style-select:after",
+            "url": "http://127.0.0.1:8100/view/v3:mongo-octavia-ha",
+            "activeTab": "v3",
+            "renderIntent": {
+              "engineId": "v3",
+              "pageDirection": "VERTICAL",
+              "frameOverrides": {},
+              "engineOverrides": {},
+              "gridOverrides": {}
+            },
+            "frameTreeLayoutEngine": "v3",
+            "layoutOperator": {
+              "activeOperatorKey": "v3",
+              "byOperator": {
+                "elk-layered": {
+                  "elk.direction": "",
+                  "elk.layered.spacing.nodeNodeBetweenLayers": 24,
+                  "elk.spacing.nodeNode": 24,
+                  "elk.spacing.edgeNode": 24,
+                  "elk.spacing.edgeEdge": 24,
+                  "elk.layered.spacing.edgeEdgeBetweenLayers": 24,
+                  "elk.layered.unnecessaryBendpoints": true,
+                  "elk.layered.nodePlacement.favorStraightEdges": true,
+                  "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
+                  "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+                  "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+                  "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+                },
+                "v3": {
+                  "elk.direction": "",
+                  "elk.layered.spacing.nodeNodeBetweenLayers": 24,
+                  "elk.spacing.nodeNode": 24,
+                  "elk.spacing.edgeNode": 24,
+                  "elk.spacing.edgeEdge": 24,
+                  "elk.layered.spacing.edgeEdgeBetweenLayers": 24,
+                  "elk.layered.unnecessaryBendpoints": true,
+                  "elk.layered.nodePlacement.favorStraightEdges": true,
+                  "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
+                  "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+                  "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+                  "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+                }
+              },
+              "layoutOverrides": {
+                "elk.direction": "",
+                "elk.layered.spacing.nodeNodeBetweenLayers": 24,
+                "elk.spacing.nodeNode": 24,
+                "elk.spacing.edgeNode": 24,
+                "elk.spacing.edgeEdge": 24,
+                "elk.layered.spacing.edgeEdgeBetweenLayers": 24,
+                "elk.layered.unnecessaryBendpoints": true,
+                "elk.layered.nodePlacement.favorStraightEdges": true,
+                "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
+                "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+                "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+                "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+              },
+              "layoutOverrideNamespace": "meta.elk"
+            },
+            "renderedEngine": "v3",
+            "selection": {
+              "ids": [
+                "mongo_clients"
+              ],
+              "domIds": [
+                "mongo_clients"
+              ],
+              "type": "single"
+            },
+            "inspectorTarget": "page",
+            "focusedControl": null,
+            "controlApplicability": {
+              "engineTab": {
+                "selector": "#engine-switcher-tabs [data-engine-id]",
+                "exists": true,
+                "hidden": false,
+                "disabled": false,
+                "focused": false,
+                "value": "",
+                "checked": null,
+                "reason": "applicable"
+              },
+              "engineOption": {
+                "selector": "#layout-params-controls [data-dg-engine-layout-key], #layout-params-controls [data-elk-key]",
+                "exists": false,
+                "hidden": null,
+                "disabled": null,
+                "focused": false,
+                "value": null,
+                "checked": null,
+                "reason": "missing"
+              },
+              "gridCols": {
+                "selector": "#grid-cols",
+                "exists": true,
+                "hidden": true,
+                "disabled": true,
+                "focused": false,
+                "value": "4",
+                "checked": false,
+                "reason": "hidden"
+              },
+              "gridRows": {
+                "selector": "#grid-rows",
+                "exists": true,
+                "hidden": true,
+                "disabled": true,
+                "focused": false,
+                "value": "4",
+                "checked": false,
+                "reason": "hidden"
+              },
+              "styleVariant": {
+                "selector": "#inspector [data-dg-change-action=\"single-style\"]",
+                "exists": true,
+                "hidden": false,
+                "disabled": false,
+                "focused": false,
+                "value": "section",
+                "checked": null,
+                "reason": "applicable"
+              },
+              "save": {
+                "selector": "#btn-save",
+                "exists": true,
+                "hidden": false,
+                "disabled": false,
+                "focused": false,
+                "value": "",
+                "checked": null,
+                "reason": "applicable"
+              },
+              "undo": {
+                "selector": "#btn-undo",
+                "exists": true,
+                "hidden": false,
+                "disabled": false,
+                "focused": false,
+                "value": "",
+                "checked": null,
+                "reason": "applicable"
+              },
+              "redo": {
+                "selector": "#btn-redo",
+                "exists": true,
+                "hidden": false,
+                "disabled": true,
+                "focused": false,
+                "value": "",
+                "checked": null,
+                "reason": "disabled"
+              }
+            },
+            "dirty": true,
+            "undo": {
+              "canUndo": true,
+              "canRedo": false
+            },
+            "visibleControls": [
+              {
+                "id": "engine-switcher-section",
+                "hidden": false,
+                "inert": false,
+                "disabledControlCount": 0,
+                "enabledControlCount": 2
+              },
+              {
+                "id": "layout-params-section",
+                "hidden": true,
+                "inert": true,
+                "disabledControlCount": 0,
+                "enabledControlCount": 0
+              },
+              {
+                "id": "grid-controls-section",
+                "hidden": true,
+                "inert": true,
+                "disabledControlCount": 10,
+                "enabledControlCount": 0
+              },
+              {
+                "id": "inspector",
+                "hidden": false,
+                "inert": false,
+                "disabledControlCount": 0,
+                "enabledControlCount": 17
+              }
+            ],
+            "savePayload": {
+              "overrides": {
+                "mongo_clients": {
+                  "level": 3,
+                  "fill": "WHITE",
+                  "border": "SOLID",
+                  "style": "section"
+                }
+              },
+              "grid_overrides": {},
+              "layout_overrides": {
+                "elk.direction": "",
+                "elk.layered.spacing.nodeNodeBetweenLayers": 24,
+                "elk.spacing.nodeNode": 24,
+                "elk.spacing.edgeNode": 24,
+                "elk.spacing.edgeEdge": 24,
+                "elk.layered.spacing.edgeEdgeBetweenLayers": 24,
+                "elk.layered.unnecessaryBendpoints": true,
+                "elk.layered.nodePlacement.favorStraightEdges": true,
+                "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
+                "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+                "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+                "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+              },
+              "layout_operator_overrides": {
+                "activeOperatorKey": "v3",
+                "byOperator": {
+                  "elk-layered": {
+                    "elk.direction": "",
+                    "elk.layered.spacing.nodeNodeBetweenLayers": 24,
+                    "elk.spacing.nodeNode": 24,
+                    "elk.spacing.edgeNode": 24,
+                    "elk.spacing.edgeEdge": 24,
+                    "elk.layered.spacing.edgeEdgeBetweenLayers": 24,
+                    "elk.layered.unnecessaryBendpoints": true,
+                    "elk.layered.nodePlacement.favorStraightEdges": true,
+                    "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
+                    "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+                    "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+                    "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+                  },
+                  "v3": {
+                    "elk.direction": "",
+                    "elk.layered.spacing.nodeNodeBetweenLayers": 24,
+                    "elk.spacing.nodeNode": 24,
+                    "elk.spacing.edgeNode": 24,
+                    "elk.spacing.edgeEdge": 24,
+                    "elk.layered.spacing.edgeEdgeBetweenLayers": 24,
+                    "elk.layered.unnecessaryBendpoints": true,
+                    "elk.layered.nodePlacement.favorStraightEdges": true,
+                    "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
+                    "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+                    "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+                    "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+                  }
+                }
+              },
+              "removed_ids": []
+            },
+            "reloadParse": {
+              "configSlug": "mongo-octavia-ha",
+              "documentKind": "frame-diagram",
+              "layoutEngine": "v3"
+            },
+            "lastEditorMutationTransaction": {
+              "kind": "committed",
+              "mutationKind": "inspector-appearance",
+              "sourceControl": "single-style",
+              "activeEngineId": "v3",
+              "documentKind": "frame-diagram",
+              "reason": "style change is applicable to the selected frame",
+              "relayoutPolicy": "none",
+              "dirtyPolicy": "mark-dirty",
+              "undoPolicy": "record",
+              "renderIntentDelta": null,
+              "persistenceDelta": {
+                "frameOverridesChanged": true,
+                "savePayloadChanged": true
+              },
+              "diagnostics": []
+            },
+            "bounds": [
+              {
+                "id": "page",
+                "x": 0,
+                "y": 0,
+                "w": 977.33,
+                "h": 528
+              },
+              {
+                "id": "mongo_clients",
+                "x": 368,
+                "y": 32,
+                "w": 224,
+                "h": 64
+              },
+              {
+                "id": "octavia_cluster",
+                "x": 32,
+                "y": 144,
+                "w": 896,
+                "h": 64
+              },
+              {
+                "id": "octavia_lb_a",
+                "x": 252,
+                "y": 144,
+                "w": 216,
+                "h": 64
+              },
+              {
+                "id": "octavia_lb_b",
+                "x": 492,
+                "y": 144,
+                "w": 216,
+                "h": 64
+              },
+              {
+                "id": "mongo_ip_label",
+                "x": 400,
+                "y": 256,
+                "w": 160,
+                "h": 40
+              },
+              {
+                "id": "availability_zones",
+                "x": 32,
+                "y": 344,
+                "w": 945.33,
+                "h": 152
+              },
+              {
+                "id": "az1",
+                "x": 32,
+                "y": 344,
+                "w": 332,
+                "h": 152
+              },
+              {
+                "id": "vm_az1",
+                "x": 32,
+                "y": 344,
+                "w": 280,
+                "h": 152
+              },
+              {
+                "id": "vm_az1__heading",
+                "x": 46.75,
+                "y": 359.42,
+                "w": 247.25,
+                "h": 48.58
+              },
+              {
+                "id": "vm_az1__body",
+                "x": 48,
+                "y": 416,
+                "w": 246,
+                "h": 64
+              },
+              {
+                "id": "mongo_write",
+                "x": 48,
+                "y": 416,
+                "w": 246,
+                "h": 64
+              },
+              {
+                "id": "az1_label",
+                "x": 322.75,
+                "y": 344,
+                "w": 41.25,
+                "h": 40
+              },
+              {
+                "id": "az2",
+                "x": 338.67,
+                "y": 344,
+                "w": 332,
+                "h": 152
+              },
+              {
+                "id": "vm_az2",
+                "x": 338.67,
+                "y": 344,
+                "w": 280,
+                "h": 152
+              },
+              {
+                "id": "vm_az2__heading",
+                "x": 353.42,
+                "y": 359.42,
+                "w": 247.25,
+                "h": 48.58
+              },
+              {
+                "id": "vm_az2__body",
+                "x": 354.67,
+                "y": 416,
+                "w": 246,
+                "h": 64
+              },
+              {
+                "id": "mongo_read_az2",
+                "x": 354.67,
+                "y": 416,
+                "w": 246,
+                "h": 64
+              },
+              {
+                "id": "az2_label",
+                "x": 629.42,
+                "y": 344,
+                "w": 41.25,
+                "h": 40
+              },
+              {
+                "id": "az3",
+                "x": 645.33,
+                "y": 344,
+                "w": 332,
+                "h": 152
+              },
+              {
+                "id": "vm_az3",
+                "x": 645.33,
+                "y": 344,
+                "w": 280,
+                "h": 152
+              },
+              {
+                "id": "vm_az3__heading",
+                "x": 660.08,
+                "y": 359.42,
+                "w": 247.25,
+                "h": 48.58
+              },
+              {
+                "id": "vm_az3__body",
+                "x": 661.33,
+                "y": 416,
+                "w": 246,
+                "h": 64
+              },
+              {
+                "id": "mongo_read_az3",
+                "x": 661.33,
+                "y": 416,
+                "w": 246,
+                "h": 64
+              },
+              {
+                "id": "az3_label",
+                "x": 936.08,
+                "y": 344,
+                "w": 41.25,
+                "h": 40
+              }
+            ],
+            "boundsSignature": "[[\"availability_zones\",32,344,945.33,152],[\"az1\",32,344,332,152],[\"az1_label\",322.75,344,41.25,40],[\"az2\",338.67,344,332,152],[\"az2_label\",629.42,344,41.25,40],[\"az3\",645.33,344,332,152],[\"az3_label\",936.08,344,41.25,40],[\"mongo_clients\",368,32,224,64],[\"mongo_ip_label\",400,256,160,40],[\"mongo_read_az2\",354.67,416,246,64],[\"mongo_read_az3\",661.33,416,246,64],[\"mongo_write\",48,416,246,64],[\"octavia_cluster\",32,144,896,64],[\"octavia_lb_a\",252,144,216,64],[\"octavia_lb_b\",492,144,216,64],[\"page\",0,0,977.33,528],[\"vm_az1\",32,344,280,152],[\"vm_az1__body\",48,416,246,64],[\"vm_az1__heading\",46.75,359.42,247.25,48.58],[\"vm_az2\",338.67,344,280,152],[\"vm_az2__body\",354.67,416,246,64],[\"vm_az2__heading\",353.42,359.42,247.25,48.58],[\"vm_az3\",645.33,344,280,152],[\"vm_az3__body\",661.33,416,246,64],[\"vm_az3__heading\",660.08,359.42,247.25,48.58]]",
+            "violations": []
+          },
+          "details": {
+            "target": "section"
+          }
+        },
+        {
+          "name": "undo-redo-after-engine-option-and-style",
+          "ok": true,
+          "before": {
+            "label": "undo-redo-after-engine-option-and-style:before",
+            "url": "http://127.0.0.1:8100/view/v3:mongo-octavia-ha",
+            "activeTab": "v3",
+            "renderIntent": {
+              "engineId": "v3",
+              "pageDirection": "VERTICAL",
+              "frameOverrides": {},
+              "engineOverrides": {},
+              "gridOverrides": {}
+            },
+            "frameTreeLayoutEngine": "v3",
+            "layoutOperator": {
+              "activeOperatorKey": "v3",
+              "byOperator": {
+                "elk-layered": {
+                  "elk.direction": "",
+                  "elk.layered.spacing.nodeNodeBetweenLayers": 24,
+                  "elk.spacing.nodeNode": 24,
+                  "elk.spacing.edgeNode": 24,
+                  "elk.spacing.edgeEdge": 24,
+                  "elk.layered.spacing.edgeEdgeBetweenLayers": 24,
+                  "elk.layered.unnecessaryBendpoints": true,
+                  "elk.layered.nodePlacement.favorStraightEdges": true,
+                  "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
+                  "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+                  "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+                  "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+                },
+                "v3": {
+                  "elk.direction": "",
+                  "elk.layered.spacing.nodeNodeBetweenLayers": 24,
+                  "elk.spacing.nodeNode": 24,
+                  "elk.spacing.edgeNode": 24,
+                  "elk.spacing.edgeEdge": 24,
+                  "elk.layered.spacing.edgeEdgeBetweenLayers": 24,
+                  "elk.layered.unnecessaryBendpoints": true,
+                  "elk.layered.nodePlacement.favorStraightEdges": true,
+                  "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
+                  "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+                  "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+                  "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+                }
+              },
+              "layoutOverrides": {
+                "elk.direction": "",
+                "elk.layered.spacing.nodeNodeBetweenLayers": 24,
+                "elk.spacing.nodeNode": 24,
+                "elk.spacing.edgeNode": 24,
+                "elk.spacing.edgeEdge": 24,
+                "elk.layered.spacing.edgeEdgeBetweenLayers": 24,
+                "elk.layered.unnecessaryBendpoints": true,
+                "elk.layered.nodePlacement.favorStraightEdges": true,
+                "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
+                "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+                "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+                "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+              },
+              "layoutOverrideNamespace": "meta.elk"
+            },
+            "renderedEngine": "v3",
+            "selection": {
+              "ids": [
+                "mongo_clients"
+              ],
+              "domIds": [
+                "mongo_clients"
+              ],
+              "type": "single"
+            },
+            "inspectorTarget": "page",
+            "focusedControl": null,
+            "controlApplicability": {
+              "engineTab": {
+                "selector": "#engine-switcher-tabs [data-engine-id]",
+                "exists": true,
+                "hidden": false,
+                "disabled": false,
+                "focused": false,
+                "value": "",
+                "checked": null,
+                "reason": "applicable"
+              },
+              "engineOption": {
+                "selector": "#layout-params-controls [data-dg-engine-layout-key], #layout-params-controls [data-elk-key]",
+                "exists": false,
+                "hidden": null,
+                "disabled": null,
+                "focused": false,
+                "value": null,
+                "checked": null,
+                "reason": "missing"
+              },
+              "gridCols": {
+                "selector": "#grid-cols",
+                "exists": true,
+                "hidden": true,
+                "disabled": true,
+                "focused": false,
+                "value": "4",
+                "checked": false,
+                "reason": "hidden"
+              },
+              "gridRows": {
+                "selector": "#grid-rows",
+                "exists": true,
+                "hidden": true,
+                "disabled": true,
+                "focused": false,
+                "value": "4",
+                "checked": false,
+                "reason": "hidden"
+              },
+              "styleVariant": {
+                "selector": "#inspector [data-dg-change-action=\"single-style\"]",
+                "exists": true,
+                "hidden": false,
+                "disabled": false,
+                "focused": false,
+                "value": "section",
+                "checked": null,
+                "reason": "applicable"
+              },
+              "save": {
+                "selector": "#btn-save",
+                "exists": true,
+                "hidden": false,
+                "disabled": false,
+                "focused": false,
+                "value": "",
+                "checked": null,
+                "reason": "applicable"
+              },
+              "undo": {
+                "selector": "#btn-undo",
+                "exists": true,
+                "hidden": false,
+                "disabled": false,
+                "focused": false,
+                "value": "",
+                "checked": null,
+                "reason": "applicable"
+              },
+              "redo": {
+                "selector": "#btn-redo",
+                "exists": true,
+                "hidden": false,
+                "disabled": true,
+                "focused": false,
+                "value": "",
+                "checked": null,
+                "reason": "disabled"
+              }
+            },
+            "dirty": true,
+            "undo": {
+              "canUndo": true,
+              "canRedo": false
+            },
+            "visibleControls": [
+              {
+                "id": "engine-switcher-section",
+                "hidden": false,
+                "inert": false,
+                "disabledControlCount": 0,
+                "enabledControlCount": 2
+              },
+              {
+                "id": "layout-params-section",
+                "hidden": true,
+                "inert": true,
+                "disabledControlCount": 0,
+                "enabledControlCount": 0
+              },
+              {
+                "id": "grid-controls-section",
+                "hidden": true,
+                "inert": true,
+                "disabledControlCount": 10,
+                "enabledControlCount": 0
+              },
+              {
+                "id": "inspector",
+                "hidden": false,
+                "inert": false,
+                "disabledControlCount": 0,
+                "enabledControlCount": 17
+              }
+            ],
+            "savePayload": {
+              "overrides": {
+                "mongo_clients": {
+                  "level": 3,
+                  "fill": "WHITE",
+                  "border": "SOLID",
+                  "style": "section"
+                }
+              },
+              "grid_overrides": {},
+              "layout_overrides": {
+                "elk.direction": "",
+                "elk.layered.spacing.nodeNodeBetweenLayers": 24,
+                "elk.spacing.nodeNode": 24,
+                "elk.spacing.edgeNode": 24,
+                "elk.spacing.edgeEdge": 24,
+                "elk.layered.spacing.edgeEdgeBetweenLayers": 24,
+                "elk.layered.unnecessaryBendpoints": true,
+                "elk.layered.nodePlacement.favorStraightEdges": true,
+                "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
+                "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+                "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+                "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+              },
+              "layout_operator_overrides": {
+                "activeOperatorKey": "v3",
+                "byOperator": {
+                  "elk-layered": {
+                    "elk.direction": "",
+                    "elk.layered.spacing.nodeNodeBetweenLayers": 24,
+                    "elk.spacing.nodeNode": 24,
+                    "elk.spacing.edgeNode": 24,
+                    "elk.spacing.edgeEdge": 24,
+                    "elk.layered.spacing.edgeEdgeBetweenLayers": 24,
+                    "elk.layered.unnecessaryBendpoints": true,
+                    "elk.layered.nodePlacement.favorStraightEdges": true,
+                    "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
+                    "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+                    "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+                    "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+                  },
+                  "v3": {
+                    "elk.direction": "",
+                    "elk.layered.spacing.nodeNodeBetweenLayers": 24,
+                    "elk.spacing.nodeNode": 24,
+                    "elk.spacing.edgeNode": 24,
+                    "elk.spacing.edgeEdge": 24,
+                    "elk.layered.spacing.edgeEdgeBetweenLayers": 24,
+                    "elk.layered.unnecessaryBendpoints": true,
+                    "elk.layered.nodePlacement.favorStraightEdges": true,
+                    "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
+                    "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+                    "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+                    "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+                  }
+                }
+              },
+              "removed_ids": []
+            },
+            "reloadParse": {
+              "configSlug": "mongo-octavia-ha",
+              "documentKind": "frame-diagram",
+              "layoutEngine": "v3"
+            },
+            "lastEditorMutationTransaction": {
+              "kind": "committed",
+              "mutationKind": "inspector-appearance",
+              "sourceControl": "single-style",
+              "activeEngineId": "v3",
+              "documentKind": "frame-diagram",
+              "reason": "style change is applicable to the selected frame",
+              "relayoutPolicy": "none",
+              "dirtyPolicy": "mark-dirty",
+              "undoPolicy": "record",
+              "renderIntentDelta": null,
+              "persistenceDelta": {
+                "frameOverridesChanged": true,
+                "savePayloadChanged": true
+              },
+              "diagnostics": []
+            },
+            "bounds": [
+              {
+                "id": "page",
+                "x": 0,
+                "y": 0,
+                "w": 977.33,
+                "h": 528
+              },
+              {
+                "id": "mongo_clients",
+                "x": 368,
+                "y": 32,
+                "w": 224,
+                "h": 64
+              },
+              {
+                "id": "octavia_cluster",
+                "x": 32,
+                "y": 144,
+                "w": 896,
+                "h": 64
+              },
+              {
+                "id": "octavia_lb_a",
+                "x": 252,
+                "y": 144,
+                "w": 216,
+                "h": 64
+              },
+              {
+                "id": "octavia_lb_b",
+                "x": 492,
+                "y": 144,
+                "w": 216,
+                "h": 64
+              },
+              {
+                "id": "mongo_ip_label",
+                "x": 400,
+                "y": 256,
+                "w": 160,
+                "h": 40
+              },
+              {
+                "id": "availability_zones",
+                "x": 32,
+                "y": 344,
+                "w": 945.33,
+                "h": 152
+              },
+              {
+                "id": "az1",
+                "x": 32,
+                "y": 344,
+                "w": 332,
+                "h": 152
+              },
+              {
+                "id": "vm_az1",
+                "x": 32,
+                "y": 344,
+                "w": 280,
+                "h": 152
+              },
+              {
+                "id": "vm_az1__heading",
+                "x": 46.75,
+                "y": 359.42,
+                "w": 247.25,
+                "h": 48.58
+              },
+              {
+                "id": "vm_az1__body",
+                "x": 48,
+                "y": 416,
+                "w": 246,
+                "h": 64
+              },
+              {
+                "id": "mongo_write",
+                "x": 48,
+                "y": 416,
+                "w": 246,
+                "h": 64
+              },
+              {
+                "id": "az1_label",
+                "x": 322.75,
+                "y": 344,
+                "w": 41.25,
+                "h": 40
+              },
+              {
+                "id": "az2",
+                "x": 338.67,
+                "y": 344,
+                "w": 332,
+                "h": 152
+              },
+              {
+                "id": "vm_az2",
+                "x": 338.67,
+                "y": 344,
+                "w": 280,
+                "h": 152
+              },
+              {
+                "id": "vm_az2__heading",
+                "x": 353.42,
+                "y": 359.42,
+                "w": 247.25,
+                "h": 48.58
+              },
+              {
+                "id": "vm_az2__body",
+                "x": 354.67,
+                "y": 416,
+                "w": 246,
+                "h": 64
+              },
+              {
+                "id": "mongo_read_az2",
+                "x": 354.67,
+                "y": 416,
+                "w": 246,
+                "h": 64
+              },
+              {
+                "id": "az2_label",
+                "x": 629.42,
+                "y": 344,
+                "w": 41.25,
+                "h": 40
+              },
+              {
+                "id": "az3",
+                "x": 645.33,
+                "y": 344,
+                "w": 332,
+                "h": 152
+              },
+              {
+                "id": "vm_az3",
+                "x": 645.33,
+                "y": 344,
+                "w": 280,
+                "h": 152
+              },
+              {
+                "id": "vm_az3__heading",
+                "x": 660.08,
+                "y": 359.42,
+                "w": 247.25,
+                "h": 48.58
+              },
+              {
+                "id": "vm_az3__body",
+                "x": 661.33,
+                "y": 416,
+                "w": 246,
+                "h": 64
+              },
+              {
+                "id": "mongo_read_az3",
+                "x": 661.33,
+                "y": 416,
+                "w": 246,
+                "h": 64
+              },
+              {
+                "id": "az3_label",
+                "x": 936.08,
+                "y": 344,
+                "w": 41.25,
+                "h": 40
+              }
+            ],
+            "boundsSignature": "[[\"availability_zones\",32,344,945.33,152],[\"az1\",32,344,332,152],[\"az1_label\",322.75,344,41.25,40],[\"az2\",338.67,344,332,152],[\"az2_label\",629.42,344,41.25,40],[\"az3\",645.33,344,332,152],[\"az3_label\",936.08,344,41.25,40],[\"mongo_clients\",368,32,224,64],[\"mongo_ip_label\",400,256,160,40],[\"mongo_read_az2\",354.67,416,246,64],[\"mongo_read_az3\",661.33,416,246,64],[\"mongo_write\",48,416,246,64],[\"octavia_cluster\",32,144,896,64],[\"octavia_lb_a\",252,144,216,64],[\"octavia_lb_b\",492,144,216,64],[\"page\",0,0,977.33,528],[\"vm_az1\",32,344,280,152],[\"vm_az1__body\",48,416,246,64],[\"vm_az1__heading\",46.75,359.42,247.25,48.58],[\"vm_az2\",338.67,344,280,152],[\"vm_az2__body\",354.67,416,246,64],[\"vm_az2__heading\",353.42,359.42,247.25,48.58],[\"vm_az3\",645.33,344,280,152],[\"vm_az3__body\",661.33,416,246,64],[\"vm_az3__heading\",660.08,359.42,247.25,48.58]]",
+            "violations": []
+          },
+          "after": {
+            "label": "undo-redo-after-engine-option-and-style:after",
+            "url": "http://127.0.0.1:8100/view/v3:mongo-octavia-ha",
+            "activeTab": "v3",
+            "renderIntent": {
+              "engineId": "v3",
+              "pageDirection": "VERTICAL",
+              "frameOverrides": {
+                "mongo_clients": {
+                  "level": 3,
+                  "fill": "WHITE",
+                  "border": "SOLID",
+                  "style": "section"
+                }
+              },
+              "engineOverrides": {},
+              "gridOverrides": {}
+            },
+            "frameTreeLayoutEngine": "v3",
+            "layoutOperator": {
+              "activeOperatorKey": "v3",
+              "byOperator": {
+                "elk-layered": {
+                  "elk.direction": "",
+                  "elk.layered.spacing.nodeNodeBetweenLayers": 24,
+                  "elk.spacing.nodeNode": 24,
+                  "elk.spacing.edgeNode": 24,
+                  "elk.spacing.edgeEdge": 24,
+                  "elk.layered.spacing.edgeEdgeBetweenLayers": 24,
+                  "elk.layered.unnecessaryBendpoints": true,
+                  "elk.layered.nodePlacement.favorStraightEdges": true,
+                  "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
+                  "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+                  "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+                  "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+                },
+                "v3": {
+                  "elk.direction": "",
+                  "elk.layered.spacing.nodeNodeBetweenLayers": 24,
+                  "elk.spacing.nodeNode": 24,
+                  "elk.spacing.edgeNode": 24,
+                  "elk.spacing.edgeEdge": 24,
+                  "elk.layered.spacing.edgeEdgeBetweenLayers": 24,
+                  "elk.layered.unnecessaryBendpoints": true,
+                  "elk.layered.nodePlacement.favorStraightEdges": true,
+                  "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
+                  "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+                  "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+                  "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+                }
+              },
+              "layoutOverrides": {
+                "elk.direction": "",
+                "elk.layered.spacing.nodeNodeBetweenLayers": 24,
+                "elk.spacing.nodeNode": 24,
+                "elk.spacing.edgeNode": 24,
+                "elk.spacing.edgeEdge": 24,
+                "elk.layered.spacing.edgeEdgeBetweenLayers": 24,
+                "elk.layered.unnecessaryBendpoints": true,
+                "elk.layered.nodePlacement.favorStraightEdges": true,
+                "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
+                "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+                "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+                "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+              },
+              "layoutOverrideNamespace": "meta.elk"
+            },
+            "renderedEngine": "v3",
+            "selection": {
+              "ids": [
+                "mongo_clients"
+              ],
+              "domIds": [
+                "mongo_clients"
+              ],
+              "type": "single"
+            },
+            "inspectorTarget": "page",
+            "focusedControl": null,
+            "controlApplicability": {
+              "engineTab": {
+                "selector": "#engine-switcher-tabs [data-engine-id]",
+                "exists": true,
+                "hidden": false,
+                "disabled": false,
+                "focused": false,
+                "value": "",
+                "checked": null,
+                "reason": "applicable"
+              },
+              "engineOption": {
+                "selector": "#layout-params-controls [data-dg-engine-layout-key], #layout-params-controls [data-elk-key]",
+                "exists": false,
+                "hidden": null,
+                "disabled": null,
+                "focused": false,
+                "value": null,
+                "checked": null,
+                "reason": "missing"
+              },
+              "gridCols": {
+                "selector": "#grid-cols",
+                "exists": true,
+                "hidden": true,
+                "disabled": true,
+                "focused": false,
+                "value": "3",
+                "checked": false,
+                "reason": "hidden"
+              },
+              "gridRows": {
+                "selector": "#grid-rows",
+                "exists": true,
+                "hidden": true,
+                "disabled": true,
+                "focused": false,
+                "value": "4",
+                "checked": false,
+                "reason": "hidden"
+              },
+              "styleVariant": {
+                "selector": "#inspector [data-dg-change-action=\"single-style\"]",
+                "exists": true,
+                "hidden": false,
+                "disabled": false,
+                "focused": false,
+                "value": "section",
+                "checked": null,
+                "reason": "applicable"
+              },
+              "save": {
+                "selector": "#btn-save",
+                "exists": true,
+                "hidden": false,
+                "disabled": false,
+                "focused": false,
+                "value": "",
+                "checked": null,
+                "reason": "applicable"
+              },
+              "undo": {
+                "selector": "#btn-undo",
+                "exists": true,
+                "hidden": false,
+                "disabled": false,
+                "focused": false,
+                "value": "",
+                "checked": null,
+                "reason": "applicable"
+              },
+              "redo": {
+                "selector": "#btn-redo",
+                "exists": true,
+                "hidden": false,
+                "disabled": true,
+                "focused": false,
+                "value": "",
+                "checked": null,
+                "reason": "disabled"
+              }
+            },
+            "dirty": true,
+            "undo": {
+              "canUndo": true,
+              "canRedo": false
+            },
+            "visibleControls": [
+              {
+                "id": "engine-switcher-section",
+                "hidden": false,
+                "inert": false,
+                "disabledControlCount": 0,
+                "enabledControlCount": 2
+              },
+              {
+                "id": "layout-params-section",
+                "hidden": true,
+                "inert": true,
+                "disabledControlCount": 0,
+                "enabledControlCount": 0
+              },
+              {
+                "id": "grid-controls-section",
+                "hidden": true,
+                "inert": true,
+                "disabledControlCount": 10,
+                "enabledControlCount": 0
+              },
+              {
+                "id": "inspector",
+                "hidden": false,
+                "inert": false,
+                "disabledControlCount": 0,
+                "enabledControlCount": 17
+              }
+            ],
+            "savePayload": {
+              "overrides": {
+                "mongo_clients": {
+                  "level": 3,
+                  "fill": "WHITE",
+                  "border": "SOLID",
+                  "style": "section"
+                }
+              },
+              "grid_overrides": {},
+              "layout_overrides": {
+                "elk.direction": "",
+                "elk.layered.spacing.nodeNodeBetweenLayers": 24,
+                "elk.spacing.nodeNode": 24,
+                "elk.spacing.edgeNode": 24,
+                "elk.spacing.edgeEdge": 24,
+                "elk.layered.spacing.edgeEdgeBetweenLayers": 24,
+                "elk.layered.unnecessaryBendpoints": true,
+                "elk.layered.nodePlacement.favorStraightEdges": true,
+                "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
+                "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+                "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+                "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+              },
+              "layout_operator_overrides": {
+                "activeOperatorKey": "v3",
+                "byOperator": {
+                  "elk-layered": {
+                    "elk.direction": "",
+                    "elk.layered.spacing.nodeNodeBetweenLayers": 24,
+                    "elk.spacing.nodeNode": 24,
+                    "elk.spacing.edgeNode": 24,
+                    "elk.spacing.edgeEdge": 24,
+                    "elk.layered.spacing.edgeEdgeBetweenLayers": 24,
+                    "elk.layered.unnecessaryBendpoints": true,
+                    "elk.layered.nodePlacement.favorStraightEdges": true,
+                    "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
+                    "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+                    "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+                    "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+                  },
+                  "v3": {
+                    "elk.direction": "",
+                    "elk.layered.spacing.nodeNodeBetweenLayers": 24,
+                    "elk.spacing.nodeNode": 24,
+                    "elk.spacing.edgeNode": 24,
+                    "elk.spacing.edgeEdge": 24,
+                    "elk.layered.spacing.edgeEdgeBetweenLayers": 24,
+                    "elk.layered.unnecessaryBendpoints": true,
+                    "elk.layered.nodePlacement.favorStraightEdges": true,
+                    "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
+                    "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+                    "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+                    "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+                  }
+                }
+              },
+              "removed_ids": []
+            },
+            "reloadParse": {
+              "configSlug": "mongo-octavia-ha",
+              "documentKind": "frame-diagram",
+              "layoutEngine": "v3"
+            },
+            "lastEditorMutationTransaction": {
+              "kind": "committed",
+              "mutationKind": "inspector-appearance",
+              "sourceControl": "single-style",
+              "activeEngineId": "v3",
+              "documentKind": "frame-diagram",
+              "reason": "style change is applicable to the selected frame",
+              "relayoutPolicy": "none",
+              "dirtyPolicy": "mark-dirty",
+              "undoPolicy": "record",
+              "renderIntentDelta": null,
+              "persistenceDelta": {
+                "frameOverridesChanged": true,
+                "savePayloadChanged": true
+              },
+              "diagnostics": []
+            },
+            "bounds": [
+              {
+                "id": "page",
+                "x": 0,
+                "y": 0,
+                "w": 977.33,
+                "h": 528
+              },
+              {
+                "id": "mongo_clients",
+                "x": 368,
+                "y": 32,
+                "w": 224,
+                "h": 64
+              },
+              {
+                "id": "octavia_cluster",
+                "x": 32,
+                "y": 144,
+                "w": 896,
+                "h": 64
+              },
+              {
+                "id": "octavia_lb_a",
+                "x": 252,
+                "y": 144,
+                "w": 216,
+                "h": 64
+              },
+              {
+                "id": "octavia_lb_b",
+                "x": 492,
+                "y": 144,
+                "w": 216,
+                "h": 64
+              },
+              {
+                "id": "mongo_ip_label",
+                "x": 400,
+                "y": 256,
+                "w": 160,
+                "h": 40
+              },
+              {
+                "id": "availability_zones",
+                "x": 32,
+                "y": 344,
+                "w": 945.33,
+                "h": 152
+              },
+              {
+                "id": "az1",
+                "x": 32,
+                "y": 344,
+                "w": 332,
+                "h": 152
+              },
+              {
+                "id": "vm_az1",
+                "x": 32,
+                "y": 344,
+                "w": 280,
+                "h": 152
+              },
+              {
+                "id": "vm_az1__heading",
+                "x": 46.664,
+                "y": 359.553,
+                "w": 247.336,
+                "h": 48.447
+              },
+              {
+                "id": "vm_az1__body",
+                "x": 48,
+                "y": 416,
+                "w": 246,
+                "h": 64
+              },
+              {
+                "id": "mongo_write",
+                "x": 48,
+                "y": 416,
+                "w": 246,
+                "h": 64
+              },
+              {
+                "id": "az1_label",
+                "x": 322.664,
+                "y": 344,
+                "w": 41.336,
+                "h": 40
+              },
+              {
+                "id": "az2",
+                "x": 338.67,
+                "y": 344,
+                "w": 332,
+                "h": 152
+              },
+              {
+                "id": "vm_az2",
+                "x": 338.67,
+                "y": 344,
+                "w": 280,
+                "h": 152
+              },
+              {
+                "id": "vm_az2__heading",
+                "x": 353.334,
+                "y": 359.553,
+                "w": 247.336,
+                "h": 48.447
+              },
+              {
+                "id": "vm_az2__body",
+                "x": 354.67,
+                "y": 416,
+                "w": 246,
+                "h": 64
+              },
+              {
+                "id": "mongo_read_az2",
+                "x": 354.67,
+                "y": 416,
+                "w": 246,
+                "h": 64
+              },
+              {
+                "id": "az2_label",
+                "x": 629.334,
+                "y": 344,
+                "w": 41.336,
+                "h": 40
+              },
+              {
+                "id": "az3",
+                "x": 645.33,
+                "y": 344,
+                "w": 332,
+                "h": 152
+              },
+              {
+                "id": "vm_az3",
+                "x": 645.33,
+                "y": 344,
+                "w": 280,
+                "h": 152
+              },
+              {
+                "id": "vm_az3__heading",
+                "x": 659.994,
+                "y": 359.553,
+                "w": 247.336,
+                "h": 48.447
+              },
+              {
+                "id": "vm_az3__body",
+                "x": 661.33,
+                "y": 416,
+                "w": 246,
+                "h": 64
+              },
+              {
+                "id": "mongo_read_az3",
+                "x": 661.33,
+                "y": 416,
+                "w": 246,
+                "h": 64
+              },
+              {
+                "id": "az3_label",
+                "x": 935.994,
+                "y": 344,
+                "w": 41.336,
+                "h": 40
+              }
+            ],
+            "boundsSignature": "[[\"availability_zones\",32,344,945.33,152],[\"az1\",32,344,332,152],[\"az1_label\",322.664,344,41.336,40],[\"az2\",338.67,344,332,152],[\"az2_label\",629.334,344,41.336,40],[\"az3\",645.33,344,332,152],[\"az3_label\",935.994,344,41.336,40],[\"mongo_clients\",368,32,224,64],[\"mongo_ip_label\",400,256,160,40],[\"mongo_read_az2\",354.67,416,246,64],[\"mongo_read_az3\",661.33,416,246,64],[\"mongo_write\",48,416,246,64],[\"octavia_cluster\",32,144,896,64],[\"octavia_lb_a\",252,144,216,64],[\"octavia_lb_b\",492,144,216,64],[\"page\",0,0,977.33,528],[\"vm_az1\",32,344,280,152],[\"vm_az1__body\",48,416,246,64],[\"vm_az1__heading\",46.664,359.553,247.336,48.447],[\"vm_az2\",338.67,344,280,152],[\"vm_az2__body\",354.67,416,246,64],[\"vm_az2__heading\",353.334,359.553,247.336,48.447],[\"vm_az3\",645.33,344,280,152],[\"vm_az3__body\",661.33,416,246,64],[\"vm_az3__heading\",659.994,359.553,247.336,48.447]]",
+            "violations": []
+          },
+          "details": {
+            "beforeUndo": {
+              "label": "undo-redo-state-vector:before-undo",
+              "url": "http://127.0.0.1:8100/view/v3:mongo-octavia-ha",
+              "activeTab": "v3",
+              "renderIntent": {
+                "engineId": "v3",
+                "pageDirection": "VERTICAL",
+                "frameOverrides": {},
+                "engineOverrides": {},
+                "gridOverrides": {}
+              },
+              "frameTreeLayoutEngine": "v3",
+              "layoutOperator": {
+                "activeOperatorKey": "v3",
+                "byOperator": {
+                  "elk-layered": {
+                    "elk.direction": "",
+                    "elk.layered.spacing.nodeNodeBetweenLayers": 24,
+                    "elk.spacing.nodeNode": 24,
+                    "elk.spacing.edgeNode": 24,
+                    "elk.spacing.edgeEdge": 24,
+                    "elk.layered.spacing.edgeEdgeBetweenLayers": 24,
+                    "elk.layered.unnecessaryBendpoints": true,
+                    "elk.layered.nodePlacement.favorStraightEdges": true,
+                    "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
+                    "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+                    "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+                    "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+                  },
+                  "v3": {
+                    "elk.direction": "",
+                    "elk.layered.spacing.nodeNodeBetweenLayers": 24,
+                    "elk.spacing.nodeNode": 24,
+                    "elk.spacing.edgeNode": 24,
+                    "elk.spacing.edgeEdge": 24,
+                    "elk.layered.spacing.edgeEdgeBetweenLayers": 24,
+                    "elk.layered.unnecessaryBendpoints": true,
+                    "elk.layered.nodePlacement.favorStraightEdges": true,
+                    "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
+                    "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+                    "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+                    "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+                  }
+                },
+                "layoutOverrides": {
+                  "elk.direction": "",
+                  "elk.layered.spacing.nodeNodeBetweenLayers": 24,
+                  "elk.spacing.nodeNode": 24,
+                  "elk.spacing.edgeNode": 24,
+                  "elk.spacing.edgeEdge": 24,
+                  "elk.layered.spacing.edgeEdgeBetweenLayers": 24,
+                  "elk.layered.unnecessaryBendpoints": true,
+                  "elk.layered.nodePlacement.favorStraightEdges": true,
+                  "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
+                  "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+                  "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+                  "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+                },
+                "layoutOverrideNamespace": "meta.elk"
+              },
+              "renderedEngine": "v3",
+              "selection": {
+                "ids": [
+                  "mongo_clients"
+                ],
+                "domIds": [
+                  "mongo_clients"
+                ],
+                "type": "single"
+              },
+              "inspectorTarget": "page",
+              "focusedControl": null,
+              "controlApplicability": {
+                "engineTab": {
+                  "selector": "#engine-switcher-tabs [data-engine-id]",
+                  "exists": true,
+                  "hidden": false,
+                  "disabled": false,
+                  "focused": false,
+                  "value": "",
+                  "checked": null,
+                  "reason": "applicable"
+                },
+                "engineOption": {
+                  "selector": "#layout-params-controls [data-dg-engine-layout-key], #layout-params-controls [data-elk-key]",
+                  "exists": false,
+                  "hidden": null,
+                  "disabled": null,
+                  "focused": false,
+                  "value": null,
+                  "checked": null,
+                  "reason": "missing"
+                },
+                "gridCols": {
+                  "selector": "#grid-cols",
+                  "exists": true,
+                  "hidden": true,
+                  "disabled": true,
+                  "focused": false,
+                  "value": "4",
+                  "checked": false,
+                  "reason": "hidden"
+                },
+                "gridRows": {
+                  "selector": "#grid-rows",
+                  "exists": true,
+                  "hidden": true,
+                  "disabled": true,
+                  "focused": false,
+                  "value": "4",
+                  "checked": false,
+                  "reason": "hidden"
+                },
+                "styleVariant": {
+                  "selector": "#inspector [data-dg-change-action=\"single-style\"]",
+                  "exists": true,
+                  "hidden": false,
+                  "disabled": false,
+                  "focused": false,
+                  "value": "section",
+                  "checked": null,
+                  "reason": "applicable"
+                },
+                "save": {
+                  "selector": "#btn-save",
+                  "exists": true,
+                  "hidden": false,
+                  "disabled": false,
+                  "focused": false,
+                  "value": "",
+                  "checked": null,
+                  "reason": "applicable"
+                },
+                "undo": {
+                  "selector": "#btn-undo",
+                  "exists": true,
+                  "hidden": false,
+                  "disabled": false,
+                  "focused": false,
+                  "value": "",
+                  "checked": null,
+                  "reason": "applicable"
+                },
+                "redo": {
+                  "selector": "#btn-redo",
+                  "exists": true,
+                  "hidden": false,
+                  "disabled": true,
+                  "focused": false,
+                  "value": "",
+                  "checked": null,
+                  "reason": "disabled"
+                }
+              },
+              "dirty": true,
+              "undo": {
+                "canUndo": true,
+                "canRedo": false
+              },
+              "visibleControls": [
+                {
+                  "id": "engine-switcher-section",
+                  "hidden": false,
+                  "inert": false,
+                  "disabledControlCount": 0,
+                  "enabledControlCount": 2
+                },
+                {
+                  "id": "layout-params-section",
+                  "hidden": true,
+                  "inert": true,
+                  "disabledControlCount": 0,
+                  "enabledControlCount": 0
+                },
+                {
+                  "id": "grid-controls-section",
+                  "hidden": true,
+                  "inert": true,
+                  "disabledControlCount": 10,
+                  "enabledControlCount": 0
+                },
+                {
+                  "id": "inspector",
+                  "hidden": false,
+                  "inert": false,
+                  "disabledControlCount": 0,
+                  "enabledControlCount": 17
+                }
+              ],
+              "savePayload": {
+                "overrides": {
+                  "mongo_clients": {
+                    "level": 3,
+                    "fill": "WHITE",
+                    "border": "SOLID",
+                    "style": "section"
+                  }
+                },
+                "grid_overrides": {},
+                "layout_overrides": {
+                  "elk.direction": "",
+                  "elk.layered.spacing.nodeNodeBetweenLayers": 24,
+                  "elk.spacing.nodeNode": 24,
+                  "elk.spacing.edgeNode": 24,
+                  "elk.spacing.edgeEdge": 24,
+                  "elk.layered.spacing.edgeEdgeBetweenLayers": 24,
+                  "elk.layered.unnecessaryBendpoints": true,
+                  "elk.layered.nodePlacement.favorStraightEdges": true,
+                  "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
+                  "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+                  "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+                  "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+                },
+                "layout_operator_overrides": {
+                  "activeOperatorKey": "v3",
+                  "byOperator": {
+                    "elk-layered": {
+                      "elk.direction": "",
+                      "elk.layered.spacing.nodeNodeBetweenLayers": 24,
+                      "elk.spacing.nodeNode": 24,
+                      "elk.spacing.edgeNode": 24,
+                      "elk.spacing.edgeEdge": 24,
+                      "elk.layered.spacing.edgeEdgeBetweenLayers": 24,
+                      "elk.layered.unnecessaryBendpoints": true,
+                      "elk.layered.nodePlacement.favorStraightEdges": true,
+                      "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
+                      "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+                      "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+                      "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+                    },
+                    "v3": {
+                      "elk.direction": "",
+                      "elk.layered.spacing.nodeNodeBetweenLayers": 24,
+                      "elk.spacing.nodeNode": 24,
+                      "elk.spacing.edgeNode": 24,
+                      "elk.spacing.edgeEdge": 24,
+                      "elk.layered.spacing.edgeEdgeBetweenLayers": 24,
+                      "elk.layered.unnecessaryBendpoints": true,
+                      "elk.layered.nodePlacement.favorStraightEdges": true,
+                      "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
+                      "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+                      "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+                      "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+                    }
+                  }
+                },
+                "removed_ids": []
+              },
+              "reloadParse": {
+                "configSlug": "mongo-octavia-ha",
+                "documentKind": "frame-diagram",
+                "layoutEngine": "v3"
+              },
+              "lastEditorMutationTransaction": {
+                "kind": "committed",
+                "mutationKind": "inspector-appearance",
+                "sourceControl": "single-style",
+                "activeEngineId": "v3",
+                "documentKind": "frame-diagram",
+                "reason": "style change is applicable to the selected frame",
+                "relayoutPolicy": "none",
+                "dirtyPolicy": "mark-dirty",
+                "undoPolicy": "record",
+                "renderIntentDelta": null,
+                "persistenceDelta": {
+                  "frameOverridesChanged": true,
+                  "savePayloadChanged": true
+                },
+                "diagnostics": []
+              },
+              "bounds": [
+                {
+                  "id": "page",
+                  "x": 0,
+                  "y": 0,
+                  "w": 977.33,
+                  "h": 528
+                },
+                {
+                  "id": "mongo_clients",
+                  "x": 368,
+                  "y": 32,
+                  "w": 224,
+                  "h": 64
+                },
+                {
+                  "id": "octavia_cluster",
+                  "x": 32,
+                  "y": 144,
+                  "w": 896,
+                  "h": 64
+                },
+                {
+                  "id": "octavia_lb_a",
+                  "x": 252,
+                  "y": 144,
+                  "w": 216,
+                  "h": 64
+                },
+                {
+                  "id": "octavia_lb_b",
+                  "x": 492,
+                  "y": 144,
+                  "w": 216,
+                  "h": 64
+                },
+                {
+                  "id": "mongo_ip_label",
+                  "x": 400,
+                  "y": 256,
+                  "w": 160,
+                  "h": 40
+                },
+                {
+                  "id": "availability_zones",
+                  "x": 32,
+                  "y": 344,
+                  "w": 945.33,
+                  "h": 152
+                },
+                {
+                  "id": "az1",
+                  "x": 32,
+                  "y": 344,
+                  "w": 332,
+                  "h": 152
+                },
+                {
+                  "id": "vm_az1",
+                  "x": 32,
+                  "y": 344,
+                  "w": 280,
+                  "h": 152
+                },
+                {
+                  "id": "vm_az1__heading",
+                  "x": 46.75,
+                  "y": 359.42,
+                  "w": 247.25,
+                  "h": 48.58
+                },
+                {
+                  "id": "vm_az1__body",
+                  "x": 48,
+                  "y": 416,
+                  "w": 246,
+                  "h": 64
+                },
+                {
+                  "id": "mongo_write",
+                  "x": 48,
+                  "y": 416,
+                  "w": 246,
+                  "h": 64
+                },
+                {
+                  "id": "az1_label",
+                  "x": 322.75,
+                  "y": 344,
+                  "w": 41.25,
+                  "h": 40
+                },
+                {
+                  "id": "az2",
+                  "x": 338.67,
+                  "y": 344,
+                  "w": 332,
+                  "h": 152
+                },
+                {
+                  "id": "vm_az2",
+                  "x": 338.67,
+                  "y": 344,
+                  "w": 280,
+                  "h": 152
+                },
+                {
+                  "id": "vm_az2__heading",
+                  "x": 353.42,
+                  "y": 359.42,
+                  "w": 247.25,
+                  "h": 48.58
+                },
+                {
+                  "id": "vm_az2__body",
+                  "x": 354.67,
+                  "y": 416,
+                  "w": 246,
+                  "h": 64
+                },
+                {
+                  "id": "mongo_read_az2",
+                  "x": 354.67,
+                  "y": 416,
+                  "w": 246,
+                  "h": 64
+                },
+                {
+                  "id": "az2_label",
+                  "x": 629.42,
+                  "y": 344,
+                  "w": 41.25,
+                  "h": 40
+                },
+                {
+                  "id": "az3",
+                  "x": 645.33,
+                  "y": 344,
+                  "w": 332,
+                  "h": 152
+                },
+                {
+                  "id": "vm_az3",
+                  "x": 645.33,
+                  "y": 344,
+                  "w": 280,
+                  "h": 152
+                },
+                {
+                  "id": "vm_az3__heading",
+                  "x": 660.08,
+                  "y": 359.42,
+                  "w": 247.25,
+                  "h": 48.58
+                },
+                {
+                  "id": "vm_az3__body",
+                  "x": 661.33,
+                  "y": 416,
+                  "w": 246,
+                  "h": 64
+                },
+                {
+                  "id": "mongo_read_az3",
+                  "x": 661.33,
+                  "y": 416,
+                  "w": 246,
+                  "h": 64
+                },
+                {
+                  "id": "az3_label",
+                  "x": 936.08,
+                  "y": 344,
+                  "w": 41.25,
+                  "h": 40
+                }
+              ],
+              "boundsSignature": "[[\"availability_zones\",32,344,945.33,152],[\"az1\",32,344,332,152],[\"az1_label\",322.75,344,41.25,40],[\"az2\",338.67,344,332,152],[\"az2_label\",629.42,344,41.25,40],[\"az3\",645.33,344,332,152],[\"az3_label\",936.08,344,41.25,40],[\"mongo_clients\",368,32,224,64],[\"mongo_ip_label\",400,256,160,40],[\"mongo_read_az2\",354.67,416,246,64],[\"mongo_read_az3\",661.33,416,246,64],[\"mongo_write\",48,416,246,64],[\"octavia_cluster\",32,144,896,64],[\"octavia_lb_a\",252,144,216,64],[\"octavia_lb_b\",492,144,216,64],[\"page\",0,0,977.33,528],[\"vm_az1\",32,344,280,152],[\"vm_az1__body\",48,416,246,64],[\"vm_az1__heading\",46.75,359.42,247.25,48.58],[\"vm_az2\",338.67,344,280,152],[\"vm_az2__body\",354.67,416,246,64],[\"vm_az2__heading\",353.42,359.42,247.25,48.58],[\"vm_az3\",645.33,344,280,152],[\"vm_az3__body\",661.33,416,246,64],[\"vm_az3__heading\",660.08,359.42,247.25,48.58]]",
+              "violations": []
+            },
+            "afterUndo": {
+              "label": "undo-redo-state-vector:after-undo",
+              "url": "http://127.0.0.1:8100/view/v3:mongo-octavia-ha",
+              "activeTab": "v3",
+              "renderIntent": {
+                "engineId": "v3",
+                "pageDirection": "VERTICAL",
+                "frameOverrides": {},
+                "engineOverrides": {},
+                "gridOverrides": {}
+              },
+              "frameTreeLayoutEngine": "v3",
+              "layoutOperator": {
+                "activeOperatorKey": "v3",
+                "byOperator": {
+                  "elk-layered": {
+                    "elk.direction": "",
+                    "elk.layered.spacing.nodeNodeBetweenLayers": 24,
+                    "elk.spacing.nodeNode": 24,
+                    "elk.spacing.edgeNode": 24,
+                    "elk.spacing.edgeEdge": 24,
+                    "elk.layered.spacing.edgeEdgeBetweenLayers": 24,
+                    "elk.layered.unnecessaryBendpoints": true,
+                    "elk.layered.nodePlacement.favorStraightEdges": true,
+                    "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
+                    "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+                    "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+                    "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+                  },
+                  "v3": {
+                    "elk.direction": "",
+                    "elk.layered.spacing.nodeNodeBetweenLayers": 24,
+                    "elk.spacing.nodeNode": 24,
+                    "elk.spacing.edgeNode": 24,
+                    "elk.spacing.edgeEdge": 24,
+                    "elk.layered.spacing.edgeEdgeBetweenLayers": 24,
+                    "elk.layered.unnecessaryBendpoints": true,
+                    "elk.layered.nodePlacement.favorStraightEdges": true,
+                    "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
+                    "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+                    "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+                    "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+                  }
+                },
+                "layoutOverrides": {
+                  "elk.direction": "",
+                  "elk.layered.spacing.nodeNodeBetweenLayers": 24,
+                  "elk.spacing.nodeNode": 24,
+                  "elk.spacing.edgeNode": 24,
+                  "elk.spacing.edgeEdge": 24,
+                  "elk.layered.spacing.edgeEdgeBetweenLayers": 24,
+                  "elk.layered.unnecessaryBendpoints": true,
+                  "elk.layered.nodePlacement.favorStraightEdges": true,
+                  "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
+                  "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+                  "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+                  "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+                },
+                "layoutOverrideNamespace": "meta.elk"
+              },
+              "renderedEngine": "v3",
+              "selection": {
+                "ids": [
+                  "mongo_clients"
+                ],
+                "domIds": [
+                  "mongo_clients"
+                ],
+                "type": "single"
+              },
+              "inspectorTarget": "page",
+              "focusedControl": null,
+              "controlApplicability": {
+                "engineTab": {
+                  "selector": "#engine-switcher-tabs [data-engine-id]",
+                  "exists": true,
+                  "hidden": false,
+                  "disabled": false,
+                  "focused": false,
+                  "value": "",
+                  "checked": null,
+                  "reason": "applicable"
+                },
+                "engineOption": {
+                  "selector": "#layout-params-controls [data-dg-engine-layout-key], #layout-params-controls [data-elk-key]",
+                  "exists": false,
+                  "hidden": null,
+                  "disabled": null,
+                  "focused": false,
+                  "value": null,
+                  "checked": null,
+                  "reason": "missing"
+                },
+                "gridCols": {
+                  "selector": "#grid-cols",
+                  "exists": true,
+                  "hidden": true,
+                  "disabled": true,
+                  "focused": false,
+                  "value": "3",
+                  "checked": false,
+                  "reason": "hidden"
+                },
+                "gridRows": {
+                  "selector": "#grid-rows",
+                  "exists": true,
+                  "hidden": true,
+                  "disabled": true,
+                  "focused": false,
+                  "value": "4",
+                  "checked": false,
+                  "reason": "hidden"
+                },
+                "styleVariant": {
+                  "selector": "#inspector [data-dg-change-action=\"single-style\"]",
+                  "exists": true,
+                  "hidden": false,
+                  "disabled": false,
+                  "focused": false,
+                  "value": "default",
+                  "checked": null,
+                  "reason": "applicable"
+                },
+                "save": {
+                  "selector": "#btn-save",
+                  "exists": true,
+                  "hidden": false,
+                  "disabled": false,
+                  "focused": false,
+                  "value": "",
+                  "checked": null,
+                  "reason": "applicable"
+                },
+                "undo": {
+                  "selector": "#btn-undo",
+                  "exists": true,
+                  "hidden": false,
+                  "disabled": true,
+                  "focused": false,
+                  "value": "",
+                  "checked": null,
+                  "reason": "disabled"
+                },
+                "redo": {
+                  "selector": "#btn-redo",
+                  "exists": true,
+                  "hidden": false,
+                  "disabled": false,
+                  "focused": false,
+                  "value": "",
+                  "checked": null,
+                  "reason": "applicable"
+                }
+              },
+              "dirty": true,
+              "undo": {
+                "canUndo": false,
+                "canRedo": true
+              },
+              "visibleControls": [
+                {
+                  "id": "engine-switcher-section",
+                  "hidden": false,
+                  "inert": false,
+                  "disabledControlCount": 0,
+                  "enabledControlCount": 2
+                },
+                {
+                  "id": "layout-params-section",
+                  "hidden": true,
+                  "inert": true,
+                  "disabledControlCount": 0,
+                  "enabledControlCount": 0
+                },
+                {
+                  "id": "grid-controls-section",
+                  "hidden": true,
+                  "inert": true,
+                  "disabledControlCount": 10,
+                  "enabledControlCount": 0
+                },
+                {
+                  "id": "inspector",
+                  "hidden": false,
+                  "inert": false,
+                  "disabledControlCount": 0,
+                  "enabledControlCount": 17
+                }
+              ],
+              "savePayload": {
+                "overrides": {},
+                "grid_overrides": {},
+                "layout_overrides": {
+                  "elk.direction": "",
+                  "elk.layered.spacing.nodeNodeBetweenLayers": 24,
+                  "elk.spacing.nodeNode": 24,
+                  "elk.spacing.edgeNode": 24,
+                  "elk.spacing.edgeEdge": 24,
+                  "elk.layered.spacing.edgeEdgeBetweenLayers": 24,
+                  "elk.layered.unnecessaryBendpoints": true,
+                  "elk.layered.nodePlacement.favorStraightEdges": true,
+                  "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
+                  "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+                  "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+                  "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+                },
+                "layout_operator_overrides": {
+                  "activeOperatorKey": "v3",
+                  "byOperator": {
+                    "elk-layered": {
+                      "elk.direction": "",
+                      "elk.layered.spacing.nodeNodeBetweenLayers": 24,
+                      "elk.spacing.nodeNode": 24,
+                      "elk.spacing.edgeNode": 24,
+                      "elk.spacing.edgeEdge": 24,
+                      "elk.layered.spacing.edgeEdgeBetweenLayers": 24,
+                      "elk.layered.unnecessaryBendpoints": true,
+                      "elk.layered.nodePlacement.favorStraightEdges": true,
+                      "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
+                      "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+                      "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+                      "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+                    },
+                    "v3": {
+                      "elk.direction": "",
+                      "elk.layered.spacing.nodeNodeBetweenLayers": 24,
+                      "elk.spacing.nodeNode": 24,
+                      "elk.spacing.edgeNode": 24,
+                      "elk.spacing.edgeEdge": 24,
+                      "elk.layered.spacing.edgeEdgeBetweenLayers": 24,
+                      "elk.layered.unnecessaryBendpoints": true,
+                      "elk.layered.nodePlacement.favorStraightEdges": true,
+                      "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
+                      "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+                      "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+                      "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+                    }
+                  }
+                },
+                "removed_ids": []
+              },
+              "reloadParse": {
+                "configSlug": "mongo-octavia-ha",
+                "documentKind": "frame-diagram",
+                "layoutEngine": "v3"
+              },
+              "lastEditorMutationTransaction": {
+                "kind": "committed",
+                "mutationKind": "inspector-appearance",
+                "sourceControl": "single-style",
+                "activeEngineId": "v3",
+                "documentKind": "frame-diagram",
+                "reason": "style change is applicable to the selected frame",
+                "relayoutPolicy": "none",
+                "dirtyPolicy": "mark-dirty",
+                "undoPolicy": "record",
+                "renderIntentDelta": null,
+                "persistenceDelta": {
+                  "frameOverridesChanged": true,
+                  "savePayloadChanged": true
+                },
+                "diagnostics": []
+              },
+              "bounds": [
+                {
+                  "id": "page",
+                  "x": 0,
+                  "y": 0,
+                  "w": 977.33,
+                  "h": 528
+                },
+                {
+                  "id": "mongo_clients",
+                  "x": 368,
+                  "y": 32,
+                  "w": 224,
+                  "h": 64
+                },
+                {
+                  "id": "octavia_cluster",
+                  "x": 32,
+                  "y": 144,
+                  "w": 896,
+                  "h": 64
+                },
+                {
+                  "id": "octavia_lb_a",
+                  "x": 252,
+                  "y": 144,
+                  "w": 216,
+                  "h": 64
+                },
+                {
+                  "id": "octavia_lb_b",
+                  "x": 492,
+                  "y": 144,
+                  "w": 216,
+                  "h": 64
+                },
+                {
+                  "id": "mongo_ip_label",
+                  "x": 400,
+                  "y": 256,
+                  "w": 160,
+                  "h": 40
+                },
+                {
+                  "id": "availability_zones",
+                  "x": 32,
+                  "y": 344,
+                  "w": 945.33,
+                  "h": 152
+                },
+                {
+                  "id": "az1",
+                  "x": 32,
+                  "y": 344,
+                  "w": 332,
+                  "h": 152
+                },
+                {
+                  "id": "vm_az1",
+                  "x": 32,
+                  "y": 344,
+                  "w": 280,
+                  "h": 152
+                },
+                {
+                  "id": "vm_az1__heading",
+                  "x": 46.664,
+                  "y": 359.553,
+                  "w": 247.336,
+                  "h": 48.447
+                },
+                {
+                  "id": "vm_az1__body",
+                  "x": 48,
+                  "y": 416,
+                  "w": 246,
+                  "h": 64
+                },
+                {
+                  "id": "mongo_write",
+                  "x": 48,
+                  "y": 416,
+                  "w": 246,
+                  "h": 64
+                },
+                {
+                  "id": "az1_label",
+                  "x": 322.664,
+                  "y": 344,
+                  "w": 41.336,
+                  "h": 40
+                },
+                {
+                  "id": "az2",
+                  "x": 338.67,
+                  "y": 344,
+                  "w": 332,
+                  "h": 152
+                },
+                {
+                  "id": "vm_az2",
+                  "x": 338.67,
+                  "y": 344,
+                  "w": 280,
+                  "h": 152
+                },
+                {
+                  "id": "vm_az2__heading",
+                  "x": 353.334,
+                  "y": 359.553,
+                  "w": 247.336,
+                  "h": 48.447
+                },
+                {
+                  "id": "vm_az2__body",
+                  "x": 354.67,
+                  "y": 416,
+                  "w": 246,
+                  "h": 64
+                },
+                {
+                  "id": "mongo_read_az2",
+                  "x": 354.67,
+                  "y": 416,
+                  "w": 246,
+                  "h": 64
+                },
+                {
+                  "id": "az2_label",
+                  "x": 629.334,
+                  "y": 344,
+                  "w": 41.336,
+                  "h": 40
+                },
+                {
+                  "id": "az3",
+                  "x": 645.33,
+                  "y": 344,
+                  "w": 332,
+                  "h": 152
+                },
+                {
+                  "id": "vm_az3",
+                  "x": 645.33,
+                  "y": 344,
+                  "w": 280,
+                  "h": 152
+                },
+                {
+                  "id": "vm_az3__heading",
+                  "x": 659.994,
+                  "y": 359.553,
+                  "w": 247.336,
+                  "h": 48.447
+                },
+                {
+                  "id": "vm_az3__body",
+                  "x": 661.33,
+                  "y": 416,
+                  "w": 246,
+                  "h": 64
+                },
+                {
+                  "id": "mongo_read_az3",
+                  "x": 661.33,
+                  "y": 416,
+                  "w": 246,
+                  "h": 64
+                },
+                {
+                  "id": "az3_label",
+                  "x": 935.994,
+                  "y": 344,
+                  "w": 41.336,
+                  "h": 40
+                }
+              ],
+              "boundsSignature": "[[\"availability_zones\",32,344,945.33,152],[\"az1\",32,344,332,152],[\"az1_label\",322.664,344,41.336,40],[\"az2\",338.67,344,332,152],[\"az2_label\",629.334,344,41.336,40],[\"az3\",645.33,344,332,152],[\"az3_label\",935.994,344,41.336,40],[\"mongo_clients\",368,32,224,64],[\"mongo_ip_label\",400,256,160,40],[\"mongo_read_az2\",354.67,416,246,64],[\"mongo_read_az3\",661.33,416,246,64],[\"mongo_write\",48,416,246,64],[\"octavia_cluster\",32,144,896,64],[\"octavia_lb_a\",252,144,216,64],[\"octavia_lb_b\",492,144,216,64],[\"page\",0,0,977.33,528],[\"vm_az1\",32,344,280,152],[\"vm_az1__body\",48,416,246,64],[\"vm_az1__heading\",46.664,359.553,247.336,48.447],[\"vm_az2\",338.67,344,280,152],[\"vm_az2__body\",354.67,416,246,64],[\"vm_az2__heading\",353.334,359.553,247.336,48.447],[\"vm_az3\",645.33,344,280,152],[\"vm_az3__body\",661.33,416,246,64],[\"vm_az3__heading\",659.994,359.553,247.336,48.447]]",
+              "violations": []
+            },
+            "afterRedo": {
+              "label": "undo-redo-state-vector:after-redo",
+              "url": "http://127.0.0.1:8100/view/v3:mongo-octavia-ha",
+              "activeTab": "v3",
+              "renderIntent": {
+                "engineId": "v3",
+                "pageDirection": "VERTICAL",
+                "frameOverrides": {
+                  "mongo_clients": {
+                    "level": 3,
+                    "fill": "WHITE",
+                    "border": "SOLID",
+                    "style": "section"
+                  }
+                },
+                "engineOverrides": {},
+                "gridOverrides": {}
+              },
+              "frameTreeLayoutEngine": "v3",
+              "layoutOperator": {
+                "activeOperatorKey": "v3",
+                "byOperator": {
+                  "elk-layered": {
+                    "elk.direction": "",
+                    "elk.layered.spacing.nodeNodeBetweenLayers": 24,
+                    "elk.spacing.nodeNode": 24,
+                    "elk.spacing.edgeNode": 24,
+                    "elk.spacing.edgeEdge": 24,
+                    "elk.layered.spacing.edgeEdgeBetweenLayers": 24,
+                    "elk.layered.unnecessaryBendpoints": true,
+                    "elk.layered.nodePlacement.favorStraightEdges": true,
+                    "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
+                    "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+                    "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+                    "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+                  },
+                  "v3": {
+                    "elk.direction": "",
+                    "elk.layered.spacing.nodeNodeBetweenLayers": 24,
+                    "elk.spacing.nodeNode": 24,
+                    "elk.spacing.edgeNode": 24,
+                    "elk.spacing.edgeEdge": 24,
+                    "elk.layered.spacing.edgeEdgeBetweenLayers": 24,
+                    "elk.layered.unnecessaryBendpoints": true,
+                    "elk.layered.nodePlacement.favorStraightEdges": true,
+                    "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
+                    "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+                    "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+                    "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+                  }
+                },
+                "layoutOverrides": {
+                  "elk.direction": "",
+                  "elk.layered.spacing.nodeNodeBetweenLayers": 24,
+                  "elk.spacing.nodeNode": 24,
+                  "elk.spacing.edgeNode": 24,
+                  "elk.spacing.edgeEdge": 24,
+                  "elk.layered.spacing.edgeEdgeBetweenLayers": 24,
+                  "elk.layered.unnecessaryBendpoints": true,
+                  "elk.layered.nodePlacement.favorStraightEdges": true,
+                  "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
+                  "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+                  "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+                  "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+                },
+                "layoutOverrideNamespace": "meta.elk"
+              },
+              "renderedEngine": "v3",
+              "selection": {
+                "ids": [
+                  "mongo_clients"
+                ],
+                "domIds": [
+                  "mongo_clients"
+                ],
+                "type": "single"
+              },
+              "inspectorTarget": "page",
+              "focusedControl": null,
+              "controlApplicability": {
+                "engineTab": {
+                  "selector": "#engine-switcher-tabs [data-engine-id]",
+                  "exists": true,
+                  "hidden": false,
+                  "disabled": false,
+                  "focused": false,
+                  "value": "",
+                  "checked": null,
+                  "reason": "applicable"
+                },
+                "engineOption": {
+                  "selector": "#layout-params-controls [data-dg-engine-layout-key], #layout-params-controls [data-elk-key]",
+                  "exists": false,
+                  "hidden": null,
+                  "disabled": null,
+                  "focused": false,
+                  "value": null,
+                  "checked": null,
+                  "reason": "missing"
+                },
+                "gridCols": {
+                  "selector": "#grid-cols",
+                  "exists": true,
+                  "hidden": true,
+                  "disabled": true,
+                  "focused": false,
+                  "value": "3",
+                  "checked": false,
+                  "reason": "hidden"
+                },
+                "gridRows": {
+                  "selector": "#grid-rows",
+                  "exists": true,
+                  "hidden": true,
+                  "disabled": true,
+                  "focused": false,
+                  "value": "4",
+                  "checked": false,
+                  "reason": "hidden"
+                },
+                "styleVariant": {
+                  "selector": "#inspector [data-dg-change-action=\"single-style\"]",
+                  "exists": true,
+                  "hidden": false,
+                  "disabled": false,
+                  "focused": false,
+                  "value": "section",
+                  "checked": null,
+                  "reason": "applicable"
+                },
+                "save": {
+                  "selector": "#btn-save",
+                  "exists": true,
+                  "hidden": false,
+                  "disabled": false,
+                  "focused": false,
+                  "value": "",
+                  "checked": null,
+                  "reason": "applicable"
+                },
+                "undo": {
+                  "selector": "#btn-undo",
+                  "exists": true,
+                  "hidden": false,
+                  "disabled": false,
+                  "focused": false,
+                  "value": "",
+                  "checked": null,
+                  "reason": "applicable"
+                },
+                "redo": {
+                  "selector": "#btn-redo",
+                  "exists": true,
+                  "hidden": false,
+                  "disabled": true,
+                  "focused": false,
+                  "value": "",
+                  "checked": null,
+                  "reason": "disabled"
+                }
+              },
+              "dirty": true,
+              "undo": {
+                "canUndo": true,
+                "canRedo": false
+              },
+              "visibleControls": [
+                {
+                  "id": "engine-switcher-section",
+                  "hidden": false,
+                  "inert": false,
+                  "disabledControlCount": 0,
+                  "enabledControlCount": 2
+                },
+                {
+                  "id": "layout-params-section",
+                  "hidden": true,
+                  "inert": true,
+                  "disabledControlCount": 0,
+                  "enabledControlCount": 0
+                },
+                {
+                  "id": "grid-controls-section",
+                  "hidden": true,
+                  "inert": true,
+                  "disabledControlCount": 10,
+                  "enabledControlCount": 0
+                },
+                {
+                  "id": "inspector",
+                  "hidden": false,
+                  "inert": false,
+                  "disabledControlCount": 0,
+                  "enabledControlCount": 17
+                }
+              ],
+              "savePayload": {
+                "overrides": {
+                  "mongo_clients": {
+                    "level": 3,
+                    "fill": "WHITE",
+                    "border": "SOLID",
+                    "style": "section"
+                  }
+                },
+                "grid_overrides": {},
+                "layout_overrides": {
+                  "elk.direction": "",
+                  "elk.layered.spacing.nodeNodeBetweenLayers": 24,
+                  "elk.spacing.nodeNode": 24,
+                  "elk.spacing.edgeNode": 24,
+                  "elk.spacing.edgeEdge": 24,
+                  "elk.layered.spacing.edgeEdgeBetweenLayers": 24,
+                  "elk.layered.unnecessaryBendpoints": true,
+                  "elk.layered.nodePlacement.favorStraightEdges": true,
+                  "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
+                  "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+                  "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+                  "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+                },
+                "layout_operator_overrides": {
+                  "activeOperatorKey": "v3",
+                  "byOperator": {
+                    "elk-layered": {
+                      "elk.direction": "",
+                      "elk.layered.spacing.nodeNodeBetweenLayers": 24,
+                      "elk.spacing.nodeNode": 24,
+                      "elk.spacing.edgeNode": 24,
+                      "elk.spacing.edgeEdge": 24,
+                      "elk.layered.spacing.edgeEdgeBetweenLayers": 24,
+                      "elk.layered.unnecessaryBendpoints": true,
+                      "elk.layered.nodePlacement.favorStraightEdges": true,
+                      "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
+                      "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+                      "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+                      "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+                    },
+                    "v3": {
+                      "elk.direction": "",
+                      "elk.layered.spacing.nodeNodeBetweenLayers": 24,
+                      "elk.spacing.nodeNode": 24,
+                      "elk.spacing.edgeNode": 24,
+                      "elk.spacing.edgeEdge": 24,
+                      "elk.layered.spacing.edgeEdgeBetweenLayers": 24,
+                      "elk.layered.unnecessaryBendpoints": true,
+                      "elk.layered.nodePlacement.favorStraightEdges": true,
+                      "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
+                      "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+                      "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+                      "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+                    }
+                  }
+                },
+                "removed_ids": []
+              },
+              "reloadParse": {
+                "configSlug": "mongo-octavia-ha",
+                "documentKind": "frame-diagram",
+                "layoutEngine": "v3"
+              },
+              "lastEditorMutationTransaction": {
+                "kind": "committed",
+                "mutationKind": "inspector-appearance",
+                "sourceControl": "single-style",
+                "activeEngineId": "v3",
+                "documentKind": "frame-diagram",
+                "reason": "style change is applicable to the selected frame",
+                "relayoutPolicy": "none",
+                "dirtyPolicy": "mark-dirty",
+                "undoPolicy": "record",
+                "renderIntentDelta": null,
+                "persistenceDelta": {
+                  "frameOverridesChanged": true,
+                  "savePayloadChanged": true
+                },
+                "diagnostics": []
+              },
+              "bounds": [
+                {
+                  "id": "page",
+                  "x": 0,
+                  "y": 0,
+                  "w": 977.33,
+                  "h": 528
+                },
+                {
+                  "id": "mongo_clients",
+                  "x": 368,
+                  "y": 32,
+                  "w": 224,
+                  "h": 64
+                },
+                {
+                  "id": "octavia_cluster",
+                  "x": 32,
+                  "y": 144,
+                  "w": 896,
+                  "h": 64
+                },
+                {
+                  "id": "octavia_lb_a",
+                  "x": 252,
+                  "y": 144,
+                  "w": 216,
+                  "h": 64
+                },
+                {
+                  "id": "octavia_lb_b",
+                  "x": 492,
+                  "y": 144,
+                  "w": 216,
+                  "h": 64
+                },
+                {
+                  "id": "mongo_ip_label",
+                  "x": 400,
+                  "y": 256,
+                  "w": 160,
+                  "h": 40
+                },
+                {
+                  "id": "availability_zones",
+                  "x": 32,
+                  "y": 344,
+                  "w": 945.33,
+                  "h": 152
+                },
+                {
+                  "id": "az1",
+                  "x": 32,
+                  "y": 344,
+                  "w": 332,
+                  "h": 152
+                },
+                {
+                  "id": "vm_az1",
+                  "x": 32,
+                  "y": 344,
+                  "w": 280,
+                  "h": 152
+                },
+                {
+                  "id": "vm_az1__heading",
+                  "x": 46.664,
+                  "y": 359.553,
+                  "w": 247.336,
+                  "h": 48.447
+                },
+                {
+                  "id": "vm_az1__body",
+                  "x": 48,
+                  "y": 416,
+                  "w": 246,
+                  "h": 64
+                },
+                {
+                  "id": "mongo_write",
+                  "x": 48,
+                  "y": 416,
+                  "w": 246,
+                  "h": 64
+                },
+                {
+                  "id": "az1_label",
+                  "x": 322.664,
+                  "y": 344,
+                  "w": 41.336,
+                  "h": 40
+                },
+                {
+                  "id": "az2",
+                  "x": 338.67,
+                  "y": 344,
+                  "w": 332,
+                  "h": 152
+                },
+                {
+                  "id": "vm_az2",
+                  "x": 338.67,
+                  "y": 344,
+                  "w": 280,
+                  "h": 152
+                },
+                {
+                  "id": "vm_az2__heading",
+                  "x": 353.334,
+                  "y": 359.553,
+                  "w": 247.336,
+                  "h": 48.447
+                },
+                {
+                  "id": "vm_az2__body",
+                  "x": 354.67,
+                  "y": 416,
+                  "w": 246,
+                  "h": 64
+                },
+                {
+                  "id": "mongo_read_az2",
+                  "x": 354.67,
+                  "y": 416,
+                  "w": 246,
+                  "h": 64
+                },
+                {
+                  "id": "az2_label",
+                  "x": 629.334,
+                  "y": 344,
+                  "w": 41.336,
+                  "h": 40
+                },
+                {
+                  "id": "az3",
+                  "x": 645.33,
+                  "y": 344,
+                  "w": 332,
+                  "h": 152
+                },
+                {
+                  "id": "vm_az3",
+                  "x": 645.33,
+                  "y": 344,
+                  "w": 280,
+                  "h": 152
+                },
+                {
+                  "id": "vm_az3__heading",
+                  "x": 659.994,
+                  "y": 359.553,
+                  "w": 247.336,
+                  "h": 48.447
+                },
+                {
+                  "id": "vm_az3__body",
+                  "x": 661.33,
+                  "y": 416,
+                  "w": 246,
+                  "h": 64
+                },
+                {
+                  "id": "mongo_read_az3",
+                  "x": 661.33,
+                  "y": 416,
+                  "w": 246,
+                  "h": 64
+                },
+                {
+                  "id": "az3_label",
+                  "x": 935.994,
+                  "y": 344,
+                  "w": 41.336,
+                  "h": 40
+                }
+              ],
+              "boundsSignature": "[[\"availability_zones\",32,344,945.33,152],[\"az1\",32,344,332,152],[\"az1_label\",322.664,344,41.336,40],[\"az2\",338.67,344,332,152],[\"az2_label\",629.334,344,41.336,40],[\"az3\",645.33,344,332,152],[\"az3_label\",935.994,344,41.336,40],[\"mongo_clients\",368,32,224,64],[\"mongo_ip_label\",400,256,160,40],[\"mongo_read_az2\",354.67,416,246,64],[\"mongo_read_az3\",661.33,416,246,64],[\"mongo_write\",48,416,246,64],[\"octavia_cluster\",32,144,896,64],[\"octavia_lb_a\",252,144,216,64],[\"octavia_lb_b\",492,144,216,64],[\"page\",0,0,977.33,528],[\"vm_az1\",32,344,280,152],[\"vm_az1__body\",48,416,246,64],[\"vm_az1__heading\",46.664,359.553,247.336,48.447],[\"vm_az2\",338.67,344,280,152],[\"vm_az2__body\",354.67,416,246,64],[\"vm_az2__heading\",353.334,359.553,247.336,48.447],[\"vm_az3\",645.33,344,280,152],[\"vm_az3__body\",661.33,416,246,64],[\"vm_az3__heading\",659.994,359.553,247.336,48.447]]",
+              "violations": []
+            },
+            "engineState": {
+              "activeTab": "v3",
+              "renderIntentEngineId": "v3",
+              "frameTreeLayoutEngine": "v3",
+              "renderedEngine": "v3",
+              "layoutOperator": {
+                "activeOperatorKey": "v3",
+                "byOperator": {
+                  "elk-layered": {
+                    "elk.direction": "",
+                    "elk.layered.spacing.nodeNodeBetweenLayers": 24,
+                    "elk.spacing.nodeNode": 24,
+                    "elk.spacing.edgeNode": 24,
+                    "elk.spacing.edgeEdge": 24,
+                    "elk.layered.spacing.edgeEdgeBetweenLayers": 24,
+                    "elk.layered.unnecessaryBendpoints": true,
+                    "elk.layered.nodePlacement.favorStraightEdges": true,
+                    "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
+                    "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+                    "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+                    "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+                  },
+                  "v3": {
+                    "elk.direction": "",
+                    "elk.layered.spacing.nodeNodeBetweenLayers": 24,
+                    "elk.spacing.nodeNode": 24,
+                    "elk.spacing.edgeNode": 24,
+                    "elk.spacing.edgeEdge": 24,
+                    "elk.layered.spacing.edgeEdgeBetweenLayers": 24,
+                    "elk.layered.unnecessaryBendpoints": true,
+                    "elk.layered.nodePlacement.favorStraightEdges": true,
+                    "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
+                    "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+                    "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+                    "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+                  }
+                },
+                "layoutOverrides": {
+                  "elk.direction": "",
+                  "elk.layered.spacing.nodeNodeBetweenLayers": 24,
+                  "elk.spacing.nodeNode": 24,
+                  "elk.spacing.edgeNode": 24,
+                  "elk.spacing.edgeEdge": 24,
+                  "elk.layered.spacing.edgeEdgeBetweenLayers": 24,
+                  "elk.layered.unnecessaryBendpoints": true,
+                  "elk.layered.nodePlacement.favorStraightEdges": true,
+                  "elk.layered.layering.strategy": "NETWORK_SIMPLEX",
+                  "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
+                  "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+                  "elk.hierarchyHandling": "INCLUDE_CHILDREN"
+                },
+                "layoutOverrideNamespace": "meta.elk"
+              },
+              "reloadParseLayoutEngine": "v3"
+            }
+          }
         }
       ]
     },
@@ -7124,45 +10341,45 @@
                 "x": 0,
                 "y": 0,
                 "w": 1440,
-                "h": 952
+                "h": 888
               },
               {
                 "id": "step_problem",
-                "x": 424,
-                "y": 424,
+                "x": 664,
+                "y": 632,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_investigation",
-                "x": 736,
-                "y": 744,
+                "x": 0,
+                "y": 16,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_analysis",
-                "x": 80,
-                "y": 96,
+                "x": 24,
+                "y": 680,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_fix",
-                "x": 0,
-                "y": 608,
+                "x": 368,
+                "y": 296,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_result",
-                "x": 624,
+                "x": 808,
                 "y": 0,
                 "w": 272,
                 "h": 208
               }
             ],
-            "boundsSignature": "[[\"page\",0,0,1440,952],[\"step_analysis\",80,96,272,208],[\"step_fix\",0,608,272,208],[\"step_investigation\",736,744,272,208],[\"step_problem\",424,424,272,208],[\"step_result\",624,0,272,208]]",
+            "boundsSignature": "[[\"page\",0,0,1440,888],[\"step_analysis\",24,680,272,208],[\"step_fix\",368,296,272,208],[\"step_investigation\",0,16,272,208],[\"step_problem\",664,632,272,208],[\"step_result\",808,0,272,208]]",
             "violations": []
           }
         },
@@ -7370,45 +10587,45 @@
                 "x": 0,
                 "y": 0,
                 "w": 1440,
-                "h": 952
+                "h": 888
               },
               {
                 "id": "step_problem",
-                "x": 424,
-                "y": 424,
+                "x": 664,
+                "y": 632,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_investigation",
-                "x": 736,
-                "y": 744,
+                "x": 0,
+                "y": 16,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_analysis",
-                "x": 80,
-                "y": 96,
+                "x": 24,
+                "y": 680,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_fix",
-                "x": 0,
-                "y": 608,
+                "x": 368,
+                "y": 296,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_result",
-                "x": 624,
+                "x": 808,
                 "y": 0,
                 "w": 272,
                 "h": 208
               }
             ],
-            "boundsSignature": "[[\"page\",0,0,1440,952],[\"step_analysis\",80,96,272,208],[\"step_fix\",0,608,272,208],[\"step_investigation\",736,744,272,208],[\"step_problem\",424,424,272,208],[\"step_result\",624,0,272,208]]",
+            "boundsSignature": "[[\"page\",0,0,1440,888],[\"step_analysis\",24,680,272,208],[\"step_fix\",368,296,272,208],[\"step_investigation\",0,16,272,208],[\"step_problem\",664,632,272,208],[\"step_result\",808,0,272,208]]",
             "violations": []
           },
           "after": {
@@ -7616,45 +10833,45 @@
                 "x": 0,
                 "y": 0,
                 "w": 1440,
-                "h": 952
+                "h": 888
               },
               {
                 "id": "step_problem",
-                "x": 424,
-                "y": 424,
+                "x": 664,
+                "y": 632,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_investigation",
-                "x": 736,
-                "y": 744,
+                "x": 0,
+                "y": 16,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_analysis",
-                "x": 80,
-                "y": 96,
+                "x": 24,
+                "y": 680,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_fix",
-                "x": 0,
-                "y": 608,
+                "x": 368,
+                "y": 296,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_result",
-                "x": 624,
+                "x": 808,
                 "y": 0,
                 "w": 272,
                 "h": 208
               }
             ],
-            "boundsSignature": "[[\"page\",0,0,1440,952],[\"step_analysis\",80,96,272,208],[\"step_fix\",0,608,272,208],[\"step_investigation\",736,744,272,208],[\"step_problem\",424,424,272,208],[\"step_result\",624,0,272,208]]",
+            "boundsSignature": "[[\"page\",0,0,1440,888],[\"step_analysis\",24,680,272,208],[\"step_fix\",368,296,272,208],[\"step_investigation\",0,16,272,208],[\"step_problem\",664,632,272,208],[\"step_result\",808,0,272,208]]",
             "violations": []
           },
           "details": {
@@ -7869,45 +11086,45 @@
                 "x": 0,
                 "y": 0,
                 "w": 1440,
-                "h": 952
+                "h": 888
               },
               {
                 "id": "step_problem",
-                "x": 424,
-                "y": 424,
+                "x": 664,
+                "y": 632,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_investigation",
-                "x": 736,
-                "y": 744,
+                "x": 0,
+                "y": 16,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_analysis",
-                "x": 80,
-                "y": 96,
+                "x": 24,
+                "y": 680,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_fix",
-                "x": 0,
-                "y": 608,
+                "x": 368,
+                "y": 296,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_result",
-                "x": 624,
+                "x": 808,
                 "y": 0,
                 "w": 272,
                 "h": 208
               }
             ],
-            "boundsSignature": "[[\"page\",0,0,1440,952],[\"step_analysis\",80,96,272,208],[\"step_fix\",0,608,272,208],[\"step_investigation\",736,744,272,208],[\"step_problem\",424,424,272,208],[\"step_result\",624,0,272,208]]",
+            "boundsSignature": "[[\"page\",0,0,1440,888],[\"step_analysis\",24,680,272,208],[\"step_fix\",368,296,272,208],[\"step_investigation\",0,16,272,208],[\"step_problem\",664,632,272,208],[\"step_result\",808,0,272,208]]",
             "violations": []
           },
           "after": {
@@ -8119,7 +11336,7 @@
               "kind": "committed",
               "mutationKind": "inspector-appearance",
               "sourceControl": "single-style",
-              "activeEngineId": null,
+              "activeEngineId": "elk-force",
               "documentKind": "frame-diagram",
               "reason": "style change is applicable to the selected frame",
               "relayoutPolicy": "none",
@@ -8138,45 +11355,45 @@
                 "x": 0,
                 "y": 0,
                 "w": 1440,
-                "h": 952
+                "h": 888
               },
               {
                 "id": "step_problem",
-                "x": 424,
-                "y": 424,
+                "x": 664,
+                "y": 632,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_investigation",
-                "x": 736,
-                "y": 744,
+                "x": 0,
+                "y": 16,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_analysis",
-                "x": 80,
-                "y": 96,
+                "x": 24,
+                "y": 680,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_fix",
-                "x": 0,
-                "y": 608,
+                "x": 368,
+                "y": 296,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_result",
-                "x": 624,
+                "x": 808,
                 "y": 0,
                 "w": 272,
                 "h": 208
               }
             ],
-            "boundsSignature": "[[\"page\",0,0,1440,952],[\"step_analysis\",80,96,272,208],[\"step_fix\",0,608,272,208],[\"step_investigation\",736,744,272,208],[\"step_problem\",424,424,272,208],[\"step_result\",624,0,272,208]]",
+            "boundsSignature": "[[\"page\",0,0,1440,888],[\"step_analysis\",24,680,272,208],[\"step_fix\",368,296,272,208],[\"step_investigation\",0,16,272,208],[\"step_problem\",664,632,272,208],[\"step_result\",808,0,272,208]]",
             "violations": []
           },
           "details": {
@@ -8395,7 +11612,7 @@
               "kind": "committed",
               "mutationKind": "inspector-appearance",
               "sourceControl": "single-style",
-              "activeEngineId": null,
+              "activeEngineId": "elk-force",
               "documentKind": "frame-diagram",
               "reason": "style change is applicable to the selected frame",
               "relayoutPolicy": "none",
@@ -8414,45 +11631,45 @@
                 "x": 0,
                 "y": 0,
                 "w": 1440,
-                "h": 952
+                "h": 888
               },
               {
                 "id": "step_problem",
-                "x": 424,
-                "y": 424,
+                "x": 664,
+                "y": 632,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_investigation",
-                "x": 736,
-                "y": 744,
+                "x": 0,
+                "y": 16,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_analysis",
-                "x": 80,
-                "y": 96,
+                "x": 24,
+                "y": 680,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_fix",
-                "x": 0,
-                "y": 608,
+                "x": 368,
+                "y": 296,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_result",
-                "x": 624,
+                "x": 808,
                 "y": 0,
                 "w": 272,
                 "h": 208
               }
             ],
-            "boundsSignature": "[[\"page\",0,0,1440,952],[\"step_analysis\",80,96,272,208],[\"step_fix\",0,608,272,208],[\"step_investigation\",736,744,272,208],[\"step_problem\",424,424,272,208],[\"step_result\",624,0,272,208]]",
+            "boundsSignature": "[[\"page\",0,0,1440,888],[\"step_analysis\",24,680,272,208],[\"step_fix\",368,296,272,208],[\"step_investigation\",0,16,272,208],[\"step_problem\",664,632,272,208],[\"step_result\",808,0,272,208]]",
             "violations": []
           },
           "after": {
@@ -8547,7 +11764,7 @@
                 "hidden": true,
                 "disabled": true,
                 "focused": false,
-                "value": "7",
+                "value": "8",
                 "checked": false,
                 "reason": "hidden"
               },
@@ -8671,7 +11888,7 @@
               "kind": "committed",
               "mutationKind": "inspector-appearance",
               "sourceControl": "single-style",
-              "activeEngineId": null,
+              "activeEngineId": "elk-force",
               "documentKind": "frame-diagram",
               "reason": "style change is applicable to the selected frame",
               "relayoutPolicy": "none",
@@ -8690,45 +11907,45 @@
                 "x": 0,
                 "y": 0,
                 "w": 1440,
-                "h": 1016
+                "h": 1128
               },
               {
                 "id": "step_problem",
-                "x": 928,
-                "y": 320,
+                "x": 0,
+                "y": 544,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_investigation",
-                "x": 152,
+                "x": 528,
                 "y": 0,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_analysis",
-                "x": 608,
-                "y": 24,
+                "x": 72,
+                "y": 32,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_fix",
-                "x": 464,
-                "y": 808,
+                "x": 808,
+                "y": 400,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_result",
-                "x": 0,
-                "y": 568,
+                "x": 408,
+                "y": 920,
                 "w": 272,
                 "h": 208
               }
             ],
-            "boundsSignature": "[[\"page\",0,0,1440,1016],[\"step_analysis\",608,24,272,208],[\"step_fix\",464,808,272,208],[\"step_investigation\",152,0,272,208],[\"step_problem\",928,320,272,208],[\"step_result\",0,568,272,208]]",
+            "boundsSignature": "[[\"page\",0,0,1440,1128],[\"step_analysis\",72,32,272,208],[\"step_fix\",808,400,272,208],[\"step_investigation\",528,0,272,208],[\"step_problem\",0,544,272,208],[\"step_result\",408,920,272,208]]",
             "violations": []
           },
           "details": {

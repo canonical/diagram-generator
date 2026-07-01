@@ -151,7 +151,7 @@
       edits are covered by the inspector layout transaction path as
       `single-prop:direction` with `relayoutPolicy: engine`.
 
-- [ ] **T032** Make undo/redo restore complete state vectors.
+- [x] **T032** Make undo/redo restore complete state vectors.
       **Do**: undo/redo must restore engine intent, option bucket, frame
       overrides, rendered engine, visible controls, dirty state, and geometry.
       **Verify**: browser probe covers undo/redo after engine option + variant
@@ -162,8 +162,16 @@
       Serialized undo/redo snapshot restore now syncs restored frame-tree engine
       state into preview render intent, `__DG_CONFIG.active_engine_id`,
       `__DG_CONFIG.layout_engine`, workspace chrome, and workspace panels before
-      rerendering. Remaining T032 work: browser probe coverage for undo/redo
-      after engine option + variant edits and any resulting defects.
+      rerendering.
+      **Closeout evidence**:
+      `node apps/preview/node_modules/typescript/bin/tsc --noEmit --target ES2022 --module ES2022 --moduleResolution bundler --strict --skipLibCheck --types node --typeRoots apps/preview/node_modules/@types --lib ES2022,DOM specs/069-editor-mutation-state-determinism/evidence/editor-mutation-state-probe.ts`;
+      `PREVIEW_BASE_URL=http://127.0.0.1:8100 node --experimental-default-type=module specs/069-editor-mutation-state-determinism/evidence/editor-mutation-state-probe.ts`.
+      The regenerated evidence records `mongo-octavia-ha`
+      `undo-redo-after-engine-option-and-style` with active tab, render intent,
+      frame-tree layout engine, rendered engine, layout operator bucket, and
+      reload parse layout engine coherent after undo and redo; redo restores the
+      save payload and geometry within a 0.25px render tolerance. Authored
+      fixture hashes are unchanged.
 
 - [ ] **T033** Add `persist -> reload` regression for committed state vector.
       **Do**: save active engine + supported option bucket + frame overrides,

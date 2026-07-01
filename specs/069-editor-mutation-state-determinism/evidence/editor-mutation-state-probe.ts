@@ -677,6 +677,88 @@ async function undoRedoStep(page: Page): Promise<unknown> {
   return details;
 }
 
+function intentEngineId(vector: StateVector): string | null {
+  return typeof (vector.renderIntent as { engineId?: unknown } | null)?.engineId === 'string'
+    ? (vector.renderIntent as { engineId: string }).engineId
+    : null;
+}
+
+function stableEngineState(vector: StateVector): Record<string, unknown> {
+  return {
+    activeTab: vector.activeTab,
+    renderIntentEngineId: intentEngineId(vector),
+    frameTreeLayoutEngine: vector.frameTreeLayoutEngine,
+    renderedEngine: vector.renderedEngine,
+    layoutOperator: vector.layoutOperator,
+    reloadParseLayoutEngine: vector.reloadParse.layoutEngine,
+  };
+}
+
+function assertBoundsNearlyEqual(label: string, left: readonly Bounds[], right: readonly Bounds[]): void {
+  const tolerance = 0.25;
+  const rightById = new Map(right.map((entry) => [entry.id, entry]));
+  const diffs: Array<Record<string, unknown>> = [];
+  for (const leftEntry of left) {
+    const rightEntry = rightById.get(leftEntry.id);
+    if (!rightEntry) {
+      diffs.push({ id: leftEntry.id, missing: 'right' });
+      continue;
+    }
+    for (const key of ['x', 'y', 'w', 'h'] as const) {
+      const delta = Math.abs(leftEntry[key] - rightEntry[key]);
+      if (delta > tolerance) {
+        diffs.push({ id: leftEntry.id, key, left: leftEntry[key], right: rightEntry[key], delta });
+      }
+    }
+  }
+  const leftIds = new Set(left.map((entry) => entry.id));
+  for (const rightEntry of right) {
+    if (!leftIds.has(rightEntry.id)) {
+      diffs.push({ id: rightEntry.id, missing: 'left' });
+    }
+  }
+  if (diffs.length > 0) {
+    throw new Error(`${label} bounds mismatch: ${JSON.stringify(diffs.slice(0, 12))}`);
+  }
+}
+
+function assertSameJson(label: string, left: unknown, right: unknown): void {
+  const leftJson = JSON.stringify(left);
+  const rightJson = JSON.stringify(right);
+  if (leftJson !== rightJson) {
+    throw new Error(`${label} mismatch: ${JSON.stringify({ left, right })}`);
+  }
+}
+
+async function undoRedoStateVectorStep(page: Page): Promise<unknown> {
+  const beforeUndo = await captureStateVector(page, 'undo-redo-state-vector:before-undo');
+  if (beforeUndo.undo.canUndo !== true) {
+    return { skipped: true, reason: 'undo unavailable before state-vector undo/redo', beforeUndo };
+  }
+
+  await page.locator('#btn-undo').click();
+  await settle(page);
+  const afterUndo = await captureStateVector(page, 'undo-redo-state-vector:after-undo');
+  if (afterUndo.undo.canRedo !== true) {
+    throw new Error(`redo unavailable after undo: ${JSON.stringify(afterUndo.undo)}`);
+  }
+  assertSameJson('engine state after undo', stableEngineState(afterUndo), stableEngineState(beforeUndo));
+
+  await page.locator('#btn-redo').click();
+  await settle(page);
+  const afterRedo = await captureStateVector(page, 'undo-redo-state-vector:after-redo');
+  assertSameJson('engine state after redo', stableEngineState(afterRedo), stableEngineState(beforeUndo));
+  assertSameJson('redo save payload', afterRedo.savePayload, beforeUndo.savePayload);
+  assertBoundsNearlyEqual('redo', afterRedo.bounds, beforeUndo.bounds);
+
+  return {
+    beforeUndo,
+    afterUndo,
+    afterRedo,
+    engineState: stableEngineState(afterRedo),
+  };
+}
+
 async function reloadStep(page: Page): Promise<unknown> {
   await page.reload({ waitUntil: 'domcontentloaded' });
   return { reloaded: true };
@@ -704,6 +786,15 @@ async function runCase(browser: Browser, slug: string): Promise<EvidenceCase> {
       steps.push(await runStep(page, 'engine-tab-switch', () => switchEngineStep(page)));
       steps.push(await runStep(page, 'engine-option-edit', () => editEngineOptionStep(page)));
       steps.push(await runStep(page, 'irrelevant-grid-control-attempt', () => irrelevantGridControlStep(page)));
+    }
+
+    if (slug === 'mongo-octavia-ha') {
+      steps.push(await runStep(page, 'engine-option-plus-style-select', async () => {
+        await selectFirstFrameStep(page);
+        await settle(page);
+        return editStyleVariantStep(page);
+      }));
+      steps.push(await runStep(page, 'undo-redo-after-engine-option-and-style', () => undoRedoStateVectorStep(page)));
     }
 
     if (slug === 'support-engineering-flow') {
