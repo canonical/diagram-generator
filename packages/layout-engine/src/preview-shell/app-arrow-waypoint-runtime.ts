@@ -7,6 +7,7 @@ import {
   startPreviewWaypointDragHost,
   type PreviewWaypointOverrideSnapshot,
   type PreviewWaypointHostNode,
+  type PreviewWaypointMutationTransactionOptions,
 } from './app-waypoint-host.js';
 import {
   readPreviewArrowPointsHost,
@@ -57,6 +58,8 @@ export interface CreatePreviewArrowWaypointRuntimeOptions {
   headLen: number;
   headHalf: number;
   color: string;
+  getMutationContext?: (() => Pick<PreviewWaypointMutationTransactionOptions, 'activeEngineId' | 'documentKind'> | null | undefined) | null;
+  onMutationTransaction?: PreviewWaypointMutationTransactionOptions['onMutationTransaction'];
 }
 
 export interface PreviewArrowWaypointRuntime {
@@ -122,6 +125,12 @@ export function createPreviewArrowWaypointRuntime(
       rebuildArrowSvg: options.rebuildArrowSvg,
     });
   };
+
+  const waypointTransaction = (sourceControl: string): PreviewWaypointMutationTransactionOptions => ({
+    ...(options.getMutationContext?.() ?? {}),
+    sourceControl,
+    onMutationTransaction: options.onMutationTransaction ?? null,
+  });
 
   const showArrowWaypointHandles = (cid: string): void => {
     const node = options.getArrowNode(cid);
@@ -192,6 +201,7 @@ export function createPreviewArrowWaypointRuntime(
       refreshInspector: refreshSelectedArrowInspector,
       captureOverrideEntries: options.captureOverrideEntries,
       commitOverridePatchAction: options.commitOverridePatchAction,
+      transaction: waypointTransaction('waypoint-drag'),
     });
   };
 
@@ -213,6 +223,7 @@ export function createPreviewArrowWaypointRuntime(
       refreshInspector: refreshSelectedArrowInspector,
       captureOverrideEntries: options.captureOverrideEntries,
       commitOverridePatchAction: options.commitOverridePatchAction,
+      transaction: waypointTransaction('waypoint-insert'),
     });
   };
 
@@ -227,6 +238,7 @@ export function createPreviewArrowWaypointRuntime(
       refreshInspector: refreshSelectedArrowInspector,
       captureOverrideEntries: options.captureOverrideEntries,
       commitOverridePatchAction: options.commitOverridePatchAction,
+      transaction: waypointTransaction('waypoint-remove'),
     });
   };
 

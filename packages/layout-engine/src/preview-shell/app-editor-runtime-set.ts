@@ -708,6 +708,8 @@ export function createPreviewEditorRuntimeSet(
     headLen: options.headLen,
     headHalf: options.headHalf,
     color: options.color,
+    getMutationContext: options.getMutationContext ?? null,
+    onMutationTransaction: options.onMutationTransaction ?? null,
   });
 
   return {

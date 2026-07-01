@@ -147,6 +147,7 @@ describe('preview waypoint host helpers', () => {
 
   it('tears down waypoint drag and commits the pruned waypoint override', () => {
     const actions: unknown[] = [];
+    const transactions: unknown[] = [];
     const node = {
       waypoints: [[20, 0], [40, 0]] as [number, number][],
     };
@@ -185,6 +186,7 @@ describe('preview waypoint host helpers', () => {
         actions.push({ showArrowWaypointHandles: cid });
       },
       persistWaypointOverride(cid) {
+        expect(transactions).toHaveLength(1);
         actions.push({ persistWaypointOverride: cid, waypoints: node.waypoints });
       },
       refreshInspector(cid) {
@@ -199,6 +201,13 @@ describe('preview waypoint host helpers', () => {
       endInteraction() {
         actions.push('endInteraction');
       },
+      transaction: {
+        activeEngineId: 'v3',
+        documentKind: 'frame-diagram',
+        onMutationTransaction(result) {
+          transactions.push(result);
+        },
+      },
     });
 
     expect(result).toEqual({
@@ -206,6 +215,18 @@ describe('preview waypoint host helpers', () => {
       cid: 'arrow-1',
     });
     expect(node.waypoints).toEqual([]);
+    expect(transactions).toEqual([
+      expect.objectContaining({
+        kind: 'committed',
+        mutationKind: 'waypoint',
+        sourceControl: 'waypoint-drag',
+        activeEngineId: 'v3',
+        documentKind: 'frame-diagram',
+        relayoutPolicy: 'local',
+        dirtyPolicy: 'mark-dirty',
+        undoPolicy: 'record',
+      }),
+    ]);
     expect(actions).toEqual([
       { removeListener: ['mousemove', 'onWaypointDragMove'] },
       { removeListener: ['mouseup', 'onWaypointDragUp'] },
@@ -226,6 +247,7 @@ describe('preview waypoint host helpers', () => {
 
   it('commits add/remove waypoint mutations through host callbacks', () => {
     const actions: unknown[] = [];
+    const transactions: unknown[] = [];
     const node = {
       waypoints: [[8, 8]] as [number, number][],
     };
@@ -241,6 +263,7 @@ describe('preview waypoint host helpers', () => {
         actions.push({ showArrowWaypointHandles: cid, waypoints: [...node.waypoints] });
       },
       persistWaypointOverride(cid: string) {
+        expect(transactions.length).toBeGreaterThan(0);
         actions.push({ persistWaypointOverride: cid, waypoints: [...node.waypoints] });
       },
       refreshInspector(cid: string) {
@@ -251,6 +274,13 @@ describe('preview waypoint host helpers', () => {
       },
       commitOverridePatchAction(label: string, beforeEntries: unknown, afterEntries: unknown) {
         actions.push({ commit: { label, beforeEntries, afterEntries } });
+      },
+      transaction: {
+        activeEngineId: 'v3',
+        documentKind: 'frame-diagram',
+        onMutationTransaction(result) {
+          transactions.push(result);
+        },
       },
     };
 
@@ -275,6 +305,28 @@ describe('preview waypoint host helpers', () => {
       cid: 'arrow-1',
     });
     expect(node.waypoints).toEqual([[24, 32]]);
+    expect(transactions).toEqual([
+      expect.objectContaining({
+        kind: 'committed',
+        mutationKind: 'waypoint',
+        sourceControl: 'waypoint-insert',
+        activeEngineId: 'v3',
+        documentKind: 'frame-diagram',
+        relayoutPolicy: 'local',
+        dirtyPolicy: 'mark-dirty',
+        undoPolicy: 'record',
+      }),
+      expect.objectContaining({
+        kind: 'committed',
+        mutationKind: 'waypoint',
+        sourceControl: 'waypoint-remove',
+        activeEngineId: 'v3',
+        documentKind: 'frame-diagram',
+        relayoutPolicy: 'local',
+        dirtyPolicy: 'mark-dirty',
+        undoPolicy: 'record',
+      }),
+    ]);
 
     expect(actions).toEqual([
       { rebuildArrowSvg: 'arrow-1', waypoints: [[8, 8], [24, 32]] },

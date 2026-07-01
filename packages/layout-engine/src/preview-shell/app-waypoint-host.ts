@@ -12,6 +12,10 @@ import {
   type PreviewWaypointDragState,
   resolvePreviewWaypointDragMove,
 } from './app-arrow-waypoints.js';
+import {
+  resolveEditorMutationTransaction,
+  type EditorMutationTransactionResult,
+} from './editor-mutation-transaction.js';
 
 /**
  * Preview waypoint host helpers (spec 043 shell coordinator slice O2).
@@ -26,6 +30,13 @@ export interface PreviewWaypointHostNode {
 
 export interface PreviewWaypointOverrideSnapshot {
   [key: string]: unknown;
+}
+
+export interface PreviewWaypointMutationTransactionOptions {
+  activeEngineId?: string | null;
+  documentKind?: string | null;
+  sourceControl?: string | null;
+  onMutationTransaction?: ((result: EditorMutationTransactionResult) => void) | null;
 }
 
 export interface PreviewWaypointHandleRenderSvgLike {
@@ -95,6 +106,7 @@ export interface CompletePreviewWaypointDragInteractionOptions {
     afterEntries: PreviewWaypointOverrideSnapshot,
   ) => void;
   endInteraction: () => void;
+  transaction?: PreviewWaypointMutationTransactionOptions | null;
 }
 
 export interface CompletePreviewWaypointDragInteractionEditorHostOptions extends Omit<
@@ -133,6 +145,7 @@ export interface CommitPreviewWaypointInsertOptions {
     beforeEntries: PreviewWaypointOverrideSnapshot,
     afterEntries: PreviewWaypointOverrideSnapshot,
   ) => void;
+  transaction?: PreviewWaypointMutationTransactionOptions | null;
 }
 
 export interface CommitPreviewWaypointRemovalOptions {
@@ -149,6 +162,7 @@ export interface CommitPreviewWaypointRemovalOptions {
     beforeEntries: PreviewWaypointOverrideSnapshot,
     afterEntries: PreviewWaypointOverrideSnapshot,
   ) => void;
+  transaction?: PreviewWaypointMutationTransactionOptions | null;
 }
 
 export interface PreviewWaypointHostResult {
@@ -165,6 +179,32 @@ function cloneWaypoints(waypoints: PreviewArrowPoint[] | null | undefined): Prev
   return Array.isArray(waypoints)
     ? waypoints.map((point) => [...point] as PreviewArrowPoint)
     : [];
+}
+
+function emitWaypointMutationTransaction(
+  options: PreviewWaypointMutationTransactionOptions | null | undefined,
+  sourceControl: string,
+): EditorMutationTransactionResult | null {
+  const result = resolveEditorMutationTransaction({
+    kind: 'waypoint',
+    sourceControl: options?.sourceControl ?? sourceControl,
+    activeEngineId: options?.activeEngineId ?? null,
+    documentKind: options?.documentKind ?? 'frame-diagram',
+    capabilityGate: {
+      applicable: true,
+      reason: 'waypoint edit is applicable to the selected arrow',
+      capability: 'waypointEditing',
+    },
+    relayoutPolicy: 'local',
+    dirtyPolicy: 'mark-dirty',
+    undoPolicy: 'record',
+    persistenceDelta: {
+      frameOverridesChanged: true,
+      savePayloadChanged: true,
+    },
+  });
+  options?.onMutationTransaction?.(result);
+  return result;
 }
 
 export function renderPreviewWaypointHandlesHost(
@@ -303,6 +343,7 @@ export function completePreviewWaypointDragInteraction(
       refreshInspector: options.refreshInspector,
       captureOverrideEntries: options.captureOverrideEntries,
       commitOverridePatchAction: options.commitOverridePatchAction,
+      transaction: options.transaction,
       endInteraction: () => options.interactionManager.endInteraction(),
     });
   }
@@ -327,6 +368,7 @@ export function completePreviewWaypointDragInteraction(
     waypoints: currentWaypoints,
     endpoints: options.readEndpoints(state.cid),
   });
+  emitWaypointMutationTransaction(options.transaction, 'waypoint-drag');
 
   if (pruned.changed && node) {
     node.waypoints = pruned.waypoints;
@@ -362,6 +404,7 @@ export function commitPreviewWaypointInsert(
 
   const waypointIds = [options.cid];
   const beforeEntries = options.captureOverrideEntries(waypointIds);
+  emitWaypointMutationTransaction(options.transaction, 'waypoint-insert');
   node.waypoints = insertPreviewWaypoint(
     cloneWaypoints(node.waypoints),
     options.segmentIndex,
@@ -401,6 +444,7 @@ export function commitPreviewWaypointRemoval(
 
   const waypointIds = [options.cid];
   const beforeEntries = options.captureOverrideEntries(waypointIds);
+  emitWaypointMutationTransaction(options.transaction, 'waypoint-remove');
   node.waypoints = nextWaypoints;
   options.rebuildArrowSvg(options.cid);
   options.showArrowWaypointHandles(options.cid);
