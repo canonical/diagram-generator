@@ -5,6 +5,7 @@ import {
   startPreviewTextEditHost,
   suspendPreviewTextEditSelectionChromeHost,
   type PreviewTextEditInteractionState,
+  type PreviewTextEditMutationTransactionOptions,
   type PreviewTextEditOverrideSnapshot,
 } from './app-text-edit-host.js';
 
@@ -38,6 +39,8 @@ export interface CreatePreviewTextEditRuntimeOptions {
   ) => void;
   reapplySelection: () => void;
   scheduleRelayout: (cid: string) => void;
+  getMutationContext?: (() => Pick<PreviewTextEditMutationTransactionOptions, 'activeEngineId' | 'documentKind'> | null | undefined) | null;
+  onMutationTransaction?: PreviewTextEditMutationTransactionOptions['onMutationTransaction'];
 }
 
 export interface CreatePreviewTextEditRuntimeFromHostOptions {
@@ -65,6 +68,8 @@ export interface CreatePreviewTextEditRuntimeFromHostOptions {
   ) => void;
   reapplySelection: () => void;
   scheduleRelayout: (cid: string) => void;
+  getMutationContext?: CreatePreviewTextEditRuntimeOptions['getMutationContext'];
+  onMutationTransaction?: CreatePreviewTextEditRuntimeOptions['onMutationTransaction'];
 }
 
 export interface PreviewTextEditRuntime {
@@ -130,6 +135,10 @@ export function createPreviewTextEditRuntime(
         endInteraction: () => options.interactionManager.endInteraction(),
         reapplySelection: options.reapplySelection,
         scheduleRelayout: options.scheduleRelayout,
+        transaction: {
+          ...(options.getMutationContext?.() ?? {}),
+          onMutationTransaction: options.onMutationTransaction ?? null,
+        },
       });
     },
     cancelTextEdit() {
@@ -175,5 +184,7 @@ export function createPreviewTextEditRuntimeFromHost(
     commitOverridePatchAction: options.commitOverridePatchAction,
     reapplySelection: options.reapplySelection,
     scheduleRelayout: options.scheduleRelayout,
+    getMutationContext: options.getMutationContext ?? null,
+    onMutationTransaction: options.onMutationTransaction ?? null,
   });
 }

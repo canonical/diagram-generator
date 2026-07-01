@@ -122,14 +122,20 @@
       `geometry-prop-edit` as `inspector-layout` from
       `single-prop:min_width`, `relayoutPolicy: engine`, dirty
       `false -> true`, undo `false -> true`, changed bounds signature, and no
-      local state-vector violations. Remaining T031 work: resize/drag,
-      and text-edit policy transactions.
+      local state-vector violations. Remaining T031 work: resize/drag policy
+      transactions.
       **Progress evidence (waypoint sub-slice)**:
       `npm --prefix packages/layout-engine test -- app-waypoint-host app-arrow-waypoint-runtime app-editor-runtime-set browser-entry-contract`;
       `npm --prefix packages/layout-engine exec tsc -- --noEmit -p packages/layout-engine/tsconfig.json`.
       Waypoint add/move/remove commits emit a `waypoint` transaction before
       persistence/undo callbacks with `relayoutPolicy: local`, dirty
       `mark-dirty`, undo `record`, and active document context.
+      **Progress evidence (text-edit sub-slice)**:
+      `npm --prefix packages/layout-engine test -- app-text-edit-host app-text-edit-runtime app-waypoint-host app-arrow-waypoint-runtime app-editor-runtime-set browser-entry-contract`;
+      `npm --prefix packages/layout-engine exec tsc -- --noEmit -p packages/layout-engine/tsconfig.json`.
+      Text edit commits emit a `text-edit` transaction before text override
+      writes with `relayoutPolicy: engine`, dirty `mark-dirty`, undo `record`,
+      and active document context.
 
 - [ ] **T032** Make undo/redo restore complete state vectors.
       **Do**: undo/redo must restore engine intent, option bucket, frame

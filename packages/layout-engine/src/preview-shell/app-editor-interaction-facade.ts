@@ -656,6 +656,41 @@ export function createPreviewEditorInteractionFacadeFromBrowserHost(
       inset: browser.inset,
     }) as ReturnType<RuntimeEditorRuntimeSetOptions['getSelectionActionInfo']>
   );
+  const getEditorMutationContext = () => {
+    const previewWindow = options.shared.document.defaultView as (
+      Window & typeof globalThis & {
+        __DG_previewRenderIntent?: { engineId?: string | null } | null;
+        __DG_CONFIG?: {
+          active_engine_id?: string | null;
+          layout_engine?: string | null;
+          document_kind?: string | null;
+        } | null;
+        __DG_getPreviewBridgeHostContract?: (() => {
+          getFrameTreeJson?: (() => { layoutEngine?: string | null } | null) | null;
+        }) | null;
+      }
+    ) | null;
+    const frameTree = previewWindow?.__DG_getPreviewBridgeHostContract?.()?.getFrameTreeJson?.() ?? null;
+    return {
+      activeEngineId: previewWindow?.__DG_previewRenderIntent?.engineId
+        ?? frameTree?.layoutEngine
+        ?? previewWindow?.__DG_CONFIG?.active_engine_id
+        ?? previewWindow?.__DG_CONFIG?.layout_engine
+        ?? null,
+      documentKind: previewWindow?.__DG_CONFIG?.document_kind ?? 'frame-diagram',
+    };
+  };
+  const recordEditorMutationTransaction = (result: unknown): void => {
+    const previewWindow = options.shared.document.defaultView as (
+      Window & typeof globalThis & {
+        __DG_lastEditorMutationTransactionResult?: unknown;
+        __DG_lastEditorMutationStateViolations?: readonly unknown[] | null;
+      }
+    ) | null;
+    if (!previewWindow) return;
+    previewWindow.__DG_lastEditorMutationTransactionResult = result;
+    previewWindow.__DG_lastEditorMutationStateViolations = null;
+  };
   let runtime: PreviewEditorInteractionFacade | null = null;
   const onDragUp = () => {
     previewShellInteraction.completePreviewDragInteraction({
@@ -757,6 +792,8 @@ export function createPreviewEditorInteractionFacadeFromBrowserHost(
         browser.commitOverridePatchAction as RuntimeTextEditOptions['commitOverridePatchAction'],
       reapplySelection: browser.reapplySelection,
       scheduleRelayout: browser.scheduleTextRelayout,
+      getMutationContext: getEditorMutationContext,
+      onMutationTransaction: recordEditorMutationTransaction,
     },
     resizeInteraction: {
       interactionMode: browser.interactionMode,
@@ -864,41 +901,8 @@ export function createPreviewEditorInteractionFacadeFromBrowserHost(
       formatAsDefinedStyleLabel:
         browser.formatAsDefinedStyleLabel as RuntimeEditorRuntimeSetOptions['formatAsDefinedStyleLabel'],
       syncPanelVisibility: browser.syncPanelVisibility ?? null,
-      getMutationContext: () => {
-        const previewWindow = options.shared.document.defaultView as (
-          Window & typeof globalThis & {
-            __DG_previewRenderIntent?: { engineId?: string | null } | null;
-            __DG_CONFIG?: {
-              active_engine_id?: string | null;
-              layout_engine?: string | null;
-              document_kind?: string | null;
-            } | null;
-            __DG_getPreviewBridgeHostContract?: (() => {
-              getFrameTreeJson?: (() => { layoutEngine?: string | null } | null) | null;
-            }) | null;
-          }
-        ) | null;
-        const frameTree = previewWindow?.__DG_getPreviewBridgeHostContract?.()?.getFrameTreeJson?.() ?? null;
-        return {
-          activeEngineId: previewWindow?.__DG_previewRenderIntent?.engineId
-            ?? frameTree?.layoutEngine
-            ?? previewWindow?.__DG_CONFIG?.active_engine_id
-            ?? previewWindow?.__DG_CONFIG?.layout_engine
-            ?? null,
-          documentKind: previewWindow?.__DG_CONFIG?.document_kind ?? 'frame-diagram',
-        };
-      },
-      onMutationTransaction: (result) => {
-        const previewWindow = options.shared.document.defaultView as (
-          Window & typeof globalThis & {
-            __DG_lastEditorMutationTransactionResult?: unknown;
-            __DG_lastEditorMutationStateViolations?: readonly unknown[] | null;
-          }
-        ) | null;
-        if (!previewWindow) return;
-        previewWindow.__DG_lastEditorMutationTransactionResult = result;
-        previewWindow.__DG_lastEditorMutationStateViolations = null;
-      },
+      getMutationContext: getEditorMutationContext,
+      onMutationTransaction: recordEditorMutationTransaction,
       shouldShowAutolayoutInspector: browser.shouldShowAutolayoutInspector ?? null,
       editorState: {
         captureOverrideEntries: browser.captureOverrideEntries,
