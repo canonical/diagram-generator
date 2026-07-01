@@ -298,6 +298,68 @@ test("persist→reload round-trip: graph-engine namespaces survive frame yaml re
   });
 });
 
+test("persist→reload round-trip: committed state vector survives temp frame yaml save", () => {
+  const baselineText = [
+    "engine: v3",
+    "title: Demo",
+    "meta:",
+    "  layout_engine: elk-layered",
+    "root:",
+    "  id: page",
+    "  direction: vertical",
+    "  children:",
+    "    - id: leaf_a",
+    "      label: [A]",
+    "",
+  ].join("\n");
+  const framePath = writeTempFrame("committed-state-vector.yaml", baselineText);
+  const savePayload: PersistOverridePayload = {
+    layout_engine: "dagre",
+    engine_layout_overrides: {
+      "meta.dagre": {
+        "dagre.rankdir": "LR",
+        "dagre.ranksep": 128,
+      },
+    },
+    overrides: {
+      leaf_a: {
+        min_width: 320,
+        style: "parent",
+      },
+    },
+  };
+  assert.throws(
+    () => persistFrameDiagramOverridePayloadToYaml(framePath, baselineText, {
+      ...savePayload,
+      engine_layout_overrides: {
+        "meta.dagre": {
+          ...savePayload.engine_layout_overrides?.["meta.dagre"],
+          "dagre.unsupported": "reject-me",
+        },
+      },
+    }),
+    /unsupported dagre keys: dagre\.unsupported/,
+  );
+  const output = persistFrameDiagramOverridePayloadToYaml(framePath, baselineText, savePayload);
+  fs.writeFileSync(framePath, output, "utf8");
+
+  const reloaded = loadFrameYaml(framePath);
+  const leafA = reloaded.root.children.find((child) => child.id === "leaf_a");
+
+  assert.equal(reloaded.layoutEngine, "dagre");
+  assert.deepEqual(reloaded.engineLayout?.["meta.dagre"], {
+    "dagre.rankdir": "LR",
+    "dagre.ranksep": "128",
+  });
+  assert.equal(leafA?.minWidth, 320);
+  assert.equal(leafA?.level, 2);
+  assert.equal(leafA?.fill, "#F3F3F3");
+  assert.equal(leafA?.border, "SOLID");
+
+  const reloadedText = fs.readFileSync(framePath, "utf8");
+  assert.equal(persistFrameDiagramOverridePayloadToYaml(framePath, reloadedText, {}), reloadedText);
+});
+
 test("persist elk layout overrides replaces meta.elk entries canonically", () => {
   const baselineText = [
     "engine: v3",

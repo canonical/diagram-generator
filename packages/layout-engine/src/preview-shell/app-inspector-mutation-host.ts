@@ -21,7 +21,7 @@ export interface DispatchPreviewSingleFrameAlignHostOptions {
     value: unknown;
     node: unknown;
     snapToGrid: (value: number) => number;
-  }) => unknown;
+  }) => PreviewMutationHostResult;
   overrides: Record<string, Record<string, unknown>>;
   coercedKeys: Set<string>;
   getNode: (cid: string) => unknown;
@@ -80,7 +80,7 @@ export interface DispatchPreviewSingleFrameSizeHostOptions {
     cid: string;
     dimension: string;
     px: number;
-  }) => unknown;
+  }) => PreviewMutationHostResult;
   overrides: Record<string, Record<string, unknown>>;
   coercedKeys: Set<string>;
   setDirty: (dirty: boolean) => void;
@@ -263,10 +263,10 @@ function selectionIds(selectedIds: Iterable<string>): string[] {
 
 export function dispatchPreviewSingleFrameAlignHost(
   options: DispatchPreviewSingleFrameAlignHostOptions,
-): void {
+): PreviewMutationHostResult {
   const ids = [options.cid];
   const beforeEntries = options.captureOverrideEntries(ids);
-  options.applySingleFramePropMutation({
+  const result = options.applySingleFramePropMutation({
     overrides: options.overrides,
     coercedKeys: options.coercedKeys,
     cid: options.cid,
@@ -275,6 +275,10 @@ export function dispatchPreviewSingleFrameAlignHost(
     node: options.getNode(options.cid),
     snapToGrid: options.snapToGrid,
   });
+  if (result.kind === 'none') {
+    options.renderSelectionInspector(options.cid);
+    return result;
+  }
   options.setDirty(true);
   options.commitOverridePatchAction(
     'Change alignment',
@@ -283,11 +287,12 @@ export function dispatchPreviewSingleFrameAlignHost(
   );
   options.renderSelectionInspector(options.cid);
   options.scheduleRelayout(options.cid);
+  return result;
 }
 
 export function dispatchPreviewSingleFramePropHost(
   options: DispatchPreviewSingleFramePropHostOptions,
-): void {
+): PreviewMutationHostResult {
   const ids = [options.cid];
   const beforeEntries = options.captureOverrideEntries(ids);
   const result = options.applySingleFramePropMutation({
@@ -299,6 +304,10 @@ export function dispatchPreviewSingleFramePropHost(
     node: options.getNode(options.cid),
     snapToGrid: options.snapToGrid,
   });
+  if (result.kind === 'none') {
+    options.renderSelectionInspector(options.cid);
+    return result;
+  }
   options.setDirty(true);
   const label = result.kind === 'clear' && options.prop !== 'gap_delta'
     ? `Clear ${options.prop}`
@@ -306,11 +315,12 @@ export function dispatchPreviewSingleFramePropHost(
   options.commitOverridePatchAction(label, beforeEntries, options.captureOverrideEntries(ids));
   options.scheduleRelayout(options.cid);
   options.renderSelectionInspector(options.cid);
+  return result;
 }
 
 export function dispatchPreviewSingleFrameSizeHost(
   options: DispatchPreviewSingleFrameSizeHostOptions,
-): void {
+): PreviewMutationHostResult {
   const px = options.resolveFrameSizePx({
     dimension: options.dimension,
     value: options.value,
@@ -320,17 +330,21 @@ export function dispatchPreviewSingleFrameSizeHost(
     baselineStep: options.baselineStep,
   });
   if (px == null) {
-    return;
+    return { kind: 'none' };
   }
   const ids = [options.cid];
   const beforeEntries = options.captureOverrideEntries(ids);
-  options.applySingleFrameSizeMutation({
+  const result = options.applySingleFrameSizeMutation({
     overrides: options.overrides,
     coercedKeys: options.coercedKeys,
     cid: options.cid,
     dimension: options.dimension,
     px,
   });
+  if (result.kind === 'none') {
+    options.renderSelectionInspector(options.cid);
+    return result;
+  }
   options.setDirty(true);
   options.commitOverridePatchAction(
     `Set ${options.dimension}`,
@@ -339,6 +353,7 @@ export function dispatchPreviewSingleFrameSizeHost(
   );
   options.requestRelayout(options.cid);
   options.renderSelectionInspector(options.cid);
+  return result;
 }
 
 export function dispatchPreviewMultiFrameAlignHost(

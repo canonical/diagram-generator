@@ -86,6 +86,7 @@ export interface CreatePreviewEditorRelayoutFacadeFromEditorHostOptions<
   rerenderStageFromModel: () => Promise<void>;
   applyLocalRefresh: (options: { syncGridControls: boolean }) => void | Promise<void>;
   syncGridControls?: (() => void) | null;
+  syncRestoredFrameTreeState?: ((frameTree: unknown) => void) | null;
   syncDirtyFromSerialized: (serializedState: string) => void;
   buildTreeUi: () => void;
   applyWaypointOverrides: () => void;
@@ -300,6 +301,7 @@ export function createPreviewEditorRelayoutFacadeFromEditorHost<
       requestRelayout,
       applyLocalRefresh: options.applyLocalRefresh,
       syncGridControls: options.syncGridControls ?? null,
+      syncRestoredFrameTreeState: options.syncRestoredFrameTreeState ?? null,
       syncDirtyFromSerialized: options.syncDirtyFromSerialized,
     });
     return stateRestoreRuntime;

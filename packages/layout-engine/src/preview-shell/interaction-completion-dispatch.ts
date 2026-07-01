@@ -5,6 +5,11 @@ import {
   type DragReorderTarget,
   type ResizeCompletionPlan,
 } from './interaction-completion.js';
+import {
+  resolveEditorMutationTransaction,
+  type EditorMutationRelayoutPolicy,
+  type EditorMutationTransactionResult,
+} from './editor-mutation-transaction.js';
 
 /**
  * Completion dispatch helpers (spec 043 interaction slice H).
@@ -32,6 +37,13 @@ export interface PreviewResizeCompletionState {
   overrideSnapshotBefore: unknown;
 }
 
+export interface PreviewGeometryMutationTransactionOptions {
+  activeEngineId?: string | null;
+  documentKind?: string | null;
+  relayoutPolicy?: EditorMutationRelayoutPolicy | null;
+  onMutationTransaction?: ((result: EditorMutationTransactionResult) => void) | null;
+}
+
 export interface PreviewDragCompletionDispatchOptions {
   state?: PreviewDragCompletionState | null;
   applyReorder: (parentId: string, cid: string, insertIndex: number) => void;
@@ -46,6 +58,7 @@ export interface PreviewDragCompletionDispatchOptions {
   ) => void;
   endInteraction: () => void;
   autoFitArtboard: () => void;
+  transaction?: PreviewGeometryMutationTransactionOptions | null;
 }
 
 export interface PreviewResizeCompletionDispatchOptions {
@@ -68,6 +81,39 @@ export interface PreviewResizeCompletionDispatchOptions {
   showHandles: () => void;
   endInteraction: () => void;
   autoFitArtboard: () => void;
+  transaction?: PreviewGeometryMutationTransactionOptions | null;
+}
+
+function emitGeometryMutationTransaction(
+  options: PreviewGeometryMutationTransactionOptions | null | undefined,
+  settings: {
+    sourceControl: string;
+    reason: string;
+    relayoutPolicy: EditorMutationRelayoutPolicy;
+    frameTreeChanged?: boolean;
+  },
+): EditorMutationTransactionResult | null {
+  const result = resolveEditorMutationTransaction({
+    kind: 'geometry',
+    sourceControl: settings.sourceControl,
+    activeEngineId: options?.activeEngineId ?? null,
+    documentKind: options?.documentKind ?? 'frame-diagram',
+    capabilityGate: {
+      applicable: true,
+      reason: settings.reason,
+      capability: 'geometryEditing',
+    },
+    relayoutPolicy: settings.relayoutPolicy,
+    dirtyPolicy: 'mark-dirty',
+    undoPolicy: 'record',
+    persistenceDelta: {
+      frameOverridesChanged: !settings.frameTreeChanged,
+      frameTreeChanged: settings.frameTreeChanged,
+      savePayloadChanged: true,
+    },
+  });
+  options?.onMutationTransaction?.(result);
+  return result;
 }
 
 export function dispatchPreviewDragCompletion(
@@ -101,6 +147,11 @@ export function dispatchPreviewDragCompletion(
     } else {
       options.selectComponent(plan.selectedId);
     }
+    emitGeometryMutationTransaction(options.transaction, {
+      sourceControl: 'drag-free',
+      reason: 'drag changed component position overrides',
+      relayoutPolicy: 'local',
+    });
     options.commitOverridePatchAction(
       plan.actionLabel,
       state.overrideSnapshotBefore,
@@ -144,6 +195,11 @@ export function dispatchPreviewResizeCompletion(
     } else {
       options.selectComponent(plan.selectedId);
     }
+    emitGeometryMutationTransaction(options.transaction, {
+      sourceControl: 'resize-handle',
+      reason: 'resize changed component geometry overrides',
+      relayoutPolicy: options.transaction?.relayoutPolicy ?? 'local',
+    });
     options.commitOverridePatchAction(
       plan.actionLabel,
       state.overrideSnapshotBefore,

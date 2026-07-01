@@ -24,6 +24,7 @@ import { commitPreviewRenderIntentToWindow } from '../src/preview-shell/preview-
 import { loadFrameYaml } from '../src/frame-yaml-loader.js';
 import { serializeFrameDiagram } from '../src/frame-serialize.js';
 import { MockTextAdapter } from '../src/text-measure.js';
+import { loadNormalizedFrameFixture } from './helpers/frame-fixture-normalization.js';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const FRAMES_DIR = join(__dirname, '../../..', 'scripts/diagrams/frames');
@@ -331,7 +332,7 @@ describe('renderFreshPreviewSvg', () => {
 
   it('reads a committed render intent over the authored frame-tree engine', async () => {
     const ownerDocument = new FakeDocument();
-    const diagram = loadFrameYaml(join(FRAMES_DIR, 'mongo-octavia-ha.yaml'));
+    const diagram = loadNormalizedFrameFixture('mongo-octavia-ha', { engine: 'elk-layered' });
     expect(diagram.layoutEngine).toBe('elk-layered');
     const frameTreeJson = serializeFrameDiagram(diagram);
     const previewWindow = {

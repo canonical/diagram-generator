@@ -11,6 +11,12 @@ import {
   type PreviewRenderIntent,
   type PreviewRenderIntentFrameTree,
 } from './preview-render-intent.js';
+import {
+  compareEditorMutationStateVector,
+  resolveEditorMutationTransaction,
+  type EditorMutationStateVectorViolation,
+  type EditorMutationTransactionResult,
+} from './editor-mutation-transaction.js';
 
 export interface PreviewEngineWorkspaceChromeConfig {
   slug?: string | null;
@@ -31,6 +37,9 @@ export type PreviewEngineWorkspaceRuntimeWindow = Window & typeof globalThis & {
   __DG_CONFIG?: PreviewEngineWorkspaceChromeConfig | null;
   __DG_previewRenderIntent?: PreviewRenderIntent | null;
   __DG_previewEngineWorkspaceState?: PreviewEngineWorkspaceRuntimeState | null;
+  __DG_lastEditorMutationTransactionResult?: EditorMutationTransactionResult | null;
+  __DG_lastEditorMutationStateViolations?: readonly EditorMutationStateVectorViolation[] | null;
+  __DG_activeLayoutOperatorKey?: string | null;
   __DG_previewBridgeHostRuntime?: {
     getFrameTreeJson?: (() => unknown) | null;
     setFrameTreeLayoutEngine?: ((layoutEngine: string | null | undefined) => string | null) | null;
@@ -131,6 +140,19 @@ function readFrameTreeLayoutEngine(
     intent: previewWindow.__DG_previewRenderIntent ?? null,
     frameTreeJson,
   });
+}
+
+function renderedStageLayoutEngine(document: Document): string | null {
+  const querySelector = (document as Document & {
+    querySelector?: (selector: string) => Element | null;
+  }).querySelector;
+  return querySelector?.call(document, '#stage svg')?.getAttribute('data-layout-engine') ?? null;
+}
+
+function selectedEngineTab(tabs: HTMLElement | null): string | null {
+  const selected = getTabButtons(tabs)
+    .find((button) => button.getAttribute('aria-selected') === 'true');
+  return selected?.getAttribute('data-engine-id') ?? null;
 }
 
 function commitFrameTreeLayoutEngine(
@@ -322,6 +344,38 @@ export function initPreviewEngineWorkspaceChrome(
     if (!nextEngineId || nextEngineId === workspace.activeEngineId) {
       return;
     }
+    const tabEngineIds = new Set(workspace.tabs.map((tab) => tab.engineId));
+    const engineIsSelectable = tabEngineIds.has(nextEngineId);
+    const transaction = resolveEditorMutationTransaction({
+      kind: 'engine-tab',
+      sourceControl: 'engine-switcher-tabs',
+      activeEngineId: workspace.activeEngineId,
+      documentKind: options.previewWindow.__DG_CONFIG?.document_kind ?? null,
+      capabilityGate: {
+        applicable: engineIsSelectable,
+        reason: engineIsSelectable
+          ? 'engine is compatible with this preview document'
+          : `engine '${nextEngineId}' is not compatible with this preview document`,
+        capability: 'layoutEngine',
+      },
+      renderIntentDelta: {
+        engineId: nextEngineId,
+        changed: true,
+      },
+      persistenceDelta: {
+        frameTreeChanged: true,
+        savePayloadChanged: true,
+      },
+      relayoutPolicy: 'fresh-render',
+      dirtyPolicy: 'mark-dirty',
+      undoPolicy: 'none',
+    });
+    options.previewWindow.__DG_lastEditorMutationStateViolations = [];
+    if (transaction.kind !== 'committed') {
+      options.previewWindow.__DG_lastEditorMutationTransactionResult = transaction;
+      setHelpText(help, transaction.reason, transaction.kind === 'rejected');
+      return;
+    }
     setPending(true);
     const previousWorkspace = workspace;
     const previousFrameTreeLayoutEngine = readFrameTreeLayoutEngine(options.previewWindow)
@@ -337,6 +391,20 @@ export function initPreviewEngineWorkspaceChrome(
       await options.previewWindow.__DG_rerenderPreviewEngineWorkspaceStage?.();
       options.previewWindow.__DG_syncPreviewEngineWorkspacePanels?.();
       options.previewWindow.PreviewSaveClient?.syncSaveButton?.();
+      options.previewWindow.__DG_lastEditorMutationTransactionResult = transaction;
+      options.previewWindow.__DG_lastEditorMutationStateViolations = compareEditorMutationStateVector({
+        transaction,
+        after: {
+          activeTab: selectedEngineTab(tabs),
+          renderIntentEngineId: resolvePreviewRenderIntentLayoutEngine({
+            intent: options.previewWindow.__DG_previewRenderIntent ?? null,
+          }),
+          frameTreeLayoutEngine: readFrameTreeLayoutEngine(options.previewWindow),
+          activeOptionBucket: options.previewWindow.__DG_activeLayoutOperatorKey ?? null,
+          renderedEngine: renderedStageLayoutEngine(options.document),
+          dirty: options.previewWindow.PreviewSaveClient?.isDirty?.() ?? null,
+        },
+      });
     } catch (error) {
       workspace = previousWorkspace;
       keyboardFocusEngineId = previousWorkspace.activeEngineId;
@@ -347,6 +415,22 @@ export function initPreviewEngineWorkspaceChrome(
         error instanceof Error ? error.message : 'Failed to switch preview engine.',
         true,
       );
+      options.previewWindow.__DG_lastEditorMutationTransactionResult = resolveEditorMutationTransaction({
+        kind: 'engine-tab',
+        sourceControl: 'engine-switcher-tabs',
+        activeEngineId: previousWorkspace.activeEngineId,
+        documentKind: options.previewWindow.__DG_CONFIG?.document_kind ?? null,
+        capabilityGate: {
+          applicable: true,
+          reason: 'engine switch rolled back after commit failure',
+          capability: 'layoutEngine',
+        },
+        relayoutPolicy: 'fresh-render',
+        dirtyPolicy: 'preserve',
+        undoPolicy: 'none',
+        rejectReason: error instanceof Error ? error.message : 'Failed to switch preview engine.',
+      });
+      options.previewWindow.__DG_lastEditorMutationStateViolations = [];
     } finally {
       setPending(false);
     }

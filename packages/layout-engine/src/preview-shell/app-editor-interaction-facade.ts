@@ -33,6 +33,14 @@ import {
   type CreatePreviewTextEditRuntimeFromHostOptions,
   type PreviewTextEditRuntime,
 } from './app-text-edit-runtime.js';
+import {
+  compareEditorMutationStateVector,
+  type EditorMutationTransactionResult,
+} from './editor-mutation-transaction.js';
+import {
+  resolvePreviewRenderIntentLayoutEngine,
+  type PreviewRenderIntent,
+} from './preview-render-intent.js';
 
 type PointerInteractionHostOptions = Omit<
   CreatePreviewPointerInteractionRuntimeFromHostOptions,
@@ -58,6 +66,55 @@ type EditorRuntimeSetHostOptions = Omit<
   CreatePreviewEditorRuntimeSetFromEditorHostOptions,
   'removeResizeHandles' | 'showResizeHandles'
 >;
+
+type InteractionMutationPreviewWindow = Window & typeof globalThis & {
+  __DG_previewRenderIntent?: PreviewRenderIntent | null;
+  __DG_CONFIG?: {
+    active_engine_id?: string | null;
+    layout_engine?: string | null;
+    document_kind?: string | null;
+  } | null;
+  __DG_activeLayoutOperatorKey?: string | null;
+  __DG_lastEditorMutationTransactionResult?: unknown;
+  __DG_lastEditorMutationStateViolations?: readonly unknown[] | null;
+  __DG_getPreviewBridgeHostContract?: (() => {
+    getFrameTreeJson?: (() => { layoutEngine?: string | null } | null) | null;
+  }) | null;
+  PreviewSaveClient?: {
+    isDirty?: (() => boolean) | null;
+  } | null;
+};
+
+function readInteractionFrameTreeLayoutEngine(
+  previewWindow: InteractionMutationPreviewWindow | null,
+): string | null {
+  const frameTree = previewWindow?.__DG_getPreviewBridgeHostContract?.()?.getFrameTreeJson?.() ?? null;
+  return resolvePreviewRenderIntentLayoutEngine({
+    intent: previewWindow?.__DG_previewRenderIntent ?? null,
+    frameTreeJson: frameTree,
+    activeEngineId: previewWindow?.__DG_CONFIG?.active_engine_id ?? null,
+    layoutEngine: previewWindow?.__DG_CONFIG?.layout_engine ?? null,
+  });
+}
+
+function readInteractionRenderedEngine(document: Document): string | null {
+  return document.querySelector('#stage svg')?.getAttribute('data-layout-engine') ?? null;
+}
+
+function readSelectedInteractionEngineTab(document: Document): string | null {
+  const selected = document.querySelector('[data-engine-id][aria-selected="true"]');
+  return selected?.getAttribute('data-engine-id') ?? null;
+}
+
+function readUndoAvailability(document: Document): boolean | null {
+  const button = document.getElementById('btn-undo') as { disabled?: boolean } | null;
+  return button ? button.disabled !== true : null;
+}
+
+function readRedoAvailability(document: Document): boolean | null {
+  const button = document.getElementById('btn-redo') as { disabled?: boolean } | null;
+  return button ? button.disabled !== true : null;
+}
 
 export interface CreatePreviewEditorInteractionFacadeFromEditorHostOptions {
   stageBinding: CreatePreviewStageBindingRuntimeFromHostOptions;
@@ -230,6 +287,8 @@ export interface PreviewEditorInteractionBrowserHostOptions {
   renderMultiSelectionInspector: () => void;
   scheduleLayoutResizeRelayout: PreviewEditorInteractionBrowserHostCallback;
   scheduleV3ResizeRelayout: PreviewEditorInteractionBrowserHostCallback;
+  getResizeCompletionRelayoutPolicy?:
+    RuntimeResizeInteractionOptions['getResizeCompletionRelayoutPolicy'];
   cancelLiveRelayout: () => void;
   cleanOverride: (cid: string) => void;
   persistResize: PreviewEditorInteractionBrowserHostCallback;
@@ -656,6 +715,40 @@ export function createPreviewEditorInteractionFacadeFromBrowserHost(
       inset: browser.inset,
     }) as ReturnType<RuntimeEditorRuntimeSetOptions['getSelectionActionInfo']>
   );
+  const getEditorMutationContext = () => {
+    const previewWindow = options.shared.document.defaultView as InteractionMutationPreviewWindow | null;
+    return {
+      activeEngineId: previewWindow?.__DG_previewRenderIntent?.engineId
+        ?? readInteractionFrameTreeLayoutEngine(previewWindow)
+        ?? previewWindow?.__DG_CONFIG?.active_engine_id
+        ?? previewWindow?.__DG_CONFIG?.layout_engine
+        ?? null,
+      documentKind: previewWindow?.__DG_CONFIG?.document_kind ?? 'frame-diagram',
+    };
+  };
+  const recordEditorMutationTransaction = (result: unknown): void => {
+    const previewWindow = options.shared.document.defaultView as InteractionMutationPreviewWindow | null;
+    if (!previewWindow) return;
+    previewWindow.__DG_lastEditorMutationTransactionResult = result;
+    previewWindow.__DG_lastEditorMutationStateViolations = compareEditorMutationStateVector({
+      transaction: result as EditorMutationTransactionResult,
+      after: {
+        activeTab: readSelectedInteractionEngineTab(document),
+        renderIntentEngineId: resolvePreviewRenderIntentLayoutEngine({
+          intent: previewWindow.__DG_previewRenderIntent ?? null,
+          activeEngineId: previewWindow.__DG_CONFIG?.active_engine_id ?? null,
+          layoutEngine: previewWindow.__DG_CONFIG?.layout_engine ?? null,
+          frameTreeJson: previewWindow.__DG_getPreviewBridgeHostContract?.()?.getFrameTreeJson?.() ?? null,
+        }),
+        frameTreeLayoutEngine: readInteractionFrameTreeLayoutEngine(previewWindow),
+        activeOptionBucket: previewWindow.__DG_activeLayoutOperatorKey ?? null,
+        renderedEngine: readInteractionRenderedEngine(document),
+        dirty: previewWindow.PreviewSaveClient?.isDirty?.() ?? null,
+        canUndo: readUndoAvailability(document),
+        canRedo: readRedoAvailability(document),
+      },
+    });
+  };
   let runtime: PreviewEditorInteractionFacade | null = null;
   const onDragUp = () => {
     previewShellInteraction.completePreviewDragInteraction({
@@ -678,6 +771,10 @@ export function createPreviewEditorInteractionFacadeFromBrowserHost(
         browser.selectComponent as RuntimePointerInteractionOptions['selectComponent'],
       commitOverridePatchAction: browser.commitOverridePatchAction,
       autoFitArtboard: browser.autoFitArtboard,
+      transaction: {
+        ...getEditorMutationContext(),
+        onMutationTransaction: recordEditorMutationTransaction,
+      },
     });
   };
 
@@ -757,6 +854,8 @@ export function createPreviewEditorInteractionFacadeFromBrowserHost(
         browser.commitOverridePatchAction as RuntimeTextEditOptions['commitOverridePatchAction'],
       reapplySelection: browser.reapplySelection,
       scheduleRelayout: browser.scheduleTextRelayout,
+      getMutationContext: getEditorMutationContext,
+      onMutationTransaction: recordEditorMutationTransaction,
     },
     resizeInteraction: {
       interactionMode: browser.interactionMode,
@@ -789,6 +888,7 @@ export function createPreviewEditorInteractionFacadeFromBrowserHost(
         browser.scheduleLayoutResizeRelayout as RuntimeResizeInteractionOptions['scheduleLayoutResizeRelayout'],
       scheduleV3ResizeRelayout:
         browser.scheduleV3ResizeRelayout as RuntimeResizeInteractionOptions['scheduleV3ResizeRelayout'],
+      getResizeCompletionRelayoutPolicy: browser.getResizeCompletionRelayoutPolicy ?? null,
       cancelLiveRelayout: browser.cancelLiveRelayout,
       clearPreviewSvgHoverState:
         options.contracts.previewShellInteraction.clearPreviewSvgHoverState as RuntimeResizeInteractionOptions['clearPreviewSvgHoverState'],
@@ -800,6 +900,8 @@ export function createPreviewEditorInteractionFacadeFromBrowserHost(
         browser.commitOverridePatchAction as RuntimeResizeInteractionOptions['commitOverridePatchAction'],
       persistResize: browser.persistResize as RuntimeResizeInteractionOptions['persistResize'],
       autoFitArtboard: browser.autoFitArtboard as RuntimeResizeInteractionOptions['autoFitArtboard'],
+      getMutationContext: getEditorMutationContext,
+      onMutationTransaction: recordEditorMutationTransaction,
     },
     keyboard: {
       interactionModes: browser.interactionMode,
@@ -864,6 +966,8 @@ export function createPreviewEditorInteractionFacadeFromBrowserHost(
       formatAsDefinedStyleLabel:
         browser.formatAsDefinedStyleLabel as RuntimeEditorRuntimeSetOptions['formatAsDefinedStyleLabel'],
       syncPanelVisibility: browser.syncPanelVisibility ?? null,
+      getMutationContext: getEditorMutationContext,
+      onMutationTransaction: recordEditorMutationTransaction,
       shouldShowAutolayoutInspector: browser.shouldShowAutolayoutInspector ?? null,
       editorState: {
         captureOverrideEntries: browser.captureOverrideEntries,

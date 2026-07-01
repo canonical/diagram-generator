@@ -9,6 +9,10 @@ import {
 } from './grid-controls.js';
 import type { PreviewGridInfo } from './grid-resolution.js';
 import { readPreviewStageCanvasDimensions } from './app-scene-host.js';
+import {
+  resolveEditorMutationTransaction,
+  type EditorMutationTransactionResult,
+} from './editor-mutation-transaction.js';
 
 /**
  * Preview grid host helpers (spec 043 shell coordinator slice M).
@@ -90,6 +94,12 @@ export interface ReadPreviewGridControlStateFromDomOptions {
 
 export interface DispatchPreviewGridControlChangeOptions {
   gridInfo?: PreviewGridInfo | null;
+  capabilityGate?: (() => { applicable: boolean; reason: string }) | null;
+  transactionContext?: {
+    activeEngineId?: string | null;
+    documentKind?: string | null;
+    sourceControl?: string | null;
+  } | null;
   resolveRuntimeUpdate: () => PreviewGridControlRuntimeUpdate | null;
   getPendingAction: () => unknown;
   beginPendingAction: () => unknown;
@@ -136,8 +146,10 @@ export interface CyclePreviewGuideModeHostOptions {
 }
 
 export interface PreviewGridControlChangeDispatchResult {
-  kind: 'noop' | 'applied';
+  kind: 'noop' | 'inert' | 'applied';
+  reason?: string;
   runtimeUpdate?: PreviewGridControlRuntimeUpdate;
+  transactionResult?: EditorMutationTransactionResult;
 }
 
 export function bindPreviewGridNumberInputSelection(
@@ -297,14 +309,87 @@ export function resolvePreviewGridControlRuntimeUpdateHost(
 export function dispatchPreviewGridControlChange(
   options: DispatchPreviewGridControlChangeOptions,
 ): PreviewGridControlChangeDispatchResult {
+  const capability = options.capabilityGate?.() ?? { applicable: true, reason: 'grid controls are applicable' };
+  const sourceControl = options.transactionContext?.sourceControl || 'grid-controls';
+  if (!capability.applicable) {
+    const transactionResult = resolveEditorMutationTransaction({
+      kind: 'grid-control',
+      sourceControl,
+      activeEngineId: options.transactionContext?.activeEngineId ?? null,
+      documentKind: options.transactionContext?.documentKind ?? 'frame-diagram',
+      capabilityGate: {
+        applicable: false,
+        reason: capability.reason,
+        capability: 'gridEditing',
+      },
+      relayoutPolicy: 'local',
+      dirtyPolicy: 'mark-dirty',
+      undoPolicy: 'record',
+      persistenceDelta: {
+        gridOverridesChanged: true,
+        savePayloadChanged: true,
+      },
+    });
+    return { kind: 'inert', reason: transactionResult.reason, transactionResult };
+  }
+
   if (!options.gridInfo) {
-    return { kind: 'noop' };
+    const transactionResult = resolveEditorMutationTransaction({
+      kind: 'grid-control',
+      sourceControl,
+      activeEngineId: options.transactionContext?.activeEngineId ?? null,
+      documentKind: options.transactionContext?.documentKind ?? 'frame-diagram',
+      capabilityGate: {
+        applicable: true,
+        reason: 'grid info is unavailable',
+        capability: 'gridEditing',
+      },
+      relayoutPolicy: 'none',
+      dirtyPolicy: 'preserve',
+      undoPolicy: 'none',
+      persistenceDelta: null,
+    });
+    return { kind: 'noop', reason: transactionResult.reason, transactionResult };
   }
 
   const runtimeUpdate = options.resolveRuntimeUpdate();
   if (!runtimeUpdate) {
-    return { kind: 'noop' };
+    const transactionResult = resolveEditorMutationTransaction({
+      kind: 'grid-control',
+      sourceControl,
+      activeEngineId: options.transactionContext?.activeEngineId ?? null,
+      documentKind: options.transactionContext?.documentKind ?? 'frame-diagram',
+      capabilityGate: {
+        applicable: true,
+        reason: 'grid control values produced no runtime update',
+        capability: 'gridEditing',
+      },
+      relayoutPolicy: 'none',
+      dirtyPolicy: 'preserve',
+      undoPolicy: 'none',
+      persistenceDelta: null,
+    });
+    return { kind: 'noop', reason: transactionResult.reason, transactionResult };
   }
+
+  const transactionResult = resolveEditorMutationTransaction({
+    kind: 'grid-control',
+    sourceControl,
+    activeEngineId: options.transactionContext?.activeEngineId ?? null,
+    documentKind: options.transactionContext?.documentKind ?? 'frame-diagram',
+    capabilityGate: {
+      applicable: true,
+      reason: 'grid controls are applicable',
+      capability: 'gridEditing',
+    },
+    relayoutPolicy: 'local',
+    dirtyPolicy: 'mark-dirty',
+    undoPolicy: 'record',
+    persistenceDelta: {
+      gridOverridesChanged: true,
+      savePayloadChanged: true,
+    },
+  });
 
   if (!options.getPendingAction()) {
     options.setPendingAction(options.beginPendingAction());
@@ -337,6 +422,7 @@ export function dispatchPreviewGridControlChange(
   return {
     kind: 'applied',
     runtimeUpdate,
+    transactionResult,
   };
 }
 

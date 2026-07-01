@@ -149,6 +149,28 @@ export {
 } from './grid-overlay-scene.js';
 
 export type {
+  CompareEditorMutationStateVectorOptions,
+  EditorMutationCapabilityGate,
+  EditorMutationDiagnostics,
+  EditorMutationDirtyPolicy,
+  EditorMutationKind,
+  EditorMutationPersistenceDelta,
+  EditorMutationRelayoutPolicy,
+  EditorMutationRenderIntentDelta,
+  EditorMutationResultKind,
+  EditorMutationStateVector,
+  EditorMutationStateVectorViolation,
+  EditorMutationTransaction,
+  EditorMutationTransactionResult,
+  EditorMutationUndoPolicy,
+} from './editor-mutation-transaction.js';
+
+export {
+  compareEditorMutationStateVector,
+  resolveEditorMutationTransaction,
+} from './editor-mutation-transaction.js';
+
+export type {
   PreviewGridOverlayLine,
   PreviewGridOverlayRect,
   PreviewGridOverlayScene,

@@ -152,6 +152,7 @@ describe('preview text-edit host helpers', () => {
 
   it('commits text edits, cleans up DOM state, and schedules relayout', () => {
     const actions: unknown[] = [];
+    const transactions: unknown[] = [];
     const textEl = {
       style: {
         opacity: '0',
@@ -178,6 +179,7 @@ describe('preview text-edit host helpers', () => {
         return { label: ['keep'] };
       },
       setTextOverride(cid, nextTextOverride) {
+        expect(transactions).toHaveLength(1);
         actions.push({ setTextOverride: [cid, nextTextOverride] });
       },
       captureOverrideEntries(ids) {
@@ -195,6 +197,13 @@ describe('preview text-edit host helpers', () => {
       scheduleRelayout(cid) {
         actions.push({ scheduleRelayout: cid });
       },
+      transaction: {
+        activeEngineId: 'v3',
+        documentKind: 'frame-diagram',
+        onMutationTransaction(result) {
+          transactions.push(result);
+        },
+      },
     });
 
     expect(result).toEqual({
@@ -203,6 +212,18 @@ describe('preview text-edit host helpers', () => {
       changed: true,
     });
     expect(textEl.style.opacity).toBe('');
+    expect(transactions).toEqual([
+      expect.objectContaining({
+        kind: 'committed',
+        mutationKind: 'text-edit',
+        sourceControl: 'inline-text-editor',
+        activeEngineId: 'v3',
+        documentKind: 'frame-diagram',
+        relayoutPolicy: 'engine',
+        dirtyPolicy: 'mark-dirty',
+        undoPolicy: 'record',
+      }),
+    ]);
     expect(actions).toEqual([
       { setTextOverride: ['alpha', { label: ['keep'], heading: 'After' }] },
       {

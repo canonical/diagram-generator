@@ -36,6 +36,10 @@ function createResizeOptions() {
 describe('interaction completion dispatch helpers', () => {
   it('dispatches free-drag completion through cleanup, selection, and commit callbacks', () => {
     const options = createDragOptions();
+    const actions: string[] = [];
+    options.commitOverridePatchAction.mockImplementation(() => {
+      actions.push('commit');
+    });
     options.state = {
       hasMoved: true,
       autolayout: false,
@@ -43,6 +47,13 @@ describe('interaction completion dispatch helpers', () => {
       cids: ['a', 'b'],
       reorderTarget: null,
       overrideSnapshotBefore: { before: true },
+    };
+    options.transaction = {
+      activeEngineId: 'elk-force',
+      documentKind: 'frame-diagram',
+      onMutationTransaction(result) {
+        actions.push(`${result.mutationKind}:${result.sourceControl}:${result.relayoutPolicy}`);
+      },
     };
 
     const plan = dispatchPreviewDragCompletion(options);
@@ -64,12 +75,17 @@ describe('interaction completion dispatch helpers', () => {
       { before: true },
       { after: true },
     );
+    expect(actions).toEqual(['geometry:drag-free:local', 'commit']);
     expect(options.endInteraction).toHaveBeenCalledTimes(1);
     expect(options.autoFitArtboard).toHaveBeenCalledTimes(1);
   });
 
   it('dispatches autolayout reorder completion through reorder and selection callbacks', () => {
     const options = createDragOptions();
+    const actions: string[] = [];
+    options.applyReorder.mockImplementation(() => {
+      actions.push('apply-reorder');
+    });
     options.state = {
       hasMoved: true,
       autolayout: true,
@@ -77,6 +93,13 @@ describe('interaction completion dispatch helpers', () => {
       cids: ['leaf'],
       reorderTarget: { parentId: 'stack', insertIndex: 3 },
       overrideSnapshotBefore: null,
+    };
+    options.transaction = {
+      activeEngineId: 'v3',
+      documentKind: 'frame-diagram',
+      onMutationTransaction(result) {
+        actions.push(`${result.mutationKind}:${result.sourceControl}:${result.relayoutPolicy}`);
+      },
     };
 
     const plan = dispatchPreviewDragCompletion(options);
@@ -91,6 +114,7 @@ describe('interaction completion dispatch helpers', () => {
     expect(options.applyReorder).toHaveBeenCalledWith('stack', 'leaf', 3);
     expect(options.selectComponent).toHaveBeenCalledWith('leaf');
     expect(options.commitOverridePatchAction).not.toHaveBeenCalled();
+    expect(actions).toEqual(['apply-reorder']);
     expect(options.autoFitArtboard).not.toHaveBeenCalled();
   });
 
@@ -119,6 +143,13 @@ describe('interaction completion dispatch helpers', () => {
 
   it('dispatches resize completion through cleanup, commit, and persistence callbacks', () => {
     const options = createResizeOptions();
+    const actions: string[] = [];
+    options.commitOverridePatchAction.mockImplementation(() => {
+      actions.push('commit');
+    });
+    options.persistResize.mockImplementation(() => {
+      actions.push('persist');
+    });
     options.state = {
       hasMoved: true,
       cid: 'primary',
@@ -126,6 +157,16 @@ describe('interaction completion dispatch helpers', () => {
       origOverrideIds: ['a', 'b', 'parent'],
       propagatedIds: ['parent'],
       overrideSnapshotBefore: { before: true },
+    };
+    options.transaction = {
+      activeEngineId: 'v3',
+      documentKind: 'frame-diagram',
+      relayoutPolicy: 'engine',
+      onMutationTransaction(result) {
+        actions.push(`${result.mutationKind}:${result.sourceControl}:${result.relayoutPolicy}`);
+        expect(result.dirtyPolicy).toBe('mark-dirty');
+        expect(result.undoPolicy).toBe('record');
+      },
     };
 
     const plan = dispatchPreviewResizeCompletion(options);
@@ -150,6 +191,7 @@ describe('interaction completion dispatch helpers', () => {
       { after: true },
     );
     expect(options.persistResize).toHaveBeenCalledWith(['a', 'b'], ['parent'], 'primary', null);
+    expect(actions).toEqual(['geometry:resize-handle:engine', 'commit', 'persist']);
     expect(options.autoFitArtboard).toHaveBeenCalledTimes(1);
   });
 });

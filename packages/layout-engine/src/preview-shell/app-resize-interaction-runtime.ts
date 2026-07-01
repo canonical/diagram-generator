@@ -6,6 +6,7 @@ import {
   type DispatchPreviewResizeMoveHostOptions,
   type StartPreviewResizeHostOptions,
 } from './app-resize-host.js';
+import type { EditorMutationRelayoutPolicy } from './editor-mutation-transaction.js';
 
 export interface CreatePreviewResizeInteractionRuntimeOptions {
   document: Document;
@@ -61,6 +62,13 @@ export interface CreatePreviewResizeInteractionRuntimeOptions {
     baseSizes?: Record<string, { width: number; height: number }> | null,
   ) => void;
   autoFitArtboard: () => void;
+  getMutationContext?: (() => Pick<
+    NonNullable<CompletePreviewResizeInteractionEditorHostOptions['transaction']>,
+    'activeEngineId' | 'documentKind'
+  > | null | undefined) | null;
+  onMutationTransaction?:
+    NonNullable<CompletePreviewResizeInteractionEditorHostOptions['transaction']>['onMutationTransaction'];
+  getResizeCompletionRelayoutPolicy?: (() => EditorMutationRelayoutPolicy) | null;
 }
 
 export interface CreatePreviewResizeInteractionRuntimeFromHostOptions {
@@ -126,6 +134,10 @@ export interface CreatePreviewResizeInteractionRuntimeFromHostOptions {
     baseSizes?: Record<string, { width: number; height: number }> | null,
   ) => void;
   autoFitArtboard: () => void;
+  getMutationContext?: CreatePreviewResizeInteractionRuntimeOptions['getMutationContext'];
+  onMutationTransaction?: CreatePreviewResizeInteractionRuntimeOptions['onMutationTransaction'];
+  getResizeCompletionRelayoutPolicy?:
+    CreatePreviewResizeInteractionRuntimeOptions['getResizeCompletionRelayoutPolicy'];
 }
 
 export interface PreviewResizeInteractionRuntime {
@@ -215,6 +227,11 @@ export function createPreviewResizeInteractionRuntime(
           );
         },
         autoFitArtboard: options.autoFitArtboard,
+        transaction: {
+          ...(options.getMutationContext?.() ?? {}),
+          relayoutPolicy: options.getResizeCompletionRelayoutPolicy?.() ?? 'local',
+          onMutationTransaction: options.onMutationTransaction ?? null,
+        },
       });
     },
   };
@@ -279,5 +296,8 @@ export function createPreviewResizeInteractionRuntimeFromHost(
     commitOverridePatchAction: options.commitOverridePatchAction,
     persistResize: options.persistResize,
     autoFitArtboard: options.autoFitArtboard,
+    getMutationContext: options.getMutationContext ?? null,
+    onMutationTransaction: options.onMutationTransaction ?? null,
+    getResizeCompletionRelayoutPolicy: options.getResizeCompletionRelayoutPolicy ?? null,
   });
 }

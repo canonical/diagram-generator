@@ -4,6 +4,10 @@ import {
   resolvePreviewTextEditStartState,
   type PreviewTextEditorRole,
 } from './app-text-edit.js';
+import {
+  resolveEditorMutationTransaction,
+  type EditorMutationTransactionResult,
+} from './editor-mutation-transaction.js';
 
 /**
  * Preview text-edit host helpers (spec 043 shell coordinator slice P).
@@ -61,6 +65,12 @@ export interface PreviewTextEditOverrideSnapshot {
   [key: string]: unknown;
 }
 
+export interface PreviewTextEditMutationTransactionOptions {
+  activeEngineId?: string | null;
+  documentKind?: string | null;
+  onMutationTransaction?: ((result: EditorMutationTransactionResult) => void) | null;
+}
+
 export interface CompletePreviewTextEditOptions {
   state?: PreviewTextEditInteractionState | null;
   getExistingTextOverride: (cid: string) => Record<string, unknown> | null | undefined;
@@ -74,6 +84,7 @@ export interface CompletePreviewTextEditOptions {
   endInteraction: () => void;
   reapplySelection: () => void;
   scheduleRelayout: (cid: string) => void;
+  transaction?: PreviewTextEditMutationTransactionOptions | null;
 }
 
 export interface CancelPreviewTextEditOptions {
@@ -116,6 +127,31 @@ function cleanupPreviewTextEditDom(state: PreviewTextEditInteractionState | null
   if (state.textEl) {
     state.textEl.style.opacity = '';
   }
+}
+
+function emitTextEditMutationTransaction(
+  options: PreviewTextEditMutationTransactionOptions | null | undefined,
+): EditorMutationTransactionResult | null {
+  const result = resolveEditorMutationTransaction({
+    kind: 'text-edit',
+    sourceControl: 'inline-text-editor',
+    activeEngineId: options?.activeEngineId ?? null,
+    documentKind: options?.documentKind ?? 'frame-diagram',
+    capabilityGate: {
+      applicable: true,
+      reason: 'text edit changed measured text content',
+      capability: 'textEditing',
+    },
+    relayoutPolicy: 'engine',
+    dirtyPolicy: 'mark-dirty',
+    undoPolicy: 'record',
+    persistenceDelta: {
+      frameOverridesChanged: true,
+      savePayloadChanged: true,
+    },
+  });
+  options?.onMutationTransaction?.(result);
+  return result;
 }
 
 export function suspendPreviewTextEditSelectionChromeHost(
@@ -248,6 +284,7 @@ export function completePreviewTextEdit(
   if (resolution.changed && resolution.nextTextOverride) {
     const editIds = [state.cid];
     const beforeEntries = options.captureOverrideEntries(editIds);
+    emitTextEditMutationTransaction(options.transaction);
     options.setTextOverride(state.cid, resolution.nextTextOverride);
     options.commitOverridePatchAction(
       'Edit text',

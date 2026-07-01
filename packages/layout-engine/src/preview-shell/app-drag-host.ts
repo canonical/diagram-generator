@@ -367,6 +367,7 @@ export function completePreviewDragInteraction(
       commitOverridePatchAction: options.commitOverridePatchAction,
       endInteraction: () => options.interactionManager.endInteraction(),
       autoFitArtboard: options.autoFitArtboard,
+      transaction: options.transaction,
     });
   }
 
@@ -385,5 +386,6 @@ export function completePreviewDragInteraction(
     commitOverridePatchAction: options.commitOverridePatchAction,
     endInteraction: options.endInteraction,
     autoFitArtboard: options.autoFitArtboard,
+    transaction: options.transaction,
   });
 }

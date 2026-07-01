@@ -223,6 +223,74 @@ describe('preview grid host helpers', () => {
     expect(actions.at(-1)).toBeNull();
   });
 
+  it('returns inert for inapplicable grid controls before writing state', () => {
+    const result = dispatchPreviewGridControlChange({
+      gridInfo: { _rows: 2 } as any,
+      capabilityGate: () => ({
+        applicable: false,
+        reason: 'native grid controls require an active grid-editing engine',
+      }),
+      resolveRuntimeUpdate() {
+        throw new Error('runtime update must not be read for inert controls');
+      },
+      getPendingAction() {
+        throw new Error('pending action must not be read for inert controls');
+      },
+      beginPendingAction() {
+        throw new Error('undo must not be created for inert controls');
+      },
+      setPendingAction() {
+        throw new Error('pending action must not be written for inert controls');
+      },
+      setGridOverrides() {
+        throw new Error('grid overrides must not be written for inert controls');
+      },
+      pruneLinkedRootOverrides() {
+        throw new Error('root overrides must not be pruned for inert controls');
+      },
+      setDirty() {
+        throw new Error('dirty state must not change for inert controls');
+      },
+      clearRelayoutTimer() {
+        throw new Error('relayout timers must not change for inert controls');
+      },
+      scheduleRelayout() {
+        throw new Error('relayout must not be scheduled for inert controls');
+      },
+      setRelayoutTimer() {
+        throw new Error('relayout timers must not be written for inert controls');
+      },
+      requestRelayout() {
+        throw new Error('relayout must not run for inert controls');
+      },
+      commitPendingAction() {
+        throw new Error('undo must not commit for inert controls');
+      },
+      setOverlayGridInfo() {
+        throw new Error('overlay state must not change for inert controls');
+      },
+      setRowsControlValue() {
+        throw new Error('controls must not be written for inert controls');
+      },
+      renderGridOverlay() {
+        throw new Error('overlay must not render for inert controls');
+      },
+    });
+
+    expect(result).toEqual({
+      kind: 'inert',
+      reason: 'native grid controls require an active grid-editing engine',
+      transactionResult: expect.objectContaining({
+        kind: 'inert',
+        mutationKind: 'grid-control',
+        sourceControl: 'grid-controls',
+        relayoutPolicy: 'none',
+        dirtyPolicy: 'preserve',
+        undoPolicy: 'none',
+      }),
+    });
+  });
+
   it('binds grid controls and auto-selects numeric inputs on focus', () => {
     const gridCols = createControl({ id: 'grid-cols' });
     const gridRows = createControl({ id: 'grid-rows' });

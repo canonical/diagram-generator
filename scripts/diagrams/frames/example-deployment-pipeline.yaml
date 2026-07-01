@@ -48,4 +48,21 @@ root:
     variant: highlight
     icon: Server.svg
 meta:
-  layout_engine: v3
+  layout_engine: elk-radial
+  dagre:
+    dagre.ranker: network-simplex
+    dagre.rankalign: center
+    dagre.nodesep: 24
+    dagre.ranksep: 24
+    dagre.edgesep: 24
+    dagre.marginx: 0
+    dagre.marginy: 0
+  elk:
+    elk.spacing.nodeNode: 72
+    elk.radial.centerOnRoot: false
+    elk.radial.radius: 256
+    elk.radial.rotate: false
+    elk.radial.compactor: NONE
+    elk.radial.sorter: NONE
+    elk.radial.wedgeCriteria: NODE_SIZE
+    elk.radial.optimizationCriteria: NONE

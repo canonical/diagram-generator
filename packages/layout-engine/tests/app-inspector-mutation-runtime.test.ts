@@ -6,7 +6,9 @@ describe('createPreviewInspectorMutationRuntime', () => {
     let overrides: Record<string, Record<string, unknown>> = {};
     const scheduleRelayout = vi.fn();
     const requestRelayoutNow = vi.fn();
+    const applyAllOverrides = vi.fn();
     const renderSelectionInspector = vi.fn();
+    const mutationResults: unknown[] = [];
 
     const runtime = createPreviewInspectorMutationRuntime({
       captureOverrideEntries: (ids) => Object.fromEntries(ids.map((id) => [id, { ...(overrides[id] || {}) }])),
@@ -18,12 +20,15 @@ describe('createPreviewInspectorMutationRuntime', () => {
       setDirty: vi.fn(),
       scheduleRelayout,
       requestRelayoutNow,
+      applyAllOverrides,
       renderSelectionInspector,
       cleanOverride: vi.fn(),
       getGridInfo: () => null,
       getWidthUnit: () => 'px',
       getHeightUnit: () => 'px',
       baselineStep: 8,
+      getMutationContext: () => ({ activeEngineId: 'elk-force', documentKind: 'frame-diagram' }),
+      onMutationTransaction: (result) => mutationResults.push(result),
     });
 
     runtime.applyStyle('alpha', 'parent');
@@ -36,13 +41,30 @@ describe('createPreviewInspectorMutationRuntime', () => {
     });
     expect(scheduleRelayout).not.toHaveBeenCalled();
     expect(requestRelayoutNow).not.toHaveBeenCalled();
+    expect(applyAllOverrides).toHaveBeenCalledTimes(1);
     expect(renderSelectionInspector).toHaveBeenCalledWith('alpha');
+    expect(mutationResults).toEqual([
+      expect.objectContaining({
+        kind: 'committed',
+        mutationKind: 'inspector-appearance',
+        activeEngineId: 'elk-force',
+        documentKind: 'frame-diagram',
+        relayoutPolicy: 'none',
+        dirtyPolicy: 'mark-dirty',
+        undoPolicy: 'record',
+        persistenceDelta: {
+          frameOverridesChanged: true,
+          savePayloadChanged: true,
+        },
+      }),
+    ]);
   });
 
   it('treats section-to-default box type changes as appearance-only', () => {
     let overrides: Record<string, Record<string, unknown>> = {};
     const scheduleRelayout = vi.fn();
     const requestRelayoutNow = vi.fn();
+    const applyAllOverrides = vi.fn();
 
     const runtime = createPreviewInspectorMutationRuntime({
       captureOverrideEntries: (ids) => Object.fromEntries(ids.map((id) => [id, { ...(overrides[id] || {}) }])),
@@ -54,6 +76,7 @@ describe('createPreviewInspectorMutationRuntime', () => {
       setDirty: vi.fn(),
       scheduleRelayout,
       requestRelayoutNow,
+      applyAllOverrides,
       renderSelectionInspector: vi.fn(),
       cleanOverride: vi.fn(),
       getGridInfo: () => null,
@@ -72,6 +95,7 @@ describe('createPreviewInspectorMutationRuntime', () => {
     });
     expect(scheduleRelayout).not.toHaveBeenCalled();
     expect(requestRelayoutNow).not.toHaveBeenCalled();
+    expect(applyAllOverrides).toHaveBeenCalledTimes(1);
   });
 
   it('keeps requesting relayout for style changes that alter measured geometry class', () => {
@@ -88,6 +112,7 @@ describe('createPreviewInspectorMutationRuntime', () => {
       setDirty: vi.fn(),
       scheduleRelayout,
       requestRelayoutNow: vi.fn(),
+      applyAllOverrides: vi.fn(),
       renderSelectionInspector: vi.fn(),
       cleanOverride: vi.fn(),
       getGridInfo: () => null,
@@ -112,6 +137,7 @@ describe('createPreviewInspectorMutationRuntime', () => {
       Object.fromEntries(ids.map((id) => [id, { ...(overrides[id] || {}) }]))
     ));
     const commitOverridePatchAction = vi.fn();
+    const mutationResults: unknown[] = [];
     const setDirty = vi.fn();
     const scheduleRelayout = vi.fn();
     const requestRelayoutNow = vi.fn();
@@ -126,12 +152,15 @@ describe('createPreviewInspectorMutationRuntime', () => {
       setDirty,
       scheduleRelayout,
       requestRelayoutNow,
+      applyAllOverrides: vi.fn(),
       renderSelectionInspector,
       cleanOverride: vi.fn(),
       getGridInfo: () => null,
       getWidthUnit: () => 'px',
       getHeightUnit: () => 'px',
       baselineStep: 8,
+      getMutationContext: () => ({ activeEngineId: 'v3', documentKind: 'frame-diagram' }),
+      onMutationTransaction: (result) => mutationResults.push(result),
     });
 
     overrides = {};
@@ -147,11 +176,28 @@ describe('createPreviewInspectorMutationRuntime', () => {
       { root: { gap_delta: 24 } },
     );
     expect(requestRelayoutNow).not.toHaveBeenCalled();
+    expect(mutationResults).toEqual([
+      expect.objectContaining({
+        kind: 'committed',
+        mutationKind: 'inspector-layout',
+        sourceControl: 'single-prop:gap_delta',
+        activeEngineId: 'v3',
+        documentKind: 'frame-diagram',
+        relayoutPolicy: 'engine',
+        dirtyPolicy: 'mark-dirty',
+        undoPolicy: 'record',
+        persistenceDelta: {
+          frameOverridesChanged: true,
+          savePayloadChanged: true,
+        },
+      }),
+    ]);
   });
 
   it('requests immediate relayout for single-frame size mutations', () => {
     let overrides: Record<string, Record<string, unknown>> = {};
     const scheduleRelayout = vi.fn();
+    const mutationResults: unknown[] = [];
     const requestRelayoutNow = vi.fn();
 
     const runtime = createPreviewInspectorMutationRuntime({
@@ -164,12 +210,15 @@ describe('createPreviewInspectorMutationRuntime', () => {
       setDirty: vi.fn(),
       scheduleRelayout,
       requestRelayoutNow,
+      applyAllOverrides: vi.fn(),
       renderSelectionInspector: vi.fn(),
       cleanOverride: vi.fn(),
       getGridInfo: () => null,
       getWidthUnit: () => 'px',
       getHeightUnit: () => 'px',
       baselineStep: 8,
+      getMutationContext: () => ({ activeEngineId: 'v3', documentKind: 'frame-diagram' }),
+      onMutationTransaction: (result) => mutationResults.push(result),
     });
 
     overrides = {};
@@ -178,6 +227,18 @@ describe('createPreviewInspectorMutationRuntime', () => {
     expect(overrides.alpha).toEqual({ sizing_w: 'FIXED', width: 120 });
     expect(requestRelayoutNow).toHaveBeenCalledWith('alpha');
     expect(scheduleRelayout).not.toHaveBeenCalled();
+    expect(mutationResults).toEqual([
+      expect.objectContaining({
+        kind: 'committed',
+        mutationKind: 'geometry',
+        sourceControl: 'single-size:width',
+        activeEngineId: 'v3',
+        documentKind: 'frame-diagram',
+        relayoutPolicy: 'engine',
+        dirtyPolicy: 'mark-dirty',
+        undoPolicy: 'record',
+      }),
+    ]);
   });
 
   it('requests immediate relayout for visual layout properties', () => {
@@ -195,6 +256,7 @@ describe('createPreviewInspectorMutationRuntime', () => {
       setDirty: vi.fn(),
       scheduleRelayout,
       requestRelayoutNow,
+      applyAllOverrides: vi.fn(),
       renderSelectionInspector: vi.fn(),
       cleanOverride: vi.fn(),
       getGridInfo: () => null,
@@ -212,10 +274,56 @@ describe('createPreviewInspectorMutationRuntime', () => {
     expect(scheduleRelayout).not.toHaveBeenCalled();
   });
 
+  it('emits inspector layout transactions after the mutation side effects have run', () => {
+    let overrides: Record<string, Record<string, unknown>> = {};
+    const mutationResults: unknown[] = [];
+    const setDirty = vi.fn(() => {
+      expect(mutationResults).toHaveLength(0);
+    });
+    const scheduleRelayout = vi.fn(() => {
+      expect(mutationResults).toHaveLength(0);
+    });
+
+    const runtime = createPreviewInspectorMutationRuntime({
+      captureOverrideEntries: (ids) => Object.fromEntries(ids.map((id) => [id, { ...(overrides[id] || {}) }])),
+      commitOverridePatchAction: vi.fn(),
+      getOverrides: () => overrides,
+      coercedKeys: new Set<string>(),
+      getNode: () => ({ type: 'box' }),
+      snapToGrid: (value) => value,
+      setDirty,
+      scheduleRelayout,
+      requestRelayoutNow: vi.fn(),
+      applyAllOverrides: vi.fn(),
+      renderSelectionInspector: vi.fn(),
+      cleanOverride: vi.fn(),
+      getGridInfo: () => null,
+      getWidthUnit: () => 'px',
+      getHeightUnit: () => 'px',
+      baselineStep: 8,
+      getMutationContext: () => ({ activeEngineId: 'v3', documentKind: 'frame-diagram' }),
+      onMutationTransaction: (result) => mutationResults.push(result),
+    });
+
+    runtime.setFrameProp('root', 'gap_delta', 24);
+
+    expect(mutationResults).toEqual([
+      expect.objectContaining({
+        kind: 'committed',
+        mutationKind: 'inspector-layout',
+        sourceControl: 'single-prop:gap_delta',
+        relayoutPolicy: 'engine',
+        dirtyPolicy: 'mark-dirty',
+        undoPolicy: 'record',
+      }),
+    ]);
+  });
+
   it('blocks native layout mutations when the active engine is not grid-editable', () => {
     let overrides: Record<string, Record<string, unknown>> = {};
     const requestRelayoutNow = vi.fn();
     const renderSelectionInspector = vi.fn();
+    const mutationResults: unknown[] = [];
     const runtime = createPreviewInspectorMutationRuntime({
       captureOverrideEntries: (ids) => Object.fromEntries(ids.map((id) => [id, { ...(overrides[id] || {}) }])),
       commitOverridePatchAction: vi.fn(),
@@ -226,6 +334,7 @@ describe('createPreviewInspectorMutationRuntime', () => {
       setDirty: vi.fn(),
       scheduleRelayout: vi.fn(),
       requestRelayoutNow,
+      applyAllOverrides: vi.fn(),
       renderSelectionInspector,
       cleanOverride: vi.fn(),
       getGridInfo: () => null,
@@ -233,6 +342,8 @@ describe('createPreviewInspectorMutationRuntime', () => {
       getHeightUnit: () => 'px',
       baselineStep: 8,
       shouldShowAutolayoutInspector: () => false,
+      getMutationContext: () => ({ activeEngineId: 'elk-layered', documentKind: 'frame-diagram' }),
+      onMutationTransaction: (result) => mutationResults.push(result),
     });
 
     runtime.setFrameAlign('panel', 'BOTTOM_LEFT');
@@ -243,5 +354,27 @@ describe('createPreviewInspectorMutationRuntime', () => {
     expect(requestRelayoutNow).not.toHaveBeenCalled();
     expect(renderSelectionInspector).toHaveBeenCalledTimes(3);
     expect(renderSelectionInspector).toHaveBeenCalledWith('panel');
+    expect(mutationResults).toEqual([
+      expect.objectContaining({
+        kind: 'inert',
+        mutationKind: 'inspector-layout',
+        sourceControl: 'single-align',
+        activeEngineId: 'elk-layered',
+        documentKind: 'frame-diagram',
+        relayoutPolicy: 'none',
+        dirtyPolicy: 'preserve',
+        undoPolicy: 'none',
+      }),
+      expect.objectContaining({
+        kind: 'inert',
+        mutationKind: 'inspector-layout',
+        sourceControl: 'single-prop:direction',
+      }),
+      expect.objectContaining({
+        kind: 'inert',
+        mutationKind: 'geometry',
+        sourceControl: 'single-size:width',
+      }),
+    ]);
   });
 });
