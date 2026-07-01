@@ -3,7 +3,7 @@
 Focused last-session → next-session handoff only. Keep this short.
 
 - **Human notes:** [`INBOX.md`](INBOX.md) — author → agent.
-- **Spec ordering & audit:** [`TODO.md`](TODO.md) (read at session start).
+- **Execution order & backlog:** [`TODO.md`](TODO.md) (read at session start).
 - **Active-spec index:** [`docs/specs.md`](docs/specs.md).
 - **Durable per-spec detail:** `specs/<id>-<slug>/`.
 
@@ -14,11 +14,14 @@ here — those belong in the relevant `specs/<id>-<slug>/` package.
 
 ## Handoff — 2026-07-01
 
-- **Branch:** `main`. Spec 069 is merged and archived under
-  `docs/spec-archive/069-editor-mutation-state-determinism/`.
-- **This session:** landed the spec 069 transaction/state-vector work to
-  `main`, including the repo-owned live repaint regression and runtime drift
-  diagnostics.
-- **Next slice:** spec 060 follow-up for visually no-op engine-tab switches,
-  then the 062/063 correctness backlog.
+- **Render-path review actioned.** The multi-engine render-path fragmentation
+  review that was parked here is done. Its durable output is
+  `specs/071-preview-render-node-graph/` (Houdini-style single render node +
+  switch node + per-engine interpreter state isolation). Spec 071 Phase 1 is now
+  the top priority in `TODO.md`.
+- **Branch / tree:** `feat/060-output-pane-engine-tabs-rerender` with a dirty
+  working tree (authored fixtures + chrome files modified). Reconcile before new
+  work.
+- **Untriaged user bugs** still sit in `INBOX.md`. Most map to specs
+  060/061/062/063/064/069/071 — triage each into its package, then empty INBOX.
 

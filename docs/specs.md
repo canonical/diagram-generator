@@ -13,6 +13,11 @@ Use this file to answer two questions quickly:
 
 ## Spec packages
 
+> **Role:** this file is the spec **catalog** — every package, its status, a
+> one-line summary, and its path, ordered by id. It is the source of truth for
+> *what specs exist and their status*. It is **not** the priority queue: for
+> *what to work on next*, see [`TODO.md`](../TODO.md).
+
 Active spec packages stay under `specs/`. Completed or retired packages move to `docs/spec-archive/` and are excluded from Cursor indexing by `.cursorignore` and `.cursorindexingignore`.
 
 For spec-driven implementation, keep git aligned to the spec package:
@@ -51,6 +56,7 @@ For spec-driven implementation, keep git aligned to the spec package:
 | 063 Auto-style by nesting depth | `specs/063-*` (to draft) | Spec candidate | INBOX: 0=child,1=parent,2=section; promote same-level siblings; align code + skill + DIAGRAM.md. |
 | 064 Arrow annotation label de-overlap | `specs/064-*` (to draft) | Spec candidate | INBOX: arrow annotation labels stack after engine/option changes. |
 | 070 Layers palette reorder | `specs/070-layers-palette-reorder/` | Draft | Add same-parent layer-tree reorder in the preview palette through the existing typed `children_order` override, relayout, undo, and save pipeline. |
+| 071 Preview render node graph | `specs/071-preview-render-node-graph/` | Draft — architectural; Phase 1 is the current top priority | Houdini-style source→interpreter[]→switch→render model. One render node (single fit/mount), one switch node (single render-intent writer), per-engine interpreter node state isolation, canvas viewBox in the state vector. Subsumes the spec 060 follow-up and is the substrate that must land before 50/150-engine breadth. See `AGENT-INBOX.md` render-path review + `docs/spec-reviews/README.md`. |
 | — | `docs/spec-reviews/README.md` | Review | 2026-06-28 adversarial review of 054–060 + INBOX reconciliation; per-branch reviews and rewritten gates. |
 | — | `specs/ADVERSARIAL_REVIEW_PROMPT.md` | Template | Copy-paste prompt for post-session adversarial reviews. |
 
