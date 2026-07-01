@@ -108,7 +108,7 @@
       signature, dirty `false -> true`, undo `false -> true`, and no
       transaction violations.
 
-- [ ] **T031** Route geometry-changing edits through explicit relayout policies.
+- [x] **T031** Route geometry-changing edits through explicit relayout policies.
       **Do**: resize/drag/direction/waypoint/text edits must declare whether
       they need local relayout, engine relayout, fresh render, or no relayout.
       **Verify**: tests assert policy choice and final state vector.
@@ -136,6 +136,15 @@
       Text edit commits emit a `text-edit` transaction before text override
       writes with `relayoutPolicy: engine`, dirty `mark-dirty`, undo `record`,
       and active document context.
+      **Progress evidence (resize/drag sub-slice)**:
+      `npm --prefix packages/layout-engine test -- interaction-completion-dispatch app-resize-interaction-runtime app-resize-host app-drag-host editor-mutation-transaction`;
+      `npm --prefix packages/layout-engine exec tsc -- --noEmit -p packages/layout-engine/tsconfig.json`.
+      Resize handle, free-drag, and autolayout reorder completions emit
+      committed `geometry` transactions before undo/persistence/reorder writes
+      with `relayoutPolicy: local`, dirty `mark-dirty`, undo `record`, active
+      document context, and save-payload deltas. Direction edits are covered by
+      the inspector layout transaction path as `single-prop:direction` with
+      `relayoutPolicy: engine`.
 
 - [ ] **T032** Make undo/redo restore complete state vectors.
       **Do**: undo/redo must restore engine intent, option bucket, frame

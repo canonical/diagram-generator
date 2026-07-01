@@ -61,6 +61,12 @@ export interface CreatePreviewResizeInteractionRuntimeOptions {
     baseSizes?: Record<string, { width: number; height: number }> | null,
   ) => void;
   autoFitArtboard: () => void;
+  getMutationContext?: (() => Pick<
+    NonNullable<CompletePreviewResizeInteractionEditorHostOptions['transaction']>,
+    'activeEngineId' | 'documentKind'
+  > | null | undefined) | null;
+  onMutationTransaction?:
+    NonNullable<CompletePreviewResizeInteractionEditorHostOptions['transaction']>['onMutationTransaction'];
 }
 
 export interface CreatePreviewResizeInteractionRuntimeFromHostOptions {
@@ -126,6 +132,8 @@ export interface CreatePreviewResizeInteractionRuntimeFromHostOptions {
     baseSizes?: Record<string, { width: number; height: number }> | null,
   ) => void;
   autoFitArtboard: () => void;
+  getMutationContext?: CreatePreviewResizeInteractionRuntimeOptions['getMutationContext'];
+  onMutationTransaction?: CreatePreviewResizeInteractionRuntimeOptions['onMutationTransaction'];
 }
 
 export interface PreviewResizeInteractionRuntime {
@@ -215,6 +223,10 @@ export function createPreviewResizeInteractionRuntime(
           );
         },
         autoFitArtboard: options.autoFitArtboard,
+        transaction: {
+          ...(options.getMutationContext?.() ?? {}),
+          onMutationTransaction: options.onMutationTransaction ?? null,
+        },
       });
     },
   };
@@ -279,5 +291,7 @@ export function createPreviewResizeInteractionRuntimeFromHost(
     commitOverridePatchAction: options.commitOverridePatchAction,
     persistResize: options.persistResize,
     autoFitArtboard: options.autoFitArtboard,
+    getMutationContext: options.getMutationContext ?? null,
+    onMutationTransaction: options.onMutationTransaction ?? null,
   });
 }

@@ -713,6 +713,10 @@ export function createPreviewEditorInteractionFacadeFromBrowserHost(
         browser.selectComponent as RuntimePointerInteractionOptions['selectComponent'],
       commitOverridePatchAction: browser.commitOverridePatchAction,
       autoFitArtboard: browser.autoFitArtboard,
+      transaction: {
+        ...getEditorMutationContext(),
+        onMutationTransaction: recordEditorMutationTransaction,
+      },
     });
   };
 
@@ -837,6 +841,8 @@ export function createPreviewEditorInteractionFacadeFromBrowserHost(
         browser.commitOverridePatchAction as RuntimeResizeInteractionOptions['commitOverridePatchAction'],
       persistResize: browser.persistResize as RuntimeResizeInteractionOptions['persistResize'],
       autoFitArtboard: browser.autoFitArtboard as RuntimeResizeInteractionOptions['autoFitArtboard'],
+      getMutationContext: getEditorMutationContext,
+      onMutationTransaction: recordEditorMutationTransaction,
     },
     keyboard: {
       interactionModes: browser.interactionMode,

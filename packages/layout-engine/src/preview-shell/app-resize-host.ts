@@ -411,6 +411,7 @@ export function completePreviewResizeInteraction(
       },
       endInteraction: () => options.interactionManager.endInteraction(),
       autoFitArtboard: options.autoFitArtboard,
+      transaction: options.transaction,
     });
   }
 
@@ -431,5 +432,6 @@ export function completePreviewResizeInteraction(
     showHandles: options.showHandles,
     endInteraction: options.endInteraction,
     autoFitArtboard: options.autoFitArtboard,
+    transaction: options.transaction,
   });
 }

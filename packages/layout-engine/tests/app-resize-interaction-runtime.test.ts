@@ -34,6 +34,7 @@ describe('createPreviewResizeInteractionRuntime', () => {
           kind: 'up',
           hasCancelLiveRelayout: typeof options.cancelLiveRelayout,
           hasPersistResize: typeof options.persistResize,
+          transaction: options.transaction,
         });
         return true as never;
       });
@@ -117,6 +118,13 @@ describe('createPreviewResizeInteractionRuntime', () => {
         commitOverridePatchAction() {},
         persistResize() {},
         autoFitArtboard() {},
+        getMutationContext() {
+          return {
+            activeEngineId: 'elk-force',
+            documentKind: 'frame-diagram',
+          };
+        },
+        onMutationTransaction() {},
       });
 
       runtime.startResize({} as MouseEvent);
@@ -140,6 +148,11 @@ describe('createPreviewResizeInteractionRuntime', () => {
           kind: 'up',
           hasCancelLiveRelayout: 'function',
           hasPersistResize: 'function',
+          transaction: {
+            activeEngineId: 'elk-force',
+            documentKind: 'frame-diagram',
+            onMutationTransaction: expect.any(Function),
+          },
         },
       ]);
     } finally {
