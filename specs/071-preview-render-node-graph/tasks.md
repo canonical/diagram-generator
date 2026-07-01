@@ -28,7 +28,7 @@
       `preview-engine-workspace-chrome.ts`.
       **Evidence**: `evidence/render-path-inventory.md`.
 
-- [ ] **T001** Capture a pre-refactor canvas-parity baseline.
+- [x] **T001** Capture a pre-refactor canvas-parity baseline.
       **Do**: for `example-deployment-pipeline`, `mongo-octavia-ha`,
       `support-engineering-flow`, record the fitted `viewBox` after load,
       save→reload, tab switch, param edit, and container resize.
@@ -39,7 +39,9 @@
       Branch note: the Phase 1 render-node splice was already in progress before
       this branch-local baseline capture. The evidence file now records the
       post-unification parity baseline that SC-001 enforces on this branch; the
-      earlier tab-switch divergence is no longer directly reproducible here.
+      earlier tab-switch divergence is no longer directly reproducible here, and
+      `apps/preview/src/persistence/editor-live-repaint-regression.test.ts`
+      now re-verifies the branch-local parity baseline in CI.
 
 ## Phase 1 — Render node + canvas in state vector
 
@@ -101,8 +103,10 @@
       **Evidence**: `layout-operator-overrides` + `preview-engine-elk-runtime`
       tests; browser SC-003 sequence.
       Note: manifest-aware override reads/writes now route through the node
-      registry and keep legacy aliases derived; full global removal and browser
-      SC-003 remain open.
+      registry and keep legacy aliases derived. Unit coverage now proves both
+      layered→radial→layered and layered→dagre→layered bucket isolation, and
+      `editor-live-repaint-regression.test.ts` now carries the real browser
+      SC-003 sequence; full global removal remains open.
 
 - [ ] **T022** Per-node persistence: save/reload each node's params under its own
       namespace; reject foreign keys at the node boundary (not global filtering).

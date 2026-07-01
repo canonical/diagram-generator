@@ -180,6 +180,43 @@ async function activeOptionBucket(page: Page): Promise<string | null> {
   });
 }
 
+async function captureLayoutOperatorBrowserState(page: Page): Promise<{
+  activeOperatorKey: string | null;
+  activeLayoutOverrides: Record<string, unknown>;
+  byOperator: Record<string, Record<string, unknown>>;
+  renderIntentEngineId: string | null;
+  renderIntentOverrides: Record<string, unknown>;
+}> {
+  return page.evaluate(() => {
+    const previewWindow = window as Window & typeof globalThis & {
+      EditorState?: {
+        captureSnapshot?: () => {
+          e?: Record<string, unknown>;
+          ep?: {
+            activeOperatorKey?: string | null;
+            byOperator?: Record<string, Record<string, unknown>>;
+          };
+        };
+      } | null;
+      __DG_previewRenderIntent?: {
+        engineId?: string | null;
+        engineOverrides?: Record<string, unknown> | null;
+      } | null;
+    };
+    const snapshot = previewWindow.EditorState?.captureSnapshot?.() ?? {};
+    const layoutOperatorState = snapshot.ep ?? {};
+    return {
+      activeOperatorKey: layoutOperatorState.activeOperatorKey ?? null,
+      activeLayoutOverrides: { ...(snapshot.e ?? {}) },
+      byOperator: Object.fromEntries(
+        Object.entries(layoutOperatorState.byOperator ?? {}).map(([key, value]) => [key, { ...value }]),
+      ),
+      renderIntentEngineId: previewWindow.__DG_previewRenderIntent?.engineId ?? null,
+      renderIntentOverrides: { ...(previewWindow.__DG_previewRenderIntent?.engineOverrides ?? {}) },
+    };
+  });
+}
+
 async function fittedViewBox(page: Page): Promise<string> {
   const viewBox = await page.locator("#stage svg").getAttribute("viewBox");
   assert.ok(viewBox, "expected the rendered stage to expose a fitted viewBox");
@@ -226,6 +263,37 @@ async function firstVisibleLayoutControlId(page: Page): Promise<string> {
   });
   assert.ok(controlId, "expected a visible enabled engine layout control");
   return controlId;
+}
+
+async function firstVisibleLayoutControlForPrefix(page: Page, prefix: string): Promise<{
+  id: string;
+  key: string;
+}> {
+  const control = await page.evaluate((desiredPrefix) => {
+    const controls = Array.from(
+      document.querySelectorAll<HTMLElement>(
+        '#layout-params-section [data-dg-engine-layout-key], #layout-params-section [data-elk-key]',
+      ),
+    );
+    const match = controls.find((element) => {
+      const disabled = "disabled" in element && Boolean((element as HTMLInputElement | HTMLSelectElement).disabled);
+      const layoutKey = element.dataset.dgEngineLayoutKey ?? element.dataset.elkKey ?? "";
+      return !disabled
+        && element.offsetParent !== null
+        && typeof element.id === "string"
+        && element.id.length > 0
+        && layoutKey.startsWith(desiredPrefix);
+    });
+    if (!match) {
+      return null;
+    }
+    return {
+      id: match.id,
+      key: match.dataset.dgEngineLayoutKey ?? match.dataset.elkKey ?? "",
+    };
+  }, prefix);
+  assert.ok(control, `expected a visible enabled layout control for prefix ${prefix}`);
+  return control;
 }
 
 async function hasVisibleLayoutControls(page: Page): Promise<boolean> {
@@ -339,6 +407,73 @@ async function mutateAndRestoreFirstLayoutControl(page: Page): Promise<void> {
   await writeValue(alternate);
   await settle(page);
   await writeValue(original);
+  await settle(page);
+}
+
+async function mutateLayoutControlAndKeepValue(page: Page, controlId: string): Promise<void> {
+  const control = page.locator(`#${controlId}`);
+  const descriptor = await control.evaluate((element) => {
+    if (element instanceof HTMLSelectElement) {
+      return {
+        tagName: "select",
+        value: element.value,
+        options: Array.from(element.options).map((option) => option.value),
+      };
+    }
+    if (element instanceof HTMLInputElement) {
+      return {
+        tagName: "input",
+        type: element.type || "text",
+        value: element.type === "checkbox" ? String(element.checked) : element.value,
+        step: element.step,
+        min: element.min,
+        max: element.max,
+      };
+    }
+    throw new Error(`Unsupported layout control tag ${(element as HTMLElement).tagName}`);
+  });
+
+  if (descriptor.tagName === "select") {
+    const alternate = descriptor.options.find((value) => value && value !== descriptor.value);
+    assert.ok(alternate, `expected an alternate option for layout control ${controlId}`);
+    await control.selectOption(alternate);
+    await settle(page);
+    return;
+  }
+
+  if (descriptor.type === "checkbox") {
+    const original = descriptor.value === "true";
+    await control.evaluate((element, checked) => {
+      const input = element as HTMLInputElement;
+      input.checked = checked as boolean;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    }, !original);
+    await settle(page);
+    return;
+  }
+
+  const original = Number(descriptor.value);
+  assert.ok(Number.isFinite(original), `expected numeric layout control ${controlId}`);
+  const step = Number(descriptor.step || "1") || 1;
+  const min = descriptor.min ? Number(descriptor.min) : Number.NEGATIVE_INFINITY;
+  const max = descriptor.max ? Number(descriptor.max) : Number.POSITIVE_INFINITY;
+  let alternate = original + step;
+  if (alternate > max || !Number.isFinite(alternate)) {
+    alternate = original - step;
+  }
+  if (alternate < min || alternate === original || !Number.isFinite(alternate)) {
+    alternate = original + 1;
+  }
+  if (alternate > max || alternate < min || alternate === original) {
+    throw new Error(`Unable to derive alternate numeric value for layout control ${controlId}`);
+  }
+  await control.evaluate((element, value) => {
+    const input = element as HTMLInputElement;
+    input.value = String(value);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }, alternate);
   await settle(page);
 }
 
@@ -561,6 +696,82 @@ test("phase 1 canvas parity holds across load, save→reload, engine-tab switch,
       } finally {
         await page.close();
       }
+    }
+  } finally {
+    await browser.close();
+    await stopPreviewServer(server.process);
+    fs.rmSync(framesDir, { recursive: true, force: true });
+  }
+});
+
+test("engine-specific layout buckets stay isolated across layered, radial, and dagre browser switches", { timeout: 120_000 }, async () => {
+  const framesDir = copyFixtureFrames(["example-deployment-pipeline"]);
+  const port = await allocatePort();
+  const baseUrl = `http://127.0.0.1:${port}`;
+  const server = startPreviewServer(framesDir, port);
+  const browser = await chromium.launch();
+
+  try {
+    await server.ready;
+
+    const page = await openPreviewPage(browser, baseUrl, "example-deployment-pipeline");
+    try {
+      const engineTabs = await currentEngineTabs(page);
+      assert.ok(engineTabs.includes("elk-layered"), "expected elk-layered engine tab");
+      assert.ok(engineTabs.includes("elk-radial"), "expected elk-radial engine tab");
+      assert.ok(engineTabs.includes("dagre"), "expected dagre engine tab");
+
+      await selectEngine(page, "elk-layered");
+      const layeredControl = await firstVisibleLayoutControlForPrefix(page, "elk.layered.");
+      await mutateLayoutControlAndKeepValue(page, layeredControl.id);
+      const layeredState = await captureLayoutOperatorBrowserState(page);
+
+      assert.equal(layeredState.activeOperatorKey, "elk-layered");
+      assert.equal(layeredState.renderIntentEngineId, "elk-layered");
+      assert.deepEqual(layeredState.activeLayoutOverrides, layeredState.byOperator["elk-layered"] ?? {});
+      assert.ok(layeredControl.key in layeredState.activeLayoutOverrides);
+
+      await selectEngine(page, "elk-radial");
+      const radialControl = await firstVisibleLayoutControlForPrefix(page, "elk.radial.");
+      await mutateLayoutControlAndKeepValue(page, radialControl.id);
+      const radialState = await captureLayoutOperatorBrowserState(page);
+
+      assert.equal(radialState.activeOperatorKey, "elk-radial");
+      assert.equal(radialState.renderIntentEngineId, "elk-radial");
+      assert.deepEqual(radialState.activeLayoutOverrides, radialState.byOperator["elk-radial"] ?? {});
+      assert.ok(radialControl.key in radialState.activeLayoutOverrides);
+      assert.equal(radialState.activeLayoutOverrides[layeredControl.key], undefined);
+      assert.deepEqual(radialState.byOperator["elk-layered"], layeredState.byOperator["elk-layered"]);
+
+      await selectEngine(page, "elk-layered");
+      const layeredReturnState = await captureLayoutOperatorBrowserState(page);
+
+      assert.equal(layeredReturnState.activeOperatorKey, "elk-layered");
+      assert.deepEqual(layeredReturnState.activeLayoutOverrides, layeredState.byOperator["elk-layered"] ?? {});
+      assert.equal(layeredReturnState.activeLayoutOverrides[radialControl.key], undefined);
+
+      await selectEngine(page, "dagre");
+      const dagreControl = await firstVisibleLayoutControlForPrefix(page, "dagre.");
+      await mutateLayoutControlAndKeepValue(page, dagreControl.id);
+      const dagreState = await captureLayoutOperatorBrowserState(page);
+
+      assert.equal(dagreState.activeOperatorKey, "dagre");
+      assert.equal(dagreState.renderIntentEngineId, "dagre");
+      assert.deepEqual(dagreState.activeLayoutOverrides, dagreState.byOperator.dagre ?? {});
+      assert.ok(dagreControl.key in dagreState.activeLayoutOverrides);
+      assert.equal(dagreState.activeLayoutOverrides[layeredControl.key], undefined);
+      assert.equal(dagreState.activeLayoutOverrides[radialControl.key], undefined);
+      assert.deepEqual(dagreState.byOperator["elk-layered"], layeredState.byOperator["elk-layered"]);
+      assert.deepEqual(dagreState.byOperator["elk-radial"], radialState.byOperator["elk-radial"]);
+
+      await selectEngine(page, "elk-layered");
+      const layeredAfterDagreState = await captureLayoutOperatorBrowserState(page);
+
+      assert.equal(layeredAfterDagreState.activeOperatorKey, "elk-layered");
+      assert.deepEqual(layeredAfterDagreState.activeLayoutOverrides, layeredState.byOperator["elk-layered"] ?? {});
+      assert.equal(layeredAfterDagreState.activeLayoutOverrides[dagreControl.key], undefined);
+    } finally {
+      await page.close();
     }
   } finally {
     await browser.close();
