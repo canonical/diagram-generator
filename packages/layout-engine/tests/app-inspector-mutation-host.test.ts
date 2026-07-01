@@ -19,7 +19,7 @@ describe('preview inspector mutation host helpers', () => {
     dispatchPreviewSingleFrameAlignHost({
       cid: 'alpha',
       captureOverrideEntries: vi.fn(() => ({ ids: ['alpha'] })),
-      applySingleFramePropMutation: vi.fn(),
+      applySingleFramePropMutation: vi.fn(() => ({ kind: 'changed' })),
       overrides: {},
       coercedKeys: new Set(),
       getNode: vi.fn(() => ({ id: 'alpha' })),
@@ -57,7 +57,7 @@ describe('preview inspector mutation host helpers', () => {
       baselineStep: 24,
       resolveFrameSizePx: vi.fn(() => 320),
       captureOverrideEntries: vi.fn(() => ({ ids: ['alpha'] })),
-      applySingleFrameSizeMutation: vi.fn(),
+      applySingleFrameSizeMutation: vi.fn(() => ({ kind: 'changed' })),
       overrides: {},
       coercedKeys: new Set(),
       setDirty: () => events.push('setDirty'),
@@ -80,6 +80,28 @@ describe('preview inspector mutation host helpers', () => {
       'relayoutNow:alpha',
       'inspector:alpha',
     ]);
+  });
+
+  it('does not dirty or relayout invalid single-frame alignment changes', () => {
+    const events: string[] = [];
+
+    const result = dispatchPreviewSingleFrameAlignHost({
+      cid: 'alpha',
+      captureOverrideEntries: vi.fn(() => ({ ids: ['alpha'] })),
+      applySingleFramePropMutation: vi.fn(() => ({ kind: 'none' })),
+      overrides: {},
+      coercedKeys: new Set(),
+      getNode: vi.fn(() => ({ id: 'alpha' })),
+      align: 'INVALID',
+      snapToGrid: (value) => value,
+      setDirty: () => events.push('setDirty'),
+      commitOverridePatchAction: (label) => events.push(label),
+      scheduleRelayout: (cid) => events.push(`relayout:${cid}`),
+      renderSelectionInspector: (cid) => events.push(`inspector:${cid}`),
+    });
+
+    expect(result).toEqual({ kind: 'none' });
+    expect(events).toEqual(['inspector:alpha']);
   });
 
   it('dispatches multi-frame mutation flows through the shared host owner', () => {

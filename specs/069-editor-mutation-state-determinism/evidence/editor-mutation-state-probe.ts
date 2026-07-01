@@ -70,6 +70,7 @@ type StateVector = {
     documentKind: string | null;
     layoutEngine: string | null;
   };
+  lastEditorMutationTransaction: unknown;
   violations: string[];
 };
 
@@ -374,6 +375,9 @@ async function captureStateVector(page: Page, label: string): Promise<StateVecto
         documentKind: window.__DG_CONFIG?.document_kind ?? null,
         layoutEngine: window.__DG_CONFIG?.layout_engine ?? null,
       },
+      lastEditorMutationTransaction: clone((
+        window as typeof window & { __DG_lastEditorMutationTransactionResult?: unknown }
+      ).__DG_lastEditorMutationTransactionResult ?? null),
     };
   }, label);
 
@@ -619,6 +623,38 @@ async function editStyleVariantStep(page: Page): Promise<unknown> {
   return { target };
 }
 
+async function editGeometryPropStep(page: Page): Promise<unknown> {
+  const input = page.locator('#inspector input[data-dg-change-action="single-prop"][data-dg-prop="min_width"]').first();
+  if (await input.count() === 0) {
+    throw new Error('min_width geometry input missing');
+  }
+  if (!(await input.isVisible()) || !(await input.isEnabled())) {
+    throw new Error('min_width geometry input not interactable');
+  }
+  const current = Number.parseInt(await input.inputValue(), 10);
+  const target = String(Number.isFinite(current) && current >= 320 ? current + 80 : 320);
+  await input.fill(target);
+  await input.press('Enter');
+  await settle(page);
+  const transaction = await page.evaluate(() => (
+    window as typeof window & { __DG_lastEditorMutationTransactionResult?: unknown }
+  ).__DG_lastEditorMutationTransactionResult ?? null);
+  const expected = {
+    kind: 'committed',
+    mutationKind: 'inspector-layout',
+    sourceControl: 'single-prop:min_width',
+    relayoutPolicy: 'engine',
+    dirtyPolicy: 'mark-dirty',
+    undoPolicy: 'record',
+  };
+  for (const [key, value] of Object.entries(expected)) {
+    if ((transaction as Record<string, unknown> | null)?.[key] !== value) {
+      throw new Error(`geometry edit transaction mismatch: ${JSON.stringify({ expected, transaction })}`);
+    }
+  }
+  return { prop: 'min_width', target, transaction };
+}
+
 async function undoRedoStep(page: Page): Promise<unknown> {
   const undo = page.locator('#btn-undo');
   const redo = page.locator('#btn-redo');
@@ -653,6 +689,14 @@ async function runCase(browser: Browser, slug: string): Promise<EvidenceCase> {
       ok: true,
       after: await captureStateVector(page, 'initial-state'),
     });
+
+    if (slug === 'example-deployment-pipeline') {
+      steps.push(await runStep(page, 'geometry-prop-edit', async () => {
+        await selectFirstFrameStep(page);
+        await settle(page);
+        return editGeometryPropStep(page);
+      }));
+    }
 
     if (slug === 'example-deployment-pipeline' || slug === 'mongo-octavia-ha') {
       steps.push(await runStep(page, 'engine-tab-switch', () => switchEngineStep(page)));

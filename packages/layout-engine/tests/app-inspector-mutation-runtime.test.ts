@@ -131,6 +131,7 @@ describe('createPreviewInspectorMutationRuntime', () => {
     const scheduleRelayout = vi.fn();
     const requestRelayoutNow = vi.fn();
     const renderSelectionInspector = vi.fn();
+    const mutationResults: unknown[] = [];
     const runtime = createPreviewInspectorMutationRuntime({
       captureOverrideEntries,
       commitOverridePatchAction,
@@ -147,6 +148,7 @@ describe('createPreviewInspectorMutationRuntime', () => {
       getWidthUnit: () => 'px',
       getHeightUnit: () => 'px',
       baselineStep: 8,
+      onMutationTransaction: (result) => mutationResults.push(result),
     });
 
     overrides = {};
@@ -162,12 +164,27 @@ describe('createPreviewInspectorMutationRuntime', () => {
       { root: { gap_delta: 24 } },
     );
     expect(requestRelayoutNow).not.toHaveBeenCalled();
+    expect(mutationResults).toEqual([
+      expect.objectContaining({
+        kind: 'committed',
+        mutationKind: 'inspector-layout',
+        sourceControl: 'single-prop:gap_delta',
+        relayoutPolicy: 'engine',
+        dirtyPolicy: 'mark-dirty',
+        undoPolicy: 'record',
+        persistenceDelta: {
+          frameOverridesChanged: true,
+          savePayloadChanged: true,
+        },
+      }),
+    ]);
   });
 
   it('requests immediate relayout for single-frame size mutations', () => {
     let overrides: Record<string, Record<string, unknown>> = {};
     const scheduleRelayout = vi.fn();
     const requestRelayoutNow = vi.fn();
+    const mutationResults: unknown[] = [];
 
     const runtime = createPreviewInspectorMutationRuntime({
       captureOverrideEntries: (ids) => Object.fromEntries(ids.map((id) => [id, { ...(overrides[id] || {}) }])),
@@ -185,6 +202,7 @@ describe('createPreviewInspectorMutationRuntime', () => {
       getWidthUnit: () => 'px',
       getHeightUnit: () => 'px',
       baselineStep: 8,
+      onMutationTransaction: (result) => mutationResults.push(result),
     });
 
     overrides = {};
@@ -193,6 +211,16 @@ describe('createPreviewInspectorMutationRuntime', () => {
     expect(overrides.alpha).toEqual({ sizing_w: 'FIXED', width: 120 });
     expect(requestRelayoutNow).toHaveBeenCalledWith('alpha');
     expect(scheduleRelayout).not.toHaveBeenCalled();
+    expect(mutationResults).toEqual([
+      expect.objectContaining({
+        kind: 'committed',
+        mutationKind: 'geometry',
+        sourceControl: 'single-size:width',
+        relayoutPolicy: 'engine',
+        dirtyPolicy: 'mark-dirty',
+        undoPolicy: 'record',
+      }),
+    ]);
   });
 
   it('requests immediate relayout for visual layout properties', () => {
@@ -231,6 +259,7 @@ describe('createPreviewInspectorMutationRuntime', () => {
     let overrides: Record<string, Record<string, unknown>> = {};
     const requestRelayoutNow = vi.fn();
     const renderSelectionInspector = vi.fn();
+    const mutationResults: unknown[] = [];
     const runtime = createPreviewInspectorMutationRuntime({
       captureOverrideEntries: (ids) => Object.fromEntries(ids.map((id) => [id, { ...(overrides[id] || {}) }])),
       commitOverridePatchAction: vi.fn(),
@@ -248,6 +277,7 @@ describe('createPreviewInspectorMutationRuntime', () => {
       getHeightUnit: () => 'px',
       baselineStep: 8,
       shouldShowAutolayoutInspector: () => false,
+      onMutationTransaction: (result) => mutationResults.push(result),
     });
 
     runtime.setFrameAlign('panel', 'BOTTOM_LEFT');
@@ -258,5 +288,25 @@ describe('createPreviewInspectorMutationRuntime', () => {
     expect(requestRelayoutNow).not.toHaveBeenCalled();
     expect(renderSelectionInspector).toHaveBeenCalledTimes(3);
     expect(renderSelectionInspector).toHaveBeenCalledWith('panel');
+    expect(mutationResults).toEqual([
+      expect.objectContaining({
+        kind: 'inert',
+        mutationKind: 'inspector-layout',
+        sourceControl: 'single-align',
+        relayoutPolicy: 'none',
+        dirtyPolicy: 'preserve',
+        undoPolicy: 'none',
+      }),
+      expect.objectContaining({
+        kind: 'inert',
+        mutationKind: 'inspector-layout',
+        sourceControl: 'single-prop:direction',
+      }),
+      expect.objectContaining({
+        kind: 'inert',
+        mutationKind: 'geometry',
+        sourceControl: 'single-size:width',
+      }),
+    ]);
   });
 });

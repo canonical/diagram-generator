@@ -1,7 +1,7 @@
 {
   "ok": true,
   "baseUrl": "http://127.0.0.1:8100",
-  "generatedAt": "2026-07-01T00:05:50.471Z",
+  "generatedAt": "2026-07-01T00:18:29.635Z",
   "fixtureHashesBefore": [
     {
       "slug": "example-deployment-pipeline",
@@ -231,6 +231,7 @@
               "documentKind": "frame-diagram",
               "layoutEngine": "v3"
             },
+            "lastEditorMutationTransaction": null,
             "bounds": [
               {
                 "id": "page",
@@ -287,10 +288,10 @@
           }
         },
         {
-          "name": "engine-tab-switch",
+          "name": "geometry-prop-edit",
           "ok": true,
           "before": {
-            "label": "engine-tab-switch:before",
+            "label": "geometry-prop-edit:before",
             "url": "http://127.0.0.1:8100/view/v3:example-deployment-pipeline",
             "activeTab": "v3",
             "renderIntent": {
@@ -451,6 +452,7 @@
               "documentKind": "frame-diagram",
               "layoutEngine": "v3"
             },
+            "lastEditorMutationTransaction": null,
             "bounds": [
               {
                 "id": "page",
@@ -506,13 +508,529 @@
             "violations": []
           },
           "after": {
+            "label": "geometry-prop-edit:after",
+            "url": "http://127.0.0.1:8100/view/v3:example-deployment-pipeline",
+            "activeTab": "v3",
+            "renderIntent": {
+              "engineId": "v3",
+              "pageDirection": "VERTICAL",
+              "frameOverrides": {
+                "commit": {
+                  "min_width": 320
+                }
+              },
+              "engineOverrides": {},
+              "gridOverrides": {}
+            },
+            "frameTreeLayoutEngine": "v3",
+            "layoutOperator": {
+              "activeOperatorKey": "v3",
+              "byOperator": {
+                "v3": {}
+              },
+              "layoutOverrides": {},
+              "layoutOverrideNamespace": null
+            },
+            "renderedEngine": "v3",
+            "selection": {
+              "ids": [
+                "commit"
+              ],
+              "domIds": [
+                "commit"
+              ],
+              "type": "single"
+            },
+            "inspectorTarget": "page",
+            "focusedControl": null,
+            "controlApplicability": {
+              "engineTab": {
+                "selector": "#engine-switcher-tabs [data-engine-id]",
+                "exists": true,
+                "hidden": false,
+                "disabled": false,
+                "focused": false,
+                "value": "",
+                "checked": null,
+                "reason": "applicable"
+              },
+              "engineOption": {
+                "selector": "#layout-params-controls [data-dg-engine-layout-key], #layout-params-controls [data-elk-key]",
+                "exists": false,
+                "hidden": null,
+                "disabled": null,
+                "focused": false,
+                "value": null,
+                "checked": null,
+                "reason": "missing"
+              },
+              "gridCols": {
+                "selector": "#grid-cols",
+                "exists": true,
+                "hidden": true,
+                "disabled": true,
+                "focused": false,
+                "value": "1",
+                "checked": false,
+                "reason": "hidden"
+              },
+              "gridRows": {
+                "selector": "#grid-rows",
+                "exists": true,
+                "hidden": true,
+                "disabled": true,
+                "focused": false,
+                "value": "4",
+                "checked": false,
+                "reason": "hidden"
+              },
+              "styleVariant": {
+                "selector": "#inspector [data-dg-change-action=\"single-style\"]",
+                "exists": true,
+                "hidden": false,
+                "disabled": false,
+                "focused": false,
+                "value": "default",
+                "checked": null,
+                "reason": "applicable"
+              },
+              "save": {
+                "selector": "#btn-save",
+                "exists": true,
+                "hidden": false,
+                "disabled": false,
+                "focused": false,
+                "value": "",
+                "checked": null,
+                "reason": "applicable"
+              },
+              "undo": {
+                "selector": "#btn-undo",
+                "exists": true,
+                "hidden": false,
+                "disabled": false,
+                "focused": false,
+                "value": "",
+                "checked": null,
+                "reason": "applicable"
+              },
+              "redo": {
+                "selector": "#btn-redo",
+                "exists": true,
+                "hidden": false,
+                "disabled": true,
+                "focused": false,
+                "value": "",
+                "checked": null,
+                "reason": "disabled"
+              }
+            },
+            "dirty": true,
+            "undo": {
+              "canUndo": true,
+              "canRedo": false
+            },
+            "visibleControls": [
+              {
+                "id": "engine-switcher-section",
+                "hidden": false,
+                "inert": false,
+                "disabledControlCount": 0,
+                "enabledControlCount": 7
+              },
+              {
+                "id": "layout-params-section",
+                "hidden": true,
+                "inert": true,
+                "disabledControlCount": 0,
+                "enabledControlCount": 0
+              },
+              {
+                "id": "grid-controls-section",
+                "hidden": true,
+                "inert": true,
+                "disabledControlCount": 10,
+                "enabledControlCount": 0
+              },
+              {
+                "id": "inspector",
+                "hidden": false,
+                "inert": false,
+                "disabledControlCount": 0,
+                "enabledControlCount": 15
+              }
+            ],
+            "savePayload": {
+              "overrides": {
+                "commit": {
+                  "min_width": 320
+                }
+              },
+              "grid_overrides": {},
+              "layout_overrides": {},
+              "layout_operator_overrides": {
+                "activeOperatorKey": "v3",
+                "byOperator": {
+                  "v3": {}
+                }
+              },
+              "removed_ids": []
+            },
+            "reloadParse": {
+              "configSlug": "example-deployment-pipeline",
+              "documentKind": "frame-diagram",
+              "layoutEngine": "v3"
+            },
+            "lastEditorMutationTransaction": {
+              "kind": "committed",
+              "mutationKind": "inspector-layout",
+              "sourceControl": "single-prop:min_width",
+              "activeEngineId": null,
+              "reason": "min_width change is applicable to the selected frame",
+              "relayoutPolicy": "engine",
+              "dirtyPolicy": "mark-dirty",
+              "undoPolicy": "record",
+              "renderIntentDelta": null,
+              "persistenceDelta": {
+                "frameOverridesChanged": true,
+                "savePayloadChanged": true
+              },
+              "diagnostics": []
+            },
+            "bounds": [
+              {
+                "id": "page",
+                "x": 0,
+                "y": 0,
+                "w": 320,
+                "h": 504
+              },
+              {
+                "id": "commit",
+                "x": 0,
+                "y": 0,
+                "w": 320,
+                "h": 64
+              },
+              {
+                "id": "build",
+                "x": 0,
+                "y": 88,
+                "w": 320,
+                "h": 64
+              },
+              {
+                "id": "test",
+                "x": 0,
+                "y": 176,
+                "w": 320,
+                "h": 64
+              },
+              {
+                "id": "staging",
+                "x": 0,
+                "y": 264,
+                "w": 320,
+                "h": 64
+              },
+              {
+                "id": "approval",
+                "x": 0,
+                "y": 352,
+                "w": 320,
+                "h": 64
+              },
+              {
+                "id": "production",
+                "x": 0,
+                "y": 440,
+                "w": 320,
+                "h": 64
+              }
+            ],
+            "boundsSignature": "[[\"approval\",0,352,320,64],[\"build\",0,88,320,64],[\"commit\",0,0,320,64],[\"page\",0,0,320,504],[\"production\",0,440,320,64],[\"staging\",0,264,320,64],[\"test\",0,176,320,64]]",
+            "violations": []
+          },
+          "details": {
+            "prop": "min_width",
+            "target": "320",
+            "transaction": {
+              "kind": "committed",
+              "mutationKind": "inspector-layout",
+              "sourceControl": "single-prop:min_width",
+              "activeEngineId": null,
+              "reason": "min_width change is applicable to the selected frame",
+              "relayoutPolicy": "engine",
+              "dirtyPolicy": "mark-dirty",
+              "undoPolicy": "record",
+              "renderIntentDelta": null,
+              "persistenceDelta": {
+                "frameOverridesChanged": true,
+                "savePayloadChanged": true
+              },
+              "diagnostics": []
+            }
+          }
+        },
+        {
+          "name": "engine-tab-switch",
+          "ok": true,
+          "before": {
+            "label": "engine-tab-switch:before",
+            "url": "http://127.0.0.1:8100/view/v3:example-deployment-pipeline",
+            "activeTab": "v3",
+            "renderIntent": {
+              "engineId": "v3",
+              "pageDirection": "VERTICAL",
+              "frameOverrides": {
+                "commit": {
+                  "min_width": 320
+                }
+              },
+              "engineOverrides": {},
+              "gridOverrides": {}
+            },
+            "frameTreeLayoutEngine": "v3",
+            "layoutOperator": {
+              "activeOperatorKey": "v3",
+              "byOperator": {
+                "v3": {}
+              },
+              "layoutOverrides": {},
+              "layoutOverrideNamespace": null
+            },
+            "renderedEngine": "v3",
+            "selection": {
+              "ids": [
+                "commit"
+              ],
+              "domIds": [
+                "commit"
+              ],
+              "type": "single"
+            },
+            "inspectorTarget": "page",
+            "focusedControl": null,
+            "controlApplicability": {
+              "engineTab": {
+                "selector": "#engine-switcher-tabs [data-engine-id]",
+                "exists": true,
+                "hidden": false,
+                "disabled": false,
+                "focused": false,
+                "value": "",
+                "checked": null,
+                "reason": "applicable"
+              },
+              "engineOption": {
+                "selector": "#layout-params-controls [data-dg-engine-layout-key], #layout-params-controls [data-elk-key]",
+                "exists": false,
+                "hidden": null,
+                "disabled": null,
+                "focused": false,
+                "value": null,
+                "checked": null,
+                "reason": "missing"
+              },
+              "gridCols": {
+                "selector": "#grid-cols",
+                "exists": true,
+                "hidden": true,
+                "disabled": true,
+                "focused": false,
+                "value": "1",
+                "checked": false,
+                "reason": "hidden"
+              },
+              "gridRows": {
+                "selector": "#grid-rows",
+                "exists": true,
+                "hidden": true,
+                "disabled": true,
+                "focused": false,
+                "value": "4",
+                "checked": false,
+                "reason": "hidden"
+              },
+              "styleVariant": {
+                "selector": "#inspector [data-dg-change-action=\"single-style\"]",
+                "exists": true,
+                "hidden": false,
+                "disabled": false,
+                "focused": false,
+                "value": "default",
+                "checked": null,
+                "reason": "applicable"
+              },
+              "save": {
+                "selector": "#btn-save",
+                "exists": true,
+                "hidden": false,
+                "disabled": false,
+                "focused": false,
+                "value": "",
+                "checked": null,
+                "reason": "applicable"
+              },
+              "undo": {
+                "selector": "#btn-undo",
+                "exists": true,
+                "hidden": false,
+                "disabled": false,
+                "focused": false,
+                "value": "",
+                "checked": null,
+                "reason": "applicable"
+              },
+              "redo": {
+                "selector": "#btn-redo",
+                "exists": true,
+                "hidden": false,
+                "disabled": true,
+                "focused": false,
+                "value": "",
+                "checked": null,
+                "reason": "disabled"
+              }
+            },
+            "dirty": true,
+            "undo": {
+              "canUndo": true,
+              "canRedo": false
+            },
+            "visibleControls": [
+              {
+                "id": "engine-switcher-section",
+                "hidden": false,
+                "inert": false,
+                "disabledControlCount": 0,
+                "enabledControlCount": 7
+              },
+              {
+                "id": "layout-params-section",
+                "hidden": true,
+                "inert": true,
+                "disabledControlCount": 0,
+                "enabledControlCount": 0
+              },
+              {
+                "id": "grid-controls-section",
+                "hidden": true,
+                "inert": true,
+                "disabledControlCount": 10,
+                "enabledControlCount": 0
+              },
+              {
+                "id": "inspector",
+                "hidden": false,
+                "inert": false,
+                "disabledControlCount": 0,
+                "enabledControlCount": 15
+              }
+            ],
+            "savePayload": {
+              "overrides": {
+                "commit": {
+                  "min_width": 320
+                }
+              },
+              "grid_overrides": {},
+              "layout_overrides": {},
+              "layout_operator_overrides": {
+                "activeOperatorKey": "v3",
+                "byOperator": {
+                  "v3": {}
+                }
+              },
+              "removed_ids": []
+            },
+            "reloadParse": {
+              "configSlug": "example-deployment-pipeline",
+              "documentKind": "frame-diagram",
+              "layoutEngine": "v3"
+            },
+            "lastEditorMutationTransaction": {
+              "kind": "committed",
+              "mutationKind": "inspector-layout",
+              "sourceControl": "single-prop:min_width",
+              "activeEngineId": null,
+              "reason": "min_width change is applicable to the selected frame",
+              "relayoutPolicy": "engine",
+              "dirtyPolicy": "mark-dirty",
+              "undoPolicy": "record",
+              "renderIntentDelta": null,
+              "persistenceDelta": {
+                "frameOverridesChanged": true,
+                "savePayloadChanged": true
+              },
+              "diagnostics": []
+            },
+            "bounds": [
+              {
+                "id": "page",
+                "x": 0,
+                "y": 0,
+                "w": 320,
+                "h": 504
+              },
+              {
+                "id": "commit",
+                "x": 0,
+                "y": 0,
+                "w": 320,
+                "h": 64
+              },
+              {
+                "id": "build",
+                "x": 0,
+                "y": 88,
+                "w": 320,
+                "h": 64
+              },
+              {
+                "id": "test",
+                "x": 0,
+                "y": 176,
+                "w": 320,
+                "h": 64
+              },
+              {
+                "id": "staging",
+                "x": 0,
+                "y": 264,
+                "w": 320,
+                "h": 64
+              },
+              {
+                "id": "approval",
+                "x": 0,
+                "y": 352,
+                "w": 320,
+                "h": 64
+              },
+              {
+                "id": "production",
+                "x": 0,
+                "y": 440,
+                "w": 320,
+                "h": 64
+              }
+            ],
+            "boundsSignature": "[[\"approval\",0,352,320,64],[\"build\",0,88,320,64],[\"commit\",0,0,320,64],[\"page\",0,0,320,504],[\"production\",0,440,320,64],[\"staging\",0,264,320,64],[\"test\",0,176,320,64]]",
+            "violations": []
+          },
+          "after": {
             "label": "engine-tab-switch:after",
             "url": "http://127.0.0.1:8100/view/v3:example-deployment-pipeline",
             "activeTab": "elk-layered",
             "renderIntent": {
               "engineId": "elk-layered",
               "pageDirection": "VERTICAL",
-              "frameOverrides": {},
+              "frameOverrides": {
+                "commit": {
+                  "min_width": 320
+                }
+              },
               "engineOverrides": {},
               "gridOverrides": {}
             },
@@ -554,11 +1072,15 @@
             },
             "renderedEngine": "elk-layered",
             "selection": {
-              "ids": [],
-              "domIds": [],
-              "type": "empty"
+              "ids": [
+                "commit"
+              ],
+              "domIds": [
+                "commit"
+              ],
+              "type": "single"
             },
-            "inspectorTarget": null,
+            "inspectorTarget": "commit",
             "focusedControl": null,
             "controlApplicability": {
               "engineTab": {
@@ -603,13 +1125,13 @@
               },
               "styleVariant": {
                 "selector": "#inspector [data-dg-change-action=\"single-style\"]",
-                "exists": false,
-                "hidden": null,
-                "disabled": null,
+                "exists": true,
+                "hidden": false,
+                "disabled": false,
                 "focused": false,
-                "value": null,
+                "value": "default",
                 "checked": null,
-                "reason": "missing"
+                "reason": "applicable"
               },
               "save": {
                 "selector": "#btn-save",
@@ -625,11 +1147,11 @@
                 "selector": "#btn-undo",
                 "exists": true,
                 "hidden": false,
-                "disabled": true,
+                "disabled": false,
                 "focused": false,
                 "value": "",
                 "checked": null,
-                "reason": "disabled"
+                "reason": "applicable"
               },
               "redo": {
                 "selector": "#btn-redo",
@@ -644,7 +1166,7 @@
             },
             "dirty": true,
             "undo": {
-              "canUndo": false,
+              "canUndo": true,
               "canRedo": false
             },
             "visibleControls": [
@@ -674,11 +1196,15 @@
                 "hidden": false,
                 "inert": false,
                 "disabledControlCount": 0,
-                "enabledControlCount": 0
+                "enabledControlCount": 1
               }
             ],
             "savePayload": {
-              "overrides": {},
+              "overrides": {
+                "commit": {
+                  "min_width": 320
+                }
+              },
               "grid_overrides": {},
               "layout_overrides": {
                 "elk.direction": "",
@@ -721,58 +1247,77 @@
               "documentKind": "frame-diagram",
               "layoutEngine": "elk-layered"
             },
+            "lastEditorMutationTransaction": {
+              "kind": "committed",
+              "mutationKind": "engine-tab",
+              "sourceControl": "engine-switcher-tabs",
+              "activeEngineId": "v3",
+              "reason": "engine is compatible with this preview document",
+              "relayoutPolicy": "fresh-render",
+              "dirtyPolicy": "mark-dirty",
+              "undoPolicy": "none",
+              "renderIntentDelta": {
+                "engineId": "elk-layered",
+                "changed": true
+              },
+              "persistenceDelta": {
+                "frameTreeChanged": true,
+                "savePayloadChanged": true
+              },
+              "diagnostics": []
+            },
             "bounds": [
               {
                 "id": "page",
                 "x": 0,
                 "y": 0,
-                "w": 1464,
+                "w": 2040,
                 "h": 624
               },
               {
                 "id": "commit",
                 "x": 0,
                 "y": 0,
-                "w": 224,
+                "w": 320,
                 "h": 64
               },
               {
                 "id": "build",
-                "x": 248,
+                "x": 344,
                 "y": 112,
-                "w": 224,
+                "w": 320,
                 "h": 64
               },
               {
                 "id": "test",
-                "x": 496,
+                "x": 688,
                 "y": 224,
-                "w": 224,
+                "w": 320,
                 "h": 64
               },
               {
                 "id": "staging",
-                "x": 744,
+                "x": 1032,
                 "y": 336,
-                "w": 224,
+                "w": 320,
                 "h": 64
               },
               {
                 "id": "approval",
-                "x": 992,
+                "x": 1376,
                 "y": 448,
-                "w": 224,
+                "w": 320,
                 "h": 64
               },
               {
                 "id": "production",
-                "x": 1240,
+                "x": 1720,
                 "y": 560,
-                "w": 224,
+                "w": 320,
                 "h": 64
               }
             ],
-            "boundsSignature": "[[\"approval\",992,448,224,64],[\"build\",248,112,224,64],[\"commit\",0,0,224,64],[\"page\",0,0,1464,624],[\"production\",1240,560,224,64],[\"staging\",744,336,224,64],[\"test\",496,224,224,64]]",
+            "boundsSignature": "[[\"approval\",1376,448,320,64],[\"build\",344,112,320,64],[\"commit\",0,0,320,64],[\"page\",0,0,2040,624],[\"production\",1720,560,320,64],[\"staging\",1032,336,320,64],[\"test\",688,224,320,64]]",
             "violations": []
           },
           "details": {
@@ -789,7 +1334,11 @@
             "renderIntent": {
               "engineId": "elk-layered",
               "pageDirection": "VERTICAL",
-              "frameOverrides": {},
+              "frameOverrides": {
+                "commit": {
+                  "min_width": 320
+                }
+              },
               "engineOverrides": {},
               "gridOverrides": {}
             },
@@ -831,11 +1380,15 @@
             },
             "renderedEngine": "elk-layered",
             "selection": {
-              "ids": [],
-              "domIds": [],
-              "type": "empty"
+              "ids": [
+                "commit"
+              ],
+              "domIds": [
+                "commit"
+              ],
+              "type": "single"
             },
-            "inspectorTarget": null,
+            "inspectorTarget": "commit",
             "focusedControl": null,
             "controlApplicability": {
               "engineTab": {
@@ -880,13 +1433,13 @@
               },
               "styleVariant": {
                 "selector": "#inspector [data-dg-change-action=\"single-style\"]",
-                "exists": false,
-                "hidden": null,
-                "disabled": null,
+                "exists": true,
+                "hidden": false,
+                "disabled": false,
                 "focused": false,
-                "value": null,
+                "value": "default",
                 "checked": null,
-                "reason": "missing"
+                "reason": "applicable"
               },
               "save": {
                 "selector": "#btn-save",
@@ -902,11 +1455,11 @@
                 "selector": "#btn-undo",
                 "exists": true,
                 "hidden": false,
-                "disabled": true,
+                "disabled": false,
                 "focused": false,
                 "value": "",
                 "checked": null,
-                "reason": "disabled"
+                "reason": "applicable"
               },
               "redo": {
                 "selector": "#btn-redo",
@@ -921,7 +1474,7 @@
             },
             "dirty": true,
             "undo": {
-              "canUndo": false,
+              "canUndo": true,
               "canRedo": false
             },
             "visibleControls": [
@@ -951,11 +1504,15 @@
                 "hidden": false,
                 "inert": false,
                 "disabledControlCount": 0,
-                "enabledControlCount": 0
+                "enabledControlCount": 1
               }
             ],
             "savePayload": {
-              "overrides": {},
+              "overrides": {
+                "commit": {
+                  "min_width": 320
+                }
+              },
               "grid_overrides": {},
               "layout_overrides": {
                 "elk.direction": "",
@@ -998,58 +1555,77 @@
               "documentKind": "frame-diagram",
               "layoutEngine": "elk-layered"
             },
+            "lastEditorMutationTransaction": {
+              "kind": "committed",
+              "mutationKind": "engine-tab",
+              "sourceControl": "engine-switcher-tabs",
+              "activeEngineId": "v3",
+              "reason": "engine is compatible with this preview document",
+              "relayoutPolicy": "fresh-render",
+              "dirtyPolicy": "mark-dirty",
+              "undoPolicy": "none",
+              "renderIntentDelta": {
+                "engineId": "elk-layered",
+                "changed": true
+              },
+              "persistenceDelta": {
+                "frameTreeChanged": true,
+                "savePayloadChanged": true
+              },
+              "diagnostics": []
+            },
             "bounds": [
               {
                 "id": "page",
                 "x": 0,
                 "y": 0,
-                "w": 1464,
+                "w": 2040,
                 "h": 624
               },
               {
                 "id": "commit",
                 "x": 0,
                 "y": 0,
-                "w": 224,
+                "w": 320,
                 "h": 64
               },
               {
                 "id": "build",
-                "x": 248,
+                "x": 344,
                 "y": 112,
-                "w": 224,
+                "w": 320,
                 "h": 64
               },
               {
                 "id": "test",
-                "x": 496,
+                "x": 688,
                 "y": 224,
-                "w": 224,
+                "w": 320,
                 "h": 64
               },
               {
                 "id": "staging",
-                "x": 744,
+                "x": 1032,
                 "y": 336,
-                "w": 224,
+                "w": 320,
                 "h": 64
               },
               {
                 "id": "approval",
-                "x": 992,
+                "x": 1376,
                 "y": 448,
-                "w": 224,
+                "w": 320,
                 "h": 64
               },
               {
                 "id": "production",
-                "x": 1240,
+                "x": 1720,
                 "y": 560,
-                "w": 224,
+                "w": 320,
                 "h": 64
               }
             ],
-            "boundsSignature": "[[\"approval\",992,448,224,64],[\"build\",248,112,224,64],[\"commit\",0,0,224,64],[\"page\",0,0,1464,624],[\"production\",1240,560,224,64],[\"staging\",744,336,224,64],[\"test\",496,224,224,64]]",
+            "boundsSignature": "[[\"approval\",1376,448,320,64],[\"build\",344,112,320,64],[\"commit\",0,0,320,64],[\"page\",0,0,2040,624],[\"production\",1720,560,320,64],[\"staging\",1032,336,320,64],[\"test\",688,224,320,64]]",
             "violations": []
           },
           "after": {
@@ -1059,7 +1635,11 @@
             "renderIntent": {
               "engineId": "elk-layered",
               "pageDirection": "VERTICAL",
-              "frameOverrides": {},
+              "frameOverrides": {
+                "commit": {
+                  "min_width": 320
+                }
+              },
               "engineOverrides": {},
               "gridOverrides": {}
             },
@@ -1101,11 +1681,15 @@
             },
             "renderedEngine": "elk-layered",
             "selection": {
-              "ids": [],
-              "domIds": [],
-              "type": "empty"
+              "ids": [
+                "commit"
+              ],
+              "domIds": [
+                "commit"
+              ],
+              "type": "single"
             },
-            "inspectorTarget": null,
+            "inspectorTarget": "commit",
             "focusedControl": null,
             "controlApplicability": {
               "engineTab": {
@@ -1150,13 +1734,13 @@
               },
               "styleVariant": {
                 "selector": "#inspector [data-dg-change-action=\"single-style\"]",
-                "exists": false,
-                "hidden": null,
-                "disabled": null,
+                "exists": true,
+                "hidden": false,
+                "disabled": false,
                 "focused": false,
-                "value": null,
+                "value": "default",
                 "checked": null,
-                "reason": "missing"
+                "reason": "applicable"
               },
               "save": {
                 "selector": "#btn-save",
@@ -1172,11 +1756,11 @@
                 "selector": "#btn-undo",
                 "exists": true,
                 "hidden": false,
-                "disabled": true,
+                "disabled": false,
                 "focused": false,
                 "value": "",
                 "checked": null,
-                "reason": "disabled"
+                "reason": "applicable"
               },
               "redo": {
                 "selector": "#btn-redo",
@@ -1191,7 +1775,7 @@
             },
             "dirty": true,
             "undo": {
-              "canUndo": false,
+              "canUndo": true,
               "canRedo": false
             },
             "visibleControls": [
@@ -1221,11 +1805,15 @@
                 "hidden": false,
                 "inert": false,
                 "disabledControlCount": 0,
-                "enabledControlCount": 0
+                "enabledControlCount": 1
               }
             ],
             "savePayload": {
-              "overrides": {},
+              "overrides": {
+                "commit": {
+                  "min_width": 320
+                }
+              },
               "grid_overrides": {},
               "layout_overrides": {
                 "elk.direction": "DOWN",
@@ -1268,58 +1856,71 @@
               "documentKind": "frame-diagram",
               "layoutEngine": "elk-layered"
             },
+            "lastEditorMutationTransaction": {
+              "kind": "noop",
+              "mutationKind": "engine-option",
+              "sourceControl": "layout-params-controls",
+              "activeEngineId": "elk-layered",
+              "reason": "engine option belongs to the active manifest bucket",
+              "relayoutPolicy": "none",
+              "dirtyPolicy": "preserve",
+              "undoPolicy": "none",
+              "renderIntentDelta": null,
+              "persistenceDelta": null,
+              "diagnostics": []
+            },
             "bounds": [
               {
                 "id": "page",
                 "x": 0,
                 "y": 0,
-                "w": 224,
+                "w": 320,
                 "h": 504
               },
               {
                 "id": "commit",
                 "x": 0,
                 "y": 0,
-                "w": 224,
+                "w": 320,
                 "h": 64
               },
               {
                 "id": "build",
                 "x": 0,
                 "y": 88,
-                "w": 224,
+                "w": 320,
                 "h": 64
               },
               {
                 "id": "test",
                 "x": 0,
                 "y": 176,
-                "w": 224,
+                "w": 320,
                 "h": 64
               },
               {
                 "id": "staging",
                 "x": 0,
                 "y": 264,
-                "w": 224,
+                "w": 320,
                 "h": 64
               },
               {
                 "id": "approval",
                 "x": 0,
                 "y": 352,
-                "w": 224,
+                "w": 320,
                 "h": 64
               },
               {
                 "id": "production",
                 "x": 0,
                 "y": 440,
-                "w": 224,
+                "w": 320,
                 "h": 64
               }
             ],
-            "boundsSignature": "[[\"approval\",0,352,224,64],[\"build\",0,88,224,64],[\"commit\",0,0,224,64],[\"page\",0,0,224,504],[\"production\",0,440,224,64],[\"staging\",0,264,224,64],[\"test\",0,176,224,64]]",
+            "boundsSignature": "[[\"approval\",0,352,320,64],[\"build\",0,88,320,64],[\"commit\",0,0,320,64],[\"page\",0,0,320,504],[\"production\",0,440,320,64],[\"staging\",0,264,320,64],[\"test\",0,176,320,64]]",
             "violations": []
           },
           "details": {
@@ -1337,7 +1938,11 @@
             "renderIntent": {
               "engineId": "elk-layered",
               "pageDirection": "VERTICAL",
-              "frameOverrides": {},
+              "frameOverrides": {
+                "commit": {
+                  "min_width": 320
+                }
+              },
               "engineOverrides": {},
               "gridOverrides": {}
             },
@@ -1379,11 +1984,15 @@
             },
             "renderedEngine": "elk-layered",
             "selection": {
-              "ids": [],
-              "domIds": [],
-              "type": "empty"
+              "ids": [
+                "commit"
+              ],
+              "domIds": [
+                "commit"
+              ],
+              "type": "single"
             },
-            "inspectorTarget": null,
+            "inspectorTarget": "commit",
             "focusedControl": null,
             "controlApplicability": {
               "engineTab": {
@@ -1428,13 +2037,13 @@
               },
               "styleVariant": {
                 "selector": "#inspector [data-dg-change-action=\"single-style\"]",
-                "exists": false,
-                "hidden": null,
-                "disabled": null,
+                "exists": true,
+                "hidden": false,
+                "disabled": false,
                 "focused": false,
-                "value": null,
+                "value": "default",
                 "checked": null,
-                "reason": "missing"
+                "reason": "applicable"
               },
               "save": {
                 "selector": "#btn-save",
@@ -1450,11 +2059,11 @@
                 "selector": "#btn-undo",
                 "exists": true,
                 "hidden": false,
-                "disabled": true,
+                "disabled": false,
                 "focused": false,
                 "value": "",
                 "checked": null,
-                "reason": "disabled"
+                "reason": "applicable"
               },
               "redo": {
                 "selector": "#btn-redo",
@@ -1469,7 +2078,7 @@
             },
             "dirty": true,
             "undo": {
-              "canUndo": false,
+              "canUndo": true,
               "canRedo": false
             },
             "visibleControls": [
@@ -1499,11 +2108,15 @@
                 "hidden": false,
                 "inert": false,
                 "disabledControlCount": 0,
-                "enabledControlCount": 0
+                "enabledControlCount": 1
               }
             ],
             "savePayload": {
-              "overrides": {},
+              "overrides": {
+                "commit": {
+                  "min_width": 320
+                }
+              },
               "grid_overrides": {},
               "layout_overrides": {
                 "elk.direction": "DOWN",
@@ -1546,58 +2159,71 @@
               "documentKind": "frame-diagram",
               "layoutEngine": "elk-layered"
             },
+            "lastEditorMutationTransaction": {
+              "kind": "noop",
+              "mutationKind": "engine-option",
+              "sourceControl": "layout-params-controls",
+              "activeEngineId": "elk-layered",
+              "reason": "engine option belongs to the active manifest bucket",
+              "relayoutPolicy": "none",
+              "dirtyPolicy": "preserve",
+              "undoPolicy": "none",
+              "renderIntentDelta": null,
+              "persistenceDelta": null,
+              "diagnostics": []
+            },
             "bounds": [
               {
                 "id": "page",
                 "x": 0,
                 "y": 0,
-                "w": 224,
+                "w": 320,
                 "h": 504
               },
               {
                 "id": "commit",
                 "x": 0,
                 "y": 0,
-                "w": 224,
+                "w": 320,
                 "h": 64
               },
               {
                 "id": "build",
                 "x": 0,
                 "y": 88,
-                "w": 224,
+                "w": 320,
                 "h": 64
               },
               {
                 "id": "test",
                 "x": 0,
                 "y": 176,
-                "w": 224,
+                "w": 320,
                 "h": 64
               },
               {
                 "id": "staging",
                 "x": 0,
                 "y": 264,
-                "w": 224,
+                "w": 320,
                 "h": 64
               },
               {
                 "id": "approval",
                 "x": 0,
                 "y": 352,
-                "w": 224,
+                "w": 320,
                 "h": 64
               },
               {
                 "id": "production",
                 "x": 0,
                 "y": 440,
-                "w": 224,
+                "w": 320,
                 "h": 64
               }
             ],
-            "boundsSignature": "[[\"approval\",0,352,224,64],[\"build\",0,88,224,64],[\"commit\",0,0,224,64],[\"page\",0,0,224,504],[\"production\",0,440,224,64],[\"staging\",0,264,224,64],[\"test\",0,176,224,64]]",
+            "boundsSignature": "[[\"approval\",0,352,320,64],[\"build\",0,88,320,64],[\"commit\",0,0,320,64],[\"page\",0,0,320,504],[\"production\",0,440,320,64],[\"staging\",0,264,320,64],[\"test\",0,176,320,64]]",
             "violations": []
           },
           "after": {
@@ -1607,7 +2233,11 @@
             "renderIntent": {
               "engineId": "elk-layered",
               "pageDirection": "VERTICAL",
-              "frameOverrides": {},
+              "frameOverrides": {
+                "commit": {
+                  "min_width": 320
+                }
+              },
               "engineOverrides": {},
               "gridOverrides": {}
             },
@@ -1649,11 +2279,15 @@
             },
             "renderedEngine": "elk-layered",
             "selection": {
-              "ids": [],
-              "domIds": [],
-              "type": "empty"
+              "ids": [
+                "commit"
+              ],
+              "domIds": [
+                "commit"
+              ],
+              "type": "single"
             },
-            "inspectorTarget": null,
+            "inspectorTarget": "commit",
             "focusedControl": null,
             "controlApplicability": {
               "engineTab": {
@@ -1698,13 +2332,13 @@
               },
               "styleVariant": {
                 "selector": "#inspector [data-dg-change-action=\"single-style\"]",
-                "exists": false,
-                "hidden": null,
-                "disabled": null,
+                "exists": true,
+                "hidden": false,
+                "disabled": false,
                 "focused": false,
-                "value": null,
+                "value": "default",
                 "checked": null,
-                "reason": "missing"
+                "reason": "applicable"
               },
               "save": {
                 "selector": "#btn-save",
@@ -1720,11 +2354,11 @@
                 "selector": "#btn-undo",
                 "exists": true,
                 "hidden": false,
-                "disabled": true,
+                "disabled": false,
                 "focused": false,
                 "value": "",
                 "checked": null,
-                "reason": "disabled"
+                "reason": "applicable"
               },
               "redo": {
                 "selector": "#btn-redo",
@@ -1739,7 +2373,7 @@
             },
             "dirty": true,
             "undo": {
-              "canUndo": false,
+              "canUndo": true,
               "canRedo": false
             },
             "visibleControls": [
@@ -1769,11 +2403,15 @@
                 "hidden": false,
                 "inert": false,
                 "disabledControlCount": 0,
-                "enabledControlCount": 0
+                "enabledControlCount": 1
               }
             ],
             "savePayload": {
-              "overrides": {},
+              "overrides": {
+                "commit": {
+                  "min_width": 320
+                }
+              },
               "grid_overrides": {},
               "layout_overrides": {
                 "elk.direction": "DOWN",
@@ -1816,58 +2454,71 @@
               "documentKind": "frame-diagram",
               "layoutEngine": "elk-layered"
             },
+            "lastEditorMutationTransaction": {
+              "kind": "noop",
+              "mutationKind": "engine-option",
+              "sourceControl": "layout-params-controls",
+              "activeEngineId": "elk-layered",
+              "reason": "engine option belongs to the active manifest bucket",
+              "relayoutPolicy": "none",
+              "dirtyPolicy": "preserve",
+              "undoPolicy": "none",
+              "renderIntentDelta": null,
+              "persistenceDelta": null,
+              "diagnostics": []
+            },
             "bounds": [
               {
                 "id": "page",
                 "x": 0,
                 "y": 0,
-                "w": 224,
+                "w": 320,
                 "h": 504
               },
               {
                 "id": "commit",
                 "x": 0,
                 "y": 0,
-                "w": 224,
+                "w": 320,
                 "h": 64
               },
               {
                 "id": "build",
                 "x": 0,
                 "y": 88,
-                "w": 224,
+                "w": 320,
                 "h": 64
               },
               {
                 "id": "test",
                 "x": 0,
                 "y": 176,
-                "w": 224,
+                "w": 320,
                 "h": 64
               },
               {
                 "id": "staging",
                 "x": 0,
                 "y": 264,
-                "w": 224,
+                "w": 320,
                 "h": 64
               },
               {
                 "id": "approval",
                 "x": 0,
                 "y": 352,
-                "w": 224,
+                "w": 320,
                 "h": 64
               },
               {
                 "id": "production",
                 "x": 0,
                 "y": 440,
-                "w": 224,
+                "w": 320,
                 "h": 64
               }
             ],
-            "boundsSignature": "[[\"approval\",0,352,224,64],[\"build\",0,88,224,64],[\"commit\",0,0,224,64],[\"page\",0,0,224,504],[\"production\",0,440,224,64],[\"staging\",0,264,224,64],[\"test\",0,176,224,64]]",
+            "boundsSignature": "[[\"approval\",0,352,320,64],[\"build\",0,88,320,64],[\"commit\",0,0,320,64],[\"page\",0,0,320,504],[\"production\",0,440,320,64],[\"staging\",0,264,320,64],[\"test\",0,176,320,64]]",
             "violations": []
           },
           "details": {
@@ -1877,18 +2528,18 @@
             "enabled": false,
             "before": {
               "dirty": true,
-              "canUndo": false,
+              "canUndo": true,
               "canRedo": false,
-              "payload": "{\"overrides\":{},\"gridOverrides\":{},\"layoutOverrides\":{\"elk.direction\":\"DOWN\",\"elk.layered.spacing.nodeNodeBetweenLayers\":24,\"elk.spacing.nodeNode\":24,\"elk.spacing.edgeNode\":24,\"elk.spacing.edgeEdge\":24,\"elk.layered.spacing.edgeEdgeBetweenLayers\":24,\"elk.layered.unnecessaryBendpoints\":true,\"elk.layered.nodePlacement.favorStraightEdges\":true,\"elk.layered.layering.strategy\":\"NETWORK_SIMPLEX\",\"elk.layered.crossingMinimization.strategy\":\"LAYER_SWEEP\",\"elk.layered.nodePlacement.strategy\":\"BRANDES_KOEPF\",\"elk.hierarchyHandling\":\"INCLUDE_CHILDREN\"},\"layoutOperatorOverrides\":{\"activeOperatorKey\":\"elk-layered\",\"byOperator\":{\"v3\":{},\"elk-layered\":{\"elk.direction\":\"DOWN\",\"elk.layered.spacing.nodeNodeBetweenLayers\":24,\"elk.spacing.nodeNode\":24,\"elk.spacing.edgeNode\":24,\"elk.spacing.edgeEdge\":24,\"elk.layered.spacing.edgeEdgeBetweenLayers\":24,\"elk.layered.unnecessaryBendpoints\":true,\"elk.layered.nodePlacement.favorStraightEdges\":true,\"elk.layered.layering.strategy\":\"NETWORK_SIMPLEX\",\"elk.layered.crossingMinimization.strategy\":\"LAYER_SWEEP\",\"elk.layered.nodePlacement.strategy\":\"BRANDES_KOEPF\",\"elk.hierarchyHandling\":\"INCLUDE_CHILDREN\"}}}}",
+              "payload": "{\"overrides\":{\"commit\":{\"min_width\":320}},\"gridOverrides\":{},\"layoutOverrides\":{\"elk.direction\":\"DOWN\",\"elk.layered.spacing.nodeNodeBetweenLayers\":24,\"elk.spacing.nodeNode\":24,\"elk.spacing.edgeNode\":24,\"elk.spacing.edgeEdge\":24,\"elk.layered.spacing.edgeEdgeBetweenLayers\":24,\"elk.layered.unnecessaryBendpoints\":true,\"elk.layered.nodePlacement.favorStraightEdges\":true,\"elk.layered.layering.strategy\":\"NETWORK_SIMPLEX\",\"elk.layered.crossingMinimization.strategy\":\"LAYER_SWEEP\",\"elk.layered.nodePlacement.strategy\":\"BRANDES_KOEPF\",\"elk.hierarchyHandling\":\"INCLUDE_CHILDREN\"},\"layoutOperatorOverrides\":{\"activeOperatorKey\":\"elk-layered\",\"byOperator\":{\"v3\":{},\"elk-layered\":{\"elk.direction\":\"DOWN\",\"elk.layered.spacing.nodeNodeBetweenLayers\":24,\"elk.spacing.nodeNode\":24,\"elk.spacing.edgeNode\":24,\"elk.spacing.edgeEdge\":24,\"elk.layered.spacing.edgeEdgeBetweenLayers\":24,\"elk.layered.unnecessaryBendpoints\":true,\"elk.layered.nodePlacement.favorStraightEdges\":true,\"elk.layered.layering.strategy\":\"NETWORK_SIMPLEX\",\"elk.layered.crossingMinimization.strategy\":\"LAYER_SWEEP\",\"elk.layered.nodePlacement.strategy\":\"BRANDES_KOEPF\",\"elk.hierarchyHandling\":\"INCLUDE_CHILDREN\"}}}}",
               "value": "1",
               "visible": false,
               "enabled": false
             },
             "after": {
               "dirty": true,
-              "canUndo": false,
+              "canUndo": true,
               "canRedo": false,
-              "payload": "{\"overrides\":{},\"gridOverrides\":{},\"layoutOverrides\":{\"elk.direction\":\"DOWN\",\"elk.layered.spacing.nodeNodeBetweenLayers\":24,\"elk.spacing.nodeNode\":24,\"elk.spacing.edgeNode\":24,\"elk.spacing.edgeEdge\":24,\"elk.layered.spacing.edgeEdgeBetweenLayers\":24,\"elk.layered.unnecessaryBendpoints\":true,\"elk.layered.nodePlacement.favorStraightEdges\":true,\"elk.layered.layering.strategy\":\"NETWORK_SIMPLEX\",\"elk.layered.crossingMinimization.strategy\":\"LAYER_SWEEP\",\"elk.layered.nodePlacement.strategy\":\"BRANDES_KOEPF\",\"elk.hierarchyHandling\":\"INCLUDE_CHILDREN\"},\"layoutOperatorOverrides\":{\"activeOperatorKey\":\"elk-layered\",\"byOperator\":{\"v3\":{},\"elk-layered\":{\"elk.direction\":\"DOWN\",\"elk.layered.spacing.nodeNodeBetweenLayers\":24,\"elk.spacing.nodeNode\":24,\"elk.spacing.edgeNode\":24,\"elk.spacing.edgeEdge\":24,\"elk.layered.spacing.edgeEdgeBetweenLayers\":24,\"elk.layered.unnecessaryBendpoints\":true,\"elk.layered.nodePlacement.favorStraightEdges\":true,\"elk.layered.layering.strategy\":\"NETWORK_SIMPLEX\",\"elk.layered.crossingMinimization.strategy\":\"LAYER_SWEEP\",\"elk.layered.nodePlacement.strategy\":\"BRANDES_KOEPF\",\"elk.hierarchyHandling\":\"INCLUDE_CHILDREN\"}}}}",
+              "payload": "{\"overrides\":{\"commit\":{\"min_width\":320}},\"gridOverrides\":{},\"layoutOverrides\":{\"elk.direction\":\"DOWN\",\"elk.layered.spacing.nodeNodeBetweenLayers\":24,\"elk.spacing.nodeNode\":24,\"elk.spacing.edgeNode\":24,\"elk.spacing.edgeEdge\":24,\"elk.layered.spacing.edgeEdgeBetweenLayers\":24,\"elk.layered.unnecessaryBendpoints\":true,\"elk.layered.nodePlacement.favorStraightEdges\":true,\"elk.layered.layering.strategy\":\"NETWORK_SIMPLEX\",\"elk.layered.crossingMinimization.strategy\":\"LAYER_SWEEP\",\"elk.layered.nodePlacement.strategy\":\"BRANDES_KOEPF\",\"elk.hierarchyHandling\":\"INCLUDE_CHILDREN\"},\"layoutOperatorOverrides\":{\"activeOperatorKey\":\"elk-layered\",\"byOperator\":{\"v3\":{},\"elk-layered\":{\"elk.direction\":\"DOWN\",\"elk.layered.spacing.nodeNodeBetweenLayers\":24,\"elk.spacing.nodeNode\":24,\"elk.spacing.edgeNode\":24,\"elk.spacing.edgeEdge\":24,\"elk.layered.spacing.edgeEdgeBetweenLayers\":24,\"elk.layered.unnecessaryBendpoints\":true,\"elk.layered.nodePlacement.favorStraightEdges\":true,\"elk.layered.layering.strategy\":\"NETWORK_SIMPLEX\",\"elk.layered.crossingMinimization.strategy\":\"LAYER_SWEEP\",\"elk.layered.nodePlacement.strategy\":\"BRANDES_KOEPF\",\"elk.hierarchyHandling\":\"INCLUDE_CHILDREN\"}}}}",
               "value": "2"
             }
           }
@@ -2116,6 +2767,7 @@
               "documentKind": "frame-diagram",
               "layoutEngine": "elk-layered"
             },
+            "lastEditorMutationTransaction": null,
             "bounds": [
               {
                 "id": "page",
@@ -2443,6 +3095,7 @@
               "documentKind": "frame-diagram",
               "layoutEngine": "elk-layered"
             },
+            "lastEditorMutationTransaction": null,
             "bounds": [
               {
                 "id": "page",
@@ -2841,6 +3494,7 @@
               "documentKind": "frame-diagram",
               "layoutEngine": "elk-layered"
             },
+            "lastEditorMutationTransaction": null,
             "bounds": [
               {
                 "id": "page",
@@ -3262,6 +3916,25 @@
               "configSlug": "mongo-octavia-ha",
               "documentKind": "frame-diagram",
               "layoutEngine": "v3"
+            },
+            "lastEditorMutationTransaction": {
+              "kind": "committed",
+              "mutationKind": "engine-tab",
+              "sourceControl": "engine-switcher-tabs",
+              "activeEngineId": "elk-layered",
+              "reason": "engine is compatible with this preview document",
+              "relayoutPolicy": "fresh-render",
+              "dirtyPolicy": "mark-dirty",
+              "undoPolicy": "none",
+              "renderIntentDelta": {
+                "engineId": "v3",
+                "changed": true
+              },
+              "persistenceDelta": {
+                "frameTreeChanged": true,
+                "savePayloadChanged": true
+              },
+              "diagnostics": []
             },
             "bounds": [
               {
@@ -3692,6 +4365,25 @@
               "documentKind": "frame-diagram",
               "layoutEngine": "v3"
             },
+            "lastEditorMutationTransaction": {
+              "kind": "committed",
+              "mutationKind": "engine-tab",
+              "sourceControl": "engine-switcher-tabs",
+              "activeEngineId": "elk-layered",
+              "reason": "engine is compatible with this preview document",
+              "relayoutPolicy": "fresh-render",
+              "dirtyPolicy": "mark-dirty",
+              "undoPolicy": "none",
+              "renderIntentDelta": {
+                "engineId": "v3",
+                "changed": true
+              },
+              "persistenceDelta": {
+                "frameTreeChanged": true,
+                "savePayloadChanged": true
+              },
+              "diagnostics": []
+            },
             "bounds": [
               {
                 "id": "page",
@@ -4113,6 +4805,25 @@
               "configSlug": "mongo-octavia-ha",
               "documentKind": "frame-diagram",
               "layoutEngine": "v3"
+            },
+            "lastEditorMutationTransaction": {
+              "kind": "committed",
+              "mutationKind": "engine-tab",
+              "sourceControl": "engine-switcher-tabs",
+              "activeEngineId": "elk-layered",
+              "reason": "engine is compatible with this preview document",
+              "relayoutPolicy": "fresh-render",
+              "dirtyPolicy": "mark-dirty",
+              "undoPolicy": "none",
+              "renderIntentDelta": {
+                "engineId": "v3",
+                "changed": true
+              },
+              "persistenceDelta": {
+                "frameTreeChanged": true,
+                "savePayloadChanged": true
+              },
+              "diagnostics": []
             },
             "bounds": [
               {
@@ -4544,6 +5255,25 @@
               "documentKind": "frame-diagram",
               "layoutEngine": "v3"
             },
+            "lastEditorMutationTransaction": {
+              "kind": "committed",
+              "mutationKind": "engine-tab",
+              "sourceControl": "engine-switcher-tabs",
+              "activeEngineId": "elk-layered",
+              "reason": "engine is compatible with this preview document",
+              "relayoutPolicy": "fresh-render",
+              "dirtyPolicy": "mark-dirty",
+              "undoPolicy": "none",
+              "renderIntentDelta": {
+                "engineId": "v3",
+                "changed": true
+              },
+              "persistenceDelta": {
+                "frameTreeChanged": true,
+                "savePayloadChanged": true
+              },
+              "diagnostics": []
+            },
             "bounds": [
               {
                 "id": "page",
@@ -4966,6 +5696,25 @@
               "documentKind": "frame-diagram",
               "layoutEngine": "v3"
             },
+            "lastEditorMutationTransaction": {
+              "kind": "committed",
+              "mutationKind": "engine-tab",
+              "sourceControl": "engine-switcher-tabs",
+              "activeEngineId": "elk-layered",
+              "reason": "engine is compatible with this preview document",
+              "relayoutPolicy": "fresh-render",
+              "dirtyPolicy": "mark-dirty",
+              "undoPolicy": "none",
+              "renderIntentDelta": {
+                "engineId": "v3",
+                "changed": true
+              },
+              "persistenceDelta": {
+                "frameTreeChanged": true,
+                "savePayloadChanged": true
+              },
+              "diagnostics": []
+            },
             "bounds": [
               {
                 "id": "page",
@@ -5340,6 +6089,7 @@
               "documentKind": "frame-diagram",
               "layoutEngine": "v3"
             },
+            "lastEditorMutationTransaction": null,
             "bounds": [
               {
                 "id": "page",
@@ -5665,6 +6415,7 @@
               "documentKind": "frame-diagram",
               "layoutEngine": "v3"
             },
+            "lastEditorMutationTransaction": null,
             "bounds": [
               {
                 "id": "page",
@@ -5986,6 +6737,7 @@
               "documentKind": "frame-diagram",
               "layoutEngine": "v3"
             },
+            "lastEditorMutationTransaction": null,
             "bounds": [
               {
                 "id": "page",
@@ -6352,6 +7104,7 @@
               "documentKind": "frame-diagram",
               "layoutEngine": "elk-force"
             },
+            "lastEditorMutationTransaction": null,
             "bounds": [
               {
                 "id": "page",
@@ -6362,41 +7115,41 @@
               },
               {
                 "id": "step_problem",
-                "x": 456,
-                "y": 584,
-                "w": 272,
-                "h": 208
-              },
-              {
-                "id": "step_investigation",
-                "x": 912,
+                "x": 0,
                 "y": 800,
                 "w": 272,
                 "h": 208
               },
               {
+                "id": "step_investigation",
+                "x": 296,
+                "y": 368,
+                "w": 272,
+                "h": 208
+              },
+              {
                 "id": "step_analysis",
-                "x": 448,
-                "y": 0,
+                "x": 680,
+                "y": 24,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_fix",
-                "x": 0,
-                "y": 384,
+                "x": 16,
+                "y": 0,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_result",
-                "x": 824,
-                "y": 208,
+                "x": 632,
+                "y": 664,
                 "w": 272,
                 "h": 208
               }
             ],
-            "boundsSignature": "[[\"page\",0,0,1440,1008],[\"step_analysis\",448,0,272,208],[\"step_fix\",0,384,272,208],[\"step_investigation\",912,800,272,208],[\"step_problem\",456,584,272,208],[\"step_result\",824,208,272,208]]",
+            "boundsSignature": "[[\"page\",0,0,1440,1008],[\"step_analysis\",680,24,272,208],[\"step_fix\",16,0,272,208],[\"step_investigation\",296,368,272,208],[\"step_problem\",0,800,272,208],[\"step_result\",632,664,272,208]]",
             "violations": []
           }
         },
@@ -6597,6 +7350,7 @@
               "documentKind": "frame-diagram",
               "layoutEngine": "elk-force"
             },
+            "lastEditorMutationTransaction": null,
             "bounds": [
               {
                 "id": "page",
@@ -6607,41 +7361,41 @@
               },
               {
                 "id": "step_problem",
-                "x": 456,
-                "y": 584,
-                "w": 272,
-                "h": 208
-              },
-              {
-                "id": "step_investigation",
-                "x": 912,
+                "x": 0,
                 "y": 800,
                 "w": 272,
                 "h": 208
               },
               {
+                "id": "step_investigation",
+                "x": 296,
+                "y": 368,
+                "w": 272,
+                "h": 208
+              },
+              {
                 "id": "step_analysis",
-                "x": 448,
-                "y": 0,
+                "x": 680,
+                "y": 24,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_fix",
-                "x": 0,
-                "y": 384,
+                "x": 16,
+                "y": 0,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_result",
-                "x": 824,
-                "y": 208,
+                "x": 632,
+                "y": 664,
                 "w": 272,
                 "h": 208
               }
             ],
-            "boundsSignature": "[[\"page\",0,0,1440,1008],[\"step_analysis\",448,0,272,208],[\"step_fix\",0,384,272,208],[\"step_investigation\",912,800,272,208],[\"step_problem\",456,584,272,208],[\"step_result\",824,208,272,208]]",
+            "boundsSignature": "[[\"page\",0,0,1440,1008],[\"step_analysis\",680,24,272,208],[\"step_fix\",16,0,272,208],[\"step_investigation\",296,368,272,208],[\"step_problem\",0,800,272,208],[\"step_result\",632,664,272,208]]",
             "violations": []
           },
           "after": {
@@ -6842,6 +7596,7 @@
               "documentKind": "frame-diagram",
               "layoutEngine": "elk-force"
             },
+            "lastEditorMutationTransaction": null,
             "bounds": [
               {
                 "id": "page",
@@ -6852,41 +7607,41 @@
               },
               {
                 "id": "step_problem",
-                "x": 456,
-                "y": 584,
-                "w": 272,
-                "h": 208
-              },
-              {
-                "id": "step_investigation",
-                "x": 912,
+                "x": 0,
                 "y": 800,
                 "w": 272,
                 "h": 208
               },
               {
+                "id": "step_investigation",
+                "x": 296,
+                "y": 368,
+                "w": 272,
+                "h": 208
+              },
+              {
                 "id": "step_analysis",
-                "x": 448,
-                "y": 0,
+                "x": 680,
+                "y": 24,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_fix",
-                "x": 0,
-                "y": 384,
+                "x": 16,
+                "y": 0,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_result",
-                "x": 824,
-                "y": 208,
+                "x": 632,
+                "y": 664,
                 "w": 272,
                 "h": 208
               }
             ],
-            "boundsSignature": "[[\"page\",0,0,1440,1008],[\"step_analysis\",448,0,272,208],[\"step_fix\",0,384,272,208],[\"step_investigation\",912,800,272,208],[\"step_problem\",456,584,272,208],[\"step_result\",824,208,272,208]]",
+            "boundsSignature": "[[\"page\",0,0,1440,1008],[\"step_analysis\",680,24,272,208],[\"step_fix\",16,0,272,208],[\"step_investigation\",296,368,272,208],[\"step_problem\",0,800,272,208],[\"step_result\",632,664,272,208]]",
             "violations": []
           },
           "details": {
@@ -7094,6 +7849,7 @@
               "documentKind": "frame-diagram",
               "layoutEngine": "elk-force"
             },
+            "lastEditorMutationTransaction": null,
             "bounds": [
               {
                 "id": "page",
@@ -7104,41 +7860,41 @@
               },
               {
                 "id": "step_problem",
-                "x": 456,
-                "y": 584,
-                "w": 272,
-                "h": 208
-              },
-              {
-                "id": "step_investigation",
-                "x": 912,
+                "x": 0,
                 "y": 800,
                 "w": 272,
                 "h": 208
               },
               {
+                "id": "step_investigation",
+                "x": 296,
+                "y": 368,
+                "w": 272,
+                "h": 208
+              },
+              {
                 "id": "step_analysis",
-                "x": 448,
-                "y": 0,
+                "x": 680,
+                "y": 24,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_fix",
-                "x": 0,
-                "y": 384,
+                "x": 16,
+                "y": 0,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_result",
-                "x": 824,
-                "y": 208,
+                "x": 632,
+                "y": 664,
                 "w": 272,
                 "h": 208
               }
             ],
-            "boundsSignature": "[[\"page\",0,0,1440,1008],[\"step_analysis\",448,0,272,208],[\"step_fix\",0,384,272,208],[\"step_investigation\",912,800,272,208],[\"step_problem\",456,584,272,208],[\"step_result\",824,208,272,208]]",
+            "boundsSignature": "[[\"page\",0,0,1440,1008],[\"step_analysis\",680,24,272,208],[\"step_fix\",16,0,272,208],[\"step_investigation\",296,368,272,208],[\"step_problem\",0,800,272,208],[\"step_result\",632,664,272,208]]",
             "violations": []
           },
           "after": {
@@ -7346,6 +8102,22 @@
               "documentKind": "frame-diagram",
               "layoutEngine": "elk-force"
             },
+            "lastEditorMutationTransaction": {
+              "kind": "committed",
+              "mutationKind": "inspector-appearance",
+              "sourceControl": "single-style",
+              "activeEngineId": null,
+              "reason": "style change is applicable to the selected frame",
+              "relayoutPolicy": "none",
+              "dirtyPolicy": "mark-dirty",
+              "undoPolicy": "record",
+              "renderIntentDelta": null,
+              "persistenceDelta": {
+                "frameOverridesChanged": true,
+                "savePayloadChanged": true
+              },
+              "diagnostics": []
+            },
             "bounds": [
               {
                 "id": "page",
@@ -7356,41 +8128,41 @@
               },
               {
                 "id": "step_problem",
-                "x": 456,
-                "y": 584,
-                "w": 272,
-                "h": 208
-              },
-              {
-                "id": "step_investigation",
-                "x": 912,
+                "x": 0,
                 "y": 800,
                 "w": 272,
                 "h": 208
               },
               {
+                "id": "step_investigation",
+                "x": 296,
+                "y": 368,
+                "w": 272,
+                "h": 208
+              },
+              {
                 "id": "step_analysis",
-                "x": 448,
-                "y": 0,
+                "x": 680,
+                "y": 24,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_fix",
-                "x": 0,
-                "y": 384,
+                "x": 16,
+                "y": 0,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_result",
-                "x": 824,
-                "y": 208,
+                "x": 632,
+                "y": 664,
                 "w": 272,
                 "h": 208
               }
             ],
-            "boundsSignature": "[[\"page\",0,0,1440,1008],[\"step_analysis\",448,0,272,208],[\"step_fix\",0,384,272,208],[\"step_investigation\",912,800,272,208],[\"step_problem\",456,584,272,208],[\"step_result\",824,208,272,208]]",
+            "boundsSignature": "[[\"page\",0,0,1440,1008],[\"step_analysis\",680,24,272,208],[\"step_fix\",16,0,272,208],[\"step_investigation\",296,368,272,208],[\"step_problem\",0,800,272,208],[\"step_result\",632,664,272,208]]",
             "violations": []
           },
           "details": {
@@ -7605,6 +8377,22 @@
               "documentKind": "frame-diagram",
               "layoutEngine": "elk-force"
             },
+            "lastEditorMutationTransaction": {
+              "kind": "committed",
+              "mutationKind": "inspector-appearance",
+              "sourceControl": "single-style",
+              "activeEngineId": null,
+              "reason": "style change is applicable to the selected frame",
+              "relayoutPolicy": "none",
+              "dirtyPolicy": "mark-dirty",
+              "undoPolicy": "record",
+              "renderIntentDelta": null,
+              "persistenceDelta": {
+                "frameOverridesChanged": true,
+                "savePayloadChanged": true
+              },
+              "diagnostics": []
+            },
             "bounds": [
               {
                 "id": "page",
@@ -7615,41 +8403,41 @@
               },
               {
                 "id": "step_problem",
-                "x": 456,
-                "y": 584,
-                "w": 272,
-                "h": 208
-              },
-              {
-                "id": "step_investigation",
-                "x": 912,
+                "x": 0,
                 "y": 800,
                 "w": 272,
                 "h": 208
               },
               {
+                "id": "step_investigation",
+                "x": 296,
+                "y": 368,
+                "w": 272,
+                "h": 208
+              },
+              {
                 "id": "step_analysis",
-                "x": 448,
-                "y": 0,
+                "x": 680,
+                "y": 24,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_fix",
-                "x": 0,
-                "y": 384,
+                "x": 16,
+                "y": 0,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_result",
-                "x": 824,
-                "y": 208,
+                "x": 632,
+                "y": 664,
                 "w": 272,
                 "h": 208
               }
             ],
-            "boundsSignature": "[[\"page\",0,0,1440,1008],[\"step_analysis\",448,0,272,208],[\"step_fix\",0,384,272,208],[\"step_investigation\",912,800,272,208],[\"step_problem\",456,584,272,208],[\"step_result\",824,208,272,208]]",
+            "boundsSignature": "[[\"page\",0,0,1440,1008],[\"step_analysis\",680,24,272,208],[\"step_fix\",16,0,272,208],[\"step_investigation\",296,368,272,208],[\"step_problem\",0,800,272,208],[\"step_result\",632,664,272,208]]",
             "violations": []
           },
           "after": {
@@ -7744,7 +8532,7 @@
                 "hidden": true,
                 "disabled": true,
                 "focused": false,
-                "value": "7",
+                "value": "8",
                 "checked": false,
                 "reason": "hidden"
               },
@@ -7864,51 +8652,67 @@
               "documentKind": "frame-diagram",
               "layoutEngine": "elk-force"
             },
+            "lastEditorMutationTransaction": {
+              "kind": "committed",
+              "mutationKind": "inspector-appearance",
+              "sourceControl": "single-style",
+              "activeEngineId": null,
+              "reason": "style change is applicable to the selected frame",
+              "relayoutPolicy": "none",
+              "dirtyPolicy": "mark-dirty",
+              "undoPolicy": "record",
+              "renderIntentDelta": null,
+              "persistenceDelta": {
+                "frameOverridesChanged": true,
+                "savePayloadChanged": true
+              },
+              "diagnostics": []
+            },
             "bounds": [
               {
                 "id": "page",
                 "x": 0,
                 "y": 0,
                 "w": 1440,
-                "h": 1016
+                "h": 1032
               },
               {
                 "id": "step_problem",
-                "x": 840,
-                "y": 808,
+                "x": 872,
+                "y": 480,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_investigation",
-                "x": 160,
-                "y": 736,
+                "x": 0,
+                "y": 560,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_analysis",
-                "x": 0,
+                "x": 544,
                 "y": 0,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_fix",
-                "x": 464,
-                "y": 352,
+                "x": 456,
+                "y": 824,
                 "w": 272,
                 "h": 208
               },
               {
                 "id": "step_result",
-                "x": 896,
-                "y": 80,
+                "x": 168,
+                "y": 184,
                 "w": 272,
                 "h": 208
               }
             ],
-            "boundsSignature": "[[\"page\",0,0,1440,1016],[\"step_analysis\",0,0,272,208],[\"step_fix\",464,352,272,208],[\"step_investigation\",160,736,272,208],[\"step_problem\",840,808,272,208],[\"step_result\",896,80,272,208]]",
+            "boundsSignature": "[[\"page\",0,0,1440,1032],[\"step_analysis\",544,0,272,208],[\"step_fix\",456,824,272,208],[\"step_investigation\",0,560,272,208],[\"step_problem\",872,480,272,208],[\"step_result\",168,184,272,208]]",
             "violations": []
           },
           "details": {

@@ -864,6 +864,17 @@ export function createPreviewEditorInteractionFacadeFromBrowserHost(
       formatAsDefinedStyleLabel:
         browser.formatAsDefinedStyleLabel as RuntimeEditorRuntimeSetOptions['formatAsDefinedStyleLabel'],
       syncPanelVisibility: browser.syncPanelVisibility ?? null,
+      onMutationTransaction: (result) => {
+        const previewWindow = options.shared.document.defaultView as (
+          Window & typeof globalThis & {
+            __DG_lastEditorMutationTransactionResult?: unknown;
+            __DG_lastEditorMutationStateViolations?: readonly unknown[] | null;
+          }
+        ) | null;
+        if (!previewWindow) return;
+        previewWindow.__DG_lastEditorMutationTransactionResult = result;
+        previewWindow.__DG_lastEditorMutationStateViolations = [];
+      },
       shouldShowAutolayoutInspector: browser.shouldShowAutolayoutInspector ?? null,
       editorState: {
         captureOverrideEntries: browser.captureOverrideEntries,

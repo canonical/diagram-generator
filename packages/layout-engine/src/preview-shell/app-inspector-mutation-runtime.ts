@@ -2,6 +2,7 @@ import {
   dispatchPreviewSingleFrameAlignHost,
   dispatchPreviewSingleFramePropHost,
   dispatchPreviewSingleFrameSizeHost,
+  type PreviewMutationHostResult,
 } from './app-inspector-mutation-host.js';
 import {
   applySingleFramePropMutation,
@@ -37,6 +38,10 @@ const IMMEDIATE_RELAYOUT_PROPS = new Set([
   'max_height',
 ]);
 
+function changedMutation(result: PreviewMutationHostResult): boolean {
+  return result.kind === 'changed' || result.kind === 'clear';
+}
+
 export interface CreatePreviewInspectorMutationRuntimeOptions {
   captureOverrideEntries: (ids: string[]) => unknown;
   commitOverridePatchAction: (label: string, beforeEntries: unknown, afterEntries: unknown) => void;
@@ -68,6 +73,36 @@ export function createPreviewInspectorMutationRuntime(
   options: CreatePreviewInspectorMutationRuntimeOptions,
 ): PreviewInspectorMutationRuntime {
   const layoutEditingEnabled = (): boolean => options.shouldShowAutolayoutInspector?.() ?? true;
+  const emitLayoutTransaction = (settings: {
+    mutationKind?: 'inspector-layout' | 'geometry';
+    sourceControl: string;
+    capability: { applicable: boolean; reason: string };
+    result?: PreviewMutationHostResult | null;
+    relayoutPolicy: 'none' | 'local' | 'engine' | 'fresh-render';
+  }): void => {
+    const changed = settings.result ? changedMutation(settings.result) : true;
+    options.onMutationTransaction?.(resolveEditorMutationTransaction({
+      kind: settings.mutationKind ?? 'inspector-layout',
+      sourceControl: settings.sourceControl,
+      activeEngineId: null,
+      documentKind: 'frame-diagram',
+      capabilityGate: {
+        applicable: settings.capability.applicable,
+        reason: settings.capability.reason,
+        capability: 'layoutEditing',
+      },
+      relayoutPolicy: changed ? settings.relayoutPolicy : 'none',
+      dirtyPolicy: changed ? 'mark-dirty' : 'preserve',
+      undoPolicy: changed ? 'record' : 'none',
+      persistenceDelta: changed
+        ? {
+          frameOverridesChanged: true,
+          savePayloadChanged: true,
+        }
+        : null,
+    }));
+  };
+
   return {
     applyStyle(cid, styleName) {
       const overrides = options.getOverrides();
@@ -122,11 +157,19 @@ export function createPreviewInspectorMutationRuntime(
     },
     setFrameAlign(cid, align) {
       if (!layoutEditingEnabled()) {
+        emitLayoutTransaction({
+          sourceControl: 'single-align',
+          capability: {
+            applicable: false,
+            reason: 'native layout inspector controls require an active grid-editing engine',
+          },
+          relayoutPolicy: 'engine',
+        });
         options.renderSelectionInspector(cid);
         return;
       }
       const overrides = options.getOverrides();
-      dispatchPreviewSingleFrameAlignHost({
+      const result = dispatchPreviewSingleFrameAlignHost({
         cid,
         captureOverrideEntries: options.captureOverrideEntries,
         applySingleFramePropMutation: (hostOptions) => {
@@ -157,14 +200,33 @@ export function createPreviewInspectorMutationRuntime(
         scheduleRelayout: options.requestRelayoutNow,
         renderSelectionInspector: options.renderSelectionInspector,
       });
+      emitLayoutTransaction({
+        sourceControl: 'single-align',
+        capability: {
+          applicable: true,
+          reason: result.kind === 'none'
+            ? 'alignment value produced no layout change'
+            : 'alignment change is applicable to the selected frame',
+        },
+        result,
+        relayoutPolicy: 'engine',
+      });
     },
     setFrameProp(cid, prop, value) {
       if (!layoutEditingEnabled()) {
+        emitLayoutTransaction({
+          sourceControl: `single-prop:${prop}`,
+          capability: {
+            applicable: false,
+            reason: 'native layout inspector controls require an active grid-editing engine',
+          },
+          relayoutPolicy: 'engine',
+        });
         options.renderSelectionInspector(cid);
         return;
       }
       const overrides = options.getOverrides();
-      dispatchPreviewSingleFramePropHost({
+      const result = dispatchPreviewSingleFramePropHost({
         cid,
         prop,
         value,
@@ -198,15 +260,35 @@ export function createPreviewInspectorMutationRuntime(
           : options.scheduleRelayout,
         renderSelectionInspector: options.renderSelectionInspector,
       });
+      emitLayoutTransaction({
+        sourceControl: `single-prop:${prop}`,
+        capability: {
+          applicable: true,
+          reason: result.kind === 'none'
+            ? `${prop} value produced no layout change`
+            : `${prop} change is applicable to the selected frame`,
+        },
+        result,
+        relayoutPolicy: 'engine',
+      });
     },
     setFrameSize(cid, dimension, value) {
       if (!layoutEditingEnabled()) {
+        emitLayoutTransaction({
+          mutationKind: 'geometry',
+          sourceControl: `single-size:${dimension}`,
+          capability: {
+            applicable: false,
+            reason: 'native size inspector controls require an active grid-editing engine',
+          },
+          relayoutPolicy: 'engine',
+        });
         options.renderSelectionInspector(cid);
         return;
       }
       const overrides = options.getOverrides();
       const nextDimension = dimension as PreviewFrameSizeDimension;
-      dispatchPreviewSingleFrameSizeHost({
+      const result = dispatchPreviewSingleFrameSizeHost({
         cid,
         dimension: nextDimension,
         value,
@@ -229,13 +311,27 @@ export function createPreviewInspectorMutationRuntime(
           cid: hostOptions.cid,
           dimension: hostOptions.dimension as PreviewFrameSizeDimension,
           px: hostOptions.px,
-        }),
+        }).kind === 'change'
+          ? { kind: 'changed' as const }
+          : { kind: 'none' as const },
         overrides,
         coercedKeys: options.coercedKeys,
         setDirty: options.setDirty,
         commitOverridePatchAction: options.commitOverridePatchAction,
         requestRelayout: options.requestRelayoutNow,
         renderSelectionInspector: options.renderSelectionInspector,
+      });
+      emitLayoutTransaction({
+        mutationKind: 'geometry',
+        sourceControl: `single-size:${nextDimension}`,
+        capability: {
+          applicable: true,
+          reason: result.kind === 'none'
+            ? `${nextDimension} value produced no size change`
+            : `${nextDimension} change is applicable to the selected frame`,
+        },
+        result,
+        relayoutPolicy: 'engine',
       });
     },
   };
