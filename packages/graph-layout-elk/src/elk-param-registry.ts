@@ -3,6 +3,9 @@
  * Keys match elkjs / Eclipse ELK (prefix `elk.`).
  */
 
+import { ELK_ADDITIONAL_ALGORITHM_PARAM_SPECS } from './elk-algorithm-param-registry.js';
+import { ELK_FORCE_PARAM_SPECS } from './force-param-registry.js';
+
 export type ElkParamKind = 'number' | 'enum' | 'boolean' | 'text';
 
 export interface ElkParamVisibilityRule {
@@ -173,6 +176,10 @@ export const ELK_LAYERED_PARAM_SPECS: ElkParamSpec[] = [
 ];
 
 const ELK_LAYERED_PARAM_KEY_SET = new Set(ELK_LAYERED_PARAM_SPECS.map((spec) => spec.key));
+const ELK_NON_LAYERED_KNOWN_PARAM_KEY_SET = new Set([
+  ...ELK_FORCE_PARAM_SPECS,
+  ...ELK_ADDITIONAL_ALGORITHM_PARAM_SPECS,
+].map((spec) => spec.key));
 const IMPLEMENTATION_OWNED_ELK_LAYERED_KEYS = new Set([
   'elk.edgeRouting',
   'elk.padding',
@@ -184,6 +191,7 @@ function unsupportedElkLayeredOverrideKeys(
 ): string[] {
   return Object.keys(overrides)
     .filter((key) => !ELK_LAYERED_PARAM_KEY_SET.has(key))
+    .filter((key) => !ELK_NON_LAYERED_KNOWN_PARAM_KEY_SET.has(key))
     .sort();
 }
 
@@ -227,6 +235,9 @@ export function resolveElkLayoutOptions(
     throw new Error(`Unsupported ELK layered override keys: ${unsupported.join(', ')}`);
   }
   for (const [key, raw] of Object.entries(userOverrides)) {
+    if (ELK_NON_LAYERED_KNOWN_PARAM_KEY_SET.has(key) && !ELK_LAYERED_PARAM_KEY_SET.has(key)) {
+      continue;
+    }
     if (raw == null || raw === '') {
       delete merged[key];
       continue;
