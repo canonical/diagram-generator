@@ -77,11 +77,9 @@ function createLoadHarness(config: HarnessOptions = {}) {
       calls.push('renderFreshSvg');
       return renderResult;
     },
-    replaceStageWithRenderedSvg: (result) => {
-      calls.push(`replaceStageWithRenderedSvg:${String(result.width)}x${String(result.height)}`);
-    },
-    fitRenderedSvg: (result) => {
-      calls.push(`fitRenderedSvg:${String(result.width)}x${String(result.height)}`);
+    mountRenderedSvg: (result) => {
+      calls.push(`mountRenderedSvg:${String(result.width)}x${String(result.height)}`);
+      return true;
     },
     fetchFallbackSvg: async () => ({
       ok: config.fallbackResponse?.ok ?? true,
@@ -178,8 +176,7 @@ describe('preview load helpers', () => {
     expect(harness.calls.filter((call) => call === 'resetOverrideState')).toHaveLength(1);
     expect(harness.calls).toContain('pruneLinkedRootGridOverrides');
     expect(harness.calls).toContain('renderFreshSvg');
-    expect(harness.calls).toContain('replaceStageWithRenderedSvg:640x480');
-    expect(harness.calls).toContain('fitRenderedSvg:640x480');
+    expect(harness.calls).toContain('mountRenderedSvg:640x480');
   });
 
   it('resets overrides after grid load for non-ELK client renders', async () => {
@@ -263,8 +260,7 @@ describe('preview load helpers', () => {
     await options.initLayoutBridge();
     options.setFrameTreeJson?.('seed');
     await options.renderFreshSvg();
-    options.replaceStageWithRenderedSvg({ svg: { tag: 'svg' }, width: 320, height: 200 });
-    options.fitRenderedSvg?.({ svg: { tag: 'svg' }, width: 320, height: 200 });
+    options.mountRenderedSvg({ svg: { tag: 'svg' }, width: 320, height: 200 });
 
     const originalFetch = globalThis.fetch;
     globalThis.fetch = (async (url: string) => {
@@ -285,8 +281,8 @@ describe('preview load helpers', () => {
       'init:demo',
       'frameTree:seed',
       'render:{"cols":8}',
-      'replace:svg',
       'fit:320x200',
+      'replace:svg',
     ]);
     expect(fetchedUrl).toMatch(/^\/svg\/demo-onbrand-mermaid\.svg\?t=\d+$/);
   });
@@ -296,7 +292,9 @@ describe('preview load helpers', () => {
     const options = createLoadPreviewSvgHostOptions({
       stage: {
         innerHTML: '',
-        replaceChildren() {},
+        replaceChildren() {
+          calls.push('replaceChildren');
+        },
       },
       slug: 'demo',
       engine: 'v3',
@@ -344,11 +342,12 @@ describe('preview load helpers', () => {
     });
 
     await options.renderFreshSvg();
-    options.fitRenderedSvg?.({ svg: { tag: 'svg' }, width: 568, height: 456 });
+    options.mountRenderedSvg({ svg: { tag: 'svg' }, width: 568, height: 456 });
 
     expect(calls).toEqual([
       'renderFreshPreviewSvg',
       'fitBridge:568x456',
+      'replaceChildren',
     ]);
   });
 
@@ -426,8 +425,7 @@ describe('preview load helpers', () => {
     await options.renderFreshSvg();
     options.restoreSelection(['alpha', 'beta']);
     options.markSaved(options.serializeDirtyState());
-    options.replaceStageWithRenderedSvg({ svg: { tag: 'svg' }, width: 320, height: 200 });
-    options.fitRenderedSvg?.({ svg: { tag: 'svg' }, width: 320, height: 200 });
+    options.mountRenderedSvg({ svg: { tag: 'svg' }, width: 320, height: 200 });
 
     expect(Array.from(selectedIds)).toEqual(['alpha', 'beta']);
     expect(calls).toEqual([
@@ -435,8 +433,8 @@ describe('preview load helpers', () => {
       'render:{"cols":8}',
       'reapplySelection',
       'markSaved:dirty-state',
-      'replace:svg',
       'fit:320x200',
+      'replace:svg',
     ]);
   });
 });

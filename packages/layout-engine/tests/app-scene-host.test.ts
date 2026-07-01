@@ -233,13 +233,12 @@ describe('preview scene host helpers', () => {
   });
 
   it('rerenders the stage through the shared scene host', async () => {
-    const replaced: unknown[] = [];
-    const refreshed = vi.fn();
+    const orderedCalls: string[] = [];
 
     await expect(rerenderPreviewStageHost({
       stage: {
         replaceChildren(child: unknown) {
-          replaced.push(child);
+          orderedCalls.push(`replace:${String((child as { tagName?: string }).tagName ?? 'svg')}`);
         },
       },
       model: {
@@ -250,12 +249,22 @@ describe('preview scene host helpers', () => {
       },
       renderFreshSvg: vi.fn(async () => ({
         svg: { tagName: 'svg' },
+        width: 640,
+        height: 480,
       })),
-      refreshScene: refreshed,
+      fitRenderedSvgToContent: (_svg, options) => {
+        orderedCalls.push(`fit:${options.minWidth}x${options.minHeight}`);
+      },
+      refreshScene: () => {
+        orderedCalls.push('refreshScene');
+      },
     })).resolves.toBe(true);
 
-    expect(replaced).toEqual([{ tagName: 'svg' }]);
-    expect(refreshed).toHaveBeenCalledTimes(1);
+    expect(orderedCalls).toEqual([
+      'fit:640x480',
+      'replace:svg',
+      'refreshScene',
+    ]);
   });
 
   it('rerenders the stage from document/model runtime wiring through the shared scene host', async () => {
@@ -284,8 +293,13 @@ describe('preview scene host helpers', () => {
         orderedCalls.push('renderFreshSvg');
         return {
           svg: { tagName: 'svg' },
+          width: 320,
+          height: 200,
         };
       }),
+      fitRenderedSvgToContent: (_svg, options) => {
+        orderedCalls.push(`fit:${options.minWidth}x${options.minHeight}`);
+      },
       refreshScene: {
         buildTreeUi: () => orderedCalls.push('buildTreeUi'),
         bindInteraction: () => orderedCalls.push('bindInteraction'),
@@ -294,6 +308,7 @@ describe('preview scene host helpers', () => {
 
     expect(orderedCalls).toEqual([
       'renderFreshSvg',
+      'fit:320x200',
       'replaceChildren',
       'buildTreeUi',
       'bindInteraction',

@@ -469,7 +469,9 @@ export function createPreviewGridEditorRuntimeFromBrowserHost(
           ),
           showResizeHandles: (cid) => runtime.getInteractionFacade().showResizeHandles(cid),
         },
-        rerenderStageFromModel: {},
+        rerenderStageFromModel: {
+          fitRenderedSvgToContent: options.browser.fitRenderedSvgToContent ?? null,
+        },
         frameDelete: {
           selectedIds: options.shared.selectedIds,
           isTextEditing: () => (

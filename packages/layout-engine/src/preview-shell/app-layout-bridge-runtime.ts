@@ -34,6 +34,7 @@ import {
 import type { PreviewRoutedArrow } from './app-arrow-render.js';
 import type { FreshPreviewSvgRenderResult } from './app-fresh-render.js';
 import type { PreviewLocalRelayoutStatus, PreviewRelayoutOverrideEntry } from './app-relayout.js';
+import { mountPreviewRenderNode } from './preview-render-node.js';
 
 export type PreviewLocalRelayoutOverrideMode = 'auto' | 'unready';
 
@@ -2026,15 +2027,16 @@ export function createPreviewLayoutBridgeRuntime<
           model,
           relayoutOptions,
         );
-        const stage = options.getStageContainer();
-        if (!stage) {
+        if (!mountPreviewRenderNode({
+          stage: options.getStageContainer(),
+          renderResult,
+          fitSvgToContent: ({ svg, minWidth, minHeight }) => options.fitRenderedSvg(svg, {
+            minWidth,
+            minHeight,
+          }),
+        })) {
           return null;
         }
-        stage.replaceChildren(renderResult.svg);
-        options.fitRenderedSvg(renderResult.svg, {
-          minWidth: renderResult.width,
-          minHeight: renderResult.height,
-        });
         return {
           coerced: renderResult.coerced,
           width: renderResult.width,

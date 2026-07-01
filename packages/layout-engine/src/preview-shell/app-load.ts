@@ -5,6 +5,8 @@
  * stay focused on DOM lookup, fetch wiring, and compatibility glue.
  */
 
+import { mountPreviewRenderNode } from './preview-render-node.js';
+
 export interface PreviewLoadCanonicalState {
   frameTree?: unknown;
   componentTree?: unknown[] | null;
@@ -77,8 +79,7 @@ export interface LoadPreviewSvgOptions<TSvg = unknown> {
   getGridOverrides: () => Record<string, unknown> | null | undefined;
   pruneLinkedRootGridOverrides: () => void;
   renderFreshSvg: () => Promise<PreviewLoadRenderResult<TSvg>>;
-  replaceStageWithRenderedSvg: (renderResult: PreviewLoadRenderResult<TSvg>) => void;
-  fitRenderedSvg?: ((renderResult: PreviewLoadRenderResult<TSvg>) => void) | null;
+  mountRenderedSvg: (renderResult: PreviewLoadRenderResult<TSvg>) => boolean;
   fetchFallbackSvg: () => Promise<PreviewFallbackResponse>;
 }
 
@@ -311,17 +312,16 @@ export function createLoadPreviewSvgHostOptions<TSvg = unknown, TModel = unknown
         model: options.model,
       });
     },
-    replaceStageWithRenderedSvg: (renderResult) => {
-      options.stage.replaceChildren(renderResult.svg);
-    },
-    fitRenderedSvg: fitRenderedSvgToContent
-      ? (renderResult) => {
-        fitRenderedSvgToContent(renderResult.svg, {
-          minWidth: renderResult.width,
-          minHeight: renderResult.height,
-        });
-      }
-      : null,
+    mountRenderedSvg: (renderResult) => mountPreviewRenderNode({
+      stage: options.stage,
+      renderResult,
+      fitSvgToContent: fitRenderedSvgToContent
+        ? ({ svg, minWidth, minHeight }) => fitRenderedSvgToContent(svg, {
+          minWidth,
+          minHeight,
+        })
+        : null,
+    }),
     fetchFallbackSvg: async () => {
       const suffix = options.gridEnabled
         ? `-${options.engine}-grid.svg`
@@ -494,8 +494,7 @@ export async function loadPreviewSvg<TSvg = unknown>(
   }
 
   const renderResult = await options.renderFreshSvg();
-  options.replaceStageWithRenderedSvg(renderResult);
-  options.fitRenderedSvg?.(renderResult);
+  options.mountRenderedSvg(renderResult);
 
   finalizePreviewLoad({
     applyWaypointOverrides: options.applyWaypointOverrides,

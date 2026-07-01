@@ -9,6 +9,7 @@ import {
   syncPreviewDocumentActionControls,
   type PreviewDocumentActionStateSource,
 } from './app-shell-panels.js';
+import { mountPreviewRenderNode } from './preview-render-node.js';
 
 export interface PreviewSceneHostDocumentLike {
   querySelector: (selector: string) => PreviewSceneHostSvgLike | null;
@@ -212,7 +213,7 @@ export interface RefreshPreviewSceneHostOptions {
 
 export interface RerenderPreviewStageHostOptions<TModel, TOverrides, TSvg> {
   stage?: {
-    replaceChildren: (child: TSvg) => void;
+    replaceChildren: (...children: TSvg[]) => void;
   } | null;
   model: TModel & {
     gridOverrides?: Record<string, unknown> | null;
@@ -224,14 +225,17 @@ export interface RerenderPreviewStageHostOptions<TModel, TOverrides, TSvg> {
     model: TModel;
   }) => Promise<{
     svg: TSvg;
+    width: number;
+    height: number;
   }>;
+  fitRenderedSvgToContent?: ((svg: TSvg, options: { minWidth: number; minHeight: number }) => unknown) | null;
   refreshScene: () => void;
 }
 
 export interface RerenderPreviewStageFromModelHostOptions<TModel, TOverrides, TSvg> {
   document: {
     getElementById: (id: string) => {
-      replaceChildren: (child: TSvg) => void;
+      replaceChildren: (...children: TSvg[]) => void;
     } | null;
   };
   model: TModel & {
@@ -244,7 +248,10 @@ export interface RerenderPreviewStageFromModelHostOptions<TModel, TOverrides, TS
     model: TModel;
   }) => Promise<{
     svg: TSvg;
+    width: number;
+    height: number;
   }>) | null;
+  fitRenderedSvgToContent?: RerenderPreviewStageHostOptions<TModel, TOverrides, TSvg>['fitRenderedSvgToContent'];
   refreshScene: RefreshPreviewSceneHostOptions;
 }
 
@@ -467,9 +474,17 @@ export async function rerenderPreviewStageHost<TModel, TOverrides, TSvg>(
     gridOverrides,
     model: options.model,
   });
-  options.stage.replaceChildren(renderResult.svg);
-  options.refreshScene();
-  return true;
+  return mountPreviewRenderNode({
+    stage: options.stage,
+    renderResult,
+    fitSvgToContent: options.fitRenderedSvgToContent
+      ? ({ svg, minWidth, minHeight }) => options.fitRenderedSvgToContent?.(svg, {
+        minWidth,
+        minHeight,
+      })
+      : null,
+    refreshScene: options.refreshScene,
+  });
 }
 
 export async function rerenderPreviewStageFromModelHost<TModel, TOverrides, TSvg>(
@@ -484,6 +499,7 @@ export async function rerenderPreviewStageFromModelHost<TModel, TOverrides, TSvg
     model: options.model,
     overrides: options.overrides,
     renderFreshSvg: options.renderFreshSvg,
+    fitRenderedSvgToContent: options.fitRenderedSvgToContent,
     refreshScene: () => {
       refreshPreviewSceneHost(options.refreshScene);
     },
