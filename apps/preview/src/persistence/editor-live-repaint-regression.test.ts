@@ -186,6 +186,34 @@ async function activeOptionBucket(page: Page): Promise<string | null> {
   });
 }
 
+async function activeNodeId(page: Page): Promise<string | null> {
+  return page.evaluate(() => {
+    const previewWindow = window as Window & typeof globalThis & {
+      __DG_previewEngineWorkspaceState?: {
+        workspace?: {
+          activeEngineId?: string | null;
+        } | null;
+      } | null;
+    };
+    return previewWindow.__DG_previewEngineWorkspaceState?.workspace?.activeEngineId ?? null;
+  });
+}
+
+async function frameTreeLayoutEngine(page: Page): Promise<string | null> {
+  return page.evaluate(() => {
+    const previewWindow = window as Window & typeof globalThis & {
+      getFrameTreeJson?: (() => { layoutEngine?: string | null } | null) | null;
+      __DG_previewBridgeHostRuntime?: {
+        getFrameTreeJson?: (() => { layoutEngine?: string | null } | null) | null;
+      } | null;
+    };
+    const frameTree = previewWindow.getFrameTreeJson?.()
+      ?? previewWindow.__DG_previewBridgeHostRuntime?.getFrameTreeJson?.()
+      ?? null;
+    return typeof frameTree?.layoutEngine === "string" ? frameTree.layoutEngine : null;
+  });
+}
+
 async function captureLayoutOperatorBrowserState(page: Page): Promise<{
   activeOperatorKey: string | null;
   activeLayoutOverrides: Record<string, unknown>;
@@ -639,6 +667,9 @@ test("engine tab switches classify visible changes while syncing engine and opti
       const beforeSignature = await boundsSignature(page);
       const beforeEngine = await renderedEngine(page);
       const beforeBucket = await activeOptionBucket(page);
+      const beforeActiveNodeId = await activeNodeId(page);
+      const beforeFrameTreeLayoutEngine = await frameTreeLayoutEngine(page);
+      const beforeViewBox = await fittedViewBox(page);
       const targetEngine = beforeEngine === "elk-layered" ? await alternateEngineId(page) : "elk-layered";
 
       await page.locator(`#engine-switcher-tabs [data-engine-id="${targetEngine}"]`).click();
@@ -652,18 +683,35 @@ test("engine tab switches classify visible changes while syncing engine and opti
       const afterSignature = await boundsSignature(page);
       const afterEngine = await renderedEngine(page);
       const afterBucket = await activeOptionBucket(page);
-      const classification = beforeSignature === afterSignature
-        ? "equivalent-geometry"
-        : "distinct-geometry";
+      const afterActiveNodeId = await activeNodeId(page);
+      const afterFrameTreeLayoutEngine = await frameTreeLayoutEngine(page);
+      const afterViewBox = await fittedViewBox(page);
+      const afterSelectedTab = await selectedEngineId(page);
+      const distinctGeometry = beforeSignature !== afterSignature;
+      const verifiedEquivalentGeometry = beforeSignature === afterSignature
+        && beforeViewBox === afterViewBox
+        && afterEngine === targetEngine
+        && afterBucket === targetEngine
+        && afterActiveNodeId === targetEngine
+        && afterFrameTreeLayoutEngine === targetEngine
+        && afterSelectedTab === targetEngine;
 
       assert.notEqual(afterEngine, beforeEngine, "engine switch should commit a different rendered engine");
       assert.equal(afterEngine, targetEngine, "rendered engine should match the selected tab");
       assert.equal(afterBucket, targetEngine, "active option bucket should sync to the selected engine");
       assert.notEqual(afterBucket, beforeBucket, "active option bucket should change with the selected engine");
+      assert.equal(afterActiveNodeId, targetEngine, "active node id should sync to the selected engine");
+      assert.equal(afterFrameTreeLayoutEngine, targetEngine, "frame tree layoutEngine should sync to the selected engine");
+      assert.equal(afterSelectedTab, targetEngine, "selected engine tab should match the rendered engine");
+      assert.equal(beforeActiveNodeId, beforeEngine, "baseline active node id should match the rendered engine");
+      assert.equal(beforeFrameTreeLayoutEngine, beforeEngine, "baseline frame tree layoutEngine should match the rendered engine");
       assert.ok(
-        classification === "distinct-geometry" || classification === "equivalent-geometry",
-        "engine switch classification should be explicit",
+        distinctGeometry || verifiedEquivalentGeometry,
+        "engine switch should either change bounds or prove equivalent geometry with synced engine state",
       );
+      if (!distinctGeometry) {
+        assert.equal(afterViewBox, beforeViewBox, "equivalent geometry should preserve the fitted viewBox");
+      }
     } finally {
       await page.close();
     }

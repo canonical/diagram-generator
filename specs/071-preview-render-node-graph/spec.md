@@ -7,15 +7,14 @@
 **Depends on / subsumes**: spec 060 follow-up (visual no-op tab switches),
 `docs/spec-reviews/README.md` (engine-identity source-of-truth review), and the
 2026-07-01 render-path fragmentation review in `AGENT-INBOX.md`.
-**Status Note (2026-07-02)**: Spec 071 is now closeout-ready on
-`feat/071-preview-render-node-graph`. Phase 4 is complete: the new
-`preview-node-onboarding.test.ts` registers `dummy-onboarding-grid` through the
-public preview-engine registry and proves it switches and renders without
-touching `preview-render-node.ts`, `preview-switch-node.ts`, `editor.js`, or
-`layout-bridge.js`; `evidence/render-path-inventory.md` is closed to a
-post-migration inventory with one render-node owner and one switch-node owner;
-and full validation passed, including the repo-owned real-browser repaint,
-canvas-parity, and engine-bucket-isolation regressions.
+**Status Note (2026-07-02)**: Spec 071 remains closeout-ready on
+`feat/071-preview-render-node-graph`. The closeout review follow-up tightened
+SC-002's real-browser proof so same-bounds engine switches now have to prove
+equivalent geometry with matching rendered engine, explicit active node id,
+frame-tree `layoutEngine`, selected tab, option bucket, and fitted `viewBox`.
+The render-path inventory is now branch-scoped instead of pinned to a stale
+pre-follow-up commit, and the earlier Phase 4 onboarding / inventory / full
+validation evidence remains recorded in this package.
 
 ## North star
 

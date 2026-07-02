@@ -14,25 +14,18 @@ here — those belong in the relevant `specs/<id>-<slug>/` package.
 
 ## Handoff — 2026-07-02
 
-- **Branch / tree:** `feat/071-preview-render-node-graph`. Committed checkpoints:
-  T021 `9b08d21`, T022 `69e68fc`, T016/T017 `be96d32`. Current working slice
-  implements Phase 3 T030/T031/T032 and updates the spec/handoff docs.
-- **Adversarial reviews done:** the earlier Opus review for Phases 1/2 remains in
-  `specs/071-preview-render-node-graph/evidence/adversarial-review.md`. A new
-  Codex Phase 3 review is in
-  `specs/071-preview-render-node-graph/evidence/phase-3-adversarial-review.md`.
-  Verdict: no reopen; residual notes are low-risk only (legacy helper export,
-  no cook-cache eviction).
-- **Validation completed on the current working slice:**
-  `npm --prefix packages/layout-engine test` → 156 files / 949 tests green.
-  `npm --prefix apps/preview test -- editor-live-repaint-regression` → full
-  preview suite green from the preview app, including the Chromium switch/isolation
-  regressions and the new return-to-layered `viewBox` determinism assertions.
-- **Still open in spec 071:** T023 (let save delete an emptied non-active node
-  bucket) and T024 (browser proof that non-active buckets survive save→reload),
-  then Phase 4 T040+ closeout work.
-- **Next:** commit the Phase 3 slice, then either clear T023/T024 or move to
-  Phase 4 onboarding/inventory closeout.
+- **Branch / tree:** `feat/071-preview-render-node-graph`.
+- **Review status:** the Phase 3 review remains non-reopening; the closeout
+  review gap on SC-002 has now been addressed in the browser regression and the
+  evidence/docs were refreshed to match.
+- **Current slice:** spec tasks now include T042/T043 for the closeout-review
+  follow-up. The SC-002 probe explicitly captures active node id plus frame-tree
+  `layoutEngine`, and same-bounds switches must also preserve the fitted
+  `viewBox` while syncing rendered engine, selected tab, and option bucket.
+- **Validation in this slice:** rerun
+  `npm --prefix apps/preview test -- editor-live-repaint-regression`.
+- **Next:** if further review is requested, use the strengthened SC-002 probe
+  and the branch-scoped render-path inventory as the closeout baseline.
 
 ---
 
@@ -120,66 +113,14 @@ reading the tree held up.
 
 ---
 
-## Adversarial review of spec 071 closeout claim — 2026-07-02
+## Resolved closeout review follow-up — 2026-07-02
 
-Reviewer: Codex, branch `feat/071-preview-render-node-graph`, HEAD `48778cf`.
-Scope: audit the current closeout-ready claim against the tree as it exists now,
-including the Phase 4 onboarding proof and the SC-002 browser evidence.
-
-**Verdict:** do not treat spec 071 as fully closed yet. I found one proof gap in
-the closeout criteria and one low-risk evidence-drift issue. No product-path
-code changes were made in this pass.
-
-### Findings
-
-- **R-1 (high) — SC-002 is not actually proven by the current browser evidence.**
-  `apps/preview/src/persistence/editor-live-repaint-regression.test.ts:655-665`
-  computes `classification` as either `"equivalent-geometry"` or
-  `"distinct-geometry"` from a bounds comparison, then asserts only that the
-  result is one of those two strings. That assertion is tautological, so the
-  test does not verify the spec requirement:
-  "either bounds change or the evidence records verified-equivalent geometry
-  with matching `data-layout-engine`, active node id, and fitted canvas." The
-  current probe does check `data-layout-engine` and active option-bucket sync,
-  but it never captures an explicit `activeNodeId`, never asserts the
-  equivalent-geometry branch, and never records a verified-equivalent result
-  when bounds stay the same. As written, SC-002 can pass even if the
-  equivalent-geometry path is unimplemented. Action: reopen the closeout proof
-  long enough to replace this tautology with a real branch assertion. Either
-  drive a known equivalent-geometry engine pair, or keep the current probe and
-  assert:
-  1. distinct geometry changes bounds, or
-  2. equivalent geometry preserves bounds *and* matches selected engine,
-     fitted `viewBox`, and an explicitly captured active node id.
-
-- **R-2 (low) — the inventory evidence is stamped to a pre-closeout commit.**
-  `specs/071-preview-render-node-graph/evidence/render-path-inventory.md`
-  identifies itself as a post-migration snapshot at commit `9b5178d`, while the
-  branch head is now `48778cf`. I did not find a contradictory owner path in the
-  current tree, so this is documentation drift rather than a correctness issue.
-  Still, if spec 071 stays open for the SC-002 proof gap, refresh the inventory
-  header to the commit that actually carries the closeout verdict.
-
-### Checked and held
-
-- The Phase 4 onboarding proof is real enough for its stated target:
-  `packages/layout-engine/tests/preview-node-onboarding.test.ts` registers
-  `dummy-onboarding-grid`, switches it through
-  `commitPreviewSwitchNodeLayoutEngine(...)`, renders through the shared render
-  seam, and source-guards `preview-render-node.ts`,
-  `preview-switch-node.ts`, `scripts/preview/editor.js`, and
-  `scripts/preview/layout-bridge.js` against dummy-engine branching.
-- The Phase 3 sole-writer guard is now materially stronger than the earlier
-  handoff suggested: `packages/layout-engine/tests/preview-switch-node.test.ts`
-  source-scans product TypeScript for `__DG_previewRenderIntent =` writes
-  outside `preview-switch-node.ts`.
-- I did not find a second direct stage-mount owner or a second direct
-  render-intent writer in current product code.
-
-### Next
-
-- Fix the SC-002 browser proof gap before calling the package fully
-  closeout-ready.
-- After that, refresh the evidence headers/handoff state so the branch record
-  matches the actual closeout commit.
+- **R-1 resolved:** `editor-live-repaint-regression.test.ts` no longer asserts a
+  tautological classification. The browser proof now passes only when the engine
+  switch either changes bounds or proves equivalent geometry with matching
+  rendered engine, explicit active node id, frame-tree `layoutEngine`, selected
+  tab, option bucket, and fitted `viewBox`.
+- **R-2 resolved:** `render-path-inventory.md` now uses a branch-scoped header
+  instead of a stale commit stamp, and spec/handoff text was refreshed to match
+  the strengthened SC-002 proof.
 

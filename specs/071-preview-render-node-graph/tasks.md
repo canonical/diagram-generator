@@ -242,6 +242,29 @@
       `preview-switch-node.ts` as the sole render-intent owner, and classifies
       the surviving load/scene/bridge/workspace seams as read-only delegates.
 
+- [x] **T042** Close the SC-002 proof gap from the closeout review. **Do**:
+      replace the tautological engine-switch classification assertion with a real
+      browser branch check: either the switch changes bounds, or the equivalent-
+      geometry branch proves matching rendered engine, explicit active node id,
+      frame-tree layout engine, selected tab, option bucket, and fitted viewBox.
+      **Verify**: the repo-owned Chromium regression fails if an equivalent-
+      geometry switch leaves any of those signals stale.
+      **Evidence**: `apps/preview/src/persistence/editor-live-repaint-regression.test.ts`.
+      Note: the browser proof now reads the workspace active node id and frame
+      tree `layoutEngine` explicitly, then requires same-bounds switches to keep
+      the fitted `viewBox` while synchronizing every engine-identity signal.
+
+- [x] **T043** Refresh closeout evidence drift from the review. **Do**: make the
+      render-path inventory header branch-scoped instead of pinning it to a
+      stale pre-follow-up commit, and align the spec/inbox handoff text with the
+      strengthened SC-002 proof. **Verify**: the package no longer claims a
+      stale commit header or stale closeout narrative after the review fix.
+      **Evidence**: `evidence/render-path-inventory.md`, `spec.md`,
+      `AGENT-INBOX.md`.
+      Note: the inventory header now tracks the current branch snapshot rather
+      than a fixed commit stamp, which avoids repeating the same drift on later
+      closeout-only doc updates.
+
 - [x] **T050** Full validation.
       **Verify**:
       `npm --prefix packages/layout-engine run build:browser`;

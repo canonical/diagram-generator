@@ -1,7 +1,7 @@
 # Render-path inventory
 
-Spec 071 T041. Post-migration snapshot on `feat/071-preview-render-node-graph`
-at commit `9b5178d`.
+Spec 071 T041/T043. Post-migration snapshot for the current
+`feat/071-preview-render-node-graph` branch worktree.
 
 ## Classification key
 
