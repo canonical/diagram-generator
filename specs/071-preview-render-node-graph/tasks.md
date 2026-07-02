@@ -216,8 +216,23 @@
       `apps/preview/src/persistence/editor-live-repaint-regression.test.ts`
       now asserts that returning to `elk-layered` after radial and dagre detours
       preserves the exact fitted `viewBox` when layered params are unchanged,
-      and that changing then restoring layered params forces a recook without
-      changing that fitted `viewBox`.
+      and `packages/layout-engine/tests/app-layout-bridge-runtime.test.ts`
+      now proves that changing then restoring layered params forces a fresh
+      third cook instead of falling through the cache before the browser
+      regression reasserts the unchanged fitted `viewBox`.
+
+### Phase 3 post-review follow-ups (adversarial pass 2026-07-02)
+
+- [x] **T033** Split the determinism proof from cache reuse. **Do**: add a
+      switch-runtime regression that mutates the active layered params, restores
+      the original values, and proves the restore still performs a fresh cook
+      before the browser parity probe checks the fitted `viewBox`. **Verify**:
+      first/changed/restored renders yield three cooks while the restored shape
+      returns to the original dimensions. **Evidence**:
+      `packages/layout-engine/tests/app-layout-bridge-runtime.test.ts`;
+      `apps/preview/src/persistence/editor-live-repaint-regression.test.ts`.
+      Note: this closes the review caveat that the old browser-only proof could
+      be satisfied by layered cook-cache reuse alone.
 
 ## Phase 4 — Registration-only onboarding + closeout
 

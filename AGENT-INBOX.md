@@ -15,17 +15,25 @@ here — those belong in the relevant `specs/<id>-<slug>/` package.
 ## Handoff — 2026-07-02
 
 - **Branch / tree:** `feat/071-preview-render-node-graph`.
-- **Review status:** the Phase 3 review remains non-reopening; the closeout
-  review gap on SC-002 has now been addressed in the browser regression and the
-  evidence/docs were refreshed to match.
+- **Review status:** the Phase 3 review remains non-reopening. The closeout
+  review gap on SC-002 is fixed in the browser regression, and the remaining
+  Phase 3 review caveats are now resolved: the stale legacy-writer finding was
+  retired after verifying the helper/export path no longer exists in product
+  code, and the determinism proof now includes a forced-recook regression
+  alongside the live `viewBox` parity check.
 - **Current slice:** spec tasks now include T042/T043 for the closeout-review
-  follow-up. The SC-002 probe explicitly captures active node id plus frame-tree
-  `layoutEngine`, and same-bounds switches must also preserve the fitted
-  `viewBox` while syncing rendered engine, selected tab, and option bucket.
+  follow-up plus T033 for the Phase 3 review follow-up. The SC-002 probe
+  explicitly captures active node id plus frame-tree `layoutEngine`, same-bounds
+  switches must also preserve the fitted `viewBox` while syncing rendered
+  engine, selected tab, and option bucket, and the switch-runtime regression now
+  proves that restoring layered params performs a fresh third cook instead of
+  reusing the cached layered render.
 - **Validation in this slice:** rerun
+  `npm --prefix packages/layout-engine test -- app-layout-bridge-runtime` and
   `npm --prefix apps/preview test -- editor-live-repaint-regression`.
-- **Next:** if further review is requested, use the strengthened SC-002 probe
-  and the branch-scoped render-path inventory as the closeout baseline.
+- **Next:** if further review is requested, use the forced-recook regression,
+  the strengthened SC-002 probe, and the branch-scoped render-path inventory as
+  the closeout baseline.
 
 ---
 
@@ -56,24 +64,7 @@ reopen, but two findings should be reclassified upward before Phase 4.
   "proto-switch" now delegates to `commitPreviewSwitchNode`. Good — the review was
   right not to treat it as a second writer, though it never explicitly cleared it.
 
-### Findings against the review
-
-- **M-1 (medium) — the "sole writer" invariant is unguarded, not just uncleaned.**
-  The review frames P3-1 as a cosmetic export-cleanup candidate. It is more than
-  that. Product `src` has exactly two functions that assign
-  `__DG_previewRenderIntent`: the switch node (`preview-switch-node.ts:243`) and the
-  still-exported legacy helper (`preview-render-intent.ts:155`). The helper remains
-  in the public barrel (`preview-shell-state-barrel.ts:151`) and is still exercised
-  by `app-fresh-render.test.ts:344`. So the switch node is the sole *current caller*,
-  not the sole *possible* writer. Unlike Phase 1's T017 — which added an automated
-  preview-shell scan that fails on any stray `stage.replaceChildren` — Phase 3 added
-  **no** equivalent guard. The T030 "grep proves no direct commit" evidence is a
-  one-time manual grep, so nothing fails if a future file writes render intent
-  through the legacy helper or assigns `__DG_previewRenderIntent` directly. For a
-  spec whose whole point is a single ownership seam scaling to 50/150/500 engines, a
-  live parallel writer with no test guard is a latent regression vector. Recommend a
-  small guard test (mirror of T017) that fails on any render-intent write outside
-  `preview-switch-node.ts`, or delete/inline the legacy helper.
+### Historical findings against the review (resolved below)
 
 - **M-2 (medium) — T032 proves cache stability, not cook determinism.** The
   return-to-layered `viewBox` equality is guaranteed by cook-cache reuse: the
@@ -110,6 +101,23 @@ forced-recook assertion is added. Neither blocks the Phase 3 commit.
 re-execute the 949-test suite or the Chromium preview suite, so the review's
 "green" counts are taken at face value; every structural claim I could check by
 reading the tree held up.
+
+---
+
+## Resolved Phase 3 review follow-up — 2026-07-02
+
+- **M-1 stale / resolved:** the legacy render-intent writer path the review
+  called out is no longer present in product code. `preview-render-intent.ts`
+  now only builds/applies intent payloads, `preview-shell-state-barrel.ts` no
+  longer exports a commit helper, `app-fresh-render.test.ts` uses
+  `commitPreviewSwitchNode(...)`, and
+  `packages/layout-engine/tests/preview-switch-node.test.ts` keeps the
+  source-scan guard on direct `__DG_previewRenderIntent =` writes outside
+  `preview-switch-node.ts`.
+- **M-2 resolved:** `packages/layout-engine/tests/app-layout-bridge-runtime.test.ts`
+  now forces an active layered param change and restore, proves the restore
+  performs a fresh third cook, and leaves the existing browser regression to
+  assert the unchanged fitted `viewBox` after that forced recook.
 
 ---
 
