@@ -12,6 +12,90 @@ here — those belong in the relevant `specs/<id>-<slug>/` package.
 
 ---
 
+## Handoff — 2026-07-03
+
+- **Branch / tree:** `feat/062-parent-child-hug-resize-propagation`.
+- **Queue status:** `TODO.md` now reflects the remaining Opus order after spec
+  071 closeout: 062, then 063, then 061, then 064. `docs/specs.md` marks spec
+  071 **Closeout Ready** and spec 062 **Active**.
+- **Current slice:** spec 062 was drafted as its own package under
+  `specs/062-parent-child-hug-resize-propagation/` from the existing Opus
+  triage notes. It explicitly owns the `test-alignment-grid` parent/child hug
+  resize contract and keeps that work separate from residual 048/065/063 scope.
+- **Overnight run:** SpecKit is running on spec 062 only with `-MaxSpecs 1`.
+  Logs:
+  `tmp/overnight-spec-062-20260703-002159.log` and
+  `tmp/overnight-spec-062-20260703-002159.err.log`.
+- **Next:** let the 062 overnight run finish, then use the adversarial-review
+  prompt below against everything landed since the last recorded review pass.
+
+---
+
+## Adversarial review prompt — post-071 closeout + spec 062 overnight
+
+Use this **after** the current 062 overnight run finishes.
+
+```text
+Adversarial review request.
+
+Scope: review everything landed since the last recorded adversarial review
+baseline for this repo, with special attention to the post-071 closeout
+hardening and the spec 062 overnight run.
+
+Repository: diagram-generator
+Primary branches/areas:
+- feat/071-preview-render-node-graph late closeout follow-ups
+- feat/062-parent-child-hug-resize-propagation overnight implementation
+
+Commit range to audit:
+- Start from: e4b90c4 (docs(071): record closeout adversarial review)
+- Review every later commit now reachable from HEAD, including:
+  - 9cd8560
+  - 4798d30
+  - 8d63b85
+  - a71c246
+  - 83c398d
+  - all additional commits cherry-picked by the active 062 overnight run
+
+Required sources:
+- TODO.md
+- docs/specs.md
+- AGENTS.md handoff
+- AGENT-INBOX.md
+- specs/071-preview-render-node-graph/
+- specs/062-parent-child-hug-resize-propagation/
+- tmp/overnight-spec-062-20260703-002159.log
+- tmp/overnight-spec-062-20260703-002159.err.log
+
+Review goals:
+1. Verify spec 071 really remains closeout-ready after the late hardening/docs
+   follow-ups, and call out any false confidence, stale evidence, or reopened
+   behavioral risk.
+2. Verify spec 062's package, tasks, and any landed implementation actually
+   match the Opus-ordered contract from docs/spec-reviews/inbox-triage.md row 13
+   and were not silently broadened or narrowed.
+3. Prioritize correctness bugs, behavioral regressions, missing save->reload
+   proof, browser-proof gaps, or tests that only prove wiring instead of the
+   user-visible contract.
+4. Call out any queue/catalog drift: TODO order, docs/specs status, AGENTS
+   handoff, and AGENT-INBOX state must agree.
+5. Treat legacy-JS ownership growth, fake no-op test proofs, and stale review
+   conclusions as findings even if tests are green.
+
+Output format:
+- Findings first, ordered by severity, with file/line references.
+- Then open questions / assumptions.
+- Then a short change summary only if needed.
+
+Important:
+- Do not spend time re-reviewing pre-e4b90c4 spec 071 work unless a later
+  commit appears to regress it.
+- Assume tests can be wrong. If the visible contract is not truly proven, mark
+  that as a finding.
+```
+
+---
+
 ## Handoff — 2026-07-02
 
 - **Branch / tree:** `feat/071-preview-render-node-graph`.
