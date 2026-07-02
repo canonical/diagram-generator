@@ -118,3 +118,68 @@ re-execute the 949-test suite or the Chromium preview suite, so the review's
 "green" counts are taken at face value; every structural claim I could check by
 reading the tree held up.
 
+---
+
+## Adversarial review of spec 071 closeout claim — 2026-07-02
+
+Reviewer: Codex, branch `feat/071-preview-render-node-graph`, HEAD `48778cf`.
+Scope: audit the current closeout-ready claim against the tree as it exists now,
+including the Phase 4 onboarding proof and the SC-002 browser evidence.
+
+**Verdict:** do not treat spec 071 as fully closed yet. I found one proof gap in
+the closeout criteria and one low-risk evidence-drift issue. No product-path
+code changes were made in this pass.
+
+### Findings
+
+- **R-1 (high) — SC-002 is not actually proven by the current browser evidence.**
+  `apps/preview/src/persistence/editor-live-repaint-regression.test.ts:655-665`
+  computes `classification` as either `"equivalent-geometry"` or
+  `"distinct-geometry"` from a bounds comparison, then asserts only that the
+  result is one of those two strings. That assertion is tautological, so the
+  test does not verify the spec requirement:
+  "either bounds change or the evidence records verified-equivalent geometry
+  with matching `data-layout-engine`, active node id, and fitted canvas." The
+  current probe does check `data-layout-engine` and active option-bucket sync,
+  but it never captures an explicit `activeNodeId`, never asserts the
+  equivalent-geometry branch, and never records a verified-equivalent result
+  when bounds stay the same. As written, SC-002 can pass even if the
+  equivalent-geometry path is unimplemented. Action: reopen the closeout proof
+  long enough to replace this tautology with a real branch assertion. Either
+  drive a known equivalent-geometry engine pair, or keep the current probe and
+  assert:
+  1. distinct geometry changes bounds, or
+  2. equivalent geometry preserves bounds *and* matches selected engine,
+     fitted `viewBox`, and an explicitly captured active node id.
+
+- **R-2 (low) — the inventory evidence is stamped to a pre-closeout commit.**
+  `specs/071-preview-render-node-graph/evidence/render-path-inventory.md`
+  identifies itself as a post-migration snapshot at commit `9b5178d`, while the
+  branch head is now `48778cf`. I did not find a contradictory owner path in the
+  current tree, so this is documentation drift rather than a correctness issue.
+  Still, if spec 071 stays open for the SC-002 proof gap, refresh the inventory
+  header to the commit that actually carries the closeout verdict.
+
+### Checked and held
+
+- The Phase 4 onboarding proof is real enough for its stated target:
+  `packages/layout-engine/tests/preview-node-onboarding.test.ts` registers
+  `dummy-onboarding-grid`, switches it through
+  `commitPreviewSwitchNodeLayoutEngine(...)`, renders through the shared render
+  seam, and source-guards `preview-render-node.ts`,
+  `preview-switch-node.ts`, `scripts/preview/editor.js`, and
+  `scripts/preview/layout-bridge.js` against dummy-engine branching.
+- The Phase 3 sole-writer guard is now materially stronger than the earlier
+  handoff suggested: `packages/layout-engine/tests/preview-switch-node.test.ts`
+  source-scans product TypeScript for `__DG_previewRenderIntent =` writes
+  outside `preview-switch-node.ts`.
+- I did not find a second direct stage-mount owner or a second direct
+  render-intent writer in current product code.
+
+### Next
+
+- Fix the SC-002 browser proof gap before calling the package fully
+  closeout-ready.
+- After that, refresh the evidence headers/handoff state so the branch record
+  matches the actual closeout commit.
+
