@@ -27,30 +27,19 @@ next**, trust this file.
 
 ## Next spec to tackle (priority order)
 
-Fix the "silently broken after refactor" correctness class **before** new
-engine breadth. Ordered for a cold-start agent:
+Spec 071 is now complete on `feat/071-preview-render-node-graph`. Keep the
+remaining post-071 queue in the exact Opus order:
 
-1. **Spec 071 Phase 1 — render node + canvas in state vector.** Single
-   render/fit/mount owner. This is the highest-leverage fix: it closes the
-   path-dependent canvas padding, makes engine-tab switches visually
-   deterministic, and **subsumes the Spec 060 follow-up** (visual no-op tab
-   switch). Do this first. See `specs/071-preview-render-node-graph/` (its
-   `spec.md` captures the render-path root-cause review and invariants).
-2. **Spec 071 Phase 2 — interpreter node state isolation.** Per-engine param
-   containers so engines stop stepping on each other's option buckets. This is
-   the "safe to add 50 tabs" fix.
-3. **Spec 062 (draft) — parent/child hug resize propagation** and
-   **Spec 063 (draft) — auto-style by nesting depth.** Localized correctness
-   bugs ("change a leaf box role → no visual change until a top-level node
-   changes"). 063 should adopt the Spec 071 Phase 3 dirty-propagation contract
-   rather than adding another ad-hoc relayout trigger.
-4. **Spec 071 Phase 3 — switch node + deterministic cook.** Collapses the 8+
-   `commitPreviewRenderIntentToWindow` sites into one switch owner; makes
-   save/render deterministic.
-5. **Spec 061 (draft) — grid regression investigation.**
-6. **Spec 064 (draft) — arrow annotation label de-overlap.**
-7. **Spec 071 Phase 4 — registration-only onboarding + inventory closeout**,
-   then resume engine-breadth work on the node contract.
+1. **Spec 062 (draft) — parent/child hug resize propagation.** Localized
+   correctness bug: resizing a hug parent must reflow hug children, and default
+   child sizing should be authorable away from fixed when that is the intended
+   contract.
+2. **Spec 063 (draft) — auto-style by nesting depth.** Localized correctness
+   bug ("change a leaf box role → no visual change until a top-level node
+   changes"). 063 should adopt the Spec 071 dirty-propagation contract rather
+   than adding another ad-hoc relayout trigger.
+3. **Spec 061 (draft) — grid regression investigation.**
+4. **Spec 064 (draft) — arrow annotation label de-overlap.**
 
 The `defineGraphLayoutPreviewEngine` factory + per-engine `engines/*.engine.ts`
 substrate is already in place (decentralized `registerPreviewEngine`, no central
