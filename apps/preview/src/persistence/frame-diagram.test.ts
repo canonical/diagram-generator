@@ -16,16 +16,20 @@ import {
 import {
   collectPreviewArrowComponentEntries,
   createPreviewArrowComponentId,
+  layoutFrameTree,
   loadFrameYaml,
+  MockTextAdapter,
   registerPreviewEngine,
   resolvePreviewEngine,
   Direction,
+  type Frame,
   type PreviewEngineContext,
 } from "@diagram-generator/layout-engine";
 
 const REPO_ROOT = path.resolve(process.cwd(), "..", "..");
 const FRAME_FIXTURE = path.join(REPO_ROOT, "scripts", "diagrams", "frames", "support-engineering-flow.yaml");
 const COMPLEX_ROUTING_FIXTURE = path.join(REPO_ROOT, "scripts", "diagrams", "frames", "complex-routing-usecase.yaml");
+const ALIGNMENT_GRID_FIXTURE = path.join(REPO_ROOT, "scripts", "diagrams", "frames", "test-alignment-grid.yaml");
 
 function writeTempFrame(name: string, content: string): string {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "dg-frame-yaml-"));
@@ -45,6 +49,19 @@ function normalizeYamlNewlines(value: string): string {
 
 function assertYamlEqual(actual: string, expected: string): void {
   assert.strictEqual(normalizeYamlNewlines(actual), normalizeYamlNewlines(expected));
+}
+
+function findFrameById(frame: Frame, frameId: string): Frame | null {
+  if (frame.id === frameId) {
+    return frame;
+  }
+  for (const child of frame.children) {
+    const match = findFrameById(child, frameId);
+    if (match) {
+      return match;
+    }
+  }
+  return null;
 }
 
 test("persist override payload writes canonical yaml fields", () => {
@@ -1236,6 +1253,44 @@ test("persist fixed sizing overrides canonically for multiple frames", () => {
   assert.equal(result?.sizingH, "FIXED");
   assert.equal(result?.width, 480);
   assert.equal(result?.height, 160);
+});
+
+test("persist→reload round-trip: test-alignment-grid keeps HUG child sizing and reflow after parent shrink", () => {
+  const baselineText = fs.readFileSync(ALIGNMENT_GRID_FIXTURE, "utf8");
+  const persistent = persistToYaml("test-alignment-grid-hug.yaml", baselineText, {
+    overrides: {
+      container: {
+        sizing_w: "FIXED",
+        width: 160,
+        sizing_h: "FIXED",
+        height: 208,
+      },
+      small_box: {
+        sizing_w: "HUG",
+        sizing_h: "HUG",
+      },
+    },
+  });
+
+  const reloaded = loadFrameYaml(writeTempFrame("test-alignment-grid-hug-reloaded.yaml", persistent));
+  const container = findFrameById(reloaded.root, "container");
+  const child = findFrameById(reloaded.root, "small_box");
+
+  assert.match(persistent, /id: small_box[\s\S]*sizing_w: hug[\s\S]*sizing_h: hug/);
+  assert.equal(container?.sizingW, "FIXED");
+  assert.equal(container?.width, 160);
+  assert.equal(child?.sizingW, "HUG");
+  assert.equal(child?.sizingH, "HUG");
+
+  layoutFrameTree(reloaded.root, new MockTextAdapter());
+
+  assert.ok(container, "container must survive save + reload");
+  assert.ok(child, "small_box must survive save + reload");
+  assert.ok(child._layout.placedW < 192, "reloaded HUG child should shrink below its authored fixed width");
+  assert.ok(
+    child._layout.placedW < container._layout.placedW,
+    "reloaded HUG child should fit within the saved smaller parent width",
+  );
 });
 
 test("persist→reload round-trip: absolute positions survive drag, nudge, and multi-select saves", () => {

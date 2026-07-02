@@ -21,9 +21,14 @@ import {
   renderFreshPreviewSvg,
 } from '../src/preview-shell/app-fresh-render.js';
 import { commitPreviewSwitchNode } from '../src/preview-shell/preview-switch-node.js';
+import {
+  applyPreviewOverridesToFrameTree,
+  collectPreviewRelayoutFrameOverrides,
+} from '../src/preview-shell/app-relayout.js';
 import { loadFrameYaml } from '../src/frame-yaml-loader.js';
 import { serializeFrameDiagram } from '../src/frame-serialize.js';
 import { MockTextAdapter } from '../src/text-measure.js';
+import type { Frame } from '../src/frame-model.js';
 import { loadNormalizedFrameFixture } from './helpers/frame-fixture-normalization.js';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
@@ -155,6 +160,19 @@ function matchesSelector(element: FakeElement, selector: string): boolean {
     return element.tagName === selector;
   }
   return false;
+}
+
+function findFrameById(frame: Frame, frameId: string): Frame | null {
+  if (frame.id === frameId) {
+    return frame;
+  }
+  for (const child of frame.children) {
+    const match = findFrameById(child, frameId);
+    if (match) {
+      return match;
+    }
+  }
+  return null;
 }
 
 describe('renderFreshPreviewSvg', () => {
@@ -303,6 +321,49 @@ describe('renderFreshPreviewSvg', () => {
     expect(routedArrowInput?.target).toBe('beta');
     expect(routedArrowInput?.waypoints).toBeUndefined();
     expect(routedArrowInput?.layoutPath).toBeUndefined();
+  });
+
+  it('reflows the test-alignment-grid child after an inspector-style switch to HUG and a smaller parent width', async () => {
+    const ownerDocument = new FakeDocument();
+    const diagram = loadFrameYaml(join(FRAMES_DIR, 'test-alignment-grid.yaml'));
+    const frameTreeJson = serializeFrameDiagram(diagram);
+    let laidOutRoot: Frame | null = null;
+
+    await renderFreshPreviewSvg({
+      ownerDocument: ownerDocument as unknown as Document,
+      frameTreeJson,
+      overrides: {
+        container: {
+          sizing_w: 'FIXED',
+          width: 160,
+          sizing_h: 'FIXED',
+          height: 208,
+        },
+        small_box: {
+          sizing_w: 'HUG',
+          sizing_h: 'HUG',
+        },
+      },
+      gridOverrides: {},
+      model: {},
+      textAdapter: new MockTextAdapter(),
+      applySessionRemovalsToDiagramJson: null,
+      applyOverridesToFrameTree: applyPreviewOverridesToFrameTree,
+      collectRelayoutFrameOverrides: collectPreviewRelayoutFrameOverrides,
+      resolveEngineLayoutOptionOverrides: () => ({}),
+      updateModelFromLayout: (_model, root) => {
+        laidOutRoot = root;
+      },
+      syncArrowsInModel: vi.fn(),
+    });
+
+    const container = laidOutRoot ? findFrameById(laidOutRoot, 'container') : null;
+    const child = laidOutRoot ? findFrameById(laidOutRoot, 'small_box') : null;
+
+    expect(container).not.toBeNull();
+    expect(child).not.toBeNull();
+    expect(child?._layout.placedW).toBeLessThan(192);
+    expect(child?._layout.placedW).toBeLessThan(container?._layout.placedW ?? 0);
   });
 
   it('stamps the engine that actually drives an authored-engine fresh render', async () => {

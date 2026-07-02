@@ -787,6 +787,66 @@ describe('coercion lifecycle', () => {
     // Both FILL children should be the same height
     expect(fillChild1._layout.placedH).toBe(fillChild2._layout.placedH);
   });
+
+  it('reflows a HUG child from the parent width even when the leaf was originally authored fixed', () => {
+    const child = new Frame({
+      id: 'child',
+      sizingW: Sizing.HUG,
+      sizingH: Sizing.HUG,
+      width: 192,
+      height: 64,
+      label: [createLine('Small box change alignment')],
+      border: Border.SOLID,
+      fill: Fill.WHITE,
+      level: 1,
+    });
+    const parent = new Frame({
+      id: 'parent',
+      direction: Direction.VERTICAL,
+      sizingW: Sizing.FIXED,
+      sizingH: Sizing.FIXED,
+      width: 160,
+      height: 208,
+      padding: 8,
+      border: Border.SOLID,
+      children: [child],
+    });
+
+    layoutFrameTree(parent, adapter);
+
+    expect(child._layout.placedW).toBeLessThan(192);
+    expect(child._layout.placedW).toBeLessThanOrEqual(144);
+  });
+
+  it('preserves FIXED child sizing when the parent shrinks', () => {
+    const child = new Frame({
+      id: 'child',
+      sizingW: Sizing.FIXED,
+      sizingH: Sizing.FIXED,
+      width: 192,
+      height: 64,
+      label: [createLine('Small box change alignment')],
+      border: Border.SOLID,
+      fill: Fill.WHITE,
+      level: 1,
+    });
+    const parent = new Frame({
+      id: 'parent',
+      direction: Direction.VERTICAL,
+      sizingW: Sizing.FIXED,
+      sizingH: Sizing.FIXED,
+      width: 160,
+      height: 208,
+      padding: 8,
+      border: Border.SOLID,
+      children: [child],
+    });
+
+    layoutFrameTree(parent, adapter);
+
+    expect(child._layout.placedW).toBe(192);
+    expect(child._layout.placedH).toBe(64);
+  });
 });
 
 // ---------------------------------------------------------------------------
