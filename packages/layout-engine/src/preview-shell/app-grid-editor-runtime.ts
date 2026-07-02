@@ -19,11 +19,14 @@ import {
   type PreviewEditorSceneFacade,
 } from './app-editor-scene-facade.js';
 import {
+  readFrameYamlEngineLayoutNodeBuckets,
   readFrameYamlEngineLayoutOverridesForLayoutEngine,
 } from './frame-yaml-engine-layout-contract.js';
 import {
   activateLayoutOperatorOverrideBucket,
+  clearLayoutOperatorNodeBucketRegistry,
   readLayoutOperatorOverrideState,
+  replaceLayoutOperatorNodeBucketsForNamespace,
   writeLayoutOperatorOverrideState,
   type LayoutOperatorOverrideState,
 } from './layout-operator-overrides.js';
@@ -591,9 +594,22 @@ export function createPreviewGridEditorRuntimeFromBrowserHost(
               engineLayout?: Record<string, Record<string, unknown>>;
             } | null;
             const engineLayoutState = readFrameYamlEngineLayoutOverridesForLayoutEngine(tree);
+            const nodeBucketsByNamespace = readFrameYamlEngineLayoutNodeBuckets(tree);
             const nextLayoutOverrides = engineLayoutState?.overrides
               ? { ...engineLayoutState.overrides }
               : {};
+            clearLayoutOperatorNodeBucketRegistry(
+              options.shared.model,
+              engineLayoutState?.namespace ?? null,
+            );
+            for (const [namespace, buckets] of Object.entries(nodeBucketsByNamespace)) {
+              replaceLayoutOperatorNodeBucketsForNamespace(
+                options.shared.model,
+                namespace,
+                buckets,
+                tree?.layoutEngine ?? null,
+              );
+            }
             const manifest = resolvePreviewEngine({
               layoutEngine: tree?.layoutEngine ?? null,
               shellMode: 'grid',

@@ -98,7 +98,7 @@ export const elkRectpackingFrameDiagramRenderAdapter = createElkAlgorithmFrameDi
 
 export const dagreFrameDiagramRenderAdapter: PreviewFrameDiagramRenderAdapter = async (options) => {
   const dagreOptionOverrides = {
-    ...(options.diagram.engineLayout?.['meta.dagre'] ?? {}),
+    ...((options.diagram.engineLayout?.['meta.dagre'] ?? {}) as Record<string, string>),
     ...(options.elkOptionOverrides ?? {}),
   };
   return layoutGraphFrameDiagram(options.diagram, options.textAdapter, {

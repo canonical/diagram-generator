@@ -82,6 +82,26 @@ function manifestPersistNamespace(
   return null;
 }
 
+export function persistNodeNamespaceForLayoutOperatorNamespace(
+  namespace: string | null | undefined,
+): string | null {
+  const normalized = normalizeOperatorKey(namespace);
+  if (!normalized || !normalized.startsWith('meta.')) {
+    return null;
+  }
+  return `${normalized}_nodes`;
+}
+
+export function baseLayoutOperatorNamespaceFromPersistNodeNamespace(
+  namespace: string | null | undefined,
+): string | null {
+  const normalized = normalizeOperatorKey(namespace);
+  if (!normalized || !normalized.endsWith('_nodes')) {
+    return null;
+  }
+  return normalized.slice(0, -'_nodes'.length);
+}
+
 function activeAliasOverrides(
   model: LayoutOperatorOverrideModelLike | null | undefined,
 ): Record<string, unknown> | null {
@@ -119,6 +139,7 @@ function syncLegacyLayoutOperatorAliases(
   const activeBucket = activeKey
     ? cloneRecord(nextState.byOperator[activeKey]) ?? {}
     : {};
+  model.layoutOperatorOverrides = nextState;
   model.layoutOverrides = { ...activeBucket };
   if (preferredNamespace !== undefined) {
     model.layoutOverrideNamespace = preferredNamespace;
@@ -238,6 +259,94 @@ function ensurePreviewInterpreterNodeRegistryForManifest(
     ],
     paramsByNodeId: registry?.paramsByNodeId ?? {},
   });
+}
+
+export function replaceLayoutOperatorNodeBucketsForNamespace(
+  model: LayoutOperatorOverrideModelLike | null | undefined,
+  namespace: string,
+  buckets: Record<string, Record<string, unknown>>,
+  activeNodeId?: string | null,
+): void {
+  if (!model) {
+    return;
+  }
+  const normalizedNamespace = normalizeOperatorKey(namespace);
+  if (!normalizedNamespace) {
+    return;
+  }
+  const currentRegistry = readPreviewInterpreterNodeRegistry(model);
+  const nextRegistrations: PreviewInterpreterNodeRegistration[] = [];
+  const nextParamsByNodeId: Record<string, Record<string, unknown>> = {};
+
+  for (const node of currentRegistry?.nodes ?? []) {
+    const nodeNamespace = manifestPersistNamespace(node.manifest, null);
+    if (nodeNamespace === normalizedNamespace) {
+      continue;
+    }
+    nextRegistrations.push({
+      manifest: node.manifest,
+      nodeId: node.nodeId,
+    });
+    const existingParams = cloneRecord(currentRegistry?.paramsByNodeId[node.nodeId]);
+    if (existingParams) {
+      nextParamsByNodeId[node.nodeId] = existingParams;
+    }
+  }
+
+  for (const [nodeId, bucket] of Object.entries(buckets)) {
+    const manifest = resolveLayoutOperatorManifestForOperatorKey(nodeId);
+    if (!manifest || manifestPersistNamespace(manifest, null) !== normalizedNamespace) {
+      continue;
+    }
+    const prunedBucket = pruneSessionBucketForManifest(
+      manifest,
+      bucket,
+      { persistNamespace: normalizedNamespace },
+    );
+    nextRegistrations.push({
+      manifest,
+      nodeId,
+    });
+    if (Object.keys(prunedBucket).length > 0) {
+      nextParamsByNodeId[nodeId] = prunedBucket;
+    }
+  }
+
+  const nextRegistry = nextRegistrations.length > 0
+    ? createPreviewInterpreterNodeRegistry({
+      registrations: nextRegistrations,
+      paramsByNodeId: nextParamsByNodeId,
+    })
+    : currentRegistry
+      ? createPreviewInterpreterNodeRegistry({
+        registrations: nextRegistrations,
+        paramsByNodeId: nextParamsByNodeId,
+      })
+      : null;
+
+  const nextActiveNodeId = (
+    activeNodeId && Object.prototype.hasOwnProperty.call(buckets, activeNodeId)
+  )
+    ? activeNodeId
+    : (
+      normalizeOperatorKey(model.previewInterpreterActiveNodeId) ?? null
+    );
+  writePreviewInterpreterNodeRegistry(
+    model,
+    nextRegistry,
+    nextActiveNodeId,
+    normalizedNamespace,
+  );
+}
+
+export function clearLayoutOperatorNodeBucketRegistry(
+  model: LayoutOperatorOverrideModelLike | null | undefined,
+  preferredNamespace?: string | null,
+): void {
+  if (!model) {
+    return;
+  }
+  writePreviewInterpreterNodeRegistry(model, null, null, preferredNamespace ?? null);
 }
 
 export function resolveLayoutOperatorManifestForOperatorKey(

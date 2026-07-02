@@ -109,12 +109,17 @@
       `editor-live-repaint-regression.test.ts` keeps the real browser SC-003
       sequence green by reading node-owned state through the editor snapshot.
 
-- [ ] **T022** Per-node persistence: save/reload each node's params under its own
+- [x] **T022** Per-node persistence: save/reload each node's params under its own
       namespace; reject foreign keys at the node boundary (not global filtering).
       **Verify**: `persist → reload` round-trips each node bucket; a foreign key
       in a node payload is rejected before write.
       **Evidence**: `apps/preview/src/persistence/frame-diagram.test.ts`
       additions (temp fixture, hash-guarded).
+      Note: frame YAML now persists family-scoped node buckets under
+      `meta.<family>_nodes`, live engine-tab reinstalls preserve unsaved node
+      buckets across workspace rerenders, save payload collection merges node
+      namespaces instead of replacing them, and blank-valid enum values such as
+      `elk.direction: ''` survive save→reload.
 
 ## Phase 3 — Switch node + deterministic cook
 

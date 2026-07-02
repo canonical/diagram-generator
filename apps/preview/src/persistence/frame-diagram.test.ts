@@ -298,6 +298,65 @@ test("persist→reload round-trip: graph-engine namespaces survive frame yaml re
   });
 });
 
+test("persist→reload round-trip: interpreter node buckets survive under family-scoped node namespaces", () => {
+  const baselineText = [
+    "engine: v3",
+    "title: Demo",
+    "meta:",
+    "  layout_engine: dagre",
+    "root:",
+    "  id: page",
+    "  direction: vertical",
+    "  children:",
+    "    - id: leaf_a",
+    "      label: [A]",
+    "",
+  ].join("\n");
+  const framePath = writeTempFrame("node-buckets-roundtrip.yaml", baselineText);
+  const output = persistFrameDiagramOverridePayloadToYaml(framePath, baselineText, {
+    overrides: {},
+    engine_layout_overrides: {
+      "meta.dagre": {
+        "dagre.rankdir": "LR",
+      },
+      "meta.dagre_nodes": {
+        dagre: {
+          "dagre.rankdir": "LR",
+          "dagre.ranksep": "128",
+        },
+      },
+      "meta.elk_nodes": {
+        "elk-layered": {
+          "elk.spacing.edgeNode": 56,
+        },
+        "elk-radial": {
+          "elk.radial.radius": 160,
+        },
+      },
+    },
+  });
+  fs.writeFileSync(framePath, output, "utf8");
+
+  assert.match(output, /dagre_nodes:/);
+  assert.match(output, /elk_nodes:/);
+
+  const reloaded = loadFrameYaml(framePath);
+  assert.deepEqual(reloaded.engineLayout?.["meta.dagre_nodes"], {
+    dagre: {
+      "dagre.rankdir": "LR",
+      "dagre.ranksep": "128",
+    },
+  });
+  assert.deepEqual(reloaded.engineLayout?.["meta.elk_nodes"], {
+    "elk-layered": {
+      "elk.spacing.edgeNode": "56",
+    },
+    "elk-radial": {
+      "elk.radial.radius": "160",
+    },
+  });
+});
+
 test("persist→reload round-trip: committed state vector survives temp frame yaml save", () => {
   const baselineText = [
     "engine: v3",
@@ -411,7 +470,37 @@ test("persist elk layout overrides replaces meta.elk entries canonically", () =>
   });
 });
 
-test("persist elk layout verification treats empty values as cleared overrides", () => {
+test("persist engine layout verification clears empty values for specs that do not admit blank", () => {
+  const baselineText = [
+    "engine: v3",
+    "title: Demo",
+    "meta:",
+    "  layout_engine: elk-layered",
+    "  elk:",
+    "    elk.spacing.edgeNode: \"40\"",
+    "root:",
+    "  id: page",
+    "  direction: vertical",
+    "  children:",
+    "    - id: leaf_a",
+    "      label: [A]",
+    "",
+  ].join("\n");
+  const expected = {
+    "elk.spacing.edgeNode": "",
+  };
+  const output = persistToYaml("demo.yaml", baselineText, {
+    overrides: {},
+    engine_layout_overrides: {
+      "meta.elk": expected,
+    },
+  });
+
+  assert.doesNotMatch(output, /elk\.spacing\.edgeNode/);
+  verifyElkLayoutPersisted(output, expected);
+});
+
+test("persist elk.direction preserves the blank auto enum value", () => {
   const baselineText = [
     "engine: v3",
     "title: Demo",
@@ -428,20 +517,25 @@ test("persist elk layout verification treats empty values as cleared overrides",
     "      label: [A]",
     "",
   ].join("\n");
-  const expected = {
-    "elk.direction": "",
-    "elk.spacing.edgeNode": 56,
-  };
+
   const output = persistToYaml("demo.yaml", baselineText, {
     overrides: {},
     engine_layout_overrides: {
-      "meta.elk": expected,
+      "meta.elk": {
+        "elk.direction": "",
+        "elk.spacing.edgeNode": 56,
+      },
     },
   });
 
-  assert.doesNotMatch(output, /elk\.direction/);
+  assert.match(output, /elk\.direction: ''/);
   assert.match(output, /elk\.spacing\.edgeNode: 56/);
-  verifyElkLayoutPersisted(output, expected);
+
+  const reloaded = loadFrameYaml(writeTempFrame("demo-reload.yaml", output));
+  assert.deepEqual(reloaded.engineLayout?.["meta.elk"], {
+    "elk.direction": "",
+    "elk.spacing.edgeNode": "56",
+  });
 });
 
 test("persist elk layout overrides rejects unsupported implementation-owned ELK keys", () => {
@@ -497,6 +591,36 @@ test("persist engine_layout_overrides rejects unsupported namespaces for frame y
       },
     }),
     /engine_layout_overrides contains unsupported namespaces for frame YAML: simulation/,
+  );
+});
+
+test("persist engine_layout_overrides rejects foreign keys at the interpreter node boundary", () => {
+  const baselineText = [
+    "engine: v3",
+    "title: Demo",
+    "meta:",
+    "  layout_engine: elk-layered",
+    "root:",
+    "  id: page",
+    "  direction: vertical",
+    "  children:",
+    "    - id: leaf_a",
+    "      label: [A]",
+    "",
+  ].join("\n");
+
+  assert.throws(
+    () => persistToYaml("demo.yaml", baselineText, {
+      overrides: {},
+      engine_layout_overrides: {
+        "meta.elk_nodes": {
+          "elk-layered": {
+            "dagre.rankdir": "LR",
+          },
+        },
+      },
+    }),
+    /unsupported ELK keys: dagre\.rankdir/,
   );
 });
 

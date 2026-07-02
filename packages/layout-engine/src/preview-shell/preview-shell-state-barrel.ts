@@ -75,13 +75,17 @@ export type {
 
 export {
   activateLayoutOperatorOverrideBucket,
+  baseLayoutOperatorNamespaceFromPersistNodeNamespace,
+  clearLayoutOperatorNodeBucketRegistry,
   cloneLayoutOperatorOverrideState,
   collectNamespacedLayoutOperatorOverrides,
   layoutOperatorKeyForManifest,
+  persistNodeNamespaceForLayoutOperatorNamespace,
   pruneSessionBucketForManifest,
   readActiveLayoutOperatorOverrideBucket,
   readLayoutOperatorOverrideBucketForManifest,
   readLayoutOperatorOverrideState,
+  replaceLayoutOperatorNodeBucketsForNamespace,
   resolveEffectiveLayoutOperatorOverrides,
   resolveLayoutOperatorOverrideViewModel,
   writeLayoutOperatorOverrideBucketForManifest,

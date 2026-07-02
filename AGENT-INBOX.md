@@ -81,12 +81,59 @@ Required stance:
   `__DG_activeLayoutOperatorKey`, updates the focused layout-engine suites, and
   keeps the real browser SC-003 regression green via snapshot-derived active
   bucket reads.
-- **T022 blocker:** the current save path still only persists the active
-  manifest bucket. Finishing per-node persistence cleanly needs an explicit
-  packing rule for how multiple interpreter nodes rehydrate and co-persist under
-  the unchanged frame-YAML `meta.<engineFamily>` shape, especially for shared
-  namespaces like `meta.elk`. The active spec/plan says the on-disk shape must
-  stay unchanged, but does not yet pin down how multiple node-local buckets map
-  into that shared namespace without ambiguity. Do not guess; resolve that
-  mapping rule before implementing T022.
+- **Spec 071 / T022 landed (uncommitted at handoff time):** per-node
+  persistence now uses family-scoped node namespaces such as
+  `meta.elk_nodes` / `meta.dagre_nodes` while keeping the active family bucket
+  flat under `meta.<family>` for compatibility. Reload hydrates every
+  interpreter bucket into the node registry, engine-tab reinstalls preserve
+  unsaved node buckets instead of wiping them back to YAML, save payload
+  collection merges `_nodes` namespaces instead of replacing them, and
+  blank-valid enum values such as `elk.direction: ''` survive save→reload.
+- **High-signal evidence:** `apps/preview/src/persistence/editor-live-repaint-regression.test.ts`
+  is green again for SC-001 + SC-003, including the prior failing
+  `mongo-octavia-ha` save→reload parity case under `elk-layered`.
+
+## Prompt — Opus Adversarial Review (Phase 2 Save/Reload + Isolation)
+
+Review `feat/071-preview-render-node-graph` adversarially as if the claim
+"spec 071 T022 is complete" is false until proven otherwise.
+
+Focus files:
+
+- `packages/layout-engine/src/preview-shell/layout-operator-overrides.ts`
+- `packages/layout-engine/src/preview-shell/preview-override-model.ts`
+- `packages/layout-engine/src/preview-shell/app-grid-editor-runtime.ts`
+- `packages/layout-engine/src/preview-shell/app-grid-editor-install-unit.ts`
+- `packages/layout-engine/src/preview-engine/layout-params-controller.ts`
+- `packages/layout-engine/src/preview-shell/frame-yaml-engine-layout-contract.ts`
+- `apps/preview/src/persistence/frame-engine-layout-namespaces.ts`
+- `apps/preview/src/persistence/frame-diagram.ts`
+- `apps/preview/src/persistence/frame-diagram.test.ts`
+- `apps/preview/src/persistence/editor-live-repaint-regression.test.ts`
+- `specs/071-preview-render-node-graph/tasks.md`
+
+Questions to answer:
+
+1. Does any live save, reload, engine-tab reinstall, or workspace rerender path
+   still drop unsaved interpreter buckets back to the flat family namespace or
+   wipe them back to YAML state?
+2. Is `meta.<family>_nodes` genuinely round-trippable across save → canonical
+   reload → browser restore for both same-family engines (`elk-layered`,
+   `elk-radial`) and cross-family engines (`dagre`)?
+3. Are foreign-key and foreign-node rejections enforced at the correct node
+   boundary, or can malformed payloads still leak through shared family
+   sanitizers?
+4. Do blank-valid persisted values only survive where the manifest explicitly
+   permits them, or did the fix accidentally make empty-string clears stop
+   working for numeric / non-blank enum controls?
+5. Is any remaining direct `engine_layout_overrides` replacement or
+   `layoutOperatorOverrides` compatibility alias still masking an ownership gap
+   that Phase 3 should solve before adding the switch node?
+
+Required stance:
+
+- Findings first, ordered by severity.
+- Attack the real save/reload/browser path, not just unit seams.
+- Assume shared-family namespaces like `meta.elk` still hide one more state-loss
+  bug until you can rule it out concretely.
 

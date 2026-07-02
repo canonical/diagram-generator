@@ -72,6 +72,26 @@ export interface PreviewEngineShellControllerRuntime {
   requestRelayout: () => Promise<unknown> | unknown;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function cloneNamespacedOverrides(
+  value: unknown,
+): Record<string, Record<string, unknown>> {
+  if (!isRecord(value)) {
+    return {};
+  }
+  const cloned: Record<string, Record<string, unknown>> = {};
+  for (const [namespace, overrides] of Object.entries(value)) {
+    if (!isRecord(overrides)) {
+      continue;
+    }
+    cloned[namespace] = { ...overrides };
+  }
+  return cloned;
+}
+
 function engineSupportsSidebarSection(engine: PreviewEngineManifest | null | undefined, section: string): boolean {
   return Boolean(
     engine
@@ -212,9 +232,18 @@ export function createPreviewEngineShellControllerRuntime(
     if (Object.keys(namespacedOverrides).length === 0 && Object.keys(layoutOverrides).length > 0) {
       namespacedOverrides[namespace] = { ...layoutOverrides };
     }
+    const mergedNamespacedOverrides = cloneNamespacedOverrides(
+      (basePayload as { engine_layout_overrides?: unknown }).engine_layout_overrides,
+    );
+    for (const [nextNamespace, overrides] of Object.entries(namespacedOverrides)) {
+      mergedNamespacedOverrides[nextNamespace] = {
+        ...(mergedNamespacedOverrides[nextNamespace] ?? {}),
+        ...overrides,
+      };
+    }
     const payload: Record<string, unknown> = {
       ...(basePayload || {}),
-      engine_layout_overrides: namespacedOverrides,
+      engine_layout_overrides: mergedNamespacedOverrides,
     };
     return {
       ...payload,

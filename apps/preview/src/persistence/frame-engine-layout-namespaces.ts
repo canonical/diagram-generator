@@ -1,5 +1,7 @@
 import {
   DEFAULT_FRAME_YAML_ENGINE_LAYOUT_NAMESPACE,
+  getPreviewEngine,
+  getPreviewEngineByLayoutKey,
   getSupportedFrameYamlControlSpecsForNamespace,
   isSupportedFrameYamlEngineLayoutNamespace,
   listFrameYamlEngineLayoutCandidateIds,
@@ -13,6 +15,7 @@ export interface FrameYamlEngineLayoutNamespaceDescriptor {
 }
 
 const frameYamlEngineLayoutNamespaces = new Map<string, FrameYamlEngineLayoutNamespaceDescriptor>();
+const FRAME_YAML_ENGINE_LAYOUT_NODE_NAMESPACE_SUFFIX = "_nodes" as const;
 
 function supportedSpecsForNamespace(namespace: string): Map<string, FrameYamlPersistedControlSpec> {
   return getSupportedFrameYamlControlSpecsForNamespace(namespace);
@@ -24,6 +27,12 @@ function supportedKeysForNamespace(namespace: string): Set<string> {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function specAllowsEmptyString(
+  spec: FrameYamlPersistedControlSpec | undefined,
+): boolean {
+  return spec?.emptyStringIsValue === true;
 }
 
 export function assertSupportedFrameYamlElkOverrides(
@@ -93,7 +102,7 @@ export function sanitizeSupportedFrameYamlEngineLayoutOverrides(
     if (!spec) {
       continue;
     }
-    if (value == null || value === "") {
+    if (value == null || (value === "" && !specAllowsEmptyString(spec))) {
       continue;
     }
     next[String(key)] = value;
@@ -105,6 +114,70 @@ export function sanitizeSupportedFrameYamlEngineLayoutOverrides(
 
   assertSupportedFrameYamlEngineLayoutOverrides(namespace, next, source, label, preferredLayoutEngine);
   return next;
+}
+
+export function isFrameYamlEngineLayoutNodeNamespace(namespace: string): boolean {
+  return namespace.startsWith("meta.")
+    && namespace.endsWith(FRAME_YAML_ENGINE_LAYOUT_NODE_NAMESPACE_SUFFIX)
+    && namespace.length > "meta.".length + FRAME_YAML_ENGINE_LAYOUT_NODE_NAMESPACE_SUFFIX.length;
+}
+
+function baseNamespaceFromNodeNamespace(namespace: string): string | null {
+  if (!isFrameYamlEngineLayoutNodeNamespace(namespace)) {
+    return null;
+  }
+  return namespace.slice(0, -FRAME_YAML_ENGINE_LAYOUT_NODE_NAMESPACE_SUFFIX.length);
+}
+
+function resolveNodePersistManifest(
+  nodeId: string,
+  baseNamespace: string,
+) {
+  const manifest = getPreviewEngineByLayoutKey(nodeId) ?? getPreviewEngine(nodeId) ?? null;
+  if (!manifest) {
+    return null;
+  }
+  const namespaces = new Set(
+    (manifest.controlSpecs ?? [])
+      .map((spec) => typeof spec.persistNamespace === "string" ? spec.persistNamespace.trim() : "")
+      .filter((value) => value.length > 0),
+  );
+  return namespaces.has(baseNamespace) ? manifest : null;
+}
+
+export function sanitizeSupportedFrameYamlEngineLayoutNodeBuckets(
+  namespace: string,
+  nodeBuckets: Record<string, unknown>,
+  source: string,
+): Record<string, Record<string, unknown>> {
+  const baseNamespace = baseNamespaceFromNodeNamespace(namespace);
+  if (!baseNamespace) {
+    return {};
+  }
+  const label = baseNamespace === DEFAULT_FRAME_YAML_ENGINE_LAYOUT_NAMESPACE
+    ? "ELK"
+    : baseNamespace.slice("meta.".length);
+  const sanitized: Record<string, Record<string, unknown>> = {};
+  for (const [nodeId, rawBucket] of Object.entries(nodeBuckets)) {
+    if (!isRecord(rawBucket)) {
+      continue;
+    }
+    const manifest = resolveNodePersistManifest(nodeId, baseNamespace);
+    if (!manifest) {
+      continue;
+    }
+    const nextBucket = sanitizeSupportedFrameYamlEngineLayoutOverrides(
+      baseNamespace,
+      rawBucket,
+      `${source}.${nodeId}`,
+      label,
+      nodeId,
+    );
+    if (Object.keys(nextBucket).length > 0) {
+      sanitized[nodeId] = nextBucket;
+    }
+  }
+  return sanitized;
 }
 
 function metaKeyFromNamespace(namespace: string): string {
@@ -149,6 +222,19 @@ function createBuiltInNamespaceDescriptor(
   if (!namespace.startsWith("meta.")) {
     return undefined;
   }
+  if (isFrameYamlEngineLayoutNodeNamespace(namespace)) {
+    return {
+      namespace,
+      applyOverrides(document, overrides) {
+        applyEngineLayoutNodeNamespaceOverrides(
+          namespace,
+          document,
+          overrides,
+          `engine_layout_overrides.${namespace}`,
+        );
+      },
+    };
+  }
   if (!isSupportedFrameYamlEngineLayoutNamespace(namespace)) {
     return undefined;
   }
@@ -165,6 +251,74 @@ function createBuiltInNamespaceDescriptor(
       applyEngineLayoutNamespaceOverrides(namespace, document, overrides, source, label);
     },
   };
+}
+
+function applyEngineLayoutNodeNamespaceOverrides(
+  namespace: string,
+  document: Record<string, unknown>,
+  overrides: Record<string, unknown>,
+  source: string,
+): void {
+  if (Object.keys(overrides).length === 0) return;
+  const baseNamespace = baseNamespaceFromNodeNamespace(namespace);
+  if (!baseNamespace) {
+    throw new Error(`${source} is not a supported frame-YAML node namespace`);
+  }
+  const meta = isRecord(document.meta) ? document.meta : {};
+  document.meta = meta;
+  const metaKey = metaKeyFromNamespace(namespace);
+  const existing = isRecord(meta[metaKey]) ? meta[metaKey] as Record<string, unknown> : {};
+  const next: Record<string, unknown> = sanitizeSupportedFrameYamlEngineLayoutNodeBuckets(
+    namespace,
+    existing,
+    `${source} existing`,
+  );
+  const label = baseNamespace === DEFAULT_FRAME_YAML_ENGINE_LAYOUT_NAMESPACE
+    ? "ELK"
+    : baseNamespace.slice("meta.".length);
+  const supportedSpecs = supportedSpecsForNamespace(baseNamespace);
+  for (const [nodeId, rawBucket] of Object.entries(overrides)) {
+    if (!isRecord(rawBucket)) {
+      throw new Error(`${source}.${nodeId} must be an object`);
+    }
+    const manifest = resolveNodePersistManifest(nodeId, baseNamespace);
+    if (!manifest) {
+      throw new Error(`${source}.${nodeId} references an unknown or foreign interpreter node`);
+    }
+    assertSupportedFrameYamlEngineLayoutOverrides(
+      baseNamespace,
+      rawBucket,
+      `${source}.${nodeId}`,
+      label,
+      nodeId,
+    );
+    const bucket: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(rawBucket)) {
+      const spec = supportedSpecs.get(key);
+      const coerced = coercePersistedControlValue(value, spec?.kind);
+      if (coerced == null || (coerced === "" && !specAllowsEmptyString(spec))) {
+        continue;
+      }
+      bucket[key] = coerced;
+    }
+    const sanitizedBucket = sanitizeSupportedFrameYamlEngineLayoutOverrides(
+      baseNamespace,
+      bucket,
+      `${source}.${nodeId}`,
+      label,
+      nodeId,
+    );
+    if (Object.keys(sanitizedBucket).length > 0) {
+      next[nodeId] = sanitizedBucket;
+    } else {
+      delete next[nodeId];
+    }
+  }
+  if (Object.keys(next).length > 0) {
+    meta[metaKey] = next;
+  } else {
+    delete meta[metaKey];
+  }
 }
 
 function applyEngineLayoutNamespaceOverrides(
@@ -195,7 +349,7 @@ function applyEngineLayoutNamespaceOverrides(
   for (const [key, value] of Object.entries(overrides)) {
     const spec = supportedSpecs.get(key);
     const coerced = coercePersistedControlValue(value, spec?.kind);
-    if (coerced == null || coerced === "") {
+    if (coerced == null || (coerced === "" && !specAllowsEmptyString(spec))) {
       delete next[String(key)];
     } else {
       next[String(key)] = coerced;

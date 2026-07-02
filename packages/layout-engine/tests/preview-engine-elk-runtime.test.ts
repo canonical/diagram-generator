@@ -1028,4 +1028,91 @@ describe('elk preview runtimes', () => {
       },
     });
   });
+
+  it('preserves node-owned interpreter namespaces when collecting the save payload', () => {
+    const previewEngineLayoutControls = {
+      init() {},
+      refresh() {},
+      collectOverrides: () => ({ 'elk.layered.spacing.nodeNodeBetweenLayers': 32 }),
+      collectNamespacedOverrides: () => ({
+        'meta.elk': {
+          'elk.layered.spacing.nodeNodeBetweenLayers': 32,
+        },
+      }),
+    };
+    const runtime = createPreviewEngineShellControllerRuntime({
+      document: {
+        getElementById() {
+          return { hasAttribute: () => true };
+        },
+      },
+      previewWindow: {
+        __DG_CONFIG: {},
+        PreviewEngineLayoutControls: previewEngineLayoutControls,
+      },
+      layoutEngineRoot: {
+        previewEngines: {
+          registry: {
+            resolvePreviewEngine({ layoutEngine }) {
+              return layoutEngine === 'elk-layered'
+                ? {
+                    id: 'elk-layered',
+                    layoutEngineKey: 'elk-layered',
+                    hostView: { sidebarSections: ['layout-params'] },
+                    controlSpecs: [
+                      {
+                        key: 'elk.layered.spacing.nodeNodeBetweenLayers',
+                        label: 'Layer gap',
+                        group: 'Spacing',
+                        kind: 'number',
+                        defaultValue: '48',
+                        persistNamespace: 'meta.elk',
+                      },
+                    ],
+                  } as never
+                : null;
+            },
+          },
+        },
+      },
+      getFrameTreeJson: () => ({ layoutEngine: 'elk-layered' }),
+      defaultPersistNamespace: 'meta.elk',
+    });
+
+    runtime.init({
+      getLayoutOverrides: () => ({}),
+      setLayoutOverrides: () => {},
+      getRootId: () => 'root',
+      requestLayoutRelayout: () => undefined,
+    });
+
+    expect(runtime.collectPersistedPayload({
+      ok: true,
+      engine_layout_overrides: {
+        'meta.elk_nodes': {
+          'elk-layered': {
+            'elk.layered.spacing.nodeNodeBetweenLayers': 32,
+          },
+          'elk-radial': {
+            'elk.radial.radius': 180,
+          },
+        },
+      },
+    }, { layoutOverrides: {} })).toEqual({
+      ok: true,
+      engine_layout_overrides: {
+        'meta.elk': {
+          'elk.layered.spacing.nodeNodeBetweenLayers': 32,
+        },
+        'meta.elk_nodes': {
+          'elk-layered': {
+            'elk.layered.spacing.nodeNodeBetweenLayers': 32,
+          },
+          'elk-radial': {
+            'elk.radial.radius': 180,
+          },
+        },
+      },
+    });
+  });
 });

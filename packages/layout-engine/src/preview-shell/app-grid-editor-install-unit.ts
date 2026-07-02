@@ -22,6 +22,9 @@ import {
   createPreviewEngineWorkspaceState,
 } from './preview-engine-workspace.js';
 import {
+  readFrameYamlEngineLayoutNodeBuckets,
+} from './frame-yaml-engine-layout-contract.js';
+import {
   commitPreviewRenderIntentToWindow,
   resolvePreviewRenderIntentLayoutEngine,
   type PreviewRenderIntent,
@@ -41,9 +44,11 @@ import { sidebarSectionsUseLayoutParams } from '../preview-engine/sidebar-sectio
 import type { PreviewEngineManifest } from '../preview-engine/types.js';
 import {
   activateLayoutOperatorOverrideBucket,
+  clearLayoutOperatorNodeBucketRegistry,
   deactivateLayoutOperatorOverrideBucket,
   readLayoutOperatorOverrideState,
   readLayoutOperatorOverrideBucketForManifest,
+  replaceLayoutOperatorNodeBucketsForNamespace,
   resolveEffectiveLayoutOperatorOverrides,
   writeLayoutOperatorOverrideState,
   writeLayoutOperatorOverrideBucketForManifest,
@@ -510,12 +515,34 @@ function installActivePreviewEngineRuntime(options: {
     (spec: { persistNamespace?: string | null }) => spec.persistNamespace,
   )
     ?.persistNamespace ?? options.model.layoutOverrideNamespace ?? 'meta.elk';
+  const previousLayoutOverrideNamespace = options.model.layoutOverrideNamespace ?? null;
+  const previousLayoutOverrideState = readLayoutOperatorOverrideState(options.model);
   const frameTreeJson = typeof options.previewWindow.getFrameTreeJson === 'function'
     ? (options.previewWindow.getFrameTreeJson?.() as {
       elkLayout?: Record<string, unknown>;
       engineLayout?: Record<string, Record<string, unknown>>;
+      layoutEngine?: string | null;
     } | null | undefined)
     : null;
+  clearLayoutOperatorNodeBucketRegistry(options.model, defaultPersistNamespace);
+  for (const [namespace, buckets] of Object.entries(readFrameYamlEngineLayoutNodeBuckets(frameTreeJson))) {
+    replaceLayoutOperatorNodeBucketsForNamespace(
+      options.model,
+      namespace,
+      buckets,
+      frameTreeJson?.layoutEngine ?? null,
+    );
+  }
+  if (
+    previousLayoutOverrideState.activeOperatorKey
+    || Object.keys(previousLayoutOverrideState.byOperator).length > 0
+  ) {
+    writeLayoutOperatorOverrideState(
+      options.model,
+      previousLayoutOverrideState,
+      previousLayoutOverrideNamespace ?? defaultPersistNamespace,
+    );
+  }
   const persistedOverrides = resolveEffectiveLayoutOperatorOverrides({
     manifest: activeEngine,
     engineLayout: frameTreeJson?.engineLayout ?? null,

@@ -13,6 +13,8 @@ import {
 } from "@diagram-generator/layout-engine";
 import {
   getFrameYamlEngineLayoutNamespace,
+  isFrameYamlEngineLayoutNodeNamespace,
+  sanitizeSupportedFrameYamlEngineLayoutNodeBuckets,
   sanitizeSupportedFrameYamlEngineLayoutOverrides,
 } from "./frame-engine-layout-namespaces.js";
 
@@ -539,13 +541,19 @@ function assertSupportedPersistedEngineLayoutMeta(
       continue;
     }
     const label = namespace === "meta.elk" ? "ELK" : key;
-    const sanitized = sanitizeSupportedFrameYamlEngineLayoutOverrides(
-      namespace,
-      value,
-      `${source} ${namespace}`,
-      label,
-      preferredLayoutEngine,
-    );
+    const sanitized = isFrameYamlEngineLayoutNodeNamespace(namespace)
+      ? sanitizeSupportedFrameYamlEngineLayoutNodeBuckets(
+        namespace,
+        value,
+        `${source} ${namespace}`,
+      )
+      : sanitizeSupportedFrameYamlEngineLayoutOverrides(
+        namespace,
+        value,
+        `${source} ${namespace}`,
+        label,
+        preferredLayoutEngine,
+      );
     if (Object.keys(sanitized).length === 0) {
       delete meta[key];
       continue;
