@@ -20,7 +20,7 @@ import {
   filterPreviewEngineLayoutOptionOverrides,
   renderFreshPreviewSvg,
 } from '../src/preview-shell/app-fresh-render.js';
-import { commitPreviewRenderIntentToWindow } from '../src/preview-shell/preview-render-intent.js';
+import { commitPreviewSwitchNode } from '../src/preview-shell/preview-switch-node.js';
 import { loadFrameYaml } from '../src/frame-yaml-loader.js';
 import { serializeFrameDiagram } from '../src/frame-serialize.js';
 import { MockTextAdapter } from '../src/text-measure.js';
@@ -341,7 +341,7 @@ describe('renderFreshPreviewSvg', () => {
         layout_engine: 'elk-layered',
       },
     };
-    commitPreviewRenderIntentToWindow(previewWindow, {
+    commitPreviewSwitchNode(previewWindow, {
       activeEngineId: 'v3',
       frameTreeJson,
     });

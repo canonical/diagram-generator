@@ -143,20 +143,3 @@ export function applyPreviewRenderIntentToFrameTreeJson(
     (root as { direction?: string }).direction = intent.pageDirection;
   }
 }
-
-export function commitPreviewRenderIntentToWindow(
-  previewWindow: PreviewRenderIntentWindowLike,
-  options: CreatePreviewRenderIntentOptions,
-): PreviewRenderIntent {
-  const intent = createPreviewRenderIntent({
-    ...options,
-    current: options.current ?? previewWindow.__DG_previewRenderIntent ?? null,
-  });
-  previewWindow.__DG_previewRenderIntent = intent;
-  const config = previewWindow.__DG_CONFIG ?? null;
-  if (config && intent.engineId) {
-    config.active_engine_id = intent.engineId;
-    config.layout_engine = intent.engineId;
-  }
-  return intent;
-}

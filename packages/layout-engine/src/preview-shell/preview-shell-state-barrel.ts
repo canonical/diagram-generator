@@ -148,7 +148,6 @@ export type {
 
 export {
   applyPreviewRenderIntentToFrameTreeJson,
-  commitPreviewRenderIntentToWindow,
   createPreviewRenderIntent,
   resolvePreviewRenderIntentLayoutEngine,
 } from './preview-render-intent.js';

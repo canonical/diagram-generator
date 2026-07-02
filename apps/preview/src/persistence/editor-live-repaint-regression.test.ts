@@ -336,6 +336,22 @@ async function chooseTargetEngineWithLayoutControls(page: Page): Promise<string>
 
 async function mutateAndRestoreFirstLayoutControl(page: Page): Promise<void> {
   const controlId = await firstVisibleLayoutControlId(page);
+  await mutateLayoutControl(page, controlId, { restore: true });
+}
+
+async function mutateLayoutControlAndKeepValue(page: Page, controlId: string): Promise<void> {
+  await mutateLayoutControl(page, controlId, { restore: false });
+}
+
+async function mutateLayoutControlAndRestoreValue(page: Page, controlId: string): Promise<void> {
+  await mutateLayoutControl(page, controlId, { restore: true });
+}
+
+async function mutateLayoutControl(
+  page: Page,
+  controlId: string,
+  options: { restore: boolean },
+): Promise<void> {
   const control = page.locator(`#${controlId}`);
   const descriptor = await control.evaluate((element) => {
     if (element instanceof HTMLSelectElement) {
@@ -363,8 +379,10 @@ async function mutateAndRestoreFirstLayoutControl(page: Page): Promise<void> {
     assert.ok(alternate, `expected an alternate option for layout control ${controlId}`);
     await control.selectOption(alternate);
     await settle(page);
-    await control.selectOption(descriptor.value);
-    await settle(page);
+    if (options.restore) {
+      await control.selectOption(descriptor.value);
+      await settle(page);
+    }
     return;
   }
 
@@ -377,13 +395,15 @@ async function mutateAndRestoreFirstLayoutControl(page: Page): Promise<void> {
       input.dispatchEvent(new Event("change", { bubbles: true }));
     }, !original);
     await settle(page);
-    await control.evaluate((element, checked) => {
-      const input = element as HTMLInputElement;
-      input.checked = checked as boolean;
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-      input.dispatchEvent(new Event("change", { bubbles: true }));
-    }, original);
-    await settle(page);
+    if (options.restore) {
+      await control.evaluate((element, checked) => {
+        const input = element as HTMLInputElement;
+        input.checked = checked as boolean;
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+      }, original);
+      await settle(page);
+    }
     return;
   }
 
@@ -412,75 +432,10 @@ async function mutateAndRestoreFirstLayoutControl(page: Page): Promise<void> {
   };
   await writeValue(alternate);
   await settle(page);
-  await writeValue(original);
-  await settle(page);
-}
-
-async function mutateLayoutControlAndKeepValue(page: Page, controlId: string): Promise<void> {
-  const control = page.locator(`#${controlId}`);
-  const descriptor = await control.evaluate((element) => {
-    if (element instanceof HTMLSelectElement) {
-      return {
-        tagName: "select",
-        value: element.value,
-        options: Array.from(element.options).map((option) => option.value),
-      };
-    }
-    if (element instanceof HTMLInputElement) {
-      return {
-        tagName: "input",
-        type: element.type || "text",
-        value: element.type === "checkbox" ? String(element.checked) : element.value,
-        step: element.step,
-        min: element.min,
-        max: element.max,
-      };
-    }
-    throw new Error(`Unsupported layout control tag ${(element as HTMLElement).tagName}`);
-  });
-
-  if (descriptor.tagName === "select") {
-    const alternate = descriptor.options.find((value) => value && value !== descriptor.value);
-    assert.ok(alternate, `expected an alternate option for layout control ${controlId}`);
-    await control.selectOption(alternate);
+  if (options.restore) {
+    await writeValue(original);
     await settle(page);
-    return;
   }
-
-  if (descriptor.type === "checkbox") {
-    const original = descriptor.value === "true";
-    await control.evaluate((element, checked) => {
-      const input = element as HTMLInputElement;
-      input.checked = checked as boolean;
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-      input.dispatchEvent(new Event("change", { bubbles: true }));
-    }, !original);
-    await settle(page);
-    return;
-  }
-
-  const original = Number(descriptor.value);
-  assert.ok(Number.isFinite(original), `expected numeric layout control ${controlId}`);
-  const step = Number(descriptor.step || "1") || 1;
-  const min = descriptor.min ? Number(descriptor.min) : Number.NEGATIVE_INFINITY;
-  const max = descriptor.max ? Number(descriptor.max) : Number.POSITIVE_INFINITY;
-  let alternate = original + step;
-  if (alternate > max || !Number.isFinite(alternate)) {
-    alternate = original - step;
-  }
-  if (alternate < min || alternate === original || !Number.isFinite(alternate)) {
-    alternate = original + 1;
-  }
-  if (alternate > max || alternate < min || alternate === original) {
-    throw new Error(`Unable to derive alternate numeric value for layout control ${controlId}`);
-  }
-  await control.evaluate((element, value) => {
-    const input = element as HTMLInputElement;
-    input.value = String(value);
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-    input.dispatchEvent(new Event("change", { bubbles: true }));
-  }, alternate);
-  await settle(page);
 }
 
 async function triggerSaveReload(page: Page): Promise<void> {
@@ -788,6 +743,21 @@ test("engine-specific layout buckets stay isolated across layered, radial, and d
         layeredAfterDagreViewBox,
         layeredViewBox,
         "returning to layered with unchanged layered params should preserve the fitted viewBox after dagre detours",
+      );
+
+      await mutateLayoutControlAndRestoreValue(page, layeredControl.id);
+      const layeredForcedRecookState = await captureLayoutOperatorBrowserState(page);
+      const layeredForcedRecookViewBox = await fittedViewBox(page);
+
+      assert.equal(layeredForcedRecookState.activeOperatorKey, "elk-layered");
+      assert.deepEqual(
+        layeredForcedRecookState.activeLayoutOverrides,
+        layeredState.byOperator["elk-layered"] ?? {},
+      );
+      assert.equal(
+        layeredForcedRecookViewBox,
+        layeredViewBox,
+        "restoring layered params after a forced recook should preserve the fitted viewBox",
       );
     } finally {
       await page.close();

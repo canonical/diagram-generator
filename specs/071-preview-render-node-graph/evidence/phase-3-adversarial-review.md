@@ -11,9 +11,10 @@ No reopen. Phase 3 holds against its written criteria.
 ## What was checked
 
 - Render-intent writer ownership:
-  `rg -n "commitPreviewRenderIntentToWindow\\(" packages/layout-engine/src -g "!packages/layout-engine/dist/**"`
-  now reports only the legacy helper declaration in
-  `packages/layout-engine/src/preview-shell/preview-render-intent.ts`.
+  `packages/layout-engine/tests/preview-switch-node.test.ts`
+  now source-scans product TypeScript and fails on any
+  `__DG_previewRenderIntent =` write outside
+  `packages/layout-engine/src/preview-shell/preview-switch-node.ts`.
 - Switch-node unit coverage:
   `packages/layout-engine/tests/preview-switch-node.test.ts`
   proves frame-tree/layout-engine commit ownership and per-node cook-cache reuse.
@@ -36,15 +37,10 @@ No reopen. Phase 3 holds against its written criteria.
   - Phase 1 canvas parity
   - layered → radial → layered → dagre → layered isolation, now with exact
     `viewBox` equality checks on the return-to-layered path
+  - layered param change → restore forced-recook, with the same fitted
+    `viewBox` after the restore
 
 ## Findings
-
-### P3-1 (low) — legacy render-intent helper still exists as an exported shim
-
-`commitPreviewRenderIntentToWindow` still exists in `preview-render-intent.ts`,
-but it is no longer called from product source. This is not a correctness issue;
-it is a compatibility/export cleanup candidate for a later slice if the repo
-wants to remove the old helper entirely.
 
 ### P3-2 (low) — cook cache currently has no eviction policy
 

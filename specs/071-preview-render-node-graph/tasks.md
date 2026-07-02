@@ -186,9 +186,9 @@
       **Evidence**: `preview-switch-node.test.ts`; call-site grep in the spec.
       Note: product call sites now route through `preview-switch-node.ts`,
       including workspace chrome, grid install/runtime restore sync, and
-      layout-bridge runtime publication. Source grep now leaves
-      `commitPreviewRenderIntentToWindow` only as the legacy helper declaration
-      in `preview-render-intent.ts`.
+      layout-bridge runtime publication. `preview-switch-node.test.ts` now
+      source-scans product TypeScript and fails on any
+      `__DG_previewRenderIntent =` write outside `preview-switch-node.ts`.
 
 - [x] **T031** Add the dirty/cook model; save/render cooks only the selected
       branch then mounts via the render node.
@@ -208,7 +208,9 @@
       Note: the repo-owned Chromium regression in
       `apps/preview/src/persistence/editor-live-repaint-regression.test.ts`
       now asserts that returning to `elk-layered` after radial and dagre detours
-      preserves the exact fitted `viewBox` when layered params are unchanged.
+      preserves the exact fitted `viewBox` when layered params are unchanged,
+      and that changing then restoring layered params forces a recook without
+      changing that fitted `viewBox`.
 
 ## Phase 4 — Registration-only onboarding + closeout
 
