@@ -55,5 +55,6 @@ engine scaling work if memory pressure becomes observable.
 - T031: satisfied
 - T032: satisfied
 
-Remaining open work in spec 071 is Phase 2 follow-up T023/T024 and Phase 4
-onboarding/inventory/closeout work.
+All Phase 3 review follow-ups tracked in spec 071 are now closed. The only
+surviving note is P3-2, explicitly deferred as future engine-scaling follow-up
+work if cook-cache memory pressure becomes observable.

@@ -15,12 +15,14 @@ here — those belong in the relevant `specs/<id>-<slug>/` package.
 ## Handoff — 2026-07-02
 
 - **Branch / tree:** `feat/071-preview-render-node-graph`.
-- **Review status:** the Phase 3 review remains non-reopening. The closeout
-  review gap on SC-002 is fixed in the browser regression, and the remaining
-  Phase 3 review caveats are now resolved: the stale legacy-writer finding was
-  retired after verifying the helper/export path no longer exists in product
-  code, and the determinism proof now includes a forced-recook regression
-  alongside the live `viewBox` parity check.
+- **Review status:** the Phase 3 review remains non-reopening, and no active
+  adversarial-review findings remain in this inbox. The closeout review gap on
+  SC-002 is fixed in the browser regression, the stale legacy-writer finding
+  was retired after verifying the helper/export path no longer exists in
+  product code, and the determinism proof now includes a forced-recook
+  regression alongside the live `viewBox` parity check. The only surviving note
+  is P3-2 (unbounded cook cache), explicitly deferred as future engine-scaling
+  work rather than a spec 071 reopen.
 - **Current slice:** spec tasks now include T042/T043 for the closeout-review
   follow-up plus T033 for the Phase 3 review follow-up. The SC-002 probe
   explicitly captures active node id plus frame-tree `layoutEngine`, same-bounds
@@ -37,7 +39,7 @@ here — those belong in the relevant `specs/<id>-<slug>/` package.
 
 ---
 
-## Adversarial review of `phase-3-adversarial-review.md` — 2026-07-02
+## Historical adversarial review context — 2026-07-02
 
 Reviewer: Opus meta-review, branch `feat/071-preview-render-node-graph`. Scope:
 audit the Codex Phase 3 review's claims against the actual tree, not the tasks.
