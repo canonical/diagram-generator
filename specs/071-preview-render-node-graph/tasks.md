@@ -221,17 +221,28 @@
 
 ## Phase 4 — Registration-only onboarding + closeout
 
-- [ ] **T040** No-central-branching proof: register a dummy interpreter node and
+- [x] **T040** No-central-branching proof: register a dummy interpreter node and
       show it renders + switches with zero edits to `preview-render-node.ts`,
       `preview-switch-node.ts`, `editor.js`, or `layout-bridge.js`.
       **Evidence**: `packages/layout-engine/tests/preview-node-onboarding.test.ts`.
+      Note: `preview-node-onboarding.test.ts` now registers
+      `dummy-onboarding-grid` through the public preview-engine registry,
+      delegates its render family to the shared frame-native adapter, proves the
+      registered node appears in the interpreter registry, switches into and out
+      of it through `commitPreviewSwitchNodeLayoutEngine(...)`, renders and mounts
+      both dummy and v3 outputs through the shared render path, and source-guards
+      the four central owner files against dummy-engine branching.
 
-- [ ] **T041** Close the FR-010 inventory: every legacy stage-mount / fit /
+- [x] **T041** Close the FR-010 inventory: every legacy stage-mount / fit /
       render-intent site is migrated, proven read-only, or deferred with a named
       spec id.
       **Evidence**: updated `evidence/render-path-inventory.md`.
+      Note: the inventory is now a post-migration snapshot. It identifies
+      `preview-render-node.ts` as the sole stage-mount owner,
+      `preview-switch-node.ts` as the sole render-intent owner, and classifies
+      the surviving load/scene/bridge/workspace seams as read-only delegates.
 
-- [ ] **T050** Full validation.
+- [x] **T050** Full validation.
       **Verify**:
       `npm --prefix packages/layout-engine run build:browser`;
       `npm --prefix packages/layout-engine test`;
@@ -240,6 +251,8 @@
       `node scripts/check-preview-shell-size-budgets.mjs`;
       `node scripts/check_no_new_python.mjs`.
       **Evidence**: command transcript summary in this package.
+      Note: see `evidence/validation-summary.md` for the passing command set and
+      the one-time dependency-install note for this worktree.
 
 ## Done-when (closeout)
 

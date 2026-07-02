@@ -1,19 +1,21 @@
 # Spec 071: Preview render node graph (Houdini-style interpreter/switch/render)
 
 **Feature Branch**: `feat/071-preview-render-node-graph`
-**Status**: In Progress
+**Status**: Closeout Ready
 **Created**: 2026-07-01
 **Owner Map**: [`render-node-graph-flow.md`](./render-node-graph-flow.md)
 **Depends on / subsumes**: spec 060 follow-up (visual no-op tab switches),
 `docs/spec-reviews/README.md` (engine-identity source-of-truth review), and the
 2026-07-01 render-path fragmentation review in `AGENT-INBOX.md`.
-**Status Note (2026-07-02)**: Phase 0's branch-local canvas-parity baseline is
-captured in `evidence/canvas-parity-baseline.json`, Phase 2 now has both unit
-and real-browser proof that layered, radial, and dagre buckets stay isolated
-in-session and across save→reload, emptied non-active node buckets now delete
-cleanly from `meta.<family>_nodes`, and layout-parameter ownership no longer
-lives on `layoutOperatorOverrides` / `__DG_activeLayoutOperatorKey`. Remaining
-open work is Phase 4's onboarding/inventory/closeout slice.
+**Status Note (2026-07-02)**: Spec 071 is now closeout-ready on
+`feat/071-preview-render-node-graph`. Phase 4 is complete: the new
+`preview-node-onboarding.test.ts` registers `dummy-onboarding-grid` through the
+public preview-engine registry and proves it switches and renders without
+touching `preview-render-node.ts`, `preview-switch-node.ts`, `editor.js`, or
+`layout-bridge.js`; `evidence/render-path-inventory.md` is closed to a
+post-migration inventory with one render-node owner and one switch-node owner;
+and full validation passed, including the repo-owned real-browser repaint,
+canvas-parity, and engine-bucket-isolation regressions.
 
 ## North star
 

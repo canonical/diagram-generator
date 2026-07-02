@@ -1,60 +1,71 @@
 # Render-path inventory
 
-Spec 071 T000. Snapshot taken on `feat/071-preview-render-node-graph` at commit
-`86eb5e1`.
+Spec 071 T041. Post-migration snapshot on `feat/071-preview-render-node-graph`
+at commit `9b5178d`.
 
 ## Classification key
 
-- `migrate`: must be absorbed by the spec 071 render node or switch node.
-- `read-only`: helper or pass-through that may remain only if it becomes a thin
-  delegate to the new owner.
+- `migrated`: legacy ownership is gone; the remaining site delegates to the
+  typed owner.
+- `read-only`: helper or browser bridge that may remain because it does not own
+  behavior; it only forwards to the typed owner.
 - `deferred(<spec>)`: allowed to survive only behind an explicit later spec.
 
-## 1. Stage mount sites
+## 1. Stage mount ownership
 
 | File | Lines | Current role | Classification | Why |
 |---|---:|---|---|---|
-| `packages/layout-engine/src/preview-shell/app-load.ts` | 315 | Initial load and save->reload path mounts `renderResult.svg` into `#stage`. | `migrate` | FR-001 requires load/reload to route through one render node instead of owning its own mount + fit path. |
-| `packages/layout-engine/src/preview-shell/app-scene-host.ts` | 456-470 | `rerenderPreviewStageHost()` mounts fresh-render output during engine-tab rerender / scene-host refresh. | `migrate` | This is the tab-switch path that currently skips fit and causes canvas drift. |
-| `packages/layout-engine/src/preview-shell/app-layout-bridge-runtime.ts` | 2023-2039 | `performEngineRelayout()` mounts fresh engine-relayout output and then fits it. | `migrate` | Engine relayout is a third independent stage owner; render node must absorb it. |
+| `packages/layout-engine/src/preview-shell/preview-render-node.ts` | 34-48 | Sole typed owner of `stage.replaceChildren(...)` after fit. | `migrated` | This is now the only product-code stage mount path; tests source-scan `preview-shell/**` for stray stage mounts. |
+| `packages/layout-engine/src/preview-shell/app-load.ts` | 315-323 | Load/save->reload host delegates `mountRenderedSvg(...)` to `mountPreviewRenderNode(...)`. | `read-only` | No direct stage mutation remains here; it is a thin adapter into the render node. |
+| `packages/layout-engine/src/preview-shell/app-scene-host.ts` | 463-485 | Engine-tab and scene-host rerenders delegate to `mountPreviewRenderNode(...)`. | `read-only` | Tab switches no longer own an unfitted mount path. |
+| `packages/layout-engine/src/preview-shell/app-layout-bridge-runtime.ts` | 1864-1873 | Bridge runtime local relayout mount delegates to `mountPreviewRenderNode(...)`. | `read-only` | The bridge no longer owns an alternate mount path. |
+| `packages/layout-engine/src/preview-shell/app-layout-bridge-runtime.ts` | 2165-2174 | Engine relayout mount delegates to `mountPreviewRenderNode(...)`. | `read-only` | Same typed owner as the load and tab-switch paths. |
 
-## 2. Fit implementation and fit call sites
+Result: there are no unclassified direct `#stage` replacement sites outside
+`preview-render-node.ts`.
 
-| File | Lines | Current role | Classification | Why |
-|---|---:|---|---|---|
-| `packages/layout-engine/src/preview-shell/app-frame-svg.ts` | 192-235 | `fitPreviewSvgToRenderedContent()` is the current fit primitive. | `read-only` | Keep only as the single fit implementation or move it into the render node; it must stop being a free-floating primitive with multiple callers. |
-| `packages/layout-engine/src/preview-shell/app-frame-svg.ts` | 239-299 | `patchPreviewSvgFromLayout()` resets `viewBox` to `0 0 w h` and then re-fits after local relayout patching. | `migrate` | This is the origin-divergent fit path Phase 1 must unify. |
-| `packages/layout-engine/src/preview-shell/app-load.ts` | 252-320 | `createLoadPreviewSvgHostOptions()` wires an optional `fitRenderedSvgToContent` callback into the load path. | `migrate` | Load should stop deciding how/when fit happens; render node owns render->fit->mount. |
-| `packages/layout-engine/src/preview-shell/app-layout-bridge-runtime.ts` | 1699-1703 | Bridge runtime exposes `fitRenderedSvg()` by forwarding to `fitPreviewSvgToRenderedContent()`. | `read-only` | This can survive only as a thin bridge into the render node; it cannot remain an alternate fit authority. |
-| `packages/layout-engine/src/preview-shell/app-layout-bridge-runtime.ts` | 2034-2037 | `performEngineRelayout()` calls `fitRenderedSvg()` after its own mount. | `migrate` | Same path as the stage mount above; render node must own both steps atomically. |
-| `packages/layout-engine/src/preview-shell/app-grid-editor-install-unit.ts` | 803 | Browser-host options pass `fitSvgToRenderedContent` into the preview load host. | `read-only` | Plumbing only after Phase 1, provided it delegates to the render node owner. |
-| `packages/layout-engine/src/preview-shell/app-grid-editor-runtime.ts` | 620 | Runtime passes browser `fitRenderedSvgToContent` into the scene/bootstrap contract. | `read-only` | Another pass-through; acceptable only if it no longer decides fit semantics. |
-
-## 3. Render-intent commit sites
+## 2. Fit ownership
 
 | File | Lines | Current role | Classification | Why |
 |---|---:|---|---|---|
-| `packages/layout-engine/src/preview-shell/app-grid-editor-install-unit.ts` | 678-689 | Bootstrap commits initial active/persisted engine into `__DG_previewRenderIntent`. | `migrate` | Initial workspace state should be seeded by the switch node, not a browser-host helper. |
-| `packages/layout-engine/src/preview-shell/app-grid-editor-install-unit.ts` | 1116-1121 | `__DG_rerenderPreviewEngineWorkspaceStage()` recommits active engine just before rerender. | `migrate` | This is one of the duplicate switch writers Phase 3 must remove. |
-| `packages/layout-engine/src/preview-shell/app-grid-editor-runtime.ts` | 356-365 | `syncRestoredFrameTreeState()` commits restored engine/direction/override state after reload. | `migrate` | Restore/reload is part of switch-state rehydration and must funnel through one owner. |
-| `packages/layout-engine/src/preview-shell/app-layout-bridge-runtime.ts` | 1091-1095 | Compat host `setFrameTreeLayoutEngine()` commits render intent after changing frame-tree engine. | `migrate` | Bridge compatibility layer should call the switch node, not publish intent itself. |
-| `packages/layout-engine/src/preview-shell/app-layout-bridge-runtime.ts` | 1176-1179 | Window binding `setFrameTreeJson()` republishes render intent. | `migrate` | Duplicate writer. |
-| `packages/layout-engine/src/preview-shell/app-layout-bridge-runtime.ts` | 1185-1189 | Window binding `setFrameTreeLayoutEngine()` republishes render intent. | `migrate` | Duplicate writer. |
-| `packages/layout-engine/src/preview-shell/app-layout-bridge-runtime.ts` | 1221-1224 | Top-level bridge API `setFrameTreeJson()` republishes render intent. | `migrate` | Duplicate writer. |
-| `packages/layout-engine/src/preview-shell/app-layout-bridge-runtime.ts` | 1228-1233 | Top-level bridge API `setFrameTreeLayoutEngine()` republishes render intent. | `migrate` | Duplicate writer. |
-| `packages/layout-engine/src/preview-shell/app-layout-bridge-runtime.ts` | 1744-1747 | `publishRenderIntentToWindow()` republishes intent after init/render/relayout calls. | `migrate` | This is effectively an ad-hoc proto-switch inside the bridge runtime. |
-| `packages/layout-engine/src/preview-shell/preview-engine-workspace-chrome.ts` | 108-114 | `setRuntimeWorkspaceState()` writes active/persisted engine into config + render intent. | `migrate` | Workspace chrome should update the switch node, not own persisted engine signaling. |
-| `packages/layout-engine/src/preview-shell/preview-engine-workspace-chrome.ts` | 166-170 | `commitFrameTreeLayoutEngine()` commits intent after mutating frame-tree engine. | `migrate` | Another duplicate writer in the tab-switch path. |
+| `packages/layout-engine/src/preview-shell/app-frame-svg.ts` | 192-235 | `fitPreviewSvgToRenderedContent()` remains the single fit implementation. | `read-only` | One fit primitive survives, but render-node callers now share the same rule. |
+| `packages/layout-engine/src/preview-shell/app-frame-svg.ts` | 239-299 | `patchPreviewSvgFromLayout()` now reuses `fitPreviewSvgToRenderedContent(...)`. | `migrated` | The old `0 0 w h` reset divergence is gone; local relayout uses the same fit rule. |
+| `packages/layout-engine/src/preview-shell/app-load.ts` | 253-320 | Load host optionally forwards fit through `mountPreviewRenderNode(...)`. | `read-only` | This is bridge plumbing only, not an independent fit policy. |
+| `packages/layout-engine/src/preview-shell/app-scene-host.ts` | 477-485 | Scene-host rerenders pass fit callbacks into `mountPreviewRenderNode(...)`. | `read-only` | The host no longer decides separate fit semantics. |
+| `packages/layout-engine/src/preview-shell/app-layout-bridge-runtime.ts` | 1722-1724 | Bridge runtime exposes `fitRenderedSvg(...)` by forwarding to preview-bridge render fit. | `read-only` | Browser-host compat seam only. |
+| `packages/layout-engine/src/preview-shell/app-layout-bridge-runtime.ts` | 1867-1870 | Local relayout fit happens only via render-node callback wiring. | `read-only` | Atomic render->fit->mount now goes through the render node. |
+| `packages/layout-engine/src/preview-shell/app-layout-bridge-runtime.ts` | 2168-2171 | Engine relayout fit happens only via render-node callback wiring. | `read-only` | No second fit owner remains here. |
+| `packages/layout-engine/src/preview-shell/app-grid-editor-install-unit.ts` | 840 | Browser install unit passes `fitRenderedSvgToContent` into typed runtime wiring. | `read-only` | Pass-through only. |
+| `packages/layout-engine/src/preview-shell/app-grid-editor-runtime.ts` | 353-365 | Runtime resolves the browser fit callback and forwards it into typed hosts. | `read-only` | Adapter plumbing only; it does not fit stages directly. |
 
-## 4. Immediate implications for Phase 1 / Phase 3
+Result: the fit algorithm is singular, and the surviving call sites are all
+delegates or pass-through seams.
 
-1. There are exactly three direct `#stage` replacement sites in product code,
-   and all three are `migrate`.
-2. The engine-tab path in `app-scene-host.ts` is the only direct mount path that
-   does not currently fit the stage after mount.
-3. Local relayout does not replace the stage, but it still owns a separate
-   fit-origin rule via `patchPreviewSvgFromLayout()`.
-4. There are 11 product-code `commitPreviewRenderIntentToWindow(...)` call
-   sites outside `preview-render-intent.ts`; none are safe as permanent owners.
-5. No site is currently classified `deferred`; spec 071 must absorb or thin all
-   of them for closeout.
+## 3. Render-intent ownership
+
+| File | Lines | Current role | Classification | Why |
+|---|---:|---|---|---|
+| `packages/layout-engine/src/preview-shell/preview-switch-node.ts` | 233-277 | Sole direct writer of `__DG_previewRenderIntent` and typed committer of `frameTreeJson.layoutEngine`. | `migrated` | Product tests source-scan for direct render-intent writes outside this file. |
+| `packages/layout-engine/src/preview-shell/app-grid-editor-install-unit.ts` | 715-719 | Bootstrap state seeds the switch by calling `commitPreviewSwitchNode(...)`. | `read-only` | Initial editor wiring now delegates to the switch node. |
+| `packages/layout-engine/src/preview-shell/app-grid-editor-install-unit.ts` | 1153-1158 | Workspace rerender path switches engines through `commitPreviewSwitchNodeLayoutEngine(...)`. | `read-only` | No direct render-intent write remains here. |
+| `packages/layout-engine/src/preview-shell/app-grid-editor-runtime.ts` | 379-384 | Restore sync delegates to `commitPreviewSwitchNode(...)`. | `read-only` | Restore/reload uses the typed switch owner. |
+| `packages/layout-engine/src/preview-shell/app-layout-bridge-runtime.ts` | 1114-1118 | Compat setter republishes through `commitPreviewSwitchNode(...)`. | `read-only` | The bridge no longer writes render intent directly. |
+| `packages/layout-engine/src/preview-shell/app-layout-bridge-runtime.ts` | 1199-1212 | Window bindings `setFrameTreeJson()` / `setFrameTreeLayoutEngine()` both delegate to switch-node helpers. | `read-only` | Shared switch owner now owns publication. |
+| `packages/layout-engine/src/preview-shell/app-layout-bridge-runtime.ts` | 1244-1254 | Top-level bridge API `setFrameTreeJson()` / `setFrameTreeLayoutEngine()` both delegate to switch-node helpers. | `read-only` | Same typed owner as the compat bindings. |
+| `packages/layout-engine/src/preview-shell/app-layout-bridge-runtime.ts` | 1783-1787 | Init/render/relayout republish path delegates to `commitPreviewSwitchNode(...)`. | `read-only` | This is now a thin publication hook, not a proto-switch. |
+| `packages/layout-engine/src/preview-shell/preview-engine-workspace-chrome.ts` | 110-114 | Runtime workspace state commits through `commitPreviewSwitchNode(...)`. | `read-only` | Workspace chrome no longer owns a second render-intent writer. |
+| `packages/layout-engine/src/preview-shell/preview-engine-workspace-chrome.ts` | 212-216 | Frame-tree layout-engine commit delegates through `commitPreviewSwitchNodeLayoutEngine(...)`. | `read-only` | Typed switch owner commits the active engine signal. |
+
+Result: there are no direct `commitPreviewRenderIntentToWindow(...)` call sites
+left in product code, and no direct `__DG_previewRenderIntent = ...` write
+outside `preview-switch-node.ts`.
+
+## 4. Closeout status
+
+1. Stage mount ownership is closed: one typed render node mounts `#stage`.
+2. Fit ownership is closed: one fit implementation remains, and all paths share
+   it through render-node delegation.
+3. Render-intent ownership is closed: one typed switch node writes render
+   intent and commits frame-tree engine selection.
+4. No inventory item is currently `deferred(...)`.
+5. No unclassified second path remains for stage mount, fit, or render intent.
