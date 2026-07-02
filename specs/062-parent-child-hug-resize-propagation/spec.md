@@ -1,7 +1,7 @@
 # Spec 062: Parent/Child Hug Resize Propagation
 
 **Feature Branch**: `feat/062-parent-child-hug-resize-propagation`
-**Status**: Closeout Ready
+**Status**: Active — adversarial review reopened 2026-07-03
 **Created**: 2026-07-03
 **Priority**: Next in Opus execution order after spec 071
 **Context**: `docs/spec-reviews/inbox-triage.md` row 13 and
@@ -26,6 +26,12 @@
   `apps/preview/src/persistence/frame-diagram.test.ts`, and
   `apps/preview/src/persistence/editor-hug-resize-regression.test.ts`. Full
   validation is recorded in [`evidence/validation-summary.md`](./evidence/validation-summary.md).
+- 2026-07-03 adversarial review reopened the package: the landed resize
+  propagation fix proves the leaf `small_box` path on `test-alignment-grid`,
+  but a nested `HUG` container child still keeps stale `measuredW` during
+  constrained remeasurement and can overflow a smaller fixed-width parent. The
+  package cannot return to `Closeout Ready` until that generic child-container
+  path is fixed and covered by repo-owned regression evidence.
 
 ## Problem
 
