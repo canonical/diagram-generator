@@ -352,8 +352,37 @@ async function mutateLayoutControl(
   controlId: string,
   options: { restore: boolean },
 ): Promise<void> {
+  const descriptor = await readLayoutControlDescriptor(page, controlId);
+  const alternate = alternateLayoutControlValue(controlId, descriptor);
+  await setLayoutControlValue(page, controlId, descriptor, alternate);
+  await settle(page);
+  if (options.restore) {
+    await setLayoutControlValue(page, controlId, descriptor, descriptor.value);
+    await settle(page);
+  }
+}
+
+type LayoutControlDescriptor =
+  | {
+    tagName: "select";
+    value: string;
+    options: string[];
+  }
+  | {
+    tagName: "input";
+    type: string;
+    value: string;
+    step: string;
+    min: string;
+    max: string;
+  };
+
+async function readLayoutControlDescriptor(
+  page: Page,
+  controlId: string,
+): Promise<LayoutControlDescriptor> {
   const control = page.locator(`#${controlId}`);
-  const descriptor = await control.evaluate((element) => {
+  return control.evaluate((element) => {
     if (element instanceof HTMLSelectElement) {
       return {
         tagName: "select",
@@ -373,38 +402,20 @@ async function mutateLayoutControl(
     }
     throw new Error(`Unsupported layout control tag ${(element as HTMLElement).tagName}`);
   });
+}
 
+function alternateLayoutControlValue(
+  controlId: string,
+  descriptor: LayoutControlDescriptor,
+): string | boolean {
   if (descriptor.tagName === "select") {
     const alternate = descriptor.options.find((value) => value && value !== descriptor.value);
     assert.ok(alternate, `expected an alternate option for layout control ${controlId}`);
-    await control.selectOption(alternate);
-    await settle(page);
-    if (options.restore) {
-      await control.selectOption(descriptor.value);
-      await settle(page);
-    }
-    return;
+    return alternate;
   }
 
   if (descriptor.type === "checkbox") {
-    const original = descriptor.value === "true";
-    await control.evaluate((element, checked) => {
-      const input = element as HTMLInputElement;
-      input.checked = checked as boolean;
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-      input.dispatchEvent(new Event("change", { bubbles: true }));
-    }, !original);
-    await settle(page);
-    if (options.restore) {
-      await control.evaluate((element, checked) => {
-        const input = element as HTMLInputElement;
-        input.checked = checked as boolean;
-        input.dispatchEvent(new Event("input", { bubbles: true }));
-        input.dispatchEvent(new Event("change", { bubbles: true }));
-      }, original);
-      await settle(page);
-    }
-    return;
+    return descriptor.value !== "true";
   }
 
   const original = Number(descriptor.value);
@@ -422,20 +433,35 @@ async function mutateLayoutControl(
   if (alternate > max || alternate < min || alternate === original) {
     throw new Error(`Unable to derive alternate numeric value for layout control ${controlId}`);
   }
-  const writeValue = async (nextValue: number) => {
-    await control.evaluate((element, value) => {
+  return String(alternate);
+}
+
+async function setLayoutControlValue(
+  page: Page,
+  controlId: string,
+  descriptor: LayoutControlDescriptor,
+  nextValue: string | boolean,
+): Promise<void> {
+  const control = page.locator(`#${controlId}`);
+  if (descriptor.tagName === "select") {
+    await control.selectOption(String(nextValue));
+    return;
+  }
+  if (descriptor.type === "checkbox") {
+    await control.evaluate((element, checked) => {
       const input = element as HTMLInputElement;
-      input.value = String(value);
+      input.checked = checked as boolean;
       input.dispatchEvent(new Event("input", { bubbles: true }));
       input.dispatchEvent(new Event("change", { bubbles: true }));
-    }, nextValue);
-  };
-  await writeValue(alternate);
-  await settle(page);
-  if (options.restore) {
-    await writeValue(original);
-    await settle(page);
+    }, Boolean(nextValue));
+    return;
   }
+  await control.evaluate((element, value) => {
+    const input = element as HTMLInputElement;
+    input.value = String(value);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }, String(nextValue));
 }
 
 async function triggerSaveReload(page: Page): Promise<void> {
@@ -450,6 +476,20 @@ async function triggerSaveReload(page: Page): Promise<void> {
       throw new Error("PreviewSaveClient.saveOverrides is unavailable");
     }
     await saveOverrides();
+  });
+  await settle(page);
+}
+
+async function clearActiveLayoutBucket(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const previewWindow = window as Window & typeof globalThis & {
+      PreviewEngineShellController?: {
+        applyLayoutOverrides?: (overrides: Record<string, unknown>) => void;
+      } | null;
+      setDirty?: ((dirty: boolean) => void) | null;
+    };
+    previewWindow.PreviewEngineShellController?.applyLayoutOverrides?.({});
+    previewWindow.setDirty?.(true);
   });
   await settle(page);
 }
@@ -665,7 +705,7 @@ test("phase 1 canvas parity holds across load, save→reload, engine-tab switch,
   }
 });
 
-test("engine-specific layout buckets stay isolated across layered, radial, and dagre browser switches", { timeout: 120_000 }, async () => {
+test("engine-specific layout buckets stay isolated across layered, radial, dagre, and save→reload browser flows", { timeout: 120_000 }, async () => {
   const framesDir = copyFixtureFrames(["example-deployment-pipeline"]);
   const port = await allocatePort();
   const baseUrl = `http://127.0.0.1:${port}`;
@@ -743,6 +783,43 @@ test("engine-specific layout buckets stay isolated across layered, radial, and d
         layeredAfterDagreViewBox,
         layeredViewBox,
         "returning to layered with unchanged layered params should preserve the fitted viewBox after dagre detours",
+      );
+
+      await triggerSaveReload(page);
+      const reloadedBucketsState = await captureLayoutOperatorBrowserState(page);
+
+      assert.equal(reloadedBucketsState.activeOperatorKey, "elk-layered");
+      assert.deepEqual(
+        reloadedBucketsState.activeLayoutOverrides,
+        layeredState.byOperator["elk-layered"] ?? {},
+      );
+      assert.deepEqual(
+        reloadedBucketsState.byOperator["elk-radial"],
+        radialState.byOperator["elk-radial"],
+        "save→reload should preserve the same-family non-active radial bucket",
+      );
+      assert.deepEqual(
+        reloadedBucketsState.byOperator.dagre,
+        dagreState.byOperator.dagre,
+        "save→reload should preserve the cross-family non-active dagre bucket",
+      );
+
+      await selectEngine(page, "elk-radial");
+      await clearActiveLayoutBucket(page);
+      await selectEngine(page, "elk-layered");
+      await triggerSaveReload(page);
+
+      const afterRadialClearState = await captureLayoutOperatorBrowserState(page);
+
+      assert.equal(
+        afterRadialClearState.byOperator["elk-radial"],
+        undefined,
+        "save→reload should remove a fully cleared non-active radial bucket",
+      );
+      assert.deepEqual(
+        afterRadialClearState.byOperator.dagre,
+        dagreState.byOperator.dagre,
+        "clearing the radial bucket should not disturb the saved dagre bucket",
       );
 
       await mutateLayoutControlAndRestoreValue(page, layeredControl.id);

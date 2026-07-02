@@ -357,6 +357,49 @@ test("persist→reload round-trip: interpreter node buckets survive under family
   });
 });
 
+test("persist engine_layout_overrides replaces node-family buckets so emptied non-active nodes disappear", () => {
+  const baselineText = [
+    "engine: v3",
+    "title: Demo",
+    "meta:",
+    "  layout_engine: elk-layered",
+    "  elk_nodes:",
+    "    elk-layered:",
+    "      elk.direction: RIGHT",
+    "      elk.spacing.edgeNode: '56'",
+    "    elk-radial:",
+    "      elk.radial.radius: '160'",
+    "root:",
+    "  id: page",
+    "  direction: vertical",
+    "  children:",
+    "    - id: leaf_a",
+    "      label: [A]",
+    "",
+  ].join("\n");
+
+  const output = persistToYaml("demo.yaml", baselineText, {
+    overrides: {},
+    engine_layout_overrides: {
+      "meta.elk_nodes": {
+        "elk-layered": {
+          "elk.direction": "DOWN",
+          "elk.spacing.edgeNode": "",
+        },
+      },
+    },
+  });
+
+  const reloaded = loadFrameYaml(writeTempFrame("demo-node-clear-reloaded.yaml", output));
+  assert.deepEqual(reloaded.engineLayout?.["meta.elk_nodes"], {
+    "elk-layered": {
+      "elk.direction": "DOWN",
+    },
+  });
+  assert.doesNotMatch(output, /elk-radial:/);
+  assert.doesNotMatch(output, /elk\.spacing\.edgeNode: '56'/);
+});
+
 test("persist→reload round-trip: committed state vector survives temp frame yaml save", () => {
   const baselineText = [
     "engine: v3",

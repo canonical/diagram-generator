@@ -158,7 +158,7 @@
 > its written verify criteria; these close the two gaps before the switch node.
 > The natural home for T023 is the Phase 3 cook/switch work (flat-alias collapse).
 
-- [ ] **T023** Let a save remove an emptied node bucket. **Do**: emit an explicit
+- [x] **T023** Let a save remove an emptied node bucket. **Do**: emit an explicit
       clear (or a full node-set replace) so a non-active node whose params were all
       cleared is deleted from `meta.<family>_nodes` instead of surviving via the
       merge in `applyEngineLayoutNodeNamespaceOverrides`. Fixes the
@@ -167,14 +167,21 @@
       **Verify**: clear all params for a saved non-active engine, save, reload —
       the bucket is gone; per-key clears within a present node still work.
       **Evidence**: `frame-diagram.test.ts` + a browser step.
+      Note: node-family save payloads now act as full replacements, empty active
+      buckets clear node params instead of persisting `{}`, and the browser
+      regression proves a saved non-active radial bucket disappears after an
+      explicit controller-driven clear plus save→reload.
 
-- [ ] **T024** Prove non-active node buckets survive a real browser save→reload.
+- [x] **T024** Prove non-active node buckets survive a real browser save→reload.
       **Do**: extend the SC-003 browser regression to save after mutating radial
       and dagre buckets, reload, and assert `byOperator` still carries the
       non-active buckets (same-family `elk-radial` and cross-family `dagre`).
       **Verify**: reload-restored registry matches pre-save `byOperator` for the
       non-active engines.
       **Evidence**: `editor-live-repaint-regression.test.ts`.
+      Note: the browser regression now saves from layered after mutating radial
+      and dagre, reloads, and asserts both non-active buckets survive with the
+      same `byOperator` payload before exercising the T023 clear/delete path.
 
 ## Phase 3 — Switch node + deterministic cook
 

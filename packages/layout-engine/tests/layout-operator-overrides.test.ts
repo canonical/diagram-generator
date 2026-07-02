@@ -290,6 +290,28 @@ describe('layout operator overrides', () => {
     });
   });
 
+  it('clears node-owned params without leaving an empty bucket behind', () => {
+    const model = {};
+
+    writeLayoutOperatorOverrideBucketForManifest(model, radialManifest, {
+      'elk.radial.radius': 160,
+    }, 'meta.elk');
+    writeLayoutOperatorOverrideBucketForManifest(model, radialManifest, {}, 'meta.elk');
+
+    expect(readLayoutOperatorOverrideState(model)).toEqual({
+      activeOperatorKey: 'elk-radial',
+      byOperator: {},
+    });
+    expect(model).toMatchObject({
+      previewInterpreterActiveNodeId: 'elk-radial',
+      previewInterpreterNodeRegistry: {
+        nodeIds: ['elk-radial'],
+        paramsByNodeId: {},
+      },
+      layoutOverrides: {},
+    });
+  });
+
   it('derives legacy aliases from node-owned interpreter params', () => {
     const model = {
       layoutOperatorOverrides: {

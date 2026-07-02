@@ -259,7 +259,6 @@ function applyEngineLayoutNodeNamespaceOverrides(
   overrides: Record<string, unknown>,
   source: string,
 ): void {
-  if (Object.keys(overrides).length === 0) return;
   const baseNamespace = baseNamespaceFromNodeNamespace(namespace);
   if (!baseNamespace) {
     throw new Error(`${source} is not a supported frame-YAML node namespace`);
@@ -267,12 +266,7 @@ function applyEngineLayoutNodeNamespaceOverrides(
   const meta = isRecord(document.meta) ? document.meta : {};
   document.meta = meta;
   const metaKey = metaKeyFromNamespace(namespace);
-  const existing = isRecord(meta[metaKey]) ? meta[metaKey] as Record<string, unknown> : {};
-  const next: Record<string, unknown> = sanitizeSupportedFrameYamlEngineLayoutNodeBuckets(
-    namespace,
-    existing,
-    `${source} existing`,
-  );
+  const next: Record<string, unknown> = {};
   const label = baseNamespace === DEFAULT_FRAME_YAML_ENGINE_LAYOUT_NAMESPACE
     ? "ELK"
     : baseNamespace.slice("meta.".length);

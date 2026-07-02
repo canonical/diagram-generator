@@ -245,14 +245,6 @@ function readPreviewPersistedLayoutOverrides(
   const registry = model?.previewInterpreterNodeRegistry ?? null;
   const nodeNamespacedOverrides: Record<string, Record<string, unknown>> = {};
   for (const node of registry?.nodes ?? []) {
-    const bucket = pruneSessionBucketForManifest(
-      node.manifest,
-      registry?.paramsByNodeId?.[node.nodeId] ?? node.params ?? {},
-      { persistNamespace: model?.layoutOverrideNamespace ?? null },
-    );
-    if (Object.keys(bucket).length === 0) {
-      continue;
-    }
     const baseNamespace = node.manifest.controlSpecs.find(
       (spec) => typeof spec.persistNamespace === 'string' && spec.persistNamespace.trim().length > 0,
     )?.persistNamespace ?? null;
@@ -261,6 +253,14 @@ function readPreviewPersistedLayoutOverrides(
       continue;
     }
     nodeNamespacedOverrides[nodeNamespace] = nodeNamespacedOverrides[nodeNamespace] ?? {};
+    const bucket = pruneSessionBucketForManifest(
+      node.manifest,
+      registry?.paramsByNodeId?.[node.nodeId] ?? node.params ?? {},
+      { persistNamespace: model?.layoutOverrideNamespace ?? null },
+    );
+    if (Object.keys(bucket).length === 0) {
+      continue;
+    }
     nodeNamespacedOverrides[nodeNamespace]![node.nodeId] = bucket;
   }
 

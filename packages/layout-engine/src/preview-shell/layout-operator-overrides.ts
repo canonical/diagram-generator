@@ -11,6 +11,7 @@ import type {
   PreviewEngineManifest,
 } from '../preview-engine/types.js';
 import {
+  clearPreviewInterpreterNodeParams,
   createPreviewInterpreterNodeRegistry,
   getPreviewInterpreterNode,
   getPreviewInterpreterNodeParams,
@@ -593,11 +594,14 @@ export function writeLayoutOperatorOverrideBucketForManifest(
   const operatorKey = layoutOperatorKeyForManifest(manifest);
   const registry = ensurePreviewInterpreterNodeRegistryForManifest(model, manifest);
   if (registry && getPreviewInterpreterNode(registry, operatorKey)) {
-    const nextRegistry = setPreviewInterpreterNodeParams(
-      registry,
-      operatorKey,
-      { ...(overrides || {}) },
-    );
+    const nextOverrides = { ...(overrides || {}) };
+    const nextRegistry = Object.keys(nextOverrides).length > 0
+      ? setPreviewInterpreterNodeParams(
+        registry,
+        operatorKey,
+        nextOverrides,
+      )
+      : clearPreviewInterpreterNodeParams(registry, operatorKey);
     const namespace = manifestPersistNamespace(manifest, preferredNamespace);
     writePreviewInterpreterNodeRegistry(
       model,
@@ -609,7 +613,12 @@ export function writeLayoutOperatorOverrideBucketForManifest(
   }
   const state = readLayoutOperatorOverrideState(model);
   state.activeOperatorKey = operatorKey;
-  state.byOperator[operatorKey] = { ...(overrides || {}) };
+  const nextOverrides = { ...(overrides || {}) };
+  if (Object.keys(nextOverrides).length > 0) {
+    state.byOperator[operatorKey] = nextOverrides;
+  } else {
+    delete state.byOperator[operatorKey];
+  }
   const namespace = manifestPersistNamespace(manifest, preferredNamespace);
   writeLayoutOperatorOverrideState(model, state, namespace ?? model.layoutOverrideNamespace ?? null);
 }

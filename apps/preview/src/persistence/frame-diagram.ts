@@ -575,7 +575,7 @@ function normalizeEngineLayoutOverrides(
       if (!isRecord(overrides)) {
         throw new Error(`engine_layout_overrides.${namespace} must be an object`);
       }
-      if (Object.keys(overrides).length > 0) {
+      if (Object.keys(overrides).length > 0 || isFrameYamlEngineLayoutNodeNamespace(namespace)) {
         normalized[namespace] = { ...overrides };
       }
     }
@@ -609,7 +609,9 @@ function applyEngineLayoutOverrides(
   }
 
   for (const [namespace, overrides] of Object.entries(engineLayoutOverrides)) {
-    if (Object.keys(overrides).length === 0) continue;
+    if (Object.keys(overrides).length === 0 && !isFrameYamlEngineLayoutNodeNamespace(namespace)) {
+      continue;
+    }
     const descriptor = getFrameYamlEngineLayoutNamespace(namespace);
     if (!descriptor) {
       throw new Error(`engine_layout_overrides contains unsupported namespace: ${namespace}`);

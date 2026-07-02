@@ -249,6 +249,95 @@ describe('preview override payload model', () => {
     });
   });
 
+  it('emits empty node namespaces so saves can clear fully emptied non-active buckets', () => {
+    const model = {
+      overrides: {},
+      layoutOverrides: {
+        'dagre.rankdir': 'LR',
+      },
+      layoutOverrideNamespace: 'meta.dagre',
+      previewInterpreterNodeRegistry: {
+        nodeIds: ['dagre', 'elk-radial'],
+        nodes: [
+          {
+            nodeId: 'dagre',
+            engineId: 'dagre',
+            layoutEngineKey: 'dagre',
+            manifest: {
+              id: 'dagre',
+              label: 'Dagre',
+              layoutEngineKey: 'dagre',
+              shellMode: 'grid',
+              capabilities: {} as never,
+              controlSpecs: [
+                {
+                  key: 'dagre.rankdir',
+                  label: 'Direction',
+                  group: 'Graph',
+                  kind: 'enum',
+                  defaultValue: 'TB',
+                  persistNamespace: 'meta.dagre',
+                },
+              ],
+              scripts: [],
+              compatibility: { documentKinds: ['frame-diagram'] },
+            },
+            params: {
+              'dagre.rankdir': 'LR',
+            },
+          },
+          {
+            nodeId: 'elk-radial',
+            engineId: 'elk-radial',
+            layoutEngineKey: 'elk-radial',
+            manifest: {
+              id: 'elk-radial',
+              label: 'ELK Radial',
+              layoutEngineKey: 'elk-radial',
+              shellMode: 'grid',
+              capabilities: {} as never,
+              controlSpecs: [
+                {
+                  key: 'elk.radial.radius',
+                  label: 'Radius',
+                  group: 'Spacing',
+                  kind: 'number',
+                  defaultValue: '120',
+                  persistNamespace: 'meta.elk',
+                },
+              ],
+              scripts: [],
+              compatibility: { documentKinds: ['frame-diagram'] },
+            },
+            params: null,
+          },
+        ],
+        paramsByNodeId: {
+          dagre: {
+            'dagre.rankdir': 'LR',
+          },
+        },
+      },
+      removedIds: new Set<string>(),
+    };
+
+    expect(createPreviewOverridePayload(model)).toEqual({
+      overrides: {},
+      format_version: 1,
+      engine_layout_overrides: {
+        'meta.dagre': {
+          'dagre.rankdir': 'LR',
+        },
+        'meta.dagre_nodes': {
+          dagre: {
+            'dagre.rankdir': 'LR',
+          },
+        },
+        'meta.elk_nodes': {},
+      },
+    });
+  });
+
   it('synthesizes arrow waypoint clears for authored arrows after reroute-bearing frame edits', () => {
     const model = {
       overrides: {
