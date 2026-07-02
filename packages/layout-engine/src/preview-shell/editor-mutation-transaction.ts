@@ -130,6 +130,11 @@ export interface CompareEditorMutationStateVectorOptions {
   readonly expectStableCanvas?: boolean;
 }
 
+export interface EditorMutationTransactionObservation {
+  readonly before?: EditorMutationStateVector | null;
+  readonly expectStableCanvas?: boolean;
+}
+
 function hasPersistenceDelta(delta: EditorMutationPersistenceDelta | null | undefined): boolean {
   return Boolean(delta && Object.values(delta).some(Boolean));
 }

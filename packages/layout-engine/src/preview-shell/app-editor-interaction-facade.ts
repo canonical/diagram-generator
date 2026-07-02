@@ -35,8 +35,11 @@ import {
 } from './app-text-edit-runtime.js';
 import {
   compareEditorMutationStateVector,
+  type EditorMutationStateVector,
+  type EditorMutationTransactionObservation,
   type EditorMutationTransactionResult,
 } from './editor-mutation-transaction.js';
+import { readLayoutOperatorOverrideState } from './layout-operator-overrides.js';
 import {
   resolvePreviewRenderIntentLayoutEngine,
   type PreviewRenderIntent,
@@ -114,6 +117,18 @@ function readSelectedInteractionEngineTab(document: Document): string | null {
   return selected?.getAttribute('data-engine-id') ?? null;
 }
 
+function readInteractionActiveInterpreterNodeId(model: unknown): string | null {
+  const value = (model as { previewInterpreterActiveNodeId?: unknown } | null | undefined)
+    ?.previewInterpreterActiveNodeId;
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+}
+
+function readInteractionActiveOptionBucket(model: unknown): string | null {
+  return readLayoutOperatorOverrideState(
+    model as Parameters<typeof readLayoutOperatorOverrideState>[0],
+  ).activeOperatorKey ?? null;
+}
+
 function readUndoAvailability(document: Document): boolean | null {
   const button = document.getElementById('btn-undo') as { disabled?: boolean } | null;
   return button ? button.disabled !== true : null;
@@ -122,6 +137,30 @@ function readUndoAvailability(document: Document): boolean | null {
 function readRedoAvailability(document: Document): boolean | null {
   const button = document.getElementById('btn-redo') as { disabled?: boolean } | null;
   return button ? button.disabled !== true : null;
+}
+
+function readInteractionMutationStateVector(
+  document: Document,
+  previewWindow: InteractionMutationPreviewWindow,
+  model: unknown,
+): EditorMutationStateVector {
+  return {
+    activeTab: readSelectedInteractionEngineTab(document),
+    activeNodeId: readInteractionActiveInterpreterNodeId(model),
+    renderIntentEngineId: resolvePreviewRenderIntentLayoutEngine({
+      intent: previewWindow.__DG_previewRenderIntent ?? null,
+      activeEngineId: previewWindow.__DG_CONFIG?.active_engine_id ?? null,
+      layoutEngine: previewWindow.__DG_CONFIG?.layout_engine ?? null,
+      frameTreeJson: previewWindow.__DG_getPreviewBridgeHostContract?.()?.getFrameTreeJson?.() ?? null,
+    }),
+    frameTreeLayoutEngine: readInteractionFrameTreeLayoutEngine(previewWindow),
+    activeOptionBucket: readInteractionActiveOptionBucket(model),
+    renderedEngine: readInteractionRenderedEngine(document),
+    fittedViewBox: readInteractionFittedViewBox(document),
+    dirty: previewWindow.PreviewSaveClient?.isDirty?.() ?? null,
+    canUndo: readUndoAvailability(document),
+    canRedo: readRedoAvailability(document),
+  };
 }
 
 export interface CreatePreviewEditorInteractionFacadeFromEditorHostOptions {
@@ -734,33 +773,18 @@ export function createPreviewEditorInteractionFacadeFromBrowserHost(
       documentKind: previewWindow?.__DG_CONFIG?.document_kind ?? 'frame-diagram',
     };
   };
-  const recordEditorMutationTransaction = (result: unknown): void => {
+  const recordEditorMutationTransaction = (
+    result: unknown,
+    observation?: EditorMutationTransactionObservation,
+  ): void => {
     const previewWindow = options.shared.document.defaultView as InteractionMutationPreviewWindow | null;
     if (!previewWindow) return;
     previewWindow.__DG_lastEditorMutationTransactionResult = result;
     previewWindow.__DG_lastEditorMutationStateViolations = compareEditorMutationStateVector({
       transaction: result as EditorMutationTransactionResult,
-      after: {
-        activeTab: readSelectedInteractionEngineTab(document),
-        activeNodeId: previewWindow?.__DG_previewRenderIntent?.engineId
-          ?? previewWindow?.__DG_CONFIG?.active_engine_id
-          ?? null,
-        renderIntentEngineId: resolvePreviewRenderIntentLayoutEngine({
-          intent: previewWindow.__DG_previewRenderIntent ?? null,
-          activeEngineId: previewWindow.__DG_CONFIG?.active_engine_id ?? null,
-          layoutEngine: previewWindow.__DG_CONFIG?.layout_engine ?? null,
-          frameTreeJson: previewWindow.__DG_getPreviewBridgeHostContract?.()?.getFrameTreeJson?.() ?? null,
-        }),
-        frameTreeLayoutEngine: readInteractionFrameTreeLayoutEngine(previewWindow),
-        activeOptionBucket: previewWindow?.__DG_previewRenderIntent?.engineId
-          ?? previewWindow?.__DG_CONFIG?.active_engine_id
-          ?? null,
-        renderedEngine: readInteractionRenderedEngine(document),
-        fittedViewBox: readInteractionFittedViewBox(document),
-        dirty: previewWindow.PreviewSaveClient?.isDirty?.() ?? null,
-        canUndo: readUndoAvailability(document),
-        canRedo: readRedoAvailability(document),
-      },
+      before: observation?.before ?? null,
+      after: readInteractionMutationStateVector(document, previewWindow, options.shared.model),
+      expectStableCanvas: observation?.expectStableCanvas,
     });
   };
   let runtime: PreviewEditorInteractionFacade | null = null;
@@ -980,6 +1004,13 @@ export function createPreviewEditorInteractionFacadeFromBrowserHost(
       formatAsDefinedStyleLabel:
         browser.formatAsDefinedStyleLabel as RuntimeEditorRuntimeSetOptions['formatAsDefinedStyleLabel'],
       syncPanelVisibility: browser.syncPanelVisibility ?? null,
+      captureMutationStateVector: () => {
+        const previewWindow = options.shared.document.defaultView as InteractionMutationPreviewWindow | null;
+        if (!previewWindow) {
+          return null;
+        }
+        return readInteractionMutationStateVector(document, previewWindow, options.shared.model);
+      },
       getMutationContext: getEditorMutationContext,
       onMutationTransaction: recordEditorMutationTransaction,
       shouldShowAutolayoutInspector: browser.shouldShowAutolayoutInspector ?? null,

@@ -245,6 +245,23 @@ describe('editor mutation transaction', () => {
     ]);
   });
 
+  it('reports active option-bucket drift from render intent', () => {
+    const violations = compareEditorMutationStateVector({
+      after: {
+        activeOptionBucket: 'dagre',
+        renderIntentEngineId: 'elk-layered',
+      },
+    });
+
+    expect(violations).toEqual([
+      expect.objectContaining({
+        code: 'option-bucket-drift',
+        expected: 'elk-layered',
+        actual: 'dagre',
+      }),
+    ]);
+  });
+
   it('reports fitted-canvas divergence when equivalent geometry should preserve the stage', () => {
     const violations = compareEditorMutationStateVector({
       before: {

@@ -87,6 +87,37 @@
       **Evidence**: repo-owned test under `apps/preview/src/persistence/` or
       `packages/layout-engine/tests/`; closes the spec 060 follow-up (FR-009).
 
+### Phase 1 post-review follow-ups (adversarial pass 2026-07-02)
+
+> Source: `evidence/adversarial-review.md` (P1-1, P1-2). Phase 1 stays closed;
+> these are hardening items, not reopen triggers. Fold into Phase 3 if convenient.
+
+- [x] **T016** Make the mutation-state canvas diagnostic real on the interaction
+      path. **Do**: pass a `before` fitted-viewBox and an `expectStableCanvas`
+      signal through `recordEditorMutationTransaction`
+      (`app-editor-interaction-facade.ts`) for equivalent-geometry param edits, and
+      stop deriving `activeNodeId` / `activeOptionBucket` from the same expression
+      so `active-node-drift` / `option-bucket-drift` are not tautological there.
+      **Verify**: a deliberate un-fitted mount on the param-edit path emits a
+      `canvas-divergence` violation, not just on the engine-tab path.
+      **Evidence**: `editor-mutation-transaction.test.ts` +
+      `app-editor-interaction-facade` coverage.
+      Note: the interaction facade now captures a real pre-mutation state vector,
+      appearance-only inspector edits propagate `expectStableCanvas`, and the
+      facade test proves a deliberate unfitted mount emits `canvas-divergence`
+      with non-tautological `activeNodeId` / `activeOptionBucket` sources.
+
+- [x] **T017** Broaden the stage-mount guard from an allowlist of three files to a
+      global preview-shell scan. **Do**: replace the per-file `.replaceChildren(`
+      assertion in `preview-render-node.test.ts` with a scan of
+      `packages/layout-engine/src/preview-shell/**` that fails on any direct stage
+      `replaceChildren` mount outside `preview-render-node.ts`.
+      **Verify**: adding a stray stage mount in any new shell file fails the test.
+      **Evidence**: updated `preview-render-node.test.ts`.
+      Note: the guard now recursively scans preview-shell TypeScript sources and
+      fails on any direct `stage.replaceChildren(...)` / `options.stage.replaceChildren(...)`
+      mount outside `preview-render-node.ts`.
+
 ## Phase 2 — Interpreter node state isolation
 
 - [x] **T020** Add `preview-interpreter-node.ts` + a node registry wrapping
@@ -120,6 +151,30 @@
       buckets across workspace rerenders, save payload collection merges node
       namespaces instead of replacing them, and blank-valid enum values such as
       `elk.direction: ''` survive save→reload.
+
+### Phase 2 post-review follow-ups (adversarial pass 2026-07-02)
+
+> Source: `evidence/adversarial-review.md` (P2-1, P2-2). T022 stays closed against
+> its written verify criteria; these close the two gaps before the switch node.
+> The natural home for T023 is the Phase 3 cook/switch work (flat-alias collapse).
+
+- [ ] **T023** Let a save remove an emptied node bucket. **Do**: emit an explicit
+      clear (or a full node-set replace) so a non-active node whose params were all
+      cleared is deleted from `meta.<family>_nodes` instead of surviving via the
+      merge in `applyEngineLayoutNodeNamespaceOverrides`. Fixes the
+      resurrect-on-reload leak where `readPreviewPersistedLayoutOverrides` drops
+      empty buckets from the payload.
+      **Verify**: clear all params for a saved non-active engine, save, reload —
+      the bucket is gone; per-key clears within a present node still work.
+      **Evidence**: `frame-diagram.test.ts` + a browser step.
+
+- [ ] **T024** Prove non-active node buckets survive a real browser save→reload.
+      **Do**: extend the SC-003 browser regression to save after mutating radial
+      and dagre buckets, reload, and assert `byOperator` still carries the
+      non-active buckets (same-family `elk-radial` and cross-family `dagre`).
+      **Verify**: reload-restored registry matches pre-save `byOperator` for the
+      non-active engines.
+      **Evidence**: `editor-live-repaint-regression.test.ts`.
 
 ## Phase 3 — Switch node + deterministic cook
 

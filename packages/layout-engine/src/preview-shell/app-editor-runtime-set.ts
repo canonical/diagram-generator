@@ -71,6 +71,7 @@ export interface CreatePreviewEditorRuntimeSetOptions {
   renderMultiStyleOptions: CreatePreviewInspectorDisplayRuntimeOptions['renderMultiStyleOptions'];
   syncPanelVisibility?: CreatePreviewInspectorDisplayRuntimeOptions['syncPanelVisibility'];
   getMutationContext?: CreatePreviewInspectorMutationRuntimeOptions['getMutationContext'];
+  captureMutationStateVector?: CreatePreviewInspectorMutationRuntimeOptions['captureMutationStateVector'];
   onMutationTransaction?: CreatePreviewInspectorMutationRuntimeOptions['onMutationTransaction'];
   captureOverrideEntries: CreatePreviewInspectorMutationRuntimeOptions['captureOverrideEntries']
     & CreatePreviewInspectorSelectionRuntimeOptions['captureOverrideEntries']
@@ -162,6 +163,7 @@ export interface CreatePreviewEditorRuntimeSetHostOptions {
   renderMultiStyleOptions: CreatePreviewEditorRuntimeSetOptions['renderMultiStyleOptions'];
   syncPanelVisibility?: CreatePreviewEditorRuntimeSetOptions['syncPanelVisibility'];
   getMutationContext?: CreatePreviewEditorRuntimeSetOptions['getMutationContext'];
+  captureMutationStateVector?: CreatePreviewEditorRuntimeSetOptions['captureMutationStateVector'];
   onMutationTransaction?: CreatePreviewEditorRuntimeSetOptions['onMutationTransaction'];
   captureOverrideEntries: CreatePreviewEditorRuntimeSetOptions['captureOverrideEntries'];
   commitOverridePatchAction: CreatePreviewEditorRuntimeSetOptions['commitOverridePatchAction'];
@@ -241,6 +243,7 @@ export interface CreatePreviewEditorRuntimeSetFromRuntimeOptions {
   renderMultiStyleOptions: CreatePreviewEditorRuntimeSetHostOptions['renderMultiStyleOptions'];
   syncPanelVisibility?: CreatePreviewEditorRuntimeSetHostOptions['syncPanelVisibility'];
   getMutationContext?: CreatePreviewEditorRuntimeSetHostOptions['getMutationContext'];
+  captureMutationStateVector?: CreatePreviewEditorRuntimeSetHostOptions['captureMutationStateVector'];
   onMutationTransaction?: CreatePreviewEditorRuntimeSetHostOptions['onMutationTransaction'];
   shouldShowAutolayoutInspector?: CreatePreviewEditorRuntimeSetHostOptions['shouldShowAutolayoutInspector'];
   editorState: {
@@ -318,6 +321,7 @@ export interface CreatePreviewEditorRuntimeSetFromEditorHostOptions {
   formatAsDefinedStyleLabel: (styleName: string | null | undefined, mixed?: boolean) => string;
   syncPanelVisibility?: CreatePreviewEditorRuntimeSetFromRuntimeOptions['syncPanelVisibility'];
   getMutationContext?: CreatePreviewEditorRuntimeSetFromRuntimeOptions['getMutationContext'];
+  captureMutationStateVector?: CreatePreviewEditorRuntimeSetFromRuntimeOptions['captureMutationStateVector'];
   onMutationTransaction?: CreatePreviewEditorRuntimeSetFromRuntimeOptions['onMutationTransaction'];
   shouldShowAutolayoutInspector?: CreatePreviewEditorRuntimeSetFromRuntimeOptions['shouldShowAutolayoutInspector'];
   editorState: CreatePreviewEditorRuntimeSetFromRuntimeOptions['editorState'];
@@ -395,6 +399,7 @@ export function createPreviewEditorRuntimeSetFromHost(
     renderMultiStyleOptions: options.renderMultiStyleOptions,
     syncPanelVisibility: options.syncPanelVisibility ?? null,
     getMutationContext: options.getMutationContext ?? null,
+    captureMutationStateVector: options.captureMutationStateVector ?? null,
     onMutationTransaction: options.onMutationTransaction ?? null,
     captureOverrideEntries: options.captureOverrideEntries,
     commitOverridePatchAction: options.commitOverridePatchAction,
@@ -472,6 +477,7 @@ export function createPreviewEditorRuntimeSetFromRuntime(
     renderMultiStyleOptions: options.renderMultiStyleOptions,
     syncPanelVisibility: options.syncPanelVisibility ?? null,
     getMutationContext: options.getMutationContext ?? null,
+    captureMutationStateVector: options.captureMutationStateVector ?? null,
     onMutationTransaction: options.onMutationTransaction ?? null,
     shouldShowAutolayoutInspector: options.shouldShowAutolayoutInspector ?? null,
     captureOverrideEntries: options.editorState.captureOverrideEntries,
@@ -552,6 +558,7 @@ export function createPreviewEditorRuntimeSetFromEditorHost(
     ),
     syncPanelVisibility: options.syncPanelVisibility ?? null,
     getMutationContext: options.getMutationContext ?? null,
+    captureMutationStateVector: options.captureMutationStateVector ?? null,
     onMutationTransaction: options.onMutationTransaction ?? null,
     shouldShowAutolayoutInspector: options.shouldShowAutolayoutInspector ?? null,
     editorState: options.editorState,
@@ -653,6 +660,7 @@ export function createPreviewEditorRuntimeSet(
     baselineStep: options.baselineStep,
     shouldShowAutolayoutInspector: options.shouldShowAutolayoutInspector ?? null,
     getMutationContext: options.getMutationContext ?? null,
+    captureMutationStateVector: options.captureMutationStateVector ?? null,
     onMutationTransaction: options.onMutationTransaction ?? null,
   });
 

@@ -48,6 +48,21 @@ function createFitSvgHarness() {
   };
 }
 
+function listSourceFiles(rootDir: string): string[] {
+  const files: string[] = [];
+  for (const entry of fs.readdirSync(rootDir, { withFileTypes: true })) {
+    const nextPath = path.join(rootDir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...listSourceFiles(nextPath));
+      continue;
+    }
+    if (entry.isFile() && nextPath.endsWith('.ts')) {
+      files.push(nextPath);
+    }
+  }
+  return files.sort();
+}
+
 describe('preview render node', () => {
   it('mounts a fitted stage and refreshes the scene', () => {
     const orderedCalls: string[] = [];
@@ -124,18 +139,16 @@ describe('preview render node', () => {
     expect(harness.backgroundAttributes.height).toBe(firstHeight);
   });
 
-  it('keeps stage replaceChildren ownership inside the render node for the migrated paths', () => {
+  it('keeps stage replaceChildren ownership inside the render node across preview-shell source', () => {
     const repoRoot = path.resolve(import.meta.dirname, '..');
-    const migratedOwners = [
-      path.join(repoRoot, 'src', 'preview-shell', 'app-load.ts'),
-      path.join(repoRoot, 'src', 'preview-shell', 'app-scene-host.ts'),
-      path.join(repoRoot, 'src', 'preview-shell', 'app-layout-bridge-runtime.ts'),
-    ];
+    const previewShellRoot = path.join(repoRoot, 'src', 'preview-shell');
+    const stageMountPattern = /\b(?:stage|options\.stage)\.replaceChildren\(/;
+    const offenders = listSourceFiles(previewShellRoot)
+      .filter((sourceFile) => !sourceFile.endsWith(path.join('preview-shell', 'preview-render-node.ts')))
+      .filter((sourceFile) => stageMountPattern.test(fs.readFileSync(sourceFile, 'utf8')))
+      .map((sourceFile) => path.relative(repoRoot, sourceFile).replace(/\\/g, '/'));
 
-    for (const sourceFile of migratedOwners) {
-      const source = fs.readFileSync(sourceFile, 'utf8');
-      expect(source).not.toContain('.replaceChildren(');
-    }
+    expect(offenders).toEqual([]);
 
     const renderNodeSource = fs.readFileSync(
       path.join(repoRoot, 'src', 'preview-shell', 'preview-render-node.ts'),
