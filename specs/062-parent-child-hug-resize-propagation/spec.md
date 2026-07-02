@@ -1,11 +1,31 @@
 # Spec 062: Parent/Child Hug Resize Propagation
 
 **Feature Branch**: `feat/062-parent-child-hug-resize-propagation`
-**Status**: Active
+**Status**: Closeout Ready
 **Created**: 2026-07-03
 **Priority**: Next in Opus execution order after spec 071
 **Context**: `docs/spec-reviews/inbox-triage.md` row 13 and
 `docs/spec-reviews/CLINE-VERDICT-2026-06-28.md`
+
+## Status Notes
+
+- 2026-07-03: `test-alignment-grid` was confirmed as the owning repro seam:
+  `container` starts authored with explicit `width`/`height`, `small_box`
+  starts authored `FIXED 192x64`, and the reported bug only appears after the
+  child is switched to `HUG` and the parent is then resized smaller.
+- 2026-07-03: the typed resize/render path now holds end-to-end. The inspector
+  mutation path still flows through `frame-prop-actions.ts` and
+  `app-inspector-mutation-runtime.ts`; live resize still flows through
+  `app-live-resize.ts` into relayout; `layout.ts` now recomputes constrained
+  `HUG` leaf width/height from the resized parent width instead of reusing the
+  stale authored fixed size; the remaining JS touchpoint stays a thin
+  compatibility handle renderer in `scripts/preview/editor-base.js`.
+- 2026-07-03: SC-001 through SC-005 are covered by repo-owned regressions in
+  `packages/layout-engine/tests/layout.test.ts`,
+  `packages/layout-engine/tests/app-fresh-render.test.ts`,
+  `apps/preview/src/persistence/frame-diagram.test.ts`, and
+  `apps/preview/src/persistence/editor-hug-resize-regression.test.ts`. Full
+  validation is recorded in [`evidence/validation-summary.md`](./evidence/validation-summary.md).
 
 ## Problem
 
