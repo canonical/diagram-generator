@@ -153,6 +153,28 @@ export {
   resolvePreviewRenderIntentLayoutEngine,
 } from './preview-render-intent.js';
 
+export type {
+  CreatePreviewSwitchNodeStateOptions,
+  PreviewSwitchNodeCookEntry,
+  PreviewSwitchNodeCookOptions,
+  PreviewSwitchNodeCookResult,
+  PreviewSwitchNodeState,
+  PreviewSwitchNodeWindowLike,
+} from './preview-switch-node.js';
+
+export {
+  commitPreviewSwitchNode,
+  commitPreviewSwitchNodeCook,
+  commitPreviewSwitchNodeLayoutEngine,
+  createPreviewSwitchNodeCookKey,
+  createPreviewSwitchNodeState,
+  markPreviewSwitchNodeDirty,
+  readPreviewSwitchNodeCook,
+  readPreviewSwitchNodeFrameTree,
+  runPreviewSwitchNodeCook,
+  selectPreviewSwitchNode,
+} from './preview-switch-node.js';
+
 export {
   createPreviewGridOverrides,
   isGridControlInputId,

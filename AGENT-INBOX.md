@@ -14,19 +14,23 @@ here — those belong in the relevant `specs/<id>-<slug>/` package.
 
 ## Handoff — 2026-07-02
 
-- **Branch / tree:** `feat/071-preview-render-node-graph`, HEAD `be96d32`. T021
-  (`9b08d21`), T022 (`69e68fc`), and the Phase 1 hardening slice T016/T017
-  (`be96d32`) are committed; tree clean.
-- **Adversarial reviews done:** both the Phase 1 render-node pass and the Phase 2
-  save/reload + isolation pass are complete. Full findings, verdicts, and the
-  validation transcript live in
-  `specs/071-preview-render-node-graph/evidence/adversarial-review.md`.
-  Bottom line: Phase 1 and T022 both hold against their written criteria (944
-  layout-engine + 155 preview tests green; the 4 chromium regressions run and
-  pass), so neither reopens. Four hardening/correctness follow-ups were found.
-- **Follow-ups queued in `tasks.md`:** remaining follow-ups are T023 (let a save
-  delete an emptied node bucket — currently resurrects on reload) and T024
-  (browser proof that non-active node buckets survive save→reload).
-- **Next:** either clear T023/T024 or start Phase 3 T030 (switch node); T023 and
-  the flat-alias collapse (P2-3) fold naturally into the Phase 3 work.
+- **Branch / tree:** `feat/071-preview-render-node-graph`. Committed checkpoints:
+  T021 `9b08d21`, T022 `69e68fc`, T016/T017 `be96d32`. Current working slice
+  implements Phase 3 T030/T031/T032 and updates the spec/handoff docs.
+- **Adversarial reviews done:** the earlier Opus review for Phases 1/2 remains in
+  `specs/071-preview-render-node-graph/evidence/adversarial-review.md`. A new
+  Codex Phase 3 review is in
+  `specs/071-preview-render-node-graph/evidence/phase-3-adversarial-review.md`.
+  Verdict: no reopen; residual notes are low-risk only (legacy helper export,
+  no cook-cache eviction).
+- **Validation completed on the current working slice:**
+  `npm --prefix packages/layout-engine test` → 156 files / 949 tests green.
+  `npm --prefix apps/preview test -- editor-live-repaint-regression` → full
+  preview suite green from the preview app, including the Chromium switch/isolation
+  regressions and the new return-to-layered `viewBox` determinism assertions.
+- **Still open in spec 071:** T023 (let save delete an emptied non-active node
+  bucket) and T024 (browser proof that non-active buckets survive save→reload),
+  then Phase 4 T040+ closeout work.
+- **Next:** commit the Phase 3 slice, then either clear T023/T024 or move to
+  Phase 4 onboarding/inventory closeout.
 

@@ -6,11 +6,14 @@ import {
   type PreviewEngineWorkspaceState,
 } from './preview-engine-workspace.js';
 import {
-  commitPreviewRenderIntentToWindow,
   resolvePreviewRenderIntentLayoutEngine,
   type PreviewRenderIntent,
   type PreviewRenderIntentFrameTree,
 } from './preview-render-intent.js';
+import {
+  commitPreviewSwitchNode,
+  commitPreviewSwitchNodeLayoutEngine,
+} from './preview-switch-node.js';
 import {
   compareEditorMutationStateVector,
   resolveEditorMutationTransaction,
@@ -104,7 +107,7 @@ function setRuntimeWorkspaceState(
   config.persisted_layout_engine = workspace.persistedEngineId;
   config.layout_engine = workspace.activeEngineId ?? workspace.persistedEngineId ?? null;
   previewWindow.__DG_CONFIG = config;
-  commitPreviewRenderIntentToWindow(previewWindow, {
+  commitPreviewSwitchNode(previewWindow, {
     activeEngineId: workspace.activeEngineId,
     persistedEngineId: workspace.persistedEngineId,
     fallbackEngineId: workspace.activeEngineId ?? workspace.persistedEngineId ?? null,
@@ -206,13 +209,9 @@ function commitFrameTreeLayoutEngine(
   previewWindow: PreviewEngineWorkspaceRuntimeWindow,
   layoutEngine: string | null | undefined,
 ): string | null {
-  const setter = previewWindow.setFrameTreeLayoutEngine
-    ?? previewWindow.__DG_previewBridgeHostRuntime?.setFrameTreeLayoutEngine
-    ?? null;
-  const committed = typeof setter === 'function' ? setter(layoutEngine) : null;
-  commitPreviewRenderIntentToWindow(previewWindow, {
+  const committed = commitPreviewSwitchNodeLayoutEngine(previewWindow, layoutEngine, {
     current: previewWindow.__DG_previewRenderIntent ?? null,
-    activeEngineId: committed,
+    persistedEngineId: previewWindow.__DG_CONFIG?.persisted_layout_engine ?? null,
   });
   return committed;
 }

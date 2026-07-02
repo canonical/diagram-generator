@@ -31,7 +31,7 @@ import {
   type LayoutOperatorOverrideState,
 } from './layout-operator-overrides.js';
 import { resolvePreviewEngine } from '../preview-engine/registry.js';
-import { commitPreviewRenderIntentToWindow } from './preview-render-intent.js';
+import { commitPreviewSwitchNode } from './preview-switch-node.js';
 
 export interface PreviewGridEditorRuntimeNumericState {
   get: () => number;
@@ -376,7 +376,7 @@ export function createPreviewGridEditorRuntimeFromBrowserHost(
         : null
     );
     const config = options.shared.previewWindow.__DG_CONFIG ?? {};
-    commitPreviewRenderIntentToWindow(options.shared.previewWindow, {
+    commitPreviewSwitchNode(options.shared.previewWindow, {
       activeEngineId: restoredFrameTree?.layoutEngine ?? null,
       frameTreeJson: restoredFrameTree,
       layoutEngine: restoredFrameTree?.layoutEngine ?? null,

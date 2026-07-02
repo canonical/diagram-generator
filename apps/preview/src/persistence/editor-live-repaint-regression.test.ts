@@ -731,6 +731,7 @@ test("engine-specific layout buckets stay isolated across layered, radial, and d
       const layeredControl = await firstVisibleLayoutControlForPrefix(page, "elk.layered.");
       await mutateLayoutControlAndKeepValue(page, layeredControl.id);
       const layeredState = await captureLayoutOperatorBrowserState(page);
+      const layeredViewBox = await fittedViewBox(page);
 
       assert.equal(layeredState.activeOperatorKey, "elk-layered");
       assert.equal(layeredState.renderIntentEngineId, "elk-layered");
@@ -751,10 +752,16 @@ test("engine-specific layout buckets stay isolated across layered, radial, and d
 
       await selectEngine(page, "elk-layered");
       const layeredReturnState = await captureLayoutOperatorBrowserState(page);
+      const layeredReturnViewBox = await fittedViewBox(page);
 
       assert.equal(layeredReturnState.activeOperatorKey, "elk-layered");
       assert.deepEqual(layeredReturnState.activeLayoutOverrides, layeredState.byOperator["elk-layered"] ?? {});
       assert.equal(layeredReturnState.activeLayoutOverrides[radialControl.key], undefined);
+      assert.equal(
+        layeredReturnViewBox,
+        layeredViewBox,
+        "returning to layered with unchanged layered params should preserve the fitted viewBox after radial detours",
+      );
 
       await selectEngine(page, "dagre");
       const dagreControl = await firstVisibleLayoutControlForPrefix(page, "dagre.");
@@ -772,10 +779,16 @@ test("engine-specific layout buckets stay isolated across layered, radial, and d
 
       await selectEngine(page, "elk-layered");
       const layeredAfterDagreState = await captureLayoutOperatorBrowserState(page);
+      const layeredAfterDagreViewBox = await fittedViewBox(page);
 
       assert.equal(layeredAfterDagreState.activeOperatorKey, "elk-layered");
       assert.deepEqual(layeredAfterDagreState.activeLayoutOverrides, layeredState.byOperator["elk-layered"] ?? {});
       assert.equal(layeredAfterDagreState.activeLayoutOverrides[dagreControl.key], undefined);
+      assert.equal(
+        layeredAfterDagreViewBox,
+        layeredViewBox,
+        "returning to layered with unchanged layered params should preserve the fitted viewBox after dagre detours",
+      );
     } finally {
       await page.close();
     }

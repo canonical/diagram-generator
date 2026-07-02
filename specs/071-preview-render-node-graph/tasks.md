@@ -178,23 +178,37 @@
 
 ## Phase 3 — Switch node + deterministic cook
 
-- [ ] **T030** Add `preview-switch-node.ts` as the sole writer of render intent;
+- [x] **T030** Add `preview-switch-node.ts` as the sole writer of render intent;
       replace all `commitPreviewRenderIntentToWindow` call sites with switch-node
       calls; the switch also commits `frameTreeJson.layoutEngine`.
       **Verify**: grep proves no direct `commitPreviewRenderIntentToWindow`
       outside the switch node; render node reads engine only from the switch.
       **Evidence**: `preview-switch-node.test.ts`; call-site grep in the spec.
+      Note: product call sites now route through `preview-switch-node.ts`,
+      including workspace chrome, grid install/runtime restore sync, and
+      layout-bridge runtime publication. Source grep now leaves
+      `commitPreviewRenderIntentToWindow` only as the legacy helper declaration
+      in `preview-render-intent.ts`.
 
-- [ ] **T031** Add the dirty/cook model; save/render cooks only the selected
+- [x] **T031** Add the dirty/cook model; save/render cooks only the selected
       branch then mounts via the render node.
       **Verify**: switching nodes recooks the selected node only; unselected
       nodes keep cached output.
       **Evidence**: cook-model unit tests.
+      Note: `preview-switch-node.ts` now owns per-node cook cache/dirty state,
+      `app-layout-bridge-runtime.ts` fingerprints cooks against the selected
+      node + source + override state, and the browser-host bridge reuses cached
+      cooked output when returning to a previously selected engine with
+      unchanged params.
 
-- [ ] **T032** Determinism proof.
+- [x] **T032** Determinism proof.
       **Verify**: identical (source, selected node, params) yields byte-identical
       fitted stage viewBox regardless of prior interaction order (extends T015).
       **Evidence**: real-gesture browser probe under `evidence/`.
+      Note: the repo-owned Chromium regression in
+      `apps/preview/src/persistence/editor-live-repaint-regression.test.ts`
+      now asserts that returning to `elk-layered` after radial and dagre detours
+      preserves the exact fitted `viewBox` when layered params are unchanged.
 
 ## Phase 4 — Registration-only onboarding + closeout
 

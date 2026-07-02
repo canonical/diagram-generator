@@ -25,10 +25,13 @@ import {
   readFrameYamlEngineLayoutNodeBuckets,
 } from './frame-yaml-engine-layout-contract.js';
 import {
-  commitPreviewRenderIntentToWindow,
   resolvePreviewRenderIntentLayoutEngine,
   type PreviewRenderIntent,
 } from './preview-render-intent.js';
+import {
+  commitPreviewSwitchNode,
+  commitPreviewSwitchNodeLayoutEngine,
+} from './preview-switch-node.js';
 import {
   syncPreviewPanelVisibilityFromContext,
 } from './app-shell-panels.js';
@@ -709,7 +712,7 @@ export function createPreviewGridEditorInstallOptionsFromLegacyEditorHost(
 ): CreatePreviewGridEditorInstallUnitFromEditorHostOptions {
   const boxStyles = resolveLegacyPreviewBoxStyles(options.previewWindow);
   const previewConfig = options.previewWindow.__DG_CONFIG ?? {};
-  commitPreviewRenderIntentToWindow(options.previewWindow, {
+  commitPreviewSwitchNode(options.previewWindow, {
     activeEngineId: previewConfig.active_engine_id
       ?? previewConfig.layout_engine
       ?? options.config.engine
@@ -1147,18 +1150,18 @@ export function createPreviewGridEditorInstallUnitFromBrowserHost(
     });
     try {
       if (activeLayoutEngine) {
-        const committedLayoutEngine = previewWindow.setFrameTreeLayoutEngine?.(
+        const committedLayoutEngine = commitPreviewSwitchNodeLayoutEngine(
+          previewWindow,
           activeLayoutEngine,
+          {
+            current: previewWindow.__DG_previewRenderIntent ?? null,
+            persistedEngineId: previewConfig?.persisted_layout_engine ?? null,
+            fallbackEngineId: options.shared.engine ?? null,
+          },
         );
         if (committedLayoutEngine !== activeLayoutEngine) {
           throw new Error(`Unable to commit preview layout engine '${activeLayoutEngine}' before render.`);
         }
-        commitPreviewRenderIntentToWindow(previewWindow, {
-          current: previewWindow.__DG_previewRenderIntent ?? null,
-          activeEngineId: committedLayoutEngine,
-          persistedEngineId: previewConfig?.persisted_layout_engine ?? null,
-          fallbackEngineId: options.shared.engine ?? null,
-        });
       }
       installActivePreviewEngineRuntime({
         document: options.shared.document,
