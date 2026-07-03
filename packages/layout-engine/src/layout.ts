@@ -693,16 +693,29 @@ function propagateWidthAndRemeasure(
     return;
   }
 
+  const previousMeasuredW = frame._layout.measuredW;
   frame._layout.resolvedW = resolvedW;
   const childWidths = resolveChildWidths(frame, resolvedW, adapter);
   for (let i = 0; i < frame.children.length; i++) {
     propagateWidthAndRemeasure(frame.children[i]!, childWidths[i]!, adapter);
   }
 
-  const { contentBasedW } = measureContainerFromMeasuredChildren(frame, isRoot);
-  frame._layout.measuredW = (frame.sizingW === Sizing.FIXED && frame.width != null)
-    ? roundUpToGrid(frame.width)
-    : contentBasedW;
+  if (frame.sizingW === Sizing.FIXED && frame.width != null) {
+    frame._layout.measuredW = roundUpToGrid(frame.width);
+    return;
+  }
+
+  if (isRoot) {
+    frame._layout.measuredW = roundUpToGrid(resolvedW);
+    return;
+  }
+
+  if (frame.sizingW !== Sizing.HUG || resolvedW >= previousMeasuredW) {
+    return;
+  }
+
+  const { contentBasedW } = measureContainerFromMeasuredChildren(frame, false);
+  frame._layout.measuredW = contentBasedW;
 }
 
 function propagateHeightChanges(frame: Frame, adapter: TextMeasureAdapter): void {
