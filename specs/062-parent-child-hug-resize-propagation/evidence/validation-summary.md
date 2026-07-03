@@ -36,17 +36,22 @@ Branch: `feat/062-parent-child-hug-resize-propagation`
 ## Validation
 
 - `npm --prefix packages/layout-engine exec vitest run tests/layout.test.ts`
+- `npm --prefix packages/layout-engine test`
+- `npm --prefix apps/preview test`
 - `node scripts/check_no_new_python.mjs`
 
-Passed for this review-fix slice:
+Passed on 2026-07-03 after installing the temp worktree dependencies:
 
 - `npm --prefix packages/layout-engine exec vitest run tests/layout.test.ts`
+- `npm --prefix packages/layout-engine test`
+- `npm --prefix apps/preview test`
 - `node scripts/check_no_new_python.mjs`
 
-Blocked in this temp worktree:
+Notes:
 
-- `npm test -- src/persistence/frame-diagram.test.ts` from `apps/preview/`
-  fails in `pretest` before the test body runs because this worktree does not
-  have the installed package links / `tsc` toolchain that the package script
-  expects. Re-run the owning `apps/preview` persistence suite in a fully
-  installed worktree before restoring `Closeout Ready`.
+- The SC-005 rerun exposed one additional renderer regression outside the
+  original nested-child review finding: constrained remeasurement was
+  collapsing unconstrained root/top-level `HUG` widths, which broke the
+  `test-box-styles` SVG golden. `layout.ts` now preserves the requested root
+  width and only refreshes non-leaf `HUG` widths when the frame was actually
+  tightened.

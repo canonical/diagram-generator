@@ -1,7 +1,7 @@
 # Spec 062: Parent/Child Hug Resize Propagation
 
 **Feature Branch**: `feat/062-parent-child-hug-resize-propagation`
-**Status**: Active — adversarial review reopened 2026-07-03
+**Status**: Closeout Ready — review hardening revalidated 2026-07-03
 **Created**: 2026-07-03
 **Priority**: Next in Opus execution order after spec 071
 **Context**: `docs/spec-reviews/inbox-triage.md` row 13 and
@@ -28,9 +28,13 @@
   `small_box` path on `test-alignment-grid` and a nested `HUG` container child
   round-trip in `packages/layout-engine/tests/layout.test.ts` and
   `apps/preview/src/persistence/frame-diagram.test.ts`.
-- 2026-07-03 the package remains `Active`: the reopened review fix supersedes
-  the earlier full validation run, so the full SC-005 battery still needs to be
-  rerun in a fully installed worktree before restoring `Closeout Ready`.
+- 2026-07-03 the full SC-005 battery was rerun in an installed worktree. That
+  rerun exposed and fixed one additional regression: constrained remeasurement
+  was collapsing unconstrained root/top-level `HUG` widths in
+  `test-box-styles`, so `layout.ts` now only refreshes container `measuredW`
+  when the frame was actually tightened while still preserving the requested
+  root width used for placement. With that fix landed, the package is back to
+  `Closeout Ready`.
 
 ## Problem
 

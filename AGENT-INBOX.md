@@ -16,21 +16,19 @@ here — those belong in the relevant `specs/<id>-<slug>/` package.
 
 - **Branch / tree:** `feat/062-parent-child-hug-resize-propagation`.
 - **Queue status:** `TODO.md` now reflects the remaining Opus order after spec
-  071 closeout: 062, then 063, then 061, then 064. `docs/specs.md` marks spec
-  071 **Closeout Ready** and spec 062 **Active**.
-- **Current slice:** the 2026-07-03 adversarial-review follow-up is landed.
-  `layout.ts` now refreshes non-leaf `HUG` `measuredW` during constrained
-  remeasurement, and repo-owned regressions now cover both the original
-  `test-alignment-grid` leaf path and a nested `HUG` container child round-trip.
+  071 closeout: 062, then 063, then 061, then 064. `docs/specs.md` now marks
+  specs 071 and 062 **Closeout Ready**.
+- **Current slice:** the 2026-07-03 adversarial-review follow-up and SC-005
+  closeout rerun are complete. `layout.ts` now refreshes nested non-leaf `HUG`
+  widths only when a frame was actually tightened and preserves the requested
+  root width used for placement, which fixed the follow-on `test-box-styles`
+  golden regression uncovered during the full rerun.
 - **Validation in this slice:** `npm --prefix packages/layout-engine exec vitest
-  run tests/layout.test.ts` and `node scripts/check_no_new_python.mjs` passed.
-  `apps/preview` package tests still need rerun in a fully installed worktree;
-  `npm test -- src/persistence/frame-diagram.test.ts` currently fails in
-  `pretest` here because the temp worktree lacks the expected installed package
-  links / `tsc` toolchain.
-- **Next:** rerun the owning `apps/preview` persistence suite plus the full
-  SC-005 battery in a fully installed worktree before restoring spec 062 to
-  `Closeout Ready`.
+  run tests/layout.test.ts`, `npm --prefix packages/layout-engine test`,
+  `npm --prefix apps/preview test`, and
+  `node scripts/check_no_new_python.mjs` passed.
+- **Next:** move to the next queue item in `TODO.md` (`spec 063`) unless the
+  user asks for more 062 work.
 
 ---
 
@@ -234,7 +232,8 @@ reading the tree held up.
   now include a nested `HUG` container child round-trip in
   `packages/layout-engine/tests/layout.test.ts` and
   `apps/preview/src/persistence/frame-diagram.test.ts`.
-- **Remaining note:** spec 062 stays `Active` until the owning `apps/preview`
-  persistence suite and the full SC-005 validation battery are rerun in a fully
-  installed worktree.
+- **Closeout rerun resolved:** the owning `apps/preview` persistence suite and
+  the full SC-005 validation battery were rerun successfully in this worktree.
+  That rerun also caught and fixed a top-level `HUG` width regression in
+  `test-box-styles`, so spec 062 is back to `Closeout Ready`.
 

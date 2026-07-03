@@ -55,5 +55,5 @@
       spec status or handoff state materially changes.
 - [x] T035 Run targeted validation for the reopened review slice on the owning
       layout and save-path seams.
-- [ ] T036 Re-run the full SC-005 validation battery in a fully installed
+- [x] T036 Re-run the full SC-005 validation battery in a fully installed
       worktree before restoring `Closeout Ready`.
