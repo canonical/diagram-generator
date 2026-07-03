@@ -27,19 +27,15 @@ next**, trust this file.
 
 ## Next spec to tackle (priority order)
 
-Spec 071 is now complete on `feat/071-preview-render-node-graph`. Keep the
+Specs 071 and 062 are now complete on their feature branches. Keep the
 remaining post-071 queue in the exact Opus order:
 
-1. **Spec 062 — parent/child hug resize propagation.** Localized
-   correctness bug: resizing a hug parent must reflow hug children, and default
-   child sizing should be authorable away from fixed when that is the intended
-   contract.
-2. **Spec 063 — auto-style by nesting depth.** Localized correctness
+1. **Spec 063 — auto-style by nesting depth.** Localized correctness
    bug ("change a leaf box role → no visual change until a top-level node
    changes"). 063 should adopt the Spec 071 dirty-propagation contract rather
    than adding another ad-hoc relayout trigger.
-3. **Spec 061 — grid regression investigation.**
-4. **Spec 064 — arrow annotation label de-overlap.**
+2. **Spec 061 — grid regression investigation.**
+3. **Spec 064 — arrow annotation label de-overlap.**
 
 The `defineGraphLayoutPreviewEngine` factory + per-engine `engines/*.engine.ts`
 substrate is already in place (decentralized `registerPreviewEngine`, no central
