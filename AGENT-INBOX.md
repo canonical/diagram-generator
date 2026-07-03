@@ -32,29 +32,145 @@ here — those belong in the relevant `specs/<id>-<slug>/` package.
 
 ---
 
-## Adversarial review prompt — post-spec-062 closeout
+## Adversarial review — post-spec-062 closeout (2026-07-03)
 
-Use this for the **next** adversarial review pass.
+Reviewer: Opus, branch `feat/062-parent-child-hug-resize-propagation`. Scope:
+every commit reachable from HEAD since baseline `ae5521c`, namely `a2d7923`,
+`b27a481`, `efde5b1`, `d4f7015`, `d5e7f44`. Method: `git diff` of the fix
+commits, source/test reads of `layout.ts` and the added regressions, doc
+cross-check, and a **fresh local re-run** of the full SC-005 battery (not a
+paper claim).
+
+**Verdict: no reopen. Spec 062 is genuinely Closeout Ready.** The nested
+non-leaf `HUG` fix is real, proven at the geometry level (not wiring), and the
+golden SVG suite passing is strong evidence it is not overfit. Findings below
+are all low severity: doc-alignment drift and coverage-shape notes, none of
+which block closeout.
+
+### Validation re-run (independent, this session)
+
+Green is real, not asserted:
+
+- `npm --prefix packages/layout-engine exec vitest run tests/layout.test.ts` —
+  76/76 pass.
+- `npm --prefix packages/layout-engine test` — 157 files, **958/958** pass.
+- `npm --prefix apps/preview test` — **159/159** pass.
+- `node scripts/check_no_new_python.mjs` — ok, no new product-path Python.
+
+The `test-box-styles` golden that the rerun-fix protects is inside the passing
+layout-engine suite, so the "not overfit" claim in concern #3 is backed by a
+live golden pass, not just by the targeted tests.
+
+### Findings (severity order)
+
+- **F1 (low, doc drift) — `TODO.md` still lists spec 062 as the next spec to
+  tackle.** [TODO.md](TODO.md) "Next spec to tackle" enumerates `1. Spec 062`
+  first, but 062 is now Closeout Ready and this inbox's prior handoff says "the
+  remaining work queue starts at `spec 063`." A reader following `TODO.md`
+  literally would re-open finished work. `docs/specs.md`, `AGENTS.md`, and the
+  spec package all correctly say Closeout Ready; only `TODO.md`'s ordered list
+  is stale. Fix: drop 062 from the numbered queue (or mark it done) so 063 is
+  item #1.
+
+- **F2 (low, coverage shape) — the nested-container fix has no browser proof;
+  only the pre-baseline leaf `small_box` path does.** SC-003's real-browser
+  proof (`apps/preview/src/persistence/editor-hug-resize-regression.test.ts`)
+  and the fixture fresh-render proof (`app-fresh-render.test.ts`) both landed in
+  the pre-baseline commit `a94bab0`. The actual subject of this review — the
+  nested non-leaf `HUG` container recompute in `a2d7923`/`b27a481` — is proven
+  only by a layout unit test and a persist→reload test. Both assert real
+  geometry (`placedW < 192`, child within parent bounds, leaf within container),
+  so this is behavior coverage, not wiring coverage, and is acceptable. Note it
+  only so a future engine-onboarding change knows the nested path is unit +
+  persist guarded, not browser guarded.
+
+- **F3 (low, spec text vs implementation) — "root/top-level" preservation is
+  really only a root branch plus the `>=` guard.** The validation summary and
+  spec status say constrained remeasurement "was collapsing unconstrained
+  root/top-level `HUG` widths." The code only adds an explicit `isRoot` branch
+  in `propagateWidthAndRemeasure`
+  ([layout.ts](packages/layout-engine/src/layout.ts#L697-L714)); a *top-level*
+  (non-root) `HUG` child is preserved incidentally because its `resolvedW`
+  equals its `previousMeasuredW`, so the `resolvedW >= previousMeasuredW` guard
+  returns before recompute. Behaviorally correct and suite-proven, but the prose
+  overstates a dedicated top-level path that does not exist. Cosmetic.
+
+- **F4 (low, axis asymmetry) — the fix and its tests are width-only.** FR-002
+  and US1 mention "width/height," but the new recompute and every new assertion
+  target width (`placedW`). This is defensible: width propagates top-down (the
+  genuinely hard axis), while `HUG` height is summed bottom-up by
+  `propagateHeightChanges` + `measure`, so a shrinking parent's `HUG` container
+  height reflows naturally. No height regression is likely, but there is no
+  explicit test pinning nested `HUG` height reflow. Leave as a known coverage
+  edge, not a bug.
+
+### Non-findings verified (did not hold up as problems)
+
+- **Fix location vs spec "Likely Owners":** the change lives entirely in
+  `layout.ts`, not the predicted resize-interaction files. This is a strength,
+  not drift — fixing the shared measure/remeasure contract makes live-resize,
+  persist, and fresh-render agree by construction. The spec status notes call
+  this out honestly.
+- **Legacy-JS ownership growth:** none. The diff touches `layout.ts` (TS),
+  tests, and docs only. `editor-base.js` stays a thin handle renderer. No
+  spec-046 regression.
+- **Overfit risk:** the `test-box-styles` golden regression was found *by* the
+  full rerun and fixed in `b27a481`; the whole 958-test suite (including golden
+  parity) is green, which is exactly the guard that would catch an overfit
+  width hack.
+- **Overnight-log "green":** taken as diagnostic only. The err log shows a
+  Windows worktree-cleanup error (`failed to delete ... Function not
+  implemented`) that is filesystem noise, not a test failure. Real closeout
+  rests on the manual reinstall rerun plus my independent rerun above, not on
+  the agent-loop log.
+
+### Open questions / assumptions
+
+- I did not exercise a live Chromium drag for the nested-container case (F2);
+  the leaf browser proof plus nested unit + persist proofs are treated as
+  sufficient for closeout.
+- Assumed `resolvedW < previousMeasuredW` is the only tightening path that can
+  strand a stale `HUG` container width during pass 1.5. The passing golden and
+  coercion-lifecycle suites support this, but it was not exhaustively proven for
+  min-width-constrained children (where `contentBasedW` could exceed
+  `resolvedW`); that is a theoretical internal-field edge, not an observed
+  placement bug.
+
+### Recommended action
+
+Only F1 warrants an edit before moving on: prune spec 062 from the `TODO.md`
+numbered queue so 063 is the literal next item. F2–F4 are notes for the next
+engine-breadth author, not closeout blockers.
+
+---
+
+## Adversarial review prompt — next pass after spec 062
+
+Use this for the next adversarial review after additional work lands on top of
+`feat/062-parent-child-hug-resize-propagation` or when the next queue item is
+ready for audit.
 
 ```text
 Adversarial review request.
 
-Scope: review everything landed since the last recorded spec 062 adversarial
-review, with the main goal of confirming that spec 062 is genuinely
-closeout-ready and that the queue/docs remain aligned after the overnight run.
+Scope: review everything landed after the completed spec 062 closeout review.
+Treat the current 2026-07-03 Opus review in AGENT-INBOX.md as the baseline, and
+focus on whether later work regresses the now-Closeout-Ready 062 behavior or
+misstates the next queue item.
 
 Repository: diagram-generator
-Primary branch: feat/062-parent-child-hug-resize-propagation
+Current branch at review time: <fill in actual branch>
 
-Baseline:
-- Last recorded spec 062 adversarial review commit: ae5521c
-  (docs(062): record adversarial review reopen)
+Baseline review to trust:
+- AGENT-INBOX.md section "Adversarial review — post-spec-062 closeout (2026-07-03)"
+- Commit-level baseline for spec 062 closeout state: d4f7015
+  (`docs(062): clear stale review queue state`)
 
-Audit every later commit now reachable from HEAD, especially:
-- a2d7923 fix(062): recompute nested hug container widths
-- b27a481 fix(062): preserve unconstrained hug widths during remeasure
-- efde5b1 docs(062): record closeout rerun status
-- d4f7015 docs(062): clear stale review queue state
+Audit:
+1. Review every commit reachable from HEAD after `d4f7015`.
+2. If the branch is no longer `feat/062-parent-child-hug-resize-propagation`,
+   still check whether any later change regresses spec 062's hug-resize
+   contract, queue alignment, or closeout claims.
 
 Required sources:
 - TODO.md
@@ -62,22 +178,19 @@ Required sources:
 - AGENTS.md
 - AGENT-INBOX.md
 - specs/062-parent-child-hug-resize-propagation/
-- tmp/overnight-spec-062-20260703-002159.log
-- tmp/overnight-spec-062-20260703-002159.err.log
-- any tests/evidence files touched by the commits above
+- any new spec package that is now next in the queue
+- any new overnight logs or evidence files produced since the 2026-07-03 review
 
 Review goals:
-1. Verify spec 062 really satisfies its written contract, not just the
-   leaf-only `small_box` path.
-2. Prioritize correctness bugs, regressions, missing browser proof, missing
-   persist->reload proof, or tests that only prove wiring instead of the
-   user-visible hug-resize behavior.
-3. Confirm the nested non-leaf `HUG` fix is not overfit and does not reopen
-   width/placement regressions elsewhere.
-4. Check that TODO/docs/specs/AGENTS/AGENT-INBOX agree on queue order and spec
-   status after the 062 closeout run.
-5. Treat stale closeout text, fake green validation, and legacy-JS ownership
-   growth as findings even if tests pass.
+1. Verify no later change reopens spec 062's parent/child hug resize bug,
+   especially the nested non-leaf `HUG` width path.
+2. Prioritize correctness bugs, missing browser proof, missing persist->reload
+   proof, queue/catalog drift, stale closeout text, or tests that only prove
+   wiring instead of user-visible behavior.
+3. Check that TODO.md remains in Opus's exact order and does not keep completed
+   specs at the top of the queue.
+4. Treat legacy-JS ownership growth, fake green validation, and evidence drift
+   as findings even if the suite is green.
 
 Output format:
 - Findings first, ordered by severity, with file/line references.
@@ -85,8 +198,8 @@ Output format:
 - Then a short change summary only if needed.
 
 Important:
-- Do not re-review pre-ae5521c history unless a later commit appears to regress
-  it.
+- Do not re-review pre-`d4f7015` history unless a later commit appears to
+  regress it.
 - Assume tests can be wrong. If the visible contract is not truly proven, mark
   that as a finding.
 ```
