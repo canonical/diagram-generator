@@ -32,6 +32,67 @@ here — those belong in the relevant `specs/<id>-<slug>/` package.
 
 ---
 
+## Adversarial review prompt — post-spec-062 closeout
+
+Use this for the **next** adversarial review pass.
+
+```text
+Adversarial review request.
+
+Scope: review everything landed since the last recorded spec 062 adversarial
+review, with the main goal of confirming that spec 062 is genuinely
+closeout-ready and that the queue/docs remain aligned after the overnight run.
+
+Repository: diagram-generator
+Primary branch: feat/062-parent-child-hug-resize-propagation
+
+Baseline:
+- Last recorded spec 062 adversarial review commit: ae5521c
+  (docs(062): record adversarial review reopen)
+
+Audit every later commit now reachable from HEAD, especially:
+- a2d7923 fix(062): recompute nested hug container widths
+- b27a481 fix(062): preserve unconstrained hug widths during remeasure
+- efde5b1 docs(062): record closeout rerun status
+- d4f7015 docs(062): clear stale review queue state
+
+Required sources:
+- TODO.md
+- docs/specs.md
+- AGENTS.md
+- AGENT-INBOX.md
+- specs/062-parent-child-hug-resize-propagation/
+- tmp/overnight-spec-062-20260703-002159.log
+- tmp/overnight-spec-062-20260703-002159.err.log
+- any tests/evidence files touched by the commits above
+
+Review goals:
+1. Verify spec 062 really satisfies its written contract, not just the
+   leaf-only `small_box` path.
+2. Prioritize correctness bugs, regressions, missing browser proof, missing
+   persist->reload proof, or tests that only prove wiring instead of the
+   user-visible hug-resize behavior.
+3. Confirm the nested non-leaf `HUG` fix is not overfit and does not reopen
+   width/placement regressions elsewhere.
+4. Check that TODO/docs/specs/AGENTS/AGENT-INBOX agree on queue order and spec
+   status after the 062 closeout run.
+5. Treat stale closeout text, fake green validation, and legacy-JS ownership
+   growth as findings even if tests pass.
+
+Output format:
+- Findings first, ordered by severity, with file/line references.
+- Then open questions / assumptions.
+- Then a short change summary only if needed.
+
+Important:
+- Do not re-review pre-ae5521c history unless a later commit appears to regress
+  it.
+- Assume tests can be wrong. If the visible contract is not truly proven, mark
+  that as a finding.
+```
+
+---
+
 ## Handoff — 2026-07-02
 
 - **Branch / tree:** `feat/071-preview-render-node-graph`.
