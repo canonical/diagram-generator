@@ -19,14 +19,15 @@ Branch: `feat/062-parent-child-hug-resize-propagation`
 ## Landed Coverage
 
 - `packages/layout-engine/tests/layout.test.ts`
-  proves `HUG` children shrink under a narrower parent and `FIXED` children do
-  not silently adopt `HUG` semantics.
+  proves both leaf and nested-container `HUG` children shrink under a narrower
+  parent and `FIXED` children do not silently adopt `HUG` semantics.
 - `packages/layout-engine/tests/app-fresh-render.test.ts`
   proves the real `test-alignment-grid` fixture reflows correctly after an
   inspector-style `HUG` mutation plus a smaller parent width override.
 - `apps/preview/src/persistence/frame-diagram.test.ts`
-  proves `persist -> reload` preserves the `HUG` child sizing mode and the
-  propagated smaller-parent fit.
+  proves `persist -> reload` preserves both the `test-alignment-grid` `HUG`
+  child sizing mode and a nested `HUG` container child's propagated
+  smaller-parent fit.
 - `apps/preview/src/persistence/editor-hug-resize-regression.test.ts`
   provides a real-browser proof that switches `small_box` to `HUG`, drags the
   `container` resize handle smaller, and verifies the child shrinks while
@@ -34,13 +35,18 @@ Branch: `feat/062-parent-child-hug-resize-propagation`
 
 ## Validation
 
-- `npm --prefix packages/layout-engine exec vitest run tests/layout.test.ts tests/app-fresh-render.test.ts`
-- `node node_modules/tsx/dist/cli.mjs --test src/persistence/frame-diagram.test.ts`
-  from `apps/preview/`
-- `node node_modules/tsx/dist/cli.mjs --test src/persistence/editor-hug-resize-regression.test.ts`
-  from `apps/preview/`
-- `npm --prefix packages/layout-engine test`
-- `npm --prefix apps/preview test`
+- `npm --prefix packages/layout-engine exec vitest run tests/layout.test.ts`
 - `node scripts/check_no_new_python.mjs`
 
-All commands passed.
+Passed for this review-fix slice:
+
+- `npm --prefix packages/layout-engine exec vitest run tests/layout.test.ts`
+- `node scripts/check_no_new_python.mjs`
+
+Blocked in this temp worktree:
+
+- `npm test -- src/persistence/frame-diagram.test.ts` from `apps/preview/`
+  fails in `pretest` before the test body runs because this worktree does not
+  have the installed package links / `tsc` toolchain that the package script
+  expects. Re-run the owning `apps/preview` persistence suite in a fully
+  installed worktree before restoring `Closeout Ready`.

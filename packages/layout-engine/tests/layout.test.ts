@@ -818,6 +818,51 @@ describe('coercion lifecycle', () => {
     expect(child._layout.placedW).toBeLessThanOrEqual(144);
   });
 
+  it('recomputes a nested HUG container child width after the parent shrinks', () => {
+    const innerLeaf = new Frame({
+      id: 'inner-leaf',
+      sizingW: Sizing.HUG,
+      sizingH: Sizing.HUG,
+      width: 192,
+      height: 64,
+      label: [createLine('Small box change alignment')],
+      border: Border.SOLID,
+      fill: Fill.WHITE,
+      level: 1,
+    });
+    const child = new Frame({
+      id: 'child',
+      direction: Direction.VERTICAL,
+      sizingW: Sizing.HUG,
+      sizingH: Sizing.HUG,
+      padding: 8,
+      border: Border.SOLID,
+      children: [innerLeaf],
+    });
+    const parent = new Frame({
+      id: 'parent',
+      direction: Direction.VERTICAL,
+      sizingW: Sizing.FIXED,
+      sizingH: Sizing.FIXED,
+      width: 160,
+      height: 240,
+      padding: 8,
+      border: Border.SOLID,
+      children: [child],
+    });
+
+    layoutFrameTree(parent, adapter);
+
+    expect(child._layout.placedW).toBeLessThan(192);
+    expect(child._layout.placedW).toBeLessThanOrEqual(144);
+    expect(child._layout.placedX + child._layout.placedW).toBeLessThanOrEqual(
+      parent._layout.placedX + parent._layout.placedW,
+    );
+    expect(innerLeaf._layout.placedX + innerLeaf._layout.placedW).toBeLessThanOrEqual(
+      child._layout.placedX + child._layout.placedW,
+    );
+  });
+
   it('preserves FIXED child sizing when the parent shrinks', () => {
     const child = new Frame({
       id: 'child',

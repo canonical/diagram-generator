@@ -484,6 +484,22 @@ export function measure(frame: Frame, adapter: TextMeasureAdapter, isRoot = fals
     measure(child, adapter);
   }
 
+  const { contentBasedW, contentBasedH } = measureContainerFromMeasuredChildren(frame, isRoot);
+
+  // Per-axis sizing for containers
+  frame._layout.measuredW = (frame.sizingW === Sizing.FIXED && frame.width != null)
+    ? roundUpToGrid(frame.width)
+    : contentBasedW;
+
+  frame._layout.measuredH = (frame.sizingH === Sizing.FIXED && frame.height != null)
+    ? roundUpToGrid(frame.height)
+    : contentBasedH;
+}
+
+function measureContainerFromMeasuredChildren(
+  frame: Frame,
+  isRoot = false,
+): { contentBasedW: number; contentBasedH: number } {
   // Only auto (in-flow) children contribute to parent's content size
   const autoChildren = frame.children.filter(c => c.positionType !== 'ABSOLUTE');
 
@@ -537,14 +553,7 @@ export function measure(frame: Frame, adapter: TextMeasureAdapter, isRoot = fals
   const contentBasedW = roundUpToGrid(contentW + padH);
   const contentBasedH = roundUpToGrid(contentH + padV);
 
-  // Per-axis sizing for containers
-  frame._layout.measuredW = (frame.sizingW === Sizing.FIXED && frame.width != null)
-    ? roundUpToGrid(frame.width)
-    : contentBasedW;
-
-  frame._layout.measuredH = (frame.sizingH === Sizing.FIXED && frame.height != null)
-    ? roundUpToGrid(frame.height)
-    : contentBasedH;
+  return { contentBasedW, contentBasedH };
 }
 
 
@@ -653,7 +662,12 @@ function resolveChildWidths(frame: Frame, frameW: number, adapter: TextMeasureAd
   }
 }
 
-function propagateWidthAndRemeasure(frame: Frame, resolvedW: number, adapter: TextMeasureAdapter): void {
+function propagateWidthAndRemeasure(
+  frame: Frame,
+  resolvedW: number,
+  adapter: TextMeasureAdapter,
+  isRoot = false,
+): void {
   if (frame.isLeaf) {
     const [newW, newH] = leafNaturalSize(frame, adapter, resolvedW);
 
@@ -684,6 +698,11 @@ function propagateWidthAndRemeasure(frame: Frame, resolvedW: number, adapter: Te
   for (let i = 0; i < frame.children.length; i++) {
     propagateWidthAndRemeasure(frame.children[i]!, childWidths[i]!, adapter);
   }
+
+  const { contentBasedW } = measureContainerFromMeasuredChildren(frame, isRoot);
+  frame._layout.measuredW = (frame.sizingW === Sizing.FIXED && frame.width != null)
+    ? roundUpToGrid(frame.width)
+    : contentBasedW;
 }
 
 function propagateHeightChanges(frame: Frame, adapter: TextMeasureAdapter): void {
@@ -773,7 +792,7 @@ export function remeasureWithWidthConstraints(
   adapter: TextMeasureAdapter,
   coerced?: Map<string, CoercedOverride>,
 ): void {
-  propagateWidthAndRemeasure(root, rootW, adapter);
+  propagateWidthAndRemeasure(root, rootW, adapter, true);
   propagateHeightChanges(root, adapter);
   refreshCoercedHeights(root, adapter, coerced ?? new Map());
 }

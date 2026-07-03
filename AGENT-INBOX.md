@@ -18,16 +18,19 @@ here — those belong in the relevant `specs/<id>-<slug>/` package.
 - **Queue status:** `TODO.md` now reflects the remaining Opus order after spec
   071 closeout: 062, then 063, then 061, then 064. `docs/specs.md` marks spec
   071 **Closeout Ready** and spec 062 **Active**.
-- **Current slice:** spec 062 was drafted as its own package under
-  `specs/062-parent-child-hug-resize-propagation/` from the existing Opus
-  triage notes. It explicitly owns the `test-alignment-grid` parent/child hug
-  resize contract and keeps that work separate from residual 048/065/063 scope.
-- **Overnight run:** SpecKit is running on spec 062 only with `-MaxSpecs 1`.
-  Logs:
-  `tmp/overnight-spec-062-20260703-002159.log` and
-  `tmp/overnight-spec-062-20260703-002159.err.log`.
-- **Next:** let the 062 overnight run finish, then use the adversarial-review
-  prompt below against everything landed since the last recorded review pass.
+- **Current slice:** the 2026-07-03 adversarial-review follow-up is landed.
+  `layout.ts` now refreshes non-leaf `HUG` `measuredW` during constrained
+  remeasurement, and repo-owned regressions now cover both the original
+  `test-alignment-grid` leaf path and a nested `HUG` container child round-trip.
+- **Validation in this slice:** `npm --prefix packages/layout-engine exec vitest
+  run tests/layout.test.ts` and `node scripts/check_no_new_python.mjs` passed.
+  `apps/preview` package tests still need rerun in a fully installed worktree;
+  `npm test -- src/persistence/frame-diagram.test.ts` currently fails in
+  `pretest` here because the temp worktree lacks the expected installed package
+  links / `tsc` toolchain.
+- **Next:** rerun the owning `apps/preview` persistence suite plus the full
+  SC-005 battery in a fully installed worktree before restoring spec 062 to
+  `Closeout Ready`.
 
 ---
 
@@ -220,52 +223,18 @@ reading the tree held up.
 
 ---
 
-## Adversarial review — 2026-07-03 (spec 062)
+## Resolved spec 062 adversarial review follow-up — 2026-07-03
 
-Reviewer: Codex adversarial pass, branch `feat/062-parent-child-hug-resize-propagation`.
-Scope: commits `83c398d..c2eef32`, with targeted runtime verification against the
-landed `layout.ts` resize propagation change.
-
-### Findings
-
-- **H-1 (high) — spec 062 still fails for `HUG` children that are containers, not leaves.**
-  `resolveChildWidths(...)` now clamps vertical non-fixed child widths to the
-  resized parent cross-axis width (`packages/layout-engine/src/layout.ts:647`),
-  but `propagateWidthAndRemeasure(...)` only updates `_layout.measuredW` on leaf
-  frames (`packages/layout-engine/src/layout.ts:656-679`). Non-leaf `HUG`
-  children only receive `_layout.resolvedW` (`packages/layout-engine/src/layout.ts:682`)
-  and keep their stale wider `measuredW`, which `place(...)` later reuses for
-  `HUG` width placement (`packages/layout-engine/src/layout.ts:806`,
-  `packages/layout-engine/src/layout.ts:998`). Repro on the current branch with a
-  minimal nested tree:
-  fixed-width vertical parent (`width: 160`) -> `HUG` container child ->
-  `HUG` leaf with stale authored `width: 192`. Result after `layoutFrameTree(...)`:
-  parent placed width `160`, inner leaf placed width `120`, but the `HUG`
-  container child still places at `208`, overflowing the resized parent. This
-  violates FR-002's generic "child set to `HUG`" contract and means spec 062 is
-  not actually closeout-ready yet.
-
-- **M-1 (medium) — the closeout evidence overclaims coverage and is why H-1 slipped through.**
-  The added regressions only exercise the leaf `small_box` case:
-  `packages/layout-engine/tests/layout.test.ts:791-849`,
-  `packages/layout-engine/tests/app-fresh-render.test.ts:326-361`,
-  `apps/preview/src/persistence/frame-diagram.test.ts:1258-1288`, and
-  `apps/preview/src/persistence/editor-hug-resize-regression.test.ts:156-189`.
-  Despite that, the current closeout text states that "`HUG` children shrink"
-  and that `test-alignment-grid` now proves the "full contract"
-  (`specs/062-parent-child-hug-resize-propagation/evidence/validation-summary.md:21-33`,
-  `docs/specs.md` spec 062 row, `specs/062-parent-child-hug-resize-propagation/spec.md:4`).
-  The implementation and tests prove a narrowed leaf-child contract, not the
-  spec's broader parent/child `HUG` propagation claim. At minimum, spec 062
-  needs one repo-owned regression where the resized `HUG` child is itself a
-  container before it can return to `Closeout Ready`.
-
-### Open questions / assumptions
-
-- I assumed FR-002 / SC-001 are intentionally generic and apply to any child
-  frame, not just leaf boxes. If 062 was meant to be leaf-only, the spec and
-  status docs need to narrow that wording explicitly before claiming closeout.
-- I did not execute the full package/app test suites again in this review pass.
-  The new high-severity finding was validated with targeted source reads plus a
-  local `tsx` runtime repro against the checked-out branch.
+- **H-1 resolved:** `packages/layout-engine/src/layout.ts` now recomputes
+  non-leaf `HUG` `measuredW` from constrained child measurements, so nested
+  `HUG` container children no longer keep stale width under a smaller fixed
+  parent.
+- **M-1 resolved:** the closeout text/evidence no longer overclaims the
+  leaf-only `small_box` path as the full contract, and repo-owned regressions
+  now include a nested `HUG` container child round-trip in
+  `packages/layout-engine/tests/layout.test.ts` and
+  `apps/preview/src/persistence/frame-diagram.test.ts`.
+- **Remaining note:** spec 062 stays `Active` until the owning `apps/preview`
+  persistence suite and the full SC-005 validation battery are rerun in a fully
+  installed worktree.
 

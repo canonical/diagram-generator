@@ -26,6 +26,9 @@
 - [x] T013 Keep the implementation TypeScript-first; if the legacy preview model
       must be touched, reduce it to delegation/compatibility rather than new
       ownership.
+- [x] T014 Extend constrained remeasurement so nested non-leaf `HUG` children
+      refresh `measuredW` from reflowed descendants instead of keeping stale
+      container widths under a smaller parent.
 
 ## Phase 3: Save, Reload, And Browser Proof
 
@@ -37,6 +40,9 @@
       shrinks and stays within the parent bounds.
 - [x] T022 Record the proof in spec-local evidence without screenshots unless
       they are explicitly required later.
+- [x] T023 Add a repo-owned regression for a nested `HUG` container child so
+      spec 062 no longer overclaims the leaf-only `small_box` proof as the full
+      parent/child propagation contract.
 
 ## Phase 4: Validation And Handoff
 
@@ -47,3 +53,7 @@
 - [x] T033 Run `node scripts/check_no_new_python.mjs`.
 - [x] T034 Update `docs/specs.md`, `AGENT-INBOX.md`, and `AGENTS.md` only if the
       spec status or handoff state materially changes.
+- [x] T035 Run targeted validation for the reopened review slice on the owning
+      layout and save-path seams.
+- [ ] T036 Re-run the full SC-005 validation battery in a fully installed
+      worktree before restoring `Closeout Ready`.

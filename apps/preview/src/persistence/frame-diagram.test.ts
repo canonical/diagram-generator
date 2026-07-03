@@ -1293,6 +1293,84 @@ test("persist→reload round-trip: test-alignment-grid keeps HUG child sizing an
   );
 });
 
+test("persist→reload round-trip: nested HUG container child reflows within the saved smaller parent width", () => {
+  const baselineText = [
+    "engine: v3",
+    "title: Nested hug resize",
+    "root:",
+    "  id: page",
+    "  direction: vertical",
+    "  children:",
+    "    - id: parent",
+    "      direction: vertical",
+    "      sizing_w: fixed",
+    "      sizing_h: fixed",
+    "      width: 240",
+    "      height: 240",
+    "      padding: 8",
+    "      border: solid",
+    "      children:",
+    "        - id: child_container",
+    "          direction: vertical",
+    "          sizing_w: fixed",
+    "          sizing_h: hug",
+    "          width: 192",
+    "          padding: 8",
+    "          border: solid",
+    "          children:",
+    "            - id: inner_leaf",
+    "              width: 192",
+    "              height: 64",
+    "              label: [Small box change alignment]",
+    "",
+  ].join("\n");
+  const persistent = persistToYaml("nested-hug-container.yaml", baselineText, {
+    overrides: {
+      parent: {
+        sizing_w: "FIXED",
+        width: 160,
+        sizing_h: "FIXED",
+        height: 240,
+      },
+      child_container: {
+        sizing_w: "HUG",
+        sizing_h: "HUG",
+      },
+      inner_leaf: {
+        sizing_w: "HUG",
+        sizing_h: "HUG",
+      },
+    },
+  });
+
+  const reloaded = loadFrameYaml(writeTempFrame("nested-hug-container-reloaded.yaml", persistent));
+  const parent = findFrameById(reloaded.root, "parent");
+  const childContainer = findFrameById(reloaded.root, "child_container");
+  const innerLeaf = findFrameById(reloaded.root, "inner_leaf");
+
+  assert.match(persistent, /id: child_container[\s\S]*sizing_w: hug[\s\S]*sizing_h: hug/);
+  assert.equal(parent?.width, 160);
+  assert.equal(childContainer?.sizingW, "HUG");
+  assert.equal(childContainer?.sizingH, "HUG");
+  assert.equal(innerLeaf?.sizingW, "HUG");
+  assert.equal(innerLeaf?.sizingH, "HUG");
+
+  layoutFrameTree(reloaded.root, new MockTextAdapter());
+
+  assert.ok(parent, "parent must survive save + reload");
+  assert.ok(childContainer, "child_container must survive save + reload");
+  assert.ok(innerLeaf, "inner_leaf must survive save + reload");
+  assert.ok(childContainer._layout.placedW < 192, "reloaded HUG container child should shrink below its stale fixed width");
+  assert.ok(
+    childContainer._layout.placedX + childContainer._layout.placedW <= parent._layout.placedX + parent._layout.placedW,
+    "reloaded HUG container child should stay within the saved smaller parent width",
+  );
+  assert.ok(
+    innerLeaf._layout.placedX + innerLeaf._layout.placedW <= childContainer._layout.placedX + childContainer._layout.placedW,
+    "reloaded nested leaf should stay within the reflowed HUG container child",
+  );
+});
+
 test("persist→reload round-trip: absolute positions survive drag, nudge, and multi-select saves", () => {
   const baselineText = [
     "engine: v3",

@@ -20,18 +20,17 @@
   `HUG` leaf width/height from the resized parent width instead of reusing the
   stale authored fixed size; the remaining JS touchpoint stays a thin
   compatibility handle renderer in `scripts/preview/editor-base.js`.
-- 2026-07-03: SC-001 through SC-005 are covered by repo-owned regressions in
-  `packages/layout-engine/tests/layout.test.ts`,
-  `packages/layout-engine/tests/app-fresh-render.test.ts`,
-  `apps/preview/src/persistence/frame-diagram.test.ts`, and
-  `apps/preview/src/persistence/editor-hug-resize-regression.test.ts`. Full
-  validation is recorded in [`evidence/validation-summary.md`](./evidence/validation-summary.md).
-- 2026-07-03 adversarial review reopened the package: the landed resize
-  propagation fix proves the leaf `small_box` path on `test-alignment-grid`,
-  but a nested `HUG` container child still keeps stale `measuredW` during
-  constrained remeasurement and can overflow a smaller fixed-width parent. The
-  package cannot return to `Closeout Ready` until that generic child-container
-  path is fixed and covered by repo-owned regression evidence.
+- 2026-07-03 adversarial-review follow-up fixed the generic container gap:
+  constrained remeasurement now refreshes non-leaf `HUG` `measuredW` from the
+  reflowed descendants, so a nested `HUG` container child no longer keeps a
+  stale wider width under a smaller fixed-width parent.
+- 2026-07-03 repo-owned regressions now cover both the original leaf
+  `small_box` path on `test-alignment-grid` and a nested `HUG` container child
+  round-trip in `packages/layout-engine/tests/layout.test.ts` and
+  `apps/preview/src/persistence/frame-diagram.test.ts`.
+- 2026-07-03 the package remains `Active`: the reopened review fix supersedes
+  the earlier full validation run, so the full SC-005 battery still needs to be
+  rerun in a fully installed worktree before restoring `Closeout Ready`.
 
 ## Problem
 
