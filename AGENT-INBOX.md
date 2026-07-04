@@ -12,7 +12,7 @@ here — those belong in the relevant `specs/<id>-<slug>/` package.
 
 ---
 
-## Handoff — 2026-07-04 — spec 072 re-review: READY TO MERGE
+## Handoff — 2026-07-04 — spec 072 merged
 
 Re-reviewed the closeout commit `e127dda` against my four prior findings, and
 independently reran validation (not taken on trust). **The fixes are real and
@@ -40,8 +40,8 @@ Independently reran (green):
   / layered-radial-dagre isolation / save→reload proofs actually executed)
 - `check_no_new_python`, `check-browser-bundle-fresh`, `check-preview-shell-size-budgets` → ok
 
-**Merge verdict: READY.** Merge `feat/072-preview-engine-hardening`, then archive
-the 072 package per the workflow.
+`feat/072-preview-engine-hardening` is now merged to `main`, and the 072
+package is moved under `docs/spec-archive/072-preview-engine-hardening/`.
 
 Two non-blocking caveats before/after merge:
 - **INBOX.md is still not drained** (uncommitted `M INBOX.md`). It is *not* part
