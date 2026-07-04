@@ -13,7 +13,12 @@
  */
 
 import { Border, Fill, Frame } from './frame-model.js';
-import { applyFrameClass, applyHighlightParentContrast, FRAME_CLASS_DEFS } from './frame-classes.js';
+import {
+  applyFrameClass,
+  applyHighlightParentContrast,
+  FRAME_CLASS_DEFS,
+  strokeWidthForClass,
+} from './frame-classes.js';
 
 /**
  * Compute the effective prominence level for a frame.
@@ -117,13 +122,22 @@ export function resolveStyles(root: Frame, ctx?: Partial<ResolveStylesContext>):
       // Panel: grey fill, grey border (invisible against fill)
       applyFrameClass(root, FRAME_CLASS_DEFS.panel);
       thisIsPanel = true;
-    } else {
-      // Leaf (level 1): outlined box, regular-weight heading
+      } else {
+        // Leaf (level 1): outlined box, regular-weight heading
         applyFrameClass(root, FRAME_CLASS_DEFS.leaf);
       }
 
       if (isHighlight) {
-        applyFrameClass(root, FRAME_CLASS_DEFS.highlight);
+        root.resolvedFill = FRAME_CLASS_DEFS.highlight.fill;
+        root.resolvedStroke = FRAME_CLASS_DEFS.highlight.stroke;
+        root.resolvedStrokeWidth = strokeWidthForClass(FRAME_CLASS_DEFS.highlight);
+        root.resolvedTextFill = FRAME_CLASS_DEFS.highlight.textFill;
+        root.resolvedIconFill = FRAME_CLASS_DEFS.highlight.iconFill;
+        for (const child of root.children) {
+          if (child.role !== 'heading') continue;
+          child.resolvedTextFill = FRAME_CLASS_DEFS.highlight.textFill;
+          child.resolvedIconFill = FRAME_CLASS_DEFS.highlight.iconFill;
+        }
       } else if (parentIsHighlight) {
         // Keep leaf/panel box styling, but use white text/icons on black parent fill.
         applyHighlightParentContrast(root);

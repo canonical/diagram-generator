@@ -576,17 +576,18 @@ async function collectCanvasParityViewBoxes(page: Page): Promise<{
   };
 }
 
-async function chooseAlternateStyleVariant(page: Page): Promise<string> {
+async function chooseAppearanceOnlyStyleVariant(page: Page): Promise<string> {
   const select = page.locator('#inspector select[data-dg-change-action="single-style"]').first();
   await select.waitFor({ state: "visible", timeout: 30_000 });
   const options = await select.evaluate((node) => (
     Array.from((node as HTMLSelectElement).options).map((option) => option.value)
   ));
   const current = await select.inputValue();
-  const preferredOrder = ["parent", "highlight", "annotation", "section", "default"];
+  const preferredOrder = ["parent", "highlight", "section", "default"];
   const target = preferredOrder.find((value) => value !== current && options.includes(value))
     ?? options.find((value) => value !== current);
   assert.ok(target, "expected an alternate style variant");
+  assert.notEqual(target, "annotation", "appearance-only repaint proof must not rely on an annotation relayout");
   await select.selectOption(target);
   await settle(page);
   return target;
@@ -633,7 +634,7 @@ test("preview gestures repaint the live stage for engine tabs and appearance-onl
       const beforeFragment = await selectedSvgFragment(appearancePage, selectedId);
       const beforeEngine = await renderedEngine(appearancePage);
 
-      await chooseAlternateStyleVariant(appearancePage);
+      await chooseAppearanceOnlyStyleVariant(appearancePage);
 
       const afterMarkup = await frameLayerMarkup(appearancePage);
       const afterFragment = await selectedSvgFragment(appearancePage, selectedId);

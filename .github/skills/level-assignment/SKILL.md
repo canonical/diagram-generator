@@ -15,15 +15,29 @@ argument-hint: "Path to the frame YAML file, or describe the nesting structure"
 
 ## The rule
 
-Level assignment follows from the **deepest nesting among siblings**, not from each item's own children. The engine requires explicit `level:` fields in YAML – it never guesses levels from structure. This procedure tells you how to choose the right value.
+Level assignment is an **authoring-time** rule. It follows from the
+**deepest nesting among siblings**, not from each item's own children.
+The engine requires explicit `level:` fields in YAML - it never guesses
+levels from structure. This procedure tells you how to choose the right
+value.
 
 ### Algorithm
 
-1. **Start with all items as leaves (level 1).** Items without `children:` and without `level:` are leaves by default.
+Let `D` be the maximum structural child-nesting depth across a sibling
+group.
 
-2. **1-level nesting → promote all siblings to panel (level 2).** When any item at a given depth has `children:`, promote **all siblings at that depth** to `level: 2` – including those without children. A childless panel is a grey card; that's fine.
+1. **`D = 0` → child / leaf (`level: 1`).** Items without `children:`
+   and without `level:` are leaves by default.
 
-3. **2-level nesting → promote all siblings to section (level 3).** When any item at a given depth contains a panel that itself contains `children:` (2-level nesting from that item's perspective), promote **all siblings at that depth** to `level: 3` – including those that only wrap leaves directly or have no children at all.
+2. **`D = 1` → parent / panel (`level: 2`).** When any item at a given
+   depth has structural children, promote **all siblings at that depth**
+   to `level: 2` - including those without children. A childless panel
+   is a grey card; that's fine.
+
+3. **`D >= 2` → section (`level: 3`).** When any item at a given depth
+   contains a panel that itself contains structural children, promote
+   **all siblings at that depth** to `level: 3` - including those that
+   only wrap leaves directly or have no children at all.
 
 ### Key insight
 
@@ -45,19 +59,22 @@ Siblings never mix classes. If one item needs to be a section, **all** its sibli
 5. **Check hierarchy rules.**
     - No section (3) inside a section (3).
     - No panel (2) inside a panel (2).
-    - Annotations (`variant: annotation`), separators (`role: separator`),
-      and highlights (`variant: highlight`) are exempt from level rules.
+    - Wrappers (`level: 0`) are layout-only and do not count as a tier.
+    - Annotations (`variant: annotation`) are exempt from level rules.
+    - Highlights (`variant: highlight`) keep their structural level; they
+      only change fill/text contrast.
+    - Separators (`role: separator`) are outside the box-tier system.
     - Layout wrappers (headingless containers with no `heading:` field)
       get level 0 automatically and don't count as a tier.
-    - If you violate the nesting rules, `resolve_styles()` in
-      `packages/layout-engine/src/resolve-styles.ts` auto-downgrades at render time: a panel
-      inside a panel becomes a leaf, a section inside a section becomes
-      a panel. This is a safety net, not a feature – set levels
-      correctly in YAML.
+    - If you violate the nesting rules, `resolveStyles()` in
+      `packages/layout-engine/src/resolve-styles.ts` auto-downgrades at
+      render time: a panel inside a panel becomes a leaf, a section
+      inside a section becomes a panel. This is a safety net, not a
+      feature - set levels correctly in YAML.
 
 ## Styling contract
 
-Levels determine visual treatment automatically through `resolve_styles()`
+Levels determine visual treatment automatically through `resolveStyles()`
 (TS: `packages/layout-engine/src/resolve-styles.ts`). See `docs/frame-classes.md` for the
 complete class table and rendering rules. Do **not** use inline styling
 in YAML.

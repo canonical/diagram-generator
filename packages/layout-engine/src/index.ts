@@ -167,6 +167,18 @@ export {
 } from './frame-classes.js';
 
 export {
+  maxStructuralChildNestingDepth,
+  structuralLevelForMaxChildNestingDepth,
+  type PromotedStructuralLevel,
+  type PromotionNode,
+} from './level-promotion.js';
+
+export {
+  validateFrameLevelPromotion,
+  type LevelPromotionViolation,
+} from './level-promotion-frame.js';
+
+export {
   applyForceNodePatch,
   createInitialForceSnapshot,
   exportForceAuthoredSpec,

@@ -53,7 +53,7 @@ For spec-driven implementation, keep git aligned to the spec package:
 | 060 Output pane engine tabs and live rerender | `specs/060-output-pane-engine-tabs-rerender/` | Closeout Ready — follow-up noted 2026-06-30 for visually no-op tab switches | Engine switch now commits active engine intent into the frame tree before render and stamps `data-layout-engine`; follow-up must distinguish true no-op rerender bugs from cases where two engines legitimately produce equivalent geometry. See `docs/spec-reviews/branch-060.md`. |
 | 061 Preview grid regression investigation | `specs/061-*` (to draft) | Spec candidate | INBOX: the layout grid disappeared; hide affordances now, root-cause the regression. |
 | 062 Parent/child hug resize propagation | `specs/062-parent-child-hug-resize-propagation/` | Closeout Ready — review hardening revalidated 2026-07-03 | Nested `HUG` container children now recompute width under a smaller parent, unconstrained root/top-level `HUG` widths no longer collapse during constrained remeasurement, and the full SC-005 battery passed after the review hardening rerun. |
-| 063 Auto-style by nesting depth | `specs/063-auto-style-by-nesting-depth/` | Active | Style tier follows nesting depth: 0=child, 1=parent, 2=section; promote same-level siblings to the highest level present, and keep code + skill + DIAGRAM.md aligned on the same rule. |
+| 063 Auto-style by nesting depth | `specs/063-auto-style-by-nesting-depth/` | Closeout Ready — adversarial review verified 2026-07-04 | Keep the fixed structural encoding `0=wrapper, 1=child, 2=parent, 3=section`; treat sibling promotion as an authoring-time rule, keep the validator advisory while authored frames still contain promotion mismatches, keep appearance-only style changes on the spec 071 repaint path, and drift-guard runtime, picker, docs, skill, and `DIAGRAM.md`. |
 | 064 Arrow annotation label de-overlap | `specs/064-*` (to draft) | Spec candidate | INBOX: arrow annotation labels stack after engine/option changes. |
 | 070 Layers palette reorder | `specs/070-layers-palette-reorder/` | Draft | Add same-parent layer-tree reorder in the preview palette through the existing typed `children_order` override, relayout, undo, and save pipeline. |
 | 071 Preview render node graph | `specs/071-preview-render-node-graph/` | Closeout Ready — overnight closeout run completed 2026-07-02 | Houdini-style source→interpreter[]→switch→render model. One render node (single fit/mount), one switch node (single render-intent writer), per-engine interpreter node state isolation, canvas viewBox in the state vector. The closeout pass landed the no-central-branching onboarding proof, post-migration render-path inventory, tightened SC-002 browser evidence, and full validation summary. |
@@ -72,7 +72,7 @@ Rows marked ⚠ reference assets excluded by `.gitignore`. Run the build or obta
 | Stakeholder how-to | `docs/stakeholder-guide.md` | Copy YAML → preview → save → export SVG (non-engineering) |
 | Workflow rules | `AGENTS.md` | Canonical repo workflow, shell, validation, cold-start, and handover |
 | Agent index | `docs/agent-index.md` | Trap files, tier-2 flow maps, scoped search |
-| Diagram language spec | `DIAGRAM.md` | Authoring rules and output constraints (Layer 3 — Style); runtime constants in `tokens.ts` / `frame-classes.ts` |
+| Diagram language spec | `DIAGRAM.md` | Thin index for the renderer contract; points to runtime authority and authoring guidance without restating the class/level rules |
 | Status (retired) | `STATUS.md` | Pointer stub → `AGENTS.md#handover` |
 | Starter block reference | `diagrams/0.reference/sample.svg` | Canonical single-block geometry and arrow treatment |
 | Visual preview of starter block | `diagrams/0.reference/sample.png` | Clearer `3x` raster preview of the same canonical block |
@@ -120,7 +120,7 @@ The specs are living documents maintained in the sibling `canonical-spacing-spec
 ## Notes
 
 - Local reference assets in this repo are the primary source of truth for diagram visuals.
-- `DIAGRAM.md` is the Layer 3 (Style) authoring authority; code constants in `tokens.ts` / `frame-classes.ts` are the runtime source of truth. See "Design compass" for upstream spec paths.
+- `DIAGRAM.md` is now a thin index into the runtime and authoring sources, not an independent class/level rule source. See "Design compass" for upstream spec paths.
 - draw.io libraries improve reuse for future insertions but do not live-update shapes already placed in diagrams; repo-wide style changes still require a batch XML update strategy.
 - `scripts/export_drawio_library.py` regenerates the tracked draw.io library, `scripts/drawio_style_presets.py` defines the canonical shared draw.io style-field presets, and `scripts/drawio_style_sync.py` is the batch rewrite path for applying those presets or other token-targeted draw.io style changes.
 - Sibling repos can inform workflow or style, but they do not outrank an explicitly referenced local sketch or reference asset.

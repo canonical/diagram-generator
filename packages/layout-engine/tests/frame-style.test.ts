@@ -6,6 +6,7 @@ import {
   inferPreviewStyleFromFields,
   isPreviewStructuralWrapper,
   isPreviewStyleableComponentType,
+  previewStyleChangeRequiresRelayout,
   renderPreviewBoxStyleOptions,
   resolvePreviewBoxStyleLabel,
   resolveMultiSelectionPreviewStyleState,
@@ -177,10 +178,9 @@ describe('preview-shell frame style helpers', () => {
   });
 
   it('styles highlight as a bordered black leaf so it keeps box height (design parity)', () => {
-    // DIAGRAM.md / frame-classes.md: highlight = black fill + black 1px border +
-    // white text, i.e. a bordered leaf that reserves the 64px box minimum. The
-    // editor picker previously set border NONE, which collapsed highlight to
-    // bare-text height. Annotation is the only intentionally borderless style.
+    // The runtime frame-class contract and docs require highlight to remain a
+    // bordered black leaf so it reserves the 64px box minimum. Annotation is
+    // the only intentionally borderless style.
     const overrides: Record<string, Record<string, unknown> | undefined> = {};
     expect(applyVisiblePreviewStyleOverride({
       overrides,
@@ -210,6 +210,38 @@ describe('preview-shell frame style helpers', () => {
     // Round-trip: a bordered black box still infers as highlight (detected by
     // black fill, not by borderlessness), so the picker stays stable on reload.
     expect(inferPreviewStyleFromFields(1, '#000000', '#000000')).toBe('highlight');
+  });
+
+  it('treats bordered tier and modifier changes as appearance-only but keeps annotation relayout-triggering', () => {
+    const sectionNode = {
+      level: 3,
+      fill: 'WHITE',
+      border: 'SOLID',
+      data: {},
+    };
+    const defaultNode = {
+      level: 1,
+      fill: 'WHITE',
+      border: 'SOLID',
+      data: {},
+    };
+
+    expect(previewStyleChangeRequiresRelayout({
+      node: sectionNode,
+      styleName: 'default',
+    })).toBe(false);
+    expect(previewStyleChangeRequiresRelayout({
+      node: defaultNode,
+      styleName: 'parent',
+    })).toBe(false);
+    expect(previewStyleChangeRequiresRelayout({
+      node: defaultNode,
+      styleName: 'highlight',
+    })).toBe(false);
+    expect(previewStyleChangeRequiresRelayout({
+      node: defaultNode,
+      styleName: 'annotation',
+    })).toBe(true);
   });
 
   it('formats defined-style labels from box-style presets', () => {
