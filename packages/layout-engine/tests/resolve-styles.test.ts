@@ -118,6 +118,29 @@ describe('resolveStyles', () => {
     expect(body.resolvedStroke).toBe('none');
   });
 
+  it('wrapper level 0 stays invisible at the top level and when nested', () => {
+    const topLeaf = new Frame({ id: 'top_leaf', label: [createLine('Top leaf')] });
+    const nestedLeaf = new Frame({ id: 'nested_leaf', label: [createLine('Nested leaf')] });
+    const nestedWrapper = new Frame({ id: 'nested_wrapper', level: 0, children: [nestedLeaf] });
+    const panel = new Frame({
+      id: 'panel',
+      level: 2,
+      heading: createLine('Panel'),
+      children: [nestedWrapper],
+    });
+    const topWrapper = new Frame({ id: 'top_wrapper', level: 0, children: [topLeaf] });
+    const root = new Frame({ id: 'root', children: [topWrapper, panel] });
+
+    resolveStyles(root);
+
+    expect(topWrapper.resolvedFill).toBe('transparent');
+    expect(topWrapper.resolvedStroke).toBe('none');
+    expect(nestedWrapper.resolvedFill).toBe('transparent');
+    expect(nestedWrapper.resolvedStroke).toBe('none');
+    expect(topLeaf.resolvedStroke).toBe('#000000');
+    expect(nestedLeaf.resolvedStroke).toBe('#000000');
+  });
+
   it('nesting constraint: panel inside panel demotes to leaf', () => {
     const innerChild = new Frame({ id: 'inner_leaf', label: [createLine('inner')] });
     const innerHeading = new Frame({ id: '__heading2', role: 'heading', label: [createLine('Inner')] });
@@ -147,6 +170,28 @@ describe('resolveStyles', () => {
     expect(child.resolvedTextFill).toBe('#FFFFFF');
     expect(child.resolvedFill).toBe('transparent');
     expect(child.resolvedStroke).toBe('#000000');
+  });
+
+  it('highlight keeps the structural heading weight while applying black-fill contrast', () => {
+    const heading = new Frame({ id: '__heading', role: 'heading', label: [createLine('Section')] });
+    const body = new Frame({ id: '__body' });
+    const section = new Frame({
+      id: 'section',
+      level: 3,
+      fill: Fill.BLACK,
+      children: [heading, body],
+    });
+    const root = new Frame({ id: 'root', children: [section] });
+
+    resolveStyles(root);
+
+    expect(section.resolvedFill).toBe('#000000');
+    expect(section.resolvedStroke).toBe('#000000');
+    expect(section.resolvedTextFill).toBe('#FFFFFF');
+    expect(section.resolvedIconFill).toBe('#FFFFFF');
+    expect(heading.resolvedHeadingWeight).toBe('700');
+    expect(heading.resolvedHeadingSmallCaps).toBe(false);
+    expect(heading.resolvedTextFill).toBe('#FFFFFF');
   });
 
   it('separator gets transparent/none', () => {

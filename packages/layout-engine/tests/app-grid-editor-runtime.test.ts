@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import '../src/preview-engine/index.js';
 
 const mocks = vi.hoisted(() => ({
   createBootstrapFacade: vi.fn(),
@@ -422,6 +423,17 @@ describe('createPreviewGridEditorRuntimeFromBrowserHost', () => {
           'meta.elk': {
             'elk.spacing.nodeNode': 64,
           },
+          'meta.dagre_nodes': {
+            dagre: {
+              'dagre.rankdir': 'LR',
+              'dagre.ranksep': 128,
+            },
+          },
+          'meta.elk_nodes': {
+            'elk-layered': {
+              'elk.spacing.nodeNode': 64,
+            },
+          },
         },
       }),
     });
@@ -438,6 +450,18 @@ describe('createPreviewGridEditorRuntimeFromBrowserHost', () => {
       'dagre.ranksep': 128,
     });
     expect(options.shared.model.layoutOverrideNamespace).toBe('meta.dagre');
+    expect(options.shared.model.layoutOperatorOverrides).toEqual({
+      activeOperatorKey: 'dagre',
+      byOperator: {
+        dagre: {
+          'dagre.rankdir': 'LR',
+          'dagre.ranksep': 128,
+        },
+        'elk-layered': {
+          'elk.spacing.nodeNode': 64,
+        },
+      },
+    });
   });
 
   it('syncs render intent and workspace chrome from restored undo frame-tree state', () => {

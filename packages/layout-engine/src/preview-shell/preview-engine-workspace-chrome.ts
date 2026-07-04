@@ -6,11 +6,14 @@ import {
   type PreviewEngineWorkspaceState,
 } from './preview-engine-workspace.js';
 import {
-  commitPreviewRenderIntentToWindow,
   resolvePreviewRenderIntentLayoutEngine,
   type PreviewRenderIntent,
   type PreviewRenderIntentFrameTree,
 } from './preview-render-intent.js';
+import {
+  commitPreviewSwitchNode,
+  commitPreviewSwitchNodeLayoutEngine,
+} from './preview-switch-node.js';
 import {
   compareEditorMutationStateVector,
   resolveEditorMutationTransaction,
@@ -23,7 +26,6 @@ export interface PreviewEngineWorkspaceChromeConfig {
   document_kind?: string | null;
   layout_engine?: string | null;
   active_engine_id?: string | null;
-  active_engine_label?: string | null;
   persisted_layout_engine?: string | null;
   compatible_engines?: readonly string[] | null;
   show_engine_switcher?: boolean | null;
@@ -39,7 +41,6 @@ export type PreviewEngineWorkspaceRuntimeWindow = Window & typeof globalThis & {
   __DG_previewEngineWorkspaceState?: PreviewEngineWorkspaceRuntimeState | null;
   __DG_lastEditorMutationTransactionResult?: EditorMutationTransactionResult | null;
   __DG_lastEditorMutationStateViolations?: readonly EditorMutationStateVectorViolation[] | null;
-  __DG_activeLayoutOperatorKey?: string | null;
   __DG_previewBridgeHostRuntime?: {
     getFrameTreeJson?: (() => unknown) | null;
     setFrameTreeLayoutEngine?: ((layoutEngine: string | null | undefined) => string | null) | null;
@@ -94,18 +95,11 @@ function setRuntimeWorkspaceState(
   workspace: PreviewEngineWorkspaceState,
 ): PreviewEngineWorkspaceState {
   const config = previewWindow.__DG_CONFIG ?? {};
-  const existingLabel = typeof config.active_engine_label === 'string'
-    ? config.active_engine_label.trim()
-    : '';
-  const nextLabel = existingLabel && config.active_engine_id === workspace.activeEngineId
-    ? existingLabel
-    : (workspace.activeEngine?.label ?? workspace.activeEngineId ?? null);
   config.active_engine_id = workspace.activeEngineId;
-  config.active_engine_label = nextLabel;
   config.persisted_layout_engine = workspace.persistedEngineId;
   config.layout_engine = workspace.activeEngineId ?? workspace.persistedEngineId ?? null;
   previewWindow.__DG_CONFIG = config;
-  commitPreviewRenderIntentToWindow(previewWindow, {
+  commitPreviewSwitchNode(previewWindow, {
     activeEngineId: workspace.activeEngineId,
     persistedEngineId: workspace.persistedEngineId,
     fallbackEngineId: workspace.activeEngineId ?? workspace.persistedEngineId ?? null,
@@ -149,6 +143,54 @@ function renderedStageLayoutEngine(document: Document): string | null {
   return querySelector?.call(document, '#stage svg')?.getAttribute('data-layout-engine') ?? null;
 }
 
+function fittedStageViewBox(document: Document): string | null {
+  const querySelector = (document as Document & {
+    querySelector?: (selector: string) => Element | null;
+  }).querySelector;
+  const value = querySelector?.call(document, '#stage svg')?.getAttribute('viewBox') ?? null;
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const normalized = value.trim().replace(/\s+/g, ' ');
+  return normalized.length > 0 ? normalized : null;
+}
+
+function stageGeometrySignature(document: Document): string | null {
+  const querySelectorAll = (document as Document & {
+    querySelectorAll?: (selector: string) => ArrayLike<Element>;
+  }).querySelectorAll;
+  const elements = querySelectorAll?.call(document, '#dg-frame-layer [data-component-id]');
+  if (!elements || elements.length === 0) {
+    return null;
+  }
+  const signature = Array.from(elements)
+    .map((element) => {
+      const graphicsElement = element as Element & {
+        getBBox?: () => { x: number; y: number; width: number; height: number };
+      };
+      if (typeof graphicsElement.getBBox !== 'function') {
+        return null;
+      }
+      const box = graphicsElement.getBBox();
+      const round = (value: number) => Math.round(value * 1000) / 1000;
+      return {
+        id: element.getAttribute('data-component-id') ?? '',
+        x: round(box.x),
+        y: round(box.y),
+        w: round(box.width),
+        h: round(box.height),
+      };
+    })
+    .filter((entry): entry is { id: string; x: number; y: number; w: number; h: number } => {
+      if (!entry) {
+        return false;
+      }
+      return Boolean(entry.id) && entry.w > 0 && entry.h > 0;
+    })
+    .sort((left, right) => left.id.localeCompare(right.id));
+  return signature.length > 0 ? JSON.stringify(signature) : null;
+}
+
 function selectedEngineTab(tabs: HTMLElement | null): string | null {
   const selected = getTabButtons(tabs)
     .find((button) => button.getAttribute('aria-selected') === 'true');
@@ -159,13 +201,9 @@ function commitFrameTreeLayoutEngine(
   previewWindow: PreviewEngineWorkspaceRuntimeWindow,
   layoutEngine: string | null | undefined,
 ): string | null {
-  const setter = previewWindow.setFrameTreeLayoutEngine
-    ?? previewWindow.__DG_previewBridgeHostRuntime?.setFrameTreeLayoutEngine
-    ?? null;
-  const committed = typeof setter === 'function' ? setter(layoutEngine) : null;
-  commitPreviewRenderIntentToWindow(previewWindow, {
+  const committed = commitPreviewSwitchNodeLayoutEngine(previewWindow, layoutEngine, {
     current: previewWindow.__DG_previewRenderIntent ?? null,
-    activeEngineId: committed,
+    persistedEngineId: previewWindow.__DG_CONFIG?.persisted_layout_engine ?? null,
   });
   return committed;
 }
@@ -248,21 +286,17 @@ function setHelpText(help: HTMLElement | null, message: string, isError: boolean
   help.classList.toggle('is-error', isError);
 }
 
-function setActiveEngineLabel(
-  labelEl: HTMLElement | null,
-  workspace: PreviewEngineWorkspaceState,
-  fallbackLabel: string | null | undefined,
-  visible: boolean,
-): void {
-  if (!labelEl) {
-    return;
-  }
-  const label = String(fallbackLabel ?? '').trim()
-    || workspace.activeEngine?.label
-    || workspace.activeEngineId
-    || '';
-  labelEl.textContent = label ? `Engine: ${label}` : '';
-  labelEl.hidden = !visible || !label;
+function equivalentGeometryHelpMessage(
+  previousWorkspace: PreviewEngineWorkspaceState,
+  nextWorkspace: PreviewEngineWorkspaceState,
+): string {
+  const previousLabel = previousWorkspace.activeEngine?.label
+    ?? previousWorkspace.activeEngineId
+    ?? 'the previous engine';
+  const nextLabel = nextWorkspace.activeEngine?.label
+    ?? nextWorkspace.activeEngineId
+    ?? 'the selected engine';
+  return `Switched to ${nextLabel}. Geometry matches ${previousLabel} at current settings; adjust engine parameters to force divergence.`;
 }
 
 export function initPreviewEngineWorkspaceChrome(
@@ -272,11 +306,9 @@ export function initPreviewEngineWorkspaceChrome(
   let workspace = setRuntimeWorkspaceState(options.previewWindow, resolveWorkspace(config));
   const section = options.document.getElementById('engine-switcher-section');
   const help = options.document.getElementById('engine-switcher-help');
-  const labelEl = options.document.getElementById('active-engine-label');
   const tabs = options.document.getElementById('engine-switcher-tabs');
 
   if (!section || !tabs) {
-    setActiveEngineLabel(labelEl, workspace, config?.active_engine_label, true);
     return workspace;
   }
 
@@ -285,12 +317,10 @@ export function initPreviewEngineWorkspaceChrome(
   const hasTabRail = shouldShowSwitcher && workspace.compatibleEngineIds.length > 1;
   if (!hasTabRail) {
     section.hidden = true;
-    setActiveEngineLabel(labelEl, workspace, config?.active_engine_label, true);
     return workspace;
   }
 
   section.hidden = false;
-  setActiveEngineLabel(labelEl, workspace, config?.active_engine_label, false);
   tabs.setAttribute('role', 'tablist');
   let keyboardFocusEngineId: string | null = workspace.activeEngineId;
   const setPending = (pending: boolean) => {
@@ -298,12 +328,6 @@ export function initPreviewEngineWorkspaceChrome(
   };
   const defaultHelp = help?.textContent ?? '';
   const updateNavigation = () => {
-    setActiveEngineLabel(
-      labelEl,
-      workspace,
-      options.previewWindow.__DG_CONFIG?.active_engine_label ?? config?.active_engine_label,
-      !hasTabRail,
-    );
     if (tabs) {
       const compatibleIds = new Set(workspace.compatibleEngineIds);
       if (keyboardFocusEngineId && !compatibleIds.has(keyboardFocusEngineId)) {
@@ -380,6 +404,8 @@ export function initPreviewEngineWorkspaceChrome(
     const previousWorkspace = workspace;
     const previousFrameTreeLayoutEngine = readFrameTreeLayoutEngine(options.previewWindow)
       ?? previousWorkspace.activeEngineId;
+    const previousGeometrySignature = stageGeometrySignature(options.document);
+    const previousFittedViewBox = fittedStageViewBox(options.document);
     try {
       workspace = setPreviewEngineWorkspaceActiveEngine(workspace, nextEngineId);
       keyboardFocusEngineId = nextEngineId;
@@ -392,19 +418,42 @@ export function initPreviewEngineWorkspaceChrome(
       options.previewWindow.__DG_syncPreviewEngineWorkspacePanels?.();
       options.previewWindow.PreviewSaveClient?.syncSaveButton?.();
       options.previewWindow.__DG_lastEditorMutationTransactionResult = transaction;
+      const nextGeometrySignature = stageGeometrySignature(options.document);
+      const nextRenderedEngine = renderedStageLayoutEngine(options.document);
       options.previewWindow.__DG_lastEditorMutationStateViolations = compareEditorMutationStateVector({
         transaction,
+        before: {
+          activeNodeId: previousWorkspace.activeEngineId,
+          fittedViewBox: previousFittedViewBox,
+        },
         after: {
           activeTab: selectedEngineTab(tabs),
+          activeNodeId: workspace.activeEngineId,
           renderIntentEngineId: resolvePreviewRenderIntentLayoutEngine({
             intent: options.previewWindow.__DG_previewRenderIntent ?? null,
           }),
           frameTreeLayoutEngine: readFrameTreeLayoutEngine(options.previewWindow),
-          activeOptionBucket: options.previewWindow.__DG_activeLayoutOperatorKey ?? null,
-          renderedEngine: renderedStageLayoutEngine(options.document),
+          activeOptionBucket: resolvePreviewRenderIntentLayoutEngine({
+            intent: options.previewWindow.__DG_previewRenderIntent ?? null,
+          }),
+          renderedEngine: nextRenderedEngine,
+          fittedViewBox: fittedStageViewBox(options.document),
           dirty: options.previewWindow.PreviewSaveClient?.isDirty?.() ?? null,
         },
+        expectStableCanvas: Boolean(
+          previousGeometrySignature
+          && nextGeometrySignature
+          && previousGeometrySignature === nextGeometrySignature,
+        ),
       });
+      if (
+        previousGeometrySignature
+        && nextGeometrySignature
+        && previousGeometrySignature === nextGeometrySignature
+        && nextRenderedEngine === nextEngineId
+      ) {
+        setHelpText(help, equivalentGeometryHelpMessage(previousWorkspace, workspace), false);
+      }
     } catch (error) {
       workspace = previousWorkspace;
       keyboardFocusEngineId = previousWorkspace.activeEngineId;

@@ -4,7 +4,8 @@ import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { chromium, type Browser, type Page } from "playwright";
+import type { Browser, Page } from "playwright";
+import { launchChromiumOrSkip } from "./playwright-test-support.js";
 
 const REPO_ROOT = path.resolve(process.cwd(), "..", "..");
 const APP_ROOT = path.join(REPO_ROOT, "apps", "preview");
@@ -171,6 +172,406 @@ async function renderedEngine(page: Page): Promise<string | null> {
   return page.locator("#stage svg").getAttribute("data-layout-engine");
 }
 
+async function activeOptionBucket(page: Page): Promise<string | null> {
+  return page.evaluate(() => {
+    const previewWindow = window as Window & typeof globalThis & {
+      EditorState?: {
+        captureSnapshot?: () => {
+          ep?: {
+            activeOperatorKey?: string | null;
+          };
+        };
+      } | null;
+    };
+    return previewWindow.EditorState?.captureSnapshot?.()?.ep?.activeOperatorKey ?? null;
+  });
+}
+
+async function activeNodeId(page: Page): Promise<string | null> {
+  return page.evaluate(() => {
+    const previewWindow = window as Window & typeof globalThis & {
+      __DG_previewEngineWorkspaceState?: {
+        workspace?: {
+          activeEngineId?: string | null;
+        } | null;
+      } | null;
+    };
+    return previewWindow.__DG_previewEngineWorkspaceState?.workspace?.activeEngineId ?? null;
+  });
+}
+
+async function frameTreeLayoutEngine(page: Page): Promise<string | null> {
+  return page.evaluate(() => {
+    const previewWindow = window as Window & typeof globalThis & {
+      getFrameTreeJson?: (() => { layoutEngine?: string | null } | null) | null;
+      __DG_previewBridgeHostRuntime?: {
+        getFrameTreeJson?: (() => { layoutEngine?: string | null } | null) | null;
+      } | null;
+    };
+    const frameTree = previewWindow.getFrameTreeJson?.()
+      ?? previewWindow.__DG_previewBridgeHostRuntime?.getFrameTreeJson?.()
+      ?? null;
+    return typeof frameTree?.layoutEngine === "string" ? frameTree.layoutEngine : null;
+  });
+}
+
+async function captureLayoutOperatorBrowserState(page: Page): Promise<{
+  activeOperatorKey: string | null;
+  activeLayoutOverrides: Record<string, unknown>;
+  byOperator: Record<string, Record<string, unknown>>;
+  renderIntentEngineId: string | null;
+  renderIntentOverrides: Record<string, unknown>;
+}> {
+  return page.evaluate(() => {
+    const previewWindow = window as Window & typeof globalThis & {
+      EditorState?: {
+        captureSnapshot?: () => {
+          e?: Record<string, unknown>;
+          ep?: {
+            activeOperatorKey?: string | null;
+            byOperator?: Record<string, Record<string, unknown>>;
+          };
+        };
+      } | null;
+      __DG_previewRenderIntent?: {
+        engineId?: string | null;
+        engineOverrides?: Record<string, unknown> | null;
+      } | null;
+    };
+    const snapshot = previewWindow.EditorState?.captureSnapshot?.() ?? {};
+    const layoutOperatorState = snapshot.ep ?? {};
+    return {
+      activeOperatorKey: layoutOperatorState.activeOperatorKey ?? null,
+      activeLayoutOverrides: { ...(snapshot.e ?? {}) },
+      byOperator: Object.fromEntries(
+        Object.entries(layoutOperatorState.byOperator ?? {}).map(([key, value]) => [key, { ...value }]),
+      ),
+      renderIntentEngineId: previewWindow.__DG_previewRenderIntent?.engineId ?? null,
+      renderIntentOverrides: { ...(previewWindow.__DG_previewRenderIntent?.engineOverrides ?? {}) },
+    };
+  });
+}
+
+async function fittedViewBox(page: Page): Promise<string> {
+  const viewBox = await page.locator("#stage svg").getAttribute("viewBox");
+  assert.ok(viewBox, "expected the rendered stage to expose a fitted viewBox");
+  return viewBox.trim().replace(/\s+/g, " ");
+}
+
+async function fittedCanvasPadding(page: Page): Promise<{
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}> {
+  return page.evaluate(() => {
+    const svg = document.querySelector("#stage svg");
+    const viewBox = svg?.getAttribute("viewBox")?.trim().split(/\s+/).map(Number);
+    if (!viewBox || viewBox.length !== 4 || viewBox.some((value) => !Number.isFinite(value))) {
+      throw new Error("Rendered stage is missing a numeric viewBox");
+    }
+
+    const frameBoxes = Array.from(
+      document.querySelectorAll<SVGGraphicsElement>("#dg-frame-layer [data-component-id]"),
+    )
+      .map((element) => {
+        const box = element.getBBox();
+        return {
+          minX: box.x,
+          minY: box.y,
+          maxX: box.x + box.width,
+          maxY: box.y + box.height,
+          width: box.width,
+          height: box.height,
+        };
+      })
+      .filter((box) => box.width > 0 && box.height > 0);
+    if (!frameBoxes.length) {
+      throw new Error("Rendered stage is missing frame-layer geometry");
+    }
+
+    const minX = Math.min(...frameBoxes.map((box) => box.minX));
+    const minY = Math.min(...frameBoxes.map((box) => box.minY));
+    const maxX = Math.max(...frameBoxes.map((box) => box.maxX));
+    const maxY = Math.max(...frameBoxes.map((box) => box.maxY));
+    const [viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight] = viewBox;
+    const viewBoxMaxX = viewBoxX + viewBoxWidth;
+    const viewBoxMaxY = viewBoxY + viewBoxHeight;
+
+    return {
+      left: Math.round((minX - viewBoxX) * 1000) / 1000,
+      top: Math.round((minY - viewBoxY) * 1000) / 1000,
+      right: Math.round((viewBoxMaxX - maxX) * 1000) / 1000,
+      bottom: Math.round((viewBoxMaxY - maxY) * 1000) / 1000,
+    };
+  });
+}
+
+async function currentEngineTabs(page: Page): Promise<string[]> {
+  return page.locator("#engine-switcher-tabs [data-engine-id]").evaluateAll((elements) => (
+    elements
+      .map((element) => element.getAttribute("data-engine-id") ?? "")
+      .filter((engineId) => engineId.length > 0)
+  ));
+}
+
+async function selectedEngineId(page: Page): Promise<string | null> {
+  return page.locator('#engine-switcher-tabs [aria-selected="true"]').getAttribute("data-engine-id");
+}
+
+async function selectEngine(page: Page, engineId: string): Promise<void> {
+  if ((await selectedEngineId(page)) === engineId) {
+    return;
+  }
+  await page.locator(`#engine-switcher-tabs [data-engine-id="${engineId}"]`).click();
+  await page.waitForFunction(
+    (expected) => document.querySelector("#stage svg")?.getAttribute("data-layout-engine") === expected,
+    engineId,
+    { timeout: 20_000 },
+  );
+  await settle(page);
+}
+
+async function firstVisibleLayoutControlId(page: Page): Promise<string> {
+  const controlId = await page.evaluate(() => {
+    const controls = Array.from(
+      document.querySelectorAll<HTMLElement>(
+        '#layout-params-section [data-dg-engine-layout-key], #layout-params-section [data-elk-key]',
+      ),
+    );
+    const control = controls.find((element) => {
+      const disabled = "disabled" in element && Boolean((element as HTMLInputElement | HTMLSelectElement).disabled);
+      return !disabled && element.offsetParent !== null && typeof element.id === "string" && element.id.length > 0;
+    });
+    return control?.id ?? null;
+  });
+  assert.ok(controlId, "expected a visible enabled engine layout control");
+  return controlId;
+}
+
+async function firstVisibleLayoutControlForPrefix(page: Page, prefix: string): Promise<{
+  id: string;
+  key: string;
+}> {
+  const control = await page.evaluate((desiredPrefix) => {
+    const controls = Array.from(
+      document.querySelectorAll<HTMLElement>(
+        '#layout-params-section [data-dg-engine-layout-key], #layout-params-section [data-elk-key]',
+      ),
+    );
+    const match = controls.find((element) => {
+      const disabled = "disabled" in element && Boolean((element as HTMLInputElement | HTMLSelectElement).disabled);
+      const layoutKey = element.dataset.dgEngineLayoutKey ?? element.dataset.elkKey ?? "";
+      return !disabled
+        && element.offsetParent !== null
+        && typeof element.id === "string"
+        && element.id.length > 0
+        && layoutKey.startsWith(desiredPrefix);
+    });
+    if (!match) {
+      return null;
+    }
+    return {
+      id: match.id,
+      key: match.dataset.dgEngineLayoutKey ?? match.dataset.elkKey ?? "",
+    };
+  }, prefix);
+  assert.ok(control, `expected a visible enabled layout control for prefix ${prefix}`);
+  return control;
+}
+
+async function hasVisibleLayoutControls(page: Page): Promise<boolean> {
+  return page.evaluate(() => Array.from(
+    document.querySelectorAll<HTMLElement>(
+      '#layout-params-section [data-dg-engine-layout-key], #layout-params-section [data-elk-key]',
+    ),
+  ).some((element) => {
+    const disabled = "disabled" in element && Boolean((element as HTMLInputElement | HTMLSelectElement).disabled);
+    return !disabled && element.offsetParent !== null;
+  }));
+}
+
+async function chooseTargetEngineWithLayoutControls(page: Page): Promise<string> {
+  const available = await currentEngineTabs(page);
+  assert.ok(available.length >= 2, "expected at least two compatible engine tabs");
+  const preferredOrder = ["dagre", "elk-layered", "elk-force", "elk-radial", "elk-stress", "elk-mrtree", "elk-rectpacking"];
+  const candidates = [...preferredOrder, ...available];
+  const attempted = new Set<string>();
+
+  for (const candidate of candidates) {
+    if (!available.includes(candidate) || attempted.has(candidate)) {
+      continue;
+    }
+    attempted.add(candidate);
+    await selectEngine(page, candidate);
+    if (await hasVisibleLayoutControls(page)) {
+      return candidate;
+    }
+  }
+
+  throw new Error("No compatible engine with surfaced layout controls was found");
+}
+
+async function mutateAndRestoreFirstLayoutControl(page: Page): Promise<void> {
+  const controlId = await firstVisibleLayoutControlId(page);
+  await mutateLayoutControl(page, controlId, { restore: true });
+}
+
+async function mutateLayoutControlAndKeepValue(page: Page, controlId: string): Promise<void> {
+  await mutateLayoutControl(page, controlId, { restore: false });
+}
+
+async function mutateLayoutControlAndRestoreValue(page: Page, controlId: string): Promise<void> {
+  await mutateLayoutControl(page, controlId, { restore: true });
+}
+
+async function mutateLayoutControl(
+  page: Page,
+  controlId: string,
+  options: { restore: boolean },
+): Promise<void> {
+  const descriptor = await readLayoutControlDescriptor(page, controlId);
+  const alternate = alternateLayoutControlValue(controlId, descriptor);
+  await setLayoutControlValue(page, controlId, descriptor, alternate);
+  await settle(page);
+  if (options.restore) {
+    await setLayoutControlValue(page, controlId, descriptor, descriptor.value);
+    await settle(page);
+  }
+}
+
+type LayoutControlDescriptor =
+  | {
+    tagName: "select";
+    value: string;
+    options: string[];
+  }
+  | {
+    tagName: "input";
+    type: string;
+    value: string;
+    step: string;
+    min: string;
+    max: string;
+  };
+
+async function readLayoutControlDescriptor(
+  page: Page,
+  controlId: string,
+): Promise<LayoutControlDescriptor> {
+  const control = page.locator(`#${controlId}`);
+  return control.evaluate((element) => {
+    if (element instanceof HTMLSelectElement) {
+      return {
+        tagName: "select",
+        value: element.value,
+        options: Array.from(element.options).map((option) => option.value),
+      };
+    }
+    if (element instanceof HTMLInputElement) {
+      return {
+        tagName: "input",
+        type: element.type || "text",
+        value: element.type === "checkbox" ? String(element.checked) : element.value,
+        step: element.step,
+        min: element.min,
+        max: element.max,
+      };
+    }
+    throw new Error(`Unsupported layout control tag ${(element as HTMLElement).tagName}`);
+  });
+}
+
+function alternateLayoutControlValue(
+  controlId: string,
+  descriptor: LayoutControlDescriptor,
+): string | boolean {
+  if (descriptor.tagName === "select") {
+    const alternate = descriptor.options.find((value) => value && value !== descriptor.value);
+    assert.ok(alternate, `expected an alternate option for layout control ${controlId}`);
+    return alternate;
+  }
+
+  if (descriptor.type === "checkbox") {
+    return descriptor.value !== "true";
+  }
+
+  const original = Number(descriptor.value);
+  assert.ok(Number.isFinite(original), `expected numeric layout control ${controlId}`);
+  const step = Number(descriptor.step || "1") || 1;
+  const min = descriptor.min ? Number(descriptor.min) : Number.NEGATIVE_INFINITY;
+  const max = descriptor.max ? Number(descriptor.max) : Number.POSITIVE_INFINITY;
+  let alternate = original + step;
+  if (alternate > max || !Number.isFinite(alternate)) {
+    alternate = original - step;
+  }
+  if (alternate < min || alternate === original || !Number.isFinite(alternate)) {
+    alternate = original + 1;
+  }
+  if (alternate > max || alternate < min || alternate === original) {
+    throw new Error(`Unable to derive alternate numeric value for layout control ${controlId}`);
+  }
+  return String(alternate);
+}
+
+async function setLayoutControlValue(
+  page: Page,
+  controlId: string,
+  descriptor: LayoutControlDescriptor,
+  nextValue: string | boolean,
+): Promise<void> {
+  const control = page.locator(`#${controlId}`);
+  if (descriptor.tagName === "select") {
+    await control.selectOption(String(nextValue));
+    return;
+  }
+  if (descriptor.type === "checkbox") {
+    await control.evaluate((element, checked) => {
+      const input = element as HTMLInputElement;
+      input.checked = checked as boolean;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    }, Boolean(nextValue));
+    return;
+  }
+  await control.evaluate((element, value) => {
+    const input = element as HTMLInputElement;
+    input.value = String(value);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }, String(nextValue));
+}
+
+async function triggerSaveReload(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    const previewWindow = window as Window & typeof globalThis & {
+      PreviewSaveClient?: {
+        saveOverrides?: (() => Promise<void>) | null;
+      } | null;
+    };
+    const saveOverrides = previewWindow.PreviewSaveClient?.saveOverrides;
+    if (typeof saveOverrides !== "function") {
+      throw new Error("PreviewSaveClient.saveOverrides is unavailable");
+    }
+    await saveOverrides();
+  });
+  await settle(page);
+}
+
+async function clearActiveLayoutBucket(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const previewWindow = window as Window & typeof globalThis & {
+      PreviewEngineShellController?: {
+        applyLayoutOverrides?: (overrides: Record<string, unknown>) => void;
+      } | null;
+      setDirty?: ((dirty: boolean) => void) | null;
+    };
+    previewWindow.PreviewEngineShellController?.applyLayoutOverrides?.({});
+    previewWindow.setDirty?.(true);
+  });
+  await settle(page);
+}
+
 async function alternateEngineId(page: Page): Promise<string> {
   const tabs = page.locator("#engine-switcher-tabs [data-engine-id]");
   const count = await tabs.count();
@@ -185,28 +586,74 @@ async function alternateEngineId(page: Page): Promise<string> {
   throw new Error("No alternate engine tab found");
 }
 
-async function chooseAlternateStyleVariant(page: Page): Promise<string> {
+async function collectCanvasParityViewBoxes(page: Page): Promise<{
+  targetEngine: string;
+  load: string;
+  saveReload: string;
+  tabSwitch: string;
+  paramEdit: string;
+  containerResize: string;
+}> {
+  const targetEngine = await chooseTargetEngineWithLayoutControls(page);
+  const load = await fittedViewBox(page);
+  const alternateEngine = (await currentEngineTabs(page)).find((engineId) => engineId !== targetEngine);
+  assert.ok(alternateEngine, "expected an alternate engine for the parity switch check");
+
+  await selectEngine(page, alternateEngine);
+  await selectEngine(page, targetEngine);
+  const tabSwitch = await fittedViewBox(page);
+
+  await mutateAndRestoreFirstLayoutControl(page);
+  const paramEdit = await fittedViewBox(page);
+
+  await page.setViewportSize({ width: 1180, height: 900 });
+  await settle(page);
+  const containerResize = await fittedViewBox(page);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await settle(page);
+
+  await triggerSaveReload(page);
+  const saveReload = await fittedViewBox(page);
+  assert.equal(await renderedEngine(page), targetEngine, "save→reload should preserve the selected engine");
+
+  return {
+    targetEngine,
+    load,
+    saveReload,
+    tabSwitch,
+    paramEdit,
+    containerResize,
+  };
+}
+
+async function chooseAppearanceOnlyStyleVariant(page: Page): Promise<string> {
   const select = page.locator('#inspector select[data-dg-change-action="single-style"]').first();
   await select.waitFor({ state: "visible", timeout: 30_000 });
   const options = await select.evaluate((node) => (
     Array.from((node as HTMLSelectElement).options).map((option) => option.value)
   ));
   const current = await select.inputValue();
-  const preferredOrder = ["parent", "highlight", "annotation", "section", "default"];
+  const preferredOrder = ["parent", "highlight", "section", "default"];
   const target = preferredOrder.find((value) => value !== current && options.includes(value))
     ?? options.find((value) => value !== current);
   assert.ok(target, "expected an alternate style variant");
+  assert.notEqual(target, "annotation", "appearance-only repaint proof must not rely on an annotation relayout");
   await select.selectOption(target);
   await settle(page);
   return target;
 }
 
-test("preview gestures repaint the live stage for engine tabs and appearance-only role changes", { timeout: 120_000 }, async () => {
+test("preview gestures repaint the live stage for engine tabs and appearance-only role changes", { timeout: 120_000 }, async (t) => {
   const framesDir = copyFixtureFrames(["mongo-octavia-ha"]);
   const port = await allocatePort();
   const baseUrl = `http://127.0.0.1:${port}`;
   const server = startPreviewServer(framesDir, port);
-  const browser = await chromium.launch();
+  const browser = await launchChromiumOrSkip(t);
+  if (!browser) {
+    await stopPreviewServer(server.process);
+    fs.rmSync(framesDir, { recursive: true, force: true });
+    return;
+  }
 
   try {
     await server.ready;
@@ -242,7 +689,7 @@ test("preview gestures repaint the live stage for engine tabs and appearance-onl
       const beforeFragment = await selectedSvgFragment(appearancePage, selectedId);
       const beforeEngine = await renderedEngine(appearancePage);
 
-      await chooseAlternateStyleVariant(appearancePage);
+      await chooseAppearanceOnlyStyleVariant(appearancePage);
 
       const afterMarkup = await frameLayerMarkup(appearancePage);
       const afterFragment = await selectedSvgFragment(appearancePage, selectedId);
@@ -253,6 +700,340 @@ test("preview gestures repaint the live stage for engine tabs and appearance-onl
       assert.notEqual(afterFragment, beforeFragment, "appearance-only role change should repaint the selected SVG fragment");
     } finally {
       await appearancePage.close();
+    }
+  } finally {
+    await browser.close();
+    await stopPreviewServer(server.process);
+    fs.rmSync(framesDir, { recursive: true, force: true });
+  }
+});
+
+test("engine tab switches classify visible changes while syncing engine and option-bucket state", { timeout: 120_000 }, async (t) => {
+  const framesDir = copyFixtureFrames(["support-engineering-flow"]);
+  const port = await allocatePort();
+  const baseUrl = `http://127.0.0.1:${port}`;
+  const server = startPreviewServer(framesDir, port);
+  const browser = await launchChromiumOrSkip(t);
+  if (!browser) {
+    await stopPreviewServer(server.process);
+    fs.rmSync(framesDir, { recursive: true, force: true });
+    return;
+  }
+
+  try {
+    await server.ready;
+
+    const page = await openPreviewPage(browser, baseUrl, "support-engineering-flow");
+    try {
+      const beforeSignature = await boundsSignature(page);
+      const beforeEngine = await renderedEngine(page);
+      const beforeBucket = await activeOptionBucket(page);
+      const beforeActiveNodeId = await activeNodeId(page);
+      const beforeFrameTreeLayoutEngine = await frameTreeLayoutEngine(page);
+      const beforeViewBox = await fittedViewBox(page);
+      const targetEngine = beforeEngine === "elk-layered" ? await alternateEngineId(page) : "elk-layered";
+
+      await page.locator(`#engine-switcher-tabs [data-engine-id="${targetEngine}"]`).click();
+      await page.waitForFunction(
+        (expected) => document.querySelector("#stage svg")?.getAttribute("data-layout-engine") === expected,
+        targetEngine,
+        { timeout: 20_000 },
+      );
+      await settle(page);
+
+      const afterSignature = await boundsSignature(page);
+      const afterEngine = await renderedEngine(page);
+      const afterBucket = await activeOptionBucket(page);
+      const afterActiveNodeId = await activeNodeId(page);
+      const afterFrameTreeLayoutEngine = await frameTreeLayoutEngine(page);
+      const afterViewBox = await fittedViewBox(page);
+      const afterSelectedTab = await selectedEngineId(page);
+      const distinctGeometry = beforeSignature !== afterSignature;
+      const verifiedEquivalentGeometry = beforeSignature === afterSignature
+        && beforeViewBox === afterViewBox
+        && afterEngine === targetEngine
+        && afterBucket === targetEngine
+        && afterActiveNodeId === targetEngine
+        && afterFrameTreeLayoutEngine === targetEngine
+        && afterSelectedTab === targetEngine;
+
+      assert.notEqual(afterEngine, beforeEngine, "engine switch should commit a different rendered engine");
+      assert.equal(afterEngine, targetEngine, "rendered engine should match the selected tab");
+      assert.equal(afterBucket, targetEngine, "active option bucket should sync to the selected engine");
+      assert.notEqual(afterBucket, beforeBucket, "active option bucket should change with the selected engine");
+      assert.equal(afterActiveNodeId, targetEngine, "active node id should sync to the selected engine");
+      assert.equal(afterFrameTreeLayoutEngine, targetEngine, "frame tree layoutEngine should sync to the selected engine");
+      assert.equal(afterSelectedTab, targetEngine, "selected engine tab should match the rendered engine");
+      assert.equal(beforeActiveNodeId, beforeEngine, "baseline active node id should match the rendered engine");
+      assert.equal(beforeFrameTreeLayoutEngine, beforeEngine, "baseline frame tree layoutEngine should match the rendered engine");
+      assert.ok(
+        distinctGeometry || verifiedEquivalentGeometry,
+        "engine switch should either change bounds or prove equivalent geometry with synced engine state",
+      );
+      if (!distinctGeometry) {
+        assert.equal(afterViewBox, beforeViewBox, "equivalent geometry should preserve the fitted viewBox");
+      }
+    } finally {
+      await page.close();
+    }
+  } finally {
+    await browser.close();
+    await stopPreviewServer(server.process);
+    fs.rmSync(framesDir, { recursive: true, force: true });
+  }
+});
+
+test("phase 1 canvas parity holds across load, save→reload, engine-tab switch, param edit, and container resize", { timeout: 180_000 }, async (t) => {
+  const slugs = ["example-deployment-pipeline", "mongo-octavia-ha", "support-engineering-flow"] as const;
+  const framesDir = copyFixtureFrames(slugs);
+  const port = await allocatePort();
+  const baseUrl = `http://127.0.0.1:${port}`;
+  const server = startPreviewServer(framesDir, port);
+  const browser = await launchChromiumOrSkip(t);
+  if (!browser) {
+    await stopPreviewServer(server.process);
+    fs.rmSync(framesDir, { recursive: true, force: true });
+    return;
+  }
+
+  try {
+    await server.ready;
+
+    for (const slug of slugs) {
+      const page = await openPreviewPage(browser, baseUrl, slug);
+      try {
+        const parity = await collectCanvasParityViewBoxes(page);
+        const expected = parity.load;
+        assert.equal(parity.saveReload, expected, `${slug}: save→reload should preserve the fitted viewBox for ${parity.targetEngine}`);
+        assert.equal(parity.tabSwitch, expected, `${slug}: engine-tab switch should preserve the fitted viewBox for ${parity.targetEngine}`);
+        assert.equal(parity.paramEdit, expected, `${slug}: param edit round-trip should preserve the fitted viewBox for ${parity.targetEngine}`);
+        assert.equal(parity.containerResize, expected, `${slug}: container resize should preserve the fitted viewBox for ${parity.targetEngine}`);
+      } finally {
+        await page.close();
+      }
+    }
+  } finally {
+    await browser.close();
+    await stopPreviewServer(server.process);
+    fs.rmSync(framesDir, { recursive: true, force: true });
+  }
+});
+
+test("autolayout→ELK switch keeps right/bottom canvas padding on mongo-octavia-ha", { timeout: 120_000 }, async (t) => {
+  const framesDir = copyFixtureFrames(["mongo-octavia-ha"]);
+  const port = await allocatePort();
+  const baseUrl = `http://127.0.0.1:${port}`;
+  const server = startPreviewServer(framesDir, port);
+  const browser = await launchChromiumOrSkip(t);
+  if (!browser) {
+    await stopPreviewServer(server.process);
+    fs.rmSync(framesDir, { recursive: true, force: true });
+    return;
+  }
+
+  try {
+    await server.ready;
+
+    const page = await openPreviewPage(browser, baseUrl, "mongo-octavia-ha");
+    try {
+      const engineTabs = await currentEngineTabs(page);
+      assert.ok(engineTabs.includes("v3"), "expected the Autolayout tab");
+      assert.ok(engineTabs.includes("elk-layered"), "expected the ELK layered tab");
+
+      await selectEngine(page, "v3");
+      const autolayoutPadding = await fittedCanvasPadding(page);
+
+      await selectEngine(page, "elk-layered");
+      const elkPadding = await fittedCanvasPadding(page);
+
+      assert.ok(autolayoutPadding.left >= 24, "Autolayout should keep left canvas padding");
+      assert.ok(autolayoutPadding.top >= 24, "Autolayout should keep top canvas padding");
+      assert.ok(autolayoutPadding.right >= 24, "Autolayout should keep right canvas padding");
+      assert.ok(autolayoutPadding.bottom >= 24, "Autolayout should keep bottom canvas padding");
+      assert.ok(elkPadding.left >= 24, "ELK should keep left canvas padding");
+      assert.ok(elkPadding.top >= 24, "ELK should keep top canvas padding");
+      assert.ok(elkPadding.right >= 24, "ELK should keep right canvas padding");
+      assert.ok(elkPadding.bottom >= 24, "ELK should keep bottom canvas padding");
+    } finally {
+      await page.close();
+    }
+  } finally {
+    await browser.close();
+    await stopPreviewServer(server.process);
+    fs.rmSync(framesDir, { recursive: true, force: true });
+  }
+});
+
+test("engine-specific layout buckets stay isolated across layered, radial, dagre, and save→reload browser flows", { timeout: 120_000 }, async (t) => {
+  const framesDir = copyFixtureFrames(["example-deployment-pipeline"]);
+  const port = await allocatePort();
+  const baseUrl = `http://127.0.0.1:${port}`;
+  const server = startPreviewServer(framesDir, port);
+  const browser = await launchChromiumOrSkip(t);
+  if (!browser) {
+    await stopPreviewServer(server.process);
+    fs.rmSync(framesDir, { recursive: true, force: true });
+    return;
+  }
+
+  try {
+    await server.ready;
+
+    const page = await openPreviewPage(browser, baseUrl, "example-deployment-pipeline");
+    try {
+      const engineTabs = await currentEngineTabs(page);
+      assert.ok(engineTabs.includes("elk-layered"), "expected elk-layered engine tab");
+      assert.ok(engineTabs.includes("elk-radial"), "expected elk-radial engine tab");
+      assert.ok(engineTabs.includes("dagre"), "expected dagre engine tab");
+
+      await selectEngine(page, "elk-layered");
+      const layeredControl = await firstVisibleLayoutControlForPrefix(page, "elk.layered.");
+      await mutateLayoutControlAndKeepValue(page, layeredControl.id);
+      const layeredState = await captureLayoutOperatorBrowserState(page);
+      const layeredViewBox = await fittedViewBox(page);
+
+      assert.equal(layeredState.activeOperatorKey, "elk-layered");
+      assert.equal(layeredState.renderIntentEngineId, "elk-layered");
+      assert.deepEqual(layeredState.activeLayoutOverrides, layeredState.byOperator["elk-layered"] ?? {});
+      assert.ok(layeredControl.key in layeredState.activeLayoutOverrides);
+
+      await selectEngine(page, "elk-radial");
+      const radialControl = await firstVisibleLayoutControlForPrefix(page, "elk.radial.");
+      await mutateLayoutControlAndKeepValue(page, radialControl.id);
+      const radialState = await captureLayoutOperatorBrowserState(page);
+
+      assert.equal(radialState.activeOperatorKey, "elk-radial");
+      assert.equal(radialState.renderIntentEngineId, "elk-radial");
+      assert.deepEqual(radialState.activeLayoutOverrides, radialState.byOperator["elk-radial"] ?? {});
+      assert.ok(radialControl.key in radialState.activeLayoutOverrides);
+      assert.equal(radialState.activeLayoutOverrides[layeredControl.key], undefined);
+      assert.deepEqual(radialState.byOperator["elk-layered"], layeredState.byOperator["elk-layered"]);
+
+      await selectEngine(page, "elk-layered");
+      const layeredReturnState = await captureLayoutOperatorBrowserState(page);
+      const layeredReturnViewBox = await fittedViewBox(page);
+
+      assert.equal(layeredReturnState.activeOperatorKey, "elk-layered");
+      assert.deepEqual(layeredReturnState.activeLayoutOverrides, layeredState.byOperator["elk-layered"] ?? {});
+      assert.equal(layeredReturnState.activeLayoutOverrides[radialControl.key], undefined);
+      assert.equal(
+        layeredReturnViewBox,
+        layeredViewBox,
+        "returning to layered with unchanged layered params should preserve the fitted viewBox after radial detours",
+      );
+
+      await selectEngine(page, "dagre");
+      const dagreControl = await firstVisibleLayoutControlForPrefix(page, "dagre.");
+      await mutateLayoutControlAndKeepValue(page, dagreControl.id);
+      const dagreState = await captureLayoutOperatorBrowserState(page);
+
+      assert.equal(dagreState.activeOperatorKey, "dagre");
+      assert.equal(dagreState.renderIntentEngineId, "dagre");
+      assert.deepEqual(dagreState.activeLayoutOverrides, dagreState.byOperator.dagre ?? {});
+      assert.ok(dagreControl.key in dagreState.activeLayoutOverrides);
+      assert.equal(dagreState.activeLayoutOverrides[layeredControl.key], undefined);
+      assert.equal(dagreState.activeLayoutOverrides[radialControl.key], undefined);
+      assert.deepEqual(dagreState.byOperator["elk-layered"], layeredState.byOperator["elk-layered"]);
+      assert.deepEqual(dagreState.byOperator["elk-radial"], radialState.byOperator["elk-radial"]);
+
+      await selectEngine(page, "elk-layered");
+      const layeredAfterDagreState = await captureLayoutOperatorBrowserState(page);
+      const layeredAfterDagreViewBox = await fittedViewBox(page);
+
+      assert.equal(layeredAfterDagreState.activeOperatorKey, "elk-layered");
+      assert.deepEqual(layeredAfterDagreState.activeLayoutOverrides, layeredState.byOperator["elk-layered"] ?? {});
+      assert.equal(layeredAfterDagreState.activeLayoutOverrides[dagreControl.key], undefined);
+      assert.equal(
+        layeredAfterDagreViewBox,
+        layeredViewBox,
+        "returning to layered with unchanged layered params should preserve the fitted viewBox after dagre detours",
+      );
+
+      await triggerSaveReload(page);
+      const reloadedBucketsState = await captureLayoutOperatorBrowserState(page);
+
+      assert.equal(reloadedBucketsState.activeOperatorKey, "elk-layered");
+      assert.deepEqual(
+        reloadedBucketsState.activeLayoutOverrides,
+        layeredState.byOperator["elk-layered"] ?? {},
+      );
+      assert.deepEqual(
+        reloadedBucketsState.byOperator["elk-radial"],
+        radialState.byOperator["elk-radial"],
+        "save→reload should preserve the same-family non-active radial bucket",
+      );
+      assert.deepEqual(
+        reloadedBucketsState.byOperator.dagre,
+        dagreState.byOperator.dagre,
+        "save→reload should preserve the cross-family non-active dagre bucket",
+      );
+
+      await selectEngine(page, "elk-radial");
+      const radialReloadState = await captureLayoutOperatorBrowserState(page);
+      const radialReloadDescriptor = await readLayoutControlDescriptor(page, radialControl.id);
+
+      assert.equal(radialReloadState.activeOperatorKey, "elk-radial");
+      assert.deepEqual(
+        radialReloadState.activeLayoutOverrides,
+        radialState.byOperator["elk-radial"] ?? {},
+        "switching back after save→reload should restore the live radial override bucket",
+      );
+      assert.equal(
+        String(radialReloadDescriptor.value),
+        String((radialState.byOperator["elk-radial"] ?? {})[radialControl.key]),
+        "radial controls should restore the saved live value after save→reload→switch-back",
+      );
+
+      await selectEngine(page, "dagre");
+      const dagreReloadState = await captureLayoutOperatorBrowserState(page);
+      const dagreReloadDescriptor = await readLayoutControlDescriptor(page, dagreControl.id);
+
+      assert.equal(dagreReloadState.activeOperatorKey, "dagre");
+      assert.deepEqual(
+        dagreReloadState.activeLayoutOverrides,
+        dagreState.byOperator.dagre ?? {},
+        "switching back after save→reload should restore the live dagre override bucket",
+      );
+      assert.equal(
+        String(dagreReloadDescriptor.value),
+        String((dagreState.byOperator.dagre ?? {})[dagreControl.key]),
+        "dagre controls should restore the saved live value after save→reload→switch-back",
+      );
+
+      await selectEngine(page, "elk-radial");
+      await clearActiveLayoutBucket(page);
+      await selectEngine(page, "elk-layered");
+      await triggerSaveReload(page);
+
+      const afterRadialClearState = await captureLayoutOperatorBrowserState(page);
+
+      assert.equal(
+        afterRadialClearState.byOperator["elk-radial"],
+        undefined,
+        "save→reload should remove a fully cleared non-active radial bucket",
+      );
+      assert.deepEqual(
+        afterRadialClearState.byOperator.dagre,
+        dagreState.byOperator.dagre,
+        "clearing the radial bucket should not disturb the saved dagre bucket",
+      );
+
+      await mutateLayoutControlAndRestoreValue(page, layeredControl.id);
+      const layeredForcedRecookState = await captureLayoutOperatorBrowserState(page);
+      const layeredForcedRecookViewBox = await fittedViewBox(page);
+
+      assert.equal(layeredForcedRecookState.activeOperatorKey, "elk-layered");
+      assert.deepEqual(
+        layeredForcedRecookState.activeLayoutOverrides,
+        layeredState.byOperator["elk-layered"] ?? {},
+      );
+      assert.equal(
+        layeredForcedRecookViewBox,
+        layeredViewBox,
+        "restoring layered params after a forced recook should preserve the fitted viewBox",
+      );
+    } finally {
+      await page.close();
     }
   } finally {
     await browser.close();

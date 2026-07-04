@@ -15,6 +15,7 @@ export const FRAME_YAML_ENGINE_LAYOUT_NAMESPACE_PREFIX = 'meta.' as const;
 export interface FrameYamlPersistedControlSpec {
   readonly key: string;
   readonly kind?: PreviewControlKind;
+  readonly emptyStringIsValue?: boolean;
 }
 
 interface FrameYamlEngineControlManifest {
@@ -23,6 +24,8 @@ interface FrameYamlEngineControlManifest {
   readonly namespace: string;
   readonly supported: Map<string, FrameYamlPersistedControlSpec>;
 }
+
+const FRAME_YAML_ENGINE_LAYOUT_NODE_NAMESPACE_SUFFIX = '_nodes' as const;
 
 /**
  * Frame-diagram YAML persists engine-backed controls under `document.meta.<engine>`.
@@ -59,7 +62,13 @@ function supportedFrameYamlControlSpecsByEngine(
       continue;
     }
     const supported = namespaces.get(namespace) ?? new Map<string, FrameYamlPersistedControlSpec>();
-    supported.set(spec.key, { key: spec.key, kind: spec.kind });
+    supported.set(spec.key, {
+      key: spec.key,
+      kind: spec.kind,
+      emptyStringIsValue: spec.kind === 'enum'
+        && Array.isArray(spec.enumValues)
+        && spec.enumValues.some((entry) => entry.value === ''),
+    });
     namespaces.set(namespace, supported);
   }
   return namespaces;
@@ -115,6 +124,29 @@ function resolveFrameYamlPersistNamespaceForEngine(
     }
   }
   return null;
+}
+
+function resolveFrameYamlNodePersistNamespace(
+  namespace: string | null | undefined,
+): string | null {
+  const normalized = normalizeNamespace(namespace);
+  if (!normalized || !isFrameYamlEngineLayoutNamespace(normalized)) {
+    return null;
+  }
+  return `${normalized}${FRAME_YAML_ENGINE_LAYOUT_NODE_NAMESPACE_SUFFIX}`;
+}
+
+function resolveFrameYamlBaseNamespaceFromNodeNamespace(
+  namespace: string | null | undefined,
+): string | null {
+  const normalized = normalizeNamespace(namespace);
+  if (
+    !normalized
+    || !normalized.endsWith(FRAME_YAML_ENGINE_LAYOUT_NODE_NAMESPACE_SUFFIX)
+  ) {
+    return null;
+  }
+  return normalized.slice(0, -FRAME_YAML_ENGINE_LAYOUT_NODE_NAMESPACE_SUFFIX.length);
 }
 
 function resolveFrameYamlEngineControlManifest(
@@ -231,6 +263,49 @@ export function readFrameYamlEngineLayoutOverridesForLayoutEngine(
     return null;
   }
   return { namespace: manifest.namespace, overrides };
+}
+
+export function readFrameYamlEngineLayoutNodeBuckets(
+  diagram: {
+    engineLayout?: Record<string, Record<string, unknown>> | null;
+  } | null | undefined,
+): Record<string, Record<string, Record<string, unknown>>> {
+  const byNamespace: Record<string, Record<string, Record<string, unknown>>> = {};
+  for (const [namespace, rawBuckets] of Object.entries(diagram?.engineLayout ?? {})) {
+    const baseNamespace = resolveFrameYamlBaseNamespaceFromNodeNamespace(namespace);
+    if (!baseNamespace || typeof rawBuckets !== 'object' || rawBuckets == null || Array.isArray(rawBuckets)) {
+      continue;
+    }
+    for (const [nodeId, bucketValue] of Object.entries(rawBuckets)) {
+      const manifest = resolvePreviewEngine({ layoutEngine: nodeId, shellMode: 'grid' })
+        ?? listPreviewEngines().find((entry) => entry.id === nodeId)
+        ?? null;
+      if (!manifest) {
+        continue;
+      }
+      const manifestNamespace = resolveFrameYamlPersistNamespaceForEngine(manifest);
+      if (manifestNamespace !== baseNamespace) {
+        continue;
+      }
+      if (typeof bucketValue !== 'object' || bucketValue == null || Array.isArray(bucketValue)) {
+        continue;
+      }
+      const supported = supportedFrameYamlControlSpecsByEngine(manifest).get(baseNamespace);
+      if (!supported || supported.size === 0) {
+        continue;
+      }
+      const bucket = filterOverridesToSupportedSpecs(
+        bucketValue as Record<string, unknown>,
+        supported,
+      );
+      if (Object.keys(bucket).length === 0) {
+        continue;
+      }
+      byNamespace[baseNamespace] = byNamespace[baseNamespace] ?? {};
+      byNamespace[baseNamespace]![nodeId] = bucket;
+    }
+  }
+  return byNamespace;
 }
 
 export function listFrameYamlEngineLayoutCandidateIds(

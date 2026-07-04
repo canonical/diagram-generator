@@ -187,6 +187,6 @@ export function deserializeFrameDiagramWire(json: Record<string, unknown>): Fram
     diagramType: json.diagramType as string | undefined,
     sourceImage: json.sourceImage as string | undefined,
     elkLayout: json.elkLayout as Record<string, string> | undefined,
-    engineLayout: json.engineLayout as Record<string, Record<string, string>> | undefined,
+    engineLayout: json.engineLayout as Record<string, Record<string, unknown>> | undefined,
   });
 }

@@ -7,6 +7,7 @@ import {
 } from '../src/preview-engine/builtins.js';
 import { installMindmapLitePreviewEngine } from '../src/preview-engine/mindmap-lite.js';
 import { getPreviewEngine } from '../src/preview-engine/registry.js';
+import { readLayoutOperatorOverrideState } from '../src/preview-shell/layout-operator-overrides.js';
 
 const mocks = vi.hoisted(() => ({
   createBrowserState: vi.fn(),
@@ -1379,7 +1380,7 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
     expect(graphControllerInit.mock.calls[1]?.[0]?.getLayoutOverrides()).toEqual({
       'elk.spacing.nodeNode': 96,
     });
-    expect(model.layoutOperatorOverrides).toEqual({
+    expect(readLayoutOperatorOverrideState(model)).toEqual({
       activeOperatorKey: 'elk-force',
       byOperator: {
         dagre: { 'dagre.ranksep': 128 },
@@ -1391,6 +1392,278 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
     });
     expect(model.layoutOverrideNamespace).toBe('meta.elk');
     expect(graphControllerSyncPanel).toHaveBeenCalledTimes(2);
+
+    committedLayoutEngines.length = 0;
+    rerenderStageCalls.length = 0;
+    previewWindow.__DG_previewRenderIntent = {
+      engineId: 'v3',
+      pageDirection: null,
+      frameOverrides: {},
+      engineOverrides: {},
+      gridOverrides: {},
+    };
+
+    await previewWindow.__DG_rerenderPreviewEngineWorkspaceStage();
+    expect(committedLayoutEngines).toEqual(['v3']);
+    expect(previewWindow.__DG_CONFIG.active_engine_id).toBe('v3');
+    expect(previewWindow.__DG_previewRenderIntent?.engineId).toBe('v3');
+    expect(rerenderStageCalls).toEqual(['rerender']);
+    expect(previewWindow.PreviewEngineLayoutControls).toBeNull();
+    expect(previewWindow.PreviewEngineShellController).toBeNull();
+    expect(readLayoutOperatorOverrideState(model)).toEqual({
+      activeOperatorKey: null,
+      byOperator: {
+        dagre: { 'dagre.ranksep': 128 },
+        'elk-force': { 'elk.spacing.nodeNode': 96 },
+      },
+    });
+    expect(model.layoutOverrides).toEqual({});
+    expect(model.layoutOverrideNamespace).toBeNull();
+  });
+
+  it('restores engine-specific override runtime state when preview engine rerender fails', async () => {
+    const committedLayoutEngines: string[] = [];
+    const previousControlsRuntime = { kind: 'previous-controls-runtime' };
+    const previousShellController = { kind: 'previous-shell-controller' };
+    const nextControlsRuntime = { kind: 'next-controls-runtime' };
+    const nextShellController = { kind: 'next-shell-controller', init: vi.fn(), syncPanel: vi.fn() };
+    const createGraphControlsRuntime = vi.fn(() => nextControlsRuntime);
+    const createGraphControllerRuntime = vi.fn(() => nextShellController);
+    const browserState = {
+      replaceOverrides: vi.fn((nextOverrides: Record<string, unknown>) => nextOverrides),
+      setDirty: vi.fn(),
+      pruneLinkedRootGridOverrides: vi.fn(),
+      restoreOverrideEntries: vi.fn(),
+      clearPendingRestoreRuntime: vi.fn(),
+      applyLocalRestoreRefresh: vi.fn(),
+      setMultiActionGap: vi.fn(),
+      setOverride: vi.fn(),
+      setWaypointOverride: vi.fn(),
+      cleanOverride: vi.fn(),
+      getParentNode: vi.fn(() => null),
+      getComponentNode: vi.fn(() => null),
+      hasLayoutChildren: vi.fn(() => false),
+      getArrowNode: vi.fn(() => null),
+      getComponentType: vi.fn(() => 'box'),
+      getViolationsForComponent: vi.fn(() => []),
+      scheduleLayoutRelayout: vi.fn(),
+      clearScheduledLayoutRelayout: vi.fn(),
+    };
+    const rerenderStageFromModel = vi.fn(async () => {
+      throw new Error('Unsupported ELK layered override keys: elk.radial.radius');
+    });
+    const runtime = {
+      getSceneFacade: vi.fn(() => ({
+        rerenderStageFromModel,
+      })),
+      getRelayoutFacade: vi.fn(() => ({
+        getRelayoutRuntime: vi.fn(() => ({ requestRelayout: vi.fn() })),
+      })),
+      getBootstrapFacade: vi.fn(() => ({ kind: 'bootstrap-facade' })),
+      getInteractionFacade: vi.fn(() => ({ kind: 'interaction-facade' })),
+      invalidateOverrideBoundFacades: vi.fn(),
+    };
+    mocks.createBrowserState.mockReturnValue(browserState);
+    mocks.createRuntime.mockReturnValue(runtime);
+    const model = {
+      roots: [{ id: 'root' }],
+      layoutOverrides: { gap: 24 },
+      layoutOverrideNamespace: 'meta.v3',
+      layoutOperatorOverrides: {
+        activeOperatorKey: 'v3',
+        byOperator: {
+          v3: { gap: 24 },
+        },
+      },
+    };
+    const previewWindow = {
+      __DG_CONFIG: {
+        slug: 'example-deployment-pipeline',
+        active_engine_id: 'v3',
+        layout_engine: 'v3',
+        persisted_layout_engine: 'v3',
+        shell_mode: 'grid',
+        document_kind: 'frame-diagram',
+      },
+      __DG_previewRenderIntent: {
+        engineId: 'elk-layered',
+        pageDirection: null,
+        frameOverrides: {},
+        engineOverrides: {},
+        gridOverrides: {},
+      },
+      __DG_activeLayoutOperatorKey: 'v3',
+      getFrameTreeJson: vi.fn(() => ({
+        layoutEngine: 'v3',
+        engineLayout: {
+          'meta.elk': {
+            'elk.radial.radius': 240,
+          },
+        },
+      })),
+      setFrameTreeLayoutEngine: vi.fn((layoutEngine: string | null | undefined) => {
+        if (layoutEngine) {
+          committedLayoutEngines.push(layoutEngine);
+          return layoutEngine;
+        }
+        return null;
+      }),
+      LayoutEngine: {
+        previewEngines: {
+          registry: {
+            resolvePreviewEngine: vi.fn(({ layoutEngine }: { layoutEngine?: string | null }) => {
+              if (layoutEngine === 'elk-layered') {
+                return {
+                  id: 'elk-layered',
+                  hostView: { sidebarSections: ['layout-params'] },
+                  controlSpecs: [{ key: 'elk.direction', persistNamespace: 'meta.elk' }],
+                  capabilities: { rawDebugView: true },
+                };
+              }
+              return {
+                id: String(layoutEngine || 'v3'),
+                hostView: { sidebarSections: [] },
+                controlSpecs: [],
+                capabilities: { rawDebugView: false },
+              };
+            }),
+          },
+          graph: {
+            createPreviewEngineLayoutControlsRuntime: createGraphControlsRuntime,
+            createPreviewEngineShellControllerRuntime: createGraphControllerRuntime,
+          },
+        },
+      },
+      PreviewEngineLayoutControls: previousControlsRuntime,
+      PreviewEngineShellController: previousShellController,
+    } as any;
+    const document = {
+      getElementById: vi.fn(() => null),
+      querySelector: vi.fn(() => null),
+    } as any;
+
+    const options = createPreviewGridEditorInstallOptionsFromLegacyEditorHost({
+      document,
+      previewWindow,
+      config: {
+        slug: 'example-deployment-pipeline',
+        engine: 'v3',
+        gridEnabled: true,
+        guideModes: ['off', 'all'],
+        baselineStep: 24,
+        inset: 8,
+        guideColor: '#f00',
+        guideOpacity: '0.5',
+        interactionMode: { TEXT_EDITING: 'text', WAYPOINT_DRAGGING: 'waypoint' } as any,
+        handleSize: 12,
+        minNodeSize: 24,
+        fallbackGap: 24,
+        snapToGrid: (value) => value,
+      },
+      state: {
+        model: model as any,
+        interactionManager: { kind: 'manager' } as any,
+        selectedIds: new Set<string>(),
+        selectionDepthState: { get: vi.fn(() => 0), set: vi.fn() },
+        coercedKeys: new Set<string>(),
+        editorState: { kind: 'editor-state' } as any,
+        previewSaveClient: { kind: 'save-client' } as any,
+        generationState: { get: vi.fn(() => 7), set: vi.fn() },
+        allowInternalDirtyNavigationState: { get: vi.fn(() => false), set: vi.fn() },
+        constraints: { summarise: vi.fn(() => ({ total: 0 })) } as any,
+        lastViolationsState: { get: vi.fn(() => []) },
+        overridesState: { get: vi.fn(() => ({})), set: vi.fn() },
+        multiActionGapState: { get: vi.fn(() => 24), set: vi.fn() },
+        layoutRelayoutTimerState: { get: vi.fn(() => null), set: vi.fn() },
+      },
+      helpers: {
+        applyInteractionOverrideEntries: vi.fn(),
+      },
+      modelOps: {
+        getOwnDelta: vi.fn(() => ({ dx: 0, dy: 0, dw: 0, dh: 0 })),
+        getEffectiveDelta: vi.fn(() => ({ dx: 0, dy: 0, dw: 0, dh: 0 })),
+        getAncestors: vi.fn(() => []),
+      },
+      facades: {
+        getEditorSceneFacade: vi.fn(() => ({
+          deleteSelectedFrames: vi.fn(async () => ({ rerendered: true })),
+          cycleGuideMode: vi.fn(),
+          updateOverrideSummary: vi.fn(),
+          refreshTreeColors: vi.fn(),
+          runConstraints: vi.fn(),
+          rerenderStageFromModel,
+        })),
+        getEditorRelayoutFacade: vi.fn(() => ({
+          applyUndoCommand: vi.fn(),
+          getRelayoutRuntime: vi.fn(() => ({ requestRelayout: vi.fn() })),
+          scheduleResizeRelayout: vi.fn(() => false),
+          cancelResizeRelayout: vi.fn(),
+          persistResize: vi.fn(),
+          getLayoutRelayoutStatus: vi.fn(() => ({})),
+        })),
+        getEditorInteractionFacade: vi.fn(() => ({
+          getStageBindingRuntime: vi.fn(() => ({ buildTreeUi: vi.fn(), bindInteraction: vi.fn() })),
+          getSelectionRuntime: vi.fn(() => ({
+            deselectAll: vi.fn(),
+            reapplySelection: vi.fn(),
+            selectComponent: vi.fn(),
+            applySelectionStateSnapshot: vi.fn(),
+          })),
+          getInspectorDisplayRuntime: vi.fn(() => ({
+            renderEmptyInspector: vi.fn(),
+            renderSelectionInspector: vi.fn(),
+            renderMultiSelectionInspector: vi.fn(),
+          })),
+          getInspectorMutationRuntime: vi.fn(() => ({ setFrameProp: vi.fn() })),
+          getResizeInteractionRuntime: vi.fn(() => ({ onResizeUp: vi.fn() })),
+          getInspectorSelectionRuntime: vi.fn(() => ({
+            applySelectionTargets: vi.fn(),
+            distributeSelection: vi.fn(),
+            alignSelection: vi.fn(),
+            setMultiFrameAlign: vi.fn(),
+            applyMultiStyleOverride: vi.fn(),
+            setMultiFrameProp: vi.fn(),
+            setMultiFrameSize: vi.fn(),
+          })),
+          getArrowWaypointRuntime: vi.fn(() => ({
+            showArrowWaypointHandles: vi.fn(),
+            startWaypointDrag: vi.fn(),
+            onWaypointDragMove: vi.fn(),
+            onWaypointDragUp: vi.fn(),
+            addWaypoint: vi.fn(),
+            removeWaypoint: vi.fn(),
+            getArrowPoints: vi.fn(),
+            updateArrowVisual: vi.fn(),
+            rebuildArrowSvg: vi.fn(),
+          })),
+        })),
+      },
+    });
+    createPreviewGridEditorInstallUnitFromEditorHost(options);
+    previewWindow.__DG_previewRenderIntent = {
+      engineId: 'elk-layered',
+      pageDirection: null,
+      frameOverrides: {},
+      engineOverrides: {},
+      gridOverrides: {},
+    };
+
+    await expect(previewWindow.__DG_rerenderPreviewEngineWorkspaceStage()).rejects.toThrow(
+      'Unsupported ELK layered override keys: elk.radial.radius',
+    );
+    expect(committedLayoutEngines).toEqual(['elk-layered']);
+    expect(createGraphControlsRuntime).toHaveBeenCalledTimes(1);
+    expect(createGraphControllerRuntime).toHaveBeenCalledTimes(1);
+    expect(readLayoutOperatorOverrideState(model)).toEqual({
+      activeOperatorKey: 'v3',
+      byOperator: {
+        v3: { gap: 24 },
+      },
+    });
+    expect(model.layoutOverrides).toEqual({ gap: 24 });
+    expect(model.layoutOverrideNamespace).toBe('meta.v3');
+    expect(previewWindow.PreviewEngineLayoutControls).toBe(previousControlsRuntime);
+    expect(previewWindow.PreviewEngineShellController).toBe(previousShellController);
   });
 
   it('derives runtime callbacks from the compact editor-host contract', async () => {

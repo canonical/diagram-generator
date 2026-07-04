@@ -1,12 +1,19 @@
 # Diagram rules
 
-Short visual contract for the current TS renderer.
+Thin index for the current TS renderer contract. Do not restate the
+frame-class table or level-promotion rule here.
 
 Runtime authority:
 
 - `packages/layout-engine/src/tokens.ts`
 - `packages/layout-engine/src/frame-classes.ts`
+- `packages/layout-engine/src/resolve-styles.ts`
 - `packages/layout-engine/src/svg-render.ts`
+
+Authoring and reference sources:
+
+- `docs/frame-classes.md`
+- `.github/skills/level-assignment/SKILL.md`
 
 ## Core values
 
@@ -24,21 +31,6 @@ Runtime authority:
 - No centered labels
 - No icon-above-text variants
 
-## Frame classes
-
-| Class | Fill | Border | Text |
-|------|------|--------|------|
-| Leaf | transparent | black 1px | black |
-| Panel | `#F3F3F3` | `#F3F3F3` 1px | black |
-| Section | transparent | black 1px | black |
-| Annotation | transparent | none | `#666666` |
-| Highlight | black | black 1px | white |
-
-Hierarchy is by weight, not extra token families:
-
-- section/panel headings: `700`
-- leaf/body/annotation: `400`
-
 ## Arrows
 
 - Orange `#E95420` only
@@ -51,6 +43,10 @@ Hierarchy is by weight, not extra token families:
 - Author diagrams in `scripts/diagrams/frames/*.yaml`
 - Keep styling semantic: `level`, `variant`, structure, spacing
 - Do not encode renderer behavior in ad hoc prose or token catalogs
+- For the fixed `level:` encoding, frame-class table, and sibling-promotion
+  rule, read `docs/frame-classes.md`.
+- For the authoring workflow that applies those levels in YAML, read
+  `.github/skills/level-assignment/SKILL.md`.
 
 ## Verify
 

@@ -425,7 +425,7 @@ describe('arrow rendering parity', () => {
       const panel = diagram.root.children[0]!;
       const body = panel.children.find(child => child.id.endsWith('__body'))!;
 
-      expect(panel.gap).toBe(8);
+      expect(panel.gap).toBe(16);
       expect(body.gap).toBe(24);
     } finally {
       rmSync(tempDir, { recursive: true, force: true });

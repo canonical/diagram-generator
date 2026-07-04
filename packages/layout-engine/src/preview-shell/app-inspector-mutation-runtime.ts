@@ -18,6 +18,8 @@ import {
 } from './frame-style.js';
 import {
   resolveEditorMutationTransaction,
+  type EditorMutationStateVector,
+  type EditorMutationTransactionObservation,
   type EditorMutationTransactionResult,
 } from './editor-mutation-transaction.js';
 import type { PreviewGridInfo } from './grid-resolution.js';
@@ -78,7 +80,11 @@ export interface CreatePreviewInspectorMutationRuntimeOptions {
   baselineStep: number;
   shouldShowAutolayoutInspector?: (() => boolean) | null;
   getMutationContext?: (() => PreviewInspectorMutationContext | null | undefined) | null;
-  onMutationTransaction?: ((result: EditorMutationTransactionResult) => void) | null;
+  captureMutationStateVector?: (() => EditorMutationStateVector | null | undefined) | null;
+  onMutationTransaction?: ((
+    result: EditorMutationTransactionResult,
+    observation?: EditorMutationTransactionObservation,
+  ) => void) | null;
 }
 
 export interface PreviewInspectorMutationRuntime {
@@ -130,6 +136,7 @@ export function createPreviewInspectorMutationRuntime(
 
   return {
     applyStyle(cid, styleName) {
+      const beforeState = options.captureMutationStateVector?.() ?? null;
       const overrides = options.getOverrides();
       const ids = [cid];
       const beforeEntries = options.captureOverrideEntries(ids);
@@ -167,7 +174,10 @@ export function createPreviewInspectorMutationRuntime(
       });
       if (!changed) {
         options.renderSelectionInspector(cid);
-        options.onMutationTransaction?.(transaction);
+        options.onMutationTransaction?.(transaction, {
+          before: beforeState,
+          expectStableCanvas: true,
+        });
         return;
       }
       options.cleanOverride(cid);
@@ -183,7 +193,10 @@ export function createPreviewInspectorMutationRuntime(
         beforeEntries,
         options.captureOverrideEntries(ids),
       );
-      options.onMutationTransaction?.(transaction);
+      options.onMutationTransaction?.(transaction, {
+        before: beforeState,
+        expectStableCanvas: !requiresRelayout,
+      });
     },
     setFrameAlign(cid, align) {
       if (!layoutEditingEnabled()) {

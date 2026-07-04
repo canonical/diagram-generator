@@ -1,0 +1,30 @@
+{
+  "capturedAt": "2026-07-01T22:18:35.366Z",
+  "note": "Captured on feat/071-preview-render-node-graph after the Phase 1 render-node unification landed. The earlier unpadded engine-tab divergence is no longer reproducible on this branch; these values are the branch-local parity baseline for SC-001.",
+  "fixtures": {
+    "example-deployment-pipeline": {
+      "targetEngine": "dagre",
+      "load": "-24 -24 248 528",
+      "saveReload": "-24 -24 248 528",
+      "tabSwitch": "-24 -24 248 528",
+      "paramEdit": "-24 -24 248 528",
+      "containerResize": "-24 -24 248 528"
+    },
+    "mongo-octavia-ha": {
+      "targetEngine": "elk-layered",
+      "load": "-24 -24 1692 680",
+      "saveReload": "-24 -24 1692 680",
+      "tabSwitch": "-24 -24 1692 680",
+      "paramEdit": "-24 -24 1692 680",
+      "containerResize": "-24 -24 1692 680"
+    },
+    "support-engineering-flow": {
+      "targetEngine": "dagre",
+      "load": "-24 -24 1768 232",
+      "saveReload": "-24 -24 1768 232",
+      "tabSwitch": "-24 -24 1768 232",
+      "paramEdit": "-24 -24 1768 232",
+      "containerResize": "-24 -24 1768 232"
+    }
+  }
+}

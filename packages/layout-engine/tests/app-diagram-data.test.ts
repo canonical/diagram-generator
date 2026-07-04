@@ -5,6 +5,7 @@ import {
   loadPreviewGridInfo,
   syncPreviewArrowModelFromFrameTree,
 } from '../src/preview-shell/app-diagram-data.js';
+import { registerPreviewDocumentSvgRenderer } from '../src/preview-engine/index.js';
 
 describe('preview diagram bootstrap/data helpers', () => {
   it('confirms dirty navigation before assigning the next diagram path', () => {
@@ -176,6 +177,43 @@ describe('preview diagram bootstrap/data helpers', () => {
       },
     ]);
     expect(loadedArrows).toEqual([payload]);
+  });
+
+  it('treats standalone preview documents as treeless without central kind branching', async () => {
+    const loadedTrees: unknown[] = [];
+    const loadedArrows: unknown[] = [];
+    const unregister = registerPreviewDocumentSvgRenderer('mindmap-inline', async () => ({
+      svgMarkup: '<svg data-kind="mindmap-inline"></svg>',
+      width: 320,
+      height: 200,
+    }));
+
+    try {
+      const mode = await loadPreviewComponentTree({
+        canonicalState: {
+          previewDocument: {
+            kind: 'mindmap-inline',
+          },
+        },
+        fetchTree: async () => {
+          throw new Error('standalone preview documents should not fetch component trees');
+        },
+        model: {
+          loadTree(tree) {
+            loadedTrees.push(tree);
+          },
+          loadArrows(arrows) {
+            loadedArrows.push(arrows);
+          },
+        },
+      });
+
+      expect(mode).toBe('preview-document');
+      expect(loadedTrees).toEqual([[]]);
+      expect(loadedArrows).toEqual([[]]);
+    } finally {
+      unregister();
+    }
   });
 
   it('loads derived grid info when canonical and fetched grid state are unavailable', async () => {

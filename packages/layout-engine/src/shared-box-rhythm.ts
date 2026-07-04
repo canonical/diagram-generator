@@ -25,7 +25,7 @@ export const SHARED_BOX_RHYTHM: SharedBoxRhythm = Object.freeze({
   bodyLineStep: BODY_LINE_STEP,
   textInset: INSET,
   minBoxHeight: BOX_MIN_HEIGHT,
-  headingBottomGap: INSET,
+  headingBottomGap: INSET + 8,
 });
 
 export function estimateSharedBoxTextWidth(

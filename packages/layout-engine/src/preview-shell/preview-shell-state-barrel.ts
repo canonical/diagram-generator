@@ -75,13 +75,17 @@ export type {
 
 export {
   activateLayoutOperatorOverrideBucket,
+  baseLayoutOperatorNamespaceFromPersistNodeNamespace,
+  clearLayoutOperatorNodeBucketRegistry,
   cloneLayoutOperatorOverrideState,
   collectNamespacedLayoutOperatorOverrides,
   layoutOperatorKeyForManifest,
+  persistNodeNamespaceForLayoutOperatorNamespace,
   pruneSessionBucketForManifest,
   readActiveLayoutOperatorOverrideBucket,
   readLayoutOperatorOverrideBucketForManifest,
   readLayoutOperatorOverrideState,
+  replaceLayoutOperatorNodeBucketsForNamespace,
   resolveEffectiveLayoutOperatorOverrides,
   resolveLayoutOperatorOverrideViewModel,
   writeLayoutOperatorOverrideBucketForManifest,
@@ -117,6 +121,24 @@ export {
 } from './preview-engine-workspace.js';
 
 export type {
+  CreatePreviewInterpreterNodeRegistryOptions,
+  PreviewInterpreterNode,
+  PreviewInterpreterNodeRegistration,
+  PreviewInterpreterNodeRegistry,
+} from './preview-interpreter-node.js';
+
+export {
+  clearPreviewInterpreterNodeParams,
+  createPreviewInterpreterNodeRegistry,
+  createRegisteredPreviewInterpreterNodeRegistry,
+  getPreviewInterpreterNode,
+  getPreviewInterpreterNodeParams,
+  listPreviewInterpreterNodes,
+  resolvePreviewInterpreterNodeId,
+  setPreviewInterpreterNodeParams,
+} from './preview-interpreter-node.js';
+
+export type {
   CreatePreviewRenderIntentOptions,
   PreviewRenderIntent,
   PreviewRenderIntentFrameTree,
@@ -126,10 +148,31 @@ export type {
 
 export {
   applyPreviewRenderIntentToFrameTreeJson,
-  commitPreviewRenderIntentToWindow,
   createPreviewRenderIntent,
   resolvePreviewRenderIntentLayoutEngine,
 } from './preview-render-intent.js';
+
+export type {
+  CreatePreviewSwitchNodeStateOptions,
+  PreviewSwitchNodeCookEntry,
+  PreviewSwitchNodeCookOptions,
+  PreviewSwitchNodeCookResult,
+  PreviewSwitchNodeState,
+  PreviewSwitchNodeWindowLike,
+} from './preview-switch-node.js';
+
+export {
+  commitPreviewSwitchNode,
+  commitPreviewSwitchNodeCook,
+  commitPreviewSwitchNodeLayoutEngine,
+  createPreviewSwitchNodeCookKey,
+  createPreviewSwitchNodeState,
+  markPreviewSwitchNodeDirty,
+  readPreviewSwitchNodeCook,
+  readPreviewSwitchNodeFrameTree,
+  runPreviewSwitchNodeCook,
+  selectPreviewSwitchNode,
+} from './preview-switch-node.js';
 
 export {
   createPreviewGridOverrides,

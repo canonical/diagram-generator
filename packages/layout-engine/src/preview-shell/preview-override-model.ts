@@ -13,10 +13,14 @@ import {
 } from './frame-yaml-engine-layout-contract.js';
 import {
   collectNamespacedLayoutOperatorOverrides,
+  persistNodeNamespaceForLayoutOperatorNamespace,
+  pruneSessionBucketForManifest,
   readActiveLayoutOperatorOverrideBucket,
+  readLayoutOperatorOverrideState,
   resolveActiveLayoutOperatorManifest,
   type LayoutOperatorOverrideState,
 } from './layout-operator-overrides.js';
+import type { PreviewInterpreterNodeRegistry } from './preview-interpreter-node.js';
 import { getPreviewEngineByLayoutKey } from '../preview-engine/registry.js';
 
 export interface PreviewOverrideModelNode {
@@ -31,6 +35,7 @@ export interface PreviewOverrideModelLike {
   layoutOverrides?: Record<string, unknown> | null;
   layoutOverrideNamespace?: string | null;
   layoutOperatorOverrides?: LayoutOperatorOverrideState | null;
+  previewInterpreterNodeRegistry?: PreviewInterpreterNodeRegistry<Record<string, unknown>> | null;
   removedIds?: Iterable<string> | null;
   allIds?: Iterable<string> | null;
   get?: ((id: string) => PreviewOverrideModelNode | null | undefined) | null;
@@ -237,27 +242,56 @@ function applyPendingArrowRerouteWaypointClears(
 function readPreviewPersistedLayoutOverrides(
   model: PreviewOverrideModelLike | null | undefined,
 ): Record<string, Record<string, unknown>> | null {
+  const registry = model?.previewInterpreterNodeRegistry ?? null;
+  const nodeNamespacedOverrides: Record<string, Record<string, unknown>> = {};
+  for (const node of registry?.nodes ?? []) {
+    const baseNamespace = node.manifest.controlSpecs.find(
+      (spec) => typeof spec.persistNamespace === 'string' && spec.persistNamespace.trim().length > 0,
+    )?.persistNamespace ?? null;
+    const nodeNamespace = persistNodeNamespaceForLayoutOperatorNamespace(baseNamespace);
+    if (!nodeNamespace) {
+      continue;
+    }
+    nodeNamespacedOverrides[nodeNamespace] = nodeNamespacedOverrides[nodeNamespace] ?? {};
+    const bucket = pruneSessionBucketForManifest(
+      node.manifest,
+      registry?.paramsByNodeId?.[node.nodeId] ?? node.params ?? {},
+      { persistNamespace: model?.layoutOverrideNamespace ?? null },
+    );
+    if (Object.keys(bucket).length === 0) {
+      continue;
+    }
+    nodeNamespacedOverrides[nodeNamespace]![node.nodeId] = bucket;
+  }
+
   const layoutOverrides = cloneRecord(model?.layoutOverrides);
   const activeOperatorOverrides = cloneRecord(readActiveLayoutOperatorOverrideBucket(model));
   const rawLayoutOverrides = layoutOverrides ?? activeOperatorOverrides;
   if (!rawLayoutOverrides) {
-    return null;
+    return Object.keys(nodeNamespacedOverrides).length > 0
+      ? nodeNamespacedOverrides
+      : null;
   }
 
   const activeManifest = resolveActiveLayoutOperatorManifest(model);
   if (activeManifest) {
     const namespacedOverrides = collectNamespacedLayoutOperatorOverrides({
       manifest: activeManifest,
-      sessionState: model?.layoutOperatorOverrides ?? null,
+      sessionState: readLayoutOperatorOverrideState(model),
       sessionOverrides: activeOperatorOverrides,
       persistNamespace: model?.layoutOverrideNamespace,
     });
     const populatedEntries = Object.entries(namespacedOverrides)
       .filter(([, overrides]) => Object.keys(overrides).length > 0);
     if (populatedEntries.length === 0) {
-      return null;
+      return Object.keys(nodeNamespacedOverrides).length > 0
+        ? nodeNamespacedOverrides
+        : null;
     }
-    return Object.fromEntries(populatedEntries);
+    return {
+      ...Object.fromEntries(populatedEntries),
+      ...nodeNamespacedOverrides,
+    };
   }
 
   const namespace = resolveFrameYamlEngineLayoutNamespaceForOverrides(
@@ -281,15 +315,23 @@ function readPreviewPersistedLayoutOverrides(
     const populatedEntries = Object.entries(namespacedOverrides)
       .filter(([, overrides]) => Object.keys(overrides).length > 0);
     if (populatedEntries.length > 0) {
-      return Object.fromEntries(populatedEntries);
+      return {
+        ...Object.fromEntries(populatedEntries),
+        ...nodeNamespacedOverrides,
+      };
     }
   }
 
   const overrides = filterSupportedFrameYamlEngineLayoutOverrides(namespace, rawLayoutOverrides);
   if (Object.keys(overrides).length === 0) {
-    return null;
+    return Object.keys(nodeNamespacedOverrides).length > 0
+      ? nodeNamespacedOverrides
+      : null;
   }
-  return { [namespace]: overrides };
+  return {
+    [namespace]: overrides,
+    ...nodeNamespacedOverrides,
+  };
 }
 
 export function collectPreviewTopLevelRemovalIds(

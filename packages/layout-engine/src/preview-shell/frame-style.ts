@@ -7,7 +7,8 @@
  */
 
 // Box-style semantics for the editor style picker. These MUST match the
-// canonical design (DIAGRAM.md / docs/frame-classes.md) and the authored
+// runtime frame-class contract (`frame-classes.ts` + `resolve-styles.ts`),
+// the human-readable mirror in `docs/frame-classes.md`, and the authored
 // `variant:` semantics in frame-record-parser.ts, otherwise a box styled in
 // the editor renders differently from the same box authored in YAML.
 //

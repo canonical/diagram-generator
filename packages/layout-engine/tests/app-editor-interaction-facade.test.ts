@@ -465,9 +465,12 @@ describe('preview editor interaction facade', () => {
     let dirty = false;
     let canUndo = false;
     const overrides: Record<string, Record<string, unknown>> = {};
+    let stageViewBox = '-24 -24 256 180';
     const stageSvg = {
       getAttribute(name: string) {
-        return name === 'data-layout-engine' ? 'v3' : null;
+        if (name === 'data-layout-engine') return 'v3';
+        if (name === 'viewBox') return stageViewBox;
+        return null;
       },
     };
     const selectedTab = {
@@ -519,6 +522,13 @@ describe('preview editor interaction facade', () => {
         document,
         model: {
           _roots: [],
+          previewInterpreterActiveNodeId: 'v3',
+          layoutOperatorOverrides: {
+            activeOperatorKey: 'v3',
+            byOperator: {
+              v3: {},
+            },
+          },
           get() {
             return { type: 'box', data: { id: 'root' }, children: [] };
           },
@@ -772,5 +782,345 @@ describe('preview editor interaction facade', () => {
       }),
     );
     expect(previewWindow.__DG_lastEditorMutationStateViolations).toEqual([]);
+  });
+
+  it('records canvas-divergence for equivalent-geometry inspector appearance edits', () => {
+    let dirty = false;
+    let stageViewBox = '-24 -24 256 180';
+    const overrides: Record<string, Record<string, unknown>> = {};
+    const stageSvg = {
+      getAttribute(name: string) {
+        if (name === 'data-layout-engine') return 'v3';
+        if (name === 'viewBox') return stageViewBox;
+        return null;
+      },
+    };
+    const selectedTab = {
+      getAttribute(name: string) {
+        if (name === 'data-engine-id') return 'v3';
+        if (name === 'aria-selected') return 'true';
+        return null;
+      },
+    };
+    const document = {
+      activeElement: null,
+      defaultView: {
+        __DG_previewRenderIntent: {
+          engineId: 'v3',
+          pageDirection: null,
+          frameOverrides: {},
+          engineOverrides: {},
+          gridOverrides: {},
+        },
+        __DG_CONFIG: {
+          active_engine_id: 'v3',
+          layout_engine: 'v3',
+          document_kind: 'frame-diagram',
+        },
+        __DG_getPreviewBridgeHostContract: () => ({
+          getFrameTreeJson: () => ({ layoutEngine: 'v3' }),
+        }),
+        PreviewSaveClient: {
+          isDirty: () => dirty,
+        },
+      },
+      addEventListener() {},
+      removeEventListener() {},
+      getElementById(id: string) {
+        if (id === 'btn-undo') return { disabled: false };
+        if (id === 'btn-redo') return { disabled: true };
+        return null;
+      },
+      querySelector(selector: string) {
+        if (selector === '#stage svg') return stageSvg;
+        if (selector === '[data-engine-id][aria-selected="true"]') return selectedTab;
+        return null;
+      },
+    } as unknown as Document;
+
+    const facade = createPreviewEditorInteractionFacadeFromBrowserHost({
+      shared: {
+        document,
+        model: {
+          _roots: [],
+          previewInterpreterActiveNodeId: 'v3',
+          layoutOperatorOverrides: {
+            activeOperatorKey: 'v3',
+            byOperator: {
+              v3: {},
+            },
+          },
+          get() {
+            return {
+              type: 'box',
+              level: 1,
+              fill: 'WHITE',
+              border: 'SOLID',
+              data: { id: 'root', level: 1, fill: 'WHITE', border: 'SOLID' },
+              children: [],
+            };
+          },
+          getParent() {
+            return null;
+          },
+          cleanOverride() {},
+        },
+        interactionManager: {
+          state: null,
+          suppressHover: false,
+          isBusy: false,
+          isMode() {
+            return false;
+          },
+          endInteraction() {},
+        },
+        selectedIds: new Set<string>(['root']),
+        selectionDepthState: {
+          get: () => 0,
+          set() {},
+        },
+      },
+      contracts: {
+        previewShellInteraction: {
+          findPreviewArrowAtPoint() {
+            return null;
+          },
+          findPreviewComponentAtDepth() {
+            return null;
+          },
+          findDeepestPreviewComponent() {
+            return null;
+          },
+          renderPreviewReorderIndicator() {},
+          clearPreviewReorderIndicator() {},
+          applyReorderOrder() {
+            return null;
+          },
+          collectPreviewMultiResizeSelection() {
+            return null;
+          },
+          collectPreviewSelectionActionInfo() {
+            return { count: 1 };
+          },
+          clampPreviewDragDeltaWithinParent() {
+            return { dx: 0, dy: 0 };
+          },
+          syncPreviewSvgHoverState() {},
+          clearPreviewSvgHoverState() {},
+          resolvePreviewResizeHandlePlan() {
+            return null;
+          },
+          normalizeSelectionGap(value: unknown) {
+            return value;
+          },
+          resolveSelectionDistributeTargets() {
+            return [];
+          },
+          resolveSelectionAlignTargets() {
+            return [];
+          },
+          createSelectionTargetOverrideEntries() {
+            return [];
+          },
+        },
+        previewBridgeRender: {
+          readPreviewRenderedComponentBounds() {
+            return null;
+          },
+          readPreviewArrowEndpoints() {
+            return null;
+          },
+          updatePreviewArrowSvg() {},
+          rebuildPreviewArrowSvg() {},
+        },
+        previewShellScene: {
+          syncPreviewTreeSelectionState() {},
+        },
+        previewShellInspector: {
+          findPreviewEditableTextTarget() {
+            return null;
+          },
+          resolvePreviewEditableComponentId() {
+            return '';
+          },
+        },
+      },
+      browser: {
+        getOverrides: () => overrides,
+        captureOverrideEntries(ids: string[]) {
+          return Object.fromEntries(ids.map((id) => [id, { ...(overrides[id] || {}) }]));
+        },
+        commitOverridePatchAction() {},
+        getEffectiveDelta() {
+          return { dx: 0, dy: 0, dw: 0, dh: 0 };
+        },
+        getOwnDelta() {
+          return { dx: 0, dy: 0, dw: 0, dh: 0 };
+        },
+        getAncestors() {
+          return [];
+        },
+        getPreviewGridInfo() {
+          return null;
+        },
+        getWidthUnit() {
+          return 'px';
+        },
+        getHeightUnit() {
+          return 'px';
+        },
+        getInspector() {
+          return {
+            innerHTML: '',
+            querySelector() {
+              return null;
+            },
+          };
+        },
+        getArrowNode() {
+          return null;
+        },
+        getParentNode() {
+          return null;
+        },
+        getComponentType() {
+          return 'box';
+        },
+        getViolations() {
+          return [];
+        },
+        readRenderedStyleFields() {
+          return null;
+        },
+        renderBoxStyleOptions() {
+          return '';
+        },
+        formatAsDefinedStyleLabel() {
+          return '';
+        },
+        normalizeStyleName(value: string) {
+          return value;
+        },
+        snapToGrid(value: number) {
+          return value;
+        },
+        setDirty(nextDirty: boolean) {
+          dirty = nextDirty;
+        },
+        scheduleRelayout() {},
+        requestRelayoutNow() {},
+        applyAllOverrides() {
+          stageViewBox = '0 0 256 180';
+        },
+        reapplySelection() {},
+        updateOverrideSummary() {},
+        refreshTreeColors() {},
+        runConstraints() {},
+        setOverride() {},
+        selectComponent() {},
+        deleteSelectedFrames() {
+          return Promise.resolve();
+        },
+        renderSelectionInspector() {},
+        renderMultiSelectionInspector() {},
+        renderEmptyInspector() {},
+        clearHandlesByClass() {},
+        renderResizeHandles() {},
+        showResizeHandles() {},
+        clearGuideLines() {},
+        renderGuideLines() {},
+        applySelectionState() {},
+        deselectAll() {},
+        findReferenceImage() {
+          return null;
+        },
+        gridTargets() {
+          return [];
+        },
+        isAutolayoutChild() {
+          return false;
+        },
+        hasLayoutChildren() {
+          return false;
+        },
+        getPrimarySelectedId() {
+          return 'root';
+        },
+        getTextAdapter: null,
+        escapeHtml: null,
+        baselineStep: 8,
+        fallbackGap: 8,
+        multiActionGapState: {
+          get: () => 8,
+          set() {},
+        },
+        coercedKeys: new Set<string>(),
+        interactionMode: {
+          DRAGGING: 'dragging',
+          TEXT_EDITING: 'text',
+          RESIZING: 'resizing',
+        },
+        previewShellInteraction: null,
+        textEditingMode: 'text',
+        iconSize: 48,
+        columnGap: 24,
+        minNodeSize: 8,
+        handleSize: 8,
+        theme: {
+          headLen: 10,
+          headHalf: 5,
+          color: '#000000',
+        },
+        waypointDraggingMode: 'waypoint',
+        setTextOverride() {},
+        onResizeUp() {},
+        cycleGuideMode() {},
+        undo() {},
+        redo() {},
+        save() {},
+        deleteSelection() {},
+        applyInteractionOverrideEntries() {},
+        scheduleLayoutResizeRelayout() {
+          return false;
+        },
+        scheduleV3ResizeRelayout() {
+          return false;
+        },
+        cancelLiveRelayout() {},
+        cleanOverride() {},
+        persistResize() {},
+        persistWaypointOverride() {},
+        autoFitArtboard() {},
+        clearPreviewSvgHoverState() {},
+        alert() {},
+        shouldShowAutolayoutInspector() {
+          return true;
+        },
+      },
+    } as any);
+
+    facade.getEditorRuntimeSet().inspectorMutation.applyStyle('root', 'parent');
+
+    const previewWindow = document.defaultView as Record<string, unknown>;
+    expect(previewWindow.__DG_lastEditorMutationTransactionResult).toEqual(
+      expect.objectContaining({
+        kind: 'committed',
+        mutationKind: 'inspector-appearance',
+        sourceControl: 'single-style',
+      }),
+    );
+    expect(previewWindow.__DG_lastEditorMutationStateViolations).toEqual([
+      expect.objectContaining({
+        code: 'canvas-divergence',
+        expected: {
+          activeNodeId: 'v3',
+          fittedViewBox: '-24 -24 256 180',
+        },
+        actual: {
+          activeNodeId: 'v3',
+          fittedViewBox: '0 0 256 180',
+        },
+      }),
+    ]);
   });
 });

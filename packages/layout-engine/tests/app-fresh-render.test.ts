@@ -20,10 +20,19 @@ import {
   filterPreviewEngineLayoutOptionOverrides,
   renderFreshPreviewSvg,
 } from '../src/preview-shell/app-fresh-render.js';
-import { commitPreviewRenderIntentToWindow } from '../src/preview-shell/preview-render-intent.js';
+import {
+  registerPreviewDocumentSvgRenderer,
+  registerPreviewEngine,
+} from '../src/preview-engine/index.js';
+import { commitPreviewSwitchNode } from '../src/preview-shell/preview-switch-node.js';
+import {
+  applyPreviewOverridesToFrameTree,
+  collectPreviewRelayoutFrameOverrides,
+} from '../src/preview-shell/app-relayout.js';
 import { loadFrameYaml } from '../src/frame-yaml-loader.js';
 import { serializeFrameDiagram } from '../src/frame-serialize.js';
 import { MockTextAdapter } from '../src/text-measure.js';
+import type { Frame } from '../src/frame-model.js';
 import { loadNormalizedFrameFixture } from './helpers/frame-fixture-normalization.js';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
@@ -134,12 +143,33 @@ class FakeElement extends FakeNode {
 }
 
 class FakeDocument {
+  readonly defaultView = {
+    DOMParser: class {
+      parseFromString(markup: string) {
+        const rootTagMatch = markup.match(/<\s*([A-Za-z0-9:-]+)/);
+        const tagName = rootTagMatch?.[1] ?? 'svg';
+        const document = new FakeDocument();
+        const element = new FakeElement(document, tagName);
+        for (const match of markup.matchAll(/([A-Za-z_:][A-Za-z0-9_:\-.]*)="([^"]*)"/g)) {
+          element.setAttribute(match[1]!, match[2]!);
+        }
+        return {
+          documentElement: element,
+        };
+      }
+    },
+  };
+
   createElementNS(_namespace: string, tagName: string): FakeElement {
     return new FakeElement(this, tagName);
   }
 
   createDocumentFragment(): FakeElement {
     return new FakeElement(this, '#document-fragment');
+  }
+
+  importNode<TNode extends FakeNode>(node: TNode): TNode {
+    return node;
   }
 }
 
@@ -155,6 +185,19 @@ function matchesSelector(element: FakeElement, selector: string): boolean {
     return element.tagName === selector;
   }
   return false;
+}
+
+function findFrameById(frame: Frame, frameId: string): Frame | null {
+  if (frame.id === frameId) {
+    return frame;
+  }
+  for (const child of frame.children) {
+    const match = findFrameById(child, frameId);
+    if (match) {
+      return match;
+    }
+  }
+  return null;
 }
 
 describe('renderFreshPreviewSvg', () => {
@@ -305,6 +348,49 @@ describe('renderFreshPreviewSvg', () => {
     expect(routedArrowInput?.layoutPath).toBeUndefined();
   });
 
+  it('reflows the test-alignment-grid child after an inspector-style switch to HUG and a smaller parent width', async () => {
+    const ownerDocument = new FakeDocument();
+    const diagram = loadFrameYaml(join(FRAMES_DIR, 'test-alignment-grid.yaml'));
+    const frameTreeJson = serializeFrameDiagram(diagram);
+    let laidOutRoot: Frame | null = null;
+
+    await renderFreshPreviewSvg({
+      ownerDocument: ownerDocument as unknown as Document,
+      frameTreeJson,
+      overrides: {
+        container: {
+          sizing_w: 'FIXED',
+          width: 160,
+          sizing_h: 'FIXED',
+          height: 208,
+        },
+        small_box: {
+          sizing_w: 'HUG',
+          sizing_h: 'HUG',
+        },
+      },
+      gridOverrides: {},
+      model: {},
+      textAdapter: new MockTextAdapter(),
+      applySessionRemovalsToDiagramJson: null,
+      applyOverridesToFrameTree: applyPreviewOverridesToFrameTree,
+      collectRelayoutFrameOverrides: collectPreviewRelayoutFrameOverrides,
+      resolveEngineLayoutOptionOverrides: () => ({}),
+      updateModelFromLayout: (_model, root) => {
+        laidOutRoot = root;
+      },
+      syncArrowsInModel: vi.fn(),
+    });
+
+    const container = laidOutRoot ? findFrameById(laidOutRoot, 'container') : null;
+    const child = laidOutRoot ? findFrameById(laidOutRoot, 'small_box') : null;
+
+    expect(container).not.toBeNull();
+    expect(child).not.toBeNull();
+    expect(child?._layout.placedW).toBeLessThan(192);
+    expect(child?._layout.placedW).toBeLessThan(container?._layout.placedW ?? 0);
+  });
+
   it('stamps the engine that actually drives an authored-engine fresh render', async () => {
     const ownerDocument = new FakeDocument();
     const diagram = loadFrameYaml(join(FRAMES_DIR, 'mongo-octavia-ha.yaml'));
@@ -341,7 +427,7 @@ describe('renderFreshPreviewSvg', () => {
         layout_engine: 'elk-layered',
       },
     };
-    commitPreviewRenderIntentToWindow(previewWindow, {
+    commitPreviewSwitchNode(previewWindow, {
       activeEngineId: 'v3',
       frameTreeJson,
     });
@@ -387,5 +473,63 @@ describe('renderFreshPreviewSvg', () => {
     });
 
     expect(result.svg.getAttribute('data-layout-engine')).toBe('v3');
+  });
+
+  it('infers the only compatible layout engine for standalone preview documents without a sequence-only fallback', async () => {
+    const ownerDocument = new FakeDocument();
+    const unregisterEngine = registerPreviewEngine({
+      id: 'mindmap-tree',
+      label: 'Mindmap Tree',
+      layoutEngineKey: 'mindmap-tree',
+      shellMode: 'grid',
+      renderFamily: 'frame-native',
+      capabilities: {
+        layoutControls: false,
+        localRelayout: false,
+        serverRelayout: false,
+        engineBackedSave: false,
+        nodeInspector: false,
+        gridEditing: false,
+        referenceImage: false,
+        simulationControls: false,
+        rawDebugView: false,
+      },
+      controlSpecs: [],
+      scripts: [],
+      compatibility: {
+        documentKinds: ['mindmap-inline'],
+      },
+    });
+    const unregisterRenderer = registerPreviewDocumentSvgRenderer('mindmap-inline', async () => ({
+      svgMarkup: '<svg data-kind="mindmap-inline"></svg>',
+      width: 320,
+      height: 200,
+    }));
+
+    try {
+      const result = await renderFreshPreviewSvg({
+        ownerDocument: ownerDocument as unknown as Document,
+        previewDocumentJson: {
+          kind: 'mindmap-inline',
+          title: 'Mindmap',
+        },
+        frameTreeJson: null,
+        overrides: {},
+        gridOverrides: {},
+        model: {},
+        textAdapter: new MockTextAdapter(),
+        applySessionRemovalsToDiagramJson: null,
+        applyOverridesToFrameTree: vi.fn(),
+        collectRelayoutFrameOverrides: (overrides) => overrides,
+        resolveEngineLayoutOptionOverrides: () => ({}),
+        updateModelFromLayout: vi.fn(),
+        syncArrowsInModel: vi.fn(),
+      });
+
+      expect(result.svg.getAttribute('data-layout-engine')).toBe('mindmap-tree');
+    } finally {
+      unregisterRenderer();
+      unregisterEngine();
+    }
   });
 });

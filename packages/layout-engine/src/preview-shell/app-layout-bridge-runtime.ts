@@ -15,6 +15,7 @@ import {
 import {
   activateLayoutOperatorOverrideBucket,
   readActiveLayoutOperatorOverrideBucket,
+  readLayoutOperatorOverrideState,
   readLayoutOperatorOverrideBucketForManifest,
   resolveActiveLayoutOperatorManifest,
   resolveEffectiveLayoutOperatorOverrides,
@@ -24,16 +25,23 @@ import {
 import type { LayoutOperatorOverrideState } from './layout-operator-overrides.js';
 import {
   applyPreviewRenderIntentToFrameTreeJson,
-  commitPreviewRenderIntentToWindow,
   createPreviewRenderIntent,
   resolvePreviewRenderIntentLayoutEngine,
   type PreviewRenderIntent,
   type PreviewRenderIntentFrameTree,
-  type PreviewRenderIntentWindowLike,
 } from './preview-render-intent.js';
 import type { PreviewRoutedArrow } from './app-arrow-render.js';
 import type { FreshPreviewSvgRenderResult } from './app-fresh-render.js';
 import type { PreviewLocalRelayoutStatus, PreviewRelayoutOverrideEntry } from './app-relayout.js';
+import { mountPreviewRenderNode } from './preview-render-node.js';
+import {
+  commitPreviewSwitchNode,
+  createPreviewSwitchNodeCookKey,
+  createPreviewSwitchNodeState,
+  markPreviewSwitchNodeDirty,
+  runPreviewSwitchNodeCook,
+  selectPreviewSwitchNode,
+} from './preview-switch-node.js';
 
 export type PreviewLocalRelayoutOverrideMode = 'auto' | 'unready';
 
@@ -678,6 +686,21 @@ function commitPreviewLayoutBridgeRenderIntent<
   return intent;
 }
 
+function resolvePreviewLayoutBridgeSwitchNodeId<
+  TPreviewDocumentJson,
+  TFrameTreeJson,
+>(
+  state: PreviewLayoutBridgeState<TPreviewDocumentJson, TFrameTreeJson>,
+): string {
+  return resolvePreviewRenderIntentLayoutEngine({
+    intent: state.renderIntent,
+    frameTreeJson: isPreviewLayoutBridgeRecord(state.frameTreeJson)
+      ? state.frameTreeJson as PreviewRenderIntentFrameTree
+      : frameTreeJsonFromPreviewDocument(state.previewDocumentJson),
+    fallbackEngineId: 'v3',
+  }) ?? 'v3';
+}
+
 function isPreviewElkRawViewEnabled(
   previewWindow: PreviewElkViewModeWindowLike,
 ): boolean {
@@ -1088,7 +1111,7 @@ export function createPreviewLayoutBridgeInstallRuntimeFromLegacyBrowserHost<
     setFrameTreeJson: (json: TFrameTreeJson | null) => runtime.setFrameTreeJson(json),
     setFrameTreeLayoutEngine: (layoutEngine: string | null | undefined) => {
       const committed = runtime.setFrameTreeLayoutEngine(layoutEngine);
-      commitPreviewRenderIntentToWindow(options.previewWindow, {
+      commitPreviewSwitchNode(options.previewWindow, {
         current: runtime.state.renderIntent,
         activeEngineId: committed,
         frameTreeJson: runtime.state.frameTreeJson as PreviewRenderIntentFrameTree | null,
@@ -1173,7 +1196,7 @@ export function createPreviewLayoutBridgeInstallRuntimeFromLegacyBrowserHost<
     previewWindowRecord.getFrameTreeJson = () => runtime.getFrameTreeJson();
     previewWindowRecord.setFrameTreeJson = (json: TFrameTreeJson | null) => {
       runtime.setFrameTreeJson(json);
-      commitPreviewRenderIntentToWindow(options.previewWindow, {
+      commitPreviewSwitchNode(options.previewWindow, {
         current: runtime.state.renderIntent,
         frameTreeJson: runtime.state.frameTreeJson as PreviewRenderIntentFrameTree | null,
       });
@@ -1182,7 +1205,7 @@ export function createPreviewLayoutBridgeInstallRuntimeFromLegacyBrowserHost<
       layoutEngine: string | null | undefined,
     ) => {
       const committed = runtime.setFrameTreeLayoutEngine(layoutEngine);
-      commitPreviewRenderIntentToWindow(options.previewWindow, {
+      commitPreviewSwitchNode(options.previewWindow, {
         current: runtime.state.renderIntent,
         activeEngineId: committed,
         frameTreeJson: runtime.state.frameTreeJson as PreviewRenderIntentFrameTree | null,
@@ -1218,14 +1241,14 @@ export function createPreviewLayoutBridgeInstallRuntimeFromLegacyBrowserHost<
     getPreviewDocumentJson: () => runtime.getPreviewDocumentJson(),
     setFrameTreeJson: (json) => {
       runtime.setFrameTreeJson(json);
-      commitPreviewRenderIntentToWindow(options.previewWindow, {
+      commitPreviewSwitchNode(options.previewWindow, {
         current: runtime.state.renderIntent,
         frameTreeJson: runtime.state.frameTreeJson as PreviewRenderIntentFrameTree | null,
       });
     },
     setFrameTreeLayoutEngine: (layoutEngine) => {
       const committed = runtime.setFrameTreeLayoutEngine(layoutEngine);
-      commitPreviewRenderIntentToWindow(options.previewWindow, {
+      commitPreviewSwitchNode(options.previewWindow, {
         current: runtime.state.renderIntent,
         activeEngineId: committed,
         frameTreeJson: runtime.state.frameTreeJson as PreviewRenderIntentFrameTree | null,
@@ -1740,21 +1763,137 @@ export function createPreviewLayoutBridgeRuntimeFromBrowserHost<
     error: options.error,
   });
 
+  type PreviewSwitchCookedRender = Awaited<ReturnType<typeof runtime.renderFreshSvg>>;
+
+  let switchNodeState = createPreviewSwitchNodeState<PreviewSwitchCookedRender>({
+    activeNodeId: resolvePreviewLayoutBridgeSwitchNodeId(runtime.state),
+  });
+
+  const syncSwitchNodeSelection = (): string => {
+    const activeNodeId = resolvePreviewLayoutBridgeSwitchNodeId(runtime.state);
+    switchNodeState = selectPreviewSwitchNode(switchNodeState, activeNodeId);
+    return activeNodeId;
+  };
+
+  const markActiveSwitchNodeDirty = (): void => {
+    switchNodeState = markPreviewSwitchNodeDirty(switchNodeState, [syncSwitchNodeSelection()]);
+  };
+
   const publishRenderIntentToWindow = (): PreviewRenderIntent => (
-    commitPreviewRenderIntentToWindow(options.previewWindow as PreviewRenderIntentWindowLike, {
+    commitPreviewSwitchNode(options.previewWindow, {
       current: runtime.state.renderIntent,
+      activeEngineId: syncSwitchNodeSelection(),
       frameTreeJson: runtime.state.frameTreeJson as PreviewRenderIntentFrameTree | null,
     })
   );
+
+  const resolveSwitchCookKey = (
+    model: TModel,
+    overrides: Record<string, PreviewRelayoutOverrideEntry>,
+    gridOverrides: Record<string, unknown> | null,
+    renderOptions: PreviewLayoutBridgeRelayoutExecutionOptions | null,
+  ): string => {
+    const activeNodeId = resolvePreviewLayoutBridgeSwitchNodeId(runtime.state);
+    const currentIntent = runtime.state.renderIntent;
+    return createPreviewSwitchNodeCookKey({
+      activeNodeId,
+      frameTreeJson: runtime.state.frameTreeJson,
+      renderIntentEngineId: activeNodeId,
+      renderIntentPageDirection: currentIntent?.pageDirection ?? null,
+      renderIntentFrameOverrides: currentIntent?.frameOverrides ?? {},
+      renderIntentEngineOverrides: currentIntent?.engineOverrides ?? {},
+      renderIntentGridOverrides: currentIntent?.gridOverrides ?? {},
+      frameOverrides: overrides || {},
+      gridOverrides: gridOverrides || null,
+      layoutOverrideNamespace: (
+        model as { layoutOverrideNamespace?: string | null } | null | undefined
+      )?.layoutOverrideNamespace ?? null,
+      layoutOperatorOverrides: readLayoutOperatorOverrideState(
+        model as Parameters<typeof readLayoutOperatorOverrideState>[0],
+      ),
+      previewInterpreterActiveNodeId: (
+        model as { previewInterpreterActiveNodeId?: string | null } | null | undefined
+      )?.previewInterpreterActiveNodeId ?? null,
+      removedIds: (
+        model as { removedIds?: Iterable<string> | null } | null | undefined
+      )?.removedIds
+        ? [...(
+          (model as { removedIds?: Iterable<string> | null }).removedIds ?? []
+        )].sort()
+        : [],
+      skipModelUpdate: renderOptions?.skipModelUpdate ?? false,
+    });
+  };
+
+  const renderFreshSvgWithSwitch = async (
+    overrides: Record<string, PreviewRelayoutOverrideEntry>,
+    gridOverrides: Record<string, unknown> | null,
+    model: TModel,
+    renderOptions: PreviewLayoutBridgeRelayoutExecutionOptions | null,
+  ): Promise<PreviewSwitchCookedRender> => {
+    const activeNodeId = syncSwitchNodeSelection();
+    const cookResult = await runPreviewSwitchNodeCook(switchNodeState, {
+      nodeId: activeNodeId,
+      cookKey: resolveSwitchCookKey(model, overrides, gridOverrides, renderOptions),
+      cook: () => runtime.renderFreshSvg(overrides, gridOverrides, model, renderOptions),
+    });
+    switchNodeState = cookResult.state;
+    publishRenderIntentToWindow();
+    return cookResult.cooked;
+  };
+
+  const performEngineRelayoutWithSwitch = async (
+    model: TModel,
+    overrides: Record<string, PreviewRelayoutOverrideEntry>,
+    gridOverrides: Record<string, unknown>,
+    relayoutOptions: PreviewLayoutBridgeRelayoutExecutionOptions | null,
+  ) => {
+    const readiness = runtime.getLocalRelayoutStatus();
+    if (!readiness.ready) {
+      options.warn(`layout-bridge: not ready (${readiness.reason})`);
+      return null;
+    }
+
+    try {
+      const renderResult = await renderFreshSvgWithSwitch(
+        overrides,
+        gridOverrides && Object.keys(gridOverrides).length > 0 ? gridOverrides : null,
+        model,
+        relayoutOptions,
+      );
+      if (!mountPreviewRenderNode({
+        stage: options.ownerDocument.getElementById('stage'),
+        renderResult,
+        fitSvgToContent: ({ svg, minWidth, minHeight }) => options.previewBridgeRender.fitPreviewSvgToRenderedContent({
+          svg,
+          minWidth,
+          minHeight,
+        }),
+      })) {
+        return null;
+      }
+      return {
+        coerced: renderResult.coerced,
+        width: renderResult.width,
+        height: renderResult.height,
+      };
+    } catch (error) {
+      markActiveSwitchNodeDirty();
+      options.error('layout-bridge: engine relayout failed', error);
+      return null;
+    }
+  };
 
   return {
     ...runtime,
     async init(slug) {
       await runtime.init(slug);
+      switchNodeState = markPreviewSwitchNodeDirty(switchNodeState);
       publishRenderIntentToWindow();
     },
     setFrameTreeJson(json) {
       runtime.setFrameTreeJson(json);
+      switchNodeState = markPreviewSwitchNodeDirty(switchNodeState);
       publishRenderIntentToWindow();
     },
     setFrameTreeLayoutEngine(layoutEngine) {
@@ -1764,18 +1903,15 @@ export function createPreviewLayoutBridgeRuntimeFromBrowserHost<
     },
     performLocalRelayout(model, overrides, gridOverrides, opts = null) {
       const result = runtime.performLocalRelayout(model, overrides, gridOverrides, opts);
+      markActiveSwitchNodeDirty();
       publishRenderIntentToWindow();
       return result;
     },
     async renderFreshSvg(overrides, gridOverrides, model, renderOptions = null) {
-      const result = await runtime.renderFreshSvg(overrides, gridOverrides, model, renderOptions);
-      publishRenderIntentToWindow();
-      return result;
+      return renderFreshSvgWithSwitch(overrides, gridOverrides, model, renderOptions);
     },
     async performEngineRelayout(model, overrides, gridOverrides, relayoutOptions = null) {
-      const result = await runtime.performEngineRelayout(model, overrides, gridOverrides, relayoutOptions);
-      publishRenderIntentToWindow();
-      return result;
+      return performEngineRelayoutWithSwitch(model, overrides, gridOverrides, relayoutOptions);
     },
   };
 }
@@ -2026,15 +2162,16 @@ export function createPreviewLayoutBridgeRuntime<
           model,
           relayoutOptions,
         );
-        const stage = options.getStageContainer();
-        if (!stage) {
+        if (!mountPreviewRenderNode({
+          stage: options.getStageContainer(),
+          renderResult,
+          fitSvgToContent: ({ svg, minWidth, minHeight }) => options.fitRenderedSvg(svg, {
+            minWidth,
+            minHeight,
+          }),
+        })) {
           return null;
         }
-        stage.replaceChildren(renderResult.svg);
-        options.fitRenderedSvg(renderResult.svg, {
-          minWidth: renderResult.width,
-          minHeight: renderResult.height,
-        });
         return {
           coerced: renderResult.coerced,
           width: renderResult.width,

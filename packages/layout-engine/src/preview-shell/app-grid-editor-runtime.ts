@@ -19,15 +19,19 @@ import {
   type PreviewEditorSceneFacade,
 } from './app-editor-scene-facade.js';
 import {
+  readFrameYamlEngineLayoutNodeBuckets,
   readFrameYamlEngineLayoutOverridesForLayoutEngine,
 } from './frame-yaml-engine-layout-contract.js';
 import {
   activateLayoutOperatorOverrideBucket,
+  clearLayoutOperatorNodeBucketRegistry,
+  readLayoutOperatorOverrideState,
+  replaceLayoutOperatorNodeBucketsForNamespace,
   writeLayoutOperatorOverrideState,
   type LayoutOperatorOverrideState,
 } from './layout-operator-overrides.js';
 import { resolvePreviewEngine } from '../preview-engine/registry.js';
-import { commitPreviewRenderIntentToWindow } from './preview-render-intent.js';
+import { commitPreviewSwitchNode } from './preview-switch-node.js';
 
 export interface PreviewGridEditorRuntimeNumericState {
   get: () => number;
@@ -346,6 +350,25 @@ export function createPreviewGridEditorRuntimeFromBrowserHost(
   const readLocalRelayoutStatus = (): unknown => (
     getPreviewBridgeHostContract().getLocalRelayoutStatus?.() ?? null
   );
+  const fitRenderedSvgToContent = (
+    options.browser.fitRenderedSvgToContent
+    ?? ((svg: SVGSVGElement, fitOptions?: unknown) => {
+      const normalized = (
+        fitOptions && typeof fitOptions === 'object'
+          ? fitOptions as { minWidth?: number; minHeight?: number }
+          : {}
+      );
+      const fitPreviewSvgToRenderedContent = getPreviewBridgeRenderContract().fitPreviewSvgToRenderedContent;
+      if (typeof fitPreviewSvgToRenderedContent !== 'function') {
+        return null;
+      }
+      return fitPreviewSvgToRenderedContent({
+        svg,
+        minWidth: normalized.minWidth ?? 0,
+        minHeight: normalized.minHeight ?? 0,
+      });
+    })
+  );
   const syncRestoredFrameTreeState = (frameTree: unknown): void => {
     const restoredFrameTree = (
       frameTree && typeof frameTree === 'object' && !Array.isArray(frameTree)
@@ -353,7 +376,7 @@ export function createPreviewGridEditorRuntimeFromBrowserHost(
         : null
     );
     const config = options.shared.previewWindow.__DG_CONFIG ?? {};
-    commitPreviewRenderIntentToWindow(options.shared.previewWindow, {
+    commitPreviewSwitchNode(options.shared.previewWindow, {
       activeEngineId: restoredFrameTree?.layoutEngine ?? null,
       frameTreeJson: restoredFrameTree,
       layoutEngine: restoredFrameTree?.layoutEngine ?? null,
@@ -469,7 +492,9 @@ export function createPreviewGridEditorRuntimeFromBrowserHost(
           ),
           showResizeHandles: (cid) => runtime.getInteractionFacade().showResizeHandles(cid),
         },
-        rerenderStageFromModel: {},
+        rerenderStageFromModel: {
+          fitRenderedSvgToContent,
+        },
         frameDelete: {
           selectedIds: options.shared.selectedIds,
           isTextEditing: () => (
@@ -569,9 +594,22 @@ export function createPreviewGridEditorRuntimeFromBrowserHost(
               engineLayout?: Record<string, Record<string, unknown>>;
             } | null;
             const engineLayoutState = readFrameYamlEngineLayoutOverridesForLayoutEngine(tree);
+            const nodeBucketsByNamespace = readFrameYamlEngineLayoutNodeBuckets(tree);
             const nextLayoutOverrides = engineLayoutState?.overrides
               ? { ...engineLayoutState.overrides }
               : {};
+            clearLayoutOperatorNodeBucketRegistry(
+              options.shared.model,
+              engineLayoutState?.namespace ?? null,
+            );
+            for (const [namespace, buckets] of Object.entries(nodeBucketsByNamespace)) {
+              replaceLayoutOperatorNodeBucketsForNamespace(
+                options.shared.model,
+                namespace,
+                buckets,
+                tree?.layoutEngine ?? null,
+              );
+            }
             const manifest = resolvePreviewEngine({
               layoutEngine: tree?.layoutEngine ?? null,
               shellMode: 'grid',
@@ -584,7 +622,10 @@ export function createPreviewGridEditorRuntimeFromBrowserHost(
             } else {
               options.shared.model.layoutOverrides = nextLayoutOverrides;
               options.shared.model.layoutOverrideNamespace = engineLayoutState?.namespace ?? null;
-              options.shared.model.layoutOperatorOverrides = null;
+              writeLayoutOperatorOverrideState(options.shared.model, {
+                activeOperatorKey: null,
+                byOperator: {},
+              }, engineLayoutState?.namespace ?? null);
             }
             options.shared.model.removedIds = new Set<string>();
             options.browser.updateOverrideSummary();
@@ -617,7 +658,7 @@ export function createPreviewGridEditorRuntimeFromBrowserHost(
             reapplySelection: options.browser.reapplySelection,
           },
           runConstraints: () => options.browser.runConstraints(),
-          fitRenderedSvgToContent: options.browser.fitRenderedSvgToContent ?? null,
+          fitRenderedSvgToContent,
         },
         navigation: {
           isDirty: () => options.shared.previewSaveClient.isDirty(),
@@ -654,7 +695,7 @@ export function createPreviewGridEditorRuntimeFromBrowserHost(
               options.shared.model.gridOverrides = {};
               options.shared.model.layoutOverrides = {};
               writeLayoutOperatorOverrideState(options.shared.model, {
-                activeOperatorKey: options.shared.model.layoutOperatorOverrides?.activeOperatorKey ?? null,
+                activeOperatorKey: readLayoutOperatorOverrideState(options.shared.model).activeOperatorKey,
                 byOperator: {},
               }, null);
               options.shared.model.removedIds = new Set<string>();

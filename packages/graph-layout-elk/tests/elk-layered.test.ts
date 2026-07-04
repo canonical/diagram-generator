@@ -433,6 +433,24 @@ describe('ELK layered (Sugiyama)', () => {
     })).toThrow(/Unsupported ELK layered override keys: elk\.edgeRouting, elk\.padding, elk\.portConstraints/);
   });
 
+  it('ignores known non-layered ELK keys that share the persisted meta.elk namespace', () => {
+    const layoutOptions = buildLayeredLayoutOptions({
+      direction: 'TB',
+      spacingProfile: 'normal',
+      optionOverrides: {
+        'elk.spacing.nodeNode': '48',
+        'elk.radial.centerOnRoot': 'false',
+        'elk.radial.radius': '256',
+        'elk.edgeLabels.inline': 'true',
+      },
+    });
+
+    expect(layoutOptions['elk.spacing.nodeNode']).toBe('48');
+    expect(layoutOptions['elk.radial.centerOnRoot']).toBeUndefined();
+    expect(layoutOptions['elk.radial.radius']).toBeUndefined();
+    expect(layoutOptions['elk.edgeLabels.inline']).toBe('false');
+  });
+
   it('strips only legacy implementation-owned keys before higher-level callers merge ELK overrides', () => {
     expect(stripImplementationOwnedElkLayeredOverrides({
       'elk.edgeRouting': 'SPLINES',

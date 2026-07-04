@@ -35,8 +35,11 @@ import {
 } from './app-text-edit-runtime.js';
 import {
   compareEditorMutationStateVector,
+  type EditorMutationStateVector,
+  type EditorMutationTransactionObservation,
   type EditorMutationTransactionResult,
 } from './editor-mutation-transaction.js';
+import { readLayoutOperatorOverrideState } from './layout-operator-overrides.js';
 import {
   resolvePreviewRenderIntentLayoutEngine,
   type PreviewRenderIntent,
@@ -74,7 +77,6 @@ type InteractionMutationPreviewWindow = Window & typeof globalThis & {
     layout_engine?: string | null;
     document_kind?: string | null;
   } | null;
-  __DG_activeLayoutOperatorKey?: string | null;
   __DG_lastEditorMutationTransactionResult?: unknown;
   __DG_lastEditorMutationStateViolations?: readonly unknown[] | null;
   __DG_getPreviewBridgeHostContract?: (() => {
@@ -101,9 +103,30 @@ function readInteractionRenderedEngine(document: Document): string | null {
   return document.querySelector('#stage svg')?.getAttribute('data-layout-engine') ?? null;
 }
 
+function readInteractionFittedViewBox(document: Document): string | null {
+  const value = document.querySelector('#stage svg')?.getAttribute('viewBox') ?? null;
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const normalized = value.trim().replace(/\s+/g, ' ');
+  return normalized.length > 0 ? normalized : null;
+}
+
 function readSelectedInteractionEngineTab(document: Document): string | null {
   const selected = document.querySelector('[data-engine-id][aria-selected="true"]');
   return selected?.getAttribute('data-engine-id') ?? null;
+}
+
+function readInteractionActiveInterpreterNodeId(model: unknown): string | null {
+  const value = (model as { previewInterpreterActiveNodeId?: unknown } | null | undefined)
+    ?.previewInterpreterActiveNodeId;
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+}
+
+function readInteractionActiveOptionBucket(model: unknown): string | null {
+  return readLayoutOperatorOverrideState(
+    model as Parameters<typeof readLayoutOperatorOverrideState>[0],
+  ).activeOperatorKey ?? null;
 }
 
 function readUndoAvailability(document: Document): boolean | null {
@@ -114,6 +137,30 @@ function readUndoAvailability(document: Document): boolean | null {
 function readRedoAvailability(document: Document): boolean | null {
   const button = document.getElementById('btn-redo') as { disabled?: boolean } | null;
   return button ? button.disabled !== true : null;
+}
+
+function readInteractionMutationStateVector(
+  document: Document,
+  previewWindow: InteractionMutationPreviewWindow,
+  model: unknown,
+): EditorMutationStateVector {
+  return {
+    activeTab: readSelectedInteractionEngineTab(document),
+    activeNodeId: readInteractionActiveInterpreterNodeId(model),
+    renderIntentEngineId: resolvePreviewRenderIntentLayoutEngine({
+      intent: previewWindow.__DG_previewRenderIntent ?? null,
+      activeEngineId: previewWindow.__DG_CONFIG?.active_engine_id ?? null,
+      layoutEngine: previewWindow.__DG_CONFIG?.layout_engine ?? null,
+      frameTreeJson: previewWindow.__DG_getPreviewBridgeHostContract?.()?.getFrameTreeJson?.() ?? null,
+    }),
+    frameTreeLayoutEngine: readInteractionFrameTreeLayoutEngine(previewWindow),
+    activeOptionBucket: readInteractionActiveOptionBucket(model),
+    renderedEngine: readInteractionRenderedEngine(document),
+    fittedViewBox: readInteractionFittedViewBox(document),
+    dirty: previewWindow.PreviewSaveClient?.isDirty?.() ?? null,
+    canUndo: readUndoAvailability(document),
+    canRedo: readRedoAvailability(document),
+  };
 }
 
 export interface CreatePreviewEditorInteractionFacadeFromEditorHostOptions {
@@ -726,27 +773,18 @@ export function createPreviewEditorInteractionFacadeFromBrowserHost(
       documentKind: previewWindow?.__DG_CONFIG?.document_kind ?? 'frame-diagram',
     };
   };
-  const recordEditorMutationTransaction = (result: unknown): void => {
+  const recordEditorMutationTransaction = (
+    result: unknown,
+    observation?: EditorMutationTransactionObservation,
+  ): void => {
     const previewWindow = options.shared.document.defaultView as InteractionMutationPreviewWindow | null;
     if (!previewWindow) return;
     previewWindow.__DG_lastEditorMutationTransactionResult = result;
     previewWindow.__DG_lastEditorMutationStateViolations = compareEditorMutationStateVector({
       transaction: result as EditorMutationTransactionResult,
-      after: {
-        activeTab: readSelectedInteractionEngineTab(document),
-        renderIntentEngineId: resolvePreviewRenderIntentLayoutEngine({
-          intent: previewWindow.__DG_previewRenderIntent ?? null,
-          activeEngineId: previewWindow.__DG_CONFIG?.active_engine_id ?? null,
-          layoutEngine: previewWindow.__DG_CONFIG?.layout_engine ?? null,
-          frameTreeJson: previewWindow.__DG_getPreviewBridgeHostContract?.()?.getFrameTreeJson?.() ?? null,
-        }),
-        frameTreeLayoutEngine: readInteractionFrameTreeLayoutEngine(previewWindow),
-        activeOptionBucket: previewWindow.__DG_activeLayoutOperatorKey ?? null,
-        renderedEngine: readInteractionRenderedEngine(document),
-        dirty: previewWindow.PreviewSaveClient?.isDirty?.() ?? null,
-        canUndo: readUndoAvailability(document),
-        canRedo: readRedoAvailability(document),
-      },
+      before: observation?.before ?? null,
+      after: readInteractionMutationStateVector(document, previewWindow, options.shared.model),
+      expectStableCanvas: observation?.expectStableCanvas,
     });
   };
   let runtime: PreviewEditorInteractionFacade | null = null;
@@ -966,6 +1004,13 @@ export function createPreviewEditorInteractionFacadeFromBrowserHost(
       formatAsDefinedStyleLabel:
         browser.formatAsDefinedStyleLabel as RuntimeEditorRuntimeSetOptions['formatAsDefinedStyleLabel'],
       syncPanelVisibility: browser.syncPanelVisibility ?? null,
+      captureMutationStateVector: () => {
+        const previewWindow = options.shared.document.defaultView as InteractionMutationPreviewWindow | null;
+        if (!previewWindow) {
+          return null;
+        }
+        return readInteractionMutationStateVector(document, previewWindow, options.shared.model);
+      },
       getMutationContext: getEditorMutationContext,
       onMutationTransaction: recordEditorMutationTransaction,
       shouldShowAutolayoutInspector: browser.shouldShowAutolayoutInspector ?? null,

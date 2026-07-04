@@ -103,7 +103,7 @@ export function lowerToFrameDiagram(
 
   const grid = (source.grid as Record<string, unknown>) ?? {};
   const meta = (source.meta as Record<string, unknown>) ?? {};
-  const engineLayout: Record<string, Record<string, string>> = {};
+  const engineLayout: Record<string, Record<string, unknown>> = {};
   for (const [key, value] of Object.entries(meta)) {
     if (key === 'layout_engine' || key === 'diagram_type' || key === 'source_image') {
       continue;
@@ -112,13 +112,21 @@ export function lowerToFrameDiagram(
       continue;
     }
     const layoutValues = Object.fromEntries(
-      Object.entries(value).map(([layoutKey, layoutValue]) => [layoutKey, String(layoutValue)]),
+      Object.entries(value)
+        .map(([layoutKey, layoutValue]) => {
+          if (key.endsWith('_nodes') && isRecord(layoutValue)) {
+            return [layoutKey, Object.fromEntries(
+              Object.entries(layoutValue).map(([nodeKey, nodeValue]) => [nodeKey, String(nodeValue)]),
+            )];
+          }
+          return [layoutKey, String(layoutValue)];
+        }),
     );
     if (Object.keys(layoutValues).length > 0) {
       engineLayout[`meta.${key}`] = layoutValues;
     }
   }
-  const elkLayout = engineLayout['meta.elk'];
+  const elkLayout = engineLayout['meta.elk'] as Record<string, string> | undefined;
 
   return new FrameDiagram({
     title: String(source.title ?? ast.metadata.title ?? ''),

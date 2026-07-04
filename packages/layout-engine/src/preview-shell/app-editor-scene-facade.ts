@@ -92,7 +92,10 @@ export interface PreviewEditorSceneRerenderOptions<
     model: TModel;
   }) => Promise<{
     svg: TSvg;
+    width: number;
+    height: number;
   }>) | null;
+  fitRenderedSvgToContent?: ((svg: TSvg, options: { minWidth: number; minHeight: number }) => unknown) | null;
 }
 
 export interface PreviewEditorSceneOverrideSummaryOptions {
@@ -493,6 +496,7 @@ export function createPreviewEditorSceneFacadeFromEditorHost<
         model: options.rerenderStageFromModel.model,
         overrides: options.rerenderStageFromModel.getOverrides(),
         renderFreshSvg: options.rerenderStageFromModel.renderFreshSvg,
+        fitRenderedSvgToContent: options.rerenderStageFromModel.fitRenderedSvgToContent ?? null,
         refreshScene: {
           applyWaypointOverrides: () => {
             runtime.applyWaypointOverrides();
@@ -614,6 +618,7 @@ export function createPreviewEditorSceneFacadeFromRuntime<
         TSvg
       >['getOverrides'],
       renderFreshSvg: options.contracts.previewBridgeRender.renderFreshPreviewSvg as never,
+      fitRenderedSvgToContent: options.rerenderStageFromModel.fitRenderedSvgToContent as never,
     },
     frameDelete: options.frameDelete,
     artboard: {

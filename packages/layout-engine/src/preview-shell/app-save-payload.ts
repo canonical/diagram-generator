@@ -12,6 +12,11 @@ import {
   resolveFrameYamlEngineLayoutCandidateId,
   resolveFrameYamlEngineLayoutNamespaceForOverrides,
 } from './frame-yaml-engine-layout-contract.js';
+import {
+  baseLayoutOperatorNamespaceFromPersistNodeNamespace,
+  readLayoutOperatorOverrideState,
+} from './layout-operator-overrides.js';
+import { getPreviewEngine, getPreviewEngineByLayoutKey } from '../preview-engine/registry.js';
 import type {
   PreviewOverrideModelLike as PreviewSavePayloadModelLike,
   PreviewOverrideModelNode as PreviewSavePayloadModelNode,
@@ -180,8 +185,7 @@ function validateFrameYamlEngineLayoutOverrides(
   const rawLayoutOverrides = modelLayoutOverrides;
   if (rawLayoutOverrides) {
     const preferredLayoutEngine = normalizeNamespaceValue(
-      (model as ({ layoutOperatorOverrides?: { activeOperatorKey?: unknown } } & PreviewSavePayloadModelLike) | null | undefined)
-        ?.layoutOperatorOverrides?.activeOperatorKey,
+      readLayoutOperatorOverrideState(model).activeOperatorKey,
     );
     const preferredNamespace = normalizeNamespaceValue(
       (model as (PreviewSavePayloadModelLike & { layoutOverrideNamespace?: unknown }) | null | undefined)
@@ -200,6 +204,45 @@ function validateFrameYamlEngineLayoutOverrides(
       for (const [namespace, value] of Object.entries(namespacedOverrides)) {
         if (!isRecord(value)) {
           pushUniqueIssue(errors, `engine_layout_overrides.${namespace} must be an object`);
+          continue;
+        }
+        const baseNamespace = baseLayoutOperatorNamespaceFromPersistNodeNamespace(namespace);
+        if (baseNamespace) {
+          for (const [nodeId, nodeBucket] of Object.entries(value)) {
+            if (!isRecord(nodeBucket)) {
+              pushUniqueIssue(
+                errors,
+                `engine_layout_overrides.${namespace}.${nodeId} must be an object`,
+              );
+              continue;
+            }
+            const manifest = getPreviewEngineByLayoutKey(nodeId) ?? getPreviewEngine(nodeId) ?? null;
+            if (!manifest) {
+              pushUniqueIssue(
+                errors,
+                `engine_layout_overrides.${namespace}.${nodeId} references an unknown interpreter node`,
+              );
+              continue;
+            }
+            const manifestNamespaces = new Set(
+              (manifest.controlSpecs ?? [])
+                .map((spec: { persistNamespace?: string | null }) => normalizeNamespaceValue(spec.persistNamespace))
+                .filter((entry: string | null): entry is string => Boolean(entry)),
+            );
+            if (!manifestNamespaces.has(baseNamespace)) {
+              pushUniqueIssue(
+                errors,
+                `engine_layout_overrides.${namespace}.${nodeId} targets '${baseNamespace}' but node '${nodeId}' persists elsewhere`,
+              );
+              continue;
+            }
+            validateUniqueEntry(
+              baseNamespace,
+              nodeBucket,
+              `engine_layout_overrides.${namespace}.${nodeId}`,
+              nodeId,
+            );
+          }
           continue;
         }
         validateUniqueEntry(

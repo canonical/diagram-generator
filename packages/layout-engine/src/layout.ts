@@ -254,6 +254,10 @@ function leafNaturalSize(
   const padT = frame.paddingTop;
   const padB = frame.paddingBottom;
   const iconCol = leafIconColumnWidth(frame);
+  const widthIsFixed = frame.sizingW === Sizing.FIXED && frame.width != null;
+  const heightIsFixed = frame.sizingH === Sizing.FIXED && frame.height != null;
+  const fixedWidth = widthIsFixed ? frame.width : null;
+  const fixedHeight = heightIsFixed ? frame.height : null;
 
   let w: number;
   let h: number;
@@ -271,12 +275,12 @@ function leafNaturalSize(
       h = textH;
     }
 
-    if (frame.height != null) {
-      h = Math.max(h, frame.height);
+    if (fixedHeight != null) {
+      h = Math.max(h, fixedHeight);
     }
 
-    if (frame.width != null) {
-      w = frame.width;
+    if (fixedWidth != null) {
+      w = fixedWidth;
     } else {
       let textW = 0;
       for (const spec of wrappedSpecs) {
@@ -285,8 +289,8 @@ function leafNaturalSize(
       w = roundUpToGrid(padL + textW + padR + iconCol);
     }
   } else {
-    h = frame.height ?? BOX_MIN_HEIGHT;
-    w = frame.width ?? BLOCK_WIDTH;
+    h = fixedHeight ?? BOX_MIN_HEIGHT;
+    w = fixedWidth ?? BLOCK_WIDTH;
   }
 
   return [w, h];
@@ -480,6 +484,22 @@ export function measure(frame: Frame, adapter: TextMeasureAdapter, isRoot = fals
     measure(child, adapter);
   }
 
+  const { contentBasedW, contentBasedH } = measureContainerFromMeasuredChildren(frame, isRoot);
+
+  // Per-axis sizing for containers
+  frame._layout.measuredW = (frame.sizingW === Sizing.FIXED && frame.width != null)
+    ? roundUpToGrid(frame.width)
+    : contentBasedW;
+
+  frame._layout.measuredH = (frame.sizingH === Sizing.FIXED && frame.height != null)
+    ? roundUpToGrid(frame.height)
+    : contentBasedH;
+}
+
+function measureContainerFromMeasuredChildren(
+  frame: Frame,
+  isRoot = false,
+): { contentBasedW: number; contentBasedH: number } {
   // Only auto (in-flow) children contribute to parent's content size
   const autoChildren = frame.children.filter(c => c.positionType !== 'ABSOLUTE');
 
@@ -533,14 +553,7 @@ export function measure(frame: Frame, adapter: TextMeasureAdapter, isRoot = fals
   const contentBasedW = roundUpToGrid(contentW + padH);
   const contentBasedH = roundUpToGrid(contentH + padV);
 
-  // Per-axis sizing for containers
-  frame._layout.measuredW = (frame.sizingW === Sizing.FIXED && frame.width != null)
-    ? roundUpToGrid(frame.width)
-    : contentBasedW;
-
-  frame._layout.measuredH = (frame.sizingH === Sizing.FIXED && frame.height != null)
-    ? roundUpToGrid(frame.height)
-    : contentBasedH;
+  return { contentBasedW, contentBasedH };
 }
 
 
@@ -640,7 +653,7 @@ function resolveChildWidths(frame: Frame, frameW: number, adapter: TextMeasureAd
       } else if (child.sizingW === Sizing.FIXED && child.width != null) {
         w = roundUpToGrid(child.width);
       } else {
-        w = roundUpToGrid(child._layout.measuredW);
+        w = Math.min(roundUpToGrid(child._layout.measuredW), crossW);
       }
       w = clampToConstraints(w, child.minWidth, child.maxWidth);
       widths.push(w);
@@ -649,25 +662,60 @@ function resolveChildWidths(frame: Frame, frameW: number, adapter: TextMeasureAd
   }
 }
 
-function propagateWidthAndRemeasure(frame: Frame, resolvedW: number, adapter: TextMeasureAdapter): void {
+function propagateWidthAndRemeasure(
+  frame: Frame,
+  resolvedW: number,
+  adapter: TextMeasureAdapter,
+  isRoot = false,
+): void {
   if (frame.isLeaf) {
-    if (frame.sizingH === Sizing.FIXED && frame.height != null) return;
-    const allSpecs = leafAllSpecs(frame);
-    if (allSpecs.length === 0) return;
-    const [, newH] = leafNaturalSize(frame, adapter, resolvedW);
-    const clampedH = clampToConstraints(newH, frame.minHeight, frame.maxHeight);
-    const snappedH = roundUpToGrid(clampedH);
-    if (snappedH !== frame._layout.measuredH) {
-      frame._layout.measuredH = snappedH;
+    const [newW, newH] = leafNaturalSize(frame, adapter, resolvedW);
+
+    if (frame.sizingW !== Sizing.FIXED || frame.width == null) {
+      const clampedW = clampToConstraints(
+        Math.min(newW, resolvedW),
+        frame.minWidth,
+        frame.maxWidth,
+      );
+      const snappedW = roundUpToGrid(clampedW);
+      if (snappedW !== frame._layout.measuredW) {
+        frame._layout.measuredW = snappedW;
+      }
+    }
+
+    if (frame.sizingH !== Sizing.FIXED || frame.height == null) {
+      const clampedH = clampToConstraints(newH, frame.minHeight, frame.maxHeight);
+      const snappedH = roundUpToGrid(clampedH);
+      if (snappedH !== frame._layout.measuredH) {
+        frame._layout.measuredH = snappedH;
+      }
     }
     return;
   }
 
+  const previousMeasuredW = frame._layout.measuredW;
   frame._layout.resolvedW = resolvedW;
   const childWidths = resolveChildWidths(frame, resolvedW, adapter);
   for (let i = 0; i < frame.children.length; i++) {
     propagateWidthAndRemeasure(frame.children[i]!, childWidths[i]!, adapter);
   }
+
+  if (frame.sizingW === Sizing.FIXED && frame.width != null) {
+    frame._layout.measuredW = roundUpToGrid(frame.width);
+    return;
+  }
+
+  if (isRoot) {
+    frame._layout.measuredW = roundUpToGrid(resolvedW);
+    return;
+  }
+
+  if (frame.sizingW !== Sizing.HUG || resolvedW >= previousMeasuredW) {
+    return;
+  }
+
+  const { contentBasedW } = measureContainerFromMeasuredChildren(frame, false);
+  frame._layout.measuredW = contentBasedW;
 }
 
 function propagateHeightChanges(frame: Frame, adapter: TextMeasureAdapter): void {
@@ -757,7 +805,7 @@ export function remeasureWithWidthConstraints(
   adapter: TextMeasureAdapter,
   coerced?: Map<string, CoercedOverride>,
 ): void {
-  propagateWidthAndRemeasure(root, rootW, adapter);
+  propagateWidthAndRemeasure(root, rootW, adapter, true);
   propagateHeightChanges(root, adapter);
   refreshCoercedHeights(root, adapter, coerced ?? new Map());
 }

@@ -106,6 +106,7 @@ describe('editor mutation transaction', () => {
     const violations = compareEditorMutationStateVector({
       after: {
         activeTab: 'elk-layered',
+        activeNodeId: 'elk-layered',
         renderIntentEngineId: 'elk-layered',
         frameTreeLayoutEngine: 'elk-layered',
         renderedEngine: 'v3',
@@ -223,6 +224,69 @@ describe('editor mutation transaction', () => {
         code: 'focused-inapplicable-control',
         expected: 'applicable',
         actual: 'hidden',
+      }),
+    ]);
+  });
+
+  it('reports active interpreter node drift from render intent', () => {
+    const violations = compareEditorMutationStateVector({
+      after: {
+        activeNodeId: 'dagre',
+        renderIntentEngineId: 'elk-layered',
+      },
+    });
+
+    expect(violations).toEqual([
+      expect.objectContaining({
+        code: 'active-node-drift',
+        expected: 'elk-layered',
+        actual: 'dagre',
+      }),
+    ]);
+  });
+
+  it('reports active option-bucket drift from render intent', () => {
+    const violations = compareEditorMutationStateVector({
+      after: {
+        activeOptionBucket: 'dagre',
+        renderIntentEngineId: 'elk-layered',
+      },
+    });
+
+    expect(violations).toEqual([
+      expect.objectContaining({
+        code: 'option-bucket-drift',
+        expected: 'elk-layered',
+        actual: 'dagre',
+      }),
+    ]);
+  });
+
+  it('reports fitted-canvas divergence when equivalent geometry should preserve the stage', () => {
+    const violations = compareEditorMutationStateVector({
+      before: {
+        activeNodeId: 'elk-layered',
+        fittedViewBox: '-24 -24 512 320',
+      },
+      after: {
+        activeNodeId: 'dagre',
+        fittedViewBox: '0 0 464 272',
+      },
+      expectStableCanvas: true,
+    });
+
+    expect(violations).toEqual([
+      expect.objectContaining({
+        code: 'canvas-divergence',
+        fields: ['fittedViewBox', 'activeNodeId'],
+        expected: {
+          activeNodeId: 'elk-layered',
+          fittedViewBox: '-24 -24 512 320',
+        },
+        actual: {
+          activeNodeId: 'dagre',
+          fittedViewBox: '0 0 464 272',
+        },
       }),
     ]);
   });

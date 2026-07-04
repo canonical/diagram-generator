@@ -802,6 +802,258 @@ describe('preview layout bridge runtime', () => {
     });
   });
 
+  it('reuses cached cooked output when the switch node returns to a previously selected engine', async () => {
+    const state = createPreviewLayoutBridgeState<Record<string, unknown>, Record<string, unknown>>();
+    state.previewDocumentJson = { kind: 'frame-diagram' };
+    state.frameTreeJson = {
+      layoutEngine: 'elk-layered',
+      root: { id: 'root', children: [] },
+      arrows: [],
+    };
+    state.textAdapter = { measurementBackend: 'harfbuzz' } as never;
+
+    const cookedEngines: string[] = [];
+    const renderFreshPreviewSvg = vi.fn(async (options: Record<string, any>) => {
+      const engineId = options.renderIntent?.engineId ?? options.frameTreeJson?.layoutEngine ?? 'v3';
+      cookedEngines.push(engineId);
+      return {
+        svg: { tagName: `svg-${engineId}` } as never,
+        width: engineId === 'dagre' ? 720 : 640,
+        height: 480,
+        coerced: new Map(),
+        elkSnapshot: null,
+        elkFrameLabels: null,
+      };
+    });
+    const previewWindow = {
+      __DG_CONFIG: {
+        active_engine_id: 'elk-layered',
+        layout_engine: 'elk-layered',
+        persisted_layout_engine: 'elk-layered',
+        head_len: 8,
+        head_half: 4,
+      },
+      __DG_previewRenderIntent: null,
+    };
+
+    const runtime = createPreviewLayoutBridgeRuntimeFromBrowserHost({
+      state,
+      slug: 'demo',
+      ownerDocument: {
+        querySelector() {
+          return { tagName: 'svg' };
+        },
+        getElementById() {
+          return { replaceChildren() {} };
+        },
+      } as never,
+      previewWindow,
+      previewCore: {
+        deserializeFrameDiagramWire: () => ({
+          root: {
+            id: 'root',
+            label: [],
+            children: [],
+            _layout: { placedX: 1, placedY: 2, placedW: 3, placedH: 4 },
+          },
+          arrows: [],
+          elkLayout: {},
+        }) as never,
+        resolveStyles: vi.fn(),
+        layoutFrameTree: vi.fn(() => ({ coerced: null, width: 320, height: 200 })),
+      },
+      previewBridgeRender: {
+        collectPreviewFramesById: () => ({ root: { id: 'root' } as never }),
+        collectPreviewPlacedBounds: () => ({ root: { x: 1, y: 2, w: 3, h: 4 } }),
+        fitPreviewSvgToRenderedContent: vi.fn(),
+        patchPreviewSvgFromLayout: vi.fn(),
+        routePreviewArrows: () => [],
+        patchPreviewArrowSvg: vi.fn(),
+        syncPreviewArrowsInModel: vi.fn(),
+      },
+      previewBridgeBundleRender: {
+        renderFreshPreviewSvg,
+      },
+      previewBridgeRelayout: {
+        collectPreviewRelayoutFrameOverrides: (overrides) => overrides,
+        applyPreviewOverridesToFrameTree: vi.fn(),
+      },
+      previewBridgeHost: {
+        updatePreviewComponentModelFromLayout: vi.fn(),
+      },
+      resolvePreviewEngineManifest: () => ({ capabilities: { serverRelayout: false } }),
+      createTextAdapter: async () => ({ measurementBackend: 'harfbuzz' } as never),
+      getTextAdapterBackend: (adapter) => (
+        adapter && typeof adapter.measurementBackend === 'string'
+          ? adapter.measurementBackend
+          : null
+      ),
+      isAuthoritativeTextAdapter: () => true,
+      refreshElkViewMode: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    });
+
+    const model = {
+      removedIds: new Set<string>(),
+      loadTree() {},
+    };
+
+    const layeredFirst = await runtime.renderFreshSvg({}, {}, model as never, null);
+    runtime.setFrameTreeLayoutEngine('dagre');
+    const dagreRender = await runtime.renderFreshSvg({}, {}, model as never, null);
+    runtime.setFrameTreeLayoutEngine('elk-layered');
+    const layeredCached = await runtime.renderFreshSvg({}, {}, model as never, null);
+
+    expect(layeredFirst.width).toBe(640);
+    expect(dagreRender.width).toBe(720);
+    expect(layeredCached.width).toBe(640);
+    expect(renderFreshPreviewSvg).toHaveBeenCalledTimes(2);
+    expect(cookedEngines).toEqual(['elk-layered', 'dagre']);
+    expect(previewWindow.__DG_previewRenderIntent).toMatchObject({
+      engineId: 'elk-layered',
+    });
+  });
+
+  it('forces a fresh cook when active-engine params change and then return to their original values', async () => {
+    const state = createPreviewLayoutBridgeState<Record<string, unknown>, Record<string, unknown>>();
+    state.previewDocumentJson = { kind: 'frame-diagram' };
+    state.frameTreeJson = {
+      layoutEngine: 'elk-layered',
+      root: { id: 'root', children: [] },
+      arrows: [],
+    };
+    state.textAdapter = { measurementBackend: 'harfbuzz' } as never;
+
+    const cookedLayeredOverrides: Record<string, unknown>[] = [];
+    const renderFreshPreviewSvg = vi.fn(async (options: Record<string, any>) => {
+      const activeLayeredOverrides = (
+        options.model?.layoutOperatorOverrides?.byOperator?.['elk-layered']
+        ?? {}
+      ) as Record<string, unknown>;
+      cookedLayeredOverrides.push({ ...activeLayeredOverrides });
+      return {
+        svg: { tagName: `svg-cook-${cookedLayeredOverrides.length}` } as never,
+        width: 640,
+        height: 480,
+        coerced: new Map(),
+        elkSnapshot: null,
+        elkFrameLabels: null,
+      };
+    });
+    const previewWindow = {
+      __DG_CONFIG: {
+        active_engine_id: 'elk-layered',
+        layout_engine: 'elk-layered',
+        persisted_layout_engine: 'elk-layered',
+        head_len: 8,
+        head_half: 4,
+      },
+      __DG_previewRenderIntent: null,
+    };
+
+    const runtime = createPreviewLayoutBridgeRuntimeFromBrowserHost({
+      state,
+      slug: 'demo',
+      ownerDocument: {
+        querySelector() {
+          return { tagName: 'svg' };
+        },
+        getElementById() {
+          return { replaceChildren() {} };
+        },
+      } as never,
+      previewWindow,
+      previewCore: {
+        deserializeFrameDiagramWire: () => ({
+          root: {
+            id: 'root',
+            label: [],
+            children: [],
+            _layout: { placedX: 1, placedY: 2, placedW: 3, placedH: 4 },
+          },
+          arrows: [],
+          elkLayout: {},
+        }) as never,
+        resolveStyles: vi.fn(),
+        layoutFrameTree: vi.fn(() => ({ coerced: null, width: 320, height: 200 })),
+      },
+      previewBridgeRender: {
+        collectPreviewFramesById: () => ({ root: { id: 'root' } as never }),
+        collectPreviewPlacedBounds: () => ({ root: { x: 1, y: 2, w: 3, h: 4 } }),
+        fitPreviewSvgToRenderedContent: vi.fn(),
+        patchPreviewSvgFromLayout: vi.fn(),
+        routePreviewArrows: () => [],
+        patchPreviewArrowSvg: vi.fn(),
+        syncPreviewArrowsInModel: vi.fn(),
+      },
+      previewBridgeBundleRender: {
+        renderFreshPreviewSvg,
+      },
+      previewBridgeRelayout: {
+        collectPreviewRelayoutFrameOverrides: (overrides) => overrides,
+        applyPreviewOverridesToFrameTree: vi.fn(),
+      },
+      previewBridgeHost: {
+        updatePreviewComponentModelFromLayout: vi.fn(),
+      },
+      resolvePreviewEngineManifest: () => ({ capabilities: { serverRelayout: false } }),
+      createTextAdapter: async () => ({ measurementBackend: 'harfbuzz' } as never),
+      getTextAdapterBackend: (adapter) => (
+        adapter && typeof adapter.measurementBackend === 'string'
+          ? adapter.measurementBackend
+          : null
+      ),
+      isAuthoritativeTextAdapter: () => true,
+      refreshElkViewMode: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    });
+
+    const model = {
+      removedIds: new Set<string>(),
+      layoutOverrideNamespace: 'meta.elk',
+      layoutOperatorOverrides: {
+        activeOperatorKey: 'elk-layered',
+        byOperator: {
+          'elk-layered': {},
+        },
+      },
+      loadTree() {},
+    };
+
+    const initial = await runtime.renderFreshSvg({}, {}, model as never, null);
+    model.layoutOperatorOverrides = {
+      activeOperatorKey: 'elk-layered',
+      byOperator: {
+        'elk-layered': {
+          'elk.layered.spacing.nodeNodeBetweenLayers': '160',
+        },
+      },
+    };
+    const changed = await runtime.renderFreshSvg({}, {}, model as never, null);
+    model.layoutOperatorOverrides = {
+      activeOperatorKey: 'elk-layered',
+      byOperator: {
+        'elk-layered': {},
+      },
+    };
+    const restored = await runtime.renderFreshSvg({}, {}, model as never, null);
+
+    expect(initial.width).toBe(640);
+    expect(changed.width).toBe(640);
+    expect(restored.width).toBe(640);
+    expect(renderFreshPreviewSvg).toHaveBeenCalledTimes(3);
+    expect(cookedLayeredOverrides).toEqual([
+      {},
+      { 'elk.layered.spacing.nodeNodeBetweenLayers': '160' },
+      {},
+    ]);
+    expect(previewWindow.__DG_previewRenderIntent).toMatchObject({
+      engineId: 'elk-layered',
+    });
+  });
+
   it('derives ELK view-mode bindings from the browser host runtime', () => {
     const runtime = createPreviewElkViewModeRuntimeFromBrowserHost({
       previewWindow: {

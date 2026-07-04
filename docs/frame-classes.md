@@ -5,15 +5,21 @@ frame must resolve to exactly one of these classes. If a diagram
 contains styling that doesn't match one of these four, it fails
 acceptance.
 
-This document is the sole authored authority for frame-class semantics.
-If machine-readable derivatives exist, they are generated artifacts
-only and must not be edited as an independent truth source.
+This document is a human-readable mirror of the runtime contract.
+Behavioral authority lives in
+`packages/layout-engine/src/frame-classes.ts` and
+`packages/layout-engine/src/resolve-styles.ts`. If this document drifts
+from runtime, runtime wins and this document must be corrected.
+
+Wrapper (`level: 0`) is part of the fixed structural encoding, but it
+is not a rendered frame class. It is an invisible layout-only grouping
+used to control autolayout without adding box chrome.
 
 ## The four classes
 
 | Class | Level | Heading | Fill | Border | Text | Contains |
 |-------|-------|---------|------|--------|------|----------|
-| **Section** | 3 | true small caps, bold in browser/TS; else bold sentence case | transparent | black 1px | black | panels, leaves |
+| **Section** | 3 | bold | transparent | black 1px | black | panels, leaves |
 | **Panel** | 2 | bold | `#F3F3F3` | `#F3F3F3` 1px | black | leaves |
 | **Leaf** | 1 | regular weight | transparent | black 1px | black | nothing |
 | **Annotation** | — | — | transparent | none | `#666666` | nothing |
@@ -40,18 +46,20 @@ Plus two special cases that are not user-authored:
 
 ## Choosing the right level
 
-Level assignment follows from the **deepest nesting among siblings**,
-not from each item's own children.
+Level assignment is an **authoring-time** rule. The engine consumes the
+explicit `level:` values it is given and only applies the existing
+invalid-nesting downgrade safety net.
 
-1. Start with all items as leaves (level 1).
-2. When any item at a given depth has children (introducing 1-level
-   nesting), promote **all siblings at that depth** to panel (level 2)
-   – including those without children. A childless panel is fine; it's
-   a grey card.
-3. When any item at a given depth contains a panel that itself contains
-   children (2-level nesting), promote **all siblings at that depth**
-   to section (level 3) – including those that only wrap leaves
-   directly.
+Let `D` be the maximum structural child-nesting depth across a sibling
+group.
+
+- `D = 0` -> child / leaf (`level: 1`)
+- `D = 1` -> parent / panel (`level: 2`)
+- `D >= 2` -> section (`level: 3`)
+
+Siblings never mix structural tiers. Wrapper (`level: 0`), annotation,
+and highlight are exempt from promotion. Highlight changes fill/text
+contrast only; it does not change a node's structural level.
 
 The rule ensures visual consistency across a row or column: siblings
 never mix classes. If one item needs to be a section, all its siblings
@@ -70,7 +78,7 @@ The YAML author sets `level:` explicitly on every headed container:
 ```yaml
 - id: my_section
   level: 3
-  heading: "Section heading"     # renders true small caps, bold in browser/TS; else bold sentence case
+  heading: "Section heading"     # renders bold
   children:
     - id: my_panel
       level: 2
@@ -88,7 +96,8 @@ level 1 is the default for any frame without `level:`.
 
 A diagram is valid if and only if:
 
-1. Every headed container has an explicit `level:` (2 or 3).
+1. Structural levels use the fixed encoding:
+   `0=wrapper, 1=leaf, 2=panel, 3=section`.
 2. No level-3 section contains a level-3 child.
 3. No level-2 panel contains a level-2 child.
 4. Every resolved frame maps to exactly one class from the table above.
@@ -107,15 +116,7 @@ inset and SVG `stroke-width`.
 
 **Typography invariant.** The renderer must emit the same text contract
 that layout measured: same content, same case, same font size, same
-feature set, same letter-spacing. Faux small caps are forbidden.
-Specifically, renderers must not uppercase text or shrink font size to
-approximate small caps.
-
-**Fallback rule.** Browser/TS output uses true small caps for section
-headings. If another target cannot render true small caps faithfully,
-section headings fall back to bold sentence case at the authored
-heading size. That is a different typography token, not a "close
-enough" implementation of small caps.
+feature set, and same letter-spacing.
 
 **Non-container sections.** A level-3 frame with no children (e.g. a
 leaf-like box with a bold label) gets section styling: black border,
