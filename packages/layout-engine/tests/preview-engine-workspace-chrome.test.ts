@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { SEQUENCE_PREVIEW_ENGINE } from '../src/preview-engine/builtins.js';
 import {
   collectPreviewEngineWorkspaceSavePayload,
   hasUnsavedPreviewEngineWorkspaceChange,
@@ -197,7 +196,6 @@ function createChromeHarness() {
   const document = new FakeDocument();
   const section = document.register(new FakeElement('section', 'engine-switcher-section', document));
   const help = document.register(new FakeElement('p', 'engine-switcher-help', document));
-  const label = document.register(new FakeElement('span', 'active-engine-label', document));
   const tabs = document.register(new FakeElement('ul', 'engine-switcher-tabs', document));
   const panelSyncCalls: string[] = [];
   const saveButtonSyncCalls: string[] = [];
@@ -267,7 +265,6 @@ function createChromeHarness() {
    document,
    section,
    help,
-   label,
    tabs,
    previewWindow,
    panelSyncCalls,
@@ -285,7 +282,6 @@ describe('preview engine workspace chrome', () => {
    harness.previewWindow.__DG_CONFIG = {
      slug: 'support-engineering-flow',
       active_engine_id: 'elk-layered',
-      active_engine_label: 'ELK layered layout',
       persisted_layout_engine: 'elk-layered',
       compatible_engines: ['v3', 'elk-layered', 'dagre'],
       show_engine_switcher: true,
@@ -298,7 +294,6 @@ describe('preview engine workspace chrome', () => {
 
     expect(workspace.activeEngineId).toBe('elk-layered');
     expect(harness.section.hidden).toBe(false);
-    expect(harness.label.hidden).toBe(true);
     expect((harness.previewWindow as any).__DG_previewRenderIntent?.engineId).toBe('elk-layered');
     expect(harness.tabs.children).toHaveLength(3);
     const tabButtons = harness.tabs.querySelectorAll('button[data-engine-id]');
@@ -350,7 +345,6 @@ describe('preview engine workspace chrome', () => {
     harness.previewWindow.__DG_CONFIG = {
       slug: 'support-engineering-flow',
       active_engine_id: 'elk-layered',
-      active_engine_label: 'ELK layered layout',
       persisted_layout_engine: 'elk-layered',
       compatible_engines: ['v3', 'elk-layered', 'dagre'],
       show_engine_switcher: true,
@@ -395,7 +389,6 @@ describe('preview engine workspace chrome', () => {
     harness.previewWindow.__DG_CONFIG = {
       slug: 'example-deployment-pipeline',
       active_engine_id: 'v3',
-      active_engine_label: 'Autolayout',
       persisted_layout_engine: 'v3',
       compatible_engines: ['v3', 'elk-layered'],
       show_engine_switcher: true,
@@ -432,7 +425,6 @@ describe('preview engine workspace chrome', () => {
     harness.previewWindow.__DG_CONFIG = {
       slug: 'example-deployment-pipeline',
       active_engine_id: 'v3',
-      active_engine_label: 'Autolayout',
       persisted_layout_engine: 'v3',
       compatible_engines: ['v3', 'elk-layered'],
       show_engine_switcher: true,
@@ -466,7 +458,6 @@ describe('preview engine workspace chrome', () => {
     harness.previewWindow.__DG_CONFIG = {
       slug: 'support-engineering-flow',
       active_engine_id: 'elk-layered',
-      active_engine_label: 'ELK layered layout',
       persisted_layout_engine: 'elk-layered',
       compatible_engines: ['v3', 'elk-layered', 'dagre'],
       show_engine_switcher: true,
@@ -495,12 +486,11 @@ describe('preview engine workspace chrome', () => {
     expect(harness.rerenderCalls).toEqual(['rerender']);
   });
 
-  it('keeps the switcher hidden for sequence documents while still surfacing engine identity', () => {
+  it('keeps the switcher hidden for single-engine sequence documents', () => {
     const harness = createChromeHarness();
     harness.previewWindow.__DG_CONFIG = {
       slug: 'service-handshake-sequence',
       active_engine_id: 'sequence',
-      active_engine_label: SEQUENCE_PREVIEW_ENGINE.label,
       persisted_layout_engine: 'sequence',
       compatible_engines: ['sequence'],
       show_engine_switcher: false,
@@ -513,7 +503,5 @@ describe('preview engine workspace chrome', () => {
 
     expect(workspace.activeEngineId).toBe('sequence');
     expect(harness.section.hidden).toBe(true);
-    expect(harness.label.hidden).toBe(false);
-    expect(harness.label.textContent).toBe(`Engine: ${SEQUENCE_PREVIEW_ENGINE.label}`);
   });
 });

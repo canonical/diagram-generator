@@ -22,7 +22,7 @@ export interface PreviewRenderNodeFitOptions<TSvg = unknown> {
 export interface MountPreviewRenderNodeOptions<TSvg = unknown> {
   stage?: PreviewRenderNodeStageLike<TSvg> | null;
   renderResult: PreviewRenderNodeRenderResult<TSvg>;
-  fitSvgToContent?: ((options: PreviewRenderNodeFitOptions<TSvg>) => unknown) | null;
+  fitSvgToContent: (options: PreviewRenderNodeFitOptions<TSvg>) => unknown;
   refreshScene?: (() => void) | null;
 }
 
@@ -42,7 +42,7 @@ export function mountPreviewRenderNode<TSvg = unknown>(
   // Fit after the node is mounted so browser geometry includes the live stage
   // context; detached SVG fitting can under-measure right/bottom canvas padding.
   options.stage.replaceChildren(options.renderResult.svg);
-  options.fitSvgToContent?.({
+  options.fitSvgToContent({
     svg: options.renderResult.svg,
     minWidth: options.renderResult.width,
     minHeight: options.renderResult.height,

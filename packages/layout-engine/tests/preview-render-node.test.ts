@@ -63,6 +63,14 @@ function listSourceFiles(rootDir: string): string[] {
   return files.sort();
 }
 
+function mountPreviewRenderNodeCallHasFitProperty(source: string, startLineIndex: number): boolean {
+  const window = source
+    .split(/\r?\n/)
+    .slice(startLineIndex, startLineIndex + 12)
+    .join('\n');
+  return window.includes('fitSvgToContent:');
+}
+
 describe('preview render node', () => {
   it('mounts a fitted stage and refreshes the scene', () => {
     const orderedCalls: string[] = [];
@@ -142,18 +150,34 @@ describe('preview render node', () => {
   it('keeps stage replaceChildren ownership inside the render node across preview-shell source', () => {
     const repoRoot = path.resolve(import.meta.dirname, '..');
     const previewShellRoot = path.join(repoRoot, 'src', 'preview-shell');
+    const previewShellFiles = listSourceFiles(previewShellRoot);
     const stageMountPattern = /\b(?:stage|options\.stage)\.replaceChildren\(/;
-    const offenders = listSourceFiles(previewShellRoot)
+    const offenders = previewShellFiles
       .filter((sourceFile) => !sourceFile.endsWith(path.join('preview-shell', 'preview-render-node.ts')))
       .filter((sourceFile) => stageMountPattern.test(fs.readFileSync(sourceFile, 'utf8')))
       .map((sourceFile) => path.relative(repoRoot, sourceFile).replace(/\\/g, '/'));
 
     expect(offenders).toEqual([]);
 
+    const missingFitCallers = previewShellFiles
+      .filter((sourceFile) => !sourceFile.endsWith(path.join('preview-shell', 'preview-render-node.ts')))
+      .flatMap((sourceFile) => {
+        const source = fs.readFileSync(sourceFile, 'utf8');
+        return source
+          .split(/\r?\n/)
+          .flatMap((line, index) => line.includes('mountPreviewRenderNode({')
+            && !mountPreviewRenderNodeCallHasFitProperty(source, index)
+            ? [`${path.relative(repoRoot, sourceFile).replace(/\\/g, '/')}:${index + 1}`]
+            : []);
+      });
+
+    expect(missingFitCallers).toEqual([]);
+
     const renderNodeSource = fs.readFileSync(
       path.join(repoRoot, 'src', 'preview-shell', 'preview-render-node.ts'),
       'utf8',
     );
     expect(renderNodeSource).toContain('options.stage.replaceChildren(options.renderResult.svg);');
+    expect(renderNodeSource).toContain('options.fitSvgToContent({');
   });
 });

@@ -96,6 +96,6 @@ describe('cross-document shared box rhythm', () => {
 
   it('owns headed-frame bottom spacing in the shared rhythm contract', () => {
     expect(defaultHeadingBottomGap()).toBe(SHARED_BOX_RHYTHM.headingBottomGap);
-    expect(SHARED_BOX_RHYTHM.headingBottomGap).toBe(8);
+    expect(SHARED_BOX_RHYTHM.headingBottomGap).toBe(16);
   });
 });

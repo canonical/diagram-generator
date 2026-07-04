@@ -290,7 +290,6 @@ export function createAutolayoutPreviewHostViewerRoute(
         document_kind: documentKind,
         layout_engine: activeLayoutEngine,
         active_engine_id: engineWorkspace.activeEngineId,
-        active_engine_label: engineWorkspace.activeEngine?.label ?? null,
         persisted_layout_engine: engineWorkspace.persistedEngineId,
         compatible_engines: engineWorkspace.compatibleEngineIds,
         show_engine_switcher: showEngineSwitcher,

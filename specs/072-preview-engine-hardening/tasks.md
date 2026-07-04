@@ -14,12 +14,12 @@
 
 ## Phase 2: Preview Chrome And Padding
 
-- [ ] T010 Remove the active-engine badge markup/runtime path when the engine
+- [x] T010 Remove the active-engine badge markup/runtime path when the engine
       tab rail is present; keep the tabs and help text as the only engine chrome.
 - [x] T011 Normalize builtin V3 labeling/copy to `Autolayout`.
 - [x] T012 Fix the stage padding regression so engine switches preserve right/
       bottom canvas padding instead of clipping it after engine switches.
-- [ ] T013 Apply the requested +8px section-heading bottom spacing through the
+- [x] T013 Apply the requested +8px section-heading bottom spacing through the
       shared style/layout contract and add/extend focused tests.
 
 ## Phase 3: Architecture Hardening

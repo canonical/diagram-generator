@@ -217,7 +217,12 @@ describe('preview editor scene facade', () => {
           calls.push('renderFreshSvg');
           return {
             svg: { tagName: 'svg' } as unknown as SVGSVGElement,
+            width: 640,
+            height: 480,
           };
+        },
+        fitRenderedSvgToContent() {
+          calls.push('fitRenderedSvgToContent');
         },
       },
       frameDelete: {
@@ -352,6 +357,7 @@ describe('preview editor scene facade', () => {
     expect(calls).toEqual([
       'rebuildArrowSvg:alpha',
       'renderFreshSvg',
+      'fitRenderedSvgToContent',
       'rebuildArrowSvg:alpha',
       'buildTreeUi',
       'bindInteraction',
@@ -368,6 +374,7 @@ describe('preview editor scene facade', () => {
       'beginDeleteAction',
       'clearOverride',
       'renderFreshSvg',
+      'fitRenderedSvgToContent',
       'rebuildArrowSvg:alpha',
       'buildTreeUi',
       'bindInteraction',

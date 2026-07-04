@@ -4,7 +4,8 @@ import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { chromium, type Browser, type Page } from "playwright";
+import type { Browser, Page } from "playwright";
+import { launchChromiumOrSkip } from "./playwright-test-support.js";
 
 const REPO_ROOT = path.resolve(process.cwd(), "..", "..");
 const APP_ROOT = path.join(REPO_ROOT, "apps", "preview");
@@ -642,12 +643,17 @@ async function chooseAppearanceOnlyStyleVariant(page: Page): Promise<string> {
   return target;
 }
 
-test("preview gestures repaint the live stage for engine tabs and appearance-only role changes", { timeout: 120_000 }, async () => {
+test("preview gestures repaint the live stage for engine tabs and appearance-only role changes", { timeout: 120_000 }, async (t) => {
   const framesDir = copyFixtureFrames(["mongo-octavia-ha"]);
   const port = await allocatePort();
   const baseUrl = `http://127.0.0.1:${port}`;
   const server = startPreviewServer(framesDir, port);
-  const browser = await chromium.launch();
+  const browser = await launchChromiumOrSkip(t);
+  if (!browser) {
+    await stopPreviewServer(server.process);
+    fs.rmSync(framesDir, { recursive: true, force: true });
+    return;
+  }
 
   try {
     await server.ready;
@@ -702,12 +708,17 @@ test("preview gestures repaint the live stage for engine tabs and appearance-onl
   }
 });
 
-test("engine tab switches classify visible changes while syncing engine and option-bucket state", { timeout: 120_000 }, async () => {
+test("engine tab switches classify visible changes while syncing engine and option-bucket state", { timeout: 120_000 }, async (t) => {
   const framesDir = copyFixtureFrames(["support-engineering-flow"]);
   const port = await allocatePort();
   const baseUrl = `http://127.0.0.1:${port}`;
   const server = startPreviewServer(framesDir, port);
-  const browser = await chromium.launch();
+  const browser = await launchChromiumOrSkip(t);
+  if (!browser) {
+    await stopPreviewServer(server.process);
+    fs.rmSync(framesDir, { recursive: true, force: true });
+    return;
+  }
 
   try {
     await server.ready;
@@ -772,13 +783,18 @@ test("engine tab switches classify visible changes while syncing engine and opti
   }
 });
 
-test("phase 1 canvas parity holds across load, save→reload, engine-tab switch, param edit, and container resize", { timeout: 180_000 }, async () => {
+test("phase 1 canvas parity holds across load, save→reload, engine-tab switch, param edit, and container resize", { timeout: 180_000 }, async (t) => {
   const slugs = ["example-deployment-pipeline", "mongo-octavia-ha", "support-engineering-flow"] as const;
   const framesDir = copyFixtureFrames(slugs);
   const port = await allocatePort();
   const baseUrl = `http://127.0.0.1:${port}`;
   const server = startPreviewServer(framesDir, port);
-  const browser = await chromium.launch();
+  const browser = await launchChromiumOrSkip(t);
+  if (!browser) {
+    await stopPreviewServer(server.process);
+    fs.rmSync(framesDir, { recursive: true, force: true });
+    return;
+  }
 
   try {
     await server.ready;
@@ -803,12 +819,17 @@ test("phase 1 canvas parity holds across load, save→reload, engine-tab switch,
   }
 });
 
-test("autolayout→ELK switch keeps right/bottom canvas padding on mongo-octavia-ha", { timeout: 120_000 }, async () => {
+test("autolayout→ELK switch keeps right/bottom canvas padding on mongo-octavia-ha", { timeout: 120_000 }, async (t) => {
   const framesDir = copyFixtureFrames(["mongo-octavia-ha"]);
   const port = await allocatePort();
   const baseUrl = `http://127.0.0.1:${port}`;
   const server = startPreviewServer(framesDir, port);
-  const browser = await chromium.launch();
+  const browser = await launchChromiumOrSkip(t);
+  if (!browser) {
+    await stopPreviewServer(server.process);
+    fs.rmSync(framesDir, { recursive: true, force: true });
+    return;
+  }
 
   try {
     await server.ready;
@@ -843,12 +864,17 @@ test("autolayout→ELK switch keeps right/bottom canvas padding on mongo-octavia
   }
 });
 
-test("engine-specific layout buckets stay isolated across layered, radial, dagre, and save→reload browser flows", { timeout: 120_000 }, async () => {
+test("engine-specific layout buckets stay isolated across layered, radial, dagre, and save→reload browser flows", { timeout: 120_000 }, async (t) => {
   const framesDir = copyFixtureFrames(["example-deployment-pipeline"]);
   const port = await allocatePort();
   const baseUrl = `http://127.0.0.1:${port}`;
   const server = startPreviewServer(framesDir, port);
-  const browser = await chromium.launch();
+  const browser = await launchChromiumOrSkip(t);
+  if (!browser) {
+    await stopPreviewServer(server.process);
+    fs.rmSync(framesDir, { recursive: true, force: true });
+    return;
+  }
 
   try {
     await server.ready;

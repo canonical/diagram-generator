@@ -4,7 +4,8 @@ import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { chromium, type Browser, type Page } from "playwright";
+import type { Browser, Page } from "playwright";
+import { launchChromiumOrSkip } from "./playwright-test-support.js";
 
 const REPO_ROOT = path.resolve(process.cwd(), "..", "..");
 const APP_ROOT = path.join(REPO_ROOT, "apps", "preview");
@@ -153,11 +154,16 @@ async function clickComponent(page: Page, componentId: string, offset?: { x: num
   await settle(page);
 }
 
-test("test-alignment-grid reflows a HUG child when the parent is resized smaller", { timeout: 120_000 }, async () => {
+test("test-alignment-grid reflows a HUG child when the parent is resized smaller", { timeout: 120_000 }, async (t) => {
   const framesDir = copyFixtureFrames(["test-alignment-grid"]);
   const port = await allocatePort();
   const server = startPreviewServer(framesDir, port);
-  const browser = await chromium.launch({ headless: true });
+  const browser = await launchChromiumOrSkip(t, { headless: true });
+  if (!browser) {
+    await stopPreviewServer(server.process);
+    fs.rmSync(framesDir, { recursive: true, force: true });
+    return;
+  }
 
   try {
     await server.ready;

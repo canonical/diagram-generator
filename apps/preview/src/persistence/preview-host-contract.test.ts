@@ -624,11 +624,9 @@ test("sequence frame fixture resolves and renders through the sequence document 
     normalizeLayoutEngine: (layoutEngine: string | undefined) => layoutEngine?.trim() ?? "",
   });
   const html = route.buildHtml("service-handshake-sequence");
-  assert.match(html, /id="active-engine-label" hidden><\/span>/);
   assert.match(html, /\/preview\/engine-switcher\.js/);
   assert.match(html, /"document_kind":"sequence"/);
   assert.match(html, /"active_engine_id":"sequence"/);
-  assert.match(html, /"active_engine_label":"Sequence layout"/);
   assert.match(html, /"show_engine_switcher":false/);
 
   const svg = await renderSvgForSlug("service-handshake-sequence", {
@@ -672,7 +670,6 @@ test("static viewer chrome exposes stable right-aside panel groups", () => {
   assert.match(template, /id="engine-switcher-tabs" role="tablist"/);
   assert.doesNotMatch(template, /id="engine-switcher-prev"/);
   assert.doesNotMatch(template, /id="engine-switcher-next"/);
-  assert.match(template, /id="active-engine-label" hidden/);
   assert.match(
     template,
     /id="grid-controls-section" data-dg-panel-group="layout" data-dg-panel-id="layout-grid"/,

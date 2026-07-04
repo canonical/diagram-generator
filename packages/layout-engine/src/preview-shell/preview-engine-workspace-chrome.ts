@@ -26,7 +26,6 @@ export interface PreviewEngineWorkspaceChromeConfig {
   document_kind?: string | null;
   layout_engine?: string | null;
   active_engine_id?: string | null;
-  active_engine_label?: string | null;
   persisted_layout_engine?: string | null;
   compatible_engines?: readonly string[] | null;
   show_engine_switcher?: boolean | null;
@@ -96,14 +95,7 @@ function setRuntimeWorkspaceState(
   workspace: PreviewEngineWorkspaceState,
 ): PreviewEngineWorkspaceState {
   const config = previewWindow.__DG_CONFIG ?? {};
-  const existingLabel = typeof config.active_engine_label === 'string'
-    ? config.active_engine_label.trim()
-    : '';
-  const nextLabel = existingLabel && config.active_engine_id === workspace.activeEngineId
-    ? existingLabel
-    : (workspace.activeEngine?.label ?? workspace.activeEngineId ?? null);
   config.active_engine_id = workspace.activeEngineId;
-  config.active_engine_label = nextLabel;
   config.persisted_layout_engine = workspace.persistedEngineId;
   config.layout_engine = workspace.activeEngineId ?? workspace.persistedEngineId ?? null;
   previewWindow.__DG_CONFIG = config;
@@ -307,23 +299,6 @@ function equivalentGeometryHelpMessage(
   return `Switched to ${nextLabel}. Geometry matches ${previousLabel} at current settings; adjust engine parameters to force divergence.`;
 }
 
-function setActiveEngineLabel(
-  labelEl: HTMLElement | null,
-  workspace: PreviewEngineWorkspaceState,
-  fallbackLabel: string | null | undefined,
-  visible: boolean,
-): void {
-  if (!labelEl) {
-    return;
-  }
-  const label = String(fallbackLabel ?? '').trim()
-    || workspace.activeEngine?.label
-    || workspace.activeEngineId
-    || '';
-  labelEl.textContent = label ? `Engine: ${label}` : '';
-  labelEl.hidden = !visible || !label;
-}
-
 export function initPreviewEngineWorkspaceChrome(
   options: InitPreviewEngineWorkspaceChromeOptions,
 ): PreviewEngineWorkspaceState {
@@ -331,11 +306,9 @@ export function initPreviewEngineWorkspaceChrome(
   let workspace = setRuntimeWorkspaceState(options.previewWindow, resolveWorkspace(config));
   const section = options.document.getElementById('engine-switcher-section');
   const help = options.document.getElementById('engine-switcher-help');
-  const labelEl = options.document.getElementById('active-engine-label');
   const tabs = options.document.getElementById('engine-switcher-tabs');
 
   if (!section || !tabs) {
-    setActiveEngineLabel(labelEl, workspace, config?.active_engine_label, true);
     return workspace;
   }
 
@@ -344,12 +317,10 @@ export function initPreviewEngineWorkspaceChrome(
   const hasTabRail = shouldShowSwitcher && workspace.compatibleEngineIds.length > 1;
   if (!hasTabRail) {
     section.hidden = true;
-    setActiveEngineLabel(labelEl, workspace, config?.active_engine_label, true);
     return workspace;
   }
 
   section.hidden = false;
-  setActiveEngineLabel(labelEl, workspace, config?.active_engine_label, false);
   tabs.setAttribute('role', 'tablist');
   let keyboardFocusEngineId: string | null = workspace.activeEngineId;
   const setPending = (pending: boolean) => {
@@ -357,12 +328,6 @@ export function initPreviewEngineWorkspaceChrome(
   };
   const defaultHelp = help?.textContent ?? '';
   const updateNavigation = () => {
-    setActiveEngineLabel(
-      labelEl,
-      workspace,
-      options.previewWindow.__DG_CONFIG?.active_engine_label ?? config?.active_engine_label,
-      !hasTabRail,
-    );
     if (tabs) {
       const compatibleIds = new Set(workspace.compatibleEngineIds);
       if (keyboardFocusEngineId && !compatibleIds.has(keyboardFocusEngineId)) {

@@ -477,12 +477,15 @@ export async function rerenderPreviewStageHost<TModel, TOverrides, TSvg>(
   return mountPreviewRenderNode({
     stage: options.stage,
     renderResult,
-    fitSvgToContent: options.fitRenderedSvgToContent
-      ? ({ svg, minWidth, minHeight }) => options.fitRenderedSvgToContent?.(svg, {
+    fitSvgToContent: ({ svg, minWidth, minHeight }) => {
+      if (!options.fitRenderedSvgToContent) {
+        throw new Error('preview scene host requires fitRenderedSvgToContent when rerendering the stage');
+      }
+      return options.fitRenderedSvgToContent(svg, {
         minWidth,
         minHeight,
-      })
-      : null,
+      });
+    },
     refreshScene: options.refreshScene,
   });
 }

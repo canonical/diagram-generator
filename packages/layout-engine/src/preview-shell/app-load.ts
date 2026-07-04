@@ -315,12 +315,15 @@ export function createLoadPreviewSvgHostOptions<TSvg = unknown, TModel = unknown
     mountRenderedSvg: (renderResult) => mountPreviewRenderNode({
       stage: options.stage,
       renderResult,
-      fitSvgToContent: fitRenderedSvgToContent
-        ? ({ svg, minWidth, minHeight }) => fitRenderedSvgToContent(svg, {
+      fitSvgToContent: ({ svg, minWidth, minHeight }) => {
+        if (!fitRenderedSvgToContent) {
+          throw new Error('load preview host requires fitRenderedSvgToContent when mounting a rendered svg');
+        }
+        return fitRenderedSvgToContent(svg, {
           minWidth,
           minHeight,
-        })
-        : null,
+        });
+      },
     }),
     fetchFallbackSvg: async () => {
       const suffix = options.gridEnabled
