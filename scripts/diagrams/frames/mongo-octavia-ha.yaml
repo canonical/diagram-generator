@@ -58,14 +58,12 @@ root:
     padding: 0
     children:
     - id: octavia_lb_a
-      level: 2
       width: 216
       sizing_w: fixed
       label:
       - Octavia LB
       icon: Gateway.svg
     - id: octavia_lb_b
-      level: 2
       width: 216
       sizing_w: fixed
       label:
@@ -90,7 +88,7 @@ root:
       sizing_w: fill
       children:
       - id: vm_az1
-        level: 3
+        level: 2
         heading: VM
         direction: vertical
         align: top-center
@@ -99,7 +97,6 @@ root:
         sizing_w: fixed
         children:
         - id: mongo_write
-          level: 2
           width: 224
           sizing_w: fill
           label:
@@ -118,7 +115,7 @@ root:
       sizing_w: fill
       children:
       - id: vm_az2
-        level: 3
+        level: 2
         heading: VM
         direction: vertical
         align: top-center
@@ -127,7 +124,6 @@ root:
         sizing_w: fixed
         children:
         - id: mongo_read_az2
-          level: 2
           width: 224
           sizing_w: fill
           label:
@@ -146,7 +142,7 @@ root:
       sizing_w: fill
       children:
       - id: vm_az3
-        level: 3
+        level: 2
         heading: VM
         direction: vertical
         align: top-center
@@ -155,7 +151,6 @@ root:
         sizing_w: fixed
         children:
         - id: mongo_read_az3
-          level: 2
           width: 224
           sizing_w: fill
           label:

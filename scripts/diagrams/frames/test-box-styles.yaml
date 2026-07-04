@@ -19,13 +19,16 @@ root:
     fill: white
     border: solid
   - id: standalone_leaf
+    level: 3
     label:
     - Standalone leaf
   - id: highlight_leaf
+    level: 3
     variant: highlight
     label:
     - Highlighted
   - id: highlight_panel
+    level: 3
     variant: highlight
     heading: Dark panel
     children:

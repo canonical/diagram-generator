@@ -105,14 +105,12 @@ root:
       sizing_w: fill
       children:
       - id: charmhub
-        level: 2
         width: 192
         sizing_w: fixed
         label:
         - Charmhub
         icon: Globe.svg
       - id: snap_store
-        level: 2
         width: 192
         sizing_w: fixed
         label:
@@ -124,21 +122,18 @@ root:
     sizing_w: fill
     children:
     - id: simplestreams_binaries
-      level: 2
       width: 224
       sizing_w: fixed
       label:
       - Simplestreams - Agent Binaries
       icon: Package.svg
     - id: simplestreams_images
-      level: 2
       width: 224
       sizing_w: fixed
       label:
       - Simplestreams - Images
       icon: Storage image.svg
     - id: cloud
-      level: 2
       width: 192
       sizing_w: fixed
       label:

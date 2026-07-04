@@ -24,35 +24,30 @@ root:
   sizing_h: hug
   children:
   - id: step_problem
-    level: 3
     heading: The problem
     label:
     - Databases have crawled to a halt. Services are unusably slow.
     sizing_w: fill
     sizing_h: fill
   - id: step_investigation
-    level: 3
     heading: The initial investigation
     label:
     - Customer believes getent to be the issue. They open a support ticket.
     sizing_w: fill
     sizing_h: fill
   - id: step_analysis
-    level: 3
     heading: Support Engineering analysis
     label:
     - The issue isn’t a quick package fix. Canonical Support engineers dive deep into the source code.
     sizing_w: fill
     sizing_h: fill
   - id: step_fix
-    level: 3
     heading: The fix
     label:
     - Canonical Support engineers fix the code in a 12-year-old repo, upstreaming the fix for all. They patch the issue, reducing nearly 49,000 disk reads to a single, fast alternative.
     sizing_w: fill
     sizing_h: fill
   - id: step_result
-    level: 3
     heading: The result
     label:
     - The databases are all online and back to their desired speed.

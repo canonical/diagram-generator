@@ -88,15 +88,6 @@ function resolveColSpans(frame: Frame, colW: number, colGap: number): void {
   }
 }
 
-function equalizeGridColumns(root: Frame): void {
-  for (const child of root.children) {
-    if (child.positionType === 'ABSOLUTE') continue;
-    if (child.sizingH === Sizing.HUG) {
-      child.sizingH = Sizing.FILL;
-    }
-  }
-}
-
 function endpointId(ref: string): string {
   if (ref.includes('.')) {
     const parts = ref.split('.');
@@ -1142,10 +1133,6 @@ function _layoutFrameTreeInner(
 
     if (colW > 0) {
       resolveColSpans(root, colW, colGapG);
-    }
-
-    if (gridCols > 1 && root.direction === Direction.HORIZONTAL) {
-      equalizeGridColumns(root);
     }
 
     // Pass 2: place

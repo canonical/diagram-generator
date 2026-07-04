@@ -20,6 +20,7 @@ root:
   variant: annotation
   children:
   - id: user
+    level: 2
     label:
     - User request
     icon: Cloud.svg

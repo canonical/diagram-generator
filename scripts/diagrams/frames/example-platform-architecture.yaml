@@ -33,6 +33,7 @@ root:
       - client
       icon: Mobile.svg
   - id: gateway
+    level: 2
     label:
     - API
     - gateway

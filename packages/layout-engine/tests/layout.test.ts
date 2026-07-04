@@ -579,6 +579,51 @@ describe('layoutFrameTree', () => {
 // ---------------------------------------------------------------------------
 
 describe('coercion lifecycle', () => {
+  it('keeps top-level HUG containers hugging their content in horizontal grid layouts', () => {
+    const left = new Frame({
+      id: 'left',
+      level: 2,
+      heading: createLine('Left'),
+      direction: Direction.VERTICAL,
+      children: [
+        new Frame({
+          id: 'left_leaf',
+          label: [createLine('Short')],
+        }),
+      ],
+    });
+    const right = new Frame({
+      id: 'right',
+      level: 2,
+      heading: createLine('Right'),
+      direction: Direction.VERTICAL,
+      children: [
+        new Frame({
+          id: 'right_leaf_1',
+          label: [createLine('One')],
+        }),
+        new Frame({
+          id: 'right_leaf_2',
+          label: [createLine('Two')],
+        }),
+      ],
+    });
+    const root = new Frame({
+      id: 'root',
+      direction: Direction.HORIZONTAL,
+      sizingW: Sizing.FIXED,
+      width: 800,
+      sizingH: Sizing.HUG,
+      children: [left, right],
+    });
+
+    layoutFrameTree(root, adapter, { gridCols: 2, gridColGap: 24, gridOuterMargin: 24 });
+
+    expect(left._layout.placedH).toBe(left._layout.measuredH);
+    expect(right._layout.placedH).toBe(right._layout.measuredH);
+    expect(left._layout.placedH).toBeLessThan(right._layout.placedH);
+  });
+
   it('coerces HUG parent when child becomes FILL, reverts when child set back to HUG', () => {
     const c1 = new Frame({ id: 'c1', sizingH: Sizing.FILL });
     const c2 = new Frame({ id: 'c2', sizingH: Sizing.HUG });

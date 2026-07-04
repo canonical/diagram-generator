@@ -5,9 +5,11 @@ root:
   direction: vertical
   children:
     - id: top_box
+      level: 2
       label: [Top-level box]
       icon: Cloud.svg
     - id: row
+      level: 2
       direction: horizontal
       border: solid
       heading: Horizontal group
@@ -22,4 +24,5 @@ root:
           label: [Child 3]
           icon: Storage node.svg
     - id: bottom_box
+      level: 2
       label: [Bottom box]
