@@ -16,6 +16,7 @@ const SOURCE_ROOTS = [
 
 const ALLOWED_FILES = new Set([
   ['packages/layout-engine/src', 'preview-engine', 'registry.ts'].join(sep),
+  ['packages/layout-engine/src', 'preview-engine', 'render.ts'].join(sep),
   ['packages/layout-engine/src', 'diagram-author', 'export-d2.ts'].join(sep),
 ]);
 
@@ -23,14 +24,15 @@ const ALLOWED_PATH_PATTERNS = [
   `${sep}packages${sep}layout-engine${sep}src${sep}preview-engine${sep}engines${sep}`,
 ];
 
-const ENGINE_ID = String.raw`(?:elk-[A-Za-z0-9_-]+|dagre|force)`;
-const ENGINE_ID_PREFIX = String.raw`(?:elk|elk-[A-Za-z0-9_-]+|dagre|force)`;
+const ENGINE_ID = String.raw`(?:v3|sequence|elk-[A-Za-z0-9_-]+|dagre|force)`;
+const ENGINE_ID_PREFIX = String.raw`(?:v3|sequence|elk|elk-[A-Za-z0-9_-]+|dagre|force)`;
+const ENGINE_ID_LHS = String.raw`(?:layoutEngine|layoutEngineKey|engineId|engineKey|previewDocumentKind|documentKind|previewDocument\?\.kind|activeLayoutEngine|authoredLayoutEngine)`;
 const ENGINE_ID_EQUALITY = new RegExp(
-  String.raw`\b(?:layoutEngine|layoutEngineKey|engineId|engineKey|previewEngine\.id|engine\.id|manifest\.id|id)\b\s*(?:={2,3}|!={1,2})\s*(['"])${ENGINE_ID}\1`,
+  String.raw`\b${ENGINE_ID_LHS}\b\s*(?:={2,3}|!={1,2})\s*(['"])${ENGINE_ID}\1`,
 );
 const ENGINE_ID_SWITCH_CASE = new RegExp(String.raw`\bcase\s+(['"])${ENGINE_ID}\1\s*:`);
 const ENGINE_ID_PREFIX_CHECK = new RegExp(
-  String.raw`\b(?:layoutEngine|layoutEngineKey|engineId|engineKey|authoredLayoutEngine|activeLayoutEngine)\b\s*\.\s*(?:includes|startsWith)\s*\(\s*(['"])${ENGINE_ID_PREFIX}\1`,
+  String.raw`\b(?:layoutEngine|layoutEngineKey|engineId|engineKey|authoredLayoutEngine|activeLayoutEngine|documentKind|previewDocumentKind)\b\s*\.\s*(?:includes|startsWith)\s*\(\s*(['"])${ENGINE_ID_PREFIX}\1`,
 );
 
 function listTypeScriptFiles(dir: string): string[] {

@@ -3,6 +3,7 @@ import type { FrameDiagram } from '../frame-model.js';
 import type { LayoutOutput } from '../layout.js';
 import type { SequenceDiagramSpec } from '../sequence-layout/model.js';
 import type { TextMeasureAdapter } from '../text-measure.js';
+import { listCompatiblePreviewEngines } from './registry.js';
 import type {
   PreviewDocumentKind,
   PreviewEngineManifest,
@@ -116,6 +117,43 @@ export function getPreviewDocumentSvgRenderer(
   previewDocumentKind: PreviewDocumentKind,
 ): PreviewDocumentSvgRenderer | undefined {
   return PREVIEW_DOCUMENT_SVG_RENDERERS.get(previewDocumentKind);
+}
+
+export function previewDocumentOwnsStandaloneSvg(
+  previewDocumentKind: PreviewDocumentKind | null | undefined,
+): boolean {
+  return Boolean(
+    previewDocumentKind
+    && previewDocumentKind !== 'frame-diagram'
+    && getPreviewDocumentSvgRenderer(previewDocumentKind),
+  );
+}
+
+export function resolvePreviewDocumentLayoutEngineFallback(
+  document: PreviewRenderableDocument | null | undefined,
+): string | null {
+  const explicit = typeof document?.layoutEngine === 'string'
+    ? document.layoutEngine.trim()
+    : '';
+  if (explicit) {
+    return explicit;
+  }
+  const kind = document?.kind ?? null;
+  if (!kind) {
+    return null;
+  }
+  const compatible = listCompatiblePreviewEngines({
+    shellMode: 'grid',
+    previewDocumentKind: kind,
+  });
+  if (compatible.length !== 1) {
+    return null;
+  }
+  const engine = compatible[0];
+  if (!engine) {
+    return null;
+  }
+  return engine.layoutEngineKey ?? engine.id ?? null;
 }
 
 export async function renderPreviewDocumentToSvg(

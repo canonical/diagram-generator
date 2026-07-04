@@ -20,6 +20,10 @@ import {
   filterPreviewEngineLayoutOptionOverrides,
   renderFreshPreviewSvg,
 } from '../src/preview-shell/app-fresh-render.js';
+import {
+  registerPreviewDocumentSvgRenderer,
+  registerPreviewEngine,
+} from '../src/preview-engine/index.js';
 import { commitPreviewSwitchNode } from '../src/preview-shell/preview-switch-node.js';
 import {
   applyPreviewOverridesToFrameTree,
@@ -139,12 +143,33 @@ class FakeElement extends FakeNode {
 }
 
 class FakeDocument {
+  readonly defaultView = {
+    DOMParser: class {
+      parseFromString(markup: string) {
+        const rootTagMatch = markup.match(/<\s*([A-Za-z0-9:-]+)/);
+        const tagName = rootTagMatch?.[1] ?? 'svg';
+        const document = new FakeDocument();
+        const element = new FakeElement(document, tagName);
+        for (const match of markup.matchAll(/([A-Za-z_:][A-Za-z0-9_:\-.]*)="([^"]*)"/g)) {
+          element.setAttribute(match[1]!, match[2]!);
+        }
+        return {
+          documentElement: element,
+        };
+      }
+    },
+  };
+
   createElementNS(_namespace: string, tagName: string): FakeElement {
     return new FakeElement(this, tagName);
   }
 
   createDocumentFragment(): FakeElement {
     return new FakeElement(this, '#document-fragment');
+  }
+
+  importNode<TNode extends FakeNode>(node: TNode): TNode {
+    return node;
   }
 }
 
@@ -448,5 +473,63 @@ describe('renderFreshPreviewSvg', () => {
     });
 
     expect(result.svg.getAttribute('data-layout-engine')).toBe('v3');
+  });
+
+  it('infers the only compatible layout engine for standalone preview documents without a sequence-only fallback', async () => {
+    const ownerDocument = new FakeDocument();
+    const unregisterEngine = registerPreviewEngine({
+      id: 'mindmap-tree',
+      label: 'Mindmap Tree',
+      layoutEngineKey: 'mindmap-tree',
+      shellMode: 'grid',
+      renderFamily: 'frame-native',
+      capabilities: {
+        layoutControls: false,
+        localRelayout: false,
+        serverRelayout: false,
+        engineBackedSave: false,
+        nodeInspector: false,
+        gridEditing: false,
+        referenceImage: false,
+        simulationControls: false,
+        rawDebugView: false,
+      },
+      controlSpecs: [],
+      scripts: [],
+      compatibility: {
+        documentKinds: ['mindmap-inline'],
+      },
+    });
+    const unregisterRenderer = registerPreviewDocumentSvgRenderer('mindmap-inline', async () => ({
+      svgMarkup: '<svg data-kind="mindmap-inline"></svg>',
+      width: 320,
+      height: 200,
+    }));
+
+    try {
+      const result = await renderFreshPreviewSvg({
+        ownerDocument: ownerDocument as unknown as Document,
+        previewDocumentJson: {
+          kind: 'mindmap-inline',
+          title: 'Mindmap',
+        },
+        frameTreeJson: null,
+        overrides: {},
+        gridOverrides: {},
+        model: {},
+        textAdapter: new MockTextAdapter(),
+        applySessionRemovalsToDiagramJson: null,
+        applyOverridesToFrameTree: vi.fn(),
+        collectRelayoutFrameOverrides: (overrides) => overrides,
+        resolveEngineLayoutOptionOverrides: () => ({}),
+        updateModelFromLayout: vi.fn(),
+        syncArrowsInModel: vi.fn(),
+      });
+
+      expect(result.svg.getAttribute('data-layout-engine')).toBe('mindmap-tree');
+    } finally {
+      unregisterRenderer();
+      unregisterEngine();
+    }
   });
 });

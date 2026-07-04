@@ -32,6 +32,9 @@ remaining post-071 queue in the exact Opus order:
 
 1. **Spec 061 — grid regression investigation.**
 2. **Spec 064 — arrow annotation label de-overlap.**
+3. **Spec 072 — preview engine hardening.** Directed hardening slice for the
+   remaining honest-open engine chrome, stage padding parity, and
+   architecture-review gaps after 063/071.
 
 The `defineGraphLayoutPreviewEngine` factory + per-engine `engines/*.engine.ts`
 substrate is already in place (decentralized `registerPreviewEngine`, no central

@@ -39,12 +39,14 @@ export function mountPreviewRenderNode<TSvg = unknown>(
     return false;
   }
 
+  // Fit after the node is mounted so browser geometry includes the live stage
+  // context; detached SVG fitting can under-measure right/bottom canvas padding.
+  options.stage.replaceChildren(options.renderResult.svg);
   options.fitSvgToContent?.({
     svg: options.renderResult.svg,
     minWidth: options.renderResult.width,
     minHeight: options.renderResult.height,
   });
-  options.stage.replaceChildren(options.renderResult.svg);
   options.refreshScene?.();
   return true;
 }

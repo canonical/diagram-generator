@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  BUILTIN_PREVIEW_ENGINE_INSTALL_UNITS,
   installPreviewEngineInstallUnits,
   listPreviewEngineInstallUnits,
   registerPreviewEngineInstallUnit,
@@ -8,7 +9,7 @@ import {
 
 describe('preview-engine install units', () => {
   it('registers builtin preview engines through install units', () => {
-    expect(listPreviewEngineInstallUnits().map((entry) => entry.key)).toEqual([
+    expect(BUILTIN_PREVIEW_ENGINE_INSTALL_UNITS.map((entry) => entry.key)).toEqual([
       'v3',
       'elk-layered',
       'elk-force',
@@ -20,6 +21,9 @@ describe('preview-engine install units', () => {
       'force',
       'sequence',
     ]);
+    expect(listPreviewEngineInstallUnits().map((entry) => entry.key)).toEqual(
+      BUILTIN_PREVIEW_ENGINE_INSTALL_UNITS.map((entry) => entry.key),
+    );
   });
 
   it('installs synthetic install units in order and unwinds in reverse order', () => {

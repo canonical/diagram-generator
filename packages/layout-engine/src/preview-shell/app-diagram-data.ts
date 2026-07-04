@@ -1,5 +1,6 @@
 import { normalizePreviewDiagramPath } from './app-diagram-navigation.js';
 import { collectPreviewArrowComponentEntries } from '../preview-arrow-component-ids.js';
+import { previewDocumentOwnsStandaloneSvg } from '../preview-engine/render.js';
 
 /**
  * Preview diagram bootstrap/data helpers (spec 046 slice A).
@@ -67,7 +68,7 @@ export interface SyncPreviewArrowModelFromFrameTreeOptions {
 }
 
 export type PreviewComponentTreeLoadMode =
-  | 'sequence'
+  | 'preview-document'
   | 'canonical'
   | 'fetched'
   | 'unavailable';
@@ -191,10 +192,10 @@ export async function loadPreviewComponentTree(
   const previewDocument = options.canonicalState?.previewDocument
     || options.readPreviewDocument?.()
     || null;
-  if (previewDocument?.kind === 'sequence') {
+  if (previewDocumentOwnsStandaloneSvg(previewDocument?.kind)) {
     options.model.loadTree([]);
     options.model.loadArrows?.([]);
-    return 'sequence';
+    return 'preview-document';
   }
 
   const canonicalComponentTree = Array.isArray(options.canonicalState?.componentTree)

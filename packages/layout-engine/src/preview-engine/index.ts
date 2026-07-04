@@ -60,6 +60,7 @@ export {
   type PreviewEngineShellControllerWindowLike,
 } from './layout-params-controller.js';
 export {
+  BUILTIN_PREVIEW_ENGINE_INSTALL_UNITS,
   ELK_LAYERED_PREVIEW_ENGINE,
   ELK_FORCE_PREVIEW_ENGINE,
   ELK_MRTREE_PREVIEW_ENGINE,
@@ -102,9 +103,11 @@ export {
   getPreviewDocumentSvgRenderer,
   getPreviewFrameDiagramRenderAdapter,
   layoutPreviewFrameDiagramForEngine,
+  previewDocumentOwnsStandaloneSvg,
   renderPreviewDocumentToSvg,
   registerPreviewDocumentSvgRenderer,
   registerPreviewFrameDiagramRenderAdapter,
+  resolvePreviewDocumentLayoutEngineFallback,
   resolvePreviewRenderFamily,
   type PreviewDocumentSvgRenderResult,
   type PreviewDocumentSvgRenderer,

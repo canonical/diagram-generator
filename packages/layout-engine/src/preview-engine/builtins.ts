@@ -6,6 +6,27 @@ import {
 } from './builtin-render-adapters.js';
 import { registerPreviewEngine } from './registry.js';
 import type { PreviewEngineInstallUnit } from './install-units.js';
+import {
+  BUILTIN_DAGRE_PREVIEW_ENGINE_INSTALL_UNIT,
+} from './engines/dagre.engine.js';
+import {
+  BUILTIN_ELK_FORCE_PREVIEW_ENGINE_INSTALL_UNIT,
+} from './engines/elk-force.engine.js';
+import {
+  BUILTIN_ELK_MRTREE_PREVIEW_ENGINE_INSTALL_UNIT,
+} from './engines/elk-mrtree.engine.js';
+import {
+  BUILTIN_ELK_LAYERED_PREVIEW_ENGINE_INSTALL_UNIT,
+} from './engines/elk-layered.engine.js';
+import {
+  BUILTIN_ELK_RADIAL_PREVIEW_ENGINE_INSTALL_UNIT,
+} from './engines/elk-radial.engine.js';
+import {
+  BUILTIN_ELK_RECTPACKING_PREVIEW_ENGINE_INSTALL_UNIT,
+} from './engines/elk-rectpacking.engine.js';
+import {
+  BUILTIN_ELK_STRESS_PREVIEW_ENGINE_INSTALL_UNIT,
+} from './engines/elk-stress.engine.js';
 export {
   BUILTIN_DAGRE_PREVIEW_ENGINE_INSTALL_UNIT,
   DAGRE_PREVIEW_ENGINE,
@@ -73,7 +94,7 @@ export const V3_PREVIEW_ENGINE: PreviewEngineManifest = {
   scripts: [],
   compatibility: {
     documentKinds: ['frame-diagram'],
-    description: 'Canonical native v3 autolayout for authored frame diagrams',
+    description: 'Canonical autolayout for authored frame diagrams',
   },
 };
 
@@ -190,3 +211,16 @@ export const BUILTIN_SEQUENCE_PREVIEW_ENGINE_INSTALL_UNIT: PreviewEngineInstallU
   key: 'sequence',
   install: installSequencePreviewEngine,
 };
+
+export const BUILTIN_PREVIEW_ENGINE_INSTALL_UNITS: readonly PreviewEngineInstallUnit[] = Object.freeze([
+  BUILTIN_V3_PREVIEW_ENGINE_INSTALL_UNIT,
+  BUILTIN_ELK_LAYERED_PREVIEW_ENGINE_INSTALL_UNIT,
+  BUILTIN_ELK_FORCE_PREVIEW_ENGINE_INSTALL_UNIT,
+  BUILTIN_ELK_STRESS_PREVIEW_ENGINE_INSTALL_UNIT,
+  BUILTIN_ELK_MRTREE_PREVIEW_ENGINE_INSTALL_UNIT,
+  BUILTIN_ELK_RADIAL_PREVIEW_ENGINE_INSTALL_UNIT,
+  BUILTIN_ELK_RECTPACKING_PREVIEW_ENGINE_INSTALL_UNIT,
+  BUILTIN_DAGRE_PREVIEW_ENGINE_INSTALL_UNIT,
+  BUILTIN_FORCE_PREVIEW_ENGINE_INSTALL_UNIT,
+  BUILTIN_SEQUENCE_PREVIEW_ENGINE_INSTALL_UNIT,
+]);

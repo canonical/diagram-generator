@@ -261,8 +261,8 @@ describe('preview scene host helpers', () => {
     })).resolves.toBe(true);
 
     expect(orderedCalls).toEqual([
-      'fit:640x480',
       'replace:svg',
+      'fit:640x480',
       'refreshScene',
     ]);
   });
@@ -308,8 +308,8 @@ describe('preview scene host helpers', () => {
 
     expect(orderedCalls).toEqual([
       'renderFreshSvg',
-      'fit:320x200',
       'replaceChildren',
+      'fit:320x200',
       'buildTreeUi',
       'bindInteraction',
     ]);

@@ -612,7 +612,7 @@ describe('preview-engine registry', () => {
 
   it('exposes engine descriptions for switcher UI', () => {
     expect(V3_PREVIEW_ENGINE.compatibility.description).toBeDefined();
-    expect(V3_PREVIEW_ENGINE.compatibility.description).toContain('v3');
+    expect(V3_PREVIEW_ENGINE.compatibility.description).toContain('autolayout');
     expect(ELK_LAYERED_PREVIEW_ENGINE.compatibility.description).toBeDefined();
     expect(ELK_LAYERED_PREVIEW_ENGINE.compatibility.description).toContain('layered');
     expect(ELK_FORCE_PREVIEW_ENGINE.compatibility.description).toBeDefined();

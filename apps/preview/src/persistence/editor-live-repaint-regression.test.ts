@@ -257,6 +257,55 @@ async function fittedViewBox(page: Page): Promise<string> {
   return viewBox.trim().replace(/\s+/g, " ");
 }
 
+async function fittedCanvasPadding(page: Page): Promise<{
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}> {
+  return page.evaluate(() => {
+    const svg = document.querySelector("#stage svg");
+    const viewBox = svg?.getAttribute("viewBox")?.trim().split(/\s+/).map(Number);
+    if (!viewBox || viewBox.length !== 4 || viewBox.some((value) => !Number.isFinite(value))) {
+      throw new Error("Rendered stage is missing a numeric viewBox");
+    }
+
+    const frameBoxes = Array.from(
+      document.querySelectorAll<SVGGraphicsElement>("#dg-frame-layer [data-component-id]"),
+    )
+      .map((element) => {
+        const box = element.getBBox();
+        return {
+          minX: box.x,
+          minY: box.y,
+          maxX: box.x + box.width,
+          maxY: box.y + box.height,
+          width: box.width,
+          height: box.height,
+        };
+      })
+      .filter((box) => box.width > 0 && box.height > 0);
+    if (!frameBoxes.length) {
+      throw new Error("Rendered stage is missing frame-layer geometry");
+    }
+
+    const minX = Math.min(...frameBoxes.map((box) => box.minX));
+    const minY = Math.min(...frameBoxes.map((box) => box.minY));
+    const maxX = Math.max(...frameBoxes.map((box) => box.maxX));
+    const maxY = Math.max(...frameBoxes.map((box) => box.maxY));
+    const [viewBoxX, viewBoxY, viewBoxWidth, viewBoxHeight] = viewBox;
+    const viewBoxMaxX = viewBoxX + viewBoxWidth;
+    const viewBoxMaxY = viewBoxY + viewBoxHeight;
+
+    return {
+      left: Math.round((minX - viewBoxX) * 1000) / 1000,
+      top: Math.round((minY - viewBoxY) * 1000) / 1000,
+      right: Math.round((viewBoxMaxX - maxX) * 1000) / 1000,
+      bottom: Math.round((viewBoxMaxY - maxY) * 1000) / 1000,
+    };
+  });
+}
+
 async function currentEngineTabs(page: Page): Promise<string[]> {
   return page.locator("#engine-switcher-tabs [data-engine-id]").evaluateAll((elements) => (
     elements
@@ -754,6 +803,46 @@ test("phase 1 canvas parity holds across load, save→reload, engine-tab switch,
   }
 });
 
+test("autolayout→ELK switch keeps right/bottom canvas padding on mongo-octavia-ha", { timeout: 120_000 }, async () => {
+  const framesDir = copyFixtureFrames(["mongo-octavia-ha"]);
+  const port = await allocatePort();
+  const baseUrl = `http://127.0.0.1:${port}`;
+  const server = startPreviewServer(framesDir, port);
+  const browser = await chromium.launch();
+
+  try {
+    await server.ready;
+
+    const page = await openPreviewPage(browser, baseUrl, "mongo-octavia-ha");
+    try {
+      const engineTabs = await currentEngineTabs(page);
+      assert.ok(engineTabs.includes("v3"), "expected the Autolayout tab");
+      assert.ok(engineTabs.includes("elk-layered"), "expected the ELK layered tab");
+
+      await selectEngine(page, "v3");
+      const autolayoutPadding = await fittedCanvasPadding(page);
+
+      await selectEngine(page, "elk-layered");
+      const elkPadding = await fittedCanvasPadding(page);
+
+      assert.ok(autolayoutPadding.left >= 24, "Autolayout should keep left canvas padding");
+      assert.ok(autolayoutPadding.top >= 24, "Autolayout should keep top canvas padding");
+      assert.ok(autolayoutPadding.right >= 24, "Autolayout should keep right canvas padding");
+      assert.ok(autolayoutPadding.bottom >= 24, "Autolayout should keep bottom canvas padding");
+      assert.ok(elkPadding.left >= 24, "ELK should keep left canvas padding");
+      assert.ok(elkPadding.top >= 24, "ELK should keep top canvas padding");
+      assert.ok(elkPadding.right >= 24, "ELK should keep right canvas padding");
+      assert.ok(elkPadding.bottom >= 24, "ELK should keep bottom canvas padding");
+    } finally {
+      await page.close();
+    }
+  } finally {
+    await browser.close();
+    await stopPreviewServer(server.process);
+    fs.rmSync(framesDir, { recursive: true, force: true });
+  }
+});
+
 test("engine-specific layout buckets stay isolated across layered, radial, dagre, and save→reload browser flows", { timeout: 120_000 }, async () => {
   const framesDir = copyFixtureFrames(["example-deployment-pipeline"]);
   const port = await allocatePort();
@@ -851,6 +940,38 @@ test("engine-specific layout buckets stay isolated across layered, radial, dagre
         reloadedBucketsState.byOperator.dagre,
         dagreState.byOperator.dagre,
         "save→reload should preserve the cross-family non-active dagre bucket",
+      );
+
+      await selectEngine(page, "elk-radial");
+      const radialReloadState = await captureLayoutOperatorBrowserState(page);
+      const radialReloadDescriptor = await readLayoutControlDescriptor(page, radialControl.id);
+
+      assert.equal(radialReloadState.activeOperatorKey, "elk-radial");
+      assert.deepEqual(
+        radialReloadState.activeLayoutOverrides,
+        radialState.byOperator["elk-radial"] ?? {},
+        "switching back after save→reload should restore the live radial override bucket",
+      );
+      assert.equal(
+        String(radialReloadDescriptor.value),
+        String((radialState.byOperator["elk-radial"] ?? {})[radialControl.key]),
+        "radial controls should restore the saved live value after save→reload→switch-back",
+      );
+
+      await selectEngine(page, "dagre");
+      const dagreReloadState = await captureLayoutOperatorBrowserState(page);
+      const dagreReloadDescriptor = await readLayoutControlDescriptor(page, dagreControl.id);
+
+      assert.equal(dagreReloadState.activeOperatorKey, "dagre");
+      assert.deepEqual(
+        dagreReloadState.activeLayoutOverrides,
+        dagreState.byOperator.dagre ?? {},
+        "switching back after save→reload should restore the live dagre override bucket",
+      );
+      assert.equal(
+        String(dagreReloadDescriptor.value),
+        String((dagreState.byOperator.dagre ?? {})[dagreControl.key]),
+        "dagre controls should restore the saved live value after save→reload→switch-back",
       );
 
       await selectEngine(page, "elk-radial");

@@ -12,6 +12,7 @@ import { type LayoutOutput } from '../layout.js';
 import {
   type PreviewRenderableDocument,
   layoutPreviewFrameDiagramForEngine,
+  resolvePreviewDocumentLayoutEngineFallback,
   renderPreviewDocumentToSvg,
   type PreviewFrameLayoutResult,
   type PreviewEngineManifest,
@@ -347,7 +348,7 @@ export async function renderFreshPreviewSvg<TModel = unknown>(
     const previewDocumentLayoutEngine = resolvePreviewRenderIntentLayoutEngine({
       intent: options.renderIntent ?? null,
       layoutEngine: options.previewDocumentJson?.layoutEngine ?? null,
-      fallbackEngineId: options.previewDocumentJson?.kind === 'sequence' ? 'sequence' : null,
+      fallbackEngineId: resolvePreviewDocumentLayoutEngineFallback(options.previewDocumentJson ?? null),
     });
     if (previewDocumentLayoutEngine) {
       svg.setAttribute('data-layout-engine', previewDocumentLayoutEngine);

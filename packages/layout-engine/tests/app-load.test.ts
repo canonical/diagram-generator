@@ -281,8 +281,8 @@ describe('preview load helpers', () => {
       'init:demo',
       'frameTree:seed',
       'render:{"cols":8}',
-      'fit:320x200',
       'replace:svg',
+      'fit:320x200',
     ]);
     expect(fetchedUrl).toMatch(/^\/svg\/demo-onbrand-mermaid\.svg\?t=\d+$/);
   });
@@ -346,8 +346,8 @@ describe('preview load helpers', () => {
 
     expect(calls).toEqual([
       'renderFreshPreviewSvg',
-      'fitBridge:568x456',
       'replaceChildren',
+      'fitBridge:568x456',
     ]);
   });
 
@@ -433,8 +433,8 @@ describe('preview load helpers', () => {
       'render:{"cols":8}',
       'reapplySelection',
       'markSaved:dirty-state',
-      'fit:320x200',
       'replace:svg',
+      'fit:320x200',
     ]);
   });
 });

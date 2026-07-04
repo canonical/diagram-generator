@@ -88,8 +88,8 @@ describe('preview render node', () => {
 
     expect(mounted).toBe(true);
     expect(orderedCalls).toEqual([
-      'fit:640x480',
       'replace:svg',
+      'fit:640x480',
       'refreshScene',
     ]);
   });
