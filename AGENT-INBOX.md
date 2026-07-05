@@ -228,3 +228,51 @@ Validation baseline at 2026-07-05 (rerun before closing): `packages/layout-engin
 **975/975**, `apps/preview` **160/160**, `check_no_new_python` ok,
 `check-preview-shell-size-budgets` ok. Product readiness is real; the failure was
 bookkeeping honesty, and 046's veto was stale rather than unmet.
+
+---
+
+## Adversarial review — 2026-07-05 — spec 073 layout node model and param-pane unification
+
+Reviewed the spec 073 branch diff against the implemented force-shell,
+preview-engine, and panel-registry changes. The panel registration and shell-mode
+normalization work look directionally correct, but the force param-pane
+unification is **not actually closeout-ready**. Two blockers remain:
+
+1. **P1 — shared force controls are wired through a no-op setter, so force
+   parameter edits do not apply.**
+   `scripts/preview/force.js:148-164` initializes
+   `PreviewEngineLayoutControls` with a real setter, then immediately calls
+   `PreviewEngineShellController.wirePanel()` after configuring the controller
+   with `setLayoutOverrides: () => {}` and `requestLayoutRelayout: () => null`.
+   The generic control runtime writes changes through `setOverrides(next)` and
+   `controller.applyLayoutOverrides(next)` before scheduling relayout
+   (`packages/layout-engine/src/preview-engine/layout-params-controls.ts:554-567`).
+   In force mode those writes resolve to no-ops, so the pane rebuilds from the
+   unchanged `committedSnapshot` and user edits snap back instead of updating
+   the live force preview. The new SC-001 test
+   (`packages/layout-engine/tests/preview-engine-elk-runtime.test.ts:112-204`)
+   only checks that labels render; it never exercises a write path, so this
+   regression currently ships green.
+
+2. **P1 — the new shared Render control is dead: `curve_handle_ratio` never
+   reaches the force runtime state.**
+   The shared force override reader now advertises
+   `curve_handle_ratio` from `snapshot.render`
+   (`scripts/preview/force.js:121-126`), and writes it back through
+   `updateForceSimulationParams(...)` (`scripts/preview/force.js:130-141`).
+   But `updateForceSimulationParams` only mutates `state.spec.simulation` fields
+   and ignores render-scoped keys entirely
+   (`packages/layout-engine/src/force-runtime.ts:582-606`), so the new
+   "Render / Curve handle ratio" control cannot affect the live preview or the
+   saved YAML. I confirmed that with a targeted runtime probe:
+   `updateForceSimulationParams(snapshot, { curve_handle_ratio: 0.7 })`
+   left `snapshot.render.curve_handle_ratio` unchanged at `0.35`.
+
+Recommended follow-up before re-marking 073 `Closeout Ready`:
+- Fix the force shared-pane bridge so force edits write through one real setter
+  path and trigger the intended live update/repaint flow.
+- Add a force-specific regression that changes a shared-pane value and asserts
+  the runtime snapshot and rendered/exported state both update.
+- Either extend the force runtime update path to handle render-scoped overrides
+  such as `curve_handle_ratio`, or route render controls through a dedicated
+  updater and cover that with a test.

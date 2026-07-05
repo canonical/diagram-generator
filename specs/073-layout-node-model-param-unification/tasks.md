@@ -81,3 +81,12 @@
       force-pipeline convergence, and any future convergence should land as a
       dedicated follow-up spec when force work resumes or the parallel pipeline
       blocks new product work.
+
+## Adversarial review follow-up
+
+- [ ] T061 Fix the force shared layout-params bridge so force-shell control
+      edits write through a live setter path instead of the current no-op
+      controller wiring.
+- [ ] T062 Make render-scoped force controls such as `curve_handle_ratio`
+      update the runtime/exported force state, and add a regression that proves
+      the shared force pane changes persist through that path.

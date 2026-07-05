@@ -1,7 +1,7 @@
 # Spec 073: Layout algorithm node model and parameter-pane unification
 
 **Feature Branch**: `feat/073-layout-node-model-param-unification`
-**Status**: Closeout Ready
+**Status**: In Progress
 **Created**: 2026-07-05
 **Context**: chat decision 2026-07-05 (dedup-before-port; drop "family"; Houdini
 SOP model; unify force into the shared param pane). Builds on spec 071
@@ -215,3 +215,8 @@ manifest/type surface.
   `node scripts/check-preview-shell-size-budgets.mjs`. The required
   `npm --prefix packages/layout-engine run build:browser` step also passed after
   the preview-engine export changes.
+- 2026-07-05 adversarial review: reopened from `Closeout Ready`. The shared
+  force layout-params bridge currently rewires force control writes through a
+  no-op setter, and the new `curve_handle_ratio` control still does not update
+  force render state. Closeout is blocked until those regressions are fixed and
+  covered by a force write-through regression.
