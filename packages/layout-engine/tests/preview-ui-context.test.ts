@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  DAGRE_PREVIEW_ENGINE,
   ELK_LAYERED_PREVIEW_ENGINE,
   FORCE_PREVIEW_ENGINE,
   SEQUENCE_PREVIEW_ENGINE,
@@ -193,13 +192,13 @@ describe('preview UI context registry', () => {
     expect(visible.has('grid-engine-switcher')).toBe(true);
   });
 
-  it('shows graph layout controls and hides ELK/native grid controls for Dagre', () => {
+  it('shows graph layout controls and hides native grid controls for layered ELK engines', () => {
     const visible = visibleSections({
       shellMode: 'grid',
       documentKind: 'frame-diagram',
-      activeEngine: DAGRE_PREVIEW_ENGINE,
-      compatibleEngines: ['v3', 'dagre'],
-      persistedLayoutEngine: 'dagre',
+      activeEngine: ELK_LAYERED_PREVIEW_ENGINE,
+      compatibleEngines: ['v3', 'elk-layered'],
+      persistedLayoutEngine: 'elk-layered',
     });
 
     expect(visible.has('grid-layers-tab')).toBe(true);

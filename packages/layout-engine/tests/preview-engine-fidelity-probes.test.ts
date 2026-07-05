@@ -134,7 +134,7 @@ describe('preview-engine fidelity probes', () => {
       shellMode: 'grid',
       previewDocumentKind: 'frame-diagram',
       frameDiagramSummary: summary,
-    }).map((entry) => entry.id)).toEqual(['v3', 'dagre']);
+    }).map((entry) => entry.id)).toEqual(['v3']);
     expect(evaluatePreviewEngineCompatibility(ELK_LAYERED_PREVIEW_ENGINE, {
       shellMode: 'grid',
       previewDocumentKind: 'frame-diagram',

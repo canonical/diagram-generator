@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import '../src/preview-engine/index.js';
 import {
-  DAGRE_PREVIEW_ENGINE,
   ELK_LAYERED_PREVIEW_ENGINE,
+  ELK_RADIAL_PREVIEW_ENGINE,
 } from '../src/preview-engine/builtins.js';
 import {
   clearPreviewInterpreterNodeParams,
@@ -21,7 +21,7 @@ describe('preview interpreter node registry', () => {
 
     expect(nodeIds).toContain('v3');
     expect(nodeIds).toContain('elk-layered');
-    expect(nodeIds).toContain('dagre');
+    expect(nodeIds).toContain('elk-radial');
     expect(nodeIds).toContain('force');
     expect(nodeIds).toContain('sequence');
     expect(getPreviewInterpreterNode(registry, 'elk-layered')).toMatchObject({
@@ -38,7 +38,7 @@ describe('preview interpreter node registry', () => {
     }>({
       registrations: [
         { nodeId: 'alpha', manifest: ELK_LAYERED_PREVIEW_ENGINE },
-        { nodeId: 'beta', manifest: DAGRE_PREVIEW_ENGINE },
+        { nodeId: 'beta', manifest: ELK_RADIAL_PREVIEW_ENGINE },
       ],
     });
 
@@ -77,7 +77,7 @@ describe('preview interpreter node registry', () => {
     }>({
       registrations: [
         { nodeId: 'alpha', manifest: ELK_LAYERED_PREVIEW_ENGINE },
-        { nodeId: 'beta', manifest: DAGRE_PREVIEW_ENGINE },
+        { nodeId: 'beta', manifest: ELK_RADIAL_PREVIEW_ENGINE },
       ],
       paramsByNodeId: {
         alpha: { spacing: 64 },
@@ -97,7 +97,7 @@ describe('preview interpreter node registry', () => {
     expect(() => createPreviewInterpreterNodeRegistry({
       registrations: [
         { nodeId: 'alpha', manifest: ELK_LAYERED_PREVIEW_ENGINE },
-        { nodeId: 'alpha', manifest: DAGRE_PREVIEW_ENGINE },
+        { nodeId: 'alpha', manifest: ELK_RADIAL_PREVIEW_ENGINE },
       ],
     })).toThrow(/already registered/);
   });

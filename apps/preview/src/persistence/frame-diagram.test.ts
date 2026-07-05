@@ -190,7 +190,7 @@ test("persist engine_layout_overrides preserves numeric control values", () => {
   });
 });
 
-test("persist engine_layout_overrides routes meta.dagre through the namespaced save contract", () => {
+test("persist migrates legacy meta.dagre overrides into the canonical ELK save contract", () => {
   const baselineText = [
     "engine: v3",
     "title: Demo",
@@ -214,7 +214,7 @@ test("persist engine_layout_overrides routes meta.dagre through the namespaced s
     },
   });
 
-  assert.match(output, /meta:\r?\n  layout_engine: dagre\r?\n  dagre:\r?\n    dagre\.rankdir: LR\r?\n    dagre\.ranksep: 128/);
+  assert.match(output, /meta:\r?\n  layout_engine: elk-layered\r?\n  elk:\r?\n    elk\.direction: RIGHT\r?\n    elk\.layered\.spacing\.nodeNodeBetweenLayers: 128/);
 });
 
 test("persist layout engine and root direction survive frame yaml reload", () => {
@@ -244,7 +244,7 @@ test("persist layout engine and root direction survive frame yaml reload", () =>
 
   const reloaded = loadFrameYaml(framePath);
 
-  assert.equal(reloaded.layoutEngine, "dagre");
+  assert.equal(reloaded.layoutEngine, "elk-layered");
   assert.equal(reloaded.root.direction, Direction.HORIZONTAL);
 });
 
@@ -275,10 +275,10 @@ test("persist→reload round-trip: graph-engine namespaces survive frame yaml re
   fs.writeFileSync(dagrePath, dagreOutput, "utf8");
 
   const reloadedDagre = loadFrameYaml(dagrePath);
-  assert.equal(reloadedDagre.layoutEngine, "dagre");
-  assert.deepEqual(reloadedDagre.engineLayout?.["meta.dagre"], {
-    "dagre.rankdir": "LR",
-    "dagre.ranksep": "128",
+  assert.equal(reloadedDagre.layoutEngine, "elk-layered");
+  assert.deepEqual(reloadedDagre.engineLayout?.["meta.elk"], {
+    "elk.direction": "RIGHT",
+    "elk.layered.spacing.nodeNodeBetweenLayers": "128",
   });
 
   const elkBaseline = [
@@ -315,7 +315,7 @@ test("persist→reload round-trip: graph-engine namespaces survive frame yaml re
   });
 });
 
-test("persist→reload round-trip: interpreter node buckets survive under family-scoped node namespaces", () => {
+test("persist→reload round-trip: legacy dagre node buckets migrate into canonical elk node namespaces", () => {
   const baselineText = [
     "engine: v3",
     "title: Demo",
@@ -342,34 +342,17 @@ test("persist→reload round-trip: interpreter node buckets survive under family
           "dagre.ranksep": "128",
         },
       },
-      "meta.elk_nodes": {
-        "elk-layered": {
-          "elk.spacing.edgeNode": 56,
-        },
-        "elk-radial": {
-          "elk.radial.radius": 160,
-        },
-      },
     },
   });
   fs.writeFileSync(framePath, output, "utf8");
 
-  assert.match(output, /dagre_nodes:/);
   assert.match(output, /elk_nodes:/);
 
   const reloaded = loadFrameYaml(framePath);
-  assert.deepEqual(reloaded.engineLayout?.["meta.dagre_nodes"], {
-    dagre: {
-      "dagre.rankdir": "LR",
-      "dagre.ranksep": "128",
-    },
-  });
   assert.deepEqual(reloaded.engineLayout?.["meta.elk_nodes"], {
     "elk-layered": {
-      "elk.spacing.edgeNode": "56",
-    },
-    "elk-radial": {
-      "elk.radial.radius": "160",
+      "elk.direction": "RIGHT",
+      "elk.layered.spacing.nodeNodeBetweenLayers": "128",
     },
   });
 });
@@ -447,29 +430,26 @@ test("persist→reload round-trip: committed state vector survives temp frame ya
       },
     },
   };
-  assert.throws(
-    () => persistFrameDiagramOverridePayloadToYaml(framePath, baselineText, {
-      ...savePayload,
-      engine_layout_overrides: {
-        "meta.dagre": {
-          ...savePayload.engine_layout_overrides?.["meta.dagre"],
-          "dagre.unsupported": "reject-me",
-        },
+  const output = persistFrameDiagramOverridePayloadToYaml(framePath, baselineText, {
+    ...savePayload,
+    engine_layout_overrides: {
+      "meta.dagre": {
+        ...savePayload.engine_layout_overrides?.["meta.dagre"],
+        "dagre.unsupported": "reject-me",
       },
-    }),
-    /unsupported dagre keys: dagre\.unsupported/,
-  );
-  const output = persistFrameDiagramOverridePayloadToYaml(framePath, baselineText, savePayload);
+    },
+  });
   fs.writeFileSync(framePath, output, "utf8");
 
   const reloaded = loadFrameYaml(framePath);
   const leafA = reloaded.root.children.find((child) => child.id === "leaf_a");
 
-  assert.equal(reloaded.layoutEngine, "dagre");
-  assert.deepEqual(reloaded.engineLayout?.["meta.dagre"], {
-    "dagre.rankdir": "LR",
-    "dagre.ranksep": "128",
+  assert.equal(reloaded.layoutEngine, "elk-layered");
+  assert.deepEqual(reloaded.engineLayout?.["meta.elk"], {
+    "elk.direction": "RIGHT",
+    "elk.layered.spacing.nodeNodeBetweenLayers": "128",
   });
+  assert.doesNotMatch(output, /dagre\.unsupported/);
   assert.equal(leafA?.minWidth, 320);
   assert.equal(leafA?.level, 2);
   assert.equal(leafA?.fill, "#F3F3F3");
@@ -813,7 +793,7 @@ test("persist strips unsupported ELK keys already present in meta.elk", () => {
   assert.doesNotMatch(output, /elk\.unknown: surprise/);
 });
 
-test("persist strips unsupported Dagre keys already present in meta.dagre", () => {
+test("persist migrates legacy meta.dagre and strips unsupported legacy keys", () => {
   const baselineText = [
     "engine: v3",
     "title: Demo",
@@ -840,7 +820,7 @@ test("persist strips unsupported Dagre keys already present in meta.dagre", () =
     },
   });
 
-  assert.match(output, /dagre\.rankdir: LR/);
+  assert.match(output, /elk\.direction: RIGHT/);
   assert.doesNotMatch(output, /dagre\.unknown: surprise/);
 });
 

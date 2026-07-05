@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_PREVIEW_BOX_STYLES } from '../src/preview-shell/frame-style.js';
 import {
-  installDagrePreviewEngine,
   installElkLayeredPreviewEngine,
   installV3PreviewEngine,
 } from '../src/preview-engine/builtins.js';
@@ -962,7 +961,6 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
     const unregisterers = [
       getPreviewEngine('v3') ? null : installV3PreviewEngine(),
       getPreviewEngine('elk-layered') ? null : installElkLayeredPreviewEngine(),
-      getPreviewEngine('dagre') ? null : installDagrePreviewEngine(),
       getPreviewEngine('mindmap-tree') ? null : installMindmapLitePreviewEngine(),
     ].filter((value): value is () => void => typeof value === 'function');
     const createPanel = () => ({
@@ -1065,9 +1063,9 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
       expect(layoutParamsSection.hidden).toBe(true);
 
       previewWindow.__DG_CONFIG.persisted_layout_engine = 'v3';
-      previewWindow.__DG_CONFIG.compatible_engines = ['v3', 'dagre'];
+      previewWindow.__DG_CONFIG.compatible_engines = ['v3', 'elk-layered'];
       previewWindow.__DG_previewRenderIntent = {
-        engineId: 'dagre',
+        engineId: 'elk-layered',
         pageDirection: null,
         frameOverrides: {},
         engineOverrides: {},
@@ -1116,12 +1114,12 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
     const createGraphControllerRuntime = vi.fn(() => graphControllerRuntime);
     const model = {
       kind: 'model',
-      layoutOverrides: { 'dagre.ranksep': 128 },
-      layoutOverrideNamespace: 'meta.dagre',
+      layoutOverrides: { 'elk.layered.spacing.nodeNodeBetweenLayers': 128 },
+      layoutOverrideNamespace: 'meta.elk',
       layoutOperatorOverrides: {
-        activeOperatorKey: 'dagre',
+        activeOperatorKey: 'elk-layered',
         byOperator: {
-          dagre: { 'dagre.ranksep': 128 },
+          'elk-layered': { 'elk.layered.spacing.nodeNodeBetweenLayers': 128 },
           'elk-force': { 'elk.spacing.nodeNode': 96 },
         },
       },
@@ -1166,7 +1164,7 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
         persisted_layout_engine: 'v3',
         shell_mode: 'grid',
         document_kind: 'frame-diagram',
-        compatible_engines: ['v3', 'dagre'],
+        compatible_engines: ['v3', 'elk-layered'],
       },
       navigator: {
         clipboard: {
@@ -1189,11 +1187,14 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
         previewEngines: {
           registry: {
             resolvePreviewEngine: vi.fn(({ layoutEngine }: { layoutEngine?: string | null }) => {
-              if (layoutEngine === 'dagre') {
+              if (layoutEngine === 'elk-layered') {
                 return {
-                  id: 'dagre',
+                  id: 'elk-layered',
                   hostView: { sidebarSections: ['layout-params'] },
-                  controlSpecs: [{ key: 'dagre.ranksep', persistNamespace: 'meta.dagre' }],
+                  controlSpecs: [{
+                    key: 'elk.layered.spacing.nodeNodeBetweenLayers',
+                    persistNamespace: 'meta.elk',
+                  }],
                   capabilities: { rawDebugView: false },
                 };
               }
@@ -1335,7 +1336,7 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
     previewWindow.__DG_CONFIG.active_engine_id = 'v3';
     previewWindow.__DG_CONFIG.layout_engine = 'v3';
     previewWindow.__DG_previewRenderIntent = {
-      engineId: 'dagre',
+      engineId: 'elk-layered',
       pageDirection: null,
       frameOverrides: {},
       engineOverrides: {},
@@ -1343,9 +1344,9 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
     };
 
     await previewWindow.__DG_rerenderPreviewEngineWorkspaceStage();
-    expect(committedLayoutEngines).toEqual(['dagre']);
-    expect(previewWindow.__DG_CONFIG.active_engine_id).toBe('dagre');
-    expect(previewWindow.__DG_previewRenderIntent?.engineId).toBe('dagre');
+    expect(committedLayoutEngines).toEqual(['elk-layered']);
+    expect(previewWindow.__DG_CONFIG.active_engine_id).toBe('elk-layered');
+    expect(previewWindow.__DG_previewRenderIntent?.engineId).toBe('elk-layered');
     expect(rerenderStageCalls).toEqual(['rerender']);
     expect(createGraphControlsRuntime).toHaveBeenCalledTimes(1);
     expect(createGraphControllerRuntime).toHaveBeenCalledTimes(1);
@@ -1353,7 +1354,7 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
     expect(previewWindow.PreviewEngineShellController).toBe(graphControllerRuntime);
     expect(graphControllerInit).toHaveBeenCalledTimes(1);
     expect(graphControllerInit.mock.calls[0]?.[0]?.getLayoutOverrides()).toEqual({
-      'dagre.ranksep': 128,
+      'elk.layered.spacing.nodeNodeBetweenLayers': 128,
     });
     expect(graphControllerSyncPanel).toHaveBeenCalledTimes(1);
 
@@ -1383,7 +1384,7 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
     expect(readLayoutOperatorOverrideState(model)).toEqual({
       activeOperatorKey: 'elk-force',
       byOperator: {
-        dagre: { 'dagre.ranksep': 128 },
+        'elk-layered': { 'elk.layered.spacing.nodeNodeBetweenLayers': 128 },
         'elk-force': { 'elk.spacing.nodeNode': 96 },
       },
     });
@@ -1413,7 +1414,7 @@ describe('createPreviewGridEditorInstallUnitFromEditorHost', () => {
     expect(readLayoutOperatorOverrideState(model)).toEqual({
       activeOperatorKey: null,
       byOperator: {
-        dagre: { 'dagre.ranksep': 128 },
+        'elk-layered': { 'elk.layered.spacing.nodeNodeBetweenLayers': 128 },
         'elk-force': { 'elk.spacing.nodeNode': 96 },
       },
     });

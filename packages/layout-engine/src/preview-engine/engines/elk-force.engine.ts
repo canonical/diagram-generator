@@ -6,6 +6,7 @@ import { elkForcePreviewControlSpecs } from '../elk-controls.js';
 export const ELK_FORCE_PREVIEW_ENGINE_DEFINITION: GraphLayoutPreviewEngineDefinition = {
   id: 'elk-force',
   label: 'ELK force layout',
+  algorithmClass: 'force-directed',
   layoutEngineKey: 'elk-force',
   renderFamily: 'frame-elk-force',
   graphEngine: ELK_FORCE_GRAPH_LAYOUT_ENGINE,

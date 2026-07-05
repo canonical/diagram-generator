@@ -19,6 +19,10 @@ import {
   type PreviewInterpreterNodeRegistry,
   type PreviewInterpreterNodeRegistration,
 } from './preview-interpreter-node.js';
+import {
+  canonicalPreviewLayoutEngineKey,
+  canonicalPreviewPersistNamespace,
+} from '../preview-engine/legacy-layout-engine-migration.js';
 import { resolveFrameYamlEngineLayoutCandidateId } from './frame-yaml-engine-layout-contract.js';
 
 export interface LayoutOperatorOverrideState {
@@ -62,8 +66,7 @@ function cloneRecord(value: unknown): Record<string, unknown> | null {
 }
 
 function normalizeOperatorKey(value: string | null | undefined): string | null {
-  const trimmed = typeof value === 'string' ? value.trim() : '';
-  return trimmed.length > 0 ? trimmed : null;
+  return canonicalPreviewLayoutEngineKey(value) ?? canonicalPreviewPersistNamespace(value);
 }
 
 function manifestPersistNamespace(

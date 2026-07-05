@@ -1,4 +1,5 @@
 import '../preview-engine/install-builtins.js';
+import { canonicalPreviewLayoutEngineKey } from '../preview-engine/legacy-layout-engine-migration.js';
 import {
   listPreviewEngines,
   resolvePreviewEngine,
@@ -97,8 +98,7 @@ function normalizeNamespace(namespace: string | null | undefined): string | null
 }
 
 function normalizeLayoutEngineKey(layoutEngine: string | null | undefined): string | null {
-  const trimmed = typeof layoutEngine === 'string' ? layoutEngine.trim() : '';
-  return trimmed.length > 0 ? trimmed : null;
+  return canonicalPreviewLayoutEngineKey(layoutEngine);
 }
 
 function filterOverridesToSupportedSpecs(

@@ -598,7 +598,7 @@ describe('elk preview runtimes', () => {
     });
   });
 
-  it('builds generic graph controls for Dagre from the active manifest namespace', () => {
+  it('builds generic graph controls for layered ELK engines from the active manifest namespace', () => {
     const section = {
       hidden: true,
       querySelector() {
@@ -637,30 +637,30 @@ describe('elk preview runtimes', () => {
         previewEngines: {
           registry: {
             resolvePreviewEngine({ layoutEngine }) {
-              if (layoutEngine === 'dagre') {
+              if (layoutEngine === 'elk-layered') {
                 return {
-                  id: 'dagre',
+                  id: 'elk-layered',
                   hostView: { sidebarSections: ['layout-params'] },
                   controlSpecs: [
                     {
-                      key: 'dagre.rankdir',
+                      key: 'elk.direction',
                       label: 'Direction',
                       group: 'Graph',
                       kind: 'enum',
-                      defaultValue: 'TB',
-                      persistNamespace: 'meta.dagre',
+                      defaultValue: 'DOWN',
+                      persistNamespace: 'meta.elk',
                       enumValues: [
-                        { value: 'TB', label: 'Top to bottom' },
-                        { value: 'LR', label: 'Left to right' },
+                        { value: 'DOWN', label: 'Top to bottom' },
+                        { value: 'RIGHT', label: 'Left to right' },
                       ],
                     },
                     {
-                      key: 'dagre.ranksep',
-                      label: 'Rank gap',
+                      key: 'elk.layered.spacing.nodeNodeBetweenLayers',
+                      label: 'Layer gap',
                       group: 'Spacing',
                       kind: 'number',
                       defaultValue: '96',
-                      persistNamespace: 'meta.dagre',
+                      persistNamespace: 'meta.elk',
                     },
                   ],
                 } as never;
@@ -675,10 +675,10 @@ describe('elk preview runtimes', () => {
         },
       },
       getFrameTreeJson: () => ({
-        layoutEngine: 'dagre',
+        layoutEngine: 'elk-layered',
         engineLayout: {
-          'meta.dagre': {
-            'dagre.rankdir': 'LR',
+          'meta.elk': {
+            'elk.direction': 'RIGHT',
           },
         },
       }),
@@ -686,39 +686,41 @@ describe('elk preview runtimes', () => {
       sectionId: 'layout-params-section',
       containerId: 'layout-params-controls',
       controlIdPrefix: 'layout-params',
-      defaultPersistNamespace: 'meta.dagre',
+      defaultPersistNamespace: 'meta.elk',
       enableRawViewToggles: false,
     });
 
     runtime.buildPanel({
-      layoutEngine: 'dagre',
+      layoutEngine: 'elk-layered',
       engineLayout: {
-        'meta.dagre': {
-          'dagre.rankdir': 'LR',
+        'meta.elk': {
+          'elk.direction': 'RIGHT',
         },
       },
     });
-    controls.set('layout-params-dagre-rankdir', {
-      id: 'layout-params-dagre-rankdir',
-      value: 'LR',
-      dataset: { dgEngineLayoutKey: 'dagre.rankdir', dgPersistNamespace: 'meta.dagre' },
+    controls.set('layout-params-elk-direction', {
+      id: 'layout-params-elk-direction',
+      value: 'RIGHT',
+      dataset: { dgEngineLayoutKey: 'elk.direction', dgPersistNamespace: 'meta.elk' },
       addEventListener: () => {},
     });
-    controls.set('layout-params-dagre-ranksep', {
-      id: 'layout-params-dagre-ranksep',
+    controls.set('layout-params-elk-layer-gap', {
+      id: 'layout-params-elk-layer-gap',
       value: '128',
-      dataset: { dgEngineLayoutKey: 'dagre.ranksep', dgPersistNamespace: 'meta.dagre' },
+      dataset: {
+        dgEngineLayoutKey: 'elk.layered.spacing.nodeNodeBetweenLayers',
+        dgPersistNamespace: 'meta.elk',
+      },
       addEventListener: () => {},
     });
 
     expect(section.hidden).toBe(false);
     expect(container.innerHTML).toContain('Direction');
-    expect(container.innerHTML).toContain('Rank gap');
+    expect(container.innerHTML).toContain('Layer gap');
     expect(container.innerHTML).not.toContain('elk-raw-view-toggle');
     expect(runtime.collectNamespacedOverrides()).toEqual({
-      'meta.dagre': {
-        'dagre.rankdir': 'LR',
-        'dagre.ranksep': 128,
+      'meta.elk': {
+        'elk.direction': 'RIGHT',
       },
     });
   });
@@ -882,13 +884,13 @@ describe('elk preview runtimes', () => {
     expect(requestLayoutRelayout).toHaveBeenCalledWith('root');
   });
 
-  it('persists generic graph layout controls under the active engine namespace', () => {
+  it('persists generic graph layout controls under the active layered namespace', () => {
     const previewEngineLayoutControls = {
       init() {},
       refresh() {},
-      collectOverrides: () => ({ 'dagre.rankdir': 'LR' }),
+      collectOverrides: () => ({ 'elk.direction': 'RIGHT' }),
       collectNamespacedOverrides: () => ({
-        'meta.dagre': { 'dagre.rankdir': 'LR' },
+        'meta.elk': { 'elk.direction': 'RIGHT' },
       }),
     };
     const runtime = createPreviewEngineShellControllerRuntime({
@@ -905,18 +907,18 @@ describe('elk preview runtimes', () => {
         previewEngines: {
           registry: {
             resolvePreviewEngine({ layoutEngine }) {
-              return layoutEngine === 'dagre'
+              return layoutEngine === 'elk-layered'
                 ? {
-                    id: 'dagre',
+                    id: 'elk-layered',
                     hostView: { sidebarSections: ['layout-params'] },
                     controlSpecs: [
                       {
-                        key: 'dagre.rankdir',
+                        key: 'elk.direction',
                         label: 'Direction',
                         group: 'Graph',
                         kind: 'enum',
-                        defaultValue: 'TB',
-                        persistNamespace: 'meta.dagre',
+                        defaultValue: 'DOWN',
+                        persistNamespace: 'meta.elk',
                       },
                     ],
                   } as never
@@ -925,9 +927,9 @@ describe('elk preview runtimes', () => {
           },
         },
       },
-      getFrameTreeJson: () => ({ layoutEngine: 'dagre' }),
+      getFrameTreeJson: () => ({ layoutEngine: 'elk-layered' }),
       sidebarSectionId: 'layout-params',
-      defaultPersistNamespace: 'meta.dagre',
+      defaultPersistNamespace: 'meta.elk',
     });
 
     runtime.init({
@@ -938,21 +940,22 @@ describe('elk preview runtimes', () => {
     });
 
     expect(runtime.isActiveLayoutEngine({ layoutEngine: 'dagre' })).toBe(true);
+    expect(runtime.isActiveLayoutEngine({ layoutEngine: 'elk-layered' })).toBe(true);
     expect(runtime.collectPersistedPayload({ ok: true }, { layoutOverrides: {} })).toEqual({
       ok: true,
       engine_layout_overrides: {
-        'meta.dagre': { 'dagre.rankdir': 'LR' },
+        'meta.elk': { 'elk.direction': 'RIGHT' },
       },
     });
   });
 
-  it('does not re-merge stale flat override keys into persisted engine namespaces', () => {
+  it('does not re-merge stale flat override keys into persisted layered namespaces', () => {
     const previewEngineLayoutControls = {
       init() {},
       refresh() {},
-      collectOverrides: () => ({ 'dagre.rankdir': 'LR' }),
+      collectOverrides: () => ({ 'elk.direction': 'RIGHT' }),
       collectNamespacedOverrides: () => ({
-        'meta.dagre': { 'dagre.rankdir': 'LR' },
+        'meta.elk': { 'elk.direction': 'RIGHT' },
       }),
     };
     const runtime = createPreviewEngineShellControllerRuntime({
@@ -969,18 +972,18 @@ describe('elk preview runtimes', () => {
         previewEngines: {
           registry: {
             resolvePreviewEngine({ layoutEngine }) {
-              return layoutEngine === 'dagre'
+              return layoutEngine === 'elk-layered'
                 ? {
-                    id: 'dagre',
+                    id: 'elk-layered',
                     hostView: { sidebarSections: ['layout-params'] },
                     controlSpecs: [
                       {
-                        key: 'dagre.rankdir',
+                        key: 'elk.direction',
                         label: 'Direction',
                         group: 'Graph',
                         kind: 'enum',
-                        defaultValue: 'TB',
-                        persistNamespace: 'meta.dagre',
+                        defaultValue: 'DOWN',
+                        persistNamespace: 'meta.elk',
                       },
                     ],
                   } as never
@@ -989,9 +992,9 @@ describe('elk preview runtimes', () => {
           },
         },
       },
-      getFrameTreeJson: () => ({ layoutEngine: 'dagre' }),
+      getFrameTreeJson: () => ({ layoutEngine: 'elk-layered' }),
       sidebarSectionId: 'layout-params',
-      defaultPersistNamespace: 'meta.dagre',
+      defaultPersistNamespace: 'meta.elk',
     });
 
     runtime.init({
@@ -1003,28 +1006,28 @@ describe('elk preview runtimes', () => {
 
     const model = {
       layoutOverrides: { stale: true },
-      layoutOverrideNamespace: 'meta.dagre',
+      layoutOverrideNamespace: 'meta.elk',
     };
     expect(runtime.collectPersistedPayload({ ok: true }, model)).toEqual({
       ok: true,
       engine_layout_overrides: {
-        'meta.dagre': { 'dagre.rankdir': 'LR' },
+        'meta.elk': { 'elk.direction': 'RIGHT' },
       },
     });
     expect(model).toMatchObject({
-      layoutOverrides: { 'dagre.rankdir': 'LR' },
-      layoutOverrideNamespace: 'meta.dagre',
-      previewInterpreterActiveNodeId: 'dagre',
+      layoutOverrides: { 'elk.direction': 'RIGHT' },
+      layoutOverrideNamespace: 'meta.elk',
+      previewInterpreterActiveNodeId: 'elk-layered',
       previewInterpreterNodeRegistry: {
         paramsByNodeId: {
-          dagre: { 'dagre.rankdir': 'LR' },
+          'elk-layered': { 'elk.direction': 'RIGHT' },
         },
       },
     });
     expect(readLayoutOperatorOverrideState(model)).toEqual({
-      activeOperatorKey: 'dagre',
+      activeOperatorKey: 'elk-layered',
       byOperator: {
-        dagre: { 'dagre.rankdir': 'LR' },
+        'elk-layered': { 'elk.direction': 'RIGHT' },
       },
     });
   });

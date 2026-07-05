@@ -23,6 +23,7 @@ export interface MindmapLitePreviewDocument extends PreviewRenderableDocument {
 export const MINDMAP_LITE_PREVIEW_ENGINE: PreviewEngineManifest = {
   id: 'mindmap-tree',
   label: 'Mindmap tree',
+  algorithmClass: 'mindmap-install-proof',
   layoutEngineKey: 'mindmap-tree',
   shellMode: 'grid',
   hostView: {

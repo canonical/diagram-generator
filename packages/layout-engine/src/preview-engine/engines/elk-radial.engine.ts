@@ -6,6 +6,7 @@ import { defineElkAlgorithmPreviewEngine } from './elk-algorithm-engine.js';
 export const ELK_RADIAL_PREVIEW_ENGINE_DEFINITION = {
   id: 'elk-radial',
   label: 'ELK radial layout',
+  algorithmClass: 'radial-tree',
   layoutEngineKey: 'elk-radial',
   renderFamily: 'frame-elk-radial',
   graphEngine: ELK_RADIAL_GRAPH_LAYOUT_ENGINE,

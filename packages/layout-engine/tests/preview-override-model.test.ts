@@ -82,14 +82,14 @@ describe('preview override payload model', () => {
     expect(model.layoutOverrides).toEqual({});
   });
 
-  it('routes explicit non-ELK layout namespaces through the shared persistence contract', () => {
+  it('routes canonical engine layout namespaces through the shared persistence contract', () => {
     const model = {
       overrides: {},
       layoutOverrides: {
-        'dagre.rankdir': 'LR',
+        'elk.direction': 'RIGHT',
         transient: 'ignored',
       },
-      layoutOverrideNamespace: 'meta.dagre',
+      layoutOverrideNamespace: 'meta.elk',
       removedIds: new Set<string>(),
     };
 
@@ -97,14 +97,14 @@ describe('preview override payload model', () => {
       overrides: {},
       format_version: 1,
       engine_layout_overrides: {
-        'meta.dagre': {
-          'dagre.rankdir': 'LR',
+        'meta.elk': {
+          'elk.direction': 'RIGHT',
         },
       },
     });
-    expect(model.layoutOverrideNamespace).toBe('meta.dagre');
+    expect(model.layoutOverrideNamespace).toBe('meta.elk');
     expect(model.layoutOverrides).toEqual({
-      'dagre.rankdir': 'LR',
+      'elk.direction': 'RIGHT',
       transient: 'ignored',
     });
   });
@@ -144,50 +144,23 @@ describe('preview override payload model', () => {
     const model = {
       overrides: {},
       layoutOverrides: {
-        'dagre.rankdir': 'LR',
+        'elk.direction': 'RIGHT',
       },
-      layoutOverrideNamespace: 'meta.dagre',
+      layoutOverrideNamespace: 'meta.elk',
       layoutOperatorOverrides: {
-        activeOperatorKey: 'dagre',
+        activeOperatorKey: 'elk-layered',
         byOperator: {
-          dagre: {
-            'dagre.rankdir': 'LR',
-          },
           'elk-layered': {
+            'elk.direction': 'RIGHT',
+          },
+          'elk-radial': {
             'elk.spacing.edgeNode': 56,
           },
         },
       },
       previewInterpreterNodeRegistry: {
-        nodeIds: ['dagre', 'elk-layered'],
+        nodeIds: ['elk-layered', 'elk-radial'],
         nodes: [
-          {
-            nodeId: 'dagre',
-            engineId: 'dagre',
-            layoutEngineKey: 'dagre',
-            manifest: {
-              id: 'dagre',
-              label: 'Dagre',
-              layoutEngineKey: 'dagre',
-              shellMode: 'grid',
-              capabilities: {} as never,
-              controlSpecs: [
-                {
-                  key: 'dagre.rankdir',
-                  label: 'Direction',
-                  group: 'Graph',
-                  kind: 'enum',
-                  defaultValue: 'TB',
-                  persistNamespace: 'meta.dagre',
-                },
-              ],
-              scripts: [],
-              compatibility: { documentKinds: ['frame-diagram'] },
-            },
-            params: {
-              'dagre.rankdir': 'LR',
-            },
-          },
           {
             nodeId: 'elk-layered',
             engineId: 'elk-layered',
@@ -196,6 +169,33 @@ describe('preview override payload model', () => {
               id: 'elk-layered',
               label: 'ELK Layered',
               layoutEngineKey: 'elk-layered',
+              shellMode: 'grid',
+              capabilities: {} as never,
+              controlSpecs: [
+                {
+                  key: 'elk.direction',
+                  label: 'Direction',
+                  group: 'Graph',
+                  kind: 'enum',
+                  defaultValue: 'DOWN',
+                  persistNamespace: 'meta.elk',
+                },
+              ],
+              scripts: [],
+              compatibility: { documentKinds: ['frame-diagram'] },
+            },
+            params: {
+              'elk.direction': 'RIGHT',
+            },
+          },
+          {
+            nodeId: 'elk-radial',
+            engineId: 'elk-radial',
+            layoutEngineKey: 'elk-radial',
+            manifest: {
+              id: 'elk-radial',
+              label: 'ELK Radial',
+              layoutEngineKey: 'elk-radial',
               shellMode: 'grid',
               capabilities: {} as never,
               controlSpecs: [
@@ -217,10 +217,10 @@ describe('preview override payload model', () => {
           },
         ],
         paramsByNodeId: {
-          dagre: {
-            'dagre.rankdir': 'LR',
-          },
           'elk-layered': {
+            'elk.direction': 'RIGHT',
+          },
+          'elk-radial': {
             'elk.spacing.edgeNode': 56,
           },
         },
@@ -232,16 +232,14 @@ describe('preview override payload model', () => {
       overrides: {},
       format_version: 1,
       engine_layout_overrides: {
-        'meta.dagre': {
-          'dagre.rankdir': 'LR',
-        },
-        'meta.dagre_nodes': {
-          dagre: {
-            'dagre.rankdir': 'LR',
-          },
+        'meta.elk': {
+          'elk.direction': 'RIGHT',
         },
         'meta.elk_nodes': {
           'elk-layered': {
+            'elk.direction': 'RIGHT',
+          },
+          'elk-radial': {
             'elk.spacing.edgeNode': 56,
           },
         },
@@ -253,37 +251,37 @@ describe('preview override payload model', () => {
     const model = {
       overrides: {},
       layoutOverrides: {
-        'dagre.rankdir': 'LR',
+        'elk.direction': 'RIGHT',
       },
-      layoutOverrideNamespace: 'meta.dagre',
+      layoutOverrideNamespace: 'meta.elk',
       previewInterpreterNodeRegistry: {
-        nodeIds: ['dagre', 'elk-radial'],
+        nodeIds: ['elk-layered', 'elk-radial'],
         nodes: [
           {
-            nodeId: 'dagre',
-            engineId: 'dagre',
-            layoutEngineKey: 'dagre',
+            nodeId: 'elk-layered',
+            engineId: 'elk-layered',
+            layoutEngineKey: 'elk-layered',
             manifest: {
-              id: 'dagre',
-              label: 'Dagre',
-              layoutEngineKey: 'dagre',
+              id: 'elk-layered',
+              label: 'ELK Layered',
+              layoutEngineKey: 'elk-layered',
               shellMode: 'grid',
               capabilities: {} as never,
               controlSpecs: [
                 {
-                  key: 'dagre.rankdir',
+                  key: 'elk.direction',
                   label: 'Direction',
                   group: 'Graph',
                   kind: 'enum',
-                  defaultValue: 'TB',
-                  persistNamespace: 'meta.dagre',
+                  defaultValue: 'DOWN',
+                  persistNamespace: 'meta.elk',
                 },
               ],
               scripts: [],
               compatibility: { documentKinds: ['frame-diagram'] },
             },
             params: {
-              'dagre.rankdir': 'LR',
+              'elk.direction': 'RIGHT',
             },
           },
           {
@@ -313,8 +311,8 @@ describe('preview override payload model', () => {
           },
         ],
         paramsByNodeId: {
-          dagre: {
-            'dagre.rankdir': 'LR',
+          'elk-layered': {
+            'elk.direction': 'RIGHT',
           },
         },
       },
@@ -325,15 +323,14 @@ describe('preview override payload model', () => {
       overrides: {},
       format_version: 1,
       engine_layout_overrides: {
-        'meta.dagre': {
-          'dagre.rankdir': 'LR',
+        'meta.elk': {
+          'elk.direction': 'RIGHT',
         },
-        'meta.dagre_nodes': {
-          dagre: {
-            'dagre.rankdir': 'LR',
+        'meta.elk_nodes': {
+          'elk-layered': {
+            'elk.direction': 'RIGHT',
           },
         },
-        'meta.elk_nodes': {},
       },
     });
   });

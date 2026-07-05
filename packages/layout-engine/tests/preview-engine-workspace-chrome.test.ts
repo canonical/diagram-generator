@@ -205,10 +205,6 @@ function createChromeHarness() {
       { id: 'alpha', x: 0, y: 0, w: 100, h: 40 },
       { id: 'beta', x: 0, y: 80, w: 100, h: 40 },
     ],
-    dagre: [
-      { id: 'alpha', x: 0, y: 0, w: 100, h: 40 },
-      { id: 'beta', x: 140, y: 0, w: 100, h: 40 },
-    ],
     v3: [
       { id: 'alpha', x: 0, y: 0, w: 100, h: 40 },
       { id: 'beta', x: 0, y: 80, w: 100, h: 40 },
@@ -216,7 +212,6 @@ function createChromeHarness() {
   };
   const viewBoxByEngine: Record<string, string> = {
     'elk-layered': '-24 -24 148 168',
-    dagre: '-24 -24 288 88',
     v3: '-24 -24 148 168',
   };
   const frameTreeJson = {
@@ -283,7 +278,7 @@ describe('preview engine workspace chrome', () => {
      slug: 'support-engineering-flow',
       active_engine_id: 'elk-layered',
       persisted_layout_engine: 'elk-layered',
-      compatible_engines: ['v3', 'elk-layered', 'dagre'],
+      compatible_engines: ['v3', 'elk-layered'],
       show_engine_switcher: true,
     };
 
@@ -295,19 +290,19 @@ describe('preview engine workspace chrome', () => {
     expect(workspace.activeEngineId).toBe('elk-layered');
     expect(harness.section.hidden).toBe(false);
     expect((harness.previewWindow as any).__DG_previewRenderIntent?.engineId).toBe('elk-layered');
-    expect(harness.tabs.children).toHaveLength(3);
+    expect(harness.tabs.children).toHaveLength(2);
     const tabButtons = harness.tabs.querySelectorAll('button[data-engine-id]');
-    expect(tabButtons).toHaveLength(3);
+    expect(tabButtons).toHaveLength(2);
     expect(tabButtons[0]?.getAttribute('role')).toBe('tab');
     expect(harness.tabs.getAttribute('role')).toBe('tablist');
-    expect(tabButtons.map((button) => button.tabIndex)).toEqual([-1, 0, -1]);
+    expect(tabButtons.map((button) => button.tabIndex)).toEqual([-1, 0]);
 
-    await tabButtons[2]?.click();
-    expect(harness.previewWindow.__DG_CONFIG?.active_engine_id).toBe('dagre');
-    expect(harness.previewWindow.__DG_CONFIG?.layout_engine).toBe('dagre');
-    expect((harness.previewWindow as any).__DG_previewRenderIntent?.engineId).toBe('dagre');
-    expect(harness.frameTreeJson.layoutEngine).toBe('dagre');
-    expect(harness.help.textContent).toBe('Selected engine is unsaved until you save this document.');
+    await tabButtons[0]?.click();
+    expect(harness.previewWindow.__DG_CONFIG?.active_engine_id).toBe('v3');
+    expect(harness.previewWindow.__DG_CONFIG?.layout_engine).toBe('v3');
+    expect((harness.previewWindow as any).__DG_previewRenderIntent?.engineId).toBe('v3');
+    expect(harness.frameTreeJson.layoutEngine).toBe('v3');
+    expect(harness.help.textContent).toContain('Geometry matches');
     expect(harness.panelSyncCalls).toEqual(['sync', 'sync', 'sync']);
     expect(harness.saveButtonSyncCalls).toEqual(['sync', 'sync', 'sync']);
     expect(harness.rerenderCalls).toEqual(['rerender']);
@@ -330,11 +325,11 @@ describe('preview engine workspace chrome', () => {
       ),
     ).toEqual({
       overrides: { alpha: { dx: 8 } },
-      layout_engine: 'dagre',
+      layout_engine: 'v3',
     });
 
     persistPreviewEngineWorkspaceRuntimeState(harness.previewWindow as never);
-    expect(harness.previewWindow.__DG_CONFIG?.persisted_layout_engine).toBe('dagre');
+    expect(harness.previewWindow.__DG_CONFIG?.persisted_layout_engine).toBe('v3');
     expect(harness.panelSyncCalls).toEqual(['sync', 'sync', 'sync', 'sync']);
     expect(harness.saveButtonSyncCalls).toEqual(['sync', 'sync', 'sync', 'sync']);
     expect(hasUnsavedPreviewEngineWorkspaceChange(harness.previewWindow as never)).toBe(false);
@@ -346,7 +341,7 @@ describe('preview engine workspace chrome', () => {
       slug: 'support-engineering-flow',
       active_engine_id: 'elk-layered',
       persisted_layout_engine: 'elk-layered',
-      compatible_engines: ['v3', 'elk-layered', 'dagre'],
+      compatible_engines: ['v3', 'elk-layered'],
       show_engine_switcher: true,
     };
     harness.previewWindow.__DG_rerenderPreviewEngineWorkspaceStage = async () => {
@@ -360,7 +355,7 @@ describe('preview engine workspace chrome', () => {
     });
 
     const tabButtons = harness.tabs.querySelectorAll('button[data-engine-id]');
-    await tabButtons[2]?.click();
+    await tabButtons[0]?.click();
 
     expect(harness.previewWindow.__DG_CONFIG?.active_engine_id).toBe('elk-layered');
     expect(harness.frameTreeJson.layoutEngine).toBe('elk-layered');
@@ -459,7 +454,7 @@ describe('preview engine workspace chrome', () => {
       slug: 'support-engineering-flow',
       active_engine_id: 'elk-layered',
       persisted_layout_engine: 'elk-layered',
-      compatible_engines: ['v3', 'elk-layered', 'dagre'],
+      compatible_engines: ['v3', 'elk-layered'],
       show_engine_switcher: true,
     };
 
@@ -471,18 +466,18 @@ describe('preview engine workspace chrome', () => {
     const tabButtons = harness.tabs.querySelectorAll('button[data-engine-id]');
     const arrowEvent = await tabButtons[1]?.dispatchKeydown('ArrowRight');
     expect(arrowEvent?.defaultPrevented).toBe(true);
-    expect(harness.document.activeElement).toBe(tabButtons[2]);
-    expect(tabButtons.map((button) => button.tabIndex)).toEqual([-1, -1, 0]);
-    expect(tabButtons.map((button) => button.getAttribute('aria-selected'))).toEqual(['false', 'true', 'false']);
+    expect(harness.document.activeElement).toBe(tabButtons[0]);
+    expect(tabButtons.map((button) => button.tabIndex)).toEqual([0, -1]);
+    expect(tabButtons.map((button) => button.getAttribute('aria-selected'))).toEqual(['false', 'true']);
     expect(harness.rerenderCalls).toEqual([]);
 
-    const enterEvent = await tabButtons[2]?.dispatchKeydown('Enter');
+    const enterEvent = await tabButtons[0]?.dispatchKeydown('Enter');
     expect(enterEvent?.defaultPrevented).toBe(true);
-    expect(harness.frameTreeJson.layoutEngine).toBe('dagre');
-    expect(harness.previewWindow.__DG_CONFIG?.active_engine_id).toBe('dagre');
-    expect((harness.previewWindow as any).__DG_previewRenderIntent?.engineId).toBe('dagre');
-    expect(tabButtons.map((button) => button.tabIndex)).toEqual([-1, -1, 0]);
-    expect(tabButtons.map((button) => button.getAttribute('aria-selected'))).toEqual(['false', 'false', 'true']);
+    expect(harness.frameTreeJson.layoutEngine).toBe('v3');
+    expect(harness.previewWindow.__DG_CONFIG?.active_engine_id).toBe('v3');
+    expect((harness.previewWindow as any).__DG_previewRenderIntent?.engineId).toBe('v3');
+    expect(tabButtons.map((button) => button.tabIndex)).toEqual([0, -1]);
+    expect(tabButtons.map((button) => button.getAttribute('aria-selected'))).toEqual(['true', 'false']);
     expect(harness.rerenderCalls).toEqual(['rerender']);
   });
 

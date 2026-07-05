@@ -47,24 +47,24 @@
 
 ## Phase 5: Remove Dagre (decided) + enforce the no-duplicate contract
 
-- [ ] T040 Remove Dagre from the registry/builtins
+- [x] T040 Remove Dagre from the registry/builtins
       (`packages/layout-engine/src/preview-engine/builtins.ts`,
       `engines/dagre.engine.ts`, `dagre-controls.ts`) and its tests. Cover the
       migration for any diagram saved against Dagre with a repo-owned
       persist→reload proof; keep the suites green.
-- [ ] T041 Add a **hard no-duplicate-algorithm guard**: each engine declares its
+- [x] T041 Add a **hard no-duplicate-algorithm guard**: each engine declares its
       algorithm class, and a repo-owned test fails if two registered engines
       declare the same class. This is the standing contract (FR-007).
-- [ ] T042 For any other in-repo engine the survey deems a pure duplicate (e.g.
+- [x] T042 For any other in-repo engine the survey deems a pure duplicate (e.g.
       mindmap-tree vs mrtree, force trio), either retire it here with a
       persist→reload proof if conclusive, or file the named downstream spec.
 
 ## Phase 6: Verification
 
-- [ ] T050 Confirm `decision-matrix.md` satisfies SC-001/SC-002/SC-003/SC-004
+- [x] T050 Confirm `decision-matrix.md` satisfies SC-001/SC-002/SC-003/SC-004
       (corpus-justified list, per-algorithm choice + evidence, keep/retire
       verdicts, migration discipline, downstream specs named).
-- [ ] T051 After the Dagre removal + no-duplicate guard (Phase 5), run
+- [x] T051 After the Dagre removal + no-duplicate guard (Phase 5), run
       `npm --prefix packages/layout-engine test`,
       `npm --prefix apps/preview test`, and
       `node scripts/check_no_new_python.mjs`; confirm green (SC-005/SC-006).

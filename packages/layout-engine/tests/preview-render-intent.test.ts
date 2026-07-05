@@ -17,7 +17,7 @@ describe('preview render intent', () => {
       },
     });
 
-    expect(intent.engineId).toBe('dagre');
+    expect(intent.engineId).toBe('elk-layered');
   });
 
   it('keeps an explicit active engine above the loaded frame tree', () => {

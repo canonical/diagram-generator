@@ -1,7 +1,7 @@
 # Spec 074: Layout algorithm survey and best-of-breed consolidation
 
 **Feature Branch**: `feat/074-layout-algorithm-consolidation`
-**Status**: In Progress
+**Status**: Closeout Ready
 **Created**: 2026-07-05
 **Context**: chat decision 2026-07-05 (do not maintain N implementations of the
 same algorithm; keep one robust implementation per algorithm, replace only if a
@@ -10,12 +10,16 @@ contract**). Strategy doc: `docs/architecture/node-paradigm-and-engine-strategy.
 Sibling corpus/taxonomy repo: `diagram-generator-planning`. Consumes spec 073's
 node model. Gates any future bulk-port of Mermaid / Graphviz / D2.
 
-**Status note (2026-07-05):** The decision artifact now covers Phases 2-4:
-`decision-matrix.md` records the current engine/package capability and cost
-surface, the candidate survey and chosen implementation per required algorithm,
-the explicit engine keep/retire verdicts, the backend-swap migration
-discipline, and the downstream spec queue. Remaining work is Phase 5 code:
-Dagre removal plus the no-duplicate guard.
+**Status note (2026-07-05):** Phases 2-6 are complete. `decision-matrix.md`
+records the current engine/package capability and cost surface, the candidate
+survey and chosen implementation per required algorithm, the explicit engine
+keep/retire verdicts, the backend-swap migration discipline, and the downstream
+spec queue. Dagre is removed from the builtin registry/render surfaces, legacy
+Dagre saves migrate onto the canonical `elk-layered` / `meta.elk` lane with
+persist->reload coverage, every builtin preview engine now declares an
+`algorithmClass`, the duplicate-algorithm guard is enforced in the registry and
+repo-owned tests, and validation is green (`packages/layout-engine` `975/975`,
+`apps/preview` `160/160`, `check_no_new_python` ok).
 
 ## Problem
 

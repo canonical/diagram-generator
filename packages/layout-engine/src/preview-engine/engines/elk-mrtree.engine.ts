@@ -6,6 +6,7 @@ import { defineElkAlgorithmPreviewEngine } from './elk-algorithm-engine.js';
 export const ELK_MRTREE_PREVIEW_ENGINE_DEFINITION = {
   id: 'elk-mrtree',
   label: 'ELK tree layout',
+  algorithmClass: 'tree',
   layoutEngineKey: 'elk-mrtree',
   renderFamily: 'frame-elk-mrtree',
   graphEngine: ELK_MRTREE_GRAPH_LAYOUT_ENGINE,

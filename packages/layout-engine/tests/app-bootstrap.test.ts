@@ -826,7 +826,7 @@ describe('preview bootstrap helpers', () => {
       collectPreviewEngineSavePayload(previewWindow, { saved: true }, { layoutOverrides: {} }),
     ).toEqual({
       saved: true,
-      layout_engine: 'dagre',
+      layout_engine: 'elk-layered',
     });
   });
 

@@ -1,4 +1,5 @@
 import type { FrameDiagram } from '../frame-model.js';
+import { canonicalPreviewLayoutEngineKey } from './legacy-layout-engine-migration.js';
 import type {
   CompatibilityEvaluationOptions,
   CompatibilityResult,
@@ -15,6 +16,11 @@ export const PREVIEW_ENGINE_REGISTRY: readonly PreviewEngineManifest[] = preview
 export function registerPreviewEngine(manifest: PreviewEngineManifest): () => void {
   if (previewEngineRegistry.some((entry) => entry.id === manifest.id)) {
     throw new Error(`Preview engine '${manifest.id}' is already registered`);
+  }
+  if (previewEngineRegistry.some((entry) => entry.algorithmClass === manifest.algorithmClass)) {
+    throw new Error(
+      `Preview engine algorithm class '${manifest.algorithmClass}' is already registered`,
+    );
   }
   previewEngineRegistry.push(manifest);
   return () => {
@@ -51,7 +57,7 @@ export function listPreviewEnginesBySidebarSection(
 export function getPreviewEngineByLayoutKey(
   layoutEngineKey: string,
 ): PreviewEngineManifest | undefined {
-  const key = layoutEngineKey.trim();
+  const key = canonicalPreviewLayoutEngineKey(layoutEngineKey);
   if (!key) return undefined;
   return PREVIEW_ENGINE_REGISTRY.find((entry) => entry.layoutEngineKey === key);
 }
@@ -59,7 +65,7 @@ export function getPreviewEngineByLayoutKey(
 export function resolvePreviewEngine(
   context: PreviewEngineContext,
 ): PreviewEngineManifest | undefined {
-  const layoutEngine = context.layoutEngine?.trim();
+  const layoutEngine = canonicalPreviewLayoutEngineKey(context.layoutEngine);
   if (layoutEngine) {
     const explicit = PREVIEW_ENGINE_REGISTRY.find(
       (entry) => entry.layoutEngineKey === layoutEngine,
@@ -337,7 +343,7 @@ export function evaluatePreviewEngineCompatibility(
   // declares a *conflicting* layout engine. Picking the active engine for a
   // chosen key is `resolvePreviewEngine`'s job, not this predicate's.
   const requiredLayoutEngineKey = engine.compatibility.requiredLayoutEngineKey;
-  const layoutEngine = context.layoutEngine?.trim() ?? '';
+  const layoutEngine = canonicalPreviewLayoutEngineKey(context.layoutEngine) ?? '';
   if (requiredLayoutEngineKey && layoutEngine && layoutEngine !== requiredLayoutEngineKey) {
     return {
       compatible: false,

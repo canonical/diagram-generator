@@ -1,6 +1,5 @@
 import * as previewEngineRuntime from './preview-engine/index.js';
 import {
-  DAGRE_PREVIEW_ENGINE,
   ELK_FORCE_PREVIEW_ENGINE,
   ELK_LAYERED_PREVIEW_ENGINE,
   ELK_MRTREE_PREVIEW_ENGINE,
@@ -11,7 +10,6 @@ import {
   FORCE_PREVIEW_ENGINE,
   PREVIEW_ENGINE_REGISTRY,
   SEQUENCE_PREVIEW_ENGINE,
-  dagrePreviewControlSpecs,
   elkForcePreviewControlSpecs,
   elkLayeredPreviewControlSpecs,
   elkMrtreePreviewControlSpecs,
@@ -25,9 +23,6 @@ import {
   resolvePreviewEngine,
   serializePreviewEngineManifest,
 } from './preview-engine/index.js';
-import {
-  DAGRE_PARAM_SPECS,
-} from '@diagram-generator/graph-layout-dagre';
 import {
   ELK_LAYERED_PARAM_SPECS,
   ELK_FORCE_PARAM_SPECS,
@@ -82,11 +77,6 @@ export const previewEngines = Object.freeze({
     ELK_RECTPACKING_PARAM_SPECS,
     elkParamGroups,
     renderPreviewElkRawView: previewEngineRuntime.renderPreviewElkRawView,
-  }),
-  dagre: Object.freeze({
-    DAGRE_PREVIEW_ENGINE,
-    DAGRE_PARAM_SPECS,
-    dagrePreviewControlSpecs,
   }),
   force: Object.freeze({
     FORCE_PREVIEW_ENGINE,

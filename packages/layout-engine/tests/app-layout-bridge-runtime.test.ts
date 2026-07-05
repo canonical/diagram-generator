@@ -514,8 +514,7 @@ describe('preview layout bridge runtime', () => {
     );
 
     expect(capturedEngineOverrides).toEqual({
-      'dagre.rankdir': 'LR',
-      'dagre.ranksep': '128',
+      'elk.spacing.nodeNode': '64',
     });
   });
 
@@ -643,8 +642,7 @@ describe('preview layout bridge runtime', () => {
     );
 
     expect(capturedEngineOverrides).toEqual({
-      'dagre.rankdir': 'LR',
-      'dagre.ranksep': '128',
+      'elk.spacing.nodeNode': '64',
     });
   });
 
@@ -906,10 +904,10 @@ describe('preview layout bridge runtime', () => {
     const layeredCached = await runtime.renderFreshSvg({}, {}, model as never, null);
 
     expect(layeredFirst.width).toBe(640);
-    expect(dagreRender.width).toBe(720);
+    expect(dagreRender.width).toBe(640);
     expect(layeredCached.width).toBe(640);
-    expect(renderFreshPreviewSvg).toHaveBeenCalledTimes(2);
-    expect(cookedEngines).toEqual(['elk-layered', 'dagre']);
+    expect(renderFreshPreviewSvg).toHaveBeenCalledTimes(1);
+    expect(cookedEngines).toEqual(['elk-layered']);
     expect(previewWindow.__DG_previewRenderIntent).toMatchObject({
       engineId: 'elk-layered',
     });
@@ -1249,8 +1247,8 @@ describe('preview layout bridge runtime', () => {
     expect(
       (previewWindow as Record<string, (layoutEngine: string) => string | null>)
         .setFrameTreeLayoutEngine('dagre'),
-    ).toBe('dagre');
-    expect(install.getFrameTreeJson()).toMatchObject({ layoutEngine: 'dagre' });
+    ).toBe('elk-layered');
+    expect(install.getFrameTreeJson()).toMatchObject({ layoutEngine: 'elk-layered' });
     expect(
       (previewWindow as Record<string, () => unknown>).getLayoutTextAdapter(),
     ).toEqual({ measurementBackend: 'harfbuzz' });
