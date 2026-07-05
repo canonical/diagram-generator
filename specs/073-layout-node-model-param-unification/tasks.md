@@ -85,6 +85,21 @@
       `node scripts/check_no_new_python.mjs`, and
       `node scripts/check-preview-shell-size-budgets.mjs`.
 
+## Phase 6c: Second-pass review follow-up
+
+- [x] T063 Make the shared `layout-params-section` mode-neutral in
+      `viewer-unified.html` so the real force viewer can surface the shared
+      layout-params pane instead of letting `.dg-grid-only` CSS hide it.
+- [x] T064 Remove the central `PANEL_ELEMENT_IDS` runtime map by resolving panel
+      DOM bindings from each registry entry's typed `owner`, and add a
+      regression that proves synthetic panel ids no longer need central runtime
+      plumbing.
+- [x] T065 **DEFERRED (explicit residual):** full host-template section
+      provisioning is still not registration-only. `viewer-unified.html` and the
+      host viewer definitions still own the actual section placeholders / DOM
+      shells for real panels, so do not claim spec 073 fully closes that deeper
+      template-registration seam during this review phase.
+
 ## Decision gate / deferred
 
 - [x] T060 **DEPRIORITISED (deferred debt-reduction):** converge force's bespoke

@@ -242,8 +242,8 @@ describe('preview shell panel helpers', () => {
     syncPreviewPanelVisibility({
       document,
       visibility: [{
-        id: 'elk-layout',
-        owner: '',
+        id: 'layout-params',
+        owner: 'viewer-unified.html#layout-params-section',
         visible: false,
         disabled: false,
         reason: '',
@@ -259,8 +259,8 @@ describe('preview shell panel helpers', () => {
     syncPreviewPanelVisibility({
       document,
       visibility: [{
-        id: 'elk-layout',
-        owner: '',
+        id: 'layout-params',
+        owner: 'viewer-unified.html#layout-params-section',
         visible: true,
         disabled: false,
         reason: '',
@@ -272,6 +272,38 @@ describe('preview shell panel helpers', () => {
     expect(sectionAttrs.has('aria-hidden')).toBe(false);
     expect(control.disabled).toBe(false);
     expect(controlAttrs.has('tabindex')).toBe(false);
+  });
+
+  it('resolves panel DOM binding from the typed owner instead of a central id map', () => {
+    const panel = {
+      hidden: false,
+      inert: false,
+      style: { display: '' },
+      setAttribute() {},
+      removeAttribute() {},
+      querySelectorAll() {
+        return [];
+      },
+    };
+    const document = {
+      getElementById(id: string) {
+        return id === 'synthetic-lane-panel' ? panel : null;
+      },
+    } as unknown as Document;
+
+    syncPreviewPanelVisibility({
+      document,
+      visibility: [{
+        id: 'synthetic-lane-panel',
+        owner: 'viewer-unified.html#synthetic-lane-panel',
+        visible: false,
+        disabled: false,
+        reason: '',
+      }],
+    });
+
+    expect(panel.hidden).toBe(true);
+    expect(panel.style.display).toBe('none');
   });
 
   it('syncs constraint diagnostics with section hidden and focus state', () => {

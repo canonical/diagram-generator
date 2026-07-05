@@ -658,6 +658,7 @@ test("force viewer hides grid and ELK sections", () => {
   const forceIndex = html.indexOf('/preview/force.js');
   assert.match(html, /id="grid-controls-section" hidden/);
   assert.match(html, /id="layout-params-section" >/);
+  assert.doesNotMatch(html, /id="layout-params-section"[^>]*dg-grid-only/);
   assert.match(html, /id="force-solver-section" >/);
   assert.match(html, /id="force-simulation-section" hidden/);
   assert.notEqual(controlsIndex, -1);
@@ -685,6 +686,10 @@ test("static viewer chrome exposes stable right-aside panel groups", () => {
   assert.match(
     template,
     /id="layout-params-section" data-dg-panel-group="engine" data-dg-panel-id="engine-layout-params"/,
+  );
+  assert.doesNotMatch(
+    template,
+    /id="layout-params-section"[^>]*dg-grid-only/,
   );
   assert.match(
     template,

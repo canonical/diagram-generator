@@ -1,7 +1,7 @@
 # Spec 073: Layout algorithm node model and parameter-pane unification
 
 **Feature Branch**: `feat/073-layout-node-model-param-unification`
-**Status**: Active - adversarial review findings open 2026-07-05
+**Status**: Active - host-template registration residual explicitly deferred 2026-07-05
 **Created**: 2026-07-05
 **Context**: chat decision 2026-07-05 (dedup-before-port; drop "family"; Houdini
 SOP model; unify force into the shared param pane). Builds on spec 071
@@ -219,6 +219,18 @@ manifest/type surface.
   registration-only lane-panel proof stops at `PREVIEW_PANEL_REGISTRY` visibility
   rather than proving a newly registered panel id can bind to real host DOM
   without central `PANEL_ELEMENT_IDS` / placeholder edits.
+- 2026-07-05: Second-pass review follow-up fixed the real force-viewer gap by
+  making `layout-params-section` mode-neutral and added contract coverage that
+  fails if the force viewer ever re-tags that shared section as `dg-grid-only`.
+- 2026-07-05: Second-pass review follow-up also removed the central runtime
+  `PANEL_ELEMENT_IDS` map: panel visibility now binds DOM nodes from each
+  registry entry's typed `owner` selector, with a regression covering a
+  synthetic panel id.
+- 2026-07-05: Remaining residual is explicitly deferred and should not be
+  overstated as closed here: host templates / viewer definitions still own the
+  actual DOM section placeholders for real panels, so full registration-only
+  host-template provisioning belongs in a dedicated follow-up rather than this
+  review-phase slice.
 - 2026-07-05: Left force host/route/persistence convergence intentionally
   deferred. Spec 073 closes after the phase-1 param-pane unification; any move
   of `builtin-force-host`, `/api/force-spec/`, or `persistForceSpecToYaml` onto

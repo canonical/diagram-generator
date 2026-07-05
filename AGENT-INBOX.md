@@ -268,41 +268,25 @@ Validation rerun after the fixes:
 
 ## Spec 073 adversarial review - 2026-07-05 (second pass)
 
-Reopened spec 073 with two remaining findings on
-`feat/073-layout-node-model-param-unification`.
+Resolved in this pass:
 
-1. **High - force never actually shows the shared layout-params pane in the real
-   viewer.** `scripts/preview/viewer-unified.html:169` still marks
-   `#layout-params-section` as `dg-grid-only`, and `scripts/preview/editor.css:850-851`
-   hides every `.dg-grid-only` node when `data-dg-mode="force"`. The new force
-   host wiring does mark the section visible
-   (`apps/preview/src/preview-host/builtin-force-host.ts:96-97`), but that only
-   clears the `hidden` attribute; the mode CSS still suppresses the section, so
-   FR-003/FR-004 are not actually met in-browser. The current contract test only
-   greps for `id="layout-params-section" >`
-   (`apps/preview/src/persistence/preview-host-contract.test.ts:655-662`), so it
-   misses the `dg-grid-only` class. Action: make the shared layout-params panel
-   mode-neutral or give force its own visible host section, then add a DOM-level
-   regression that fails if force mode still hides the pane.
+1. **High - force now really shows the shared layout-params pane.**
+   `viewer-unified.html` no longer tags `#layout-params-section` as
+   `dg-grid-only`, so the force host can surface the shared pane in the real
+   viewer instead of having mode CSS hide it. Contract coverage now fails if the
+   force viewer or shared template reintroduces the `dg-grid-only` tag on that
+   section.
+2. **Medium (runtime portion) - panel DOM binding no longer needs a central id
+   map.** `syncPreviewPanelVisibility(...)` now resolves DOM nodes from each
+   registry entry's typed `owner` selector instead of the old central
+   `PANEL_ELEMENT_IDS` table, and a regression proves a synthetic panel id can
+   bind without new runtime plumbing.
 
-2. **Medium - the "registration-only lane panel" proof is only registry-deep, not
-   host-deep.** The new test in
-   `packages/layout-engine/tests/preview-ui-context.test.ts:185-209` proves a
-   synthetic panel id can enter `PREVIEW_PANEL_REGISTRY`, but the browser host
-   still needs central plumbing for every real panel id:
-   `packages/layout-engine/src/preview-shell/app-shell-panels.ts:132-146`
-   hardcodes `PANEL_ELEMENT_IDS`, and `app-shell-panels.ts:487-496` silently
-   drops any registry entry without that central mapping. Host viewers still
-   hardcode section placeholders too
-   (`apps/preview/src/preview-host/builtin-force-host.ts:46-99` plus
-   `scripts/preview/viewer-unified.html`). So SC-002/T021 currently overstate the
-   closure of the 046 residual: adding a brand-new lane/panel still requires
-   edits in central files outside the registry. Action: either narrow the claim
-   to "visibility registry only" or finish the decomposition by registering DOM
-   section bindings/placeholders alongside the lane contribution.
+Explicitly deferred residual:
 
-Validation note: I attempted narrow reruns of the touched preview/layout tests,
-but this worktree currently lacks directly resolvable local test dependencies
-(`tsx` from `apps/preview`; `@diagram-generator/graph-layout-*` from
-`packages/layout-engine`) for ad hoc file-level invocations, so the findings
-above come from code-path inspection rather than a fresh targeted test pass.
+- **Host-template section provisioning is still not registration-only.** The
+  actual DOM placeholders / section shells still live in `viewer-unified.html`
+  and the host viewer definitions, so do not overclaim spec 073 as fully
+  closing that deeper template-registration seam during adversarial review.
+  Treat it as follow-up work if and when new lane families or host templates
+  need to register panels end-to-end.
