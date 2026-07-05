@@ -27,30 +27,29 @@ next**, trust this file.
 
 ## Next spec to tackle (priority order)
 
-Reordered 2026-07-05 after the engine-architecture decisions. Cold-start agents:
-read [`AGENT-INBOX.md`](AGENT-INBOX.md) "START HERE" first, and the strategy in
+Reordered 2026-07-05 after the engine-architecture decisions and spec 074's
+review closeout. Cold-start agents: read [`AGENT-INBOX.md`](AGENT-INBOX.md)
+"START HERE" first, and the strategy in
 [`docs/architecture/node-paradigm-and-engine-strategy.md`](docs/architecture/node-paradigm-and-engine-strategy.md).
-Specs 071, 062, 063, 072 are complete.
+Specs 071, 062, 063, and 072 are complete; spec 074 is no longer an active
+execution slice unless new findings appear.
 
 **Decided architecture work (implement first):**
 
-1. **Spec 074 — layout algorithm consolidation.** Remove Dagre (decided) + add
-   the hard no-duplicate-algorithm guard, then the corpus-driven survey +
-   `decision-matrix.md`. Inputs from `diagram-generator-planning`.
-2. **Spec 073 — layout node model + param-pane unification.** Drop "family",
+1. **Spec 073 — layout node model + param-pane unification.** Drop "family",
    rename `grid`→`frame`, make panel/lane registration data-driven (closes
    spec 046 T073), route force params through the shared pane. Force input
    format stays; pipeline convergence (T060) is deprioritised.
 
 **Standing user-facing regressions:**
 
-3. **Spec 061 — grid regression investigation.** (061's "hide affordances now"
+2. **Spec 061 — grid regression investigation.** (061's "hide affordances now"
    containment can be slotted earlier for a fast visible win.)
-4. **Spec 064 — arrow annotation label de-overlap.**
+3. **Spec 064 — arrow annotation label de-overlap.**
 
 **Independent feature:**
 
-5. **Spec 070 — layers palette reorder.**
+4. **Spec 070 — layers palette reorder.**
 
 **Bookkeeping (fast, low-risk, do between slices):** specs 046 and 047 are done
 and archived (2026-07-05). Still outstanding: archive the 13 merged-but-
