@@ -90,3 +90,9 @@ changing box styling doesnt work any more - i select child/annotaiton/parent/sec
 ![alt text](image.png) all elk parameters gone even when on elk now
 
 Local relayout failed on http://127.0.0.1:8100/view/v3:example-deployment-pipeline when I change the 9 dot alignment grid; it should not be present on elk; but all options elkjs provides should be surfaced on each elk node; you cheated - instead of contextually surfaceing what options exist for each layout, you simply hids all elk related options, neglected to remove all autolayout options that are not contextually relevant to elk, and interacting with them genertes errors.
+
+
+![ - resizing a diagram to horizontal, then back to vertical leads to the canvas not resizing - how did we miss ths?](image-10.png)
+
+
+new bug!!!: ![alt text](image-11.png)
