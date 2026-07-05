@@ -1,7 +1,7 @@
 # Spec 074: Layout algorithm survey and best-of-breed consolidation
 
 **Feature Branch**: `feat/074-layout-algorithm-consolidation`
-**Status**: Draft
+**Status**: In Progress
 **Created**: 2026-07-05
 **Context**: chat decision 2026-07-05 (do not maintain N implementations of the
 same algorithm; keep one robust implementation per algorithm, replace only if a
@@ -9,6 +9,11 @@ better one exists; **Dagre is a decided removal**; **hard no-duplicate
 contract**). Strategy doc: `docs/architecture/node-paradigm-and-engine-strategy.md`.
 Sibling corpus/taxonomy repo: `diagram-generator-planning`. Consumes spec 073's
 node model. Gates any future bulk-port of Mermaid / Graphviz / D2.
+
+**Status note (2026-07-05):** Phase 2 inventory is now captured in
+`decision-matrix.md`: T010 records the current engine/package capability and
+cost surface, and T011 flags the layered/tree/force duplicate sets that Phase 3
+must resolve into final keep/retire verdicts.
 
 ## Problem
 

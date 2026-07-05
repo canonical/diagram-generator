@@ -17,12 +17,12 @@
 
 ## Phase 2: Inventory current implementations
 
-- [ ] T010 For each in-repo engine
+- [x] T010 For each in-repo engine
       (`packages/layout-engine/src/preview-engine/engines/*.engine.ts`) and the
       `graph-layout-core|elk|dagre` packages, record algorithm class,
       capabilities (ports, compound nodes, edge routing, direction),
       determinism, licence, and bundle cost.
-- [ ] T011 Flag the suspected duplicates explicitly: Dagre vs ELK layered,
+- [x] T011 Flag the suspected duplicates explicitly: Dagre vs ELK layered,
       mindmap-tree vs ELK mrtree, force vs ELK force vs ELK stress.
 
 ## Phase 3: Survey candidates and choose one per algorithm
