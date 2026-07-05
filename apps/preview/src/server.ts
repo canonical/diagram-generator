@@ -66,7 +66,6 @@ const LAYOUT_ENGINE_HARFBUZZ_ENTRY = path.join(
 );
 const GRAPH_LAYOUT_CORE_ENTRY = path.join(REPO_ROOT, "packages", "graph-layout-core", "src", "index.ts");
 const GRAPH_LAYOUT_ELK_ENTRY = path.join(REPO_ROOT, "packages", "graph-layout-elk", "src", "index.ts");
-const GRAPH_LAYOUT_DAGRE_ENTRY = path.join(REPO_ROOT, "packages", "graph-layout-dagre", "src", "index.ts");
 const HARFBUZZ_WASM_SOURCE = path.join(
   REPO_ROOT,
   "packages",
@@ -312,7 +311,6 @@ function layoutEngineBrowserSourceIsNewerThanBundle(): boolean {
   const sourceRoots = [
     path.join(REPO_ROOT, "packages", "layout-engine", "src"),
     path.join(REPO_ROOT, "packages", "graph-layout-elk", "src"),
-    path.join(REPO_ROOT, "packages", "graph-layout-dagre", "src"),
   ];
   if (!existsSync(LAYOUT_ENGINE_BUNDLE) || sourceRoots.some((srcRoot) => !existsSync(srcRoot))) {
     return true;
@@ -370,7 +368,6 @@ async function ensureLayoutEngineBrowserAssets(): Promise<void> {
       }) {
         build.onResolve({ filter: /^@diagram-generator\/graph-layout-core$/ }, () => ({ path: GRAPH_LAYOUT_CORE_ENTRY }));
         build.onResolve({ filter: /^@diagram-generator\/graph-layout-elk$/ }, () => ({ path: GRAPH_LAYOUT_ELK_ENTRY }));
-        build.onResolve({ filter: /^@diagram-generator\/graph-layout-dagre$/ }, () => ({ path: GRAPH_LAYOUT_DAGRE_ENTRY }));
       },
     };
 

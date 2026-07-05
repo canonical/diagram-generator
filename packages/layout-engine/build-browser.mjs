@@ -8,10 +8,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const distDir = path.join(__dirname, 'dist');
 const graphLayoutElkDir = path.join(__dirname, '..', 'graph-layout-elk');
-const graphLayoutDagreDir = path.join(__dirname, '..', 'graph-layout-dagre');
 
 // Browser bundle imports graph layout packages via package "main" (dist/).
-for (const packageDir of [graphLayoutElkDir, graphLayoutDagreDir]) {
+for (const packageDir of [graphLayoutElkDir]) {
   execSync('npm run build', { cwd: packageDir, stdio: 'inherit' });
 }
 

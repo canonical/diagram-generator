@@ -262,37 +262,27 @@ Validation in this worktree:
 
 ---
 
-## Adversarial review — 2026-07-05 — spec 074 follow-up findings
+## Adversarial review — 2026-07-05 — spec 074 follow-up findings resolved
 
-Findings on `feat/074-layout-algorithm-consolidation` after the post-fix audit:
+Resolved on the `feat/074-layout-algorithm-consolidation` line after the
+post-fix audit reopened two honest leftovers:
 
-1. **Dagre retirement is still incomplete in build/tooling.**
-   The runtime lane is gone, but the dedicated Dagre package still sits on the
-   hot path for build, test, and preview-bundle wiring:
-   `packages/layout-engine/package.json:9`, `:14`, `:26`,
-   `packages/layout-engine/build-browser.mjs:11-14`,
-   `apps/preview/src/server.ts:69`, `:315`, `:373`.
-   That means spec 074 removed the manifest/registry surface without actually
-   removing the extra dependency, TypeScript build work, or preview watch/alias
-   surface. Action: either remove `@diagram-generator/graph-layout-dagre` from
-   the layout-engine dependency/tooling path and from the preview server's local
-   alias/watch list, or explicitly restate the spec as "runtime Dagre lane
-   removed; package retained for now" instead of "Dagre removed".
+1. **Dagre is now removed from the active build/tooling path as well as the
+   runtime lane.**
+   `packages/layout-engine/package.json`,
+   `packages/layout-engine/build-browser.mjs`,
+   `apps/preview/src/server.ts`, and
+   `scripts/check-browser-bundle-fresh.mjs` no longer build, alias, watch, or
+   freshness-check `@diagram-generator/graph-layout-dagre`.
+2. **The live docs no longer describe Dagre as a current product path.**
+   `docs/agent-index.md` drops the retired package from the main-path table, and
+   `docs/specs.md` now describes spec 052/074 in post-retirement terms instead
+   of implying Dagre remains part of the active product surface.
 
-2. **Live docs still describe Dagre as a current product path.**
-   `docs/agent-index.md:70` still lists
-   `packages/graph-layout-dagre/src/` as a main repo path, and
-   `docs/specs.md:46` still summarizes spec 052 as shipping
-   "product-suitable elkjs algorithms + dagre".
-   After spec 074's hard retirement decision, those lines now misstate the
-   active architecture and will mislead future agents/reviewers unless they are
-   reconciled with the actual post-074 state.
+Validation in this worktree for the follow-up reconciliation:
 
-Validation in this worktree during this follow-up pass:
-
+- `npm --prefix packages/graph-layout-core run build` -> passed
+- `npm --prefix packages/layout-engine run build:browser` -> passed
+- `node scripts/check-browser-bundle-fresh.mjs` -> passed
+- `node --import tsx --test src/persistence/preview-host-contract.test.ts` (from `apps/preview/`) -> passed
 - `node scripts/check_no_new_python.mjs` -> passed
-- `npm --prefix packages/layout-engine test` -> blocked before tests ran because
-  `tsc` is unavailable in the local package toolchain
-  (`@diagram-generator/graph-layout-core` build fails in `pretest`)
-- `npm --prefix apps/preview test` -> blocked for the same reason via the
-  `packages/layout-engine` prebuild path

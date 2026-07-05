@@ -67,7 +67,6 @@ Add a new row when you land a cross-layer map (UI → server → engine → disk
 |------|------|
 | `packages/graph-layout-core/src/` | Engine-agnostic graph IR and capability contracts |
 | `packages/graph-layout-elk/src/` | ELK graph layout adapters and algorithm param registries |
-| `packages/graph-layout-dagre/src/` | Dagre graph layout adapter and param registry |
 | `packages/layout-engine/src/` | TS engine and browser bundle source |
 | `packages/layout-engine/tests/` | Vitest coverage |
 | `apps/preview/src/` | Node preview app |

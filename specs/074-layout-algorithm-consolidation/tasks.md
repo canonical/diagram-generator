@@ -92,6 +92,14 @@
       and `node scripts/check_no_new_python.mjs`) and record the green result
       in the spec/inbox closeout notes.
 
+## Phase 9: Follow-up review reconciliation
+
+- [x] T057 Remove the retired Dagre package from the active
+      layout-engine/preview build, test, and browser-bundle freshness path so
+      spec 074's "Dagre removed" claim matches the live tooling surface.
+- [x] T058 Reconcile the live agent/spec/inbox docs so Dagre is no longer
+      described as a current product path after the spec 074 retirement.
+
 ## Notes
 
 - This spec's output is primarily a **decision artifact**, not code. Do not let
