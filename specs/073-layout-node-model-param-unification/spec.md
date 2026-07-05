@@ -1,7 +1,7 @@
 # Spec 073: Layout algorithm node model and parameter-pane unification
 
 **Feature Branch**: `feat/073-layout-node-model-param-unification`
-**Status**: In Progress
+**Status**: Closeout Ready - adversarial review follow-up fixed 2026-07-05
 **Created**: 2026-07-05
 **Context**: chat decision 2026-07-05 (dedup-before-port; drop "family"; Houdini
 SOP model; unify force into the shared param pane). Builds on spec 071
@@ -205,6 +205,13 @@ manifest/type surface.
 - 2026-07-05: Routed force through the shared layout-params pane contract while
   keeping the `force-spec` document kind, host routes, save path, and export
   coverage intact.
+- 2026-07-05: Adversarial review follow-up fixed the two remaining force
+  regressions: the shared param-pane controller now writes through the live
+  force override owner, and `updateForceSimulationParams(...)` now applies
+  render-scoped keys such as `curve_handle_ratio` alongside simulation params.
+- 2026-07-05: Added repo-owned regressions for both the live force controller
+  wiring (`apps/preview` contract test) and the mixed simulation/render force
+  runtime patch path (`packages/layout-engine` unit test).
 - 2026-07-05: Left force host/route/persistence convergence intentionally
   deferred. Spec 073 closes after the phase-1 param-pane unification; any move
   of `builtin-force-host`, `/api/force-spec/`, or `persistForceSpecToYaml` onto
@@ -214,9 +221,6 @@ manifest/type surface.
   `npm --prefix apps/preview test`, `node scripts/check_no_new_python.mjs`, and
   `node scripts/check-preview-shell-size-budgets.mjs`. The required
   `npm --prefix packages/layout-engine run build:browser` step also passed after
-  the preview-engine export changes.
-- 2026-07-05 adversarial review: reopened from `Closeout Ready`. The shared
-  force layout-params bridge currently rewires force control writes through a
-  no-op setter, and the new `curve_handle_ratio` control still does not update
-  force render state. Closeout is blocked until those regressions are fixed and
-  covered by a force write-through regression.
+  the preview-engine export changes. Final rerun after the review follow-up was
+  green at `packages/layout-engine` 981/981, `apps/preview` 161/161,
+  `check_no_new_python` ok, and preview-shell size budgets ok.

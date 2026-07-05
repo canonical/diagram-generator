@@ -430,3 +430,70 @@ test("force preview helpers accept the namespaced previewEngines.force contract"
     { bootstrapped: { nodes: [] } },
   );
 });
+
+test("force shared param pane wiring uses a live setter and relayout callback", () => {
+  const source = readPreviewScript("force.js");
+  const calls: Array<Record<string, unknown>> = [];
+  let initDeps: Record<string, unknown> | null = null;
+  let wirePanelCount = 0;
+  let refreshCount = 0;
+  const context = {
+    console,
+    previewEngineLayoutControls() {
+      return {
+        collectOverrides() {
+          return { link_distance: 480, curve_handle_ratio: 0.7 };
+        },
+        refresh() {
+          refreshCount += 1;
+        },
+      };
+    },
+    previewEngineShellController() {
+      return {
+        init(options: Record<string, unknown>) {
+          initDeps = options;
+        },
+        wirePanel() {
+          wirePanelCount += 1;
+        },
+      };
+    },
+    readSharedForceOverrides() {
+      return { link_distance: 320, curve_handle_ratio: 0.4 };
+    },
+    applySharedForceOverrides(value: Record<string, unknown>) {
+      calls.push({ ...value });
+      return { applied: value };
+    },
+    refreshSharedForceParamPane() {
+      refreshCount += 1;
+    },
+  };
+
+  const helperSource = [
+    extractNamedFunctionSource(source, "initializeSharedForceParamPane", "()"),
+    "this.__loaded = { initializeSharedForceParamPane };",
+  ].join("\n");
+
+  vm.runInNewContext(helperSource, context);
+  const loaded = (context as {
+    __loaded: {
+      initializeSharedForceParamPane: () => void;
+    };
+  }).__loaded;
+
+  loaded.initializeSharedForceParamPane();
+
+  assert.equal(wirePanelCount, 1);
+  assert.equal(refreshCount, 1);
+  assert.equal(typeof initDeps?.setLayoutOverrides, "function");
+  assert.equal(typeof initDeps?.requestLayoutRelayout, "function");
+
+  initDeps?.setLayoutOverrides?.({ link_distance: 420, curve_handle_ratio: 0.6 });
+  assert.deepEqual(calls[0], { link_distance: 420, curve_handle_ratio: 0.6 });
+
+  const relayoutResult = initDeps?.requestLayoutRelayout?.();
+  assert.deepEqual(calls[1], { link_distance: 480, curve_handle_ratio: 0.7 });
+  assert.deepEqual(relayoutResult, { applied: { link_distance: 480, curve_handle_ratio: 0.7 } });
+});

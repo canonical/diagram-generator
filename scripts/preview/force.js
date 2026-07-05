@@ -146,19 +146,17 @@ function refreshSharedForceParamPane() {
 }
 
 function initializeSharedForceParamPane() {
-  const controls = previewEngineLayoutControls();
-  controls?.init?.({
-    getOverrides: () => readSharedForceOverrides(),
-    setOverrides: (value) => {
-      applySharedForceOverrides(value || {});
-    },
-  });
   const controller = previewEngineShellController();
   controller?.init?.({
     getLayoutOverrides: () => readSharedForceOverrides(),
-    setLayoutOverrides: () => {},
+    setLayoutOverrides: (value) => {
+      applySharedForceOverrides(value || {});
+    },
     getRootId: () => "force-root",
-    requestLayoutRelayout: () => null,
+    requestLayoutRelayout: () => {
+      const nextOverrides = previewEngineLayoutControls()?.collectOverrides?.() || readSharedForceOverrides();
+      return applySharedForceOverrides(nextOverrides);
+    },
   });
   controller?.wirePanel?.();
   refreshSharedForceParamPane();

@@ -107,6 +107,8 @@ export interface ForceSimulationConfig {
   center: [number, number];
 }
 
+export type ForceRuntimeParamPatch = Partial<ForceSimulationConfig & ForceRenderSpec>;
+
 export interface ForceRuntimeSnapshot {
   title: string;
   reference_image: string;
@@ -581,28 +583,83 @@ export function applyForceNodePatch(
 
 export function updateForceSimulationParams(
   snapshot: ForceRuntimeSnapshot,
-  patch: Partial<ForceSimulationConfig>,
+  patch: ForceRuntimeParamPatch,
 ): ForceRuntimeSnapshot {
   const state = getState(snapshot);
   const simulationSpec = state.spec.simulation;
+  const renderSpec = state.spec.render;
+  let simulationChanged = false;
 
-  if (patch.alpha != null) simulationSpec.alpha = Number(patch.alpha);
-  if (patch.alpha_min != null) simulationSpec.alpha_min = Number(patch.alpha_min);
-  if (patch.alpha_decay != null) simulationSpec.alpha_decay = Number(patch.alpha_decay);
-  if (patch.alpha_target != null) simulationSpec.alpha_target = Number(patch.alpha_target);
-  if (patch.ticks_per_frame != null) simulationSpec.ticks_per_frame = Math.max(1, Math.floor(Number(patch.ticks_per_frame)));
-  if (patch.max_iterations != null) simulationSpec.max_iterations = Math.max(1, Math.floor(Number(patch.max_iterations)));
-  if (patch.charge_strength != null) simulationSpec.charge_strength = Number(patch.charge_strength);
-  if (patch.link_distance != null) simulationSpec.link_distance = Number(patch.link_distance);
-  if (patch.link_strength != null) simulationSpec.link_strength = Number(patch.link_strength);
-  if (patch.link_iterations != null) simulationSpec.link_iterations = Math.max(1, Math.floor(Number(patch.link_iterations)));
-  if (patch.collision_padding != null) simulationSpec.collision_padding = Number(patch.collision_padding);
-  if (patch.collision_iterations != null) simulationSpec.collision_iterations = Math.max(1, Math.floor(Number(patch.collision_iterations)));
-  if (patch.velocity_decay != null) simulationSpec.velocity_decay = Number(patch.velocity_decay);
-  if (patch.center != null) simulationSpec.center = [Number(patch.center[0]), Number(patch.center[1])];
+  if (patch.alpha != null) {
+    simulationSpec.alpha = Number(patch.alpha);
+    simulationChanged = true;
+  }
+  if (patch.alpha_min != null) {
+    simulationSpec.alpha_min = Number(patch.alpha_min);
+    simulationChanged = true;
+  }
+  if (patch.alpha_decay != null) {
+    simulationSpec.alpha_decay = Number(patch.alpha_decay);
+    simulationChanged = true;
+  }
+  if (patch.alpha_target != null) {
+    simulationSpec.alpha_target = Number(patch.alpha_target);
+    simulationChanged = true;
+  }
+  if (patch.ticks_per_frame != null) {
+    simulationSpec.ticks_per_frame = Math.max(1, Math.floor(Number(patch.ticks_per_frame)));
+    simulationChanged = true;
+  }
+  if (patch.max_iterations != null) {
+    simulationSpec.max_iterations = Math.max(1, Math.floor(Number(patch.max_iterations)));
+    simulationChanged = true;
+  }
+  if (patch.charge_strength != null) {
+    simulationSpec.charge_strength = Number(patch.charge_strength);
+    simulationChanged = true;
+  }
+  if (patch.link_distance != null) {
+    simulationSpec.link_distance = Number(patch.link_distance);
+    simulationChanged = true;
+  }
+  if (patch.link_strength != null) {
+    simulationSpec.link_strength = Number(patch.link_strength);
+    simulationChanged = true;
+  }
+  if (patch.link_iterations != null) {
+    simulationSpec.link_iterations = Math.max(1, Math.floor(Number(patch.link_iterations)));
+    simulationChanged = true;
+  }
+  if (patch.collision_padding != null) {
+    simulationSpec.collision_padding = Number(patch.collision_padding);
+    simulationChanged = true;
+  }
+  if (patch.collision_iterations != null) {
+    simulationSpec.collision_iterations = Math.max(1, Math.floor(Number(patch.collision_iterations)));
+    simulationChanged = true;
+  }
+  if (patch.velocity_decay != null) {
+    simulationSpec.velocity_decay = Number(patch.velocity_decay);
+    simulationChanged = true;
+  }
+  if (patch.center != null) {
+    simulationSpec.center = [Number(patch.center[0]), Number(patch.center[1])];
+    simulationChanged = true;
+  }
+  if (patch.curve_handle_ratio != null) {
+    renderSpec.curve_handle_ratio = Number(patch.curve_handle_ratio);
+  }
+  if (patch.curve_handle_min != null) {
+    renderSpec.curve_handle_min = Number(patch.curve_handle_min);
+  }
+  if (patch.curve_handle_max != null) {
+    renderSpec.curve_handle_max = Number(patch.curve_handle_max);
+  }
 
-  applySimulationConfig(state);
-  restartForceAnimation(state);
+  if (simulationChanged) {
+    applySimulationConfig(state);
+    restartForceAnimation(state);
+  }
   return getSnapshot(state);
 }
 

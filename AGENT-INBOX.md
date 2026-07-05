@@ -231,48 +231,35 @@ bookkeeping honesty, and 046's veto was stale rather than unmet.
 
 ---
 
-## Adversarial review — 2026-07-05 — spec 073 layout node model and param-pane unification
+## Spec 073 adversarial review follow-up - 2026-07-05
 
-Reviewed the spec 073 branch diff against the implemented force-shell,
-preview-engine, and panel-registry changes. The panel registration and shell-mode
-normalization work look directionally correct, but the force param-pane
-unification is **not actually closeout-ready**. Two blockers remain:
+The overnight run stopped because the adversarial review reopened spec 073 with
+two real force-path regressions. Both are now fixed on
+`feat/073-layout-node-model-param-unification`.
 
-1. **P1 — shared force controls are wired through a no-op setter, so force
-   parameter edits do not apply.**
-   `scripts/preview/force.js:148-164` initializes
-   `PreviewEngineLayoutControls` with a real setter, then immediately calls
-   `PreviewEngineShellController.wirePanel()` after configuring the controller
-   with `setLayoutOverrides: () => {}` and `requestLayoutRelayout: () => null`.
-   The generic control runtime writes changes through `setOverrides(next)` and
-   `controller.applyLayoutOverrides(next)` before scheduling relayout
-   (`packages/layout-engine/src/preview-engine/layout-params-controls.ts:554-567`).
-   In force mode those writes resolve to no-ops, so the pane rebuilds from the
-   unchanged `committedSnapshot` and user edits snap back instead of updating
-   the live force preview. The new SC-001 test
-   (`packages/layout-engine/tests/preview-engine-elk-runtime.test.ts:112-204`)
-   only checks that labels render; it never exercises a write path, so this
-   regression currently ships green.
+Findings closed:
 
-2. **P1 — the new shared Render control is dead: `curve_handle_ratio` never
-   reaches the force runtime state.**
-   The shared force override reader now advertises
-   `curve_handle_ratio` from `snapshot.render`
-   (`scripts/preview/force.js:121-126`), and writes it back through
-   `updateForceSimulationParams(...)` (`scripts/preview/force.js:130-141`).
-   But `updateForceSimulationParams` only mutates `state.spec.simulation` fields
-   and ignores render-scoped keys entirely
-   (`packages/layout-engine/src/force-runtime.ts:582-606`), so the new
-   "Render / Curve handle ratio" control cannot affect the live preview or the
-   saved YAML. I confirmed that with a targeted runtime probe:
-   `updateForceSimulationParams(snapshot, { curve_handle_ratio: 0.7 })`
-   left `snapshot.render.curve_handle_ratio` unchanged at `0.35`.
+1. **Shared force pane writes were wired through no-op callbacks.**
+   `initializeSharedForceParamPane()` in `scripts/preview/force.js` now routes
+   both `setLayoutOverrides` and `requestLayoutRelayout` through the live force
+   override owner, so editing shared force params no longer snaps back.
+2. **Render-scoped force params did not persist through the unified patch path.**
+   `updateForceSimulationParams(...)` in
+   `packages/layout-engine/src/force-runtime.ts` now applies render keys such as
+   `curve_handle_ratio` in the same update flow as simulation keys, without
+   forcing a simulation restart when only render keys changed.
 
-Recommended follow-up before re-marking 073 `Closeout Ready`:
-- Fix the force shared-pane bridge so force edits write through one real setter
-  path and trigger the intended live update/repaint flow.
-- Add a force-specific regression that changes a shared-pane value and asserts
-  the runtime snapshot and rendered/exported state both update.
-- Either extend the force runtime update path to handle render-scoped overrides
-  such as `curve_handle_ratio`, or route render controls through a dedicated
-  updater and cover that with a test.
+Regression coverage added:
+
+- `apps/preview/src/persistence/preview-engine-controller-contract.test.ts`
+  locks the live force controller wiring.
+- `packages/layout-engine/tests/force-runtime.test.ts` locks mixed
+  simulation/render param patch updates.
+
+Validation rerun after the fixes:
+
+- `npm --prefix packages/layout-engine run build:browser` -> pass
+- `npm --prefix packages/layout-engine test` -> `981/981`
+- `npm --prefix apps/preview test` -> `161/161`
+- `node scripts/check_no_new_python.mjs` -> ok
+- `node scripts/check-preview-shell-size-budgets.mjs` -> ok

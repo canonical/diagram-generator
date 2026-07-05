@@ -70,6 +70,21 @@
 - [x] T057 Use no-screenshot browser DOM probes only if unit/contract tests miss
       an integration behavior; do not capture screenshots unless asked.
 
+## Phase 6b: Adversarial review follow-up
+
+- [x] T058 Fix the shared force param-pane write path so controller
+      `setLayoutOverrides` / `requestLayoutRelayout` both route through the live
+      force override owner instead of no-op callbacks.
+- [x] T059 Extend the force runtime patch path so one update call can persist
+      both simulation-scoped params and render-scoped params such as
+      `curve_handle_ratio`.
+- [x] T061 Add regressions covering the live force controller wiring and the
+      mixed simulation/render force-param patch path.
+- [x] T062 Rerun `npm --prefix packages/layout-engine run build:browser`,
+      `npm --prefix packages/layout-engine test`, `npm --prefix apps/preview test`,
+      `node scripts/check_no_new_python.mjs`, and
+      `node scripts/check-preview-shell-size-budgets.mjs`.
+
 ## Decision gate / deferred
 
 - [x] T060 **DEPRIORITISED (deferred debt-reduction):** converge force's bespoke
@@ -81,12 +96,3 @@
       force-pipeline convergence, and any future convergence should land as a
       dedicated follow-up spec when force work resumes or the parallel pipeline
       blocks new product work.
-
-## Adversarial review follow-up
-
-- [ ] T061 Fix the force shared layout-params bridge so force-shell control
-      edits write through a live setter path instead of the current no-op
-      controller wiring.
-- [ ] T062 Make render-scoped force controls such as `curve_handle_ratio`
-      update the runtime/exported force state, and add a regression that proves
-      the shared force pane changes persist through that path.

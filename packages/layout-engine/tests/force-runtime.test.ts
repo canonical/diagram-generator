@@ -6,6 +6,7 @@ import {
   exportForceAuthoredSpec,
   exportForceSnapshot,
   tickForceSimulation,
+  updateForceSimulationParams,
   type ForceAuthoredSpec,
 } from '../src/force-runtime.js';
 
@@ -601,6 +602,63 @@ describe('exportForceAuthoredSpec', () => {
           style: 'annotation',
         },
       ],
+    });
+  });
+});
+
+describe('updateForceSimulationParams', () => {
+  it('updates both simulation and render-scoped force params through one patch path', () => {
+    const spec: ForceAuthoredSpec = {
+      title: 'Stakeholders',
+      reference_image: 'force/IMG_3229.jpg',
+      canvas: { width: 960, height: 640 },
+      render: {
+        curve_handle_ratio: 0.35,
+        curve_handle_min: 24,
+        curve_handle_max: 64,
+      },
+      simulation: {
+        ticks_per_frame: 1,
+        max_iterations: 220,
+        charge_strength: -900,
+        link_distance: 256,
+        link_strength: 0.08,
+        collision_padding: 24,
+        collision_iterations: 4,
+        velocity_decay: 0.34,
+        alpha_min: 0.006,
+        center: [480, 320],
+      },
+      nodes: [
+        {
+          id: 'users',
+          label: ['Users'],
+          width: 192,
+          height: 64,
+          x: 241,
+          y: 389,
+        },
+      ],
+      links: [],
+    };
+
+    const snapshot = createInitialForceSnapshot(spec);
+    const updated = updateForceSimulationParams(snapshot, {
+      link_distance: 320,
+      curve_handle_ratio: 0.7,
+    });
+
+    expect(updated.simulation.params.link_distance).toBe(320);
+    expect(updated.render.curve_handle_ratio).toBe(0.7);
+    expect(snapshot.simulation.params.link_distance).toBe(256);
+    expect(snapshot.render.curve_handle_ratio).toBe(0.35);
+    expect(windowStructuredCloneSafe(exportForceAuthoredSpec(updated))).toMatchObject({
+      render: {
+        curve_handle_ratio: 0.7,
+      },
+      simulation: {
+        link_distance: 320,
+      },
     });
   });
 });
