@@ -27,22 +27,22 @@
 
 ## Phase 3: Survey candidates and choose one per algorithm
 
-- [ ] T020 For each required algorithm, evaluate external + in-repo candidates
+- [x] T020 For each required algorithm, evaluate external + in-repo candidates
       (ELK, Dagre, d3-force/d3-hierarchy, Graphviz/viz.js, cytoscape, cola,
       Mermaid, D2) on the FR-002 criteria.
-- [ ] T021 Select exactly one implementation per algorithm and record the
+- [x] T021 Select exactly one implementation per algorithm and record the
       criteria-based rationale in `decision-matrix.md`.
-- [ ] T022 Write the explicit keep/retire verdict for every current engine
+- [x] T022 Write the explicit keep/retire verdict for every current engine
       (FR-003), including the Dagre / tree / force-trio decisions. "Keep"
       requires a concrete distinct capability the chosen impl lacks.
 
 ## Phase 4: Migration discipline and sequencing
 
-- [ ] T030 Document the backend-swap migration discipline (FR-004): how saved
+- [x] T030 Document the backend-swap migration discipline (FR-004): how saved
       diagrams, engine-specific overrides, and deterministic geometry are handled
       when one implementation replaces another; a swap is a migration with a
       persist→reload proof, not a silent default change.
-- [ ] T031 Name the downstream port/retire specs implied by the matrix (FR-006)
+- [x] T031 Name the downstream port/retire specs implied by the matrix (FR-006)
       so the bulk-port work (Dagre/Mermaid/Graphviz/D2) is sequenced.
 
 ## Phase 5: Remove Dagre (decided) + enforce the no-duplicate contract

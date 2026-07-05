@@ -10,10 +10,12 @@ contract**). Strategy doc: `docs/architecture/node-paradigm-and-engine-strategy.
 Sibling corpus/taxonomy repo: `diagram-generator-planning`. Consumes spec 073's
 node model. Gates any future bulk-port of Mermaid / Graphviz / D2.
 
-**Status note (2026-07-05):** Phase 2 inventory is now captured in
-`decision-matrix.md`: T010 records the current engine/package capability and
-cost surface, and T011 flags the layered/tree/force duplicate sets that Phase 3
-must resolve into final keep/retire verdicts.
+**Status note (2026-07-05):** The decision artifact now covers Phases 2-4:
+`decision-matrix.md` records the current engine/package capability and cost
+surface, the candidate survey and chosen implementation per required algorithm,
+the explicit engine keep/retire verdicts, the backend-swap migration
+discipline, and the downstream spec queue. Remaining work is Phase 5 code:
+Dagre removal plus the no-duplicate guard.
 
 ## Problem
 

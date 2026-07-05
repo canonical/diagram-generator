@@ -123,8 +123,69 @@ keep/retire verdicts from Phase 3.
 | `mindmap-tree` vs `elk-mrtree` | Rooted tree layout | Both target rooted-tree shapes with top-down/left-right style directionality. | `mindmap-tree` is a skeletal proof renderer for `mindmap-lite`, while `elk-mrtree` is the real graph backend with routing/ordering controls. Phase 3 needs to decide whether the lite proof stays as a non-comparable install proof or counts as a duplicate tree engine. |
 | `force` vs `elk-force` vs `elk-stress` | Organic relationship layout | All three occupy the non-layered "organic graph" space used for architecture/concept/relationship diagrams. | The repo-owned `force` path is an interactive simulation owner, `elk-force` is a seeded ELK force layout backend, and `elk-stress` is stress-majorization with its own option surface. Phase 3 must decide whether stress is distinct enough to keep and whether the legacy `force` runtime is a product requirement or just a duplicate backend family. |
 
-## Migration discipline
+## Candidate survey and chosen implementations (T020/T021)
 
-To be filled in Phase 4. Replacement of one implementation by another is a
-migration, not a silent swap: persisted engine ids, engine-specific overrides,
-and geometry expectations need an explicit persist -> reload proof.
+| Required algorithm | Candidates evaluated | Chosen implementation | Criteria-based rationale | Downstream spec / sequencing |
+|--------------------|----------------------|-----------------------|--------------------------|------------------------------|
+| Layered / Sugiyama directed graph | `elk-layered`, `dagre`, Graphviz `dot` via `@viz-js/viz`, Mermaid flowchart, D2 layered default | `elk-layered` | Best current balance of capability and migration cost. It already ships in-repo, shares the ELK backend we pay for elsewhere, and is the only current candidate in this stack that combines direction hints, explicit ports, measured edge labels, nested compounds, padding insets, and routed-edge refinement. Graphviz `dot` remains the strongest external challenger on maturity, but it would add another heavyweight backend and migration burden. Mermaid and D2 are whole diagram DSL toolchains, not attractive drop-in layout backends for this repo. | `T040` in this spec removes Dagre. Keep a future Graphviz challenge spec only if benchmark evidence exposes an ELK-layered gap. |
+| Organic force-directed graph | `elk-force`, repo `force`, `elk-stress`, `d3-force`, Cytoscape, WebCola | `elk-force` | The corpus already maps architecture/network/concept families to ELK force, and the repo pins determinism with `elk.randomSeed = 0`. It rides the shared ELK backend instead of preserving the bespoke `force-spec` workflow, and it demands less custom routing/integration work than `d3-force` or WebCola. Cytoscape is active but heavy and UI-centric for a headless layout role. | Create a downstream force-convergence spec that migrates `force-spec` onto the shared graph-engine path and retires the legacy `force` runtime. |
+| State-machine layout | `elk-layered`, Graphviz `dot`, Mermaid state diagrams, D2 | `elk-layered` under a state-machine-specific schema/render layer | State-machine diagrams need distinct node/edge semantics, but the surveyed backends do not justify a separate layout engine today. `elk-layered` already has the compound-node, direction, and routing surface needed for composite-state graphs. Graphviz `dot` is the main alternate candidate, but its extra backend cost is hard to justify before a corpus benchmark shows an ELK failure. Mermaid and D2 again skew toward end-to-end DSL tooling, not reusable backend integration. | Name a downstream "state-machine schema + ELK layered lane" spec rather than introducing a second layered backend. |
+| Sequence / lifeline timeline | Repo-native `sequence`; Mermaid sequence as the nearest external comparator | Repo-native `sequence` | This is grammar-specific layout, not generic graph solving. The current TypeScript implementation is deterministic, small, and directly aligned with the repo's sequence document schema. Pulling Mermaid in would import a much larger end-to-end toolchain without solving a missing backend problem. | No backend-swap spec required. Keep sequence on the repo-native path. |
+| Vertical stack / layered containment | Repo-native `v3`; generic graph backends were considered and rejected as the wrong abstraction | Repo-native `v3` structured compositor | Vertical stacks are authored composition more than graph solving. The current native frame autolayout already owns containment, spacing, and orthogonal arrows without importing another backend. | Future spec 073 follow-up may split this into an explicit "stack" node type, but it should stay on the native TS path. |
+| Grid / matrix comparison layout | Repo-native `v3`; generic graph backends were considered and rejected as the wrong abstraction | Repo-native `v3` structured compositor | Comparison boards want row/column alignment, not graph routing. The current native path is the right owner until there is evidence for a dedicated matrix compositor. | Future spec 073 follow-up may split this into an explicit "matrix" node type, but it should stay on the native TS path. |
+| Tree layout | `elk-mrtree`, `mindmap-tree`, `d3-hierarchy` tree/cluster | `elk-mrtree` | `elk-mrtree` is the only surveyed current candidate that already fits the shared graph IR, honors direction hints, and exposes tree-specific routing/ordering controls. `d3-hierarchy` is lighter but would require new routing and product integration. `mindmap-tree` is too skeletal to count as the long-term backend. | Create a downstream spec to remove `mindmap-tree` from the product algorithm set while preserving any install-proof coverage it still provides. |
+| Radial tree / hub-and-spoke layout | `elk-radial`, `d3-hierarchy` radial tree/cluster | `elk-radial` | The shared ELK backend cost is already paid, and `elk-radial` exposes rotation/compaction controls that the plain d3 hierarchy projection does not. This makes it the stronger fit for a reusable param-pane-backed engine lane. | No extra port spec needed; keep the current engine and benchmark it as more radial corpus examples arrive. |
+| Rectangle packing | `elk-rectpacking`, d3 treemap-style packing, Graphviz packing family | `elk-rectpacking` | `elk-rectpacking` is the only current candidate already integrated into the frame-diagram graph path with packing-specific controls. Treemap-style d3 layouts solve a different area-encoding problem, and another Graphviz-backed port would add backend cost without proven corpus demand. | Keep the current lane, but only for the narrow deployment/grouping cases already documented in compatibility. |
+| Relationship / data-model graph | `elk-force`, `elk-stress`, Cytoscape, WebCola, Graphviz `dot` | `elk-force` (same backend as the organic graph slot) | The corpus proves the diagram family exists, but the current survey does not prove a separate backend should survive for it. `elk-stress` exposes too little extra capability over `elk-force` to justify a second organic backend today, while Cytoscape/WebCola would add new integration or UI weight. The standing decision is: keep one organic backend until a benchmark shows otherwise. | Name a downstream "relationship-graph benchmark gate" spec only if future corpus runs show ELK force failing dense ER-style examples. |
+
+## Current engine verdicts (T022)
+
+| Current engine | Verdict | Why | Downstream spec / implementation note |
+|----------------|---------|-----|---------------------------------------|
+| `v3` | Keep | Current owner for native structured frame autolayout, vertical stacks, and matrix-style composition. | Future spec 073 follow-up may split its roles into explicit node types without changing the backend family. |
+| `force` | Retire (downstream) | Duplicate organic-layout family plus a bespoke `force-spec` workflow that conflicts with the shared-engine direction in the architecture doc. | Downstream force-convergence spec: migrate persisted `force-spec` documents onto the chosen shared graph-engine path before removing the legacy runtime. |
+| `sequence` | Keep | Distinct timeline grammar with no better surveyed backend. | No follow-up beyond ordinary sequence maintenance. |
+| `mindmap-tree` | Retire from the product algorithm set; keep only as a temporary install-proof fixture if still needed | Too skeletal to remain a first-class tree backend once `elk-mrtree` is the chosen tree implementation. | Downstream install-proof decoupling spec: move foreign-shaped proof coverage off the product engine registry if possible. |
+| `dagre` | Retire in this spec | Less-capable duplicate of `elk-layered`; the removal was already decided before the survey. | `T040` in this spec: remove the engine, migrate persisted Dagre diagrams, and land a persist -> reload proof. |
+| `elk-layered` | Keep | Winning layered/state-machine backend. | Benchmark Graphviz only if a concrete ELK-layered gap appears. |
+| `elk-force` | Keep | Winning organic graph backend. | Also absorbs relationship/data-model graphs unless a later benchmark proves a separate need. |
+| `elk-stress` | Retire (downstream unless later evidence overturns it) | Current survey does not show enough distinct capability over `elk-force` to justify keeping two organic ELK backends. | Downstream organic-backend cleanup spec, unless a relationship-graph benchmark revives a distinct stress-majorization lane. |
+| `elk-mrtree` | Keep | Winning rooted-tree backend. | Downstream work is only the cleanup of `mindmap-tree`, not replacement of `elk-mrtree`. |
+| `elk-radial` | Keep | Winning radial-tree backend. | No additional port spec required. |
+| `elk-rectpacking` | Keep | Winning rectangle-packing backend for the narrow compatible corpus slice. | Revisit only if corpus expansion shows the lane is unused or underpowered. |
+
+## Backend-swap migration discipline (T030)
+
+Replacement of one implementation by another is a migration, not a silent swap.
+Saved diagrams persist engine ids, engine-scoped overrides, and geometry
+expectations. The required discipline is:
+
+1. Persisted `layout_engine` ids are stable contracts. Do not silently reinterpret
+   a saved id as a different backend. Add an explicit upgrader or alias path,
+   and remove the old engine only after the migration proof exists.
+2. Engine-specific overrides stay namespaced until translated. A swap must either
+   preserve the old override namespace for compatibility reads or convert it via
+   a tested mapping into the new backend's namespace.
+3. Every retire needs a repo-owned persist -> reload proof. The proof must start
+   from a fixture saved against the retired backend, apply the migration path,
+   reload through the preview host, and assert the new engine id plus a stable
+   post-migration render/layout result.
+4. Geometry changes are expected and must be made explicit. When the chosen
+   replacement produces different deterministic geometry, treat that as a
+   versioned migration with updated snapshots/fixtures, not as a transparent
+   background default flip.
+5. Removal happens last. Keep the old engine install path or compatibility shim
+   in place until the migration fixture, persistence tests, and green suites
+   prove that saved documents no longer depend on the retired runtime.
+
+## Downstream spec queue (T031)
+
+The matrix implies these follow-on specs after the Dagre removal in this spec:
+
+| Proposed downstream spec | Why it exists |
+|--------------------------|---------------|
+| Force convergence and legacy `force-spec` retirement | Migrate the bespoke force workflow onto the chosen shared graph-engine path and remove the duplicate repo-owned force backend. |
+| Mindmap install-proof decoupling | Preserve the foreign-shaped install proof without keeping `mindmap-tree` as a product algorithm lane. |
+| State-machine schema + render lane on `elk-layered` | Add the state-machine-specific document/input/render semantics while reusing the chosen layered backend. |
+| Organic-backend cleanup / `elk-stress` benchmark gate | Either remove `elk-stress` as a duplicate or preserve it only if benchmark evidence proves a distinct relationship-graph win. |
+| Graphviz challenge benchmark (only if needed) | Re-open the layered/state-machine backend choice only if a corpus-backed benchmark exposes a concrete ELK-layered deficiency. |
