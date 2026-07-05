@@ -261,6 +261,7 @@ export type {
   PreviewPanelRegistryEntry,
   PreviewPanelVisibility,
   PreviewSelectionKind,
+  PreviewTemplateSectionVisibilityPlaceholder,
   PreviewTemplateSectionKey,
   PreviewUiContext,
   PreviewUiDocumentState,
@@ -273,6 +274,7 @@ export {
   hasInvalidPreviewPersistedLayoutEngine,
   previewEngineSupportsSidebarSection,
   resolvePreviewPanelVisibility,
+  resolvePreviewTemplateSectionVisibilityPlaceholders,
   resolvePreviewVisibleTemplateSections,
   shouldShowPreviewEngineSwitcher,
 } from './preview-ui-context.js';

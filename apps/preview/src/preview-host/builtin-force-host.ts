@@ -4,6 +4,7 @@ import {
   BODY_LINE_STEP,
   FORCE_PREVIEW_SHELL_MODE,
   INSET,
+  resolvePreviewTemplateSectionVisibilityPlaceholders,
   resolvePreviewVisibleTemplateSections,
   resolvePreviewEngine,
 } from "@diagram-generator/layout-engine";
@@ -40,63 +41,13 @@ import {
   buildPreviewWindowConfigScript,
 } from "./viewers.js";
 
+const BUILTIN_PREVIEW_SECTION_VISIBILITY_PLACEHOLDERS =
+  resolvePreviewTemplateSectionVisibilityPlaceholders();
+
 const FORCE_PREVIEW_VIEWER_DEFINITION: PreviewHostViewerPageDefinition = {
   mode: "force",
   inspectorEmptyText: "Click a node to select it.",
-  sectionVisibilityPlaceholders: [
-    {
-      placeholder: "%GRID_LAYERS_TAB_HIDDEN%",
-      section: "grid-layers-tab",
-    },
-    {
-      placeholder: "%GRID_LAYERS_PANE_HIDDEN%",
-      section: "grid-layers-pane",
-    },
-    {
-      placeholder: "%GRID_ENGINE_SWITCHER_HIDDEN%",
-      section: "grid-engine-switcher",
-    },
-    {
-      placeholder: "%GRID_CONTROLS_HIDDEN%",
-      section: "grid-controls",
-    },
-    {
-      placeholder: "%GRID_OVERRIDES_HIDDEN%",
-      section: "grid-overrides",
-    },
-    {
-      placeholder: "%GRID_CONSTRAINTS_HIDDEN%",
-      section: "grid-constraints",
-    },
-    {
-      placeholder: "%GRID_GUIDE_BADGE_HIDDEN%",
-      section: "grid-guide-badge",
-    },
-    {
-      placeholder: "%FORCE_NODES_TAB_HIDDEN%",
-      section: "force-nodes-tab",
-    },
-    {
-      placeholder: "%FORCE_NODES_PANE_HIDDEN%",
-      section: "force-nodes-pane",
-    },
-    {
-      placeholder: "%FORCE_SOLVER_HIDDEN%",
-      section: "force-solver",
-    },
-    {
-      placeholder: "%FORCE_SIMULATION_HIDDEN%",
-      section: "force-simulation",
-    },
-    {
-      placeholder: "%FORCE_GUIDANCE_HIDDEN%",
-      section: "force-guidance",
-    },
-    {
-      placeholder: "%LAYOUT_PARAMS_SECTION_HIDDEN%",
-      section: "layout-params",
-    },
-  ],
+  sectionVisibilityPlaceholders: BUILTIN_PREVIEW_SECTION_VISIBILITY_PLACEHOLDERS,
   buildTitle(slug: string): string {
     return `${slug} – force preview`;
   },

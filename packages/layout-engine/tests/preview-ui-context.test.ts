@@ -12,6 +12,7 @@ import {
   hasInvalidPreviewPersistedLayoutEngine,
   registerPreviewPanelRegistryEntries,
   resolvePreviewPanelVisibility,
+  resolvePreviewTemplateSectionVisibilityPlaceholders,
   resolvePreviewVisibleTemplateSections,
   shouldShowPreviewEngineSwitcher,
   type PreviewUiContext,
@@ -60,6 +61,21 @@ describe('preview UI context registry', () => {
     expect(groupsById.get('force-solver')).toBe('engine');
     expect(groupsById.get('force-simulation')).toBe('engine');
     expect(groupsById.get('force-guidance')).toBe('diagnostics');
+    expect(resolvePreviewTemplateSectionVisibilityPlaceholders()).toEqual([
+      { section: 'grid-layers-tab', placeholder: '%GRID_LAYERS_TAB_HIDDEN%' },
+      { section: 'grid-layers-pane', placeholder: '%GRID_LAYERS_PANE_HIDDEN%' },
+      { section: 'grid-engine-switcher', placeholder: '%GRID_ENGINE_SWITCHER_HIDDEN%' },
+      { section: 'grid-controls', placeholder: '%GRID_CONTROLS_HIDDEN%' },
+      { section: 'layout-params', placeholder: '%LAYOUT_PARAMS_SECTION_HIDDEN%' },
+      { section: 'grid-overrides', placeholder: '%GRID_OVERRIDES_HIDDEN%' },
+      { section: 'grid-constraints', placeholder: '%GRID_CONSTRAINTS_HIDDEN%' },
+      { section: 'grid-guide-badge', placeholder: '%GRID_GUIDE_BADGE_HIDDEN%' },
+      { section: 'force-nodes-tab', placeholder: '%FORCE_NODES_TAB_HIDDEN%' },
+      { section: 'force-nodes-pane', placeholder: '%FORCE_NODES_PANE_HIDDEN%' },
+      { section: 'force-solver', placeholder: '%FORCE_SOLVER_HIDDEN%' },
+      { section: 'force-simulation', placeholder: '%FORCE_SIMULATION_HIDDEN%' },
+      { section: 'force-guidance', placeholder: '%FORCE_GUIDANCE_HIDDEN%' },
+    ]);
   });
 
   it('hides native v3 grid controls until a root selection is active', () => {

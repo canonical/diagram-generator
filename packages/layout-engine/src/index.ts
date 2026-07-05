@@ -354,6 +354,7 @@ export {
   filterRelayoutOverrideEntry,
   RELAYOUT_ARROW_KEYS,
   UNDO_RELAYOUT_ARROW_KEYS,
+  resolvePreviewTemplateSectionVisibilityPlaceholders,
 } from './preview-shell/index.js';
 export type {
   CreatePreviewEditorInteractionFacadeFromEditorHostOptions,
@@ -395,6 +396,7 @@ export type {
   PreviewPanelRegistryEntry,
   PreviewPanelVisibility,
   PreviewSelectionKind,
+  PreviewTemplateSectionVisibilityPlaceholder,
   PreviewTemplateSectionKey,
   PreviewUiContext,
   PreviewUiDocumentState,

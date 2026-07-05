@@ -112,10 +112,16 @@ export interface PreviewPanelVisibility {
 export interface PreviewPanelRegistryEntry {
   readonly id: PreviewTemplateSectionKey;
   readonly owner: string;
+  readonly visibilityPlaceholder?: string;
   readonly group?: PreviewAsidePanelGroup;
   isVisible(context: PreviewUiContext): boolean;
   isDisabled?: (context: PreviewUiContext) => boolean;
   reason(context: PreviewUiContext, visible: boolean, disabled: boolean): string;
+}
+
+export interface PreviewTemplateSectionVisibilityPlaceholder {
+  readonly section: PreviewTemplateSectionKey;
+  readonly placeholder: string;
 }
 
 function workspace(context: PreviewUiContext): PreviewEngineWorkspaceState | null {
@@ -289,6 +295,7 @@ const FRAME_PREVIEW_PANEL_REGISTRY_ENTRIES: readonly PreviewPanelRegistryEntry[]
   {
     id: 'grid-layers-tab',
     owner: 'viewer-unified.html#nav-tab-layers',
+    visibilityPlaceholder: '%GRID_LAYERS_TAB_HIDDEN%',
     isVisible: frameTreeVisible,
     reason: (_context, visible) => visibilityReason(
       visible,
@@ -299,6 +306,7 @@ const FRAME_PREVIEW_PANEL_REGISTRY_ENTRIES: readonly PreviewPanelRegistryEntry[]
   {
     id: 'grid-layers-pane',
     owner: 'viewer-unified.html#nav-pane-layers',
+    visibilityPlaceholder: '%GRID_LAYERS_PANE_HIDDEN%',
     isVisible: frameTreeVisible,
     reason: (_context, visible) => visibilityReason(
       visible,
@@ -309,6 +317,7 @@ const FRAME_PREVIEW_PANEL_REGISTRY_ENTRIES: readonly PreviewPanelRegistryEntry[]
   {
     id: 'grid-engine-switcher',
     owner: 'viewer-unified.html#engine-switcher-section',
+    visibilityPlaceholder: '%GRID_ENGINE_SWITCHER_HIDDEN%',
     group: 'engine',
     isVisible: shouldShowPreviewEngineSwitcher,
     reason: (context, visible) => visibilityReason(
@@ -322,6 +331,7 @@ const FRAME_PREVIEW_PANEL_REGISTRY_ENTRIES: readonly PreviewPanelRegistryEntry[]
   {
     id: 'grid-controls',
     owner: 'viewer-unified.html#grid-controls-section',
+    visibilityPlaceholder: '%GRID_CONTROLS_HIDDEN%',
     group: 'layout',
     isVisible: gridControlsVisible,
     reason: (_context, visible) => visibilityReason(
@@ -333,6 +343,7 @@ const FRAME_PREVIEW_PANEL_REGISTRY_ENTRIES: readonly PreviewPanelRegistryEntry[]
   {
     id: 'layout-params',
     owner: 'viewer-unified.html#layout-params-section',
+    visibilityPlaceholder: '%LAYOUT_PARAMS_SECTION_HIDDEN%',
     group: 'engine',
     isVisible: layoutParamsVisible,
     reason: (_context, visible) => visibilityReason(
@@ -344,6 +355,7 @@ const FRAME_PREVIEW_PANEL_REGISTRY_ENTRIES: readonly PreviewPanelRegistryEntry[]
   {
     id: 'grid-overrides',
     owner: 'viewer-unified.html#document-actions-section',
+    visibilityPlaceholder: '%GRID_OVERRIDES_HIDDEN%',
     group: 'document',
     isVisible: frameDocumentActionsVisible,
     reason: (_context, visible) => visibilityReason(
@@ -355,6 +367,7 @@ const FRAME_PREVIEW_PANEL_REGISTRY_ENTRIES: readonly PreviewPanelRegistryEntry[]
   {
     id: 'grid-constraints',
     owner: 'viewer-unified.html#constraints-section',
+    visibilityPlaceholder: '%GRID_CONSTRAINTS_HIDDEN%',
     group: 'diagnostics',
     isVisible: constraintDiagnosticsVisible,
     reason: (_context, visible) => visibilityReason(
@@ -366,6 +379,7 @@ const FRAME_PREVIEW_PANEL_REGISTRY_ENTRIES: readonly PreviewPanelRegistryEntry[]
   {
     id: 'grid-guide-badge',
     owner: 'viewer-unified.html#guide-badge',
+    visibilityPlaceholder: '%GRID_GUIDE_BADGE_HIDDEN%',
     isVisible: gridControlsVisible,
     reason: (_context, visible) => visibilityReason(
       visible,
@@ -379,6 +393,7 @@ const FORCE_PREVIEW_PANEL_REGISTRY_ENTRIES: readonly PreviewPanelRegistryEntry[]
   {
     id: 'force-nodes-tab',
     owner: 'viewer-unified.html#nav-tab-nodes',
+    visibilityPlaceholder: '%FORCE_NODES_TAB_HIDDEN%',
     isVisible: forceNodesVisible,
     reason: (_context, visible) => visibilityReason(
       visible,
@@ -389,6 +404,7 @@ const FORCE_PREVIEW_PANEL_REGISTRY_ENTRIES: readonly PreviewPanelRegistryEntry[]
   {
     id: 'force-nodes-pane',
     owner: 'viewer-unified.html#nav-pane-nodes',
+    visibilityPlaceholder: '%FORCE_NODES_PANE_HIDDEN%',
     isVisible: forceNodesVisible,
     reason: (_context, visible) => visibilityReason(
       visible,
@@ -399,6 +415,7 @@ const FORCE_PREVIEW_PANEL_REGISTRY_ENTRIES: readonly PreviewPanelRegistryEntry[]
   {
     id: 'force-solver',
     owner: 'viewer-unified.html#force-solver-section',
+    visibilityPlaceholder: '%FORCE_SOLVER_HIDDEN%',
     group: 'engine',
     isVisible: forceSimulationVisible,
     reason: (_context, visible) => visibilityReason(
@@ -410,6 +427,7 @@ const FORCE_PREVIEW_PANEL_REGISTRY_ENTRIES: readonly PreviewPanelRegistryEntry[]
   {
     id: 'force-simulation',
     owner: 'viewer-unified.html#force-simulation-section',
+    visibilityPlaceholder: '%FORCE_SIMULATION_HIDDEN%',
     group: 'engine',
     isVisible: () => false,
     reason: (_context, visible) => visibilityReason(
@@ -421,6 +439,7 @@ const FORCE_PREVIEW_PANEL_REGISTRY_ENTRIES: readonly PreviewPanelRegistryEntry[]
   {
     id: 'force-guidance',
     owner: 'viewer-unified.html#force-guidance-section',
+    visibilityPlaceholder: '%FORCE_GUIDANCE_HIDDEN%',
     group: 'diagnostics',
     isVisible: (context) => matchesPreviewShellMode(context, 'force'),
     reason: (_context, visible) => visibilityReason(
@@ -460,4 +479,17 @@ export function resolvePreviewVisibleTemplateSections(
     .filter((entry) => entry.visible)
     .map((entry) => entry.id);
   return [...new Set(visibleSections)];
+}
+
+export function resolvePreviewTemplateSectionVisibilityPlaceholders(
+  registry: readonly PreviewPanelRegistryEntry[] = PREVIEW_PANEL_REGISTRY,
+): PreviewTemplateSectionVisibilityPlaceholder[] {
+  return registry
+    .filter((entry): entry is PreviewPanelRegistryEntry & { visibilityPlaceholder: string } =>
+      typeof entry.visibilityPlaceholder === 'string' && entry.visibilityPlaceholder.length > 0,
+    )
+    .map((entry) => ({
+      section: entry.id,
+      placeholder: entry.visibilityPlaceholder,
+    }));
 }

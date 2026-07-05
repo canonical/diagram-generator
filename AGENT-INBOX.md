@@ -282,11 +282,19 @@ Resolved in this pass:
    `PANEL_ELEMENT_IDS` table, and a regression proves a synthetic panel id can
    bind without new runtime plumbing.
 
+3. **Medium (host-viewer portion) - builtin viewers no longer duplicate the
+   section-visibility placeholder table.**
+   `resolvePreviewTemplateSectionVisibilityPlaceholders()` now derives the
+   `%..._HIDDEN%` mapping from the typed preview panel registry, and both
+   builtin host viewer definitions consume that shared helper instead of
+   carrying their own copied `sectionVisibilityPlaceholders` arrays. Coverage
+   now locks the placeholder list at the registry layer.
+
 Explicitly deferred residual:
 
-- **Host-template section provisioning is still not registration-only.** The
-  actual DOM placeholders / section shells still live in `viewer-unified.html`
-  and the host viewer definitions, so do not overclaim spec 073 as fully
-  closing that deeper template-registration seam during adversarial review.
-  Treat it as follow-up work if and when new lane families or host templates
-  need to register panels end-to-end.
+- **Host-template section provisioning is still not fully registration-only.**
+  The actual DOM placeholders / section shells still live in
+  `viewer-unified.html`, so do not overclaim spec 073 as fully closing that
+  deeper template-registration seam during adversarial review. Treat it as
+  follow-up work if and when new lane families or host templates need to
+  register panels end-to-end.

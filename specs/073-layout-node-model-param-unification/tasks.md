@@ -95,10 +95,19 @@
       regression that proves synthetic panel ids no longer need central runtime
       plumbing.
 - [x] T065 **DEFERRED (explicit residual):** full host-template section
-      provisioning is still not registration-only. `viewer-unified.html` and the
-      host viewer definitions still own the actual section placeholders / DOM
-      shells for real panels, so do not claim spec 073 fully closes that deeper
-      template-registration seam during this review phase.
+      provisioning is still not registration-only. `viewer-unified.html` still
+      owns the actual section placeholders / DOM shells for real panels, so do
+      not claim spec 073 fully closes that deeper template-registration seam
+      during this review phase.
+
+## Phase 6d: Third-pass review follow-up
+
+- [x] T066 Move the preview host `sectionVisibilityPlaceholders` table into the
+      typed preview panel registry so the builtin frame + force host viewers no
+      longer duplicate the same section/placeholder mapping.
+- [x] T067 Add a regression proving the typed preview panel registry remains the
+      single source of truth for builtin template-section visibility
+      placeholders.
 
 ## Decision gate / deferred
 
