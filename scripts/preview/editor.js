@@ -1,13 +1,13 @@
 "use strict";
 const SLUG = window.__DG_CONFIG.slug;
 const ACTIVE_LAYOUT_ENGINE = window.__DG_CONFIG.engine || "v3";
-const SHELL_MODE = window.__DG_CONFIG.shell_mode || "grid";
+const SHELL_MODE = window.__DG_CONFIG.shell_mode || "frame";
 const GRID = window.__DG_CONFIG.grid;
 const INSET = window.__DG_CONFIG.inset;
 const FALLBACK_GAP = window.__DG_CONFIG.col_gap || 24;
 
-if (SHELL_MODE !== "grid") {
-  throw new Error("preview/editor.js only supports the grid preview shell");
+if (SHELL_MODE !== "grid" && SHELL_MODE !== "frame") {
+  throw new Error("preview/editor.js only supports the frame preview shell");
 }
 
 // ---- Component model, interaction manager & constraints ----

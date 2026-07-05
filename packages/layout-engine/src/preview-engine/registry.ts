@@ -6,6 +6,7 @@ import type {
   PreviewEngineContext,
   PreviewEngineManifest,
 } from './types.js';
+import { normalizePreviewShellMode } from './shell-mode.js';
 
 const previewEngineRegistry: PreviewEngineManifest[] = [];
 
@@ -16,7 +17,15 @@ export function registerPreviewEngine(manifest: PreviewEngineManifest): () => vo
   if (previewEngineRegistry.some((entry) => entry.id === manifest.id)) {
     throw new Error(`Preview engine '${manifest.id}' is already registered`);
   }
-  previewEngineRegistry.push(manifest);
+  const normalizedShellMode = normalizePreviewShellMode(manifest.shellMode) ?? manifest.shellMode;
+  previewEngineRegistry.push(
+    normalizedShellMode === manifest.shellMode
+      ? manifest
+      : {
+          ...manifest,
+          shellMode: normalizedShellMode,
+        },
+  );
   return () => {
     const index = previewEngineRegistry.findIndex((entry) => entry.id === manifest.id);
     if (index >= 0) {
@@ -233,11 +242,12 @@ export function evaluatePreviewEngineCompatibility(
   options: CompatibilityEvaluationOptions = {},
 ): CompatibilityResult {
   const mode = options.mode ?? 'offer';
-  const shellMode = context.shellMode ?? null;
-  if (shellMode && engine.shellMode !== shellMode) {
+  const shellMode = normalizePreviewShellMode(context.shellMode ?? null);
+  const engineShellMode = normalizePreviewShellMode(engine.shellMode);
+  if (shellMode && engineShellMode && engineShellMode !== shellMode) {
     return {
       compatible: false,
-      reason: `Engine requires shell mode '${engine.shellMode}' but document uses '${shellMode}'`,
+      reason: `Engine requires shell mode '${engineShellMode}' but document uses '${shellMode}'`,
     };
   }
 

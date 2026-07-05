@@ -88,7 +88,7 @@ describe('defineGraphLayoutPreviewEngine', () => {
       id: 'contract-graph',
       label: 'Contract graph layout',
       layoutEngineKey: 'contract-graph',
-      shellMode: 'grid',
+      shellMode: 'frame',
       renderFamily: 'frame-contract-graph',
       hostView: {
         sidebarSections: ['layout-params'],

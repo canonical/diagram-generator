@@ -653,10 +653,18 @@ test("force viewer hides grid and ELK sections", () => {
   });
 
   const html = route.buildHtml("force-stakeholders");
+  const controlsIndex = html.indexOf('/preview/layout-params-controls.js');
+  const controllerIndex = html.indexOf('/preview/layout-params-controller.js');
+  const forceIndex = html.indexOf('/preview/force.js');
   assert.match(html, /id="grid-controls-section" hidden/);
-  assert.match(html, /id="layout-params-section" hidden/);
+  assert.match(html, /id="layout-params-section" >/);
   assert.match(html, /id="force-solver-section" >/);
-  assert.match(html, /id="force-simulation-section" >/);
+  assert.match(html, /id="force-simulation-section" hidden/);
+  assert.notEqual(controlsIndex, -1);
+  assert.notEqual(controllerIndex, -1);
+  assert.notEqual(forceIndex, -1);
+  assert.ok(controlsIndex < forceIndex);
+  assert.ok(controllerIndex < forceIndex);
 });
 
 test("static viewer chrome exposes stable right-aside panel groups", () => {
@@ -2365,7 +2373,7 @@ function contextualAsideTemplate(): string {
     '<section id="grid-controls-section" %GRID_CONTROLS_HIDDEN%><div id="grid-controls"></div></section>',
     '<section id="layout-params-section" %LAYOUT_PARAMS_SECTION_HIDDEN%><div id="layout-params-controls"></div></section>',
     '<section id="force-solver-section" %FORCE_SOLVER_HIDDEN%>force solver</section>',
-    '<section id="force-simulation-section" %FORCE_SIMULATION_HIDDEN%><div id="force-params"></div></section>',
+    '<section id="force-simulation-section" %FORCE_SIMULATION_HIDDEN%><p>legacy force pane</p></section>',
     '%MODE_SCRIPTS%',
   ].join('\n');
 }

@@ -10,6 +10,7 @@ import {
   PREVIEW_ASIDE_PANEL_GROUPS,
   PREVIEW_PANEL_REGISTRY,
   hasInvalidPreviewPersistedLayoutEngine,
+  registerPreviewPanelRegistryEntries,
   resolvePreviewPanelVisibility,
   resolvePreviewVisibleTemplateSections,
   shouldShowPreviewEngineSwitcher,
@@ -161,6 +162,53 @@ describe('preview UI context registry', () => {
     expect(visibleSections(context).has('grid-engine-switcher')).toBe(true);
   });
 
+  it('accepts both grid and frame shell names for frame-lane panel visibility', () => {
+    const frameVisible = visibleSections({
+      shellMode: 'frame',
+      documentKind: 'frame-diagram',
+      activeEngine: ELK_LAYERED_PREVIEW_ENGINE,
+      compatibleEngines: ['v3', 'elk-layered'],
+      persistedLayoutEngine: 'elk-layered',
+    });
+    const gridVisible = visibleSections({
+      shellMode: 'grid',
+      documentKind: 'frame-diagram',
+      activeEngine: ELK_LAYERED_PREVIEW_ENGINE,
+      compatibleEngines: ['v3', 'elk-layered'],
+      persistedLayoutEngine: 'elk-layered',
+    });
+
+    expect(frameVisible).toEqual(gridVisible);
+    expect(frameVisible.has('layout-params')).toBe(true);
+  });
+
+  it('shows panels from a registered shell lane without editing the builtin panel list', () => {
+    const unregister = registerPreviewPanelRegistryEntries([
+      {
+        id: 'synthetic-lane-panel',
+        owner: 'synthetic-owner',
+        group: 'diagnostics',
+        isVisible: (context) => context.shellMode === 'synthetic-lane',
+        reason: (_context, visible) => visible
+          ? 'synthetic lane contributed its own panel'
+          : 'synthetic lane panel hidden',
+      },
+    ]);
+
+    try {
+      const visible = visibleSections({
+        shellMode: 'synthetic-lane',
+        documentKind: 'synthetic-doc',
+      });
+      expect(visible.has('synthetic-lane-panel')).toBe(true);
+      expect(PREVIEW_PANEL_REGISTRY.some((entry) => entry.id === 'synthetic-lane-panel')).toBe(true);
+    } finally {
+      unregister();
+    }
+
+    expect(PREVIEW_PANEL_REGISTRY.some((entry) => entry.id === 'synthetic-lane-panel')).toBe(false);
+  });
+
   it('accepts the typed engine workspace as the engine source of truth', () => {
     const context: PreviewUiContext = {
       shellMode: 'grid',
@@ -219,10 +267,10 @@ describe('preview UI context registry', () => {
     expect(visible.has('force-nodes-tab')).toBe(true);
     expect(visible.has('force-nodes-pane')).toBe(true);
     expect(visible.has('force-solver')).toBe(true);
-    expect(visible.has('force-simulation')).toBe(true);
+    expect(visible.has('force-simulation')).toBe(false);
     expect(visible.has('force-guidance')).toBe(true);
     expect(visible.has('grid-controls')).toBe(false);
-    expect(visible.has('layout-params')).toBe(false);
+    expect(visible.has('layout-params')).toBe(true);
   });
 
   it('hides frame editing panels for sequence output-only documents', () => {

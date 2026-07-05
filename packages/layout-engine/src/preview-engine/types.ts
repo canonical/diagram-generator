@@ -10,7 +10,7 @@ import type {
   LayeredCorpusFamily,
 } from '@diagram-generator/graph-layout-core';
 
-export type PreviewShellMode = 'grid' | 'force' | (string & {});
+export type PreviewShellMode = 'frame' | 'grid' | 'force' | (string & {});
 export type PreviewDocumentKind = 'frame-diagram' | 'sequence' | 'force-spec' | (string & {});
 export type PreviewPersistNamespace = string;
 export type PreviewViewerSidebarSection =

@@ -31,6 +31,7 @@ import {
   type LayoutOperatorOverrideState,
 } from './layout-operator-overrides.js';
 import { resolvePreviewEngine } from '../preview-engine/registry.js';
+import { FRAME_PREVIEW_SHELL_MODE } from '../preview-engine/shell-mode.js';
 import { commitPreviewSwitchNode } from './preview-switch-node.js';
 
 export interface PreviewGridEditorRuntimeNumericState {
@@ -612,7 +613,7 @@ export function createPreviewGridEditorRuntimeFromBrowserHost(
             }
             const manifest = resolvePreviewEngine({
               layoutEngine: tree?.layoutEngine ?? null,
-              shellMode: 'grid',
+              shellMode: FRAME_PREVIEW_SHELL_MODE,
             });
             if (manifest) {
               activateLayoutOperatorOverrideBucket(options.shared.model, manifest, {

@@ -1,4 +1,5 @@
 import { FORCE_PREVIEW_PARAM_SPECS } from './force-param-registry.js';
+import { FRAME_PREVIEW_SHELL_MODE } from './shell-mode.js';
 import type { PreviewEngineManifest } from './types.js';
 import {
   installNativeFramePreviewRenderAdapter,
@@ -74,7 +75,7 @@ export const V3_PREVIEW_ENGINE: PreviewEngineManifest = {
   id: 'v3',
   label: 'Autolayout',
   layoutEngineKey: 'v3',
-  shellMode: 'grid',
+  shellMode: FRAME_PREVIEW_SHELL_MODE,
   renderFamily: 'frame-native',
   hostView: {
     sidebarSections: [],
@@ -104,10 +105,10 @@ export const FORCE_PREVIEW_ENGINE: PreviewEngineManifest = {
   shellMode: 'force',
   renderFamily: 'force',
   hostView: {
-    sidebarSections: [],
+    sidebarSections: ['layout-params'],
   },
   capabilities: {
-    layoutControls: false,
+    layoutControls: true,
     localRelayout: true,
     serverRelayout: false,
     engineBackedSave: true,
@@ -118,7 +119,7 @@ export const FORCE_PREVIEW_ENGINE: PreviewEngineManifest = {
     rawDebugView: false,
   },
   controlSpecs: FORCE_PREVIEW_PARAM_SPECS,
-  scripts: ['force.js'],
+  scripts: ['layout-params-controls.js', 'layout-params-controller.js', 'force.js'],
   apiRoutes: {
     save: '/api/force-save/{slug}',
     spec: '/api/force-spec/{slug}',
@@ -133,7 +134,7 @@ export const SEQUENCE_PREVIEW_ENGINE: PreviewEngineManifest = {
   id: 'sequence',
   label: 'Sequence layout',
   layoutEngineKey: 'sequence',
-  shellMode: 'grid',
+  shellMode: FRAME_PREVIEW_SHELL_MODE,
   renderFamily: 'sequence',
   hostView: {
     sidebarSections: [],

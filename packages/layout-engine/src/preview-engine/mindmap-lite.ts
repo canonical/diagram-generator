@@ -5,6 +5,7 @@ import type {
 import { registerPreviewDocumentSvgRenderer } from './render.js';
 import { registerPreviewEngine } from './registry.js';
 import type { PreviewEngineManifest } from './types.js';
+import { FRAME_PREVIEW_SHELL_MODE } from './shell-mode.js';
 
 export interface MindmapLiteDocumentData {
   root: string;
@@ -16,7 +17,7 @@ export interface MindmapLitePreviewDocument extends PreviewRenderableDocument {
   slug: string;
   title: string;
   layoutEngine: string;
-  shellMode: 'grid';
+  shellMode: 'frame';
   mindmap: MindmapLiteDocumentData;
 }
 
@@ -24,7 +25,7 @@ export const MINDMAP_LITE_PREVIEW_ENGINE: PreviewEngineManifest = {
   id: 'mindmap-tree',
   label: 'Mindmap tree',
   layoutEngineKey: 'mindmap-tree',
-  shellMode: 'grid',
+  shellMode: FRAME_PREVIEW_SHELL_MODE,
   hostView: {
     sidebarSections: [],
   },

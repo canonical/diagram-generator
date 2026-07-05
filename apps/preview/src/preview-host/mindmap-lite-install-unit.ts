@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 
 import {
+  FRAME_PREVIEW_SHELL_MODE,
   renderPreviewDocumentToSvg,
   type MindmapLitePreviewDocument,
   type PreviewEngineContext,
@@ -74,7 +75,7 @@ function parseMindmapLitePreviewDocument(
     slug,
     title,
     layoutEngine: authoredLayoutEngine,
-    shellMode: "grid",
+    shellMode: FRAME_PREVIEW_SHELL_MODE,
     mindmap: {
       root: root.trim(),
       children,
@@ -238,7 +239,7 @@ export const MINDMAP_LITE_FRAME_YAML_HANDLER: FrameYamlDocumentKindHandler = {
   },
   resolvePreviewEngineResolution(slug, _deps, previewDocument, normalizeLayoutEngine) {
     const compatibleContext: Omit<PreviewEngineContext, "layoutEngine"> = {
-      shellMode: "grid",
+      shellMode: FRAME_PREVIEW_SHELL_MODE,
       previewDocumentKind: "mindmap-lite",
     };
     const authoredLayoutEngine = normalizeLayoutEngine(

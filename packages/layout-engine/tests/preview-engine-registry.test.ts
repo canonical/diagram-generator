@@ -95,6 +95,7 @@ describe('preview-engine registry', () => {
     expect(listPreviewEnginesBySidebarSection('layout-params').map((entry) => entry.id)).toEqual([
       ...ELK_ENGINE_IDS,
       'dagre',
+      'force',
     ]);
     expect(ELK_FORCE_PREVIEW_ENGINE.controlSpecs.map((spec) => spec.key).sort()).toEqual(
       ELK_FORCE_PARAM_SPECS.map((spec) => spec.key).sort(),
@@ -126,6 +127,13 @@ describe('preview-engine registry', () => {
   it('exposes force simulation/render control specs', () => {
     expect(FORCE_PREVIEW_PARAM_SPECS.some((spec) => spec.key === 'link_distance')).toBe(true);
     expect(FORCE_PREVIEW_ENGINE.controlSpecs).toEqual(FORCE_PREVIEW_PARAM_SPECS);
+    expect(FORCE_PREVIEW_ENGINE.hostView?.sidebarSections ?? []).toEqual(['layout-params']);
+    expect(FORCE_PREVIEW_ENGINE.capabilities.layoutControls).toBe(true);
+    expect(FORCE_PREVIEW_ENGINE.scripts).toEqual([
+      'layout-params-controls.js',
+      'layout-params-controller.js',
+      'force.js',
+    ]);
     expect(FORCE_PREVIEW_ENGINE.apiRoutes?.save).toBe('/api/force-save/{slug}');
     expect(FORCE_PREVIEW_ENGINE.apiRoutes?.spec).toBe('/api/force-spec/{slug}');
     expect(FORCE_PREVIEW_ENGINE.apiRoutes?.params).toBeUndefined();
@@ -148,6 +156,17 @@ describe('preview-engine registry', () => {
     expect(resolvePreviewEngine({ layoutEngine: 'dagre' })?.id).toBe('dagre');
     expect(resolvePreviewEngine({ shellMode: 'force' })?.id).toBe('force');
     expect(resolvePreviewEngine({ shellMode: 'grid', layoutEngine: 'vertical-stack' })).toBeUndefined();
+  });
+
+  it('treats legacy grid and canonical frame shell names as the same frame lane', () => {
+    const context = {
+      previewDocumentKind: 'frame-diagram' as const,
+      frameDiagramSummary: { arrowCount: 1, unsupportedElkCarrierIds: [] },
+    };
+
+    expect(resolvePreviewEngine({ ...context, shellMode: 'frame' })?.id).toBe('v3');
+    expect(resolvePreviewEngine({ ...context, shellMode: 'grid' })?.id).toBe('v3');
+    expect(V3_PREVIEW_ENGINE.shellMode).toBe('frame');
   });
 
   it('defaults blank frame-diagram docs to native v3 and offers non-rectpacking graph engines as alternatives', () => {
@@ -252,7 +271,7 @@ describe('preview-engine registry', () => {
     expect(ELK_RADIAL_PREVIEW_ENGINE.hostView?.sidebarSections ?? []).toEqual(['layout-params']);
     expect(ELK_RECTPACKING_PREVIEW_ENGINE.hostView?.sidebarSections ?? []).toEqual(['layout-params']);
     expect(DAGRE_PREVIEW_ENGINE.hostView?.sidebarSections ?? []).toEqual(['layout-params']);
-    expect(FORCE_PREVIEW_ENGINE.hostView?.sidebarSections ?? []).toEqual([]);
+    expect(FORCE_PREVIEW_ENGINE.hostView?.sidebarSections ?? []).toEqual(['layout-params']);
     expect(SEQUENCE_PREVIEW_ENGINE.hostView?.sidebarSections ?? []).toEqual([]);
     expect(V3_PREVIEW_ENGINE.capabilities.localRelayout).toBe(true);
     expect(V3_PREVIEW_ENGINE.capabilities.gridEditing).toBe(true);
@@ -267,6 +286,7 @@ describe('preview-engine registry', () => {
     expect(DAGRE_PREVIEW_ENGINE.capabilities.serverRelayout).toBe(true);
     expect(DAGRE_PREVIEW_ENGINE.capabilities.localRelayout).toBe(false);
     expect(FORCE_PREVIEW_ENGINE.capabilities.localRelayout).toBe(true);
+    expect(FORCE_PREVIEW_ENGINE.capabilities.layoutControls).toBe(true);
     expect(FORCE_PREVIEW_ENGINE.capabilities.simulationControls).toBe(true);
     expect(SEQUENCE_PREVIEW_ENGINE.capabilities.localRelayout).toBe(true);
     expect(SEQUENCE_PREVIEW_ENGINE.capabilities.nodeInspector).toBe(false);
@@ -388,6 +408,15 @@ describe('preview-engine registry', () => {
     for (const entry of results.slice(2)) {
       expect(entry.compatibility.compatible).toBe(false);
       expect(entry.compatibility.reason).toBeDefined();
+    }
+  });
+
+  it('does not expose an algorithmFamily field on the preview-engine manifest surface', () => {
+    for (const manifest of listPreviewEngines()) {
+      expect('algorithmFamily' in (manifest as Record<string, unknown>)).toBe(false);
+    }
+    for (const manifest of serializePreviewEngineManifest()) {
+      expect('algorithmFamily' in (manifest as Record<string, unknown>)).toBe(false);
     }
   });
 

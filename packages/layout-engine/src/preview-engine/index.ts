@@ -22,6 +22,13 @@ export type {
 } from './types.js';
 
 export {
+  FORCE_PREVIEW_SHELL_MODE,
+  FRAME_PREVIEW_SHELL_MODE,
+  LEGACY_GRID_PREVIEW_SHELL_MODE,
+  isFramePreviewShellMode,
+  normalizePreviewShellMode,
+} from './shell-mode.js';
+export {
   dagreParamToPreviewControl,
   dagrePreviewControlSpecs,
 } from './dagre-controls.js';

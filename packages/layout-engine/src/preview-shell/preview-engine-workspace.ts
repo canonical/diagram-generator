@@ -1,4 +1,5 @@
 import type { PreviewEngineManifest } from '../preview-engine/types.js';
+import { FRAME_PREVIEW_SHELL_MODE } from '../preview-engine/shell-mode.js';
 
 export type PreviewEngineWorkspaceEngine = Pick<
   PreviewEngineManifest,
@@ -81,7 +82,7 @@ function createFallbackWorkspaceEngine(engineId: string): PreviewEngineWorkspace
     id: engineId,
     label: engineId,
     layoutEngineKey: engineId,
-    shellMode: 'grid',
+    shellMode: FRAME_PREVIEW_SHELL_MODE,
     capabilities: {
       layoutControls: false,
       localRelayout: false,

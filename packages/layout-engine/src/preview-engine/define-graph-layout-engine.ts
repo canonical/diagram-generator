@@ -11,6 +11,7 @@ import type { PreviewFrameDiagramRenderAdapter } from './render.js';
 import { registerPreviewFrameDiagramRenderAdapter } from './render.js';
 import { registerPreviewEngine } from './registry.js';
 import type { PreviewEngineInstallUnit } from './install-units.js';
+import { FRAME_PREVIEW_SHELL_MODE } from './shell-mode.js';
 
 export interface GraphLayoutPreviewEngineDefinition {
   /** Manifest identity (e.g. 'elk-force'). */
@@ -71,7 +72,7 @@ function buildManifest(def: GraphLayoutPreviewEngineDefinition): PreviewEngineMa
     id: def.id,
     label: def.label,
     layoutEngineKey: def.layoutEngineKey,
-    shellMode: 'grid',
+    shellMode: FRAME_PREVIEW_SHELL_MODE,
     renderFamily: def.renderFamily,
     hostView: {
       sidebarSections: def.sidebarSections ?? [],

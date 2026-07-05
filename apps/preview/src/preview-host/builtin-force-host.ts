@@ -2,6 +2,7 @@ import {
   ARROW_HEAD_HALF_WIDTH,
   ARROW_HEAD_LENGTH,
   BODY_LINE_STEP,
+  FORCE_PREVIEW_SHELL_MODE,
   INSET,
   resolvePreviewVisibleTemplateSections,
   resolvePreviewEngine,
@@ -153,13 +154,21 @@ export function createForcePreviewHostViewerRoute(
         documentKind: "force-spec",
         activeEngine: engineManifest ?? null,
       });
-      const configScript = buildPreviewWindowConfigScript("__DG_FORCE_CONFIG", {
+      const configPayload = {
         slug,
+        engine: engineManifest?.id ?? "force",
+        shell_mode: FORCE_PREVIEW_SHELL_MODE,
+        document_kind: "force-spec",
+        layout_engine: engineManifest?.layoutEngineKey ?? engineManifest?.id ?? "force",
         inset: deps.inset ?? INSET,
         body_line_step: deps.bodyLineStep ?? BODY_LINE_STEP,
         head_len: deps.headLength ?? ARROW_HEAD_LENGTH,
         head_half: deps.headHalfWidth ?? ARROW_HEAD_HALF_WIDTH,
-      });
+      };
+      const configScript = [
+        buildPreviewWindowConfigScript("__DG_CONFIG", configPayload),
+        buildPreviewWindowConfigScript("__DG_FORCE_CONFIG", configPayload),
+      ].join("\n");
       const modeScripts = buildPreviewModeScriptsHtml({
         previewAssetUrl: deps.previewAssetUrl,
         coreScripts: ["layout-engine.js", "save-client.js"],

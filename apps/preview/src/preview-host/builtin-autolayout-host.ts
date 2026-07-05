@@ -4,6 +4,7 @@ import {
   ARROW_HEAD_HALF_WIDTH,
   ARROW_HEAD_LENGTH,
   createPreviewEngineWorkspaceState,
+  FRAME_PREVIEW_SHELL_MODE,
   getPreviewEngineByLayoutKey,
   GRID_GUTTER,
   ICON_SIZE,
@@ -272,7 +273,7 @@ export function createAutolayoutPreviewHostViewerRoute(
         persistedEngineId: authoredLayoutEngine,
       });
       const previewUiContext = {
-        shellMode: "grid" as const,
+        shellMode: FRAME_PREVIEW_SHELL_MODE,
         documentKind,
         engineWorkspace,
         activeEngine: engineWorkspace.activeEngine ?? engineManifest ?? null,
@@ -286,7 +287,7 @@ export function createAutolayoutPreviewHostViewerRoute(
       const configScript = buildPreviewWindowConfigScript("__DG_CONFIG", {
         slug,
         engine: engineWorkspace.activeEngine?.id ?? (engineManifest?.id ?? (activeLayoutEngine || "v3")),
-        shell_mode: "grid",
+        shell_mode: FRAME_PREVIEW_SHELL_MODE,
         document_kind: documentKind,
         layout_engine: activeLayoutEngine,
         active_engine_id: engineWorkspace.activeEngineId,

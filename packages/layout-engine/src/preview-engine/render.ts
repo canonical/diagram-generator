@@ -4,6 +4,7 @@ import type { LayoutOutput } from '../layout.js';
 import type { SequenceDiagramSpec } from '../sequence-layout/model.js';
 import type { TextMeasureAdapter } from '../text-measure.js';
 import { listCompatiblePreviewEngines } from './registry.js';
+import { FRAME_PREVIEW_SHELL_MODE } from './shell-mode.js';
 import type {
   PreviewDocumentKind,
   PreviewEngineManifest,
@@ -143,7 +144,7 @@ export function resolvePreviewDocumentLayoutEngineFallback(
     return null;
   }
   const compatible = listCompatiblePreviewEngines({
-    shellMode: 'grid',
+    shellMode: FRAME_PREVIEW_SHELL_MODE,
     previewDocumentKind: kind,
   });
   if (compatible.length !== 1) {

@@ -3,6 +3,7 @@ import path from "node:path";
 
 import {
   evaluatePreviewEngineCompatibility,
+  FRAME_PREVIEW_SHELL_MODE,
   getPreviewEngineByLayoutKey,
   type PreviewEngineContext,
 } from "@diagram-generator/layout-engine";
@@ -58,7 +59,7 @@ export function saveFramePreviewDocument(
 
       const contextValue: PreviewEngineContext = {
         layoutEngine: normalizedRequested,
-        shellMode: "grid",
+        shellMode: FRAME_PREVIEW_SHELL_MODE,
         previewDocumentKind: documentKind,
         frameDiagramSummary: resolution.compatibleContext.frameDiagramSummary,
       };

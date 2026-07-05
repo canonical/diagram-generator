@@ -12,6 +12,14 @@ function forcePreviewEngine() {
   return window.LayoutEngine?.previewEngines?.registry?.getPreviewEngine?.("force") ?? null;
 }
 
+function previewEngineLayoutControls() {
+  return window.PreviewEngineLayoutControls ?? null;
+}
+
+function previewEngineShellController() {
+  return window.PreviewEngineShellController ?? null;
+}
+
 function forceParamSpec(key) {
   const specs = forcePreviewEngine()?.controlSpecs;
   if (!Array.isArray(specs)) return null;
@@ -110,34 +118,60 @@ async function loadLocalForceSnapshot() {
   return createInitialForceSnapshot(spec);
 }
 
-function applyForceParamMetadata() {
-  const container = document.getElementById("force-params");
-  if (!container) return;
-  for (const input of container.querySelectorAll("[data-force-param]")) {
-    const key = input.getAttribute("data-force-param");
-    const spec = key ? forceParamSpec(key) : null;
-    if (!spec) continue;
-    if (spec.min != null) input.setAttribute("min", String(spec.min));
-    if (spec.max != null) input.setAttribute("max", String(spec.max));
-    if (spec.step != null) input.setAttribute("step", String(spec.step));
-    if (spec.defaultValue != null && !input.hasAttribute("value")) {
-      input.setAttribute("value", String(spec.defaultValue));
-    }
-    const label = container.querySelector(`label[for="${input.id}"]`);
-    if (label && spec.label) {
-      label.textContent = spec.label;
-    }
+function readSharedForceOverrides(snapshot = committedSnapshot) {
+  const params = snapshot?.simulation?.params || {};
+  const render = snapshot?.render || {};
+  return {
+    ...(typeof params === "object" && params ? params : {}),
+    ...(typeof render === "object" && render ? { curve_handle_ratio: render.curve_handle_ratio } : {}),
+  };
+}
+
+function applySharedForceOverrides(nextOverrides) {
+  if (!committedSnapshot) {
+    throw new Error("Force snapshot is not loaded");
   }
+  const updateForceSimulationParams = requireForceRuntimeMethod("updateForceSimulationParams");
+  const snapshot = updateForceSimulationParams(committedSnapshot, nextOverrides);
+  render(snapshot);
+  updateLocalRuntimeControls();
+  if (!running) {
+    startRunning();
+  }
+  return snapshot;
+}
+
+function refreshSharedForceParamPane() {
+  previewEngineLayoutControls()?.refresh?.();
+}
+
+function initializeSharedForceParamPane() {
+  const controls = previewEngineLayoutControls();
+  controls?.init?.({
+    getOverrides: () => readSharedForceOverrides(),
+    setOverrides: (value) => {
+      applySharedForceOverrides(value || {});
+    },
+  });
+  const controller = previewEngineShellController();
+  controller?.init?.({
+    getLayoutOverrides: () => readSharedForceOverrides(),
+    setLayoutOverrides: () => {},
+    getRootId: () => "force-root",
+    requestLayoutRelayout: () => null,
+  });
+  controller?.wirePanel?.();
+  refreshSharedForceParamPane();
 }
 
 function updateLocalRuntimeControls() {
   byId("btn-play").disabled = false;
   byId("btn-step").disabled = false;
   byId("btn-force-save").disabled = !isForcePersistedStateDirty();
-  const container = document.getElementById("force-params");
+  const container = document.getElementById("layout-params-controls");
   if (!container) return;
   const canEditLocalParams = typeof forceRuntimeContract()?.updateForceSimulationParams === "function";
-  for (const input of container.querySelectorAll("input")) {
+  for (const input of container.querySelectorAll("input, select, textarea")) {
     input.disabled = !canEditLocalParams;
   }
 }
@@ -961,7 +995,6 @@ function render(snapshot, options = {}) {
   renderTree(snapshot);
   renderSelection(snapshot);
   updateSummary(snapshot);
-  updateSimulationParams(snapshot);
 
   // Show resize handles on the single selected node (unless dragging)
   if (selectedIds.size === 1 && !dragState && !resizeState) {
@@ -991,6 +1024,7 @@ async function loadSnapshot(reset = true) {
   const snapshot = await loadLocalForceSnapshot();
   render(snapshot);
   markForceStateSaved(snapshot);
+  refreshSharedForceParamPane();
   updateLocalRuntimeControls();
 }
 
@@ -1078,6 +1112,7 @@ async function saveForceOverrides() {
   render(canonicalSnapshot);
   markForceStateSaved(canonicalSnapshot);
   forceUndoManager.markSaved();
+  refreshSharedForceParamPane();
   updateLocalRuntimeControls();
   setStatus("Saved to YAML", "ok");
 }
@@ -1520,50 +1555,9 @@ byId("btn-export-svg").addEventListener("click", async () => {
 
 updateRunButton();
 
-// --- Simulation parameter sliders ---
+// --- Shared layout parameter pane ---
 
-let _paramsInitialized = false;
-
-function updateSimulationParams(snapshot) {
-  const params = snapshot.simulation && snapshot.simulation.params;
-  const render = snapshot.render || {};
-  if (!params && !render) return;
-  const container = document.getElementById("force-params");
-  if (!container) return;
-  for (const input of container.querySelectorAll("[data-force-param]")) {
-    const key = input.getAttribute("data-force-param");
-    const source = input.getAttribute("data-param-source") === "render" ? render : params;
-    if (source && key in source && source[key] != null) {
-      if (!_paramsInitialized || document.activeElement !== input) {
-        input.value = source[key];
-      }
-    }
-  }
-  _paramsInitialized = true;
-}
-
-document.getElementById("force-params").addEventListener("change", async (event) => {
-  const input = event.target.closest("[data-force-param]");
-  if (!input) return;
-  const key = input.getAttribute("data-force-param");
-  const value = parseFloat(input.value);
-  if (isNaN(value)) return;
-  try {
-    if (!committedSnapshot) {
-      throw new Error("Force snapshot is not loaded");
-    }
-    const updateForceSimulationParams = requireForceRuntimeMethod("updateForceSimulationParams");
-    const snapshot = updateForceSimulationParams(committedSnapshot, { [key]: value });
-    render(snapshot);
-    updateLocalRuntimeControls();
-    if (!running) startRunning();
-    setStatus(`${key} → ${value}`, "ok");
-  } catch (error) {
-    setStatus(error.message || "Param update failed", "error");
-  }
-});
-
-applyForceParamMetadata();
+initializeSharedForceParamPane();
 loadSnapshot(true)
   .then(() => {
     startRunning({ persist: false });

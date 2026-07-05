@@ -6,6 +6,7 @@ import {
   buildGridInfo,
   collectIconNames,
   compileDiagramYaml,
+  FRAME_PREVIEW_SHELL_MODE,
   layoutPreviewFrameDiagramForEngine,
   listCompatiblePreviewEngines,
   loadFrameYaml,
@@ -94,7 +95,7 @@ function sequencePreviewDocumentForSlug(slug: string, raw: string): PreviewRende
         ? compiled.ast.metadata.title
         : slug,
     layoutEngine: "sequence",
-    shellMode: "grid",
+    shellMode: FRAME_PREVIEW_SHELL_MODE,
     sequence: compiled.ast.sequence,
   } as PreviewRenderableDocument;
 }
@@ -109,7 +110,7 @@ function frameDiagramPreviewDocumentForSlug(
     slug,
     title: diagram.title,
     layoutEngine: diagram.layoutEngine ?? null,
-    shellMode: "grid",
+    shellMode: FRAME_PREVIEW_SHELL_MODE,
     frameTree: serializeFrameDiagram(diagram),
   } as PreviewRenderableDocument;
 }
@@ -137,7 +138,7 @@ export const SEQUENCE_FRAME_YAML_HANDLER: FrameYamlDocumentKindHandler = {
   },
   resolvePreviewEngineResolution(_slug, _deps, previewDocument) {
     const compatibleContext: Omit<PreviewEngineContext, "layoutEngine"> = {
-      shellMode: "grid",
+      shellMode: FRAME_PREVIEW_SHELL_MODE,
       previewDocumentKind: "sequence",
     };
     return {
@@ -183,7 +184,7 @@ export const FRAME_DIAGRAM_YAML_HANDLER: FrameYamlDocumentKindHandler = {
   resolvePreviewEngineResolution(slug, deps, previewDocument, normalizeLayoutEngine) {
     const diagram = loadFrameDiagram(slug, deps);
     const compatibleContext: Omit<PreviewEngineContext, "layoutEngine"> = {
-      shellMode: "grid",
+      shellMode: FRAME_PREVIEW_SHELL_MODE,
       previewDocumentKind: "frame-diagram",
       frameDiagramSummary: summarizeFrameDiagramCompatibility(diagram),
     };
@@ -337,7 +338,7 @@ export async function buildFrameDiagramState(slug: string, deps: FramePreviewRen
   const adapter = await deps.textAdapterPromise;
   const engineManifest = resolvePreviewEngine({
     layoutEngine: diagram.layoutEngine ?? null,
-    shellMode: "grid",
+    shellMode: FRAME_PREVIEW_SHELL_MODE,
     previewDocumentKind: "frame-diagram",
     frameDiagramSummary: summarizeFrameDiagramCompatibility(diagram),
   });

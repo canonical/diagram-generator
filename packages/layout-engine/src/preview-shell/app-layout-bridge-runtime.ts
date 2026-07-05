@@ -1,4 +1,5 @@
 import { resolvePreviewEngine } from '../preview-engine/registry.js';
+import { FRAME_PREVIEW_SHELL_MODE } from '../preview-engine/shell-mode.js';
 import type { ElkLayoutSnapshot } from '../elk-layout.js';
 import type { Arrow, Frame, FrameDiagram } from '../frame-model.js';
 import type { TextMeasureAdapter } from '../text-measure.js';
@@ -821,7 +822,7 @@ function resolvePreviewLayoutBridgeManifest(
   const manifest = diagram?.layoutEngine
     ? resolvePreviewEngine({
       layoutEngine: diagram.layoutEngine,
-      shellMode: 'grid',
+      shellMode: FRAME_PREVIEW_SHELL_MODE,
     }) ?? null
     : null;
   if (manifest) {
@@ -921,7 +922,7 @@ export function createPreviewLayoutBridgeInstallRuntimeFromLegacyBrowserHost<
         frameTreeJson: json as PreviewRenderIntentFrameTree | null | undefined,
         layoutEngine: (json as { layoutEngine?: string | null } | null | undefined)?.layoutEngine ?? null,
       });
-      return resolvePreviewEngine({ layoutEngine, shellMode: 'grid' }) || null;
+      return resolvePreviewEngine({ layoutEngine, shellMode: FRAME_PREVIEW_SHELL_MODE }) || null;
     },
     createTextAdapter: async () => {
       const harfbuzzModuleUrl = '/preview/layout-engine-harfbuzz.js';

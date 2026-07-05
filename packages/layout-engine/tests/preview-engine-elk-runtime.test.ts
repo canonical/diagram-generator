@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   createPreviewEngineLayoutControlsRuntime,
   createPreviewEngineShellControllerRuntime,
+  FORCE_PREVIEW_ENGINE,
 } from '../src/preview-engine/index.js';
 import { readLayoutOperatorOverrideState } from '../src/preview-shell/layout-operator-overrides.js';
 
@@ -106,6 +107,100 @@ describe('elk preview runtimes', () => {
     expect(container.innerHTML).toContain('Node spacing');
     expect(container.innerHTML).toContain('elk-raw-view-toggle');
     expect(container.innerHTML).not.toContain('Replaces BF styling');
+  });
+
+  it('resolves force params through the shared layout-params controller contract', () => {
+    const section = {
+      hidden: true,
+      querySelector() {
+        return null;
+      },
+    };
+    const container = {
+      innerHTML: '',
+      textContent: '',
+      querySelector() {
+        return null;
+      },
+      querySelectorAll() {
+        return [];
+      },
+    };
+    const previewWindow = {
+      __DG_CONFIG: {
+        layout_engine: 'force',
+        shell_mode: 'force',
+        document_kind: 'force-spec',
+      },
+    } as {
+      __DG_CONFIG: {
+        layout_engine: string;
+        shell_mode: string;
+        document_kind: string;
+      };
+      PreviewEngineLayoutControls?: unknown;
+    };
+    const registry = {
+      resolvePreviewEngine({ layoutEngine, shellMode }: { layoutEngine?: string | null; shellMode?: string | null }) {
+        return layoutEngine === 'force' && shellMode === 'force' ? FORCE_PREVIEW_ENGINE : null;
+      },
+      listPreviewEnginesBySidebarSection(sectionName: string) {
+        return sectionName === 'layout-params' ? [FORCE_PREVIEW_ENGINE] : [];
+      },
+    };
+    const controls = createPreviewEngineLayoutControlsRuntime({
+      document: {
+        getElementById(id: string) {
+          if (id === 'layout-params-section') return section as never;
+          if (id === 'layout-params-controls') return container as never;
+          return null;
+        },
+      },
+      previewWindow,
+      layoutEngineRoot: {
+        previewEngines: { registry },
+      },
+      getFrameTreeJson: null,
+    });
+    previewWindow.PreviewEngineLayoutControls = controls;
+    const controller = createPreviewEngineShellControllerRuntime({
+      document: {
+        getElementById(id: string) {
+          if (id === 'layout-params-section') {
+            return {
+              hasAttribute(name: string) {
+                return name === 'hidden' ? section.hidden : false;
+              },
+            } as never;
+          }
+          return null;
+        },
+      },
+      previewWindow,
+      layoutEngineRoot: {
+        previewEngines: { registry },
+      },
+      getFrameTreeJson: null,
+    });
+
+    controls.init({
+      getOverrides: () => ({ link_distance: 320, curve_handle_ratio: 0.4 }),
+      setOverrides: vi.fn(),
+    });
+    controller.init({
+      getLayoutOverrides: () => ({ link_distance: 320, curve_handle_ratio: 0.4 }),
+      setLayoutOverrides: vi.fn(),
+      getRootId: () => 'force-root',
+      requestLayoutRelayout: vi.fn(),
+    });
+
+    controls.buildPanel({ layoutEngine: 'force' });
+
+    expect(controller.isActiveLayoutEngine()).toBe(true);
+    expect(container.innerHTML).toContain('Link distance');
+    expect(container.innerHTML).toContain('Curve handle ratio');
+    expect(container.innerHTML).toContain('Simulation');
+    expect(container.innerHTML).toContain('Render');
   });
 
   it('builds controls from the active ELK-family engine', () => {

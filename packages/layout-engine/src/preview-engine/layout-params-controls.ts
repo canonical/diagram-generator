@@ -3,6 +3,10 @@ import type {
   PreviewEngineManifest,
 } from './types.js';
 import {
+  FRAME_PREVIEW_SHELL_MODE,
+  normalizePreviewShellMode,
+} from './shell-mode.js';
+import {
   previewControlDisplayValues,
   visiblePreviewControlSpecs,
 } from './control-specs.js';
@@ -47,7 +51,11 @@ export interface PreviewEngineLayoutControlsDocumentLike {
 }
 
 export interface PreviewEngineLayoutControlsWindowLike {
-  __DG_CONFIG?: { layout_engine?: string };
+  __DG_CONFIG?: {
+    layout_engine?: string;
+    shell_mode?: string | null;
+    document_kind?: string | null;
+  };
   __DG_previewRenderIntent?: PreviewRenderIntent | null;
   __DG_previewEngineRawView?: boolean;
   __DG_lastEditorMutationTransactionResult?: EditorMutationTransactionResult | null;
@@ -182,12 +190,17 @@ export function createPreviewEngineLayoutControlsRuntime(
     return resolvePreviewRenderIntentLayoutEngine({
       intent: options.previewWindow.__DG_previewRenderIntent ?? null,
       frameTreeJson: tree ?? null,
-    });
+    }) ?? options.previewWindow.__DG_CONFIG?.layout_engine?.trim() ?? null;
+  }
+
+  function activeShellMode(): string {
+    return normalizePreviewShellMode(options.previewWindow.__DG_CONFIG?.shell_mode)
+      ?? FRAME_PREVIEW_SHELL_MODE;
   }
 
   function activePreviewEngine(frameTreeJson?: unknown): PreviewEngineManifest | null {
     const layoutEngine = layoutEngineFromFrameTree(frameTreeJson);
-    const active = resolvePreviewEngine({ layoutEngine, shellMode: 'grid' });
+    const active = resolvePreviewEngine({ layoutEngine, shellMode: activeShellMode() });
     if (engineSupportsSidebarSection(active, sidebarSectionId)) {
       return active;
     }
@@ -208,7 +221,10 @@ export function createPreviewEngineLayoutControlsRuntime(
       return Boolean(controller.isActiveLayoutEngine(frameTreeJson));
     }
     const layoutEngine = layoutEngineFromFrameTree(frameTreeJson);
-    if (engineSupportsSidebarSection(resolvePreviewEngine({ layoutEngine, shellMode: 'grid' }), sidebarSectionId)) {
+    if (engineSupportsSidebarSection(
+      resolvePreviewEngine({ layoutEngine, shellMode: activeShellMode() }),
+      sidebarSectionId,
+    )) {
       return true;
     }
     return false;

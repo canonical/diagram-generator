@@ -7,6 +7,10 @@ import type {
   PreviewViewerSidebarSection,
 } from '../preview-engine/types.js';
 import { hostViewUsesLayoutParamsSection } from '../preview-engine/sidebar-sections.js';
+import {
+  isFramePreviewShellMode,
+  normalizePreviewShellMode,
+} from '../preview-engine/shell-mode.js';
 import type { PreviewEngineWorkspaceState } from './preview-engine-workspace.js';
 
 export type PreviewTemplateSectionKey =
@@ -139,19 +143,25 @@ function hostView(context: PreviewUiContext): PreviewEngineHostView | undefined 
 }
 
 function shellMode(context: PreviewUiContext): string {
-  return String(context.shellMode ?? activeEngine(context)?.shellMode ?? '');
+  return normalizePreviewShellMode(context.shellMode ?? activeEngine(context)?.shellMode ?? '') ?? '';
 }
 
 function documentKind(context: PreviewUiContext): string {
   return String(context.documentKind ?? '');
 }
 
-function isGridShell(context: PreviewUiContext): boolean {
-  return shellMode(context) === 'grid';
-}
-
-function isForceShell(context: PreviewUiContext): boolean {
-  return shellMode(context) === 'force';
+function matchesPreviewShellMode(context: PreviewUiContext, expectedShellMode: string): boolean {
+  const normalizedExpected = normalizePreviewShellMode(expectedShellMode);
+  if (!normalizedExpected) {
+    return false;
+  }
+  if (normalizedExpected === 'force') {
+    return normalizePreviewShellMode(shellMode(context)) === 'force';
+  }
+  if (isFramePreviewShellMode(normalizedExpected)) {
+    return isFramePreviewShellMode(shellMode(context));
+  }
+  return normalizePreviewShellMode(shellMode(context)) === normalizedExpected;
 }
 
 function isFrameDiagram(context: PreviewUiContext): boolean {
@@ -197,17 +207,21 @@ export function hasInvalidPreviewPersistedLayoutEngine(
 }
 
 export function shouldShowPreviewEngineSwitcher(context: PreviewUiContext): boolean {
-  return isGridShell(context)
+  return matchesPreviewShellMode(context, 'frame')
     && isFrameDiagram(context)
     && (hasCompatibleEngines(context) || hasInvalidPreviewPersistedLayoutEngine(context));
 }
 
 function frameTreeVisible(context: PreviewUiContext): boolean {
-  return isGridShell(context) && isFrameDiagram(context) && hasCapability(context, 'nodeInspector');
+  return matchesPreviewShellMode(context, 'frame')
+    && isFrameDiagram(context)
+    && hasCapability(context, 'nodeInspector');
 }
 
 function frameDocumentActionsVisible(context: PreviewUiContext): boolean {
-  return isGridShell(context) && isFrameDiagram(context) && hasCapability(context, 'nodeInspector');
+  return matchesPreviewShellMode(context, 'frame')
+    && isFrameDiagram(context)
+    && hasCapability(context, 'nodeInspector');
 }
 
 function constraintDiagnosticsVisible(context: PreviewUiContext): boolean {
@@ -222,24 +236,23 @@ function rootSelectionVisible(context: PreviewUiContext): boolean {
 }
 
 function layoutParamsVisible(context: PreviewUiContext): boolean {
-  return isGridShell(context)
-    && hostViewUsesLayoutParamsSection(hostView(context) ?? null)
+  return hostViewUsesLayoutParamsSection(hostView(context) ?? null)
     && hasCapability(context, 'layoutControls');
 }
 
 function gridControlsVisible(context: PreviewUiContext): boolean {
-  return isGridShell(context)
+  return matchesPreviewShellMode(context, 'frame')
     && isFrameDiagram(context)
     && hasCapability(context, 'gridEditing')
     && rootSelectionVisible(context);
 }
 
 function forceNodesVisible(context: PreviewUiContext): boolean {
-  return isForceShell(context) && hasCapability(context, 'nodeInspector');
+  return matchesPreviewShellMode(context, 'force') && hasCapability(context, 'nodeInspector');
 }
 
 function forceSimulationVisible(context: PreviewUiContext): boolean {
-  return isForceShell(context) && hasCapability(context, 'simulationControls');
+  return matchesPreviewShellMode(context, 'force') && hasCapability(context, 'simulationControls');
 }
 
 function visibilityReason(
@@ -250,7 +263,29 @@ function visibilityReason(
   return visible ? showReason : hideReason;
 }
 
-export const PREVIEW_PANEL_REGISTRY: readonly PreviewPanelRegistryEntry[] = [
+const previewPanelRegistry: PreviewPanelRegistryEntry[] = [];
+
+export const PREVIEW_PANEL_REGISTRY: readonly PreviewPanelRegistryEntry[] = previewPanelRegistry;
+
+export function registerPreviewPanelRegistryEntries(
+  entries: readonly PreviewPanelRegistryEntry[],
+): () => void {
+  const duplicateId = entries.find((entry) => previewPanelRegistry.some((existing) => existing.id === entry.id));
+  if (duplicateId) {
+    throw new Error(`Preview panel '${duplicateId.id}' is already registered`);
+  }
+  previewPanelRegistry.push(...entries);
+  return () => {
+    const ids = new Set(entries.map((entry) => entry.id));
+    for (let index = previewPanelRegistry.length - 1; index >= 0; index -= 1) {
+      if (ids.has(previewPanelRegistry[index]!.id)) {
+        previewPanelRegistry.splice(index, 1);
+      }
+    }
+  };
+}
+
+const FRAME_PREVIEW_PANEL_REGISTRY_ENTRIES: readonly PreviewPanelRegistryEntry[] = [
   {
     id: 'grid-layers-tab',
     owner: 'viewer-unified.html#nav-tab-layers',
@@ -338,6 +373,9 @@ export const PREVIEW_PANEL_REGISTRY: readonly PreviewPanelRegistryEntry[] = [
       'native grid guides require root selection and engine support',
     ),
   },
+];
+
+const FORCE_PREVIEW_PANEL_REGISTRY_ENTRIES: readonly PreviewPanelRegistryEntry[] = [
   {
     id: 'force-nodes-tab',
     owner: 'viewer-unified.html#nav-tab-nodes',
@@ -373,18 +411,18 @@ export const PREVIEW_PANEL_REGISTRY: readonly PreviewPanelRegistryEntry[] = [
     id: 'force-simulation',
     owner: 'viewer-unified.html#force-simulation-section',
     group: 'engine',
-    isVisible: forceSimulationVisible,
+    isVisible: () => false,
     reason: (_context, visible) => visibilityReason(
       visible,
-      'force shell exposes simulation controls',
-      'active shell does not expose force simulation controls',
+      'legacy force simulation pane remains intentionally hidden',
+      'force parameters render through the shared layout params pane',
     ),
   },
   {
     id: 'force-guidance',
     owner: 'viewer-unified.html#force-guidance-section',
     group: 'diagnostics',
-    isVisible: isForceShell,
+    isVisible: (context) => matchesPreviewShellMode(context, 'force'),
     reason: (_context, visible) => visibilityReason(
       visible,
       'force shell exposes force guidance',
@@ -392,6 +430,9 @@ export const PREVIEW_PANEL_REGISTRY: readonly PreviewPanelRegistryEntry[] = [
     ),
   },
 ] as const;
+
+registerPreviewPanelRegistryEntries(FRAME_PREVIEW_PANEL_REGISTRY_ENTRIES);
+registerPreviewPanelRegistryEntries(FORCE_PREVIEW_PANEL_REGISTRY_ENTRIES);
 
 export function resolvePreviewPanelVisibility(
   context: PreviewUiContext,

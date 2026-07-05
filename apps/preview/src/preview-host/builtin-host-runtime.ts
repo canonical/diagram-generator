@@ -2,6 +2,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 
 import {
+  isFramePreviewShellMode,
   serializePreviewEngineManifest,
   type PreviewEngineManifest,
 } from "@diagram-generator/layout-engine";
@@ -66,7 +67,7 @@ function normalizeLayoutEngine(layoutEngine: string | undefined): string {
     serializePreviewEngineManifest()
       .filter(
         (entry: PreviewEngineManifest): entry is PreviewEngineManifest & { layoutEngineKey: string } =>
-          entry.shellMode === "grid" && typeof entry.layoutEngineKey === "string",
+          isFramePreviewShellMode(entry.shellMode) && typeof entry.layoutEngineKey === "string",
       )
       .map((entry) => entry.layoutEngineKey),
   );

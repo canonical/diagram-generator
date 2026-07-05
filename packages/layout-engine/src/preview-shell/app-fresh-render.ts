@@ -11,6 +11,7 @@ import {
 import { type LayoutOutput } from '../layout.js';
 import {
   type PreviewRenderableDocument,
+  FRAME_PREVIEW_SHELL_MODE,
   layoutPreviewFrameDiagramForEngine,
   resolvePreviewDocumentLayoutEngineFallback,
   renderPreviewDocumentToSvg,
@@ -387,7 +388,7 @@ export async function renderFreshPreviewSvg<TModel = unknown>(
   });
   const engineManifest = resolvePreviewEngine({
     layoutEngine: activeLayoutEngine,
-    shellMode: 'grid',
+    shellMode: FRAME_PREVIEW_SHELL_MODE,
     previewDocumentKind: 'frame-diagram',
     frameDiagramSummary: summarizeFrameDiagramCompatibility(diagram),
   });

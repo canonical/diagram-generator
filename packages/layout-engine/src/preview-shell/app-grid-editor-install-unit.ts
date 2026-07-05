@@ -43,6 +43,10 @@ import {
   getPreviewEngineByLayoutKey,
   resolvePreviewEngine,
 } from '../preview-engine/registry.js';
+import {
+  FRAME_PREVIEW_SHELL_MODE,
+  normalizePreviewShellMode,
+} from '../preview-engine/shell-mode.js';
 import { sidebarSectionsUseLayoutParams } from '../preview-engine/sidebar-sections.js';
 import type { PreviewEngineManifest } from '../preview-engine/types.js';
 import {
@@ -495,11 +499,11 @@ function installActivePreviewEngineRuntime(options: {
   const activeEngine: PreviewEngineManifest | null = typeof resolveRootPreviewEngine === 'function'
     ? (resolveRootPreviewEngine({
       layoutEngine: activeLayoutEngine,
-      shellMode: previewConfig?.shell_mode ?? 'grid',
+      shellMode: normalizePreviewShellMode(previewConfig?.shell_mode) ?? FRAME_PREVIEW_SHELL_MODE,
     }) as PreviewEngineManifest | null | undefined) ?? null
     : (resolvePreviewEngine({
       layoutEngine: activeLayoutEngine,
-      shellMode: previewConfig?.shell_mode ?? 'grid',
+      shellMode: normalizePreviewShellMode(previewConfig?.shell_mode) ?? FRAME_PREVIEW_SHELL_MODE,
       previewDocumentKind: previewConfig?.document_kind ?? 'frame-diagram',
     }) as PreviewEngineManifest | undefined) ?? null;
   if (!activeEngine || !layoutEngineRoot?.previewEngines) {
@@ -727,7 +731,9 @@ export function createPreviewGridEditorInstallOptionsFromLegacyEditorHost(
   });
   let lastSelectionContext: PreviewUiSelectionContext = { count: 0, kind: 'empty' };
   const resolveCurrentDocumentKind = () => previewConfig.document_kind || 'frame-diagram';
-  const resolveCurrentShellMode = () => previewConfig.shell_mode || 'grid';
+  const resolveCurrentShellMode = () => (
+    normalizePreviewShellMode(previewConfig.shell_mode) ?? FRAME_PREVIEW_SHELL_MODE
+  );
   const resolveCurrentConfiguredLayoutEngine = () => resolvePreviewRenderIntentLayoutEngine({
     activeEngineId: previewConfig.active_engine_id ?? null,
     layoutEngine: previewConfig.layout_engine ?? null,

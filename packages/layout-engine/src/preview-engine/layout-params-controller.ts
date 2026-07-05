@@ -1,5 +1,9 @@
 import type { PreviewEngineManifest } from './types.js';
 import {
+  FRAME_PREVIEW_SHELL_MODE,
+  normalizePreviewShellMode,
+} from './shell-mode.js';
+import {
   resolvePreviewRenderIntentLayoutEngine,
   type PreviewRenderIntent,
   type PreviewRenderIntentFrameTree,
@@ -18,7 +22,11 @@ export interface PreviewEngineShellControllerDeps {
 }
 
 export interface PreviewEngineShellControllerWindowLike {
-  __DG_CONFIG?: { layout_engine?: string };
+  __DG_CONFIG?: {
+    layout_engine?: string;
+    shell_mode?: string | null;
+    document_kind?: string | null;
+  };
   __DG_previewRenderIntent?: PreviewRenderIntent | null;
   PreviewEngineLayoutControls?: {
     init?: (options: {
@@ -139,8 +147,10 @@ export function createPreviewEngineShellControllerRuntime(
     const layoutEngine = resolvePreviewRenderIntentLayoutEngine({
       intent: options.previewWindow.__DG_previewRenderIntent ?? null,
       frameTreeJson: tree as PreviewRenderIntentFrameTree | null,
-    });
-    const engine = resolvePreviewEngine({ layoutEngine, shellMode: 'grid' });
+    }) ?? options.previewWindow.__DG_CONFIG?.layout_engine?.trim() ?? null;
+    const shellMode = normalizePreviewShellMode(options.previewWindow.__DG_CONFIG?.shell_mode)
+      ?? FRAME_PREVIEW_SHELL_MODE;
+    const engine = resolvePreviewEngine({ layoutEngine, shellMode });
     return engineSupportsSidebarSection(engine, sidebarSectionId) ? engine : null;
   }
 
@@ -170,8 +180,10 @@ export function createPreviewEngineShellControllerRuntime(
     const layoutEngine = resolvePreviewRenderIntentLayoutEngine({
       intent: options.previewWindow.__DG_previewRenderIntent ?? null,
       frameTreeJson: tree as PreviewRenderIntentFrameTree | null,
-    });
-    if (engineSupportsSidebarSection(resolvePreviewEngine({ layoutEngine, shellMode: 'grid' }), sidebarSectionId)) {
+    }) ?? options.previewWindow.__DG_CONFIG?.layout_engine?.trim() ?? null;
+    const shellMode = normalizePreviewShellMode(options.previewWindow.__DG_CONFIG?.shell_mode)
+      ?? FRAME_PREVIEW_SHELL_MODE;
+    if (engineSupportsSidebarSection(resolvePreviewEngine({ layoutEngine, shellMode }), sidebarSectionId)) {
       return true;
     }
     return false;

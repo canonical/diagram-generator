@@ -3,6 +3,10 @@ import {
   listPreviewEngines,
   resolvePreviewEngine,
 } from '../preview-engine/registry.js';
+import {
+  FRAME_PREVIEW_SHELL_MODE,
+  normalizePreviewShellMode,
+} from '../preview-engine/shell-mode.js';
 import type {
   PreviewControlKind,
   PreviewControlSpec,
@@ -151,13 +155,16 @@ function resolveFrameYamlBaseNamespaceFromNodeNamespace(
 
 function resolveFrameYamlEngineControlManifest(
   layoutEngine: string | null | undefined,
-  shellMode: string | null | undefined = 'grid',
+  shellMode: string | null | undefined = FRAME_PREVIEW_SHELL_MODE,
 ): FrameYamlEngineControlManifest | null {
   const normalizedLayoutEngine = normalizeLayoutEngineKey(layoutEngine);
   if (!normalizedLayoutEngine) {
     return null;
   }
-  const engine = resolvePreviewEngine({ layoutEngine: normalizedLayoutEngine, shellMode: shellMode ?? 'grid' });
+  const engine = resolvePreviewEngine({
+    layoutEngine: normalizedLayoutEngine,
+    shellMode: normalizePreviewShellMode(shellMode) ?? FRAME_PREVIEW_SHELL_MODE,
+  });
   if (!engine) {
     return null;
   }
@@ -246,7 +253,7 @@ export function readFrameYamlEngineLayoutOverridesForLayoutEngine(
     elkLayout?: Record<string, unknown> | null;
     engineLayout?: Record<string, Record<string, unknown>> | null;
   } | null | undefined,
-  shellMode: string | null | undefined = 'grid',
+  shellMode: string | null | undefined = FRAME_PREVIEW_SHELL_MODE,
 ): { namespace: string; overrides: Record<string, unknown> } | null {
   const manifest = resolveFrameYamlEngineControlManifest(diagram?.layoutEngine, shellMode);
   if (!manifest) {
@@ -277,7 +284,7 @@ export function readFrameYamlEngineLayoutNodeBuckets(
       continue;
     }
     for (const [nodeId, bucketValue] of Object.entries(rawBuckets)) {
-      const manifest = resolvePreviewEngine({ layoutEngine: nodeId, shellMode: 'grid' })
+      const manifest = resolvePreviewEngine({ layoutEngine: nodeId, shellMode: FRAME_PREVIEW_SHELL_MODE })
         ?? listPreviewEngines().find((entry) => entry.id === nodeId)
         ?? null;
       if (!manifest) {
