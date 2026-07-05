@@ -300,6 +300,10 @@ decomposition in T073.
   rather than a gating requirement for the current engine-port roadmap. If a
   future timeline/canvas-style shell family makes that seam painful, draft a
   new follow-up spec then; do not reopen 046 for it.
+  2026-07-05 follow-through: spec 073 closed this residual without reopening
+  046 by replacing the central `PREVIEW_PANEL_REGISTRY` list with registered
+  lane-panel contributions and a registration-only guard in
+  `packages/layout-engine/tests/preview-ui-context.test.ts`.
 - [x] T074 Reconcile catalog + handover to the resolved state:
   update the `046` row in `docs/specs.md` and the `AGENTS.md` handover to drop
   stale line-count/branch claims and reflect "bar met, reconciled". Per the

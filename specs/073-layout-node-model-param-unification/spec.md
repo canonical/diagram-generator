@@ -1,7 +1,7 @@
 # Spec 073: Layout algorithm node model and parameter-pane unification
 
 **Feature Branch**: `feat/073-layout-node-model-param-unification`
-**Status**: Draft
+**Status**: Closeout Ready
 **Created**: 2026-07-05
 **Context**: chat decision 2026-07-05 (dedup-before-port; drop "family"; Houdini
 SOP model; unify force into the shared param pane). Builds on spec 071
@@ -194,3 +194,19 @@ manifest/type surface.
   scoped to registration mechanics, not a panel redesign.
 - Resist re-introducing a "family" abstraction for menu grouping; a cosmetic tag
   is enough (FR-002).
+
+## Status notes
+
+- 2026-07-05: Implemented the `grid` -> `frame` shell rename with a boundary
+  alias so persisted/runtime `grid` values still normalize to the frame lane.
+- 2026-07-05: Replaced the central panel-gating list with registered lane
+  contributions, closing the archived spec 046 T073 residual without reopening
+  the old JS shell branching seam.
+- 2026-07-05: Routed force through the shared layout-params pane contract while
+  keeping the `force-spec` document kind, host routes, save path, and export
+  coverage intact.
+- 2026-07-05: Validation passed via `npm --prefix packages/layout-engine test`,
+  `npm --prefix apps/preview test`, `node scripts/check_no_new_python.mjs`, and
+  `node scripts/check-preview-shell-size-budgets.mjs`. The required
+  `npm --prefix packages/layout-engine run build:browser` step also passed after
+  the preview-engine export changes.
