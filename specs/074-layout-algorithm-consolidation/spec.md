@@ -33,6 +33,12 @@ declare explicit unique algorithm classes, and full validation reran green in
 this worktree (`packages/layout-engine` `978/978`, `apps/preview` `160/160`,
 `check_no_new_python` ok).
 
+**Post-closeout review note (2026-07-05):** A subsequent adversarial pass found
+one remaining closeout gap outside the runtime registry/migration seams:
+`graph-layout-dagre` is still wired into layout-engine build/test/browser-bundle
+tooling and preview-server source alias/watch paths even though the Dagre
+preview lane is retired. See `AGENT-INBOX.md` for the concrete follow-up refs.
+
 ## Problem
 
 The repo has ~12 registered engines (v3, force, sequence, mindmap-tree, dagre,

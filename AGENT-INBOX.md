@@ -259,3 +259,40 @@ Validation in this worktree:
 - `npm --prefix packages/layout-engine test` -> passed (`978/978`)
 - `npm --prefix apps/preview test` -> passed (`160/160`)
 - `node scripts/check_no_new_python.mjs` -> passed
+
+---
+
+## Adversarial review — 2026-07-05 — spec 074 follow-up findings
+
+Findings on `feat/074-layout-algorithm-consolidation` after the post-fix audit:
+
+1. **Dagre retirement is still incomplete in build/tooling.**
+   The runtime lane is gone, but the dedicated Dagre package still sits on the
+   hot path for build, test, and preview-bundle wiring:
+   `packages/layout-engine/package.json:9`, `:14`, `:26`,
+   `packages/layout-engine/build-browser.mjs:11-14`,
+   `apps/preview/src/server.ts:69`, `:315`, `:373`.
+   That means spec 074 removed the manifest/registry surface without actually
+   removing the extra dependency, TypeScript build work, or preview watch/alias
+   surface. Action: either remove `@diagram-generator/graph-layout-dagre` from
+   the layout-engine dependency/tooling path and from the preview server's local
+   alias/watch list, or explicitly restate the spec as "runtime Dagre lane
+   removed; package retained for now" instead of "Dagre removed".
+
+2. **Live docs still describe Dagre as a current product path.**
+   `docs/agent-index.md:70` still lists
+   `packages/graph-layout-dagre/src/` as a main repo path, and
+   `docs/specs.md:46` still summarizes spec 052 as shipping
+   "product-suitable elkjs algorithms + dagre".
+   After spec 074's hard retirement decision, those lines now misstate the
+   active architecture and will mislead future agents/reviewers unless they are
+   reconciled with the actual post-074 state.
+
+Validation in this worktree during this follow-up pass:
+
+- `node scripts/check_no_new_python.mjs` -> passed
+- `npm --prefix packages/layout-engine test` -> blocked before tests ran because
+  `tsc` is unavailable in the local package toolchain
+  (`@diagram-generator/graph-layout-core` build fails in `pretest`)
+- `npm --prefix apps/preview test` -> blocked for the same reason via the
+  `packages/layout-engine` prebuild path
