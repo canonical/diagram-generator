@@ -69,6 +69,18 @@
       `npm --prefix apps/preview test`, and
       `node scripts/check_no_new_python.mjs`; confirm green (SC-005/SC-006).
 
+## Phase 7: Adversarial review reconciliation
+
+- [x] T052 Harden `registerPreviewEngine(...)` so missing/blank
+      `algorithmClass` values fail at runtime, and cover that seam with a
+      repo-owned registry test.
+- [x] T053 Canonicalize the load-path Dagre migration even when unsupported
+      legacy `meta.dagre*` buckets translate to zero ELK keys, and add a
+      focused regression test for the pure migration seam.
+- [x] T054 Correct `decision-matrix.md` so inventory-backed radial /
+      rectpacking lanes are no longer overstated as corpus-required algorithms
+      without planning-repo citations.
+
 ## Notes
 
 - This spec's output is primarily a **decision artifact**, not code. Do not let

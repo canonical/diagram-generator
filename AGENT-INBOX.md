@@ -233,70 +233,28 @@ bookkeeping honesty, and 046's veto was stale rather than unmet.
 
 ## Adversarial review — 2026-07-05 — spec 074 layout algorithm consolidation
 
-Reviewed `specs/074-layout-algorithm-consolidation/` against the branch diff and
-the new Dagre-migration / registry-guard code. No fixes were applied in this
-phase. Findings below are the issues that still need owner action.
+Resolved on `feat/074-layout-algorithm-consolidation` during the review-fix
+phase:
 
-### Findings
+- `registerPreviewEngine(...)` now rejects missing/blank `algorithmClass`
+  values at runtime and normalizes surrounding whitespace. Coverage lives in
+  `packages/layout-engine/tests/preview-engine-registry-contract.test.ts`.
+- `migrateLegacyFrameDiagramEngineState(...)` now overwrites `engineLayout`
+  whenever that bucket was present on input, so unsupported legacy
+  `meta.dagre*` payloads cannot survive the load/import/undo path merely
+  because translation produced zero supported ELK keys. Coverage lives in
+  `packages/layout-engine/tests/legacy-layout-engine-migration.test.ts`.
+- `specs/074-layout-algorithm-consolidation/decision-matrix.md` no longer
+  overstates `elk-radial` / `elk-rectpacking` as corpus-required algorithms.
+  They are now called out as inventory-backed candidate lanes pending
+  planning-repo evidence.
 
-1. **FR-007 is still bypassable at runtime because `registerPreviewEngine(...)`
-   never rejects a missing or blank `algorithmClass`.**
-   Evidence: [packages/layout-engine/src/preview-engine/registry.ts](C:/Users/lyubo/AppData/Local/Temp/agent-loop-worktrees/diagram-generator-3dc9f3989b0c44a983441afd4e968f48/packages/layout-engine/src/preview-engine/registry.ts:16)
-   only checks for duplicate `algorithmClass` values before pushing the
-   manifest; it never asserts that the field exists or is non-empty. The seam's
-   own synthetic registration test still omits the property entirely and expects
-   success: [packages/layout-engine/tests/preview-engine-registry.test.ts](C:/Users/lyubo/AppData/Local/Temp/agent-loop-worktrees/diagram-generator-3dc9f3989b0c44a983441afd4e968f48/packages/layout-engine/tests/preview-engine-registry.test.ts:170).
-   Because Vitest transpiles without type-check enforcement, a JS caller or a
-   transpilable TS caller can still register an engine with `algorithmClass:
-   undefined`/`""`, which means the "each engine MUST declare its algorithm
-   class" contract is not actually enforced by the runtime seam this spec is
-   supposed to harden.
-   Action: reject missing/blank `algorithmClass` in `registerPreviewEngine(...)`
-   and add a repo-owned test that proves registration fails when the field is
-   absent or whitespace-only.
+Targeted validation in this worktree:
 
-2. **The load-path Dagre migration leaves legacy `meta.dagre` / `meta.dagre_nodes`
-   data behind when the old bucket translates to zero supported ELK keys.**
-   Evidence: [packages/layout-engine/src/preview-engine/legacy-layout-engine-migration.ts](C:/Users/lyubo/AppData/Local/Temp/agent-loop-worktrees/diagram-generator-3dc9f3989b0c44a983441afd4e968f48/packages/layout-engine/src/preview-engine/legacy-layout-engine-migration.ts:93)
-   drops unmapped Dagre keys during translation, but
-   [migrateLegacyFrameDiagramEngineState(...)](C:/Users/lyubo/AppData/Local/Temp/agent-loop-worktrees/diagram-generator-3dc9f3989b0c44a983441afd4e968f48/packages/layout-engine/src/preview-engine/legacy-layout-engine-migration.ts:157)
-   returns `{ ...input, ...overrides }` and only overwrites `engineLayout` when
-   `nextEngineLayout` is non-empty. For an input like
-   `engineLayout: { "meta.dagre": { "dagre.unknown": "x" } }`, the migration
-   path computes an empty translated record, skips the overwrite, and returns
-   the original legacy `meta.dagre` bucket intact via `...input`. That means
-   Dagre is not actually retired on every load/import/undo path; unsupported
-   legacy Dagre payloads can survive in memory until a later save happens to
-   strip them.
-   Action: make the load-path migration write back canonicalized engine-layout
-   state even when the translated result is empty, and add a focused test that
-   loads a Dagre-only unsupported bucket and asserts the runtime state no
-   longer exposes `meta.dagre*`.
+- `npm --prefix packages/layout-engine exec vitest run tests/preview-engine-registry-contract.test.ts tests/legacy-layout-engine-migration.test.ts` -> passed
+- `node scripts/check_no_new_python.mjs` -> passed
 
-3. **`decision-matrix.md` overstates its evidence: the "corpus-derived required
-   algorithms" table still promotes current-engine inventory guesses as audited
-   corpus requirements.**
-   Evidence: the section explicitly claims the list is "justified by the
-   taxonomy/corpus rather than by the current engine set"
-   [specs/074-layout-algorithm-consolidation/decision-matrix.md](C:/Users/lyubo/AppData/Local/Temp/agent-loop-worktrees/diagram-generator-3dc9f3989b0c44a983441afd4e968f48/specs/074-layout-algorithm-consolidation/decision-matrix.md:50),
-   but the `Radial tree / hub-and-spoke layout` and `Rectangle packing` rows use
-   "current engine inventory includes `elk-radial`" and "current engine
-   inventory includes `elk-rectpacking`" as their evidence
-   [same file](C:/Users/lyubo/AppData/Local/Temp/agent-loop-worktrees/diagram-generator-3dc9f3989b0c44a983441afd4e968f48/specs/074-layout-algorithm-consolidation/decision-matrix.md:65).
-   That is the exact tool-driven derivation FR-001 forbids. Those two rows may
-   still be good hypotheses, but they are not currently evidenced as audited
-   required algorithms.
-   Action: either add planning-repo citations that prove radial and
-   rectangle-packing demand from the audited corpus, or demote them from the
-   required-algorithm table into inventory/candidate notes until that evidence
-   exists.
-
-### Validation note
-
-- `node scripts/check_no_new_python.mjs` passed.
-- Fresh package-test verification was blocked in this worktree: both
-  `npm --prefix packages/layout-engine test` and `npm --prefix apps/preview test`
-  fail immediately in their pretest/prebuild chain because `tsc` is not
-  available in the local environment (`'tsc' is not recognized as an internal
-  or external command`). This review is therefore source-backed, not freshly
-  green-verified.
+Full package build/test reruns remain blocked here because `npm --prefix
+packages/layout-engine run build` still fails immediately when the workspace
+tries to invoke `tsc`, and the broader registry inventory suite cannot resolve
+the local graph-layout packages without that missing build/install step.

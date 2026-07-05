@@ -21,6 +21,18 @@ persist->reload coverage, every builtin preview engine now declares an
 repo-owned tests, and validation is green (`packages/layout-engine` `975/975`,
 `apps/preview` `160/160`, `check_no_new_python` ok).
 
+**Review reconciliation (2026-07-05):** Phase 7 resolved the adversarial review
+findings. `registerPreviewEngine(...)` now rejects missing/blank
+`algorithmClass` values at runtime, the load-path Dagre migration strips orphan
+`meta.dagre*` buckets even when they translate to zero supported ELK keys, and
+`decision-matrix.md` no longer cites radial / rectpacking inventory as
+corpus-required without planning-repo evidence. Targeted validation in this
+worktree passed:
+`vitest run tests/preview-engine-registry-contract.test.ts tests/legacy-layout-engine-migration.test.ts`
+and `node scripts/check_no_new_python.mjs`. Full package build/test reruns
+remain blocked here because local `tsc` / built workspace packages are
+unavailable.
+
 ## Problem
 
 The repo has ~12 registered engines (v3, force, sequence, mindmap-tree, dagre,

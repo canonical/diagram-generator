@@ -14,17 +14,27 @@ const previewEngineRegistry: PreviewEngineManifest[] = [];
 export const PREVIEW_ENGINE_REGISTRY: readonly PreviewEngineManifest[] = previewEngineRegistry;
 
 export function registerPreviewEngine(manifest: PreviewEngineManifest): () => void {
+  const algorithmClass = typeof manifest.algorithmClass === 'string'
+    ? manifest.algorithmClass.trim()
+    : '';
+  if (algorithmClass.length === 0) {
+    throw new Error(`Preview engine '${manifest.id}' must declare a non-empty algorithm class`);
+  }
   if (previewEngineRegistry.some((entry) => entry.id === manifest.id)) {
     throw new Error(`Preview engine '${manifest.id}' is already registered`);
   }
-  if (previewEngineRegistry.some((entry) => entry.algorithmClass === manifest.algorithmClass)) {
+  if (previewEngineRegistry.some((entry) => entry.algorithmClass === algorithmClass)) {
     throw new Error(
-      `Preview engine algorithm class '${manifest.algorithmClass}' is already registered`,
+      `Preview engine algorithm class '${algorithmClass}' is already registered`,
     );
   }
-  previewEngineRegistry.push(manifest);
+  const normalizedManifest = {
+    ...manifest,
+    algorithmClass,
+  };
+  previewEngineRegistry.push(normalizedManifest);
   return () => {
-    const index = previewEngineRegistry.findIndex((entry) => entry.id === manifest.id);
+    const index = previewEngineRegistry.findIndex((entry) => entry.id === normalizedManifest.id);
     if (index >= 0) {
       previewEngineRegistry.splice(index, 1);
     }

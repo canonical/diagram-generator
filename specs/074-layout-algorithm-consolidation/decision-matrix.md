@@ -62,9 +62,18 @@ the current engine set.
 | Vertical stack / layered containment | `layered_stack` | `layout_mapping.py` maps this family to `VERTICAL_STACK`; reviewed-corpus ontology contains eight `layered_stack` diagrams. | Pure stacks often need no edge-routing at all; this is closer to structured composition than graph solving. |
 | Grid / matrix comparison layout | `matrix_and_comparison` | `layout_mapping.py` maps this family to `GRID_MATRIX`; human-readable category review explicitly treats side-by-side comparison boards as a stable family/form. | Requires row/column alignment and comparison-board composition rather than graph routing. |
 | Tree layout | Mindmaps / rooted hierarchy cases inside `concept_and_relationship_mapping`, plus explicit tree-shaped frame diagrams | UX taxonomy names Mindmaps with root/sub-branch/leaf structure; current preview inventory ships both `elk-mrtree` and mindmap/tree-shaped owners, which is a duplication signal to resolve. | Rooted hierarchies benefit from dedicated tree ordering rather than general force or layered heuristics. |
-| Radial tree / hub-and-spoke layout | Hub-and-spoke concept maps and selected rooted hierarchy views | Current engine inventory includes `elk-radial`; UX taxonomy's mindmap and concept-map shapes imply cases where radial symmetry is the intended reading order. | Radial structure is not interchangeable with force when concentric depth rings are the message. |
-| Rectangle packing | Dense grouped frame collections and compact bounded deployments | Current engine inventory includes `elk-rectpacking`; its compatibility surface is explicitly limited to `deployment_and_runtime_topology`. | Packing solves dense enclosure layout without depending on directed edges; it is a distinct capability from layered or force. |
 | Relationship / data-model graph | `data_model_and_relationships` | Reviewed-corpus ontology contains 14 such diagrams; UX taxonomy explicitly calls out ER diagrams, entity tables, and crow's-foot links. | The corpus proves the need is real; the remaining decision is whether this should stay under the chosen organic force implementation or graduate to a separate data-model-specific backend. |
+
+### Inventory-backed candidate lanes not yet justified as corpus-required
+
+These lanes still ship in the current product inventory, so they stay in the
+survey and engine-verdict sections below. They are **not** counted as FR-001
+required algorithms until planning-repo evidence proves audited corpus demand.
+
+| Candidate lane | Current inventory signal | Current status |
+|----------------|--------------------------|----------------|
+| Radial tree / hub-and-spoke layout | `elk-radial` is a current lane, and the UX taxonomy language around mindmaps / concept maps suggests a possible fit. | Keep the lane under evaluation, but do not cite it as corpus-required until audited examples or mapping evidence exist. |
+| Rectangle packing | `elk-rectpacking` is a current lane, and its compatibility surface is intentionally narrowed to specific deployment/grouping cases. | Keep the lane under evaluation, but do not cite it as corpus-required until audited examples or mapping evidence exist. |
 
 ## Immediate implications for the inventory pass
 
@@ -125,6 +134,10 @@ keep/retire verdicts from Phase 3.
 
 ## Candidate survey and chosen implementations (T020/T021)
 
+This table includes the two current inventory-backed lanes above. Their rows are
+product decisions about already-shipping engines, not additional FR-001
+evidence claims.
+
 | Required algorithm | Candidates evaluated | Chosen implementation | Criteria-based rationale | Downstream spec / sequencing |
 |--------------------|----------------------|-----------------------|--------------------------|------------------------------|
 | Layered / Sugiyama directed graph | `elk-layered`, `dagre`, Graphviz `dot` via `@viz-js/viz`, Mermaid flowchart, D2 layered default | `elk-layered` | Best current balance of capability and migration cost. It already ships in-repo, shares the ELK backend we pay for elsewhere, and is the only current candidate in this stack that combines direction hints, explicit ports, measured edge labels, nested compounds, padding insets, and routed-edge refinement. Graphviz `dot` remains the strongest external challenger on maturity, but it would add another heavyweight backend and migration burden. Mermaid and D2 are whole diagram DSL toolchains, not attractive drop-in layout backends for this repo. | `T040` in this spec removes Dagre. Keep a future Graphviz challenge spec only if benchmark evidence exposes an ELK-layered gap. |
@@ -134,8 +147,8 @@ keep/retire verdicts from Phase 3.
 | Vertical stack / layered containment | Repo-native `v3`; generic graph backends were considered and rejected as the wrong abstraction | Repo-native `v3` structured compositor | Vertical stacks are authored composition more than graph solving. The current native frame autolayout already owns containment, spacing, and orthogonal arrows without importing another backend. | Future spec 073 follow-up may split this into an explicit "stack" node type, but it should stay on the native TS path. |
 | Grid / matrix comparison layout | Repo-native `v3`; generic graph backends were considered and rejected as the wrong abstraction | Repo-native `v3` structured compositor | Comparison boards want row/column alignment, not graph routing. The current native path is the right owner until there is evidence for a dedicated matrix compositor. | Future spec 073 follow-up may split this into an explicit "matrix" node type, but it should stay on the native TS path. |
 | Tree layout | `elk-mrtree`, `mindmap-tree`, `d3-hierarchy` tree/cluster | `elk-mrtree` | `elk-mrtree` is the only surveyed current candidate that already fits the shared graph IR, honors direction hints, and exposes tree-specific routing/ordering controls. `d3-hierarchy` is lighter but would require new routing and product integration. `mindmap-tree` is too skeletal to count as the long-term backend. | Create a downstream spec to remove `mindmap-tree` from the product algorithm set while preserving any install-proof coverage it still provides. |
-| Radial tree / hub-and-spoke layout | `elk-radial`, `d3-hierarchy` radial tree/cluster | `elk-radial` | The shared ELK backend cost is already paid, and `elk-radial` exposes rotation/compaction controls that the plain d3 hierarchy projection does not. This makes it the stronger fit for a reusable param-pane-backed engine lane. | No extra port spec needed; keep the current engine and benchmark it as more radial corpus examples arrive. |
-| Rectangle packing | `elk-rectpacking`, d3 treemap-style packing, Graphviz packing family | `elk-rectpacking` | `elk-rectpacking` is the only current candidate already integrated into the frame-diagram graph path with packing-specific controls. Treemap-style d3 layouts solve a different area-encoding problem, and another Graphviz-backed port would add backend cost without proven corpus demand. | Keep the current lane, but only for the narrow deployment/grouping cases already documented in compatibility. |
+| Radial tree / hub-and-spoke layout | `elk-radial`, `d3-hierarchy` radial tree/cluster | `elk-radial` (provisional keep) | The shared ELK backend cost is already paid, and `elk-radial` exposes rotation/compaction controls that the plain d3 hierarchy projection does not. Keep it as the stronger current implementation for this lane, but do not treat the lane itself as corpus-required until audited examples are cited. | No extra port spec needed today; keep the current engine and re-evaluate when audited radial corpus evidence arrives. |
+| Rectangle packing | `elk-rectpacking`, d3 treemap-style packing, Graphviz packing family | `elk-rectpacking` (provisional keep) | `elk-rectpacking` is the only current candidate already integrated into the frame-diagram graph path with packing-specific controls. Treemap-style d3 layouts solve a different area-encoding problem, and another Graphviz-backed port would add backend cost without proven corpus demand. | Keep the current lane narrowly scoped, and re-evaluate once audited packing-specific corpus evidence exists. |
 | Relationship / data-model graph | `elk-force`, `elk-stress`, Cytoscape, WebCola, Graphviz `dot` | `elk-force` (same backend as the organic graph slot) | The corpus proves the diagram family exists, but the current survey does not prove a separate backend should survive for it. `elk-stress` exposes too little extra capability over `elk-force` to justify a second organic backend today, while Cytoscape/WebCola would add new integration or UI weight. The standing decision is: keep one organic backend until a benchmark shows otherwise. | Name a downstream "relationship-graph benchmark gate" spec only if future corpus runs show ELK force failing dense ER-style examples. |
 
 ## Current engine verdicts (T022)
@@ -151,8 +164,8 @@ keep/retire verdicts from Phase 3.
 | `elk-force` | Keep | Winning organic graph backend. | Also absorbs relationship/data-model graphs unless a later benchmark proves a separate need. |
 | `elk-stress` | Retire (downstream unless later evidence overturns it) | Current survey does not show enough distinct capability over `elk-force` to justify keeping two organic ELK backends. | Downstream organic-backend cleanup spec, unless a relationship-graph benchmark revives a distinct stress-majorization lane. |
 | `elk-mrtree` | Keep | Winning rooted-tree backend. | Downstream work is only the cleanup of `mindmap-tree`, not replacement of `elk-mrtree`. |
-| `elk-radial` | Keep | Winning radial-tree backend. | No additional port spec required. |
-| `elk-rectpacking` | Keep | Winning rectangle-packing backend for the narrow compatible corpus slice. | Revisit only if corpus expansion shows the lane is unused or underpowered. |
+| `elk-radial` | Keep (inventory-backed, not yet corpus-proven) | Strongest current implementation for the existing radial lane, but the audited corpus evidence is not yet sufficient to count that lane as FR-001 required. | Revisit when audited radial examples are added to the planning evidence. |
+| `elk-rectpacking` | Keep (inventory-backed, not yet corpus-proven) | Strongest current implementation for the existing packing lane, but the audited corpus evidence is not yet sufficient to count that lane as FR-001 required. | Revisit when audited packing-specific examples are added to the planning evidence. |
 
 ## Backend-swap migration discipline (T030)
 

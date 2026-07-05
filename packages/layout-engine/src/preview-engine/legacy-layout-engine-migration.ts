@@ -158,6 +158,7 @@ export function migrateLegacyFrameDiagramEngineState<T extends LegacyFrameDiagra
   input: T,
 ): T {
   const nextLayoutEngine = canonicalPreviewLayoutEngineKey(input.layoutEngine) ?? undefined;
+  const hadEngineLayout = Object.prototype.hasOwnProperty.call(input, 'engineLayout');
   const nextEngineLayout: Record<string, Record<string, unknown>> = {};
 
   for (const [namespace, rawValue] of Object.entries(input.engineLayout ?? {})) {
@@ -198,6 +199,6 @@ export function migrateLegacyFrameDiagramEngineState<T extends LegacyFrameDiagra
     ...input,
     ...(nextLayoutEngine ? { layoutEngine: nextLayoutEngine } : {}),
     ...(migratedElkLayout ? { elkLayout: migratedElkLayout } : {}),
-    ...(Object.keys(nextEngineLayout).length > 0 ? { engineLayout: nextEngineLayout } : {}),
+    ...(hadEngineLayout ? { engineLayout: nextEngineLayout } : {}),
   };
 }

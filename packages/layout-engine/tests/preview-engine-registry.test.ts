@@ -171,6 +171,7 @@ describe('preview-engine registry', () => {
     const unregister = registerPreviewEngine({
       id: 'test-stack',
       label: 'Test stack layout',
+      algorithmClass: 'test-stack',
       layoutEngineKey: 'test-stack',
       shellMode: 'grid',
       renderFamily: 'frame-native',
