@@ -24,8 +24,8 @@ const ALLOWED_PATH_PATTERNS = [
   `${sep}packages${sep}layout-engine${sep}src${sep}preview-engine${sep}engines${sep}`,
 ];
 
-const ENGINE_ID = String.raw`(?:v3|sequence|elk-[A-Za-z0-9_-]+|dagre|force)`;
-const ENGINE_ID_PREFIX = String.raw`(?:v3|sequence|elk|elk-[A-Za-z0-9_-]+|dagre|force)`;
+const ENGINE_ID = String.raw`(?:v3|sequence|elk-[A-Za-z0-9_-]+|force)`;
+const ENGINE_ID_PREFIX = String.raw`(?:v3|sequence|elk|elk-[A-Za-z0-9_-]+|force)`;
 const ENGINE_ID_LHS = String.raw`(?:layoutEngine|layoutEngineKey|engineId|engineKey|previewDocumentKind|documentKind|previewDocument\?\.kind|activeLayoutEngine|authoredLayoutEngine)`;
 const ENGINE_ID_EQUALITY = new RegExp(
   String.raw`\b${ENGINE_ID_LHS}\b\s*(?:={2,3}|!={1,2})\s*(['"])${ENGINE_ID}\1`,

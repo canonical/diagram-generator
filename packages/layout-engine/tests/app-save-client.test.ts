@@ -559,10 +559,10 @@ describe('preview save client runtime', () => {
       overrides: {},
       gridOverrides: {},
       layoutOverrides: {
-        'dagre.rankdir': 'LR',
+        'elk.direction': 'RIGHT',
         transient: 'ignored',
       },
-      layoutOverrideNamespace: 'meta.dagre',
+      layoutOverrideNamespace: 'meta.elk',
       removedIds: new Set<string>(),
       get() {
         return null;
@@ -584,7 +584,7 @@ describe('preview save client runtime', () => {
     await runtime.saveOverrides();
 
     expect(alertFn).toHaveBeenCalledWith(
-      "Cannot save: model.layoutOverrides contains unsupported frame-YAML engine layout keys: transient",
+      "Cannot save: model.layoutOverrides contains unsupported frame-YAML engine layout keys: transient; engine_layout_overrides.meta.elk is ambiguous across supported engines in 'meta.elk'; set the active layout engine before saving",
     );
     expect(fetchFn).not.toHaveBeenCalled();
   });

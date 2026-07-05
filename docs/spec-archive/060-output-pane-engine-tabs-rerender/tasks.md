@@ -1,6 +1,6 @@
 # Tasks: Spec 060 Output Pane Engine Tabs And Live Rerender
 
-**Input**: `specs/060-output-pane-engine-tabs-rerender/spec.md`
+**Input**: `docs/spec-archive/060-output-pane-engine-tabs-rerender/spec.md`
 **Branch**: `feat/060-output-pane-engine-tabs-rerender`
 
 > 2026-06-28 reset: the previous task list was marked complete on mock/hash-only
@@ -88,7 +88,7 @@
       Also verify an authored `juju-bootstrap-machines-process` engine switch.
       Full compatible-engine exposure/fidelity for Juju-class examples belongs to
       spec 057.
-      **Verify**: `PREVIEW_BASE_URL=http://127.0.0.1:8120 node --experimental-default-type=module specs/060-output-pane-engine-tabs-rerender/evidence/engine-tabs-identity-check.ts`
+      **Verify**: `PREVIEW_BASE_URL=http://127.0.0.1:8120 node --experimental-default-type=module docs/spec-archive/060-output-pane-engine-tabs-rerender/evidence/engine-tabs-identity-check.ts`
       after fresh `npm run preview`; committed `engine-tabs-identity-result.json`
       is `ok: true`.
 

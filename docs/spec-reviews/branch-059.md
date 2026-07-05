@@ -63,7 +63,7 @@ README §3 plus:
 - Shared source: `packages/layout-engine/src/shared-box-rhythm.ts`
 - Contract test: `packages/layout-engine/tests/cross-document-style-contract.test.ts`
 - Browser proof:
-  `specs/059-cross-document-style-source-of-truth/evidence/style-source-browser-result.json`
+  `docs/spec-archive/059-cross-document-style-source-of-truth/evidence/style-source-browser-result.json`
 - Validation commands:
   `npm --prefix packages/layout-engine test`;
   `npm --prefix apps/preview test`;

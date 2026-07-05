@@ -1,4 +1,5 @@
 import type { FrameDiagram } from '../frame-model.js';
+import { canonicalPreviewLayoutEngineKey } from './legacy-layout-engine-migration.js';
 import type {
   CompatibilityEvaluationOptions,
   CompatibilityResult,
@@ -14,18 +15,24 @@ const previewEngineRegistry: PreviewEngineManifest[] = [];
 export const PREVIEW_ENGINE_REGISTRY: readonly PreviewEngineManifest[] = previewEngineRegistry;
 
 export function registerPreviewEngine(manifest: PreviewEngineManifest): () => void {
+  const algorithmClass = typeof manifest.algorithmClass === 'string'
+    ? manifest.algorithmClass.trim()
+    : '';
+  if (algorithmClass.length === 0) {
+    throw new Error(`Preview engine '${manifest.id}' must declare a non-empty algorithm class`);
+  }
   if (previewEngineRegistry.some((entry) => entry.id === manifest.id)) {
     throw new Error(`Preview engine '${manifest.id}' is already registered`);
   }
+  if (previewEngineRegistry.some((entry) => entry.algorithmClass === algorithmClass)) {
+    throw new Error(
+      `Preview engine algorithm class '${algorithmClass}' is already registered`,
+    );
+  }
+  manifest.algorithmClass = algorithmClass;
   const normalizedShellMode = normalizePreviewShellMode(manifest.shellMode) ?? manifest.shellMode;
-  previewEngineRegistry.push(
-    normalizedShellMode === manifest.shellMode
-      ? manifest
-      : {
-          ...manifest,
-          shellMode: normalizedShellMode,
-        },
-  );
+  manifest.shellMode = normalizedShellMode;
+  previewEngineRegistry.push(manifest);
   return () => {
     const index = previewEngineRegistry.findIndex((entry) => entry.id === manifest.id);
     if (index >= 0) {
@@ -60,7 +67,7 @@ export function listPreviewEnginesBySidebarSection(
 export function getPreviewEngineByLayoutKey(
   layoutEngineKey: string,
 ): PreviewEngineManifest | undefined {
-  const key = layoutEngineKey.trim();
+  const key = canonicalPreviewLayoutEngineKey(layoutEngineKey);
   if (!key) return undefined;
   return PREVIEW_ENGINE_REGISTRY.find((entry) => entry.layoutEngineKey === key);
 }
@@ -68,7 +75,7 @@ export function getPreviewEngineByLayoutKey(
 export function resolvePreviewEngine(
   context: PreviewEngineContext,
 ): PreviewEngineManifest | undefined {
-  const layoutEngine = context.layoutEngine?.trim();
+  const layoutEngine = canonicalPreviewLayoutEngineKey(context.layoutEngine);
   if (layoutEngine) {
     const explicit = PREVIEW_ENGINE_REGISTRY.find(
       (entry) => entry.layoutEngineKey === layoutEngine,
@@ -347,7 +354,7 @@ export function evaluatePreviewEngineCompatibility(
   // declares a *conflicting* layout engine. Picking the active engine for a
   // chosen key is `resolvePreviewEngine`'s job, not this predicate's.
   const requiredLayoutEngineKey = engine.compatibility.requiredLayoutEngineKey;
-  const layoutEngine = context.layoutEngine?.trim() ?? '';
+  const layoutEngine = canonicalPreviewLayoutEngineKey(context.layoutEngine) ?? '';
   if (requiredLayoutEngineKey && layoutEngine && layoutEngine !== requiredLayoutEngineKey) {
     return {
       compatible: false,

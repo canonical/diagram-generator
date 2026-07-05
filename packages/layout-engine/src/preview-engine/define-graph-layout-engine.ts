@@ -17,6 +17,7 @@ export interface GraphLayoutPreviewEngineDefinition {
   /** Manifest identity (e.g. 'elk-force'). */
   id: string;
   label: string;
+  algorithmClass: string;
   /** meta.layout_engine value (usually === id). */
   layoutEngineKey: string;
   /** Shared render lane key (e.g. 'frame-elk-force'); used by render adapter. */
@@ -71,6 +72,7 @@ function buildManifest(def: GraphLayoutPreviewEngineDefinition): PreviewEngineMa
   return {
     id: def.id,
     label: def.label,
+    algorithmClass: def.algorithmClass,
     layoutEngineKey: def.layoutEngineKey,
     shellMode: FRAME_PREVIEW_SHELL_MODE,
     renderFamily: def.renderFamily,

@@ -7,7 +7,6 @@ import {
   layoutForce,
   type ElkPreviewAlgorithm,
 } from '@diagram-generator/graph-layout-elk';
-import { layoutDagre } from '@diagram-generator/graph-layout-dagre';
 import type { FrameDiagram } from '../frame-model.js';
 import { layoutFrameTree } from '../layout.js';
 import { resolveStyles } from '../resolve-styles.js';
@@ -95,25 +94,6 @@ export const elkRectpackingFrameDiagramRenderAdapter = createElkAlgorithmFrameDi
   'rectpacking',
   'elk-rectpacking',
 );
-
-export const dagreFrameDiagramRenderAdapter: PreviewFrameDiagramRenderAdapter = async (options) => {
-  const dagreOptionOverrides = {
-    ...((options.diagram.engineLayout?.['meta.dagre'] ?? {}) as Record<string, string>),
-    ...(options.elkOptionOverrides ?? {}),
-  };
-  return layoutGraphFrameDiagram(options.diagram, options.textAdapter, {
-    diagramType: options.diagram.diagramType as ElkLayoutOptions['diagramType'],
-    graphOptionOverrides: dagreOptionOverrides,
-    graphLayout: async ({ input, direction, optionOverrides }) => layoutDagre(
-      {
-        ...input,
-        direction,
-        spacingProfile: 'normal',
-      },
-      { optionOverrides },
-    ),
-  });
-};
 
 export function installNativeFramePreviewRenderAdapter(): () => void {
   return registerPreviewFrameDiagramRenderAdapter('frame-native', nativeFrameDiagramRenderAdapter);

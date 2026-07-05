@@ -1,7 +1,7 @@
 # Spec 074: Layout algorithm survey and best-of-breed consolidation
 
 **Feature Branch**: `feat/074-layout-algorithm-consolidation`
-**Status**: Draft
+**Status**: Closeout Ready
 **Created**: 2026-07-05
 **Context**: chat decision 2026-07-05 (do not maintain N implementations of the
 same algorithm; keep one robust implementation per algorithm, replace only if a
@@ -9,6 +9,35 @@ better one exists; **Dagre is a decided removal**; **hard no-duplicate
 contract**). Strategy doc: `docs/architecture/node-paradigm-and-engine-strategy.md`.
 Sibling corpus/taxonomy repo: `diagram-generator-planning`. Consumes spec 073's
 node model. Gates any future bulk-port of Mermaid / Graphviz / D2.
+
+**Status note (2026-07-05):** Phases 2-6 are complete. `decision-matrix.md`
+records the current engine/package capability and cost surface, the candidate
+survey and chosen implementation per required algorithm, the explicit engine
+keep/retire verdicts, the backend-swap migration discipline, and the downstream
+spec queue. Dagre is removed from the builtin registry/render surfaces, legacy
+Dagre saves migrate onto the canonical `elk-layered` / `meta.elk` lane with
+persist->reload coverage, every builtin preview engine now declares an
+`algorithmClass`, the duplicate-algorithm guard is enforced in the registry and
+repo-owned tests, and validation is green (`packages/layout-engine` `975/975`,
+`apps/preview` `160/160`, `check_no_new_python` ok).
+
+**Review reconciliation (2026-07-05):** Phase 7 resolved the adversarial review
+findings. `registerPreviewEngine(...)` now rejects missing/blank
+`algorithmClass` values at runtime, the load-path Dagre migration strips orphan
+`meta.dagre*` buckets even when they translate to zero supported ELK keys, and
+`decision-matrix.md` no longer cites radial / rectpacking inventory as
+corpus-required without planning-repo evidence. Phase 8 reconciled the full
+suite after that hardening: the registry now preserves manifest identity while
+normalizing `algorithmClass`, all synthetic install-unit/onboarding fixtures
+declare explicit unique algorithm classes, and full validation reran green in
+this worktree (`packages/layout-engine` `978/978`, `apps/preview` `160/160`,
+`check_no_new_python` ok).
+
+**Follow-up reconciliation (2026-07-05):** Phase 9 closed the remaining
+tooling/docs gap from the post-closeout audit. `graph-layout-dagre` is no
+longer wired into the active layout-engine build/test/browser-bundle path or
+the preview-server alias/watch surface, and the live agent/spec docs now
+describe Dagre as retired rather than current product path.
 
 ## Problem
 

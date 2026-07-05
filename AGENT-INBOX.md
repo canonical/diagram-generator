@@ -36,39 +36,37 @@ node-UI home.
 
 **Priority order (implement in this order unless the user reprioritises):**
 
-1. **Spec 074 — layout algorithm consolidation.** Start concrete and decided:
-   remove Dagre (`engines/dagre.engine.ts`, `dagre-controls.ts`, `builtins.ts`,
-   tests) with a persist→reload migration proof, and add the **hard
-   no-duplicate-algorithm guard** (each engine declares its algorithm class).
-   Then do the corpus-driven survey + `decision-matrix.md`. Inputs from
-   `diagram-generator-planning/docs/taxonomy` + `docs/audit/layout_mapping.py`.
-   See `specs/074-layout-algorithm-consolidation/tasks.md`.
-2. **Spec 073 — layout node model + param-pane unification.** Drop "family",
+Spec 074 is no longer active. It is **Closeout Ready** on
+`feat/074-layout-algorithm-consolidation`: Dagre is removed, the hard
+no-duplicate-algorithm guard is live, the corpus-driven `decision-matrix.md` is
+committed, and the adversarial review hardening reran green. Do not reopen 074
+unless new findings appear.
+
+1. **Spec 073 — layout node model + param-pane unification.** Drop "family",
    rename `grid`→`frame` (compat alias), make panel/lane registration
    data-driven (**this closes the spec 046 T073 residual**), and route force
    params through the shared param pane. Do NOT delete the force input format;
    the force-pipeline convergence (T060) is deprioritised. See
    `specs/073-layout-node-model-param-unification/tasks.md`.
-3. **Spec 061 — grid regression** and **Spec 064 — arrow label de-overlap.**
+2. **Spec 061 — grid regression** and **Spec 064 — arrow label de-overlap.**
    Standing user-facing regressions; both are investigation-first with a
    required `findings.md`. Do after the architecture slices, or slot 061's
    "hide the broken grid affordances now" containment earlier if the user wants
    a fast visible win. See their `tasks.md`.
-4. **Spec 070 — layers palette reorder.** Independent editor feature; pick up
+3. **Spec 070 — layers palette reorder.** Independent editor feature; pick up
    when the above are moving.
 
 **Bookkeeping (fast, low-risk — do opportunistically between slices):**
 - **Specs 046 and 047 are DONE** — both merged to `main` and archived under
   `docs/spec-archive/` on 2026-07-05 (046's Phase 7 reconciliation landed:
   `T034` is resolved to "met"; 047 was a fast-forward merge). Do not reopen.
-- **Still outstanding: archive the 13 merged-but-unarchived specs**
-  (`048, 051, 052, 054–060, 062, 063, 071`) per the "closeout ⇒ merged ⇒
-  archived" rule. They are all still in `specs/`. Also refresh the now-stale
-  branch references in the `AGENTS.md` handover (it still cites deleted
-  `feat/046`, `feat/047`, etc.).
+- **Closeout catalog reconciliation is DONE** — specs
+  `048, 051, 052, 054–060, 062, 063, 071` were archived under
+  `docs/spec-archive/` on 2026-07-05, and `AGENTS.md` handover now cites
+  merged/archive locations instead of deleted feature branches.
 
 **Validation baseline (2026-07-05, rerun before closing anything):**
-`packages/layout-engine` **975/975**, `apps/preview` **160/160**,
+`packages/layout-engine` **978/978**, `apps/preview` **160/160**,
 `check_no_new_python` ok, `check-preview-shell-size-budgets` ok.
 
 Use a matching `feat/<id>-<slug>` branch per spec; one active spec per branch.
@@ -191,10 +189,11 @@ moved under `docs/spec-archive/` or the catalog should restate them as
 
 ### Also worth flagging
 
-- **`AGENTS.md` handover is stale on locations.** It still names `feat/047`,
+- ~~**`AGENTS.md` handover is stale on locations.** It still names `feat/047`,
   `feat/051`, `feat/052-*`, etc. as current homes; those branches are deleted
   (correct per workflow) but the handover reads as if they're live. Refresh to
-  "merged to `main`".
+  "merged to `main`".~~ **Resolved 2026-07-05**: the handover now points at the
+  archived package locations.
 - **065 is correctly NOT closeout-ready** (`Active / blocked` on the uncaptured
   `baseline-fail.json`) — consistent.
 
@@ -206,8 +205,8 @@ moved under `docs/spec-archive/` or the catalog should restate them as
 > and 2 below are **DONE**: spec 046 landed its Phase 7 reconciliation (T034
 > resolved to "met") and is archived; spec 047 is archived; the T073
 > panel-registry decision became **spec 073** (do it there, do not reopen 046).
-> Only item 3 (archive the 13) and item 4 (refresh AGENTS.md handover) remain.
-> Kept below for the audit trail.
+> Items 3 and 4 were also completed on 2026-07-05. Kept below for the audit
+> trail.
 
 All of the following is bookkeeping/reconciliation with green tests already
 proven at HEAD. No product engineering is required unless the user opts into the
@@ -217,12 +216,12 @@ proven at HEAD. No product engineering is required unless the user opts into the
    T073 panel-registry decomposition is now owned by **spec 073**.
 2. ~~**047 — restate as "merged to `main`" and archive.**~~ **DONE + archived
    2026-07-05** (fast-forward merge; branch deleted).
-3. **Archive the 13 genuinely-ready merged specs** (`048, 051, 052, 054–060,
-   062, 063, 071`) under `docs/spec-archive/` per the
+3. ~~**Archive the 13 genuinely-ready merged specs** (`048, 051, 052,
+   054–060, 062, 063, 071`) under `docs/spec-archive/` per the
    "closeout ⇒ merged ⇒ archived" rule. **Still outstanding** — all 13 are in
-   `specs/`.
-4. **Refresh `AGENTS.md` handover** to stop citing deleted feature branches.
-   **Still outstanding.**
+   `specs/`.~~ **DONE 2026-07-05.**
+4. ~~**Refresh `AGENTS.md` handover** to stop citing deleted feature branches.
+   **Still outstanding.**~~ **DONE 2026-07-05.**
 
 Validation baseline at 2026-07-05 (rerun before closing): `packages/layout-engine`
 **975/975**, `apps/preview` **160/160**, `check_no_new_python` ok,
@@ -290,3 +289,62 @@ Still explicitly deferred, not active inbox work:
   `builtin-force-host`, `/api/force-spec/`, and `persistForceSpecToYaml` stay on
   the existing parallel force pipeline until a dedicated follow-up spec chooses
   to converge them onto the shared seams.
+
+---
+
+## Adversarial review — 2026-07-05 — spec 074 layout algorithm consolidation
+
+Resolved on `feat/074-layout-algorithm-consolidation` during the review-fix
+phase:
+
+- `registerPreviewEngine(...)` now rejects missing/blank `algorithmClass`
+  values at runtime and normalizes surrounding whitespace. Coverage lives in
+  `packages/layout-engine/tests/preview-engine-registry-contract.test.ts`.
+- `migrateLegacyFrameDiagramEngineState(...)` now overwrites `engineLayout`
+  whenever that bucket was present on input, so unsupported legacy
+  `meta.dagre*` payloads cannot survive the load/import/undo path merely
+  because translation produced zero supported ELK keys. Coverage lives in
+  `packages/layout-engine/tests/legacy-layout-engine-migration.test.ts`.
+- `specs/074-layout-algorithm-consolidation/decision-matrix.md` no longer
+  overstates `elk-radial` / `elk-rectpacking` as corpus-required algorithms.
+  They are now called out as inventory-backed candidate lanes pending
+  planning-repo evidence.
+- The stricter runtime guard no longer regresses the wider suite: the registry
+  keeps the original manifest object identity while normalizing
+  `algorithmClass`, and every synthetic install-unit/onboarding test manifest
+  now declares an explicit unique algorithm class.
+
+Validation in this worktree:
+
+- `npm --prefix packages/layout-engine exec vitest run tests/preview-engine-registry-contract.test.ts tests/legacy-layout-engine-migration.test.ts` -> passed
+- `npm --prefix packages/layout-engine exec vitest run tests/preview-engine-render.test.ts tests/preview-node-onboarding.test.ts tests/app-fresh-render.test.ts tests/define-graph-layout-engine.test.ts tests/engines/elk-force.contract.test.ts tests/engines/elk-mrtree.contract.test.ts tests/engines/elk-radial.contract.test.ts tests/engines/elk-rectpacking.contract.test.ts tests/engines/elk-stress.contract.test.ts` -> passed
+- `npm --prefix packages/layout-engine test` -> passed (`978/978`)
+- `npm --prefix apps/preview test` -> passed (`160/160`)
+- `node scripts/check_no_new_python.mjs` -> passed
+
+---
+
+## Adversarial review — 2026-07-05 — spec 074 follow-up findings resolved
+
+Resolved on the `feat/074-layout-algorithm-consolidation` line after the
+post-fix audit reopened two honest leftovers:
+
+1. **Dagre is now removed from the active build/tooling path as well as the
+   runtime lane.**
+   `packages/layout-engine/package.json`,
+   `packages/layout-engine/build-browser.mjs`,
+   `apps/preview/src/server.ts`, and
+   `scripts/check-browser-bundle-fresh.mjs` no longer build, alias, watch, or
+   freshness-check `@diagram-generator/graph-layout-dagre`.
+2. **The live docs no longer describe Dagre as a current product path.**
+   `docs/agent-index.md` drops the retired package from the main-path table, and
+   `docs/specs.md` now describes spec 052/074 in post-retirement terms instead
+   of implying Dagre remains part of the active product surface.
+
+Validation in this worktree for the follow-up reconciliation:
+
+- `npm --prefix packages/graph-layout-core run build` -> passed
+- `npm --prefix packages/layout-engine run build:browser` -> passed
+- `node scripts/check-browser-bundle-fresh.mjs` -> passed
+- `node --import tsx --test src/persistence/preview-host-contract.test.ts` (from `apps/preview/`) -> passed
+- `node scripts/check_no_new_python.mjs` -> passed

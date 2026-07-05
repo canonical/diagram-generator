@@ -135,7 +135,7 @@ logic. The interpreter's `cook` delegates to the existing
   round-trip; foreign-key rejection at node boundary; SC-001 canvas-parity across
   the five triggers (prefer a Node/DOM-level harness; Playwright only where a
   real gesture is required).
-- **Browser evidence** (`specs/071-.../evidence/`): SC-002 real-gesture tab
+- **Browser evidence** (`docs/spec-archive/071-.../evidence/`): SC-002 real-gesture tab
   switch with fitted-canvas + `data-layout-engine` + active node id captured;
   SC-003 ELK/dagre bucket-leak sequence. Follow spec 069's fixture-hygiene rule:
   sanitized temp fixtures or hash-guarded authored fixtures; never write back to

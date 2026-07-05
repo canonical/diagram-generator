@@ -6,6 +6,7 @@ import { defineElkAlgorithmPreviewEngine } from './elk-algorithm-engine.js';
 export const ELK_RECTPACKING_PREVIEW_ENGINE_DEFINITION = {
   id: 'elk-rectpacking',
   label: 'ELK rectangle packing',
+  algorithmClass: 'rectangle-packing',
   layoutEngineKey: 'elk-rectpacking',
   renderFamily: 'frame-elk-rectpacking',
   graphEngine: ELK_RECTPACKING_GRAPH_LAYOUT_ENGINE,

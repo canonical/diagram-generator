@@ -1,6 +1,6 @@
 # Tasks: Spec 056 Arrow Reroute Structural Mutations
 
-**Input**: `specs/056-arrow-reroute-structural-mutations/spec.md`  
+**Input**: `docs/spec-archive/056-arrow-reroute-structural-mutations/spec.md`  
 **Branch**: `feat/056-arrow-reroute-structural-mutations`
 
 ## Phase 0: Reproduce and Map

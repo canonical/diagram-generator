@@ -1,6 +1,6 @@
 # Tasks: ELK sizing and interaction follow-up
 
-**Input**: Design documents from `/specs/048-elk-sizing-interaction-followup/`
+**Input**: Design documents from `/docs/spec-archive/048-elk-sizing-interaction-followup/`
 > 2026-06-28 REOPENED (authority verdict
 > `docs/spec-reviews/CLINE-VERDICT-2026-06-28.md`). The live ELK-resize
 > "relayout failed" P0 required proof on the real UI. The actual fix

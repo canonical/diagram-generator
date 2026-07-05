@@ -1,6 +1,6 @@
 # Tasks: Spec 052 Layout Engine Onboarding Factory and Multi-Engine Port
 
-**Input**: `specs/052-layout-engine-onboarding-port/spec.md`
+**Input**: `docs/spec-archive/052-layout-engine-onboarding-port/spec.md`
 **Branch**: `feat/052-layout-engine-onboarding-port`
 
 ## How to work this list
@@ -479,7 +479,7 @@
 - [x] **T501** Update `engine-onboarding-checklist.md` with any step that turned
       out to be missing while porting (keep it the single source for "add engine
       N+1").
-      **Verify**: `Select-String -Path specs/052-layout-engine-onboarding-port/engine-onboarding-checklist.md -Pattern "Step"`
+      **Verify**: `Select-String -Path docs/spec-archive/052-layout-engine-onboarding-port/engine-onboarding-checklist.md -Pattern "Step"`
       **Result**: checklist now includes new-package lock hygiene, self-build
       package tests, generic `FrameDiagram.engineLayout` namespace threading,
       save-contract namespace registration, browser-entry/export barrels, and

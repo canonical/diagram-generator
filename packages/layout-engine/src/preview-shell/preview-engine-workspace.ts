@@ -1,5 +1,6 @@
 import type { PreviewEngineManifest } from '../preview-engine/types.js';
 import { FRAME_PREVIEW_SHELL_MODE } from '../preview-engine/shell-mode.js';
+import { canonicalPreviewLayoutEngineKey } from '../preview-engine/legacy-layout-engine-migration.js';
 
 export type PreviewEngineWorkspaceEngine = Pick<
   PreviewEngineManifest,
@@ -55,8 +56,7 @@ export interface ResolveActivePreviewLayoutEngineOptions {
 }
 
 export function normalizePreviewWorkspaceEngineId(value: string | null | undefined): string | null {
-  const normalized = typeof value === 'string' ? value.trim() : '';
-  return normalized.length > 0 ? normalized : null;
+  return canonicalPreviewLayoutEngineKey(value);
 }
 
 export function resolveActivePreviewLayoutEngine(

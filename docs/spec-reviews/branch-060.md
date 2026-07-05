@@ -130,7 +130,7 @@ All of README §3 plus:
 - A real-`renderFreshPreviewSvg` test proving `data-layout-engine` equals the
   selected engine after a switch, on an **authored-engine** fixture.
 - The Playwright self-check (README §4) committed under
-  `specs/060-output-pane-engine-tabs-rerender/evidence/`, asserting engine
+  `docs/spec-archive/060-output-pane-engine-tabs-rerender/evidence/`, asserting engine
   identity (not hash) for: authored-ELK → v3, v3 → elk-layered, and a sequence
   doc (no dead rail).
 - Direction-flip arrow reroute verified on `tiered-network-architecture`.

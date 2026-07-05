@@ -8,6 +8,10 @@ import {
   PERSIST_INT_FRAME_KEYS,
   PERSIST_LOWER_FRAME_KEYS,
   UNSUPPORTED_PERSIST_FRAME_KEYS,
+  canonicalPreviewLayoutEngineKey,
+  canonicalPreviewPersistNamespace,
+  migrateLegacyPreviewEngineNodeBucketsForNamespace,
+  migrateLegacyPreviewEngineOverridesForNamespace,
   parsePreviewArrowComponentId,
   resolvePreviewArrowComponentId,
 } from "@diagram-generator/layout-engine";
@@ -65,6 +69,64 @@ export interface PersistOverridePayload {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function metaKeyFromNamespace(namespace: string): string {
+  return namespace.startsWith("meta.") ? namespace.slice("meta.".length) : namespace;
+}
+
+function migrateLegacyDocumentMeta(document: Record<string, unknown>): void {
+  const meta = isRecord(document.meta) ? document.meta : null;
+  if (!meta) {
+    return;
+  }
+
+  const migratedMeta: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(meta)) {
+    if (key === "layout_engine") {
+      const canonicalLayoutEngine = canonicalPreviewLayoutEngineKey(
+        typeof value === "string" ? value : null,
+      );
+      if (canonicalLayoutEngine) {
+        migratedMeta.layout_engine = canonicalLayoutEngine;
+      }
+      continue;
+    }
+    if (!isRecord(value)) {
+      migratedMeta[key] = value;
+      continue;
+    }
+
+    const namespace = `meta.${key}`;
+    if (isFrameYamlEngineLayoutNodeNamespace(namespace)) {
+      const migrated = migrateLegacyPreviewEngineNodeBucketsForNamespace(namespace, value);
+      if (!migrated || Object.keys(migrated.buckets).length === 0) {
+        continue;
+      }
+      const metaKey = metaKeyFromNamespace(migrated.namespace);
+      migratedMeta[metaKey] = {
+        ...(isRecord(migratedMeta[metaKey]) ? migratedMeta[metaKey] : {}),
+        ...migrated.buckets,
+      };
+      continue;
+    }
+
+    const migrated = migrateLegacyPreviewEngineOverridesForNamespace(namespace, value);
+    if (!migrated || Object.keys(migrated.overrides).length === 0) {
+      continue;
+    }
+    const metaKey = metaKeyFromNamespace(migrated.namespace);
+    migratedMeta[metaKey] = {
+      ...(isRecord(migratedMeta[metaKey]) ? migratedMeta[metaKey] : {}),
+      ...migrated.overrides,
+    };
+  }
+
+  if (Object.keys(migratedMeta).length > 0) {
+    document.meta = migratedMeta;
+  } else {
+    delete document.meta;
+  }
 }
 
 function normalizeStyleName(styleName: unknown): string | null {
@@ -512,11 +574,12 @@ function applyLayoutEngineChoice(document: Record<string, unknown>, layoutEngine
   const meta = isRecord(document.meta) ? document.meta : {};
   document.meta = meta;
 
-  if (layoutEngine === null || layoutEngine === "") {
+  const normalizedLayoutEngine = canonicalPreviewLayoutEngineKey(layoutEngine);
+  if (normalizedLayoutEngine === null || normalizedLayoutEngine === "") {
     // Clear the layout engine choice
     delete meta.layout_engine;
   } else {
-    meta.layout_engine = layoutEngine;
+    meta.layout_engine = normalizedLayoutEngine;
   }
 
   // Clean up empty meta object
@@ -575,8 +638,19 @@ function normalizeEngineLayoutOverrides(
       if (!isRecord(overrides)) {
         throw new Error(`engine_layout_overrides.${namespace} must be an object`);
       }
-      if (Object.keys(overrides).length > 0 || isFrameYamlEngineLayoutNodeNamespace(namespace)) {
-        normalized[namespace] = { ...overrides };
+      const normalizedNamespace = canonicalPreviewPersistNamespace(namespace) ?? namespace;
+      if (isFrameYamlEngineLayoutNodeNamespace(normalizedNamespace)) {
+        const migratedBuckets = migrateLegacyPreviewEngineNodeBucketsForNamespace(namespace, overrides);
+        const nextBuckets = migratedBuckets?.buckets ?? {};
+        if (Object.keys(nextBuckets).length > 0 || isFrameYamlEngineLayoutNodeNamespace(normalizedNamespace)) {
+          normalized[normalizedNamespace] = { ...nextBuckets };
+        }
+        continue;
+      }
+      const migrated = migrateLegacyPreviewEngineOverridesForNamespace(namespace, overrides);
+      const nextOverrides = migrated?.overrides ?? { ...overrides };
+      if (Object.keys(nextOverrides).length > 0) {
+        normalized[normalizedNamespace] = { ...nextOverrides };
       }
     }
   }
@@ -683,6 +757,7 @@ export function persistFrameDiagramOverridePayloadToYaml(
   if (document.engine !== "v3") {
     throw new Error(`${framePath}: not a native frame YAML (missing engine: v3)`);
   }
+  migrateLegacyDocumentMeta(document);
   const rootData = document.root;
   if (!isRecord(rootData)) throw new Error(`${framePath}: root must be a mapping`);
   if (isRecord(document.meta)) {

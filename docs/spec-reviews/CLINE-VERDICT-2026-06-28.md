@@ -23,7 +23,7 @@ I re-read the actual code, not the claims. These Composer findings are
    identity fix is genuine.
 3. **Live resize and the 060 direction proof pass `skipModelUpdate: true`.**
    Confirmed at `app-live-resize.ts:326-342` and
-   `specs/060-.../evidence/engine-tabs-identity-check.mjs:76-81`.
+   `docs/spec-archive/060-.../evidence/engine-tabs-identity-check.mjs:76-81`.
 4. **Inspector grid controls and ELK option surfacing are not engine-contextual.**
    `inspector-autolayout-panel.ts` has no `activeEngine` /
    `capabilities.gridEditing` gating, and `elk-layout-controls.ts::paramSpecs`

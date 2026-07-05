@@ -170,6 +170,7 @@ describe('preview-engine render helpers', () => {
     const unregisterEngine = registerPreviewEngine({
       id: 'install-unit-grid',
       label: 'Install unit grid',
+      algorithmClass: 'install-unit-proof',
       layoutEngineKey: 'install-unit-grid',
       shellMode: 'grid',
       renderFamily: 'frame-install-unit',

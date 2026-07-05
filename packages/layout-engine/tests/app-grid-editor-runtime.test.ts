@@ -446,17 +446,12 @@ describe('createPreviewGridEditorRuntimeFromBrowserHost', () => {
 
     expect(options.browser.replaceOverrides).toHaveBeenCalledWith({});
     expect(options.shared.model.layoutOverrides).toEqual({
-      'dagre.rankdir': 'LR',
-      'dagre.ranksep': 128,
+      'elk.spacing.nodeNode': 64,
     });
-    expect(options.shared.model.layoutOverrideNamespace).toBe('meta.dagre');
+    expect(options.shared.model.layoutOverrideNamespace).toBe('meta.elk');
     expect(options.shared.model.layoutOperatorOverrides).toEqual({
-      activeOperatorKey: 'dagre',
+      activeOperatorKey: 'elk-layered',
       byOperator: {
-        dagre: {
-          'dagre.rankdir': 'LR',
-          'dagre.ranksep': 128,
-        },
         'elk-layered': {
           'elk.spacing.nodeNode': 64,
         },
@@ -489,14 +484,13 @@ describe('createPreviewGridEditorRuntimeFromBrowserHost', () => {
     });
 
     expect(options.shared.previewWindow.__DG_CONFIG).toEqual(expect.objectContaining({
-      active_engine_id: 'dagre',
-      layout_engine: 'dagre',
+      active_engine_id: 'elk-layered',
+      layout_engine: 'elk-layered',
       persisted_layout_engine: 'elk-force',
     }));
     expect(options.shared.previewWindow.__DG_previewRenderIntent).toEqual(expect.objectContaining({
-      engineId: 'dagre',
+      engineId: 'elk-layered',
       pageDirection: 'HORIZONTAL',
-      engineOverrides: { 'dagre.rankdir': 'LR' },
       gridOverrides: { cols: 5 },
     }));
     expect(syncChrome).toHaveBeenCalledTimes(1);

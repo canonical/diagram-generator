@@ -1,6 +1,6 @@
 # Tasks: Spec 059 Cross-Document Style Source Of Truth
 
-**Input**: `specs/059-cross-document-style-source-of-truth/spec.md`  
+**Input**: `docs/spec-archive/059-cross-document-style-source-of-truth/spec.md`  
 **Branch**: `feat/059-cross-document-style-source-of-truth`
 
 ## Phase 0: Audit
@@ -32,7 +32,7 @@
 - [x] **T020** Add or restore engine identity display where the sequence lane
       needs it.
       **Verify**: `npm --prefix apps/preview test`; browser evidence at
-      `specs/059-cross-document-style-source-of-truth/evidence/style-source-browser-result.json`
+      `docs/spec-archive/059-cross-document-style-source-of-truth/evidence/style-source-browser-result.json`
 
 ## Phase 3: Validation
 
@@ -42,4 +42,4 @@
       `npm --prefix apps/preview test`;
       `node scripts/check-browser-bundle-fresh.mjs`;
       `node scripts/check_no_new_python.mjs`;
-      `node specs/059-cross-document-style-source-of-truth/evidence/style-source-browser-check.mjs`
+      `node docs/spec-archive/059-cross-document-style-source-of-truth/evidence/style-source-browser-check.mjs`

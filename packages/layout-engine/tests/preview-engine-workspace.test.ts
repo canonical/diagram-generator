@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  DAGRE_PREVIEW_ENGINE,
   ELK_LAYERED_PREVIEW_ENGINE,
+  ELK_RADIAL_PREVIEW_ENGINE,
   SEQUENCE_PREVIEW_ENGINE,
   V3_PREVIEW_ENGINE,
 } from '../src/preview-engine/builtins.js';
@@ -18,20 +18,20 @@ describe('preview engine workspace state', () => {
   it('derives tabs and navigation from compatible engine manifests', () => {
     const workspace = createPreviewEngineWorkspaceState({
       activeEngine: ELK_LAYERED_PREVIEW_ENGINE,
-      compatibleEngines: [V3_PREVIEW_ENGINE, ELK_LAYERED_PREVIEW_ENGINE, DAGRE_PREVIEW_ENGINE],
+      compatibleEngines: [V3_PREVIEW_ENGINE, ELK_LAYERED_PREVIEW_ENGINE, ELK_RADIAL_PREVIEW_ENGINE],
       persistedEngineId: 'elk-layered',
     });
 
     expect(workspace.activeEngineId).toBe('elk-layered');
     expect(workspace.persistedEngineId).toBe('elk-layered');
-    expect(workspace.compatibleEngineIds).toEqual(['v3', 'elk-layered', 'dagre']);
+    expect(workspace.compatibleEngineIds).toEqual(['v3', 'elk-layered', 'elk-radial']);
     expect(workspace.navigation).toEqual({
       activeIndex: 1,
       total: 3,
       hasPrev: true,
       hasNext: true,
       prevEngineId: 'v3',
-      nextEngineId: 'dagre',
+      nextEngineId: 'elk-radial',
     });
     expect(workspace.tabs.map((tab) => ({
       id: tab.engine.id,
@@ -40,7 +40,7 @@ describe('preview engine workspace state', () => {
     }))).toEqual([
       { id: 'v3', active: false, persisted: false },
       { id: 'elk-layered', active: true, persisted: true },
-      { id: 'dagre', active: false, persisted: false },
+      { id: 'elk-radial', active: false, persisted: false },
     ]);
   });
 
@@ -61,10 +61,10 @@ describe('preview engine workspace state', () => {
   it('resolves manifests from compatible engine ids and preserves per-engine session state', () => {
     const initial = createPreviewEngineWorkspaceState<{ dirtyState: string }>({
       activeEngineId: 'v3',
-      compatibleEngineIds: ['v3', 'dagre'],
+      compatibleEngineIds: ['v3', 'elk-radial'],
       getEngineById: (engineId) => {
         if (engineId === 'v3') return V3_PREVIEW_ENGINE;
-        if (engineId === 'dagre') return DAGRE_PREVIEW_ENGINE;
+        if (engineId === 'elk-radial') return ELK_RADIAL_PREVIEW_ENGINE;
         return null;
       },
       persistedEngineId: 'v3',
@@ -72,49 +72,49 @@ describe('preview engine workspace state', () => {
     const withV3State = setPreviewEngineWorkspaceSessionState(initial, 'v3', {
       dirtyState: 'native-grid',
     });
-    const switched = setPreviewEngineWorkspaceActiveEngine(withV3State, 'dagre');
-    const withDagreState = setPreviewEngineWorkspaceSessionState(switched, 'dagre', {
-      dirtyState: 'rankdir=LR',
+    const switched = setPreviewEngineWorkspaceActiveEngine(withV3State, 'elk-radial');
+    const withRadialState = setPreviewEngineWorkspaceSessionState(switched, 'elk-radial', {
+      dirtyState: 'radius=160',
     });
 
-    expect(withDagreState.persistedEngineId).toBe('v3');
-    expect(withDagreState.activeEngineId).toBe('dagre');
-    expect(withDagreState.sessionStateByEngine).toEqual({
+    expect(withRadialState.persistedEngineId).toBe('v3');
+    expect(withRadialState.activeEngineId).toBe('elk-radial');
+    expect(withRadialState.sessionStateByEngine).toEqual({
       v3: { dirtyState: 'native-grid' },
-      dagre: { dirtyState: 'rankdir=LR' },
+      'elk-radial': { dirtyState: 'radius=160' },
     });
-    expect(withDagreState.tabs.map((tab) => tab.sessionState)).toEqual([
+    expect(withRadialState.tabs.map((tab) => tab.sessionState)).toEqual([
       { dirtyState: 'native-grid' },
-      { dirtyState: 'rankdir=LR' },
+      { dirtyState: 'radius=160' },
     ]);
 
-    const cleared = clearPreviewEngineWorkspaceSessionState(withDagreState, 'v3');
+    const cleared = clearPreviewEngineWorkspaceSessionState(withRadialState, 'v3');
     expect(cleared.sessionStateByEngine).toEqual({
-      dagre: { dirtyState: 'rankdir=LR' },
+      'elk-radial': { dirtyState: 'radius=160' },
     });
   });
 
   it('reopens on the last persisted engine until the active tab is saved', () => {
     const persisted = createPreviewEngineWorkspaceState<{ dirtyState: string }>({
       activeEngine: V3_PREVIEW_ENGINE,
-      compatibleEngines: [V3_PREVIEW_ENGINE, DAGRE_PREVIEW_ENGINE],
+      compatibleEngines: [V3_PREVIEW_ENGINE, ELK_RADIAL_PREVIEW_ENGINE],
       persistedEngineId: 'v3',
     });
-    const unsavedDagre = setPreviewEngineWorkspaceSessionState(
-      setPreviewEngineWorkspaceActiveEngine(persisted, 'dagre'),
-      'dagre',
-      { dirtyState: 'rankdir=LR' },
+    const unsavedRadial = setPreviewEngineWorkspaceSessionState(
+      setPreviewEngineWorkspaceActiveEngine(persisted, 'elk-radial'),
+      'elk-radial',
+      { dirtyState: 'radius=160' },
     );
 
-    expect(unsavedDagre.activeEngineId).toBe('dagre');
-    expect(unsavedDagre.persistedEngineId).toBe('v3');
-    expect(reopenPreviewEngineWorkspace(unsavedDagre).activeEngineId).toBe('v3');
-    expect(reopenPreviewEngineWorkspace(unsavedDagre).sessionStateByEngine).toEqual({
-      dagre: { dirtyState: 'rankdir=LR' },
+    expect(unsavedRadial.activeEngineId).toBe('elk-radial');
+    expect(unsavedRadial.persistedEngineId).toBe('v3');
+    expect(reopenPreviewEngineWorkspace(unsavedRadial).activeEngineId).toBe('v3');
+    expect(reopenPreviewEngineWorkspace(unsavedRadial).sessionStateByEngine).toEqual({
+      'elk-radial': { dirtyState: 'radius=160' },
     });
 
-    const savedDagre = persistPreviewEngineWorkspaceActiveEngine(unsavedDagre);
-    expect(savedDagre.persistedEngineId).toBe('dagre');
-    expect(reopenPreviewEngineWorkspace(savedDagre).activeEngineId).toBe('dagre');
+    const savedRadial = persistPreviewEngineWorkspaceActiveEngine(unsavedRadial);
+    expect(savedRadial.persistedEngineId).toBe('elk-radial');
+    expect(reopenPreviewEngineWorkspace(savedRadial).activeEngineId).toBe('elk-radial');
   });
 });

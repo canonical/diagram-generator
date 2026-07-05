@@ -6,6 +6,7 @@ import { defineElkAlgorithmPreviewEngine } from './elk-algorithm-engine.js';
 export const ELK_STRESS_PREVIEW_ENGINE_DEFINITION = {
   id: 'elk-stress',
   label: 'ELK stress layout',
+  algorithmClass: 'stress-majorization',
   layoutEngineKey: 'elk-stress',
   renderFamily: 'frame-elk-stress',
   graphEngine: ELK_STRESS_GRAPH_LAYOUT_ENGINE,

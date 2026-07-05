@@ -6,6 +6,7 @@ import { elkLayeredPreviewControlSpecs } from '../elk-controls.js';
 export const ELK_LAYERED_PREVIEW_ENGINE_DEFINITION: GraphLayoutPreviewEngineDefinition = {
   id: 'elk-layered',
   label: 'ELK layered layout',
+  algorithmClass: 'layered-sugiyama',
   layoutEngineKey: 'elk-layered',
   renderFamily: 'frame-elk',
   graphEngine: ELK_LAYERED_GRAPH_LAYOUT_ENGINE,

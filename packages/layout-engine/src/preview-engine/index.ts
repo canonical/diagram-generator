@@ -29,10 +29,6 @@ export {
   normalizePreviewShellMode,
 } from './shell-mode.js';
 export {
-  dagreParamToPreviewControl,
-  dagrePreviewControlSpecs,
-} from './dagre-controls.js';
-export {
   elkForcePreviewControlSpecs,
   elkLayeredPreviewControlSpecs,
   elkMrtreePreviewControlSpecs,
@@ -74,7 +70,6 @@ export {
   ELK_RADIAL_PREVIEW_ENGINE,
   ELK_RECTPACKING_PREVIEW_ENGINE,
   ELK_STRESS_PREVIEW_ENGINE,
-  DAGRE_PREVIEW_ENGINE,
   FORCE_PREVIEW_ENGINE,
   SEQUENCE_PREVIEW_ENGINE,
   V3_PREVIEW_ENGINE,
@@ -84,7 +79,6 @@ export {
   BUILTIN_ELK_RADIAL_PREVIEW_ENGINE_INSTALL_UNIT,
   BUILTIN_ELK_RECTPACKING_PREVIEW_ENGINE_INSTALL_UNIT,
   BUILTIN_ELK_STRESS_PREVIEW_ENGINE_INSTALL_UNIT,
-  BUILTIN_DAGRE_PREVIEW_ENGINE_INSTALL_UNIT,
   BUILTIN_FORCE_PREVIEW_ENGINE_INSTALL_UNIT,
   BUILTIN_SEQUENCE_PREVIEW_ENGINE_INSTALL_UNIT,
   BUILTIN_V3_PREVIEW_ENGINE_INSTALL_UNIT,
@@ -94,11 +88,17 @@ export {
   installElkRadialPreviewEngine,
   installElkRectpackingPreviewEngine,
   installElkStressPreviewEngine,
-  installDagrePreviewEngine,
   installForcePreviewEngine,
   installSequencePreviewEngine,
   installV3PreviewEngine,
 } from './builtins.js';
+export {
+  canonicalPreviewLayoutEngineKey,
+  canonicalPreviewPersistNamespace,
+  migrateLegacyFrameDiagramEngineState,
+  migrateLegacyPreviewEngineNodeBucketsForNamespace,
+  migrateLegacyPreviewEngineOverridesForNamespace,
+} from './legacy-layout-engine-migration.js';
 export {
   installMindmapLitePreviewEngine,
   MINDMAP_LITE_PREVIEW_ENGINE,

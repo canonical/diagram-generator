@@ -8,9 +8,6 @@ import {
 import { registerPreviewEngine } from './registry.js';
 import type { PreviewEngineInstallUnit } from './install-units.js';
 import {
-  BUILTIN_DAGRE_PREVIEW_ENGINE_INSTALL_UNIT,
-} from './engines/dagre.engine.js';
-import {
   BUILTIN_ELK_FORCE_PREVIEW_ENGINE_INSTALL_UNIT,
 } from './engines/elk-force.engine.js';
 import {
@@ -28,12 +25,6 @@ import {
 import {
   BUILTIN_ELK_STRESS_PREVIEW_ENGINE_INSTALL_UNIT,
 } from './engines/elk-stress.engine.js';
-export {
-  BUILTIN_DAGRE_PREVIEW_ENGINE_INSTALL_UNIT,
-  DAGRE_PREVIEW_ENGINE,
-  DAGRE_PREVIEW_ENGINE_DEFINITION,
-  installDagrePreviewEngine,
-} from './engines/dagre.engine.js';
 export {
   BUILTIN_ELK_FORCE_PREVIEW_ENGINE_INSTALL_UNIT,
   ELK_FORCE_PREVIEW_ENGINE,
@@ -74,6 +65,7 @@ export {
 export const V3_PREVIEW_ENGINE: PreviewEngineManifest = {
   id: 'v3',
   label: 'Autolayout',
+  algorithmClass: 'frame-native',
   layoutEngineKey: 'v3',
   shellMode: FRAME_PREVIEW_SHELL_MODE,
   renderFamily: 'frame-native',
@@ -102,6 +94,7 @@ export const V3_PREVIEW_ENGINE: PreviewEngineManifest = {
 export const FORCE_PREVIEW_ENGINE: PreviewEngineManifest = {
   id: 'force',
   label: 'Force-directed layout',
+  algorithmClass: 'force-simulation',
   shellMode: 'force',
   renderFamily: 'force',
   hostView: {
@@ -133,6 +126,7 @@ export const FORCE_PREVIEW_ENGINE: PreviewEngineManifest = {
 export const SEQUENCE_PREVIEW_ENGINE: PreviewEngineManifest = {
   id: 'sequence',
   label: 'Sequence layout',
+  algorithmClass: 'sequence-timeline',
   layoutEngineKey: 'sequence',
   shellMode: FRAME_PREVIEW_SHELL_MODE,
   renderFamily: 'sequence',
@@ -221,7 +215,6 @@ export const BUILTIN_PREVIEW_ENGINE_INSTALL_UNITS: readonly PreviewEngineInstall
   BUILTIN_ELK_MRTREE_PREVIEW_ENGINE_INSTALL_UNIT,
   BUILTIN_ELK_RADIAL_PREVIEW_ENGINE_INSTALL_UNIT,
   BUILTIN_ELK_RECTPACKING_PREVIEW_ENGINE_INSTALL_UNIT,
-  BUILTIN_DAGRE_PREVIEW_ENGINE_INSTALL_UNIT,
   BUILTIN_FORCE_PREVIEW_ENGINE_INSTALL_UNIT,
   BUILTIN_SEQUENCE_PREVIEW_ENGINE_INSTALL_UNIT,
 ]);

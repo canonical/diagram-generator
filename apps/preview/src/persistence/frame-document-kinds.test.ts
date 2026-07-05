@@ -38,6 +38,7 @@ test("frame YAML handlers own viewer resolution and layout-engine save compatibi
   const unregisterEngine = registerPreviewEngine({
     id: "mindmap-tree",
     label: "Mindmap Tree",
+    algorithmClass: "mindmap-install-proof",
     layoutEngineKey: "mindmap-tree",
     shellMode: "grid",
     capabilities: {

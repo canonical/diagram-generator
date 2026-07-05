@@ -17,57 +17,88 @@
 
 ## Phase 2: Inventory current implementations
 
-- [ ] T010 For each in-repo engine
+- [x] T010 For each in-repo engine
       (`packages/layout-engine/src/preview-engine/engines/*.engine.ts`) and the
       `graph-layout-core|elk|dagre` packages, record algorithm class,
       capabilities (ports, compound nodes, edge routing, direction),
       determinism, licence, and bundle cost.
-- [ ] T011 Flag the suspected duplicates explicitly: Dagre vs ELK layered,
+- [x] T011 Flag the suspected duplicates explicitly: Dagre vs ELK layered,
       mindmap-tree vs ELK mrtree, force vs ELK force vs ELK stress.
 
 ## Phase 3: Survey candidates and choose one per algorithm
 
-- [ ] T020 For each required algorithm, evaluate external + in-repo candidates
+- [x] T020 For each required algorithm, evaluate external + in-repo candidates
       (ELK, Dagre, d3-force/d3-hierarchy, Graphviz/viz.js, cytoscape, cola,
       Mermaid, D2) on the FR-002 criteria.
-- [ ] T021 Select exactly one implementation per algorithm and record the
+- [x] T021 Select exactly one implementation per algorithm and record the
       criteria-based rationale in `decision-matrix.md`.
-- [ ] T022 Write the explicit keep/retire verdict for every current engine
+- [x] T022 Write the explicit keep/retire verdict for every current engine
       (FR-003), including the Dagre / tree / force-trio decisions. "Keep"
       requires a concrete distinct capability the chosen impl lacks.
 
 ## Phase 4: Migration discipline and sequencing
 
-- [ ] T030 Document the backend-swap migration discipline (FR-004): how saved
+- [x] T030 Document the backend-swap migration discipline (FR-004): how saved
       diagrams, engine-specific overrides, and deterministic geometry are handled
       when one implementation replaces another; a swap is a migration with a
       persist→reload proof, not a silent default change.
-- [ ] T031 Name the downstream port/retire specs implied by the matrix (FR-006)
+- [x] T031 Name the downstream port/retire specs implied by the matrix (FR-006)
       so the bulk-port work (Dagre/Mermaid/Graphviz/D2) is sequenced.
 
 ## Phase 5: Remove Dagre (decided) + enforce the no-duplicate contract
 
-- [ ] T040 Remove Dagre from the registry/builtins
+- [x] T040 Remove Dagre from the registry/builtins
       (`packages/layout-engine/src/preview-engine/builtins.ts`,
       `engines/dagre.engine.ts`, `dagre-controls.ts`) and its tests. Cover the
       migration for any diagram saved against Dagre with a repo-owned
       persist→reload proof; keep the suites green.
-- [ ] T041 Add a **hard no-duplicate-algorithm guard**: each engine declares its
+- [x] T041 Add a **hard no-duplicate-algorithm guard**: each engine declares its
       algorithm class, and a repo-owned test fails if two registered engines
       declare the same class. This is the standing contract (FR-007).
-- [ ] T042 For any other in-repo engine the survey deems a pure duplicate (e.g.
+- [x] T042 For any other in-repo engine the survey deems a pure duplicate (e.g.
       mindmap-tree vs mrtree, force trio), either retire it here with a
       persist→reload proof if conclusive, or file the named downstream spec.
 
 ## Phase 6: Verification
 
-- [ ] T050 Confirm `decision-matrix.md` satisfies SC-001/SC-002/SC-003/SC-004
+- [x] T050 Confirm `decision-matrix.md` satisfies SC-001/SC-002/SC-003/SC-004
       (corpus-justified list, per-algorithm choice + evidence, keep/retire
       verdicts, migration discipline, downstream specs named).
-- [ ] T051 After the Dagre removal + no-duplicate guard (Phase 5), run
+- [x] T051 After the Dagre removal + no-duplicate guard (Phase 5), run
       `npm --prefix packages/layout-engine test`,
       `npm --prefix apps/preview test`, and
       `node scripts/check_no_new_python.mjs`; confirm green (SC-005/SC-006).
+
+## Phase 7: Adversarial review reconciliation
+
+- [x] T052 Harden `registerPreviewEngine(...)` so missing/blank
+      `algorithmClass` values fail at runtime, and cover that seam with a
+      repo-owned registry test.
+- [x] T053 Canonicalize the load-path Dagre migration even when unsupported
+      legacy `meta.dagre*` buckets translate to zero ELK keys, and add a
+      focused regression test for the pure migration seam.
+- [x] T054 Correct `decision-matrix.md` so inventory-backed radial /
+      rectpacking lanes are no longer overstated as corpus-required algorithms
+      without planning-repo citations.
+
+## Phase 8: Full-suite reconciliation after review hardening
+
+- [x] T055 Preserve the preview-engine registry's existing manifest identity
+      contract while keeping runtime `algorithmClass` validation/normalization,
+      and update synthetic install-unit/onboarding fixtures to declare explicit
+      unique algorithm classes.
+- [x] T056 Rerun the full spec validation after the review hardening (`npm
+      --prefix packages/layout-engine test`, `npm --prefix apps/preview test`,
+      and `node scripts/check_no_new_python.mjs`) and record the green result
+      in the spec/inbox closeout notes.
+
+## Phase 9: Follow-up review reconciliation
+
+- [x] T057 Remove the retired Dagre package from the active
+      layout-engine/preview build, test, and browser-bundle freshness path so
+      spec 074's "Dagre removed" claim matches the live tooling surface.
+- [x] T058 Reconcile the live agent/spec/inbox docs so Dagre is no longer
+      described as a current product path after the spec 074 retirement.
 
 ## Notes
 

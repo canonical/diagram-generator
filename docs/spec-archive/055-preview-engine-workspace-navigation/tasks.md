@@ -1,6 +1,6 @@
 # Tasks: Spec 055 Preview Engine Workspace Navigation
 
-**Input**: `specs/055-preview-engine-workspace-navigation/spec.md`  
+**Input**: `docs/spec-archive/055-preview-engine-workspace-navigation/spec.md`  
 **Branch**: `feat/055-preview-engine-workspace-navigation`
 
 ## Phase 0: Scope the Workspace Model

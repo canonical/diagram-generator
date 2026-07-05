@@ -49,13 +49,13 @@ Not thin: `component-model.js` is still a persistence-critical save-path hotspot
 | Post-043 bundle strategy | [`docs/spec-archive/044-preview-shell-architecture-followup/bundle-strategy.md`](./spec-archive/044-preview-shell-architecture-followup/bundle-strategy.md) |
 | Preview host lane/page topology | [`docs/spec-archive/045-preview-host-engine-modularity/host-topology.md`](./spec-archive/045-preview-host-engine-modularity/host-topology.md) |
 | Editor host decomposition map | [`docs/spec-archive/046-editor-host-endgame/decomposition-map.md`](./spec-archive/046-editor-host-endgame/decomposition-map.md) |
-| ELK sizing / live resize / debug | [`specs/048-elk-sizing-interaction-followup/elk-sizing-interaction-flow.md`](../specs/048-elk-sizing-interaction-followup/elk-sizing-interaction-flow.md) |
+| ELK sizing / live resize / debug | [`docs/spec-archive/048-elk-sizing-interaction-followup/elk-sizing-interaction-flow.md`](./spec-archive/048-elk-sizing-interaction-followup/elk-sizing-interaction-flow.md)|
 | Preview editor recovery | [`docs/spec-archive/050-preview-editor-recovery/preview-editor-recovery-flow.md`](./spec-archive/050-preview-editor-recovery/preview-editor-recovery-flow.md) |
-| Preview contextual aside | [`specs/051-preview-editor-contextual-aside/preview-contextual-aside-flow.md`](../specs/051-preview-editor-contextual-aside/preview-contextual-aside-flow.md) |
-| Layout engine onboarding | [`specs/052-layout-engine-onboarding-port/engine-onboarding-checklist.md`](../specs/052-layout-engine-onboarding-port/engine-onboarding-checklist.md) |
+| Preview contextual aside | [`docs/spec-archive/051-preview-editor-contextual-aside/preview-contextual-aside-flow.md`](./spec-archive/051-preview-editor-contextual-aside/preview-contextual-aside-flow.md)|
+| Layout engine onboarding | [`docs/spec-archive/052-layout-engine-onboarding-port/engine-onboarding-checklist.md`](./spec-archive/052-layout-engine-onboarding-port/engine-onboarding-checklist.md)|
 | Preview editor post-refactor correctness | [`docs/spec-archive/053-preview-editor-post-refactor-correctness/preview-editor-post-refactor-flow.md`](./spec-archive/053-preview-editor-post-refactor-correctness/preview-editor-post-refactor-flow.md) |
-| Preview engine workspace navigation | [`specs/055-preview-engine-workspace-navigation/engine-workspace-flow.md`](../specs/055-preview-engine-workspace-navigation/engine-workspace-flow.md) |
-| Preview arrow reroute invalidation | [`specs/056-arrow-reroute-structural-mutations/preview-reroute-flow.md`](../specs/056-arrow-reroute-structural-mutations/preview-reroute-flow.md) |
+| Preview engine workspace navigation | [`docs/spec-archive/055-preview-engine-workspace-navigation/engine-workspace-flow.md`](./spec-archive/055-preview-engine-workspace-navigation/engine-workspace-flow.md)|
+| Preview arrow reroute invalidation | [`docs/spec-archive/056-arrow-reroute-structural-mutations/preview-reroute-flow.md`](./spec-archive/056-arrow-reroute-structural-mutations/preview-reroute-flow.md)|
 | Editor mutation state determinism | [`docs/spec-archive/069-editor-mutation-state-determinism/editor-mutation-state-flow.md`](./spec-archive/069-editor-mutation-state-determinism/editor-mutation-state-flow.md) |
 | Agent token / workspace slimming | [`docs/spec-archive/040-agent-token-slimming/spec.md`](./spec-archive/040-agent-token-slimming/spec.md) |
 
@@ -67,7 +67,6 @@ Add a new row when you land a cross-layer map (UI → server → engine → disk
 |------|------|
 | `packages/graph-layout-core/src/` | Engine-agnostic graph IR and capability contracts |
 | `packages/graph-layout-elk/src/` | ELK graph layout adapters and algorithm param registries |
-| `packages/graph-layout-dagre/src/` | Dagre graph layout adapter and param registry |
 | `packages/layout-engine/src/` | TS engine and browser bundle source |
 | `packages/layout-engine/tests/` | Vitest coverage |
 | `apps/preview/src/` | Node preview app |

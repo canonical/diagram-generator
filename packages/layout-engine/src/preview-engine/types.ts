@@ -147,6 +147,8 @@ export interface PreviewEngineHostView {
 export interface PreviewEngineManifest {
   id: string;
   label: string;
+  /** Stable algorithm class used by the no-duplicate guard. */
+  algorithmClass: string;
   /** `meta.layout_engine` value when this engine backs a frame YAML diagram. */
   layoutEngineKey?: string;
   shellMode: PreviewShellMode;

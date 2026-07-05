@@ -191,7 +191,7 @@ Before claiming closeout for 150-operator readiness:
 | Fresh render | `packages/layout-engine/src/preview-shell/app-fresh-render.ts` |
 | Load / seed | `packages/layout-engine/src/preview-shell/app-grid-editor-runtime.ts` |
 | Server persist | `apps/preview/src/persistence/frame-engine-layout-namespaces.ts` |
-| Onboarding docs | `specs/052-layout-engine-onboarding-port/engine-onboarding-checklist.md` |
+| Onboarding docs | `docs/spec-archive/052-layout-engine-onboarding-port/engine-onboarding-checklist.md` |
 
 ## Tests to add
 

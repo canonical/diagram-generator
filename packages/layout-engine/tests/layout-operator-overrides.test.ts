@@ -77,17 +77,17 @@ describe('layout operator overrides', () => {
     ],
   };
 
-  const dagreManifest = {
+  const legacyDagreAliasManifest = {
     id: 'dagre',
     layoutEngineKey: 'dagre',
     controlSpecs: [
       {
-        key: 'dagre.ranksep',
-        label: 'Rank separation',
+        key: 'elk.layered.spacing.nodeNodeBetweenLayers',
+        label: 'Layer gap',
         group: 'Spacing',
         kind: 'number' as const,
         defaultValue: '64',
-        persistNamespace: 'meta.dagre',
+        persistNamespace: 'meta.elk',
       },
     ],
   };
@@ -236,38 +236,35 @@ describe('layout operator overrides', () => {
     });
   });
 
-  it('does not leak option buckets across layered to dagre to layered switches', () => {
+  it('canonicalizes the legacy dagre alias onto the layered bucket', () => {
     const model = {};
 
     writeLayoutOperatorOverrideBucketForManifest(model, layeredManifest, {
       'elk.layered.spacing.nodeNodeBetweenLayers': 72,
     }, 'meta.elk');
-    writeLayoutOperatorOverrideBucketForManifest(model, dagreManifest, {
-      'dagre.ranksep': 144,
-    }, 'meta.dagre');
+    writeLayoutOperatorOverrideBucketForManifest(model, legacyDagreAliasManifest, {
+      'elk.layered.spacing.nodeNodeBetweenLayers': 144,
+    }, 'meta.elk');
     activateLayoutOperatorOverrideBucket(model, layeredManifest, {
       persistNamespace: 'meta.elk',
     });
 
     expect(readLayoutOperatorOverrideBucketForManifest(model, layeredManifest)).toEqual({
-      'elk.layered.spacing.nodeNodeBetweenLayers': 72,
+      'elk.layered.spacing.nodeNodeBetweenLayers': 144,
     });
-    expect(readLayoutOperatorOverrideBucketForManifest(model, dagreManifest)).toEqual({
-      'dagre.ranksep': 144,
+    expect(readLayoutOperatorOverrideBucketForManifest(model, legacyDagreAliasManifest)).toEqual({
+      'elk.layered.spacing.nodeNodeBetweenLayers': 144,
     });
     expect(model).toMatchObject({
       layoutOverrideNamespace: 'meta.elk',
       layoutOverrides: {
-        'elk.layered.spacing.nodeNodeBetweenLayers': 72,
+        'elk.layered.spacing.nodeNodeBetweenLayers': 144,
       },
       previewInterpreterActiveNodeId: 'elk-layered',
       previewInterpreterNodeRegistry: {
         paramsByNodeId: {
           'elk-layered': {
-            'elk.layered.spacing.nodeNodeBetweenLayers': 72,
-          },
-          dagre: {
-            'dagre.ranksep': 144,
+            'elk.layered.spacing.nodeNodeBetweenLayers': 144,
           },
         },
       },
@@ -276,16 +273,13 @@ describe('layout operator overrides', () => {
       activeOperatorKey: 'elk-layered',
       byOperator: {
         'elk-layered': {
-          'elk.layered.spacing.nodeNodeBetweenLayers': 72,
-        },
-        dagre: {
-          'dagre.ranksep': 144,
+          'elk.layered.spacing.nodeNodeBetweenLayers': 144,
         },
       },
     });
-    expect(model).not.toMatchObject({
+    expect(model).toMatchObject({
       layoutOverrides: {
-        'dagre.ranksep': 144,
+        'elk.layered.spacing.nodeNodeBetweenLayers': 144,
       },
     });
   });

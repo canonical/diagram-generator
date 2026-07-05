@@ -3,6 +3,7 @@ import path from "node:path";
 
 import {
   isFramePreviewShellMode,
+  canonicalPreviewLayoutEngineKey,
   serializePreviewEngineManifest,
   type PreviewEngineManifest,
 } from "@diagram-generator/layout-engine";
@@ -61,7 +62,7 @@ function listYamlSlugs(dir: string): string[] {
 }
 
 function normalizeLayoutEngine(layoutEngine: string | undefined): string {
-  const key = layoutEngine?.trim() ?? "";
+  const key = canonicalPreviewLayoutEngineKey(layoutEngine) ?? "";
   if (!key) return "";
   const hostableGridLayoutKeys = new Set(
     serializePreviewEngineManifest()

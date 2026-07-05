@@ -268,7 +268,7 @@ describe('preview state restore helpers', () => {
       roots: [{ id: 'root' }],
       gridOverrides: { cols: 4 },
       layoutOverrides: {},
-      layoutOverrideNamespace: 'meta.dagre',
+      layoutOverrideNamespace: 'meta.elk',
       removedIds: new Set<string>(),
       get() {
         return { type: 'box' };
@@ -321,9 +321,9 @@ describe('preview state restore helpers', () => {
       o: {},
       g: {},
       ep: {
-        activeOperatorKey: 'dagre',
+        activeOperatorKey: 'elk-layered',
         byOperator: {
-          dagre: { 'dagre.rankdir': 'LR' },
+          'elk-layered': { 'elk.direction': 'RIGHT' },
         },
       },
       r: [],
@@ -339,11 +339,11 @@ describe('preview state restore helpers', () => {
       'syncGridControls',
       'syncDirtyFromSerialized',
     ]);
-    expect(model.layoutOverrides).toEqual({ 'dagre.rankdir': 'LR' });
+    expect(model.layoutOverrides).toEqual({ 'elk.direction': 'RIGHT' });
     expect(readLayoutOperatorOverrideState(model)).toEqual({
-      activeOperatorKey: 'dagre',
+      activeOperatorKey: 'elk-layered',
       byOperator: {
-        dagre: { 'dagre.rankdir': 'LR' },
+        'elk-layered': { 'elk.direction': 'RIGHT' },
       },
     });
   });

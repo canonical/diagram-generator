@@ -480,6 +480,7 @@ describe('renderFreshPreviewSvg', () => {
     const unregisterEngine = registerPreviewEngine({
       id: 'mindmap-tree',
       label: 'Mindmap Tree',
+      algorithmClass: 'mindmap-install-proof',
       layoutEngineKey: 'mindmap-tree',
       shellMode: 'grid',
       renderFamily: 'frame-native',

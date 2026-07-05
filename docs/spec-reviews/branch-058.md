@@ -30,7 +30,7 @@ loads `scripts/diagrams/frames/test-deep-nesting.yaml`, confirms `vm_2`,
 `vm_3`, `disk_1`, and `disk_2` author no `variant`/`level`/`fill`/`border`,
 and verifies the inspector helper resolves `default` from the rendered box
 style. Browser evidence in
-`specs/058-layer-tree-inspector-selection-ergonomics/evidence/layer-tree-inspector-browser-result.json`
+`docs/spec-archive/058-layer-tree-inspector-selection-ergonomics/evidence/layer-tree-inspector-browser-result.json`
 confirms `vm_2` displays `default` with no `Unknown variant`.
 
 Note the overlap with INBOX #16 (auto-style-by-depth, new spec 063): 058 should

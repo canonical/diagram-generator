@@ -17,7 +17,6 @@ describe('preview-engine install units', () => {
       'elk-mrtree',
       'elk-radial',
       'elk-rectpacking',
-      'dagre',
       'force',
       'sequence',
     ]);

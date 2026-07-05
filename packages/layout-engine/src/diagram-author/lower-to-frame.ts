@@ -1,5 +1,6 @@
 import { parseFrameRecord } from '../frame-record-parser.js';
 import { createArrow, createLine, FrameDiagram, type DiagramOverlay } from '../frame-model.js';
+import { migrateLegacyFrameDiagramEngineState } from '../preview-engine/legacy-layout-engine-migration.js';
 import { GRID_GUTTER } from '../tokens.js';
 import { resolveStyles } from '../resolve-styles.js';
 import type { AuthorArrow, AuthorFrameNode, DiagramDocument, LineSpec } from './types.js';
@@ -128,7 +129,7 @@ export function lowerToFrameDiagram(
   }
   const elkLayout = engineLayout['meta.elk'] as Record<string, string> | undefined;
 
-  return new FrameDiagram({
+  return new FrameDiagram(migrateLegacyFrameDiagramEngineState({
     title: String(source.title ?? ast.metadata.title ?? ''),
     root,
     arrows: ast.arrows.map(lowerArrow),
@@ -142,5 +143,5 @@ export function lowerToFrameDiagram(
     sourceImage: meta.source_image != null ? String(meta.source_image) : undefined,
     elkLayout,
     engineLayout: Object.keys(engineLayout).length > 0 ? engineLayout : undefined,
-  });
+  }));
 }

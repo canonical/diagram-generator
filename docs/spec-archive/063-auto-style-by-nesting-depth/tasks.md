@@ -1,6 +1,6 @@
 # Tasks: Spec 063 Auto-style by nesting depth
 
-**Input**: `specs/063-auto-style-by-nesting-depth/spec.md`
+**Input**: `docs/spec-archive/063-auto-style-by-nesting-depth/spec.md`
 **Branch**: `feat/063-auto-style-by-nesting-depth`
 
 ## Phase 1: Contract inventory
