@@ -1,7 +1,7 @@
 # Spec 073: Layout algorithm node model and parameter-pane unification
 
 **Feature Branch**: `feat/073-layout-node-model-param-unification`
-**Status**: Closeout Ready - adversarial review follow-up fixed 2026-07-05
+**Status**: Active - adversarial review findings open 2026-07-05
 **Created**: 2026-07-05
 **Context**: chat decision 2026-07-05 (dedup-before-port; drop "family"; Houdini
 SOP model; unify force into the shared param pane). Builds on spec 071
@@ -212,6 +212,13 @@ manifest/type surface.
 - 2026-07-05: Added repo-owned regressions for both the live force controller
   wiring (`apps/preview` contract test) and the mixed simulation/render force
   runtime patch path (`packages/layout-engine` unit test).
+- 2026-07-05: A second adversarial review pass reopened the spec with two
+  remaining gaps: the shared `layout-params-section` is still tagged
+  `dg-grid-only` in `viewer-unified.html`, so force mode CSS hides it in the
+  real browser even when the host marks the section visible; and the new
+  registration-only lane-panel proof stops at `PREVIEW_PANEL_REGISTRY` visibility
+  rather than proving a newly registered panel id can bind to real host DOM
+  without central `PANEL_ELEMENT_IDS` / placeholder edits.
 - 2026-07-05: Left force host/route/persistence convergence intentionally
   deferred. Spec 073 closes after the phase-1 param-pane unification; any move
   of `builtin-force-host`, `/api/force-spec/`, or `persistForceSpecToYaml` onto
