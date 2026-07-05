@@ -6,12 +6,12 @@
 
 ## Phase 1: Derive the required-algorithm list from the corpus
 
-- [ ] T001 Read the planning-repo taxonomy/crosswalks/ontology under
+- [x] T001 Read the planning-repo taxonomy/crosswalks/ontology under
       `diagram-generator-planning/docs/taxonomy/` and the layout mapping
       (`docs/audit/layout_mapping.py`, `docs/audit/human-readable-categories.md`,
       `docs/audit/layout-benchmark-corpus/`). Scope reads to these surfaces; do
       not trawl raw scrape/output trees.
-- [ ] T002 Enumerate the layout algorithms the audited diagrams actually need,
+- [x] T002 Enumerate the layout algorithms the audited diagrams actually need,
       each justified by the diagram types (from the taxonomy) that require it.
       Record in `decision-matrix.md` (required-algorithm section).
 
