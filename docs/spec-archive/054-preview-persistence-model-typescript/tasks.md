@@ -1,6 +1,6 @@
 # Tasks: Spec 054 Preview Persistence Model TypeScript Migration
 
-**Input**: `specs/054-preview-persistence-model-typescript/spec.md`  
+**Input**: `docs/spec-archive/054-preview-persistence-model-typescript/spec.md`  
 **Branch**: `feat/054-preview-persistence-model-typescript`
 
 ## Phase 0: Bound the Migration

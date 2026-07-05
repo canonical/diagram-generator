@@ -1,6 +1,6 @@
 # Tasks: Spec 058 Layer Tree And Inspector Selection Ergonomics
 
-**Input**: `specs/058-layer-tree-inspector-selection-ergonomics/spec.md`  
+**Input**: `docs/spec-archive/058-layer-tree-inspector-selection-ergonomics/spec.md`  
 **Branch**: `feat/058-layer-tree-inspector-selection-ergonomics`
 
 ## Phase 0: Reproduce
@@ -12,7 +12,7 @@
 
 - [x] **T010** Restore typed layer-tree keyboard traversal behavior.
       **Verify**: focused tree-selection tests and
-      `specs/058-layer-tree-inspector-selection-ergonomics/evidence/layer-tree-inspector-browser-check.mjs`
+      `docs/spec-archive/058-layer-tree-inspector-selection-ergonomics/evidence/layer-tree-inspector-browser-check.mjs`
       real-DOM `Enter` / `Shift+Enter` dispatch.
 
 - [x] **T011** Restore effective variant/style resolution for supported child-box
@@ -28,4 +28,4 @@
       `npm --prefix packages/layout-engine test`;
       `npm --prefix apps/preview test`;
       `node scripts/check_no_new_python.mjs`;
-      `node specs/058-layer-tree-inspector-selection-ergonomics/evidence/layer-tree-inspector-browser-check.mjs`
+      `node docs/spec-archive/058-layer-tree-inspector-selection-ergonomics/evidence/layer-tree-inspector-browser-check.mjs`

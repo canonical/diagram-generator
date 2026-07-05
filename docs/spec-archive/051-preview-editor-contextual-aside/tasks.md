@@ -1,6 +1,6 @@
 # Tasks: Spec 051 Preview Editor Contextual Aside
 
-**Input**: `specs/051-preview-editor-contextual-aside/spec.md`
+**Input**: `docs/spec-archive/051-preview-editor-contextual-aside/spec.md`
 **Branch**: `feat/051-preview-editor-contextual-aside`
 
 ## Phase 1: Inventory And Contract
@@ -162,7 +162,7 @@
 > mocks, controls asserted `hidden` AND non-focusable (not `disabled`).
 >
 > **Closed 2026-06-29** by
-> `specs/051-preview-editor-contextual-aside/evidence/contextual-aside-check.ts`
+> `docs/spec-archive/051-preview-editor-contextual-aside/evidence/contextual-aside-check.ts`
 > against a fresh `http://127.0.0.1:8120` preview server. Result JSON:
 > `evidence/contextual-aside-result.json` (`ok: true`). Cropped screenshots:
 > `evidence/screenshots/v3-tiered-network-root-aside.png`,

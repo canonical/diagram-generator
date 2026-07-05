@@ -60,11 +60,10 @@ unless new findings appear.
 - **Specs 046 and 047 are DONE** — both merged to `main` and archived under
   `docs/spec-archive/` on 2026-07-05 (046's Phase 7 reconciliation landed:
   `T034` is resolved to "met"; 047 was a fast-forward merge). Do not reopen.
-- **Still outstanding: archive the 13 merged-but-unarchived specs**
-  (`048, 051, 052, 054–060, 062, 063, 071`) per the "closeout ⇒ merged ⇒
-  archived" rule. They are all still in `specs/`. Also refresh the now-stale
-  branch references in the `AGENTS.md` handover (it still cites deleted
-  `feat/046`, `feat/047`, etc.).
+- **Closeout catalog reconciliation is DONE** — specs
+  `048, 051, 052, 054–060, 062, 063, 071` were archived under
+  `docs/spec-archive/` on 2026-07-05, and `AGENTS.md` handover now cites
+  merged/archive locations instead of deleted feature branches.
 
 **Validation baseline (2026-07-05, rerun before closing anything):**
 `packages/layout-engine` **978/978**, `apps/preview` **160/160**,
@@ -190,10 +189,11 @@ moved under `docs/spec-archive/` or the catalog should restate them as
 
 ### Also worth flagging
 
-- **`AGENTS.md` handover is stale on locations.** It still names `feat/047`,
+- ~~**`AGENTS.md` handover is stale on locations.** It still names `feat/047`,
   `feat/051`, `feat/052-*`, etc. as current homes; those branches are deleted
   (correct per workflow) but the handover reads as if they're live. Refresh to
-  "merged to `main`".
+  "merged to `main`".~~ **Resolved 2026-07-05**: the handover now points at the
+  archived package locations.
 - **065 is correctly NOT closeout-ready** (`Active / blocked` on the uncaptured
   `baseline-fail.json`) — consistent.
 
@@ -205,8 +205,8 @@ moved under `docs/spec-archive/` or the catalog should restate them as
 > and 2 below are **DONE**: spec 046 landed its Phase 7 reconciliation (T034
 > resolved to "met") and is archived; spec 047 is archived; the T073
 > panel-registry decision became **spec 073** (do it there, do not reopen 046).
-> Only item 3 (archive the 13) and item 4 (refresh AGENTS.md handover) remain.
-> Kept below for the audit trail.
+> Items 3 and 4 were also completed on 2026-07-05. Kept below for the audit
+> trail.
 
 All of the following is bookkeeping/reconciliation with green tests already
 proven at HEAD. No product engineering is required unless the user opts into the
@@ -216,12 +216,12 @@ proven at HEAD. No product engineering is required unless the user opts into the
    T073 panel-registry decomposition is now owned by **spec 073**.
 2. ~~**047 — restate as "merged to `main`" and archive.**~~ **DONE + archived
    2026-07-05** (fast-forward merge; branch deleted).
-3. **Archive the 13 genuinely-ready merged specs** (`048, 051, 052, 054–060,
-   062, 063, 071`) under `docs/spec-archive/` per the
+3. ~~**Archive the 13 genuinely-ready merged specs** (`048, 051, 052,
+   054–060, 062, 063, 071`) under `docs/spec-archive/` per the
    "closeout ⇒ merged ⇒ archived" rule. **Still outstanding** — all 13 are in
-   `specs/`.
-4. **Refresh `AGENTS.md` handover** to stop citing deleted feature branches.
-   **Still outstanding.**
+   `specs/`.~~ **DONE 2026-07-05.**
+4. ~~**Refresh `AGENTS.md` handover** to stop citing deleted feature branches.
+   **Still outstanding.**~~ **DONE 2026-07-05.**
 
 Validation baseline at 2026-07-05 (rerun before closing): `packages/layout-engine`
 **975/975**, `apps/preview` **160/160**, `check_no_new_python` ok,

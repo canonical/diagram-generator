@@ -1,6 +1,6 @@
 # Tasks: Spec 057 Graph Engine Fidelity And Example Fit
 
-**Input**: `specs/057-graph-engine-fidelity-and-example-fit/spec.md`  
+**Input**: `docs/spec-archive/057-graph-engine-fidelity-and-example-fit/spec.md`  
 **Branch**: `feat/057-graph-engine-fidelity-and-example-fit`
 
 ## Phase 0: Reproduce And Classify
@@ -73,6 +73,6 @@
       `evidence/` (per `docs/spec-reviews/README.md` §4). Depends on spec 060
       having landed engine-intent threading.
 
-      **Verify**: `PREVIEW_BASE_URL=http://127.0.0.1:8120 node --experimental-default-type=module specs/057-graph-engine-fidelity-and-example-fit/evidence/fidelity-browser-check.ts`
+      **Verify**: `PREVIEW_BASE_URL=http://127.0.0.1:8120 node --experimental-default-type=module docs/spec-archive/057-graph-engine-fidelity-and-example-fit/evidence/fidelity-browser-check.ts`
       after fresh `npm run preview`; committed `fidelity-browser-result.json`
       is `ok: true`.

@@ -1,6 +1,6 @@
 # Tasks: Spec 062 Parent/Child Hug Resize Propagation
 
-**Input**: `specs/062-parent-child-hug-resize-propagation/spec.md`
+**Input**: `docs/spec-archive/062-parent-child-hug-resize-propagation/spec.md`
 **Branch**: `feat/062-parent-child-hug-resize-propagation`
 
 ## Phase 1: Repro And Owning Seams
