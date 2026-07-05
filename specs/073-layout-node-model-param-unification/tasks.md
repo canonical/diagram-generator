@@ -72,10 +72,12 @@
 
 ## Decision gate / deferred
 
-- [ ] T060 **DEPRIORITISED (deferred debt-reduction):** converge force's bespoke
+- [x] T060 **DEPRIORITISED (deferred debt-reduction):** converge force's bespoke
       pipeline (its own host, `/api/force-spec/` routes, and `persistForceSpecToYaml`
       persistence) onto the shared pipeline seams so force is a first-class engine
       over its own input schema rather than a parallel workflow. Keep the force
-      **input format** (the `nodes:`+`links:` schema legitimately differs). Do
-      this only when we next build on force or when the parallel pipeline blocks
-      new work; file as a follow-up spec, do not bundle into phase 1.
+      **input format** (the `nodes:`+`links:` schema legitimately differs). This
+      remains intentionally deferred out of phase 1: spec 073 closes without
+      force-pipeline convergence, and any future convergence should land as a
+      dedicated follow-up spec when force work resumes or the parallel pipeline
+      blocks new product work.

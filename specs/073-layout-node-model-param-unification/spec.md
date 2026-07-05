@@ -205,6 +205,11 @@ manifest/type surface.
 - 2026-07-05: Routed force through the shared layout-params pane contract while
   keeping the `force-spec` document kind, host routes, save path, and export
   coverage intact.
+- 2026-07-05: Left force host/route/persistence convergence intentionally
+  deferred. Spec 073 closes after the phase-1 param-pane unification; any move
+  of `builtin-force-host`, `/api/force-spec/`, or `persistForceSpecToYaml` onto
+  shared pipeline seams belongs in a dedicated follow-up spec rather than this
+  package.
 - 2026-07-05: Validation passed via `npm --prefix packages/layout-engine test`,
   `npm --prefix apps/preview test`, `node scripts/check_no_new_python.mjs`, and
   `node scripts/check-preview-shell-size-budgets.mjs`. The required
