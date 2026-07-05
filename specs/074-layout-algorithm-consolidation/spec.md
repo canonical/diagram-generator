@@ -26,12 +26,12 @@ findings. `registerPreviewEngine(...)` now rejects missing/blank
 `algorithmClass` values at runtime, the load-path Dagre migration strips orphan
 `meta.dagre*` buckets even when they translate to zero supported ELK keys, and
 `decision-matrix.md` no longer cites radial / rectpacking inventory as
-corpus-required without planning-repo evidence. Targeted validation in this
-worktree passed:
-`vitest run tests/preview-engine-registry-contract.test.ts tests/legacy-layout-engine-migration.test.ts`
-and `node scripts/check_no_new_python.mjs`. Full package build/test reruns
-remain blocked here because local `tsc` / built workspace packages are
-unavailable.
+corpus-required without planning-repo evidence. Phase 8 reconciled the full
+suite after that hardening: the registry now preserves manifest identity while
+normalizing `algorithmClass`, all synthetic install-unit/onboarding fixtures
+declare explicit unique algorithm classes, and full validation reran green in
+this worktree (`packages/layout-engine` `978/978`, `apps/preview` `160/160`,
+`check_no_new_python` ok).
 
 ## Problem
 

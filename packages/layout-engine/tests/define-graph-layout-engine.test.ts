@@ -40,6 +40,7 @@ const SYNTHETIC_GRAPH_ENGINE: GraphLayoutEngineDescriptor = {
 const SYNTHETIC_DEFINITION: GraphLayoutPreviewEngineDefinition = {
   id: 'contract-graph',
   label: 'Contract graph layout',
+  algorithmClass: 'contract-graph-proof',
   layoutEngineKey: 'contract-graph',
   renderFamily: 'frame-contract-graph',
   graphEngine: SYNTHETIC_GRAPH_ENGINE,
@@ -87,6 +88,7 @@ describe('defineGraphLayoutPreviewEngine', () => {
     expect(manifest).toMatchObject({
       id: 'contract-graph',
       label: 'Contract graph layout',
+      algorithmClass: 'contract-graph-proof',
       layoutEngineKey: 'contract-graph',
       shellMode: 'grid',
       renderFamily: 'frame-contract-graph',

@@ -81,6 +81,17 @@
       rectpacking lanes are no longer overstated as corpus-required algorithms
       without planning-repo citations.
 
+## Phase 8: Full-suite reconciliation after review hardening
+
+- [x] T055 Preserve the preview-engine registry's existing manifest identity
+      contract while keeping runtime `algorithmClass` validation/normalization,
+      and update synthetic install-unit/onboarding fixtures to declare explicit
+      unique algorithm classes.
+- [x] T056 Rerun the full spec validation after the review hardening (`npm
+      --prefix packages/layout-engine test`, `npm --prefix apps/preview test`,
+      and `node scripts/check_no_new_python.mjs`) and record the green result
+      in the spec/inbox closeout notes.
+
 ## Notes
 
 - This spec's output is primarily a **decision artifact**, not code. Do not let

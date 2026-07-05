@@ -706,6 +706,7 @@ test("frame-yaml engine namespaces resolve preview-engine registrations after mo
   const unregister = registerPreviewEngine({
     id: "unit-late-frame-yaml-namespace",
     label: "Late namespace",
+    algorithmClass: "unit-late-frame-yaml-namespace-proof",
     layoutEngineKey: "unit-late-frame-yaml-namespace",
     shellMode: "grid",
     renderFamily: "frame-native",

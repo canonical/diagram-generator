@@ -28,13 +28,10 @@ export function registerPreviewEngine(manifest: PreviewEngineManifest): () => vo
       `Preview engine algorithm class '${algorithmClass}' is already registered`,
     );
   }
-  const normalizedManifest = {
-    ...manifest,
-    algorithmClass,
-  };
-  previewEngineRegistry.push(normalizedManifest);
+  manifest.algorithmClass = algorithmClass;
+  previewEngineRegistry.push(manifest);
   return () => {
-    const index = previewEngineRegistry.findIndex((entry) => entry.id === normalizedManifest.id);
+    const index = previewEngineRegistry.findIndex((entry) => entry.id === manifest.id);
     if (index >= 0) {
       previewEngineRegistry.splice(index, 1);
     }

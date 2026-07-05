@@ -203,6 +203,7 @@ describe('preview node onboarding', () => {
     const unregisterEngine = registerPreviewEngine({
       id: DUMMY_ENGINE_ID,
       label: 'Dummy onboarding node',
+      algorithmClass: 'dummy-onboarding-proof',
       layoutEngineKey: DUMMY_ENGINE_ID,
       shellMode: 'grid',
       renderFamily: DUMMY_RENDER_FAMILY,

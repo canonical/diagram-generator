@@ -248,13 +248,15 @@ phase:
   overstates `elk-radial` / `elk-rectpacking` as corpus-required algorithms.
   They are now called out as inventory-backed candidate lanes pending
   planning-repo evidence.
+- The stricter runtime guard no longer regresses the wider suite: the registry
+  keeps the original manifest object identity while normalizing
+  `algorithmClass`, and every synthetic install-unit/onboarding test manifest
+  now declares an explicit unique algorithm class.
 
-Targeted validation in this worktree:
+Validation in this worktree:
 
 - `npm --prefix packages/layout-engine exec vitest run tests/preview-engine-registry-contract.test.ts tests/legacy-layout-engine-migration.test.ts` -> passed
+- `npm --prefix packages/layout-engine exec vitest run tests/preview-engine-render.test.ts tests/preview-node-onboarding.test.ts tests/app-fresh-render.test.ts tests/define-graph-layout-engine.test.ts tests/engines/elk-force.contract.test.ts tests/engines/elk-mrtree.contract.test.ts tests/engines/elk-radial.contract.test.ts tests/engines/elk-rectpacking.contract.test.ts tests/engines/elk-stress.contract.test.ts` -> passed
+- `npm --prefix packages/layout-engine test` -> passed (`978/978`)
+- `npm --prefix apps/preview test` -> passed (`160/160`)
 - `node scripts/check_no_new_python.mjs` -> passed
-
-Full package build/test reruns remain blocked here because `npm --prefix
-packages/layout-engine run build` still fails immediately when the workspace
-tries to invoke `tsc`, and the broader registry inventory suite cannot resolve
-the local graph-layout packages without that missing build/install step.
