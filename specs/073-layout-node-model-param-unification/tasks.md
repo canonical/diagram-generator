@@ -109,6 +109,12 @@
       single source of truth for builtin template-section visibility
       placeholders.
 
+## Phase 6e: Review reconciliation
+
+- [x] T068 Reconcile the spec/inbox/catalog status after the third-pass review
+      so spec 073 is not left falsely active once the actionable findings are
+      fixed and only explicit follow-up deferrals remain.
+
 ## Decision gate / deferred
 
 - [x] T060 **DEPRIORITISED (deferred debt-reduction):** converge force's bespoke

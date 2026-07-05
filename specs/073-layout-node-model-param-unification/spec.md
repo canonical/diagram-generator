@@ -1,7 +1,7 @@
 # Spec 073: Layout algorithm node model and parameter-pane unification
 
 **Feature Branch**: `feat/073-layout-node-model-param-unification`
-**Status**: Active - host-template registration residual explicitly deferred 2026-07-05
+**Status**: Closeout Ready - adversarial review follow-up complete 2026-07-05; host-template and force-pipeline residuals explicitly deferred
 **Created**: 2026-07-05
 **Context**: chat decision 2026-07-05 (dedup-before-port; drop "family"; Houdini
 SOP model; unify force into the shared param pane). Builds on spec 071
@@ -236,6 +236,9 @@ manifest/type surface.
   of `builtin-force-host`, `/api/force-spec/`, or `persistForceSpecToYaml` onto
   shared pipeline seams belongs in a dedicated follow-up spec rather than this
   package.
+- 2026-07-05: Third-pass reconciliation confirmed no active adversarial-review
+  findings remain. Spec 073 is honestly `Closeout Ready`; the only open items
+  are the two explicit follow-up deferrals above, not hidden closeout blockers.
 - 2026-07-05: Validation passed via `npm --prefix packages/layout-engine test`,
   `npm --prefix apps/preview test`, `node scripts/check_no_new_python.mjs`, and
   `node scripts/check-preview-shell-size-budgets.mjs`. The required

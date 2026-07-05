@@ -231,70 +231,62 @@ bookkeeping honesty, and 046's veto was stale rather than unmet.
 
 ---
 
-## Spec 073 adversarial review follow-up - 2026-07-05
+## Spec 073 adversarial review reconciliation - 2026-07-05
 
-The overnight run stopped because the adversarial review reopened spec 073 with
-two real force-path regressions. Both are now fixed on
-`feat/073-layout-node-model-param-unification`.
+No active spec 073 adversarial-review findings remain in this inbox. The review
+reopened the spec three times; each actionable issue is now fixed on
+`feat/073-layout-node-model-param-unification`, and the only remaining work is
+explicitly deferred follow-up, not active closeout work.
 
-Findings closed:
+Resolved review findings:
 
-1. **Shared force pane writes were wired through no-op callbacks.**
-   `initializeSharedForceParamPane()` in `scripts/preview/force.js` now routes
-   both `setLayoutOverrides` and `requestLayoutRelayout` through the live force
-   override owner, so editing shared force params no longer snaps back.
-2. **Render-scoped force params did not persist through the unified patch path.**
+1. **Shared force pane writes now hit the live override owner.**
+   `initializeSharedForceParamPane()` in `scripts/preview/force.js` routes both
+   `setLayoutOverrides` and `requestLayoutRelayout` through the real force
+   controller instead of no-op callbacks, so shared force-param edits persist.
+2. **Mixed force param updates now persist simulation and render keys together.**
    `updateForceSimulationParams(...)` in
-   `packages/layout-engine/src/force-runtime.ts` now applies render keys such as
-   `curve_handle_ratio` in the same update flow as simulation keys, without
-   forcing a simulation restart when only render keys changed.
+   `packages/layout-engine/src/force-runtime.ts` applies render-scoped keys such
+   as `curve_handle_ratio` without incorrectly forcing a simulation restart.
+3. **Force mode now really exposes the shared layout-params pane.**
+   `viewer-unified.html` no longer tags `#layout-params-section` as
+   `dg-grid-only`, and contract coverage fails if that shared section is hidden
+   from force mode again.
+4. **Panel DOM binding no longer depends on a central runtime id map.**
+   `syncPreviewPanelVisibility(...)` now resolves DOM nodes from each registry
+   entry's typed `owner` selector, and a regression proves a synthetic panel id
+   binds without new runtime plumbing.
+5. **Builtin viewers no longer duplicate the template placeholder table.**
+   `resolvePreviewTemplateSectionVisibilityPlaceholders()` now derives the
+   `%..._HIDDEN%` mapping from the typed preview panel registry, and coverage
+   locks that registry as the single source of truth.
 
-Regression coverage added:
+Regression coverage added for the landed review fixes:
 
 - `apps/preview/src/persistence/preview-engine-controller-contract.test.ts`
   locks the live force controller wiring.
 - `packages/layout-engine/tests/force-runtime.test.ts` locks mixed
   simulation/render param patch updates.
+- `apps/preview/src/persistence/preview-host-contract.test.ts` locks the shared
+  layout-params section visibility contract and the registry-derived host
+  placeholders.
 
-Validation rerun after the fixes:
+Validation last rerun green for the landed review fixes:
 
-- `npm --prefix packages/layout-engine run build:browser` -> pass
+- `npm --prefix packages/layout-engine run build:browser`
 - `npm --prefix packages/layout-engine test` -> `981/981`
 - `npm --prefix apps/preview test` -> `161/161`
-- `node scripts/check_no_new_python.mjs` -> ok
-- `node scripts/check-preview-shell-size-budgets.mjs` -> ok
+- `node scripts/check_no_new_python.mjs`
+- `node scripts/check-preview-shell-size-budgets.mjs`
 
----
+Still explicitly deferred, not active inbox work:
 
-## Spec 073 adversarial review - 2026-07-05 (second pass)
-
-Resolved in this pass:
-
-1. **High - force now really shows the shared layout-params pane.**
-   `viewer-unified.html` no longer tags `#layout-params-section` as
-   `dg-grid-only`, so the force host can surface the shared pane in the real
-   viewer instead of having mode CSS hide it. Contract coverage now fails if the
-   force viewer or shared template reintroduces the `dg-grid-only` tag on that
-   section.
-2. **Medium (runtime portion) - panel DOM binding no longer needs a central id
-   map.** `syncPreviewPanelVisibility(...)` now resolves DOM nodes from each
-   registry entry's typed `owner` selector instead of the old central
-   `PANEL_ELEMENT_IDS` table, and a regression proves a synthetic panel id can
-   bind without new runtime plumbing.
-
-3. **Medium (host-viewer portion) - builtin viewers no longer duplicate the
-   section-visibility placeholder table.**
-   `resolvePreviewTemplateSectionVisibilityPlaceholders()` now derives the
-   `%..._HIDDEN%` mapping from the typed preview panel registry, and both
-   builtin host viewer definitions consume that shared helper instead of
-   carrying their own copied `sectionVisibilityPlaceholders` arrays. Coverage
-   now locks the placeholder list at the registry layer.
-
-Explicitly deferred residual:
-
-- **Host-template section provisioning is still not fully registration-only.**
-  The actual DOM placeholders / section shells still live in
-  `viewer-unified.html`, so do not overclaim spec 073 as fully closing that
-  deeper template-registration seam during adversarial review. Treat it as
-  follow-up work if and when new lane families or host templates need to
-  register panels end-to-end.
+- **Host-template section provisioning is not yet fully registration-only.**
+  The actual DOM section shells / placeholders still live in
+  `scripts/preview/viewer-unified.html`, so full registration-only host-template
+  provisioning belongs in a dedicated follow-up if new lane families or host
+  templates need end-to-end panel registration.
+- **Force host/route/persistence convergence remains deferred.**
+  `builtin-force-host`, `/api/force-spec/`, and `persistForceSpecToYaml` stay on
+  the existing parallel force pipeline until a dedicated follow-up spec chooses
+  to converge them onto the shared seams.
