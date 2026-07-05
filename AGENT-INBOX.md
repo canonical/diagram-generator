@@ -36,25 +36,24 @@ node-UI home.
 
 **Priority order (implement in this order unless the user reprioritises):**
 
-1. **Spec 074 — layout algorithm consolidation.** Start concrete and decided:
-   remove Dagre (`engines/dagre.engine.ts`, `dagre-controls.ts`, `builtins.ts`,
-   tests) with a persist→reload migration proof, and add the **hard
-   no-duplicate-algorithm guard** (each engine declares its algorithm class).
-   Then do the corpus-driven survey + `decision-matrix.md`. Inputs from
-   `diagram-generator-planning/docs/taxonomy` + `docs/audit/layout_mapping.py`.
-   See `specs/074-layout-algorithm-consolidation/tasks.md`.
-2. **Spec 073 — layout node model + param-pane unification.** Drop "family",
+Spec 074 is no longer active. It is **Closeout Ready** on
+`feat/074-layout-algorithm-consolidation`: Dagre is removed, the hard
+no-duplicate-algorithm guard is live, the corpus-driven `decision-matrix.md` is
+committed, and the adversarial review hardening reran green. Do not reopen 074
+unless new findings appear.
+
+1. **Spec 073 — layout node model + param-pane unification.** Drop "family",
    rename `grid`→`frame` (compat alias), make panel/lane registration
    data-driven (**this closes the spec 046 T073 residual**), and route force
    params through the shared param pane. Do NOT delete the force input format;
    the force-pipeline convergence (T060) is deprioritised. See
    `specs/073-layout-node-model-param-unification/tasks.md`.
-3. **Spec 061 — grid regression** and **Spec 064 — arrow label de-overlap.**
+2. **Spec 061 — grid regression** and **Spec 064 — arrow label de-overlap.**
    Standing user-facing regressions; both are investigation-first with a
    required `findings.md`. Do after the architecture slices, or slot 061's
    "hide the broken grid affordances now" containment earlier if the user wants
    a fast visible win. See their `tasks.md`.
-4. **Spec 070 — layers palette reorder.** Independent editor feature; pick up
+3. **Spec 070 — layers palette reorder.** Independent editor feature; pick up
    when the above are moving.
 
 **Bookkeeping (fast, low-risk — do opportunistically between slices):**
@@ -68,7 +67,7 @@ node-UI home.
   `feat/046`, `feat/047`, etc.).
 
 **Validation baseline (2026-07-05, rerun before closing anything):**
-`packages/layout-engine` **975/975**, `apps/preview` **160/160**,
+`packages/layout-engine` **978/978**, `apps/preview` **160/160**,
 `check_no_new_python` ok, `check-preview-shell-size-budgets` ok.
 
 Use a matching `feat/<id>-<slug>` branch per spec; one active spec per branch.
