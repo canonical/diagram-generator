@@ -48,7 +48,7 @@ Not thin: `component-model.js` is still a persistence-critical save-path hotspot
 | Post-043 shell contract shape | [`docs/spec-archive/044-preview-shell-architecture-followup/contract-shape.md`](./spec-archive/044-preview-shell-architecture-followup/contract-shape.md) |
 | Post-043 bundle strategy | [`docs/spec-archive/044-preview-shell-architecture-followup/bundle-strategy.md`](./spec-archive/044-preview-shell-architecture-followup/bundle-strategy.md) |
 | Preview host lane/page topology | [`docs/spec-archive/045-preview-host-engine-modularity/host-topology.md`](./spec-archive/045-preview-host-engine-modularity/host-topology.md) |
-| Editor host decomposition map | [`specs/046-editor-host-endgame/decomposition-map.md`](../specs/046-editor-host-endgame/decomposition-map.md) |
+| Editor host decomposition map | [`docs/spec-archive/046-editor-host-endgame/decomposition-map.md`](./spec-archive/046-editor-host-endgame/decomposition-map.md) |
 | ELK sizing / live resize / debug | [`specs/048-elk-sizing-interaction-followup/elk-sizing-interaction-flow.md`](../specs/048-elk-sizing-interaction-followup/elk-sizing-interaction-flow.md) |
 | Preview editor recovery | [`docs/spec-archive/050-preview-editor-recovery/preview-editor-recovery-flow.md`](./spec-archive/050-preview-editor-recovery/preview-editor-recovery-flow.md) |
 | Preview contextual aside | [`specs/051-preview-editor-contextual-aside/preview-contextual-aside-flow.md`](../specs/051-preview-editor-contextual-aside/preview-contextual-aside-flow.md) |
