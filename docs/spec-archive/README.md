@@ -62,6 +62,8 @@ Completed or retired spec packages live here so `specs/` stays focused on curren
 - `069-editor-mutation-state-determinism`
 - `071-preview-render-node-graph`
 - `072-preview-engine-hardening`
+- `073-layout-node-model-param-unification`
+- `074-layout-algorithm-consolidation`
 - `035-compatible-engine-switcher`
 - `036-headingless-wrapper-contract`
 - `037-preview-engine-drift-closeout`
