@@ -27,16 +27,41 @@ next**, trust this file.
 
 ## Next spec to tackle (priority order)
 
-Specs 071, 062, 063, and 072 are now complete on their feature branches. Keep
-the remaining post-071 queue in the exact Opus order:
+Reordered 2026-07-05 after the engine-architecture decisions. Cold-start agents:
+read [`AGENT-INBOX.md`](AGENT-INBOX.md) "START HERE" first, and the strategy in
+[`docs/architecture/node-paradigm-and-engine-strategy.md`](docs/architecture/node-paradigm-and-engine-strategy.md).
+Specs 071, 062, 063, 072 are complete.
 
-1. **Spec 061 — grid regression investigation.**
-2. **Spec 064 — arrow annotation label de-overlap.**
+**Decided architecture work (implement first):**
+
+1. **Spec 074 — layout algorithm consolidation.** Remove Dagre (decided) + add
+   the hard no-duplicate-algorithm guard, then the corpus-driven survey +
+   `decision-matrix.md`. Inputs from `diagram-generator-planning`.
+2. **Spec 073 — layout node model + param-pane unification.** Drop "family",
+   rename `grid`→`frame`, make panel/lane registration data-driven (closes
+   spec 046 T073), route force params through the shared pane. Force input
+   format stays; pipeline convergence (T060) is deprioritised.
+
+**Standing user-facing regressions:**
+
+3. **Spec 061 — grid regression investigation.** (061's "hide affordances now"
+   containment can be slotted earlier for a fast visible win.)
+4. **Spec 064 — arrow annotation label de-overlap.**
+
+**Independent feature:**
+
+5. **Spec 070 — layers palette reorder.**
+
+**Bookkeeping (fast, low-risk, do between slices):** specs 046 and 047 are done
+and archived (2026-07-05). Still outstanding: archive the 13 merged-but-
+unarchived specs (`048, 051, 052, 054–060, 062, 063, 071`) and refresh the stale
+`feat/*` branch references in the `AGENTS.md` handover. Detail in
+`AGENT-INBOX.md`.
 
 The `defineGraphLayoutPreviewEngine` factory + per-engine `engines/*.engine.ts`
 substrate is already in place (decentralized `registerPreviewEngine`, no central
-engine list); engine breadth should consume the Spec 071 Phase 4 node contract
-rather than the current shared render paths.
+engine list); engine breadth should consume the Spec 071 node contract rather
+than the current shared render paths.
 
 Other open work: pick a package from `docs/specs.md`, then execute from that
 package's `tasks.md`.

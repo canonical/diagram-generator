@@ -3,6 +3,12 @@
 **Feature Branch**: `feat/070-layers-palette-reorder`
 **Status**: Draft
 **Created**: 2026-06-25
+**Refreshed**: 2026-07-05 — added `plan.md`; folded in the reorder flow map and
+requirements checklist from the retired stray `specs/052-layers-palette-reorder/`
+scaffolding. `070` is the single live reorder package.
+**Support files**: [`plan.md`](./plan.md),
+[`layers-palette-reorder-flow.md`](./layers-palette-reorder-flow.md),
+[`checklists/requirements.md`](./checklists/requirements.md).
 
 ## Problem
 

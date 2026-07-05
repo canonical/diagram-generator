@@ -1,4 +1,7 @@
-# Requirements Checklist: Spec 052
+# Requirements Checklist: Spec 070
+
+> Folded in from the retired stray `specs/052-layers-palette-reorder/`
+> scaffolding on 2026-07-05. `070` is the live reorder package.
 
 ## Completeness
 
