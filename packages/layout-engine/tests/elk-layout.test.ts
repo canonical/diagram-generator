@@ -731,6 +731,61 @@ describe('layoutElkFrameDiagram', () => {
     expectOrthogonalPath(commitToBuild?.layoutPath ?? []);
   });
 
+  it('keeps passive top-level siblings visible when only one sibling participates in the arrow graph', async () => {
+    const diagram = loadFrameYaml(join(FRAMES_DIR, 'preview-smoke.yaml'));
+    const adapter = new MockTextAdapter();
+
+    const result = await layoutElkFrameDiagram(diagram, adapter);
+
+    const sources = findFrameById(
+      diagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'sources',
+    );
+    const workflow = findFrameById(
+      diagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'workflow',
+    );
+    const planning = findFrameById(
+      diagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'planning',
+    );
+    const implement = findFrameById(
+      diagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'implement',
+    );
+
+    expect(result.elkSnapshot?.nodes.map((node) => node.id)).toEqual(expect.arrayContaining([
+      'sources',
+      'workflow',
+      'planning',
+    ]));
+
+    for (const frame of [sources, workflow, planning, implement]) {
+      expect(frame?._layout.placedW).toBeGreaterThan(0);
+      expect(frame?._layout.placedH).toBeGreaterThan(0);
+    }
+
+    const topLevelFrames = [sources, workflow, planning]
+      .filter((frame): frame is NonNullable<typeof frame> => Boolean(frame));
+    const boxesOverlap = (
+      left: NonNullable<typeof sources>,
+      right: NonNullable<typeof sources>,
+    ) => (
+      left._layout.placedX < right._layout.placedX + right._layout.placedW
+      && left._layout.placedX + left._layout.placedW > right._layout.placedX
+      && left._layout.placedY < right._layout.placedY + right._layout.placedH
+      && left._layout.placedY + left._layout.placedH > right._layout.placedY
+    );
+    for (let index = 0; index < topLevelFrames.length; index += 1) {
+      for (let compareIndex = index + 1; compareIndex < topLevelFrames.length; compareIndex += 1) {
+        expect(
+          boxesOverlap(topLevelFrames[index]!, topLevelFrames[compareIndex]!),
+          `${topLevelFrames[index]!.id} should not overlap ${topLevelFrames[compareIndex]!.id}`,
+        ).toBe(false);
+      }
+    }
+  });
+
   it('treats headed groups as ELK compounds while keeping headings decorative', async () => {
     const diagram = loadFrameYaml(join(FRAMES_DIR, 'complex-routing-usecase.yaml'));
     const adapter = new MockTextAdapter();

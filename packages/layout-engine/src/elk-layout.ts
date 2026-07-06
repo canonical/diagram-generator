@@ -202,11 +202,11 @@ function shouldIncludeElkNode(
   endpoints: Set<string>,
   nativeCompoundIds: Set<string>,
   allowStructuralCarriers: boolean,
-  includePassiveLeaves: boolean,
+  includePassiveFrameAtLevel: boolean,
 ): boolean {
   if (isSyntheticLayoutFrame(frame) || isAnnotationFrame(frame, endpoints)) return false;
   if (isElkCompound(frame, nativeCompoundIds)) return true;
-  if (includePassiveLeaves && frame.isLeaf) return true;
+  if (includePassiveFrameAtLevel) return true;
   return endpoints.has(frame.id) || (allowStructuralCarriers && isElkCarrier(frame, endpoints));
 }
 
@@ -327,8 +327,15 @@ function collectGraphChildNodes(
   semanticSizes: Map<string, { width: number; height: number }>,
   semanticPlacements: Map<string, SemanticFramePlacement>,
   allowStructuralCarriers: boolean,
-  includePassiveLeaves: boolean,
+  includePassiveDescendants: boolean,
 ): GraphNodeInput[] {
+  const includePassiveFrameAtLevel = includePassiveDescendants || frames.some((frame) => shouldIncludeElkNode(
+    frame,
+    endpoints,
+    nativeCompoundIds,
+    allowStructuralCarriers,
+    false,
+  ));
   const nodes: GraphNodeInput[] = [];
   for (const frame of frames) {
     if (shouldIncludeElkNode(
@@ -336,7 +343,7 @@ function collectGraphChildNodes(
       endpoints,
       nativeCompoundIds,
       allowStructuralCarriers,
-      includePassiveLeaves,
+      includePassiveFrameAtLevel,
     )) {
       nodes.push(
         frameToGraphNode(
@@ -347,7 +354,7 @@ function collectGraphChildNodes(
           semanticSizes,
           semanticPlacements,
           allowStructuralCarriers,
-          includePassiveLeaves,
+          includePassiveDescendants,
         ),
       );
       continue;
@@ -360,7 +367,7 @@ function collectGraphChildNodes(
       semanticSizes,
       semanticPlacements,
       allowStructuralCarriers,
-      includePassiveLeaves,
+      includePassiveDescendants,
     ));
   }
   return nodes;
