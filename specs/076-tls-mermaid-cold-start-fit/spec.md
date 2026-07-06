@@ -215,6 +215,68 @@ spec 028's import path. Not the product path by itself, but strong evidence.
 Recommendation: **B**, de-risked by a **C-backed oracle** in T0. Reject A as the
 product path because of the SVG/helper coupling.
 
+## Execution notes for implementers (GPT-tier, prescriptive)
+
+This section makes T0 (the spike) executable without design judgement, so it can
+be outsourced to a lower-tier model. The **port** (Phase 2) is intentionally not
+over-specified here: harden it only *after* T0 proves the approach, using the T0
+option set as the seed.
+
+### T0 spike — exact steps
+
+1. Create a standalone script `tmp/elk-cluster-spike.mts` (a spike, not a test).
+   It imports `elkjs` (already a dependency via `packages/graph-layout-elk`) and
+   builds one ELK graph by hand from
+   `scripts/diagrams/frames/tls-certificate-provider-topology.yaml`.
+2. Build the ELK graph with **compound nodes** (do NOT flatten to fill carriers):
+   - Root: `layoutOptions: { 'elk.algorithm': 'layered', 'elk.direction': 'DOWN',
+     'elk.hierarchyHandling': 'INCLUDE_CHILDREN' }`.
+   - Each Mermaid `subgraph` → an ELK node with a `children` array and its own
+     `layoutOptions`:
+     - per-cluster direction: Mermaid `TB`→`'elk.direction':'DOWN'`,
+       `LR`→`'RIGHT'`.
+     - insets: `'elk.padding': '[top=24,left=16,bottom=16,right=16]'` (tune).
+     - spacing: `'elk.spacing.nodeNode': '24'`,
+       `'elk.layered.spacing.nodeNodeBetweenLayers': '32'` (tune).
+   - Blank-title ordering subgraphs (`services_row`, `openstack_relation_row`,
+     `load_balancer_relation_row`, `load_balancer_endpoint_row`) → compound nodes
+     with the same options but no rendered chrome.
+   - Leaves → ELK nodes with `width`/`height` from measured label sizes (reuse
+     the text adapter, or hardcode approximate sizes for the spike).
+   - Edges → the four authored arrows from the `.mmd`.
+3. Run `elk.layout(graph)` and print the resulting nested `x/y/width/height`.
+4. Compare against `images/01-source-mermaid-reference.png`:
+   - clusters nested correctly (children inside parents),
+   - per-cluster direction honoured (provider TB, rows LR),
+   - endpoint rows ordered left→right,
+   - one-provider fanout top→down.
+5. Optional oracle (T003): in `../mermaid/`, render
+   `references/tls-certificate-provider-topology.mmd` with `config.layout: elk`
+   and compare structure.
+6. Write PASS/FAIL + the working option set into this spec and the review doc.
+
+### Port file map (seed for Phase 2 hardening, not final)
+
+- Cluster→ELK compound builder: `packages/graph-layout-elk/src/` (new module) or
+  extend `packages/layout-engine/src/elk-layout.ts`.
+- Existing compound machinery to reuse: `collectNativeCompoundIds`,
+  `isElkCompound`, `compoundNeedsElkChildLayout` in
+  `packages/layout-engine/src/elk-layout.ts`.
+- New typed "invisible ordering cluster" concept: same module; a compound with no
+  chrome + a local direction.
+- Compatibility owner: `packages/layout-engine/src/preview-engine/registry.ts`.
+- Regressions: `packages/layout-engine/tests/preview-engine-*` (compatibility) +
+  a new geometry test on the TLS fixture.
+- After browser-surface changes: `npm --prefix packages/layout-engine run build:browser`.
+
+### Hardening status for outsourcing
+
+- **T0 spike + planning audit:** ready to outsource now (bounded, prescriptive).
+- **Phase 2 port:** NOT yet prescriptive enough for blind end-to-end
+  implementation by a lower-tier model. Re-harden this section with the proven T0
+  option set and exact function signatures before handing the port to GPT-tier;
+  until then, keep the port on the GPT-implements / Opus-reviews loop.
+
 ## User stories
 
 ### US1: Cold-start recreation
