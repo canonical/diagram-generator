@@ -25,6 +25,7 @@
 - [ ] T031 `IMPORT_MERMAID_UNSUPPORTED_*` diagnostics
 - [ ] T032 Tests: parse exporter output for tiered-network
 - [ ] T033 CLI `import-mermaid.mjs`
+- [ ] T034 Mermaid-first workflow proof: `.mmd` input emits canonical `engine: v3` YAML directly, with one real-world multi-subgraph golden fixture
 
 ## Phase 3: AST → YAML serialization
 
@@ -49,7 +50,7 @@
 |------------|-------|
 | US1 Documented export | T010–T017 |
 | US2 D2 import | T020–T024 |
-| US3 Mermaid import | T030–T033 |
+| US3 Mermaid import | T030–T034 |
 | US4 Round-trip CLIs | T023, T033, T040–T042, T050 |
 | US5 Export hardening | T011–T016 |
 | US6 Preview HTTP | T060–T061 |
