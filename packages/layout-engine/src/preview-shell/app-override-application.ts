@@ -6,6 +6,7 @@
  * target for resize-handle refresh.
  */
 
+import { FRAME_CLASS_DEFS, strokeWidthForClass, type FrameClassDefinition } from '../frame-classes.js';
 import { recolorIconElementShapes } from '../icon-markup.js';
 
 export interface PreviewOverrideDelta {
@@ -38,6 +39,7 @@ export interface PreviewOverrideBoxStylePreset {
   fill: string;
   text: string;
   icon: string;
+  border?: string;
 }
 
 export interface PreviewOverrideRelayoutStatus {
@@ -404,19 +406,85 @@ function applyTextOverrideToGroup(group: Element, overrideLines: string[]): void
 
 function applyStyleOverrideToGroup(
   group: Element,
+  styleName: string,
   preset: PreviewOverrideBoxStylePreset,
 ): void {
   const rect = group.querySelector(':scope > rect:first-of-type');
   if (rect instanceof SVGElement) {
     rect.setAttribute('fill', preset.fill);
+    const frameClass = resolveFrameClassForPreviewStyle(styleName);
+    if (frameClass) {
+      rect.setAttribute('stroke', frameClass.stroke);
+      rect.setAttribute('stroke-width', String(strokeWidthForClass(frameClass)));
+    }
   }
-  group.querySelectorAll('text tspan').forEach((tspan) => {
+  const textFrameClass = resolveTextFrameClassForPreviewStyle(group, styleName);
+  group.querySelectorAll(':scope > text tspan').forEach((tspan) => {
     tspan.setAttribute('fill', preset.text);
+    if (textFrameClass) {
+      tspan.setAttribute(
+        'font-weight',
+        textFrameClass.leafLeadText?.weight ?? textFrameClass.headingText?.weight ?? '400',
+      );
+      const letterSpacing = textFrameClass.leafLeadText?.letterSpacing ?? textFrameClass.headingText?.letterSpacing;
+      if (letterSpacing) {
+        tspan.setAttribute('letter-spacing', letterSpacing);
+      } else {
+        tspan.removeAttribute('letter-spacing');
+      }
+      const smallCaps = Boolean(
+        textFrameClass.leafLeadText?.smallCaps ?? textFrameClass.headingText?.smallCaps,
+      );
+      if (smallCaps) {
+        tspan.setAttribute('font-variant-caps', 'small-caps');
+      } else {
+        tspan.removeAttribute('font-variant-caps');
+      }
+    }
   });
   group.querySelectorAll('.dg-icon').forEach((icon) => {
     (icon as HTMLElement).style.filter = '';
     recolorIconElementShapes(icon, preset.icon);
   });
+}
+
+function resolveFrameClassForPreviewStyle(styleName: string): FrameClassDefinition | null {
+  switch (styleName) {
+    case 'default':
+      return FRAME_CLASS_DEFS.leaf;
+    case 'parent':
+      return FRAME_CLASS_DEFS.panel;
+    case 'section':
+      return FRAME_CLASS_DEFS.section;
+    case 'annotation':
+      return FRAME_CLASS_DEFS.annotation;
+    case 'highlight':
+      return FRAME_CLASS_DEFS.highlight;
+    default:
+      return null;
+  }
+}
+
+function resolveTextFrameClassForPreviewStyle(
+  group: Element,
+  styleName: string,
+): FrameClassDefinition | null {
+  if (styleName !== 'highlight') {
+    return resolveFrameClassForPreviewStyle(styleName);
+  }
+  const rect = group.querySelector(':scope > rect:first-of-type');
+  const fill = String(rect?.getAttribute('fill') ?? '').trim().toUpperCase();
+  const stroke = String(rect?.getAttribute('stroke') ?? '').trim().toUpperCase();
+  if (fill === '#F3F3F3' || stroke === '#F3F3F3') {
+    return FRAME_CLASS_DEFS.panel;
+  }
+  if (stroke && stroke !== 'NONE' && stroke !== 'TRANSPARENT') {
+    const leadWeight = group.querySelector(':scope > text tspan')?.getAttribute('font-weight');
+    return leadWeight === '700'
+      ? FRAME_CLASS_DEFS.section
+      : FRAME_CLASS_DEFS.leaf;
+  }
+  return null;
 }
 
 function applyArrowGroupShift(group: Element, shift: PreviewArrowEndpointShift): void {
@@ -466,12 +534,16 @@ export function applyPreviewSvgOverrides(options: ApplyPreviewSvgOverridesOption
       rect.setAttribute('data-orig-width', rect.getAttribute('width') || '0');
       rect.setAttribute('data-orig-height', rect.getAttribute('height') || '0');
       rect.setAttribute('data-orig-fill', rect.getAttribute('fill') || '#FFFFFF');
+      rect.setAttribute('data-orig-stroke', rect.getAttribute('stroke') || 'none');
+      rect.setAttribute('data-orig-stroke-width', rect.getAttribute('stroke-width') || '0');
     }
   });
 
   svg.querySelectorAll('rect[data-orig-fill]').forEach((rect) => {
     if (isFrameManagedTarget(rect)) return;
     rect.setAttribute('fill', rect.getAttribute('data-orig-fill') || '#FFFFFF');
+    rect.setAttribute('stroke', rect.getAttribute('data-orig-stroke') || 'none');
+    rect.setAttribute('stroke-width', rect.getAttribute('data-orig-stroke-width') || '0');
   });
 
   svg.querySelectorAll('.dg-icon').forEach((icon) => {
@@ -545,7 +617,7 @@ export function applyPreviewSvgOverrides(options: ApplyPreviewSvgOverridesOption
       // Style-only overrides are safe to patch onto frame-managed SVG groups:
       // they recolor/reborder existing markup without mutating geometry.
       if (typeof override?.style === 'string' && options.boxStyles[override.style]) {
-        applyStyleOverrideToGroup(group, options.boxStyles[override.style]!);
+        applyStyleOverrideToGroup(group, override.style, options.boxStyles[override.style]!);
       }
 
       if (!frameManaged && effectiveDelta.dw !== 0) {

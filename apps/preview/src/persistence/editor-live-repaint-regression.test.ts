@@ -644,14 +644,16 @@ function assertViewBoxWithinTolerance(
   }
 }
 
-async function chooseAppearanceOnlyStyleVariant(page: Page): Promise<string> {
+async function chooseAppearanceOnlyStyleVariant(
+  page: Page,
+  preferredOrder: string[] = ["parent", "highlight", "section", "default"],
+): Promise<string> {
   const select = page.locator('#inspector select[data-dg-change-action="single-style"]').first();
   await select.waitFor({ state: "visible", timeout: 30_000 });
   const options = await select.evaluate((node) => (
     Array.from((node as HTMLSelectElement).options).map((option) => option.value)
   ));
   const current = await select.inputValue();
-  const preferredOrder = ["parent", "highlight", "section", "default"];
   const target = preferredOrder.find((value) => value !== current && options.includes(value))
     ?? options.find((value) => value !== current);
   assert.ok(target, "expected an alternate style variant");
@@ -662,7 +664,7 @@ async function chooseAppearanceOnlyStyleVariant(page: Page): Promise<string> {
 }
 
 test("preview gestures repaint the live stage for engine tabs and appearance-only role changes", { timeout: 120_000 }, async (t) => {
-  const framesDir = copyFixtureFrames(["mongo-octavia-ha"]);
+  const framesDir = copyFixtureFrames(["mongo-octavia-ha", "support-engineering-flow"]);
   const port = await allocatePort();
   const baseUrl = `http://127.0.0.1:${port}`;
   const server = startPreviewServer(framesDir, port);
@@ -700,20 +702,21 @@ test("preview gestures repaint the live stage for engine tabs and appearance-onl
       await enginePage.close();
     }
 
-    const appearancePage = await openPreviewPage(browser, baseUrl, "mongo-octavia-ha");
+    const appearancePage = await openPreviewPage(browser, baseUrl, "support-engineering-flow");
     try {
       const selectedId = await selectFirstFrame(appearancePage);
       const beforeMarkup = await frameLayerMarkup(appearancePage);
       const beforeFragment = await selectedSvgFragment(appearancePage, selectedId);
       const beforeEngine = await renderedEngine(appearancePage);
 
-      await chooseAppearanceOnlyStyleVariant(appearancePage);
+      const targetStyle = await chooseAppearanceOnlyStyleVariant(appearancePage, ["section"]);
 
       const afterMarkup = await frameLayerMarkup(appearancePage);
       const afterFragment = await selectedSvgFragment(appearancePage, selectedId);
       const afterEngine = await renderedEngine(appearancePage);
 
       assert.equal(afterEngine, beforeEngine, "appearance-only role change should not switch engines");
+      assert.equal(targetStyle, "section", "leaf repaint proof should exercise a child -> section role change");
       assert.notEqual(afterMarkup, beforeMarkup, "appearance-only role change should repaint the live frame layer");
       assert.notEqual(afterFragment, beforeFragment, "appearance-only role change should repaint the selected SVG fragment");
     } finally {

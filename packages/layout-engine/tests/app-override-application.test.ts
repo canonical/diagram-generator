@@ -162,6 +162,10 @@ describe('preview override application helpers', () => {
         this.attrs.set(name, value);
       }
 
+      removeAttribute(name: string) {
+        this.attrs.delete(name);
+      }
+
       hasAttribute(name: string) {
         return this.attrs.has(name);
       }
@@ -179,17 +183,21 @@ describe('preview override application helpers', () => {
     try {
       const tspan = new FakeSvgElement();
       tspan.setAttribute('fill', '#111111');
+      tspan.setAttribute('font-weight', '400');
       const text = new FakeSvgElement({}, {
         tspan: [tspan],
       });
       const rect = new FakeSvgElement();
       rect.setAttribute('width', '120');
       rect.setAttribute('height', '80');
-      rect.setAttribute('fill', '#ffffff');
+      rect.setAttribute('fill', 'transparent');
+      rect.setAttribute('stroke', '#000000');
+      rect.setAttribute('stroke-width', '1');
       const group = new FakeSvgElement({
         ':scope > rect:first-of-type': rect,
         text,
       }, {
+        ':scope > text tspan': [tspan],
         'text tspan': [tspan],
         '.dg-icon': [],
       });
@@ -246,10 +254,13 @@ describe('preview override application helpers', () => {
       });
 
       expect(rect.getAttribute('fill')).toBe('#eeeeee');
+      expect(rect.getAttribute('stroke')).toBe('#F3F3F3');
+      expect(rect.getAttribute('stroke-width')).toBe('1');
       expect(rect.getAttribute('width')).toBe('120');
       expect(rect.getAttribute('height')).toBe('80');
       expect(group.getAttribute('style') ?? '').not.toContain('translate');
       expect(tspan.getAttribute('fill')).toBe('#222222');
+      expect(tspan.getAttribute('font-weight')).toBe('700');
     } finally {
       (globalThis as { SVGElement?: typeof FakeSvgElement }).SVGElement = OriginalSvgElement;
     }
