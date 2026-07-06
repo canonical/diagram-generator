@@ -111,11 +111,42 @@ function filterOverridesToSupportedSpecs(
 ): Record<string, unknown> {
   const filtered: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(overrides)) {
-    if (supported.has(key)) {
-      filtered[key] = value;
+    const spec = supported.get(key);
+    if (!spec) {
+      continue;
     }
+    filtered[key] = coercePersistedControlValue(value, spec.kind);
   }
   return filtered;
+}
+
+function coercePersistedControlValue(
+  value: unknown,
+  kind: PreviewControlKind | undefined,
+): unknown {
+  if (kind === 'boolean') {
+    if (typeof value === 'boolean') {
+      return value;
+    }
+    const trimmed = String(value).trim().toLowerCase();
+    if (trimmed === 'true') return true;
+    if (trimmed === 'false') return false;
+    return Boolean(value);
+  }
+
+  if (kind === 'number') {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+    const trimmed = String(value).trim();
+    if (!trimmed) {
+      return '';
+    }
+    const numeric = Number(trimmed);
+    return Number.isFinite(numeric) ? numeric : trimmed;
+  }
+
+  return typeof value === 'string' ? value.trim() : value;
 }
 
 function resolveFrameYamlPersistNamespaceForEngine(

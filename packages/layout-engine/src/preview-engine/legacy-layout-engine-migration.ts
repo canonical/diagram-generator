@@ -48,6 +48,25 @@ function mergeOverrideRecords(
   return Object.keys(merged).length > 0 ? merged : undefined;
 }
 
+function mergeMigratedRecord<TValue>(
+  existing: Record<string, TValue> | null | undefined,
+  incoming: Record<string, TValue> | null | undefined,
+  options: {
+    preferExisting?: boolean;
+  } = {},
+): Record<string, TValue> | undefined {
+  const merged = options.preferExisting
+    ? {
+      ...(incoming ?? {}),
+      ...(existing ?? {}),
+    }
+    : {
+      ...(existing ?? {}),
+      ...(incoming ?? {}),
+    };
+  return Object.keys(merged).length > 0 ? merged : undefined;
+}
+
 export function canonicalPreviewLayoutEngineKey(
   value: string | null | undefined,
 ): string | null {
@@ -94,6 +113,9 @@ export function migrateLegacyPreviewEngineOverridesForNamespace(
   for (const [key, value] of Object.entries(overrides)) {
     const mappedKey = DAGRE_TO_ELK_KEY_MAP[key as keyof typeof DAGRE_TO_ELK_KEY_MAP];
     if (!mappedKey) {
+      // Only the small subset of dagre keys with a clear ELK equivalent migrate.
+      // Unsupported dagre-only knobs are intentionally dropped instead of being
+      // persisted into the canonical ELK namespace.
       continue;
     }
     translated[mappedKey] = translateDagreOverrideValue(key, value);
@@ -122,7 +144,7 @@ export function migrateLegacyPreviewEngineNodeBucketsForNamespace(
     if (!isRecord(rawBucket)) {
       continue;
     }
-    const normalizedNodeId = canonicalPreviewLayoutEngineKey(rawNodeId) ?? rawNodeId.trim();
+    const normalizedNodeId = normalizeNonEmptyString(rawNodeId);
     if (!normalizedNodeId) {
       continue;
     }
@@ -136,10 +158,10 @@ export function migrateLegacyPreviewEngineNodeBucketsForNamespace(
     if (Object.keys(translatedBucket).length === 0) {
       continue;
     }
-    nextBuckets[normalizedNodeId] = {
-      ...(nextBuckets[normalizedNodeId] ?? {}),
-      ...translatedBucket,
-    };
+    nextBuckets[normalizedNodeId] = mergeMigratedRecord(
+      nextBuckets[normalizedNodeId],
+      translatedBucket,
+    ) ?? {};
   }
 
   return {
@@ -162,15 +184,19 @@ export function migrateLegacyFrameDiagramEngineState<T extends LegacyFrameDiagra
   const nextEngineLayout: Record<string, Record<string, unknown>> = {};
 
   for (const [namespace, rawValue] of Object.entries(input.engineLayout ?? {})) {
+    const sourceNamespace = normalizeNonEmptyString(namespace);
     if (namespace.endsWith('_nodes')) {
       const migratedBuckets = migrateLegacyPreviewEngineNodeBucketsForNamespace(namespace, rawValue);
       if (!migratedBuckets || Object.keys(migratedBuckets.buckets).length === 0) {
         continue;
       }
-      nextEngineLayout[migratedBuckets.namespace] = {
-        ...(nextEngineLayout[migratedBuckets.namespace] ?? {}),
-        ...migratedBuckets.buckets,
-      };
+      nextEngineLayout[migratedBuckets.namespace] = mergeMigratedRecord(
+        nextEngineLayout[migratedBuckets.namespace],
+        migratedBuckets.buckets,
+        {
+          preferExisting: sourceNamespace === 'meta.dagre_nodes',
+        },
+      ) ?? {};
       continue;
     }
 
@@ -178,10 +204,13 @@ export function migrateLegacyFrameDiagramEngineState<T extends LegacyFrameDiagra
     if (!migratedOverrides || Object.keys(migratedOverrides.overrides).length === 0) {
       continue;
     }
-    nextEngineLayout[migratedOverrides.namespace] = {
-      ...(nextEngineLayout[migratedOverrides.namespace] ?? {}),
-      ...migratedOverrides.overrides,
-    };
+    nextEngineLayout[migratedOverrides.namespace] = mergeMigratedRecord(
+      nextEngineLayout[migratedOverrides.namespace],
+      migratedOverrides.overrides,
+      {
+        preferExisting: sourceNamespace === 'meta.dagre',
+      },
+    ) ?? {};
   }
 
   const migratedElkLayout = mergeOverrideRecords(

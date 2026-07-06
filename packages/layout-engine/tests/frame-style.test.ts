@@ -274,7 +274,7 @@ describe('preview-shell frame style helpers', () => {
       selectedValue: 'highlight',
       originalLabel: 'Child',
     })).toBe(
-      '<option value="">Child</option>'
+      '<option value="">Authored variant (Child)</option>'
       + '<option value="default">Child</option>'
       + '<option value="highlight" selected>Highlight</option>',
     );

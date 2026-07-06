@@ -350,11 +350,72 @@ test("persist→reload round-trip: legacy dagre node buckets migrate into canoni
 
   const reloaded = loadFrameYaml(framePath);
   assert.deepEqual(reloaded.engineLayout?.["meta.elk_nodes"], {
-    "elk-layered": {
+    dagre: {
       "elk.direction": "RIGHT",
       "elk.layered.spacing.nodeNodeBetweenLayers": "128",
     },
   });
+});
+
+test("persist prefers authored ELK overrides when legacy dagre keys collide with canonical ELK keys", () => {
+  const baselineText = [
+    "engine: v3",
+    "title: Demo",
+    "meta:",
+    "  layout_engine: dagre",
+    "  elk:",
+    "    elk.direction: DOWN",
+    "    elk.spacing.nodeNode: 96",
+    "  dagre:",
+    "    dagre.rankdir: LR",
+    "    dagre.nodesep: 64",
+    "root:",
+    "  id: page",
+    "  direction: vertical",
+    "  children:",
+    "    - id: leaf_a",
+    "      label: [A]",
+    "",
+  ].join("\n");
+  const output = persistToYaml("demo.yaml", baselineText, {
+    overrides: {
+      leaf_a: {
+        min_width: 320,
+      },
+    },
+  });
+  const reloaded = loadFrameYaml(writeTempFrame("demo-collision-reloaded.yaml", output));
+
+  assert.deepEqual(reloaded.engineLayout?.["meta.elk"], {
+    "elk.direction": "DOWN",
+    "elk.spacing.nodeNode": "96",
+  });
+});
+
+test("persist leaves non-legacy meta records untouched during unrelated saves", () => {
+  const baselineText = [
+    "engine: v3",
+    "title: Demo",
+    "meta:",
+    "  layout_engine: elk-layered",
+    "  elk: {}",
+    "root:",
+    "  id: page",
+    "  direction: vertical",
+    "  children:",
+    "    - id: leaf_a",
+    "      label: [A]",
+    "",
+  ].join("\n");
+  const output = persistToYaml("demo.yaml", baselineText, {
+    overrides: {
+      leaf_a: {
+        min_width: 320,
+      },
+    },
+  });
+
+  assert.match(output, /elk: \{\}/);
 });
 
 test("persist engine_layout_overrides replaces node-family buckets so emptied non-active nodes disappear", () => {
@@ -398,6 +459,141 @@ test("persist engine_layout_overrides replaces node-family buckets so emptied no
   });
   assert.doesNotMatch(output, /elk-radial:/);
   assert.doesNotMatch(output, /elk\.spacing\.edgeNode: '56'/);
+});
+
+test("persist layout_engine switch to elk-stress rewrites meta.elk against the new engine before merging overrides", () => {
+  const baselineText = [
+    "engine: v3",
+    "title: Demo",
+    "meta:",
+    "  layout_engine: elk-layered",
+    "  elk:",
+    "    elk.direction: DOWN",
+    "    elk.layered.spacing.nodeNodeBetweenLayers: '24'",
+    "    elk.spacing.nodeNode: '24'",
+    "  elk_nodes:",
+    "    elk-layered:",
+    "      elk.direction: DOWN",
+    "      elk.layered.spacing.nodeNodeBetweenLayers: '24'",
+    "      elk.spacing.nodeNode: '24'",
+    "root:",
+    "  id: page",
+    "  direction: vertical",
+    "  children:",
+    "    - id: leaf_a",
+    "      label: [A]",
+    "",
+  ].join("\n");
+
+  const output = persistToYaml("demo.yaml", baselineText, {
+    overrides: {},
+    layout_engine: "elk-stress",
+    engine_layout_overrides: {
+      "meta.elk": {
+        "elk.stress.dimension": "XY",
+        "elk.stress.epsilon": 0.001,
+        "elk.stress.iterationLimit": 2147483647,
+        "elk.stress.desiredEdgeLength": 137,
+        "elk.edgeLabels.inline": true,
+      },
+      "meta.elk_nodes": {
+        "elk-layered": {
+          "elk.direction": "DOWN",
+          "elk.layered.spacing.nodeNodeBetweenLayers": "24",
+          "elk.spacing.nodeNode": "24",
+        },
+        "elk-stress": {
+          "elk.stress.dimension": "XY",
+          "elk.stress.epsilon": 0.001,
+          "elk.stress.iterationLimit": 2147483647,
+          "elk.stress.desiredEdgeLength": 137,
+          "elk.edgeLabels.inline": true,
+        },
+      },
+    },
+  });
+
+  const reloaded = loadFrameYaml(writeTempFrame("demo-elk-stress-switch.yaml", output));
+  assert.equal(reloaded.layoutEngine, "elk-stress");
+  assert.equal(reloaded.engineLayout?.["meta.elk"]?.["elk.stress.desiredEdgeLength"], "137");
+  assert.equal(reloaded.engineLayout?.["meta.elk"]?.["elk.edgeLabels.inline"], "true");
+  assert.equal("elk.direction" in (reloaded.engineLayout?.["meta.elk"] ?? {}), false);
+  assert.equal(
+    reloaded.engineLayout?.["meta.elk_nodes"]?.["elk-layered"]?.["elk.direction"],
+    "DOWN",
+  );
+  assert.equal(
+    reloaded.engineLayout?.["meta.elk_nodes"]?.["elk-stress"]?.["elk.stress.desiredEdgeLength"],
+    "137",
+  );
+});
+
+test("persist layout_engine switch to elk-stress does not let legacy radial-side dagre state poison top-level meta.elk", () => {
+  const baselineText = [
+    "engine: v3",
+    "title: Demo",
+    "meta:",
+    "  layout_engine: elk-radial",
+    "  dagre:",
+    "    dagre.rankdir: LR",
+    "    dagre.ranksep: 128",
+    "  elk:",
+    "    elk.spacing.nodeNode: '72'",
+    "    elk.radial.centerOnRoot: false",
+    "    elk.radial.radius: '256'",
+    "    elk.radial.rotate: false",
+    "    elk.radial.compactor: NONE",
+    "    elk.radial.sorter: NONE",
+    "    elk.radial.wedgeCriteria: NODE_SIZE",
+    "    elk.radial.optimizationCriteria: NONE",
+    "root:",
+    "  id: page",
+    "  direction: vertical",
+    "  children:",
+    "    - id: leaf_a",
+    "      label: [A]",
+    "",
+  ].join("\n");
+
+  const output = persistToYaml("demo.yaml", baselineText, {
+    overrides: {},
+    layout_engine: "elk-stress",
+    engine_layout_overrides: {
+      "meta.elk": {
+        "elk.stress.dimension": "XY",
+        "elk.stress.epsilon": 0.001,
+        "elk.stress.iterationLimit": 2147483647,
+        "elk.stress.desiredEdgeLength": 137,
+        "elk.edgeLabels.inline": true,
+      },
+      "meta.elk_nodes": {
+        "elk-radial": {
+          "elk.spacing.nodeNode": "72",
+          "elk.radial.centerOnRoot": "false",
+          "elk.radial.radius": "256",
+          "elk.radial.rotate": "false",
+          "elk.radial.compactor": "NONE",
+          "elk.radial.sorter": "NONE",
+          "elk.radial.wedgeCriteria": "NODE_SIZE",
+          "elk.radial.optimizationCriteria": "NONE",
+        },
+        "elk-stress": {
+          "elk.stress.dimension": "XY",
+          "elk.stress.epsilon": 0.001,
+          "elk.stress.iterationLimit": 2147483647,
+          "elk.stress.desiredEdgeLength": 137,
+          "elk.edgeLabels.inline": true,
+        },
+      },
+    },
+  });
+
+  const reloaded = loadFrameYaml(writeTempFrame("demo-elk-stress-radial-dagre.yaml", output));
+  assert.equal(reloaded.layoutEngine, "elk-stress");
+  assert.equal(reloaded.engineLayout?.["meta.elk"]?.["elk.stress.desiredEdgeLength"], "137");
+  assert.equal("elk.radial.radius" in (reloaded.engineLayout?.["meta.elk"] ?? {}), false);
+  assert.equal(reloaded.engineLayout?.["meta.elk_nodes"]?.["elk-radial"]?.["elk.radial.radius"], "256");
+  assert.doesNotMatch(output, /dagre:/);
 });
 
 test("persist→reload round-trip: committed state vector survives temp frame yaml save", () => {
@@ -576,6 +772,10 @@ test("persist elk.direction preserves the blank auto enum value", () => {
     "elk.direction": "",
     "elk.spacing.edgeNode": "56",
   });
+  assert.doesNotThrow(() => verifyElkLayoutPersisted(output, {
+    "elk.direction": "",
+    "elk.spacing.edgeNode": 56,
+  }));
 });
 
 test("persist elk layout overrides rejects unsupported implementation-owned ELK keys", () => {

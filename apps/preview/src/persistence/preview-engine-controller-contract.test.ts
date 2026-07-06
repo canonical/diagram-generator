@@ -2,7 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import vm from "node:vm";
 
-import { createPreviewEngineLayoutControlsRuntime } from "@diagram-generator/layout-engine";
+import {
+  createPreviewEngineLayoutControlsRuntime,
+  createPreviewEngineShellControllerRuntime,
+  FORCE_PREVIEW_ENGINE,
+} from "@diagram-generator/layout-engine";
 
 import {
   attachPreviewCompat,
@@ -434,40 +438,111 @@ test("force preview helpers accept the namespaced previewEngines.force contract"
 test("force shared param pane wiring uses a live setter and relayout callback", () => {
   const source = readPreviewScript("force.js");
   const calls: Array<Record<string, unknown>> = [];
-  let initDeps: Record<string, unknown> | null = null;
-  let wirePanelCount = 0;
-  let refreshCount = 0;
+  let currentOverrides: Record<string, unknown> = {
+    link_distance: 320,
+    curve_handle_ratio: 0.4,
+  };
+  const section = {
+    hidden: true,
+    hasAttribute(name: string) {
+      return name === "hidden" ? this.hidden : false;
+    },
+    querySelector() {
+      return null;
+    },
+    querySelectorAll() {
+      return [];
+    },
+    style: { display: "" },
+    setAttribute() {},
+    removeAttribute() {},
+  };
+  const container = {
+    innerHTML: "",
+    textContent: "",
+    querySelector() {
+      return null;
+    },
+    querySelectorAll() {
+      return [];
+    },
+  };
+  const previewWindow = {
+    __DG_CONFIG: {
+      layout_engine: "force",
+      shell_mode: "force",
+      document_kind: "force-spec",
+    },
+  } as {
+    __DG_CONFIG: {
+      layout_engine: string;
+      shell_mode: string;
+      document_kind: string;
+    };
+    PreviewEngineLayoutControls?: unknown;
+    PreviewEngineShellController?: unknown;
+  };
+  const registry = {
+    resolvePreviewEngine({
+      layoutEngine,
+      shellMode,
+    }: {
+      layoutEngine?: string | null;
+      shellMode?: string | null;
+    }) {
+      return layoutEngine === "force" && shellMode === "force" ? FORCE_PREVIEW_ENGINE : null;
+    },
+    listPreviewEnginesBySidebarSection(sectionName: string) {
+      return sectionName === "layout-params" ? [FORCE_PREVIEW_ENGINE] : [];
+    },
+  };
+  const controls = createPreviewEngineLayoutControlsRuntime({
+    document: {
+      getElementById(id: string) {
+        if (id === "layout-params-section") return section as never;
+        if (id === "layout-params-controls") return container as never;
+        return null;
+      },
+    },
+    previewWindow,
+    layoutEngineRoot: {
+      previewEngines: { registry },
+    },
+    getFrameTreeJson: () => ({ layoutEngine: "force" }),
+  });
+  const controller = createPreviewEngineShellControllerRuntime({
+    document: {
+      getElementById(id: string) {
+        if (id === "layout-params-section") return section as never;
+        return null;
+      },
+    },
+    previewWindow,
+    layoutEngineRoot: {
+      previewEngines: { registry },
+    },
+    getFrameTreeJson: () => ({ layoutEngine: "force" }),
+  });
+  previewWindow.PreviewEngineLayoutControls = controls;
+  previewWindow.PreviewEngineShellController = controller;
   const context = {
     console,
     previewEngineLayoutControls() {
-      return {
-        collectOverrides() {
-          return { link_distance: 480, curve_handle_ratio: 0.7 };
-        },
-        refresh() {
-          refreshCount += 1;
-        },
-      };
+      return controls;
     },
     previewEngineShellController() {
-      return {
-        init(options: Record<string, unknown>) {
-          initDeps = options;
-        },
-        wirePanel() {
-          wirePanelCount += 1;
-        },
-      };
+      return controller;
     },
     readSharedForceOverrides() {
-      return { link_distance: 320, curve_handle_ratio: 0.4 };
+      return { ...currentOverrides };
     },
     applySharedForceOverrides(value: Record<string, unknown>) {
       calls.push({ ...value });
+      currentOverrides = { ...value };
       return { applied: value };
     },
     refreshSharedForceParamPane() {
-      refreshCount += 1;
+      controls.refresh();
     },
   };
 
@@ -485,15 +560,21 @@ test("force shared param pane wiring uses a live setter and relayout callback", 
 
   loaded.initializeSharedForceParamPane();
 
-  assert.equal(wirePanelCount, 1);
-  assert.equal(refreshCount, 1);
-  assert.equal(typeof initDeps?.setLayoutOverrides, "function");
-  assert.equal(typeof initDeps?.requestLayoutRelayout, "function");
+  assert.equal(controller.isActiveLayoutEngine(), true);
+  assert.equal(section.hidden, false);
+  assert.match(container.innerHTML, /Link distance/);
+  assert.match(container.innerHTML, /Curve handle ratio/);
+  assert.match(container.innerHTML, /Simulation/);
+  assert.match(container.innerHTML, /Render/);
 
-  initDeps?.setLayoutOverrides?.({ link_distance: 420, curve_handle_ratio: 0.6 });
+  controller.applyLayoutOverrides({ link_distance: 420, curve_handle_ratio: 0.6 });
   assert.deepEqual(calls[0], { link_distance: 420, curve_handle_ratio: 0.6 });
 
-  const relayoutResult = initDeps?.requestLayoutRelayout?.();
+  (controls as { collectOverrides?: () => Record<string, unknown> }).collectOverrides = () => ({
+    link_distance: 480,
+    curve_handle_ratio: 0.7,
+  });
+  const relayoutResult = controller.requestRelayout();
   assert.deepEqual(calls[1], { link_distance: 480, curve_handle_ratio: 0.7 });
   assert.deepEqual(relayoutResult, { applied: { link_distance: 480, curve_handle_ratio: 0.7 } });
 });

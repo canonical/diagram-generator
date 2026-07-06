@@ -124,12 +124,12 @@ export interface PreviewPanelVisibilityDocumentLike {
   getElementById: (id: string) => HTMLElement | null;
 }
 
-function previewPanelElementId(owner: string): string | null {
+function previewPanelElementId(owner: string): string {
   const match = /^([^#]+)#([A-Za-z][\w:-]*)$/.exec(owner.trim());
   if (!match) {
-    return null;
+    throw new Error(`Preview panel owner must use the form <file>#<id>; received '${owner}'`);
   }
-  return match[2] ?? null;
+  return match[2] ?? '';
 }
 
 function hasOwnOverride(overrides: Record<string, unknown>, id: string): boolean {
@@ -472,7 +472,7 @@ export function syncPreviewPanelVisibility(options: {
   const applied = new Set<string>();
   for (const entry of options.visibility) {
     const elementId = previewPanelElementId(entry.owner);
-    if (!elementId || applied.has(elementId)) {
+    if (applied.has(elementId)) {
       continue;
     }
     const element = options.document.getElementById(elementId);

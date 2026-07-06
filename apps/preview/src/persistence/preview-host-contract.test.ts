@@ -9,6 +9,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
+  canonicalPreviewLayoutEngineKey,
   MockTextAdapter,
   createLoadPreviewSvgHostOptionsFromRuntime,
   loadPreviewSvg,
@@ -587,6 +588,50 @@ test("frame viewer compatibility excludes and rejects graph engines for no-arrow
       ),
       /Cannot use engine 'elk-layered' with frame-diagram: Engine requires at least 1 authored arrow/,
     );
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("incompatible canonicalized persisted graph engines fall back to the first compatible viewer engine", () => {
+  const tempDir = mkdtempSync(path.join(os.tmpdir(), "dg-preview-engine-fallback-"));
+  const framesDir = path.join(tempDir, "frames");
+  mkdirSync(framesDir, { recursive: true });
+  const framePath = path.join(framesDir, "legacy-dagre-no-arrows.yaml");
+  writeFileSync(
+    framePath,
+    [
+      "engine: v3",
+      "title: Legacy dagre no arrows",
+      "meta:",
+      "  layout_engine: dagre",
+      "root:",
+      "  id: page",
+      "  direction: vertical",
+      "  children:",
+      "    - id: child",
+      "      label: Child",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+
+  try {
+    const context = resolveFramePreviewViewerContext(
+      "legacy-dagre-no-arrows",
+      { framesDir },
+      {
+        normalizeLayoutEngine: (layoutEngine: string | undefined) => (
+          canonicalPreviewLayoutEngineKey(layoutEngine) ?? ""
+        ),
+        findReferenceImage: () => null,
+      },
+    );
+
+    assert.equal(context.authoredLayoutEngine, "elk-layered");
+    assert.equal(context.engineManifest, undefined);
+    assert.deepEqual(context.compatibleEngines, ["v3"]);
+    assert.equal(context.activeLayoutEngine, "v3");
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }

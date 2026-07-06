@@ -12,6 +12,169 @@ here — those belong in the relevant `specs/<id>-<slug>/` package.
 
 ---
 
+## Adversarial review — 2026-07-06 — specs 073 + 074 delta (`06d2f896..901a4c9` + uncommitted)
+
+Hostile review of the merged 073/074 range plus the uncommitted
+`frame-style.ts` picker-label fix. Findings first, ordered by severity. Product
+code only; archive/doc churn ignored except where it hides risk. Nothing here is
+a "do not merge" blocker, but P2s are real correctness gaps the closeout claims
+do not mention. **Next agent: work these top-down; each has a concrete file:line.**
+
+### P2 — legacy dagre overrides silently overwrite authored ELK overrides on key collision
+
+When a document carries **both** a `meta.dagre` and a `meta.elk` bucket (e.g. a
+doc that was switched engines and never cleaned), migration merges the
+dagre-translated keys **over** the authored elk keys. Both
+[legacy-layout-engine-migration.ts](packages/layout-engine/src/preview-engine/legacy-layout-engine-migration.ts#L181)
+(`nextEngineLayout[migratedOverrides.namespace] = { ...existing, ...translated }`)
+and the persistence twin
+[frame-diagram.ts](apps/preview/src/persistence/frame-diagram.ts#L107)
+(`migratedMeta[metaKey] = { ...existing, ...migrated }`) spread the migrated
+dagre value last, so e.g. a real authored `elk.direction` is clobbered by a
+translated legacy `dagre.rankdir`. Order is object-key-order dependent, so it is
+also non-deterministic-looking. No test exercises the both-namespaces-present
+case (the unit + persistence tests only ever have one of the two). Decide the
+precedence explicitly (authored elk should win) and add a collision test.
+
+### P2 — force param pane init was removed; only browser-path, no unit coverage
+
+[force.js](scripts/preview/force.js#L148) dropped the
+`previewEngineLayoutControls().init({ getOverrides, setOverrides })` call and now
+relies solely on `controller.wirePanel()` + a `collectOverrides()` fallback in
+`requestLayoutRelayout`. `collectOverrides` is real
+([layout-params-controls.ts](packages/layout-engine/src/preview-engine/layout-params-controls.ts#L114)),
+so the relayout path resolves — but nothing unit-tests that the force param
+inputs still **render and populate** without the removed `init`. This is exactly
+the "force params gone / relayout does nothing" class of user report. Validation
+gap: add a force param-pane render+relayout regression (or a Playwright check),
+do not trust the green TS suites here — the changed code is browser-only JS.
+
+### P3 — unmapped dagre override keys are dropped silently
+
+[legacy-layout-engine-migration.ts](packages/layout-engine/src/preview-engine/legacy-layout-engine-migration.ts#L96)
+`continue`s on any key absent from the 4-entry `DAGRE_TO_ELK_KEY_MAP`
+([L12](packages/layout-engine/src/preview-engine/legacy-layout-engine-migration.ts#L12)).
+Probably intentional (only 4 dagre knobs map cleanly) but it is undocumented
+data loss and the only unit test asserts the all-unsupported → `{}` case, which
+*looks* like coverage but actually only proves the drop, never the translate.
+Add a comment stating the drop is deliberate and cover a mixed
+supported+unsupported input.
+
+### P3 — node IDs are run through the engine-key alias map
+
+[legacy-layout-engine-migration.ts](packages/layout-engine/src/preview-engine/legacy-layout-engine-migration.ts#L125)
+applies `canonicalPreviewLayoutEngineKey(rawNodeId)` to **node-bucket keys**,
+which are node IDs, not engine keys. A node literally named `dagre` would be
+renamed to `elk-layered` in its per-node override bucket. Edge case, but it is a
+category error — node IDs should be trimmed, not alias-mapped.
+
+### P3 — migrated dagre docs can resolve to no engine (persisted vs active drift)
+
+`dagre` canonicalizes to `elk-layered`, but `elk-layered` requires
+`minArrowCount: 1` and `rejectFillCarrierIdsWithoutDiagramType`
+([elk-layered.engine.ts](packages/layout-engine/src/preview-engine/engines/elk-layered.engine.ts#L21)).
+`resolvePreviewEngine` returns **undefined** when the explicit key is
+incompatible ([registry.ts](packages/layout-engine/src/preview-engine/registry.ts#L86)),
+so a legacy dagre doc with fill-sized carriers and no authored `diagramType`
+migrates to a persisted `layout_engine: elk-layered` that then renders via the
+native fallback — persisted engine and rendered engine disagree. Masked by the
+`engineManifest?.layoutEngineKey ?? authoredLayoutEngine` fallback in
+[frame-documents.ts](apps/preview/src/preview-host/frame-documents.ts#L417), so
+it is drift, not a crash — but it matches the "switch to autolayout, still shows
+elk" report. Confirm migration only rewrites the key when the target is actually
+resolvable, or surface `invalidPersistedEngine` in this path.
+
+### P3 — panel visibility now silently skips any malformed owner
+
+[app-shell-panels.ts](packages/layout-engine/src/preview-shell/app-shell-panels.ts#L127)
+replaced the explicit `PANEL_ELEMENT_IDS` map with a regex parse of
+`owner` (`file#id`). Correct for today's 13 entries, but a future registry entry
+with an owner not matching `file#id` returns `null` and is skipped with **no
+error** — a registration foot-gun the old map would have made obvious. Consider
+throwing (or a registration-time guard) when an entry has a
+`visibilityPlaceholder` but an unparseable owner.
+
+### P3 — `migrateLegacyDocumentMeta` rewrites `meta` on every save
+
+[frame-diagram.ts](apps/preview/src/persistence/frame-diagram.ts#L760) runs on
+every persist and rebuilds `document.meta` from scratch, dropping any
+empty record-valued meta entry. Non-legacy docs get re-serialized meta churn,
+and an intentionally-empty engine namespace would be silently removed. Low risk,
+but worth a guard so migration is a no-op when nothing legacy is present.
+
+### Uncommitted style-picker fix — correct and covered, one residual
+
+[frame-style.ts](packages/layout-engine/src/preview-shell/frame-style.ts#L157)
+now labels the reset option `Authored variant (<label>)` so it no longer renders
+identically to the concrete style option; the test asserts the exact HTML
+([frame-style.test.ts](packages/layout-engine/tests/frame-style.test.ts#L277)).
+Semantically right and sufficient for the reported symptom. Residual: no test for
+the case where `originalLabel` matches the *selected* concrete key (both would
+show a `selected` marker on different options) — cosmetic, low priority.
+
+### Residual risks / validation gaps
+
+- The INBOX user reports (elk params gone on switch, padding drop on
+  autolayout→elk, tab clicks no-op, mongo-octavia layout) are **live-symptom**
+  claims. The plumbing is present (`__DG_syncPreviewEngineWorkspacePanels` fires
+  after tab switch in
+  [preview-engine-workspace-chrome.ts](packages/layout-engine/src/preview-shell/preview-engine-workspace-chrome.ts#L418)),
+  but nothing in this delta proves the *rendered* result on a real fixture.
+  These need a live check on `mongo-octavia-ha` / `juju-bootstrap-machines-process`,
+  not just green unit suites.
+- `legacy-layout-engine-migration.test.ts` is a single strip-all case; the
+  interesting translate/collision paths live only in `frame-diagram.test.ts`.
+  Fine for now, but the unit file over-claims coverage.
+
+### Reconciliation — 2026-07-06
+
+Addressed in the current working tree; no active 2026-07-06 review findings
+remain open.
+
+Resolved:
+
+1. **Legacy dagre collisions no longer clobber authored ELK state.**
+   Both `migrateLegacyFrameDiagramEngineState(...)` and
+   `migrateLegacyDocumentMeta(...)` now preserve existing canonical ELK /
+   `meta.elk_nodes` values when legacy dagre buckets collide, and regression
+   coverage locks the both-namespaces-present case.
+2. **Force shared param-pane wiring is now exercised through the live runtime.**
+   `preview-engine-controller-contract.test.ts` now boots the real
+   `PreviewEngineLayoutControls` + `PreviewEngineShellController` runtimes for
+   the force engine, asserts the shared controls render, and proves both setter
+   and relayout paths hit the live override owner.
+3. **Legacy dagre migration intent is documented and covered.**
+   Unsupported dagre-only keys are now explicitly documented as intentionally
+   dropped, mixed supported+unsupported inputs are covered, and node-bucket ids
+   are trimmed instead of being alias-mapped as engine keys.
+4. **Incompatible canonicalized persisted engines now fall back to a real
+   compatible viewer engine.**
+   `resolveFramePreviewViewerContext(...)` now prefers the first compatible
+   engine when the persisted explicit engine cannot resolve for the current
+   document shape, and coverage locks the migrated `dagre` -> incompatible-ELK
+   case.
+5. **Malformed panel owners now fail fast instead of silently skipping
+   visibility sync.**
+   `syncPreviewPanelVisibility(...)` throws when a registry owner is not
+   parseable as `<file>#<id>`, with a regression covering the foot-gun.
+6. **Non-legacy `meta` records no longer churn on every save.**
+   Legacy-meta migration now short-circuits unless an actual legacy entry is
+   present, and intentionally empty canonical namespaces survive unrelated
+   saves.
+7. **The uncommitted style-picker label fix remains correct and covered.**
+   The reset option is now labelled `Authored variant (<label>)`, which removes
+   the duplicate concrete-option text reported by the user.
+
+Validation last rerun green after the fixes:
+
+- `npm --prefix packages/layout-engine test` -> `989/989`
+- `npm --prefix apps/preview test` -> `164/164`
+- `node scripts/check_no_new_python.mjs`
+- `node scripts/check-preview-shell-size-budgets.mjs`
+- `node scripts/check-browser-bundle-fresh.mjs`
+
+---
+
 ## START HERE — cold-start plan (2026-07-05)
 
 You are picking up after a planning session that (a) audited the "Closeout

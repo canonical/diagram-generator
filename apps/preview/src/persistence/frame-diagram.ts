@@ -16,6 +16,7 @@ import {
   resolvePreviewArrowComponentId,
 } from "@diagram-generator/layout-engine";
 import {
+  frameYamlEngineLayoutAllowsEmptyStringValue,
   getFrameYamlEngineLayoutNamespace,
   isFrameYamlEngineLayoutNodeNamespace,
   sanitizeSupportedFrameYamlEngineLayoutNodeBuckets,
@@ -75,20 +76,39 @@ function metaKeyFromNamespace(namespace: string): string {
   return namespace.startsWith("meta.") ? namespace.slice("meta.".length) : namespace;
 }
 
+function hasLegacyDocumentMetaEntries(meta: Record<string, unknown>): boolean {
+  for (const [key, value] of Object.entries(meta)) {
+    if (key === "dagre" || key === "dagre_nodes") {
+      return true;
+    }
+    if (key !== "layout_engine" || typeof value !== "string") {
+      continue;
+    }
+    const trimmed = value.trim();
+    if (!trimmed) {
+      continue;
+    }
+    if (canonicalPreviewLayoutEngineKey(trimmed) !== trimmed) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function migrateLegacyDocumentMeta(document: Record<string, unknown>): void {
   const meta = isRecord(document.meta) ? document.meta : null;
-  if (!meta) {
+  if (!meta || !hasLegacyDocumentMetaEntries(meta)) {
     return;
   }
 
   const migratedMeta: Record<string, unknown> = {};
+  const canonicalDocumentLayoutEngine = canonicalPreviewLayoutEngineKey(
+    typeof meta.layout_engine === "string" ? meta.layout_engine : null,
+  );
   for (const [key, value] of Object.entries(meta)) {
     if (key === "layout_engine") {
-      const canonicalLayoutEngine = canonicalPreviewLayoutEngineKey(
-        typeof value === "string" ? value : null,
-      );
-      if (canonicalLayoutEngine) {
-        migratedMeta.layout_engine = canonicalLayoutEngine;
+      if (canonicalDocumentLayoutEngine) {
+        migratedMeta.layout_engine = canonicalDocumentLayoutEngine;
       }
       continue;
     }
@@ -104,10 +124,15 @@ function migrateLegacyDocumentMeta(document: Record<string, unknown>): void {
         continue;
       }
       const metaKey = metaKeyFromNamespace(migrated.namespace);
-      migratedMeta[metaKey] = {
-        ...(isRecord(migratedMeta[metaKey]) ? migratedMeta[metaKey] : {}),
-        ...migrated.buckets,
-      };
+      migratedMeta[metaKey] = key === "dagre_nodes"
+        ? {
+          ...migrated.buckets,
+          ...(isRecord(migratedMeta[metaKey]) ? migratedMeta[metaKey] : {}),
+        }
+        : {
+          ...(isRecord(migratedMeta[metaKey]) ? migratedMeta[metaKey] : {}),
+          ...migrated.buckets,
+        };
       continue;
     }
 
@@ -115,11 +140,33 @@ function migrateLegacyDocumentMeta(document: Record<string, unknown>): void {
     if (!migrated || Object.keys(migrated.overrides).length === 0) {
       continue;
     }
+    if (key === "dagre" && canonicalDocumentLayoutEngine && canonicalDocumentLayoutEngine !== "elk-layered") {
+      const nodeMetaKey = metaKeyFromNamespace("meta.elk_nodes");
+      const existingNodeBuckets = isRecord(migratedMeta[nodeMetaKey])
+        ? migratedMeta[nodeMetaKey] as Record<string, unknown>
+        : {};
+      const existingBucket = isRecord(existingNodeBuckets.dagre)
+        ? existingNodeBuckets.dagre as Record<string, unknown>
+        : {};
+      migratedMeta[nodeMetaKey] = {
+        ...existingNodeBuckets,
+        dagre: {
+          ...migrated.overrides,
+          ...existingBucket,
+        },
+      };
+      continue;
+    }
     const metaKey = metaKeyFromNamespace(migrated.namespace);
-    migratedMeta[metaKey] = {
-      ...(isRecord(migratedMeta[metaKey]) ? migratedMeta[metaKey] : {}),
-      ...migrated.overrides,
-    };
+    migratedMeta[metaKey] = key === "dagre"
+      ? {
+        ...migrated.overrides,
+        ...(isRecord(migratedMeta[metaKey]) ? migratedMeta[metaKey] : {}),
+      }
+      : {
+        ...(isRecord(migratedMeta[metaKey]) ? migratedMeta[metaKey] : {}),
+        ...migrated.overrides,
+      };
   }
 
   if (Object.keys(migratedMeta).length > 0) {
@@ -618,7 +665,7 @@ function assertSupportedPersistedEngineLayoutMeta(
         preferredLayoutEngine,
       );
     if (Object.keys(sanitized).length === 0) {
-      delete meta[key];
+      meta[key] = {};
       continue;
     }
     meta[key] = sanitized;
@@ -708,7 +755,9 @@ export function verifyElkLayoutPersisted(documentText: string, expected: Record<
   if (requiresPersistedElk && !isRecord(meta?.elk)) throw new Error("meta.elk missing after ELK save");
   for (const [key, raw] of entries) {
     const got = elkLayout[key];
-    if (raw == null || raw === "") {
+    const preservesEmptyString = raw === ""
+      && frameYamlEngineLayoutAllowsEmptyStringValue("meta.elk", key);
+    if (raw == null || (raw === "" && !preservesEmptyString)) {
       if (got != null) {
         throw new Error(`meta.elk[${JSON.stringify(key)}] is ${JSON.stringify(got)}, expected cleared after save`);
       }
@@ -768,12 +817,6 @@ export function persistFrameDiagramOverridePayloadToYaml(
     );
   }
 
-  if ("grid_overrides" in payload) {
-    applyGridOverrides(document, gridOverrides ?? {});
-  }
-  if (hasEngineLayoutOverrides) {
-    applyEngineLayoutOverrides(document, engineLayoutOverrides);
-  }
   if ("layout_engine" in payload) {
     const layoutEngineValue = payload.layout_engine;
     if (layoutEngineValue === null || layoutEngineValue === undefined) {
@@ -783,6 +826,12 @@ export function persistFrameDiagramOverridePayloadToYaml(
     } else {
       throw new Error("layout_engine must be a string or null");
     }
+  }
+  if ("grid_overrides" in payload) {
+    applyGridOverrides(document, gridOverrides ?? {});
+  }
+  if (hasEngineLayoutOverrides) {
+    applyEngineLayoutOverrides(document, engineLayoutOverrides);
   }
   if (removedIds.length > 0) {
     applyRemovedFrameIds(

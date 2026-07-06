@@ -306,6 +306,25 @@ describe('preview shell panel helpers', () => {
     expect(panel.style.display).toBe('none');
   });
 
+  it('throws when a panel visibility owner is not parseable as file#id', () => {
+    const document = {
+      getElementById() {
+        return null;
+      },
+    } as unknown as Document;
+
+    expect(() => syncPreviewPanelVisibility({
+      document,
+      visibility: [{
+        id: 'broken-panel',
+        owner: 'broken-owner',
+        visible: true,
+        disabled: false,
+        reason: '',
+      }],
+    })).toThrow(/Preview panel owner must use the form <file>#<id>/);
+  });
+
   it('syncs constraint diagnostics with section hidden and focus state', () => {
     class FakeElement {
       id = '';

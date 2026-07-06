@@ -116,6 +116,13 @@ export function sanitizeSupportedFrameYamlEngineLayoutOverrides(
   return next;
 }
 
+export function frameYamlEngineLayoutAllowsEmptyStringValue(
+  namespace: string,
+  key: string,
+): boolean {
+  return specAllowsEmptyString(supportedSpecsForNamespace(namespace).get(key));
+}
+
 export function isFrameYamlEngineLayoutNodeNamespace(namespace: string): boolean {
   return namespace.startsWith("meta.")
     && namespace.endsWith(FRAME_YAML_ENGINE_LAYOUT_NODE_NAMESPACE_SUFFIX)
@@ -331,7 +338,7 @@ function applyEngineLayoutNamespaceOverrides(
   assertSupportedFrameYamlEngineLayoutOverrides(namespace, overrides, source, label, preferredLayoutEngine);
   const metaKey = metaKeyFromNamespace(namespace);
   const supportedSpecs = supportedSpecsForNamespace(namespace);
-  const next: Record<string, unknown> = isRecord(meta[metaKey])
+  const existing = isRecord(meta[metaKey])
     ? sanitizeSupportedFrameYamlEngineLayoutOverrides(
       namespace,
       meta[metaKey],
@@ -340,6 +347,14 @@ function applyEngineLayoutNamespaceOverrides(
       preferredLayoutEngine,
     )
     : {};
+  const existingCandidate = Object.keys(existing).length > 0
+    ? resolveFrameYamlEngineLayoutCandidateId(namespace, existing, preferredLayoutEngine)
+    : null;
+  const next: Record<string, unknown> = preferredLayoutEngine
+    && existingCandidate
+    && existingCandidate !== preferredLayoutEngine
+    ? {}
+    : { ...existing };
   for (const [key, value] of Object.entries(overrides)) {
     const spec = supportedSpecs.get(key);
     const coerced = coercePersistedControlValue(value, spec?.kind);

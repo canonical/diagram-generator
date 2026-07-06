@@ -154,7 +154,9 @@ export function renderPreviewBoxStyleOptions(options: {
   originalLabel?: string;
 }): string {
   const current = options.selectedValue == null ? '' : String(options.selectedValue);
-  const resetLabel = options.originalLabel || 'Authored variant';
+  const resetLabel = options.originalLabel
+    ? `Authored variant (${options.originalLabel})`
+    : 'Authored variant';
   let html = `<option value=""${current === '' ? ' selected' : ''}>${resetLabel}</option>`;
   for (const key of Object.keys(options.boxStyles)) {
     html += `<option value="${key}"${current === key ? ' selected' : ''}>${resolvePreviewBoxStyleLabel(options.boxStyles, key)}</option>`;

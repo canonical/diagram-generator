@@ -412,10 +412,12 @@ export function resolveFramePreviewViewerContext(
   );
   const documentKind = resolution.compatibleContext.previewDocumentKind ?? resolution.previewDocument.kind ?? "frame-diagram";
   const engineManifest = resolvePreviewEngine(resolution.previewContext);
-  const activeLayoutEngine = engineManifest?.layoutEngineKey ?? resolution.authoredLayoutEngine;
   const compatibleEngines = listCompatiblePreviewEngines(resolution.compatibleContext)
     .map((entry) => entry.layoutEngineKey)
     .filter((key): key is string => typeof key === "string" && key.length > 0);
+  const activeLayoutEngine = engineManifest?.layoutEngineKey
+    ?? compatibleEngines[0]
+    ?? resolution.authoredLayoutEngine;
   return {
     ...resolution,
     documentKind,
