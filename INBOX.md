@@ -95,4 +95,22 @@ Local relayout failed on http://127.0.0.1:8100/view/v3:example-deployment-pipeli
 ![ - resizing a diagram to horizontal, then back to vertical leads to the canvas not resizing - how did we miss ths?](image-10.png)
 
 
-new bug!!!: ![alt text](image-11.png)
+//feedback from Field engineer
+mermaid version ![alt text](image-22.png)
+elk version she generated: ![alt text](image-23.png)
+
+her feedback:
+Hi there :) yes! didn't find time to write some feedbacks. I both tried with VScode + openrouter and Opencode + openrouter and the performances are very different from my experience.
+
+opencode + operouter is veeery smooth and precise, it works very well
+
+vscode + openrouter sometimes is inconsistent, not always interpret the workflow correctly, sometimes answer that "I should not interpret images, please provide me description" or forget to clean the INBOX.md after finishing (things that do not happen with the other option)
+
+I'm not an AI expert so I'm wondering what could be the difference between these to framework...but this is just my impression :)
+
+The most important feature that I see will be very important for our work, is having as input mermaid code directly...is it in progress correct? Because given that we have to process documentation and/or code and generate a raw material to pass to Diagram generator workflow we have as options:
+
+raw image -> but I understand this is the most difficult option for Diagram generator
+text description -> but might be not perfect if it has to be done automatic via LLM
+mermaid code -> this is best in my opinion, because it's crystal clear, no interpretation to be done
+//end feedback from Field engineer

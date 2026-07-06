@@ -5,6 +5,33 @@ meta:
   diagram_type: deployment_and_runtime_topology
   layout_engine: elk-layered
   source_image: mongo-octavia-ha-source.png
+  elk_nodes:
+    elk-layered:
+      elk.direction: ''
+      elk.layered.spacing.nodeNodeBetweenLayers: 0
+      elk.spacing.nodeNode: 64
+      elk.spacing.edgeNode: 64
+      elk.spacing.edgeEdge: 24
+      elk.layered.spacing.edgeEdgeBetweenLayers: 24
+      elk.layered.unnecessaryBendpoints: true
+      elk.layered.nodePlacement.favorStraightEdges: true
+      elk.layered.layering.strategy: LONGEST_PATH
+      elk.layered.crossingMinimization.strategy: LAYER_SWEEP
+      elk.layered.nodePlacement.strategy: BRANDES_KOEPF
+      elk.hierarchyHandling: INCLUDE_CHILDREN
+  elk:
+    elk.direction: ''
+    elk.layered.spacing.nodeNodeBetweenLayers: 0
+    elk.spacing.nodeNode: 64
+    elk.spacing.edgeNode: 64
+    elk.spacing.edgeEdge: 24
+    elk.layered.spacing.edgeEdgeBetweenLayers: 24
+    elk.layered.unnecessaryBendpoints: true
+    elk.layered.nodePlacement.favorStraightEdges: true
+    elk.layered.layering.strategy: LONGEST_PATH
+    elk.layered.crossingMinimization.strategy: LAYER_SWEEP
+    elk.layered.nodePlacement.strategy: BRANDES_KOEPF
+    elk.hierarchyHandling: INCLUDE_CHILDREN
 grid:
   cols: 3
   col_gap: 32
@@ -82,8 +109,8 @@ root:
     sizing_w: fill
     children:
     - id: az1
-      direction: horizontal
-      align: top-center
+      direction: vertical
+      align: top-left
       gap: 12
       sizing_w: fill
       children:
@@ -91,7 +118,7 @@ root:
         level: 2
         heading: VM
         direction: vertical
-        align: top-center
+        align: top-left
         padding: 16
         width: 280
         sizing_w: fixed
@@ -109,8 +136,8 @@ root:
         label:
         - AZ 1
     - id: az2
-      direction: horizontal
-      align: top-center
+      direction: vertical
+      align: top-left
       gap: 12
       sizing_w: fill
       children:
@@ -136,8 +163,8 @@ root:
         label:
         - AZ 2
     - id: az3
-      direction: horizontal
-      align: top-center
+      direction: vertical
+      align: top-left
       gap: 12
       sizing_w: fill
       children:
@@ -145,7 +172,7 @@ root:
         level: 2
         heading: VM
         direction: vertical
-        align: top-center
+        align: top-left
         padding: 16
         width: 280
         sizing_w: fixed

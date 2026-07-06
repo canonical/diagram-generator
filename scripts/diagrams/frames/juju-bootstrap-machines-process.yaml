@@ -5,24 +5,60 @@ meta:
   layout_engine: elk-layered
   elk:
     elk.direction: DOWN
-    elk.layered.spacing.nodeNodeBetweenLayers: '24'
-    elk.spacing.nodeNode: '24'
-    elk.spacing.edgeNode: '24'
-    elk.spacing.edgeEdge: '24'
-    elk.layered.spacing.edgeEdgeBetweenLayers: '24'
-    elk.edgeRouting: ORTHOGONAL
-    elk.layered.unnecessaryBendpoints: 'true'
-    elk.layered.nodePlacement.favorStraightEdges: 'true'
+    elk.layered.spacing.nodeNodeBetweenLayers: 24
+    elk.spacing.nodeNode: 24
+    elk.spacing.edgeNode: 24
+    elk.spacing.edgeEdge: 24
+    elk.layered.spacing.edgeEdgeBetweenLayers: 24
+    elk.layered.unnecessaryBendpoints: true
+    elk.layered.nodePlacement.favorStraightEdges: true
     elk.layered.layering.strategy: LONGEST_PATH
     elk.layered.crossingMinimization.strategy: LAYER_SWEEP
     elk.layered.nodePlacement.strategy: BRANDES_KOEPF
     elk.hierarchyHandling: INCLUDE_CHILDREN
-    elk.portConstraints: FREE
-    elk.padding: '[top=0,left=0,bottom=0,right=0]'
   abstraction_level: context
   corpus_content_hash: sha256:983e195f9303c86c
   corpus_estate: output-juju-docs
   source_image: juju-architecture-bootstrap-machines-process.png
+  elk_nodes:
+    elk-layered:
+      elk.direction: DOWN
+      elk.layered.spacing.nodeNodeBetweenLayers: 24
+      elk.spacing.nodeNode: 24
+      elk.spacing.edgeNode: 24
+      elk.spacing.edgeEdge: 24
+      elk.layered.spacing.edgeEdgeBetweenLayers: 24
+      elk.layered.unnecessaryBendpoints: true
+      elk.layered.nodePlacement.favorStraightEdges: true
+      elk.layered.layering.strategy: LONGEST_PATH
+      elk.layered.crossingMinimization.strategy: LAYER_SWEEP
+      elk.layered.nodePlacement.strategy: BRANDES_KOEPF
+      elk.hierarchyHandling: INCLUDE_CHILDREN
+    elk-force:
+      elk.spacing.nodeNode: 24
+      elk.force.model: FRUCHTERMAN_REINGOLD
+      elk.force.iterations: 3
+      elk.aspectRatio: 1
+      elk.separateConnectedComponents: true
+      elk.randomSeed: 555
+      elk.force.temperature: 0.001
+    elk-stress:
+      elk.stress.dimension: XY
+      elk.stress.epsilon: 0.00001
+      elk.stress.iterationLimit: 454
+      elk.stress.desiredEdgeLength: 500
+      elk.edgeLabels.inline: true
+    elk-mrtree:
+      elk.direction: DOWN
+      elk.spacing.nodeNode: 72
+      elk.spacing.edgeNode: 32
+      elk.separateConnectedComponents: true
+      elk.aspectRatio: 1
+      elk.mrtree.compaction: false
+      elk.mrtree.weighting: FAN
+      elk.mrtree.searchOrder: DFS
+      elk.mrtree.edgeRoutingMode: AVOID_OVERLAP
+      elk.mrtree.edgeEndTextureLength: 24
 grid:
   cols: 3
   col_gap: 32
