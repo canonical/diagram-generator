@@ -10,7 +10,7 @@
 
 **Depends on**: spec **022** (diagram authoring AST — compile, validate, lower, **export** adapters landed in v1).
 
-**Input**: Extend spec 022 export-only adapters into a documented **interchange layer**: stable export from `DiagramDocument`, lossy **import** from Mermaid flowchart and D2 subsets back into frame-tree YAML/AST, explicit fidelity matrix, and CLIs for round-trip workflows used by integrators and the `../d2/` proof-of-concept repo.
+**Input**: Extend spec 022 export-only adapters into a documented **interchange layer**: stable export from `DiagramDocument`, lossy **import** from Mermaid flowchart and D2 subsets back into canonical frame-tree YAML/AST, explicit fidelity matrix, and CLIs for round-trip workflows used by integrators, field engineers, and the `../d2/` proof-of-concept repo. Mermaid code must be treated as a first-class raw-material input, not merely an internal parse target.
 
 ## Problem Statement
 
@@ -64,17 +64,18 @@ As an integrator, I want to parse a **supported D2 subset** into `DiagramDocumen
 
 ---
 
-### User Story 3 — Mermaid import to AST (Priority: P2)
+### User Story 3 — Mermaid code to canonical YAML (Priority: P2)
 
-As an integrator, I want to parse a **flowchart TB/LR subset** into `DiagramDocument` for simple diagrams shared in docs.
+As an integrator or field engineer, I want to provide Mermaid flowchart code directly and receive canonical frame YAML so document/code pipelines can bypass image interpretation and use Mermaid as precise diagram-generator input.
 
-**Independent test**: Golden import of a minimal flowchart (tiered-network Mermaid export round-trip) recovers frame ids and edges; multiline `<br/>` labels become `label:` arrays.
+**Independent test**: Golden import of a minimal flowchart (tiered-network Mermaid export round-trip) recovers frame ids and edges, multiline `<br/>` labels become `label:` arrays, and the emitted YAML passes `compileDiagramYaml` unchanged.
 
 **Acceptance scenarios**
 
 1. **Given** `subgraph` blocks, **When** imported, **Then** container frames are created with `children`.
 2. **Given** `node["label"]` syntax, **When** imported, **Then** leaf frames receive multiline labels.
-3. **Given** anchor or styling syntax Mermaid allows but YAML does not, **When** imported, **Then** `IMPORT_MERMAID_UNSUPPORTED_*` warnings are recorded.
+3. **Given** a Mermaid source file or pasted `.mmd` content, **When** run through the Mermaid import CLI, **Then** the primary artifact is canonical `engine: v3` YAML suitable for preview/save/export without manual AST editing.
+4. **Given** anchor or styling syntax Mermaid allows but YAML does not, **When** imported, **Then** `IMPORT_MERMAID_UNSUPPORTED_*` warnings are recorded.
 
 ---
 
@@ -147,6 +148,7 @@ Minimum construct support for v1:
 - Nodes: `id["label"]`, `id["a<br/>b"]`
 - Subgraphs: `subgraph id` … `end`
 - Edges: `a --> b`, `a -->|label| b` (label recovery best-effort)
+- Canonical YAML emission: imported Mermaid is serialized directly to validated `engine: v3` YAML as the default deliverable, not left as an internal-only AST
 
 Out of scope for v1: classDefs, style links, click callbacks, other diagram types.
 
@@ -186,7 +188,7 @@ All CLIs support `--strict`, `--out`, and stderr diagnostics consistent with com
 
 1. Fidelity matrix published and referenced by tests.
 2. D2 import recovers tiered-network and juju-bootstrap **structure** from exporter output.
-3. Mermaid import recovers tiered-network **structure** from exporter output.
+3. Mermaid import recovers tiered-network **structure** from exporter output and emits canonical YAML suitable as first-pass authoring material.
 4. Adversarial review items D2-01, D2-03, D2-06 closed in code/docs.
 5. `docs/specs.md` and `docs/diagram-authoring.md` describe interchange as spec 028 scope.
 
