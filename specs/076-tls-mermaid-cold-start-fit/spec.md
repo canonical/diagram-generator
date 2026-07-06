@@ -1,66 +1,93 @@
-# Spec 076: TLS certificate provider Mermaid cold-start fit
+# Spec 076: Port Mermaid's cluster/ELK lowering (TLS cold-start example)
 
 **Feature Branch**: `feat/076-tls-mermaid-cold-start-fit`
 **Status**: Draft
 **Created**: 2026-07-06
-**Priority**: Example-specific investigation requested after spec 074 retired
-Dagre as an `elk-layered` duplicate.
+**Rewritten**: 2026-07-06 — pivoted from "investigate Dagre vs lowering" to
+"adopt/port Mermaid's proven cluster->ELK lowering", after confirming the sibling
+`../mermaid/` repo already vendors `@mermaid-js/layout-elk` (MIT) on top of the
+same `elkjs` engine this repo uses.
+**Priority**: Example-driven capability port. The TLS topology is the proving
+fixture, not the whole scope.
 **Context**: `scripts/diagrams/frames/tls-certificate-provider-topology.yaml`,
 `docs/spec-archive/074-layout-algorithm-consolidation/`, sibling
-`../mermaid/AGENTS.md`, and this package's `images/` + `references/` assets.
+`../mermaid/` (vendors `@mermaid-js/layout-elk`, `elkjs`, `dagre-d3-es`), and this
+package's `images/` + `references/` assets.
 
 ## Problem
 
-Spec 074 removed Dagre because, at the algorithm-class level, it duplicated the
-same layered / Sugiyama slot already covered by `elk-layered`, while ELK kept
-the stronger capability surface. That consolidation decision should not be
-reopened casually.
+We want on-brand diagrams to reproduce Mermaid's **grouping and parenting**:
+nested clusters rendered as compound boxes, each with its own local direction,
+with tightly ordered rows of leaf nodes inside. None of this repo's current
+layout paths does that cleanly. The TLS certificate provider topology is the
+concrete failing example: a Mermaid-origin clustered flowchart whose canonical
+YAML fixture is currently `v3`-only.
 
-The TLS certificate provider topology is a concrete pressure test against that
-decision. The reference appears Mermaid-originated and behaves like a clustered
-flowchart with ordered `subgraph` groups. Mermaid's default flowchart layout is
-Dagre, so the source rendering likely benefits from a cluster-aware layered
-graph input. Our current canonical YAML lowering expresses the same picture as a
-frame layout with fill-sized carriers and helper rows. Under that lowered shape:
+The earlier investigation (and an Opus adversarial review, see
+`docs/spec-reviews/076-tls-mermaid-cold-start-fit.md`) established two things:
 
-- current native `v3` is structurally closer than forced ELK renders
-- `elk-force` is clearly the wrong family for this diagram
-- `elk-layered` on the **current lowered frame shape** still diverges
-- the diagram is currently `v3`-only in compatibility terms because of
-  fill-sized structural carriers, not because of deep nesting
+1. This is **not** a reason to reintroduce Dagre. Spec 074 correctly retired
+   Dagre as an `elk-layered` algorithm-class duplicate. Mermaid's clean cluster
+   look comes from Mermaid's **cluster/subgraph lowering layer**, not from the
+   Dagre algorithm itself. Reintroducing Dagre would restore the duplicate
+   without the cluster machinery that produces the look.
+2. The real gap is the **lowering / input shape**: our fixture is lowered as
+   fill-sized structural carriers and helper rows (`provider_stack`,
+   `services_row`, `load_balancer_endpoint_row`) instead of ELK **compound
+   nodes** with per-cluster direction, so `elk-layered` receives the wrong
+   problem and cannot recover the intent.
 
-That distinction matters. This example may expose a **representation gap**
-between Mermaid clustered flowcharts and the current YAML/ELK input shape, not a
-reason to undo the Dagre retirement.
+The open question the user raised — *is there something from Mermaid we can
+directly port, since it is open source?* — now has a concrete, verified answer.
+See the portability finding below. In short: **yes**, and it targets the exact
+engine we already ship, so this is a lowering port, not a new layout engine.
 
-We currently lack a cold-start pack that lets another agent reproduce that
-judgment from scratch without relying on prior chat history.
+## Portability finding (verified in `../mermaid/node_modules`)
+
+- Mermaid's ELK support is the package **`@mermaid-js/layout-elk` v0.2.1**,
+  **MIT licensed** (Copyright Knut Sveidqvist / Mermaid).
+- It depends on **`elkjs`** — the **same** ELK engine `diagram-generator`
+  already uses in `packages/graph-layout-elk` / `packages/layout-engine`.
+- Its core (`dist/chunks/.../render-*.mjs`) lowers Mermaid's internal graph into
+  an ELK graph using compound **`children`**, a **`clusterDb`** /
+  **`parentLookupDb`** parent map, `isGroup`/subgraph handling, per-node
+  **`layoutOptions`** (including per-cluster **`elk.direction`**), then reads ELK
+  positions back. That is exactly the cluster-preserving lowering we lack.
+- Coupling caveat (from `dist/render.d.ts`): the package's exported `render()`
+  takes Mermaid's `LayoutData`, an `SVG`, and Mermaid `InternalHelpers`
+  (`insertCluster`, `insertNode`, `insertEdge`, `labelHelper`, ...). So the
+  package is **not** a drop-in pure layout function. The portable asset is the
+  **graph-building/lowering algorithm** inside it (LayoutData nodes + parent map
+  -> ELK compound graph + option set -> position read-back), not the SVG
+  rendering, which we already own.
+
+This directly answers the user's scepticism about hand-authoring: we do **not**
+need to invent a cluster layout heuristic. Mermaid already solved it, on our
+engine, under a permissive licence. We port its proven lowering.
 
 ## Goals
 
-- Create a self-contained example package for this diagram so a cold-start agent
-  can reproduce the question from reference image -> Mermaid draft -> canonical
-  YAML -> engine comparison.
-- Make the Mermaid-side first step explicit: add a cross-repo handoff so the
-  sibling `../mermaid/` repo can attempt a canonical `.mmd` recreation using its
-  mandatory input-fit workflow.
-- Record the exact current blocker in this repo: this diagram is not ELK-hostile
-  because of deep nesting or non-tree arrows; it is blocked by fill-sized
-  structural carriers in the current lowering.
-- Define a testable decision path: either this example remains explicitly
-  `v3`-only until a cluster-preserving lowering/shim exists, or a future change
-  proves a typed `elk-layered` path with repo-owned regression coverage.
-- Give Opus a precise validation protocol that does not depend on tribal memory.
+- Reproduce Mermaid's grouping/parenting for this fixture by feeding ELK a
+  **compound-node** graph (subgraph = ELK compound with local direction, insets,
+  and ordered children), instead of fill-sized carriers.
+- Adopt the Mermaid `@mermaid-js/layout-elk` lowering approach — either by
+  reusing the package at a boundary or by porting its MIT-licensed graph-building
+  step into this repo's typed ELK lowering.
+- Prove it on the TLS fixture with repo-owned regression coverage before
+  claiming `elk-layered` support.
+- Keep the cold-start asset pack so the example stays reproducible.
+- Keep the Dagre retirement intact.
 
 ## Non-goals
 
-- No Dagre resurrection in this spec.
-- No broad Mermaid import implementation here; that remains spec 028.
-- No promise that raw `elk-layered` applied to the current YAML must match the
-  Mermaid source.
+- No Dagre resurrection in this spec (the port question is now settled: not
+  Dagre).
+- No broad Mermaid text-import implementation here; parsing `.mmd` to canonical
+  YAML remains spec 028. This spec is about the **cluster->ELK lowering**, which
+  028 can then reuse.
 - No behavior-heavy preview work in `scripts/preview/*.js`.
-- No global engine re-ranking based on one example; this spec is about honest
-  diagnosis and reproducibility.
+- No global engine re-ranking based on one example.
+- No copy of Mermaid's SVG rendering path; we keep our own renderer.
 
 ## Cold-start asset pack
 
@@ -131,11 +158,12 @@ The leading hypothesis from this repo's investigation is:
   full-width carriers and helper rows rather than a graph-native cluster model,
   so "switching to a layered algorithm" is not enough by itself.
 
-This yields the core hypothesis under review:
+This yields the resolution now recorded in this spec:
 
-- the problem may be **better structured YAML / better Mermaid-to-YAML lowering
-  / a typed shim**
-- rather than "bring Dagre back"
+- the fix is a **cluster-preserving ELK lowering** (subgraph -> ELK compound node
+  with local direction, insets, and ordered children), matching what Mermaid's
+  `@mermaid-js/layout-elk` already does on `elkjs`
+- it is **not** "bring Dagre back"
 
 ## Current behavior (must be treated as baseline, not conjecture)
 
@@ -154,26 +182,38 @@ This yields the core hypothesis under review:
   - can a Mermaid-origin clustered flowchart be lowered into a more graph-native
     ELK input shape than the current fill-carrier-heavy frame layout?
 
-## Questions Opus must answer
+## Decision (resolved) and port strategy
 
-Opus should not validate only whether the current ELK output looks bad. Opus
-should answer the narrower architectural question:
+The architectural question is answered: **port Mermaid's cluster->ELK lowering;
+do not reintroduce Dagre.** Three implementation strategies exist; pick per the
+spike in T0.
 
-1. Is Dagre actually the missing solution for this example?
-2. Or is the real fix a better structured YAML / better lowering from Mermaid
-   cluster intent into this repo's typed model?
-3. If Opus believes Dagre really is the missing solution, what exact capability
-   does Dagre provide here that `elk-layered` cannot match once the input shape
-   is corrected?
-4. If Opus believes better YAML / lowering is the real fix, which specific
-   aspects of the current fixture shape are the blockers:
-   - fill-sized structural carriers
-   - helper rows standing in for cluster-local ordering
-   - loss of subgraph/cluster semantics
-   - some other typed gap
+**Strategy A — reuse `@mermaid-js/layout-elk` at a boundary.**
+Convert our diagram into Mermaid's `LayoutData` node/edge/cluster shape and call
+the package. Lowest reimplementation of layout logic, but heavy coupling: the
+package's `render()` also wants Mermaid `InternalHelpers` and does SVG insertion,
+so we would only want its internal graph-building step, which is not a clean
+public entry point. Adds a runtime dependency on Mermaid internals.
 
-The spec should be considered successful only if this choice becomes auditable,
-not if the output merely "looks somewhat closer."
+**Strategy B — port the MIT-licensed lowering into our typed ELK path
+(recommended).**
+Reimplement the graph-building step in `packages/graph-layout-elk` /
+`packages/layout-engine` ELK lowering, guided by the MIT source: each authored
+cluster becomes an ELK compound node (`children`), with a parent map, per-cluster
+`elk.direction`, cluster padding/insets, and ordered child placement; read ELK
+positions back into our frame geometry. This fits our typed model and renderer,
+keeps no Mermaid runtime dependency, and reuses the compound machinery already
+present in `packages/layout-engine/src/elk-layout.ts` (`collectNativeCompoundIds`,
+`isElkCompound`, `compoundNeedsElkChildLayout`).
+
+**Strategy C — cross-repo geometry via the sibling harness.**
+The `../mermaid/` brand-kit already renders `.mmd` with `config.layout: elk`
+(it vendors `@mermaid-js/layout-elk` + `elkjs`). It can emit ELK cluster geometry
+for the `.mmd` directly, useful as an oracle for the T0 spike and as a bridge for
+spec 028's import path. Not the product path by itself, but strong evidence.
+
+Recommendation: **B**, de-risked by a **C-backed oracle** in T0. Reject A as the
+product path because of the SVG/helper coupling.
 
 ## User stories
 
@@ -230,73 +270,62 @@ and the core cluster/ordering geometry.
 
 ## Functional requirements
 
-- **FR-001**: This spec package MUST include the cold-start asset pack listed
-  above and keep the assets named/stable enough to reference from other repos.
-- **FR-002**: The first cross-repo action for this example MUST be a handoff in
-  `../mermaid/AGENT-INBOX.md` requesting a canonical Mermaid recreation of this
-  diagram using the sibling repo's input-fit workflow.
+- **FR-001**: This spec package MUST keep the cold-start asset pack (images,
+  `.mmd`, fixture) named/stable enough to reference from other repos.
+- **FR-002**: The spec MUST record the verified portability finding: Mermaid ELK
+  support is `@mermaid-js/layout-elk` (MIT) over `elkjs`, and the portable asset
+  is its cluster->ELK compound graph-building step, not its SVG rendering.
 - **FR-003**: The spec MUST record the current state precisely: `v3` only,
   blocked by `provider_stack`, `services_row`, and `load_balancer_endpoint_row`;
   not blocked by deep nesting; not blocked by a non-tree arrow graph.
-- **FR-004**: This spec MUST NOT treat the Dagre retirement as the bug. The
-  live question is whether the current frame lowering is the wrong ELK input
-  shape for Mermaid-origin clustered flowcharts.
-- **FR-005**: The spec MUST name the only acceptable future directions for this
-  example:
-  - keep it explicitly `v3`-only and document why
-  - add a cluster-preserving Mermaid-to-YAML/graph lowering or typed shim
-  - prove another typed path with the same or stronger evidence bar
-- **FR-006**: Any future implementation that claims `elk-layered` support for
-  this example MUST add a repo-owned regression on this exact fixture that
-  covers both compatibility and the core geometry expectations.
-- **FR-007**: The validation protocol for this example MUST be written in this
-  package so Opus can audit the work from cold start.
+- **FR-004**: This spec MUST NOT reintroduce Dagre. The decision is settled: the
+  fix is a cluster-preserving ELK lowering, ported from Mermaid's approach.
+- **FR-005**: The implementation MUST lower each authored cluster to an ELK
+  **compound node** with local `elk.direction`, cluster insets/padding, and
+  ordered children, instead of fill-sized carriers, reusing the existing
+  compound machinery in `packages/layout-engine/src/elk-layout.ts` where possible.
+- **FR-006**: The port MUST be validated on the TLS fixture with a repo-owned
+  regression covering both `elk-layered` compatibility and the core
+  cluster/ordering/direction geometry before the fixture is reclassified.
+- **FR-007**: The T0 spike (hand-authored compound ELK graph for this fixture,
+  optionally cross-checked against Strategy C's `.mmd` ELK render) MUST run and
+  be recorded before any lowering code lands, so "better lowering fixes it" is
+  proven, not asserted.
 - **FR-008**: The spec MUST explain the photo context explicitly:
   source truth, field-engineer external attempt, and in-repo controlled
   comparisons.
-- **FR-009**: The spec MUST state the current failure reasoning explicitly:
-  `elk-force` is the wrong family for this source, and `elk-layered` on the
-  current lowered YAML is still receiving the wrong problem shape.
-- **FR-010**: Opus validation MUST explicitly decide between:
-  - Dagre is the missing solution
-  - better structured YAML / better lowering / typed shim is the missing
-    solution
+- **FR-009**: If the port lands generically, the cluster->ELK lowering MUST be
+  reusable by spec 028's Mermaid import path, not hard-coded to this fixture.
+- **FR-010**: Any claim of `elk-layered` support that keeps the current fill
+  carriers, or that skips the T0 spike / fixture regression, MUST be rejected.
 
 ## Validation Protocol (Opus)
 
-Opus validation for this example should follow this exact order:
-
-1. Inspect `images/01-source-mermaid-reference.png`.
-2. Inspect `images/02-engineer-elk-force-attempt.png`.
+1. Inspect `images/01-source-mermaid-reference.png` (source truth).
+2. Inspect `images/02-engineer-elk-force-attempt.png` (external attempt).
 3. Inspect `images/03-current-v3-render.png`,
    `images/04-current-elk-layered-render.png`, and
-   `images/05-current-elk-force-render.png` as the controlled in-repo
-   comparison set.
-4. Read `references/tls-certificate-provider-topology.mmd`.
-5. Read `scripts/diagrams/frames/tls-certificate-provider-topology.yaml`.
-6. Confirm the spec's current-state claims:
-   - `v3` only today
-   - blocker ids are the three fill carriers above
-   - deep nesting is not the reason
-   - arrow-tree eligibility is not the reason
-7. Evaluate the failure reasoning:
-   - Is `elk-force` failing for the reason claimed here, namely wrong algorithm
-     family for a clustered layered source?
-   - Is `elk-layered` failing mainly because the current YAML/lowering loses the
-     cluster intent and replaces it with fill carriers/helper rows?
-8. Decide which path the implementation is actually taking:
-   - explicit `v3`-only classification
-   - cluster-preserving lowering/shim before ELK
-   - Dagre restoration
-   - some other typed path
-9. Answer the architectural question directly:
-   - "Dagre is the missing solution here"
-   - or
-   - "better structured YAML / better lowering is the missing solution here"
-   - or
-   - "both are needed," with the exact reason why
-10. Reject any proposed fix that is only "switch to ELK layered" on the current
-    lowered frame shape without a fixture-owned regression.
+   `images/05-current-elk-force-render.png` (controlled in-repo comparison).
+4. Read `references/tls-certificate-provider-topology.mmd` and
+   `scripts/diagrams/frames/tls-certificate-provider-topology.yaml`.
+5. Confirm the portability finding independently in `../mermaid/node_modules`:
+   `@mermaid-js/layout-elk` is MIT and depends on `elkjs`; its core builds a
+   compound ELK graph with `children` / parent map / per-cluster options.
+6. Run the **T0 spike**: hand-author a compound ELK graph for this fixture
+   (each subgraph as an ELK compound with local `elk.direction`, padding, ordered
+   children) and render it; optionally cross-check against Strategy C's `.mmd`
+   ELK render from the sibling repo.
+   - If it matches the reference: the diagnosis is proven; proceed to the
+     Strategy B port.
+   - If it does not: record the specific residual (direction mixing, ordered
+     rows, cross-cluster routing) and escalate to a dedicated cluster pass —
+     still not Dagre.
+7. Only after T0 passes, review the Strategy B port for: reuse of existing
+   compound machinery, per-cluster direction, cluster insets, ordered children,
+   and correct position read-back.
+8. Require the fixture-owned regression (compatibility + geometry) to pass.
+9. Reject any fix that keeps the current fill carriers, skips T0, or reintroduces
+   Dagre.
 
 ## Success criteria
 
@@ -311,10 +340,14 @@ Opus validation for this example should follow this exact order:
   representation problem until proven otherwise.
 - **SC-005**: The context of each before/after image is explicit enough that a
   cold-start reviewer can tell source truth from downstream attempts.
-- **SC-006**: The spec gives Opus an explicit review question:
-  "Dagre or better structured YAML/lowering?"
-- **SC-007**: A future ELK-support claim on this fixture cannot close without a
-  fixture-owned regression and a written explanation of the new lowering/shim.
+- **SC-006**: The spec records the resolved decision — port Mermaid's
+  cluster->ELK lowering (`@mermaid-js/layout-elk`, MIT, over `elkjs`), not Dagre
+  — with the portability finding verifiable in `../mermaid/node_modules`.
+- **SC-007**: The TLS fixture is not reclassified as `elk-layered`-compatible
+  until the T0 spike passes and a fixture-owned regression (compatibility +
+  cluster/direction/ordering geometry) is committed.
+- **SC-008**: The ported cluster->ELK lowering is generic enough for spec 028's
+  Mermaid import to reuse, not hard-coded to this one fixture.
 
 ## Risks
 
