@@ -43,3 +43,24 @@ spec packages 028, 075, 076 are merged to `main`; their branches are deleted.
 **Last known-green validation baseline:** `packages/layout-engine` 989/989,
 `apps/preview` 164/164, `check_no_new_python`, `check-preview-shell-size-budgets`,
 `check-browser-bundle-fresh` all ok. Rerun before closing any spec.
+
+## Spec 076 T0 — Opus verdict (2026-07-07): do NOT reintroduce Dagre
+
+GPT's T0 spike concluded "ELK failed, use Dagre." **Adversarial review rejects
+that pivot.** Full reasoning in
+[`docs/spec-reviews/076-tls-mermaid-cold-start-fit.md`](docs/spec-reviews/076-tls-mermaid-cold-start-fit.md)
+(section "T0 evidence review — 2026-07-07"). Summary:
+
+- The spike (`tmp/elk-cluster-spike.mts`) set **no** ELK ordering options
+  (`considerModelOrder` / `crossingMinimization` / model-order): ELK was never
+  asked to preserve row order, so the misordering proves nothing.
+- The dagre "match" needs a **fabricated** `octavia_k8s --- traefik_public` edge
+  (GPT's own README excludes it as non-source) — doctored dagre vs ordering-off
+  ELK is not a fair test.
+- The real blocker is an **uninvestigated `elkjs` crash** when combining
+  `INCLUDE_CHILDREN` + model-order. Root-cause it; do not retire the engine.
+
+**Next (GPT, bounded spike, no product code):** run the specific ELK-ordering
+experiment in the review doc — model-order on the ordering rows only, keep those
+rows `SEPARATE_CHILDREN`, route cross-cluster edges via containers/ports. Report
+PASS/FAIL with the option set. Spec 074's Dagre retirement stands.
