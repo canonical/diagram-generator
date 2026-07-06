@@ -19,6 +19,11 @@ So the immediate work is not "switch engines." The immediate work is:
 4. force future fixes to choose honestly between `v3`-only classification and a
    cluster-preserving lowering/shim before ELK
 
+The specific review question is now explicit:
+
+- is Dagre actually the missing solution for this example?
+- or is the real fix better structured YAML / better Mermaid-to-YAML lowering?
+
 ## Likely file map
 
 - Canonical fixture:
@@ -39,19 +44,31 @@ So the immediate work is not "switch engines." The immediate work is:
 
 1. Start from the source image, not the YAML.
    - Inspect `images/01-source-mermaid-reference.png`.
+   - Treat it as the "before" source truth image.
    - Treat the draft Mermaid file as a first-pass hypothesis, not ground truth.
-2. Compare the three relevant shapes.
+2. Inspect the downstream attempts in order.
+   - `images/02-engineer-elk-force-attempt.png` is the field engineer's
+     external ELK-force attempt, not the canonical in-repo comparison.
+   - `images/03-current-v3-render.png`,
+     `images/04-current-elk-layered-render.png`, and
+     `images/05-current-elk-force-render.png` are the controlled in-repo
+     comparison set from the same YAML fixture.
+3. Compare the three relevant shapes.
    - Mermaid-origin cluster layout intent
    - current canonical YAML structure
    - current ELK compatibility rules
-3. Keep the blocker diagnosis precise.
+4. Keep the blocker diagnosis precise.
    - confirm fill carriers are the current reason ELK is withheld
    - confirm the example is not disqualified by deep nesting
    - confirm the arrow graph itself is tree-shaped
-4. Separate the design choices.
+5. Evaluate the failure reasoning, not just the screenshots.
+   - confirm whether `elk-force` fails because it is the wrong algorithm family
+   - confirm whether `elk-layered` fails because the current lowered YAML loses
+     cluster/subgraph intent and replaces it with fill carriers/helper rows
+6. Separate the design choices.
    - algorithm-class consolidation from spec 074
    - example-specific lowering/compatibility in this spec
-5. Before any implementation claims success, define the regression shape first.
+7. Before any implementation claims success, define the regression shape first.
    - compatibility probe on this fixture
    - geometry probe for the cluster/ordering expectations if ELK is enabled
 
@@ -69,6 +86,11 @@ So the immediate work is not "switch engines." The immediate work is:
   - the fixture becomes `elk-layered`-compatible on purpose
   - a regression proves the intended cluster/ordering result, not just that ELK
     can render *something*
+- Opus decision verification:
+  - the review must answer "Dagre or better structured YAML/lowering?"
+  - if the answer is Dagre, the missing capability must be named concretely
+  - if the answer is better lowering, the blocking shape loss must be named
+    concretely
 
 ## Sequencing note
 

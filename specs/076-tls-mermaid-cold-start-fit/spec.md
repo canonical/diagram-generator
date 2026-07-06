@@ -68,19 +68,74 @@ This package MUST stay self-contained enough for a new agent to understand the
 example without the original chat:
 
 - `images/01-source-mermaid-reference.png`
-  - the upstream-looking Mermaid reference image
+  - the visual source of truth; this is the "before" image
 - `images/02-engineer-elk-force-attempt.png`
-  - the field engineer's ELK-force comparison that triggered the question
+  - the field engineer's first ELK-force comparison; this is an external
+    "after" attempt, not the in-repo canonical render path
 - `images/03-current-v3-render.png`
-  - current native `v3` render from the canonical YAML fixture
+  - current in-repo `v3` render from the canonical YAML fixture
 - `images/04-current-elk-layered-render.png`
-  - forced `elk-layered` render on the same fixture
+  - current in-repo forced `elk-layered` render on the same fixture
 - `images/05-current-elk-force-render.png`
-  - forced `elk-force` render on the same fixture
+  - current in-repo forced `elk-force` render on the same fixture
 - `references/tls-certificate-provider-topology.mmd`
   - draft Mermaid reconstruction for cross-repo seeding
 - `scripts/diagrams/frames/tls-certificate-provider-topology.yaml`
   - canonical YAML fixture in this repo
+
+## Image context and interpretation
+
+These assets are not five interchangeable screenshots. They represent three
+different stages of the question:
+
+1. **Source truth**
+   - `images/01-source-mermaid-reference.png`
+   - This is the target look and the likely Mermaid-origin diagram behavior.
+   - The important visual properties are:
+     - a top provider cluster
+     - two lower sibling clusters
+     - ordered endpoint rows within the right-hand cluster
+     - a layered top-to-bottom fanout from one provider node
+
+2. **Field-engineer downstream attempt**
+   - `images/02-engineer-elk-force-attempt.png`
+   - This is not the canonical in-repo reproduction. It is the field engineer's
+     external ELK-force attempt that triggered the question "why is autolayout
+     showing more of the intended structure than ELK?"
+   - Treat this as evidence that a naive ELK-force try was unsatisfactory, not
+     as proof that ELK in general is wrong.
+
+3. **Controlled in-repo comparison**
+   - `images/03-current-v3-render.png`
+   - `images/04-current-elk-layered-render.png`
+   - `images/05-current-elk-force-render.png`
+   - These three are the real apples-to-apples comparison because they all come
+     from the same canonical YAML fixture in this repo.
+
+## Why the current attempts fail
+
+The current failure mode should be stated explicitly so Opus can challenge it.
+The leading hypothesis from this repo's investigation is:
+
+- The source diagram is probably best understood as a **clustered layered
+  graph**.
+- The current YAML fixture is lowered as a **frame layout** with
+  fill-sized structural carriers and helper rows.
+- `v3` gets closer because it is designed to honor frame rows, fill carriers,
+  and authored box-group structure directly.
+- `elk-force` fails because it is the wrong algorithm family for this source:
+  it is an organic / force layout, so it does not preserve the ordered layered
+  cluster structure the reference depends on.
+- `elk-layered` on the current YAML still fails to match the source because the
+  lowered structure it receives is not a clean clustered graph. It sees
+  full-width carriers and helper rows rather than a graph-native cluster model,
+  so "switching to a layered algorithm" is not enough by itself.
+
+This yields the core hypothesis under review:
+
+- the problem may be **better structured YAML / better Mermaid-to-YAML lowering
+  / a typed shim**
+- rather than "bring Dagre back"
 
 ## Current behavior (must be treated as baseline, not conjecture)
 
@@ -98,6 +153,27 @@ example without the original chat:
 - The meaningful current question is:
   - can a Mermaid-origin clustered flowchart be lowered into a more graph-native
     ELK input shape than the current fill-carrier-heavy frame layout?
+
+## Questions Opus must answer
+
+Opus should not validate only whether the current ELK output looks bad. Opus
+should answer the narrower architectural question:
+
+1. Is Dagre actually the missing solution for this example?
+2. Or is the real fix a better structured YAML / better lowering from Mermaid
+   cluster intent into this repo's typed model?
+3. If Opus believes Dagre really is the missing solution, what exact capability
+   does Dagre provide here that `elk-layered` cannot match once the input shape
+   is corrected?
+4. If Opus believes better YAML / lowering is the real fix, which specific
+   aspects of the current fixture shape are the blockers:
+   - fill-sized structural carriers
+   - helper rows standing in for cluster-local ordering
+   - loss of subgraph/cluster semantics
+   - some other typed gap
+
+The spec should be considered successful only if this choice becomes auditable,
+not if the output merely "looks somewhat closer."
 
 ## User stories
 
@@ -175,6 +251,16 @@ and the core cluster/ordering geometry.
   covers both compatibility and the core geometry expectations.
 - **FR-007**: The validation protocol for this example MUST be written in this
   package so Opus can audit the work from cold start.
+- **FR-008**: The spec MUST explain the photo context explicitly:
+  source truth, field-engineer external attempt, and in-repo controlled
+  comparisons.
+- **FR-009**: The spec MUST state the current failure reasoning explicitly:
+  `elk-force` is the wrong family for this source, and `elk-layered` on the
+  current lowered YAML is still receiving the wrong problem shape.
+- **FR-010**: Opus validation MUST explicitly decide between:
+  - Dagre is the missing solution
+  - better structured YAML / better lowering / typed shim is the missing
+    solution
 
 ## Validation Protocol (Opus)
 
@@ -182,19 +268,35 @@ Opus validation for this example should follow this exact order:
 
 1. Inspect `images/01-source-mermaid-reference.png`.
 2. Inspect `images/02-engineer-elk-force-attempt.png`.
-3. Read `references/tls-certificate-provider-topology.mmd`.
-4. Read `scripts/diagrams/frames/tls-certificate-provider-topology.yaml`.
-5. Confirm the spec's current-state claims:
+3. Inspect `images/03-current-v3-render.png`,
+   `images/04-current-elk-layered-render.png`, and
+   `images/05-current-elk-force-render.png` as the controlled in-repo
+   comparison set.
+4. Read `references/tls-certificate-provider-topology.mmd`.
+5. Read `scripts/diagrams/frames/tls-certificate-provider-topology.yaml`.
+6. Confirm the spec's current-state claims:
    - `v3` only today
    - blocker ids are the three fill carriers above
    - deep nesting is not the reason
    - arrow-tree eligibility is not the reason
-6. Decide which path the implementation is actually taking:
+7. Evaluate the failure reasoning:
+   - Is `elk-force` failing for the reason claimed here, namely wrong algorithm
+     family for a clustered layered source?
+   - Is `elk-layered` failing mainly because the current YAML/lowering loses the
+     cluster intent and replaces it with fill carriers/helper rows?
+8. Decide which path the implementation is actually taking:
    - explicit `v3`-only classification
    - cluster-preserving lowering/shim before ELK
+   - Dagre restoration
    - some other typed path
-7. Reject any proposed fix that is only "switch to ELK layered" on the current
-   lowered frame shape without a fixture-owned regression.
+9. Answer the architectural question directly:
+   - "Dagre is the missing solution here"
+   - or
+   - "better structured YAML / better lowering is the missing solution here"
+   - or
+   - "both are needed," with the exact reason why
+10. Reject any proposed fix that is only "switch to ELK layered" on the current
+    lowered frame shape without a fixture-owned regression.
 
 ## Success criteria
 
@@ -207,7 +309,11 @@ Opus validation for this example should follow this exact order:
 - **SC-004**: The spec makes the Dagre/ELK distinction honest: Dagre removal
   stays a consolidation decision, while this example is framed as a lowering /
   representation problem until proven otherwise.
-- **SC-005**: A future ELK-support claim on this fixture cannot close without a
+- **SC-005**: The context of each before/after image is explicit enough that a
+  cold-start reviewer can tell source truth from downstream attempts.
+- **SC-006**: The spec gives Opus an explicit review question:
+  "Dagre or better structured YAML/lowering?"
+- **SC-007**: A future ELK-support claim on this fixture cannot close without a
   fixture-owned regression and a written explanation of the new lowering/shim.
 
 ## Risks

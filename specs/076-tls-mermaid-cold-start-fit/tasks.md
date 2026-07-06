@@ -14,6 +14,9 @@
       reasoned about from source image to candidate `.mmd`.
 - [ ] T003 Update `docs/specs.md` with this package so the example is indexed in
       the active spec catalog.
+- [ ] T004 Write the photo context into the spec explicitly:
+      which image is source truth, which image is the field engineer's external
+      attempt, and which images are the in-repo controlled comparisons.
 
 ## Phase 2: Mermaid-first handoff
 
@@ -38,6 +41,10 @@
       deep nesting is not the reason; the authored arrows form a connected tree.
 - [ ] T023 Tie the classification back to the actual compatibility owner in
       `packages/layout-engine/src/preview-engine/registry.ts`.
+- [ ] T024 Record the failure reasoning explicitly:
+      `elk-force` is the wrong algorithm family for this source, while
+      `elk-layered` is still being fed a frame-lowered shape that loses the
+      original clustered graph intent.
 
 ## Phase 4: Decide the acceptable future fix path
 
@@ -51,6 +58,9 @@
       change:
       spec 028 import/lowering, preview-engine compatibility, or a new typed
       adapter layer.
+- [ ] T033 Make the Opus decision question explicit in the spec:
+      "Is Dagre actually the missing solution here, or is better structured
+      YAML / better lowering the missing solution?"
 
 ## Phase 5: Tests and verification
 
@@ -67,8 +77,12 @@
 
 - Cold-start pack committed in this package.
 - Mermaid-side handoff recorded in `../mermaid/AGENT-INBOX.md`.
+- Photo context is explicit enough that "before" and the different "after"
+  attempts cannot be confused.
 - Current-state classification is explicit and honest about why ELK is
   withheld today.
+- The spec forces an auditable Dagre-vs-better-lowering decision instead of
+  leaving that architectural question implicit.
 - Any future ELK-support claim is blocked on fixture-owned regression coverage.
 
 ## Deferred follow-up
