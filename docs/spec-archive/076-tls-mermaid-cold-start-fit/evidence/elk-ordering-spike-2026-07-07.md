@@ -5,8 +5,8 @@ checked-in harness instead of the missing `tmp/` artifacts.
 
 Artifacts:
 
-- script: `specs/076-tls-mermaid-cold-start-fit/evidence/elk-ordering-spike.mjs`
-- result: `specs/076-tls-mermaid-cold-start-fit/evidence/elk-ordering-spike-result.json`
+- script: `evidence/elk-ordering-spike.mjs`
+- result: `evidence/elk-ordering-spike-result.json`
 
 ## Variants exercised
 

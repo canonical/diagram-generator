@@ -53,17 +53,9 @@ gated stages**. Do them in this order; do not skip the gate.
    `diagram-generator-planning` repo owns a new audit
    (`specs/004-mermaid-composite-lowering-audit/`, requested in that repo's
    `AGENT-INBOX.md`) of every Mermaid ELK lowering trick. Not this repo's code.
-2. **Spec 076 — T0 spike FIRST (GATE).** Do only Phase 0 of
-   `specs/076-tls-mermaid-cold-start-fit/tasks.md`: hand-author a compound ELK
-   graph for the TLS fixture and prove it reproduces
-   `images/01-source-mermaid-reference.png`. The spec's "Execution notes for
-   implementers" section is prescriptive (exact script path, `elk.*` option seed
-   set, compare criteria). **Report PASS/FAIL and stop for Opus review.**
-3. **Spec 076 — Strategy B port (only if T0 PASSED).** Phases 1–4 of 076. Do NOT
-   start this until T0 passes and Opus re-hardens the port section with the proven
-   option set. No Dagre. Keep our own renderer.
-4. **Spec 028 — Mermaid import** (`specs/028-diagram-interchange-mermaid-d2/`),
-   reusing 076's cluster→ELK lowering. Runs AFTER 076 renders clusters.
+2. **Spec 028 — Mermaid import** (`specs/028-diagram-interchange-mermaid-d2/`),
+   reusing the archived 076 cluster->ELK lowering
+   (`docs/spec-archive/076-tls-mermaid-cold-start-fit/`). No Dagre.
 
 ### Lane B — standing user-facing regressions (parallel, independent of Epic A)
 

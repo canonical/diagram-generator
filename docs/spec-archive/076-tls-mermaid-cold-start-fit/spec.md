@@ -1,7 +1,7 @@
 # Spec 076: Port Mermaid's cluster/ELK lowering (TLS cold-start example)
 
 **Feature Branch**: `feat/076-tls-mermaid-cold-start-fit`
-**Status**: Closeout Ready
+**Status**: Merged to `main` and archived 2026-07-07
 **Created**: 2026-07-06
 **Rewritten**: 2026-07-06 — pivoted from "investigate Dagre vs lowering" to
 "adopt/port Mermaid's proven cluster->ELK lowering", after confirming the sibling
@@ -259,7 +259,7 @@ Phase 0 is now executed and recorded. The outcome is a real FAIL, not a hand-wav
     draft `.mmd` did not inject the sibling repo's managed frontmatter, so it was
     not a trustworthy ELK oracle.
   - corrected ELK oracle:
-    `node ../mermaid/restyle.mjs specs/076-tls-mermaid-cold-start-fit/references/tls-certificate-provider-topology.mmd tmp/mermaid-tls-elk-restyled.svg --export-only --font-mode=none`
+    `node ../mermaid/restyle.mjs docs/spec-archive/076-tls-mermaid-cold-start-fit/references/tls-certificate-provider-topology.mmd tmp/mermaid-tls-elk-restyled.svg --export-only --font-mode=none`
   - rasterized review asset: `tmp/mermaid-tls-elk-restyled.png`
   - Mermaid's own `@mermaid-js/layout-elk` lowering with explicit managed
     frontmatter preserves compounds and the endpoint row order, but it still does

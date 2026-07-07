@@ -1,7 +1,7 @@
 # Tasks: Spec 076 Port Mermaid's cluster/ELK lowering
 
-**Input**: `specs/076-tls-mermaid-cold-start-fit/spec.md`
-**Plan**: `specs/076-tls-mermaid-cold-start-fit/plan.md`
+**Input**: `spec.md`
+**Plan**: `plan.md`
 **Branch**: `feat/076-tls-mermaid-cold-start-fit`
 **Review**: `docs/spec-reviews/076-tls-mermaid-cold-start-fit.md` (Opus: reject Dagre)
 
@@ -47,8 +47,8 @@ The next bounded spike must test ELK ordering directly (ordering rows only,
 `SEPARATE_CHILDREN`, cross-cluster routing via containers/ports) and root-cause
 the `elkjs` hierarchy + model-order crash before any scope change.
 
-2026-07-07 checked-in rerun: `specs/076-tls-mermaid-cold-start-fit/evidence/elk-ordering-spike.mjs`
-and `specs/076-tls-mermaid-cold-start-fit/evidence/elk-ordering-spike-2026-07-07.md`
+2026-07-07 checked-in rerun: `evidence/elk-ordering-spike.mjs`
+and `evidence/elk-ordering-spike-2026-07-07.md`
 now replace the missing `tmp/` artifacts. The current narrowed blocker is:
 ordering rows kept as separate compounds still fail cross-hierarchy fan-out with
 `UnsupportedGraphException`, while flattening those rows lets ELK run and keep
