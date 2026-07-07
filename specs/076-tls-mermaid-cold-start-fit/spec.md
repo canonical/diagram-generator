@@ -215,6 +215,83 @@ spec 028's import path. Not the product path by itself, but strong evidence.
 Recommendation: **B**, de-risked by a **C-backed oracle** in T0. Reject A as the
 product path because of the SVG/helper coupling.
 
+## T0 evidence update (2026-07-06)
+
+Phase 0 is now executed and recorded. The outcome is a real FAIL, not a hand-wave:
+
+- `T000` portability finding confirmed independently in
+  `../mermaid/node_modules/@mermaid-js/layout-elk`:
+  - package: `@mermaid-js/layout-elk@0.2.1`
+  - license: MIT
+  - engine dependency: `elkjs`
+  - mechanism: compound `children`, parent map, per-subgraph `elk.direction`,
+    and ancestor promotion to `elk.hierarchyHandling = INCLUDE_CHILDREN` for
+    cross-cluster edges.
+- `T001` / `T002` hand-authored spike implemented at `tmp/elk-cluster-spike.mts`.
+  It builds the TLS graph explicitly as ELK compounds (`provider_stack`,
+  `services_row`, `openstack_services`, `load_balancers`,
+  `openstack_relation_row`, `load_balancer_relation_row`,
+  `load_balancer_endpoint_row`) and writes `tmp/elk-cluster-spike-summary.json`.
+- Stable working seed option set:
+  - root: `elk.algorithm=layered`
+  - root: `elk.direction=DOWN`
+  - root: `elk.hierarchyHandling=INCLUDE_CHILDREN`
+  - root: `elk.spacing.nodeNode=24`
+  - root: `elk.layered.spacing.nodeNodeBetweenLayers=40`
+  - subgraphs default to `SEPARATE_CHILDREN`, then the spike mirrors Mermaid's
+    ancestor promotion to `INCLUDE_CHILDREN` only on cross-cluster edge paths.
+- What the spike proves:
+  - the top provider cluster remains above the lower services lane
+  - provider-local `TB` direction is preserved (`vault` above
+    `manual-tls-certificates`)
+  - the lower services lane remains left-to-right as two sibling compounds
+  - the overall fanout from `manual_tls_certificates` into the lower clusters is
+    top-down rather than force-scattered
+- Why it still FAILS the gate:
+  - `openstack_relation_row` settles below `octavia_k8s` instead of above it
+  - `load_balancer_endpoint_row` preserves a row, but reorders the leaves as
+    `traefik-rgw`, `traefik-public`, `traefik` instead of the source order
+  - reintroducing ELK model-order options (`considerModelOrder` /
+    `forceNodeModelOrder`) on this nested cross-hierarchy graph reopens an
+    internal `elkjs` crash (`FEc ... Cannot read properties of undefined`)
+- `T003` sibling oracle also FAILS:
+  - invalid first pass discarded: raw `node ../mermaid/render.mjs ...` on the
+    draft `.mmd` did not inject the sibling repo's managed frontmatter, so it was
+    not a trustworthy ELK oracle.
+  - corrected ELK oracle:
+    `node ../mermaid/restyle.mjs specs/076-tls-mermaid-cold-start-fit/references/tls-certificate-provider-topology.mmd tmp/mermaid-tls-elk-restyled.svg --export-only --font-mode=none`
+  - rasterized review asset: `tmp/mermaid-tls-elk-restyled.png`
+  - Mermaid's own `@mermaid-js/layout-elk` lowering with explicit managed
+    frontmatter preserves compounds and the endpoint row order, but it still does
+    not reproduce the reference's lower-cluster stacking for this reconstructed
+    source: `openstack_relation_row` collapses into a left-side vertical column
+    rather than a horizontal row above `octavia_k8s`.
+
+Conclusion: the T0 spike does **not** justify proceeding directly to Phase 2.
+The evidence now says the current Mermaid-style cluster lowering is necessary but
+not sufficient for this example. A follow-up cluster / ordering pass remains on
+the table, and the spec must stop for Opus review rather than asserting that the
+port alone closes the gap.
+
+## Opus review update (2026-07-07)
+
+Opus reviewed the T0 evidence and rejected the proposed Dagre pivot.
+
+- The spike never enabled ELK ordering controls (`considerModelOrder`,
+  `crossingMinimization`, ports), so the observed row reordering does not prove
+  an ELK limitation by itself.
+- The near-match dagre comparison depends on a fabricated helper edge
+  (`octavia_k8s --- traefik_public`), so it is not a valid source-faithful
+  counterexample.
+- The real blocker is the uninvestigated `elkjs` crash under
+  `INCLUDE_CHILDREN` + model-order, plus the hierarchy-flattening side effects
+  that turn the intended horizontal ordering rows into vertical stacks.
+
+Therefore the accepted next step is a bounded ELK ordering experiment, not an
+engine change: enable model-order only on the ordering rows, keep those rows
+`SEPARATE_CHILDREN`, route cross-cluster edges via containers/ports, and
+root-cause the crash before reconsidering scope.
+
 ## Execution notes for implementers (GPT-tier, prescriptive)
 
 This section makes T0 (the spike) executable without design judgement, so it can
@@ -254,6 +331,11 @@ option set as the seed.
    `references/tls-certificate-provider-topology.mmd` with `config.layout: elk`
    and compare structure.
 6. Write PASS/FAIL + the working option set into this spec and the review doc.
+   - 2026-07-06 update: FAIL recorded. The stable option seed is captured above,
+     and both the hand-authored spike plus the Mermaid oracle miss the reference
+     ordering. Stop here for review; do not start the Strategy B port.
+   - 2026-07-07 update: Opus review rejects a Dagre fallback. The only allowed
+     next step is the bounded ELK ordering / crash experiment in the review doc.
 
 ### Port file map (seed for Phase 2 hardening, not final)
 
@@ -417,6 +499,10 @@ and the core cluster/ordering geometry.
   issue may be the current frame lowering, especially the fill carriers.
 - It is also easy to smuggle Dagre back in through example frustration. FR-004
   blocks that shortcut.
+- T0 now proves a third risk is real: Mermaid's current ELK lowering and a
+  hand-authored compound graph can still miss the intended row ordering /
+  vertical stacking, so a dedicated typed cluster-ordering pass may be required
+  even after the lowering shape is corrected.
 - A Mermaid reconstruction can still be a weak fit if the source image hides
   authoring details. The sibling repo must follow its no-guess fit workflow and
   call that out explicitly if needed.

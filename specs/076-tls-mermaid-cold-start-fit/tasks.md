@@ -7,24 +7,45 @@
 
 ## Phase 0: Prove the diagnosis (blocking spike, evidence not prose)
 
-- [ ] T000 Confirm the portability finding independently: in
+- [x] T000 Confirm the portability finding independently: in
       `../mermaid/node_modules/@mermaid-js/layout-elk`, verify MIT license,
       `elkjs` dependency, and that the core builds a compound ELK graph
       (`children`, parent map, per-cluster `layoutOptions`/`elk.direction`).
-- [ ] T001 Hand-author a compound ELK input graph for the TLS fixture: each
+- [x] T001 Hand-author a compound ELK input graph for the TLS fixture: each
       authored cluster (`provider_stack`, `services_row`, `openstack_services`,
       `load_balancers`, and the blank-title ordering rows) as an ELK compound
       node with local `elk.direction`, padding/insets, and ordered children.
-- [ ] T002 Render that hand-authored graph through the existing `elkjs` path and
+- [x] T002 Render that hand-authored graph through the existing `elkjs` path and
       compare against `images/01-source-mermaid-reference.png`.
-- [ ] T003 [P] Strategy C oracle: render
+- [x] T003 [P] Strategy C oracle: render
       `references/tls-certificate-provider-topology.mmd` in the sibling
       `../mermaid/` harness with `config.layout: elk` and capture its ELK
       cluster geometry as a cross-check for T002.
-- [ ] T004 Record the T0 result in the spec: if T002 matches, proceed to the
+- [x] T004 Record the T0 result in the spec: if T002 matches, proceed to the
       Strategy B port; if not, document the exact residual (direction mixing,
       ordered rows, cross-cluster routing) and escalate to a dedicated cluster
       pass. Do not reintroduce Dagre either way.
+
+T0 result on 2026-07-06: FAIL. `tmp/elk-cluster-spike.mts` now proves a stable
+compound ELK graph can preserve the top cluster, the overall top-down fanout,
+and the left-to-right services row, but it still misses two reference-critical
+properties: `openstack_relation_row` settles below `octavia_k8s` instead of
+above it, and `load_balancer_endpoint_row` reorders the leaves as
+`traefik-rgw`, `traefik-public`, `traefik` instead of the reference order.
+Reintroducing ELK model-order options on this nested cross-hierarchy graph
+reopens an internal `elkjs` crash (`FEc ... Cannot read properties of
+undefined`). A first raw `render.mjs` pass on the draft `.mmd` was discarded as
+an invalid oracle because it lacked `defaultRenderer: elk`. The corrected sibling
+Mermaid ELK oracle is `node ../mermaid/restyle.mjs ... --export-only`, producing
+`tmp/mermaid-tls-elk-restyled.svg` / `tmp/mermaid-tls-elk-restyled.png`; it also
+fails to reproduce the reference ordering, so the current evidence blocks
+Phase 2 and escalates to a dedicated cluster / ordering follow-up rather than a
+direct Strategy B port.
+
+Opus review on 2026-07-07 sharpens that outcome: do **not** pivot to Dagre.
+The next bounded spike must test ELK ordering directly (ordering rows only,
+`SEPARATE_CHILDREN`, cross-cluster routing via containers/ports) and root-cause
+the `elkjs` hierarchy + model-order crash before any scope change.
 
 ## Phase 1: Study the portable lowering
 
