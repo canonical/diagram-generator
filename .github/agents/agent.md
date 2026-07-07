@@ -10,11 +10,12 @@ Primary repo instructions live in [`AGENTS.md`](../../AGENTS.md).
 
 Read these first:
 
-1. [`AGENTS.md`](../../AGENTS.md) — includes handover; do not read `STATUS.md`
-2. [`docs/agent-index.md`](../../docs/agent-index.md) — trap files and tier-2 maps
-3. [`DIAGRAM.md`](../../DIAGRAM.md)
-4. [`TODO.md`](../../TODO.md) if the task is implementation work
-5. [`docs/specs.md`](../../docs/specs.md) only when source references matter
+1. [`AGENTS.md`](../../AGENTS.md) — always-on invariants + cold-start pointers
+2. [`AGENT-INBOX.md`](../../AGENT-INBOX.md) — live state: current task, blockers, last-known-green
+3. [`docs/agent-index.md`](../../docs/agent-index.md) — trap files and tier-2 maps
+4. [`DIAGRAM.md`](../../DIAGRAM.md)
+
+Then read only the task-scoped source files that `AGENTS.md` and the current request require.
 
 **Spec-kit:** load `.github/agents/speckit.*` only when the user explicitly asks for spec / speckit work.
 

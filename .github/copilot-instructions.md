@@ -2,16 +2,7 @@
 
 Primary repo instructions live in [`AGENTS.md`](../AGENTS.md).
 
-Use `AGENTS.md` as the single authority for:
-
-- TS-first and Python-retirement rules
-- shell and environment guidance, including Windows / WSL advice
-- cold-start read order and **handover** (do not maintain parallel state in `STATUS.md`)
-- validation commands
-- repo search hygiene and commit discipline
-- **spec-kit on demand** — do not load speckit agents/prompts unless the user explicitly asks for spec work
-
-Do not duplicate repo-specific workflow rules here. Update `AGENTS.md` instead.
+Use `AGENTS.md` for always-on invariants and cold-start pointers. Live state/handover lives in [`AGENT-INBOX.md`](../AGENT-INBOX.md); operational how-to (validation, search hygiene, trap files) in [`docs/agent-index.md`](../docs/agent-index.md). Do not duplicate repo-specific rules here.
 
 <!-- SPECKIT START -->
 Load `.github/agents/speckit.*`, `.github/prompts/speckit.*`, and `specs/*/plan.md` **only** when the user explicitly requests spec-kit work.

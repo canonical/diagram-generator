@@ -1,12 +1,29 @@
 # Agent instructions (diagram-generator)
 
-Guidance for AI agents working in this repo. Goal: correct fixes with minimal token burn.
+Always-on repo **invariants and cold-start pointers only**. This file is auto-loaded
+every turn, so keep it lean: no dated notes, no handover, no task state, no
+operational how-to. Each of those has exactly one owner (below); never restate
+another file's content here.
 
-## Start here
+## Cold start — read in this order
 
-1. **Read the project index:** [`docs/agent-index.md`](docs/agent-index.md) — packages, pipelines, trap files, tier-2 flow maps.
-2. **Keep the working tree focused.** Stash or commit unrelated edits (especially formatted frame YAML under `scripts/diagrams/frames/`) before asking an agent to review or diff. Large cosmetic YAML diffs waste context on every `git diff`.
-3. **Run `npm run clean:src-artifacts`** if vitest or tsx seems to execute stale code from `packages/*/src/**/*.js` (accidental tsc emit shadows `.ts`).
+1. [`AGENT-INBOX.md`](AGENT-INBOX.md) — **live state**: current task, blockers, last-known-green. Single owner of "what's happening now".
+2. [`docs/agent-index.md`](docs/agent-index.md) — **operational playbook**: trap files, commands, search hygiene, token/test economy, flow maps.
+3. [`DIAGRAM.md`](DIAGRAM.md), then only the source files the task needs. Do not front-load large context.
+
+Single-owner map — never duplicate a row's content into another file:
+
+| Need | Owner |
+|------|-------|
+| Always-on invariants (this file) | `AGENTS.md` |
+| Live state / handover | `AGENT-INBOX.md` |
+| Operational how-to (trap files, commands, search, economy, flow maps) | `docs/agent-index.md` |
+| Execution order / queue | `TODO.md` |
+| Spec catalog + status | `docs/specs.md` |
+| Human async notes | `INBOX.md` |
+| Durable per-spec detail | `specs/<id>-<slug>/` |
+
+Keep the tree focused: stash or commit unrelated frame-YAML reformats before review or diff. Run `npm run clean:src-artifacts` if tests execute stale `packages/*/src/**/*.js`.
 
 ## Workspace
 
@@ -50,39 +67,6 @@ Guidance for AI agents working in this repo. Goal: correct fixes with minimal to
 - Completed or retired packages live under [`docs/spec-archive/`](docs/spec-archive/README.md). They are de-indexed on purpose; open them only when a task directly depends on historical context.
 - Keep repo operating rules in this file. Do not duplicate them into Speckit prompts or agents.
 
-## Cold-start path
-
-Read these first:
-
-1. [`docs/agent-index.md`](docs/agent-index.md)
-2. [`DIAGRAM.md`](DIAGRAM.md)
-3. Only the source files relevant to the task
-
-**Read discipline:** do not load large context up front. Locate first with narrow `rg` / `Glob`, then read only what the task needs — usually a symbol hit or a bounded slice (`offset`/`limit` on trap files). Whole-file reads are fine for small modules; read whole files when that is genuinely simpler than stitching partial reads.
-
-Use [`docs/specs.md`](docs/specs.md) to choose active spec work and the matching `specs/<id>-<slug>/tasks.md` for execution. [`TODO.md`](TODO.md) is only a pointer to open specs and spec candidates; [`INBOX.md`](INBOX.md) is for user async notes. Do not trawl large history docs unless the task explicitly needs them.
-
-## Handover
-
-*Agents: update this section when session state changes. Do not create parallel status docs.*
-
-- **Product path:** Node preview app + TypeScript layout engine.
-- **Source of truth:** frame YAML in `scripts/diagrams/frames/`.
-- **Active spec (when relevant):** Use `docs/specs.md` as the active spec index; `TODO.md` is only a pointer. `specs/065-interactive-relayout-contract/` remains blocked on the uncaptured historical `baseline-fail.json` requirement. Specs 046-048, 050-060, 062-063, and 066-076 are merged to `main` and archived under `docs/spec-archive/`. Preserve spec 046's ratchet: do not reopen it unless future work widens `scripts/preview/editor.js`, `scripts/preview/layout-bridge.js`, or reintroduces central preview-host/document-kind/engine branching.
-- **Latest 046 batch:** the final substrate and closeout pass is merged and archived. `editor.js` is a 316-line browser adapter over the typed grid install/runtime seam, `layout-bridge.js` is a 77-line bridge over the typed preview-bridge install runtime, `packages/layout-engine/src/preview-shell/index.ts` is a seven-line top-level fan-out into owner-scoped barrels, `packages/layout-engine/src/browser-entry.ts` is an eight-line top-level fan-out into split browser-entry barrels, and the old monolithic VM harness is replaced by owner-scoped contract suites backed by `preview-script-test-helpers.ts`. The repo now also enforces preview-shell size budgets so future drift past the thin-adapter bar fails fast in tests. The foreign-shaped install proof is real through `mindmap-lite-install-unit.test.ts`, and `graph-layout-core` is engine-open enough for Mermaid/D2/Dagre-class onboarding via generic engine ids, capability descriptors, object insets, side/point-anchored ports, and explicit size semantics adapted at the ELK boundary. One bounded residual remains documented in the archived spec: a brand-new shell family still adds typed panel entries through `PREVIEW_PANEL_REGISTRY`, but that is per-family rather than per-engine and does not reopen 046.
-- **Trap files (search, then partial read):** `scripts/preview/component-model.js` (~740 lines; persistence-critical save hotspot), `scripts/preview/force.js` (~1,599 lines), `packages/layout-engine/dist/layout-engine.iife.js` (~4.4 MB).
-- **Current handoff note:** The merged closeout cohort from the 2026-07-05 audit remains archived under `docs/spec-archive/`, and spec 076 joined that archive on 2026-07-07 with the generic ELK-only compound-lowering closeout: authored/native compounds keep local direction through `GraphNodeInput.direction`, invisible ordering edges preserve Mermaid-style row order without Dagre, and the TLS fixture now resolves to `elk-layered` with repo-owned compatibility + geometry regressions covering the cert/endpoint row expectations. Existing Mongo availability-zone fidelity remains green after fixing a dead locked-container overflow branch in `wrapStructuralContainers(...)`. Validation for the merged mainline is green at `packages/graph-layout-elk` `44/44`, `packages/layout-engine` `992/992`, `apps/preview` `166/166`, `build:browser` pass, `check-browser-bundle-fresh` ok, `check_no_new_python` ok, and preview-shell size budgets ok. `INBOX.md` still carries the recurring raw notes by explicit user instruction, so closeout/admin cleanup there remains separate from merged product work. The queue now continues with 061 -> 064 -> 070, with 065 still blocked on the historical baseline artifact.
-
-## Flow maps (tier 2 — add on demand)
-
-Do **not** maintain flow maps for the entire project. When you work on a **cross-layer path** (3+ of UI → server → engine → disk) and no map exists yet:
-
-1. Check the tier-2 table in [`docs/agent-index.md`](docs/agent-index.md).
-2. If missing and the path is non-obvious, add a map **as part of that task** (same shape as [`specs/006-arrow-routing-redesign/preview-override-flow.md`](specs/006-arrow-routing-redesign/preview-override-flow.md): pipeline, key files, tests to run, known limits; aim for ≤60 lines).
-3. Link it from the tier-2 table in `docs/agent-index.md`.
-
-Skip creating a map if a focused test already documents the path or the change is single-file.
-
 ## Frame override allowlists
 
 Do not duplicate key lists. Single source:
@@ -93,57 +77,6 @@ Do not duplicate key lists. Single source:
 - `RELAYOUT_FRAME_KEYS` → client relayout (`layout-bridge.js` via `LayoutEngine.filterRelayoutOverrideEntry`)
 - `UNDO_RELAYOUT_FRAME_KEYS` → undo/redo relayout trigger (`editor.js` via `LayoutEngine.hasV3FrameOverride`)
 
-## Repo search hygiene (token + reliability)
-
-Prefer **narrow, scoped searches** over repo-wide scans.
-
-| Do | Don't |
-|----|--------|
-| `rg pattern apps/preview/src` | `rg pattern` from repo root (slow on large trees) |
-| `rg pattern scripts/preview/editor.js` | Chain `find … \| head` — use PowerShell-native limits (`Select-Object -First N`) on Windows |
-| `rg pattern packages/layout-engine/src -g "!packages/layout-engine/dist/**"` | Sweep generated `dist/**` outputs during normal source hunts |
-| `rg` / `Glob` to locate, then partial `Read` | Open a trap file or spec tree whole-file without a search hit |
-| One targeted read after rg | Re-read the same 6k-line file in every sub-agent |
-| Run the tests listed in the flow map | Launch 5 parallel "sweep" agents for a single-file bug |
-
-**Windows note:** Agents often run in PowerShell, not bash. Commands like `head`, `cat <<'EOF'`, and `find` fail or behave differently. That causes retries, background timeouts, and extra terminal polling — which inflates token usage even though the OS does not charge "more per token."
-
-**WSL note:** If you want lower agent friction, WSL is usually more reliable than PowerShell for generated shell commands. Best case: keep the repo in the WSL filesystem and run the toolchain there. Mixed Windows-mounted paths (`H:\...` or `/mnt/h/...`) work, but they can add quoting, path, and search-performance quirks. If you stay on Windows, prefer direct interpreter calls like `.venv\Scripts\python.exe` over shell activation commands.
-
-## Token budget
-
-### Screenshots and pasted images
-
-- **Do not capture or analyze browser/Playwright screenshots unless the user explicitly asks.**
-- Default verification: tests, preview URL, text description of the layout issue.
-- If the user requests a visual check: crop to the affected region; avoid full-viewport captures.
-- Pasted chat images are billed as vision input — often **hundreds to low thousands of tokens per image**, and they stay in session history on every follow-up turn.
-
-### Workspace and agents
-
-- Trap files: `scripts/preview/editor.js`, `scripts/preview/component-model.js`, `packages/layout-engine/dist/*.iife.js`, bulk `specs/**` reads.
-- **0 subagents** for single-file fixes; avoid parallel multi-agent reviews on small diffs.
-
-## Test economy
-
-Be deliberate about test cost. Protect the **live YAML -> TypeScript -> SVG path**, but err on the side of **lean, durable coverage** over broad or temporary suites.
-
-- Prefer one focused test at the owning layer over the same behavior re-tested in 3 layers.
-- Prefer extending an existing targeted test over creating a new sprawling fixture or browser suite.
-- Do not add large regression harnesses for transitional, legacy, or likely-to-be-deleted code unless the user explicitly wants that protection.
-- For small localized fixes, validate with the narrowest test that proves the contract and stop there.
-- Add or keep broader end-to-end tests only when they protect a real user workflow that unit-level tests would miss.
-
-## Scoped review (instead of full simo-sweep)
-
-For localized preview/persist bugs:
-
-1. Read [`docs/agent-index.md`](docs/agent-index.md) and the relevant tier-2 flow map (if any)
-2. Run the listed tests
-3. At most **one** explore pass + **one** regression test if missing
-
-Reserve multi-agent `/simo-sweep` for cross-cutting features (routing, ELK, new specs).
-
 ## After changing layout-engine browser surface
 
 If you add exports used by `layout-bridge.js` or `editor.js`:
@@ -153,17 +86,6 @@ npm --prefix packages/layout-engine run build:browser
 ```
 
 Preview loads `packages/layout-engine/dist/layout-engine.iife.js`, not TypeScript source. `npm run preview` / `preview:dev` rebuild this automatically via `prestart` / `predev`. After changing browser exports, restart the preview server or run `npm run preview:build-browser`.
-
-## Validation
-
-```bash
-npm --prefix packages/layout-engine test
-npm --prefix apps/preview test
-node scripts/check_no_new_python.mjs
-```
-
-Use targeted preview tests when changing preview routes, shell behavior, or save flows.
-Do not default to adding new broad test suites unless the change affects a durable cross-layer contract.
 
 ## Commits
 

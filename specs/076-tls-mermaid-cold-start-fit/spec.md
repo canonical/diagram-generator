@@ -1,7 +1,10 @@
 # Spec 076: Port Mermaid's cluster/ELK lowering (TLS cold-start example)
 
 **Feature Branch**: `feat/076-tls-mermaid-cold-start-fit`
-**Status**: Merged to `main` and archived 2026-07-07
+**Status**: REOPENED 2026-07-07 — closeout was premature. See
+[REOPENED — closeout was premature](#reopened-2026-07-07--closeout-was-premature)
+below for the authoritative next-steps. The earlier "Merged / archived" status
+is retained only as history.
 **Created**: 2026-07-06
 **Rewritten**: 2026-07-06 — pivoted from "investigate Dagre vs lowering" to
 "adopt/port Mermaid's proven cluster->ELK lowering", after confirming the sibling
@@ -13,6 +16,120 @@ fixture, not the whole scope.
 `docs/spec-archive/074-layout-algorithm-consolidation/`, sibling
 `../mermaid/` (vendors `@mermaid-js/layout-elk`, `elkjs`, `dagre-d3-es`), and this
 package's `images/` + `references/` assets.
+
+## REOPENED 2026-07-07 — closeout was premature
+
+The 076 closeout claimed "green" but the **actual rendered diagram does not meet
+the visual bar**. The closeout gate was satisfied by two weak tests (an
+engine-resolution probe plus two geometry-snippet asserts); neither renders the
+product SVG, so a badly broken render passed the gate.
+
+**Do not trust the earlier "Merged / archived" status. Treat this section as the
+authoritative work list.** Everything above and below this block that says 076 is
+closed is historical.
+
+### The bar (non-negotiable)
+
+The live render of `tls-certificate-provider-topology` MUST reach visual parity
+with the Mermaid reference:
+
+- `specs/076-tls-mermaid-cold-start-fit/images/01-source-mermaid-reference.png`
+- sister-repo harness image `H:\WSL_dev_projects\mermaid-wt-076-tls\tmp-final-canonical.png`
+
+Geometry-snippet asserts and engine-resolution probes are **necessary but not
+sufficient**. The gate now requires a render-level check plus a documented
+side-by-side against the reference.
+
+### Observed defects (live preview + operator screenshots)
+
+Confirmed by comparing the current editor render (operator screenshot "ours")
+against the Mermaid reference (operator screenshot "mermaid"):
+
+- **D1 — annotation nodes collapse to bare text.** The grey two-line annotation
+  leaves (`octavia_certificates`, `amphora_issuing_ca`, `amphora_controller_cert`,
+  `public_certificates`, `internal_certificates`, `rgw_certificates`) — authored
+  with `variant: annotation` / `fill: grey` / `border: none` and a **two-line**
+  label (`certificates` + `interface: tls-certificates`) — render as
+  **single-line floating text**. The second label line is dropped and the grey
+  box chrome is missing. The Mermaid reference shows these as grey boxes with both
+  lines.
+- **D2 — top-down clustered structure is broken.** The provider stack is cramped
+  and the fanout from `manual_tls_certificates` collapses, instead of the clean
+  vertical top-down flow (`vault` -> `tls-certificates-pki` -> `manual-tls-certificates`
+  -> two sibling clusters) in the reference.
+- **D3 — endpoint / relation rows not a clean horizontal row.** The
+  load-balancer endpoints and the OpenStack relation row do not lay out as the
+  reference's single ordered horizontal rows.
+- **D4 — text truncation.** Certificate/interface nodes do not show their full
+  text (node width does not fit the measured label on the ELK path).
+- **D5 — stale preview server masks the problem.** `apps/preview` `start` does
+  not hot-reload server-side TypeScript; its watcher tracks
+  `packages/layout-engine/dist`, not the full host/runtime source path
+  (`apps/preview/src/server.ts`). A long-lived server on e.g. `:8100` serves an
+  even older, worse render. **Reproduce on a freshly restarted server or via the
+  export/host render route, never on a stale port.**
+
+### Why the closeout tests passed anyway (root cause of the false green)
+
+- `packages/layout-engine/tests/preview-engine-fidelity-probes.test.ts` only
+  proves the fixture *resolves to* `elk-layered`.
+- `packages/layout-engine/tests/elk-layout.test.ts` only asserts two geometry
+  facts: `openstack_relation_row.placedY < octavia_k8s.placedY`, and the endpoint
+  `x` order `traefik_public, traefik_internal, traefik_rgw`.
+- Neither test renders the product SVG. So dropped label lines (D1), missing grey
+  chrome (D1), collapsed structure (D2), non-horizontal rows (D3), and text
+  truncation (D4) all pass silently.
+
+### Precise reopen steps for the implementer
+
+Work these in order. See tasks `T050`–`T056` in `tasks.md` for the checklist
+form. Do **not** reintroduce Dagre (spec 074 retirement still holds) and do
+**not** add behaviour-heavy `scripts/preview/*.js`.
+
+1. **Reproduce cleanly (T050).** Restart the preview server (or use the
+   export/host render route via
+   `apps/preview/src/preview-host/frame-documents.ts`) so the render reflects
+   current source, not a stale `:8100` process. Capture the current broken SVG as
+   the reopen baseline.
+2. **Write the failing render regression first (T051).** Add a regression that
+   produces the **actual SVG** for `tls-certificate-provider-topology` through
+   the product render/export path and asserts:
+   - every annotation node renders **both** label lines (e.g. `certificates`
+     *and* `interface: tls-certificates`) — no dropped second line;
+   - annotation nodes keep their grey fill / annotation chrome;
+   - `traefik_public`, `traefik_internal`, `traefik_rgw` share one horizontal row
+     (equal / near-equal `y`);
+   - no rendered label is truncated (text fits within its node box).
+   This test MUST fail against the current output before any fix lands.
+3. **Fix annotation rendering under the ELK compound lowering (T052).** Restore
+   the second label line and grey box for `variant: annotation` /
+   `border: none` / `fill: grey` leaves that live inside lowered ELK compounds.
+   Root-cause where the second line and fill are lost between the frame-render
+   path and the ELK position read-back in
+   `packages/layout-engine/src/elk-layout.ts`.
+4. **Fix the clustered layout (T053).** Reproduce the reference top-down
+   structure: clean vertical provider fanout, per-cluster direction, endpoints on
+   one row, relation row above `octavia_k8s`.
+5. **Fix text truncation (T054).** Ensure node widths / measured label sizes on
+   the ELK path accommodate the full text.
+6. **Verify against the reference image, not snippets (T055).** Compare the fresh
+   product render against `images/01-source-mermaid-reference.png` and the sister
+   harness `tmp-final-canonical.png`. Save an updated in-repo render image into
+   this package.
+7. **Raise the gate (T056).** 076 cannot re-close without (a) the T051
+   render-level regression green, and (b) a documented side-by-side of the fresh
+   product render vs the Mermaid reference showing parity. Engine-resolution and
+   geometry-snippet tests alone no longer satisfy the gate.
+
+### Process notes
+
+- Per `AGENTS.md`, active spec work needs a matching feature branch. Reopen on a
+  fresh branch (e.g. `feat/076-tls-mermaid-cold-start-fit-reopen`) and move this
+  package back under `specs/076-.../` while it is active; re-archive on genuine
+  parity.
+- The two-line annotation authoring in the fixture is **correct** — the fixture
+  already declares both label lines and `fill: grey`. The bug is in the render
+  path, not the YAML, so do not "fix" the fixture by deleting the second line.
 
 ## Problem
 
@@ -259,7 +376,7 @@ Phase 0 is now executed and recorded. The outcome is a real FAIL, not a hand-wav
     draft `.mmd` did not inject the sibling repo's managed frontmatter, so it was
     not a trustworthy ELK oracle.
   - corrected ELK oracle:
-    `node ../mermaid/restyle.mjs docs/spec-archive/076-tls-mermaid-cold-start-fit/references/tls-certificate-provider-topology.mmd tmp/mermaid-tls-elk-restyled.svg --export-only --font-mode=none`
+    `node ../mermaid/restyle.mjs specs/076-tls-mermaid-cold-start-fit/references/tls-certificate-provider-topology.mmd tmp/mermaid-tls-elk-restyled.svg --export-only --font-mode=none`
   - rasterized review asset: `tmp/mermaid-tls-elk-restyled.png`
   - Mermaid's own `@mermaid-js/layout-elk` lowering with explicit managed
     frontmatter preserves compounds and the endpoint row order, but it still does

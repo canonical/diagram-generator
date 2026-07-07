@@ -19,7 +19,7 @@ argument-hint: "Describe the upstream spec source and which token families are c
 3. Update `DIAGRAM.md` only if the public-facing diagram contract changed.
 4. Rebuild outputs with the `diagram-build-validate` skill.
 5. Audit changed diagrams specifically for text ascent, line spacing, box growth, connector spacing, and icon padding regressions.
-6. Record any newly generalized mapping rules in `DIAGRAM.md`, `STATUS.md`, or `TODO.md` only if they are still needed for cold starts.
+6. Record any newly generalized mapping rules in `DIAGRAM.md` only when the public diagram contract changed; otherwise leave them in code or note durable follow-up in `TODO.md` / `AGENT-INBOX.md`.
 
 ## Guardrails
 

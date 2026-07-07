@@ -1,6 +1,9 @@
 # Agent index
 
-Read this before broad repo searches.
+Read this before broad repo searches. This file owns **operational how-to** — trap
+files, commands, search hygiene, token/test economy, and flow-map routing. It does
+**not** own invariants (`AGENTS.md`), live state (`AGENT-INBOX.md`), the queue
+(`TODO.md`), or spec status (`docs/specs.md`). One owner per fact; never restate.
 
 ## What matters
 
@@ -10,7 +13,7 @@ Read this before broad repo searches.
 - Layout/render authority: `packages/layout-engine/`
 - `scripts/preview/*.js` is legacy compatibility shell, not a valid default
   home for new behavior-heavy preview logic
-- Workflow authority: [`AGENTS.md`](../AGENTS.md) (includes handover — do not read `STATUS.md`)
+- Workflow invariants: [`AGENTS.md`](../AGENTS.md) · Live state / handover: [`AGENT-INBOX.md`](../AGENT-INBOX.md)
 
 ## First files
 
@@ -104,3 +107,31 @@ node scripts/check_no_new_python.mjs
 - Avoid repo-wide sweeps unless the task is genuinely cross-cutting.
 - Do not load `.github/agents/speckit.*` unless the user asked for spec-kit work.
 - Completed spec packages live under `docs/spec-archive/` and are excluded from Cursor indexing; use `docs/specs.md` to find the active package first.
+
+## Windows / WSL shell notes
+
+Agents often run in PowerShell, not bash. `head`, `cat <<'EOF'`, and `find` fail or
+behave differently — use PowerShell-native limits (`Select-Object -First N`). WSL is
+usually more reliable for generated shell commands; mixed Windows-mounted paths
+(`H:\...` or `/mnt/h/...`) add quoting and search-performance quirks. On Windows,
+prefer direct interpreter calls like `.venv\Scripts\python.exe` over shell
+activation.
+
+## Token budget
+
+- **Do not capture or analyze browser/Playwright screenshots unless the user explicitly asks.** Default verification: tests, preview URL, text description of the issue. If a visual check is requested, crop to the affected region — avoid full-viewport captures. Pasted images bill as vision input (hundreds to low-thousands of tokens each) and persist on every follow-up turn.
+- **0 subagents** for single-file fixes; avoid parallel multi-agent reviews on small diffs.
+
+## Test economy
+
+Protect the live YAML → TypeScript → SVG path, but prefer lean, durable coverage over broad or temporary suites.
+
+- One focused test at the owning layer beats the same behavior re-tested in 3 layers.
+- Extend an existing targeted test rather than adding a sprawling fixture or browser suite.
+- Do not add large regression harnesses for transitional, legacy, or likely-to-be-deleted code unless the user explicitly wants that protection.
+- For small localized fixes, validate with the narrowest test that proves the contract and stop there.
+- Keep broader end-to-end tests only when they protect a real user workflow that unit-level tests would miss.
+
+## Scoped review (instead of full simo-sweep)
+
+For localized preview/persist bugs: read this index + the relevant tier-2 flow map, run the listed tests, then at most **one** explore pass + **one** regression test if missing. Reserve multi-agent `/simo-sweep` for cross-cutting features (routing, ELK, new specs).

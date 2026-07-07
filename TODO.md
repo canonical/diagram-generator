@@ -1,29 +1,13 @@
 # TODO — execution order
 
-## Purpose
+**Single owner of cross-spec execution order** (what to work on next) plus an
+un-numbered backlog. Nothing else lives here: for a spec's **status** trust
+[`docs/specs.md`](docs/specs.md); for live/current-task state trust
+[`AGENT-INBOX.md`](AGENT-INBOX.md); for one spec's task list trust
+`specs/<id>-<slug>/tasks.md`. Spec-kit has no cross-spec ordering concept — that is
+why it lives here.
 
-**This file owns one thing: the order specs are executed in.** It is the single
-priority queue for "what to work on next", plus a scratch backlog of ideas not
-yet promoted to a numbered spec.
-
-Role split — do not duplicate content across these:
-
-| File | Owns (single source of truth) | Must NOT contain |
-|------|-------------------------------|------------------|
-| `TODO.md` (this file) | Execution **order**; un-numbered backlog ideas | Per-spec status, summaries, task lists |
-| `docs/specs.md` | The spec **catalog**: every package, its status, one-line summary, path (by id) | Priority / what-next ordering |
-| `specs/<id>-<slug>/tasks.md` | The executable task list for one spec | Cross-spec ordering |
-
-Spec-kit has no cross-spec ordering concept (it is per-feature: specify → plan →
-tasks → implement). Ordering across specs is a repo concern and lives here.
-
-Conflict rule: for a spec's **status**, trust `docs/specs.md`; for **what to do
-next**, trust this file.
-
-**Jira:** Stream E (constrained editor) under
-[DE-941](https://warthogs.atlassian.net/browse/DE-941).
-
----
+Jira: Stream E (constrained editor) under [DE-941](https://warthogs.atlassian.net/browse/DE-941).
 
 ## Next spec to tackle (priority order)
 
@@ -32,8 +16,13 @@ archived** (see `docs/specs.md`) — do **not** start 073/074; they are done. Th
 merged-spec bookkeeping is also done: 048, 051, 052, 054–060, 062, 063, 071, 073,
 074 are archived under `docs/spec-archive/`.
 
-Docs-only spec packages 028, 075, and 076 are merged to `main`; their feature
+Docs-only spec packages 028 and 075 are merged to `main`; their feature
 branches are deleted. Implementation starts on fresh `feat/<id>-<slug>` branches.
+
+**076 is REOPENED (2026-07-07):** its earlier closeout was premature — the render
+fails the visual bar. The package is active again under
+`specs/076-tls-mermaid-cold-start-fit/`; work Phase 5 (`T050`–`T056`) on a fresh
+`feat/076-...-reopen` branch. No Dagre.
 
 ### Roles (do not blur these)
 
@@ -54,8 +43,8 @@ gated stages**. Do them in this order; do not skip the gate.
    (`specs/004-mermaid-composite-lowering-audit/`, requested in that repo's
    `AGENT-INBOX.md`) of every Mermaid ELK lowering trick. Not this repo's code.
 2. **Spec 028 — Mermaid import** (`specs/028-diagram-interchange-mermaid-d2/`),
-   reusing the archived 076 cluster->ELK lowering
-   (`docs/spec-archive/076-tls-mermaid-cold-start-fit/`). No Dagre.
+   reusing the 076 cluster->ELK lowering
+   (`specs/076-tls-mermaid-cold-start-fit/`). No Dagre.
 
 ### Lane B — standing user-facing regressions (parallel, independent of Epic A)
 

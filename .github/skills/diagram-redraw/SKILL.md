@@ -15,7 +15,7 @@ argument-hint: "Describe the source asset, target slug, and any special constrai
 
 ## Procedure
 
-1. Read `AGENTS.md`, `DIAGRAM.md`, and `docs/specs.md` before making layout decisions (skip bulk `specs/**` unless the task is spec work).
+1. Read `AGENTS.md` and `DIAGRAM.md` before making layout decisions. Open `docs/specs.md` only when the task is spec work or needs source-reference context.
 2. Inspect the source sketch plus the governing local references in `diagrams/0.reference/`.
 3. Audit `assets/icons/` early and decide which nodes get icons and which intentionally stay text-only.
 4. **Identify the content tree.** List every panel, heading, and child box. Note icons and line counts — this determines box model math.

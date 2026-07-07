@@ -1,49 +1,77 @@
-# Agent inbox
+# Agent inbox — live state (single owner)
 
-Focused last-session -> next-session handoff only. Keep this short.
+Session-start read for **what's happening right now**: current task, active
+blockers, and last-known-green validation. This is the single owner of transient
+state — no other file restates it. Keep it short; when a note is resolved or
+superseded, **delete it** (git and the spec package hold the history). Do not park
+session logs, spec inventories, resolved reviews, or validation transcripts here.
 
-- **Human notes:** [`INBOX.md`](INBOX.md) — author -> agent.
-- **Execution order & what to do next:** [`TODO.md`](TODO.md) — read at session start; it owns the priority queue.
-- **Active-spec catalog + status:** [`docs/specs.md`](docs/specs.md).
-- **Durable per-spec detail:** `specs/<id>-<slug>/` (`spec.md` + `plan.md` + `tasks.md`).
-- **Adversarial reviews:** `docs/spec-reviews/`.
+Other owners: invariants → [`AGENTS.md`](AGENTS.md) · operational how-to →
+[`docs/agent-index.md`](docs/agent-index.md) · queue/order → [`TODO.md`](TODO.md) ·
+spec catalog/status → [`docs/specs.md`](docs/specs.md) · human notes →
+[`INBOX.md`](INBOX.md) · durable per-spec detail → `specs/<id>-<slug>/` ·
+adversarial reviews → `docs/spec-reviews/`.
 
-Do not park full session logs, spec inventories, resolved adversarial reviews, or
-validation transcripts here — those belong in the relevant `specs/<id>-<slug>/`
-package or in git history. If a review is resolved, delete it from this file.
+**Last-known-green (2026-07-07):** `graph-layout-elk` 44/44, `layout-engine`
+992/992, `apps/preview` 166/166; `build:browser`, `check-browser-bundle-fresh`,
+`check_no_new_python`, and preview-shell size budgets all green.
 
 ---
 
-## Current handoff (2026-07-07)
+## Current handoff (2026-07-07) — 076 REOPENED, ready for a cold-start GPT
 
-- `feat/076-tls-mermaid-cold-start-fit` is **Closeout Ready**.
-- 076 landed as an ELK-only typed lowering shim:
-  - authored/native compounds keep local direction
-  - invisible ordering edges preserve Mermaid-style row order
-  - Dagre stays retired
-- TLS fixture now resolves to `elk-layered`; Mongo availability-zone fidelity
-  remains green.
-- Latest green validation on this branch:
-  - `packages/graph-layout-elk` `44/44`
-  - `packages/layout-engine` `992/992`
-  - `apps/preview` `160` pass / `6` skip (`Playwright chromium unavailable`)
-  - `check_no_new_python`, `build:browser`, `check-browser-bundle-fresh`
-- Evidence and closeout notes live in:
-  - `specs/076-tls-mermaid-cold-start-fit/`
-  - `docs/spec-reviews/076-tls-mermaid-cold-start-fit.md`
-  - `docs/specs.md`
-  - `AGENTS.md`
+**Task:** fix the TLS diagram render so it matches the Mermaid reference, then
+re-close 076 against a real render gate. The earlier closeout was premature: the
+tests passed but the rendered diagram is broken.
 
-## Opus adversarial audit — 2026-07-07 results
+**Start here (read in order):**
 
-Audit performed by Opus (Claude Opus 4.6) against the live working tree on
-`feat/076-tls-mermaid-cold-start-fit`. Validation ran green during the audit.
+1. `specs/076-tls-mermaid-cold-start-fit/spec.md` — read the
+   "REOPENED 2026-07-07 — closeout was premature" section. It is the authoritative
+   work list (bar, defects D1–D5, ordered steps). Ignore any "merged/archived"
+   wording elsewhere in that file; it is history.
+2. `specs/076-tls-mermaid-cold-start-fit/tasks.md` — Phase 5, tasks `T050`–`T056`.
+   All open. Do them in order; `T051` (failing render regression) comes before any
+   fix.
 
-### Verdict: `076 ready to merge` (pending commit)
+**The bar (non-negotiable):** the live render of
+`tls-certificate-provider-topology` must reach visual parity with the Mermaid
+reference:
+- `specs/076-tls-mermaid-cold-start-fit/images/01-source-mermaid-reference.png`
+- sister harness `H:\WSL_dev_projects\mermaid-wt-076-tls\tmp-final-canonical.png`
 
-The implementation is mechanically sound, generic, and test-validated. All code
-changes exist in the working tree and need committing, but the implementation
-itself is complete. Detailed code review below.
+Engine-resolution probes and geometry-snippet asserts are NOT sufficient — that
+is exactly what let the broken render pass last time.
+
+**Confirmed defects (see the two screenshots at the bottom of this file):**
+- D1 grey two-line annotation nodes render as single-line bare text — the second
+  label line (`interface: tls-certificates`) is dropped and the grey box chrome is
+  gone.
+- D2 top-down clustered structure is cramped, not the clean provider fanout.
+- D3 endpoint / relation rows are not clean horizontal rows.
+- D4 certificate text is truncated.
+- D5 the `:8100` preview is stale (no server-side TS hot reload) and shows an even
+  older render — reproduce on a fresh server or the export route, never `:8100`.
+
+**Rules:** no Dagre (spec 074 retirement holds); no behaviour-heavy
+`scripts/preview/*.js`; the fixture YAML is correct (both label lines are
+authored) so the bug is in the render path, not the YAML. Work on a fresh
+`feat/076-...-reopen` branch.
+
+**Root cause of the false green:**
+`packages/layout-engine/tests/preview-engine-fidelity-probes.test.ts` only proves
+the fixture resolves to `elk-layered`;
+`packages/layout-engine/tests/elk-layout.test.ts` only asserts two geometry facts.
+Neither renders the SVG. The annotation-rendering bug likely lives in the
+frame-render vs ELK position read-back path in
+`packages/layout-engine/src/elk-layout.ts`.
+
+## Superseded Opus audit — 2026-07-07 (historical, do not trust the verdict)
+
+> The audit below concluded "076 ready to merge". That verdict is **wrong** and
+> superseded by the reopen above: it reviewed code and weak tests but never
+> checked the rendered diagram. Keep it only for the ordering-edge design notes;
+> the merge/closeout conclusion is void.
 
 ---
 
@@ -308,3 +336,38 @@ correctly marked "blocked on T000 historical baseline".
   `considerModelOrder.strategy`, which is the right call — but the crash should
   be filed upstream if not already. This is not a merge blocker.
 - No security, performance, or correctness risks detected beyond the above.
+
+
+
+TLS in our editor: ![alt text](image-24.png)
+tls in mermaid 
+![alt text](image-25.png)
+
+
+
+
+//// opus re-review:
+Done. I agree — 076 was closed too early, and I've reopened it with precise steps.
+
+Verdict: reopen confirmed
+I compared the two screenshots you didn't want to paste (found saved as image-24.png = our editor, image-25.png = the Mermaid reference) against the fixture and the closeout tests. Your and GPT's suspicion is correct. The render fails the visual bar and the gate was satisfied by tests that never render the SVG.
+
+Concrete defects visible in our render vs the Mermaid reference:
+
+Annotation nodes collapse. The grey two-line cert nodes (authored with variant: annotation, fill: grey, and a certificates + interface: tls-certificates label) render as single-line floating text — second line dropped, grey box gone.
+Structure cramped, not the clean top-down fanout.
+Text truncation in the certificate boxes.
+The :8100 server is also stale (no server-side TS hot reload), so it shows an even worse older render.
+Why the closeout still went green: preview-engine-fidelity-probes.test.ts only proves the fixture resolves to elk-layered, and elk-layout.test.ts only asserts two geometry facts. Neither renders the product SVG, so dropped labels, missing chrome, and truncation all pass silently.
+
+What I updated (so GPT has precise steps)
+spec.md — status flipped to REOPENED, plus a full "REOPENED 2026-07-07" section: the non-negotiable bar (parity with images/01-source-mermaid-reference.png and the sister harness tmp-final-canonical.png), defects D1–D5, the false-green root cause, and 7 ordered reopen steps.
+tasks.md — new Phase 5 (T050–T056), all open, with a failing-test-first render regression and a raised gate.
+specs.md — 076 row now shows REOPENED instead of "merged/archived" to kill the doc drift.
+The steps enforce: reproduce on a fresh server, write a failing render-level regression first (both label lines + grey chrome + single endpoint row + no truncation), fix annotation rendering in elk-layout.ts, fix layout and truncation, then verify against the Mermaid reference image — with a gate that geometry snippets alone no longer satisfy. Dagre stays retired.
+
+One process note left in the spec: per AGENTS.md, active work needs a fresh feature branch and the package should move back under specs while in progress.
+
+Completed: Reopen issue 076 and update spec (1/5)
+
+

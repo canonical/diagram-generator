@@ -38,7 +38,7 @@ The specific review question is now explicit:
 - Mermaid-side source of truth once added there:
   sibling `../mermaid/examples/...`
 - This package's cold-start assets:
-  `docs/spec-archive/076-tls-mermaid-cold-start-fit/images/` and `references/`
+  `specs/076-tls-mermaid-cold-start-fit/images/` and `references/`
 
 ## Investigation protocol
 

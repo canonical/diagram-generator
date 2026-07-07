@@ -1,5 +1,7 @@
 # Tasks: Spec 076 Port Mermaid's cluster/ELK lowering
 
+**Status**: REOPENED 2026-07-07 — Phases 0–4 marked done but the render fails the
+visual bar. Active work is **Phase 5** below. See `spec.md` "REOPENED 2026-07-07".
 **Input**: `spec.md`
 **Plan**: `plan.md`
 **Branch**: `feat/076-tls-mermaid-cold-start-fit`
@@ -166,7 +168,52 @@ landed in the product path without reintroducing Dagre.
   - `npm --prefix packages/layout-engine run build:browser`
   - `node scripts/check-browser-bundle-fresh.mjs`
 
+## Phase 5: REOPENED 2026-07-07 — render parity, not just geometry
+
+The Phase 3 closeout passed weak tests (engine resolution + two geometry
+snippets) but the **rendered diagram is broken**. See the spec's
+"REOPENED 2026-07-07" section for defects (D1–D5) and the visual bar. All Phase 5
+tasks are open. Do NOT reintroduce Dagre; do NOT add behaviour-heavy
+`scripts/preview/*.js`.
+
+- [ ] T050 Reproduce cleanly on a fresh render path (restart the preview server
+      or use the export/host route in
+      `apps/preview/src/preview-host/frame-documents.ts`) — never a stale
+      `:8100` process. `apps/preview` start does not hot-reload server-side TS
+      (`apps/preview/src/server.ts`). Capture the current broken SVG as the
+      reopen baseline.
+- [ ] T051 (FAILING FIRST) Add a render-level regression that produces the actual
+      product SVG for `tls-certificate-provider-topology` and asserts: every
+      annotation node renders BOTH label lines (e.g. `certificates` +
+      `interface: tls-certificates`); annotation nodes keep grey fill / chrome;
+      `traefik_public`, `traefik_internal`, `traefik_rgw` share one horizontal
+      row; no rendered label is truncated. Must fail against current output
+      before any fix.
+- [ ] T052 Fix annotation-node rendering under the ELK compound lowering: restore
+      the dropped second label line and grey box for `variant: annotation` /
+      `border: none` / `fill: grey` leaves inside lowered compounds. Root-cause in
+      `packages/layout-engine/src/elk-layout.ts` (frame-render vs ELK position
+      read-back).
+- [ ] T053 Fix the clustered layout to match the reference: clean top-down
+      provider fanout, per-cluster direction, endpoints on one horizontal row,
+      relation row above `octavia_k8s`.
+- [ ] T054 Fix text truncation: ensure ELK-path node widths / measured label
+      sizes fit the full text.
+- [ ] T055 Verify against the Mermaid reference
+      (`images/01-source-mermaid-reference.png` and sister-repo
+      `H:\WSL_dev_projects\mermaid-wt-076-tls\tmp-final-canonical.png`), not
+      geometry snippets. Save an updated in-repo render image into this package.
+- [ ] T056 Raise the closeout gate: 076 cannot re-close without (a) T051 green and
+      (b) a documented side-by-side of the fresh product render vs the Mermaid
+      reference showing parity. Engine-resolution + geometry snippets alone no
+      longer satisfy the gate.
+
 ## Closeout gate
+
+> REOPENED 2026-07-07: the gate below was declared met but did **not** include a
+> render-level parity check, so a broken render passed. The gate is now superseded
+> by Phase 5 / T056 — 076 cannot re-close without the T051 render regression green
+> and a documented side-by-side against the Mermaid reference.
 
 - T0 spike proves a compound ELK graph reproduces the reference before any
   lowering code lands.
