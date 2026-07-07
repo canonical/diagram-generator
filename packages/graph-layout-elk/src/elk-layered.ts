@@ -20,6 +20,7 @@ import { normalizeElkLayoutResult } from './result-normalizer.js';
 import { indexPlacedNodes } from './node-bounds.js';
 
 let sharedElk: InstanceType<typeof ELK> | null = null;
+const ORDERING_EDGE_PREFIX = '__dg_order__';
 
 function getElk(): InstanceType<typeof ELK> {
   if (!sharedElk) {
@@ -136,6 +137,9 @@ function withRelationshipAwarePortRefs(
   firstPass: GraphLayoutResult,
   layoutOptions: Record<string, string>,
 ): GraphLayoutInput {
+  if (input.edges.some((edge) => edge.id.startsWith(ORDERING_EDGE_PREFIX))) {
+    return input;
+  }
   const placedById = indexPlacedNodes(firstPass.nodes);
   const inputNodesById = indexInputNodes(input.nodes);
   const effectiveDirection = resolveElkDirection(input, layoutOptions);
@@ -143,6 +147,9 @@ function withRelationshipAwarePortRefs(
   return {
     ...input,
     edges: input.edges.map((edge, index) => {
+      if (edge.id.startsWith(ORDERING_EDGE_PREFIX)) {
+        return edge;
+      }
       if (edge.sourcePort || edge.targetPort) return edge;
       const sourcePlaced = placedById.get(edge.source);
       const targetPlaced = placedById.get(edge.target);

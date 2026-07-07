@@ -61,6 +61,8 @@ export interface GraphNodeInput {
   /** Input box size before the algorithm runs. */
   width: number;
   height: number;
+  /** Optional local flow direction for nested compound children. */
+  direction?: LayoutDirection;
   /** Optional compound insets for layout engines that support child padding. */
   padding?: GraphInsetsInput;
   /** Optional explicit ports; layout adapters may also synthesize implicit ports. */

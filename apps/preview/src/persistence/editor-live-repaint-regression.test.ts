@@ -70,6 +70,7 @@ function startPreviewServer(framesDir: string, port: number): {
     output.stderr += chunk;
   });
   const ready = waitForServer(`http://127.0.0.1:${port}`, child, output);
+  ready.catch(() => {});
   return { process: child, ready, output };
 }
 

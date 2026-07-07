@@ -1036,4 +1036,34 @@ describe('layoutElkFrameDiagram', () => {
     expect(diagram.root.width).toBe(1200);
     expect(diagram.root._layout.placedW).toBeGreaterThan(1200);
   });
+
+  it('keeps the TLS certificate relation row above octavia and preserves endpoint order', async () => {
+    const diagram = loadFrameYaml(join(FRAMES_DIR, 'tls-certificate-provider-topology.yaml'));
+    const adapter = new MockTextAdapter();
+
+    await layoutElkFrameDiagram(diagram, adapter);
+
+    const openstackRelationRow = findFrameById(
+      diagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'openstack_relation_row',
+    );
+    const octavia = findFrameById(
+      diagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+      'octavia_k8s',
+    );
+    const orderedEndpointIds = ['traefik_public', 'traefik_internal', 'traefik_rgw'];
+    const endpoints = orderedEndpointIds.map((id) => (
+      findFrameById(
+        diagram.root as unknown as { id: string; children: Array<{ id: string; children: unknown[] }> },
+        id,
+      )
+    ));
+
+    expect(openstackRelationRow?._layout.placedY).toBeLessThan(octavia?._layout.placedY ?? -Infinity);
+    expect(
+      endpoints.filter((frame): frame is NonNullable<typeof frame> => Boolean(frame))
+        .sort((left, right) => left._layout.placedX - right._layout.placedX)
+        .map((frame) => frame.id),
+    ).toEqual(orderedEndpointIds);
+  });
 });

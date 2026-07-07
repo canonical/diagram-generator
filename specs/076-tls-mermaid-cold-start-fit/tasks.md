@@ -47,67 +47,124 @@ The next bounded spike must test ELK ordering directly (ordering rows only,
 `SEPARATE_CHILDREN`, cross-cluster routing via containers/ports) and root-cause
 the `elkjs` hierarchy + model-order crash before any scope change.
 
+2026-07-07 checked-in rerun: `specs/076-tls-mermaid-cold-start-fit/evidence/elk-ordering-spike.mjs`
+and `specs/076-tls-mermaid-cold-start-fit/evidence/elk-ordering-spike-2026-07-07.md`
+now replace the missing `tmp/` artifacts. The current narrowed blocker is:
+ordering rows kept as separate compounds still fail cross-hierarchy fan-out with
+`UnsupportedGraphException`, while flattening those rows lets ELK run and keep
+endpoint order but still loses the cert-row-above-`octavia_k8s` shape. The next
+spike should therefore move the fan-out onto container/port boundaries instead
+of only changing option values.
+
+2026-07-07 follow-up spike: the port-routed continuation is now checked in and
+ rerun in the same evidence files. The new boundary is sharper:
+
+- parent-port -> row-port -> leaf routing avoids the earlier hierarchy error
+- that working shape preserves the endpoint row order without flattening the row
+- adding parent-compound `considerModelOrder.strategy = NODES_AND_EDGES`
+  reintroduces the old `TypeError: Cannot read properties of undefined (reading 'a')`
+  even without `forceNodeModelOrder` / `portModelOrder`, and even when applied
+  only to `openstack_services`
+- without that parent-compound model-order, ELK still leaves
+  `openstack_relation_row` level with `octavia_k8s` instead of above it
+
+The next bounded ELK-only attempt should therefore start from the working
+row-port hierarchy shape and test non-`considerModelOrder.strategy` ways of
+lifting the OpenStack relation row, or conclude that the remaining vertical
+ordering gap needs a typed lowering shim rather than more ELK option tuning.
+
 ## Phase 1: Study the portable lowering
 
-- [ ] T010 Read the MIT `@mermaid-js/layout-elk` graph-building step
+- [x] T010 Read the MIT `@mermaid-js/layout-elk` graph-building step
       (`dist/chunks/.../render-*.mjs`): how `clusterDb` / `parentLookupDb` build
       the parent map, how subgraphs become `children`, which `elk.*` options are
       set per node/cluster, and how positions are read back.
-- [ ] T011 Map Mermaid's `LayoutData` cluster concepts onto this repo's frame
+- [x] T011 Map Mermaid's `LayoutData` cluster concepts onto this repo's frame
       model: authored container -> ELK compound, blank-title ordering subgraph ->
       invisible ordering compound, leaf -> ELK node, per-subgraph direction ->
       per-compound `elk.direction`.
-- [ ] T012 Inventory the compound machinery already present in
+- [x] T012 Inventory the compound machinery already present in
       `packages/layout-engine/src/elk-layout.ts` (`collectNativeCompoundIds`,
       `isElkCompound`, `compoundNeedsElkChildLayout`) and decide reuse vs. extend.
 
 ## Phase 2: Port into the typed ELK lowering (Strategy B)
 
-- [ ] T020 Add a cluster-preserving lowering in `packages/graph-layout-elk` /
+- [x] T020 Add a cluster-preserving lowering in `packages/graph-layout-elk` /
       `packages/layout-engine`: authored clusters -> ELK compound nodes with a
       parent map, per-cluster direction, insets, and ordered children (no
       fill-carrier flattening).
-- [ ] T021 Introduce the typed concept the current model lacks: an invisible
+- [x] T021 Introduce the typed concept the current model lacks: an invisible
       "ordering cluster" (a compound with no chrome and a local direction) to
       represent Mermaid blank-title subgraphs.
-- [ ] T022 Read ELK positions back into frame geometry through the existing
+- [x] T022 Read ELK positions back into frame geometry through the existing
       position read-back path; keep our own renderer (do not port Mermaid SVG).
-- [ ] T023 Keep the lowering generic (FR-009): drive it from cluster structure,
+- [x] T023 Keep the lowering generic (FR-009): drive it from cluster structure,
       not from this fixture's ids, so spec 028 import can reuse it.
-- [ ] T024 Retire the fixture's fill-carrier blockers (`provider_stack`,
+- [x] T024 Retire the fixture's fill-carrier blockers (`provider_stack`,
       `services_row`, `load_balancer_endpoint_row`) in favour of compound
       clusters, or lower them as compounds, so `elk-layered` receives a cluster
       graph.
-- [ ] T025 After browser-surface changes, rebuild the bundle
+- [x] T025 After browser-surface changes, rebuild the bundle
       (`npm --prefix packages/layout-engine run build:browser`) and confirm
       `check-browser-bundle-fresh`.
 
 ## Phase 3: Prove it on the fixture (evidence bar)
 
-- [ ] T030 Add a repo-owned compatibility regression: the TLS fixture becomes
+- [x] T030 Add a repo-owned compatibility regression: the TLS fixture becomes
       `elk-layered`-compatible under the new lowering (update the probe in
       `packages/layout-engine/tests/preview-engine-*`).
-- [ ] T031 Add a geometry regression asserting the core cluster/ordering/direction
+- [x] T031 Add a geometry regression asserting the core cluster/ordering/direction
       expectations (cluster nesting, per-cluster direction, ordered endpoint rows)
       on this fixture.
-- [ ] T032 Confirm `elk-force` remains the wrong family here and is not claimed.
-- [ ] T033 Update the compatibility owner in
+- [x] T032 Confirm `elk-force` remains the wrong family here and is not claimed.
+- [x] T033 Update the compatibility owner in
       `packages/layout-engine/src/preview-engine/registry.ts` only once T030/T031
       pass.
 
 ## Phase 4: Docs, generalization, closeout
 
-- [ ] T040 Record the T0 evidence and the chosen strategy in the spec and review.
-- [ ] T041 Note the reuse seam for spec 028 (Mermaid import -> canonical YAML ->
+- [x] T040 Record the T0 evidence and the chosen strategy in the spec and review.
+- [x] T041 Note the reuse seam for spec 028 (Mermaid import -> canonical YAML ->
       cluster ELK lowering) without implementing 028 import here.
-- [ ] T042 Keep the cold-start asset pack and portability finding stable and
+- [x] T042 Keep the cold-start asset pack and portability finding stable and
       referenceable from `../mermaid/`.
-- [ ] T043 Run validation: `npm --prefix packages/layout-engine test`,
+- [x] T043 Run validation: `npm --prefix packages/layout-engine test`,
       `npm --prefix apps/preview test`, `node scripts/check_no_new_python.mjs`,
       `build:browser`, `check-browser-bundle-fresh`.
-- [ ] T044 Closeout gate: T0 spike recorded, Strategy B ported generically,
+- [x] T044 Closeout gate: T0 spike recorded, Strategy B ported generically,
       fixture compatibility + geometry regressions green, no Dagre, no new
       behaviour-heavy `scripts/preview/*.js`.
+
+2026-07-07 implementation closeout: the bounded ELK-only follow-up is now
+landed in the product path without reintroducing Dagre.
+
+- The generic lowering seam now preserves authored/native compounds, carries
+  local direction on `GraphNodeInput`, and synthesizes invisible ordering edges
+  inside locally directed compounds to preserve Mermaid-style row order without
+  relying on ELK model-order options that crash under hierarchy.
+- Cross-hierarchy authored edges still promote the necessary compounds to
+  `INCLUDE_CHILDREN`, while ordering edges remain layout-only and are filtered
+  out of rendered routes/labels.
+- The TLS fixture now declares
+  `meta.diagram_type: deployment_and_runtime_topology` and
+  `meta.layout_engine: elk-layered`, with authored levels corrected to satisfy
+  the sibling-promotion rule.
+- Repo-owned regressions are green:
+  - `packages/layout-engine/tests/preview-engine-fidelity-probes.test.ts`
+    reclassifies the TLS fixture as `elk-layered`-compatible
+  - `packages/layout-engine/tests/elk-layout.test.ts` asserts
+    `openstack_relation_row` stays above `octavia_k8s` and the endpoint row
+    order stays `traefik_public`, `traefik_internal`, `traefik_rgw`
+  - existing `mongo-octavia-ha` fidelity remains green after fixing the dead
+    locked-container overflow branch in `wrapStructuralContainers(...)`
+- Validation is green:
+  - `npm --prefix packages/graph-layout-elk test` → 44/44
+  - `npm --prefix packages/layout-engine test` → 992/992
+  - `npm --prefix apps/preview test` → 160 pass / 6 skip
+    (`Playwright chromium unavailable` skip path hardened)
+  - `node scripts/check_no_new_python.mjs`
+  - `npm --prefix packages/layout-engine run build:browser`
+  - `node scripts/check-browser-bundle-fresh.mjs`
 
 ## Closeout gate
 

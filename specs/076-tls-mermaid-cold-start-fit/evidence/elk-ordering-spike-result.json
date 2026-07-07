@@ -1,0 +1,238 @@
+{
+  "results": [
+    {
+      "variant": "baseline",
+      "ok": false,
+      "error": {
+        "name": "Error",
+        "message": "org.eclipse.elk.core.UnsupportedGraphException: The source or the target of edge ElkEdge \"manual->public\" ElkNode \"manual_tls_certificates\" (0,0 | 304,64) -> ElkNode \"traefik_public\" (12,12 | 240,64) could not be found. This usually happens when an edge connects a node laid out by ELK Layered to a node in another level of hierarchy laid out by either another instance of ELK Layered or another layout algorithm alltogether. The former can be solved by setting the hierarchyHandling option to INCLUDE_CHILDREN.",
+        "stack": [
+          "Error: org.eclipse.elk.core.UnsupportedGraphException: The source or the target of edge ElkEdge \"manual->public\" ElkNode \"manual_tls_certificates\" (0,0 | 304,64) -> ElkNode \"traefik_public\" (12,12 | 240,64) could not be found. This usually happens when an edge connects a node laid out by ELK Layered to a node in another level of hierarchy laid out by either another instance of ELK Layered or another layout algorithm alltogether. The former can be solved by setting the hierarchyHandling option to INCLUDE_CHILDREN.",
+          "    at a9c.hz [as ce] (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:6465:90946)",
+          "    at a9c.nz [as he] (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:6465:91254)",
+          "    at a9c.fz (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:2766:48)",
+          "    at a9c.qz (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:1388:19)",
+          "    at new a9c (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:1441:20)"
+        ]
+      }
+    },
+    {
+      "variant": "row-model-order",
+      "ok": false,
+      "error": {
+        "name": "Error",
+        "message": "org.eclipse.elk.core.UnsupportedGraphException: The source or the target of edge ElkEdge \"manual->public\" ElkNode \"manual_tls_certificates\" (0,0 | 304,64) -> ElkNode \"traefik_public\" (12,12 | 240,64) could not be found. This usually happens when an edge connects a node laid out by ELK Layered to a node in another level of hierarchy laid out by either another instance of ELK Layered or another layout algorithm alltogether. The former can be solved by setting the hierarchyHandling option to INCLUDE_CHILDREN.",
+        "stack": [
+          "Error: org.eclipse.elk.core.UnsupportedGraphException: The source or the target of edge ElkEdge \"manual->public\" ElkNode \"manual_tls_certificates\" (0,0 | 304,64) -> ElkNode \"traefik_public\" (12,12 | 240,64) could not be found. This usually happens when an edge connects a node laid out by ELK Layered to a node in another level of hierarchy laid out by either another instance of ELK Layered or another layout algorithm alltogether. The former can be solved by setting the hierarchyHandling option to INCLUDE_CHILDREN.",
+          "    at a9c.hz [as ce] (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:6465:90946)",
+          "    at a9c.nz [as he] (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:6465:91254)",
+          "    at a9c.fz (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:2766:48)",
+          "    at a9c.qz (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:1388:19)",
+          "    at new a9c (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:1441:20)"
+        ]
+      }
+    },
+    {
+      "variant": "all-compounds-include-children",
+      "ok": false,
+      "error": {
+        "name": "Error",
+        "message": "org.eclipse.elk.core.UnsupportedGraphException: The source or the target of edge ElkEdge \"manual->public\" ElkNode \"manual_tls_certificates\" (0,0 | 304,64) -> ElkNode \"traefik_public\" (12,12 | 240,64) could not be found. This usually happens when an edge connects a node laid out by ELK Layered to a node in another level of hierarchy laid out by either another instance of ELK Layered or another layout algorithm alltogether. The former can be solved by setting the hierarchyHandling option to INCLUDE_CHILDREN.",
+        "stack": [
+          "Error: org.eclipse.elk.core.UnsupportedGraphException: The source or the target of edge ElkEdge \"manual->public\" ElkNode \"manual_tls_certificates\" (0,0 | 304,64) -> ElkNode \"traefik_public\" (12,12 | 240,64) could not be found. This usually happens when an edge connects a node laid out by ELK Layered to a node in another level of hierarchy laid out by either another instance of ELK Layered or another layout algorithm alltogether. The former can be solved by setting the hierarchyHandling option to INCLUDE_CHILDREN.",
+          "    at a9c.hz [as ce] (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:6465:90946)",
+          "    at a9c.nz [as he] (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:6465:91254)",
+          "    at a9c.fz (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:2766:48)",
+          "    at a9c.qz (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:1388:19)",
+          "    at new a9c (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:1441:20)"
+        ]
+      }
+    },
+    {
+      "variant": "flatten-order-rows",
+      "ok": true,
+      "summary": {
+        "endpointOrder": [
+          "traefik_public",
+          "traefik_internal",
+          "traefik_rgw"
+        ],
+        "certRowAboveOctavia": false,
+        "certRowY": 12,
+        "octaviaY": 12
+      }
+    },
+    {
+      "variant": "compound-ports-nested-edges",
+      "ok": false,
+      "error": {
+        "name": "Error",
+        "message": "org.eclipse.elk.core.UnsupportedGraphException: The source or the target of edge ElkEdge \"lb-public-in->public\" ElkPort \"load_balancers__public_in\" (160,0 | 12,12) -> ElkNode \"traefik_public\" (12,12 | 240,64) could not be found. This usually happens when an edge connects a node laid out by ELK Layered to a node in another level of hierarchy laid out by either another instance of ELK Layered or another layout algorithm alltogether. The former can be solved by setting the hierarchyHandling option to INCLUDE_CHILDREN.",
+        "stack": [
+          "Error: org.eclipse.elk.core.UnsupportedGraphException: The source or the target of edge ElkEdge \"lb-public-in->public\" ElkPort \"load_balancers__public_in\" (160,0 | 12,12) -> ElkNode \"traefik_public\" (12,12 | 240,64) could not be found. This usually happens when an edge connects a node laid out by ELK Layered to a node in another level of hierarchy laid out by either another instance of ELK Layered or another layout algorithm alltogether. The former can be solved by setting the hierarchyHandling option to INCLUDE_CHILDREN.",
+          "    at a9c.hz [as ce] (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:6465:90946)",
+          "    at a9c.nz [as he] (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:6465:91254)",
+          "    at a9c.fz (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:2766:48)",
+          "    at a9c.qz (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:1388:19)",
+          "    at new a9c (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:1441:20)"
+        ]
+      }
+    },
+    {
+      "variant": "compound-ports-compound-order",
+      "ok": false,
+      "error": {
+        "name": "Error",
+        "message": "org.eclipse.elk.core.UnsupportedGraphException: The source or the target of edge ElkEdge \"lb-public-in->public\" ElkPort \"load_balancers__public_in\" (160,0 | 12,12) -> ElkNode \"traefik_public\" (12,12 | 240,64) could not be found. This usually happens when an edge connects a node laid out by ELK Layered to a node in another level of hierarchy laid out by either another instance of ELK Layered or another layout algorithm alltogether. The former can be solved by setting the hierarchyHandling option to INCLUDE_CHILDREN.",
+        "stack": [
+          "Error: org.eclipse.elk.core.UnsupportedGraphException: The source or the target of edge ElkEdge \"lb-public-in->public\" ElkPort \"load_balancers__public_in\" (160,0 | 12,12) -> ElkNode \"traefik_public\" (12,12 | 240,64) could not be found. This usually happens when an edge connects a node laid out by ELK Layered to a node in another level of hierarchy laid out by either another instance of ELK Layered or another layout algorithm alltogether. The former can be solved by setting the hierarchyHandling option to INCLUDE_CHILDREN.",
+          "    at a9c.hz [as ce] (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:6465:90946)",
+          "    at a9c.nz [as he] (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:6465:91254)",
+          "    at a9c.fz (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:2766:48)",
+          "    at a9c.qz (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:1388:19)",
+          "    at new a9c (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:1441:20)"
+        ]
+      }
+    },
+    {
+      "variant": "compound-ports-compound-order-containers",
+      "ok": false,
+      "error": {
+        "name": "Error",
+        "message": "org.eclipse.elk.core.UnsupportedGraphException: The source or the target of edge ElkEdge \"lb-public-in->public\" ElkPort \"load_balancers__public_in\" (160,0 | 12,12) -> ElkNode \"traefik_public\" (12,12 | 240,64) could not be found. This usually happens when an edge connects a node laid out by ELK Layered to a node in another level of hierarchy laid out by either another instance of ELK Layered or another layout algorithm alltogether. The former can be solved by setting the hierarchyHandling option to INCLUDE_CHILDREN.",
+        "stack": [
+          "Error: org.eclipse.elk.core.UnsupportedGraphException: The source or the target of edge ElkEdge \"lb-public-in->public\" ElkPort \"load_balancers__public_in\" (160,0 | 12,12) -> ElkNode \"traefik_public\" (12,12 | 240,64) could not be found. This usually happens when an edge connects a node laid out by ELK Layered to a node in another level of hierarchy laid out by either another instance of ELK Layered or another layout algorithm alltogether. The former can be solved by setting the hierarchyHandling option to INCLUDE_CHILDREN.",
+          "    at a9c.hz [as ce] (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:6465:90946)",
+          "    at a9c.nz [as he] (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:6465:91254)",
+          "    at a9c.fz (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:2766:48)",
+          "    at a9c.qz (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:1388:19)",
+          "    at new a9c (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:1441:20)"
+        ]
+      }
+    },
+    {
+      "variant": "compound-ports-row-ports",
+      "ok": false,
+      "error": {
+        "name": "TypeError",
+        "message": "Cannot read properties of undefined (reading 'a')",
+        "stack": [
+          "TypeError: Cannot read properties of undefined (reading 'a')",
+          "    at Sbc (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:5290:197)",
+          "    at Xbc.Ybc [as Ad] (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:6465:204418)",
+          "    at iCb (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:2790:46)",
+          "    at lCb.mCb [as Ad] (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:6465:136821)",
+          "    at Ivb (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:3862:48)"
+        ]
+      }
+    },
+    {
+      "variant": "compound-ports-row-ports-containers",
+      "ok": false,
+      "error": {
+        "name": "TypeError",
+        "message": "Cannot read properties of undefined (reading 'a')",
+        "stack": [
+          "TypeError: Cannot read properties of undefined (reading 'a')",
+          "    at Sbc (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:5290:197)",
+          "    at Xbc.Ybc [as Ad] (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:6465:204418)",
+          "    at iCb (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:2790:46)",
+          "    at lCb.mCb [as Ad] (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:6465:136821)",
+          "    at Ivb (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:3862:48)"
+        ]
+      }
+    },
+    {
+      "variant": "compound-ports-row-ports-no-compound-order",
+      "ok": true,
+      "summary": {
+        "endpointOrder": [
+          "traefik_public",
+          "traefik_internal",
+          "traefik_rgw"
+        ],
+        "certRowAboveOctavia": false,
+        "certRowY": 12,
+        "octaviaY": 12
+      }
+    },
+    {
+      "variant": "compound-ports-row-ports-no-model-order",
+      "ok": true,
+      "summary": {
+        "endpointOrder": [
+          "traefik_public",
+          "traefik_internal",
+          "traefik_rgw"
+        ],
+        "certRowAboveOctavia": false,
+        "certRowY": 12,
+        "octaviaY": 12
+      }
+    },
+    {
+      "variant": "compound-ports-row-ports-compound-strategy",
+      "ok": false,
+      "error": {
+        "name": "TypeError",
+        "message": "Cannot read properties of undefined (reading 'a')",
+        "stack": [
+          "TypeError: Cannot read properties of undefined (reading 'a')",
+          "    at Sbc (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:5290:197)",
+          "    at Xbc.Ybc [as Ad] (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:6465:204418)",
+          "    at iCb (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:2790:46)",
+          "    at lCb.mCb [as Ad] (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:6465:136821)",
+          "    at Ivb (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:3862:48)"
+        ]
+      }
+    },
+    {
+      "variant": "compound-ports-row-ports-compound-strategy-force",
+      "ok": false,
+      "error": {
+        "name": "TypeError",
+        "message": "Cannot read properties of undefined (reading 'a')",
+        "stack": [
+          "TypeError: Cannot read properties of undefined (reading 'a')",
+          "    at Sbc (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:5290:197)",
+          "    at Xbc.Ybc [as Ad] (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:6465:204418)",
+          "    at iCb (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:2790:46)",
+          "    at lCb.mCb [as Ad] (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:6465:136821)",
+          "    at Ivb (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:3862:48)"
+        ]
+      }
+    },
+    {
+      "variant": "compound-ports-row-ports-compound-strategy-port",
+      "ok": false,
+      "error": {
+        "name": "TypeError",
+        "message": "Cannot read properties of undefined (reading 'a')",
+        "stack": [
+          "TypeError: Cannot read properties of undefined (reading 'a')",
+          "    at Sbc (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:5290:197)",
+          "    at Xbc.Ybc [as Ad] (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:6465:204418)",
+          "    at iCb (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:2790:46)",
+          "    at lCb.mCb [as Ad] (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:6465:136821)",
+          "    at Ivb (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:3862:48)"
+        ]
+      }
+    },
+    {
+      "variant": "compound-ports-row-ports-openstack-strategy-only",
+      "ok": false,
+      "error": {
+        "name": "TypeError",
+        "message": "Cannot read properties of undefined (reading 'a')",
+        "stack": [
+          "TypeError: Cannot read properties of undefined (reading 'a')",
+          "    at FEc (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:4474:56)",
+          "    at yEc (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:4326:102)",
+          "    at CEc (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:5956:369)",
+          "    at LEc.NEc [as If] (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:6465:266840)",
+          "    at $Pb (/Users/l/work/diagram-generator/packages/graph-layout-elk/node_modules/elkjs/lib/elk.bundled.js:6182:515)"
+        ]
+      }
+    }
+  ]
+}

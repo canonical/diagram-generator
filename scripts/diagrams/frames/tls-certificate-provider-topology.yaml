@@ -1,7 +1,8 @@
 engine: v3
 title: TLS certificate provider topology
 meta:
-  layout_engine: v3
+  diagram_type: deployment_and_runtime_topology
+  layout_engine: elk-layered
   source_image: image-22.png
 grid:
   cols: 3
@@ -28,7 +29,7 @@ root:
   sizing_w: fixed
   children:
     - id: tls_provider
-      level: 3
+      level: 2
       heading: TLS Certificate Provider
       sizing_w: fill
       align: top-center
@@ -56,7 +57,7 @@ root:
       gap: 32
       children:
         - id: openstack_services
-          level: 3
+          level: 2
           heading: OpenStack Services
           sizing_w: fill
           children:
@@ -96,7 +97,7 @@ root:
                 - octavia-k8s
                 - Load Balancer Service
         - id: load_balancers
-          level: 3
+          level: 2
           heading: LoadBalancers
           direction: vertical
           sizing_w: fill

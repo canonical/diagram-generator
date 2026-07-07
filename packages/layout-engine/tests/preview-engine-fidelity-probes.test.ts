@@ -150,4 +150,28 @@ describe('preview-engine fidelity probes', () => {
       frameDiagramSummary: summary,
     })).toBeUndefined();
   });
+
+  it('resolves the TLS certificate provider topology to elk-layered once its typed cluster lowering is available', () => {
+    const diagram = loadFrameYaml(join(FRAMES_DIR, 'tls-certificate-provider-topology.yaml'));
+    const summary = summarizeFrameDiagramCompatibility(diagram);
+
+    expect(summary.diagramType).toBe('deployment_and_runtime_topology');
+    expect(listCompatiblePreviewEngines({
+      shellMode: 'grid',
+      previewDocumentKind: 'frame-diagram',
+      frameDiagramSummary: summary,
+    }).map((entry) => entry.id)).toContain('elk-layered');
+
+    expect(resolvePreviewEngine({
+      layoutEngine: diagram.layoutEngine,
+      shellMode: 'grid',
+      previewDocumentKind: 'frame-diagram',
+      frameDiagramSummary: summary,
+    })?.id).toBe('elk-layered');
+    expect(evaluatePreviewEngineCompatibility(ELK_LAYERED_PREVIEW_ENGINE, {
+      shellMode: 'grid',
+      previewDocumentKind: 'frame-diagram',
+      frameDiagramSummary: summary,
+    })).toEqual({ compatible: true });
+  });
 });

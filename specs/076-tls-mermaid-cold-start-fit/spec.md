@@ -1,7 +1,7 @@
 # Spec 076: Port Mermaid's cluster/ELK lowering (TLS cold-start example)
 
 **Feature Branch**: `feat/076-tls-mermaid-cold-start-fit`
-**Status**: Draft
+**Status**: Closeout Ready
 **Created**: 2026-07-06
 **Rewritten**: 2026-07-06 — pivoted from "investigate Dagre vs lowering" to
 "adopt/port Mermaid's proven cluster->ELK lowering", after confirming the sibling
@@ -292,6 +292,27 @@ engine change: enable model-order only on the ordering rows, keep those rows
 `SEPARATE_CHILDREN`, route cross-cluster edges via containers/ports, and
 root-cause the crash before reconsidering scope.
 
+## Implementation closeout update (2026-07-07)
+
+The bounded ELK-only follow-up ultimately justified a **typed lowering shim**,
+not a Dagre fallback and not more ELK model-order tuning.
+
+What landed in product path:
+
+- authored/native compounds stay preserved in the ELK graph
+- nested compounds can now carry a local flow direction through
+  `GraphNodeInput.direction`
+- locally directed compounds synthesize invisible ordering edges so ELK keeps
+  row order without using the hierarchy+model-order option set that crashes
+  `elkjs`
+- cross-hierarchy authored edges still promote the necessary compound path to
+  `INCLUDE_CHILDREN`
+- ordering edges stay layout-only and are filtered from rendered routes/labels
+
+This keeps the implementation generic for spec 028 reuse, keeps Dagre retired,
+and proves the TLS fixture on the real product path rather than on a spike-only
+graph.
+
 ## Execution notes for implementers (GPT-tier, prescriptive)
 
 This section makes T0 (the spike) executable without design judgement, so it can
@@ -433,8 +454,10 @@ and the core cluster/ordering geometry.
   cluster/ordering/direction geometry before the fixture is reclassified.
 - **FR-007**: The T0 spike (hand-authored compound ELK graph for this fixture,
   optionally cross-checked against Strategy C's `.mmd` ELK render) MUST run and
-  be recorded before any lowering code lands, so "better lowering fixes it" is
-  proven, not asserted.
+  be recorded before any reclassification claim lands. If T0 still misses the
+  reference, the only allowed continuation remains ELK-only: a bounded ordering
+  / crash follow-up that either proves a typed lowering shim or leaves the
+  fixture unreclassified.
 - **FR-008**: The spec MUST explain the photo context explicitly:
   source truth, field-engineer external attempt, and in-repo controlled
   comparisons.
@@ -462,11 +485,12 @@ and the core cluster/ordering geometry.
    - If it matches the reference: the diagnosis is proven; proceed to the
      Strategy B port.
    - If it does not: record the specific residual (direction mixing, ordered
-     rows, cross-cluster routing) and escalate to a dedicated cluster pass —
-     still not Dagre.
-7. Only after T0 passes, review the Strategy B port for: reuse of existing
-   compound machinery, per-cluster direction, cluster insets, ordered children,
-   and correct position read-back.
+     rows, cross-cluster routing), keep the follow-up ELK-only, and prove either
+     a bounded typed lowering shim or a continued block — still not Dagre.
+7. Only after T0 passes **or** the bounded ELK-only follow-up proves a typed
+   lowering shim, review the Strategy B port for: reuse of existing compound
+   machinery, per-cluster direction, ordered-child preservation, any synthetic
+   ordering shim, and correct position read-back.
 8. Require the fixture-owned regression (compatibility + geometry) to pass.
 9. Reject any fix that keeps the current fill carriers, skips T0, or reintroduces
    Dagre.
@@ -488,8 +512,9 @@ and the core cluster/ordering geometry.
   cluster->ELK lowering (`@mermaid-js/layout-elk`, MIT, over `elkjs`), not Dagre
   — with the portability finding verifiable in `../mermaid/node_modules`.
 - **SC-007**: The TLS fixture is not reclassified as `elk-layered`-compatible
-  until the T0 spike passes and a fixture-owned regression (compatibility +
-  cluster/direction/ordering geometry) is committed.
+  until either the T0 spike passes directly or the bounded ELK-only follow-up
+  proves a typed lowering shim, and the fixture-owned regression
+  (compatibility + cluster/direction/ordering geometry) is committed.
 - **SC-008**: The ported cluster->ELK lowering is generic enough for spec 028's
   Mermaid import to reuse, not hard-coded to this one fixture.
 

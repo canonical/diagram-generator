@@ -235,6 +235,27 @@ change. Reasons, from the actual artifacts:
 **Guardrail unchanged:** no Dagre reintroduction in `diagram-generator` on this
 evidence. Spec 074 stands.
 
+## Implementation closeout update — 2026-07-07
+
+The bounded follow-up is now closed on the product path, and it satisfies the
+review guardrails.
+
+- Dagre stays retired.
+- The landed solution is ELK-only and generic: preserve authored/native
+  compounds, carry local compound direction in the typed graph IR, and synthesize
+  invisible ordering edges inside directed compounds instead of relying on the
+  hierarchy + model-order ELK option combination that crashes.
+- The TLS fixture now resolves to `elk-layered` with repo-owned compatibility
+  and geometry regressions proving the cert row stays above `octavia_k8s` and
+  the endpoint row order stays `traefik_public`, `traefik_internal`,
+  `traefik_rgw`.
+- The Mongo availability-zone seam remains green; the final pass fixed a dead
+  locked-container overflow branch in `wrapStructuralContainers(...)` so
+  annotation-bearing compounds expand when needed.
+- Validation is green: `packages/graph-layout-elk` 44/44,
+  `packages/layout-engine` 992/992, `apps/preview` 160 pass / 6 skip,
+  `check_no_new_python`, `build:browser`, and `check-browser-bundle-fresh`.
+
 ## T0 result update (2026-07-06)
 
 The blocking spike is now executed, and the evidence does not clear the port gate.
