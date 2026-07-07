@@ -93,8 +93,14 @@ row) before coding. Bugs already captured by a numbered spec live in
   swimlane, ER/class orthogonal, `elk-force` lane polish.
 - Editor workflow: folder-backed navigation, cross-engine multi-select
   align/distribute, bulk pin/unpin.
+- Layers palette follow-up after spec 070: cross-parent move/reparent and
+  drag-and-drop between containers, not just same-parent reorder.
 - Frame authoring: nested children default to autolayout **fill** not fixed
   width (gap regression on fresh diagrams); root sizing / direction-change.
+- Performance/stability: investigate preview or generation jobs that saturate
+  CPU/RAM and can lock a workstation under heavy diagram loads.
+- Rich node content blocks: heading + paragraph + bullet-list content inside one
+  node without abusing grey annotation children.
 - Contract hardening: arrow clearance, invalid-enum diagnostics, preview JSON
   schema freshness, parser negatives, layout idempotency.
 - Later: ontology-driven engine selection, security hardening, arrow waypoint
