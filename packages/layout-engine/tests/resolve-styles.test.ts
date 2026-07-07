@@ -109,6 +109,20 @@ describe('resolveStyles', () => {
     expect(leaf.resolvedTextFill).toBe('#666666');
   });
 
+  it('annotation keeps explicit grey fill while staying borderless', () => {
+    const leaf = new Frame({
+      id: 'ann-grey',
+      border: Border.NONE,
+      fill: Fill.GREY,
+      label: [createLine('note')],
+    });
+    const root = new Frame({ id: 'root', children: [leaf] });
+    resolveStyles(root);
+    expect(leaf.resolvedFill).toBe('#F3F3F3');
+    expect(leaf.resolvedStroke).toBe('none');
+    expect(leaf.resolvedTextFill).toBe('#666666');
+  });
+
   it('layout wrappers (__body) get transparent/none', () => {
     const body = new Frame({ id: '__body' });
     const panel = new Frame({ id: 'p', level: 2, children: [body] });

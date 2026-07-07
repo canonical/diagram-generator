@@ -121,6 +121,24 @@ form. Do **not** reintroduce Dagre (spec 074 retirement still holds) and do
    product render vs the Mermaid reference showing parity. Engine-resolution and
    geometry-snippet tests alone no longer satisfy the gate.
 
+### 2026-07-07 reopen closeout result
+
+The Phase 5 reopen work is now complete on `feat/076-tls-mermaid-cold-start-fit`.
+
+- The render-level regression now exercises the real preview/export path via
+  `apps/preview/src/persistence/tls-render-regression.test.ts`.
+- YAML line normalization preserves literal `key: value` label lines, so the
+  authored `interface: tls-certificates` second line survives compilation.
+- Borderless grey annotation leaves keep their grey fill, and omitted
+  annotation descendants now use semantic text-fit sizing so the full label fits.
+- ELK-stacked horizontal rows are normalized back to their semantic row shape,
+  and affected ELK edge routes are cleared so the normal router reroutes against
+  the corrected boxes.
+- The reopen evidence pack now includes the broken baseline
+  `evidence/tls-render-reopen-baseline.svg`, the fixed product render
+  `evidence/tls-render-reopen-fixed.svg`, and the parity note
+  `evidence/tls-render-reopen-2026-07-07.md`.
+
 ### Process notes
 
 - Per `AGENTS.md`, active spec work needs a matching feature branch. Reopen on a

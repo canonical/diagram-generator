@@ -13,57 +13,43 @@ spec catalog/status → [`docs/specs.md`](docs/specs.md) · human notes →
 adversarial reviews → `docs/spec-reviews/`.
 
 **Last-known-green (2026-07-07):** `graph-layout-elk` 44/44, `layout-engine`
-992/992, `apps/preview` 166/166; `build:browser`, `check-browser-bundle-fresh`,
+992/992, `apps/preview` 167/167; `build:browser`, `check-browser-bundle-fresh`,
 `check_no_new_python`, and preview-shell size budgets all green.
 
 ---
 
-## Current handoff (2026-07-07) — 076 REOPENED, ready for a cold-start GPT
+## Current handoff (2026-07-07) — 076 reopened Phase 5 is complete on branch
 
-**Task:** fix the TLS diagram render so it matches the Mermaid reference, then
-re-close 076 against a real render gate. The earlier closeout was premature: the
-tests passed but the rendered diagram is broken.
+**Task status:** `feat/076-tls-mermaid-cold-start-fit` now has the reopened TLS
+render fixes and is ready for review / commit. The prior false-green closeout is
+repaired: the repo now owns a real product-path SVG regression plus evidence.
 
-**Start here (read in order):**
+**Key outputs:**
 
-1. `specs/076-tls-mermaid-cold-start-fit/spec.md` — read the
-   "REOPENED 2026-07-07 — closeout was premature" section. It is the authoritative
-   work list (bar, defects D1–D5, ordered steps). Ignore any "merged/archived"
-   wording elsewhere in that file; it is history.
-2. `specs/076-tls-mermaid-cold-start-fit/tasks.md` — Phase 5, tasks `T050`–`T056`.
-   All open. Do them in order; `T051` (failing render regression) comes before any
-   fix.
+1. `apps/preview/src/persistence/tls-render-regression.test.ts`
+   - renders the real product SVG and asserts both annotation label lines, grey
+     annotation chrome, one horizontal endpoint row, and no truncation
+2. `specs/076-tls-mermaid-cold-start-fit/evidence/tls-render-reopen-baseline.svg`
+   - fresh broken baseline captured before the fixes
+3. `specs/076-tls-mermaid-cold-start-fit/evidence/tls-render-reopen-fixed.svg`
+   - fresh product render after the fixes
+4. `specs/076-tls-mermaid-cold-start-fit/evidence/tls-render-reopen-2026-07-07.md`
+   - comparison note linking the Mermaid reference, sister harness, baseline, and
+     fixed render
 
-**The bar (non-negotiable):** the live render of
-`tls-certificate-provider-topology` must reach visual parity with the Mermaid
-reference:
-- `specs/076-tls-mermaid-cold-start-fit/images/01-source-mermaid-reference.png`
-- sister harness `H:\WSL_dev_projects\mermaid-wt-076-tls\tmp-final-canonical.png`
+**Implemented fix owners:**
 
-Engine-resolution probes and geometry-snippet asserts are NOT sufficient — that
-is exactly what let the broken render pass last time.
+- YAML line normalization now preserves single-entry mapping lines like
+  `interface: tls-certificates` as literal label text.
+- Borderless grey annotation leaves keep their grey fill.
+- Omitted annotation descendants use semantic text-fit sizing, so their full
+  label fits instead of wrapping into extra `tspan`s.
+- ELK-stacked horizontal rows normalize back to their semantic row shape, and
+  affected ELK edge routes are cleared so the standard router reroutes against
+  the corrected boxes.
 
-**Confirmed defects:**
-- D1 grey two-line annotation nodes render as single-line bare text — the second
-  label line (`interface: tls-certificates`) is dropped and the grey box chrome is
-  gone.
-- D2 top-down clustered structure is cramped, not the clean provider fanout.
-- D3 endpoint / relation rows are not clean horizontal rows.
-- D4 certificate text is truncated.
-- D5 the `:8100` preview is stale (no server-side TS hot reload) and shows an even
-  older render — reproduce on a fresh server or the export route, never `:8100`.
-
-**Rules:** no Dagre (spec 074 retirement holds); no behaviour-heavy
-`scripts/preview/*.js`; the fixture YAML is correct (both label lines are
-authored) so the bug is in the render path, not the YAML. Work on a fresh
-`feat/076-...-reopen` branch.
-
-**Root cause of the false green:**
-`packages/layout-engine/tests/preview-engine-fidelity-probes.test.ts` only proves
-the fixture resolves to `elk-layered`;
-`packages/layout-engine/tests/elk-layout.test.ts` only asserts two geometry facts.
-Neither renders the SVG. The annotation-rendering bug likely lives in the
-frame-render vs ELK position read-back path in
-`packages/layout-engine/src/elk-layout.ts`.
+**If resuming 076:** start with `specs/076-tls-mermaid-cold-start-fit/tasks.md`
+and `evidence/tls-render-reopen-2026-07-07.md`; the spec catalog row is now
+`Closeout Ready 2026-07-07 — reopened Phase 5 complete`.
 
 

@@ -1060,6 +1060,10 @@ describe('layoutElkFrameDiagram', () => {
     ));
 
     expect(openstackRelationRow?._layout.placedY).toBeLessThan(octavia?._layout.placedY ?? -Infinity);
+    const endpointYValues = endpoints
+      .filter((frame): frame is NonNullable<typeof frame> => Boolean(frame))
+      .map((frame) => frame._layout.placedY);
+    expect(Math.max(...endpointYValues) - Math.min(...endpointYValues)).toBeLessThanOrEqual(1);
     expect(
       endpoints.filter((frame): frame is NonNullable<typeof frame> => Boolean(frame))
         .sort((left, right) => left._layout.placedX - right._layout.placedX)

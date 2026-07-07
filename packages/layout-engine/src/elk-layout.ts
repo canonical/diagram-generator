@@ -18,14 +18,19 @@ import {
   stripImplementationOwnedElkLayeredOverrides,
 } from '@diagram-generator/graph-layout-elk';
 
-import { Frame, FrameDiagram, Border, Direction, createLine } from './frame-model.js';
+import { Frame, FrameDiagram, Border, Direction, Sizing, createLine } from './frame-model.js';
 import { measure, place, layoutFrameTree, type LayoutOutput } from './layout.js';
 import { deserializeFrameDiagramWire, serializeFrameDiagram } from './frame-serialize.js';
 import { resolveStyles } from './resolve-styles.js';
-import { annotationTextToSpec } from './resolved-spec-typography.js';
+import {
+  annotationTextToSpec,
+  frameOwnedTextBlockGap,
+  frameOwnedTextBlocks,
+} from './resolved-spec-typography.js';
+import { leafIconColumnWidth } from './spatial.js';
 import type { TextMeasureAdapter } from './text-measure.js';
-import { lineSpecToMeasureRequest } from './text-measure.js';
-import { INSET, roundUpToGrid, sizeToPx, BODY_LINE_STEP } from './tokens.js';
+import { estimateLineWidth, lineSpecToMeasureRequest } from './text-measure.js';
+import { ICON_SIZE, INSET, roundUpToGrid, sizeToPx, BODY_LINE_STEP } from './tokens.js';
 
 export interface ElkLayoutSnapshot extends GraphLayoutResult {
   originX: number;
@@ -221,6 +226,66 @@ function measureSubtree(frame: Frame, adapter: TextMeasureAdapter): void {
   measure(frame, adapter, true);
 }
 
+function measuredElkLeafSize(
+  frame: Frame,
+  adapter: TextMeasureAdapter,
+): { width: number; height: number } {
+  const textBlocks = frameOwnedTextBlocks(frame);
+  const explicitWidth = frame.sizingW === Sizing.FIXED && frame.width != null
+    ? roundUpToGrid(frame.width)
+    : 0;
+  const explicitHeight = frame.sizingH === Sizing.FIXED && frame.height != null
+    ? roundUpToGrid(frame.height)
+    : 0;
+  if (textBlocks.length === 0) {
+    return {
+      width: Math.max(explicitWidth, roundUpToGrid(frame._layout.measuredW)),
+      height: Math.max(explicitHeight, roundUpToGrid(frame._layout.measuredH)),
+    };
+  }
+
+  let textWidth = 0;
+  let textHeight = frame.paddingTop + frame.paddingBottom;
+  for (const [blockIndex, block] of textBlocks.entries()) {
+    for (const spec of block) {
+      textWidth = Math.max(textWidth, estimateLineWidth(spec, adapter));
+      textHeight += sizeToPx(spec.lineStep ?? BODY_LINE_STEP);
+    }
+    textHeight += frameOwnedTextBlockGap(frame, blockIndex, textBlocks.length);
+  }
+
+  const contentWidth = roundUpToGrid(
+    frame.paddingLeft + textWidth + frame.paddingRight + leafIconColumnWidth(frame),
+  );
+  const contentHeight = roundUpToGrid(
+    frame.border !== Border.NONE || frame.icon
+      ? Math.max(textHeight, frame.paddingTop + ICON_SIZE + frame.paddingBottom)
+      : textHeight,
+  );
+
+  return {
+    width: Math.max(explicitWidth, contentWidth),
+    height: Math.max(explicitHeight, contentHeight),
+  };
+}
+
+function shouldExpandElkLeafToFitText(frame: Frame): boolean {
+  return frame.border === Border.NONE && frame.resolvedFill === '#F3F3F3';
+}
+
+function expandSemanticTextFitLeaves(root: Frame, adapter: TextMeasureAdapter): void {
+  walkFrames(root, (frame) => {
+    if (!frame.isLeaf || !shouldExpandElkLeafToFitText(frame)) {
+      return;
+    }
+    const measured = measuredElkLeafSize(frame, adapter);
+    frame.width = measured.width;
+    frame.height = measured.height;
+    frame.sizingW = Sizing.FIXED;
+    frame.sizingH = Sizing.FIXED;
+  });
+}
+
 function cloneFrameDiagram(diagram: FrameDiagram): FrameDiagram {
   return deserializeFrameDiagramWire(
     JSON.parse(JSON.stringify(serializeFrameDiagram(diagram))) as Record<string, unknown>,
@@ -274,6 +339,7 @@ function collectSemanticLayoutSnapshot(
 } {
   const cloned = cloneFrameDiagram(diagram);
   resolveStyles(cloned.root);
+  expandSemanticTextFitLeaves(cloned.root, adapter);
   layoutFrameTree(cloned.root, adapter, {
     gridCols: cloned.gridCols,
     gridColGap: cloned.gridColGap,
@@ -311,6 +377,9 @@ function frameToGraphNode(
 ): GraphNodeInput {
   measureSubtree(frame, adapter);
   const semantic = semanticSizes.get(frame.id);
+  const measuredLeaf = frame.isLeaf && shouldExpandElkLeafToFitText(frame)
+    ? measuredElkLeafSize(frame, adapter)
+    : null;
   const compound = isElkCompound(frame, nativeCompoundIds);
   const includeCompoundChildren = compound && compoundNeedsElkChildLayout(frame, endpoints);
   const padding = semanticCompoundPadding(frame, semanticPlacements);
@@ -326,8 +395,12 @@ function frameToGraphNode(
   );
   const node: GraphNodeInput = {
     id: frame.id,
-    width: semantic?.width ?? frame._layout.measuredW,
-    height: semantic?.height ?? frame._layout.measuredH,
+    width: measuredLeaf
+      ? Math.max(semantic?.width ?? 0, measuredLeaf.width)
+      : (semantic?.width ?? frame._layout.measuredW),
+    height: measuredLeaf
+      ? measuredLeaf.height
+      : (semantic?.height ?? frame._layout.measuredH),
     ...(shouldPreserveLocalDirection(frame, childNodes, nativeCompoundIds) ? {
       direction: frame.direction === Direction.HORIZONTAL ? 'LR' : 'TB',
     } : {}),
@@ -1087,6 +1160,87 @@ function applyElkEdgeRoutes(
   }
 }
 
+function clearElkRoutedGeometryForFrames(
+  diagram: FrameDiagram,
+  movedFrameIds: ReadonlySet<string>,
+): void {
+  for (const arrow of diagram.arrows) {
+    const sourceId = arrow.source.split('.')[0]!;
+    const targetId = arrow.target.split('.')[0]!;
+    if (!movedFrameIds.has(sourceId) && !movedFrameIds.has(targetId)) {
+      continue;
+    }
+    delete arrow.layoutPath;
+    delete arrow.waypoints;
+    delete arrow.elkLabels;
+  }
+}
+
+function normalizeHorizontalRowsFromSemantic(
+  diagram: FrameDiagram,
+  placedIds: ReadonlySet<string>,
+  semanticPlacements: Map<string, SemanticFramePlacement>,
+): void {
+  const rerouteFrameIds = new Set<string>();
+
+  walkFrames(diagram.root, (frame) => {
+    if (frame.isLeaf || frame.direction !== Direction.HORIZONTAL || !frame.id || !placedIds.has(frame.id)) {
+      return;
+    }
+
+    const semanticFrame = semanticPlacements.get(frame.id);
+    if (!semanticFrame) {
+      return;
+    }
+
+    const children = authoredLayoutChildren(frame)
+      .filter((child) => child.id && placedIds.has(child.id));
+    if (children.length < 2) {
+      return;
+    }
+
+    const semanticChildren = children
+      .map((child) => ({ child, semantic: child.id ? semanticPlacements.get(child.id) : undefined }))
+      .filter((entry): entry is { child: Frame; semantic: SemanticFramePlacement } => Boolean(entry.semantic));
+    if (semanticChildren.length !== children.length) {
+      return;
+    }
+
+    const semanticYValues = semanticChildren.map((entry) => entry.semantic.y);
+    const semanticDrift = Math.max(...semanticYValues) - Math.min(...semanticYValues);
+    if (semanticDrift > 1) {
+      return;
+    }
+
+    const placedYValues = children.map((child) => child._layout.placedY);
+    const placedDrift = Math.max(...placedYValues) - Math.min(...placedYValues);
+    if (placedDrift <= 1) {
+      return;
+    }
+
+    const dx = frame._layout.placedX - semanticFrame.x;
+    const dy = frame._layout.placedY - semanticFrame.y;
+    frame._layout.placedW = semanticFrame.width;
+    frame._layout.placedH = semanticFrame.height;
+    frame._layout.measuredW = semanticFrame.width;
+    frame._layout.measuredH = semanticFrame.height;
+
+    for (const { child, semantic } of semanticChildren) {
+      child._layout.placedX = semantic.x + dx;
+      child._layout.placedY = semantic.y + dy;
+      child._layout.placedW = semantic.width;
+      child._layout.placedH = semantic.height;
+      child._layout.measuredW = semantic.width;
+      child._layout.measuredH = semantic.height;
+      if (child.id) {
+        rerouteFrameIds.add(child.id);
+      }
+    }
+  });
+
+  clearElkRoutedGeometryForFrames(diagram, rerouteFrameIds);
+}
+
 /**
  * Measure frames, run ELK layered, write absolute placed bounds on endpoint frames.
  * Returns layout output sized to ELK canvas + annotations.
@@ -1197,6 +1351,7 @@ export async function layoutGraphFrameDiagram(
   }
 
   anchorSemanticDescendants(diagram.root, placedIds, semanticLayout.placements, endpoints);
+  normalizeHorizontalRowsFromSemantic(diagram, placedIds, semanticLayout.placements);
   wrapStructuralContainers(diagram.root, placedIds);
   anchorSyntheticLayoutDescendants(diagram.root, placedIds, semanticLayout.placements);
   wrapStructuralContainers(diagram.root, placedIds);
