@@ -10,6 +10,8 @@ export type GraphLabelPlacement = 'center' | 'source' | 'target';
 
 export type GraphConstraintAxis = 'horizontal' | 'vertical';
 
+export type GraphNodeKind = 'node' | 'compound' | 'ordering-cluster';
+
 /** Matches planning `layout_mapping.py` layered families. */
 export type LayeredCorpusFamily =
   | 'deployment_and_runtime_topology'
@@ -58,6 +60,8 @@ export interface GraphPortInput {
 
 export interface GraphNodeInput {
   id: string;
+  /** Structural node role for layout lowering. */
+  kind?: GraphNodeKind;
   /** Input box size before the algorithm runs. */
   width: number;
   height: number;
@@ -69,6 +73,24 @@ export interface GraphNodeInput {
   ports?: GraphPortInput[];
   /** Nested compound nodes. */
   children?: GraphNodeInput[];
+}
+
+export function resolveGraphNodeKind(
+  node: Pick<GraphNodeInput, 'kind' | 'children'>,
+): GraphNodeKind {
+  if (node.kind === 'ordering-cluster') {
+    return 'ordering-cluster';
+  }
+  if (node.kind === 'compound' || (node.children?.length ?? 0) > 0) {
+    return 'compound';
+  }
+  return 'node';
+}
+
+export function isGraphCompoundNode(
+  node: Pick<GraphNodeInput, 'kind' | 'children'>,
+): boolean {
+  return resolveGraphNodeKind(node) !== 'node';
 }
 
 export interface GraphEdgeLabelInput {

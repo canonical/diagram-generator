@@ -2,18 +2,27 @@ import type {
   GraphEdgeInput,
   GraphInsetsInput,
   GraphLayoutInput,
+  GraphNodeKind,
   LayoutDirection,
   GraphNodeInput,
   GraphPortInput,
   GraphPortSide,
 } from '@diagram-generator/graph-layout-core';
-import { resolveGraphPortPlacement } from '@diagram-generator/graph-layout-core';
+import {
+  isGraphCompoundNode,
+  resolveGraphNodeKind,
+  resolveGraphPortPlacement,
+} from '@diagram-generator/graph-layout-core';
 import type { ElkLayoutOptions } from './layered-options.js';
 import { buildLayeredLayoutOptions } from './layered-options.js';
+import { findCommonAncestor, type TreeData } from './find-common-ancestor.js';
 
 const ELK_PORT_SIDE_KEY = 'org.eclipse.elk.port.side';
 const IMPLICIT_PORT_SIDES: GraphPortSide[] = ['top', 'right', 'bottom', 'left'];
-const ORDERING_EDGE_PREFIX = '__dg_order__';
+const COMPOUND_SPACING_BASE = '30';
+const COMPOUND_LABEL_PLACEMENT = '[H_CENTER V_TOP, INSIDE]';
+const DEFAULT_MODEL_ORDER_STRATEGY = 'NODES_AND_EDGES';
+export const ORDERING_EDGE_PREFIX = '__dg_order__';
 const ELK_SIDE_BY_PORT_SIDE = {
   top: 'NORTH',
   right: 'EAST',
@@ -35,8 +44,8 @@ export interface ElkGraphPort {
 
 export interface ElkGraphNode {
   id: string;
-  width: number;
-  height: number;
+  width?: number;
+  height?: number;
   children?: ElkGraphNode[];
   ports?: ElkGraphPort[];
   layoutOptions?: ElkLayoutOptions;
@@ -177,6 +186,30 @@ function elkDirectionForNodeDirection(direction: LayoutDirection): ElkDirection 
   }
 }
 
+function isLayeredAlgorithm(layoutOptions: ElkLayoutOptions): boolean {
+  return layoutOptions['elk.algorithm'] === 'layered';
+}
+
+function resolveNodeKind(node: GraphNodeInput): GraphNodeKind {
+  return resolveGraphNodeKind(node);
+}
+
+export function buildSubgraphLayoutOptions(
+  node: Pick<GraphNodeInput, 'direction' | 'kind' | 'children'>,
+): ElkLayoutOptions {
+  const layoutOptions: ElkLayoutOptions = {
+    'spacing.baseValue': COMPOUND_SPACING_BASE,
+    'nodeLabels.placement': COMPOUND_LABEL_PLACEMENT,
+  };
+
+  if (node.direction) {
+    layoutOptions['elk.direction'] = elkDirectionForNodeDirection(node.direction);
+    layoutOptions['elk.hierarchyHandling'] = 'SEPARATE_CHILDREN';
+  }
+
+  return layoutOptions;
+}
+
 function formatElkPadding(insets: GraphInsetsInput): string {
   return `[top=${insets.top},left=${insets.left},bottom=${insets.bottom},right=${insets.right}]`;
 }
@@ -218,6 +251,8 @@ function mapNode(
   compoundPadding?: GraphInsetsInput,
 ): ElkGraphNode {
   const hasChildren = Boolean(node.children?.length);
+  const nodeKind = resolveNodeKind(node);
+  const isCompound = isGraphCompoundNode(node);
   const ports = portsForNode(node, endpointIds, enableImplicitPorts);
 
   const layoutOptions: ElkLayoutOptions = {};
@@ -226,9 +261,8 @@ function mapNode(
     if (resolvedPadding) {
       layoutOptions['elk.padding'] = formatElkPadding(resolvedPadding);
     }
-    if (enableCompoundDirections && node.direction) {
-      layoutOptions['elk.direction'] = elkDirectionForNodeDirection(node.direction);
-      layoutOptions['elk.hierarchyHandling'] = 'SEPARATE_CHILDREN';
+    if (enableCompoundDirections && isCompound) {
+      Object.assign(layoutOptions, buildSubgraphLayoutOptions(node));
     }
   }
   if (ports.length > 0) {
@@ -237,8 +271,7 @@ function mapNode(
 
   return {
     id: node.id,
-    width: node.width,
-    height: node.height,
+    ...(!isCompound ? { width: node.width, height: node.height } : {}),
     ...(hasChildren
       ? {
           children: node.children!.map((child: GraphNodeInput) => (
@@ -279,6 +312,29 @@ function indexInputParentIds(
   return parents;
 }
 
+export function buildInputTreeData(
+  nodes: GraphNodeInput[],
+  rootId: string,
+): TreeData {
+  const parentById: TreeData['parentById'] = {};
+  const childrenById: TreeData['childrenById'] = { [rootId]: [] };
+
+  const visit = (list: GraphNodeInput[], parentId: string): void => {
+    childrenById[parentId] ??= [];
+    for (const node of list) {
+      parentById[node.id] = parentId;
+      childrenById[parentId]!.push(node.id);
+      if (node.children?.length) {
+        childrenById[node.id] ??= [];
+        visit(node.children, node.id);
+      }
+    }
+  };
+
+  visit(nodes, rootId);
+  return { parentById, childrenById };
+}
+
 function indexElkNodesById(
   nodes: ElkGraphNode[],
   out = new Map<string, ElkGraphNode>(),
@@ -290,31 +346,6 @@ function indexElkNodesById(
     }
   }
   return out;
-}
-
-function findCommonAncestor(
-  sourceId: string,
-  targetId: string,
-  parentById: Map<string, string>,
-  rootId: string,
-): string {
-  if (sourceId === targetId) {
-    return parentById.get(sourceId) ?? rootId;
-  }
-  const visited = new Set<string>();
-  let currentId: string | undefined = sourceId;
-  while (currentId) {
-    visited.add(currentId);
-    currentId = parentById.get(currentId);
-  }
-  currentId = targetId;
-  while (currentId) {
-    if (visited.has(currentId)) {
-      return currentId;
-    }
-    currentId = parentById.get(currentId);
-  }
-  return rootId;
 }
 
 function setIncludeChildrenPolicy(
@@ -339,6 +370,10 @@ function hasNestedChildren(nodes: GraphNodeInput[]): boolean {
   return nodes.some((node) => Boolean(node.children?.length));
 }
 
+function hasCompoundNodes(nodes: GraphNodeInput[]): boolean {
+  return nodes.some((node) => isGraphCompoundNode(node) || hasCompoundNodes(node.children ?? []));
+}
+
 export function buildElkGraph(
   input: GraphLayoutInput,
   layoutOptions: ElkLayoutOptions,
@@ -352,8 +387,9 @@ export function buildElkGraph(
   const nodesById = indexNodesById(input.nodes);
   const effectiveDirection = resolveElkDirection(input, rootOptions);
   const hasOrderingEdges = input.edges.some((edge) => edge.id.startsWith(ORDERING_EDGE_PREFIX));
-  const enableImplicitPorts = rootOptions['elk.algorithm'] === 'layered' && !hasOrderingEdges;
-  const enableCompoundDirections = rootOptions['elk.algorithm'] === 'layered';
+  const layeredAlgorithm = isLayeredAlgorithm(rootOptions);
+  const enableImplicitPorts = layeredAlgorithm && !hasOrderingEdges;
+  const enableCompoundDirections = layeredAlgorithm;
   const sourceSide = sourceSideForDirection(effectiveDirection);
   const targetSide = oppositeSide(sourceSide);
 
@@ -382,6 +418,10 @@ export function buildElkGraph(
     };
   });
 
+  if (layeredAlgorithm && hasCompoundNodes(input.nodes) && !rootOptions['elk.layered.considerModelOrder.strategy']) {
+    rootOptions['elk.layered.considerModelOrder.strategy'] = DEFAULT_MODEL_ORDER_STRATEGY;
+  }
+
   if (enableCompoundDirections && hasNestedChildren(input.nodes) && !rootOptions['elk.hierarchyHandling']) {
     rootOptions['elk.hierarchyHandling'] = 'INCLUDE_CHILDREN';
   }
@@ -392,6 +432,7 @@ export function buildElkGraph(
 
   if (enableCompoundDirections && hasNestedChildren(input.nodes)) {
     const parentById = indexInputParentIds(input.nodes, input.id);
+    const treeData = buildInputTreeData(input.nodes, input.id);
     const elkNodesById = indexElkNodesById(mappedChildren);
     for (const edge of input.edges) {
       const sourceParentId = parentById.get(edge.source);
@@ -399,7 +440,7 @@ export function buildElkGraph(
       if (!sourceParentId || !targetParentId || sourceParentId === targetParentId) {
         continue;
       }
-      const ancestorId = findCommonAncestor(edge.source, edge.target, parentById, input.id);
+      const ancestorId = findCommonAncestor(edge.source, edge.target, treeData);
       setIncludeChildrenPolicy(edge.source, ancestorId, parentById, elkNodesById);
       setIncludeChildrenPolicy(edge.target, ancestorId, parentById, elkNodesById);
     }

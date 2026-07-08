@@ -19,13 +19,13 @@
 
 ## Phase 0 — Portable utilities (no product wiring yet)
 
-- [ ] **T000** Port `find-common-ancestor` into
+- [x] **T000** Port `find-common-ancestor` into
       `packages/graph-layout-elk/src/find-common-ancestor.ts` (verbatim MIT logic:
       `parentById`/`childrenById`, self-edge and root fallbacks).
       **Verify**: unit tests for sibling, ancestor, cross-branch, self, and
       missing-parent cases.
       **Evidence**: `packages/graph-layout-elk/tests/find-common-ancestor.test.ts`.
-- [ ] **T001** Port the endpoint→node-border intersection trim from Mermaid
+- [x] **T001** Port the endpoint→node-border intersection trim from Mermaid
       `geometry.ts` (`computeNodeIntersection`, `replaceEndpoint`, `outsideNode`)
       as a pure utility. This is the ONLY sanctioned post-ELK geometry.
       **Verify**: unit tests trimming a point to a rect border on each side.
@@ -33,7 +33,7 @@
 
 ## Phase 1 — Compound graph build (structure-driven)
 
-- [ ] **T010** Extend `packages/graph-layout-elk/src/elk-graph-builder.ts` to emit
+- [x] **T010** Extend `packages/graph-layout-elk/src/elk-graph-builder.ts` to emit
       a compound ELK graph from the frame model: every container / blank-title
       ordering subgraph → ELK compound with `children`; leaves → ELK nodes sized
       from the measured label via the existing `TextMeasureAdapter` (not `getBBox`).
@@ -41,13 +41,13 @@
       **Verify**: builder test — nesting depth, parent map, and leaf sizes match a
       hand-authored fixture; no fixture ids referenced (G5).
       **Evidence**: `packages/graph-layout-elk/tests/elk-compound-build.test.ts`.
-- [ ] **T011** Introduce the typed "invisible ordering cluster" concept (compound
+- [x] **T011** Introduce the typed "invisible ordering cluster" concept (compound
       with no chrome + a local direction) to represent Mermaid blank-title
       subgraphs. Name it in the frame model; drive it from structure.
       **Verify**: an ordering cluster lays out its children in local direction and
       renders no chrome.
       **Evidence**: model unit test + builder test.
-- [ ] **T012** Port `buildSubgraphLayoutOptions`: per-compound `elk.direction`
+- [x] **T012** Port `buildSubgraphLayoutOptions`: per-compound `elk.direction`
       (from `dir`), `elk.hierarchyHandling: SEPARATE_CHILDREN` on directed
       subgraphs, `spacing.baseValue`, label placement; root gets
       `INCLUDE_CHILDREN` + `elk.direction` + `elk.layered.considerModelOrder`.

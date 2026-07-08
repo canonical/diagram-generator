@@ -62,6 +62,12 @@ export {
   type LayoutLayeredOptions,
   type LayoutLayeredForFamilyOptions,
 } from './elk-layered.js';
+export {
+  ORDERING_EDGE_PREFIX,
+  buildElkGraph,
+  buildInputTreeData,
+  buildSubgraphLayoutOptions,
+} from './elk-graph-builder.js';
 
 export {
   layoutForce,
@@ -80,6 +86,17 @@ export {
   edgeEndpointsTouchLeaves,
   nearestLeafBoundaryDistance,
 } from './node-bounds.js';
+export {
+  computeNodeIntersection,
+  outsideNode,
+  replaceEndpoint,
+  type CenteredRectLike,
+  type IntersectableNodeLike,
+} from './edge-endpoint-trim.js';
+export {
+  findCommonAncestor,
+  type TreeData,
+} from './find-common-ancestor.js';
 
 export type { LayeredLayoutConfig, ElkLayoutOptions, ElkParamSpec, ElkParamKind } from './layered-options.js';
 export type { ForceLayoutConfig, ElkForceLayoutOptions } from './force-options.js';

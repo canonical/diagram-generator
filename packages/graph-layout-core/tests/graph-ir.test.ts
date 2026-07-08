@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   GRID_BASELINE_PX,
+  isGraphCompoundNode,
   resolveGraphPortPlacement,
+  resolveGraphNodeKind,
   roundToGrid,
 } from '../src/index.js';
 
@@ -44,5 +46,22 @@ describe('graph-layout-core', () => {
       width: 12,
       height: 8,
     });
+  });
+
+  it('treats ordering clusters as typed compounds instead of visible leaf nodes', () => {
+    const orderingCluster = {
+      id: 'row',
+      kind: 'ordering-cluster' as const,
+      width: 0,
+      height: 0,
+      children: [
+        { id: 'a', width: 192, height: 64 },
+        { id: 'b', width: 192, height: 64 },
+      ],
+    };
+
+    expect(resolveGraphNodeKind(orderingCluster)).toBe('ordering-cluster');
+    expect(isGraphCompoundNode(orderingCluster)).toBe(true);
+    expect(resolveGraphNodeKind({ id: 'box', width: 192, height: 64 })).toBe('node');
   });
 });
