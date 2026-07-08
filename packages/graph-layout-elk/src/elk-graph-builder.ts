@@ -22,7 +22,6 @@ const IMPLICIT_PORT_SIDES: GraphPortSide[] = ['top', 'right', 'bottom', 'left'];
 const COMPOUND_SPACING_BASE = '30';
 const COMPOUND_LABEL_PLACEMENT = '[H_CENTER V_TOP, INSIDE]';
 const DEFAULT_MODEL_ORDER_STRATEGY = 'NODES_AND_EDGES';
-export const ORDERING_EDGE_PREFIX = '__dg_order__';
 const ELK_SIDE_BY_PORT_SIDE = {
   top: 'NORTH',
   right: 'EAST',
@@ -47,6 +46,7 @@ export interface ElkGraphNode {
   width?: number;
   height?: number;
   children?: ElkGraphNode[];
+  edges?: ElkGraphEdge[];
   ports?: ElkGraphPort[];
   layoutOptions?: ElkLayoutOptions;
   labels?: { text: string }[];
@@ -234,9 +234,6 @@ function parseElkPadding(value: string | undefined): GraphInsetsInput | undefine
 function collectEndpointNodeIds(edges: GraphEdgeInput[]): Set<string> {
   const ids = new Set<string>();
   for (const edge of edges) {
-    if (edge.id.startsWith(ORDERING_EDGE_PREFIX)) {
-      continue;
-    }
     ids.add(edge.source);
     ids.add(edge.target);
   }
@@ -271,7 +268,9 @@ function mapNode(
 
   return {
     id: node.id,
-    ...(!isCompound ? { width: node.width, height: node.height } : {}),
+    ...(!hasChildren && (node.width > 0 || node.height > 0)
+      ? { width: node.width, height: node.height }
+      : {}),
     ...(hasChildren
       ? {
           children: node.children!.map((child: GraphNodeInput) => (
@@ -348,6 +347,60 @@ function indexElkNodesById(
   return out;
 }
 
+function mapElkEdge(
+  edge: GraphEdgeInput,
+  nodesById: Map<string, GraphNodeInput>,
+  enableImplicitPorts: boolean,
+  sourceSide: GraphPortSide,
+  targetSide: GraphPortSide,
+): ElkGraphEdge {
+  const sourceNode = nodesById.get(edge.source);
+  const targetNode = nodesById.get(edge.target);
+  const resolvedSourcePort = edge.sourcePort
+    ?? (enableImplicitPorts && sourceNode ? resolvePortIdForSide(sourceNode, sourceSide) : undefined);
+  const resolvedTargetPort = edge.targetPort
+    ?? (enableImplicitPorts && targetNode ? resolvePortIdForSide(targetNode, targetSide) : undefined);
+
+  return {
+    id: edge.id,
+    sources: [resolvedSourcePort ?? edge.source],
+    targets: [resolvedTargetPort ?? edge.target],
+    ...(edge.labels?.length
+      ? {
+          labels: edge.labels.map((label: NonNullable<GraphEdgeInput['labels']>[number]) => ({
+            text: label.text,
+            width: label.width,
+            height: label.height,
+          })),
+        }
+      : {}),
+  };
+}
+
+function assignEdgeToAncestor(
+  edge: ElkGraphEdge,
+  ancestorId: string,
+  rootId: string,
+  rootEdges: ElkGraphEdge[],
+  nodesById: Map<string, ElkGraphNode>,
+): void {
+  if (ancestorId === rootId) {
+    rootEdges.push(edge);
+    return;
+  }
+
+  const ancestor = nodesById.get(ancestorId);
+  if (!ancestor) {
+    rootEdges.push(edge);
+    return;
+  }
+
+  if (!ancestor.edges) {
+    ancestor.edges = [];
+  }
+  ancestor.edges.push(edge);
+}
+
 function setIncludeChildrenPolicy(
   nodeId: string | undefined,
   ancestorId: string,
@@ -386,37 +439,11 @@ export function buildElkGraph(
   const endpointIds = collectEndpointNodeIds(input.edges);
   const nodesById = indexNodesById(input.nodes);
   const effectiveDirection = resolveElkDirection(input, rootOptions);
-  const hasOrderingEdges = input.edges.some((edge) => edge.id.startsWith(ORDERING_EDGE_PREFIX));
   const layeredAlgorithm = isLayeredAlgorithm(rootOptions);
-  const enableImplicitPorts = layeredAlgorithm && !hasOrderingEdges;
+  const enableImplicitPorts = layeredAlgorithm;
   const enableCompoundDirections = layeredAlgorithm;
   const sourceSide = sourceSideForDirection(effectiveDirection);
   const targetSide = oppositeSide(sourceSide);
-
-  const edges: ElkGraphEdge[] = input.edges.map((edge: GraphEdgeInput) => {
-    const sourceNode = nodesById.get(edge.source);
-    const targetNode = nodesById.get(edge.target);
-    const isOrderingEdge = edge.id.startsWith(ORDERING_EDGE_PREFIX);
-    const resolvedSourcePort = edge.sourcePort
-      ?? (!isOrderingEdge && enableImplicitPorts && sourceNode ? resolvePortIdForSide(sourceNode, sourceSide) : undefined);
-    const resolvedTargetPort = edge.targetPort
-      ?? (!isOrderingEdge && enableImplicitPorts && targetNode ? resolvePortIdForSide(targetNode, targetSide) : undefined);
-
-    return {
-      id: edge.id,
-      sources: [resolvedSourcePort ?? edge.source],
-      targets: [resolvedTargetPort ?? edge.target],
-      ...(edge.labels?.length
-        ? {
-            labels: edge.labels.map((label: NonNullable<GraphEdgeInput["labels"]>[number]) => ({
-              text: label.text,
-              width: label.width,
-              height: label.height,
-            })),
-          }
-        : {}),
-    };
-  });
 
   if (layeredAlgorithm && hasCompoundNodes(input.nodes) && !rootOptions['elk.layered.considerModelOrder.strategy']) {
     rootOptions['elk.layered.considerModelOrder.strategy'] = DEFAULT_MODEL_ORDER_STRATEGY;
@@ -429,21 +456,44 @@ export function buildElkGraph(
   const mappedChildren = input.nodes.map((node: GraphNodeInput) => (
     mapNode(node, endpointIds, enableImplicitPorts, enableCompoundDirections, compoundPadding)
   ));
+  const edges: ElkGraphEdge[] = [];
+  const treeData = buildInputTreeData(input.nodes, input.id);
+  const elkNodesById = indexElkNodesById(mappedChildren);
 
   if (enableCompoundDirections && hasNestedChildren(input.nodes)) {
     const parentById = indexInputParentIds(input.nodes, input.id);
-    const treeData = buildInputTreeData(input.nodes, input.id);
-    const elkNodesById = indexElkNodesById(mappedChildren);
     for (const edge of input.edges) {
+      const mappedEdge = mapElkEdge(
+        edge,
+        nodesById,
+        enableImplicitPorts,
+        sourceSide,
+        targetSide,
+      );
       const sourceParentId = parentById.get(edge.source);
       const targetParentId = parentById.get(edge.target);
-      if (!sourceParentId || !targetParentId || sourceParentId === targetParentId) {
+      if (!sourceParentId || !targetParentId) {
+        edges.push(mappedEdge);
         continue;
       }
+
       const ancestorId = findCommonAncestor(edge.source, edge.target, treeData);
+      assignEdgeToAncestor(mappedEdge, ancestorId, input.id, edges, elkNodesById);
+
+      if (sourceParentId === targetParentId) {
+        continue;
+      }
       setIncludeChildrenPolicy(edge.source, ancestorId, parentById, elkNodesById);
       setIncludeChildrenPolicy(edge.target, ancestorId, parentById, elkNodesById);
     }
+  } else {
+    edges.push(...input.edges.map((edge) => mapElkEdge(
+      edge,
+      nodesById,
+      enableImplicitPorts,
+      sourceSide,
+      targetSide,
+    )));
   }
 
   return {

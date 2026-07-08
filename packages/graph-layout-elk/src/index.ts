@@ -63,7 +63,6 @@ export {
   type LayoutLayeredForFamilyOptions,
 } from './elk-layered.js';
 export {
-  ORDERING_EDGE_PREFIX,
   buildElkGraph,
   buildInputTreeData,
   buildSubgraphLayoutOptions,

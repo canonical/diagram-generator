@@ -14,11 +14,12 @@ import type {
   PlacedNode,
 } from '@diagram-generator/graph-layout-core';
 import {
+  computeNodeIntersection,
   layoutLayeredForFamily,
   stripImplementationOwnedElkLayeredOverrides,
 } from '@diagram-generator/graph-layout-elk';
 
-import { Frame, FrameDiagram, Border, Direction, createLine } from './frame-model.js';
+import { Frame, FrameDiagram, Border, Direction, Fill, createLine } from './frame-model.js';
 import { measure, place, layoutFrameTree, type LayoutOutput } from './layout.js';
 import { deserializeFrameDiagramWire, serializeFrameDiagram } from './frame-serialize.js';
 import { resolveStyles } from './resolve-styles.js';
@@ -79,8 +80,6 @@ export interface ElkLayoutDebugData {
   };
   flattenedFrameIds: string[];
 }
-
-const ORDERING_EDGE_PREFIX = '__dg_order__';
 
 function elkGraphDirectionFromRoot(root: Frame): LayoutDirection {
   return root.direction === Direction.HORIZONTAL ? 'LR' : 'TB';
@@ -209,8 +208,10 @@ function shouldIncludeElkNode(
   nativeCompoundIds: Set<string>,
   allowStructuralCarriers: boolean,
   includePassiveFrameAtLevel: boolean,
+  includeAnnotations: boolean,
 ): boolean {
-  if (isSyntheticLayoutFrame(frame) || isAnnotationFrame(frame, endpoints)) return false;
+  if (isSyntheticLayoutFrame(frame)) return false;
+  if (isAnnotationFrame(frame, endpoints)) return includeAnnotations;
   if (isElkCompound(frame, nativeCompoundIds)) return true;
   if (hasAuthoredAnnotationChild(frame, endpoints) && hasEndpointDescendant(frame, endpoints)) return true;
   if (includePassiveFrameAtLevel) return true;
@@ -265,6 +266,18 @@ function shouldPreserveLocalDirection(
   return childNodes.every((child) => !child.children?.length);
 }
 
+function shouldLowerAsAnnotationBadgeRow(frame: Frame, endpoints: Set<string>): boolean {
+  if (frame.direction !== Direction.VERTICAL) {
+    return false;
+  }
+  const children = authoredLayoutChildren(frame);
+  if (children.length !== 2) {
+    return false;
+  }
+  const annotationChildren = children.filter((child) => isAnnotationFrame(child, endpoints));
+  return annotationChildren.length === 1;
+}
+
 function collectSemanticLayoutSnapshot(
   diagram: FrameDiagram,
   adapter: TextMeasureAdapter,
@@ -273,7 +286,6 @@ function collectSemanticLayoutSnapshot(
   placements: Map<string, SemanticFramePlacement>;
 } {
   const cloned = cloneFrameDiagram(diagram);
-  resolveStyles(cloned.root);
   layoutFrameTree(cloned.root, adapter, {
     gridCols: cloned.gridCols,
     gridColGap: cloned.gridColGap,
@@ -299,6 +311,25 @@ function collectSemanticLayoutSnapshot(
   return { sizes, placements };
 }
 
+function shouldUseClusterLoweredGraph(
+  root: Frame,
+  endpoints: Set<string>,
+): boolean {
+  let found = false;
+  walkFrames(root, (frame) => {
+    if (found || frame.isLeaf || isSyntheticLayoutFrame(frame)) {
+      return;
+    }
+    if (authoredLayoutChildren(frame).length === 0) {
+      return;
+    }
+    if (hasEndpointDescendant(frame, endpoints)) {
+      found = true;
+    }
+  });
+  return found;
+}
+
 function frameToGraphNode(
   frame: Frame,
   adapter: TextMeasureAdapter,
@@ -308,9 +339,20 @@ function frameToGraphNode(
   semanticPlacements: Map<string, SemanticFramePlacement>,
   allowStructuralCarriers: boolean,
   includePassiveLeaves: boolean,
+  includeAnnotations: boolean,
 ): GraphNodeInput {
   measureSubtree(frame, adapter);
   const semantic = semanticSizes.get(frame.id);
+  const borderlessLeafMinWidth = frame.isLeaf &&
+    frame.border === Border.NONE &&
+    !isSyntheticHeadingFrame(frame)
+    ? roundUpToGrid(Math.max(
+        0,
+        ...frame.label.map((line) => adapter.measureTextWidth(
+          lineSpecToMeasureRequest(annotationTextToSpec(line)),
+        )),
+      ) + frame.paddingLeft + frame.paddingRight)
+    : 0;
   const compound = isElkCompound(frame, nativeCompoundIds);
   const includeCompoundChildren = compound && compoundNeedsElkChildLayout(frame, endpoints);
   const padding = semanticCompoundPadding(frame, semanticPlacements);
@@ -321,16 +363,20 @@ function frameToGraphNode(
     nativeCompoundIds,
     semanticSizes,
     semanticPlacements,
-    allowStructuralCarriers || includeCompoundChildren,
+    true,
     includePassiveLeaves || includeCompoundChildren,
+    includeAnnotations,
   );
   const node: GraphNodeInput = {
     id: frame.id,
-    width: semantic?.width ?? frame._layout.measuredW,
+    width: Math.max(semantic?.width ?? frame._layout.measuredW, borderlessLeafMinWidth),
     height: semantic?.height ?? frame._layout.measuredH,
-    ...(shouldPreserveLocalDirection(frame, childNodes, nativeCompoundIds) ? {
-      direction: frame.direction === Direction.HORIZONTAL ? 'LR' : 'TB',
-    } : {}),
+    ...(childNodes.length > 0 ? { kind: compound ? 'compound' : 'ordering-cluster' } : {}),
+    ...((childNodes.length > 0 && shouldLowerAsAnnotationBadgeRow(frame, endpoints))
+      ? { direction: 'LR' as const }
+      : shouldPreserveLocalDirection(frame, childNodes, nativeCompoundIds)
+        ? { direction: frame.direction === Direction.HORIZONTAL ? 'LR' : 'TB' }
+        : {}),
     ...(padding ? { padding } : {}),
   };
   if (childNodes.length > 0) {
@@ -348,6 +394,7 @@ function collectGraphChildNodes(
   semanticPlacements: Map<string, SemanticFramePlacement>,
   allowStructuralCarriers: boolean,
   includePassiveDescendants: boolean,
+  includeAnnotations: boolean,
 ): GraphNodeInput[] {
   const includePassiveFrameAtLevel = includePassiveDescendants || frames.some((frame) => shouldIncludeElkNode(
     frame,
@@ -355,6 +402,7 @@ function collectGraphChildNodes(
     nativeCompoundIds,
     allowStructuralCarriers,
     false,
+    includeAnnotations,
   ));
   const nodes: GraphNodeInput[] = [];
   for (const frame of frames) {
@@ -364,6 +412,7 @@ function collectGraphChildNodes(
       nativeCompoundIds,
       allowStructuralCarriers,
       includePassiveFrameAtLevel,
+      includeAnnotations,
     )) {
       nodes.push(
         frameToGraphNode(
@@ -375,6 +424,7 @@ function collectGraphChildNodes(
           semanticPlacements,
           allowStructuralCarriers,
           includePassiveDescendants,
+          includeAnnotations,
         ),
       );
       continue;
@@ -388,6 +438,7 @@ function collectGraphChildNodes(
       semanticPlacements,
       allowStructuralCarriers,
       includePassiveDescendants,
+      includeAnnotations,
     ));
   }
   return nodes;
@@ -435,10 +486,10 @@ function buildElkAuthoredTreeDebug(
         : 'frame';
   const status = isSyntheticLayoutFrame(frame)
     ? 'synthetic'
-    : isAnnotationFrame(frame, options.endpoints)
-      ? 'annotation'
-      : options.inputNodeIds.has(frame.id)
-        ? 'graph-node'
+    : options.inputNodeIds.has(frame.id)
+      ? 'graph-node'
+      : isAnnotationFrame(frame, options.endpoints)
+        ? 'annotation'
         : hasEndpointDescendant(frame, options.endpoints)
           ? 'flattened'
           : 'omitted';
@@ -460,6 +511,7 @@ function buildElkGraphNodes(
   nativeCompoundIds: Set<string>,
   semanticSizes: Map<string, { width: number; height: number }>,
   semanticPlacements: Map<string, SemanticFramePlacement>,
+  includeAnnotations: boolean,
 ): GraphNodeInput[] {
   return collectGraphChildNodes(
     authoredLayoutChildren(root),
@@ -470,6 +522,7 @@ function buildElkGraphNodes(
     semanticPlacements,
     false,
     false,
+    includeAnnotations,
   );
 }
 
@@ -579,6 +632,71 @@ function collectPlacedFrames(root: Frame): Frame[] {
     }
   });
   return frames;
+}
+
+function hasClusterLoweredNodes(nodes: GraphNodeInput[]): boolean {
+  return nodes.some((node) => (
+    (node.kind === 'compound' || node.kind === 'ordering-cluster')
+    || hasClusterLoweredNodes(node.children ?? [])
+  ));
+}
+
+function applyClusterLoweredThinStyles(root: Frame, endpoints: Set<string>): void {
+  walkFrames(root, (frame) => {
+    if (!isAnnotationFrame(frame, endpoints)) {
+      return;
+    }
+    if (frame.fill === Fill.GREY) {
+      frame.resolvedFill = Fill.GREY;
+    }
+    frame.resolvedStroke = 'none';
+    frame.resolvedStrokeWidth = 0;
+  });
+}
+
+function placeClusterLoweredSyntheticChrome(
+  frame: Frame,
+  semanticPlacements: Map<string, SemanticFramePlacement>,
+): void {
+  for (const child of frame.children) {
+    placeClusterLoweredSyntheticChrome(child, semanticPlacements);
+  }
+
+  const frameSemantic = frame.id ? semanticPlacements.get(frame.id) : undefined;
+  if (!frameSemantic) {
+    return;
+  }
+  const insets = semanticCompoundPadding(frame, semanticPlacements);
+  if (!insets) {
+    return;
+  }
+
+  for (const child of frame.children) {
+    const childSemantic = child.id ? semanticPlacements.get(child.id) : undefined;
+    if (isSyntheticBodyFrame(child)) {
+      child._layout.placedX = frame._layout.placedX + insets.left;
+      child._layout.placedY = frame._layout.placedY + insets.top;
+      child._layout.placedW = Math.max(0, frame._layout.placedW - insets.left - insets.right);
+      child._layout.placedH = Math.max(0, frame._layout.placedH - insets.top - insets.bottom);
+      child._layout.measuredW = child._layout.placedW;
+      child._layout.measuredH = child._layout.placedH;
+      continue;
+    }
+
+    if (isSyntheticHeadingFrame(child) && childSemantic) {
+      const left = Math.max(0, Math.round(childSemantic.x - frameSemantic.x));
+      const right = Math.max(
+        0,
+        Math.round((frameSemantic.x + frameSemantic.width) - (childSemantic.x + childSemantic.width)),
+      );
+      child._layout.placedX = frame._layout.placedX + left;
+      child._layout.placedY = frame._layout.placedY + Math.max(0, Math.round(childSemantic.y - frameSemantic.y));
+      child._layout.placedW = Math.max(0, frame._layout.placedW - left - right);
+      child._layout.placedH = childSemantic.height;
+      child._layout.measuredW = child._layout.placedW;
+      child._layout.measuredH = child._layout.placedH;
+    }
+  }
 }
 
 function hasPlacedGeometry(frame: Frame, placedIds: Set<string>): boolean {
@@ -982,52 +1100,82 @@ function buildGraphEdges(
   });
 }
 
-function isOrderingEdgeId(id: string): boolean {
-  return id.startsWith(ORDERING_EDGE_PREFIX);
-}
+function trimLayoutPathToFrameBounds(
+  points: [number, number][],
+  sourceFrame: Frame | null,
+  targetFrame: Frame | null,
+): [number, number][] {
+  if (points.length < 2 || !sourceFrame || !targetFrame) {
+    return points;
+  }
 
-function buildOrderingGraphEdges(
-  nodes: GraphNodeInput[],
-  existingEdges: GraphLayoutInput['edges'],
-): GraphLayoutInput['edges'] {
-  const directAdjacency = new Set(existingEdges.flatMap((edge) => [
-    `${edge.source}->${edge.target}`,
-    `${edge.target}->${edge.source}`,
-  ]));
-  const orderingEdges: GraphLayoutInput['edges'] = [];
-
-  function visit(node: GraphNodeInput): void {
-    if (!node.children?.length) {
-      return;
-    }
-    if (node.direction) {
-      for (let index = 0; index < node.children.length - 1; index += 1) {
-        const before = node.children[index]!;
-        const after = node.children[index + 1]!;
-        if (before.children?.length && after.children?.length) {
-          continue;
-        }
-        const edgeKey = `${before.id}->${after.id}`;
-        if (!directAdjacency.has(edgeKey)) {
-          orderingEdges.push({
-            id: `${ORDERING_EDGE_PREFIX}${node.id}__${index}`,
-            source: before.id,
-            target: after.id,
-          });
-          directAdjacency.add(edgeKey);
-          directAdjacency.add(`${after.id}->${before.id}`);
-        }
-      }
-    }
-    for (const child of node.children) {
-      visit(child);
+  const asPoints = points.map(([x, y]) => ({ x, y }));
+  const sourceBounds = {
+    x: sourceFrame._layout.placedX + sourceFrame._layout.placedW / 2,
+    y: sourceFrame._layout.placedY + sourceFrame._layout.placedH / 2,
+    width: sourceFrame._layout.placedW,
+    height: sourceFrame._layout.placedH,
+  };
+  const targetBounds = {
+    x: targetFrame._layout.placedX + targetFrame._layout.placedW / 2,
+    y: targetFrame._layout.placedY + targetFrame._layout.placedH / 2,
+    width: targetFrame._layout.placedW,
+    height: targetFrame._layout.placedH,
+  };
+  const first = asPoints[0]!;
+  const sourceRect = {
+    left: sourceFrame._layout.placedX,
+    right: sourceFrame._layout.placedX + sourceFrame._layout.placedW,
+    top: sourceFrame._layout.placedY,
+    bottom: sourceFrame._layout.placedY + sourceFrame._layout.placedH,
+  };
+  const onBorder = (
+    point: { x: number; y: number },
+    rect: { left: number; right: number; top: number; bottom: number },
+    tolerance = 0.1,
+  ): boolean => (
+    (
+      Math.abs(point.x - rect.left) <= tolerance
+      || Math.abs(point.x - rect.right) <= tolerance
+    ) && point.y >= rect.top - tolerance && point.y <= rect.bottom + tolerance
+  ) || (
+    (
+      Math.abs(point.y - rect.top) <= tolerance
+      || Math.abs(point.y - rect.bottom) <= tolerance
+    ) && point.x >= rect.left - tolerance && point.x <= rect.right + tolerance
+  );
+  if (!onBorder(first, sourceRect)) {
+    const trimmedStart = computeNodeIntersection(
+      {},
+      sourceBounds,
+      asPoints[1]!,
+      { x: sourceBounds.x, y: sourceBounds.y },
+    );
+    if (first.x !== trimmedStart.x || first.y !== trimmedStart.y) {
+      asPoints[0] = trimmedStart;
     }
   }
 
-  for (const node of nodes) {
-    visit(node);
+  const lastIndex = asPoints.length - 1;
+  const last = asPoints[lastIndex]!;
+  const targetRect = {
+    left: targetFrame._layout.placedX,
+    right: targetFrame._layout.placedX + targetFrame._layout.placedW,
+    top: targetFrame._layout.placedY,
+    bottom: targetFrame._layout.placedY + targetFrame._layout.placedH,
+  };
+  if (!onBorder(last, targetRect)) {
+    const trimmedEnd = computeNodeIntersection(
+      {},
+      targetBounds,
+      asPoints[asPoints.length - 2]!,
+      { x: targetBounds.x, y: targetBounds.y },
+    );
+    if (last.x !== trimmedEnd.x || last.y !== trimmedEnd.y) {
+      asPoints[lastIndex] = trimmedEnd;
+    }
   }
-  return orderingEdges;
+  return asPoints.map((point) => [point.x, point.y]);
 }
 
 function applyElkEdgeLabels(
@@ -1079,7 +1227,13 @@ function applyElkEdgeRoutes(
     const tgt = arrow.target.split('.')[0]!;
     const edge = (arrow.id ? byId.get(arrow.id) : undefined) ?? byEndpoints.get(`${src}->${tgt}`);
     if (!edge) continue;
-    const layoutPath = dedupeConsecutivePoints(elkEdgeToLayoutPath(edge, originX, originY));
+    const sourceFrame = findFrame(diagram.root, src);
+    const targetFrame = findFrame(diagram.root, tgt);
+    const layoutPath = dedupeConsecutivePoints(trimLayoutPathToFrameBounds(
+      elkEdgeToLayoutPath(edge, originX, originY),
+      sourceFrame,
+      targetFrame,
+    ));
     if (layoutPath.length >= 2) {
       arrow.layoutPath = layoutPath;
       arrow.waypoints = layoutPath.slice(1, -1);
@@ -1109,6 +1263,7 @@ export async function layoutGraphFrameDiagram(
   const originY = options.originY ?? diagram.root.paddingTop;
   const semanticLayout = collectSemanticLayoutSnapshot(diagram, adapter);
   const semanticSizes = semanticLayout.sizes;
+  const includeAnnotations = shouldUseClusterLoweredGraph(diagram.root, endpoints);
 
   const nodes = buildElkGraphNodes(
     diagram.root,
@@ -1117,13 +1272,14 @@ export async function layoutGraphFrameDiagram(
     nativeCompoundIds,
     semanticSizes,
     semanticLayout.placements,
+    includeAnnotations,
   );
+  const clusterLowered = hasClusterLoweredNodes(nodes);
   const authoredEdges = buildGraphEdges(diagram, adapter);
-  const orderingEdges = buildOrderingGraphEdges(nodes, authoredEdges);
   const input: Omit<GraphLayoutInput, 'direction' | 'spacingProfile'> = {
     id: diagram.title || 'diagram',
     nodes,
-    edges: [...authoredEdges, ...orderingEdges],
+    edges: authoredEdges,
   };
   const inputNodeIds = collectGraphNodeIds(nodes);
   const authoredTreeDebug = buildElkAuthoredTreeDebug(diagram.root, {
@@ -1166,11 +1322,9 @@ export async function layoutGraphFrameDiagram(
     direction,
     optionOverrides: Object.keys(graphOptionOverrides).length > 0 ? graphOptionOverrides : undefined,
   });
-  const visibleElkEdges = elk.edges.filter((edge) => !isOrderingEdgeId(edge.id));
+  const edgeBox = bboxOfElkEdges(elk.edges, originX, originY);
+  applyElkEdgeLabels(diagram, elk.edges, originX, originY);
   const placedById = indexPlaced(elk.nodes);
-  const edgeBox = bboxOfElkEdges(visibleElkEdges, originX, originY);
-  applyElkEdgeRoutes(diagram, visibleElkEdges, originX, originY);
-  applyElkEdgeLabels(diagram, visibleElkEdges, originX, originY);
 
   const placedFrames: Frame[] = [];
   const standaloneContainers: Frame[] = [];
@@ -1195,30 +1349,21 @@ export async function layoutGraphFrameDiagram(
       adapter,
     );
   }
-
-  anchorSemanticDescendants(diagram.root, placedIds, semanticLayout.placements, endpoints);
-  wrapStructuralContainers(diagram.root, placedIds);
-  anchorSyntheticLayoutDescendants(diagram.root, placedIds, semanticLayout.placements);
-  wrapStructuralContainers(diagram.root, placedIds);
-  anchorSyntheticLayoutDescendants(diagram.root, placedIds, semanticLayout.placements);
-
-  layoutAnnotationsBelow(diagram.root, adapter, elk.height, originX, originY, endpoints);
-
-  const allPlacedFrames = collectPlacedFrames(diagram.root).filter((frame) => frame !== diagram.root);
-  const frameBox = bboxOfFrames(allPlacedFrames);
-  const shiftX = frameBox && frameBox.minX < 0 ? -frameBox.minX : 0;
-  const shiftY = frameBox && frameBox.minY < 0 ? -frameBox.minY : 0;
-  translateDiagramGeometry(diagram, shiftX, shiftY);
+  applyElkEdgeRoutes(diagram, elk.edges, originX, originY);
+  if (!clusterLowered) {
+    anchorSemanticDescendants(diagram.root, placedIds, semanticLayout.placements, endpoints);
+    wrapStructuralContainers(diagram.root, placedIds);
+    anchorSyntheticLayoutDescendants(diagram.root, placedIds, semanticLayout.placements);
+    wrapStructuralContainers(diagram.root, placedIds);
+    anchorSyntheticLayoutDescendants(diagram.root, placedIds, semanticLayout.placements);
+    layoutAnnotationsBelow(diagram.root, adapter, elk.height, originX, originY, endpoints);
+  } else {
+    placeClusterLoweredSyntheticChrome(diagram.root, semanticLayout.placements);
+    applyClusterLoweredThinStyles(diagram.root, endpoints);
+  }
 
   const normalizedFrameBox = bboxOfFrames(collectPlacedFrames(diagram.root).filter((frame) => frame !== diagram.root));
-  const normalizedEdgeBox = edgeBox
-    ? {
-        minX: edgeBox.minX + shiftX,
-        minY: edgeBox.minY + shiftY,
-        maxX: edgeBox.maxX + shiftX,
-        maxY: edgeBox.maxY + shiftY,
-      }
-    : null;
+  const normalizedEdgeBox = edgeBox;
   const rootW = Math.max(
     diagram.root.width ?? 0,
     elk.width + originX * 2,
@@ -1250,7 +1395,7 @@ export async function layoutGraphFrameDiagram(
     coerced: new Map(),
     elkSnapshot: {
       ...elk,
-      edges: visibleElkEdges,
+      edges: elk.edges,
       originX,
       originY,
       debug: {

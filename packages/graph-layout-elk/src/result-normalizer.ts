@@ -98,10 +98,13 @@ function mapPlacedNode(node: ElkLayoutNode): PlacedNode {
   };
 }
 
-function collectEdges(root: ElkLayoutNode): ElkLayoutEdge[] {
-  const out: ElkLayoutEdge[] = [...(root.edges ?? [])];
+function collectEdges(root: ElkLayoutNode, containerId = root.id): ElkLayoutEdge[] {
+  const out: ElkLayoutEdge[] = (root.edges ?? []).map((edge) => ({
+    ...edge,
+    container: edge.container ?? containerId,
+  }));
   for (const child of root.children ?? []) {
-    out.push(...collectEdges(child));
+    out.push(...collectEdges(child, child.id));
   }
   return out;
 }
