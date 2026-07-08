@@ -52,3 +52,10 @@ proof (T050) is not done.
    after `elk.layout()`; arrow points == ELK sections);
 4. land SC-001: render the real TLS SVG and diff the reference before marking
    Phase 3-5 done. Full detail in the phase 3-4 review.
+
+**Re-verified 2026-07-08 (post-`cdf4ba2`):** no rework since the rejection —
+`elk-layout.ts` is untouched, `shouldIncludeElkNode` still excludes annotation
+leaves (C1), `hydrateClusterLoweredShellFrames` still owns geometry (C2), no SC-001
+render test (C4). The phase 3-4 review stands verbatim; steps 3 (T030/T031) and 4
+(T040) remain **rejected**. Nothing new to review until GPT lands the 4 next-steps
+above.
