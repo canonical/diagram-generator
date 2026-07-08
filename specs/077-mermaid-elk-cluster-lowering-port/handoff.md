@@ -1,0 +1,118 @@
+# Implementation handoff — spec 077 (read this before writing code)
+
+Audience: the implementer (GPT). Reviewer: Opus. This is the durable per-spec
+entry point for **where to start, what to keep, what to rewrite**. The numbered
+work is in [`tasks.md`](./tasks.md); the rationale is in [`spec.md`](./spec.md).
+
+## 0. Cold-start orientation
+
+- Read [`spec.md`](./spec.md) (problem, options, guardrails G1–G6) and
+  [`plan.md`](./plan.md) (owner boundaries + a line-referenced map from Mermaid
+  source into this repo), then this file, then start Phase 0 in `tasks.md`.
+- Why 076 failed (do not repeat): post-mortem in
+  [`../../docs/spec-reviews/076-tls-mermaid-cold-start-fit.md`](../../docs/spec-reviews/076-tls-mermaid-cold-start-fit.md).
+  Short version: it never used Mermaid's algorithm, lowered cross-cluster edges
+  flat, then **owned geometry after ELK** (box-moving + local arrow rerouting) and
+  closed on non-rendering snippet asserts. The raw-ELK view is structurally wrong,
+  so nothing cold-starts.
+- The one invariant to internalize: **ELK owns geometry; the product styles thinly
+  on top and never moves a box or reroutes an arrow after layout.** Also recorded
+  as a permanent rule in `AGENTS.md` → Core rules.
+
+## 1. Branch: off `main`, not the 076 branch
+
+Branch off `main`. Do **not** continue on `feat/076-tls-mermaid-cold-start-fit`.
+The mess 077 rewrites (`buildGraphEdges` flat lowering, the post-ELK box-moving
+passes, the synthetic `ORDERING_EDGE_PREFIX` edges) is **already merged to main**,
+so this is a rewrite-in-place regardless of branch. The 076 branch only adds
++286 more lines of box-moving on top (throwaway).
+
+`main` is an ancestor of `feat/076`, so the good 076 files can be taken wholesale
+with no conflicts:
+
+```bash
+git fetch origin
+git switch -c feat/077-mermaid-elk-cluster-lowering-port main
+
+# 077 spec package (committed on feat/076 as da889e7) + the cold-start wiring +
+# the salvage files. feat/076 is strictly ahead of main, so these are safe.
+git checkout feat/076-tls-mermaid-cold-start-fit -- \
+  specs/077-mermaid-elk-cluster-lowering-port/ \
+  AGENT-INBOX.md TODO.md docs/specs.md \
+  scripts/diagrams/frames/tls-certificate-provider-topology.yaml \
+  packages/layout-engine/src/resolve-styles.ts \
+  packages/layout-engine/src/diagram-author/normalize-lines.ts \
+  packages/layout-engine/src/frame-record-parser.ts \
+  packages/layout-engine/src/frame-serialize.ts \
+  packages/layout-engine/tests/resolve-styles.test.ts \
+  packages/layout-engine/tests/frame-serialize.test.ts \
+  packages/layout-engine/tests/diagram-author-lower.test.ts \
+  apps/preview/src/persistence/tls-render-regression.test.ts \
+  apps/preview/src/persistence/tls-browser-parity-regression.test.ts
+
+git add -A && git commit -m "spec(077): bootstrap branch (spec + salvage + wiring)"
+```
+
+Do **not** take `packages/layout-engine/src/elk-layout.ts` or
+`packages/layout-engine/tests/elk-layout.test.ts` from 076 — start from main's and
+rewrite (Section 3).
+
+## 2. What to keep (salvaged above — geometry-free, genuinely useful)
+
+| File(s) | Why keep | Treat as |
+|---|---|---|
+| `tls-certificate-provider-topology.yaml` | Corrected 13-edge topology through cert/interface nodes = authoring truth | Keep (this is your fixture) |
+| `resolve-styles.ts` (+test) | Keeps authored grey fill for annotation leaves | Keep (feeds FR-007 thin styling) |
+| `normalize-lines.ts`, `frame-record-parser.ts` | Render a `key: value` map line (e.g. `interface: tls-certificates`) as the second annotation line | Keep (fixes dropped second line; geometry-free) |
+| `frame-serialize.ts` (+test) | Preserves `justify` through serialize/browser transport | Keep (pre-ELK authoring hint) |
+| `tls-render-regression.test.ts`, `tls-browser-parity-regression.test.ts` | Real product-render tests | Keep as **scaffolds, then rewrite assertions** to the SC-001 bar — they encode the box-moved output today and *should* fail once the lowering is fixed |
+
+## 3. What to rewrite (in main's `packages/layout-engine/src/elk-layout.ts`)
+
+Keep the compound-detection machinery (`collectNativeCompoundIds`, `isElkCompound`,
+`compoundNeedsElkChildLayout`), text measurement via `TextMeasureAdapter`, and the
+ELK invocation plumbing. Rewrite / delete:
+
+- `buildGraphEdges(...)` flat leaf-to-leaf → LCA edge attachment; promote the LCA
+  compound to `INCLUDE_CHILDREN` (T020, built in `elk-graph-builder.ts`).
+- `ORDERING_EDGE_PREFIX` / `isOrderingEdgeId` synthetic ordering edges → delete;
+  use native `elk.layered.considerModelOrder`. If the model-order+hierarchy
+  `elkjs` crash recurs, root-cause it and record it — do not re-add fabricated
+  edges (T021).
+- `clearElkRoutedGeometryForFrames(...)` + local arrow rerouting → delete; arrow
+  paths come from ELK `edge.sections` verbatim + the Phase-0 border trim (T030).
+- Post-ELK box-moving stack → delete or gate off for cluster-lowered diagrams:
+  `anchorSemanticDescendants`, `normalizeDirectedContainersFromSemantic`,
+  `realignPlacedContainersToAuthoredLayout`, `wrapStructuralContainers` (×2),
+  `anchorSyntheticLayoutDescendants` (×2), `layoutAnnotationsBelow` (T031). Gate by
+  a cluster-lowered flag, never by node id.
+
+Mermaid source to port (layout only; ignore its SVG/`insertNode`/`insertCluster`
+drawing):
+`H:\WSL_dev_projects\mermaid-js-monorepo\packages\mermaid-layout-elk\src\render.ts`
++ `find-common-ancestor.ts` + `geometry.ts` (MIT). Do **not** add
+`@mermaid-js/layout-elk` or `mermaid` as a dependency — its `render()` is a Mermaid
+renderer, not a layout boundary.
+
+## 4. Hard rules — the PR is rejected if any is violated (spec G1–G6)
+
+- ELK owns geometry: after `elk.layout()` you read node rects and `edge.sections`;
+  never translate/resize/re-anchor/re-order/re-route.
+- No bespoke arrow routing: arrow points == ELK sections (+ generic border trim).
+- Structure-driven, never fixture-keyed: no `tls_*` / `traefik_*` / `octavia_*`
+  literals anywhere in `packages/`.
+- Styling is thin and geometry-free: fill/stroke/typography/label-lines only.
+- Render-level gate: no closing on engine-resolution probes or geometry-snippet
+  asserts. SC-001 renders the actual product SVG with a side-by-side vs
+  `images/01-source-mermaid-reference.png`.
+- If a spec point is ambiguous, STOP and ask; do not invent scope.
+
+## 5. What Opus will check at review
+
+SC-001 render regression green + attached side-by-side; SC-002 a second,
+**non-TLS** clustered fixture proving cold-start with zero fixture-keyed code;
+SC-003 the **raw-ELK view is itself correct** (parity does not depend on any
+deleted pass); SC-004 an architectural test that the banned functions do not run
+and rendered arrow points equal ELK sections; SC-005 full validation. The diff will
+be grepped for any surviving post-ELK geometry mutation and any `tls_`/`traefik_`
+literal in `packages/`.

@@ -58,6 +58,31 @@ describe('diagram author lowering regression', () => {
     expect(lowered.arrows[1]?.source).toBe('arrow:stem');
   });
 
+  it('treats single-entry YAML mappings inside label arrays as literal text lines', () => {
+    const raw = [
+      'engine: v3',
+      'title: line mapping literal',
+      'root:',
+      '  id: page',
+      '  direction: vertical',
+      '  children:',
+      '    - id: note',
+      '      border: none',
+      '      fill: grey',
+      '      label:',
+      '        - certificates',
+      '        - interface: tls-certificates',
+      '',
+    ].join('\n');
+
+    const lowered = loadFrameYamlFromString(raw, 'line-mapping-literal.yaml');
+
+    expect(lowered.root.children[0]?.label.map((line) => line.content)).toEqual([
+      'certificates',
+      'interface: tls-certificates',
+    ]);
+  });
+
   it('rejects forward arrow:<id> refs so routing stays deterministic', () => {
     const raw = [
       'engine: v3',

@@ -130,8 +130,12 @@ export function resolveStyles(root: Frame, ctx?: Partial<ResolveStylesContext>):
       // Level 0: headingless container / layout wrapper — invisible
       applyFrameClass(root, FRAME_CLASS_DEFS.hidden);
     } else if (root.border === Border.NONE && root.isLeaf && !isLayoutWrapper) {
-      // Annotation: borderless leaf — no fill, no stroke
+      // Annotation: borderless leaf — muted text, no stroke, but keep explicit
+      // authored grey fill when present.
       applyFrameClass(root, FRAME_CLASS_DEFS.annotation);
+      if (root.fill === Fill.GREY) {
+        root.resolvedFill = Fill.GREY;
+      }
     } else if (level >= 3) {
       // Section: bold heading, transparent fill, black border
       applyFrameClass(root, FRAME_CLASS_DEFS.section);

@@ -19,10 +19,20 @@ merged-spec bookkeeping is also done: 048, 051, 052, 054–060, 062, 063, 071, 0
 Docs-only spec packages 028 and 075 are merged to `main`; their feature
 branches are deleted. Implementation starts on fresh `feat/<id>-<slug>` branches.
 
-**076 is REOPENED (2026-07-07):** its earlier closeout was premature — the render
-fails the visual bar. The package is active again under
-`specs/076-tls-mermaid-cold-start-fit/`; work Phase 5 (`T050`–`T056`) on a fresh
-`feat/076-...-reopen` branch. No Dagre.
+**076 is RETIRED (2026-07-08) — superseded by 077.** The post-mortem proved 076
+never used Mermaid's algorithm: it lowered cross-cluster edges flat, owned geometry
+after ELK (box-moving + local arrow rerouting), and closed on non-rendering snippet
+asserts, so the raw-ELK view is structurally wrong and nothing cold-starts. Do not
+resume 076.
+
+**077 Mermaid ELK cluster lowering port is the active Mermaid-composite work
+(highest priority, Epic A).** Port Mermaid's *layout-only* cluster→ELK lowering
+into TS on the existing `elkjs`; ELK owns geometry, the product styles thinly and
+never redraws after ELK. GPT starts at
+[`specs/077-mermaid-elk-cluster-lowering-port/handoff.md`](specs/077-mermaid-elk-cluster-lowering-port/handoff.md)
+(branch strategy, salvage list, keep/rewrite, hard rules), then executes
+`specs/077-.../tasks.md` in order on a fresh `feat/077-…` branch cut from `main`.
+No Dagre; no `@mermaid-js/layout-elk` dependency.
 
 ### Roles (do not blur these)
 
@@ -105,6 +115,7 @@ row) before coding. Bugs already captured by a numbered spec live in
   schema freshness, parser negatives, layout idempotency.
 - Later: ontology-driven engine selection, security hardening, arrow waypoint
   editing, `DIAGRAM.md` refinement.
+- make the project more user-friendly for people on lower models and on terminal rather than vscdoe: slash commands for import,export, convert from inputs (pasted image, verbal description, .mmd, .drawio) to outputs (svg, png, drawio, mermaid).
 
 > Completed-work notes and one-off session audits do not belong here. Put those
 > in the `AGENTS.md` handover (transient) or the spec package they relate to.
