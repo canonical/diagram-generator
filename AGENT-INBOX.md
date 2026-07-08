@@ -1,63 +1,54 @@
-# Agent inbox — live state
+# Agent inbox — live state (single owner)
 
-Current state only. Invariants live in `AGENTS.md`; operating guidance lives in
-`docs/agent-index.md`; durable spec detail lives under `specs/`.
+Session-start read for **what's happening right now**: current task, active
+blockers, and last-known-green validation. This is the single owner of transient
+state — no other file restates it. Keep it short; when a note is resolved or
+superseded, **delete it** (git and the spec package hold the history). Do not park
+session logs, spec inventories, resolved reviews, or validation transcripts here.
 
-**Last-known-green (2026-07-13, spec 079):** `apps/figma-plugin` **47/47**;
-plugin build and `check_no_new_python.mjs` pass; dev server health is 200 at
-`http://localhost:3846`.
+Other owners: invariants → [`AGENTS.md`](AGENTS.md) · operational how-to →
+[`docs/agent-index.md`](docs/agent-index.md) · queue/order → [`TODO.md`](TODO.md) ·
+spec catalog/status → [`docs/specs.md`](docs/specs.md) · human notes →
+[`INBOX.md`](INBOX.md) · durable per-spec detail → `specs/<id>-<slug>/` ·
+adversarial reviews → `docs/spec-reviews/`.
 
-## Pre-merge handoff — spec 079
+**Last-known-green (2026-07-08, spec 077 branch):** `layout-engine` **1005/1005**;
+`export-frame-drawio` **13/13** (golden + positional assertions);
+`check-browser-bundle-fresh.mjs` ok; `check-preview-shell-size-budgets.mjs` ok;
+`check_no_new_python.mjs` ok. Adversarial review blockers addressed (display-list
+adapter, layout dispatch, golden tests).
 
-**Branch:** `feat/079-figma-component-variant-import`
+---
 
-The importer accepts selected YAML and maps semantic Section, Panel, and leaf
-nodes to live variants of the current-file `box` component set. Parent/Section
-content and icons use only real live `SLOT` nodes; there is no detach fallback
-or ordinary instance-sublayer structural edit. V3 `kind: container` nodes are
-raw generated auto-layout wrappers, not `Role=Parent` instances.
+## Current handoff (2026-07-08) — spec 077 Phase 3-4 wiring REJECTED on review
 
-Figma can make inserted slot descendants opaque after insertion. The importer
-checks sizing at mutation time and SlotNode `limitViolations`; post-build
-readback uses global/direct handles when available and does not roll back a
-valid diagram solely for opaque slot content. Effective V3 `FIXED` geometry is
-reapplied after final auto-layout reparenting; HUG and FILL remain auto-layout
-semantics.
+**Active spec:** 077 (`specs/077-mermaid-elk-cluster-lowering-port/`). **Start
+here:** [`specs/077-.../handoff.md`](specs/077-mermaid-elk-cluster-lowering-port/handoff.md)
+for the branch bootstrap and hard rules, then [`tasks.md`](specs/077-mermaid-elk-cluster-lowering-port/tasks.md).
 
-**2026-07-13 semantic grouping and sizing fix:** headingless groups serialize
-as raw `container` frames, even if they have an explicit source level; every
-non-leaf node with frame-owned visible text receives a live semantic component
-(Parent or Section), including authored level-1 panels. This prevents the
-master placeholder `Parent` chrome and unnecessary slots from leaking into
-structural groups while keeping headed semantic boxes live. Explicit vertical
-`sizing_h: fill` overrides were removed from content-driven fixture panels, so
-their panel/body/row chains use V3 `HUG`; the tallest child now determines the
-height. Payload regressions cover both contracts without changing component
-master layers.
+**Branch:** `feat/077-mermaid-elk-cluster-lowering-port`. Do **not** resume 076.
 
-**2026-07-13 slot-body and icon contract correction:** a mapped content slot
-contains exactly one raw directional frame. If a semantic node has one
-automatic structural child, that child is inserted directly as the slot body;
-the importer does not add a redundant `<semantic-id>/body`. Structural frames
-are neutral (zero padding, transparent/no stroke, no component chrome). The
-component contract recognizes a Boolean `hasIcon` definition even without a
-direct icon-layer reference and always sets it false for icon-less payload
-nodes; no detachment or ordinary instance edit is involved.
+**Reviews:**
+[phase 1-2](docs/spec-reviews/077-mermaid-elk-cluster-lowering-port-phase-1-2-review.md)
+(Phase 1 accepted) · **[phase 3-4](docs/spec-reviews/077-mermaid-elk-cluster-lowering-port-phase-3-4-review.md)
+— the current authority.**
 
-The adversarial re-review verdict is **Merge with follow-ups**. The headed
-level-1 container classification defect is fixed: headed non-leaf containers
-become live panels, explicit grey/solid panel chrome is preserved, and
-value-map payload and component-mode regressions guard the behavior. The full
-review history is in
-`docs/spec-reviews/opus-adversarial-review-2026-07-13-spec-079-merge.md`.
+**State:** Phase 0-2 **primitive** work is good and committed-worthy (LCA lowering,
+native model order, `ORDERING_EDGE_PREFIX` removed, crash evidence). The **Phase
+3-4 product wiring is rejected**: it re-implements the 076 pathology under new
+names. The cluster-lowered path does not let ELK own geometry —
+`shouldIncludeElkNode` still excludes annotation/cert leaves so they are hand-placed
+after ELK, and `hydrateClusterLoweredShellFrames` resizes shells from child bboxes
+(the `tls_provider` centering test failure is that symptom, not the last mile). The
+architecture "ban test" asserts a function-rename, not the invariant. SC-001 render
+proof (T050) is not done.
 
-The two re-review follow-ups are implemented in the working tree: upstream
-`resolveStyles` normalizes headed level-1 containers to panel chrome, and
-headed containers nested directly in a panel remain structural to avoid nested
-Parent boxes. The final stale production-contract draw.io golden was regenerated
-from committed YAML; the full layout-engine suite is 1011/1011. Real-Figma
-visual verification remains a release gate.
-
-Remaining live gate: verify the rebuilt plugin against the actual Figma file
-for sizing and visual component fidelity. Do not claim that gate passed without
-recorded evidence in the spec inspection file.
+**Next step (do not patch the centering drift):**
+1. make annotation/cert leaves first-class ELK nodes (stop excluding them in
+   `shouldIncludeElkNode` on the cluster path) so ELK places/orders them;
+2. delete the geometry work in `hydrateClusterLoweredShellFrames` — read ELK node
+   rects + `edge.sections` verbatim, keep only `applyClusterLoweredThinStyles`;
+3. rewrite the architecture test to assert the invariant (no node geometry mutated
+   after `elk.layout()`; arrow points == ELK sections);
+4. land SC-001: render the real TLS SVG and diff the reference before marking
+   Phase 3-5 done. Full detail in the phase 3-4 review.

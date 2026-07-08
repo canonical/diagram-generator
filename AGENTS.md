@@ -89,4 +89,13 @@ Preview loads `packages/layout-engine/dist/layout-engine.iife.js`, not TypeScrip
 
 ## Commits
 
-Do not commit unrelated frame fixture reformats or inbox notes unless the user asked for them.
+- `AGENT-INBOX.md` is **live state — commit it whenever it changes**, in the same
+  commit as the work it describes. A stale inbox is a bug, not tidiness. Keep it
+  drained: when a note is resolved or superseded, **triage it into the owning
+  `specs/<id>-<slug>/` package** (or delete it — git holds the history); do not let
+  notes rot. `docs/specs.md` (catalog) and `TODO.md` (queue) are bookkeeping owners
+  too — update and commit them when a spec's status or order changes.
+- "Do not commit **unrelated** changes" means keep a commit focused: do not sweep
+  unrelated frame-fixture reformats or stray edits into a feature commit. It is
+  **not** a rule against committing inbox / catalog / queue updates that reflect the
+  work in that commit — those should be committed.
