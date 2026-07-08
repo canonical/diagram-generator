@@ -107,6 +107,7 @@ row) before coding. Bugs already captured by a numbered spec live in
   schema freshness, parser negatives, layout idempotency.
 - Later: ontology-driven engine selection, security hardening, arrow waypoint
   editing, `DIAGRAM.md` refinement.
+- make the project more user-friendly for people on lower models and on terminal rather than vscdoe: slash commands for import,export, convert from inputs (pasted image, verbal description, .mmd, .drawio) to outputs (svg, png, drawio, mermaid).
 
 > Completed-work notes and one-off session audits do not belong here. Put those
 > in the `AGENTS.md` handover (transient) or the spec package they relate to.
