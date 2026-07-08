@@ -442,6 +442,16 @@ function applyPreviewTextHeadingOverride(target: Frame, headingText: unknown): v
   target.heading = undefined;
 }
 
+function applyPreviewTextHelperOverride(target: Frame, helperLines: unknown[]): void {
+  const nextHelper = helperLines.map((text) => createLine(String(text ?? '')));
+  const headingChild = target.children.find((child) => child.role === 'heading');
+  if (headingChild) {
+    headingChild.helper = nextHelper;
+    return;
+  }
+  target.helper = nextHelper;
+}
+
 export function applyPreviewOverridesToFrameTree(
   diagram: FrameDiagram,
   allOverrides: Record<string, PreviewRelayoutOverrideEntry | null | undefined>,
@@ -634,6 +644,9 @@ export function applyPreviewOverridesToFrameTree(
       }
       if (Array.isArray(textOverride.label)) {
         target.label = textOverride.label.map((text) => createLine(String(text ?? '')));
+      }
+      if (Array.isArray(textOverride.helper)) {
+        applyPreviewTextHelperOverride(target, textOverride.helper);
       }
     }
   }

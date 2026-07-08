@@ -1481,6 +1481,7 @@ test("builtin preview host production install coexists with a third registered l
       expectRegisteredRoutes(["autolayout", "force", "sequence"]);
       for (const key of [
         "component-tree",
+        "drawio-export",
         "force-save",
         "force-spec",
         "frame-overrides",
@@ -2316,6 +2317,33 @@ test("builtin preview host install preserves frame-yaml document ownership acros
     });
     assert.equal(svgContentType, "image/svg+xml");
     assert.match(String(svgPayload), /<svg\b/);
+
+    const drawioMatch = resolveRegisteredPreviewHostApiRoute(
+      "GET",
+      "/drawio/complex-routing-usecase.drawio",
+      normalizePreviewSlug,
+    );
+    assert.ok(drawioMatch);
+    let drawioPayload: Buffer | null = null;
+    let drawioContentType = "";
+    await drawioMatch.route.handle(drawioMatch, {
+      req: {} as never,
+      res: {} as never,
+      pathname: drawioMatch.pathname,
+      sendJson: () => {
+        throw new Error("did not expect drawio export route to send json");
+      },
+      sendText: () => {
+        throw new Error("did not expect drawio export route to send plain text");
+      },
+      sendBytes: (_statusCode, contentType, bytes) => {
+        drawioContentType = contentType;
+        drawioPayload = bytes;
+      },
+      readJsonBody: async () => ({}),
+    });
+    assert.equal(drawioContentType, "application/xml; charset=utf-8");
+    assert.match(String(drawioPayload), /<mxfile\b/);
 
     const sequenceSvgMatch = resolveRegisteredPreviewHostApiRoute(
       "GET",

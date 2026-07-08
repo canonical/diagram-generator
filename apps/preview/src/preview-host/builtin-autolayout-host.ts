@@ -79,6 +79,14 @@ function resolveSvgExportSlug(pathname: string): string | null {
     .replace(/-onbrand-v3\.svg$/i, "");
 }
 
+function resolveDrawioExportSlug(pathname: string): string | null {
+  const rawName = pathname.startsWith("/drawio/")
+    ? pathname.slice("/drawio/".length)
+    : pathname.slice("/v3/drawio/".length);
+  const safeName = path.posix.basename(rawName);
+  return safeName.replace(/\.drawio$/i, "");
+}
+
 function collectWorkspaceEngineScripts(
   compatibleEngineIds: readonly string[],
   activeEngineId: string | null,
@@ -177,6 +185,19 @@ export function createPreviewSvgHostApiRoute(): PreviewHostApiRouteDescriptor {
   });
 }
 
+export function createPreviewDrawioHostApiRoute(): PreviewHostApiRouteDescriptor {
+  return createPreviewHostDocumentGetBytesRoute({
+    key: "drawio-export",
+    routePrefixes: ["/drawio/", "/v3/drawio/"],
+    documentEndpointKind: FRAME_PREVIEW_HOST_DOCUMENT_ENDPOINTS.drawioExport,
+    routeKey: "autolayout",
+    missingMessage: missingAutolayoutDiagramMessage,
+    contentType: "application/xml; charset=utf-8",
+    resolveSlug: (match) => resolveDrawioExportSlug(match.pathname),
+    transformResult: (value) => Buffer.from(String(value), "utf8"),
+  });
+}
+
 export const AUTOLAYOUT_PREVIEW_HOST_API_ROUTES = [
   createFrameOverridesPreviewHostApiRoute(),
   createPreviewDocumentPreviewHostApiRoute(),
@@ -184,6 +205,7 @@ export const AUTOLAYOUT_PREVIEW_HOST_API_ROUTES = [
   createComponentTreePreviewHostApiRoute(),
   createGridInfoPreviewHostApiRoute(),
   createPreviewSvgHostApiRoute(),
+  createPreviewDrawioHostApiRoute(),
 ] as const;
 
 export function installBuiltinAutolayoutPreviewHostApiRoutes(): () => void {

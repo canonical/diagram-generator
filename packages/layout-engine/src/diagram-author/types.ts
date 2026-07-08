@@ -39,6 +39,7 @@ export interface AuthorArrow {
 
 export interface FrameTemplate {
   label?: LineSpec[];
+  helper?: LineSpec[];
   icon?: string;
   iconFill?: string;
   sizingW?: string;
@@ -83,6 +84,7 @@ export interface AuthorFrameNode {
   variant?: string;
   role?: string;
   heading?: LineSpec;
+  helper?: LineSpec[];
   label?: LineSpec[];
   icon?: string;
   iconFill?: string;

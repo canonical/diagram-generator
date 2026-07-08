@@ -126,9 +126,20 @@ export { buildGridInfo, type GridInfo } from './grid-info.js';
 export { buildComponentTree, type ComponentInfo } from './component-tree.js';
 export { renderFrameDiagramToSvg, type SvgRenderOptions } from './svg-render.js';
 export {
+  exportFrameDiagramToDrawio,
+  type DrawioExportOptions,
+  type DrawioExportResult,
+} from './drawio-render.js';
+export { layoutFrameDiagramForExport } from './frame-diagram-export-layout.js';
+export {
   emitFrameDiagramDisplayList,
 } from './render-adapter/display-list.js';
 export { renderDisplayListToSvg } from './render-adapter/svg.js';
+export {
+  renderDisplayListToDrawio,
+  type DrawioRenderOptions,
+  type DrawioRenderResult,
+} from './render-adapter/drawio.js';
 export type {
   AssetRef,
   Color,

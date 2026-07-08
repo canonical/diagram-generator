@@ -94,6 +94,10 @@ export function parseFrameRecord(data: Record<string, unknown>, isRoot = false):
   if (typeof labelRaw === 'string') labelRaw = [labelRaw];
   const label = ((labelRaw as unknown[]) ?? []).map(parseLine);
 
+  let helperRaw = data.helper;
+  if (typeof helperRaw === 'string') helperRaw = [helperRaw];
+  const helper = ((helperRaw as unknown[]) ?? []).map(parseLine);
+
   let headingLine: Line | undefined;
   if ('heading' in data) {
     const h = data.heading;
@@ -171,6 +175,7 @@ export function parseFrameRecord(data: Record<string, unknown>, isRoot = false):
     fill: FILL[String(data.fill ?? 'white')] ?? Fill.WHITE,
     border,
     heading: headingLine && !isContainer ? headingLine : undefined,
+    helper: headingLine && isContainer ? [] : helper,
     icon: headingLine && isContainer ? undefined : (data.icon as string | undefined),
     iconFill: data.icon_fill as string | undefined,
     label,
@@ -184,6 +189,7 @@ export function parseFrameRecord(data: Record<string, unknown>, isRoot = false):
 
   if (headingLine && frame.isContainer) {
     applyHeadingAsChild(frame, headingLine, {
+      helper,
       icon: data.icon as string | undefined,
       iconFill: data.icon_fill as string | undefined,
     });

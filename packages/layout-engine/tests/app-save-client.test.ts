@@ -706,6 +706,10 @@ describe('preview save client runtime', () => {
       disabled: false,
       addEventListener: vi.fn(),
     };
+    const saveDrawioButton = {
+      disabled: false,
+      addEventListener: vi.fn(),
+    };
     const svg = {
       cloneNode: () => ({
         getAttribute: () => 'set',
@@ -738,6 +742,7 @@ describe('preview save client runtime', () => {
         getElementById(id: string) {
           if (id === 'btn-save') return saveButton;
           if (id === 'btn-save-svg') return saveSvgButton;
+          if (id === 'btn-save-drawio') return saveDrawioButton;
           return null;
         },
         querySelector(selector: string) {
@@ -793,6 +798,7 @@ describe('preview save client runtime', () => {
     runtime.setDirty(true);
     expect(saveButton.disabled).toBe(true);
     expect(saveSvgButton.disabled).toBe(false);
+    expect(saveDrawioButton.disabled).toBe(false);
 
     relayoutReady = true;
     runtime.syncSaveButton();
@@ -809,6 +815,68 @@ describe('preview save client runtime', () => {
     });
     await savePromise;
     expect(saveButton.disabled).toBe(false);
+  });
+
+  it('downloads drawio export through the preview host route', async () => {
+    const link = {
+      href: '',
+      download: '',
+      click: vi.fn(),
+      remove: vi.fn(),
+    };
+    const saveDrawioButton = {
+      disabled: false,
+      addEventListener: vi.fn(),
+    };
+    const fetchFn = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      text: async () => '<mxfile />',
+      json: async () => ({}),
+    }));
+    const runtime = createPreviewSaveClientRuntime({
+      document: {
+        body: { appendChild: vi.fn() },
+        activeElement: null,
+        createElement() {
+          return link;
+        },
+        getElementById(id: string) {
+          if (id === 'btn-save-drawio') return saveDrawioButton;
+          return null;
+        },
+        querySelector(selector: string) {
+          return selector === '#stage svg' ? { cloneNode: vi.fn() } : null;
+        },
+      },
+      previewWindow: {},
+      fetchFn,
+      alertFn: vi.fn(),
+      blobCtor: class FakeBlob {},
+      urlApi: {
+        createObjectURL: () => 'blob:drawio',
+        revokeObjectURL: vi.fn(),
+      },
+    });
+
+    runtime.init({
+      slug: 'demo',
+      getModel: () => ({ overrides: {}, gridOverrides: {}, removedIds: new Set<string>() }),
+      getSelectedIds: () => [],
+      restoreSelectionIds: vi.fn(),
+      serializeDirtyState: () => '{}',
+      reloadDiagram: vi.fn(async () => undefined),
+      getLayoutRelayoutStatus: () => ({ localReady: true }),
+      getLayoutRelayoutRuntime: () => ({ lastMode: 'local-ready' }),
+      getConstraintSummary: () => ({ errors: 0 }),
+    });
+
+    await runtime.saveCurrentDrawio();
+
+    expect(fetchFn).toHaveBeenCalledWith('/drawio/demo.drawio', { method: 'GET' });
+    expect(link.download).toBe('demo.drawio');
+    expect(link.click).toHaveBeenCalledTimes(1);
   });
 
   it('keeps removal state and reports reload failures after a successful persist', async () => {

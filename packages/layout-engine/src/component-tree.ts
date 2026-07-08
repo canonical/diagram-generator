@@ -33,6 +33,7 @@ export interface ComponentInfo {
   border: string;
   heading_text: string;
   label_text: string[];
+  helper_text: string[];
   min_width?: number;
   max_width?: number;
   max_width_chars?: number;
@@ -45,6 +46,17 @@ function headingTextForFrame(frame: Frame): string {
   const headingChild = frame.children.find(c => c.role === 'heading');
   if (headingChild?.label[0]?.content) return headingChild.label[0].content;
   return '';
+}
+
+function helperTextForFrame(frame: Frame): string[] {
+  if (frame.helper.length > 0) {
+    return frame.helper.map((line) => line.content);
+  }
+  const headingChild = frame.children.find(c => c.role === 'heading');
+  if (headingChild?.helper.length) {
+    return headingChild.helper.map((line) => line.content);
+  }
+  return [];
 }
 
 /** Heading synthesis uses __heading + __body; expose body children/gap on the authored parent. */
@@ -135,6 +147,7 @@ function frameToComponentInfo(frame: Frame): ComponentInfo | null {
     border: frame.border,
     heading_text: headingTextForFrame(frame),
     label_text: frame.label.map(ln => ln.content),
+    helper_text: helperTextForFrame(frame),
     min_width: frame.minWidth,
     max_width: frame.maxWidth,
     max_width_chars: frame.maxWidthChars,

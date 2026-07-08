@@ -50,7 +50,7 @@ export function findSyntheticBody(frame: Frame): Frame | undefined {
 export function applyHeadingAsChild(
   frame: Frame,
   heading: Line,
-  options?: { icon?: string; iconFill?: string },
+  options?: { helper?: Line[]; icon?: string; iconFill?: string },
 ): void {
   if (!frame.isContainer) return;
 
@@ -70,6 +70,7 @@ export function applyHeadingAsChild(
     fill: headingFill,
     padding: 0,
     label: [heading],
+    helper: options?.helper ?? [],
     icon: options?.icon,
     iconFill: headingIconFill,
   });

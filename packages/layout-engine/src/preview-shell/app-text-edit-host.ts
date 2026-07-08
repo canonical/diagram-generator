@@ -44,6 +44,7 @@ export interface StartPreviewTextEditHostOptions {
   cid: string;
   headingText: string;
   labelText: string[];
+  helperText?: string[];
   targetedTextEl?: Element | null;
   iconSize: number;
   columnGap: number;
@@ -189,6 +190,7 @@ export function startPreviewTextEditHost(
     groups: collectPreviewTextEditingGroups(options.svg, options.cid),
     headingText: options.headingText,
     labelText: options.labelText,
+    helperText: options.helperText,
     targetedTextEl: options.targetedTextEl ?? null,
     iconSize: options.iconSize,
     columnGap: options.columnGap,

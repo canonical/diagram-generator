@@ -106,4 +106,19 @@ describe('applyHeadingAsChild propagation contract', () => {
     applyHeadingAsChild(panel, createLine('H'));
     expect(findSyntheticBody(panel)!.sizingH).toBe(Sizing.HUG);
   });
+
+  it('moves authored helper text onto the synthetic heading child', () => {
+    const panel = new Frame({
+      id: 'panel',
+      children: [new Frame({ id: 'leaf', label: [createLine('Body')] })],
+    });
+
+    applyHeadingAsChild(panel, createLine('Title'), {
+      helper: [createLine('Helper copy')],
+    });
+
+    expect(panel.children[0]?.id).toBe('panel__heading');
+    expect(panel.children[0]?.helper.map((line) => line.content)).toEqual(['Helper copy']);
+    expect(findSyntheticBody(panel)?.helper).toEqual([]);
+  });
 });

@@ -85,8 +85,10 @@ export interface PreviewSaveClientRuntime {
   getLastSavedState: () => string | null;
   syncSaveButton: (errorCount?: number | null) => void;
   syncSaveSvgButton: () => void;
+  syncSaveDrawioButton: () => void;
   saveOverrides: () => Promise<void>;
   saveCurrentSvg: () => void;
+  saveCurrentDrawio: () => Promise<void>;
   trySaveIfDirty: () => void;
 }
 
@@ -123,6 +125,11 @@ function resolveLayoutRelayoutRuntime(
 function currentSvgFilename(slug: string): string {
   const baseSlug = String(slug || '').replace(/^v3:/, '');
   return `${baseSlug}-onbrand-v3.svg`;
+}
+
+function currentDrawioFilename(slug: string): string {
+  const baseSlug = String(slug || '').replace(/^v3:/, '');
+  return `${baseSlug}.drawio`;
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -169,6 +176,7 @@ export function createPreviewSaveClientRuntime(
   let dirty = false;
   let saving = false;
   let svgExporting = false;
+  let drawioExporting = false;
   let lastSavedState: string | null = null;
   let initialized = false;
 
@@ -228,6 +236,18 @@ export function createPreviewSaveClientRuntime(
     }).disabled;
   }
 
+  function syncSaveDrawioButton(): void {
+    const saveDrawioButton = options.document.getElementById('btn-save-drawio');
+    if (!saveDrawioButton) {
+      return;
+    }
+    const svg = options.document.querySelector('#stage svg');
+    saveDrawioButton.disabled = resolvePreviewSaveSvgButtonState({
+      hasRenderedSvg: Boolean(svg),
+      exporting: drawioExporting,
+    }).disabled;
+  }
+
   function setDirty(nextDirty: boolean): void {
     dirty = Boolean(nextDirty);
     syncSaveButton();
@@ -240,6 +260,7 @@ export function createPreviewSaveClientRuntime(
     lastSavedState = serializedState;
     setDirty(false);
     syncSaveSvgButton();
+    syncSaveDrawioButton();
   }
 
   function syncDirtyFromSerialized(serializedState: string): void {
@@ -259,6 +280,19 @@ export function createPreviewSaveClientRuntime(
     link.click();
     link.remove();
     options.urlApi.revokeObjectURL(url);
+  }
+
+  async function downloadRouteFile(routePath: string, filename: string, mimeType: string): Promise<void> {
+    if (typeof options.fetchFn !== 'function') {
+      throw new Error('Preview save client requires fetch() support for draw.io export');
+    }
+    const response = await options.fetchFn(routePath, {
+      method: 'GET',
+    });
+    if (!response.ok) {
+      throw new Error(await response.text() || response.statusText || 'Unknown export error');
+    }
+    downloadTextFile(filename, await response.text(), mimeType);
   }
 
   function commitFocusedControl(): void {
@@ -308,6 +342,32 @@ export function createPreviewSaveClientRuntime(
     } finally {
       svgExporting = false;
       syncSaveSvgButton();
+    }
+  }
+
+  async function saveCurrentDrawio(): Promise<void> {
+    const runtimeDeps = requireDeps();
+    if (drawioExporting) {
+      return;
+    }
+    drawioExporting = true;
+    syncSaveDrawioButton();
+    try {
+      const svg = options.document.querySelector('#stage svg');
+      if (!svg) {
+        alertFn('No SVG is loaded.');
+        return;
+      }
+      await downloadRouteFile(
+        `/drawio/${encodeURIComponent(String(runtimeDeps.slug || '').replace(/^v3:/, ''))}.drawio`,
+        currentDrawioFilename(runtimeDeps.slug),
+        'application/xml;charset=utf-8',
+      );
+    } catch (error) {
+      alertFn(`Drawio export failed: ${String(error)}`);
+    } finally {
+      drawioExporting = false;
+      syncSaveDrawioButton();
     }
   }
 
@@ -444,8 +504,12 @@ export function createPreviewSaveClientRuntime(
     options.document.getElementById('btn-save-svg')?.addEventListener?.('click', () => {
       saveCurrentSvg();
     });
+    options.document.getElementById('btn-save-drawio')?.addEventListener?.('click', () => {
+      void saveCurrentDrawio();
+    });
     syncSaveButton();
     syncSaveSvgButton();
+    syncSaveDrawioButton();
     if (typeof runtimeDeps.onBeforeUnload === 'function') {
       options.previewWindow.addEventListener?.('beforeunload', runtimeDeps.onBeforeUnload);
     }
@@ -460,8 +524,10 @@ export function createPreviewSaveClientRuntime(
     getLastSavedState: () => lastSavedState,
     syncSaveButton,
     syncSaveSvgButton,
+    syncSaveDrawioButton,
     saveOverrides,
     saveCurrentSvg,
+    saveCurrentDrawio,
     trySaveIfDirty,
   };
 }

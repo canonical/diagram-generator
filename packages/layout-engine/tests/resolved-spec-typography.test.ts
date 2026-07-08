@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { Frame, createLine } from '../src/frame-model.js';
 import {
+  frameOwnedTextBlockGap,
   resolvedSpecTypography,
+  frameOwnedTextBlocks,
   frameOwnedTextBlockRole,
   usesLeafLeadStyleSnapshot,
   usesHeadingStyleSnapshot,
@@ -93,5 +95,20 @@ describe('resolvedSpecTypography', () => {
       label: [createLine('Panel')],
     });
     expect(frameOwnedTextBlockRole(heading, 0)).toBe('heading');
+  });
+
+  it('emits helper text as a separate helper block directly after the heading block', () => {
+    const section = new Frame({
+      id: 'section',
+      heading: createLine('Section'),
+      helper: [createLine('Helper copy')],
+    });
+
+    const blocks = frameOwnedTextBlocks(section);
+    expect(blocks).toHaveLength(2);
+    expect(frameOwnedTextBlockRole(section, 0)).toBe('heading');
+    expect(frameOwnedTextBlockRole(section, 1)).toBe('helper');
+    expect(frameOwnedTextBlockGap(section, 0, blocks.length)).toBe(0);
+    expect(blocks[1]?.[0]?.fill).toBe('#666666');
   });
 });

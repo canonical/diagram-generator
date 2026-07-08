@@ -4,6 +4,7 @@ import {
   frameTreeForSlug,
   gridInfoForSlug,
   previewDocumentForSlug,
+  renderDrawioForSlug,
   renderSvgForSlug,
   type FramePreviewDocumentDeps,
   type FramePreviewRenderDeps,
@@ -30,6 +31,7 @@ export const FRAME_PREVIEW_HOST_DOCUMENT_ENDPOINTS = {
   componentTree: "component-tree",
   gridInfo: "grid-info",
   svgExport: "svg-export",
+  drawioExport: "drawio-export",
   saveDocument: "save-document",
 } as const;
 
@@ -61,6 +63,10 @@ export function createFramePreviewHostDocumentEndpoints(
     {
       kind: FRAME_PREVIEW_HOST_DOCUMENT_ENDPOINTS.svgExport,
       handler: (slug: string) => renderSvgForSlug(slug, options.framePreviewRenderDeps),
+    },
+    {
+      kind: FRAME_PREVIEW_HOST_DOCUMENT_ENDPOINTS.drawioExport,
+      handler: (slug: string) => renderDrawioForSlug(slug, options.framePreviewRenderDeps),
     },
     {
       kind: FRAME_PREVIEW_HOST_DOCUMENT_ENDPOINTS.saveDocument,

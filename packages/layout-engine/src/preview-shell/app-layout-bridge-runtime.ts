@@ -581,6 +581,7 @@ interface PreviewLayoutBridgeTreeNode {
   fill?: string | null;
   borderFill?: string | null;
   heading?: { content?: string | null } | null;
+  helper?: Array<{ content?: string | null }>;
   label?: Array<{ content?: string | null }>;
   children: PreviewLayoutBridgeTreeNode[];
   _layout: {
@@ -1498,6 +1499,18 @@ function headingTextForPreviewFrame(frame: PreviewLayoutBridgeTreeNode): string 
   return headingChild?.label?.[0]?.content || '';
 }
 
+function helperTextForPreviewFrame(frame: PreviewLayoutBridgeTreeNode): string[] {
+  if (Array.isArray(frame.helper) && frame.helper.length > 0) {
+    return frame.helper.map((line) => line.content || '');
+  }
+  const headingChild = frame.children.find(
+    (child) => child.role === 'heading' || Boolean(child.id && child.id.endsWith('__heading')),
+  );
+  return Array.isArray(headingChild?.helper)
+    ? headingChild.helper.map((line) => line.content || '')
+    : [];
+}
+
 function resolvePreviewAuthoredLayoutFrame(frame: PreviewLayoutBridgeTreeNode): {
   layoutChildren: PreviewLayoutBridgeTreeNode[];
   layoutGap: number;
@@ -1595,6 +1608,7 @@ export function updatePreviewComponentModelFromLayout<
       label_text: Array.isArray(node.label)
         ? node.label.map((line) => line.content || '')
         : [],
+      helper_text: helperTextForPreviewFrame(node),
     };
   };
 

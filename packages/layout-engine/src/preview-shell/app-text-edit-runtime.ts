@@ -16,6 +16,7 @@ export interface CreatePreviewTextEditRuntimeOptions {
     data?: {
       heading_text?: string;
       label_text?: string[];
+      helper_text?: string[];
     };
   } | null | undefined;
   iconSize: number;
@@ -51,6 +52,7 @@ export interface CreatePreviewTextEditRuntimeFromHostOptions {
       data?: {
         heading_text?: string;
         label_text?: string[];
+        helper_text?: string[];
       };
     } | null | undefined;
   };
@@ -98,6 +100,7 @@ export function createPreviewTextEditRuntime(
         cid,
         headingText: node?.data?.heading_text || '',
         labelText: node?.data?.label_text || [],
+        helperText: node?.data?.helper_text || [],
         targetedTextEl: runtimeOptions?.textEl ?? null,
         iconSize: options.iconSize,
         columnGap: options.columnGap,

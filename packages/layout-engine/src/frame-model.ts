@@ -221,6 +221,7 @@ export interface FrameInit {
   fill?: Fill;
   border?: Border;
   heading?: Line;
+  helper?: Line[];
   icon?: string;
   iconFill?: string;
   level?: number;
@@ -304,6 +305,7 @@ export class Frame {
   fill: Fill;
   border: Border;
   heading: Line | undefined;
+  helper: Line[];
   icon: string | undefined;
   iconFill: string | undefined;
   level: number | undefined;
@@ -370,6 +372,7 @@ export class Frame {
     this.fill = init?.fill ?? Fill.WHITE;
     this.border = init?.border ?? Border.SOLID;
     this.heading = init?.heading;
+    this.helper = init?.helper ?? [];
     this.icon = init?.icon;
     this.iconFill = init?.iconFill;
     this.level = init?.level;

@@ -121,6 +121,11 @@ function normalizeFrameFields(record: Record<string, unknown>): Omit<AuthorFrame
     if (heading) node.heading = heading;
   }
 
+  if ('helper' in record) {
+    const helper = normalizeLineArray(record.helper);
+    if (helper) node.helper = helper;
+  }
+
   if ('label' in record) {
     const label = normalizeLineArray(record.label);
     if (label) node.label = label;
@@ -160,6 +165,7 @@ const FRAME_TEMPLATE_KEYS: (keyof FrameTemplate)[] = [
   'variant',
   'role',
   'heading',
+  'helper',
   'direction',
   'gap',
   'gapDelta',

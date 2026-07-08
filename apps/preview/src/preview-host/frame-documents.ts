@@ -6,6 +6,7 @@ import {
   buildGridInfo,
   collectIconNames,
   compileDiagramYaml,
+  exportFrameDiagramToDrawio,
   FRAME_PREVIEW_SHELL_MODE,
   layoutPreviewFrameDiagramForEngine,
   listCompatiblePreviewEngines,
@@ -354,6 +355,17 @@ export async function renderSvgForSlug(slug: string, deps: FramePreviewRenderDep
   const previewDocument = previewDocumentForSlug(slug, deps);
   const handler = requireFrameYamlDocumentKindHandler(previewDocument.kind);
   return handler.renderSvg(slug, deps, previewDocument);
+}
+
+export async function renderDrawioForSlug(slug: string, deps: FramePreviewRenderDeps): Promise<string> {
+  const { diagram, layout } = await buildFrameDiagramState(slug, deps);
+  const adapter = await deps.textAdapterPromise;
+  const iconMarkupByName = preloadIconMarkup(deps.iconLoader, collectIconNames(diagram.root));
+  return exportFrameDiagramToDrawio(diagram, layout, adapter, {
+    iconMarkupByName,
+    diagramId: slug,
+    diagramName: diagram.title,
+  }).xml;
 }
 
 function resolveFramePreviewEngineResolutionForDocument(

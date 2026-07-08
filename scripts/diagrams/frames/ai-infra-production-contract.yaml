@@ -1,0 +1,394 @@
+schema: author-v1
+engine: v3
+title: Production contract - deployment pattern
+meta:
+  diagram_type: deployment_and_runtime_topology
+  layout_engine: elk-layered
+  source_image: diagrams/1.input/ai-infra/image copy 2.png
+  elk:
+    elk.direction: RIGHT
+    elk.layered.spacing.nodeNodeBetweenLayers: 48
+    elk.spacing.nodeNode: 24
+    elk.spacing.edgeNode: 24
+    elk.spacing.edgeEdge: 16
+    elk.layered.spacing.edgeEdgeBetweenLayers: 16
+    elk.layered.unnecessaryBendpoints: true
+    elk.layered.nodePlacement.favorStraightEdges: true
+    elk.layered.layering.strategy: LONGEST_PATH
+    elk.layered.crossingMinimization.strategy: LAYER_SWEEP
+    elk.layered.nodePlacement.strategy: BRANDES_KOEPF
+    elk.hierarchyHandling: INCLUDE_CHILDREN
+  elk_nodes:
+    elk-layered:
+      elk.direction: RIGHT
+      elk.layered.spacing.nodeNodeBetweenLayers: 48
+      elk.spacing.nodeNode: 24
+      elk.spacing.edgeNode: 24
+      elk.spacing.edgeEdge: 16
+      elk.layered.spacing.edgeEdgeBetweenLayers: 16
+      elk.layered.unnecessaryBendpoints: true
+      elk.layered.nodePlacement.favorStraightEdges: true
+      elk.layered.layering.strategy: LONGEST_PATH
+      elk.layered.crossingMinimization.strategy: LAYER_SWEEP
+      elk.layered.nodePlacement.strategy: BRANDES_KOEPF
+      elk.hierarchyHandling: INCLUDE_CHILDREN
+    elk-force:
+      elk.spacing.nodeNode: 24
+    elk-stress:
+      elk.stress.dimension: XY
+      elk.stress.epsilon: 0.001
+      elk.stress.iterationLimit: 2147483647
+      elk.stress.desiredEdgeLength: 100
+      elk.edgeLabels.inline: true
+grid:
+  cols: 3
+  col_gap: 32
+  row_gap: 24
+arrows:
+- id: edge_core_to_regional_approved_policy
+  source: core_cloud
+  target: regional_site
+  label: approved state / policy
+- id: edge_core_to_regional_updates
+  source: core_cloud
+  target: regional_site
+  label: updates
+- id: edge_core_to_regional_logs
+  source: core_cloud
+  target: regional_site
+  label: logs
+- id: edge_core_to_regional_health
+  source: core_cloud
+  target: regional_site
+  label: health
+- id: edge_core_to_regional_drift
+  source: core_cloud
+  target: regional_site
+  label: drift
+- id: edge_core_to_regional_evidence
+  source: core_cloud
+  target: regional_site
+  label: evidence
+- id: edge_regional_to_edge_policy
+  source: regional_site
+  target: edge_site
+  label: policy
+- id: edge_regional_to_edge_updates
+  source: regional_site
+  target: edge_site
+  label: updates
+- id: edge_regional_to_edge_logs
+  source: regional_site
+  target: edge_site
+  label: logs
+- id: edge_regional_to_edge_health
+  source: regional_site
+  target: edge_site
+  label: health
+- id: edge_regional_to_edge_drift
+  source: regional_site
+  target: edge_site
+  label: drift
+- id: edge_regional_to_edge_evidence
+  source: regional_site
+  target: edge_site
+  label: evidence
+- id: edge_step1_to_step2
+  source: step_production_contract
+  target: step_deployment_pattern
+- id: edge_step2_to_step3
+  source: step_deployment_pattern
+  target: step_operational_view
+- id: edge_step3_to_step4
+  source: step_operational_view
+  target: step_evidence_trail
+- id: edge_step4_to_step5
+  source: step_evidence_trail
+  target: step_failure_rehearsal
+root:
+  id: page
+  direction: vertical
+  align: top-center
+  gap: 32
+  padding: 24
+  children:
+  - id: contract_header
+    variant: annotation
+    label:
+    - Repeatable AI operations - owned
+    - observable
+    - auditable
+    - recoverable
+  - id: diagram_body
+    direction: horizontal
+    align: top-center
+    gap: 48
+    sizing_w: fill
+    children:
+    - id: site_columns
+      direction: horizontal
+      align: top-center
+      gap: 32
+      sizing_w: fill
+      children:
+      - id: core_cloud
+        level: 1
+        heading: Core cloud - central control and governance
+        direction: vertical
+        align: top-center
+        gap: 12
+        width: 200
+        sizing_w: fixed
+        sizing_h: hug
+      - id: regional_site
+        level: 1
+        heading: Regional site - policy enforcement and aggregation
+        direction: vertical
+        align: top-center
+        gap: 12
+        width: 200
+        sizing_w: fixed
+        sizing_h: hug
+        children:
+        - id: local_continuity
+          variant: annotation
+          label:
+          - Local continuity
+      - id: edge_site
+        level: 1
+        heading: Edge site - local execution (degraded mode OK)
+        direction: vertical
+        align: top-center
+        gap: 12
+        width: 200
+        sizing_w: fixed
+        sizing_h: hug
+    - id: pipeline_row
+      direction: horizontal
+      align: top-center
+      gap: 24
+      sizing_w: fill
+      children:
+      - id: step_production_contract
+        level: 2
+        heading: 1. Production contract
+        direction: vertical
+        align: top-center
+        gap: 12
+        width: 168
+        sizing_w: fixed
+        sizing_h: hug
+        children:
+        - id: owners
+          width: 152
+          height: 48
+          sizing_w: fixed
+          sizing_h: fixed
+          label:
+          - Owners
+          icon: 3 users.svg
+        - id: service_levels
+          width: 152
+          height: 48
+          sizing_w: fixed
+          sizing_h: fixed
+          label:
+          - Service
+          - levels
+          icon: Bar chart with check.svg
+        - id: blast_radius
+          width: 152
+          height: 48
+          sizing_w: fixed
+          sizing_h: fixed
+          label:
+          - Blast
+          - radius
+          icon: Network.svg
+      - id: step_deployment_pattern
+        level: 2
+        heading: 2. Deployment pattern
+        direction: vertical
+        align: top-center
+        gap: 12
+        width: 168
+        sizing_w: fixed
+        sizing_h: hug
+        children:
+        - id: ai_service
+          width: 152
+          height: 48
+          sizing_w: fixed
+          sizing_h: fixed
+          label:
+          - AI
+          - service
+          icon: AI.svg
+        - id: model_runtime_policy
+          width: 152
+          height: 48
+          sizing_w: fixed
+          sizing_h: fixed
+          label:
+          - Model data
+          - runtime policy
+          icon: App data.svg
+        - id: data_freshness
+          width: 152
+          height: 48
+          sizing_w: fixed
+          sizing_h: fixed
+          label:
+          - Data
+          - freshness
+          icon: Operations.svg
+        - id: model_behavior
+          width: 152
+          height: 48
+          sizing_w: fixed
+          sizing_h: fixed
+          label:
+          - Model
+          - behavior
+          icon: Chip 1.svg
+        - id: version
+          width: 152
+          height: 48
+          sizing_w: fixed
+          sizing_h: fixed
+          label:
+          - Version
+          icon: Circle backup boot paths.svg
+        - id: packaging
+          width: 152
+          height: 48
+          sizing_w: fixed
+          sizing_h: fixed
+          label:
+          - Packaging
+          icon: Container.svg
+        - id: serving
+          width: 152
+          height: 48
+          sizing_w: fixed
+          sizing_h: fixed
+          label:
+          - Serving
+          icon: Cloud with container.svg
+      - id: step_operational_view
+        level: 2
+        heading: 3. Operational view
+        direction: vertical
+        align: top-center
+        gap: 12
+        width: 168
+        sizing_w: fixed
+        sizing_h: hug
+        children:
+        - id: approval
+          width: 152
+          height: 48
+          sizing_w: fixed
+          sizing_h: fixed
+          label:
+          - Approval
+          icon: Lock.svg
+        - id: infrastructure_health
+          width: 152
+          height: 48
+          sizing_w: fixed
+          sizing_h: fixed
+          label:
+          - Infrastructure
+          - health
+          icon: Server.svg
+        - id: change_history
+          width: 152
+          height: 48
+          sizing_w: fixed
+          sizing_h: fixed
+          label:
+          - Change
+          - history
+          icon: Document.svg
+      - id: step_evidence_trail
+        level: 2
+        heading: 4. Evidence trail
+        direction: vertical
+        align: top-center
+        gap: 12
+        width: 168
+        sizing_w: fixed
+        sizing_h: hug
+        children:
+        - id: audit_logs
+          width: 152
+          height: 48
+          sizing_w: fixed
+          sizing_h: fixed
+          label:
+          - Audit
+          - logs
+          icon: App data.svg
+        - id: config_drift
+          width: 152
+          height: 48
+          sizing_w: fixed
+          sizing_h: fixed
+          label:
+          - Config
+          - drift
+          icon: Network.svg
+        - id: compliance_evidence
+          width: 152
+          height: 48
+          sizing_w: fixed
+          sizing_h: fixed
+          label:
+          - Compliance
+          - evidence
+          icon: Clipboard.svg
+      - id: step_failure_rehearsal
+        level: 2
+        heading: 5. Failure rehearsal
+        direction: vertical
+        align: top-center
+        gap: 12
+        width: 168
+        sizing_w: fixed
+        sizing_h: hug
+        children:
+        - id: stale_data
+          width: 152
+          height: 48
+          sizing_w: fixed
+          sizing_h: fixed
+          label:
+          - Stale
+          - data
+          icon: Storage object.svg
+        - id: failed_update
+          width: 152
+          height: 48
+          sizing_w: fixed
+          sizing_h: fixed
+          label:
+          - Failed
+          - update
+          icon: Operations.svg
+        - id: rollback
+          width: 152
+          height: 48
+          sizing_w: fixed
+          sizing_h: fixed
+          label:
+          - Rollback
+          icon: Circle backup boot paths.svg
+        - id: recovery
+          width: 152
+          height: 48
+          sizing_w: fixed
+          sizing_h: fixed
+          label:
+          - Recovery
+          icon: Circle backup boot paths.svg

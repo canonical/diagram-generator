@@ -22,7 +22,7 @@ export interface ResolvedFrameOwnedTypography extends ResolvedSpecTypography {
 }
 
 export type FrameOwnedTextBlock = LineSpec[];
-export type FrameOwnedTextBlockRole = 'heading' | 'label';
+export type FrameOwnedTextBlockRole = 'heading' | 'label' | 'helper';
 
 /** True when this spec row should use heading snapshot fields on the frame. */
 export function usesHeadingStyleSnapshot(frame: Frame, specIndex: number): boolean {
@@ -115,6 +115,10 @@ export function frameOwnedLabelToSpec(frame: Frame, line: Line, labelIndex: numb
   };
 }
 
+export function frameOwnedHelperToSpec(line: Line): LineSpec {
+  return annotationTextToSpec(line);
+}
+
 export function frameOwnedTextBlocks(frame: Frame): FrameOwnedTextBlock[] {
   const blocks: FrameOwnedTextBlock[] = [];
 
@@ -126,15 +130,31 @@ export function frameOwnedTextBlocks(frame: Frame): FrameOwnedTextBlock[] {
     blocks.push(frame.label.map((line, labelIndex) => frameOwnedLabelToSpec(frame, line, labelIndex)));
   }
 
+  if (frame.helper.length > 0) {
+    blocks.push(frame.helper.map(frameOwnedHelperToSpec));
+  }
+
   return blocks.filter(block => block.length > 0);
 }
 
 export function frameOwnedTextBlockRole(frame: Frame, blockIndex: number): FrameOwnedTextBlockRole {
-  return (frame.role === 'heading' || (frame.heading != null && blockIndex === 0)) ? 'heading' : 'label';
+  const hasHeadingBlock = frame.role === 'heading' || frame.heading != null;
+  const hasLabelBlock = frame.isLeaf && frame.label.length > 0;
+
+  if (hasHeadingBlock && blockIndex === 0) {
+    return 'heading';
+  }
+  if (hasLabelBlock) {
+    const labelBlockIndex = hasHeadingBlock ? 1 : 0;
+    if (blockIndex === labelBlockIndex) {
+      return 'label';
+    }
+  }
+  return 'helper';
 }
 
 export function frameOwnedTextBlockGap(frame: Frame, blockIndex: number, blockCount: number): number {
-  const hasSeparateBodyBlock = frame.isLeaf && frame.heading != null && blockCount > 1;
+  const hasSeparateBodyBlock = frame.isLeaf && frame.heading != null && frame.label.length > 0 && blockCount > 1;
   if (hasSeparateBodyBlock && blockIndex === 0) {
     return BODY_LINE_STEP;
   }

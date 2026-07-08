@@ -5,7 +5,7 @@
  * patch shaping so editor.js only coordinates live DOM creation and events.
  */
 
-export type PreviewTextEditorRole = 'heading' | 'label';
+export type PreviewTextEditorRole = 'heading' | 'label' | 'helper';
 
 export interface PreviewTextEditorBlockStyle {
   fontSize: number;
@@ -21,6 +21,7 @@ export interface PreviewTextEditStartState {
   textEl: Element;
   blockRole: PreviewTextEditorRole;
   hasHeading: boolean;
+  helperText: string[];
   semanticLines: string[];
   style: PreviewTextEditorBlockStyle;
   editorLeft: number;
@@ -135,7 +136,7 @@ export function resolvePreviewTextBlockRole(
   fallbackIndex: number,
 ): PreviewTextEditorRole {
   const explicit = getAttributeString(textEl || null, 'data-dg-text-role');
-  if (explicit === 'heading' || explicit === 'label') {
+  if (explicit === 'heading' || explicit === 'label' || explicit === 'helper') {
     return explicit;
   }
   return hasHeading && fallbackIndex === 0 ? 'heading' : 'label';
@@ -259,6 +260,7 @@ export function resolvePreviewTextEditStartState(options: {
   groups: Element[];
   headingText: string;
   labelText: string[];
+  helperText?: string[];
   targetedTextEl?: Element | null;
   iconSize: number;
   columnGap: number;
@@ -277,9 +279,12 @@ export function resolvePreviewTextEditStartState(options: {
   const blockIndex = Math.max(0, textElements.indexOf(targetedTextEl));
   const blockRole = resolvePreviewTextBlockRole(targetedTextEl, hasHeading, blockIndex);
   const renderedLines = renderPreviewTextLines(targetedTextEl);
+  const helperText = options.helperText ?? [];
   const semanticLines = blockRole === 'heading'
     ? (options.headingText ? [options.headingText] : renderedLines)
-    : (options.labelText.length > 0 ? options.labelText.slice() : renderedLines);
+    : blockRole === 'helper'
+      ? (helperText.length > 0 ? helperText.slice() : renderedLines)
+      : (options.labelText.length > 0 ? options.labelText.slice() : renderedLines);
 
   if (semanticLines.length === 0) {
     return null;
@@ -320,6 +325,7 @@ export function resolvePreviewTextEditStartState(options: {
     textEl: targetedTextEl,
     blockRole,
     hasHeading,
+    helperText: helperText.slice(),
     semanticLines,
     style,
     editorLeft: containerRect.left + insetPx,
@@ -351,6 +357,8 @@ export function resolvePreviewTextEditCommit(options: {
   };
   if (options.role === 'heading') {
     nextTextOverride.heading = normalizedValue;
+  } else if (options.role === 'helper') {
+    nextTextOverride.helper = normalizedValue === '' ? [] : normalizedValue.split('\n');
   } else {
     nextTextOverride.label = normalizedValue === '' ? [] : normalizedValue.split('\n');
   }

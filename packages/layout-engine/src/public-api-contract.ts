@@ -2,6 +2,7 @@ import {
   buildComponentTree,
   buildGridInfo,
   createEditorStateStore,
+  exportFrameDiagramToDrawio,
   layoutFrameTree,
   layoutSequenceDiagram,
   loadFrameYaml,
@@ -10,6 +11,8 @@ import {
   serializeFrameDiagram,
   serializePreviewEngineManifest,
   type ComponentInfo,
+  type DrawioExportOptions,
+  type DrawioExportResult,
   type EditorStateStore,
   type Frame,
   type FrameDiagram,
@@ -38,6 +41,13 @@ const renderFrameDiagramToSvgContract: (
   options?: SvgRenderOptions,
 ) => string = renderFrameDiagramToSvg;
 
+const exportFrameDiagramToDrawioContract: (
+  diagram: FrameDiagram,
+  result: LayoutOutput,
+  adapter: TextMeasureAdapter,
+  options?: DrawioExportOptions,
+) => DrawioExportResult = exportFrameDiagramToDrawio;
+
 const loadFrameYamlContract: (path: string) => FrameDiagram = loadFrameYaml;
 const serializeFrameDiagramContract: (diagram: FrameDiagram) => Record<string, unknown> = serializeFrameDiagram;
 const buildGridInfoContract: (diagram: FrameDiagram, root: Frame) => GridInfo = buildGridInfo;
@@ -59,6 +69,7 @@ const renderSequenceDiagramToSvgContract: (
 void [
   layoutFrameTreeContract,
   renderFrameDiagramToSvgContract,
+  exportFrameDiagramToDrawioContract,
   loadFrameYamlContract,
   serializeFrameDiagramContract,
   buildGridInfoContract,
@@ -72,4 +83,5 @@ void [
 export type PublicApiContractSmoke =
   | typeof layoutFrameTreeContract
   | typeof renderFrameDiagramToSvgContract
+  | typeof exportFrameDiagramToDrawioContract
   | typeof layoutSequenceDiagramContract;

@@ -1,0 +1,188 @@
+schema: author-v1
+engine: v3
+title: Where production AI creates value for telcos
+meta:
+  diagram_type: value_map
+  layout_engine: v3
+  source_image: diagrams/1.input/ai-infra/image copy.png
+grid:
+  cols: 2
+  col_gap: 32
+  row_gap: 32
+root:
+  id: page
+  direction: vertical
+  align: top-center
+  gap: 32
+  padding: 24
+  children:
+  - id: value_quadrants
+    direction: horizontal
+    align: top-center
+    gap: 24
+    children:
+    - id: value_top_row
+      direction: horizontal
+      align: top-center
+      gap: 24
+      children:
+      - id: operational_ai
+        level: 1
+        heading: 1. Operational AI
+        icon: Operations.svg
+        width: 360
+        sizing_w: fill
+        direction: vertical
+        align: top-left
+        children:
+        - id: operational_content
+          variant: annotation
+          label:
+          - Run the business with less friction
+          - ''
+          - • Fault triage
+          - • Incident correlation
+          - • Predictive maintenance
+          - • Field operations support
+          - • Workflow automation
+        fill: grey
+        border: solid
+      - id: customer_ai
+        level: 1
+        heading: 2. Customer AI
+        icon: AI.svg
+        width: 360
+        sizing_w: fill
+        direction: vertical
+        align: top-left
+        children:
+        - id: customer_content
+          variant: annotation
+          label:
+          - Improve service, care, and retention
+          - ''
+          - • Customer care assistants
+          - • Call summarization
+          - • Personalization
+          - • Churn reduction
+          - • Fraud detection
+        fill: grey
+        border: solid
+      wrap: false
+    - id: value_bottom_row
+      direction: horizontal
+      align: top-center
+      gap: 24
+      children:
+      - id: network_ai
+        level: 1
+        heading: 3. Network AI
+        icon: Network.svg
+        width: 360
+        sizing_w: fill
+        direction: vertical
+        align: top-left
+        children:
+        - id: network_content
+          variant: annotation
+          label:
+          - Make infrastructure more adaptive
+          - ''
+          - • Traffic forecasting
+          - • Anomaly detection
+          - • RAN optimization
+          - • Capacity planning
+          - • Closed-loop assurance
+        fill: grey
+        border: solid
+      - id: ai_services_revenue
+        level: 1
+        heading: 4. AI services and new revenue
+        icon: Cloud with chip.svg
+        width: 360
+        sizing_w: fill
+        direction: vertical
+        align: top-left
+        children:
+        - id: revenue_content
+          variant: annotation
+          label:
+          - Turn trusted infrastructure into offers
+          - ''
+          - • Sovereign AI hosting
+          - • Edge inference
+          - • Private AI platforms
+          - • Enterprise AI services
+          - • Industry-specific AI offers
+        fill: grey
+        border: solid
+      wrap: false
+  - id: production_foundation
+    level: 2
+    heading: Production foundation
+    direction: horizontal
+    align: top-center
+    gap: 24
+    children:
+    - id: hybrid_placement
+      label:
+      - Hybrid
+      - placement
+      icon: Cloud with telco.svg
+    - id: automation
+      label:
+      - Automation
+      icon: Operations.svg
+    - id: lifecycle_management
+      label:
+      - Lifecycle
+      - management
+      icon: Circle backup boot paths.svg
+    - id: open_source
+      label:
+      - Open
+      - source
+      icon: Laptop with code.svg
+    - id: supported_platforms
+      label:
+      - Supported
+      - platforms
+      icon: Certified hardware.svg
+    sizing_w: fill
+    fill: grey
+    border: solid
+  - id: business_outcomes
+    level: 2
+    heading: Business outcomes
+    direction: horizontal
+    align: top-center
+    gap: 24
+    children:
+    - id: lower_operating_costs
+      label:
+      - Lower operating
+      - costs
+      icon: Bar chart with cost.svg
+    - id: faster_incident_response
+      label:
+      - Faster incident
+      - response
+      icon: Operations.svg
+    - id: better_customer_experience
+      label:
+      - Better customer
+      - experience
+      icon: Customer support.svg
+    - id: efficient_network_capacity
+      label:
+      - Efficient network
+      - capacity
+      icon: Network.svg
+    - id: new_service_revenue
+      label:
+      - New service
+      - revenue
+      icon: Bar chart with check.svg
+    sizing_w: fill
+    fill: grey
+    border: solid

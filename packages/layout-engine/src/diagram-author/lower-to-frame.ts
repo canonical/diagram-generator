@@ -70,6 +70,7 @@ export function authorNodeToRecord(node: AuthorFrameNode): Record<string, unknow
   assignIfDefined(record, 'y', node.y);
   assignIfDefined(record, 'col_span', node.colSpan);
   if (node.heading) record.heading = lineSpecToRecord(node.heading);
+  if (node.helper) record.helper = node.helper.map(lineSpecToRecord);
   if (node.label) record.label = node.label.map(lineSpecToRecord);
 
   return record;

@@ -46,6 +46,7 @@ export function serializeFrame(frame: Frame): Record<string, unknown> {
     fill: frame.fill,
     border: frame.border,
     heading: frame.heading ? serializeLine(frame.heading) : null,
+    helper: frame.helper.map(serializeLine),
     icon: frame.icon,
     iconFill: frame.iconFill,
     label: frame.label.map(serializeLine),
@@ -108,6 +109,9 @@ export function deserializeFrameWire(json: Record<string, unknown>): Frame {
   const children = ((json.children as Record<string, unknown>[] | undefined) ?? []).map(deserializeFrameWire);
   const headingJson = json.heading as { content?: unknown } | null | undefined;
   const headingLine = headingJson ? wireLine(headingJson) : undefined;
+  const helperLines = ((json.helper as Array<{ content?: unknown } | string> | undefined) ?? []).map((line) =>
+    wireLine(line),
+  );
   const frame = new Frame({
     id: String(json.id ?? ''),
     direction: (json.direction as Frame['direction']) ?? 'VERTICAL',
@@ -138,6 +142,7 @@ export function deserializeFrameWire(json: Record<string, unknown>): Frame {
     fill: (json.fill as Fill | undefined) ?? '#FFFFFF',
     border: (json.border as Frame['border']) ?? 'SOLID',
     heading: headingLine && children.length === 0 ? headingLine : undefined,
+    helper: headingLine && children.length > 0 ? [] : helperLines,
     icon: headingLine && children.length > 0 ? undefined : (json.icon as string | undefined),
     iconFill: json.iconFill as string | undefined,
     level: json.level != null ? Number(json.level) : undefined,
@@ -158,6 +163,7 @@ export function deserializeFrameWire(json: Record<string, unknown>): Frame {
   });
   if (headingLine && frame.isContainer) {
     applyHeadingAsChild(frame, headingLine, {
+      helper: helperLines,
       icon: json.icon as string | undefined,
       iconFill: json.iconFill as string | undefined,
     });

@@ -1,0 +1,375 @@
+schema: author-v1
+engine: v3
+title: AI-driven telecom services
+meta:
+  diagram_type: layered_architecture
+  layout_engine: v3
+  source_image: diagrams/1.input/ai-infra/image.png
+grid:
+  cols: 4
+  col_gap: 24
+  row_gap: 32
+arrows:
+- id: edge_compute_to_network_ethernet
+  source: dpus_smartnics
+  target: whitebox_switches
+  label: Ethernet fabric
+- id: edge_network_to_edge_infiniband
+  source: whitebox_switches
+  target: ruggedized_storage
+  label: InfiniBand fabric
+- id: edge_network_to_edge_fiber
+  source: whitebox_switches
+  target: ruggedized_storage
+  label: Fiber transport
+root:
+  id: page
+  direction: vertical
+  align: top-center
+  gap: 32
+  padding: 24
+  children:
+  - id: services_layer
+    level: 3
+    heading: AI-driven telecom services
+    helper:
+    - Calm, organized, small lightweight service blocks and operational outcomes
+    direction: vertical
+    align: top-left
+    gap: 16
+    children:
+    - id: services_row
+      direction: horizontal
+      align: top-center
+      gap: 16
+      children:
+      - id: network_assurance
+        label:
+        - Network
+        - assurance
+        icon: Network.svg
+      - id: ai_ran_optimization
+        label:
+        - AI-RAN
+        - optimization
+        icon: Chip 1.svg
+      - id: predictive_maintenance
+        label:
+        - Predictive
+        - maintenance
+        icon: Operations.svg
+      - id: customer_ai_assistants
+        label:
+        - Customer AI
+        - assistants
+        icon: AI.svg
+      - id: fraud_detection
+        label:
+        - Fraud
+        - detection
+        icon: Lock.svg
+      - id: enterprise_ai_services
+        label:
+        - Enterprise AI
+        - services
+        icon: Cloud with chip.svg
+      - id: edge_inference
+        label:
+        - Edge
+        - inference
+        icon: Cloud with container.svg
+      - id: autonomous_operations
+        label:
+        - Autonomous
+        - operations
+        icon: Autonomous vehicle.svg
+  - id: ai_data_platform
+    level: 3
+    heading: AI and data platform
+    helper:
+    - AI software and data ecosystem with logical clusters across the stack
+    direction: vertical
+    align: top-left
+    gap: 16
+    children:
+    - id: platform_row
+      direction: horizontal
+      align: top-center
+      gap: 24
+      children:
+      - id: ai_workflows
+        level: 2
+        heading: AI workflows
+        direction: vertical
+        align: top-center
+        gap: 32
+        children:
+        - id: kubeflow
+          label:
+          - Kubeflow
+          icon: Cloud with container.svg
+        - id: mlflow
+          label:
+          - MLflow
+          icon: Bar chart with cost.svg
+        sizing_h: fill
+      - id: data_streaming
+        level: 2
+        heading: Data streaming
+        direction: vertical
+        align: top-center
+        gap: 32
+        children:
+        - id: kafka
+          variant: annotation
+          label:
+          - Kafka
+          level: 1
+          fill: white
+          border: solid
+        - id: spark
+          label:
+          - Spark
+          icon: App data.svg
+        sizing_h: fill
+      - id: training_inference
+        level: 2
+        heading: Training and inference
+        direction: vertical
+        align: top-center
+        gap: 32
+        children:
+        - id: model_serving
+          label:
+          - Model
+          - serving
+          icon: Container.svg
+        - id: feast
+          label:
+          - Feast
+          icon: Storage object.svg
+        sizing_h: fill
+      - id: scheduling
+        level: 2
+        heading: Scheduling
+        direction: vertical
+        align: top-center
+        gap: 32
+        children:
+        - id: slurm
+          label:
+          - Slurm
+          icon: Cluster.svg
+        sizing_h: fill
+      - id: storage_retrieval
+        level: 2
+        heading: Storage and retrieval
+        direction: vertical
+        align: top-center
+        gap: 32
+        children:
+        - id: postgres_pgvector
+          variant: annotation
+          label:
+          - PostgreSQL + pgvector
+          level: 1
+          fill: white
+          border: solid
+        - id: observability
+          label:
+          - Observability
+          icon: Bar chart with check.svg
+        - id: data_pipelines
+          label:
+          - Data
+          - pipelines
+          icon: App data.svg
+  - id: cloud_layer
+    level: 3
+    heading: Distributed cloud infrastructure
+    helper:
+    - Telecom-specific infrastructure layer visualising geographical and topological distribution
+    direction: vertical
+    align: top-left
+    gap: 16
+    children:
+    - id: cloud_sites_row
+      direction: horizontal
+      align: top-center
+      gap: 24
+      sizing_w: fill
+      children:
+      - id: central_cloud
+        level: 2
+        heading: Central cloud
+        direction: vertical
+        align: top-center
+        gap: 12
+        sizing_w: fill
+        children:
+        - id: central_row1
+          direction: horizontal
+          align: top-center
+          gap: 12
+          children:
+          - id: central_openstack_top
+            label:
+            - OpenStack
+            icon: Cloud.svg
+          - id: central_ellipsis
+            variant: annotation
+            label:
+            - ...
+          - id: central_microcloud_top
+            label:
+            - MicroCloud
+            icon: Private cloud 1.svg
+        - id: central_row2
+          direction: horizontal
+          align: top-center
+          gap: 12
+          children:
+          - id: central_openstack_bottom
+            direction: vertical
+            align: top-center
+            gap: 4
+            children:
+            - id: central_openstack_bottom_icon
+              icon: Cloud.svg
+            - id: central_openstack_bottom_label
+              variant: annotation
+              label:
+              - OpenStack
+          - id: central_microcloud_bottom
+            direction: vertical
+            align: top-center
+            gap: 4
+            children:
+            - id: central_microcloud_bottom_icon
+              icon: Private cloud 1.svg
+            - id: central_microcloud_bottom_label
+              variant: annotation
+              label:
+              - MicroCloud
+      - id: regional_edge
+        level: 2
+        heading: Regional edge
+        helper:
+        - Clean network
+        - fabric
+        direction: vertical
+        align: top-center
+        gap: 12
+        sizing_w: fill
+        children:
+        - id: regional_row1
+          direction: horizontal
+          align: top-center
+          gap: 12
+          children:
+          - id: ovn_networking
+            label:
+            - OVN-based
+            - networking
+            icon: Networking.svg
+          - id: storage_clusters
+            label:
+            - Storage
+            - clusters
+            icon: Storage node.svg
+          - id: automation_orchestration
+            label:
+            - Automation and
+            - orchestration
+            icon: Operations.svg
+      - id: far_edge
+        level: 2
+        heading: Far edge
+        direction: vertical
+        align: top-center
+        gap: 12
+        sizing_w: fill
+        children:
+        - id: far_row1
+          direction: horizontal
+          align: top-center
+          gap: 12
+          children:
+          - id: edge_nodes
+            label:
+            - Edge
+            - nodes
+            icon: Cloud with node.svg
+          - id: virtualization_platforms
+            label:
+            - Virtualization and
+            - container platforms
+            icon: containers.svg
+  - id: physical_layer
+    level: 3
+    heading: Physical infrastructure
+    helper:
+    - Hardware foundation in realistic abstracted enterprise diagrams between compute nodes and east-west traffic patterns
+    direction: vertical
+    align: top-left
+    gap: 16
+    children:
+    - id: hardware_row
+      direction: horizontal
+      align: top-left
+      gap: 48
+      children:
+      - id: compute_nodes
+        level: 2
+        direction: horizontal
+        align: top-center
+        gap: 12
+        sizing_w: hug
+        sizing_h: hug
+        children:
+        - id: gpu_servers
+          label:
+          - GPU
+          - servers
+          icon: Chip 1.svg
+        - id: cpus
+          label:
+          - CPUs
+          icon: CPU.svg
+        - id: dpus_smartnics
+          label:
+          - DPUs /
+          - SmartNICs
+          icon: Chip 2.svg
+      - id: network_fabric
+        level: 2
+        direction: horizontal
+        align: top-center
+        gap: 12
+        sizing_w: hug
+        sizing_h: hug
+        children:
+        - id: whitebox_switches
+          label:
+          - Whitebox
+          - switches
+          icon: Server.svg
+          sizing_w: hug
+          sizing_h: hug
+      - id: edge_transport
+        level: 2
+        direction: horizontal
+        align: top-center
+        gap: 12
+        sizing_w: hug
+        sizing_h: hug
+        children:
+        - id: ruggedized_storage
+          label:
+          - Ruggedized
+          - storage
+          icon: Storage node.svg
+          sizing_w: hug
+          sizing_h: hug
+  width: 1600
+  sizing_w: fixed
