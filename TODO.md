@@ -53,8 +53,8 @@ gated stages**. Do them in this order; do not skip the gate.
    (`specs/004-mermaid-composite-lowering-audit/`, requested in that repo's
    `AGENT-INBOX.md`) of every Mermaid ELK lowering trick. Not this repo's code.
 2. **Spec 028 — Mermaid import** (`specs/028-diagram-interchange-mermaid-d2/`),
-   reusing the 076 cluster->ELK lowering
-   (`specs/076-tls-mermaid-cold-start-fit/`). No Dagre.
+   reusing the 077 cluster->ELK lowering
+   (`specs/077-mermaid-elk-cluster-lowering-port/`). No Dagre.
 
 ### Lane B — standing user-facing regressions (parallel, independent of Epic A)
 

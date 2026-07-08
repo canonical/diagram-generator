@@ -135,5 +135,5 @@
 
 Guardrails G1–G6 hold, SC-001..SC-005 pass, the second cold-start fixture proves
 portability, the raw-ELK view is correct on its own, and no post-ELK box-moving or
-bespoke arrow routing survives on the cluster-lowered path. Then retire spec 076,
-archive this package, and record the reuse seam for spec 028.
+bespoke arrow routing survives on the cluster-lowered path. Then archive this
+package and record the reuse seam for spec 028; spec 076 stays retired.
