@@ -12,58 +12,38 @@ spec catalog/status → [`docs/specs.md`](docs/specs.md) · human notes →
 [`INBOX.md`](INBOX.md) · durable per-spec detail → `specs/<id>-<slug>/` ·
 adversarial reviews → `docs/spec-reviews/`.
 
-**Last-known-green (2026-07-07):** `graph-layout-elk` 44/44, `layout-engine`
-992/992, `apps/preview` 166/166; `build:browser`, `check-browser-bundle-fresh`,
-`check_no_new_python`, and preview-shell size budgets all green.
+**Last-known-green (2026-07-08, spec 077 branch):** `layout-engine` **1005/1005**;
+`export-frame-drawio` **13/13** (golden + positional assertions);
+`check-browser-bundle-fresh.mjs` ok; `check-preview-shell-size-budgets.mjs` ok;
+`check_no_new_python.mjs` ok. Adversarial review blockers addressed (display-list
+adapter, layout dispatch, golden tests).
 
 ---
 
-## Current handoff (2026-07-07) — 076 REOPENED, ready for a cold-start GPT
+## Current handoff (2026-07-08) — spec 077, rebased + validated
 
-**Task:** fix the TLS diagram render so it matches the Mermaid reference, then
-re-close 076 against a real render gate. The earlier closeout was premature: the
-tests passed but the rendered diagram is broken.
+**Branch:** `feat/077-yaml-drawio-export` (uncommitted).
 
-**Start here (read in order):**
+**Done this session:**
 
-1. `specs/076-tls-mermaid-cold-start-fit/spec.md` — read the
-   "REOPENED 2026-07-07 — closeout was premature" section. It is the authoritative
-   work list (bar, defects D1–D5, ordered steps). Ignore any "merged/archived"
-   wording elsewhere in that file; it is history.
-2. `specs/076-tls-mermaid-cold-start-fit/tasks.md` — Phase 5, tasks `T050`–`T056`.
-   All open. Do them in order; `T051` (failing render regression) comes before any
-   fix.
+- Re-homed draw.io export as `render-adapter/drawio.ts` over
+  `emitFrameDiagramDisplayList` (no parallel frame/arrow plan walker).
+- Thin shell: `drawio-render.ts` + `layoutFrameDiagramForExport` (preview-engine
+  dispatch; ELK for `ai-infra-production-contract`).
+- Golden `.drawio` under `specs/077-yaml-drawio-export/golden/`; structural +
+  geometry assertions in `export-frame-drawio.test.ts`.
+- Fixture level-promotion fixes on ai-infra YAML (`level: 1` where required).
+- `public-api-contract.ts` includes `exportFrameDiagramToDrawio`.
+- Rebased onto latest `origin/main`; no replay required because the branch was
+  already based on the current remote tip.
+- Re-ran `npm --prefix packages/layout-engine test`,
+  `check-browser-bundle-fresh`, preview-shell size budgets, and
+  `check_no_new_python`.
 
-**The bar (non-negotiable):** the live render of
-`tls-certificate-provider-topology` must reach visual parity with the Mermaid
-reference:
-- `specs/076-tls-mermaid-cold-start-fit/images/01-source-mermaid-reference.png`
-- sister harness `H:\WSL_dev_projects\mermaid-wt-076-tls\tmp-final-canonical.png`
+**Still open before closeout:**
 
-Engine-resolution probes and geometry-snippet asserts are NOT sufficient — that
-is exactly what let the broken render pass last time.
+- **T021** — manual open-in-draw.io verification of all three slugs.
+- **T024** — commit fixtures + goldens.
+- Commit + PR when user asks.
 
-**Confirmed defects:**
-- D1 grey two-line annotation nodes render as single-line bare text — the second
-  label line (`interface: tls-certificates`) is dropped and the grey box chrome is
-  gone.
-- D2 top-down clustered structure is cramped, not the clean provider fanout.
-- D3 endpoint / relation rows are not clean horizontal rows.
-- D4 certificate text is truncated.
-- D5 the `:8100` preview is stale (no server-side TS hot reload) and shows an even
-  older render — reproduce on a fresh server or the export route, never `:8100`.
-
-**Rules:** no Dagre (spec 074 retirement holds); no behaviour-heavy
-`scripts/preview/*.js`; the fixture YAML is correct (both label lines are
-authored) so the bug is in the render path, not the YAML. Work on a fresh
-`feat/076-...-reopen` branch.
-
-**Root cause of the false green:**
-`packages/layout-engine/tests/preview-engine-fidelity-probes.test.ts` only proves
-the fixture resolves to `elk-layered`;
-`packages/layout-engine/tests/elk-layout.test.ts` only asserts two geometry facts.
-Neither renders the SVG. The annotation-rendering bug likely lives in the
-frame-render vs ELK position read-back path in
-`packages/layout-engine/src/elk-layout.ts`.
-
-
+**Review doc:** [`docs/spec-reviews/branch-077.md`](docs/spec-reviews/branch-077.md)
