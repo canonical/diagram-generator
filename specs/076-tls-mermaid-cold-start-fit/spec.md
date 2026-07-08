@@ -643,6 +643,71 @@ and the core cluster/ordering geometry.
 - **FR-010**: Any claim of `elk-layered` support that keeps the current fill
   carriers, or that skips the T0 spike / fixture regression, MUST be rejected.
 
+## 2026-07-08 Research Reset
+
+Pause further implementation until a fresh Opus review validates the next
+direction. The current branch still does **not** meet the real spec bar.
+
+Current diagnosis after re-checking the raw ELK output and the product path:
+
+- The raw ELK view is still materially different from the Mermaid reference, so
+  the remaining gap is **not** just an SVG redraw bug.
+- The local Mermaid harness now gives two source-shape rules that matter here
+  and that should be treated as part of the cold-start diagnosis, not as
+  stylistic advice:
+  - `../brand-aligned-mermaid/PLAYBOOK.md` says fan-out labels create asymmetric
+    ELK dummy nodes and must move onto a hub node instead.
+  - the same playbook says not to use a subgraph/container as an edge endpoint;
+    ELK should route node-to-node or through a hub.
+- The product path still performs substantial post-ELK ownership work
+  (`anchorSemanticDescendants(...)`, `realignPlacedContainersToAuthoredLayout(...)`,
+  `wrapStructuralContainers(...)`) after ELK has already laid out the graph.
+  Any direction that depends on those passes to recreate Mermaid's structure is
+  architecturally suspect and should be treated as failing the spec bar.
+- The current product lowering still does **not** match the strongest shape from
+  the spike evidence. `buildGraphEdges(...)` in
+  `packages/layout-engine/src/elk-layout.ts` still emits flat leaf-to-leaf
+  edges; it does not yet own the spike's more faithful edge/container/port
+  shape for cross-cluster routing.
+- The graph adapter and normalizer now need to be reviewed as first-class
+  suspects, not just `elk-layout.ts`:
+  - `packages/graph-layout-elk/src/elk-graph-builder.ts` enables compound
+    directions and fixed ports, but still operates on the graph shape we feed it.
+  - `packages/graph-layout-elk/src/result-normalizer.ts` preserves ELK edge
+    sections, but the product path later clears `arrow.layoutPath` whenever
+    moved frame ids trigger local rerouting.
+- There is also an ELK stack skew to keep in mind during review:
+  - local Mermaid harness lockfile: `@mermaid-js/layout-elk@0.2.1` +
+    `elkjs@0.9.3`
+  - this repo: `elkjs@0.10.2` through `@diagram-generator/graph-layout-elk`
+  The review should decide whether the visible mismatch is primarily version
+  skew, lowering shape, or post-ELK ownership.
+- The real decision question is therefore narrower and more honest than the
+  reopened closeout language suggests:
+  can this repo reach the Mermaid reference by continuing to port the
+  Mermaid-style cluster->ELK lowering plus a generic typed edge/container shape,
+  or has the current frame model hit a real limit that needs a dedicated
+  follow-up before more product-path changes land?
+
+Local visual oracle available for this review:
+
+- `../brand-aligned-mermaid/README.md`
+- the local raw ELK screenshot: `/Users/l/work/diagram-generator/image copy.png`
+
+Required gate before more implementation:
+
+- run a fresh Opus adversarial review against the **current branch + working
+  tree diagnosis**
+- use `docs/spec-reviews/076-tls-mermaid-cold-start-fit-opus-review-prompt-2026-07-08.md`
+- verify whether the remaining work should stay on the Mermaid/ELK lowering
+  path, and if so, which owner must change first:
+  1. graph lowering / edge ownership
+  2. ELK option surface and exposed manual controls
+  3. post-ELK normalization ownership
+
+Do not continue with local redraw heuristics, fixture-only routing patches, or
+"looks better on this example" work before that review lands.
+
 ## Validation Protocol (Opus)
 
 1. Inspect `images/01-source-mermaid-reference.png` (source truth).
@@ -652,24 +717,28 @@ and the core cluster/ordering geometry.
    `images/05-current-elk-force-render.png` (controlled in-repo comparison).
 4. Read `references/tls-certificate-provider-topology.mmd` and
    `scripts/diagrams/frames/tls-certificate-provider-topology.yaml`.
-5. Confirm the portability finding independently in `../mermaid/node_modules`:
-   `@mermaid-js/layout-elk` is MIT and depends on `elkjs`; its core builds a
-   compound ELK graph with `children` / parent map / per-cluster options.
-6. Run the **T0 spike**: hand-author a compound ELK graph for this fixture
+5. Inspect the local Mermaid visual harness at
+   `../brand-aligned-mermaid/README.md` and use it as the available local
+   Mermaid/ELK oracle for this repo state.
+6. Confirm the portability finding independently from the Mermaid-side ELK
+   implementation that is locally available to the reviewer: `@mermaid-js/layout-elk`
+   is MIT and depends on `elkjs`; its core builds a compound ELK graph with
+   `children` / parent map / per-cluster options.
+7. Run the **T0 spike**: hand-author a compound ELK graph for this fixture
    (each subgraph as an ELK compound with local `elk.direction`, padding, ordered
    children) and render it; optionally cross-check against Strategy C's `.mmd`
-   ELK render from the sibling repo.
+   ELK render from the local Mermaid harness.
    - If it matches the reference: the diagnosis is proven; proceed to the
      Strategy B port.
    - If it does not: record the specific residual (direction mixing, ordered
      rows, cross-cluster routing), keep the follow-up ELK-only, and prove either
      a bounded typed lowering shim or a continued block — still not Dagre.
-7. Only after T0 passes **or** the bounded ELK-only follow-up proves a typed
+8. Only after T0 passes **or** the bounded ELK-only follow-up proves a typed
    lowering shim, review the Strategy B port for: reuse of existing compound
    machinery, per-cluster direction, ordered-child preservation, any synthetic
    ordering shim, and correct position read-back.
-8. Require the fixture-owned regression (compatibility + geometry) to pass.
-9. Reject any fix that keeps the current fill carriers, skips T0, or reintroduces
+9. Require the fixture-owned regression (compatibility + geometry) to pass.
+10. Reject any fix that keeps the current fill carriers, skips T0, or reintroduces
    Dagre.
 
 ## Success criteria

@@ -42,7 +42,15 @@ flowchart TB
     end
 
     vault_charm -- "tls-certificates-pki" --> manual_tls_certificates
-    manual_tls_certificates --> octavia_k8s
-    manual_tls_certificates --> traefik_public
-    manual_tls_certificates --> traefik_internal
-    manual_tls_certificates --> traefik_rgw
+    manual_tls_certificates --> octavia_certificates
+    manual_tls_certificates --> amphora_issuing_ca
+    manual_tls_certificates --> amphora_controller_cert
+    manual_tls_certificates --> public_certificates
+    manual_tls_certificates --> internal_certificates
+    manual_tls_certificates --> rgw_certificates
+    octavia_certificates --> octavia_k8s
+    amphora_issuing_ca --> octavia_k8s
+    amphora_controller_cert --> octavia_k8s
+    public_certificates --> traefik_public
+    internal_certificates --> traefik_internal
+    rgw_certificates --> traefik_rgw

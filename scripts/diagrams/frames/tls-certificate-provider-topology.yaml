@@ -42,12 +42,28 @@ arrows:
   - tls-certificates-pki
   label_gap: 24
 - source: manual_tls_certificates
+  target: octavia_certificates
+- source: manual_tls_certificates
+  target: amphora_issuing_ca
+- source: manual_tls_certificates
+  target: amphora_controller_cert
+- source: manual_tls_certificates
+  target: public_certificates
+- source: manual_tls_certificates
+  target: internal_certificates
+- source: manual_tls_certificates
+  target: rgw_certificates
+- source: octavia_certificates
   target: octavia_k8s
-- source: manual_tls_certificates
+- source: amphora_issuing_ca
+  target: octavia_k8s
+- source: amphora_controller_cert
+  target: octavia_k8s
+- source: public_certificates
   target: traefik_public
-- source: manual_tls_certificates
+- source: internal_certificates
   target: traefik_internal
-- source: manual_tls_certificates
+- source: rgw_certificates
   target: traefik_rgw
 root:
   id: page

@@ -53,6 +53,29 @@ const TLS_CERT_PARENT_IDS: Record<(typeof ANNOTATION_IDS)[number], "openstack_se
   rgw_certificates: "load_balancers",
 };
 
+const EXPECTED_TLS_EDGES = [
+  ["vault_charm", "manual_tls_certificates"],
+  ["manual_tls_certificates", "octavia_certificates"],
+  ["manual_tls_certificates", "amphora_issuing_ca"],
+  ["manual_tls_certificates", "amphora_controller_cert"],
+  ["manual_tls_certificates", "public_certificates"],
+  ["manual_tls_certificates", "internal_certificates"],
+  ["manual_tls_certificates", "rgw_certificates"],
+  ["octavia_certificates", "octavia_k8s"],
+  ["amphora_issuing_ca", "octavia_k8s"],
+  ["amphora_controller_cert", "octavia_k8s"],
+  ["public_certificates", "traefik_public"],
+  ["internal_certificates", "traefik_internal"],
+  ["rgw_certificates", "traefik_rgw"],
+] as const;
+
+const FORBIDDEN_TLS_SHORTCUT_EDGES = [
+  ["manual_tls_certificates", "octavia_k8s"],
+  ["manual_tls_certificates", "traefik_public"],
+  ["manual_tls_certificates", "traefik_internal"],
+  ["manual_tls_certificates", "traefik_rgw"],
+] as const;
+
 type FrameLike = {
   id: string;
   children: FrameLike[];
@@ -148,6 +171,10 @@ function extractTspans(markup: string): SvgTspan[] {
   });
 }
 
+function edgeSignature(edge: { source: string; target: string }): string {
+  return `${edge.source}->${edge.target}`;
+}
+
 function expectedLineSpecs(frame: FrameLike): LineSpec[] {
   if ((frame.resolvedTextFill ?? "").toUpperCase() === "#666666") {
     return frame.label.map((line) => annotationTextToSpec(line));
@@ -172,6 +199,22 @@ test("TLS SVG export keeps annotation text, chrome, rows, and text fit on the li
   const { diagram, layout } = await buildFrameDiagramState("tls-certificate-provider-topology", renderDeps);
   const root = diagram.root as unknown as FrameLike;
   const flattenedIds = new Set(layout.elkSnapshot?.debug?.flattenedFrameIds ?? []);
+  const actualEdges = new Set(diagram.arrows.map(edgeSignature));
+  const expectedEdges = new Set(EXPECTED_TLS_EDGES.map(([source, target]) => `${source}->${target}`));
+
+  assert.equal(diagram.arrows.length, EXPECTED_TLS_EDGES.length, "TLS source model should keep the 13 reference edges");
+  assert.deepEqual(actualEdges, expectedEdges, "TLS source model should route through certificate interface nodes");
+  for (const [source, target] of FORBIDDEN_TLS_SHORTCUT_EDGES) {
+    assert.ok(
+      !actualEdges.has(`${source}->${target}`),
+      `TLS source model should not bypass certificate nodes with ${source}->${target}`,
+    );
+  }
+  assert.equal(
+    [...svg.matchAll(/data-dg-arrow="true"/g)].length,
+    EXPECTED_TLS_EDGES.length,
+    "TLS SVG export should render one arrow per reference edge",
+  );
 
   for (const id of ANNOTATION_IDS) {
     const frame = findFrameById(root, id);
