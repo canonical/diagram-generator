@@ -44,12 +44,27 @@ const ROW_ENDPOINT_IDS = [
   "traefik_rgw",
 ] as const;
 
+const TLS_CERT_PARENT_IDS: Record<(typeof ANNOTATION_IDS)[number], "openstack_services" | "load_balancers"> = {
+  octavia_certificates: "openstack_services",
+  amphora_issuing_ca: "openstack_services",
+  amphora_controller_cert: "openstack_services",
+  public_certificates: "load_balancers",
+  internal_certificates: "load_balancers",
+  rgw_certificates: "load_balancers",
+};
+
 type FrameLike = {
   id: string;
   children: FrameLike[];
   label: Array<{ content: string; lineStep?: number; size?: string | null }>;
   isLeaf?: boolean;
   resolvedTextFill?: string;
+  _layout: {
+    placedX: number;
+    placedY: number;
+    placedW: number;
+    placedH: number;
+  };
 };
 
 type SvgRect = {
@@ -154,16 +169,20 @@ test("TLS SVG export keeps annotation text, chrome, rows, and text fit on the li
     textAdapterPromise: Promise.resolve(textAdapter),
   };
   const svg = await renderSvgForSlug("tls-certificate-provider-topology", renderDeps);
-  const { diagram } = await buildFrameDiagramState("tls-certificate-provider-topology", renderDeps);
+  const { diagram, layout } = await buildFrameDiagramState("tls-certificate-provider-topology", renderDeps);
   const root = diagram.root as unknown as FrameLike;
+  const flattenedIds = new Set(layout.elkSnapshot?.debug?.flattenedFrameIds ?? []);
 
   for (const id of ANNOTATION_IDS) {
     const frame = findFrameById(root, id);
     assert.ok(frame, `expected authored frame for ${id}`);
+    assert.ok(!flattenedIds.has(id), `${id} should remain a real ELK graph node, not a flattened annotation`);
     const markup = extractComponentMarkup(svg, id);
     const rect = extractRect(markup, id);
     const tspans = extractTspans(markup);
     const specs = expectedAnnotationSpecs(id);
+    const parent = findFrameById(root, TLS_CERT_PARENT_IDS[id]);
+    assert.ok(parent, `expected parent compound for ${id}`);
 
     assert.deepEqual(
       tspans.map((entry) => entry.text),
@@ -184,12 +203,58 @@ test("TLS SVG export keeps annotation text, chrome, rows, and text fit on the li
         `${id} line '${spec.content}' should fit within its rendered box`,
       );
     }
+
+    assert.ok(
+      frame._layout.placedX >= parent._layout.placedX - 0.5 &&
+      frame._layout.placedY >= parent._layout.placedY - 0.5 &&
+      frame._layout.placedX + frame._layout.placedW <= parent._layout.placedX + parent._layout.placedW + 0.5 &&
+      frame._layout.placedY + frame._layout.placedH <= parent._layout.placedY + parent._layout.placedH + 0.5,
+      `${id} should remain inside ${parent.id}`,
+    );
   }
 
   const endpointRects = ROW_ENDPOINT_IDS.map((id) => extractRect(extractComponentMarkup(svg, id), id));
   const endpointYValues = endpointRects.map((rect) => rect.y);
   const rowHeightDrift = Math.max(...endpointYValues) - Math.min(...endpointYValues);
   assert.ok(rowHeightDrift <= 1, "load balancer endpoints should share one horizontal row");
+
+  const openstackRelationRow = findFrameById(root, "openstack_relation_row");
+  const octavia = findFrameById(root, "octavia_k8s");
+  const loadBalancerRelationRow = findFrameById(root, "load_balancer_relation_row");
+  const tlsProvider = findFrameById(root, "tls_provider");
+  const vaultCharm = findFrameById(root, "vault_charm");
+  const manualTlsCertificates = findFrameById(root, "manual_tls_certificates");
+  const openstackServices = findFrameById(root, "openstack_services");
+  const loadBalancers = findFrameById(root, "load_balancers");
+  assert.ok(openstackRelationRow && octavia, "expected OpenStack row and service frames");
+  assert.ok(loadBalancerRelationRow, "expected load balancer cert row");
+  assert.ok(tlsProvider && vaultCharm && manualTlsCertificates, "expected TLS provider wrapper and content frames");
+  assert.ok(openstackServices && loadBalancers, "expected sibling service compounds");
+
+  assert.ok(
+    openstackRelationRow._layout.placedY < octavia._layout.placedY,
+    "openstack relation row should stay above octavia_k8s",
+  );
+  assert.ok(
+    loadBalancerRelationRow._layout.placedY < Math.min(...endpointYValues),
+    "load balancer cert row should stay above the endpoint row",
+  );
+
+  const providerCenter = tlsProvider._layout.placedX + tlsProvider._layout.placedW / 2;
+  const providerContentLeft = Math.min(vaultCharm._layout.placedX, manualTlsCertificates._layout.placedX);
+  const providerContentRight = Math.max(
+    vaultCharm._layout.placedX + vaultCharm._layout.placedW,
+    manualTlsCertificates._layout.placedX + manualTlsCertificates._layout.placedW,
+  );
+  const providerContentCenter = (providerContentLeft + providerContentRight) / 2;
+  assert.ok(
+    Math.abs(providerCenter - providerContentCenter) <= 1,
+    "provider content should stay horizontally centered within tls_provider",
+  );
+  assert.ok(
+    Math.abs(openstackServices._layout.placedW - loadBalancers._layout.placedW) <= 32,
+    "OpenStack and LoadBalancers parent widths should stay balanced",
+  );
 
   for (const id of ROW_ENDPOINT_IDS) {
     const frame = findFrameById(root, id);

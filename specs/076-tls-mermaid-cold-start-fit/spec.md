@@ -1,10 +1,12 @@
 # Spec 076: Port Mermaid's cluster/ELK lowering (TLS cold-start example)
 
 **Feature Branch**: `feat/076-tls-mermaid-cold-start-fit`
-**Status**: REOPENED 2026-07-07 — closeout was premature. See
-[REOPENED — closeout was premature](#reopened-2026-07-07--closeout-was-premature)
-below for the authoritative next-steps. The earlier "Merged / archived" status
-is retained only as history.
+**Status**: CLOSEOUT READY / REOPENED-AGAIN RESOLVED 2026-07-07 — the Phase 5
+reopen fixed the render/text gate, the follow-up review reopened structural
+parity, and the Phase 6 graph-shape/browser-path fixes are now green. See
+[REOPENED AGAIN — review disproved parity](#reopened-again-2026-07-07--review-disproved-parity)
+below for the historical reopen context. Earlier "closed" language is retained
+only as history.
 **Created**: 2026-07-06
 **Rewritten**: 2026-07-06 — pivoted from "investigate Dagre vs lowering" to
 "adopt/port Mermaid's proven cluster->ELK lowering", after confirming the sibling
@@ -121,23 +123,63 @@ form. Do **not** reintroduce Dagre (spec 074 retirement still holds) and do
    product render vs the Mermaid reference showing parity. Engine-resolution and
    geometry-snippet tests alone no longer satisfy the gate.
 
-### 2026-07-07 reopen closeout result
+### REOPENED AGAIN 2026-07-07 — review disproved parity
 
-The Phase 5 reopen work is now complete on `feat/076-tls-mermaid-cold-start-fit`.
+The Phase 5 reopen work fixed real issues, but the new investigation proved the
+spec still closed too early. The current server SVG is better than the stale
+viewer capture, yet it still misses the Mermaid structure in three material ways:
 
-- The render-level regression now exercises the real preview/export path via
-  `apps/preview/src/persistence/tls-render-regression.test.ts`.
-- YAML line normalization preserves literal `key: value` label lines, so the
-  authored `interface: tls-certificates` second line survives compilation.
-- Borderless grey annotation leaves keep their grey fill, and omitted
-  annotation descendants now use semantic text-fit sizing so the full label fits.
-- ELK-stacked horizontal rows are normalized back to their semantic row shape,
-  and affected ELK edge routes are cleared so the normal router reroutes against
-  the corrected boxes.
-- The reopen evidence pack now includes the broken baseline
-  `evidence/tls-render-reopen-baseline.svg`, the fixed product render
-  `evidence/tls-render-reopen-fixed.svg`, and the parity note
-  `evidence/tls-render-reopen-2026-07-07.md`.
+1. **Cert nodes are still not first-class ELK graph children.**
+   - `isAnnotationFrame(...)` classifies the six grey TLS cert leaves as
+     annotation-only because they are borderless, non-endpoint leaves.
+   - `shouldIncludeElkNode(...)` therefore omits them from the ELK input graph.
+   - They are later reintroduced by `anchorSemanticDescendants(...)` and, if
+     anchoring fails, `layoutAnnotationsBelow(...)`.
+   - This is the main structural mismatch versus Mermaid, where these certs are
+     ordinary nodes inside blank-title subgraphs, not arrow labels and not
+     post-layout decorations.
+2. **Compound extents still come from two disagreeing layout systems.**
+   - ELK places/sizes compounds from graph-visible children.
+   - The semantic snapshot and `wrapStructuralContainers(...)` then resize
+     wrappers from a second pass.
+   - That disagreement leaves `tls_provider` off-center and the two sibling
+     parents visually imbalanced even when the server render is otherwise fresh.
+3. **The current regression gate is still too weak.**
+   - `tls-render-regression.test.ts` now proves text/chrome basics on the real
+     render path, which was necessary.
+   - It still does **not** prove that cert nodes remain inside parent compounds,
+     that `layoutAnnotationsBelow(...)` never fires for this fixture, that the
+     provider wrapper centers its content, or that the browser-path ELK geometry
+     matches the server render.
+
+This second reopen changes the authoritative work from "render parity cleanup"
+to "graph-shape and compound-extent ownership cleanup." Do not re-close 076 on
+text/chrome evidence alone.
+
+### REOPENED AGAIN resolution (implemented 2026-07-07)
+
+The structural reopen is now resolved on the current branch:
+
+- grey TLS cert leaves stay in the ELK graph instead of being flattened into
+  `layoutAnnotationsBelow(...)`
+- the authored source model is reconciled so `tls_provider` is the real wrapper
+  around `services_row` in both the YAML fixture and the checked-in Mermaid
+  reference
+- preview wire transport now preserves `justify`, which was the browser-path
+  cause of the widened load-balancer row geometry
+- the server render and the live browser IIFE now agree on the forced
+  `elk-layered` TLS structure under repo-owned regressions
+
+Validation after the Phase 6 fixes:
+
+- `npm --prefix packages/layout-engine test` → 995/995
+- `npm --prefix apps/preview test` → 168/168
+- `node scripts/check-browser-bundle-fresh.mjs`
+- `node scripts/check_no_new_python.mjs`
+
+This package is back at **Closeout Ready** on
+`feat/076-tls-mermaid-cold-start-fit` and is waiting on adversarial review /
+merge, not more implementation.
 
 ### Process notes
 

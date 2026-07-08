@@ -19,10 +19,12 @@ merged-spec bookkeeping is also done: 048, 051, 052, 054–060, 062, 063, 071, 0
 Docs-only spec packages 028 and 075 are merged to `main`; their feature
 branches are deleted. Implementation starts on fresh `feat/<id>-<slug>` branches.
 
-**076 is REOPENED (2026-07-07):** its earlier closeout was premature — the render
-fails the visual bar. The package is active again under
-`specs/076-tls-mermaid-cold-start-fit/`; work Phase 5 (`T050`–`T056`) on a fresh
-`feat/076-...-reopen` branch. No Dagre.
+**076 is CLOSEOUT READY AGAIN (2026-07-07):** the Phase 6 review reopen is now
+implemented and green on the real browser + server paths. The package stays on
+`feat/076-tls-mermaid-cold-start-fit` pending Opus adversarial review and merge;
+the resolved work kept TLS cert rows in the ELK graph, reconciled the wrapper
+source model, fixed preview-wire `justify` loss, and raised browser/server
+parity regressions. No Dagre.
 
 ### Roles (do not blur these)
 

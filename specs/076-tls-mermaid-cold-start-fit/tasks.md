@@ -1,8 +1,8 @@
 # Tasks: Spec 076 Port Mermaid's cluster/ELK lowering
 
-**Status**: REOPEN CLOSEOUT COMPLETE 2026-07-07 — the render-level gate is now
-restored. See `spec.md` "REOPENED 2026-07-07" and
-`evidence/tls-render-reopen-2026-07-07.md`.
+**Status**: CLOSEOUT READY / REOPENED-AGAIN RESOLVED 2026-07-07 — the render-
+level gate and the follow-up structural/browser-path gate are both green again.
+See `spec.md` "REOPENED AGAIN resolution (implemented 2026-07-07)".
 **Input**: `spec.md`
 **Plan**: `plan.md`
 **Branch**: `feat/076-tls-mermaid-cold-start-fit`
@@ -209,7 +209,7 @@ tasks are open. Do NOT reintroduce Dagre; do NOT add behaviour-heavy
       reference showing parity. Engine-resolution + geometry snippets alone no
       longer satisfy the gate.
 
-2026-07-07 reopen closeout:
+2026-07-07 Phase 5 result (historical, insufficient for closeout):
 
 - T050 baseline artifact: `evidence/tls-render-reopen-baseline.svg`
 - T051 regression: `apps/preview/src/persistence/tls-render-regression.test.ts`
@@ -221,12 +221,69 @@ tasks are open. Do NOT reintroduce Dagre; do NOT add behaviour-heavy
 - T055/T056 evidence: `evidence/tls-render-reopen-fixed.svg` and
   `evidence/tls-render-reopen-2026-07-07.md`
 
+The follow-up review proved this phase was necessary but not sufficient: the
+server render improved, yet the cert rows are still lowered out of the ELK graph
+and wrapper extents still come from a second, disagreeing semantic pass.
+
+## Phase 6: REOPENED AGAIN 2026-07-07 — graph shape and compound ownership
+
+- [x] T060 Keep TLS cert rows in the ELK graph. Stop classifying the six grey
+      cert leaves as ELK-invisible annotations for this fixture shape; they are
+      Mermaid nodes inside blank-title subgraphs, not post-layout decorations.
+- [x] T061 Remove the fallback path for this fixture. After T060, no TLS cert
+      node should rely on `layoutAnnotationsBelow(...)`, and the authored-tree /
+      debug output should no longer treat those nodes as omitted annotations.
+- [x] T062 Unify compound extents around real placed children. `tls_provider`,
+      `openstack_services`, and `load_balancers` must size from the union bbox of
+      their actual children after ELK placement, not from endpoint-only ELK boxes
+      later patched by a second semantic wrap pass.
+- [x] T063 Raise the regression gate structurally:
+      `tls-render-regression.test.ts` or a sibling test must prove each cert
+      node stays inside its parent compound, each cert row stays above its
+      endpoint row, the provider content is centered, and the sibling parent
+      widths stay within tolerance.
+- [x] T064 Add a browser-path parity assertion for forced `elk-layered`.
+      The product closeout must no longer rely on a server-only SVG render while
+      a stale or diverged browser bundle can still show a materially different
+      structure.
+- [x] T065 Reconcile the authored source model if required. The Mermaid
+      reference visually reads as a top wrapper around the lower siblings, while
+      the current YAML and reconstructed `.mmd` still model `tls_provider` as a
+      sibling of `services_row`; either prove the current model can match the
+      reference or update the source package deliberately.
+- [x] T066 Re-run the real closeout. 076 is only `Closeout Ready` again once the
+      structural regressions above are green and the fresh browser/server render
+      matches the Mermaid reference without cert detachment or malformed parent
+      boxes.
+
+2026-07-07 Phase 6 result:
+
+- T060/T061: `packages/layout-engine/src/elk-layout.ts` now keeps the grey TLS
+  cert leaves in-graph and the TLS authored-tree debug no longer reports them as
+  flattened
+- T062/T065: the TLS source model is reconciled so `tls_provider` wraps
+  `services_row` in both the YAML fixture and the checked-in Mermaid reference;
+  `tls_provider` is promoted to `level: 3` to satisfy the sibling-promotion
+  corpus rule
+- T063: `tls-render-regression.test.ts` now checks cert-parent containment,
+  row-above-row structure, provider-content centering, and sibling width balance
+- T064: `tls-browser-parity-regression.test.ts` proves the live browser IIFE
+  forced-ELK render matches the server geometry
+- Cross-cutting browser fix: `packages/layout-engine/src/frame-serialize.ts`
+  now preserves `justify`, which was the browser-path cause of the widened
+  load-balancer rows after frame-tree wire round-trip
+- T066 validation is green:
+  - `npm --prefix packages/layout-engine test` → 995/995
+  - `npm --prefix apps/preview test` → 168/168
+  - `node scripts/check-browser-bundle-fresh.mjs`
+  - `node scripts/check_no_new_python.mjs`
+
 ## Closeout gate
 
-> REOPENED 2026-07-07: the gate below was declared met but did **not** include a
-> render-level parity check, so a broken render passed. The Phase 5 work above now
-> restores that gate: 076 re-closes only with the T051 render regression green and
-> the documented parity evidence in `evidence/tls-render-reopen-2026-07-07.md`.
+> REOPENED AGAIN 2026-07-07: the gate below was declared met once, then reopened
+> on render-level evidence, and is now reopened again on structural evidence.
+> T051 remains required, but it is no longer sufficient. 076 re-closes only with
+> the new Phase 6 structural/browser-path regressions green as well.
 
 - T0 spike proves a compound ELK graph reproduces the reference before any
   lowering code lands.

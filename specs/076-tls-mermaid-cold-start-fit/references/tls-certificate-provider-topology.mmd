@@ -4,39 +4,39 @@ flowchart TB
         direction TB
         vault_charm["vault<br/>charm"]
         manual_tls_certificates["manual-tls-certificates<br/>charm"]
-    end
 
-    subgraph services_row[" "]
-        direction LR
+        subgraph services_row[" "]
+            direction LR
 
-        subgraph openstack_services["OpenStack Services"]
-            direction TB
+            subgraph openstack_services["OpenStack Services"]
+                direction TB
 
-            subgraph openstack_relation_row[" "]
-                direction LR
-                octavia_certificates["certificates<br/>interface: tls-certificates"]
-                amphora_issuing_ca["amphora-issuing-ca<br/>interface: tls-certificates"]
-                amphora_controller_cert["amphora-controller-cert<br/>interface: tls-certificates"]
+                subgraph openstack_relation_row[" "]
+                    direction LR
+                    octavia_certificates["certificates<br/>interface: tls-certificates"]
+                    amphora_issuing_ca["amphora-issuing-ca<br/>interface: tls-certificates"]
+                    amphora_controller_cert["amphora-controller-cert<br/>interface: tls-certificates"]
+                end
+
+                octavia_k8s["octavia-k8s<br/>Load Balancer Service"]
             end
 
-            octavia_k8s["octavia-k8s<br/>Load Balancer Service"]
-        end
+            subgraph load_balancers["LoadBalancers"]
+                direction TB
 
-        subgraph load_balancers["LoadBalancers"]
-            direction TB
+                subgraph load_balancer_relation_row[" "]
+                    direction LR
+                    public_certificates["certificates<br/>interface: tls-certificates"]
+                    internal_certificates["certificates<br/>interface: tls-certificates"]
+                    rgw_certificates["certificates<br/>interface: tls-certificates"]
+                end
 
-            subgraph load_balancer_relation_row[" "]
-                direction LR
-                public_certificates["certificates<br/>interface: tls-certificates"]
-                internal_certificates["certificates<br/>interface: tls-certificates"]
-                rgw_certificates["certificates<br/>interface: tls-certificates"]
-            end
-
-            subgraph load_balancer_endpoint_row[" "]
-                direction LR
-                traefik_public["traefik-public<br/>Public Endpoint"]
-                traefik_internal["traefik<br/>Internal Endpoint"]
-                traefik_rgw["traefik-rgw<br/>Ceph RGW Endpoint"]
+                subgraph load_balancer_endpoint_row[" "]
+                    direction LR
+                    traefik_public["traefik-public<br/>Public Endpoint"]
+                    traefik_internal["traefik<br/>Internal Endpoint"]
+                    traefik_rgw["traefik-rgw<br/>Ceph RGW Endpoint"]
+                end
             end
         end
     end

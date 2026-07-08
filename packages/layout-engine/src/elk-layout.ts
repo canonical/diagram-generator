@@ -18,7 +18,7 @@ import {
   stripImplementationOwnedElkLayeredOverrides,
 } from '@diagram-generator/graph-layout-elk';
 
-import { Frame, FrameDiagram, Border, Direction, Sizing, createLine } from './frame-model.js';
+import { Align, Frame, FrameDiagram, Border, Direction, Fill, Sizing, createLine } from './frame-model.js';
 import { measure, place, layoutFrameTree, type LayoutOutput } from './layout.js';
 import { deserializeFrameDiagramWire, serializeFrameDiagram } from './frame-serialize.js';
 import { resolveStyles } from './resolve-styles.js';
@@ -269,8 +269,15 @@ function measuredElkLeafSize(
   };
 }
 
+function isGreyAnnotationLeaf(frame: Frame): boolean {
+  return frame.isLeaf &&
+    frame.border === Border.NONE &&
+    frame.resolvedFill === Fill.GREY &&
+    !isSyntheticHeadingFrame(frame);
+}
+
 function shouldExpandElkLeafToFitText(frame: Frame): boolean {
-  return frame.border === Border.NONE && frame.resolvedFill === '#F3F3F3';
+  return isGreyAnnotationLeaf(frame);
 }
 
 function expandSemanticTextFitLeaves(root: Frame, adapter: TextMeasureAdapter): void {
@@ -654,7 +661,7 @@ function collectPlacedFrames(root: Frame): Frame[] {
   return frames;
 }
 
-function hasPlacedGeometry(frame: Frame, placedIds: Set<string>): boolean {
+function hasPlacedGeometry(frame: Frame, placedIds: ReadonlySet<string>): boolean {
   return placedIds.has(frame.id) || frame._layout.placedW > 0 || frame._layout.placedH > 0;
 }
 
@@ -801,15 +808,21 @@ function anchorSyntheticLayoutDescendants(
         semanticY: frameSemantic.y,
       }
     : undefined;
+  const syntheticHeading = frame.children.find((child) => isSyntheticHeadingFrame(child));
+  const headingSemantic = syntheticHeading?.id ? semanticPlacements.get(syntheticHeading.id) : undefined;
   const syntheticBody = frame.children.find((child) => isSyntheticBodyFrame(child));
   const bodySemantic = syntheticBody?.id ? semanticPlacements.get(syntheticBody.id) : undefined;
   const padLeft = Math.max(0, Math.round(frame.paddingLeft));
   const padRight = Math.max(0, Math.round(frame.paddingRight));
   const padTop = Math.max(0, Math.round(frame.paddingTop));
   const padBottom = Math.max(0, Math.round(frame.paddingBottom));
-  const bodyTopInset = frameSemantic && bodySemantic
-    ? Math.max(padTop, Math.round(bodySemantic.y - frameSemantic.y))
+  const authoredHeadingGap = Math.max(0, Math.round(frame.gap));
+  const minimumBodyTopInset = headingSemantic
+    ? padTop + Math.round(headingSemantic.height) + authoredHeadingGap
     : padTop;
+  const bodyTopInset = frameSemantic && bodySemantic
+    ? Math.max(minimumBodyTopInset, Math.round(bodySemantic.y - frameSemantic.y))
+    : minimumBodyTopInset;
   const bodyContentBox = selfAnchor && syntheticBody
     ? {
         x: frame._layout.placedX + padLeft,
@@ -915,6 +928,7 @@ function bboxOfElkEdges(
 function isAnnotationFrame(frame: Frame, endpoints: Set<string>): boolean {
   return frame.isLeaf &&
     frame.border === Border.NONE &&
+    !isGreyAnnotationLeaf(frame) &&
     !endpoints.has(frame.id) &&
     !isSyntheticHeadingFrame(frame);
 }
@@ -1176,7 +1190,34 @@ function clearElkRoutedGeometryForFrames(
   }
 }
 
-function normalizeHorizontalRowsFromSemantic(
+function collectDescendantFrameIds(frame: Frame, out: Set<string>): void {
+  if (frame.id) {
+    out.add(frame.id);
+  }
+  for (const child of authoredLayoutChildren(frame)) {
+    collectDescendantFrameIds(child, out);
+  }
+}
+
+function lockExpandedGreyLeafSizes(frame: Frame): void {
+  walkFrames(frame, (child) => {
+    if (!isGreyAnnotationLeaf(child)) {
+      return;
+    }
+    child.width = Math.max(child.width ?? 0, child._layout.placedW, child._layout.measuredW);
+    child.height = Math.max(child.height ?? 0, child._layout.placedH, child._layout.measuredH);
+    child.sizingW = Sizing.FIXED;
+    child.sizingH = Sizing.FIXED;
+  });
+}
+
+function hasGreyAnnotationDescendant(frame: Frame): boolean {
+  return authoredLayoutChildren(frame).some((child) => (
+    isGreyAnnotationLeaf(child) || hasGreyAnnotationDescendant(child)
+  ));
+}
+
+function normalizeDirectedContainersFromSemantic(
   diagram: FrameDiagram,
   placedIds: ReadonlySet<string>,
   semanticPlacements: Map<string, SemanticFramePlacement>,
@@ -1184,7 +1225,10 @@ function normalizeHorizontalRowsFromSemantic(
   const rerouteFrameIds = new Set<string>();
 
   walkFrames(diagram.root, (frame) => {
-    if (frame.isLeaf || frame.direction !== Direction.HORIZONTAL || !frame.id || !placedIds.has(frame.id)) {
+    if (frame.isLeaf || !frame.id || !placedIds.has(frame.id)) {
+      return;
+    }
+    if (frame.direction === Direction.VERTICAL && !hasGreyAnnotationDescendant(frame)) {
       return;
     }
 
@@ -1206,15 +1250,34 @@ function normalizeHorizontalRowsFromSemantic(
       return;
     }
 
-    const semanticYValues = semanticChildren.map((entry) => entry.semantic.y);
-    const semanticDrift = Math.max(...semanticYValues) - Math.min(...semanticYValues);
+    const semanticDriftValues = frame.direction === Direction.HORIZONTAL
+      ? semanticChildren.map((entry) => entry.semantic.y)
+      : semanticChildren.map((entry) => entry.semantic.x);
+    const semanticDrift = Math.max(...semanticDriftValues) - Math.min(...semanticDriftValues);
     if (semanticDrift > 1) {
       return;
     }
 
-    const placedYValues = children.map((child) => child._layout.placedY);
-    const placedDrift = Math.max(...placedYValues) - Math.min(...placedYValues);
-    if (placedDrift <= 1) {
+    const placedDriftValues = frame.direction === Direction.HORIZONTAL
+      ? children.map((child) => child._layout.placedY)
+      : children.map((child) => child._layout.placedX);
+    const placedDrift = Math.max(...placedDriftValues) - Math.min(...placedDriftValues);
+    const semanticMainAxis = semanticChildren
+      .map((entry) => ({
+        id: entry.child.id,
+        value: frame.direction === Direction.HORIZONTAL ? entry.semantic.x : entry.semantic.y,
+      }))
+      .sort((left, right) => left.value - right.value)
+      .map((entry) => entry.id);
+    const placedMainAxis = children
+      .map((child) => ({
+        id: child.id,
+        value: frame.direction === Direction.HORIZONTAL ? child._layout.placedX : child._layout.placedY,
+      }))
+      .sort((left, right) => left.value - right.value)
+      .map((entry) => entry.id);
+    const authoredOrderMismatch = semanticMainAxis.some((id, index) => id !== placedMainAxis[index]);
+    if (placedDrift <= 1 && !authoredOrderMismatch) {
       return;
     }
 
@@ -1238,6 +1301,64 @@ function normalizeHorizontalRowsFromSemantic(
     }
   });
 
+  clearElkRoutedGeometryForFrames(diagram, rerouteFrameIds);
+}
+
+function realignPlacedContainersToAuthoredLayout(
+  diagram: FrameDiagram,
+  adapter: TextMeasureAdapter,
+  placedIds: ReadonlySet<string>,
+  endpoints: Set<string>,
+): void {
+  const rerouteFrameIds = new Set<string>();
+
+  function centeredChildDrift(frame: Frame, children: Frame[]): boolean {
+    if (children.length !== 1) {
+      return false;
+    }
+    if (frame.align !== Align.CENTER && frame.align !== Align.TOP_CENTER) {
+      return false;
+    }
+    const child = children[0]!;
+    const frameCenter = frame._layout.placedX + (frame._layout.placedW / 2);
+    const childCenter = child._layout.placedX + (child._layout.placedW / 2);
+    return Math.abs(frameCenter - childCenter) > 1;
+  }
+
+  function visit(frame: Frame): void {
+    if (frame.isLeaf || !frame.id || !placedIds.has(frame.id)) {
+      for (const child of authoredLayoutChildren(frame)) {
+        visit(child);
+      }
+      return;
+    }
+
+    const children = authoredLayoutChildren(frame)
+      .filter((child) => child.id && hasPlacedGeometry(child, placedIds) && !isAnnotationFrame(child, endpoints));
+    const needsRealign = children.length > 0 && (
+      hasGreyAnnotationDescendant(frame) ||
+      centeredChildDrift(frame, children)
+    );
+    if (needsRealign) {
+      lockExpandedGreyLeafSizes(frame);
+      place(
+        frame,
+        frame._layout.placedX,
+        frame._layout.placedY,
+        frame._layout.placedW,
+        frame._layout.placedH,
+        adapter,
+      );
+      collectDescendantFrameIds(frame, rerouteFrameIds);
+      return;
+    }
+
+    for (const child of children) {
+      visit(child);
+    }
+  }
+
+  visit(diagram.root);
   clearElkRoutedGeometryForFrames(diagram, rerouteFrameIds);
 }
 
@@ -1351,7 +1472,8 @@ export async function layoutGraphFrameDiagram(
   }
 
   anchorSemanticDescendants(diagram.root, placedIds, semanticLayout.placements, endpoints);
-  normalizeHorizontalRowsFromSemantic(diagram, placedIds, semanticLayout.placements);
+  normalizeDirectedContainersFromSemantic(diagram, placedIds, semanticLayout.placements);
+  realignPlacedContainersToAuthoredLayout(diagram, adapter, placedIds, endpoints);
   wrapStructuralContainers(diagram.root, placedIds);
   anchorSyntheticLayoutDescendants(diagram.root, placedIds, semanticLayout.placements);
   wrapStructuralContainers(diagram.root, placedIds);
