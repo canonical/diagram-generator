@@ -1,0 +1,11 @@
+engine: v3
+title: Figma plugin sample leaf
+root:
+  id: page
+  children:
+    - id: sample_leaf
+      width: 192
+      label:
+        - Text
+        - test
+      icon: Gateway.svg

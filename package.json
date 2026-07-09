@@ -6,6 +6,8 @@
     "preview:dev": "npm --prefix apps/preview run dev",
     "preview:build": "npm --prefix apps/preview run build",
     "preview:build-browser": "npm --prefix packages/layout-engine run build:browser",
+    "figma-plugin:build": "npm --prefix apps/figma-plugin run build",
+    "figma-plugin:serve": "npm --prefix apps/figma-plugin run serve",
     "clean:src-artifacts": "node scripts/clean-src-artifacts.mjs"
   },
   "devDependencies": {

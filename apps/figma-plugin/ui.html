@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Diagram Generator Figma Autolayout</title>
+  <style>
+    body {
+      font-family: Inter, Arial, sans-serif;
+      margin: 0;
+      padding: 16px;
+      color: #111;
+      background: #f6f4ef;
+    }
+
+    h1 {
+      font-size: 16px;
+      margin: 0 0 8px;
+    }
+
+    p {
+      font-size: 12px;
+      line-height: 1.5;
+      margin: 0 0 12px;
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+
+    input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 8px 10px;
+      border: 1px solid #c7c2b6;
+      background: #fffdf8;
+      margin-bottom: 12px;
+    }
+
+    button {
+      width: 100%;
+      border: 0;
+      padding: 10px 12px;
+      background: #0f6cbd;
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    #status {
+      margin-top: 12px;
+      min-height: 36px;
+      font-size: 12px;
+      line-height: 1.5;
+      color: #444;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <h1>Figma autolayout import</h1>
+  <p>
+    Inserts diagram-generator frames as native Figma auto-layout from the local
+    dev server.
+  </p>
+
+  <label for="serverUrl">Local server</label>
+  <input id="serverUrl" value="http://localhost:3846" />
+
+  <label for="diagramSlug">Diagram slug</label>
+  <input id="diagramSlug" value="ai-infra-telecom-services-stack" />
+
+  <button id="insertButton" type="button">Insert or refresh sample leaf</button>
+  <button id="diagramButton" type="button" style="margin-top: 8px; background: #1f7a52;">Import telecom diagram</button>
+
+  <div id="status">Idle.</div>
+
+  <script>
+    const button = document.getElementById("insertButton");
+    const serverInput = document.getElementById("serverUrl");
+    const slugInput = document.getElementById("diagramSlug");
+    const diagramButton = document.getElementById("diagramButton");
+    const status = document.getElementById("status");
+
+    function setStatus(text) {
+      status.textContent = text;
+    }
+
+    button.addEventListener("click", () => {
+      setStatus("Requesting sample payload...");
+      parent.postMessage({
+        pluginMessage: {
+          type: "insert-sample-leaf",
+          serverUrl: serverInput.value,
+        },
+      }, "*");
+    });
+
+    diagramButton.addEventListener("click", () => {
+      setStatus("Requesting diagram payload...");
+      parent.postMessage({
+        pluginMessage: {
+          type: "import-diagram",
+          serverUrl: serverInput.value,
+          slug: slugInput.value,
+        },
+      }, "*");
+    });
+
+    onmessage = (event) => {
+      const message = event.data.pluginMessage;
+      if (!message) return;
+
+      if (message.type === "status") {
+        setStatus(message.text);
+        return;
+      }
+
+      if (message.type === "done") {
+        setStatus(message.text);
+        return;
+      }
+
+      if (message.type === "error") {
+        setStatus("Error: " + message.text);
+      }
+    };
+  </script>
+</body>
+</html>

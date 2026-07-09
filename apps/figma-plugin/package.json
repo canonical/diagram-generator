@@ -1,0 +1,20 @@
+{
+  "name": "@diagram-generator/figma-plugin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "prebuild": "npm --prefix ../../packages/layout-engine run build",
+    "build": "tsc -p tsconfig.json",
+    "serve": "tsx src/dev-server.ts"
+  },
+  "dependencies": {
+    "@diagram-generator/layout-engine": "file:../../packages/layout-engine",
+    "diagram-generator": "file:../.."
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.8.0"
+  }
+}
