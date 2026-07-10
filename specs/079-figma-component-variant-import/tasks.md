@@ -5,6 +5,9 @@
 
 ## Phase 0 - Feasibility and Contract
 
+- [x] T000 Record the 2026-07-10 Figma inspection attempt and its limitation:
+  the connector was attached to an unrelated FigJam canvas, so exact component
+  variant and icon library metadata remain unverified.
 - [ ] T001 Inspect the user-authored Figma component set(s) and record stable
   names, component-set identity strategy, variant properties, text/icon
   controls, and slot marker contract.

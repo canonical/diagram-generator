@@ -39,6 +39,29 @@ than hidden behind the working generic-frame importer.
   browser contexts, so the plugin UI must have a file-input fallback:
   https://developer.mozilla.org/en-US/docs/Web/API/Window/showOpenFilePicker
 
+## 2026-07-10 Figma Inspection Outcome
+
+The user provided a box-component link at node `58:3` and a separate Brand icons
+library link. The local Figma connector could not inspect those files during
+this pass because it was attached to an unrelated FigJam canvas named `MMD4`;
+metadata/design-context calls for `58:3` were rejected, `58:3` was not present
+in the active document, and unauthenticated Figma REST calls for both file keys
+returned `403 Forbidden`.
+
+Outcome recorded in
+[`figma-inspection-2026-07-10.md`](figma-inspection-2026-07-10.md):
+
+- Correct box variant instantiation is feasible if the component set is
+  accessible in the current file or by configured component/component-set key.
+- Automatic icon selection is feasible if YAML icon ids map to icon component
+  keys or stable icon component names/plugin-data markers.
+- Exact variant/property names, slot target names, and icon component names were
+  not visible yet and must be inspected with the target Figma Design file and
+  icon library available to the connector.
+- Slot insertion remains the first live feasibility gate because Figma's
+  documented `InstanceNode.setProperties(...)` API does not support setting
+  `SLOT` properties.
+
 ## User Scenarios & Testing
 
 ### User Story 1 - Import any selected YAML file (Priority: P1)

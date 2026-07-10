@@ -22,6 +22,15 @@ Current plugin facts:
 The new work should keep layout authority in the local Node server and keep
 Figma-specific document mutation in the plugin main context.
 
+## Current Inspection State
+
+The first 2026-07-10 inspection attempt is recorded in
+[`figma-inspection-2026-07-10.md`](figma-inspection-2026-07-10.md). The
+connector was attached to an unrelated FigJam canvas, so exact component
+variant and icon library metadata are still unknown. The next implementation
+branch must begin by opening the target Figma Design file/library in the active
+Figma Desktop context or using an authenticated Figma API path.
+
 ## Design Direction
 
 1. Replace the demo UI with a selected-file import workflow.
@@ -81,6 +90,7 @@ Goal: avoid committing to an impossible Figma slot architecture.
 
 Deliverables:
 
+- Verified access to the box component at node `58:3` and the icon library.
 - A short findings file or validation section recording the user's component
   set names, expected variants, slot marker, and live mutation result.
 - A minimal live or fake-Figma probe that proves the chosen slot approach.
