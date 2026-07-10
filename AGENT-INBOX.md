@@ -19,16 +19,16 @@ Figma plugin build ok; preview build ok; browser-bundle freshness ok;
 
 ---
 
-## Current handoff (2026-07-10) — spec 078 merged
+## Current handoff (2026-07-10) — spec 079 drafted
 
-**Branch:** `main`
+**Branch:** `feat/079-figma-component-variant-import`
 
-Spec 078 is merged to `main` and archived. User/Opus confirmed the live Figma
-import preserves Fill/Hug/Fixed sizing from the same YAML used by the preview
-editor.
+Spec 078 is merged to `main` and archived. Spec 079 is the follow-up for
+mapping diagram boxes to user-authored native Figma component variants,
+direction-aware component slots, and arbitrary selected YAML import.
 
-Review prompt:
-[`docs/spec-reviews/opus-adversarial-review-2026-07-10-spec-078.md`](docs/spec-reviews/opus-adversarial-review-2026-07-10-spec-078.md).
+Spec package:
+[`specs/079-figma-component-variant-import/`](specs/079-figma-component-variant-import/).
 
-Closeout evidence:
-[`docs/spec-archive/078-figma-autolayout-plugin/validation.md`](docs/spec-archive/078-figma-autolayout-plugin/validation.md).
+First implementation gate: inspect the user's component variants and prove the
+slot insertion strategy in live Figma before replacing the generic frame builder.
