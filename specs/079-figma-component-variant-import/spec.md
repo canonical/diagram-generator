@@ -231,9 +231,10 @@ content updates while the allowed Figma override remains.
   component exposes those controls.
 - **FR-013a**: For copied current-file icon assets, the importer MUST discover
   matching icon sources by stable normalized name outside the `box` component
-  set. It MUST support nested Figma icon components and `.svg`-named cloneable
-  icon nodes, and MUST fail import rather than silently ignore an icon that
-  cannot be resolved or applied.
+  set. It MUST support nested Figma icon components, icon-sized copied Figma
+  icon instances named with or without the `.svg` suffix, and `.svg`-named
+  cloneable icon nodes. It MUST fail import rather than silently ignore an icon
+  that cannot be resolved or applied.
 - **FR-014**: Refresh MUST continue to use stable import IDs and MUST define
   importer-owned versus user-owned component properties before overwriting an
   existing instance.

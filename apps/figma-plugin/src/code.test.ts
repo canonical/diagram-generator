@@ -656,6 +656,18 @@ function installNestedIconComponent(name: string) {
   return installIconComponent(name, folder);
 }
 
+function installIconInstance(name: string, parent: FakeSceneNode = fakeFigma.currentPage, size = 48) {
+  const instance = new FakeSceneNode("INSTANCE");
+  instance.name = name;
+  instance.width = size;
+  instance.height = size;
+  const vector = new FakeSceneNode("VECTOR");
+  vector.name = "glyph";
+  instance.appendChild(vector);
+  parent.appendChild(instance);
+  return instance;
+}
+
 function installCloneableIconFrame(name: string) {
   const folder = new FakeSceneNode("FRAME");
   folder.name = "frames";
@@ -1112,6 +1124,63 @@ test("upsertYamlDiagram discovers copied icon components nested in folders", asy
   assert.equal(result.componentMode, "box");
   assert.equal(result.componentVerifiedCount, 1);
   assert.equal(iconTarget?.swappedComponentName, "Firewall.svg");
+});
+
+test("upsertYamlDiagram clones copied icon instances named without svg extension", async () => {
+  resetTestState();
+  installBoxComponentSet();
+  installIconInstance("AI");
+  fetchState.payload = {
+    slug: "instance-icons",
+    title: "Instance icons",
+    root: makeRoot([
+      makeLeaf({
+        id: "icon-child",
+        icon: {
+          name: "AI.svg",
+          size: 48,
+          path: "/icons/AI.svg",
+        },
+      }),
+    ]),
+  };
+
+  const result = await testables.upsertYamlDiagram("http://localhost:3846", "title: Instance icons", "icons.yaml");
+  const importedRoot = fakeFigma.currentPage.selection[0]!;
+  const child = findImportedById(importedRoot, "icon-child");
+  const replacement = child ? child.findAll((node) => node.name === "AI.svg")[0] : null;
+  const placeholder = child ? child.findAll((node) => node.name === "Network.svg")[0] : null;
+
+  assert.equal(result.componentMode, "box");
+  assert.equal(result.componentVerifiedCount, 1);
+  assert.equal(replacement?.type, "INSTANCE");
+  assert.equal(replacement?.getSharedPluginData("dgp", "importId"), "icon-child:icon");
+  assert.equal(placeholder, undefined);
+});
+
+test("upsertYamlDiagram does not treat oversized instances as copied icon sources", async () => {
+  resetTestState();
+  installBoxComponentSet();
+  installIconInstance("AI", fakeFigma.currentPage, 320);
+  fetchState.payload = {
+    slug: "oversized-instance-icons",
+    title: "Oversized instance icons",
+    root: makeRoot([
+      makeLeaf({
+        id: "icon-child",
+        icon: {
+          name: "AI.svg",
+          size: 48,
+          path: "/icons/AI.svg",
+        },
+      }),
+    ]),
+  };
+
+  await assert.rejects(
+    () => testables.upsertYamlDiagram("http://localhost:3846", "title: Oversized", "icons.yaml"),
+    /Missing or unapplied Figma icon sources.*AI\.svg/,
+  );
 });
 
 test("upsertYamlDiagram replaces icon placeholder from copied cloneable svg frame", async () => {

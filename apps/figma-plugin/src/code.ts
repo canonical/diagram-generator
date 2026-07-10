@@ -17,6 +17,7 @@ const BOX_ROLE_VARIANTS = {
   parent: "Parent",
   section: "Section",
 } as const;
+const ICON_SOURCE_MAX_DIMENSION = 128;
 const fontLoadCache = new Map<string, Promise<{ family: string; style: string }>>();
 const PLACEHOLDER_STROKE = "#C7CDD1";
 
@@ -1165,6 +1166,20 @@ function normalizeIconName(name: string) {
     .replace(/^-+|-+$/g, "");
 }
 
+function isCopiedIconInstanceSource(node: any) {
+  if (safeGetNodeType(node) !== "INSTANCE" || !hasNodeMethod(node, "clone")) {
+    return false;
+  }
+  const width = safeReadNumber(node, "width");
+  const height = safeReadNumber(node, "height");
+  if (width == null || height == null || width <= 0 || height <= 0) {
+    return false;
+  }
+  const larger = Math.max(width, height);
+  const smaller = Math.min(width, height);
+  return larger <= ICON_SOURCE_MAX_DIMENSION && larger / smaller <= 1.5;
+}
+
 function collectIconSources(componentSet: any) {
   const icons = new Map<string, IconSource>();
   for (const root of collectCandidateRoots()) {
@@ -1185,6 +1200,15 @@ function collectIconSources(componentSet: any) {
       if (safeGetNodeType(node) === "COMPONENT" && hasNodeMethod(node, "createInstance")) {
         icons.set(normalized, {
           kind: "component",
+          name,
+          node,
+        });
+        return;
+      }
+
+      if (isCopiedIconInstanceSource(node)) {
+        icons.set(normalized, {
+          kind: "cloneable",
           name,
           node,
         });

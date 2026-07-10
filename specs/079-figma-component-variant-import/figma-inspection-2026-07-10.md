@@ -77,10 +77,12 @@ load/search all file pages before deciding that component mode is unavailable.
 ### Third Pass / User-Confirmed Icon Copy
 
 The user then copied the icon assets into the `Diagram generator figma test`
-file under node `64:2`, inside frames/folders, with names matching the project
-icon names. A broad connector metadata query for `64:2` was too large to use as
-reliable recorded evidence, so this file does not claim exact live tree
-metadata for every copied icon.
+file under node `64:2`, inside sections/frames. A connector metadata pass on
+`64:2` showed copied Brand icon assets as 48x48 Figma `INSTANCE` nodes named
+without the `.svg` suffix, for example `AI`, `App data`, `CPU`, `Cloud`,
+`Cloud with container`, `Cluster`, `Lock`, `Network`, `Networking`, `Server`,
+`Storage object`, and `containers`. These names normalize to the authored YAML
+icon names such as `AI.svg` and `Storage object.svg`.
 
 Implementation consequence:
 
@@ -89,8 +91,10 @@ Implementation consequence:
 - icon sources are matched by the same normalized stable name used for YAML icon
   names
 - Figma `COMPONENT` nodes can be used for native icon instance swaps
+- icon-sized copied Figma `INSTANCE` nodes named with or without `.svg` can be
+  cloned into the box icon position
 - `.svg`-named cloneable nodes such as copied `FRAME`, `GROUP`, `VECTOR`, or
-  `INSTANCE` assets can be cloned into the box icon position
+  `INSTANCE` assets can also be cloned into the box icon position
 - descendants of the `box` component set and previously imported diagram
   subtrees are excluded from icon-source discovery so placeholder icons are not
   mistaken for real library assets
