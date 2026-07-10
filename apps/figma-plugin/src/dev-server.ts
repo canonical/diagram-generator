@@ -1,4 +1,5 @@
 import { createServer } from "node:http";
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -65,8 +66,57 @@ function sendJson(response: import("node:http").ServerResponse, statusCode: numb
   response.writeHead(statusCode, {
     "Content-Type": "application/json; charset=utf-8",
     "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
   });
   response.end(JSON.stringify(body, null, 2));
+}
+
+function formatError(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === "string") {
+    return error;
+  }
+  try {
+    return JSON.stringify(error, null, 2);
+  } catch (_jsonError) {
+    return String(error);
+  }
+}
+
+function slugifySourceName(sourceName: string, yamlText: string) {
+  const base = path.basename(sourceName || "", path.extname(sourceName || ""));
+  const normalized = base
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  if (normalized) {
+    return normalized;
+  }
+  return `selected-yaml-${createHash("sha256").update(yamlText).digest("hex").slice(0, 12)}`;
+}
+
+async function readRequestText(request: import("node:http").IncomingMessage) {
+  const chunks: Buffer[] = [];
+  for await (const chunk of request) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+  return Buffer.concat(chunks).toString("utf8");
+}
+
+async function readJsonBody(request: import("node:http").IncomingMessage) {
+  const raw = await readRequestText(request);
+  if (!raw.trim()) {
+    return {};
+  }
+  try {
+    return JSON.parse(raw) as Record<string, unknown>;
+  } catch (error) {
+    throw new Error(`Invalid JSON request body: ${formatError(error)}`);
+  }
 }
 
 async function sendFile(
@@ -390,6 +440,19 @@ async function loadDiagramBySlug(slug: string) {
   return { diagram, layout };
 }
 
+function layoutDiagramFromYaml(raw: string, sourcePath: string) {
+  const diagram = loadFrameYamlFromString(raw, sourcePath);
+  const adapter = new MockTextAdapter();
+  resolveStyles(diagram.root);
+  const layout = layoutFrameTree(diagram.root, adapter, {
+    arrows: diagram.arrows,
+    gridCols: diagram.gridCols,
+    gridColGap: diagram.gridColGap,
+    gridOuterMargin: diagram.gridOuterMargin,
+  });
+  return { diagram, layout };
+}
+
 async function createSampleLeafPayload() {
   const raw = await readFile(SAMPLE_PATH, "utf8");
   const diagram = loadFrameYamlFromString(raw, SAMPLE_PATH);
@@ -440,6 +503,27 @@ export async function createFrameDiagramPayload(slug: string) {
   };
 }
 
+export function createFrameDiagramPayloadFromYaml(raw: string, sourceName = "selected.yaml") {
+  if (!String(raw || "").trim()) {
+    throw new Error("Selected YAML file is empty.");
+  }
+
+  const sourcePath = path.isAbsolute(sourceName)
+    ? sourceName
+    : path.join(FRAMES_DIR, sourceName || "selected.yaml");
+  const { diagram, layout } = layoutDiagramFromYaml(raw, sourcePath);
+  const slug = slugifySourceName(sourceName, raw);
+  return {
+    slug,
+    title: diagram.title || slug,
+    source: {
+      kind: "selected-yaml",
+      name: sourceName || "selected.yaml",
+    },
+    root: serializeDiagramNode(diagram.root, undefined, { coerced: layout.coerced }),
+  };
+}
+
 export function createDevServer() {
   return createServer(async (request, response) => {
     try {
@@ -449,6 +533,11 @@ export function createDevServer() {
       }
 
       const url = new URL(request.url, `http://localhost:${PORT}`);
+
+      if (request.method === "OPTIONS") {
+        sendJson(response, 200, { ok: true });
+        return;
+      }
 
       if (url.pathname === "/health") {
         sendJson(response, 200, { ok: true, port: PORT });
@@ -472,6 +561,19 @@ export function createDevServer() {
         return;
       }
 
+      if (url.pathname === "/api/frame-diagram-yaml") {
+        if (request.method !== "POST") {
+          sendJson(response, 405, { error: "Use POST for /api/frame-diagram-yaml." });
+          return;
+        }
+        const body = await readJsonBody(request);
+        const yaml = typeof body.yaml === "string" ? body.yaml : "";
+        const sourceName = typeof body.sourceName === "string" ? body.sourceName : "selected.yaml";
+        const payload = createFrameDiagramPayloadFromYaml(yaml, sourceName);
+        sendJson(response, 200, payload);
+        return;
+      }
+
       if (url.pathname.startsWith("/icons/")) {
         const iconName = decodeURIComponent(path.basename(url.pathname));
         const iconPath = path.join(ICONS_DIR, iconName);
@@ -485,7 +587,7 @@ export function createDevServer() {
       });
     } catch (error) {
       sendJson(response, 500, {
-        error: error instanceof Error ? error.message : String(error),
+        error: formatError(error),
       });
     }
   });

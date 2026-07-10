@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Diagram Generator Figma Autolayout</title>
+  <title>Diagram Generator Figma Import</title>
   <style>
     body {
       font-family: Inter, Arial, sans-serif;
@@ -49,6 +49,15 @@
       cursor: pointer;
     }
 
+    button:disabled {
+      cursor: default;
+      opacity: 0.6;
+    }
+
+    #fileInput {
+      display: none;
+    }
+
     #status {
       margin-top: 12px;
       min-height: 36px;
@@ -60,71 +69,107 @@
   </style>
 </head>
 <body>
-  <h1>Figma autolayout import</h1>
-  <p>
-    Inserts diagram-generator frames as native Figma auto-layout from the local
-    dev server.
-  </p>
+  <h1>Figma diagram import</h1>
+  <p>Select a frame YAML file and import it as native editable Figma layers.</p>
 
   <label for="serverUrl">Local server</label>
   <input id="serverUrl" value="http://localhost:3846" />
 
-  <label for="diagramSlug">Diagram slug</label>
-  <input id="diagramSlug" value="ai-infra-telecom-services-stack" />
-
-  <button id="insertButton" type="button">Insert or refresh sample leaf</button>
-  <button id="diagramButton" type="button" style="margin-top: 8px; background: #1f7a52;">Import telecom diagram</button>
+  <button id="selectYamlButton" type="button">Select YAML to import</button>
+  <input id="fileInput" type="file" accept=".yaml,.yml,text/yaml,application/x-yaml" />
 
   <div id="status">Idle.</div>
 
   <script>
-    const button = document.getElementById("insertButton");
     const serverInput = document.getElementById("serverUrl");
-    const slugInput = document.getElementById("diagramSlug");
-    const diagramButton = document.getElementById("diagramButton");
+    const selectYamlButton = document.getElementById("selectYamlButton");
+    const fileInput = document.getElementById("fileInput");
     const status = document.getElementById("status");
 
-    function setStatus(text) {
-      status.textContent = text;
+    function formatText(value) {
+      if (typeof value === "string") return value;
+      try {
+        return JSON.stringify(value, null, 2);
+      } catch (_error) {
+        return String(value);
+      }
     }
 
-    button.addEventListener("click", () => {
-      setStatus("Requesting sample payload...");
-      parent.postMessage({
-        pluginMessage: {
-          type: "insert-sample-leaf",
-          serverUrl: serverInput.value,
-        },
-      }, "*");
-    });
+    function setStatus(text) {
+      status.textContent = formatText(text);
+    }
 
-    diagramButton.addEventListener("click", () => {
-      setStatus("Requesting diagram payload...");
-      parent.postMessage({
-        pluginMessage: {
-          type: "import-diagram",
-          serverUrl: serverInput.value,
-          slug: slugInput.value,
-        },
-      }, "*");
+    function readFallbackFile() {
+      return new Promise((resolve) => {
+        fileInput.onchange = () => {
+          const file = fileInput.files && fileInput.files[0];
+          fileInput.value = "";
+          resolve(file || null);
+        };
+        fileInput.click();
+      });
+    }
+
+    async function pickYamlFile() {
+      if (typeof window.showOpenFilePicker === "function") {
+        const [handle] = await window.showOpenFilePicker({
+          multiple: false,
+          types: [{
+            description: "YAML",
+            accept: {
+              "text/yaml": [".yaml", ".yml"],
+            },
+          }],
+        });
+        return handle ? handle.getFile() : null;
+      }
+      return readFallbackFile();
+    }
+
+    async function importSelectedYaml() {
+      selectYamlButton.disabled = true;
+      try {
+        const file = await pickYamlFile();
+        if (!file) {
+          setStatus("No YAML file selected.");
+          return;
+        }
+        const yaml = await file.text();
+        if (!yaml.trim()) {
+          setStatus("Selected YAML file is empty.");
+          return;
+        }
+        setStatus(`Importing ${file.name}...`);
+        parent.postMessage({
+          pluginMessage: {
+            type: "import-yaml",
+            serverUrl: serverInput.value,
+            sourceName: file.name,
+            yaml,
+          },
+        }, "*");
+      } catch (error) {
+        setStatus(`Error: ${formatText(error && error.message ? error.message : error)}`);
+      } finally {
+        selectYamlButton.disabled = false;
+      }
+    }
+
+    selectYamlButton.addEventListener("click", () => {
+      importSelectedYaml();
     });
 
     onmessage = (event) => {
       const message = event.data.pluginMessage;
       if (!message) return;
 
-      if (message.type === "status") {
-        setStatus(message.text);
-        return;
-      }
-
-      if (message.type === "done") {
+      if (message.type === "status" || message.type === "done") {
         setStatus(message.text);
         return;
       }
 
       if (message.type === "error") {
-        setStatus("Error: " + message.text);
+        setStatus(`Error: ${formatText(message.text)}`);
       }
     };
   </script>

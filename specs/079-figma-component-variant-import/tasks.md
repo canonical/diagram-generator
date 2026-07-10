@@ -8,9 +8,10 @@
 - [x] T000 Record the 2026-07-10 Figma inspection attempt and its limitation:
   the connector was attached to an unrelated FigJam canvas, so exact component
   variant and icon library metadata remain unverified.
-- [ ] T001 Inspect the user-authored Figma component set(s) and record stable
-  names, component-set identity strategy, variant properties, text/icon
-  controls, and slot marker contract.
+- [x] T001 Inspect the selected `box` component set and record visible stable
+  names, variant roles, and slot marker names.
+- [ ] T001a Inspect the separate Brand icons library or record configured icon
+  component keys for automatic icon selection.
 - [ ] T002 Run a live Figma slot probe proving whether the plugin can insert a
   generated auto-layout container into the component slot while preserving
   instance semantics.
@@ -21,17 +22,17 @@
 
 ## Phase 1 - Select YAML Import
 
-- [ ] T010 Replace `ui.html` sample/telecom buttons with a primary **Select YAML
+- [x] T010 Replace `ui.html` sample/telecom buttons with a primary **Select YAML
   to import** workflow.
-- [ ] T011 Add a `showOpenFilePicker()` path with `<input type="file">`
+- [x] T011 Add a `showOpenFilePicker()` path with `<input type="file">`
   fallback for `.yaml` and `.yml` files.
-- [ ] T012 Add plugin UI-to-main messages carrying selected YAML text, filename,
+- [x] T012 Add plugin UI-to-main messages carrying selected YAML text, filename,
   and optional source metadata.
-- [ ] T013 Add a local server endpoint that accepts raw YAML text and returns the
+- [x] T013 Add a local server endpoint that accepts raw YAML text and returns the
   versioned frame-diagram payload using the same layout path as slug import.
-- [ ] T014 Add tests proving arbitrary YAML payload import works for at least two
+- [x] T014 Add tests proving arbitrary YAML payload import works for at least two
   different frame YAML files.
-- [ ] T015 Keep slug/sample endpoints only as explicit debug/test helpers, not
+- [x] T015 Keep slug/sample endpoints only as explicit debug/test helpers, not
   as the visible production workflow.
 
 ## Phase 2 - Component Mapping Resolver

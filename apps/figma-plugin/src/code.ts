@@ -98,6 +98,10 @@ interface DiagramNodePayload {
 interface FrameDiagramPayload {
   slug: string;
   title: string;
+  source?: {
+    kind: string;
+    name: string;
+  };
   root: DiagramNodePayload;
 }
 
@@ -133,6 +137,33 @@ function getServerUrl(raw: unknown) {
 function getDiagramSlug(raw: unknown) {
   const trimmed = String(raw || "").trim();
   return trimmed || DEFAULT_DIAGRAM_SLUG;
+}
+
+function formatUnknownValue(value: unknown): string {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (value instanceof Error) {
+    return value.message;
+  }
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch (_error) {
+    return String(value);
+  }
+}
+
+function formatErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === "string") {
+    return error;
+  }
+  if (error && typeof error === "object" && "error" in error) {
+    return formatUnknownValue((error as { error: unknown }).error);
+  }
+  return formatUnknownValue(error);
 }
 
 function isVisibleColor(value: string | null | undefined) {
@@ -363,12 +394,24 @@ async function loadPreferredFont(weight = 400) {
   throw new Error("Unable to load a usable font in Figma.");
 }
 
-async function fetchJson<T>(url: string): Promise<T> {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Request failed: ${response.status} ${response.statusText}`);
+async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(url, init);
+  const text = await response.text();
+  let body: unknown = null;
+  if (text.trim()) {
+    try {
+      body = JSON.parse(text);
+    } catch (_error) {
+      body = text;
+    }
   }
-  return response.json() as Promise<T>;
+
+  if (!response.ok) {
+    const detail = formatErrorMessage(body) || response.statusText;
+    throw new Error(`Request failed: ${response.status} ${response.statusText}: ${detail}`);
+  }
+
+  return body as T;
 }
 
 async function fetchText(url: string) {
@@ -1150,15 +1193,15 @@ async function upsertSampleLeaf(serverUrl: string) {
   };
 }
 
-async function upsertFrameDiagram(serverUrl: string, slug: string) {
-  const payload = await fetchJson<FrameDiagramPayload>(
-    `${serverUrl}/api/frame-diagram?slug=${encodeURIComponent(slug)}`,
-  );
+async function upsertFrameDiagramPayload(
+  payload: FrameDiagramPayload,
+  serverUrl: string,
+  importId = `frame-diagram:${payload.slug}`,
+) {
   if (!payload.root) {
     throw new Error("Diagram payload did not include a root node.");
   }
 
-  const importId = `frame-diagram:${payload.slug}`;
   const existing = findExistingImportedDiagram(importId);
   const priorX = existing ? existing.x : null;
   const priorY = existing ? existing.y : null;
@@ -1202,8 +1245,36 @@ async function upsertFrameDiagram(serverUrl: string, slug: string) {
   }
 }
 
+async function upsertFrameDiagram(serverUrl: string, slug: string) {
+  const payload = await fetchJson<FrameDiagramPayload>(
+    `${serverUrl}/api/frame-diagram?slug=${encodeURIComponent(slug)}`,
+  );
+  return upsertFrameDiagramPayload(payload, serverUrl);
+}
+
+async function upsertYamlDiagram(serverUrl: string, yamlText: string, sourceName: string) {
+  if (!String(yamlText || "").trim()) {
+    throw new Error("Selected YAML file is empty.");
+  }
+
+  const payload = await fetchJson<FrameDiagramPayload>(
+    `${serverUrl}/api/frame-diagram-yaml`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        yaml: yamlText,
+        sourceName: sourceName || "selected.yaml",
+      }),
+    },
+  );
+  return upsertFrameDiagramPayload(payload, serverUrl, `frame-diagram-yaml:${payload.slug}`);
+}
+
 function reportError(error: unknown) {
-  const text = error instanceof Error ? error.message : String(error);
+  const text = formatErrorMessage(error);
   console.error(error);
   try {
     figma.notify(text, { timeout: 6000 });
@@ -1221,7 +1292,9 @@ if ((globalThis as any).__DGP_EXPOSE_TESTABLES__) {
     createImportBuildContext,
     reportError,
     upsertFrameDiagram,
+    upsertYamlDiagram,
     validateImportedDiagramSizing,
+    formatErrorMessage,
   };
 }
 
@@ -1239,6 +1312,15 @@ async function runSampleImport(serverUrl: string) {
 async function runDiagramImport(serverUrl: string, slug: string) {
   figma.ui.postMessage({ type: "status", text: `Fetching diagram payload for ${slug}...` });
   const result = await upsertFrameDiagram(serverUrl, slug);
+  figma.ui.postMessage({
+    type: "done",
+    text: `${result.refreshed ? "Refreshed" : "Inserted"} ${result.title} (${Math.round(result.width)}x${Math.round(result.height)}), root children: ${result.childCount}, imported nodes: ${result.descendantCount}, sizing verified: ${result.sizingVerifiedCount}`,
+  });
+}
+
+async function runYamlImport(serverUrl: string, yamlText: string, sourceName: string) {
+  figma.ui.postMessage({ type: "status", text: `Importing ${sourceName || "selected YAML"}...` });
+  const result = await upsertYamlDiagram(serverUrl, yamlText, sourceName);
   figma.ui.postMessage({
     type: "done",
     text: `${result.refreshed ? "Refreshed" : "Inserted"} ${result.title} (${Math.round(result.width)}x${Math.round(result.height)}), root children: ${result.childCount}, imported nodes: ${result.descendantCount}, sizing verified: ${result.sizingVerifiedCount}`,
@@ -1270,6 +1352,19 @@ figma.ui.onmessage = async (message: any) => {
   if (message.type === "import-diagram") {
     try {
       await runDiagramImport(getServerUrl(message.serverUrl), getDiagramSlug(message.slug));
+    } catch (error) {
+      reportError(error);
+    }
+    return;
+  }
+
+  if (message.type === "import-yaml") {
+    try {
+      await runYamlImport(
+        getServerUrl(message.serverUrl),
+        typeof message.yaml === "string" ? message.yaml : "",
+        typeof message.sourceName === "string" ? message.sourceName : "selected.yaml",
+      );
     } catch (error) {
       reportError(error);
     }

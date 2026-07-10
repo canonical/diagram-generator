@@ -1,5 +1,5 @@
 {
-  "name": "Diagram Generator Figma Autolayout",
+  "name": "Diagram Generator Figma Import",
   "id": "000000000000000102",
   "api": "1.0.0",
   "main": "dist/code.js",
@@ -8,16 +8,12 @@
   "documentAccess": "dynamic-page",
   "networkAccess": {
     "allowedDomains": ["http://localhost:3846"],
-    "reasoning": "Development plugin reads sample diagram payloads and icon assets from the local diagram-generator plugin server."
+    "reasoning": "Development plugin reads selected YAML diagram payloads and icon assets from the local diagram-generator plugin server."
   },
   "menu": [
     {
-      "name": "Insert sample leaf node",
-      "command": "insert-sample-leaf"
-    },
-    {
-      "name": "Import AI-driven telecom services diagram",
-      "command": "import-telecom-diagram"
+      "name": "Select YAML to import",
+      "command": "import-yaml-diagram"
     }
   ]
 }

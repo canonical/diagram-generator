@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 
 import {
   applyHeadingAsChild,
@@ -15,6 +16,7 @@ import {
 } from "../../../packages/layout-engine/dist/index.js";
 import {
   createFrameDiagramPayload,
+  createFrameDiagramPayloadFromYaml,
   resolveAuthoredLayoutFrame,
   serializeDiagramNode,
 } from "./dev-server.js";
@@ -274,4 +276,34 @@ test("telecom frame-diagram payload contains no Figma-illegal fill under hug", a
   const violations = collectFillUnderHugViolations(payload.root);
 
   assert.deepEqual(violations, []);
+});
+
+test("createFrameDiagramPayloadFromYaml supports arbitrary selected frame YAML", async () => {
+  const telecomYaml = await readFile(
+    new URL("../../../scripts/diagrams/frames/ai-infra-telecom-services-stack.yaml", import.meta.url),
+    "utf8",
+  );
+  const smokeYaml = await readFile(
+    new URL("../../../scripts/diagrams/frames/preview-smoke.yaml", import.meta.url),
+    "utf8",
+  );
+
+  const telecomPayload = createFrameDiagramPayloadFromYaml(telecomYaml, "ai-infra-telecom-services-stack.yaml");
+  const smokePayload = createFrameDiagramPayloadFromYaml(smokeYaml, "preview-smoke.yaml");
+
+  assert.equal(telecomPayload.slug, "ai-infra-telecom-services-stack");
+  assert.equal(telecomPayload.source.name, "ai-infra-telecom-services-stack.yaml");
+  assert.ok(telecomPayload.root.children.length > 0);
+  assert.deepEqual(collectFillUnderHugViolations(telecomPayload.root), []);
+
+  assert.equal(smokePayload.slug, "preview-smoke");
+  assert.equal(smokePayload.source.name, "preview-smoke.yaml");
+  assert.ok(smokePayload.root.children.length > 0);
+});
+
+test("createFrameDiagramPayloadFromYaml rejects empty selected YAML", () => {
+  assert.throws(
+    () => createFrameDiagramPayloadFromYaml("", "empty.yaml"),
+    /Selected YAML file is empty/,
+  );
 });

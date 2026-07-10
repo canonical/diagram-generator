@@ -24,12 +24,13 @@ Figma-specific document mutation in the plugin main context.
 
 ## Current Inspection State
 
-The first 2026-07-10 inspection attempt is recorded in
+The 2026-07-10 inspection attempts are recorded in
 [`figma-inspection-2026-07-10.md`](figma-inspection-2026-07-10.md). The
-connector was attached to an unrelated FigJam canvas, so exact component
-variant and icon library metadata are still unknown. The next implementation
-branch must begin by opening the target Figma Design file/library in the active
-Figma Desktop context or using an authenticated Figma API path.
+first connector pass was attached to an unrelated FigJam canvas. The second pass
+successfully inspected selected node `58:3`: component `box` with
+`Role=Child`, `Role=Parent`, and `Role=Section`, plus `slot` layers on Parent
+and Section. The separate Brand icons library is still unknown and needs active
+library inspection or configured component keys.
 
 ## Design Direction
 
@@ -90,7 +91,8 @@ Goal: avoid committing to an impossible Figma slot architecture.
 
 Deliverables:
 
-- Verified access to the box component at node `58:3` and the icon library.
+- Verified access to the box component at node `58:3`.
+- Verified access to the icon library or a manifest of icon component keys.
 - A short findings file or validation section recording the user's component
   set names, expected variants, slot marker, and live mutation result.
 - A minimal live or fake-Figma probe that proves the chosen slot approach.

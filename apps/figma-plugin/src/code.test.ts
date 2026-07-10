@@ -6,7 +6,9 @@ type PluginTestables = {
   buildContainerNode: (node: any, serverUrl: string, context: any) => Promise<any>;
   createImportBuildContext: () => any;
   upsertFrameDiagram: (serverUrl: string, slug: string) => Promise<any>;
+  upsertYamlDiagram: (serverUrl: string, yamlText: string, sourceName: string) => Promise<any>;
   validateImportedDiagramSizing: (rootFrame: any, payloadRoot: any) => number;
+  formatErrorMessage: (error: unknown) => string;
 };
 
 class FakeSceneNode {
@@ -225,12 +227,17 @@ const fakeFigma = new FakeFigma();
 const fetchState: {
   payload: any;
   iconTextByPath: Record<string, string>;
+  lastYamlRequest: null | {
+    method: string;
+    body: any;
+  };
 } = {
   payload: null,
   iconTextByPath: {},
+  lastYamlRequest: null,
 };
 
-(globalThis as any).fetch = async (url: string) => {
+(globalThis as any).fetch = async (url: string, init?: any) => {
   const href = String(url);
   if (href.includes("/api/frame-diagram?")) {
     return {
@@ -243,6 +250,30 @@ const fetchState: {
   }
 
   const pathname = new URL(href).pathname;
+  if (pathname === "/api/frame-diagram-yaml") {
+    fetchState.lastYamlRequest = {
+      method: String(init?.method || "GET"),
+      body: init?.body ? JSON.parse(String(init.body)) : null,
+    };
+    return {
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      json: async () => fetchState.payload,
+      text: async () => JSON.stringify(fetchState.payload),
+    };
+  }
+
+  if (pathname === "/api/broken-object-error") {
+    return {
+      ok: false,
+      status: 500,
+      statusText: "Internal Server Error",
+      json: async () => ({ error: { message: "Nested failure" } }),
+      text: async () => JSON.stringify({ error: { message: "Nested failure" } }),
+    };
+  }
+
   const iconText = fetchState.iconTextByPath[pathname];
   if (typeof iconText === "string") {
     return {
@@ -369,6 +400,7 @@ function resetTestState() {
   fakeFigma.reset();
   fetchState.payload = null;
   fetchState.iconTextByPath = {};
+  fetchState.lastYamlRequest = null;
 }
 
 function countImportedNodesOnPage() {
@@ -539,4 +571,37 @@ test("upsertFrameDiagram applies the real telecom effective payload sizing", asy
     assert.equal(importedNode.layoutSizingHorizontal, payloadNode.sizingW, `${id} horizontal sizing`);
     assert.equal(importedNode.layoutSizingVertical, payloadNode.sizingH, `${id} vertical sizing`);
   }
+});
+
+test("upsertYamlDiagram posts selected YAML and imports returned payload", async () => {
+  resetTestState();
+  fetchState.payload = {
+    slug: "selected-diagram",
+    title: "Selected diagram",
+    source: {
+      kind: "selected-yaml",
+      name: "selected.yaml",
+    },
+    root: makeRoot([makeLeaf()]),
+  };
+
+  const result = await testables.upsertYamlDiagram(
+    "http://localhost:3846",
+    "title: Selected diagram\nroot:\n  id: page\n",
+    "selected.yaml",
+  );
+
+  assert.equal(result.title, "Selected diagram");
+  assert.equal(fetchState.lastYamlRequest?.method, "POST");
+  assert.equal(fetchState.lastYamlRequest?.body.sourceName, "selected.yaml");
+  assert.match(fetchState.lastYamlRequest?.body.yaml, /Selected diagram/);
+  assert.equal(fakeFigma.currentPage.selection[0]?.name, "Selected diagram");
+});
+
+test("formatErrorMessage serializes object errors instead of object-object text", () => {
+  resetTestState();
+  const message = testables.formatErrorMessage({ error: { message: "Nested failure" } });
+
+  assert.notEqual(message, "[object Object]");
+  assert.match(message, /Nested failure/);
 });

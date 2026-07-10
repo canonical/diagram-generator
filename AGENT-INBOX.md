@@ -12,14 +12,13 @@ spec catalog/status → [`docs/specs.md`](docs/specs.md) · human notes →
 [`INBOX.md`](INBOX.md) · durable per-spec detail → `specs/<id>-<slug>/` ·
 adversarial reviews → `docs/spec-reviews/`.
 
-**Last-known-green (2026-07-10, spec 078 branch):** `packages/layout-engine`
-**1009/1009**; `apps/preview` **166/166**; `apps/figma-plugin` **13/13**;
-Figma plugin build ok; preview build ok; browser-bundle freshness ok;
-`check_no_new_python.mjs` ok.
+**Last-known-green (2026-07-10, spec 079 slice):** `apps/figma-plugin`
+**17/17**; Figma plugin build ok; server health ok; selected-YAML POST endpoint
+ok with `preview-smoke.yaml`.
 
 ---
 
-## Current handoff (2026-07-10) — spec 079 drafted
+## Current handoff (2026-07-10) — spec 079 implementation
 
 **Branch:** `feat/079-figma-component-variant-import`
 
@@ -30,5 +29,8 @@ direction-aware component slots, and arbitrary selected YAML import.
 Spec package:
 [`specs/079-figma-component-variant-import/`](specs/079-figma-component-variant-import/).
 
-First implementation gate: inspect the user's component variants and prove the
-slot insertion strategy in live Figma before replacing the generic frame builder.
+Current slice implements selected-YAML import through the local server and keeps
+the dev server running on `http://localhost:3846` for Figma testing. Box
+component inspection found `box` variants `Role=Child`, `Role=Parent`, and
+`Role=Section`; icon library inspection and slot mutation proof remain open
+before replacing the generic frame builder.

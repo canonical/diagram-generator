@@ -9,6 +9,8 @@
 
 ## What Was Actually Visible
 
+### First Pass
+
 The Figma connector was attached to a different active Figma context: a FigJam
 canvas named `MMD4` with root canvas `320:58`. It was not attached to the linked
 Figma Design file.
@@ -30,10 +32,50 @@ layer names, component property names, or icon component names still require
 live inspection with the target Figma Design file/library active in Figma
 Desktop or an authenticated Figma API path.
 
+### Second Pass
+
+After the user selected the master component, the connector could inspect node
+`58:3`.
+
+Observed structure:
+
+- selected node: `58:3`, name `box`
+- child variant/component nodes:
+  - `58:4`, name `Role=Child`, size `287x64`
+  - `58:15`, name `Role=Parent`, size `287x136`
+  - `58:38`, name `Role=Section`, size `287x136`
+- visible variant property from node names: `Role` with values `Child`,
+  `Parent`, and `Section`
+- all variants have a `contents` layer containing a `Text block` and
+  `Network.svg`
+- `Role=Parent` has a nested layer named `slot` at `58:26`
+- `Role=Section` has a nested layer named `slot` at `58:49`
+- design variables visible through the connector:
+  - `color/text/root = #000000`
+  - `color/text/muted = #00000099`
+  - `color/text/muted/root = #636363`
+  - `color/border/highlighted/root = #000000`
+  - `color/background/layer2 = #f8f8f8`
+
+The screenshot call for the selected node timed out, so this pass is structural
+metadata/design-context evidence, not screenshot evidence.
+
+The separate Brand icons library was still not inspected in this pass. The
+active connector context was the box component file; unauthenticated REST access
+to the icon file had already returned `403 Forbidden`.
+
 ## Can We Instantiate The Correct Box Variant?
 
-Yes, conditionally. The plugin can instantiate the correct variant if the
-mapping resolver can access the component set in one of these ways:
+Yes, for the visible `box` component, subject to plugin API readback. The
+resolver should first target component set `box` and choose a variant by
+`Role`:
+
+- semantic `leaf`, `annotation`, and likely `highlight` -> `Role=Child`
+- semantic `panel`/parent -> `Role=Parent`
+- semantic `section` -> `Role=Section`
+
+The plugin can instantiate the correct variant if the mapping resolver can
+access the component set in one of these ways:
 
 - the component set already exists in the current Figma file
 - the component or component-set key is configured and can be imported with
@@ -47,8 +89,9 @@ It should resolve the component set by stable configured identity, inspect
 instance, and use `InstanceNode.setProperties(...)` for supported variant,
 boolean, text, and instance-swap properties.
 
-The exact mapping cannot be written yet because node `58:3` was not visible to
-the connector.
+The first resolver should support a fallback where component children are
+matched by variant component names like `Role=Parent`, because that is what was
+visible in connector metadata.
 
 ## Slot/Nesting Conclusion
 
