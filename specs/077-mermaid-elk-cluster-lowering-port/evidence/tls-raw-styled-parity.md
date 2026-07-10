@@ -25,11 +25,14 @@ The app-path state builder for `tls-certificate-provider-topology` now emits:
   `elk.layered.mergeEdges: true`, `elk.layered.mergeHierarchyEdges: true`,
   `elk.layered.considerModelOrder.strategy: NODES_AND_EDGES`, and
   `elk.layered.crossingMinimization.forceNodeModelOrder: true`
-- TLS also pins the Mermaid-oracle edge-label geometry options in YAML:
-  `elk.edgeLabels.inline: true` and `elk.edgeLabels.placement: CENTER`. These are
-  typed layered controls; the graph IR still carries engine-agnostic measured
-  label boxes, and the ELK adapter attaches the per-label inline/CENTER options
-  before invoking ELK.
+- TLS also pins readable ELK edge-label geometry options in YAML:
+  `elk.edgeLabels.inline: false`, `elk.edgeLabels.placement: CENTER`,
+  `elk.spacing.edgeLabel: 8`,
+  `elk.layered.edgeLabels.sideSelection: SMART_DOWN`, and
+  `elk.layered.edgeLabels.centerLabelPlacementStrategy: SPACE_EFFICIENT_LAYER`.
+  These are typed layered controls; the graph IR still carries engine-agnostic
+  measured label boxes, and the ELK adapter attaches per-label inline/placement
+  options before invoking ELK.
 - Authored/product arrows: `edge-0` through `edge-6` only
 - Raw ELK input edges: `edge-0` through `edge-6` only
 - Removed from the authored tree and raw/product parity: `services_row`,
@@ -53,8 +56,13 @@ endpoints.
 The six consumer arrows from `manual_tls_certificates` now share the same
 ELK-owned source stem in raw ELK and in the styled product path. In the current
 evidence render, product `edge-1` through `edge-6` begin at
-`[824,288] -> [824,304] -> [824,312]`, and the raw ELK SVG contains the matching
+`[824,304] -> [824,320] -> [824,328]`, and the raw ELK SVG contains the matching
 common vertical stem from the source-side border before fanning out.
+
+The product regression now also checks that no rendered arrow segment crosses the
+interior of an ELK-owned label rectangle. This deliberately avoids the alternate
+renderer-background workaround: labels stay transparent/no-stroke annotation
+carriers, and ELK owns their detached placement.
 
 ## Validation
 

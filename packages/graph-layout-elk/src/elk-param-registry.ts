@@ -97,6 +97,18 @@ export const ELK_LAYERED_PARAM_SPECS: ElkParamSpec[] = [
     description: 'Gap between parallel edges — reduces overlap.',
   },
   {
+    key: 'elk.spacing.edgeLabel',
+    label: 'Edge ↔ label',
+    group: 'Spacing',
+    kind: 'number',
+    defaultValue: '8',
+    min: 0,
+    max: 128,
+    step: 4,
+    description:
+      'Clearance ELK preserves between an edge label and its associated edge when labels are detached from the edge.',
+  },
+  {
     key: 'elk.layered.spacing.edgeEdgeBetweenLayers',
     label: 'Edge gap (layers)',
     group: 'Spacing',
@@ -138,9 +150,9 @@ export const ELK_LAYERED_PARAM_SPECS: ElkParamSpec[] = [
     label: 'Inline edge labels',
     group: 'Edges',
     kind: 'boolean',
-    defaultValue: 'true',
+    defaultValue: 'false',
     description:
-      'Place edge labels inline on the routed edge, matching Mermaid ELK so labels do not reserve separate layer space and distort routes.',
+      'Place labels directly on the routed edge. Keep this off unless the renderer gives labels an opaque background; otherwise the edge crosses the text.',
   },
   {
     key: 'elk.edgeLabels.placement',
@@ -155,6 +167,40 @@ export const ELK_LAYERED_PARAM_SPECS: ElkParamSpec[] = [
     ],
     description:
       'Default placement for ELK-owned edge labels. Center is the Mermaid ELK oracle for flowchart labels.',
+  },
+  {
+    key: 'elk.layered.edgeLabels.sideSelection',
+    label: 'Edge label side',
+    group: 'Edges',
+    kind: 'enum',
+    defaultValue: 'SMART_DOWN',
+    enumValues: [
+      { value: 'ALWAYS_UP', label: 'Always up' },
+      { value: 'ALWAYS_DOWN', label: 'Always down' },
+      { value: 'DIRECTION_UP', label: 'Direction up' },
+      { value: 'DIRECTION_DOWN', label: 'Direction down' },
+      { value: 'SMART_UP', label: 'Smart up' },
+      { value: 'SMART_DOWN', label: 'Smart down' },
+    ],
+    description:
+      'Layered heuristic for choosing which side of an edge detached labels should use.',
+  },
+  {
+    key: 'elk.layered.edgeLabels.centerLabelPlacementStrategy',
+    label: 'Center label layer',
+    group: 'Edges',
+    kind: 'enum',
+    defaultValue: 'MEDIAN_LAYER',
+    enumValues: [
+      { value: 'MEDIAN_LAYER', label: 'Median layer' },
+      { value: 'TAIL_LAYER', label: 'Source layer' },
+      { value: 'HEAD_LAYER', label: 'Target layer' },
+      { value: 'SPACE_EFFICIENT_LAYER', label: 'Space efficient' },
+      { value: 'WIDEST_LAYER', label: 'Widest layer' },
+      { value: 'CENTER_LAYER', label: 'Center layer' },
+    ],
+    description:
+      'Layered strategy for choosing the layer used by center labels on long edges.',
   },
   {
     key: 'elk.layered.nodePlacement.favorStraightEdges',

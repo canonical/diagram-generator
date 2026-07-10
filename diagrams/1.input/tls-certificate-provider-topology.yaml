@@ -10,9 +10,12 @@ meta:
     elk.spacing.nodeNode: 24
     elk.spacing.edgeNode: 24
     elk.spacing.edgeEdge: 24
+    elk.spacing.edgeLabel: 8
     elk.layered.spacing.edgeEdgeBetweenLayers: 24
-    elk.edgeLabels.inline: true
+    elk.edgeLabels.inline: false
     elk.edgeLabels.placement: CENTER
+    elk.layered.edgeLabels.sideSelection: SMART_DOWN
+    elk.layered.edgeLabels.centerLabelPlacementStrategy: SPACE_EFFICIENT_LAYER
     elk.layered.unnecessaryBendpoints: true
     elk.layered.mergeEdges: true
     elk.layered.mergeHierarchyEdges: true
@@ -30,9 +33,12 @@ meta:
       elk.spacing.nodeNode: 24
       elk.spacing.edgeNode: 24
       elk.spacing.edgeEdge: 24
+      elk.spacing.edgeLabel: 8
       elk.layered.spacing.edgeEdgeBetweenLayers: 24
-      elk.edgeLabels.inline: true
+      elk.edgeLabels.inline: false
       elk.edgeLabels.placement: CENTER
+      elk.layered.edgeLabels.sideSelection: SMART_DOWN
+      elk.layered.edgeLabels.centerLabelPlacementStrategy: SPACE_EFFICIENT_LAYER
       elk.layered.unnecessaryBendpoints: true
       elk.layered.mergeEdges: true
       elk.layered.mergeHierarchyEdges: true

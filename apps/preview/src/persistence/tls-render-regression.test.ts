@@ -101,6 +101,13 @@ type SvgTspan = {
   fontWeight: string;
 };
 
+type SvgLine = {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+};
+
 type RawElkNodeLike = {
   id: string;
   x: number;
@@ -175,6 +182,39 @@ function extractTspans(markup: string): SvgTspan[] {
       fontWeight: attrs["font-weight"] ?? "",
     };
   });
+}
+
+function extractLines(markup: string): SvgLine[] {
+  return [...markup.matchAll(/<line\b([^>]+?)\/>/g)].map((match) => {
+    const attrs = Object.fromEntries(
+      [...match[1].matchAll(/([A-Za-z:_-]+)="([^"]*)"/g)].map((entry) => [entry[1], entry[2]]),
+    );
+    return {
+      x1: Number(attrs.x1),
+      y1: Number(attrs.y1),
+      x2: Number(attrs.x2),
+      y2: Number(attrs.y2),
+    };
+  });
+}
+
+function rangeOverlap(a1: number, a2: number, b1: number, b2: number): number {
+  return Math.min(Math.max(a1, a2), Math.max(b1, b2)) - Math.max(Math.min(a1, a2), Math.min(b1, b2));
+}
+
+function lineCrossesRectInterior(line: SvgLine, rect: SvgRect): boolean {
+  const left = rect.x;
+  const right = rect.x + rect.width;
+  const top = rect.y;
+  const bottom = rect.y + rect.height;
+
+  if (line.x1 === line.x2) {
+    return line.x1 > left && line.x1 < right && rangeOverlap(line.y1, line.y2, top, bottom) > 0;
+  }
+  if (line.y1 === line.y2) {
+    return line.y1 > top && line.y1 < bottom && rangeOverlap(line.x1, line.x2, left, right) > 0;
+  }
+  return false;
 }
 
 function geometryOnly(rect: SvgRect): { x: number; y: number; width: number; height: number } {
@@ -319,6 +359,11 @@ test("TLS SVG export keeps the top-band TLS provider, labeled wires, and endpoin
       [rawEdge?.labels?.[0]?.x, rawEdge?.labels?.[0]?.y],
       [elkLabel?.x, elkLabel?.y],
       `${id} product label geometry should match raw ELK label geometry`,
+    );
+    assert.deepEqual(
+      extractLines(markup).filter((line) => lineCrossesRectInterior(line, labelRect)),
+      [],
+      `${id} rendered edge segments should not cross the ELK-owned label box`,
     );
 
     assert.deepEqual(

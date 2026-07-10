@@ -13,8 +13,11 @@ describe('ELK compound layout options', () => {
     expect(defaults).toMatchObject({
       'elk.layered.mergeEdges': 'false',
       'elk.layered.mergeHierarchyEdges': 'true',
-      'elk.edgeLabels.inline': 'true',
+      'elk.spacing.edgeLabel': '8',
+      'elk.edgeLabels.inline': 'false',
       'elk.edgeLabels.placement': 'CENTER',
+      'elk.layered.edgeLabels.sideSelection': 'SMART_DOWN',
+      'elk.layered.edgeLabels.centerLabelPlacementStrategy': 'MEDIAN_LAYER',
       'elk.layered.crossingMinimization.forceNodeModelOrder': 'false',
     });
     expect(defaults['elk.layered.considerModelOrder.strategy']).toBeUndefined();
@@ -25,16 +28,22 @@ describe('ELK compound layout options', () => {
       optionOverrides: {
         'elk.layered.mergeEdges': 'true',
         'elk.layered.mergeHierarchyEdges': 'false',
-        'elk.edgeLabels.inline': 'false',
+        'elk.spacing.edgeLabel': '16',
+        'elk.edgeLabels.inline': 'true',
         'elk.edgeLabels.placement': 'HEAD',
+        'elk.layered.edgeLabels.sideSelection': 'SMART_UP',
+        'elk.layered.edgeLabels.centerLabelPlacementStrategy': 'SPACE_EFFICIENT_LAYER',
         'elk.layered.considerModelOrder.strategy': 'PREFER_EDGES',
         'elk.layered.crossingMinimization.forceNodeModelOrder': 'true',
       },
     })).toMatchObject({
       'elk.layered.mergeEdges': 'true',
       'elk.layered.mergeHierarchyEdges': 'false',
-      'elk.edgeLabels.inline': 'false',
+      'elk.spacing.edgeLabel': '16',
+      'elk.edgeLabels.inline': 'true',
       'elk.edgeLabels.placement': 'HEAD',
+      'elk.layered.edgeLabels.sideSelection': 'SMART_UP',
+      'elk.layered.edgeLabels.centerLabelPlacementStrategy': 'SPACE_EFFICIENT_LAYER',
       'elk.layered.considerModelOrder.strategy': 'PREFER_EDGES',
       'elk.layered.crossingMinimization.forceNodeModelOrder': 'true',
     });

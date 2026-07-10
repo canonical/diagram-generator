@@ -207,12 +207,15 @@ re-creating the 076 mess by redrawing around ELK.
   behavior are
   configurable (`mergeEdges`, `mergeHierarchyEdges`,
   `considerModelOrder.strategy`, `forceNodeModelOrder`, `edgeLabels.inline`,
-  `edgeLabels.placement`). Global defaults must stay safe for existing
-  non-cluster diagrams; shape-specific defaults may apply only when the graph
-  itself opts into border-routed cross-hierarchy edges, and YAML may still override
-  them explicitly. Layered edge labels default to the Mermaid oracle's inline,
-  centered per-label options so labels do not reserve dummy layer space and
-  distort routes.
+  `edgeLabels.placement`, `spacing.edgeLabel`,
+  `layered.edgeLabels.sideSelection`,
+  `layered.edgeLabels.centerLabelPlacementStrategy`). Global defaults must stay
+  safe for existing non-cluster diagrams; shape-specific defaults may apply only
+  when the graph itself opts into border-routed cross-hierarchy edges, and YAML may
+  still override them explicitly. Because product arrow labels are transparent
+  annotation carriers, layered edge labels default to detached ELK placement; inline
+  labels are an explicit opt-in for renderers that keep edge strokes from crossing
+  label text.
 
 ## Success criteria
 
@@ -223,8 +226,8 @@ re-creating the 076 mess by redrawing around ELK.
   load-balancer endpoints on one horizontal row; the TLS certificate annotations
   are two-line **arrow labels**, not authored boxes; those labels use the
   annotation class contract instead of bespoke grey pills; no truncated label;
-  labels are placed by ELK with inline/CENTER semantics instead of dummy-node
-  detours;
+  labels are placed by ELK with detached label spacing so no arrow segment crosses
+  an ELK-owned label box;
   repeated consumer arrows from the top provider fan out from one ELK-owned shared
   stem instead of separate rogue starts;
   the source/root provider compound is classified as a section while target/root

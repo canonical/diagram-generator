@@ -14,7 +14,8 @@ adversarial reviews → `docs/spec-reviews/`.
 
 **Last-known-green (2026-07-10, spec 077 TLS focus):**
 `packages/graph-layout-elk test` **70/70**; `apps/preview test` **168/168**;
-TLS/layout-engine focused suites green; `build`, `build:browser`,
+TLS/layout-engine focused suites green; layout-engine package build steps,
+`packages/layout-engine build:browser`,
 `check-browser-bundle-fresh.mjs`, `check-preview-shell-size-budgets.mjs`,
 `check_no_new_python.mjs`, and `git diff --check` green (line-ending warnings
 only). Full `packages/layout-engine test` is not green because of the unrelated
@@ -38,14 +39,14 @@ and equal lower-compound heights.
 
 **Review done (2026-07-10):**
 [`docs/spec-reviews/077-mermaid-elk-cluster-lowering-port-adversarial-review-2026-07-10.md`](docs/spec-reviews/077-mermaid-elk-cluster-lowering-port-adversarial-review-2026-07-10.md).
-Readiness: **review blocker addressed in the working tree.** B1 is fixed by removing
-the graph-wide `elk.edgeLabels.inline=false`, adding typed layered controls
-`elk.edgeLabels.inline`/`elk.edgeLabels.placement`, defaulting them to
-Mermaid-oracle inline/CENTER, and applying those as per-label ELK options in
-`packages/graph-layout-elk/`. TLS pins the same controls in YAML and raw/product
-evidence has been regenerated. T051 (second cold-start fixture) and T054 (full
-validation, blocked only by the unrelated draw.io golden below) still block spec
-closeout.
+Readiness: **review blocker addressed on the current branch.** The first attempt
+matched Mermaid's inline-label option but exposed a product-render overlap because
+our arrow labels are transparent by design. The current fix keeps the behavior
+configurable: layered ELK labels default to detached (`elk.edgeLabels.inline:
+false`), expose documented label spacing/side/layer controls, and TLS pins those
+controls in YAML. Product tests now assert no arrow segment crosses an ELK-owned
+label box. T051 (second cold-start fixture) and T054 (full validation, blocked
+only by the unrelated draw.io golden below) still block spec closeout.
 
 
 **Still open at spec level:**

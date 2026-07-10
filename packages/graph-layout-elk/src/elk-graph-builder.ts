@@ -625,7 +625,7 @@ export function buildElkGraph(
   const enableCompoundDirections = layeredAlgorithm;
   const inheritedCompoundLayoutOptions = layeredAlgorithm ? { ...rootOptions } : undefined;
   const labelLayoutOptions: ElkLayoutOptions = {
-    'edgeLabels.inline': rootOptions['elk.edgeLabels.inline'] ?? 'true',
+    'edgeLabels.inline': rootOptions['elk.edgeLabels.inline'] ?? 'false',
     'edgeLabels.placement': rootOptions['elk.edgeLabels.placement'] ?? 'CENTER',
   };
   const sourceSide = sourceSideForDirection(effectiveDirection);
