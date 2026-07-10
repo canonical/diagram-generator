@@ -5,8 +5,11 @@
   "type": "module",
   "scripts": {
     "prebuild": "npm --prefix ../../packages/layout-engine run build",
+    "preserve": "npm --prefix ../../packages/layout-engine run build",
+    "pretest": "npm --prefix ../../packages/layout-engine run build",
     "build": "tsc -p tsconfig.json",
-    "serve": "tsx src/dev-server.ts"
+    "serve": "tsx src/dev-server.ts",
+    "test": "node --import tsx --test src/*.test.ts"
   },
   "dependencies": {
     "@diagram-generator/layout-engine": "file:../../packages/layout-engine",

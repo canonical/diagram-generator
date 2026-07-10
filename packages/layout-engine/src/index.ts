@@ -119,7 +119,13 @@ export {
   resolveLeafTextWrapWidth,
 } from './text-layout.js';
 
-export { applyHeadingAsChild } from './heading-synthesis.js';
+export {
+  applyHeadingAsChild,
+  findSyntheticBody,
+  findSyntheticHeading,
+  isSyntheticBodyFrame,
+  isSyntheticHeadingFrame,
+} from './heading-synthesis.js';
 export { loadFrameYaml } from './frame-yaml-loader.js';
 export { serializeFrameDiagram, serializeFrame, deserializeFrameWire, deserializeFrameDiagramWire } from './frame-serialize.js';
 export { buildGridInfo, type GridInfo } from './grid-info.js';

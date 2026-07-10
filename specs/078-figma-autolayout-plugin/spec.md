@@ -2,9 +2,69 @@
 
 **Feature Branch**: `feat/078-figma-autolayout-plugin`
 **Created**: 2026-07-08
-**Status**: Draft
+**Status**: Closeout Ready
 **Input**: User description: "Investigate and build a local-development Figma plugin that recreates diagram-generator nodes as native Figma auto-layout, starting with a simple child node with icon and wrapped text, then growing toward parent/section hierarchy import."
 **Context**: linked Figma Design test file `oO0QdUZSf53hxQzBMrg54F`, runtime layout authorities in `packages/layout-engine/src/`, and sibling reference plugin `H:\WSL_dev_projects\mermaid\scripts\figma-atlas-plugin\`.
+
+## Current Implementation Status
+
+- `apps/figma-plugin/` exists and the plugin can already:
+  - import one canonical sample leaf from local YAML through the layout engine
+  - serve frame-diagram payloads by slug from `scripts/diagrams/frames/*.yaml`
+  - attempt a generic nested Figma import path for real diagrams such as
+    `ai-infra-telecom-services-stack`
+- The importer and payload server now also:
+  - rebuild `packages/layout-engine/dist` before `serve` and `test`, avoiding a
+    stale-payload trap during local plugin work
+  - preserve authored absolute-position metadata in the payload and Figma
+    builder for non-root nodes
+  - consume layout-engine-owned synthetic heading/body helpers instead of
+    re-deriving headed container structure from ad hoc string matching
+- The 2026-07-10 ROUND 3 review superseded the earlier client-only hypothesis:
+  the payload must not re-emit raw authored sizing after `layoutFrameTree`
+  restores semantic state. The payload server now captures the layout result's
+  `coerced` map and serializes effective sizing for Figma:
+  - the imported root is fixed to the measured outer size
+  - layout-engine primary-axis HUG/FILL coercions are emitted as `FIXED` at the
+    measured size
+  - Figma-only cross-axis `FILL` under a `HUG` parent is downgraded to `FIXED`
+    at the placed size
+  - body-frame sizing is serialized with measured body geometry so browser
+    overrides saved to YAML flow through the engine before Figma import
+- The Figma builder no longer performs its own parent-axis coercion. After
+  building a diagram, it reads back every semantic frame and generated body
+  frame's actual `layoutSizingHorizontal` / `layoutSizingVertical`; import
+  succeeds only if those values match the effective payload.
+- 2026-07-10 user/Opus verification confirmed Fill/Hug/Fixed now works in Figma
+  for the telecom import generated from the same YAML as the preview editor.
+  Closeout evidence is recorded in [`validation.md`](validation.md).
+
+## Active Implementation Direction
+
+The current importer strategy is:
+
+- keep the imported diagram root anchored to the payload's measured outer size
+- read authored nested auto-layout semantics (`sizingW`, `sizingH`,
+  `bodySizingW`, `bodySizingH`, `positionType`, `x`, `y`) from the current frame
+  YAML, then translate sizing through the layout engine's effective output
+  before Figma import
+- apply the translated sizing through Figma's unified
+  `layoutSizingHorizontal` / `layoutSizingVertical` surface instead of relying
+  on premature `primaryAxisSizingMode` / `counterAxisSizingMode` +
+  `resizeWithoutConstraints` writes on nested frames
+- never send Figma a `FILL` child on an axis where its actual Figma parent is
+  `HUG`; use fixed-at-placed geometry for combinations the engine can solve but
+  Figma cannot express
+- fail the import if Figma reports any sizing value different from the effective
+  payload, instead of treating runtime warnings as acceptable
+- derive headed-container structure and semantic roles from layout-engine-owned
+  helpers instead of local payload-server heuristics
+- validate in two passes:
+  1. payload/server fidelity and focused regression coverage in-repo
+  2. live Figma parity for telecom hierarchy, text, and icon rendering
+
+This is the working hypothesis for reaching one-to-one parity with the source
+diagram instead of relying on Figma to rediscover box geometry.
 
 ## User Scenarios & Testing
 
@@ -95,6 +155,9 @@ imported nodes update instead of duplicating.
   and must grow vertically through wrapping?
 - How does refresh behave when part of a prior imported hierarchy was manually
   deleted or duplicated in the Figma file?
+- What happens when Figma auto-layout defaults (`100x100` frame seed, `HUG`
+  sizing, padding application order) conflict with the measured geometry from
+  the layout engine?
 
 ## Requirements
 
@@ -121,6 +184,12 @@ imported nodes update instead of duplicating.
   classes remain visually distinguishable in Figma.
 - **FR-007**: The plugin MUST preserve semantic hierarchy, authored child order,
   layout direction, gap, and per-side padding when importing nested structures.
+- **FR-007a**: The plugin MUST read authored sizing and positioning metadata
+  (`sizingW`, `sizingH`, `bodySizingW`, `bodySizingH`, `positionType`, `x`,
+  `y`) from the current frame YAML, then emit Figma-legal effective sizing from
+  the layout result: layout-engine coercions are fixed-at-measured, cross-axis
+  fill-under-hug is fixed-at-placed, and the imported diagram root remains
+  anchored to the measured outer size.
 - **FR-008**: The plugin MUST attach stable import identifiers to imported nodes
   so later refresh actions can update in place rather than duplicating by
   default.
@@ -165,6 +234,10 @@ imported nodes update instead of duplicating.
   native and editable.
 - **SC-004**: A small nested sample containing at least one section, one parent,
   and two leaves imports with preserved hierarchy and without manual re-layout.
+- **SC-004a**: The `ai-infra-telecom-services-stack` diagram imports with no
+  missing semantic boxes when compared against the layout-engine payload for the
+  same slug, and the serialized payload contains no `FILL` child under a `HUG`
+  parent on either axis.
 - **SC-005**: Re-running the plugin on an updated sample refreshes at least text,
   icon, and spacing changes in place for previously imported nodes without
   creating duplicates.

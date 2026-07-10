@@ -41,10 +41,22 @@ export function deriveContentGap(children: Frame[], options?: { isRoot?: boolean
   return children.some(child => child.isContainer) ? GRID_GUTTER : INSET;
 }
 
+export function isSyntheticBodyFrame(frame: Frame | undefined): boolean {
+  return frame?.id === '__body' || (frame?.id?.endsWith('__body') ?? false);
+}
+
+export function isSyntheticHeadingFrame(frame: Frame | undefined): boolean {
+  return frame?.role === 'heading'
+    || frame?.id === '__heading'
+    || (frame?.id?.endsWith('__heading') ?? false);
+}
+
 export function findSyntheticBody(frame: Frame): Frame | undefined {
-  return frame.children.find(
-    c => c.id === '__body' || (c.id?.endsWith('__body') ?? false),
-  );
+  return frame.children.find(isSyntheticBodyFrame);
+}
+
+export function findSyntheticHeading(frame: Frame): Frame | undefined {
+  return frame.children.find(isSyntheticHeadingFrame);
 }
 
 export function applyHeadingAsChild(

@@ -8,6 +8,7 @@ const PLUGIN_NAMESPACE = "dgp";
 const IMPORT_ID_KEY = "importId";
 const IMPORT_KIND_KEY = "importKind";
 const fontLoadCache = new Map<string, Promise<{ family: string; style: string }>>();
+const PLACEHOLDER_STROKE = "#C7CDD1";
 
 interface BoxPadding {
   top: number;
@@ -69,6 +70,15 @@ interface DiagramNodePayload {
   direction: "HORIZONTAL" | "VERTICAL";
   bodyGap: number;
   headerGap: number;
+  sizingW: "FIXED" | "HUG" | "FILL";
+  sizingH: "FIXED" | "HUG" | "FILL";
+  bodySizingW: "FIXED" | "HUG" | "FILL";
+  bodySizingH: "FIXED" | "HUG" | "FILL";
+  bodyWidth?: number;
+  bodyHeight?: number;
+  positionType: "AUTO" | "ABSOLUTE";
+  x: number;
+  y: number;
   padding: BoxPadding;
   fill: string;
   stroke: string;
@@ -76,6 +86,10 @@ interface DiagramNodePayload {
   textFill: string;
   iconFill: string;
   icon: DiagramIconPayload | null;
+  headerMinHeight: number;
+  headerIcon: DiagramIconPayload | null;
+  headerIconFill: string;
+  headerTextWidth: number;
   leafTextWidth: number;
   textBlocks: DiagramTextBlockPayload[];
   children: DiagramNodePayload[];
@@ -85,6 +99,17 @@ interface FrameDiagramPayload {
   slug: string;
   title: string;
   root: DiagramNodePayload;
+}
+
+interface ImportBuildContext {
+  createdNodes: Set<any>;
+}
+
+interface SizingExpectation {
+  importId: string;
+  label: string;
+  sizingW: "FIXED" | "HUG" | "FILL";
+  sizingH: "FIXED" | "HUG" | "FILL";
 }
 
 function rgba(hex: string, alpha = 1) {
@@ -119,9 +144,196 @@ function clampSize(value: number) {
   return Math.max(1, Math.round(Number.isFinite(value) ? value : 1));
 }
 
+function createImportBuildContext(): ImportBuildContext {
+  return { createdNodes: new Set<any>() };
+}
+
+function trackCreatedNode<T>(context: ImportBuildContext | null | undefined, node: T) {
+  context?.createdNodes.add(node);
+  return node;
+}
+
 function setNodeSizing(node: any, horizontal: "FIXED" | "HUG" | "FILL", vertical: "FIXED" | "HUG" | "FILL") {
-  node.layoutSizingHorizontal = horizontal;
-  node.layoutSizingVertical = vertical;
+  try {
+    node.layoutSizingHorizontal = horizontal;
+  } catch (error) {
+    logImportFallback(`Horizontal sizing rejected for ${node?.name || "unnamed node"} -> ${horizontal}`, error);
+  }
+  try {
+    node.layoutSizingVertical = vertical;
+  } catch (error) {
+    logImportFallback(`Vertical sizing rejected for ${node?.name || "unnamed node"} -> ${vertical}`, error);
+  }
+
+  if (node.layoutSizingHorizontal !== horizontal || node.layoutSizingVertical !== vertical) {
+    console.warn(
+      `[figma-import] Layout sizing mismatch for ${node?.name || "unnamed node"}: `
+      + `wanted ${horizontal}/${vertical}, got ${node.layoutSizingHorizontal}/${node.layoutSizingVertical}`,
+    );
+  }
+}
+
+function normalizeSizing(value: string | null | undefined): "FIXED" | "HUG" | "FILL" {
+  if (value === "HUG" || value === "FILL" || value === "FIXED") {
+    return value;
+  }
+  return "FIXED";
+}
+
+function applyChildLayoutSizing(
+  node: any,
+  sizingW: "FIXED" | "HUG" | "FILL",
+  sizingH: "FIXED" | "HUG" | "FILL",
+) {
+  setNodeSizing(node, normalizeSizing(sizingW), normalizeSizing(sizingH));
+}
+
+function normalizePositionType(value: string | null | undefined): "AUTO" | "ABSOLUTE" {
+  return value === "ABSOLUTE" ? "ABSOLUTE" : "AUTO";
+}
+
+function resolveChildSizingWithinParent(
+  sizingW: "FIXED" | "HUG" | "FILL",
+  sizingH: "FIXED" | "HUG" | "FILL",
+  parentSizingW: "FIXED" | "HUG" | "FILL",
+  parentSizingH: "FIXED" | "HUG" | "FILL",
+) {
+  return {
+    sizingW: parentSizingW === "HUG" && sizingW === "FILL" ? "FIXED" as const : sizingW,
+    sizingH: parentSizingH === "HUG" && sizingH === "FILL" ? "FIXED" as const : sizingH,
+  };
+}
+
+function setFrameAxisSizingModes(
+  frame: any,
+  direction: "HORIZONTAL" | "VERTICAL",
+  sizingW: "FIXED" | "HUG" | "FILL",
+  sizingH: "FIXED" | "HUG" | "FILL",
+) {
+  const horizontal = normalizeSizing(sizingW);
+  const vertical = normalizeSizing(sizingH);
+
+  if (direction === "HORIZONTAL") {
+    frame.primaryAxisSizingMode = horizontal === "HUG" ? "AUTO" : "FIXED";
+    frame.counterAxisSizingMode = vertical === "HUG" ? "AUTO" : "FIXED";
+    return;
+  }
+
+  frame.primaryAxisSizingMode = vertical === "HUG" ? "AUTO" : "FIXED";
+  frame.counterAxisSizingMode = horizontal === "HUG" ? "AUTO" : "FIXED";
+}
+
+function resizeFrameForFixedAxes(
+  frame: any,
+  width: number,
+  height: number,
+  sizingW: "FIXED" | "HUG" | "FILL",
+  sizingH: "FIXED" | "HUG" | "FILL",
+) {
+  const horizontal = normalizeSizing(sizingW);
+  const vertical = normalizeSizing(sizingH);
+  if (horizontal !== "FIXED" && vertical !== "FIXED") {
+    return;
+  }
+
+  if (horizontal === "FIXED" && vertical === "FIXED") {
+    frame.resizeWithoutConstraints(clampSize(width), clampSize(height));
+    return;
+  }
+
+  if ((frame.children?.length ?? 0) === 0) {
+    return;
+  }
+
+  const nextWidth = horizontal === "FIXED"
+    ? clampSize(width)
+    : clampSize(frame.width || 1);
+  const nextHeight = vertical === "FIXED"
+    ? clampSize(height)
+    : clampSize(frame.height || 1);
+  frame.resizeWithoutConstraints(nextWidth, nextHeight);
+}
+
+function applyFrameOwnSizing(
+  frame: any,
+  direction: "HORIZONTAL" | "VERTICAL",
+  width: number,
+  height: number,
+  sizingW: "FIXED" | "HUG" | "FILL",
+  sizingH: "FIXED" | "HUG" | "FILL",
+) {
+  const horizontal = normalizeSizing(sizingW);
+  const vertical = normalizeSizing(sizingH);
+  setFrameAxisSizingModes(frame, direction, horizontal, vertical);
+
+  const parent = frame.parent ?? null;
+  const canApplyChildSizing = Boolean(
+    parent && (parent.layoutMode === "HORIZONTAL" || parent.layoutMode === "VERTICAL"),
+  );
+  if (canApplyChildSizing) {
+    try {
+      frame.layoutSizingHorizontal = horizontal;
+    } catch (error) {
+      logImportFallback(`Frame horizontal sizing rejected for ${frame?.name || "unnamed frame"} -> ${horizontal}`, error);
+    }
+
+    try {
+      frame.layoutSizingVertical = vertical;
+    } catch (error) {
+      logImportFallback(`Frame vertical sizing rejected for ${frame?.name || "unnamed frame"} -> ${vertical}`, error);
+    }
+  }
+
+  resizeFrameForFixedAxes(frame, width, height, horizontal, vertical);
+}
+
+function finalizeFrameOwnSizing(
+  frame: any,
+  width: number,
+  height: number,
+  sizingW: "FIXED" | "HUG" | "FILL",
+  sizingH: "FIXED" | "HUG" | "FILL",
+) {
+  resizeFrameForFixedAxes(frame, width, height, sizingW, sizingH);
+}
+
+function applyChildPositioning(
+  node: any,
+  positionType: "AUTO" | "ABSOLUTE",
+  x = 0,
+  y = 0,
+) {
+  node.layoutPositioning = positionType;
+  if (positionType === "ABSOLUTE") {
+    node.x = Math.round(Number.isFinite(x) ? x : 0);
+    node.y = Math.round(Number.isFinite(y) ? y : 0);
+  }
+}
+
+function appendAutoLayoutChild(
+  parent: any,
+  child: any,
+  sizingW: "FIXED" | "HUG" | "FILL",
+  sizingH: "FIXED" | "HUG" | "FILL",
+  positionType: "AUTO" | "ABSOLUTE" = "AUTO",
+  x = 0,
+  y = 0,
+) {
+  parent.appendChild(child);
+  applyChildLayoutSizing(child, sizingW, sizingH);
+  applyChildPositioning(child, positionType, x, y);
+  return child;
+}
+
+function textBlocksHeight(blocks: DiagramTextBlockPayload[]) {
+  let total = 0;
+  for (const block of blocks) {
+    for (const line of block.lines) {
+      total += Math.max(1, Math.round(line.lineHeight));
+    }
+    total += Math.max(0, Math.round(block.gapAfter));
+  }
+  return total;
 }
 
 async function loadFontCandidate(font: { family: string; style: string }) {
@@ -176,6 +388,29 @@ function getImportData(node: any, key: string) {
   return node.getSharedPluginData(PLUGIN_NAMESPACE, key);
 }
 
+function safeRemoveNode(node: any) {
+  if (!node || typeof node.remove !== "function") {
+    return;
+  }
+  try {
+    node.remove();
+  } catch (_error) {
+    // Ignore cleanup failures so the original import error still surfaces.
+  }
+}
+
+function cleanupCreatedNodes(context: ImportBuildContext) {
+  const trackedNodes = [...context.createdNodes];
+  const trackedSet = new Set(trackedNodes);
+  for (const node of trackedNodes) {
+    const parent = node?.parent ?? null;
+    if (parent && trackedSet.has(parent)) {
+      continue;
+    }
+    safeRemoveNode(node);
+  }
+}
+
 function clearChildren(frame: any) {
   const children = [...frame.children];
   for (const child of children) {
@@ -183,8 +418,8 @@ function clearChildren(frame: any) {
   }
 }
 
-function createSpacer(name: string, width: number, height: number) {
-  const spacer = figma.createFrame();
+function createSpacer(name: string, width: number, height: number, context?: ImportBuildContext) {
+  const spacer = trackCreatedNode(context, figma.createFrame());
   spacer.name = name;
   spacer.fills = [];
   spacer.strokes = [];
@@ -235,7 +470,6 @@ function tintSvgNode(iconNode: any, fillHex: string) {
 function configureAutoLayoutFrame(
   frame: any,
   direction: "HORIZONTAL" | "VERTICAL",
-  width: number,
   spacing: number,
 ) {
   frame.layoutMode = direction;
@@ -244,15 +478,75 @@ function configureAutoLayoutFrame(
   frame.counterAxisAlignItems = "MIN";
   frame.itemSpacing = Math.max(0, Math.round(spacing));
   frame.clipsContent = false;
-  frame.resizeWithoutConstraints(clampSize(width), clampSize(frame.height || 1));
+}
 
-  if (direction === "HORIZONTAL") {
-    frame.primaryAxisSizingMode = "FIXED";
-    frame.counterAxisSizingMode = "AUTO";
-  } else {
-    frame.primaryAxisSizingMode = "AUTO";
-    frame.counterAxisSizingMode = "FIXED";
+function createAutoLayoutFrame(
+  name: string,
+  direction: "HORIZONTAL" | "VERTICAL",
+  width: number,
+  height: number,
+  spacing: number,
+  sizingW: "FIXED" | "HUG" | "FILL",
+  sizingH: "FIXED" | "HUG" | "FILL",
+  context?: ImportBuildContext,
+) {
+  const frame = trackCreatedNode(context, figma.createFrame());
+  frame.name = name;
+  frame.fills = [];
+  frame.strokes = [];
+  configureAutoLayoutFrame(frame, direction, spacing);
+  applyFrameOwnSizing(frame, direction, width, height, sizingW, sizingH);
+  return frame;
+}
+
+function resolveImportedNodeSizing(node: DiagramNodePayload) {
+  if (node.kind === "root") {
+    return { sizingW: "FIXED" as const, sizingH: "FIXED" as const };
   }
+  return {
+    sizingW: normalizeSizing(node.sizingW),
+    sizingH: normalizeSizing(node.sizingH),
+  };
+}
+
+function createSemanticAutoLayoutFrame(
+  node: DiagramNodePayload,
+  direction: "HORIZONTAL" | "VERTICAL",
+  spacing: number,
+  sizingW: "FIXED" | "HUG" | "FILL",
+  sizingH: "FIXED" | "HUG" | "FILL",
+  context?: ImportBuildContext,
+) {
+  const frame = createAutoLayoutFrame(
+    node.name || node.id,
+    direction,
+    node.width,
+    node.height,
+    spacing,
+    sizingW,
+    sizingH,
+    context,
+  );
+  applyPadding(frame, node.padding);
+  applyFrameStyle(frame, node.fill, node.stroke, node.strokeWidth);
+  setImportData(frame, node.id, node.kind);
+  return frame;
+}
+
+function createRootWrapperFrame(node: DiagramNodePayload, context?: ImportBuildContext) {
+  const frame = createAutoLayoutFrame(
+    node.name || node.id,
+    "VERTICAL",
+    node.width,
+    node.height,
+    0,
+    "FIXED",
+    "FIXED",
+    context,
+  );
+  applyFrameStyle(frame, node.fill, node.stroke, node.strokeWidth);
+  setImportData(frame, node.id, node.kind);
+  return frame;
 }
 
 function applyPadding(frame: any, padding: BoxPadding) {
@@ -262,20 +556,56 @@ function applyPadding(frame: any, padding: BoxPadding) {
   frame.paddingLeft = padding.left;
 }
 
-async function createTextLineNode(line: DiagramTextLinePayload, width: number, name: string) {
-  const textNode = figma.createText();
-  const font = await loadPreferredFont(line.weight);
-  textNode.name = name;
-  textNode.fontName = font;
-  textNode.fontSize = line.size;
-  textNode.lineHeight = { unit: "PIXELS", value: line.lineHeight };
-  textNode.fills = [{ type: "SOLID", color: rgba(line.fill) }];
-  textNode.characters = line.text || " ";
-  textNode.textAlignHorizontal = "LEFT";
-  textNode.textAutoResize = "HEIGHT";
-  textNode.resize(clampSize(width), Math.max(1, line.lineHeight));
-  setNodeSizing(textNode, "FIXED", "HUG");
-  return textNode;
+function createPlaceholderFrame(
+  name: string,
+  width: number,
+  height: number,
+  strokeHex: string,
+  context?: ImportBuildContext,
+) {
+  const frame = trackCreatedNode(context, figma.createFrame());
+  frame.name = name;
+  frame.layoutMode = "NONE";
+  frame.clipsContent = false;
+  frame.resizeWithoutConstraints(clampSize(width), clampSize(height));
+  applyFrameStyle(frame, "transparent", isVisibleColor(strokeHex) ? strokeHex : PLACEHOLDER_STROKE, 1);
+  setNodeSizing(frame, "FIXED", "FIXED");
+  return frame;
+}
+
+function logImportFallback(label: string, error: unknown) {
+  const detail = error instanceof Error
+    ? (error.stack || error.message)
+    : String(error);
+  console.warn(`[figma-import] ${label}`, detail);
+}
+
+async function createTextLineNode(
+  line: DiagramTextLinePayload,
+  width: number,
+  name: string,
+  context?: ImportBuildContext,
+) {
+  let textNode: any = null;
+  try {
+    textNode = trackCreatedNode(context, figma.createText());
+    const font = await loadPreferredFont(line.weight);
+    textNode.name = name;
+    textNode.fontName = font;
+    textNode.fontSize = line.size;
+    textNode.lineHeight = { unit: "PIXELS", value: line.lineHeight };
+    textNode.fills = [{ type: "SOLID", color: rgba(line.fill) }];
+    textNode.characters = line.text || " ";
+    textNode.textAlignHorizontal = "LEFT";
+    textNode.textAutoResize = "HEIGHT";
+    textNode.resize(clampSize(width), Math.max(1, line.lineHeight));
+    setNodeSizing(textNode, "FIXED", "HUG");
+    return textNode;
+  } catch (error) {
+    safeRemoveNode(textNode);
+    logImportFallback(`Text line fallback for ${name}`, error);
+    return createPlaceholderFrame(`${name}/fallback`, width, line.lineHeight, line.fill, context);
+  }
 }
 
 async function createTextBlocksFrame(
@@ -283,22 +613,23 @@ async function createTextBlocksFrame(
   width: number,
   nodeId: string,
   fallbackFill: string,
+  context?: ImportBuildContext,
 ) {
-  const stack = figma.createFrame();
+  const stack = trackCreatedNode(context, figma.createFrame());
   stack.name = `${nodeId}/text`;
   stack.fills = [];
   stack.strokes = [];
-  configureAutoLayoutFrame(stack, "VERTICAL", width, 0);
-  setNodeSizing(stack, "FIXED", "HUG");
+  configureAutoLayoutFrame(stack, "VERTICAL", 0);
+  applyFrameOwnSizing(stack, "VERTICAL", width, 1, "FIXED", "HUG");
 
   for (let blockIndex = 0; blockIndex < blocks.length; blockIndex += 1) {
     const block = blocks[blockIndex]!;
-    const blockFrame = figma.createFrame();
+    const blockFrame = trackCreatedNode(context, figma.createFrame());
     blockFrame.name = `${nodeId}/block-${blockIndex + 1}`;
     blockFrame.fills = [];
     blockFrame.strokes = [];
-    configureAutoLayoutFrame(blockFrame, "VERTICAL", width, 0);
-    setNodeSizing(blockFrame, "FIXED", "HUG");
+    configureAutoLayoutFrame(blockFrame, "VERTICAL", 0);
+    applyFrameOwnSizing(blockFrame, "VERTICAL", width, 1, "FIXED", "HUG");
 
     for (let lineIndex = 0; lineIndex < block.lines.length; lineIndex += 1) {
       const line = block.lines[lineIndex]!;
@@ -306,53 +637,83 @@ async function createTextBlocksFrame(
         { ...line, fill: line.fill || fallbackFill },
         width,
         `${nodeId}/${block.role}-${lineIndex + 1}`,
+        context,
       );
       setImportData(textNode, `${nodeId}:text:${blockIndex}:${lineIndex}`, "text-line");
       blockFrame.appendChild(textNode);
     }
 
-    stack.appendChild(blockFrame);
+    appendAutoLayoutChild(stack, blockFrame, "FIXED", "HUG");
     setImportData(blockFrame, `${nodeId}:text-block:${blockIndex}`, `text-block:${block.role}`);
 
     if (block.gapAfter > 0 && blockIndex < blocks.length - 1) {
-      stack.appendChild(createSpacer(`${nodeId}/gap-${blockIndex + 1}`, 1, block.gapAfter));
+      appendAutoLayoutChild(
+        stack,
+        createSpacer(`${nodeId}/gap-${blockIndex + 1}`, 1, block.gapAfter, context),
+        "FIXED",
+        "FIXED",
+      );
     }
+
+    finalizeFrameOwnSizing(blockFrame, width, 1, "FIXED", "HUG");
   }
 
+  finalizeFrameOwnSizing(stack, width, 1, "FIXED", "HUG");
   return stack;
 }
 
-async function createLeafText(payload: SampleLeafPayload["leaf"]["text"]) {
-  const textNode = figma.createText();
-  const font = await loadPreferredFont(400);
-  textNode.fontName = font;
-  textNode.fontSize = payload.fontSize;
-  textNode.lineHeight = { unit: "PIXELS", value: payload.lineHeight };
-  textNode.fills = [{ type: "SOLID", color: rgba(payload.textFill) }];
-  textNode.characters = payload.text;
-  textNode.textAlignHorizontal = "LEFT";
-  textNode.textAutoResize = "HEIGHT";
-  textNode.resize(payload.width, Math.max(payload.lineHeight, 1));
-  textNode.name = "Label";
-  setNodeSizing(textNode, "FIXED", "HUG");
-  return textNode;
+async function createLeafText(payload: SampleLeafPayload["leaf"]["text"], context?: ImportBuildContext) {
+  let textNode: any = null;
+  try {
+    textNode = trackCreatedNode(context, figma.createText());
+    const font = await loadPreferredFont(400);
+    textNode.fontName = font;
+    textNode.fontSize = payload.fontSize;
+    textNode.lineHeight = { unit: "PIXELS", value: payload.lineHeight };
+    textNode.fills = [{ type: "SOLID", color: rgba(payload.textFill) }];
+    textNode.characters = payload.text;
+    textNode.textAlignHorizontal = "LEFT";
+    textNode.textAutoResize = "HEIGHT";
+    textNode.resize(payload.width, Math.max(payload.lineHeight, 1));
+    textNode.name = "Label";
+    setNodeSizing(textNode, "FIXED", "HUG");
+    return textNode;
+  } catch (error) {
+    safeRemoveNode(textNode);
+    logImportFallback("Leaf text fallback", error);
+    return createPlaceholderFrame("Label/fallback", payload.width, payload.lineHeight, payload.textFill, context);
+  }
 }
 
 async function createLeafIcon(
   payload: SampleLeafPayload["leaf"]["icon"] | DiagramIconPayload,
   serverUrl: string,
+  context?: ImportBuildContext,
   fillHex?: string,
 ) {
-  const iconUrl = `${serverUrl}${payload.path}`;
-  const svgText = await fetchText(iconUrl);
-  const iconNode = figma.createNodeFromSvg(svgText);
-  iconNode.name = payload.name;
-  iconNode.resizeWithoutConstraints(payload.size, payload.size);
-  setNodeSizing(iconNode, "FIXED", "FIXED");
-  if (fillHex) {
-    tintSvgNode(iconNode, fillHex);
+  let iconNode: any = null;
+  try {
+    const iconUrl = `${serverUrl}${payload.path}`;
+    const svgText = await fetchText(iconUrl);
+    iconNode = trackCreatedNode(context, figma.createNodeFromSvg(svgText));
+    iconNode.name = payload.name;
+    iconNode.resizeWithoutConstraints(payload.size, payload.size);
+    setNodeSizing(iconNode, "FIXED", "FIXED");
+    if (fillHex) {
+      tintSvgNode(iconNode, fillHex);
+    }
+    return iconNode;
+  } catch (error) {
+    safeRemoveNode(iconNode);
+    logImportFallback(`Icon fallback for ${payload.name}`, error);
+    return createPlaceholderFrame(
+      `${payload.name}/fallback`,
+      payload.size,
+      payload.size,
+      fillHex || PLACEHOLDER_STROKE,
+      context,
+    );
   }
-  return iconNode;
 }
 
 function findExistingImportedLeaf(importId: string) {
@@ -373,100 +734,366 @@ function findExistingImportedDiagram(importId: string) {
   return matches.length > 0 ? matches[0] : null;
 }
 
-async function buildLeafNode(node: DiagramNodePayload, serverUrl: string) {
-  const frame = figma.createFrame();
-  frame.name = node.name || node.id;
-  applyFrameStyle(frame, node.fill, node.stroke, node.strokeWidth);
-  applyPadding(frame, node.padding);
-  setImportData(frame, node.id, node.kind);
+function countImportedSubtreeNodes(root: any) {
+  if (!root) {
+    return 0;
+  }
+  const rootCount = getImportData(root, IMPORT_ID_KEY) !== "" ? 1 : 0;
+  const descendantCount = typeof root.findAll === "function"
+    ? root.findAll((node: any) => getImportData(node, IMPORT_ID_KEY) !== "").length
+    : 0;
+  return rootCount + descendantCount;
+}
 
+function collectPayloadSizingExpectations(
+  node: DiagramNodePayload,
+  expectations: SizingExpectation[] = [],
+) {
+  expectations.push({
+    importId: node.id,
+    label: node.id,
+    sizingW: normalizeSizing(node.sizingW),
+    sizingH: normalizeSizing(node.sizingH),
+  });
+
+  if (node.textBlocks.length > 0 && node.children.length > 0) {
+    expectations.push({
+      importId: `${node.id}:body`,
+      label: `${node.id}/body`,
+      sizingW: normalizeSizing(node.bodySizingW),
+      sizingH: normalizeSizing(node.bodySizingH),
+    });
+  }
+
+  for (const child of node.children) {
+    collectPayloadSizingExpectations(child, expectations);
+  }
+
+  return expectations;
+}
+
+function collectImportedNodesById(root: any) {
+  const nodes = new Map<string, any>();
+  const visit = (node: any) => {
+    const importId = getImportData(node, IMPORT_ID_KEY);
+    if (importId) {
+      nodes.set(importId, node);
+    }
+    for (const child of node.children ?? []) {
+      visit(child);
+    }
+  };
+  visit(root);
+  return nodes;
+}
+
+function validateImportedDiagramSizing(rootFrame: any, payloadRoot: DiagramNodePayload) {
+  const nodesById = collectImportedNodesById(rootFrame);
+  const mismatches: string[] = [];
+  let checked = 0;
+
+  for (const expected of collectPayloadSizingExpectations(payloadRoot)) {
+    const node = nodesById.get(expected.importId);
+    if (!node) {
+      mismatches.push(`${expected.label}: missing imported frame`);
+      continue;
+    }
+
+    checked += 1;
+    const actualW = node.layoutSizingHorizontal;
+    const actualH = node.layoutSizingVertical;
+    if (actualW !== expected.sizingW || actualH !== expected.sizingH) {
+      mismatches.push(
+        `${expected.label}: expected ${expected.sizingW}/${expected.sizingH}, got ${actualW}/${actualH}`,
+      );
+    }
+  }
+
+  if (mismatches.length > 0) {
+    throw new Error(`Figma rejected imported sizing:\n${mismatches.join("\n")}`);
+  }
+
+  return checked;
+}
+
+async function buildLeafNode(node: DiagramNodePayload, serverUrl: string, context: ImportBuildContext) {
   const innerWidth = Math.max(1, node.width - node.padding.left - node.padding.right);
   const hasText = node.textBlocks.length > 0;
   const icon = node.icon;
+  const importedSizing = resolveImportedNodeSizing(node);
 
   if (icon) {
-    configureAutoLayoutFrame(frame, "HORIZONTAL", node.width, 0);
+    const frame = createSemanticAutoLayoutFrame(
+      node,
+      "HORIZONTAL",
+      0,
+      importedSizing.sizingW,
+      importedSizing.sizingH,
+      context,
+    );
     frame.primaryAxisAlignItems = "SPACE_BETWEEN";
     frame.counterAxisAlignItems = "MIN";
-    frame.minHeight = clampSize(node.height);
-    setNodeSizing(frame, "FIXED", "HUG");
 
     const textWidth = Math.max(1, Math.min(innerWidth, node.leafTextWidth || innerWidth));
     if (hasText) {
-      const textStack = await createTextBlocksFrame(node.textBlocks, textWidth, node.id, node.textFill);
+      const textStack = await createTextBlocksFrame(node.textBlocks, textWidth, node.id, node.textFill, context);
       setImportData(textStack, `${node.id}:text`, "text-stack");
-      frame.appendChild(textStack);
+      appendAutoLayoutChild(frame, textStack, "FIXED", "HUG");
     } else if (innerWidth > icon.size) {
-      frame.appendChild(createSpacer(`${node.id}/push`, innerWidth - icon.size, 1));
+      appendAutoLayoutChild(
+        frame,
+        createSpacer(`${node.id}/push`, innerWidth - icon.size, 1, context),
+        "FIXED",
+        "FIXED",
+      );
     }
 
-    const iconNode = await createLeafIcon(icon, serverUrl, node.iconFill);
+    const iconNode = await createLeafIcon(icon, serverUrl, context, node.iconFill);
     setImportData(iconNode, `${node.id}:icon`, "icon");
-    frame.appendChild(iconNode);
+    appendAutoLayoutChild(frame, iconNode, "FIXED", "FIXED");
+    finalizeFrameOwnSizing(frame, node.width, node.height, importedSizing.sizingW, importedSizing.sizingH);
     return frame;
   }
 
-  configureAutoLayoutFrame(frame, "VERTICAL", node.width, node.bodyGap);
-  frame.minHeight = clampSize(node.height);
-  setNodeSizing(frame, "FIXED", "HUG");
+  const frame = createSemanticAutoLayoutFrame(
+    node,
+    "VERTICAL",
+    node.bodyGap,
+    importedSizing.sizingW,
+    importedSizing.sizingH,
+    context,
+  );
 
   if (hasText) {
-    const textStack = await createTextBlocksFrame(node.textBlocks, innerWidth, node.id, node.textFill);
+    const textStack = await createTextBlocksFrame(node.textBlocks, innerWidth, node.id, node.textFill, context);
     setImportData(textStack, `${node.id}:text`, "text-stack");
-    frame.appendChild(textStack);
+    appendAutoLayoutChild(frame, textStack, "FIXED", "HUG");
   }
 
+  finalizeFrameOwnSizing(frame, node.width, node.height, importedSizing.sizingW, importedSizing.sizingH);
   return frame;
 }
 
-async function buildContainerNode(node: DiagramNodePayload, serverUrl: string) {
-  const frame = figma.createFrame();
-  frame.name = node.name || node.id;
-  applyFrameStyle(frame, node.fill, node.stroke, node.strokeWidth);
-  applyPadding(frame, node.padding);
-  setImportData(frame, node.id, node.kind);
-  setNodeSizing(frame, "FIXED", "HUG");
-
+async function buildContainerNode(node: DiagramNodePayload, serverUrl: string, context: ImportBuildContext) {
   const innerWidth = Math.max(1, node.width - node.padding.left - node.padding.right);
+  const innerHeight = Math.max(1, node.height - node.padding.top - node.padding.bottom);
   const hasHeader = node.textBlocks.length > 0;
   const hasChildren = node.children.length > 0;
+  const importedSizing = resolveImportedNodeSizing(node);
 
   if (hasHeader) {
-    configureAutoLayoutFrame(frame, "VERTICAL", node.width, node.headerGap);
-    const textStack = await createTextBlocksFrame(node.textBlocks, innerWidth, node.id, node.textFill);
+    if (node.kind === "root") {
+      const frame = createRootWrapperFrame(node, context);
+      const content = createAutoLayoutFrame(
+        `${node.id}/content`,
+        "VERTICAL",
+        innerWidth,
+        innerHeight,
+        node.headerGap,
+        "FILL",
+        "FILL",
+        context,
+      );
+
+      const derivedHeaderHeight = textBlocksHeight(node.textBlocks);
+      const headerHeight = Math.max(1, Math.max(clampSize(node.headerMinHeight || 0), derivedHeaderHeight));
+      const headerHasIcon = Boolean(node.headerIcon);
+      const headerSizing = resolveChildSizingWithinParent("FILL", "HUG", "FILL", "FILL");
+      const headerFrame = createAutoLayoutFrame(
+        `${node.id}/header`,
+        headerHasIcon ? "HORIZONTAL" : "VERTICAL",
+        innerWidth,
+        Math.min(innerHeight, headerHeight),
+        0,
+        headerSizing.sizingW,
+        headerSizing.sizingH,
+        context,
+      );
+      headerFrame.primaryAxisAlignItems = headerHasIcon ? "SPACE_BETWEEN" : "MIN";
+      headerFrame.counterAxisAlignItems = "MIN";
+
+      const headerTextWidth = Math.max(
+        1,
+        Math.min(innerWidth, node.headerTextWidth > 0 ? node.headerTextWidth : innerWidth),
+      );
+      const textStack = await createTextBlocksFrame(
+        node.textBlocks,
+        headerTextWidth,
+        node.id,
+        node.textFill,
+        context,
+      );
+      setImportData(textStack, `${node.id}:header`, "text-stack");
+      appendAutoLayoutChild(headerFrame, textStack, "FIXED", "HUG");
+
+      if (node.headerIcon) {
+        const iconNode = await createLeafIcon(node.headerIcon, serverUrl, context, node.headerIconFill);
+        setImportData(iconNode, `${node.id}:header-icon`, "header-icon");
+        appendAutoLayoutChild(headerFrame, iconNode, "FIXED", "FIXED");
+      }
+
+      setImportData(headerFrame, `${node.id}:header-frame`, "container-header");
+      appendAutoLayoutChild(content, headerFrame, headerSizing.sizingW, headerSizing.sizingH);
+
+      if (hasChildren) {
+        const fallbackBodyHeight = Math.max(1, innerHeight - headerFrame.height - Math.max(0, Math.round(node.headerGap)));
+        const bodyWidth = Math.max(1, node.bodyWidth ?? innerWidth);
+        const bodyHeight = Math.max(1, node.bodyHeight ?? fallbackBodyHeight);
+        const body = createAutoLayoutFrame(
+          `${node.id}/body`,
+          node.direction,
+          bodyWidth,
+          bodyHeight,
+          node.bodyGap,
+          node.bodySizingW,
+          node.bodySizingH,
+          context,
+        );
+
+        for (const child of node.children) {
+          const childFrame = await buildDiagramFrameNode(child, serverUrl, context);
+          appendAutoLayoutChild(
+            body,
+            childFrame,
+            normalizeSizing(child.sizingW),
+            normalizeSizing(child.sizingH),
+            normalizePositionType(child.positionType),
+            child.x,
+            child.y,
+          );
+        }
+
+        setImportData(body, `${node.id}:body`, "container-body");
+        finalizeFrameOwnSizing(body, bodyWidth, bodyHeight, node.bodySizingW, node.bodySizingH);
+        appendAutoLayoutChild(content, body, node.bodySizingW, node.bodySizingH);
+      }
+
+      frame.appendChild(content);
+      applyChildLayoutSizing(content, "FILL", "FILL");
+      finalizeFrameOwnSizing(content, innerWidth, innerHeight, "FILL", "FILL");
+      finalizeFrameOwnSizing(frame, node.width, node.height, "FIXED", "FIXED");
+      return frame;
+    }
+
+    const frame = createSemanticAutoLayoutFrame(
+      node,
+      "VERTICAL",
+      node.headerGap,
+      importedSizing.sizingW,
+      importedSizing.sizingH,
+      context,
+    );
+
+    const derivedHeaderHeight = textBlocksHeight(node.textBlocks);
+    const headerHeight = Math.max(1, Math.max(clampSize(node.headerMinHeight || 0), derivedHeaderHeight));
+    const headerHasIcon = Boolean(node.headerIcon);
+    const headerSizing = resolveChildSizingWithinParent(
+      "FILL",
+      "HUG",
+      importedSizing.sizingW,
+      importedSizing.sizingH,
+    );
+    const headerFrame = createAutoLayoutFrame(
+      `${node.id}/header`,
+      headerHasIcon ? "HORIZONTAL" : "VERTICAL",
+      innerWidth,
+      Math.min(innerHeight, headerHeight),
+      0,
+      headerSizing.sizingW,
+      headerSizing.sizingH,
+      context,
+    );
+    headerFrame.primaryAxisAlignItems = headerHasIcon ? "SPACE_BETWEEN" : "MIN";
+    headerFrame.counterAxisAlignItems = "MIN";
+
+    const headerTextWidth = Math.max(
+      1,
+      Math.min(innerWidth, node.headerTextWidth > 0 ? node.headerTextWidth : innerWidth),
+    );
+    const textStack = await createTextBlocksFrame(
+      node.textBlocks,
+      headerTextWidth,
+      node.id,
+      node.textFill,
+      context,
+    );
     setImportData(textStack, `${node.id}:header`, "text-stack");
-    frame.appendChild(textStack);
+    appendAutoLayoutChild(headerFrame, textStack, "FIXED", "HUG");
+
+    if (node.headerIcon) {
+      const iconNode = await createLeafIcon(node.headerIcon, serverUrl, context, node.headerIconFill);
+      setImportData(iconNode, `${node.id}:header-icon`, "header-icon");
+      appendAutoLayoutChild(headerFrame, iconNode, "FIXED", "FIXED");
+    }
+
+    setImportData(headerFrame, `${node.id}:header-frame`, "container-header");
+    appendAutoLayoutChild(frame, headerFrame, headerSizing.sizingW, headerSizing.sizingH);
 
     if (hasChildren) {
-      const body = figma.createFrame();
-      body.name = `${node.id}/body`;
-      body.fills = [];
-      body.strokes = [];
-      configureAutoLayoutFrame(body, node.direction, innerWidth, node.bodyGap);
-      setNodeSizing(body, "FIXED", "HUG");
+      const fallbackBodyHeight = Math.max(1, innerHeight - headerFrame.height - Math.max(0, Math.round(node.headerGap)));
+      const bodyWidth = Math.max(1, node.bodyWidth ?? innerWidth);
+      const bodyHeight = Math.max(1, node.bodyHeight ?? fallbackBodyHeight);
+      const body = createAutoLayoutFrame(
+        `${node.id}/body`,
+        node.direction,
+        bodyWidth,
+        bodyHeight,
+        node.bodyGap,
+        node.bodySizingW,
+        node.bodySizingH,
+        context,
+      );
 
       for (const child of node.children) {
-        body.appendChild(await buildDiagramFrameNode(child, serverUrl));
+        const childFrame = await buildDiagramFrameNode(child, serverUrl, context);
+        appendAutoLayoutChild(
+          body,
+          childFrame,
+          normalizeSizing(child.sizingW),
+          normalizeSizing(child.sizingH),
+          normalizePositionType(child.positionType),
+          child.x,
+          child.y,
+        );
       }
 
       setImportData(body, `${node.id}:body`, "container-body");
-      frame.appendChild(body);
+      finalizeFrameOwnSizing(body, bodyWidth, bodyHeight, node.bodySizingW, node.bodySizingH);
+      appendAutoLayoutChild(frame, body, node.bodySizingW, node.bodySizingH);
     }
 
+    finalizeFrameOwnSizing(frame, node.width, node.height, importedSizing.sizingW, importedSizing.sizingH);
     return frame;
   }
 
-  configureAutoLayoutFrame(frame, node.direction, node.width, node.bodyGap);
+  const frame = createSemanticAutoLayoutFrame(
+    node,
+    node.direction,
+    node.bodyGap,
+    importedSizing.sizingW,
+    importedSizing.sizingH,
+    context,
+  );
   for (const child of node.children) {
-    frame.appendChild(await buildDiagramFrameNode(child, serverUrl));
+    const childFrame = await buildDiagramFrameNode(child, serverUrl, context);
+    appendAutoLayoutChild(
+      frame,
+      childFrame,
+      normalizeSizing(child.sizingW),
+      normalizeSizing(child.sizingH),
+      normalizePositionType(child.positionType),
+      child.x,
+      child.y,
+    );
   }
+  finalizeFrameOwnSizing(frame, node.width, node.height, importedSizing.sizingW, importedSizing.sizingH);
   return frame;
 }
 
-async function buildDiagramFrameNode(node: DiagramNodePayload, serverUrl: string) {
+async function buildDiagramFrameNode(node: DiagramNodePayload, serverUrl: string, context: ImportBuildContext) {
   return node.isLeaf
-    ? buildLeafNode(node, serverUrl)
-    : buildContainerNode(node, serverUrl);
+    ? buildLeafNode(node, serverUrl, context)
+    : buildContainerNode(node, serverUrl, context);
 }
 
 async function upsertSampleLeaf(serverUrl: string) {
@@ -481,13 +1108,13 @@ async function upsertSampleLeaf(serverUrl: string) {
   const priorX = existing ? existing.x : null;
   const priorY = existing ? existing.y : null;
   frame.name = leaf.name || "Sample leaf";
-  configureAutoLayoutFrame(frame, "HORIZONTAL", leaf.width, 0);
+  configureAutoLayoutFrame(frame, "HORIZONTAL", 0);
   frame.primaryAxisAlignItems = "SPACE_BETWEEN";
   frame.counterAxisAlignItems = "MIN";
   applyPadding(frame, leaf.padding);
   frame.minHeight = clampSize(leaf.minHeight);
   applyFrameStyle(frame, "transparent", leaf.stroke, 1);
-  setNodeSizing(frame, "FIXED", "HUG");
+  applyFrameOwnSizing(frame, "HORIZONTAL", leaf.width, leaf.minHeight, "FIXED", "HUG");
   setImportData(frame, leaf.id, "leaf");
   clearChildren(frame);
 
@@ -496,8 +1123,9 @@ async function upsertSampleLeaf(serverUrl: string) {
   setImportData(textNode, `${leaf.id}:label`, "leaf-label");
   setImportData(iconNode, `${leaf.id}:icon`, "leaf-icon");
 
-  frame.appendChild(textNode);
-  frame.appendChild(iconNode);
+  appendAutoLayoutChild(frame, textNode, "FIXED", "HUG");
+  appendAutoLayoutChild(frame, iconNode, "FIXED", "FIXED");
+  finalizeFrameOwnSizing(frame, leaf.width, leaf.minHeight, "FIXED", "HUG");
   if (!existing) {
     figma.currentPage.appendChild(frame);
   }
@@ -534,40 +1162,67 @@ async function upsertFrameDiagram(serverUrl: string, slug: string) {
   const existing = findExistingImportedDiagram(importId);
   const priorX = existing ? existing.x : null;
   const priorY = existing ? existing.y : null;
+  const buildContext = createImportBuildContext();
 
-  const frame = await buildContainerNode(payload.root, serverUrl);
-  frame.name = payload.title || payload.slug;
-  setImportData(frame, importId, "diagram-root");
-  figma.currentPage.appendChild(frame);
+  try {
+    const frame = await buildContainerNode(payload.root, serverUrl, buildContext);
+    const sizingVerifiedCount = validateImportedDiagramSizing(frame, payload.root);
+    frame.name = payload.title || payload.slug;
+    setImportData(frame, importId, "diagram-root");
+    figma.currentPage.appendChild(frame);
 
-  if (existing) {
-    existing.remove();
+    if (existing) {
+      existing.remove();
+    }
+
+    if (priorX != null && priorY != null) {
+      frame.x = priorX;
+      frame.y = priorY;
+    } else {
+      const center = figma.viewport.center;
+      frame.x = Math.round(center.x - payload.root.width / 2);
+      frame.y = Math.round(center.y - Math.max(frame.height, payload.root.height) / 2);
+    }
+
+    figma.currentPage.selection = [frame];
+    figma.viewport.scrollAndZoomIntoView([frame]);
+    return {
+      slug: payload.slug,
+      title: frame.name,
+      width: frame.width,
+      height: frame.height,
+      childCount: frame.children.length,
+      descendantCount: countImportedSubtreeNodes(frame),
+      sizingVerifiedCount,
+      refreshed: Boolean(existing),
+    };
+  } catch (error) {
+    cleanupCreatedNodes(buildContext);
+    throw error;
   }
-
-  if (priorX != null && priorY != null) {
-    frame.x = priorX;
-    frame.y = priorY;
-  } else {
-    const center = figma.viewport.center;
-    frame.x = Math.round(center.x - payload.root.width / 2);
-    frame.y = Math.round(center.y - Math.max(frame.height, payload.root.height) / 2);
-  }
-
-  figma.currentPage.selection = [frame];
-  figma.viewport.scrollAndZoomIntoView([frame]);
-  return {
-    slug: payload.slug,
-    title: frame.name,
-    width: frame.width,
-    height: frame.height,
-    childCount: frame.children.length,
-    refreshed: Boolean(existing),
-  };
 }
 
 function reportError(error: unknown) {
   const text = error instanceof Error ? error.message : String(error);
+  console.error(error);
+  try {
+    figma.notify(text, { timeout: 6000 });
+  } catch (_notifyError) {
+    // Ignore notification failures in test and headless contexts.
+  }
   figma.ui.postMessage({ type: "error", text });
+}
+
+if ((globalThis as any).__DGP_EXPOSE_TESTABLES__) {
+  (globalThis as any).__DGP_TESTABLES__ = {
+    buildContainerNode,
+    cleanupCreatedNodes,
+    countImportedSubtreeNodes,
+    createImportBuildContext,
+    reportError,
+    upsertFrameDiagram,
+    validateImportedDiagramSizing,
+  };
 }
 
 figma.showUI(__html__, { width: 380, height: 320 });
@@ -586,7 +1241,7 @@ async function runDiagramImport(serverUrl: string, slug: string) {
   const result = await upsertFrameDiagram(serverUrl, slug);
   figma.ui.postMessage({
     type: "done",
-    text: `${result.refreshed ? "Refreshed" : "Inserted"} ${result.title} (${Math.round(result.width)}x${Math.round(result.height)}), root children: ${result.childCount}`,
+    text: `${result.refreshed ? "Refreshed" : "Inserted"} ${result.title} (${Math.round(result.width)}x${Math.round(result.height)}), root children: ${result.childCount}, imported nodes: ${result.descendantCount}, sizing verified: ${result.sizingVerifiedCount}`,
   });
 }
 
