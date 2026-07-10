@@ -127,7 +127,13 @@ interface ImportBuildContext {
 interface ComponentMapping {
   componentSet: any;
   roleComponents: Map<"Child" | "Parent" | "Section", any>;
-  iconComponents: Map<string, any>;
+  iconSources: Map<string, IconSource>;
+}
+
+interface IconSource {
+  kind: "component" | "cloneable";
+  name: string;
+  node: any;
 }
 
 interface SizingExpectation {
@@ -968,6 +974,28 @@ function visitSceneTree(root: any, visitor: (node: any) => void) {
   }
 }
 
+function isDescendantOf(node: any, ancestor: any) {
+  for (let current = node?.parent ?? null; current; current = current.parent ?? null) {
+    if (current === ancestor) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function hasImportedAncestor(node: any) {
+  for (let current = node; current; current = current.parent ?? null) {
+    try {
+      if (current.getSharedPluginData?.(PLUGIN_NAMESPACE, IMPORT_ID_KEY)) {
+        return true;
+      }
+    } catch (_error) {
+      // Some Figma node-like test doubles may not support plugin data.
+    }
+  }
+  return false;
+}
+
 function parseVariantRole(name: string): "Child" | "Parent" | "Section" | null {
   const match = String(name || "").match(/(?:^|,\s*)Role=([^,]+)/);
   const role = match?.[1]?.trim();
@@ -1007,15 +1035,36 @@ function normalizeIconName(name: string) {
     .replace(/^-+|-+$/g, "");
 }
 
-function collectIconComponents() {
-  const icons = new Map<string, any>();
+function collectIconSources(componentSet: any) {
+  const icons = new Map<string, IconSource>();
   visitSceneTree(figma.currentPage, (node) => {
-    if (node?.type !== "COMPONENT" || typeof node.createInstance !== "function" || parseVariantRole(node.name)) {
+    if (!node || node === componentSet || isDescendantOf(node, componentSet) || hasImportedAncestor(node)) {
       return;
     }
+    if (parseVariantRole(node.name)) {
+      return;
+    }
+
     const normalized = normalizeIconName(node.name);
-    if (normalized && !icons.has(normalized)) {
-      icons.set(normalized, node);
+    if (!normalized || icons.has(normalized)) {
+      return;
+    }
+
+    if (node.type === "COMPONENT" && typeof node.createInstance === "function") {
+      icons.set(normalized, {
+        kind: "component",
+        name: String(node.name || ""),
+        node,
+      });
+      return;
+    }
+
+    if (/\.svg$/i.test(String(node.name || "")) && typeof node.clone === "function") {
+      icons.set(normalized, {
+        kind: "cloneable",
+        name: String(node.name || ""),
+        node,
+      });
     }
   });
   return icons;
@@ -1051,7 +1100,7 @@ function resolveComponentMapping(): ComponentMapping | null {
   return {
     componentSet,
     roleComponents,
-    iconComponents: collectIconComponents(),
+    iconSources: collectIconSources(componentSet),
   };
 }
 
@@ -1122,6 +1171,74 @@ function findIconTarget(instance: any) {
   return findFirstDescendant(instance, (node) => /\.svg$/i.test(String(node.name || "")));
 }
 
+function insertChildAt(parent: any, index: number, child: any) {
+  if (typeof parent.insertChild === "function") {
+    parent.insertChild(index, child);
+    return;
+  }
+
+  parent.appendChild(child);
+  const children = parent.children;
+  if (!Array.isArray(children)) {
+    return;
+  }
+  const currentIndex = children.indexOf(child);
+  if (currentIndex < 0 || index < 0 || index >= children.length) {
+    return;
+  }
+  children.splice(currentIndex, 1);
+  children.splice(index, 0, child);
+}
+
+function instantiateIconSource(source: IconSource, context: ImportBuildContext) {
+  if (source.kind === "component" && typeof source.node.createInstance === "function") {
+    return trackCreatedNode(context, source.node.createInstance());
+  }
+  if (source.kind === "cloneable" && typeof source.node.clone === "function") {
+    return trackCreatedNode(context, source.node.clone());
+  }
+  return null;
+}
+
+function replaceIconTarget(
+  target: any,
+  source: IconSource,
+  iconName: string,
+  nodeId: string,
+  context: ImportBuildContext,
+) {
+  const parent = target?.parent;
+  if (!parent) {
+    return false;
+  }
+
+  const children = [...(parent.children ?? [])];
+  const index = children.indexOf(target);
+  const replacement = instantiateIconSource(source, context);
+  if (!replacement) {
+    return false;
+  }
+
+  try {
+    replacement.name = iconName || source.name || target.name;
+    if (typeof replacement.resizeWithoutConstraints === "function") {
+      replacement.resizeWithoutConstraints(clampSize(target.width), clampSize(target.height));
+    } else if (typeof replacement.resize === "function") {
+      replacement.resize(clampSize(target.width), clampSize(target.height));
+    }
+    insertChildAt(parent, index >= 0 ? index : children.length, replacement);
+    applyChildLayoutSizing(replacement, normalizeSizing(target.layoutSizingHorizontal), normalizeSizing(target.layoutSizingVertical));
+    applyChildPositioning(replacement, normalizePositionType(target.layoutPositioning), target.x, target.y);
+    setImportData(replacement, `${nodeId}:icon`, "component-icon");
+    target.remove();
+    return true;
+  } catch (error) {
+    safeRemoveNode(replacement);
+    logImportFallback(`Icon node replacement failed for ${iconName}`, error);
+    return false;
+  }
+}
+
 function applyInstanceIconOverride(
   instance: any,
   node: DiagramNodePayload,
@@ -1133,23 +1250,29 @@ function applyInstanceIconOverride(
   }
 
   const key = normalizeIconName(node.icon.name);
-  const component = mapping.iconComponents.get(key);
-  if (!component) {
+  const source = mapping.iconSources.get(key);
+  if (!source) {
     context.missingIconNames.add(node.icon.name);
     return;
   }
 
   const target = findIconTarget(instance);
-  if (!target || typeof target.swapComponent !== "function") {
+  if (!target) {
     context.missingIconNames.add(node.icon.name);
     return;
   }
 
-  try {
-    target.swapComponent(component);
-  } catch (error) {
+  if (source.kind === "component" && typeof target.swapComponent === "function") {
+    try {
+      target.swapComponent(source.node);
+      return;
+    } catch (error) {
+      logImportFallback(`Icon component swap failed for ${node.icon.name}`, error);
+    }
+  }
+
+  if (!replaceIconTarget(target, source, node.icon.name, node.id, context)) {
     context.missingIconNames.add(node.icon.name);
-    logImportFallback(`Icon component swap failed for ${node.icon.name}`, error);
   }
 }
 
@@ -1635,9 +1758,9 @@ async function upsertFrameDiagramPayload(
     const frame = await buildContainerNode(payload.root, serverUrl, buildContext, componentMapping);
     if (componentMapping && buildContext.missingIconNames.size > 0) {
       throw new Error(
-        "Missing Figma icon components for YAML icons: "
+        "Missing or unapplied Figma icon sources for YAML icons: "
         + [...buildContext.missingIconNames].sort().join(", ")
-        + ". Import the Brand icons library into this file or configure icon component keys before component-mode import.",
+        + ". Copy matching icon components or .svg-named cloneable icon nodes into this file, or configure icon component keys before component-mode import.",
       );
     }
     const sizingVerifiedCount = validateImportedDiagramSizing(frame, payload.root);

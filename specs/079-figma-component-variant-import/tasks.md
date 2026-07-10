@@ -10,8 +10,10 @@
   variant and icon library metadata remain unverified.
 - [x] T001 Inspect the selected `box` component set and record visible stable
   names, variant roles, and slot marker names.
-- [ ] T001a Inspect the separate Brand icons library or record configured icon
-  component keys for automatic icon selection.
+- [x] T001a Record the current-file copied-icon contract for automatic icon
+  selection: icon assets live in the Figma test file under frames/folders and
+  use stable names matching project YAML icon names. Remote library component
+  keys remain out of scope for this slice.
 - [ ] T002 Run a live Figma slot probe proving whether the plugin can insert a
   generated auto-layout container into the component slot while preserving
   instance semantics.
@@ -19,6 +21,13 @@
   wrapper-slot, or another proven approach.
 - [ ] T004 Define component mapping ownership rules for importer-owned versus
   user-owned component properties and overrides.
+- [ ] T005 Record the failed post-patch rerun outcome from spec 078 as a hard
+  constraint for spec 079: raw plugin-authored frame reconstruction still does
+  not achieve real Figma autolayout parity, so this follow-up should not assume
+  the generic-frame importer is salvageable as the primary product path.
+- [ ] T006 Write a wrapper-depth audit against the current importer output,
+  especially around text and headed containers, and classify each wrapper layer
+  as necessary, provisional, or redundant.
 
 ## Phase 1 - Select YAML Import
 
@@ -59,6 +68,13 @@
   fallback component or debug generic-frame mode.
 - [x] T034 Add readback validation for component identity and component-property
   values.
+- [ ] T035 Re-review whether component instances should own box internals
+  entirely, with the plugin limited to placement, property assignment, text
+  replacement, icon swap, and visibility toggles instead of procedural box
+  reconstruction.
+- [x] T036 Support current-file copied icon assets in component mode, including
+  nested Figma icon components and `.svg`-named cloneable icon nodes, while
+  excluding `box` component internals from discovery.
 
 ## Phase 4 - Slot-Based Nesting
 
@@ -74,6 +90,16 @@
   count/order, and generated subtree import IDs.
 - [x] T045 Add tests that intentionally swap slot direction and prove validation
   fails.
+- [ ] T046 Define and document a wrapper budget for the component path so text
+  and headed containers do not inherit the awkward 4-deep text wrapper pattern
+  from the generic-frame importer unless a wrapper is proven necessary.
+- [ ] T047 Flatten the text/content insertion path for mapped instances:
+  minimize text-stack/block/body/content wrappers, prefer direct instance text
+  overrides where possible, and keep generated slot containers only where the
+  component contract truly requires them.
+- [ ] T048 Add one cold-start comparison example showing the current generic
+  importer tree versus the target component-instance tree for a leaf, a headed
+  parent, and one text-heavy node.
 
 ## Phase 5 - Refresh and Overrides
 
@@ -88,13 +114,20 @@
 
 ## Phase 6 - Closeout
 
-- [ ] T060 Update `apps/figma-plugin/README.md` with the selected-YAML and
+- [x] T060 Update `apps/figma-plugin/README.md` with the selected-YAML and
   component-mapping workflow.
 - [ ] T061 Record live Figma validation against the user's component variants.
-- [ ] T062 Run `npm --prefix apps/figma-plugin test`.
-- [ ] T063 Run `npm --prefix apps/figma-plugin run build`.
-- [ ] T064 Run `npm --prefix packages/layout-engine test`.
-- [ ] T065 Run `node scripts/check_no_new_python.mjs`.
+- [ ] T061a During live validation, explicitly inspect representative nodes for
+  both sizing parity and wrapper depth: one leaf, one parent, one section, and
+  one text-heavy node.
+- [x] T062 Run `npm --prefix apps/figma-plugin test`.
+- [x] T063 Run `npm --prefix apps/figma-plugin run build`.
+- [x] T064 Run `npm --prefix packages/layout-engine test`.
+- [x] T065 Run `node scripts/check_no_new_python.mjs`.
 - [ ] T066 Write an adversarial review prompt focused on component mapping,
   slot feasibility, arbitrary YAML import, refresh ownership, and no silent
   fallback.
+- [ ] T067 Write an adversarial re-review prompt focused specifically on:
+  missing real-Figma autolayout parity, awkwardly deep nesting, and whether the
+  component-instance architecture has fully replaced the fragile generic-frame
+  reconstruction path.

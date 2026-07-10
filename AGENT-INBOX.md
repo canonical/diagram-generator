@@ -12,10 +12,10 @@ spec catalog/status → [`docs/specs.md`](docs/specs.md) · human notes →
 [`INBOX.md`](INBOX.md) · durable per-spec detail → `specs/<id>-<slug>/` ·
 adversarial reviews → `docs/spec-reviews/`.
 
-**Last-known-green (2026-07-10, spec 079 component slice):**
-`apps/figma-plugin` **24/24**; Figma plugin build ok; `check_no_new_python.mjs`
-ok; server health ok on `http://localhost:3846`; selected-YAML POST endpoint ok
-with `preview-smoke.yaml`.
+**Last-known-green (2026-07-10, spec 079 copied-icon slice):**
+`apps/figma-plugin` **26/26**; Figma plugin build ok;
+`packages/layout-engine` **1009/1009**; `check_no_new_python.mjs` ok; server
+health ok on `http://localhost:3846`.
 
 ---
 
@@ -30,12 +30,14 @@ direction-aware component slots, and arbitrary selected YAML import.
 Spec package:
 [`specs/079-figma-component-variant-import/`](specs/079-figma-component-variant-import/).
 
-Current slice implements selected-YAML import plus component-mode import for
-the visible `box` component variants `Role=Child`, `Role=Parent`, and
-`Role=Section`. Parent/Section slot containers are generated and validated;
-runtime fallback detaches only if live instance-slot mutation is rejected.
+Current slice implements selected-YAML import, component-mode import for the
+visible `box` variants `Role=Child`, `Role=Parent`, and `Role=Section`, and
+current-file copied icon matching by stable normalized names. Parent/Section
+slot containers are generated and validated; runtime fallback detaches only if
+live instance-slot mutation is rejected. Copied icon assets may be nested in
+frames/folders as Figma components or `.svg`-named cloneable nodes.
 
-Open before spec closeout: inspect/configure the separate Brand icons library
-component keys for automatic icon mapping, and choose a durable selected-YAML
-identity strategy for same-basename files because browser file selection exposes
-only `file.name`.
+Open before spec closeout: choose a durable selected-YAML identity strategy for
+same-basename files because browser file selection exposes only `file.name`.
+Remote Brand-icons-library import by component key is still a separate
+follow-up, not part of the current-file copied-icon slice.

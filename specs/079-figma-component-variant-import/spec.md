@@ -56,9 +56,14 @@ Outcome recorded in
   `box` and mapping semantic node roles to the `Role` variant property.
 - Automatic icon selection is feasible if YAML icon ids map to icon component
   keys or stable icon component names/plugin-data markers.
-- Exact icon component names/keys were not visible yet because the separate
-  Brand icons library was not available to the connector and unauthenticated
-  REST calls returned `403 Forbidden`.
+- Exact remote icon component keys were not visible because the separate Brand
+  icons library was not available to the connector and unauthenticated REST
+  calls returned `403 Forbidden`.
+- For this implementation slice, the user copied icon assets into the same
+  Figma test file under frames/folders with names matching project icon names.
+  The importer supports that current-file contract by matching normalized YAML
+  icon names to Figma icon components or `.svg`-named cloneable icon nodes,
+  including nested assets.
 - Slot insertion remains the first live feasibility gate because Figma's
   documented `InstanceNode.setProperties(...)` API does not support setting
   `SLOT` properties.
@@ -224,6 +229,11 @@ content updates while the allowed Figma override remains.
 - **FR-013**: Text, icons, headings, annotations, and role-specific styling MUST
   be set through component properties or documented nested overrides when the
   component exposes those controls.
+- **FR-013a**: For copied current-file icon assets, the importer MUST discover
+  matching icon sources by stable normalized name outside the `box` component
+  set. It MUST support nested Figma icon components and `.svg`-named cloneable
+  icon nodes, and MUST fail import rather than silently ignore an icon that
+  cannot be resolved or applied.
 - **FR-014**: Refresh MUST continue to use stable import IDs and MUST define
   importer-owned versus user-owned component properties before overwriting an
   existing instance.
@@ -287,6 +297,11 @@ content updates while the allowed Figma override remains.
 - The selected YAML is valid YAML but not a supported frame diagram.
 - The selected YAML references icons that do not have mapped component/icon
   controls.
+- The copied icon asset is nested inside a frame/folder rather than placed at
+  page root.
+- A `box` component placeholder icon has the same `.svg` naming convention as
+  copied icon assets; discovery must not mistake component internals for the
+  external icon source library.
 - The configured component set is absent, duplicated, renamed, remote-only, or
   not yet imported into the file.
 - The expected slot marker exists more than once or not at all in a component

@@ -64,6 +64,29 @@ The separate Brand icons library was still not inspected in this pass. The
 active connector context was the box component file; unauthenticated REST access
 to the icon file had already returned `403 Forbidden`.
 
+### Third Pass / User-Confirmed Icon Copy
+
+The user then copied the icon assets into the `Diagram generator figma test`
+file under node `64:2`, inside frames/folders, with names matching the project
+icon names. A broad connector metadata query for `64:2` was too large to use as
+reliable recorded evidence, so this file does not claim exact live tree
+metadata for every copied icon.
+
+Implementation consequence:
+
+- the component-mode importer now treats the current Figma file as the icon
+  source of truth for this slice
+- icon sources are matched by the same normalized stable name used for YAML icon
+  names
+- Figma `COMPONENT` nodes can be used for native icon instance swaps
+- `.svg`-named cloneable nodes such as copied `FRAME`, `GROUP`, `VECTOR`, or
+  `INSTANCE` assets can be cloned into the box icon position
+- descendants of the `box` component set and previously imported diagram
+  subtrees are excluded from icon-source discovery so placeholder icons are not
+  mistaken for real library assets
+- missing or unapplied icons remain hard failures rather than silently falling
+  back to raw SVG drawing
+
 ## Can We Instantiate The Correct Box Variant?
 
 Yes, for the visible `box` component, subject to plugin API readback. The
@@ -125,9 +148,10 @@ is exposed through a stable mapping:
   plugin-data marker, discovered from components already in the current file
 - unsafe: fuzzy matching arbitrary icon layer names without a manifest
 
-Because the icon library file was not visible and unauthenticated REST access
-was forbidden, no icon names, component keys, or grouping structure were
-verified in this pass.
+Because the original icon library file was not visible and unauthenticated REST
+access was forbidden, no remote icon component keys were verified in this pass.
+For the current implementation slice, the supported contract is current-file
+copied icon sources named to match YAML icon names.
 
 ## Required Next Inspection Gate
 

@@ -86,6 +86,22 @@ class FakeSceneNode {
     return child;
   }
 
+  insertChild(index: number, child: FakeSceneNode) {
+    if (this.rejectChildMutation) {
+      throw new Error(`Child mutation rejected by ${this.name || this.type}`);
+    }
+    if (child.parent) {
+      const currentIndex = child.parent.children.indexOf(child);
+      if (currentIndex >= 0) {
+        child.parent.children.splice(currentIndex, 1);
+      }
+    }
+    child.parent = this;
+    const boundedIndex = Math.max(0, Math.min(index, this.children.length));
+    this.children.splice(boundedIndex, 0, child);
+    return child;
+  }
+
   remove() {
     if (!this.parent) {
       return;
@@ -139,6 +155,10 @@ class FakeSceneNode {
       throw new Error("swapComponent target is not a component");
     }
     this.swappedComponentName = component.name;
+  }
+
+  clone() {
+    return this.cloneTree();
   }
 
   detachInstance() {
@@ -577,11 +597,31 @@ function installIncompleteBoxComponentSet() {
   return set;
 }
 
-function installIconComponent(name: string) {
+function installIconComponent(name: string, parent: FakeSceneNode = fakeFigma.currentPage) {
   const component = new FakeSceneNode("COMPONENT");
   component.name = name;
-  fakeFigma.currentPage.appendChild(component);
+  parent.appendChild(component);
   return component;
+}
+
+function installNestedIconComponent(name: string) {
+  const folder = new FakeSceneNode("FRAME");
+  folder.name = "frames";
+  fakeFigma.currentPage.appendChild(folder);
+  return installIconComponent(name, folder);
+}
+
+function installCloneableIconFrame(name: string) {
+  const folder = new FakeSceneNode("FRAME");
+  folder.name = "frames";
+  const icon = new FakeSceneNode("FRAME");
+  icon.name = name;
+  const vector = new FakeSceneNode("VECTOR");
+  vector.name = "glyph";
+  icon.appendChild(vector);
+  folder.appendChild(icon);
+  fakeFigma.currentPage.appendChild(folder);
+  return icon;
 }
 
 function resetTestState() {
@@ -868,7 +908,7 @@ test("upsertYamlDiagram reports missing icon components in component mode", asyn
 
   await assert.rejects(
     () => testables.upsertYamlDiagram("http://localhost:3846", "title: Missing icons", "icons.yaml"),
-    /Missing Figma icon components.*Gateway\.svg/,
+    /Missing or unapplied Figma icon sources.*Gateway\.svg/,
   );
 });
 
@@ -899,6 +939,67 @@ test("upsertYamlDiagram swaps icon component when matching icon exists", async (
   assert.equal(result.componentMode, "box");
   assert.equal(result.componentVerifiedCount, 1);
   assert.equal(iconTarget?.swappedComponentName, "Gateway.svg");
+});
+
+test("upsertYamlDiagram discovers copied icon components nested in folders", async () => {
+  resetTestState();
+  installBoxComponentSet();
+  installNestedIconComponent("Firewall.svg");
+  fetchState.payload = {
+    slug: "nested-icons",
+    title: "Nested icons",
+    root: makeRoot([
+      makeLeaf({
+        id: "icon-child",
+        icon: {
+          name: "Firewall.svg",
+          size: 48,
+          path: "/icons/Firewall.svg",
+        },
+      }),
+    ]),
+  };
+
+  const result = await testables.upsertYamlDiagram("http://localhost:3846", "title: Nested icons", "icons.yaml");
+  const importedRoot = fakeFigma.currentPage.selection[0]!;
+  const child = findImportedById(importedRoot, "icon-child");
+  const iconTarget = child ? child.findAll((node) => node.name === "Network.svg")[0] : null;
+
+  assert.equal(result.componentMode, "box");
+  assert.equal(result.componentVerifiedCount, 1);
+  assert.equal(iconTarget?.swappedComponentName, "Firewall.svg");
+});
+
+test("upsertYamlDiagram replaces icon placeholder from copied cloneable svg frame", async () => {
+  resetTestState();
+  installBoxComponentSet();
+  installCloneableIconFrame("Router.svg");
+  fetchState.payload = {
+    slug: "cloneable-icons",
+    title: "Cloneable icons",
+    root: makeRoot([
+      makeLeaf({
+        id: "icon-child",
+        icon: {
+          name: "Router.svg",
+          size: 48,
+          path: "/icons/Router.svg",
+        },
+      }),
+    ]),
+  };
+
+  const result = await testables.upsertYamlDiagram("http://localhost:3846", "title: Cloneable icons", "icons.yaml");
+  const importedRoot = fakeFigma.currentPage.selection[0]!;
+  const child = findImportedById(importedRoot, "icon-child");
+  const replacement = child ? child.findAll((node) => node.name === "Router.svg")[0] : null;
+  const placeholder = child ? child.findAll((node) => node.name === "Network.svg")[0] : null;
+
+  assert.equal(result.componentMode, "box");
+  assert.equal(result.componentVerifiedCount, 1);
+  assert.equal(replacement?.type, "FRAME");
+  assert.equal(replacement?.getSharedPluginData("dgp", "importId"), "icon-child:icon");
+  assert.equal(placeholder, undefined);
 });
 
 test("upsertYamlDiagram detaches mapped instance when live slot mutation is rejected", async () => {

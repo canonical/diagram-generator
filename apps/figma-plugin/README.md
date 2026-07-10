@@ -4,8 +4,13 @@ This is a local-development Figma Design plugin for specs 078 and 079.
 
 Current scope:
 
-- imports a user-selected frame YAML file as nested native Figma auto-layout
-  frames
+- imports a user-selected frame YAML file
+- when a `box` component set is present in the Figma file, maps semantic boxes
+  to its `Role=Child`, `Role=Parent`, and `Role=Section` variants
+- inserts generated horizontal/vertical auto-layout slot containers for nested
+  component children
+- falls back to nested native Figma auto-layout frames only when no `box`
+  component set is available
 - derives both payloads from repo YAML through the local layout engine
 - fetches computed payloads and icon SVG bytes from `http://localhost:3846`
 - refreshes the same imported node or diagram root in place when rerun
@@ -31,8 +36,11 @@ Current scope:
 
 ## What to verify
 
-- the selected diagram imports as nested auto-layout frames rather than SVG
+- the selected diagram imports as component instances when the file contains
+  the `box` component set
 - section/panel wrappers preserve padding, gaps, and heading/body separation
+- copied icon assets in the current Figma file are matched by stable names such
+  as `Gateway.svg`, including when nested inside frames/folders
 - rerunning the same import refreshes the existing imported root in place
 - browser-saved YAML overrides are reflected after selecting the saved YAML file
 
@@ -40,5 +48,9 @@ Current scope:
 
 - The plugin depends on the local dev server staying reachable from Figma
   Desktop.
+- Component-mode icon matching searches the current Figma file outside the
+  `box` component set for matching icon components or `.svg`-named cloneable
+  icon nodes. Missing or unapplied YAML icons fail the import; they are not
+  silently redrawn as raw SVG fallback.
 - If you change plugin code, rebuild and reload the development plugin in
   Figma before retesting.

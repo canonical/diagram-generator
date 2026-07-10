@@ -29,16 +29,19 @@ The 2026-07-10 inspection attempts are recorded in
 first connector pass was attached to an unrelated FigJam canvas. The second pass
 successfully inspected selected node `58:3`: component `box` with
 `Role=Child`, `Role=Parent`, and `Role=Section`, plus `slot` layers on Parent
-and Section. The separate Brand icons library is still unknown and needs active
-library inspection or configured component keys.
+and Section. The separate Brand icons library was not fully inspected through
+the connector, but the user copied the icon assets into the same Figma test file
+under frames/folders with names matching the project icon names. The first
+implementation therefore supports current-file icon discovery by stable name.
 
 ## Current Blockers
 
-- Automatic icon selection cannot be completed honestly until the separate
-  Brand icons library is visible to the connector or a YAML icon id -> Figma
-  component key/name manifest is provided. The importer now supports current-file
-  icon component lookup by stable name and fails clearly when a YAML icon has no
-  matching Figma component.
+- Remote Brand icons library import by key is still not implemented. Automatic
+  icon selection is supported for current-file copies whose stable layer or
+  component names normalize to YAML icon names. The importer searches outside
+  the `box` component set for matching Figma icon components and `.svg`-named
+  cloneable icon nodes, including assets nested in frames/folders, and fails
+  clearly when a YAML icon has no applicable source.
 - Collision-free refresh for arbitrary selected YAML cannot be guaranteed from
   a normal file picker because the browser `File` object exposes `file.name`,
   not a durable full path. Same-basename files need a user-approved identity
@@ -105,7 +108,8 @@ Goal: avoid committing to an impossible Figma slot architecture.
 Deliverables:
 
 - Verified access to the box component at node `58:3`.
-- Verified access to the icon library or a manifest of icon component keys.
+- Verified current-file icon copy strategy or a manifest of icon component
+  keys.
 - A short findings file or validation section recording the user's component
   set names, expected variants, slot marker, and live mutation result.
 - A minimal live or fake-Figma probe that proves the chosen slot approach.
