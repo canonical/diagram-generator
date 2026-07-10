@@ -12,14 +12,13 @@ spec catalog/status → [`docs/specs.md`](docs/specs.md) · human notes →
 [`INBOX.md`](INBOX.md) · durable per-spec detail → `specs/<id>-<slug>/` ·
 adversarial reviews → `docs/spec-reviews/`.
 
-**Last-known-green (2026-07-10, spec 077 TLS focus):**
-`packages/graph-layout-elk test` **70/70**; `apps/preview test` **168/168**;
-TLS/layout-engine focused suites green; layout-engine package build steps,
-`packages/layout-engine build:browser`,
-`check-browser-bundle-fresh.mjs`, `check-preview-shell-size-budgets.mjs`,
-`check_no_new_python.mjs`, and `git diff --check` green (line-ending warnings
-only). Full `packages/layout-engine test` is not green because of the unrelated
-dirty draw.io golden noted below.
+**Last-known-green (2026-07-11, spec 077 option audit focus):**
+`packages/graph-layout-elk test` **74/74**; preview registry/runtime/browser-entry
+focused suite **57/57**; preview `frame-diagram.test.ts` persistence file
+**49/49**; `packages/layout-engine build:browser`,
+`check-browser-bundle-fresh.mjs`, `check-preview-shell-size-budgets.mjs`, and
+`check_no_new_python.mjs` green. Full `packages/layout-engine test` is not green
+because of the unrelated dirty draw.io golden noted below.
 
 ---
 
@@ -37,6 +36,11 @@ fan-out/order options. Raw ELK and product SVG agree on visible frame geometry,
 edge-label geometry, shared consumer fan-out stem, section/parent role styling,
 and equal lower-compound heights.
 
+T044 ELK option discoverability audit is complete:
+`specs/077-mermaid-elk-cluster-lowering-port/evidence/elk-option-discoverability-audit.md`.
+Every enabled `elkjs` option is now either authorable/exposed in the layout-params
+UI or intentionally classified in code.
+
 **Review done (2026-07-10):**
 [`docs/spec-reviews/077-mermaid-elk-cluster-lowering-port-adversarial-review-2026-07-10.md`](docs/spec-reviews/077-mermaid-elk-cluster-lowering-port-adversarial-review-2026-07-10.md).
 Readiness: **review blocker addressed on the current branch.** The first attempt
@@ -50,9 +54,6 @@ only by the unrelated draw.io golden below) still block spec closeout.
 
 
 **Still open at spec level:**
-- T044 ELK option inventory/discoverability audit remains open: every
-  YAML-admitted option must be visible in the layout-params UI, and omitted
-  official ELK options need an explicit reason instead of becoming hidden knobs.
 - T051 second cold-start clustered fixture remains open.
 - T054 full layout-engine validation remains blocked by the unrelated draw.io
   golden below; focused TLS/layout and full graph-layout/preview validation are

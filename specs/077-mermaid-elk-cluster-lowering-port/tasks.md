@@ -139,7 +139,7 @@
       **Evidence**: `packages/graph-layout-elk/tests/elk-layout-options.test.ts`,
       `packages/graph-layout-elk/tests/elk-clustered-layout.test.ts`, and
       `packages/layout-engine/tests/elk-layout.test.ts`.
-- [ ] **T044** Add an author-facing ELK option inventory audit and close any
+- [x] **T044** Add an author-facing ELK option inventory audit and close any
       registry/UI discoverability gaps. Today the preview UI renders every option
       in the approved graph-engine registries, but the approved registries are a
       curated subset of official ELK options. Add a durable inventory artifact or
@@ -158,8 +158,10 @@
       `meta.elk`; the audit fails if a newly approved option lacks UI metadata or
       if a YAML-admitted option is not exposed.
       **Evidence**: `packages/layout-engine/tests/preview-engine-graph-control-inventory.test.ts`,
-      a new ELK option audit artifact/test, and a focused preview persistence
-      round-trip for at least one newly classified option if gaps are found.
+      `packages/graph-layout-elk/tests/elk-option-audit.test.ts`,
+      `packages/graph-layout-elk/src/elk-option-audit.ts`,
+      `specs/077-mermaid-elk-cluster-lowering-port/evidence/elk-option-discoverability-audit.md`,
+      and the focused preview registry/browser-entry validation.
 
 ## Phase 5 — Gate: real render + cold-start portability
 

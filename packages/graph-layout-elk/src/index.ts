@@ -117,3 +117,13 @@ export {
   ELK_RECTPACKING_PARAM_SPECS,
   ELK_STRESS_PARAM_SPECS,
 } from './elk-algorithm-param-registry.js';
+export {
+  ELK_OPTION_AUDIT_REGISTRY_SPECS,
+  ELK_OPTION_AUDITED_ALGORITHM_IDS,
+  allExposedOfficialElkOptionIds,
+  classifyOfficialElkOption,
+  normalizeOfficialElkOptionId,
+  type AuditedElkAlgorithmId,
+  type ElkOptionAuditCategory,
+  type ElkOptionAuditClassification,
+} from './elk-option-audit.js';

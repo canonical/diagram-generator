@@ -16,6 +16,26 @@ export const ELK_FORCE_PARAM_SPECS: ElkParamSpec[] = [
     description: 'Preferred spacing between nodes in the force layout.',
   },
   {
+    key: 'elk.spacing.edgeLabel',
+    label: 'Edge label spacing',
+    group: 'Spacing',
+    kind: 'number',
+    defaultValue: '5',
+    min: 0,
+    max: 128,
+    step: 1,
+    description: 'Clearance between force-layout edge labels and their associated edges.',
+  },
+  {
+    key: 'elk.edgeLabels.inline',
+    label: 'Inline edge labels',
+    group: 'Edges',
+    kind: 'boolean',
+    defaultValue: 'false',
+    description:
+      'Place force edge labels directly on routed edges. Keep this off unless label rendering prevents edge/text crossings.',
+  },
+  {
     key: 'elk.force.model',
     label: 'Force model',
     group: 'Graph',
@@ -91,6 +111,18 @@ export const ELK_FORCE_PARAM_SPECS: ElkParamSpec[] = [
     step: 0.5,
     visibleWhen: FORCE_EADES_MODEL_VISIBILITY,
     description: 'Repulsive-force factor used only by the Eades model.',
+  },
+  {
+    key: 'elk.force.repulsivePower',
+    label: 'Repulsive power',
+    group: 'Graph',
+    kind: 'number',
+    defaultValue: '0',
+    min: 0,
+    max: 16,
+    step: 1,
+    description:
+      'Exponent used by ELK force repulsion. Zero keeps the force model default behavior.',
   },
 ];
 

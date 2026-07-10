@@ -12,6 +12,8 @@ describe('ELK force', () => {
   it('publishes force parameter specs for preview controls', () => {
     expect(ELK_FORCE_PARAM_SPECS.map((spec) => spec.key)).toEqual([
       'elk.spacing.nodeNode',
+      'elk.spacing.edgeLabel',
+      'elk.edgeLabels.inline',
       'elk.force.model',
       'elk.force.iterations',
       'elk.aspectRatio',
@@ -19,10 +21,13 @@ describe('ELK force', () => {
       'elk.randomSeed',
       'elk.force.temperature',
       'elk.force.repulsion',
+      'elk.force.repulsivePower',
     ]);
     expect(elkForceParamDefaults()).toMatchObject({
       'elk.algorithm': 'force',
       'elk.spacing.nodeNode': '72',
+      'elk.spacing.edgeLabel': '5',
+      'elk.edgeLabels.inline': 'false',
       'elk.force.model': 'FRUCHTERMAN_REINGOLD',
       'elk.force.iterations': '300',
       'elk.aspectRatio': '1.6',
@@ -30,6 +35,7 @@ describe('ELK force', () => {
       'elk.randomSeed': '0',
       'elk.force.temperature': '0.001',
       'elk.force.repulsion': '5',
+      'elk.force.repulsivePower': '0',
     });
   });
 
