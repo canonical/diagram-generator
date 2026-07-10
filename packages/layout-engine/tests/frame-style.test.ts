@@ -49,6 +49,47 @@ describe('preview-shell frame style helpers', () => {
     });
   });
 
+  it('uses the semantic level as the variant authority before raw fill or border defaults', () => {
+    expect(inferPreviewStyleFromFields(3, 'WHITE', 'NONE')).toBe('section');
+    expect(inferPreviewStyleFromFields('3', 'WHITE', 'NONE')).toBe('section');
+    expect(inferPreviewStyleFromFields(2, 'WHITE', 'NONE')).toBe('parent');
+    expect(inferPreviewStyleFromFields(1, 'WHITE', 'NONE')).toBe('annotation');
+
+    expect(resolveSingleSelectionPreviewStyleState({
+      componentType: 'panel',
+      node: {
+        level: 3,
+        fill: 'WHITE',
+        border: 'NONE',
+        data: {},
+      },
+      overrideStyle: '',
+      renderedFill: 'transparent',
+      renderedStroke: '#000000',
+    })).toEqual({
+      mode: 'picker',
+      currentStyle: 'section',
+      originalStyleName: 'section',
+    });
+
+    expect(resolveSingleSelectionPreviewStyleState({
+      componentType: 'panel',
+      node: {
+        level: 2,
+        fill: 'WHITE',
+        border: 'NONE',
+        data: {},
+      },
+      overrideStyle: '',
+      renderedFill: '#F3F3F3',
+      renderedStroke: '#F3F3F3',
+    })).toEqual({
+      mode: 'picker',
+      currentStyle: 'parent',
+      originalStyleName: 'parent',
+    });
+  });
+
   it('resolves multi-selection style state and original-style mixing for visible styleable items', () => {
     const result = resolveMultiSelectionPreviewStyleState([
       {

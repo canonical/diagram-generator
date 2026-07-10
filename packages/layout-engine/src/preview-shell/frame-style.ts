@@ -206,16 +206,25 @@ export function inferPreviewStyleFromFields(
   fill: unknown,
   strokeOrBorder: unknown,
 ): string {
+  const numericLevel = typeof level === 'number'
+    ? level
+    : (typeof level === 'string' && level.trim() !== '' ? Number(level) : null);
   const resolvedFill = normalizePreviewStyleFill(fill);
   const resolvedStroke = normalizePreviewStyleStrokeOrBorder(strokeOrBorder);
   if (resolvedFill === 'BLACK') {
     return 'highlight';
   }
-  if (resolvedFill === 'GREY' && resolvedStroke !== 'NONE') {
+  if (numericLevel === 3) {
+    return 'section';
+  }
+  if (numericLevel === 2) {
     return 'parent';
   }
-  if (level === 3 && resolvedStroke !== 'NONE') {
-    return 'section';
+  if (numericLevel === 1) {
+    return resolvedStroke === 'NONE' ? 'annotation' : 'default';
+  }
+  if (resolvedFill === 'GREY' && resolvedStroke !== 'NONE') {
+    return 'parent';
   }
   if (resolvedFill === 'WHITE' && resolvedStroke !== 'NONE') {
     return 'default';

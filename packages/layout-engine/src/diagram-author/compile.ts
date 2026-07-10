@@ -1,4 +1,5 @@
 import { buildFrameAst } from './build-ast.js';
+import { applyConfiguredFrameRoleAssignment } from './assign-frame-roles.js';
 import { expandFrameDefaults } from './expand-defaults.js';
 import { lowerToFrameDiagram } from './lower-to-frame.js';
 import { normalizeArrows } from './normalize-arrows.js';
@@ -80,8 +81,10 @@ function createScaffoldAst(
     frameIndex: frameAst.frameIndex,
     source: { ...source },
   };
+  const roleDiagnostics = applyConfiguredFrameRoleAssignment(ast.root, ast.arrows, source);
   const diagnostics = applyStrictMode(
     [
+      ...roleDiagnostics,
       ...frameAst.diagnostics,
       ...expanded.diagnostics,
       ...normalizedArrows.diagnostics,

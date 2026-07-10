@@ -56,14 +56,15 @@
 
 ## Phase 2 — Edge LCA lowering (replace flat leaf-to-leaf)
 
-- [ ] **T020** Replace the flat `buildGraphEdges(...)` lowering: resolve each
+- [x] **T020** Replace the flat `buildGraphEdges(...)` lowering: resolve each
       arrow's real source/target node ids, compute the LCA via T000, attach the
       edge at that ancestor, and promote the ancestor compound to
-      `INCLUDE_CHILDREN`. Keep edge labels sized via the adapter.
+      `INCLUDE_CHILDREN`. Keep edge labels sized via the adapter and annotation
+      class padding, not renderer-local pills.
       **Verify**: a cross-cluster edge attaches at the correct ancestor and that
       ancestor is `INCLUDE_CHILDREN`; an intra-cluster edge stays local.
       **Evidence**: `packages/graph-layout-elk/tests/elk-edge-lca.test.ts`.
-- [ ] **T021** Preserve input order with **native**
+- [x] **T021** Preserve input order with **native**
       `elk.layered.considerModelOrder`. Remove the synthetic ordering-edge
       workaround (`ORDERING_EDGE_PREFIX` and `isOrderingEdgeId`). If native model
       order + hierarchy re-triggers the `elkjs` crash, root-cause it (option-value
@@ -74,7 +75,7 @@
 
 ## Phase 3 — Read-back and delete post-ELK ownership
 
-- [ ] **T030** Read ELK output back verbatim in
+- [x] **T030** Read ELK output back verbatim in
       `packages/layout-engine/src/elk-layout.ts`: node x/y (relative) → absolute via
       accumulated ancestor offset; adopt `edge.sections[0]`
       (`startPoint`/`bendPoints`/`endPoint`) as the arrow path, offset by the LCA
@@ -82,7 +83,7 @@
       **Verify**: rendered node rects and arrow points equal ELK output (+ trim) on
       a hand fixture.
       **Evidence**: `packages/layout-engine/tests/elk-readback.test.ts`.
-- [ ] **T031** Delete/gate the post-ELK geometry passes for cluster-lowered
+- [x] **T031** Delete/gate the post-ELK geometry passes for cluster-lowered
       diagrams: `anchorSemanticDescendants`,
       `normalizeDirectedContainersFromSemantic`,
       `realignPlacedContainersToAuthoredLayout`, `wrapStructuralContainers`,
@@ -94,33 +95,79 @@
 
 ## Phase 4 — Thin styling (no geometry)
 
-- [ ] **T040** Add a geometry-free styling pass over ELK-placed boxes: annotation
-      grey chrome + `border: none`, both label lines for two-line annotation
-      leaves, fill/stroke/typography, insets read (not set). Must not change
-      x/y/w/h or arrow points (G4).
+- [x] **T040** Add a geometry-free styling pass over ELK-placed labels:
+      annotation-class fill/stroke/typography/padding, both label lines for
+      two-line arrow labels, and insets read (not set). Must not change x/y/w/h
+      or arrow points after ELK (G4).
       **Verify**: annotation leaves render grey with both lines; disabling the pass
       changes only paint, never geometry.
       **Evidence**: render test asserting geometry identical with styling on/off.
+- [x] **T041** Add opt-in configured frame-role assignment under YAML
+      `meta.frame_roles.strategy`. The TLS profile assigns root compounds that
+      contain cross-root edge sources as sections and root compounds that contain
+      cross-root edge targets as parents, while preserving any explicitly authored
+      level.
+      **Verify**: generic authoring tests prove source/target root compounds get
+      the expected frame classes with no fixture-id branches.
+      **Evidence**: `packages/layout-engine/tests/frame-role-assignment.test.ts`.
+- [x] **T042** Add opt-in configured same-layer compound-height constraints under
+      YAML `meta.layout_profiles.same_layer_compound_heights`. The profile may use
+      an initial ELK result to derive minimum heights for same-layer compound
+      siblings, but the rendered geometry must come from the final ELK result, not
+      from post-ELK resizing.
+      **Verify**: TLS product/raw regressions assert `openstack_services` and
+      `load_balancers` share the same final ELK height in frame model, raw SVG, and
+      product/browser SVG.
+      **Evidence**: `packages/layout-engine/tests/elk-layout.test.ts`,
+      `apps/preview/src/persistence/tls-render-regression.test.ts`, and
+      `apps/preview/src/persistence/tls-browser-parity-regression.test.ts`.
+- [x] **T043** Expose and validate native ELK fan-out/order controls:
+      `elk.layered.mergeEdges`, `elk.layered.mergeHierarchyEdges`,
+      `elk.layered.considerModelOrder.strategy`, and
+      `elk.layered.crossingMinimization.forceNodeModelOrder`. Keep global defaults
+      safe for existing diagrams, enable `mergeEdges` by graph shape for
+      border-routed cross-hierarchy layouts, and let TLS pin the intended options
+      in YAML.
+      **Verify**: clustered common-source fan-outs share one ELK-owned stem by
+      default, an explicit `mergeEdges=false` override still works, and existing
+      non-cluster fan-out behavior does not regress.
+      **Evidence**: `packages/graph-layout-elk/tests/elk-layout-options.test.ts`,
+      `packages/graph-layout-elk/tests/elk-clustered-layout.test.ts`, and
+      `packages/layout-engine/tests/elk-layout.test.ts`.
 
 ## Phase 5 — Gate: real render + cold-start portability
 
-- [ ] **T050** SC-001 render regression: produce the **actual product SVG** for
+- [x] **T050** SC-001 render regression: produce the **actual product SVG** for
       `tls-certificate-provider-topology` through the product render/export path and
-      assert nested clusters, per-cluster direction, one endpoint row, two-line grey
-      annotations, no truncation, and arrow points == ELK sections. Attach a
+      assert nested clusters, per-cluster direction, one endpoint row, two-line
+      annotation-class arrow labels, no truncation, and ELK-backed routing/label
+      geometry. It also asserts configured section/parent role assignment and the
+      same-layer bottom-row compound height profile. Attach a
       documented side-by-side vs `images/01-source-mermaid-reference.png`.
-      **Evidence**: repo-owned render test + updated in-repo render image.
+      When hardening TLS regressions, assert the visible/reference contract and the
+      Mermaid-authored **7 semantic labeled edges**; invisible helper carriers and
+      transparent ordering arrows must not exist in YAML or raw/product parity.
+      The six consumer arrows from `manual_tls_certificates` must share an
+      ELK-owned fan-out stem in both raw ELK and product SVG.
+      **Evidence**: `apps/preview/src/persistence/tls-render-regression.test.ts`,
+      `apps/preview/src/persistence/tls-browser-parity-regression.test.ts`,
+      `evidence/reference/01-source-mermaid-reference.png`,
+      `evidence/render/tls-certificate-provider-topology.raw-elk.svg`,
+      `evidence/render/tls-certificate-provider-topology.product.svg`, and
+      `evidence/tls-raw-styled-parity.md`.
 - [ ] **T051** SC-002 cold-start fixture: author a second, structurally different
       clustered fixture (different row sizes / counts, not TLS-derived) and prove it
       renders correctly through the same generic lowering with zero fixture-keyed
       code.
       **Evidence**: second fixture + render test.
-- [ ] **T052** SC-003 raw-ELK correctness: assert the raw-ELK view for the TLS
+- [x] **T052** SC-003 raw-ELK correctness: assert the raw-ELK view for the TLS
       fixture is itself structurally faithful and that no G2/G3 pass executed.
-      **Evidence**: raw-ELK assertion test.
-- [ ] **T053** SC-004 architectural ban test: the cluster-lowered path does not call
+      **Evidence**: `packages/layout-engine/tests/elk-layout-architecture.test.ts`
+      and `evidence/tls-raw-styled-parity.md`.
+- [x] **T053** SC-004 architectural ban test: the cluster-lowered path does not call
       the G2/G3 functions; rendered arrow points equal ELK sections.
-      **Evidence**: static/architectural test.
+      **Evidence**: `packages/layout-engine/tests/elk-layout-architecture.test.ts`
+      plus the focused layout-engine validation in this handoff.
 - [ ] **T054** SC-005 full validation:
       `npm --prefix packages/graph-layout-elk test`;
       `npm --prefix packages/layout-engine test`;

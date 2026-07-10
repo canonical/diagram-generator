@@ -3,6 +3,22 @@
 Date: 2026-07-08
 Branch: `feat/077-mermaid-elk-cluster-lowering-port`
 
+> **⚠️ 2026-07-09 correction — this note gives false confidence. Read
+> [`elkjs-sibling-compound-port-crash.md`](./elkjs-sibling-compound-port-crash.md)
+> first.** The fixture below keeps both endpoints of the cross edge inside **one**
+> `provider` compound (LCA = a compound), which is **not** the reference topology.
+> The reference has endpoints in **sibling** compounds (LCA = root), and that case
+> *does* crash — not because of model order, but because the builder emits
+> `FIXED_POS` implicit ports. Port-free routing of the exact reference topology
+> works. Do not cite this note as evidence that the reference model is unviable.
+>
+> **2026-07-10 correction to the correction:** after the port-free routing fix,
+> full-suite coverage found a separate root-LCA crash when endpoint ancestor
+> compounds promoted to `INCLUDE_CHILDREN` keep local
+> `elk.layered.considerModelOrder.strategy`. Root/LCA model order remains viable;
+> non-LCA promoted endpoint compounds must suppress that local strategy. See the
+> addendum in `elkjs-sibling-compound-port-crash.md`.
+
 Question: does native `elk.layered.considerModelOrder.strategy = NODES_AND_EDGES`
 combined with compound hierarchy (`elk.hierarchyHandling = INCLUDE_CHILDREN`) still
 re-trigger the 076 crash at `elkjs@0.10.0`?

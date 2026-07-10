@@ -175,6 +175,23 @@ function cloneGraphNodes(nodes: GraphNodeInput[]): GraphNodeInput[] {
   }));
 }
 
+function collectCrossHierarchyEndpointIds(
+  edges: GraphLayoutInput['edges'],
+  parentById: Record<string, string | undefined>,
+): Set<string> {
+  const ids = new Set<string>();
+  for (const edge of edges) {
+    const sourceParentId = parentById[edge.source];
+    const targetParentId = parentById[edge.target];
+    if (!sourceParentId || !targetParentId || sourceParentId === targetParentId) {
+      continue;
+    }
+    ids.add(edge.source);
+    ids.add(edge.target);
+  }
+  return ids;
+}
+
 function authoredOrderPortId(
   nodeId: string,
   groupId: string,
@@ -199,7 +216,7 @@ function withAuthoredOrderPortRefs(
   input: GraphLayoutInput,
   layoutOptions: Record<string, string>,
 ): GraphLayoutInput {
-  if (input.edges.length === 0) {
+  if (input.edges.length === 0 || input.routeCrossHierarchyEdgesToBorders) {
     return input;
   }
 
@@ -210,6 +227,7 @@ function withAuthoredOrderPortRefs(
   }));
   const nodesById = indexInputNodes(nodes);
   const parentById = buildInputTreeData(nodes, input.id).parentById;
+  const crossHierarchyEndpointIds = collectCrossHierarchyEndpointIds(edges, parentById);
   const effectiveDirection = resolveElkDirection(input, layoutOptions);
   const sourceSide = sourceSideForDirection(effectiveDirection);
   const targetSide = oppositeSide(sourceSide);
@@ -217,12 +235,12 @@ function withAuthoredOrderPortRefs(
   const unresolvedOutgoing = new Map<string, typeof edges>();
   const unresolvedIncoming = new Map<string, typeof edges>();
   for (const edge of edges) {
-    if (!edge.sourcePort) {
+    if (!edge.sourcePort && !crossHierarchyEndpointIds.has(edge.source)) {
       const bucket = unresolvedOutgoing.get(edge.source) ?? [];
       bucket.push(edge);
       unresolvedOutgoing.set(edge.source, bucket);
     }
-    if (!edge.targetPort) {
+    if (!edge.targetPort && !crossHierarchyEndpointIds.has(edge.target)) {
       const bucket = unresolvedIncoming.get(edge.target) ?? [];
       bucket.push(edge);
       unresolvedIncoming.set(edge.target, bucket);
@@ -307,14 +325,25 @@ function withRelationshipAwarePortRefs(
   firstPass: GraphLayoutResult,
   layoutOptions: Record<string, string>,
 ): GraphLayoutInput {
+  if (input.routeCrossHierarchyEdgesToBorders) {
+    return input;
+  }
+
   const placedById = indexPlacedNodes(firstPass.nodes);
   const inputNodesById = indexInputNodes(input.nodes);
+  const crossHierarchyEndpointIds = collectCrossHierarchyEndpointIds(
+    input.edges,
+    buildInputTreeData(input.nodes, input.id).parentById,
+  );
   const effectiveDirection = resolveElkDirection(input, layoutOptions);
 
   return {
     ...input,
     edges: input.edges.map((edge, index) => {
       if (edge.sourcePort || edge.targetPort) return edge;
+      if (crossHierarchyEndpointIds.has(edge.source) || crossHierarchyEndpointIds.has(edge.target)) {
+        return edge;
+      }
       const sourcePlaced = placedById.get(edge.source);
       const targetPlaced = placedById.get(edge.target);
       const sourceInput = inputNodesById.get(edge.source);
@@ -356,17 +385,25 @@ export async function layoutLayered(
   options: LayoutLayeredOptions = {},
 ): Promise<GraphLayoutResult> {
   const familyDirection = input.direction;
-  const baseConfig: LayeredLayoutConfig = options.config ?? {
+  const configuredBase: LayeredLayoutConfig = options.config ?? {
     direction: familyDirection,
     spacingProfile: input.spacingProfile ?? 'normal',
     optionOverrides: options.optionOverrides,
   };
-  if (options.optionOverrides) {
-    baseConfig.optionOverrides = {
-      ...baseConfig.optionOverrides,
-      ...options.optionOverrides,
-    };
+  const mergedOptionOverrides = {
+    ...(configuredBase.optionOverrides ?? {}),
+    ...(options.optionOverrides ?? {}),
+  };
+  if (
+    input.routeCrossHierarchyEdgesToBorders
+    && mergedOptionOverrides['elk.layered.mergeEdges'] == null
+  ) {
+    mergedOptionOverrides['elk.layered.mergeEdges'] = 'true';
   }
+  const baseConfig: LayeredLayoutConfig = {
+    ...configuredBase,
+    optionOverrides: mergedOptionOverrides,
+  };
   const layoutOptions = buildLayeredLayoutOptions(baseConfig);
   const authoredPortInput = withAuthoredOrderPortRefs(input, layoutOptions);
 

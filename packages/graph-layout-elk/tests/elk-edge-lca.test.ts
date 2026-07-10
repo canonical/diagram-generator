@@ -52,16 +52,20 @@ function clusteredInput(): GraphLayoutInput {
 }
 
 describe('ELK edge LCA lowering', () => {
-  it('attaches a cross-cluster edge to its LCA compound and promotes that ancestor', () => {
+  it('attaches a cross-cluster edge to its LCA compound without bubbling it back to the root', () => {
     const graph = buildElkGraph(
       clusteredInput(),
       buildLayeredLayoutOptions({ direction: 'TB', spacingProfile: 'normal' }),
     );
 
     const provider = graph.children[0]!;
+    const servicesRow = provider.children?.find((child) => child.id === 'services_row');
+    const endpointsRow = provider.children?.find((child) => child.id === 'endpoints_row');
     expect(graph.edges).toEqual([]);
     expect(provider.edges?.map((edge) => edge.id)).toContain('cross');
     expect(provider.layoutOptions?.['elk.hierarchyHandling']).toBe('INCLUDE_CHILDREN');
+    expect(servicesRow?.layoutOptions?.['elk.hierarchyHandling']).toBe('INCLUDE_CHILDREN');
+    expect(endpointsRow?.layoutOptions?.['elk.hierarchyHandling']).toBe('INCLUDE_CHILDREN');
   });
 
   it('keeps an intra-cluster edge local to the owning ordering cluster', () => {

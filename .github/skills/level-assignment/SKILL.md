@@ -17,9 +17,11 @@ argument-hint: "Path to the frame YAML file, or describe the nesting structure"
 
 Level assignment is an **authoring-time** rule. It follows from the
 **deepest nesting among siblings**, not from each item's own children.
-The engine requires explicit `level:` fields in YAML - it never guesses
-levels from structure. This procedure tells you how to choose the right
-value.
+By default, the engine requires explicit `level:` fields in YAML - it
+does not guess levels from structure. This procedure tells you how to
+choose the right value. Diagrams may opt into a typed `meta.frame_roles`
+profile; those profiles synthesize explicit levels during compile before
+style resolution and must be generic, not fixture-keyed.
 
 ### Algorithm
 
@@ -53,6 +55,8 @@ Siblings never mix classes. If one item needs to be a section, **all** its sibli
    - Grandparent's depth: if any sibling at this depth contains a level-2 panel with children, all siblings get `level: 3`.
 
 3. **Set `level:` explicitly** on every headed container in the YAML. Leaves don't need an explicit level.
+   If a diagram declares `meta.frame_roles.strategy`, verify that the profile is
+   the intended generic rule before omitting levels.
 
 4. **Verify sibling consistency.** Scan each group of siblings. Every sibling at the same depth must have the same level.
 
@@ -78,6 +82,14 @@ Levels determine visual treatment automatically through `resolveStyles()`
 (TS: `packages/layout-engine/src/resolve-styles.ts`). See `docs/frame-classes.md` for the
 complete class table and rendering rules. Do **not** use inline styling
 in YAML.
+
+## Configured role profiles
+
+`meta.frame_roles.strategy: root-edge-source-section-target-parent` is available
+for layered provider/consumer topologies. Root compounds that contain sources of
+cross-root arrows become sections (`level: 3`); root compounds that contain
+targets of cross-root arrows become parents (`level: 2`). Explicit authored
+`level:` values still win.
 
 ### Inline style ban
 

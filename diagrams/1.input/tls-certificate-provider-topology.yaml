@@ -12,10 +12,14 @@ meta:
     elk.spacing.edgeEdge: 24
     elk.layered.spacing.edgeEdgeBetweenLayers: 24
     elk.layered.unnecessaryBendpoints: true
+    elk.layered.mergeEdges: true
+    elk.layered.mergeHierarchyEdges: true
     elk.layered.nodePlacement.favorStraightEdges: true
     elk.layered.layering.strategy: NETWORK_SIMPLEX
+    elk.layered.considerModelOrder.strategy: NODES_AND_EDGES
     elk.layered.crossingMinimization.strategy: LAYER_SWEEP
-    elk.layered.nodePlacement.strategy: BRANDES_KOEPF
+    elk.layered.crossingMinimization.forceNodeModelOrder: true
+    elk.layered.nodePlacement.strategy: SIMPLE
     elk.hierarchyHandling: INCLUDE_CHILDREN
   elk_nodes:
     elk-layered:
@@ -26,45 +30,66 @@ meta:
       elk.spacing.edgeEdge: 24
       elk.layered.spacing.edgeEdgeBetweenLayers: 24
       elk.layered.unnecessaryBendpoints: true
+      elk.layered.mergeEdges: true
+      elk.layered.mergeHierarchyEdges: true
       elk.layered.nodePlacement.favorStraightEdges: true
       elk.layered.layering.strategy: NETWORK_SIMPLEX
+      elk.layered.considerModelOrder.strategy: NODES_AND_EDGES
       elk.layered.crossingMinimization.strategy: LAYER_SWEEP
-      elk.layered.nodePlacement.strategy: BRANDES_KOEPF
+      elk.layered.crossingMinimization.forceNodeModelOrder: true
+      elk.layered.nodePlacement.strategy: SIMPLE
       elk.hierarchyHandling: INCLUDE_CHILDREN
+  frame_roles:
+    strategy: root-edge-source-section-target-parent
+  layout_profiles:
+    same_layer_compound_heights: true
 grid:
   cols: 3
   col_gap: 32
   row_gap: 48
 arrows:
-- source: vault_charm
+- id: edge-0
+  source: vault_charm
   target: manual_tls_certificates
   label:
   - tls-certificates-pki
   label_gap: 24
-- source: manual_tls_certificates
-  target: octavia_certificates
-- source: manual_tls_certificates
-  target: amphora_issuing_ca
-- source: manual_tls_certificates
-  target: amphora_controller_cert
-- source: manual_tls_certificates
-  target: public_certificates
-- source: manual_tls_certificates
-  target: internal_certificates
-- source: manual_tls_certificates
-  target: rgw_certificates
-- source: octavia_certificates
+- id: edge-1
+  source: manual_tls_certificates
   target: octavia_k8s
-- source: amphora_issuing_ca
+  label:
+  - certificates
+  - interface: tls-certificates
+- id: edge-2
+  source: manual_tls_certificates
   target: octavia_k8s
-- source: amphora_controller_cert
+  label:
+  - amphora-issuing-ca
+  - interface: tls-certificates
+- id: edge-3
+  source: manual_tls_certificates
   target: octavia_k8s
-- source: public_certificates
+  label:
+  - amphora-controller-cert
+  - interface: tls-certificates
+- id: edge-4
+  source: manual_tls_certificates
   target: traefik_public
-- source: internal_certificates
+  label:
+  - certificates
+  - interface: tls-certificates
+- id: edge-5
+  source: manual_tls_certificates
   target: traefik_internal
-- source: rgw_certificates
+  label:
+  - certificates
+  - interface: tls-certificates
+- id: edge-6
+  source: manual_tls_certificates
   target: traefik_rgw
+  label:
+  - certificates
+  - interface: tls-certificates
 root:
   id: page
   direction: vertical
@@ -72,131 +97,54 @@ root:
   sizing_w: fixed
   children:
   - id: tls_provider
-    level: 3
     heading: TLS Certificate Provider
     sizing_w: fill
     align: top-center
     children:
-    - id: provider_stack
-      direction: vertical
-      variant: annotation
-      align: top-center
-      children:
-      - id: vault_charm
-        width: 176
-        sizing_w: fixed
-        label:
-        - vault
-        - charm
-      - id: manual_tls_certificates
-        width: 304
-        sizing_w: fixed
-        label:
-        - manual-tls-certificates
-        - charm
-    - id: services_row
-      direction: horizontal
-      sizing_w: fill
-      gap: 32
-      children:
-      - id: openstack_services
-        level: 2
-        heading: OpenStack Services
-        sizing_w: fill
-        children:
-        - id: openstack_relation_row
-          direction: horizontal
-          variant: annotation
-          gap: 16
-          children:
-          - id: octavia_certificates
-            width: 176
-            sizing_w: fixed
-            fill: grey
-            border: none
-            label:
-            - certificates
-            - interface: tls-certificates
-          - id: amphora_issuing_ca
-            width: 224
-            sizing_w: fixed
-            fill: grey
-            border: none
-            label:
-            - amphora-issuing-ca
-            - interface: tls-certificates
-          - id: amphora_controller_cert
-            width: 248
-            sizing_w: fixed
-            fill: grey
-            border: none
-            label:
-            - amphora-controller-cert
-            - interface: tls-certificates
-        - id: octavia_k8s
-          width: 304
-          sizing_w: fixed
-          label:
-          - octavia-k8s
-          - Load Balancer Service
-      - id: load_balancers
-        level: 2
-        heading: LoadBalancers
-        direction: vertical
-        sizing_w: fill
-        children:
-        - id: load_balancer_relation_row
-          direction: horizontal
-          variant: annotation
-          justify: space-between
-          gap: 16
-          sizing_w: fill
-          children:
-          - id: public_certificates
-            width: 184
-            sizing_w: fixed
-            fill: grey
-            border: none
-            label:
-            - certificates
-            - interface: tls-certificates
-          - id: internal_certificates
-            width: 184
-            sizing_w: fixed
-            fill: grey
-            border: none
-            label:
-            - certificates
-            - interface: tls-certificates
-          - id: rgw_certificates
-            width: 184
-            sizing_w: fixed
-            fill: grey
-            border: none
-            label:
-            - certificates
-            - interface: tls-certificates
-        - id: load_balancer_endpoint_row
-          direction: horizontal
-          justify: space-between
-          gap: 16
-          sizing_w: fill
-          children:
-          - id: traefik_public
-            width: 240
-            sizing_w: fixed
-            label:
-            - traefik-public
-            - Public Endpoint
-          - id: traefik_internal
-            width: 240
-            sizing_w: fixed
-            label:
-            - traefik
-            - Internal Endpoint
-          - id: traefik_rgw
-            width: 240
-            sizing_w: fixed
-            label:
-            - traefik-rgw
-            - Ceph RGW Endpoint
+    - id: vault_charm
+      width: 176
+      sizing_w: fixed
+      label:
+      - vault
+      - charm
+    - id: manual_tls_certificates
+      width: 304
+      sizing_w: fixed
+      label:
+      - manual-tls-certificates
+      - charm
+  - id: openstack_services
+    heading: OpenStack Services
+    sizing_w: hug
+    align: top-center
+    children:
+    - id: octavia_k8s
+      width: 304
+      sizing_w: fixed
+      label:
+      - octavia-k8s
+      - Load Balancer Service
+  - id: load_balancers
+    heading: LoadBalancers
+    direction: horizontal
+    sizing_w: hug
+    align: top-center
+    children:
+    - id: traefik_public
+      width: 240
+      sizing_w: fixed
+      label:
+      - traefik-public
+      - Public Endpoint
+    - id: traefik_internal
+      width: 240
+      sizing_w: fixed
+      label:
+      - traefik
+      - Internal Endpoint
+    - id: traefik_rgw
+      width: 240
+      sizing_w: fixed
+      label:
+      - traefik-rgw
+      - Ceph RGW Endpoint

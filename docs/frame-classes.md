@@ -2,7 +2,7 @@
 
 This is the testable spec for frame visual treatment. Every rendered
 frame must resolve to exactly one of these classes. If a diagram
-contains styling that doesn't match one of these four, it fails
+contains styling that doesn't match one of these classes, it fails
 acceptance.
 
 This document is a human-readable mirror of the runtime contract.
@@ -15,20 +15,20 @@ Wrapper (`level: 0`) is part of the fixed structural encoding, but it
 is not a rendered frame class. It is an invisible layout-only grouping
 used to control autolayout without adding box chrome.
 
-## The four classes
+## The frame classes
 
 | Class | Level | Heading | Fill | Border | Text | Contains |
 |-------|-------|---------|------|--------|------|----------|
 | **Section** | 3 | bold | transparent | black 1px | black | panels, leaves |
 | **Panel** | 2 | bold | `#F3F3F3` | `#F3F3F3` 1px | black | leaves |
-| **Leaf** | 1 | regular weight | transparent | black 1px | black | nothing |
+| **Child / leaf** | 1 | regular weight | transparent | black 1px | black | nothing |
 | **Annotation** | — | — | transparent | none | `#666666` | nothing |
+| **Highlight** | structural level unchanged | unchanged | `#000000` | `#000000` 1px | white | unchanged |
 
-Plus two special cases that are not user-authored:
+Plus one special case that is not user-authored:
 
 | Class | Trigger | Fill | Border | Text |
 |-------|---------|------|--------|------|
-| **Highlight** | `variant: highlight` | `#000000` | `#000000` 1px | white |
 | **Separator** | `role: separator` | transparent | none | — |
 
 ## Hierarchy rules
@@ -50,9 +50,12 @@ Plus two special cases that are not user-authored:
 
 ## Choosing the right level
 
-Level assignment is an **authoring-time** rule. The engine consumes the
+Level assignment is normally an **authoring-time** rule. The engine consumes the
 explicit `level:` values it is given and only applies the existing
-invalid-nesting downgrade safety net.
+invalid-nesting downgrade safety net. A diagram may opt into a typed YAML
+authoring profile under `meta.frame_roles`; that profile synthesizes explicit
+levels during compile before style resolution. It must be generic and tested,
+not fixture-keyed.
 
 Let `D` be the maximum structural child-nesting depth across a sibling
 group.
@@ -69,6 +72,15 @@ The rule ensures visual consistency across a row or column: siblings
 never mix classes. If one item needs to be a section, all its siblings
 are sections. If one item needs to be a panel, all its siblings are
 panels.
+
+## Configured Role Assignment
+
+`meta.frame_roles.strategy: root-edge-source-section-target-parent` is a graph-aware
+authoring profile for layered provider/consumer topologies. For root compounds
+connected by cross-root arrows, source-side root compounds become sections
+(`level: 3`) and target-side root compounds become parents (`level: 2`). Explicit
+authored `level:` values still win. This profile exists for diagrams where graph
+layers, not plain structural sibling depth, determine visual roles.
 
 **Example:** Planning, Implementation, and Delivery are siblings.
 Implementation wraps "Dev team" (a panel wrapping leaves) – 2-level
@@ -121,6 +133,12 @@ inset and SVG `stroke-width`.
 **Typography invariant.** The renderer must emit the same text contract
 that layout measured: same content, same case, same font size, same
 feature set, and same letter-spacing.
+
+**Non-frame text overlays.** Any non-frame overlay that semantically acts as an
+annotation, including ELK edge labels, must reuse the annotation class contract:
+transparent fill, no stroke, `#666666` regular text, and annotation padding/alignment.
+Do not introduce local edge-label pills, centered label boxes, or one-off fill/stroke
+constants unless they are first added as a frame class and covered by tests.
 
 **Non-container sections.** A level-3 frame with no children (e.g. a
 leaf-like box with a bold label) gets section styling: black border,

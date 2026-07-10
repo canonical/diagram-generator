@@ -87,6 +87,9 @@ export function serializeFrameDiagram(diagram: FrameDiagram): Record<string, unk
     layoutEngine: diagram.layoutEngine,
     diagramType: diagram.diagramType,
     sourceImage: diagram.sourceImage,
+    ...(diagram.layoutProfiles && Object.keys(diagram.layoutProfiles).length > 0
+      ? { layoutProfiles: diagram.layoutProfiles }
+      : {}),
     ...(diagram.elkLayout && Object.keys(diagram.elkLayout).length > 0
       ? { elkLayout: diagram.elkLayout }
       : {}),
@@ -194,6 +197,7 @@ export function deserializeFrameDiagramWire(json: Record<string, unknown>): Fram
     layoutEngine: json.layoutEngine as string | undefined,
     diagramType: json.diagramType as string | undefined,
     sourceImage: json.sourceImage as string | undefined,
+    layoutProfiles: json.layoutProfiles as Record<string, unknown> | undefined,
     elkLayout: json.elkLayout as Record<string, string> | undefined,
     engineLayout: json.engineLayout as Record<string, Record<string, unknown>> | undefined,
   });

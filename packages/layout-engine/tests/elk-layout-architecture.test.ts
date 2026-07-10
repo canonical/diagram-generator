@@ -76,16 +76,6 @@ function collectGraphNodeIds(
   return out;
 }
 
-function collectAnnotationNodeIds(node: DebugTreeNode, out: string[] = []): string[] {
-  if (node.kind === 'annotation') {
-    out.push(node.id);
-  }
-  for (const child of node.children) {
-    collectAnnotationNodeIds(child, out);
-  }
-  return out;
-}
-
 function elkEdgeToLayoutPath(edge: PlacedEdge, originX: number, originY: number): [number, number][] {
   const points: [number, number][] = [];
   for (const section of edge.sections) {
@@ -220,26 +210,39 @@ describe('ELK cluster-lowered architecture', () => {
     const root = diagram.root as unknown as FrameLike;
     const placedById = flattenPlacedNodes(snapshot.nodes, snapshot.originX, snapshot.originY);
     const inputNodeIds = collectGraphNodeIds(snapshot.debug.inputGraph.nodes);
-    const annotationIds = collectAnnotationNodeIds(snapshot.debug.authoredTree);
-
-    for (const annotationId of annotationIds) {
-      expect(inputNodeIds.has(annotationId)).toBe(true);
-      expect(snapshot.debug.flattenedFrameIds).not.toContain(annotationId);
-    }
+    expect(inputNodeIds).not.toContain('octavia_certificates');
+    expect(inputNodeIds).not.toContain('public_certificates');
+    expect(inputNodeIds).not.toContain('services_row');
+    expect(inputNodeIds).not.toContain('load_balancer_endpoint_row');
+    expect(snapshot.debug.flattenedFrameIds).not.toContain('octavia_certificates');
+    expect(snapshot.debug.flattenedFrameIds).not.toContain('public_certificates');
+    expect(snapshot.debug.inputGraph.nodes.map((node) => node.id)).toEqual([
+      'tls_provider',
+      'openstack_services',
+      'load_balancers',
+    ]);
+    expect(snapshot.debug.inputGraph.edges.map((edge) => edge.id)).toEqual([
+      'edge-0',
+      'edge-1',
+      'edge-2',
+      'edge-3',
+      'edge-4',
+      'edge-5',
+      'edge-6',
+    ]);
 
     for (const nodeId of inputNodeIds) {
       const frame = findFrameById(root, nodeId);
       const placed = placedById.get(nodeId);
       expect(frame, `missing frame ${nodeId}`).not.toBeNull();
       expect(placed, `missing ELK placement ${nodeId}`).toBeDefined();
-      expect(frame?._layout).toMatchObject({
-        placedX: placed?.x,
-        placedY: placed?.y,
-        placedW: placed?.width,
-        placedH: placed?.height,
-      });
+      expect(frame?._layout?.placedX).toBe(placed?.x);
+      expect(frame?._layout?.placedY).toBe(placed?.y);
+      expect(frame?._layout?.placedW).toBe(placed?.width);
+      expect(frame?._layout?.placedH).toBe(placed?.height);
     }
 
+    expect(diagram.arrows).toHaveLength(7);
     for (const arrow of diagram.arrows) {
       const edge = findPlacedEdge(snapshot.edges, arrow);
       expect(edge, `missing ELK edge for ${arrow.id ?? `${arrow.source}->${arrow.target}`}`).toBeDefined();
@@ -247,6 +250,12 @@ describe('ELK cluster-lowered architecture', () => {
       const targetFrame = findFrameById(root, arrow.target.split('.')[0]!);
       expect(sourceFrame).not.toBeNull();
       expect(targetFrame).not.toBeNull();
+      expect(edge?.sections.length ?? 0, `${arrow.id} must be routed by raw ELK sections`).toBeGreaterThan(0);
+      expect(edge?.labels?.length ?? 0, `${arrow.id} must expose raw ELK label geometry`).toBe(1);
+      expect(
+        [edge?.labels?.[0]?.x, edge?.labels?.[0]?.y],
+        `${arrow.id} label should not be the ELK missing-label sentinel`,
+      ).not.toEqual([0, 0]);
 
       const expectedPath = dedupeConsecutivePoints(trimLayoutPathToFrameBounds(
         elkEdgeToLayoutPath(edge!, snapshot.originX, snapshot.originY),

@@ -1,7 +1,8 @@
 # Spec 077: Port Mermaid's ELK cluster lowering (layout-only), style thinly over ELK geometry
 
 **Feature branch**: `feat/077-mermaid-elk-cluster-lowering-port`
-**Status**: Draft — proposed, not started
+**Status**: In progress — TLS topology review fixes are in the working tree;
+broader closeout still needs SC-002 and SC-005
 **Created**: 2026-07-08
 **Supersedes direction of**: spec 076 (`specs/076-tls-mermaid-cold-start-fit/`),
 which is retired as a failed approach. See
@@ -70,7 +71,7 @@ invariant, not to improve the post-processing.
   ordering groups become ELK compounds with per-compound direction; edges attach
   at their lowest common ancestor; cross-cluster edges promote that ancestor to
   `INCLUDE_CHILDREN`.
-- Consume ELK's output **verbatim**: node rectangles and ELK `edge.sections`
+- Consume ELK's final output **verbatim**: node rectangles and ELK `edge.sections`
   become the rendered geometry. The only permitted post-ELK geometry is the
   generic endpoint→node-border intersection trim.
 - Style **thinly** on top of ELK-placed boxes: fill, stroke, typography, insets,
@@ -147,9 +148,11 @@ Faithful pieces to port as **layout-only**:
 These exist specifically to stop a re-implementer (human or agent) from
 re-creating the 076 mess by redrawing around ELK.
 
-- **G1 — ELK owns geometry.** After `elk.layout()`, node rectangles and edge paths
-  are read, not recomputed. No pass may translate, resize, re-anchor, re-wrap, or
-  re-order a node the ELK compound graph already placed.
+- **G1 — ELK owns geometry.** After the final `elk.layout()`, node rectangles and
+  edge paths are read, not recomputed. No pass may translate, resize, re-anchor,
+  re-wrap, or re-order a node the ELK compound graph already placed. A configured
+  layout profile may derive additional ELK input constraints and rerun ELK, but it
+  must still render only the final ELK output.
 - **G2 — No post-ELK box moving on this path.** `anchorSemanticDescendants`,
   `normalizeDirectedContainersFromSemantic`,
   `realignPlacedContainersToAuthoredLayout`, `wrapStructuralContainers`,
@@ -164,7 +167,7 @@ re-creating the 076 mess by redrawing around ELK.
   or arrow points.
 - **G5 — Generic, not fixture-keyed.** The lowering is driven by cluster structure
   (`isGroup`, `parentId`, `dir`), never by this fixture's node ids. No branch may
-  reference `tls_provider`, `services_row`, `octavia_k8s`, `traefik_*`, etc.
+  reference `tls_provider`, `octavia_k8s`, `traefik_*`, former carrier ids, etc.
 - **G6 — Render-level gate only.** Closeout requires the actual product SVG plus a
   documented side-by-side vs the reference. Engine-resolution probes and
   geometry-snippet asserts are necessary-but-insufficient and cannot satisfy the
@@ -186,24 +189,43 @@ re-creating the 076 mess by redrawing around ELK.
   feed the existing renderer; apply only the generic border trim afterward.
 - **FR-006** Delete/disable the post-ELK box-moving and arrow-clearing passes for
   cluster-lowered diagrams (G2, G3).
-- **FR-007** Add a thin styling pass that restores annotation grey chrome and
-  two-line labels on ELK-placed boxes without touching geometry (G4). The TLS
-  fixture's authored two-line annotation labels are correct; do not edit the YAML
-  to hide render bugs.
+- **FR-007** Add a thin styling pass that restores annotation-class fill/stroke,
+  typography, padding, and two-line labels on ELK-placed edge labels without
+  touching geometry (G4). The TLS fixture's authored two-line arrow labels are
+  correct; do not edit the YAML to hide render bugs.
 - **FR-008** Keep the lowering reusable for spec 028 (Mermaid import → canonical
   YAML → this lowering); no import logic here.
 - **FR-009** Rebuild the browser bundle after browser-surface changes and keep
   `check-browser-bundle-fresh` green.
+- **FR-010** Support typed, opt-in authoring profiles under YAML `meta`: a
+  `frame_roles` profile may synthesize explicit frame levels before style
+  resolution, and a `layout_profiles.same_layer_compound_heights` profile may
+  derive same-layer compound minimum heights as ELK input constraints. Both must be
+  structure-driven and generic, never fixture-id keyed.
+- **FR-011** Expose native ELK edge/order controls through the typed option
+  registry so fan-out, hierarchy-edge merge, and model-order behavior are
+  configurable (`mergeEdges`, `mergeHierarchyEdges`,
+  `considerModelOrder.strategy`, `forceNodeModelOrder`). Global defaults must stay
+  safe for existing non-cluster diagrams; shape-specific defaults may apply only
+  when the graph itself opts into border-routed cross-hierarchy edges, and YAML may
+  still override them explicitly.
 
 ## Success criteria
 
 - **SC-001 (render parity, TLS).** A repo-owned regression renders the **actual
   product SVG** for `tls-certificate-provider-topology` through the product
   render/export path and asserts: nested clusters as compound boxes; per-cluster
-  direction (provider `TB`, service/endpoint/relation rows `LR`); the three
-  load-balancer endpoints on one horizontal row; annotation leaves show **both**
-  label lines with grey chrome; no truncated label; and every arrow path equals
-  its ELK `edge.section` (plus border trim). A documented side-by-side vs
+  direction (provider vertical, load-balancer compound horizontal); the three
+  load-balancer endpoints on one horizontal row; the TLS certificate annotations
+  are two-line **arrow labels**, not authored boxes; those labels use the
+  annotation class contract instead of bespoke grey pills; no truncated label;
+  repeated consumer arrows from the top provider fan out from one ELK-owned shared
+  stem instead of separate rogue starts;
+  the source/root provider compound is classified as a section while target/root
+  service compounds are parents through configured role assignment; same-layer
+  bottom-row compounds have matching final ELK heights when the layout profile is
+  enabled; and every visible frame rectangle and semantic TLS edge label has
+  matching raw ELK and product geometry. A documented side-by-side vs
   `01-source-mermaid-reference.png` is attached.
 - **SC-002 (cold-start portability).** A **second, structurally different**
   clustered fixture (different row sizes / item counts, not derived from TLS)
@@ -243,4 +265,7 @@ or engine-resolution-only evidence satisfies the gate (G6).
   explicitly; it is a prerequisite, not a fixture hack.
 - **Measurement parity.** Our `TextMeasureAdapter` replaces Mermaid's `getBBox`.
   Node sizes may differ slightly; the gate is visual parity, not pixel identity.
-```
+- **ELK option defaults.** Broadly enabling `mergeEdges` or forced model order can
+  change unrelated non-cluster diagrams. Keep global defaults conservative and
+  prefer typed, graph-shape defaults plus authorable YAML overrides over
+  fixture-keyed route patches.

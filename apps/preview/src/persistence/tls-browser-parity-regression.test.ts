@@ -22,30 +22,27 @@ const TSX_CLI = path.join(APP_ROOT, "node_modules", "tsx", "dist", "cli.mjs");
 
 const TLS_IDS = [
   "tls_provider",
-  "provider_stack",
   "openstack_services",
   "load_balancers",
-  "octavia_certificates",
-  "amphora_issuing_ca",
-  "amphora_controller_cert",
-  "public_certificates",
-  "internal_certificates",
-  "rgw_certificates",
   "octavia_k8s",
   "traefik_public",
   "traefik_internal",
   "traefik_rgw",
 ] as const;
 
-const HEADED_COMPOUND_WIDTH_TOLERANCE = new Set([
-  "tls_provider",
-  "openstack_services",
-  "load_balancers",
-]);
+const REMOVED_TLS_AUTHORED_FRAME_IDS = [
+  "services_row",
+  "load_balancer_endpoint_row",
+  "octavia_certificates",
+  "amphora_issuing_ca",
+  "amphora_controller_cert",
+  "public_certificates",
+  "internal_certificates",
+  "rgw_certificates",
+] as const;
 
 const SERVER_GEOMETRY_IDS = new Set([
   "tls_provider",
-  "provider_stack",
   "openstack_services",
   "load_balancers",
   "octavia_k8s",
@@ -200,6 +197,15 @@ function findFrameById(frame: FrameLike, id: string): FrameLike | null {
   return null;
 }
 
+function frameGeometry(frame: FrameLike): { x: number; y: number; width: number; height: number } {
+  return {
+    x: frame._layout.placedX,
+    y: frame._layout.placedY,
+    width: frame._layout.placedW,
+    height: frame._layout.placedH,
+  };
+}
+
 async function renderedRect(page: Page, id: string): Promise<{ x: number; y: number; width: number; height: number }> {
   return page.locator(`#dg-frame-layer [data-component-id="${id}"] > rect`).evaluate(function (element) {
     const rect = element as SVGRectElement;
@@ -212,7 +218,59 @@ async function renderedRect(page: Page, id: string): Promise<{ x: number; y: num
   });
 }
 
-test("TLS forced ELK browser render matches server geometry for cert rows and parent compounds", async (t) => {
+async function renderedArrowLabelLines(page: Page, id: string): Promise<string[]> {
+  return page.locator(`#dg-arrow-layer [data-component-id="${id}"] text tspan`).evaluateAll((elements) => (
+    elements.map((element) => (element.textContent ?? "").trim())
+  ));
+}
+
+async function renderedArrowLabelSpans(page: Page, id: string): Promise<Array<{ text: string; x: number }>> {
+  return page.locator(`#dg-arrow-layer [data-component-id="${id}"] text tspan`).evaluateAll((elements) => (
+    elements.map((element) => ({
+      text: (element.textContent ?? "").trim(),
+      x: Number(element.getAttribute("x") ?? 0),
+    }))
+  ));
+}
+
+async function renderedArrowLabelTextAttrs(page: Page, id: string): Promise<{ textAnchor: string | null; dominantBaseline: string | null }> {
+  return page.locator(`#dg-arrow-layer [data-component-id="${id}"] text`).evaluate((element) => ({
+    textAnchor: element.getAttribute("text-anchor"),
+    dominantBaseline: element.getAttribute("dominant-baseline"),
+  }));
+}
+
+async function renderedHeadingWeight(page: Page, id: string): Promise<string> {
+  return page.locator(`#dg-frame-layer [data-component-id="${id}__heading"] text tspan`).first().evaluate((element) => (
+    element.getAttribute("font-weight") ?? ""
+  ));
+}
+
+async function selectFrameAndReadVariant(page: Page, id: string): Promise<string> {
+  const rect = page.locator(`#dg-frame-layer [data-component-id="${id}"] > rect`).first();
+  const box = await rect.boundingBox();
+  assert.ok(box, `expected selectable frame rect for ${id}`);
+  await page.mouse.click(box.x + Math.min(4, box.width / 2), box.y + Math.min(4, box.height / 2));
+  const select = page.locator('#inspector select[data-dg-change-action="single-style"]').first();
+  await select.waitFor({ state: "visible", timeout: 30_000 });
+  return select.inputValue();
+}
+
+async function renderedArrowLabelRect(page: Page, id: string): Promise<{ x: number; y: number; width: number; height: number; fill: string; stroke: string }> {
+  return page.locator(`#dg-arrow-layer [data-component-id="${id}"] > rect`).evaluate((element) => {
+    const rect = element as SVGRectElement;
+    return {
+      x: Number(rect.getAttribute("x") ?? 0),
+      y: Number(rect.getAttribute("y") ?? 0),
+      width: Number(rect.getAttribute("width") ?? 0),
+      height: Number(rect.getAttribute("height") ?? 0),
+      fill: rect.getAttribute("fill") ?? "",
+      stroke: rect.getAttribute("stroke") ?? "",
+    };
+  });
+}
+
+test("TLS forced ELK browser render matches server geometry for the top-band TLS layout", async (t) => {
   const browser = await launchChromiumOrSkip(t);
   let page: Page | undefined;
   let server: ChildProcessWithoutNullStreams | undefined;
@@ -248,30 +306,101 @@ test("TLS forced ELK browser render matches server geometry for cert rows and pa
       if (!SERVER_GEOMETRY_IDS.has(id)) {
         continue;
       }
-      const positionTolerance = id.startsWith("traefik_") ? 20 : 1;
-      const widthTolerance = HEADED_COMPOUND_WIDTH_TOLERANCE.has(id) ? 16 : 1;
-      assert.ok(
-        Math.abs(rect.x - frame._layout.placedX) <= positionTolerance &&
-        Math.abs(rect.y - frame._layout.placedY) <= 1 &&
-        Math.abs(rect.width - frame._layout.placedW) <= widthTolerance &&
-        Math.abs(rect.height - frame._layout.placedH) <= 1,
-        `${id} browser rect should match server geometry; browser=${JSON.stringify(rect)} server=${JSON.stringify(frame._layout)}`,
+      assert.deepEqual(
+        rect,
+        frameGeometry(frame),
+        `${id} browser rect should match server geometry exactly`,
       );
     }
 
+    for (const id of REMOVED_TLS_AUTHORED_FRAME_IDS) {
+      assert.equal(findFrameById(root, id), null, `expected ${id} to be removed from the authored frame tree`);
+      assert.equal(
+        await page.locator(`#dg-frame-layer [data-component-id="${id}"]`).count(),
+        0,
+        `browser render should not emit a frame group for ${id}`,
+      );
+    }
+    assert.equal(
+      await page.locator(`#dg-arrow-layer [data-component-id^="helper-order-"]`).count(),
+      0,
+      "browser render should not emit transparent helper arrow groups for the TLS fixture",
+    );
+
     assert.ok(
-      rects.get("octavia_certificates")!.y < rects.get("octavia_k8s")!.y,
-      "browser path should keep the OpenStack cert row above octavia_k8s",
+      rects.get("openstack_services")!.y > rects.get("tls_provider")!.y + rects.get("tls_provider")!.height,
+      "browser path should keep the OpenStack compound below the TLS provider band",
     );
     assert.ok(
-      rects.get("public_certificates")!.y < rects.get("traefik_public")!.y,
-      "browser path should keep the load balancer cert row above the endpoint row",
+      Math.abs(rects.get("openstack_services")!.y - rects.get("load_balancers")!.y) <= 48,
+      "browser path should keep the service compounds on one lower row",
+    );
+    assert.equal(
+      rects.get("openstack_services")!.height,
+      rects.get("load_balancers")!.height,
+      "browser path should render lower-row compounds with equal ELK-owned height",
+    );
+    for (const id of ["tls_provider", "openstack_services", "load_balancers"] as const) {
+      assert.equal(
+        await renderedHeadingWeight(page, id),
+        "700",
+        `${id} browser heading should render with the role-derived bold heading style`,
+      );
+    }
+    assert.deepEqual(
+      {
+        tls_provider: await selectFrameAndReadVariant(page, "tls_provider"),
+        openstack_services: await selectFrameAndReadVariant(page, "openstack_services"),
+        load_balancers: await selectFrameAndReadVariant(page, "load_balancers"),
+      },
+      {
+        tls_provider: "section",
+        openstack_services: "parent",
+        load_balancers: "parent",
+      },
+      "browser inspector variant dropdown should reflect configured semantic roles, not raw fill/border defaults",
     );
     assert.ok(
       rects.get("traefik_public")!.x < rects.get("traefik_internal")!.x &&
       rects.get("traefik_internal")!.x < rects.get("traefik_rgw")!.x,
       "browser path should keep the endpoint row in authored left-to-right order",
     );
+    assert.equal(
+      (await renderedArrowLabelLines(page, "edge-2")).join("\n"),
+      "amphora-issuing-ca\ninterface: tls-certificates",
+      "browser path should render the OpenStack TLS arrow label text",
+    );
+    assert.equal(
+      (await renderedArrowLabelLines(page, "edge-4")).join("\n"),
+      "certificates\ninterface: tls-certificates",
+      "browser path should render the load balancer TLS arrow label text",
+    );
+    for (const edgeId of ["edge-2", "edge-4"] as const) {
+      const expectedLabel = diagram.arrows.find((arrow) => arrow.id === edgeId)?.elkLabels?.[0];
+      assert.ok(expectedLabel, `expected server ELK label geometry for ${edgeId}`);
+      const labelRect = await renderedArrowLabelRect(page, edgeId);
+      assert.deepEqual(
+        labelRect,
+        {
+          x: expectedLabel.x,
+          y: expectedLabel.y,
+          width: expectedLabel.width,
+          height: expectedLabel.height,
+          fill: "transparent",
+          stroke: "none",
+        },
+        `${edgeId} browser label rect should match server ELK label geometry and annotation styling`,
+      );
+      assert.deepEqual(
+        await renderedArrowLabelTextAttrs(page, edgeId),
+        { textAnchor: null, dominantBaseline: null },
+        `${edgeId} browser label text should not use centered bespoke SVG alignment`,
+      );
+      assert.ok(
+        (await renderedArrowLabelSpans(page, edgeId)).every((entry) => entry.x === labelRect.x),
+        `${edgeId} browser label text should be annotation-aligned to the ELK label box`,
+      );
+    }
   } finally {
     if (page) {
       await page.close().catch(() => {});

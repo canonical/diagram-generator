@@ -116,6 +116,24 @@ export const ELK_LAYERED_PARAM_SPECS: ElkParamSpec[] = [
     description: 'Drop bend points that do not change routing.',
   },
   {
+    key: 'elk.layered.mergeEdges',
+    label: 'Merge shared edge ports',
+    group: 'Edges',
+    kind: 'boolean',
+    defaultValue: 'false',
+    description:
+      'Let no-port edges with the same endpoint share one node-side contact point before fanning out; useful for repeated consumer links from a common source.',
+  },
+  {
+    key: 'elk.layered.mergeHierarchyEdges',
+    label: 'Merge hierarchy edges',
+    group: 'Edges',
+    kind: 'boolean',
+    defaultValue: 'true',
+    description:
+      'Let hierarchy-crossing edges share compound-boundary routing points where ELK can treat them as a common hyperedge.',
+  },
+  {
     key: 'elk.layered.nodePlacement.favorStraightEdges',
     label: 'Favor straight edges',
     group: 'Edges',
@@ -136,6 +154,22 @@ export const ELK_LAYERED_PARAM_SPECS: ElkParamSpec[] = [
     description: 'Batch layout strategies only. Interactive layering needs explicit layer constraints that this preview does not author.',
   },
   {
+    key: 'elk.layered.considerModelOrder.strategy',
+    label: 'Model order strategy',
+    group: 'Layering',
+    kind: 'enum',
+    defaultValue: '',
+    enumValues: [
+      { value: '', label: 'Auto' },
+      { value: 'NODES_AND_EDGES', label: 'Nodes and edges' },
+      { value: 'PREFER_EDGES', label: 'Prefer edge order' },
+      { value: 'PREFER_NODES', label: 'Prefer node order' },
+      { value: 'NONE', label: 'None' },
+    ],
+    description:
+      'Controls how strongly ELK preserves authored node and edge order when reducing crossings.',
+  },
+  {
     key: 'elk.layered.crossingMinimization.strategy',
     label: 'Crossing minimization',
     group: 'Layering',
@@ -145,6 +179,15 @@ export const ELK_LAYERED_PARAM_SPECS: ElkParamSpec[] = [
       { value: 'LAYER_SWEEP', label: 'Layer sweep' },
     ],
     description: 'Layer sweep is the supported batch mode here. Interactive crossing minimization needs in-layer order constraints and is invalid for these compound preview graphs.',
+  },
+  {
+    key: 'elk.layered.crossingMinimization.forceNodeModelOrder',
+    label: 'Force authored node order',
+    group: 'Layering',
+    kind: 'boolean',
+    defaultValue: 'false',
+    description:
+      'Bias crossing minimization to keep siblings in authored order when edge routing optimizations would otherwise swap same-layer compounds.',
   },
   {
     key: 'elk.layered.nodePlacement.strategy',
@@ -158,6 +201,19 @@ export const ELK_LAYERED_PARAM_SPECS: ElkParamSpec[] = [
       { value: 'SIMPLE', label: 'Simple' },
     ],
     description: 'Changes layered node placement heuristics after ranking/crossing resolution. Differences are topology-dependent, so compare on real diagrams before keeping the override.',
+  },
+  {
+    key: 'org.eclipse.elk.layered.considerModelOrder.components',
+    label: 'Compound order',
+    group: 'Compound',
+    kind: 'enum',
+    defaultValue: 'MODEL_ORDER',
+    enumValues: [
+      { value: 'MODEL_ORDER', label: 'Preserve authored order' },
+      { value: '', label: 'Auto' },
+    ],
+    description:
+      'Keeps top-level and compound siblings in authored order when layered layout would otherwise reorder whole components to shorten cross-hierarchy edges.',
   },
   {
     key: 'elk.hierarchyHandling',
@@ -198,6 +254,7 @@ function unsupportedElkLayeredOverrideKeys(
 export function elkParamDefaults(): Record<string, string> {
   const out: Record<string, string> = { 'elk.algorithm': 'layered' };
   for (const spec of ELK_LAYERED_PARAM_SPECS) {
+    if (spec.defaultValue === '') continue;
     out[spec.key] = spec.defaultValue;
   }
   return out;

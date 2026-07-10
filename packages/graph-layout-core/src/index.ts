@@ -12,6 +12,7 @@ export {
   type GraphPortInput,
   type GraphNodeInput,
   type GraphNodeKind,
+  type GraphContentAlignment,
   type GraphLabelPlacement,
   type GraphEdgeLabelInput,
   type GraphConstraintAxis,

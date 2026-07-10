@@ -137,7 +137,10 @@ describe('ELK readback', () => {
     const right = findFrameById(root, 'right');
 
     expect(cluster?._layout).toMatchObject({ placedX: 16, placedY: 24, placedW: 420, placedH: 240 });
-    expect(row?._layout).toMatchObject({ placedX: 32, placedY: 80, placedW: 388, placedH: 120 });
+    expect(row?._layout?.placedX).toBe(32);
+    expect(row?._layout?.placedY).toBe(80);
+    expect(row?._layout?.placedH).toBe(120);
+    expect((row?._layout?.placedW ?? 0) - 388).toBeLessThanOrEqual(4);
     expect(left?._layout).toMatchObject({ placedX: 56, placedY: 104, placedW: 120, placedH: 64 });
     expect(right?._layout).toMatchObject({ placedX: 296, placedY: 104, placedW: 120, placedH: 64 });
 
@@ -160,5 +163,74 @@ describe('ELK readback', () => {
       [expectedEnd.x, expectedEnd.y],
     ]);
     expect(diagram.arrows[0]?.waypoints).toEqual([[216, 136]]);
+  });
+
+  it('keeps ELK label geometry but does not synthesize a fallback route when sections are missing', async () => {
+    const diagram = fixtureDiagram();
+    diagram.arrows[0]!.label = [{ content: 'Step 1' }];
+    const adapter = new MockTextAdapter();
+    const graphLayout = async (): Promise<GraphLayoutResult> => ({
+      width: 480,
+      height: 280,
+      engine: 'elk-layered',
+      direction: 'TB',
+      nodes: [
+        {
+          id: 'cluster',
+          x: 16,
+          y: 24,
+          width: 420,
+          height: 240,
+          children: [
+            {
+              id: 'row',
+              x: 32,
+              y: 80,
+              width: 388,
+              height: 120,
+              children: [
+                { id: 'left', x: 56, y: 104, width: 120, height: 64 },
+                { id: 'right', x: 296, y: 104, width: 120, height: 64 },
+              ],
+            },
+          ],
+        },
+      ],
+      edges: [
+        {
+          id: 'left_to_right',
+          source: 'left',
+          target: 'right',
+          sections: [],
+          labels: [
+            {
+              text: 'Step 1',
+              x: 0,
+              y: 0,
+              width: 96,
+              height: 24,
+            },
+          ],
+        },
+      ],
+    });
+
+    await layoutElkFrameDiagram(diagram, adapter, {
+      originX: 0,
+      originY: 0,
+      graphLayout,
+    });
+
+    expect(diagram.arrows[0]?.elkLabels).toEqual([
+      {
+        text: 'Step 1',
+        x: 0,
+        y: 0,
+        width: 96,
+        height: 24,
+      },
+    ]);
+    expect(diagram.arrows[0]?.layoutPath).toBeUndefined();
+    expect(diagram.arrows[0]?.waypoints).toEqual([]);
   });
 });

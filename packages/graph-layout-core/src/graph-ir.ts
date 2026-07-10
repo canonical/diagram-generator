@@ -12,6 +12,17 @@ export type GraphConstraintAxis = 'horizontal' | 'vertical';
 
 export type GraphNodeKind = 'node' | 'compound' | 'ordering-cluster';
 
+export type GraphContentAlignment =
+  | 'top-left'
+  | 'top-center'
+  | 'top-right'
+  | 'center-left'
+  | 'center'
+  | 'center-right'
+  | 'bottom-left'
+  | 'bottom-center'
+  | 'bottom-right';
+
 /** Matches planning `layout_mapping.py` layered families. */
 export type LayeredCorpusFamily =
   | 'deployment_and_runtime_topology'
@@ -67,6 +78,8 @@ export interface GraphNodeInput {
   height: number;
   /** Optional local flow direction for nested compound children. */
   direction?: LayoutDirection;
+  /** Optional content alignment for compound children inside a sized parent. */
+  contentAlignment?: GraphContentAlignment;
   /** Optional compound insets for layout engines that support child padding. */
   padding?: GraphInsetsInput;
   /** Optional explicit ports; layout adapters may also synthesize implicit ports. */
@@ -134,6 +147,11 @@ export interface GraphLayoutInput {
   id: string;
   direction: LayoutDirection;
   spacingProfile?: SpacingProfile;
+  /**
+   * Routes cross-hierarchy edges to node borders instead of synthesizing
+   * implicit fixed-position ports on their leaf endpoints.
+   */
+  routeCrossHierarchyEdgesToBorders?: boolean;
   nodes: GraphNodeInput[];
   edges: GraphEdgeInput[];
   constraints?: GraphConstraintInput[];

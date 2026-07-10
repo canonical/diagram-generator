@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest';
 import type { GraphLayoutInput } from '@diagram-generator/graph-layout-core';
 
 import {
-  edgeEndpointsTouchEndpointNodes,
+  buildElkGraph,
+  buildLayeredLayoutOptions,
   indexPlacedNodes,
   layoutLayered,
 } from '../src/index.js';
@@ -15,6 +16,7 @@ function clusteredInput(): GraphLayoutInput {
     id: 'root',
     direction: 'TB',
     spacingProfile: 'normal',
+    routeCrossHierarchyEdgesToBorders: true,
     nodes: [
       {
         id: 'provider',
@@ -23,34 +25,35 @@ function clusteredInput(): GraphLayoutInput {
         height: 0,
         direction: 'TB',
         children: [
-          {
-            id: 'services_row',
-            kind: 'ordering-cluster',
-            width: 0,
-            height: 0,
-            direction: 'LR',
-            children: [
-              { id: 'service_a', ...BOX },
-              { id: 'service_b', ...BOX },
-            ],
-          },
-          {
-            id: 'endpoints_row',
-            kind: 'ordering-cluster',
-            width: 0,
-            height: 0,
-            direction: 'LR',
-            children: [
-              { id: 'endpoint_a', ...BOX },
-              { id: 'endpoint_b', ...BOX },
-              { id: 'endpoint_c', ...BOX },
-            ],
-          },
+          { id: 'manual', ...BOX },
+        ],
+      },
+      {
+        id: 'services_row',
+        kind: 'compound',
+        width: 0,
+        height: 0,
+        direction: 'LR',
+        children: [
+          { id: 'service_a', ...BOX },
+          { id: 'service_b', ...BOX },
+        ],
+      },
+      {
+        id: 'endpoints_row',
+        kind: 'compound',
+        width: 0,
+        height: 0,
+        direction: 'LR',
+        children: [
+          { id: 'endpoint_a', ...BOX },
+          { id: 'endpoint_b', ...BOX },
+          { id: 'endpoint_c', ...BOX },
         ],
       },
     ],
     edges: [
-      { id: 'cross', source: 'service_a', target: 'endpoint_c' },
+      { id: 'cross', source: 'manual', target: 'endpoint_c' },
       { id: 'local', source: 'service_a', target: 'service_b' },
     ],
   };
@@ -61,6 +64,7 @@ function authoredOrderRowsInput(): GraphLayoutInput {
     id: 'root',
     direction: 'TB',
     spacingProfile: 'normal',
+    routeCrossHierarchyEdgesToBorders: true,
     nodes: [
       {
         id: 'provider',
@@ -72,7 +76,7 @@ function authoredOrderRowsInput(): GraphLayoutInput {
           { id: 'origin', width: 304, height: 64 },
           {
             id: 'services_row',
-            kind: 'ordering-cluster',
+            kind: 'compound',
             width: 0,
             height: 0,
             direction: 'LR',
@@ -84,7 +88,7 @@ function authoredOrderRowsInput(): GraphLayoutInput {
           },
           {
             id: 'endpoints_row',
-            kind: 'ordering-cluster',
+            kind: 'compound',
             width: 0,
             height: 0,
             direction: 'LR',
@@ -109,24 +113,26 @@ function authoredOrderRowsInput(): GraphLayoutInput {
 }
 
 describe('ELK clustered layout', () => {
-  it('lays out clustered LCA-routed edges with native model order and no crash', async () => {
-    const result = await layoutLayered(clusteredInput());
-    const nodes = indexPlacedNodes(result.nodes);
-    const provider = nodes.get('provider');
-    const servicesRow = nodes.get('services_row');
-    const endpointsRow = nodes.get('endpoints_row');
-    const cross = result.edges.find((edge) => edge.id === 'cross');
+  it('builds a border-routed clustered graph without fixed implicit ports on cross-hierarchy leaves', () => {
+    const graph = buildElkGraph(
+      clusteredInput(),
+      buildLayeredLayoutOptions({ direction: 'TB', spacingProfile: 'normal' }),
+    );
+    const provider = graph.children.find((node) => node.id === 'provider');
+    const servicesRow = graph.children.find((node) => node.id === 'services_row');
+    const endpointsRow = graph.children.find((node) => node.id === 'endpoints_row');
+    const cross = graph.edges.find((edge) => edge.id === 'cross');
 
-    expect(provider).toBeDefined();
-    expect(servicesRow).toBeDefined();
-    expect(endpointsRow).toBeDefined();
-    expect(servicesRow!.y).toBeLessThan(endpointsRow!.y);
-    expect(cross?.sections.length).toBeGreaterThan(0);
-    expect(cross?.sections[0]?.bendPoints?.length ?? 0).toBeGreaterThan(0);
-    expect(
-      edgeEndpointsTouchEndpointNodes(cross!.sections[0]!, cross!, nodes, 4),
-      'cross-cluster route should touch the source and target node boundaries',
-    ).toBe(true);
+    expect(graph.layoutOptions['elk.hierarchyHandling']).toBe('INCLUDE_CHILDREN');
+    expect(provider?.children?.[0]?.ports).toBeUndefined();
+    expect(endpointsRow?.children?.[2]?.ports).toBeUndefined();
+    expect(servicesRow?.layoutOptions?.['elk.hierarchyHandling']).toBeDefined();
+    expect(endpointsRow?.layoutOptions?.['elk.hierarchyHandling']).toBeDefined();
+    expect(cross).toMatchObject({
+      id: 'cross',
+      sources: ['manual'],
+      targets: ['endpoint_c'],
+    });
   });
 
   it('preserves authored left-to-right row order for multi-edge clustered fan-outs', async () => {
@@ -137,5 +143,24 @@ describe('ELK clustered layout', () => {
     expect(nodes.get('service_b')!.x).toBeLessThan(nodes.get('service_c')!.x);
     expect(nodes.get('endpoint_a')!.x).toBeLessThan(nodes.get('endpoint_b')!.x);
     expect(nodes.get('endpoint_b')!.x).toBeLessThan(nodes.get('endpoint_c')!.x);
+  });
+
+  it('uses merged shared source starts for no-port clustered fan-outs by default', async () => {
+    const merged = await layoutLayered(authoredOrderRowsInput());
+    const unmerged = await layoutLayered(authoredOrderRowsInput(), {
+      optionOverrides: {
+        'elk.layered.mergeEdges': 'false',
+      },
+    });
+    const originEdgeIds = new Set(['origin_a', 'origin_b', 'origin_c']);
+    const mergedStarts = new Set(merged.edges
+      .filter((edge) => originEdgeIds.has(edge.id))
+      .map((edge) => `${edge.sections[0]?.startPoint.x},${edge.sections[0]?.startPoint.y}`));
+    const unmergedStarts = new Set(unmerged.edges
+      .filter((edge) => originEdgeIds.has(edge.id))
+      .map((edge) => `${edge.sections[0]?.startPoint.x},${edge.sections[0]?.startPoint.y}`));
+
+    expect(mergedStarts.size).toBe(1);
+    expect(unmergedStarts.size).toBeGreaterThan(1);
   });
 });

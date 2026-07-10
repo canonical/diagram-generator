@@ -5,21 +5,20 @@ import {
   isPreviewArrowComponentId,
 } from '../preview-arrow-component-ids.js';
 import { routeArrows, type RoutedArrow } from '../arrow-routing.js';
-import { type Arrow, createLine } from '../frame-model.js';
+import { type Arrow } from '../frame-model.js';
 import { emitRoutedArrowDisplayListItems } from '../render-adapter/display-list.js';
-import {
-  annotationTextToSpec,
-} from '../resolved-spec-typography.js';
 import {
   ARROW_COLOR,
   ARROW_HEAD_HALF_WIDTH,
   ARROW_HEAD_LENGTH,
-  BODY_SIZE,
   GRID_GUTTER,
-  sizeToPx,
 } from '../tokens.js';
-import { lineTopToBaseline } from '../text-render-geometry.js';
 import { appendPreviewDisplayListItems } from './app-display-list-dom.js';
+import {
+  EDGE_LABEL_FILL,
+  EDGE_LABEL_STROKE,
+  edgeLabelRenderLines,
+} from '../edge-label-style.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -97,22 +96,27 @@ function buildArrowLabelsFromElk(
   }
   const fragment = ownerDocument.createDocumentFragment();
   for (const label of arrow.elkLabels) {
-    const spec = annotationTextToSpec(createLine(label.text));
-    const size = spec.size ?? BODY_SIZE;
-    const centerX = label.x + label.width / 2;
-    const centerY = label.y + label.height / 2;
+    const rect = ownerDocument.createElementNS(SVG_NS, 'rect');
+    rect.setAttribute('x', fmtSvgNumber(label.x));
+    rect.setAttribute('y', fmtSvgNumber(label.y));
+    rect.setAttribute('width', fmtSvgNumber(label.width));
+    rect.setAttribute('height', fmtSvgNumber(label.height));
+    rect.setAttribute('fill', EDGE_LABEL_FILL);
+    rect.setAttribute('stroke', EDGE_LABEL_STROKE);
+    fragment.appendChild(rect);
+
     const text = ownerDocument.createElementNS(SVG_NS, 'text');
     text.setAttribute('font-family', 'Ubuntu Sans');
-    text.setAttribute('text-anchor', 'middle');
-    text.setAttribute('dominant-baseline', 'middle');
-    const tspan = ownerDocument.createElementNS(SVG_NS, 'tspan');
-    tspan.setAttribute('x', fmtSvgNumber(centerX));
-    tspan.setAttribute('y', fmtSvgNumber(lineTopToBaseline(centerY - sizeToPx(size) / 2, size)));
-    tspan.setAttribute('font-size', String(size));
-    tspan.setAttribute('font-weight', String(spec.weight ?? '400'));
-    tspan.setAttribute('fill', spec.fill ?? '#666666');
-    tspan.textContent = label.text;
-    text.appendChild(tspan);
+    for (const line of edgeLabelRenderLines(label)) {
+      const tspan = ownerDocument.createElementNS(SVG_NS, 'tspan');
+      tspan.setAttribute('x', fmtSvgNumber(line.x));
+      tspan.setAttribute('y', fmtSvgNumber(line.y));
+      tspan.setAttribute('font-size', line.size);
+      tspan.setAttribute('font-weight', line.weight);
+      tspan.setAttribute('fill', line.fill);
+      tspan.textContent = line.spec.content;
+      text.appendChild(tspan);
+    }
     fragment.appendChild(text);
   }
   return fragment;
@@ -184,7 +188,7 @@ function replacePreviewArrowLabels(
     plan: ReturnType<typeof resolveArrowRenderPlan>;
   },
 ): void {
-  options.group.querySelectorAll(':scope > text').forEach((element) => element.remove());
+  options.group.querySelectorAll(':scope > rect, :scope > text').forEach((element) => element.remove());
   const labelElement = buildArrowLabelElement(options.group.ownerDocument, options.arrow, options.plan);
   if (!labelElement) {
     return;
@@ -337,7 +341,7 @@ export function patchPreviewArrowSvg(
         headHalf,
       }).firstChild;
       if (replacement) {
-        group.querySelectorAll('line, polygon, text').forEach((element) => element.remove());
+        group.querySelectorAll('line, polygon, rect, text').forEach((element) => element.remove());
         Array.from(replacement.childNodes).forEach((child) => group.appendChild(child));
         syncPreviewArrowOriginGeometry(group);
       }

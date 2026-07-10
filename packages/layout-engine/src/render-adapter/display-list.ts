@@ -3,7 +3,6 @@ import {
   FrameDiagram,
   type Arrow,
   type DiagramOverlay,
-  createLine,
 } from "../frame-model.js";
 import {
   arrowheadPathCommands,
@@ -15,11 +14,14 @@ import {
   sizeToPx,
 } from "../tokens.js";
 import { type TextMeasureAdapter } from "../text-measure.js";
-import { annotationTextToSpec } from "../resolved-spec-typography.js";
 import { routeArrows, type RoutedArrow } from "../arrow-routing.js";
-import { lineTopToBaseline } from "../text-render-geometry.js";
 import type { LayoutOutput } from "../layout.js";
 import { tintIconInnerMarkup } from "../icon-markup.js";
+import {
+  EDGE_LABEL_FILL,
+  EDGE_LABEL_STROKE,
+  edgeLabelRenderLines,
+} from "../edge-label-style.js";
 import type {
   Color,
   DisplayList,
@@ -239,20 +241,18 @@ export function emitRoutedArrowDisplayListItems(
 
     if (arrow.elkLabels && arrow.elkLabels.length > 0) {
       for (const label of arrow.elkLabels) {
-        const spec = annotationTextToSpec(createLine(label.text));
-        const size = String(spec.size ?? BODY_SIZE);
+        children.push({
+          kind: "rect",
+          x: label.x,
+          y: label.y,
+          width: label.width,
+          height: label.height,
+          fill: paint(EDGE_LABEL_FILL),
+          stroke: paint(EDGE_LABEL_STROKE),
+        });
         children.push(textBlockItem({
-          lines: [{
-            x: label.x + label.width / 2,
-            y: lineTopToBaseline(label.y + label.height / 2 - sizeToPx(size) / 2, size),
-            size,
-            weight: String(spec.weight ?? "400"),
-            fill: spec.fill ?? "#666666",
-            spec,
-          }],
+          lines: edgeLabelRenderLines(label),
           fontFamily: "Ubuntu Sans",
-          textAnchor: "middle",
-          dominantBaseline: "middle",
         }));
       }
     } else if (plan.label) {

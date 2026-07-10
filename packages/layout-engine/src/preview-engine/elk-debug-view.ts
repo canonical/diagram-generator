@@ -196,13 +196,22 @@ export function renderPreviewElkRawView(
       group.appendChild(box);
 
       const text = options.ownerDocument.createElementNS(svgNs, 'text');
-      text.setAttribute('x', fmtSvgNumber(x + label.width / 2));
-      text.setAttribute('y', fmtSvgNumber(y + label.height / 2 + 4));
       text.setAttribute('text-anchor', 'middle');
       text.setAttribute('font-family', 'sans-serif');
       text.setAttribute('font-size', '10');
       text.setAttribute('fill', '#111111');
-      text.textContent = label.text;
+      const lines = String(label.text).split('\n');
+      const lineHeight = 12;
+      const totalHeight = lines.length * lineHeight;
+      let textY = y + (label.height - totalHeight) / 2 + 10;
+      for (const lineText of lines) {
+        const tspan = options.ownerDocument.createElementNS(svgNs, 'tspan');
+        tspan.setAttribute('x', fmtSvgNumber(x + label.width / 2));
+        tspan.setAttribute('y', fmtSvgNumber(textY));
+        tspan.textContent = lineText;
+        text.appendChild(tspan);
+        textY += lineHeight;
+      }
       group.appendChild(text);
     }
   }
