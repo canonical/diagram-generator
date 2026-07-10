@@ -5,7 +5,7 @@ import { createFrameDiagramPayload } from "./dev-server.js";
 type PluginTestables = {
   buildContainerNode: (node: any, serverUrl: string, context: any) => Promise<any>;
   createImportBuildContext: () => any;
-  resolveComponentMapping: () => any;
+  resolveComponentMapping: () => Promise<any>;
   upsertFrameDiagram: (serverUrl: string, slug: string) => Promise<any>;
   upsertYamlDiagram: (serverUrl: string, yamlText: string, sourceName: string) => Promise<any>;
   validateImportedComponentStructure: (rootFrame: any, payloadRoot: any) => number;
@@ -269,6 +269,7 @@ class FakeSceneNode {
 }
 
 class FakeFigma {
+  root = new FakeSceneNode("DOCUMENT");
   currentPage = new FakeSceneNode("PAGE");
   viewport = {
     center: { x: 0, y: 0 },
@@ -280,12 +281,24 @@ class FakeFigma {
   };
   command: string | undefined = undefined;
   notifications: Array<{ text: string; options: unknown }> = [];
+  loadAllPagesAsyncCount = 0;
 
   reset() {
+    this.root = new FakeSceneNode("DOCUMENT");
     this.currentPage = new FakeSceneNode("PAGE");
+    this.currentPage.name = "Page 1";
     this.currentPage.selection = [];
+    this.root.appendChild(this.currentPage);
     this.viewport.center = { x: 0, y: 0 };
     this.notifications = [];
+    this.loadAllPagesAsyncCount = 0;
+  }
+
+  createPage(name: string) {
+    const page = new FakeSceneNode("PAGE");
+    page.name = name;
+    this.root.appendChild(page);
+    return page;
   }
 
   createFrame() {
@@ -311,6 +324,10 @@ class FakeFigma {
 
   async loadFontAsync(_font: { family: string; style: string }) {
     return undefined;
+  }
+
+  async loadAllPagesAsync() {
+    this.loadAllPagesAsyncCount += 1;
   }
 
   notify(text: string, options: unknown) {
@@ -576,14 +593,16 @@ function makeBoxVariant(role: "Child" | "Parent" | "Section", includeSlot: boole
   return component;
 }
 
-function installBoxComponentSet(options: { slotRejectsMutation?: boolean } = {}) {
+function installBoxComponentSet(options: { slotRejectsMutation?: boolean } = {}, parent: FakeSceneNode = fakeFigma.currentPage) {
   const set = new FakeSceneNode("COMPONENT_SET");
   set.name = "box";
   set.appendChild(makeBoxVariant("Child", false));
   set.appendChild(makeBoxVariant("Parent", true, Boolean(options.slotRejectsMutation)));
   set.appendChild(makeBoxVariant("Section", true, Boolean(options.slotRejectsMutation)));
-  fakeFigma.currentPage.appendChild(set);
-  fakeFigma.currentPage.selection = [set];
+  parent.appendChild(set);
+  if (parent === fakeFigma.currentPage) {
+    fakeFigma.currentPage.selection = [set];
+  }
   return set;
 }
 
@@ -826,28 +845,29 @@ test("upsertYamlDiagram posts selected YAML and imports returned payload", async
   assert.equal(fakeFigma.currentPage.selection[0]?.name, "Selected diagram");
 });
 
-test("resolveComponentMapping finds selected box role variants", () => {
+test("resolveComponentMapping finds selected box role variants", async () => {
   resetTestState();
   installBoxComponentSet();
 
-  const mapping = testables.resolveComponentMapping();
+  const mapping = await testables.resolveComponentMapping();
 
   assert.ok(mapping);
   assert.equal(mapping.componentSet.name, "box");
   assert.equal(mapping.roleComponents.get("Child")?.name, "Role=Child");
   assert.equal(mapping.roleComponents.get("Parent")?.name, "Role=Parent");
   assert.equal(mapping.roleComponents.get("Section")?.name, "Role=Section");
+  assert.equal(fakeFigma.loadAllPagesAsyncCount, 1);
 });
 
-test("resolveComponentMapping rejects incomplete or ambiguous box mappings", () => {
+test("resolveComponentMapping rejects incomplete or ambiguous box mappings", async () => {
   resetTestState();
   installIncompleteBoxComponentSet();
-  assert.throws(() => testables.resolveComponentMapping(), /missing Role=Section/);
+  await assert.rejects(() => testables.resolveComponentMapping(), /missing Role=Section/);
 
   resetTestState();
   installBoxComponentSet();
   installBoxComponentSet();
-  assert.throws(() => testables.resolveComponentMapping(), /candidate "box" component sets/);
+  await assert.rejects(() => testables.resolveComponentMapping(), /candidate "box" component sets/);
 });
 
 test("upsertYamlDiagram uses box component variants and instance slots when available", async () => {
@@ -886,6 +906,49 @@ test("upsertYamlDiagram uses box component variants and instance slots when avai
   assert.equal(panel?.name, "Panel 1");
   assert.equal(child?.type, "INSTANCE");
   assert.equal(slotBody?.name, "panel-1/body");
+});
+
+test("upsertYamlDiagram finds components and copied icons on non-current pages", async () => {
+  resetTestState();
+  const componentsPage = fakeFigma.createPage("Components");
+  const iconsPage = fakeFigma.createPage("Brand icons");
+  installBoxComponentSet({}, componentsPage);
+  installIconComponent("Gateway.svg", iconsPage);
+  fakeFigma.currentPage.selection = [];
+  fetchState.payload = {
+    slug: "cross-page-components",
+    title: "Cross-page components",
+    source: {
+      kind: "selected-yaml",
+      name: "cross-page.yaml",
+    },
+    root: makeRoot([
+      makeLeaf({
+        id: "icon-child",
+        name: "Gateway child",
+        icon: {
+          name: "Gateway.svg",
+          size: 48,
+          path: "/icons/Gateway.svg",
+        },
+      }),
+    ]),
+  };
+
+  const result = await testables.upsertYamlDiagram(
+    "http://localhost:3846",
+    "title: Cross-page components\nroot:\n  id: page\n",
+    "cross-page.yaml",
+  );
+  const importedRoot = fakeFigma.currentPage.selection[0]!;
+  const child = findImportedById(importedRoot, "icon-child");
+  const iconTarget = child ? child.findAll((node) => node.name === "Network.svg")[0] : null;
+
+  assert.equal(fakeFigma.loadAllPagesAsyncCount, 1);
+  assert.equal(result.componentMode, "box");
+  assert.equal(result.componentInstanceCount, 1);
+  assert.equal(child?.type, "INSTANCE");
+  assert.equal(iconTarget?.swappedComponentName, "Gateway.svg");
 });
 
 test("upsertYamlDiagram reports missing icon components in component mode", async () => {

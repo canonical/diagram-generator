@@ -50,6 +50,9 @@
   roles, levels, variants, and component-property ownership.
 - [x] T021 Implement component-set discovery in the current Figma file without
   relying only on transient node IDs.
+- [x] T021a Load/search all Figma pages for component and icon discovery so
+  imports on `Page 1` can resolve the `box` component on `Components` and
+  copied icons on `Brand icons`.
 - [x] T022 Implement variant/component-property resolution and validation.
 - [x] T023 Fail import with actionable messages for missing, duplicated,
   ambiguous, or incomplete mappings.

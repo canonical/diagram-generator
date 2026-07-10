@@ -5,8 +5,9 @@ This is a local-development Figma Design plugin for specs 078 and 079.
 Current scope:
 
 - imports a user-selected frame YAML file
-- when a `box` component set is present in the Figma file, maps semantic boxes
-  to its `Role=Child`, `Role=Parent`, and `Role=Section` variants
+- when a `box` component set is present anywhere in the Figma file, maps
+  semantic boxes to its `Role=Child`, `Role=Parent`, and `Role=Section`
+  variants
 - inserts generated horizontal/vertical auto-layout slot containers for nested
   component children
 - falls back to nested native Figma auto-layout frames only when no `box`
@@ -48,9 +49,9 @@ Current scope:
 
 - The plugin depends on the local dev server staying reachable from Figma
   Desktop.
-- Component-mode icon matching searches the current Figma file outside the
-  `box` component set for matching icon components or `.svg`-named cloneable
-  icon nodes. Missing or unapplied YAML icons fail the import; they are not
-  silently redrawn as raw SVG fallback.
+- Component-mode icon matching loads/searches all pages in the current Figma
+  file outside the `box` component set for matching icon components or
+  `.svg`-named cloneable icon nodes. Missing or unapplied YAML icons fail the
+  import; they are not silently redrawn as raw SVG fallback.
 - If you change plugin code, rebuild and reload the development plugin in
   Figma before retesting.

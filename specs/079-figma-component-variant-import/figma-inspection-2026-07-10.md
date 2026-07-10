@@ -64,6 +64,16 @@ The separate Brand icons library was still not inspected in this pass. The
 active connector context was the box component file; unauthenticated REST access
 to the icon file had already returned `403 Forbidden`.
 
+The design file's top-level pages later visible through the connector were:
+
+- `0:1` - `Page 1`
+- `64:2` - `Brand icons`
+- `58:2` - `Components`
+
+This matters operationally: the import target page is not necessarily the same
+page as the `box` component or copied icon assets. The plugin resolver must
+load/search all file pages before deciding that component mode is unavailable.
+
 ### Third Pass / User-Confirmed Icon Copy
 
 The user then copied the icon assets into the `Diagram generator figma test`

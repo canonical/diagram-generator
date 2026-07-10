@@ -128,6 +128,7 @@ interface ComponentMapping {
   componentSet: any;
   roleComponents: Map<"Child" | "Parent" | "Section", any>;
   iconSources: Map<string, IconSource>;
+  searchedPageCount: number;
 }
 
 interface IconSource {
@@ -974,6 +975,12 @@ function visitSceneTree(root: any, visitor: (node: any) => void) {
   }
 }
 
+async function loadDocumentPagesForMapping() {
+  if (typeof figma.loadAllPagesAsync === "function") {
+    await figma.loadAllPagesAsync();
+  }
+}
+
 function isDescendantOf(node: any, ancestor: any) {
   for (let current = node?.parent ?? null; current; current = current.parent ?? null) {
     if (current === ancestor) {
@@ -981,6 +988,15 @@ function isDescendantOf(node: any, ancestor: any) {
     }
   }
   return false;
+}
+
+function findAncestorPage(node: any) {
+  for (let current = node; current; current = current.parent ?? null) {
+    if (current.type === "PAGE") {
+      return current;
+    }
+  }
+  return null;
 }
 
 function hasImportedAncestor(node: any) {
@@ -1006,12 +1022,15 @@ function parseVariantRole(name: string): "Child" | "Parent" | "Section" | null {
 }
 
 function collectCandidateRoots() {
-  const roots: any[] = [];
+  const roots = new Set<any>();
   for (const node of figma.currentPage.selection ?? []) {
-    roots.push(node);
+    roots.add(node);
   }
-  roots.push(figma.currentPage);
-  return roots;
+  roots.add(figma.currentPage);
+  for (const page of figma.root?.children ?? []) {
+    roots.add(page);
+  }
+  return [...roots];
 }
 
 function findBoxComponentSets() {
@@ -1037,43 +1056,53 @@ function normalizeIconName(name: string) {
 
 function collectIconSources(componentSet: any) {
   const icons = new Map<string, IconSource>();
-  visitSceneTree(figma.currentPage, (node) => {
-    if (!node || node === componentSet || isDescendantOf(node, componentSet) || hasImportedAncestor(node)) {
-      return;
-    }
-    if (parseVariantRole(node.name)) {
-      return;
-    }
+  for (const root of collectCandidateRoots()) {
+    visitSceneTree(root, (node) => {
+      if (!node || node === componentSet || isDescendantOf(node, componentSet) || hasImportedAncestor(node)) {
+        return;
+      }
+      if (parseVariantRole(node.name)) {
+        return;
+      }
 
-    const normalized = normalizeIconName(node.name);
-    if (!normalized || icons.has(normalized)) {
-      return;
-    }
+      const normalized = normalizeIconName(node.name);
+      if (!normalized || icons.has(normalized)) {
+        return;
+      }
 
-    if (node.type === "COMPONENT" && typeof node.createInstance === "function") {
-      icons.set(normalized, {
-        kind: "component",
-        name: String(node.name || ""),
-        node,
-      });
-      return;
-    }
+      if (node.type === "COMPONENT" && typeof node.createInstance === "function") {
+        icons.set(normalized, {
+          kind: "component",
+          name: String(node.name || ""),
+          node,
+        });
+        return;
+      }
 
-    if (/\.svg$/i.test(String(node.name || "")) && typeof node.clone === "function") {
-      icons.set(normalized, {
-        kind: "cloneable",
-        name: String(node.name || ""),
-        node,
-      });
-    }
-  });
+      if (/\.svg$/i.test(String(node.name || "")) && typeof node.clone === "function") {
+        icons.set(normalized, {
+          kind: "cloneable",
+          name: String(node.name || ""),
+          node,
+        });
+      }
+    });
+  }
   return icons;
 }
 
-function resolveComponentMapping(): ComponentMapping | null {
+async function resolveComponentMapping(): Promise<ComponentMapping | null> {
+  await loadDocumentPagesForMapping();
   const componentSets = findBoxComponentSets();
   if (componentSets.length > 1) {
-    throw new Error(`Found ${componentSets.length} candidate "${BOX_COMPONENT_SET_NAME}" component sets; keep exactly one visible/selected for import.`);
+    const names = componentSets
+      .map((node) => {
+        const page = findAncestorPage(node);
+        return page?.name ? `${page.name}/${node.name}` : String(node.name || BOX_COMPONENT_SET_NAME);
+      })
+      .sort()
+      .join(", ");
+    throw new Error(`Found ${componentSets.length} candidate "${BOX_COMPONENT_SET_NAME}" component sets (${names}); keep exactly one visible/selected for import.`);
   }
   const componentSet = componentSets[0];
   if (!componentSet) {
@@ -1097,10 +1126,13 @@ function resolveComponentMapping(): ComponentMapping | null {
     }
   }
 
+  const pageCount = (figma.root?.children ?? []).length || 1;
+
   return {
     componentSet,
     roleComponents,
     iconSources: collectIconSources(componentSet),
+    searchedPageCount: pageCount,
   };
 }
 
@@ -1752,7 +1784,7 @@ async function upsertFrameDiagramPayload(
   const priorX = existing ? existing.x : null;
   const priorY = existing ? existing.y : null;
   const buildContext = createImportBuildContext();
-  const componentMapping = resolveComponentMapping();
+  const componentMapping = await resolveComponentMapping();
 
   try {
     const frame = await buildContainerNode(payload.root, serverUrl, buildContext, componentMapping);
@@ -1799,6 +1831,8 @@ async function upsertFrameDiagramPayload(
       componentInstanceCount: buildContext.componentInstanceCount,
       instanceSlotCount: buildContext.instanceSlotCount,
       detachedSlotCount: buildContext.detachedSlotCount,
+      componentSearchPageCount: componentMapping?.searchedPageCount ?? ((figma.root?.children ?? []).length || 1),
+      iconSourceCount: componentMapping?.iconSources.size ?? 0,
       refreshed: Boolean(existing),
     };
   } catch (error) {
@@ -1878,7 +1912,7 @@ async function runDiagramImport(serverUrl: string, slug: string) {
   const result = await upsertFrameDiagram(serverUrl, slug);
   figma.ui.postMessage({
     type: "done",
-    text: `${result.refreshed ? "Refreshed" : "Inserted"} ${result.title} (${Math.round(result.width)}x${Math.round(result.height)}), root children: ${result.childCount}, imported nodes: ${result.descendantCount}, sizing verified: ${result.sizingVerifiedCount}, component verified: ${result.componentVerifiedCount}, mode: ${result.componentMode}, components: ${result.componentInstanceCount}, instance slots: ${result.instanceSlotCount}, detached slots: ${result.detachedSlotCount}`,
+    text: `${result.refreshed ? "Refreshed" : "Inserted"} ${result.title} (${Math.round(result.width)}x${Math.round(result.height)}), root children: ${result.childCount}, imported nodes: ${result.descendantCount}, sizing verified: ${result.sizingVerifiedCount}, component verified: ${result.componentVerifiedCount}, mode: ${result.componentMode}, components: ${result.componentInstanceCount}, instance slots: ${result.instanceSlotCount}, detached slots: ${result.detachedSlotCount}, searched pages: ${result.componentSearchPageCount}, icon sources: ${result.iconSourceCount}`,
   });
 }
 
@@ -1887,7 +1921,7 @@ async function runYamlImport(serverUrl: string, yamlText: string, sourceName: st
   const result = await upsertYamlDiagram(serverUrl, yamlText, sourceName);
   figma.ui.postMessage({
     type: "done",
-    text: `${result.refreshed ? "Refreshed" : "Inserted"} ${result.title} (${Math.round(result.width)}x${Math.round(result.height)}), root children: ${result.childCount}, imported nodes: ${result.descendantCount}, sizing verified: ${result.sizingVerifiedCount}, component verified: ${result.componentVerifiedCount}, mode: ${result.componentMode}, components: ${result.componentInstanceCount}, instance slots: ${result.instanceSlotCount}, detached slots: ${result.detachedSlotCount}`,
+    text: `${result.refreshed ? "Refreshed" : "Inserted"} ${result.title} (${Math.round(result.width)}x${Math.round(result.height)}), root children: ${result.childCount}, imported nodes: ${result.descendantCount}, sizing verified: ${result.sizingVerifiedCount}, component verified: ${result.componentVerifiedCount}, mode: ${result.componentMode}, components: ${result.componentInstanceCount}, instance slots: ${result.instanceSlotCount}, detached slots: ${result.detachedSlotCount}, searched pages: ${result.componentSearchPageCount}, icon sources: ${result.iconSourceCount}`,
   });
 }
 
