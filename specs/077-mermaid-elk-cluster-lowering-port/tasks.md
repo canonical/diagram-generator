@@ -139,6 +139,27 @@
       **Evidence**: `packages/graph-layout-elk/tests/elk-layout-options.test.ts`,
       `packages/graph-layout-elk/tests/elk-clustered-layout.test.ts`, and
       `packages/layout-engine/tests/elk-layout.test.ts`.
+- [ ] **T044** Add an author-facing ELK option inventory audit and close any
+      registry/UI discoverability gaps. Today the preview UI renders every option
+      in the approved graph-engine registries, but the approved registries are a
+      curated subset of official ELK options. Add a durable inventory artifact or
+      generated test fixture that maps official ELK options relevant to our
+      enabled engines (`layered`, `force`, `stress`, `mrtree`, `radial`,
+      `rectpacking`) into one of:
+      `authorable-and-exposed`, `implementation-owned`, `invalid-for-current-IR`,
+      `unsafe-or-too-low-level`, `unsupported-by-elkjs`, or `needs-follow-up`.
+      Every `authorable-and-exposed` option must have a typed `*PARAM_SPECS`
+      entry with reasonable default, UI label, group, description, numeric bounds
+      or enum values, YAML persistence, and preview relayout/save coverage. Every
+      option admitted by YAML must be visible in the layout-params UI; no hidden
+      authorable knobs.
+      **Verify**: inventory parity tests prove registry specs equal preview
+      manifest controls; persistence tests prove edited controls round-trip to
+      `meta.elk`; the audit fails if a newly approved option lacks UI metadata or
+      if a YAML-admitted option is not exposed.
+      **Evidence**: `packages/layout-engine/tests/preview-engine-graph-control-inventory.test.ts`,
+      a new ELK option audit artifact/test, and a focused preview persistence
+      round-trip for at least one newly classified option if gaps are found.
 
 ## Phase 5 — Gate: real render + cold-start portability
 

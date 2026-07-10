@@ -216,6 +216,13 @@ re-creating the 076 mess by redrawing around ELK.
   annotation carriers, layered edge labels default to detached ELK placement; inline
   labels are an explicit opt-in for renderers that keep edge strokes from crossing
   label text.
+- **FR-012** Keep layout-option discoverability explicit: every authorable option
+  admitted by a graph-engine registry/YAML namespace must render in the preview
+  layout-params UI with a reasonable default, label, group, description, bounds,
+  and enum values. Official ELK options that are not admitted must be captured in
+  an audit list with a reason (`implementation-owned`, `invalid for current graph
+  model`, `unsafe default surface`, `unsupported by elkjs`, or `needs dedicated
+  UI/validation`) so users and future agents do not have to fish for hidden knobs.
 
 ## Success criteria
 

@@ -50,6 +50,9 @@ only by the unrelated draw.io golden below) still block spec closeout.
 
 
 **Still open at spec level:**
+- T044 ELK option inventory/discoverability audit remains open: every
+  YAML-admitted option must be visible in the layout-params UI, and omitted
+  official ELK options need an explicit reason instead of becoming hidden knobs.
 - T051 second cold-start clustered fixture remains open.
 - T054 full layout-engine validation remains blocked by the unrelated draw.io
   golden below; focused TLS/layout and full graph-layout/preview validation are
