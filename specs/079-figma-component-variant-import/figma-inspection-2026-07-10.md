@@ -92,9 +92,11 @@ Implementation consequence:
   names
 - Figma `COMPONENT` nodes can be used for native icon instance swaps
 - icon-sized copied Figma `INSTANCE` nodes named with or without `.svg` can be
-  cloned into the box icon position
+  applied by resolving their accessible main component and swapping the box icon
+  target to that component, preserving native instance behavior where Figma
+  exposes it
 - `.svg`-named cloneable nodes such as copied `FRAME`, `GROUP`, `VECTOR`, or
-  `INSTANCE` assets can also be cloned into the box icon position
+  `INSTANCE` assets can also be cloned into the box icon position as a fallback
 - descendants of the `box` component set and previously imported diagram
   subtrees are excluded from icon-source discovery so placeholder icons are not
   mistaken for real library assets

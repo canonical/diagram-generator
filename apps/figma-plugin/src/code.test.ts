@@ -50,6 +50,7 @@ class FakeSceneNode {
   constraints: { horizontal: string; vertical: string } | null = null;
   rejectChildMutation = false;
   swappedComponentName: string | null = null;
+  mainComponent: FakeSceneNode | null = null;
   private readonly pluginData = new Map<string, Map<string, string>>();
 
   constructor(type: string) {
@@ -197,6 +198,10 @@ class FakeSceneNode {
     return detached;
   }
 
+  async getMainComponentAsync() {
+    return this.mainComponent;
+  }
+
   private cloneTree(typeOverride?: string, preserveMutationLocks = true) {
     const clone = new FakeSceneNode(typeOverride || this.type);
     clone.name = this.name;
@@ -226,6 +231,7 @@ class FakeSceneNode {
     clone.textAlignHorizontal = this.textAlignHorizontal;
     clone.characters = this.characters;
     clone.constraints = this.constraints ? { ...this.constraints } : null;
+    clone.mainComponent = this.mainComponent;
     for (const child of this.children) {
       clone.appendChild(child.cloneTree(undefined, preserveMutationLocks));
     }
@@ -656,11 +662,17 @@ function installNestedIconComponent(name: string) {
   return installIconComponent(name, folder);
 }
 
-function installIconInstance(name: string, parent: FakeSceneNode = fakeFigma.currentPage, size = 48) {
+function installIconInstance(
+  name: string,
+  parent: FakeSceneNode = fakeFigma.currentPage,
+  size = 48,
+  mainComponent: FakeSceneNode | null = null,
+) {
   const instance = new FakeSceneNode("INSTANCE");
   instance.name = name;
   instance.width = size;
   instance.height = size;
+  instance.mainComponent = mainComponent;
   const vector = new FakeSceneNode("VECTOR");
   vector.name = "glyph";
   instance.appendChild(vector);
@@ -1035,7 +1047,7 @@ test("upsertYamlDiagram finds components and copied icons on non-current pages",
   );
   const importedRoot = fakeFigma.currentPage.selection[0]!;
   const child = findImportedById(importedRoot, "icon-child");
-  const iconTarget = child ? child.findAll((node) => node.name === "Network.svg")[0] : null;
+  const iconTarget = child ? child.findAll((node) => node.name === "Gateway.svg")[0] : null;
 
   assert.equal(fakeFigma.loadAllPagesAsyncCount, 1);
   assert.equal(result.componentMode, "box");
@@ -1090,7 +1102,7 @@ test("upsertYamlDiagram swaps icon component when matching icon exists", async (
   const result = await testables.upsertYamlDiagram("http://localhost:3846", "title: Mapped icons", "icons.yaml");
   const importedRoot = fakeFigma.currentPage.selection[0]!;
   const child = findImportedById(importedRoot, "icon-child");
-  const iconTarget = child ? child.findAll((node) => node.name === "Network.svg")[0] : null;
+  const iconTarget = child ? child.findAll((node) => node.name === "Gateway.svg")[0] : null;
 
   assert.equal(result.componentMode, "box");
   assert.equal(result.componentVerifiedCount, 1);
@@ -1119,7 +1131,7 @@ test("upsertYamlDiagram discovers copied icon components nested in folders", asy
   const result = await testables.upsertYamlDiagram("http://localhost:3846", "title: Nested icons", "icons.yaml");
   const importedRoot = fakeFigma.currentPage.selection[0]!;
   const child = findImportedById(importedRoot, "icon-child");
-  const iconTarget = child ? child.findAll((node) => node.name === "Network.svg")[0] : null;
+  const iconTarget = child ? child.findAll((node) => node.name === "Firewall.svg")[0] : null;
 
   assert.equal(result.componentMode, "box");
   assert.equal(result.componentVerifiedCount, 1);
@@ -1156,6 +1168,38 @@ test("upsertYamlDiagram clones copied icon instances named without svg extension
   assert.equal(replacement?.type, "INSTANCE");
   assert.equal(replacement?.getSharedPluginData("dgp", "importId"), "icon-child:icon");
   assert.equal(placeholder, undefined);
+});
+
+test("upsertYamlDiagram swaps copied icon instances through their main component", async () => {
+  resetTestState();
+  installBoxComponentSet();
+  const mainComponent = new FakeSceneNode("COMPONENT");
+  mainComponent.name = "AI master";
+  installIconInstance("AI", fakeFigma.currentPage, 48, mainComponent);
+  fetchState.payload = {
+    slug: "instance-icon-swap",
+    title: "Instance icon swap",
+    root: makeRoot([
+      makeLeaf({
+        id: "icon-child",
+        icon: {
+          name: "AI.svg",
+          size: 48,
+          path: "/icons/AI.svg",
+        },
+      }),
+    ]),
+  };
+
+  const result = await testables.upsertYamlDiagram("http://localhost:3846", "title: Instance icon swap", "icons.yaml");
+  const importedRoot = fakeFigma.currentPage.selection[0]!;
+  const child = findImportedById(importedRoot, "icon-child");
+  const iconTarget = child ? child.findAll((node) => node.name === "AI.svg")[0] : null;
+
+  assert.equal(result.componentMode, "box");
+  assert.equal(result.componentVerifiedCount, 1);
+  assert.equal(iconTarget?.swappedComponentName, "AI master");
+  assert.equal(iconTarget?.getSharedPluginData("dgp", "importId"), "icon-child:icon");
 });
 
 test("upsertYamlDiagram does not treat oversized instances as copied icon sources", async () => {

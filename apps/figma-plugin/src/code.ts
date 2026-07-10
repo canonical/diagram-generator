@@ -123,6 +123,7 @@ interface ImportBuildContext {
   instanceSlotCount: number;
   detachedSlotCount: number;
   missingIconNames: Set<string>;
+  missingIconReasons: Map<string, Set<string>>;
 }
 
 interface ComponentMapping {
@@ -133,7 +134,7 @@ interface ComponentMapping {
 }
 
 interface IconSource {
-  kind: "component" | "cloneable";
+  kind: "component" | "cloneable" | "instance";
   name: string;
   node: any;
 }
@@ -212,6 +213,7 @@ function createImportBuildContext(): ImportBuildContext {
     instanceSlotCount: 0,
     detachedSlotCount: 0,
     missingIconNames: new Set<string>(),
+    missingIconReasons: new Map<string, Set<string>>(),
   };
 }
 
@@ -1167,7 +1169,7 @@ function normalizeIconName(name: string) {
 }
 
 function isCopiedIconInstanceSource(node: any) {
-  if (safeGetNodeType(node) !== "INSTANCE" || !hasNodeMethod(node, "clone")) {
+  if (safeGetNodeType(node) !== "INSTANCE") {
     return false;
   }
   const width = safeReadNumber(node, "width");
@@ -1178,6 +1180,35 @@ function isCopiedIconInstanceSource(node: any) {
   const larger = Math.max(width, height);
   const smaller = Math.min(width, height);
   return larger <= ICON_SOURCE_MAX_DIMENSION && larger / smaller <= 1.5;
+}
+
+function noteMissingIcon(context: ImportBuildContext, iconName: string, reason: string) {
+  context.missingIconNames.add(iconName);
+  const reasons = context.missingIconReasons.get(iconName) ?? new Set<string>();
+  reasons.add(reason);
+  context.missingIconReasons.set(iconName, reasons);
+}
+
+function formatMissingIconReasonSummary(context: ImportBuildContext) {
+  const entries = [...context.missingIconReasons.entries()];
+  if (entries.length === 0) {
+    return "";
+  }
+  return entries
+    .sort(([left], [right]) => left.localeCompare(right))
+    .slice(0, 8)
+    .map(([name, reasons]) => `${name}: ${[...reasons].join("; ")}`)
+    .join(" | ");
+}
+
+function formatIconSourceSummary(mapping: ComponentMapping) {
+  const sources = [...mapping.iconSources.values()]
+    .map((source) => `${source.name} (${source.kind})`)
+    .sort((left, right) => left.localeCompare(right));
+  if (sources.length === 0) {
+    return "no current-file icon sources discovered";
+  }
+  return `${sources.length} current-file icon sources discovered; sample: ${sources.slice(0, 16).join(", ")}`;
 }
 
 function collectIconSources(componentSet: any) {
@@ -1208,7 +1239,7 @@ function collectIconSources(componentSet: any) {
 
       if (isCopiedIconInstanceSource(node)) {
         icons.set(normalized, {
-          kind: "cloneable",
+          kind: "instance",
           name,
           node,
         });
@@ -1369,10 +1400,45 @@ function instantiateIconSource(source: IconSource, context: ImportBuildContext) 
   if (source.kind === "component" && typeof source.node.createInstance === "function") {
     return trackCreatedNode(context, source.node.createInstance());
   }
-  if (source.kind === "cloneable" && typeof source.node.clone === "function") {
+  if ((source.kind === "cloneable" || source.kind === "instance") && typeof source.node.clone === "function") {
     return trackCreatedNode(context, source.node.clone());
   }
   return null;
+}
+
+async function resolveIconComponentFromInstance(instance: any) {
+  try {
+    if (typeof instance?.getMainComponentAsync === "function") {
+      const component = await instance.getMainComponentAsync();
+      if (component && hasNodeMethod(component, "createInstance")) {
+        return component;
+      }
+    }
+  } catch (_error) {
+    // Fall back to the synchronous property below when the async API is unavailable or rejected.
+  }
+
+  try {
+    const component = instance?.mainComponent ?? null;
+    return component && hasNodeMethod(component, "createInstance") ? component : null;
+  } catch (_error) {
+    return null;
+  }
+}
+
+function trySwapIconComponent(target: any, component: any, iconName: string, nodeId: string) {
+  if (!component || typeof target?.swapComponent !== "function") {
+    return false;
+  }
+  try {
+    target.swapComponent(component);
+    target.name = iconName || safeGetNodeName(component) || safeGetNodeName(target);
+    setImportData(target, `${nodeId}:icon`, "component-icon");
+    return true;
+  } catch (error) {
+    logImportFallback(`Icon component swap failed for ${iconName}`, error);
+    return false;
+  }
 }
 
 function replaceIconTarget(
@@ -1414,7 +1480,7 @@ function replaceIconTarget(
   }
 }
 
-function applyInstanceIconOverride(
+async function applyInstanceIconOverride(
   instance: any,
   node: DiagramNodePayload,
   mapping: ComponentMapping,
@@ -1427,27 +1493,33 @@ function applyInstanceIconOverride(
   const key = normalizeIconName(node.icon.name);
   const source = mapping.iconSources.get(key);
   if (!source) {
-    context.missingIconNames.add(node.icon.name);
+    noteMissingIcon(context, node.icon.name, `no source matched key "${key}"`);
     return;
   }
 
   const target = findIconTarget(instance);
   if (!target) {
-    context.missingIconNames.add(node.icon.name);
+    noteMissingIcon(context, node.icon.name, `no icon target layer matching *.svg in ${safeGetNodeName(instance) || node.id}`);
     return;
   }
 
-  if (source.kind === "component" && typeof target.swapComponent === "function") {
-    try {
-      target.swapComponent(source.node);
+  if (source.kind === "component") {
+    if (trySwapIconComponent(target, source.node, node.icon.name, node.id)) {
       return;
-    } catch (error) {
-      logImportFallback(`Icon component swap failed for ${node.icon.name}`, error);
+    }
+    noteMissingIcon(context, node.icon.name, `source component ${source.name} could not be swapped onto target ${safeGetNodeName(target) || "unnamed"}`);
+    return;
+  }
+
+  if (source.kind === "instance") {
+    const component = await resolveIconComponentFromInstance(source.node);
+    if (component && trySwapIconComponent(target, component, node.icon.name, node.id)) {
+      return;
     }
   }
 
   if (!replaceIconTarget(target, source, node.icon.name, node.id, context)) {
-    context.missingIconNames.add(node.icon.name);
+    noteMissingIcon(context, node.icon.name, `source ${source.name} (${source.kind}) could not be cloned/replaced into target ${safeGetNodeName(target) || "unnamed"}`);
   }
 }
 
@@ -1834,7 +1906,7 @@ async function buildComponentMappedNode(
     instance.resizeWithoutConstraints(clampSize(node.width), clampSize(node.height));
   }
   await applyInstanceTextOverrides(instance, node);
-  applyInstanceIconOverride(instance, node, componentMapping, context);
+  await applyInstanceIconOverride(instance, node, componentMapping, context);
 
   const populated = node.children.length > 0
     ? await populateSlotWithRuntimeStrategy(instance, node, serverUrl, context, componentMapping)
@@ -1932,10 +2004,13 @@ async function upsertFrameDiagramPayload(
   try {
     const frame = await buildContainerNode(payload.root, serverUrl, buildContext, componentMapping);
     if (componentMapping && buildContext.missingIconNames.size > 0) {
+      const reasonSummary = formatMissingIconReasonSummary(buildContext);
       throw new Error(
         "Missing or unapplied Figma icon sources for YAML icons: "
         + [...buildContext.missingIconNames].sort().join(", ")
-        + ". Copy matching icon components or .svg-named cloneable icon nodes into this file, or configure icon component keys before component-mode import.",
+        + `. ${formatIconSourceSummary(componentMapping)}.`
+        + (reasonSummary ? ` Reasons: ${reasonSummary}.` : "")
+        + " Copy matching icon components, icon-sized instances, or .svg-named cloneable icon nodes into this file, or configure icon component keys before component-mode import.",
       );
     }
     const sizingVerifiedCount = validateImportedDiagramSizing(frame, payload.root);
