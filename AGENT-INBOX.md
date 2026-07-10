@@ -19,16 +19,16 @@ Figma plugin build ok; preview build ok; browser-bundle freshness ok;
 
 ---
 
-## Current handoff (2026-07-10) — spec 078 ready for Opus review
+## Current handoff (2026-07-10) — spec 078 merged
 
-**Branch:** `feat/078-figma-autolayout-plugin`
+**Branch:** `main`
 
-Spec 078 is **Closeout Ready** pending Opus adversarial review. User/Opus
-confirmed the live Figma import now preserves Fill/Hug/Fixed sizing from the
-same YAML used by the preview editor.
+Spec 078 is merged to `main` and archived. User/Opus confirmed the live Figma
+import preserves Fill/Hug/Fixed sizing from the same YAML used by the preview
+editor.
 
 Review prompt:
 [`docs/spec-reviews/opus-adversarial-review-2026-07-10-spec-078.md`](docs/spec-reviews/opus-adversarial-review-2026-07-10-spec-078.md).
 
 Closeout evidence:
-[`specs/078-figma-autolayout-plugin/validation.md`](specs/078-figma-autolayout-plugin/validation.md).
+[`docs/spec-archive/078-figma-autolayout-plugin/validation.md`](docs/spec-archive/078-figma-autolayout-plugin/validation.md).
