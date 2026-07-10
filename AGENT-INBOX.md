@@ -36,10 +36,17 @@ fan-out/order options. Raw ELK and product SVG agree on visible frame geometry,
 edge-label geometry, shared consumer fan-out stem, section/parent role styling,
 and equal lower-compound heights.
 
-**Review requested:** use
-`specs/077-mermaid-elk-cluster-lowering-port/evidence/opus-adversarial-review-request-2026-07-10.md`.
-Opus should write its review under `docs/spec-reviews/` and replace this line with
-the review link plus health/readiness summary.
+**Review done (2026-07-10):**
+[`docs/spec-reviews/077-mermaid-elk-cluster-lowering-port-adversarial-review-2026-07-10.md`](docs/spec-reviews/077-mermaid-elk-cluster-lowering-port-adversarial-review-2026-07-10.md).
+Readiness: **review blocker addressed in the working tree.** B1 is fixed by removing
+the graph-wide `elk.edgeLabels.inline=false`, adding typed layered controls
+`elk.edgeLabels.inline`/`elk.edgeLabels.placement`, defaulting them to
+Mermaid-oracle inline/CENTER, and applying those as per-label ELK options in
+`packages/graph-layout-elk/`. TLS pins the same controls in YAML and raw/product
+evidence has been regenerated. T051 (second cold-start fixture) and T054 (full
+validation, blocked only by the unrelated draw.io golden below) still block spec
+closeout.
+
 
 **Still open at spec level:**
 - T051 second cold-start clustered fixture remains open.

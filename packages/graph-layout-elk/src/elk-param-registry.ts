@@ -134,6 +134,29 @@ export const ELK_LAYERED_PARAM_SPECS: ElkParamSpec[] = [
       'Let hierarchy-crossing edges share compound-boundary routing points where ELK can treat them as a common hyperedge.',
   },
   {
+    key: 'elk.edgeLabels.inline',
+    label: 'Inline edge labels',
+    group: 'Edges',
+    kind: 'boolean',
+    defaultValue: 'true',
+    description:
+      'Place edge labels inline on the routed edge, matching Mermaid ELK so labels do not reserve separate layer space and distort routes.',
+  },
+  {
+    key: 'elk.edgeLabels.placement',
+    label: 'Edge label placement',
+    group: 'Edges',
+    kind: 'enum',
+    defaultValue: 'CENTER',
+    enumValues: [
+      { value: 'CENTER', label: 'Center' },
+      { value: 'HEAD', label: 'Near target' },
+      { value: 'TAIL', label: 'Near source' },
+    ],
+    description:
+      'Default placement for ELK-owned edge labels. Center is the Mermaid ELK oracle for flowchart labels.',
+  },
+  {
     key: 'elk.layered.nodePlacement.favorStraightEdges',
     label: 'Favor straight edges',
     group: 'Edges',

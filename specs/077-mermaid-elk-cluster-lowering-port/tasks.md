@@ -123,13 +123,17 @@
       `apps/preview/src/persistence/tls-browser-parity-regression.test.ts`.
 - [x] **T043** Expose and validate native ELK fan-out/order controls:
       `elk.layered.mergeEdges`, `elk.layered.mergeHierarchyEdges`,
-      `elk.layered.considerModelOrder.strategy`, and
-      `elk.layered.crossingMinimization.forceNodeModelOrder`. Keep global defaults
-      safe for existing diagrams, enable `mergeEdges` by graph shape for
+      `elk.layered.considerModelOrder.strategy`,
+      `elk.layered.crossingMinimization.forceNodeModelOrder`,
+      `elk.edgeLabels.inline`, and `elk.edgeLabels.placement`. Keep global
+      defaults safe for existing diagrams, enable `mergeEdges` by graph shape for
       border-routed cross-hierarchy layouts, and let TLS pin the intended options
-      in YAML.
+      in YAML. Layered edge labels default to Mermaid-oracle inline/CENTER and the
+      ELK adapter applies those as per-label options rather than a graph-wide
+      `inline=false` dummy-label layout.
       **Verify**: clustered common-source fan-outs share one ELK-owned stem by
-      default, an explicit `mergeEdges=false` override still works, and existing
+      default, an explicit `mergeEdges=false` override still works, label
+      placement controls are accepted by the typed registry, and existing
       non-cluster fan-out behavior does not regress.
       **Evidence**: `packages/graph-layout-elk/tests/elk-layout-options.test.ts`,
       `packages/graph-layout-elk/tests/elk-clustered-layout.test.ts`, and
@@ -148,7 +152,9 @@
       Mermaid-authored **7 semantic labeled edges**; invisible helper carriers and
       transparent ordering arrows must not exist in YAML or raw/product parity.
       The six consumer arrows from `manual_tls_certificates` must share an
-      ELK-owned fan-out stem in both raw ELK and product SVG.
+      ELK-owned fan-out stem in both raw ELK and product SVG, and the labels must
+      use inline/CENTER ELK placement through typed configuration rather than
+      reserving separate dummy-node layer space.
       **Evidence**: `apps/preview/src/persistence/tls-render-regression.test.ts`,
       `apps/preview/src/persistence/tls-browser-parity-regression.test.ts`,
       `evidence/reference/01-source-mermaid-reference.png`,

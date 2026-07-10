@@ -25,6 +25,11 @@ The app-path state builder for `tls-certificate-provider-topology` now emits:
   `elk.layered.mergeEdges: true`, `elk.layered.mergeHierarchyEdges: true`,
   `elk.layered.considerModelOrder.strategy: NODES_AND_EDGES`, and
   `elk.layered.crossingMinimization.forceNodeModelOrder: true`
+- TLS also pins the Mermaid-oracle edge-label geometry options in YAML:
+  `elk.edgeLabels.inline: true` and `elk.edgeLabels.placement: CENTER`. These are
+  typed layered controls; the graph IR still carries engine-agnostic measured
+  label boxes, and the ELK adapter attaches the per-label inline/CENTER options
+  before invoking ELK.
 - Authored/product arrows: `edge-0` through `edge-6` only
 - Raw ELK input edges: `edge-0` through `edge-6` only
 - Removed from the authored tree and raw/product parity: `services_row`,
@@ -48,7 +53,7 @@ endpoints.
 The six consumer arrows from `manual_tls_certificates` now share the same
 ELK-owned source stem in raw ELK and in the styled product path. In the current
 evidence render, product `edge-1` through `edge-6` begin at
-`[824,304] -> [824,320] -> [824,328]`, and the raw ELK SVG contains the matching
+`[824,288] -> [824,304] -> [824,312]`, and the raw ELK SVG contains the matching
 common vertical stem from the source-side border before fanning out.
 
 ## Validation
@@ -61,7 +66,9 @@ common vertical stem from the source-side border before fanning out.
 - `npm --prefix packages/layout-engine run build:browser`
 - `npm --prefix apps/preview test`
 - `npm --prefix packages/graph-layout-elk test -- elk-layout-options.test.ts elk-clustered-layout.test.ts`
+- `npm --prefix packages/graph-layout-elk test -- elk-layout-options.test.ts elk-layered.test.ts elk-clustered-layout.test.ts engine-capabilities.test.ts`
 - `npm --prefix packages/layout-engine test -- elk-layout.test.ts frame-style.test.ts frame-role-assignment.test.ts`
+- `npm --prefix packages/layout-engine test -- elk-layout.test.ts elk-layout-architecture.test.ts frame-style.test.ts frame-role-assignment.test.ts`
 - `npm --prefix apps/preview test -- tls-render-regression.test.ts tls-browser-parity-regression.test.ts`
 - `node scripts/check-browser-bundle-fresh.mjs`
 - `node scripts/check_no_new_python.mjs`

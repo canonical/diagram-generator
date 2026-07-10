@@ -11,6 +11,8 @@ meta:
     elk.spacing.edgeNode: 24
     elk.spacing.edgeEdge: 24
     elk.layered.spacing.edgeEdgeBetweenLayers: 24
+    elk.edgeLabels.inline: true
+    elk.edgeLabels.placement: CENTER
     elk.layered.unnecessaryBendpoints: true
     elk.layered.mergeEdges: true
     elk.layered.mergeHierarchyEdges: true
@@ -29,6 +31,8 @@ meta:
       elk.spacing.edgeNode: 24
       elk.spacing.edgeEdge: 24
       elk.layered.spacing.edgeEdgeBetweenLayers: 24
+      elk.edgeLabels.inline: true
+      elk.edgeLabels.placement: CENTER
       elk.layered.unnecessaryBendpoints: true
       elk.layered.mergeEdges: true
       elk.layered.mergeHierarchyEdges: true

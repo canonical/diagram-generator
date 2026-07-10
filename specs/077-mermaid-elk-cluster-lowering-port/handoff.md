@@ -95,6 +95,16 @@ fixture pins the intended options under `meta.elk`/`meta.elk_nodes.elk-layered`,
 so raw ELK and product SVG both show one shared stem from
 `manual_tls_certificates` before the consumer arrows fan out.
 
+Update from the 2026-07-10 adversarial review fix: edge labels must match the
+Mermaid ELK oracle's inline geometry. Do not restore graph-wide
+`elk.edgeLabels.inline: false`; that reserves label-dummy layer space and distorts
+routes. `elk.edgeLabels.inline` and `elk.edgeLabels.placement` are now typed
+layered controls with defaults `true` and `CENTER`, and the ELK adapter attaches
+those as per-label `edgeLabels.inline` / `edgeLabels.placement` options when
+building the ELK graph. The TLS YAML pins both controls explicitly. The core graph
+IR and layout-engine app path stay engine-agnostic: they provide measured label
+boxes; ELK-specific label options belong in `packages/graph-layout-elk/`.
+
 | File(s) | Why keep | Treat as |
 |---|---|---|
 | `tls-certificate-provider-topology.yaml` | Three compound topology with seven semantic labeled edges; no cert/interface boxes, carrier rows, or helper arrows | Keep (this is your fixture) |
@@ -146,6 +156,9 @@ renderer, not a layout boundary.
 - No fan-out path surgery: if a shared stem is needed, use typed ELK options
   (`mergeEdges` / hierarchy merge / model-order controls) or a generic graph-shape
   default, never a post-ELK path rewrite or fixture id branch.
+- No edge-label dummy-node detours by default: layered ELK labels are inline and
+  centered via typed config and per-label adapter options unless a diagram
+  explicitly configures otherwise.
 - Structure-driven, never fixture-keyed: no `tls_*` / `traefik_*` / `octavia_*`
   literals anywhere in `packages/`.
 - Styling is thin and geometry-free: fill/stroke/typography/label-lines only.

@@ -3,6 +3,7 @@ import type {
   GraphContentAlignment,
   GraphInsetsInput,
   GraphLayoutInput,
+  GraphLabelPlacement,
   GraphNodeKind,
   LayoutDirection,
   GraphNodeInput,
@@ -28,6 +29,11 @@ const ELK_SIDE_BY_PORT_SIDE = {
   bottom: 'SOUTH',
   left: 'WEST',
 } satisfies Record<GraphPortSide, string>;
+const ELK_LABEL_PLACEMENT_BY_GRAPH_PLACEMENT = {
+  center: 'CENTER',
+  source: 'TAIL',
+  target: 'HEAD',
+} satisfies Record<GraphLabelPlacement, string>;
 
 type ElkDirection = 'DOWN' | 'RIGHT' | 'UP' | 'LEFT';
 
@@ -58,7 +64,7 @@ export interface ElkGraphEdge {
   targets: string[];
   sourcePort?: string;
   targetPort?: string;
-  labels?: { text: string; width: number; height: number }[];
+  labels?: { text: string; width: number; height: number; layoutOptions?: ElkLayoutOptions }[];
 }
 
 export interface ElkGraphRoot {
@@ -296,6 +302,18 @@ function collectCrossHierarchyEndpointIds(
   return ids;
 }
 
+function edgeLabelLayoutOptions(
+  label: NonNullable<GraphEdgeInput['labels']>[number],
+  defaults: ElkLayoutOptions,
+): ElkLayoutOptions {
+  return {
+    ...defaults,
+    ...(label.placement
+      ? { 'edgeLabels.placement': ELK_LABEL_PLACEMENT_BY_GRAPH_PLACEMENT[label.placement] }
+      : {}),
+  };
+}
+
 function mapNode(
   node: GraphNodeInput,
   endpointIds: Set<string>,
@@ -448,6 +466,7 @@ function mapElkEdge(
   enableImplicitPorts: boolean,
   sourceSide: GraphPortSide,
   targetSide: GraphPortSide,
+  labelLayoutOptions: ElkLayoutOptions,
 ): ElkGraphEdge {
   const sourceNode = nodesById.get(edge.source);
   const targetNode = nodesById.get(edge.target);
@@ -478,6 +497,7 @@ function mapElkEdge(
             text: label.text,
             width: label.width,
             height: label.height,
+            layoutOptions: edgeLabelLayoutOptions(label, labelLayoutOptions),
           })),
         }
       : {}),
@@ -604,6 +624,10 @@ export function buildElkGraph(
   const enableImplicitPorts = layeredAlgorithm && !input.routeCrossHierarchyEdgesToBorders;
   const enableCompoundDirections = layeredAlgorithm;
   const inheritedCompoundLayoutOptions = layeredAlgorithm ? { ...rootOptions } : undefined;
+  const labelLayoutOptions: ElkLayoutOptions = {
+    'edgeLabels.inline': rootOptions['elk.edgeLabels.inline'] ?? 'true',
+    'edgeLabels.placement': rootOptions['elk.edgeLabels.placement'] ?? 'CENTER',
+  };
   const sourceSide = sourceSideForDirection(effectiveDirection);
   const targetSide = oppositeSide(sourceSide);
   const parentById = indexInputParentIds(input.nodes, input.id);
@@ -641,6 +665,7 @@ export function buildElkGraph(
         enableImplicitPorts,
         sourceSide,
         targetSide,
+        labelLayoutOptions,
       );
       const sourceParentId = parentById.get(edge.source);
       const targetParentId = parentById.get(edge.target);
@@ -680,6 +705,7 @@ export function buildElkGraph(
       enableImplicitPorts,
       sourceSide,
       targetSide,
+      labelLayoutOptions,
     )));
   }
 

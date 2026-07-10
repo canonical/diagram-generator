@@ -280,6 +280,37 @@ describe('ELK layered (Sugiyama)', () => {
   });
 
   it('returns edge label geometry when label boxes are supplied', async () => {
+    const graph = buildElkGraph({
+      id: 'root',
+      direction: 'TB',
+      nodes: [{ id: 'a', ...BOX }, { id: 'b', ...BOX }],
+      edges: [
+        {
+          id: 'e1',
+          source: 'a',
+          target: 'b',
+          labels: [{ text: 'step 1', width: 96, height: 24 }],
+        },
+        {
+          id: 'e2',
+          source: 'a',
+          target: 'b',
+          labels: [{ text: 'near target', width: 96, height: 24, placement: 'target' }],
+        },
+      ],
+    }, buildLayeredLayoutOptions({
+      direction: 'TB',
+      spacingProfile: 'normal',
+    }));
+    expect(graph.edges[0]?.labels?.[0]?.layoutOptions).toEqual({
+      'edgeLabels.inline': 'true',
+      'edgeLabels.placement': 'CENTER',
+    });
+    expect(graph.edges[1]?.labels?.[0]?.layoutOptions).toEqual({
+      'edgeLabels.inline': 'true',
+      'edgeLabels.placement': 'HEAD',
+    });
+
     const result = await layoutLayered({
       id: 'root',
       direction: 'TB',
@@ -367,7 +398,7 @@ describe('ELK layered (Sugiyama)', () => {
     }, layoutOptions);
 
     expect(graph.layoutOptions['elk.portConstraints']).toBeUndefined();
-    expect(layoutOptions['elk.edgeLabels.inline']).toBe('false');
+    expect(layoutOptions['elk.edgeLabels.inline']).toBe('true');
     expect(graph.children[0]?.layoutOptions?.['elk.portConstraints']).toBe('FIXED_POS');
     expect(graph.children[1]?.layoutOptions?.['elk.portConstraints']).toBe('FIXED_POS');
     expect(graph.children[2]?.ports).toBeUndefined();
@@ -433,7 +464,7 @@ describe('ELK layered (Sugiyama)', () => {
     })).toThrow(/Unsupported ELK layered override keys: elk\.edgeRouting, elk\.padding, elk\.portConstraints/);
   });
 
-  it('ignores known non-layered ELK keys that share the persisted meta.elk namespace', () => {
+  it('ignores known non-layered ELK keys while accepting layered edge-label overrides', () => {
     const layoutOptions = buildLayeredLayoutOptions({
       direction: 'TB',
       spacingProfile: 'normal',
@@ -441,7 +472,8 @@ describe('ELK layered (Sugiyama)', () => {
         'elk.spacing.nodeNode': '48',
         'elk.radial.centerOnRoot': 'false',
         'elk.radial.radius': '256',
-        'elk.edgeLabels.inline': 'true',
+        'elk.edgeLabels.inline': 'false',
+        'elk.edgeLabels.placement': 'TAIL',
       },
     });
 
@@ -449,6 +481,7 @@ describe('ELK layered (Sugiyama)', () => {
     expect(layoutOptions['elk.radial.centerOnRoot']).toBeUndefined();
     expect(layoutOptions['elk.radial.radius']).toBeUndefined();
     expect(layoutOptions['elk.edgeLabels.inline']).toBe('false');
+    expect(layoutOptions['elk.edgeLabels.placement']).toBe('TAIL');
   });
 
   it('strips only legacy implementation-owned keys before higher-level callers merge ELK overrides', () => {
@@ -483,6 +516,7 @@ describe('ELK layered (Sugiyama)', () => {
     const nodePlacement = ELK_LAYERED_PARAM_SPECS.find((spec) => spec.key === 'elk.layered.nodePlacement.strategy');
     const portConstraints = ELK_LAYERED_PARAM_SPECS.find((spec) => spec.key === 'elk.portConstraints');
     const edgeRouting = ELK_LAYERED_PARAM_SPECS.find((spec) => spec.key === 'elk.edgeRouting');
+    const edgeLabelPlacement = ELK_LAYERED_PARAM_SPECS.find((spec) => spec.key === 'elk.edgeLabels.placement');
     const padding = ELK_LAYERED_PARAM_SPECS.find((spec) => spec.key === 'elk.padding');
 
     expect(layering?.enumValues?.map((value) => value.value)).toEqual(['NETWORK_SIMPLEX', 'LONGEST_PATH']);
@@ -491,6 +525,11 @@ describe('ELK layered (Sugiyama)', () => {
       'BRANDES_KOEPF',
       'LINEAR_SEGMENTS',
       'SIMPLE',
+    ]);
+    expect(edgeLabelPlacement?.enumValues?.map((value) => value.value)).toEqual([
+      'CENTER',
+      'HEAD',
+      'TAIL',
     ]);
     expect(portConstraints).toBeUndefined();
     expect(edgeRouting).toBeUndefined();
