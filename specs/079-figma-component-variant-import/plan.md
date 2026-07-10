@@ -32,6 +32,19 @@ successfully inspected selected node `58:3`: component `box` with
 and Section. The separate Brand icons library is still unknown and needs active
 library inspection or configured component keys.
 
+## Current Blockers
+
+- Automatic icon selection cannot be completed honestly until the separate
+  Brand icons library is visible to the connector or a YAML icon id -> Figma
+  component key/name manifest is provided. The importer now supports current-file
+  icon component lookup by stable name and fails clearly when a YAML icon has no
+  matching Figma component.
+- Collision-free refresh for arbitrary selected YAML cannot be guaranteed from
+  a normal file picker because the browser `File` object exposes `file.name`,
+  not a durable full path. Same-basename files need a user-approved identity
+  strategy, such as explicit source id entry, folder picker workflow, or
+  selected existing root replacement.
+
 ## Design Direction
 
 1. Replace the demo UI with a selected-file import workflow.

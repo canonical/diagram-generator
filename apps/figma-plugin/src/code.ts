@@ -7,6 +7,16 @@ const FALLBACK_BOLD_FONT = { family: "Inter", style: "Bold" };
 const PLUGIN_NAMESPACE = "dgp";
 const IMPORT_ID_KEY = "importId";
 const IMPORT_KIND_KEY = "importKind";
+const COMPONENT_ROLE_KEY = "componentRole";
+const COMPONENT_VARIANT_KEY = "componentVariant";
+const SLOT_STRATEGY_KEY = "slotStrategy";
+const BOX_COMPONENT_SET_NAME = "box";
+const BOX_SLOT_LAYER_NAME = "slot";
+const BOX_ROLE_VARIANTS = {
+  child: "Child",
+  parent: "Parent",
+  section: "Section",
+} as const;
 const fontLoadCache = new Map<string, Promise<{ family: string; style: string }>>();
 const PLACEHOLDER_STROKE = "#C7CDD1";
 
@@ -107,6 +117,17 @@ interface FrameDiagramPayload {
 
 interface ImportBuildContext {
   createdNodes: Set<any>;
+  componentInstanceCount: number;
+  componentSetName: string | null;
+  instanceSlotCount: number;
+  detachedSlotCount: number;
+  missingIconNames: Set<string>;
+}
+
+interface ComponentMapping {
+  componentSet: any;
+  roleComponents: Map<"Child" | "Parent" | "Section", any>;
+  iconComponents: Map<string, any>;
 }
 
 interface SizingExpectation {
@@ -176,7 +197,14 @@ function clampSize(value: number) {
 }
 
 function createImportBuildContext(): ImportBuildContext {
-  return { createdNodes: new Set<any>() };
+  return {
+    createdNodes: new Set<any>(),
+    componentInstanceCount: 0,
+    componentSetName: null,
+    instanceSlotCount: 0,
+    detachedSlotCount: 0,
+    missingIconNames: new Set<string>(),
+  };
 }
 
 function trackCreatedNode<T>(context: ImportBuildContext | null | undefined, node: T) {
@@ -429,6 +457,10 @@ function setImportData(node: any, importId: string, kind: string) {
 
 function getImportData(node: any, key: string) {
   return node.getSharedPluginData(PLUGIN_NAMESPACE, key);
+}
+
+function setPluginData(node: any, key: string, value: string) {
+  node.setSharedPluginData(PLUGIN_NAMESPACE, key, value);
 }
 
 function safeRemoveNode(node: any) {
@@ -859,6 +891,268 @@ function validateImportedDiagramSizing(rootFrame: any, payloadRoot: DiagramNodeP
   return checked;
 }
 
+function validateImportedComponentStructure(rootFrame: any, payloadRoot: DiagramNodePayload) {
+  const nodesById = collectImportedNodesById(rootFrame);
+  const mismatches: string[] = [];
+  let checked = 0;
+
+  const visit = (node: DiagramNodePayload) => {
+    if (node.kind !== "root") {
+      const imported = nodesById.get(node.id);
+      const expectedRole = componentRoleForNode(node);
+      if (!imported) {
+        mismatches.push(`${node.id}: missing component import`);
+      } else {
+        checked += 1;
+        const importKind = getImportData(imported, IMPORT_KIND_KEY);
+        const role = getImportData(imported, COMPONENT_ROLE_KEY);
+        const variantName = getImportData(imported, COMPONENT_VARIANT_KEY)
+          || imported.mainComponent?.name
+          || "";
+        const variantRole = parseVariantRole(variantName);
+        if (!String(importKind).startsWith("component:") && !String(importKind).startsWith("detached-component:")) {
+          mismatches.push(`${node.id}: expected component import, got ${importKind || "none"}`);
+        }
+        if (role !== expectedRole) {
+          mismatches.push(`${node.id}: expected Role=${expectedRole}, got ${role || "none"}`);
+        }
+        if (variantRole !== expectedRole) {
+          mismatches.push(`${node.id}: expected component variant Role=${expectedRole}, got ${variantName || "none"}`);
+        }
+      }
+    }
+
+    if (node.kind !== "root" && node.children.length > 0) {
+      const body = nodesById.get(`${node.id}:body`);
+      if (!body) {
+        mismatches.push(`${node.id}/body: missing component slot body`);
+      } else {
+        checked += 1;
+        const strategy = getImportData(body, SLOT_STRATEGY_KEY);
+        if (strategy !== "instance-slot" && strategy !== "detached-slot") {
+          mismatches.push(`${node.id}/body: missing slot strategy`);
+        }
+        if (body.layoutMode !== node.direction) {
+          mismatches.push(`${node.id}/body: expected ${node.direction} layout, got ${body.layoutMode}`);
+        }
+        const childIds = (body.children ?? [])
+          .map((child: any) => getImportData(child, IMPORT_ID_KEY))
+          .filter(Boolean);
+        const expectedChildIds = node.children.map((child) => child.id);
+        if (childIds.join("\n") !== expectedChildIds.join("\n")) {
+          mismatches.push(
+            `${node.id}/body: expected child order ${expectedChildIds.join(", ")}, got ${childIds.join(", ")}`,
+          );
+        }
+      }
+    }
+
+    for (const child of node.children) {
+      visit(child);
+    }
+  };
+
+  visit(payloadRoot);
+
+  if (mismatches.length > 0) {
+    throw new Error(`Figma component import mismatch:\n${mismatches.join("\n")}`);
+  }
+
+  return checked;
+}
+
+function visitSceneTree(root: any, visitor: (node: any) => void) {
+  visitor(root);
+  for (const child of root?.children ?? []) {
+    visitSceneTree(child, visitor);
+  }
+}
+
+function parseVariantRole(name: string): "Child" | "Parent" | "Section" | null {
+  const match = String(name || "").match(/(?:^|,\s*)Role=([^,]+)/);
+  const role = match?.[1]?.trim();
+  if (role === "Child" || role === "Parent" || role === "Section") {
+    return role;
+  }
+  return null;
+}
+
+function collectCandidateRoots() {
+  const roots: any[] = [];
+  for (const node of figma.currentPage.selection ?? []) {
+    roots.push(node);
+  }
+  roots.push(figma.currentPage);
+  return roots;
+}
+
+function findBoxComponentSets() {
+  const matches = new Set<any>();
+  for (const root of collectCandidateRoots()) {
+    visitSceneTree(root, (node) => {
+      if (String(node?.name || "").trim() === BOX_COMPONENT_SET_NAME && (node.children?.length ?? 0) > 0) {
+        matches.add(node);
+      }
+    });
+  }
+  return [...matches];
+}
+
+function normalizeIconName(name: string) {
+  return String(name || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\.svg$/i, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function collectIconComponents() {
+  const icons = new Map<string, any>();
+  visitSceneTree(figma.currentPage, (node) => {
+    if (node?.type !== "COMPONENT" || typeof node.createInstance !== "function" || parseVariantRole(node.name)) {
+      return;
+    }
+    const normalized = normalizeIconName(node.name);
+    if (normalized && !icons.has(normalized)) {
+      icons.set(normalized, node);
+    }
+  });
+  return icons;
+}
+
+function resolveComponentMapping(): ComponentMapping | null {
+  const componentSets = findBoxComponentSets();
+  if (componentSets.length > 1) {
+    throw new Error(`Found ${componentSets.length} candidate "${BOX_COMPONENT_SET_NAME}" component sets; keep exactly one visible/selected for import.`);
+  }
+  const componentSet = componentSets[0];
+  if (!componentSet) {
+    return null;
+  }
+
+  const roleComponents = new Map<"Child" | "Parent" | "Section", any>();
+  for (const child of componentSet.children ?? []) {
+    const role = parseVariantRole(child.name);
+    if (role && typeof child.createInstance === "function") {
+      if (roleComponents.has(role)) {
+        throw new Error(`Box component set has multiple Role=${role} variants.`);
+      }
+      roleComponents.set(role, child);
+    }
+  }
+
+  for (const role of [BOX_ROLE_VARIANTS.child, BOX_ROLE_VARIANTS.parent, BOX_ROLE_VARIANTS.section] as const) {
+    if (!roleComponents.has(role)) {
+      throw new Error(`Box component set is missing Role=${role}.`);
+    }
+  }
+
+  return {
+    componentSet,
+    roleComponents,
+    iconComponents: collectIconComponents(),
+  };
+}
+
+function componentRoleForNode(node: DiagramNodePayload): "Child" | "Parent" | "Section" {
+  if (node.kind === "section") {
+    return BOX_ROLE_VARIANTS.section;
+  }
+  if (node.kind === "panel" || (!node.isLeaf && node.kind !== "root")) {
+    return BOX_ROLE_VARIANTS.parent;
+  }
+  return BOX_ROLE_VARIANTS.child;
+}
+
+function findFirstDescendant(node: any, predicate: (node: any) => boolean): any | null {
+  if (!node) {
+    return null;
+  }
+  for (const child of node.children ?? []) {
+    if (predicate(child)) {
+      return child;
+    }
+    const nested = findFirstDescendant(child, predicate);
+    if (nested) {
+      return nested;
+    }
+  }
+  return null;
+}
+
+function findDescendants(node: any, predicate: (node: any) => boolean) {
+  const matches: any[] = [];
+  visitSceneTree(node, (candidate) => {
+    if (candidate !== node && predicate(candidate)) {
+      matches.push(candidate);
+    }
+  });
+  return matches;
+}
+
+function findSlotNode(instance: any) {
+  return findFirstDescendant(
+    instance,
+    (node) => String(node.name || "").trim().toLowerCase() === BOX_SLOT_LAYER_NAME,
+  );
+}
+
+async function applyInstanceTextOverrides(instance: any, node: DiagramNodePayload) {
+  const lines = node.textBlocks.flatMap((block) => block.lines);
+  if (lines.length === 0) {
+    return;
+  }
+
+  const textNodes = findDescendants(instance, (candidate) => candidate.type === "TEXT");
+  for (let index = 0; index < textNodes.length && index < lines.length; index += 1) {
+    const textNode = textNodes[index]!;
+    const line = lines[index]!;
+    try {
+      const font = await loadPreferredFont(line.weight);
+      textNode.fontName = font;
+      textNode.characters = line.text || " ";
+    } catch (error) {
+      logImportFallback(`Component text override failed for ${node.id}`, error);
+    }
+  }
+}
+
+function findIconTarget(instance: any) {
+  return findFirstDescendant(instance, (node) => /\.svg$/i.test(String(node.name || "")));
+}
+
+function applyInstanceIconOverride(
+  instance: any,
+  node: DiagramNodePayload,
+  mapping: ComponentMapping,
+  context: ImportBuildContext,
+) {
+  if (!node.icon) {
+    return;
+  }
+
+  const key = normalizeIconName(node.icon.name);
+  const component = mapping.iconComponents.get(key);
+  if (!component) {
+    context.missingIconNames.add(node.icon.name);
+    return;
+  }
+
+  const target = findIconTarget(instance);
+  if (!target || typeof target.swapComponent !== "function") {
+    context.missingIconNames.add(node.icon.name);
+    return;
+  }
+
+  try {
+    target.swapComponent(component);
+  } catch (error) {
+    context.missingIconNames.add(node.icon.name);
+    logImportFallback(`Icon component swap failed for ${node.icon.name}`, error);
+  }
+}
+
 async function buildLeafNode(node: DiagramNodePayload, serverUrl: string, context: ImportBuildContext) {
   const innerWidth = Math.max(1, node.width - node.padding.left - node.padding.right);
   const hasText = node.textBlocks.length > 0;
@@ -917,7 +1211,12 @@ async function buildLeafNode(node: DiagramNodePayload, serverUrl: string, contex
   return frame;
 }
 
-async function buildContainerNode(node: DiagramNodePayload, serverUrl: string, context: ImportBuildContext) {
+async function buildContainerNode(
+  node: DiagramNodePayload,
+  serverUrl: string,
+  context: ImportBuildContext,
+  componentMapping: ComponentMapping | null = null,
+) {
   const innerWidth = Math.max(1, node.width - node.padding.left - node.padding.right);
   const innerHeight = Math.max(1, node.height - node.padding.top - node.padding.bottom);
   const hasHeader = node.textBlocks.length > 0;
@@ -994,7 +1293,7 @@ async function buildContainerNode(node: DiagramNodePayload, serverUrl: string, c
         );
 
         for (const child of node.children) {
-          const childFrame = await buildDiagramFrameNode(child, serverUrl, context);
+          const childFrame = await buildDiagramFrameNode(child, serverUrl, context, componentMapping);
           appendAutoLayoutChild(
             body,
             childFrame,
@@ -1088,7 +1387,7 @@ async function buildContainerNode(node: DiagramNodePayload, serverUrl: string, c
       );
 
       for (const child of node.children) {
-        const childFrame = await buildDiagramFrameNode(child, serverUrl, context);
+      const childFrame = await buildDiagramFrameNode(child, serverUrl, context, componentMapping);
         appendAutoLayoutChild(
           body,
           childFrame,
@@ -1118,7 +1417,7 @@ async function buildContainerNode(node: DiagramNodePayload, serverUrl: string, c
     context,
   );
   for (const child of node.children) {
-    const childFrame = await buildDiagramFrameNode(child, serverUrl, context);
+    const childFrame = await buildDiagramFrameNode(child, serverUrl, context, componentMapping);
     appendAutoLayoutChild(
       frame,
       childFrame,
@@ -1133,10 +1432,134 @@ async function buildContainerNode(node: DiagramNodePayload, serverUrl: string, c
   return frame;
 }
 
-async function buildDiagramFrameNode(node: DiagramNodePayload, serverUrl: string, context: ImportBuildContext) {
+async function populateComponentSlot(
+  slot: any,
+  node: DiagramNodePayload,
+  serverUrl: string,
+  context: ImportBuildContext,
+  componentMapping: ComponentMapping,
+) {
+  clearChildren(slot);
+  if (slot.layoutMode !== "HORIZONTAL" && slot.layoutMode !== "VERTICAL") {
+    configureAutoLayoutFrame(slot, "VERTICAL", 0);
+  }
+
+  const bodyWidth = Math.max(1, node.bodyWidth ?? node.width);
+  const bodyHeight = Math.max(1, node.bodyHeight ?? node.height);
+  const body = createAutoLayoutFrame(
+    `${node.id}/body`,
+    node.direction,
+    bodyWidth,
+    bodyHeight,
+    node.bodyGap,
+    node.bodySizingW,
+    node.bodySizingH,
+    context,
+  );
+
+  for (const child of node.children) {
+    const childFrame = await buildDiagramFrameNode(child, serverUrl, context, componentMapping);
+    appendAutoLayoutChild(
+      body,
+      childFrame,
+      normalizeSizing(child.sizingW),
+      normalizeSizing(child.sizingH),
+      normalizePositionType(child.positionType),
+      child.x,
+      child.y,
+    );
+  }
+
+  setImportData(body, `${node.id}:body`, "component-slot-body");
+  finalizeFrameOwnSizing(body, bodyWidth, bodyHeight, node.bodySizingW, node.bodySizingH);
+  appendAutoLayoutChild(slot, body, node.bodySizingW, node.bodySizingH);
+  return body;
+}
+
+async function populateSlotWithRuntimeStrategy(
+  instance: any,
+  node: DiagramNodePayload,
+  serverUrl: string,
+  context: ImportBuildContext,
+  componentMapping: ComponentMapping,
+) {
+  const slot = findSlotNode(instance);
+  if (!slot) {
+    throw new Error(`Mapped component instance for ${node.id} does not contain a layer named "${BOX_SLOT_LAYER_NAME}".`);
+  }
+
+  try {
+    const body = await populateComponentSlot(slot, node, serverUrl, context, componentMapping);
+    setPluginData(body, SLOT_STRATEGY_KEY, "instance-slot");
+    context.instanceSlotCount += 1;
+    return instance;
+  } catch (instanceSlotError) {
+    if (typeof instance.detachInstance !== "function") {
+      throw instanceSlotError;
+    }
+
+    const detached = trackCreatedNode(context, instance.detachInstance());
+    detached.name = instance.name || node.name || node.id;
+    setImportData(detached, node.id, `detached-component:${node.kind}`);
+    const detachedSlot = findSlotNode(detached);
+    if (!detachedSlot) {
+      throw new Error(`Detached component for ${node.id} does not contain a layer named "${BOX_SLOT_LAYER_NAME}".`);
+    }
+    const body = await populateComponentSlot(detachedSlot, node, serverUrl, context, componentMapping);
+    setPluginData(body, SLOT_STRATEGY_KEY, "detached-slot");
+    context.detachedSlotCount += 1;
+    return detached;
+  }
+}
+
+async function buildComponentMappedNode(
+  node: DiagramNodePayload,
+  serverUrl: string,
+  context: ImportBuildContext,
+  componentMapping: ComponentMapping,
+) {
+  const role = componentRoleForNode(node);
+  const component = componentMapping.roleComponents.get(role);
+  if (!component) {
+    throw new Error(`No box component variant mapped for Role=${role}.`);
+  }
+
+  const instance = trackCreatedNode(context, component.createInstance());
+  context.componentInstanceCount += 1;
+  context.componentSetName = componentMapping.componentSet.name || BOX_COMPONENT_SET_NAME;
+  instance.name = node.name || node.id;
+  setImportData(instance, node.id, `component:${node.kind}`);
+  setPluginData(instance, COMPONENT_ROLE_KEY, role);
+  setPluginData(instance, COMPONENT_VARIANT_KEY, component.name || `Role=${role}`);
+
+  if (typeof instance.resizeWithoutConstraints === "function") {
+    instance.resizeWithoutConstraints(clampSize(node.width), clampSize(node.height));
+  }
+  await applyInstanceTextOverrides(instance, node);
+  applyInstanceIconOverride(instance, node, componentMapping, context);
+
+  const populated = node.children.length > 0
+    ? await populateSlotWithRuntimeStrategy(instance, node, serverUrl, context, componentMapping)
+    : instance;
+  setPluginData(populated, COMPONENT_ROLE_KEY, role);
+  setPluginData(populated, COMPONENT_VARIANT_KEY, component.name || `Role=${role}`);
+  finalizeFrameOwnSizing(populated, node.width, node.height, node.sizingW, node.sizingH);
+  return populated;
+}
+
+async function buildDiagramFrameNode(
+  node: DiagramNodePayload,
+  serverUrl: string,
+  context: ImportBuildContext,
+  componentMapping: ComponentMapping | null = null,
+) {
+  if (componentMapping && node.kind !== "root") {
+    return buildComponentMappedNode(node, serverUrl, context, componentMapping);
+  }
+
   return node.isLeaf
     ? buildLeafNode(node, serverUrl, context)
-    : buildContainerNode(node, serverUrl, context);
+    : buildContainerNode(node, serverUrl, context, componentMapping);
 }
 
 async function upsertSampleLeaf(serverUrl: string) {
@@ -1206,10 +1629,21 @@ async function upsertFrameDiagramPayload(
   const priorX = existing ? existing.x : null;
   const priorY = existing ? existing.y : null;
   const buildContext = createImportBuildContext();
+  const componentMapping = resolveComponentMapping();
 
   try {
-    const frame = await buildContainerNode(payload.root, serverUrl, buildContext);
+    const frame = await buildContainerNode(payload.root, serverUrl, buildContext, componentMapping);
+    if (componentMapping && buildContext.missingIconNames.size > 0) {
+      throw new Error(
+        "Missing Figma icon components for YAML icons: "
+        + [...buildContext.missingIconNames].sort().join(", ")
+        + ". Import the Brand icons library into this file or configure icon component keys before component-mode import.",
+      );
+    }
     const sizingVerifiedCount = validateImportedDiagramSizing(frame, payload.root);
+    const componentVerifiedCount = componentMapping
+      ? validateImportedComponentStructure(frame, payload.root)
+      : 0;
     frame.name = payload.title || payload.slug;
     setImportData(frame, importId, "diagram-root");
     figma.currentPage.appendChild(frame);
@@ -1237,6 +1671,11 @@ async function upsertFrameDiagramPayload(
       childCount: frame.children.length,
       descendantCount: countImportedSubtreeNodes(frame),
       sizingVerifiedCount,
+      componentVerifiedCount,
+      componentMode: componentMapping ? BOX_COMPONENT_SET_NAME : "generic-frame",
+      componentInstanceCount: buildContext.componentInstanceCount,
+      instanceSlotCount: buildContext.instanceSlotCount,
+      detachedSlotCount: buildContext.detachedSlotCount,
       refreshed: Boolean(existing),
     };
   } catch (error) {
@@ -1291,8 +1730,10 @@ if ((globalThis as any).__DGP_EXPOSE_TESTABLES__) {
     countImportedSubtreeNodes,
     createImportBuildContext,
     reportError,
+    resolveComponentMapping,
     upsertFrameDiagram,
     upsertYamlDiagram,
+    validateImportedComponentStructure,
     validateImportedDiagramSizing,
     formatErrorMessage,
   };
@@ -1314,7 +1755,7 @@ async function runDiagramImport(serverUrl: string, slug: string) {
   const result = await upsertFrameDiagram(serverUrl, slug);
   figma.ui.postMessage({
     type: "done",
-    text: `${result.refreshed ? "Refreshed" : "Inserted"} ${result.title} (${Math.round(result.width)}x${Math.round(result.height)}), root children: ${result.childCount}, imported nodes: ${result.descendantCount}, sizing verified: ${result.sizingVerifiedCount}`,
+    text: `${result.refreshed ? "Refreshed" : "Inserted"} ${result.title} (${Math.round(result.width)}x${Math.round(result.height)}), root children: ${result.childCount}, imported nodes: ${result.descendantCount}, sizing verified: ${result.sizingVerifiedCount}, component verified: ${result.componentVerifiedCount}, mode: ${result.componentMode}, components: ${result.componentInstanceCount}, instance slots: ${result.instanceSlotCount}, detached slots: ${result.detachedSlotCount}`,
   });
 }
 
@@ -1323,7 +1764,7 @@ async function runYamlImport(serverUrl: string, yamlText: string, sourceName: st
   const result = await upsertYamlDiagram(serverUrl, yamlText, sourceName);
   figma.ui.postMessage({
     type: "done",
-    text: `${result.refreshed ? "Refreshed" : "Inserted"} ${result.title} (${Math.round(result.width)}x${Math.round(result.height)}), root children: ${result.childCount}, imported nodes: ${result.descendantCount}, sizing verified: ${result.sizingVerifiedCount}`,
+    text: `${result.refreshed ? "Refreshed" : "Inserted"} ${result.title} (${Math.round(result.width)}x${Math.round(result.height)}), root children: ${result.childCount}, imported nodes: ${result.descendantCount}, sizing verified: ${result.sizingVerifiedCount}, component verified: ${result.componentVerifiedCount}, mode: ${result.componentMode}, components: ${result.componentInstanceCount}, instance slots: ${result.instanceSlotCount}, detached slots: ${result.detachedSlotCount}`,
   });
 }
 

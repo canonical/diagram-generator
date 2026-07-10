@@ -12,9 +12,10 @@ spec catalog/status → [`docs/specs.md`](docs/specs.md) · human notes →
 [`INBOX.md`](INBOX.md) · durable per-spec detail → `specs/<id>-<slug>/` ·
 adversarial reviews → `docs/spec-reviews/`.
 
-**Last-known-green (2026-07-10, spec 079 slice):** `apps/figma-plugin`
-**17/17**; Figma plugin build ok; server health ok; selected-YAML POST endpoint
-ok with `preview-smoke.yaml`.
+**Last-known-green (2026-07-10, spec 079 component slice):**
+`apps/figma-plugin` **24/24**; Figma plugin build ok; `check_no_new_python.mjs`
+ok; server health ok on `http://localhost:3846`; selected-YAML POST endpoint ok
+with `preview-smoke.yaml`.
 
 ---
 
@@ -29,8 +30,12 @@ direction-aware component slots, and arbitrary selected YAML import.
 Spec package:
 [`specs/079-figma-component-variant-import/`](specs/079-figma-component-variant-import/).
 
-Current slice implements selected-YAML import through the local server and keeps
-the dev server running on `http://localhost:3846` for Figma testing. Box
-component inspection found `box` variants `Role=Child`, `Role=Parent`, and
-`Role=Section`; icon library inspection and slot mutation proof remain open
-before replacing the generic frame builder.
+Current slice implements selected-YAML import plus component-mode import for
+the visible `box` component variants `Role=Child`, `Role=Parent`, and
+`Role=Section`. Parent/Section slot containers are generated and validated;
+runtime fallback detaches only if live instance-slot mutation is rejected.
+
+Open before spec closeout: inspect/configure the separate Brand icons library
+component keys for automatic icon mapping, and choose a durable selected-YAML
+identity strategy for same-basename files because browser file selection exposes
+only `file.name`.

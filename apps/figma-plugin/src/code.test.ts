@@ -5,8 +5,10 @@ import { createFrameDiagramPayload } from "./dev-server.js";
 type PluginTestables = {
   buildContainerNode: (node: any, serverUrl: string, context: any) => Promise<any>;
   createImportBuildContext: () => any;
+  resolveComponentMapping: () => any;
   upsertFrameDiagram: (serverUrl: string, slug: string) => Promise<any>;
   upsertYamlDiagram: (serverUrl: string, yamlText: string, sourceName: string) => Promise<any>;
+  validateImportedComponentStructure: (rootFrame: any, payloadRoot: any) => number;
   validateImportedDiagramSizing: (rootFrame: any, payloadRoot: any) => number;
   formatErrorMessage: (error: unknown) => string;
 };
@@ -43,6 +45,8 @@ class FakeSceneNode {
   characters = "";
   selection: FakeSceneNode[] = [];
   constraints: { horizontal: string; vertical: string } | null = null;
+  rejectChildMutation = false;
+  swappedComponentName: string | null = null;
   private readonly pluginData = new Map<string, Map<string, string>>();
 
   constructor(type: string) {
@@ -68,6 +72,9 @@ class FakeSceneNode {
   }
 
   appendChild(child: FakeSceneNode) {
+    if (this.rejectChildMutation) {
+      throw new Error(`Child mutation rejected by ${this.name || this.type}`);
+    }
     if (child.parent) {
       const index = child.parent.children.indexOf(child);
       if (index >= 0) {
@@ -82,6 +89,9 @@ class FakeSceneNode {
   remove() {
     if (!this.parent) {
       return;
+    }
+    if (this.parent.rejectChildMutation) {
+      throw new Error(`Child mutation rejected by ${this.parent.name || this.parent.type}`);
     }
     const index = this.parent.children.indexOf(this);
     if (index >= 0) {
@@ -112,6 +122,79 @@ class FakeSceneNode {
   resize(width: number, height: number) {
     this.width = width;
     this.height = height;
+  }
+
+  createInstance() {
+    if (this.type !== "COMPONENT") {
+      throw new Error(`Cannot create instance from ${this.type}`);
+    }
+    const instance = this.cloneTree("INSTANCE");
+    instance.name = this.name;
+    fakeFigma.currentPage.appendChild(instance);
+    return instance;
+  }
+
+  swapComponent(component: FakeSceneNode) {
+    if (typeof component.createInstance !== "function") {
+      throw new Error("swapComponent target is not a component");
+    }
+    this.swappedComponentName = component.name;
+  }
+
+  detachInstance() {
+    if (this.type !== "INSTANCE") {
+      throw new Error(`Cannot detach ${this.type}`);
+    }
+    const detached = this.cloneTree("FRAME", false);
+    detached.name = this.name;
+    const parent = this.parent;
+    if (parent) {
+      const index = parent.children.indexOf(this);
+      if (index >= 0) {
+        parent.children[index] = detached;
+        detached.parent = parent;
+        this.parent = null;
+      }
+    } else {
+      fakeFigma.currentPage.appendChild(detached);
+    }
+    return detached;
+  }
+
+  private cloneTree(typeOverride?: string, preserveMutationLocks = true) {
+    const clone = new FakeSceneNode(typeOverride || this.type);
+    clone.name = this.name;
+    clone.width = this.width;
+    clone.height = this.height;
+    clone.x = this.x;
+    clone.y = this.y;
+    clone.fills = [...this.fills];
+    clone.strokes = [...this.strokes];
+    clone.strokeWeight = this.strokeWeight;
+    clone.clipsContent = this.clipsContent;
+    clone.layoutMode = this.layoutMode;
+    clone.layoutWrap = this.layoutWrap;
+    clone.primaryAxisAlignItems = this.primaryAxisAlignItems;
+    clone.counterAxisAlignItems = this.counterAxisAlignItems;
+    clone.primaryAxisSizingMode = this.primaryAxisSizingMode;
+    clone.counterAxisSizingMode = this.counterAxisSizingMode;
+    clone.itemSpacing = this.itemSpacing;
+    clone.minHeight = this.minHeight;
+    clone._layoutSizingHorizontal = this._layoutSizingHorizontal;
+    clone._layoutSizingVertical = this._layoutSizingVertical;
+    clone.layoutPositioning = this.layoutPositioning;
+    clone.textAutoResize = this.textAutoResize;
+    clone.fontName = this.fontName;
+    clone.fontSize = this.fontSize;
+    clone.lineHeight = this.lineHeight;
+    clone.textAlignHorizontal = this.textAlignHorizontal;
+    clone.characters = this.characters;
+    clone.constraints = this.constraints ? { ...this.constraints } : null;
+    for (const child of this.children) {
+      clone.appendChild(child.cloneTree(undefined, preserveMutationLocks));
+    }
+    clone.rejectChildMutation = preserveMutationLocks ? this.rejectChildMutation : false;
+    return clone;
   }
 
   private validateLayoutSizing(axis: "HORIZONTAL" | "VERTICAL", value: string) {
@@ -396,6 +479,111 @@ function makeRoot(children: any[], overrides: Record<string, unknown> = {}) {
   };
 }
 
+function makeContainerNode(children: any[], overrides: Record<string, unknown> = {}) {
+  return {
+    ...makeLeaf(),
+    id: "panel-1",
+    name: "Panel 1",
+    kind: "panel",
+    isLeaf: false,
+    width: 480,
+    height: 200,
+    direction: "HORIZONTAL",
+    bodyGap: 16,
+    headerGap: 8,
+    sizingW: "FIXED",
+    sizingH: "HUG",
+    bodySizingW: "FILL",
+    bodySizingH: "HUG",
+    bodyWidth: 440,
+    bodyHeight: 96,
+    headerMinHeight: 48,
+    headerTextWidth: 320,
+    leafTextWidth: 0,
+    children,
+    ...overrides,
+  };
+}
+
+function makeTextNode(name: string, characters: string) {
+  const node = new FakeSceneNode("TEXT");
+  node.name = name;
+  node.characters = characters;
+  node.layoutSizingHorizontal = "FIXED";
+  node.layoutSizingVertical = "HUG";
+  return node;
+}
+
+function makeBoxVariant(role: "Child" | "Parent" | "Section", includeSlot: boolean, slotRejectsMutation = false) {
+  const component = new FakeSceneNode("COMPONENT");
+  component.name = `Role=${role}`;
+  component.layoutMode = "VERTICAL";
+  component.primaryAxisSizingMode = "AUTO";
+  component.counterAxisSizingMode = "FIXED";
+  component.resizeWithoutConstraints(role === "Child" ? 287 : 287, role === "Child" ? 64 : 136);
+
+  const contents = new FakeSceneNode("FRAME");
+  contents.name = "contents";
+  contents.layoutMode = "HORIZONTAL";
+  contents.primaryAxisSizingMode = "FIXED";
+  contents.counterAxisSizingMode = "AUTO";
+
+  const textBlock = new FakeSceneNode("FRAME");
+  textBlock.name = "Text block";
+  textBlock.layoutMode = "VERTICAL";
+  textBlock.appendChild(makeTextNode("Main text", "Main text"));
+  textBlock.appendChild(makeTextNode("Helper text", "Helper text"));
+  contents.appendChild(textBlock);
+
+  const icon = new FakeSceneNode("INSTANCE");
+  icon.name = "Network.svg";
+  contents.appendChild(icon);
+  component.appendChild(contents);
+
+  if (includeSlot) {
+    const slot = new FakeSceneNode("FRAME");
+    slot.name = "slot";
+    slot.layoutMode = "VERTICAL";
+    slot.primaryAxisSizingMode = "FIXED";
+    slot.counterAxisSizingMode = "FIXED";
+    const placeholder = new FakeSceneNode("FRAME");
+    placeholder.name = "placeholder";
+    slot.appendChild(placeholder);
+    slot.rejectChildMutation = slotRejectsMutation;
+    component.appendChild(slot);
+  }
+
+  return component;
+}
+
+function installBoxComponentSet(options: { slotRejectsMutation?: boolean } = {}) {
+  const set = new FakeSceneNode("COMPONENT_SET");
+  set.name = "box";
+  set.appendChild(makeBoxVariant("Child", false));
+  set.appendChild(makeBoxVariant("Parent", true, Boolean(options.slotRejectsMutation)));
+  set.appendChild(makeBoxVariant("Section", true, Boolean(options.slotRejectsMutation)));
+  fakeFigma.currentPage.appendChild(set);
+  fakeFigma.currentPage.selection = [set];
+  return set;
+}
+
+function installIncompleteBoxComponentSet() {
+  const set = new FakeSceneNode("COMPONENT_SET");
+  set.name = "box";
+  set.appendChild(makeBoxVariant("Child", false));
+  set.appendChild(makeBoxVariant("Parent", true));
+  fakeFigma.currentPage.appendChild(set);
+  fakeFigma.currentPage.selection = [set];
+  return set;
+}
+
+function installIconComponent(name: string) {
+  const component = new FakeSceneNode("COMPONENT");
+  component.name = name;
+  fakeFigma.currentPage.appendChild(component);
+  return component;
+}
+
 function resetTestState() {
   fakeFigma.reset();
   fetchState.payload = null;
@@ -596,6 +784,170 @@ test("upsertYamlDiagram posts selected YAML and imports returned payload", async
   assert.equal(fetchState.lastYamlRequest?.body.sourceName, "selected.yaml");
   assert.match(fetchState.lastYamlRequest?.body.yaml, /Selected diagram/);
   assert.equal(fakeFigma.currentPage.selection[0]?.name, "Selected diagram");
+});
+
+test("resolveComponentMapping finds selected box role variants", () => {
+  resetTestState();
+  installBoxComponentSet();
+
+  const mapping = testables.resolveComponentMapping();
+
+  assert.ok(mapping);
+  assert.equal(mapping.componentSet.name, "box");
+  assert.equal(mapping.roleComponents.get("Child")?.name, "Role=Child");
+  assert.equal(mapping.roleComponents.get("Parent")?.name, "Role=Parent");
+  assert.equal(mapping.roleComponents.get("Section")?.name, "Role=Section");
+});
+
+test("resolveComponentMapping rejects incomplete or ambiguous box mappings", () => {
+  resetTestState();
+  installIncompleteBoxComponentSet();
+  assert.throws(() => testables.resolveComponentMapping(), /missing Role=Section/);
+
+  resetTestState();
+  installBoxComponentSet();
+  installBoxComponentSet();
+  assert.throws(() => testables.resolveComponentMapping(), /candidate "box" component sets/);
+});
+
+test("upsertYamlDiagram uses box component variants and instance slots when available", async () => {
+  resetTestState();
+  installBoxComponentSet();
+  fetchState.payload = {
+    slug: "component-diagram",
+    title: "Component diagram",
+    source: {
+      kind: "selected-yaml",
+      name: "component.yaml",
+    },
+    root: makeRoot([
+      makeContainerNode([
+        makeLeaf({ id: "child-1", name: "Child 1" }),
+      ]),
+    ]),
+  };
+
+  const result = await testables.upsertYamlDiagram(
+    "http://localhost:3846",
+    "title: Component diagram\nroot:\n  id: page\n",
+    "component.yaml",
+  );
+  const importedRoot = fakeFigma.currentPage.selection[0]!;
+  const panel = findImportedById(importedRoot, "panel-1");
+  const child = findImportedById(importedRoot, "child-1");
+  const slotBody = findImportedById(importedRoot, "panel-1:body");
+
+  assert.equal(result.componentMode, "box");
+  assert.equal(result.componentInstanceCount, 2);
+  assert.equal(result.componentVerifiedCount, 3);
+  assert.equal(result.instanceSlotCount, 1);
+  assert.equal(result.detachedSlotCount, 0);
+  assert.equal(panel?.type, "INSTANCE");
+  assert.equal(panel?.name, "Panel 1");
+  assert.equal(child?.type, "INSTANCE");
+  assert.equal(slotBody?.name, "panel-1/body");
+});
+
+test("upsertYamlDiagram reports missing icon components in component mode", async () => {
+  resetTestState();
+  installBoxComponentSet();
+  fetchState.payload = {
+    slug: "missing-icons",
+    title: "Missing icons",
+    root: makeRoot([
+      makeLeaf({
+        id: "icon-child",
+        icon: {
+          name: "Gateway.svg",
+          size: 48,
+          path: "/icons/Gateway.svg",
+        },
+      }),
+    ]),
+  };
+
+  await assert.rejects(
+    () => testables.upsertYamlDiagram("http://localhost:3846", "title: Missing icons", "icons.yaml"),
+    /Missing Figma icon components.*Gateway\.svg/,
+  );
+});
+
+test("upsertYamlDiagram swaps icon component when matching icon exists", async () => {
+  resetTestState();
+  installBoxComponentSet();
+  installIconComponent("Gateway.svg");
+  fetchState.payload = {
+    slug: "mapped-icons",
+    title: "Mapped icons",
+    root: makeRoot([
+      makeLeaf({
+        id: "icon-child",
+        icon: {
+          name: "Gateway.svg",
+          size: 48,
+          path: "/icons/Gateway.svg",
+        },
+      }),
+    ]),
+  };
+
+  const result = await testables.upsertYamlDiagram("http://localhost:3846", "title: Mapped icons", "icons.yaml");
+  const importedRoot = fakeFigma.currentPage.selection[0]!;
+  const child = findImportedById(importedRoot, "icon-child");
+  const iconTarget = child ? child.findAll((node) => node.name === "Network.svg")[0] : null;
+
+  assert.equal(result.componentMode, "box");
+  assert.equal(result.componentVerifiedCount, 1);
+  assert.equal(iconTarget?.swappedComponentName, "Gateway.svg");
+});
+
+test("upsertYamlDiagram detaches mapped instance when live slot mutation is rejected", async () => {
+  resetTestState();
+  installBoxComponentSet({ slotRejectsMutation: true });
+  fetchState.payload = {
+    slug: "detached-slot",
+    title: "Detached slot",
+    root: makeRoot([
+      makeContainerNode([
+        makeLeaf({ id: "child-1", name: "Child 1" }),
+      ]),
+    ]),
+  };
+
+  const result = await testables.upsertYamlDiagram("http://localhost:3846", "title: Detached", "detached.yaml");
+  const importedRoot = fakeFigma.currentPage.selection[0]!;
+  const panel = findImportedById(importedRoot, "panel-1");
+
+  assert.equal(result.componentMode, "box");
+  assert.equal(result.componentVerifiedCount, 3);
+  assert.equal(result.instanceSlotCount, 0);
+  assert.equal(result.detachedSlotCount, 1);
+  assert.equal(panel?.type, "FRAME");
+  assert.equal(panel?.getSharedPluginData("dgp", "importKind"), "detached-component:panel");
+});
+
+test("validateImportedComponentStructure rejects wrong slot direction", async () => {
+  resetTestState();
+  installBoxComponentSet();
+  fetchState.payload = {
+    slug: "wrong-slot-direction",
+    title: "Wrong slot direction",
+    root: makeRoot([
+      makeContainerNode([
+        makeLeaf({ id: "child-1", name: "Child 1" }),
+      ]),
+    ]),
+  };
+
+  await testables.upsertYamlDiagram("http://localhost:3846", "title: Wrong", "wrong.yaml");
+  const importedRoot = fakeFigma.currentPage.selection[0]!;
+  const slotBody = findImportedById(importedRoot, "panel-1:body")!;
+  slotBody.layoutMode = "VERTICAL";
+
+  assert.throws(
+    () => testables.validateImportedComponentStructure(importedRoot, fetchState.payload.root),
+    /panel-1\/body: expected HORIZONTAL layout, got VERTICAL/,
+  );
 });
 
 test("formatErrorMessage serializes object errors instead of object-object text", () => {

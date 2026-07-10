@@ -37,42 +37,42 @@
 
 ## Phase 2 - Component Mapping Resolver
 
-- [ ] T020 Add an inspectable component mapping manifest/schema for semantic
+- [x] T020 Add an inspectable component mapping manifest/schema for semantic
   roles, levels, variants, and component-property ownership.
-- [ ] T021 Implement component-set discovery in the current Figma file without
+- [x] T021 Implement component-set discovery in the current Figma file without
   relying only on transient node IDs.
-- [ ] T022 Implement variant/component-property resolution and validation.
-- [ ] T023 Fail import with actionable messages for missing, duplicated,
+- [x] T022 Implement variant/component-property resolution and validation.
+- [x] T023 Fail import with actionable messages for missing, duplicated,
   ambiguous, or incomplete mappings.
-- [ ] T024 Add fake-Figma tests for successful mapping resolution and all
+- [x] T024 Add fake-Figma tests for successful mapping resolution and all
   negative resolver failures.
 
 ## Phase 3 - Component Instance Builder
 
-- [ ] T030 Replace mapped semantic box creation with component instance creation
+- [x] T030 Replace mapped semantic box creation with component instance creation
   when a mapping exists.
 - [ ] T031 Apply variant/component properties for role, level, title/body/icon
   state, and other mapped semantic values.
-- [ ] T032 Preserve spec 078 effective Fill/Hug/Fixed sizing when sizing mapped
+- [x] T032 Preserve spec 078 effective Fill/Hug/Fixed sizing when sizing mapped
   instances and generated slot containers.
-- [ ] T033 Keep explicit fallback behavior only for roles configured to use a
+- [x] T033 Keep explicit fallback behavior only for roles configured to use a
   fallback component or debug generic-frame mode.
-- [ ] T034 Add readback validation for component identity and component-property
+- [x] T034 Add readback validation for component identity and component-property
   values.
 
 ## Phase 4 - Slot-Based Nesting
 
-- [ ] T040 Implement slot target discovery using the selected stable marker
+- [x] T040 Implement slot target discovery using the selected stable marker
   contract.
-- [ ] T041 Create generated slot containers with horizontal or vertical
+- [x] T041 Create generated slot containers with horizontal or vertical
   auto-layout based on payload child/body direction.
-- [ ] T042 Insert mapped child instances into slot containers in payload child
+- [x] T042 Insert mapped child instances into slot containers in payload child
   order.
-- [ ] T043 Apply payload gap, padding, and effective body sizing to slot
+- [x] T043 Apply payload gap, padding, and effective body sizing to slot
   containers.
-- [ ] T044 Add readback validation for slot existence, slot direction, child
+- [x] T044 Add readback validation for slot existence, slot direction, child
   count/order, and generated subtree import IDs.
-- [ ] T045 Add tests that intentionally swap slot direction and prove validation
+- [x] T045 Add tests that intentionally swap slot direction and prove validation
   fails.
 
 ## Phase 5 - Refresh and Overrides
