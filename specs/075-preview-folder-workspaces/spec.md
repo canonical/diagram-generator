@@ -10,7 +10,7 @@
 The preview editor is single-tenant and repo-bound. The server resolves exactly
 one diagram directory:
 
-- `FRAMES_DIR` is a single directory, defaulting to `scripts/diagrams/frames`
+- `FRAMES_DIR` is a single directory, defaulting to `diagrams/1.input`
   and overridable only through the `DG_FRAMES_DIR` environment variable
   (`apps/preview/src/server.ts`).
 - The side navigation is the `.yaml` slugs in that one directory (`listYamlSlugs`

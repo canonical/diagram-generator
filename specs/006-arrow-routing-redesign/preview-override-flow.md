@@ -11,7 +11,7 @@ Inspector "Gap bump" (editor.js setFrameProp)
   → save-client POST /api/overrides/{slug}
   → server.ts persistFrameDiagramOverridePayloadToYaml
   → frame-diagram.ts applyFrameOverride  (YAML write)
-  → scripts/diagrams/frames/{slug}.yaml
+  → diagrams/1.input/{slug}.yaml
 
 Reload path:
   YAML → loadFrameYaml → layoutFrameTree (server)

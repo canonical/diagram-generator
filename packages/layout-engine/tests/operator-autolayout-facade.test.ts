@@ -10,7 +10,7 @@ import { MockTextAdapter } from "../src/text-measure.js";
 
 describe("operator autolayout facade", () => {
   it("evaluates a frame document through a sync operator-shaped interface", () => {
-    const diagram = loadFrameYaml("../../scripts/diagrams/frames/preview-smoke.yaml");
+    const diagram = loadFrameYaml("../../diagrams/1.input/preview-smoke.yaml");
     const document = fromFrameDiagram(diagram);
     const adapter = new MockTextAdapter();
 

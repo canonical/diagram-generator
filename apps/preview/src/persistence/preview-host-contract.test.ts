@@ -258,10 +258,10 @@ test("legacy builtin viewer-route helper installs both builtin viewers for narro
 test("autolayout viewer loads engine controller scripts before editor bootstrap", () => {
   const route = createAutolayoutPreviewHostViewerRoute({
     framePreviewDocumentDeps: {
-      framesDir: path.join(REPO_ROOT, "scripts", "diagrams", "frames"),
+      framesDir: path.join(REPO_ROOT, "diagrams", "1.input"),
     },
     framePreviewRenderDeps: {
-      framesDir: path.join(REPO_ROOT, "scripts", "diagrams", "frames"),
+      framesDir: path.join(REPO_ROOT, "diagrams", "1.input"),
       iconLoader: () => null,
       textAdapterPromise: Promise.resolve(new MockTextAdapter()),
     },
@@ -346,10 +346,10 @@ test("autolayout viewer hides ELK controls for a single-engine v3 frame", () => 
 test("autolayout viewer preloads graph layout scripts for switchable v3 frames", () => {
   const route = createAutolayoutPreviewHostViewerRoute({
     framePreviewDocumentDeps: {
-      framesDir: path.join(REPO_ROOT, "scripts", "diagrams", "frames"),
+      framesDir: path.join(REPO_ROOT, "diagrams", "1.input"),
     },
     framePreviewRenderDeps: {
-      framesDir: path.join(REPO_ROOT, "scripts", "diagrams", "frames"),
+      framesDir: path.join(REPO_ROOT, "diagrams", "1.input"),
       iconLoader: () => null,
       textAdapterPromise: Promise.resolve(new MockTextAdapter()),
     },
@@ -389,10 +389,10 @@ test("autolayout viewer hides native grid controls for ELK-family frames", () =>
   ]) {
     const route = createAutolayoutPreviewHostViewerRoute({
       framePreviewDocumentDeps: {
-        framesDir: path.join(REPO_ROOT, "scripts", "diagrams", "frames"),
+        framesDir: path.join(REPO_ROOT, "diagrams", "1.input"),
       },
       framePreviewRenderDeps: {
-        framesDir: path.join(REPO_ROOT, "scripts", "diagrams", "frames"),
+        framesDir: path.join(REPO_ROOT, "diagrams", "1.input"),
         iconLoader: () => null,
         textAdapterPromise: Promise.resolve(new MockTextAdapter()),
       },
@@ -481,7 +481,7 @@ test("autolayout viewer shows graph layout controls and hides ELK, grid, and for
 });
 
 test("real frame fixtures resolve authored layout engines without silent v3 fallback", () => {
-  const framesDir = path.join(REPO_ROOT, "scripts", "diagrams", "frames");
+  const framesDir = path.join(REPO_ROOT, "diagrams", "1.input");
   const expectedLayoutEngines = new Map([
     ["example-platform-architecture", "v3"],
     ["request-to-hardware-stack", "v3"],
@@ -509,7 +509,7 @@ test("switching an authored ELK frame fixture to v3 persists and resolves v3", (
   const framesDir = path.join(tempDir, "frames");
   mkdirSync(framesDir, { recursive: true });
   copyFileSync(
-    path.join(REPO_ROOT, "scripts", "diagrams", "frames", "juju-bootstrap-machines-process.yaml"),
+    path.join(REPO_ROOT, "diagrams", "1.input", "juju-bootstrap-machines-process.yaml"),
     path.join(framesDir, "juju-bootstrap-machines-process.yaml"),
   );
   const normalizeLayoutEngine = (layoutEngine: string | undefined) => layoutEngine?.trim() ?? "";
@@ -638,7 +638,7 @@ test("incompatible canonicalized persisted graph engines fall back to the first 
 });
 
 test("sequence frame fixture resolves and renders through the sequence document path", async () => {
-  const framesDir = path.join(REPO_ROOT, "scripts", "diagrams", "frames");
+  const framesDir = path.join(REPO_ROOT, "diagrams", "1.input");
   const context = resolveFramePreviewViewerContext(
     "service-handshake-sequence",
     { framesDir },
@@ -1912,7 +1912,7 @@ test("builtin preview host install preserves frame-yaml document ownership acros
   const forceDefinitionsDir = path.join(tempDir, "force");
   const forceSpecPath = path.join(forceDefinitionsDir, "force-stakeholders.yaml");
   const framesDir = path.join(tempDir, "frames");
-  const sourceFramePath = path.join(REPO_ROOT, "scripts", "diagrams", "frames", "complex-routing-usecase.yaml");
+  const sourceFramePath = path.join(REPO_ROOT, "diagrams", "1.input", "complex-routing-usecase.yaml");
   const tempFramePath = path.join(framesDir, "complex-routing-usecase.yaml");
   const sequenceFramePath = path.join(framesDir, "service-handshake-sequence.yaml");
   mkdirSync(framesDir, { recursive: true });

@@ -9,7 +9,7 @@ import { launchChromiumOrSkip } from "./playwright-test-support.js";
 
 const REPO_ROOT = path.resolve(process.cwd(), "..", "..");
 const APP_ROOT = path.join(REPO_ROOT, "apps", "preview");
-const FRAME_SOURCE_DIR = path.join(REPO_ROOT, "scripts", "diagrams", "frames");
+const FRAME_SOURCE_DIR = path.join(REPO_ROOT, "diagrams", "1.input");
 const TSX_CLI = path.join(APP_ROOT, "node_modules", "tsx", "dist", "cli.mjs");
 
 function copyFixtureFrames(slugs: readonly string[]): string {

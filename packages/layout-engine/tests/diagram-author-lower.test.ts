@@ -14,7 +14,7 @@ function collectFrameIds(root: { id: string; children: { id: string; children: u
 
 describe('diagram author lowering regression', () => {
   it('loads preview-smoke through compile lowering with the same frame ids and arrows', () => {
-    const yamlPath = join(repoRoot, 'scripts', 'diagrams', 'frames', 'preview-smoke.yaml');
+    const yamlPath = join(repoRoot, 'diagrams', '1.input', 'preview-smoke.yaml');
     const raw = readFileSync(yamlPath, 'utf-8');
     const lowered = loadFrameYamlFromString(raw, yamlPath);
     const compiled = compileDiagramYaml(raw, { sourcePath: yamlPath });

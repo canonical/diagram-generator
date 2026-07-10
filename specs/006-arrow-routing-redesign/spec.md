@@ -126,7 +126,7 @@ beta for technical-author users. It is written against the **native TS router** 
 `packages/layout-engine/src/render-adapter/display-list.ts` and `svg-render.ts`
 (`routeArrows` / `_inferSides` / `_orthogonalWaypoints` / `_edgePoint`), which is the
 default render path for diagrams without an authored `layoutPath`. Reference diagram:
-`scripts/diagrams/frames/ssdlc-lifecycle.yaml` (`/view/v3:ssdlc-lifecycle`), source
+`diagrams/1.input/ssdlc-lifecycle.yaml` (`/view/v3:ssdlc-lifecycle`), source
 `diagrams/1.input/ssdlc.png`.
 
 ### Diagnosis of the current failure

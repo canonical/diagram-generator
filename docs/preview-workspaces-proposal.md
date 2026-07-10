@@ -11,7 +11,7 @@ The preview editor today is a single-tenant, repo-bound tool. The server resolve
 exactly one diagram folder:
 
 - `FRAMES_DIR` is a single directory, defaulting to
-  `scripts/diagrams/frames` and overridable only by the `DG_FRAMES_DIR`
+  `diagrams/1.input` and overridable only by the `DG_FRAMES_DIR`
   environment variable ([`apps/preview/src/server.ts`](../apps/preview/src/server.ts)).
 - The side navigation is just the `.yaml` slugs in that one directory
   (`listYamlSlugs` in
@@ -133,7 +133,7 @@ interface DiagramWorkspaceSource {
 }
 ```
 
-- `bundled-examples`: the repo's `scripts/diagrams/frames`, always present,
+- `bundled-examples`: the repo's `diagrams/1.input`, always present,
   read-only for end users (the "browseable examples" in the side nav).
 - `server-root`: today's disk-backed dir, one instance per `--root` (Option A).
 - `local-folder`: File System Access API directory handle (Option B).

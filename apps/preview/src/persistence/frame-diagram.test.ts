@@ -27,9 +27,9 @@ import {
 } from "@diagram-generator/layout-engine";
 
 const REPO_ROOT = path.resolve(process.cwd(), "..", "..");
-const FRAME_FIXTURE = path.join(REPO_ROOT, "scripts", "diagrams", "frames", "support-engineering-flow.yaml");
-const COMPLEX_ROUTING_FIXTURE = path.join(REPO_ROOT, "scripts", "diagrams", "frames", "complex-routing-usecase.yaml");
-const ALIGNMENT_GRID_FIXTURE = path.join(REPO_ROOT, "scripts", "diagrams", "frames", "test-alignment-grid.yaml");
+const FRAME_FIXTURE = path.join(REPO_ROOT, "diagrams", "1.input", "support-engineering-flow.yaml");
+const COMPLEX_ROUTING_FIXTURE = path.join(REPO_ROOT, "diagrams", "1.input", "complex-routing-usecase.yaml");
+const ALIGNMENT_GRID_FIXTURE = path.join(REPO_ROOT, "diagrams", "1.input", "test-alignment-grid.yaml");
 
 function writeTempFrame(name: string, content: string): string {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "dg-frame-yaml-"));

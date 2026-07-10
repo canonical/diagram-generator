@@ -30,7 +30,7 @@ const APP_ROOT = path.resolve(__dirname, "..");
 const REPO_ROOT = path.resolve(APP_ROOT, "..", "..");
 const SCRIPTS_DIR = path.join(REPO_ROOT, "scripts");
 const PREVIEW_DIR = path.join(SCRIPTS_DIR, "preview");
-const FRAMES_DIR = path.resolve(process.env.DG_FRAMES_DIR ?? path.join(SCRIPTS_DIR, "diagrams", "frames"));
+const FRAMES_DIR = path.resolve(process.env.DG_FRAMES_DIR ?? path.join(REPO_ROOT, "diagrams", "1.input"));
 const FORCE_DEFINITIONS_DIR = path.resolve(
   process.env.DG_FORCE_DEFINITIONS_DIR ?? path.join(SCRIPTS_DIR, "diagrams", "force"),
 );

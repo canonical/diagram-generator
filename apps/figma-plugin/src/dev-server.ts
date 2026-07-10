@@ -32,7 +32,7 @@ const REPO_ROOT = path.resolve(APP_ROOT, "..", "..");
 const PORT = 3846;
 const SAMPLE_PATH = path.join(APP_ROOT, "dev-data", "sample-leaf.yaml");
 const ICONS_DIR = path.join(REPO_ROOT, "assets", "icons");
-const FRAMES_DIR = path.join(REPO_ROOT, "scripts", "diagrams", "frames");
+const FRAMES_DIR = path.join(REPO_ROOT, "diagrams", "1.input");
 const ICON_COLUMN = ICON_SIZE + INSET;
 
 type FigmaSizing = "FIXED" | "HUG" | "FILL";

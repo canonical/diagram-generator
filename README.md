@@ -1,6 +1,6 @@
 # Diagram Generator
 
-Frame YAML in `scripts/diagrams/frames/` → TypeScript layout/render in `packages/layout-engine/` → editable SVG in preview and batch export.
+Frame YAML in `diagrams/1.input/` → TypeScript layout/render in `packages/layout-engine/` → editable SVG in preview and batch export.
 
 This repo is TS-first. Python is retained only for the draw.io lane. Do not add new Python product-path behavior.
 
@@ -44,7 +44,7 @@ If the active spec and current branch name do not match, fix that before continu
 | `packages/layout-engine/` | TS layout, measure, render, authoring, browser bundle |
 | `apps/preview/` | Node preview app |
 | `scripts/preview/` | Browser shell and glue |
-| `scripts/diagrams/frames/` | Authored frame YAML |
+| `diagrams/1.input/` | Authored frame YAML |
 | `DIAGRAM.md` | Minimal visual contract |
 
 ## Core Commands

@@ -40,7 +40,7 @@ Authoring and reference sources:
 
 ## Authoring
 
-- Author diagrams in `scripts/diagrams/frames/*.yaml`
+- Author diagrams in `diagrams/1.input/*.yaml`
 - Keep styling semantic: `level`, `variant`, structure, spacing
 - Do not encode renderer behavior in ad hoc prose or token catalogs
 - For the fixed `level:` encoding, frame-class table, and sibling-promotion

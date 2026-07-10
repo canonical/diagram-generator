@@ -8,7 +8,7 @@ files, commands, search hygiene, token/test economy, and flow-map routing. It do
 ## What matters
 
 - Product path: TypeScript
-- Source of truth: frame YAML in `scripts/diagrams/frames/`
+- Source of truth: frame YAML in `diagrams/1.input/`
 - Preview front door: `apps/preview/`
 - Layout/render authority: `packages/layout-engine/`
 - `scripts/preview/*.js` is legacy compatibility shell, not a valid default
@@ -74,7 +74,7 @@ Add a new row when you land a cross-layer map (UI → server → engine → disk
 | `packages/layout-engine/tests/` | Vitest coverage |
 | `apps/preview/src/` | Node preview app |
 | `scripts/preview/` | Legacy browser-shell compatibility layer; prefer TS owners and delegation, not new ownership |
-| `scripts/diagrams/frames/` | Authored diagrams |
+| `diagrams/1.input/` | Authored diagrams |
 
 ## Runtime flow
 

@@ -15,7 +15,7 @@ Current plugin facts:
 
 - UI has two hardcoded actions: sample leaf and telecom diagram.
 - Main code fetches `/api/sample-leaf` or `/api/frame-diagram?slug=...`.
-- The server reads slug-based YAML from `scripts/diagrams/frames/`.
+- The server reads slug-based YAML from `diagrams/1.input/`.
 - Import creates plugin-authored frames, text, rectangles, and SVG icon nodes.
 - Readback validation already proves effective Fill/Hug/Fixed sizing.
 

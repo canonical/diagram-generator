@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { compileDiagramYaml } from '../src/diagram-author/compile.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
-const framesDir = join(repoRoot, 'scripts', 'diagrams', 'frames');
+const framesDir = join(repoRoot, 'diagrams', '1.input');
 
 function collectFrameIds(root: { id: string; children: { id: string; children: unknown[] }[] }): string[] {
   return [root.id, ...root.children.flatMap(child => collectFrameIds(child))];

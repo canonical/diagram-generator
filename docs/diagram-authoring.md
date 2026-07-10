@@ -108,8 +108,8 @@ node packages/layout-engine/scripts/export-mermaid.mjs --slug tiered-network-arc
 
 # Optional migration to author-v1 sugar (stdout or --out)
 node packages/layout-engine/scripts/migrate-diagram-yaml.mjs \
-  --in scripts/diagrams/frames/tiered-network-architecture.yaml \
-  --out scripts/diagrams/frames/tiered-network-architecture.author-v1.yaml \
+  --in diagrams/1.input/tiered-network-architecture.yaml \
+  --out diagrams/1.input/tiered-network-architecture.author-v1.yaml \
   --shorthand-arrows --extract-defaults
 ```
 
@@ -148,6 +148,6 @@ See [`specs/028-diagram-interchange-mermaid-d2/`](../specs/028-diagram-interchan
 | [`docs/spec-archive/022-diagram-authoring-ast/quickstart.md`](./spec-archive/022-diagram-authoring-ast/quickstart.md) | Examples |
 | [`docs/spec-archive/022-diagram-authoring-ast/data-model.md`](./spec-archive/022-diagram-authoring-ast/data-model.md) | AST types |
 | [`docs/spec-archive/022-diagram-authoring-ast/contracts/authoring-schema.md`](./spec-archive/022-diagram-authoring-ast/contracts/authoring-schema.md) | Normative schema |
-| [`scripts/diagrams/frames/tiered-network-architecture.author-v1.yaml`](../scripts/diagrams/frames/tiered-network-architecture.author-v1.yaml) | Reference author-v1 fixture |
+| [`diagrams/1.input/tiered-network-architecture.author-v1.yaml`](../diagrams/1.input/tiered-network-architecture.author-v1.yaml) | Reference author-v1 fixture |
 
 Full visual contract for boxes, tokens, and preview editing: [`DIAGRAM.md`](../DIAGRAM.md).

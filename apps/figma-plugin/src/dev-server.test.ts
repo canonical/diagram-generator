@@ -280,11 +280,11 @@ test("telecom frame-diagram payload contains no Figma-illegal fill under hug", a
 
 test("createFrameDiagramPayloadFromYaml supports arbitrary selected frame YAML", async () => {
   const telecomYaml = await readFile(
-    new URL("../../../scripts/diagrams/frames/ai-infra-telecom-services-stack.yaml", import.meta.url),
+    new URL("../../../diagrams/1.input/ai-infra-telecom-services-stack.yaml", import.meta.url),
     "utf8",
   );
   const smokeYaml = await readFile(
-    new URL("../../../scripts/diagrams/frames/preview-smoke.yaml", import.meta.url),
+    new URL("../../../diagrams/1.input/preview-smoke.yaml", import.meta.url),
     "utf8",
   );
 

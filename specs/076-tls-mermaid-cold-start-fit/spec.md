@@ -12,7 +12,7 @@ is retained only as history.
 same `elkjs` engine this repo uses.
 **Priority**: Example-driven capability port. The TLS topology is the proving
 fixture, not the whole scope.
-**Context**: `scripts/diagrams/frames/tls-certificate-provider-topology.yaml`,
+**Context**: `diagrams/1.input/tls-certificate-provider-topology.yaml`,
 `docs/spec-archive/074-layout-algorithm-consolidation/`, sibling
 `../mermaid/` (vendors `@mermaid-js/layout-elk`, `elkjs`, `dagre-d3-es`), and this
 package's `images/` + `references/` assets.
@@ -224,7 +224,7 @@ example without the original chat:
   - current in-repo forced `elk-force` render on the same fixture
 - `references/tls-certificate-provider-topology.mmd`
   - draft Mermaid reconstruction for cross-repo seeding
-- `scripts/diagrams/frames/tls-certificate-provider-topology.yaml`
+- `diagrams/1.input/tls-certificate-provider-topology.yaml`
   - canonical YAML fixture in this repo
 
 ## Image context and interpretation
@@ -285,7 +285,7 @@ This yields the resolution now recorded in this spec:
 ## Current behavior (must be treated as baseline, not conjecture)
 
 - The authored frame fixture exists at
-  `scripts/diagrams/frames/tls-certificate-provider-topology.yaml`.
+  `diagrams/1.input/tls-certificate-provider-topology.yaml`.
 - The current compatibility judgment is `v3` only.
 - The current fill-carrier blockers are:
   - `provider_stack`
@@ -442,7 +442,7 @@ option set as the seed.
 1. Create a standalone script `tmp/elk-cluster-spike.mts` (a spike, not a test).
    It imports `elkjs` (already a dependency via `packages/graph-layout-elk`) and
    builds one ELK graph by hand from
-   `scripts/diagrams/frames/tls-certificate-provider-topology.yaml`.
+   `diagrams/1.input/tls-certificate-provider-topology.yaml`.
 2. Build the ELK graph with **compound nodes** (do NOT flatten to fill carriers):
    - Root: `layoutOptions: { 'elk.algorithm': 'layered', 'elk.direction': 'DOWN',
      'elk.hierarchyHandling': 'INCLUDE_CHILDREN' }`.
@@ -591,7 +591,7 @@ and the core cluster/ordering geometry.
    `images/04-current-elk-layered-render.png`, and
    `images/05-current-elk-force-render.png` (controlled in-repo comparison).
 4. Read `references/tls-certificate-provider-topology.mmd` and
-   `scripts/diagrams/frames/tls-certificate-provider-topology.yaml`.
+   `diagrams/1.input/tls-certificate-provider-topology.yaml`.
 5. Confirm the portability finding independently in `../mermaid/node_modules`:
    `@mermaid-js/layout-elk` is MIT and depends on `elkjs`; its core builds a
    compound ELK graph with `children` / parent map / per-cluster options.

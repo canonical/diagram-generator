@@ -968,9 +968,69 @@ function validateImportedComponentStructure(rootFrame: any, payloadRoot: Diagram
   return checked;
 }
 
+function isNodeAvailable(node: any) {
+  if (!node) {
+    return false;
+  }
+  try {
+    return node.removed !== true;
+  } catch (_error) {
+    return false;
+  }
+}
+
+function safeGetNodeType(node: any) {
+  try {
+    return String(node?.type || "");
+  } catch (_error) {
+    return "";
+  }
+}
+
+function safeGetNodeName(node: any) {
+  try {
+    return String(node?.name || "");
+  } catch (_error) {
+    return "";
+  }
+}
+
+function safeGetChildren(node: any) {
+  try {
+    if (!isNodeAvailable(node)) {
+      return [];
+    }
+    return [...(node.children ?? [])];
+  } catch (_error) {
+    return [];
+  }
+}
+
+function safeGetParent(node: any) {
+  try {
+    if (!isNodeAvailable(node)) {
+      return null;
+    }
+    return node.parent ?? null;
+  } catch (_error) {
+    return null;
+  }
+}
+
+function hasNodeMethod(node: any, methodName: string) {
+  try {
+    return typeof node?.[methodName] === "function";
+  } catch (_error) {
+    return false;
+  }
+}
+
 function visitSceneTree(root: any, visitor: (node: any) => void) {
+  if (!isNodeAvailable(root)) {
+    return;
+  }
   visitor(root);
-  for (const child of root?.children ?? []) {
+  for (const child of safeGetChildren(root)) {
     visitSceneTree(child, visitor);
   }
 }
@@ -982,7 +1042,7 @@ async function loadDocumentPagesForMapping() {
 }
 
 function isDescendantOf(node: any, ancestor: any) {
-  for (let current = node?.parent ?? null; current; current = current.parent ?? null) {
+  for (let current = safeGetParent(node); current; current = safeGetParent(current)) {
     if (current === ancestor) {
       return true;
     }
@@ -991,8 +1051,8 @@ function isDescendantOf(node: any, ancestor: any) {
 }
 
 function findAncestorPage(node: any) {
-  for (let current = node; current; current = current.parent ?? null) {
-    if (current.type === "PAGE") {
+  for (let current = node; current; current = safeGetParent(current)) {
+    if (safeGetNodeType(current) === "PAGE") {
       return current;
     }
   }
@@ -1000,7 +1060,7 @@ function findAncestorPage(node: any) {
 }
 
 function hasImportedAncestor(node: any) {
-  for (let current = node; current; current = current.parent ?? null) {
+  for (let current = node; current; current = safeGetParent(current)) {
     try {
       if (current.getSharedPluginData?.(PLUGIN_NAMESPACE, IMPORT_ID_KEY)) {
         return true;
@@ -1023,12 +1083,22 @@ function parseVariantRole(name: string): "Child" | "Parent" | "Section" | null {
 
 function collectCandidateRoots() {
   const roots = new Set<any>();
-  for (const node of figma.currentPage.selection ?? []) {
-    roots.add(node);
+  try {
+    for (const node of figma.currentPage.selection ?? []) {
+      if (isNodeAvailable(node)) {
+        roots.add(node);
+      }
+    }
+  } catch (_error) {
+    // Selection can contain stale node handles after manual deletes.
   }
-  roots.add(figma.currentPage);
-  for (const page of figma.root?.children ?? []) {
-    roots.add(page);
+  if (isNodeAvailable(figma.currentPage)) {
+    roots.add(figma.currentPage);
+  }
+  for (const page of safeGetChildren(figma.root)) {
+    if (isNodeAvailable(page)) {
+      roots.add(page);
+    }
   }
   return [...roots];
 }
@@ -1037,7 +1107,11 @@ function findBoxComponentSets() {
   const matches = new Set<any>();
   for (const root of collectCandidateRoots()) {
     visitSceneTree(root, (node) => {
-      if (String(node?.name || "").trim() === BOX_COMPONENT_SET_NAME && (node.children?.length ?? 0) > 0) {
+      if (
+        safeGetNodeType(node) === "COMPONENT_SET"
+        && safeGetNodeName(node).trim() === BOX_COMPONENT_SET_NAME
+        && safeGetChildren(node).length > 0
+      ) {
         matches.add(node);
       }
     });
@@ -1061,28 +1135,29 @@ function collectIconSources(componentSet: any) {
       if (!node || node === componentSet || isDescendantOf(node, componentSet) || hasImportedAncestor(node)) {
         return;
       }
-      if (parseVariantRole(node.name)) {
+      const name = safeGetNodeName(node);
+      if (parseVariantRole(name)) {
         return;
       }
 
-      const normalized = normalizeIconName(node.name);
+      const normalized = normalizeIconName(name);
       if (!normalized || icons.has(normalized)) {
         return;
       }
 
-      if (node.type === "COMPONENT" && typeof node.createInstance === "function") {
+      if (safeGetNodeType(node) === "COMPONENT" && hasNodeMethod(node, "createInstance")) {
         icons.set(normalized, {
           kind: "component",
-          name: String(node.name || ""),
+          name,
           node,
         });
         return;
       }
 
-      if (/\.svg$/i.test(String(node.name || "")) && typeof node.clone === "function") {
+      if (/\.svg$/i.test(name) && hasNodeMethod(node, "clone")) {
         icons.set(normalized, {
           kind: "cloneable",
-          name: String(node.name || ""),
+          name,
           node,
         });
       }
@@ -1098,7 +1173,9 @@ async function resolveComponentMapping(): Promise<ComponentMapping | null> {
     const names = componentSets
       .map((node) => {
         const page = findAncestorPage(node);
-        return page?.name ? `${page.name}/${node.name}` : String(node.name || BOX_COMPONENT_SET_NAME);
+        const pageName = safeGetNodeName(page);
+        const nodeName = safeGetNodeName(node) || BOX_COMPONENT_SET_NAME;
+        return pageName ? `${pageName}/${nodeName}` : nodeName;
       })
       .sort()
       .join(", ");
@@ -1110,9 +1187,9 @@ async function resolveComponentMapping(): Promise<ComponentMapping | null> {
   }
 
   const roleComponents = new Map<"Child" | "Parent" | "Section", any>();
-  for (const child of componentSet.children ?? []) {
-    const role = parseVariantRole(child.name);
-    if (role && typeof child.createInstance === "function") {
+  for (const child of safeGetChildren(componentSet)) {
+    const role = parseVariantRole(safeGetNodeName(child));
+    if (role && safeGetNodeType(child) === "COMPONENT" && hasNodeMethod(child, "createInstance")) {
       if (roleComponents.has(role)) {
         throw new Error(`Box component set has multiple Role=${role} variants.`);
       }
@@ -1126,7 +1203,7 @@ async function resolveComponentMapping(): Promise<ComponentMapping | null> {
     }
   }
 
-  const pageCount = (figma.root?.children ?? []).length || 1;
+  const pageCount = safeGetChildren(figma.root).length || 1;
 
   return {
     componentSet,

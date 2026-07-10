@@ -14,8 +14,8 @@ Use this page when you need an **on-brand architecture or workflow diagram** wit
 
 ## Fastest path — new diagram
 
-1. **Copy a nearby example** from `scripts/diagrams/frames/` (e.g. `example-deployment-pipeline.yaml` or `support-engineering-flow.yaml`).
-2. Save as `scripts/diagrams/frames/<your-slug>.yaml` with `engine: v3` and a `root:` frame tree.
+1. **Copy a nearby example** from `diagrams/1.input/` (e.g. `example-deployment-pipeline.yaml` or `support-engineering-flow.yaml`).
+2. Save as `diagrams/1.input/<your-slug>.yaml` with `engine: v3` and a `root:` frame tree.
 3. Start preview:
 
    ```bash

@@ -12,7 +12,7 @@ import { MockTextAdapter } from '../src/text-measure.js';
 import { resolveSingleSelectionInspectorPanelRenderOptions } from '../src/preview-shell/inspector-single-options.js';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
-const FRAMES_DIR = join(__dirname, '../../..', 'scripts/diagrams/frames');
+const FRAMES_DIR = join(__dirname, '../../..', 'diagrams/1.input');
 
 function findAuthorFrame(
   node: AuthorFrameNode | null | undefined,

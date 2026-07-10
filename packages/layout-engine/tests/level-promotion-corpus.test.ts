@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { loadFrameYaml, validateFrameLevelPromotion } from '../src/index.js';
 
-const FRAMES_DIR = join(__dirname, '../../..', 'scripts/diagrams/frames');
+const FRAMES_DIR = join(__dirname, '../../..', 'diagrams/1.input');
 
 describe('frame level-promotion corpus', () => {
   it('keeps authored frame YAML aligned with the sibling-promotion rule', () => {

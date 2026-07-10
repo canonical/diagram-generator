@@ -52,7 +52,7 @@ node apps/preview/scripts/export-png.mjs --slug request-to-hardware-stack --scal
 
 ### US3 – Corpus / CI batch (P2)
 
-**Given** the v3 frame corpus under `scripts/diagrams/frames/`, **When** `export-png.mjs --all-v3` runs, **Then** every slug with a successful TS SVG export gets matching `@1x` / `@2x` PNGs under `diagrams/2.output/v3/png/`.
+**Given** the v3 frame corpus under `diagrams/1.input/`, **When** `export-png.mjs --all-v3` runs, **Then** every slug with a successful TS SVG export gets matching `@1x` / `@2x` PNGs under `diagrams/2.output/v3/png/`.
 
 ### US4 – HTTP download from the Node preview app (P2)
 

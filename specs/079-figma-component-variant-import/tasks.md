@@ -43,6 +43,9 @@
   different frame YAML files.
 - [x] T015 Keep slug/sample endpoints only as explicit debug/test helpers, not
   as the visible production workflow.
+- [x] T016 Move the canonical frame YAML corpus to `diagrams/1.input` and
+  update slug-based preview/Figma/plugin/test defaults away from the former
+  scripts frame directory.
 
 ## Phase 2 - Component Mapping Resolver
 
@@ -53,6 +56,9 @@
 - [x] T021a Load/search all Figma pages for component and icon discovery so
   imports on `Page 1` can resolve the `box` component on `Components` and
   copied icons on `Brand icons`.
+- [x] T021b Resolve only the master `COMPONENT_SET` named `box`; ignore
+  `box`-named component instances and stale/deleted Figma node handles during
+  mapping discovery.
 - [x] T022 Implement variant/component-property resolution and validation.
 - [x] T023 Fail import with actionable messages for missing, duplicated,
   ambiguous, or incomplete mappings.

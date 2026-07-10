@@ -23,7 +23,7 @@ The spec is intentionally downstream of spec 038. It should either:
 1. **Create a Node PNG export CLI**
    - Add a Node entrypoint such as `apps/preview/scripts/export-png.mjs` or a package-local CLI.
    - Support `--slug`, `--all-v3`, `--scale`, and `--refresh-svg`.
-   - Resolve `scripts/diagrams/frames/<slug>.yaml`.
+   - Resolve `diagrams/1.input/<slug>.yaml`.
    - Generate or reuse authoritative `diagrams/2.output/v3/svg/<slug>-onbrand-v3.svg`.
    - Write PNG output to `diagrams/2.output/v3/png/`.
 

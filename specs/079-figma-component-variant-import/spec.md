@@ -80,7 +80,7 @@ editing a hardcoded slug or using sample-specific plugin buttons.
 diagram import workflow before component variants are useful.
 
 **Independent Test**: Run the plugin, select two different YAML files from
-`scripts/diagrams/frames/`, and verify both render without changing plugin
+`diagrams/1.input/`, and verify both render without changing plugin
 source or UI defaults.
 
 **Acceptance Scenarios**:
@@ -193,7 +193,7 @@ content updates while the allowed Figma override remains.
 - **FR-001**: The plugin UI MUST replace the sample-leaf and telecom-specific
   buttons with one primary **Select YAML to import** workflow.
 - **FR-002**: The import workflow MUST support arbitrary frame YAML files, not
-  only slugs present in `scripts/diagrams/frames/`.
+  only slugs present in `diagrams/1.input/`.
 - **FR-003**: Arbitrary YAML import MUST route raw YAML through the local
   layout-engine server so effective sizing, synthetic heading/body frames, and
   browser-saved YAML overrides are resolved by the same authority as preview.

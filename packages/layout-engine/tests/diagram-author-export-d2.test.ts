@@ -118,7 +118,7 @@ describe('exportD2', () => {
   });
 
   it('exports the tiered-network corpus fixture with all authored edges', () => {
-    const yamlPath = join(repoRoot, 'scripts', 'diagrams', 'frames', 'tiered-network-architecture.yaml');
+    const yamlPath = join(repoRoot, 'diagrams', '1.input', 'tiered-network-architecture.yaml');
     const compiled = compileDiagramYaml(readFileSync(yamlPath, 'utf-8'), { sourcePath: yamlPath });
 
     expect(compiled.errors).toEqual([]);
@@ -134,9 +134,8 @@ describe('exportD2', () => {
   it('exports juju bootstrap process fixture with elk layout vars and labeled arrows', () => {
     const yamlPath = join(
       repoRoot,
-      'scripts',
       'diagrams',
-      'frames',
+      '1.input',
       'juju-bootstrap-machines-process.yaml',
     );
     const compiled = compileDiagramYaml(readFileSync(yamlPath, 'utf-8'), { sourcePath: yamlPath });

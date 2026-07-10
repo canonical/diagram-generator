@@ -31,5 +31,5 @@
 - [x] T020 Golden `.drawio` per fixture in spec package; positional + unsupported-engine assertions.
 - [ ] T021 Manual open-in-draw.io for all three slugs; attach screenshots or signed note.
 - [x] T022 Run FULL `npm --prefix packages/layout-engine test` + browser-bundle-fresh + preview-shell size budgets + `check_no_new_python`.
-- [ ] T024 Commit `scripts/diagrams/frames/ai-infra-*.yaml` + goldens.
+- [ ] T024 Commit `diagrams/1.input/ai-infra-*.yaml` + goldens.
 - [x] T025 Rebase onto current main (post reopened-076); add export to `public-api-contract.ts` or keep off barrel.

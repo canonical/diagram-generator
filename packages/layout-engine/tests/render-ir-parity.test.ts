@@ -10,7 +10,7 @@ import { renderPreviewFrameTreeToSvg } from "../src/preview-shell/app-fresh-rend
 import { renderFrameDiagramToSvg } from "../src/svg-render.js";
 import { MockTextAdapter } from "../src/text-measure.js";
 
-const ROOT = join(process.cwd(), "..", "..", "scripts", "diagrams", "frames");
+const ROOT = join(process.cwd(), "..", "..", "diagrams", "1.input");
 
 function loadDiagram(slug: string) {
   return loadFrameYaml(join(ROOT, `${slug}.yaml`));

@@ -4,8 +4,8 @@
  *
  * Usage:
  *   node packages/layout-engine/scripts/migrate-diagram-yaml.mjs \
- *     --in scripts/diagrams/frames/tiered-network-architecture.yaml \
- *     --out scripts/diagrams/frames/tiered-network-architecture.author-v1.yaml \
+ *     --in diagrams/1.input/tiered-network-architecture.yaml \
+ *     --out diagrams/1.input/tiered-network-architecture.author-v1.yaml \
  *     --shorthand-arrows --extract-defaults
  */
 

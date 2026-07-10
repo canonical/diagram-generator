@@ -25,7 +25,9 @@ class FakeSceneNode {
   strokeWeight = 0;
   clipsContent = false;
   children: FakeSceneNode[] = [];
-  parent: FakeSceneNode | null = null;
+  private _parent: FakeSceneNode | null = null;
+  removed = false;
+  throwOnParentRead = false;
   layoutMode = "NONE";
   layoutWrap = "NO_WRAP";
   primaryAxisAlignItems = "MIN";
@@ -51,6 +53,17 @@ class FakeSceneNode {
 
   constructor(type: string) {
     this.type = type;
+  }
+
+  get parent() {
+    if (this.throwOnParentRead) {
+      throw new Error(`in get_parent: The node with id "${this.name || this.type}" does not exist`);
+    }
+    return this._parent;
+  }
+
+  set parent(value: FakeSceneNode | null) {
+    this._parent = value;
   }
 
   get layoutSizingHorizontal() {
@@ -104,6 +117,7 @@ class FakeSceneNode {
 
   remove() {
     if (!this.parent) {
+      this.removed = true;
       return;
     }
     if (this.parent.rejectChildMutation) {
@@ -114,6 +128,7 @@ class FakeSceneNode {
       this.parent.children.splice(index, 1);
     }
     this.parent = null;
+    this.removed = true;
   }
 
   findAll(predicate: (node: FakeSceneNode) => boolean) {
@@ -606,6 +621,16 @@ function installBoxComponentSet(options: { slotRejectsMutation?: boolean } = {},
   return set;
 }
 
+function installBoxNamedInstance(parent: FakeSceneNode = fakeFigma.currentPage) {
+  const instance = new FakeSceneNode("INSTANCE");
+  instance.name = "box";
+  const child = new FakeSceneNode("FRAME");
+  child.name = "contents";
+  instance.appendChild(child);
+  parent.appendChild(instance);
+  return instance;
+}
+
 function installIncompleteBoxComponentSet() {
   const set = new FakeSceneNode("COMPONENT_SET");
   set.name = "box";
@@ -868,6 +893,24 @@ test("resolveComponentMapping rejects incomplete or ambiguous box mappings", asy
   installBoxComponentSet();
   installBoxComponentSet();
   await assert.rejects(() => testables.resolveComponentMapping(), /candidate "box" component sets/);
+});
+
+test("resolveComponentMapping ignores box-named instances and stale deleted selection handles", async () => {
+  resetTestState();
+  const componentsPage = fakeFigma.createPage("Components");
+  const componentSet = installBoxComponentSet({}, componentsPage);
+  for (let index = 0; index < 8; index += 1) {
+    installBoxNamedInstance(componentsPage);
+  }
+  const staleSelection = new FakeSceneNode("INSTANCE");
+  staleSelection.name = "70:864";
+  staleSelection.throwOnParentRead = true;
+  fakeFigma.currentPage.selection = [staleSelection];
+
+  const mapping = await testables.resolveComponentMapping();
+
+  assert.equal(mapping?.componentSet, componentSet);
+  assert.equal(mapping?.roleComponents.get("Child")?.name, "Role=Child");
 });
 
 test("upsertYamlDiagram uses box component variants and instance slots when available", async () => {

@@ -27,7 +27,7 @@ The specific review question is now explicit:
 ## Likely file map
 
 - Canonical fixture:
-  `scripts/diagrams/frames/tls-certificate-provider-topology.yaml`
+  `diagrams/1.input/tls-certificate-provider-topology.yaml`
 - Current compatibility owner:
   `packages/layout-engine/src/preview-engine/registry.ts`
 - Future fixture-owned compatibility / fidelity tests:

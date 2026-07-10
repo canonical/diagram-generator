@@ -9,7 +9,7 @@ import {
 import type { FrameDiagram } from '../../src/frame-model.js';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
-export const FRAMES_DIR = join(__dirname, '../../../..', 'scripts/diagrams/frames');
+export const FRAMES_DIR = join(__dirname, '../../../..', 'diagrams/1.input');
 
 export type NormalizedFrameFixtureOptions = {
   engine: string;

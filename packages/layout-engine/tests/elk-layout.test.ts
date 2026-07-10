@@ -9,7 +9,7 @@ import { layoutFrameTree } from '../src/layout.js';
 import { deserializeFrameDiagramWire, serializeFrameDiagram } from '../src/frame-serialize.js';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
-const FRAMES_DIR = join(__dirname, '../../..', 'scripts/diagrams/frames');
+const FRAMES_DIR = join(__dirname, '../../..', 'diagrams/1.input');
 
 function findFrameById(frame: { id: string; children: Array<{ id: string; children: unknown[] }> }, id: string): { id: string; children: Array<{ id: string; children: unknown[] }>; _layout: { placedW: number; placedH: number } } | null {
   if (frame.id === id) {

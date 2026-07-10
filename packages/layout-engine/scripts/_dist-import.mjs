@@ -7,7 +7,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 export const pkgRoot = resolve(__dirname, '..');
 export const repoRoot = resolve(pkgRoot, '../..');
 
-const DEFAULT_FRAMES_DIR = join(repoRoot, 'scripts/diagrams/frames');
+const DEFAULT_FRAMES_DIR = join(repoRoot, 'diagrams/1.input');
 const SRC_DIR = join(pkgRoot, 'src');
 const TS_CONFIG = join(pkgRoot, 'tsconfig.json');
 const PACKAGE_JSON = join(pkgRoot, 'package.json');

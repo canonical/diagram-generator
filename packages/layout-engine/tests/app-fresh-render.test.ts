@@ -36,7 +36,7 @@ import type { Frame } from '../src/frame-model.js';
 import { loadNormalizedFrameFixture } from './helpers/frame-fixture-normalization.js';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
-const FRAMES_DIR = join(__dirname, '../../..', 'scripts/diagrams/frames');
+const FRAMES_DIR = join(__dirname, '../../..', 'diagrams/1.input');
 
 class FakeNode {
   ownerDocument: FakeDocument;

@@ -43,7 +43,7 @@ Keep the tree focused: stash or commit unrelated frame-YAML reformats before rev
 - The only acceptable JS-first exception is tiny browser-entry compatibility glue that immediately delegates to typed owners.
 - If JS must be touched, the preferred direction is shrink, wrapper, and delegation into TypeScript owners, not new ownership.
 - "Write JS now, migrate later" is not an acceptable default in this repo.
-- `scripts/diagrams/frames/*.yaml` is the authored source of truth.
+- `diagrams/1.input/*.yaml` is the authored source of truth.
 - Read the current YAML from disk before editing it and make minimal diffs.
 
 ## Priority ratchet

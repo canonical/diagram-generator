@@ -2,7 +2,7 @@
 
 Pipeline:
 
-1. YAML frame text is authored as `heading` and/or `label` in `scripts/diagrams/frames/*.yaml`
+1. YAML frame text is authored as `heading` and/or `label` in `diagrams/1.input/*.yaml`
 2. Layout engine resolves frame-owned text blocks in `packages/layout-engine/src/resolved-spec-typography.ts`
 3. SVG render emits one `<text>` per semantic block in `packages/layout-engine/src/svg-render.ts`
 4. Preview relayout rebuilds matching DOM text blocks in `scripts/preview/layout-bridge.js`

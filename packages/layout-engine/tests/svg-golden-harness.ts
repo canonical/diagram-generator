@@ -13,7 +13,7 @@ import { renderFrameDiagramToSvg } from '../src/svg-render.js';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 export const REPO_ROOT = join(__dirname, '../../..');
-export const FRAMES_DIR = join(REPO_ROOT, 'scripts/diagrams/frames');
+export const FRAMES_DIR = join(REPO_ROOT, 'diagrams/1.input');
 export const ICONS_DIR = join(REPO_ROOT, 'assets/icons');
 export const SVG_GOLDEN_DIR = join(__dirname, 'fixtures/svg');
 
