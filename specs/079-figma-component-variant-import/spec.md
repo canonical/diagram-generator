@@ -235,8 +235,11 @@ content updates while the allowed Figma override remains.
   icon instances named with or without the `.svg` suffix, and `.svg`-named
   cloneable icon nodes. Copied icon instances SHOULD be applied by swapping the
   target icon layer to the source instance's accessible main component before
-  falling back to clone/replacement. It MUST fail import rather than silently
-  ignore an icon that cannot be resolved or applied.
+  falling back to clone/replacement. If Figma rejects icon replacement inside a
+  live box instance because the component does not expose a swappable icon
+  target, the importer MAY detach only that affected box instance and retry the
+  icon replacement in the detached subtree. It MUST fail import rather than
+  silently ignore an icon that cannot be resolved or applied.
 - **FR-014**: Refresh MUST continue to use stable import IDs and MUST define
   importer-owned versus user-owned component properties before overwriting an
   existing instance.

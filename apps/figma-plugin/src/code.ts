@@ -146,6 +146,12 @@ interface SizingExpectation {
   sizingH: "FIXED" | "HUG" | "FILL";
 }
 
+interface IconOverrideResult {
+  ok: boolean;
+  retryDetached: boolean;
+  reason: string;
+}
+
 function rgba(hex: string, alpha = 1) {
   const normalized = String(hex || "").trim().replace(/^#/, "");
   if (!/^[0-9a-fA-F]{6}$/.test(normalized)) {
@@ -1189,6 +1195,14 @@ function noteMissingIcon(context: ImportBuildContext, iconName: string, reason: 
   context.missingIconReasons.set(iconName, reasons);
 }
 
+function iconOverrideOk(): IconOverrideResult {
+  return { ok: true, retryDetached: false, reason: "" };
+}
+
+function iconOverrideFailed(reason: string, retryDetached: boolean): IconOverrideResult {
+  return { ok: false, retryDetached, reason };
+}
+
 function formatMissingIconReasonSummary(context: ImportBuildContext) {
   const entries = [...context.missingIconReasons.entries()];
   if (entries.length === 0) {
@@ -1447,6 +1461,7 @@ function replaceIconTarget(
   iconName: string,
   nodeId: string,
   context: ImportBuildContext,
+  logFailures = true,
 ) {
   const parent = safeGetParent(target);
   if (!parent) {
@@ -1475,7 +1490,9 @@ function replaceIconTarget(
     return true;
   } catch (error) {
     safeRemoveNode(replacement);
-    logImportFallback(`Icon node replacement failed for ${iconName}`, error);
+    if (logFailures) {
+      logImportFallback(`Icon node replacement failed for ${iconName}`, error);
+    }
     return false;
   }
 }
@@ -1485,42 +1502,51 @@ async function applyInstanceIconOverride(
   node: DiagramNodePayload,
   mapping: ComponentMapping,
   context: ImportBuildContext,
+  recordMissing = true,
 ) {
   if (!node.icon) {
-    return;
+    return iconOverrideOk();
   }
+
+  const fail = (reason: string, retryDetached: boolean) => {
+    if (recordMissing) {
+      noteMissingIcon(context, node.icon!.name, reason);
+    }
+    return iconOverrideFailed(reason, retryDetached);
+  };
 
   const key = normalizeIconName(node.icon.name);
   const source = mapping.iconSources.get(key);
   if (!source) {
-    noteMissingIcon(context, node.icon.name, `no source matched key "${key}"`);
-    return;
+    return fail(`no source matched key "${key}"`, false);
   }
 
   const target = findIconTarget(instance);
   if (!target) {
-    noteMissingIcon(context, node.icon.name, `no icon target layer matching *.svg in ${safeGetNodeName(instance) || node.id}`);
-    return;
+    return fail(`no icon target layer matching *.svg in ${safeGetNodeName(instance) || node.id}`, false);
   }
 
   if (source.kind === "component") {
     if (trySwapIconComponent(target, source.node, node.icon.name, node.id)) {
-      return;
+      return iconOverrideOk();
     }
-    noteMissingIcon(context, node.icon.name, `source component ${source.name} could not be swapped onto target ${safeGetNodeName(target) || "unnamed"}`);
-    return;
+    if (replaceIconTarget(target, source, node.icon.name, node.id, context, recordMissing)) {
+      return iconOverrideOk();
+    }
+    return fail(`source component ${source.name} could not be swapped/replaced into target ${safeGetNodeName(target) || "unnamed"}`, true);
   }
 
   if (source.kind === "instance") {
     const component = await resolveIconComponentFromInstance(source.node);
     if (component && trySwapIconComponent(target, component, node.icon.name, node.id)) {
-      return;
+      return iconOverrideOk();
     }
   }
 
-  if (!replaceIconTarget(target, source, node.icon.name, node.id, context)) {
-    noteMissingIcon(context, node.icon.name, `source ${source.name} (${source.kind}) could not be cloned/replaced into target ${safeGetNodeName(target) || "unnamed"}`);
+  if (replaceIconTarget(target, source, node.icon.name, node.id, context, recordMissing)) {
+    return iconOverrideOk();
   }
+  return fail(`source ${source.name} (${source.kind}) could not be cloned/replaced into target ${safeGetNodeName(target) || "unnamed"}`, true);
 }
 
 async function buildLeafNode(node: DiagramNodePayload, serverUrl: string, context: ImportBuildContext) {
@@ -1882,6 +1908,37 @@ async function populateSlotWithRuntimeStrategy(
   }
 }
 
+function markMappedComponentNode(
+  target: any,
+  node: DiagramNodePayload,
+  role: "Child" | "Parent" | "Section",
+  variantName: string,
+  importKind: string,
+) {
+  setImportData(target, node.id, importKind);
+  setPluginData(target, COMPONENT_ROLE_KEY, role);
+  setPluginData(target, COMPONENT_VARIANT_KEY, variantName);
+}
+
+function detachMappedComponentInstance(
+  instance: any,
+  node: DiagramNodePayload,
+  role: "Child" | "Parent" | "Section",
+  variantName: string,
+  context: ImportBuildContext,
+) {
+  if (typeof instance.detachInstance !== "function") {
+    return null;
+  }
+  const detached = trackCreatedNode(context, instance.detachInstance());
+  detached.name = instance.name || node.name || node.id;
+  markMappedComponentNode(detached, node, role, variantName, `detached-component:${node.kind}`);
+  if (typeof detached.resizeWithoutConstraints === "function") {
+    detached.resizeWithoutConstraints(clampSize(node.width), clampSize(node.height));
+  }
+  return detached;
+}
+
 async function buildComponentMappedNode(
   node: DiagramNodePayload,
   serverUrl: string,
@@ -1894,25 +1951,38 @@ async function buildComponentMappedNode(
     throw new Error(`No box component variant mapped for Role=${role}.`);
   }
 
+  const variantName = component.name || `Role=${role}`;
   const instance = trackCreatedNode(context, component.createInstance());
   context.componentInstanceCount += 1;
   context.componentSetName = componentMapping.componentSet.name || BOX_COMPONENT_SET_NAME;
   instance.name = node.name || node.id;
-  setImportData(instance, node.id, `component:${node.kind}`);
-  setPluginData(instance, COMPONENT_ROLE_KEY, role);
-  setPluginData(instance, COMPONENT_VARIANT_KEY, component.name || `Role=${role}`);
+  markMappedComponentNode(instance, node, role, variantName, `component:${node.kind}`);
 
   if (typeof instance.resizeWithoutConstraints === "function") {
     instance.resizeWithoutConstraints(clampSize(node.width), clampSize(node.height));
   }
   await applyInstanceTextOverrides(instance, node);
-  await applyInstanceIconOverride(instance, node, componentMapping, context);
+  let workingNode = instance;
+  const iconResult = await applyInstanceIconOverride(instance, node, componentMapping, context, false);
+  if (!iconResult.ok) {
+    if (iconResult.retryDetached) {
+      const detached = detachMappedComponentInstance(instance, node, role, variantName, context);
+      if (detached) {
+        workingNode = detached;
+        await applyInstanceIconOverride(detached, node, componentMapping, context, true);
+      } else if (node.icon) {
+        noteMissingIcon(context, node.icon.name, iconResult.reason);
+      }
+    } else if (node.icon) {
+      noteMissingIcon(context, node.icon.name, iconResult.reason);
+    }
+  }
 
   const populated = node.children.length > 0
-    ? await populateSlotWithRuntimeStrategy(instance, node, serverUrl, context, componentMapping)
-    : instance;
+    ? await populateSlotWithRuntimeStrategy(workingNode, node, serverUrl, context, componentMapping)
+    : workingNode;
   setPluginData(populated, COMPONENT_ROLE_KEY, role);
-  setPluginData(populated, COMPONENT_VARIANT_KEY, component.name || `Role=${role}`);
+  setPluginData(populated, COMPONENT_VARIANT_KEY, variantName);
   finalizeFrameOwnSizing(populated, node.width, node.height, node.sizingW, node.sizingH);
   return populated;
 }

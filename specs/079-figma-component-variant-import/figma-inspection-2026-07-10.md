@@ -97,6 +97,11 @@ Implementation consequence:
   exposes it
 - `.svg`-named cloneable nodes such as copied `FRAME`, `GROUP`, `VECTOR`, or
   `INSTANCE` assets can also be cloned into the box icon position as a fallback
+- live Figma reruns showed copied icon sources were discovered but replacement
+  into the `Network.svg` placeholder inside the live `box` instance was rejected;
+  the importer therefore detaches only the affected box instance and retries
+  clone/replacement in the detached subtree when the component does not expose a
+  swappable icon target
 - descendants of the `box` component set and previously imported diagram
   subtrees are excluded from icon-source discovery so placeholder icons are not
   mistaken for real library assets

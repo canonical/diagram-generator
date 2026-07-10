@@ -1170,6 +1170,44 @@ test("upsertYamlDiagram clones copied icon instances named without svg extension
   assert.equal(placeholder, undefined);
 });
 
+test("upsertYamlDiagram detaches box when copied icon cannot replace inside live instance", async () => {
+  resetTestState();
+  const set = installBoxComponentSet();
+  const childVariant = set.children[0]!;
+  const contents = childVariant.children.find((node) => node.name === "contents");
+  assert.ok(contents);
+  contents.rejectChildMutation = true;
+  installIconInstance("AI");
+  fetchState.payload = {
+    slug: "detached-icon",
+    title: "Detached icon",
+    root: makeRoot([
+      makeLeaf({
+        id: "icon-child",
+        icon: {
+          name: "AI.svg",
+          size: 48,
+          path: "/icons/AI.svg",
+        },
+      }),
+    ]),
+  };
+
+  const result = await testables.upsertYamlDiagram("http://localhost:3846", "title: Detached icon", "icons.yaml");
+  const importedRoot = fakeFigma.currentPage.selection[0]!;
+  const child = findImportedById(importedRoot, "icon-child");
+  const replacement = child ? child.findAll((node) => node.name === "AI.svg")[0] : null;
+  const placeholder = child ? child.findAll((node) => node.name === "Network.svg")[0] : null;
+
+  assert.equal(result.componentMode, "box");
+  assert.equal(result.componentVerifiedCount, 1);
+  assert.equal(child?.type, "FRAME");
+  assert.equal(child?.getSharedPluginData("dgp", "importKind"), "detached-component:leaf");
+  assert.equal(replacement?.type, "INSTANCE");
+  assert.equal(replacement?.getSharedPluginData("dgp", "importId"), "icon-child:icon");
+  assert.equal(placeholder, undefined);
+});
+
 test("upsertYamlDiagram swaps copied icon instances through their main component", async () => {
   resetTestState();
   installBoxComponentSet();

@@ -12,8 +12,8 @@ spec catalog/status → [`docs/specs.md`](docs/specs.md) · human notes →
 [`INBOX.md`](INBOX.md) · durable per-spec detail → `specs/<id>-<slug>/` ·
 adversarial reviews → `docs/spec-reviews/`.
 
-**Last-known-green (2026-07-10, spec 079 native-icon-instance-swap slice):**
-`apps/figma-plugin` **33/33**; Figma plugin build ok;
+**Last-known-green (2026-07-10, spec 079 detached-icon-fallback slice):**
+`apps/figma-plugin` **34/34**; Figma plugin build ok;
 `packages/layout-engine` **1009/1009**; `apps/preview` **166/166**;
 `check_no_new_python.mjs` ok; restarted server health ok on
 `http://localhost:3846`; `preview-smoke` slug payload ok from
@@ -47,8 +47,10 @@ instance-slot mutation is rejected. Copied icon assets may be nested in
 frames/folders as Figma components, icon-sized Figma instances named with or
 without `.svg`, or `.svg`-named cloneable nodes. Copied icon instances are
 applied through their accessible main component via native `swapComponent`
-before falling back to clone/replacement, and missing-icon errors now include
-source counts/samples plus first failure reasons.
+before falling back to clone/replacement. If Figma rejects replacement inside
+the live `box` instance's `Network.svg` placeholder, only the affected box is
+detached and icon replacement is retried in that detached subtree. Missing-icon
+errors include source counts/samples plus first failure reasons.
 
 The canonical frame YAML corpus has moved from the former scripts frame
 directory to `diagrams/1.input`; preview, layout-engine tests, and the Figma dev
