@@ -37,7 +37,7 @@ edge-label geometry, shared consumer fan-out stem, section/parent role styling,
 and equal lower-compound heights.
 
 **Review requested:** use
-`docs/spec-reviews/077-mermaid-elk-cluster-lowering-port-opus-review-request-2026-07-10.md`.
+`specs/077-mermaid-elk-cluster-lowering-port/evidence/opus-adversarial-review-request-2026-07-10.md`.
 Opus should write its review under `docs/spec-reviews/` and replace this line with
 the review link plus health/readiness summary.
 
