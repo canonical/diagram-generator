@@ -4,6 +4,7 @@ import { createFrameDiagramPayload } from "./dev-server.js";
 
 type PluginTestables = {
   buildContainerNode: (node: any, serverUrl: string, context: any) => Promise<any>;
+  cleanupCreatedNodes: (context: any) => void;
   createImportBuildContext: () => any;
   resolveComponentMapping: () => Promise<any>;
   upsertFrameDiagram: (serverUrl: string, slug: string) => Promise<any>;
@@ -769,6 +770,43 @@ test("upsertFrameDiagram removes partially-built nodes when recursive constructi
   assert.equal(fakeFigma.currentPage.children.length, 1);
   assert.equal(fakeFigma.currentPage.children[0], survivor);
   assert.equal(countImportedNodesOnPage(), 0);
+});
+
+test("cleanupCreatedNodes does not mask stale Figma parent handles", () => {
+  resetTestState();
+  const context = testables.createImportBuildContext();
+  const stale = fakeFigma.createFrame();
+  stale.name = "71:6243";
+  stale.throwOnParentRead = true;
+  context.createdNodes.add(stale);
+
+  assert.doesNotThrow(() => testables.cleanupCreatedNodes(context));
+});
+
+test("upsertFrameDiagram tolerates stale prior imported root handles", async () => {
+  resetTestState();
+  const existing = fakeFigma.createFrame();
+  existing.name = "71:6243";
+  existing.x = 320;
+  existing.y = 240;
+  existing.setSharedPluginData("dgp", "importId", "frame-diagram:telecom");
+  existing.setSharedPluginData("dgp", "importKind", "diagram-root");
+  existing.throwOnParentRead = true;
+
+  fetchState.payload = {
+    slug: "telecom",
+    title: "Telecom diagram",
+    root: makeRoot([makeLeaf()]),
+  };
+
+  const result = await testables.upsertFrameDiagram("http://localhost:3846", "telecom");
+
+  assert.equal(result.refreshed, true);
+  assert.equal(result.title, "Telecom diagram");
+  const selected = fakeFigma.currentPage.selection[0];
+  assert.ok(selected);
+  assert.equal(selected.x, 320);
+  assert.equal(selected.y, 240);
 });
 
 test("upsertFrameDiagram counts only the imported root subtree, not prior orphan imports", async () => {

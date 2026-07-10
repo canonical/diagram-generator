@@ -307,7 +307,7 @@ function resizeFrameForFixedAxes(
     return;
   }
 
-  if ((frame.children?.length ?? 0) === 0) {
+  if (safeGetChildren(frame).length === 0) {
     return;
   }
 
@@ -332,7 +332,7 @@ function applyFrameOwnSizing(
   const vertical = normalizeSizing(sizingH);
   setFrameAxisSizingModes(frame, direction, horizontal, vertical);
 
-  const parent = frame.parent ?? null;
+  const parent = safeGetParent(frame);
   const canApplyChildSizing = Boolean(
     parent && (parent.layoutMode === "HORIZONTAL" || parent.layoutMode === "VERTICAL"),
   );
@@ -463,7 +463,14 @@ function setImportData(node: any, importId: string, kind: string) {
 }
 
 function getImportData(node: any, key: string) {
-  return node.getSharedPluginData(PLUGIN_NAMESPACE, key);
+  try {
+    if (!isNodeAvailable(node) || typeof node.getSharedPluginData !== "function") {
+      return "";
+    }
+    return node.getSharedPluginData(PLUGIN_NAMESPACE, key);
+  } catch (_error) {
+    return "";
+  }
 }
 
 function setPluginData(node: any, key: string, value: string) {
@@ -485,18 +492,22 @@ function cleanupCreatedNodes(context: ImportBuildContext) {
   const trackedNodes = [...context.createdNodes];
   const trackedSet = new Set(trackedNodes);
   for (const node of trackedNodes) {
-    const parent = node?.parent ?? null;
-    if (parent && trackedSet.has(parent)) {
-      continue;
+    try {
+      const parent = safeGetParent(node);
+      if (parent && trackedSet.has(parent)) {
+        continue;
+      }
+      safeRemoveNode(node);
+    } catch (_error) {
+      // Cleanup must never mask the original import failure.
     }
-    safeRemoveNode(node);
   }
 }
 
 function clearChildren(frame: any) {
-  const children = [...frame.children];
+  const children = safeGetChildren(frame);
   for (const child of children) {
-    child.remove();
+    safeRemoveNode(child);
   }
 }
 
@@ -799,21 +810,29 @@ async function createLeafIcon(
 }
 
 function findExistingImportedLeaf(importId: string) {
-  const matches = figma.currentPage.findAll((node: any) => (
-    node.type === "FRAME"
-    && getImportData(node, IMPORT_ID_KEY) === importId
-    && getImportData(node, IMPORT_KIND_KEY) === "leaf"
-  ));
-  return matches.length > 0 ? matches[0] : null;
+  try {
+    const matches = figma.currentPage.findAll((node: any) => (
+      safeGetNodeType(node) === "FRAME"
+      && getImportData(node, IMPORT_ID_KEY) === importId
+      && getImportData(node, IMPORT_KIND_KEY) === "leaf"
+    ));
+    return matches.length > 0 ? matches[0] : null;
+  } catch (_error) {
+    return null;
+  }
 }
 
 function findExistingImportedDiagram(importId: string) {
-  const matches = figma.currentPage.findAll((node: any) => (
-    node.type === "FRAME"
-    && getImportData(node, IMPORT_ID_KEY) === importId
-    && getImportData(node, IMPORT_KIND_KEY) === "diagram-root"
-  ));
-  return matches.length > 0 ? matches[0] : null;
+  try {
+    const matches = figma.currentPage.findAll((node: any) => (
+      safeGetNodeType(node) === "FRAME"
+      && getImportData(node, IMPORT_ID_KEY) === importId
+      && getImportData(node, IMPORT_KIND_KEY) === "diagram-root"
+    ));
+    return matches.length > 0 ? matches[0] : null;
+  } catch (_error) {
+    return null;
+  }
 }
 
 function countImportedSubtreeNodes(root: any) {
@@ -821,9 +840,14 @@ function countImportedSubtreeNodes(root: any) {
     return 0;
   }
   const rootCount = getImportData(root, IMPORT_ID_KEY) !== "" ? 1 : 0;
-  const descendantCount = typeof root.findAll === "function"
-    ? root.findAll((node: any) => getImportData(node, IMPORT_ID_KEY) !== "").length
-    : 0;
+  let descendantCount = 0;
+  try {
+    descendantCount = typeof root.findAll === "function"
+      ? root.findAll((node: any) => getImportData(node, IMPORT_ID_KEY) !== "").length
+      : 0;
+  } catch (_error) {
+    descendantCount = 0;
+  }
   return rootCount + descendantCount;
 }
 
@@ -1011,7 +1035,20 @@ function safeGetParent(node: any) {
     if (!isNodeAvailable(node)) {
       return null;
     }
-    return node.parent ?? null;
+    const parent = node.parent ?? null;
+    return isNodeAvailable(parent) ? parent : null;
+  } catch (_error) {
+    return null;
+  }
+}
+
+function safeReadNumber(node: any, key: string) {
+  try {
+    if (!isNodeAvailable(node)) {
+      return null;
+    }
+    const value = Number(node?.[key]);
+    return Number.isFinite(value) ? value : null;
   } catch (_error) {
     return null;
   }
@@ -1287,7 +1324,12 @@ function insertChildAt(parent: any, index: number, child: any) {
   }
 
   parent.appendChild(child);
-  const children = parent.children;
+  let children: any[];
+  try {
+    children = parent.children;
+  } catch (_error) {
+    return;
+  }
   if (!Array.isArray(children)) {
     return;
   }
@@ -1316,12 +1358,12 @@ function replaceIconTarget(
   nodeId: string,
   context: ImportBuildContext,
 ) {
-  const parent = target?.parent;
+  const parent = safeGetParent(target);
   if (!parent) {
     return false;
   }
 
-  const children = [...(parent.children ?? [])];
+  const children = safeGetChildren(parent);
   const index = children.indexOf(target);
   const replacement = instantiateIconSource(source, context);
   if (!replacement) {
@@ -1339,7 +1381,7 @@ function replaceIconTarget(
     applyChildLayoutSizing(replacement, normalizeSizing(target.layoutSizingHorizontal), normalizeSizing(target.layoutSizingVertical));
     applyChildPositioning(replacement, normalizePositionType(target.layoutPositioning), target.x, target.y);
     setImportData(replacement, `${nodeId}:icon`, "component-icon");
-    target.remove();
+    safeRemoveNode(target);
     return true;
   } catch (error) {
     safeRemoveNode(replacement);
@@ -1858,8 +1900,8 @@ async function upsertFrameDiagramPayload(
   }
 
   const existing = findExistingImportedDiagram(importId);
-  const priorX = existing ? existing.x : null;
-  const priorY = existing ? existing.y : null;
+  const priorX = existing ? safeReadNumber(existing, "x") : null;
+  const priorY = existing ? safeReadNumber(existing, "y") : null;
   const buildContext = createImportBuildContext();
   const componentMapping = await resolveComponentMapping();
 
@@ -1881,7 +1923,7 @@ async function upsertFrameDiagramPayload(
     figma.currentPage.appendChild(frame);
 
     if (existing) {
-      existing.remove();
+      safeRemoveNode(existing);
     }
 
     if (priorX != null && priorY != null) {
@@ -1900,7 +1942,7 @@ async function upsertFrameDiagramPayload(
       title: frame.name,
       width: frame.width,
       height: frame.height,
-      childCount: frame.children.length,
+      childCount: safeGetChildren(frame).length,
       descendantCount: countImportedSubtreeNodes(frame),
       sizingVerifiedCount,
       componentVerifiedCount,
@@ -1908,7 +1950,7 @@ async function upsertFrameDiagramPayload(
       componentInstanceCount: buildContext.componentInstanceCount,
       instanceSlotCount: buildContext.instanceSlotCount,
       detachedSlotCount: buildContext.detachedSlotCount,
-      componentSearchPageCount: componentMapping?.searchedPageCount ?? ((figma.root?.children ?? []).length || 1),
+      componentSearchPageCount: componentMapping?.searchedPageCount ?? (safeGetChildren(figma.root).length || 1),
       iconSourceCount: componentMapping?.iconSources.size ?? 0,
       refreshed: Boolean(existing),
     };

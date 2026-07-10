@@ -12,8 +12,8 @@ spec catalog/status → [`docs/specs.md`](docs/specs.md) · human notes →
 [`INBOX.md`](INBOX.md) · durable per-spec detail → `specs/<id>-<slug>/` ·
 adversarial reviews → `docs/spec-reviews/`.
 
-**Last-known-green (2026-07-10, spec 079 resolver/path slice):**
-`apps/figma-plugin` **28/28**; Figma plugin build ok;
+**Last-known-green (2026-07-10, spec 079 stale-handle slice):**
+`apps/figma-plugin` **30/30**; Figma plugin build ok;
 `packages/layout-engine` **1009/1009**; `apps/preview` **166/166**;
 `check_no_new_python.mjs` ok; restarted server health ok on
 `http://localhost:3846`; `preview-smoke` slug payload ok from
@@ -39,9 +39,12 @@ loads/searches all Figma pages, matching the user's file layout where imports
 happen on `Page 1`, the box component lives on `Components`, and copied icons
 live on `Brand icons`. It only accepts the real `COMPONENT_SET` named `box` as
 the master and ignores `box`-named instances plus stale/deleted node handles.
-Parent/Section slot containers are generated and validated; runtime fallback
-detaches only if live instance-slot mutation is rejected. Copied icon assets may
-be nested in frames/folders as Figma components or `.svg`-named cloneable nodes.
+Cleanup, prior imported-root replacement, imported-node scans, and result
+bookkeeping also tolerate stale/deleted Figma node handles so `get_parent`
+internals do not mask the actionable import error. Parent/Section slot
+containers are generated and validated; runtime fallback detaches only if live
+instance-slot mutation is rejected. Copied icon assets may be nested in
+frames/folders as Figma components or `.svg`-named cloneable nodes.
 
 The canonical frame YAML corpus has moved from the former scripts frame
 directory to `diagrams/1.input`; preview, layout-engine tests, and the Figma dev
