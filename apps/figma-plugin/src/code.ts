@@ -1894,8 +1894,9 @@ async function populateSlotWithRuntimeStrategy(
       throw instanceSlotError;
     }
 
+    const instanceName = safeGetNodeName(instance);
     const detached = trackCreatedNode(context, instance.detachInstance());
-    detached.name = instance.name || node.name || node.id;
+    detached.name = instanceName || node.name || node.id;
     setImportData(detached, node.id, `detached-component:${node.kind}`);
     const detachedSlot = findSlotNode(detached);
     if (!detachedSlot) {
@@ -1930,8 +1931,9 @@ function detachMappedComponentInstance(
   if (typeof instance.detachInstance !== "function") {
     return null;
   }
+  const instanceName = safeGetNodeName(instance);
   const detached = trackCreatedNode(context, instance.detachInstance());
-  detached.name = instance.name || node.name || node.id;
+  detached.name = instanceName || node.name || node.id;
   markMappedComponentNode(detached, node, role, variantName, `detached-component:${node.kind}`);
   if (typeof detached.resizeWithoutConstraints === "function") {
     detached.resizeWithoutConstraints(clampSize(node.width), clampSize(node.height));

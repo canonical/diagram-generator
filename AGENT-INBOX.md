@@ -12,7 +12,7 @@ spec catalog/status → [`docs/specs.md`](docs/specs.md) · human notes →
 [`INBOX.md`](INBOX.md) · durable per-spec detail → `specs/<id>-<slug>/` ·
 adversarial reviews → `docs/spec-reviews/`.
 
-**Last-known-green (2026-07-10, spec 079 detached-icon-fallback slice):**
+**Last-known-green (2026-07-11, spec 079 stale-name-after-detach slice):**
 `apps/figma-plugin` **34/34**; Figma plugin build ok;
 `packages/layout-engine` **1009/1009**; `apps/preview` **166/166**;
 `check_no_new_python.mjs` ok; restarted server health ok on
@@ -50,7 +50,9 @@ applied through their accessible main component via native `swapComponent`
 before falling back to clone/replacement. If Figma rejects replacement inside
 the live `box` instance's `Network.svg` placeholder, only the affected box is
 detached and icon replacement is retried in that detached subtree. Missing-icon
-errors include source counts/samples plus first failure reasons.
+errors include source counts/samples plus first failure reasons. Detach paths
+capture instance names before calling `detachInstance()` so stale original
+Figma handles cannot throw `get_name`.
 
 The canonical frame YAML corpus has moved from the former scripts frame
 directory to `diagrams/1.input`; preview, layout-engine tests, and the Figma dev

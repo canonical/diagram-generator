@@ -16,7 +16,7 @@ type PluginTestables = {
 
 class FakeSceneNode {
   type: string;
-  name = "";
+  private _name = "";
   width = 100;
   height = 100;
   x = 0;
@@ -29,6 +29,7 @@ class FakeSceneNode {
   private _parent: FakeSceneNode | null = null;
   removed = false;
   throwOnParentRead = false;
+  throwOnNameRead = false;
   layoutMode = "NONE";
   layoutWrap = "NO_WRAP";
   primaryAxisAlignItems = "MIN";
@@ -57,9 +58,20 @@ class FakeSceneNode {
     this.type = type;
   }
 
+  get name() {
+    if (this.throwOnNameRead) {
+      throw new Error(`in get_name: The node with id "${this._name || this.type}" does not exist`);
+    }
+    return this._name;
+  }
+
+  set name(value: string) {
+    this._name = value;
+  }
+
   get parent() {
     if (this.throwOnParentRead) {
-      throw new Error(`in get_parent: The node with id "${this.name || this.type}" does not exist`);
+      throw new Error(`in get_parent: The node with id "${this._name || this.type}" does not exist`);
     }
     return this._parent;
   }
@@ -88,7 +100,7 @@ class FakeSceneNode {
 
   appendChild(child: FakeSceneNode) {
     if (this.rejectChildMutation) {
-      throw new Error(`Child mutation rejected by ${this.name || this.type}`);
+      throw new Error(`Child mutation rejected by ${this._name || this.type}`);
     }
     if (child.parent) {
       const index = child.parent.children.indexOf(child);
@@ -103,7 +115,7 @@ class FakeSceneNode {
 
   insertChild(index: number, child: FakeSceneNode) {
     if (this.rejectChildMutation) {
-      throw new Error(`Child mutation rejected by ${this.name || this.type}`);
+      throw new Error(`Child mutation rejected by ${this._name || this.type}`);
     }
     if (child.parent) {
       const currentIndex = child.parent.children.indexOf(child);
@@ -123,7 +135,7 @@ class FakeSceneNode {
       return;
     }
     if (this.parent.rejectChildMutation) {
-      throw new Error(`Child mutation rejected by ${this.parent.name || this.parent.type}`);
+      throw new Error(`Child mutation rejected by ${this.parent._name || this.parent.type}`);
     }
     const index = this.parent.children.indexOf(this);
     if (index >= 0) {
@@ -195,6 +207,7 @@ class FakeSceneNode {
     } else {
       fakeFigma.currentPage.appendChild(detached);
     }
+    this.throwOnNameRead = true;
     return detached;
   }
 
@@ -204,7 +217,7 @@ class FakeSceneNode {
 
   private cloneTree(typeOverride?: string, preserveMutationLocks = true) {
     const clone = new FakeSceneNode(typeOverride || this.type);
-    clone.name = this.name;
+    clone.name = this._name;
     clone.width = this.width;
     clone.height = this.height;
     clone.x = this.x;
@@ -241,18 +254,18 @@ class FakeSceneNode {
 
   private validateLayoutSizing(axis: "HORIZONTAL" | "VERTICAL", value: string) {
     if (value === "HUG" && this.type !== "TEXT" && !this.isAutoLayoutFrame()) {
-      throw new Error(`HUG is only valid on auto-layout frames and text nodes (${this.name || this.type})`);
+      throw new Error(`HUG is only valid on auto-layout frames and text nodes (${this._name || this.type})`);
     }
     if (value === "FILL") {
       if (!this.isAutoLayoutChild()) {
-        throw new Error(`FILL is only valid on auto-layout children (${this.name || this.type})`);
+        throw new Error(`FILL is only valid on auto-layout children (${this._name || this.type})`);
       }
       const parent = this.parent!;
       const parentHugsAxis = axis === "HORIZONTAL"
         ? this.parentAxisSizingMode(parent, "HORIZONTAL") === "AUTO"
         : this.parentAxisSizingMode(parent, "VERTICAL") === "AUTO";
       if (parentHugsAxis) {
-        throw new Error(`FILL is invalid when parent hugs ${axis.toLowerCase()} (${this.name || this.type})`);
+        throw new Error(`FILL is invalid when parent hugs ${axis.toLowerCase()} (${this._name || this.type})`);
       }
     }
     if (value !== "FIXED" && value !== "HUG" && value !== "FILL") {
