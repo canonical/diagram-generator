@@ -17,8 +17,8 @@
 - [ ] T002 Run a live Figma slot probe proving whether the plugin can insert a
   generated auto-layout container into the component slot while preserving
   instance semantics.
-- [ ] T003 Document the selected slot strategy: intact instance, detach-for-slot,
-  wrapper-slot, or another proven approach.
+- [x] T003 Document the selected slot strategy: preserve intact instances and
+  mutate only real Figma `SLOT` nodes; no detach or wrapper fallback.
 - [ ] T004 Define component mapping ownership rules for importer-owned versus
   user-owned component properties and overrides.
 - [ ] T005 Record the failed post-patch rerun outcome from spec 078 as a hard
@@ -77,13 +77,13 @@
   fallback component or debug generic-frame mode.
 - [x] T034 Add readback validation for component identity and component-property
   values.
-- [ ] T035 Re-review whether component instances should own box internals
-  entirely, with the plugin limited to placement, property assignment, text
-  replacement, icon swap, and visibility toggles instead of procedural box
-  reconstruction.
+- [x] T035 Re-review whether component instances should own box internals
+  entirely; selected contract limits structural edits to real content/icon
+  `SLOT` nodes and forbids ordinary instance-sublayer replacement/detach.
 - [x] T036 Support current-file copied icon assets in component mode, including
-  nested Figma icon components and `.svg`-named cloneable icon nodes, while
-  excluding `box` component internals from discovery.
+  nested Figma icon components, icon-sized copied Figma instances, and
+  `.svg`-named cloneable icon nodes, while excluding `box` component internals
+  from discovery and inserting resolved icons into the component's icon `SLOT`.
 
 ## Phase 4 - Slot-Based Nesting
 
@@ -133,7 +133,7 @@
 - [x] T063 Run `npm --prefix apps/figma-plugin run build`.
 - [x] T064 Run `npm --prefix packages/layout-engine test`.
 - [x] T065 Run `node scripts/check_no_new_python.mjs`.
-- [ ] T066 Write an adversarial review prompt focused on component mapping,
+- [x] T066 Write an adversarial review prompt focused on component mapping,
   slot feasibility, arbitrary YAML import, refresh ownership, and no silent
   fallback.
 - [ ] T067 Write an adversarial re-review prompt focused specifically on:

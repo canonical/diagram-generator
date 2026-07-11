@@ -12,12 +12,10 @@ spec catalog/status → [`docs/specs.md`](docs/specs.md) · human notes →
 [`INBOX.md`](INBOX.md) · durable per-spec detail → `specs/<id>-<slug>/` ·
 adversarial reviews → `docs/spec-reviews/`.
 
-**Last-known-green (2026-07-11, spec 079 stale-name-after-detach slice):**
+**Last-known-green (2026-07-11, spec 079 strict SlotNode slice):**
 `apps/figma-plugin` **34/34**; Figma plugin build ok;
 `packages/layout-engine` **1009/1009**; `apps/preview` **166/166**;
-`check_no_new_python.mjs` ok; restarted server health ok on
-`http://localhost:3846`; `preview-smoke` slug payload ok from
-`diagrams/1.input`.
+`check_no_new_python.mjs` ok; server health ok on `http://localhost:3846`.
 
 ---
 
@@ -34,25 +32,23 @@ Spec package:
 
 Current slice implements selected-YAML import, component-mode import for the
 visible `box` variants `Role=Child`, `Role=Parent`, and `Role=Section`, and
-current-file copied icon matching by stable normalized names. The resolver now
+current-file copied icon matching by stable normalized names. The resolver
 loads/searches all Figma pages, matching the user's file layout where imports
 happen on `Page 1`, the box component lives on `Components`, and copied icons
 live on `Brand icons`. It only accepts the real `COMPONENT_SET` named `box` as
 the master and ignores `box`-named instances plus stale/deleted node handles.
-Cleanup, prior imported-root replacement, imported-node scans, and result
-bookkeeping also tolerate stale/deleted Figma node handles so `get_parent`
-internals do not mask the actionable import error. Parent/Section slot
-containers are generated and validated; runtime fallback detaches only if live
-instance-slot mutation is rejected. Copied icon assets may be nested in
-frames/folders as Figma components, icon-sized Figma instances named with or
-without `.svg`, or `.svg`-named cloneable nodes. Copied icon instances are
-applied through their accessible main component via native `swapComponent`
-before falling back to clone/replacement. If Figma rejects replacement inside
-the live `box` instance's `Network.svg` placeholder, only the affected box is
-detached and icon replacement is retried in that detached subtree. Missing-icon
-errors include source counts/samples plus first failure reasons. Detach paths
-capture instance names before calling `detachInstance()` so stale original
-Figma handles cannot throw `get_name`.
+
+After the user converted both content and icon placeholders to Figma slots, the
+component path is strict SlotNode insertion: parent/section content is inserted
+only into a real `SLOT` named `slot`, icons are inserted only into exactly one
+real non-content `SLOT` on each mapped box instance, and the importer fails
+instead of detaching or replacing ordinary live instance sublayers. Copied icon
+assets may be nested in frames/folders as Figma components, icon-sized Figma
+instances named with or without `.svg`, or `.svg`-named cloneable nodes.
+Missing-icon errors include source counts/samples plus first failure reasons.
+The fake Figma model now rejects structural mutation on ordinary instance
+sublayers and recursively invalidates old handles on detach, so the prior
+fake-green component/slot tests now exercise the real architectural constraint.
 
 The canonical frame YAML corpus has moved from the former scripts frame
 directory to `diagrams/1.input`; preview, layout-engine tests, and the Figma dev

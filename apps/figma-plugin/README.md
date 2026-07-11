@@ -9,7 +9,9 @@ Current scope:
   semantic boxes to its `Role=Child`, `Role=Parent`, and `Role=Section`
   variants
 - inserts generated horizontal/vertical auto-layout slot containers for nested
-  component children
+  component children into real Figma `SLOT` nodes
+- inserts matched copied icons into real icon `SLOT` nodes on the mapped
+  component instances
 - falls back to nested native Figma auto-layout frames only when no `box`
   component set is available
 - derives both payloads from repo YAML through the local layout engine
@@ -42,6 +44,8 @@ Current scope:
 - section/panel wrappers preserve padding, gaps, and heading/body separation
 - copied icon assets in the current Figma file are matched by stable names such
   as `Gateway.svg`, including when nested inside frames/folders
+- mapped boxes remain component instances; the importer must not detach them or
+  replace ordinary instance sublayers
 - rerunning the same import refreshes the existing imported root in place
 - browser-saved YAML overrides are reflected after selecting the saved YAML file
 
@@ -51,7 +55,8 @@ Current scope:
   Desktop.
 - Component-mode icon matching loads/searches all pages in the current Figma
   file outside the `box` component set for matching icon components or
-  `.svg`-named cloneable icon nodes. Missing or unapplied YAML icons fail the
-  import; they are not silently redrawn as raw SVG fallback.
+  `.svg`-named cloneable icon nodes. Matching icons are inserted into icon
+  `SLOT` nodes. Missing or unapplied YAML icons fail the import; they are not
+  silently redrawn as raw SVG fallback.
 - If you change plugin code, rebuild and reload the development plugin in
   Figma before retesting.

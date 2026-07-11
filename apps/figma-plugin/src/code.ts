@@ -121,7 +121,6 @@ interface ImportBuildContext {
   componentInstanceCount: number;
   componentSetName: string | null;
   instanceSlotCount: number;
-  detachedSlotCount: number;
   missingIconNames: Set<string>;
   missingIconReasons: Map<string, Set<string>>;
 }
@@ -148,7 +147,6 @@ interface SizingExpectation {
 
 interface IconOverrideResult {
   ok: boolean;
-  retryDetached: boolean;
   reason: string;
 }
 
@@ -217,7 +215,6 @@ function createImportBuildContext(): ImportBuildContext {
     componentInstanceCount: 0,
     componentSetName: null,
     instanceSlotCount: 0,
-    detachedSlotCount: 0,
     missingIconNames: new Set<string>(),
     missingIconReasons: new Map<string, Set<string>>(),
   };
@@ -950,7 +947,7 @@ function validateImportedComponentStructure(rootFrame: any, payloadRoot: Diagram
           || imported.mainComponent?.name
           || "";
         const variantRole = parseVariantRole(variantName);
-        if (!String(importKind).startsWith("component:") && !String(importKind).startsWith("detached-component:")) {
+        if (!String(importKind).startsWith("component:")) {
           mismatches.push(`${node.id}: expected component import, got ${importKind || "none"}`);
         }
         if (role !== expectedRole) {
@@ -969,7 +966,7 @@ function validateImportedComponentStructure(rootFrame: any, payloadRoot: Diagram
       } else {
         checked += 1;
         const strategy = getImportData(body, SLOT_STRATEGY_KEY);
-        if (strategy !== "instance-slot" && strategy !== "detached-slot") {
+        if (strategy !== "instance-slot") {
           mismatches.push(`${node.id}/body: missing slot strategy`);
         }
         if (body.layoutMode !== node.direction) {
@@ -1196,11 +1193,11 @@ function noteMissingIcon(context: ImportBuildContext, iconName: string, reason: 
 }
 
 function iconOverrideOk(): IconOverrideResult {
-  return { ok: true, retryDetached: false, reason: "" };
+  return { ok: true, reason: "" };
 }
 
-function iconOverrideFailed(reason: string, retryDetached: boolean): IconOverrideResult {
-  return { ok: false, retryDetached, reason };
+function iconOverrideFailed(reason: string): IconOverrideResult {
+  return { ok: false, reason };
 }
 
 function formatMissingIconReasonSummary(context: ImportBuildContext) {
@@ -1329,22 +1326,6 @@ function componentRoleForNode(node: DiagramNodePayload): "Child" | "Parent" | "S
   return BOX_ROLE_VARIANTS.child;
 }
 
-function findFirstDescendant(node: any, predicate: (node: any) => boolean): any | null {
-  if (!node) {
-    return null;
-  }
-  for (const child of node.children ?? []) {
-    if (predicate(child)) {
-      return child;
-    }
-    const nested = findFirstDescendant(child, predicate);
-    if (nested) {
-      return nested;
-    }
-  }
-  return null;
-}
-
 function findDescendants(node: any, predicate: (node: any) => boolean) {
   const matches: any[] = [];
   visitSceneTree(node, (candidate) => {
@@ -1355,11 +1336,50 @@ function findDescendants(node: any, predicate: (node: any) => boolean) {
   return matches;
 }
 
-function findSlotNode(instance: any) {
-  return findFirstDescendant(
-    instance,
-    (node) => String(node.name || "").trim().toLowerCase() === BOX_SLOT_LAYER_NAME,
+function isSlotNode(node: any) {
+  return safeGetNodeType(node) === "SLOT";
+}
+
+function findSlotNodes(instance: any) {
+  return findDescendants(instance, isSlotNode);
+}
+
+function findContentSlotNode(instance: any, nodeId: string) {
+  const slots = findSlotNodes(instance).filter(
+    (node) => safeGetNodeName(node).trim().toLowerCase() === BOX_SLOT_LAYER_NAME,
   );
+  if (slots.length > 1) {
+    throw new Error(
+      `Mapped component instance for ${nodeId} contains ${slots.length} content SLOT nodes named "${BOX_SLOT_LAYER_NAME}"; expected exactly one.`,
+    );
+  }
+  return slots[0] ?? null;
+}
+
+function findIconSlotNode(instance: any, nodeId: string) {
+  const slots = findSlotNodes(instance).filter(
+    (node) => safeGetNodeName(node).trim().toLowerCase() !== BOX_SLOT_LAYER_NAME,
+  );
+  if (slots.length > 1) {
+    const names = slots.map((slot) => safeGetNodeName(slot) || "unnamed").sort().join(", ");
+    throw new Error(
+      `Mapped component instance for ${nodeId} contains ${slots.length} icon SLOT candidates (${names}); expected exactly one.`,
+    );
+  }
+  return slots[0] ?? null;
+}
+
+function assertSlotNode(node: any, label: string, nodeId: string) {
+  if (!isSlotNode(node)) {
+    throw new Error(
+      `Mapped component instance for ${nodeId} has a ${label} that is ${safeGetNodeType(node) || "unknown"}, not SLOT.`,
+    );
+  }
+}
+
+function clearSlotChildren(slot: any, label: string, nodeId: string) {
+  assertSlotNode(slot, label, nodeId);
+  clearChildren(slot);
 }
 
 async function applyInstanceTextOverrides(instance: any, node: DiagramNodePayload) {
@@ -1382,34 +1402,6 @@ async function applyInstanceTextOverrides(instance: any, node: DiagramNodePayloa
   }
 }
 
-function findIconTarget(instance: any) {
-  return findFirstDescendant(instance, (node) => /\.svg$/i.test(String(node.name || "")));
-}
-
-function insertChildAt(parent: any, index: number, child: any) {
-  if (typeof parent.insertChild === "function") {
-    parent.insertChild(index, child);
-    return;
-  }
-
-  parent.appendChild(child);
-  let children: any[];
-  try {
-    children = parent.children;
-  } catch (_error) {
-    return;
-  }
-  if (!Array.isArray(children)) {
-    return;
-  }
-  const currentIndex = children.indexOf(child);
-  if (currentIndex < 0 || index < 0 || index >= children.length) {
-    return;
-  }
-  children.splice(currentIndex, 1);
-  children.splice(index, 0, child);
-}
-
 function instantiateIconSource(source: IconSource, context: ImportBuildContext) {
   if (source.kind === "component" && typeof source.node.createInstance === "function") {
     return trackCreatedNode(context, source.node.createInstance());
@@ -1418,83 +1410,6 @@ function instantiateIconSource(source: IconSource, context: ImportBuildContext) 
     return trackCreatedNode(context, source.node.clone());
   }
   return null;
-}
-
-async function resolveIconComponentFromInstance(instance: any) {
-  try {
-    if (typeof instance?.getMainComponentAsync === "function") {
-      const component = await instance.getMainComponentAsync();
-      if (component && hasNodeMethod(component, "createInstance")) {
-        return component;
-      }
-    }
-  } catch (_error) {
-    // Fall back to the synchronous property below when the async API is unavailable or rejected.
-  }
-
-  try {
-    const component = instance?.mainComponent ?? null;
-    return component && hasNodeMethod(component, "createInstance") ? component : null;
-  } catch (_error) {
-    return null;
-  }
-}
-
-function trySwapIconComponent(target: any, component: any, iconName: string, nodeId: string) {
-  if (!component || typeof target?.swapComponent !== "function") {
-    return false;
-  }
-  try {
-    target.swapComponent(component);
-    target.name = iconName || safeGetNodeName(component) || safeGetNodeName(target);
-    setImportData(target, `${nodeId}:icon`, "component-icon");
-    return true;
-  } catch (error) {
-    logImportFallback(`Icon component swap failed for ${iconName}`, error);
-    return false;
-  }
-}
-
-function replaceIconTarget(
-  target: any,
-  source: IconSource,
-  iconName: string,
-  nodeId: string,
-  context: ImportBuildContext,
-  logFailures = true,
-) {
-  const parent = safeGetParent(target);
-  if (!parent) {
-    return false;
-  }
-
-  const children = safeGetChildren(parent);
-  const index = children.indexOf(target);
-  const replacement = instantiateIconSource(source, context);
-  if (!replacement) {
-    return false;
-  }
-
-  try {
-    replacement.name = iconName || source.name || target.name;
-    if (typeof replacement.resizeWithoutConstraints === "function") {
-      replacement.resizeWithoutConstraints(clampSize(target.width), clampSize(target.height));
-    } else if (typeof replacement.resize === "function") {
-      replacement.resize(clampSize(target.width), clampSize(target.height));
-    }
-    insertChildAt(parent, index >= 0 ? index : children.length, replacement);
-    applyChildLayoutSizing(replacement, normalizeSizing(target.layoutSizingHorizontal), normalizeSizing(target.layoutSizingVertical));
-    applyChildPositioning(replacement, normalizePositionType(target.layoutPositioning), target.x, target.y);
-    setImportData(replacement, `${nodeId}:icon`, "component-icon");
-    safeRemoveNode(target);
-    return true;
-  } catch (error) {
-    safeRemoveNode(replacement);
-    if (logFailures) {
-      logImportFallback(`Icon node replacement failed for ${iconName}`, error);
-    }
-    return false;
-  }
 }
 
 async function applyInstanceIconOverride(
@@ -1508,45 +1423,49 @@ async function applyInstanceIconOverride(
     return iconOverrideOk();
   }
 
-  const fail = (reason: string, retryDetached: boolean) => {
+  const fail = (reason: string) => {
     if (recordMissing) {
       noteMissingIcon(context, node.icon!.name, reason);
     }
-    return iconOverrideFailed(reason, retryDetached);
+    return iconOverrideFailed(reason);
   };
 
   const key = normalizeIconName(node.icon.name);
   const source = mapping.iconSources.get(key);
   if (!source) {
-    return fail(`no source matched key "${key}"`, false);
+    return fail(`no source matched key "${key}"`);
   }
 
-  const target = findIconTarget(instance);
-  if (!target) {
-    return fail(`no icon target layer matching *.svg in ${safeGetNodeName(instance) || node.id}`, false);
+  const slot = findIconSlotNode(instance, node.id);
+  if (!slot) {
+    return fail(`no icon SLOT found in ${safeGetNodeName(instance) || node.id}`);
   }
 
-  if (source.kind === "component") {
-    if (trySwapIconComponent(target, source.node, node.icon.name, node.id)) {
-      return iconOverrideOk();
+  const replacement = instantiateIconSource(source, context);
+  if (!replacement) {
+    return fail(`source ${source.name} (${source.kind}) could not be instantiated`);
+  }
+
+  try {
+    clearSlotChildren(slot, "icon slot", node.id);
+    replacement.name = node.icon.name || source.name || safeGetNodeName(replacement) || "Icon";
+    const iconSize = clampSize(node.icon.size || safeReadNumber(slot, "width") || 48);
+    if (typeof replacement.resizeWithoutConstraints === "function") {
+      replacement.resizeWithoutConstraints(iconSize, iconSize);
+    } else if (typeof replacement.resize === "function") {
+      replacement.resize(iconSize, iconSize);
     }
-    if (replaceIconTarget(target, source, node.icon.name, node.id, context, recordMissing)) {
-      return iconOverrideOk();
-    }
-    return fail(`source component ${source.name} could not be swapped/replaced into target ${safeGetNodeName(target) || "unnamed"}`, true);
-  }
-
-  if (source.kind === "instance") {
-    const component = await resolveIconComponentFromInstance(source.node);
-    if (component && trySwapIconComponent(target, component, node.icon.name, node.id)) {
-      return iconOverrideOk();
-    }
-  }
-
-  if (replaceIconTarget(target, source, node.icon.name, node.id, context, recordMissing)) {
+    slot.appendChild(replacement);
+    applyChildLayoutSizing(replacement, "FIXED", "FIXED");
+    replacement.x = 0;
+    replacement.y = 0;
+    setImportData(replacement, `${node.id}:icon`, "component-icon");
     return iconOverrideOk();
+  } catch (error) {
+    safeRemoveNode(replacement);
+    logImportFallback(`Icon slot insertion failed for ${node.icon.name}`, error);
+    return fail(`source ${source.name} (${source.kind}) could not be inserted into icon SLOT ${safeGetNodeName(slot) || "unnamed"}`);
   }
-  return fail(`source ${source.name} (${source.kind}) could not be cloned/replaced into target ${safeGetNodeName(target) || "unnamed"}`, true);
 }
 
 async function buildLeafNode(node: DiagramNodePayload, serverUrl: string, context: ImportBuildContext) {
@@ -1835,7 +1754,7 @@ async function populateComponentSlot(
   context: ImportBuildContext,
   componentMapping: ComponentMapping,
 ) {
-  clearChildren(slot);
+  clearSlotChildren(slot, "content slot", node.id);
   if (slot.layoutMode !== "HORIZONTAL" && slot.layoutMode !== "VERTICAL") {
     configureAutoLayoutFrame(slot, "VERTICAL", 0);
   }
@@ -1879,34 +1798,15 @@ async function populateSlotWithRuntimeStrategy(
   context: ImportBuildContext,
   componentMapping: ComponentMapping,
 ) {
-  const slot = findSlotNode(instance);
+  const slot = findContentSlotNode(instance, node.id);
   if (!slot) {
-    throw new Error(`Mapped component instance for ${node.id} does not contain a layer named "${BOX_SLOT_LAYER_NAME}".`);
+    throw new Error(`Mapped component instance for ${node.id} does not contain a content SLOT named "${BOX_SLOT_LAYER_NAME}".`);
   }
 
-  try {
-    const body = await populateComponentSlot(slot, node, serverUrl, context, componentMapping);
-    setPluginData(body, SLOT_STRATEGY_KEY, "instance-slot");
-    context.instanceSlotCount += 1;
-    return instance;
-  } catch (instanceSlotError) {
-    if (typeof instance.detachInstance !== "function") {
-      throw instanceSlotError;
-    }
-
-    const instanceName = safeGetNodeName(instance);
-    const detached = trackCreatedNode(context, instance.detachInstance());
-    detached.name = instanceName || node.name || node.id;
-    setImportData(detached, node.id, `detached-component:${node.kind}`);
-    const detachedSlot = findSlotNode(detached);
-    if (!detachedSlot) {
-      throw new Error(`Detached component for ${node.id} does not contain a layer named "${BOX_SLOT_LAYER_NAME}".`);
-    }
-    const body = await populateComponentSlot(detachedSlot, node, serverUrl, context, componentMapping);
-    setPluginData(body, SLOT_STRATEGY_KEY, "detached-slot");
-    context.detachedSlotCount += 1;
-    return detached;
-  }
+  const body = await populateComponentSlot(slot, node, serverUrl, context, componentMapping);
+  setPluginData(body, SLOT_STRATEGY_KEY, "instance-slot");
+  context.instanceSlotCount += 1;
+  return instance;
 }
 
 function markMappedComponentNode(
@@ -1919,26 +1819,6 @@ function markMappedComponentNode(
   setImportData(target, node.id, importKind);
   setPluginData(target, COMPONENT_ROLE_KEY, role);
   setPluginData(target, COMPONENT_VARIANT_KEY, variantName);
-}
-
-function detachMappedComponentInstance(
-  instance: any,
-  node: DiagramNodePayload,
-  role: "Child" | "Parent" | "Section",
-  variantName: string,
-  context: ImportBuildContext,
-) {
-  if (typeof instance.detachInstance !== "function") {
-    return null;
-  }
-  const instanceName = safeGetNodeName(instance);
-  const detached = trackCreatedNode(context, instance.detachInstance());
-  detached.name = instanceName || node.name || node.id;
-  markMappedComponentNode(detached, node, role, variantName, `detached-component:${node.kind}`);
-  if (typeof detached.resizeWithoutConstraints === "function") {
-    detached.resizeWithoutConstraints(clampSize(node.width), clampSize(node.height));
-  }
-  return detached;
 }
 
 async function buildComponentMappedNode(
@@ -1964,25 +1844,11 @@ async function buildComponentMappedNode(
     instance.resizeWithoutConstraints(clampSize(node.width), clampSize(node.height));
   }
   await applyInstanceTextOverrides(instance, node);
-  let workingNode = instance;
-  const iconResult = await applyInstanceIconOverride(instance, node, componentMapping, context, false);
-  if (!iconResult.ok) {
-    if (iconResult.retryDetached) {
-      const detached = detachMappedComponentInstance(instance, node, role, variantName, context);
-      if (detached) {
-        workingNode = detached;
-        await applyInstanceIconOverride(detached, node, componentMapping, context, true);
-      } else if (node.icon) {
-        noteMissingIcon(context, node.icon.name, iconResult.reason);
-      }
-    } else if (node.icon) {
-      noteMissingIcon(context, node.icon.name, iconResult.reason);
-    }
-  }
+  await applyInstanceIconOverride(instance, node, componentMapping, context, true);
 
   const populated = node.children.length > 0
-    ? await populateSlotWithRuntimeStrategy(workingNode, node, serverUrl, context, componentMapping)
-    : workingNode;
+    ? await populateSlotWithRuntimeStrategy(instance, node, serverUrl, context, componentMapping)
+    : instance;
   setPluginData(populated, COMPONENT_ROLE_KEY, role);
   setPluginData(populated, COMPONENT_VARIANT_KEY, variantName);
   finalizeFrameOwnSizing(populated, node.width, node.height, node.sizingW, node.sizingH);
@@ -2120,7 +1986,6 @@ async function upsertFrameDiagramPayload(
       componentMode: componentMapping ? BOX_COMPONENT_SET_NAME : "generic-frame",
       componentInstanceCount: buildContext.componentInstanceCount,
       instanceSlotCount: buildContext.instanceSlotCount,
-      detachedSlotCount: buildContext.detachedSlotCount,
       componentSearchPageCount: componentMapping?.searchedPageCount ?? (safeGetChildren(figma.root).length || 1),
       iconSourceCount: componentMapping?.iconSources.size ?? 0,
       refreshed: Boolean(existing),
@@ -2202,7 +2067,7 @@ async function runDiagramImport(serverUrl: string, slug: string) {
   const result = await upsertFrameDiagram(serverUrl, slug);
   figma.ui.postMessage({
     type: "done",
-    text: `${result.refreshed ? "Refreshed" : "Inserted"} ${result.title} (${Math.round(result.width)}x${Math.round(result.height)}), root children: ${result.childCount}, imported nodes: ${result.descendantCount}, sizing verified: ${result.sizingVerifiedCount}, component verified: ${result.componentVerifiedCount}, mode: ${result.componentMode}, components: ${result.componentInstanceCount}, instance slots: ${result.instanceSlotCount}, detached slots: ${result.detachedSlotCount}, searched pages: ${result.componentSearchPageCount}, icon sources: ${result.iconSourceCount}`,
+    text: `${result.refreshed ? "Refreshed" : "Inserted"} ${result.title} (${Math.round(result.width)}x${Math.round(result.height)}), root children: ${result.childCount}, imported nodes: ${result.descendantCount}, sizing verified: ${result.sizingVerifiedCount}, component verified: ${result.componentVerifiedCount}, mode: ${result.componentMode}, components: ${result.componentInstanceCount}, instance slots: ${result.instanceSlotCount}, searched pages: ${result.componentSearchPageCount}, icon sources: ${result.iconSourceCount}`,
   });
 }
 
@@ -2211,7 +2076,7 @@ async function runYamlImport(serverUrl: string, yamlText: string, sourceName: st
   const result = await upsertYamlDiagram(serverUrl, yamlText, sourceName);
   figma.ui.postMessage({
     type: "done",
-    text: `${result.refreshed ? "Refreshed" : "Inserted"} ${result.title} (${Math.round(result.width)}x${Math.round(result.height)}), root children: ${result.childCount}, imported nodes: ${result.descendantCount}, sizing verified: ${result.sizingVerifiedCount}, component verified: ${result.componentVerifiedCount}, mode: ${result.componentMode}, components: ${result.componentInstanceCount}, instance slots: ${result.instanceSlotCount}, detached slots: ${result.detachedSlotCount}, searched pages: ${result.componentSearchPageCount}, icon sources: ${result.iconSourceCount}`,
+    text: `${result.refreshed ? "Refreshed" : "Inserted"} ${result.title} (${Math.round(result.width)}x${Math.round(result.height)}), root children: ${result.childCount}, imported nodes: ${result.descendantCount}, sizing verified: ${result.sizingVerifiedCount}, component verified: ${result.componentVerifiedCount}, mode: ${result.componentMode}, components: ${result.componentInstanceCount}, instance slots: ${result.instanceSlotCount}, searched pages: ${result.componentSearchPageCount}, icon sources: ${result.iconSourceCount}`,
   });
 }
 

@@ -90,18 +90,15 @@ Implementation consequence:
   source of truth for this slice
 - icon sources are matched by the same normalized stable name used for YAML icon
   names
-- Figma `COMPONENT` nodes can be used for native icon instance swaps
+- Figma `COMPONENT` nodes can be instantiated into a component-owned icon slot
 - icon-sized copied Figma `INSTANCE` nodes named with or without `.svg` can be
-  applied by resolving their accessible main component and swapping the box icon
-  target to that component, preserving native instance behavior where Figma
-  exposes it
+  cloned into a component-owned icon slot
 - `.svg`-named cloneable nodes such as copied `FRAME`, `GROUP`, `VECTOR`, or
-  `INSTANCE` assets can also be cloned into the box icon position as a fallback
+  `INSTANCE` assets can also be cloned into the component-owned icon slot
 - live Figma reruns showed copied icon sources were discovered but replacement
-  into the `Network.svg` placeholder inside the live `box` instance was rejected;
-  the importer therefore detaches only the affected box instance and retries
-  clone/replacement in the detached subtree when the component does not expose a
-  swappable icon target
+  into the old `Network.svg` placeholder inside the live `box` instance was
+  rejected; after the user converted icons to actual Figma slots, the selected
+  importer strategy changed to strict `SLOT` insertion with no detach fallback
 - descendants of the `box` component set and previously imported diagram
   subtrees are excluded from icon-source discovery so placeholder icons are not
   mistaken for real library assets
@@ -139,24 +136,24 @@ visible in connector metadata.
 
 ## Slot/Nesting Conclusion
 
-The slot strategy still needs a live probe. Current Figma docs state that
-`InstanceNode.setProperties(...)` does not support `SLOT` properties and throws
-for slot properties. That means the importer must not assume it can populate a
-Figma component slot by setting a slot component property.
+Current Figma docs state that `InstanceNode.setProperties(...)` does not support
+`SLOT` properties and throws for slot properties. Converted slots are instead
+first-class `SlotNode` containers with child APIs.
 
-The next branch must prove one concrete strategy against the user's actual box
-component:
+After the user converted the parent/section content placeholders and icon
+placeholders to actual Figma slots, the selected strategy is:
 
-- preserve an intact instance and mutate a discoverable nested slot target, if
-  Figma allows that operation
-- detach the instance before inserting generated child layout, with the loss of
-  component-instance linkage documented
-- wrap the component instance and generated child auto-layout container in a
-  plugin-owned frame, if intact slot mutation is not possible
-- use another explicitly proven strategy
+- preserve each mapped `box` as an intact live component instance
+- find content insertion by a real `SLOT` named `slot`
+- find icon insertion by exactly one real non-content `SLOT` in the mapped
+  instance
+- clear and append only inside those `SLOT` nodes
+- never replace ordinary instance sublayers
+- never detach as fallback
 
-The readback validator must record which strategy was used; visual similarity is
-not enough.
+The in-repo fake Figma model now rejects structural mutation on ordinary
+instance sublayers and only allows it on `SLOT` nodes. Live Figma validation is
+still required before closeout; visual similarity is not enough.
 
 ## Can We Navigate The Icon Library Automatically?
 

@@ -33,6 +33,9 @@ and Section. The separate Brand icons library was not fully inspected through
 the connector, but the user copied the icon assets into the same Figma test file
 under frames/folders with names matching the project icon names. The first
 implementation therefore supports current-file icon discovery by stable name.
+The user then converted both content and icon placeholders to Figma slots, so
+the selected component strategy is strict `SlotNode` insertion with no detach
+fallback.
 
 ## Current Blockers
 
@@ -40,8 +43,9 @@ implementation therefore supports current-file icon discovery by stable name.
   icon selection is supported for current-file copies whose stable layer or
   component names normalize to YAML icon names. The importer searches outside
   the `box` component set for matching Figma icon components and `.svg`-named
-  cloneable icon nodes, including assets nested in frames/folders, and fails
-  clearly when a YAML icon has no applicable source.
+  cloneable icon nodes, including assets nested in frames/folders. Resolved
+  icons are inserted into the component's icon `SLOT`; missing icons or missing
+  icon slots fail clearly.
 - Collision-free refresh for arbitrary selected YAML cannot be guaranteed from
   a normal file picker because the browser `File` object exposes `file.name`,
   not a durable full path. Same-basename files need a user-approved identity
@@ -72,23 +76,21 @@ implementation therefore supports current-file icon discovery by stable name.
    - Add an inspectable manifest and a validator that reports missing or
      ambiguous mappings before creating nodes.
 
-4. Prove the slot strategy before broad implementation.
+4. Use the strict slot strategy for component-mode structure.
    - Figma docs say `InstanceNode.setProperties()` cannot set `SLOT`
      properties.
-   - Run a live Figma probe against the user's component variants.
-   - Decide one explicit strategy:
-     - intact instance with mutable named child slot, if Figma allows it
-     - detach-for-slot with documented loss of instance linkage
-     - wrapper-slot where the instance and generated child layout are siblings
-       inside an owning frame
-     - another proven strategy that keeps readback verifiable
-   - Record the result before marking implementation closeout-ready.
+   - Content insertion targets exactly one live `SLOT` named `slot`.
+   - Icon insertion targets exactly one live non-content `SLOT` in the mapped
+     box instance.
+   - If either slot is absent, ambiguous, or rejects child mutation, fail import
+     rather than detaching or rewriting ordinary instance sublayers.
+   - Record live Figma validation before marking implementation closeout-ready.
 
 5. Build mapped instances and generated slot containers.
    - Resolve component/variant for each semantic node.
-   - Instantiate, set component properties, text/icon overrides, and stable
-     import plugin data.
+   - Instantiate, set supported text overrides and stable import plugin data.
    - Insert one generated slot container for children.
+   - Insert resolved copied icon sources into the icon slot.
    - Slot container direction comes from payload body/layout direction.
    - Slot container sizing uses the spec 078 effective sizing rules.
 
@@ -112,9 +114,10 @@ Deliverables:
   keys.
 - A short findings file or validation section recording the user's component
   set names, expected variants, slot marker, and live mutation result.
-- A minimal live or fake-Figma probe that proves the chosen slot approach.
-- A decision on whether mapped imports preserve intact instances or intentionally
-  detach/wrap for nested content.
+- A hardened fake-Figma probe that models immutable ordinary instance
+  sublayers and mutable `SLOT` nodes.
+- A recorded decision that mapped imports preserve intact instances by mutating
+  only real `SLOT` nodes; they do not detach or wrap for nested content.
 
 ### Phase 1 - Arbitrary YAML Payloads
 
@@ -174,8 +177,9 @@ Deliverables:
 
 ## Risks
 
-- Figma may not permit inserting children into the desired component slot while
-  preserving instance semantics.
+- Figma may reject child mutation on the desired `SLOT` in live plugin runs; if
+  so, component-mode import must fail clearly until the component contract is
+  re-authored, because the branch no longer detaches as a fallback.
 - Component property names for text/boolean/instance-swap controls can include
   generated suffixes, so matching by display name alone may be ambiguous.
 - Remote library components may be inaccessible unless imported by key; first

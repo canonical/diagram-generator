@@ -35,6 +35,11 @@ than hidden behind the working generic-frame importer.
   but current docs state that `setProperties` does not support `SLOT`
   properties and will throw for slot properties:
   https://developers.figma.com/docs/plugins/api/InstanceNode/
+- Converted Figma slots are first-class `SlotNode` containers. The plugin must
+  treat slot insertion as child mutation of nodes whose `type` is `SLOT`, not
+  as `InstanceNode.setProperties(...)` and not as mutation of ordinary instance
+  sublayers:
+  https://developers.figma.com/docs/plugins/api/SlotNode/
 - `showOpenFilePicker()` is limited/experimental and not baseline across all
   browser contexts, so the plugin UI must have a file-input fallback:
   https://developer.mozilla.org/en-US/docs/Web/API/Window/showOpenFilePicker
@@ -64,9 +69,11 @@ Outcome recorded in
   The importer supports that current-file contract by matching normalized YAML
   icon names to Figma icon components or `.svg`-named cloneable icon nodes,
   including nested assets.
-- Slot insertion remains the first live feasibility gate because Figma's
-  documented `InstanceNode.setProperties(...)` API does not support setting
-  `SLOT` properties.
+- The user later converted both content and icon placeholders to actual Figma
+  slots. The selected implementation is strict `SlotNode` insertion: content
+  uses the `SLOT` named `slot`, icons use the single non-content `SLOT` inside
+  each box variant, and the importer fails rather than detaching if a required
+  slot is absent or rejects mutation.
 
 ## User Scenarios & Testing
 
@@ -154,10 +161,10 @@ generated auto-layout parent and child order.
 3. **Given** the payload says the body/child flow is vertical, **When** the
    plugin builds the slot container, **Then** that container uses vertical
    auto-layout with payload gap, padding, child order, and effective sizing.
-4. **Given** Figma does not allow mutating the desired slot while the node
-   remains an instance, **When** the importer reaches that node, **Then** it uses
-   an explicit documented strategy such as detach-for-slot or wrapper-slot and
-   the readback validator proves the final structure.
+4. **Given** the target component does not expose a real mutable `SLOT` node,
+   **When** the importer reaches that node, **Then** import fails with an
+   actionable slot-contract error instead of detaching or rewriting ordinary
+   instance sublayers.
 
 ---
 
@@ -213,9 +220,9 @@ content updates while the allowed Figma override remains.
   component matches, and unmapped semantic roles MUST produce explicit import
   failures with actionable messages.
 - **FR-009**: The slot contract MUST define how the plugin identifies the
-  content insertion target inside a component, such as a stable layer name,
-  shared plugin data marker, exposed nested instance, or agreed component
-  property.
+  insertion targets inside a component. For this slice, content uses exactly
+  one `SLOT` named `slot`, and icons use exactly one non-content `SLOT` in each
+  mapped box variant.
 - **FR-010**: Before implementation commits to one slot strategy, the spec work
   MUST include a Figma feasibility probe proving whether slot content can be
   inserted while preserving component-instance semantics. The probe MUST account
@@ -233,13 +240,11 @@ content updates while the allowed Figma override remains.
   matching icon sources by stable normalized name outside the `box` component
   set. It MUST support nested Figma icon components, icon-sized copied Figma
   icon instances named with or without the `.svg` suffix, and `.svg`-named
-  cloneable icon nodes. Copied icon instances SHOULD be applied by swapping the
-  target icon layer to the source instance's accessible main component before
-  falling back to clone/replacement. If Figma rejects icon replacement inside a
-  live box instance because the component does not expose a swappable icon
-  target, the importer MAY detach only that affected box instance and retry the
-  icon replacement in the detached subtree. It MUST fail import rather than
-  silently ignore an icon that cannot be resolved or applied.
+  cloneable icon nodes. The importer MUST insert the resolved icon node into a
+  real icon `SLOT` on the live component instance. It MUST NOT replace ordinary
+  instance sublayers, detach the box, or silently fall back to raw SVG drawing.
+  It MUST fail import rather than silently ignore an icon that cannot be
+  resolved or inserted.
 - **FR-014**: Refresh MUST continue to use stable import IDs and MUST define
   importer-owned versus user-owned component properties before overwriting an
   existing instance.
@@ -294,9 +299,9 @@ content updates while the allowed Figma override remains.
   visible in the imported Figma component-instance structure.
 - **SC-006**: The readback validator catches an intentionally wrong component
   mapping, wrong slot direction, and wrong Fill/Hug/Fixed sizing in tests.
-- **SC-007**: Live Figma verification records whether the chosen slot strategy
-  preserves component-instance semantics or intentionally detaches/wraps nodes,
-  with no ambiguous "looks right" closeout.
+- **SC-007**: Live Figma verification records whether strict `SlotNode`
+  insertion preserves component-instance semantics, with no ambiguous "looks
+  right" closeout and no detach fallback.
 
 ## Edge Cases
 
@@ -312,10 +317,10 @@ content updates while the allowed Figma override remains.
   not yet imported into the file.
 - The expected slot marker exists more than once or not at all in a component
   variant.
-- Figma permits edits in a detached slot result but not in an intact component
-  instance.
+- Figma rejects mutation of a required content or icon `SLOT` on an intact
+  component instance.
 - A role maps to a variant property name that has a generated `#...` suffix.
-- The user refreshes a diagram after manually deleting or detaching part of the
+- The user refreshes a diagram after manually deleting or modifying part of the
   imported instance tree.
 - The file picker API is unavailable in Figma Desktop's plugin iframe; fallback
   `<input type="file">` must still work.

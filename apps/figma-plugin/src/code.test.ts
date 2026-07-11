@@ -50,7 +50,7 @@ class FakeSceneNode {
   selection: FakeSceneNode[] = [];
   constraints: { horizontal: string; vertical: string } | null = null;
   rejectChildMutation = false;
-  swappedComponentName: string | null = null;
+  instanceSublayer = false;
   mainComponent: FakeSceneNode | null = null;
   private readonly pluginData = new Map<string, Map<string, string>>();
 
@@ -99,7 +99,7 @@ class FakeSceneNode {
   }
 
   appendChild(child: FakeSceneNode) {
-    if (this.rejectChildMutation) {
+    if (this.rejectsChildMutation()) {
       throw new Error(`Child mutation rejected by ${this._name || this.type}`);
     }
     if (child.parent) {
@@ -114,7 +114,7 @@ class FakeSceneNode {
   }
 
   insertChild(index: number, child: FakeSceneNode) {
-    if (this.rejectChildMutation) {
+    if (this.rejectsChildMutation()) {
       throw new Error(`Child mutation rejected by ${this._name || this.type}`);
     }
     if (child.parent) {
@@ -134,7 +134,7 @@ class FakeSceneNode {
       this.removed = true;
       return;
     }
-    if (this.parent.rejectChildMutation) {
+    if (this.parent.rejectsChildMutation()) {
       throw new Error(`Child mutation rejected by ${this.parent._name || this.parent.type}`);
     }
     const index = this.parent.children.indexOf(this);
@@ -175,15 +175,9 @@ class FakeSceneNode {
     }
     const instance = this.cloneTree("INSTANCE");
     instance.name = this.name;
+    instance.mainComponent = this;
     fakeFigma.currentPage.appendChild(instance);
     return instance;
-  }
-
-  swapComponent(component: FakeSceneNode) {
-    if (typeof component.createInstance !== "function") {
-      throw new Error("swapComponent target is not a component");
-    }
-    this.swappedComponentName = component.name;
   }
 
   clone() {
@@ -207,7 +201,7 @@ class FakeSceneNode {
     } else {
       fakeFigma.currentPage.appendChild(detached);
     }
-    this.throwOnNameRead = true;
+    this.invalidateRemovedSubtree();
     return detached;
   }
 
@@ -215,7 +209,7 @@ class FakeSceneNode {
     return this.mainComponent;
   }
 
-  private cloneTree(typeOverride?: string, preserveMutationLocks = true) {
+  private cloneTree(typeOverride?: string, preserveMutationLocks = true, instanceSublayer = false) {
     const clone = new FakeSceneNode(typeOverride || this.type);
     clone.name = this._name;
     clone.width = this.width;
@@ -245,11 +239,28 @@ class FakeSceneNode {
     clone.characters = this.characters;
     clone.constraints = this.constraints ? { ...this.constraints } : null;
     clone.mainComponent = this.mainComponent;
+    clone.instanceSublayer = instanceSublayer;
+    const cloneType = typeOverride || this.type;
+    const childInstanceSublayer = instanceSublayer || cloneType === "INSTANCE";
     for (const child of this.children) {
-      clone.appendChild(child.cloneTree(undefined, preserveMutationLocks));
+      const childClone = child.cloneTree(undefined, preserveMutationLocks, childInstanceSublayer);
+      childClone.parent = clone;
+      clone.children.push(childClone);
     }
     clone.rejectChildMutation = preserveMutationLocks ? this.rejectChildMutation : false;
     return clone;
+  }
+
+  private rejectsChildMutation() {
+    return this.rejectChildMutation || (this.instanceSublayer && this.type !== "SLOT");
+  }
+
+  private invalidateRemovedSubtree() {
+    this.throwOnNameRead = true;
+    this.throwOnParentRead = true;
+    for (const child of this.children) {
+      child.invalidateRemovedSubtree();
+    }
   }
 
   private validateLayoutSizing(axis: "HORIZONTAL" | "VERTICAL", value: string) {
@@ -607,13 +618,18 @@ function makeBoxVariant(role: "Child" | "Parent" | "Section", includeSlot: boole
   textBlock.appendChild(makeTextNode("Helper text", "Helper text"));
   contents.appendChild(textBlock);
 
-  const icon = new FakeSceneNode("INSTANCE");
+  const icon = new FakeSceneNode("SLOT");
   icon.name = "Network.svg";
+  icon.layoutMode = "NONE";
+  icon.resizeWithoutConstraints(48, 48);
+  const defaultIcon = new FakeSceneNode("INSTANCE");
+  defaultIcon.name = "Default icon";
+  icon.appendChild(defaultIcon);
   contents.appendChild(icon);
   component.appendChild(contents);
 
   if (includeSlot) {
-    const slot = new FakeSceneNode("FRAME");
+    const slot = new FakeSceneNode("SLOT");
     slot.name = "slot";
     slot.layoutMode = "VERTICAL";
     slot.primaryAxisSizingMode = "FIXED";
@@ -1019,7 +1035,6 @@ test("upsertYamlDiagram uses box component variants and instance slots when avai
   assert.equal(result.componentInstanceCount, 2);
   assert.equal(result.componentVerifiedCount, 3);
   assert.equal(result.instanceSlotCount, 1);
-  assert.equal(result.detachedSlotCount, 0);
   assert.equal(panel?.type, "INSTANCE");
   assert.equal(panel?.name, "Panel 1");
   assert.equal(child?.type, "INSTANCE");
@@ -1066,7 +1081,8 @@ test("upsertYamlDiagram finds components and copied icons on non-current pages",
   assert.equal(result.componentMode, "box");
   assert.equal(result.componentInstanceCount, 1);
   assert.equal(child?.type, "INSTANCE");
-  assert.equal(iconTarget?.swappedComponentName, "Gateway.svg");
+  assert.equal(iconTarget?.type, "INSTANCE");
+  assert.equal(iconTarget?.getSharedPluginData("dgp", "importId"), "icon-child:icon");
 });
 
 test("upsertYamlDiagram reports missing icon components in component mode", async () => {
@@ -1093,7 +1109,7 @@ test("upsertYamlDiagram reports missing icon components in component mode", asyn
   );
 });
 
-test("upsertYamlDiagram swaps icon component when matching icon exists", async () => {
+test("upsertYamlDiagram inserts icon component into the icon slot when matching icon exists", async () => {
   resetTestState();
   installBoxComponentSet();
   installIconComponent("Gateway.svg");
@@ -1119,7 +1135,8 @@ test("upsertYamlDiagram swaps icon component when matching icon exists", async (
 
   assert.equal(result.componentMode, "box");
   assert.equal(result.componentVerifiedCount, 1);
-  assert.equal(iconTarget?.swappedComponentName, "Gateway.svg");
+  assert.equal(iconTarget?.type, "INSTANCE");
+  assert.equal(iconTarget?.getSharedPluginData("dgp", "importId"), "icon-child:icon");
 });
 
 test("upsertYamlDiagram discovers copied icon components nested in folders", async () => {
@@ -1148,7 +1165,8 @@ test("upsertYamlDiagram discovers copied icon components nested in folders", asy
 
   assert.equal(result.componentMode, "box");
   assert.equal(result.componentVerifiedCount, 1);
-  assert.equal(iconTarget?.swappedComponentName, "Firewall.svg");
+  assert.equal(iconTarget?.type, "INSTANCE");
+  assert.equal(iconTarget?.getSharedPluginData("dgp", "importId"), "icon-child:icon");
 });
 
 test("upsertYamlDiagram clones copied icon instances named without svg extension", async () => {
@@ -1174,16 +1192,16 @@ test("upsertYamlDiagram clones copied icon instances named without svg extension
   const importedRoot = fakeFigma.currentPage.selection[0]!;
   const child = findImportedById(importedRoot, "icon-child");
   const replacement = child ? child.findAll((node) => node.name === "AI.svg")[0] : null;
-  const placeholder = child ? child.findAll((node) => node.name === "Network.svg")[0] : null;
+  const iconSlot = child ? child.findAll((node) => node.name === "Network.svg")[0] : null;
 
   assert.equal(result.componentMode, "box");
   assert.equal(result.componentVerifiedCount, 1);
   assert.equal(replacement?.type, "INSTANCE");
   assert.equal(replacement?.getSharedPluginData("dgp", "importId"), "icon-child:icon");
-  assert.equal(placeholder, undefined);
+  assert.equal(iconSlot?.type, "SLOT");
 });
 
-test("upsertYamlDiagram detaches box when copied icon cannot replace inside live instance", async () => {
+test("upsertYamlDiagram inserts copied icon into SLOT without mutating normal instance sublayers", async () => {
   resetTestState();
   const set = installBoxComponentSet();
   const childVariant = set.children[0]!;
@@ -1192,8 +1210,8 @@ test("upsertYamlDiagram detaches box when copied icon cannot replace inside live
   contents.rejectChildMutation = true;
   installIconInstance("AI");
   fetchState.payload = {
-    slug: "detached-icon",
-    title: "Detached icon",
+    slug: "slot-icon",
+    title: "Slot icon",
     root: makeRoot([
       makeLeaf({
         id: "icon-child",
@@ -1206,22 +1224,22 @@ test("upsertYamlDiagram detaches box when copied icon cannot replace inside live
     ]),
   };
 
-  const result = await testables.upsertYamlDiagram("http://localhost:3846", "title: Detached icon", "icons.yaml");
+  const result = await testables.upsertYamlDiagram("http://localhost:3846", "title: Slot icon", "icons.yaml");
   const importedRoot = fakeFigma.currentPage.selection[0]!;
   const child = findImportedById(importedRoot, "icon-child");
   const replacement = child ? child.findAll((node) => node.name === "AI.svg")[0] : null;
-  const placeholder = child ? child.findAll((node) => node.name === "Network.svg")[0] : null;
+  const iconSlot = child ? child.findAll((node) => node.name === "Network.svg")[0] : null;
 
   assert.equal(result.componentMode, "box");
   assert.equal(result.componentVerifiedCount, 1);
-  assert.equal(child?.type, "FRAME");
-  assert.equal(child?.getSharedPluginData("dgp", "importKind"), "detached-component:leaf");
+  assert.equal(child?.type, "INSTANCE");
+  assert.equal(child?.getSharedPluginData("dgp", "importKind"), "component:leaf");
   assert.equal(replacement?.type, "INSTANCE");
   assert.equal(replacement?.getSharedPluginData("dgp", "importId"), "icon-child:icon");
-  assert.equal(placeholder, undefined);
+  assert.equal(iconSlot?.type, "SLOT");
 });
 
-test("upsertYamlDiagram swaps copied icon instances through their main component", async () => {
+test("upsertYamlDiagram clones copied icon instances with their main component into the icon slot", async () => {
   resetTestState();
   installBoxComponentSet();
   const mainComponent = new FakeSceneNode("COMPONENT");
@@ -1249,7 +1267,7 @@ test("upsertYamlDiagram swaps copied icon instances through their main component
 
   assert.equal(result.componentMode, "box");
   assert.equal(result.componentVerifiedCount, 1);
-  assert.equal(iconTarget?.swappedComponentName, "AI master");
+  assert.equal(iconTarget?.mainComponent?.name, "AI master");
   assert.equal(iconTarget?.getSharedPluginData("dgp", "importId"), "icon-child:icon");
 });
 
@@ -1278,7 +1296,7 @@ test("upsertYamlDiagram does not treat oversized instances as copied icon source
   );
 });
 
-test("upsertYamlDiagram replaces icon placeholder from copied cloneable svg frame", async () => {
+test("upsertYamlDiagram inserts copied cloneable svg frame into the icon slot", async () => {
   resetTestState();
   installBoxComponentSet();
   installCloneableIconFrame("Router.svg");
@@ -1301,21 +1319,21 @@ test("upsertYamlDiagram replaces icon placeholder from copied cloneable svg fram
   const importedRoot = fakeFigma.currentPage.selection[0]!;
   const child = findImportedById(importedRoot, "icon-child");
   const replacement = child ? child.findAll((node) => node.name === "Router.svg")[0] : null;
-  const placeholder = child ? child.findAll((node) => node.name === "Network.svg")[0] : null;
+  const iconSlot = child ? child.findAll((node) => node.name === "Network.svg")[0] : null;
 
   assert.equal(result.componentMode, "box");
   assert.equal(result.componentVerifiedCount, 1);
   assert.equal(replacement?.type, "FRAME");
   assert.equal(replacement?.getSharedPluginData("dgp", "importId"), "icon-child:icon");
-  assert.equal(placeholder, undefined);
+  assert.equal(iconSlot?.type, "SLOT");
 });
 
-test("upsertYamlDiagram detaches mapped instance when live slot mutation is rejected", async () => {
+test("upsertYamlDiagram rejects mapped instance when content SLOT mutation is rejected", async () => {
   resetTestState();
   installBoxComponentSet({ slotRejectsMutation: true });
   fetchState.payload = {
-    slug: "detached-slot",
-    title: "Detached slot",
+    slug: "rejected-slot",
+    title: "Rejected slot",
     root: makeRoot([
       makeContainerNode([
         makeLeaf({ id: "child-1", name: "Child 1" }),
@@ -1323,16 +1341,10 @@ test("upsertYamlDiagram detaches mapped instance when live slot mutation is reje
     ]),
   };
 
-  const result = await testables.upsertYamlDiagram("http://localhost:3846", "title: Detached", "detached.yaml");
-  const importedRoot = fakeFigma.currentPage.selection[0]!;
-  const panel = findImportedById(importedRoot, "panel-1");
-
-  assert.equal(result.componentMode, "box");
-  assert.equal(result.componentVerifiedCount, 3);
-  assert.equal(result.instanceSlotCount, 0);
-  assert.equal(result.detachedSlotCount, 1);
-  assert.equal(panel?.type, "FRAME");
-  assert.equal(panel?.getSharedPluginData("dgp", "importKind"), "detached-component:panel");
+  await assert.rejects(
+    () => testables.upsertYamlDiagram("http://localhost:3846", "title: Rejected slot", "rejected-slot.yaml"),
+    /Child mutation rejected by slot/,
+  );
 });
 
 test("validateImportedComponentStructure rejects wrong slot direction", async () => {
