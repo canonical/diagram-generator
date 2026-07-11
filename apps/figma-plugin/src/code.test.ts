@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { createFrameDiagramPayload } from "./dev-server.js";
 
 type PluginTestables = {
-  buildContainerNode: (node: any, serverUrl: string, context: any) => Promise<any>;
+  buildContainerNode: (node: any, serverUrl: string, context: any, componentMapping?: any) => Promise<any>;
   cleanupCreatedNodes: (context: any) => void;
   createImportBuildContext: () => any;
   resolveComponentMapping: () => Promise<any>;
@@ -25,11 +25,12 @@ class FakeSceneNode {
   strokes: any[] = [];
   strokeWeight = 0;
   clipsContent = false;
-  children: FakeSceneNode[] = [];
+  private _children: FakeSceneNode[] = [];
   private _parent: FakeSceneNode | null = null;
   removed = false;
   throwOnParentRead = false;
   throwOnNameRead = false;
+  throwOnChildrenRead = false;
   layoutMode = "NONE";
   layoutWrap = "NO_WRAP";
   primaryAxisAlignItems = "MIN";
@@ -78,6 +79,17 @@ class FakeSceneNode {
 
   set parent(value: FakeSceneNode | null) {
     this._parent = value;
+  }
+
+  get children() {
+    if (this.throwOnChildrenRead) {
+      throw new Error(`in get_children: The node with id "${this._name || this.type}" does not exist`);
+    }
+    return this._children;
+  }
+
+  set children(value: FakeSceneNode[]) {
+    this._children = value;
   }
 
   get layoutSizingHorizontal() {
@@ -258,7 +270,8 @@ class FakeSceneNode {
   private invalidateRemovedSubtree() {
     this.throwOnNameRead = true;
     this.throwOnParentRead = true;
-    for (const child of this.children) {
+    this.throwOnChildrenRead = true;
+    for (const child of this._children) {
       child.invalidateRemovedSubtree();
     }
   }
@@ -1039,6 +1052,32 @@ test("upsertYamlDiagram uses box component variants and instance slots when avai
   assert.equal(panel?.name, "Panel 1");
   assert.equal(child?.type, "INSTANCE");
   assert.equal(slotBody?.name, "panel-1/body");
+});
+
+test("component validation ignores stale ordinary instance sublayer children", async () => {
+  resetTestState();
+  installBoxComponentSet();
+  const root = makeRoot([
+    makeContainerNode([
+      makeLeaf({ id: "child-1", name: "Child 1" }),
+    ]),
+  ]);
+  const context = testables.createImportBuildContext();
+  const mapping = await testables.resolveComponentMapping();
+
+  const importedRoot = await testables.buildContainerNode(
+    root,
+    "http://localhost:3846",
+    context,
+    mapping,
+  );
+  const panel = findImportedById(importedRoot, "panel-1");
+  const contents = panel ? panel.findAll((node) => node.name === "contents")[0] : null;
+  assert.ok(contents);
+  contents.throwOnChildrenRead = true;
+
+  assert.doesNotThrow(() => testables.validateImportedDiagramSizing(importedRoot, root));
+  assert.doesNotThrow(() => testables.validateImportedComponentStructure(importedRoot, root));
 });
 
 test("upsertYamlDiagram finds components and copied icons on non-current pages", async () => {

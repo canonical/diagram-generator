@@ -816,45 +816,15 @@ async function createLeafIcon(
 }
 
 function findExistingImportedLeaf(importId: string) {
-  try {
-    const matches = figma.currentPage.findAll((node: any) => (
-      safeGetNodeType(node) === "FRAME"
-      && getImportData(node, IMPORT_ID_KEY) === importId
-      && getImportData(node, IMPORT_KIND_KEY) === "leaf"
-    ));
-    return matches.length > 0 ? matches[0] : null;
-  } catch (_error) {
-    return null;
-  }
+  return findImportedNode(figma.currentPage, importId, "leaf", "FRAME");
 }
 
 function findExistingImportedDiagram(importId: string) {
-  try {
-    const matches = figma.currentPage.findAll((node: any) => (
-      safeGetNodeType(node) === "FRAME"
-      && getImportData(node, IMPORT_ID_KEY) === importId
-      && getImportData(node, IMPORT_KIND_KEY) === "diagram-root"
-    ));
-    return matches.length > 0 ? matches[0] : null;
-  } catch (_error) {
-    return null;
-  }
+  return findImportedNode(figma.currentPage, importId, "diagram-root", "FRAME");
 }
 
 function countImportedSubtreeNodes(root: any) {
-  if (!root) {
-    return 0;
-  }
-  const rootCount = getImportData(root, IMPORT_ID_KEY) !== "" ? 1 : 0;
-  let descendantCount = 0;
-  try {
-    descendantCount = typeof root.findAll === "function"
-      ? root.findAll((node: any) => getImportData(node, IMPORT_ID_KEY) !== "").length
-      : 0;
-  } catch (_error) {
-    descendantCount = 0;
-  }
-  return rootCount + descendantCount;
+  return collectImportedNodes(root).length;
 }
 
 function collectPayloadSizingExpectations(
@@ -884,19 +854,47 @@ function collectPayloadSizingExpectations(
   return expectations;
 }
 
-function collectImportedNodesById(root: any) {
-  const nodes = new Map<string, any>();
+function getImportIndexChildren(node: any) {
+  if (safeGetNodeType(node) === "INSTANCE") {
+    return findSlotNodes(node).flatMap((slot) => safeGetChildren(slot));
+  }
+  return safeGetChildren(node);
+}
+
+function collectImportedNodes(root: any) {
+  const nodes: any[] = [];
   const visit = (node: any) => {
     const importId = getImportData(node, IMPORT_ID_KEY);
     if (importId) {
-      nodes.set(importId, node);
+      nodes.push(node);
     }
-    for (const child of node.children ?? []) {
+    for (const child of getImportIndexChildren(node)) {
       visit(child);
     }
   };
   visit(root);
   return nodes;
+}
+
+function collectImportedNodesById(root: any) {
+  const nodes = new Map<string, any>();
+  for (const node of collectImportedNodes(root)) {
+    nodes.set(getImportData(node, IMPORT_ID_KEY), node);
+  }
+  return nodes;
+}
+
+function findImportedNode(root: any, importId: string, importKind: string, type?: string) {
+  for (const node of collectImportedNodes(root)) {
+    if (
+      getImportData(node, IMPORT_ID_KEY) === importId
+      && getImportData(node, IMPORT_KIND_KEY) === importKind
+      && (!type || safeGetNodeType(node) === type)
+    ) {
+      return node;
+    }
+  }
+  return null;
 }
 
 function validateImportedDiagramSizing(rootFrame: any, payloadRoot: DiagramNodePayload) {
@@ -972,7 +970,7 @@ function validateImportedComponentStructure(rootFrame: any, payloadRoot: Diagram
         if (body.layoutMode !== node.direction) {
           mismatches.push(`${node.id}/body: expected ${node.direction} layout, got ${body.layoutMode}`);
         }
-        const childIds = (body.children ?? [])
+        const childIds = safeGetChildren(body)
           .map((child: any) => getImportData(child, IMPORT_ID_KEY))
           .filter(Boolean);
         const expectedChildIds = node.children.map((child) => child.id);

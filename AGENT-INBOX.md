@@ -13,7 +13,7 @@ spec catalog/status → [`docs/specs.md`](docs/specs.md) · human notes →
 adversarial reviews → `docs/spec-reviews/`.
 
 **Last-known-green (2026-07-11, spec 079 strict SlotNode slice):**
-`apps/figma-plugin` **34/34**; Figma plugin build ok;
+`apps/figma-plugin` **35/35**; Figma plugin build ok;
 `packages/layout-engine` **1009/1009**; `apps/preview` **166/166**;
 `check_no_new_python.mjs` ok; server health ok on `http://localhost:3846`.
 
@@ -49,6 +49,8 @@ Missing-icon errors include source counts/samples plus first failure reasons.
 The fake Figma model now rejects structural mutation on ordinary instance
 sublayers and recursively invalidates old handles on detach, so the prior
 fake-green component/slot tests now exercise the real architectural constraint.
+Validation/result indexing uses a slot-aware safe traversal so stale ordinary
+instance sublayers are not walked after slot mutation.
 
 The canonical frame YAML corpus has moved from the former scripts frame
 directory to `diagrams/1.input`; preview, layout-engine tests, and the Figma dev
