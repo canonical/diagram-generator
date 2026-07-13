@@ -1,5 +1,5 @@
 const DEFAULT_SERVER_URL = "http://localhost:3846";
-const IMPORTER_BUILD_ID = "079-v3-geometry-after-reparent-20260713.5";
+const IMPORTER_BUILD_ID = "079-semantic-boxes-only-20260713.6";
 const DEFAULT_DIAGRAM_SLUG = "ai-infra-telecom-services-stack";
 const DEFAULT_FONT = { family: "Ubuntu Sans", style: "Regular" };
 const DEFAULT_BOLD_FONT = { family: "Ubuntu Sans", style: "Bold" };
@@ -1082,7 +1082,7 @@ async function validateImportedComponentStructure(
   let checked = 0;
 
   const visit = (node: DiagramNodePayload) => {
-    if (node.kind !== "root") {
+    if (isMappedComponentNode(node)) {
       const imported = nodesById.get(node.id);
       const expectedRole = componentRoleForNode(node);
       if (!imported) {
@@ -1109,7 +1109,7 @@ async function validateImportedComponentStructure(
       }
     }
 
-    if (node.kind !== "root" && node.children.length > 0) {
+    if (isMappedComponentNode(node) && node.children.length > 0) {
       const body = nodesById.get(`${node.id}:body`);
       if (!body) {
         if (!isOpaqueLiveSlotImport(context, `${node.id}:body`)) {
@@ -1712,6 +1712,12 @@ function componentRoleForNode(node: DiagramNodePayload): BoxRole {
   return BOX_ROLE_VARIANTS.child;
 }
 
+function isMappedComponentNode(node: DiagramNodePayload) {
+  // V3 uses `container` for structural wrappers such as rows, stack groups,
+  // and icon/label pairs. They are raw auto-layout frames, not semantic boxes.
+  return node.kind !== "root" && node.kind !== "container";
+}
+
 function createRoleContractUsage(): RoleContractUsage {
   return {
     titleNodeIds: [],
@@ -1763,7 +1769,7 @@ function validateComponentMappingContractForPayload(root: DiagramNodePayload, ma
   const usages = new Map<BoxRole, RoleContractUsage>();
 
   visitDiagramPayloadTree(root, (node) => {
-    if (node.kind === "root") {
+    if (!isMappedComponentNode(node)) {
       return;
     }
     const role = componentRoleForNode(node);
@@ -2489,7 +2495,7 @@ async function buildDiagramFrameNode(
   context: ImportBuildContext,
   componentMapping: ComponentMapping | null = null,
 ) {
-  if (componentMapping && node.kind !== "root") {
+  if (componentMapping && isMappedComponentNode(node)) {
     return buildComponentMappedNode(node, serverUrl, context, componentMapping);
   }
 

@@ -106,6 +106,8 @@
   auto-layout based on payload child/body direction.
 - [x] T042 Insert mapped child instances into slot containers in payload child
   order.
+- [x] T042a Keep V3 structural `kind: container` nodes as raw auto-layout
+  frames; map only semantic box nodes to the `box` component variants.
 - [x] T043 Apply payload gap, padding, and effective body sizing to slot
   containers.
 - [x] T043b Reapply V3 effective `FIXED` geometry after a mapped instance or

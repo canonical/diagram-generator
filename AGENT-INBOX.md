@@ -114,6 +114,11 @@ records V3 effective geometry and reapplies only `FIXED` axes after Figma
 auto-layout reparenting, which can otherwise replace fixed dimensions with
 master/default geometry. Hug axes remain component/slot-content driven.
 
+Latest code fix (awaiting live visual confirmation): V3 `kind: container`
+layout wrappers now remain raw generated auto-layout frames. Only semantic
+section/panel/leaf-like nodes create `box` instances, preventing placeholder
+`Parent` instances from being nested for rows and other structural groups.
+
 Next owner/action: Terra should execute
 [`specs/079-figma-component-variant-import/terra-live-fix-runbook.md`](specs/079-figma-component-variant-import/terra-live-fix-runbook.md).
 Further changes are blocked until the runbook identifies a failed live

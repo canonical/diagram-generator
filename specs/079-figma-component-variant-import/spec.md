@@ -316,6 +316,10 @@ content updates while the allowed Figma override remains.
   geometry across Figma auto-layout reparenting: restore only `FIXED` width or
   height after the child enters its final auto-layout parent; leave `HUG` axes
   content-driven and retain `FILL` as an auto-layout sizing mode.
+- **FR-022**: V3 nodes with `kind: container` are structural layout wrappers,
+  not semantic boxes. Component-mode import MUST create them as raw generated
+  auto-layout frames and MUST NOT insert a `Role=Parent` instance or its
+  authored placeholder label for those nodes.
 
 ### Non-Goals
 

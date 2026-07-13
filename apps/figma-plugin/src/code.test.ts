@@ -1400,6 +1400,45 @@ test("upsertYamlDiagram uses box component variants and instance slots when avai
   assert.equal(componentPropertyValue(child, "Show icon#showIcon"), false);
 });
 
+test("upsertYamlDiagram keeps V3 structural containers as raw auto-layout frames", async () => {
+  resetTestState();
+  installBoxComponentSet();
+  const panel = makeContainerNode([
+    makeLeaf({ id: "child-1", name: "Child 1" }),
+  ], { id: "semantic-panel", name: "Semantic panel" });
+  const structuralRow = makeContainerNode([panel], {
+    id: "structural-row",
+    name: "Structural row",
+    kind: "container",
+    textBlocks: [],
+  });
+  const section = makeContainerNode([structuralRow], {
+    id: "semantic-section",
+    name: "Semantic section",
+    kind: "section",
+  });
+  fetchState.payload = {
+    slug: "structural-containers",
+    title: "Structural containers",
+    root: makeRoot([section]),
+  };
+
+  const result = await testables.upsertYamlDiagram(
+    "http://localhost:3846",
+    "title: Structural containers\nroot:\n  id: page\n",
+    "structural-containers.yaml",
+  );
+  const importedRoot = fakeFigma.currentPage.selection[0]!;
+  const wrapper = findImportedById(importedRoot, "structural-row");
+  const mappedPanel = findImportedById(importedRoot, "semantic-panel");
+
+  assert.equal(result.componentInstanceCount, 3);
+  assert.equal(wrapper?.type, "FRAME");
+  assert.equal(wrapper?.layoutMode, "HORIZONTAL");
+  assert.equal(wrapper?.getSharedPluginData("dgp", "componentRole"), "");
+  assert.equal(mappedPanel?.type, "INSTANCE");
+});
+
 test("upsertYamlDiagram refreshes component imports without duplicate roots or slot bodies", async () => {
   resetTestState();
   installBoxComponentSet();
