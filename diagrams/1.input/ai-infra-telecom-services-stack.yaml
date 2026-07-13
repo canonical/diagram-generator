@@ -257,13 +257,13 @@ root:
         helper:
         - Clean network
         - fabric
-        direction: vertical
+        direction: horizontal
         align: top-center
         gap: 12
         sizing_w: fill
         children:
         - id: regional_row1
-          direction: horizontal
+          direction: vertical
           align: top-center
           gap: 12
           children:
@@ -282,6 +282,9 @@ root:
             - Automation and
             - orchestration
             icon: Operations.svg
+        sizing_h: fill
+        label:
+        - Clean network fabric
       - id: far_edge
         level: 2
         heading: Far edge
@@ -291,7 +294,7 @@ root:
         sizing_w: fill
         children:
         - id: far_row1
-          direction: horizontal
+          direction: vertical
           align: top-center
           gap: 12
           children:
@@ -305,6 +308,7 @@ root:
             - Virtualization and
             - container platforms
             icon: containers.svg
+        sizing_h: fill
   - id: physical_layer
     level: 3
     heading: Physical infrastructure
@@ -324,7 +328,7 @@ root:
         direction: horizontal
         align: top-center
         gap: 12
-        sizing_w: hug
+        sizing_w: fill
         sizing_h: hug
         children:
         - id: gpu_servers
@@ -354,7 +358,7 @@ root:
           - Whitebox
           - switches
           icon: Server.svg
-          sizing_w: hug
+          sizing_w: fill
           sizing_h: hug
       - id: edge_transport
         level: 2
@@ -369,7 +373,7 @@ root:
           - Ruggedized
           - storage
           icon: Storage node.svg
-          sizing_w: hug
+          sizing_w: fill
           sizing_h: hug
   width: 1600
   sizing_w: fixed

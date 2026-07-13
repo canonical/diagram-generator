@@ -30,7 +30,7 @@ fallback, detach path, or per-node exception before completing this runbook.
 - Regression fixture: `diagrams/1.input/ai-infra-telecom-services-stack.yaml`
 - First known contract failure: Section node `services_layer` had no exposed
   title text component property.
-- Repo baseline on 2026-07-13: Figma plugin tests 41/41 and plugin build green.
+- Repo baseline on 2026-07-13: Figma plugin tests 42/42 and plugin build green.
 
 The importer records generated-body and mapped-child ids only after their final
 reparenting, refreshes the direct id index after a live-slot insertion, and

@@ -157,36 +157,6 @@ The in-repo fake Figma model now rejects structural mutation on ordinary
 instance sublayers and only allows it on `SLOT` nodes. Live Figma validation is
 still required before closeout; visual similarity is not enough.
 
-## 2026-07-11 Visual Regression Evidence
-
-The user supplied additional Figma screenshots while testing the SlotNode
-branch:
-
-- `H:\WSL_dev_projects\diagram-generator-worktrees\diagram-generator-yaml-drawio\image copy 2.png`
-- `H:\WSL_dev_projects\diagram-generator-worktrees\diagram-generator-yaml-drawio\image copy.png`
-
-`image copy 2.png` was present in the worktree and was inspected. It shows
-several closeout blockers:
-
-- parent/section instances still display authored default `Parent` and
-  `Helper text` content where the YAML payload does not appear to provide those
-  helper values
-- default placeholder icons remain visible on parent/section instances
-- icon output appears to include SVG-like nodes instead of clearly using the
-  copied Brand icon component/instance sources
-- the layer tree contains repeated slot/body nesting under imported
-  parent/section instances, suggesting generated slot content may be appended
-  or nested repeatedly instead of replacing one importer-owned body/container
-  per semantic node
-- the selected generated body/container shows a large imported area with
-  sizing that needs readback against the payload to rule out hardcoded height
-  regressions
-
-`image copy.png` was reported by the user as evidence of hardcoded-height
-regression, but that file was not present in the worktree during this docs
-update. The hardcoded-height issue is still tracked as a live validation blocker
-because it was reported from the same Figma rerun.
-
 ## 2026-07-11 Parent Variant Design Context
 
 After the master-slot/property implementation, a smaller connector
@@ -202,9 +172,9 @@ This supports the expected helper-visibility, icon-slot, and content-slot
 contract direction, but it is not a plugin API readback of
 `componentPropertyDefinitions` / `componentPropertyReferences`. The generated
 code still rendered the parent title as the literal string `Parent`, so the
-actual title text component property remains unverified. The importer now
-requires a title/text component property and will fail clearly if the real
-component does not expose one.
+actual title text component property remains unverified. The importer prefers a
+title/text component property but can target one identifiable master `TEXT`
+layer with a non-structural `characters` override when the property is absent.
 
 The required screenshot call for node `58:15` timed out, so this pass records
 design-context metadata only.
