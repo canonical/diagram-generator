@@ -328,6 +328,30 @@ test("telecom payload keeps headingless groups structural and panel heights cont
   }
 });
 
+test("value-map payload maps headed level-one containers as panels and keeps transparent wrappers hugging", async () => {
+  const payload = await createFrameDiagramPayload("ai-infra-telco-value-map");
+
+  for (const id of ["operational_ai", "customer_ai", "network_ai", "ai_services_revenue"]) {
+    const node = findPayloadNode(payload.root, id);
+    assert.ok(node, `missing ${id}`);
+    assert.equal(node.kind, "panel", `${id} must retain semantic Parent component chrome`);
+    assert.equal(node.fill, "#F3F3F3", `${id} must retain its authored grey fill`);
+    assert.equal(node.stroke, "#F3F3F3", `${id} must retain its authored solid border`);
+    assert.equal(node.headerMinHeight, 48, `${id} must preserve its synthesized heading`);
+    assert.ok(node.headerIcon, `${id} must preserve its heading icon`);
+  }
+
+  for (const id of ["value_quadrants", "value_top_row", "value_bottom_row"]) {
+    const node = findPayloadNode(payload.root, id);
+    assert.ok(node, `missing ${id}`);
+    assert.equal(node.kind, "container", `${id} must remain a raw structural wrapper`);
+    assert.equal(node.sizingH, "HUG", `${id} wrapper height`);
+    assert.equal(node.bodySizingH, "HUG", `${id} wrapper body height`);
+  }
+
+  assert.deepEqual(collectFillUnderHugViolations(payload.root), []);
+});
+
 test("createFrameDiagramPayloadFromYaml supports arbitrary selected frame YAML", async () => {
   const telecomYaml = await readFile(
     new URL("../../../diagrams/1.input/ai-infra-telecom-services-stack.yaml", import.meta.url),

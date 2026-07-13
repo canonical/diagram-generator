@@ -278,8 +278,6 @@ root:
             - Automation and
             - orchestration
             icon: Operations.svg
-        label:
-        - Clean network fabric
       - id: far_edge
         level: 2
         heading: Far edge

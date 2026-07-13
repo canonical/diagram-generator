@@ -1192,6 +1192,44 @@ test("upsertFrameDiagram applies the real telecom effective payload sizing", asy
   }
 });
 
+test("upsertFrameDiagram maps headed value-map quadrants to live Parent instances without mapping structural wrappers", async () => {
+  resetTestState();
+  installBoxComponentSet();
+  for (const name of [
+    "Operations.svg",
+    "AI.svg",
+    "Network.svg",
+    "Cloud with chip.svg",
+    "Cloud with telco.svg",
+    "Circle backup boot paths.svg",
+    "Laptop with code.svg",
+    "Certified hardware.svg",
+    "Bar chart with cost.svg",
+    "Customer support.svg",
+    "Bar chart with check.svg",
+  ]) {
+    installIconComponent(name);
+  }
+  fetchState.payload = await createFrameDiagramPayload("ai-infra-telco-value-map");
+
+  const result = await testables.upsertFrameDiagram("http://localhost:3846", "ai-infra-telco-value-map");
+  const importedRoot = fakeFigma.currentPage.selection[0]!;
+
+  assert.equal(result.componentMode, "box");
+  for (const id of ["operational_ai", "customer_ai", "network_ai", "ai_services_revenue"]) {
+    const imported = findImportedById(importedRoot, id);
+    assert.equal(imported?.type, "INSTANCE", `${id} must remain a live component instance`);
+    assert.equal(imported?.mainComponent?.name, "Role=Parent", `${id} must use the Parent variant`);
+    assert.equal(imported?.getSharedPluginData("dgp", "componentRole"), "Parent", `${id} component role`);
+  }
+
+  for (const id of ["value_quadrants", "value_top_row", "value_bottom_row"]) {
+    const imported = findImportedById(importedRoot, id);
+    assert.equal(imported?.type, "FRAME", `${id} must remain a raw auto-layout wrapper`);
+    assert.equal(imported?.getSharedPluginData("dgp", "componentRole"), "", `${id} must not map to a component`);
+  }
+});
+
 test("upsertYamlDiagram posts selected YAML and imports returned payload", async () => {
   resetTestState();
   fetchState.payload = {

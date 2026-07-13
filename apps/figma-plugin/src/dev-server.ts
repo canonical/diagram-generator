@@ -321,7 +321,13 @@ function resolveFrameSemanticState(
     } else if (level >= 3) {
       kind = "section";
       isSection = true;
-    } else if (level >= 2 && (frame.isLeaf || hasSemanticContainerText(frame))) {
+    } else if (!frame.isLeaf && hasSemanticContainerText(frame)) {
+      // A real container heading is semantic box chrome regardless of its
+      // authored level. Numeric levels still distinguish leaf panels from
+      // sections; textless rows and stacks remain structural containers.
+      kind = "panel";
+      isPanel = true;
+    } else if (level >= 2 && frame.isLeaf) {
       kind = "panel";
       isPanel = true;
     } else if (frame.isLeaf) {
@@ -336,6 +342,20 @@ function resolveFrameSemanticState(
       parentIsPanel: isLayoutWrapper ? context.parentIsPanel : isPanel,
       parentIsSection: isLayoutWrapper ? context.parentIsSection : isSection,
     },
+  };
+}
+
+function resolveSerializedChrome(frame: any, kind: string) {
+  // The layout engine resolves level-one frames as leaf chrome. Once a headed
+  // non-leaf is promoted to a semantic panel for component import, preserve
+  // its explicit grey/solid box styling instead of serializing that leaf
+  // snapshot as transparent/black.
+  const hasExplicitGreyPanelChrome = kind === "panel"
+    && frame.fill === Fill.GREY
+    && frame.border === Border.SOLID;
+  return {
+    fill: hasExplicitGreyPanelChrome ? Fill.GREY : (frame.resolvedFill ?? "transparent"),
+    stroke: hasExplicitGreyPanelChrome ? Fill.GREY : (frame.resolvedStroke ?? "none"),
   };
 }
 
@@ -389,6 +409,7 @@ export function serializeDiagramNode(
     : rawBodySizing;
   const childParentSizing = bodyFrame ? bodySizing : nodeSizing;
   const structuralContainer = semanticState.kind === "container";
+  const chrome = resolveSerializedChrome(frame, semanticState.kind);
   const headingFrame = findSyntheticHeading(frame);
   const iconColumn = frame.icon ? ICON_COLUMN : 0;
   const headingIconColumn = headingFrame?.icon ? ICON_COLUMN : 0;
@@ -419,8 +440,8 @@ export function serializeDiagramNode(
           bottom: frame.paddingBottom,
           left: frame.paddingLeft,
         },
-    fill: structuralContainer ? "transparent" : (frame.resolvedFill ?? "transparent"),
-    stroke: structuralContainer ? "none" : (frame.resolvedStroke ?? "none"),
+    fill: structuralContainer ? "transparent" : chrome.fill,
+    stroke: structuralContainer ? "none" : chrome.stroke,
     strokeWidth: structuralContainer ? 0 : effectiveResolvedStrokeWidth(frame),
     textFill: frame.resolvedTextFill ?? "#000000",
     iconFill: frame.resolvedIconFill ?? "#000000",

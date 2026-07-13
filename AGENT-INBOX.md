@@ -3,7 +3,7 @@
 Current state only. Invariants live in `AGENTS.md`; operating guidance lives in
 `docs/agent-index.md`; durable spec detail lives under `specs/`.
 
-**Last-known-green (2026-07-13, spec 079):** `apps/figma-plugin` **44/44**;
+**Last-known-green (2026-07-13, spec 079):** `apps/figma-plugin` **46/46**;
 plugin build and `check_no_new_python.mjs` pass; dev server health is 200 at
 `http://localhost:3846`.
 
@@ -24,11 +24,12 @@ valid diagram solely for opaque slot content. Effective V3 `FIXED` geometry is
 reapplied after final auto-layout reparenting; HUG and FILL remain auto-layout
 semantics.
 
-**2026-07-13 semantic grouping and sizing fix:** headingless level-2 groups
-now serialize as raw `container` frames, even if they have an explicit source
-level; only non-leaf level-2 nodes with frame-owned visible text receive the
-live Parent component. This prevents the master placeholder `Parent` chrome
-and unnecessary slots from leaking into structural groups. Explicit vertical
+**2026-07-13 semantic grouping and sizing fix:** headingless groups serialize
+as raw `container` frames, even if they have an explicit source level; every
+non-leaf node with frame-owned visible text receives a live semantic component
+(Parent or Section), including authored level-1 panels. This prevents the
+master placeholder `Parent` chrome and unnecessary slots from leaking into
+structural groups while keeping headed semantic boxes live. Explicit vertical
 `sizing_h: fill` overrides were removed from content-driven fixture panels, so
 their panel/body/row chains use V3 `HUG`; the tallest child now determines the
 height. Payload regressions cover both contracts without changing component
@@ -43,10 +44,18 @@ component contract recognizes a Boolean `hasIcon` definition even without a
 direct icon-layer reference and always sets it false for icon-less payload
 nodes; no detachment or ordinary instance edit is involved.
 
-The branch is queued for an independent adversarial merge review. Give Opus
-[`docs/spec-reviews/opus-review-prompt-2026-07-13-spec-079-merge.md`](docs/spec-reviews/opus-review-prompt-2026-07-13-spec-079-merge.md);
-it must write its verdict to
+The adversarial re-review verdict is **Merge with follow-ups**. The headed
+level-1 container classification defect is fixed: headed non-leaf containers
+become live panels, explicit grey/solid panel chrome is preserved, and
+value-map payload and component-mode regressions guard the behavior. The full
+review history is in
 `docs/spec-reviews/opus-adversarial-review-2026-07-13-spec-079-merge.md`.
+
+Follow-ups: restore semantic headed-container chrome upstream in
+`resolveStyles` (the importer currently needs a grey/solid compatibility
+bridge), and confirm whether headed containers nested directly in panels should
+be demoted rather than yielding nested Parent components. Real-Figma visual
+verification remains a release gate.
 
 Remaining live gate: verify the rebuilt plugin against the actual Figma file
 for sizing and visual component fidelity. Do not claim that gate passed without
