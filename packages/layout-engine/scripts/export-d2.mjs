@@ -41,6 +41,10 @@ async function main() {
   }
 
   const exported = exportD2(compiled.ast);
+  if (strict && exported.warnings.length > 0) {
+    console.error(formatDiagnostics(exported.warnings, yamlPath));
+    process.exit(1);
+  }
   if (exported.warnings.length > 0) {
     console.error(formatDiagnostics(exported.warnings, yamlPath));
   }

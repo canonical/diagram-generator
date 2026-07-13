@@ -106,6 +106,19 @@ From repo root after `npm --prefix packages/layout-engine run build`:
 # Mermaid flowchart export (stderr = warnings)
 node packages/layout-engine/scripts/export-mermaid.mjs --slug tiered-network-architecture
 
+# Import Mermaid as canonical engine-v3 YAML
+node packages/layout-engine/scripts/import-mermaid.mjs \
+  --in /tmp/tiered-network.mmd --out /tmp/tiered-network.yaml
+
+# Import D2 as canonical engine-v3 YAML
+node packages/layout-engine/scripts/import-d2.mjs \
+  --in /tmp/juju-process.d2 --out /tmp/juju-process.yaml
+
+# Verify structural YAML → interchange → YAML equality
+node packages/layout-engine/scripts/interchange-roundtrip.mjs \
+  --in diagrams/1.input/tiered-network-architecture.yaml \
+  --format mermaid --out /tmp/tiered-network.roundtrip.yaml
+
 # Optional migration to author-v1 sugar (stdout or --out)
 node packages/layout-engine/scripts/migrate-diagram-yaml.mjs \
   --in diagrams/1.input/tiered-network-architecture.yaml \
@@ -122,6 +135,8 @@ node packages/layout-engine/scripts/migrate-diagram-yaml.mjs \
 - Lossy: padding, sizing, alignment, icons, anchor-qualified arrow refs, waypoints, arrow labels
 - Invalid edges are skipped defensively when refs are missing or point at the root canvas
 - Emits `MERMAID_UNSUPPORTED_*`, `MERMAID_MISSING_FRAME_REF`, and `MERMAID_ROOT_ENDPOINT_UNSUPPORTED` warnings
+- Import supports `flowchart TB|LR`, labeled nodes, subgraphs, and `-->` edges; unsupported styles/classes are diagnosed
+- Import also accepts Mermaid YAML frontmatter (preserving `title`), `graph`/`TD`/`RL`/`BT` direction aliases, `:::class` suffixes, and `-- "label" -->` edges; dropped class styling is diagnosed without dropping the node
 
 ### D2 (`exportD2`)
 
@@ -138,8 +153,11 @@ node packages/layout-engine/scripts/export-d2.mjs --slug juju-bootstrap-machines
 - Lossy: padding, sizing, alignment, icons, anchor-qualified arrow refs, waypoints
 - Invalid edges are skipped defensively when refs are missing or point at the root canvas
 - Emits `D2_UNSUPPORTED_*`, `D2_MISSING_FRAME_REF`, and `D2_ROOT_ENDPOINT_UNSUPPORTED` warnings
+- Import supports nested shape blocks, quoted/multiline labels, and dot-path connections; styles/classes/vars are diagnosed and skipped
+- D2 edge attribute blocks are skipped after recovering the connection and label; singular `class:` assignments never become frame nodes
 
 See [`specs/028-diagram-interchange-mermaid-d2/`](../specs/028-diagram-interchange-mermaid-d2/spec.md) for import parsers and round-trip fidelity matrix.
+Use `--strict` on export/import CLIs to make interchange warnings fail the process.
 
 ## Reference material
 

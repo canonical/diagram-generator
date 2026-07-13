@@ -12,6 +12,9 @@ spec catalog/status → [`docs/specs.md`](docs/specs.md) · human notes →
 [`INBOX.md`](INBOX.md) · durable per-spec detail → `specs/<id>-<slug>/` ·
 adversarial reviews → `docs/spec-reviews/`.
 
-**No active handoff.** Spec 077 Mermaid ELK cluster lowering completed on
-2026-07-13; its durable record is archived under
-`docs/spec-archive/077-mermaid-elk-cluster-lowering-port/`.
+**No active handoff.** Spec 028 Opus review remediation is complete; the
+durable review and remediation record is
+`docs/spec-reviews/028-diagram-interchange-mermaid-d2-opus-review.md`.
+Last-known-green: 169 test files / 1,031 tests; selected Mermaid and D2 corpus
+imports compile with zero errors; browser bundle freshness and no-new-Python
+checks passed.
